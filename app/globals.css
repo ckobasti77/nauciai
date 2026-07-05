@@ -1,0 +1,73 @@
+@import "tailwindcss";
+
+:root {
+  --background: #fffdf8;
+  --foreground: #0e3158;
+  --ink: #0e3158;
+  --paper: #fffdf8;
+  --paper-strong: #ffffff;
+  --yellow: #f4be30;
+  --muted: #536273;
+  --line: #c9d4df;
+}
+
+@theme inline {
+  --color-background: #fffdf8;
+  --color-foreground: #0e3158;
+  --color-ink: #0e3158;
+  --color-paper: #fffdf8;
+  --color-yellow: #f4be30;
+  --color-muted: #536273;
+  --color-line: #c9d4df;
+  --font-sans: "Nunito", "Nunito Fallback", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Patrick Hand", "Patrick Hand Fallback", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", "Geist Mono Fallback", ui-monospace, monospace;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-nunito), ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: 0;
+}
+
+button,
+a,
+input,
+textarea,
+select {
+  letter-spacing: 0;
+}
+
+::selection {
+  background: var(--yellow);
+  color: var(--ink);
+}
+
+.sketch-grid {
+  background-image:
+    linear-gradient(rgba(14, 49, 88, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(14, 49, 88, 0.06) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+.ink-hatch {
+  background-image: repeating-linear-gradient(
+    -18deg,
+    rgba(14, 49, 88, 0.08) 0,
+    rgba(14, 49, 88, 0.08) 1px,
+    transparent 1px,
+    transparent 7px
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
