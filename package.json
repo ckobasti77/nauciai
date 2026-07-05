@@ -9,6 +9,9 @@
     "lint": "eslint",
     "convex:dev": "convex dev",
     "convex:auth": "node scripts/configure-convex-auth.mjs",
+    "convex:auth:prod": "node scripts/configure-convex-auth.mjs --prod --site-url https://nauciai.vercel.app",
+    "convex:oauth": "node scripts/configure-oauth.mjs",
+    "convex:oauth:prod": "node scripts/configure-oauth.mjs --prod",
     "convex:codegen": "convex codegen",
     "convex:seed": "node scripts/seed-convex.mjs"
   },

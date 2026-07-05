@@ -48,6 +48,10 @@ function initialAdminEmails(): Set<string> {
   );
 }
 
+function roleForEmail(email: string) {
+  return initialAdminEmails().has(email.trim().toLowerCase()) ? "admin" : "student";
+}
+
 export async function currentUserId(ctx: AnyCtx) {
   return getAuthUserId(ctx as never);
 }
@@ -70,11 +74,11 @@ export async function getCurrentProfile(ctx: AnyCtx) {
     .withIndex("by_userId", (q) => q.eq("userId", userId))
     .unique();
 
-  const role = initialAdminEmails().has(email) ? "admin" : "student";
+  const role = roleForEmail(email);
   const name = user?.name ?? email.split("@")[0] ?? "Student";
 
   const profile = existing
-    ? { ...existing, role: existing.role === "admin" || role === "admin" ? "admin" : "student" }
+    ? { ...existing, role }
     : ({
         _id: "",
         userId,
@@ -122,7 +126,7 @@ export async function ensureProfile(ctx: AnyCtx) {
     return db.get(profileId);
   }
 
-  if (existing.role !== role && role === "admin") {
+  if (existing.role !== role) {
     await db.patch(existing._id, { role, updatedAt: now });
     return db.get(existing._id);
   }
