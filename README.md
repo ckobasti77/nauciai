@@ -50,7 +50,7 @@ For production, configure the production Convex deployment:
 npm run convex:auth:prod
 npx convex env --prod set AUTH_SECRET "<random-secret>"
 npx convex env --prod set WEBHOOK_SYNC_SECRET "<same-value-as-vercel>"
-npx convex env --prod set INITIAL_ADMIN_EMAILS "aiuniverzitet@gmail.com"
+npx convex env --prod set INITIAL_ADMIN_EMAILS "nauciai2026@gmail.com"
 npm run convex:oauth:prod -- --google-id "<prod-google-client-id>" --google-secret "<prod-google-client-secret>" --skip-apple
 ```
 
