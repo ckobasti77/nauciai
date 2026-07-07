@@ -14,6 +14,7 @@ import type * as community from "../community.js";
 import type * as courses from "../courses.js";
 import type * as helpers from "../helpers.js";
 import type * as http from "../http.js";
+import type * as profiles from "../profiles.js";
 import type * as seed from "../seed.js";
 import type * as video from "../video.js";
 
@@ -30,6 +31,7 @@ declare const fullApi: ApiFromModules<{
   courses: typeof courses;
   helpers: typeof helpers;
   http: typeof http;
+  profiles: typeof profiles;
   seed: typeof seed;
   video: typeof video;
 }>;

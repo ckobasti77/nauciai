@@ -1,6 +1,7 @@
 import { CreditCard, Globe2, UserRound } from "lucide-react";
 
 import { PortalButton } from "@/components/app/checkout-button";
+import { ProfileEditor } from "@/components/app/profile-editor";
 import { Panel, SectionHeader } from "@/components/ui/primitives";
 import { courses, studentProfile } from "@/lib/content";
 import type { ViewerProfile } from "@/lib/current-viewer";
@@ -20,6 +21,10 @@ function profileInitials(name: string, email: string) {
 }
 
 export function ProfilePage({ locale, profile }: { locale: Locale; profile?: ViewerProfile }) {
+  if (process.env.NEXT_PUBLIC_CONVEX_URL) {
+    return <ProfileEditor locale={locale} initialProfile={profile} />;
+  }
+
   const name = profile?.name ?? studentProfile.name;
   const email = profile?.email ?? studentProfile.email;
   const role = profile?.role ?? studentProfile.role;

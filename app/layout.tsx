@@ -41,7 +41,7 @@ export default async function RootLayout({
     </AppProviders>
   );
   const bodyContent = process.env.NEXT_PUBLIC_CONVEX_URL
-    ? await ConvexAuthNextjsServerProvider({ children: content })
+    ? await ConvexAuthNextjsServerProvider({ children: content, shouldHandleCode: false })
     : content;
 
   return (

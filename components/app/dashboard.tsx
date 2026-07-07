@@ -6,19 +6,26 @@ import type { Locale } from "@/lib/i18n";
 
 function staticDashboardCourse(courseSlug?: string): DashboardCourse {
   const course = findCourse(courseSlug ?? primaryCourseSlug);
+  const modules = course.modules.map((module, moduleIndex) => ({
+    title: module.title,
+    sortOrder: moduleIndex * 10,
+    lessons: module.lessons.map((lesson, lessonIndex) => ({
+      slug: lesson.slug,
+      title: lesson.title,
+      duration: lesson.duration,
+      isPublished: true,
+      sortOrder: lessonIndex * 10,
+    })),
+  }));
+
   return {
     slug: course.slug,
     title: course.title,
     description: course.description,
     status: course.status === "published" ? "published" : "draft",
     hasAccess: course.status === "published",
-    lessons: course.modules.flatMap((module) =>
-      module.lessons.map((lesson) => ({
-        slug: lesson.slug,
-        title: lesson.title,
-        duration: lesson.duration,
-      })),
-    ),
+    lessons: modules.flatMap((module) => module.lessons),
+    modules,
   };
 }
 

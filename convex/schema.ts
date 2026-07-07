@@ -32,7 +32,13 @@ export default defineSchema({
     userId: v.id("users"),
     email: v.optional(v.string()),
     name: v.string(),
+    firstName: v.optional(v.string()),
+    lastName: v.optional(v.string()),
     avatarUrl: v.optional(v.string()),
+    avatarStorageId: v.optional(v.id("_storage")),
+    avatarPreset: v.optional(
+      v.union(v.literal("mythic-mentor"), v.literal("cosmic-scholar"), v.literal("hybrid-guardian")),
+    ),
     role,
     language,
     createdAt: v.number(),

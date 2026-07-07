@@ -100,15 +100,15 @@ export function BrandMark({ href = "/sr" }: { href?: string; label?: string }) {
   return (
     <Link
       href={href}
-      aria-label="Fakultet za AI"
+      aria-label="Nauči AI"
       className="inline-flex min-w-0 items-center focus-visible:outline focus-visible:outline-2"
     >
       <Image
-        src="/images/fai-logo.png"
-        alt="Fakultet za AI"
-        width={1018}
-        height={513}
-        className="h-auto w-[126px] max-w-[45vw] object-contain sm:w-[160px] lg:w-[178px]"
+        src="/images/logos/logo.png"
+        alt="Nauči AI"
+        width={1338}
+        height={460}
+        className="h-auto w-[142px] max-w-[45vw] object-contain sm:w-[176px] lg:w-[198px]"
         priority
       />
     </Link>

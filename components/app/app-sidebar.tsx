@@ -11,13 +11,17 @@ import {
   Lock,
   MessageCircle,
   PlayCircle,
+  ShieldCheck,
+  Sparkles,
   User,
 } from "lucide-react";
 import { useConvexAuth } from "@convex-dev/auth/react";
 import { useQuery } from "convex/react";
+import { gsap } from "gsap";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import { useParams, usePathname, useSearchParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import {
   AddCourseAction,
@@ -223,6 +227,25 @@ function isCourseLocked(course: AppCourseNav, isAdmin: boolean) {
   return course.status === "published" && !course.hasAccess && !isAdmin;
 }
 
+function SidebarAdminActions({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "sidebar-action-cluster pointer-events-auto flex shrink-0 items-center gap-1 rounded-[7px] bg-white/95 p-0.5 shadow-[2px_2px_0_0_rgba(14,49,88,0.12)] transition",
+        className,
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
 function CourseSwitcher({
   locale,
   courses,
@@ -237,81 +260,139 @@ function CourseSwitcher({
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="relative mt-5 lg:mt-8">
+    <div className="sidebar-reveal relative mt-5 lg:mt-8">
       <div className="flex items-center gap-2">
-        <button
+        <motion.button
           type="button"
           onClick={() => setOpen((value) => !value)}
-          className="flex min-h-12 min-w-0 flex-1 items-center justify-between gap-3 rounded-[8px] border-2 border-ink bg-yellow px-3 py-2 text-left text-sm font-black text-ink"
+          whileHover={{ y: -1 }}
+          whileTap={{ scale: 0.98 }}
+          className="flex min-h-14 min-w-0 flex-1 items-center justify-between gap-3 rounded-[8px] border-2 border-ink bg-yellow px-3 py-2 text-left text-sm font-black text-ink shadow-[4px_4px_0_0_rgba(14,49,88,0.18)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         >
           <span className="flex min-w-0 items-center gap-2">
             <GraduationCap className="size-4 shrink-0" />
-            <span className="truncate">{localized(currentCourse.title, locale)}</span>
+            <span className="min-w-0">
+              <span className="block truncate">{localized(currentCourse.title, locale)}</span>
+              <span className="mt-0.5 block text-[11px] font-black uppercase text-ink/70">
+                {currentCourse.status === "published"
+                  ? currentCourse.hasAccess || isAdmin
+                    ? locale === "sr"
+                      ? "Aktivan smer"
+                      : "Active track"
+                    : locale === "sr"
+                      ? "Zakljucan smer"
+                      : "Locked track"
+                  : locale === "sr"
+                    ? "Nacrt"
+                    : "Draft"}
+              </span>
+            </span>
           </span>
           <ChevronDown className={cn("size-4 shrink-0 transition", open && "rotate-180")} />
-        </button>
-        {isAdmin ? <AddCourseAction locale={locale} nextSortOrder={nextSortOrder(courses)} iconOnly /> : null}
+        </motion.button>
+        {isAdmin ? (
+          <SidebarAdminActions className="sidebar-action-cluster-static">
+            <AddCourseAction locale={locale} nextSortOrder={nextSortOrder(courses)} iconOnly />
+          </SidebarAdminActions>
+        ) : null}
       </div>
-      {open ? (
-        <div className="absolute left-0 right-0 z-30 mt-2 rounded-[8px] border-2 border-ink bg-white p-2 shadow-[5px_5px_0_0_rgba(14,49,88,0.22)]">
-          <div className="space-y-2">
-            {courses.map((course) => {
-              const comingSoon = isCourseComingSoon(course, isAdmin);
-              const locked = isCourseLocked(course, isAdmin);
-              const canEditCourse = Boolean(course.id && course.id !== course.slug);
-              return (
-                <div key={course.slug} className="rounded-[8px] border-2 border-line bg-paper p-2">
-                  <div className="flex items-center gap-1">
-                    {comingSoon ? (
-                      <div className="flex min-w-0 flex-1 items-center justify-between gap-2 text-sm font-black text-muted">
-                        <span className="truncate">{localized(course.title, locale)}</span>
-                        <span className="rounded-[6px] border-2 border-ink bg-white px-2 py-1 text-[11px] text-ink">
-                          {locale === "sr" ? "Uskoro" : "Coming soon"}
-                        </span>
-                      </div>
-                    ) : (
-                      <Link
-                        href={courseHref(locale, course.slug)}
-                        onClick={() => setOpen(false)}
-                        className="flex min-w-0 flex-1 items-center justify-between gap-2 text-sm font-black text-ink hover:underline"
-                      >
-                        <span className="truncate">{localized(course.title, locale)}</span>
-                        {locked ? <Lock className="size-4" /> : <ChevronRight className="size-4" />}
-                      </Link>
+      <AnimatePresence>
+        {open ? (
+          <motion.div
+            initial={{ opacity: 0, y: -8, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -6, scale: 0.98 }}
+            transition={{ duration: 0.18, ease: "easeOut" }}
+            className="relative z-20 mt-2 rounded-[8px] border-2 border-ink bg-white p-2 shadow-[6px_6px_0_0_rgba(14,49,88,0.18)]"
+          >
+            <div className="max-h-[60vh] space-y-2 overflow-y-auto pr-1">
+              {courses.map((course) => {
+                const comingSoon = isCourseComingSoon(course, isAdmin);
+                const locked = isCourseLocked(course, isAdmin);
+                const canEditCourse = Boolean(course.id && course.id !== course.slug);
+                const active = course.slug === currentCourse.slug;
+                const statusLabel = comingSoon
+                  ? locale === "sr"
+                    ? "Uskoro"
+                    : "Coming soon"
+                  : locked
+                    ? locale === "sr"
+                      ? "Zakljucano"
+                      : "Locked"
+                    : locale === "sr"
+                      ? "Aktivno"
+                      : "Active";
+
+                return (
+                  <motion.div
+                    key={course.slug}
+                    layout
+                    whileHover={{ x: 2 }}
+                    className={cn(
+                      "group relative rounded-[8px] border-2 p-2 pr-10 transition",
+                      active ? "border-ink bg-yellow/40" : "border-line bg-paper",
                     )}
+                  >
+                    <div className="sidebar-action-row flex items-center gap-1">
+                      {comingSoon ? (
+                        <div className="flex min-w-0 flex-1 items-center justify-between gap-2 text-sm font-black text-muted">
+                          <span className="truncate">{localized(course.title, locale)}</span>
+                          <span className="rounded-[6px] border-2 border-ink bg-white px-2 py-1 text-[11px] text-ink">
+                            {statusLabel}
+                          </span>
+                        </div>
+                      ) : (
+                        <Link
+                          href={courseHref(locale, course.slug)}
+                          onClick={() => setOpen(false)}
+                          className="flex min-w-0 flex-1 items-center justify-between gap-2 rounded-[6px] px-1 py-1 text-sm font-black text-ink hover:bg-white"
+                        >
+                          <span className="min-w-0">
+                            <span className="block truncate">{localized(course.title, locale)}</span>
+                            <span className="mt-1 inline-flex items-center gap-1 rounded-[6px] border-2 border-line bg-white px-2 py-0.5 text-[10px] font-black uppercase text-muted">
+                              {locked ? <Lock className="size-3" /> : <ShieldCheck className="size-3" />}
+                              {statusLabel}
+                            </span>
+                          </span>
+                          {locked ? <Lock className="size-4 shrink-0" /> : <ChevronRight className="size-4 shrink-0" />}
+                        </Link>
+                      )}
                     {isAdmin && canEditCourse ? (
-                      <EditCourseAction
-                        locale={locale}
-                        courseId={course.id}
-                        initial={{
-                          slug: course.slug,
-                          title: course.title,
-                          subtitle: course.subtitle,
-                          description: course.description,
-                          status: course.status,
-                          sortOrder: course.sortOrder,
-                        }}
-                        nextSortOrder={course.sortOrder}
-                        iconOnly
-                      />
+                      <SidebarAdminActions className="absolute right-2 top-2">
+                        <EditCourseAction
+                          locale={locale}
+                          courseId={course.id}
+                          initial={{
+                            slug: course.slug,
+                            title: course.title,
+                            subtitle: course.subtitle,
+                            description: course.description,
+                            status: course.status,
+                            sortOrder: course.sortOrder,
+                          }}
+                          nextSortOrder={course.sortOrder}
+                          iconOnly
+                        />
+                      </SidebarAdminActions>
                     ) : null}
-                  </div>
-                  {locked ? (
-                    <div className="mt-2">
-                      <CheckoutButton
-                        courseSlug={course.slug}
-                        locale={locale}
-                        label={locale === "sr" ? "Plati" : "Pay"}
-                        size="compact"
-                      />
                     </div>
-                  ) : null}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      ) : null}
+                    {locked ? (
+                      <div className="mt-2">
+                        <CheckoutButton
+                          courseSlug={course.slug}
+                          locale={locale}
+                          label={locale === "sr" ? "Plati" : "Pay"}
+                          size="compact"
+                        />
+                      </div>
+                    ) : null}
+                  </motion.div>
+                );
+              })}
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </div>
   );
 }
@@ -328,16 +409,18 @@ function NavLink({
   label: string;
 }) {
   return (
-    <Link
-      href={href}
-      className={cn(
-        "inline-flex min-h-11 min-w-0 items-center justify-center gap-3 rounded-[8px] border-2 border-transparent px-3 py-2 text-sm font-extrabold text-ink transition hover:border-ink hover:bg-yellow sm:justify-start lg:w-full",
-        active && "border-ink bg-paper",
-      )}
-    >
-      <Icon className="size-4" />
-      {label}
-    </Link>
+    <motion.div whileHover={{ x: 2 }} whileTap={{ scale: 0.98 }} className="min-w-0">
+      <Link
+        href={href}
+        className={cn(
+          "inline-flex min-h-11 min-w-0 items-center justify-center gap-3 rounded-[8px] border-2 border-transparent px-3 py-2 text-sm font-extrabold text-ink transition hover:border-ink hover:bg-yellow sm:justify-start lg:w-full",
+          active && "border-ink bg-paper shadow-[3px_3px_0_0_rgba(14,49,88,0.14)]",
+        )}
+      >
+        <Icon className="size-4 shrink-0" />
+        <span className="truncate">{label}</span>
+      </Link>
+    </motion.div>
   );
 }
 
@@ -364,20 +447,25 @@ function LessonPartTree({
         const nestedParts = childParts(lesson.parts, part.id);
         const canAddChildPart = isAdmin && depth === 0 && Boolean(part.id);
         return (
-          <div key={part.id ?? part.slug} className={cn(depth > 0 && "ml-4")}>
-            <div className="flex items-center gap-1">
+          <motion.div key={part.id ?? part.slug} layout className={cn("group relative", depth > 0 && "ml-4")}>
+            <div className="sidebar-action-row flex items-center gap-1 rounded-[6px]">
               <Link
                 href={partHref(locale, currentCourse.slug, lesson.slug, part.slug)}
                 className={cn(
-                  "flex min-h-8 min-w-0 flex-1 items-center gap-2 rounded-[6px] px-2 text-xs font-black text-muted hover:bg-paper hover:text-ink",
+                  "flex min-h-8 min-w-0 flex-1 items-center gap-2 rounded-[6px] px-2 pr-16 text-xs font-black text-muted hover:bg-paper hover:text-ink sm:pr-2",
                   depth > 0 && "text-[11px]",
                 )}
               >
                 <FileText className="size-3.5 shrink-0" />
                 <span className="truncate">{localized(part.title, locale)}</span>
+                {isAdmin && part.isPublished === false ? (
+                  <span className="ml-auto shrink-0 rounded-[5px] border border-line bg-white px-1.5 py-0.5 text-[9px] uppercase text-muted">
+                    {locale === "sr" ? "Nacrt" : "Draft"}
+                  </span>
+                ) : null}
               </Link>
               {isAdmin && part.id ? (
-                <div className="flex items-center gap-1">
+                <SidebarAdminActions className="absolute right-0 top-0">
                   <EditLessonPartAction
                     locale={locale}
                     courseId={currentCourse.id}
@@ -407,7 +495,7 @@ function LessonPartTree({
                       buttonLabel={locale === "sr" ? "Dodaj poddeo" : "Add subpart"}
                     />
                   ) : null}
-                </div>
+                </SidebarAdminActions>
               ) : null}
             </div>
             {part.id ? (
@@ -420,7 +508,7 @@ function LessonPartTree({
                 isAdmin={isAdmin}
               />
             ) : null}
-          </div>
+          </motion.div>
         );
       })}
     </>
@@ -442,25 +530,33 @@ function LessonsAccordion({
   const [expandedLessons, setExpandedLessons] = useState<Record<string, boolean>>({});
   const comingSoon = isCourseComingSoon(currentCourse, isAdmin);
   const locked = isCourseLocked(currentCourse, isAdmin);
+  const totalLessons = currentCourse.modules.reduce((count, module) => count + module.lessons.length, 0);
 
   function isExpanded(lessonSlug: string) {
     return Boolean(expandedLessons[lessonSlug] || currentLessonSlug === lessonSlug);
   }
 
   return (
-    <div className="col-span-2 sm:col-span-3 lg:col-span-1">
-      <button
+    <div className="sidebar-reveal col-span-2 sm:col-span-3 lg:col-span-1">
+      <motion.button
         type="button"
         onClick={() => setOpen((value) => !value)}
+        whileHover={{ x: 2 }}
+        whileTap={{ scale: 0.98 }}
         className={cn(
           "inline-flex min-h-11 w-full min-w-0 items-center justify-center gap-3 rounded-[8px] border-2 border-transparent px-3 py-2 text-sm font-extrabold text-ink transition hover:border-ink hover:bg-yellow sm:justify-start",
           currentLessonSlug && "border-ink bg-paper",
         )}
       >
         <BookOpen className="size-4" />
-        <span className="flex-1 text-center sm:text-left">{dictionary[locale].lessons}</span>
+        <span className="flex-1 text-center sm:text-left">
+          {dictionary[locale].lessons}
+          <span className="ml-2 rounded-[6px] border-2 border-line bg-white px-2 py-0.5 text-[10px] font-black text-muted">
+            {totalLessons}
+          </span>
+        </span>
         <ChevronDown className={cn("size-4 transition", open && "rotate-180")} />
-      </button>
+      </motion.button>
       <div
         className={cn(
           "grid transition-[grid-template-rows,opacity] duration-200",
@@ -468,15 +564,22 @@ function LessonsAccordion({
         )}
       >
         <div className="overflow-hidden">
-          <div className="mt-2 space-y-2 rounded-[8px] border-2 border-line bg-white p-2">
+          <div className="mt-2 space-y-2 rounded-[8px] border-2 border-line bg-white p-2 shadow-[4px_4px_0_0_rgba(14,49,88,0.08)]">
             {comingSoon ? (
-              <p className="rounded-[8px] bg-paper p-3 text-sm font-black text-muted">
-                {locale === "sr" ? "Lekcije za ovaj smer stižu uskoro." : "Lessons for this track are coming soon."}
-              </p>
-            ) : locked ? (
-              <div className="rounded-[8px] bg-paper p-3">
+              <div className="rounded-[8px] border-2 border-dashed border-line bg-paper p-3">
                 <p className="text-sm font-black text-muted">
-                  {locale === "sr" ? "Smer je zaključan dok ne platiš pristup." : "This track is locked until payment."}
+                  {locale === "sr" ? "Lekcije za ovaj smer stizu uskoro." : "Lessons for this track are coming soon."}
+                </p>
+                {isAdmin ? (
+                  <p className="mt-1 text-xs font-bold text-muted">
+                    {locale === "sr" ? "Admin moze da doda module i lekcije odmah." : "Admins can add modules and lessons now."}
+                  </p>
+                ) : null}
+              </div>
+            ) : locked ? (
+              <div className="rounded-[8px] border-2 border-line bg-paper p-3">
+                <p className="text-sm font-black text-muted">
+                  {locale === "sr" ? "Smer je zakljucan dok ne platis pristup." : "This track is locked until payment."}
                 </p>
                 <div className="mt-3">
                   <CheckoutButton
@@ -489,13 +592,18 @@ function LessonsAccordion({
               </div>
             ) : (
               currentCourse.modules.map((module) => (
-                <div key={module.id ?? module.title.sr} className="space-y-1">
-                  <div className="flex items-center justify-between gap-2 px-2 py-1">
-                    <p className="min-w-0 truncate text-xs font-black uppercase text-muted">
-                      {localized(module.title, locale)}
-                    </p>
+                <motion.div layout key={module.id ?? module.title.sr} className="group relative space-y-1 rounded-[8px] border-2 border-line bg-paper p-2">
+                  <div className="sidebar-action-row flex items-center justify-between gap-2 pr-20 sm:pr-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-xs font-black uppercase text-muted">
+                        {localized(module.title, locale)}
+                      </p>
+                      <p className="mt-0.5 text-[11px] font-bold text-muted">
+                        {module.lessons.length} {locale === "sr" ? "lekcija" : "lessons"}
+                      </p>
+                    </div>
                     {isAdmin ? (
-                      <div className="flex items-center gap-1">
+                      <SidebarAdminActions className="absolute right-2 top-2">
                         {module.id ? (
                           <EditModuleAction
                             locale={locale}
@@ -515,30 +623,37 @@ function LessonsAccordion({
                           courseSlug={currentCourse.slug}
                           moduleId={module.id}
                           nextSortOrder={nextSortOrder(module.lessons)}
+                          iconOnly
                         />
-                      </div>
+                      </SidebarAdminActions>
                     ) : null}
                   </div>
+                  <div className="mt-2 space-y-1">
                   {module.lessons.map((lesson) => {
                     const active = currentLessonSlug === lesson.slug;
                     const topLevelParts = childParts(lesson.parts);
                     return (
-                      <div key={lesson.slug}>
+                      <motion.div layout key={lesson.slug} className="sidebar-action-row relative">
                         <div
                           className={cn(
-                            "flex items-center gap-1 rounded-[8px] border-2 border-transparent",
+                            "flex items-center gap-1 rounded-[8px] border-2 border-transparent bg-white",
                             active && "border-ink bg-yellow",
                           )}
                         >
                           <Link
                             href={lessonHref(locale, currentCourse.slug, lesson.slug)}
-                            className="flex min-h-10 min-w-0 flex-1 items-center gap-2 px-2 text-sm font-black text-ink"
+                            className="flex min-h-10 min-w-0 flex-1 items-center gap-2 px-2 pr-16 text-sm font-black text-ink sm:pr-2"
                           >
                             <PlayCircle className="size-4 shrink-0" />
-                            <span className="truncate">{localized(lesson.title, locale)}</span>
+                            <span className="min-w-0 flex-1 truncate">{localized(lesson.title, locale)}</span>
+                            {isAdmin && !lesson.isPublished ? (
+                              <span className="shrink-0 rounded-[5px] border border-ink bg-paper px-1.5 py-0.5 text-[9px] uppercase text-muted">
+                                {locale === "sr" ? "Nacrt" : "Draft"}
+                              </span>
+                            ) : null}
                           </Link>
                           {isAdmin ? (
-                            <div className="flex items-center gap-1">
+                            <SidebarAdminActions className="absolute right-10 top-1.5">
                               <EditLessonAction
                                 locale={locale}
                                 courseId={currentCourse.id}
@@ -563,7 +678,7 @@ function LessonsAccordion({
                                 nextSortOrder={nextSortOrder(topLevelParts)}
                                 iconOnly
                               />
-                            </div>
+                            </SidebarAdminActions>
                           ) : null}
                           <button
                             type="button"
@@ -573,7 +688,8 @@ function LessonsAccordion({
                                 [lesson.slug]: !isExpanded(lesson.slug),
                               }))
                             }
-                            className="mr-1 inline-flex size-8 items-center justify-center rounded-[6px] text-ink hover:bg-white"
+                            aria-label={locale === "sr" ? "Otvori delove lekcije" : "Open lesson parts"}
+                            className="mr-1 inline-flex size-8 shrink-0 items-center justify-center rounded-[6px] text-ink hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                           >
                             <ChevronDown className={cn("size-4 transition", isExpanded(lesson.slug) && "rotate-180")} />
                           </button>
@@ -594,10 +710,16 @@ function LessonsAccordion({
                             )}
                           </div>
                         ) : null}
-                      </div>
+                      </motion.div>
                     );
                   })}
-                </div>
+                  {!module.lessons.length ? (
+                    <p className="rounded-[6px] border-2 border-dashed border-line bg-white px-2 py-2 text-xs font-black text-muted">
+                      {locale === "sr" ? "Nema lekcija u ovom modulu." : "No lessons in this module."}
+                    </p>
+                  ) : null}
+                  </div>
+                </motion.div>
               ))
             )}
             {isAdmin && currentCourse.id ? (
@@ -642,18 +764,48 @@ function AppSidebarContent({
     [courses, params.courseSlug, searchParams],
   );
   const isAdmin = navigation.role === "admin";
+  const rootRef = useRef<HTMLElement>(null);
+  const shouldReduceMotion = useReducedMotion();
+
+  useEffect(() => {
+    if (!rootRef.current || shouldReduceMotion) return;
+
+    const context = gsap.context(() => {
+      gsap.from(".sidebar-reveal", {
+        autoAlpha: 0,
+        y: 10,
+        duration: 0.32,
+        ease: "power2.out",
+        stagger: 0.04,
+      });
+    }, rootRef);
+
+    return () => context.revert();
+  }, [navigation.role, shouldReduceMotion]);
 
   return (
     <aside
+      ref={rootRef}
       data-sidebar-source={source}
       data-sidebar-auth={authState}
       data-sidebar-role={navigation.role ?? "none"}
       data-sidebar-admin={isAdmin ? "true" : "false"}
-      className="border-b-2 border-ink bg-white px-4 py-4 lg:w-72 lg:border-b-0 lg:border-r-2 lg:px-6 lg:py-7"
+      className="border-b-2 border-ink bg-white px-4 py-4 lg:sticky lg:top-0 lg:max-h-screen lg:w-[336px] lg:overflow-y-auto lg:border-b-0 lg:border-r-2 lg:px-5 lg:py-7 xl:w-[360px]"
     >
-      <div className="flex items-center justify-between gap-4 lg:block">
+      <div className="sidebar-reveal flex items-center justify-between gap-4 lg:block">
         <BrandMark href={withLocale(locale)} label={t.appName} />
       </div>
+      {isAdmin ? (
+        <div className="sidebar-reveal mt-4 rounded-[8px] border-2 border-ink bg-paper px-3 py-2 text-xs font-black text-ink">
+          <span className="flex items-center gap-2">
+            <Sparkles className="size-4 text-ink" />
+            {locale === "sr" ? "Live admin akcije" : "Live admin actions"}
+          </span>
+          <span className="mt-1 block text-[11px] font-bold text-muted">
+            {source === "live" ? "Convex live" : "Server fallback"} · {authState}
+          </span>
+        </div>
+      ) : null}
       {currentCourse ? (
         <CourseSwitcher locale={locale} courses={courses} currentCourse={currentCourse} isAdmin={isAdmin} />
       ) : null}

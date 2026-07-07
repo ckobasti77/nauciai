@@ -22,6 +22,8 @@ type LiveNavigationResult = {
     hasAccess?: boolean;
     sortOrder: number;
     modules?: Array<{
+      titleSr: string;
+      titleEn: string;
       sortOrder: number;
       lessons?: Array<{
         slug: string;
@@ -46,6 +48,30 @@ function courseFromLive(liveNavigation: LiveNavigationResult, fallbackCourse: Da
   }
 
   const liveCourse = liveCourses.find((course) => course.slug === courseSlug) ?? liveCourses[0];
+  const modules = (liveCourse.modules ?? [])
+    .slice()
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((module) => ({
+      title: {
+        sr: module.titleSr,
+        en: module.titleEn,
+      },
+      sortOrder: module.sortOrder,
+      lessons: (module.lessons ?? [])
+        .slice()
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map((lesson) => ({
+          slug: lesson.slug,
+          title: {
+            sr: lesson.titleSr,
+            en: lesson.titleEn,
+          },
+          duration: formatDuration(lesson.durationSeconds),
+          isPublished: lesson.isPublished,
+          sortOrder: lesson.sortOrder,
+        })),
+    }));
+
   return {
     slug: liveCourse.slug,
     title: {
@@ -58,22 +84,8 @@ function courseFromLive(liveNavigation: LiveNavigationResult, fallbackCourse: Da
     },
     status: liveCourse.status,
     hasAccess: Boolean(liveCourse.hasAccess),
-    lessons: (liveCourse.modules ?? [])
-      .slice()
-      .sort((a, b) => a.sortOrder - b.sortOrder)
-      .flatMap((module) =>
-        (module.lessons ?? [])
-          .slice()
-          .sort((a, b) => a.sortOrder - b.sortOrder)
-          .map((lesson) => ({
-            slug: lesson.slug,
-            title: {
-              sr: lesson.titleSr,
-              en: lesson.titleEn,
-            },
-            duration: formatDuration(lesson.durationSeconds),
-          })),
-      ),
+    lessons: modules.flatMap((module) => module.lessons),
+    modules,
   };
 }
 

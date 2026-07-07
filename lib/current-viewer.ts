@@ -7,10 +7,15 @@ import type { Locale } from "@/lib/i18n";
 
 export type ViewerProfile = {
   name?: string;
+  firstName?: string;
+  lastName?: string;
   email?: string;
   avatarUrl?: string;
+  avatarStorageId?: string;
+  avatarPreset?: "mythic-mentor" | "cosmic-scholar" | "hybrid-guardian";
   role?: string;
   language?: Locale;
+  updatedAt?: number;
 } | null;
 
 type ViewerResult = {

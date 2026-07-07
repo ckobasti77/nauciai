@@ -1,42 +1,146 @@
 "use client";
 
 import { useAuthActions } from "@convex-dev/auth/react";
-import { Loader2, Mail } from "lucide-react";
+import { ArrowLeft, CheckCircle2, KeyRound, Loader2, Mail } from "lucide-react";
 import { FormEvent, useState } from "react";
 
 import { Panel, cn } from "@/components/ui/primitives";
 import type { Locale } from "@/lib/i18n";
 
-function ConvexSignInForm({ locale }: { locale: Locale }) {
+type AuthFlow = "signIn" | "signUp" | "reset" | "resetVerification";
+
+function labelFor(locale: Locale, sr: string, en: string) {
+  return locale === "sr" ? sr : en;
+}
+
+function ConvexSignInForm({
+  locale,
+  initialFlow = "signIn",
+  initialEmail = "",
+  initialCode = "",
+}: {
+  locale: Locale;
+  initialFlow?: AuthFlow;
+  initialEmail?: string;
+  initialCode?: string;
+}) {
   const { signIn } = useAuthActions();
   const [pendingProvider, setPendingProvider] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
-  const [flow, setFlow] = useState<"signIn" | "signUp">("signIn");
+  const [message, setMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
+  const [flow, setFlow] = useState<AuthFlow>(initialFlow);
+  const [email, setEmail] = useState(initialEmail);
+  const [password, setPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [resetCode] = useState(initialCode);
+
+  function switchFlow(nextFlow: AuthFlow) {
+    setFlow(nextFlow);
+    setMessage(null);
+    setPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+  }
 
   async function handlePassword(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = event.currentTarget;
-    const formData = new FormData(form);
-    formData.set("flow", flow);
-    formData.set("redirectTo", `/${locale}/app`);
+    const normalizedEmail = email.trim().toLowerCase();
 
     setPendingProvider("password");
     setMessage(null);
     try {
-      const result = await signIn("password", formData);
+      if (flow === "reset") {
+        await signIn("password", {
+          flow: "reset",
+          email: normalizedEmail,
+          redirectTo: `/${locale}/sign-in?mode=reset-confirm&email=${encodeURIComponent(normalizedEmail)}`,
+        });
+        setMessage({
+          tone: "success",
+          text: labelFor(
+            locale,
+            "Ako nalog postoji, poslali smo link za reset lozinke na email.",
+            "If the account exists, we sent a password reset link to that email.",
+          ),
+        });
+        return;
+      }
+
+      if (flow === "resetVerification") {
+        if (!resetCode) {
+          throw new Error(labelFor(locale, "Reset link nije ispravan.", "The reset link is not valid."));
+        }
+        if (newPassword.length < 8) {
+          throw new Error(labelFor(locale, "Lozinka mora imati najmanje 8 karaktera.", "Password must be at least 8 characters."));
+        }
+        if (newPassword !== confirmPassword) {
+          throw new Error(labelFor(locale, "Lozinke se ne poklapaju.", "Passwords do not match."));
+        }
+
+        await signIn("password", {
+          flow: "reset-verification",
+          email: normalizedEmail,
+          code: resetCode,
+          newPassword,
+          redirectTo: `/${locale}/app`,
+        });
+        setPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+        setFlow("signIn");
+        setMessage({
+          tone: "success",
+          text: labelFor(locale, "Lozinka je promenjena. Mozes da se prijavis.", "Password changed. You can sign in."),
+        });
+        return;
+      }
+
+      const result = await signIn("password", {
+        flow,
+        email: normalizedEmail,
+        password,
+        redirectTo: `/${locale}/app`,
+      });
       if (result.redirect) {
         window.location.href = result.redirect.toString();
         return;
       }
-      window.location.href = `/${locale}/app`;
+      if (result.signingIn) {
+        window.location.href = `/${locale}/app`;
+        return;
+      }
+
+      setMessage({
+        tone: "success",
+        text:
+          flow === "signUp"
+            ? labelFor(
+                locale,
+                "Proveri email i potvrdi nalog. Ako profil vec postoji, nastavices bez dupliranja.",
+                "Check your email and confirm the account. If the profile already exists, it will continue without duplicating.",
+              )
+            : labelFor(locale, "Proveri email za nastavak prijave.", "Check your email to continue signing in."),
+      });
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Prijava nije uspela.");
+      setMessage({
+        tone: flow === "signUp" ? "success" : "error",
+        text:
+          flow === "signUp"
+            ? labelFor(
+                locale,
+                "Ako profil vec postoji za ovaj email, proveri email ili se samo prijavi.",
+                "If a profile already exists for this email, check your email or just sign in.",
+              )
+            : error instanceof Error
+              ? error.message
+              : labelFor(locale, "Prijava nije uspela.", "Sign-in failed."),
+      });
     } finally {
       setPendingProvider(null);
     }
   }
 
-  async function handleOAuth(provider: "google" | "apple") {
+  async function handleOAuth(provider: "google") {
     setPendingProvider(provider);
     setMessage(null);
     try {
@@ -45,38 +149,64 @@ function ConvexSignInForm({ locale }: { locale: Locale }) {
         window.location.href = result.redirect.toString();
       }
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Prijava nije uspela.");
+      setMessage({
+        tone: "error",
+        text: error instanceof Error ? error.message : labelFor(locale, "Prijava nije uspela.", "Sign-in failed."),
+      });
       setPendingProvider(null);
     }
   }
 
+  const isPasswordPending = pendingProvider === "password";
+  const showPrimaryTabs = flow === "signIn" || flow === "signUp";
+  const title =
+    flow === "reset"
+      ? labelFor(locale, "Reset lozinke", "Reset password")
+      : flow === "resetVerification"
+        ? labelFor(locale, "Nova lozinka", "New password")
+        : null;
+
   return (
     <Panel className="p-6 md:p-8">
-      <div className="flex border-2 border-ink rounded-[8px] overflow-hidden bg-white mb-6">
-        <button
-          type="button"
-          onClick={() => setFlow("signIn")}
-          disabled={Boolean(pendingProvider)}
-          className={cn(
-            "flex-1 py-2.5 text-center text-sm font-black transition-all",
-            flow === "signIn" ? "bg-ink text-white" : "bg-white text-ink hover:bg-yellow/25"
-          )}
-        >
-          {locale === "sr" ? "Prijavi se" : "Sign in"}
-        </button>
-        <div className="w-0.5 bg-ink" />
-        <button
-          type="button"
-          onClick={() => setFlow("signUp")}
-          disabled={Boolean(pendingProvider)}
-          className={cn(
-            "flex-1 py-2.5 text-center text-sm font-black transition-all",
-            flow === "signUp" ? "bg-ink text-white" : "bg-white text-ink hover:bg-yellow/25"
-          )}
-        >
-          {locale === "sr" ? "Napravi nalog" : "Create account"}
-        </button>
-      </div>
+      {showPrimaryTabs ? (
+        <div className="mb-6 flex overflow-hidden rounded-[8px] border-2 border-ink bg-white">
+          <button
+            type="button"
+            onClick={() => switchFlow("signIn")}
+            disabled={Boolean(pendingProvider)}
+            className={cn(
+              "flex-1 py-2.5 text-center text-sm font-black transition-all",
+              flow === "signIn" ? "bg-ink text-white" : "bg-white text-ink hover:bg-yellow/25",
+            )}
+          >
+            {labelFor(locale, "Prijavi se", "Sign in")}
+          </button>
+          <div className="w-0.5 bg-ink" />
+          <button
+            type="button"
+            onClick={() => switchFlow("signUp")}
+            disabled={Boolean(pendingProvider)}
+            className={cn(
+              "flex-1 py-2.5 text-center text-sm font-black transition-all",
+              flow === "signUp" ? "bg-ink text-white" : "bg-white text-ink hover:bg-yellow/25",
+            )}
+          >
+            {labelFor(locale, "Napravi profil", "Create profile")}
+          </button>
+        </div>
+      ) : (
+        <div className="mb-6">
+          <button
+            type="button"
+            onClick={() => switchFlow("signIn")}
+            className="inline-flex items-center gap-2 text-sm font-black text-ink underline"
+          >
+            <ArrowLeft className="size-4" />
+            {labelFor(locale, "Nazad na prijavu", "Back to sign in")}
+          </button>
+          <h2 className="mt-4 text-3xl font-black text-ink">{title}</h2>
+        </div>
+      )}
 
       <form onSubmit={handlePassword} className="space-y-4">
         <div>
@@ -87,78 +217,165 @@ function ConvexSignInForm({ locale }: { locale: Locale }) {
             id="email"
             name="email"
             type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
             required
             className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-white px-4 text-base font-bold text-ink outline-none focus:border-yellow"
           />
         </div>
-        <div>
-          <label htmlFor="password" className="text-sm font-black text-ink">
-            Password
-          </label>
-          <input
-            id="password"
-            name="password"
-            type="password"
-            required
-            minLength={8}
-            className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-white px-4 text-base font-bold text-ink outline-none focus:border-yellow"
-          />
-        </div>
-        <div>
-          {flow === "signIn" ? (
-            <button
-              type="submit"
-              disabled={Boolean(pendingProvider)}
-              className="w-full inline-flex min-h-11 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-ink px-5 py-2.5 text-sm font-extrabold text-white shadow-[4px_4px_0_0_#f4be30] disabled:opacity-70 transition-all duration-200 hover:-translate-y-0.5"
-            >
-              {pendingProvider === "password" ? <Loader2 className="size-4 animate-spin" /> : <Mail className="size-4" />}
-              {locale === "sr" ? "Prijavi se" : "Sign in"}
-            </button>
-          ) : (
-            <button
-              type="submit"
-              disabled={Boolean(pendingProvider)}
-              className="w-full inline-flex min-h-11 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-yellow px-5 py-2.5 text-sm font-extrabold text-ink shadow-[4px_4px_0_0_#0e3158] disabled:opacity-70 transition-all duration-200 hover:-translate-y-0.5"
-            >
-              {pendingProvider === "password" ? <Loader2 className="size-4 animate-spin" /> : <Mail className="size-4 text-ink" />}
-              {locale === "sr" ? "Napravi nalog" : "Create account"}
-            </button>
+
+        {flow === "signIn" || flow === "signUp" ? (
+          <div>
+            <label htmlFor="password" className="text-sm font-black text-ink">
+              Password
+            </label>
+            <input
+              id="password"
+              name="password"
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              required
+              minLength={8}
+              className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-white px-4 text-base font-bold text-ink outline-none focus:border-yellow"
+            />
+            {flow === "signIn" ? (
+              <button
+                type="button"
+                onClick={() => switchFlow("reset")}
+                className="mt-2 text-sm font-black text-blue-700 underline"
+              >
+                {labelFor(locale, "Zaboravili ste lozinku?", "Forgot password?")}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+
+        {flow === "resetVerification" ? (
+          <>
+            <div>
+              <label htmlFor="newPassword" className="text-sm font-black text-ink">
+                {labelFor(locale, "Nova lozinka", "New password")}
+              </label>
+              <input
+                id="newPassword"
+                type="password"
+                value={newPassword}
+                onChange={(event) => setNewPassword(event.target.value)}
+                required
+                minLength={8}
+                className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-white px-4 text-base font-bold text-ink outline-none focus:border-yellow"
+              />
+            </div>
+            <div>
+              <label htmlFor="confirmPassword" className="text-sm font-black text-ink">
+                {labelFor(locale, "Ponovi lozinku", "Repeat password")}
+              </label>
+              <input
+                id="confirmPassword"
+                type="password"
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                required
+                minLength={8}
+                className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-white px-4 text-base font-bold text-ink outline-none focus:border-yellow"
+              />
+            </div>
+          </>
+        ) : null}
+
+        <button
+          type="submit"
+          disabled={Boolean(pendingProvider)}
+          className={cn(
+            "inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-[8px] border-2 border-ink px-5 py-2.5 text-sm font-extrabold shadow-[4px_4px_0_0_#f4be30] transition-all duration-200 hover:-translate-y-0.5 disabled:opacity-70",
+            flow === "signUp" ? "bg-yellow text-ink shadow-[4px_4px_0_0_#0e3158]" : "bg-ink text-white",
           )}
-        </div>
+        >
+          {isPasswordPending ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : flow === "reset" || flow === "resetVerification" ? (
+            <KeyRound className="size-4" />
+          ) : (
+            <Mail className="size-4" />
+          )}
+          {flow === "signIn"
+            ? labelFor(locale, "Prijavi se", "Sign in")
+            : flow === "signUp"
+              ? labelFor(locale, "Napravi profil", "Create profile")
+              : flow === "reset"
+                ? labelFor(locale, "Posalji link", "Send link")
+                : labelFor(locale, "Sacuvaj lozinku", "Save password")}
+        </button>
       </form>
 
-      <div className="my-6 h-0.5 bg-line" />
+      {showPrimaryTabs ? (
+        <>
+          <div className="my-6 h-0.5 bg-line" />
 
-      <div>
-        <button
-          type="button"
-          onClick={() => handleOAuth("google")}
-          disabled={Boolean(pendingProvider)}
-          className="w-full inline-flex min-h-11 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-white px-5 py-2.5 text-sm font-extrabold text-ink disabled:opacity-70 hover:bg-yellow/25 transition-all duration-200"
+          <button
+            type="button"
+            onClick={() => handleOAuth("google")}
+            disabled={Boolean(pendingProvider)}
+            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-white px-5 py-2.5 text-sm font-extrabold text-ink transition-all duration-200 hover:bg-yellow/25 disabled:opacity-70"
+          >
+            {pendingProvider === "google" ? <Loader2 className="size-4 animate-spin" /> : <span className="text-lg">G</span>}
+            {labelFor(locale, "Prijavi se preko Google-a", "Sign in with Google")}
+          </button>
+        </>
+      ) : null}
+
+      {message ? (
+        <p
+          className={cn(
+            "mt-4 rounded-[8px] border-2 px-3 py-2 text-sm font-black",
+            message.tone === "success" ? "border-ink bg-yellow/25 text-ink" : "border-red-700 bg-red-50 text-red-700",
+          )}
         >
-          {pendingProvider === "google" ? <Loader2 className="size-4 animate-spin" /> : <span className="text-lg">G</span>}
-          {locale === "sr" ? "Prijavi se preko Google-a" : "Sign in with Google"}
-        </button>
-      </div>
-
-      {message ? <p className="mt-4 text-sm font-bold text-red-700">{message}</p> : null}
+          {message.tone === "success" ? <CheckCircle2 className="mr-2 inline size-4" /> : null}
+          {message.text}
+        </p>
+      ) : null}
     </Panel>
   );
 }
 
-export function SignInPanel({ locale, hasConvex }: { locale: Locale; hasConvex: boolean }) {
+export function SignInPanel({
+  locale,
+  hasConvex,
+  initialFlow,
+  initialEmail,
+  initialCode,
+}: {
+  locale: Locale;
+  hasConvex: boolean;
+  initialFlow?: AuthFlow;
+  initialEmail?: string;
+  initialCode?: string;
+}) {
   if (!hasConvex) {
     return (
       <Panel className="p-6 md:p-8">
-        <h2 className="text-2xl font-black text-ink">{locale === "sr" ? "Prijava je spremna za Convex" : "Sign-in is ready for Convex"}</h2>
+        <h2 className="text-2xl font-black text-ink">
+          {labelFor(locale, "Prijava je spremna za Convex", "Sign-in is ready for Convex")}
+        </h2>
         <p className="mt-3 text-base leading-7 text-muted">
-          {locale === "sr"
-            ? "Dodaj NEXT_PUBLIC_CONVEX_URL i Convex Auth tajne da aktiviraš email, Google i Apple prijavu."
-            : "Add NEXT_PUBLIC_CONVEX_URL and Convex Auth secrets to activate email, Google, and Apple sign-in."}
+          {labelFor(
+            locale,
+            "Dodaj NEXT_PUBLIC_CONVEX_URL i Convex Auth tajne da aktiviras email i Google prijavu.",
+            "Add NEXT_PUBLIC_CONVEX_URL and Convex Auth secrets to activate email and Google sign-in.",
+          )}
         </p>
       </Panel>
     );
   }
 
-  return <ConvexSignInForm locale={locale} />;
+  return (
+    <ConvexSignInForm
+      locale={locale}
+      initialFlow={initialFlow}
+      initialEmail={initialEmail}
+      initialCode={initialCode}
+    />
+  );
 }

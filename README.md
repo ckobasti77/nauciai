@@ -39,6 +39,8 @@ Convex:
 npx convex dev
 npm run convex:auth
 npx convex env set AUTH_SECRET "<random-secret>"
+npx convex env set AUTH_RESEND_KEY "<resend-api-key>"
+npx convex env set AUTH_RESEND_FROM "Nauci AI <auth@your-domain.com>"
 npx convex env set WEBHOOK_SYNC_SECRET "<same-value-as-env-local>"
 npx convex env set INITIAL_ADMIN_EMAILS "admin@example.com"
 npm run convex:oauth -- --google-id "<google-client-id>" --google-secret "<google-client-secret>" --skip-apple
@@ -49,6 +51,8 @@ For production, configure the production Convex deployment:
 ```bash
 npm run convex:auth:prod
 npx convex env --prod set AUTH_SECRET "<random-secret>"
+npx convex env --prod set AUTH_RESEND_KEY "<prod-resend-api-key>"
+npx convex env --prod set AUTH_RESEND_FROM "Nauci AI <auth@your-domain.com>"
 npx convex env --prod set WEBHOOK_SYNC_SECRET "<same-value-as-vercel>"
 npx convex env --prod set INITIAL_ADMIN_EMAILS "nauciai2026@gmail.com"
 npm run convex:oauth:prod -- --google-id "<prod-google-client-id>" --google-secret "<prod-google-client-secret>" --skip-apple
@@ -71,7 +75,7 @@ CONVEX_DEPLOYMENT=prod:quick-yak-270
 WEBHOOK_SYNC_SECRET=<same-value-as-convex>
 ```
 
-Convex-only secrets such as `AUTH_SECRET`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, `JWT_PRIVATE_KEY`, and `JWKS` must live in Convex environment variables. Do not rely on Vercel to provide them to Convex Auth.
+Convex-only secrets such as `AUTH_SECRET`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, `AUTH_RESEND_KEY`, `AUTH_RESEND_FROM`, `JWT_PRIVATE_KEY`, and `JWKS` must live in Convex environment variables. Do not rely on Vercel to provide them to Convex Auth.
 
 If secrets were exposed in screenshots or logs, rotate Google OAuth credentials, `AUTH_SECRET`, and `WEBHOOK_SYNC_SECRET`, then update both Convex and Vercel where applicable.
 

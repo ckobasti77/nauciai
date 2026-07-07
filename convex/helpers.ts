@@ -31,9 +31,17 @@ type DocLike = Record<string, unknown> & {
   email?: string;
   image?: string;
   name?: string;
+  firstName?: string;
+  lastName?: string;
   role?: string;
   status?: string;
+  avatarUrl?: string;
+  avatarStorageId?: string;
+  avatarPreset?: string;
 };
+
+const DEFAULT_AVATAR_PRESET = "mythic-mentor";
+const DEFAULT_AVATAR_URL = "/images/avatars/mythic-mentor.png";
 
 function dbFrom(ctx: AnyCtx): DatabaseLike {
   return ctx.db as DatabaseLike;
@@ -50,6 +58,28 @@ function initialAdminEmails(): Set<string> {
 
 function roleForEmail(email: string) {
   return initialAdminEmails().has(email.trim().toLowerCase()) ? "admin" : "student";
+}
+
+function namePartsFrom(name: string, email: string) {
+  const parts = name
+    .split(/\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const fallback = email.split("@")[0] || "Student";
+
+  return {
+    firstName: parts[0] || fallback,
+    lastName: parts.slice(1).join(" "),
+  };
+}
+
+function fullNameFrom(firstName: string, lastName: string, fallback: string) {
+  const joined = [firstName, lastName]
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join(" ");
+
+  return joined || fallback;
 }
 
 export async function currentUserId(ctx: AnyCtx) {
@@ -76,15 +106,33 @@ export async function getCurrentProfile(ctx: AnyCtx) {
 
   const role = roleForEmail(email);
   const name = user?.name ?? email.split("@")[0] ?? "Student";
+  const derivedParts = namePartsFrom(String(existing?.name ?? name), email);
+  const firstName = String(existing?.firstName ?? derivedParts.firstName);
+  const lastName = String(existing?.lastName ?? derivedParts.lastName);
+  const displayName = fullNameFrom(firstName, lastName, String(existing?.name ?? name));
+  const existingAvatarPreset = existing?.avatarStorageId
+    ? undefined
+    : existing?.avatarPreset ?? DEFAULT_AVATAR_PRESET;
 
   const profile = existing
-    ? { ...existing, role }
+    ? {
+        ...existing,
+        role,
+        name: displayName,
+        firstName,
+        lastName,
+        avatarUrl: existing.avatarUrl ?? user?.image ?? DEFAULT_AVATAR_URL,
+        avatarPreset: existingAvatarPreset,
+      }
     : ({
         _id: "",
         userId,
         email,
-        name,
-        avatarUrl: user?.image,
+        name: displayName,
+        firstName,
+        lastName,
+        avatarUrl: user?.image ?? DEFAULT_AVATAR_URL,
+        avatarPreset: DEFAULT_AVATAR_PRESET,
         role,
         language: "sr",
       } as DocLike);
@@ -95,8 +143,10 @@ export async function getCurrentProfile(ctx: AnyCtx) {
     userId,
     email,
     role,
-    name,
-    avatarUrl: user?.image,
+    name: displayName,
+    firstName,
+    lastName,
+    avatarUrl: profile.avatarUrl,
   };
 }
 
@@ -110,14 +160,17 @@ export async function ensureProfile(ctx: AnyCtx) {
     throw new Error("Profile bootstrap requires a write-capable Convex context.");
   }
 
-  const { existing, userId, email, role, name, avatarUrl } = current;
+  const { existing, userId, email, role, name, firstName, lastName, avatarUrl } = current;
 
   if (!existing) {
     const profileId = await db.insert("profiles", {
       userId,
       email,
       name,
+      firstName,
+      lastName,
       avatarUrl,
+      avatarPreset: DEFAULT_AVATAR_PRESET,
       role,
       language: "sr",
       createdAt: now,
@@ -126,8 +179,22 @@ export async function ensureProfile(ctx: AnyCtx) {
     return db.get(profileId);
   }
 
+  const patch: Record<string, unknown> = {};
   if (existing.role !== role) {
-    await db.patch(existing._id, { role, updatedAt: now });
+    patch.role = role;
+  }
+  if (!existing.firstName && firstName) {
+    patch.firstName = firstName;
+  }
+  if (!existing.lastName && lastName) {
+    patch.lastName = lastName;
+  }
+  if (!existing.avatarUrl && !existing.avatarStorageId) {
+    patch.avatarUrl = avatarUrl ?? DEFAULT_AVATAR_URL;
+    patch.avatarPreset = DEFAULT_AVATAR_PRESET;
+  }
+  if (Object.keys(patch).length) {
+    await db.patch(existing._id, { ...patch, updatedAt: now });
     return db.get(existing._id);
   }
 

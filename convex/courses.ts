@@ -51,8 +51,18 @@ export const viewer = query({
   handler: async (ctx) => {
     const { userId, profile } = await getCurrentProfile(ctx);
     const user = await ctx.db.get(userId);
+    const avatarUrl =
+      profile.avatarStorageId && typeof profile.avatarStorageId === "string"
+        ? await ctx.storage.getUrl(profile.avatarStorageId as Id<"_storage">)
+        : profile.avatarUrl;
 
-    return { user, profile };
+    return {
+      user,
+      profile: {
+        ...profile,
+        avatarUrl: avatarUrl ?? profile.avatarUrl,
+      },
+    };
   },
 });
 
