@@ -60,14 +60,14 @@ export function BillingPage({ locale }: { locale: Locale }) {
 
   return (
     <div className="space-y-6">
-      <SectionHeader
-        title={locale === "sr" ? "Pretplata" : "Billing"}
-        body={
-          locale === "sr"
-            ? "Status pretplate je vezan za konkretan smer i sinhronizuje se iz Stripe webhooka."
-            : "Subscription status is tied to a track and synchronized from Stripe webhooks."
-        }
-      />
+        <SectionHeader
+          title={locale === "sr" ? "Pretplata" : "Billing"}
+          body={
+            locale === "sr"
+              ? "Status pretplate je vezan za konkretan kurs i sinhronizuje se iz Stripe webhooka."
+              : "Subscription status is tied to a course and synchronized from Stripe webhooks."
+          }
+        />
       <Panel className="p-6">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div>
@@ -76,11 +76,11 @@ export function BillingPage({ locale }: { locale: Locale }) {
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
             <PortalButton locale={locale} label={t.portal} />
-            <div className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-paper px-5 text-sm font-extrabold text-ink">
-              <CreditCard className="size-4" />
-              {locale === "sr" ? "9.99 / mes" : "9.99 / month"}
+              <div className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-paper px-5 text-sm font-extrabold text-ink">
+                <CreditCard className="size-4" />
+                9,99 EUR
+              </div>
             </div>
-          </div>
         </div>
       </Panel>
     </div>

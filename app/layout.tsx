@@ -27,7 +27,7 @@ const patrickHand = Patrick_Hand({
 
 export const metadata: Metadata = {
   title: "Fakultet za AI",
-  description: "Bilingual AI learning and community platform for practical video, audio, and creative production tracks.",
+  description: "Bilingual AI learning and community platform for practical video, audio, and website courses.",
 };
 
 export default async function RootLayout({

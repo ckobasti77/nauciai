@@ -14,7 +14,6 @@ export type LessonPart = {
   title: LocalizedText;
   kind: "text" | "video" | "file";
   body?: LocalizedText;
-  muxPlaybackId?: string;
   downloadUrl?: string | null;
   fileName?: string;
   size?: string;
@@ -29,7 +28,6 @@ export type Lesson = {
   duration: string;
   durationSeconds?: number;
   summary: LocalizedText;
-  muxPlaybackId?: string;
   isPublished?: boolean;
   sortOrder?: number;
   assets: LessonAsset[];
@@ -41,6 +39,19 @@ export type CourseModule = {
   lessons: Lesson[];
 };
 
+export type CourseImage = {
+  src: string;
+  alt: LocalizedText;
+};
+
+export type CourseDetail = {
+  kicker: LocalizedText;
+  longDescription: LocalizedText;
+  freeVideoTitle: LocalizedText;
+  freeVideoDescription: LocalizedText;
+  outcomes: LocalizedText[];
+};
+
 export type Course = {
   slug: string;
   title: LocalizedText;
@@ -48,33 +59,113 @@ export type Course = {
   description: LocalizedText;
   status: "published" | "coming-soon";
   priceLabel: LocalizedText;
+  image: CourseImage;
+  detail: CourseDetail;
   stripePriceEnv: string;
   accent: string;
   modules: CourseModule[];
 };
 
 export const primaryCourseSlug = "video-audio-ai";
+export const websitesCourseSlug = "vibe-coding";
 export const primaryLessonSlug = "uvod-u-ai-video";
+
+export type FutureCourseTrack = {
+  slug: string;
+  title: LocalizedText;
+  description: LocalizedText;
+  courseSlugs: string[];
+  visible: false;
+};
+
+// Future taxonomy placeholder: tracks will sit above courses, but are not rendered yet.
+export const futureCourseTracks: FutureCourseTrack[] = [
+  {
+    slug: "video-audio",
+    title: {
+      sr: "Smer za video i audio",
+      en: "Video and audio track",
+    },
+    description: {
+      sr: "Buduci smer koji ce objediniti vise kurseva za video i audio produkciju.",
+      en: "Future track that will group multiple video and audio production courses.",
+    },
+    courseSlugs: [primaryCourseSlug],
+    visible: false,
+  },
+  {
+    slug: "websites",
+    title: {
+      sr: "Smer za web sajtove",
+      en: "Websites track",
+    },
+    description: {
+      sr: "Buduci smer koji ce objediniti vise kurseva za izradu web sajtova.",
+      en: "Future track that will group multiple website-building courses.",
+    },
+    courseSlugs: [websitesCourseSlug],
+    visible: false,
+  },
+];
 
 export const courses: Course[] = [
   {
     slug: primaryCourseSlug,
     title: {
-      sr: "Smer za video i audio",
-      en: "Video and Audio Track",
+      sr: "Kurs za video i audio",
+      en: "Video and Audio Course",
     },
     subtitle: {
-      sr: "Prvi smer Fakulteta za AI",
-      en: "The first Faculty for AI track",
+      sr: "Scenario, glas, kadar i montaza uz AI",
+      en: "Scripts, voice, shots, and editing with AI",
     },
     description: {
-      sr: "Praktičan smer za pisanje scenarija, generisanje glasa, video produkciju, montažu i finalni AI workflow.",
-      en: "A practical track for scripts, voice generation, video production, editing, and complete AI workflows.",
+      sr: "Praktican kurs za pisanje scenarija, generisanje glasa, video produkciju, montazu i finalni AI workflow.",
+      en: "A practical course for scripts, voice generation, video production, editing, and complete AI workflows.",
     },
     status: "published",
     priceLabel: {
-      sr: "9.99 / mes",
-      en: "9.99 / mo",
+      sr: "9,99 EUR",
+      en: "9,99 EUR",
+    },
+    image: {
+      src: "/images/course-video-audio-ai-cover.png",
+      alt: {
+        sr: "Ilustracija AI video i audio produkcije",
+        en: "AI video and audio production illustration",
+      },
+    },
+    detail: {
+      kicker: {
+        sr: "Video i audio produkcija",
+        en: "Video and audio production",
+      },
+      longDescription: {
+        sr: "Naucices kako se ideja pretvara u kratak produkcijski brief, zatim u scenario, voiceover, vizuelni ritam i finalni video spreman za objavu ili klijenta.",
+        en: "Learn how an idea becomes a production brief, then a script, voiceover, visual rhythm, and final video ready for publishing or client delivery.",
+      },
+      freeVideoTitle: {
+        sr: "Besplatan uvodni video",
+        en: "Free intro video",
+      },
+      freeVideoDescription: {
+        sr: "Kratak pregled procesa: ideja, scenario, glas, kadar, montaza i provera kvaliteta pre objave.",
+        en: "A short walkthrough of the process: idea, script, voice, shot, edit, and quality checks before publishing.",
+      },
+      outcomes: [
+        {
+          sr: "Postavljas produkcijski brief pre prvog prompta.",
+          en: "Set up a production brief before the first prompt.",
+        },
+        {
+          sr: "Biraces glas, tempo i strukturu voiceovera.",
+          en: "Choose voice style, pacing, and voiceover structure.",
+        },
+        {
+          sr: "Sklapas finalni video workflow sa jasnom kontrolom kvaliteta.",
+          en: "Build a final video workflow with clear quality control.",
+        },
+      ],
     },
     stripePriceEnv: "STRIPE_PRICE_VIDEO_AUDIO_AI",
     accent: "#f4be30",
@@ -96,7 +187,6 @@ export const courses: Course[] = [
               sr: "Mapa alata, tipovi projekata i kako se bira format pre prvog prompta.",
               en: "Tool map, project types, and format decisions before the first prompt.",
             },
-            muxPlaybackId: "demo-signed-playback-id",
             parts: [
               {
                 slug: "glavni-video",
@@ -105,7 +195,6 @@ export const courses: Course[] = [
                   en: "Main video",
                 },
                 kind: "video",
-                muxPlaybackId: "demo-signed-playback-id",
               },
               {
                 slug: "beleske-i-koraci",
@@ -260,23 +349,62 @@ export const courses: Course[] = [
     ],
   },
   {
-    slug: "vibe-coding",
+    slug: websitesCourseSlug,
     title: {
-      sr: "Smer za web sajtove",
-      en: "Websites Track",
+      sr: "Kurs za web sajtove",
+      en: "Websites Course",
     },
     subtitle: {
-      sr: "Sledeći smer u pripremi",
-      en: "Next track in preparation",
+      sr: "Od ideje do objavljenog sajta uz AI",
+      en: "From idea to a published website with AI",
     },
     description: {
       sr: "Od ideje do web sajta uz AI alate, strukturu projekta i jasne granice kvaliteta.",
       en: "From idea to website with AI tools, project structure, and clear quality gates.",
     },
-    status: "coming-soon",
+    status: "published",
     priceLabel: {
-      sr: "uskoro",
-      en: "soon",
+      sr: "9,99 EUR",
+      en: "9,99 EUR",
+    },
+    image: {
+      src: "/images/course-websites-ai-cover.png",
+      alt: {
+        sr: "Ilustracija AI izrade web sajta",
+        en: "AI website building illustration",
+      },
+    },
+    detail: {
+      kicker: {
+        sr: "Web sajtovi uz AI",
+        en: "Websites with AI",
+      },
+      longDescription: {
+        sr: "Kurs vodi kroz planiranje strukture, pisanje jasnog briefa, izradu stranica uz AI, proveru kvaliteta i pripremu sajta za objavu.",
+        en: "The course walks through structure planning, a clear brief, AI-assisted page building, quality checks, and preparing a site for publishing.",
+      },
+      freeVideoTitle: {
+        sr: "Besplatan uvodni video",
+        en: "Free intro video",
+      },
+      freeVideoDescription: {
+        sr: "Pogledaj kako se od jedne ideje pravi plan sajta, prvi izgled stranice i lista provera pre objave.",
+        en: "See how one idea becomes a site plan, first page direction, and a checklist before publishing.",
+      },
+      outcomes: [
+        {
+          sr: "Pretvaras ideju u jasan website brief.",
+          en: "Turn an idea into a clear website brief.",
+        },
+        {
+          sr: "Gradis stranice koje imaju strukturu, hijerarhiju i CTA.",
+          en: "Build pages with structure, hierarchy, and CTA flow.",
+        },
+        {
+          sr: "Proveravas responsive layout, tekst i vizuelni kvalitet pre objave.",
+          en: "Check responsive layout, copy, and visual quality before publishing.",
+        },
+      ],
     },
     stripePriceEnv: "STRIPE_PRICE_VIBE_CODING",
     accent: "#0e3158",
@@ -297,6 +425,7 @@ export const communityPosts = [
       sr: "Kombinovala sam kratki scenario, dva tona glasa i tri iteracije montaže. Najviše je pomogao radni list za tempo.",
       en: "I combined a short script, two voice tones, and three edit passes. The pacing worksheet helped most.",
     },
+    createdAt: 1762257600000,
     reactions: 18,
     comments: 6,
   },
@@ -312,6 +441,7 @@ export const communityPosts = [
       sr: "Dodati su checklist za finalni eksport i primer briefa za završni projekat.",
       en: "The final export checklist and final project brief example have been added.",
     },
+    createdAt: 1762171200000,
     reactions: 31,
     comments: 9,
   },

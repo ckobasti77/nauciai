@@ -1,69 +1,140 @@
 "use client";
 
+import { useMutation, useQuery } from "convex/react";
 import {
   ArrowRight,
   BarChart3,
   BookOpen,
-  Clock,
+  CheckCircle2,
+  ChevronDown,
+  Clock3,
+  Compass,
   Gauge,
+  ImageIcon,
+  Layers,
+  Loader2,
   Lock,
   MessageCircle,
+  Pencil,
+  PieChart,
   PlayCircle,
+  Plus,
   ShieldCheck,
   Sparkles,
+  TrendingUp,
+  Trash2,
+  UploadCloud,
 } from "lucide-react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { motion, useReducedMotion } from "motion/react";
+import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useRef } from "react";
+import { useRouter } from "next/navigation";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type DragEvent,
+  type MouseEvent,
+  type ReactNode,
+} from "react";
 
+import {
+  AddLessonAction,
+  AddModuleAction,
+  EditCourseAction,
+  EditLessonAction,
+  EditModuleAction,
+} from "@/components/app/admin-inline-actions";
 import { CheckoutButton } from "@/components/app/checkout-button";
 import { LinkButton, Panel, cn } from "@/components/ui/primitives";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import type { ViewerProfile } from "@/lib/current-viewer";
 import { dictionary, localized, type Locale, type LocalizedText, withLocale } from "@/lib/i18n";
 
 export type DashboardLesson = {
+  id?: string;
   slug: string;
   title: LocalizedText;
+  summary?: LocalizedText;
   duration: string;
+  durationSeconds?: number;
   isPublished?: boolean;
   sortOrder?: number;
+  progress?: {
+    completed?: boolean;
+    positionSeconds?: number;
+    updatedAt?: number;
+  } | null;
 };
 
 export type DashboardModule = {
+  id?: string;
   title: LocalizedText;
+  description?: LocalizedText;
+  imageUrl?: string | null;
+  imageFileName?: string;
+  imageAlt?: LocalizedText;
   sortOrder?: number;
   lessons: DashboardLesson[];
 };
 
 export type DashboardCourse = {
+  id?: string;
   slug: string;
   title: LocalizedText;
+  subtitle: LocalizedText;
   description: LocalizedText;
+  image?: {
+    src: string;
+    alt: LocalizedText;
+  };
   status: "draft" | "published" | "archived";
   hasAccess: boolean;
+  stripePriceId?: string;
+  videoUrl?: string | null;
+  videoFileName?: string;
+  videoByteSize?: number;
+  videoMimeType?: string;
+  videoUpdatedAt?: number;
+  sortOrder?: number;
+  progress?: {
+    totalLessons: number;
+    completedLessons: number;
+    percent: number;
+    lastActivityAt?: number;
+    nextLessonSlug?: string;
+    nextLessonTitle?: LocalizedText;
+    activity?: Array<{
+      day: string;
+      completed: number;
+    }>;
+  };
   lessons: DashboardLesson[];
   modules?: DashboardModule[];
 };
 
 let dashboardScrollTriggerRegistered = false;
 
+function labelFor(locale: Locale, sr: string, en: string) {
+  return locale === "sr" ? sr : en;
+}
+
 function statusCopy(locale: Locale, course: DashboardCourse, isAdmin: boolean) {
   if (isAdmin) {
     return course.status === "published"
-      ? labelFor(locale, "Objavljen smer", "Published track")
+      ? labelFor(locale, "Objavljen kurs", "Published course")
       : course.status === "archived"
-        ? labelFor(locale, "Arhiviran smer", "Archived track")
+        ? labelFor(locale, "Arhiviran kurs", "Archived course")
         : labelFor(locale, "Admin nacrt", "Admin draft");
   }
   if (course.status !== "published") return labelFor(locale, "Uskoro", "Coming soon");
   if (!course.hasAccess) return labelFor(locale, "Zakljucano", "Locked");
   return labelFor(locale, "Aktivan pristup", "Active access");
-}
-
-function labelFor(locale: Locale, sr: string, en: string) {
-  return locale === "sr" ? sr : en;
 }
 
 function flattenModules(course: DashboardCourse, locale: Locale): DashboardModule[] {
@@ -82,104 +153,1202 @@ function flattenModules(course: DashboardCourse, locale: Locale): DashboardModul
   ];
 }
 
-function StatPanel({
+function nextModuleSortOrder(modules: DashboardModule[]) {
+  return modules.reduce((max, module) => Math.max(max, module.sortOrder ?? 0), 0) + 10;
+}
+
+function nextLessonSortOrder(module: DashboardModule) {
+  return module.lessons.reduce((max, lesson) => Math.max(max, lesson.sortOrder ?? 0), 0) + 10;
+}
+
+function clampPercent(value: number) {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function allCourseLessons(course: DashboardCourse, locale: Locale) {
+  return flattenModules(course, locale).flatMap((module) => module.lessons);
+}
+
+function getProgressSummary(course: DashboardCourse, locale: Locale) {
+  const lessons = allCourseLessons(course, locale).filter((lesson) => lesson.isPublished !== false);
+  const completedFromLessons = lessons.filter((lesson) => lesson.progress?.completed).length;
+  const totalLessons = course.progress?.totalLessons ?? lessons.length;
+  const completedLessons = course.progress?.completedLessons ?? completedFromLessons;
+  const percent = clampPercent(course.progress?.percent ?? (totalLessons ? (completedLessons / totalLessons) * 100 : 0));
+  const nextLesson =
+    lessons.find((lesson) => lesson.slug === course.progress?.nextLessonSlug) ??
+    lessons.find((lesson) => !lesson.progress?.completed) ??
+    lessons[0];
+  const lastActivityAt =
+    course.progress?.lastActivityAt ??
+    lessons.reduce<number | undefined>((latest, lesson) => {
+      const updatedAt = lesson.progress?.updatedAt;
+      if (!updatedAt) return latest;
+      return latest === undefined ? updatedAt : Math.max(latest, updatedAt);
+    }, undefined);
+
+  return {
+    totalLessons,
+    completedLessons,
+    percent,
+    nextLesson,
+    lastActivityAt,
+    activity: course.progress?.activity ?? activityFromLessons(lessons),
+  };
+}
+
+function activityFromLessons(lessons: DashboardLesson[]) {
+  const counts = new Map<string, number>();
+  for (const lesson of lessons) {
+    const updatedAt = lesson.progress?.completed ? lesson.progress.updatedAt : undefined;
+    if (!updatedAt) continue;
+    const day = new Date(updatedAt).toISOString().slice(0, 10);
+    counts.set(day, (counts.get(day) ?? 0) + 1);
+  }
+  return Array.from(counts.entries())
+    .map(([day, completed]) => ({ day, completed }))
+    .sort((a, b) => a.day.localeCompare(b.day));
+}
+
+function mergeActivity(courses: DashboardCourse[], locale: Locale) {
+  const counts = new Map<string, number>();
+  for (const course of courses) {
+    for (const item of getProgressSummary(course, locale).activity) {
+      counts.set(item.day, (counts.get(item.day) ?? 0) + item.completed);
+    }
+  }
+  return Array.from(counts.entries())
+    .map(([day, completed]) => ({ day, completed }))
+    .sort((a, b) => a.day.localeCompare(b.day));
+}
+
+function lastSevenActivity(activity: Array<{ day: string; completed: number }>) {
+  const byDay = new Map(activity.map((item) => [item.day, item.completed]));
+  const anchor = activity.length ? new Date(`${activity[activity.length - 1].day}T12:00:00.000Z`) : new Date();
+
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(anchor);
+    date.setUTCDate(anchor.getUTCDate() - (6 - index));
+    const day = date.toISOString().slice(0, 10);
+    return {
+      day,
+      completed: byDay.get(day) ?? 0,
+    };
+  });
+}
+
+function formatLastActivity(locale: Locale, timestamp?: number) {
+  if (!timestamp) return labelFor(locale, "Jos nema aktivnosti", "No activity yet");
+  return new Intl.DateTimeFormat(locale === "sr" ? "sr-RS" : "en-US", {
+    day: "2-digit",
+    month: "short",
+  }).format(new Date(timestamp));
+}
+
+function formatDuration(durationSeconds: number) {
+  const minutes = Math.max(0, Math.round(durationSeconds / 60));
+  if (minutes === 0) return "0 min";
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  if (!hours) return `${minutes} min`;
+  return remainingMinutes ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
+}
+
+function courseDetailHref(locale: Locale, courseSlug: string) {
+  return `${withLocale(locale, "/app")}?course=${courseSlug}`;
+}
+
+function courseCommunityHref(locale: Locale, courseSlug: string) {
+  return `${withLocale(locale, "/app/community")}?course=${courseSlug}`;
+}
+
+function courseContinueHref(locale: Locale, course: DashboardCourse, nextLesson?: DashboardLesson) {
+  if (!nextLesson) return courseDetailHref(locale, course.slug);
+  return withLocale(locale, `/app/courses/${course.slug}/lessons/${nextLesson.slug}`);
+}
+
+function MetricTile({
+  icon,
   label,
   value,
-  icon: Icon,
   tone = "paper",
 }: {
+  icon: ReactNode;
   label: string;
   value: string;
-  icon: typeof BarChart3;
   tone?: "paper" | "yellow" | "ink";
 }) {
   return (
-    <motion.div layout whileHover={{ y: -2 }} whileTap={{ scale: 0.99 }}>
-      <Panel
-        className={cn(
-          "dashboard-reveal p-5 transition",
-          tone === "yellow" && "bg-yellow",
-          tone === "ink" && "bg-ink text-white",
-        )}
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className={cn("text-sm font-extrabold", tone === "ink" ? "text-white/70" : "text-muted")}>{label}</p>
-            <p className={cn("mt-2 text-3xl font-black", tone === "ink" ? "text-white" : "text-ink")}>{value}</p>
-          </div>
-          <span
-            className={cn(
-              "inline-flex size-10 items-center justify-center rounded-[8px] border-2",
-              tone === "ink" ? "border-white bg-yellow text-ink" : "border-ink bg-white text-ink",
-            )}
-          >
-            <Icon className="size-5" />
-          </span>
+    <div
+      className={cn(
+        "rounded-[8px] border-2 p-4",
+        tone === "paper" && "border-line bg-paper text-ink",
+        tone === "yellow" && "border-ink bg-yellow text-ink",
+        tone === "ink" && "border-white/25 bg-white/10 text-white",
+      )}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className={cn("text-xs font-black uppercase", tone === "ink" ? "text-white/65" : "text-muted")}>{label}</p>
+          <p className={cn("mt-2 text-2xl font-black leading-none", tone === "ink" ? "text-white" : "text-ink")}>{value}</p>
         </div>
-      </Panel>
-    </motion.div>
+        <span
+          className={cn(
+            "inline-flex size-9 shrink-0 items-center justify-center rounded-[8px] border-2",
+            tone === "ink" ? "border-white bg-yellow text-ink" : "border-ink bg-white text-ink",
+          )}
+        >
+          {icon}
+        </span>
+      </div>
+    </div>
   );
 }
 
-function LessonRow({
+type PlaybackTokenPayload = Record<string, string>;
+
+function DashboardVideoPlayer({ videoUrl, title }: { videoUrl: string; title: string }) {
+  return (
+    <video
+      className="h-full w-full bg-ink object-contain"
+      src={videoUrl}
+      controls
+      preload="metadata"
+    />
+  );
+}
+
+function CourseVideoSection({ locale, isAdmin, course }: { locale: Locale; isAdmin: boolean; course: DashboardCourse }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
+  const generateUploadUrl = useMutation(api.video.createDocumentUploadUrl);
+  const saveCourseVideo = useMutation(api.video.saveCourseVideo);
+  const deleteCourseVideo = useMutation(api.video.deleteCourseVideo);
+
+  const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const videoUrl = course.videoUrl;
+
+  useEffect(() => {
+    return () => {
+      if (localPreviewUrl) URL.revokeObjectURL(localPreviewUrl);
+    };
+  }, [localPreviewUrl]);
+
+  function openPicker() {
+    if (!isAdmin || isUploading || isDeleting) return;
+    inputRef.current?.click();
+  }
+
+  async function uploadVideo(file: File) {
+    if (!course.id) {
+      setMessage(labelFor(locale, "Kurs mora biti sacuvan pre upload-a videa.", "Save the course before uploading video."));
+      return;
+    }
+
+    setMessage(null);
+    setIsUploading(true);
+    setLocalPreviewUrl((current) => {
+      if (current) URL.revokeObjectURL(current);
+      return URL.createObjectURL(file);
+    });
+
+    try {
+      const uploadUrl = await generateUploadUrl();
+      const response = await fetch(uploadUrl, {
+        method: "POST",
+        headers: { "Content-Type": file.type || "application/octet-stream" },
+        body: file,
+      });
+
+      if (!response.ok) {
+        const detail = await response.text().catch(() => "");
+        throw new Error(
+          detail
+            ? `${labelFor(locale, "Upload nije uspeo", "Upload failed")}: ${detail.slice(0, 240)}`
+            : labelFor(locale, "Upload nije uspeo.", "Upload failed."),
+        );
+      }
+
+      const { storageId } = (await response.json()) as { storageId?: Id<"_storage"> };
+      if (!storageId) {
+        throw new Error(labelFor(locale, "Convex nije vratio storageId.", "Convex did not return a storageId."));
+      }
+
+      await saveCourseVideo({
+        courseId: course.id as Id<"courses">,
+        storageId,
+        fileName: file.name,
+        byteSize: file.size,
+        mimeType: file.type || "application/octet-stream",
+      });
+
+      setMessage(labelFor(locale, "Video je uspesno sacuvan.", "Video uploaded successfully."));
+      router.refresh();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : labelFor(locale, "Upload nije uspeo.", "Upload failed."));
+      setLocalPreviewUrl(null);
+    } finally {
+      setIsUploading(false);
+    }
+  }
+
+  function setVideoFromList(files?: FileList | null) {
+    const file = files?.[0];
+    if (!file || !isAdmin) return;
+    void uploadVideo(file);
+  }
+
+  function handleInputChange(event: ChangeEvent<HTMLInputElement>) {
+    setVideoFromList(event.target.files);
+    event.target.value = "";
+  }
+
+  function handleDragOver(event: DragEvent<HTMLDivElement>) {
+    if (!isAdmin) return;
+    event.preventDefault();
+    setIsDragging(true);
+  }
+
+  function handleDragLeave() {
+    setIsDragging(false);
+  }
+
+  function handleDrop(event: DragEvent<HTMLDivElement>) {
+    if (!isAdmin) return;
+    event.preventDefault();
+    setIsDragging(false);
+    setVideoFromList(event.dataTransfer.files);
+  }
+
+  async function deleteVideo(event: MouseEvent<HTMLButtonElement>) {
+    event.stopPropagation();
+    if (!course.id || isDeleting) return;
+    setIsDeleting(true);
+    setMessage(null);
+    try {
+      await deleteCourseVideo({ courseId: course.id as Id<"courses"> });
+      setLocalPreviewUrl((current) => {
+        if (current) URL.revokeObjectURL(current);
+        return null;
+      });
+      router.refresh();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : labelFor(locale, "Brisanje nije uspelo.", "Delete failed."));
+    } finally {
+      setIsDeleting(false);
+    }
+  }
+
+  return (
+    <Panel className="dashboard-reveal overflow-hidden">
+      <div className="p-4 sm:p-5">
+        <div
+          role={isAdmin ? "button" : undefined}
+          tabIndex={isAdmin ? 0 : undefined}
+          onClick={openPicker}
+          onKeyDown={(event) => {
+            if (!isAdmin) return;
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              openPicker();
+            }
+          }}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          className={cn(
+            "group relative flex min-h-[320px] overflow-hidden rounded-[8px] border-2 bg-ink text-white sm:min-h-[360px] lg:h-[42vh] lg:min-h-[380px]",
+            isAdmin ? "cursor-pointer border-dashed border-ink bg-paper text-ink" : "border-ink",
+            (videoUrl || localPreviewUrl) && "border-solid bg-ink text-white",
+            isDragging && "bg-yellow/25",
+          )}
+        >
+          {localPreviewUrl ? (
+            <video className="h-full w-full bg-ink object-contain" src={localPreviewUrl} controls muted preload="metadata" />
+          ) : videoUrl ? (
+            <DashboardVideoPlayer videoUrl={videoUrl} title={localized(course.title, locale)} />
+          ) : (
+            <>
+              <span
+                className={cn(
+                  "absolute inset-0",
+                  isAdmin
+                    ? "bg-[linear-gradient(135deg,rgba(14,49,88,0.07)_0,rgba(14,49,88,0.07)_1px,transparent_1px,transparent_18px)]"
+                    : "bg-[radial-gradient(circle_at_18%_18%,rgba(244,190,48,0.35),transparent_26%),linear-gradient(135deg,#0e3158,#173d6b)]",
+                )}
+              />
+                  <span className="relative z-10 flex w-full items-center justify-center p-6 text-center">
+                <span className="max-w-md">
+                  <span className="mx-auto inline-flex size-16 items-center justify-center rounded-[8px] border-2 border-ink bg-white text-ink shadow-[4px_4px_0_0_rgba(14,49,88,0.18)]">
+                    {isUploading ? <Loader2 className="size-8 animate-spin" /> : isAdmin ? <UploadCloud className="size-8" /> : <PlayCircle className="size-9" />}
+                  </span>
+                  <span className={cn("mt-5 block text-2xl font-black", isAdmin ? "text-ink" : "text-white")}>
+                    {isUploading
+                      ? labelFor(locale, "Video se uploaduje", "Video is uploading")
+                      : isAdmin
+                        ? labelFor(locale, "Prevuci video ili klikni za upload", "Drop a video or click to upload")
+                        : labelFor(locale, "Video lekcija uskoro", "Video lesson soon")}
+                  </span>
+                  <span className={cn("mt-2 block text-sm font-extrabold", isAdmin ? "text-muted" : "text-white/75")}>
+                    {isAdmin
+                      ? labelFor(locale, "Glavni video kursa se cuva preko Convex storage.", "The main course video is saved through Convex storage.")
+                      : labelFor(locale, "Ovaj prostor cuva mesto za glavni video kursa.", "This surface reserves the main course video.")}
+                  </span>
+                </span>
+              </span>
+            </>
+          )}
+
+          {isAdmin ? (
+            <div className="absolute right-3 top-3 z-20 flex gap-2">
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  openPicker();
+                }}
+                disabled={isUploading || isDeleting}
+                aria-label={labelFor(locale, "Zameni video", "Replace video")}
+                title={labelFor(locale, "Zameni video", "Replace video")}
+                className="inline-flex size-10 items-center justify-center rounded-[8px] border-2 border-ink bg-white text-ink shadow-[3px_3px_0_0_rgba(14,49,88,0.18)] transition hover:bg-yellow disabled:cursor-wait disabled:opacity-60"
+              >
+                {isUploading ? <Loader2 className="size-4 animate-spin" /> : <Pencil className="size-4" />}
+              </button>
+              {videoUrl || localPreviewUrl ? (
+                <button
+                  type="button"
+                  onClick={deleteVideo}
+                  disabled={isUploading || isDeleting}
+                  aria-label={labelFor(locale, "Ukloni video", "Remove video")}
+                  title={labelFor(locale, "Ukloni video", "Remove video")}
+                  className="inline-flex size-10 items-center justify-center rounded-[8px] border-2 border-red-700 bg-white text-red-700 shadow-[3px_3px_0_0_rgba(127,29,29,0.18)] transition hover:bg-red-50 disabled:cursor-wait disabled:opacity-60"
+                >
+                  {isDeleting ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+          {message ? (
+            <span className="absolute bottom-3 left-3 right-3 z-20 rounded-[8px] border-2 border-ink bg-white px-3 py-2 text-xs font-black text-ink shadow-[3px_3px_0_0_rgba(14,49,88,0.18)]">
+              {message}
+            </span>
+          ) : null}
+          {isAdmin ? (
+            <input ref={inputRef} className="sr-only" type="file" accept="video/*" onChange={handleInputChange} />
+          ) : null}
+        </div>
+      </div>
+    </Panel>
+  );
+}
+
+function FeaturedThreadsSection({ locale, course }: { locale: Locale; course: DashboardCourse }) {
+  const featuredPosts = useQuery(
+    api.community.listFeaturedPosts,
+    course.id ? { courseId: course.id as Id<"courses">, limit: 4 } : "skip",
+  ) as
+    | Array<{
+        _id: string;
+        title: string;
+        body: string;
+        courseId?: string;
+        featuredCourseId?: string;
+        isFeaturedGlobal?: boolean;
+        courseTitleSr?: string;
+        courseTitleEn?: string;
+        commentsCount?: number;
+        reactionsCount?: number;
+      }>
+    | undefined;
+  const posts = featuredPosts ?? [];
+
+  return (
+    <Panel className="dashboard-reveal p-5 sm:p-6">
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_240px] lg:items-start">
+        <div>
+          <div className="flex items-center gap-3">
+            <span className="inline-flex size-10 items-center justify-center rounded-[8px] border-2 border-ink bg-yellow text-ink">
+              <MessageCircle className="size-5" />
+            </span>
+            <div>
+              <p className="text-xs font-black uppercase text-muted">{labelFor(locale, "Zajednica", "Community")}</p>
+              <h2 className="text-2xl font-black leading-tight text-ink">
+                {labelFor(locale, "Featured tredovi", "Featured threads")}
+              </h2>
+            </div>
+          </div>
+          {!course.id ? (
+            <p className="mt-4 max-w-3xl text-base font-bold leading-7 text-muted">
+              {labelFor(locale, "Featured tredovi su dostupni kada je kurs povezan sa Convex-om.", "Featured threads are available when this course is connected to Convex.")}
+            </p>
+          ) : featuredPosts === undefined ? (
+            <div className="mt-5 flex items-center gap-3 rounded-[8px] border-2 border-line bg-paper px-4 py-3 text-sm font-black text-muted">
+              <Loader2 className="size-4 animate-spin" />
+              {labelFor(locale, "Ucitavanje threadova", "Loading threads")}
+            </div>
+          ) : posts.length ? (
+            <div className="mt-5 grid gap-3 md:grid-cols-2">
+              {posts.map((post) => {
+                const courseFeatured = post.featuredCourseId === course.id;
+                return (
+                  <Link
+                    key={post._id}
+                    href={withLocale(locale, `/app/community?course=${course.slug}`)}
+                    className="block rounded-[8px] border-2 border-line bg-paper p-4 transition hover:-translate-y-0.5 hover:border-ink hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                  >
+                    <div className="flex flex-wrap gap-2">
+                      {courseFeatured ? (
+                        <span className="rounded-[6px] border-2 border-ink bg-yellow px-2 py-0.5 text-[10px] font-black uppercase text-ink">
+                          {labelFor(locale, "Kurs", "Course")}
+                        </span>
+                      ) : null}
+                      {post.isFeaturedGlobal ? (
+                        <span className="rounded-[6px] border-2 border-ink bg-white px-2 py-0.5 text-[10px] font-black uppercase text-ink">
+                          {labelFor(locale, "Opsti", "Global")}
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="mt-3 line-clamp-2 text-base font-black leading-tight text-ink">{post.title}</p>
+                    <p className="mt-2 line-clamp-2 text-sm font-bold leading-6 text-muted">{post.body}</p>
+                    <div className="mt-3 flex gap-3 text-xs font-black text-muted">
+                      <span>{post.reactionsCount ?? 0} likes</span>
+                      <span>{post.commentsCount ?? 0} comments</span>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="mt-4 max-w-3xl text-base font-bold leading-7 text-muted">
+              {labelFor(
+                locale,
+                "Za ovaj kurs jos nisu izabrani featured tredovi. Otvori zajednicu i oznaci najvaznije diskusije.",
+                "No featured threads have been selected for this course yet. Open community and mark the most useful discussions.",
+              )}
+            </p>
+          )}
+        </div>
+        <Link
+          href={withLocale(locale, `/app/community?course=${course.slug}`)}
+          className="group flex min-h-32 items-center justify-center rounded-[8px] border-2 border-dashed border-ink bg-paper p-5 text-center text-ink transition hover:-translate-y-0.5 hover:bg-yellow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+        >
+          <span>
+            <span className="mx-auto inline-flex size-12 items-center justify-center rounded-[8px] border-2 border-ink bg-white shadow-[3px_3px_0_0_rgba(14,49,88,0.18)] transition group-hover:rotate-2">
+              <Plus className="size-6" />
+            </span>
+            <span className="mt-3 block text-sm font-black">
+              {labelFor(locale, "Otvori zajednicu", "Open community")}
+            </span>
+          </span>
+        </Link>
+      </div>
+    </Panel>
+  );
+}
+
+function CycleCard({
   locale,
-  courseSlug,
-  lesson,
-  index,
-  canOpen,
+  course,
+  module,
+  moduleIndex,
+  isAdmin,
+  initialOpenKey,
+  editModuleId,
+}: {
+  locale: Locale;
+  course: DashboardCourse;
+  module: DashboardModule;
+  moduleIndex: number;
+  isAdmin: boolean;
+  initialOpenKey?: string;
+  editModuleId?: string;
+}) {
+  const [open, setOpen] = useState(moduleIndex === 0 || initialOpenKey === module.id);
+  const publishedLessons = module.lessons.filter((lesson) => lesson.isPublished !== false).length;
+  const draftLessons = Math.max(0, module.lessons.length - publishedLessons);
+  const completedLessons = module.lessons.filter((lesson) => lesson.progress?.completed).length;
+  const moduleDurationSeconds = module.lessons.reduce((total, lesson) => total + (lesson.durationSeconds ?? 0), 0);
+  const canManage = Boolean(isAdmin && course.id && module.id);
+
+  function stopControlClick(event: MouseEvent) {
+    event.stopPropagation();
+  }
+
+  return (
+    <motion.article
+      layout
+      whileTap={{ scale: 0.99 }}
+      className="dashboard-reveal overflow-hidden rounded-[16px] border-2 border-ink bg-white shadow-[6px_6px_0_0_rgba(14,49,88,0.13)]"
+    >
+      <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_220px]">
+        <button
+          type="button"
+          aria-expanded={open}
+          onClick={() => setOpen((value) => !value)}
+          className="group flex min-w-0 items-start gap-4 rounded-none p-4 text-left transition hover:bg-yellow/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ink sm:p-5"
+        >
+          <span className="relative hidden size-20 shrink-0 overflow-hidden rounded-[8px] border-2 border-ink bg-paper sm:block">
+            {module.imageUrl ? (
+              <Image
+                src={module.imageUrl}
+                alt={localized(module.imageAlt ?? module.title, locale)}
+                fill
+                sizes="80px"
+                unoptimized
+                className="object-cover"
+              />
+            ) : (
+              <span className="flex h-full w-full items-center justify-center">
+                <ImageIcon className="size-7 text-ink" />
+              </span>
+            )}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full border-2 border-ink bg-paper px-2.5 py-1 text-[11px] font-black uppercase text-muted">
+                {labelFor(locale, "Ciklus", "Cycle")} {moduleIndex + 1}
+              </span>
+              {isAdmin && draftLessons ? (
+                <span className="rounded-full border-2 border-ink bg-white px-2.5 py-1 text-[11px] font-black text-ink">
+                  {draftLessons} {labelFor(locale, "nacrt", "draft")}
+                </span>
+              ) : null}
+            </span>
+            <span className="mt-2 block text-xl font-black leading-tight text-ink">
+              {localized(module.title, locale) || labelFor(locale, "Neimenovan ciklus", "Untitled cycle")}
+            </span>
+            {module.description ? (
+              <span className="mt-2 line-clamp-2 block text-sm font-bold leading-6 text-muted">
+                {localized(module.description, locale)}
+              </span>
+            ) : null}
+          </span>
+          <ChevronDown className={cn("mt-2 size-5 shrink-0 text-ink transition", open && "rotate-180")} />
+        </button>
+
+        <div className="border-t-2 border-ink bg-paper p-4 lg:border-l-2 lg:border-t-0">
+          <div className="grid grid-cols-3 gap-2 lg:grid-cols-1">
+            <div className="rounded-[8px] border-2 border-line bg-white px-3 py-2">
+              <p className="text-[10px] font-black uppercase text-muted">{labelFor(locale, "Lekcije", "Lessons")}</p>
+              <p className="mt-1 text-lg font-black text-ink">{publishedLessons}/{module.lessons.length || 0}</p>
+            </div>
+            <div className="rounded-[8px] border-2 border-line bg-white px-3 py-2">
+              <p className="text-[10px] font-black uppercase text-muted">{labelFor(locale, "Zavrseno", "Done")}</p>
+              <p className="mt-1 text-lg font-black text-ink">{completedLessons}</p>
+            </div>
+            <div className="rounded-[8px] border-2 border-line bg-white px-3 py-2">
+              <p className="text-[10px] font-black uppercase text-muted">{labelFor(locale, "Trajanje", "Duration")}</p>
+              <p className="mt-1 text-lg font-black text-ink">{formatDuration(moduleDurationSeconds)}</p>
+            </div>
+          </div>
+          {canManage ? (
+            <div className="mt-3 flex flex-wrap gap-2" onClick={stopControlClick}>
+              <EditModuleAction
+                locale={locale}
+                courseId={course.id}
+                courseSlug={course.slug}
+                moduleId={module.id}
+                autoOpenKey={editModuleId === module.id ? editModuleId : null}
+                initial={{
+                  title: module.title,
+                  description: module.description,
+                  imageUrl: module.imageUrl,
+                  imageFileName: module.imageFileName,
+                  imageAlt: module.imageAlt,
+                  sortOrder: module.sortOrder ?? moduleIndex * 10,
+                }}
+                nextSortOrder={module.sortOrder ?? moduleIndex * 10}
+                iconOnly
+              />
+              <AddLessonAction
+                locale={locale}
+                courseId={course.id}
+                courseSlug={course.slug}
+                moduleId={module.id}
+                nextSortOrder={nextLessonSortOrder(module)}
+                iconOnly
+                initialOpenKey={initialOpenKey}
+                buttonLabel={labelFor(locale, "Dodaj lekciju", "Add lesson")}
+              />
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      <div className={cn("grid transition-[grid-template-rows,opacity] duration-200", open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0")}>
+        <div className="overflow-hidden">
+          <div className="space-y-3 border-t-2 border-ink bg-white p-4 sm:p-5">
+            {module.lessons.length ? (
+              module.lessons.map((lesson, lessonIndex) => {
+                const href = withLocale(locale, `/app/courses/${course.slug}/lessons/${lesson.slug}`);
+                const draft = lesson.isPublished === false;
+                return (
+                  <div
+                    key={lesson.id ?? lesson.slug}
+                    className="grid gap-3 rounded-[16px] border-2 border-line bg-paper p-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center"
+                  >
+                    <Link
+                      href={href}
+                      className="min-w-0 rounded-[8px] px-2 py-1 transition hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                    >
+                      <span className="flex flex-wrap items-center gap-2">
+                        <span className="rounded-full border-2 border-ink bg-white px-2.5 py-1 text-[11px] font-black uppercase text-muted">
+                          {moduleIndex + 1}.{lessonIndex + 1}
+                        </span>
+                        <span className="inline-flex items-center gap-1 rounded-full border-2 border-ink bg-yellow px-2.5 py-1 text-[11px] font-black text-ink">
+                          <Clock3 className="size-3.5" />
+                          {lesson.duration}
+                        </span>
+                        {lesson.progress?.completed ? (
+                          <span className="inline-flex items-center gap-1 rounded-full border-2 border-ink bg-white px-2.5 py-1 text-[11px] font-black text-ink">
+                            <CheckCircle2 className="size-3.5" />
+                            {labelFor(locale, "Zavrseno", "Done")}
+                          </span>
+                        ) : null}
+                        {isAdmin && draft ? (
+                          <span className="rounded-full border-2 border-ink bg-white px-2.5 py-1 text-[11px] font-black text-muted">
+                            {labelFor(locale, "Nacrt", "Draft")}
+                          </span>
+                        ) : null}
+                      </span>
+                      <span className="mt-2 block text-base font-black leading-tight text-ink">
+                        {localized(lesson.title, locale)}
+                      </span>
+                      {lesson.summary ? (
+                        <span className="mt-1 line-clamp-2 block text-sm font-bold leading-6 text-muted">
+                          {localized(lesson.summary, locale)}
+                        </span>
+                      ) : null}
+                    </Link>
+                    <div className="flex flex-wrap items-center gap-2 md:justify-end" onClick={stopControlClick}>
+                      <Link
+                        href={href}
+                        className="inline-flex min-h-9 items-center justify-center gap-2 rounded-full border-2 border-ink bg-ink px-3 text-xs font-black text-white shadow-[3px_3px_0_0_#f4be30] transition hover:-translate-y-0.5 hover:bg-yellow hover:text-ink"
+                      >
+                        <PlayCircle className="size-4" />
+                        {labelFor(locale, "Otvori", "Open")}
+                      </Link>
+                      {canManage && lesson.id ? (
+                        <EditLessonAction
+                          locale={locale}
+                          courseId={course.id}
+                          courseSlug={course.slug}
+                          moduleId={module.id}
+                          lessonId={lesson.id}
+                          initial={{
+                            slug: lesson.slug,
+                            title: lesson.title,
+                            summary: lesson.summary ?? { sr: "", en: "" },
+                            durationSeconds: lesson.durationSeconds,
+                            isPublished: lesson.isPublished ?? true,
+                            sortOrder: lesson.sortOrder ?? lessonIndex * 10,
+                          }}
+                          nextSortOrder={lesson.sortOrder ?? lessonIndex * 10}
+                          iconOnly
+                        />
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="rounded-[16px] border-2 border-dashed border-line bg-paper p-5 text-center">
+                <BookOpen className="mx-auto size-8 text-ink" />
+                <p className="mt-3 text-sm font-black text-muted">
+                  {labelFor(locale, "Nema lekcija u ovom ciklusu.", "No lessons in this cycle.")}
+                </p>
+                {canManage ? (
+                  <div className="mt-4 flex justify-center" onClick={stopControlClick}>
+                    <AddLessonAction
+                      locale={locale}
+                      courseId={course.id}
+                      courseSlug={course.slug}
+                      moduleId={module.id}
+                      nextSortOrder={10}
+                      buttonLabel={labelFor(locale, "Dodaj prvu lekciju", "Add first lesson")}
+                    />
+                  </div>
+                ) : null}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </motion.article>
+  );
+}
+
+function AddCycleCard({
+  locale,
+  course,
+  modules,
+}: {
+  locale: Locale;
+  course: DashboardCourse;
+  modules: DashboardModule[];
+}) {
+  return (
+    <article className="dashboard-reveal flex min-h-44 rounded-[16px] border-2 border-dashed border-ink bg-paper p-4">
+      <AddModuleAction
+        locale={locale}
+        courseId={course.id}
+        courseSlug={course.slug}
+        nextSortOrder={nextModuleSortOrder(modules)}
+        tone="inline"
+        buttonLabel={labelFor(locale, "Dodaj novi ciklus", "Add new cycle")}
+        openLessonAfterCreate
+        triggerClassName="min-h-full w-full flex-col bg-white/65 text-base shadow-none hover:bg-yellow"
+      />
+    </article>
+  );
+}
+
+function DashboardStatCard({
+  icon,
+  label,
+  value,
+  detail,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: string;
+  detail: string;
+}) {
+  return (
+    <div className="dashboard-reveal rounded-[16px] border-2 border-line bg-white p-4 shadow-[4px_4px_0_0_rgba(14,49,88,0.08)]">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-black uppercase text-muted">{label}</p>
+          <p className="mt-2 text-2xl font-black leading-none text-ink">{value}</p>
+          <p className="mt-2 text-sm font-bold leading-5 text-muted">{detail}</p>
+        </div>
+        <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-yellow text-ink">
+          {icon}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function ProgressRing({ percent, label }: { percent: number; label: string }) {
+  const safePercent = clampPercent(percent);
+  const radius = 42;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (safePercent / 100) * circumference;
+
+  return (
+    <div className="flex items-center gap-5">
+      <div className="relative size-32 shrink-0">
+        <svg viewBox="0 0 112 112" className="size-full -rotate-90" aria-hidden="true">
+          <circle cx="56" cy="56" r={radius} fill="none" stroke="#dce5ec" strokeWidth="12" />
+          <motion.circle
+            cx="56"
+            cy="56"
+            r={radius}
+            fill="none"
+            stroke="#f4be30"
+            strokeLinecap="round"
+            strokeWidth="12"
+            strokeDasharray={circumference}
+            initial={{ strokeDashoffset: circumference }}
+            animate={{ strokeDashoffset: offset }}
+            transition={{ duration: 0.75, ease: "easeOut" }}
+          />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+          <span className="text-3xl font-black leading-none text-ink">{safePercent}%</span>
+          <span className="mt-1 text-[10px] font-black uppercase text-muted">{label}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CourseProgressBars({ locale, courses }: { locale: Locale; courses: DashboardCourse[] }) {
+  const rows = courses.slice(0, 4);
+
+  return (
+    <div className="space-y-4">
+      {rows.map((course) => {
+        const summary = getProgressSummary(course, locale);
+        return (
+          <div key={course.slug}>
+            <div className="flex items-center justify-between gap-3 text-sm">
+              <span className="min-w-0 truncate font-black text-ink">{localized(course.title, locale)}</span>
+              <span className="shrink-0 font-black text-muted">{summary.percent}%</span>
+            </div>
+            <div className="mt-2 h-3 overflow-hidden rounded-full border-2 border-line bg-paper">
+              <motion.div
+                className="h-full rounded-full bg-yellow"
+                initial={{ width: 0 }}
+                animate={{ width: `${summary.percent}%` }}
+                transition={{ duration: 0.65, ease: "easeOut" }}
+              />
+            </div>
+          </div>
+        );
+      })}
+      {!rows.length ? (
+        <p className="text-sm font-bold leading-6 text-muted">
+          {labelFor(locale, "Kursevi ce se pojaviti ovde cim budu dostupni.", "Courses will appear here when they are available.")}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function ActivityMiniChart({ locale, activity }: { locale: Locale; activity: Array<{ day: string; completed: number }> }) {
+  const days = lastSevenActivity(activity);
+  const max = Math.max(1, ...days.map((item) => item.completed));
+
+  return (
+    <div className="flex h-32 items-end gap-2">
+      {days.map((item) => {
+        const height = item.completed ? Math.max(18, (item.completed / max) * 100) : 10;
+        return (
+          <div key={item.day} className="flex min-w-0 flex-1 flex-col items-center gap-2">
+            <div className="flex h-24 w-full items-end rounded-full bg-paper px-1.5 py-1.5">
+              <motion.div
+                className={cn("w-full rounded-full border-2 border-ink", item.completed ? "bg-yellow" : "bg-white")}
+                initial={{ height: 0 }}
+                animate={{ height: `${height}%` }}
+                transition={{ duration: 0.5, ease: "easeOut" }}
+                title={`${item.day}: ${item.completed}`}
+              />
+            </div>
+            <span className="text-[10px] font-black uppercase text-muted">{item.day.slice(5).replace("-", ".")}</span>
+          </div>
+        );
+      })}
+      <span className="sr-only">
+        {labelFor(locale, "Aktivnost po danima", "Activity by day")}
+      </span>
+    </div>
+  );
+}
+
+function CourseCover({ course, locale }: { course: DashboardCourse; locale: Locale }) {
+  if (course.image?.src) {
+    return (
+      <Image
+        src={course.image.src}
+        alt={localized(course.image.alt, locale)}
+        fill
+        sizes="(min-width: 1024px) 50vw, 100vw"
+        unoptimized
+        className="rounded-[8px] object-cover"
+      />
+    );
+  }
+
+  return (
+    <div className="relative h-full overflow-hidden rounded-[8px] bg-paper">
+      <div className="absolute inset-0 ink-hatch" />
+      <div className="relative flex h-full items-center justify-center p-6 text-center">
+        <span className="inline-flex size-14 items-center justify-center rounded-full border-2 border-ink bg-yellow text-ink shadow-[4px_4px_0_0_rgba(14,49,88,0.15)]">
+          <BookOpen className="size-7" />
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function DashboardCourseCard({
+  locale,
+  course,
   isAdmin,
 }: {
   locale: Locale;
-  courseSlug: string;
-  lesson: DashboardLesson;
-  index: number;
-  canOpen: boolean;
+  course: DashboardCourse;
   isAdmin: boolean;
 }) {
-  const content = (
-    <motion.div
-      layout
-      whileHover={canOpen ? { x: 3 } : undefined}
-      whileTap={canOpen ? { scale: 0.99 } : undefined}
-      className={cn(
-        "group flex min-h-16 items-center gap-3 border-t-2 border-line px-1 py-3 transition first:border-t-0",
-        canOpen ? "text-ink" : "text-muted",
-      )}
-    >
-      <span
-        className={cn(
-          "flex size-9 shrink-0 items-center justify-center rounded-[8px] border-2 text-xs font-black",
-          index === 0 && canOpen ? "border-ink bg-yellow text-ink" : "border-line bg-paper text-muted",
-        )}
-      >
-        {String(index + 1).padStart(2, "0")}
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-black">{localized(lesson.title, locale)}</span>
-        <span className="mt-1 flex flex-wrap items-center gap-2 text-xs font-bold text-muted">
-          <Clock className="size-3.5" />
-          {lesson.duration}
-          {isAdmin && lesson.isPublished === false ? (
-            <span className="rounded-[6px] border-2 border-ink bg-white px-2 py-0.5 text-[10px] font-black text-ink">
-              {labelFor(locale, "Nacrt", "Draft")}
-            </span>
-          ) : null}
-        </span>
-      </span>
-      {canOpen ? (
-        <ArrowRight className="size-4 shrink-0 text-ink transition group-hover:translate-x-0.5" />
-      ) : (
-        <Lock className="size-4 shrink-0" />
-      )}
-    </motion.div>
-  );
-
-  if (!canOpen) return <div>{content}</div>;
+  const summary = getProgressSummary(course, locale);
+  const canOpen = isAdmin || course.hasAccess;
+  const primaryLabel =
+    summary.completedLessons > 0
+      ? labelFor(locale, "Nastavi", "Continue")
+      : labelFor(locale, "Otvori kurs", "Open course");
 
   return (
-    <Link href={withLocale(locale, `/app/courses/${courseSlug}/lessons/${lesson.slug}`)} className="block">
-      {content}
-    </Link>
+    <motion.article
+      layout
+      whileHover={{ y: -3 }}
+      whileTap={{ scale: 0.99 }}
+      className="dashboard-reveal overflow-hidden rounded-[16px] border-2 border-ink bg-white shadow-[6px_6px_0_0_rgba(14,49,88,0.12)]"
+    >
+      <div className="p-3">
+        <div className="relative aspect-[16/9] overflow-hidden rounded-[8px] bg-paper">
+          <CourseCover course={course} locale={locale} />
+          <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full border-2 border-ink bg-white px-3 py-1 text-[11px] font-black uppercase text-ink">
+            <ShieldCheck className="size-3.5" />
+            {statusCopy(locale, course, isAdmin)}
+          </span>
+        </div>
+      </div>
+      <div className="space-y-4 px-5 pb-5 pt-2">
+        <div>
+          <h3 className="text-2xl font-black leading-tight text-ink">{localized(course.title, locale)}</h3>
+          <p className="mt-2 line-clamp-2 text-sm font-bold leading-6 text-muted">{localized(course.subtitle, locale)}</p>
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between gap-3 text-xs font-black uppercase text-muted">
+            <span>{labelFor(locale, "Napredak", "Progress")}</span>
+            <span>
+              {summary.completedLessons}/{summary.totalLessons || 0} {labelFor(locale, "lekcija", "lessons")}
+            </span>
+          </div>
+          <div className="mt-2 h-3 overflow-hidden rounded-full border-2 border-line bg-paper">
+            <motion.div
+              className="h-full rounded-full bg-yellow"
+              initial={{ width: 0 }}
+              animate={{ width: `${summary.percent}%` }}
+              transition={{ duration: 0.65, ease: "easeOut" }}
+            />
+          </div>
+        </div>
+
+        <div className="grid gap-2 text-sm font-bold text-muted sm:grid-cols-2">
+          <span className="inline-flex items-center gap-2">
+            <Layers className="size-4 text-ink" />
+            {flattenModules(course, locale).length} {labelFor(locale, "ciklusa", "cycles")}
+          </span>
+          <span className="inline-flex items-center gap-2">
+            <Clock3 className="size-4 text-ink" />
+            {formatLastActivity(locale, summary.lastActivityAt)}
+          </span>
+        </div>
+
+        {summary.nextLesson ? (
+          <p className="rounded-[16px] border-2 border-line bg-paper px-3 py-2 text-sm font-bold leading-6 text-muted">
+            <span className="font-black text-ink">{labelFor(locale, "Sledece:", "Next:")}</span>{" "}
+            {localized(summary.nextLesson.title, locale)}
+          </p>
+        ) : null}
+
+        <div className="flex flex-wrap gap-2">
+          {canOpen ? (
+            <LinkButton href={courseContinueHref(locale, course, summary.nextLesson)} tone="yellow" className="min-h-10 px-4 text-xs">
+              <PlayCircle className="size-4" />
+              {primaryLabel}
+            </LinkButton>
+          ) : (
+            <span className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border-2 border-line bg-paper px-4 text-xs font-black text-muted">
+              <Lock className="size-4" />
+              {labelFor(locale, "U pripremi", "In preparation")}
+            </span>
+          )}
+          <LinkButton href={courseDetailHref(locale, course.slug)} tone="paper" className="min-h-10 px-4 text-xs">
+            <ArrowRight className="size-4" />
+            {labelFor(locale, "Detalji", "Details")}
+          </LinkButton>
+          <LinkButton href={courseCommunityHref(locale, course.slug)} tone="paper" className="min-h-10 px-4 text-xs">
+            <MessageCircle className="size-4" />
+            {labelFor(locale, "Zajednica", "Community")}
+          </LinkButton>
+        </div>
+      </div>
+    </motion.article>
+  );
+}
+
+export function DashboardHomeContent({
+  locale,
+  profile,
+  courses,
+  isAdmin = false,
+}: {
+  locale: Locale;
+  profile?: ViewerProfile;
+  courses: DashboardCourse[];
+  isAdmin?: boolean;
+}) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const shouldReduceMotion = useReducedMotion();
+  const visibleCourses = courses.filter((course) => isAdmin || course.status === "published");
+  const summaries = visibleCourses.map((course) => getProgressSummary(course, locale));
+  const totalLessons = summaries.reduce((count, summary) => count + summary.totalLessons, 0);
+  const completedLessons = summaries.reduce((count, summary) => count + summary.completedLessons, 0);
+  const overallPercent = clampPercent(totalLessons ? (completedLessons / totalLessons) * 100 : 0);
+  const nextCourseIndex = summaries.findIndex((summary) => summary.nextLesson);
+  const nextCourse = nextCourseIndex >= 0 ? visibleCourses[nextCourseIndex] : visibleCourses[0];
+  const nextSummary = nextCourseIndex >= 0 ? summaries[nextCourseIndex] : summaries[0];
+  const activity = mergeActivity(visibleCourses, locale);
+  const profileName = profile?.name ?? "Student";
+
+  useEffect(() => {
+    if (!rootRef.current || shouldReduceMotion) return;
+    if (!dashboardScrollTriggerRegistered) {
+      gsap.registerPlugin(ScrollTrigger);
+      dashboardScrollTriggerRegistered = true;
+    }
+
+    const context = gsap.context(() => {
+      gsap.from(".dashboard-reveal", {
+        autoAlpha: 0,
+        y: 14,
+        duration: 0.42,
+        ease: "power2.out",
+        stagger: 0.035,
+      });
+    }, rootRef);
+
+    return () => context.revert();
+  }, [shouldReduceMotion]);
+
+  return (
+    <div ref={rootRef} className="space-y-6">
+      <section className="dashboard-reveal overflow-hidden rounded-[16px] border-2 border-ink bg-white shadow-[8px_8px_0_0_rgba(14,49,88,0.12)]">
+        <div className="grid gap-0 xl:grid-cols-[minmax(0,1fr)_300px]">
+          <div className="p-5 sm:p-7">
+            <p className="text-sm font-black uppercase text-muted">
+              {locale === "sr" ? `Zdravo, ${profileName}` : `Hi, ${profileName}`}
+            </p>
+            <h1 className="mt-2 max-w-3xl text-4xl font-black leading-tight text-ink sm:text-5xl">
+              {labelFor(locale, "Izaberi kurs i nastavi tamo gde si stao", "Choose a course and continue where you stopped")}
+            </h1>
+            <p className="mt-4 max-w-3xl text-base font-bold leading-7 text-muted sm:text-lg">
+              {labelFor(
+                locale,
+                "Ovo je tvoj radni pregled: vidi napredak, sledecu lekciju i brzo udji u kurs bez trazenja kroz meni.",
+                "This is your work view: see progress, the next lesson, and open a course without digging through menus.",
+              )}
+            </p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              {nextCourse && nextSummary?.nextLesson ? (
+                <LinkButton href={courseContinueHref(locale, nextCourse, nextSummary.nextLesson)} tone="yellow">
+                  <PlayCircle className="size-4" />
+                  {labelFor(locale, "Nastavi ucenje", "Continue learning")}
+                </LinkButton>
+              ) : null}
+              <LinkButton href={withLocale(locale, "/app/community")} tone="paper">
+                <MessageCircle className="size-4" />
+                {labelFor(locale, "Otvori zajednicu", "Open community")}
+              </LinkButton>
+            </div>
+          </div>
+          <div className="border-t-2 border-ink bg-ink p-5 text-white xl:border-l-2 xl:border-t-0">
+            <div className="flex h-full flex-col justify-between gap-5">
+              <div>
+                <p className="text-sm font-black uppercase text-white/65">{labelFor(locale, "Ukupno", "Overall")}</p>
+                <p className="mt-3 text-5xl font-black leading-none">{overallPercent}%</p>
+                <p className="mt-3 text-sm font-bold leading-6 text-white/70">
+                  {completedLessons}/{totalLessons || 0} {labelFor(locale, "zavrsenih lekcija", "completed lessons")}
+                </p>
+              </div>
+              <div className="rounded-[16px] border-2 border-white/25 bg-white/10 p-4">
+                <p className="text-xs font-black uppercase text-white/65">{labelFor(locale, "Nije izabran kurs", "No course selected")}</p>
+                <p className="mt-2 text-sm font-bold leading-6 text-white/80">
+                  {labelFor(locale, "Izaberi karticu ispod da otvoris detalje kursa.", "Choose a card below to open course details.")}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <DashboardStatCard
+          icon={<CheckCircle2 className="size-5" />}
+          label={labelFor(locale, "Zavrseno", "Completed")}
+          value={`${completedLessons}/${totalLessons || 0}`}
+          detail={labelFor(locale, "Lekcije kroz sve aktivne kurseve", "Lessons across all active courses")}
+        />
+        <DashboardStatCard
+          icon={<Compass className="size-5" />}
+          label={labelFor(locale, "Sledeci korak", "Next step")}
+          value={nextCourse ? localized(nextCourse.title, locale) : labelFor(locale, "Nema kursa", "No course")}
+          detail={
+            nextSummary?.nextLesson
+              ? localized(nextSummary.nextLesson.title, locale)
+              : labelFor(locale, "Izaberi kurs za pocetak.", "Choose a course to start.")
+          }
+        />
+        <DashboardStatCard
+          icon={<TrendingUp className="size-5" />}
+          label={labelFor(locale, "Aktivnost", "Activity")}
+          value={`${activity.reduce((count, item) => count + item.completed, 0)}`}
+          detail={labelFor(locale, "Zavrsene lekcije u skorijim sesijama", "Lessons completed in recent sessions")}
+        />
+      </div>
+
+      <section className="grid gap-5 xl:grid-cols-[320px_minmax(0,1fr)_320px]">
+        <Panel className="dashboard-reveal p-5">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-black uppercase text-muted">{labelFor(locale, "Ukupan progres", "Overall progress")}</p>
+              <h2 className="mt-1 text-2xl font-black text-ink">{labelFor(locale, "Tvoj ritam", "Your pace")}</h2>
+            </div>
+            <PieChart className="size-6 text-ink" />
+          </div>
+          <div className="mt-5">
+            <ProgressRing percent={overallPercent} label={labelFor(locale, "gotovo", "done")} />
+          </div>
+        </Panel>
+
+        <Panel className="dashboard-reveal p-5">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-black uppercase text-muted">{labelFor(locale, "Po kursu", "By course")}</p>
+              <h2 className="mt-1 text-2xl font-black text-ink">{labelFor(locale, "Napredak po kursu", "Course progress")}</h2>
+            </div>
+            <BarChart3 className="size-6 text-ink" />
+          </div>
+          <div className="mt-5">
+            <CourseProgressBars locale={locale} courses={visibleCourses} />
+          </div>
+        </Panel>
+
+        <Panel className="dashboard-reveal p-5">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-black uppercase text-muted">{labelFor(locale, "Aktivnost", "Activity")}</p>
+              <h2 className="mt-1 text-2xl font-black text-ink">{labelFor(locale, "Zadnji dani", "Recent days")}</h2>
+            </div>
+            <Gauge className="size-6 text-ink" />
+          </div>
+          <div className="mt-4">
+            <ActivityMiniChart locale={locale} activity={activity} />
+          </div>
+        </Panel>
+      </section>
+
+      <Panel className="dashboard-reveal overflow-hidden">
+        <div className="border-b-2 border-ink bg-white p-5 sm:p-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase text-muted">{labelFor(locale, "Kursevi", "Courses")}</p>
+              <h2 className="mt-2 text-2xl font-black text-ink sm:text-3xl">
+                {labelFor(locale, "Izaberi gde nastavljas", "Choose where to continue")}
+              </h2>
+            </div>
+            <span className="inline-flex w-fit items-center gap-2 rounded-full border-2 border-ink bg-paper px-4 py-2 text-xs font-black text-ink">
+              <BookOpen className="size-4" />
+              {visibleCourses.length} {labelFor(locale, "kursa", "courses")}
+            </span>
+          </div>
+        </div>
+        <div className="grid gap-5 p-5 lg:grid-cols-2 sm:p-6">
+          {visibleCourses.map((course) => (
+            <DashboardCourseCard key={course.slug} locale={locale} course={course} isAdmin={isAdmin} />
+          ))}
+          {!visibleCourses.length ? (
+            <div className="rounded-[16px] border-2 border-dashed border-line bg-paper p-6 text-center">
+              <BookOpen className="mx-auto size-10 text-ink" />
+              <p className="mt-3 text-lg font-black text-ink">{labelFor(locale, "Nema dostupnih kurseva", "No courses available")}</p>
+              <p className="mt-2 text-sm font-bold leading-6 text-muted">
+                {labelFor(locale, "Kursevi ce se pojaviti ovde kada budu objavljeni.", "Courses will appear here after they are published.")}
+              </p>
+            </div>
+          ) : null}
+        </div>
+      </Panel>
+    </div>
   );
 }
 
@@ -188,11 +1357,15 @@ export function DashboardContent({
   profile,
   course,
   isAdmin = false,
+  newLessonModuleId,
+  editModuleId,
 }: {
   locale: Locale;
   profile?: ViewerProfile;
   course: DashboardCourse;
   isAdmin?: boolean;
+  newLessonModuleId?: string;
+  editModuleId?: string;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const shouldReduceMotion = useReducedMotion();
@@ -205,11 +1378,13 @@ export function DashboardContent({
   );
   const draftLessons = Math.max(0, lessons - publishedLessons);
   const firstLesson = modules.flatMap((module) => module.lessons)[0];
+  const progressSummary = getProgressSummary(course, locale);
+  const nextLesson = progressSummary.nextLesson ?? firstLesson;
   const profileName = profile?.name ?? "Student";
   const courseIsPublished = course.status === "published";
   const canOpenCheckout = courseIsPublished && !course.hasAccess && !isAdmin;
-  const canContinue = Boolean(firstLesson && (course.hasAccess || isAdmin));
-  const completionPercent = isAdmin ? 100 : course.hasAccess ? 42 : 0;
+  const canContinue = Boolean(nextLesson && (course.hasAccess || isAdmin));
+  const completionPercent = isAdmin ? 100 : progressSummary.percent;
 
   useEffect(() => {
     if (!rootRef.current || shouldReduceMotion) return;
@@ -241,7 +1416,7 @@ export function DashboardContent({
   return (
     <div ref={rootRef} className="space-y-6">
       <section className="dashboard-reveal overflow-hidden rounded-[10px] border-2 border-ink bg-white shadow-[8px_8px_0_0_rgba(14,49,88,0.14)]">
-        <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="grid gap-0 xl:grid-cols-[minmax(0,1fr)_360px]">
           <div className="p-5 sm:p-7">
             <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-2 rounded-[8px] border-2 border-ink bg-yellow px-3 py-1 text-xs font-black text-ink">
@@ -253,6 +1428,28 @@ export function DashboardContent({
                   {draftLessons} {labelFor(locale, "nacrta", "drafts")}
                 </span>
               ) : null}
+              {isAdmin && course.id ? (
+                <EditCourseAction
+                  locale={locale}
+                  courseId={course.id}
+                  initial={{
+                    slug: course.slug,
+                    title: course.title,
+                    subtitle: course.subtitle,
+                    description: course.description,
+                    status: course.status,
+                    stripePriceId: course.stripePriceId,
+                    videoUrl: course.videoUrl,
+                    videoFileName: course.videoFileName,
+                    videoByteSize: course.videoByteSize,
+                    videoMimeType: course.videoMimeType,
+                    videoUpdatedAt: course.videoUpdatedAt,
+                    sortOrder: course.sortOrder ?? 0,
+                  }}
+                  nextSortOrder={course.sortOrder ?? 0}
+                  iconOnly
+                />
+              ) : null}
             </div>
             <p className="mt-6 text-sm font-black uppercase text-muted">
               {locale === "sr" ? `Zdravo, ${profileName}` : `Hi, ${profileName}`}
@@ -260,12 +1457,15 @@ export function DashboardContent({
             <h1 className="mt-2 max-w-4xl text-4xl font-black leading-tight text-ink sm:text-5xl">
               {localized(course.title, locale)}
             </h1>
+            <p className="mt-3 max-w-3xl text-lg font-black leading-7 text-ink/75">
+              {localized(course.subtitle, locale)}
+            </p>
             <p className="mt-4 max-w-3xl text-base font-bold leading-7 text-muted sm:text-lg">
               {localized(course.description, locale)}
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
-              {canContinue && firstLesson ? (
-                <LinkButton href={withLocale(locale, `/app/courses/${course.slug}/lessons/${firstLesson.slug}`)} tone="yellow">
+              {canContinue && nextLesson ? (
+                <LinkButton href={courseContinueHref(locale, course, nextLesson)} tone="yellow">
                   <PlayCircle className="size-4" />
                   {t.continueLesson}
                 </LinkButton>
@@ -274,7 +1474,9 @@ export function DashboardContent({
               ) : (
                 <div className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-paper px-5 py-2.5 text-sm font-extrabold text-ink">
                   <Sparkles className="size-4" />
-                  {courseIsPublished ? labelFor(locale, "Pristup nije aktivan", "Access is not active") : labelFor(locale, "U pripremi", "In preparation")}
+                  {courseIsPublished
+                    ? labelFor(locale, "Pristup nije aktivan", "Access is not active")
+                    : labelFor(locale, "U pripremi", "In preparation")}
                 </div>
               )}
               <LinkButton href={withLocale(locale, `/app/community?course=${course.slug}`)} tone="paper">
@@ -283,46 +1485,40 @@ export function DashboardContent({
               </LinkButton>
             </div>
           </div>
-          <div className="border-t-2 border-ink bg-ink p-5 text-white lg:border-l-2 lg:border-t-0">
-            <p className="text-sm font-black uppercase text-white/65">{labelFor(locale, "Snimak napretka", "Progress snapshot")}</p>
-            <div className="mt-5 flex items-end gap-3">
-              <p className="text-6xl font-black leading-none">{isAdmin ? "Admin" : `${completionPercent}%`}</p>
-            </div>
-            <div className="mt-5 h-3 overflow-hidden rounded-[8px] border-2 border-white bg-white/15">
-              <motion.div
-                className="h-full bg-yellow"
-                initial={{ width: 0 }}
-                animate={{ width: `${completionPercent}%` }}
-                transition={{ duration: shouldReduceMotion ? 0 : 0.7, ease: "easeOut" }}
-              />
-            </div>
-            <div className="mt-5 grid grid-cols-2 gap-2 text-xs font-black">
-              <div className="rounded-[8px] border-2 border-white/25 p-3">
-                <p className="text-white/60">{labelFor(locale, "Moduli", "Modules")}</p>
-                <p className="mt-1 text-xl text-white">{modules.length}</p>
+          <div className="border-t-2 border-ink bg-ink p-5 text-white xl:border-l-2 xl:border-t-0">
+            <div className="flex h-full flex-col justify-between gap-4">
+              <div>
+                <p className="text-sm font-black uppercase text-white/65">{labelFor(locale, "Pregled kursa", "Course overview")}</p>
+                <p className="mt-4 text-5xl font-black leading-none">{isAdmin ? "Admin" : `${completionPercent}%`}</p>
+                <div className="mt-5 h-3 overflow-hidden rounded-[8px] border-2 border-white bg-white/15">
+                  <motion.div
+                    className="h-full bg-yellow"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${completionPercent}%` }}
+                    transition={{ duration: shouldReduceMotion ? 0 : 0.7, ease: "easeOut" }}
+                  />
+                </div>
               </div>
-              <div className="rounded-[8px] border-2 border-white/25 p-3">
-                <p className="text-white/60">{t.lessons}</p>
-                <p className="mt-1 text-xl text-white">{lessons}</p>
+              <div className="grid grid-cols-2 gap-2">
+                <MetricTile icon={<Layers className="size-4" />} label={labelFor(locale, "Ciklusi", "Cycles")} value={`${modules.length}`} tone="ink" />
+                <MetricTile icon={<BookOpen className="size-4" />} label={t.lessons} value={`${publishedLessons}/${lessons || 0}`} tone="ink" />
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <StatPanel label={t.progress} value={isAdmin ? labelFor(locale, "Editor", "Editor") : `${completionPercent}%`} icon={BarChart3} tone="yellow" />
-        <StatPanel label={t.lessons} value={`${publishedLessons}/${lessons || 0}`} icon={BookOpen} />
-        <StatPanel label={t.community} value={locale === "sr" ? "2 nova" : "2 new"} icon={MessageCircle} tone="ink" />
-      </div>
+      <CourseVideoSection locale={locale} isAdmin={isAdmin} course={course} />
+
+      <FeaturedThreadsSection locale={locale} course={course} />
 
       <Panel className="dashboard-reveal overflow-hidden">
         <div className="border-b-2 border-ink bg-white p-5 sm:p-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-xs font-black uppercase text-muted">{labelFor(locale, "Roadmap smera", "Track roadmap")}</p>
+              <p className="text-xs font-black uppercase text-muted">{labelFor(locale, "Ciklusi u kursu", "Course cycles")}</p>
               <h2 className="mt-2 text-2xl font-black text-ink sm:text-3xl">
-                {labelFor(locale, "Sta sledi dalje", "What comes next")}
+                {labelFor(locale, "Nastavni tok", "Learning path")}
               </h2>
             </div>
             <span className="inline-flex w-fit items-center gap-2 rounded-[8px] border-2 border-ink bg-paper px-3 py-2 text-xs font-black text-ink">
@@ -331,72 +1527,20 @@ export function DashboardContent({
             </span>
           </div>
         </div>
-        <div className="divide-y-2 divide-line p-5 sm:p-6">
+        <div className="space-y-4 p-5 sm:p-6">
           {modules.map((module, moduleIndex) => (
-            <motion.section key={`${localized(module.title, locale)}-${moduleIndex}`} layout className="dashboard-reveal py-4 first:pt-0 last:pb-0">
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-xs font-black uppercase text-muted">
-                    {labelFor(locale, "Modul", "Module")} {moduleIndex + 1}
-                  </p>
-                  <h3 className="truncate text-lg font-black text-ink">{localized(module.title, locale)}</h3>
-                </div>
-                <span className="shrink-0 rounded-[8px] border-2 border-line bg-paper px-3 py-1 text-xs font-black text-muted">
-                  {module.lessons.length} {labelFor(locale, "lekcija", "lessons")}
-                </span>
-              </div>
-              {module.lessons.length ? (
-                <div>
-                  {module.lessons.map((lesson, lessonIndex) => (
-                    <LessonRow
-                      key={lesson.slug}
-                      locale={locale}
-                      courseSlug={course.slug}
-                      lesson={lesson}
-                      index={lessonIndex}
-                      canOpen={canContinue}
-                      isAdmin={isAdmin}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="rounded-[8px] border-2 border-dashed border-line bg-paper p-4 text-sm font-black text-muted">
-                  {locale === "sr" ? "Modul jos nema lekcija." : "This module has no lessons yet."}
-                </div>
-              )}
-            </motion.section>
+            <CycleCard
+              key={module.id ?? `${localized(module.title, locale)}-${moduleIndex}`}
+              locale={locale}
+              course={course}
+              module={module}
+              moduleIndex={moduleIndex}
+              isAdmin={isAdmin}
+              initialOpenKey={newLessonModuleId}
+              editModuleId={editModuleId}
+            />
           ))}
-          {!lessons ? (
-            <div className="rounded-[8px] border-2 border-dashed border-ink bg-paper p-5 text-sm font-black text-muted">
-              {locale === "sr" ? "Lekcije za ovaj smer stizu uskoro." : "Lessons for this track are coming soon."}
-            </div>
-          ) : null}
-        </div>
-      </Panel>
-
-      <Panel className="dashboard-reveal p-5 sm:p-6">
-        <div className="grid gap-5 lg:grid-cols-[1fr_auto] lg:items-center">
-          <div>
-            <p className="text-xl font-black text-ink">{locale === "sr" ? "Pretplata i pristup" : "Subscription and access"}</p>
-            <p className="mt-2 text-base leading-7 text-muted">
-              {isAdmin
-                ? labelFor(
-                    locale,
-                    "Admin vidi sve nacrte i zakljucane lekcije direktno u aplikaciji.",
-                    "Admins see all drafts and locked lessons directly in the app.",
-                  )
-                : course.hasAccess
-                  ? labelFor(locale, "Pristup je aktivan. Mozes nastaviti od prve dostupne lekcije.", "Access is active. You can continue from the first available lesson.")
-                  : labelFor(locale, "Aktiviraj pristup da otvoris kompletan roadmap lekcija.", "Activate access to open the full lesson roadmap.")}
-            </p>
-          </div>
-          {canOpenCheckout ? (
-            <CheckoutButton courseSlug={course.slug} locale={locale} label={t.checkout} />
-          ) : (
-            <div className="inline-flex min-h-11 items-center justify-center rounded-[8px] border-2 border-ink bg-paper px-5 text-sm font-extrabold text-ink">
-              {isAdmin ? "Admin" : course.hasAccess ? labelFor(locale, "Aktivno", "Active") : labelFor(locale, "Uskoro", "Coming soon")}
-            </div>
-          )}
+          {isAdmin ? <AddCycleCard locale={locale} course={course} modules={modules} /> : null}
         </div>
       </Panel>
     </div>

@@ -13,19 +13,34 @@ function SignInCopy({ locale }: { locale: Locale }) {
     <div>
       <BrandMark href={withLocale(locale)} label={dictionary[locale].appName} />
       <h1 className="mt-10 text-5xl font-black leading-tight text-ink md:text-6xl">
-        {locale === "sr" ? "Uđi u svoj AI smer" : "Enter your AI track"}
+        {locale === "sr" ? "Uđi u svoj AI kurs" : "Enter your AI course"}
       </h1>
       <HandUnderline className="mt-5" />
       <p className="mt-6 max-w-xl text-lg font-bold leading-8 text-muted">
         {locale === "sr"
-          ? "Email i Google prijava koriste Convex Auth i čuvaju pristup smerovima na serveru."
-          : "Email and Google sign-in use Convex Auth and keep track access checked on the server."}
+          ? "Email i Google prijava koriste Convex Auth i čuvaju pristup kursevima na serveru."
+          : "Email and Google sign-in use Convex Auth and keep course access checked on the server."}
       </p>
       <Link href={withLocale(locale)} className="mt-8 inline-flex text-sm font-extrabold text-ink underline">
         {locale === "sr" ? "Nazad na početnu" : "Back home"}
       </Link>
     </div>
   );
+}
+
+function safeRedirectTo(locale: Locale, value: string | string[] | undefined) {
+  const candidate = Array.isArray(value) ? value[0] : value;
+  const fallback = withLocale(locale, "/app");
+
+  if (!candidate || candidate.startsWith("//")) {
+    return fallback;
+  }
+
+  if (candidate === withLocale(locale) || candidate.startsWith(`${withLocale(locale)}/`)) {
+    return candidate;
+  }
+
+  return fallback;
 }
 
 export default async function SignInPage({
@@ -41,6 +56,7 @@ export default async function SignInPage({
   const mode = Array.isArray(resolvedSearchParams.mode) ? resolvedSearchParams.mode[0] : resolvedSearchParams.mode;
   const email = Array.isArray(resolvedSearchParams.email) ? resolvedSearchParams.email[0] : resolvedSearchParams.email;
   const code = Array.isArray(resolvedSearchParams.code) ? resolvedSearchParams.code[0] : resolvedSearchParams.code;
+  const redirectTo = safeRedirectTo(locale, resolvedSearchParams.next);
   const initialFlow =
     mode === "reset-confirm" ? "resetVerification" : mode === "reset" ? "reset" : undefined;
 
@@ -54,6 +70,7 @@ export default async function SignInPage({
           initialFlow={initialFlow}
           initialEmail={email}
           initialCode={code}
+          redirectTo={redirectTo}
         />
       </div>
     </main>

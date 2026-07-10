@@ -1,9 +1,10 @@
-import { mutationGeneric } from "convex/server";
+import { mutation } from "./_generated/server";
 import { v } from "convex/values";
+import type { Id } from "./_generated/dataModel";
 
-import { requireAdmin, requireSyncSecret } from "./helpers";
+import { requireAdmin } from "./helpers";
 
-export const createLessonDraft = mutationGeneric({
+export const createLessonDraft = mutation({
   args: {
     courseId: v.id("courses"),
     moduleId: v.id("modules"),
@@ -19,67 +20,71 @@ export const createLessonDraft = mutationGeneric({
     return ctx.db.insert("lessons", {
       ...args,
       durationSeconds: 0,
-      muxStatus: "draft",
       isPublished: false,
       updatedAt: Date.now(),
     });
   },
 });
 
-export const attachMuxUpload = mutationGeneric({
+export const saveCourseVideo = mutation({
   args: {
-    lessonId: v.id("lessons"),
-    muxUploadId: v.string(),
+    courseId: v.id("courses"),
+    storageId: v.id("_storage"),
+    fileName: v.string(),
+    byteSize: v.number(),
+    mimeType: v.string(),
   },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
-    await ctx.db.patch(args.lessonId, {
-      muxUploadId: args.muxUploadId,
-      muxStatus: "waiting",
-      updatedAt: Date.now(),
-    });
-    return args.lessonId;
-  },
-});
-
-export const syncMuxAsset = mutationGeneric({
-  args: {
-    syncSecret: v.string(),
-    muxUploadId: v.optional(v.string()),
-    muxAssetId: v.string(),
-    muxPlaybackId: v.optional(v.string()),
-    durationSeconds: v.optional(v.number()),
-    status: v.union(v.literal("preparing"), v.literal("ready"), v.literal("errored")),
-  },
-  handler: async (ctx, args) => {
-    requireSyncSecret(args.syncSecret);
-    const lesson = args.muxUploadId
-      ? await ctx.db
-          .query("lessons")
-          .withIndex("by_mux_upload", (q) => q.eq("muxUploadId", args.muxUploadId))
-          .unique()
-      : await ctx.db
-          .query("lessons")
-          .withIndex("by_mux_asset", (q) => q.eq("muxAssetId", args.muxAssetId))
-          .unique();
-
-    if (!lesson) {
-      return null;
+    const course = await ctx.db.get(args.courseId);
+    if (!course) {
+      throw new Error("Kurs nije pronadjen");
     }
 
-    await ctx.db.patch(lesson._id, {
-      muxAssetId: args.muxAssetId,
-      muxPlaybackId: args.muxPlaybackId,
-      durationSeconds: args.durationSeconds ?? lesson.durationSeconds,
-      muxStatus: args.status,
+    if (course.videoStorageId) {
+      await ctx.storage.delete(course.videoStorageId);
+    }
+
+    await ctx.db.patch(args.courseId, {
+      videoStorageId: args.storageId,
+      videoFileName: args.fileName,
+      videoByteSize: args.byteSize,
+      videoMimeType: args.mimeType,
+      videoUpdatedAt: Date.now(),
       updatedAt: Date.now(),
     });
-
-    return lesson._id;
+    return args.courseId;
   },
 });
 
-export const createDocumentUploadUrl = mutationGeneric({
+export const deleteCourseVideo = mutation({
+  args: {
+    courseId: v.id("courses"),
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    const course = await ctx.db.get(args.courseId);
+    if (!course) {
+      throw new Error("Kurs nije pronadjen");
+    }
+
+    if (course.videoStorageId) {
+      await ctx.storage.delete(course.videoStorageId);
+    }
+
+    await ctx.db.patch(args.courseId, {
+      videoStorageId: undefined,
+      videoFileName: undefined,
+      videoByteSize: undefined,
+      videoMimeType: undefined,
+      videoUpdatedAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+    return args.courseId;
+  },
+});
+
+export const createDocumentUploadUrl = mutation({
   args: {},
   handler: async (ctx) => {
     await requireAdmin(ctx);
@@ -87,7 +92,7 @@ export const createDocumentUploadUrl = mutationGeneric({
   },
 });
 
-export const saveLessonAsset = mutationGeneric({
+export const saveLessonAsset = mutation({
   args: {
     courseId: v.id("courses"),
     lessonId: v.id("lessons"),
@@ -102,8 +107,9 @@ export const saveLessonAsset = mutationGeneric({
     const admin = await requireAdmin(ctx);
     return ctx.db.insert("lessonAssets", {
       ...args,
-      createdBy: admin.userId,
+      createdBy: admin.userId as Id<"users">,
       createdAt: Date.now(),
     });
   },
 });
+

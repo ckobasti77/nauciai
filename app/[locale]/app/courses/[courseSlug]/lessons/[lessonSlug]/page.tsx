@@ -28,7 +28,6 @@ type LiveLessonPayload = {
     summarySr: string;
     summaryEn: string;
     durationSeconds: number;
-    muxPlaybackId?: string;
     isPublished: boolean;
     sortOrder: number;
   } | null;
@@ -128,7 +127,6 @@ function liveCourseAndLesson(liveLesson: LiveLessonResult, fallbackCourse: Cours
       sr: liveLesson.lesson.summarySr,
       en: liveLesson.lesson.summaryEn,
     },
-    muxPlaybackId: liveLesson.lesson.muxPlaybackId,
     isPublished: liveLesson.lesson.isPublished,
     sortOrder: liveLesson.lesson.sortOrder,
     assets: liveLessonAssets(liveLesson.assets),
@@ -151,6 +149,8 @@ function liveCourseAndLesson(liveLesson: LiveLessonResult, fallbackCourse: Cours
     },
     status: "published",
     priceLabel: fallbackCourse.priceLabel,
+    image: fallbackCourse.image,
+    detail: fallbackCourse.detail,
     stripePriceEnv: fallbackCourse.stripePriceEnv,
     accent: fallbackCourse.accent,
     modules: fallbackCourse.modules,
@@ -178,13 +178,14 @@ export default async function LessonPage({
 
     const convex = getConvexHttpClient(token);
     liveLesson = convex
-      ? ((await convex.query(convexQueries.getLessonForStudent, { courseSlug, lessonSlug }).catch((error) => {
-          if (error instanceof Error && error.message.includes("Active subscription required")) {
-            redirect(withLocale(locale, "/app/billing"));
-          }
-          return null;
-        })) as LiveLessonResult)
+      ? ((await convex
+          .query(convexQueries.getLessonForStudent, { courseSlug, lessonSlug })
+          .catch(() => null)) as LiveLessonResult)
       : null;
+  }
+
+  if (!liveLesson && course.status !== "published") {
+    redirect(withLocale(locale, `/app?course=${course.slug}`));
   }
 
   const resolved = liveCourseAndLesson(liveLesson, course, lesson);

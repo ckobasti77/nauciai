@@ -12,12 +12,16 @@ export function CheckoutButton({
   label,
   className,
   size = "default",
+  tone = "yellow",
+  fullWidth = false,
 }: {
   courseSlug: string;
   locale: Locale;
   label: string;
   className?: string;
   size?: "default" | "compact";
+  tone?: "yellow" | "ink";
+  fullWidth?: boolean;
 }) {
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +53,10 @@ export function CheckoutButton({
         onClick={startCheckout}
         disabled={isPending}
         className={cn(
-          "inline-flex items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-yellow text-sm font-extrabold text-ink transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70",
+          "inline-flex items-center justify-center gap-2 rounded-[8px] border-2 border-ink text-sm font-extrabold transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70",
+          tone === "yellow" && "bg-yellow text-ink",
+          tone === "ink" && "bg-ink text-white",
+          fullWidth && "w-full",
           size === "default" && "min-h-11 px-5 py-2.5 shadow-[4px_4px_0_0_#0e3158]",
           size === "compact" && "min-h-9 px-3 py-1.5 shadow-[2px_2px_0_0_#0e3158]",
         )}

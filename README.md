@@ -7,7 +7,7 @@ Production-oriented MVP for a bilingual Serbian/English AI education platform bu
 - `/sr` and `/en`: localized marketing pages.
 - `/sr/sign-in` and `/en/sign-in`: Convex Auth sign-in and registration.
 - `/sr/app` and `/en/app`: student dashboard.
-- `/sr/app/courses/[courseSlug]/lessons/[lessonSlug]`: protected lesson player for a selected track.
+- `/sr/app/courses/[courseSlug]/lessons/[lessonSlug]`: protected lesson player for a selected course.
 - `/sr/app/community`: student community board.
 - `/sr/app/profile`: profile surface.
 - `/sr/app/billing`: subscription management entrypoint.
@@ -21,6 +21,7 @@ npm install
 copy .env.example .env.local
 npx convex dev
 npm run convex:auth
+npm run convex:admin-env
 npm run convex:oauth
 npm run convex:seed
 npm run dev
@@ -28,8 +29,9 @@ npm run dev
 
 `npx convex dev` creates or links the Convex deployment and fills `CONVEX_DEPLOYMENT` / `NEXT_PUBLIC_CONVEX_URL`. The app intentionally renders a setup state when Convex is not configured, so local UI work can continue before live services are connected.
 `npm run convex:auth` generates the Convex Auth RS256 key material and sets `SITE_URL`, `JWT_PRIVATE_KEY`, and `JWKS` in the active Convex deployment.
+`npm run convex:admin-env` copies `INITIAL_ADMIN_EMAILS` from `.env.local` into the active Convex deployment. Editing `.env.local` alone does not update Convex backend authorization.
 `npm run convex:oauth` sets OAuth provider credentials on the active Convex deployment. Use the production variants below for the production deployment.
-`npm run convex:seed` creates the initial Smer za video i audio and Smer za web sajtove records in Convex. It also passes Stripe price IDs from `.env.local` when they exist.
+`npm run convex:seed` creates the initial video/audio and websites course records in Convex. It also passes Stripe price IDs from `.env.local` when they exist.
 
 ## Required services
 
@@ -42,7 +44,7 @@ npx convex env set AUTH_SECRET "<random-secret>"
 npx convex env set AUTH_RESEND_KEY "<resend-api-key>"
 npx convex env set AUTH_RESEND_FROM "Nauci AI <auth@your-domain.com>"
 npx convex env set WEBHOOK_SYNC_SECRET "<same-value-as-env-local>"
-npx convex env set INITIAL_ADMIN_EMAILS "admin@example.com"
+npm run convex:admin-env
 npm run convex:oauth -- --google-id "<google-client-id>" --google-secret "<google-client-secret>" --skip-apple
 ```
 
@@ -54,7 +56,7 @@ npx convex env --prod set AUTH_SECRET "<random-secret>"
 npx convex env --prod set AUTH_RESEND_KEY "<prod-resend-api-key>"
 npx convex env --prod set AUTH_RESEND_FROM "Nauci AI <auth@your-domain.com>"
 npx convex env --prod set WEBHOOK_SYNC_SECRET "<same-value-as-vercel>"
-npx convex env --prod set INITIAL_ADMIN_EMAILS "nauciai2026@gmail.com"
+npm run convex:admin-env:prod
 npm run convex:oauth:prod -- --google-id "<prod-google-client-id>" --google-secret "<prod-google-client-secret>" --skip-apple
 ```
 
@@ -75,13 +77,13 @@ CONVEX_DEPLOYMENT=prod:quick-yak-270
 WEBHOOK_SYNC_SECRET=<same-value-as-convex>
 ```
 
-Convex-only secrets such as `AUTH_SECRET`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, `AUTH_RESEND_KEY`, `AUTH_RESEND_FROM`, `JWT_PRIVATE_KEY`, and `JWKS` must live in Convex environment variables. Do not rely on Vercel to provide them to Convex Auth.
+Convex-only secrets such as `AUTH_SECRET`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, `AUTH_RESEND_KEY`, `AUTH_RESEND_FROM`, `JWT_PRIVATE_KEY`, and `JWKS` must live in Convex environment variables. `INITIAL_ADMIN_EMAILS` also must be synced to Convex env because admin resolution runs in Convex functions. Do not rely on Vercel to provide them to Convex Auth.
 
 If secrets were exposed in screenshots or logs, rotate Google OAuth credentials, `AUTH_SECRET`, and `WEBHOOK_SYNC_SECRET`, then update both Convex and Vercel where applicable.
 
 Stripe:
 
-- Create subscription prices for the published tracks.
+- Create subscription prices for the published courses.
 - Put the price IDs in `STRIPE_PRICE_VIDEO_AUDIO_AI` and `STRIPE_PRICE_VIBE_CODING`.
 - Forward webhooks to `/api/stripe/webhook`.
 - Required events: `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`.

@@ -33,6 +33,10 @@ export type AppLessonNav = {
 export type AppModuleNav = {
   id?: string;
   title: LocalizedText;
+  description?: LocalizedText;
+  imageUrl?: string | null;
+  imageFileName?: string;
+  imageAlt?: LocalizedText;
   sortOrder: number;
   lessons: AppLessonNav[];
 };
@@ -46,6 +50,11 @@ export type AppCourseNav = {
   status: "draft" | "published" | "archived";
   priceLabel: LocalizedText;
   stripePriceId?: string;
+  videoUrl?: string | null;
+  videoFileName?: string;
+  videoByteSize?: number;
+  videoMimeType?: string;
+  videoUpdatedAt?: number;
   hasAccess: boolean;
   sortOrder: number;
   modules: AppModuleNav[];
@@ -71,12 +80,23 @@ type LiveNavigationResult = {
     descriptionEn: string;
     status: "draft" | "published" | "archived";
     stripePriceId?: string;
+    videoUrl?: string | null;
+    videoFileName?: string;
+    videoByteSize?: number;
+    videoMimeType?: string;
+    videoUpdatedAt?: number;
     hasAccess?: boolean;
     sortOrder: number;
     modules?: Array<{
       _id?: string;
       titleSr: string;
       titleEn: string;
+      descriptionSr?: string;
+      descriptionEn?: string;
+      imageUrl?: string | null;
+      imageFileName?: string;
+      imageAltSr?: string;
+      imageAltEn?: string;
       sortOrder: number;
       lessons?: Array<{
         _id?: string;
@@ -203,6 +223,11 @@ export async function getAppNavigationData(locale: Locale): Promise<AppNavigatio
           en: "Soon",
         },
         stripePriceId: course.stripePriceId,
+        videoUrl: course.videoUrl,
+        videoFileName: course.videoFileName,
+        videoByteSize: course.videoByteSize,
+        videoMimeType: course.videoMimeType,
+        videoUpdatedAt: course.videoUpdatedAt,
         hasAccess: Boolean(course.hasAccess),
         sortOrder: course.sortOrder,
         modules: (course.modules ?? []).map((module) => ({
@@ -211,6 +236,22 @@ export async function getAppNavigationData(locale: Locale): Promise<AppNavigatio
             sr: module.titleSr,
             en: module.titleEn,
           },
+          description:
+            module.descriptionSr || module.descriptionEn
+              ? {
+                  sr: module.descriptionSr ?? module.descriptionEn ?? "",
+                  en: module.descriptionEn ?? module.descriptionSr ?? "",
+                }
+              : undefined,
+          imageUrl: module.imageUrl,
+          imageFileName: module.imageFileName,
+          imageAlt:
+            module.imageAltSr || module.imageAltEn
+              ? {
+                  sr: module.imageAltSr ?? module.imageAltEn ?? "",
+                  en: module.imageAltEn ?? module.imageAltSr ?? "",
+                }
+              : undefined,
           sortOrder: module.sortOrder,
           lessons: (module.lessons ?? []).map((lesson) => ({
             id: lesson._id,

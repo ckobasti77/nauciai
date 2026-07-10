@@ -14,7 +14,7 @@ export function LinkButton({ className, tone = "ink", ...props }: ButtonProps) {
   return (
     <Link
       className={cn(
-        "inline-flex min-h-11 items-center justify-center gap-2 rounded-[8px] border-2 px-5 py-2.5 text-sm font-extrabold transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2",
+        "inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 px-5 py-2.5 text-sm font-extrabold transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2",
         tone === "ink" &&
           "border-ink bg-ink text-white shadow-[4px_4px_0_0_#f4be30] hover:-translate-y-0.5 hover:shadow-[6px_6px_0_0_#f4be30] focus-visible:outline-ink",
         tone === "yellow" &&
@@ -45,7 +45,7 @@ export function Panel({
     <Tag
       id={id}
       className={cn(
-        "rounded-[8px] border-2 border-ink bg-white shadow-[6px_6px_0_0_rgba(14,49,88,0.13)]",
+        "rounded-[16px] border-2 border-ink bg-white shadow-[6px_6px_0_0_rgba(14,49,88,0.13)]",
         className,
       )}
     >
@@ -125,7 +125,7 @@ export function SketchIcon({
   return (
     <span
       className={cn(
-        "inline-flex size-10 items-center justify-center rounded-[8px] border-2 border-ink bg-yellow text-ink",
+        "inline-flex size-10 items-center justify-center rounded-[16px] border-2 border-ink bg-yellow text-ink",
         className,
       )}
     >

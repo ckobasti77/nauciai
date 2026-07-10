@@ -1,9 +1,10 @@
 "use client";
 
-import MuxPlayer from "@mux/mux-player-react";
+
 import { useConvexAuth } from "@convex-dev/auth/react";
 import { useMutation, useQuery } from "convex/react";
-import { CheckCircle2, Download, FileText, Loader2, Lock, PlayCircle } from "lucide-react";
+import { CheckCircle2, Download, FileText, LayoutDashboard, Loader2, Lock, PlayCircle } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 
 import {
@@ -12,97 +13,16 @@ import {
   EditLessonAction,
   EditLessonPartAction,
 } from "@/components/app/admin-inline-actions";
+import { CourseLab, type LessonLabData } from "@/components/app/course-lab";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { Panel, cn } from "@/components/ui/primitives";
 import type { Course, Lesson, LessonPart } from "@/lib/content";
-import { localized, type Locale } from "@/lib/i18n";
+import { localized, type Locale, withLocale } from "@/lib/i18n";
 
 type TokenPayload = Record<string, string>;
 
-function PlayerSurface({
-  course,
-  lesson,
-  locale,
-}: {
-  course: Course;
-  lesson: Lesson;
-  locale: Locale;
-}) {
-  const [tokens, setTokens] = useState<TokenPayload | null>(null);
-  const [state, setState] = useState<"idle" | "ready" | "error">("idle");
-  const playbackId = lesson.muxPlaybackId;
-  const isDemo = !playbackId || playbackId.startsWith("demo-");
-  const effectiveState = isDemo ? "demo" : state === "ready" ? "ready" : state === "error" ? "error" : "loading";
 
-  useEffect(() => {
-    if (isDemo || !playbackId) {
-      return;
-    }
-
-    let isMounted = true;
-    fetch("/api/mux/playback-token", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ playbackId, courseSlug: course.slug, lessonSlug: lesson.slug }),
-    })
-      .then(async (response) => {
-        if (!response.ok) throw new Error("Playback token failed");
-        return response.json();
-      })
-      .then((payload) => {
-        if (isMounted) {
-          setTokens(payload);
-          setState("ready");
-        }
-      })
-      .catch(() => {
-        if (isMounted) setState("error");
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [course.slug, isDemo, lesson.slug, playbackId]);
-
-  if (effectiveState === "ready" && playbackId) {
-    return (
-      <MuxPlayer
-        playbackId={playbackId}
-        tokens={tokens ?? undefined}
-        accentColor="#f4be30"
-        primaryColor="#0e3158"
-        secondaryColor="#fffdf8"
-        metadataVideoTitle={localized(lesson.title, locale)}
-        className="aspect-video w-full overflow-hidden rounded-[8px] border-2 border-ink bg-ink"
-      />
-    );
-  }
-
-  return (
-    <div className="flex aspect-video w-full items-center justify-center rounded-[8px] border-2 border-ink bg-ink p-6 text-white">
-      <div className="max-w-md text-center">
-        {effectiveState === "loading" ? (
-          <Loader2 className="mx-auto size-10 animate-spin text-yellow" />
-        ) : effectiveState === "error" ? (
-          <Lock className="mx-auto size-10 text-yellow" />
-        ) : (
-          <PlayCircle className="mx-auto size-12 text-yellow" />
-        )}
-        <p className="mt-4 text-2xl font-black">{localized(lesson.title, locale)}</p>
-        <p className="mt-2 text-sm font-bold text-white/75">
-          {effectiveState === "error"
-            ? locale === "sr"
-              ? "Token za privatni Mux playback nije dostupan."
-              : "Private Mux playback token is not available."
-            : locale === "sr"
-              ? "Demo prikaz dok se ne poveze stvarni video."
-              : "Demo surface until a real video is connected."}
-        </p>
-      </div>
-    </div>
-  );
-}
 
 function PartContent({ part, locale }: { part: LessonPart; locale: Locale }) {
   if (part.kind === "video") {
@@ -192,9 +112,25 @@ export function CoursePlayer({
   const markProgress = useMutation(api.courses.markProgress);
   const { isAuthenticated } = useConvexAuth();
   const viewerData = useQuery(api.courses.viewer, isAuthenticated ? {} : "skip");
+  const labData = useQuery(
+    api.lab.getLessonLab,
+    isAuthenticated && course.slug && lesson.slug ? { courseSlug: course.slug, lessonSlug: lesson.slug } : "skip",
+  ) as LessonLabData | null | undefined;
   const [isSavingProgress, setIsSavingProgress] = useState(false);
   const [progressMessage, setProgressMessage] = useState<string | null>(null);
   const effectiveIsAdmin = isAdmin || viewerData?.profile?.role === "admin";
+
+  if (courseId && lessonId && labData?.steps?.length) {
+    return (
+      <CourseLab
+        course={course}
+        lesson={lesson}
+        locale={locale}
+        lab={labData}
+        lessonId={lessonId}
+      />
+    );
+  }
 
   async function handleMarkComplete() {
     if (!lessonId) {
@@ -290,7 +226,6 @@ export function CoursePlayer({
   return (
     <div className="grid gap-5 xl:grid-cols-[1fr_320px]">
       <section className="space-y-5">
-        <PlayerSurface course={course} lesson={lesson} locale={locale} />
         <Panel className="p-5">
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div>
@@ -316,6 +251,13 @@ export function CoursePlayer({
                     }}
                     nextSortOrder={lesson.sortOrder ?? 10}
                   />
+                  <Link
+                    href={withLocale(locale, `/app/courses/${course.slug}/lessons/${lesson.slug}/edit`)}
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-ink px-4 text-sm font-extrabold text-white shadow-[3px_3px_0_0_rgba(14,49,88,0.16)] transition hover:-translate-y-0.5 hover:bg-yellow hover:text-ink"
+                  >
+                    <LayoutDashboard className="size-4" />
+                    {locale === "sr" ? "Admin editor" : "Admin editor"}
+                  </Link>
                   <AddLessonPartAction
                     locale={locale}
                     courseId={courseId}

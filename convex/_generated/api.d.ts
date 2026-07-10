@@ -11,9 +11,15 @@
 import type * as auth from "../auth.js";
 import type * as billing from "../billing.js";
 import type * as community from "../community.js";
+import type * as communityScope from "../communityScope.js";
 import type * as courses from "../courses.js";
 import type * as helpers from "../helpers.js";
 import type * as http from "../http.js";
+import type * as lab from "../lab.js";
+import type * as leaderboard from "../leaderboard.js";
+import type * as leaderboardCore from "../leaderboardCore.js";
+import type * as migrations from "../migrations.js";
+import type * as notifications from "../notifications.js";
 import type * as profiles from "../profiles.js";
 import type * as seed from "../seed.js";
 import type * as video from "../video.js";
@@ -28,9 +34,15 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   billing: typeof billing;
   community: typeof community;
+  communityScope: typeof communityScope;
   courses: typeof courses;
   helpers: typeof helpers;
   http: typeof http;
+  lab: typeof lab;
+  leaderboard: typeof leaderboard;
+  leaderboardCore: typeof leaderboardCore;
+  migrations: typeof migrations;
+  notifications: typeof notifications;
   profiles: typeof profiles;
   seed: typeof seed;
   video: typeof video;
@@ -62,4 +74,6 @@ export declare const internal: FilterApi<
   FunctionReference<any, "internal">
 >;
 
-export declare const components: {};
+export declare const components: {
+  migrations: import("@convex-dev/migrations/_generated/component.js").ComponentApi<"migrations">;
+};

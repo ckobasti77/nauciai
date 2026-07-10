@@ -3,17 +3,37 @@ import { v } from "convex/values";
 
 import { requireSyncSecret } from "./helpers";
 
+const trackSeeds = [
+  {
+    slug: "video-audio",
+    titleSr: "Smer za video i audio",
+    titleEn: "Video and audio track",
+    descriptionSr: "Smer koji objedinjuje kurseve za video i audio produkciju.",
+    descriptionEn: "A track grouping video and audio production courses.",
+    sortOrder: 10,
+  },
+  {
+    slug: "websites",
+    titleSr: "Smer za web sajtove",
+    titleEn: "Websites track",
+    descriptionSr: "Smer koji objedinjuje kurseve za izradu web sajtova.",
+    descriptionEn: "A track grouping website-building courses.",
+    sortOrder: 20,
+  },
+] as const;
+
 const courseSeeds = [
   {
     slug: "video-audio-ai",
-    titleSr: "Smer za video i audio",
-    titleEn: "Video and Audio Track",
-    subtitleSr: "Prvi smer Fakulteta za AI",
-    subtitleEn: "The first Faculty for AI track",
+    trackSlug: "video-audio",
+    titleSr: "Kurs za video i audio",
+    titleEn: "Video and Audio Course",
+    subtitleSr: "Scenario, glas, kadar i montaza uz AI",
+    subtitleEn: "Scripts, voice, shots, and editing with AI",
     descriptionSr:
-      "Praktičan smer za pisanje scenarija, generisanje glasa, video produkciju, montažu i finalni AI workflow.",
+      "Praktican kurs za pisanje scenarija, generisanje glasa, video produkciju, montazu i finalni AI workflow.",
     descriptionEn:
-      "A practical track for scripts, voice generation, video production, editing, and complete AI workflows.",
+      "A practical course for scripts, voice generation, video production, editing, and complete AI workflows.",
     status: "published" as const,
     sortOrder: 10,
     stripePriceArg: "videoAudioStripePriceId" as const,
@@ -47,6 +67,55 @@ const courseSeeds = [
                 bodySr: "Pregled alata, tipova projekata i prvih odluka pre promptovanja.",
                 bodyEn: "Overview of tools, project types, and first decisions before prompting.",
                 sortOrder: 20,
+              },
+            ],
+            labSteps: [
+              {
+                slug: "brief-za-video",
+                titleSr: "Brief za prvi AI video",
+                titleEn: "Brief for the first AI video",
+                bodySr:
+                  "Napravi kratak produkcijski brief za video od 30 sekundi: cilj, publika, ton, glavna poruka i format. Koristi AI Workspace da razradis ideju, zatim sacuvaj najbolji rezultat u Output.",
+                bodyEn:
+                  "Create a short production brief for a 30-second video: goal, audience, tone, main message, and format. Use the AI Workspace to shape the idea, then save the best result to Output.",
+                outputKind: "video" as const,
+                sortOrder: 10,
+                tasks: [
+                  {
+                    promptSr: "Definisi cilj videa i kome je namenjen.",
+                    promptEn: "Define the goal of the video and who it is for.",
+                    hintSr: "Dobar brief pocinje jednom jasnom recenicom: kome se obraca i sta treba da uradi posle gledanja.",
+                    hintEn: "A good brief starts with one clear sentence: who it speaks to and what they should do after watching.",
+                    sortOrder: 10,
+                  },
+                  {
+                    promptSr: "Sacuvaj finalni brief kao output za ovaj korak.",
+                    promptEn: "Save the final brief as the output for this step.",
+                    hintSr: "Klikni Save to output na najboljem AI odgovoru.",
+                    hintEn: "Click Save to output on the best AI answer.",
+                    sortOrder: 20,
+                  },
+                ],
+              },
+              {
+                slug: "voiceover-plan",
+                titleSr: "Plan za voiceover",
+                titleEn: "Voiceover plan",
+                bodySr:
+                  "Na osnovu briefa napravi voiceover plan: stil glasa, tempo, trajanje recenica i gde se menja emocija. Ovo je priprema za audio generisanje u narednim lekcijama.",
+                bodyEn:
+                  "Based on the brief, create a voiceover plan: voice style, pacing, sentence length, and where the emotion changes. This prepares audio generation in later lessons.",
+                outputKind: "audio" as const,
+                sortOrder: 20,
+                tasks: [
+                  {
+                    promptSr: "Izaberi stil glasa i ritam naracije.",
+                    promptEn: "Choose the voice style and narration pacing.",
+                    hintSr: "Razmisli da li video treba da zvuci edukativno, prodajno, filmski ili dokumentarno.",
+                    hintEn: "Decide whether the video should sound educational, sales-driven, cinematic, or documentary-like.",
+                    sortOrder: 10,
+                  },
+                ],
               },
             ],
           },
@@ -123,13 +192,14 @@ const courseSeeds = [
   },
   {
     slug: "vibe-coding",
-    titleSr: "Smer za web sajtove",
-    titleEn: "Websites Track",
-    subtitleSr: "Sledeći smer u pripremi",
-    subtitleEn: "Next track in preparation",
+    trackSlug: "websites",
+    titleSr: "Kurs za web sajtove",
+    titleEn: "Websites Course",
+    subtitleSr: "Od ideje do objavljenog sajta uz AI",
+    subtitleEn: "From idea to a published website with AI",
     descriptionSr: "Od ideje do web sajta uz AI alate, strukturu projekta i jasne granice kvaliteta.",
     descriptionEn: "From idea to website with AI tools, project structure, and clear quality gates.",
-    status: "draft" as const,
+    status: "published" as const,
     sortOrder: 20,
     stripePriceArg: "vibeCodingStripePriceId" as const,
     modules: [],
@@ -146,6 +216,28 @@ export const seedInitialContent = mutationGeneric({
     requireSyncSecret(args.syncSecret);
     const now = Date.now();
     const courseIds: Record<string, string> = {};
+    const trackIds: Record<string, string> = {};
+
+    for (const trackSeed of trackSeeds) {
+      const existingTrack = await ctx.db
+        .query("courseTracks")
+        .withIndex("by_slug", (q) => q.eq("slug", trackSeed.slug))
+        .unique();
+      const trackPatch = {
+        slug: trackSeed.slug,
+        titleSr: trackSeed.titleSr,
+        titleEn: trackSeed.titleEn,
+        descriptionSr: trackSeed.descriptionSr,
+        descriptionEn: trackSeed.descriptionEn,
+        status: "published" as const,
+        sortOrder: trackSeed.sortOrder,
+        updatedAt: now,
+      };
+      const trackId = existingTrack
+        ? (await ctx.db.patch(existingTrack._id, trackPatch), existingTrack._id)
+        : await ctx.db.insert("courseTracks", { ...trackPatch, createdAt: now });
+      trackIds[trackSeed.slug] = trackId;
+    }
 
     for (const seed of courseSeeds) {
       const stripePriceId = args[seed.stripePriceArg];
@@ -154,6 +246,7 @@ export const seedInitialContent = mutationGeneric({
         .withIndex("by_slug", (q) => q.eq("slug", seed.slug))
         .unique();
       const coursePatch = {
+        trackId: trackIds[seed.trackSlug],
         slug: seed.slug,
         titleSr: seed.titleSr,
         titleEn: seed.titleEn,
@@ -243,10 +336,63 @@ export const seedInitialContent = mutationGeneric({
               await ctx.db.insert("lessonParts", partPatch);
             }
           }
+
+          for (const stepSeed of lessonSeed.labSteps ?? []) {
+            const steps = await ctx.db
+              .query("lessonSteps")
+              .withIndex("by_lesson", (q) => q.eq("lessonId", lessonId))
+              .collect();
+            const existingStep = steps.find((item) => item.slug === stepSeed.slug);
+            const stepPatch = {
+              courseId,
+              lessonId,
+              slug: stepSeed.slug,
+              titleSr: stepSeed.titleSr,
+              titleEn: stepSeed.titleEn,
+              bodySr: stepSeed.bodySr,
+              bodyEn: stepSeed.bodyEn,
+              outputKind: stepSeed.outputKind,
+              isPublished: true,
+              sortOrder: stepSeed.sortOrder,
+              updatedAt: now,
+            };
+
+            const stepId = existingStep
+              ? (await ctx.db.patch(existingStep._id, stepPatch), existingStep._id)
+              : await ctx.db.insert("lessonSteps", stepPatch);
+
+            for (const taskSeed of stepSeed.tasks ?? []) {
+              const tasks = await ctx.db
+                .query("lessonTasks")
+                .withIndex("by_step", (q) => q.eq("stepId", stepId))
+                .collect();
+              const existingTask = tasks.find((item) => item.sortOrder === taskSeed.sortOrder);
+              const taskPatch = {
+                courseId,
+                lessonId,
+                stepId,
+                promptSr: taskSeed.promptSr,
+                promptEn: taskSeed.promptEn,
+                hintSr: taskSeed.hintSr,
+                hintEn: taskSeed.hintEn,
+                required: true,
+                completionMode: "hybrid" as const,
+                isPublished: true,
+                sortOrder: taskSeed.sortOrder,
+                updatedAt: now,
+              };
+
+              if (existingTask) {
+                await ctx.db.patch(existingTask._id, taskPatch);
+              } else {
+                await ctx.db.insert("lessonTasks", taskPatch);
+              }
+            }
+          }
         }
       }
     }
 
-    return { courseIds };
+    return { trackIds, courseIds };
   },
 });

@@ -16,6 +16,7 @@ export type ViewerProfile = {
   role?: string;
   language?: Locale;
   updatedAt?: number;
+  username?: string;
 } | null;
 
 type ViewerResult = {

@@ -1,5 +1,5 @@
 {
-  "name": "ai-uni",
+  "name": "nauciai",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -7,19 +7,24 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:convex": "vitest run convex/**/*.test.ts",
     "convex:dev": "convex dev",
     "convex:auth": "node scripts/configure-convex-auth.mjs",
     "convex:auth:prod": "node scripts/configure-convex-auth.mjs --prod --site-url https://nauciai.vercel.app",
     "convex:oauth": "node scripts/configure-oauth.mjs",
     "convex:oauth:prod": "node scripts/configure-oauth.mjs --prod",
+    "convex:admin-env": "node scripts/sync-convex-admin-env.mjs --dev",
+    "convex:admin-env:prod": "node scripts/sync-convex-admin-env.mjs --prod",
+    "convex:admin-env:all": "node scripts/sync-convex-admin-env.mjs --all",
     "convex:codegen": "convex codegen",
     "convex:seed": "node scripts/seed-convex.mjs"
   },
   "dependencies": {
     "@auth/core": "^0.41.2",
     "@convex-dev/auth": "^0.0.94",
-    "@mux/mux-node": "^14.1.1",
-    "@mux/mux-player-react": "^3.13.0",
+    "@convex-dev/migrations": "^0.3.5",
     "convex": "^1.42.1",
     "gsap": "^3.15.0",
     "jose": "^6.2.3",
@@ -33,13 +38,17 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@edge-runtime/vm": "^5.0.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "convex-test": "^0.0.54",
     "eslint": "^9",
     "eslint-config-next": "16.2.10",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vite": "^8.1.4",
+    "vitest": "^4.1.10"
   }
 }

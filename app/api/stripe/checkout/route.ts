@@ -41,7 +41,7 @@ export async function POST(request: Request) {
 
   if (!priceId) {
     return Response.json(
-      { error: `Missing Stripe price. Set ${fallbackCourse.stripePriceEnv} or configure the track in Convex.` },
+      { error: `Missing Stripe price. Set ${fallbackCourse.stripePriceEnv} or configure the course in Convex.` },
       { status: 400 },
     );
   }
@@ -49,7 +49,7 @@ export async function POST(request: Request) {
   const courseId = course?._id ?? body.courseId;
   if (!courseId) {
     return Response.json(
-      { error: "Missing Convex courseId. Seed or create the track before starting live checkout." },
+      { error: "Missing Convex courseId. Seed or create the course before starting live checkout." },
       { status: 400 },
     );
   }

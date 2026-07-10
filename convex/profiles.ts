@@ -1,8 +1,16 @@
 import { v } from "convex/values";
 
 import type { Id } from "./_generated/dataModel";
-import { mutation } from "./_generated/server";
-import { ensureProfile, requireUserId } from "./helpers";
+import { mutation, query } from "./_generated/server";
+import {
+  effectiveRoleForProfile,
+  ensureProfile,
+  isInitialAdminEmail,
+  requireAdmin,
+  requireUserId,
+  getCurrentProfile,
+} from "./helpers";
+import { syncLeaderboardEligibilityForUser } from "./leaderboardCore";
 
 const avatarPresetValidator = v.union(
   v.literal("mythic-mentor"),
@@ -17,6 +25,12 @@ const AVATAR_PRESET_URLS = {
 } as const;
 
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
+const PROFILE_LIST_LIMIT = 200;
+const assignableRoleValidator = v.union(
+  v.literal("student"),
+  v.literal("pro_student"),
+  v.literal("moderator"),
+);
 
 function normalizeNamePart(value: string) {
   return value.trim().replace(/\s+/g, " ");
@@ -30,6 +44,54 @@ export const createAvatarUploadUrl = mutation({
   },
 });
 
+export const listProfilesForAdmin = query({
+  args: {},
+  handler: async (ctx) => {
+    const { profile } = await getCurrentProfile(ctx);
+    if (profile.role !== "admin") {
+      throw new Error("Forbidden");
+    }
+
+    const profiles = await ctx.db.query("profiles").order("asc").take(PROFILE_LIST_LIMIT);
+    return profiles.map((profile) => ({
+      ...profile,
+      role: effectiveRoleForProfile(String(profile.email ?? ""), profile.role),
+    }));
+  },
+});
+
+export const setProfileRole = mutation({
+  args: {
+    profileId: v.id("profiles"),
+    role: assignableRoleValidator,
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+
+    const profile = await ctx.db.get(args.profileId);
+    if (!profile) {
+      throw new Error("Profile not found");
+    }
+
+    const email = String(profile.email ?? "").trim().toLowerCase();
+    if (email && isInitialAdminEmail(email)) {
+      throw new Error("Admin role is controlled by INITIAL_ADMIN_EMAILS.");
+    }
+
+    await ctx.db.patch(args.profileId, {
+      role: args.role,
+      updatedAt: Date.now(),
+    });
+    await syncLeaderboardEligibilityForUser(
+      ctx,
+      profile.userId,
+      args.role === "student" || args.role === "pro_student",
+    );
+
+    return ctx.db.get(args.profileId);
+  },
+});
+
 export const updateViewerProfile = mutation({
   args: {
     firstName: v.string(),
@@ -37,6 +99,7 @@ export const updateViewerProfile = mutation({
     language: v.optional(v.union(v.literal("sr"), v.literal("en"))),
     avatarPreset: v.optional(avatarPresetValidator),
     avatarStorageId: v.optional(v.id("_storage")),
+    username: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const profile = await ensureProfile(ctx);
@@ -54,18 +117,38 @@ export const updateViewerProfile = mutation({
       firstName: string;
       lastName: string;
       name: string;
+      searchText: string;
       language?: "sr" | "en";
       avatarUrl?: string;
       avatarPreset?: "mythic-mentor" | "cosmic-scholar" | "hybrid-guardian";
       avatarStorageId?: Id<"_storage">;
+      username?: string;
       updatedAt: number;
     } = {
       firstName,
       lastName,
       name: `${firstName} ${lastName}`,
+      searchText: `${firstName} ${lastName} ${String(args.username ?? profile.username ?? "")}`.trim(),
       ...(args.language ? { language: args.language } : {}),
       updatedAt: Date.now(),
     };
+
+    if (args.username !== undefined) {
+      const normalizedUsername = args.username.trim().toLowerCase();
+      if (normalizedUsername) {
+        if (!/^[a-zA-Z0-9_-]{3,20}$/.test(normalizedUsername)) {
+          throw new Error("Korisnicko ime mora imati izmedju 3 i 20 karaktera i moze sadrzati samo slova, brojeve, donje crte i crtice.");
+        }
+        const existing = await ctx.db
+          .query("profiles")
+          .withIndex("by_username", (q) => q.eq("username", normalizedUsername))
+          .unique();
+        if (existing && existing.userId !== profile.userId) {
+          throw new Error("Korisnicko ime je vec zauzeto.");
+        }
+        patch.username = normalizedUsername;
+      }
+    }
 
     if (args.avatarStorageId) {
       const metadata = await ctx.db.system.get("_storage", args.avatarStorageId);

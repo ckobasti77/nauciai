@@ -18,12 +18,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   type ChangeEvent,
-  type DragEvent,
+  type DragEvent as ReactDragEvent,
   type FormEvent,
+  useEffect,
+  useEffectEvent,
   useMemo,
   useRef,
   useState,
-  useEffect,
 } from "react";
 
 import { Panel, SectionHeader, cn } from "@/components/ui/primitives";
@@ -70,6 +71,7 @@ function valuesFromProfile(profile: ViewerProfile, locale: Locale) {
     role: profile?.role ?? "student",
     language: profile?.language ?? locale,
     avatarPreset,
+    username: profile?.username ?? "",
     avatarUrl:
       profile?.avatarUrl ??
       profileAvatarPresetSrc(avatarPreset) ??
@@ -81,6 +83,18 @@ function labelFor(locale: Locale, sr: string, en: string) {
   return locale === "sr" ? sr : en;
 }
 
+function hasAvatarCandidateDrag(dataTransfer: DataTransfer | null | undefined) {
+  if (!dataTransfer) return false;
+
+  const items = Array.from(dataTransfer.items ?? []);
+  if (items.length > 0) {
+    return items.some((item) => item.kind === "file" && (!item.type || item.type.startsWith("image/")));
+  }
+
+  const types = Array.from(dataTransfer.types ?? []);
+  return types.includes("Files") || (dataTransfer.files?.length ?? 0) > 0;
+}
+
 export function ProfileEditor({
   locale,
   initialProfile,
@@ -90,6 +104,7 @@ export function ProfileEditor({
 }) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dragDepthRef = useRef(0);
   const { isLoading, isAuthenticated } = useConvexAuth();
   const liveViewer = useQuery(api.courses.viewer, isAuthenticated ? {} : "skip") as ViewerData | undefined;
   const createAvatarUploadUrl = useMutation(api.profiles.createAvatarUploadUrl);
@@ -100,6 +115,7 @@ export function ProfileEditor({
 
   const [firstName, setFirstName] = useState(initialValues.firstName);
   const [lastName, setLastName] = useState(initialValues.lastName);
+  const [username, setUsername] = useState(initialValues.username);
   const [language, setLanguage] = useState<Locale>(initialValues.language);
   const [currentAvatarUrl, setCurrentAvatarUrl] = useState(initialValues.avatarUrl);
   const [selectedPreset, setSelectedPreset] = useState<ProfileAvatarPresetId | undefined>(
@@ -148,7 +164,14 @@ export function ProfileEditor({
       });
       setSelectedPreset(undefined);
       setAvatarChanged(true);
-      setMessage(null);
+      setMessage({
+        tone: "success",
+        text: labelFor(
+          locale,
+          "Slika je spremna. Sacuvaj izmene da postavis novi avatar.",
+          "Image ready. Save changes to apply your new avatar.",
+        ),
+      });
     } catch (error) {
       setMessage({
         tone: "error",
@@ -165,8 +188,67 @@ export function ProfileEditor({
     event.currentTarget.value = "";
   }
 
-  function handleDrop(event: DragEvent<HTMLElement>) {
+  const applyDroppedFile = useEffectEvent((file: File) => {
+    chooseFile(file);
+  });
+
+  useEffect(() => {
+    function resetDragging() {
+      dragDepthRef.current = 0;
+      setDragging(false);
+    }
+
+    function handleWindowDragEnter(event: globalThis.DragEvent) {
+      if (!hasAvatarCandidateDrag(event.dataTransfer)) return;
+
+      event.preventDefault();
+      dragDepthRef.current += 1;
+      setDragging(true);
+    }
+
+    function handleWindowDragOver(event: globalThis.DragEvent) {
+      if (!hasAvatarCandidateDrag(event.dataTransfer)) return;
+
+      event.preventDefault();
+      setDragging(true);
+    }
+
+    function handleWindowDragLeave() {
+      if (dragDepthRef.current === 0) return;
+
+      dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+      if (dragDepthRef.current === 0) {
+        setDragging(false);
+      }
+    }
+
+    function handleWindowDrop(event: globalThis.DragEvent) {
+      if (!hasAvatarCandidateDrag(event.dataTransfer) && dragDepthRef.current === 0) return;
+
+      event.preventDefault();
+      const file = event.dataTransfer?.files?.[0];
+      resetDragging();
+      if (file) {
+        applyDroppedFile(file);
+      }
+    }
+
+    window.addEventListener("dragenter", handleWindowDragEnter);
+    window.addEventListener("dragover", handleWindowDragOver);
+    window.addEventListener("dragleave", handleWindowDragLeave);
+    window.addEventListener("drop", handleWindowDrop);
+
+    return () => {
+      window.removeEventListener("dragenter", handleWindowDragEnter);
+      window.removeEventListener("dragover", handleWindowDragOver);
+      window.removeEventListener("dragleave", handleWindowDragLeave);
+      window.removeEventListener("drop", handleWindowDrop);
+    };
+  }, []);
+
+  function handleDrop(event: ReactDragEvent<HTMLElement>) {
     event.preventDefault();
+    dragDepthRef.current = 0;
     setDragging(false);
     const file = event.dataTransfer.files?.[0];
     if (file) {
@@ -174,9 +256,11 @@ export function ProfileEditor({
     }
   }
 
-  function handleDragOver(event: DragEvent<HTMLElement>) {
+  function handleDragOver(event: ReactDragEvent<HTMLElement>) {
     event.preventDefault();
-    setDragging(true);
+    if (hasAvatarCandidateDrag(event.dataTransfer)) {
+      setDragging(true);
+    }
   }
 
   function selectPreset(id: ProfileAvatarPresetId) {
@@ -234,6 +318,7 @@ export function ProfileEditor({
         firstName: trimmedFirstName,
         lastName: trimmedLastName,
         language,
+        username: username.trim(),
         ...(avatarStorageId
           ? { avatarStorageId }
           : avatarChanged && selectedPreset
@@ -271,12 +356,32 @@ export function ProfileEditor({
 
   return (
     <div className="space-y-6">
+      {dragging ? (
+        <div className="pointer-events-none fixed inset-0 z-50">
+          <div className="absolute inset-4 rounded-[28px] border-[3px] border-dashed border-yellow bg-ink/45 backdrop-blur-[3px]" />
+          <div className="absolute left-1/2 top-1/2 w-[min(92vw,34rem)] -translate-x-1/2 -translate-y-1/2 rounded-[18px] border-[3px] border-ink bg-yellow p-6 text-center shadow-[10px_10px_0_0_rgba(255,255,255,0.95)]">
+            <span className="mx-auto inline-flex size-16 items-center justify-center rounded-full border-[3px] border-ink bg-white text-ink">
+              <UploadCloud className="size-8" />
+            </span>
+            <p className="mt-4 text-2xl font-black leading-tight text-ink">
+              {labelFor(locale, "Pusti sliku bilo gde da postavis avatar", "Drop anywhere to set your avatar")}
+            </p>
+            <p className="mt-3 text-sm font-bold leading-6 text-ink/80">
+              {labelFor(
+                locale,
+                "Ceo ekran je aktivan. Kada pustis sliku, odmah ce se prikazati kao novi avatar.",
+                "The whole screen is active. When you release the image, it will immediately preview as your new avatar.",
+              )}
+            </p>
+          </div>
+        </div>
+      ) : null}
       <SectionHeader
         title={labelFor(locale, "Profil", "Profile")}
         body={labelFor(
           locale,
-          "Uredi ime, prezime, avatar i osnovna podesavanja naloga.",
-          "Edit your name, avatar, and basic account settings.",
+          "Uredi ime, prezime, avatar i osnovna podesavanja naloga. Sliku mozes da prevuces bilo gde na ovoj stranici.",
+          "Edit your name, avatar, and basic account settings. You can drag an image anywhere on this page.",
         )}
       />
 
@@ -311,7 +416,6 @@ export function ProfileEditor({
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 onDragOver={handleDragOver}
-                onDragLeave={() => setDragging(false)}
                 onDrop={handleDrop}
                 className={cn(
                   "group relative mx-auto flex size-44 items-center justify-center overflow-hidden rounded-full border-[3px] border-ink bg-paper shadow-[7px_7px_0_0_rgba(14,49,88,0.18)] transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink",
@@ -335,8 +439,8 @@ export function ProfileEditor({
               <p className="text-center text-sm font-bold leading-6 text-muted">
                 {labelFor(
                   locale,
-                  "Klikni ili prevuci sliku direktno na avatar. PNG, JPG ili WebP do 5MB.",
-                  "Click or drop an image directly onto the avatar. PNG, JPG, or WebP up to 5MB.",
+                  "Klikni ili prevuci sliku bilo gde na ovoj stranici. PNG, JPG ili WebP do 5MB.",
+                  "Click or drop an image anywhere on this page. PNG, JPG, or WebP up to 5MB.",
                 )}
               </p>
             </div>
@@ -371,6 +475,21 @@ export function ProfileEditor({
                   readOnly
                   className="mt-2 h-12 w-full rounded-[8px] border-2 border-line bg-paper px-4 text-base font-extrabold text-muted outline-none"
                 />
+              </label>
+              <label className="block sm:col-span-2">
+                <span className="text-sm font-black text-ink">{labelFor(locale, "Korisnicko ime (Jedinstveno)", "Username (Unique)")}</span>
+                <div className="relative mt-2">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-base font-black text-ink/45">@</span>
+                  <input
+                    value={username}
+                    onChange={(event) => setUsername(event.target.value)}
+                    className="h-12 w-full rounded-[8px] border-2 border-ink bg-white pl-8 pr-4 text-base font-extrabold text-ink outline-none transition focus:border-yellow focus:ring-4 focus:ring-yellow/25"
+                    placeholder="npr. jovan_m"
+                  />
+                </div>
+                <p className="mt-1.5 text-xs text-muted">
+                  {labelFor(locale, "Korisnicko ime mora imati izmedju 3 i 20 karaktera i moze sadrzati samo slova, brojeve, donje crte i crtice. Koristi se za pominjanje u zajednici (@username).", "Username must be between 3 and 20 characters and contain only letters, numbers, underscores, and hyphens. Used for mentions (@username).")}
+                </p>
               </label>
               <div className="sm:col-span-2">
                 <span className="text-sm font-black text-ink">{labelFor(locale, "Lozinka", "Password")}</span>
@@ -411,8 +530,8 @@ export function ProfileEditor({
               <p className="mt-1 text-sm font-bold leading-6 text-muted">
                 {labelFor(
                   locale,
-                  "Tri gotova lika ili cetvrta opcija za upload tvoje slike.",
-                  "Three ready-made characters or a fourth option to upload your own image.",
+                  "Tri gotova lika ili prevuci svoju sliku bilo gde na ekranu.",
+                  "Three ready-made characters or drag your own image anywhere on the screen.",
                 )}
               </p>
             </div>
@@ -451,7 +570,6 @@ export function ProfileEditor({
               type="button"
               onClick={() => fileInputRef.current?.click()}
               onDragOver={handleDragOver}
-              onDragLeave={() => setDragging(false)}
               onDrop={handleDrop}
               className={cn(
                 "flex min-h-36 flex-col items-center justify-center rounded-[8px] border-2 border-dashed bg-paper p-3 text-center transition hover:-translate-y-0.5 hover:border-ink",
@@ -479,6 +597,8 @@ export function ProfileEditor({
             </button>
             {message ? (
               <p
+                role="status"
+                aria-live="polite"
                 className={cn(
                   "rounded-[8px] border-2 px-3 py-2 text-sm font-black",
                   message.tone === "success"

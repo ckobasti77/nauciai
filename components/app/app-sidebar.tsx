@@ -14,13 +14,14 @@ import {
   ShieldCheck,
   Sparkles,
   User,
+  LogOut,
 } from "lucide-react";
-import { useConvexAuth } from "@convex-dev/auth/react";
+import { useConvexAuth, useAuthActions } from "@convex-dev/auth/react";
 import { useQuery } from "convex/react";
 import { gsap } from "gsap";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
-import { useParams, usePathname, useSearchParams } from "next/navigation";
+import { useParams, usePathname, useSearchParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import {
@@ -47,6 +48,10 @@ function courseHref(locale: Locale, courseSlug: string) {
 
 function navHref(locale: Locale, path: string, courseSlug: string) {
   return `${withLocale(locale, path)}?course=${courseSlug}`;
+}
+
+function communityHref(locale: Locale, courseSlug: string) {
+  return `${withLocale(locale, "/app/community/discussions")}?scope=course&course=${courseSlug}`;
 }
 
 function lessonHref(locale: Locale, courseSlug: string, lessonSlug: string) {
@@ -402,23 +407,32 @@ function NavLink({
   active,
   icon: Icon,
   label,
+  badge,
 }: {
   href: string;
   active: boolean;
   icon: typeof LayoutDashboard;
   label: string;
+  badge?: number;
 }) {
   return (
     <motion.div whileHover={{ x: 2 }} whileTap={{ scale: 0.98 }} className="min-w-0">
       <Link
         href={href}
         className={cn(
-          "inline-flex min-h-11 min-w-0 items-center justify-center gap-3 rounded-[8px] border-2 border-transparent px-3 py-2 text-sm font-extrabold text-ink transition hover:border-ink hover:bg-yellow sm:justify-start lg:w-full",
+          "inline-flex min-h-11 min-w-0 items-center justify-between rounded-[8px] border-2 border-transparent px-3 py-2 text-sm font-extrabold text-ink transition hover:border-ink hover:bg-yellow sm:justify-start lg:w-full",
           active && "border-ink bg-paper shadow-[3px_3px_0_0_rgba(14,49,88,0.14)]",
         )}
       >
-        <Icon className="size-4 shrink-0" />
-        <span className="truncate">{label}</span>
+        <span className="flex items-center gap-3 min-w-0">
+          <Icon className="size-4 shrink-0" />
+          <span className="truncate">{label}</span>
+        </span>
+        {badge && badge > 0 ? (
+          <span className="ml-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-black text-white border border-ink shrink-0">
+            {badge}
+          </span>
+        ) : null}
       </Link>
     </motion.div>
   );
@@ -748,11 +762,15 @@ function AppSidebarContent({
   navigation,
   source = "server",
   authState = "unknown",
+  profileData,
+  communityBadge = 0,
 }: {
   locale: Locale;
   navigation: AppNavigationData;
   source?: "server" | "live";
   authState?: "loading" | "authenticated" | "anonymous" | "unknown";
+  profileData?: { name?: string; username?: string; email?: string; avatarUrl?: string } | null;
+  communityBadge?: number;
 }) {
   const pathname = usePathname();
   const params = useParams<{ courseSlug?: string; lessonSlug?: string }>();
@@ -766,6 +784,11 @@ function AppSidebarContent({
   const isAdmin = navigation.role === "admin";
   const rootRef = useRef<HTMLElement>(null);
   const shouldReduceMotion = useReducedMotion();
+
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
+  const { signOut } = useAuthActions();
+  const router = useRouter();
 
   useEffect(() => {
     if (!rootRef.current || shouldReduceMotion) return;
@@ -783,6 +806,23 @@ function AppSidebarContent({
     return () => context.revert();
   }, [navigation.role, shouldReduceMotion]);
 
+  // Close profile menu on click outside
+  useEffect(() => {
+    if (!profileMenuOpen) return;
+    function handleClickOutside(event: MouseEvent) {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+        setProfileMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [profileMenuOpen]);
+
+  const profileName = profileData?.name || "Student";
+  const profileUsername = profileData?.username ? `@${profileData.username}` : profileData?.email || "";
+  const profileInitials = profileName.split(/\s+/).map((part: string) => part[0]).filter(Boolean).slice(0, 2).join("").toUpperCase() || "AI";
+  const profileAvatar = profileData?.avatarUrl;
+
   return (
     <aside
       ref={rootRef}
@@ -790,60 +830,137 @@ function AppSidebarContent({
       data-sidebar-auth={authState}
       data-sidebar-role={navigation.role ?? "none"}
       data-sidebar-admin={isAdmin ? "true" : "false"}
-      className="border-b-2 border-ink bg-white px-4 py-4 lg:sticky lg:top-0 lg:max-h-screen lg:w-[336px] lg:overflow-y-auto lg:border-b-0 lg:border-r-2 lg:px-5 lg:py-7 xl:w-[360px]"
+      className="border-b-2 border-ink bg-white px-4 py-4 lg:sticky lg:top-0 lg:max-h-screen lg:w-[336px] lg:border-b-0 lg:border-r-2 lg:px-5 lg:py-7 xl:w-[360px] lg:flex lg:flex-col lg:justify-between"
     >
-      <div className="sidebar-reveal flex items-center justify-between gap-4 lg:block">
-        <BrandMark href={withLocale(locale)} label={t.appName} />
-      </div>
-      {isAdmin ? (
-        <div className="sidebar-reveal mt-4 rounded-[8px] border-2 border-ink bg-paper px-3 py-2 text-xs font-black text-ink">
-          <span className="flex items-center gap-2">
-            <Sparkles className="size-4 text-ink" />
-            {locale === "sr" ? "Live admin akcije" : "Live admin actions"}
-          </span>
-          <span className="mt-1 block text-[11px] font-bold text-muted">
-            {source === "live" ? "Convex live" : "Server fallback"} · {authState}
-          </span>
+      <div className="lg:flex-1 lg:overflow-y-auto min-w-0">
+        <div className="sidebar-reveal flex items-center justify-between gap-4 lg:block">
+          <BrandMark href={withLocale(locale)} label={t.appName} />
         </div>
-      ) : null}
-      {currentCourse ? (
-        <CourseSwitcher locale={locale} courses={courses} currentCourse={currentCourse} isAdmin={isAdmin} />
-      ) : null}
-      {currentCourse ? (
-        <nav className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:flex lg:flex-col">
-          <NavLink
-            href={courseHref(locale, currentCourse.slug)}
-            active={pathname === withLocale(locale, "/app")}
-            icon={LayoutDashboard}
-            label={t.dashboard}
-          />
-          <LessonsAccordion
-            locale={locale}
-            currentCourse={currentCourse}
-            currentLessonSlug={params.lessonSlug}
-            isAdmin={isAdmin}
-          />
-          <NavLink
-            href={navHref(locale, "/app/community", currentCourse.slug)}
-            active={pathname === withLocale(locale, "/app/community")}
-            icon={MessageCircle}
-            label={t.community}
-          />
-          <NavLink
-            href={navHref(locale, "/app/profile", currentCourse.slug)}
-            active={pathname === withLocale(locale, "/app/profile")}
-            icon={User}
-            label={t.profile}
-          />
-          <NavLink
-            href={navHref(locale, "/app/billing", currentCourse.slug)}
-            active={pathname === withLocale(locale, "/app/billing")}
-            icon={CreditCard}
-            label={t.billing}
-          />
-          <SignOutButton locale={locale} />
-        </nav>
-      ) : null}
+        {isAdmin ? (
+          <div className="sidebar-reveal mt-4 rounded-[8px] border-2 border-ink bg-paper px-3 py-2 text-xs font-black text-ink">
+            <span className="flex items-center gap-2">
+              <Sparkles className="size-4 text-ink" />
+              {locale === "sr" ? "Live admin akcije" : "Live admin actions"}
+            </span>
+            <span className="mt-1 block text-[11px] font-bold text-muted">
+              {source === "live" ? "Convex live" : "Server fallback"} · {authState}
+            </span>
+          </div>
+        ) : null}
+        {currentCourse ? (
+          <CourseSwitcher locale={locale} courses={courses} currentCourse={currentCourse} isAdmin={isAdmin} />
+        ) : null}
+        {currentCourse ? (
+          <nav className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:flex lg:flex-col">
+            <NavLink
+              href={courseHref(locale, currentCourse.slug)}
+              active={pathname === withLocale(locale, "/app")}
+              icon={LayoutDashboard}
+              label="Dashboard"
+            />
+            <LessonsAccordion
+              locale={locale}
+              currentCourse={currentCourse}
+              currentLessonSlug={params.lessonSlug}
+              isAdmin={isAdmin}
+            />
+            <NavLink
+              href={communityHref(locale, currentCourse.slug)}
+              active={pathname === withLocale(locale, "/app/community") || pathname.includes("/app/community/")}
+              icon={MessageCircle}
+              label={t.community}
+              badge={communityBadge}
+            />
+          </nav>
+        ) : null}
+      </div>
+
+      {/* Bottom Profile Card */}
+      {profileData && (
+        <div className="relative mt-auto border-t-2 border-ink pt-4 hidden lg:block" ref={profileMenuRef}>
+          {profileMenuOpen ? (
+            <div className="absolute bottom-[calc(100%+0.65rem)] left-0 z-50 w-full rounded-[16px] border-2 border-ink bg-white p-2.5 text-ink shadow-[8px_8px_0_0_rgba(14,49,88,0.14)]">
+              <span
+                aria-hidden="true"
+                className="absolute -bottom-2 left-6 size-4 rotate-45 border-r-2 border-b-2 border-ink bg-white"
+              />
+              
+              <div className="overflow-hidden rounded-[12px] divide-y divide-line/80">
+                <Link
+                  href={currentCourse ? navHref(locale, "/app/profile", currentCourse.slug) : withLocale(locale, "/app/profile")}
+                  onClick={() => setProfileMenuOpen(false)}
+                  className="flex min-h-10 items-center gap-3 bg-white px-3 py-2 text-[13px] font-black uppercase text-ink transition hover:bg-yellow/35 font-extrabold"
+                >
+                  <User className="size-4 shrink-0" />
+                  <span>{t.profile}</span>
+                </Link>
+                <Link
+                  href={currentCourse ? navHref(locale, "/app/billing", currentCourse.slug) : withLocale(locale, "/app/billing")}
+                  onClick={() => setProfileMenuOpen(false)}
+                  className="flex min-h-10 items-center gap-3 bg-white px-3 py-2 text-[13px] font-black uppercase text-ink transition hover:bg-yellow/35 font-extrabold"
+                >
+                  <CreditCard className="size-4 shrink-0" />
+                  <span>{t.billing}</span>
+                </Link>
+              </div>
+
+              <div className="mt-2 border-t border-line/90 pt-2">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await signOut();
+                    setProfileMenuOpen(false);
+                    router.push(withLocale(locale, "/sign-in"));
+                  }}
+                  className="flex min-h-10 w-full items-center gap-3 rounded-[10px] bg-ink px-3 py-2 text-[13px] font-black uppercase text-white transition hover:bg-[#16446f] font-extrabold"
+                >
+                  <LogOut className="size-4 shrink-0" />
+                  <span>{locale === "sr" ? "Odjavi se" : "Sign out"}</span>
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          <button
+            type="button"
+            onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+            className="flex w-full items-center gap-3 rounded-[12px] border-2 border-ink bg-white p-2 text-left text-ink transition hover:bg-yellow/15 shadow-[3px_3px_0_0_rgba(14,49,88,0.18)]"
+          >
+            <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-ink bg-yellow text-xs font-black">
+              {profileAvatar ? (
+                <img src={profileAvatar} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <span>{profileInitials}</span>
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-black leading-tight text-ink">{profileName}</p>
+              <p className="truncate text-[10px] font-semibold leading-normal text-muted/80 mt-0.5">{profileUsername}</p>
+            </div>
+            <ChevronDown className={cn("size-4 shrink-0 transition-transform text-muted", profileMenuOpen && "rotate-180")} />
+          </button>
+        </div>
+      )}
+
+      {/* Mobile profile link */}
+      {profileData && (
+        <div className="lg:hidden mt-4 border-t-2 border-ink pt-4 grid grid-cols-2 gap-2">
+          <Link
+            href={currentCourse ? navHref(locale, "/app/profile", currentCourse.slug) : withLocale(locale, "/app/profile")}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-white px-3 py-2 text-xs font-black text-ink"
+          >
+            <User className="size-4" />
+            {t.profile}
+          </Link>
+          <Link
+            href={currentCourse ? navHref(locale, "/app/billing", currentCourse.slug) : withLocale(locale, "/app/billing")}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-white px-3 py-2 text-xs font-black text-ink"
+          >
+            <CreditCard className="size-4" />
+            {t.billing}
+          </Link>
+        </div>
+      )}
     </aside>
   );
 }
@@ -857,12 +974,20 @@ function LiveAppSidebar({ locale, navigation }: { locale: Locale; navigation: Ap
   );
   const authState = isLoading ? "loading" : isAuthenticated ? "authenticated" : "anonymous";
 
+  const notificationCounts = useQuery(
+    api.notifications.getCommunityNotificationCounts,
+    isAuthenticated ? {} : "skip"
+  );
+  const communityBadge = notificationCounts?.total ?? 0;
+
   return (
     <AppSidebarContent
       locale={locale}
       navigation={resolvedNavigation}
       source={liveNavigation ? "live" : "server"}
       authState={authState}
+      profileData={liveNavigation?.profile}
+      communityBadge={communityBadge}
     />
   );
 }

@@ -7,16 +7,18 @@ export default async function StudentDashboardPage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ course?: string }>;
+  searchParams: Promise<{ course?: string; newLessonModule?: string; editModule?: string }>;
 }) {
   const { locale: localeParam } = await params;
-  const { course } = await searchParams;
+  const { course, newLessonModule, editModule } = await searchParams;
   const profile = await getCurrentViewerProfile();
   return (
     <StudentDashboard
       locale={normalizeLocale(localeParam)}
       profile={profile}
       courseSlug={course}
+      newLessonModuleId={newLessonModule}
+      editModuleId={editModule}
       hasConvex={Boolean(process.env.NEXT_PUBLIC_CONVEX_URL)}
     />
   );

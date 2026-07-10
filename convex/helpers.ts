@@ -1,5 +1,9 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 
+import type { Id } from "./_generated/dataModel";
+import type { MutationCtx } from "./_generated/server";
+import { syncLeaderboardEligibilityForUser } from "./leaderboardCore";
+
 const ACTIVE_SUBSCRIPTION_STATUSES = new Set(["trialing", "active"]);
 
 type AnyCtx = {
@@ -38,10 +42,18 @@ type DocLike = Record<string, unknown> & {
   avatarUrl?: string;
   avatarStorageId?: string;
   avatarPreset?: string;
+  username?: string;
+  searchText?: string;
 };
 
 const DEFAULT_AVATAR_PRESET = "mythic-mentor";
 const DEFAULT_AVATAR_URL = "/images/avatars/mythic-mentor.png";
+
+export const profileRoles = ["student", "pro_student", "moderator", "admin"] as const;
+export const assignableProfileRoles = ["student", "pro_student", "moderator"] as const;
+
+export type ProfileRole = (typeof profileRoles)[number];
+export type AssignableProfileRole = (typeof assignableProfileRoles)[number];
 
 function dbFrom(ctx: AnyCtx): DatabaseLike {
   return ctx.db as DatabaseLike;
@@ -56,8 +68,23 @@ function initialAdminEmails(): Set<string> {
   );
 }
 
-function roleForEmail(email: string) {
-  return initialAdminEmails().has(email.trim().toLowerCase()) ? "admin" : "student";
+function isAssignableProfileRole(value: unknown): value is AssignableProfileRole {
+  return (
+    typeof value === "string" &&
+    (assignableProfileRoles as readonly string[]).includes(value)
+  );
+}
+
+export function isInitialAdminEmail(email: string) {
+  return initialAdminEmails().has(email.trim().toLowerCase());
+}
+
+export function effectiveRoleForProfile(email: string, currentRole?: unknown): ProfileRole {
+  if (isInitialAdminEmail(email)) {
+    return "admin";
+  }
+
+  return isAssignableProfileRole(currentRole) ? currentRole : "student";
 }
 
 function namePartsFrom(name: string, email: string) {
@@ -104,7 +131,7 @@ export async function getCurrentProfile(ctx: AnyCtx) {
     .withIndex("by_userId", (q) => q.eq("userId", userId))
     .unique();
 
-  const role = roleForEmail(email);
+  const role = effectiveRoleForProfile(email, existing?.role);
   const name = user?.name ?? email.split("@")[0] ?? "Student";
   const derivedParts = namePartsFrom(String(existing?.name ?? name), email);
   const firstName = String(existing?.firstName ?? derivedParts.firstName);
@@ -173,6 +200,7 @@ export async function ensureProfile(ctx: AnyCtx) {
       avatarPreset: DEFAULT_AVATAR_PRESET,
       role,
       language: "sr",
+      searchText: `${name} ${email}`.trim(),
       createdAt: now,
       updatedAt: now,
     });
@@ -193,8 +221,18 @@ export async function ensureProfile(ctx: AnyCtx) {
     patch.avatarUrl = avatarUrl ?? DEFAULT_AVATAR_URL;
     patch.avatarPreset = DEFAULT_AVATAR_PRESET;
   }
+  if (!existing.searchText) {
+    patch.searchText = `${name} ${String(existing.username ?? "")} ${email}`.trim();
+  }
   if (Object.keys(patch).length) {
     await db.patch(existing._id, { ...patch, updatedAt: now });
+    if (existing.role !== role) {
+      await syncLeaderboardEligibilityForUser(
+        ctx as MutationCtx,
+        userId as Id<"users">,
+        role === "student" || role === "pro_student",
+      );
+    }
     return db.get(existing._id);
   }
 
@@ -204,6 +242,14 @@ export async function ensureProfile(ctx: AnyCtx) {
 export async function requireAdmin(ctx: AnyCtx) {
   const profile = await ensureProfile(ctx);
   if (!profile || profile.role !== "admin") {
+    throw new Error("Forbidden");
+  }
+  return profile;
+}
+
+export async function requireCommunityModerator(ctx: AnyCtx) {
+  const profile = await ensureProfile(ctx);
+  if (!profile || (profile.role !== "admin" && profile.role !== "moderator")) {
     throw new Error("Forbidden");
   }
   return profile;
@@ -234,12 +280,9 @@ export async function requireCourseAccess(ctx: AnyCtx, courseId: string) {
     return profile;
   }
 
-  if (typeof profile.userId !== "string") {
-    throw new Error("Unauthorized");
-  }
-
-  if (!(await hasActiveSubscription(ctx, profile.userId, courseId))) {
-    throw new Error("Active subscription required");
+  const course = await dbFrom(ctx).get(courseId);
+  if (!course || course.status !== "published") {
+    throw new Error("Course not found");
   }
 
   return profile;

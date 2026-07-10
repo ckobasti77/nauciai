@@ -5,14 +5,15 @@ import { mutation, query } from "./_generated/server";
 import {
   ensureProfile,
   getCurrentProfile,
-  hasActiveSubscription,
   requireAdmin,
   requireCourseAccess,
   requireUserId,
 } from "./helpers";
+import { syncLeaderboardSourceEvent } from "./leaderboardCore";
 
 const courseInput = {
   courseId: v.optional(v.id("courses")),
+  trackId: v.optional(v.id("courseTracks")),
   slug: v.string(),
   titleSr: v.string(),
   titleEn: v.string(),
@@ -25,7 +26,21 @@ const courseInput = {
   sortOrder: v.number(),
 };
 
-const ACTIVE_SUBSCRIPTION_STATUSES = new Set(["trialing", "active"]);
+const moduleInput = {
+  moduleId: v.optional(v.id("modules")),
+  courseId: v.id("courses"),
+  titleSr: v.string(),
+  titleEn: v.string(),
+  descriptionSr: v.optional(v.string()),
+  descriptionEn: v.optional(v.string()),
+  imageStorageId: v.optional(v.id("_storage")),
+  imageFileName: v.optional(v.string()),
+  imageMimeType: v.optional(v.string()),
+  imageByteSize: v.optional(v.number()),
+  imageAltSr: v.optional(v.string()),
+  imageAltEn: v.optional(v.string()),
+  sortOrder: v.number(),
+};
 
 const lessonPartInput = {
   lessonPartId: v.optional(v.id("lessonParts")),
@@ -96,6 +111,7 @@ export const getCourseBySlug = query({
     const lessons = await Promise.all(
       modules.map(async (module) => ({
         ...module,
+        imageUrl: module.imageStorageId ? await ctx.storage.getUrl(module.imageStorageId) : null,
         lessons: await Promise.all((await ctx.db
           .query("lessons")
           .withIndex("by_module", (q) => q.eq("moduleId", module._id))
@@ -118,28 +134,24 @@ export const getAppNavigation = query({
   handler: async (ctx) => {
     const { userId, profile } = await getCurrentProfile(ctx);
     const isAdmin = profile.role === "admin";
-    const subscriptions = await ctx.db
-      .query("subscriptions")
-      .withIndex("by_user_status", (q) => q.eq("userId", userId))
-      .collect();
+    const progressRows = await ctx.db
+      .query("progress")
+      .withIndex("by_user_course", (q) => q.eq("userId", userId))
+      .take(1000);
+    const progressByLessonId = new Map(progressRows.map((row) => [row.lessonId, row]));
     const courses = (await ctx.db.query("courses").collect())
       .filter((course) => course.status !== "archived")
       .sort((a, b) => a.sortOrder - b.sortOrder);
 
     const coursesWithNavigation = await Promise.all(
       courses.map(async (course) => {
-        const subscription = subscriptions.find((item) => item.courseId === course._id);
-        const hasActiveSubscription = Boolean(
-          subscription &&
-            typeof subscription.status === "string" &&
-            ACTIVE_SUBSCRIPTION_STATUSES.has(subscription.status),
-        );
         const modules = await ctx.db
           .query("modules")
           .withIndex("by_course", (q) => q.eq("courseId", course._id))
           .collect();
         const modulesWithLessons = await Promise.all(
           modules.map(async (module) => {
+            const imageUrl = module.imageStorageId ? await ctx.storage.getUrl(module.imageStorageId) : null;
             const lessons = await ctx.db
               .query("lessons")
               .withIndex("by_module", (q) => q.eq("moduleId", module._id))
@@ -147,6 +159,7 @@ export const getAppNavigation = query({
             const visibleLessons = isAdmin ? lessons : lessons.filter((lesson) => lesson.isPublished);
             const lessonsWithParts = await Promise.all(
               visibleLessons.map(async (lesson) => {
+                const progress = progressByLessonId.get(lesson._id);
                 const parts = await ctx.db
                   .query("lessonParts")
                   .withIndex("by_lesson", (q) => q.eq("lessonId", lesson._id))
@@ -162,6 +175,13 @@ export const getAppNavigation = query({
                   durationSeconds: lesson.durationSeconds,
                   isPublished: lesson.isPublished,
                   sortOrder: lesson.sortOrder,
+                  progress: progress
+                    ? {
+                        completed: progress.completed,
+                        positionSeconds: progress.positionSeconds,
+                        updatedAt: progress.updatedAt,
+                      }
+                    : null,
                   parts: visibleParts.map((part) => ({
                     _id: part._id,
                     parentPartId: part.parentPartId,
@@ -183,11 +203,34 @@ export const getAppNavigation = query({
               _id: module._id,
               titleSr: module.titleSr,
               titleEn: module.titleEn,
+              descriptionSr: module.descriptionSr,
+              descriptionEn: module.descriptionEn,
+              imageUrl,
+              imageFileName: module.imageFileName,
+              imageAltSr: module.imageAltSr,
+              imageAltEn: module.imageAltEn,
               sortOrder: module.sortOrder,
               lessons: lessonsWithParts,
             };
           }),
         );
+        const navigationLessons = modulesWithLessons.flatMap((module) => module.lessons);
+        const completedLessons = navigationLessons.filter((lesson) => lesson.progress?.completed).length;
+        const totalLessons = navigationLessons.length;
+        const nextLesson = navigationLessons.find((lesson) => !lesson.progress?.completed) ?? null;
+        const lastActivityAt = navigationLessons.reduce<number | undefined>((latest, lesson) => {
+          const updatedAt = lesson.progress?.updatedAt;
+          if (!updatedAt) return latest;
+          return latest === undefined ? updatedAt : Math.max(latest, updatedAt);
+        }, undefined);
+        const activityCounts: Record<string, number> = {};
+        for (const lesson of navigationLessons) {
+          if (!lesson.progress?.completed || !lesson.progress.updatedAt) continue;
+          const day = new Date(lesson.progress.updatedAt).toISOString().slice(0, 10);
+          activityCounts[day] = (activityCounts[day] ?? 0) + 1;
+        }
+
+        const videoUrl = course.videoStorageId ? await ctx.storage.getUrl(course.videoStorageId) : null;
 
         return {
           _id: course._id,
@@ -200,8 +243,25 @@ export const getAppNavigation = query({
           descriptionEn: course.descriptionEn,
           status: course.status,
           stripePriceId: course.stripePriceId,
+          videoUrl,
+          videoFileName: course.videoFileName,
+          videoByteSize: course.videoByteSize,
+          videoMimeType: course.videoMimeType,
+          videoUpdatedAt: course.videoUpdatedAt,
           sortOrder: course.sortOrder,
-          hasAccess: isAdmin || hasActiveSubscription,
+          hasAccess: isAdmin || course.status === "published",
+          progress: {
+            totalLessons,
+            completedLessons,
+            percent: totalLessons ? Math.round((completedLessons / totalLessons) * 100) : 0,
+            lastActivityAt,
+            nextLessonSlug: nextLesson?.slug,
+            nextLessonTitleSr: nextLesson?.titleSr,
+            nextLessonTitleEn: nextLesson?.titleEn,
+            activity: Object.entries(activityCounts)
+              .map(([day, completed]) => ({ day, completed }))
+              .sort((a, b) => a.day.localeCompare(b.day)),
+          },
           modules: modulesWithLessons,
         };
       }),
@@ -228,6 +288,269 @@ export const getStudentDashboard = query({
   },
 });
 
+export const getPublishedCourseOutline = query({
+  args: { slug: v.string() },
+  handler: async (ctx, args) => {
+    const course = await ctx.db
+      .query("courses")
+      .withIndex("by_slug", (q) => q.eq("slug", args.slug))
+      .unique();
+    if (!course || course.status !== "published") return null;
+
+    const modules = await ctx.db
+      .query("modules")
+      .withIndex("by_course", (q) => q.eq("courseId", course._id))
+      .take(200);
+
+    const modulesWithPublishedLessons = await Promise.all(
+      modules.map(async (module) => {
+        const lessons = await ctx.db
+          .query("lessons")
+          .withIndex("by_module", (q) => q.eq("moduleId", module._id))
+          .take(500);
+        const publishedLessons = lessons
+          .filter((lesson) => lesson.isPublished)
+          .sort((a, b) => a.sortOrder - b.sortOrder)
+          .map((lesson) => ({
+            _id: lesson._id,
+            slug: lesson.slug,
+            titleSr: lesson.titleSr,
+            titleEn: lesson.titleEn,
+            summarySr: lesson.summarySr,
+            summaryEn: lesson.summaryEn,
+            durationSeconds: lesson.durationSeconds,
+            sortOrder: lesson.sortOrder,
+          }));
+
+        return {
+          _id: module._id,
+          titleSr: module.titleSr,
+          titleEn: module.titleEn,
+          descriptionSr: module.descriptionSr,
+          descriptionEn: module.descriptionEn,
+          sortOrder: module.sortOrder,
+          lessons: publishedLessons,
+        };
+      }),
+    );
+
+    const videoUrl = course.videoStorageId ? await ctx.storage.getUrl(course.videoStorageId) : null;
+
+    return {
+      course: {
+        _id: course._id,
+        slug: course.slug,
+        titleSr: course.titleSr,
+        titleEn: course.titleEn,
+        subtitleSr: course.subtitleSr,
+        subtitleEn: course.subtitleEn,
+        descriptionSr: course.descriptionSr,
+        descriptionEn: course.descriptionEn,
+        videoUrl,
+        videoFileName: course.videoFileName,
+        videoByteSize: course.videoByteSize,
+        videoMimeType: course.videoMimeType,
+        videoUpdatedAt: course.videoUpdatedAt,
+      },
+      modules: modulesWithPublishedLessons
+        .filter((module) => module.lessons.length > 0)
+        .sort((a, b) => a.sortOrder - b.sortOrder),
+    };
+  },
+});
+
+
+
+export const getCourseFavoriteStates = query({
+  args: {
+    courseSlugs: v.array(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireUserId(ctx);
+    const states: Record<string, boolean> = {};
+
+    for (const courseSlug of args.courseSlugs) {
+      const course = await ctx.db
+        .query("courses")
+        .withIndex("by_slug", (q) => q.eq("slug", courseSlug))
+        .unique();
+
+      if (!course) {
+        states[courseSlug] = false;
+        continue;
+      }
+
+      const favorite = await ctx.db
+        .query("courseFavorites")
+        .withIndex("by_user_course", (q) => q.eq("userId", userId).eq("courseId", course._id))
+        .unique();
+
+      states[courseSlug] = Boolean(favorite);
+    }
+
+    return states;
+  },
+});
+
+export const toggleCourseFavorite = mutation({
+  args: {
+    courseSlug: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const profile = await ensureProfile(ctx);
+    if (!profile?.userId) {
+      throw new Error("Unauthorized");
+    }
+
+    const userId = profile.userId as Id<"users">;
+    const course = await ctx.db
+      .query("courses")
+      .withIndex("by_slug", (q) => q.eq("slug", args.courseSlug))
+      .unique();
+
+    if (!course) {
+      throw new Error("Kurs nije pronadjen");
+    }
+
+    const existing = await ctx.db
+      .query("courseFavorites")
+      .withIndex("by_user_course", (q) => q.eq("userId", userId).eq("courseId", course._id))
+      .unique();
+
+    if (existing) {
+      await ctx.db.delete(existing._id);
+      return { favorited: false };
+    }
+
+    await ctx.db.insert("courseFavorites", {
+      userId,
+      courseId: course._id,
+      createdAt: Date.now(),
+    });
+
+    return { favorited: true };
+  },
+});
+
+export const getModuleEditorData = query({
+  args: {
+    moduleId: v.id("modules"),
+  },
+  handler: async (ctx, args) => {
+    const { profile } = await getCurrentProfile(ctx);
+    if (profile.role !== "admin") {
+      throw new Error("Forbidden");
+    }
+
+    const cycle = await ctx.db.get(args.moduleId);
+    if (!cycle) return null;
+    const course = await ctx.db.get(cycle.courseId);
+    if (!course) return null;
+
+    const imageUrl = cycle.imageStorageId ? await ctx.storage.getUrl(cycle.imageStorageId) : null;
+    const lessons = await ctx.db
+      .query("lessons")
+      .withIndex("by_module", (q) => q.eq("moduleId", cycle._id))
+      .collect();
+
+    const lessonsWithDetails = await Promise.all(
+      lessons.map(async (lesson) => {
+        const parts = await Promise.all(
+          (await ctx.db
+            .query("lessonParts")
+            .withIndex("by_lesson", (q) => q.eq("lessonId", lesson._id))
+            .collect()).map(async (part) => ({
+              ...part,
+              downloadUrl: part.storageId ? await ctx.storage.getUrl(part.storageId) : null,
+            })),
+        );
+        const steps = await ctx.db
+          .query("lessonSteps")
+          .withIndex("by_lesson", (q) => q.eq("lessonId", lesson._id))
+          .collect();
+        const tasks = await ctx.db
+          .query("lessonTasks")
+          .withIndex("by_lesson", (q) => q.eq("lessonId", lesson._id))
+          .collect();
+
+        return {
+          ...lesson,
+          parts,
+          steps,
+          tasks,
+        };
+      }),
+    );
+
+    return {
+      course: {
+        _id: course._id,
+        slug: course.slug,
+        titleSr: course.titleSr,
+        titleEn: course.titleEn,
+      },
+      module: {
+        ...cycle,
+        imageUrl,
+      },
+      lessons: lessonsWithDetails,
+    };
+  },
+});
+
+export const getCourseEditorData = query({
+  args: {
+    courseId: v.id("courses"),
+  },
+  handler: async (ctx, args) => {
+    const { profile } = await getCurrentProfile(ctx);
+    if (profile.role !== "admin") {
+      throw new Error("Forbidden");
+    }
+
+    const course = await ctx.db.get(args.courseId);
+    if (!course) return null;
+
+    const modules = await ctx.db
+      .query("modules")
+      .withIndex("by_course", (q) => q.eq("courseId", course._id))
+      .take(200);
+
+    const modulesWithLessons = await Promise.all(
+      modules.map(async (module) => {
+        const imageUrl = module.imageStorageId ? await ctx.storage.getUrl(module.imageStorageId) : null;
+        const lessons = await ctx.db
+          .query("lessons")
+          .withIndex("by_module", (q) => q.eq("moduleId", module._id))
+          .take(500);
+
+        return {
+          ...module,
+          imageUrl,
+          lessons: lessons
+            .map((lesson) => ({
+              _id: lesson._id,
+              slug: lesson.slug,
+              titleSr: lesson.titleSr,
+              titleEn: lesson.titleEn,
+              summarySr: lesson.summarySr,
+              summaryEn: lesson.summaryEn,
+              durationSeconds: lesson.durationSeconds,
+              isPublished: lesson.isPublished,
+              sortOrder: lesson.sortOrder,
+            }))
+            .sort((a, b) => a.sortOrder - b.sortOrder),
+        };
+      }),
+    );
+
+    return {
+      course,
+      modules: modulesWithLessons.sort((a, b) => a.sortOrder - b.sortOrder),
+    };
+  },
+});
+
 export const getLessonForStudent = query({
   args: {
     courseSlug: v.string(),
@@ -241,9 +564,9 @@ export const getLessonForStudent = query({
       .unique();
     if (!course) return null;
 
-    const access = await hasActiveSubscription(ctx, userId, course._id);
     const profile = await requireCourseAccess(ctx, course._id);
     const isAdmin = profile.role === "admin";
+    const access = isAdmin || course.status === "published";
 
     const courseLessons = await ctx.db
       .query("lessons")
@@ -291,19 +614,54 @@ export const markProgress = mutation({
     if (!lesson) throw new Error("Lesson not found");
     await requireCourseAccess(ctx, lesson.courseId);
 
-    const progressRows = await ctx.db
+    const existing = await ctx.db
       .query("progress")
-      .withIndex("by_user_lesson", (q) => q.eq("userId", userId))
-      .collect();
-    const existing = progressRows.find((item) => item.lessonId === args.lessonId);
+      .withIndex("by_user_lesson", (q) => q.eq("userId", userId).eq("lessonId", args.lessonId))
+      .unique();
+    const wasCompleted = Boolean(existing?.completed);
+    const completedDelta = args.completed === wasCompleted ? 0 : args.completed ? 1 : -1;
+    const updatedAt = Date.now();
     const patch = {
       userId,
       courseId: lesson.courseId,
       lessonId: args.lessonId,
       completed: args.completed,
       positionSeconds: args.positionSeconds,
-      updatedAt: Date.now(),
+      updatedAt,
     };
+
+    if (completedDelta !== 0) {
+      const stats = await ctx.db
+        .query("profileStats")
+        .withIndex("by_userId", (q) => q.eq("userId", userId))
+        .unique();
+      if (stats) {
+        await ctx.db.patch(stats._id, {
+          completedLessons: Math.max(0, stats.completedLessons + completedDelta),
+          updatedAt,
+        });
+      } else {
+        const progressRows = await ctx.db
+          .query("progress")
+          .withIndex("by_user_lesson", (q) => q.eq("userId", userId))
+          .take(1000);
+        const currentCompletedLessons = progressRows.filter((row) => row.completed).length;
+        await ctx.db.insert("profileStats", {
+          userId,
+          completedLessons: Math.max(0, currentCompletedLessons + completedDelta),
+          updatedAt,
+        });
+      }
+
+      await syncLeaderboardSourceEvent(ctx, {
+        userId,
+        sourceType: "lesson",
+        sourceId: String(args.lessonId),
+        active: args.completed,
+        occurredAt: updatedAt,
+        courseId: lesson.courseId,
+      });
+    }
 
     if (existing) {
       await ctx.db.patch(existing._id, patch);
@@ -318,16 +676,23 @@ export const upsertCourse = mutation({
   args: courseInput,
   handler: async (ctx, args) => {
     const admin = await requireAdmin(ctx);
+    if (args.trackId) {
+      const track = await ctx.db.get(args.trackId);
+      if (!track || track.status === "archived") {
+        throw new Error("Smer nije pronađen");
+      }
+    }
     const existingWithSlug = await ctx.db
       .query("courses")
       .withIndex("by_slug", (q) => q.eq("slug", args.slug))
       .unique();
 
     if (existingWithSlug && existingWithSlug._id !== args.courseId) {
-      throw new Error("Smer sa ovim slugom vec postoji");
+      throw new Error("Kurs sa ovim slugom vec postoji");
     }
 
     const patch = {
+      ...(args.trackId !== undefined ? { trackId: args.trackId } : {}),
       slug: args.slug,
       titleSr: args.titleSr,
       titleEn: args.titleEn,
@@ -336,7 +701,7 @@ export const upsertCourse = mutation({
       descriptionSr: args.descriptionSr,
       descriptionEn: args.descriptionEn,
       status: args.status,
-      ...(args.stripePriceId ? { stripePriceId: args.stripePriceId } : {}),
+      stripePriceId: args.stripePriceId?.trim() || undefined,
       sortOrder: args.sortOrder,
       updatedAt: Date.now(),
     };
@@ -344,7 +709,7 @@ export const upsertCourse = mutation({
     if (args.courseId) {
       const existing = await ctx.db.get(args.courseId);
       if (!existing) {
-        throw new Error("Smer nije pronadjen");
+        throw new Error("Kurs nije pronadjen");
       }
       await ctx.db.patch(args.courseId, patch);
       return args.courseId;
@@ -355,35 +720,104 @@ export const upsertCourse = mutation({
 });
 
 export const upsertModule = mutation({
-  args: {
-    moduleId: v.optional(v.id("modules")),
-    courseId: v.id("courses"),
-    titleSr: v.string(),
-    titleEn: v.string(),
-    sortOrder: v.number(),
-  },
+  args: moduleInput,
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
     const course = await ctx.db.get(args.courseId);
     if (!course) {
-      throw new Error("Smer nije pronadjen");
+      throw new Error("Kurs nije pronadjen");
     }
-    const patch = {
+    const patch: {
+      courseId: Id<"courses">;
+      titleSr: string;
+      titleEn: string;
+      descriptionSr?: string;
+      descriptionEn?: string;
+      imageStorageId?: Id<"_storage">;
+      imageFileName?: string;
+      imageMimeType?: string;
+      imageByteSize?: number;
+      imageAltSr?: string;
+      imageAltEn?: string;
+      sortOrder: number;
+      updatedAt: number;
+    } = {
       courseId: args.courseId,
       titleSr: args.titleSr,
       titleEn: args.titleEn,
       sortOrder: args.sortOrder,
       updatedAt: Date.now(),
     };
+    if (args.descriptionSr !== undefined) {
+      patch.descriptionSr = args.descriptionSr;
+    }
+    if (args.descriptionEn !== undefined) {
+      patch.descriptionEn = args.descriptionEn;
+    }
+    if (args.imageStorageId) {
+      patch.imageStorageId = args.imageStorageId;
+      patch.imageFileName = args.imageFileName;
+      patch.imageMimeType = args.imageMimeType;
+      patch.imageByteSize = args.imageByteSize;
+      patch.imageAltSr = args.imageAltSr;
+      patch.imageAltEn = args.imageAltEn;
+    }
     if (args.moduleId) {
       const existing = await ctx.db.get(args.moduleId);
       if (!existing || existing.courseId !== args.courseId) {
-        throw new Error("Modul nije pronadjen za ovaj smer");
+        throw new Error("Ciklus nije pronadjen za ovaj kurs");
       }
       await ctx.db.patch(args.moduleId, patch);
       return args.moduleId;
     }
     return ctx.db.insert("modules", patch);
+  },
+});
+
+export const reorderModules = mutation({
+  args: {
+    courseId: v.id("courses"),
+    moduleIds: v.array(v.id("modules")),
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    const course = await ctx.db.get(args.courseId);
+    if (!course) {
+      throw new Error("Kurs nije pronadjen");
+    }
+
+    const uniqueModuleIds = new Set(args.moduleIds);
+    if (uniqueModuleIds.size !== args.moduleIds.length) {
+      throw new Error("Ciklusi ne smeju da se ponavljaju u redosledu");
+    }
+
+    const modules = await ctx.db
+      .query("modules")
+      .withIndex("by_course", (q) => q.eq("courseId", args.courseId))
+      .take(200);
+    const moduleIdsInCourse = new Set(modules.map((module) => module._id));
+
+    if (moduleIdsInCourse.size !== args.moduleIds.length) {
+      throw new Error("Redosled mora da sadrzi sve cikluse kursa");
+    }
+
+    for (const moduleId of args.moduleIds) {
+      if (!moduleIdsInCourse.has(moduleId)) {
+        throw new Error("Ciklus nije pronadjen za ovaj kurs");
+      }
+    }
+
+    const updatedAt = Date.now();
+    await Promise.all(
+      args.moduleIds.map((moduleId, index) =>
+        ctx.db.patch(moduleId, {
+          sortOrder: (index + 1) * 10,
+          updatedAt,
+        }),
+      ),
+    );
+
+    return args.moduleIds;
   },
 });
 
@@ -405,11 +839,11 @@ export const upsertLesson = mutation({
     await requireAdmin(ctx);
     const course = await ctx.db.get(args.courseId);
     if (!course) {
-      throw new Error("Smer nije pronadjen");
+      throw new Error("Kurs nije pronadjen");
     }
     const courseModule = await ctx.db.get(args.moduleId);
     if (!courseModule || courseModule.courseId !== args.courseId) {
-      throw new Error("Modul nije pronadjen za ovaj smer");
+      throw new Error("Ciklus nije pronadjen za ovaj kurs");
     }
     const slugMatches = await ctx.db
       .query("lessons")
@@ -417,7 +851,7 @@ export const upsertLesson = mutation({
       .take(2);
     const slugConflict = slugMatches.find((lesson) => lesson._id !== args.lessonId);
     if (slugConflict) {
-      throw new Error("Lekcija sa ovim slugom vec postoji u smeru");
+      throw new Error("Lekcija sa ovim slugom vec postoji u kursu");
     }
     const patch = {
       courseId: args.courseId,
@@ -435,15 +869,12 @@ export const upsertLesson = mutation({
     if (args.lessonId) {
       const existing = await ctx.db.get(args.lessonId);
       if (!existing || existing.courseId !== args.courseId) {
-        throw new Error("Lekcija nije pronadjena za ovaj smer");
+        throw new Error("Lekcija nije pronadjena za ovaj kurs");
       }
       await ctx.db.patch(args.lessonId, patch);
       return args.lessonId;
     }
-    return ctx.db.insert("lessons", {
-      ...patch,
-      muxStatus: "draft",
-    });
+    return ctx.db.insert("lessons", patch);
   },
 });
 
@@ -453,7 +884,7 @@ export const upsertLessonPart = mutation({
     const admin = await requireAdmin(ctx);
     const lesson = await ctx.db.get(args.lessonId);
     if (!lesson || lesson.courseId !== args.courseId) {
-      throw new Error("Lesson not found for track");
+      throw new Error("Lesson not found for course");
     }
 
     const existingPart = args.lessonPartId ? await ctx.db.get(args.lessonPartId) : null;

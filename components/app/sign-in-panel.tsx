@@ -18,11 +18,13 @@ function ConvexSignInForm({
   initialFlow = "signIn",
   initialEmail = "",
   initialCode = "",
+  redirectTo,
 }: {
   locale: Locale;
   initialFlow?: AuthFlow;
   initialEmail?: string;
   initialCode?: string;
+  redirectTo: string;
 }) {
   const { signIn } = useAuthActions();
   const [pendingProvider, setPendingProvider] = useState<string | null>(null);
@@ -45,6 +47,7 @@ function ConvexSignInForm({
   async function handlePassword(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const normalizedEmail = email.trim().toLowerCase();
+    const resetRedirectTo = `/${locale}/sign-in?mode=reset-confirm&email=${encodeURIComponent(normalizedEmail)}&next=${encodeURIComponent(redirectTo)}`;
 
     setPendingProvider("password");
     setMessage(null);
@@ -53,7 +56,7 @@ function ConvexSignInForm({
         await signIn("password", {
           flow: "reset",
           email: normalizedEmail,
-          redirectTo: `/${locale}/sign-in?mode=reset-confirm&email=${encodeURIComponent(normalizedEmail)}`,
+          redirectTo: resetRedirectTo,
         });
         setMessage({
           tone: "success",
@@ -82,7 +85,7 @@ function ConvexSignInForm({
           email: normalizedEmail,
           code: resetCode,
           newPassword,
-          redirectTo: `/${locale}/app`,
+          redirectTo,
         });
         setPassword("");
         setNewPassword("");
@@ -99,14 +102,14 @@ function ConvexSignInForm({
         flow,
         email: normalizedEmail,
         password,
-        redirectTo: `/${locale}/app`,
+        redirectTo,
       });
       if (result.redirect) {
         window.location.href = result.redirect.toString();
         return;
       }
       if (result.signingIn) {
-        window.location.href = `/${locale}/app`;
+        window.location.href = redirectTo;
         return;
       }
 
@@ -144,7 +147,7 @@ function ConvexSignInForm({
     setPendingProvider(provider);
     setMessage(null);
     try {
-      const result = await signIn(provider, { redirectTo: `/${locale}/app` });
+      const result = await signIn(provider, { redirectTo });
       if (result.redirect) {
         window.location.href = result.redirect.toString();
       }
@@ -346,12 +349,14 @@ export function SignInPanel({
   initialFlow,
   initialEmail,
   initialCode,
+  redirectTo,
 }: {
   locale: Locale;
   hasConvex: boolean;
   initialFlow?: AuthFlow;
   initialEmail?: string;
   initialCode?: string;
+  redirectTo: string;
 }) {
   if (!hasConvex) {
     return (
@@ -376,6 +381,7 @@ export function SignInPanel({
       initialFlow={initialFlow}
       initialEmail={initialEmail}
       initialCode={initialCode}
+      redirectTo={redirectTo}
     />
   );
 }
