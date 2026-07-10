@@ -75,6 +75,10 @@ function childParts(parts: AppLessonPartNav[], parentPartId?: string) {
 type LiveNavigationResult = {
   profile?: {
     role?: string;
+    name?: string;
+    username?: string;
+    email?: string;
+    avatarUrl?: string;
   } | null;
   courses?: Array<{
     _id?: string;
