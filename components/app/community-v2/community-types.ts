@@ -26,6 +26,8 @@ export type CommunityCounts = {
   mentions?: number;
   pendingApprovals?: number;
   members?: number;
+  profileIncomplete?: number;
+  total?: number;
 };
 
 export type CommunityFilters = {
@@ -43,6 +45,7 @@ export type CommunityPostRow = {
   _id: string;
   title: string;
   body: string;
+  authorId?: string;
   createdAt: number;
   lastActivityAt?: number;
   status?: "draft" | "pending" | "published" | "changes_requested";
@@ -61,11 +64,13 @@ export type CommunityPostRow = {
   courseTitleEn?: string;
   commentsCount?: number;
   reactionsCount?: number;
+  userReaction?: "like" | "celebrate";
   isFeaturedGlobal?: boolean;
   isPinned?: boolean;
   isFavorited?: boolean;
   moderationReason?: string;
   latestModerationReason?: string;
+  unreadActivityCount?: number;
 };
 
 export type CommunityMentionEvent = {
@@ -75,6 +80,7 @@ export type CommunityMentionEvent = {
   kind?: string;
   authorName?: string;
   senderName?: string;
+  senderUsername?: string;
   authorAvatarUrl?: string | null;
   authorRole?: CommunityRole;
   excerpt?: string;
@@ -90,6 +96,7 @@ export type CommunityMentionEvent = {
 
 export type CommunityMemberRow = {
   _id: string;
+  profileId?: string;
   userId?: string;
   name: string;
   username?: string;

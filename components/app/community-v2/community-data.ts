@@ -38,6 +38,7 @@ type MentionEventRaw = {
   notificationId: string;
   createdAt: number;
   readAt?: number;
+  kind?: string;
   unread: boolean;
   excerpt?: string;
   sender: {
@@ -66,7 +67,7 @@ type MembersArgs = {
 };
 
 type MemberRowRaw = {
-  profileId: string;
+  profileId?: string;
   userId: string;
   name: string;
   username?: string;
@@ -158,7 +159,7 @@ export const fallbackCommunityFilters: CommunityFilters = {
     },
   ],
   courses: [],
-  counts: { myThreads: 0, mentions: 0, pendingApprovals: 0, members: 0 },
+  counts: { myThreads: 0, mentions: 0, pendingApprovals: 0, members: 0, profileIncomplete: 0, total: 0 },
 };
 
 export const fallbackCommunityPosts: CommunityPostRow[] = [
@@ -282,8 +283,9 @@ export function useCommunityMentions({
     _id: event.notificationId,
     createdAt: event.createdAt,
     readAt: event.readAt,
-    kind: "mention",
+    kind: event.kind,
     senderName: event.sender?.name,
+    senderUsername: event.sender?.username,
     authorName: event.sender?.name,
     authorAvatarUrl: event.sender?.avatarUrl,
     authorRole: event.sender?.role,
@@ -331,7 +333,8 @@ export function useCommunityMembers({
   );
   const setRole = useMutation(apiV2.profiles.setProfileRole);
   const results: CommunityMemberRow[] = query.results.map((member) => ({
-    _id: member.profileId,
+    _id: member.profileId ?? member.userId,
+    profileId: member.profileId,
     userId: member.userId,
     name: member.name,
     username: member.username,

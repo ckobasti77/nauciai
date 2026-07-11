@@ -978,11 +978,11 @@ function LiveAppSidebar({ locale, navigation }: { locale: Locale; navigation: Ap
   );
   const authState = isLoading ? "loading" : isAuthenticated ? "authenticated" : "anonymous";
 
-  const notificationCounts = useQuery(
-    api.notifications.getCommunityNotificationCounts,
+  const notificationSummary = useQuery(
+    api.notifications.getUserNotificationSummary,
     isAuthenticated ? {} : "skip"
   );
-  const communityBadge = notificationCounts?.total ?? 0;
+  const communityBadge = notificationSummary?.total ?? 0;
 
   return (
     <AppSidebarContent

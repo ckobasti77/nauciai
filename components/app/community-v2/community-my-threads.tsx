@@ -1,9 +1,12 @@
 "use client";
 
 import { Bookmark, CheckCircle2, Clock3, FilePenLine, Inbox, PencilLine, Send, Sparkles } from "lucide-react";
+import { useMutation } from "convex/react";
 import Link from "next/link";
 
 import { cn } from "@/components/ui/primitives";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import type { Locale } from "@/lib/i18n";
 import { withLocale } from "@/lib/i18n";
 
@@ -27,17 +30,17 @@ import type { CommunityPostRow } from "./community-types";
 type ThreadView = "drafts" | "pending" | "published" | "saved";
 
 const VIEW_ITEMS = [
-  { id: "drafts" as const, labelSr: "Skice", labelEn: "Drafts", icon: FilePenLine, step: "01" },
+  { id: "published" as const, labelSr: "Objavljeno", labelEn: "Published", icon: CheckCircle2, step: "01" },
   { id: "pending" as const, labelSr: "Na odobrenju", labelEn: "In review", icon: Clock3, step: "02" },
-  { id: "published" as const, labelSr: "Objavljeno", labelEn: "Published", icon: CheckCircle2, step: "03" },
+  { id: "drafts" as const, labelSr: "Skice", labelEn: "Drafts", icon: FilePenLine, step: "03" },
   { id: "saved" as const, labelSr: "Sačuvano", labelEn: "Saved", icon: Bookmark, step: "★" },
 ];
 
 function useThreadView() {
   const { searchParams, update } = useCommunityQueryParams();
   const requested = searchParams.get("view");
-  const view: ThreadView = VIEW_ITEMS.some((item) => item.id === requested) ? (requested as ThreadView) : "drafts";
-  return { view, setView: (next: ThreadView) => update({ view: next === "drafts" ? undefined : next }) };
+  const view: ThreadView = VIEW_ITEMS.some((item) => item.id === requested) ? (requested as ThreadView) : "published";
+  return { view, setView: (next: ThreadView) => update({ view: next === "published" ? undefined : next }) };
 }
 
 export function CommunityMyThreadsPage({ locale }: { locale: Locale }) {
@@ -66,6 +69,7 @@ function LiveMyThreadsPage({ locale }: { locale: Locale }) {
   const { filters, isLoading: filtersLoading } = useCommunityFilters(true);
   const postsQuery = useCommunityMyPosts({ view: viewState.view });
   const toggleFavorite = useToggleCommunityFavorite();
+  const markPostNotificationsAsRead = useMutation(api.notifications.markPostNotificationsAsRead);
 
   return (
     <MyThreadsView
@@ -77,6 +81,7 @@ function LiveMyThreadsPage({ locale }: { locale: Locale }) {
       loadingMore={postsQuery.status === "LoadingMore"}
       onLoadMore={() => postsQuery.loadMore(20)}
       onToggleFavorite={(postId) => toggleFavorite({ postId })}
+      onOpenPost={(postId) => markPostNotificationsAsRead({ postId: postId as Id<"communityPosts"> })}
       totalNotice={filters.counts?.myThreads ?? 0}
     />
   );
@@ -118,7 +123,12 @@ function statusBadge(post: CommunityPostRow, locale: Locale) {
   );
 }
 
-function nextAction(post: CommunityPostRow, locale: Locale, onToggleFavorite?: (postId: string) => Promise<unknown>) {
+function nextAction(
+  post: CommunityPostRow,
+  locale: Locale,
+  onToggleFavorite?: (postId: string) => Promise<unknown>,
+  onOpenPost?: (postId: string) => Promise<unknown>,
+) {
   if (post.isFavorited && onToggleFavorite) {
     return (
       <button
@@ -139,6 +149,9 @@ function nextAction(post: CommunityPostRow, locale: Locale, onToggleFavorite?: (
   return (
     <Link
       href={href}
+      onClick={() => {
+        if (onOpenPost && post.status === "published") void onOpenPost(post._id);
+      }}
       className={cn(
         "inline-flex min-h-11 items-center gap-2 rounded-full border px-3 text-xs font-black transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
         editable ? "border-ink bg-yellow text-ink" : "border-line bg-white text-ink hover:border-ink",
@@ -170,6 +183,7 @@ function MyThreadsView({
   totalNotice,
   onLoadMore,
   onToggleFavorite,
+  onOpenPost,
 }: {
   locale: Locale;
   viewState: ReturnType<typeof useThreadView>;
@@ -180,6 +194,7 @@ function MyThreadsView({
   totalNotice: number;
   onLoadMore?: () => void;
   onToggleFavorite?: (postId: string) => Promise<unknown>;
+  onOpenPost?: (postId: string) => Promise<unknown>;
 }) {
   const activeItem = VIEW_ITEMS.find((item) => item.id === viewState.view) ?? VIEW_ITEMS[0];
 
@@ -250,20 +265,27 @@ function MyThreadsView({
                   course={locale === "sr" ? post.courseTitleSr : post.courseTitleEn}
                   statusLabel={statusBadge(post, locale)}
                   notice={
-                    post.status === "changes_requested" ? (
-                      <div className="rounded-[12px] border border-[#b42318]/25 bg-[#fff7f6] p-3 text-sm font-bold leading-5 text-[#712018]">
-                        <span className="block text-[10px] font-black uppercase tracking-[0.1em] text-[#9a2a20]">
-                          {locale === "sr" ? "Napomena moderatora" : "Moderator note"}
-                        </span>
-                        <span className="mt-1 block">
-                          {post.latestModerationReason ??
-                            post.moderationReason ??
-                            (locale === "sr" ? "Dopuni kontekst pre ponovnog slanja." : "Add more context before resubmitting.")}
-                        </span>
-                      </div>
-                    ) : undefined
+                    <>
+                      {post.unreadActivityCount ? (
+                        <div className="rounded-[12px] border border-ink bg-yellow/25 p-3 text-sm font-black text-ink">
+                          {post.unreadActivityCount} {locale === "sr" ? "novih obaveštenja" : "new notifications"}
+                        </div>
+                      ) : null}
+                      {post.status === "changes_requested" ? (
+                        <div className="mt-2 rounded-[12px] border border-[#b42318]/25 bg-[#fff7f6] p-3 text-sm font-bold leading-5 text-[#712018]">
+                          <span className="block text-[10px] font-black uppercase tracking-[0.1em] text-[#9a2a20]">
+                            {locale === "sr" ? "Napomena moderatora" : "Moderator note"}
+                          </span>
+                          <span className="mt-1 block">
+                            {post.latestModerationReason ??
+                              post.moderationReason ??
+                              (locale === "sr" ? "Dopuni kontekst pre ponovnog slanja." : "Add more context before resubmitting.")}
+                          </span>
+                        </div>
+                      ) : null}
+                    </>
                   }
-                  action={nextAction(post, locale, viewState.view === "saved" ? onToggleFavorite : undefined)}
+                  action={nextAction(post, locale, viewState.view === "saved" ? onToggleFavorite : undefined, onOpenPost)}
                 />
               ))
             ) : (

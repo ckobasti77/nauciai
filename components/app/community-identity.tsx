@@ -23,7 +23,7 @@ export function canShowRank(role: CommunityRole | undefined) {
 }
 
 export function initialsFromName(name: string | undefined) {
-  const parts = (name || "Clan zajednice")
+  const parts = (name || "Član zajednice")
     .trim()
     .split(/\s+/)
     .filter(Boolean)

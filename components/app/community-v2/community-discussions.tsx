@@ -1,10 +1,14 @@
 "use client";
 
-import { Bookmark, ChevronDown, Lightbulb, MessageSquareText, PenLine, Sparkles } from "lucide-react";
+import { useMutation } from "convex/react";
+import { Bookmark, ChevronDown, Heart, Lightbulb, MessageCircle, MessageSquareText, PenLine, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import { cn } from "@/components/ui/primitives";
+import { CommentsSection } from "@/components/app/community-comments";
+import { api } from "@/convex/_generated/api";
+import { useToast } from "@/components/ui/toast-provider";
 import type { Locale } from "@/lib/i18n";
 import { withLocale } from "@/lib/i18n";
 
@@ -78,9 +82,9 @@ function StaticDiscussionsPage({ locale }: { locale: Locale }) {
   const controls = useDiscussionControls();
   const posts = useMemo(() => {
     const needle = controls.query.toLocaleLowerCase();
-    return fallbackCommunityPosts.filter(
-      (post) => !needle || `${post.title} ${post.body}`.toLocaleLowerCase().includes(needle),
-    );
+    return fallbackCommunityPosts
+      .filter((post) => !needle || `${post.title} ${post.body}`.toLocaleLowerCase().includes(needle))
+      .sort((a, b) => b.createdAt - a.createdAt);
   }, [controls.query]);
 
   return (
@@ -98,7 +102,7 @@ function StaticDiscussionsPage({ locale }: { locale: Locale }) {
 }
 
 function LiveDiscussionsPage({ locale }: { locale: Locale }) {
-  const { filters, isLoading: filtersLoading } = useCommunityFilters(true);
+  const { filters, isLoading: filtersLoading, isAuthenticated } = useCommunityFilters(true);
   const scopeState = useResolvedCommunityScope(filters, locale);
   const controls = useDiscussionControls();
   const postsQuery = useCommunityPosts({
@@ -107,6 +111,7 @@ function LiveDiscussionsPage({ locale }: { locale: Locale }) {
     sort: controls.sort,
   });
   const toggleFavorite = useToggleCommunityFavorite();
+  const reactPost = useMutation(api.community.react);
 
   return (
     <DiscussionsView
@@ -120,6 +125,10 @@ function LiveDiscussionsPage({ locale }: { locale: Locale }) {
       loadingMore={postsQuery.status === "LoadingMore"}
       onLoadMore={() => postsQuery.loadMore(20)}
       onToggleFavorite={(postId) => toggleFavorite({ postId })}
+      onReactPost={(postId, reaction) => reactPost({ targetType: "post", targetId: postId, reaction })}
+      isAuthenticated={isAuthenticated}
+      viewerUserId={filters.viewer.userId}
+      canModerate={filters.viewer.role === "admin" || filters.viewer.role === "moderator"}
     />
   );
 }
@@ -135,6 +144,10 @@ function DiscussionsView({
   loadingMore,
   onLoadMore,
   onToggleFavorite,
+  onReactPost,
+  isAuthenticated = false,
+  viewerUserId,
+  canModerate = false,
 }: {
   locale: Locale;
   filters: CommunityFilters;
@@ -146,9 +159,45 @@ function DiscussionsView({
   loadingMore: boolean;
   onLoadMore?: () => void;
   onToggleFavorite?: (postId: string) => Promise<unknown>;
+  onReactPost?: (postId: string, reaction: "like" | "celebrate") => Promise<unknown>;
+  isAuthenticated?: boolean;
+  viewerUserId?: string;
+  canModerate?: boolean;
 }) {
+  const [expandedPostId, setExpandedPostId] = useState<string | null>(null);
+  const toast = useToast();
+
+  async function handlePostReaction(postId: string, reaction: "like" | "celebrate") {
+    if (!onReactPost) return;
+    try {
+      await onReactPost(postId, reaction);
+    } catch (error) {
+      const message = String(error);
+      if (message.includes("PROFILE_INCOMPLETE")) {
+        toast.warning(
+          locale === "sr" ? "Podesi username da bi reagovao/la." : "Set a username to react.",
+          undefined,
+          { label: locale === "sr" ? "Otvori Profil" : "Open Profile", onClick: () => (window.location.href = withLocale(locale, "/app/profile")) },
+        );
+      } else {
+        toast.error(locale === "sr" ? "Reakcija nije sačuvana." : "Reaction could not be saved.");
+      }
+    }
+  }
+
+  async function handleFavorite(postId: string) {
+    if (!onToggleFavorite) return;
+    try {
+      await onToggleFavorite(postId);
+    } catch {
+      toast.error(locale === "sr" ? "Čuvanje diskusije nije uspelo." : "Saving the discussion failed.");
+    }
+  }
   const mentorPicks = posts.filter((post) => post.isFeaturedGlobal || post.isPinned).slice(0, 3);
-  const feedPosts = posts.filter((post) => !mentorPicks.some((pick) => pick._id === post._id));
+  // The main Discussions route is the canonical feed: every published thread
+  // must remain visible here, even when it is also highlighted as a mentor pick.
+  // The highlight is a secondary shortcut, never a filter on the chronological feed.
+  const feedPosts = posts;
 
   return (
     <div className="space-y-6">
@@ -172,8 +221,9 @@ function DiscussionsView({
       />
 
       <section className="rounded-[16px]! border border-line bg-white p-3 sm:p-4" aria-label={locale === "sr" ? "Filteri diskusija" : "Discussion filters"}>
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.85fr)]">
-          <div className="flex min-w-0 flex-col gap-2 sm:flex-row">
+        <div className="grid gap-4 xl:grid-cols-[minmax(320px,0.85fr)_minmax(0,1fr)]">
+          <CommunityScopeControls locale={locale} filters={filters} scopeState={scopeState} compact />
+          <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start">
             <CommunitySearch
               value={controls.search}
               onChange={controls.setSearch}
@@ -194,7 +244,6 @@ function DiscussionsView({
               <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted" aria-hidden="true" />
             </label>
           </div>
-          <CommunityScopeControls locale={locale} filters={filters} scopeState={scopeState} compact />
         </div>
       </section>
 
@@ -222,11 +271,51 @@ function DiscussionsView({
                   post={post}
                   track={postTrackTitle(post, filters, locale)}
                   course={postCourseTitle(post, filters, locale)}
+                  leadingAction={
+                    <>
+                      {onReactPost ? (
+                        <button
+                          type="button"
+                          onClick={() => void handlePostReaction(post._id, "like")}
+                          aria-label={locale === "sr" ? "Lajkuj diskusiju" : "Like discussion"}
+                          aria-pressed={post.userReaction === "like"}
+                          className={cn(
+                            "inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3 text-xs font-black transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+                            post.userReaction === "like" ? "border-ink bg-yellow text-ink" : "border-line bg-white text-muted hover:border-ink hover:text-ink",
+                          )}
+                        >
+                          <Heart className={cn("size-4", post.userReaction === "like" && "fill-ink")} aria-hidden="true" />
+                          {post.reactionsCount ?? 0}
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => setExpandedPostId((current) => (current === post._id ? null : post._id))}
+                        aria-expanded={expandedPostId === post._id}
+                        aria-label={
+                          expandedPostId === post._id
+                            ? locale === "sr"
+                              ? "Sakrij komentare"
+                              : "Hide comments"
+                            : locale === "sr"
+                              ? "Prikaži komentare"
+                              : "Show comments"
+                        }
+                        className={cn(
+                          "inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3 text-xs font-black transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+                          expandedPostId === post._id ? "border-ink bg-ink text-white" : "border-line bg-white text-muted hover:border-ink hover:text-ink",
+                        )}
+                      >
+                        <MessageCircle className="size-4" aria-hidden="true" />
+                        {post.commentsCount ?? 0}
+                      </button>
+                    </>
+                  }
                   action={
                     onToggleFavorite ? (
                       <button
                         type="button"
-                        onClick={() => void onToggleFavorite(post._id)}
+                        onClick={() => void handleFavorite(post._id)}
                         aria-label={
                           post.isFavorited
                             ? locale === "sr"
@@ -245,6 +334,19 @@ function DiscussionsView({
                         <Bookmark className={cn("size-4", post.isFavorited && "fill-ink")} aria-hidden="true" />
                       </button>
                     ) : undefined
+                  }
+                  below={
+                    expandedPostId === post._id ? (
+                      <CommentsSection
+                        postId={post._id}
+                        locale={locale}
+                        isAuthenticated={isAuthenticated}
+                        canModerate={canModerate}
+                        canMarkHelpful={canModerate || post.authorId === viewerUserId}
+                        viewerUserId={viewerUserId}
+                        compact
+                      />
+                    ) : null
                   }
                 />
               ))

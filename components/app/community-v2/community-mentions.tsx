@@ -82,6 +82,9 @@ function mentionCopy(event: CommunityMentionEvent, locale: Locale) {
   if (event.kind === "like_comment") {
     return locale === "sr" ? "je reagovao/la na tvoj odgovor" : "reacted to your reply";
   }
+  if (event.kind === "helpful_comment") {
+    return locale === "sr" ? "je označio/la tvoj odgovor kao koristan" : "marked your reply as helpful";
+  }
   return locale === "sr" ? "te je pomenuo/la u razgovoru" : "mentioned you in a conversation";
 }
 
@@ -116,7 +119,8 @@ function MentionCard({
         />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-            <span className="font-black text-ink">{authorName}</span>
+            <span className="font-black text-ink">{mention.senderUsername ? `@${mention.senderUsername}` : authorName}</span>
+            {mention.senderUsername ? <span className="text-xs font-semibold text-muted">{authorName}</span> : null}
             <span className="font-semibold text-muted">{mentionCopy(mention, locale)}</span>
             <span className="text-xs font-bold text-muted/75">· {formatCommunityTime(mention.createdAt, locale)}</span>
           </div>
@@ -146,6 +150,9 @@ function MentionCard({
             {mention.postId ? (
               <Link
                 href={withLocale(locale, `/app/community/${mention.postId}`)}
+                onClick={() => {
+                  if (unread && onMarkRead) void onMarkRead(mention._id);
+                }}
                 className="inline-flex min-h-11 min-w-0 items-center gap-2 rounded-full border border-line bg-white px-3 text-sm font-black text-ink transition hover:border-ink hover:bg-yellow/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
               >
                 <MessageCircle className="size-4 shrink-0" aria-hidden="true" />

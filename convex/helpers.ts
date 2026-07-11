@@ -1,6 +1,8 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { ConvexError } from "convex/values";
 
 import type { Id } from "./_generated/dataModel";
+import { env } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
 import { syncLeaderboardEligibilityForUser } from "./leaderboardCore";
 
@@ -43,11 +45,13 @@ type DocLike = Record<string, unknown> & {
   avatarStorageId?: string;
   avatarPreset?: string;
   username?: string;
+  language?: "sr" | "en";
   searchText?: string;
 };
 
 const DEFAULT_AVATAR_PRESET = "mythic-mentor";
 const DEFAULT_AVATAR_URL = "/images/avatars/mythic-mentor.png";
+const USERNAME_PATTERN = /^[a-zA-Z0-9_-]{3,20}$/;
 
 export const profileRoles = ["student", "pro_student", "moderator", "admin"] as const;
 export const assignableProfileRoles = ["student", "pro_student", "moderator"] as const;
@@ -55,13 +59,22 @@ export const assignableProfileRoles = ["student", "pro_student", "moderator"] as
 export type ProfileRole = (typeof profileRoles)[number];
 export type AssignableProfileRole = (typeof assignableProfileRoles)[number];
 
+export function normalizeUsername(value: string | undefined | null) {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  return normalized || undefined;
+}
+
+export function isValidUsername(value: string | undefined | null) {
+  return Boolean(value && USERNAME_PATTERN.test(value));
+}
+
 function dbFrom(ctx: AnyCtx): DatabaseLike {
   return ctx.db as DatabaseLike;
 }
 
 function initialAdminEmails(): Set<string> {
   return new Set(
-    (process.env.INITIAL_ADMIN_EMAILS ?? "")
+    (env.INITIAL_ADMIN_EMAILS ?? "")
       .split(",")
       .map((email) => email.trim().toLowerCase())
       .filter(Boolean),
@@ -85,6 +98,71 @@ export function effectiveRoleForProfile(email: string, currentRole?: unknown): P
   }
 
   return isAssignableProfileRole(currentRole) ? currentRole : "student";
+}
+
+/**
+ * Creates the public profile projection at auth time. This is deliberately
+ * shared by the Convex Auth callback and the lazy compatibility path so a
+ * Google user can never appear as an anonymous community author while their
+ * first write is still pending.
+ */
+export async function upsertProfileFromAuthUser(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  authProfile: Record<string, unknown> = {},
+) {
+  const user = await ctx.db.get(userId);
+  const email = String(authProfile.email ?? user?.email ?? "").trim().toLowerCase();
+  const authName = String(authProfile.name ?? user?.name ?? email.split("@")[0] ?? "Student").trim();
+  const existing = await ctx.db
+    .query("profiles")
+    .withIndex("by_userId", (q) => q.eq("userId", userId))
+    .unique();
+  const parts = namePartsFrom(String(existing?.name ?? authName), email);
+  const firstName = String(existing?.firstName ?? parts.firstName);
+  const lastName = String(existing?.lastName ?? parts.lastName);
+  const username = normalizeUsername(authProfile.username as string | undefined) ?? existing?.username;
+
+  if (username && !isValidUsername(username)) {
+    throw new Error("Korisničko ime mora imati između 3 i 20 karaktera i može sadržati samo slova, brojeve, donje crte i crtice.");
+  }
+
+  if (username) {
+    const duplicate = await ctx.db
+      .query("profiles")
+      .withIndex("by_username", (q) => q.eq("username", username))
+      .unique();
+    if (duplicate && duplicate.userId !== userId) {
+      throw new Error("Korisničko ime je već zauzeto.");
+    }
+  }
+
+  const role = effectiveRoleForProfile(email, existing?.role);
+  const avatarUrl = existing?.avatarUrl ?? (String(authProfile.image ?? user?.image ?? "") || DEFAULT_AVATAR_URL);
+  const patch = {
+    email: email || existing?.email,
+    name: fullNameFrom(firstName, lastName, authName),
+    firstName,
+    lastName,
+    ...(username ? { username } : {}),
+    avatarUrl,
+    avatarPreset: existing?.avatarStorageId ? undefined : existing?.avatarPreset ?? DEFAULT_AVATAR_PRESET,
+    role,
+    language: existing?.language ?? ("sr" as const),
+    searchText: `${fullNameFrom(firstName, lastName, authName)} ${username ?? ""} ${email}`.trim(),
+    updatedAt: Date.now(),
+  };
+
+  if (existing) {
+    await ctx.db.patch(existing._id, patch);
+    return ctx.db.get(existing._id);
+  }
+
+  return ctx.db.insert("profiles", {
+    userId,
+    ...patch,
+    createdAt: Date.now(),
+  });
 }
 
 function namePartsFrom(name: string, email: string) {
@@ -121,6 +199,17 @@ export async function requireUserId(ctx: AnyCtx) {
   return userId;
 }
 
+export async function requireCompleteCommunityProfile(ctx: AnyCtx) {
+  const current = await getCurrentProfile(ctx);
+  if (!current.profile.username) {
+    throw new ConvexError({
+      code: "PROFILE_INCOMPLETE",
+      missing: ["username"],
+    });
+  }
+  return current;
+}
+
 export async function getCurrentProfile(ctx: AnyCtx) {
   const userId = await requireUserId(ctx);
   const db = dbFrom(ctx);
@@ -148,6 +237,7 @@ export async function getCurrentProfile(ctx: AnyCtx) {
         name: displayName,
         firstName,
         lastName,
+        username: existing.username ?? user?.username,
         avatarUrl: existing.avatarUrl ?? user?.image ?? DEFAULT_AVATAR_URL,
         avatarPreset: existingAvatarPreset,
       }
@@ -160,6 +250,7 @@ export async function getCurrentProfile(ctx: AnyCtx) {
         lastName,
         avatarUrl: user?.image ?? DEFAULT_AVATAR_URL,
         avatarPreset: DEFAULT_AVATAR_PRESET,
+        username: user?.username,
         role,
         language: "sr",
       } as DocLike);
@@ -198,6 +289,7 @@ export async function ensureProfile(ctx: AnyCtx) {
       lastName,
       avatarUrl,
       avatarPreset: DEFAULT_AVATAR_PRESET,
+      ...(current.profile.username ? { username: current.profile.username } : {}),
       role,
       language: "sr",
       searchText: `${name} ${email}`.trim(),
@@ -223,6 +315,9 @@ export async function ensureProfile(ctx: AnyCtx) {
   }
   if (!existing.searchText) {
     patch.searchText = `${name} ${String(existing.username ?? "")} ${email}`.trim();
+  }
+  if (!existing.username && current.profile.username) {
+    patch.username = current.profile.username;
   }
   if (Object.keys(patch).length) {
     await db.patch(existing._id, { ...patch, updatedAt: now });

@@ -1,8 +1,8 @@
 "use client";
 
-import { BookOpen, Compass, GraduationCap } from "lucide-react";
+import { Compass, Settings2 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import { cn } from "@/components/ui/primitives";
 import type { Locale } from "@/lib/i18n";
@@ -136,37 +136,60 @@ export function CommunityScopeControls({
   scopeState: ReturnType<typeof useResolvedCommunityScope>;
   compact?: boolean;
 }) {
-  const options = [
-    { kind: "global" as const, labelSr: "Globalno", labelEn: "Global", icon: Compass },
-    { kind: "track" as const, labelSr: "Smer", labelEn: "Track", icon: GraduationCap },
-    { kind: "course" as const, labelSr: "Kurs", labelEn: "Course", icon: BookOpen },
-  ];
+  const [manualOpen, setManualOpen] = useState(false);
+  const settingsOpen = manualOpen || scopeState.scope.kind !== "global";
+  const selectedCourseValue = settingsOpen && scopeState.scope.kind === "course"
+    ? scopeState.selectedCourse?._id ?? ""
+    : "";
 
   return (
     <div className={cn("space-y-3", compact && "space-y-2")}>
-      <div className="flex gap-1 rounded-full border border-line bg-[#eef3f7] p-1" role="group" aria-label={locale === "sr" ? "Opseg zajednice" : "Community scope"}>
-        {options.map(({ kind, labelSr, labelEn, icon: Icon }) => {
-          const active = scopeState.scope.kind === kind;
-          return (
-            <button
-              key={kind}
-              type="button"
-              onClick={() => scopeState.setScopeKind(kind)}
-              aria-pressed={active}
-              className={cn(
-                "inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-full px-3 text-xs font-black transition focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink",
-                active ? "bg-ink text-white shadow-sm" : "text-ink/65 hover:bg-white hover:text-ink",
-              )}
-            >
-              <Icon className="size-3.5" aria-hidden="true" />
-              {locale === "sr" ? labelSr : labelEn}
-            </button>
-          );
-        })}
+      <div
+        className="relative grid grid-cols-2 gap-1 rounded-full border border-line bg-[#eef3f7] p-1"
+        role="group"
+        aria-label={locale === "sr" ? "Prikaz zajednice" : "Community view"}
+      >
+        <span
+          aria-hidden="true"
+          className={cn(
+            "pointer-events-none absolute inset-y-1 left-1 w-[calc(50%-0.375rem)] rounded-full bg-ink shadow-[2px_2px_0_rgba(244,190,48,0.65)] transition-transform duration-300 ease-out motion-reduce:transition-none",
+            settingsOpen && "translate-x-[calc(100%+0.5rem)]",
+          )}
+        />
+        <button
+          type="button"
+          onClick={() => {
+            setManualOpen(false);
+            scopeState.setScopeKind("global");
+          }}
+          aria-pressed={!settingsOpen}
+          className={cn(
+            "relative z-10 inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full px-3 text-xs font-black transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink",
+            !settingsOpen ? "text-white" : "text-ink/65 hover:text-ink",
+          )}
+        >
+          <Compass className="size-3.5" aria-hidden="true" />
+          {locale === "sr" ? "Globalno" : "Global"}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setManualOpen(true);
+            if (!settingsOpen) scopeState.setScopeKind("track");
+          }}
+          aria-pressed={settingsOpen}
+          className={cn(
+            "relative z-10 inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full px-3 text-xs font-black transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink",
+            settingsOpen ? "text-white" : "text-ink/65 hover:text-ink",
+          )}
+        >
+          <Settings2 className="size-3.5" aria-hidden="true" />
+          {locale === "sr" ? "Podešavanja" : "Settings"}
+        </button>
       </div>
 
-      {scopeState.scope.kind !== "global" ? (
-        <div className={cn("grid gap-2", scopeState.scope.kind === "course" && "sm:grid-cols-2")}>
+      {settingsOpen ? (
+        <div className="grid gap-2 sm:grid-cols-2">
           <label className="block">
             <span className="mb-1 block text-[10px] font-black uppercase tracking-[0.12em] text-muted">
               {locale === "sr" ? "Smer" : "Track"}
@@ -183,24 +206,26 @@ export function CommunityScopeControls({
               ))}
             </select>
           </label>
-          {scopeState.scope.kind === "course" ? (
-            <label className="block">
-              <span className="mb-1 block text-[10px] font-black uppercase tracking-[0.12em] text-muted">
-                {locale === "sr" ? "Kurs" : "Course"}
-              </span>
-              <select
-                value={scopeState.selectedCourse?._id ?? ""}
-                onChange={(event) => scopeState.setCourse(event.target.value)}
-                className="min-h-11 w-full rounded-[12px] border border-line bg-white px-3 text-sm font-black text-ink outline-none transition hover:border-ink/55 focus:border-ink focus:ring-4 focus:ring-yellow/25"
-              >
-                {scopeState.availableCourses.map((course) => (
-                  <option key={course._id} value={course._id}>
-                    {locale === "sr" ? course.titleSr : course.titleEn}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : null}
+          <label className="block">
+            <span className="mb-1 block text-[10px] font-black uppercase tracking-[0.12em] text-muted">
+              {locale === "sr" ? "Kurs" : "Course"}
+            </span>
+            <select
+              value={selectedCourseValue}
+              onChange={(event) => {
+                if (event.target.value) scopeState.setCourse(event.target.value);
+                else scopeState.setScopeKind("track");
+              }}
+              className="min-h-11 w-full rounded-[12px] border border-line bg-white px-3 text-sm font-black text-ink outline-none transition hover:border-ink/55 focus:border-ink focus:ring-4 focus:ring-yellow/25"
+            >
+              <option value="">{locale === "sr" ? "Svi kursevi u smeru" : "All courses in track"}</option>
+              {scopeState.availableCourses.map((course) => (
+                <option key={course._id} value={course._id}>
+                  {locale === "sr" ? course.titleSr : course.titleEn}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
       ) : null}
     </div>

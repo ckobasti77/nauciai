@@ -100,7 +100,7 @@ function StaticCommunityBoard({ locale }: { locale: Locale }) {
     setPosts((current) => [
       {
         _id: `local-${Date.now()}`,
-        authorName: "Clan zajednice",
+        authorName: "Član zajednice",
         authorRole: "student",
         authorRank: { level: 1, label: "Nivo 1", completedLessons: 0 },
         title: draftTitle.trim() || (locale === "sr" ? "Pitanje iz zajednice" : "Community question"),

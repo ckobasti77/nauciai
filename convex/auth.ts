@@ -4,6 +4,10 @@ import Resend from "@auth/core/providers/resend";
 import { Password } from "@convex-dev/auth/providers/Password";
 import { convexAuth } from "@convex-dev/auth/server";
 
+import type { Id } from "./_generated/dataModel";
+import type { MutationCtx } from "./_generated/server";
+import { upsertProfileFromAuthUser } from "./helpers";
+
 const googleClientId = process.env.AUTH_GOOGLE_ID?.trim();
 const googleClientSecret = process.env.AUTH_GOOGLE_SECRET?.trim();
 const resendApiKey = process.env.AUTH_RESEND_KEY?.trim();
@@ -53,10 +57,12 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
       profile(params) {
         const email = String(params.email ?? "").trim().toLowerCase();
         const name = String(params.name ?? email.split("@")[0] ?? "Student").trim();
+        const username = String(params.username ?? "").trim().toLowerCase();
 
         return {
           email,
           name,
+          ...(username ? { username } : {}),
         };
       },
       validatePasswordRequirements(password) {
@@ -67,4 +73,13 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
     }),
     ...(googleProvider ? [googleProvider] : []),
   ],
+  callbacks: {
+    async afterUserCreatedOrUpdated(ctx, { userId, profile }) {
+      await upsertProfileFromAuthUser(
+        ctx as unknown as MutationCtx,
+        userId as Id<"users">,
+        profile,
+      );
+    },
+  },
 });

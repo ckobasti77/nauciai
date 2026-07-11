@@ -16,7 +16,7 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { CommentsSection } from "@/components/app/community-comments";
 import { CommunityAvatar, formatCommunityTime } from "@/components/app/community-identity";
@@ -89,8 +89,14 @@ export function LiveCommunityThreadPage({
     isAuthenticated ? { postId: postId as Id<"communityPosts"> } : "skip",
   );
   const toggleFavorite = useMutation(api.community.toggleFavorite);
+  const markPostNotificationsAsRead = useMutation(api.notifications.markPostNotificationsAsRead);
   const [favoriteBusy, setFavoriteBusy] = useState(false);
   const [favoriteError, setFavoriteError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isAuthenticated || !post?._id) return;
+    void markPostNotificationsAsRead({ postId: post._id as Id<"communityPosts"> });
+  }, [isAuthenticated, markPostNotificationsAsRead, post?._id]);
 
   if (authLoading || (isAuthenticated && (post === undefined || viewerData === undefined || communityFilters === undefined))) {
     return <ThreadLoading locale={locale} />;
@@ -207,8 +213,8 @@ export function LiveCommunityThreadPage({
                   />
                   <div className="min-w-0 flex-1">
                     <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-                      <p className="truncate text-sm font-black text-ink">{post.authorName}</p>
-                      {post.authorUsername ? <p className="truncate text-xs font-bold text-muted">@{post.authorUsername}</p> : null}
+                      <p className="truncate text-sm font-black text-ink">{post.authorUsername ? `@${post.authorUsername}` : post.authorName}</p>
+                      {post.authorUsername ? <p className="truncate text-xs font-semibold text-muted">{post.authorName}</p> : null}
                       <span aria-hidden="true" className="hidden text-line sm:inline">•</span>
                       <time dateTime={new Date(post.createdAt).toISOString()} className="text-xs font-bold text-ink/55">
                         {formatCommunityTime(post.createdAt, locale)}

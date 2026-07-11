@@ -5,6 +5,7 @@ import {
   Bell,
   BookOpenText,
   ChevronRight,
+  CircleAlert,
   Menu,
   MessageSquareText,
   PenLine,
@@ -91,13 +92,14 @@ function CommunityNavLink({
       onClick={onNavigate}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "group inline-flex min-h-11 items-center gap-2 rounded-full border px-3.5 text-sm font-black transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yellow",
+        "group inline-flex min-h-11 items-center gap-2 px-3.5 text-sm font-black transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yellow",
         mobile && "w-full justify-between rounded-[12px] px-4",
+        !mobile && "w-full justify-center",
         active
-          ? "border-yellow bg-yellow text-ink shadow-[2px_2px_0_rgba(255,255,255,0.22)]"
+          ? "text-ink"
           : mobile
             ? "border-line bg-white text-ink hover:border-ink hover:bg-yellow/15"
-            : "border-white/15 bg-white/5 text-white/78 hover:border-white/35 hover:bg-white/10 hover:text-white",
+            : "text-muted hover:text-ink",
       )}
     >
       <span className="flex min-w-0 items-center gap-2">
@@ -212,6 +214,9 @@ function CommunityShellView({
     ],
     [filters.counts?.mentions, filters.counts?.myThreads, filters.counts?.pendingApprovals, isStaff],
   );
+  const activeNavIndex = Math.max(0, navItems.findIndex((item) => item.id === activeSection));
+  const activeNavWidth = `${100 / Math.max(navItems.length, 1)}%`;
+  const activeNavTransform = `translateX(${activeNavIndex * 100}%)`;
 
   useEffect(() => {
     if (!mobileMenuOpen) return;
@@ -233,20 +238,20 @@ function CommunityShellView({
   }, [mobileMenuOpen]);
 
   return (
-    <div className="mx-auto w-full max-w-[1180px] space-y-6" aria-busy={isLoading}>
+    <div className="mx-auto w-full max-w-[1180px] space-y-5" aria-busy={isLoading}>
       <section className="relative overflow-hidden rounded-[16px]! border-2 border-ink bg-ink text-white shadow-[6px_6px_0_rgba(244,190,48,0.65)]">
         <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-[34%] border-l border-white/10 bg-[radial-gradient(circle_at_center,rgba(244,190,48,0.22)_0_2px,transparent_2px)] [background-size:24px_24px] md:block" />
-        <div className="relative p-5 sm:p-7 lg:p-8">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-2xl">
+        <div className="relative p-4 sm:p-5 lg:p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="min-w-0 max-w-4xl">
               <div className="flex items-center gap-2 text-yellow">
                 <Sparkles className="size-4" aria-hidden="true" />
                 <p className="font-mono text-[11px] font-black uppercase tracking-[0.18em]">AI Studio Commons</p>
               </div>
-              <h1 className="mt-3 text-[clamp(2rem,5vw,4rem)] font-black leading-[0.94] tracking-[-0.055em]">
+              <h1 className="mt-2 truncate text-[clamp(1.7rem,3.5vw,3rem)] font-black leading-none tracking-[-0.045em] sm:whitespace-nowrap">
                 {locale === "sr" ? "Uči javno. Napreduj zajedno." : "Learn in public. Grow together."}
               </h1>
-              <p className="mt-4 max-w-xl text-sm font-bold leading-6 text-white/72 sm:text-base">
+              <p className="mt-2 truncate text-sm font-bold leading-5 text-white/72 sm:whitespace-nowrap sm:text-[15px]">
                 {locale === "sr"
                   ? "Pitaj, podeli workflow i poveži svaku diskusiju sa smerom i kursom na kom radiš."
                   : "Ask, share a workflow, and connect every discussion to the track and course you are building in."}
@@ -254,14 +259,30 @@ function CommunityShellView({
             </div>
             <Link
               href={withLocale(locale, "/app/community/new")}
-              className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-full border-2 border-yellow bg-yellow px-5 text-sm font-black text-ink shadow-[3px_3px_0_rgba(255,255,255,0.22)] transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white active:translate-y-0"
+              className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-full border-2 border-yellow bg-yellow px-4 text-sm font-black text-ink shadow-[3px_3px_0_rgba(255,255,255,0.22)] transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white active:translate-y-0"
             >
               <PenLine className="size-4" aria-hidden="true" />
               {locale === "sr" ? "Pokreni diskusiju" : "Start a discussion"}
             </Link>
           </div>
 
-          <nav className="mt-7 hidden flex-wrap gap-2 sm:flex" aria-label={locale === "sr" ? "Sekcije zajednice" : "Community sections"}>
+        </div>
+      </section>
+
+      <nav
+        className="relative overflow-hidden border-b-2 border-line/75 bg-paper/90"
+        aria-label={locale === "sr" ? "Sekcije zajednice" : "Community sections"}
+      >
+        <div className="hidden overflow-x-auto sm:block">
+          <div
+            className="relative grid min-w-[720px]"
+            style={{ gridTemplateColumns: `repeat(${Math.max(navItems.length, 1)}, minmax(0, 1fr))` }}
+          >
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute bottom-0 left-0 z-10 h-1 border-t-2 border-ink bg-yellow shadow-[0_-1px_0_rgba(14,49,88,0.18)] transition-transform duration-300 ease-out motion-reduce:transition-none"
+              style={{ width: activeNavWidth, transform: activeNavTransform }}
+            />
             {navItems.map((item) => (
               <CommunityNavLink
                 key={item.id}
@@ -271,33 +292,47 @@ function CommunityShellView({
                 href={navHref(locale, item.path, new URLSearchParams(searchParams.toString()))}
               />
             ))}
-          </nav>
-
-          <div className="mt-6 flex items-center justify-between gap-3 sm:hidden">
-            <div className="min-w-0">
-              <p className="text-[10px] font-black uppercase tracking-[0.15em] text-white/55">
-                {locale === "sr" ? "Trenutna sekcija" : "Current section"}
-              </p>
-              <p className="mt-1 truncate text-sm font-black text-white">
-                {locale === "sr"
-                  ? navItems.find((item) => item.id === activeSection)?.labelSr
-                  : navItems.find((item) => item.id === activeSection)?.labelEn}
-              </p>
-            </div>
-            <button
-              ref={menuButtonRef}
-              type="button"
-              onClick={() => setMobileMenuOpen(true)}
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-white/35 bg-white/10 px-4 text-sm font-black text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yellow"
-              aria-haspopup="dialog"
-              aria-expanded={mobileMenuOpen}
-            >
-              <Menu className="size-4" aria-hidden="true" />
-              {locale === "sr" ? "Sve sekcije" : "All sections"}
-            </button>
           </div>
         </div>
-      </section>
+        <div className="flex items-center justify-between gap-3 px-1 py-2 sm:hidden">
+          <div className="min-w-0">
+            <p className="text-[10px] font-black uppercase tracking-[0.15em] text-muted">
+              {locale === "sr" ? "Trenutna sekcija" : "Current section"}
+            </p>
+            <p className="mt-1 truncate text-sm font-black text-ink">
+              {locale === "sr"
+                ? navItems.find((item) => item.id === activeSection)?.labelSr
+                : navItems.find((item) => item.id === activeSection)?.labelEn}
+            </p>
+          </div>
+          <button
+            ref={menuButtonRef}
+            type="button"
+            onClick={() => setMobileMenuOpen(true)}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-line bg-white px-4 text-sm font-black text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            aria-haspopup="dialog"
+            aria-expanded={mobileMenuOpen}
+          >
+            <Menu className="size-4" aria-hidden="true" />
+            {locale === "sr" ? "Sve sekcije" : "All sections"}
+          </button>
+        </div>
+      </nav>
+
+      {filters.counts?.profileIncomplete ? (
+        <Link
+          href={`${withLocale(locale, "/app/profile")}?returnTo=${encodeURIComponent(withLocale(locale, "/app/community/discussions"))}`}
+          className="flex flex-wrap items-center justify-between gap-3 rounded-[16px] border-2 border-ink bg-yellow/25 px-4 py-3 text-sm font-black text-ink shadow-[3px_3px_0_rgba(244,190,48,0.55)]"
+        >
+          <span className="flex items-start gap-2">
+            <CircleAlert className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
+            {locale === "sr" ? "Podesi username da bi mogao/la da objavljuješ i učestvuješ u razgovoru." : "Set a username to publish and participate in conversations."}
+          </span>
+          <span className="rounded-full border border-ink bg-yellow px-3 py-2 text-xs underline underline-offset-2">
+            {locale === "sr" ? "Otvori Profil" : "Open Profile"}
+          </span>
+        </Link>
+      ) : null}
 
       <main>{children}</main>
 

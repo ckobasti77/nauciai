@@ -5,7 +5,9 @@ import { mutation, query } from "./_generated/server";
 import {
   effectiveRoleForProfile,
   ensureProfile,
+  isValidUsername,
   isInitialAdminEmail,
+  normalizeUsername,
   requireAdmin,
   requireUserId,
   getCurrentProfile,
@@ -41,6 +43,44 @@ export const createAvatarUploadUrl = mutation({
   handler: async (ctx) => {
     await requireUserId(ctx);
     return ctx.storage.generateUploadUrl();
+  },
+});
+
+export const isUsernameAvailable = query({
+  args: { username: v.string() },
+  handler: async (ctx, args) => {
+    const normalized = normalizeUsername(args.username);
+    if (!normalized || !isValidUsername(normalized)) return false;
+
+    const profile = await ctx.db
+      .query("profiles")
+      .withIndex("by_username", (q) => q.eq("username", normalized))
+      .unique();
+    if (profile) return false;
+
+    const authUser = await ctx.db
+      .query("users")
+      .withIndex("username", (q) => q.eq("username", normalized))
+      .unique();
+    return !authUser;
+  },
+});
+
+export const getViewerProfileStatus = query({
+  args: {},
+  handler: async (ctx) => {
+    const { userId, profile } = await getCurrentProfile(ctx);
+    const accounts = await ctx.db
+      .query("authAccounts")
+      .withIndex("userIdAndProvider", (q) => q.eq("userId", userId))
+      .take(10);
+    return {
+      complete: Boolean(profile.username),
+      missing: profile.username ? [] : ["username" as const],
+      username: profile.username,
+      authProviders: accounts.map((account) => account.provider),
+      hasPassword: accounts.some((account) => account.provider === "password"),
+    };
   },
 });
 
@@ -113,6 +153,8 @@ export const updateViewerProfile = mutation({
       throw new Error("Ime i prezime su obavezni.");
     }
 
+    const nextUsername = args.username !== undefined ? normalizeUsername(args.username) : profile.username;
+
     const patch: {
       firstName: string;
       lastName: string;
@@ -122,22 +164,22 @@ export const updateViewerProfile = mutation({
       avatarUrl?: string;
       avatarPreset?: "mythic-mentor" | "cosmic-scholar" | "hybrid-guardian";
       avatarStorageId?: Id<"_storage">;
-      username?: string;
+      username?: string | undefined;
       updatedAt: number;
     } = {
       firstName,
       lastName,
       name: `${firstName} ${lastName}`,
-      searchText: `${firstName} ${lastName} ${String(args.username ?? profile.username ?? "")}`.trim(),
+      searchText: `${firstName} ${lastName} ${String(nextUsername ?? "")}`.trim(),
       ...(args.language ? { language: args.language } : {}),
       updatedAt: Date.now(),
     };
 
     if (args.username !== undefined) {
-      const normalizedUsername = args.username.trim().toLowerCase();
+      const normalizedUsername = normalizeUsername(args.username);
       if (normalizedUsername) {
-        if (!/^[a-zA-Z0-9_-]{3,20}$/.test(normalizedUsername)) {
-          throw new Error("Korisnicko ime mora imati izmedju 3 i 20 karaktera i moze sadrzati samo slova, brojeve, donje crte i crtice.");
+        if (!isValidUsername(normalizedUsername)) {
+          throw new Error("Korisničko ime mora imati između 3 i 20 karaktera i može sadržati samo slova, brojeve, donje crte i crtice.");
         }
         const existing = await ctx.db
           .query("profiles")
@@ -147,6 +189,8 @@ export const updateViewerProfile = mutation({
           throw new Error("Korisnicko ime je vec zauzeto.");
         }
         patch.username = normalizedUsername;
+      } else {
+        patch.username = undefined;
       }
     }
 
@@ -177,6 +221,10 @@ export const updateViewerProfile = mutation({
     }
 
     await ctx.db.patch(profile._id as Id<"profiles">, patch);
+    const viewer = await ctx.db.get(profile.userId as Id<"users">);
+    if (args.username !== undefined && viewer) {
+      await ctx.db.patch(viewer._id, { username: patch.username });
+    }
     const updated = await ctx.db.get(profile._id as Id<"profiles">);
     if (!updated) {
       return null;

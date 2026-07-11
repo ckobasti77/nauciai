@@ -1,10 +1,12 @@
 "use client";
 
 import { useAuthActions } from "@convex-dev/auth/react";
+import { useQuery } from "convex/react";
 import { ArrowLeft, CheckCircle2, KeyRound, Loader2, Mail } from "lucide-react";
 import { FormEvent, useState } from "react";
 
 import { Panel, cn } from "@/components/ui/primitives";
+import { api } from "@/convex/_generated/api";
 import type { Locale } from "@/lib/i18n";
 
 type AuthFlow = "signIn" | "signUp" | "reset" | "resetVerification";
@@ -31,10 +33,16 @@ function ConvexSignInForm({
   const [message, setMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
   const [flow, setFlow] = useState<AuthFlow>(initialFlow);
   const [email, setEmail] = useState(initialEmail);
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [resetCode] = useState(initialCode);
+  const normalizedUsername = username.trim().toLowerCase();
+  const usernameAvailable = useQuery(
+    api.profiles.isUsernameAvailable,
+    flow === "signUp" && normalizedUsername ? { username: normalizedUsername } : "skip",
+  );
 
   function switchFlow(nextFlow: AuthFlow) {
     setFlow(nextFlow);
@@ -98,11 +106,27 @@ function ConvexSignInForm({
         return;
       }
 
+      if (flow === "signUp") {
+        if (!/^[a-zA-Z0-9_-]{3,20}$/.test(normalizedUsername)) {
+          throw new Error(
+            labelFor(
+              locale,
+              "Korisničko ime mora imati između 3 i 20 karaktera i može sadržati samo slova, brojeve, donje crte i crtice.",
+              "Username must be 3–20 characters and use only letters, numbers, underscores, or hyphens.",
+            ),
+          );
+        }
+        if (usernameAvailable === false) {
+          throw new Error(labelFor(locale, "Korisničko ime je već zauzeto.", "That username is already taken."));
+        }
+      }
+
       const result = await signIn("password", {
         flow,
         email: normalizedEmail,
         password,
         redirectTo,
+        ...(flow === "signUp" ? { username: normalizedUsername } : {}),
       });
       if (result.redirect) {
         window.location.href = result.redirect.toString();
@@ -126,17 +150,8 @@ function ConvexSignInForm({
       });
     } catch (error) {
       setMessage({
-        tone: flow === "signUp" ? "success" : "error",
-        text:
-          flow === "signUp"
-            ? labelFor(
-                locale,
-                "Ako profil vec postoji za ovaj email, proveri email ili se samo prijavi.",
-                "If a profile already exists for this email, check your email or just sign in.",
-              )
-            : error instanceof Error
-              ? error.message
-              : labelFor(locale, "Prijava nije uspela.", "Sign-in failed."),
+        tone: "error",
+        text: error instanceof Error ? error.message : labelFor(locale, "Prijava nije uspela.", "Sign-in failed."),
       });
     } finally {
       setPendingProvider(null);
@@ -226,6 +241,38 @@ function ConvexSignInForm({
             className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-white px-4 text-base font-bold text-ink outline-none focus:border-yellow"
           />
         </div>
+
+        {flow === "signUp" ? (
+          <div>
+            <label htmlFor="username" className="text-sm font-black text-ink">
+              {labelFor(locale, "Korisničko ime", "Username")}
+            </label>
+            <div className="relative mt-2">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-base font-black text-ink/45">@</span>
+              <input
+                id="username"
+                name="username"
+                value={username}
+                onChange={(event) => setUsername(event.target.value)}
+                required
+                minLength={3}
+                maxLength={20}
+                autoComplete="username"
+                className="h-12 w-full rounded-[8px] border-2 border-ink bg-white pl-8 pr-4 text-base font-extrabold text-ink outline-none focus:border-yellow"
+                placeholder="npr. fox123"
+              />
+            </div>
+            <p className={cn("mt-1.5 text-xs font-bold", usernameAvailable === false ? "text-red-700" : "text-muted")}>
+              {!normalizedUsername
+                ? labelFor(locale, "Username se koristi za @pominjanja u Zajednici.", "Your username is used for @mentions in Community.")
+                : usernameAvailable === undefined
+                  ? labelFor(locale, "Provera dostupnosti…", "Checking availability…")
+                  : usernameAvailable
+                    ? labelFor(locale, "Username je slobodan.", "Username is available.")
+                    : labelFor(locale, "Korisničko ime je već zauzeto.", "That username is already taken.")}
+            </p>
+          </div>
+        ) : null}
 
         {flow === "signIn" || flow === "signUp" ? (
           <div>

@@ -65,6 +65,8 @@ export function AccountMenu({ locale, profile }: { locale: Locale; profile: Acco
   const overallCount = summary?.total ?? 0;
   const communityCount = summary?.community ?? 0;
   const billingCount = summary?.billing ?? 0;
+  const profileStatus = useQuery(api.profiles.getViewerProfileStatus, {});
+  const profileIncomplete = profileStatus?.complete === false;
 
   const menuLinks = [
     {
@@ -77,7 +79,7 @@ export function AccountMenu({ locale, profile }: { locale: Locale; profile: Acco
       href: withLocale(locale, "/app/profile"),
       label: t.profile,
       icon: UserRound,
-      badge: 0,
+      badge: profileIncomplete ? 1 : 0,
     },
     {
       href: withLocale(locale, "/app/billing"),
@@ -180,6 +182,11 @@ export function AccountMenu({ locale, profile }: { locale: Locale; profile: Acco
               <p className="mt-0.5 font-mono text-[11px] font-bold text-muted/80">@{profile.username}</p>
             ) : null}
             <p className="mt-1 break-all font-mono text-[11px] font-bold uppercase text-muted">{email}</p>
+            {profileIncomplete ? (
+              <p className="mt-2 rounded-full border border-amber-500 bg-amber-50 px-2 py-1 text-[10px] font-black text-amber-900">
+                {locale === "sr" ? "Podesi username" : "Set your username"}
+              </p>
+            ) : null}
             <span className="mt-2 inline-flex rounded-full border-2 border-ink bg-white px-3 py-1 text-[10px] font-black uppercase leading-none text-ink">
               {roleLabel}
             </span>

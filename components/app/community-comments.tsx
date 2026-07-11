@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery } from "convex/react";
+import { useMutation, usePaginatedQuery } from "convex/react";
 import {
   BadgeCheck,
   CornerDownRight,
@@ -16,9 +16,11 @@ import { useState } from "react";
 import { CommunityAvatar, formatCommunityTime, type CommunityRank, type CommunityRole } from "@/components/app/community-identity";
 import { CommunityThreadConfirmDialog } from "@/components/app/community-thread-dialog";
 import { cn } from "@/components/ui/primitives";
+import { useToast } from "@/components/ui/toast-provider";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { Locale } from "@/lib/i18n";
+import { withLocale } from "@/lib/i18n";
 
 export type FlatComment = {
   _id: string;
@@ -28,6 +30,7 @@ export type FlatComment = {
   createdAt: number;
   authorId: string;
   authorName: string;
+  authorUsername?: string;
   authorRole: CommunityRole;
   authorAvatarUrl?: string | null;
   authorRank?: CommunityRank;
@@ -60,9 +63,13 @@ export function CommentsSection({
   viewerUserId?: string;
   compact?: boolean;
 }) {
-  const comments = useQuery(api.community.getPostComments, { postId: postId as Id<"communityPosts"> }) as
-    | FlatComment[]
-    | undefined;
+  const commentsQuery = usePaginatedQuery(
+    api.community.listCommentsPage,
+    isAuthenticated ? { postId: postId as Id<"communityPosts"> } : "skip",
+    { initialNumItems: compact ? 5 : 20 },
+  );
+  const comments = commentsQuery.results as FlatComment[];
+  const toast = useToast();
   const addComment = useMutation(api.community.addComment);
   const reactComment = useMutation(api.community.react);
   const deleteComment = useMutation(api.community.deleteComment);
@@ -88,6 +95,13 @@ export function CommentsSection({
       setCommentText("");
     } catch (caughtError) {
       console.error(caughtError);
+      if (String(caughtError).includes("PROFILE_INCOMPLETE")) {
+        toast.warning(
+          locale === "sr" ? "Podesi username da bi komentarisao/la." : "Set a username to comment.",
+          undefined,
+          { label: locale === "sr" ? "Otvori Profil" : "Open Profile", onClick: () => (window.location.href = withLocale(locale, "/app/profile")) },
+        );
+      }
       setError(
         locale === "sr"
           ? "Komentar nije poslat. Tekst je ostao sačuvan — pokušaj ponovo."
@@ -154,7 +168,7 @@ export function CommentsSection({
         </p>
       ) : null}
 
-      {!comments ? (
+      {commentsQuery.status === "LoadingFirstPage" ? (
         <div className="flex justify-center py-7" aria-busy="true">
           <Loader2 className="size-6 animate-spin text-yellow motion-reduce:animate-none" />
         </div>
@@ -206,6 +220,23 @@ export function CommentsSection({
           ))}
         </div>
       )}
+
+      {commentsQuery.status === "CanLoadMore" || commentsQuery.status === "LoadingMore" ? (
+        <button
+          type="button"
+          onClick={() => commentsQuery.loadMore(compact ? 5 : 20)}
+          disabled={commentsQuery.status === "LoadingMore"}
+          className="mx-auto inline-flex min-h-10 items-center justify-center rounded-full border border-line bg-white px-4 text-xs font-black text-ink transition hover:border-ink disabled:opacity-60"
+        >
+          {commentsQuery.status === "LoadingMore"
+            ? locale === "sr"
+              ? "Učitavanje…"
+              : "Loading…"
+            : locale === "sr"
+              ? "Učitaj još komentara"
+              : "Load more comments"}
+        </button>
+      ) : null}
 
       <CommunityThreadConfirmDialog
         open={Boolean(deleteTarget)}
@@ -304,7 +335,8 @@ function CommentItem({
           />
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-              <span className="truncate text-xs font-black text-ink">{node.authorName}</span>
+              <span className="truncate text-xs font-black text-ink">{node.authorUsername ? `@${node.authorUsername}` : node.authorName}</span>
+              {node.authorUsername ? <span className="truncate text-[10px] font-semibold text-muted">{node.authorName}</span> : null}
               <time dateTime={new Date(node.createdAt).toISOString()} className="text-[10px] font-bold text-ink/50">
                 {formatCommunityTime(node.createdAt, locale)}
               </time>

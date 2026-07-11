@@ -226,6 +226,8 @@ export function ThreadCard({
   statusLabel,
   notice,
   action,
+  leadingAction,
+  below,
   highlighted = false,
 }: {
   locale: Locale;
@@ -235,6 +237,8 @@ export function ThreadCard({
   statusLabel?: ReactNode;
   notice?: ReactNode;
   action?: ReactNode;
+  leadingAction?: ReactNode;
+  below?: ReactNode;
   highlighted?: boolean;
 }) {
   const threadHref = post._id.startsWith("preview-")
@@ -263,8 +267,8 @@ export function ThreadCard({
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span className="text-sm font-black text-ink">{post.authorName}</span>
-            {post.authorUsername ? <span className="text-xs font-bold text-muted">@{post.authorUsername}</span> : null}
+            <span className="text-sm font-black text-ink">{post.authorUsername ? `@${post.authorUsername}` : post.authorName}</span>
+            {post.authorUsername ? <span className="text-xs font-semibold text-muted">{post.authorName}</span> : null}
             <span className="text-xs font-bold text-muted/75">· {formatCommunityTime(post.createdAt, locale)}</span>
             {statusLabel}
           </div>
@@ -298,11 +302,15 @@ export function ThreadCard({
                 </span>
               ) : null}
             </div>
-            {action}
+            <div className="flex flex-wrap items-center gap-2">
+              {leadingAction}
+              {action}
+            </div>
           </div>
         </div>
       </div>
       <div className={cn("absolute left-0 top-0 h-full w-1", roleTone(post.authorRole))} aria-hidden="true" />
+      {below ? <div className="border-t border-line bg-paper/35 px-4 py-4 sm:px-5">{below}</div> : null}
     </article>
   );
 }

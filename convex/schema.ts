@@ -40,9 +40,27 @@ const leaderboardSourceType = v.union(
   v.literal("helpful_comment"),
 );
 
+// Convex Auth owns the users table, but the community needs the registration
+// username before the app-level profile projection is created. Keep this field
+// optional during the migration so existing auth documents remain valid.
+const authUsers = defineTable({
+  name: v.optional(v.string()),
+  image: v.optional(v.string()),
+  email: v.optional(v.string()),
+  username: v.optional(v.string()),
+  emailVerificationTime: v.optional(v.number()),
+  phone: v.optional(v.string()),
+  phoneVerificationTime: v.optional(v.number()),
+  isAnonymous: v.optional(v.boolean()),
+})
+  .index("email", ["email"])
+  .index("phone", ["phone"])
+  .index("username", ["username"]);
+
 
 export default defineSchema({
   ...authTables,
+  users: authUsers,
 
   profiles: defineTable({
     userId: v.id("users"),

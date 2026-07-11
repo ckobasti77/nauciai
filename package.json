@@ -9,7 +9,7 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:convex": "vitest run convex/**/*.test.ts",
+    "test:convex": "vitest run --config vitest.config.ts",
     "convex:dev": "convex dev",
     "convex:auth": "node scripts/configure-convex-auth.mjs",
     "convex:auth:prod": "node scripts/configure-convex-auth.mjs --prod --site-url https://nauciai.vercel.app",

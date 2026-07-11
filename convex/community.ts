@@ -14,13 +14,16 @@ import {
 } from "./communityScope";
 import {
   currentUserId,
+  effectiveRoleForProfile,
   getCurrentProfile,
+  requireCompleteCommunityProfile,
   requireAdmin,
   requireCommunityModerator,
   requireCourseAccess,
   requireUserId,
 } from "./helpers";
 import { syncLeaderboardSourceEvent } from "./leaderboardCore";
+import { getCommunityNotificationCountsHelper } from "./notifications";
 
 type AuthorRank = {
   level: number;
@@ -73,6 +76,25 @@ const profileAvatarUrl = async (ctx: QueryCtx, profile: Doc<"profiles"> | null) 
   return profile.avatarUrl;
 };
 
+async function publicCommunityIdentity(ctx: QueryCtx, userId: Id<"users">) {
+  const [profile, user] = await Promise.all([
+    ctx.db
+      .query("profiles")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .unique(),
+    ctx.db.get(userId),
+  ]);
+  const email = String(profile?.email ?? user?.email ?? "").trim().toLowerCase();
+  const fallbackName = String(user?.name ?? email.split("@")[0] ?? "Član zajednice").trim() || "Član zajednice";
+  return {
+    profile,
+    name: profile?.name?.trim() || fallbackName,
+    username: profile?.username ?? user?.username,
+    role: effectiveRoleForProfile(email, profile?.role),
+    avatarUrl: (await profileAvatarUrl(ctx, profile)) ?? user?.image,
+  };
+}
+
 async function notifyMentions(
   ctx: MutationCtx,
   text: string,
@@ -85,11 +107,8 @@ async function notifyMentions(
   if (!matches) return;
 
   const usernames = Array.from(new Set(matches.map((m) => m.slice(1).toLowerCase())));
-  const authorProfile = await ctx.db
-    .query("profiles")
-    .withIndex("by_userId", (q) => q.eq("userId", authorId))
-    .unique();
-  const authorName = authorProfile?.name ?? "Neko";
+  const authorIdentity = await publicCommunityIdentity(ctx, authorId);
+  const authorName = authorIdentity.username ? `@${authorIdentity.username}` : authorIdentity.name;
   const excerpt = text.trim().slice(0, 240);
 
   for (const username of usernames) {
@@ -131,13 +150,10 @@ const postsWithDetails = async (
 ) =>
   Promise.all(
     posts.map(async (post) => {
-      const authorProfile = await ctx.db
-        .query("profiles")
-        .withIndex("by_userId", (q) => q.eq("userId", post.authorId))
-        .unique();
+      const author = await publicCommunityIdentity(ctx, post.authorId);
       const course = post.courseId ? await ctx.db.get(post.courseId) : null;
-      const authorRole = authorProfile?.role ?? "student";
-      const authorAvatarUrl = await profileAvatarUrl(ctx, authorProfile);
+      const authorRole = author.role;
+      const authorAvatarUrl = author.avatarUrl;
       const authorRank = await studentRankFor(ctx, post.authorId, authorRole);
       const legacyComments =
         post.commentCount === undefined
@@ -177,8 +193,8 @@ const postsWithDetails = async (
 
       return {
         ...post,
-        authorName: authorProfile?.name ?? "Clan zajednice",
-        authorUsername: authorProfile?.username,
+        authorName: author.name,
+        authorUsername: author.username,
         authorRole,
         authorAvatarUrl,
         authorRank,
@@ -408,7 +424,7 @@ export const createPost = mutation({
     const now = Date.now();
 
     let initialStatus: "draft" | "pending" | "published" = "published";
-    if (args.status === "draft") {
+    if (args.status === "draft" || !profile.username) {
       initialStatus = "draft";
     } else {
       initialStatus = isAdminOrMod ? "published" : "pending";
@@ -498,7 +514,7 @@ export const updatePost = mutation({
     };
 
     if (args.status !== undefined) {
-      if (args.status === "draft") {
+      if (args.status === "draft" || !profile.username) {
         nextStatus = currentStatus === "changes_requested" ? "changes_requested" : "draft";
       } else {
         nextStatus = isStaffRole(profile.role) ? "published" : "pending";
@@ -523,6 +539,35 @@ export const updatePost = mutation({
     }
 
     return args.postId;
+  },
+});
+
+export const submitPost = mutation({
+  args: { postId: v.id("communityPosts") },
+  handler: async (ctx, args) => {
+    const { userId, profile } = await requireCompleteCommunityProfile(ctx);
+    const post = await ctx.db.get(args.postId);
+    if (!post || post.authorId !== userId) throw new Error("Diskusija nije pronađena.");
+    const currentStatus = effectivePostStatus(post);
+    if (currentStatus === "published" || currentStatus === "pending") {
+      return { postId: post._id, status: currentStatus };
+    }
+    if (!post.title.trim() || !post.body.trim()) {
+      throw new Error("Naslov i sadržaj su obavezni.");
+    }
+    const nextStatus = isStaffRole(profile.role) ? "published" : "pending";
+    const now = Date.now();
+    await ctx.db.patch(post._id, {
+      status: nextStatus,
+      workflowGroup: workflowGroupForStatus(nextStatus),
+      moderationReason: undefined,
+      moderatedAt: undefined,
+      moderatedBy: undefined,
+      lastActivityAt: now,
+      updatedAt: now,
+    });
+    if (nextStatus === "published") await notifyMentions(ctx, post.body, post._id);
+    return { postId: post._id, status: nextStatus };
   },
 });
 
@@ -686,11 +731,14 @@ async function commentsWithDetails(
 ) {
   return Promise.all(
     comments.map(async (comment) => {
-      const authorProfile = await ctx.db
-        .query("profiles")
-        .withIndex("by_userId", (q) => q.eq("userId", comment.authorId))
-        .unique();
-      const authorRole = authorProfile?.role ?? "student";
+      const author = await publicCommunityIdentity(ctx, comment.authorId);
+      const authorProfile = author.profile ?? ({
+        name: author.name,
+        username: author.username,
+        role: author.role,
+        avatarUrl: author.avatarUrl,
+      } as Doc<"profiles">);
+      const authorRole = author.role;
       const fallbackReactions =
         comment.reactionCount === undefined
           ? await ctx.db
@@ -775,6 +823,7 @@ export const addComment = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx);
+    await requireCompleteCommunityProfile(ctx);
     const post = await ctx.db.get(args.postId);
     if (!post) throw new Error("Diskusija nije pronađena.");
     if (effectivePostStatus(post) !== "published") {
@@ -810,11 +859,8 @@ export const addComment = mutation({
     });
 
     if (post.authorId !== userId) {
-      const commenterProfile = await ctx.db
-        .query("profiles")
-        .withIndex("by_userId", (q) => q.eq("userId", userId))
-        .unique();
-      const commenterName = commenterProfile?.name ?? "Clan zajednice";
+      const commenterIdentity = await publicCommunityIdentity(ctx, userId);
+      const commenterName = commenterIdentity.username ? `@${commenterIdentity.username}` : commenterIdentity.name;
       await ctx.db.insert("notifications", {
         userId: post.authorId,
         title: "Novi komentar",
@@ -843,6 +889,7 @@ export const react = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx);
+    await requireCompleteCommunityProfile(ctx);
     let post: Doc<"communityPosts">;
     let comment: Doc<"comments"> | null = null;
     let targetId: string;
@@ -907,11 +954,8 @@ export const react = mutation({
 
     if (args.targetType === "post") {
       if (post.authorId !== userId) {
-        const likerProfile = await ctx.db
-          .query("profiles")
-          .withIndex("by_userId", (q) => q.eq("userId", userId))
-          .unique();
-        const likerName = likerProfile?.name ?? "Clan zajednice";
+        const likerIdentity = await publicCommunityIdentity(ctx, userId);
+        const likerName = likerIdentity.username ? `@${likerIdentity.username}` : likerIdentity.name;
         const eventKey = `reaction:post:${post._id}:${userId}`;
         const notification = await ctx.db
           .query("notifications")
@@ -933,11 +977,8 @@ export const react = mutation({
         }
       }
     } else if (comment && comment.authorId !== userId) {
-        const likerProfile = await ctx.db
-          .query("profiles")
-          .withIndex("by_userId", (q) => q.eq("userId", userId))
-          .unique();
-        const likerName = likerProfile?.name ?? "Clan zajednice";
+        const likerIdentity = await publicCommunityIdentity(ctx, userId);
+        const likerName = likerIdentity.username ? `@${likerIdentity.username}` : likerIdentity.name;
         const eventKey = `reaction:comment:${comment._id}:${userId}`;
         const notification = await ctx.db
           .query("notifications")
@@ -1424,7 +1465,7 @@ export const getCommunityFilters = query({
   args: {},
   handler: async (ctx) => {
     const { userId, profile } = await getCurrentProfile(ctx);
-    const [tracks, courses, mentionNotifications, commentNotifications, reactionNotifications] = await Promise.all([
+    const [tracks, courses, notificationCounts] = await Promise.all([
       ctx.db
         .query("courseTracks")
         .withIndex("by_status_and_sortOrder", (q) => q.eq("status", "published"))
@@ -1433,31 +1474,8 @@ export const getCommunityFilters = query({
         .query("courses")
         .withIndex("by_status", (q) => q.eq("status", "published"))
         .take(200),
-      ctx.db
-        .query("notifications")
-        .withIndex("by_userId_and_kind_and_readAt_and_createdAt", (q) =>
-          q.eq("userId", userId).eq("kind", "mention").eq("readAt", undefined),
-        )
-        .take(100),
-      ctx.db
-        .query("notifications")
-        .withIndex("by_userId_and_kind_and_readAt_and_createdAt", (q) =>
-          q.eq("userId", userId).eq("kind", "comment_post").eq("readAt", undefined),
-        )
-        .take(100),
-      ctx.db
-        .query("notifications")
-        .withIndex("by_userId_and_kind_and_readAt_and_createdAt", (q) =>
-          q.eq("userId", userId).eq("kind", "like_post").eq("readAt", undefined),
-        )
-        .take(100),
+      getCommunityNotificationCountsHelper(ctx, userId),
     ]);
-    const pending = isStaffRole(profile.role)
-      ? await ctx.db
-          .query("communityPosts")
-          .withIndex("by_status_and_updatedAt", (q) => q.eq("status", "pending"))
-          .take(100)
-      : [];
     const courseRows = courses.map((course) => ({
       _id: course._id,
       trackId: course.trackId,
@@ -1485,9 +1503,11 @@ export const getCommunityFilters = query({
       })),
       courses: courseRows,
       counts: {
-        mentions: mentionNotifications.length,
-        myThreads: Math.min(100, commentNotifications.length + reactionNotifications.length),
-        pendingApprovals: pending.length,
+        mentions: notificationCounts.mentions,
+        myThreads: notificationCounts.myThreads,
+        pendingApprovals: notificationCounts.pendingApprovals,
+        profileIncomplete: notificationCounts.profileIncomplete,
+        total: notificationCounts.total,
       },
     };
   },
@@ -1674,7 +1694,29 @@ export const listMyPostsPage = query({
         )
         .slice(0, paginationOpts.numItems);
     }
-    return { ...result, page: await postsWithDetails(ctx, page, userId), view: args.view };
+    const details = await postsWithDetails(ctx, page, userId);
+    const unreadNotifications = await ctx.db
+      .query("notifications")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .order("desc")
+      .take(1000);
+    const unreadByPost = new Map<string, number>();
+    for (const notification of unreadNotifications) {
+      if (
+        !notification.postId ||
+        notification.readAt ||
+        !["comment_post", "like_post", "post_approved", "post_changes_requested"].includes(String(notification.kind))
+      ) {
+        continue;
+      }
+      const key = String(notification.postId);
+      unreadByPost.set(key, (unreadByPost.get(key) ?? 0) + 1);
+    }
+    return {
+      ...result,
+      page: details.map((post) => ({ ...post, unreadActivityCount: unreadByPost.get(String(post._id)) ?? 0 })),
+      view: args.view,
+    };
   },
 });
 
@@ -1686,32 +1728,29 @@ export const listMentionEvents = query({
   handler: async (ctx, args) => {
     const { userId } = await getCurrentProfile(ctx);
     const paginationOpts = boundedPaginationOpts(args.paginationOpts);
-    const result = args.unreadOnly
-      ? await ctx.db
-          .query("notifications")
-          .withIndex("by_userId_and_kind_and_readAt_and_createdAt", (q) =>
-            q.eq("userId", userId).eq("kind", "mention").eq("readAt", undefined),
-          )
-          .order("desc")
-          .paginate(paginationOpts)
-      : await ctx.db
-          .query("notifications")
-          .withIndex("by_userId_and_kind_and_createdAt", (q) =>
-            q.eq("userId", userId).eq("kind", "mention"),
-          )
-          .order("desc")
-          .paginate(paginationOpts);
+    const rawOffset = args.paginationOpts.cursor ? Number(args.paginationOpts.cursor) : 0;
+    const offset = Number.isFinite(rawOffset) && rawOffset >= 0 ? Math.floor(rawOffset) : 0;
+    const personalKinds = new Set(["mention", "like_comment", "helpful_comment"]);
+    const allNotifications = await ctx.db
+      .query("notifications")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .order("desc")
+      .take(1000);
+    const matchingNotifications = allNotifications.filter(
+      (notification) =>
+        personalKinds.has(String(notification.kind)) && (!args.unreadOnly || !notification.readAt),
+    );
+    const pageNotifications = matchingNotifications.slice(offset, offset + paginationOpts.numItems);
+    const nextOffset = offset + pageNotifications.length;
+    const isDone = nextOffset >= matchingNotifications.length && allNotifications.length < 1000;
 
     const events = await Promise.all(
-      result.page.map(async (notification) => {
+      pageNotifications.map(async (notification) => {
         if (!notification.postId || !notification.senderId) return null;
         const [post, comment, sender] = await Promise.all([
           ctx.db.get(notification.postId),
           notification.commentId ? ctx.db.get(notification.commentId) : Promise.resolve(null),
-          ctx.db
-            .query("profiles")
-            .withIndex("by_userId", (q) => q.eq("userId", notification.senderId!))
-            .unique(),
+          publicCommunityIdentity(ctx, notification.senderId),
         ]);
         if (!post || effectivePostStatus(post) !== "published") return null;
         const scope = await resolvedScopeForPost(ctx, post);
@@ -1721,15 +1760,16 @@ export const listMentionEvents = query({
           notificationId: notification._id,
           createdAt: notification.createdAt,
           readAt: notification.readAt,
+          kind: notification.kind,
           unread: !notification.readAt,
           excerpt: comment?.body ?? notification.excerpt ?? notification.body,
           sender: sender
             ? {
-                userId: sender.userId,
+                userId: notification.senderId,
                 name: sender.name,
                 username: sender.username,
                 role: sender.role,
-                avatarUrl: await profileAvatarUrl(ctx, sender),
+                avatarUrl: sender.avatarUrl,
               }
             : null,
           thread: {
@@ -1745,30 +1785,38 @@ export const listMentionEvents = query({
         };
       }),
     );
-    return { ...result, page: events.filter((event) => event !== null) };
+    return {
+      page: events.filter((event) => event !== null),
+      isDone,
+      continueCursor: isDone ? "" : String(nextOffset),
+    };
   },
 });
 
 async function publicMemberRow(
   ctx: QueryCtx,
-  profile: Doc<"profiles">,
+  profile: Doc<"profiles"> | null,
   stat: Doc<"leaderboardStats"> | null,
   viewerRole: unknown,
+  user: Doc<"users"> | null = null,
 ) {
   const xp = stat?.xp ?? 0;
+  const email = String(profile?.email ?? user?.email ?? "").trim().toLowerCase();
+  const role = effectiveRoleForProfile(email, profile?.role);
+  const name = profile?.name ?? user?.name ?? email.split("@")[0] ?? "Član zajednice";
   return {
-    profileId: profile._id,
-    userId: profile.userId,
-    name: profile.name,
-    username: profile.username,
-    role: profile.role,
-    avatarUrl: await profileAvatarUrl(ctx, profile),
+    profileId: profile?._id,
+    userId: profile?.userId ?? user?._id,
+    name,
+    username: profile?.username ?? user?.username,
+    role,
+    avatarUrl: (await profileAvatarUrl(ctx, profile)) ?? user?.image,
     xp,
     level: Math.max(1, Math.floor(xp / 500) + 1),
     completedLessons: stat?.completedLessons ?? 0,
     completedTasks: stat?.completedTasks ?? 0,
     helpfulAnswers: stat?.helpfulAnswers ?? 0,
-    canManageRole: viewerRole === "admin" && profile.role !== "admin",
+    canManageRole: viewerRole === "admin" && role !== "admin" && Boolean(profile?._id),
   };
 }
 
@@ -1811,36 +1859,68 @@ export const listMembersPage = query({
       return { ...stats, page: members.filter((member) => member !== null), scope };
     }
 
-    const profiles = search
-      ? await ctx.db
-          .query("profiles")
-          .withSearchIndex("search_searchText", (q) => {
-            const searched = q.search("searchText", search);
-            return args.role ? searched.eq("role", args.role) : searched;
-          })
-          .paginate(paginationOpts)
-      : args.role
-        ? await ctx.db
-            .query("profiles")
-            .withIndex("by_role", (q) => q.eq("role", args.role!))
-            .paginate(paginationOpts)
-        : await ctx.db.query("profiles").paginate(paginationOpts);
+    const roleOrder = ["admin", "moderator", "pro_student", "student"] as const;
+    const roles = args.role ? [args.role] : [...roleOrder];
+    type MemberSource = Doc<"profiles"> | Doc<"users">;
+    const profileRows: MemberSource[] = (
+      await Promise.all(
+        roles.map((role) =>
+          search
+            ? ctx.db
+                .query("profiles")
+                .withSearchIndex("search_searchText", (q) => q.search("searchText", search).eq("role", role))
+                .take(250)
+            : ctx.db
+                .query("profiles")
+                .withIndex("by_role", (q) => q.eq("role", role))
+                .order("asc")
+                .take(250),
+        ),
+      )
+    ).flat() as MemberSource[];
+    const profilesByUserId = new Map(
+      profileRows.map((row) => [String("userId" in row ? row.userId : row._id), row]),
+    );
+    if (!args.role && !search) {
+      const users = await ctx.db.query("users").take(500);
+      for (const user of users) {
+        if (!profilesByUserId.has(String(user._id))) profileRows.push(user);
+      }
+    }
+    const uniqueRows = Array.from(
+      new Map(
+        profileRows.map((row) => [String("userId" in row ? row.userId : row._id), row]),
+      ).values(),
+    );
     const members = await Promise.all(
-      profiles.page.map(async (profile) => {
+      uniqueRows.map(async (row) => {
+        const isProfile = "role" in row && "createdAt" in row;
+        const profile = isProfile ? (row as Doc<"profiles">) : null;
+        const user = profile ? await ctx.db.get(profile.userId) : (row as unknown as Doc<"users">);
+        const role = effectiveRoleForProfile(String(profile?.email ?? user?.email ?? ""), profile?.role);
+        if (args.role && role !== args.role) return null;
+        if (search && !`${profile?.name ?? user?.name ?? ""} ${profile?.username ?? user?.username ?? ""}`.toLocaleLowerCase().includes(search)) return null;
+        const memberUserId = profile?.userId ?? user?._id;
+        if (!memberUserId) return null;
         const stat = await ctx.db
           .query("leaderboardStats")
           .withIndex("by_userId_and_scopeKey_and_period_and_periodKey", (q) =>
-            q
-              .eq("userId", profile.userId)
-              .eq("scopeKey", "global")
-              .eq("period", "all_time")
-              .eq("periodKey", "all"),
+            q.eq("userId", memberUserId).eq("scopeKey", "global").eq("period", "all_time").eq("periodKey", "all"),
           )
           .unique();
-        return publicMemberRow(ctx, profile, stat, viewerProfile.role);
+        return publicMemberRow(ctx, profile, stat, viewerProfile.role, user);
       }),
     );
-    return { ...profiles, page: members, scope };
+    const filteredMembers = members.filter((member): member is NonNullable<typeof member> => Boolean(member));
+    filteredMembers.sort((a, b) => {
+      const orderA = roleOrder.indexOf(a.role as (typeof roleOrder)[number]);
+      const orderB = roleOrder.indexOf(b.role as (typeof roleOrder)[number]);
+      return (orderA < 0 ? 99 : orderA) - (orderB < 0 ? 99 : orderB) || a.name.localeCompare(b.name);
+    });
+    const offset = args.paginationOpts.cursor ? Number(args.paginationOpts.cursor) || 0 : 0;
+    const page = filteredMembers.slice(offset, offset + paginationOpts.numItems);
+    const isDone = offset + page.length >= filteredMembers.length;
+    return { page, isDone, continueCursor: isDone ? "" : String(offset + page.length), scope };
   },
 });
 

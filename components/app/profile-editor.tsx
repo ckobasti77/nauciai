@@ -15,7 +15,7 @@ import {
   UserRound,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   type ChangeEvent,
   type DragEvent as ReactDragEvent,
@@ -28,6 +28,7 @@ import {
 } from "react";
 
 import { Panel, SectionHeader, cn } from "@/components/ui/primitives";
+import { useToast } from "@/components/ui/toast-provider";
 import { api } from "@/convex/_generated/api";
 import type { ViewerProfile } from "@/lib/current-viewer";
 import { type Locale, withLocale } from "@/lib/i18n";
@@ -103,12 +104,15 @@ export function ProfileEditor({
   initialProfile?: ViewerProfile;
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const toast = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragDepthRef = useRef(0);
   const { isLoading, isAuthenticated } = useConvexAuth();
   const liveViewer = useQuery(api.courses.viewer, isAuthenticated ? {} : "skip") as ViewerData | undefined;
   const createAvatarUploadUrl = useMutation(api.profiles.createAvatarUploadUrl);
   const updateViewerProfile = useMutation(api.profiles.updateViewerProfile);
+  const submitPost = useMutation(api.community.submitPost);
 
   const profile = liveViewer?.profile ?? initialProfile ?? null;
   const initialValues = useMemo(() => valuesFromProfile(profile, locale), [profile, locale]);
@@ -141,6 +145,14 @@ export function ProfileEditor({
     (selectedPreset ? profileAvatarPresetSrc(selectedPreset) : undefined) ??
     currentAvatarUrl;
   const resetHref = `${withLocale(locale, "/sign-in")}?mode=reset&email=${encodeURIComponent(initialValues.email)}`;
+  const resumePostId = searchParams.get("resumePostId");
+  const requestedReturnTo = searchParams.get("returnTo");
+  const resumeReturnTo =
+    requestedReturnTo?.startsWith(`${withLocale(locale, "/app/community/")}`)
+      ? requestedReturnTo
+      : resumePostId
+        ? withLocale(locale, `/app/community/${resumePostId}/edit`)
+        : null;
 
   function validateAvatarFile(file: File) {
     if (!file.type.startsWith("image/")) {
@@ -305,6 +317,7 @@ export function ProfileEditor({
     event.preventDefault();
     setPending(true);
     setMessage(null);
+    let profileSaved = false;
 
     try {
       const trimmedFirstName = firstName.trim();
@@ -331,6 +344,23 @@ export function ProfileEditor({
       if (updatedProfile?.avatarPreset) {
         setSelectedPreset(updatedProfile.avatarPreset);
       }
+      profileSaved = true;
+
+      if (resumePostId) {
+        const resumed = await submitPost({ postId: resumePostId as Id<"communityPosts"> });
+        const destination =
+          resumed.status === "published"
+            ? resumeReturnTo?.replace(/\/edit$/, "") ?? withLocale(locale, `/app/community/${resumePostId}`)
+            : withLocale(locale, "/app/community/my-threads?view=pending&submitted=1");
+        toast.success(
+          resumed.status === "published"
+            ? labelFor(locale, "Profil je sačuvan i tred je objavljen.", "Profile saved and thread published.")
+            : labelFor(locale, "Profil je sačuvan i tred je poslat na odobrenje.", "Profile saved and thread submitted for review."),
+        );
+        router.push(destination);
+        router.refresh();
+        return;
+      }
       setAvatarChanged(false);
       setSelectedFile(null);
       setFilePreviewUrl((current) => {
@@ -343,11 +373,23 @@ export function ProfileEditor({
         tone: "success",
         text: labelFor(locale, "Profil je sacuvan.", "Profile saved."),
       });
+      toast.success(labelFor(locale, "Profil je sačuvan.", "Profile saved."));
       router.refresh();
     } catch (error) {
+      toast.error(
+        profileSaved
+          ? labelFor(locale, "Profil je sačuvan, ali nastavak nije uspeo.", "Profile saved, but the next action failed.")
+          : labelFor(locale, "Čuvanje profila nije uspelo.", "Profile save failed."),
+      );
       setMessage({
         tone: "error",
-        text: error instanceof Error ? error.message : labelFor(locale, "Cuvanje nije uspelo.", "Save failed."),
+        text: profileSaved
+          ? error instanceof Error
+            ? labelFor(locale, `Profil je sačuvan, ali nastavak objave nije uspeo: ${error.message}`, `Profile saved, but publishing could not continue: ${error.message}`)
+            : labelFor(locale, "Profil je sačuvan, ali nastavak objave nije uspeo.", "Profile saved, but publishing could not continue.")
+          : error instanceof Error
+            ? error.message
+            : labelFor(locale, "Čuvanje nije uspelo.", "Save failed."),
       });
     } finally {
       setPending(false);
@@ -372,6 +414,21 @@ export function ProfileEditor({
                 "Ceo ekran je aktivan. Kada pustis sliku, odmah ce se prikazati kao novi avatar.",
                 "The whole screen is active. When you release the image, it will immediately preview as your new avatar.",
               )}
+            </p>
+          </div>
+        </div>
+      ) : null}
+      {!username.trim() ? (
+        <div role="status" className="flex items-start gap-3 rounded-[16px] border-2 border-ink bg-yellow/30 px-4 py-3 text-sm font-bold text-ink">
+          <ShieldCheck className="mt-0.5 size-5 shrink-0" />
+          <div>
+            <p className="font-black">
+              {resumePostId
+                ? labelFor(locale, "Podesi username da nastaviš objavu skice.", "Set a username to continue publishing this draft.")
+                : labelFor(locale, "Profil nije kompletan za rad u Zajednici.", "Your profile is not complete for Community yet.")}
+            </p>
+            <p className="mt-1 text-xs font-semibold leading-5 text-ink/75">
+              {labelFor(locale, "Username je jedini obavezni podatak i koristi se za @pominjanja.", "Username is the only required field and powers @mentions.")}
             </p>
           </div>
         </div>

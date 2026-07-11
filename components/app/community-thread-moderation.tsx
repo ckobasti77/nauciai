@@ -19,6 +19,7 @@ import { useState } from "react";
 import { CommunityAvatar, formatCommunityTime, type CommunityRank, type CommunityRole } from "@/components/app/community-identity";
 import { CommunityThreadDialog } from "@/components/app/community-thread-dialog";
 import { Panel } from "@/components/ui/primitives";
+import { useToast } from "@/components/ui/toast-provider";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { Locale } from "@/lib/i18n";
@@ -70,6 +71,7 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
   const [activePostId, setActivePostId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const toast = useToast();
 
   async function approve(postId: string) {
     setActivePostId(postId);
@@ -78,6 +80,7 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
     try {
       await moderatePost({ postId: postId as Id<"communityPosts">, decision: "approve" });
       setSuccess(locale === "sr" ? "Tred je odobren i objavljen." : "The thread was approved and published.");
+      toast.success(locale === "sr" ? "Tred je odobren i objavljen." : "The thread was approved and published.");
       if (expandedPostId === postId) setExpandedPostId(null);
     } catch (caughtError) {
       console.error(caughtError);
@@ -86,6 +89,7 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
           ? "Odluka nije sačuvana. Proveri vezu i pokušaj ponovo."
           : "The decision was not saved. Check your connection and try again.",
       );
+      toast.error(locale === "sr" ? "Odobravanje nije uspelo." : "Approval failed.");
     } finally {
       setActivePostId(null);
     }
@@ -109,6 +113,7 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
         reason: reason.trim(),
       });
       setSuccess(locale === "sr" ? "Tred je vraćen autoru sa jasnim razlogom." : "The thread was returned to the author with a clear reason.");
+      toast.warning(locale === "sr" ? "Tred je vraćen autoru na izmenu." : "The thread was returned to the author for changes.");
       setRequestPostId(null);
       setReason("");
       setExpandedPostId(null);
@@ -119,6 +124,7 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
           ? "Odluka nije sačuvana. Sadržaj razloga je ostao ovde — pokušaj ponovo."
           : "The decision was not saved. Your reason is still here — try again.",
       );
+      toast.error(locale === "sr" ? "Vraćanje na izmenu nije uspelo." : "Requesting changes failed.");
     } finally {
       setActivePostId(null);
     }

@@ -3,7 +3,8 @@
 import { Award, BookOpen, Check, ChevronRight, SearchX, ShieldCheck, Sparkles, Users, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-import { CommunityAvatar, RoleBadge } from "@/components/app/community-identity";
+import { CommunityAvatar, RoleBadge, roleLabel } from "@/components/app/community-identity";
+import { useToast } from "@/components/ui/toast-provider";
 import type { Locale } from "@/lib/i18n";
 
 import { fallbackCommunityFilters, useCommunityFilters, useCommunityMembers } from "./community-data";
@@ -170,6 +171,7 @@ function MemberDrawer({
   );
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const toast = useToast();
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
@@ -186,12 +188,22 @@ function MemberDrawer({
   }, [onClose]);
 
   async function saveRole() {
-    if (!onSetRole) return;
+    if (!onSetRole || !member.profileId) return;
     setSaving(true);
     setSaved(false);
     try {
-      await onSetRole(member._id, role);
+      await onSetRole(member.profileId, role);
       setSaved(true);
+      toast.success(locale === "sr" ? "Uloga je sačuvana." : "Role saved.");
+    } catch (caughtError) {
+      setSaved(false);
+      toast.error(
+        caughtError instanceof Error
+          ? caughtError.message
+          : locale === "sr"
+            ? "Uloga nije sačuvana."
+            : "Role was not saved.",
+      );
     } finally {
       setSaving(false);
     }
@@ -276,7 +288,7 @@ function MemberDrawer({
           </section>
         ) : null}
 
-        {isAdmin && member.role !== "admin" ? (
+        {isAdmin && member.profileId && member.role !== "admin" ? (
           <section className="mt-5 rounded-[16px]! border border-ink bg-[#eef3f7] p-4">
             <div className="flex items-center gap-2">
               <ShieldCheck className="size-4 text-ink" aria-hidden="true" />
@@ -381,7 +393,8 @@ function MembersView({
       />
 
       <section className="rounded-[16px]! border border-line bg-white p-3 sm:p-4">
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.85fr)]">
+        <div className="grid gap-4 xl:grid-cols-[minmax(320px,0.85fr)_minmax(0,1fr)]">
+          <CommunityScopeControls locale={locale} filters={filters} scopeState={scopeState} compact />
           <div className="flex min-w-0 flex-col gap-2 sm:flex-row">
             <CommunitySearch
               value={controls.search}
@@ -402,7 +415,6 @@ function MembersView({
               </select>
             </label>
           </div>
-          <CommunityScopeControls locale={locale} filters={filters} scopeState={scopeState} compact />
         </div>
       </section>
 
@@ -419,10 +431,26 @@ function MembersView({
             </div>
           <span className="font-mono text-xs font-black text-muted">{scopedMembers.length}</span>
           </div>
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {scopedMembers.map((member) => (
-              <MemberCard key={member._id} locale={locale} member={member} onOpen={() => setSelectedMember(member)} />
-            ))}
+          <div className="space-y-6">
+            {(["admin", "moderator", "pro_student", "student"] as const).map((groupRole) => {
+              const group = scopedMembers.filter((member) => member.role === groupRole);
+              if (!group.length) return null;
+              return (
+                <section key={groupRole} aria-labelledby={`members-${groupRole}`}>
+                  <div className="mb-2 flex items-center gap-2 border-b border-line pb-2">
+                    <RoleBadge role={groupRole} locale={locale} compact />
+                    <h3 id={`members-${groupRole}`} className="text-xs font-black uppercase tracking-[0.12em] text-ink/60">
+                      {roleLabel(groupRole, locale)}
+                    </h3>
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                    {group.map((member) => (
+                      <MemberCard key={member._id} locale={locale} member={member} onOpen={() => setSelectedMember(member)} />
+                    ))}
+                  </div>
+                </section>
+              );
+            })}
           </div>
           {canLoadMore && onLoadMore ? (
             <div className="mt-6 flex justify-center">

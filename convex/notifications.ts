@@ -1,15 +1,40 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
-import { currentUserId } from "./helpers";
+import { currentUserId, effectiveRoleForProfile } from "./helpers";
 import type { Id } from "./_generated/dataModel";
 
-async function getCommunityNotificationCountsHelper(ctx: any, userId: Id<"users">) {
-  const profileData = await ctx.db
-    .query("profiles")
-    .withIndex("by_userId", (q: any) => q.eq("userId", userId))
-    .unique();
-  const role = profileData?.role ?? "student";
+const MY_THREAD_NOTIFICATION_KINDS = [
+  "comment_post",
+  "like_post",
+  "post_approved",
+  "post_changes_requested",
+] as const;
+const PERSONAL_NOTIFICATION_KINDS = ["mention", "like_comment", "helpful_comment"] as const;
+
+async function unreadByKinds(ctx: any, userId: Id<"users">, kinds: readonly string[]) {
+  const rows = await Promise.all(
+    kinds.map((kind) =>
+      ctx.db
+        .query("notifications")
+        .withIndex("by_userId_and_kind_and_readAt_and_createdAt", (q: any) =>
+          q.eq("userId", userId).eq("kind", kind).eq("readAt", undefined),
+        )
+        .take(1000),
+    ),
+  );
+  return rows.flat();
+}
+
+export async function getCommunityNotificationCountsHelper(ctx: any, userId: Id<"users">) {
+  const [profileData, authUser] = await Promise.all([
+    ctx.db
+      .query("profiles")
+      .withIndex("by_userId", (q: any) => q.eq("userId", userId))
+      .unique(),
+    ctx.db.get(userId),
+  ]);
+  const role = effectiveRoleForProfile(String(authUser?.email ?? profileData?.email ?? ""), profileData?.role);
   const isAdminOrMod = role === "admin" || role === "moderator";
 
   // 1. Pending approvals count (only for admin/moderator)
@@ -22,27 +47,21 @@ async function getCommunityNotificationCountsHelper(ctx: any, userId: Id<"users"
     pendingApprovals = posts.length;
   }
 
-  const unreadForKind = (kind: string) =>
-    ctx.db
-      .query("notifications")
-      .withIndex("by_userId_and_kind_and_readAt_and_createdAt", (q: any) =>
-        q.eq("userId", userId).eq("kind", kind).eq("readAt", undefined),
-      )
-      .take(100);
-  const [commentPost, likePost, mentions, helpfulComments] = await Promise.all([
-    unreadForKind("comment_post"),
-    unreadForKind("like_post"),
-    unreadForKind("mention"),
-    unreadForKind("helpful_comment"),
+  const [myThreadNotifications, personalNotifications] = await Promise.all([
+    unreadByKinds(ctx, userId, MY_THREAD_NOTIFICATION_KINDS),
+    unreadByKinds(ctx, userId, PERSONAL_NOTIFICATION_KINDS),
   ]);
-  const myThreadsCount = Math.min(100, commentPost.length + likePost.length);
-  const mentionsCount = Math.min(100, mentions.length + helpfulComments.length);
+  const profileIncomplete = (profileData?.username ?? authUser?.username) ? 0 : 1;
+  const myThreadsCount = myThreadNotifications.length;
+  const mentionsCount = personalNotifications.length;
 
   return {
     pendingApprovals,
     myThreads: myThreadsCount,
     mentions: mentionsCount,
-    total: pendingApprovals + myThreadsCount + mentionsCount,
+    profileIncomplete,
+    community: pendingApprovals + myThreadsCount + mentionsCount,
+    total: profileIncomplete + pendingApprovals + myThreadsCount + mentionsCount,
   };
 }
 
@@ -51,7 +70,7 @@ export const getCommunityNotificationCounts = query({
   handler: async (ctx) => {
     const userId = await currentUserId(ctx);
     if (!userId) {
-      return { pendingApprovals: 0, myThreads: 0, mentions: 0, total: 0 };
+      return { pendingApprovals: 0, myThreads: 0, mentions: 0, profileIncomplete: 0, community: 0, total: 0 };
     }
     return getCommunityNotificationCountsHelper(ctx, userId);
   },
@@ -62,7 +81,7 @@ export const getUserNotificationSummary = query({
   handler: async (ctx) => {
     const userId = await currentUserId(ctx);
     if (!userId) {
-      return { community: 0, billing: 0, total: 0 };
+      return { community: 0, billing: 0, profileIncomplete: 0, myThreads: 0, mentions: 0, pendingApprovals: 0, total: 0 };
     }
 
     // 1. Get community notifications count
@@ -90,6 +109,10 @@ export const getUserNotificationSummary = query({
     return {
       community: communityTotal,
       billing: billingCount,
+      profileIncomplete: communityCounts.profileIncomplete,
+      myThreads: communityCounts.myThreads,
+      mentions: communityCounts.mentions,
+      pendingApprovals: communityCounts.pendingApprovals,
       total: communityTotal + billingCount,
     };
   },
@@ -111,7 +134,7 @@ export const markPostNotificationsAsRead = mutation({
       .take(200);
 
     const unreadPostNotifications = notifications.filter(
-      (n) => n.postId === args.postId && !n.readAt
+      (n) => n.postId === args.postId && !n.readAt && MY_THREAD_NOTIFICATION_KINDS.includes(String(n.kind) as never),
     );
 
     const now = Date.now();
@@ -124,17 +147,12 @@ export const markPostNotificationsAsRead = mutation({
 async function markAllMentionsAsReadImpl(ctx: any) {
   const userId = await currentUserId(ctx);
   if (!userId) throw new Error("Unauthorized");
-  const mentions = await ctx.db
-    .query("notifications")
-    .withIndex("by_userId_and_kind_and_readAt_and_createdAt", (q: any) =>
-      q.eq("userId", userId).eq("kind", "mention").eq("readAt", undefined),
-    )
-    .take(200);
+  const mentions = await unreadByKinds(ctx, userId, PERSONAL_NOTIFICATION_KINDS);
   const now = Date.now();
   for (const notification of mentions) {
     await ctx.db.patch(notification._id, { readAt: now });
   }
-  return { updated: mentions.length, hasMore: mentions.length === 200 };
+  return { updated: mentions.length, hasMore: mentions.length === 1000 };
 }
 
 export const markMentionsAsRead = mutation({

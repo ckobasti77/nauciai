@@ -3,6 +3,7 @@ import { Migrations } from "@convex-dev/migrations";
 import { components, internal } from "./_generated/api";
 import type { DataModel } from "./_generated/dataModel";
 import { syncLeaderboardSourceEvent } from "./leaderboardCore";
+import { effectiveRoleForProfile, isValidUsername, normalizeUsername } from "./helpers";
 
 type MigrationsComponent = ConstructorParameters<typeof Migrations<DataModel>>[0];
 const migrationsComponent = (components as unknown as { migrations: MigrationsComponent }).migrations;
@@ -26,6 +27,59 @@ const TRACKS_BY_COURSE_SLUG = {
     sortOrder: 20,
   },
 } as const;
+
+export const backfillProfilesFromAuthUsers = migrations.define({
+  table: "users",
+  batchSize: 20,
+  migrateOne: async (ctx, user) => {
+    const existing = await ctx.db
+      .query("profiles")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .unique();
+    const email = String(user.email ?? "").trim().toLowerCase();
+    const sourceName = String(user.name ?? email.split("@")[0] ?? "Student").trim() || "Student";
+    const nameParts = sourceName.split(/\s+/).filter(Boolean);
+    const firstName = existing?.firstName ?? nameParts[0] ?? "Student";
+    const lastName = existing?.lastName ?? nameParts.slice(1).join(" ");
+    const candidateUsername = normalizeUsername(user.username);
+    const username = candidateUsername && isValidUsername(candidateUsername) ? candidateUsername : existing?.username;
+    const role = effectiveRoleForProfile(email, existing?.role);
+    const name = existing?.name ?? [firstName, lastName].filter(Boolean).join(" ");
+    const now = Date.now();
+
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        email: existing.email ?? email,
+        name,
+        firstName,
+        lastName,
+        ...(username && !existing.username ? { username } : {}),
+        avatarUrl: existing.avatarUrl ?? user.image ?? "/images/avatars/mythic-mentor.png",
+        avatarPreset: existing.avatarStorageId ? undefined : existing.avatarPreset ?? "mythic-mentor",
+        role,
+        searchText: `${name} ${username ?? ""} ${email}`.trim(),
+        updatedAt: now,
+      });
+      return;
+    }
+
+    await ctx.db.insert("profiles", {
+      userId: user._id,
+      email,
+      name,
+      firstName,
+      lastName,
+      ...(username ? { username } : {}),
+      avatarUrl: user.image ?? "/images/avatars/mythic-mentor.png",
+      avatarPreset: "mythic-mentor",
+      role,
+      language: "sr",
+      searchText: `${name} ${username ?? ""} ${email}`.trim(),
+      createdAt: now,
+      updatedAt: now,
+    });
+  },
+});
 
 export const backfillCourseTracks = migrations.define({
   table: "courses",
@@ -166,6 +220,7 @@ const migrationApi = (internal as unknown as {
 }).migrations;
 
 export const runAll = migrations.runner([
+  migrationApi.backfillProfilesFromAuthUsers,
   migrationApi.backfillCourseTracks,
   migrationApi.backfillCommunityComments,
   migrationApi.backfillCommunityPosts,

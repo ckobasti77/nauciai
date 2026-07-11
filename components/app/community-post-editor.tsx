@@ -24,6 +24,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CommunityAvatar, type CommunityRank } from "@/components/app/community-identity";
 import { CommunityThreadConfirmDialog } from "@/components/app/community-thread-dialog";
 import { Panel, cn } from "@/components/ui/primitives";
+import { useToast } from "@/components/ui/toast-provider";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { Locale } from "@/lib/i18n";
@@ -94,6 +95,7 @@ export function CommunityPostEditor({
   initialPost?: CommunityEditorPost;
 }) {
   const router = useRouter();
+  const toast = useToast();
   const { isAuthenticated, isLoading } = useConvexAuth();
   const viewerData = useQuery(api.courses.viewer, isAuthenticated ? {} : "skip");
   const viewerProfile = viewerData?.profile;
@@ -126,6 +128,8 @@ export function CommunityPostEditor({
   const [formError, setFormError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{ title?: string; body?: string; image?: string }>({});
   const [success, setSuccess] = useState<string | null>(null);
+  const [profileWarning, setProfileWarning] = useState<string | null>(null);
+  const [profileResumeHref, setProfileResumeHref] = useState<string | null>(null);
   const [recoveredDraft, setRecoveredDraft] = useState(false);
   const [draftHydrated, setDraftHydrated] = useState(false);
 
@@ -388,6 +392,8 @@ export function CommunityPostEditor({
 
     setPending(true);
     setFormError(null);
+    setProfileWarning(null);
+    setProfileResumeHref(null);
     setSuccess(null);
     try {
       const payload = {
@@ -408,37 +414,72 @@ export function CommunityPostEditor({
           : {}),
       };
 
+      const needsProfile = status !== "draft" && !viewerProfile?.username;
+      const persistedStatus = needsProfile ? "draft" : status;
       let savedPostId = postId;
       if (mode === "create") {
-        savedPostId = await createPost({ ...payload, language: locale, status });
+        savedPostId = await createPost({ ...payload, language: locale, status: persistedStatus });
       } else if (postId) {
-        await updatePost({ postId: postId as Id<"communityPosts">, ...payload, status });
+        await updatePost({ postId: postId as Id<"communityPosts">, ...payload, status: persistedStatus });
       }
 
       window.localStorage.removeItem(storageKey);
       dirtyRef.current = false;
-      const resolvedStatus: EditorStatus = status === "draft" ? "draft" : isStaff ? "published" : "pending";
+      const resolvedStatus: EditorStatus = needsProfile
+        ? "draft"
+        : status === "draft"
+          ? "draft"
+          : isStaff
+            ? "published"
+            : "pending";
       setCurrentStatus(resolvedStatus);
       setSaveState("saved_server");
       setLastSavedAt(Date.now());
 
-      if (resolvedStatus === "draft") {
+      if (needsProfile && savedPostId) {
+        const resumePath = withLocale(locale, `/app/community/${savedPostId}/edit`);
+        setProfileResumeHref(
+          `${withLocale(locale, "/app/profile")}?resumePostId=${encodeURIComponent(savedPostId)}&returnTo=${encodeURIComponent(resumePath)}`,
+        );
+        setProfileWarning(
+          locale === "sr"
+            ? "Skica je sačuvana. Podesi username da bi se tred poslao na odobrenje ili objavio."
+            : "Your draft is saved. Set a username to submit or publish this thread.",
+        );
+        toast.warning(
+          locale === "sr" ? "Skica je sačuvana — podesi username za nastavak." : "Draft saved — set a username to continue.",
+          undefined,
+          {
+            label: locale === "sr" ? "Podesi profil" : "Complete profile",
+            onClick: () => router.push(`${withLocale(locale, "/app/profile")}?resumePostId=${encodeURIComponent(savedPostId)}&returnTo=${encodeURIComponent(resumePath)}`),
+          },
+        );
+        if (mode === "create") {
+          router.replace(
+            `${resumePath}?resumePostId=${encodeURIComponent(savedPostId)}&returnTo=${encodeURIComponent(resumePath)}`,
+          );
+        }
+      } else if (resolvedStatus === "draft") {
+        toast.success(locale === "sr" ? "Skica je sačuvana." : "Draft saved.");
         setSuccess(locale === "sr" ? "Skica je sačuvana." : "Draft saved.");
         if (mode === "create" && savedPostId) {
           router.replace(withLocale(locale, `/app/community/${savedPostId}/edit`));
         }
       } else if (resolvedStatus === "published" && savedPostId) {
+        toast.success(locale === "sr" ? "Tred je objavljen." : "Thread published.");
         setSuccess(locale === "sr" ? "Tred je objavljen." : "Thread published.");
         window.setTimeout(() => router.push(withLocale(locale, `/app/community/${savedPostId}`)), 550);
       } else {
+        toast.success(locale === "sr" ? "Tred je poslat na odobrenje." : "Thread submitted for review.");
         setSuccess(locale === "sr" ? "Tred je poslat na odobrenje." : "Thread submitted for review.");
         window.setTimeout(
-          () => router.push(withLocale(locale, "/app/community/my-threads?status=pending&submitted=1")),
+          () => router.push(withLocale(locale, "/app/community/my-threads?view=pending&submitted=1")),
           550,
         );
       }
     } catch (caughtError) {
       console.error(caughtError);
+      toast.error(locale === "sr" ? "Tred nije sačuvan." : "Thread could not be saved.");
       setFormError(
         locale === "sr"
           ? "Tred nije sačuvan. Sadržaj je ostao u editoru — proveri vezu i pokušaj ponovo."
@@ -557,6 +598,20 @@ export function CommunityPostEditor({
         <p role="alert" className="rounded-[12px] border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-800">
           {formError}
         </p>
+      ) : null}
+      {profileWarning && profileResumeHref ? (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-[16px] border-2 border-ink bg-yellow/30 px-4 py-3 text-sm font-bold text-ink">
+          <span className="flex items-start gap-2">
+            <CircleAlert className="mt-0.5 size-5 shrink-0" />
+            {profileWarning}
+          </span>
+          <Link
+            href={profileResumeHref}
+            className="inline-flex min-h-11 items-center justify-center rounded-full border-2 border-ink bg-yellow px-4 text-sm font-black text-ink shadow-[3px_3px_0_rgba(14,49,88,0.18)]"
+          >
+            {locale === "sr" ? "Podesi profil" : "Complete profile"}
+          </Link>
+        </div>
       ) : null}
       {success ? (
         <p role="status" className="flex items-center gap-2 rounded-[12px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-900">
