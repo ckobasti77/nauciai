@@ -37,4 +37,5 @@ export const convexQueries = {
   getPostDetail: makeFunctionReference<"query">("community:getPostDetail"),
   getLessonLab: makeFunctionReference<"query">("lab:getLessonLab"),
   getBillingSummary: makeFunctionReference<"query">("billing:getBillingSummary"),
+  getViewerProfileStatus: makeFunctionReference<"query">("profiles:getViewerProfileStatus"),
 };

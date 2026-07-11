@@ -247,7 +247,7 @@ export function ThreadCard({
   return (
     <article
       className={cn(
-        "group relative overflow-hidden rounded-[16px]! border bg-white transition duration-200 focus-within:border-ink hover:-translate-y-0.5 hover:border-ink hover:shadow-[4px_4px_0_rgba(14,49,88,0.1)]",
+        "group relative isolate overflow-hidden rounded-[16px]! border bg-white transition duration-200 focus-within:border-ink hover:-translate-y-0.5 hover:border-ink hover:shadow-[4px_4px_0_rgba(14,49,88,0.1)]",
         highlighted ? "border-ink shadow-[5px_5px_0_rgba(244,190,48,0.8)]" : "border-line",
       )}
     >
@@ -274,7 +274,7 @@ export function ThreadCard({
           <ScopeTrail locale={locale} track={track} course={course} compact />
           <Link
             href={threadHref}
-            className="mt-2 block rounded-[8px] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink"
+            className="z-10 mt-2 block rounded-[8px] after:absolute after:inset-0 after:z-0 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink"
           >
             <h2 className="text-lg font-black leading-snug tracking-[-0.018em] text-ink transition group-hover:text-[#164d7d] sm:text-xl">
               {post.title}
@@ -282,7 +282,7 @@ export function ThreadCard({
             <p className="mt-1.5 line-clamp-2 text-sm font-semibold leading-6 text-muted">{post.body}</p>
           </Link>
           {notice ? <div className="mt-3">{notice}</div> : null}
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="relative z-10 mt-4 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3 text-xs font-black text-muted">
               <span className="inline-flex items-center gap-1.5">
                 <MessageCircle className="size-3.5" aria-hidden="true" />
@@ -309,7 +309,7 @@ export function ThreadCard({
         </div>
       </div>
       <div className={cn("absolute left-0 top-0 h-full w-1", roleTone(post.authorRole))} aria-hidden="true" />
-      {below ? <div className="border-t border-line bg-paper/35 px-4 py-4 sm:px-5">{below}</div> : null}
+      {below ? <div className="relative z-10 border-t border-line bg-paper/35 px-4 py-4 sm:px-5">{below}</div> : null}
     </article>
   );
 }

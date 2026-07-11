@@ -1,0 +1,35 @@
+"use client";
+
+import { ArrowUp } from "lucide-react";
+import { useEffect, useState } from "react";
+
+import { cn } from "@/components/ui/primitives";
+
+export function ScrollToTop() {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const update = () => setVisible(window.scrollY > 600);
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    return () => window.removeEventListener("scroll", update);
+  }, []);
+
+  if (!visible) return null;
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        window.scrollTo({ top: 0, behavior: reducedMotion ? "auto" : "smooth" });
+      }}
+      aria-label="Nazad na vrh"
+      className={cn(
+        "fixed bottom-6 right-4 z-50 grid size-12 place-items-center rounded-full border-2 border-ink bg-white text-ink shadow-[3px_3px_0_rgba(14,49,88,0.18)] transition hover:-translate-y-0.5 hover:bg-yellow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:right-6",
+      )}
+    >
+      <ArrowUp className="size-5" aria-hidden="true" />
+    </button>
+  );
+}

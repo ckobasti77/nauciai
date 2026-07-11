@@ -74,12 +74,18 @@ export const getViewerProfileStatus = query({
       .query("authAccounts")
       .withIndex("userIdAndProvider", (q) => q.eq("userId", userId))
       .take(10);
+    const hasPassword = accounts.some((account) => account.provider === "password");
+    const missing = [
+      ...(profile.username ? [] : ["username" as const]),
+      ...(hasPassword ? [] : ["password" as const]),
+    ];
     return {
-      complete: Boolean(profile.username),
-      missing: profile.username ? [] : ["username" as const],
+      complete: missing.length === 0,
+      missing,
       username: profile.username,
       authProviders: accounts.map((account) => account.provider),
-      hasPassword: accounts.some((account) => account.provider === "password"),
+      hasPassword,
+      isGoogleOnly: accounts.some((account) => account.provider === "google") && !hasPassword,
     };
   },
 });

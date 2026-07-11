@@ -770,6 +770,7 @@ function AppSidebarContent({
   profileData,
   communityBadge = 0,
   accountBadge = 0,
+  profileComplete = true,
 }: {
   locale: Locale;
   navigation: AppNavigationData;
@@ -778,6 +779,7 @@ function AppSidebarContent({
   profileData?: { name?: string; username?: string; email?: string; avatarUrl?: string } | null;
   communityBadge?: number;
   accountBadge?: number;
+  profileComplete?: boolean;
 }) {
   const pathname = usePathname();
   const params = useParams<{ courseSlug?: string; lessonSlug?: string }>();
@@ -829,7 +831,7 @@ function AppSidebarContent({
   const profileUsername = profileData?.username ? `@${profileData.username}` : profileData?.email || "";
   const profileInitials = profileName.split(/\s+/).map((part: string) => part[0]).filter(Boolean).slice(0, 2).join("").toUpperCase() || "AI";
   const profileAvatar = profileData?.avatarUrl;
-  const profileIncomplete = !profileData?.username;
+  const profileIncomplete = !profileComplete || !profileData?.username;
 
   return (
     <aside
@@ -949,7 +951,7 @@ function AppSidebarContent({
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-xs font-black leading-tight text-ink">{profileName}</p>
-              <p className="truncate text-[10px] font-semibold leading-normal text-muted/80 mt-0.5">{profileIncomplete ? (locale === "sr" ? "Podesi username" : "Set your username") : profileUsername}</p>
+              <p className="truncate text-[10px] font-semibold leading-normal text-muted/80 mt-0.5">{profileIncomplete ? (locale === "sr" ? "Dovrši profil" : "Complete profile") : profileUsername}</p>
             </div>
             {profileIncomplete ? <CircleAlert className="size-4 shrink-0 text-amber-700" aria-hidden="true" /> : <ChevronDown className={cn("size-4 shrink-0 transition-transform text-muted", profileMenuOpen && "rotate-180")} />}
             {accountBadge > 0 ? <span className="absolute -right-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-ink bg-red-600 px-1 text-[10px] font-black text-white">{accountBadge > 99 ? "99+" : accountBadge}</span> : null}
@@ -965,7 +967,7 @@ function AppSidebarContent({
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-white px-3 py-2 text-xs font-black text-ink"
           >
             <User className="size-4" />
-            {profileIncomplete ? (locale === "sr" ? "Podesi username" : "Set username") : t.profile}
+            {profileIncomplete ? (locale === "sr" ? "Dovrši profil" : "Complete profile") : t.profile}
           </Link>
           <Link
             href={currentCourse ? navHref(locale, "/app/billing", currentCourse.slug) : withLocale(locale, "/app/billing")}
@@ -995,6 +997,7 @@ function LiveAppSidebar({ locale, navigation }: { locale: Locale; navigation: Ap
   );
   const communityBadge = notificationSummary?.community ?? 0;
   const accountBadge = notificationSummary?.total ?? 0;
+  const profileStatus = useQuery(api.profiles.getViewerProfileStatus, isAuthenticated ? {} : "skip");
 
   return (
     <AppSidebarContent
@@ -1005,6 +1008,7 @@ function LiveAppSidebar({ locale, navigation }: { locale: Locale; navigation: Ap
       profileData={liveNavigation?.profile}
       communityBadge={communityBadge}
       accountBadge={accountBadge}
+      profileComplete={profileStatus?.complete ?? false}
     />
   );
 }

@@ -1,12 +1,16 @@
 import type { OIDCConfig } from "@auth/core/providers";
 import type { GoogleProfile } from "@auth/core/providers/google";
 import Resend from "@auth/core/providers/resend";
+import { createAccount, getAuthUserId, modifyAccountCredentials } from "@convex-dev/auth/server";
 import { Password } from "@convex-dev/auth/providers/Password";
 import { convexAuth } from "@convex-dev/auth/server";
+import { v } from "convex/values";
 
 import type { Id } from "./_generated/dataModel";
+import { action } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
 import { upsertProfileFromAuthUser } from "./helpers";
+import { isStrongPassword } from "../lib/password-policy";
 
 const googleClientId = process.env.AUTH_GOOGLE_ID?.trim();
 const googleClientSecret = process.env.AUTH_GOOGLE_SECRET?.trim();
@@ -66,8 +70,8 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
         };
       },
       validatePasswordRequirements(password) {
-        if (password.length < 8) {
-          throw new Error("Password must be at least 8 characters long.");
+        if (!isStrongPassword(password)) {
+          throw new Error("Password must be at least 8 characters and include an uppercase letter, a number, and a special character.");
         }
       },
     }),
@@ -81,5 +85,65 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
         profile,
       );
     },
+  },
+});
+
+export const setViewerPassword = action({
+  args: { password: v.string() },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Unauthorized");
+    }
+    if (!isStrongPassword(args.password)) {
+      throw new Error("Password must be at least 8 characters and include an uppercase letter, a number, and a special character.");
+    }
+
+    const identity = await ctx.auth.getUserIdentity();
+    const email = String(identity?.email ?? "").trim().toLowerCase();
+    if (!email) {
+      throw new Error("A verified account email is required before setting a password.");
+    }
+
+    const created = await createAccount(ctx, {
+      provider: "password",
+      account: { id: email, secret: args.password },
+      profile: {
+        email,
+        name: String(identity?.name ?? email.split("@")[0] ?? "Student"),
+      },
+      shouldLinkViaEmail: true,
+      shouldLinkViaPhone: false,
+    });
+    if (String(created.user._id) !== String(userId)) {
+      throw new Error("Password credential could not be linked to the current user.");
+    }
+
+    return { hasPassword: true };
+  },
+});
+
+export const changeViewerPassword = action({
+  args: { password: v.string() },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Unauthorized");
+    }
+    if (!isStrongPassword(args.password)) {
+      throw new Error("Password must be at least 8 characters and include an uppercase letter, a number, and a special character.");
+    }
+
+    const identity = await ctx.auth.getUserIdentity();
+    const email = String(identity?.email ?? "").trim().toLowerCase();
+    if (!email) {
+      throw new Error("A verified account email is required before changing a password.");
+    }
+
+    await modifyAccountCredentials(ctx, {
+      provider: "password",
+      account: { id: email, secret: args.password },
+    });
+    return { hasPassword: true };
   },
 });

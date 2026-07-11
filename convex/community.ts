@@ -786,6 +786,18 @@ async function commentsWithDetails(
           .unique()
       )?.reaction;
 
+      const parentComment = comment.parentId ? await ctx.db.get(comment.parentId) : null;
+      const parentIdentity = parentComment ? await publicCommunityIdentity(ctx, parentComment.authorId) : null;
+
+      const directReplyCount =
+        comment.directReplyCount ??
+        (
+          await ctx.db
+            .query("comments")
+            .withIndex("by_parent", (q) => q.eq("parentId", comment._id))
+            .take(1)
+        ).length;
+
       return {
         ...comment,
         isHelpful: Boolean(comment.isHelpful),
@@ -798,6 +810,10 @@ async function commentsWithDetails(
         upvoteCount: comment.upvoteCount ?? derivedCounts?.upvoteCount ?? 0,
         downvoteCount: comment.downvoteCount ?? derivedCounts?.downvoteCount ?? 0,
         voteScore: comment.voteScore ?? derivedCounts?.voteScore ?? 0,
+        hotScore: comment.hotScore ?? hotScoreFor(comment.voteScore ?? derivedCounts?.voteScore ?? 0, comment.createdAt),
+        directReplyCount,
+        replyToName: parentIdentity?.username ? `@${parentIdentity.username}` : parentIdentity?.name,
+        replyToBody: parentComment?.body,
         userVote: userReaction === "upvote" || userReaction === "downvote" ? userReaction : undefined,
         userReaction,
       };
@@ -845,6 +861,45 @@ export const listCommentsPage = query({
   },
 });
 
+export const listRootCommentsPage = query({
+  args: {
+    postId: v.id("communityPosts"),
+    paginationOpts: paginationOptsValidator,
+  },
+  handler: async (ctx, args) => {
+    const { userId } = await requirePostReader(ctx, args.postId);
+    const result = await ctx.db
+      .query("comments")
+      .withIndex("by_postId_and_parentId_and_hotScore_and_createdAt", (q) =>
+        q.eq("postId", args.postId).eq("parentId", undefined),
+      )
+      .order("desc")
+      .paginate(args.paginationOpts);
+    return { ...result, page: await commentsWithDetails(ctx, result.page, userId) };
+  },
+});
+
+export const listRepliesPage = query({
+  args: {
+    postId: v.id("communityPosts"),
+    parentId: v.id("comments"),
+    paginationOpts: paginationOptsValidator,
+  },
+  handler: async (ctx, args) => {
+    const { userId } = await requirePostReader(ctx, args.postId);
+    const parent = await ctx.db.get(args.parentId);
+    if (!parent || parent.postId !== args.postId) throw new Error("Odgovor mora pripadati istoj diskusiji.");
+    const result = await ctx.db
+      .query("comments")
+      .withIndex("by_postId_and_parentId_and_hotScore_and_createdAt", (q) =>
+        q.eq("postId", args.postId).eq("parentId", args.parentId),
+      )
+      .order("desc")
+      .paginate(args.paginationOpts);
+    return { ...result, page: await commentsWithDetails(ctx, result.page, userId) };
+  },
+});
+
 export const addComment = mutation({
   args: {
     postId: v.id("communityPosts"),
@@ -882,9 +937,27 @@ export const addComment = mutation({
       upvoteCount: 0,
       downvoteCount: 0,
       voteScore: 0,
+      hotScore: hotScoreFor(0, now),
+      directReplyCount: 0,
       isHelpful: false,
       createdAt: now,
     });
+    if (args.parentId) {
+      const parent = await ctx.db.get(args.parentId);
+      if (parent) {
+        const existingDirectReplyCount =
+          parent.directReplyCount ??
+          (
+            await ctx.db
+              .query("comments")
+              .withIndex("by_parent", (q) => q.eq("parentId", parent._id))
+              .take(1001)
+          ).length;
+        await ctx.db.patch(parent._id, {
+          directReplyCount: existingDirectReplyCount + 1,
+        });
+      }
+    }
     await ctx.db.patch(post._id, {
       ...(post.commentCount === undefined ? {} : { commentCount: post.commentCount + 1 }),
       lastActivityAt: now,
@@ -978,10 +1051,27 @@ async function handleVote(ctx: MutationCtx, args: VoteArgs) {
     await ctx.db.insert("reactions", { targetType: args.targetType, targetId, reaction: nextVote, userId, createdAt: Date.now() });
   }
 
-  const rows = await ctx.db.query("reactions").withIndex("by_target", (q) =>
-    q.eq("targetType", args.targetType).eq("targetId", targetId),
-  ).take(1000);
-  const counts = voteCounts(rows);
+  const previousValue = existing ? voteValue(existing.reaction) : 0;
+  const nextValue = nextVote === "upvote" ? 1 : nextVote === "downvote" ? -1 : 0;
+  const target = args.targetType === "post" ? post : comment!;
+  let counts = {
+    upvoteCount: target.upvoteCount ?? 0,
+    downvoteCount: target.downvoteCount ?? 0,
+    voteScore: target.voteScore ?? 0,
+  };
+  if (target.upvoteCount === undefined || target.downvoteCount === undefined || target.voteScore === undefined) {
+    const rows = await ctx.db
+      .query("reactions")
+      .withIndex("by_target", (q) => q.eq("targetType", args.targetType).eq("targetId", targetId))
+      .take(1000);
+    counts = voteCounts(rows);
+  } else {
+    counts = {
+      upvoteCount: Math.max(0, counts.upvoteCount - (previousValue > 0 ? 1 : 0) + (nextValue > 0 ? 1 : 0)),
+      downvoteCount: Math.max(0, counts.downvoteCount - (previousValue < 0 ? 1 : 0) + (nextValue < 0 ? 1 : 0)),
+      voteScore: counts.voteScore - previousValue + nextValue,
+    };
+  }
   const now = Date.now();
   if (args.targetType === "post") {
     await ctx.db.patch(post._id, {
@@ -998,6 +1088,7 @@ async function handleVote(ctx: MutationCtx, args: VoteArgs) {
       downvoteCount: counts.downvoteCount,
       voteScore: counts.voteScore,
       reactionCount: counts.upvoteCount + counts.downvoteCount,
+      hotScore: hotScoreFor(counts.voteScore, comment.createdAt),
     });
   }
 
@@ -1273,6 +1364,7 @@ export const deleteComment = mutation({
     }
 
     const post = await ctx.db.get(comment.postId);
+    const parentId = comment.parentId;
     if (!post) throw new Error("Diskusija nije pronađena.");
     const subtree: Doc<"comments">[] = [comment];
     for (let index = 0; index < subtree.length; index += 1) {
@@ -1317,6 +1409,23 @@ export const deleteComment = mutation({
       }
     }
     for (const item of [...subtree].reverse()) await ctx.db.delete(item._id);
+    if (parentId) {
+      const parent = await ctx.db.get(parentId);
+      if (parent) {
+        const nextDirectReplyCount =
+          parent.directReplyCount === undefined
+            ? (
+                await ctx.db
+                  .query("comments")
+                  .withIndex("by_parent", (q) => q.eq("parentId", parent._id))
+                  .take(1001)
+              ).length
+            : Math.max(0, parent.directReplyCount - 1);
+        await ctx.db.patch(parent._id, {
+          directReplyCount: nextDirectReplyCount,
+        });
+      }
+    }
     await ctx.db.patch(post._id, {
       ...(post.commentCount === undefined
         ? {}

@@ -66,7 +66,7 @@ export function AccountMenu({ locale, profile }: { locale: Locale; profile: Acco
   const profileStatus = useQuery(api.profiles.getViewerProfileStatus, {});
   const profileIncomplete = profileStatus?.complete === false;
   const avatarLabel = profileIncomplete
-    ? locale === "sr" ? "Podesi username" : "Set your username"
+    ? locale === "sr" ? "Dovrši profil" : "Complete your profile"
     : locale === "sr" ? "Otvori meni naloga" : "Open account menu";
 
   const menuLinks = [
@@ -191,7 +191,7 @@ export function AccountMenu({ locale, profile }: { locale: Locale; profile: Acco
             <p className="mt-1 break-all font-mono text-[11px] font-bold uppercase text-muted">{email}</p>
             {profileIncomplete ? (
               <p className="mt-2 rounded-full border border-amber-500 bg-amber-50 px-2 py-1 text-[10px] font-black text-amber-900">
-                {locale === "sr" ? "Podesi username" : "Set your username"}
+                {locale === "sr" ? "Dovrši profil" : "Complete your profile"}
               </p>
             ) : null}
             <span className="mt-2 inline-flex rounded-full border-2 border-ink bg-white px-3 py-1 text-[10px] font-black uppercase leading-none text-ink">

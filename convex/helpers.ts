@@ -206,10 +206,18 @@ export async function requireUserId(ctx: AnyCtx) {
 
 export async function requireCompleteCommunityProfile(ctx: AnyCtx) {
   const current = await getCurrentProfile(ctx);
-  if (!current.profile.username) {
+  const accounts = await dbFrom(ctx)
+    .query("authAccounts")
+    .withIndex("userIdAndProvider", (q) => q.eq("userId", current.userId))
+    .take(10);
+  const missing = [
+    ...(current.profile.username ? [] : ["username"]),
+    ...(accounts.some((account) => account.provider === "password") ? [] : ["password"]),
+  ];
+  if (missing.length > 0) {
     throw new ConvexError({
       code: "PROFILE_INCOMPLETE",
-      missing: ["username"],
+      missing,
     });
   }
   return current;

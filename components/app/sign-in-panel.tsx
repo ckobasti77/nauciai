@@ -8,11 +8,19 @@ import { FormEvent, useState } from "react";
 import { Panel, cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
 import type { Locale } from "@/lib/i18n";
+import { passwordRequirements, passwordValidationErrors } from "@/lib/password-policy";
 
 type AuthFlow = "signIn" | "signUp" | "reset" | "resetVerification";
 
 function labelFor(locale: Locale, sr: string, en: string) {
   return locale === "sr" ? sr : en;
+}
+
+function passwordError(locale: Locale, password: string) {
+  const first = passwordValidationErrors(password)[0];
+  return first
+    ? labelFor(locale, `Lozinka mora da sadrži: ${first.labelSr.toLowerCase()}.`, `Password must include: ${first.labelEn.toLowerCase()}.`)
+    : null;
 }
 
 function ConvexSignInForm({
@@ -81,8 +89,9 @@ function ConvexSignInForm({
         if (!resetCode) {
           throw new Error(labelFor(locale, "Reset link nije ispravan.", "The reset link is not valid."));
         }
-        if (newPassword.length < 8) {
-          throw new Error(labelFor(locale, "Lozinka mora imati najmanje 8 karaktera.", "Password must be at least 8 characters."));
+        const resetPasswordError = passwordError(locale, newPassword);
+        if (resetPasswordError) {
+          throw new Error(resetPasswordError);
         }
         if (newPassword !== confirmPassword) {
           throw new Error(labelFor(locale, "Lozinke se ne poklapaju.", "Passwords do not match."));
@@ -107,6 +116,10 @@ function ConvexSignInForm({
       }
 
       if (flow === "signUp") {
+        const signupPasswordError = passwordError(locale, password);
+        if (signupPasswordError) {
+          throw new Error(signupPasswordError);
+        }
         if (!/^[a-zA-Z0-9_-]{3,20}$/.test(normalizedUsername)) {
           throw new Error(
             labelFor(
@@ -162,7 +175,8 @@ function ConvexSignInForm({
     setPendingProvider(provider);
     setMessage(null);
     try {
-      const result = await signIn(provider, { redirectTo });
+      const onboardingRedirect = `/${locale}/auth/complete?next=${encodeURIComponent(redirectTo)}`;
+      const result = await signIn(provider, { redirectTo: onboardingRedirect });
       if (result.redirect) {
         window.location.href = result.redirect.toString();
       }
@@ -289,6 +303,13 @@ function ConvexSignInForm({
               minLength={8}
               className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-white px-4 text-base font-bold text-ink outline-none focus:border-yellow"
             />
+            {flow === "signUp" ? (
+              <div className="mt-2 grid gap-1 text-xs font-bold text-muted sm:grid-cols-2">
+                {passwordRequirements.map((requirement) => (
+                  <span key={requirement.id}>• {labelFor(locale, requirement.labelSr, requirement.labelEn)}</span>
+                ))}
+              </div>
+            ) : null}
             {flow === "signIn" ? (
               <button
                 type="button"
@@ -316,6 +337,11 @@ function ConvexSignInForm({
                 minLength={8}
                 className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-white px-4 text-base font-bold text-ink outline-none focus:border-yellow"
               />
+              <div className="mt-2 grid gap-1 text-xs font-bold text-muted sm:grid-cols-2">
+                {passwordRequirements.map((requirement) => (
+                  <span key={requirement.id}>• {labelFor(locale, requirement.labelSr, requirement.labelEn)}</span>
+                ))}
+              </div>
             </div>
             <div>
               <label htmlFor="confirmPassword" className="text-sm font-black text-ink">

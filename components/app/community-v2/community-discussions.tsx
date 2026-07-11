@@ -164,8 +164,8 @@ function DiscussionsView({
   viewerUserId?: string;
   canModerate?: boolean;
 }) {
-  const [expandedPostId, setExpandedPostId] = useState<string | null>(null);
   const toast = useToast();
+  const [expandedPostId, setExpandedPostId] = useState<string | null>(null);
 
   async function handlePostReaction(postId: string, vote: "upvote" | "downvote") {
     if (!onReactPost) return;
@@ -284,9 +284,19 @@ function DiscussionsView({
                       ) : null}
                       <button
                         type="button"
-                        onClick={() => setExpandedPostId((current) => (current === post._id ? null : post._id))}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          const willOpen = expandedPostId !== post._id;
+                          setExpandedPostId((current) => (current === post._id ? null : post._id));
+                          if (willOpen) {
+                            window.requestAnimationFrame(() => {
+                              document.querySelector<HTMLElement>(`[data-community-comments="${post._id}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+                            });
+                          }
+                        }}
                         aria-expanded={expandedPostId === post._id}
-                        aria-label={
+                        aria-label={expandedPostId === post._id ? locale === "sr" ? "Sakrij komentare treda" : "Hide thread comments" : locale === "sr" ? "Prikaži komentare treda" : "Show thread comments"}
+                        data-comment-state={
                           expandedPostId === post._id
                             ? locale === "sr"
                               ? "Sakrij komentare"
@@ -297,7 +307,7 @@ function DiscussionsView({
                         }
                         className={cn(
                           "inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3 text-xs font-black transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
-                          expandedPostId === post._id ? "border-ink bg-ink text-white" : "border-line bg-white text-muted hover:border-ink hover:text-ink",
+                          "border-line bg-white text-muted hover:border-ink hover:text-ink",
                         )}
                       >
                         <MessageCircle className="size-4" aria-hidden="true" />
@@ -339,6 +349,7 @@ function DiscussionsView({
                         canMarkHelpful={canModerate || post.authorId === viewerUserId}
                         viewerUserId={viewerUserId}
                         compact
+                        showCommandDock
                       />
                     ) : null
                   }

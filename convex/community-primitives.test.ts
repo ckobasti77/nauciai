@@ -8,6 +8,7 @@ import {
   isLeaderboardEligibleRole,
 } from "./leaderboardCore";
 import { hotScoreFor, voteValue } from "./community";
+import { isStrongPassword, passwordValidationErrors } from "../lib/password-policy";
 
 describe("community identity primitives", () => {
   it("normalizes usernames and enforces the public format", () => {
@@ -53,5 +54,16 @@ describe("community voting primitives", () => {
     const newer = hotScoreFor(3, 1_700_100_000_000);
     expect(newer).toBeGreaterThan(old);
     expect(hotScoreFor(-3, 1_700_100_000_000)).toBeLessThan(newer);
+  });
+});
+
+describe("password policy", () => {
+  it("requires length, uppercase, number, and special character", () => {
+    expect(isStrongPassword("Abcdef1!")).toBe(true);
+    expect(isStrongPassword("abcdef1!")).toBe(false);
+    expect(isStrongPassword("Abcdefgh!")).toBe(false);
+    expect(isStrongPassword("Abcdef12")).toBe(false);
+    expect(isStrongPassword("Ab1!")).toBe(false);
+    expect(passwordValidationErrors("Abcdef1!")).toHaveLength(0);
   });
 });

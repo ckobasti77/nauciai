@@ -2,7 +2,7 @@
 "use client";
 
 import { useConvexAuth } from "@convex-dev/auth/react";
-import { useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import type { Id } from "@/convex/_generated/dataModel";
 import {
   CheckCircle2,
@@ -32,6 +32,7 @@ import { useToast } from "@/components/ui/toast-provider";
 import { api } from "@/convex/_generated/api";
 import type { ViewerProfile } from "@/lib/current-viewer";
 import { type Locale, withLocale } from "@/lib/i18n";
+import { passwordRequirements, passwordValidationErrors } from "@/lib/password-policy";
 import {
   type ProfileAvatarPresetId,
   profileAvatarPresetSrc,
@@ -110,8 +111,11 @@ export function ProfileEditor({
   const dragDepthRef = useRef(0);
   const { isLoading, isAuthenticated } = useConvexAuth();
   const liveViewer = useQuery(api.courses.viewer, isAuthenticated ? {} : "skip") as ViewerData | undefined;
+  const profileStatus = useQuery(api.profiles.getViewerProfileStatus, isAuthenticated ? {} : "skip");
   const createAvatarUploadUrl = useMutation(api.profiles.createAvatarUploadUrl);
   const updateViewerProfile = useMutation(api.profiles.updateViewerProfile);
+  const setViewerPassword = useAction(api.auth.setViewerPassword);
+  const changeViewerPassword = useAction(api.auth.changeViewerPassword);
   const submitPost = useMutation(api.community.submitPost);
 
   const profile = liveViewer?.profile ?? initialProfile ?? null;
@@ -131,6 +135,9 @@ export function ProfileEditor({
   const [dragging, setDragging] = useState(false);
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -147,6 +154,10 @@ export function ProfileEditor({
   const resetHref = `${withLocale(locale, "/sign-in")}?mode=reset&email=${encodeURIComponent(initialValues.email)}`;
   const resumePostId = searchParams.get("resumePostId");
   const requestedReturnTo = searchParams.get("returnTo");
+  const onboardingReturnTo =
+    requestedReturnTo?.startsWith(`${withLocale(locale, "/app/")}`) && requestedReturnTo !== withLocale(locale, "/app/profile")
+      ? requestedReturnTo
+      : null;
   const resumeReturnTo =
     requestedReturnTo?.startsWith(`${withLocale(locale, "/app/community/")}`)
       ? requestedReturnTo
@@ -318,12 +329,32 @@ export function ProfileEditor({
     setPending(true);
     setMessage(null);
     let profileSaved = false;
+    let passwordActionAttempted = false;
 
     try {
       const trimmedFirstName = firstName.trim();
       const trimmedLastName = lastName.trim();
       if (!trimmedFirstName || !trimmedLastName) {
         throw new Error(labelFor(locale, "Ime i prezime su obavezni.", "First and last name are required."));
+      }
+
+      const needsPassword = profileStatus?.hasPassword === false;
+      const changingPassword = profileStatus?.hasPassword === true && changePasswordOpen;
+      passwordActionAttempted = needsPassword || changingPassword;
+      if (needsPassword || changingPassword || newPassword || confirmPassword) {
+        const missingRequirement = passwordValidationErrors(newPassword)[0];
+        if (missingRequirement) {
+          throw new Error(
+            labelFor(
+              locale,
+              `Lozinka mora da sadrži: ${missingRequirement.labelSr.toLowerCase()}.`,
+              `Password must include: ${missingRequirement.labelEn.toLowerCase()}.`,
+            ),
+          );
+        }
+        if (newPassword !== confirmPassword) {
+          throw new Error(labelFor(locale, "Lozinke se ne poklapaju.", "Passwords do not match."));
+        }
       }
 
       const avatarStorageId = await uploadAvatarFile();
@@ -345,6 +376,18 @@ export function ProfileEditor({
         setSelectedPreset(updatedProfile.avatarPreset);
       }
       profileSaved = true;
+
+      if (needsPassword) {
+        await setViewerPassword({ password: newPassword });
+        setNewPassword("");
+        setConfirmPassword("");
+        setChangePasswordOpen(false);
+      } else if (changingPassword) {
+        await changeViewerPassword({ password: newPassword });
+        setNewPassword("");
+        setConfirmPassword("");
+        setChangePasswordOpen(false);
+      }
 
       if (resumePostId) {
         const resumed = await submitPost({ postId: resumePostId as Id<"communityPosts"> });
@@ -375,7 +418,19 @@ export function ProfileEditor({
       });
       toast.success(labelFor(locale, "Profil je sačuvan.", "Profile saved."));
       router.refresh();
+      if (onboardingReturnTo && username.trim() && (needsPassword || profileStatus?.hasPassword === true)) {
+        router.push(onboardingReturnTo);
+      }
     } catch (error) {
+      if (passwordActionAttempted) {
+        const detail = error instanceof Error ? error.message : labelFor(locale, "Greška pri čuvanju lozinke.", "Password save failed.");
+        toast.error(labelFor(locale, "Profil je sačuvan, ali lozinka nije sačuvana.", "Profile saved, but the password was not saved."));
+        setMessage({
+          tone: "error",
+          text: labelFor(locale, `Profil je sačuvan, ali lozinka nije sačuvana: ${detail}`, `Profile saved, but the password was not saved: ${detail}`),
+        });
+        return;
+      }
       toast.error(
         profileSaved
           ? labelFor(locale, "Profil je sačuvan, ali nastavak nije uspeo.", "Profile saved, but the next action failed.")
@@ -418,7 +473,7 @@ export function ProfileEditor({
           </div>
         </div>
       ) : null}
-      {!username.trim() ? (
+      {!username.trim() || profileStatus?.hasPassword === false ? (
         <div role="status" className="flex items-start gap-3 rounded-[16px] border-2 border-ink bg-yellow/30 px-4 py-3 text-sm font-bold text-ink">
           <ShieldCheck className="mt-0.5 size-5 shrink-0" />
           <div>
@@ -549,14 +604,83 @@ export function ProfileEditor({
                 </p>
               </label>
               <div className="sm:col-span-2">
-                <span className="text-sm font-black text-ink">{labelFor(locale, "Lozinka", "Password")}</span>
-                <div className="mt-2 flex min-h-12 flex-col gap-3 rounded-[8px] border-2 border-line bg-paper px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                  <span className="font-mono text-base font-black text-ink">{MASKED_PASSWORD}</span>
-                  <Link href={resetHref} className="inline-flex items-center gap-2 text-sm font-black text-blue-700 underline">
-                    <KeyRound className="size-4" />
-                    Reset password
-                  </Link>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-sm font-black text-ink">{labelFor(locale, "Lozinka", "Password")}</span>
+                  {profileStatus?.hasPassword ? (
+                    <div className="flex flex-wrap items-center gap-3">
+                      <button type="button" onClick={() => setChangePasswordOpen((value) => { if (value) { setNewPassword(""); setConfirmPassword(""); } return !value; })} className="inline-flex items-center gap-2 text-sm font-black text-blue-700 underline">
+                        <KeyRound className="size-4" />
+                        {labelFor(locale, changePasswordOpen ? "Otkaži promenu" : "Promeni lozinku", changePasswordOpen ? "Cancel password change" : "Change password")}
+                      </button>
+                      <Link href={resetHref} className="text-xs font-black text-muted underline">
+                        {labelFor(locale, "Email reset", "Email reset")}
+                      </Link>
+                    </div>
+                  ) : null}
                 </div>
+                {profileStatus?.hasPassword ? (
+                  <>
+                    <div className="mt-2 flex min-h-12 items-center rounded-[8px] border-2 border-line bg-paper px-4 py-3">
+                      <span className="font-mono text-base font-black text-ink">{MASKED_PASSWORD}</span>
+                    </div>
+                    {changePasswordOpen ? (
+                      <div className="mt-2 space-y-3 rounded-[8px] border-2 border-ink bg-paper p-4">
+                        <label className="block">
+                          <span className="text-xs font-black uppercase text-ink/70">{labelFor(locale, "Nova lozinka", "New password")}</span>
+                          <input type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} autoComplete="new-password" className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-white px-4 text-base font-extrabold text-ink outline-none focus:border-yellow" />
+                        </label>
+                        <label className="block">
+                          <span className="text-xs font-black uppercase text-ink/70">{labelFor(locale, "Potvrdi lozinku", "Confirm password")}</span>
+                          <input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} autoComplete="new-password" className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-white px-4 text-base font-extrabold text-ink outline-none focus:border-yellow" />
+                        </label>
+                        <div className="grid gap-1 text-xs font-bold text-muted sm:grid-cols-2">
+                          {passwordRequirements.map((requirement) => (
+                            <span key={requirement.id} className={requirement.test(newPassword) ? "text-emerald-700" : "text-muted"}>
+                              {requirement.test(newPassword) ? "✓" : "•"} {labelFor(locale, requirement.labelSr, requirement.labelEn)}
+                            </span>
+                          ))}
+                        </div>
+                        {confirmPassword && newPassword !== confirmPassword ? <p className="text-xs font-black text-red-700">{labelFor(locale, "Lozinke se ne poklapaju.", "Passwords do not match.")}</p> : null}
+                      </div>
+                    ) : null}
+                  </>
+                ) : (
+                  <div className="mt-2 space-y-3 rounded-[8px] border-2 border-ink bg-yellow/15 p-4">
+                    <p className="text-sm font-bold text-ink">
+                      {labelFor(locale, "Postavi lozinku za ovaj nalog. Polja ostaju prazna dok ih sam ne uneseš.", "Set a password for this account. The fields stay empty until you enter them.")}
+                    </p>
+                    <label className="block">
+                      <span className="text-xs font-black uppercase text-ink/70">{labelFor(locale, "Nova lozinka", "New password")}</span>
+                      <input
+                        type="password"
+                        value={newPassword}
+                        onChange={(event) => setNewPassword(event.target.value)}
+                        autoComplete="new-password"
+                        className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-white px-4 text-base font-extrabold text-ink outline-none focus:border-yellow"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="text-xs font-black uppercase text-ink/70">{labelFor(locale, "Potvrdi lozinku", "Confirm password")}</span>
+                      <input
+                        type="password"
+                        value={confirmPassword}
+                        onChange={(event) => setConfirmPassword(event.target.value)}
+                        autoComplete="new-password"
+                        className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-white px-4 text-base font-extrabold text-ink outline-none focus:border-yellow"
+                      />
+                    </label>
+                    <div className="grid gap-1 text-xs font-bold text-muted sm:grid-cols-2">
+                      {passwordRequirements.map((requirement) => (
+                        <span key={requirement.id} className={requirement.test(newPassword) ? "text-emerald-700" : "text-muted"}>
+                          {requirement.test(newPassword) ? "✓" : "•"} {labelFor(locale, requirement.labelSr, requirement.labelEn)}
+                        </span>
+                      ))}
+                    </div>
+                    {confirmPassword && newPassword !== confirmPassword ? (
+                      <p className="text-xs font-black text-red-700">{labelFor(locale, "Lozinke se ne poklapaju.", "Passwords do not match.")}</p>
+                    ) : null}
+                  </div>
+                )}
               </div>
               <label className="block sm:col-span-2">
                 <span className="text-sm font-black text-ink">{labelFor(locale, "Jezik platforme", "Platform language")}</span>
@@ -646,7 +770,7 @@ export function ProfileEditor({
           <div className="mt-6 space-y-3">
             <button
               type="submit"
-              disabled={pending || isLoading || !isAuthenticated}
+              disabled={pending || isLoading || !isAuthenticated || profileStatus === undefined}
               className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-ink px-5 py-2.5 text-sm font-extrabold text-white shadow-[4px_4px_0_0_#f4be30] transition hover:-translate-y-0.5 disabled:opacity-60"
             >
               {pending ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}

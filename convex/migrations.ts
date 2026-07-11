@@ -196,6 +196,32 @@ export const backfillCommunityComments = migrations.define({
   },
 });
 
+export const backfillCommentTreeRanking = migrations.define({
+  table: "comments",
+  batchSize: 50,
+  migrateOne: async (ctx, comment) => {
+    const reactions = await ctx.db
+      .query("reactions")
+      .withIndex("by_target", (q) => q.eq("targetType", "comment").eq("targetId", String(comment._id)))
+      .take(1000);
+    const upvoteCount = reactions.filter((reaction) => voteValue(reaction.reaction) > 0).length;
+    const downvoteCount = reactions.filter((reaction) => voteValue(reaction.reaction) < 0).length;
+    const voteScore = upvoteCount - downvoteCount;
+    const directReplies = await ctx.db
+      .query("comments")
+      .withIndex("by_parent", (q) => q.eq("parentId", comment._id))
+      .take(1001);
+    return {
+      reactionCount: upvoteCount + downvoteCount,
+      upvoteCount,
+      downvoteCount,
+      voteScore,
+      hotScore: hotScoreFor(voteScore, comment.createdAt),
+      directReplyCount: directReplies.length,
+    };
+  },
+});
+
 export const consolidateDuplicateProfiles = migrations.define({
   table: "profiles",
   batchSize: 50,
@@ -287,6 +313,7 @@ export const runAll = migrations.runner([
   migrationApi.backfillCourseTracks,
   migrationApi.backfillCommunityReactions,
   migrationApi.backfillCommunityComments,
+  migrationApi.backfillCommentTreeRanking,
   migrationApi.backfillCommunityPosts,
   migrationApi.backfillProfileSearchText,
   migrationApi.backfillLessonLeaderboardEvents,

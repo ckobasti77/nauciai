@@ -486,9 +486,13 @@ export default defineSchema({
     isHelpful: v.optional(v.boolean()),
     helpfulMarkedBy: v.optional(v.id("users")),
     helpfulMarkedAt: v.optional(v.number()),
+    /** Added for recursive lazy loading and hot sibling ordering. */
+    hotScore: v.optional(v.number()),
+    directReplyCount: v.optional(v.number()),
     createdAt: v.number(),
   })
     .index("by_post", ["postId", "createdAt"])
+    .index("by_postId_and_parentId_and_hotScore_and_createdAt", ["postId", "parentId", "hotScore", "createdAt"])
     .index("by_parent", ["parentId"])
     .index("by_authorId_and_createdAt", ["authorId", "createdAt"]),
 
