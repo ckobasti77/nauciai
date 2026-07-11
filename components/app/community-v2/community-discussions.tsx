@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation } from "convex/react";
-import { Bookmark, ChevronDown, Heart, Lightbulb, MessageCircle, MessageSquareText, PenLine, Sparkles } from "lucide-react";
+import { ArrowDown, ArrowUp, Bookmark, ChevronDown, Lightbulb, MessageCircle, MessageSquareText, PenLine, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -32,7 +32,7 @@ import {
 } from "./community-shared";
 import type { CommunityFilters, CommunityPostRow } from "./community-types";
 
-type DiscussionSort = "latest" | "active" | "unanswered";
+type DiscussionSort = "hot" | "top" | "latest" | "active" | "unanswered";
 
 function postTrackTitle(post: CommunityPostRow, filters: CommunityFilters, locale: Locale) {
   const track = filters.tracks.find((item) => item._id === post.trackId);
@@ -50,7 +50,7 @@ function useDiscussionControls() {
   const [search, setSearch] = useState(currentQuery);
   const requestedSort = searchParams.get("sort");
   const sort: DiscussionSort =
-    requestedSort === "active" || requestedSort === "unanswered" ? requestedSort : "latest";
+    requestedSort === "top" || requestedSort === "latest" || requestedSort === "active" || requestedSort === "unanswered" ? requestedSort : "hot";
 
   useEffect(() => {
     if (currentQuery === search.trim()) return;
@@ -65,7 +65,7 @@ function useDiscussionControls() {
     setSearch,
     query: currentQuery.trim(),
     sort,
-    setSort: (next: DiscussionSort) => update({ sort: next === "latest" ? undefined : next }),
+    setSort: (next: DiscussionSort) => update({ sort: next === "hot" ? undefined : next }),
   };
 }
 
@@ -84,8 +84,8 @@ function StaticDiscussionsPage({ locale }: { locale: Locale }) {
     const needle = controls.query.toLocaleLowerCase();
     return fallbackCommunityPosts
       .filter((post) => !needle || `${post.title} ${post.body}`.toLocaleLowerCase().includes(needle))
-      .sort((a, b) => b.createdAt - a.createdAt);
-  }, [controls.query]);
+      .sort((a, b) => (controls.sort === "top" ? (b.voteScore ?? 0) - (a.voteScore ?? 0) : controls.sort === "hot" ? (b.voteScore ?? 0) - (a.voteScore ?? 0) || b.createdAt - a.createdAt : b.createdAt - a.createdAt));
+  }, [controls.query, controls.sort]);
 
   return (
     <DiscussionsView
@@ -111,7 +111,7 @@ function LiveDiscussionsPage({ locale }: { locale: Locale }) {
     sort: controls.sort,
   });
   const toggleFavorite = useToggleCommunityFavorite();
-  const reactPost = useMutation(api.community.react);
+  const votePost = useMutation(api.community.vote);
 
   return (
     <DiscussionsView
@@ -125,7 +125,7 @@ function LiveDiscussionsPage({ locale }: { locale: Locale }) {
       loadingMore={postsQuery.status === "LoadingMore"}
       onLoadMore={() => postsQuery.loadMore(20)}
       onToggleFavorite={(postId) => toggleFavorite({ postId })}
-      onReactPost={(postId, reaction) => reactPost({ targetType: "post", targetId: postId, reaction })}
+      onReactPost={(postId, vote) => votePost({ targetType: "post", targetId: postId, vote })}
       isAuthenticated={isAuthenticated}
       viewerUserId={filters.viewer.userId}
       canModerate={filters.viewer.role === "admin" || filters.viewer.role === "moderator"}
@@ -159,7 +159,7 @@ function DiscussionsView({
   loadingMore: boolean;
   onLoadMore?: () => void;
   onToggleFavorite?: (postId: string) => Promise<unknown>;
-  onReactPost?: (postId: string, reaction: "like" | "celebrate") => Promise<unknown>;
+  onReactPost?: (postId: string, vote: "upvote" | "downvote") => Promise<unknown>;
   isAuthenticated?: boolean;
   viewerUserId?: string;
   canModerate?: boolean;
@@ -167,10 +167,10 @@ function DiscussionsView({
   const [expandedPostId, setExpandedPostId] = useState<string | null>(null);
   const toast = useToast();
 
-  async function handlePostReaction(postId: string, reaction: "like" | "celebrate") {
+  async function handlePostReaction(postId: string, vote: "upvote" | "downvote") {
     if (!onReactPost) return;
     try {
-      await onReactPost(postId, reaction);
+      await onReactPost(postId, vote);
     } catch (error) {
       const message = String(error);
       if (message.includes("PROFILE_INCOMPLETE")) {
@@ -237,6 +237,8 @@ function DiscussionsView({
                 onChange={(event) => controls.setSort(event.target.value as DiscussionSort)}
                 className="min-h-11 w-full appearance-none rounded-full border border-line bg-white py-2 pl-4 pr-10 text-sm font-black text-ink outline-none transition hover:border-ink/55 focus:border-ink focus:ring-4 focus:ring-yellow/25 sm:w-auto"
               >
+                <option value="hot">{locale === "sr" ? "Vruće" : "Hot"}</option>
+                <option value="top">{locale === "sr" ? "Najviše glasova" : "Top voted"}</option>
                 <option value="latest">{locale === "sr" ? "Najnovije" : "Latest"}</option>
                 <option value="active">{locale === "sr" ? "Aktivno" : "Active"}</option>
                 <option value="unanswered">{locale === "sr" ? "Bez odgovora" : "Unanswered"}</option>
@@ -274,19 +276,11 @@ function DiscussionsView({
                   leadingAction={
                     <>
                       {onReactPost ? (
-                        <button
-                          type="button"
-                          onClick={() => void handlePostReaction(post._id, "like")}
-                          aria-label={locale === "sr" ? "Lajkuj diskusiju" : "Like discussion"}
-                          aria-pressed={post.userReaction === "like"}
-                          className={cn(
-                            "inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3 text-xs font-black transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
-                            post.userReaction === "like" ? "border-ink bg-yellow text-ink" : "border-line bg-white text-muted hover:border-ink hover:text-ink",
-                          )}
-                        >
-                          <Heart className={cn("size-4", post.userReaction === "like" && "fill-ink")} aria-hidden="true" />
-                          {post.reactionsCount ?? 0}
-                        </button>
+                        <div className="inline-flex items-center gap-0.5 rounded-full border border-line bg-white p-0.5">
+                          <button type="button" onClick={() => void handlePostReaction(post._id, "upvote")} aria-label={locale === "sr" ? "Upvote diskusije" : "Upvote discussion"} aria-pressed={post.userVote === "upvote"} className={cn("grid size-9 place-items-center rounded-full transition", post.userVote === "upvote" ? "bg-yellow text-ink" : "text-muted hover:bg-yellow/20 hover:text-ink")}><ArrowUp className="size-4" /></button>
+                          <span className={cn("min-w-8 text-center text-xs font-black", (post.voteScore ?? 0) < 0 && "text-red-700")}>{post.voteScore ?? 0}</span>
+                          <button type="button" onClick={() => void handlePostReaction(post._id, "downvote")} aria-label={locale === "sr" ? "Downvote diskusije" : "Downvote discussion"} aria-pressed={post.userVote === "downvote"} className={cn("grid size-9 place-items-center rounded-full transition", post.userVote === "downvote" ? "bg-red-100 text-red-700" : "text-muted hover:bg-red-50 hover:text-red-700")}><ArrowDown className="size-4" /></button>
+                        </div>
                       ) : null}
                       <button
                         type="button"

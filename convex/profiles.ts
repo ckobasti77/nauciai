@@ -52,11 +52,11 @@ export const isUsernameAvailable = query({
     const normalized = normalizeUsername(args.username);
     if (!normalized || !isValidUsername(normalized)) return false;
 
-    const profile = await ctx.db
+    const profiles = await ctx.db
       .query("profiles")
       .withIndex("by_username", (q) => q.eq("username", normalized))
-      .unique();
-    if (profile) return false;
+      .take(100);
+    if (profiles.length) return false;
 
     const authUser = await ctx.db
       .query("users")
@@ -181,10 +181,11 @@ export const updateViewerProfile = mutation({
         if (!isValidUsername(normalizedUsername)) {
           throw new Error("Korisničko ime mora imati između 3 i 20 karaktera i može sadržati samo slova, brojeve, donje crte i crtice.");
         }
-        const existing = await ctx.db
+        const existingRows = await ctx.db
           .query("profiles")
           .withIndex("by_username", (q) => q.eq("username", normalizedUsername))
-          .unique();
+          .take(100);
+        const existing = existingRows.find((row) => row.userId !== profile.userId);
         if (existing && existing.userId !== profile.userId) {
           throw new Error("Korisnicko ime je vec zauzeto.");
         }

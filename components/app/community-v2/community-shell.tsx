@@ -43,7 +43,7 @@ function activeCommunitySection(pathname: string) {
   if (!segment || segment === "new" || segment === "edit" || !Number.isNaN(Number(segment))) {
     return "discussions";
   }
-  if (["discussions", "my-threads", "mentions", "members", "leaderboard", "moderation"].includes(segment)) {
+  if (["discussions", "my-threads", "mentions", "notifications", "members", "leaderboard", "moderation"].includes(segment)) {
     return segment;
   }
   return "discussions";
@@ -178,12 +178,12 @@ function CommunityShellView({
         badge: filters.counts?.myThreads,
       },
       {
-        id: "mentions",
-        path: "mentions",
-        labelSr: "Pominjanja",
-        labelEn: "Mentions",
+        id: "notifications",
+        path: "notifications",
+        labelSr: "Obaveštenja",
+        labelEn: "Notifications",
         icon: Bell,
-        badge: filters.counts?.mentions,
+        badge: filters.counts?.community,
       },
       {
         id: "members",
@@ -212,7 +212,7 @@ function CommunityShellView({
           ]
         : []),
     ],
-    [filters.counts?.mentions, filters.counts?.myThreads, filters.counts?.pendingApprovals, isStaff],
+    [filters.counts?.community, filters.counts?.myThreads, filters.counts?.pendingApprovals, isStaff],
   );
   const activeNavIndex = Math.max(0, navItems.findIndex((item) => item.id === activeSection));
   const activeNavWidth = `${100 / Math.max(navItems.length, 1)}%`;

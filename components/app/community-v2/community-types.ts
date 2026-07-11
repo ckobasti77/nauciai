@@ -22,6 +22,7 @@ export type CommunityCourse = {
 };
 
 export type CommunityCounts = {
+  community?: number;
   myThreads?: number;
   mentions?: number;
   pendingApprovals?: number;
@@ -64,7 +65,11 @@ export type CommunityPostRow = {
   courseTitleEn?: string;
   commentsCount?: number;
   reactionsCount?: number;
-  userReaction?: "like" | "celebrate";
+  upvoteCount?: number;
+  downvoteCount?: number;
+  voteScore?: number;
+  userVote?: "upvote" | "downvote";
+  userReaction?: string;
   isFeaturedGlobal?: boolean;
   isPinned?: boolean;
   isFavorited?: boolean;
@@ -78,6 +83,7 @@ export type CommunityMentionEvent = {
   createdAt: number;
   readAt?: number;
   kind?: string;
+  category?: "votes" | "comments" | "tags" | "system";
   authorName?: string;
   senderName?: string;
   senderUsername?: string;

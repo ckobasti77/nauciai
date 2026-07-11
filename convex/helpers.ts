@@ -21,6 +21,7 @@ type QueryBuilderLike = {
 type QueryLike = {
   withIndex: (name: string, callback: (q: QueryBuilderLike) => QueryBuilderLike) => QueryLike;
   unique: () => Promise<DocLike | null>;
+  take: (limit: number) => Promise<DocLike[]>;
   collect: () => Promise<DocLike[]>;
 };
 
@@ -29,10 +30,12 @@ type DatabaseLike = {
   query: (table: string) => QueryLike;
   insert?: (table: string, value: Record<string, unknown>) => Promise<string>;
   patch?: (id: unknown, value: Record<string, unknown>) => Promise<void>;
+  delete?: (id: unknown) => Promise<void>;
 };
 
 type DocLike = Record<string, unknown> & {
   _id: string;
+  _creationTime?: number;
   userId?: string;
   email?: string;
   image?: string;
@@ -114,10 +117,11 @@ export async function upsertProfileFromAuthUser(
   const user = await ctx.db.get(userId);
   const email = String(authProfile.email ?? user?.email ?? "").trim().toLowerCase();
   const authName = String(authProfile.name ?? user?.name ?? email.split("@")[0] ?? "Student").trim();
-  const existing = await ctx.db
+  const existingRows = await ctx.db
     .query("profiles")
     .withIndex("by_userId", (q) => q.eq("userId", userId))
-    .unique();
+    .take(100);
+  const existing = [...existingRows].sort((a, b) => Number(a._creationTime ?? 0) - Number(b._creationTime ?? 0))[0] ?? null;
   const parts = namePartsFrom(String(existing?.name ?? authName), email);
   const firstName = String(existing?.firstName ?? parts.firstName);
   const lastName = String(existing?.lastName ?? parts.lastName);
@@ -128,10 +132,11 @@ export async function upsertProfileFromAuthUser(
   }
 
   if (username) {
-    const duplicate = await ctx.db
+    const duplicates = await ctx.db
       .query("profiles")
       .withIndex("by_username", (q) => q.eq("username", username))
-      .unique();
+      .take(100);
+    const duplicate = duplicates.find((profile) => profile.userId !== userId);
     if (duplicate && duplicate.userId !== userId) {
       throw new Error("Korisničko ime je već zauzeto.");
     }
@@ -215,10 +220,13 @@ export async function getCurrentProfile(ctx: AnyCtx) {
   const db = dbFrom(ctx);
   const user = await db.get(userId);
   const email = String(user?.email ?? "").toLowerCase();
-  const existing = await db
+  const existingRows = await db
     .query("profiles")
     .withIndex("by_userId", (q) => q.eq("userId", userId))
-    .unique();
+    .take(100);
+  // A profile is identified by userId. During cleanup of historical rows we
+  // deliberately choose the oldest row so the public profile id is stable.
+  const existing = [...existingRows].sort((a, b) => Number(a._creationTime ?? 0) - Number(b._creationTime ?? 0))[0] ?? null;
 
   const role = effectiveRoleForProfile(email, existing?.role);
   const name = user?.name ?? email.split("@")[0] ?? "Student";
@@ -279,6 +287,28 @@ export async function ensureProfile(ctx: AnyCtx) {
   }
 
   const { existing, userId, email, role, name, firstName, lastName, avatarUrl } = current;
+
+  if (existing && db.delete) {
+    const rows = await db.query("profiles").withIndex("by_userId", (q) => q.eq("userId", userId)).take(100);
+    if (rows.length > 1) {
+      const ordered = [...rows].sort((a, b) => Number(a._creationTime ?? 0) - Number(b._creationTime ?? 0));
+      const latest = [...rows].sort((a, b) => Number(b.updatedAt ?? b._creationTime ?? 0) - Number(a.updatedAt ?? a._creationTime ?? 0))[0];
+      await db.patch(existing._id, {
+        ...(latest.username ? { username: latest.username } : {}),
+        ...(latest.name ? { name: latest.name } : {}),
+        ...(latest.firstName ? { firstName: latest.firstName } : {}),
+        ...(latest.lastName ? { lastName: latest.lastName } : {}),
+        ...(latest.avatarUrl ? { avatarUrl: latest.avatarUrl } : {}),
+        ...(latest.avatarStorageId ? { avatarStorageId: latest.avatarStorageId } : {}),
+        ...(latest.avatarPreset ? { avatarPreset: latest.avatarPreset } : {}),
+        ...(latest.language ? { language: latest.language } : {}),
+        role,
+        updatedAt: now,
+      });
+      for (const duplicate of ordered.slice(1)) await db.delete(duplicate._id);
+      return db.get(existing._id);
+    }
+  }
 
   if (!existing) {
     const profileId = await db.insert("profiles", {

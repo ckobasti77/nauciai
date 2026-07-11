@@ -4,6 +4,7 @@ import {
   BookOpen,
   ChevronDown,
   ChevronRight,
+  CircleAlert,
   CreditCard,
   FileText,
   GraduationCap,
@@ -768,6 +769,7 @@ function AppSidebarContent({
   authState = "unknown",
   profileData,
   communityBadge = 0,
+  accountBadge = 0,
 }: {
   locale: Locale;
   navigation: AppNavigationData;
@@ -775,6 +777,7 @@ function AppSidebarContent({
   authState?: "loading" | "authenticated" | "anonymous" | "unknown";
   profileData?: { name?: string; username?: string; email?: string; avatarUrl?: string } | null;
   communityBadge?: number;
+  accountBadge?: number;
 }) {
   const pathname = usePathname();
   const params = useParams<{ courseSlug?: string; lessonSlug?: string }>();
@@ -826,6 +829,7 @@ function AppSidebarContent({
   const profileUsername = profileData?.username ? `@${profileData.username}` : profileData?.email || "";
   const profileInitials = profileName.split(/\s+/).map((part: string) => part[0]).filter(Boolean).slice(0, 2).join("").toUpperCase() || "AI";
   const profileAvatar = profileData?.avatarUrl;
+  const profileIncomplete = !profileData?.username;
 
   return (
     <aside
@@ -927,8 +931,14 @@ function AppSidebarContent({
 
           <button
             type="button"
-            onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-            className="flex w-full items-center gap-3 rounded-[12px] border-2 border-ink bg-white p-2 text-left text-ink transition hover:bg-yellow/15 shadow-[3px_3px_0_0_rgba(14,49,88,0.18)]"
+            onClick={() => {
+              if (profileIncomplete) {
+                router.push(currentCourse ? navHref(locale, "/app/profile", currentCourse.slug) : withLocale(locale, "/app/profile"));
+                return;
+              }
+              setProfileMenuOpen(!profileMenuOpen);
+            }}
+            className={cn("relative flex w-full items-center gap-3 rounded-[12px] border-2 border-ink p-2 text-left text-ink transition shadow-[3px_3px_0_0_rgba(14,49,88,0.18)]", profileIncomplete ? "bg-yellow/25 hover:bg-yellow/40" : "bg-white hover:bg-yellow/15")}
           >
             <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-ink bg-yellow text-xs font-black">
               {profileAvatar ? (
@@ -939,9 +949,10 @@ function AppSidebarContent({
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-xs font-black leading-tight text-ink">{profileName}</p>
-              <p className="truncate text-[10px] font-semibold leading-normal text-muted/80 mt-0.5">{profileUsername}</p>
+              <p className="truncate text-[10px] font-semibold leading-normal text-muted/80 mt-0.5">{profileIncomplete ? (locale === "sr" ? "Podesi username" : "Set your username") : profileUsername}</p>
             </div>
-            <ChevronDown className={cn("size-4 shrink-0 transition-transform text-muted", profileMenuOpen && "rotate-180")} />
+            {profileIncomplete ? <CircleAlert className="size-4 shrink-0 text-amber-700" aria-hidden="true" /> : <ChevronDown className={cn("size-4 shrink-0 transition-transform text-muted", profileMenuOpen && "rotate-180")} />}
+            {accountBadge > 0 ? <span className="absolute -right-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-ink bg-red-600 px-1 text-[10px] font-black text-white">{accountBadge > 99 ? "99+" : accountBadge}</span> : null}
           </button>
         </div>
       )}
@@ -954,7 +965,7 @@ function AppSidebarContent({
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-white px-3 py-2 text-xs font-black text-ink"
           >
             <User className="size-4" />
-            {t.profile}
+            {profileIncomplete ? (locale === "sr" ? "Podesi username" : "Set username") : t.profile}
           </Link>
           <Link
             href={currentCourse ? navHref(locale, "/app/billing", currentCourse.slug) : withLocale(locale, "/app/billing")}
@@ -982,7 +993,8 @@ function LiveAppSidebar({ locale, navigation }: { locale: Locale; navigation: Ap
     api.notifications.getUserNotificationSummary,
     isAuthenticated ? {} : "skip"
   );
-  const communityBadge = notificationSummary?.total ?? 0;
+  const communityBadge = notificationSummary?.community ?? 0;
+  const accountBadge = notificationSummary?.total ?? 0;
 
   return (
     <AppSidebarContent
@@ -992,6 +1004,7 @@ function LiveAppSidebar({ locale, navigation }: { locale: Locale; navigation: Ap
       authState={authState}
       profileData={liveNavigation?.profile}
       communityBadge={communityBadge}
+      accountBadge={accountBadge}
     />
   );
 }

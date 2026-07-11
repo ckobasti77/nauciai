@@ -6,11 +6,21 @@ import type { Id } from "./_generated/dataModel";
 
 const MY_THREAD_NOTIFICATION_KINDS = [
   "comment_post",
+  "comment_reply",
+  "upvote_post",
+  "downvote_post",
   "like_post",
   "post_approved",
   "post_changes_requested",
 ] as const;
-const PERSONAL_NOTIFICATION_KINDS = ["mention", "like_comment", "helpful_comment"] as const;
+const PERSONAL_NOTIFICATION_KINDS = [
+  "mention",
+  "upvote_comment",
+  "downvote_comment",
+  "like_comment",
+  "helpful_comment",
+] as const;
+const COMMUNITY_NOTIFICATION_KINDS = [...MY_THREAD_NOTIFICATION_KINDS, ...PERSONAL_NOTIFICATION_KINDS] as const;
 
 async function unreadByKinds(ctx: any, userId: Id<"users">, kinds: readonly string[]) {
   const rows = await Promise.all(
@@ -31,10 +41,11 @@ export async function getCommunityNotificationCountsHelper(ctx: any, userId: Id<
     ctx.db
       .query("profiles")
       .withIndex("by_userId", (q: any) => q.eq("userId", userId))
-      .unique(),
+      .take(100),
     ctx.db.get(userId),
   ]);
-  const role = effectiveRoleForProfile(String(authUser?.email ?? profileData?.email ?? ""), profileData?.role);
+  const profile = [...profileData].sort((a: any, b: any) => Number(a._creationTime ?? 0) - Number(b._creationTime ?? 0))[0];
+  const role = effectiveRoleForProfile(String(authUser?.email ?? profile?.email ?? ""), profile?.role);
   const isAdminOrMod = role === "admin" || role === "moderator";
 
   // 1. Pending approvals count (only for admin/moderator)
@@ -47,21 +58,23 @@ export async function getCommunityNotificationCountsHelper(ctx: any, userId: Id<
     pendingApprovals = posts.length;
   }
 
-  const [myThreadNotifications, personalNotifications] = await Promise.all([
+  const [myThreadNotifications, personalNotifications, allNotifications] = await Promise.all([
     unreadByKinds(ctx, userId, MY_THREAD_NOTIFICATION_KINDS),
     unreadByKinds(ctx, userId, PERSONAL_NOTIFICATION_KINDS),
+    unreadByKinds(ctx, userId, COMMUNITY_NOTIFICATION_KINDS),
   ]);
-  const profileIncomplete = (profileData?.username ?? authUser?.username) ? 0 : 1;
+  const profileIncomplete = (profile?.username ?? authUser?.username) ? 0 : 1;
   const myThreadsCount = myThreadNotifications.length;
   const mentionsCount = personalNotifications.length;
+  const communityCount = allNotifications.length + pendingApprovals;
 
   return {
     pendingApprovals,
     myThreads: myThreadsCount,
     mentions: mentionsCount,
     profileIncomplete,
-    community: pendingApprovals + myThreadsCount + mentionsCount,
-    total: profileIncomplete + pendingApprovals + myThreadsCount + mentionsCount,
+    community: communityCount,
+    total: profileIncomplete + communityCount,
   };
 }
 
@@ -144,10 +157,10 @@ export const markPostNotificationsAsRead = mutation({
   },
 });
 
-async function markAllMentionsAsReadImpl(ctx: any) {
+async function markAllCommunityNotificationsAsReadImpl(ctx: any) {
   const userId = await currentUserId(ctx);
   if (!userId) throw new Error("Unauthorized");
-  const mentions = await unreadByKinds(ctx, userId, PERSONAL_NOTIFICATION_KINDS);
+  const mentions = await unreadByKinds(ctx, userId, COMMUNITY_NOTIFICATION_KINDS);
   const now = Date.now();
   for (const notification of mentions) {
     await ctx.db.patch(notification._id, { readAt: now });
@@ -157,12 +170,17 @@ async function markAllMentionsAsReadImpl(ctx: any) {
 
 export const markMentionsAsRead = mutation({
   args: {},
-  handler: (ctx) => markAllMentionsAsReadImpl(ctx),
+  handler: (ctx) => markAllCommunityNotificationsAsReadImpl(ctx),
 });
 
 export const markAllMentionsAsRead = mutation({
   args: {},
-  handler: (ctx) => markAllMentionsAsReadImpl(ctx),
+  handler: (ctx) => markAllCommunityNotificationsAsReadImpl(ctx),
+});
+
+export const markAllCommunityNotificationsAsRead = mutation({
+  args: {},
+  handler: (ctx) => markAllCommunityNotificationsAsReadImpl(ctx),
 });
 
 export const markNotificationAsRead = mutation({

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation } from "convex/react";
-import { GraduationCap, MessageCircle, Star, ThumbsUp, Trash2 } from "lucide-react";
+import { ArrowDown, GraduationCap, MessageCircle, Star, ThumbsUp, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { useState } from "react";
@@ -23,8 +23,10 @@ export function CommunityThreadActions({
   featuredTrackId,
   featuredCourseId,
   reactionsCount,
+  voteScore,
   commentsCount,
   userReaction,
+  userVote,
   viewerRole,
 }: {
   locale: Locale;
@@ -35,12 +37,15 @@ export function CommunityThreadActions({
   featuredTrackId?: string;
   featuredCourseId?: string;
   reactionsCount: number;
+  voteScore?: number;
   commentsCount: number;
   userReaction?: string;
+  userVote?: "upvote" | "downvote";
   viewerRole?: CommunityRole;
 }) {
   const router = useRouter();
   const reactPost = useMutation(api.community.react);
+  const votePost = useMutation(api.community.vote);
   const setPinnedScope = useMutation(api.community.setPinnedScope);
   const deletePost = useMutation(api.community.deletePost);
   const [busy, setBusy] = useState<string | null>(null);
@@ -48,7 +53,7 @@ export function CommunityThreadActions({
   const [error, setError] = useState<string | null>(null);
   const canPin = viewerRole === "admin";
   const canDelete = viewerRole === "admin" || viewerRole === "moderator";
-  const isLiked = userReaction === "like";
+  const isLiked = userVote === "upvote" || userReaction === "like";
 
   async function run(action: string, task: () => Promise<void>) {
     setBusy(action);
@@ -102,6 +107,13 @@ export function CommunityThreadActions({
               });
             })
           }
+        />
+        <ActionButton
+          icon={<ArrowDown className="size-4" />}
+          label={`${locale === "sr" ? "Downvote" : "Downvote"} (${voteScore ?? 0})`}
+          active={userVote === "downvote"}
+          disabled={busy !== null}
+          onClick={() => run("downvote", async () => { await votePost({ targetType: "post", targetId: postId, vote: "downvote" }); })}
         />
         <a
           href="#comments"

@@ -25,6 +25,23 @@ import {
 import { syncLeaderboardSourceEvent } from "./leaderboardCore";
 import { getCommunityNotificationCountsHelper } from "./notifications";
 
+export type CommunityVote = "upvote" | "downvote";
+
+export function voteValue(reaction: string | undefined) {
+  return reaction === "downvote" ? -1 : reaction === "upvote" || reaction === "like" || reaction === "celebrate" ? 1 : 0;
+}
+
+export function hotScoreFor(voteScore: number, createdAt: number) {
+  const sign = voteScore === 0 ? 0 : voteScore > 0 ? 1 : -1;
+  return sign * Math.log10(Math.max(Math.abs(voteScore), 1)) + createdAt / 45_000_000;
+}
+
+function voteCounts(rows: Array<{ reaction: string }>) {
+  const upvoteCount = rows.filter((row) => voteValue(row.reaction) > 0).length;
+  const downvoteCount = rows.filter((row) => voteValue(row.reaction) < 0).length;
+  return { upvoteCount, downvoteCount, voteScore: upvoteCount - downvoteCount };
+}
+
 type AuthorRank = {
   level: number;
   label: string;
@@ -77,13 +94,11 @@ const profileAvatarUrl = async (ctx: QueryCtx, profile: Doc<"profiles"> | null) 
 };
 
 async function publicCommunityIdentity(ctx: QueryCtx, userId: Id<"users">) {
-  const [profile, user] = await Promise.all([
-    ctx.db
-      .query("profiles")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .unique(),
+  const [profileRows, user] = await Promise.all([
+    ctx.db.query("profiles").withIndex("by_userId", (q) => q.eq("userId", userId)).take(100),
     ctx.db.get(userId),
   ]);
+  const profile = [...profileRows].sort((a, b) => a._creationTime - b._creationTime)[0] ?? null;
   const email = String(profile?.email ?? user?.email ?? "").trim().toLowerCase();
   const fallbackName = String(user?.name ?? email.split("@")[0] ?? "Član zajednice").trim() || "Član zajednice";
   return {
@@ -112,10 +127,11 @@ async function notifyMentions(
   const excerpt = text.trim().slice(0, 240);
 
   for (const username of usernames) {
-    const profile = await ctx.db
+    const profiles = await ctx.db
       .query("profiles")
       .withIndex("by_username", (q) => q.eq("username", username))
-      .unique();
+      .take(100);
+    const profile = profiles[0] ?? null;
     if (profile && profile.userId !== authorId) {
       const eventKey = `mention:${postId}:${commentId ?? "post"}:${authorId}`;
       const existing = await ctx.db
@@ -162,16 +178,17 @@ const postsWithDetails = async (
               .withIndex("by_post", (q) => q.eq("postId", post._id))
               .take(501)
           : [];
-      const legacyReactions =
-        post.reactionCount === undefined
+      const reactionRows =
+        post.upvoteCount === undefined || post.downvoteCount === undefined
           ? await ctx.db
               .query("reactions")
               .withIndex("by_target", (q) =>
                 q.eq("targetType", "post").eq("targetId", String(post._id)),
               )
-              .take(501)
+              .take(1000)
           : [];
-      const userReaction = userId
+      const derivedCounts = reactionRows.length ? voteCounts(reactionRows) : null;
+      const userVote = userId
         ? (
             await ctx.db
               .query("reactions")
@@ -202,8 +219,12 @@ const postsWithDetails = async (
         courseTitleSr: course?.titleSr,
         courseTitleEn: course?.titleEn,
         commentsCount: post.commentCount ?? legacyComments.length,
-        reactionsCount: post.reactionCount ?? legacyReactions.length,
-        userReaction,
+        reactionsCount: post.reactionCount ?? ((post.upvoteCount ?? derivedCounts?.upvoteCount ?? 0) + (post.downvoteCount ?? derivedCounts?.downvoteCount ?? 0)),
+        upvoteCount: post.upvoteCount ?? derivedCounts?.upvoteCount ?? 0,
+        downvoteCount: post.downvoteCount ?? derivedCounts?.downvoteCount ?? 0,
+        voteScore: post.voteScore ?? derivedCounts?.voteScore ?? 0,
+        userVote: userVote === "upvote" || userVote === "downvote" ? userVote : undefined,
+        userReaction: userVote,
         isFeaturedGlobal: Boolean(post.isFeaturedGlobal),
         isFavorited: Boolean(userFavorite),
         imageUrl,
@@ -447,6 +468,10 @@ export const createPost = mutation({
       workflowGroup: workflowGroupForStatus(initialStatus),
       commentCount: 0,
       reactionCount: 0,
+      upvoteCount: 0,
+      downvoteCount: 0,
+      voteScore: 0,
+      hotScore: hotScoreFor(0, now),
       helpfulAnswerCount: 0,
       lastActivityAt: now,
       imageStorageId: args.imageStorageId,
@@ -739,15 +764,16 @@ async function commentsWithDetails(
         avatarUrl: author.avatarUrl,
       } as Doc<"profiles">);
       const authorRole = author.role;
-      const fallbackReactions =
-        comment.reactionCount === undefined
+      const reactionRows =
+        comment.upvoteCount === undefined || comment.downvoteCount === undefined
           ? await ctx.db
               .query("reactions")
               .withIndex("by_target", (q) =>
                 q.eq("targetType", "comment").eq("targetId", String(comment._id)),
               )
-              .take(501)
+              .take(1000)
           : [];
+      const derivedCounts = reactionRows.length ? voteCounts(reactionRows) : null;
       const userReaction = (
         await ctx.db
           .query("reactions")
@@ -768,7 +794,11 @@ async function commentsWithDetails(
         authorRole,
         authorAvatarUrl: await profileAvatarUrl(ctx, authorProfile),
         authorRank: await studentRankFor(ctx, comment.authorId, authorRole),
-        reactionsCount: comment.reactionCount ?? fallbackReactions.length,
+        reactionsCount: comment.reactionCount ?? ((comment.upvoteCount ?? derivedCounts?.upvoteCount ?? 0) + (comment.downvoteCount ?? derivedCounts?.downvoteCount ?? 0)),
+        upvoteCount: comment.upvoteCount ?? derivedCounts?.upvoteCount ?? 0,
+        downvoteCount: comment.downvoteCount ?? derivedCounts?.downvoteCount ?? 0,
+        voteScore: comment.voteScore ?? derivedCounts?.voteScore ?? 0,
+        userVote: userReaction === "upvote" || userReaction === "downvote" ? userReaction : undefined,
         userReaction,
       };
     }),
@@ -849,6 +879,9 @@ export const addComment = mutation({
       parentId: args.parentId,
       body,
       reactionCount: 0,
+      upvoteCount: 0,
+      downvoteCount: 0,
+      voteScore: 0,
       isHelpful: false,
       createdAt: now,
     });
@@ -875,134 +908,159 @@ export const addComment = mutation({
       });
     }
 
+    if (args.parentId) {
+      const parent = await ctx.db.get(args.parentId);
+      if (parent && parent.authorId !== userId && parent.authorId !== post.authorId) {
+        const replyIdentity = await publicCommunityIdentity(ctx, userId);
+        const replyName = replyIdentity.username ? `@${replyIdentity.username}` : replyIdentity.name;
+        await ctx.db.insert("notifications", {
+          userId: parent.authorId,
+          title: "Novi odgovor",
+          body: `${replyName} je odgovorio/la na tvoj komentar.`,
+          kind: "comment_reply",
+          postId: args.postId,
+          commentId,
+          senderId: userId,
+          excerpt: body.slice(0, 240),
+          eventKey: `comment_reply:${args.parentId}:${commentId}`,
+          createdAt: now,
+        });
+      }
+    }
+
     await notifyMentions(ctx, body, args.postId, commentId);
 
     return commentId;
   },
 });
 
+type VoteArgs = {
+  targetType: "post" | "comment";
+  targetId: string;
+  vote: CommunityVote;
+};
+
+async function handleVote(ctx: MutationCtx, args: VoteArgs) {
+  const userId = await requireUserId(ctx);
+  await requireCompleteCommunityProfile(ctx);
+  let post: Doc<"communityPosts">;
+  let comment: Doc<"comments"> | null = null;
+  let targetId: string;
+
+  if (args.targetType === "post") {
+    const normalizedId = ctx.db.normalizeId("communityPosts", args.targetId);
+    if (!normalizedId) throw new Error("Diskusija nije pronađena.");
+    const targetPost = await ctx.db.get(normalizedId);
+    if (!targetPost || effectivePostStatus(targetPost) !== "published") throw new Error("Diskusija nije pronađena.");
+    post = targetPost;
+    targetId = String(normalizedId);
+  } else {
+    const normalizedId = ctx.db.normalizeId("comments", args.targetId);
+    if (!normalizedId) throw new Error("Komentar nije pronađen.");
+    comment = await ctx.db.get(normalizedId);
+    if (!comment) throw new Error("Komentar nije pronađen.");
+    const targetPost = await ctx.db.get(comment.postId);
+    if (!targetPost || effectivePostStatus(targetPost) !== "published") throw new Error("Diskusija nije pronađena.");
+    post = targetPost;
+    targetId = String(normalizedId);
+  }
+  if (post.courseId) await requireCourseAccess(ctx, post.courseId);
+
+  const existing = await ctx.db.query("reactions").withIndex("by_user_target", (q) =>
+    q.eq("userId", userId).eq("targetType", args.targetType).eq("targetId", targetId),
+  ).unique();
+  const currentVote = existing ? (voteValue(existing.reaction) > 0 ? "upvote" : voteValue(existing.reaction) < 0 ? "downvote" : undefined) : undefined;
+  const nextVote = currentVote === args.vote ? undefined : args.vote;
+  if (existing) {
+    if (nextVote) await ctx.db.patch(existing._id, { reaction: nextVote, createdAt: Date.now() });
+    else await ctx.db.delete(existing._id);
+  } else if (nextVote) {
+    await ctx.db.insert("reactions", { targetType: args.targetType, targetId, reaction: nextVote, userId, createdAt: Date.now() });
+  }
+
+  const rows = await ctx.db.query("reactions").withIndex("by_target", (q) =>
+    q.eq("targetType", args.targetType).eq("targetId", targetId),
+  ).take(1000);
+  const counts = voteCounts(rows);
+  const now = Date.now();
+  if (args.targetType === "post") {
+    await ctx.db.patch(post._id, {
+      upvoteCount: counts.upvoteCount,
+      downvoteCount: counts.downvoteCount,
+      voteScore: counts.voteScore,
+      hotScore: hotScoreFor(counts.voteScore, post.createdAt),
+      reactionCount: counts.upvoteCount + counts.downvoteCount,
+      updatedAt: now,
+    });
+  } else if (comment) {
+    await ctx.db.patch(comment._id, {
+      upvoteCount: counts.upvoteCount,
+      downvoteCount: counts.downvoteCount,
+      voteScore: counts.voteScore,
+      reactionCount: counts.upvoteCount + counts.downvoteCount,
+    });
+  }
+
+  const recipientId = args.targetType === "post" ? post.authorId : comment!.authorId;
+  const eventKey = `vote:${args.targetType}:${targetId}:${userId}`;
+  const existingNotification = await ctx.db.query("notifications").withIndex("by_userId_and_eventKey", (q) =>
+    q.eq("userId", recipientId).eq("eventKey", eventKey),
+  ).unique();
+  if (recipientId !== userId) {
+    if (!nextVote) {
+      if (existingNotification) await ctx.db.delete(existingNotification._id);
+    } else {
+      const identity = await publicCommunityIdentity(ctx, userId);
+      const senderName = identity.username ? `@${identity.username}` : identity.name;
+      const isPost = args.targetType === "post";
+      const noun = isPost ? "diskusiju" : "komentar";
+      const voteLabel = nextVote === "upvote" ? "upvoteovao/la" : "downvoteovao/la";
+      const notification = {
+        userId: recipientId,
+        title: nextVote === "upvote" ? "Novi upvote" : "Novi downvote",
+        body: `${senderName} je ${voteLabel} tvoju ${noun}.`,
+        kind: `${nextVote}_${args.targetType}`,
+        postId: post._id,
+        ...(comment ? { commentId: comment._id } : {}),
+        senderId: userId,
+        eventKey,
+        createdAt: now,
+        readAt: undefined,
+      };
+      if (existingNotification) await ctx.db.patch(existingNotification._id, notification);
+      else await ctx.db.insert("notifications", notification);
+    }
+  }
+
+  return {
+    targetType: args.targetType,
+    targetId,
+    userVote: nextVote ?? null,
+    ...counts,
+  };
+}
+
+export const vote = mutation({
+  args: {
+    targetType: v.union(v.literal("post"), v.literal("comment")),
+    targetId: v.string(),
+    vote: v.union(v.literal("upvote"), v.literal("downvote")),
+  },
+  handler: handleVote,
+});
+
+/** Compatibility endpoint for older clients while the generated bindings roll forward. */
 export const react = mutation({
   args: {
     targetType: v.union(v.literal("post"), v.literal("comment")),
     targetId: v.string(),
-    reaction: v.union(v.literal("like"), v.literal("celebrate")),
+    reaction: v.union(v.literal("like"), v.literal("celebrate"), v.literal("upvote"), v.literal("downvote")),
   },
-  handler: async (ctx, args) => {
-    const userId = await requireUserId(ctx);
-    await requireCompleteCommunityProfile(ctx);
-    let post: Doc<"communityPosts">;
-    let comment: Doc<"comments"> | null = null;
-    let targetId: string;
-
-    if (args.targetType === "post") {
-      const normalizedId = ctx.db.normalizeId("communityPosts", args.targetId);
-      if (!normalizedId) throw new Error("Diskusija nije pronađena.");
-      const targetPost = await ctx.db.get(normalizedId);
-      if (!targetPost || effectivePostStatus(targetPost) !== "published") {
-        throw new Error("Diskusija nije pronađena.");
-      }
-      post = targetPost;
-      targetId = String(normalizedId);
-    } else {
-      const normalizedId = ctx.db.normalizeId("comments", args.targetId);
-      if (!normalizedId) throw new Error("Komentar nije pronađen.");
-      comment = await ctx.db.get(normalizedId);
-      if (!comment) throw new Error("Komentar nije pronađen.");
-      const targetPost = await ctx.db.get(comment.postId);
-      if (!targetPost || effectivePostStatus(targetPost) !== "published") {
-        throw new Error("Diskusija nije pronađena.");
-      }
-      post = targetPost;
-      targetId = String(normalizedId);
-    }
-    if (post.courseId) await requireCourseAccess(ctx, post.courseId);
-
-    const existing = await ctx.db
-      .query("reactions")
-      .withIndex("by_user_target", (q) =>
-        q.eq("userId", userId).eq("targetType", args.targetType).eq("targetId", targetId),
-      )
-      .unique();
-
-    if (existing) {
-      if (existing.reaction === args.reaction) {
-        await ctx.db.delete(existing._id);
-        if (args.targetType === "post" && post.reactionCount !== undefined) {
-          await ctx.db.patch(post._id, { reactionCount: Math.max(0, post.reactionCount - 1) });
-        } else if (comment?.reactionCount !== undefined) {
-          await ctx.db.patch(comment._id, { reactionCount: Math.max(0, comment.reactionCount - 1) });
-        }
-        return null;
-      }
-      await ctx.db.patch(existing._id, { reaction: args.reaction, createdAt: Date.now() });
-      return existing._id;
-    }
-
-    const reactionId = await ctx.db.insert("reactions", {
-      targetType: args.targetType,
-      targetId,
-      reaction: args.reaction,
-      userId,
-      createdAt: Date.now(),
-    });
-
-    if (args.targetType === "post" && post.reactionCount !== undefined) {
-      await ctx.db.patch(post._id, { reactionCount: post.reactionCount + 1 });
-    } else if (comment?.reactionCount !== undefined) {
-      await ctx.db.patch(comment._id, { reactionCount: comment.reactionCount + 1 });
-    }
-
-    if (args.targetType === "post") {
-      if (post.authorId !== userId) {
-        const likerIdentity = await publicCommunityIdentity(ctx, userId);
-        const likerName = likerIdentity.username ? `@${likerIdentity.username}` : likerIdentity.name;
-        const eventKey = `reaction:post:${post._id}:${userId}`;
-        const notification = await ctx.db
-          .query("notifications")
-          .withIndex("by_userId_and_eventKey", (q) =>
-            q.eq("userId", post.authorId).eq("eventKey", eventKey),
-          )
-          .unique();
-        if (!notification) {
-          await ctx.db.insert("notifications", {
-            userId: post.authorId,
-            title: "Nova reakcija",
-            body: `${likerName} je reagovao na tvoju diskusiju „${post.title}”.`,
-            kind: "like_post",
-            postId: post._id,
-            senderId: userId,
-            eventKey,
-            createdAt: Date.now(),
-          });
-        }
-      }
-    } else if (comment && comment.authorId !== userId) {
-        const likerIdentity = await publicCommunityIdentity(ctx, userId);
-        const likerName = likerIdentity.username ? `@${likerIdentity.username}` : likerIdentity.name;
-        const eventKey = `reaction:comment:${comment._id}:${userId}`;
-        const notification = await ctx.db
-          .query("notifications")
-          .withIndex("by_userId_and_eventKey", (q) =>
-            q.eq("userId", comment!.authorId).eq("eventKey", eventKey),
-          )
-          .unique();
-        if (!notification) {
-          await ctx.db.insert("notifications", {
-            userId: comment.authorId,
-            title: "Nova reakcija na komentar",
-            body: `${likerName} je reagovao na tvoj komentar.`,
-            kind: "like_comment",
-            postId: comment.postId,
-            commentId: comment._id,
-            senderId: userId,
-            eventKey,
-            createdAt: Date.now(),
-          });
-        }
-      }
-
-    return reactionId;
-  },
+  handler: (ctx, args) => handleVote(ctx, {
+    targetType: args.targetType,
+    targetId: args.targetId,
+    vote: args.reaction === "downvote" ? "downvote" : "upvote",
+  }),
 });
 
 export const setCommentHelpful = mutation({
@@ -1106,10 +1164,11 @@ export const deletePost = mutation({
     const post = await ctx.db.get(args.postId);
     if (!post) throw new Error("Diskusija nije pronadjena");
 
-    const profile = await ctx.db
+    const profileRows = await ctx.db
       .query("profiles")
       .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .unique();
+      .take(100);
+    const profile = [...profileRows].sort((a, b) => a._creationTime - b._creationTime)[0] ?? null;
     const isAdminOrMod = profile?.role === "admin" || profile?.role === "moderator";
 
     if (post.authorId !== userId && !isAdminOrMod) {
@@ -1437,6 +1496,8 @@ export const listPendingPosts = query({
 });
 
 const communityPostSortValidator = v.union(
+  v.literal("hot"),
+  v.literal("top"),
   v.literal("latest"),
   v.literal("active"),
   v.literal("unanswered"),
@@ -1503,6 +1564,7 @@ export const getCommunityFilters = query({
       })),
       courses: courseRows,
       counts: {
+        community: notificationCounts.community,
         mentions: notificationCounts.mentions,
         myThreads: notificationCounts.myThreads,
         pendingApprovals: notificationCounts.pendingApprovals,
@@ -1548,7 +1610,19 @@ export const listPostsPage = query({
                 q.search("searchText", search).eq("status", "published").eq("scopeKey", scope.scopeKey),
               )
               .paginate(paginationOpts)
-      : args.sort === "latest"
+      : args.sort === "hot"
+        ? scope.kind === "global"
+          ? await ctx.db.query("communityPosts").withIndex("by_status_and_hotScore", (q) => q.eq("status", "published")).order("desc").paginate(paginationOpts)
+          : scope.kind === "track"
+            ? await ctx.db.query("communityPosts").withIndex("by_trackId_and_status_and_hotScore", (q) => q.eq("trackId", scope.trackId).eq("status", "published")).order("desc").paginate(paginationOpts)
+            : await ctx.db.query("communityPosts").withIndex("by_scopeKey_and_status_and_hotScore", (q) => q.eq("scopeKey", scope.scopeKey).eq("status", "published")).order("desc").paginate(paginationOpts)
+        : args.sort === "top"
+          ? scope.kind === "global"
+            ? await ctx.db.query("communityPosts").withIndex("by_status_and_voteScore", (q) => q.eq("status", "published")).order("desc").paginate(paginationOpts)
+            : scope.kind === "track"
+              ? await ctx.db.query("communityPosts").withIndex("by_trackId_and_status_and_voteScore", (q) => q.eq("trackId", scope.trackId).eq("status", "published")).order("desc").paginate(paginationOpts)
+              : await ctx.db.query("communityPosts").withIndex("by_scopeKey_and_status_and_voteScore", (q) => q.eq("scopeKey", scope.scopeKey).eq("status", "published")).order("desc").paginate(paginationOpts)
+        : args.sort === "latest"
         ? scope.kind === "global"
           ? await ctx.db
               .query("communityPosts")
@@ -1635,6 +1709,11 @@ export const listPostsPage = query({
         matchingLegacy.push(post);
         if (matchingLegacy.length >= paginationOpts.numItems) break;
       }
+      matchingLegacy.sort((a, b) =>
+        args.sort === "top"
+          ? (b.voteScore ?? 0) - (a.voteScore ?? 0) || b.createdAt - a.createdAt
+          : (b.hotScore ?? hotScoreFor(b.voteScore ?? 0, b.createdAt)) - (a.hotScore ?? hotScoreFor(a.voteScore ?? 0, a.createdAt)),
+      );
       page = matchingLegacy;
     }
 
@@ -1724,13 +1803,25 @@ export const listMentionEvents = query({
   args: {
     paginationOpts: paginationOptsValidator,
     unreadOnly: v.optional(v.boolean()),
+    category: v.optional(v.union(v.literal("all"), v.literal("votes"), v.literal("comments"), v.literal("tags"), v.literal("system"))),
   },
   handler: async (ctx, args) => {
     const { userId } = await getCurrentProfile(ctx);
     const paginationOpts = boundedPaginationOpts(args.paginationOpts);
     const rawOffset = args.paginationOpts.cursor ? Number(args.paginationOpts.cursor) : 0;
     const offset = Number.isFinite(rawOffset) && rawOffset >= 0 ? Math.floor(rawOffset) : 0;
-    const personalKinds = new Set(["mention", "like_comment", "helpful_comment"]);
+    const communityKinds = new Set([
+      "mention", "upvote_post", "downvote_post", "upvote_comment", "downvote_comment",
+      "like_post", "like_comment", "comment_post", "comment_reply", "helpful_comment",
+      "post_approved", "post_changes_requested",
+    ]);
+    const categoryMatches = (kind: string) => {
+      if (!args.category || args.category === "all") return true;
+      if (args.category === "votes") return kind.includes("vote") || kind.startsWith("like_");
+      if (args.category === "comments") return kind === "comment_post" || kind === "comment_reply";
+      if (args.category === "tags") return kind === "mention";
+      return kind === "helpful_comment" || kind === "post_approved" || kind === "post_changes_requested";
+    };
     const allNotifications = await ctx.db
       .query("notifications")
       .withIndex("by_user", (q) => q.eq("userId", userId))
@@ -1738,7 +1829,7 @@ export const listMentionEvents = query({
       .take(1000);
     const matchingNotifications = allNotifications.filter(
       (notification) =>
-        personalKinds.has(String(notification.kind)) && (!args.unreadOnly || !notification.readAt),
+        communityKinds.has(String(notification.kind)) && categoryMatches(String(notification.kind)) && (!args.unreadOnly || !notification.readAt),
     );
     const pageNotifications = matchingNotifications.slice(offset, offset + paginationOpts.numItems);
     const nextOffset = offset + pageNotifications.length;
@@ -1846,10 +1937,11 @@ export const listMembersPage = query({
         .paginate(paginationOpts);
       const members = await Promise.all(
         stats.page.map(async (stat) => {
-          const profile = await ctx.db
+          const profileRows = await ctx.db
             .query("profiles")
             .withIndex("by_userId", (q) => q.eq("userId", stat.userId))
-            .unique();
+            .take(100);
+          const profile = [...profileRows].sort((a, b) => a._creationTime - b._creationTime)[0] ?? null;
           if (!profile || (args.role && profile.role !== args.role)) return null;
           const searchable = `${profile.name} ${profile.username ?? ""}`.toLocaleLowerCase();
           if (search && !searchable.includes(search)) return null;

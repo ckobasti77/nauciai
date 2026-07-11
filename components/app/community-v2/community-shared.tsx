@@ -8,7 +8,6 @@ import {
   Clock3,
   Compass,
   GraduationCap,
-  Heart,
   Loader2,
   MessageCircle,
   Search,
@@ -290,10 +289,10 @@ export function ThreadCard({
                 {post.commentsCount ?? 0}
                 <span className="sr-only">{locale === "sr" ? "odgovora" : "replies"}</span>
               </span>
-              <span className="inline-flex items-center gap-1.5">
-                <Heart className="size-3.5" aria-hidden="true" />
-                {post.reactionsCount ?? 0}
-                <span className="sr-only">{locale === "sr" ? "reakcija" : "reactions"}</span>
+              <span className={cn("inline-flex items-center gap-1.5", (post.voteScore ?? 0) < 0 && "text-red-700")}>
+                <span aria-hidden="true">↕</span>
+                {post.voteScore ?? 0}
+                <span className="sr-only">{locale === "sr" ? "neto glasova" : "net votes"}</span>
               </span>
               {post.isFeaturedGlobal || post.isPinned ? (
                 <span className="inline-flex items-center gap-1 rounded-full bg-yellow/25 px-2 py-1 text-ink">

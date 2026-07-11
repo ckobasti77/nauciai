@@ -419,7 +419,12 @@ export default defineSchema({
     status: v.optional(communityPostStatus),
     workflowGroup: v.optional(v.union(v.literal("drafts"), v.literal("pending"), v.literal("published"))),
     commentCount: v.optional(v.number()),
+    /** Legacy aggregate retained during the vote migration. */
     reactionCount: v.optional(v.number()),
+    upvoteCount: v.optional(v.number()),
+    downvoteCount: v.optional(v.number()),
+    voteScore: v.optional(v.number()),
+    hotScore: v.optional(v.number()),
     helpfulAnswerCount: v.optional(v.number()),
     lastActivityAt: v.optional(v.number()),
     moderationReason: v.optional(v.string()),
@@ -437,9 +442,13 @@ export default defineSchema({
     .index("by_featured_track", ["featuredTrackId", "createdAt"])
     .index("by_featured_course", ["featuredCourseId", "createdAt"])
     .index("by_status_and_createdAt", ["status", "createdAt"])
+    .index("by_status_and_hotScore", ["status", "hotScore"])
+    .index("by_status_and_voteScore", ["status", "voteScore"])
     .index("by_status_and_lastActivityAt", ["status", "lastActivityAt"])
     .index("by_status_and_commentCount_and_lastActivityAt", ["status", "commentCount", "lastActivityAt"])
     .index("by_trackId_and_status_and_createdAt", ["trackId", "status", "createdAt"])
+    .index("by_trackId_and_status_and_hotScore", ["trackId", "status", "hotScore"])
+    .index("by_trackId_and_status_and_voteScore", ["trackId", "status", "voteScore"])
     .index("by_trackId_and_status_and_lastActivityAt", ["trackId", "status", "lastActivityAt"])
     .index("by_trackId_and_status_and_commentCount_and_lastActivityAt", [
       "trackId",
@@ -448,6 +457,8 @@ export default defineSchema({
       "lastActivityAt",
     ])
     .index("by_scopeKey_and_status_and_createdAt", ["scopeKey", "status", "createdAt"])
+    .index("by_scopeKey_and_status_and_hotScore", ["scopeKey", "status", "hotScore"])
+    .index("by_scopeKey_and_status_and_voteScore", ["scopeKey", "status", "voteScore"])
     .index("by_scopeKey_and_status_and_lastActivityAt", ["scopeKey", "status", "lastActivityAt"])
     .index("by_scopeKey_and_status_and_commentCount_and_lastActivityAt", [
       "scopeKey",
@@ -469,6 +480,9 @@ export default defineSchema({
     parentId: v.optional(v.id("comments")),
     body: v.string(),
     reactionCount: v.optional(v.number()),
+    upvoteCount: v.optional(v.number()),
+    downvoteCount: v.optional(v.number()),
+    voteScore: v.optional(v.number()),
     isHelpful: v.optional(v.boolean()),
     helpfulMarkedBy: v.optional(v.id("users")),
     helpfulMarkedAt: v.optional(v.number()),
@@ -482,7 +496,13 @@ export default defineSchema({
     targetType: v.union(v.literal("post"), v.literal("comment")),
     targetId: v.string(),
     userId: v.id("users"),
-    reaction: v.union(v.literal("like"), v.literal("celebrate")),
+    // `like` and `celebrate` remain readable until the migration has completed.
+    reaction: v.union(
+      v.literal("like"),
+      v.literal("celebrate"),
+      v.literal("upvote"),
+      v.literal("downvote"),
+    ),
     createdAt: v.number(),
   })
     .index("by_target", ["targetType", "targetId"])

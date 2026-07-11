@@ -743,7 +743,7 @@ function ThreadActionsMenu({
 }) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
-  const isLiked = post.userReaction === "like";
+  const isLiked = post.userReaction === "like" || post.userReaction === "upvote";
 
   useEffect(() => {
     if (!open) return;

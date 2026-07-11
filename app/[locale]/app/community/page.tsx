@@ -5,7 +5,7 @@ import { normalizeLocale, withLocale } from "@/lib/i18n";
 const LEGACY_TABS: Record<string, string> = {
   discussions: "discussions",
   "my-threads": "my-threads",
-  mentions: "mentions",
+  mentions: "notifications",
   members: "members",
   leaderboard: "leaderboard",
   approvals: "moderation",

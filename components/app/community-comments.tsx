@@ -7,7 +7,8 @@ import {
   Loader2,
   MessageCircleReply,
   Send,
-  ThumbsUp,
+  ArrowDown,
+  ArrowUp,
   Trash2,
 } from "lucide-react";
 import type { FormEvent } from "react";
@@ -35,6 +36,10 @@ export type FlatComment = {
   authorAvatarUrl?: string | null;
   authorRank?: CommunityRank;
   reactionsCount: number;
+  upvoteCount?: number;
+  downvoteCount?: number;
+  voteScore?: number;
+  userVote?: "upvote" | "downvote";
   userReaction?: string;
   isHelpful?: boolean;
   helpfulMarkedBy?: string;
@@ -71,7 +76,7 @@ export function CommentsSection({
   const comments = commentsQuery.results as FlatComment[];
   const toast = useToast();
   const addComment = useMutation(api.community.addComment);
-  const reactComment = useMutation(api.community.react);
+  const voteComment = useMutation(api.community.vote);
   const deleteComment = useMutation(api.community.deleteComment);
   const setCommentHelpful = useMutation(api.community.setCommentHelpful);
 
@@ -191,11 +196,11 @@ export function CommentsSection({
               canModerate={canModerate}
               canMarkHelpful={canMarkHelpful}
               viewerUserId={viewerUserId}
-              onReact={async (commentId) => {
-                await reactComment({
+              onReact={async (commentId, vote) => {
+                await voteComment({
                   targetType: "comment",
                   targetId: commentId,
-                  reaction: "like",
+                  vote,
                 });
               }}
               onSetHelpful={async (commentId, helpful) => {
@@ -279,7 +284,7 @@ function CommentItem({
   canModerate: boolean;
   canMarkHelpful: boolean;
   viewerUserId?: string;
-  onReact: (commentId: string) => Promise<void>;
+  onReact: (commentId: string, vote: "upvote" | "downvote") => Promise<void>;
   onSetHelpful: (commentId: string, helpful: boolean) => Promise<void>;
   onDelete: (commentId: string) => void;
   onReply: (commentId: string, text: string) => Promise<void>;
@@ -288,7 +293,6 @@ function CommentItem({
   const [showReplyForm, setShowReplyForm] = useState(false);
   const [replyText, setReplyText] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
-  const isLiked = node.userReaction === "like";
   const canDelete = canModerate || Boolean(viewerUserId && node.authorId === viewerUserId);
   const canToggleHelpful = canMarkHelpful && node.authorId !== viewerUserId;
 
@@ -354,19 +358,11 @@ function CommentItem({
             ) : null}
             <p className="mt-2 whitespace-pre-wrap text-sm font-semibold leading-6 text-ink/80">{node.body}</p>
             <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-black text-ink">
-              <button
-                type="button"
-                onClick={() => run("like", () => onReact(node._id))}
-                disabled={!isAuthenticated || busy !== null}
-                aria-pressed={isLiked}
-                className={cn(
-                  "inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 transition hover:border-ink/40 hover:bg-yellow/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50",
-                  isLiked ? "border-ink/40 bg-yellow text-ink" : "border-line bg-paper/70 text-ink/75",
-                )}
-              >
-                {busy === "like" ? <Loader2 className="size-3.5 animate-spin" /> : <ThumbsUp className={cn("size-3.5", isLiked && "fill-ink")} />}
-                <span>{node.reactionsCount}</span>
-              </button>
+              <div className="inline-flex items-center gap-0.5 rounded-full border border-line bg-white p-0.5">
+                <button type="button" onClick={() => run("upvote", () => onReact(node._id, "upvote"))} disabled={!isAuthenticated || busy !== null} aria-pressed={node.userVote === "upvote"} className={cn("grid size-8 place-items-center rounded-full transition", node.userVote === "upvote" ? "bg-yellow text-ink" : "text-muted hover:bg-yellow/20 hover:text-ink")}><ArrowUp className="size-3.5" /></button>
+                <span className={cn("min-w-7 text-center text-xs font-black", (node.voteScore ?? 0) < 0 && "text-red-700")}>{node.voteScore ?? 0}</span>
+                <button type="button" onClick={() => run("downvote", () => onReact(node._id, "downvote"))} disabled={!isAuthenticated || busy !== null} aria-pressed={node.userVote === "downvote"} className={cn("grid size-8 place-items-center rounded-full transition", node.userVote === "downvote" ? "bg-red-100 text-red-700" : "text-muted hover:bg-red-50 hover:text-red-700")}><ArrowDown className="size-3.5" /></button>
+              </div>
               {isAuthenticated ? (
                 <button
                   type="button"
@@ -490,11 +486,11 @@ function buildCommentTree(flatComments: FlatComment[]): CommentNode[] {
   });
 
   const sortReplies = (node: CommentNode) => {
-    node.replies.sort((a, b) => a.createdAt - b.createdAt);
+    node.replies.sort((a, b) => (b.voteScore ?? 0) - (a.voteScore ?? 0) || a.createdAt - b.createdAt);
     node.replies.forEach(sortReplies);
   };
 
-  root.sort((a, b) => b.createdAt - a.createdAt);
+  root.sort((a, b) => (b.voteScore ?? 0) - (a.voteScore ?? 0) || a.createdAt - b.createdAt);
   root.forEach(sortReplies);
 
   return root;

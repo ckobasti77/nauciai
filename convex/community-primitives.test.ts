@@ -7,6 +7,7 @@ import {
   belgradeWeekKey,
   isLeaderboardEligibleRole,
 } from "./leaderboardCore";
+import { hotScoreFor, voteValue } from "./community";
 
 describe("community identity primitives", () => {
   it("normalizes usernames and enforces the public format", () => {
@@ -35,5 +36,22 @@ describe("leaderboard primitives", () => {
     expect(belgradeWeekKey(monday)).toBe("2026-07-06");
     expect(belgradeWeekKey(sunday)).toBe("2026-07-06");
     expect(belgradeDayKey(monday)).toBe("2026-07-06");
+  });
+});
+
+describe("community voting primitives", () => {
+  it("maps legacy positive reactions and calculates signed votes", () => {
+    expect(voteValue("like")).toBe(1);
+    expect(voteValue("celebrate")).toBe(1);
+    expect(voteValue("upvote")).toBe(1);
+    expect(voteValue("downvote")).toBe(-1);
+    expect(voteValue(undefined)).toBe(0);
+  });
+
+  it("gives newer content a time-aware hot score while Top stays score-driven", () => {
+    const old = hotScoreFor(10, 1_700_000_000_000);
+    const newer = hotScoreFor(3, 1_700_100_000_000);
+    expect(newer).toBeGreaterThan(old);
+    expect(hotScoreFor(-3, 1_700_100_000_000)).toBeLessThan(newer);
   });
 });

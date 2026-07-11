@@ -306,8 +306,10 @@ export function LiveCommunityThreadPage({
                 featuredTrackId={post.featuredTrackId}
                 featuredCourseId={post.featuredCourseId}
                 reactionsCount={post.reactionsCount}
+                voteScore={post.voteScore}
                 commentsCount={post.commentsCount}
                 userReaction={post.userReaction}
+                userVote={post.userVote}
                 viewerRole={post.viewerRole}
               />
             </div>

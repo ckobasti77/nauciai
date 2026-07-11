@@ -21,7 +21,7 @@ type PostsArgs = {
   paginationOpts: PaginationOptions;
   scope: CommunityScope;
   search?: string;
-  sort: "latest" | "active" | "unanswered";
+  sort: "hot" | "top" | "latest" | "active" | "unanswered";
 };
 
 type MyPostsArgs = {
@@ -32,6 +32,7 @@ type MyPostsArgs = {
 type MentionArgs = {
   paginationOpts: PaginationOptions;
   unreadOnly?: boolean;
+  category?: "all" | "votes" | "comments" | "tags" | "system";
 };
 
 type MentionEventRaw = {
@@ -112,6 +113,7 @@ type CommunityApiV2 = {
   notifications: {
     markNotificationAsRead: PublicMutation<{ notificationId: string }, null>;
     markAllMentionsAsRead: PublicMutation<Record<string, never>, null>;
+    markAllCommunityNotificationsAsRead: PublicMutation<Record<string, never>, null>;
   };
   profiles: {
     setProfileRole: PublicMutation<
@@ -159,7 +161,7 @@ export const fallbackCommunityFilters: CommunityFilters = {
     },
   ],
   courses: [],
-  counts: { myThreads: 0, mentions: 0, pendingApprovals: 0, members: 0, profileIncomplete: 0, total: 0 },
+  counts: { community: 0, myThreads: 0, mentions: 0, pendingApprovals: 0, members: 0, profileIncomplete: 0, total: 0 },
 };
 
 export const fallbackCommunityPosts: CommunityPostRow[] = [
@@ -265,25 +267,28 @@ export function useCommunityMyPosts({
 export function useCommunityMentions({
   hasConvex = true,
   unreadOnly,
+  category = "all",
 }: {
   hasConvex?: boolean;
   unreadOnly: boolean;
+  category?: "all" | "votes" | "comments" | "tags" | "system";
 }) {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const enabled = queryEnabled(hasConvex, isAuthenticated, isLoading);
   const query = usePaginatedQuery(
     apiV2.community.listMentionEvents,
-    enabled ? { ...(unreadOnly ? { unreadOnly: true } : {}) } : "skip",
+    enabled ? { ...(unreadOnly ? { unreadOnly: true } : {}), ...(category !== "all" ? { category } : {}) } : "skip",
     { initialNumItems: 20 },
   );
   const markOne = useMutation(apiV2.notifications.markNotificationAsRead);
-  const markAll = useMutation(apiV2.notifications.markAllMentionsAsRead);
+  const markAll = useMutation(apiV2.notifications.markAllCommunityNotificationsAsRead);
 
   const results: CommunityMentionEvent[] = query.results.map((event) => ({
     _id: event.notificationId,
     createdAt: event.createdAt,
     readAt: event.readAt,
     kind: event.kind,
+    category: category === "all" ? undefined : category,
     senderName: event.sender?.name,
     senderUsername: event.sender?.username,
     authorName: event.sender?.name,
