@@ -113,6 +113,10 @@ export function LiveCommunityThreadPage({
 
   async function handleToggleFavorite() {
     if (!isAuthenticated || favoriteBusy) return;
+    if (!viewerProfile?.username) {
+      setFavoriteError(locale === "sr" ? "Podesi username na Profilu da bi sačuvao/la diskusiju." : "Set a username in Profile to save this discussion.");
+      return;
+    }
     setFavoriteBusy(true);
     setFavoriteError(null);
     try {
@@ -279,6 +283,7 @@ export function LiveCommunityThreadPage({
               isAuthenticated={isAuthenticated}
               canModerate={canModerate}
               canMarkHelpful={isAuthor || canModerate}
+              canInteract={Boolean(viewerProfile.username)}
               viewerUserId={viewerProfile.userId}
             />
           </Panel>

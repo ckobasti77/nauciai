@@ -37,16 +37,12 @@ async function unreadByKinds(ctx: any, userId: Id<"users">, kinds: readonly stri
 }
 
 export async function getCommunityNotificationCountsHelper(ctx: any, userId: Id<"users">) {
-  const [profileData, authUser, authAccounts] = await Promise.all([
+  const [profileData, authUser] = await Promise.all([
     ctx.db
       .query("profiles")
       .withIndex("by_userId", (q: any) => q.eq("userId", userId))
       .take(100),
     ctx.db.get(userId),
-    ctx.db
-      .query("authAccounts")
-      .withIndex("userIdAndProvider", (q: any) => q.eq("userId", userId))
-      .take(10),
   ]);
   const profile = [...profileData].sort((a: any, b: any) => Number(a._creationTime ?? 0) - Number(b._creationTime ?? 0))[0];
   const role = effectiveRoleForProfile(String(authUser?.email ?? profile?.email ?? ""), profile?.role);
@@ -67,7 +63,7 @@ export async function getCommunityNotificationCountsHelper(ctx: any, userId: Id<
     unreadByKinds(ctx, userId, PERSONAL_NOTIFICATION_KINDS),
     unreadByKinds(ctx, userId, COMMUNITY_NOTIFICATION_KINDS),
   ]);
-  const profileIncomplete = (profile?.username ?? authUser?.username) && authAccounts.some((account: any) => account.provider === "password") ? 0 : 1;
+  const profileIncomplete = profile?.username ?? authUser?.username ? 0 : 1;
   const myThreadsCount = myThreadNotifications.length;
   const mentionsCount = personalNotifications.length;
   const communityCount = allNotifications.length + pendingApprovals;

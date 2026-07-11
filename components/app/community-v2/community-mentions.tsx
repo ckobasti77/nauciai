@@ -76,15 +76,18 @@ function notificationCopy(kind: string | undefined, locale: Locale) {
   if (kind === "helpful_comment") return locale === "sr" ? "je označio/la odgovor kao koristan" : "marked your reply as helpful";
   if (kind === "post_approved") return locale === "sr" ? "je odobrio/la tvoju objavu" : "approved your thread";
   if (kind === "post_changes_requested") return locale === "sr" ? "traži izmene na tvojoj objavi" : "requested changes to your thread";
+  if (kind === "approval_pending") return locale === "sr" ? "\u010Deka tvoje odobrenje" : "is waiting for your approval";
   if (kind?.includes("downvote")) return locale === "sr" ? "je downvoteovao/la" : "downvoted";
   return locale === "sr" ? "je upvoteovao/la" : "upvoted";
 }
 
-function NotificationCard({ locale, notification, onMarkRead }: { locale: Locale; notification: CommunityMentionEvent; onMarkRead?: (id: string) => Promise<unknown> }) {
+function NotificationCard({ locale, notification, onMarkRead: onMarkReadProp }: { locale: Locale; notification: CommunityMentionEvent; onMarkRead?: (id: string) => Promise<unknown> }) {
   const unread = !notification.readAt;
   const authorName = notification.senderName ?? notification.authorName ?? (locale === "sr" ? "Član zajednice" : "Community member");
   const excerpt = notification.quote ?? notification.excerpt ?? notification.body;
   const kind = notification.kind ?? "";
+  const isPendingApproval = kind === "approval_pending";
+  const onMarkRead = isPendingApproval ? undefined : onMarkReadProp;
   const iconKind = kind === "mention" ? "tag" : kind === "comment_post" || kind === "comment_reply" ? "comment" : kind === "helpful_comment" ? "helpful" : kind.includes("downvote") ? "downvote" : kind.includes("vote") || kind.startsWith("like_") ? "upvote" : "bell";
   return (
     <article className={cn("relative overflow-hidden rounded-[16px] border bg-white p-4 transition hover:border-ink sm:p-5", unread ? "border-ink shadow-[4px_4px_0_rgba(244,190,48,0.65)]" : "border-line")}>

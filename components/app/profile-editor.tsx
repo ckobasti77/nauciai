@@ -6,10 +6,12 @@ import { useAction, useMutation, useQuery } from "convex/react";
 import type { Id } from "@/convex/_generated/dataModel";
 import {
   CheckCircle2,
+  CircleAlert,
   Globe2,
   ImagePlus,
   KeyRound,
   Loader2,
+  MailCheck,
   ShieldCheck,
   UploadCloud,
   UserRound,
@@ -31,6 +33,11 @@ import { Panel, SectionHeader, cn } from "@/components/ui/primitives";
 import { useToast } from "@/components/ui/toast-provider";
 import { api } from "@/convex/_generated/api";
 import type { ViewerProfile } from "@/lib/current-viewer";
+import {
+  isValidUsername,
+  USERNAME_VALIDATION_MESSAGE_EN,
+  USERNAME_VALIDATION_MESSAGE_SR,
+} from "@/lib/username-policy";
 import { type Locale, withLocale } from "@/lib/i18n";
 import { passwordRequirements, passwordValidationErrors } from "@/lib/password-policy";
 import {
@@ -108,6 +115,7 @@ export function ProfileEditor({
   const searchParams = useSearchParams();
   const toast = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const usernameInputRef = useRef<HTMLInputElement>(null);
   const dragDepthRef = useRef(0);
   const { isLoading, isAuthenticated } = useConvexAuth();
   const liveViewer = useQuery(api.courses.viewer, isAuthenticated ? {} : "skip") as ViewerData | undefined;
@@ -116,6 +124,7 @@ export function ProfileEditor({
   const updateViewerProfile = useMutation(api.profiles.updateViewerProfile);
   const setViewerPassword = useAction(api.auth.setViewerPassword);
   const changeViewerPassword = useAction(api.auth.changeViewerPassword);
+  const requestViewerEmailVerification = useAction(api.emailVerification.requestViewerEmailVerification);
   const submitPost = useMutation(api.community.submitPost);
 
   const profile = liveViewer?.profile ?? initialProfile ?? null;
@@ -135,9 +144,21 @@ export function ProfileEditor({
   const [dragging, setDragging] = useState(false);
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
+  const [verificationPending, setVerificationPending] = useState(false);
+  const [verificationMessage, setVerificationMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const shouldFocusUsername = searchParams.get("focus") === "username";
+
+  useEffect(() => {
+    if (!shouldFocusUsername || profileStatus === undefined) return;
+    const input = usernameInputRef.current;
+    if (!input) return;
+    input.scrollIntoView({ behavior: "smooth", block: "center" });
+    const timer = window.setTimeout(() => input.focus({ preventScroll: true }), 250);
+    return () => window.clearTimeout(timer);
+  }, [profileStatus, shouldFocusUsername]);
 
   useEffect(() => {
     return () => {
@@ -155,7 +176,9 @@ export function ProfileEditor({
   const resumePostId = searchParams.get("resumePostId");
   const requestedReturnTo = searchParams.get("returnTo");
   const onboardingReturnTo =
-    requestedReturnTo?.startsWith(`${withLocale(locale, "/app/")}`) && requestedReturnTo !== withLocale(locale, "/app/profile")
+    requestedReturnTo &&
+    (requestedReturnTo.startsWith(`${withLocale(locale, "/app/")}`) || requestedReturnTo.startsWith(`${withLocale(locale, "/community/")}`)) &&
+    requestedReturnTo !== withLocale(locale, "/app/profile")
       ? requestedReturnTo
       : null;
   const resumeReturnTo =
@@ -164,6 +187,29 @@ export function ProfileEditor({
       : resumePostId
         ? withLocale(locale, `/app/community/${resumePostId}/edit`)
         : null;
+
+  async function requestEmailVerification() {
+    setVerificationPending(true);
+    setVerificationMessage(null);
+    try {
+      await requestViewerEmailVerification({ locale });
+      setVerificationMessage({
+        tone: "success",
+        text: labelFor(
+          locale,
+          "Poslali smo verifikacioni link na tvoj email. Link važi 30 minuta.",
+          "We sent a verification link to your email. The link is valid for 30 minutes.",
+        ),
+      });
+    } catch (error) {
+      setVerificationMessage({
+        tone: "error",
+        text: error instanceof Error ? error.message : labelFor(locale, "Slanje verifikacionog email-a nije uspelo.", "Could not send the verification email."),
+      });
+    } finally {
+      setVerificationPending(false);
+    }
+  }
 
   function validateAvatarFile(file: File) {
     if (!file.type.startsWith("image/")) {
@@ -338,7 +384,8 @@ export function ProfileEditor({
         throw new Error(labelFor(locale, "Ime i prezime su obavezni.", "First and last name are required."));
       }
 
-      const needsPassword = profileStatus?.hasPassword === false;
+      const wantsNewPassword = Boolean(newPassword || confirmPassword);
+      const needsPassword = profileStatus?.hasPassword === false && wantsNewPassword;
       const changingPassword = profileStatus?.hasPassword === true && changePasswordOpen;
       passwordActionAttempted = needsPassword || changingPassword;
       if (needsPassword || changingPassword || newPassword || confirmPassword) {
@@ -358,6 +405,9 @@ export function ProfileEditor({
       }
 
       const avatarStorageId = await uploadAvatarFile();
+      if (username.trim() && !isValidUsername(username.trim())) {
+        throw new Error(labelFor(locale, USERNAME_VALIDATION_MESSAGE_SR, USERNAME_VALIDATION_MESSAGE_EN));
+      }
       const updatedProfile = (await updateViewerProfile({
         firstName: trimmedFirstName,
         lastName: trimmedLastName,
@@ -418,7 +468,7 @@ export function ProfileEditor({
       });
       toast.success(labelFor(locale, "Profil je sačuvan.", "Profile saved."));
       router.refresh();
-      if (onboardingReturnTo && username.trim() && (needsPassword || profileStatus?.hasPassword === true)) {
+      if (onboardingReturnTo && username.trim()) {
         router.push(onboardingReturnTo);
       }
     } catch (error) {
@@ -473,7 +523,7 @@ export function ProfileEditor({
           </div>
         </div>
       ) : null}
-      {!username.trim() || profileStatus?.hasPassword === false ? (
+      {!username.trim() ? (
         <div role="status" className="flex items-start gap-3 rounded-[16px] border-2 border-ink bg-yellow/30 px-4 py-3 text-sm font-bold text-ink">
           <ShieldCheck className="mt-0.5 size-5 shrink-0" />
           <div>
@@ -485,6 +535,47 @@ export function ProfileEditor({
             <p className="mt-1 text-xs font-semibold leading-5 text-ink/75">
               {labelFor(locale, "Username je jedini obavezni podatak i koristi se za @pominjanja.", "Username is the only required field and powers @mentions.")}
             </p>
+          </div>
+        </div>
+      ) : null}
+      {profileStatus && !profileStatus.hasEmail ? (
+        <div role="status" className="flex items-start gap-3 rounded-[16px] border-2 border-amber-700 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-950">
+          <CircleAlert className="mt-0.5 size-5 shrink-0" />
+          <div>
+            <p className="font-black">{labelFor(locale, "Email adresa nije dostupna za verifikaciju.", "No email address is available for verification.")}</p>
+            <p className="mt-1 text-xs font-semibold leading-5">{labelFor(locale, "Dodaj ili obnovi nalog sa email adresom da bi mogao/la da postaviš lozinku.", "Add or restore an account with an email address before setting a password.")}</p>
+          </div>
+        </div>
+      ) : null}
+      {profileStatus?.advisories?.emailVerification ? (
+        <div role="status" className="flex items-start gap-3 rounded-[16px] border-2 border-amber-700 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-950">
+          <MailCheck className="mt-0.5 size-5 shrink-0" />
+          <div className="min-w-0 flex-1">
+            <p className="font-black">{labelFor(locale, "Email još nije potvrđen za postavljanje lozinke.", "Your email is not yet verified for password setup.")}</p>
+            <p className="mt-1 text-xs font-semibold leading-5">{labelFor(locale, "Ovo je savetodavno upozorenje i ne blokira dashboard ili druge funkcije.", "This is advisory only and does not block the dashboard or other features.")}</p>
+            <button
+              type="button"
+              onClick={requestEmailVerification}
+              disabled={verificationPending}
+              className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 py-2 text-xs font-black text-ink shadow-[3px_3px_0_0_#0e3158] transition hover:-translate-y-0.5 disabled:opacity-60"
+            >
+              {verificationPending ? <Loader2 className="size-4 animate-spin" /> : <MailCheck className="size-4" />}
+              {labelFor(locale, "Pošalji verifikacioni link", "Send verification link")}
+            </button>
+            {verificationMessage ? (
+              <p className={cn("mt-2 text-xs font-black", verificationMessage.tone === "success" ? "text-emerald-700" : "text-red-700")}>
+                {verificationMessage.text}
+              </p>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+      {profileStatus?.advisories?.password ? (
+        <div role="status" className="flex items-start gap-3 rounded-[16px] border-2 border-ink bg-yellow/20 px-4 py-3 text-sm font-bold text-ink">
+          <KeyRound className="mt-0.5 size-5 shrink-0" />
+          <div>
+            <p className="font-black">{labelFor(locale, "Lozinka nije postavljena.", "No password is set yet.")}</p>
+            <p className="mt-1 text-xs font-semibold leading-5">{labelFor(locale, "Ovo je opciona preporuka; prvo potvrdi email ako želiš da dodaš password prijavu.", "This is optional; verify your email first if you want to add password sign-in.")}</p>
           </div>
         </div>
       ) : null}
@@ -593,14 +684,17 @@ export function ProfileEditor({
                 <div className="relative mt-2">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-base font-black text-ink/45">@</span>
                   <input
+                    ref={usernameInputRef}
                     value={username}
                     onChange={(event) => setUsername(event.target.value)}
+                    maxLength={20}
+                    pattern="[A-Za-zČĆŠĐŽčćšđž0-9._]{3,20}"
                     className="h-12 w-full rounded-[8px] border-2 border-ink bg-white pl-8 pr-4 text-base font-extrabold text-ink outline-none transition focus:border-yellow focus:ring-4 focus:ring-yellow/25"
                     placeholder="npr. jovan_m"
                   />
                 </div>
                 <p className="mt-1.5 text-xs text-muted">
-                  {labelFor(locale, "Korisnicko ime mora imati izmedju 3 i 20 karaktera i moze sadrzati samo slova, brojeve, donje crte i crtice. Koristi se za pominjanje u zajednici (@username).", "Username must be between 3 and 20 characters and contain only letters, numbers, underscores, and hyphens. Used for mentions (@username).")}
+                  {labelFor(locale, "Korisničko ime mora imati između 3 i 20 znakova, najmanje 3 slova, i može sadržati samo slova, cifre, tačku i donju crtu. Koristi se za pominjanje u zajednici (@username).", "Username must be 3–20 characters, contain at least 3 letters, and use only letters, numbers, periods, and underscores. Used for mentions (@username).")}
                 </p>
               </label>
               <div className="sm:col-span-2">
@@ -644,6 +738,21 @@ export function ProfileEditor({
                       </div>
                     ) : null}
                   </>
+                ) : profileStatus?.emailVerifiedForPassword === false ? (
+                  <div className="mt-2 space-y-3 rounded-[8px] border-2 border-amber-700 bg-amber-50 p-4 text-amber-950">
+                    <p className="text-sm font-bold">
+                      {labelFor(locale, "Potvrdi email klikom na link koji smo poslali. Polja za lozinku će se pojaviti nakon potvrde.", "Confirm your email using the link we sent. Password fields will appear after confirmation.")}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={requestEmailVerification}
+                      disabled={verificationPending || !profileStatus?.hasEmail}
+                      className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 py-2 text-xs font-black text-ink shadow-[3px_3px_0_0_#0e3158] transition hover:-translate-y-0.5 disabled:opacity-60"
+                    >
+                      {verificationPending ? <Loader2 className="size-4 animate-spin" /> : <MailCheck className="size-4" />}
+                      {labelFor(locale, "Pošalji ponovo", "Send again")}
+                    </button>
+                  </div>
                 ) : (
                   <div className="mt-2 space-y-3 rounded-[8px] border-2 border-ink bg-yellow/15 p-4">
                     <p className="text-sm font-bold text-ink">

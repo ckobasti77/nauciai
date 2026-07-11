@@ -49,6 +49,9 @@ const authUsers = defineTable({
   email: v.optional(v.string()),
   username: v.optional(v.string()),
   emailVerificationTime: v.optional(v.number()),
+  // App-level confirmation used before a Google/OAuth account can add a
+  // password credential. OAuth verification remains separate from this proof.
+  passwordEmailVerificationTime: v.optional(v.number()),
   phone: v.optional(v.string()),
   phoneVerificationTime: v.optional(v.number()),
   isAnonymous: v.optional(v.boolean()),
@@ -61,6 +64,17 @@ const authUsers = defineTable({
 export default defineSchema({
   ...authTables,
   users: authUsers,
+
+  emailVerificationTokens: defineTable({
+    userId: v.id("users"),
+    email: v.string(),
+    tokenHash: v.string(),
+    createdAt: v.number(),
+    expiresAt: v.number(),
+    consumedAt: v.optional(v.number()),
+  })
+    .index("by_tokenHash", ["tokenHash"])
+    .index("by_userId_and_createdAt", ["userId", "createdAt"]),
 
   profiles: defineTable({
     userId: v.id("users"),

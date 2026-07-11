@@ -112,6 +112,7 @@ function LiveDiscussionsPage({ locale }: { locale: Locale }) {
   });
   const toggleFavorite = useToggleCommunityFavorite();
   const votePost = useMutation(api.community.vote);
+  const canInteract = Boolean(filters.viewer.username);
 
   return (
     <DiscussionsView
@@ -129,6 +130,7 @@ function LiveDiscussionsPage({ locale }: { locale: Locale }) {
       isAuthenticated={isAuthenticated}
       viewerUserId={filters.viewer.userId}
       canModerate={filters.viewer.role === "admin" || filters.viewer.role === "moderator"}
+      canInteract={canInteract}
     />
   );
 }
@@ -148,6 +150,7 @@ function DiscussionsView({
   isAuthenticated = false,
   viewerUserId,
   canModerate = false,
+  canInteract = true,
 }: {
   locale: Locale;
   filters: CommunityFilters;
@@ -163,6 +166,7 @@ function DiscussionsView({
   isAuthenticated?: boolean;
   viewerUserId?: string;
   canModerate?: boolean;
+  canInteract?: boolean;
 }) {
   const toast = useToast();
   const [expandedPostId, setExpandedPostId] = useState<string | null>(null);
@@ -210,13 +214,13 @@ function DiscussionsView({
             : "Find answers by track or course, see what is active, and open a question with enough context."
         }
         action={
-          <Link
+          canInteract ? <Link
             href={withLocale(locale, "/app/community/new")}
             className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-sm font-black text-ink shadow-[3px_3px_0_rgba(14,49,88,0.18)] transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
             <PenLine className="size-4" aria-hidden="true" />
             {locale === "sr" ? "Nova diskusija" : "New discussion"}
-          </Link>
+          </Link> : <span className="inline-flex min-h-11 items-center justify-center rounded-full border-2 border-line bg-paper px-4 text-sm font-black text-muted">{locale === "sr" ? "Podesi username za akcije" : "Set a username to interact"}</span>
         }
       />
 
@@ -277,9 +281,9 @@ function DiscussionsView({
                     <>
                       {onReactPost ? (
                         <div className="inline-flex items-center gap-0.5 rounded-full border border-line bg-white p-0.5">
-                          <button type="button" onClick={() => void handlePostReaction(post._id, "upvote")} aria-label={locale === "sr" ? "Upvote diskusije" : "Upvote discussion"} aria-pressed={post.userVote === "upvote"} className={cn("grid size-9 place-items-center rounded-full transition", post.userVote === "upvote" ? "bg-yellow text-ink" : "text-muted hover:bg-yellow/20 hover:text-ink")}><ArrowUp className="size-4" /></button>
+                          <button type="button" disabled={!canInteract} onClick={() => void handlePostReaction(post._id, "upvote")} aria-label={locale === "sr" ? "Upvote diskusije" : "Upvote discussion"} aria-pressed={post.userVote === "upvote"} className={cn("grid size-9 place-items-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-40", post.userVote === "upvote" ? "bg-yellow text-ink" : "text-muted hover:bg-yellow/20 hover:text-ink")}><ArrowUp className="size-4" /></button>
                           <span className={cn("min-w-8 text-center text-xs font-black", (post.voteScore ?? 0) < 0 && "text-red-700")}>{post.voteScore ?? 0}</span>
-                          <button type="button" onClick={() => void handlePostReaction(post._id, "downvote")} aria-label={locale === "sr" ? "Downvote diskusije" : "Downvote discussion"} aria-pressed={post.userVote === "downvote"} className={cn("grid size-9 place-items-center rounded-full transition", post.userVote === "downvote" ? "bg-red-100 text-red-700" : "text-muted hover:bg-red-50 hover:text-red-700")}><ArrowDown className="size-4" /></button>
+                          <button type="button" disabled={!canInteract} onClick={() => void handlePostReaction(post._id, "downvote")} aria-label={locale === "sr" ? "Downvote diskusije" : "Downvote discussion"} aria-pressed={post.userVote === "downvote"} className={cn("grid size-9 place-items-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-40", post.userVote === "downvote" ? "bg-red-100 text-red-700" : "text-muted hover:bg-red-50 hover:text-red-700")}><ArrowDown className="size-4" /></button>
                         </div>
                       ) : null}
                       <button
@@ -319,6 +323,7 @@ function DiscussionsView({
                     onToggleFavorite ? (
                       <button
                         type="button"
+                        disabled={!canInteract}
                         onClick={() => void handleFavorite(post._id)}
                         aria-label={
                           post.isFavorited
@@ -347,6 +352,7 @@ function DiscussionsView({
                         isAuthenticated={isAuthenticated}
                         canModerate={canModerate}
                         canMarkHelpful={canModerate || post.authorId === viewerUserId}
+                        canInteract={canInteract}
                         viewerUserId={viewerUserId}
                         compact
                         showCommandDock

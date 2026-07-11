@@ -13,6 +13,8 @@ import type * as billing from "../billing.js";
 import type * as community from "../community.js";
 import type * as communityScope from "../communityScope.js";
 import type * as courses from "../courses.js";
+import type * as emailVerification from "../emailVerification.js";
+import type * as emailVerificationInternal from "../emailVerificationInternal.js";
 import type * as helpers from "../helpers.js";
 import type * as http from "../http.js";
 import type * as lab from "../lab.js";
@@ -36,6 +38,8 @@ declare const fullApi: ApiFromModules<{
   community: typeof community;
   communityScope: typeof communityScope;
   courses: typeof courses;
+  emailVerification: typeof emailVerification;
+  emailVerificationInternal: typeof emailVerificationInternal;
   helpers: typeof helpers;
   http: typeof http;
   lab: typeof lab;

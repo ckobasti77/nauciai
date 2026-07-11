@@ -5,6 +5,11 @@ import type { Id } from "./_generated/dataModel";
 import { env } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
 import { syncLeaderboardEligibilityForUser } from "./leaderboardCore";
+import {
+  isValidUsername,
+  normalizeUsername,
+  USERNAME_VALIDATION_MESSAGE_SR,
+} from "../lib/username-policy";
 
 const ACTIVE_SUBSCRIPTION_STATUSES = new Set(["trialing", "active"]);
 
@@ -54,22 +59,11 @@ type DocLike = Record<string, unknown> & {
 
 const DEFAULT_AVATAR_PRESET = "mythic-mentor";
 const DEFAULT_AVATAR_URL = "/images/avatars/mythic-mentor.png";
-const USERNAME_PATTERN = /^[a-zA-Z0-9_-]{3,20}$/;
-
 export const profileRoles = ["student", "pro_student", "moderator", "admin"] as const;
 export const assignableProfileRoles = ["student", "pro_student", "moderator"] as const;
 
 export type ProfileRole = (typeof profileRoles)[number];
 export type AssignableProfileRole = (typeof assignableProfileRoles)[number];
-
-export function normalizeUsername(value: string | undefined | null) {
-  const normalized = String(value ?? "").trim().toLowerCase();
-  return normalized || undefined;
-}
-
-export function isValidUsername(value: string | undefined | null) {
-  return Boolean(value && USERNAME_PATTERN.test(value));
-}
 
 function dbFrom(ctx: AnyCtx): DatabaseLike {
   return ctx.db as DatabaseLike;
@@ -128,7 +122,7 @@ export async function upsertProfileFromAuthUser(
   const username = normalizeUsername(authProfile.username as string | undefined) ?? existing?.username;
 
   if (username && !isValidUsername(username)) {
-    throw new Error("Korisničko ime mora imati između 3 i 20 karaktera i može sadržati samo slova, brojeve, donje crte i crtice.");
+    throw new Error(USERNAME_VALIDATION_MESSAGE_SR);
   }
 
   if (username) {
@@ -206,14 +200,7 @@ export async function requireUserId(ctx: AnyCtx) {
 
 export async function requireCompleteCommunityProfile(ctx: AnyCtx) {
   const current = await getCurrentProfile(ctx);
-  const accounts = await dbFrom(ctx)
-    .query("authAccounts")
-    .withIndex("userIdAndProvider", (q) => q.eq("userId", current.userId))
-    .take(10);
-  const missing = [
-    ...(current.profile.username ? [] : ["username"]),
-    ...(accounts.some((account) => account.provider === "password") ? [] : ["password"]),
-  ];
+  const missing = current.profile.username ? [] : ["username"];
   if (missing.length > 0) {
     throw new ConvexError({
       code: "PROFILE_INCOMPLETE",

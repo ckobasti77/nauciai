@@ -30,10 +30,10 @@ export default async function AuthCompletePage({
   }
 
   const status = (await convex.query(convexQueries.getViewerProfileStatus, {}).catch(() => null)) as
-    | { complete?: boolean }
+    | { username?: string }
     | null;
-  if (!status?.complete) {
-    redirect(`${withLocale(locale, "/app/profile")}?onboarding=1&returnTo=${encodeURIComponent(next)}`);
+  if (!status?.username) {
+    redirect(`${withLocale(locale, "/app/profile")}?onboarding=1&focus=username&returnTo=${encodeURIComponent(next)}`);
   }
 
   redirect(next);

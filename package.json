@@ -18,6 +18,9 @@
     "convex:admin-env": "node scripts/sync-convex-admin-env.mjs --dev",
     "convex:admin-env:prod": "node scripts/sync-convex-admin-env.mjs --prod",
     "convex:admin-env:all": "node scripts/sync-convex-admin-env.mjs --all",
+    "convex:email-env": "node scripts/sync-convex-email-env.mjs --dev",
+    "convex:email-env:prod": "node scripts/sync-convex-email-env.mjs --prod",
+    "convex:email-env:all": "node scripts/sync-convex-email-env.mjs --all",
     "convex:codegen": "convex codegen",
     "convex:seed": "node scripts/seed-convex.mjs"
   },

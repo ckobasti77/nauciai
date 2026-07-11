@@ -59,6 +59,14 @@ type LiveCommunityPost = {
   reactionsCount: number;
 };
 
+type LiveCommunityMember = {
+  _id: string;
+  name: string;
+  username?: string;
+  role: string;
+  avatarUrl?: string | null;
+};
+
 type ThreadRowPost = LiveCommunityPost & {
   href?: string;
 };
@@ -240,7 +248,7 @@ function LiveCommunityBoard({ locale, initialCourseSlug }: { locale: Locale; ini
     canModerate ? {} : "skip"
   ) as LiveCommunityPost[] | undefined;
 
-  const membersList = useQuery(api.community.listMembers, {});
+  const membersList = useQuery(api.community.listMembers, {}) as LiveCommunityMember[] | undefined;
 
   // Determine current posts to show based on activeTab
   let currentPosts: LiveCommunityPost[] | undefined;

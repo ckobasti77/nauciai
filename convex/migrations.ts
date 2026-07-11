@@ -3,7 +3,8 @@ import { Migrations } from "@convex-dev/migrations";
 import { components, internal } from "./_generated/api";
 import type { DataModel } from "./_generated/dataModel";
 import { syncLeaderboardSourceEvent } from "./leaderboardCore";
-import { effectiveRoleForProfile, isValidUsername, normalizeUsername } from "./helpers";
+import { effectiveRoleForProfile } from "./helpers";
+import { isValidUsername, normalizeUsername } from "../lib/username-policy";
 import { hotScoreFor, voteValue } from "./community";
 
 type MigrationsComponent = ConstructorParameters<typeof Migrations<DataModel>>[0];

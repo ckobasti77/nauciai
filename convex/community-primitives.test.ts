@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isValidUsername, normalizeUsername } from "./helpers";
+import { isValidUsername, normalizeUsername } from "../lib/username-policy";
 import {
   LEADERBOARD_XP,
   belgradeDayKey,
@@ -15,8 +15,14 @@ describe("community identity primitives", () => {
     expect(normalizeUsername("  Fox_123 ")).toBe("fox_123");
     expect(normalizeUsername("   ")).toBeUndefined();
     expect(isValidUsername("fox123")).toBe(true);
+    expect(isValidUsername("čika_fox.123")).toBe(true);
+    expect(isValidUsername("čćšđž")).toBe(true);
+    expect(isValidUsername("ab1.2")).toBe(false);
+    expect(isValidUsername("123_čćš")).toBe(true);
     expect(isValidUsername("ab")).toBe(false);
     expect(isValidUsername("hello world")).toBe(false);
+    expect(isValidUsername("hello-world")).toBe(false);
+    expect(isValidUsername("123456")).toBe(false);
   });
 });
 

@@ -9,6 +9,12 @@ import { Panel, cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
 import type { Locale } from "@/lib/i18n";
 import { passwordRequirements, passwordValidationErrors } from "@/lib/password-policy";
+import {
+  isValidUsername,
+  normalizeUsername,
+  USERNAME_VALIDATION_MESSAGE_EN,
+  USERNAME_VALIDATION_MESSAGE_SR,
+} from "@/lib/username-policy";
 
 type AuthFlow = "signIn" | "signUp" | "reset" | "resetVerification";
 
@@ -43,19 +49,22 @@ function ConvexSignInForm({
   const [email, setEmail] = useState(initialEmail);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [signupConfirmPassword, setSignupConfirmPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [resetCode] = useState(initialCode);
-  const normalizedUsername = username.trim().toLowerCase();
+  const normalizedUsername = normalizeUsername(username) ?? "";
+  const usernameFormatValid = !normalizedUsername || isValidUsername(normalizedUsername);
   const usernameAvailable = useQuery(
     api.profiles.isUsernameAvailable,
-    flow === "signUp" && normalizedUsername ? { username: normalizedUsername } : "skip",
+    flow === "signUp" && normalizedUsername && usernameFormatValid ? { username: normalizedUsername } : "skip",
   );
 
   function switchFlow(nextFlow: AuthFlow) {
     setFlow(nextFlow);
     setMessage(null);
     setPassword("");
+    setSignupConfirmPassword("");
     setNewPassword("");
     setConfirmPassword("");
   }
@@ -120,12 +129,15 @@ function ConvexSignInForm({
         if (signupPasswordError) {
           throw new Error(signupPasswordError);
         }
-        if (!/^[a-zA-Z0-9_-]{3,20}$/.test(normalizedUsername)) {
+        if (password !== signupConfirmPassword) {
+          throw new Error(labelFor(locale, "Lozinke se ne poklapaju.", "Passwords do not match."));
+        }
+        if (!isValidUsername(normalizedUsername)) {
           throw new Error(
             labelFor(
               locale,
-              "Korisničko ime mora imati između 3 i 20 karaktera i može sadržati samo slova, brojeve, donje crte i crtice.",
-              "Username must be 3–20 characters and use only letters, numbers, underscores, or hyphens.",
+              USERNAME_VALIDATION_MESSAGE_SR,
+              USERNAME_VALIDATION_MESSAGE_EN,
             ),
           );
         }
@@ -134,11 +146,12 @@ function ConvexSignInForm({
         }
       }
 
+      const completionRedirect = `/${locale}/auth/complete?next=${encodeURIComponent(redirectTo)}`;
       const result = await signIn("password", {
         flow,
         email: normalizedEmail,
         password,
-        redirectTo,
+        redirectTo: completionRedirect,
         ...(flow === "signUp" ? { username: normalizedUsername } : {}),
       });
       if (result.redirect) {
@@ -146,7 +159,7 @@ function ConvexSignInForm({
         return;
       }
       if (result.signingIn) {
-        window.location.href = redirectTo;
+        window.location.href = completionRedirect;
         return;
       }
 
@@ -271,14 +284,17 @@ function ConvexSignInForm({
                 required
                 minLength={3}
                 maxLength={20}
+                pattern="[A-Za-zČĆŠĐŽčćšđž0-9._]{3,20}"
                 autoComplete="username"
                 className="h-12 w-full rounded-[8px] border-2 border-ink bg-white pl-8 pr-4 text-base font-extrabold text-ink outline-none focus:border-yellow"
-                placeholder="npr. fox123"
+                placeholder="npr. čika_fox.123"
               />
             </div>
             <p className={cn("mt-1.5 text-xs font-bold", usernameAvailable === false ? "text-red-700" : "text-muted")}>
               {!normalizedUsername
                 ? labelFor(locale, "Username se koristi za @pominjanja u Zajednici.", "Your username is used for @mentions in Community.")
+                : !usernameFormatValid
+                  ? labelFor(locale, USERNAME_VALIDATION_MESSAGE_SR, USERNAME_VALIDATION_MESSAGE_EN)
                 : usernameAvailable === undefined
                   ? labelFor(locale, "Provera dostupnosti…", "Checking availability…")
                   : usernameAvailable
@@ -318,6 +334,29 @@ function ConvexSignInForm({
               >
                 {labelFor(locale, "Zaboravili ste lozinku?", "Forgot password?")}
               </button>
+            ) : null}
+          </div>
+        ) : null}
+
+        {flow === "signUp" ? (
+          <div>
+            <label htmlFor="signupConfirmPassword" className="text-sm font-black text-ink">
+              {labelFor(locale, "Potvrdi lozinku", "Confirm password")}
+            </label>
+            <input
+              id="signupConfirmPassword"
+              type="password"
+              value={signupConfirmPassword}
+              onChange={(event) => setSignupConfirmPassword(event.target.value)}
+              required
+              minLength={8}
+              autoComplete="new-password"
+              className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-white px-4 text-base font-bold text-ink outline-none focus:border-yellow"
+            />
+            {signupConfirmPassword && password !== signupConfirmPassword ? (
+              <p className="mt-1.5 text-xs font-black text-red-700">
+                {labelFor(locale, "Lozinke se ne poklapaju.", "Passwords do not match.")}
+              </p>
             ) : null}
           </div>
         ) : null}

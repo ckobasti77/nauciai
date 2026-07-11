@@ -35,6 +35,7 @@ export type CommunityFilters = {
   viewer: {
     userId: string;
     role: CommunityRole;
+    username?: string;
     language?: string;
   };
   tracks: CommunityTrack[];

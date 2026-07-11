@@ -127,7 +127,7 @@ type CommunityApiV2 = {
 const apiV2 = api as unknown as CommunityApiV2;
 
 export const fallbackCommunityFilters: CommunityFilters = {
-  viewer: { userId: "preview", role: "student", language: "sr" },
+  viewer: { userId: "preview", role: "student", language: "sr", username: "preview" },
   tracks: [
     {
       _id: "video-audio",

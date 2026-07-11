@@ -2,7 +2,7 @@
 
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useQuery } from "convex/react";
-import { ChevronDown, CircleAlert, CreditCard, LogOut, UserRound, MessageCircle } from "lucide-react";
+import { ChevronDown, CreditCard, LogOut, UserRound, MessageCircle } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
@@ -60,14 +60,12 @@ export function AccountMenu({ locale, profile }: { locale: Locale; profile: Acco
           : "Student";
   // Query notifications
   const summary = useQuery(api.notifications.getUserNotificationSummary, {});
-  const overallCount = summary?.total ?? 0;
+  const overallCount = Math.max(0, (summary?.total ?? 0) - (summary?.profileIncomplete ?? 0));
   const communityCount = summary?.community ?? 0;
   const billingCount = summary?.billing ?? 0;
   const profileStatus = useQuery(api.profiles.getViewerProfileStatus, {});
   const profileIncomplete = profileStatus?.complete === false;
-  const avatarLabel = profileIncomplete
-    ? locale === "sr" ? "Dovrši profil" : "Complete your profile"
-    : locale === "sr" ? "Otvori meni naloga" : "Open account menu";
+  const avatarLabel = locale === "sr" ? "Otvori meni naloga" : "Open account menu";
 
   const menuLinks = [
     {
@@ -136,14 +134,8 @@ export function AccountMenu({ locale, profile }: { locale: Locale; profile: Acco
         aria-haspopup="menu"
         aria-expanded={isOpen}
         aria-controls={isOpen ? menuId : undefined}
-        onClick={() => {
-          if (profileIncomplete) {
-            router.push(withLocale(locale, "/app/profile"));
-            return;
-          }
-          setIsOpen((value) => !value);
-        }}
-        className={`group relative inline-flex h-11 items-center gap-1 rounded-full border-2 border-ink p-1 pr-2 text-ink shadow-[3px_3px_0_0_rgba(14,49,88,0.18)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink ${profileIncomplete ? "bg-yellow/35 hover:bg-yellow/55" : "bg-white hover:bg-yellow/25"}`}
+        onClick={() => setIsOpen((value) => !value)}
+        className="group relative inline-flex h-11 items-center gap-1 rounded-full border-2 border-ink bg-white p-1 pr-2 text-ink shadow-[3px_3px_0_0_rgba(14,49,88,0.18)] transition hover:bg-yellow/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
       >
         <span className="inline-flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-ink bg-yellow text-xs font-black">
           {profile.avatarUrl ? (
@@ -153,10 +145,10 @@ export function AccountMenu({ locale, profile }: { locale: Locale; profile: Acco
             <span>{initials}</span>
           )}
         </span>
-          {profileIncomplete ? <CircleAlert className="size-4 text-amber-700" aria-hidden="true" /> : <ChevronDown
+          <ChevronDown
           className={`size-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
           aria-hidden="true"
-        />}
+        />
         {overallCount > 0 ? (
           <span className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-black text-white border-2 border-ink shrink-0">
             {overallCount}
@@ -218,8 +210,8 @@ export function AccountMenu({ locale, profile }: { locale: Locale; profile: Acco
                     <span className="truncate">{item.label}</span>
                   </span>
                   {item.badge && item.badge > 0 ? (
-                    <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-black text-white border border-ink shrink-0">
-                      {item.badge}
+                    <span className={item.href === withLocale(locale, "/app/profile") ? "rounded-full border border-amber-500 bg-amber-100 px-2 py-0.5 text-[9px] font-black text-amber-900" : "flex h-5 min-w-5 items-center justify-center rounded-full border border-ink bg-red-600 px-1 text-[10px] font-black text-white"}>
+                      {item.href === withLocale(locale, "/app/profile") ? locale === "sr" ? "Upozorenje" : "Warning" : item.badge}
                     </span>
                   ) : null}
                 </Link>

@@ -1,12 +1,13 @@
 import type { OIDCConfig } from "@auth/core/providers";
 import type { GoogleProfile } from "@auth/core/providers/google";
 import Resend from "@auth/core/providers/resend";
-import { createAccount, getAuthUserId, modifyAccountCredentials } from "@convex-dev/auth/server";
+import { createAccount, getAuthUserId, modifyAccountCredentials, retrieveAccount } from "@convex-dev/auth/server";
 import { Password } from "@convex-dev/auth/providers/Password";
 import { convexAuth } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 
 import type { Id } from "./_generated/dataModel";
+import { internal } from "./_generated/api";
 import { action } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
 import { upsertProfileFromAuthUser } from "./helpers";
@@ -99,10 +100,28 @@ export const setViewerPassword = action({
       throw new Error("Password must be at least 8 characters and include an uppercase letter, a number, and a special character.");
     }
 
-    const identity = await ctx.auth.getUserIdentity();
-    const email = String(identity?.email ?? "").trim().toLowerCase();
-    if (!email) {
+    const setupState = await ctx.runQuery(internal.emailVerificationInternal.getPasswordSetupState, { userId });
+    if (!setupState?.hasEmail) {
       throw new Error("A verified account email is required before setting a password.");
+    }
+    if (!setupState.emailVerifiedForPassword) {
+      throw new Error("Verify your account email before setting a password.");
+    }
+    const email = setupState.email;
+
+    const existing = await retrieveAccount(ctx, {
+      provider: "password",
+      account: { id: email },
+    });
+    if (existing) {
+      if (String(existing.user._id) !== String(userId)) {
+        throw new Error("A password login already belongs to another account with this email.");
+      }
+      await modifyAccountCredentials(ctx, {
+        provider: "password",
+        account: { id: email, secret: args.password },
+      });
+      return { hasPassword: true };
     }
 
     const created = await createAccount(ctx, {
@@ -110,7 +129,7 @@ export const setViewerPassword = action({
       account: { id: email, secret: args.password },
       profile: {
         email,
-        name: String(identity?.name ?? email.split("@")[0] ?? "Student"),
+        name: setupState.name,
       },
       shouldLinkViaEmail: true,
       shouldLinkViaPhone: false,
@@ -134,11 +153,11 @@ export const changeViewerPassword = action({
       throw new Error("Password must be at least 8 characters and include an uppercase letter, a number, and a special character.");
     }
 
-    const identity = await ctx.auth.getUserIdentity();
-    const email = String(identity?.email ?? "").trim().toLowerCase();
-    if (!email) {
+    const setupState = await ctx.runQuery(internal.emailVerificationInternal.getPasswordSetupState, { userId });
+    if (!setupState?.hasEmail) {
       throw new Error("A verified account email is required before changing a password.");
     }
+    const email = setupState.email;
 
     await modifyAccountCredentials(ctx, {
       provider: "password",

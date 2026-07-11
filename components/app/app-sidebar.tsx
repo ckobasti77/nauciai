@@ -36,7 +36,6 @@ import {
   EditModuleAction,
 } from "@/components/app/admin-inline-actions";
 import { CheckoutButton } from "@/components/app/checkout-button";
-import { SignOutButton } from "@/components/app/sign-out-button";
 import { BrandMark, cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
 import type { AppCourseNav, AppLessonNav, AppLessonPartNav, AppNavigationData } from "@/lib/app-navigation";
@@ -899,10 +898,11 @@ function AppSidebarContent({
                 <Link
                   href={currentCourse ? navHref(locale, "/app/profile", currentCourse.slug) : withLocale(locale, "/app/profile")}
                   onClick={() => setProfileMenuOpen(false)}
-                  className="flex min-h-10 items-center gap-3 bg-white px-3 py-2 text-[13px] font-black uppercase text-ink transition hover:bg-yellow/35 font-extrabold"
+                  className={cn("flex min-h-10 items-center gap-3 px-3 py-2 text-[13px] font-black uppercase text-ink transition font-extrabold", profileIncomplete ? "bg-amber-50 hover:bg-amber-100" : "bg-white hover:bg-yellow/35")}
                 >
-                  <User className="size-4 shrink-0" />
+                  {profileIncomplete ? <CircleAlert className="size-4 shrink-0 text-amber-700" /> : <User className="size-4 shrink-0" />}
                   <span>{t.profile}</span>
+                  {profileIncomplete ? <span className="ml-auto rounded-full border border-amber-500 bg-amber-100 px-2 py-0.5 text-[9px] font-black text-amber-900">{locale === "sr" ? "Upozorenje" : "Warning"}</span> : null}
                 </Link>
                 <Link
                   href={currentCourse ? navHref(locale, "/app/billing", currentCourse.slug) : withLocale(locale, "/app/billing")}
@@ -933,14 +933,8 @@ function AppSidebarContent({
 
           <button
             type="button"
-            onClick={() => {
-              if (profileIncomplete) {
-                router.push(currentCourse ? navHref(locale, "/app/profile", currentCourse.slug) : withLocale(locale, "/app/profile"));
-                return;
-              }
-              setProfileMenuOpen(!profileMenuOpen);
-            }}
-            className={cn("relative flex w-full items-center gap-3 rounded-[12px] border-2 border-ink p-2 text-left text-ink transition shadow-[3px_3px_0_0_rgba(14,49,88,0.18)]", profileIncomplete ? "bg-yellow/25 hover:bg-yellow/40" : "bg-white hover:bg-yellow/15")}
+            onClick={() => setProfileMenuOpen((value) => !value)}
+            className="relative flex w-full items-center gap-3 rounded-[12px] border-2 border-ink bg-white p-2 text-left text-ink shadow-[3px_3px_0_0_rgba(14,49,88,0.18)] transition hover:bg-yellow/15"
           >
             <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-ink bg-yellow text-xs font-black">
               {profileAvatar ? (
@@ -951,9 +945,9 @@ function AppSidebarContent({
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-xs font-black leading-tight text-ink">{profileName}</p>
-              <p className="truncate text-[10px] font-semibold leading-normal text-muted/80 mt-0.5">{profileIncomplete ? (locale === "sr" ? "Dovrši profil" : "Complete profile") : profileUsername}</p>
+              <p className="mt-0.5 truncate text-[10px] font-semibold leading-normal text-muted/80">{profileUsername}</p>
             </div>
-            {profileIncomplete ? <CircleAlert className="size-4 shrink-0 text-amber-700" aria-hidden="true" /> : <ChevronDown className={cn("size-4 shrink-0 transition-transform text-muted", profileMenuOpen && "rotate-180")} />}
+            <ChevronDown className={cn("size-4 shrink-0 transition-transform text-muted", profileMenuOpen && "rotate-180")} />
             {accountBadge > 0 ? <span className="absolute -right-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-ink bg-red-600 px-1 text-[10px] font-black text-white">{accountBadge > 99 ? "99+" : accountBadge}</span> : null}
           </button>
         </div>
@@ -961,13 +955,13 @@ function AppSidebarContent({
 
       {/* Mobile profile link */}
       {profileData && (
-        <div className="lg:hidden mt-4 border-t-2 border-ink pt-4 grid grid-cols-2 gap-2">
+        <div className="mt-4 grid grid-cols-3 gap-2 border-t-2 border-ink pt-4 lg:hidden">
           <Link
             href={currentCourse ? navHref(locale, "/app/profile", currentCourse.slug) : withLocale(locale, "/app/profile")}
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-white px-3 py-2 text-xs font-black text-ink"
           >
-            <User className="size-4" />
-            {profileIncomplete ? (locale === "sr" ? "Dovrši profil" : "Complete profile") : t.profile}
+            {profileIncomplete ? <CircleAlert className="size-4 text-amber-700" /> : <User className="size-4" />}
+            {t.profile}
           </Link>
           <Link
             href={currentCourse ? navHref(locale, "/app/billing", currentCourse.slug) : withLocale(locale, "/app/billing")}
@@ -976,6 +970,17 @@ function AppSidebarContent({
             <CreditCard className="size-4" />
             {t.billing}
           </Link>
+          <button
+            type="button"
+            onClick={async () => {
+              await signOut();
+              router.push(withLocale(locale, "/sign-in"));
+            }}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-ink px-3 py-2 text-xs font-black text-white"
+          >
+            <LogOut className="size-4" />
+            {locale === "sr" ? "Odjavi se" : "Sign out"}
+          </button>
         </div>
       )}
     </aside>
@@ -996,7 +1001,7 @@ function LiveAppSidebar({ locale, navigation }: { locale: Locale; navigation: Ap
     isAuthenticated ? {} : "skip"
   );
   const communityBadge = notificationSummary?.community ?? 0;
-  const accountBadge = notificationSummary?.total ?? 0;
+  const accountBadge = notificationSummary?.profileIncomplete ?? 0;
   const profileStatus = useQuery(api.profiles.getViewerProfileStatus, isAuthenticated ? {} : "skip");
 
   return (

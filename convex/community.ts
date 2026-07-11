@@ -336,6 +336,124 @@ export const getPostDetail = query({
   },
 });
 
+async function publicPostForSeo(ctx: QueryCtx, post: Doc<"communityPosts">) {
+  const [detail] = await postsWithDetails(ctx, [post], null);
+  if (!detail) return null;
+  return {
+    _id: detail._id,
+    _creationTime: detail._creationTime,
+    title: detail.title,
+    body: detail.body,
+    language: detail.language,
+    createdAt: detail.createdAt,
+    updatedAt: detail.updatedAt,
+    authorName: detail.authorName,
+    authorUsername: detail.authorUsername,
+    authorAvatarUrl: detail.authorAvatarUrl,
+    courseSlug: detail.courseSlug,
+    courseTitleSr: detail.courseTitleSr,
+    courseTitleEn: detail.courseTitleEn,
+    commentsCount: detail.commentsCount,
+    reactionsCount: detail.reactionsCount,
+    upvoteCount: detail.upvoteCount,
+    downvoteCount: detail.downvoteCount,
+    voteScore: detail.voteScore,
+    imageUrl: detail.imageUrl,
+  };
+}
+
+async function publicCommentForSeo(comment: Awaited<ReturnType<typeof commentsWithDetails>>[number]) {
+  return {
+    _id: comment._id,
+    _creationTime: comment._creationTime,
+    postId: comment.postId,
+    parentId: comment.parentId,
+    body: comment.body,
+    createdAt: comment.createdAt,
+    authorName: comment.authorName,
+    authorUsername: comment.authorUsername,
+    authorAvatarUrl: comment.authorAvatarUrl,
+    reactionsCount: comment.reactionsCount,
+    upvoteCount: comment.upvoteCount,
+    downvoteCount: comment.downvoteCount,
+    voteScore: comment.voteScore,
+    directReplyCount: comment.directReplyCount,
+    replyToName: comment.replyToName,
+  };
+}
+
+export const getPublicPostForSeo = query({
+  args: { postId: v.id("communityPosts") },
+  handler: async (ctx, args) => {
+    const post = await ctx.db.get(args.postId);
+    if (!post || effectivePostStatus(post) !== "published") return null;
+    return publicPostForSeo(ctx, post);
+  },
+});
+
+export const listPublicRootCommentsPage = query({
+  args: { postId: v.id("communityPosts"), paginationOpts: paginationOptsValidator },
+  handler: async (ctx, args) => {
+    const post = await ctx.db.get(args.postId);
+    if (!post || effectivePostStatus(post) !== "published") {
+      return { page: [], isDone: true, continueCursor: args.paginationOpts.cursor ?? "" };
+    }
+    const result = await ctx.db
+      .query("comments")
+      .withIndex("by_postId_and_parentId_and_hotScore_and_createdAt", (q) =>
+        q.eq("postId", args.postId).eq("parentId", undefined),
+      )
+      .order("desc")
+      .paginate(args.paginationOpts);
+    const comments = await commentsWithDetails(ctx, result.page, null);
+    return { ...result, page: await Promise.all(comments.map(publicCommentForSeo)) };
+  },
+});
+
+export const listPublicRepliesPage = query({
+  args: {
+    postId: v.id("communityPosts"),
+    parentId: v.id("comments"),
+    paginationOpts: paginationOptsValidator,
+  },
+  handler: async (ctx, args) => {
+    const post = await ctx.db.get(args.postId);
+    const parent = await ctx.db.get(args.parentId);
+    if (!post || effectivePostStatus(post) !== "published" || !parent || parent.postId !== args.postId) {
+      return { page: [], isDone: true, continueCursor: args.paginationOpts.cursor ?? "" };
+    }
+    const result = await ctx.db
+      .query("comments")
+      .withIndex("by_postId_and_parentId_and_hotScore_and_createdAt", (q) =>
+        q.eq("postId", args.postId).eq("parentId", args.parentId),
+      )
+      .order("desc")
+      .paginate(args.paginationOpts);
+    const comments = await commentsWithDetails(ctx, result.page, null);
+    return { ...result, page: await Promise.all(comments.map(publicCommentForSeo)) };
+  },
+});
+
+export const listPublishedThreadsForSitemap = query({
+  args: { paginationOpts: paginationOptsValidator },
+  handler: async (ctx, args) => {
+    const result = await ctx.db
+      .query("communityPosts")
+      .withIndex("by_status_and_createdAt", (q) => q.eq("status", "published"))
+      .order("desc")
+      .paginate(args.paginationOpts);
+    return {
+      ...result,
+      page: result.page.map((post) => ({
+        _id: post._id,
+        language: post.language,
+        createdAt: post.createdAt,
+        updatedAt: post.updatedAt,
+      })),
+    };
+  },
+});
+
 export const listFeaturedPosts = query({
   args: {
     courseId: v.optional(v.id("courses")),
@@ -425,7 +543,7 @@ export const createPost = mutation({
     isFeaturedForCourse: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const { userId, profile } = await getCurrentProfile(ctx);
+    const { userId, profile } = await requireCompleteCommunityProfile(ctx);
     const resolvedScope = await resolvePostWriteScope(ctx, args.scope, args.courseId);
     if (args.scope && args.courseId && (resolvedScope.kind !== "course" || resolvedScope.courseId !== args.courseId)) {
       throw new Error("Scope kurs se ne poklapa sa courseId vrednošću.");
@@ -502,7 +620,7 @@ export const updatePost = mutation({
     imageFileName: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { userId, profile } = await getCurrentProfile(ctx);
+    const { userId, profile } = await requireCompleteCommunityProfile(ctx);
     const post = await ctx.db.get(args.postId);
     if (!post) throw new Error("Diskusija nije pronadjena");
     if (post.authorId !== userId) {
@@ -752,7 +870,7 @@ export const setPinnedScope = mutation({
 async function commentsWithDetails(
   ctx: QueryCtx,
   comments: Doc<"comments">[],
-  userId: Id<"users">,
+  userId: Id<"users"> | null,
 ) {
   return Promise.all(
     comments.map(async (comment) => {
@@ -774,17 +892,19 @@ async function commentsWithDetails(
               .take(1000)
           : [];
       const derivedCounts = reactionRows.length ? voteCounts(reactionRows) : null;
-      const userReaction = (
-        await ctx.db
-          .query("reactions")
-          .withIndex("by_user_target", (q) =>
-            q
-              .eq("userId", userId)
-              .eq("targetType", "comment")
-              .eq("targetId", String(comment._id)),
-          )
-          .unique()
-      )?.reaction;
+      const userReaction = userId
+        ? (
+            await ctx.db
+              .query("reactions")
+              .withIndex("by_user_target", (q) =>
+                q
+                  .eq("userId", userId)
+                  .eq("targetType", "comment")
+                  .eq("targetId", String(comment._id)),
+              )
+              .unique()
+          )?.reaction
+        : undefined;
 
       const parentComment = comment.parentId ? await ctx.db.get(comment.parentId) : null;
       const parentIdentity = parentComment ? await publicCommunityIdentity(ctx, parentComment.authorId) : null;
@@ -1161,6 +1281,7 @@ export const setCommentHelpful = mutation({
   },
   handler: async (ctx, args) => {
     const { userId, profile } = await getCurrentProfile(ctx);
+    if (!isStaffRole(profile.role)) await requireCompleteCommunityProfile(ctx);
     const comment = await ctx.db.get(args.commentId);
     if (!comment) throw new Error("Komentar nije pronađen.");
     const post = await ctx.db.get(comment.postId);
@@ -1261,6 +1382,7 @@ export const deletePost = mutation({
       .take(100);
     const profile = [...profileRows].sort((a, b) => a._creationTime - b._creationTime)[0] ?? null;
     const isAdminOrMod = profile?.role === "admin" || profile?.role === "moderator";
+    if (!isAdminOrMod) await requireCompleteCommunityProfile(ctx);
 
     if (post.authorId !== userId && !isAdminOrMod) {
       throw new Error("Nemate dozvolu da obrisete ovu diskusiju");
@@ -1358,6 +1480,7 @@ export const deleteComment = mutation({
       .withIndex("by_userId", (q) => q.eq("userId", userId))
       .unique();
     const isAdminOrMod = profile?.role === "admin" || profile?.role === "moderator";
+    if (!isAdminOrMod) await requireCompleteCommunityProfile(ctx);
 
     if (comment.authorId !== userId && !isAdminOrMod) {
       throw new Error("Forbidden");
@@ -1446,7 +1569,7 @@ export const deleteComment = mutation({
 export const createAttachmentUploadUrl = mutation({
   args: {},
   handler: async (ctx) => {
-    await requireUserId(ctx);
+    await requireCompleteCommunityProfile(ctx);
     return ctx.storage.generateUploadUrl();
   },
 });
@@ -1507,7 +1630,7 @@ export const toggleFavorite = mutation({
     postId: v.id("communityPosts"),
   },
   handler: async (ctx, args) => {
-    const userId = await requireUserId(ctx);
+    const { userId } = await requireCompleteCommunityProfile(ctx);
     const post = await ctx.db.get(args.postId);
     if (!post || effectivePostStatus(post) !== "published") {
       throw new Error("Diskusija nije pronađena.");
@@ -1659,6 +1782,7 @@ export const getCommunityFilters = query({
       viewer: {
         userId,
         role: profile.role,
+        username: profile.username,
         language: profile.language,
       },
       tracks: tracks.map((track) => ({
@@ -1915,7 +2039,7 @@ export const listMentionEvents = query({
     category: v.optional(v.union(v.literal("all"), v.literal("votes"), v.literal("comments"), v.literal("tags"), v.literal("system"))),
   },
   handler: async (ctx, args) => {
-    const { userId } = await getCurrentProfile(ctx);
+    const { userId, profile } = await getCurrentProfile(ctx);
     const paginationOpts = boundedPaginationOpts(args.paginationOpts);
     const rawOffset = args.paginationOpts.cursor ? Number(args.paginationOpts.cursor) : 0;
     const offset = Number.isFinite(rawOffset) && rawOffset >= 0 ? Math.floor(rawOffset) : 0;
@@ -1929,7 +2053,7 @@ export const listMentionEvents = query({
       if (args.category === "votes") return kind.includes("vote") || kind.startsWith("like_");
       if (args.category === "comments") return kind === "comment_post" || kind === "comment_reply";
       if (args.category === "tags") return kind === "mention";
-      return kind === "helpful_comment" || kind === "post_approved" || kind === "post_changes_requested";
+      return kind === "helpful_comment" || kind === "post_approved" || kind === "post_changes_requested" || kind === "approval_pending";
     };
     const allNotifications = await ctx.db
       .query("notifications")
@@ -1940,12 +2064,69 @@ export const listMentionEvents = query({
       (notification) =>
         communityKinds.has(String(notification.kind)) && categoryMatches(String(notification.kind)) && (!args.unreadOnly || !notification.readAt),
     );
-    const pageNotifications = matchingNotifications.slice(offset, offset + paginationOpts.numItems);
-    const nextOffset = offset + pageNotifications.length;
-    const isDone = nextOffset >= matchingNotifications.length && allNotifications.length < 1000;
+
+    // Pending posts are not rows in `notifications`, but they are actionable
+    // system events for staff and must appear in the same inbox as the badge.
+    const pendingApprovalEvents = isStaffRole(profile.role)
+      ? await Promise.all(
+          (
+            await ctx.db
+              .query("communityPosts")
+              .withIndex("by_status_and_updatedAt", (q) => q.eq("status", "pending"))
+              .order("desc")
+              .take(100)
+          ).map(async (post) => {
+            const [author, course, track, scope] = await Promise.all([
+              publicCommunityIdentity(ctx, post.authorId),
+              post.courseId ? ctx.db.get(post.courseId) : Promise.resolve(null),
+              post.trackId ? ctx.db.get(post.trackId) : Promise.resolve(null),
+              resolvedScopeForPost(ctx, post),
+            ]);
+            return {
+              notificationId: `approval:${String(post._id)}`,
+              createdAt: post.updatedAt ?? post.createdAt,
+              readAt: undefined,
+              kind: "approval_pending",
+              unread: true,
+              excerpt: post.body,
+              sender: {
+                userId: post.authorId,
+                name: author.name,
+                username: author.username,
+                role: author.role,
+                avatarUrl: author.avatarUrl,
+              },
+              thread: {
+                postId: post._id,
+                title: post.title,
+                scope,
+                courseTitleSr: course?.titleSr,
+                courseTitleEn: course?.titleEn,
+                trackTitleSr: track?.titleSr,
+                trackTitleEn: track?.titleEn,
+              },
+              commentId: undefined,
+            };
+          }),
+        )
+      : [];
+
+    const matchingEvents = [
+      ...matchingNotifications.map((notification) => ({ type: "notification" as const, notification })),
+      ...pendingApprovalEvents.map((event) => ({ type: "approval" as const, event })),
+    ]
+      .sort((a, b) =>
+        (b.type === "approval" ? b.event.createdAt : b.notification.createdAt) -
+        (a.type === "approval" ? a.event.createdAt : a.notification.createdAt),
+      );
+    const pageEvents = matchingEvents.slice(offset, offset + paginationOpts.numItems);
+    const nextOffset = offset + pageEvents.length;
+    const isDone = nextOffset >= matchingEvents.length && allNotifications.length < 1000;
 
     const events = await Promise.all(
-      pageNotifications.map(async (notification) => {
+      pageEvents.map(async (item) => {
+        if (item.type === "approval") return item.event;
+        const notification = item.notification;
         if (!notification.postId || !notification.senderId) return null;
         const [post, comment, sender] = await Promise.all([
           ctx.db.get(notification.postId),

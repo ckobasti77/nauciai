@@ -1,37 +1,24 @@
 "use client";
 
 import { useConvexAuth } from "@convex-dev/auth/react";
-import { useQuery } from "convex/react";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
 
-import { api } from "@/convex/_generated/api";
-import { type Locale, withLocale } from "@/lib/i18n";
+import { type Locale } from "@/lib/i18n";
 
+/**
+ * Auth loading remains gated, but profile completion is intentionally advisory.
+ * Login completion sends viewers without a username to Profile once; after that
+ * they can browse the app and Community in read-only mode.
+ */
 export function ProfileSetupGate({ locale, children }: { locale: Locale; children: React.ReactNode }) {
-  const pathname = usePathname();
-  const router = useRouter();
-  const { isLoading, isAuthenticated } = useConvexAuth();
-  const isProfileRoute = pathname === withLocale(locale, "/app/profile");
-  const status = useQuery(
-    api.profiles.getViewerProfileStatus,
-    isAuthenticated && !isProfileRoute ? {} : "skip",
-  );
+  const { isLoading } = useConvexAuth();
 
-  useEffect(() => {
-    if (!isLoading && isAuthenticated && !isProfileRoute && status && !status.complete) {
-      const returnTo = `${pathname}${window.location.search}`;
-      router.replace(`${withLocale(locale, "/app/profile")}?onboarding=1&returnTo=${encodeURIComponent(returnTo)}`);
-    }
-  }, [isAuthenticated, isLoading, isProfileRoute, locale, pathname, router, status]);
-
-  if (isProfileRoute || !isAuthenticated) return <>{children}</>;
-  if (isLoading || status === undefined || !status.complete) {
+  if (isLoading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center p-6">
         <div className="rounded-[16px] border-2 border-ink bg-yellow/25 px-6 py-5 text-center shadow-[5px_5px_0_0_rgba(14,49,88,0.12)]">
-          <p className="text-lg font-black text-ink">{locale === "sr" ? "Pripremamo tvoj profil…" : "Preparing your profile…"}</p>
-          <p className="mt-1 text-sm font-bold text-muted">{locale === "sr" ? "Dovrši setup da nastaviš." : "Complete setup to continue."}</p>
+          <p className="text-lg font-black text-ink">
+            {locale === "sr" ? "Pripremamo tvoj nalog…" : "Preparing your account…"}
+          </p>
         </div>
       </div>
     );

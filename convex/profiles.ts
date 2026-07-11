@@ -5,14 +5,17 @@ import { mutation, query } from "./_generated/server";
 import {
   effectiveRoleForProfile,
   ensureProfile,
-  isValidUsername,
   isInitialAdminEmail,
-  normalizeUsername,
   requireAdmin,
   requireUserId,
   getCurrentProfile,
 } from "./helpers";
 import { syncLeaderboardEligibilityForUser } from "./leaderboardCore";
+import {
+  isValidUsername,
+  normalizeUsername,
+  USERNAME_VALIDATION_MESSAGE_SR,
+} from "../lib/username-policy";
 
 const avatarPresetValidator = v.union(
   v.literal("mythic-mentor"),
@@ -70,22 +73,33 @@ export const getViewerProfileStatus = query({
   args: {},
   handler: async (ctx) => {
     const { userId, profile } = await getCurrentProfile(ctx);
+    const authUser = await ctx.db.get(userId);
     const accounts = await ctx.db
       .query("authAccounts")
       .withIndex("userIdAndProvider", (q) => q.eq("userId", userId))
       .take(10);
     const hasPassword = accounts.some((account) => account.provider === "password");
-    const missing = [
-      ...(profile.username ? [] : ["username" as const]),
-      ...(hasPassword ? [] : ["password" as const]),
-    ];
+    const hasGoogle = accounts.some((account) => account.provider === "google");
+    const isGoogleOnly = hasGoogle && !hasPassword;
+    const hasEmail = Boolean(String(authUser?.email ?? profile.email ?? "").trim());
+    const emailVerifiedForPassword = isGoogleOnly
+      ? Boolean(authUser?.passwordEmailVerificationTime)
+      : Boolean(authUser?.passwordEmailVerificationTime || authUser?.emailVerificationTime);
+    const missing = profile.username ? [] : ["username" as const];
     return {
       complete: missing.length === 0,
       missing,
       username: profile.username,
+      email: authUser?.email ?? profile.email,
+      hasEmail,
+      emailVerifiedForPassword,
       authProviders: accounts.map((account) => account.provider),
       hasPassword,
-      isGoogleOnly: accounts.some((account) => account.provider === "google") && !hasPassword,
+      isGoogleOnly,
+      advisories: {
+        emailVerification: hasEmail && !emailVerifiedForPassword,
+        password: !hasPassword,
+      },
     };
   },
 });
@@ -185,7 +199,7 @@ export const updateViewerProfile = mutation({
       const normalizedUsername = normalizeUsername(args.username);
       if (normalizedUsername) {
         if (!isValidUsername(normalizedUsername)) {
-          throw new Error("Korisničko ime mora imati između 3 i 20 karaktera i može sadržati samo slova, brojeve, donje crte i crtice.");
+          throw new Error(USERNAME_VALIDATION_MESSAGE_SR);
         }
         const existingRows = await ctx.db
           .query("profiles")
