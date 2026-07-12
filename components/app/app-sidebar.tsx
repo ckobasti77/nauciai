@@ -297,6 +297,18 @@ function CourseSwitcher({
   isAdmin: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const currentStatus =
+    currentCourse.status !== "published"
+      ? locale === "sr"
+        ? "Skica"
+        : "Draft"
+      : currentCourse.hasAccess || isAdmin
+        ? locale === "sr"
+          ? "Aktivan kurs"
+          : "Active course"
+        : locale === "sr"
+          ? "Zaključan"
+          : "Locked";
 
   return (
     <div className="sidebar-reveal relative mt-5 lg:mt-8">
@@ -306,28 +318,21 @@ function CourseSwitcher({
           onClick={() => setOpen((value) => !value)}
           whileHover={{ y: -1 }}
           whileTap={{ scale: 0.98 }}
-          className="flex min-h-14 min-w-0 flex-1 items-center justify-between gap-3 rounded-[8px] border-2 border-ink bg-yellow px-3 py-2 text-left text-sm font-black text-ink shadow-[4px_4px_0_0_rgba(14,49,88,0.18)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          aria-expanded={open}
+          className="flex min-h-[4.5rem] min-w-0 flex-1 items-center justify-between gap-3 rounded-[16px] border-2 border-ink bg-white p-2 text-left text-sm font-black text-ink shadow-[4px_4px_0_0_rgba(14,49,88,0.18)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         >
-          <span className="flex min-w-0 items-center gap-2">
-            <GraduationCap className="size-4 shrink-0" />
+          <span className="flex min-w-0 items-center gap-3">
+            <span className="grid size-11 shrink-0 place-items-center rounded-[12px] border-2 border-ink bg-yellow shadow-[2px_2px_0_0_rgba(14,49,88,0.12)]">
+              <GraduationCap className="size-5" />
+            </span>
             <span className="min-w-0">
               <span className="block truncate">{localized(currentCourse.title, locale)}</span>
-              <span className="mt-0.5 block text-[11px] font-black uppercase text-ink/70">
-                {currentCourse.status === "published"
-                  ? currentCourse.hasAccess || isAdmin
-                    ? locale === "sr"
-                      ? "Aktivan smer"
-                      : "Active track"
-                    : locale === "sr"
-                      ? "Zakljucan smer"
-                      : "Locked track"
-                  : locale === "sr"
-                    ? "Nacrt"
-                    : "Draft"}
+              <span className="mt-1 inline-flex items-center rounded-full bg-ink px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.08em] text-white">
+                {currentStatus}
               </span>
             </span>
           </span>
-          <ChevronDown className={cn("size-4 shrink-0 transition", open && "rotate-180")} />
+          <ChevronDown className={cn("size-5 shrink-0 transition", open && "rotate-180")} />
         </motion.button>
         {isAdmin ? (
           <SidebarAdminActions className="sidebar-action-cluster-static">
@@ -342,8 +347,21 @@ function CourseSwitcher({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -6, scale: 0.98 }}
             transition={{ duration: 0.18, ease: "easeOut" }}
-            className="relative z-20 mt-2 rounded-[8px] border-2 border-ink bg-white p-2 shadow-[6px_6px_0_0_rgba(14,49,88,0.18)]"
+            className="relative z-20 mt-3 rounded-[16px] border-2 border-ink bg-white p-3 shadow-[6px_6px_0_0_rgba(14,49,88,0.18)]"
           >
+            <div className="mb-3 flex items-center justify-between gap-3 px-1">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-muted">
+                  {locale === "sr" ? "Tvoje učenje" : "Your learning"}
+                </p>
+                <p className="mt-0.5 text-sm font-black text-ink">
+                  {locale === "sr" ? "Izaberi kurs" : "Choose a course"}
+                </p>
+              </div>
+              <span className="rounded-full border border-line bg-paper px-2.5 py-1 text-[10px] font-black text-muted">
+                {courses.length} {locale === "sr" ? "kursa" : "courses"}
+              </span>
+            </div>
             <div className="max-h-[60vh] space-y-2 overflow-y-auto pr-1">
               {courses.map((course) => {
                 const comingSoon = isCourseComingSoon(course, isAdmin);
@@ -368,27 +386,36 @@ function CourseSwitcher({
                     layout
                     whileHover={{ x: 2 }}
                     className={cn(
-                      "group relative rounded-[8px] border-2 p-2 pr-10 transition",
-                      active ? "border-ink bg-yellow/40" : "border-line bg-paper",
+                      "group relative overflow-hidden rounded-[16px] border-2 p-3 pr-11 transition",
+                      active ? "border-ink bg-yellow/35 shadow-[2px_2px_0_0_rgba(14,49,88,0.12)]" : "border-line bg-paper hover:border-ink/45 hover:bg-white",
                     )}
                   >
+                    {active ? <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1.5 bg-yellow" /> : null}
                     <div className="sidebar-action-row flex items-center gap-1">
                       {comingSoon ? (
-                        <div className="flex min-w-0 flex-1 items-center justify-between gap-2 text-sm font-black text-muted">
-                          <span className="truncate">{localized(course.title, locale)}</span>
-                          <span className="rounded-[6px] border-2 border-ink bg-white px-2 py-1 text-[11px] text-ink">
-                            {statusLabel}
+                        <div className="flex min-w-0 flex-1 items-center gap-3 text-sm font-black text-muted">
+                          <span className="grid size-9 shrink-0 place-items-center rounded-[10px] border border-line bg-white">
+                            <GraduationCap className="size-4" />
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-ink">{localized(course.title, locale)}</span>
+                            <span className="mt-1 inline-flex rounded-full border border-line bg-white px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.08em] text-muted">
+                              {statusLabel}
+                            </span>
                           </span>
                         </div>
                       ) : (
                         <Link
                           href={courseHref(locale, course.slug)}
                           onClick={() => setOpen(false)}
-                          className="flex min-w-0 flex-1 items-center justify-between gap-2 rounded-[6px] px-1 py-1 text-sm font-black text-ink hover:bg-white"
+                          className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-[10px] text-sm font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                         >
-                          <span className="min-w-0">
+                          <span className="grid size-9 shrink-0 place-items-center rounded-[10px] border border-ink/15 bg-white">
+                            {locked ? <Lock className="size-4" /> : <GraduationCap className="size-4" />}
+                          </span>
+                          <span className="min-w-0 flex-1">
                             <span className="block truncate">{localized(course.title, locale)}</span>
-                            <span className="mt-1 inline-flex items-center gap-1 rounded-[6px] border-2 border-line bg-white px-2 py-0.5 text-[10px] font-black uppercase text-muted">
+                            <span className="mt-1 inline-flex items-center gap-1 rounded-full border border-line bg-white px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.08em] text-muted">
                               {locked ? <Lock className="size-3" /> : <ShieldCheck className="size-3" />}
                               {statusLabel}
                             </span>
@@ -416,7 +443,7 @@ function CourseSwitcher({
                     ) : null}
                     </div>
                     {locked ? (
-                      <div className="mt-2">
+                      <div className="mt-3 border-t border-ink/10 pt-3">
                         <CheckoutButton
                           courseSlug={course.slug}
                           locale={locale}
@@ -1179,6 +1206,7 @@ function AppSidebarContent({
   const profileInitials = profileName.split(/\s+/).map((part: string) => part[0]).filter(Boolean).slice(0, 2).join("").toUpperCase() || "AI";
   const profileAvatar = profileData?.avatarUrl;
   const profileIncomplete = !profileComplete || !profileData?.username;
+  const settingsLabel = locale === "sr" ? "Podešavanja" : "Settings";
   const dashboardActive = pathname === withLocale(locale, "/app") && !searchParams.get("course");
   const communityActive = pathname === withLocale(locale, "/app/community") || pathname.includes("/app/community/");
   const sidebarWidth = sidebarPreferences.collapsed ? APP_SIDEBAR_RAIL_WIDTH : sidebarPreferences.width;
@@ -1295,7 +1323,7 @@ function AppSidebarContent({
                   className={cn("flex min-h-10 items-center gap-3 px-3 py-2 text-[13px] font-black uppercase text-ink transition font-extrabold", profileIncomplete ? "bg-amber-50 hover:bg-amber-100" : "bg-white hover:bg-yellow/35")}
                 >
                   {profileIncomplete ? <CircleAlert className="size-4 shrink-0 text-amber-700" /> : <User className="size-4 shrink-0" />}
-                  <span>{t.profile}</span>
+                  <span>{settingsLabel}</span>
                   {profileIncomplete ? <span className="ml-auto rounded-full border border-amber-500 bg-amber-100 px-2 py-0.5 text-[9px] font-black text-amber-900">{locale === "sr" ? "Upozorenje" : "Warning"}</span> : null}
                 </Link>
                 <Link
@@ -1357,7 +1385,7 @@ function AppSidebarContent({
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-white px-3 py-2 text-xs font-black text-ink"
           >
             {profileIncomplete ? <CircleAlert className="size-4 text-amber-700" /> : <User className="size-4" />}
-            {t.profile}
+            {settingsLabel}
           </Link>
           <Link
             href={currentCourse ? navHref(locale, "/app/billing", currentCourse.slug) : withLocale(locale, "/app/billing")}
@@ -1432,7 +1460,7 @@ function AppSidebarContent({
                   <p className="truncate text-xs font-bold text-muted">{profileUsername}</p>
                 </div>
                 <Link href={currentCourse ? navHref(locale, "/app/profile", currentCourse.slug) : withLocale(locale, "/app/profile")} className={cn("flex min-h-11 items-center gap-3 rounded-full px-3 text-sm font-black", profileIncomplete ? "bg-amber-50 text-amber-900" : "hover:bg-yellow/25")}>
-                  {profileIncomplete ? <CircleAlert className="size-4" /> : <User className="size-4" />} {t.profile}
+                  {profileIncomplete ? <CircleAlert className="size-4" /> : <User className="size-4" />} {settingsLabel}
                 </Link>
                 <Link href={currentCourse ? navHref(locale, "/app/billing", currentCourse.slug) : withLocale(locale, "/app/billing")} className="flex min-h-11 items-center gap-3 rounded-full px-3 text-sm font-black hover:bg-yellow/25"><CreditCard className="size-4" /> {t.billing}</Link>
                 <button type="button" onClick={async () => { await signOut(); router.push(withLocale(locale, "/sign-in")); }} className="mt-2 flex min-h-11 w-full items-center gap-3 bg-ink px-3 text-sm font-black text-white"><LogOut className="size-4" /> {locale === "sr" ? "Odjavi se" : "Sign out"}</button>

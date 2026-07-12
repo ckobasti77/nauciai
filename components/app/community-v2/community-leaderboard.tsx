@@ -8,6 +8,7 @@ import type { Locale } from "@/lib/i18n";
 
 import { fallbackCommunityFilters, useCommunityFilters, useLeaderboard } from "./community-data";
 import { CommunityScopeControls, useCommunityQueryParams, useResolvedCommunityScope } from "./community-filters";
+import { CommunityStickyToolbar } from "./community-sticky-toolbar";
 import {
   CommunityPageHeading,
   CommunityRouteSkeleton,
@@ -204,6 +205,7 @@ function LeaderboardView({
       />
       </div>
 
+      <CommunityStickyToolbar>
       <section className="overflow-x-auto rounded-[16px]! border border-line bg-white p-3 sm:p-4">
         <div className="flex min-w-max items-center gap-2">
         <CommunityScopeControls
@@ -243,6 +245,7 @@ function LeaderboardView({
         />
         </div>
       </section>
+      </CommunityStickyToolbar>
 
       {loading ? (
         <CommunityRouteSkeleton />

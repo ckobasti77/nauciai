@@ -21,6 +21,7 @@ import {
   useToggleCommunityFavorite,
 } from "./community-data";
 import { CommunityScopeControls, useCommunityQueryParams, useResolvedCommunityScope } from "./community-filters";
+import { CommunityStickyToolbar } from "./community-sticky-toolbar";
 import {
   CommunityPageHeading,
   CommunityRouteSkeleton,
@@ -401,6 +402,7 @@ function DiscussionsView({
       />
       </div>
 
+      <CommunityStickyToolbar>
       <section className="rounded-[16px]! border border-line bg-white p-3 sm:p-4" aria-label={locale === "sr" ? "Filteri diskusija" : "Discussion filters"}>
         <div className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -461,6 +463,7 @@ function DiscussionsView({
           />
         </div>
       </section>
+      </CommunityStickyToolbar>
 
       {loading ? (
         <CommunityRouteSkeleton />

@@ -9,6 +9,7 @@ import type { Locale } from "@/lib/i18n";
 
 import { fallbackCommunityFilters, useCommunityFilters, useCommunityMembers } from "./community-data";
 import { CommunityScopeControls, useCommunityQueryParams, useResolvedCommunityScope } from "./community-filters";
+import { CommunityStickyToolbar } from "./community-sticky-toolbar";
 import {
   CommunityMetric,
   CommunityPageHeading,
@@ -394,6 +395,7 @@ function MembersView({
       />
       </div>
 
+      <CommunityStickyToolbar>
       <section className="rounded-[16px]! border border-line bg-white p-3 sm:p-4">
         <div className="grid gap-2 xl:grid-cols-[minmax(220px,0.72fr)_minmax(0,1fr)]">
           <CommunityScopeControls locale={locale} filters={filters} scopeState={scopeState} compact />
@@ -419,6 +421,7 @@ function MembersView({
           </div>
         </div>
       </section>
+      </CommunityStickyToolbar>
 
       {loading ? (
         <CommunityRouteSkeleton />

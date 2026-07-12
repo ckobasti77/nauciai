@@ -14,6 +14,7 @@ import { AccountMenu } from "@/components/marketing/account-menu";
 import { CourseFavoriteButton } from "@/components/marketing/course-favorite-button";
 import { HeroMotion } from "@/components/marketing/hero-motion";
 import { BrandMark, HandUnderline, LinkButton, Panel, SectionHeader, SketchIcon } from "@/components/ui/primitives";
+import { SmartStickyHeader } from "@/components/ui/smart-sticky";
 import { courses, primaryCourseSlug } from "@/lib/content";
 import type { ViewerProfile } from "@/lib/current-viewer";
 import { dictionary, localized, otherLocale, type Locale, withLocale } from "@/lib/i18n";
@@ -33,9 +34,9 @@ export function MarketingPage({
 
   return (
     <main className="bg-paper text-ink">
-      <header
+      <SmartStickyHeader
         data-marketing-auth={viewerProfile ? "authenticated" : "anonymous"}
-        className="sticky top-0 z-20 border-b-2 border-ink bg-paper/95 backdrop-blur"
+        className="top-0 z-40 border-b-2 border-ink bg-paper/95 shadow-[0_8px_18px_-16px_rgba(14,49,88,0.55)] backdrop-blur"
       >
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
           <BrandMark href={withLocale(locale)} label={t.appName} />
@@ -68,7 +69,7 @@ export function MarketingPage({
             )}
           </div>
         </div>
-      </header>
+      </SmartStickyHeader>
 
       <div data-motion="page">
       <HeroMotion>

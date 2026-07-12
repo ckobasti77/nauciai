@@ -18,6 +18,7 @@ import { useState } from "react";
 
 import { CommunityAvatar, formatCommunityTime, type CommunityRank, type CommunityRole } from "@/components/app/community-identity";
 import { CommunityThreadDialog } from "@/components/app/community-thread-dialog";
+import { CommunityStickyToolbar } from "@/components/app/community-v2/community-sticky-toolbar";
 import { Panel } from "@/components/ui/primitives";
 import { useToast } from "@/components/ui/toast-provider";
 import { api } from "@/convex/_generated/api";
@@ -158,7 +159,8 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
 
   return (
     <section aria-labelledby="moderation-title" className="space-y-5">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      <CommunityStickyToolbar>
+      <div className="flex flex-wrap items-end justify-end gap-4 rounded-[16px] border border-line bg-white p-2">
         <div className="hidden max-w-2xl">
           <p className="font-display text-xl text-ink">{locale === "sr" ? "Kvalitet pre brzine" : "Quality before speed"}</p>
           <h1 id="moderation-title" className="mt-1 text-3xl font-black tracking-[-0.02em] text-ink md:text-4xl">
@@ -175,6 +177,7 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
           {queue.results.length} {locale === "sr" ? "učitano" : "loaded"}
         </span>
       </div>
+      </CommunityStickyToolbar>
 
       {error ? (
         <p role="alert" className="rounded-[12px] border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-800">

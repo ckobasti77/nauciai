@@ -18,6 +18,7 @@ import {
   useToggleCommunityFavorite,
 } from "./community-data";
 import { useCommunityQueryParams } from "./community-filters";
+import { CommunityStickyToolbar } from "./community-sticky-toolbar";
 import {
   CommunityPageHeading,
   CommunityRouteSkeleton,
@@ -30,10 +31,10 @@ import type { CommunityPostRow } from "./community-types";
 type ThreadView = "drafts" | "pending" | "published" | "saved";
 
 const VIEW_ITEMS = [
-  { id: "published" as const, labelSr: "Objavljeno", labelEn: "Published", icon: CheckCircle2, step: "01" },
-  { id: "pending" as const, labelSr: "Na odobrenju", labelEn: "In review", icon: Clock3, step: "02" },
-  { id: "drafts" as const, labelSr: "Skice", labelEn: "Drafts", icon: FilePenLine, step: "03" },
-  { id: "saved" as const, labelSr: "Sačuvano", labelEn: "Saved", icon: Bookmark, step: "★" },
+  { id: "published" as const, labelSr: "Objavljeno", labelEn: "Published", icon: CheckCircle2 },
+  { id: "pending" as const, labelSr: "Na odobrenju", labelEn: "In review", icon: Clock3 },
+  { id: "drafts" as const, labelSr: "Skice", labelEn: "Drafts", icon: FilePenLine },
+  { id: "saved" as const, labelSr: "Sačuvano", labelEn: "Saved", icon: Bookmark },
 ];
 
 function useThreadView() {
@@ -221,7 +222,8 @@ function MyThreadsView({
         }
       />
       </div>
-      <nav className="overflow-x-auto rounded-[16px]! border border-line bg-white p-1.5" aria-label={locale === "sr" ? "Status mojih tredova" : "My thread status"}>
+      <CommunityStickyToolbar>
+      <nav className="overflow-x-auto rounded-[16px]! border border-line bg-white p-1.5" aria-label={locale === "sr" ? "Status mojih predloga" : "My ideas status"}>
         <div className="relative grid min-w-[760px] grid-cols-5">
           <span
             aria-hidden="true"
@@ -238,7 +240,7 @@ function MyThreadsView({
                 onClick={() => viewState.setView(item.id)}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "relative z-10 flex min-h-10 items-center justify-between gap-3 rounded-[12px] border border-transparent px-3 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+                  "relative z-10 flex min-h-10 items-center gap-3 rounded-[12px] border border-transparent px-3 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
                   active ? "text-white" : "text-ink hover:bg-[#eef3f7]",
                 )}
               >
@@ -246,7 +248,6 @@ function MyThreadsView({
                   <Icon className={cn("size-4 shrink-0", active && "text-yellow")} aria-hidden="true" />
                   <span className="truncate text-sm font-black">{locale === "sr" ? item.labelSr : item.labelEn}</span>
                 </span>
-                <span className={cn("font-mono text-[10px] font-black", active ? "text-yellow" : "text-muted")}>{item.step}</span>
               </button>
             );
           })}
@@ -262,6 +263,7 @@ function MyThreadsView({
           </Link>
         </div>
       </nav>
+      </CommunityStickyToolbar>
 
       {loading ? (
         <CommunityRouteSkeleton />
@@ -352,10 +354,7 @@ function MyThreadsView({
                       <span className="relative z-10 grid size-6 shrink-0 place-items-center rounded-full border border-ink bg-white">
                         <Icon className="size-3" aria-hidden="true" />
                       </span>
-                      <span>
-                        <span className="block font-mono text-[9px] font-black text-muted">{item.step}</span>
-                        <span className="block text-sm font-black text-ink">{locale === "sr" ? item.labelSr : item.labelEn}</span>
-                      </span>
+                      <span className="block pt-0.5 text-sm font-black text-ink">{locale === "sr" ? item.labelSr : item.labelEn}</span>
                     </li>
                   );
                 })}

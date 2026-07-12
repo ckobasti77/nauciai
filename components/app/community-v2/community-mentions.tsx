@@ -11,6 +11,7 @@ import { withLocale } from "@/lib/i18n";
 
 import { fallbackCommunityFilters, useCommunityFilters, useCommunityMentions } from "./community-data";
 import { useCommunityQueryParams } from "./community-filters";
+import { CommunityStickyToolbar } from "./community-sticky-toolbar";
 import { CommunityPageHeading, CommunityRouteSkeleton, EmptyCommunityState, LoadMoreButton, ScopeTrail } from "./community-shared";
 import type { CommunityMentionEvent } from "./community-types";
 
@@ -123,6 +124,7 @@ function NotificationsView({ locale, viewState, notifications, loading, canLoadM
       <div className="hidden">
       <CommunityPageHeading eyebrow={locale === "sr" ? "Tvoj community inbox" : "Your community inbox"} title={locale === "sr" ? "Obaveštenja sa punim kontekstom" : "Notifications with full context"} body={locale === "sr" ? "Vidi glasove, komentare, tagove i sistemske promene na svojim objavama." : "See votes, comments, tags, and system changes around your community activity."} action={unreadCount > 0 && onMarkAll ? <button type="button" onClick={() => void onMarkAll()} disabled={markingAll} className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full border border-ink bg-white px-4 text-sm font-black text-ink disabled:opacity-60"><CheckCheck className="size-4" />{locale === "sr" ? "Označi sve pročitano" : "Mark all as read"}</button> : undefined} />
       </div>
+      <CommunityStickyToolbar>
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-[16px] border border-line bg-white p-2">
         <div className="flex flex-wrap gap-1" role="group" aria-label={locale === "sr" ? "Filter obaveštenja" : "Notification filter"}>{(Object.keys(categoryLabels) as NotificationCategory[]).map((category) => <button key={category} type="button" onClick={() => viewState.setCategory(category)} aria-pressed={viewState.category === category} className={cn("inline-flex min-h-10 items-center rounded-full px-3 text-xs font-black transition", viewState.category === category ? "bg-ink text-white" : "text-ink/65 hover:bg-[#eef3f7] hover:text-ink")}>{categoryLabels[category]}</button>)}<button type="button" onClick={() => viewState.setUnreadOnly(!viewState.unreadOnly)} aria-pressed={viewState.unreadOnly} className={cn("inline-flex min-h-10 items-center gap-2 rounded-full px-3 text-xs font-black transition", viewState.unreadOnly ? "bg-ink text-white" : "text-ink/65 hover:bg-[#eef3f7] hover:text-ink")}><Bell className="size-3.5" />{locale === "sr" ? "Nepročitano" : "Unread"}{unreadCount > 0 ? <span className="rounded-full border border-ink bg-yellow px-1.5 font-mono text-[10px] text-ink">{unreadCount}</span> : null}</button></div>
         {unreadCount > 0 && onMarkAll ? (
@@ -137,6 +139,7 @@ function NotificationsView({ locale, viewState, notifications, loading, canLoadM
           </button>
         ) : null}
       </div>
+      </CommunityStickyToolbar>
       {loading ? <CommunityRouteSkeleton /> : <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_280px]"><section className="min-w-0 space-y-3" aria-live="polite">{notifications.length ? notifications.map((notification) => <NotificationCard key={notification._id} locale={locale} notification={notification} onMarkRead={onMarkOne} />) : <EmptyCommunityState locale={locale} icon={AtSign} title={viewState.unreadOnly ? (locale === "sr" ? "Sve je pročitano" : "You are all caught up") : (locale === "sr" ? "Još nema obaveštenja" : "No notifications yet")} body={locale === "sr" ? "Kada neko glasa, komentariše ili te taguje, ceo kontekst će se pojaviti ovde." : "When someone votes, comments, or tags you, the full context will appear here."} />}{canLoadMore && onLoadMore ? <div className="flex justify-center pt-3"><LoadMoreButton locale={locale} loading={loadingMore} onClick={onLoadMore} /></div> : null}</section><aside className="space-y-4 xl:sticky xl:top-6"><section className="rounded-[16px] border border-ink bg-ink p-5 text-white shadow-[4px_4px_0_rgba(244,190,48,0.7)]"><Sparkles className="size-5 text-yellow" /><h2 className="mt-3 text-lg font-black">{locale === "sr" ? "Jedan inbox za sve" : "One inbox for everything"}</h2><p className="mt-2 text-sm font-semibold leading-6 text-white/70">{locale === "sr" ? "Glasovi, komentari, tagovi i važne sistemske promene ostaju uz svoj razgovor." : "Votes, comments, tags, and important system changes stay attached to their conversation."}</p></section><section className="rounded-[16px] border border-line bg-white p-4"><p className="text-[10px] font-black uppercase tracking-[0.12em] text-muted">{locale === "sr" ? "Nepročitano" : "Unread"}</p><p className="mt-1 font-mono text-3xl font-black text-ink">{unreadCount}</p></section></aside></div>}
     </div>
   );

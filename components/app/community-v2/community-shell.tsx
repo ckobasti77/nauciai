@@ -20,6 +20,7 @@ import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { cn } from "@/components/ui/primitives";
+import { SmartStickyRegion } from "@/components/ui/smart-sticky";
 import type { Locale } from "@/lib/i18n";
 import { withLocale } from "@/lib/i18n";
 
@@ -241,8 +242,8 @@ function CommunityShellView({
       {
         id: "my-threads",
         path: "my-threads",
-        labelSr: "Moji tredovi",
-        labelEn: "My threads",
+        labelSr: "Moji predlozi",
+        labelEn: "My ideas",
         icon: BookOpenText,
         badge: filters.counts?.myThreads,
       },
@@ -333,10 +334,10 @@ function CommunityShellView({
         </div>
       </section>
 
-      <nav
-        className="relative overflow-hidden border-b-2 border-line/75 bg-paper/90"
-        aria-label={locale === "sr" ? "Sekcije zajednice" : "Community sections"}
+      <SmartStickyRegion
+        className="top-16 z-30 overflow-hidden border-b-2 border-line/75 bg-paper/95 shadow-[0_8px_18px_-16px_rgba(14,49,88,0.55)] backdrop-blur lg:top-0"
       >
+      <nav aria-label={locale === "sr" ? "Sekcije zajednice" : "Community sections"}>
         <div className="hidden overflow-x-auto sm:block">
           <div
             className="relative grid min-w-[720px]"
@@ -382,6 +383,11 @@ function CommunityShellView({
           </button>
         </div>
       </nav>
+      <div
+        className="border-t border-line/75 p-2 empty:hidden sm:p-3"
+        data-community-toolbar-target
+      />
+      </SmartStickyRegion>
 
       {filters.counts?.profileIncomplete ? (
         <Link
