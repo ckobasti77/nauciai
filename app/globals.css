@@ -110,6 +110,20 @@ select {
   }
 }
 
+@media (min-width: 1600px) {
+  .shell-container {
+    margin-left: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+  }
+  .shell-container > main {
+    margin-left: auto !important;
+    margin-right: auto !important;
+    max-width: 1380px !important;
+    width: 100% !important;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

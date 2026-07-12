@@ -245,6 +245,7 @@ function DiscussionsView({
 }) {
   const toast = useToast();
   const [expandedPostId, setExpandedPostId] = useState<string | null>(null);
+  const [manualOpen, setManualOpen] = useState(false);
 
   async function handlePostReaction(postId: string, vote: "upvote" | "downvote") {
     if (!onReactPost) return;
@@ -401,26 +402,34 @@ function DiscussionsView({
       </div>
 
       <section className="rounded-[16px]! border border-line bg-white p-3 sm:p-4" aria-label={locale === "sr" ? "Filteri diskusija" : "Discussion filters"}>
-        <div className="grid gap-2 xl:grid-cols-[minmax(320px,0.9fr)_minmax(280px,1fr)_auto] xl:items-start">
-          <CommunityScopeControls locale={locale} filters={filters} scopeState={scopeState} compact />
-          <div className="min-w-0">
-            <CommunitySearch
-              value={controls.search}
-              onChange={controls.setSearch}
-              placeholder={locale === "sr" ? "Pretraži naslov, pitanje ili autora" : "Search title, question, or author"}
-              label={locale === "sr" ? "Pretraži diskusije" : "Search discussions"}
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <CommunityScopeControls
+              locale={locale}
+              filters={filters}
+              scopeState={scopeState}
+              compact
+              mode="toggle"
+              manualOpen={manualOpen}
+              setManualOpen={setManualOpen}
             />
-          </div>
-          <div className="flex items-start gap-2">
-            <label className="relative block shrink-0">
+            <div className="w-full sm:w-[360px] sm:shrink-0">
+              <CommunitySearch
+                value={controls.search}
+                onChange={controls.setSearch}
+                placeholder={locale === "sr" ? "Pretraži naslov, pitanje ili autora" : "Search title, question, or author"}
+                label={locale === "sr" ? "Pretraži diskusije" : "Search discussions"}
+              />
+            </div>
+            <label className="relative block shrink-0 w-full sm:w-auto">
               <span className="sr-only">{locale === "sr" ? "Sortiraj diskusije" : "Sort discussions"}</span>
               <select
                 value={controls.sort}
                 onChange={(event) => controls.setSort(event.target.value as DiscussionSort)}
                 className="min-h-10 w-full appearance-none rounded-full border border-line bg-white py-2 pl-4 pr-10 text-sm font-black text-ink outline-none transition hover:border-ink/55 focus:border-ink focus:ring-4 focus:ring-yellow/25 sm:w-auto"
               >
-                <option value="hot">{locale === "sr" ? "Vruće" : "Hot"}</option>
-                <option value="top">{locale === "sr" ? "Najviše glasova" : "Top voted"}</option>
+                <option value="hot">{locale === "sr" ? "U trendu" : "Hot"}</option>
+                <option value="top">{locale === "sr" ? "Popularno" : "Top voted"}</option>
                 <option value="latest">{locale === "sr" ? "Najnovije" : "Latest"}</option>
                 <option value="active">{locale === "sr" ? "Aktivno" : "Active"}</option>
                 <option value="unanswered">{locale === "sr" ? "Bez odgovora" : "Unanswered"}</option>
@@ -430,17 +439,26 @@ function DiscussionsView({
             {canInteract ? (
               <Link
                 href={withLocale(locale, "/app/community/new")}
-                className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-sm font-black text-ink shadow-[2px_2px_0_rgba(14,49,88,0.16)] transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-sm font-black text-ink shadow-[2px_2px_0_rgba(14,49,88,0.16)] transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink w-full sm:w-auto"
               >
                 <PenLine className="size-4" aria-hidden="true" />
                 {locale === "sr" ? "Nova diskusija" : "New discussion"}
               </Link>
             ) : (
-              <span className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-full border border-line bg-paper px-4 text-sm font-black text-muted">
+              <span className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-full border border-line bg-paper px-4 text-sm font-black text-muted w-full sm:w-auto">
                 {locale === "sr" ? "Podesi username" : "Set username"}
               </span>
             )}
           </div>
+          <CommunityScopeControls
+            locale={locale}
+            filters={filters}
+            scopeState={scopeState}
+            compact
+            mode="selects"
+            manualOpen={manualOpen}
+            setManualOpen={setManualOpen}
+          />
         </div>
       </section>
 

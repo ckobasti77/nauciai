@@ -185,6 +185,9 @@ export function CommunityScopeControls({
   layout = "stacked",
   showLearningDepth = true,
   inlineMiddle,
+  mode = "all",
+  manualOpen,
+  setManualOpen,
 }: {
   locale: Locale;
   filters: CommunityFilters;
@@ -193,132 +196,149 @@ export function CommunityScopeControls({
   layout?: "stacked" | "inline";
   showLearningDepth?: boolean;
   inlineMiddle?: ReactNode;
+  mode?: "all" | "toggle" | "selects";
+  manualOpen?: boolean;
+  setManualOpen?: (open: boolean) => void;
 }) {
-  const [manualOpen, setManualOpen] = useState(false);
-  const settingsOpen = manualOpen || scopeState.scope.kind !== "global";
+  const [localManualOpen, setLocalManualOpen] = useState(false);
+  const isManualOpen = manualOpen !== undefined ? manualOpen : localManualOpen;
+  const setIsManualOpen = setManualOpen !== undefined ? setManualOpen : setLocalManualOpen;
+
+  const settingsOpen = isManualOpen || scopeState.scope.kind !== "global";
   const inline = layout === "inline";
   const selectedCourseValue = settingsOpen && scopeState.scope.kind === "course"
     ? scopeState.selectedCourse?._id ?? ""
     : "";
 
+  const isToggle = mode === "all" || mode === "toggle";
+  const isSelects = mode === "all" || mode === "selects";
+
+  const selectsContent = settingsOpen ? (
+    <div className={cn("grid gap-2 sm:grid-cols-2", inline && "flex items-center") }>
+      <label className={cn("block", inline && "w-48 shrink-0")}>
+        <span className="sr-only">{locale === "sr" ? "Izaberi smer" : "Choose track"}</span>
+        <select
+          value={scopeState.selectedTrack?._id ?? ""}
+          onChange={(event) => scopeState.setTrack(event.target.value)}
+          className="min-h-11 w-full rounded-[12px] border border-line bg-white px-3 text-sm font-black text-ink outline-none transition hover:border-ink/55 focus:border-ink focus:ring-4 focus:ring-yellow/25"
+        >
+          {filters.tracks.map((track) => (
+            <option key={track._id} value={track._id}>
+              {locale === "sr" ? track.titleSr : track.titleEn}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className={cn("block", inline && "w-52 shrink-0")}>
+        <span className="sr-only">{locale === "sr" ? "Izaberi kurs" : "Choose course"}</span>
+        <select
+          value={selectedCourseValue}
+          onChange={(event) => {
+            if (event.target.value) scopeState.setCourse(event.target.value);
+            else scopeState.setScopeKind("track");
+          }}
+          className="min-h-11 w-full rounded-[12px] border border-line bg-white px-3 text-sm font-black text-ink outline-none transition hover:border-ink/55 focus:border-ink focus:ring-4 focus:ring-yellow/25"
+        >
+          <option value="">{locale === "sr" ? "Svi kursevi u smeru" : "All courses in track"}</option>
+          {scopeState.availableCourses.map((course) => (
+            <option key={course._id} value={course._id}>
+              {locale === "sr" ? course.titleSr : course.titleEn}
+            </option>
+          ))}
+        </select>
+      </label>
+      {showLearningDepth ? <label className={cn("block", inline && "w-48 shrink-0")}>
+        <span className="sr-only">{locale === "sr" ? "Izaberi ciklus" : "Choose cycle"}</span>
+        <select
+          value={scopeState.selectedCycle?._id ?? ""}
+          onChange={(event) => scopeState.setCycle(event.target.value)}
+          disabled={!selectedCourseValue || scopeState.availableCycles.length === 0}
+          className="min-h-11 w-full rounded-[12px] border border-line bg-white px-3 text-sm font-black text-ink outline-none transition hover:border-ink/55 focus:border-ink focus:ring-4 focus:ring-yellow/25 disabled:cursor-not-allowed disabled:bg-[#eef3f7] disabled:text-muted"
+        >
+          <option value="">{locale === "sr" ? "Svi ciklusi" : "All cycles"}</option>
+          {scopeState.availableCycles.map((cycle) => (
+            <option key={cycle._id} value={cycle._id}>
+              {locale === "sr" ? cycle.titleSr : cycle.titleEn}
+            </option>
+          ))}
+        </select>
+      </label> : null}
+      {showLearningDepth ? <label className={cn("block", inline && "w-56 shrink-0")}>
+        <span className="sr-only">{locale === "sr" ? "Izaberi lekciju" : "Choose lesson"}</span>
+        <select
+          value={scopeState.selectedLesson?._id ?? ""}
+          onChange={(event) => scopeState.setLesson(event.target.value)}
+          disabled={!scopeState.selectedCycle || scopeState.availableLessons.length === 0}
+          className="min-h-11 w-full rounded-[12px] border border-line bg-white px-3 text-sm font-black text-ink outline-none transition hover:border-ink/55 focus:border-ink focus:ring-4 focus:ring-yellow/25 disabled:cursor-not-allowed disabled:bg-[#eef3f7] disabled:text-muted"
+        >
+          <option value="">{locale === "sr" ? "Sve lekcije" : "All lessons"}</option>
+          {scopeState.availableLessons.map((lesson) => (
+            <option key={lesson._id} value={lesson._id}>
+              {locale === "sr" ? lesson.titleSr : lesson.titleEn}
+            </option>
+          ))}
+        </select>
+      </label> : null}
+    </div>
+  ) : null;
+
+  if (mode === "selects") {
+    return selectsContent;
+  }
+
   return (
     <div className={cn(inline ? "flex min-w-max items-center gap-2" : "space-y-3", compact && !inline && "space-y-2")}>
-      <div
-        className={cn("relative grid shrink-0 grid-cols-2 gap-1 rounded-full border border-line bg-[#eef3f7] p-1", compact && "w-[280px] max-w-full")}
-        role="group"
-        aria-label={locale === "sr" ? "Prikaz zajednice" : "Community view"}
-      >
-        <span
-          aria-hidden="true"
-          className={cn(
-            "pointer-events-none absolute inset-y-1 left-1 w-[calc(50%-0.375rem)] rounded-full bg-ink shadow-[2px_2px_0_rgba(244,190,48,0.65)] transition-transform duration-300 ease-out motion-reduce:transition-none",
-            settingsOpen && "translate-x-[calc(100%+0.5rem)]",
-          )}
-        />
-        <button
-          type="button"
-          onClick={() => {
-            setManualOpen(false);
-            scopeState.setScopeKind("global");
-          }}
-          aria-pressed={!settingsOpen}
-          className={cn(
-            "relative z-10 inline-flex items-center justify-center gap-1.5 rounded-full px-3 text-xs font-black transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink",
-            compact ? "min-h-9" : "min-h-10",
-            !settingsOpen ? "text-white" : "text-ink/65 hover:text-ink",
-          )}
+      {isToggle && (
+        <div
+          className={cn("relative grid shrink-0 grid-cols-2 gap-1 rounded-full border border-line bg-[#eef3f7] p-1", compact && "w-[280px] max-w-full")}
+          role="group"
+          aria-label={locale === "sr" ? "Prikaz zajednice" : "Community view"}
         >
-          <Compass className="size-3.5" aria-hidden="true" />
-          {locale === "sr" ? "Globalno" : "Global"}
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setManualOpen(true);
-            if (!settingsOpen) scopeState.setScopeKind("track");
-          }}
-          aria-pressed={settingsOpen}
-          className={cn(
-            "relative z-10 inline-flex items-center justify-center gap-1.5 rounded-full px-3 text-xs font-black transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink",
-            compact ? "min-h-9" : "min-h-10",
-            settingsOpen ? "text-white" : "text-ink/65 hover:text-ink",
-          )}
-        >
-          <Settings2 className="size-3.5" aria-hidden="true" />
-          {locale === "sr" ? "Podešavanja" : "Settings"}
-        </button>
-      </div>
-
-      {inline ? inlineMiddle : null}
-
-      {settingsOpen ? (
-        <div className={cn("grid gap-2 sm:grid-cols-2", inline && "flex items-center") }>
-          <label className={cn("block", inline && "w-48 shrink-0")}>
-            <span className="sr-only">{locale === "sr" ? "Izaberi smer" : "Choose track"}</span>
-            <select
-              value={scopeState.selectedTrack?._id ?? ""}
-              onChange={(event) => scopeState.setTrack(event.target.value)}
-              className="min-h-11 w-full rounded-[12px] border border-line bg-white px-3 text-sm font-black text-ink outline-none transition hover:border-ink/55 focus:border-ink focus:ring-4 focus:ring-yellow/25"
-            >
-              {filters.tracks.map((track) => (
-                <option key={track._id} value={track._id}>
-                  {locale === "sr" ? track.titleSr : track.titleEn}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className={cn("block", inline && "w-52 shrink-0")}>
-            <span className="sr-only">{locale === "sr" ? "Izaberi kurs" : "Choose course"}</span>
-            <select
-              value={selectedCourseValue}
-              onChange={(event) => {
-                if (event.target.value) scopeState.setCourse(event.target.value);
-                else scopeState.setScopeKind("track");
-              }}
-              className="min-h-11 w-full rounded-[12px] border border-line bg-white px-3 text-sm font-black text-ink outline-none transition hover:border-ink/55 focus:border-ink focus:ring-4 focus:ring-yellow/25"
-            >
-              <option value="">{locale === "sr" ? "Svi kursevi u smeru" : "All courses in track"}</option>
-              {scopeState.availableCourses.map((course) => (
-                <option key={course._id} value={course._id}>
-                  {locale === "sr" ? course.titleSr : course.titleEn}
-                </option>
-              ))}
-            </select>
-          </label>
-          {showLearningDepth ? <label className={cn("block", inline && "w-48 shrink-0")}>
-            <span className="sr-only">{locale === "sr" ? "Izaberi ciklus" : "Choose cycle"}</span>
-            <select
-              value={scopeState.selectedCycle?._id ?? ""}
-              onChange={(event) => scopeState.setCycle(event.target.value)}
-              disabled={!selectedCourseValue || scopeState.availableCycles.length === 0}
-              className="min-h-11 w-full rounded-[12px] border border-line bg-white px-3 text-sm font-black text-ink outline-none transition hover:border-ink/55 focus:border-ink focus:ring-4 focus:ring-yellow/25 disabled:cursor-not-allowed disabled:bg-[#eef3f7] disabled:text-muted"
-            >
-              <option value="">{locale === "sr" ? "Svi ciklusi" : "All cycles"}</option>
-              {scopeState.availableCycles.map((cycle) => (
-                <option key={cycle._id} value={cycle._id}>
-                  {locale === "sr" ? cycle.titleSr : cycle.titleEn}
-                </option>
-              ))}
-            </select>
-          </label> : null}
-          {showLearningDepth ? <label className={cn("block", inline && "w-56 shrink-0")}>
-            <span className="sr-only">{locale === "sr" ? "Izaberi lekciju" : "Choose lesson"}</span>
-            <select
-              value={scopeState.selectedLesson?._id ?? ""}
-              onChange={(event) => scopeState.setLesson(event.target.value)}
-              disabled={!scopeState.selectedCycle || scopeState.availableLessons.length === 0}
-              className="min-h-11 w-full rounded-[12px] border border-line bg-white px-3 text-sm font-black text-ink outline-none transition hover:border-ink/55 focus:border-ink focus:ring-4 focus:ring-yellow/25 disabled:cursor-not-allowed disabled:bg-[#eef3f7] disabled:text-muted"
-            >
-              <option value="">{locale === "sr" ? "Sve lekcije" : "All lessons"}</option>
-              {scopeState.availableLessons.map((lesson) => (
-                <option key={lesson._id} value={lesson._id}>
-                  {locale === "sr" ? lesson.titleSr : lesson.titleEn}
-                </option>
-              ))}
-            </select>
-          </label> : null}
+          <span
+            aria-hidden="true"
+            className={cn(
+              "pointer-events-none absolute inset-y-1 left-1 w-[calc(50%-0.375rem)] rounded-full bg-ink shadow-[2px_2px_0_rgba(244,190,48,0.65)] transition-transform duration-300 ease-out motion-reduce:transition-none",
+              settingsOpen && "translate-x-[calc(100%+0.5rem)]",
+            )}
+          />
+          <button
+            type="button"
+            onClick={() => {
+              setIsManualOpen(false);
+              scopeState.setScopeKind("global");
+            }}
+            aria-pressed={!settingsOpen}
+            className={cn(
+              "relative z-10 inline-flex items-center justify-center gap-1.5 rounded-full px-3 text-xs font-black transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink",
+              compact ? "min-h-9" : "min-h-10",
+              !settingsOpen ? "text-white" : "text-ink/65 hover:text-ink",
+            )}
+          >
+            <Compass className="size-3.5" aria-hidden="true" />
+            {locale === "sr" ? "Globalno" : "Global"}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setIsManualOpen(true);
+              if (!settingsOpen) scopeState.setScopeKind("track");
+            }}
+            aria-pressed={settingsOpen}
+            className={cn(
+              "relative z-10 inline-flex items-center justify-center gap-1.5 rounded-full px-3 text-xs font-black transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink",
+              compact ? "min-h-9" : "min-h-10",
+              settingsOpen ? "text-white" : "text-ink/65 hover:text-ink",
+            )}
+          >
+            <Settings2 className="size-3.5" aria-hidden="true" />
+            {locale === "sr" ? "Podešavanja" : "Settings"}
+          </button>
         </div>
-      ) : null}
+      )}
+
+      {inline && isToggle ? inlineMiddle : null}
+
+      {isSelects ? selectsContent : null}
     </div>
   );
 }

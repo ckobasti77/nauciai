@@ -18,7 +18,7 @@ export async function AppShell({ locale, children }: { locale: Locale; children:
 
   return (
     <div className="min-h-screen bg-paper text-ink">
-      <div className="mx-auto flex min-h-screen min-w-0 w-full flex-col min-[1600px]:w-[calc(100%_-_48px)] min-[1600px]:max-w-[1760px] lg:flex-row">
+      <div className="shell-container mx-auto flex min-h-screen min-w-0 w-full flex-col min-[1600px]:w-[calc(100%_-_48px)] min-[1600px]:max-w-[1760px] lg:flex-row">
         <AppSidebar
           locale={locale}
           navigation={navigation}
