@@ -381,9 +381,10 @@ export default async function CourseInfoPage({
         </div>
       </header>
 
-      <section className="sketch-grid border-b-2 border-ink px-4 py-12 sm:px-6 lg:px-8">
+      <div data-motion="page">
+      <section data-motion="hero" className="sketch-grid border-b-2 border-ink px-4 py-12 sm:px-6 lg:px-8">
         <div className="mx-auto grid max-w-7xl items-center gap-10 lg:grid-cols-[0.95fr_1.05fr]">
-          <div>
+          <div data-motion="copy">
             <Link href={withLocale(locale, "/#courses")} className="inline-flex items-center gap-2 text-sm font-black text-ink underline">
               <ArrowLeft className="size-4" />
               {locale === "sr" ? "Svi kursevi" : "All courses"}
@@ -409,7 +410,7 @@ export default async function CourseInfoPage({
             </div>
           </div>
 
-          <div className="overflow-hidden rounded-[16px] border-[2px] border-ink bg-white p-3 shadow-[8px_8px_0_0_rgba(14,49,88,0.16)]">
+          <div data-motion="card" className="overflow-hidden rounded-[16px] border-[2px] border-ink bg-white p-3 shadow-[8px_8px_0_0_rgba(14,49,88,0.16)]">
             <Image
               src={fallbackCourse.image.src}
               alt={localized(fallbackCourse.image.alt, locale)}
@@ -432,7 +433,7 @@ export default async function CourseInfoPage({
           </div>
           <div className="grid gap-4">
             {fallbackCourse.detail.outcomes.map((outcome) => (
-              <div key={localized(outcome, locale)} className="flex items-start gap-3 rounded-[16px] border-[2px] border-ink bg-paper px-5 py-4">
+              <div key={localized(outcome, locale)} data-motion="card" className="flex items-start gap-3 rounded-[16px] border-[2px] border-ink bg-paper px-5 py-4">
                 <CheckCircle2 className="mt-1 size-5 shrink-0 text-ink" />
                 <p className="text-base font-extrabold leading-7 text-ink">{localized(outcome, locale)}</p>
               </div>
@@ -443,7 +444,7 @@ export default async function CourseInfoPage({
 
       <section id="besplatan-video" className="bg-paper px-4 py-14 sm:px-6 lg:px-8">
         <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[1.1fr_0.9fr]">
-          <div className="overflow-hidden rounded-[16px] border-[2px] border-ink bg-ink p-3 text-white shadow-[8px_8px_0_0_#f4be30]">
+          <div data-motion="card" className="overflow-hidden rounded-[16px] border-[2px] border-ink bg-ink p-3 text-white shadow-[8px_8px_0_0_#f4be30]">
             <PublicCourseIntroVideo
               videoUrl={outline.course.videoUrl}
               posterSrc={fallbackCourse.image.src}
@@ -470,6 +471,7 @@ export default async function CourseInfoPage({
       </section>
 
       <CurriculumSection locale={locale} outline={outline} signedIn={signedIn} />
+      </div>
     </main>
   );
 }

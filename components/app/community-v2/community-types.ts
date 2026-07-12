@@ -19,6 +19,24 @@ export type CommunityCourse = {
   titleSr: string;
   titleEn: string;
   trackId?: string;
+  cycles?: CommunityCycle[];
+};
+
+export type CommunityCycle = {
+  _id: string;
+  courseId: string;
+  titleSr: string;
+  titleEn: string;
+  lessons: CommunityLesson[];
+};
+
+export type CommunityLesson = {
+  _id: string;
+  courseId: string;
+  moduleId: string;
+  slug: string;
+  titleSr: string;
+  titleEn: string;
 };
 
 export type CommunityCounts = {
@@ -61,6 +79,8 @@ export type CommunityPostRow = {
   trackTitleSr?: string;
   trackTitleEn?: string;
   courseId?: string;
+  moduleId?: string;
+  lessonId?: string;
   courseSlug?: string;
   courseTitleSr?: string;
   courseTitleEn?: string;

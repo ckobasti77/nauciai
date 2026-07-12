@@ -8,7 +8,6 @@ import {
   CheckCircle2,
   ChevronDown,
   Clock3,
-  Compass,
   Gauge,
   ImageIcon,
   Layers,
@@ -21,12 +20,9 @@ import {
   Plus,
   ShieldCheck,
   Sparkles,
-  TrendingUp,
   Trash2,
   UploadCloud,
 } from "lucide-react";
-import { gsap } from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { motion, useReducedMotion } from "motion/react";
 import Image from "next/image";
 import Link from "next/link";
@@ -106,6 +102,7 @@ export type DashboardCourse = {
     totalLessons: number;
     completedLessons: number;
     percent: number;
+    startedAt?: number;
     lastActivityAt?: number;
     nextLessonSlug?: string;
     nextLessonTitle?: LocalizedText;
@@ -117,8 +114,6 @@ export type DashboardCourse = {
   lessons: DashboardLesson[];
   modules?: DashboardModule[];
 };
-
-let dashboardScrollTriggerRegistered = false;
 
 function labelFor(locale: Locale, sr: string, en: string) {
   return locale === "sr" ? sr : en;
@@ -187,12 +182,20 @@ function getProgressSummary(course: DashboardCourse, locale: Locale) {
       if (!updatedAt) return latest;
       return latest === undefined ? updatedAt : Math.max(latest, updatedAt);
     }, undefined);
+  const startedAt =
+    course.progress?.startedAt ??
+    lessons.reduce<number | undefined>((earliest, lesson) => {
+      const updatedAt = lesson.progress?.updatedAt;
+      if (!updatedAt) return earliest;
+      return earliest === undefined ? updatedAt : Math.min(earliest, updatedAt);
+    }, undefined);
 
   return {
     totalLessons,
     completedLessons,
     percent,
     nextLesson,
+    startedAt,
     lastActivityAt,
     activity: course.progress?.activity ?? activityFromLessons(lessons),
   };
@@ -213,23 +216,35 @@ function activityFromLessons(lessons: DashboardLesson[]) {
 
 function mergeActivity(courses: DashboardCourse[], locale: Locale) {
   const counts = new Map<string, number>();
+  let startedAt: number | undefined;
   for (const course of courses) {
-    for (const item of getProgressSummary(course, locale).activity) {
+    const summary = getProgressSummary(course, locale);
+    if (summary.startedAt !== undefined) {
+      startedAt = startedAt === undefined ? summary.startedAt : Math.min(startedAt, summary.startedAt);
+    }
+    for (const item of summary.activity) {
       counts.set(item.day, (counts.get(item.day) ?? 0) + item.completed);
     }
   }
-  return Array.from(counts.entries())
-    .map(([day, completed]) => ({ day, completed }))
-    .sort((a, b) => a.day.localeCompare(b.day));
+  return {
+    activity: Array.from(counts.entries())
+      .map(([day, completed]) => ({ day, completed }))
+      .sort((a, b) => a.day.localeCompare(b.day)),
+    startedAt,
+  };
 }
 
-function lastSevenActivity(activity: Array<{ day: string; completed: number }>) {
+function dailyActivitySeries(activity: Array<{ day: string; completed: number }>, startedAt?: number) {
   const byDay = new Map(activity.map((item) => [item.day, item.completed]));
-  const anchor = activity.length ? new Date(`${activity[activity.length - 1].day}T12:00:00.000Z`) : new Date();
+  const todayDay = new Date().toISOString().slice(0, 10);
+  const firstDay = startedAt ? new Date(startedAt).toISOString().slice(0, 10) : activity[0]?.day ?? todayDay;
+  const start = new Date(`${firstDay}T12:00:00.000Z`);
+  const end = new Date(`${todayDay}T12:00:00.000Z`);
+  const numberOfDays = Math.max(1, Math.floor((end.getTime() - start.getTime()) / 86400000) + 1);
 
-  return Array.from({ length: 7 }, (_, index) => {
-    const date = new Date(anchor);
-    date.setUTCDate(anchor.getUTCDate() - (6 - index));
+  return Array.from({ length: numberOfDays }, (_, index) => {
+    const date = new Date(start);
+    date.setUTCDate(start.getUTCDate() + index);
     const day = date.toISOString().slice(0, 10);
     return {
       day,
@@ -681,6 +696,7 @@ function CycleCard({
 
   return (
     <motion.article
+      data-motion="card"
       layout
       whileTap={{ scale: 0.99 }}
       className="dashboard-reveal overflow-hidden rounded-[16px] border-2 border-ink bg-white shadow-[6px_6px_0_0_rgba(14,49,88,0.13)]"
@@ -893,7 +909,7 @@ function AddCycleCard({
   modules: DashboardModule[];
 }) {
   return (
-    <article className="dashboard-reveal flex min-h-44 rounded-[16px] border-2 border-dashed border-ink bg-paper p-4">
+    <article data-motion="card" className="dashboard-reveal flex min-h-44 rounded-[16px] border-2 border-dashed border-ink bg-paper p-4">
       <AddModuleAction
         locale={locale}
         courseId={course.id}
@@ -908,33 +924,6 @@ function AddCycleCard({
   );
 }
 
-function DashboardStatCard({
-  icon,
-  label,
-  value,
-  detail,
-}: {
-  icon: ReactNode;
-  label: string;
-  value: string;
-  detail: string;
-}) {
-  return (
-    <div className="dashboard-reveal rounded-[16px] border-2 border-line bg-white p-4 shadow-[4px_4px_0_0_rgba(14,49,88,0.08)]">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-xs font-black uppercase text-muted">{label}</p>
-          <p className="mt-2 text-2xl font-black leading-none text-ink">{value}</p>
-          <p className="mt-2 text-sm font-bold leading-5 text-muted">{detail}</p>
-        </div>
-        <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-yellow text-ink">
-          {icon}
-        </span>
-      </div>
-    </div>
-  );
-}
-
 function ProgressRing({ percent, label }: { percent: number; label: string }) {
   const safePercent = clampPercent(percent);
   const radius = 42;
@@ -943,10 +932,10 @@ function ProgressRing({ percent, label }: { percent: number; label: string }) {
 
   return (
     <div className="flex items-center gap-5">
-      <div className="relative size-32 shrink-0">
+      <div data-motion="circle" className="relative size-36 shrink-0 sm:size-40">
         <svg viewBox="0 0 112 112" className="size-full -rotate-90" aria-hidden="true">
           <circle cx="56" cy="56" r={radius} fill="none" stroke="#dce5ec" strokeWidth="12" />
-          <motion.circle
+          <circle
             cx="56"
             cy="56"
             r={radius}
@@ -955,9 +944,10 @@ function ProgressRing({ percent, label }: { percent: number; label: string }) {
             strokeLinecap="round"
             strokeWidth="12"
             strokeDasharray={circumference}
-            initial={{ strokeDashoffset: circumference }}
-            animate={{ strokeDashoffset: offset }}
-            transition={{ duration: 0.75, ease: "easeOut" }}
+            data-motion-progress
+            data-motion-progress-length={circumference}
+            data-motion-progress-offset={offset}
+            style={{ strokeDashoffset: offset }}
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
@@ -969,64 +959,76 @@ function ProgressRing({ percent, label }: { percent: number; label: string }) {
   );
 }
 
-function CourseProgressBars({ locale, courses }: { locale: Locale; courses: DashboardCourse[] }) {
-  const rows = courses.slice(0, 4);
+function CourseProgressCircle({ locale, course }: { locale: Locale; course: DashboardCourse }) {
+  const summary = getProgressSummary(course, locale);
 
   return (
-    <div className="space-y-4">
-      {rows.map((course) => {
-        const summary = getProgressSummary(course, locale);
-        return (
-          <div key={course.slug}>
-            <div className="flex items-center justify-between gap-3 text-sm">
-              <span className="min-w-0 truncate font-black text-ink">{localized(course.title, locale)}</span>
-              <span className="shrink-0 font-black text-muted">{summary.percent}%</span>
-            </div>
-            <div className="mt-2 h-3 overflow-hidden rounded-full border-2 border-line bg-paper">
-              <motion.div
-                className="h-full rounded-full bg-yellow"
-                initial={{ width: 0 }}
-                animate={{ width: `${summary.percent}%` }}
-                transition={{ duration: 0.65, ease: "easeOut" }}
-              />
-            </div>
-          </div>
-        );
-      })}
-      {!rows.length ? (
-        <p className="text-sm font-bold leading-6 text-muted">
-          {labelFor(locale, "Kursevi ce se pojaviti ovde cim budu dostupni.", "Courses will appear here when they are available.")}
-        </p>
-      ) : null}
-    </div>
+    <Panel className="dashboard-reveal p-5 sm:p-6">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-black uppercase text-muted">{labelFor(locale, "Po kursu", "By course")}</p>
+          <h2 className="mt-1 truncate text-xl font-black text-ink sm:text-2xl">{localized(course.title, locale)}</h2>
+        </div>
+        <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-yellow text-ink">
+          <PieChart className="size-4" />
+        </span>
+      </div>
+      <div className="mt-5 flex items-center gap-5">
+        <ProgressRing percent={summary.percent} label={labelFor(locale, "gotovo", "done")} />
+        <div className="min-w-0 space-y-2 text-sm font-bold text-muted">
+          <p>
+            <span className="font-black text-ink">{summary.completedLessons}</span> / {summary.totalLessons || 0}{" "}
+            {labelFor(locale, "lekcija", "lessons")}
+          </p>
+          <p className="leading-5">{formatLastActivity(locale, summary.lastActivityAt)}</p>
+          <LinkButton href={courseDetailHref(locale, course.slug)} tone="paper" className="min-h-9 px-3 text-xs">
+            <ArrowRight className="size-3.5" />
+            {labelFor(locale, "Otvori kurs", "Open course")}
+          </LinkButton>
+        </div>
+      </div>
+    </Panel>
   );
 }
 
-function ActivityMiniChart({ locale, activity }: { locale: Locale; activity: Array<{ day: string; completed: number }> }) {
-  const days = lastSevenActivity(activity);
+function DailyLessonsChart({ locale, activity, startedAt }: { locale: Locale; activity: Array<{ day: string; completed: number }>; startedAt?: number }) {
+  const days = dailyActivitySeries(activity, startedAt);
   const max = Math.max(1, ...days.map((item) => item.completed));
+  const middleTick = Math.max(1, Math.ceil(max / 2));
+  const labelFormatter = new Intl.DateTimeFormat(locale === "sr" ? "sr-RS" : "en-US", { day: "2-digit", month: "2-digit" });
 
   return (
-    <div className="flex h-32 items-end gap-2">
-      {days.map((item) => {
-        const height = item.completed ? Math.max(18, (item.completed / max) * 100) : 10;
-        return (
-          <div key={item.day} className="flex min-w-0 flex-1 flex-col items-center gap-2">
-            <div className="flex h-24 w-full items-end rounded-full bg-paper px-1.5 py-1.5">
-              <motion.div
-                className={cn("w-full rounded-full border-2 border-ink", item.completed ? "bg-yellow" : "bg-white")}
-                initial={{ height: 0 }}
-                animate={{ height: `${height}%` }}
-                transition={{ duration: 0.5, ease: "easeOut" }}
-                title={`${item.day}: ${item.completed}`}
-              />
-            </div>
-            <span className="text-[10px] font-black uppercase text-muted">{item.day.slice(5).replace("-", ".")}</span>
+    <div>
+      <div className="flex items-stretch gap-2">
+        <div className="relative h-40 w-7 shrink-0 text-[10px] font-black text-muted">
+          <span className="absolute -top-1 right-0">{max}</span>
+          <span className="absolute right-0 top-1/2 -translate-y-1/2">{middleTick}</span>
+          <span className="absolute -bottom-1 right-0">0</span>
+        </div>
+        <div className="min-w-0 flex-1 overflow-x-auto pb-1" aria-label={labelFor(locale, "Broj završenih lekcija po danu", "Completed lessons per day")}>
+          <div className="flex h-40 min-w-max items-end gap-1 border-b border-line px-1 [background-image:linear-gradient(to_bottom,rgba(14,49,88,0.08)_1px,transparent_1px)] [background-size:100%_50%]">
+            {days.map((item, index) => {
+              const height = item.completed ? Math.max(7, (item.completed / max) * 100) : 3;
+              const showLabel = days.length <= 14 || index === 0 || index === days.length - 1 || index % 7 === 0;
+              return (
+                <div key={item.day} className="flex w-7 flex-col items-center justify-end gap-2">
+                  <div
+                    data-motion="chart"
+                    className={cn("w-4 rounded-t-[6px] border-2 border-b-0 border-ink", item.completed ? "bg-yellow" : "bg-paper")}
+                    style={{ height: `${height}%` }}
+                    title={`${item.day}: ${item.completed}`}
+                  />
+                  <span className="h-3 whitespace-nowrap text-[9px] font-black uppercase text-muted">
+                    {showLabel ? labelFormatter.format(new Date(`${item.day}T12:00:00.000Z`)) : ""}
+                  </span>
+                </div>
+              );
+            })}
           </div>
-        );
-      })}
+        </div>
+      </div>
       <span className="sr-only">
-        {labelFor(locale, "Aktivnost po danima", "Activity by day")}
+        {labelFor(locale, "Aktivnost po danima, maksimalno završenih lekcija u jednom danu", "Activity by day, with the highest number of completed lessons in one day")}
       </span>
     </div>
   );
@@ -1076,6 +1078,7 @@ function DashboardCourseCard({
 
   return (
     <motion.article
+      data-motion="card"
       layout
       whileHover={{ y: -3 }}
       whileTap={{ scale: 0.99 }}
@@ -1168,8 +1171,6 @@ export function DashboardHomeContent({
   courses: DashboardCourse[];
   isAdmin?: boolean;
 }) {
-  const rootRef = useRef<HTMLDivElement>(null);
-  const shouldReduceMotion = useReducedMotion();
   const visibleCourses = courses.filter((course) => isAdmin || course.status === "published");
   const summaries = visibleCourses.map((course) => getProgressSummary(course, locale));
   const totalLessons = summaries.reduce((count, summary) => count + summary.totalLessons, 0);
@@ -1178,73 +1179,54 @@ export function DashboardHomeContent({
   const nextCourseIndex = summaries.findIndex((summary) => summary.nextLesson);
   const nextCourse = nextCourseIndex >= 0 ? visibleCourses[nextCourseIndex] : visibleCourses[0];
   const nextSummary = nextCourseIndex >= 0 ? summaries[nextCourseIndex] : summaries[0];
-  const activity = mergeActivity(visibleCourses, locale);
+  const activityData = mergeActivity(visibleCourses, locale);
+  const activity = activityData.activity;
   const profileName = profile?.name ?? "Student";
 
-  useEffect(() => {
-    if (!rootRef.current || shouldReduceMotion) return;
-    if (!dashboardScrollTriggerRegistered) {
-      gsap.registerPlugin(ScrollTrigger);
-      dashboardScrollTriggerRegistered = true;
-    }
-
-    const context = gsap.context(() => {
-      gsap.from(".dashboard-reveal", {
-        autoAlpha: 0,
-        y: 14,
-        duration: 0.42,
-        ease: "power2.out",
-        stagger: 0.035,
-      });
-    }, rootRef);
-
-    return () => context.revert();
-  }, [shouldReduceMotion]);
-
   return (
-    <div ref={rootRef} className="space-y-6">
-      <section className="dashboard-reveal overflow-hidden rounded-[16px] border-2 border-ink bg-white shadow-[8px_8px_0_0_rgba(14,49,88,0.12)]">
-        <div className="grid gap-0 xl:grid-cols-[minmax(0,1fr)_300px]">
-          <div className="p-5 sm:p-7">
+    <div className="space-y-6">
+      <section data-motion="hero" className="dashboard-reveal overflow-hidden rounded-[16px] border-2 border-ink bg-white shadow-[6px_6px_0_0_rgba(14,49,88,0.12)]">
+        <div className="grid gap-0 xl:grid-cols-[minmax(0,1fr)_240px]">
+          <div className="p-4 sm:p-5 lg:p-6" data-motion="copy">
             <p className="text-sm font-black uppercase text-muted">
               {locale === "sr" ? `Zdravo, ${profileName}` : `Hi, ${profileName}`}
             </p>
-            <h1 className="mt-2 max-w-3xl text-4xl font-black leading-tight text-ink sm:text-5xl">
+            <h1 className="mt-2 max-w-3xl text-3xl font-black leading-tight tracking-[-0.035em] text-ink sm:text-4xl">
               {labelFor(locale, "Izaberi kurs i nastavi tamo gde si stao", "Choose a course and continue where you stopped")}
             </h1>
-            <p className="mt-4 max-w-3xl text-base font-bold leading-7 text-muted sm:text-lg">
+            <p className="mt-2 max-w-3xl text-sm font-bold leading-6 text-muted sm:text-base">
               {labelFor(
                 locale,
                 "Ovo je tvoj radni pregled: vidi napredak, sledecu lekciju i brzo udji u kurs bez trazenja kroz meni.",
                 "This is your work view: see progress, the next lesson, and open a course without digging through menus.",
               )}
             </p>
-            <div className="mt-6 flex flex-wrap gap-3">
+            <div className="mt-4 flex flex-wrap gap-2">
               {nextCourse && nextSummary?.nextLesson ? (
-                <LinkButton href={courseContinueHref(locale, nextCourse, nextSummary.nextLesson)} tone="yellow">
+                <LinkButton href={courseContinueHref(locale, nextCourse, nextSummary.nextLesson)} tone="yellow" className="min-h-10 px-4 text-xs">
                   <PlayCircle className="size-4" />
                   {labelFor(locale, "Nastavi ucenje", "Continue learning")}
                 </LinkButton>
               ) : null}
-              <LinkButton href={withLocale(locale, "/app/community")} tone="paper">
+              <LinkButton href={withLocale(locale, "/app/community")} tone="paper" className="min-h-10 px-4 text-xs">
                 <MessageCircle className="size-4" />
                 {labelFor(locale, "Otvori zajednicu", "Open community")}
               </LinkButton>
             </div>
           </div>
-          <div className="border-t-2 border-ink bg-ink p-5 text-white xl:border-l-2 xl:border-t-0">
-            <div className="flex h-full flex-col justify-between gap-5">
+          <div className="border-t-2 border-ink bg-ink p-4 text-white xl:border-l-2 xl:border-t-0">
+            <div className="flex h-full flex-col justify-between gap-4">
               <div>
-                <p className="text-sm font-black uppercase text-white/65">{labelFor(locale, "Ukupno", "Overall")}</p>
-                <p className="mt-3 text-5xl font-black leading-none">{overallPercent}%</p>
-                <p className="mt-3 text-sm font-bold leading-6 text-white/70">
+                <p className="text-xs font-black uppercase tracking-[0.12em] text-white/65">{labelFor(locale, "Ukupno", "Overall")}</p>
+                <p className="mt-2 text-4xl font-black leading-none">{overallPercent}%</p>
+                <p className="mt-2 text-xs font-bold leading-5 text-white/70">
                   {completedLessons}/{totalLessons || 0} {labelFor(locale, "zavrsenih lekcija", "completed lessons")}
                 </p>
               </div>
-              <div className="rounded-[16px] border-2 border-white/25 bg-white/10 p-4">
-                <p className="text-xs font-black uppercase text-white/65">{labelFor(locale, "Nije izabran kurs", "No course selected")}</p>
-                <p className="mt-2 text-sm font-bold leading-6 text-white/80">
-                  {labelFor(locale, "Izaberi karticu ispod da otvoris detalje kursa.", "Choose a card below to open course details.")}
+              <div className="rounded-[12px] border border-white/25 bg-white/10 p-3">
+                <p className="text-[10px] font-black uppercase tracking-[0.08em] text-white/65">{labelFor(locale, "Sledece", "Next")}</p>
+                <p className="mt-1 text-xs font-bold leading-5 text-white/80">
+                  {nextCourse ? localized(nextCourse.title, locale) : labelFor(locale, "Izaberi kurs ispod.", "Choose a course below.")}
                 </p>
               </div>
             </div>
@@ -1252,68 +1234,24 @@ export function DashboardHomeContent({
         </div>
       </section>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <DashboardStatCard
-          icon={<CheckCircle2 className="size-5" />}
-          label={labelFor(locale, "Zavrseno", "Completed")}
-          value={`${completedLessons}/${totalLessons || 0}`}
-          detail={labelFor(locale, "Lekcije kroz sve aktivne kurseve", "Lessons across all active courses")}
-        />
-        <DashboardStatCard
-          icon={<Compass className="size-5" />}
-          label={labelFor(locale, "Sledeci korak", "Next step")}
-          value={nextCourse ? localized(nextCourse.title, locale) : labelFor(locale, "Nema kursa", "No course")}
-          detail={
-            nextSummary?.nextLesson
-              ? localized(nextSummary.nextLesson.title, locale)
-              : labelFor(locale, "Izaberi kurs za pocetak.", "Choose a course to start.")
-          }
-        />
-        <DashboardStatCard
-          icon={<TrendingUp className="size-5" />}
-          label={labelFor(locale, "Aktivnost", "Activity")}
-          value={`${activity.reduce((count, item) => count + item.completed, 0)}`}
-          detail={labelFor(locale, "Zavrsene lekcije u skorijim sesijama", "Lessons completed in recent sessions")}
-        />
-      </div>
+      <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+        {visibleCourses.map((course) => (
+          <CourseProgressCircle key={course.slug} locale={locale} course={course} />
+        ))}
 
-      <section className="grid gap-5 xl:grid-cols-[320px_minmax(0,1fr)_320px]">
-        <Panel className="dashboard-reveal p-5">
+        <Panel className="dashboard-reveal p-5 sm:p-6">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-black uppercase text-muted">{labelFor(locale, "Ukupan progres", "Overall progress")}</p>
-              <h2 className="mt-1 text-2xl font-black text-ink">{labelFor(locale, "Tvoj ritam", "Your pace")}</h2>
-            </div>
-            <PieChart className="size-6 text-ink" />
-          </div>
-          <div className="mt-5">
-            <ProgressRing percent={overallPercent} label={labelFor(locale, "gotovo", "done")} />
-          </div>
-        </Panel>
-
-        <Panel className="dashboard-reveal p-5">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-xs font-black uppercase text-muted">{labelFor(locale, "Po kursu", "By course")}</p>
-              <h2 className="mt-1 text-2xl font-black text-ink">{labelFor(locale, "Napredak po kursu", "Course progress")}</h2>
+              <p className="text-xs font-black uppercase text-muted">{labelFor(locale, "Dnevni ritam", "Daily pace")}</p>
+              <h2 className="mt-1 text-xl font-black text-ink sm:text-2xl">{labelFor(locale, "Završene lekcije", "Completed lessons")}</h2>
             </div>
             <BarChart3 className="size-6 text-ink" />
           </div>
+          <p className="mt-2 text-xs font-bold leading-5 text-muted">
+            {labelFor(locale, "Vertikala pokazuje broj lekcija u danu; prikazana je cela istorija do danas.", "The vertical axis shows lessons completed per day, across your history through today.")}
+          </p>
           <div className="mt-5">
-            <CourseProgressBars locale={locale} courses={visibleCourses} />
-          </div>
-        </Panel>
-
-        <Panel className="dashboard-reveal p-5">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-xs font-black uppercase text-muted">{labelFor(locale, "Aktivnost", "Activity")}</p>
-              <h2 className="mt-1 text-2xl font-black text-ink">{labelFor(locale, "Zadnji dani", "Recent days")}</h2>
-            </div>
-            <Gauge className="size-6 text-ink" />
-          </div>
-          <div className="mt-4">
-            <ActivityMiniChart locale={locale} activity={activity} />
+            <DailyLessonsChart locale={locale} activity={activity} startedAt={activityData.startedAt} />
           </div>
         </Panel>
       </section>
@@ -1367,7 +1305,6 @@ export function DashboardContent({
   newLessonModuleId?: string;
   editModuleId?: string;
 }) {
-  const rootRef = useRef<HTMLDivElement>(null);
   const shouldReduceMotion = useReducedMotion();
   const t = dictionary[locale];
   const modules = useMemo(() => flattenModules(course, locale), [course, locale]);
@@ -1386,38 +1323,11 @@ export function DashboardContent({
   const canContinue = Boolean(nextLesson && (course.hasAccess || isAdmin));
   const completionPercent = isAdmin ? 100 : progressSummary.percent;
 
-  useEffect(() => {
-    if (!rootRef.current || shouldReduceMotion) return;
-    if (!dashboardScrollTriggerRegistered) {
-      gsap.registerPlugin(ScrollTrigger);
-      dashboardScrollTriggerRegistered = true;
-    }
-
-    const context = gsap.context(() => {
-      gsap.utils.toArray<HTMLElement>(".dashboard-reveal").forEach((element, index) => {
-        gsap.from(element, {
-          autoAlpha: 0,
-          y: 18,
-          duration: 0.45,
-          delay: index * 0.015,
-          ease: "power2.out",
-          scrollTrigger: {
-            trigger: element,
-            start: "top 88%",
-            once: true,
-          },
-        });
-      });
-    }, rootRef);
-
-    return () => context.revert();
-  }, [shouldReduceMotion]);
-
   return (
-    <div ref={rootRef} className="space-y-6">
-      <section className="dashboard-reveal overflow-hidden rounded-[10px] border-2 border-ink bg-white shadow-[8px_8px_0_0_rgba(14,49,88,0.14)]">
+    <div className="space-y-6">
+      <section data-motion="hero" className="dashboard-reveal overflow-hidden rounded-[10px] border-2 border-ink bg-white shadow-[8px_8px_0_0_rgba(14,49,88,0.14)]">
         <div className="grid gap-0 xl:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="p-5 sm:p-7">
+          <div className="p-5 sm:p-7" data-motion="copy">
             <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-2 rounded-[8px] border-2 border-ink bg-yellow px-3 py-1 text-xs font-black text-ink">
                 <ShieldCheck className="size-4" />

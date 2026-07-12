@@ -35,6 +35,74 @@ type CommunityNavItem = {
   badge?: number;
 };
 
+type CommunityHeroCopy = {
+  badgeSr: string;
+  badgeEn: string;
+  titleSr: string;
+  titleEn: string;
+  subtitleSr: string;
+  subtitleEn: string;
+};
+
+const COMMUNITY_HERO_COPY: Record<string, CommunityHeroCopy> = {
+  discussions: {
+    badgeSr: "AI Studio Commons",
+    badgeEn: "AI Studio Commons",
+    titleSr: "Uči javno. Napreduj zajedno.",
+    titleEn: "Learn in public. Grow together.",
+    subtitleSr: "Pitaj, podeli workflow i poveži svaku diskusiju sa smerom i kursom na kom radiš.",
+    subtitleEn: "Ask, share a workflow, and connect every discussion to the track and course you are building in.",
+  },
+  "my-threads": {
+    badgeSr: "Moj rad na platformi",
+    badgeEn: "My work on the platform",
+    titleEn: "My ideas become real discussions.",
+    titleSr: "Moje ideje postaju stvarne diskusije.",
+    subtitleSr: "Pratim svoje objave, čuvam važne razgovore i vraćam se pitanjima koja pomeraju moje projekte.",
+    subtitleEn: "Follow my posts, save useful conversations, and return to questions that move my projects forward.",
+  },
+  mentions: {
+    badgeSr: "Moja aktivnost",
+    badgeEn: "My activity",
+    titleEn: "Everything important for my next step.",
+    titleSr: "Sve važno za moj sledeći korak.",
+    subtitleSr: "Pratim odgovore, glasove i pominjanja koja mi pomažu da učim i napredujem.",
+    subtitleEn: "Follow replies, votes, and mentions that help me learn and grow.",
+  },
+  notifications: {
+    badgeSr: "Moja aktivnost",
+    badgeEn: "My activity",
+    titleEn: "Everything important for my next step.",
+    titleSr: "Sve važno za moj sledeći korak.",
+    subtitleSr: "Pratim odgovore, glasove i pominjanja koja mi pomažu da učim i napredujem.",
+    subtitleEn: "Follow replies, votes, and mentions that help me learn and grow.",
+  },
+  members: {
+    badgeSr: "Moja studentska zajednica",
+    badgeEn: "My student community",
+    titleEn: "I learn alongside people building their ideas.",
+    titleSr: "Učim uz ljude koji grade svoje ideje.",
+    subtitleSr: "Pronađi članove po smeru i kursu, razmeni iskustvo i upoznaj svoju platformu.",
+    subtitleEn: "Find members by track and course, share experience, and meet your learning community.",
+  },
+  leaderboard: {
+    badgeSr: "Moj napredak",
+    badgeEn: "My progress",
+    titleEn: "Every completed step builds my path.",
+    titleSr: "Svaki završeni korak gradi moj put.",
+    subtitleSr: "Pratim napredak kroz lekcije, zadatke i korisne odgovore na svojoj platformi.",
+    subtitleEn: "Track progress through lessons, tasks, and helpful replies on the platform.",
+  },
+  moderation: {
+    badgeSr: "Moja platforma",
+    badgeEn: "My platform",
+    titleEn: "Together we keep conversations useful.",
+    titleSr: "Zajedno čuvamo kvalitet razgovora.",
+    subtitleSr: "Pregledamo pitanja i ideje kako bi svaka diskusija bila korisna za učenje.",
+    subtitleEn: "Review questions and ideas so every discussion supports learning.",
+  },
+};
+
 const PRESERVED_SEARCH_KEYS = ["scope", "track", "course", "q", "sort"];
 
 function activeCommunitySection(pathname: string) {
@@ -158,6 +226,7 @@ function CommunityShellView({
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const activeSection = activeCommunitySection(pathname);
+  const heroCopy = COMMUNITY_HERO_COPY[activeSection] ?? COMMUNITY_HERO_COPY.discussions;
   const isStaff = filters.viewer.role === "admin" || filters.viewer.role === "moderator";
 
   const navItems = useMemo<CommunityNavItem[]>(
@@ -239,31 +308,26 @@ function CommunityShellView({
 
   return (
     <div className="mx-auto w-full max-w-[1180px] space-y-5" aria-busy={isLoading}>
-      <section className="relative overflow-hidden rounded-[16px]! border-2 border-ink bg-ink text-white shadow-[6px_6px_0_rgba(244,190,48,0.65)]">
-        <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-[34%] border-l border-white/10 bg-[radial-gradient(circle_at_center,rgba(244,190,48,0.22)_0_2px,transparent_2px)] [background-size:24px_24px] md:block" />
-        <div className="relative p-4 sm:p-5 lg:p-6">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="min-w-0 max-w-4xl">
+      <section data-motion="hero" className="relative overflow-hidden rounded-[16px]! border-2 border-ink bg-ink text-white shadow-[4px_4px_0_rgba(244,190,48,0.55)]">
+        <div className="pointer-events-none absolute inset-y-0 left-1/2 right-0 hidden bg-[radial-gradient(circle_at_center,rgba(244,190,48,0.22)_0_2px,transparent_2px)] [background-size:24px_24px] [mask-image:linear-gradient(to_right,transparent_0%,black_50%,black_100%)] md:block" />
+        <div className="relative p-3.5 sm:p-4">
+          <div className="flex flex-col gap-2">
+            <div className="min-w-0 max-w-4xl" data-motion="copy">
               <div className="flex items-center gap-2 text-yellow">
                 <Sparkles className="size-4" aria-hidden="true" />
-                <p className="font-mono text-[11px] font-black uppercase tracking-[0.18em]">AI Studio Commons</p>
+                <p className="font-mono text-[10px] font-black uppercase tracking-[0.16em]">
+                  {locale === "sr" ? heroCopy.badgeSr : heroCopy.badgeEn}
+                </p>
               </div>
-              <h1 className="mt-2 truncate text-[clamp(1.7rem,3.5vw,3rem)] font-black leading-none tracking-[-0.045em] sm:whitespace-nowrap">
-                {locale === "sr" ? "Uči javno. Napreduj zajedno." : "Learn in public. Grow together."}
+              <h1 className="mt-1.5 truncate text-[clamp(1.5rem,3vw,2.4rem)] font-black leading-none tracking-[-0.04em] sm:whitespace-nowrap">
+                {locale === "sr" ? heroCopy.titleSr : heroCopy.titleEn}
               </h1>
-              <p className="mt-2 truncate text-sm font-bold leading-5 text-white/72 sm:whitespace-nowrap sm:text-[15px]">
+              <p className="mt-1 truncate text-xs font-bold leading-5 text-white/72 sm:whitespace-nowrap sm:text-sm">
                 {locale === "sr"
-                  ? "Pitaj, podeli workflow i poveži svaku diskusiju sa smerom i kursom na kom radiš."
-                  : "Ask, share a workflow, and connect every discussion to the track and course you are building in."}
+                  ? heroCopy.subtitleSr
+                  : heroCopy.subtitleEn}
               </p>
             </div>
-            <Link
-              href={withLocale(locale, "/app/community/new")}
-              className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-full border-2 border-yellow bg-yellow px-4 text-sm font-black text-ink shadow-[3px_3px_0_rgba(255,255,255,0.22)] transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white active:translate-y-0"
-            >
-              <PenLine className="size-4" aria-hidden="true" />
-              {locale === "sr" ? "Pokreni diskusiju" : "Start a discussion"}
-            </Link>
           </div>
 
         </div>

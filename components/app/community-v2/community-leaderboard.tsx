@@ -191,7 +191,8 @@ function LeaderboardView({
   const viewerOutsidePage = viewer?.row && !rows.some((row) => row.userId === viewer.row?.userId) ? viewer.row : null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
+      <div className="hidden">
       <CommunityPageHeading
         eyebrow={locale === "sr" ? "Napredak, ne popularnost" : "Progress, not popularity"}
         title={locale === "sr" ? "Leaderboard učenja" : "Learning leaderboard"}
@@ -201,40 +202,52 @@ function LeaderboardView({
             : "Rank is earned through completed lessons, required tasks, and helpful replies — equally for Lite and Pro."
         }
       />
+      </div>
 
-      <section className="grid gap-4 rounded-[16px]! border border-line bg-white p-3 sm:p-4 xl:grid-cols-[minmax(320px,0.85fr)_auto]">
-        <CommunityScopeControls locale={locale} filters={filters} scopeState={scopeState} compact />
-        <div className="flex gap-1 rounded-full border border-line bg-[#eef3f7] p-1" role="group" aria-label={locale === "sr" ? "Period rangiranja" : "Ranking period"}>
-          {(["week", "all_time"] as const).map((period) => {
-            const active = periodState.period === period;
-            return (
-              <button
-                key={period}
-                type="button"
-                onClick={() => periodState.setPeriod(period)}
-                aria-pressed={active}
-                className={cn(
-                  "min-h-10 flex-1 rounded-full px-4 text-xs font-black transition focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink",
-                  active ? "bg-ink text-white" : "text-ink/65 hover:bg-white hover:text-ink",
-                )}
-              >
-                {period === "week"
-                  ? locale === "sr"
-                    ? "Ova nedelja"
-                    : "This week"
-                  : locale === "sr"
-                    ? "Ukupno"
-                    : "All time"}
-              </button>
-            );
-          })}
+      <section className="overflow-x-auto rounded-[16px]! border border-line bg-white p-3 sm:p-4">
+        <div className="flex min-w-max items-center gap-2">
+        <CommunityScopeControls
+          locale={locale}
+          filters={filters}
+          scopeState={scopeState}
+          compact
+          layout="inline"
+          showLearningDepth={false}
+          inlineMiddle={
+            <div className="flex shrink-0 gap-1 rounded-full border border-line bg-[#eef3f7] p-1" role="group" aria-label={locale === "sr" ? "Period rangiranja" : "Ranking period"}>
+              {(["week", "all_time"] as const).map((period) => {
+                const active = periodState.period === period;
+                return (
+                  <button
+                    key={period}
+                    type="button"
+                    onClick={() => periodState.setPeriod(period)}
+                    aria-pressed={active}
+                    className={cn(
+                      "min-h-9 flex-1 rounded-full px-4 text-xs font-black transition focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink",
+                      active ? "bg-ink text-white" : "text-ink/65 hover:bg-white hover:text-ink",
+                    )}
+                  >
+                    {period === "week"
+                      ? locale === "sr"
+                        ? "Ova nedelja"
+                        : "This week"
+                      : locale === "sr"
+                        ? "Ukupno"
+                        : "All time"}
+                  </button>
+                );
+              })}
+            </div>
+          }
+        />
         </div>
       </section>
 
       {loading ? (
         <CommunityRouteSkeleton />
       ) : (
-        <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
+        <div className="block">
           <section className="min-w-0 space-y-5" aria-live="polite">
             {podiumRows.length ? (
               <div className="grid gap-3 md:grid-cols-3 md:items-end md:pt-4">
@@ -289,7 +302,7 @@ function LeaderboardView({
             ) : null}
           </section>
 
-          <aside className="space-y-4 xl:sticky xl:top-6">
+          <aside className="hidden space-y-4 xl:sticky xl:top-6">
             <LearningSpine
               locale={locale}
               scope={scopeState.scope}

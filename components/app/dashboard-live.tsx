@@ -38,6 +38,7 @@ type LiveNavigationResult = {
       totalLessons: number;
       completedLessons: number;
       percent: number;
+      startedAt?: number;
       lastActivityAt?: number;
       nextLessonSlug?: string;
       nextLessonTitleSr?: string;
@@ -164,6 +165,7 @@ function courseFromLiveCourse(
           totalLessons: liveCourse.progress.totalLessons,
           completedLessons: liveCourse.progress.completedLessons,
           percent: liveCourse.progress.percent,
+          startedAt: liveCourse.progress.startedAt,
           lastActivityAt: liveCourse.progress.lastActivityAt,
           nextLessonSlug: liveCourse.progress.nextLessonSlug,
           nextLessonTitle:

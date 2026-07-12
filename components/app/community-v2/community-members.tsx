@@ -119,7 +119,7 @@ function MemberCard({
     <button
       type="button"
       onClick={onOpen}
-      className="group flex min-h-32 w-full items-start gap-3 rounded-[16px]! border border-line bg-white p-4 text-left transition hover:-translate-y-0.5 hover:border-ink hover:shadow-[4px_4px_0_rgba(14,49,88,0.1)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+      className="group flex min-h-28 w-full items-start gap-3 rounded-[16px]! border border-line bg-white p-3 text-left transition hover:border-ink hover:shadow-[3px_3px_0_rgba(14,49,88,0.08)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
     >
       <CommunityAvatar
         name={member.name}
@@ -381,7 +381,8 @@ function MembersView({
   }));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
+      <div className="hidden">
       <CommunityPageHeading
         eyebrow={locale === "sr" ? "Ljudi iza projekata" : "People behind the projects"}
         title={locale === "sr" ? "Pronađi člana po onome što uči" : "Find members by what they are learning"}
@@ -391,9 +392,10 @@ function MembersView({
             : "Search public profiles, narrow by track or course, and see community contribution without private data."
         }
       />
+      </div>
 
       <section className="rounded-[16px]! border border-line bg-white p-3 sm:p-4">
-        <div className="grid gap-4 xl:grid-cols-[minmax(320px,0.85fr)_minmax(0,1fr)]">
+        <div className="grid gap-2 xl:grid-cols-[minmax(220px,0.72fr)_minmax(0,1fr)]">
           <CommunityScopeControls locale={locale} filters={filters} scopeState={scopeState} compact />
           <div className="flex min-w-0 flex-col gap-2 sm:flex-row">
             <CommunitySearch
@@ -407,7 +409,7 @@ function MembersView({
               <select
                 value={controls.role}
                 onChange={(event) => controls.setRole(event.target.value as MemberRoleFilter)}
-                className="min-h-11 w-full rounded-full border border-line bg-white px-4 text-sm font-black text-ink outline-none hover:border-ink/55 focus:border-ink focus:ring-4 focus:ring-yellow/25 sm:w-auto"
+                className="min-h-10 w-full rounded-full border border-line bg-white px-4 text-sm font-black text-ink outline-none hover:border-ink/55 focus:border-ink focus:ring-4 focus:ring-yellow/25 sm:w-auto"
               >
                 {ROLE_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>{locale === "sr" ? option.sr : option.en}</option>
@@ -431,7 +433,7 @@ function MembersView({
             </div>
           <span className="font-mono text-xs font-black text-muted">{scopedMembers.length}</span>
           </div>
-          <div className="space-y-6">
+          <div className="space-y-5">
             {(["admin", "moderator", "pro_student", "student"] as const).map((groupRole) => {
               const group = scopedMembers.filter((member) => member.role === groupRole);
               if (!group.length) return null;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation } from "convex/react";
-import { ArrowDown, ArrowUp, Bookmark, ChevronDown, Lightbulb, MessageCircle, MessageSquareText, PenLine, Sparkles } from "lucide-react";
+import { ArrowBigDown, ArrowBigUp, ArrowDown, ArrowUp, Bookmark, ChevronDown, Lightbulb, MessageCircle, MessageSquareText, PenLine, Pin, Share2, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -16,6 +16,7 @@ import {
   fallbackCommunityFilters,
   fallbackCommunityPosts,
   useCommunityFilters,
+  useCommunityPinnedPosts,
   useCommunityPosts,
   useToggleCommunityFavorite,
 } from "./community-data";
@@ -69,6 +70,56 @@ function useDiscussionControls() {
   };
 }
 
+function ShareThreadButton({ locale, post }: { locale: Locale; post: CommunityPostRow }) {
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+  const threadHref = post._id.startsWith("preview-")
+    ? withLocale(locale, "/app/community/discussions")
+    : withLocale(locale, "/app/community/" + post._id);
+
+  async function shareThread() {
+    if (busy) return;
+    setBusy(true);
+    const url = window.location.origin + threadHref;
+    try {
+      if (typeof navigator.share === "function") {
+        await navigator.share({ title: post.title, text: post.body, url });
+      } else if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+        toast.success(locale === "sr" ? "Link je kopiran." : "Link copied.");
+      } else {
+        const input = document.createElement("textarea");
+        input.value = url;
+        input.setAttribute("readonly", "true");
+        input.style.position = "fixed";
+        input.style.opacity = "0";
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand("copy");
+        input.remove();
+        toast.success(locale === "sr" ? "Link je kopiran." : "Link copied.");
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      toast.error(locale === "sr" ? "Deljenje nije uspelo." : "Sharing failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => void shareThread()}
+      disabled={busy}
+      aria-label={locale === "sr" ? "Podeli diskusiju" : "Share discussion"}
+      className="grid size-8 place-items-center rounded-full text-muted transition hover:bg-ink/5 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
+    >
+      <Share2 className="size-4" aria-hidden="true" />
+    </button>
+  );
+}
+
 export function CommunityDiscussionsPage({ locale }: { locale: Locale }) {
   if (process.env.NEXT_PUBLIC_CONVEX_URL) {
     return <LiveDiscussionsPage locale={locale} />;
@@ -83,9 +134,18 @@ function StaticDiscussionsPage({ locale }: { locale: Locale }) {
   const posts = useMemo(() => {
     const needle = controls.query.toLocaleLowerCase();
     return fallbackCommunityPosts
+      .filter((post) =>
+        scopeState.scope.kind === "global"
+          ? true
+          : scopeState.scope.kind === "track"
+            ? post.trackId === scopeState.scope.trackId
+            : post.courseId === scopeState.scope.courseId,
+      )
+      .filter((post) => !scopeState.selectedCycle || post.moduleId === scopeState.selectedCycle._id)
+      .filter((post) => !scopeState.selectedLesson || post.lessonId === scopeState.selectedLesson._id)
       .filter((post) => !needle || `${post.title} ${post.body}`.toLocaleLowerCase().includes(needle))
       .sort((a, b) => (controls.sort === "top" ? (b.voteScore ?? 0) - (a.voteScore ?? 0) : controls.sort === "hot" ? (b.voteScore ?? 0) - (a.voteScore ?? 0) || b.createdAt - a.createdAt : b.createdAt - a.createdAt));
-  }, [controls.query, controls.sort]);
+  }, [controls.query, controls.sort, scopeState.scope, scopeState.selectedCycle, scopeState.selectedLesson]);
 
   return (
     <DiscussionsView
@@ -94,6 +154,11 @@ function StaticDiscussionsPage({ locale }: { locale: Locale }) {
       scopeState={scopeState}
       controls={controls}
       posts={posts}
+      pinnedPosts={fallbackCommunityPosts
+        .filter((post) => post.isFeaturedGlobal || post.isPinned)
+        .filter((post) => !scopeState.selectedCycle || post.moduleId === scopeState.selectedCycle._id)
+        .filter((post) => !scopeState.selectedLesson || post.lessonId === scopeState.selectedLesson._id)
+        .slice(0, 3)}
       loading={false}
       canLoadMore={false}
       loadingMore={false}
@@ -107,9 +172,12 @@ function LiveDiscussionsPage({ locale }: { locale: Locale }) {
   const controls = useDiscussionControls();
   const postsQuery = useCommunityPosts({
     scope: filtersLoading ? { kind: "global" } : scopeState.scope,
+    moduleId: scopeState.selectedCycle?._id,
+    lessonId: scopeState.selectedLesson?._id,
     search: controls.query || undefined,
     sort: controls.sort,
   });
+  const pinnedQuery = useCommunityPinnedPosts({ scope: scopeState.scope, limit: 3 });
   const toggleFavorite = useToggleCommunityFavorite();
   const votePost = useMutation(api.community.vote);
   const canInteract = Boolean(filters.viewer.username);
@@ -121,6 +189,11 @@ function LiveDiscussionsPage({ locale }: { locale: Locale }) {
       scopeState={scopeState}
       controls={controls}
       posts={postsQuery.results}
+      pinnedPosts={pinnedQuery.results.filter(
+        (post) =>
+          (!scopeState.selectedCycle || post.moduleId === scopeState.selectedCycle._id) &&
+          (!scopeState.selectedLesson || post.lessonId === scopeState.selectedLesson._id),
+      )}
       loading={filtersLoading || postsQuery.isInitialLoading}
       canLoadMore={postsQuery.status === "CanLoadMore"}
       loadingMore={postsQuery.status === "LoadingMore"}
@@ -141,6 +214,7 @@ function DiscussionsView({
   scopeState,
   controls,
   posts,
+  pinnedPosts,
   loading,
   canLoadMore,
   loadingMore,
@@ -157,6 +231,7 @@ function DiscussionsView({
   scopeState: ReturnType<typeof useResolvedCommunityScope>;
   controls: ReturnType<typeof useDiscussionControls>;
   posts: CommunityPostRow[];
+  pinnedPosts: CommunityPostRow[];
   loading: boolean;
   canLoadMore: boolean;
   loadingMore: boolean;
@@ -197,14 +272,114 @@ function DiscussionsView({
       toast.error(locale === "sr" ? "Čuvanje diskusije nije uspelo." : "Saving the discussion failed.");
     }
   }
-  const mentorPicks = posts.filter((post) => post.isFeaturedGlobal || post.isPinned).slice(0, 3);
-  // The main Discussions route is the canonical feed: every published thread
-  // must remain visible here, even when it is also highlighted as a mentor pick.
-  // The highlight is a secondary shortcut, never a filter on the chronological feed.
-  const feedPosts = posts;
+  const pinnedIds = new Set(pinnedPosts.map((post) => post._id));
+  const feedPosts = posts.filter((post) => !pinnedIds.has(post._id));
+
+  function renderThread(post: CommunityPostRow, highlighted = false) {
+    return (
+      <ThreadCard
+        key={post._id}
+        locale={locale}
+        post={post}
+        track={postTrackTitle(post, filters, locale)}
+        course={postCourseTitle(post, filters, locale)}
+        highlighted={highlighted}
+        leadingAction={
+          <>
+            <div className="flex items-center gap-0.5">
+              <button
+                type="button"
+                disabled={!canInteract || !onReactPost}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  void handlePostReaction(post._id, "upvote");
+                }}
+                aria-label={locale === "sr" ? "Upvote diskusije" : "Upvote discussion"}
+                aria-pressed={post.userVote === "upvote"}
+                className="grid size-8 place-items-center rounded-full text-muted transition hover:bg-emerald-50 hover:text-emerald-600 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-35"
+              >
+                <ArrowBigUp className={cn("size-[18px] fill-transparent", post.userVote === "upvote" && "fill-emerald-500 text-emerald-600")} />
+              </button>
+              <button
+                type="button"
+                disabled={!canInteract || !onReactPost}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  void handlePostReaction(post._id, "downvote");
+                }}
+                aria-label={locale === "sr" ? "Downvote diskusije" : "Downvote discussion"}
+                aria-pressed={post.userVote === "downvote"}
+                className="grid size-8 place-items-center rounded-full text-muted transition hover:bg-red-50 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-35"
+              >
+                <ArrowBigDown className={cn("size-[18px] fill-transparent", post.userVote === "downvote" && "fill-red-500 text-red-600")} />
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                const willOpen = expandedPostId !== post._id;
+                setExpandedPostId((current) => (current === post._id ? null : post._id));
+                if (willOpen) {
+                  window.requestAnimationFrame(() => {
+                    document.querySelector<HTMLElement>(`[data-community-comments="${post._id}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  });
+                }
+              }}
+              aria-expanded={expandedPostId === post._id}
+              aria-label={expandedPostId === post._id ? locale === "sr" ? "Sakrij komentare treda" : "Hide thread comments" : locale === "sr" ? "Prikaži komentare treda" : "Show thread comments"}
+              className={cn(
+                "grid size-8 place-items-center rounded-full text-muted transition hover:bg-ink/5 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink",
+                expandedPostId === post._id && "bg-ink/5 text-ink",
+              )}
+            >
+              <MessageCircle className="size-[18px]" aria-hidden="true" />
+            </button>
+          </>
+        }
+        action={
+          <div className="flex items-center gap-0.5">
+            <ShareThreadButton locale={locale} post={post} />
+            <button
+              type="button"
+              disabled={!canInteract || !onToggleFavorite}
+              onClick={(event) => {
+                event.stopPropagation();
+                void handleFavorite(post._id);
+              }}
+              aria-label={post.isFavorited ? locale === "sr" ? "Ukloni iz sačuvanih" : "Remove from saved" : locale === "sr" ? "Sačuvaj diskusiju" : "Save discussion"}
+              aria-pressed={Boolean(post.isFavorited)}
+              className={cn(
+                "grid size-8 place-items-center rounded-full text-muted transition hover:bg-ink/5 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-35",
+                post.isFavorited && "bg-yellow/25 text-ink",
+              )}
+            >
+              <Bookmark className={cn("size-[18px]", post.isFavorited && "fill-ink")} aria-hidden="true" />
+            </button>
+          </div>
+        }
+        below={
+          expandedPostId === post._id ? (
+            <CommentsSection
+              postId={post._id}
+              locale={locale}
+              isAuthenticated={isAuthenticated}
+              canModerate={canModerate}
+              canMarkHelpful={canModerate || post.authorId === viewerUserId}
+              canInteract={canInteract}
+              viewerUserId={viewerUserId}
+              compact
+              showCommandDock
+            />
+          ) : null
+        }
+      />
+    );
+  }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
+      <div className="hidden">
       <CommunityPageHeading
         eyebrow={locale === "sr" ? "Otvoreni studio" : "Open studio"}
         title={locale === "sr" ? "Diskusije koje pomeraju rad napred" : "Discussions that move the work forward"}
@@ -223,23 +398,26 @@ function DiscussionsView({
           </Link> : <span className="inline-flex min-h-11 items-center justify-center rounded-full border-2 border-line bg-paper px-4 text-sm font-black text-muted">{locale === "sr" ? "Podesi username za akcije" : "Set a username to interact"}</span>
         }
       />
+      </div>
 
       <section className="rounded-[16px]! border border-line bg-white p-3 sm:p-4" aria-label={locale === "sr" ? "Filteri diskusija" : "Discussion filters"}>
-        <div className="grid gap-4 xl:grid-cols-[minmax(320px,0.85fr)_minmax(0,1fr)]">
+        <div className="grid gap-2 xl:grid-cols-[minmax(320px,0.9fr)_minmax(280px,1fr)_auto] xl:items-start">
           <CommunityScopeControls locale={locale} filters={filters} scopeState={scopeState} compact />
-          <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start">
+          <div className="min-w-0">
             <CommunitySearch
               value={controls.search}
               onChange={controls.setSearch}
               placeholder={locale === "sr" ? "Pretraži naslov, pitanje ili autora" : "Search title, question, or author"}
               label={locale === "sr" ? "Pretraži diskusije" : "Search discussions"}
             />
+          </div>
+          <div className="flex items-start gap-2">
             <label className="relative block shrink-0">
               <span className="sr-only">{locale === "sr" ? "Sortiraj diskusije" : "Sort discussions"}</span>
               <select
                 value={controls.sort}
                 onChange={(event) => controls.setSort(event.target.value as DiscussionSort)}
-                className="min-h-11 w-full appearance-none rounded-full border border-line bg-white py-2 pl-4 pr-10 text-sm font-black text-ink outline-none transition hover:border-ink/55 focus:border-ink focus:ring-4 focus:ring-yellow/25 sm:w-auto"
+                className="min-h-10 w-full appearance-none rounded-full border border-line bg-white py-2 pl-4 pr-10 text-sm font-black text-ink outline-none transition hover:border-ink/55 focus:border-ink focus:ring-4 focus:ring-yellow/25 sm:w-auto"
               >
                 <option value="hot">{locale === "sr" ? "Vruće" : "Hot"}</option>
                 <option value="top">{locale === "sr" ? "Najviše glasova" : "Top voted"}</option>
@@ -249,6 +427,19 @@ function DiscussionsView({
               </select>
               <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted" aria-hidden="true" />
             </label>
+            {canInteract ? (
+              <Link
+                href={withLocale(locale, "/app/community/new")}
+                className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-sm font-black text-ink shadow-[2px_2px_0_rgba(14,49,88,0.16)] transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              >
+                <PenLine className="size-4" aria-hidden="true" />
+                {locale === "sr" ? "Nova diskusija" : "New discussion"}
+              </Link>
+            ) : (
+              <span className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-full border border-line bg-paper px-4 text-sm font-black text-muted">
+                {locale === "sr" ? "Podesi username" : "Set username"}
+              </span>
+            )}
           </div>
         </div>
       </section>
@@ -256,8 +447,49 @@ function DiscussionsView({
       {loading ? (
         <CommunityRouteSkeleton />
       ) : (
-        <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
+        <div className="space-y-6">
+          {pinnedPosts.length ? (
+            <section className="space-y-3" aria-label={locale === "sr" ? "Zakačeni threadovi" : "Pinned threads"}>
+              <div className="flex items-center gap-2 px-1">
+                <Pin className="size-4 text-yellow-600" aria-hidden="true" />
+                <h2 className="text-sm font-black uppercase tracking-[0.1em] text-ink/70">
+                  {locale === "sr" ? "Zakačeni threadovi" : "Pinned threads"}
+                </h2>
+                <span className="rounded-full bg-yellow/20 px-2 py-1 text-[10px] font-black uppercase tracking-[0.08em] text-ink/65">
+                  {locale === "sr" ? "Admin izbor" : "Admin picks"}
+                </span>
+              </div>
+              <div className="space-y-3">{pinnedPosts.map((post) => renderThread(post, true))}</div>
+            </section>
+          ) : null}
           <section className="min-w-0 space-y-3" aria-live="polite" aria-label={locale === "sr" ? "Lista diskusija" : "Discussion list"}>
+            <div className="flex items-center justify-between gap-3 px-1">
+              <div className="flex items-center gap-2">
+                <MessageSquareText className="size-4 text-ink/60" aria-hidden="true" />
+                <h2 className="text-sm font-black uppercase tracking-[0.1em] text-ink/65">
+                  {locale === "sr" ? "Razgovori" : "Conversations"}
+                </h2>
+              </div>
+              <span className="font-mono text-xs font-black text-muted">
+                {feedPosts.length} {locale === "sr" ? "učitano" : "loaded"}
+              </span>
+            </div>
+            {feedPosts.length ? feedPosts.map((post) => renderThread(post)) : (
+              <EmptyCommunityState
+                locale={locale}
+                icon={MessageSquareText}
+                title={locale === "sr" ? "Nema drugih diskusija za ovaj izbor" : "No other discussions match this view"}
+                body={locale === "sr" ? "Promeni opseg ili pretragu, ili pokreni prvu diskusiju za ovaj kurs." : "Change the scope or search, or start the first discussion for this course."}
+              />
+            )}
+            {canLoadMore && onLoadMore ? (
+              <div className="flex justify-center pt-3">
+                <LoadMoreButton locale={locale} loading={loadingMore} onClick={onLoadMore} />
+              </div>
+            ) : null}
+          </section>
+
+          <section className="hidden" aria-hidden="true">
             <div className="flex items-center justify-between gap-3 px-1">
               <div className="flex items-center gap-2">
                 <MessageSquareText className="size-4 text-ink/60" aria-hidden="true" />
@@ -310,7 +542,7 @@ function DiscussionsView({
                               : "Show comments"
                         }
                         className={cn(
-                          "inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3 text-xs font-black transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+                          "inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-black transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
                           "border-line bg-white text-muted hover:border-ink hover:text-ink",
                         )}
                       >
@@ -320,7 +552,9 @@ function DiscussionsView({
                     </>
                   }
                   action={
-                    onToggleFavorite ? (
+                    <div className="flex items-center gap-1.5">
+                      <ShareThreadButton locale={locale} post={post} />
+                      {onToggleFavorite ? (
                       <button
                         type="button"
                         disabled={!canInteract}
@@ -336,13 +570,14 @@ function DiscussionsView({
                         }
                         aria-pressed={Boolean(post.isFavorited)}
                         className={cn(
-                          "grid size-11 place-items-center rounded-full border transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+                          "grid size-9 place-items-center rounded-full border transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
                           post.isFavorited ? "border-ink bg-yellow text-ink" : "border-line bg-white text-muted hover:border-ink hover:text-ink",
                         )}
                       >
                         <Bookmark className={cn("size-4", post.isFavorited && "fill-ink")} aria-hidden="true" />
                       </button>
-                    ) : undefined
+                      ) : null}
+                    </div>
                   }
                   below={
                     expandedPostId === post._id ? (
@@ -388,7 +623,7 @@ function DiscussionsView({
             ) : null}
           </section>
 
-          <aside className="space-y-4 xl:sticky xl:top-6">
+          <aside className="hidden space-y-4 xl:sticky xl:top-6">
             <LearningSpine
               locale={locale}
               scope={scopeState.scope}
@@ -409,9 +644,9 @@ function DiscussionsView({
                   </h2>
                 </div>
               </div>
-              {mentorPicks.length ? (
+              {pinnedPosts.length ? (
                 <ol className="mt-4 divide-y divide-line">
-                  {mentorPicks.map((post, index) => (
+                  {pinnedPosts.map((post, index) => (
                     <li key={post._id} className="py-3 first:pt-0 last:pb-0">
                       <Link
                         href={

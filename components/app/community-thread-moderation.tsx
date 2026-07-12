@@ -159,7 +159,7 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
   return (
     <section aria-labelledby="moderation-title" className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <div className="max-w-2xl">
+        <div className="hidden max-w-2xl">
           <p className="font-display text-xl text-ink">{locale === "sr" ? "Kvalitet pre brzine" : "Quality before speed"}</p>
           <h1 id="moderation-title" className="mt-1 text-3xl font-black tracking-[-0.02em] text-ink md:text-4xl">
             {locale === "sr" ? "Odobrenja" : "Approvals"}

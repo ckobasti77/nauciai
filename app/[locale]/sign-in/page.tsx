@@ -10,7 +10,7 @@ export function generateStaticParams() {
 
 function SignInCopy({ locale }: { locale: Locale }) {
   return (
-    <div>
+    <div data-motion="copy">
       <BrandMark href={withLocale(locale)} label={dictionary[locale].appName} />
       <h1 className="mt-10 text-5xl font-black leading-tight text-ink md:text-6xl">
         {locale === "sr" ? "Uđi u svoj AI kurs" : "Enter your AI course"}
@@ -61,7 +61,7 @@ export default async function SignInPage({
     mode === "reset-confirm" ? "resetVerification" : mode === "reset" ? "reset" : undefined;
 
   return (
-    <main className="sketch-grid min-h-screen bg-paper px-4 py-8 sm:px-6 lg:px-8">
+    <main data-motion="page" className="sketch-grid min-h-screen bg-paper px-4 py-8 sm:px-6 lg:px-8">
       <div className="mx-auto grid min-h-[calc(100vh-64px)] max-w-6xl items-center gap-10 lg:grid-cols-[0.9fr_1.1fr]">
         <SignInCopy locale={locale} />
         <SignInPanel

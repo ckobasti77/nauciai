@@ -278,6 +278,34 @@ async function resolvePostWriteScope(
   return globalCommunityScope();
 }
 
+async function resolvePostLearningContext(
+  ctx: QueryCtx | MutationCtx,
+  courseId: Id<"courses"> | undefined,
+  moduleId: Id<"modules"> | undefined,
+  lessonId: Id<"lessons"> | undefined,
+) {
+  if (!courseId) {
+    if (moduleId || lessonId) throw new Error("Ciklus i lekcija moraju pripadati izabranom kursu.");
+    return { moduleId: undefined, lessonId: undefined };
+  }
+
+  const lesson = lessonId ? await ctx.db.get(lessonId) : null;
+  if (lessonId && (!lesson || !lesson.isPublished || lesson.courseId !== courseId)) {
+    throw new Error("Lekcija nije pronađena u izabranom kursu.");
+  }
+
+  const resolvedModuleId = moduleId ?? lesson?.moduleId;
+  const courseModule = resolvedModuleId ? await ctx.db.get(resolvedModuleId) : null;
+  if (resolvedModuleId && (!courseModule || courseModule.courseId !== courseId)) {
+    throw new Error("Ciklus nije pronađen u izabranom kursu.");
+  }
+  if (lesson && resolvedModuleId !== lesson.moduleId) {
+    throw new Error("Lekcija ne pripada izabranom ciklusu.");
+  }
+
+  return { moduleId: resolvedModuleId, lessonId };
+}
+
 function isStaffRole(role: unknown) {
   return role === "admin" || role === "moderator";
 }
@@ -531,6 +559,8 @@ export const listPinnedPosts = query({
 export const createPost = mutation({
   args: {
     courseId: v.optional(v.id("courses")),
+    moduleId: v.optional(v.id("modules")),
+    lessonId: v.optional(v.id("lessons")),
     scope: v.optional(communityScopeValidator),
     language: v.union(v.literal("sr"), v.literal("en")),
     title: v.string(),
@@ -551,6 +581,12 @@ export const createPost = mutation({
     if (resolvedScope.kind === "course") {
       await requireCourseAccess(ctx, resolvedScope.courseId);
     }
+    const learningContext = await resolvePostLearningContext(
+      ctx,
+      resolvedScope.kind === "course" ? resolvedScope.courseId : undefined,
+      args.moduleId,
+      args.lessonId,
+    );
     const title = args.title.trim();
     const body = args.body.trim();
     if (args.status !== "draft" && (!title || !body)) {
@@ -571,6 +607,7 @@ export const createPost = mutation({
 
     const postId = await ctx.db.insert("communityPosts", {
       ...scopeFields(resolvedScope),
+      ...learningContext,
       language: args.language,
       title,
       body,
@@ -613,6 +650,8 @@ export const updatePost = mutation({
     title: v.string(),
     body: v.string(),
     courseId: v.optional(v.id("courses")),
+    moduleId: v.optional(v.id("modules")),
+    lessonId: v.optional(v.id("lessons")),
     scope: v.optional(communityScopeValidator),
     status: v.optional(v.union(v.literal("draft"), v.literal("pending"), v.literal("published"))),
     imageStorageId: v.optional(v.id("_storage")),
@@ -634,6 +673,12 @@ export const updatePost = mutation({
     if (resolvedScope.kind === "course") {
       await requireCourseAccess(ctx, resolvedScope.courseId);
     }
+    const learningContext = await resolvePostLearningContext(
+      ctx,
+      resolvedScope.kind === "course" ? resolvedScope.courseId : undefined,
+      args.moduleId,
+      args.lessonId,
+    );
     const title = args.title.trim();
     const body = args.body.trim();
     const currentStatus = effectivePostStatus(post);
@@ -653,6 +698,7 @@ export const updatePost = mutation({
       body,
       searchText: postSearchText(title, body),
       ...scopeFields(resolvedScope),
+      ...learningContext,
       updatedAt: Date.now(),
     };
 
@@ -1758,7 +1804,7 @@ export const getCommunityFilters = query({
   args: {},
   handler: async (ctx) => {
     const { userId, profile } = await getCurrentProfile(ctx);
-    const [tracks, courses, notificationCounts] = await Promise.all([
+    const [tracks, courses, modules, lessons, notificationCounts] = await Promise.all([
       ctx.db
         .query("courseTracks")
         .withIndex("by_status_and_sortOrder", (q) => q.eq("status", "published"))
@@ -1767,6 +1813,8 @@ export const getCommunityFilters = query({
         .query("courses")
         .withIndex("by_status", (q) => q.eq("status", "published"))
         .take(200),
+      ctx.db.query("modules").take(1000),
+      ctx.db.query("lessons").take(2000),
       getCommunityNotificationCountsHelper(ctx, userId),
     ]);
     const courseRows = courses.map((course) => ({
@@ -1776,6 +1824,26 @@ export const getCommunityFilters = query({
       titleSr: course.titleSr,
       titleEn: course.titleEn,
       sortOrder: course.sortOrder,
+      cycles: modules
+        .filter((module) => module.courseId === course._id)
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map((module) => ({
+          _id: module._id,
+          courseId: module.courseId,
+          titleSr: module.titleSr,
+          titleEn: module.titleEn,
+          lessons: lessons
+            .filter((lesson) => lesson.moduleId === module._id && lesson.isPublished)
+            .sort((a, b) => a.sortOrder - b.sortOrder)
+            .map((lesson) => ({
+              _id: lesson._id,
+              courseId: lesson.courseId,
+              moduleId: lesson.moduleId,
+              slug: lesson.slug,
+              titleSr: lesson.titleSr,
+              titleEn: lesson.titleEn,
+            })),
+        })),
     }));
 
     return {
@@ -1812,6 +1880,8 @@ export const listPostsPage = query({
   args: {
     paginationOpts: paginationOptsValidator,
     scope: communityScopeValidator,
+    moduleId: v.optional(v.id("modules")),
+    lessonId: v.optional(v.id("lessons")),
     search: v.optional(v.string()),
     sort: communityPostSortValidator,
   },
@@ -1819,11 +1889,33 @@ export const listPostsPage = query({
     const { userId } = await getCurrentProfile(ctx);
     const scope = await resolveCommunityScope(ctx, args.scope);
     if (scope.kind === "course") await requireCourseAccess(ctx, scope.courseId);
+    const learningContext = await resolvePostLearningContext(
+      ctx,
+      scope.kind === "course" ? scope.courseId : undefined,
+      args.moduleId,
+      args.lessonId,
+    );
+    const lessonId = learningContext.lessonId;
+    const moduleId = lessonId ? undefined : learningContext.moduleId;
     const paginationOpts = boundedPaginationOpts(args.paginationOpts);
     const search = args.search?.trim();
 
     const result = search
-      ? scope.kind === "global"
+      ? lessonId
+        ? await ctx.db
+            .query("communityPosts")
+            .withSearchIndex("search_searchText", (q) =>
+              q.search("searchText", search).eq("status", "published").eq("scopeKey", scope.scopeKey).eq("lessonId", lessonId),
+            )
+            .paginate(paginationOpts)
+        : moduleId
+          ? await ctx.db
+              .query("communityPosts")
+              .withSearchIndex("search_searchText", (q) =>
+                q.search("searchText", search).eq("status", "published").eq("scopeKey", scope.scopeKey).eq("moduleId", moduleId),
+              )
+              .paginate(paginationOpts)
+          : scope.kind === "global"
         ? await ctx.db
             .query("communityPosts")
             .withSearchIndex("search_searchText", (q) =>
@@ -1844,19 +1936,31 @@ export const listPostsPage = query({
               )
               .paginate(paginationOpts)
       : args.sort === "hot"
-        ? scope.kind === "global"
+        ? lessonId
+          ? await ctx.db.query("communityPosts").withIndex("by_lessonId_and_status_and_hotScore", (q) => q.eq("lessonId", lessonId).eq("status", "published")).order("desc").paginate(paginationOpts)
+          : moduleId
+            ? await ctx.db.query("communityPosts").withIndex("by_moduleId_and_status_and_hotScore", (q) => q.eq("moduleId", moduleId).eq("status", "published")).order("desc").paginate(paginationOpts)
+            : scope.kind === "global"
           ? await ctx.db.query("communityPosts").withIndex("by_status_and_hotScore", (q) => q.eq("status", "published")).order("desc").paginate(paginationOpts)
           : scope.kind === "track"
             ? await ctx.db.query("communityPosts").withIndex("by_trackId_and_status_and_hotScore", (q) => q.eq("trackId", scope.trackId).eq("status", "published")).order("desc").paginate(paginationOpts)
             : await ctx.db.query("communityPosts").withIndex("by_scopeKey_and_status_and_hotScore", (q) => q.eq("scopeKey", scope.scopeKey).eq("status", "published")).order("desc").paginate(paginationOpts)
         : args.sort === "top"
-          ? scope.kind === "global"
+          ? lessonId
+            ? await ctx.db.query("communityPosts").withIndex("by_lessonId_and_status_and_voteScore", (q) => q.eq("lessonId", lessonId).eq("status", "published")).order("desc").paginate(paginationOpts)
+            : moduleId
+              ? await ctx.db.query("communityPosts").withIndex("by_moduleId_and_status_and_voteScore", (q) => q.eq("moduleId", moduleId).eq("status", "published")).order("desc").paginate(paginationOpts)
+              : scope.kind === "global"
             ? await ctx.db.query("communityPosts").withIndex("by_status_and_voteScore", (q) => q.eq("status", "published")).order("desc").paginate(paginationOpts)
             : scope.kind === "track"
               ? await ctx.db.query("communityPosts").withIndex("by_trackId_and_status_and_voteScore", (q) => q.eq("trackId", scope.trackId).eq("status", "published")).order("desc").paginate(paginationOpts)
               : await ctx.db.query("communityPosts").withIndex("by_scopeKey_and_status_and_voteScore", (q) => q.eq("scopeKey", scope.scopeKey).eq("status", "published")).order("desc").paginate(paginationOpts)
         : args.sort === "latest"
-        ? scope.kind === "global"
+        ? lessonId
+          ? await ctx.db.query("communityPosts").withIndex("by_lessonId_and_status_and_createdAt", (q) => q.eq("lessonId", lessonId).eq("status", "published")).order("desc").paginate(paginationOpts)
+          : moduleId
+            ? await ctx.db.query("communityPosts").withIndex("by_moduleId_and_status_and_createdAt", (q) => q.eq("moduleId", moduleId).eq("status", "published")).order("desc").paginate(paginationOpts)
+            : scope.kind === "global"
           ? await ctx.db
               .query("communityPosts")
               .withIndex("by_status_and_createdAt", (q) => q.eq("status", "published"))
@@ -1878,7 +1982,11 @@ export const listPostsPage = query({
                 .order("desc")
                 .paginate(paginationOpts)
         : args.sort === "active"
-          ? scope.kind === "global"
+          ? lessonId
+            ? await ctx.db.query("communityPosts").withIndex("by_lessonId_and_status_and_lastActivityAt", (q) => q.eq("lessonId", lessonId).eq("status", "published")).order("desc").paginate(paginationOpts)
+            : moduleId
+              ? await ctx.db.query("communityPosts").withIndex("by_moduleId_and_status_and_lastActivityAt", (q) => q.eq("moduleId", moduleId).eq("status", "published")).order("desc").paginate(paginationOpts)
+              : scope.kind === "global"
             ? await ctx.db
                 .query("communityPosts")
                 .withIndex("by_status_and_lastActivityAt", (q) => q.eq("status", "published"))
@@ -1899,7 +2007,11 @@ export const listPostsPage = query({
                   )
                   .order("desc")
                   .paginate(paginationOpts)
-          : scope.kind === "global"
+          : lessonId
+            ? await ctx.db.query("communityPosts").withIndex("by_lessonId_and_status_and_commentCount_and_lastActivityAt", (q) => q.eq("lessonId", lessonId).eq("status", "published").eq("commentCount", 0)).order("desc").paginate(paginationOpts)
+            : moduleId
+              ? await ctx.db.query("communityPosts").withIndex("by_moduleId_and_status_and_commentCount_and_lastActivityAt", (q) => q.eq("moduleId", moduleId).eq("status", "published").eq("commentCount", 0)).order("desc").paginate(paginationOpts)
+              : scope.kind === "global"
             ? await ctx.db
                 .query("communityPosts")
                 .withIndex("by_status_and_commentCount_and_lastActivityAt", (q) =>
@@ -1938,6 +2050,8 @@ export const listPostsPage = query({
           (scope.kind === "track" && "trackId" in postScope && postScope.trackId === scope.trackId) ||
           (scope.kind === "course" && postScope.scopeKey === scope.scopeKey);
         if (!scopeMatches) continue;
+        if (lessonId && post.lessonId !== lessonId) continue;
+        if (moduleId && post.moduleId !== moduleId) continue;
         if (args.sort === "unanswered" && (post.commentCount ?? 0) > 0) continue;
         matchingLegacy.push(post);
         if (matchingLegacy.length >= paginationOpts.numItems) break;

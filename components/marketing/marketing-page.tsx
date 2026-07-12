@@ -70,10 +70,11 @@ export function MarketingPage({
         </div>
       </header>
 
+      <div data-motion="page">
       <HeroMotion>
-        <section className="sketch-grid overflow-hidden border-b-2 border-ink">
+        <section data-motion="hero" className="sketch-grid overflow-hidden border-b-2 border-ink">
           <div className="mx-auto grid min-h-[calc(100vh-74px)] max-w-7xl items-center gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[1.02fr_0.98fr] lg:px-8 lg:py-16">
-            <div className="max-w-3xl">
+            <div className="max-w-3xl" data-motion="copy">
               <h1 className="text-5xl font-black leading-[0.95] text-ink sm:text-6xl lg:text-7xl">
                 {locale === "sr" ? "Fakultet za AI sa praktičnim kursevima" : "Faculty for AI with practical courses"}
               </h1>
@@ -147,6 +148,7 @@ export function MarketingPage({
               return (
                 <article
                   key={course.slug}
+                  data-motion="card"
                   className="group relative flex min-h-full flex-col overflow-hidden rounded-[16px] border-[2px] border-ink bg-white shadow-[6px_6px_0_0_rgba(14,49,88,0.16)] transition hover:-translate-y-1 hover:shadow-[9px_9px_0_0_rgba(14,49,88,0.2)]"
                 >
                   <Link
@@ -285,6 +287,7 @@ export function MarketingPage({
           </Panel>
         </div>
       </section>
+      </div>
     </main>
   );
 }

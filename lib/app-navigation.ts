@@ -62,12 +62,14 @@ export type AppCourseNav = {
 
 export type AppNavigationData = {
   role?: string;
+  plan?: string;
   courses: AppCourseNav[];
 };
 
 type LiveNavigationResult = {
   profile?: {
     role?: string;
+    plan?: string;
   } | null;
   courses?: Array<{
     _id?: string;
@@ -192,14 +194,21 @@ export async function getAppNavigationData(locale: Locale): Promise<AppNavigatio
     .catch(() => null)) as LiveNavigationResult;
 
   if (!liveNavigation?.courses?.length) {
+    const role = liveNavigation?.profile?.role;
+    let plan = "free";
+    if (role === "admin") plan = "admin";
+    else if (role === "moderator") plan = "moderator";
+    else if (role === "pro_student") plan = "pro";
     return {
       ...staticNavigationData(),
-      role: liveNavigation?.profile?.role,
+      role,
+      plan,
     };
   }
 
   return {
     role: liveNavigation.profile?.role,
+    plan: liveNavigation.profile?.plan,
     courses: liveNavigation.courses.map((course) => {
       const fallback = fallbackCourse(course.slug);
       return {

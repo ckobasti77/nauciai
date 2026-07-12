@@ -6,24 +6,41 @@ import {
   ChevronRight,
   CircleAlert,
   CreditCard,
+  Crown,
   FileText,
   GraduationCap,
   LayoutDashboard,
   Lock,
+  Menu,
   MessageCircle,
+  PanelLeftClose,
+  PanelLeftOpen,
   PlayCircle,
+  Shield,
   ShieldCheck,
-  Sparkles,
   User,
   LogOut,
+  X,
+  ArrowUpRight,
 } from "lucide-react";
 import { useConvexAuth, useAuthActions } from "@convex-dev/auth/react";
 import { useQuery } from "convex/react";
 import { gsap } from "gsap";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import Image from "next/image";
 import Link from "next/link";
 import { useParams, usePathname, useSearchParams, useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from "react";
 
 import {
   AddCourseAction,
@@ -38,9 +55,22 @@ import {
 import { CheckoutButton } from "@/components/app/checkout-button";
 import { BrandMark, cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
+import {
+  APP_SIDEBAR_COOKIE,
+  APP_SIDEBAR_KEYBOARD_STEP,
+  APP_SIDEBAR_MAX_WIDTH,
+  APP_SIDEBAR_RAIL_WIDTH,
+  type AppSidebarPreferences,
+  preferencesFromDraggedWidth,
+  serializeAppSidebarPreferences,
+} from "@/lib/app-sidebar-preferences";
 import type { AppCourseNav, AppLessonNav, AppLessonPartNav, AppNavigationData } from "@/lib/app-navigation";
 import { primaryCourseSlug } from "@/lib/content";
 import { dictionary, localized, type Locale, withLocale } from "@/lib/i18n";
+
+function dashboardHref(locale: Locale) {
+  return withLocale(locale, "/app");
+}
 
 function courseHref(locale: Locale, courseSlug: string) {
   return withLocale(locale, `/app?course=${courseSlug}`);
@@ -538,13 +568,15 @@ function LessonsAccordion({
   currentCourse,
   currentLessonSlug,
   isAdmin,
+  initiallyOpen = false,
 }: {
   locale: Locale;
   currentCourse: AppCourseNav;
   currentLessonSlug?: string;
   isAdmin: boolean;
+  initiallyOpen?: boolean;
 }) {
-  const [open, setOpen] = useState(Boolean(currentLessonSlug));
+  const [open, setOpen] = useState(Boolean(currentLessonSlug) || initiallyOpen);
   const [expandedLessons, setExpandedLessons] = useState<Record<string, boolean>>({});
   const comingSoon = isCourseComingSoon(currentCourse, isAdmin);
   const locked = isCourseLocked(currentCourse, isAdmin);
@@ -761,9 +793,168 @@ function LessonsAccordion({
   );
 }
 
+function RailAction({
+  label,
+  icon,
+  active = false,
+  badge = 0,
+  href,
+  expanded,
+  onClick,
+}: {
+  label: string;
+  icon: ReactNode;
+  active?: boolean;
+  badge?: number;
+  href?: string;
+  expanded?: boolean;
+  onClick?: () => void;
+}) {
+  const className = cn(
+    "group relative flex size-12 items-center justify-center rounded-full border-2 text-ink transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+    active ? "border-ink bg-yellow shadow-[3px_3px_0_rgba(14,49,88,0.16)]" : "border-transparent bg-white hover:border-ink hover:bg-yellow/25",
+  );
+  const content = (
+    <>
+      {active ? <span aria-hidden="true" className="absolute -left-[15px] h-7 w-1.5 rounded-full bg-yellow ring-2 ring-ink" /> : null}
+      {icon}
+      {badge > 0 ? (
+        <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-ink bg-red-600 px-1 text-[9px] font-black text-white">
+          {badge > 99 ? "99+" : badge}
+        </span>
+      ) : null}
+      <span
+        role="tooltip"
+        className={cn(
+          "pointer-events-none absolute left-[calc(100%+12px)] z-[80] whitespace-nowrap rounded-full border-2 border-ink bg-white px-3 py-1.5 text-xs font-black text-ink opacity-0 shadow-[4px_4px_0_rgba(14,49,88,0.14)] transition group-hover:opacity-100 group-focus-visible:opacity-100",
+          expanded && "hidden",
+        )}
+      >
+        {label}
+      </span>
+    </>
+  );
+
+  if (href) {
+    return (
+      <Link href={href} aria-label={label} className={className}>
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <button type="button" aria-label={label} aria-expanded={expanded} onClick={onClick} className={className}>
+      {content}
+    </button>
+  );
+}
+
+function SidebarRoleBadge({
+  role,
+  plan,
+  locale,
+  collapsed = false,
+}: {
+  role?: string;
+  plan?: string;
+  locale: Locale;
+  collapsed?: boolean;
+}) {
+  const normalizedRole = role ?? "student";
+  const resolvedPlan = plan ?? (
+    normalizedRole === "admin"
+      ? "admin"
+      : normalizedRole === "moderator"
+        ? "moderator"
+        : normalizedRole === "pro_student"
+          ? "pro"
+          : "free"
+  );
+
+  const label =
+    resolvedPlan === "admin"
+      ? "Administrator"
+      : resolvedPlan === "moderator"
+        ? "Moderator"
+        : resolvedPlan === "pro"
+          ? (locale === "sr" ? "Pro plan" : "Pro plan")
+          : resolvedPlan === "lite"
+            ? (locale === "sr" ? "Lite plan" : "Lite plan")
+            : (locale === "sr" ? "Free plan" : "Free plan");
+
+  const RoleIcon =
+    resolvedPlan === "admin"
+      ? ShieldCheck
+      : resolvedPlan === "moderator"
+        ? Shield
+        : resolvedPlan === "pro"
+          ? Crown
+          : resolvedPlan === "lite"
+            ? GraduationCap
+            : BookOpen;
+
+  if (collapsed) {
+    return (
+      <span
+        role="status"
+        aria-label={`${locale === "sr" ? "Uloga" : "Role"}: ${label}`}
+        title={label}
+        className={cn(
+          "flex size-9 items-center justify-center rounded-full border-2 border-ink text-ink shadow-[2px_2px_0_0_rgba(14,49,88,0.12)]",
+          resolvedPlan === "admin" && "bg-yellow",
+          resolvedPlan === "moderator" && "bg-ink text-white",
+          resolvedPlan === "pro" && "bg-[#dfc4ff]",
+          resolvedPlan === "lite" && "bg-[#d1e5ff]",
+          resolvedPlan === "free" && "bg-[#ffeed1]",
+        )}
+      >
+        <RoleIcon className="size-4" />
+      </span>
+    );
+  }
+
+  const showUpgrade = resolvedPlan === "free" || resolvedPlan === "lite";
+
+  const badgeContent = (
+    <div
+      className={cn(
+        "flex w-fit items-center gap-1.5 rounded-full border-2 border-ink px-2.5 py-1 text-[10px] font-black uppercase leading-none tracking-[0.04em] text-ink transition shadow-[2px_2px_0_0_rgba(14,49,88,0.12)] hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+        resolvedPlan === "admin" && "bg-yellow hover:bg-yellow/90",
+        resolvedPlan === "moderator" && "bg-ink text-white hover:bg-ink/90",
+        resolvedPlan === "pro" && "bg-[#dfc4ff] hover:bg-[#d0a7ff]",
+        resolvedPlan === "lite" && "bg-[#d1e5ff] hover:bg-[#badaff]",
+        resolvedPlan === "free" && "bg-[#ffeed1] hover:bg-[#ffdca3]",
+      )}
+    >
+      <RoleIcon className="size-3.5" />
+      <span>{label}</span>
+    </div>
+  );
+
+  return (
+    <div className="sidebar-reveal mt-3 flex items-center gap-2">
+      <Link href={`${withLocale(locale)}#pricing`} className="focus:outline-none">
+        {badgeContent}
+      </Link>
+      
+      {showUpgrade && (
+        <Link
+          href={`${withLocale(locale)}#pricing`}
+          className="flex items-center gap-1 rounded-full border-2 border-ink bg-[#10b981] px-2.5 py-1 text-[10px] font-black uppercase leading-none tracking-[0.04em] text-white transition shadow-[2px_2px_0_0_rgba(14,49,88,0.12)] hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+        >
+          <ArrowUpRight className="size-3 shrink-0" />
+          <span>{locale === "sr" ? "Unapredi" : "Upgrade"}</span>
+        </Link>
+      )}
+    </div>
+  );
+}
+
 function AppSidebarContent({
   locale,
   navigation,
+  initialPreferences,
   source = "server",
   authState = "unknown",
   profileData,
@@ -773,6 +964,7 @@ function AppSidebarContent({
 }: {
   locale: Locale;
   navigation: AppNavigationData;
+  initialPreferences: AppSidebarPreferences;
   source?: "server" | "live";
   authState?: "loading" | "authenticated" | "anonymous" | "unknown";
   profileData?: { name?: string; username?: string; email?: string; avatarUrl?: string } | null;
@@ -793,10 +985,106 @@ function AppSidebarContent({
   const rootRef = useRef<HTMLElement>(null);
   const shouldReduceMotion = useReducedMotion();
 
+  const [sidebarPreferences, setSidebarPreferences] = useState(initialPreferences);
+  const sidebarPreferencesRef = useRef(sidebarPreferences);
+  const [isResizing, setIsResizing] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [railFlyout, setRailFlyout] = useState<"course" | "lessons" | "profile" | null>(null);
+  const railLayerRef = useRef<HTMLDivElement>(null);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const { signOut } = useAuthActions();
   const router = useRouter();
+
+  useEffect(() => {
+    sidebarPreferencesRef.current = sidebarPreferences;
+  }, [sidebarPreferences]);
+
+  const persistSidebarPreferences = useCallback((preferences: AppSidebarPreferences) => {
+    const secure = window.location.protocol === "https:" ? "; Secure" : "";
+    document.cookie = `${APP_SIDEBAR_COOKIE}=${serializeAppSidebarPreferences(preferences)}; Max-Age=31536000; Path=/; SameSite=Lax${secure}`;
+  }, []);
+
+  const applySidebarPreferences = useCallback(
+    (preferences: AppSidebarPreferences, persist = true) => {
+      sidebarPreferencesRef.current = preferences;
+      setSidebarPreferences(preferences);
+      if (persist) persistSidebarPreferences(preferences);
+    },
+    [persistSidebarPreferences],
+  );
+
+  const toggleSidebar = useCallback(() => {
+    const current = sidebarPreferencesRef.current;
+    const next = current.collapsed
+      ? {
+          collapsed: false,
+          width: current.lastExpandedWidth,
+          lastExpandedWidth: current.lastExpandedWidth,
+        }
+      : {
+          collapsed: true,
+          width: APP_SIDEBAR_RAIL_WIDTH,
+          lastExpandedWidth: current.width,
+        };
+    setRailFlyout(null);
+    applySidebarPreferences(next);
+  }, [applySidebarPreferences]);
+
+  const startSidebarResize = useCallback(
+    (startEvent: ReactPointerEvent<HTMLDivElement>) => {
+      if (window.innerWidth < 1024) return;
+      startEvent.preventDefault();
+      startEvent.currentTarget.setPointerCapture?.(startEvent.pointerId);
+      const startX = startEvent.clientX;
+      const current = sidebarPreferencesRef.current;
+      const startWidth = current.collapsed ? APP_SIDEBAR_RAIL_WIDTH : current.width;
+      setIsResizing(true);
+      setRailFlyout(null);
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+
+      const handlePointerMove = (moveEvent: PointerEvent) => {
+        const next = preferencesFromDraggedWidth(startWidth + moveEvent.clientX - startX, sidebarPreferencesRef.current);
+        applySidebarPreferences(next, false);
+      };
+
+      const finishResize = () => {
+        window.removeEventListener("pointermove", handlePointerMove);
+        window.removeEventListener("pointerup", finishResize);
+        window.removeEventListener("pointercancel", finishResize);
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+        setIsResizing(false);
+        persistSidebarPreferences(sidebarPreferencesRef.current);
+      };
+
+      window.addEventListener("pointermove", handlePointerMove);
+      window.addEventListener("pointerup", finishResize, { once: true });
+      window.addEventListener("pointercancel", finishResize, { once: true });
+    },
+    [applySidebarPreferences, persistSidebarPreferences],
+  );
+
+  const handleResizeKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLDivElement>) => {
+      const current = sidebarPreferencesRef.current;
+      let nextWidth: number | null = null;
+      if (event.key === "ArrowLeft") nextWidth = (current.collapsed ? APP_SIDEBAR_RAIL_WIDTH : current.width) - APP_SIDEBAR_KEYBOARD_STEP;
+      if (event.key === "ArrowRight") nextWidth = (current.collapsed ? APP_SIDEBAR_RAIL_WIDTH : current.width) + APP_SIDEBAR_KEYBOARD_STEP;
+      if (event.key === "Home") nextWidth = APP_SIDEBAR_RAIL_WIDTH;
+      if (event.key === "End") nextWidth = APP_SIDEBAR_MAX_WIDTH;
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        toggleSidebar();
+        return;
+      }
+      if (nextWidth === null) return;
+      event.preventDefault();
+      applySidebarPreferences(preferencesFromDraggedWidth(nextWidth, current));
+    },
+    [applySidebarPreferences, toggleSidebar],
+  );
 
   useEffect(() => {
     if (!rootRef.current || shouldReduceMotion) return;
@@ -826,44 +1114,150 @@ function AppSidebarContent({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [profileMenuOpen]);
 
+  useEffect(() => {
+    if (!mobileOpen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const sidebar = rootRef.current;
+    const focusable = Array.from(
+      sidebar?.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])') ?? [],
+    ).filter((element) => element.offsetParent !== null);
+    focusable[0]?.focus();
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setMobileOpen(false);
+        return;
+      }
+      if (event.key !== "Tab" || !focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [mobileOpen]);
+
+  useEffect(() => {
+    const desktopQuery = window.matchMedia("(min-width: 1024px)");
+    function handleBreakpointChange(event: MediaQueryListEvent) {
+      if (event.matches) setMobileOpen(false);
+    }
+    desktopQuery.addEventListener("change", handleBreakpointChange);
+    return () => desktopQuery.removeEventListener("change", handleBreakpointChange);
+  }, []);
+
+  useEffect(() => {
+    if (!railFlyout) return;
+    function handlePointerDown(event: PointerEvent) {
+      if (!railLayerRef.current?.contains(event.target as Node)) setRailFlyout(null);
+    }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setRailFlyout(null);
+    }
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [railFlyout]);
+
   const profileName = profileData?.name || "Student";
   const profileUsername = profileData?.username ? `@${profileData.username}` : profileData?.email || "";
   const profileInitials = profileName.split(/\s+/).map((part: string) => part[0]).filter(Boolean).slice(0, 2).join("").toUpperCase() || "AI";
   const profileAvatar = profileData?.avatarUrl;
   const profileIncomplete = !profileComplete || !profileData?.username;
+  const dashboardActive = pathname === withLocale(locale, "/app") && !searchParams.get("course");
+  const communityActive = pathname === withLocale(locale, "/app/community") || pathname.includes("/app/community/");
+  const sidebarWidth = sidebarPreferences.collapsed ? APP_SIDEBAR_RAIL_WIDTH : sidebarPreferences.width;
+  const sidebarStyle = { "--app-sidebar-width": `${sidebarWidth}px` } as CSSProperties;
 
   return (
+    <>
+      <header className="sticky top-0 z-40 flex min-h-16 items-center justify-between border-b-2 border-ink bg-white px-4 lg:hidden">
+        <BrandMark href={withLocale(locale)} label={t.appName} />
+        <button
+          type="button"
+          aria-label={locale === "sr" ? "Otvori navigaciju" : "Open navigation"}
+          aria-expanded={mobileOpen}
+          onClick={() => setMobileOpen(true)}
+          className="inline-flex size-11 items-center justify-center border-2 border-ink bg-yellow text-ink shadow-[3px_3px_0_rgba(14,49,88,0.16)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+        >
+          <Menu className="size-5" />
+        </button>
+      </header>
+      <div
+        aria-hidden="true"
+        onClick={() => setMobileOpen(false)}
+        className={cn(
+          "pointer-events-none fixed inset-0 z-40 bg-ink/45 opacity-0 backdrop-blur-[2px] transition-opacity lg:hidden",
+          mobileOpen && "pointer-events-auto opacity-100",
+        )}
+      />
     <aside
       ref={rootRef}
       data-sidebar-source={source}
       data-sidebar-auth={authState}
       data-sidebar-role={navigation.role ?? "none"}
       data-sidebar-admin={isAdmin ? "true" : "false"}
-      className="border-b-2 border-ink bg-white px-4 py-4 lg:sticky lg:top-0 lg:max-h-screen lg:w-[336px] lg:border-b-0 lg:border-r-2 lg:px-5 lg:py-7 xl:w-[360px] lg:flex lg:flex-col lg:justify-between"
+      data-collapsed={sidebarPreferences.collapsed ? "true" : "false"}
+      data-resizing={isResizing ? "true" : "false"}
+      style={sidebarStyle}
+      onClickCapture={(event) => {
+        if ((event.target as Element).closest("a")) {
+          setMobileOpen(false);
+          setRailFlyout(null);
+        }
+      }}
+      className={cn(
+        "fixed inset-y-0 left-0 z-50 flex h-dvh w-[min(336px,calc(100vw_-_32px))] min-w-0 -translate-x-full flex-col border-r-2 border-ink bg-white px-4 py-4 shadow-[18px_0_45px_rgba(14,49,88,0.18)] transition-transform duration-200",
+        mobileOpen && "translate-x-0",
+        "lg:sticky lg:top-0 lg:z-30 lg:h-screen lg:w-[var(--app-sidebar-width)] lg:shrink-0 lg:translate-x-0 lg:overflow-visible lg:px-5 lg:py-7 lg:shadow-none",
+        !isResizing && "lg:transition-[width] lg:duration-200",
+      )}
     >
-      <div className="lg:flex-1 lg:overflow-y-auto min-w-0">
-        <div className="sidebar-reveal flex items-center justify-between gap-4 lg:block">
+      <div className={cn("flex h-full min-w-0 flex-col", sidebarPreferences.collapsed && "lg:hidden")}>
+      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden pr-1">
+        <div className="sidebar-reveal flex items-center justify-between gap-4">
           <BrandMark href={withLocale(locale)} label={t.appName} />
+          <button
+            type="button"
+            aria-label={locale === "sr" ? "Kolapsiraj sidebar" : "Collapse sidebar"}
+            onClick={toggleSidebar}
+            className="hidden size-11 shrink-0 items-center justify-center border-2 border-ink bg-white text-ink transition hover:bg-yellow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink lg:inline-flex"
+          >
+            <PanelLeftClose className="size-5" />
+          </button>
+          <button
+            type="button"
+            aria-label={locale === "sr" ? "Zatvori navigaciju" : "Close navigation"}
+            onClick={() => setMobileOpen(false)}
+            className="inline-flex size-11 shrink-0 items-center justify-center border-2 border-ink bg-white text-ink lg:hidden"
+          >
+            <X className="size-5" />
+          </button>
         </div>
-        {isAdmin ? (
-          <div className="sidebar-reveal mt-4 rounded-[8px] border-2 border-ink bg-paper px-3 py-2 text-xs font-black text-ink">
-            <span className="flex items-center gap-2">
-              <Sparkles className="size-4 text-ink" />
-              {locale === "sr" ? "Live admin akcije" : "Live admin actions"}
-            </span>
-            <span className="mt-1 block text-[11px] font-bold text-muted">
-              {source === "live" ? "Convex live" : "Server fallback"} · {authState}
-            </span>
-          </div>
-        ) : null}
+        <SidebarRoleBadge role={navigation.role} plan={navigation.plan} locale={locale} />
         {currentCourse ? (
           <CourseSwitcher locale={locale} courses={courses} currentCourse={currentCourse} isAdmin={isAdmin} />
         ) : null}
         {currentCourse ? (
           <nav className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:flex lg:flex-col">
             <NavLink
-              href={courseHref(locale, currentCourse.slug)}
-              active={pathname === withLocale(locale, "/app")}
+              href={dashboardHref(locale)}
+              active={pathname === withLocale(locale, "/app") && !searchParams.get("course")}
               icon={LayoutDashboard}
               label="Dashboard"
             />
@@ -938,6 +1332,8 @@ function AppSidebarContent({
           >
             <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-ink bg-yellow text-xs font-black">
               {profileAvatar ? (
+                /* Avatar URLs are user-provided at runtime and intentionally avoid Next image host restrictions. */
+                // eslint-disable-next-line @next/next/no-img-element
                 <img src={profileAvatar} alt="" className="h-full w-full object-cover" />
               ) : (
                 <span>{profileInitials}</span>
@@ -983,11 +1379,107 @@ function AppSidebarContent({
           </button>
         </div>
       )}
+      </div>
+
+      <div ref={railLayerRef} className={cn("relative hidden h-full w-full flex-col items-center", sidebarPreferences.collapsed && "lg:flex")}>
+        <button
+          type="button"
+          aria-label={locale === "sr" ? "Proširi sidebar" : "Expand sidebar"}
+          onClick={toggleSidebar}
+          className="inline-flex size-11 items-center justify-center border-2 border-ink bg-yellow text-ink shadow-[3px_3px_0_rgba(14,49,88,0.16)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+        >
+          <PanelLeftOpen className="size-5" />
+        </button>
+        <Link href={withLocale(locale)} aria-label={t.appName} className="mt-4 inline-flex size-11 items-center justify-center rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
+          <Image src="/images/logos/logo-emblem.png" alt="" width={160} height={160} className="size-10 object-contain" priority />
+        </Link>
+
+        <div className="my-4 h-px w-8 bg-line" />
+        <nav className="flex flex-col items-center gap-2" aria-label={locale === "sr" ? "Glavna navigacija" : "Main navigation"}>
+          <SidebarRoleBadge role={navigation.role} plan={navigation.plan} locale={locale} collapsed />
+          {currentCourse ? (
+            <RailAction label={localized(currentCourse.title, locale)} icon={<GraduationCap className="size-5" />} expanded={railFlyout === "course"} onClick={() => setRailFlyout((value) => value === "course" ? null : "course")} />
+          ) : null}
+          <RailAction href={dashboardHref(locale)} label="Dashboard" icon={<LayoutDashboard className="size-5" />} active={dashboardActive} />
+          {currentCourse ? (
+            <RailAction label={t.lessons} icon={<BookOpen className="size-5" />} active={Boolean(params.lessonSlug)} expanded={railFlyout === "lessons"} onClick={() => setRailFlyout((value) => value === "lessons" ? null : "lessons")} />
+          ) : null}
+          {currentCourse ? (
+            <RailAction href={communityHref(locale, currentCourse.slug)} label={t.community} icon={<MessageCircle className="size-5" />} active={communityActive} badge={communityBadge} />
+          ) : null}
+        </nav>
+
+        {railFlyout && railFlyout !== "profile" && currentCourse ? (
+          <div className={cn("absolute left-[calc(100%_+_32px)] z-[70] w-[380px] max-w-[calc(100vw_-_112px)] rounded-[16px] border-2 border-ink bg-white p-4 text-ink shadow-[10px_10px_0_rgba(14,49,88,0.16)]", railFlyout === "course" ? "top-20" : "top-40 max-h-[calc(100vh_-_190px)] overflow-y-auto overflow-x-hidden")}>
+            <div className="flex items-center justify-between gap-3 border-b border-line pb-3">
+              <p className="text-sm font-black">{railFlyout === "course" ? (locale === "sr" ? "Izaberi smer" : "Choose track") : t.lessons}</p>
+              <button type="button" aria-label={locale === "sr" ? "Zatvori" : "Close"} onClick={() => setRailFlyout(null)} className="inline-flex size-9 items-center justify-center border border-line bg-paper text-ink"><X className="size-4" /></button>
+            </div>
+            {railFlyout === "course" ? (
+              <CourseSwitcher locale={locale} courses={courses} currentCourse={currentCourse} isAdmin={isAdmin} />
+            ) : (
+              <div className="mt-3"><LessonsAccordion locale={locale} currentCourse={currentCourse} currentLessonSlug={params.lessonSlug} isAdmin={isAdmin} initiallyOpen /></div>
+            )}
+          </div>
+        ) : null}
+
+        {profileData ? (
+          <div className="relative mt-auto">
+            {railFlyout === "profile" ? (
+              <div className="absolute bottom-0 left-[calc(100%_+_36px)] z-[70] w-72 rounded-[16px] border-2 border-ink bg-white p-3 text-ink shadow-[10px_10px_0_rgba(14,49,88,0.16)]">
+                <div className="mb-3 min-w-0 border-b border-line pb-3">
+                  <p className="truncate text-sm font-black">{profileName}</p>
+                  <p className="truncate text-xs font-bold text-muted">{profileUsername}</p>
+                </div>
+                <Link href={currentCourse ? navHref(locale, "/app/profile", currentCourse.slug) : withLocale(locale, "/app/profile")} className={cn("flex min-h-11 items-center gap-3 rounded-full px-3 text-sm font-black", profileIncomplete ? "bg-amber-50 text-amber-900" : "hover:bg-yellow/25")}>
+                  {profileIncomplete ? <CircleAlert className="size-4" /> : <User className="size-4" />} {t.profile}
+                </Link>
+                <Link href={currentCourse ? navHref(locale, "/app/billing", currentCourse.slug) : withLocale(locale, "/app/billing")} className="flex min-h-11 items-center gap-3 rounded-full px-3 text-sm font-black hover:bg-yellow/25"><CreditCard className="size-4" /> {t.billing}</Link>
+                <button type="button" onClick={async () => { await signOut(); router.push(withLocale(locale, "/sign-in")); }} className="mt-2 flex min-h-11 w-full items-center gap-3 bg-ink px-3 text-sm font-black text-white"><LogOut className="size-4" /> {locale === "sr" ? "Odjavi se" : "Sign out"}</button>
+              </div>
+            ) : null}
+            <button type="button" aria-label={profileName} aria-expanded={railFlyout === "profile"} onClick={() => setRailFlyout((value) => value === "profile" ? null : "profile")} className="relative flex size-12 items-center justify-center overflow-visible rounded-full border-2 border-ink bg-yellow text-xs font-black shadow-[3px_3px_0_rgba(14,49,88,0.16)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
+              <span className="flex size-full items-center justify-center overflow-hidden rounded-full">
+                {profileAvatar ? (
+                  /* Avatar URLs are user-provided at runtime and intentionally avoid Next image host restrictions. */
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={profileAvatar} alt="" className="size-full object-cover" />
+                ) : profileInitials}
+              </span>
+              {accountBadge > 0 ? <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-ink bg-red-600 px-1 text-[9px] text-white">{accountBadge > 99 ? "99+" : accountBadge}</span> : null}
+            </button>
+          </div>
+        ) : null}
+      </div>
+
+      <div
+        role="separator"
+        aria-label={locale === "sr" ? "Promeni širinu sidebar-a" : "Resize sidebar"}
+        aria-orientation="vertical"
+        aria-valuemin={APP_SIDEBAR_RAIL_WIDTH}
+        aria-valuemax={APP_SIDEBAR_MAX_WIDTH}
+        aria-valuenow={sidebarWidth}
+        tabIndex={0}
+        onPointerDown={startSidebarResize}
+        onKeyDown={handleResizeKeyDown}
+        className="group absolute -right-2 top-0 z-[75] hidden h-full w-4 cursor-col-resize items-center justify-center bg-transparent focus-visible:outline-none lg:flex"
+      >
+        <span className="h-14 w-1 rounded-full bg-line transition group-hover:w-1.5 group-hover:bg-yellow group-focus-visible:w-1.5 group-focus-visible:bg-yellow group-focus-visible:ring-2 group-focus-visible:ring-ink" />
+      </div>
     </aside>
+    </>
   );
 }
 
-function LiveAppSidebar({ locale, navigation }: { locale: Locale; navigation: AppNavigationData }) {
+function LiveAppSidebar({
+  locale,
+  navigation,
+  initialPreferences,
+}: {
+  locale: Locale;
+  navigation: AppNavigationData;
+  initialPreferences: AppSidebarPreferences;
+}) {
   const { isLoading, isAuthenticated } = useConvexAuth();
   const liveNavigation = useQuery(api.courses.getAppNavigation, isAuthenticated ? {} : "skip") as LiveNavigationResult;
   const resolvedNavigation = useMemo(
@@ -1008,6 +1500,7 @@ function LiveAppSidebar({ locale, navigation }: { locale: Locale; navigation: Ap
     <AppSidebarContent
       locale={locale}
       navigation={resolvedNavigation}
+      initialPreferences={initialPreferences}
       source={liveNavigation ? "live" : "server"}
       authState={authState}
       profileData={liveNavigation?.profile}
@@ -1022,14 +1515,16 @@ export function AppSidebar({
   locale,
   navigation,
   hasConvex,
+  initialPreferences,
 }: {
   locale: Locale;
   navigation: AppNavigationData;
   hasConvex: boolean;
+  initialPreferences: AppSidebarPreferences;
 }) {
   if (!hasConvex) {
-    return <AppSidebarContent locale={locale} navigation={navigation} />;
+    return <AppSidebarContent locale={locale} navigation={navigation} initialPreferences={initialPreferences} />;
   }
 
-  return <LiveAppSidebar locale={locale} navigation={navigation} />;
+  return <LiveAppSidebar locale={locale} navigation={navigation} initialPreferences={initialPreferences} />;
 }

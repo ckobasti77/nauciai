@@ -20,6 +20,8 @@ type PublicMutation<Args extends Record<string, unknown>, Result> = FunctionRefe
 type PostsArgs = {
   paginationOpts: PaginationOptions;
   scope: CommunityScope;
+  moduleId?: string;
+  lessonId?: string;
   search?: string;
   sort: "hot" | "top" | "latest" | "active" | "unanswered";
 };
@@ -98,6 +100,7 @@ type CommunityApiV2 = {
   community: {
     getCommunityFilters: PublicQuery<Record<string, never>, CommunityFilters>;
     listPostsPage: PublicQuery<PostsArgs, PaginationResult<CommunityPostRow>>;
+    listPinnedPosts: PublicQuery<{ scope: CommunityScope; limit?: number }, CommunityPostRow[]>;
     listMyPostsPage: PublicQuery<MyPostsArgs, PaginationResult<CommunityPostRow>>;
     listMentionEvents: PublicQuery<MentionArgs, PaginationResult<MentionEventRaw>>;
     listMembersPage: PublicQuery<MembersArgs, PaginationResult<MemberRowRaw>>;
@@ -141,6 +144,24 @@ export const fallbackCommunityFilters: CommunityFilters = {
           titleSr: "Kurs za video i audio",
           titleEn: "Video and Audio Course",
           trackId: "video-audio",
+          cycles: [
+            {
+              _id: "video-audio-cycle-1",
+              courseId: "video-audio-ai",
+              titleSr: "Ciklus 1 · Osnove",
+              titleEn: "Cycle 1 · Foundations",
+              lessons: [
+                {
+                  _id: "video-audio-lesson-1",
+                  courseId: "video-audio-ai",
+                  moduleId: "video-audio-cycle-1",
+                  slug: "prvi-video-projekat",
+                  titleSr: "Prvi video projekat",
+                  titleEn: "First video project",
+                },
+              ],
+            },
+          ],
         },
       ],
     },
@@ -156,6 +177,7 @@ export const fallbackCommunityFilters: CommunityFilters = {
           titleSr: "Kurs za web sajtove",
           titleEn: "Websites Course",
           trackId: "websites",
+          cycles: [],
         },
       ],
     },
@@ -219,11 +241,15 @@ export function useCommunityFilters(hasConvex = true) {
 export function useCommunityPosts({
   hasConvex = true,
   scope,
+  moduleId,
+  lessonId,
   search,
   sort,
 }: {
   hasConvex?: boolean;
   scope: CommunityScope;
+  moduleId?: string;
+  lessonId?: string;
   search?: string;
   sort: PostsArgs["sort"];
 }) {
@@ -231,7 +257,15 @@ export function useCommunityPosts({
   const enabled = queryEnabled(hasConvex, isAuthenticated, isLoading);
   const query = usePaginatedQuery(
     apiV2.community.listPostsPage,
-    enabled ? { scope, sort, ...(search ? { search } : {}) } : "skip",
+    enabled
+      ? {
+          scope,
+          sort,
+          ...(moduleId ? { moduleId } : {}),
+          ...(lessonId ? { lessonId } : {}),
+          ...(search ? { search } : {}),
+        }
+      : "skip",
     { initialNumItems: 20 },
   );
 
@@ -239,6 +273,27 @@ export function useCommunityPosts({
     ...query,
     results: hasConvex ? query.results : fallbackCommunityPosts,
     isInitialLoading: hasConvex ? query.status === "LoadingFirstPage" : false,
+  };
+}
+
+export function useCommunityPinnedPosts({
+  hasConvex = true,
+  scope,
+  limit = 3,
+}: {
+  hasConvex?: boolean;
+  scope: CommunityScope;
+  limit?: number;
+}) {
+  const { isAuthenticated, isLoading } = useConvexAuth();
+  const enabled = queryEnabled(hasConvex, isAuthenticated, isLoading);
+  const query = useQuery(apiV2.community.listPinnedPosts, enabled ? { scope, limit } : "skip");
+
+  return {
+    results: hasConvex
+      ? ((query as CommunityPostRow[] | undefined) ?? [])
+      : fallbackCommunityPosts.filter((post) => post.isFeaturedGlobal || post.isPinned).slice(0, limit),
+    isInitialLoading: hasConvex ? query === undefined : false,
   };
 }
 

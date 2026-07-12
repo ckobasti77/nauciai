@@ -420,6 +420,8 @@ export default defineSchema({
     authorId: v.id("users"),
     courseId: v.optional(v.id("courses")),
     trackId: v.optional(v.id("courseTracks")),
+    moduleId: v.optional(v.id("modules")),
+    lessonId: v.optional(v.id("lessons")),
     scopeKind: v.optional(communityScopeKind),
     scopeKey: v.optional(v.string()),
     language,
@@ -470,6 +472,26 @@ export default defineSchema({
       "commentCount",
       "lastActivityAt",
     ])
+    .index("by_moduleId_and_status_and_createdAt", ["moduleId", "status", "createdAt"])
+    .index("by_moduleId_and_status_and_hotScore", ["moduleId", "status", "hotScore"])
+    .index("by_moduleId_and_status_and_voteScore", ["moduleId", "status", "voteScore"])
+    .index("by_moduleId_and_status_and_lastActivityAt", ["moduleId", "status", "lastActivityAt"])
+    .index("by_moduleId_and_status_and_commentCount_and_lastActivityAt", [
+      "moduleId",
+      "status",
+      "commentCount",
+      "lastActivityAt",
+    ])
+    .index("by_lessonId_and_status_and_createdAt", ["lessonId", "status", "createdAt"])
+    .index("by_lessonId_and_status_and_hotScore", ["lessonId", "status", "hotScore"])
+    .index("by_lessonId_and_status_and_voteScore", ["lessonId", "status", "voteScore"])
+    .index("by_lessonId_and_status_and_lastActivityAt", ["lessonId", "status", "lastActivityAt"])
+    .index("by_lessonId_and_status_and_commentCount_and_lastActivityAt", [
+      "lessonId",
+      "status",
+      "commentCount",
+      "lastActivityAt",
+    ])
     .index("by_scopeKey_and_status_and_createdAt", ["scopeKey", "status", "createdAt"])
     .index("by_scopeKey_and_status_and_hotScore", ["scopeKey", "status", "hotScore"])
     .index("by_scopeKey_and_status_and_voteScore", ["scopeKey", "status", "voteScore"])
@@ -485,7 +507,7 @@ export default defineSchema({
     .index("by_status_and_updatedAt", ["status", "updatedAt"])
     .searchIndex("search_searchText", {
       searchField: "searchText",
-      filterFields: ["status", "scopeKey", "trackId"],
+      filterFields: ["status", "scopeKey", "trackId", "moduleId", "lessonId"],
     }),
 
   comments: defineTable({

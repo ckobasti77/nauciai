@@ -10,6 +10,7 @@ import {
   GraduationCap,
   Loader2,
   MessageCircle,
+  Pin,
   Search,
   Sparkles,
   Star,
@@ -76,7 +77,7 @@ export function CommunitySearch({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        className="min-h-11 w-full rounded-full border border-line bg-white py-2 pl-11 pr-4 text-sm font-bold text-ink outline-none transition placeholder:font-semibold placeholder:text-muted/65 hover:border-ink/50 focus:border-ink focus:ring-4 focus:ring-yellow/25"
+        className="min-h-10 w-full rounded-full border border-line bg-white py-2 pl-11 pr-4 text-sm font-bold text-ink outline-none transition placeholder:font-semibold placeholder:text-muted/65 hover:border-ink/50 focus:border-ink focus:ring-4 focus:ring-yellow/25"
       />
     </label>
   );
@@ -246,12 +247,13 @@ export function ThreadCard({
 
   return (
     <article
+      data-motion="card"
       className={cn(
-        "group relative isolate overflow-hidden rounded-[16px]! border bg-white transition duration-200 focus-within:border-ink hover:-translate-y-0.5 hover:border-ink hover:shadow-[4px_4px_0_rgba(14,49,88,0.1)]",
-        highlighted ? "border-ink shadow-[5px_5px_0_rgba(244,190,48,0.8)]" : "border-line",
+        "group relative isolate overflow-hidden rounded-[16px]! border bg-white transition duration-200 focus-within:border-ink hover:border-ink hover:shadow-[3px_3px_0_rgba(14,49,88,0.08)]",
+        highlighted ? "border-[#d7a91b] bg-[#fffaf0] shadow-[3px_3px_0_rgba(244,190,48,0.32)]" : "border-line",
       )}
     >
-      <div className="flex min-w-0 gap-3 p-4 sm:gap-4 sm:p-5">
+      <div className="flex min-w-0 gap-2.5 p-3 sm:gap-3 sm:p-3.5">
         <div className="relative shrink-0">
           <div className="absolute bottom-0 left-1/2 top-12 w-0.5 -translate-x-1/2 bg-line/70" aria-hidden="true" />
           <CommunityAvatar
@@ -270,19 +272,31 @@ export function ThreadCard({
             {post.authorUsername ? <span className="text-xs font-semibold text-muted">{post.authorName}</span> : null}
             <span className="text-xs font-bold text-muted/75">· {formatCommunityTime(post.createdAt, locale)}</span>
             {statusLabel}
+            {highlighted ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-yellow/20 px-2 py-0.5 text-[10px] font-black text-ink/70">
+                <Pin className="size-3 fill-yellow text-ink" aria-hidden="true" />
+                {locale === "sr" ? "Zakačeno" : "Pinned"}
+              </span>
+            ) : null}
           </div>
           <ScopeTrail locale={locale} track={track} course={course} compact />
-          <Link
-            href={threadHref}
-            className="z-10 mt-2 block rounded-[8px] after:absolute after:inset-0 after:z-0 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink"
-          >
-            <h2 className="text-lg font-black leading-snug tracking-[-0.018em] text-ink transition group-hover:text-[#164d7d] sm:text-xl">
-              {post.title}
-            </h2>
-            <p className="mt-1.5 line-clamp-2 text-sm font-semibold leading-6 text-muted">{post.body}</p>
-          </Link>
+          <div className="relative z-10 mt-1.5 flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+            <Link
+              href={threadHref}
+              className="min-w-0 flex-1 rounded-[8px] after:absolute after:inset-0 after:z-0 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink"
+            >
+              <h2 className="truncate text-[16px] font-black leading-5 tracking-[-0.018em] text-ink transition group-hover:text-[#164d7d] sm:text-[17px]">
+                {post.title}
+              </h2>
+              <p className="mt-0.5 line-clamp-1 text-[13px] font-semibold leading-5 text-muted">{post.body}</p>
+            </Link>
+            <div className="relative z-10 flex shrink-0 items-center gap-1 self-end sm:self-start">
+              {leadingAction}
+              {action}
+            </div>
+          </div>
           {notice ? <div className="mt-3">{notice}</div> : null}
-          <div className="relative z-10 mt-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="hidden">
             <div className="flex items-center gap-3 text-xs font-black text-muted">
               <span className="inline-flex items-center gap-1.5">
                 <MessageCircle className="size-3.5" aria-hidden="true" />
@@ -309,7 +323,7 @@ export function ThreadCard({
         </div>
       </div>
       <div className={cn("absolute left-0 top-0 h-full w-1", roleTone(post.authorRole))} aria-hidden="true" />
-      {below ? <div className="relative z-10 border-t border-line bg-paper/35 px-4 py-4 sm:px-5">{below}</div> : null}
+      {below ? <div className="relative z-10 border-t border-line bg-paper/35 px-3 py-3 sm:px-4">{below}</div> : null}
     </article>
   );
 }

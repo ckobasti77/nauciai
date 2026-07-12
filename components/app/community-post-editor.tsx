@@ -38,6 +38,8 @@ export type CommunityEditorPost = {
   _id: string;
   courseId?: string;
   trackId?: string;
+  moduleId?: string;
+  lessonId?: string;
   scopeKind?: "global" | "track" | "course";
   featuredCourseId?: string;
   isFeaturedGlobal?: boolean;
@@ -67,6 +69,8 @@ type DraftSnapshot = {
   body: string;
   selectedScope?: string;
   selectedCourseId?: string;
+  selectedModuleId?: string;
+  selectedLessonId?: string;
   savedAt: number;
 };
 
@@ -74,6 +78,16 @@ type FilterCourse = {
   _id: string;
   titleSr: string;
   titleEn: string;
+  cycles?: Array<{
+    _id: string;
+    titleSr: string;
+    titleEn: string;
+    lessons: Array<{
+      _id: string;
+      titleSr: string;
+      titleEn: string;
+    }>;
+  }>;
 };
 
 type FilterTrack = {
@@ -114,6 +128,8 @@ export function CommunityPostEditor({
         ? `course:${initialPost.courseId}`
         : "global",
   );
+  const [selectedModuleId, setSelectedModuleId] = useState(initialPost?.moduleId ?? "");
+  const [selectedLessonId, setSelectedLessonId] = useState(initialPost?.lessonId ?? "");
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(initialPost?.imageUrl ?? null);
   const [imageStorageId, setImageStorageId] = useState<string | null>(initialPost?.imageStorageId ?? null);
   const [imageMimeType, setImageMimeType] = useState<string | null>(initialPost?.imageMimeType ?? null);
@@ -143,6 +159,10 @@ export function CommunityPostEditor({
   const filterCourses = useMemo<FilterCourse[]>(() => communityFilters?.courses ?? [], [communityFilters?.courses]);
   const selectedCourseId = selectedScope.startsWith("course:") ? selectedScope.slice("course:".length) : "";
   const selectedTrackId = selectedScope.startsWith("track:") ? selectedScope.slice("track:".length) : "";
+  const selectedCourse = filterCourses.find((course) => course._id === selectedCourseId)
+    ?? tracks.flatMap((track) => track.courses).find((course) => course._id === selectedCourseId);
+  const availableCycles = selectedCourse?.cycles ?? [];
+  const availableLessons = availableCycles.find((cycle) => cycle._id === selectedModuleId)?.lessons ?? [];
   const storageKey = useMemo(
     () => `nauciai:community-draft:${postId ?? "new"}:${locale}`,
     [locale, postId],
@@ -175,6 +195,8 @@ export function CommunityPostEditor({
               snapshot.selectedScope ??
                 (snapshot.selectedCourseId ? `course:${snapshot.selectedCourseId}` : "global"),
             );
+            setSelectedModuleId(snapshot.selectedModuleId ?? "");
+            setSelectedLessonId(snapshot.selectedLessonId ?? "");
             setLastSavedAt(snapshot.savedAt);
             setSaveState("saved_local");
             setRecoveredDraft(true);
@@ -198,7 +220,7 @@ export function CommunityPostEditor({
 
     const timer = window.setTimeout(async () => {
       const savedAt = Date.now();
-      const snapshot: DraftSnapshot = { title, body, selectedScope, savedAt };
+      const snapshot: DraftSnapshot = { title, body, selectedScope, selectedModuleId, selectedLessonId, savedAt };
       try {
         window.localStorage.setItem(storageKey, JSON.stringify(snapshot));
         setLastSavedAt(savedAt);
@@ -221,6 +243,8 @@ export function CommunityPostEditor({
               ? { kind: "course", courseId: selectedCourseId as Id<"courses"> }
               : { kind: "global" },
             ...(selectedCourseId ? { courseId: selectedCourseId as Id<"courses"> } : {}),
+            ...(selectedModuleId ? { moduleId: selectedModuleId as Id<"modules"> } : {}),
+            ...(selectedLessonId ? { lessonId: selectedLessonId as Id<"lessons"> } : {}),
             ...(imageStorageId
               ? {
                   imageStorageId: imageStorageId as Id<"_storage">,
@@ -252,6 +276,8 @@ export function CommunityPostEditor({
     pending,
     postId,
     selectedCourseId,
+    selectedLessonId,
+    selectedModuleId,
     selectedScope,
     selectedTrackId,
     storageKey,
@@ -405,6 +431,8 @@ export function CommunityPostEditor({
             ? ({ kind: "course", courseId: selectedCourseId as Id<"courses"> } as const)
             : ({ kind: "global" } as const),
         ...(selectedCourseId ? { courseId: selectedCourseId as Id<"courses"> } : {}),
+        ...(selectedModuleId ? { moduleId: selectedModuleId as Id<"modules"> } : {}),
+        ...(selectedLessonId ? { lessonId: selectedLessonId as Id<"lessons"> } : {}),
         ...(imageStorageId
           ? {
               imageStorageId: imageStorageId as Id<"_storage">,
@@ -689,6 +717,8 @@ export function CommunityPostEditor({
                     value={selectedScope}
                     onChange={(event) => {
                       setSelectedScope(event.target.value);
+                      setSelectedModuleId("");
+                      setSelectedLessonId("");
                       markDirty();
                     }}
                     className="min-h-11 w-full appearance-none rounded-[12px] border border-line bg-white py-2.5 pl-10 pr-4 text-sm font-black text-ink outline-none transition focus:border-ink focus:ring-4 focus:ring-yellow/15"
@@ -715,8 +745,50 @@ export function CommunityPostEditor({
                       ))}
                   </select>
                 </div>
+                {selectedCourseId ? (
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                    <label>
+                      <span className="sr-only">{locale === "sr" ? "Izaberi ciklus" : "Choose cycle"}</span>
+                      <select
+                        value={selectedModuleId}
+                        onChange={(event) => {
+                          setSelectedModuleId(event.target.value);
+                          setSelectedLessonId("");
+                          markDirty();
+                        }}
+                        className="min-h-11 w-full rounded-[12px] border border-line bg-white px-3 text-sm font-black text-ink outline-none transition focus:border-ink focus:ring-4 focus:ring-yellow/15"
+                      >
+                        <option value="">{locale === "sr" ? "Izaberi ciklus" : "Choose a cycle"}</option>
+                        {availableCycles.map((cycle) => (
+                          <option key={cycle._id} value={cycle._id}>
+                            {locale === "sr" ? cycle.titleSr : cycle.titleEn}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      <span className="sr-only">{locale === "sr" ? "Izaberi lekciju" : "Choose lesson"}</span>
+                      <select
+                        value={selectedLessonId}
+                        onChange={(event) => {
+                          setSelectedLessonId(event.target.value);
+                          markDirty();
+                        }}
+                        disabled={!selectedModuleId || availableLessons.length === 0}
+                        className="min-h-11 w-full rounded-[12px] border border-line bg-white px-3 text-sm font-black text-ink outline-none transition focus:border-ink focus:ring-4 focus:ring-yellow/15 disabled:cursor-not-allowed disabled:bg-[#eef3f7] disabled:text-muted"
+                      >
+                        <option value="">{locale === "sr" ? "Izaberi lekciju" : "Choose a lesson"}</option>
+                        {availableLessons.map((lesson) => (
+                          <option key={lesson._id} value={lesson._id}>
+                            {locale === "sr" ? lesson.titleSr : lesson.titleEn}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                ) : null}
                 <p className="mt-2 text-xs font-semibold text-muted">
-                  {locale === "sr" ? "Izaberi smer ili kurs samo kada je tema direktno vezana za njega." : "Choose a track or course only when the topic is directly related to it."}
+                  {locale === "sr" ? "Ako je tema vezana za konkretan deo kursa, dodaj i ciklus ili lekciju da bi je drugi lakše pronašli." : "If the topic belongs to a specific part of a course, add its cycle or lesson so others can find it."}
                 </p>
               </div>
 

@@ -13,6 +13,7 @@ type ButtonProps = ComponentProps<typeof Link> & {
 export function LinkButton({ className, tone = "ink", ...props }: ButtonProps) {
   return (
     <Link
+      data-motion="interactive"
       className={cn(
         "inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 px-5 py-2.5 text-sm font-extrabold transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2",
         tone === "ink" &&
@@ -44,6 +45,7 @@ export function Panel({
   return (
     <Tag
       id={id}
+      data-motion="card"
       className={cn(
         "rounded-[16px] border-2 border-ink bg-white shadow-[6px_6px_0_0_rgba(14,49,88,0.13)]",
         className,
@@ -64,7 +66,7 @@ export function SectionHeader({
   body?: string;
 }) {
   return (
-    <div className="max-w-3xl">
+    <div className="max-w-3xl" data-motion="copy">
       {kicker ? <p className="font-display text-xl text-ink">{kicker}</p> : null}
       <h2 className="mt-2 text-3xl font-black leading-tight text-ink md:text-5xl">{title}</h2>
       {body ? <p className="mt-4 text-base leading-7 text-muted md:text-lg">{body}</p> : null}
@@ -76,6 +78,7 @@ export function HandUnderline({ className }: { className?: string }) {
   return (
     <svg
       aria-hidden="true"
+      data-motion="scribble"
       viewBox="0 0 240 18"
       className={cn("h-5 w-56 text-yellow", className)}
       fill="none"
@@ -124,6 +127,7 @@ export function SketchIcon({
 }) {
   return (
     <span
+      data-motion="circle"
       className={cn(
         "inline-flex size-10 items-center justify-center rounded-[16px] border-2 border-ink bg-yellow text-ink",
         className,

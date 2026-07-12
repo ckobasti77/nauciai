@@ -1,0 +1,7 @@
+interface:
+  display_name: "Cartoon School Motion"
+  short_description: "Build playful GSAP page-entry motion systems"
+  default_prompt: "Use $cartoon-school-motion to add a reusable cartoon-school GSAP entrance without changing the final layout."
+
+policy:
+  allow_implicit_invocation: true

@@ -1,7 +1,6 @@
 "use client";
 
 import { gsap } from "gsap";
-import { motion } from "motion/react";
 import { useEffect, useRef } from "react";
 
 export function HeroMotion({ children }: { children: React.ReactNode }) {
@@ -15,25 +14,18 @@ export function HeroMotion({ children }: { children: React.ReactNode }) {
     const context = gsap.context(() => {
       gsap.to(".sketch-float", {
         y: -8,
+        delay: 1.1,
         duration: 2.4,
         ease: "sine.inOut",
         repeat: -1,
         yoyo: true,
         stagger: 0.18,
+        overwrite: false,
       });
     }, rootRef);
 
     return () => context.revert();
   }, []);
 
-  return (
-    <motion.div
-      ref={rootRef}
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.45, ease: "easeOut" }}
-    >
-      {children}
-    </motion.div>
-  );
+  return <div ref={rootRef}>{children}</div>;
 }

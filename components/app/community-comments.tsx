@@ -79,7 +79,7 @@ export function CommentsSection({
   const commentsQuery = usePaginatedQuery(
     api.community.listRootCommentsPage,
     isAuthenticated ? { postId: postId as Id<"communityPosts"> } : "skip",
-    { initialNumItems: 3 },
+    { initialNumItems: 5 },
   );
   const comments = commentsQuery.results as FlatComment[];
   const toast = useToast();
@@ -272,8 +272,8 @@ function CommentItem({
   const [showReplyForm, setShowReplyForm] = useState(false);
   const [replyText, setReplyText] = useState("");
   const [busy, setBusy] = useState<CommentAction | null>(null);
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [repliesRequested, setRepliesRequested] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(() => depth === 0 && hasReplies);
+  const [repliesRequested, setRepliesRequested] = useState(() => depth === 0 && hasReplies);
   const handledCollapse = useRef(0);
   const handledExpandLoaded = useRef(0);
   const canDelete = canModerate || Boolean(viewerUserId && node.authorId === viewerUserId);

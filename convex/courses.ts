@@ -223,6 +223,11 @@ export const getAppNavigation = query({
           if (!updatedAt) return latest;
           return latest === undefined ? updatedAt : Math.max(latest, updatedAt);
         }, undefined);
+        const startedAt = navigationLessons.reduce<number | undefined>((earliest, lesson) => {
+          const updatedAt = lesson.progress?.updatedAt;
+          if (!updatedAt) return earliest;
+          return earliest === undefined ? updatedAt : Math.min(earliest, updatedAt);
+        }, undefined);
         const activityCounts: Record<string, number> = {};
         for (const lesson of navigationLessons) {
           if (!lesson.progress?.completed || !lesson.progress.updatedAt) continue;
@@ -254,6 +259,7 @@ export const getAppNavigation = query({
             totalLessons,
             completedLessons,
             percent: totalLessons ? Math.round((completedLessons / totalLessons) * 100) : 0,
+            startedAt,
             lastActivityAt,
             nextLessonSlug: nextLesson?.slug,
             nextLessonTitleSr: nextLesson?.titleSr,
@@ -267,7 +273,29 @@ export const getAppNavigation = query({
       }),
     );
 
-    return { profile, courses: coursesWithNavigation };
+    const enrollments = await ctx.db
+      .query("enrollments")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+    const hasActiveEnrollment = enrollments.some((e) => e.status === "active");
+
+    let plan = "free";
+    if (profile.role === "admin") {
+      plan = "admin";
+    } else if (profile.role === "moderator") {
+      plan = "moderator";
+    } else if (profile.role === "pro_student") {
+      plan = "pro";
+    } else {
+      plan = hasActiveEnrollment ? "lite" : "free";
+    }
+
+    const profileWithPlan = {
+      ...profile,
+      plan,
+    };
+
+    return { profile: profileWithPlan, courses: coursesWithNavigation };
   },
 });
 

@@ -2,12 +2,12 @@
 
 import { Compass, Settings2 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 
 import { cn } from "@/components/ui/primitives";
 import type { Locale } from "@/lib/i18n";
 
-import type { CommunityCourse, CommunityFilters, CommunityScope, CommunityTrack } from "./community-types";
+import type { CommunityCourse, CommunityCycle, CommunityFilters, CommunityLesson, CommunityScope, CommunityTrack } from "./community-types";
 
 type QueryUpdate = Record<string, string | undefined>;
 
@@ -42,11 +42,21 @@ function localizedCourse(course: CommunityCourse | undefined, locale: Locale) {
   return course ? (locale === "sr" ? course.titleSr : course.titleEn) : undefined;
 }
 
+function localizedCycle(cycle: CommunityCycle | undefined, locale: Locale) {
+  return cycle ? (locale === "sr" ? cycle.titleSr : cycle.titleEn) : undefined;
+}
+
+function localizedLesson(lesson: CommunityLesson | undefined, locale: Locale) {
+  return lesson ? (locale === "sr" ? lesson.titleSr : lesson.titleEn) : undefined;
+}
+
 export function useResolvedCommunityScope(filters: CommunityFilters, locale: Locale) {
   const { searchParams, update } = useCommunityQueryParams();
   const requestedScopeKind = searchParams.get("scope");
   const requestedTrackId = searchParams.get("track") ?? undefined;
   const requestedCourseId = searchParams.get("course") ?? undefined;
+  const requestedCycleId = searchParams.get("cycle") ?? undefined;
+  const requestedLessonId = searchParams.get("lesson") ?? undefined;
   const allCourses = filters.courses.length ? filters.courses : filters.tracks.flatMap((track) => track.courses);
   const requestedCourse = allCourses.find(
     (course) => course._id === requestedCourseId || course.slug === requestedCourseId,
@@ -62,6 +72,17 @@ export function useResolvedCommunityScope(filters: CommunityFilters, locale: Loc
     availableCourses.find((course) => course._id === requestedCourseId) ??
     requestedCourse ??
     availableCourses[0];
+  const availableCycles = selectedCourse?.cycles ?? [];
+  const requestedLesson = availableCycles
+    .flatMap((cycle) => cycle.lessons)
+    .find((lesson) => lesson._id === requestedLessonId || lesson.slug === requestedLessonId);
+  const selectedCycle =
+    availableCycles.find((cycle) => cycle._id === requestedCycleId) ??
+    availableCycles.find((cycle) => cycle._id === requestedLesson?.moduleId);
+  const availableLessons = selectedCycle?.lessons ?? [];
+  const selectedLesson = availableLessons.find(
+    (lesson) => lesson._id === requestedLessonId || lesson.slug === requestedLessonId,
+  );
   const scopeKind =
     requestedScopeKind === "course" || requestedScopeKind === "track" || requestedScopeKind === "global"
       ? requestedScopeKind
@@ -80,14 +101,14 @@ export function useResolvedCommunityScope(filters: CommunityFilters, locale: Loc
   const setScopeKind = useCallback(
     (kind: CommunityScope["kind"]) => {
       if (kind === "global") {
-        update({ scope: "global", track: undefined, course: undefined });
+        update({ scope: "global", track: undefined, course: undefined, cycle: undefined, lesson: undefined });
         return;
       }
       if (kind === "track") {
-        update({ scope: "track", track: selectedTrack?._id, course: undefined });
+        update({ scope: "track", track: selectedTrack?._id, course: undefined, cycle: undefined, lesson: undefined });
         return;
       }
-      update({ scope: "course", track: selectedTrack?._id, course: selectedCourse?._id });
+      update({ scope: "course", track: selectedTrack?._id, course: selectedCourse?._id, cycle: undefined, lesson: undefined });
     },
     [selectedCourse?._id, selectedTrack?._id, update],
   );
@@ -99,6 +120,8 @@ export function useResolvedCommunityScope(filters: CommunityFilters, locale: Loc
         scope: scope.kind === "course" ? "course" : "track",
         track: trackId,
         course: scope.kind === "course" ? track?.courses?.[0]?._id : undefined,
+        cycle: undefined,
+        lesson: undefined,
       });
     },
     [filters.tracks, scope.kind, update],
@@ -107,21 +130,50 @@ export function useResolvedCommunityScope(filters: CommunityFilters, locale: Loc
   const setCourse = useCallback(
     (courseId: string) => {
       const course = filters.courses.find((item) => item._id === courseId) ?? availableCourses.find((item) => item._id === courseId);
-      update({ scope: "course", track: course?.trackId ?? selectedTrack?._id, course: courseId });
+      update({ scope: "course", track: course?.trackId ?? selectedTrack?._id, course: courseId, cycle: undefined, lesson: undefined });
     },
     [availableCourses, filters.courses, selectedTrack?._id, update],
   );
+
+  function setCycle(cycleId: string) {
+    update({
+      scope: "course",
+      track: selectedTrack?._id,
+      course: selectedCourse?._id,
+      cycle: cycleId || undefined,
+      lesson: undefined,
+    });
+  }
+
+  function setLesson(lessonId: string) {
+    const lesson = availableCycles.flatMap((cycle) => cycle.lessons).find((item) => item._id === lessonId);
+    update({
+      scope: "course",
+      track: selectedTrack?._id,
+      course: selectedCourse?._id,
+      cycle: lesson?.moduleId ?? selectedCycle?._id,
+      lesson: lessonId || undefined,
+    });
+  }
 
   return {
     scope,
     selectedTrack,
     selectedCourse,
+    selectedCycle,
+    selectedLesson,
     availableCourses,
+    availableCycles,
+    availableLessons,
     trackLabel: localizedTrack(selectedTrack, locale),
     courseLabel: localizedCourse(selectedCourse, locale),
+    cycleLabel: localizedCycle(selectedCycle, locale),
+    lessonLabel: localizedLesson(selectedLesson, locale),
     setScopeKind,
     setTrack,
     setCourse,
+    setCycle,
+    setLesson,
   };
 }
 
@@ -130,22 +182,29 @@ export function CommunityScopeControls({
   filters,
   scopeState,
   compact = false,
+  layout = "stacked",
+  showLearningDepth = true,
+  inlineMiddle,
 }: {
   locale: Locale;
   filters: CommunityFilters;
   scopeState: ReturnType<typeof useResolvedCommunityScope>;
   compact?: boolean;
+  layout?: "stacked" | "inline";
+  showLearningDepth?: boolean;
+  inlineMiddle?: ReactNode;
 }) {
   const [manualOpen, setManualOpen] = useState(false);
   const settingsOpen = manualOpen || scopeState.scope.kind !== "global";
+  const inline = layout === "inline";
   const selectedCourseValue = settingsOpen && scopeState.scope.kind === "course"
     ? scopeState.selectedCourse?._id ?? ""
     : "";
 
   return (
-    <div className={cn("space-y-3", compact && "space-y-2")}>
+    <div className={cn(inline ? "flex min-w-max items-center gap-2" : "space-y-3", compact && !inline && "space-y-2")}>
       <div
-        className="relative grid grid-cols-2 gap-1 rounded-full border border-line bg-[#eef3f7] p-1"
+        className={cn("relative grid shrink-0 grid-cols-2 gap-1 rounded-full border border-line bg-[#eef3f7] p-1", compact && "w-[280px] max-w-full")}
         role="group"
         aria-label={locale === "sr" ? "Prikaz zajednice" : "Community view"}
       >
@@ -164,7 +223,8 @@ export function CommunityScopeControls({
           }}
           aria-pressed={!settingsOpen}
           className={cn(
-            "relative z-10 inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full px-3 text-xs font-black transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink",
+            "relative z-10 inline-flex items-center justify-center gap-1.5 rounded-full px-3 text-xs font-black transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink",
+            compact ? "min-h-9" : "min-h-10",
             !settingsOpen ? "text-white" : "text-ink/65 hover:text-ink",
           )}
         >
@@ -179,7 +239,8 @@ export function CommunityScopeControls({
           }}
           aria-pressed={settingsOpen}
           className={cn(
-            "relative z-10 inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full px-3 text-xs font-black transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink",
+            "relative z-10 inline-flex items-center justify-center gap-1.5 rounded-full px-3 text-xs font-black transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink",
+            compact ? "min-h-9" : "min-h-10",
             settingsOpen ? "text-white" : "text-ink/65 hover:text-ink",
           )}
         >
@@ -188,12 +249,12 @@ export function CommunityScopeControls({
         </button>
       </div>
 
+      {inline ? inlineMiddle : null}
+
       {settingsOpen ? (
-        <div className="grid gap-2 sm:grid-cols-2">
-          <label className="block">
-            <span className="mb-1 block text-[10px] font-black uppercase tracking-[0.12em] text-muted">
-              {locale === "sr" ? "Smer" : "Track"}
-            </span>
+        <div className={cn("grid gap-2 sm:grid-cols-2", inline && "flex items-center") }>
+          <label className={cn("block", inline && "w-48 shrink-0")}>
+            <span className="sr-only">{locale === "sr" ? "Izaberi smer" : "Choose track"}</span>
             <select
               value={scopeState.selectedTrack?._id ?? ""}
               onChange={(event) => scopeState.setTrack(event.target.value)}
@@ -206,10 +267,8 @@ export function CommunityScopeControls({
               ))}
             </select>
           </label>
-          <label className="block">
-            <span className="mb-1 block text-[10px] font-black uppercase tracking-[0.12em] text-muted">
-              {locale === "sr" ? "Kurs" : "Course"}
-            </span>
+          <label className={cn("block", inline && "w-52 shrink-0")}>
+            <span className="sr-only">{locale === "sr" ? "Izaberi kurs" : "Choose course"}</span>
             <select
               value={selectedCourseValue}
               onChange={(event) => {
@@ -226,6 +285,38 @@ export function CommunityScopeControls({
               ))}
             </select>
           </label>
+          {showLearningDepth ? <label className={cn("block", inline && "w-48 shrink-0")}>
+            <span className="sr-only">{locale === "sr" ? "Izaberi ciklus" : "Choose cycle"}</span>
+            <select
+              value={scopeState.selectedCycle?._id ?? ""}
+              onChange={(event) => scopeState.setCycle(event.target.value)}
+              disabled={!selectedCourseValue || scopeState.availableCycles.length === 0}
+              className="min-h-11 w-full rounded-[12px] border border-line bg-white px-3 text-sm font-black text-ink outline-none transition hover:border-ink/55 focus:border-ink focus:ring-4 focus:ring-yellow/25 disabled:cursor-not-allowed disabled:bg-[#eef3f7] disabled:text-muted"
+            >
+              <option value="">{locale === "sr" ? "Svi ciklusi" : "All cycles"}</option>
+              {scopeState.availableCycles.map((cycle) => (
+                <option key={cycle._id} value={cycle._id}>
+                  {locale === "sr" ? cycle.titleSr : cycle.titleEn}
+                </option>
+              ))}
+            </select>
+          </label> : null}
+          {showLearningDepth ? <label className={cn("block", inline && "w-56 shrink-0")}>
+            <span className="sr-only">{locale === "sr" ? "Izaberi lekciju" : "Choose lesson"}</span>
+            <select
+              value={scopeState.selectedLesson?._id ?? ""}
+              onChange={(event) => scopeState.setLesson(event.target.value)}
+              disabled={!scopeState.selectedCycle || scopeState.availableLessons.length === 0}
+              className="min-h-11 w-full rounded-[12px] border border-line bg-white px-3 text-sm font-black text-ink outline-none transition hover:border-ink/55 focus:border-ink focus:ring-4 focus:ring-yellow/25 disabled:cursor-not-allowed disabled:bg-[#eef3f7] disabled:text-muted"
+            >
+              <option value="">{locale === "sr" ? "Sve lekcije" : "All lessons"}</option>
+              {scopeState.availableLessons.map((lesson) => (
+                <option key={lesson._id} value={lesson._id}>
+                  {locale === "sr" ? lesson.titleSr : lesson.titleEn}
+                </option>
+              ))}
+            </select>
+          </label> : null}
         </div>
       ) : null}
     </div>

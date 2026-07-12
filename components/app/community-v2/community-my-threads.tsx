@@ -197,9 +197,11 @@ function MyThreadsView({
   onOpenPost?: (postId: string) => Promise<unknown>;
 }) {
   const activeItem = VIEW_ITEMS.find((item) => item.id === viewState.view) ?? VIEW_ITEMS[0];
+  const activeIndex = Math.max(0, VIEW_ITEMS.findIndex((item) => item.id === viewState.view));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
+      <div className="hidden">
       <CommunityPageHeading
         eyebrow={locale === "sr" ? "Tvoj radni sto" : "Your workbench"}
         title={locale === "sr" ? "Od skice do korisne diskusije" : "From rough draft to useful discussion"}
@@ -218,36 +220,53 @@ function MyThreadsView({
           </Link>
         }
       />
-
-      <nav className="grid gap-2 rounded-[16px]! border border-line bg-white p-2 sm:grid-cols-4" aria-label={locale === "sr" ? "Status mojih tredova" : "My thread status"}>
-        {VIEW_ITEMS.map((item) => {
-          const Icon = item.icon;
-          const active = item.id === viewState.view;
-          return (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => viewState.setView(item.id)}
-              aria-current={active ? "page" : undefined}
-              className={cn(
-                "flex min-h-12 items-center justify-between gap-3 rounded-[12px] border px-3 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
-                active ? "border-ink bg-ink text-white" : "border-transparent bg-white text-ink hover:border-line hover:bg-[#eef3f7]",
-              )}
-            >
-              <span className="flex min-w-0 items-center gap-2">
-                <Icon className={cn("size-4 shrink-0", active && "text-yellow")} aria-hidden="true" />
-                <span className="truncate text-sm font-black">{locale === "sr" ? item.labelSr : item.labelEn}</span>
-              </span>
-              <span className={cn("font-mono text-[10px] font-black", active ? "text-yellow" : "text-muted")}>{item.step}</span>
-            </button>
-          );
-        })}
+      </div>
+      <nav className="overflow-x-auto rounded-[16px]! border border-line bg-white p-1.5" aria-label={locale === "sr" ? "Status mojih tredova" : "My thread status"}>
+        <div className="relative grid min-w-[760px] grid-cols-5">
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-y-0 left-0 w-1/5 rounded-[12px] border border-ink bg-ink shadow-[2px_2px_0_rgba(244,190,48,0.42)] transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] motion-reduce:transition-none"
+            style={{ transform: `translateX(${activeIndex * 100}%)` }}
+          />
+          {VIEW_ITEMS.map((item) => {
+            const Icon = item.icon;
+            const active = item.id === viewState.view;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => viewState.setView(item.id)}
+                aria-current={active ? "page" : undefined}
+                className={cn(
+                  "relative z-10 flex min-h-10 items-center justify-between gap-3 rounded-[12px] border border-transparent px-3 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+                  active ? "text-white" : "text-ink hover:bg-[#eef3f7]",
+                )}
+              >
+                <span className="flex min-w-0 items-center gap-2">
+                  <Icon className={cn("size-4 shrink-0", active && "text-yellow")} aria-hidden="true" />
+                  <span className="truncate text-sm font-black">{locale === "sr" ? item.labelSr : item.labelEn}</span>
+                </span>
+                <span className={cn("font-mono text-[10px] font-black", active ? "text-yellow" : "text-muted")}>{item.step}</span>
+              </button>
+            );
+          })}
+          <Link
+            href={withLocale(locale, "/app/community/new")}
+            className="relative z-10 ml-1 inline-flex min-h-10 items-center justify-between gap-2 rounded-[12px] border-2 border-ink bg-yellow px-3 text-sm font-black text-ink shadow-[2px_2px_0_rgba(14,49,88,0.16)] transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          >
+            <span className="flex min-w-0 items-center gap-2">
+              <FilePenLine className="size-4 shrink-0" aria-hidden="true" />
+              <span className="truncate">{locale === "sr" ? "Nova skica" : "New draft"}</span>
+            </span>
+            <span className="font-mono text-[10px] font-black">+</span>
+          </Link>
+        </div>
       </nav>
 
       {loading ? (
         <CommunityRouteSkeleton />
       ) : (
-        <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_280px]">
+        <div className="block">
           <section className="min-w-0 space-y-3" aria-live="polite">
             <div className="flex items-center justify-between gap-3 px-1">
               <h2 className="text-sm font-black uppercase tracking-[0.1em] text-ink/65">
@@ -319,7 +338,7 @@ function MyThreadsView({
             ) : null}
           </section>
 
-          <aside className="space-y-4 xl:sticky xl:top-6">
+          <aside className="hidden space-y-4 xl:sticky xl:top-6">
             <section className="rounded-[16px]! border border-ink bg-[#eef3f7] p-4">
               <div className="flex items-center gap-2">
                 <Sparkles className="size-4 text-ink" aria-hidden="true" />
