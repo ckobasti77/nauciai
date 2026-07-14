@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-import { useAuthActions, useConvexAuth } from "@convex-dev/auth/react";
+import { useConvexAuth } from "@convex-dev/auth/react";
 import { useAction, useMutation, useQuery } from "convex/react";
 import type { Id } from "@/convex/_generated/dataModel";
 import {
@@ -117,12 +117,12 @@ export function ProfileEditor({
   const usernameInputRef = useRef<HTMLInputElement>(null);
   const dragDepthRef = useRef(0);
   const { isLoading, isAuthenticated } = useConvexAuth();
-  const { signIn } = useAuthActions();
   const liveViewer = useQuery(api.courses.viewer, isAuthenticated ? {} : "skip") as ViewerData | undefined;
   const profileStatus = useQuery(api.profiles.getViewerProfileStatus, isAuthenticated ? {} : "skip");
   const createAvatarUploadUrl = useMutation(api.profiles.createAvatarUploadUrl);
   const updateViewerProfile = useMutation(api.profiles.updateViewerProfile);
   const setViewerPassword = useAction(api.auth.setViewerPassword);
+  const requestPasswordResetEmail = useAction(api.auth.signIn);
   const requestViewerEmailVerification = useAction(api.emailVerification.requestViewerEmailVerification);
   const submitPost = useMutation(api.community.submitPost);
 
@@ -242,11 +242,16 @@ export function ProfileEditor({
     setPasswordResetPending(true);
     setPasswordResetMessage(null);
     try {
-      await signIn("password", {
-        flow: "reset",
-        email,
-        locale,
-        redirectTo: resetRedirectTo,
+      // Calling the auth action directly deliberately ignores its null token
+      // response, so requesting a reset cannot replace the active session.
+      await requestPasswordResetEmail({
+        provider: "password",
+        params: {
+          flow: "reset",
+          email,
+          locale,
+          redirectTo: resetRedirectTo,
+        },
       });
       setPasswordResetMessage(successMessage);
       toast.success(successMessage);
