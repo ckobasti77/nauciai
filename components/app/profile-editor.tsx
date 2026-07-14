@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-import { useConvexAuth } from "@convex-dev/auth/react";
+import { useAuthActions, useConvexAuth } from "@convex-dev/auth/react";
 import { useAction, useMutation, useQuery } from "convex/react";
 import type { Id } from "@/convex/_generated/dataModel";
 import {
@@ -16,7 +16,6 @@ import {
   UploadCloud,
   UserRound,
 } from "lucide-react";
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   type ChangeEvent,
@@ -118,12 +117,12 @@ export function ProfileEditor({
   const usernameInputRef = useRef<HTMLInputElement>(null);
   const dragDepthRef = useRef(0);
   const { isLoading, isAuthenticated } = useConvexAuth();
+  const { signIn } = useAuthActions();
   const liveViewer = useQuery(api.courses.viewer, isAuthenticated ? {} : "skip") as ViewerData | undefined;
   const profileStatus = useQuery(api.profiles.getViewerProfileStatus, isAuthenticated ? {} : "skip");
   const createAvatarUploadUrl = useMutation(api.profiles.createAvatarUploadUrl);
   const updateViewerProfile = useMutation(api.profiles.updateViewerProfile);
   const setViewerPassword = useAction(api.auth.setViewerPassword);
-  const changeViewerPassword = useAction(api.auth.changeViewerPassword);
   const requestViewerEmailVerification = useAction(api.emailVerification.requestViewerEmailVerification);
   const submitPost = useMutation(api.community.submitPost);
 
@@ -146,9 +145,10 @@ export function ProfileEditor({
   const [message, setMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
   const [verificationPending, setVerificationPending] = useState(false);
   const [verificationMessage, setVerificationMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
+  const [passwordResetPending, setPasswordResetPending] = useState(false);
+  const [passwordResetMessage, setPasswordResetMessage] = useState<string | null>(null);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const shouldFocusUsername = searchParams.get("focus") === "username";
 
   useEffect(() => {
@@ -172,7 +172,6 @@ export function ProfileEditor({
     filePreviewUrl ??
     (selectedPreset ? profileAvatarPresetSrc(selectedPreset) : undefined) ??
     currentAvatarUrl;
-  const resetHref = `${withLocale(locale, "/sign-in")}?mode=reset&email=${encodeURIComponent(initialValues.email)}`;
   const resumePostId = searchParams.get("resumePostId");
   const requestedReturnTo = searchParams.get("returnTo");
   const onboardingReturnTo =
@@ -227,6 +226,35 @@ export function ProfileEditor({
       });
     } finally {
       setVerificationPending(false);
+    }
+  }
+
+  async function requestPasswordReset() {
+    const email = initialValues.email.trim().toLowerCase();
+    const profileHref = withLocale(locale, "/app/profile");
+    const resetRedirectTo = `${withLocale(locale, "/reset-password")}?email=${encodeURIComponent(email)}&next=${encodeURIComponent(profileHref)}`;
+    const successMessage = labelFor(
+      locale,
+      "Poslali smo link za promenu lozinke na tvoj email. Link važi 30 minuta i može se iskoristiti jednom.",
+      "We sent a password-change link to your email. The link is valid for 30 minutes and can be used once.",
+    );
+
+    setPasswordResetPending(true);
+    setPasswordResetMessage(null);
+    try {
+      await signIn("password", {
+        flow: "reset",
+        email,
+        locale,
+        redirectTo: resetRedirectTo,
+      });
+      setPasswordResetMessage(successMessage);
+      toast.success(successMessage);
+    } catch {
+      setPasswordResetMessage(successMessage);
+      toast.success(successMessage);
+    } finally {
+      setPasswordResetPending(false);
     }
   }
 
@@ -405,9 +433,8 @@ export function ProfileEditor({
 
       const wantsNewPassword = Boolean(newPassword || confirmPassword);
       const needsPassword = profileStatus?.hasPassword === false && wantsNewPassword;
-      const changingPassword = profileStatus?.hasPassword === true && changePasswordOpen;
-      passwordActionAttempted = needsPassword || changingPassword;
-      if (needsPassword || changingPassword || newPassword || confirmPassword) {
+      passwordActionAttempted = needsPassword;
+      if (needsPassword || newPassword || confirmPassword) {
         const missingRequirement = passwordValidationErrors(newPassword)[0];
         if (missingRequirement) {
           throw new Error(
@@ -450,12 +477,6 @@ export function ProfileEditor({
         await setViewerPassword({ password: newPassword });
         setNewPassword("");
         setConfirmPassword("");
-        setChangePasswordOpen(false);
-      } else if (changingPassword) {
-        await changeViewerPassword({ password: newPassword });
-        setNewPassword("");
-        setConfirmPassword("");
-        setChangePasswordOpen(false);
       }
 
       if (resumePostId) {
@@ -719,44 +740,26 @@ export function ProfileEditor({
               <div className="sm:col-span-2">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="text-sm font-black text-ink">{labelFor(locale, "Lozinka", "Password")}</span>
-                  {profileStatus?.hasPassword ? (
-                    <div className="flex flex-wrap items-center gap-3">
-                      <button type="button" onClick={() => setChangePasswordOpen((value) => { if (value) { setNewPassword(""); setConfirmPassword(""); } return !value; })} className="inline-flex items-center gap-2 text-sm font-black text-blue-700 underline">
-                        <KeyRound className="size-4" />
-                        {labelFor(locale, changePasswordOpen ? "Otkaži promenu" : "Promeni lozinku", changePasswordOpen ? "Cancel password change" : "Change password")}
-                      </button>
-                      <Link href={resetHref} className="text-xs font-black text-muted underline">
-                        {labelFor(locale, "Email reset", "Email reset")}
-                      </Link>
-                    </div>
-                  ) : null}
                 </div>
                 {profileStatus?.hasPassword ? (
-                  <>
-                    <div className="mt-2 flex min-h-12 items-center rounded-[8px] border-2 border-line bg-paper px-4 py-3">
+                  <div className="mt-2 rounded-[16px] border-2 border-indigo-700 bg-indigo-50 p-4 text-indigo-950">
+                    <div className="flex min-h-12 items-center rounded-[8px] border-2 border-indigo-200 bg-white px-4 py-3">
                       <span className="font-mono text-base font-black text-ink">{MASKED_PASSWORD}</span>
                     </div>
-                    {changePasswordOpen ? (
-                      <div className="mt-2 space-y-3 rounded-[8px] border-2 border-ink bg-paper p-4">
-                        <label className="block">
-                          <span className="text-xs font-black uppercase text-ink/70">{labelFor(locale, "Nova lozinka", "New password")}</span>
-                          <input type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} autoComplete="new-password" className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-white px-4 text-base font-extrabold text-ink outline-none focus:border-yellow" />
-                        </label>
-                        <label className="block">
-                          <span className="text-xs font-black uppercase text-ink/70">{labelFor(locale, "Potvrdi lozinku", "Confirm password")}</span>
-                          <input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} autoComplete="new-password" className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-white px-4 text-base font-extrabold text-ink outline-none focus:border-yellow" />
-                        </label>
-                        <div className="grid gap-1 text-xs font-bold text-muted sm:grid-cols-2">
-                          {passwordRequirements.map((requirement) => (
-                            <span key={requirement.id} className={requirement.test(newPassword) ? "text-emerald-700" : "text-muted"}>
-                              {requirement.test(newPassword) ? "✓" : "•"} {labelFor(locale, requirement.labelSr, requirement.labelEn)}
-                            </span>
-                          ))}
-                        </div>
-                        {confirmPassword && newPassword !== confirmPassword ? <p className="text-xs font-black text-red-700">{labelFor(locale, "Lozinke se ne poklapaju.", "Passwords do not match.")}</p> : null}
-                      </div>
-                    ) : null}
-                  </>
+                    <p className="mt-3 text-sm font-bold leading-6">
+                      {labelFor(locale, "Promena lozinke je moguća samo preko sigurnog linka koji šaljemo na email tvog naloga.", "Your password can only be changed through a secure link sent to your account email.")}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={requestPasswordReset}
+                      disabled={passwordResetPending}
+                      className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 py-2 text-xs font-black text-ink shadow-[3px_3px_0_0_#0e3158] transition hover:-translate-y-0.5 disabled:opacity-60"
+                    >
+                      {passwordResetPending ? <Loader2 className="size-4 animate-spin" /> : <MailCheck className="size-4" />}
+                      {labelFor(locale, "Pošalji link za promenu lozinke", "Send password-change link")}
+                    </button>
+                    {passwordResetMessage ? <p className="mt-3 text-xs font-black text-emerald-700">{passwordResetMessage}</p> : null}
+                  </div>
                 ) : profileStatus?.emailVerifiedForCourses === false ? (
                   <div className="mt-2 space-y-3 rounded-[8px] border-2 border-amber-700 bg-amber-50 p-4 text-amber-950">
                     <p className="text-sm font-bold">

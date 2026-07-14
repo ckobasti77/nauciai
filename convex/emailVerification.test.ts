@@ -150,3 +150,27 @@ test("a verified Google user can attach a password to the existing account", asy
   });
   expect(passwordAccount?.secret).not.toBe("StrongPass1!");
 });
+
+test("an existing password cannot be changed through the direct setup action", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await t.run(async (ctx) => {
+    const id = await ctx.db.insert("users", {
+      email: "existing@example.com",
+      emailVerificationTime: 4_000_000,
+      appEmailVerificationTime: 4_000_000,
+    });
+    await ctx.db.insert("authAccounts", {
+      userId: id,
+      provider: "password",
+      providerAccountId: "existing@example.com",
+      secret: "already-hashed",
+      emailVerified: "existing@example.com",
+    });
+    return id;
+  });
+  const asUser = t.withIdentity({ subject: userId, tokenIdentifier: `test|${userId}` });
+
+  await expect(asUser.action(api.auth.setViewerPassword, { password: "AnotherPass1!" })).rejects.toThrow(
+    "Use the password reset email",
+  );
+});

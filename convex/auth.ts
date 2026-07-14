@@ -201,6 +201,9 @@ export const setViewerPassword = action({
     if (!setupState.emailVerifiedForPassword) {
       throw new Error("Verify your account email before setting a password.");
     }
+    if (setupState.hasPassword) {
+      throw new Error("Use the password reset email to change an existing password.");
+    }
     const email = setupState.email;
 
     let existing = null;
@@ -214,20 +217,13 @@ export const setViewerPassword = action({
     }
 
     if (existing) {
-      if (String(existing.user._id) !== String(userId)) {
-        await ctx.runMutation(internal.identityMerge.mergeVerifiedUsers, {
-          canonicalUserId: userId,
-          duplicateUserId: existing.user._id,
-        });
+      if (String(existing.user._id) === String(userId)) {
+        throw new Error("Use the password reset email to change an existing password.");
       }
-      await modifyAccountCredentials(ctx, {
-        provider: "password",
-        account: { id: email, secret: args.password },
+      await ctx.runMutation(internal.identityMerge.mergeVerifiedUsers, {
+        canonicalUserId: userId,
+        duplicateUserId: existing.user._id,
       });
-      return { hasPassword: true };
-    }
-
-    if (setupState.hasPassword) {
       await modifyAccountCredentials(ctx, {
         provider: "password",
         account: { id: email, secret: args.password },
@@ -249,31 +245,6 @@ export const setViewerPassword = action({
       throw new Error("Password credential could not be linked to the current user.");
     }
 
-    return { hasPassword: true };
-  },
-});
-
-export const changeViewerPassword = action({
-  args: { password: v.string() },
-  handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new Error("Unauthorized");
-    }
-    if (!isStrongPassword(args.password)) {
-      throw new Error("Password must be at least 8 characters and include an uppercase letter, a number, and a special character.");
-    }
-
-    const setupState = await ctx.runQuery(internal.emailVerificationInternal.getPasswordSetupState, { userId });
-    if (!setupState?.hasEmail) {
-      throw new Error("A verified account email is required before changing a password.");
-    }
-    const email = setupState.email;
-
-    await modifyAccountCredentials(ctx, {
-      provider: "password",
-      account: { id: email, secret: args.password },
-    });
     return { hasPassword: true };
   },
 });
