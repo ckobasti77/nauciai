@@ -21,7 +21,7 @@ const subscriptionStatus = v.union(
   v.literal("paused"),
 );
 const assetKind = v.union(v.literal("pdf"), v.literal("prompt"), v.literal("worksheet"), v.literal("project"));
-const lessonPartKind = v.union(v.literal("text"), v.literal("video"), v.literal("file"));
+const lessonPartKind = v.union(v.literal("text"), v.literal("image"), v.literal("video"), v.literal("file"));
 const labOutputKind = v.union(v.literal("text"), v.literal("image"), v.literal("audio"), v.literal("video"), v.literal("file"));
 const labOutputStatus = v.union(v.literal("draft"), v.literal("ready"), v.literal("failed"));
 const labTaskCompletionMode = v.union(v.literal("manual"), v.literal("automatic"), v.literal("hybrid"));
@@ -39,6 +39,17 @@ const leaderboardSourceType = v.union(
   v.literal("required_task"),
   v.literal("helpful_comment"),
 );
+const localizedCopy = v.object({ sr: v.string(), en: v.string() });
+const pageCopy = v.object({
+  primaryCta: v.optional(localizedCopy),
+  communityCta: v.optional(localizedCopy),
+  continueCta: v.optional(localizedCopy),
+  sectionEyebrow: v.optional(localizedCopy),
+  sectionTitle: v.optional(localizedCopy),
+  sectionDescription: v.optional(localizedCopy),
+  introVideoEmpty: v.optional(localizedCopy),
+  introVideoTitle: v.optional(localizedCopy),
+});
 
 // Convex Auth owns the users table, but the community needs the registration
 // username before the app-level profile projection is created. Keep this field
@@ -52,9 +63,13 @@ const authUsers = defineTable({
   // App-level confirmation used before a Google/OAuth account can add a
   // password credential. OAuth verification remains separate from this proof.
   passwordEmailVerificationTime: v.optional(v.number()),
+  // General app-level proof used for course access and account linking.
+  // Keep the legacy field above during the compatible migration window.
+  appEmailVerificationTime: v.optional(v.number()),
   phone: v.optional(v.string()),
   phoneVerificationTime: v.optional(v.number()),
   isAnonymous: v.optional(v.boolean()),
+  mergedInto: v.optional(v.id("users")),
 })
   .index("email", ["email"])
   .index("phone", ["phone"])
@@ -113,12 +128,22 @@ export default defineSchema({
     slug: v.string(),
     titleSr: v.string(),
     titleEn: v.string(),
+    subtitleSr: v.optional(v.string()),
+    subtitleEn: v.optional(v.string()),
     descriptionSr: v.optional(v.string()),
     descriptionEn: v.optional(v.string()),
+    descriptionRichSr: v.optional(v.string()),
+    descriptionRichEn: v.optional(v.string()),
+    videoStorageId: v.optional(v.id("_storage")),
+    videoFileName: v.optional(v.string()),
+    videoByteSize: v.optional(v.number()),
+    videoMimeType: v.optional(v.string()),
+    videoUpdatedAt: v.optional(v.number()),
     status: publishStatus,
     sortOrder: v.number(),
     createdAt: v.number(),
     updatedAt: v.number(),
+    pageCopy: v.optional(pageCopy),
   })
     .index("by_slug", ["slug"])
     .index("by_status_and_sortOrder", ["status", "sortOrder"]),
@@ -132,6 +157,8 @@ export default defineSchema({
     subtitleEn: v.string(),
     descriptionSr: v.string(),
     descriptionEn: v.string(),
+    descriptionRichSr: v.optional(v.string()),
+    descriptionRichEn: v.optional(v.string()),
     status: publishStatus,
     stripePriceId: v.optional(v.string()),
     videoStorageId: v.optional(v.id("_storage")),
@@ -139,9 +166,15 @@ export default defineSchema({
     videoByteSize: v.optional(v.number()),
     videoMimeType: v.optional(v.string()),
     videoUpdatedAt: v.optional(v.number()),
+    coverStorageId: v.optional(v.id("_storage")),
+    coverFileName: v.optional(v.string()),
+    coverByteSize: v.optional(v.number()),
+    coverMimeType: v.optional(v.string()),
+    coverUpdatedAt: v.optional(v.number()),
     sortOrder: v.number(),
     createdBy: v.optional(v.id("users")),
     updatedAt: v.number(),
+    pageCopy: v.optional(pageCopy),
   })
     .index("by_slug", ["slug"])
     .index("by_status", ["status", "sortOrder"])
@@ -165,18 +198,26 @@ export default defineSchema({
 
   lessons: defineTable({
     courseId: v.id("courses"),
-    moduleId: v.id("modules"),
+    // Deprecated hierarchy bridge. Existing lessons retain their former cycle
+    // id during the widen/migrate phase; new lessons belong directly to course.
+    moduleId: v.optional(v.id("modules")),
     slug: v.string(),
     titleSr: v.string(),
     titleEn: v.string(),
     summarySr: v.string(),
     summaryEn: v.string(),
+    summaryRichSr: v.optional(v.string()),
+    summaryRichEn: v.optional(v.string()),
     durationSeconds: v.number(),
     isPublished: v.boolean(),
+    proEnabled: v.optional(v.boolean()),
+    lightEnabled: v.optional(v.boolean()),
     sortOrder: v.number(),
     updatedAt: v.number(),
+    pageCopy: v.optional(pageCopy),
   })
     .index("by_course_slug", ["courseId", "slug"])
+    .index("by_course_and_sortOrder", ["courseId", "sortOrder"])
     .index("by_module", ["moduleId", "sortOrder"]),
 
   lessonParts: defineTable({
@@ -189,6 +230,8 @@ export default defineSchema({
     kind: lessonPartKind,
     bodySr: v.optional(v.string()),
     bodyEn: v.optional(v.string()),
+    bodyRichSr: v.optional(v.string()),
+    bodyRichEn: v.optional(v.string()),
     storageId: v.optional(v.id("_storage")),
     fileName: v.optional(v.string()),
     byteSize: v.optional(v.number()),

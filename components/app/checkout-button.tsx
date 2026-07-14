@@ -1,10 +1,12 @@
 "use client";
 
 import { CreditCard, Loader2 } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 
 import { cn } from "@/components/ui/primitives";
 import type { Locale } from "@/lib/i18n";
+import { withLocale } from "@/lib/i18n";
 
 export function CheckoutButton({
   courseSlug,
@@ -25,10 +27,12 @@ export function CheckoutButton({
 }) {
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
 
   async function startCheckout() {
     setIsPending(true);
     setError(null);
+    setErrorCode(null);
 
     const response = await fetch("/api/stripe/checkout", {
       method: "POST",
@@ -40,6 +44,7 @@ export function CheckoutButton({
 
     if (!response.ok || !data.url) {
       setError(data.error ?? "Checkout nije dostupan.");
+      setErrorCode(data.code ?? null);
       return;
     }
 
@@ -64,7 +69,16 @@ export function CheckoutButton({
         {isPending ? <Loader2 className="size-4 animate-spin" /> : <CreditCard className="size-4" />}
         {label}
       </button>
-      {error ? <p className="max-w-sm text-sm font-bold text-red-700">{error}</p> : null}
+      {error ? (
+        <div className="max-w-sm text-sm font-bold text-red-700">
+          <p>{error}</p>
+          {errorCode === "EMAIL_VERIFICATION_REQUIRED" ? (
+            <Link href={withLocale(locale, "/app/profile")} className="mt-1 inline-flex text-ink underline">
+              {locale === "sr" ? "Otvori podešavanja naloga" : "Open account settings"}
+            </Link>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

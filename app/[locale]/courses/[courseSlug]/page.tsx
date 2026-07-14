@@ -179,7 +179,6 @@ async function getLiveOutline(courseSlug: string): Promise<LiveCourseOutline> {
 function outlineTotals(outline: CourseOutline) {
   const lessons = outline.modules.flatMap((module) => module.lessons);
   return {
-    cycles: outline.modules.length,
     lessons: lessons.length,
     durationSeconds: lessons.reduce((total, lesson) => total + lesson.durationSeconds, 0),
   };
@@ -201,6 +200,7 @@ function CurriculumSection({
   signedIn: boolean;
 }) {
   const totals = outlineTotals(outline);
+  const directLessons = outline.modules.flatMap((module) => module.lessons);
 
   return (
     <section id="program" className="border-t-2 border-ink bg-white px-4 py-14 sm:px-6 lg:px-8">
@@ -209,7 +209,7 @@ function CurriculumSection({
           <div>
             <p className="font-display text-2xl text-ink">{locale === "sr" ? "Sta je u kursu" : "What is inside"}</p>
             <h2 className="mt-2 text-4xl font-black leading-tight text-ink">
-              {locale === "sr" ? "Ciklusi i lekcije pre nego sto udjes." : "Cycles and lessons before you enter."}
+              {locale === "sr" ? "Sve lekcije, direktno i pregledno." : "Every lesson, directly and clearly."}
             </h2>
             <p className="mt-4 text-base font-bold leading-7 text-muted">
               {locale === "sr"
@@ -220,9 +220,9 @@ function CurriculumSection({
               <div className="rounded-[16px] border-2 border-ink bg-paper p-4">
                 <p className="flex items-center gap-2 text-xs font-black uppercase text-muted">
                   <Layers className="size-4 text-ink" />
-                  {locale === "sr" ? "Ciklusi" : "Cycles"}
+                  {locale === "sr" ? "Struktura" : "Structure"}
                 </p>
-                <p className="mt-2 text-3xl font-black text-ink">{totals.cycles}</p>
+                <p className="mt-2 text-xl font-black text-ink">{locale === "sr" ? "Kurs → lekcije" : "Course → lessons"}</p>
               </div>
               <div className="rounded-[16px] border-2 border-ink bg-paper p-4">
                 <p className="flex items-center gap-2 text-xs font-black uppercase text-muted">
@@ -242,75 +242,17 @@ function CurriculumSection({
           </div>
 
           <div className="space-y-4">
-            {outline.modules.length ? (
-              outline.modules.map((module, moduleIndex) => {
-                const moduleDuration = module.lessons.reduce((total, lesson) => total + lesson.durationSeconds, 0);
+            {directLessons.length ? (
+              directLessons.map((lesson, lessonIndex) => {
+                const href = lessonHref(locale, outline.course.slug, lesson.slug, signedIn);
                 return (
-                  <details
-                    key={module.id ?? `${localized(module.title, locale)}-${moduleIndex}`}
-                    open={moduleIndex === 0}
-                    className="group overflow-hidden rounded-[16px] border-2 border-ink bg-paper shadow-[6px_6px_0_0_rgba(14,49,88,0.12)]"
-                  >
-                    <summary className="flex cursor-pointer list-none items-center justify-between gap-4 bg-white px-5 py-4 marker:hidden">
-                      <div className="min-w-0">
-                        <p className="text-xs font-black uppercase text-muted">
-                          {locale === "sr" ? "Ciklus" : "Cycle"} {moduleIndex + 1}
-                        </p>
-                        <h3 className="mt-1 text-xl font-black leading-tight text-ink">{localized(module.title, locale)}</h3>
-                        {module.description ? (
-                          <p className="mt-2 line-clamp-2 text-sm font-bold leading-6 text-muted">
-                            {localized(module.description, locale)}
-                          </p>
-                        ) : null}
-                      </div>
-                      <div className="flex shrink-0 items-center gap-2">
-                        <span className="hidden rounded-full border-2 border-ink bg-yellow px-3 py-1 text-xs font-black text-ink sm:inline-flex">
-                          {module.lessons.length} {locale === "sr" ? "lekcija" : "lessons"}
-                        </span>
-                        <span className="hidden rounded-full border-2 border-line bg-paper px-3 py-1 text-xs font-black text-muted sm:inline-flex">
-                          {formatDuration(moduleDuration, locale)}
-                        </span>
-                        <ChevronDown className="size-5 text-ink transition group-open:rotate-180" />
-                      </div>
+                  <details key={lesson.id ?? lesson.slug} open={lessonIndex === 0} className="group overflow-hidden rounded-[16px] border-2 border-ink bg-paper shadow-[6px_6px_0_0_rgba(14,49,88,0.12)]">
+                    <summary className="flex min-h-16 cursor-pointer list-none items-center gap-4 bg-white px-5 py-4 marker:hidden focus-visible:outline focus-visible:outline-4 focus-visible:outline-yellow">
+                      <span className="grid size-9 shrink-0 place-items-center rounded-full border-2 border-ink bg-yellow text-xs font-black">{lessonIndex + 1}</span>
+                      <div className="min-w-0 flex-1"><h3 className="text-lg font-black leading-tight text-ink">{localized(lesson.title, locale)}</h3><p className="mt-1 text-xs font-bold text-muted">{formatDuration(lesson.durationSeconds, locale)}</p></div>
+                      <ChevronDown className="size-5 text-ink transition group-open:rotate-180" />
                     </summary>
-                    <div className="space-y-3 border-t-2 border-ink p-4">
-                      {module.lessons.map((lesson, lessonIndex) => {
-                        const href = lessonHref(locale, outline.course.slug, lesson.slug, signedIn);
-                        return (
-                          <div
-                            key={lesson.id ?? lesson.slug}
-                            className="grid gap-4 rounded-[16px] border-2 border-line bg-white p-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center"
-                          >
-                            <div className="min-w-0">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span className="rounded-full border-2 border-ink bg-paper px-2.5 py-1 text-[11px] font-black uppercase text-muted">
-                                  {moduleIndex + 1}.{lessonIndex + 1}
-                                </span>
-                                <span className="inline-flex items-center gap-1 rounded-full border-2 border-ink bg-yellow px-2.5 py-1 text-[11px] font-black text-ink">
-                                  <Clock3 className="size-3.5" />
-                                  {formatDuration(lesson.durationSeconds, locale)}
-                                </span>
-                              </div>
-                              <h4 className="mt-3 text-lg font-black leading-tight text-ink">{localized(lesson.title, locale)}</h4>
-                              <p className="mt-2 text-sm font-bold leading-6 text-muted">{localized(lesson.summary, locale)}</p>
-                            </div>
-                            <Link
-                              href={href}
-                              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border-2 border-ink bg-ink px-4 text-xs font-black text-white shadow-[3px_3px_0_0_#f4be30] transition hover:-translate-y-0.5 hover:bg-yellow hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-                            >
-                              {signedIn ? <PlayCircle className="size-4" /> : <LogIn className="size-4" />}
-                              {signedIn
-                                ? locale === "sr"
-                                  ? "Otvori u dashboardu"
-                                  : "Open in dashboard"
-                                : locale === "sr"
-                                  ? "Prijavi se / napravi profil"
-                                  : "Sign in / create profile"}
-                            </Link>
-                          </div>
-                        );
-                      })}
-                    </div>
+                    <div className="grid gap-4 border-t-2 border-ink p-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center"><p className="text-sm font-bold leading-6 text-muted">{localized(lesson.summary, locale)}</p><Link href={href} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border-2 border-ink bg-ink px-4 text-xs font-black text-white shadow-[3px_3px_0_0_#f4be30] transition hover:-translate-y-0.5 hover:bg-yellow hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">{signedIn ? <PlayCircle className="size-4" /> : <LogIn className="size-4" />}{signedIn ? (locale === "sr" ? "Otvori u dashboardu" : "Open in dashboard") : (locale === "sr" ? "Prijavi se / napravi profil" : "Sign in / create profile")}</Link></div>
                   </details>
                 );
               })

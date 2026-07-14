@@ -3,6 +3,7 @@ import { ConvexError } from "convex/values";
 
 import type { Id } from "./_generated/dataModel";
 import { env } from "./_generated/server";
+import { normalizeEmail, parseAdminEmails } from "../lib/admin-emails";
 import type { MutationCtx } from "./_generated/server";
 import { syncLeaderboardEligibilityForUser } from "./leaderboardCore";
 import {
@@ -57,7 +58,6 @@ type DocLike = Record<string, unknown> & {
   searchText?: string;
 };
 
-const DEFAULT_AVATAR_PRESET = "mythic-mentor";
 const DEFAULT_AVATAR_URL = "/images/avatars/mythic-mentor.png";
 export const profileRoles = ["student", "pro_student", "moderator", "admin"] as const;
 export const assignableProfileRoles = ["student", "pro_student", "moderator"] as const;
@@ -70,12 +70,7 @@ function dbFrom(ctx: AnyCtx): DatabaseLike {
 }
 
 function initialAdminEmails(): Set<string> {
-  return new Set(
-    (env.INITIAL_ADMIN_EMAILS ?? "")
-      .split(",")
-      .map((email) => email.trim().toLowerCase())
-      .filter(Boolean),
-  );
+  return parseAdminEmails(env.INITIAL_ADMIN_EMAILS);
 }
 
 function isAssignableProfileRole(value: unknown): value is AssignableProfileRole {
@@ -86,7 +81,7 @@ function isAssignableProfileRole(value: unknown): value is AssignableProfileRole
 }
 
 export function isInitialAdminEmail(email: string) {
-  return initialAdminEmails().has(email.trim().toLowerCase());
+  return initialAdminEmails().has(normalizeEmail(email));
 }
 
 export function effectiveRoleForProfile(email: string, currentRole?: unknown): ProfileRole {
@@ -145,7 +140,7 @@ export async function upsertProfileFromAuthUser(
     lastName,
     ...(username ? { username } : {}),
     avatarUrl,
-    avatarPreset: existing?.avatarStorageId ? undefined : existing?.avatarPreset ?? DEFAULT_AVATAR_PRESET,
+    avatarPreset: existing?.avatarStorageId ? undefined : existing?.avatarPreset,
     role,
     language: existing?.language ?? ("sr" as const),
     searchText: `${fullNameFrom(firstName, lastName, authName)} ${username ?? ""} ${email}`.trim(),
@@ -229,9 +224,7 @@ export async function getCurrentProfile(ctx: AnyCtx) {
   const firstName = String(existing?.firstName ?? derivedParts.firstName);
   const lastName = String(existing?.lastName ?? derivedParts.lastName);
   const displayName = fullNameFrom(firstName, lastName, String(existing?.name ?? name));
-  const existingAvatarPreset = existing?.avatarStorageId
-    ? undefined
-    : existing?.avatarPreset ?? DEFAULT_AVATAR_PRESET;
+  const existingAvatarPreset = existing?.avatarStorageId ? undefined : existing?.avatarPreset;
 
   const profile = existing
     ? {
@@ -252,7 +245,7 @@ export async function getCurrentProfile(ctx: AnyCtx) {
         firstName,
         lastName,
         avatarUrl: user?.image ?? DEFAULT_AVATAR_URL,
-        avatarPreset: DEFAULT_AVATAR_PRESET,
+        avatarPreset: undefined,
         username: user?.username,
         role,
         language: "sr",
@@ -313,7 +306,6 @@ export async function ensureProfile(ctx: AnyCtx) {
       firstName,
       lastName,
       avatarUrl,
-      avatarPreset: DEFAULT_AVATAR_PRESET,
       ...(current.profile.username ? { username: current.profile.username } : {}),
       role,
       language: "sr",
@@ -336,7 +328,6 @@ export async function ensureProfile(ctx: AnyCtx) {
   }
   if (!existing.avatarUrl && !existing.avatarStorageId) {
     patch.avatarUrl = avatarUrl ?? DEFAULT_AVATAR_URL;
-    patch.avatarPreset = DEFAULT_AVATAR_PRESET;
   }
   if (!existing.searchText) {
     patch.searchText = `${name} ${String(existing.username ?? "")} ${email}`.trim();
@@ -391,13 +382,30 @@ export async function hasActiveSubscription(ctx: AnyCtx, userId: string, courseI
 }
 
 export async function requireCourseAccess(ctx: AnyCtx, courseId: string) {
-  const { profile } = await getCurrentProfile(ctx);
+  const { userId, profile } = await getCurrentProfile(ctx);
   if (!profile) {
     throw new Error("Unauthorized");
   }
 
   if (profile.role === "admin") {
     return profile;
+  }
+
+  const [authUser, accounts] = await Promise.all([
+    dbFrom(ctx).get(userId),
+    dbFrom(ctx)
+      .query("authAccounts")
+      .withIndex("userIdAndProvider", (q) => q.eq("userId", userId))
+      .take(10),
+  ]);
+  const hasPassword = accounts.some((account) => account.provider === "password");
+  const hasGoogle = accounts.some((account) => account.provider === "google");
+  const isGoogleOnly = hasGoogle && !hasPassword;
+  const emailVerifiedForCourses = isGoogleOnly
+    ? Boolean(authUser?.appEmailVerificationTime || authUser?.passwordEmailVerificationTime)
+    : Boolean(authUser?.appEmailVerificationTime || authUser?.passwordEmailVerificationTime || authUser?.emailVerificationTime);
+  if (!emailVerifiedForCourses) {
+    throw new Error("EMAIL_VERIFICATION_REQUIRED");
   }
 
   const course = await dbFrom(ctx).get(courseId);

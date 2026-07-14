@@ -7,7 +7,6 @@ import {
   CircleAlert,
   CreditCard,
   Crown,
-  FileText,
   GraduationCap,
   LayoutDashboard,
   Lock,
@@ -44,13 +43,7 @@ import {
 
 import {
   AddCourseAction,
-  AddLessonAction,
-  AddLessonPartAction,
-  AddModuleAction,
   EditCourseAction,
-  EditLessonAction,
-  EditLessonPartAction,
-  EditModuleAction,
 } from "@/components/app/admin-inline-actions";
 import { CheckoutButton } from "@/components/app/checkout-button";
 import { BrandMark, cn } from "@/components/ui/primitives";
@@ -64,7 +57,7 @@ import {
   preferencesFromDraggedWidth,
   serializeAppSidebarPreferences,
 } from "@/lib/app-sidebar-preferences";
-import type { AppCourseNav, AppLessonNav, AppLessonPartNav, AppNavigationData } from "@/lib/app-navigation";
+import type { AppCourseNav, AppNavigationData } from "@/lib/app-navigation";
 import { primaryCourseSlug } from "@/lib/content";
 import { dictionary, localized, type Locale, withLocale } from "@/lib/i18n";
 
@@ -88,18 +81,8 @@ function lessonHref(locale: Locale, courseSlug: string, lessonSlug: string) {
   return withLocale(locale, `/app/courses/${courseSlug}/lessons/${lessonSlug}`);
 }
 
-function partHref(locale: Locale, courseSlug: string, lessonSlug: string, partSlug: string) {
-  return `${lessonHref(locale, courseSlug, lessonSlug)}#part-${partSlug}`;
-}
-
 function nextSortOrder(items: Array<{ sortOrder: number }>) {
   return items.reduce((max, item) => Math.max(max, item.sortOrder), 0) + 10;
-}
-
-function childParts(parts: AppLessonPartNav[], parentPartId?: string) {
-  return parts
-    .filter((part) => (part.parentPartId ?? undefined) === parentPartId)
-    .sort((a, b) => a.sortOrder - b.sortOrder);
 }
 
 type LiveNavigationResult = {
@@ -112,6 +95,10 @@ type LiveNavigationResult = {
   } | null;
   courses?: Array<{
     _id?: string;
+    trackId?: string;
+    trackSlug?: string;
+    trackTitleSr?: string;
+    trackTitleEn?: string;
     slug: string;
     titleSr: string;
     titleEn: string;
@@ -144,7 +131,7 @@ type LiveNavigationResult = {
           slug: string;
           titleSr: string;
           titleEn: string;
-          kind: "text" | "video" | "file";
+          kind: "text" | "image" | "video" | "file";
           bodySr?: string;
           bodyEn?: string;
           fileName?: string;
@@ -179,6 +166,9 @@ function navigationFromLive(
       const fallbackCourse = fallbackNavigation.courses.find((item) => item.slug === course.slug);
       return {
         id: course._id,
+        trackId: course.trackId,
+        trackSlug: course.trackSlug,
+        trackTitle: course.trackTitleSr || course.trackTitleEn ? { sr: course.trackTitleSr ?? course.trackTitleEn ?? "", en: course.trackTitleEn ?? course.trackTitleSr ?? "" } : undefined,
         slug: course.slug,
         title: {
           sr: course.titleSr,
@@ -253,9 +243,24 @@ function currentCourseFrom(
   courses: AppCourseNav[],
   routeCourseSlug: string | undefined,
   queryCourseSlug: string | null,
+  routeTrackSlug?: string,
 ) {
   const slug = routeCourseSlug ?? queryCourseSlug ?? primaryCourseSlug;
-  return courses.find((course) => course.slug === slug) ?? courses[0];
+  return courses.find((course) => course.slug === slug) ?? courses.find((course) => course.trackSlug === routeTrackSlug) ?? courses[0];
+}
+
+function DirectionSwitcher({ locale, courses, currentCourse }: { locale: Locale; courses: AppCourseNav[]; currentCourse: AppCourseNav }) {
+  const router = useRouter();
+  const directions = Array.from(new Map(courses.filter((course) => course.trackSlug).map((course) => [course.trackSlug!, { slug: course.trackSlug!, title: course.trackTitle }])).values());
+  if (!directions.length) return null;
+  return (
+    <label className="mt-5 grid gap-1.5 text-[10px] font-black uppercase tracking-[0.1em] text-muted">
+      {locale === "sr" ? "Izabrani smer" : "Selected track"}
+      <select value={currentCourse.trackSlug ?? directions[0].slug} onChange={(event) => router.push(withLocale(locale, `/app/tracks/${event.target.value}`))} className="min-h-11 w-full rounded-[8px] border-2 border-ink bg-yellow px-3 text-sm font-black normal-case tracking-normal text-ink outline-none focus:ring-4 focus:ring-yellow/35">
+        {directions.map((direction) => <option key={direction.slug} value={direction.slug}>{direction.title ? localized(direction.title, locale) : direction.slug}</option>)}
+      </select>
+    </label>
+  );
 }
 
 function isCourseComingSoon(course: AppCourseNav, isAdmin: boolean) {
@@ -499,97 +504,6 @@ function NavLink({
   );
 }
 
-function LessonPartTree({
-  locale,
-  currentCourse,
-  lesson,
-  parentPartId,
-  depth = 0,
-  isAdmin,
-}: {
-  locale: Locale;
-  currentCourse: AppCourseNav;
-  lesson: AppLessonNav;
-  parentPartId?: string;
-  depth?: number;
-  isAdmin: boolean;
-}) {
-  const parts = childParts(lesson.parts, parentPartId);
-
-  return (
-    <>
-      {parts.map((part) => {
-        const nestedParts = childParts(lesson.parts, part.id);
-        const canAddChildPart = isAdmin && depth === 0 && Boolean(part.id);
-        return (
-          <motion.div key={part.id ?? part.slug} layout className={cn("group relative", depth > 0 && "ml-4")}>
-            <div className="sidebar-action-row flex items-center gap-1 rounded-[6px]">
-              <Link
-                href={partHref(locale, currentCourse.slug, lesson.slug, part.slug)}
-                className={cn(
-                  "flex min-h-8 min-w-0 flex-1 items-center gap-2 rounded-[6px] px-2 pr-16 text-xs font-black text-muted hover:bg-paper hover:text-ink sm:pr-2",
-                  depth > 0 && "text-[11px]",
-                )}
-              >
-                <FileText className="size-3.5 shrink-0" />
-                <span className="truncate">{localized(part.title, locale)}</span>
-                {isAdmin && part.isPublished === false ? (
-                  <span className="ml-auto shrink-0 rounded-[5px] border border-line bg-white px-1.5 py-0.5 text-[9px] uppercase text-muted">
-                    {locale === "sr" ? "Nacrt" : "Draft"}
-                  </span>
-                ) : null}
-              </Link>
-              {isAdmin && part.id ? (
-                <SidebarAdminActions className="absolute right-0 top-0">
-                  <EditLessonPartAction
-                    locale={locale}
-                    courseId={currentCourse.id}
-                    lessonId={lesson.id}
-                    lessonPartId={part.id}
-                    initial={{
-                      slug: part.slug,
-                      parentPartId: part.parentPartId,
-                      title: part.title,
-                      kind: part.kind,
-                      body: part.body,
-                      fileName: part.fileName,
-                      isPublished: part.isPublished,
-                      sortOrder: part.sortOrder,
-                    }}
-                    nextSortOrder={part.sortOrder}
-                    iconOnly
-                  />
-                  {canAddChildPart ? (
-                    <AddLessonPartAction
-                      locale={locale}
-                      courseId={currentCourse.id}
-                      lessonId={lesson.id}
-                      parentPartId={part.id}
-                      nextSortOrder={nextSortOrder(nestedParts)}
-                      iconOnly
-                      buttonLabel={locale === "sr" ? "Dodaj poddeo" : "Add subpart"}
-                    />
-                  ) : null}
-                </SidebarAdminActions>
-              ) : null}
-            </div>
-            {part.id ? (
-              <LessonPartTree
-                locale={locale}
-                currentCourse={currentCourse}
-                lesson={lesson}
-                parentPartId={part.id}
-                depth={depth + 1}
-                isAdmin={isAdmin}
-              />
-            ) : null}
-          </motion.div>
-        );
-      })}
-    </>
-  );
-}
-
 function LessonsAccordion({
   locale,
   currentCourse,
@@ -604,14 +518,12 @@ function LessonsAccordion({
   initiallyOpen?: boolean;
 }) {
   const [open, setOpen] = useState(Boolean(currentLessonSlug) || initiallyOpen);
-  const [expandedLessons, setExpandedLessons] = useState<Record<string, boolean>>({});
   const comingSoon = isCourseComingSoon(currentCourse, isAdmin);
   const locked = isCourseLocked(currentCourse, isAdmin);
-  const totalLessons = currentCourse.modules.reduce((count, module) => count + module.lessons.length, 0);
-
-  function isExpanded(lessonSlug: string) {
-    return Boolean(expandedLessons[lessonSlug] || currentLessonSlug === lessonSlug);
-  }
+  const directLessons = currentCourse.modules
+    .flatMap((module) => module.lessons)
+    .sort((a, b) => a.sortOrder - b.sortOrder);
+  const totalLessons = directLessons.length;
 
   return (
     <div className="sidebar-reveal col-span-2 sm:col-span-3 lg:col-span-1">
@@ -649,7 +561,7 @@ function LessonsAccordion({
                 </p>
                 {isAdmin ? (
                   <p className="mt-1 text-xs font-bold text-muted">
-                    {locale === "sr" ? "Admin moze da doda module i lekcije odmah." : "Admins can add modules and lessons now."}
+                    {locale === "sr" ? "Admin može odmah da doda lekcije." : "Admins can add lessons now."}
                   </p>
                 ) : null}
               </div>
@@ -668,149 +580,20 @@ function LessonsAccordion({
                 </div>
               </div>
             ) : (
-              currentCourse.modules.map((module) => (
-                <motion.div layout key={module.id ?? module.title.sr} className="group relative space-y-1 rounded-[8px] border-2 border-line bg-paper p-2">
-                  <div className="sidebar-action-row flex items-center justify-between gap-2 pr-20 sm:pr-2">
-                    <div className="min-w-0">
-                      <p className="truncate text-xs font-black uppercase text-muted">
-                        {localized(module.title, locale)}
-                      </p>
-                      <p className="mt-0.5 text-[11px] font-bold text-muted">
-                        {module.lessons.length} {locale === "sr" ? "lekcija" : "lessons"}
-                      </p>
-                    </div>
-                    {isAdmin ? (
-                      <SidebarAdminActions className="absolute right-2 top-2">
-                        {module.id ? (
-                          <EditModuleAction
-                            locale={locale}
-                            courseId={currentCourse.id}
-                            moduleId={module.id}
-                            initial={{
-                              title: module.title,
-                              sortOrder: module.sortOrder,
-                            }}
-                            nextSortOrder={module.sortOrder}
-                            iconOnly
-                          />
-                        ) : null}
-                        <AddLessonAction
-                          locale={locale}
-                          courseId={currentCourse.id}
-                          courseSlug={currentCourse.slug}
-                          moduleId={module.id}
-                          nextSortOrder={nextSortOrder(module.lessons)}
-                          iconOnly
-                        />
-                      </SidebarAdminActions>
-                    ) : null}
-                  </div>
-                  <div className="mt-2 space-y-1">
-                  {module.lessons.map((lesson) => {
-                    const active = currentLessonSlug === lesson.slug;
-                    const topLevelParts = childParts(lesson.parts);
-                    return (
-                      <motion.div layout key={lesson.slug} className="sidebar-action-row relative">
-                        <div
-                          className={cn(
-                            "flex items-center gap-1 rounded-[8px] border-2 border-transparent bg-white",
-                            active && "border-ink bg-yellow",
-                          )}
-                        >
-                          <Link
-                            href={lessonHref(locale, currentCourse.slug, lesson.slug)}
-                            className="flex min-h-10 min-w-0 flex-1 items-center gap-2 px-2 pr-16 text-sm font-black text-ink sm:pr-2"
-                          >
-                            <PlayCircle className="size-4 shrink-0" />
-                            <span className="min-w-0 flex-1 truncate">{localized(lesson.title, locale)}</span>
-                            {isAdmin && !lesson.isPublished ? (
-                              <span className="shrink-0 rounded-[5px] border border-ink bg-paper px-1.5 py-0.5 text-[9px] uppercase text-muted">
-                                {locale === "sr" ? "Nacrt" : "Draft"}
-                              </span>
-                            ) : null}
-                          </Link>
-                          {isAdmin ? (
-                            <SidebarAdminActions className="absolute right-10 top-1.5">
-                              <EditLessonAction
-                                locale={locale}
-                                courseId={currentCourse.id}
-                                courseSlug={currentCourse.slug}
-                                moduleId={module.id}
-                                lessonId={lesson.id}
-                                initial={{
-                                  slug: lesson.slug,
-                                  title: lesson.title,
-                                  summary: lesson.summary,
-                                  durationSeconds: lesson.durationSeconds,
-                                  isPublished: lesson.isPublished,
-                                  sortOrder: lesson.sortOrder,
-                                }}
-                                nextSortOrder={lesson.sortOrder}
-                                iconOnly
-                              />
-                              <AddLessonPartAction
-                                locale={locale}
-                                courseId={currentCourse.id}
-                                lessonId={lesson.id}
-                                nextSortOrder={nextSortOrder(topLevelParts)}
-                                iconOnly
-                              />
-                            </SidebarAdminActions>
-                          ) : null}
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setExpandedLessons((current) => ({
-                                ...current,
-                                [lesson.slug]: !isExpanded(lesson.slug),
-                              }))
-                            }
-                            aria-label={locale === "sr" ? "Otvori delove lekcije" : "Open lesson parts"}
-                            className="mr-1 inline-flex size-8 shrink-0 items-center justify-center rounded-[6px] text-ink hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-                          >
-                            <ChevronDown className={cn("size-4 transition", isExpanded(lesson.slug) && "rotate-180")} />
-                          </button>
-                        </div>
-                        {isExpanded(lesson.slug) ? (
-                          <div className="ml-7 mt-1 space-y-1 border-l-2 border-line pl-3">
-                            {topLevelParts.length ? (
-                              <LessonPartTree
-                                locale={locale}
-                                currentCourse={currentCourse}
-                                lesson={lesson}
-                                isAdmin={isAdmin}
-                              />
-                            ) : (
-                              <p className="rounded-[6px] px-2 py-2 text-xs font-black text-muted">
-                                {locale === "sr" ? "Nema delova jos." : "No parts yet."}
-                              </p>
-                            )}
-                          </div>
-                        ) : null}
-                      </motion.div>
-                    );
-                  })}
-                  {!module.lessons.length ? (
-                    <p className="rounded-[6px] border-2 border-dashed border-line bg-white px-2 py-2 text-xs font-black text-muted">
-                      {locale === "sr" ? "Nema lekcija u ovom modulu." : "No lessons in this module."}
-                    </p>
-                  ) : null}
-                  </div>
-                </motion.div>
-              ))
+              directLessons.length ? directLessons.map((lesson) => {
+                const active = currentLessonSlug === lesson.slug;
+                return (
+                  <motion.div layout key={lesson.id ?? lesson.slug} className="relative">
+                    <Link href={lessonHref(locale, currentCourse.slug, lesson.slug)} className={cn("flex min-h-11 items-center gap-2 rounded-[8px] border-2 bg-white px-3 text-sm font-black text-ink", active ? "border-ink bg-yellow" : "border-line hover:border-ink")}>
+                      <PlayCircle className="size-4 shrink-0" /><span className="min-w-0 flex-1 truncate">{localized(lesson.title, locale)}</span>{isAdmin && !lesson.isPublished ? <span className="rounded-full border border-ink bg-paper px-2 py-0.5 text-[9px] uppercase">Nacrt</span> : null}
+                    </Link>
+                  </motion.div>
+                );
+              }) : <p className="rounded-[8px] border-2 border-dashed border-line bg-paper p-3 text-xs font-black text-muted">{locale === "sr" ? "Kurs još nema lekcije." : "This course has no lessons yet."}</p>
             )}
             {isAdmin && currentCourse.id ? (
               <div className="flex flex-wrap gap-2 border-t-2 border-line pt-2">
-                <AddModuleAction
-                  locale={locale}
-                  courseId={currentCourse.id}
-                  nextSortOrder={nextSortOrder(currentCourse.modules)}
-                />
-                {!currentCourse.modules.length ? (
-                  <span className="text-xs font-bold text-muted">
-                    {locale === "sr" ? "Dodaj modul pre lekcije." : "Add a module before a lesson."}
-                  </span>
-                ) : null}
+                <Link href={withLocale(locale, "/app/admin")} className="inline-flex min-h-9 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-3 text-xs font-black"><CircleAlert className="size-3.5" />{locale === "sr" ? "Upravljaj lekcijama" : "Manage lessons"}</Link>
               </div>
             ) : null}
           </div>
@@ -988,6 +771,8 @@ function AppSidebarContent({
   communityBadge = 0,
   accountBadge = 0,
   profileComplete = true,
+  emailVerificationRequired = false,
+  passwordRecommended = false,
 }: {
   locale: Locale;
   navigation: AppNavigationData;
@@ -998,15 +783,17 @@ function AppSidebarContent({
   communityBadge?: number;
   accountBadge?: number;
   profileComplete?: boolean;
+  emailVerificationRequired?: boolean;
+  passwordRecommended?: boolean;
 }) {
   const pathname = usePathname();
-  const params = useParams<{ courseSlug?: string; lessonSlug?: string }>();
+  const params = useParams<{ courseSlug?: string; lessonSlug?: string; trackSlug?: string }>();
   const searchParams = useSearchParams();
   const t = dictionary[locale];
   const courses = navigation.courses;
   const currentCourse = useMemo(
-    () => currentCourseFrom(courses, params.courseSlug, searchParams.get("course")),
-    [courses, params.courseSlug, searchParams],
+    () => currentCourseFrom(courses, params.courseSlug, searchParams.get("course"), params.trackSlug),
+    [courses, params.courseSlug, params.trackSlug, searchParams],
   );
   const isAdmin = navigation.role === "admin";
   const rootRef = useRef<HTMLElement>(null);
@@ -1206,6 +993,7 @@ function AppSidebarContent({
   const profileInitials = profileName.split(/\s+/).map((part: string) => part[0]).filter(Boolean).slice(0, 2).join("").toUpperCase() || "AI";
   const profileAvatar = profileData?.avatarUrl;
   const profileIncomplete = !profileComplete || !profileData?.username;
+  const hasAccountAdvisory = profileIncomplete || emailVerificationRequired || passwordRecommended;
   const settingsLabel = locale === "sr" ? "Podešavanja" : "Settings";
   const dashboardActive = pathname === withLocale(locale, "/app") && !searchParams.get("course");
   const communityActive = pathname === withLocale(locale, "/app/community") || pathname.includes("/app/community/");
@@ -1278,8 +1066,9 @@ function AppSidebarContent({
           </button>
         </div>
         <SidebarRoleBadge role={navigation.role} plan={navigation.plan} locale={locale} />
+        {currentCourse ? <DirectionSwitcher locale={locale} courses={courses} currentCourse={currentCourse} /> : null}
         {currentCourse ? (
-          <CourseSwitcher locale={locale} courses={courses} currentCourse={currentCourse} isAdmin={isAdmin} />
+          <CourseSwitcher locale={locale} courses={currentCourse.trackId ? courses.filter((course) => course.trackId === currentCourse.trackId) : courses} currentCourse={currentCourse} isAdmin={isAdmin} />
         ) : null}
         {currentCourse ? (
           <nav className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:flex lg:flex-col">
@@ -1302,6 +1091,14 @@ function AppSidebarContent({
               label={t.community}
               badge={communityBadge}
             />
+            {isAdmin ? (
+              <NavLink
+                href={withLocale(locale, "/app/admin")}
+                active={pathname === withLocale(locale, "/app/admin") || pathname.startsWith(withLocale(locale, "/app/admin/"))}
+                icon={ShieldCheck}
+                label={locale === "sr" ? "Admin panel" : "Admin panel"}
+              />
+            ) : null}
           </nav>
         ) : null}
       </div>
@@ -1320,12 +1117,32 @@ function AppSidebarContent({
                 <Link
                   href={currentCourse ? navHref(locale, "/app/profile", currentCourse.slug) : withLocale(locale, "/app/profile")}
                   onClick={() => setProfileMenuOpen(false)}
-                  className={cn("flex min-h-10 items-center gap-3 px-3 py-2 text-[13px] font-black uppercase text-ink transition font-extrabold", profileIncomplete ? "bg-amber-50 hover:bg-amber-100" : "bg-white hover:bg-yellow/35")}
+                  className={cn(
+                    "flex min-h-10 items-center gap-3 px-3 py-2 text-[13px] font-black uppercase text-ink transition font-extrabold",
+                    profileIncomplete
+                      ? "bg-red-50 hover:bg-red-100"
+                      : emailVerificationRequired
+                        ? "bg-amber-50 hover:bg-amber-100"
+                        : passwordRecommended
+                          ? "bg-indigo-50 hover:bg-indigo-100"
+                          : "bg-white hover:bg-yellow/35",
+                  )}
                 >
-                  {profileIncomplete ? <CircleAlert className="size-4 shrink-0 text-amber-700" /> : <User className="size-4 shrink-0" />}
+                  {hasAccountAdvisory ? (
+                    <CircleAlert className={cn("size-4 shrink-0", profileIncomplete ? "text-red-700" : emailVerificationRequired ? "text-amber-700" : "text-indigo-700")} />
+                  ) : (
+                    <User className="size-4 shrink-0" />
+                  )}
                   <span>{settingsLabel}</span>
-                  {profileIncomplete ? <span className="ml-auto rounded-full border border-amber-500 bg-amber-100 px-2 py-0.5 text-[9px] font-black text-amber-900">{locale === "sr" ? "Upozorenje" : "Warning"}</span> : null}
+                  {accountBadge > 0 ? <span className="ml-auto rounded-full border border-ink bg-white px-2 py-0.5 text-[9px] font-black text-ink">{accountBadge}</span> : null}
                 </Link>
+                {hasAccountAdvisory ? (
+                  <div className="space-y-1.5 bg-white px-2 py-2">
+                    {profileIncomplete ? <p className="rounded-full border border-red-400 bg-red-50 px-2.5 py-1 text-[10px] font-black text-red-900">{locale === "sr" ? "Dodaj korisničko ime" : "Add a username"}</p> : null}
+                    {emailVerificationRequired ? <p className="rounded-full border border-amber-400 bg-amber-50 px-2.5 py-1 text-[10px] font-black text-amber-900">{locale === "sr" ? "Verifikuj email za kurseve" : "Verify email for courses"}</p> : null}
+                    {passwordRecommended ? <p className="rounded-full border border-indigo-400 bg-indigo-50 px-2.5 py-1 text-[10px] font-black text-indigo-900">{locale === "sr" ? "Dodaj opcionu lozinku" : "Add an optional password"}</p> : null}
+                  </div>
+                ) : null}
                 <Link
                   href={currentCourse ? navHref(locale, "/app/billing", currentCourse.slug) : withLocale(locale, "/app/billing")}
                   onClick={() => setProfileMenuOpen(false)}
@@ -1384,7 +1201,7 @@ function AppSidebarContent({
             href={currentCourse ? navHref(locale, "/app/profile", currentCourse.slug) : withLocale(locale, "/app/profile")}
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-white px-3 py-2 text-xs font-black text-ink"
           >
-            {profileIncomplete ? <CircleAlert className="size-4 text-amber-700" /> : <User className="size-4" />}
+            {hasAccountAdvisory ? <CircleAlert className={cn("size-4", profileIncomplete ? "text-red-700" : emailVerificationRequired ? "text-amber-700" : "text-indigo-700")} /> : <User className="size-4" />}
             {settingsLabel}
           </Link>
           <Link
@@ -1459,9 +1276,16 @@ function AppSidebarContent({
                   <p className="truncate text-sm font-black">{profileName}</p>
                   <p className="truncate text-xs font-bold text-muted">{profileUsername}</p>
                 </div>
-                <Link href={currentCourse ? navHref(locale, "/app/profile", currentCourse.slug) : withLocale(locale, "/app/profile")} className={cn("flex min-h-11 items-center gap-3 rounded-full px-3 text-sm font-black", profileIncomplete ? "bg-amber-50 text-amber-900" : "hover:bg-yellow/25")}>
-                  {profileIncomplete ? <CircleAlert className="size-4" /> : <User className="size-4" />} {settingsLabel}
+                <Link href={currentCourse ? navHref(locale, "/app/profile", currentCourse.slug) : withLocale(locale, "/app/profile")} className={cn("flex min-h-11 items-center gap-3 rounded-full px-3 text-sm font-black", profileIncomplete ? "bg-red-50 text-red-900" : emailVerificationRequired ? "bg-amber-50 text-amber-900" : passwordRecommended ? "bg-indigo-50 text-indigo-900" : "hover:bg-yellow/25")}>
+                  {hasAccountAdvisory ? <CircleAlert className="size-4" /> : <User className="size-4" />} {settingsLabel}
                 </Link>
+                {hasAccountAdvisory ? (
+                  <div className="mt-2 space-y-1.5">
+                    {profileIncomplete ? <p className="rounded-full border border-red-400 bg-red-50 px-2.5 py-1 text-[10px] font-black text-red-900">{locale === "sr" ? "Dodaj korisničko ime" : "Add a username"}</p> : null}
+                    {emailVerificationRequired ? <p className="rounded-full border border-amber-400 bg-amber-50 px-2.5 py-1 text-[10px] font-black text-amber-900">{locale === "sr" ? "Verifikuj email za kurseve" : "Verify email for courses"}</p> : null}
+                    {passwordRecommended ? <p className="rounded-full border border-indigo-400 bg-indigo-50 px-2.5 py-1 text-[10px] font-black text-indigo-900">{locale === "sr" ? "Dodaj opcionu lozinku" : "Add an optional password"}</p> : null}
+                  </div>
+                ) : null}
                 <Link href={currentCourse ? navHref(locale, "/app/billing", currentCourse.slug) : withLocale(locale, "/app/billing")} className="flex min-h-11 items-center gap-3 rounded-full px-3 text-sm font-black hover:bg-yellow/25"><CreditCard className="size-4" /> {t.billing}</Link>
                 <button type="button" onClick={async () => { await signOut(); router.push(withLocale(locale, "/sign-in")); }} className="mt-2 flex min-h-11 w-full items-center gap-3 bg-ink px-3 text-sm font-black text-white"><LogOut className="size-4" /> {locale === "sr" ? "Odjavi se" : "Sign out"}</button>
               </div>
@@ -1521,7 +1345,7 @@ function LiveAppSidebar({
     isAuthenticated ? {} : "skip"
   );
   const communityBadge = notificationSummary?.community ?? 0;
-  const accountBadge = notificationSummary?.profileIncomplete ?? 0;
+  const accountBadge = notificationSummary?.accountWarnings ?? 0;
   const profileStatus = useQuery(api.profiles.getViewerProfileStatus, isAuthenticated ? {} : "skip");
 
   return (
@@ -1535,6 +1359,8 @@ function LiveAppSidebar({
       communityBadge={communityBadge}
       accountBadge={accountBadge}
       profileComplete={profileStatus?.complete ?? false}
+      emailVerificationRequired={profileStatus?.advisories.emailVerification ?? false}
+      passwordRecommended={profileStatus?.advisories.password ?? false}
     />
   );
 }

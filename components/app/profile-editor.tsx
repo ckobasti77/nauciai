@@ -192,7 +192,22 @@ export function ProfileEditor({
     setVerificationPending(true);
     setVerificationMessage(null);
     try {
-      await requestViewerEmailVerification({ locale });
+      const result = await requestViewerEmailVerification({ locale });
+      if (!result.sent) {
+        setVerificationMessage({
+          tone: "error",
+          text: labelFor(
+            locale,
+            result.code === "not_configured"
+              ? "Slanje emaila trenutno nije podešeno. Administrator je obavešten."
+              : "Email provajder trenutno nije prihvatio poruku. Pokušaj ponovo malo kasnije.",
+            result.code === "not_configured"
+              ? "Email delivery is not configured right now. The administrator has been notified."
+              : "The email provider did not accept the message. Please try again shortly.",
+          ),
+        });
+        return;
+      }
       setVerificationMessage({
         tone: "success",
         text: labelFor(
@@ -201,10 +216,14 @@ export function ProfileEditor({
           "We sent a verification link to your email. The link is valid for 30 minutes.",
         ),
       });
-    } catch (error) {
+    } catch {
       setVerificationMessage({
         tone: "error",
-        text: error instanceof Error ? error.message : labelFor(locale, "Slanje verifikacionog email-a nije uspelo.", "Could not send the verification email."),
+        text: labelFor(
+          locale,
+          "Verifikacioni email nije poslat. Proveri vezu i pokušaj ponovo.",
+          "The verification email was not sent. Check your connection and try again.",
+        ),
       });
     } finally {
       setVerificationPending(false);
@@ -524,7 +543,7 @@ export function ProfileEditor({
         </div>
       ) : null}
       {!username.trim() ? (
-        <div role="status" className="flex items-start gap-3 rounded-[16px] border-2 border-ink bg-yellow/30 px-4 py-3 text-sm font-bold text-ink">
+        <div role="status" className="flex items-start gap-3 rounded-[16px] border-2 border-red-700 bg-red-50 px-4 py-3 text-sm font-bold text-red-950">
           <ShieldCheck className="mt-0.5 size-5 shrink-0" />
           <div>
             <p className="font-black">
@@ -551,8 +570,8 @@ export function ProfileEditor({
         <div role="status" className="flex items-start gap-3 rounded-[16px] border-2 border-amber-700 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-950">
           <MailCheck className="mt-0.5 size-5 shrink-0" />
           <div className="min-w-0 flex-1">
-            <p className="font-black">{labelFor(locale, "Email još nije potvrđen za postavljanje lozinke.", "Your email is not yet verified for password setup.")}</p>
-            <p className="mt-1 text-xs font-semibold leading-5">{labelFor(locale, "Ovo je savetodavno upozorenje i ne blokira dashboard ili druge funkcije.", "This is advisory only and does not block the dashboard or other features.")}</p>
+            <p className="font-black">{labelFor(locale, "Email još nije potvrđen za pristup kursevima.", "Your email is not yet verified for course access.")}</p>
+            <p className="mt-1 text-xs font-semibold leading-5">{labelFor(locale, "Verifikacija blokira checkout i lekcije, ali ne blokira dashboard, javni pregled kurseva ili Community.", "Verification blocks checkout and lessons, but not the dashboard, public course pages, or Community.")}</p>
             <button
               type="button"
               onClick={requestEmailVerification}
@@ -571,7 +590,7 @@ export function ProfileEditor({
         </div>
       ) : null}
       {profileStatus?.advisories?.password ? (
-        <div role="status" className="flex items-start gap-3 rounded-[16px] border-2 border-ink bg-yellow/20 px-4 py-3 text-sm font-bold text-ink">
+        <div role="status" className="flex items-start gap-3 rounded-[16px] border-2 border-indigo-700 bg-indigo-50 px-4 py-3 text-sm font-bold text-indigo-950">
           <KeyRound className="mt-0.5 size-5 shrink-0" />
           <div>
             <p className="font-black">{labelFor(locale, "Lozinka nije postavljena.", "No password is set yet.")}</p>
@@ -738,7 +757,7 @@ export function ProfileEditor({
                       </div>
                     ) : null}
                   </>
-                ) : profileStatus?.emailVerifiedForPassword === false ? (
+                ) : profileStatus?.emailVerifiedForCourses === false ? (
                   <div className="mt-2 space-y-3 rounded-[8px] border-2 border-amber-700 bg-amber-50 p-4 text-amber-950">
                     <p className="text-sm font-bold">
                       {labelFor(locale, "Potvrdi email klikom na link koji smo poslali. Polja za lozinku će se pojaviti nakon potvrde.", "Confirm your email using the link we sent. Password fields will appear after confirmation.")}
@@ -754,7 +773,7 @@ export function ProfileEditor({
                     </button>
                   </div>
                 ) : (
-                  <div className="mt-2 space-y-3 rounded-[8px] border-2 border-ink bg-yellow/15 p-4">
+                  <div className="mt-2 space-y-3 rounded-[8px] border-2 border-indigo-700 bg-indigo-50 p-4">
                     <p className="text-sm font-bold text-ink">
                       {labelFor(locale, "Postavi lozinku za ovaj nalog. Polja ostaju prazna dok ih sam ne uneseš.", "Set a password for this account. The fields stay empty until you enter them.")}
                     </p>

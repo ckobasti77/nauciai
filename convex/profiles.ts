@@ -82,22 +82,24 @@ export const getViewerProfileStatus = query({
     const hasGoogle = accounts.some((account) => account.provider === "google");
     const isGoogleOnly = hasGoogle && !hasPassword;
     const hasEmail = Boolean(String(authUser?.email ?? profile.email ?? "").trim());
-    const emailVerifiedForPassword = isGoogleOnly
-      ? Boolean(authUser?.passwordEmailVerificationTime)
-      : Boolean(authUser?.passwordEmailVerificationTime || authUser?.emailVerificationTime);
+    const emailVerifiedForCourses = isGoogleOnly
+      ? Boolean(authUser?.appEmailVerificationTime || authUser?.passwordEmailVerificationTime)
+      : Boolean(authUser?.appEmailVerificationTime || authUser?.passwordEmailVerificationTime || authUser?.emailVerificationTime);
     const missing = profile.username ? [] : ["username" as const];
     return {
       complete: missing.length === 0,
       missing,
+      isAdmin: profile.role === "admin",
       username: profile.username,
       email: authUser?.email ?? profile.email,
       hasEmail,
-      emailVerifiedForPassword,
+      emailVerifiedForCourses,
+      emailVerifiedForPassword: emailVerifiedForCourses,
       authProviders: accounts.map((account) => account.provider),
       hasPassword,
       isGoogleOnly,
       advisories: {
-        emailVerification: hasEmail && !emailVerifiedForPassword,
+        emailVerification: hasEmail && !emailVerifiedForCourses,
         password: !hasPassword,
       },
     };

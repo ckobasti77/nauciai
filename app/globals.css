@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+.rich-editor-content p + p,
+.rich-text-content p + p { margin-top: 0.9em; }
+.rich-editor-content ul,
+.rich-text-content ul { list-style: disc; margin: 0.8em 0; padding-left: 1.5em; }
+.rich-editor-content ol,
+.rich-text-content ol { list-style: decimal; margin: 0.8em 0; padding-left: 1.5em; }
+.rich-editor-content li + li,
+.rich-text-content li + li { margin-top: 0.35em; }
+
 :root {
   --background: #fffdf8;
   --foreground: #0e3158;

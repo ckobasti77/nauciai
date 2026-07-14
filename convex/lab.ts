@@ -5,6 +5,7 @@ import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { mutation, query } from "./_generated/server";
 import { requireAdmin, requireCourseAccess, requireUserId } from "./helpers";
 import { syncLeaderboardSourceEvent } from "./leaderboardCore";
+import { canUseProLesson } from "../lib/lesson-access";
 
 const outputKind = v.union(v.literal("text"), v.literal("image"), v.literal("audio"), v.literal("video"), v.literal("file"));
 const outputStatus = v.union(v.literal("draft"), v.literal("ready"), v.literal("failed"));
@@ -118,6 +119,21 @@ export const getLessonLab = query({
     const profile = await requireCourseAccess(ctx, match.course._id);
     const isAdmin = profile.role === "admin";
     if (!isAdmin && !match.lesson.isPublished) return null;
+    const canUsePro = canUseProLesson(profile.role, match.lesson.proEnabled !== false);
+    if (!canUsePro) {
+      return {
+        course: match.course,
+        lesson: match.lesson,
+        profile: { role: profile.role },
+        isAdmin,
+        canUsePro: false,
+        steps: [],
+        outputs: [],
+        conversations: [],
+        activeConversation: null,
+        messages: [],
+      };
+    }
 
     const stepRows = await ctx.db
       .query("lessonSteps")
@@ -185,6 +201,7 @@ export const getLessonLab = query({
       lesson: match.lesson,
       profile,
       isAdmin,
+      canUsePro: true,
       steps,
       outputs,
       conversations,

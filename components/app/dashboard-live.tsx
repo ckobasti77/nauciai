@@ -18,6 +18,7 @@ type LiveNavigationResult = {
   } | null;
   courses?: Array<{
     _id?: string;
+    trackId?: string;
     slug: string;
     titleSr: string;
     titleEn: string;
@@ -25,10 +26,13 @@ type LiveNavigationResult = {
     subtitleEn: string;
     descriptionSr: string;
     descriptionEn: string;
+    descriptionRichSr?: string;
+    descriptionRichEn?: string;
     status: "draft" | "published" | "archived";
     hasAccess?: boolean;
     stripePriceId?: string;
     videoUrl?: string | null;
+    coverUrl?: string | null;
     videoFileName?: string;
     videoByteSize?: number;
     videoMimeType?: string;
@@ -66,6 +70,8 @@ type LiveNavigationResult = {
         titleEn: string;
         summarySr: string;
         summaryEn: string;
+        summaryRichSr?: string;
+        summaryRichEn?: string;
         durationSeconds: number;
         isPublished: boolean;
         sortOrder: number;
@@ -127,6 +133,7 @@ function courseFromLiveCourse(
             sr: lesson.summarySr,
             en: lesson.summaryEn,
           },
+          summaryRich: lesson.summaryRichSr || lesson.summaryRichEn ? { sr: lesson.summaryRichSr ?? "", en: lesson.summaryRichEn ?? "" } : undefined,
           duration: formatDuration(lesson.durationSeconds),
           durationSeconds: lesson.durationSeconds,
           isPublished: lesson.isPublished,
@@ -137,12 +144,14 @@ function courseFromLiveCourse(
 
   return {
     id: liveCourse._id,
+    trackId: liveCourse.trackId,
     slug: liveCourse.slug,
     title: {
       sr: liveCourse.titleSr,
       en: liveCourse.titleEn,
     },
     image: fallbackCourse?.image,
+    coverUrl: liveCourse.coverUrl,
     subtitle: {
       sr: liveCourse.subtitleSr,
       en: liveCourse.subtitleEn,
@@ -151,6 +160,7 @@ function courseFromLiveCourse(
       sr: liveCourse.descriptionSr,
       en: liveCourse.descriptionEn,
     },
+    descriptionRich: liveCourse.descriptionRichSr || liveCourse.descriptionRichEn ? { sr: liveCourse.descriptionRichSr ?? "", en: liveCourse.descriptionRichEn ?? "" } : undefined,
     status: liveCourse.status,
     hasAccess: Boolean(liveCourse.hasAccess),
     stripePriceId: liveCourse.stripePriceId,

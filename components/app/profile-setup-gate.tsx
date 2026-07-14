@@ -1,8 +1,13 @@
 "use client";
 
 import { useConvexAuth } from "@convex-dev/auth/react";
+import { useQuery } from "convex/react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect } from "react";
 
+import { api } from "@/convex/_generated/api";
 import { type Locale } from "@/lib/i18n";
+import { withLocale } from "@/lib/i18n";
 
 /**
  * Auth loading remains gated, but profile completion is intentionally advisory.
@@ -10,9 +15,20 @@ import { type Locale } from "@/lib/i18n";
  * they can browse the app and Community in read-only mode.
  */
 export function ProfileSetupGate({ locale, children }: { locale: Locale; children: React.ReactNode }) {
-  const { isLoading } = useConvexAuth();
+  const { isLoading, isAuthenticated } = useConvexAuth();
+  const pathname = usePathname();
+  const router = useRouter();
+  const status = useQuery(api.profiles.getViewerProfileStatus, isAuthenticated ? {} : "skip");
+  const profilePath = withLocale(locale, "/app/profile");
+  const needsUsername = status?.complete === false;
 
-  if (isLoading) {
+  useEffect(() => {
+    if (!needsUsername || pathname === profilePath) return;
+    const returnTo = encodeURIComponent(pathname);
+    router.replace(`${profilePath}?onboarding=1&focus=username&returnTo=${returnTo}`);
+  }, [needsUsername, pathname, profilePath, router]);
+
+  if (isLoading || (isAuthenticated && status === undefined) || (needsUsername && pathname !== profilePath)) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center p-6">
         <div className="rounded-[16px] border-2 border-ink bg-yellow/25 px-6 py-5 text-center shadow-[5px_5px_0_0_rgba(14,49,88,0.12)]">

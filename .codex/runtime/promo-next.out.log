@@ -1,0 +1,11 @@
+
+> nauciai@0.1.0 dev
+> next dev
+
+▲ Next.js 16.2.10 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.0.5:3000
+- Environments: .env.local
+✓ Ready in 958ms
+
+ GET /sr 200 in 1641ms (next.js: 829ms, proxy.ts: 204ms, generate-params: 690ms, application-code: 608ms)

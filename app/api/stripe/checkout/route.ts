@@ -20,6 +20,10 @@ type ViewerResult = {
   };
 } | null;
 
+type ProfileStatusResult = {
+  emailVerifiedForCourses?: boolean;
+} | null;
+
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
   const locale = body.locale === "en" ? "en" : "sr";
@@ -28,10 +32,18 @@ export async function POST(request: Request) {
 
   const token = await convexAuthNextjsToken();
   const convex = getConvexHttpClient(token);
-  const [liveCourse, viewer] = await Promise.all([
+  const [liveCourse, viewer, profileStatus] = await Promise.all([
     convex?.query(convexQueries.getCourseBySlug, { slug: courseSlug }).catch(() => null),
     convex?.query(convexQueries.viewer, {}).catch(() => null),
-  ]) as [LiveCourseResult, ViewerResult];
+    convex?.query(convexQueries.getViewerProfileStatus, {}).catch(() => null),
+  ]) as [LiveCourseResult, ViewerResult, ProfileStatusResult];
+
+  if (!viewer?.user?._id) {
+    return Response.json({ error: locale === "sr" ? "Prijavi se pre kupovine kursa." : "Sign in before purchasing a course.", code: "AUTH_REQUIRED" }, { status: 401 });
+  }
+  if (!profileStatus?.emailVerifiedForCourses) {
+    return Response.json({ error: locale === "sr" ? "Potvrdi email pre kupovine kursa." : "Confirm your email before purchasing a course.", code: "EMAIL_VERIFICATION_REQUIRED" }, { status: 403 });
+  }
 
   const course = liveCourse?.course;
   const priceId =

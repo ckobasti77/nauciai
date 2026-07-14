@@ -37,12 +37,16 @@ async function unreadByKinds(ctx: any, userId: Id<"users">, kinds: readonly stri
 }
 
 export async function getCommunityNotificationCountsHelper(ctx: any, userId: Id<"users">) {
-  const [profileData, authUser] = await Promise.all([
+  const [profileData, authUser, authAccounts] = await Promise.all([
     ctx.db
       .query("profiles")
       .withIndex("by_userId", (q: any) => q.eq("userId", userId))
       .take(100),
     ctx.db.get(userId),
+    ctx.db
+      .query("authAccounts")
+      .withIndex("userIdAndProvider", (q: any) => q.eq("userId", userId))
+      .take(10),
   ]);
   const profile = [...profileData].sort((a: any, b: any) => Number(a._creationTime ?? 0) - Number(b._creationTime ?? 0))[0];
   const role = effectiveRoleForProfile(String(authUser?.email ?? profile?.email ?? ""), profile?.role);
@@ -64,6 +68,15 @@ export async function getCommunityNotificationCountsHelper(ctx: any, userId: Id<
     unreadByKinds(ctx, userId, COMMUNITY_NOTIFICATION_KINDS),
   ]);
   const profileIncomplete = profile?.username ?? authUser?.username ? 0 : 1;
+  const hasPassword = authAccounts.some((account: any) => account.provider === "password");
+  const hasGoogle = authAccounts.some((account: any) => account.provider === "google");
+  const isGoogleOnly = hasGoogle && !hasPassword;
+  const emailVerifiedForCourses = isGoogleOnly
+    ? Boolean(authUser?.appEmailVerificationTime || authUser?.passwordEmailVerificationTime)
+    : Boolean(authUser?.appEmailVerificationTime || authUser?.passwordEmailVerificationTime || authUser?.emailVerificationTime);
+  const emailVerificationRequired = emailVerifiedForCourses ? 0 : 1;
+  const passwordRecommended = hasPassword ? 0 : 1;
+  const accountWarnings = profileIncomplete + emailVerificationRequired + passwordRecommended;
   const myThreadsCount = myThreadNotifications.length;
   const mentionsCount = personalNotifications.length;
   const communityCount = allNotifications.length + pendingApprovals;
@@ -73,8 +86,11 @@ export async function getCommunityNotificationCountsHelper(ctx: any, userId: Id<
     myThreads: myThreadsCount,
     mentions: mentionsCount,
     profileIncomplete,
+    emailVerificationRequired,
+    passwordRecommended,
+    accountWarnings,
     community: communityCount,
-    total: profileIncomplete + communityCount,
+    total: accountWarnings + communityCount,
   };
 }
 
@@ -83,7 +99,7 @@ export const getCommunityNotificationCounts = query({
   handler: async (ctx) => {
     const userId = await currentUserId(ctx);
     if (!userId) {
-      return { pendingApprovals: 0, myThreads: 0, mentions: 0, profileIncomplete: 0, community: 0, total: 0 };
+      return { pendingApprovals: 0, myThreads: 0, mentions: 0, profileIncomplete: 0, emailVerificationRequired: 0, passwordRecommended: 0, accountWarnings: 0, community: 0, total: 0 };
     }
     return getCommunityNotificationCountsHelper(ctx, userId);
   },
@@ -94,12 +110,12 @@ export const getUserNotificationSummary = query({
   handler: async (ctx) => {
     const userId = await currentUserId(ctx);
     if (!userId) {
-      return { community: 0, billing: 0, profileIncomplete: 0, myThreads: 0, mentions: 0, pendingApprovals: 0, total: 0 };
+      return { community: 0, billing: 0, profileIncomplete: 0, emailVerificationRequired: 0, passwordRecommended: 0, accountWarnings: 0, myThreads: 0, mentions: 0, pendingApprovals: 0, total: 0 };
     }
 
     // 1. Get community notifications count
     const communityCounts = await getCommunityNotificationCountsHelper(ctx, userId);
-    const communityTotal = communityCounts.total;
+    const communityTotal = communityCounts.community;
 
     // 2. Get billing notifications (expires in <= 5 days)
     let billingCount = 0;
@@ -123,10 +139,13 @@ export const getUserNotificationSummary = query({
       community: communityTotal,
       billing: billingCount,
       profileIncomplete: communityCounts.profileIncomplete,
+      emailVerificationRequired: communityCounts.emailVerificationRequired,
+      passwordRecommended: communityCounts.passwordRecommended,
+      accountWarnings: communityCounts.accountWarnings,
       myThreads: communityCounts.myThreads,
       mentions: communityCounts.mentions,
       pendingApprovals: communityCounts.pendingApprovals,
-      total: communityTotal + billingCount,
+      total: communityTotal + billingCount + communityCounts.accountWarnings,
     };
   },
 });

@@ -25,8 +25,8 @@ function isSignInPath(pathname: string) {
 
 function isResetConfirmRequest(request: NextRequest) {
   return (
-    isSignInPath(request.nextUrl.pathname) &&
-    request.nextUrl.searchParams.get("mode") === "reset-confirm"
+    (/^\/(sr|en)\/reset-password$/.test(request.nextUrl.pathname) || isSignInPath(request.nextUrl.pathname)) &&
+    (request.nextUrl.pathname.endsWith("/reset-password") || request.nextUrl.searchParams.get("mode") === "reset-confirm")
   );
 }
 

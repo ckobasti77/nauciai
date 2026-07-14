@@ -4,7 +4,7 @@ import { resolve as resolvePath } from "node:path";
 import { exportJWK, exportPKCS8, generateKeyPair } from "jose";
 
 const DEFAULT_LOCAL_SITE_URL = "http://localhost:3000";
-const DEFAULT_PRODUCTION_SITE_URL = "https://nauciai.vercel.app";
+const DEFAULT_PRODUCTION_SITE_URL = "https://nauciai.com";
 
 function parseArgs(argv) {
   const targetArgs = [];

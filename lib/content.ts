@@ -1,6 +1,7 @@
 import type { Locale, LocalizedText } from "./i18n";
 
 export type LessonAsset = {
+  id?: string;
   label: LocalizedText;
   kind: "pdf" | "prompt" | "worksheet" | "project";
   size: string;
@@ -12,8 +13,9 @@ export type LessonPart = {
   parentPartId?: string;
   slug: string;
   title: LocalizedText;
-  kind: "text" | "video" | "file";
+  kind: "text" | "image" | "video" | "file";
   body?: LocalizedText;
+  bodyRich?: LocalizedText;
   downloadUrl?: string | null;
   fileName?: string;
   size?: string;
@@ -28,6 +30,7 @@ export type Lesson = {
   duration: string;
   durationSeconds?: number;
   summary: LocalizedText;
+  summaryRich?: LocalizedText;
   isPublished?: boolean;
   sortOrder?: number;
   assets: LessonAsset[];
@@ -57,6 +60,7 @@ export type Course = {
   title: LocalizedText;
   subtitle: LocalizedText;
   description: LocalizedText;
+  descriptionRich?: LocalizedText;
   status: "published" | "coming-soon";
   priceLabel: LocalizedText;
   image: CourseImage;

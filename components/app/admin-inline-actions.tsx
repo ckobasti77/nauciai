@@ -3,12 +3,14 @@
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { AppComposerSheet } from "@/components/app/app-composer-sheet";
+import { RichTextEditor } from "@/components/app/rich-text";
 import { cn } from "@/components/ui/primitives";
 import { withLocale, type Locale } from "@/lib/i18n";
 
 import { useMutation, useQuery } from "convex/react";
 import {
   BookOpen,
+  AlertTriangle,
   ChevronDown,
   Check,
   CreditCard,
@@ -36,10 +38,11 @@ import type { ChangeEvent, DragEvent as ReactDragEvent, FormEvent, ReactNode } f
 import { useEffect, useEffectEvent, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { gsap } from "gsap";
+import { plainTextToRichText, richTextHasContent } from "@/lib/rich-text";
 
 type ButtonTone = "inline" | "compact";
 type CourseStatus = "draft" | "published" | "archived";
-type LessonPartKind = "text" | "video" | "file";
+type LessonPartKind = "text" | "image" | "video" | "file";
 type AssetKind = "pdf" | "prompt" | "worksheet" | "project";
 type UploadedFilePayload = {
   storageId?: Id<"_storage">;
@@ -90,6 +93,17 @@ function hasFileCandidateDrag(dataTransfer: DataTransfer | null | undefined) {
 
 function isVideoFile(file: File | null | undefined): file is File {
   return Boolean(file && file.type.startsWith("video/"));
+}
+
+function hasImageCandidateDrag(dataTransfer: DataTransfer | null | undefined) {
+  if (!dataTransfer) return false;
+  const items = Array.from(dataTransfer.items ?? []);
+  if (items.length > 0) return items.some((item) => item.kind === "file" && (!item.type || item.type.startsWith("image/")));
+  return hasFileCandidateDrag(dataTransfer);
+}
+
+function isImageFile(file: File | null | undefined): file is File {
+  return Boolean(file && file.type.startsWith("image/"));
 }
 
 function sameIds<T extends string>(left: T[], right: T[]) {
@@ -212,6 +226,19 @@ function Field({
       {hint ? <span className="mt-0.5 block text-xs font-bold leading-5 text-muted">{hint}</span> : null}
       <div className="mt-2">{children}</div>
     </label>
+  );
+}
+
+function LocalizedPairSwitch({ locale, onChange, sr, en }: { locale: Locale; onChange: (locale: Locale) => void; sr: string; en: string }) {
+  const missingSr = Boolean(en.trim() && !sr.trim());
+  const missingEn = Boolean(sr.trim() && !en.trim());
+  return (
+    <div className="inline-flex items-center gap-1 rounded-full border-2 border-ink bg-paper p-1" role="group" aria-label="Jezik polja">
+      {(["sr", "en"] as const).map((item) => {
+        const warning = item === "sr" ? missingSr : missingEn;
+        return <button key={item} type="button" onClick={() => onChange(item)} className={cn("inline-flex min-h-7 items-center gap-1 rounded-full border px-3 text-[11px] font-black uppercase", locale === item ? "border-ink bg-ink text-white" : "border-transparent text-muted", warning && "border-amber-600 bg-amber-100 text-amber-950 ring-2 ring-amber-400/40")}>{warning ? <AlertTriangle className="size-3" /> : null}{item}</button>;
+      })}
+    </div>
   );
 }
 
@@ -520,6 +547,7 @@ type CourseActionInitial = {
   title: { sr: string; en: string };
   subtitle: { sr: string; en: string };
   description: { sr: string; en: string };
+  descriptionRich?: { sr: string; en: string };
   status: CourseStatus;
   stripePriceId?: string;
   videoUrl?: string | null;
@@ -563,6 +591,8 @@ type CourseEditorData = {
     subtitleEn: string;
     descriptionSr: string;
     descriptionEn: string;
+    descriptionRichSr?: string;
+    descriptionRichEn?: string;
     status: CourseStatus;
     stripePriceId?: string;
     videoUrl?: string | null;
@@ -652,11 +682,14 @@ export function AddCourseAction({
   ) as CourseEditorData | undefined;
   const [titleSr, setTitleSr] = useState(initial?.title.sr ?? "");
   const [titleEn, setTitleEn] = useState(initial?.title.en ?? "");
+  const [contentLocale, setContentLocale] = useState<Locale>(locale);
   const [slug, setSlug] = useState(initial?.slug ?? "");
   const [subtitleSr, setSubtitleSr] = useState(initial?.subtitle.sr ?? "");
   const [subtitleEn, setSubtitleEn] = useState(initial?.subtitle.en ?? "");
   const [descriptionSr, setDescriptionSr] = useState(initial?.description.sr ?? "");
   const [descriptionEn, setDescriptionEn] = useState(initial?.description.en ?? "");
+  const [descriptionRichSr, setDescriptionRichSr] = useState(initial?.descriptionRich?.sr || plainTextToRichText(initial?.description.sr ?? ""));
+  const [descriptionRichEn, setDescriptionRichEn] = useState(initial?.descriptionRich?.en || plainTextToRichText(initial?.description.en ?? ""));
   const [status, setStatus] = useState<CourseStatus>(initial?.status ?? "draft");
   const [stripePriceId, setStripePriceId] = useState(initial?.stripePriceId ?? "");
   const [sortOrder, setSortOrder] = useState(initial?.sortOrder ?? nextSortOrder);
@@ -687,6 +720,8 @@ export function AddCourseAction({
     subtitleEn,
     descriptionSr,
     descriptionEn,
+    descriptionRichSr,
+    descriptionRichEn,
     status,
     stripePriceId,
     sortOrder,
@@ -718,6 +753,8 @@ export function AddCourseAction({
       subtitleEn: initial?.subtitle.en ?? "",
       descriptionSr: initial?.description.sr ?? "",
       descriptionEn: initial?.description.en ?? "",
+      descriptionRichSr: initial?.descriptionRich?.sr || plainTextToRichText(initial?.description.sr ?? ""),
+      descriptionRichEn: initial?.descriptionRich?.en || plainTextToRichText(initial?.description.en ?? ""),
       status: initial?.status ?? "draft",
       stripePriceId: initial?.stripePriceId ?? "",
       sortOrder: initial?.sortOrder ?? nextSortOrder,
@@ -732,6 +769,8 @@ export function AddCourseAction({
     setSubtitleEn(initial?.subtitle.en ?? "");
     setDescriptionSr(initial?.description.sr ?? "");
     setDescriptionEn(initial?.description.en ?? "");
+    setDescriptionRichSr(initial?.descriptionRich?.sr || plainTextToRichText(initial?.description.sr ?? ""));
+    setDescriptionRichEn(initial?.descriptionRich?.en || plainTextToRichText(initial?.description.en ?? ""));
     setStatus(initial?.status ?? "draft");
     setStripePriceId(initial?.stripePriceId ?? "");
     setSortOrder(initial?.sortOrder ?? nextSortOrder);
@@ -759,6 +798,8 @@ export function AddCourseAction({
       subtitleEn: liveCourse.subtitleEn,
       descriptionSr: liveCourse.descriptionSr,
       descriptionEn: liveCourse.descriptionEn,
+      descriptionRichSr: liveCourse.descriptionRichSr || plainTextToRichText(liveCourse.descriptionSr),
+      descriptionRichEn: liveCourse.descriptionRichEn || plainTextToRichText(liveCourse.descriptionEn),
       status: liveCourse.status,
       stripePriceId: liveCourse.stripePriceId ?? "",
       sortOrder: liveCourse.sortOrder,
@@ -772,6 +813,8 @@ export function AddCourseAction({
       setSubtitleEn(liveCourse.subtitleEn);
       setDescriptionSr(liveCourse.descriptionSr);
       setDescriptionEn(liveCourse.descriptionEn);
+      setDescriptionRichSr(liveCourse.descriptionRichSr || plainTextToRichText(liveCourse.descriptionSr));
+      setDescriptionRichEn(liveCourse.descriptionRichEn || plainTextToRichText(liveCourse.descriptionEn));
       setStatus(liveCourse.status);
       setStripePriceId(liveCourse.stripePriceId ?? "");
       setSortOrder(liveCourse.sortOrder);
@@ -974,6 +1017,8 @@ export function AddCourseAction({
   }
 
   async function saveCourse() {
+    if (!titleSr.trim()) throw new Error(labelFor(locale, "Popuni naziv na srpskom.", "Complete the Serbian title."));
+    if (status === "published" && (!subtitleSr.trim() || !richTextHasContent(descriptionRichSr, descriptionSr))) throw new Error(labelFor(locale, "Popuni SR podnaslov i opis pre objave.", "Complete the Serbian subtitle and description before publishing."));
     const savedSlug = slug || slugify(titleSr || titleEn);
     if (!savedSlug) {
       throw new Error(labelFor(locale, "Unesi naziv ili slug kursa.", "Enter a course title or slug."));
@@ -983,11 +1028,13 @@ export function AddCourseAction({
       ...(courseId ? { courseId: courseId as Id<"courses"> } : {}),
       slug: savedSlug,
       titleSr,
-      titleEn: titleEn || titleSr,
+      titleEn,
       subtitleSr,
-      subtitleEn: subtitleEn || subtitleSr,
+      subtitleEn,
       descriptionSr,
-      descriptionEn: descriptionEn || descriptionSr,
+      descriptionEn,
+      descriptionRichSr,
+      descriptionRichEn: richTextHasContent(descriptionRichEn, descriptionEn) ? descriptionRichEn : undefined,
       status,
       stripePriceId: stripePriceId.trim() || undefined,
       sortOrder: safeSortOrder,
@@ -1158,11 +1205,9 @@ export function AddCourseAction({
                 body={labelFor(locale, "Naziv, URL i status koji odredjuju kako kurs ulazi u aplikaciju.", "Name, URL, and status that control how this course appears in the app.")}
               >
                 <div className="grid gap-4 md:grid-cols-2">
-                  <Field label="Naziv SR">
-                    <input className={inputClass} value={titleSr} onChange={(event) => setTitleSr(event.target.value)} required />
-                  </Field>
-                  <Field label="Title EN">
-                    <input className={inputClass} value={titleEn} onChange={(event) => setTitleEn(event.target.value)} />
+                  <div className="md:col-span-2"><LocalizedPairSwitch locale={contentLocale} onChange={setContentLocale} sr={titleSr} en={titleEn} /></div>
+                  <Field label={contentLocale === "sr" ? "Naziv kursa" : "Course title"}>
+                    <input className={inputClass} value={contentLocale === "sr" ? titleSr : titleEn} onChange={(event) => contentLocale === "sr" ? setTitleSr(event.target.value) : setTitleEn(event.target.value)} required />
                   </Field>
                   <SlugField
                     label="Slug"
@@ -1193,21 +1238,16 @@ export function AddCourseAction({
                 title={labelFor(locale, "Opis i pozicioniranje", "Description and positioning")}
                 body={labelFor(locale, "Kratak podnaslov i opis koji korisniku objasnjavaju zasto ovaj kurs postoji.", "A short subtitle and description that explain why this course exists.")}
               >
-                <div className="grid gap-4 md:grid-cols-2">
-                  <Field label="Podnaslov SR">
-                    <input className={inputClass} value={subtitleSr} onChange={(event) => setSubtitleSr(event.target.value)} required />
-                  </Field>
-                  <Field label="Subtitle EN">
-                    <input className={inputClass} value={subtitleEn} onChange={(event) => setSubtitleEn(event.target.value)} />
+                <div className="space-y-3">
+                  <LocalizedPairSwitch locale={contentLocale} onChange={setContentLocale} sr={subtitleSr} en={subtitleEn} />
+                  <Field label={contentLocale === "sr" ? "Podnaslov" : "Subtitle"}>
+                    <input className={inputClass} value={contentLocale === "sr" ? subtitleSr : subtitleEn} onChange={(event) => contentLocale === "sr" ? setSubtitleSr(event.target.value) : setSubtitleEn(event.target.value)} required />
                   </Field>
                 </div>
-                <div className="mt-4 grid gap-4 md:grid-cols-2">
-                  <Field label="Opis SR">
-                    <textarea className={textareaClass} rows={5} value={descriptionSr} onChange={(event) => setDescriptionSr(event.target.value)} required />
-                  </Field>
-                  <Field label="Description EN">
-                    <textarea className={textareaClass} rows={5} value={descriptionEn} onChange={(event) => setDescriptionEn(event.target.value)} />
-                  </Field>
+                <div className="mt-4 space-y-3">
+                  <LocalizedPairSwitch locale={contentLocale} onChange={setContentLocale} sr={descriptionSr} en={descriptionEn} />
+                  <RichTextEditor value={contentLocale === "sr" ? descriptionRichSr : descriptionRichEn} fallback={contentLocale === "sr" ? descriptionSr : descriptionEn} onChange={(json, plain) => { if (contentLocale === "sr") { setDescriptionRichSr(json); setDescriptionSr(plain); } else { setDescriptionRichEn(json); setDescriptionEn(plain); } }} />
+                  {contentLocale === "en" && !descriptionEn.trim() ? <p className="rounded-[8px] border-2 border-amber-700 bg-amber-50 p-3 text-xs font-black text-amber-950">EN opis nedostaje, ali ne blokira objavu.</p> : null}
                 </div>
               </FormSection>
 
@@ -2236,6 +2276,7 @@ type LessonActionInitial = {
   slug: string;
   title: { sr: string; en: string };
   summary: { sr: string; en: string };
+  summaryRich?: { sr: string; en: string };
   durationSeconds?: number;
   isPublished: boolean;
   sortOrder: number;
@@ -2271,11 +2312,14 @@ export function AddLessonAction({
   const [open, setOpen] = useState(false);
   const [titleSr, setTitleSr] = useState(initial?.title.sr ?? "");
   const [titleEn, setTitleEn] = useState(initial?.title.en ?? "");
+  const [contentLocale, setContentLocale] = useState<Locale>(locale);
   const [slug, setSlug] = useState(initial?.slug ?? "");
   const [summarySr, setSummarySr] = useState(initial?.summary.sr ?? "");
   const [summaryEn, setSummaryEn] = useState(initial?.summary.en ?? "");
+  const [summaryRichSr, setSummaryRichSr] = useState(initial?.summaryRich?.sr || plainTextToRichText(initial?.summary.sr ?? ""));
+  const [summaryRichEn, setSummaryRichEn] = useState(initial?.summaryRich?.en || plainTextToRichText(initial?.summary.en ?? ""));
   const [durationMinutes, setDurationMinutes] = useState(Math.max(1, Math.round((initial?.durationSeconds ?? 600) / 60)));
-  const [isPublished, setIsPublished] = useState(initial?.isPublished ?? true);
+  const [isPublished, setIsPublished] = useState(initial?.isPublished ?? false);
   const [message, setMessage] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [dismissedOpenKey, setDismissedOpenKey] = useState<string | null>(null);
@@ -2297,6 +2341,10 @@ export function AddLessonAction({
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (!courseId || !moduleId) return;
+    if (!titleSr.trim() || (isPublished && !richTextHasContent(summaryRichSr, summarySr))) {
+      setMessage(labelFor(locale, "Popuni SR naziv i sažetak pre objave lekcije.", "Complete the Serbian title and summary before publishing the lesson."));
+      return;
+    }
     setPending(true);
     setMessage(null);
     try {
@@ -2308,9 +2356,11 @@ export function AddLessonAction({
         moduleId: moduleId as Id<"modules">,
         slug: savedSlug,
         titleSr,
-        titleEn: titleEn || titleSr,
+        titleEn,
         summarySr,
-        summaryEn: summaryEn || summarySr,
+        summaryEn,
+        summaryRichSr,
+        summaryRichEn: richTextHasContent(summaryRichEn, summaryEn) ? summaryRichEn : undefined,
         durationSeconds: safeDurationMinutes * 60,
         isPublished,
         sortOrder: initial?.sortOrder ?? nextSortOrder,
@@ -2354,11 +2404,9 @@ export function AddLessonAction({
                 body={labelFor(locale, "Naziv, URL i trajanje lekcije za navigaciju i player.", "Name, URL, and duration used by navigation and the player.")}
               >
                 <div className="grid gap-4 md:grid-cols-2">
-                  <Field label="Naziv SR">
-                    <input className={inputClass} value={titleSr} onChange={(event) => setTitleSr(event.target.value)} required />
-                  </Field>
-                  <Field label="Title EN">
-                    <input className={inputClass} value={titleEn} onChange={(event) => setTitleEn(event.target.value)} />
+                  <div className="md:col-span-2"><LocalizedPairSwitch locale={contentLocale} onChange={setContentLocale} sr={titleSr} en={titleEn} /></div>
+                  <Field label={contentLocale === "sr" ? "Naziv lekcije" : "Lesson title"}>
+                    <input className={inputClass} value={contentLocale === "sr" ? titleSr : titleEn} onChange={(event) => contentLocale === "sr" ? setTitleSr(event.target.value) : setTitleEn(event.target.value)} required />
                   </Field>
                   <SlugField
                     label="Slug"
@@ -2387,13 +2435,10 @@ export function AddLessonAction({
                 title={labelFor(locale, "Kratak opis", "Summary")}
                 body={labelFor(locale, "Ovo korisnik vidi pre ulaska u lekciju.", "This is what a user sees before opening the lesson.")}
               >
-                <div className="grid gap-4 md:grid-cols-2">
-                  <Field label="Summary SR">
-                    <textarea className={textareaClass} rows={5} value={summarySr} onChange={(event) => setSummarySr(event.target.value)} required />
-                  </Field>
-                  <Field label="Summary EN">
-                    <textarea className={textareaClass} rows={5} value={summaryEn} onChange={(event) => setSummaryEn(event.target.value)} />
-                  </Field>
+                <div className="space-y-3">
+                  <LocalizedPairSwitch locale={contentLocale} onChange={setContentLocale} sr={summarySr} en={summaryEn} />
+                  <RichTextEditor value={contentLocale === "sr" ? summaryRichSr : summaryRichEn} fallback={contentLocale === "sr" ? summarySr : summaryEn} onChange={(json, plain) => { if (contentLocale === "sr") { setSummaryRichSr(json); setSummarySr(plain); } else { setSummaryRichEn(json); setSummaryEn(plain); } }} />
+                  {contentLocale === "en" && !summaryEn.trim() ? <p className="rounded-[8px] border-2 border-amber-700 bg-amber-50 p-3 text-xs font-black text-amber-950">EN sažetak nedostaje, ali ne blokira objavu.</p> : null}
                 </div>
               </FormSection>
 
@@ -2436,6 +2481,7 @@ type LessonPartActionInitial = {
   title: { sr: string; en: string };
   kind: LessonPartKind;
   body?: { sr: string; en: string };
+  bodyRich?: { sr: string; en: string };
   fileName?: string;
   downloadUrl?: string | null;
   isPublished?: boolean;
@@ -2467,33 +2513,104 @@ export function AddLessonPartAction({
 }) {
   const router = useRouter();
   const upsertLessonPart = useMutation(api.courses.upsertLessonPart);
+  const removeLessonPartFile = useMutation(api.courses.removeLessonPartFile);
   const generateUploadUrl = useMutation(api.video.createDocumentUploadUrl);
   const [open, setOpen] = useState(false);
-  const [titleSr, setTitleSr] = useState(initial?.title.sr ?? "");
-  const [titleEn, setTitleEn] = useState(initial?.title.en ?? "");
-  const [slug, setSlug] = useState(initial?.slug ?? "");
+  const titleSr = initial?.title.sr ?? "";
+  const titleEn = initial?.title.en ?? "";
+  const [contentLocale, setContentLocale] = useState<Locale>(locale);
   const [kind, setKind] = useState<LessonPartKind>(initial?.kind ?? "text");
   const [bodySr, setBodySr] = useState(initial?.body?.sr ?? "");
   const [bodyEn, setBodyEn] = useState(initial?.body?.en ?? "");
+  const [bodyRichSr, setBodyRichSr] = useState(initial?.bodyRich?.sr || plainTextToRichText(initial?.body?.sr ?? ""));
+  const [bodyRichEn, setBodyRichEn] = useState(initial?.bodyRich?.en || plainTextToRichText(initial?.body?.en ?? ""));
   const [file, setFile] = useState<File | null>(null);
+  const [existingFileRemoved, setExistingFileRemoved] = useState(false);
   const [isPublished, setIsPublished] = useState(initial?.isPublished ?? true);
   const [message, setMessage] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [fileDragging, setFileDragging] = useState(false);
+  const fileDragDepthRef = useRef(0);
   const isEditing = Boolean(lessonPartId);
-  const hasExistingFile = Boolean(initial?.fileName || initial?.downloadUrl);
+  const hasExistingFile = Boolean(initial?.fileName || initial?.downloadUrl) && !existingFileRemoved;
   const effectiveParentPartId = parentPartId ?? initial?.parentPartId;
   const actionLabel =
     buttonLabel ??
     (isEditing
-      ? labelFor(locale, "Izmeni deo", "Edit part")
+      ? labelFor(locale, "Izmeni blok", "Edit block")
       : effectiveParentPartId
-        ? labelFor(locale, "Dodaj poddeo", "Add subpart")
-        : labelFor(locale, "Dodaj deo", "Add part"));
+        ? labelFor(locale, "Dodaj blok", "Add block")
+        : labelFor(locale, "Dodaj blok", "Add block"));
   const dialogTitle = isEditing
-    ? labelFor(locale, "Izmeni deo lekcije", "Edit lesson part")
+    ? labelFor(locale, "Izmeni sadržajni blok", "Edit content block")
     : effectiveParentPartId
-      ? labelFor(locale, "Dodaj poddeo lekcije", "Add lesson subpart")
-      : labelFor(locale, "Dodaj deo lekcije", "Add lesson part");
+      ? labelFor(locale, "Dodaj sadržajni blok", "Add content block")
+      : labelFor(locale, "Dodaj sadržajni blok", "Add content block");
+
+  const applyDroppedFile = useEffectEvent((candidate: File) => {
+    if (pending || (kind === "video" && !isVideoFile(candidate)) || (kind === "image" && !isImageFile(candidate))) return;
+    setFile(candidate);
+    setMessage(null);
+  });
+
+  useEffect(() => {
+    function resetDragging() {
+      fileDragDepthRef.current = 0;
+      setFileDragging(false);
+    }
+
+    if (!open || kind === "text") {
+      resetDragging();
+      return;
+    }
+
+    function acceptsDrag(dataTransfer: DataTransfer | null | undefined) {
+      return kind === "video" ? hasVideoCandidateDrag(dataTransfer) : kind === "image" ? hasImageCandidateDrag(dataTransfer) : hasFileCandidateDrag(dataTransfer);
+    }
+
+    function handleWindowDragEnter(event: globalThis.DragEvent) {
+      if (!hasFileCandidateDrag(event.dataTransfer)) return;
+      event.preventDefault();
+      if (!acceptsDrag(event.dataTransfer)) return;
+      fileDragDepthRef.current += 1;
+      setFileDragging(true);
+    }
+
+    function handleWindowDragOver(event: globalThis.DragEvent) {
+      if (!hasFileCandidateDrag(event.dataTransfer)) return;
+      event.preventDefault();
+      const accepted = acceptsDrag(event.dataTransfer);
+      if (event.dataTransfer) event.dataTransfer.dropEffect = accepted ? "copy" : "none";
+      setFileDragging(accepted);
+    }
+
+    function handleWindowDragLeave() {
+      fileDragDepthRef.current = Math.max(0, fileDragDepthRef.current - 1);
+      if (fileDragDepthRef.current === 0) setFileDragging(false);
+    }
+
+    function handleWindowDrop(event: globalThis.DragEvent) {
+      if (!hasFileCandidateDrag(event.dataTransfer) && fileDragDepthRef.current === 0) return;
+      event.preventDefault();
+      const candidate = event.dataTransfer?.files?.[0];
+      const accepted = Boolean(candidate && (kind === "file" || (kind === "video" && isVideoFile(candidate)) || (kind === "image" && isImageFile(candidate))));
+      resetDragging();
+      if (candidate && accepted) applyDroppedFile(candidate);
+      else setMessage(labelFor(locale, "Ovaj tip fajla nije dozvoljen.", "This file type is not allowed."));
+    }
+
+    window.addEventListener("dragenter", handleWindowDragEnter);
+    window.addEventListener("dragover", handleWindowDragOver);
+    window.addEventListener("dragleave", handleWindowDragLeave);
+    window.addEventListener("drop", handleWindowDrop);
+    return () => {
+      window.removeEventListener("dragenter", handleWindowDragEnter);
+      window.removeEventListener("dragover", handleWindowDragOver);
+      window.removeEventListener("dragleave", handleWindowDragLeave);
+      window.removeEventListener("drop", handleWindowDrop);
+      resetDragging();
+    };
+  }, [kind, locale, open]);
 
   async function uploadSelectedFile(): Promise<UploadedFilePayload> {
     if (!file) return {};
@@ -2526,8 +2643,12 @@ export function AddLessonPartAction({
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (!courseId || !lessonId) return;
-    if ((kind === "video" || kind === "file") && !file && !hasExistingFile) {
-      setMessage(labelFor(locale, "Izaberi fajl za ovaj deo.", "Choose a file for this part."));
+    if (kind === "text" && isPublished && !richTextHasContent(bodyRichSr, bodySr)) {
+      setMessage(labelFor(locale, "Dodaj tekst na srpskom pre objave bloka.", "Add Serbian text before publishing the block."));
+      return;
+    }
+    if ((kind === "image" || kind === "video" || kind === "file") && !file && !hasExistingFile) {
+      setMessage(labelFor(locale, "Izaberi fajl za ovaj blok.", "Choose a file for this block."));
       return;
     }
 
@@ -2535,17 +2656,21 @@ export function AddLessonPartAction({
     setMessage(null);
     try {
       const filePayload = await uploadSelectedFile();
+      const generatedTitleSr = titleSr || (kind === "text" ? "Tekst" : kind === "image" ? "Slika" : kind === "video" ? "Video" : "Fajl");
+      const generatedTitleEn = titleEn || (kind === "text" ? "Text" : kind === "image" ? "Image" : kind === "video" ? "Video" : "File");
       await upsertLessonPart({
         ...(lessonPartId ? { lessonPartId: lessonPartId as Id<"lessonParts"> } : {}),
         courseId: courseId as Id<"courses">,
         lessonId: lessonId as Id<"lessons">,
         ...(effectiveParentPartId ? { parentPartId: effectiveParentPartId as Id<"lessonParts"> } : {}),
-        slug: slug || slugify(titleSr || titleEn),
-        titleSr,
-        titleEn: titleEn || titleSr,
+        slug: initial?.slug || `blok-${nextSortOrder}`,
+        titleSr: generatedTitleSr,
+        titleEn: generatedTitleEn,
         kind,
         bodySr: bodySr || undefined,
-        bodyEn: bodyEn || bodySr || undefined,
+        bodyEn: bodyEn || undefined,
+        bodyRichSr: kind === "text" ? bodyRichSr : undefined,
+        bodyRichEn: kind === "text" && richTextHasContent(bodyRichEn, bodyEn) ? bodyRichEn : undefined,
         ...filePayload,
         isPublished,
         sortOrder: initial?.sortOrder ?? nextSortOrder,
@@ -2573,7 +2698,7 @@ export function AddLessonPartAction({
       )}
       <AdminComposerSheet
         title={dialogTitle}
-        eyebrow={labelFor(locale, "Composer dela lekcije", "Lesson part composer")}
+        eyebrow={labelFor(locale, "Light sadržaj lekcije", "Light lesson content")}
         open={open}
         onClose={() => setOpen(false)}
       >
@@ -2582,25 +2707,10 @@ export function AddLessonPartAction({
             <div className="space-y-5">
               <FormSection
                 icon={<FileText className="size-5" />}
-                title={labelFor(locale, "Naslov i tip", "Title and type")}
-                body={labelFor(locale, "Delovi mogu biti tekst, video ili fajl za rad.", "Parts can be text, video, or a working file.")}
+                title={labelFor(locale, "Tip bloka", "Block type")}
+                body={labelFor(locale, "Izaberi šta dodaješ. Interni naziv se pravi automatski i student ga ne vidi.", "Choose what to add. The internal name is generated automatically and stays hidden.")}
               >
-                <div className="grid gap-4 md:grid-cols-2">
-                  <Field label="Naziv SR">
-                    <input className={inputClass} value={titleSr} onChange={(event) => setTitleSr(event.target.value)} required />
-                  </Field>
-                  <Field label="Title EN">
-                    <input className={inputClass} value={titleEn} onChange={(event) => setTitleEn(event.target.value)} />
-                  </Field>
-                  <SlugField
-                    label="Slug"
-                    value={slug}
-                    onChange={setSlug}
-                    placeholder={slugify(titleSr || titleEn)}
-                    locale={locale}
-                  />
-                </div>
-                <div className="mt-4">
+                <div>
                   <KindControl<LessonPartKind>
                     value={kind}
                     onChange={(nextKind) => {
@@ -2609,6 +2719,7 @@ export function AddLessonPartAction({
                     }}
                     options={[
                       { value: "text", label: labelFor(locale, "Tekst", "Text"), body: labelFor(locale, "Lekcija u pisanom obliku", "Written lesson content") },
+                      { value: "image", label: labelFor(locale, "Slika", "Image"), body: labelFor(locale, "Fotografija, ilustracija ili screenshot", "Photo, illustration, or screenshot") },
                       { value: "video", label: labelFor(locale, "Video", "Video"), body: labelFor(locale, "Upload video fajla", "Video file upload") },
                       { value: "file", label: labelFor(locale, "Fajl", "File"), body: labelFor(locale, "Materijal za preuzimanje", "Downloadable material") },
                     ]}
@@ -2626,24 +2737,23 @@ export function AddLessonPartAction({
                 }
               >
                 {kind === "text" ? (
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <Field label="Tekst SR">
-                      <textarea className={textareaClass} rows={8} value={bodySr} onChange={(event) => setBodySr(event.target.value)} />
-                    </Field>
-                    <Field label="Text EN">
-                      <textarea className={textareaClass} rows={8} value={bodyEn} onChange={(event) => setBodyEn(event.target.value)} />
-                    </Field>
+                  <div className="space-y-3">
+                    <LocalizedPairSwitch locale={contentLocale} onChange={setContentLocale} sr={bodySr} en={bodyEn} />
+                    <RichTextEditor value={contentLocale === "sr" ? bodyRichSr : bodyRichEn} fallback={contentLocale === "sr" ? bodySr : bodyEn} onChange={(json, plain) => { if (contentLocale === "sr") { setBodyRichSr(json); setBodySr(plain); } else { setBodyRichEn(json); setBodyEn(plain); } }} />
+                    {contentLocale === "en" && !bodyEn.trim() ? <p className="rounded-[8px] border-2 border-amber-700 bg-amber-50 p-3 text-xs font-black text-amber-950">EN tekst nedostaje, ali ne blokira objavu.</p> : null}
                   </div>
                 ) : (
-                  <FileDropzone
+                  <div><FileDropzone
                     locale={locale}
-                    label={kind === "video" ? "Video fajl" : labelFor(locale, "Fajl za preuzimanje", "Download file")}
-                    accept={kind === "video" ? "video/*" : undefined}
+                    label={kind === "video" ? "Video fajl" : kind === "image" ? labelFor(locale, "Slika", "Image") : labelFor(locale, "Fajl za preuzimanje", "Download file")}
+                    accept={kind === "video" ? "video/*" : kind === "image" ? "image/*" : undefined}
                     file={file}
                     onFileChange={setFile}
                     required={!hasExistingFile}
                     currentFile={initial?.fileName}
                   />
+                  {lessonPartId && hasExistingFile ? <button type="button" disabled={pending} onClick={async () => { if (!confirm(labelFor(locale, "Ukloniti fajl iz ovog bloka?", "Remove the file from this block?"))) return; setPending(true); try { await removeLessonPartFile({ lessonPartId: lessonPartId as Id<"lessonParts"> }); setExistingFileRemoved(true); setIsPublished(false); setFile(null); router.refresh(); } catch (error) { setMessage(error instanceof Error ? error.message : "Uklanjanje nije uspelo."); } finally { setPending(false); } }} className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-red-700 bg-white px-4 text-xs font-black text-red-700"><Trash2 className="size-4" />{labelFor(locale, "Ukloni postojeći fajl", "Remove existing file")}</button> : null}
+                  </div>
                 )}
               </FormSection>
 
@@ -2657,26 +2767,51 @@ export function AddLessonPartAction({
             </div>
             <EntityPreview
               locale={locale}
-              title={titleSr || titleEn}
+              title={kind === "text" ? labelFor(locale, "Tekstualni blok", "Text block") : kind === "image" ? labelFor(locale, "Slika", "Image") : kind === "video" ? "Video" : labelFor(locale, "Fajl", "File")}
               subtitle={kind === "text" ? bodySr || bodyEn : file?.name || initial?.fileName}
               status={isPublished ? labelFor(locale, "Objavljeno", "Published") : labelFor(locale, "Nacrt", "Draft")}
               meta={effectiveParentPartId ? labelFor(locale, "Poddeo", "Subpart") : kind}
-              emptyLabel={labelFor(locale, "Novi deo", "New part")}
+              emptyLabel={labelFor(locale, "Novi blok", "New block")}
             />
           </div>
           <ComposerFooter
             pending={pending}
-            submitLabel={isEditing ? labelFor(locale, "Sacuvaj deo", "Save part") : labelFor(locale, "Dodaj deo", "Add part")}
+            submitLabel={isEditing ? labelFor(locale, "Sačuvaj blok", "Save block") : labelFor(locale, "Dodaj blok", "Add block")}
             message={message}
           />
         </form>
+        <AnimatePresence>
+          {fileDragging ? (
+            <motion.div
+              className="pointer-events-none fixed inset-0 z-[80] flex items-center justify-center bg-ink/45 p-4 backdrop-blur-[3px]"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <div className="absolute inset-4 rounded-[28px] border-[3px] border-dashed border-yellow" />
+              <div className="relative max-w-sm rounded-[16px] border-2 border-ink bg-white p-6 text-center shadow-[8px_8px_0_rgba(244,190,48,0.85)]">
+                <UploadCloud className="mx-auto size-9" />
+                <p className="mt-3 text-lg font-black">
+                  {kind === "video"
+                    ? labelFor(locale, "Pusti video bilo gde", "Drop the video anywhere")
+                    : kind === "image"
+                      ? labelFor(locale, "Pusti sliku bilo gde", "Drop the image anywhere")
+                    : labelFor(locale, "Pusti fajl bilo gde", "Drop the file anywhere")}
+                </p>
+                <p className="mt-2 text-sm font-bold text-muted">
+                  {labelFor(locale, "Fajl će biti dodat ovom Light bloku.", "The file will be attached to this Light block.")}
+                </p>
+              </div>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
       </AdminComposerSheet>
     </>
   );
 }
 
 export function EditLessonPartAction(props: Omit<Parameters<typeof AddLessonPartAction>[0], "buttonLabel">) {
-  return <AddLessonPartAction {...props} buttonLabel={labelFor(props.locale, "Izmeni deo", "Edit part")} />;
+  return <AddLessonPartAction {...props} buttonLabel={labelFor(props.locale, "Izmeni blok", "Edit block")} />;
 }
 
 export function AddAssetAction({
@@ -2696,6 +2831,7 @@ export function AddAssetAction({
   const [open, setOpen] = useState(false);
   const [titleSr, setTitleSr] = useState("");
   const [titleEn, setTitleEn] = useState("");
+  const [contentLocale, setContentLocale] = useState<Locale>(locale);
   const [kind, setKind] = useState<AssetKind>("pdf");
   const [file, setFile] = useState<File | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -2704,6 +2840,10 @@ export function AddAssetAction({
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (!courseId || !lessonId || !file) return;
+    if (!titleSr.trim() || !titleEn.trim()) {
+      setMessage(labelFor(locale, "Popuni naziv materijala na SR i EN.", "Complete the material name in SR and EN."));
+      return;
+    }
     setPending(true);
     setMessage(null);
     try {
@@ -2729,7 +2869,7 @@ export function AddAssetAction({
         courseId: courseId as Id<"courses">,
         lessonId: lessonId as Id<"lessons">,
         titleSr,
-        titleEn: titleEn || titleSr,
+        titleEn,
         kind,
         storageId,
         fileName: file.name,
@@ -2764,12 +2904,10 @@ export function AddAssetAction({
                 title={labelFor(locale, "Naziv materijala", "Material name")}
                 body={labelFor(locale, "Materijali stoje uz lekciju kao PDF, prompt, worksheet ili projekat.", "Materials sit next to the lesson as PDFs, prompts, worksheets, or projects.")}
               >
-                <div className="grid gap-4 md:grid-cols-2">
-                  <Field label="Naziv SR">
-                    <input className={inputClass} value={titleSr} onChange={(event) => setTitleSr(event.target.value)} required />
-                  </Field>
-                  <Field label="Title EN">
-                    <input className={inputClass} value={titleEn} onChange={(event) => setTitleEn(event.target.value)} />
+                <div className="space-y-3">
+                  <LocalizedPairSwitch locale={contentLocale} onChange={setContentLocale} sr={titleSr} en={titleEn} />
+                  <Field label={contentLocale === "sr" ? "Naziv materijala" : "Material name"}>
+                    <input className={inputClass} value={contentLocale === "sr" ? titleSr : titleEn} onChange={(event) => contentLocale === "sr" ? setTitleSr(event.target.value) : setTitleEn(event.target.value)} required />
                   </Field>
                 </div>
                 <div className="mt-4">

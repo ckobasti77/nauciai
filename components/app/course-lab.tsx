@@ -23,6 +23,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { InlineContentText } from "@/components/app/inline-content";
 import { cn } from "@/components/ui/primitives";
 import type { Course, Lesson } from "@/lib/content";
 import { localized, type Locale, withLocale } from "@/lib/i18n";
@@ -101,6 +102,7 @@ type AiMessage = {
 
 export type LessonLabData = {
   isAdmin?: boolean;
+  canUsePro?: boolean;
   activeConversation?: {
     _id: Id<"aiConversations">;
     model: string;
@@ -190,12 +192,16 @@ export function CourseLab({
   locale,
   lab,
   lessonId,
+  inlineEdit = false,
+  inlineLocale = locale,
 }: {
   course: Course;
   lesson: Lesson;
   locale: Locale;
   lab: LessonLabData;
   lessonId: Id<"lessons">;
+  inlineEdit?: boolean;
+  inlineLocale?: Locale;
 }) {
   const markTaskProgress = useMutation(api.lab.markTaskProgress);
   const markStepProgress = useMutation(api.lab.markStepProgress);
@@ -213,7 +219,21 @@ export function CourseLab({
   const [selectedTaskId, setSelectedTaskId] = useState<Id<"lessonTasks"> | undefined>(firstOpenTask?._id);
   const selectedTask = sortedTasks.find((task) => task._id === selectedTaskId) ?? firstOpenTask;
   const [activeMobileTab, setActiveMobileTab] = useState<"lesson" | "ai" | "output">("lesson");
-  const [modelOptions, setModelOptions] = useState<string[]>(["gpt-4.1"]);
+  const modelOptions = [
+    "Gemini Omni",
+    "Gemini Veo",
+    "Kling 3.0",
+    "Kling 3.0 Motion Effects",
+    "Seedance 1.5",
+    "Seedance 2.0",
+    "ChatGPT Image",
+    "Nano Banana Pro",
+    "Nano Banana 2",
+    "Nano Banana 2 Lite",
+    "Seedream 5.0",
+    "gpt-4.1",
+  ];
+  const unconnectedModels = new Set(modelOptions.filter((model) => model !== "gpt-4.1"));
   const [selectedModel, setSelectedModel] = useState(lab.activeConversation?.model ?? "gpt-4.1");
   const [colWidths, setColWidths] = useState<number[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>(
@@ -235,18 +255,6 @@ export function CourseLab({
   const [isSavingOutput, setIsSavingOutput] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
-
-  useEffect(() => {
-    fetch("/api/ai/course-chat")
-      .then((response) => (response.ok ? response.json() : null))
-      .then((payload) => {
-        if (payload?.models?.length) {
-          setModelOptions(payload.models);
-          setSelectedModel(payload.defaultModel ?? payload.models[0]);
-        }
-      })
-      .catch(() => null);
-  }, []);
 
   useEffect(() => {
     if (!activeStep) return;
@@ -346,6 +354,10 @@ export function CourseLab({
   async function sendMessage() {
     if (!composer.trim() || !activeStep) return;
     const content = composer.trim();
+    if (unconnectedModels.has(selectedModel)) {
+      setStatusMessage(labelFor(locale, "Integracija ovog modela uskoro.", "This model integration is coming soon."));
+      return;
+    }
     setComposer("");
     setIsSending(true);
     setStatusMessage(null);
@@ -415,7 +427,16 @@ export function CourseLab({
 
 
   if (!activeStep) {
-    return null;
+    return (
+      <div className="grid min-h-[560px] place-items-center rounded-[8px] border-2 border-ink bg-paper p-8 text-center">
+        <div className="max-w-md">
+          <Sparkles className="mx-auto size-10 text-ink" />
+          <h2 className="mt-4 text-2xl font-black text-ink">{labelFor(locale, "Pro prikaz je spreman", "Pro view is ready")}</h2>
+          <p className="mt-2 text-sm font-bold leading-6 text-muted">{labelFor(locale, "Dodaj prvi korak i zadatak u Pro editoru da bi se troslojni harness pojavio.", "Add the first step and task in the Pro editor to populate the three-column harness.")}</p>
+          {lab.isAdmin && !inlineEdit ? <Link href={withLocale(locale, `/app/courses/${course.slug}/lessons/${lesson.slug}/edit`)} className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black">{labelFor(locale, "Otvori Pro editor", "Open Pro editor")}</Link> : null}
+        </div>
+      </div>
+    );
   }
 
   const tabButton = (tab: "lesson" | "ai" | "output", label: string) => (
@@ -447,7 +468,7 @@ export function CourseLab({
           <h1 className="truncate text-xl font-black text-ink">{localized(lesson.title, locale)}</h1>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {lab.isAdmin ? (
+          {lab.isAdmin && !inlineEdit ? (
             <Link
               href={withLocale(locale, `/app/courses/${course.slug}/lessons/${lesson.slug}/edit`)}
               className="rounded-[8px] border-2 border-ink bg-white px-3 py-2 text-xs font-black text-ink hover:bg-yellow inline-flex items-center gap-1.5"
@@ -489,10 +510,14 @@ export function CourseLab({
                   <div className="max-h-full overflow-y-auto p-5 select-text">
                     <p className="text-xs font-black uppercase text-muted">{labelFor(locale, "Lekcija", "Lesson")}</p>
                     <h2 className="mt-2 text-3xl font-black leading-tight text-ink">
-                      {localText(locale, activeStep.titleSr, activeStep.titleEn)}
+                      <InlineContentText entityId={activeStep._id} parentId={lessonId} kind="step" field="title" locale={inlineLocale} sr={activeStep.titleSr} en={activeStep.titleEn} admin={inlineEdit}>
+                        {localText(locale, activeStep.titleSr, activeStep.titleEn)}
+                      </InlineContentText>
                     </h2>
                     <p className="mt-4 whitespace-pre-wrap text-base leading-8 text-muted">
-                      {localText(locale, activeStep.bodySr, activeStep.bodyEn)}
+                      <InlineContentText entityId={activeStep._id} parentId={lessonId} kind="step" field="body" locale={inlineLocale} sr={activeStep.bodySr} en={activeStep.bodyEn} admin={inlineEdit} multiline>
+                        {localText(locale, activeStep.bodySr, activeStep.bodyEn)}
+                      </InlineContentText>
                     </p>
 
                     {activeStep.prompts && (activeStep.prompts as QuickPrompt[]).length > 0 && (
@@ -502,7 +527,9 @@ export function CourseLab({
                         </p>
                         <div className="flex flex-wrap gap-2">
                           {(activeStep.prompts as QuickPrompt[]).map((prompt, pIdx) => (
-                            <QuickPromptButton key={`qp-${pIdx}`} prompt={prompt} locale={locale} setComposer={setComposer} />
+                            <InlineContentText key={`qp-${pIdx}`} entityId={activeStep._id} parentId={lessonId} kind="step" field="promptLabel" promptIndex={pIdx} locale={inlineLocale} sr={prompt.labelSr} en={prompt.labelEn} admin={inlineEdit}>
+                              <QuickPromptButton prompt={prompt} locale={locale} setComposer={setComposer} />
+                            </InlineContentText>
                           ))}
                         </div>
                       </div>
@@ -537,7 +564,9 @@ export function CourseLab({
                                     {task.required ? " *" : ""}
                                   </p>
                                   <p className="mt-1 text-sm font-bold leading-6 text-ink">
-                                    {localText(locale, task.promptSr, task.promptEn)}
+                                    <InlineContentText entityId={task._id} parentId={activeStep._id} kind="task" field="prompt" locale={inlineLocale} sr={task.promptSr} en={task.promptEn} admin={inlineEdit} multiline>
+                                      {localText(locale, task.promptSr, task.promptEn)}
+                                    </InlineContentText>
                                   </p>
                                 </div>
                               </div>
@@ -549,7 +578,9 @@ export function CourseLab({
                         <details className="mt-4 rounded-[8px] border-2 border-ink bg-yellow/40 p-3">
                           <summary className="cursor-pointer text-sm font-black text-ink">{labelFor(locale, "Stuck? Otvori hint", "Stuck? Open hint")}</summary>
                           <p className="mt-3 text-sm font-bold leading-6 text-muted">
-                            {localText(locale, selectedTask.hintSr ?? "", selectedTask.hintEn ?? "")}
+                            <InlineContentText entityId={selectedTask._id} parentId={activeStep._id} kind="task" field="hint" locale={inlineLocale} sr={selectedTask.hintSr ?? ""} en={selectedTask.hintEn ?? ""} admin={inlineEdit} multiline>
+                              {localText(locale, selectedTask.hintSr ?? "", selectedTask.hintEn ?? "")}
+                            </InlineContentText>
                           </p>
                         </details>
                       ) : null}
@@ -579,11 +610,12 @@ export function CourseLab({
                         >
                           {modelOptions.map((model) => (
                             <option key={model} value={model}>
-                              {model}
+                              {model}{unconnectedModels.has(model) ? " — Uskoro" : " — Povezan"}
                             </option>
                           ))}
                         </select>
                       </div>
+                      {unconnectedModels.has(selectedModel) ? <p className="mt-2 text-xs font-black text-muted">{labelFor(locale, "Model je prikazan za pregled. Integracija uskoro.", "Model is shown for preview. Integration coming soon.")}</p> : null}
                       <div className="mt-4 rounded-[8px] border-2 border-line bg-paper p-3">
                         <p className="text-xs font-black uppercase text-muted">{labelFor(locale, "Trenutni zadatak", "Current task")}</p>
                         <p className="mt-1 text-sm font-bold leading-6 text-ink">

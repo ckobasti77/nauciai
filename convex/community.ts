@@ -3,6 +3,7 @@ import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 
 import type { Doc, Id } from "./_generated/dataModel";
+import { resolvedProfileAvatarUrl } from "./avatar";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import {
   communityScopeValidator,
@@ -86,11 +87,7 @@ const studentRankFor = async (
 };
 
 const profileAvatarUrl = async (ctx: QueryCtx, profile: Doc<"profiles"> | null) => {
-  if (!profile) return undefined;
-  if (profile.avatarStorageId) {
-    return (await ctx.storage.getUrl(profile.avatarStorageId)) ?? profile.avatarUrl;
-  }
-  return profile.avatarUrl;
+  return resolvedProfileAvatarUrl(ctx, profile);
 };
 
 async function publicCommunityIdentity(ctx: QueryCtx, userId: Id<"users">) {

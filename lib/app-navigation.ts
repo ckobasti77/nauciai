@@ -11,8 +11,9 @@ export type AppLessonPartNav = {
   parentPartId?: string;
   slug: string;
   title: LocalizedText;
-  kind: "text" | "video" | "file";
+  kind: "text" | "image" | "video" | "file";
   body?: LocalizedText;
+  bodyRich?: LocalizedText;
   fileName?: string;
   isPublished: boolean;
   sortOrder: number;
@@ -23,6 +24,7 @@ export type AppLessonNav = {
   slug: string;
   title: LocalizedText;
   summary: LocalizedText;
+  summaryRich?: LocalizedText;
   duration: string;
   durationSeconds?: number;
   isPublished: boolean;
@@ -43,14 +45,19 @@ export type AppModuleNav = {
 
 export type AppCourseNav = {
   id?: string;
+  trackId?: string;
+  trackSlug?: string;
+  trackTitle?: LocalizedText;
   slug: string;
   title: LocalizedText;
   subtitle: LocalizedText;
   description: LocalizedText;
+  descriptionRich?: LocalizedText;
   status: "draft" | "published" | "archived";
   priceLabel: LocalizedText;
   stripePriceId?: string;
   videoUrl?: string | null;
+  coverUrl?: string | null;
   videoFileName?: string;
   videoByteSize?: number;
   videoMimeType?: string;
@@ -73,6 +80,10 @@ type LiveNavigationResult = {
   } | null;
   courses?: Array<{
     _id?: string;
+    trackId?: string;
+    trackSlug?: string;
+    trackTitleSr?: string;
+    trackTitleEn?: string;
     slug: string;
     titleSr: string;
     titleEn: string;
@@ -80,9 +91,12 @@ type LiveNavigationResult = {
     subtitleEn: string;
     descriptionSr: string;
     descriptionEn: string;
+    descriptionRichSr?: string;
+    descriptionRichEn?: string;
     status: "draft" | "published" | "archived";
     stripePriceId?: string;
     videoUrl?: string | null;
+    coverUrl?: string | null;
     videoFileName?: string;
     videoByteSize?: number;
     videoMimeType?: string;
@@ -107,6 +121,8 @@ type LiveNavigationResult = {
         titleEn: string;
         summarySr: string;
         summaryEn: string;
+        summaryRichSr?: string;
+        summaryRichEn?: string;
         durationSeconds: number;
         isPublished: boolean;
         sortOrder: number;
@@ -116,9 +132,11 @@ type LiveNavigationResult = {
           slug: string;
           titleSr: string;
           titleEn: string;
-          kind: "text" | "video" | "file";
+          kind: "text" | "image" | "video" | "file";
           bodySr?: string;
           bodyEn?: string;
+          bodyRichSr?: string;
+          bodyRichEn?: string;
           fileName?: string;
           isPublished: boolean;
           sortOrder: number;
@@ -213,6 +231,9 @@ export async function getAppNavigationData(locale: Locale): Promise<AppNavigatio
       const fallback = fallbackCourse(course.slug);
       return {
         id: course._id,
+        trackId: course.trackId,
+        trackSlug: course.trackSlug,
+        trackTitle: course.trackTitleSr || course.trackTitleEn ? { sr: course.trackTitleSr ?? course.trackTitleEn ?? "", en: course.trackTitleEn ?? course.trackTitleSr ?? "" } : undefined,
         slug: course.slug,
         title: {
           sr: course.titleSr,
@@ -226,6 +247,7 @@ export async function getAppNavigationData(locale: Locale): Promise<AppNavigatio
           sr: course.descriptionSr,
           en: course.descriptionEn,
         },
+        descriptionRich: course.descriptionRichSr || course.descriptionRichEn ? { sr: course.descriptionRichSr ?? "", en: course.descriptionRichEn ?? "" } : undefined,
         status: course.status,
         priceLabel: fallback?.priceLabel ?? {
           sr: "Uskoro",
@@ -233,6 +255,7 @@ export async function getAppNavigationData(locale: Locale): Promise<AppNavigatio
         },
         stripePriceId: course.stripePriceId,
         videoUrl: course.videoUrl,
+        coverUrl: course.coverUrl,
         videoFileName: course.videoFileName,
         videoByteSize: course.videoByteSize,
         videoMimeType: course.videoMimeType,
@@ -273,6 +296,7 @@ export async function getAppNavigationData(locale: Locale): Promise<AppNavigatio
               sr: lesson.summarySr,
               en: lesson.summaryEn,
             },
+            summaryRich: lesson.summaryRichSr || lesson.summaryRichEn ? { sr: lesson.summaryRichSr ?? "", en: lesson.summaryRichEn ?? "" } : undefined,
             duration: durationLabel(lesson.durationSeconds, locale),
             durationSeconds: lesson.durationSeconds,
             isPublished: lesson.isPublished,
@@ -293,6 +317,7 @@ export async function getAppNavigationData(locale: Locale): Promise<AppNavigatio
                       en: part.bodyEn ?? part.bodySr ?? "",
                     }
                   : undefined,
+              bodyRich: part.bodyRichSr || part.bodyRichEn ? { sr: part.bodyRichSr ?? "", en: part.bodyRichEn ?? "" } : undefined,
               fileName: part.fileName,
               isPublished: part.isPublished,
               sortOrder: part.sortOrder,

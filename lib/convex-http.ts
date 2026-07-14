@@ -34,6 +34,7 @@ export const convexQueries = {
   getCourseBySlug: makeFunctionReference<"query">("courses:getCourseBySlug"),
   getPublishedCourseOutline: makeFunctionReference<"query">("courses:getPublishedCourseOutline"),
   getLessonForStudent: makeFunctionReference<"query">("courses:getLessonForStudent"),
+  getTrackPage: makeFunctionReference<"query">("contentHierarchy:getTrackPage"),
   getPostDetail: makeFunctionReference<"query">("community:getPostDetail"),
   getPublicPostForSeo: makeFunctionReference<"query">("community:getPublicPostForSeo"),
   listPublicRootCommentsPage: makeFunctionReference<"query">("community:listPublicRootCommentsPage"),

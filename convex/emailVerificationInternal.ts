@@ -26,9 +26,9 @@ export const getPasswordSetupState = internalQuery({
     const hasGoogle = accounts.some((account) => account.provider === "google");
     const isGoogleOnly = hasGoogle && !hasPassword;
     const email = normalizeEmail(user.email);
-    const emailVerifiedForPassword = isGoogleOnly
-      ? Boolean(user.passwordEmailVerificationTime)
-      : Boolean(user.passwordEmailVerificationTime || user.emailVerificationTime);
+    const emailVerifiedForCourses = isGoogleOnly
+      ? Boolean(user.appEmailVerificationTime || user.passwordEmailVerificationTime)
+      : Boolean(user.appEmailVerificationTime || user.passwordEmailVerificationTime || user.emailVerificationTime);
 
     return {
       email,
@@ -37,7 +37,8 @@ export const getPasswordSetupState = internalQuery({
       hasPassword,
       hasGoogle,
       isGoogleOnly,
-      emailVerifiedForPassword,
+      emailVerifiedForCourses,
+      emailVerifiedForPassword: emailVerifiedForCourses,
     };
   },
 });
@@ -113,6 +114,7 @@ export const consumeRequest = internalMutation({
     await ctx.db.patch(user._id, {
       emailVerificationTime: user.emailVerificationTime ?? args.now,
       passwordEmailVerificationTime: args.now,
+      appEmailVerificationTime: args.now,
     });
 
     const accounts = await ctx.db

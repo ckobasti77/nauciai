@@ -45,6 +45,8 @@ import {
   EditLessonAction,
   EditModuleAction,
 } from "@/components/app/admin-inline-actions";
+import { InlineContentText } from "@/components/app/inline-content";
+import { InlineRichText } from "@/components/app/rich-text";
 import { CheckoutButton } from "@/components/app/checkout-button";
 import { LinkButton, Panel, cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
@@ -57,6 +59,7 @@ export type DashboardLesson = {
   slug: string;
   title: LocalizedText;
   summary?: LocalizedText;
+  summaryRich?: LocalizedText;
   duration: string;
   durationSeconds?: number;
   isPublished?: boolean;
@@ -81,14 +84,17 @@ export type DashboardModule = {
 
 export type DashboardCourse = {
   id?: string;
+  trackId?: string;
   slug: string;
   title: LocalizedText;
   subtitle: LocalizedText;
   description: LocalizedText;
+  descriptionRich?: LocalizedText;
   image?: {
     src: string;
     alt: LocalizedText;
   };
+  coverUrl?: string | null;
   status: "draft" | "published" | "archived";
   hasAccess: boolean;
   stripePriceId?: string;
@@ -98,6 +104,14 @@ export type DashboardCourse = {
   videoMimeType?: string;
   videoUpdatedAt?: number;
   sortOrder?: number;
+  pageCopy?: {
+    primaryCta?: LocalizedText;
+    communityCta?: LocalizedText;
+    continueCta?: LocalizedText;
+    sectionEyebrow?: LocalizedText;
+    sectionTitle?: LocalizedText;
+    sectionDescription?: LocalizedText;
+  };
   progress?: {
     totalLessons: number;
     completedLessons: number;
@@ -332,6 +346,33 @@ function DashboardVideoPlayer({ videoUrl, title }: { videoUrl: string; title: st
       preload="metadata"
     />
   );
+}
+
+function CourseCoverEditor({ locale, course }: { locale: Locale; course: DashboardCourse }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
+  const generateUploadUrl = useMutation(api.video.createDocumentUploadUrl);
+  const saveCover = useMutation(api.video.saveCourseCover);
+  const deleteCover = useMutation(api.video.deleteCourseCover);
+  const [pending, setPending] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+
+  async function upload(file: File) {
+    if (!course.id || !file.type.startsWith("image/")) { setMessage(labelFor(locale, "Izaberi sliku.", "Choose an image.")); return; }
+    setPending(true); setMessage(null);
+    try {
+      const uploadUrl = await generateUploadUrl();
+      const response = await fetch(uploadUrl, { method: "POST", headers: { "Content-Type": file.type }, body: file });
+      if (!response.ok) throw new Error(labelFor(locale, "Upload slike nije uspeo.", "Image upload failed."));
+      const { storageId } = await response.json() as { storageId: Id<"_storage"> };
+      await saveCover({ courseId: course.id as Id<"courses">, storageId, fileName: file.name, byteSize: file.size, mimeType: file.type });
+      router.refresh();
+    } catch (error) { setMessage(error instanceof Error ? error.message : labelFor(locale, "Upload nije uspeo.", "Upload failed.")); }
+    finally { setPending(false); }
+  }
+
+  const preview = course.coverUrl || course.image?.src;
+  return <Panel className="dashboard-reveal p-4 sm:p-5"><div className="flex flex-col gap-4 lg:flex-row lg:items-center"><div className="relative aspect-video w-full overflow-hidden rounded-[8px] border-2 border-ink bg-paper lg:w-80">{preview ? <Image src={preview} alt={localized(course.title, locale)} fill unoptimized className="object-cover" /> : <div className="grid h-full place-items-center text-sm font-black text-muted">Naslovna slika nije dodata</div>}</div><div className="flex-1"><p className="font-display text-2xl text-ink">Naslovna slika kursa</p><p className="mt-1 text-sm font-bold text-muted">Koristi se na dashboard kartici i stranici smera.</p><input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file); event.target.value = ""; }} /><div className="mt-4 flex flex-wrap gap-2"><button type="button" disabled={pending} onClick={() => inputRef.current?.click()} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-xs font-black">{pending ? <Loader2 className="size-4 animate-spin" /> : <ImageIcon className="size-4" />}{course.coverUrl ? "Zameni sliku" : "Dodaj sliku"}</button>{course.coverUrl ? <button type="button" disabled={pending} onClick={async () => { if (!course.id || !confirm("Ukloniti naslovnu sliku kursa?")) return; setPending(true); try { await deleteCover({ courseId: course.id as Id<"courses"> }); router.refresh(); } finally { setPending(false); } }} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-red-700 bg-white px-4 text-xs font-black text-red-700"><Trash2 className="size-4" />Ukloni</button> : null}</div>{message ? <p className="mt-3 text-sm font-black text-red-700">{message}</p> : null}</div></div></Panel>;
 }
 
 function CourseVideoSection({ locale, isAdmin, course }: { locale: Locale; isAdmin: boolean; course: DashboardCourse }) {
@@ -860,6 +901,7 @@ function CycleCard({
                             slug: lesson.slug,
                             title: lesson.title,
                             summary: lesson.summary ?? { sr: "", en: "" },
+                            summaryRich: lesson.summaryRich,
                             durationSeconds: lesson.durationSeconds,
                             isPublished: lesson.isPublished ?? true,
                             sortOrder: lesson.sortOrder ?? lessonIndex * 10,
@@ -1035,11 +1077,12 @@ function DailyLessonsChart({ locale, activity, startedAt }: { locale: Locale; ac
 }
 
 function CourseCover({ course, locale }: { course: DashboardCourse; locale: Locale }) {
-  if (course.image?.src) {
+  const imageSrc = course.coverUrl || course.image?.src;
+  if (imageSrc) {
     return (
       <Image
-        src={course.image.src}
-        alt={localized(course.image.alt, locale)}
+        src={imageSrc}
+        alt={course.image ? localized(course.image.alt, locale) : localized(course.title, locale)}
         fill
         sizes="(min-width: 1024px) 50vw, 100vw"
         unoptimized
@@ -1060,7 +1103,7 @@ function CourseCover({ course, locale }: { course: DashboardCourse; locale: Loca
   );
 }
 
-function DashboardCourseCard({
+export function DashboardCourseCard({
   locale,
   course,
   isAdmin,
@@ -1295,8 +1338,8 @@ export function DashboardContent({
   profile,
   course,
   isAdmin = false,
-  newLessonModuleId,
-  editModuleId,
+  inlineLocale = locale,
+  inlinePreview = false,
 }: {
   locale: Locale;
   profile?: ViewerProfile;
@@ -1304,6 +1347,8 @@ export function DashboardContent({
   isAdmin?: boolean;
   newLessonModuleId?: string;
   editModuleId?: string;
+  inlineLocale?: Locale;
+  inlinePreview?: boolean;
 }) {
   const shouldReduceMotion = useReducedMotion();
   const t = dictionary[locale];
@@ -1319,9 +1364,10 @@ export function DashboardContent({
   const nextLesson = progressSummary.nextLesson ?? firstLesson;
   const profileName = profile?.name ?? "Student";
   const courseIsPublished = course.status === "published";
-  const canOpenCheckout = courseIsPublished && !course.hasAccess && !isAdmin;
-  const canContinue = Boolean(nextLesson && (course.hasAccess || isAdmin));
-  const completionPercent = isAdmin ? 100 : progressSummary.percent;
+  const surfaceIsAdmin = isAdmin && !inlinePreview;
+  const canOpenCheckout = courseIsPublished && !course.hasAccess && !surfaceIsAdmin;
+  const canContinue = Boolean(nextLesson && (course.hasAccess || surfaceIsAdmin));
+  const completionPercent = surfaceIsAdmin ? 100 : progressSummary.percent;
 
   return (
     <div className="space-y-6">
@@ -1331,14 +1377,14 @@ export function DashboardContent({
             <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-2 rounded-[8px] border-2 border-ink bg-yellow px-3 py-1 text-xs font-black text-ink">
                 <ShieldCheck className="size-4" />
-                {statusCopy(locale, course, isAdmin)}
+                {statusCopy(locale, course, surfaceIsAdmin)}
               </span>
-              {isAdmin && draftLessons ? (
+              {surfaceIsAdmin && draftLessons ? (
                 <span className="rounded-[8px] border-2 border-ink bg-paper px-3 py-1 text-xs font-black text-ink">
                   {draftLessons} {labelFor(locale, "nacrta", "drafts")}
                 </span>
               ) : null}
-              {isAdmin && course.id ? (
+              {surfaceIsAdmin && course.id ? (
                 <EditCourseAction
                   locale={locale}
                   courseId={course.id}
@@ -1347,6 +1393,7 @@ export function DashboardContent({
                     title: course.title,
                     subtitle: course.subtitle,
                     description: course.description,
+                    descriptionRich: course.descriptionRich,
                     status: course.status,
                     stripePriceId: course.stripePriceId,
                     videoUrl: course.videoUrl,
@@ -1365,19 +1412,17 @@ export function DashboardContent({
               {locale === "sr" ? `Zdravo, ${profileName}` : `Hi, ${profileName}`}
             </p>
             <h1 className="mt-2 max-w-4xl text-4xl font-black leading-tight text-ink sm:text-5xl">
-              {localized(course.title, locale)}
+              <InlineContentText entityId={course.id ?? ""} parentId={course.trackId} kind="course" field="title" locale={inlineLocale} sr={course.title.sr} en={course.title.en} admin={isAdmin && Boolean(course.id && course.trackId)}>{localized(course.title, locale)}</InlineContentText>
             </h1>
             <p className="mt-3 max-w-3xl text-lg font-black leading-7 text-ink/75">
-              {localized(course.subtitle, locale)}
+              <InlineContentText entityId={course.id ?? ""} parentId={course.trackId} kind="course" field="subtitle" locale={inlineLocale} sr={course.subtitle.sr} en={course.subtitle.en} admin={isAdmin && Boolean(course.id && course.trackId)}>{localized(course.subtitle, locale)}</InlineContentText>
             </p>
-            <p className="mt-4 max-w-3xl text-base font-bold leading-7 text-muted sm:text-lg">
-              {localized(course.description, locale)}
-            </p>
+            <InlineRichText kind="course" entityId={course.id ?? ""} parentId={course.trackId} field="description" locale={inlineLocale} richSr={course.descriptionRich?.sr} richEn={course.descriptionRich?.en} sr={course.description.sr} en={course.description.en} admin={isAdmin && Boolean(course.id && course.trackId)} className="mt-4 max-w-3xl text-base font-bold leading-7 text-muted sm:text-lg" />
             <div className="mt-6 flex flex-wrap gap-3">
               {canContinue && nextLesson ? (
                 <LinkButton href={courseContinueHref(locale, course, nextLesson)} tone="yellow">
                   <PlayCircle className="size-4" />
-                  {t.continueLesson}
+                  <InlineContentText entityId={course.id ?? ""} parentId={course.trackId} kind="course" field="pageCopy_continueCta" locale={inlineLocale} sr={course.pageCopy?.continueCta?.sr ?? t.continueLesson} en={course.pageCopy?.continueCta?.en ?? t.continueLesson} admin={isAdmin && Boolean(course.id && course.trackId)}>{locale === "sr" ? course.pageCopy?.continueCta?.sr ?? t.continueLesson : course.pageCopy?.continueCta?.en ?? t.continueLesson}</InlineContentText>
                 </LinkButton>
               ) : canOpenCheckout ? (
                 <CheckoutButton courseSlug={course.slug} locale={locale} label={t.checkout} />
@@ -1391,7 +1436,7 @@ export function DashboardContent({
               )}
               <LinkButton href={withLocale(locale, `/app/community?course=${course.slug}`)} tone="paper">
                 <MessageCircle className="size-4" />
-                {t.community}
+                <InlineContentText entityId={course.id ?? ""} parentId={course.trackId} kind="course" field="pageCopy_communityCta" locale={inlineLocale} sr={course.pageCopy?.communityCta?.sr ?? t.community} en={course.pageCopy?.communityCta?.en ?? t.community} admin={isAdmin && Boolean(course.id && course.trackId)}>{locale === "sr" ? course.pageCopy?.communityCta?.sr ?? t.community : course.pageCopy?.communityCta?.en ?? t.community}</InlineContentText>
               </LinkButton>
             </div>
           </div>
@@ -1399,7 +1444,7 @@ export function DashboardContent({
             <div className="flex h-full flex-col justify-between gap-4">
               <div>
                 <p className="text-sm font-black uppercase text-white/65">{labelFor(locale, "Pregled kursa", "Course overview")}</p>
-                <p className="mt-4 text-5xl font-black leading-none">{isAdmin ? "Admin" : `${completionPercent}%`}</p>
+                <p className="mt-4 text-5xl font-black leading-none">{surfaceIsAdmin ? "Admin" : `${completionPercent}%`}</p>
                 <div className="mt-5 h-3 overflow-hidden rounded-[8px] border-2 border-white bg-white/15">
                   <motion.div
                     className="h-full bg-yellow"
@@ -1410,7 +1455,7 @@ export function DashboardContent({
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <MetricTile icon={<Layers className="size-4" />} label={labelFor(locale, "Ciklusi", "Cycles")} value={`${modules.length}`} tone="ink" />
+                <MetricTile icon={<Layers className="size-4" />} label={labelFor(locale, "Struktura", "Structure")} value={labelFor(locale, "Kurs → lekcije", "Course → lessons")} tone="ink" />
                 <MetricTile icon={<BookOpen className="size-4" />} label={t.lessons} value={`${publishedLessons}/${lessons || 0}`} tone="ink" />
               </div>
             </div>
@@ -1418,7 +1463,8 @@ export function DashboardContent({
         </div>
       </section>
 
-      <CourseVideoSection locale={locale} isAdmin={isAdmin} course={course} />
+      {surfaceIsAdmin ? <CourseCoverEditor locale={locale} course={course} /> : null}
+      <CourseVideoSection locale={locale} isAdmin={surfaceIsAdmin} course={course} />
 
       <FeaturedThreadsSection locale={locale} course={course} />
 
@@ -1426,9 +1472,9 @@ export function DashboardContent({
         <div className="border-b-2 border-ink bg-white p-5 sm:p-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-xs font-black uppercase text-muted">{labelFor(locale, "Ciklusi u kursu", "Course cycles")}</p>
+              <p className="text-xs font-black uppercase text-muted"><InlineContentText entityId={course.id ?? ""} parentId={course.trackId} kind="course" field="pageCopy_sectionEyebrow" locale={inlineLocale} sr={course.pageCopy?.sectionEyebrow?.sr ?? "Lekcije u kursu"} en={course.pageCopy?.sectionEyebrow?.en ?? "Course lessons"} admin={isAdmin && Boolean(course.id && course.trackId)}>{locale === "sr" ? course.pageCopy?.sectionEyebrow?.sr ?? "Lekcije u kursu" : course.pageCopy?.sectionEyebrow?.en ?? "Course lessons"}</InlineContentText></p>
               <h2 className="mt-2 text-2xl font-black text-ink sm:text-3xl">
-                {labelFor(locale, "Nastavni tok", "Learning path")}
+                <InlineContentText entityId={course.id ?? ""} parentId={course.trackId} kind="course" field="pageCopy_sectionTitle" locale={inlineLocale} sr={course.pageCopy?.sectionTitle?.sr ?? "Nastavni tok"} en={course.pageCopy?.sectionTitle?.en ?? "Learning path"} admin={isAdmin && Boolean(course.id && course.trackId)}>{locale === "sr" ? course.pageCopy?.sectionTitle?.sr ?? "Nastavni tok" : course.pageCopy?.sectionTitle?.en ?? "Learning path"}</InlineContentText>
               </h2>
             </div>
             <span className="inline-flex w-fit items-center gap-2 rounded-[8px] border-2 border-ink bg-paper px-3 py-2 text-xs font-black text-ink">
@@ -1438,19 +1484,22 @@ export function DashboardContent({
           </div>
         </div>
         <div className="space-y-4 p-5 sm:p-6">
-          {modules.map((module, moduleIndex) => (
-            <CycleCard
-              key={module.id ?? `${localized(module.title, locale)}-${moduleIndex}`}
-              locale={locale}
-              course={course}
-              module={module}
-              moduleIndex={moduleIndex}
-              isAdmin={isAdmin}
-              initialOpenKey={newLessonModuleId}
-              editModuleId={editModuleId}
-            />
+          {modules.flatMap((module) => module.lessons).map((lesson, lessonIndex) => (
+            <details key={lesson.id ?? lesson.slug} className="group overflow-hidden rounded-[16px] border-2 border-ink bg-white" open={lessonIndex === 0}>
+              <summary className="flex min-h-16 cursor-pointer list-none items-center gap-4 px-4 py-3 focus-visible:outline focus-visible:outline-4 focus-visible:outline-yellow">
+                <span className="grid size-9 shrink-0 place-items-center rounded-full border-2 border-ink bg-yellow text-xs font-black">{lessonIndex + 1}</span>
+                <div className="min-w-0 flex-1"><p className="truncate text-base font-black text-ink"><InlineContentText entityId={lesson.id ?? ""} parentId={course.id} kind="lesson" field="title" locale={inlineLocale} sr={lesson.title.sr} en={lesson.title.en} admin={isAdmin && Boolean(lesson.id && course.id)}>{localized(lesson.title, locale)}</InlineContentText></p><p className="mt-0.5 text-xs font-bold text-muted">{lesson.duration}</p></div>
+                {surfaceIsAdmin && lesson.isPublished === false ? <span className="rounded-full border border-ink bg-paper px-2.5 py-1 text-[10px] font-black uppercase">Nacrt</span> : null}
+                <ChevronDown className="size-5 transition group-open:rotate-180" />
+              </summary>
+              <div className="border-t-2 border-line bg-paper px-4 py-4 sm:pl-[4.25rem]">
+                {lesson.summary ? <InlineRichText kind="lesson" entityId={lesson.id ?? ""} parentId={course.id} field="summary" locale={inlineLocale} richSr={lesson.summaryRich?.sr} richEn={lesson.summaryRich?.en} sr={lesson.summary.sr} en={lesson.summary.en} admin={isAdmin && Boolean(lesson.id && course.id)} className="max-w-3xl text-sm font-semibold leading-6 text-muted" /> : <p className="max-w-3xl text-sm font-semibold leading-6 text-muted">{labelFor(locale, "Sažetak lekcije još nije dodat.", "Lesson summary has not been added yet.")}</p>}
+                <div className="mt-4 flex flex-wrap gap-2"><Link href={courseContinueHref(locale, course, lesson)} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-xs font-black"><PlayCircle className="size-4" /> {labelFor(locale, "Otvori lekciju", "Open lesson")}</Link>{surfaceIsAdmin ? <Link href={withLocale(locale, "/app/admin")} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-white px-4 text-xs font-black"><ShieldCheck className="size-4" /> {labelFor(locale, "Uredi u admin panelu", "Edit in admin panel")}</Link> : null}</div>
+              </div>
+            </details>
           ))}
-          {isAdmin ? <AddCycleCard locale={locale} course={course} modules={modules} /> : null}
+          {!lessons ? <div className="rounded-[16px] border-2 border-dashed border-line bg-paper p-8 text-center text-sm font-black text-muted">{labelFor(locale, "Kurs još nema lekcije.", "This course has no lessons yet.")}</div> : null}
+          {surfaceIsAdmin ? <Link href={withLocale(locale, "/app/admin")} className="grid min-h-28 place-items-center rounded-[16px] border-2 border-dashed border-ink bg-paper text-center transition hover:bg-yellow/20"><span className="font-black">+ {labelFor(locale, "Dodaj novu lekciju", "Add a new lesson")}</span></Link> : null}
         </div>
       </Panel>
     </div>

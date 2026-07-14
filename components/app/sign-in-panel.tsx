@@ -72,7 +72,7 @@ function ConvexSignInForm({
   async function handlePassword(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const normalizedEmail = email.trim().toLowerCase();
-    const resetRedirectTo = `/${locale}/sign-in?mode=reset-confirm&email=${encodeURIComponent(normalizedEmail)}&next=${encodeURIComponent(redirectTo)}`;
+    const resetRedirectTo = `/${locale}/reset-password?email=${encodeURIComponent(normalizedEmail)}&next=${encodeURIComponent(redirectTo)}`;
 
     setPendingProvider("password");
     setMessage(null);
@@ -81,6 +81,7 @@ function ConvexSignInForm({
         await signIn("password", {
           flow: "reset",
           email: normalizedEmail,
+          locale,
           redirectTo: resetRedirectTo,
         });
         setMessage({
@@ -106,21 +107,21 @@ function ConvexSignInForm({
           throw new Error(labelFor(locale, "Lozinke se ne poklapaju.", "Passwords do not match."));
         }
 
-        await signIn("password", {
+        const result = await signIn("password", {
           flow: "reset-verification",
           email: normalizedEmail,
           code: resetCode,
           newPassword,
           redirectTo,
         });
+        if (result.redirect) {
+          window.location.href = result.redirect.toString();
+          return;
+        }
         setPassword("");
         setNewPassword("");
         setConfirmPassword("");
-        setFlow("signIn");
-        setMessage({
-          tone: "success",
-          text: labelFor(locale, "Lozinka je promenjena. Mozes da se prijavis.", "Password changed. You can sign in."),
-        });
+        window.location.href = redirectTo;
         return;
       }
 
@@ -147,6 +148,22 @@ function ConvexSignInForm({
       }
 
       const completionRedirect = `/${locale}/auth/complete?next=${encodeURIComponent(redirectTo)}`;
+      if (flow === "signIn") {
+        const result = await signIn("password-login", {
+          identifier: email.trim(),
+          password,
+          redirectTo: completionRedirect,
+        });
+        if (result.redirect) {
+          window.location.href = result.redirect.toString();
+          return;
+        }
+        if (result.signingIn) {
+          window.location.href = completionRedirect;
+          return;
+        }
+        throw new Error(labelFor(locale, "Pogrešno korisničko ime/email ili lozinka.", "Incorrect username/email or password."));
+      }
       const result = await signIn("password", {
         flow,
         email: normalizedEmail,
@@ -175,9 +192,24 @@ function ConvexSignInForm({
             : labelFor(locale, "Proveri email za nastavak prijave.", "Check your email to continue signing in."),
       });
     } catch (error) {
+      if (flow === "reset") {
+        setMessage({
+          tone: "success",
+          text: labelFor(
+            locale,
+            "Ako nalog postoji, poslali smo link za reset lozinke na email.",
+            "If the account exists, we sent a password reset link to that email.",
+          ),
+        });
+        return;
+      }
       setMessage({
         tone: "error",
-        text: error instanceof Error ? error.message : labelFor(locale, "Prijava nije uspela.", "Sign-in failed."),
+        text: flow === "signIn"
+          ? labelFor(locale, "Pogrešno korisničko ime/email ili lozinka.", "Incorrect username/email or password.")
+          : error instanceof Error
+            ? error.message
+            : labelFor(locale, "Prijava nije uspela.", "Sign-in failed."),
       });
     } finally {
       setPendingProvider(null);
@@ -256,15 +288,17 @@ function ConvexSignInForm({
       <form onSubmit={handlePassword} className="space-y-4">
         <div>
           <label htmlFor="email" className="text-sm font-black text-ink">
-            Email
+            {flow === "signIn" ? labelFor(locale, "Korisničko ime ili email", "Username or email") : "Email"}
           </label>
           <input
             id="email"
             name="email"
-            type="email"
+            type={flow === "signIn" ? "text" : "email"}
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             required
+            autoComplete={flow === "signIn" ? "username" : "email"}
+            placeholder={flow === "signIn" ? labelFor(locale, "@username ili ime@email.com", "@username or name@email.com") : undefined}
             className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-white px-4 text-base font-bold text-ink outline-none focus:border-yellow"
           />
         </div>

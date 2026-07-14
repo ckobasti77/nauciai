@@ -3,7 +3,7 @@
 import { convexTest } from "convex-test";
 import { expect, test } from "vitest";
 
-import { internal } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -75,6 +75,7 @@ test("email verification tokens are replaced, rate limited, and consumed once", 
   expect(setupState).toMatchObject({
     isGoogleOnly: true,
     hasPassword: false,
+    emailVerifiedForCourses: true,
     emailVerifiedForPassword: true,
   });
 });
@@ -113,4 +114,39 @@ test("expired tokens and email changes cannot verify an account", async () => {
       now: baseTime + 62_000,
     }),
   ).resolves.toEqual({ status: "email_changed" });
+});
+
+test("a verified Google user can attach a password to the existing account", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await seedGoogleUser(t);
+  await t.run(async (ctx) => {
+    await ctx.db.patch(userId, {
+      emailVerificationTime: 3_000_000,
+      appEmailVerificationTime: 3_000_000,
+      passwordEmailVerificationTime: 3_000_000,
+    });
+  });
+
+  const asUser = t.withIdentity({
+    subject: userId,
+    tokenIdentifier: `test|${userId}`,
+  });
+  await expect(
+    asUser.action(api.auth.setViewerPassword, { password: "StrongPass1!" }),
+  ).resolves.toEqual({ hasPassword: true });
+
+  const passwordAccount = await t.run(async (ctx) =>
+    ctx.db
+      .query("authAccounts")
+      .withIndex("providerAndAccountId", (q) =>
+        q.eq("provider", "password").eq("providerAccountId", "verify@example.com"),
+      )
+      .unique(),
+  );
+  expect(passwordAccount).toMatchObject({
+    userId,
+    provider: "password",
+    providerAccountId: "verify@example.com",
+  });
+  expect(passwordAccount?.secret).not.toBe("StrongPass1!");
 });

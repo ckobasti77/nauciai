@@ -84,6 +84,23 @@ export const backfillProfilesFromAuthUsers = migrations.define({
   },
 });
 
+export const backfillAppEmailVerificationTime = migrations.define({
+  table: "users",
+  batchSize: 100,
+  migrateOne: async (ctx, user) => {
+    if (user.appEmailVerificationTime) return;
+    if (user.passwordEmailVerificationTime) {
+      return { appEmailVerificationTime: user.passwordEmailVerificationTime };
+    }
+    if (!user.emailVerificationTime) return;
+    const passwordAccount = await ctx.db
+      .query("authAccounts")
+      .withIndex("userIdAndProvider", (q) => q.eq("userId", user._id).eq("provider", "password"))
+      .first();
+    if (passwordAccount) return { appEmailVerificationTime: user.emailVerificationTime };
+  },
+});
+
 export const backfillCourseTracks = migrations.define({
   table: "courses",
   batchSize: 20,
@@ -106,6 +123,44 @@ export const backfillCourseTracks = migrations.define({
     }
     if (track && course.trackId !== track._id) {
       await ctx.db.patch(course._id, { trackId: track._id, updatedAt: now });
+    }
+  },
+});
+
+/**
+ * Keeps every legacy lesson and its former module reference, while declaring
+ * the two representations now available at lesson level. lessonParts become
+ * Light blocks and lessonSteps remain the Pro experience.
+ */
+export const backfillLessonViews = migrations.define({
+  table: "lessons",
+  batchSize: 50,
+  migrateOne: async (ctx, lesson) => {
+    const [lightBlock, proStep] = await Promise.all([
+      ctx.db.query("lessonParts").withIndex("by_lesson", (q) => q.eq("lessonId", lesson._id)).first(),
+      ctx.db.query("lessonSteps").withIndex("by_lesson", (q) => q.eq("lessonId", lesson._id)).first(),
+    ]);
+    return {
+      lightEnabled: lesson.lightEnabled ?? (Boolean(lightBlock) || !proStep),
+      proEnabled: lesson.proEnabled ?? Boolean(proStep),
+    };
+  },
+});
+
+export const normalizeLegacyAvatarPrecedence = migrations.define({
+  table: "profiles",
+  batchSize: 100,
+  migrateOne: (_ctx, profile) => {
+    // Historical bootstrap assigned mythic-mentor even when avatarUrl was the
+    // Google image. Only clear that contradictory state; explicit selections
+    // store the preset URL itself and remain untouched.
+    if (
+      profile.avatarPreset === "mythic-mentor" &&
+      profile.avatarUrl &&
+      profile.avatarUrl !== "/images/avatars/mythic-mentor.png" &&
+      !profile.avatarStorageId
+    ) {
+      return { avatarPreset: undefined };
     }
   },
 });
@@ -312,6 +367,8 @@ const migrationApi = (internal as unknown as {
 export const runAll = migrations.runner([
   migrationApi.backfillProfilesFromAuthUsers,
   migrationApi.backfillCourseTracks,
+  migrationApi.backfillLessonViews,
+  migrationApi.normalizeLegacyAvatarPrecedence,
   migrationApi.backfillCommunityReactions,
   migrationApi.backfillCommunityComments,
   migrationApi.backfillCommentTreeRanking,

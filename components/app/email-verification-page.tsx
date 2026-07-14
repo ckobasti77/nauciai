@@ -38,6 +38,7 @@ export function EmailVerificationPage({ locale, token }: { locale: Locale; token
 
   const homeHref = withLocale(locale);
   const dashboardHref = withLocale(locale, "/app");
+  const profileHref = withLocale(locale, "/app/profile");
   const isSuccess = state === "verified";
   const isLoading = state === "loading";
 
@@ -49,7 +50,7 @@ export function EmailVerificationPage({ locale, token }: { locale: Locale; token
   const body = isLoading
     ? labelFor(locale, "Sačekaj trenutak dok završimo potvrdu naloga.", "Please wait while we finish confirming your account.")
     : isSuccess
-      ? labelFor(locale, "Sada možeš da se vratiš na profil i postaviš lozinku za svoj nalog.", "You can now return to your profile and set a password for your account.")
+      ? labelFor(locale, "Checkout i lekcije su sada otključani. Na profilu možeš opciono da dodaš lozinku.", "Checkout and lessons are now unlocked. You can optionally add a password on your profile.")
       : state === "expired"
         ? labelFor(locale, "Ovaj verifikacioni link je istekao. Pošalji novi link sa stranice Profil.", "This verification link has expired. Send a new one from your Profile page.")
         : state === "used"
@@ -70,8 +71,8 @@ export function EmailVerificationPage({ locale, token }: { locale: Locale; token
           <h1 className="mt-3 text-4xl font-black leading-tight text-ink sm:text-5xl">{title}</h1>
           <p className="mx-auto mt-5 max-w-xl text-base font-bold leading-7 text-muted">{body}</p>
           <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-            <LinkButton href={dashboardHref} tone="ink">
-              {labelFor(locale, "Dashboard", "Dashboard")}
+            <LinkButton href={isSuccess ? profileHref : dashboardHref} tone="ink">
+              {isSuccess ? labelFor(locale, "Nazad na Profil", "Back to Profile") : labelFor(locale, "Dashboard", "Dashboard")}
             </LinkButton>
             <LinkButton href={homeHref} tone="paper">
               {labelFor(locale, "Početna stranica", "Home page")}

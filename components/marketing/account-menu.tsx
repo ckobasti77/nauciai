@@ -60,11 +60,14 @@ export function AccountMenu({ locale, profile }: { locale: Locale; profile: Acco
           : "Student";
   // Query notifications
   const summary = useQuery(api.notifications.getUserNotificationSummary, {});
-  const overallCount = Math.max(0, (summary?.total ?? 0) - (summary?.profileIncomplete ?? 0));
+  const overallCount = Math.max(0, summary?.total ?? 0);
   const communityCount = summary?.community ?? 0;
   const billingCount = summary?.billing ?? 0;
   const profileStatus = useQuery(api.profiles.getViewerProfileStatus, {});
   const profileIncomplete = profileStatus?.complete === false;
+  const emailVerificationRequired = profileStatus?.advisories?.emailVerification === true;
+  const passwordRecommended = profileStatus?.advisories?.password === true;
+  const accountWarnings = Number(profileIncomplete) + Number(emailVerificationRequired) + Number(passwordRecommended);
   const avatarLabel = locale === "sr" ? "Otvori meni naloga" : "Open account menu";
 
   const menuLinks = [
@@ -78,7 +81,7 @@ export function AccountMenu({ locale, profile }: { locale: Locale; profile: Acco
       href: withLocale(locale, "/app/profile"),
       label: t.profile,
       icon: UserRound,
-      badge: profileIncomplete ? 1 : 0,
+      badge: accountWarnings,
     },
     {
       href: withLocale(locale, "/app/billing"),
@@ -182,8 +185,18 @@ export function AccountMenu({ locale, profile }: { locale: Locale; profile: Acco
             ) : null}
             <p className="mt-1 break-all font-mono text-[11px] font-bold uppercase text-muted">{email}</p>
             {profileIncomplete ? (
+              <p className="mt-2 rounded-full border border-red-500 bg-red-50 px-2 py-1 text-[10px] font-black text-red-900">
+                {locale === "sr" ? "Dodaj username" : "Add username"}
+              </p>
+            ) : null}
+            {emailVerificationRequired ? (
               <p className="mt-2 rounded-full border border-amber-500 bg-amber-50 px-2 py-1 text-[10px] font-black text-amber-900">
-                {locale === "sr" ? "Dovrši profil" : "Complete your profile"}
+                {locale === "sr" ? "Potvrdi email za kurseve" : "Confirm email for courses"}
+              </p>
+            ) : null}
+            {passwordRecommended ? (
+              <p className="mt-2 rounded-full border border-indigo-500 bg-indigo-50 px-2 py-1 text-[10px] font-black text-indigo-900">
+                {locale === "sr" ? "Dodaj opcionu lozinku" : "Add an optional password"}
               </p>
             ) : null}
             <span className="mt-2 inline-flex rounded-full border-2 border-ink bg-white px-3 py-1 text-[10px] font-black uppercase leading-none text-ink">
@@ -210,8 +223,8 @@ export function AccountMenu({ locale, profile }: { locale: Locale; profile: Acco
                     <span className="truncate">{item.label}</span>
                   </span>
                   {item.badge && item.badge > 0 ? (
-                    <span className={item.href === withLocale(locale, "/app/profile") ? "rounded-full border border-amber-500 bg-amber-100 px-2 py-0.5 text-[9px] font-black text-amber-900" : "flex h-5 min-w-5 items-center justify-center rounded-full border border-ink bg-red-600 px-1 text-[10px] font-black text-white"}>
-                      {item.href === withLocale(locale, "/app/profile") ? locale === "sr" ? "Upozorenje" : "Warning" : item.badge}
+                    <span className={item.href === withLocale(locale, "/app/profile") ? "flex h-5 min-w-5 items-center justify-center rounded-full border border-amber-500 bg-amber-100 px-1 text-[10px] font-black text-amber-900" : "flex h-5 min-w-5 items-center justify-center rounded-full border border-ink bg-red-600 px-1 text-[10px] font-black text-white"}>
+                      {item.badge}
                     </span>
                   ) : null}
                 </Link>

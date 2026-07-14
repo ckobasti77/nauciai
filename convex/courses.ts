@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 
 import type { Id } from "./_generated/dataModel";
+import { resolvedProfileAvatarUrl } from "./avatar";
 import { mutation, query } from "./_generated/server";
 import {
   ensureProfile,
@@ -10,6 +11,8 @@ import {
   requireUserId,
 } from "./helpers";
 import { syncLeaderboardSourceEvent } from "./leaderboardCore";
+import { assertReadyToPublish } from "./contentReadiness";
+import { parseRichText, richTextHasContent, richTextToPlainText } from "../lib/rich-text";
 
 const courseInput = {
   courseId: v.optional(v.id("courses")),
@@ -21,6 +24,8 @@ const courseInput = {
   subtitleEn: v.string(),
   descriptionSr: v.string(),
   descriptionEn: v.string(),
+  descriptionRichSr: v.optional(v.string()),
+  descriptionRichEn: v.optional(v.string()),
   status: v.union(v.literal("draft"), v.literal("published"), v.literal("archived")),
   stripePriceId: v.optional(v.string()),
   sortOrder: v.number(),
@@ -50,9 +55,11 @@ const lessonPartInput = {
   slug: v.string(),
   titleSr: v.string(),
   titleEn: v.string(),
-  kind: v.union(v.literal("text"), v.literal("video"), v.literal("file")),
+  kind: v.union(v.literal("text"), v.literal("image"), v.literal("video"), v.literal("file")),
   bodySr: v.optional(v.string()),
   bodyEn: v.optional(v.string()),
+  bodyRichSr: v.optional(v.string()),
+  bodyRichEn: v.optional(v.string()),
   storageId: v.optional(v.id("_storage")),
   fileName: v.optional(v.string()),
   byteSize: v.optional(v.number()),
@@ -66,10 +73,7 @@ export const viewer = query({
   handler: async (ctx) => {
     const { userId, profile } = await getCurrentProfile(ctx);
     const user = await ctx.db.get(userId);
-    const avatarUrl =
-      profile.avatarStorageId && typeof profile.avatarStorageId === "string"
-        ? await ctx.storage.getUrl(profile.avatarStorageId as Id<"_storage">)
-        : profile.avatarUrl;
+    const avatarUrl = await resolvedProfileAvatarUrl(ctx, profile, user?.image);
 
     return {
       user,
@@ -145,75 +149,59 @@ export const getAppNavigation = query({
 
     const coursesWithNavigation = await Promise.all(
       courses.map(async (course) => {
-        const modules = await ctx.db
-          .query("modules")
-          .withIndex("by_course", (q) => q.eq("courseId", course._id))
-          .collect();
-        const modulesWithLessons = await Promise.all(
-          modules.map(async (module) => {
-            const imageUrl = module.imageStorageId ? await ctx.storage.getUrl(module.imageStorageId) : null;
-            const lessons = await ctx.db
-              .query("lessons")
-              .withIndex("by_module", (q) => q.eq("moduleId", module._id))
-              .collect();
-            const visibleLessons = isAdmin ? lessons : lessons.filter((lesson) => lesson.isPublished);
-            const lessonsWithParts = await Promise.all(
-              visibleLessons.map(async (lesson) => {
-                const progress = progressByLessonId.get(lesson._id);
-                const parts = await ctx.db
-                  .query("lessonParts")
-                  .withIndex("by_lesson", (q) => q.eq("lessonId", lesson._id))
-                  .collect();
-                const visibleParts = isAdmin ? parts : parts.filter((part) => part.isPublished);
-                return {
-                  _id: lesson._id,
-                  slug: lesson.slug,
-                  titleSr: lesson.titleSr,
-                  titleEn: lesson.titleEn,
-                  summarySr: lesson.summarySr,
-                  summaryEn: lesson.summaryEn,
-                  durationSeconds: lesson.durationSeconds,
-                  isPublished: lesson.isPublished,
-                  sortOrder: lesson.sortOrder,
-                  progress: progress
-                    ? {
-                        completed: progress.completed,
-                        positionSeconds: progress.positionSeconds,
-                        updatedAt: progress.updatedAt,
-                      }
-                    : null,
-                  parts: visibleParts.map((part) => ({
-                    _id: part._id,
-                    parentPartId: part.parentPartId,
-                    slug: part.slug,
-                    titleSr: part.titleSr,
-                    titleEn: part.titleEn,
-                    kind: part.kind,
-                    bodySr: part.bodySr,
-                    bodyEn: part.bodyEn,
-                    fileName: part.fileName,
-                    isPublished: part.isPublished,
-                    sortOrder: part.sortOrder,
-                  })),
-                };
-              }),
-            );
-
+        const track = course.trackId ? await ctx.db.get(course.trackId) : null;
+        const courseLessons = await ctx.db
+          .query("lessons")
+          .withIndex("by_course_and_sortOrder", (q) => q.eq("courseId", course._id))
+          .take(1000);
+        const visibleLessons = isAdmin ? courseLessons : courseLessons.filter((lesson) => lesson.isPublished);
+        const lessonsWithParts = await Promise.all(
+          visibleLessons.map(async (lesson) => {
+            const progress = progressByLessonId.get(lesson._id);
+            const parts = await ctx.db
+              .query("lessonParts")
+              .withIndex("by_lesson", (q) => q.eq("lessonId", lesson._id))
+              .take(1000);
+            const visibleParts = isAdmin ? parts : parts.filter((part) => part.isPublished);
             return {
-              _id: module._id,
-              titleSr: module.titleSr,
-              titleEn: module.titleEn,
-              descriptionSr: module.descriptionSr,
-              descriptionEn: module.descriptionEn,
-              imageUrl,
-              imageFileName: module.imageFileName,
-              imageAltSr: module.imageAltSr,
-              imageAltEn: module.imageAltEn,
-              sortOrder: module.sortOrder,
-              lessons: lessonsWithParts,
+              _id: lesson._id,
+              moduleId: lesson.moduleId,
+              slug: lesson.slug,
+              titleSr: lesson.titleSr,
+              titleEn: lesson.titleEn,
+              summarySr: lesson.summarySr,
+              summaryEn: lesson.summaryEn,
+              summaryRichSr: lesson.summaryRichSr,
+              summaryRichEn: lesson.summaryRichEn,
+              durationSeconds: lesson.durationSeconds,
+              isPublished: lesson.isPublished,
+              proEnabled: lesson.proEnabled,
+              lightEnabled: lesson.lightEnabled,
+              sortOrder: lesson.sortOrder,
+              progress: progress ? { completed: progress.completed, positionSeconds: progress.positionSeconds, updatedAt: progress.updatedAt } : null,
+              parts: visibleParts.sort((a, b) => a.sortOrder - b.sortOrder).map((part) => ({
+                _id: part._id,
+                slug: part.slug,
+                titleSr: part.titleSr,
+                titleEn: part.titleEn,
+                kind: part.kind,
+                bodySr: part.bodySr,
+                bodyEn: part.bodyEn,
+                bodyRichSr: part.bodyRichSr,
+                bodyRichEn: part.bodyRichEn,
+                fileName: part.fileName,
+                isPublished: part.isPublished,
+                sortOrder: part.sortOrder,
+              })),
             };
           }),
         );
+        const modulesWithLessons = [{
+          titleSr: "Lekcije",
+          titleEn: "Lessons",
+          sortOrder: 0,
+          lessons: lessonsWithParts.sort((a, b) => a.sortOrder - b.sortOrder),
+        }];
         const navigationLessons = modulesWithLessons.flatMap((module) => module.lessons);
         const completedLessons = navigationLessons.filter((lesson) => lesson.progress?.completed).length;
         const totalLessons = navigationLessons.length;
@@ -236,9 +224,14 @@ export const getAppNavigation = query({
         }
 
         const videoUrl = course.videoStorageId ? await ctx.storage.getUrl(course.videoStorageId) : null;
+        const coverUrl = course.coverStorageId ? await ctx.storage.getUrl(course.coverStorageId) : null;
 
         return {
           _id: course._id,
+          trackId: track?._id,
+          trackSlug: track?.slug,
+          trackTitleSr: track?.titleSr,
+          trackTitleEn: track?.titleEn,
           slug: course.slug,
           titleSr: course.titleSr,
           titleEn: course.titleEn,
@@ -246,9 +239,13 @@ export const getAppNavigation = query({
           subtitleEn: course.subtitleEn,
           descriptionSr: course.descriptionSr,
           descriptionEn: course.descriptionEn,
+          descriptionRichSr: course.descriptionRichSr,
+          descriptionRichEn: course.descriptionRichEn,
           status: course.status,
           stripePriceId: course.stripePriceId,
           videoUrl,
+          coverUrl,
+          coverFileName: course.coverFileName,
           videoFileName: course.videoFileName,
           videoByteSize: course.videoByteSize,
           videoMimeType: course.videoMimeType,
@@ -719,6 +716,8 @@ export const upsertCourse = mutation({
       throw new Error("Kurs sa ovim slugom vec postoji");
     }
 
+    if (args.descriptionRichSr) parseRichText(args.descriptionRichSr);
+    if (args.descriptionRichEn) parseRichText(args.descriptionRichEn);
     const patch = {
       ...(args.trackId !== undefined ? { trackId: args.trackId } : {}),
       slug: args.slug,
@@ -726,8 +725,10 @@ export const upsertCourse = mutation({
       titleEn: args.titleEn,
       subtitleSr: args.subtitleSr,
       subtitleEn: args.subtitleEn,
-      descriptionSr: args.descriptionSr,
-      descriptionEn: args.descriptionEn,
+      descriptionSr: args.descriptionRichSr ? richTextToPlainText(args.descriptionRichSr) : args.descriptionSr,
+      descriptionEn: args.descriptionRichEn ? richTextToPlainText(args.descriptionRichEn) : args.descriptionEn,
+      ...(args.descriptionRichSr !== undefined ? { descriptionRichSr: args.descriptionRichSr } : {}),
+      ...(args.descriptionRichEn !== undefined ? { descriptionRichEn: args.descriptionRichEn } : {}),
       status: args.status,
       stripePriceId: args.stripePriceId?.trim() || undefined,
       sortOrder: args.sortOrder,
@@ -740,10 +741,13 @@ export const upsertCourse = mutation({
         throw new Error("Kurs nije pronadjen");
       }
       await ctx.db.patch(args.courseId, patch);
+      if (args.status === "published") await assertReadyToPublish(ctx, "course", args.courseId);
       return args.courseId;
     }
 
-    return ctx.db.insert("courses", { ...patch, createdBy: admin.userId as Id<"users"> });
+    const courseId = await ctx.db.insert("courses", { ...patch, createdBy: admin.userId as Id<"users"> });
+    if (args.status === "published") await assertReadyToPublish(ctx, "course", courseId);
+    return courseId;
   },
 });
 
@@ -859,6 +863,8 @@ export const upsertLesson = mutation({
     titleEn: v.string(),
     summarySr: v.string(),
     summaryEn: v.string(),
+    summaryRichSr: v.optional(v.string()),
+    summaryRichEn: v.optional(v.string()),
     durationSeconds: v.number(),
     isPublished: v.boolean(),
     sortOrder: v.number(),
@@ -881,14 +887,18 @@ export const upsertLesson = mutation({
     if (slugConflict) {
       throw new Error("Lekcija sa ovim slugom vec postoji u kursu");
     }
+    if (args.summaryRichSr) parseRichText(args.summaryRichSr);
+    if (args.summaryRichEn) parseRichText(args.summaryRichEn);
     const patch = {
       courseId: args.courseId,
       moduleId: args.moduleId,
       slug: args.slug,
       titleSr: args.titleSr,
       titleEn: args.titleEn,
-      summarySr: args.summarySr,
-      summaryEn: args.summaryEn,
+      summarySr: args.summaryRichSr ? richTextToPlainText(args.summaryRichSr) : args.summarySr,
+      summaryEn: args.summaryRichEn ? richTextToPlainText(args.summaryRichEn) : args.summaryEn,
+      ...(args.summaryRichSr !== undefined ? { summaryRichSr: args.summaryRichSr } : {}),
+      ...(args.summaryRichEn !== undefined ? { summaryRichEn: args.summaryRichEn } : {}),
       durationSeconds: args.durationSeconds,
       isPublished: args.isPublished,
       sortOrder: args.sortOrder,
@@ -900,9 +910,12 @@ export const upsertLesson = mutation({
         throw new Error("Lekcija nije pronadjena za ovaj kurs");
       }
       await ctx.db.patch(args.lessonId, patch);
+      if (args.isPublished) await assertReadyToPublish(ctx, "lesson", args.lessonId);
       return args.lessonId;
     }
-    return ctx.db.insert("lessons", patch);
+    const lessonId = await ctx.db.insert("lessons", patch);
+    if (args.isPublished) await assertReadyToPublish(ctx, "lesson", lessonId);
+    return lessonId;
   },
 });
 
@@ -947,16 +960,26 @@ export const upsertLessonPart = mutation({
       }
     }
 
-    const slugMatches = await ctx.db
-      .query("lessonParts")
-      .withIndex("by_lesson_slug", (q) => q.eq("lessonId", args.lessonId).eq("slug", args.slug))
-      .take(2);
-    const slugConflict = slugMatches.find((part) => part._id !== args.lessonPartId);
-    if (slugConflict) {
-      throw new Error("Deo lekcije sa ovim slugom vec postoji");
+    let resolvedSlug = args.slug;
+    for (let suffix = 1; suffix <= 50; suffix += 1) {
+      const candidate = suffix === 1 ? args.slug : `${args.slug}-${suffix}`;
+      const slugMatches = await ctx.db
+        .query("lessonParts")
+        .withIndex("by_lesson_slug", (q) => q.eq("lessonId", args.lessonId).eq("slug", candidate))
+        .take(2);
+      if (!slugMatches.some((part) => part._id !== args.lessonPartId)) {
+        resolvedSlug = candidate;
+        break;
+      }
+      if (suffix === 50) throw new Error("Nije moguće napraviti interni identifikator bloka");
     }
 
-    if ((args.kind === "video" || args.kind === "file") && !args.storageId && !existingPart?.storageId) {
+    if (args.bodyRichSr) parseRichText(args.bodyRichSr);
+    if (args.bodyRichEn) parseRichText(args.bodyRichEn);
+    if (args.isPublished && args.kind === "text" && !richTextHasContent(args.bodyRichSr, args.bodySr)) {
+      throw new Error("Dodaj tekst pre objavljivanja bloka");
+    }
+    if ((args.kind === "image" || args.kind === "video" || args.kind === "file") && !args.storageId && !existingPart?.storageId) {
       throw new Error("Upload a file before saving this lesson part");
     }
 
@@ -967,9 +990,11 @@ export const upsertLessonPart = mutation({
       slug: string;
       titleSr: string;
       titleEn: string;
-      kind: "text" | "video" | "file";
+      kind: "text" | "image" | "video" | "file";
       bodySr?: string;
       bodyEn?: string;
+      bodyRichSr?: string;
+      bodyRichEn?: string;
       storageId?: Id<"_storage">;
       fileName?: string;
       byteSize?: number;
@@ -981,23 +1006,27 @@ export const upsertLessonPart = mutation({
       courseId: args.courseId,
       lessonId: args.lessonId,
       parentPartId: args.parentPartId,
-      slug: args.slug,
+      slug: resolvedSlug,
       titleSr: args.titleSr,
       titleEn: args.titleEn,
       kind: args.kind,
-      bodySr: args.bodySr,
-      bodyEn: args.bodyEn,
+      bodySr: args.bodyRichSr ? richTextToPlainText(args.bodyRichSr) : args.bodySr,
+      bodyEn: args.bodyRichEn ? richTextToPlainText(args.bodyRichEn) : args.bodyEn,
+      bodyRichSr: args.bodyRichSr,
+      bodyRichEn: args.bodyRichEn,
       isPublished: args.isPublished,
       sortOrder: args.sortOrder,
       updatedAt: Date.now(),
     };
 
     if (args.kind === "text") {
+      if (existingPart?.storageId) await ctx.storage.delete(existingPart.storageId);
       patch.storageId = undefined;
       patch.fileName = undefined;
       patch.byteSize = undefined;
       patch.mimeType = undefined;
     } else if (args.storageId) {
+      if (existingPart?.storageId && existingPart.storageId !== args.storageId) await ctx.storage.delete(existingPart.storageId);
       patch.storageId = args.storageId;
       patch.fileName = args.fileName;
       patch.byteSize = args.byteSize;
@@ -1013,5 +1042,24 @@ export const upsertLessonPart = mutation({
       ...patch,
       createdBy: admin.userId as Id<"users">,
     });
+  },
+});
+
+export const removeLessonPartFile = mutation({
+  args: { lessonPartId: v.id("lessonParts") },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    const part = await ctx.db.get(args.lessonPartId);
+    if (!part) throw new Error("Blok nije pronađen");
+    if (part.storageId) await ctx.storage.delete(part.storageId);
+    await ctx.db.patch(args.lessonPartId, {
+      storageId: undefined,
+      fileName: undefined,
+      byteSize: undefined,
+      mimeType: undefined,
+      isPublished: false,
+      updatedAt: Date.now(),
+    });
+    return null;
   },
 });

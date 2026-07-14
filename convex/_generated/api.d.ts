@@ -9,14 +9,19 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as authInternal from "../authInternal.js";
+import type * as avatar from "../avatar.js";
 import type * as billing from "../billing.js";
 import type * as community from "../community.js";
 import type * as communityScope from "../communityScope.js";
+import type * as contentHierarchy from "../contentHierarchy.js";
+import type * as contentReadiness from "../contentReadiness.js";
 import type * as courses from "../courses.js";
 import type * as emailVerification from "../emailVerification.js";
 import type * as emailVerificationInternal from "../emailVerificationInternal.js";
 import type * as helpers from "../helpers.js";
 import type * as http from "../http.js";
+import type * as identityMerge from "../identityMerge.js";
 import type * as lab from "../lab.js";
 import type * as leaderboard from "../leaderboard.js";
 import type * as leaderboardCore from "../leaderboardCore.js";
@@ -34,14 +39,19 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  authInternal: typeof authInternal;
+  avatar: typeof avatar;
   billing: typeof billing;
   community: typeof community;
   communityScope: typeof communityScope;
+  contentHierarchy: typeof contentHierarchy;
+  contentReadiness: typeof contentReadiness;
   courses: typeof courses;
   emailVerification: typeof emailVerification;
   emailVerificationInternal: typeof emailVerificationInternal;
   helpers: typeof helpers;
   http: typeof http;
+  identityMerge: typeof identityMerge;
   lab: typeof lab;
   leaderboard: typeof leaderboard;
   leaderboardCore: typeof leaderboardCore;
