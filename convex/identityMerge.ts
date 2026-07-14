@@ -98,7 +98,8 @@ async function mergeVerifiedUsersInMutation(
     const canonicalVerified = Boolean(
       canonicalUser.appEmailVerificationTime ||
       canonicalUser.passwordEmailVerificationTime ||
-      ((canonicalHasPassword || canonicalHasGoogle) && canonicalUser.emailVerificationTime),
+      ((canonicalHasPassword || canonicalHasGoogle) && canonicalUser.emailVerificationTime) ||
+      canonicalAccounts.some((account) => account.emailVerified),
     );
     if (!canonicalVerified) {
       throw new Error("Verify the account email before linking sign-in methods.");
@@ -106,9 +107,11 @@ async function mergeVerifiedUsersInMutation(
     const duplicateVerified = Boolean(
       duplicateUser.appEmailVerificationTime ||
       duplicateUser.passwordEmailVerificationTime ||
-      ((duplicateHasPassword || duplicateHasGoogle) && duplicateUser.emailVerificationTime),
+      ((duplicateHasPassword || duplicateHasGoogle) && duplicateUser.emailVerificationTime) ||
+      duplicateAccounts.some((account) => account.emailVerified),
     );
-    if (!duplicateVerified) {
+    const duplicateIsPasswordOnly = duplicateHasPassword && !duplicateHasGoogle && duplicateAccounts.every((account) => account.provider === "password");
+    if (!duplicateVerified && !duplicateIsPasswordOnly) {
       throw new Error("Both account emails must be verified before linking sign-in methods.");
     }
 

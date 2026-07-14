@@ -31,7 +31,7 @@ test("password identifiers resolve email, username, and @username server-side", 
   await expect(t.query(internal.authInternal.resolvePasswordIdentifier, { identifier: "missing_user" })).resolves.toBeNull();
 });
 
-test("verified duplicate accounts merge data and providers idempotently", async () => {
+test("a verified canonical account can reclaim an unverified password-only legacy duplicate", async () => {
   const t = convexTest(schema, modules);
   const ids = await t.run(async (ctx) => {
     const canonicalUserId = await ctx.db.insert("users", {
@@ -40,7 +40,6 @@ test("verified duplicate accounts merge data and providers idempotently", async 
     });
     const duplicateUserId = await ctx.db.insert("users", {
       email: "linked@example.com",
-      emailVerificationTime: 9,
     });
     await ctx.db.insert("authAccounts", { userId: canonicalUserId, provider: "google", providerAccountId: "google-linked" });
     await ctx.db.insert("authAccounts", { userId: duplicateUserId, provider: "password", providerAccountId: "linked@example.com", secret: "hashed" });
