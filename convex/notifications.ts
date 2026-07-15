@@ -37,19 +37,14 @@ async function unreadByKinds(ctx: any, userId: Id<"users">, kinds: readonly stri
 }
 
 export async function getCommunityNotificationCountsHelper(ctx: any, userId: Id<"users">) {
-  const [profileData, authUser, authAccounts] = await Promise.all([
-    ctx.db
-      .query("profiles")
-      .withIndex("by_userId", (q: any) => q.eq("userId", userId))
-      .take(100),
+  const [authUser, authAccounts] = await Promise.all([
     ctx.db.get(userId),
     ctx.db
       .query("authAccounts")
       .withIndex("userIdAndProvider", (q: any) => q.eq("userId", userId))
       .take(10),
   ]);
-  const profile = [...profileData].sort((a: any, b: any) => Number(a._creationTime ?? 0) - Number(b._creationTime ?? 0))[0];
-  const role = effectiveRoleForProfile(String(authUser?.email ?? profile?.email ?? ""), profile?.role);
+  const role = effectiveRoleForProfile(String(authUser?.email ?? ""), authUser?.role);
   const isAdminOrMod = role === "admin" || role === "moderator";
 
   // 1. Pending approvals count (only for admin/moderator)
@@ -67,7 +62,7 @@ export async function getCommunityNotificationCountsHelper(ctx: any, userId: Id<
     unreadByKinds(ctx, userId, PERSONAL_NOTIFICATION_KINDS),
     unreadByKinds(ctx, userId, COMMUNITY_NOTIFICATION_KINDS),
   ]);
-  const profileIncomplete = profile?.username ?? authUser?.username ? 0 : 1;
+  const profileIncomplete = authUser?.username ? 0 : 1;
   const hasPassword = authAccounts.some((account: any) => account.provider === "password");
   const hasGoogle = authAccounts.some((account: any) => account.provider === "google");
   const isGoogleOnly = hasGoogle && !hasPassword;

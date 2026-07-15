@@ -41,6 +41,44 @@ function normalizeNamePart(value: string) {
   return value.trim().replace(/\s+/g, " ");
 }
 
+function profileResponse(user: {
+  _id: Id<"users">;
+  _creationTime: number;
+  email?: string;
+  name?: string;
+  firstName?: string;
+  lastName?: string;
+  username?: string;
+  avatarUrl?: string;
+  avatarStorageId?: Id<"_storage">;
+  avatarPreset?: "mythic-mentor" | "cosmic-scholar" | "hybrid-guardian";
+  role?: "student" | "pro_student" | "moderator" | "admin";
+  language?: "sr" | "en";
+  searchText?: string;
+  createdAt?: number;
+  updatedAt?: number;
+}) {
+  const email = String(user.email ?? "").trim().toLowerCase();
+  return {
+    _id: user._id,
+    _creationTime: user._creationTime,
+    userId: user._id,
+    email: user.email,
+    name: user.name ?? email.split("@")[0] ?? "Student",
+    firstName: user.firstName,
+    lastName: user.lastName,
+    username: user.username,
+    avatarUrl: user.avatarUrl,
+    avatarStorageId: user.avatarStorageId,
+    avatarPreset: user.avatarPreset,
+    role: effectiveRoleForProfile(email, user.role),
+    language: user.language ?? ("sr" as const),
+    searchText: user.searchText,
+    createdAt: user.createdAt ?? user._creationTime,
+    updatedAt: user.updatedAt ?? user._creationTime,
+  };
+}
+
 export const createAvatarUploadUrl = mutation({
   args: {},
   handler: async (ctx) => {
@@ -54,12 +92,6 @@ export const isUsernameAvailable = query({
   handler: async (ctx, args) => {
     const normalized = normalizeUsername(args.username);
     if (!normalized || !isValidUsername(normalized)) return false;
-
-    const profiles = await ctx.db
-      .query("profiles")
-      .withIndex("by_username", (q) => q.eq("username", normalized))
-      .take(100);
-    if (profiles.length) return false;
 
     const authUser = await ctx.db
       .query("users")
@@ -114,28 +146,25 @@ export const listProfilesForAdmin = query({
       throw new Error("Forbidden");
     }
 
-    const profiles = await ctx.db.query("profiles").order("asc").take(PROFILE_LIST_LIMIT);
-    return profiles.map((profile) => ({
-      ...profile,
-      role: effectiveRoleForProfile(String(profile.email ?? ""), profile.role),
-    }));
+    const users = await ctx.db.query("users").order("asc").take(PROFILE_LIST_LIMIT);
+    return users.filter((user) => !user.mergedInto).map(profileResponse);
   },
 });
 
 export const setProfileRole = mutation({
   args: {
-    profileId: v.id("profiles"),
+    profileId: v.id("users"),
     role: assignableRoleValidator,
   },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
 
-    const profile = await ctx.db.get(args.profileId);
-    if (!profile) {
+    const user = await ctx.db.get(args.profileId);
+    if (!user || user.mergedInto) {
       throw new Error("Profile not found");
     }
 
-    const email = String(profile.email ?? "").trim().toLowerCase();
+    const email = String(user.email ?? "").trim().toLowerCase();
     if (email && isInitialAdminEmail(email)) {
       throw new Error("Admin role is controlled by INITIAL_ADMIN_EMAILS.");
     }
@@ -146,11 +175,12 @@ export const setProfileRole = mutation({
     });
     await syncLeaderboardEligibilityForUser(
       ctx,
-      profile.userId,
+      user._id,
       args.role === "student" || args.role === "pro_student",
     );
 
-    return ctx.db.get(args.profileId);
+    const updated = await ctx.db.get(args.profileId);
+    return updated ? profileResponse(updated) : null;
   },
 });
 
@@ -203,12 +233,11 @@ export const updateViewerProfile = mutation({
         if (!isValidUsername(normalizedUsername)) {
           throw new Error(USERNAME_VALIDATION_MESSAGE_SR);
         }
-        const existingRows = await ctx.db
-          .query("profiles")
-          .withIndex("by_username", (q) => q.eq("username", normalizedUsername))
-          .take(100);
-        const existing = existingRows.find((row) => row.userId !== profile.userId);
-        if (existing && existing.userId !== profile.userId) {
+        const existing = await ctx.db
+          .query("users")
+          .withIndex("username", (q) => q.eq("username", normalizedUsername))
+          .unique();
+        if (existing && existing._id !== profile.userId) {
           throw new Error("Korisnicko ime je vec zauzeto.");
         }
         patch.username = normalizedUsername;
@@ -243,12 +272,8 @@ export const updateViewerProfile = mutation({
       patch.avatarStorageId = undefined;
     }
 
-    await ctx.db.patch(profile._id as Id<"profiles">, patch);
-    const viewer = await ctx.db.get(profile.userId as Id<"users">);
-    if (args.username !== undefined && viewer) {
-      await ctx.db.patch(viewer._id, { username: patch.username });
-    }
-    const updated = await ctx.db.get(profile._id as Id<"profiles">);
+    await ctx.db.patch(profile.userId as Id<"users">, patch);
+    const updated = await ctx.db.get(profile.userId as Id<"users">);
     if (!updated) {
       return null;
     }
@@ -258,7 +283,7 @@ export const updateViewerProfile = mutation({
       : updated.avatarUrl;
 
     return {
-      ...updated,
+      ...profileResponse(updated),
       avatarUrl: avatarUrl ?? updated.avatarUrl,
     };
   },

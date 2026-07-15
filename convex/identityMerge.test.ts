@@ -11,9 +11,7 @@ const modules = import.meta.glob("./**/*.ts");
 test("password identifiers resolve email, username, and @username server-side", async () => {
   const t = convexTest(schema, modules);
   await t.run(async (ctx) => {
-    const userId = await ctx.db.insert("users", { email: "student@example.com", username: "čitalac_1" });
-    await ctx.db.insert("profiles", {
-      userId,
+    await ctx.db.insert("users", {
       email: "student@example.com",
       name: "Student",
       username: "čitalac_1",
@@ -37,15 +35,6 @@ test("a verified canonical account can reclaim an unverified password-only legac
     const canonicalUserId = await ctx.db.insert("users", {
       email: "linked@example.com",
       appEmailVerificationTime: 10,
-    });
-    const duplicateUserId = await ctx.db.insert("users", {
-      email: "linked@example.com",
-    });
-    await ctx.db.insert("authAccounts", { userId: canonicalUserId, provider: "google", providerAccountId: "google-linked" });
-    await ctx.db.insert("authAccounts", { userId: duplicateUserId, provider: "password", providerAccountId: "linked@example.com", secret: "hashed" });
-    await ctx.db.insert("profiles", {
-      userId: canonicalUserId,
-      email: "linked@example.com",
       name: "Linked User",
       username: "linked_user",
       role: "student",
@@ -54,6 +43,11 @@ test("a verified canonical account can reclaim an unverified password-only legac
       createdAt: 1,
       updatedAt: 10,
     });
+    const duplicateUserId = await ctx.db.insert("users", {
+      email: "linked@example.com",
+    });
+    await ctx.db.insert("authAccounts", { userId: canonicalUserId, provider: "google", providerAccountId: "google-linked" });
+    await ctx.db.insert("authAccounts", { userId: duplicateUserId, provider: "password", providerAccountId: "linked@example.com", secret: "hashed" });
     await ctx.db.insert("profileStats", { userId: duplicateUserId, completedLessons: 7, updatedAt: 9 });
     return { canonicalUserId, duplicateUserId };
   });
@@ -75,13 +69,11 @@ test("a verified canonical account can reclaim an unverified password-only legac
 test("admin dry-run chooses complete profile before older incomplete duplicate", async () => {
   const t = convexTest(schema, modules);
   const ids = await t.run(async (ctx) => {
-    const adminUserId = await ctx.db.insert("users", { email: "admin@example.com", emailVerificationTime: 1 });
-    await ctx.db.insert("profiles", { userId: adminUserId, email: "admin@example.com", name: "Admin", username: "admin_user", role: "admin", language: "sr", searchText: "Admin", createdAt: 1, updatedAt: 1 });
+    const adminUserId = await ctx.db.insert("users", { email: "admin@example.com", emailVerificationTime: 1, name: "Admin", username: "admin_user", role: "admin", language: "sr", searchText: "Admin", createdAt: 1, updatedAt: 1 });
     const olderUserId = await ctx.db.insert("users", { email: "choice@example.com", emailVerificationTime: 1 });
-    const completeUserId = await ctx.db.insert("users", { email: "choice@example.com", emailVerificationTime: 2 });
+    const completeUserId = await ctx.db.insert("users", { email: "choice@example.com", emailVerificationTime: 2, name: "Complete", username: "complete_user", role: "student", language: "sr", searchText: "Complete", createdAt: 2, updatedAt: 2 });
     await ctx.db.insert("authAccounts", { userId: olderUserId, provider: "password", providerAccountId: "choice@example.com" });
     await ctx.db.insert("authAccounts", { userId: completeUserId, provider: "google", providerAccountId: "google-choice" });
-    await ctx.db.insert("profiles", { userId: completeUserId, email: "choice@example.com", name: "Complete", username: "complete_user", role: "student", language: "sr", searchText: "Complete", createdAt: 2, updatedAt: 2 });
     return { adminUserId, completeUserId };
   });
   const asAdmin = t.withIdentity({ subject: ids.adminUserId, tokenIdentifier: `test|${ids.adminUserId}` });

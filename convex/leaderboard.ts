@@ -17,7 +17,7 @@ function levelForXp(xp: number) {
   return Math.max(1, Math.floor(Math.max(0, xp) / 500) + 1);
 }
 
-async function avatarUrlForProfile(ctx: QueryCtx, profile: Doc<"profiles"> | null) {
+async function avatarUrlForProfile(ctx: QueryCtx, profile: Doc<"users"> | null) {
   if (!profile) return undefined;
   if (profile.avatarStorageId) {
     return (await ctx.storage.getUrl(profile.avatarStorageId)) ?? profile.avatarUrl;
@@ -53,10 +53,7 @@ async function enrichLeaderboardRow(
   viewerId: Id<"users">,
   higherXpLevels: Set<number>,
 ) {
-  const profile = await ctx.db
-    .query("profiles")
-    .withIndex("by_userId", (q) => q.eq("userId", stat.userId))
-    .unique();
+  const profile = await ctx.db.get(stat.userId);
   if (!profile || !isLeaderboardEligibleRole(profile.role)) {
     return null;
   }

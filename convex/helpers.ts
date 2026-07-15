@@ -105,58 +105,47 @@ export async function upsertProfileFromAuthUser(
 ) {
   const user = await ctx.db.get(userId);
   const email = String(authProfile.email ?? user?.email ?? "").trim().toLowerCase();
-  const authName = String(authProfile.name ?? user?.name ?? email.split("@")[0] ?? "Student").trim();
-  const existingRows = await ctx.db
-    .query("profiles")
-    .withIndex("by_userId", (q) => q.eq("userId", userId))
-    .take(100);
-  const existing = [...existingRows].sort((a, b) => Number(a._creationTime ?? 0) - Number(b._creationTime ?? 0))[0] ?? null;
-  const parts = namePartsFrom(String(existing?.name ?? authName), email);
-  const firstName = String(existing?.firstName ?? parts.firstName);
-  const lastName = String(existing?.lastName ?? parts.lastName);
-  const username = normalizeUsername(authProfile.username as string | undefined) ?? existing?.username;
+  if (!user) throw new Error("User not found");
+  const authName = String(authProfile.name ?? user.name ?? email.split("@")[0] ?? "Student").trim();
+  const parts = namePartsFrom(String(user.name ?? authName), email);
+  const firstName = String(user.firstName ?? parts.firstName);
+  const lastName = String(user.lastName ?? parts.lastName);
+  const username = user.username ?? normalizeUsername(authProfile.username as string | undefined);
 
   if (username && !isValidUsername(username)) {
     throw new Error(USERNAME_VALIDATION_MESSAGE_SR);
   }
 
   if (username) {
-    const duplicates = await ctx.db
-      .query("profiles")
-      .withIndex("by_username", (q) => q.eq("username", username))
-      .take(100);
-    const duplicate = duplicates.find((profile) => profile.userId !== userId);
-    if (duplicate && duplicate.userId !== userId) {
+    const duplicate = await ctx.db
+      .query("users")
+      .withIndex("username", (q) => q.eq("username", username))
+      .unique();
+    if (duplicate && duplicate._id !== userId) {
       throw new Error("Korisničko ime je već zauzeto.");
     }
   }
 
-  const role = effectiveRoleForProfile(email, existing?.role);
-  const avatarUrl = existing?.avatarUrl ?? (String(authProfile.image ?? user?.image ?? "") || DEFAULT_AVATAR_URL);
+  const role = effectiveRoleForProfile(email, user.role);
+  const name = fullNameFrom(firstName, lastName, authName);
+  const avatarUrl = user.avatarUrl ?? (String(authProfile.image ?? user.image ?? "") || DEFAULT_AVATAR_URL);
+  const now = Date.now();
   const patch = {
-    email: email || existing?.email,
-    name: fullNameFrom(firstName, lastName, authName),
+    name,
     firstName,
     lastName,
     ...(username ? { username } : {}),
     avatarUrl,
-    avatarPreset: existing?.avatarStorageId ? undefined : existing?.avatarPreset,
+    avatarPreset: user.avatarStorageId ? undefined : user.avatarPreset,
     role,
-    language: existing?.language ?? ("sr" as const),
-    searchText: `${fullNameFrom(firstName, lastName, authName)} ${username ?? ""} ${email}`.trim(),
-    updatedAt: Date.now(),
+    language: user.language ?? ("sr" as const),
+    searchText: `${name} ${username ?? ""} ${email}`.trim(),
+    createdAt: user.createdAt ?? now,
+    updatedAt: user.updatedAt ?? now,
   };
 
-  if (existing) {
-    await ctx.db.patch(existing._id, patch);
-    return ctx.db.get(existing._id);
-  }
-
-  return ctx.db.insert("profiles", {
-    userId,
-    ...patch,
-    createdAt: Date.now(),
-  });
+  await ctx.db.patch(userId, patch);
+  return ctx.db.get(userId);
 }
 
 function namePartsFrom(name: string, email: string) {
@@ -209,50 +198,35 @@ export async function getCurrentProfile(ctx: AnyCtx) {
   const userId = await requireUserId(ctx);
   const db = dbFrom(ctx);
   const user = await db.get(userId);
-  const email = String(user?.email ?? "").toLowerCase();
-  const existingRows = await db
-    .query("profiles")
-    .withIndex("by_userId", (q) => q.eq("userId", userId))
-    .take(100);
-  // A profile is identified by userId. During cleanup of historical rows we
-  // deliberately choose the oldest row so the public profile id is stable.
-  const existing = [...existingRows].sort((a, b) => Number(a._creationTime ?? 0) - Number(b._creationTime ?? 0))[0] ?? null;
-
-  const role = effectiveRoleForProfile(email, existing?.role);
-  const name = user?.name ?? email.split("@")[0] ?? "Student";
-  const derivedParts = namePartsFrom(String(existing?.name ?? name), email);
-  const firstName = String(existing?.firstName ?? derivedParts.firstName);
-  const lastName = String(existing?.lastName ?? derivedParts.lastName);
-  const displayName = fullNameFrom(firstName, lastName, String(existing?.name ?? name));
-  const existingAvatarPreset = existing?.avatarStorageId ? undefined : existing?.avatarPreset;
-
-  const profile = existing
-    ? {
-        ...existing,
-        role,
-        name: displayName,
-        firstName,
-        lastName,
-        username: existing.username ?? user?.username,
-        avatarUrl: existing.avatarUrl ?? user?.image ?? DEFAULT_AVATAR_URL,
-        avatarPreset: existingAvatarPreset,
-      }
-    : ({
-        _id: "",
-        userId,
-        email,
-        name: displayName,
-        firstName,
-        lastName,
-        avatarUrl: user?.image ?? DEFAULT_AVATAR_URL,
-        avatarPreset: undefined,
-        username: user?.username,
-        role,
-        language: "sr",
-      } as DocLike);
+  if (!user) throw new Error("Unauthorized");
+  const email = String(user.email ?? "").toLowerCase();
+  const role = effectiveRoleForProfile(email, user.role);
+  const fallbackName = String(user.name ?? email.split("@")[0] ?? "Student");
+  const derivedParts = namePartsFrom(fallbackName, email);
+  const firstName = String(user.firstName ?? derivedParts.firstName);
+  const lastName = String(user.lastName ?? derivedParts.lastName);
+  const displayName = fullNameFrom(firstName, lastName, fallbackName);
+  const profile = {
+    _id: user._id,
+    _creationTime: user._creationTime,
+    userId,
+    email: user.email,
+    role,
+    name: displayName,
+    firstName,
+    lastName,
+    username: user.username,
+    avatarUrl: user.avatarUrl ?? user.image ?? DEFAULT_AVATAR_URL,
+    avatarStorageId: user.avatarStorageId,
+    avatarPreset: user.avatarStorageId ? undefined : user.avatarPreset,
+    language: user.language ?? "sr",
+    searchText: user.searchText,
+    createdAt: user.createdAt ?? user._creationTime,
+    updatedAt: user.updatedAt ?? user._creationTime,
+  } as DocLike;
 
   return {
-    existing,
+    existing: user as DocLike,
     profile,
     userId,
     email,
@@ -270,51 +244,13 @@ export async function ensureProfile(ctx: AnyCtx) {
 
   const db = dbFrom(ctx);
 
-  if (!db.insert || !db.patch) {
+  if (!db.patch) {
     throw new Error("Profile bootstrap requires a write-capable Convex context.");
   }
 
   const { existing, userId, email, role, name, firstName, lastName, avatarUrl } = current;
 
-  if (existing && db.delete) {
-    const rows = await db.query("profiles").withIndex("by_userId", (q) => q.eq("userId", userId)).take(100);
-    if (rows.length > 1) {
-      const ordered = [...rows].sort((a, b) => Number(a._creationTime ?? 0) - Number(b._creationTime ?? 0));
-      const latest = [...rows].sort((a, b) => Number(b.updatedAt ?? b._creationTime ?? 0) - Number(a.updatedAt ?? a._creationTime ?? 0))[0];
-      await db.patch(existing._id, {
-        ...(latest.username ? { username: latest.username } : {}),
-        ...(latest.name ? { name: latest.name } : {}),
-        ...(latest.firstName ? { firstName: latest.firstName } : {}),
-        ...(latest.lastName ? { lastName: latest.lastName } : {}),
-        ...(latest.avatarUrl ? { avatarUrl: latest.avatarUrl } : {}),
-        ...(latest.avatarStorageId ? { avatarStorageId: latest.avatarStorageId } : {}),
-        ...(latest.avatarPreset ? { avatarPreset: latest.avatarPreset } : {}),
-        ...(latest.language ? { language: latest.language } : {}),
-        role,
-        updatedAt: now,
-      });
-      for (const duplicate of ordered.slice(1)) await db.delete(duplicate._id);
-      return db.get(existing._id);
-    }
-  }
-
-  if (!existing) {
-    const profileId = await db.insert("profiles", {
-      userId,
-      email,
-      name,
-      firstName,
-      lastName,
-      avatarUrl,
-      ...(current.profile.username ? { username: current.profile.username } : {}),
-      role,
-      language: "sr",
-      searchText: `${name} ${email}`.trim(),
-      createdAt: now,
-      updatedAt: now,
-    });
-    return db.get(profileId);
-  }
+  if (!existing) throw new Error("Profile not found");
 
   const patch: Record<string, unknown> = {};
   if (existing.role !== role) {
@@ -336,7 +272,7 @@ export async function ensureProfile(ctx: AnyCtx) {
     patch.username = current.profile.username;
   }
   if (Object.keys(patch).length) {
-    await db.patch(existing._id, { ...patch, updatedAt: now });
+    await db.patch(userId, { ...patch, updatedAt: now });
     if (existing.role !== role) {
       await syncLeaderboardEligibilityForUser(
         ctx as MutationCtx,
@@ -344,10 +280,10 @@ export async function ensureProfile(ctx: AnyCtx) {
         role === "student" || role === "pro_student",
       );
     }
-    return db.get(existing._id);
+    return (await getCurrentProfile(ctx)).profile;
   }
 
-  return existing;
+  return current.profile;
 }
 
 export async function requireAdmin(ctx: AnyCtx) {

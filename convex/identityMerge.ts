@@ -14,8 +14,8 @@ function normalizeEmail(value: string | undefined) {
 async function requireExistingAdmin(ctx: Pick<QueryCtx, "auth" | "db">) {
   const userId = await getAuthUserId(ctx);
   if (!userId) throw new Error("Unauthorized");
-  const profile = await ctx.db.query("profiles").withIndex("by_userId", (q) => q.eq("userId", userId)).first();
-  if (profile?.role !== "admin") throw new Error("Admin access required");
+  const user = await ctx.db.get(userId);
+  if (user?.role !== "admin") throw new Error("Admin access required");
   return userId;
 }
 
@@ -115,49 +115,10 @@ async function mergeVerifiedUsersInMutation(
       throw new Error("Both account emails must be verified before linking sign-in methods.");
     }
 
-    const canonicalProfiles = await ctx.db
-      .query("profiles")
-      .withIndex("by_userId", (q) => q.eq("userId", args.canonicalUserId))
-      .take(20);
-    const duplicateProfiles = await ctx.db
-      .query("profiles")
-      .withIndex("by_userId", (q) => q.eq("userId", args.duplicateUserId))
-      .take(20);
-    const allProfiles = [...canonicalProfiles, ...duplicateProfiles];
-    const preferredProfile = [...allProfiles].sort((a, b) => {
+    const preferredProfile = [canonicalUser, duplicateUser].sort((a, b) => {
       const usernameDifference = Number(Boolean(b.username)) - Number(Boolean(a.username));
       return usernameDifference || (b.updatedAt ?? b._creationTime) - (a.updatedAt ?? a._creationTime);
     })[0];
-    let canonicalProfile: (typeof canonicalProfiles)[number] | undefined = canonicalProfiles[0];
-    if (preferredProfile) {
-      const profilePatch = {
-        email: canonicalEmail,
-        name: preferredProfile.name,
-        firstName: preferredProfile.firstName,
-        lastName: preferredProfile.lastName,
-        username: preferredProfile.username,
-        avatarUrl: preferredProfile.avatarUrl,
-        avatarStorageId: preferredProfile.avatarStorageId,
-        avatarPreset: preferredProfile.avatarPreset,
-        role: preferredProfile.role,
-        language: preferredProfile.language,
-        searchText: `${preferredProfile.name} ${preferredProfile.username ?? ""} ${canonicalEmail}`.trim(),
-        updatedAt: Date.now(),
-      };
-      if (canonicalProfile) {
-        await ctx.db.patch(canonicalProfile._id, profilePatch);
-      } else {
-        const profileId = await ctx.db.insert("profiles", {
-          userId: args.canonicalUserId,
-          ...profilePatch,
-          createdAt: preferredProfile.createdAt,
-        });
-        canonicalProfile = await ctx.db.get(profileId) ?? undefined;
-      }
-    }
-    for (const profile of allProfiles) {
-      if (!canonicalProfile || profile._id !== canonicalProfile._id) await ctx.db.delete(profile._id);
-    }
 
     const duplicateProfileStats = await ctx.db
       .query("profileStats")
@@ -305,14 +266,34 @@ async function mergeVerifiedUsersInMutation(
     ) || undefined;
     await ctx.db.patch(args.canonicalUserId, {
       email: canonicalEmail,
-      username: preferredProfile?.username ?? canonicalUser.username,
+      name: preferredProfile.name ?? canonicalUser.name,
+      firstName: preferredProfile.firstName ?? canonicalUser.firstName,
+      lastName: preferredProfile.lastName ?? canonicalUser.lastName,
+      username: preferredProfile.username ?? canonicalUser.username,
+      avatarUrl: preferredProfile.avatarUrl ?? canonicalUser.avatarUrl,
+      avatarStorageId: preferredProfile.avatarStorageId ?? canonicalUser.avatarStorageId,
+      avatarPreset: preferredProfile.avatarPreset ?? canonicalUser.avatarPreset,
+      role: preferredProfile.role ?? canonicalUser.role,
+      language: preferredProfile.language ?? canonicalUser.language,
+      searchText: `${preferredProfile.name ?? canonicalUser.name ?? ""} ${preferredProfile.username ?? canonicalUser.username ?? ""} ${canonicalEmail}`.trim(),
+      createdAt: Math.min(canonicalUser.createdAt ?? canonicalUser._creationTime, duplicateUser.createdAt ?? duplicateUser._creationTime),
+      updatedAt: Date.now(),
       appEmailVerificationTime: verificationTime,
       passwordEmailVerificationTime: verificationTime,
       emailVerificationTime: canonicalUser.emailVerificationTime ?? duplicateUser.emailVerificationTime,
     });
     await ctx.db.patch(args.duplicateUserId, {
       email: undefined,
+      name: undefined,
+      firstName: undefined,
+      lastName: undefined,
       username: undefined,
+      avatarUrl: undefined,
+      avatarStorageId: undefined,
+      avatarPreset: undefined,
+      role: undefined,
+      language: undefined,
+      searchText: undefined,
       mergedInto: args.canonicalUserId,
       appEmailVerificationTime: undefined,
       passwordEmailVerificationTime: undefined,
@@ -351,8 +332,7 @@ export const previewVerifiedDuplicateAccounts = query({
     for (const [email, candidates] of byEmail) {
       if (candidates.length < 2) continue;
       const scored = await Promise.all(candidates.map(async (user) => {
-        const [profile, enrollment, subscription, accounts] = await Promise.all([
-          ctx.db.query("profiles").withIndex("by_userId", (q) => q.eq("userId", user._id)).first(),
+        const [enrollment, subscription, accounts] = await Promise.all([
           ctx.db.query("enrollments").withIndex("by_user", (q) => q.eq("userId", user._id)).first(),
           ctx.db.query("subscriptions").withIndex("by_user_status", (q) => q.eq("userId", user._id).eq("status", "active")).first(),
           ctx.db.query("authAccounts").withIndex("userIdAndProvider", (q) => q.eq("userId", user._id)).take(10),
@@ -365,7 +345,7 @@ export const previewVerifiedDuplicateAccounts = query({
         return {
           userId: user._id,
           createdAt: user._creationTime,
-          hasCompleteProfile: Boolean(profile?.username),
+          hasCompleteProfile: Boolean(user.username),
           hasAccessData: Boolean(enrollment || subscription),
           providers: accounts.map((account) => account.provider),
           verified,

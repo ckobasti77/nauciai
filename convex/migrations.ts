@@ -3,8 +3,6 @@ import { Migrations } from "@convex-dev/migrations";
 import { components, internal } from "./_generated/api";
 import type { DataModel } from "./_generated/dataModel";
 import { syncLeaderboardSourceEvent } from "./leaderboardCore";
-import { effectiveRoleForProfile } from "./helpers";
-import { isValidUsername, normalizeUsername } from "../lib/username-policy";
 import { hotScoreFor, voteValue } from "./community";
 
 type MigrationsComponent = ConstructorParameters<typeof Migrations<DataModel>>[0];
@@ -29,60 +27,6 @@ const TRACKS_BY_COURSE_SLUG = {
     sortOrder: 20,
   },
 } as const;
-
-export const backfillProfilesFromAuthUsers = migrations.define({
-  table: "users",
-  batchSize: 20,
-  migrateOne: async (ctx, user) => {
-    const existingRows = await ctx.db
-      .query("profiles")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id))
-      .take(100);
-    const existing = [...existingRows].sort((a, b) => a._creationTime - b._creationTime)[0] ?? null;
-    const email = String(user.email ?? "").trim().toLowerCase();
-    const sourceName = String(user.name ?? email.split("@")[0] ?? "Student").trim() || "Student";
-    const nameParts = sourceName.split(/\s+/).filter(Boolean);
-    const firstName = existing?.firstName ?? nameParts[0] ?? "Student";
-    const lastName = existing?.lastName ?? nameParts.slice(1).join(" ");
-    const candidateUsername = normalizeUsername(user.username);
-    const username = candidateUsername && isValidUsername(candidateUsername) ? candidateUsername : existing?.username;
-    const role = effectiveRoleForProfile(email, existing?.role);
-    const name = existing?.name ?? [firstName, lastName].filter(Boolean).join(" ");
-    const now = Date.now();
-
-    if (existing) {
-      await ctx.db.patch(existing._id, {
-        email: existing.email ?? email,
-        name,
-        firstName,
-        lastName,
-        ...(username && !existing.username ? { username } : {}),
-        avatarUrl: existing.avatarUrl ?? user.image ?? "/images/avatars/mythic-mentor.png",
-        avatarPreset: existing.avatarStorageId ? undefined : existing.avatarPreset ?? "mythic-mentor",
-        role,
-        searchText: `${name} ${username ?? ""} ${email}`.trim(),
-        updatedAt: now,
-      });
-      return;
-    }
-
-    await ctx.db.insert("profiles", {
-      userId: user._id,
-      email,
-      name,
-      firstName,
-      lastName,
-      ...(username ? { username } : {}),
-      avatarUrl: user.image ?? "/images/avatars/mythic-mentor.png",
-      avatarPreset: "mythic-mentor",
-      role,
-      language: "sr",
-      searchText: `${name} ${username ?? ""} ${email}`.trim(),
-      createdAt: now,
-      updatedAt: now,
-    });
-  },
-});
 
 export const backfillAppEmailVerificationTime = migrations.define({
   table: "users",
@@ -144,24 +88,6 @@ export const backfillLessonViews = migrations.define({
       lightEnabled: lesson.lightEnabled ?? (Boolean(lightBlock) || !proStep),
       proEnabled: lesson.proEnabled ?? Boolean(proStep),
     };
-  },
-});
-
-export const normalizeLegacyAvatarPrecedence = migrations.define({
-  table: "profiles",
-  batchSize: 100,
-  migrateOne: (_ctx, profile) => {
-    // Historical bootstrap assigned mythic-mentor even when avatarUrl was the
-    // Google image. Only clear that contradictory state; explicit selections
-    // store the preset URL itself and remain untouched.
-    if (
-      profile.avatarPreset === "mythic-mentor" &&
-      profile.avatarUrl &&
-      profile.avatarUrl !== "/images/avatars/mythic-mentor.png" &&
-      !profile.avatarStorageId
-    ) {
-      return { avatarPreset: undefined };
-    }
   },
 });
 
@@ -278,51 +204,6 @@ export const backfillCommentTreeRanking = migrations.define({
   },
 });
 
-export const consolidateDuplicateProfiles = migrations.define({
-  table: "profiles",
-  batchSize: 50,
-  migrateOne: async (ctx, profile) => {
-    const rows = await ctx.db
-      .query("profiles")
-      .withIndex("by_userId", (q) => q.eq("userId", profile.userId))
-      .take(100);
-    if (rows.length < 2) return;
-    const ordered = [...rows].sort((a, b) => a._creationTime - b._creationTime);
-    const canonical = ordered[0];
-    if (profile._id !== canonical._id) {
-      await ctx.db.delete(profile._id);
-      return;
-    }
-    const latest = [...rows].sort((a, b) => (b.updatedAt ?? b._creationTime) - (a.updatedAt ?? a._creationTime))[0];
-    const user = await ctx.db.get(profile.userId);
-    const email = String(latest.email ?? user?.email ?? "").trim().toLowerCase();
-    await ctx.db.patch(canonical._id, {
-      email: latest.email ?? email,
-      name: latest.name,
-      firstName: latest.firstName,
-      lastName: latest.lastName,
-      username: latest.username,
-      avatarUrl: latest.avatarUrl,
-      avatarStorageId: latest.avatarStorageId,
-      avatarPreset: latest.avatarPreset,
-      language: latest.language,
-      role: effectiveRoleForProfile(email, latest.role),
-      searchText: `${latest.name} ${latest.username ?? ""} ${email}`.trim(),
-      updatedAt: Date.now(),
-    });
-    for (const duplicate of ordered.slice(1)) await ctx.db.delete(duplicate._id);
-    if (user && user.username !== latest.username) await ctx.db.patch(user._id, { username: latest.username });
-  },
-});
-
-export const backfillProfileSearchText = migrations.define({
-  table: "profiles",
-  batchSize: 100,
-  migrateOne: (_ctx, profile) => ({
-    searchText: `${profile.name} ${profile.username ?? ""}`.trim(),
-  }),
-});
-
 export const backfillLessonLeaderboardEvents = migrations.define({
   table: "progress",
   batchSize: 20,
@@ -365,16 +246,12 @@ const migrationApi = (internal as unknown as {
 }).migrations;
 
 export const runAll = migrations.runner([
-  migrationApi.backfillProfilesFromAuthUsers,
   migrationApi.backfillCourseTracks,
   migrationApi.backfillLessonViews,
-  migrationApi.normalizeLegacyAvatarPrecedence,
   migrationApi.backfillCommunityReactions,
   migrationApi.backfillCommunityComments,
   migrationApi.backfillCommentTreeRanking,
   migrationApi.backfillCommunityPosts,
-  migrationApi.backfillProfileSearchText,
   migrationApi.backfillLessonLeaderboardEvents,
   migrationApi.backfillTaskLeaderboardEvents,
-  migrationApi.consolidateDuplicateProfiles,
 ]);

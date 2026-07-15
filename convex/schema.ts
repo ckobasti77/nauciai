@@ -59,6 +59,18 @@ const authUsers = defineTable({
   image: v.optional(v.string()),
   email: v.optional(v.string()),
   username: v.optional(v.string()),
+  firstName: v.optional(v.string()),
+  lastName: v.optional(v.string()),
+  avatarUrl: v.optional(v.string()),
+  avatarStorageId: v.optional(v.id("_storage")),
+  avatarPreset: v.optional(
+    v.union(v.literal("mythic-mentor"), v.literal("cosmic-scholar"), v.literal("hybrid-guardian")),
+  ),
+  role: v.optional(role),
+  language: v.optional(language),
+  searchText: v.optional(v.string()),
+  createdAt: v.optional(v.number()),
+  updatedAt: v.optional(v.number()),
   emailVerificationTime: v.optional(v.number()),
   // App-level confirmation used before a Google/OAuth account can add a
   // password credential. OAuth verification remains separate from this proof.
@@ -73,7 +85,12 @@ const authUsers = defineTable({
 })
   .index("email", ["email"])
   .index("phone", ["phone"])
-  .index("username", ["username"]);
+  .index("username", ["username"])
+  .index("by_role", ["role"])
+  .searchIndex("search_searchText", {
+    searchField: "searchText",
+    filterFields: ["role"],
+  });
 
 
 export default defineSchema({
@@ -90,33 +107,6 @@ export default defineSchema({
   })
     .index("by_tokenHash", ["tokenHash"])
     .index("by_userId_and_createdAt", ["userId", "createdAt"]),
-
-  profiles: defineTable({
-    userId: v.id("users"),
-    email: v.optional(v.string()),
-    name: v.string(),
-    firstName: v.optional(v.string()),
-    lastName: v.optional(v.string()),
-    username: v.optional(v.string()),
-    avatarUrl: v.optional(v.string()),
-    avatarStorageId: v.optional(v.id("_storage")),
-    avatarPreset: v.optional(
-      v.union(v.literal("mythic-mentor"), v.literal("cosmic-scholar"), v.literal("hybrid-guardian")),
-    ),
-    role,
-    language,
-    searchText: v.optional(v.string()),
-    createdAt: v.number(),
-    updatedAt: v.number(),
-  })
-    .index("by_userId", ["userId"])
-    .index("by_email", ["email"])
-    .index("by_role", ["role"])
-    .index("by_username", ["username"])
-    .searchIndex("search_searchText", {
-      searchField: "searchText",
-      filterFields: ["role"],
-    }),
 
   profileStats: defineTable({
     userId: v.id("users"),

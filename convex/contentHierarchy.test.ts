@@ -15,9 +15,7 @@ type Role = "student" | "pro_student" | "moderator" | "admin";
 async function seedFixture(t: ReturnType<typeof convexTest>, role: Role, email: string) {
   return t.run(async (ctx) => {
     const now = Date.now();
-    const userId = await ctx.db.insert("users", { email, name: role });
-    await ctx.db.insert("profiles", {
-      userId,
+    const userId = await ctx.db.insert("users", {
       email,
       name: role,
       role,

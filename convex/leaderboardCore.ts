@@ -81,10 +81,7 @@ export function isLeaderboardEligibleRole(role: unknown) {
 }
 
 async function userIsEligible(ctx: MutationCtx, userId: Id<"users">) {
-  const profile = await ctx.db
-    .query("profiles")
-    .withIndex("by_userId", (q) => q.eq("userId", userId))
-    .unique();
+  const profile = await ctx.db.get(userId);
   return isLeaderboardEligibleRole(profile?.role);
 }
 

@@ -63,7 +63,7 @@ const rankForCompletedLessons = (completedLessons: number): AuthorRank => {
 const studentRankFor = async (
   ctx: QueryCtx,
   userId: Id<"users">,
-  role: Doc<"profiles">["role"] | undefined,
+  role: Doc<"users">["role"] | undefined,
 ) => {
   if (role !== "student" && role !== "pro_student") {
     return null;
@@ -86,24 +86,21 @@ const studentRankFor = async (
   return rankForCompletedLessons(progressRows.filter((row) => row.completed).length);
 };
 
-const profileAvatarUrl = async (ctx: QueryCtx, profile: Doc<"profiles"> | null) => {
+const profileAvatarUrl = async (ctx: QueryCtx, profile: Doc<"users"> | null) => {
   return resolvedProfileAvatarUrl(ctx, profile);
 };
 
 async function publicCommunityIdentity(ctx: QueryCtx, userId: Id<"users">) {
-  const [profileRows, user] = await Promise.all([
-    ctx.db.query("profiles").withIndex("by_userId", (q) => q.eq("userId", userId)).take(100),
-    ctx.db.get(userId),
-  ]);
-  const profile = [...profileRows].sort((a, b) => a._creationTime - b._creationTime)[0] ?? null;
-  const email = String(profile?.email ?? user?.email ?? "").trim().toLowerCase();
+  const user = await ctx.db.get(userId);
+  const profile = user;
+  const email = String(user?.email ?? "").trim().toLowerCase();
   const fallbackName = String(user?.name ?? email.split("@")[0] ?? "Član zajednice").trim() || "Član zajednice";
   return {
     profile,
     name: profile?.name?.trim() || fallbackName,
-    username: profile?.username ?? user?.username,
+    username: user?.username,
     role: effectiveRoleForProfile(email, profile?.role),
-    avatarUrl: (await profileAvatarUrl(ctx, profile)) ?? user?.image,
+    avatarUrl: (await profileAvatarUrl(ctx, user)) ?? user?.image,
   };
 }
 
@@ -124,23 +121,19 @@ async function notifyMentions(
   const excerpt = text.trim().slice(0, 240);
 
   for (const username of usernames) {
-    const profiles = await ctx.db
-      .query("profiles")
-      .withIndex("by_username", (q) => q.eq("username", username))
-      .take(100);
-    const profile = profiles[0] ?? null;
-    if (profile && profile.userId !== authorId) {
+    const profile = await ctx.db.query("users").withIndex("username", (q) => q.eq("username", username)).unique();
+    if (profile && profile._id !== authorId) {
       const eventKey = `mention:${postId}:${commentId ?? "post"}:${authorId}`;
       const existing = await ctx.db
         .query("notifications")
         .withIndex("by_userId_and_eventKey", (q) =>
-          q.eq("userId", profile.userId).eq("eventKey", eventKey),
+          q.eq("userId", profile._id).eq("eventKey", eventKey),
         )
         .unique();
 
       if (!existing) {
         await ctx.db.insert("notifications", {
-          userId: profile.userId,
+          userId: profile._id,
           title: "Pominjanje u zajednici",
           body: `${authorName} te je pomenuo u diskusiji.`,
           kind: "mention",
@@ -923,7 +916,7 @@ async function commentsWithDetails(
         username: author.username,
         role: author.role,
         avatarUrl: author.avatarUrl,
-      } as Doc<"profiles">);
+      } as Doc<"users">);
       const authorRole = author.role;
       const reactionRows =
         comment.upvoteCount === undefined || comment.downvoteCount === undefined
@@ -1419,11 +1412,7 @@ export const deletePost = mutation({
     const post = await ctx.db.get(args.postId);
     if (!post) throw new Error("Diskusija nije pronadjena");
 
-    const profileRows = await ctx.db
-      .query("profiles")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .take(100);
-    const profile = [...profileRows].sort((a, b) => a._creationTime - b._creationTime)[0] ?? null;
+    const profile = await ctx.db.get(userId);
     const isAdminOrMod = profile?.role === "admin" || profile?.role === "moderator";
     if (!isAdminOrMod) await requireCompleteCommunityProfile(ctx);
 
@@ -1518,10 +1507,7 @@ export const deleteComment = mutation({
     const comment = await ctx.db.get(args.commentId);
     if (!comment) throw new Error("Komentar nije pronadjen");
 
-    const profile = await ctx.db
-      .query("profiles")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .unique();
+    const profile = await ctx.db.get(userId);
     const isAdminOrMod = profile?.role === "admin" || profile?.role === "moderator";
     if (!isAdminOrMod) await requireCompleteCommunityProfile(ctx);
 
@@ -1621,12 +1607,12 @@ export const listMembers = query({
   args: {},
   handler: async (ctx) => {
     await getCurrentProfile(ctx);
-    const profiles = await ctx.db.query("profiles").take(200);
+    const profiles = (await ctx.db.query("users").take(200)).filter((user) => !user.mergedInto);
     const roleOrder = { admin: 0, moderator: 1, pro_student: 2, student: 3 };
     const sorted = profiles.sort((a, b) => {
       const orderA = roleOrder[a.role as keyof typeof roleOrder] ?? 4;
       const orderB = roleOrder[b.role as keyof typeof roleOrder] ?? 4;
-      return orderA - orderB || a.name.localeCompare(b.name);
+      return orderA - orderB || String(a.name ?? "").localeCompare(String(b.name ?? ""));
     });
 
     return Promise.all(
@@ -1634,7 +1620,7 @@ export const listMembers = query({
         const avatarUrl = await profileAvatarUrl(ctx, profile);
         return {
           _id: profile._id,
-          name: profile.name,
+          name: profile.name ?? profile.email?.split("@")[0] ?? "Član zajednice",
           username: profile.username,
           role: profile.role,
           avatarUrl,
@@ -2287,22 +2273,21 @@ export const listMentionEvents = query({
 
 async function publicMemberRow(
   ctx: QueryCtx,
-  profile: Doc<"profiles"> | null,
+  profile: Doc<"users"> | null,
   stat: Doc<"leaderboardStats"> | null,
   viewerRole: unknown,
-  user: Doc<"users"> | null = null,
 ) {
   const xp = stat?.xp ?? 0;
-  const email = String(profile?.email ?? user?.email ?? "").trim().toLowerCase();
+  const email = String(profile?.email ?? "").trim().toLowerCase();
   const role = effectiveRoleForProfile(email, profile?.role);
-  const name = profile?.name ?? user?.name ?? email.split("@")[0] ?? "Član zajednice";
+  const name = profile?.name ?? email.split("@")[0] ?? "Član zajednice";
   return {
     profileId: profile?._id,
-    userId: profile?.userId ?? user?._id,
+    userId: profile?._id,
     name,
-    username: profile?.username ?? user?.username,
+    username: profile?.username,
     role,
-    avatarUrl: (await profileAvatarUrl(ctx, profile)) ?? user?.image,
+    avatarUrl: (await profileAvatarUrl(ctx, profile)) ?? profile?.image,
     xp,
     level: Math.max(1, Math.floor(xp / 500) + 1),
     completedLessons: stat?.completedLessons ?? 0,
@@ -2338,11 +2323,7 @@ export const listMembersPage = query({
         .paginate(paginationOpts);
       const members = await Promise.all(
         stats.page.map(async (stat) => {
-          const profileRows = await ctx.db
-            .query("profiles")
-            .withIndex("by_userId", (q) => q.eq("userId", stat.userId))
-            .take(100);
-          const profile = [...profileRows].sort((a, b) => a._creationTime - b._creationTime)[0] ?? null;
+          const profile = await ctx.db.get(stat.userId);
           if (!profile || (args.role && profile.role !== args.role)) return null;
           const searchable = `${profile.name} ${profile.username ?? ""}`.toLocaleLowerCase();
           if (search && !searchable.includes(search)) return null;
@@ -2354,26 +2335,23 @@ export const listMembersPage = query({
 
     const roleOrder = ["admin", "moderator", "pro_student", "student"] as const;
     const roles = args.role ? [args.role] : [...roleOrder];
-    type MemberSource = Doc<"profiles"> | Doc<"users">;
-    const profileRows: MemberSource[] = (
+    const profileRows = (
       await Promise.all(
         roles.map((role) =>
           search
             ? ctx.db
-                .query("profiles")
+                .query("users")
                 .withSearchIndex("search_searchText", (q) => q.search("searchText", search).eq("role", role))
                 .take(250)
             : ctx.db
-                .query("profiles")
+                .query("users")
                 .withIndex("by_role", (q) => q.eq("role", role))
                 .order("asc")
                 .take(250),
         ),
       )
-    ).flat() as MemberSource[];
-    const profilesByUserId = new Map(
-      profileRows.map((row) => [String("userId" in row ? row.userId : row._id), row]),
-    );
+    ).flat();
+    const profilesByUserId = new Map(profileRows.map((row) => [String(row._id), row]));
     if (!args.role && !search) {
       const users = await ctx.db.query("users").take(500);
       for (const user of users) {
@@ -2382,18 +2360,16 @@ export const listMembersPage = query({
     }
     const uniqueRows = Array.from(
       new Map(
-        profileRows.map((row) => [String("userId" in row ? row.userId : row._id), row]),
+        profileRows.map((row) => [String(row._id), row]),
       ).values(),
     );
     const members = await Promise.all(
       uniqueRows.map(async (row) => {
-        const isProfile = "role" in row && "createdAt" in row;
-        const profile = isProfile ? (row as Doc<"profiles">) : null;
-        const user = profile ? await ctx.db.get(profile.userId) : (row as unknown as Doc<"users">);
-        const role = effectiveRoleForProfile(String(profile?.email ?? user?.email ?? ""), profile?.role);
+        const profile = row;
+        const role = effectiveRoleForProfile(String(profile.email ?? ""), profile.role);
         if (args.role && role !== args.role) return null;
-        if (search && !`${profile?.name ?? user?.name ?? ""} ${profile?.username ?? user?.username ?? ""}`.toLocaleLowerCase().includes(search)) return null;
-        const memberUserId = profile?.userId ?? user?._id;
+        if (search && !`${profile.name ?? ""} ${profile.username ?? ""}`.toLocaleLowerCase().includes(search)) return null;
+        const memberUserId = profile._id;
         if (!memberUserId) return null;
         const stat = await ctx.db
           .query("leaderboardStats")
@@ -2401,7 +2377,7 @@ export const listMembersPage = query({
             q.eq("userId", memberUserId).eq("scopeKey", "global").eq("period", "all_time").eq("periodKey", "all"),
           )
           .unique();
-        return publicMemberRow(ctx, profile, stat, viewerProfile.role, user);
+        return publicMemberRow(ctx, profile, stat, viewerProfile.role);
       }),
     );
     const filteredMembers = members.filter((member): member is NonNullable<typeof member> => Boolean(member));
