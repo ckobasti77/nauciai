@@ -25,6 +25,11 @@ import {
 } from "./helpers";
 import { syncLeaderboardSourceEvent } from "./leaderboardCore";
 import { getCommunityNotificationCountsHelper } from "./notifications";
+import {
+  adjustProfileActivity,
+  adjustProfileContribution,
+  transitionPublishedPostContributions,
+} from "./profileActivityCore";
 
 export type CommunityVote = "upvote" | "downvote";
 
@@ -628,6 +633,8 @@ export const createPost = mutation({
 
     if (initialStatus === "published") {
       await notifyMentions(ctx, body, postId);
+      await adjustProfileActivity(ctx, { userId, timestamp: now, kind: "threads", delta: 1 });
+      await adjustProfileContribution(ctx, { userId, postId, threadDelta: 1, lastActivityAt: now });
     }
 
     return postId;
@@ -716,6 +723,12 @@ export const updatePost = mutation({
     if (nextStatus === "published") {
       await notifyMentions(ctx, body, args.postId);
     }
+    if (currentStatus !== nextStatus && (currentStatus === "published" || nextStatus === "published")) {
+      await transitionPublishedPostContributions(ctx, {
+        postId: post._id,
+        published: nextStatus === "published",
+      });
+    }
 
     return args.postId;
   },
@@ -745,7 +758,10 @@ export const submitPost = mutation({
       lastActivityAt: now,
       updatedAt: now,
     });
-    if (nextStatus === "published") await notifyMentions(ctx, post.body, post._id);
+    if (nextStatus === "published") {
+      await notifyMentions(ctx, post.body, post._id);
+      await transitionPublishedPostContributions(ctx, { postId: post._id, published: true });
+    }
     return { postId: post._id, status: nextStatus };
   },
 });
@@ -820,6 +836,7 @@ async function moderatePostImpl(
 
   if (args.decision === "approve") {
     await notifyMentions(ctx, post.body, post._id);
+    await transitionPublishedPostContributions(ctx, { postId: post._id, published: true });
   }
 
   return { postId: post._id, status: nextStatus, reason };
@@ -1158,6 +1175,8 @@ export const addComment = mutation({
     }
 
     await notifyMentions(ctx, body, args.postId, commentId);
+    await adjustProfileActivity(ctx, { userId, timestamp: now, kind: "comments", delta: 1 });
+    await adjustProfileContribution(ctx, { userId, postId: post._id, commentDelta: 1, lastActivityAt: now });
 
     return commentId;
   },
@@ -1428,6 +1447,10 @@ export const deletePost = mutation({
       throw new Error("Diskusija ima previše komentara za direktno brisanje.");
     }
 
+    if (effectivePostStatus(post) === "published") {
+      await transitionPublishedPostContributions(ctx, { postId: post._id, published: false });
+    }
+
     const commentReactions = await Promise.all(
       comments.map(async (comment) =>
         ctx.db
@@ -1561,6 +1584,27 @@ export const deleteComment = mutation({
       }
     }
     for (const item of [...subtree].reverse()) await ctx.db.delete(item._id);
+    if (effectivePostStatus(post) === "published") {
+      const removedByAuthor = new Map<Id<"users">, number>();
+      for (const item of subtree) {
+        await adjustProfileActivity(ctx, {
+          userId: item.authorId,
+          timestamp: item.createdAt,
+          kind: "comments",
+          delta: -1,
+        });
+        removedByAuthor.set(item.authorId, (removedByAuthor.get(item.authorId) ?? 0) + 1);
+      }
+      for (const [authorId, removedCount] of removedByAuthor) {
+        await adjustProfileContribution(ctx, {
+          userId: authorId,
+          postId: post._id,
+          commentDelta: -removedCount,
+          lastActivityAt: post.createdAt,
+          recomputeLastActivity: true,
+        });
+      }
+    }
     if (parentId) {
       const parent = await ctx.db.get(parentId);
       if (parent) {
@@ -1578,6 +1622,11 @@ export const deleteComment = mutation({
         });
       }
     }
+    const latestRemainingComment = await ctx.db
+      .query("comments")
+      .withIndex("by_post", (q) => q.eq("postId", post._id))
+      .order("desc")
+      .first();
     await ctx.db.patch(post._id, {
       ...(post.commentCount === undefined
         ? {}
@@ -1590,6 +1639,7 @@ export const deleteComment = mutation({
               post.helpfulAnswerCount - subtree.filter((item) => item.isHelpful).length,
             ),
           }),
+      lastActivityAt: latestRemainingComment?.createdAt ?? post.createdAt,
       updatedAt: Date.now(),
     });
   },
@@ -1774,6 +1824,11 @@ const memberRoleValidator = v.union(
   v.literal("pro_student"),
   v.literal("moderator"),
   v.literal("admin"),
+);
+const memberConnectionValidator = v.union(
+  v.literal("all"),
+  v.literal("following"),
+  v.literal("followers"),
 );
 
 function boundedPaginationOpts(paginationOpts: { numItems: number; cursor: string | null }) {
@@ -2144,13 +2199,14 @@ export const listMentionEvents = query({
       "mention", "upvote_post", "downvote_post", "upvote_comment", "downvote_comment",
       "like_post", "like_comment", "comment_post", "comment_reply", "helpful_comment",
       "post_approved", "post_changes_requested",
+      "new_follower",
     ]);
     const categoryMatches = (kind: string) => {
       if (!args.category || args.category === "all") return true;
       if (args.category === "votes") return kind.includes("vote") || kind.startsWith("like_");
       if (args.category === "comments") return kind === "comment_post" || kind === "comment_reply";
       if (args.category === "tags") return kind === "mention";
-      return kind === "helpful_comment" || kind === "post_approved" || kind === "post_changes_requested" || kind === "approval_pending";
+      return kind === "helpful_comment" || kind === "post_approved" || kind === "post_changes_requested" || kind === "approval_pending" || kind === "new_follower";
     };
     const allNotifications = await ctx.db
       .query("notifications")
@@ -2224,7 +2280,24 @@ export const listMentionEvents = query({
       pageEvents.map(async (item) => {
         if (item.type === "approval") return item.event;
         const notification = item.notification;
-        if (!notification.postId || !notification.senderId) return null;
+        if (!notification.senderId) return null;
+        if (notification.kind === "new_follower") {
+          const sender = await publicCommunityIdentity(ctx, notification.senderId);
+          return {
+            notificationId: notification._id,
+            createdAt: notification.createdAt,
+            readAt: notification.readAt,
+            kind: notification.kind,
+            unread: !notification.readAt,
+            excerpt: notification.body,
+            sender: sender
+              ? { userId: notification.senderId, name: sender.name, username: sender.username, role: sender.role, avatarUrl: sender.avatarUrl }
+              : null,
+            thread: null,
+            commentId: undefined,
+          };
+        }
+        if (!notification.postId) return null;
         const [post, comment, sender] = await Promise.all([
           ctx.db.get(notification.postId),
           notification.commentId ? ctx.db.get(notification.commentId) : Promise.resolve(null),
@@ -2275,12 +2348,33 @@ async function publicMemberRow(
   ctx: QueryCtx,
   profile: Doc<"users"> | null,
   stat: Doc<"leaderboardStats"> | null,
+  viewerId: Id<"users">,
   viewerRole: unknown,
+  contributionStat?: Doc<"profileStats"> | null,
 ) {
   const xp = stat?.xp ?? 0;
   const email = String(profile?.email ?? "").trim().toLowerCase();
   const role = effectiveRoleForProfile(email, profile?.role);
   const name = profile?.name ?? email.split("@")[0] ?? "Član zajednice";
+  const aggregate = contributionStat ?? (profile
+    ? await ctx.db.query("profileStats").withIndex("by_userId", (q) => q.eq("userId", profile._id)).unique()
+    : null);
+  const [viewerFollow, reverseFollow] = profile && profile._id !== viewerId
+    ? await Promise.all([
+        ctx.db
+          .query("userFollows")
+          .withIndex("by_followerId_and_followingId", (q) =>
+            q.eq("followerId", viewerId).eq("followingId", profile._id),
+          )
+          .unique(),
+        ctx.db
+          .query("userFollows")
+          .withIndex("by_followerId_and_followingId", (q) =>
+            q.eq("followerId", profile._id).eq("followingId", viewerId),
+          )
+          .unique(),
+      ])
+    : [null, null];
   return {
     profileId: profile?._id,
     userId: profile?._id,
@@ -2293,6 +2387,11 @@ async function publicMemberRow(
     completedLessons: stat?.completedLessons ?? 0,
     completedTasks: stat?.completedTasks ?? 0,
     helpfulAnswers: stat?.helpfulAnswers ?? 0,
+    contributionCount: aggregate?.contributionCount ?? 0,
+    isFollowing: Boolean(viewerFollow),
+    isFollowedBy: Boolean(reverseFollow),
+    isMutual: Boolean(viewerFollow && reverseFollow),
+    canFollow: profile?._id !== viewerId && viewerRole !== "admin" && role !== "admin",
     canManageRole: viewerRole === "admin" && role !== "admin" && Boolean(profile?._id),
   };
 }
@@ -2303,15 +2402,47 @@ export const listMembersPage = query({
     scope: v.optional(communityScopeValidator),
     search: v.optional(v.string()),
     role: v.optional(memberRoleValidator),
+    connection: v.optional(memberConnectionValidator),
   },
   handler: async (ctx, args) => {
-    const { profile: viewerProfile } = await getCurrentProfile(ctx);
+    const { userId: viewerId, profile: viewerProfile } = await getCurrentProfile(ctx);
     const scope = args.scope
       ? await resolveCommunityScope(ctx, args.scope)
       : globalCommunityScope();
     if (scope.kind === "course") await requireCourseAccess(ctx, scope.courseId);
     const paginationOpts = boundedPaginationOpts(args.paginationOpts);
     const search = args.search?.trim().toLocaleLowerCase();
+
+    if (args.connection && args.connection !== "all") {
+      const relationPage = args.connection === "following"
+        ? await ctx.db
+            .query("userFollows")
+            .withIndex("by_followerId_and_createdAt", (q) => q.eq("followerId", viewerId))
+            .order("desc")
+            .paginate(args.paginationOpts)
+        : await ctx.db
+            .query("userFollows")
+            .withIndex("by_followingId_and_createdAt", (q) => q.eq("followingId", viewerId))
+            .order("desc")
+            .paginate(args.paginationOpts);
+      const members = await Promise.all(relationPage.page.map(async (edge) => {
+        const memberUserId = args.connection === "following" ? edge.followingId : edge.followerId;
+        const profile = await ctx.db.get(memberUserId);
+        if (!profile || profile.mergedInto) return null;
+        const role = effectiveRoleForProfile(String(profile.email ?? ""), profile.role);
+        if (role === "admin" || (args.role && role !== args.role)) return null;
+        const searchable = `${profile.name ?? ""} ${profile.username ?? ""}`.toLocaleLowerCase();
+        if (search && !searchable.includes(search)) return null;
+        const stat = await ctx.db
+          .query("leaderboardStats")
+          .withIndex("by_userId_and_scopeKey_and_period_and_periodKey", (q) =>
+            q.eq("userId", memberUserId).eq("scopeKey", scope.scopeKey).eq("period", "all_time").eq("periodKey", "all"),
+          )
+          .unique();
+        return publicMemberRow(ctx, profile, stat, viewerId, viewerProfile.role);
+      }));
+      return { ...relationPage, page: members.filter((member) => member !== null), scope };
+    }
 
     if (scope.kind !== "global") {
       const stats = await ctx.db
@@ -2327,7 +2458,7 @@ export const listMembersPage = query({
           if (!profile || (args.role && profile.role !== args.role)) return null;
           const searchable = `${profile.name} ${profile.username ?? ""}`.toLocaleLowerCase();
           if (search && !searchable.includes(search)) return null;
-          return publicMemberRow(ctx, profile, stat, viewerProfile.role);
+          return publicMemberRow(ctx, profile, stat, viewerId, viewerProfile.role);
         }),
       );
       return { ...stats, page: members.filter((member) => member !== null), scope };
@@ -2363,7 +2494,7 @@ export const listMembersPage = query({
         profileRows.map((row) => [String(row._id), row]),
       ).values(),
     );
-    const members = await Promise.all(
+    const candidates = await Promise.all(
       uniqueRows.map(async (row) => {
         const profile = row;
         const role = effectiveRoleForProfile(String(profile.email ?? ""), profile.role);
@@ -2377,18 +2508,34 @@ export const listMembersPage = query({
             q.eq("userId", memberUserId).eq("scopeKey", "global").eq("period", "all_time").eq("periodKey", "all"),
           )
           .unique();
-        return publicMemberRow(ctx, profile, stat, viewerProfile.role);
+        const contributionStat = await ctx.db
+          .query("profileStats")
+          .withIndex("by_userId", (q) => q.eq("userId", memberUserId))
+          .unique();
+        return { profile, stat, contributionStat, role, contributionCount: contributionStat?.contributionCount ?? 0 };
       }),
     );
-    const filteredMembers = members.filter((member): member is NonNullable<typeof member> => Boolean(member));
-    filteredMembers.sort((a, b) => {
+    const filteredCandidates = candidates.filter((candidate): candidate is NonNullable<typeof candidate> => Boolean(candidate));
+    filteredCandidates.sort((a, b) => {
       const orderA = roleOrder.indexOf(a.role as (typeof roleOrder)[number]);
       const orderB = roleOrder.indexOf(b.role as (typeof roleOrder)[number]);
-      return (orderA < 0 ? 99 : orderA) - (orderB < 0 ? 99 : orderB) || a.name.localeCompare(b.name);
+      return (orderA < 0 ? 99 : orderA) - (orderB < 0 ? 99 : orderB)
+        || b.contributionCount - a.contributionCount
+        || String(a.profile.name ?? "").localeCompare(String(b.profile.name ?? ""));
     });
     const offset = args.paginationOpts.cursor ? Number(args.paginationOpts.cursor) || 0 : 0;
-    const page = filteredMembers.slice(offset, offset + paginationOpts.numItems);
-    const isDone = offset + page.length >= filteredMembers.length;
+    const selectedCandidates = filteredCandidates.slice(offset, offset + paginationOpts.numItems);
+    const page = await Promise.all(selectedCandidates.map((candidate) =>
+      publicMemberRow(
+        ctx,
+        candidate.profile,
+        candidate.stat,
+        viewerId,
+        viewerProfile.role,
+        candidate.contributionStat,
+      ),
+    ));
+    const isDone = offset + page.length >= filteredCandidates.length;
     return { page, isDone, continueCursor: isDone ? "" : String(offset + page.length), scope };
   },
 });

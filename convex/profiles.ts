@@ -30,6 +30,7 @@ const AVATAR_PRESET_URLS = {
 } as const;
 
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
+const MAX_BIO_LENGTH = 280;
 const PROFILE_LIST_LIMIT = 200;
 const assignableRoleValidator = v.union(
   v.literal("student"),
@@ -39,6 +40,21 @@ const assignableRoleValidator = v.union(
 
 function normalizeNamePart(value: string) {
   return value.trim().replace(/\s+/g, " ");
+}
+
+function normalizePublicUrl(value: string | undefined, label: string) {
+  const trimmed = value?.trim();
+  if (!trimmed) return undefined;
+  let parsed: URL;
+  try {
+    parsed = new URL(trimmed);
+  } catch {
+    throw new Error(`${label} mora biti ispravan URL.`);
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    throw new Error(`${label} mora početi sa http:// ili https://.`);
+  }
+  return parsed.toString();
 }
 
 function profileResponse(user: {
@@ -54,6 +70,12 @@ function profileResponse(user: {
   avatarPreset?: "mythic-mentor" | "cosmic-scholar" | "hybrid-guardian";
   role?: "student" | "pro_student" | "moderator" | "admin";
   language?: "sr" | "en";
+  bio?: string;
+  websiteUrl?: string;
+  instagramUrl?: string;
+  linkedinUrl?: string;
+  youtubeUrl?: string;
+  dmPrivacy?: "requests" | "following" | "nobody";
   searchText?: string;
   createdAt?: number;
   updatedAt?: number;
@@ -73,6 +95,12 @@ function profileResponse(user: {
     avatarPreset: user.avatarPreset,
     role: effectiveRoleForProfile(email, user.role),
     language: user.language ?? ("sr" as const),
+    bio: user.bio,
+    websiteUrl: user.websiteUrl,
+    instagramUrl: user.instagramUrl,
+    linkedinUrl: user.linkedinUrl,
+    youtubeUrl: user.youtubeUrl,
+    dmPrivacy: user.dmPrivacy ?? "requests",
     searchText: user.searchText,
     createdAt: user.createdAt ?? user._creationTime,
     updatedAt: user.updatedAt ?? user._creationTime,
@@ -192,6 +220,12 @@ export const updateViewerProfile = mutation({
     avatarPreset: v.optional(avatarPresetValidator),
     avatarStorageId: v.optional(v.id("_storage")),
     username: v.optional(v.string()),
+    bio: v.optional(v.string()),
+    websiteUrl: v.optional(v.string()),
+    instagramUrl: v.optional(v.string()),
+    linkedinUrl: v.optional(v.string()),
+    youtubeUrl: v.optional(v.string()),
+    dmPrivacy: v.optional(v.union(v.literal("requests"), v.literal("following"), v.literal("nobody"))),
   },
   handler: async (ctx, args) => {
     const profile = await ensureProfile(ctx);
@@ -206,6 +240,10 @@ export const updateViewerProfile = mutation({
     }
 
     const nextUsername = args.username !== undefined ? normalizeUsername(args.username) : profile.username;
+    const bio = args.bio?.trim() || undefined;
+    if (bio && bio.length > MAX_BIO_LENGTH) {
+      throw new Error(`Biografija može imati najviše ${MAX_BIO_LENGTH} znakova.`);
+    }
 
     const patch: {
       firstName: string;
@@ -217,6 +255,12 @@ export const updateViewerProfile = mutation({
       avatarPreset?: "mythic-mentor" | "cosmic-scholar" | "hybrid-guardian";
       avatarStorageId?: Id<"_storage">;
       username?: string | undefined;
+      bio?: string;
+      websiteUrl?: string;
+      instagramUrl?: string;
+      linkedinUrl?: string;
+      youtubeUrl?: string;
+      dmPrivacy?: "requests" | "following" | "nobody";
       updatedAt: number;
     } = {
       firstName,
@@ -224,6 +268,12 @@ export const updateViewerProfile = mutation({
       name: `${firstName} ${lastName}`,
       searchText: `${firstName} ${lastName} ${String(nextUsername ?? "")}`.trim(),
       ...(args.language ? { language: args.language } : {}),
+      bio,
+      websiteUrl: normalizePublicUrl(args.websiteUrl, "Website"),
+      instagramUrl: normalizePublicUrl(args.instagramUrl, "Instagram"),
+      linkedinUrl: normalizePublicUrl(args.linkedinUrl, "LinkedIn"),
+      youtubeUrl: normalizePublicUrl(args.youtubeUrl, "YouTube"),
+      ...(args.dmPrivacy ? { dmPrivacy: args.dmPrivacy } : {}),
       updatedAt: Date.now(),
     };
 

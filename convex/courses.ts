@@ -11,6 +11,7 @@ import {
   requireUserId,
 } from "./helpers";
 import { syncLeaderboardSourceEvent } from "./leaderboardCore";
+import { adjustProfileActivity } from "./profileActivityCore";
 import { assertReadyToPublish } from "./contentReadiness";
 import { parseRichText, richTextHasContent, richTextToPlainText } from "../lib/rich-text";
 
@@ -656,6 +657,12 @@ export const markProgress = mutation({
     };
 
     if (completedDelta !== 0) {
+      const leaderboardEvent = await ctx.db
+        .query("leaderboardEvents")
+        .withIndex("by_userId_and_sourceType_and_sourceId", (q) =>
+          q.eq("userId", userId).eq("sourceType", "lesson").eq("sourceId", String(args.lessonId)),
+        )
+        .unique();
       const stats = await ctx.db
         .query("profileStats")
         .withIndex("by_userId", (q) => q.eq("userId", userId))
@@ -685,6 +692,13 @@ export const markProgress = mutation({
         active: args.completed,
         occurredAt: updatedAt,
         courseId: lesson.courseId,
+      });
+      await adjustProfileActivity(ctx, {
+        userId,
+        kind: "lessons",
+        delta: completedDelta > 0 ? 1 : -1,
+        timestamp: leaderboardEvent?.occurredAt
+          ?? (completedDelta < 0 ? existing?.updatedAt ?? updatedAt : updatedAt),
       });
     }
 

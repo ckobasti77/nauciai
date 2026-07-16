@@ -207,17 +207,19 @@ export function LiveCommunityThreadPage({
               <div aria-hidden="true" className="absolute bottom-0 left-8 top-0 hidden w-px bg-ink/15 md:block" />
               <div className="relative mx-auto max-w-[720px]">
                 <div className="flex items-start gap-3">
-                  <CommunityAvatar
-                    name={post.authorName}
-                    avatarUrl={post.authorAvatarUrl}
-                    role={post.authorRole}
-                    rank={post.authorRank}
-                    locale={locale}
-                    size="md"
-                  />
+                  <Link href={post.authorUsername ? withLocale(locale, `/app/members/${post.authorUsername}`) : "#"} aria-disabled={!post.authorUsername} className="shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
+                    <CommunityAvatar
+                      name={post.authorName}
+                      avatarUrl={post.authorAvatarUrl}
+                      role={post.authorRole}
+                      rank={post.authorRank}
+                      locale={locale}
+                      size="md"
+                    />
+                  </Link>
                   <div className="min-w-0 flex-1">
                     <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-                      <p className="truncate text-sm font-black text-ink">{post.authorUsername ? `@${post.authorUsername}` : post.authorName}</p>
+                      {post.authorUsername ? <Link href={withLocale(locale, `/app/members/${post.authorUsername}`)} className="truncate text-sm font-black text-ink hover:underline">@{post.authorUsername}</Link> : <p className="truncate text-sm font-black text-ink">{post.authorName}</p>}
                       {post.authorUsername ? <p className="truncate text-xs font-semibold text-muted">{post.authorName}</p> : null}
                       <span aria-hidden="true" className="hidden text-line sm:inline">•</span>
                       <time dateTime={new Date(post.createdAt).toISOString()} className="text-xs font-bold text-ink/55">

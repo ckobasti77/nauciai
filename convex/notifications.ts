@@ -20,7 +20,8 @@ const PERSONAL_NOTIFICATION_KINDS = [
   "like_comment",
   "helpful_comment",
 ] as const;
-const COMMUNITY_NOTIFICATION_KINDS = [...MY_THREAD_NOTIFICATION_KINDS, ...PERSONAL_NOTIFICATION_KINDS] as const;
+const SYSTEM_NOTIFICATION_KINDS = ["new_follower"] as const;
+const COMMUNITY_NOTIFICATION_KINDS = [...MY_THREAD_NOTIFICATION_KINDS, ...PERSONAL_NOTIFICATION_KINDS, ...SYSTEM_NOTIFICATION_KINDS] as const;
 
 async function unreadByKinds(ctx: any, userId: Id<"users">, kinds: readonly string[]) {
   const rows = await Promise.all(

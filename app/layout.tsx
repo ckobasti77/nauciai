@@ -49,7 +49,7 @@ export default async function RootLayout({
       lang="sr"
       className={`${nunito.variable} ${geistMono.variable} ${patrickHand.variable} h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col">{bodyContent}</body>
+      <body suppressHydrationWarning className="flex min-h-full flex-col">{bodyContent}</body>
     </html>
   );
 }

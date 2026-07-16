@@ -29,6 +29,7 @@ import {
 } from "react";
 
 import { Panel, SectionHeader, cn } from "@/components/ui/primitives";
+import { SocialLearningSettings } from "@/components/app/social-learning-settings";
 import { useToast } from "@/components/ui/toast-provider";
 import { api } from "@/convex/_generated/api";
 import type { ViewerProfile } from "@/lib/current-viewer";
@@ -80,6 +81,12 @@ function valuesFromProfile(profile: ViewerProfile, locale: Locale) {
     language: profile?.language ?? locale,
     avatarPreset,
     username: profile?.username ?? "",
+    bio: profile?.bio ?? "",
+    websiteUrl: profile?.websiteUrl ?? "",
+    instagramUrl: profile?.instagramUrl ?? "",
+    linkedinUrl: profile?.linkedinUrl ?? "",
+    youtubeUrl: profile?.youtubeUrl ?? "",
+    dmPrivacy: profile?.dmPrivacy ?? "requests",
     avatarUrl:
       profile?.avatarUrl ??
       profileAvatarPresetSrc(avatarPreset) ??
@@ -132,6 +139,12 @@ export function ProfileEditor({
   const [firstName, setFirstName] = useState(initialValues.firstName);
   const [lastName, setLastName] = useState(initialValues.lastName);
   const [username, setUsername] = useState(initialValues.username);
+  const [bio, setBio] = useState(initialValues.bio);
+  const [websiteUrl, setWebsiteUrl] = useState(initialValues.websiteUrl);
+  const [instagramUrl, setInstagramUrl] = useState(initialValues.instagramUrl);
+  const [linkedinUrl, setLinkedinUrl] = useState(initialValues.linkedinUrl);
+  const [youtubeUrl, setYoutubeUrl] = useState(initialValues.youtubeUrl);
+  const [dmPrivacy, setDmPrivacy] = useState<"requests" | "following" | "nobody">(initialValues.dmPrivacy);
   const [language, setLanguage] = useState<Locale>(initialValues.language);
   const [currentAvatarUrl, setCurrentAvatarUrl] = useState(initialValues.avatarUrl);
   const [selectedPreset, setSelectedPreset] = useState<ProfileAvatarPresetId | undefined>(
@@ -464,6 +477,12 @@ export function ProfileEditor({
         lastName: trimmedLastName,
         language,
         username: username.trim(),
+        bio: bio.trim(),
+        websiteUrl: websiteUrl.trim(),
+        instagramUrl: instagramUrl.trim(),
+        linkedinUrl: linkedinUrl.trim(),
+        youtubeUrl: youtubeUrl.trim(),
+        dmPrivacy,
         ...(avatarStorageId
           ? { avatarStorageId }
           : avatarChanged && selectedPreset
@@ -635,7 +654,7 @@ export function ProfileEditor({
 
       <form onSubmit={submit} className="grid gap-6 xl:grid-cols-[minmax(0,0.78fr)_minmax(360px,0.42fr)]">
         <Panel className="overflow-hidden">
-          <div className="border-b-2 border-ink bg-yellow px-5 py-4 sm:px-6">
+          <div id="public-profile" className="scroll-mt-6 border-b-2 border-ink bg-yellow px-5 py-4 sm:px-6">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm font-black uppercase text-ink/75">
@@ -742,7 +761,40 @@ export function ProfileEditor({
                   {labelFor(locale, "Korisničko ime mora imati između 3 i 20 znakova, najmanje 3 slova, i može sadržati samo slova, cifre, tačku i donju crtu. Koristi se za pominjanje u zajednici (@username).", "Username must be 3–20 characters, contain at least 3 letters, and use only letters, numbers, periods, and underscores. Used for mentions (@username).")}
                 </p>
               </label>
-              <div className="sm:col-span-2">
+              <label className="block sm:col-span-2">
+                <span className="flex items-center justify-between gap-3 text-sm font-black text-ink">
+                  <span>{labelFor(locale, "Javna biografija", "Public bio")}</span>
+                  <span className="font-mono text-xs text-muted">{bio.length}/280</span>
+                </span>
+                <textarea
+                  value={bio}
+                  onChange={(event) => setBio(event.target.value)}
+                  maxLength={280}
+                  rows={4}
+                  placeholder={labelFor(locale, "Ukratko predstavi sebe, svoj rad i šta želiš da naučiš.", "Briefly introduce yourself, your work, and what you want to learn.")}
+                  className="mt-2 w-full resize-y rounded-[8px] border-2 border-ink bg-white px-4 py-3 text-base font-bold leading-6 text-ink outline-none transition focus:border-yellow focus:ring-4 focus:ring-yellow/25"
+                />
+              </label>
+              <div className="grid gap-4 sm:col-span-2 sm:grid-cols-2">
+                {[
+                  ["Website", websiteUrl, setWebsiteUrl, "https://tvojsajt.rs"],
+                  ["Instagram", instagramUrl, setInstagramUrl, "https://instagram.com/username"],
+                  ["LinkedIn", linkedinUrl, setLinkedinUrl, "https://linkedin.com/in/username"],
+                  ["YouTube", youtubeUrl, setYoutubeUrl, "https://youtube.com/@kanal"],
+                ].map(([label, value, setter, placeholder]) => (
+                  <label key={label as string} className="block">
+                    <span className="text-sm font-black text-ink">{label as string}</span>
+                    <input
+                      type="url"
+                      value={value as string}
+                      onChange={(event) => (setter as (value: string) => void)(event.target.value)}
+                      placeholder={placeholder as string}
+                      className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-white px-4 text-sm font-bold text-ink outline-none transition focus:border-yellow focus:ring-4 focus:ring-yellow/25"
+                    />
+                  </label>
+                ))}
+              </div>
+              <div id="account-settings" className="scroll-mt-6 sm:col-span-2">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="text-sm font-black text-ink">{labelFor(locale, "Lozinka", "Password")}</span>
                 </div>
@@ -830,6 +882,19 @@ export function ProfileEditor({
                   <option value="sr">Srpski</option>
                   <option value="en">English</option>
                 </select>
+              </label>
+              <label className="block sm:col-span-2">
+                <span className="text-sm font-black text-ink">{labelFor(locale, "Ko može da ti pošalje novu poruku", "Who can start a new chat with you")}</span>
+                <select
+                  value={dmPrivacy}
+                  onChange={(event) => setDmPrivacy(event.target.value as "requests" | "following" | "nobody")}
+                  className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-white px-4 text-base font-extrabold text-ink outline-none transition focus:border-yellow focus:ring-4 focus:ring-yellow/25"
+                >
+                  <option value="requests">{labelFor(locale, "Svi uz request", "Anyone, with a request")}</option>
+                  <option value="following">{labelFor(locale, "Samo ljudi koje pratim", "Only people I follow")}</option>
+                  <option value="nobody">{labelFor(locale, "Niko", "Nobody")}</option>
+                </select>
+                <p className="mt-1.5 text-xs font-bold text-muted">{labelFor(locale, "Admin podrška može da započne razgovor kada je to potrebno za nalog.", "Admin support can still start a conversation when account help is required.")}</p>
               </label>
             </div>
           </div>
@@ -929,6 +994,7 @@ export function ProfileEditor({
           </div>
         </Panel>
       </form>
+      <SocialLearningSettings locale={locale} role={initialValues.role} />
     </div>
   );
 }

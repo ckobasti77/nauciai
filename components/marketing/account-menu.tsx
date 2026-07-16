@@ -2,13 +2,14 @@
 
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useQuery } from "convex/react";
-import { ChevronDown, CreditCard, LogOut, UserRound, MessageCircle } from "lucide-react";
+import { ChevronDown, CreditCard, LogOut, UserRound, MessageCircle, MessagesSquare } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 
 import { api } from "@/convex/_generated/api";
 import type { ViewerProfile } from "@/lib/current-viewer";
+import { publicProfilePath } from "@/lib/profile-links";
 import { dictionary, type Locale, withLocale } from "@/lib/i18n";
 
 type AccountProfile = NonNullable<ViewerProfile>;
@@ -60,7 +61,8 @@ export function AccountMenu({ locale, profile }: { locale: Locale; profile: Acco
           : "Student";
   // Query notifications
   const summary = useQuery(api.notifications.getUserNotificationSummary, {});
-  const overallCount = Math.max(0, summary?.total ?? 0);
+  const chatSummary = useQuery(api.chat.getInboxSummary, {});
+  const overallCount = Math.max(0, (summary?.total ?? 0) + (chatSummary?.totalUnread ?? 0));
   const communityCount = summary?.community ?? 0;
   const billingCount = summary?.billing ?? 0;
   const profileStatus = useQuery(api.profiles.getViewerProfileStatus, {});
@@ -78,7 +80,13 @@ export function AccountMenu({ locale, profile }: { locale: Locale; profile: Acco
       badge: communityCount,
     },
     {
-      href: withLocale(locale, "/app/profile"),
+      href: withLocale(locale, "/app/messages"),
+      label: locale === "sr" ? "Poruke" : "Messages",
+      icon: MessagesSquare,
+      badge: chatSummary?.totalUnread ?? 0,
+    },
+    {
+      href: withLocale(locale, publicProfilePath(profile.username)),
       label: t.profile,
       icon: UserRound,
       badge: accountWarnings,
@@ -223,7 +231,7 @@ export function AccountMenu({ locale, profile }: { locale: Locale; profile: Acco
                     <span className="truncate">{item.label}</span>
                   </span>
                   {item.badge && item.badge > 0 ? (
-                    <span className={item.href === withLocale(locale, "/app/profile") ? "flex h-5 min-w-5 items-center justify-center rounded-full border border-amber-500 bg-amber-100 px-1 text-[10px] font-black text-amber-900" : "flex h-5 min-w-5 items-center justify-center rounded-full border border-ink bg-red-600 px-1 text-[10px] font-black text-white"}>
+                    <span className={item.href === withLocale(locale, publicProfilePath(profile.username)) ? "flex h-5 min-w-5 items-center justify-center rounded-full border border-amber-500 bg-amber-100 px-1 text-[10px] font-black text-amber-900" : "flex h-5 min-w-5 items-center justify-center rounded-full border border-ink bg-red-600 px-1 text-[10px] font-black text-white"}>
                       {item.badge}
                     </span>
                   ) : null}

@@ -1,11 +1,17 @@
 "use client";
 
-import { Award, BookOpen, Check, ChevronRight, SearchX, ShieldCheck, Sparkles, Users, X } from "lucide-react";
+import { Award, BookOpen, Check, ChevronRight, SearchX, ShieldCheck, Sparkles, UserPlus, Users, X } from "lucide-react";
+import { useMutation } from "convex/react";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { CommunityAvatar, RoleBadge, roleLabel } from "@/components/app/community-identity";
+import { cn } from "@/components/ui/primitives";
 import { useToast } from "@/components/ui/toast-provider";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import type { Locale } from "@/lib/i18n";
+import { withLocale } from "@/lib/i18n";
 
 import { fallbackCommunityFilters, useCommunityFilters, useCommunityMembers } from "./community-data";
 import { CommunityScopeControls, useCommunityQueryParams, useResolvedCommunityScope } from "./community-filters";
@@ -23,6 +29,7 @@ import {
 import type { CommunityFilters, CommunityMemberRow } from "./community-types";
 
 type MemberRoleFilter = "all" | "student" | "pro_student" | "moderator" | "admin";
+type MemberConnectionFilter = "all" | "following" | "followers";
 type AssignableRole = "student" | "pro_student" | "moderator";
 
 const ROLE_OPTIONS: Array<{ value: MemberRoleFilter; sr: string; en: string }> = [
@@ -41,6 +48,8 @@ function useMemberControls() {
   const role: MemberRoleFilter = ROLE_OPTIONS.some((option) => option.value === requestedRole)
     ? (requestedRole as MemberRoleFilter)
     : "all";
+  const requestedConnection = searchParams.get("connection");
+  const connection: MemberConnectionFilter = requestedConnection === "following" || requestedConnection === "followers" ? requestedConnection : "all";
 
   useEffect(() => {
     if (currentQuery === search.trim()) return;
@@ -53,7 +62,9 @@ function useMemberControls() {
     setSearch,
     query: currentQuery.trim(),
     role,
+    connection,
     setRole: (next: MemberRoleFilter) => update({ role: next === "all" ? undefined : next }),
+    setConnection: (next: MemberConnectionFilter) => update({ connection: next === "all" ? undefined : next }),
   };
 }
 
@@ -88,6 +99,7 @@ function LiveMembersPage({ locale }: { locale: Locale }) {
     scope: filtersLoading ? { kind: "global" } : scopeState.scope,
     search: controls.query || undefined,
     role: controls.role === "all" ? undefined : controls.role,
+    connection: controls.connection,
   });
 
   return (
@@ -110,18 +122,30 @@ function LiveMembersPage({ locale }: { locale: Locale }) {
 function MemberCard({
   locale,
   member,
-  onOpen,
 }: {
   locale: Locale;
   member: CommunityMemberRow;
-  onOpen: () => void;
 }) {
+  const toggleFollow = useMutation(api.publicProfiles.toggleFollow);
+  const sourceFollowState = `${Boolean(member.isFollowing)}:${Boolean(member.isMutual)}`;
+  const [optimisticFollow, setOptimisticFollow] = useState<{ source: string; following: boolean; mutual: boolean } | null>(null);
+  const following = optimisticFollow?.source === sourceFollowState ? optimisticFollow.following : Boolean(member.isFollowing);
+  const mutual = optimisticFollow?.source === sourceFollowState ? optimisticFollow.mutual : Boolean(member.isMutual);
+  const [pending, setPending] = useState(false);
+
+  async function follow() {
+    if (!member.userId || pending) return;
+    setPending(true);
+    try {
+      const result = await toggleFollow({ userId: member.userId as Id<"users"> });
+      setOptimisticFollow({ source: sourceFollowState, following: result.following, mutual: result.isMutual });
+    } finally {
+      setPending(false);
+    }
+  }
+
   return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className="group flex min-h-28 w-full items-start gap-3 rounded-[16px]! border border-line bg-white p-3 text-left transition hover:border-ink hover:shadow-[3px_3px_0_rgba(14,49,88,0.08)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-    >
+    <article className="group relative flex min-h-28 w-full items-start gap-3 rounded-[16px]! border border-line bg-white p-3 text-left transition hover:border-ink hover:shadow-[3px_3px_0_rgba(14,49,88,0.08)]">
       <CommunityAvatar
         name={member.name}
         avatarUrl={member.avatarUrl}
@@ -131,10 +155,10 @@ function MemberCard({
         showRank={false}
       />
       <span className="min-w-0 flex-1">
-        <span className="flex min-w-0 items-center gap-2">
+        {member.username ? <Link href={withLocale(locale, `/app/members/${member.username}`)} className="flex min-w-0 items-center gap-2 rounded-[8px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
           <span className="truncate text-base font-black text-ink">{member.name}</span>
           <ChevronRight className="size-4 shrink-0 text-line transition group-hover:translate-x-0.5 group-hover:text-ink" aria-hidden="true" />
-        </span>
+        </Link> : <span className="flex min-w-0 items-center gap-2"><span className="truncate text-base font-black text-ink">{member.name}</span></span>}
         {member.username ? <span className="mt-0.5 block truncate text-xs font-bold text-muted">@{member.username}</span> : null}
         <span className="mt-2 block">
           <ScopeTrail
@@ -144,12 +168,13 @@ function MemberCard({
             compact
           />
         </span>
-        <span className="mt-3 flex items-center justify-between gap-2">
-          <span className="font-mono text-xs font-black text-ink">{member.xp ?? 0} XP</span>
+        <span className="mt-3 flex flex-wrap items-center justify-between gap-2">
+          <span className="font-mono text-xs font-black text-ink">{member.contributionCount ?? 0} {locale === "sr" ? "doprinosa" : "contributions"}</span>
           <RoleBadge role={member.role} locale={locale} compact />
         </span>
+        {member.canFollow && member.userId ? <button type="button" onClick={() => void follow()} disabled={pending} className={cn("mt-3 inline-flex min-h-9 items-center gap-2 rounded-full border-2 border-ink px-3 text-[10px] font-black", following ? "bg-white" : "bg-yellow")}><UserPlus className="size-3.5" />{mutual ? (locale === "sr" ? "Pratite se" : "Mutual") : following ? (locale === "sr" ? "Pratiš" : "Following") : (locale === "sr" ? "Zaprati" : "Follow")}</button> : null}
       </span>
-    </button>
+    </article>
   );
 }
 
@@ -397,6 +422,13 @@ function MembersView({
 
       <CommunityStickyToolbar>
       <section className="rounded-[16px]! border border-line bg-white p-3 sm:p-4">
+        <div className="mb-3 flex gap-2 overflow-x-auto" role="tablist" aria-label={locale === "sr" ? "Veze članova" : "Member connections"}>
+          {([
+            ["all", locale === "sr" ? "Svi" : "All"],
+            ["following", locale === "sr" ? "Pratim" : "Following"],
+            ["followers", locale === "sr" ? "Pratioci" : "Followers"],
+          ] as Array<[MemberConnectionFilter, string]>).map(([value, text]) => <button key={value} type="button" role="tab" aria-selected={controls.connection === value} onClick={() => controls.setConnection(value)} className={cn("shrink-0 rounded-full border-2 border-ink px-4 py-2 text-xs font-black", controls.connection === value ? "bg-ink text-white" : "bg-white text-ink")}>{text}</button>)}
+        </div>
         <div className="grid gap-2 xl:grid-cols-[minmax(220px,0.72fr)_minmax(0,1fr)]">
           <CommunityScopeControls locale={locale} filters={filters} scopeState={scopeState} compact />
           <div className="flex min-w-0 flex-col gap-2 sm:flex-row">
@@ -450,7 +482,7 @@ function MembersView({
                   </div>
                   <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                     {group.map((member) => (
-                      <MemberCard key={member._id} locale={locale} member={member} onOpen={() => setSelectedMember(member)} />
+                      <MemberCard key={member._id} locale={locale} member={member} />
                     ))}
                   </div>
                 </section>

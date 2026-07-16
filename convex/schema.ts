@@ -39,6 +39,27 @@ const leaderboardSourceType = v.union(
   v.literal("required_task"),
   v.literal("helpful_comment"),
 );
+const helpMode = v.union(v.literal("seeking"), v.literal("offering"), v.literal("both"));
+const dmPrivacy = v.union(v.literal("requests"), v.literal("following"), v.literal("nobody"));
+const studyProgressZone = v.union(
+  v.literal("0_25"),
+  v.literal("26_50"),
+  v.literal("51_75"),
+  v.literal("76_100"),
+);
+const chatConversationKind = v.union(v.literal("direct"), v.literal("group"), v.literal("support"));
+const chatMemberStatus = v.union(
+  v.literal("invited"),
+  v.literal("active"),
+  v.literal("left"),
+  v.literal("removed"),
+);
+const chatRequestStatus = v.union(
+  v.literal("none"),
+  v.literal("pending"),
+  v.literal("accepted"),
+  v.literal("declined"),
+);
 const localizedCopy = v.object({ sr: v.string(), en: v.string() });
 const pageCopy = v.object({
   primaryCta: v.optional(localizedCopy),
@@ -68,6 +89,14 @@ const authUsers = defineTable({
   ),
   role: v.optional(role),
   language: v.optional(language),
+  bio: v.optional(v.string()),
+  websiteUrl: v.optional(v.string()),
+  instagramUrl: v.optional(v.string()),
+  linkedinUrl: v.optional(v.string()),
+  youtubeUrl: v.optional(v.string()),
+  helpStatus: v.optional(helpMode),
+  dmPrivacy: v.optional(dmPrivacy),
+  anonymizedAt: v.optional(v.number()),
   searchText: v.optional(v.string()),
   createdAt: v.optional(v.number()),
   updatedAt: v.optional(v.number()),
@@ -111,8 +140,468 @@ export default defineSchema({
   profileStats: defineTable({
     userId: v.id("users"),
     completedLessons: v.number(),
+    contributionCount: v.optional(v.number()),
+    followerCount: v.optional(v.number()),
+    followingCount: v.optional(v.number()),
+    role: v.optional(role),
+    aggregateVersion: v.optional(v.number()),
     updatedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_role_and_contributionCount", ["role", "contributionCount"]),
+
+  userFollows: defineTable({
+    followerId: v.id("users"),
+    followingId: v.id("users"),
+    createdAt: v.number(),
+  })
+    .index("by_followerId_and_followingId", ["followerId", "followingId"])
+    .index("by_followerId_and_createdAt", ["followerId", "createdAt"])
+    .index("by_followingId_and_createdAt", ["followingId", "createdAt"]),
+
+  userPresence: defineTable({
+    userId: v.id("users"),
+    lastSeenAt: v.number(),
   }).index("by_userId", ["userId"]),
+
+  profileActivityDays: defineTable({
+    userId: v.id("users"),
+    dayKey: v.string(),
+    lessons: v.number(),
+    tasks: v.number(),
+    threads: v.number(),
+    comments: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId_and_dayKey", ["userId", "dayKey"]),
+
+  profileContributions: defineTable({
+    userId: v.id("users"),
+    postId: v.id("communityPosts"),
+    courseId: v.optional(v.id("courses")),
+    hasThread: v.optional(v.boolean()),
+    hasComments: v.optional(v.boolean()),
+    threadCount: v.number(),
+    commentCount: v.number(),
+    lastActivityAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId_and_postId", ["userId", "postId"])
+    .index("by_userId_and_lastActivityAt", ["userId", "lastActivityAt"])
+    .index("by_userId_and_courseId_and_lastActivityAt", ["userId", "courseId", "lastActivityAt"])
+    .index("by_userId_and_hasThread_and_lastActivityAt", ["userId", "hasThread", "lastActivityAt"])
+    .index("by_userId_and_courseId_and_hasThread_and_lastActivityAt", [
+      "userId",
+      "courseId",
+      "hasThread",
+      "lastActivityAt",
+    ])
+    .index("by_userId_and_hasComments_and_lastActivityAt", ["userId", "hasComments", "lastActivityAt"])
+    .index("by_userId_and_courseId_and_hasComments_and_lastActivityAt", [
+      "userId",
+      "courseId",
+      "hasComments",
+      "lastActivityAt",
+    ])
+    .index("by_postId", ["postId"]),
+
+  helpTopics: defineTable({
+    name: v.string(),
+    normalizedName: v.string(),
+    courseId: v.optional(v.id("courses")),
+    active: v.boolean(),
+    createdBy: v.id("users"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_normalizedName_and_courseId", ["normalizedName", "courseId"])
+    .index("by_courseId_and_normalizedName", ["courseId", "normalizedName"]),
+
+  helpTopicSuggestions: defineTable({
+    proposerId: v.id("users"),
+    name: v.string(),
+    normalizedName: v.string(),
+    courseId: v.optional(v.id("courses")),
+    status: v.union(v.literal("pending"), v.literal("approved"), v.literal("rejected"), v.literal("merged")),
+    resolvedTopicId: v.optional(v.id("helpTopics")),
+    reviewedBy: v.optional(v.id("users")),
+    reviewReason: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_status_and_createdAt", ["status", "createdAt"])
+    .index("by_proposerId_and_status_and_createdAt", ["proposerId", "status", "createdAt"])
+    .index("by_normalizedName_and_courseId_and_status", ["normalizedName", "courseId", "status"]),
+
+  userHelpTopics: defineTable({
+    userId: v.id("users"),
+    topicId: v.id("helpTopics"),
+    mode: helpMode,
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId_and_topicId", ["userId", "topicId"])
+    .index("by_userId_and_updatedAt", ["userId", "updatedAt"])
+    .index("by_topicId_and_mode_and_updatedAt", ["topicId", "mode", "updatedAt"]),
+
+  studyPartnerAvailability: defineTable({
+    userId: v.id("users"),
+    courseId: v.id("courses"),
+    progressZone: studyProgressZone,
+    progressPercent: v.number(),
+    active: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId_and_courseId", ["userId", "courseId"])
+    .index("by_courseId_and_progressZone_and_active_and_updatedAt", [
+      "courseId",
+      "progressZone",
+      "active",
+      "updatedAt",
+    ]),
+
+  studyPartnerInvites: defineTable({
+    pairKey: v.string(),
+    senderId: v.id("users"),
+    recipientId: v.id("users"),
+    courseId: v.id("courses"),
+    status: v.union(v.literal("pending"), v.literal("accepted"), v.literal("declined"), v.literal("cancelled")),
+    cooldownUntil: v.optional(v.number()),
+    createdAt: v.number(),
+    respondedAt: v.optional(v.number()),
+    updatedAt: v.number(),
+  })
+    .index("by_pairKey_and_courseId", ["pairKey", "courseId"])
+    .index("by_recipientId_and_status_and_createdAt", ["recipientId", "status", "createdAt"])
+    .index("by_senderId_and_status_and_createdAt", ["senderId", "status", "createdAt"]),
+
+  studyPartnerships: defineTable({
+    pairKey: v.string(),
+    userAId: v.id("users"),
+    userBId: v.id("users"),
+    courseId: v.id("courses"),
+    directConversationId: v.optional(v.id("chatConversations")),
+    createdFromInviteId: v.id("studyPartnerInvites"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_pairKey_and_courseId", ["pairKey", "courseId"])
+    .index("by_userAId_and_courseId_and_createdAt", ["userAId", "courseId", "createdAt"])
+    .index("by_userBId_and_courseId_and_createdAt", ["userBId", "courseId", "createdAt"]),
+
+  studyGroups: defineTable({
+    courseId: v.id("courses"),
+    creatorId: v.id("users"),
+    name: v.string(),
+    status: v.union(v.literal("forming"), v.literal("active")),
+    activeMemberCount: v.number(),
+    conversationId: v.optional(v.id("chatConversations")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_creatorId_and_createdAt", ["creatorId", "createdAt"])
+    .index("by_courseId_and_status_and_createdAt", ["courseId", "status", "createdAt"]),
+
+  studyGroupMembers: defineTable({
+    groupId: v.id("studyGroups"),
+    userId: v.id("users"),
+    courseId: v.id("courses"),
+    role: v.union(v.literal("owner"), v.literal("member")),
+    active: v.boolean(),
+    joinedAt: v.number(),
+    leftAt: v.optional(v.number()),
+  })
+    .index("by_groupId_and_userId", ["groupId", "userId"])
+    .index("by_groupId_and_active_and_joinedAt", ["groupId", "active", "joinedAt"])
+    .index("by_userId_and_courseId_and_active_and_joinedAt", ["userId", "courseId", "active", "joinedAt"]),
+
+  studyGroupInvites: defineTable({
+    groupId: v.id("studyGroups"),
+    courseId: v.id("courses"),
+    invitedBy: v.id("users"),
+    userId: v.id("users"),
+    status: v.union(v.literal("pending"), v.literal("accepted"), v.literal("declined"), v.literal("cancelled")),
+    createdAt: v.number(),
+    respondedAt: v.optional(v.number()),
+  })
+    .index("by_groupId_and_userId", ["groupId", "userId"])
+    .index("by_groupId_and_status_and_createdAt", ["groupId", "status", "createdAt"])
+    .index("by_userId_and_status_and_createdAt", ["userId", "status", "createdAt"]),
+
+  chatConversations: defineTable({
+    kind: chatConversationKind,
+    directKey: v.optional(v.string()),
+    ownerId: v.optional(v.id("users")),
+    createdById: v.id("users"),
+    title: v.optional(v.string()),
+    imageStorageId: v.optional(v.id("_storage")),
+    courseId: v.optional(v.id("courses")),
+    studyGroupId: v.optional(v.id("studyGroups")),
+    nextSequence: v.number(),
+    lastMessageSequence: v.optional(v.number()),
+    lastMessageAt: v.optional(v.number()),
+    lastMessagePreview: v.optional(v.string()),
+    deletedAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_directKey", ["directKey"])
+    .index("by_ownerId_and_updatedAt", ["ownerId", "updatedAt"])
+    .index("by_studyGroupId", ["studyGroupId"]),
+
+  chatMembers: defineTable({
+    conversationId: v.id("chatConversations"),
+    userId: v.id("users"),
+    conversationKind: chatConversationKind,
+    role: v.union(v.literal("owner"), v.literal("member")),
+    status: chatMemberStatus,
+    requestStatus: chatRequestStatus,
+    lastReadSequence: v.number(),
+    lastDeliveredSequence: v.number(),
+    lastDeliveredAt: v.number(),
+    unreadCount: v.number(),
+    hasUnread: v.boolean(),
+    isArchived: v.boolean(),
+    isPinned: v.boolean(),
+    historyCutoffSequence: v.number(),
+    mutedUntil: v.optional(v.number()),
+    requestImagesAllowedAt: v.optional(v.number()),
+    invitedBy: v.optional(v.id("users")),
+    invitedAt: v.optional(v.number()),
+    joinedAt: v.optional(v.number()),
+    leftAt: v.optional(v.number()),
+    updatedAt: v.number(),
+  })
+    .index("by_conversationId_and_userId", ["conversationId", "userId"])
+    .index("by_conversationId_and_status_and_joinedAt", ["conversationId", "status", "joinedAt"])
+    .index("by_userId_and_status_and_lastDeliveredAt", ["userId", "status", "lastDeliveredAt"])
+    .index("by_userId_and_conversationKind_and_lastDeliveredAt", ["userId", "conversationKind", "lastDeliveredAt"])
+    .index("by_userId_and_requestStatus_and_lastDeliveredAt", ["userId", "requestStatus", "lastDeliveredAt"])
+    .index("by_userId_and_hasUnread_and_lastDeliveredAt", ["userId", "hasUnread", "lastDeliveredAt"])
+    .index("by_userId_and_isArchived_and_lastDeliveredAt", ["userId", "isArchived", "lastDeliveredAt"])
+    .index("by_userId_and_invitedAt", ["userId", "invitedAt"]),
+
+  chatDirectRequests: defineTable({
+    conversationId: v.id("chatConversations"),
+    pairKey: v.string(),
+    senderId: v.id("users"),
+    recipientId: v.id("users"),
+    status: v.union(v.literal("pending"), v.literal("accepted"), v.literal("declined")),
+    senderMessageCount: v.number(),
+    cooldownUntil: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_conversationId", ["conversationId"])
+    .index("by_pairKey", ["pairKey"])
+    .index("by_recipientId_and_senderId", ["recipientId", "senderId"])
+    .index("by_recipientId_and_status_and_createdAt", ["recipientId", "status", "createdAt"]),
+
+  chatMessages: defineTable({
+    conversationId: v.id("chatConversations"),
+    sequence: v.number(),
+    senderId: v.optional(v.id("users")),
+    senderName: v.string(),
+    kind: v.union(v.literal("user"), v.literal("system")),
+    body: v.optional(v.string()),
+    searchText: v.optional(v.string()),
+    replyToMessageId: v.optional(v.id("chatMessages")),
+    clientNonce: v.optional(v.string()),
+    mentionUserIds: v.array(v.id("users")),
+    imageCount: v.number(),
+    editedAt: v.optional(v.number()),
+    deletedAt: v.optional(v.number()),
+    createdAt: v.number(),
+  })
+    .index("by_conversationId_and_sequence", ["conversationId", "sequence"])
+    .index("by_conversationId_and_senderId_and_clientNonce", ["conversationId", "senderId", "clientNonce"])
+    .index("by_senderId_and_createdAt", ["senderId", "createdAt"])
+    .searchIndex("search_searchText", { searchField: "searchText", filterFields: ["conversationId"] }),
+
+  chatImages: defineTable({
+    uploaderId: v.id("users"),
+    messageId: v.optional(v.id("chatMessages")),
+    conversationId: v.optional(v.id("chatConversations")),
+    storageId: v.optional(v.id("_storage")),
+    fileName: v.string(),
+    mimeType: v.string(),
+    byteSize: v.number(),
+    width: v.number(),
+    height: v.number(),
+    status: v.union(v.literal("prepared"), v.literal("attached"), v.literal("deleted")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_uploaderId_and_status_and_createdAt", ["uploaderId", "status", "createdAt"])
+    .index("by_messageId", ["messageId"])
+    .index("by_storageId", ["storageId"]),
+
+  chatLinkPreviews: defineTable({
+    messageId: v.id("chatMessages"),
+    conversationId: v.id("chatConversations"),
+    url: v.string(),
+    normalizedUrl: v.string(),
+    status: v.union(v.literal("pending"), v.literal("ready"), v.literal("failed")),
+    title: v.optional(v.string()),
+    description: v.optional(v.string()),
+    imageUrl: v.optional(v.string()),
+    failureReason: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_messageId", ["messageId"])
+    .index("by_conversationId_and_createdAt", ["conversationId", "createdAt"]),
+
+  chatReactions: defineTable({
+    messageId: v.id("chatMessages"),
+    conversationId: v.id("chatConversations"),
+    userId: v.id("users"),
+    emoji: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_messageId_and_userId_and_emoji", ["messageId", "userId", "emoji"])
+    .index("by_messageId_and_createdAt", ["messageId", "createdAt"]),
+
+  chatTyping: defineTable({
+    conversationId: v.id("chatConversations"),
+    userId: v.id("users"),
+    expiresAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_conversationId_and_userId", ["conversationId", "userId"])
+    .index("by_conversationId_and_expiresAt", ["conversationId", "expiresAt"]),
+
+  chatDrafts: defineTable({
+    conversationId: v.id("chatConversations"),
+    userId: v.id("users"),
+    body: v.string(),
+    updatedAt: v.number(),
+  })
+    .index("by_conversationId_and_userId", ["conversationId", "userId"])
+    .index("by_userId_and_updatedAt", ["userId", "updatedAt"]),
+
+  chatDockState: defineTable({
+    userId: v.id("users"),
+    deviceId: v.string(),
+    openConversationIds: v.array(v.id("chatConversations")),
+    minimizedConversationIds: v.array(v.id("chatConversations")),
+    updatedAt: v.number(),
+  }).index("by_userId_and_deviceId", ["userId", "deviceId"]),
+
+  chatBlocks: defineTable({
+    blockerId: v.id("users"),
+    blockedId: v.id("users"),
+    createdAt: v.number(),
+  })
+    .index("by_blockerId_and_blockedId", ["blockerId", "blockedId"])
+    .index("by_blockedId_and_blockerId", ["blockedId", "blockerId"]),
+
+  pushSubscriptions: defineTable({
+    userId: v.id("users"),
+    endpoint: v.string(),
+    endpointHash: v.string(),
+    p256dh: v.string(),
+    auth: v.string(),
+    userAgent: v.optional(v.string()),
+    expiresAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_endpointHash", ["endpointHash"])
+    .index("by_userId_and_updatedAt", ["userId", "updatedAt"]),
+
+  notificationPreferences: defineTable({
+    userId: v.id("users"),
+    category: v.string(),
+    conversationId: v.optional(v.id("chatConversations")),
+    inApp: v.boolean(),
+    push: v.boolean(),
+    sound: v.boolean(),
+    updatedAt: v.number(),
+  }).index("by_userId_and_category_and_conversationId", ["userId", "category", "conversationId"]),
+
+  chatReports: defineTable({
+    reporterId: v.id("users"),
+    targetType: v.union(v.literal("message"), v.literal("profile"), v.literal("group")),
+    targetUserId: v.optional(v.id("users")),
+    targetConversationId: v.optional(v.id("chatConversations")),
+    targetMessageId: v.optional(v.id("chatMessages")),
+    reason: v.string(),
+    snapshotJson: v.string(),
+    status: v.union(v.literal("open"), v.literal("reviewing"), v.literal("resolved"), v.literal("dismissed")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_status_and_createdAt", ["status", "createdAt"])
+    .index("by_reporterId_and_createdAt", ["reporterId", "createdAt"])
+    .index("by_targetConversationId_and_createdAt", ["targetConversationId", "createdAt"]),
+
+  chatReportMessages: defineTable({
+    reportId: v.id("chatReports"),
+    messageId: v.id("chatMessages"),
+    conversationId: v.id("chatConversations"),
+    sequence: v.number(),
+    snapshotJson: v.string(),
+    createdAt: v.number(),
+  }).index("by_reportId_and_sequence", ["reportId", "sequence"]),
+
+  chatModerationActions: defineTable({
+    reportId: v.optional(v.id("chatReports")),
+    actorId: v.id("users"),
+    targetUserId: v.optional(v.id("users")),
+    conversationId: v.optional(v.id("chatConversations")),
+    messageId: v.optional(v.id("chatMessages")),
+    kind: v.union(
+      v.literal("remove_message"),
+      v.literal("warn"),
+      v.literal("suspend_chat"),
+      v.literal("recommend_account_suspension"),
+    ),
+    reason: v.string(),
+    endsAt: v.optional(v.number()),
+    createdAt: v.number(),
+  })
+    .index("by_reportId_and_createdAt", ["reportId", "createdAt"])
+    .index("by_targetUserId_and_createdAt", ["targetUserId", "createdAt"]),
+
+  chatAccessAudit: defineTable({
+    adminId: v.id("users"),
+    targetUserId: v.id("users"),
+    conversationId: v.optional(v.id("chatConversations")),
+    reason: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_adminId_and_createdAt", ["adminId", "createdAt"])
+    .index("by_targetUserId_and_createdAt", ["targetUserId", "createdAt"]),
+
+  accountSuspensions: defineTable({
+    userId: v.id("users"),
+    createdBy: v.id("users"),
+    reason: v.string(),
+    startsAt: v.number(),
+    endsAt: v.optional(v.number()),
+    permanent: v.boolean(),
+    active: v.boolean(),
+    liftedAt: v.optional(v.number()),
+    liftedBy: v.optional(v.id("users")),
+    createdAt: v.number(),
+  })
+    .index("by_userId_and_active_and_createdAt", ["userId", "active", "createdAt"])
+    .index("by_active_and_createdAt", ["active", "createdAt"]),
+
+  suspensionAppeals: defineTable({
+    suspensionId: v.id("accountSuspensions"),
+    userId: v.id("users"),
+    body: v.string(),
+    status: v.union(v.literal("pending"), v.literal("accepted"), v.literal("rejected")),
+    reviewedBy: v.optional(v.id("users")),
+    response: v.optional(v.string()),
+    createdAt: v.number(),
+    reviewedAt: v.optional(v.number()),
+  })
+    .index("by_suspensionId_and_userId", ["suspensionId", "userId"])
+    .index("by_status_and_createdAt", ["status", "createdAt"]),
 
   courseTracks: defineTable({
     slug: v.string(),

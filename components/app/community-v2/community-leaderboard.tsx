@@ -1,10 +1,12 @@
 "use client";
 
 import { Award, BookOpenCheck, CheckCircle2, Crown, HelpCircle, Medal, Sparkles, Trophy } from "lucide-react";
+import Link from "next/link";
 
 import { CommunityAvatar } from "@/components/app/community-identity";
 import { cn } from "@/components/ui/primitives";
 import type { Locale } from "@/lib/i18n";
+import { withLocale } from "@/lib/i18n";
 
 import { fallbackCommunityFilters, useCommunityFilters, useLeaderboard } from "./community-data";
 import { CommunityScopeControls, useCommunityQueryParams, useResolvedCommunityScope } from "./community-filters";
@@ -85,7 +87,9 @@ function RankIcon({ rank }: { rank: number }) {
 
 function PodiumCard({ locale, row }: { locale: Locale; row: LeaderboardRow }) {
   return (
-    <article
+    <Link
+      href={row.username ? withLocale(locale, `/app/members/${row.username}`) : "#"}
+      aria-disabled={!row.username}
       className={cn(
         "relative overflow-hidden rounded-[16px]! border bg-white p-4 text-center",
         row.rank === 1
@@ -120,7 +124,7 @@ function PodiumCard({ locale, row }: { locale: Locale; row: LeaderboardRow }) {
         <span aria-hidden="true">·</span>
         <span>{row.helpfulAnswers ?? 0} {locale === "sr" ? "korisnih" : "helpful"}</span>
       </div>
-    </article>
+    </Link>
   );
 }
 
@@ -133,7 +137,7 @@ function LeaderboardRowItem({ locale, row }: { locale: Locale; row: LeaderboardR
       )}
     >
       <span className="font-mono text-sm font-black text-ink">#{row.rank}</span>
-      <div className="flex min-w-0 items-center gap-3">
+      <Link href={row.username ? withLocale(locale, `/app/members/${row.username}`) : "#"} aria-disabled={!row.username} className="flex min-w-0 items-center gap-3 rounded-[8px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
         <CommunityAvatar
           name={row.name}
           avatarUrl={row.avatarUrl}
@@ -155,7 +159,7 @@ function LeaderboardRowItem({ locale, row }: { locale: Locale; row: LeaderboardR
             {row.username ? `@${row.username}` : locale === "sr" ? `Nivo ${row.level ?? 1}` : `Level ${row.level ?? 1}`}
           </span>
         </div>
-      </div>
+      </Link>
       <span className="hidden text-right text-xs font-black text-muted sm:block">
         {row.completedLessons ?? 0} {locale === "sr" ? "lekcija" : "lessons"}
       </span>

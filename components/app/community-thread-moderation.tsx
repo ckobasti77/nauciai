@@ -212,17 +212,17 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
               <Panel key={post._id} as="article" className="overflow-hidden rounded-[16px] border border-line bg-white shadow-none">
                 <div className="p-4 md:p-5">
                   <div className="flex items-start gap-3">
-                    <CommunityAvatar
+                    {post.authorUsername ? <Link href={withLocale(locale, `/app/members/${post.authorUsername}`)} className="rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"><CommunityAvatar
                       name={post.authorName}
                       avatarUrl={post.authorAvatarUrl}
                       role={post.authorRole}
                       rank={post.authorRank}
                       locale={locale}
                       size="sm"
-                    />
+                    /></Link> : <CommunityAvatar name={post.authorName} avatarUrl={post.authorAvatarUrl} role={post.authorRole} rank={post.authorRank} locale={locale} size="sm" />}
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-                        <span className="font-black text-ink">{post.authorName}</span>
+                        {post.authorUsername ? <Link href={withLocale(locale, `/app/members/${post.authorUsername}`)} className="font-black text-ink hover:underline">{post.authorName}</Link> : <span className="font-black text-ink">{post.authorName}</span>}
                         {post.authorUsername ? <span className="font-bold text-muted">@{post.authorUsername}</span> : null}
                         <time className="font-bold text-ink/45" dateTime={new Date(post.createdAt).toISOString()}>
                           {formatCommunityTime(post.createdAt, locale)}

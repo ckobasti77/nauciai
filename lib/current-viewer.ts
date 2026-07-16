@@ -17,6 +17,12 @@ export type ViewerProfile = {
   language?: Locale;
   updatedAt?: number;
   username?: string;
+  bio?: string;
+  websiteUrl?: string;
+  instagramUrl?: string;
+  linkedinUrl?: string;
+  youtubeUrl?: string;
+  dmPrivacy?: "requests" | "following" | "nobody";
 } | null;
 
 type ViewerResult = {

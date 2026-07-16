@@ -58,7 +58,7 @@ type MentionEventRaw = {
     courseTitleEn?: string;
     trackTitleSr?: string;
     trackTitleEn?: string;
-  };
+  } | null;
   commentId?: string;
 };
 
@@ -67,6 +67,7 @@ type MembersArgs = {
   scope?: CommunityScope;
   search?: string;
   role?: "student" | "pro_student" | "moderator" | "admin";
+  connection?: "all" | "following" | "followers";
 };
 
 type MemberRowRaw = {
@@ -82,6 +83,11 @@ type MemberRowRaw = {
   completedTasks: number;
   helpfulAnswers: number;
   canManageRole: boolean;
+  contributionCount?: number;
+  isFollowing?: boolean;
+  isFollowedBy?: boolean;
+  isMutual?: boolean;
+  canFollow?: boolean;
 };
 
 type LeaderboardArgs = {
@@ -350,12 +356,12 @@ export function useCommunityMentions({
     authorAvatarUrl: event.sender?.avatarUrl,
     authorRole: event.sender?.role,
     excerpt: event.excerpt,
-    postId: event.thread.postId,
-    postTitle: event.thread.title,
-    trackTitleSr: event.thread.trackTitleSr,
-    trackTitleEn: event.thread.trackTitleEn,
-    courseTitleSr: event.thread.courseTitleSr,
-    courseTitleEn: event.thread.courseTitleEn,
+    postId: event.thread?.postId,
+    postTitle: event.thread?.title,
+    trackTitleSr: event.thread?.trackTitleSr,
+    trackTitleEn: event.thread?.trackTitleEn,
+    courseTitleSr: event.thread?.courseTitleSr,
+    courseTitleEn: event.thread?.courseTitleEn,
   }));
 
   return {
@@ -372,11 +378,13 @@ export function useCommunityMembers({
   scope,
   search,
   role,
+  connection,
 }: {
   hasConvex?: boolean;
   scope?: CommunityScope;
   search?: string;
   role?: MembersArgs["role"];
+  connection?: MembersArgs["connection"];
 }) {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const enabled = queryEnabled(hasConvex, isAuthenticated, isLoading);
@@ -387,6 +395,7 @@ export function useCommunityMembers({
           ...(scope ? { scope } : {}),
           ...(search ? { search } : {}),
           ...(role ? { role } : {}),
+          ...(connection && connection !== "all" ? { connection } : {}),
         }
       : "skip",
     { initialNumItems: 20 },
@@ -404,6 +413,11 @@ export function useCommunityMembers({
     xp: member.xp,
     completedLessons: member.completedLessons,
     helpfulAnswers: member.helpfulAnswers,
+    contributionCount: member.contributionCount,
+    isFollowing: member.isFollowing,
+    isFollowedBy: member.isFollowedBy,
+    isMutual: member.isMutual,
+    canFollow: member.canFollow,
   }));
 
   return {

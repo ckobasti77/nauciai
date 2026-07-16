@@ -1,6 +1,6 @@
 "use client";
 
-import { AtSign, Bell, Check, CheckCheck, ChevronRight, MessageCircle, MessageSquareText, Quote, Sparkles, Tag, ThumbsDown, ThumbsUp, BadgeCheck } from "lucide-react";
+import { AtSign, Bell, Check, CheckCheck, ChevronRight, MessageCircle, MessageSquareText, Quote, Sparkles, Tag, ThumbsDown, ThumbsUp, BadgeCheck, Users } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -78,6 +78,7 @@ function notificationCopy(kind: string | undefined, locale: Locale) {
   if (kind === "post_approved") return locale === "sr" ? "je odobrio/la tvoju objavu" : "approved your thread";
   if (kind === "post_changes_requested") return locale === "sr" ? "traži izmene na tvojoj objavi" : "requested changes to your thread";
   if (kind === "approval_pending") return locale === "sr" ? "\u010Deka tvoje odobrenje" : "is waiting for your approval";
+  if (kind === "new_follower") return locale === "sr" ? "sada prati tvoj profil" : "is now following your profile";
   if (kind?.includes("downvote")) return locale === "sr" ? "je downvoteovao/la" : "downvoted";
   return locale === "sr" ? "je upvoteovao/la" : "upvoted";
 }
@@ -93,10 +94,10 @@ function NotificationCard({ locale, notification, onMarkRead: onMarkReadProp }: 
   return (
     <article className={cn("relative overflow-hidden rounded-[16px] border bg-white p-4 transition hover:border-ink sm:p-5", unread ? "border-ink shadow-[4px_4px_0_rgba(244,190,48,0.65)]" : "border-line")}>
       <div className="flex gap-3 sm:gap-4">
-        <CommunityAvatar name={authorName} avatarUrl={notification.authorAvatarUrl} role={notification.authorRole} locale={locale} size="sm" showRank={false} />
+        {notification.senderUsername ? <Link href={withLocale(locale, `/app/members/${notification.senderUsername}`)} className="shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"><CommunityAvatar name={authorName} avatarUrl={notification.authorAvatarUrl} role={notification.authorRole} locale={locale} size="sm" showRank={false} /></Link> : <CommunityAvatar name={authorName} avatarUrl={notification.authorAvatarUrl} role={notification.authorRole} locale={locale} size="sm" showRank={false} />}
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-            <span className="font-black text-ink">{notification.senderUsername ? `@${notification.senderUsername}` : authorName}</span>
+            {notification.senderUsername ? <Link href={withLocale(locale, `/app/members/${notification.senderUsername}`)} className="font-black text-ink hover:underline">@{notification.senderUsername}</Link> : <span className="font-black text-ink">{authorName}</span>}
             {notification.senderUsername ? <span className="text-xs font-semibold text-muted">{authorName}</span> : null}
             <span className={cn("inline-flex items-center gap-1.5 font-semibold", notification.kind?.includes("downvote") ? "text-red-700" : "text-muted")}>
               {iconKind === "tag" ? <Tag className="size-3.5" aria-hidden="true" /> : iconKind === "comment" ? <MessageSquareText className="size-3.5" aria-hidden="true" /> : iconKind === "helpful" ? <BadgeCheck className="size-3.5" aria-hidden="true" /> : iconKind === "downvote" ? <ThumbsDown className="size-3.5" aria-hidden="true" /> : iconKind === "upvote" ? <ThumbsUp className="size-3.5" aria-hidden="true" /> : <Bell className="size-3.5" aria-hidden="true" />}
@@ -108,7 +109,7 @@ function NotificationCard({ locale, notification, onMarkRead: onMarkReadProp }: 
           {excerpt ? <blockquote className="relative mt-3 rounded-[12px] border-l-4 border-yellow bg-[#eef3f7] py-3 pl-4 pr-3 text-sm font-bold leading-6 text-ink/80"><Quote className="absolute right-3 top-3 size-4 text-ink/20" aria-hidden="true" /><span className="line-clamp-3">{excerpt}</span></blockquote> : null}
           <div className="mt-3"><ScopeTrail locale={locale} track={locale === "sr" ? notification.trackTitleSr : notification.trackTitleEn} course={locale === "sr" ? notification.courseTitleSr : notification.courseTitleEn} compact /></div>
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-            {notification.postId ? <Link href={withLocale(locale, `/app/community/${notification.postId}`)} onClick={() => { if (unread && onMarkRead) void onMarkRead(notification._id); }} className="inline-flex min-h-11 min-w-0 items-center gap-2 rounded-full border border-line bg-white px-3 text-sm font-black text-ink transition hover:border-ink hover:bg-yellow/15"><MessageCircle className="size-4 shrink-0" /><span className="max-w-[16rem] truncate">{notification.postTitle ?? (locale === "sr" ? "Otvori razgovor" : "Open conversation")}</span><ChevronRight className="size-3.5 shrink-0" /></Link> : <span />}
+            {notification.postId ? <Link href={withLocale(locale, `/app/community/${notification.postId}`)} onClick={() => { if (unread && onMarkRead) void onMarkRead(notification._id); }} className="inline-flex min-h-11 min-w-0 items-center gap-2 rounded-full border border-line bg-white px-3 text-sm font-black text-ink transition hover:border-ink hover:bg-yellow/15"><MessageCircle className="size-4 shrink-0" /><span className="max-w-[16rem] truncate">{notification.postTitle ?? (locale === "sr" ? "Otvori razgovor" : "Open conversation")}</span><ChevronRight className="size-3.5 shrink-0" /></Link> : notification.senderUsername ? <Link href={withLocale(locale, `/app/members/${notification.senderUsername}`)} onClick={() => { if (unread && onMarkRead) void onMarkRead(notification._id); }} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line bg-white px-3 text-sm font-black text-ink transition hover:border-ink hover:bg-yellow/15"><Users className="size-4" />{locale === "sr" ? "Otvori profil" : "Open profile"}<ChevronRight className="size-3.5" /></Link> : <span />}
             {unread && onMarkRead ? <button type="button" onClick={() => void onMarkRead(notification._id)} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-ink bg-white px-3 text-xs font-black text-ink transition hover:bg-[#eef3f7]"><Check className="size-3.5" />{locale === "sr" ? "Označi pročitano" : "Mark as read"}</button> : null}
           </div>
         </div>

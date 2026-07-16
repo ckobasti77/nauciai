@@ -132,6 +132,11 @@ export type CommunityMemberRow = {
   level?: number;
   levelLabel?: string;
   xp?: number;
+  contributionCount?: number;
+  isFollowing?: boolean;
+  isFollowedBy?: boolean;
+  isMutual?: boolean;
+  canFollow?: boolean;
   completedLessons?: number;
   helpfulAnswers?: number;
   progressPercent?: number;

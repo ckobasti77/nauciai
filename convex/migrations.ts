@@ -1,9 +1,13 @@
 import { Migrations } from "@convex-dev/migrations";
+import { v } from "convex/values";
 
 import { components, internal } from "./_generated/api";
-import type { DataModel } from "./_generated/dataModel";
+import type { DataModel, Id } from "./_generated/dataModel";
+import { internalQuery, type MutationCtx } from "./_generated/server";
 import { syncLeaderboardSourceEvent } from "./leaderboardCore";
 import { hotScoreFor, voteValue } from "./community";
+import { effectiveRoleForProfile } from "./helpers";
+import { adjustProfileActivity, adjustProfileContribution } from "./profileActivityCore";
 
 type MigrationsComponent = ConstructorParameters<typeof Migrations<DataModel>>[0];
 const migrationsComponent = (components as unknown as { migrations: MigrationsComponent }).migrations;
@@ -238,6 +242,203 @@ export const backfillTaskLeaderboardEvents = migrations.define({
   },
 });
 
+export const clearPublicProfileActivity = migrations.define({
+  table: "profileActivityDays",
+  batchSize: 100,
+  migrateOne: async (ctx, row) => ctx.db.delete(row._id),
+});
+
+export const clearPublicProfileContributions = migrations.define({
+  table: "profileContributions",
+  batchSize: 100,
+  migrateOne: async (ctx, row) => ctx.db.delete(row._id),
+});
+
+export const resetPublicProfileStats = migrations.define({
+  table: "profileStats",
+  batchSize: 100,
+  migrateOne: async (ctx, row) => {
+    const user = await ctx.db.get(row.userId);
+    return {
+      contributionCount: 0,
+      followerCount: 0,
+      followingCount: 0,
+      role: user ? effectiveRoleForProfile(String(user.email ?? ""), user.role) : row.role,
+      aggregateVersion: 1,
+      updatedAt: Date.now(),
+    };
+  },
+});
+
+export const dedupePublicProfileStats = migrations.define({
+  table: "users",
+  batchSize: 50,
+  migrateOne: async (ctx, user) => {
+    const rows = await ctx.db.query("profileStats").withIndex("by_userId", (q) => q.eq("userId", user._id)).take(101);
+    if (rows.length > 100) throw new Error("Previše profileStats redova za jednog korisnika.");
+    if (rows.length < 2) return;
+    const winner = rows.sort((a, b) => a._creationTime - b._creationTime)[0];
+    await ctx.db.patch(winner._id, {
+      completedLessons: Math.max(...rows.map((row) => Math.max(0, row.completedLessons))),
+      updatedAt: Math.max(...rows.map((row) => row.updatedAt)),
+    });
+    for (const row of rows) if (row._id !== winner._id) await ctx.db.delete(row._id);
+  },
+});
+
+export const ensurePublicProfileStats = migrations.define({
+  table: "users",
+  batchSize: 50,
+  migrateOne: async (ctx, user) => {
+    if (user.mergedInto) return;
+    const stats = await ctx.db.query("profileStats").withIndex("by_userId", (q) => q.eq("userId", user._id)).first();
+    if (stats) return;
+    await ctx.db.insert("profileStats", {
+      userId: user._id,
+      completedLessons: 0,
+      contributionCount: 0,
+      followerCount: 0,
+      followingCount: 0,
+      role: effectiveRoleForProfile(String(user.email ?? ""), user.role),
+      aggregateVersion: 1,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+export const cleanupInvalidFollowEdges = migrations.define({
+  table: "userFollows",
+  batchSize: 50,
+  migrateOne: async (ctx, edge) => {
+    const [follower, following] = await Promise.all([
+      ctx.db.get(edge.followerId),
+      ctx.db.get(edge.followingId),
+    ]);
+    const invalid = edge.followerId === edge.followingId
+      || !follower
+      || !following
+      || Boolean(follower.mergedInto)
+      || Boolean(following.mergedInto)
+      || effectiveRoleForProfile(String(follower?.email ?? ""), follower?.role) === "admin"
+      || effectiveRoleForProfile(String(following?.email ?? ""), following?.role) === "admin";
+    if (invalid) {
+      await ctx.db.delete(edge._id);
+      return;
+    }
+    const duplicates = await ctx.db
+      .query("userFollows")
+      .withIndex("by_followerId_and_followingId", (q) =>
+        q.eq("followerId", edge.followerId).eq("followingId", edge.followingId),
+      )
+      .take(101);
+    if (duplicates.length > 100) throw new Error("Previše duplih follow veza za isti par.");
+    const keeper = duplicates.sort((a, b) => a.createdAt - b.createdAt || a._creationTime - b._creationTime)[0];
+    if (keeper && keeper._id !== edge._id) await ctx.db.delete(edge._id);
+  },
+});
+
+export const rebuildPublicProfileActivityFromLeaderboard = migrations.define({
+  table: "leaderboardEvents",
+  batchSize: 50,
+  migrateOne: async (ctx, event) => {
+    if (!event.active || (event.sourceType !== "lesson" && event.sourceType !== "required_task")) return;
+    await adjustProfileActivity(ctx, {
+      userId: event.userId,
+      timestamp: event.occurredAt,
+      kind: event.sourceType === "lesson" ? "lessons" : "tasks",
+      delta: 1,
+    });
+  },
+});
+
+export const rebuildPublicProfileThreads = migrations.define({
+  table: "communityPosts",
+  batchSize: 25,
+  migrateOne: async (ctx, post) => {
+    if ((post.status ?? "published") !== "published") return;
+    await adjustProfileActivity(ctx, { userId: post.authorId, timestamp: post.createdAt, kind: "threads", delta: 1 });
+    await adjustProfileContribution(ctx, {
+      userId: post.authorId,
+      postId: post._id,
+      threadDelta: 1,
+      lastActivityAt: post.createdAt,
+    });
+  },
+});
+
+export const rebuildPublicProfileComments = migrations.define({
+  table: "comments",
+  batchSize: 25,
+  migrateOne: async (ctx, comment) => {
+    const post = await ctx.db.get(comment.postId);
+    if (!post || (post.status ?? "published") !== "published") return;
+    await adjustProfileActivity(ctx, { userId: comment.authorId, timestamp: comment.createdAt, kind: "comments", delta: 1 });
+    await adjustProfileContribution(ctx, {
+      userId: comment.authorId,
+      postId: post._id,
+      commentDelta: 1,
+      lastActivityAt: comment.createdAt,
+    });
+  },
+});
+
+async function incrementFollowStat(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  field: "followerCount" | "followingCount",
+) {
+  const stats = await ctx.db.query("profileStats").withIndex("by_userId", (q) => q.eq("userId", userId)).first();
+  if (stats) await ctx.db.patch(stats._id, { [field]: (stats[field] ?? 0) + 1, updatedAt: Date.now() });
+}
+
+export const rebuildPublicProfileFollowStats = migrations.define({
+  table: "userFollows",
+  batchSize: 50,
+  migrateOne: async (ctx, edge) => {
+    await incrementFollowStat(ctx, edge.followerId, "followingCount");
+    await incrementFollowStat(ctx, edge.followingId, "followerCount");
+  },
+});
+
+export const verifyPublicProfileAggregateForUser = internalQuery({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const stats = await ctx.db.query("profileStats").withIndex("by_userId", (q) => q.eq("userId", args.userId)).first();
+    let contributionCount = 0;
+    let followerCount = 0;
+    let followingCount = 0;
+    const seenDays = new Set<string>();
+    const duplicateDays: string[] = [];
+    const invalidDays: string[] = [];
+    for await (const row of ctx.db.query("profileContributions").withIndex("by_userId_and_lastActivityAt", (q) => q.eq("userId", args.userId))) {
+      contributionCount += Math.max(0, row.threadCount) + Math.max(0, row.commentCount);
+    }
+    for await (const edge of ctx.db.query("userFollows").withIndex("by_followingId_and_createdAt", (q) => q.eq("followingId", args.userId))) followerCount += edge._id ? 1 : 0;
+    for await (const edge of ctx.db.query("userFollows").withIndex("by_followerId_and_createdAt", (q) => q.eq("followerId", args.userId))) followingCount += edge._id ? 1 : 0;
+    for await (const row of ctx.db.query("profileActivityDays").withIndex("by_userId_and_dayKey", (q) => q.eq("userId", args.userId))) {
+      if (seenDays.has(row.dayKey)) duplicateDays.push(row.dayKey);
+      seenDays.add(row.dayKey);
+      if ([row.lessons, row.tasks, row.threads, row.comments].some((value) => value < 0)) invalidDays.push(row.dayKey);
+    }
+    const expected = { contributionCount, followerCount, followingCount };
+    const actual = {
+      contributionCount: stats?.contributionCount ?? 0,
+      followerCount: stats?.followerCount ?? 0,
+      followingCount: stats?.followingCount ?? 0,
+    };
+    return {
+      complete: Boolean(stats)
+        && JSON.stringify(actual) === JSON.stringify(expected)
+        && duplicateDays.length === 0
+        && invalidDays.length === 0,
+      actual,
+      expected,
+      duplicateDays: duplicateDays.slice(0, 10),
+      invalidDays: invalidDays.slice(0, 10),
+    };
+  },
+});
+
 // Run migrations explicitly after a dry run; this file never starts them automatically.
 export const run = migrations.runner();
 
@@ -254,4 +455,14 @@ export const runAll = migrations.runner([
   migrationApi.backfillCommunityPosts,
   migrationApi.backfillLessonLeaderboardEvents,
   migrationApi.backfillTaskLeaderboardEvents,
+  migrationApi.clearPublicProfileActivity,
+  migrationApi.clearPublicProfileContributions,
+  migrationApi.dedupePublicProfileStats,
+  migrationApi.resetPublicProfileStats,
+  migrationApi.ensurePublicProfileStats,
+  migrationApi.cleanupInvalidFollowEdges,
+  migrationApi.rebuildPublicProfileActivityFromLeaderboard,
+  migrationApi.rebuildPublicProfileThreads,
+  migrationApi.rebuildPublicProfileComments,
+  migrationApi.rebuildPublicProfileFollowStats,
 ]);

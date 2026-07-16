@@ -254,7 +254,11 @@ export function ThreadCard({
       )}
     >
       <div className="flex min-w-0 gap-2.5 p-3 sm:gap-3 sm:p-3.5">
-        <div className="relative shrink-0">
+        <Link
+          href={post.authorUsername ? withLocale(locale, `/app/members/${post.authorUsername}`) : threadHref}
+          className="relative z-10 shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          aria-label={locale === "sr" ? `Profil člana ${post.authorName}` : `${post.authorName}'s profile`}
+        >
           <div className="absolute bottom-0 left-1/2 top-12 w-0.5 -translate-x-1/2 bg-line/70" aria-hidden="true" />
           <CommunityAvatar
             name={post.authorName}
@@ -265,10 +269,10 @@ export function ThreadCard({
             size="sm"
             showRank={false}
           />
-        </div>
+        </Link>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span className="text-sm font-black text-ink">{post.authorUsername ? `@${post.authorUsername}` : post.authorName}</span>
+            {post.authorUsername ? <Link href={withLocale(locale, `/app/members/${post.authorUsername}`)} className="relative z-10 text-sm font-black text-ink hover:underline">@{post.authorUsername}</Link> : <span className="text-sm font-black text-ink">{post.authorName}</span>}
             {post.authorUsername ? <span className="text-xs font-semibold text-muted">{post.authorName}</span> : null}
             <span className="text-xs font-bold text-muted/75">· {formatCommunityTime(post.createdAt, locale)}</span>
             {statusLabel}

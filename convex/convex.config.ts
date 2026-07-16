@@ -8,6 +8,9 @@ const app = defineApp({
     SITE_URL: v.optional(v.string()),
     AUTH_RESEND_KEY: v.optional(v.string()),
     AUTH_RESEND_FROM: v.optional(v.string()),
+    VAPID_PUBLIC_KEY: v.optional(v.string()),
+    VAPID_PRIVATE_KEY: v.optional(v.string()),
+    VAPID_SUBJECT: v.optional(v.string()),
   },
 });
 app.use(migrations);

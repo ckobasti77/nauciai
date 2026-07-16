@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import type { CSSProperties, FormEvent } from "react";
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 
 import { CommunityAvatar, formatCommunityTime, type CommunityRank, type CommunityRole } from "@/components/app/community-identity";
 import { CommunityThreadConfirmDialog } from "@/components/app/community-thread-dialog";
@@ -317,10 +318,12 @@ function CommentItem({
         className={cn("group rounded-[16px] border bg-white p-4 transition", node.isHelpful ? "border-amber-400 shadow-[0_8px_24px_rgba(244,190,48,0.12)]" : "border-line hover:border-ink/30", hasReplies && "cursor-pointer hover:border-ink")}
       >
         <div className="flex items-start gap-3">
-          <CommunityAvatar name={node.authorName} avatarUrl={node.authorAvatarUrl} role={node.authorRole} rank={node.authorRank} locale={locale} size="sm" className="pt-0.5" />
+          <Link href={node.authorUsername ? withLocale(locale, `/app/members/${node.authorUsername}`) : "#"} aria-disabled={!node.authorUsername} className="shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
+            <CommunityAvatar name={node.authorName} avatarUrl={node.authorAvatarUrl} role={node.authorRole} rank={node.authorRank} locale={locale} size="sm" className="pt-0.5" />
+          </Link>
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-              <span className="truncate text-xs font-black text-ink">{node.authorUsername ? `@${node.authorUsername}` : node.authorName}</span>
+              {node.authorUsername ? <Link href={withLocale(locale, `/app/members/${node.authorUsername}`)} className="truncate text-xs font-black text-ink hover:underline">@{node.authorUsername}</Link> : <span className="truncate text-xs font-black text-ink">{node.authorName}</span>}
               {node.authorUsername ? <span className="truncate text-[10px] font-semibold text-muted">{node.authorName}</span> : null}
               <time dateTime={new Date(node.createdAt).toISOString()} className="text-[10px] font-bold text-ink/50">{formatCommunityTime(node.createdAt, locale)}</time>
               {node.isHelpful ? <span className="inline-flex items-center gap-1 rounded-full border border-amber-400 bg-amber-50 px-2 py-0.5 text-[10px] font-black text-amber-900"><BadgeCheck className="size-3" />{locale === "sr" ? "Koristan odgovor · +10 XP" : "Helpful answer · +10 XP"}</span> : null}

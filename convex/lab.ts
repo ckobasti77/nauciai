@@ -5,6 +5,7 @@ import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { mutation, query } from "./_generated/server";
 import { requireAdmin, requireCourseAccess, requireUserId } from "./helpers";
 import { syncLeaderboardSourceEvent } from "./leaderboardCore";
+import { adjustProfileActivity } from "./profileActivityCore";
 import { canUseProLesson } from "../lib/lesson-access";
 
 const outputKind = v.union(v.literal("text"), v.literal("image"), v.literal("audio"), v.literal("video"), v.literal("file"));
@@ -256,6 +257,12 @@ export const markTaskProgress = mutation({
       : await ctx.db.insert("taskProgress", patch);
 
     if (task.required && Boolean(existing?.completed) !== args.completed) {
+      const leaderboardEvent = await ctx.db
+        .query("leaderboardEvents")
+        .withIndex("by_userId_and_sourceType_and_sourceId", (q) =>
+          q.eq("userId", userId).eq("sourceType", "required_task").eq("sourceId", String(args.taskId)),
+        )
+        .unique();
       await syncLeaderboardSourceEvent(ctx, {
         userId,
         sourceType: "required_task",
@@ -263,6 +270,13 @@ export const markTaskProgress = mutation({
         active: args.completed,
         occurredAt: now,
         courseId: task.courseId,
+      });
+      await adjustProfileActivity(ctx, {
+        userId,
+        kind: "tasks",
+        delta: args.completed ? 1 : -1,
+        timestamp: leaderboardEvent?.occurredAt
+          ?? (args.completed ? now : existing?.completedAt ?? existing?.updatedAt ?? now),
       });
     }
 

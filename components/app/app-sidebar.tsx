@@ -12,6 +12,7 @@ import {
   Lock,
   Menu,
   MessageCircle,
+  MessagesSquare,
   PanelLeftClose,
   PanelLeftOpen,
   PlayCircle,
@@ -57,6 +58,7 @@ import {
   preferencesFromDraggedWidth,
   serializeAppSidebarPreferences,
 } from "@/lib/app-sidebar-preferences";
+import { publicProfilePath } from "@/lib/profile-links";
 import type { AppCourseNav, AppNavigationData } from "@/lib/app-navigation";
 import { primaryCourseSlug } from "@/lib/content";
 import { dictionary, localized, type Locale, withLocale } from "@/lib/i18n";
@@ -769,6 +771,7 @@ function AppSidebarContent({
   authState = "unknown",
   profileData,
   communityBadge = 0,
+  messagesBadge = 0,
   accountBadge = 0,
   profileComplete = true,
   emailVerificationRequired = false,
@@ -781,6 +784,7 @@ function AppSidebarContent({
   authState?: "loading" | "authenticated" | "anonymous" | "unknown";
   profileData?: { name?: string; username?: string; email?: string; avatarUrl?: string } | null;
   communityBadge?: number;
+  messagesBadge?: number;
   accountBadge?: number;
   profileComplete?: boolean;
   emailVerificationRequired?: boolean;
@@ -796,6 +800,7 @@ function AppSidebarContent({
     [courses, params.courseSlug, params.trackSlug, searchParams],
   );
   const isAdmin = navigation.role === "admin";
+  const isStaff = isAdmin || navigation.role === "moderator";
   const rootRef = useRef<HTMLElement>(null);
   const shouldReduceMotion = useReducedMotion();
 
@@ -994,9 +999,11 @@ function AppSidebarContent({
   const profileAvatar = profileData?.avatarUrl;
   const profileIncomplete = !profileComplete || !profileData?.username;
   const hasAccountAdvisory = profileIncomplete || emailVerificationRequired || passwordRecommended;
-  const settingsLabel = locale === "sr" ? "Podešavanja" : "Settings";
+  const profileLabel = locale === "sr" ? "Profil" : "Profile";
+  const profilePath = publicProfilePath(profileData?.username);
   const dashboardActive = pathname === withLocale(locale, "/app") && !searchParams.get("course");
   const communityActive = pathname === withLocale(locale, "/app/community") || pathname.includes("/app/community/");
+  const messagesActive = pathname === withLocale(locale, "/app/messages") || pathname.includes("/app/messages/");
   const sidebarWidth = sidebarPreferences.collapsed ? APP_SIDEBAR_RAIL_WIDTH : sidebarPreferences.width;
   const sidebarStyle = { "--app-sidebar-width": `${sidebarWidth}px` } as CSSProperties;
 
@@ -1070,37 +1077,54 @@ function AppSidebarContent({
         {currentCourse ? (
           <CourseSwitcher locale={locale} courses={currentCourse.trackId ? courses.filter((course) => course.trackId === currentCourse.trackId) : courses} currentCourse={currentCourse} isAdmin={isAdmin} />
         ) : null}
-        {currentCourse ? (
-          <nav className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:flex lg:flex-col">
+        <nav className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:flex lg:flex-col">
             <NavLink
               href={dashboardHref(locale)}
               active={pathname === withLocale(locale, "/app") && !searchParams.get("course")}
               icon={LayoutDashboard}
               label="Dashboard"
             />
-            <LessonsAccordion
-              locale={locale}
-              currentCourse={currentCourse}
-              currentLessonSlug={params.lessonSlug}
-              isAdmin={isAdmin}
-            />
+            {currentCourse ? (
+              <LessonsAccordion
+                locale={locale}
+                currentCourse={currentCourse}
+                currentLessonSlug={params.lessonSlug}
+                isAdmin={isAdmin}
+              />
+            ) : null}
+            {currentCourse ? (
+              <NavLink
+                href={communityHref(locale, currentCourse.slug)}
+                active={communityActive}
+                icon={MessageCircle}
+                label={t.community}
+                badge={communityBadge}
+              />
+            ) : null}
             <NavLink
-              href={communityHref(locale, currentCourse.slug)}
-              active={pathname === withLocale(locale, "/app/community") || pathname.includes("/app/community/")}
-              icon={MessageCircle}
-              label={t.community}
-              badge={communityBadge}
+              href={withLocale(locale, "/app/messages")}
+              active={messagesActive}
+              icon={MessagesSquare}
+              label={locale === "sr" ? "Poruke" : "Messages"}
+              badge={messagesBadge}
             />
             {isAdmin ? (
               <NavLink
                 href={withLocale(locale, "/app/admin")}
-                active={pathname === withLocale(locale, "/app/admin") || pathname.startsWith(withLocale(locale, "/app/admin/"))}
+                active={pathname === withLocale(locale, "/app/admin")}
                 icon={ShieldCheck}
                 label={locale === "sr" ? "Admin panel" : "Admin panel"}
               />
             ) : null}
+            {isStaff ? (
+              <NavLink
+                href={withLocale(locale, "/app/admin/chat")}
+                active={pathname === withLocale(locale, "/app/admin/chat")}
+                icon={Shield}
+                label={locale === "sr" ? "Chat sigurnost" : "Chat safety"}
+              />
+            ) : null}
           </nav>
-        ) : null}
       </div>
 
       {/* Bottom Profile Card */}
@@ -1115,7 +1139,7 @@ function AppSidebarContent({
               
               <div className="overflow-hidden rounded-[12px] divide-y divide-line/80">
                 <Link
-                  href={currentCourse ? navHref(locale, "/app/profile", currentCourse.slug) : withLocale(locale, "/app/profile")}
+                  href={currentCourse ? navHref(locale, profilePath, currentCourse.slug) : withLocale(locale, profilePath)}
                   onClick={() => setProfileMenuOpen(false)}
                   className={cn(
                     "flex min-h-10 items-center gap-3 px-3 py-2 text-[13px] font-black uppercase text-ink transition font-extrabold",
@@ -1133,7 +1157,7 @@ function AppSidebarContent({
                   ) : (
                     <User className="size-4 shrink-0" />
                   )}
-                  <span>{settingsLabel}</span>
+                  <span>{profileLabel}</span>
                   {accountBadge > 0 ? <span className="ml-auto rounded-full border border-ink bg-white px-2 py-0.5 text-[9px] font-black text-ink">{accountBadge}</span> : null}
                 </Link>
                 {hasAccountAdvisory ? (
@@ -1198,11 +1222,11 @@ function AppSidebarContent({
       {profileData && (
         <div className="mt-4 grid grid-cols-3 gap-2 border-t-2 border-ink pt-4 lg:hidden">
           <Link
-            href={currentCourse ? navHref(locale, "/app/profile", currentCourse.slug) : withLocale(locale, "/app/profile")}
+            href={currentCourse ? navHref(locale, profilePath, currentCourse.slug) : withLocale(locale, profilePath)}
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-white px-3 py-2 text-xs font-black text-ink"
           >
             {hasAccountAdvisory ? <CircleAlert className={cn("size-4", profileIncomplete ? "text-red-700" : emailVerificationRequired ? "text-amber-700" : "text-indigo-700")} /> : <User className="size-4" />}
-            {settingsLabel}
+            {profileLabel}
           </Link>
           <Link
             href={currentCourse ? navHref(locale, "/app/billing", currentCourse.slug) : withLocale(locale, "/app/billing")}
@@ -1252,6 +1276,7 @@ function AppSidebarContent({
           {currentCourse ? (
             <RailAction href={communityHref(locale, currentCourse.slug)} label={t.community} icon={<MessageCircle className="size-5" />} active={communityActive} badge={communityBadge} />
           ) : null}
+          <RailAction href={withLocale(locale, "/app/messages")} label={locale === "sr" ? "Poruke" : "Messages"} icon={<MessagesSquare className="size-5" />} active={messagesActive} badge={messagesBadge} />
         </nav>
 
         {railFlyout && railFlyout !== "profile" && currentCourse ? (
@@ -1276,8 +1301,8 @@ function AppSidebarContent({
                   <p className="truncate text-sm font-black">{profileName}</p>
                   <p className="truncate text-xs font-bold text-muted">{profileUsername}</p>
                 </div>
-                <Link href={currentCourse ? navHref(locale, "/app/profile", currentCourse.slug) : withLocale(locale, "/app/profile")} className={cn("flex min-h-11 items-center gap-3 rounded-full px-3 text-sm font-black", profileIncomplete ? "bg-red-50 text-red-900" : emailVerificationRequired ? "bg-amber-50 text-amber-900" : passwordRecommended ? "bg-indigo-50 text-indigo-900" : "hover:bg-yellow/25")}>
-                  {hasAccountAdvisory ? <CircleAlert className="size-4" /> : <User className="size-4" />} {settingsLabel}
+                <Link href={currentCourse ? navHref(locale, profilePath, currentCourse.slug) : withLocale(locale, profilePath)} className={cn("flex min-h-11 items-center gap-3 rounded-full px-3 text-sm font-black", profileIncomplete ? "bg-red-50 text-red-900" : emailVerificationRequired ? "bg-amber-50 text-amber-900" : passwordRecommended ? "bg-indigo-50 text-indigo-900" : "hover:bg-yellow/25")}>
+                  {hasAccountAdvisory ? <CircleAlert className="size-4" /> : <User className="size-4" />} {profileLabel}
                 </Link>
                 {hasAccountAdvisory ? (
                   <div className="mt-2 space-y-1.5">
@@ -1345,6 +1370,8 @@ function LiveAppSidebar({
     isAuthenticated ? {} : "skip"
   );
   const communityBadge = notificationSummary?.community ?? 0;
+  const chatSummary = useQuery(api.chat.getInboxSummary, isAuthenticated ? {} : "skip");
+  const messagesBadge = chatSummary?.totalUnread ?? 0;
   const accountBadge = notificationSummary?.accountWarnings ?? 0;
   const profileStatus = useQuery(api.profiles.getViewerProfileStatus, isAuthenticated ? {} : "skip");
 
@@ -1357,6 +1384,7 @@ function LiveAppSidebar({
       authState={authState}
       profileData={liveNavigation?.profile}
       communityBadge={communityBadge}
+      messagesBadge={messagesBadge}
       accountBadge={accountBadge}
       profileComplete={profileStatus?.complete ?? false}
       emailVerificationRequired={profileStatus?.advisories.emailVerification ?? false}
