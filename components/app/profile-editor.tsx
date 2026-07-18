@@ -29,7 +29,7 @@ import {
 } from "react";
 
 import { Panel, SectionHeader, cn } from "@/components/ui/primitives";
-import { SocialLearningSettings } from "@/components/app/social-learning-settings";
+import { HelpSettings } from "@/components/app/help-settings";
 import { useToast } from "@/components/ui/toast-provider";
 import { api } from "@/convex/_generated/api";
 import type { ViewerProfile } from "@/lib/current-viewer";
@@ -994,7 +994,7 @@ export function ProfileEditor({
           </div>
         </Panel>
       </form>
-      <SocialLearningSettings locale={locale} role={initialValues.role} />
+      <HelpSettings locale={locale} role={initialValues.role} />
     </div>
   );
 }

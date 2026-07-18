@@ -4,7 +4,15 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 import { internalAction, internalMutation, internalQuery, mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
+import { removeChatInboxSummaryMember, syncChatInboxSummaryMember } from "./chatInboxSummaryCore";
 import { effectiveRoleForProfile } from "./helpers";
+import { ensureStudyPartnershipMembers, syncStudyAvailabilityForProgressChange } from "./study";
+import {
+  syncStudyGroupInviteSummary,
+  syncStudyGroupMembershipSummary,
+  syncStudyPartnerInviteSummary,
+  syncStudyPartnershipSummary,
+} from "./studyHubSummaryCore";
 
 const ROW_LIMIT = 1000;
 
@@ -397,6 +405,7 @@ async function mergeStudyRows(
     const senderId = mergedUserId(invite.senderId, canonicalUserId, duplicateUserId);
     const recipientId = mergedUserId(invite.recipientId, canonicalUserId, duplicateUserId);
     if (senderId === recipientId) {
+      await syncStudyPartnerInviteSummary(ctx, invite, null);
       await ctx.db.delete(invite._id);
       continue;
     }
@@ -405,7 +414,9 @@ async function mergeStudyRows(
       const key = `${pairKey}:${invite.courseId}`;
       pendingByPairCourse.set(key, [...(pendingByPairCourse.get(key) ?? []), invite]);
     } else {
-      await ctx.db.patch(invite._id, { senderId, recipientId, pairKey });
+      const patch = { senderId, recipientId, pairKey };
+      await ctx.db.patch(invite._id, patch);
+      await syncStudyPartnerInviteSummary(ctx, invite, { ...invite, ...patch });
     }
   }
   for (const rows of pendingByPairCourse.values()) {
@@ -413,8 +424,13 @@ async function mergeStudyRows(
     const winner = sorted[0];
     const senderId = mergedUserId(winner.senderId, canonicalUserId, duplicateUserId);
     const recipientId = mergedUserId(winner.recipientId, canonicalUserId, duplicateUserId);
-    await ctx.db.patch(winner._id, { senderId, recipientId, pairKey: userPairKey(senderId, recipientId) });
-    for (const row of sorted.slice(1)) await ctx.db.delete(row._id);
+    const patch = { senderId, recipientId, pairKey: userPairKey(senderId, recipientId) };
+    await ctx.db.patch(winner._id, patch);
+    await syncStudyPartnerInviteSummary(ctx, winner, { ...winner, ...patch });
+    for (const row of sorted.slice(1)) {
+      await syncStudyPartnerInviteSummary(ctx, row, null);
+      await ctx.db.delete(row._id);
+    }
   }
 
   const partnershipMap = new Map<Id<"studyPartnerships">, Doc<"studyPartnerships">>();
@@ -436,6 +452,12 @@ async function mergeStudyRows(
     const mappedA = mergedUserId(row.userAId, canonicalUserId, duplicateUserId);
     const mappedB = mergedUserId(row.userBId, canonicalUserId, duplicateUserId);
     if (mappedA === mappedB) {
+      const projections = await ctx.db
+        .query("studyPartnershipMembers")
+        .withIndex("by_partnershipId_and_userId", (q) => q.eq("partnershipId", row._id))
+        .take(3);
+      for (const projection of projections) await ctx.db.delete(projection._id);
+      await syncStudyPartnershipSummary(ctx, row, null);
       await ctx.db.delete(row._id);
       continue;
     }
@@ -449,15 +471,28 @@ async function mergeStudyRows(
     const mappedA = mergedUserId(winner.userAId, canonicalUserId, duplicateUserId);
     const mappedB = mergedUserId(winner.userBId, canonicalUserId, duplicateUserId);
     const [userAId, userBId] = [mappedA, mappedB].sort((a, b) => String(a).localeCompare(String(b)));
-    await ctx.db.patch(winner._id, {
+    const patch = {
       pairKey: userPairKey(userAId, userBId),
       userAId,
       userBId,
       directConversationId: rows.find((row) => row.directConversationId)?.directConversationId,
       createdAt: Math.min(...rows.map((row) => row.createdAt)),
       updatedAt: Math.max(...rows.map((row) => row.updatedAt)),
-    });
-    for (const row of rows) if (row._id !== winner._id) await ctx.db.delete(row._id);
+    };
+    await ctx.db.patch(winner._id, patch);
+    await syncStudyPartnershipSummary(ctx, winner, { ...winner, ...patch });
+    for (const row of rows) {
+      const projections = await ctx.db
+        .query("studyPartnershipMembers")
+        .withIndex("by_partnershipId_and_userId", (q) => q.eq("partnershipId", row._id))
+        .take(3);
+      for (const projection of projections) await ctx.db.delete(projection._id);
+      if (row._id !== winner._id) {
+        await syncStudyPartnershipSummary(ctx, row, null);
+        await ctx.db.delete(row._id);
+      }
+    }
+    await ensureStudyPartnershipMembers(ctx, { ...winner, ...patch });
   }
 
   const creatorGroups = await boundedQuery(
@@ -478,14 +513,20 @@ async function mergeStudyRows(
     const group = await ctx.db.get(groupId);
     const winner = rows.find((row) => row.userId === canonicalUserId) ?? rows[0];
     const active = rows.some((row) => row.active);
-    await ctx.db.patch(winner._id, {
+    const patch = {
       userId: canonicalUserId,
       role: rows.some((row) => row.role === "owner") || group?.creatorId === canonicalUserId ? "owner" : "member",
       active,
       joinedAt: Math.min(...rows.map((row) => row.joinedAt)),
       leftAt: active ? undefined : Math.max(...rows.map((row) => row.leftAt ?? 0)) || undefined,
-    });
-    for (const row of rows) if (row._id !== winner._id) await ctx.db.delete(row._id);
+    } as const;
+    await ctx.db.patch(winner._id, patch);
+    await syncStudyGroupMembershipSummary(ctx, winner, { ...winner, ...patch });
+    for (const row of rows) {
+      if (row._id === winner._id) continue;
+      await syncStudyGroupMembershipSummary(ctx, row, null);
+      await ctx.db.delete(row._id);
+    }
   }
 
   const allGroupInvites = await boundedQuery(ctx.db.query("studyGroupInvites").take(ROW_LIMIT + 1), "study group invites");
@@ -498,6 +539,7 @@ async function mergeStudyRows(
     const invitedBy = mergedUserId(invite.invitedBy, canonicalUserId, duplicateUserId);
     affectedGroupIds.add(invite.groupId);
     if (userId === invitedBy) {
+      await syncStudyGroupInviteSummary(ctx, invite, null);
       await ctx.db.delete(invite._id);
       continue;
     }
@@ -506,17 +548,25 @@ async function mergeStudyRows(
       .withIndex("by_groupId_and_userId", (q) => q.eq("groupId", invite.groupId).eq("userId", userId))
       .unique();
     if (activeMember?.active) {
+      await syncStudyGroupInviteSummary(ctx, invite, null);
       await ctx.db.delete(invite._id);
       continue;
     }
-    await ctx.db.patch(invite._id, { userId, invitedBy });
+    const patch = { userId, invitedBy };
+    const patchedInvite = { ...invite, ...patch };
+    await ctx.db.patch(invite._id, patch);
+    await syncStudyGroupInviteSummary(ctx, invite, patchedInvite);
     const key = `${invite.groupId}:${userId}`;
-    invitesByGroupUser.set(key, [...(invitesByGroupUser.get(key) ?? []), invite]);
+    invitesByGroupUser.set(key, [...(invitesByGroupUser.get(key) ?? []), patchedInvite]);
   }
   const inviteRank = { accepted: 4, pending: 3, declined: 2, cancelled: 1 } as const;
   for (const rows of invitesByGroupUser.values()) {
     const winner = [...rows].sort((a, b) => inviteRank[b.status] - inviteRank[a.status] || b.createdAt - a.createdAt)[0];
-    for (const row of rows) if (row._id !== winner._id) await ctx.db.delete(row._id);
+    for (const row of rows) {
+      if (row._id === winner._id) continue;
+      await syncStudyGroupInviteSummary(ctx, row, null);
+      await ctx.db.delete(row._id);
+    }
   }
 
   for (const groupId of affectedGroupIds) {
@@ -527,9 +577,13 @@ async function mergeStudyRows(
         .query("studyGroupMembers")
         .withIndex("by_groupId_and_userId", (q) => q.eq("groupId", groupId).eq("userId", canonicalUserId))
         .unique();
-      if (owner) await ctx.db.patch(owner._id, { role: "owner", active: true, leftAt: undefined });
+      if (owner) {
+        const patch = { role: "owner" as const, active: true, leftAt: undefined };
+        await ctx.db.patch(owner._id, patch);
+        await syncStudyGroupMembershipSummary(ctx, owner, { ...owner, ...patch });
+      }
       else {
-        await ctx.db.insert("studyGroupMembers", {
+        const membershipId = await ctx.db.insert("studyGroupMembers", {
           groupId,
           userId: canonicalUserId,
           courseId: group.courseId,
@@ -537,6 +591,9 @@ async function mergeStudyRows(
           active: true,
           joinedAt: group.createdAt,
         });
+        const membership = await ctx.db.get(membershipId);
+        if (!membership) throw new Error("STUDY_GROUP_MEMBER_SAVE_FAILED");
+        await syncStudyGroupMembershipSummary(ctx, null, membership);
       }
     }
     const activeMembers = await boundedQuery(
@@ -592,7 +649,19 @@ async function mergeChatMemberGroup(
     leftAt: status === "active" || status === "invited" ? undefined : maxOptional(rows.map((row) => row.leftAt)),
     updatedAt: Math.max(...rows.map((row) => row.updatedAt)),
   });
-  for (const row of rows) if (row._id !== winner._id) await ctx.db.delete(row._id);
+  await syncChatInboxSummaryMember(ctx, winner._id, {
+    userId: mappedUserId,
+    conversationKind: conversation.kind,
+    status,
+    requestStatus,
+    unreadCount,
+    hasUnread: unreadCount > 0 || rows.some((row) => row.hasUnread),
+  });
+  for (const row of rows) {
+    if (row._id === winner._id) continue;
+    await removeChatInboxSummaryMember(ctx, row._id);
+    await ctx.db.delete(row._id);
+  }
 }
 
 async function mergeChatConversationInto(
@@ -1218,7 +1287,9 @@ async function mergeVerifiedUsersInMutation(
       if (existing) await ctx.db.delete(row._id);
       else await ctx.db.patch(row._id, { userId: args.canonicalUserId });
     }
+    const affectedStudyProgressCourseIds = new Set<Id<"courses">>();
     for (const row of await boundedQueryRows(ctx.db.query("progress").withIndex("by_user_lesson", (q) => q.eq("userId", args.duplicateUserId)), "lesson progress rows")) {
+      affectedStudyProgressCourseIds.add(row.courseId);
       const existing = await ctx.db.query("progress").withIndex("by_user_lesson", (q) => q.eq("userId", args.canonicalUserId).eq("lessonId", row.lessonId)).unique();
       if (existing) {
         const newer = row.updatedAt > existing.updatedAt ? row : existing;
@@ -1283,6 +1354,9 @@ async function mergeVerifiedUsersInMutation(
     await mergeContributionRows(ctx, args.canonicalUserId, args.duplicateUserId);
     await mergeHelpRows(ctx, args.canonicalUserId, args.duplicateUserId);
     await mergeStudyRows(ctx, args.canonicalUserId, args.duplicateUserId);
+    for (const courseId of affectedStudyProgressCourseIds) {
+      await syncStudyAvailabilityForProgressChange(ctx, args.canonicalUserId, courseId);
+    }
     await mergeChatRows(ctx, args.canonicalUserId, args.duplicateUserId);
     await rebuildCanonicalProfileStats(
       ctx,

@@ -290,6 +290,18 @@ export default defineSchema({
     .index("by_userAId_and_courseId_and_createdAt", ["userAId", "courseId", "createdAt"])
     .index("by_userBId_and_courseId_and_createdAt", ["userBId", "courseId", "createdAt"]),
 
+  studyPartnershipMembers: defineTable({
+    partnershipId: v.id("studyPartnerships"),
+    userId: v.id("users"),
+    partnerId: v.id("users"),
+    courseId: v.id("courses"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_partnershipId_and_userId", ["partnershipId", "userId"])
+    .index("by_userId_and_createdAt", ["userId", "createdAt"])
+    .index("by_userId_and_courseId_and_createdAt", ["userId", "courseId", "createdAt"]),
+
   studyGroups: defineTable({
     courseId: v.id("courses"),
     creatorId: v.id("users"),
@@ -314,6 +326,7 @@ export default defineSchema({
   })
     .index("by_groupId_and_userId", ["groupId", "userId"])
     .index("by_groupId_and_active_and_joinedAt", ["groupId", "active", "joinedAt"])
+    .index("by_userId_and_active_and_joinedAt", ["userId", "active", "joinedAt"])
     .index("by_userId_and_courseId_and_active_and_joinedAt", ["userId", "courseId", "active", "joinedAt"]),
 
   studyGroupInvites: defineTable({
@@ -328,6 +341,12 @@ export default defineSchema({
     .index("by_groupId_and_userId", ["groupId", "userId"])
     .index("by_groupId_and_status_and_createdAt", ["groupId", "status", "createdAt"])
     .index("by_userId_and_status_and_createdAt", ["userId", "status", "createdAt"]),
+
+  studyHubSummaryVersions: defineTable({
+    key: v.string(),
+    ready: v.boolean(),
+    updatedAt: v.number(),
+  }).index("by_key", ["key"]),
 
   chatConversations: defineTable({
     kind: chatConversationKind,
@@ -349,6 +368,27 @@ export default defineSchema({
     .index("by_directKey", ["directKey"])
     .index("by_ownerId_and_updatedAt", ["ownerId", "updatedAt"])
     .index("by_studyGroupId", ["studyGroupId"]),
+
+  chatConversationSearchEntries: defineTable({
+    viewerId: v.id("users"),
+    conversationId: v.id("chatConversations"),
+    kind: v.union(v.literal("group"), v.literal("support")),
+    status: v.literal("visible"),
+    searchText: v.string(),
+    updatedAt: v.number(),
+  })
+    .index("by_viewerId_and_conversationId", ["viewerId", "conversationId"])
+    .index("by_conversationId", ["conversationId"])
+    .searchIndex("search_searchText", {
+      searchField: "searchText",
+      filterFields: ["viewerId", "status"],
+    }),
+
+  chatConversationSearchVersions: defineTable({
+    key: v.string(),
+    ready: v.boolean(),
+    updatedAt: v.number(),
+  }).index("by_key", ["key"]),
 
   chatMembers: defineTable({
     conversationId: v.id("chatConversations"),
@@ -379,8 +419,33 @@ export default defineSchema({
     .index("by_userId_and_conversationKind_and_lastDeliveredAt", ["userId", "conversationKind", "lastDeliveredAt"])
     .index("by_userId_and_requestStatus_and_lastDeliveredAt", ["userId", "requestStatus", "lastDeliveredAt"])
     .index("by_userId_and_hasUnread_and_lastDeliveredAt", ["userId", "hasUnread", "lastDeliveredAt"])
+    .index("by_userId_and_isPinned_and_lastDeliveredAt", ["userId", "isPinned", "lastDeliveredAt"])
     .index("by_userId_and_isArchived_and_lastDeliveredAt", ["userId", "isArchived", "lastDeliveredAt"])
     .index("by_userId_and_invitedAt", ["userId", "invitedAt"]),
+
+  chatInboxSummaries: defineTable({
+    userId: v.id("users"),
+    totalUnread: v.number(),
+    unreadConversations: v.number(),
+    pendingRequests: v.number(),
+    pendingGroupInvites: v.number(),
+    ready: v.boolean(),
+    aggregateReady: v.optional(v.boolean()),
+    aggregateUpdatedAt: v.optional(v.number()),
+    updatedAt: v.number(),
+  }).index("by_userId", ["userId"]),
+
+  chatInboxSummaryMembers: defineTable({
+    chatMemberId: v.id("chatMembers"),
+    userId: v.id("users"),
+    totalUnread: v.number(),
+    unreadConversations: v.number(),
+    pendingRequests: v.number(),
+    pendingGroupInvites: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_chatMemberId", ["chatMemberId"])
+    .index("by_userId", ["userId"]),
 
   chatDirectRequests: defineTable({
     conversationId: v.id("chatConversations"),
@@ -434,7 +499,41 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_uploaderId_and_status_and_createdAt", ["uploaderId", "status", "createdAt"])
+    .index("by_conversationId_and_status_and_createdAt", ["conversationId", "status", "createdAt"])
     .index("by_messageId", ["messageId"])
+    .index("by_storageId", ["storageId"]),
+
+  chatGroupAvatarUploads: defineTable({
+    uploaderId: v.id("users"),
+    conversationId: v.id("chatConversations"),
+    expectedSha256: v.string(),
+    expectedByteSize: v.number(),
+    expectedContentType: v.string(),
+    storageId: v.optional(v.id("_storage")),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("processing"),
+      v.literal("consumed"),
+      v.literal("failed"),
+    ),
+    expiresAt: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_uploaderId_and_status_and_createdAt", ["uploaderId", "status", "createdAt"])
+    .index("by_storageId", ["storageId"]),
+
+  chatGroupAvatarFiles: defineTable({
+    conversationId: v.id("chatConversations"),
+    uploaderId: v.id("users"),
+    storageId: v.id("_storage"),
+    mimeType: v.string(),
+    byteSize: v.number(),
+    width: v.number(),
+    height: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_conversationId", ["conversationId"])
     .index("by_storageId", ["storageId"]),
 
   chatLinkPreviews: defineTable({

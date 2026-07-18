@@ -8,6 +8,20 @@ import { syncLeaderboardSourceEvent } from "./leaderboardCore";
 import { hotScoreFor, voteValue } from "./community";
 import { effectiveRoleForProfile } from "./helpers";
 import { adjustProfileActivity, adjustProfileContribution } from "./profileActivityCore";
+import {
+  markChatInboxAggregateReady,
+  markChatInboxSummaryReady,
+  syncChatInboxSummaryMember,
+} from "./chatInboxSummaryCore";
+import { syncConversationSearchEntry } from "./chatSearchProjection";
+import { ensureStudyPartnershipMembers, syncStudyAvailabilityForProgressChange } from "./study";
+import {
+  markStudyHubAggregateReady,
+  syncStudyGroupInviteSummary,
+  syncStudyGroupMembershipSummary,
+  syncStudyPartnerInviteSummary,
+  syncStudyPartnershipSummary,
+} from "./studyHubSummaryCore";
 
 type MigrationsComponent = ConstructorParameters<typeof Migrations<DataModel>>[0];
 const migrationsComponent = (components as unknown as { migrations: MigrationsComponent }).migrations;
@@ -400,6 +414,187 @@ export const rebuildPublicProfileFollowStats = migrations.define({
   },
 });
 
+export const backfillChatInboxSummaryMembers = migrations.define({
+  table: "chatMembers",
+  batchSize: 25,
+  migrateOne: async (ctx, member) => {
+    await syncChatInboxSummaryMember(ctx, member._id, member);
+  },
+});
+
+export const ensureChatInboxSummaryRows = migrations.define({
+  table: "users",
+  batchSize: 50,
+  migrateOne: async (ctx, user) => {
+    const existing = await ctx.db
+      .query("chatInboxSummaries")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .unique();
+    if (!existing) {
+      await ctx.db.insert("chatInboxSummaries", {
+        userId: user._id,
+        totalUnread: 0,
+        unreadConversations: 0,
+        pendingRequests: 0,
+        pendingGroupInvites: 0,
+        ready: false,
+        updatedAt: Date.now(),
+      });
+    }
+  },
+});
+
+export const finalizeChatInboxSummaries = migrations.define({
+  table: "chatInboxSummaries",
+  batchSize: 100,
+  migrateOne: async (ctx, summary) => {
+    if (!summary.ready) await markChatInboxSummaryReady(ctx, summary.userId);
+  },
+});
+
+/**
+ * Aggregate v1 intentionally uses a new migration identity. The earlier manual
+ * summary backfill may already be complete, so reusing its name would skip rows.
+ */
+export const backfillChatInboxAggregateV1 = migrations.define({
+  table: "chatMembers",
+  batchSize: 25,
+  migrateOne: async (ctx, member) => {
+    await syncChatInboxSummaryMember(ctx, member._id, member);
+  },
+});
+
+export const ensureChatInboxAggregateRowsV1 = migrations.define({
+  table: "users",
+  batchSize: 50,
+  migrateOne: async (ctx, user) => {
+    const existing = await ctx.db
+      .query("chatInboxSummaries")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .unique();
+    if (!existing) {
+      await ctx.db.insert("chatInboxSummaries", {
+        userId: user._id,
+        totalUnread: 0,
+        unreadConversations: 0,
+        pendingRequests: 0,
+        pendingGroupInvites: 0,
+        ready: true,
+        aggregateReady: false,
+        updatedAt: Date.now(),
+      });
+    }
+  },
+});
+
+// Cut over only after both aggregate backfill steps above report completion.
+export const finalizeChatInboxAggregateV1 = migrations.define({
+  table: "chatInboxSummaries",
+  batchSize: 100,
+  migrateOne: async (ctx, summary) => {
+    if (!summary.aggregateReady) await markChatInboxAggregateReady(ctx, summary.userId);
+  },
+});
+
+export const ensureChatConversationSearchVersionV1 = migrations.define({
+  table: "users",
+  batchSize: 50,
+  migrateOne: async (ctx) => {
+    const existing = await ctx.db
+      .query("chatConversationSearchVersions")
+      .withIndex("by_key", (q) => q.eq("key", "v1"))
+      .unique();
+    if (!existing) {
+      await ctx.db.insert("chatConversationSearchVersions", {
+        key: "v1",
+        ready: false,
+        updatedAt: Date.now(),
+      });
+    }
+  },
+});
+
+export const backfillChatConversationSearchEntriesV1 = migrations.define({
+  table: "chatMembers",
+  batchSize: 25,
+  migrateOne: async (ctx, member) => {
+    if (member.conversationKind === "direct") return;
+    await syncConversationSearchEntry(ctx, {
+      conversationId: member.conversationId,
+      viewerId: member.userId,
+      membershipStatus: member.status,
+    });
+  },
+});
+
+// Cut over only after the projection backfill above reports completion.
+export const finalizeChatConversationSearchVersionV1 = migrations.define({
+  table: "chatConversationSearchVersions",
+  batchSize: 10,
+  migrateOne: (_ctx, version) => {
+    if (version.key === "v1" && !version.ready) {
+      return { ready: true, updatedAt: Date.now() };
+    }
+  },
+});
+
+export const backfillStudyPartnershipMembers = migrations.define({
+  table: "studyPartnerships",
+  batchSize: 50,
+  migrateOne: async (ctx, partnership) => {
+    await ensureStudyPartnershipMembers(ctx, partnership);
+  },
+});
+
+export const refreshStudyPartnerAvailability = migrations.define({
+  table: "studyPartnerAvailability",
+  batchSize: 10,
+  migrateOne: async (ctx, availability) => {
+    await syncStudyAvailabilityForProgressChange(ctx, availability.userId, availability.courseId);
+  },
+});
+
+export const backfillStudyHubPartnerInvitesV1 = migrations.define({
+  table: "studyPartnerInvites",
+  batchSize: 25,
+  migrateOne: async (ctx, invite) => {
+    await syncStudyPartnerInviteSummary(ctx, null, invite);
+  },
+});
+
+export const backfillStudyHubPartnershipsV1 = migrations.define({
+  table: "studyPartnerships",
+  batchSize: 25,
+  migrateOne: async (ctx, partnership) => {
+    await syncStudyPartnershipSummary(ctx, null, partnership);
+  },
+});
+
+export const backfillStudyHubGroupInvitesV1 = migrations.define({
+  table: "studyGroupInvites",
+  batchSize: 25,
+  migrateOne: async (ctx, invite) => {
+    await syncStudyGroupInviteSummary(ctx, null, invite);
+  },
+});
+
+export const backfillStudyHubGroupMembershipsV1 = migrations.define({
+  table: "studyGroupMembers",
+  batchSize: 25,
+  migrateOne: async (ctx, membership) => {
+    await syncStudyGroupMembershipSummary(ctx, null, membership);
+  },
+});
+
+// This global readiness flag must be the final Study Hub rollout step.
+export const finalizeStudyHubAggregateV1 = migrations.define({
+  table: "users",
+  batchSize: 100,
+  migrateOne: async (ctx) => {
+    await markStudyHubAggregateReady(ctx);
+  },
+});
+
 export const verifyPublicProfileAggregateForUser = internalQuery({
   args: { userId: v.id("users") },
   handler: async (ctx, args) => {
@@ -465,4 +660,17 @@ export const runAll = migrations.runner([
   migrationApi.rebuildPublicProfileThreads,
   migrationApi.rebuildPublicProfileComments,
   migrationApi.rebuildPublicProfileFollowStats,
+  migrationApi.backfillChatInboxSummaryMembers,
+  migrationApi.ensureChatInboxSummaryRows,
+  migrationApi.finalizeChatInboxSummaries,
+  migrationApi.backfillChatInboxAggregateV1,
+  migrationApi.ensureChatInboxAggregateRowsV1,
+  migrationApi.finalizeChatInboxAggregateV1,
+  migrationApi.backfillStudyPartnershipMembers,
+  migrationApi.refreshStudyPartnerAvailability,
+  migrationApi.backfillStudyHubPartnerInvitesV1,
+  migrationApi.backfillStudyHubPartnershipsV1,
+  migrationApi.backfillStudyHubGroupInvitesV1,
+  migrationApi.backfillStudyHubGroupMembershipsV1,
+  migrationApi.finalizeStudyHubAggregateV1,
 ]);

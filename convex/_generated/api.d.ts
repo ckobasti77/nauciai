@@ -14,12 +14,14 @@ import type * as avatar from "../avatar.js";
 import type * as billing from "../billing.js";
 import type * as chat from "../chat.js";
 import type * as chatCore from "../chatCore.js";
+import type * as chatInboxSummaryCore from "../chatInboxSummaryCore.js";
 import type * as chatLinkPreview from "../chatLinkPreview.js";
 import type * as chatLinkPreviewData from "../chatLinkPreviewData.js";
 import type * as chatMedia from "../chatMedia.js";
 import type * as chatMediaData from "../chatMediaData.js";
 import type * as chatModeration from "../chatModeration.js";
 import type * as chatPush from "../chatPush.js";
+import type * as chatSearchProjection from "../chatSearchProjection.js";
 import type * as community from "../community.js";
 import type * as communityScope from "../communityScope.js";
 import type * as contentHierarchy from "../contentHierarchy.js";
@@ -41,6 +43,7 @@ import type * as profiles from "../profiles.js";
 import type * as publicProfiles from "../publicProfiles.js";
 import type * as seed from "../seed.js";
 import type * as study from "../study.js";
+import type * as studyHubSummaryCore from "../studyHubSummaryCore.js";
 import type * as video from "../video.js";
 
 import type {
@@ -56,12 +59,14 @@ declare const fullApi: ApiFromModules<{
   billing: typeof billing;
   chat: typeof chat;
   chatCore: typeof chatCore;
+  chatInboxSummaryCore: typeof chatInboxSummaryCore;
   chatLinkPreview: typeof chatLinkPreview;
   chatLinkPreviewData: typeof chatLinkPreviewData;
   chatMedia: typeof chatMedia;
   chatMediaData: typeof chatMediaData;
   chatModeration: typeof chatModeration;
   chatPush: typeof chatPush;
+  chatSearchProjection: typeof chatSearchProjection;
   community: typeof community;
   communityScope: typeof communityScope;
   contentHierarchy: typeof contentHierarchy;
@@ -83,6 +88,7 @@ declare const fullApi: ApiFromModules<{
   publicProfiles: typeof publicProfiles;
   seed: typeof seed;
   study: typeof study;
+  studyHubSummaryCore: typeof studyHubSummaryCore;
   video: typeof video;
 }>;
 
@@ -113,5 +119,7 @@ export declare const internal: FilterApi<
 >;
 
 export declare const components: {
+  chatInbox: import("@convex-dev/aggregate/_generated/component.js").ComponentApi<"chatInbox">;
+  studyHub: import("@convex-dev/aggregate/_generated/component.js").ComponentApi<"studyHub">;
   migrations: import("@convex-dev/migrations/_generated/component.js").ComponentApi<"migrations">;
 };

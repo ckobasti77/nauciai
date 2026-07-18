@@ -28,6 +28,7 @@
   },
   "dependencies": {
     "@auth/core": "^0.41.2",
+    "@convex-dev/aggregate": "^0.2.2",
     "@convex-dev/auth": "^0.0.94",
     "@convex-dev/migrations": "^0.3.5",
     "@tiptap/extension-text-style": "^3.27.3",

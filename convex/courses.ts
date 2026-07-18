@@ -1,3 +1,4 @@
+import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 
 import type { Id } from "./_generated/dataModel";
@@ -12,6 +13,7 @@ import {
 } from "./helpers";
 import { syncLeaderboardSourceEvent } from "./leaderboardCore";
 import { adjustProfileActivity } from "./profileActivityCore";
+import { syncStudyAvailabilityForProgressChange } from "./study";
 import { assertReadyToPublish } from "./contentReadiness";
 import { parseRichText, richTextHasContent, richTextToPlainText } from "../lib/rich-text";
 
@@ -98,6 +100,16 @@ export const listPublishedCourses = query({
       .query("courses")
       .withIndex("by_status", (q) => q.eq("status", "published"))
       .collect(),
+});
+
+export const listPublishedCoursesPage = query({
+  args: { paginationOpts: paginationOptsValidator },
+  handler: async (ctx, args) =>
+    ctx.db
+      .query("courses")
+      .withIndex("by_status", (q) => q.eq("status", "published"))
+      .order("asc")
+      .paginate(args.paginationOpts),
 });
 
 export const getCourseBySlug = query({
@@ -702,12 +714,11 @@ export const markProgress = mutation({
       });
     }
 
-    if (existing) {
-      await ctx.db.patch(existing._id, patch);
-      return existing._id;
-    }
-
-    return ctx.db.insert("progress", patch);
+    const progressId = existing
+      ? (await ctx.db.patch(existing._id, patch), existing._id)
+      : await ctx.db.insert("progress", patch);
+    await syncStudyAvailabilityForProgressChange(ctx, userId, lesson.courseId);
+    return progressId;
   },
 });
 

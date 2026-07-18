@@ -5,6 +5,15 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { env, mutation, query } from "./_generated/server";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import {
+  computeChatInboxSummary,
+  getChatInboxAggregateSummary,
+  syncChatInboxSummaryMember,
+} from "./chatInboxSummaryCore";
+import {
+  scheduleConversationSearchRefresh,
+  syncConversationSearchEntry,
+} from "./chatSearchProjection";
+import {
   DIRECT_REQUEST_MESSAGE_LIMIT,
   MAX_MESSAGE_BODY_LENGTH,
   MAX_MESSAGE_IMAGE_BYTES,
@@ -25,6 +34,7 @@ import {
   schedulePersistentActivityPush,
   upsertChatMember,
 } from "./chatCore";
+import { syncStudyGroupMembershipSummary } from "./studyHubSummaryCore";
 
 const inboxSectionValidator = v.union(
   v.literal("all"),
@@ -53,6 +63,34 @@ function cleanEmoji(emoji: string) {
   const value = emoji.trim();
   if (!value || value.length > 24) throw new Error("INVALID_REACTION");
   return value;
+}
+
+function normalizeFullTextSearchQuery(query: string) {
+  return query
+    .trim()
+    .split(/\s+/u)
+    .filter(Boolean)
+    .slice(0, 16)
+    .map((token) => Array.from(token).slice(0, 32).join(""))
+    .filter(Boolean)
+    .join(" ");
+}
+
+function archivedMembershipPatch(
+  membership: Doc<"chatMembers">,
+  status: "left" | "removed",
+  now: number,
+) {
+  return {
+    status,
+    leftAt: now,
+    unreadCount: 0,
+    hasUnread: false,
+    isPinned: false,
+    isArchived: true,
+    lastReadSequence: Math.max(membership.lastReadSequence, membership.lastDeliveredSequence),
+    updatedAt: now,
+  } as const;
 }
 
 async function publicUser(ctx: QueryCtx | MutationCtx, userId: Id<"users">) {
@@ -183,26 +221,22 @@ export const getInboxSummary = query({
   args: {},
   handler: async (ctx) => {
     const actor = await requireChatActor(ctx);
-    const unread = await ctx.db
-      .query("chatMembers")
-      .withIndex("by_userId_and_hasUnread_and_lastDeliveredAt", (q) =>
-        q.eq("userId", actor.userId).eq("hasUnread", true),
-      )
-      .order("desc")
-      .take(1_000);
-    const requests = await ctx.db
-      .query("chatMembers")
-      .withIndex("by_userId_and_requestStatus_and_lastDeliveredAt", (q) =>
-        q.eq("userId", actor.userId).eq("requestStatus", "pending"),
-      )
-      .order("desc")
-      .take(1_000);
-    return {
-      totalUnread: unread.reduce((total, row) => total + Math.max(0, row.unreadCount), 0),
-      unreadConversations: unread.length,
-      pendingRequests: requests.filter((row) => row.conversationKind !== "group").length,
-      pendingGroupInvites: requests.filter((row) => row.conversationKind === "group" && row.status === "invited").length,
-    };
+    const summary = await ctx.db
+      .query("chatInboxSummaries")
+      .withIndex("by_userId", (q) => q.eq("userId", actor.userId))
+      .unique();
+    if (summary?.aggregateReady) {
+      return getChatInboxAggregateSummary(ctx, actor.userId);
+    }
+    if (summary?.ready) {
+      return {
+        totalUnread: summary.totalUnread,
+        unreadConversations: summary.unreadConversations,
+        pendingRequests: summary.pendingRequests,
+        pendingGroupInvites: summary.pendingGroupInvites,
+      };
+    }
+    return computeChatInboxSummary(ctx, actor.userId);
   },
 });
 
@@ -254,6 +288,21 @@ export const listInboxPage = query({
       .query("chatMembers")
       .withIndex("by_userId_and_status_and_lastDeliveredAt", (q) =>
         q.eq("userId", actor.userId).eq("status", "active"),
+      )
+      .order("desc")
+      .paginate(args.paginationOpts);
+    return projectInboxPage(ctx, result, args.section);
+  },
+});
+
+export const listPinnedInboxPage = query({
+  args: { section: inboxSectionValidator, paginationOpts: paginationOptsValidator },
+  handler: async (ctx, args) => {
+    const actor = await requireChatActor(ctx);
+    const result = await ctx.db
+      .query("chatMembers")
+      .withIndex("by_userId_and_isPinned_and_lastDeliveredAt", (q) =>
+        q.eq("userId", actor.userId).eq("isPinned", true),
       )
       .order("desc")
       .paginate(args.paginationOpts);
@@ -333,6 +382,116 @@ export const listConversationMembersPage = query({
         })),
       ),
     };
+  },
+});
+
+export const listConversationInvitesPage = query({
+  args: { conversationId: v.id("chatConversations"), paginationOpts: paginationOptsValidator },
+  handler: async (ctx, args) => {
+    const { conversation } = await requireConversationMember(ctx, args.conversationId);
+    if (conversation.kind !== "group") {
+      return { page: [], isDone: true, continueCursor: "" };
+    }
+    const result = await ctx.db
+      .query("chatMembers")
+      .withIndex("by_conversationId_and_status_and_joinedAt", (q) =>
+        q.eq("conversationId", args.conversationId).eq("status", "invited"),
+      )
+      .paginate(args.paginationOpts);
+    return {
+      ...result,
+      page: await Promise.all(
+        result.page.map(async (member) => ({
+          ...(await publicUser(ctx, member.userId)),
+          membershipRole: member.role,
+          membershipStatus: member.status,
+          requestStatus: member.requestStatus,
+          invitedAt: member.invitedAt,
+        })),
+      ),
+    };
+  },
+});
+
+export const listConversationMediaPage = query({
+  args: { conversationId: v.id("chatConversations"), paginationOpts: paginationOptsValidator },
+  handler: async (ctx, args) => {
+    const { actor, conversation, membership } = await requireConversationMember(ctx, args.conversationId, {
+      allowInvited: true,
+    });
+    if (membership.status === "invited") {
+      return { page: [], isDone: true, continueCursor: "" };
+    }
+
+    const result = await ctx.db
+      .query("chatImages")
+      .withIndex("by_conversationId_and_status_and_createdAt", (q) =>
+        q.eq("conversationId", conversation._id).eq("status", "attached"),
+      )
+      .order("desc")
+      .paginate(args.paginationOpts);
+    const pairs = await Promise.all(
+      result.page.map(async (image) => ({
+        image,
+        message: image.messageId ? await ctx.db.get(image.messageId) : null,
+      })),
+    );
+    const senderIds = Array.from(
+      new Set(
+        pairs.flatMap(({ message }) =>
+          message?.senderId ? [message.senderId] : [],
+        ),
+      ),
+    );
+    const blocks = conversation.kind === "group"
+      ? await Promise.all(
+          senderIds.map((senderId) =>
+            ctx.db
+              .query("chatBlocks")
+              .withIndex("by_blockerId_and_blockedId", (q) =>
+                q.eq("blockerId", actor.userId).eq("blockedId", senderId),
+              )
+              .unique(),
+          ),
+        )
+      : [];
+    const blockedIds = new Set(blocks.filter(Boolean).map((row) => String(row!.blockedId)));
+    const page = await Promise.all(
+      pairs.map(async ({ image, message }) => {
+        if (
+          !message ||
+          message.conversationId !== conversation._id ||
+          message.deletedAt ||
+          message.sequence <= membership.historyCutoffSequence ||
+          !image.storageId ||
+          (message.senderId && blockedIds.has(String(message.senderId)))
+        ) {
+          return null;
+        }
+        const requestImagesHidden =
+          conversation.kind === "direct" &&
+          membership.requestStatus === "pending" &&
+          !membership.requestImagesAllowedAt &&
+          message.senderId !== actor.userId;
+        if (requestImagesHidden) return null;
+        const url = await ctx.storage.getUrl(image.storageId);
+        if (!url) return null;
+        return {
+          id: image._id,
+          messageId: message._id,
+          sequence: message.sequence,
+          senderId: message.senderId,
+          fileName: image.fileName,
+          mimeType: image.mimeType,
+          byteSize: image.byteSize,
+          width: image.width,
+          height: image.height,
+          createdAt: image.createdAt,
+          url,
+        };
+      }),
+    );
+    return { ...result, page: page.filter((item) => item !== null) };
   },
 });
 
@@ -729,12 +888,14 @@ export const markRead = mutation({
       Math.min(args.sequence ?? conversation.lastMessageSequence ?? 0, conversation.lastMessageSequence ?? 0),
     );
     const remaining = Math.max(0, (conversation.lastMessageSequence ?? 0) - sequence);
-    await ctx.db.patch(membership._id, {
+    const patch = {
       lastReadSequence: sequence,
       unreadCount: remaining,
       hasUnread: remaining > 0,
       updatedAt: Date.now(),
-    });
+    };
+    await ctx.db.patch(membership._id, patch);
+    await syncChatInboxSummaryMember(ctx, membership._id, { ...membership, ...patch });
     return { lastReadSequence: sequence };
   },
 });
@@ -874,14 +1035,16 @@ export const deleteConversationForMe = mutation({
   handler: async (ctx, args) => {
     const { conversation, membership } = await requireConversationMember(ctx, args.conversationId, { allowInvited: true });
     const cutoff = conversation.lastMessageSequence ?? 0;
-    await ctx.db.patch(membership._id, {
+    const patch = {
       historyCutoffSequence: cutoff,
       isArchived: true,
       unreadCount: 0,
       hasUnread: false,
       lastReadSequence: Math.max(membership.lastReadSequence, cutoff),
       updatedAt: Date.now(),
-    });
+    };
+    await ctx.db.patch(membership._id, patch);
+    await syncChatInboxSummaryMember(ctx, membership._id, { ...membership, ...patch });
     return { historyCutoffSequence: cutoff };
   },
 });
@@ -938,6 +1101,7 @@ export const createGroup = mutation({
   handler: async (ctx, args) => {
     const actor = await requireChatActor(ctx);
     if (actor.role === "admin") throw new Error("ADMIN_SOCIAL_DM_DISABLED");
+    if (args.imageStorageId) throw new Error("GROUP_AVATAR_REQUIRES_PREPARATION");
     const memberIds = Array.from(new Set(args.memberIds)).filter((id) => id !== actor.userId);
     if (memberIds.length > 40) throw new Error("INVITE_IN_BATCH_LIMIT");
     for (const memberId of memberIds) {
@@ -952,7 +1116,6 @@ export const createGroup = mutation({
       ownerId: actor.userId,
       createdById: actor.userId,
       title: cleanGroupName(args.name),
-      imageStorageId: args.imageStorageId,
       courseId: args.courseId,
       nextSequence: 1,
       createdAt: now,
@@ -1001,6 +1164,48 @@ async function requireGroupOwner(ctx: MutationCtx, conversationId: Id<"chatConve
   return result;
 }
 
+export const createGroupAvatarUpload = mutation({
+  args: {
+    conversationId: v.id("chatConversations"),
+    sha256: v.string(),
+    byteSize: v.number(),
+    contentType: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const { actor, conversation } = await requireGroupOwner(ctx, args.conversationId);
+    const sha256 = args.sha256.trim().toLowerCase();
+    const contentType = args.contentType.trim().toLowerCase();
+    if (
+      !/^[a-f0-9]{64}$/.test(sha256) ||
+      !Number.isSafeInteger(args.byteSize) ||
+      args.byteSize < 1 ||
+      args.byteSize > 5 * 1024 * 1024 ||
+      !contentType.startsWith("image/") ||
+      contentType.length > 100
+    ) {
+      throw new Error("INVALID_GROUP_AVATAR_UPLOAD");
+    }
+    const now = Date.now();
+    const expiresAt = now + 15 * 60_000;
+    const uploadId = await ctx.db.insert("chatGroupAvatarUploads", {
+      uploaderId: actor.userId,
+      conversationId: conversation._id,
+      expectedSha256: sha256,
+      expectedByteSize: args.byteSize,
+      expectedContentType: contentType,
+      status: "pending",
+      expiresAt,
+      createdAt: now,
+      updatedAt: now,
+    });
+    return {
+      uploadId,
+      uploadUrl: await ctx.storage.generateUploadUrl(),
+      expiresAt,
+    };
+  },
+});
+
 export const updateGroup = mutation({
   args: {
     conversationId: v.id("chatConversations"),
@@ -1009,14 +1214,33 @@ export const updateGroup = mutation({
     removeImage: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const { conversation } = await requireGroupOwner(ctx, args.conversationId);
+    const { actor, conversation, membership } = await requireGroupOwner(ctx, args.conversationId);
+    if (args.imageStorageId) throw new Error("GROUP_AVATAR_REQUIRES_PREPARATION");
     const name = args.name !== undefined ? cleanGroupName(args.name) : undefined;
     await ctx.db.patch(conversation._id, {
       ...(name !== undefined ? { title: name } : {}),
-      ...(args.imageStorageId ? { imageStorageId: args.imageStorageId } : {}),
       ...(args.removeImage ? { imageStorageId: undefined } : {}),
       updatedAt: Date.now(),
     });
+    if (name !== undefined) {
+      await syncConversationSearchEntry(ctx, {
+        conversationId: conversation._id,
+        viewerId: actor.userId,
+        membershipStatus: membership.status,
+      });
+      await scheduleConversationSearchRefresh(ctx, conversation._id);
+    }
+    if (args.removeImage && conversation.imageStorageId) {
+      const previousImageStorageId = conversation.imageStorageId;
+      const managedFile = await ctx.db
+        .query("chatGroupAvatarFiles")
+        .withIndex("by_storageId", (q) => q.eq("storageId", previousImageStorageId))
+        .unique();
+      if (managedFile?.conversationId === conversation._id) {
+        await ctx.storage.delete(managedFile.storageId);
+        await ctx.db.delete(managedFile._id);
+      }
+    }
     if (conversation.studyGroupId && name !== undefined) {
       const studyGroup = await ctx.db.get(conversation.studyGroupId);
       if (!studyGroup || studyGroup.conversationId !== conversation._id) {
@@ -1034,6 +1258,14 @@ export const inviteGroupMember = mutation({
     const { actor, conversation } = await requireGroupOwner(ctx, args.conversationId);
     if (conversation.studyGroupId) throw new Error("STUDY_GROUP_MANAGED_SEPARATELY");
     if (args.userId === actor.userId) throw new Error("Already a member");
+    const existingMembership = await getChatMembership(ctx, conversation._id, args.userId);
+    if (
+      existingMembership &&
+      existingMembership.status !== "left" &&
+      existingMembership.status !== "removed"
+    ) {
+      throw new Error("Already a member");
+    }
     const target = await ctx.db.get(args.userId);
     if (!target || target.mergedInto || target.anonymizedAt) throw new Error("Profile not found");
     if (await isBlockedEitherDirection(ctx, actor.userId, args.userId)) throw new Error("CHAT_BLOCKED");
@@ -1069,12 +1301,26 @@ export const respondGroupInvite = mutation({
     const { membership } = await requireConversationMember(ctx, args.conversationId, { allowInvited: true });
     if (membership.status !== "invited" || membership.requestStatus !== "pending") throw new Error("Invite not pending");
     const now = Date.now();
-    await ctx.db.patch(membership._id, {
-      status: args.accept ? "active" : "removed",
-      requestStatus: args.accept ? "accepted" : "declined",
-      joinedAt: args.accept ? now : undefined,
-      leftAt: args.accept ? undefined : now,
-      updatedAt: now,
+    const patch = args.accept
+      ? {
+          status: "active" as const,
+          requestStatus: "accepted" as const,
+          joinedAt: now,
+          leftAt: undefined,
+          isArchived: false,
+          updatedAt: now,
+        }
+      : {
+          ...archivedMembershipPatch(membership, "removed", now),
+          requestStatus: "declined" as const,
+          joinedAt: undefined,
+        };
+    await ctx.db.patch(membership._id, patch);
+    await syncChatInboxSummaryMember(ctx, membership._id, { ...membership, ...patch });
+    await syncConversationSearchEntry(ctx, {
+      conversationId: args.conversationId,
+      viewerId: membership.userId,
+      membershipStatus: patch.status,
     });
     return { conversationId: args.conversationId, status: args.accept ? "accepted" : "declined" };
   },
@@ -1105,15 +1351,25 @@ export const removeGroupMember = mutation({
       ) {
         throw new Error("STUDY_GROUP_STATE_MISMATCH");
       }
-      await Promise.all([
-        ctx.db.patch(studyMembership._id, { active: false, leftAt: now }),
-        ctx.db.patch(studyGroup._id, {
-          activeMemberCount: Math.max(1, studyGroup.activeMemberCount - 1),
-          updatedAt: now,
-        }),
-      ]);
+      const studyMembershipPatch = { active: false, leftAt: now };
+      await ctx.db.patch(studyMembership._id, studyMembershipPatch);
+      await syncStudyGroupMembershipSummary(ctx, studyMembership, {
+        ...studyMembership,
+        ...studyMembershipPatch,
+      });
+      await ctx.db.patch(studyGroup._id, {
+        activeMemberCount: Math.max(1, studyGroup.activeMemberCount - 1),
+        updatedAt: now,
+      });
     }
-    await ctx.db.patch(membership._id, { status: "removed", leftAt: now, updatedAt: now });
+    const patch = archivedMembershipPatch(membership, "removed", now);
+    await ctx.db.patch(membership._id, patch);
+    await syncChatInboxSummaryMember(ctx, membership._id, { ...membership, ...patch });
+    await syncConversationSearchEntry(ctx, {
+      conversationId: conversation._id,
+      viewerId: membership.userId,
+      membershipStatus: patch.status,
+    });
     return { conversationId: conversation._id, userId: args.userId };
   },
 });
@@ -1192,15 +1448,25 @@ export const leaveGroup = mutation({
       ) {
         throw new Error("STUDY_GROUP_STATE_MISMATCH");
       }
-      await Promise.all([
-        ctx.db.patch(studyMembership._id, { active: false, leftAt: now }),
-        ctx.db.patch(studyGroup._id, {
-          activeMemberCount: Math.max(1, studyGroup.activeMemberCount - 1),
-          updatedAt: now,
-        }),
-      ]);
+      const studyMembershipPatch = { active: false, leftAt: now };
+      await ctx.db.patch(studyMembership._id, studyMembershipPatch);
+      await syncStudyGroupMembershipSummary(ctx, studyMembership, {
+        ...studyMembership,
+        ...studyMembershipPatch,
+      });
+      await ctx.db.patch(studyGroup._id, {
+        activeMemberCount: Math.max(1, studyGroup.activeMemberCount - 1),
+        updatedAt: now,
+      });
     }
-    await ctx.db.patch(membership._id, { status: "left", leftAt: now, updatedAt: now });
+    const patch = archivedMembershipPatch(membership, "left", now);
+    await ctx.db.patch(membership._id, patch);
+    await syncChatInboxSummaryMember(ctx, membership._id, { ...membership, ...patch });
+    await syncConversationSearchEntry(ctx, {
+      conversationId: conversation._id,
+      viewerId: membership.userId,
+      membershipStatus: patch.status,
+    });
     return { conversationId: conversation._id, status: "left" as const };
   },
 });
@@ -1252,7 +1518,7 @@ export const searchMessages = query({
   args: { query: v.string(), limit: v.optional(v.number()), conversationId: v.optional(v.id("chatConversations")) },
   handler: async (ctx, args) => {
     const actor = await requireChatActor(ctx);
-    const search = args.query.trim().slice(0, 200);
+    const search = normalizeFullTextSearchQuery(args.query);
     if (search.length < 2) return [];
     const limit = Math.max(1, Math.min(50, Math.floor(args.limit ?? 30)));
     const scoped = args.conversationId
@@ -1359,6 +1625,178 @@ export const searchMessages = query({
     return [...results.values()]
       .sort((a, b) => b.createdAt - a.createdAt)
       .slice(0, limit);
+  },
+});
+
+export const searchConversationMessagesPage = query({
+  args: {
+    conversationId: v.id("chatConversations"),
+    query: v.string(),
+    paginationOpts: paginationOptsValidator,
+  },
+  handler: async (ctx, args) => {
+    const { actor, conversation, membership } = await requireConversationMember(ctx, args.conversationId);
+    const search = normalizeFullTextSearchQuery(args.query);
+    if (search.length < 2) return { page: [], isDone: true, continueCursor: "" };
+    const result = await ctx.db
+      .query("chatMessages")
+      .withSearchIndex("search_searchText", (q) =>
+        q.search("searchText", search).eq("conversationId", args.conversationId),
+      )
+      .paginate(args.paginationOpts);
+    const visibleMessages = result.page.filter(
+      (message) => !message.deletedAt && message.sequence > membership.historyCutoffSequence,
+    );
+    const senderIds = Array.from(
+      new Set(visibleMessages.flatMap((message) => (message.senderId ? [message.senderId] : []))),
+    );
+    const blocks = conversation.kind === "group"
+      ? await Promise.all(
+          senderIds.map((senderId) =>
+            ctx.db
+              .query("chatBlocks")
+              .withIndex("by_blockerId_and_blockedId", (q) =>
+                q.eq("blockerId", actor.userId).eq("blockedId", senderId),
+              )
+              .unique(),
+          ),
+        )
+      : [];
+    const blockedIds = new Set(blocks.filter(Boolean).map((row) => String(row!.blockedId)));
+    return {
+      ...result,
+      page: visibleMessages.map((message) => {
+        const collapsed = Boolean(
+          conversation.kind === "group" &&
+            message.senderId &&
+            blockedIds.has(String(message.senderId)),
+        );
+        return {
+          messageId: message._id,
+          sequence: message.sequence,
+          body: collapsed ? undefined : message.body,
+          senderId: collapsed ? undefined : message.senderId,
+          senderName: collapsed ? undefined : message.senderName,
+          createdAt: message.createdAt,
+          editedAt: message.editedAt,
+          collapsed,
+        };
+      }),
+    };
+  },
+});
+
+export const searchViewerConversations = query({
+  args: { query: v.string(), limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const actor = await requireChatActor(ctx);
+    const search = args.query.trim().toLocaleLowerCase().slice(0, 200);
+    if (search.length < 2) return [];
+    const limit = Math.max(1, Math.min(30, Math.floor(args.limit ?? 20)));
+    const results = [];
+    for await (const membership of ctx.db
+      .query("chatMembers")
+      .withIndex("by_userId_and_status_and_lastDeliveredAt", (q) =>
+        q.eq("userId", actor.userId).eq("status", "active"),
+      )
+      .order("desc")) {
+      const conversation = await ctx.db.get(membership.conversationId);
+      if (!conversation || conversation.deletedAt) continue;
+      let matches = conversation.title?.toLocaleLowerCase().includes(search) ?? false;
+      if (!matches && conversation.kind !== "group") {
+        const members = await ctx.db
+          .query("chatMembers")
+          .withIndex("by_conversationId_and_status_and_joinedAt", (q) =>
+            q.eq("conversationId", conversation._id).eq("status", "active"),
+          )
+          .take(3);
+        const counterpartMembership = members.find((member) => member.userId !== actor.userId);
+        const counterpart = counterpartMembership ? await ctx.db.get(counterpartMembership.userId) : null;
+        matches = Boolean(
+          counterpart && `${counterpart.name ?? ""} ${counterpart.username ?? ""}`.toLocaleLowerCase().includes(search),
+        );
+      }
+      if (!matches) continue;
+      const item = await inboxItem(ctx, membership);
+      if (item) results.push(item);
+      if (results.length >= limit) break;
+    }
+    return results;
+  },
+});
+
+export const searchViewerConversationsPage = query({
+  args: { query: v.string(), paginationOpts: paginationOptsValidator },
+  handler: async (ctx, args) => {
+    const actor = await requireChatActor(ctx);
+    const search = normalizeFullTextSearchQuery(args.query);
+    if (search.length < 2) return { page: [], isDone: true, continueCursor: "" };
+
+    const version = await ctx.db
+      .query("chatConversationSearchVersions")
+      .withIndex("by_key", (q) => q.eq("key", "v1"))
+      .unique();
+    if (!version?.ready) {
+      const result = await ctx.db
+        .query("chatMembers")
+        .withIndex("by_userId_and_status_and_lastDeliveredAt", (q) =>
+          q.eq("userId", actor.userId),
+        )
+        .order("desc")
+        .paginate(args.paginationOpts);
+      const searchTokens = search.toLocaleLowerCase().split(" ");
+      const page = [];
+      for (const membership of result.page) {
+        if (membership.status !== "active" && membership.status !== "invited") continue;
+        const conversation = await ctx.db.get(membership.conversationId);
+        if (
+          !conversation ||
+          conversation.deletedAt ||
+          (conversation.kind !== "group" && conversation.kind !== "support")
+        ) {
+          continue;
+        }
+        const title = conversation.title?.trim().toLocaleLowerCase();
+        if (!title || !searchTokens.every((token) => title.includes(token))) continue;
+        const item = await inboxItem(ctx, membership);
+        if (item) page.push(item);
+      }
+      return { ...result, page };
+    }
+
+    const result = await ctx.db
+      .query("chatConversationSearchEntries")
+      .withSearchIndex("search_searchText", (q) =>
+        q
+          .search("searchText", search)
+          .eq("viewerId", actor.userId)
+          .eq("status", "visible"),
+      )
+      .paginate(args.paginationOpts);
+    const page = [];
+
+    for (const entry of result.page) {
+      const conversation = await ctx.db.get(entry.conversationId);
+      if (
+        !conversation ||
+        conversation.deletedAt ||
+        conversation.title?.trim() !== entry.searchText ||
+        (conversation.kind !== "group" && conversation.kind !== "support")
+      ) {
+        continue;
+      }
+      const membership = await ctx.db
+        .query("chatMembers")
+        .withIndex("by_conversationId_and_userId", (q) =>
+          q.eq("conversationId", entry.conversationId).eq("userId", actor.userId),
+        )
+        .unique();
+      if (!membership || !["active", "invited"].includes(membership.status)) continue;
+      const item = await inboxItem(ctx, membership);
+      if (item) page.push(item);
+    }
+
+    return { ...result, page };
   },
 });
 

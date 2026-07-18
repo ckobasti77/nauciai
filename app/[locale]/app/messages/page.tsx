@@ -1,7 +1,7 @@
-import { MessagesShell } from "@/components/app/chat/messages-shell";
+import { MessagesHub } from "@/components/app/chat/messages-hub";
 import { isLocale } from "@/lib/i18n";
 
 export default async function MessagesPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
-  return <MessagesShell locale={isLocale(locale) ? locale : "sr"} />;
+  return <MessagesHub locale={isLocale(locale) ? locale : "sr"} />;
 }

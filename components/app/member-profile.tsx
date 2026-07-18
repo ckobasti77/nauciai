@@ -9,6 +9,7 @@ import {
   CalendarDays,
   Check,
   ExternalLink,
+  GraduationCap,
   Link2,
   Loader2,
   MessageCircle,
@@ -33,6 +34,62 @@ type ContributionFilter = "all" | "threads" | "comments";
 
 function labelFor(locale: Locale, sr: string, en: string) {
   return locale === "sr" ? sr : en;
+}
+
+function useModalFocus(open: boolean, onClose: () => void) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef(onClose);
+
+  useEffect(() => {
+    closeRef.current = onClose;
+  }, [onClose]);
+
+  useEffect(() => {
+    if (!open) return;
+    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const frame = window.requestAnimationFrame(() => {
+      const first = dialogRef.current?.querySelector<HTMLElement>(
+        '[autofocus], button:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
+      );
+      (first ?? dialogRef.current)?.focus();
+    });
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeRef.current();
+        return;
+      }
+      if (event.key !== "Tab" || !dialogRef.current) return;
+      const controls = Array.from(dialogRef.current.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
+      )).filter((element) => element.offsetParent !== null);
+      if (!controls.length) {
+        event.preventDefault();
+        dialogRef.current.focus();
+        return;
+      }
+      const first = controls[0];
+      const last = controls[controls.length - 1];
+      if (event.shiftKey && (document.activeElement === first || !dialogRef.current.contains(document.activeElement))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = previousOverflow;
+      if (previouslyFocused?.isConnected) previouslyFocused.focus();
+    };
+  }, [open]);
+
+  return dialogRef;
 }
 
 function roleLabel(locale: Locale, role: string) {
@@ -177,11 +234,16 @@ export function MemberProfile({ locale, username }: { locale: Locale; username: 
   const profile = useQuery(api.publicProfiles.getPublicProfile, { username });
   const toggleFollow = useMutation(api.publicProfiles.toggleFollow);
   const createOrGetDirect = useMutation(api.chat.createOrGetDirect);
+  const inviteStudyPartner = useMutation(api.study.createPartnerInvite);
   const reportContent = useMutation(api.chatModeration.reportContent);
   const setProfileRole = useMutation(api.profiles.setProfileRole);
   const ownerStatus = useQuery(api.profiles.getViewerProfileStatus, profile?.viewer.isOwner ? {} : "skip");
   const [followPending, setFollowPending] = useState(false);
   const [messagePending, setMessagePending] = useState(false);
+  const [profileActionNotice, setProfileActionNotice] = useState<string>();
+  const [studyOpen, setStudyOpen] = useState(false);
+  const [studyPendingCourseId, setStudyPendingCourseId] = useState<Id<"courses">>();
+  const [studyNotice, setStudyNotice] = useState<string>();
   const [rolePending, setRolePending] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState("");
@@ -190,6 +252,13 @@ export function MemberProfile({ locale, username }: { locale: Locale; username: 
   const [followList, setFollowList] = useState<FollowListKind | null>(null);
   const [filter, setFilter] = useState<ContributionFilter>("all");
   const [courseId, setCourseId] = useState<string>("");
+  const studyDialogRef = useModalFocus(studyOpen, () => setStudyOpen(false));
+  const reportDialogRef = useModalFocus(reportOpen, () => setReportOpen(false));
+  const commonStudyCourses = usePaginatedQuery(
+    api.study.listCommonStudyCoursesPage,
+    profile && studyOpen && !profile.viewer.isOwner ? { userId: profile.identity.userId } : "skip",
+    { initialNumItems: 12 },
+  );
   const contributions = usePaginatedQuery(api.publicProfiles.listProfileContributionsPage, profile ? {
     username,
     filter,
@@ -216,17 +285,47 @@ export function MemberProfile({ locale, username }: { locale: Locale; username: 
 
   async function follow() {
     setFollowPending(true);
-    try { await toggleFollow({ userId: identity.userId }); } finally { setFollowPending(false); }
+    setProfileActionNotice(undefined);
+    try {
+      await toggleFollow({ userId: identity.userId });
+    } catch {
+      setProfileActionNotice(labelFor(locale, "Praćenje trenutno nije izmenjeno. Pokušaj ponovo.", "Following could not be updated. Try again."));
+    } finally {
+      setFollowPending(false);
+    }
   }
 
   async function message(support = false) {
     setMessagePending(true);
+    setProfileActionNotice(undefined);
     try {
       const result = await createOrGetDirect({ recipientId: identity.userId, ...(support ? { support: true } : {}) });
       if (window.matchMedia("(min-width: 1024px)").matches) openChatDock(result.conversationId);
       else router.push(withLocale(locale, `/app/messages/${result.conversationId}`));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      setProfileActionNotice(
+        message.includes("CHAT_BLOCKED")
+          ? labelFor(locale, "Razgovor nije dostupan zbog blokiranja.", "This conversation is unavailable because of a block.")
+          : message.includes("DM_PRIVACY")
+            ? labelFor(locale, "Ova osoba trenutno ne prima nove poruke.", "This person is not accepting new messages right now.")
+            : labelFor(locale, "Razgovor trenutno nije moguće otvoriti. Pokušaj ponovo.", "The conversation could not be opened. Try again."),
+      );
     } finally {
       setMessagePending(false);
+    }
+  }
+
+  async function inviteToStudy(course: { courseId: Id<"courses">; slug: string }) {
+    setStudyPendingCourseId(course.courseId);
+    setStudyNotice(undefined);
+    try {
+      await inviteStudyPartner({ recipientId: identity.userId, courseId: course.courseId });
+      router.push(`${withLocale(locale, "/app/messages")}?view=study&course=${encodeURIComponent(course.slug)}`);
+    } catch {
+      setStudyNotice(labelFor(locale, "Poziv nije poslat. Proveri dostupnost i zonu napretka u Uči zajedno.", "The invite was not sent. Check availability and progress zone in Study together."));
+    } finally {
+      setStudyPendingCourseId(undefined);
     }
   }
 
@@ -271,11 +370,13 @@ export function MemberProfile({ locale, username }: { locale: Locale; username: 
       </div> : null}
       {profile.viewer.isOwner ? <div className="space-y-2"><Link href={`${withLocale(locale, "/app/profile")}#public-profile`} className="flex min-h-12 w-full items-center justify-center rounded-full border-2 border-ink bg-yellow px-4 text-sm font-black shadow-[3px_3px_0_0_#0e3158]">{labelFor(locale, "Uredi javni profil", "Edit public profile")}</Link><Link href={`${withLocale(locale, "/app/profile")}#account-settings`} className="flex min-h-11 w-full items-center justify-center rounded-full border-2 border-ink bg-white px-4 text-sm font-black">{labelFor(locale, "Podešavanja naloga", "Account settings")}</Link>{ownerStatus?.complete === false || ownerStatus?.advisories?.emailVerification || ownerStatus?.advisories?.password ? <div className="rounded-[16px] border-2 border-amber-400 bg-amber-50 p-3 text-left text-xs font-black text-amber-950">{ownerStatus?.complete === false ? <p>{labelFor(locale, "Dovrši korisničko ime i profil.", "Complete your username and profile.")}</p> : null}{ownerStatus?.advisories?.emailVerification ? <p>{labelFor(locale, "Potvrdi email za pristup kursevima.", "Verify email for course access.")}</p> : null}{ownerStatus?.advisories?.password ? <p>{labelFor(locale, "Možeš dodati opcionu lozinku.", "You can add an optional password.")}</p> : null}</div> : null}</div> : (
         <div className="space-y-2">
+          {profileActionNotice ? <p role="alert" className="rounded-[8px] border border-red-300 bg-red-50 px-3 py-2 text-xs font-black text-red-800">{profileActionNotice}</p> : null}
           {profile.viewer.canFollow ? <button type="button" onClick={follow} disabled={followPending} className={cn("flex min-h-12 w-full items-center justify-center gap-2 rounded-full border-2 border-ink px-4 text-sm font-black shadow-[3px_3px_0_0_#0e3158]", profile.viewer.isFollowing ? "bg-white" : "bg-yellow")}>
             {followPending ? <Loader2 className="size-4 animate-spin" /> : profile.viewer.isFollowing ? <Check className="size-4" /> : <UserPlus className="size-4" />}
             {profile.viewer.isMutual ? labelFor(locale, "Pratite se", "You follow each other") : profile.viewer.isFollowing ? labelFor(locale, "Pratiš", "Following") : labelFor(locale, "Zaprati", "Follow")}
           </button> : null}
           {profile.viewer.canMessage ? <button type="button" onClick={() => void message()} disabled={messagePending} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-full border-2 border-ink bg-white px-4 text-sm font-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">{messagePending ? <Loader2 className="size-4 animate-spin" /> : <MessageCircle className="size-4" />}{labelFor(locale, "Poruka", "Message")}</button> : null}
+          {(profile.viewer.canFollow || profile.viewer.canMessage) ? <button type="button" onClick={() => { setStudyOpen(true); setStudyNotice(undefined); }} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-full border-2 border-ink bg-[#d7e9f5] px-4 text-sm font-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"><GraduationCap className="size-4" />{labelFor(locale, "Uči zajedno", "Study together")}</button> : null}
           <button type="button" onClick={() => { setReportOpen(true); setReportSent(false); }} className="w-full rounded-full px-4 py-2 text-xs font-black text-red-700 underline-offset-2 hover:underline">{labelFor(locale, "Prijavi profil", "Report profile")}</button>
         </div>
       )}
@@ -302,7 +403,29 @@ export function MemberProfile({ locale, username }: { locale: Locale; username: 
         <div className="order-1 min-w-0 xl:order-2">{profileCard}</div>
       </div>
       {followList ? <FollowersDialog kind={followList} userId={identity.userId} username={identity.username} locale={locale} owner={profile.viewer.isOwner} onClose={() => setFollowList(null)} /> : null}
-      {reportOpen ? <div className="fixed inset-0 z-[90] grid place-items-center bg-ink/50 p-4" role="dialog" aria-modal="true" aria-labelledby="profile-report-title"><div className="w-full max-w-md rounded-[16px] border-2 border-ink bg-white p-5 shadow-2xl"><div className="flex items-start justify-between gap-3"><div><p className="text-xs font-black uppercase text-red-700">{labelFor(locale, "Prijava", "Report")}</p><h2 id="profile-report-title" className="mt-1 text-xl font-black">{identity.name}</h2></div><button type="button" onClick={() => setReportOpen(false)} className="grid size-10 place-items-center rounded-full border-2 border-ink" aria-label={labelFor(locale, "Zatvori", "Close")}><X className="size-4" /></button></div>{reportSent ? <p role="status" className="mt-4 rounded-[16px] border-2 border-line bg-paper p-4 text-sm font-black">{labelFor(locale, "Prijava je poslata timu za sigurnost.", "The report was sent to the safety team.")}</p> : <><label className="mt-4 block text-sm font-black">{labelFor(locale, "Razlog", "Reason")}<textarea value={reportReason} onChange={(event) => setReportReason(event.target.value)} rows={4} maxLength={1_000} className="mt-2 w-full rounded-[8px] border-2 border-ink bg-white p-3 font-bold" /></label><button type="button" disabled={reportPending || reportReason.trim().length < 3} onClick={async () => { setReportPending(true); try { await reportContent({ targetType: "profile", targetUserId: identity.userId, reason: reportReason }); setReportSent(true); setReportReason(""); } finally { setReportPending(false); } }} className="mt-3 inline-flex min-h-11 items-center rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black disabled:opacity-50">{reportPending ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}{labelFor(locale, "Pošalji prijavu", "Send report")}</button></>}</div></div> : null}
+      {studyOpen ? (
+        <div className="fixed inset-0 z-[95] grid place-items-end bg-ink/50 p-0 sm:place-items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="study-invite-title">
+          <div ref={studyDialogRef} tabIndex={-1} className="max-h-[82dvh] w-full overflow-hidden rounded-t-[16px] border-2 border-ink bg-white shadow-2xl sm:max-w-lg sm:rounded-[16px]">
+            <div className="flex items-start justify-between gap-3 border-b-2 border-ink p-4">
+              <div><p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#2e6f9f]">{labelFor(locale, "Zajednički kurs", "Shared course")}</p><h2 id="study-invite-title" className="mt-1 text-xl font-black">{labelFor(locale, `Uči sa ${identity.name}`, `Study with ${identity.name}`)}</h2></div>
+              <button type="button" autoFocus onClick={() => setStudyOpen(false)} className="grid size-10 place-items-center rounded-full border-2 border-ink" aria-label={labelFor(locale, "Zatvori", "Close")}><X className="size-4" /></button>
+            </div>
+            <div className="max-h-[62dvh] space-y-2 overflow-y-auto p-4">
+              {studyNotice ? <p role="alert" className="rounded-[8px] border border-red-300 bg-red-50 p-3 text-xs font-black text-red-800">{studyNotice}</p> : null}
+              {commonStudyCourses.status === "LoadingFirstPage" ? <div className="grid min-h-36 place-items-center"><Loader2 className="size-6 animate-spin" /></div> : null}
+              {commonStudyCourses.results.map((course) => (
+                <article key={course.courseId} className="rounded-[16px] border-2 border-line bg-paper p-3">
+                  <div className="flex items-center gap-3"><span className="grid size-11 place-items-center rounded-full border-2 border-ink bg-[#d7e9f5]"><BookOpen className="size-5" /></span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-black">{locale === "sr" ? course.titleSr : course.titleEn}</span><span className="block text-[10px] font-bold text-muted">{course.matchingAvailable ? labelFor(locale, "Ista zona napretka · spremno za poziv", "Same progress zone · ready to invite") : labelFor(locale, "Prvo uskladi dostupnost", "Set matching availability first")}</span></span></div>
+                  {course.matchingAvailable ? <button type="button" disabled={Boolean(studyPendingCourseId)} onClick={() => void inviteToStudy(course)} className="mt-3 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-xs font-black disabled:opacity-50">{studyPendingCourseId === course.courseId ? <Loader2 className="size-4 animate-spin" /> : <GraduationCap className="size-4" />}{labelFor(locale, "Pošalji poziv", "Send invite")}</button> : <button type="button" onClick={() => router.push(`${withLocale(locale, "/app/messages")}?view=study&course=${encodeURIComponent(course.slug)}`)} className="mt-3 inline-flex min-h-10 w-full items-center justify-center rounded-full border-2 border-ink bg-white px-4 text-xs font-black">{labelFor(locale, "Podesi u Uči zajedno", "Set up in Study together")}</button>}
+                </article>
+              ))}
+              {commonStudyCourses.status === "CanLoadMore" || commonStudyCourses.status === "LoadingMore" ? <button type="button" disabled={commonStudyCourses.status === "LoadingMore"} onClick={() => commonStudyCourses.loadMore(12)} className="w-full rounded-full border-2 border-ink bg-white px-4 py-2.5 text-xs font-black disabled:opacity-60">{commonStudyCourses.status === "LoadingMore" ? labelFor(locale, "Učitavanje…", "Loading…") : labelFor(locale, "Učitaj još", "Load more")}</button> : null}
+              {!commonStudyCourses.results.length && commonStudyCourses.status === "Exhausted" ? <div className="rounded-[16px] border-2 border-dashed border-line p-7 text-center"><BookOpen className="mx-auto size-8 text-muted" /><p className="mt-3 text-sm font-black">{labelFor(locale, "Nemate zajednički aktivan kurs.", "You do not share an active course.")}</p></div> : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {reportOpen ? <div className="fixed inset-0 z-[90] grid place-items-center bg-ink/50 p-4" role="dialog" aria-modal="true" aria-labelledby="profile-report-title"><div ref={reportDialogRef} tabIndex={-1} className="w-full max-w-md rounded-[16px] border-2 border-ink bg-white p-5 shadow-2xl"><div className="flex items-start justify-between gap-3"><div><p className="text-xs font-black uppercase text-red-700">{labelFor(locale, "Prijava", "Report")}</p><h2 id="profile-report-title" className="mt-1 text-xl font-black">{identity.name}</h2></div><button type="button" autoFocus onClick={() => setReportOpen(false)} className="grid size-10 place-items-center rounded-full border-2 border-ink" aria-label={labelFor(locale, "Zatvori", "Close")}><X className="size-4" /></button></div>{reportSent ? <p role="status" className="mt-4 rounded-[16px] border-2 border-line bg-paper p-4 text-sm font-black">{labelFor(locale, "Prijava je poslata timu za sigurnost.", "The report was sent to the safety team.")}</p> : <><label className="mt-4 block text-sm font-black">{labelFor(locale, "Razlog", "Reason")}<textarea value={reportReason} onChange={(event) => setReportReason(event.target.value)} rows={4} maxLength={1_000} className="mt-2 w-full rounded-[8px] border-2 border-ink bg-white p-3 font-bold" /></label><button type="button" disabled={reportPending || reportReason.trim().length < 3} onClick={async () => { setReportPending(true); try { await reportContent({ targetType: "profile", targetUserId: identity.userId, reason: reportReason }); setReportSent(true); setReportReason(""); } finally { setReportPending(false); } }} className="mt-3 inline-flex min-h-11 items-center rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black disabled:opacity-50">{reportPending ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}{labelFor(locale, "Pošalji prijavu", "Send report")}</button></>}</div></div> : null}
     </div>
   );
 }

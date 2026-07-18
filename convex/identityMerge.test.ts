@@ -1,15 +1,27 @@
 /// <reference types="vite/client" />
 
+import aggregateTest from "@convex-dev/aggregate/test";
 import { convexTest } from "convex-test";
 import { expect, test } from "vitest";
 
 import { api, internal } from "./_generated/api";
 import schema from "./schema";
+import {
+  markStudyHubAggregateReady,
+  syncStudyPartnerInviteSummary,
+} from "./studyHubSummaryCore";
 
 const modules = import.meta.glob("./**/*.ts");
 
-test("password identifiers resolve email, username, and @username server-side", async () => {
+function createTest() {
   const t = convexTest(schema, modules);
+  aggregateTest.register(t, "chatInbox");
+  aggregateTest.register(t, "studyHub");
+  return t;
+}
+
+test("password identifiers resolve email, username, and @username server-side", async () => {
+  const t = createTest();
   await t.run(async (ctx) => {
     await ctx.db.insert("users", {
       email: "student@example.com",
@@ -30,7 +42,7 @@ test("password identifiers resolve email, username, and @username server-side", 
 });
 
 test("a verified canonical account can reclaim an unverified password-only legacy duplicate", async () => {
-  const t = convexTest(schema, modules);
+  const t = createTest();
   const ids = await t.run(async (ctx) => {
     const canonicalUserId = await ctx.db.insert("users", {
       email: "linked@example.com",
@@ -74,7 +86,20 @@ test("a verified canonical account can reclaim an unverified password-only legac
     });
     await ctx.db.insert("studyPartnerAvailability", { userId: canonicalUserId, courseId, progressZone: "0_25", progressPercent: 10, active: false, createdAt: 1, updatedAt: 1 });
     await ctx.db.insert("studyPartnerAvailability", { userId: duplicateUserId, courseId, progressZone: "51_75", progressPercent: 60, active: true, createdAt: 2, updatedAt: 2 });
-    return { canonicalUserId, duplicateUserId, otherUserId, postId, topicId, courseId };
+    const inviteId = await ctx.db.insert("studyPartnerInvites", {
+      pairKey: [String(duplicateUserId), String(otherUserId)].sort().join(":"),
+      senderId: duplicateUserId,
+      recipientId: otherUserId,
+      courseId,
+      status: "pending",
+      createdAt: 3,
+      updatedAt: 3,
+    });
+    const invite = await ctx.db.get(inviteId);
+    if (!invite) throw new Error("Missing study invite fixture");
+    await syncStudyPartnerInviteSummary(ctx, null, invite);
+    await markStudyHubAggregateReady(ctx);
+    return { canonicalUserId, duplicateUserId, otherUserId, postId, topicId, courseId, inviteId };
   });
 
   const mergeArgs = { canonicalUserId: ids.canonicalUserId, duplicateUserId: ids.duplicateUserId };
@@ -92,6 +117,7 @@ test("a verified canonical account can reclaim an unverified password-only legac
     help: await ctx.db.query("userHelpTopics").withIndex("by_userId_and_topicId", (q) => q.eq("userId", ids.canonicalUserId).eq("topicId", ids.topicId)).unique(),
     topic: await ctx.db.get(ids.topicId),
     availability: await ctx.db.query("studyPartnerAvailability").withIndex("by_userId_and_courseId", (q) => q.eq("userId", ids.canonicalUserId).eq("courseId", ids.courseId)).unique(),
+    studyInvite: await ctx.db.get(ids.inviteId),
   }));
   expect(state.duplicate).toMatchObject({ mergedInto: ids.canonicalUserId });
   expect(state.duplicate?.email).toBeUndefined();
@@ -109,10 +135,19 @@ test("a verified canonical account can reclaim an unverified password-only legac
   expect(state.help?.mode).toBe("both");
   expect(state.topic?.createdBy).toBe(ids.canonicalUserId);
   expect(state.availability).toMatchObject({ active: true, progressPercent: 60, progressZone: "51_75" });
+  expect(state.studyInvite).toMatchObject({ senderId: ids.canonicalUserId, recipientId: ids.otherUserId, status: "pending" });
+  await expect(
+    t.withIdentity({ subject: ids.canonicalUserId, tokenIdentifier: `test|${ids.canonicalUserId}` })
+      .query(api.study.getStudyHubSummary, {}),
+  ).resolves.toMatchObject({ pendingOutgoingPartnerInviteCount: 1 });
+  await expect(
+    t.withIdentity({ subject: ids.otherUserId, tokenIdentifier: `test|${ids.otherUserId}` })
+      .query(api.study.getStudyHubSummary, {}),
+  ).resolves.toMatchObject({ pendingPartnerInviteCount: 1 });
 });
 
 test("identity merge consolidates parallel direct chats and deduplicates membership", async () => {
-  const t = convexTest(schema, modules);
+  const t = createTest();
   const ids = await t.run(async (ctx) => {
     const canonicalUserId = await ctx.db.insert("users", {
       email: "chat-merge@example.com", appEmailVerificationTime: 1, name: "Canonical", username: "chat_canonical", role: "student", createdAt: 1, updatedAt: 1,
@@ -182,7 +217,7 @@ test("identity merge consolidates parallel direct chats and deduplicates members
 });
 
 test("admin dry-run chooses complete profile before older incomplete duplicate", async () => {
-  const t = convexTest(schema, modules);
+  const t = createTest();
   const ids = await t.run(async (ctx) => {
     const adminUserId = await ctx.db.insert("users", { email: "admin@example.com", emailVerificationTime: 1, name: "Admin", username: "admin_user", role: "admin", language: "sr", searchText: "Admin", createdAt: 1, updatedAt: 1 });
     const olderUserId = await ctx.db.insert("users", { email: "choice@example.com", emailVerificationTime: 1 });

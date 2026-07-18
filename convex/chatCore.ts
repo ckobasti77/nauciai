@@ -4,6 +4,8 @@ import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { internalMutation, internalQuery } from "./_generated/server";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
+import { syncChatInboxSummaryMember } from "./chatInboxSummaryCore";
+import { syncConversationSearchEntry } from "./chatSearchProjection";
 import { effectiveRoleForProfile, getCurrentProfile } from "./helpers";
 
 export const DIRECT_REQUEST_MESSAGE_LIMIT = 3;
@@ -224,6 +226,7 @@ export async function upsertChatMember(
 ) {
   const existing = await getChatMembership(ctx, args.conversationId, args.userId);
   const now = Date.now();
+  const reactivating = existing?.status === "left" || existing?.status === "removed";
   const values = {
     conversationKind: args.conversationKind,
     role: args.role,
@@ -233,13 +236,30 @@ export async function upsertChatMember(
     invitedAt: args.invitedAt,
     joinedAt: args.joinedAt,
     leftAt: undefined,
+    ...(reactivating
+      ? {
+          unreadCount: 0,
+          hasUnread: false,
+          isArchived: false,
+          isPinned: false,
+          lastReadSequence: Math.max(existing.lastReadSequence, existing.lastDeliveredSequence),
+        }
+      : {}),
     updatedAt: now,
   };
   if (existing) {
     await ctx.db.patch(existing._id, values);
+    await syncChatInboxSummaryMember(ctx, existing._id, { ...existing, ...values });
+    if (args.conversationKind !== "direct") {
+      await syncConversationSearchEntry(ctx, {
+        conversationId: args.conversationId,
+        viewerId: args.userId,
+        membershipStatus: args.status,
+      });
+    }
     return existing._id;
   }
-  return ctx.db.insert("chatMembers", {
+  const chatMemberId = await ctx.db.insert("chatMembers", {
     conversationId: args.conversationId,
     userId: args.userId,
     ...values,
@@ -252,6 +272,22 @@ export async function upsertChatMember(
     isPinned: false,
     historyCutoffSequence: 0,
   });
+  await syncChatInboxSummaryMember(ctx, chatMemberId, {
+    userId: args.userId,
+    conversationKind: args.conversationKind,
+    status: args.status,
+    requestStatus: args.requestStatus,
+    unreadCount: 0,
+    hasUnread: false,
+  });
+  if (args.conversationKind !== "direct") {
+    await syncConversationSearchEntry(ctx, {
+      conversationId: args.conversationId,
+      viewerId: args.userId,
+      membershipStatus: args.status,
+    });
+  }
+  return chatMemberId;
 }
 
 async function setRequestStatusForMembers(
@@ -266,13 +302,15 @@ async function setRequestStatusForMembers(
     )
     .take(3);
   await Promise.all(
-    members.map((member) =>
-      ctx.db.patch(member._id, {
+    members.map(async (member) => {
+      const patch = {
         requestStatus: status,
         isArchived: status === "declined" ? true : status === "accepted" ? false : member.isArchived,
         updatedAt: Date.now(),
-      }),
-    ),
+      } as const;
+      await ctx.db.patch(member._id, patch);
+      await syncChatInboxSummaryMember(ctx, member._id, { ...member, ...patch });
+    }),
   );
 }
 
@@ -652,13 +690,15 @@ export const deliverMessageBatch = internalMutation({
     for (const member of result.page) {
       const isSender = args.senderId === member.userId;
       const unread = !isSender && member.lastReadSequence < args.sequence;
-      await ctx.db.patch(member._id, {
+      const patch = {
         lastDeliveredSequence: Math.max(member.lastDeliveredSequence, args.sequence),
         lastDeliveredAt: now,
         unreadCount: unread ? Math.max(0, member.unreadCount) + 1 : member.unreadCount,
         hasUnread: unread ? true : member.hasUnread,
         updatedAt: now,
-      });
+      };
+      await ctx.db.patch(member._id, patch);
+      await syncChatInboxSummaryMember(ctx, member._id, { ...member, ...patch });
       if (unread && (!member.mutedUntil || member.mutedUntil <= now)) pushRecipientIds.push(member.userId);
     }
     if (pushRecipientIds.length) {
