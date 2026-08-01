@@ -1300,7 +1300,14 @@ function AppSidebarContent({
   // Optional on AppCourseNav, and never set by the static no-Convex fallback, so the
   // track entry has to be able to not exist.
   const currentTrackSlug = currentCourse?.trackSlug;
-  const trackLabel = locale === "sr" ? "Smer" : "Track";
+  // Each hierarchy row names its own level *and* the thing you are currently in, so the
+  // sidebar reads "Smer · X / Kurs · Y / Lekcije". The removed <select> used to be the
+  // only place the current track was written down; without this the level is anonymous.
+  const trackTitle = currentCourse?.trackTitle ? localized(currentCourse.trackTitle, locale) : null;
+  const trackLevel = locale === "sr" ? "Smer" : "Track";
+  const courseLevel = locale === "sr" ? "Kurs" : "Course";
+  const trackLabel = trackTitle ? `${trackLevel} · ${trackTitle}` : trackLevel;
+  const courseLabel = currentCourse ? `${courseLevel} · ${localized(currentCourse.title, locale)}` : courseLevel;
   const sidebarWidth = sidebarPreferences.collapsed ? APP_SIDEBAR_RAIL_WIDTH : sidebarPreferences.width;
   const sidebarStyle = { "--app-sidebar-width": `${sidebarWidth}px` } as CSSProperties;
   // Below the desktop breakpoint the same <aside> behaves as a modal drawer.
@@ -1406,7 +1413,7 @@ function AppSidebarContent({
                 href={coursePath(locale, currentCourse.slug)}
                 active={courseActive}
                 icon={GraduationCap}
-                label={locale === "sr" ? "Kurs" : "Course"}
+                label={courseLabel}
               />
             ) : null}
             {currentCourse ? (
@@ -1597,7 +1604,7 @@ function AppSidebarContent({
             <RailAction href={trackPath(locale, currentTrackSlug)} label={trackLabel} icon={<Compass className="size-5" />} active={trackActive} />
           ) : null}
           {currentCourse ? (
-            <RailAction href={coursePath(locale, currentCourse.slug)} label={locale === "sr" ? "Kurs" : "Course"} icon={<GraduationCap className="size-5" />} active={courseActive} />
+            <RailAction href={coursePath(locale, currentCourse.slug)} label={courseLabel} icon={<GraduationCap className="size-5" />} active={courseActive} />
           ) : null}
           {currentCourse ? (
             <RailAction label={t.lessons} icon={<BookOpen className="size-5" />} active={Boolean(params.lessonSlug)} expanded={railFlyout === "lessons"} onClick={() => setRailFlyout((value) => value === "lessons" ? null : "lessons")} />
