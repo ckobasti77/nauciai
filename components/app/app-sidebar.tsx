@@ -17,6 +17,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   PlayCircle,
+  Settings,
   Shield,
   ShieldCheck,
   User,
@@ -426,7 +427,8 @@ function CourseSwitcher({
                             <Link
                               href={coursePath(locale, course.slug)}
                               onClick={() => setOpen(false)}
-                              className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-[10px] text-sm font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                              aria-current={active ? "page" : undefined}
+                              className="flex min-h-11 min-w-0 flex-1 items-center justify-between gap-3 rounded-[10px] text-sm font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                             >
                               <span className="grid size-9 shrink-0 place-items-center rounded-[10px] border border-ink/15 bg-white">
                                 {locked ? <Lock className="size-4" /> : <GraduationCap className="size-4" />}
@@ -587,7 +589,9 @@ function NavDisclosure({
           open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
         )}
       >
-        <div className="overflow-hidden">{children}</div>
+        {/* grid-rows-[0fr] only clips. Without inert the collapsed rows stay in the tab
+            order while aria-expanded="false" tells assistive tech they are not there. */}
+        <div className="overflow-hidden" inert={!open}>{children}</div>
       </div>
     </div>
   );
@@ -1278,6 +1282,10 @@ function AppSidebarContent({
   const hasAccountAdvisory = profileIncomplete || emailVerificationRequired || passwordRecommended;
   const profileLabel = locale === "sr" ? "Profil" : "Profile";
   const profilePath = publicProfilePath(profileData?.username);
+  const accountSettingsLabel = locale === "sr" ? "Podešavanja" : "Settings";
+  // Only a second row when the first one has gone somewhere else; without a username
+  // profilePath already *is* /app/profile and two identical rows would be noise.
+  const hasAccountSettingsRow = profilePath !== "/app/profile";
   // /app is now only ever the course grid — course detail has its own route — so this is
   // an exclusive match and "Dashboard" means exactly one screen.
   const dashboardActive = pathname === withLocale(locale, "/app");
@@ -1472,7 +1480,7 @@ function AppSidebarContent({
                   href={withLocale(locale, profilePath)}
                   onClick={() => setProfileMenuOpen(false)}
                   className={cn(
-                    "flex min-h-10 items-center gap-3 px-3 py-2 text-[13px] font-black uppercase text-ink transition font-extrabold",
+                    "flex min-h-11 items-center gap-3 px-3 py-2 text-[13px] font-black uppercase text-ink transition font-extrabold",
                     profileIncomplete
                       ? "bg-red-50 hover:bg-red-100"
                       : emailVerificationRequired
@@ -1497,10 +1505,23 @@ function AppSidebarContent({
                     {passwordRecommended ? <p className="rounded-full border border-indigo-400 bg-indigo-50 px-2.5 py-1 text-[10px] font-black text-indigo-900">{locale === "sr" ? "Dodaj opcionu lozinku" : "Add an optional password"}</p> : null}
                   </div>
                 ) : null}
+                {/* publicProfilePath resolves the row above to the *public* member page as
+                    soon as a username exists, which left /app/profile — where the account
+                    advisories above are actually resolved — with no nav entry at all. */}
+                {hasAccountSettingsRow ? (
+                  <Link
+                    href={withLocale(locale, "/app/profile")}
+                    onClick={() => setProfileMenuOpen(false)}
+                    className="flex min-h-11 items-center gap-3 bg-white px-3 py-2 text-[13px] font-black uppercase text-ink transition hover:bg-yellow/35 font-extrabold"
+                  >
+                    <Settings className="size-4 shrink-0" />
+                    <span>{accountSettingsLabel}</span>
+                  </Link>
+                ) : null}
                 <Link
                   href={withLocale(locale, "/app/billing")}
                   onClick={() => setProfileMenuOpen(false)}
-                  className="flex min-h-10 items-center gap-3 bg-white px-3 py-2 text-[13px] font-black uppercase text-ink transition hover:bg-yellow/35 font-extrabold"
+                  className="flex min-h-11 items-center gap-3 bg-white px-3 py-2 text-[13px] font-black uppercase text-ink transition hover:bg-yellow/35 font-extrabold"
                 >
                   <CreditCard className="size-4 shrink-0" />
                   <span>{t.billing}</span>
@@ -1515,7 +1536,7 @@ function AppSidebarContent({
                     setProfileMenuOpen(false);
                     router.push(withLocale(locale, "/sign-in"));
                   }}
-                  className="flex min-h-10 w-full items-center gap-3 rounded-[10px] bg-ink px-3 py-2 text-[13px] font-black uppercase text-white transition hover:bg-[#16446f] font-extrabold"
+                  className="flex min-h-11 w-full items-center gap-3 rounded-[10px] bg-ink px-3 py-2 text-[13px] font-black uppercase text-white transition hover:bg-[#16446f] font-extrabold"
                 >
                   <LogOut className="size-4 shrink-0" />
                   <span>{locale === "sr" ? "Odjavi se" : "Sign out"}</span>
@@ -1527,6 +1548,8 @@ function AppSidebarContent({
           <button
             type="button"
             onClick={() => setProfileMenuOpen((value) => !value)}
+            aria-expanded={profileMenuOpen}
+            aria-haspopup="menu"
             className="relative flex w-full items-center gap-3 rounded-[12px] border-2 border-ink bg-white p-2 text-left text-ink shadow-[3px_3px_0_0_rgba(14,49,88,0.18)] transition hover:bg-yellow/15"
           >
             <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-ink bg-yellow text-xs font-black">
@@ -1550,7 +1573,7 @@ function AppSidebarContent({
 
       {/* Mobile profile link */}
       {profileData && (
-        <div className="mt-4 grid grid-cols-3 gap-2 border-t-2 border-ink pt-4 md:hidden">
+        <div className={cn("mt-4 grid gap-2 border-t-2 border-ink pt-4 md:hidden", hasAccountSettingsRow ? "grid-cols-2" : "grid-cols-3")}>
           <Link
             href={withLocale(locale, profilePath)}
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-white px-3 py-2 text-xs font-black text-ink"
@@ -1558,6 +1581,15 @@ function AppSidebarContent({
             {hasAccountAdvisory ? <CircleAlert className={cn("size-4", profileIncomplete ? "text-red-700" : emailVerificationRequired ? "text-amber-700" : "text-indigo-700")} /> : <User className="size-4" />}
             {profileLabel}
           </Link>
+          {hasAccountSettingsRow ? (
+            <Link
+              href={withLocale(locale, "/app/profile")}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-white px-3 py-2 text-xs font-black text-ink"
+            >
+              <Settings className="size-4" />
+              {accountSettingsLabel}
+            </Link>
+          ) : null}
           <Link
             href={withLocale(locale, "/app/billing")}
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-white px-3 py-2 text-xs font-black text-ink"
@@ -1658,6 +1690,9 @@ function AppSidebarContent({
                     {emailVerificationRequired ? <p className="rounded-full border border-amber-400 bg-amber-50 px-2.5 py-1 text-[10px] font-black text-amber-900">{locale === "sr" ? "Verifikuj email za kurseve" : "Verify email for courses"}</p> : null}
                     {passwordRecommended ? <p className="rounded-full border border-indigo-400 bg-indigo-50 px-2.5 py-1 text-[10px] font-black text-indigo-900">{locale === "sr" ? "Dodaj opcionu lozinku" : "Add an optional password"}</p> : null}
                   </div>
+                ) : null}
+                {hasAccountSettingsRow ? (
+                  <Link href={withLocale(locale, "/app/profile")} className="flex min-h-11 items-center gap-3 rounded-full px-3 text-sm font-black hover:bg-yellow/25"><Settings className="size-4" /> {accountSettingsLabel}</Link>
                 ) : null}
                 <Link href={withLocale(locale, "/app/billing")} className="flex min-h-11 items-center gap-3 rounded-full px-3 text-sm font-black hover:bg-yellow/25"><CreditCard className="size-4" /> {t.billing}</Link>
                 <button type="button" onClick={async () => { await signOut(); router.push(withLocale(locale, "/sign-in")); }} className="mt-2 flex min-h-11 w-full items-center gap-3 bg-ink px-3 text-sm font-black text-white"><LogOut className="size-4" /> {locale === "sr" ? "Odjavi se" : "Sign out"}</button>
