@@ -56,6 +56,11 @@ import {
   preferencesFromDraggedWidth,
   serializeAppSidebarPreferences,
 } from "@/lib/app-sidebar-preferences";
+import {
+  activeCommunitySection,
+  communitySectionLabel,
+  communitySectionsFor,
+} from "@/lib/community-sections";
 import { publicProfilePath } from "@/lib/profile-links";
 import type { AppCourseNav, AppNavigationData } from "@/lib/app-navigation";
 import { primaryCourseSlug } from "@/lib/content";
@@ -536,6 +541,128 @@ function NavLink({
   );
 }
 
+/**
+ * The one nesting primitive in the primary nav. Lekcije established it; the community
+ * group reuses it rather than introducing a second disclosure model for the same job.
+ *
+ * `containsActive` is deliberately distinct from a NavLink's `active`: this control
+ * *contains* the current page rather than being it, so it must not look like a
+ * destination you already arrived at.
+ */
+function NavDisclosure({
+  icon: Icon,
+  label,
+  count,
+  containsActive,
+  open,
+  onToggle,
+  children,
+}: {
+  icon: typeof LayoutDashboard;
+  label: string;
+  count?: number;
+  containsActive: boolean;
+  open: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <div className="sidebar-reveal col-span-2 sm:col-span-3 md:col-span-1">
+      <motion.button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        whileHover={{ x: 2 }}
+        whileTap={{ scale: 0.98 }}
+        className={cn(
+          "inline-flex min-h-11 w-full min-w-0 items-center justify-center gap-3 rounded-full border-2 px-3 py-2 text-sm font-extrabold text-ink transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:justify-start",
+          containsActive
+            ? "border-ink bg-yellow/40"
+            : "border-transparent bg-transparent hover:border-ink hover:bg-yellow/25",
+        )}
+      >
+        <Icon className="size-4" />
+        <span className="flex-1 text-center sm:text-left">
+          {label}
+          {count === undefined ? null : (
+            <span className="ml-2 rounded-[6px] border-2 border-line bg-white px-2 py-0.5 text-[10px] font-black text-muted">
+              {count}
+            </span>
+          )}
+        </span>
+        <ChevronDown className={cn("size-4 transition", open && "rotate-180")} />
+      </motion.button>
+      <div
+        className={cn(
+          "grid transition-[grid-template-rows,opacity] duration-200",
+          open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
+        )}
+      >
+        <div className="overflow-hidden">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function CommunitySections({
+  locale,
+  isStaff,
+  activeSection,
+  containsActive,
+  notificationsBadge,
+  initiallyOpen = false,
+}: {
+  locale: Locale;
+  isStaff: boolean;
+  activeSection: string;
+  containsActive: boolean;
+  notificationsBadge: number;
+  initiallyOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(containsActive || initiallyOpen);
+  const sections = communitySectionsFor(isStaff);
+
+  return (
+    <NavDisclosure
+      icon={MessageCircle}
+      label={dictionary[locale].community}
+      containsActive={containsActive}
+      open={open}
+      onToggle={() => setOpen((value) => !value)}
+    >
+      <div className="mt-2 space-y-2 rounded-[8px] border-2 border-line bg-white p-2 shadow-[4px_4px_0_0_rgba(14,49,88,0.08)]">
+        {sections.map((section) => {
+          const active = containsActive && activeSection === section.id;
+          const SectionIcon = section.icon;
+          // Only the notifications count is available here: it is the same server value
+          // the parent Zajednica badge already uses. myThreads and pendingApprovals live
+          // on community's own filters query, which the sidebar does not subscribe to.
+          const badge = section.badgeKey === "community" ? notificationsBadge : 0;
+          return (
+            <Link
+              key={section.id}
+              href={withLocale(locale, `/app/community/${section.path}`)}
+              aria-current={active ? "page" : undefined}
+              className={cn(
+                "flex min-h-11 items-center gap-2 rounded-[8px] border-2 bg-white px-3 text-sm font-black text-ink",
+                active ? "border-ink bg-yellow" : "border-line hover:border-ink",
+              )}
+            >
+              <SectionIcon className="size-4 shrink-0" />
+              <span className="min-w-0 flex-1 truncate">{communitySectionLabel(section, locale)}</span>
+              {badge > 0 ? (
+                <span className="flex h-5 min-w-5 items-center justify-center rounded-full border border-ink bg-red-600 px-1 text-[10px] font-black text-white">
+                  {badge > 99 ? "99+" : badge}
+                </span>
+              ) : null}
+            </Link>
+          );
+        })}
+      </div>
+    </NavDisclosure>
+  );
+}
+
 function LessonsAccordion({
   locale,
   currentCourse,
@@ -558,38 +685,14 @@ function LessonsAccordion({
   const totalLessons = directLessons.length;
 
   return (
-    <div className="sidebar-reveal col-span-2 sm:col-span-3 md:col-span-1">
-      <motion.button
-        type="button"
-        onClick={() => setOpen((value) => !value)}
-        aria-expanded={open}
-        whileHover={{ x: 2 }}
-        whileTap={{ scale: 0.98 }}
-        className={cn(
-          "inline-flex min-h-11 w-full min-w-0 items-center justify-center gap-3 rounded-full border-2 px-3 py-2 text-sm font-extrabold text-ink transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:justify-start",
-          // This disclosure *contains* the current page rather than being it, so it stays
-          // distinguishable from an active NavLink.
-          currentLessonSlug
-            ? "border-ink bg-yellow/40"
-            : "border-transparent bg-transparent hover:border-ink hover:bg-yellow/25",
-        )}
-      >
-        <BookOpen className="size-4" />
-        <span className="flex-1 text-center sm:text-left">
-          {dictionary[locale].lessons}
-          <span className="ml-2 rounded-[6px] border-2 border-line bg-white px-2 py-0.5 text-[10px] font-black text-muted">
-            {totalLessons}
-          </span>
-        </span>
-        <ChevronDown className={cn("size-4 transition", open && "rotate-180")} />
-      </motion.button>
-      <div
-        className={cn(
-          "grid transition-[grid-template-rows,opacity] duration-200",
-          open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
-        )}
-      >
-        <div className="overflow-hidden">
+    <NavDisclosure
+      icon={BookOpen}
+      label={dictionary[locale].lessons}
+      count={totalLessons}
+      containsActive={Boolean(currentLessonSlug)}
+      open={open}
+      onToggle={() => setOpen((value) => !value)}
+    >
           <div className="mt-2 space-y-2 rounded-[8px] border-2 border-line bg-white p-2 shadow-[4px_4px_0_0_rgba(14,49,88,0.08)]">
             {comingSoon ? (
               <div className="rounded-[8px] border-2 border-dashed border-line bg-paper p-3">
@@ -634,9 +737,7 @@ function LessonsAccordion({
               </div>
             ) : null}
           </div>
-        </div>
-      </div>
-    </div>
+    </NavDisclosure>
   );
 }
 
@@ -1204,6 +1305,9 @@ function AppSidebarContent({
   const communityLandingHref = currentCourse
     ? communityHref(locale, currentCourse.slug)
     : withLocale(locale, "/app/community/discussions");
+  // Community already knows which section you are in — it renders a section-aware hero
+  // from exactly this. Resolving it here is what lets the primary nav say so too.
+  const activeSection = activeCommunitySection(pathname);
   // Optional on AppCourseNav, and never set by the static no-Convex fallback, so the
   // track entry has to be able to not exist.
   const currentTrackSlug = currentCourse?.trackSlug;
@@ -1324,12 +1428,12 @@ function AppSidebarContent({
                 isAdmin={isAdmin}
               />
             ) : null}
-            <NavLink
-              href={communityLandingHref}
-              active={communityActive}
-              icon={MessageCircle}
-              label={t.community}
-              badge={communityBadge}
+            <CommunitySections
+              locale={locale}
+              isStaff={isStaff}
+              activeSection={activeSection}
+              containsActive={communityActive}
+              notificationsBadge={communityBadge}
             />
             <NavLink
               href={withLocale(locale, "/app/messages")}
@@ -1509,6 +1613,9 @@ function AppSidebarContent({
           {currentCourse ? (
             <RailAction label={t.lessons} icon={<BookOpen className="size-5" />} active={Boolean(params.lessonSlug)} expanded={railFlyout === "lessons"} onClick={() => setRailFlyout((value) => value === "lessons" ? null : "lessons")} />
           ) : null}
+          {/* A link, not a flyout like Kurs/Lekcije: community has a canonical destination,
+              and its own section nav renders on arrival, so every section is still within
+              two interactions from here. */}
           <RailAction href={communityLandingHref} label={t.community} icon={<MessageCircle className="size-5" />} active={communityActive} badge={communityBadge} />
           <RailAction href={withLocale(locale, "/app/messages")} label={locale === "sr" ? "Poruke" : "Messages"} icon={<MessagesSquare className="size-5" />} active={messagesActive} badge={messagesBadge} />
           {/* Collapse state lives in a one-year cookie, so anything missing here is missing
