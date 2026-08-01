@@ -5,6 +5,7 @@ import {
   ChevronDown,
   ChevronRight,
   CircleAlert,
+  Compass,
   CreditCard,
   Crown,
   GraduationCap,
@@ -76,6 +77,10 @@ function dashboardHref(locale: Locale) {
 
 function courseHref(locale: Locale, courseSlug: string) {
   return withLocale(locale, `/app/courses/${courseSlug}`);
+}
+
+function trackHref(locale: Locale, trackSlug: string) {
+  return withLocale(locale, `/app/tracks/${trackSlug}`);
 }
 
 function communityHref(locale: Locale, courseSlug: string) {
@@ -251,20 +256,6 @@ function currentCourseFrom(
 ) {
   const slug = routeCourseSlug ?? primaryCourseSlug;
   return courses.find((course) => course.slug === slug) ?? courses.find((course) => course.trackSlug === routeTrackSlug) ?? courses[0];
-}
-
-function DirectionSwitcher({ locale, courses, currentCourse }: { locale: Locale; courses: AppCourseNav[]; currentCourse: AppCourseNav }) {
-  const router = useRouter();
-  const directions = Array.from(new Map(courses.filter((course) => course.trackSlug).map((course) => [course.trackSlug!, { slug: course.trackSlug!, title: course.trackTitle }])).values());
-  if (!directions.length) return null;
-  return (
-    <label className="mt-5 grid gap-1.5 text-[10px] font-black uppercase tracking-[0.1em] text-muted">
-      {locale === "sr" ? "Izabrani smer" : "Selected track"}
-      <select value={currentCourse.trackSlug ?? directions[0].slug} onChange={(event) => router.push(withLocale(locale, `/app/tracks/${event.target.value}`))} className="min-h-11 w-full rounded-[8px] border-2 border-ink bg-yellow px-3 text-sm font-black normal-case tracking-normal text-ink outline-none focus:ring-4 focus:ring-yellow/35">
-        {directions.map((direction) => <option key={direction.slug} value={direction.slug}>{direction.title ? localized(direction.title, locale) : direction.slug}</option>)}
-      </select>
-    </label>
-  );
 }
 
 function isCourseComingSoon(course: AppCourseNav, isAdmin: boolean) {
@@ -1163,6 +1154,11 @@ function AppSidebarContent({
   const messagesActive = pathname === withLocale(locale, "/app/messages") || pathname.includes("/app/messages/");
   // Course detail only; a lesson is a deeper node and lights up the Lessons disclosure.
   const courseActive = Boolean(params.courseSlug) && !params.lessonSlug;
+  const trackActive = Boolean(params.trackSlug);
+  // Optional on AppCourseNav, and never set by the static no-Convex fallback, so the
+  // track entry has to be able to not exist.
+  const currentTrackSlug = currentCourse?.trackSlug;
+  const trackLabel = locale === "sr" ? "Smer" : "Track";
   const sidebarWidth = sidebarPreferences.collapsed ? APP_SIDEBAR_RAIL_WIDTH : sidebarPreferences.width;
   const sidebarStyle = { "--app-sidebar-width": `${sidebarWidth}px` } as CSSProperties;
   // Below the desktop breakpoint the same <aside> behaves as a modal drawer.
@@ -1245,7 +1241,6 @@ function AppSidebarContent({
           </button>
         </div>
         <SidebarRoleBadge role={navigation.role} plan={navigation.plan} locale={locale} />
-        {currentCourse ? <DirectionSwitcher locale={locale} courses={courses} currentCourse={currentCourse} /> : null}
         {currentCourse ? (
           <CourseSwitcher locale={locale} courses={currentCourse.trackId ? courses.filter((course) => course.trackId === currentCourse.trackId) : courses} currentCourse={currentCourse} isAdmin={isAdmin} />
         ) : null}
@@ -1256,6 +1251,14 @@ function AppSidebarContent({
               icon={LayoutDashboard}
               label="Dashboard"
             />
+            {currentTrackSlug ? (
+              <NavLink
+                href={trackHref(locale, currentTrackSlug)}
+                active={trackActive}
+                icon={Compass}
+                label={trackLabel}
+              />
+            ) : null}
             {currentCourse ? (
               <NavLink
                 href={courseHref(locale, currentCourse.slug)}
@@ -1450,6 +1453,12 @@ function AppSidebarContent({
             <RailAction label={localized(currentCourse.title, locale)} icon={<GraduationCap className="size-5" />} expanded={railFlyout === "course"} onClick={() => setRailFlyout((value) => value === "course" ? null : "course")} />
           ) : null}
           <RailAction href={dashboardHref(locale)} label="Dashboard" icon={<LayoutDashboard className="size-5" />} active={dashboardActive} />
+          {currentTrackSlug ? (
+            <RailAction href={trackHref(locale, currentTrackSlug)} label={trackLabel} icon={<Compass className="size-5" />} active={trackActive} />
+          ) : null}
+          {currentCourse ? (
+            <RailAction href={courseHref(locale, currentCourse.slug)} label={locale === "sr" ? "Kurs" : "Course"} icon={<GraduationCap className="size-5" />} active={courseActive} />
+          ) : null}
           {currentCourse ? (
             <RailAction label={t.lessons} icon={<BookOpen className="size-5" />} active={Boolean(params.lessonSlug)} expanded={railFlyout === "lessons"} onClick={() => setRailFlyout((value) => value === "lessons" ? null : "lessons")} />
           ) : null}
