@@ -43,28 +43,34 @@ body {
   letter-spacing: 0;
 }
 
-:where([class~="border-2"], [class~="border"], [class~="border-[3px]"]):not([class~="rounded-full"]) {
-  border-radius: var(--bordered-radius);
-}
+/* These are defaults, not overrides: they supply a radius only when the element
+   does not author one. They must sit in a cascade layer -- unlayered author CSS
+   beats every layer, which would silently kill every `rounded-*` utility Tailwind
+   emits into @layer utilities. */
+@layer base {
+  :where([class~="border-2"], [class~="border"], [class~="border-[3px]"]):not([class~="rounded-full"]) {
+    border-radius: var(--bordered-radius);
+  }
 
-:where(input, textarea, select)[class~="border-2"]:not([class~="rounded-full"]),
-:where(input, textarea, select)[class~="border"]:not([class~="rounded-full"]),
-:where(input, textarea, select)[class~="border-[3px]"]:not([class~="rounded-full"]) {
-  border-radius: var(--bordered-control-radius);
-}
+  :where(input, textarea, select)[class~="border-2"]:not([class~="rounded-full"]),
+  :where(input, textarea, select)[class~="border"]:not([class~="rounded-full"]),
+  :where(input, textarea, select)[class~="border-[3px]"]:not([class~="rounded-full"]) {
+    border-radius: var(--bordered-control-radius);
+  }
 
-:where(button)[class] {
-  border-radius: var(--button-radius);
-}
+  :where(button)[class] {
+    border-radius: var(--button-radius);
+  }
 
-:where(a, label)[class~="inline-flex"][class*="border"],
-:where(a, label)[class*="min-h-8"][class*="border"],
-:where(a, label)[class*="min-h-9"][class*="border"],
-:where(a, label)[class*="min-h-10"][class*="border"],
-:where(a, label)[class*="min-h-11"][class*="border"],
-:where(a, label)[class*="min-h-12"][class*="border"],
-:where(a, label)[class*="size-"][class*="border"] {
-  border-radius: var(--button-radius);
+  :where(a, label)[class~="inline-flex"][class*="border"],
+  :where(a, label)[class*="min-h-8"][class*="border"],
+  :where(a, label)[class*="min-h-9"][class*="border"],
+  :where(a, label)[class*="min-h-10"][class*="border"],
+  :where(a, label)[class*="min-h-11"][class*="border"],
+  :where(a, label)[class*="min-h-12"][class*="border"],
+  :where(a, label)[class*="size-"][class*="border"] {
+    border-radius: var(--button-radius);
+  }
 }
 
 button,
