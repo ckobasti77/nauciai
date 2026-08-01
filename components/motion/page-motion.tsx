@@ -2,7 +2,7 @@
 
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useLayoutEffect, useRef, type ReactNode } from "react";
 
 import {
@@ -308,10 +308,8 @@ export function PageMotion({ variant, sceneKey = "page", className, children }: 
 
 export function SiteRouteMotion({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const variant = pageMotionVariantForPath(pathname);
-  const dashboardCourse = /^\/(?:sr|en)\/app\/?$/.test(pathname) ? searchParams.get("course") : null;
-  const sceneKey = pageMotionSceneKey(pathname, dashboardCourse);
+  const sceneKey = pageMotionSceneKey(pathname);
 
   return (
     <PageMotion variant={variant} sceneKey={sceneKey} className="contents">
@@ -327,10 +325,8 @@ export function SiteRouteMotion({ children }: { children: ReactNode }) {
  */
 export function AppRouteMotion({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const variant = pageMotionVariantForPath(pathname);
-  const dashboardCourse = /^\/(?:sr|en)\/app\/?$/.test(pathname) ? searchParams.get("course") : null;
-  const sceneKey = pageMotionSceneKey(pathname, dashboardCourse);
+  const sceneKey = pageMotionSceneKey(pathname);
 
   return (
     <PageMotion variant={variant} sceneKey={sceneKey}>

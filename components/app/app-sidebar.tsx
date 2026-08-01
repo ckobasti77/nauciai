@@ -30,7 +30,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Image from "next/image";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { useParams, usePathname, useSearchParams, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import {
   useCallback,
   useEffect,
@@ -75,11 +75,7 @@ function dashboardHref(locale: Locale) {
 }
 
 function courseHref(locale: Locale, courseSlug: string) {
-  return withLocale(locale, `/app?course=${courseSlug}`);
-}
-
-function navHref(locale: Locale, path: string, courseSlug: string) {
-  return `${withLocale(locale, path)}?course=${courseSlug}`;
+  return withLocale(locale, `/app/courses/${courseSlug}`);
 }
 
 function communityHref(locale: Locale, courseSlug: string) {
@@ -251,10 +247,9 @@ function navigationFromLive(
 function currentCourseFrom(
   courses: AppCourseNav[],
   routeCourseSlug: string | undefined,
-  queryCourseSlug: string | null,
   routeTrackSlug?: string,
 ) {
-  const slug = routeCourseSlug ?? queryCourseSlug ?? primaryCourseSlug;
+  const slug = routeCourseSlug ?? primaryCourseSlug;
   return courses.find((course) => course.slug === slug) ?? courses.find((course) => course.trackSlug === routeTrackSlug) ?? courses[0];
 }
 
@@ -796,7 +791,7 @@ function AppBottomNav({
   locale,
   currentCourse,
   dashboardActive,
-  lessonsActive,
+  courseActive,
   communityActive,
   messagesActive,
   communityBadge,
@@ -806,7 +801,7 @@ function AppBottomNav({
   locale: Locale;
   currentCourse?: AppCourseNav;
   dashboardActive: boolean;
-  lessonsActive: boolean;
+  courseActive: boolean;
   communityActive: boolean;
   messagesActive: boolean;
   communityBadge: number;
@@ -826,11 +821,13 @@ function AppBottomNav({
     },
     currentCourse
       ? {
-          key: "lessons",
+          key: "course",
           href: courseHref(locale, currentCourse.slug),
-          icon: BookOpen,
-          label: t.lessons,
-          active: lessonsActive,
+          icon: GraduationCap,
+          // Was labelled "Lekcije" while linking to course detail. The destination was
+          // right; the label was the lie.
+          label: locale === "sr" ? "Kurs" : "Course",
+          active: courseActive,
           badge: 0,
         }
       : {
@@ -937,12 +934,11 @@ function AppSidebarContent({
 }) {
   const pathname = usePathname();
   const params = useParams<{ courseSlug?: string; lessonSlug?: string; trackSlug?: string }>();
-  const searchParams = useSearchParams();
   const t = dictionary[locale];
   const courses = navigation.courses;
   const currentCourse = useMemo(
-    () => currentCourseFrom(courses, params.courseSlug, searchParams.get("course"), params.trackSlug),
-    [courses, params.courseSlug, params.trackSlug, searchParams],
+    () => currentCourseFrom(courses, params.courseSlug, params.trackSlug),
+    [courses, params.courseSlug, params.trackSlug],
   );
   const isAdmin = navigation.role === "admin";
   const isStaff = isAdmin || navigation.role === "moderator";
@@ -1160,12 +1156,13 @@ function AppSidebarContent({
   const hasAccountAdvisory = profileIncomplete || emailVerificationRequired || passwordRecommended;
   const profileLabel = locale === "sr" ? "Profil" : "Profile";
   const profilePath = publicProfilePath(profileData?.username);
-  // courseHref() targets /app?course=…, which *is* the dashboard, so course selection must
-  // not clear the highlight.
+  // /app is now only ever the course grid — course detail has its own route — so this is
+  // an exclusive match and "Dashboard" means exactly one screen.
   const dashboardActive = pathname === withLocale(locale, "/app");
   const communityActive = pathname === withLocale(locale, "/app/community") || pathname.includes("/app/community/");
   const messagesActive = pathname === withLocale(locale, "/app/messages") || pathname.includes("/app/messages/");
-  const lessonsActive = Boolean(params.lessonSlug);
+  // Course detail only; a lesson is a deeper node and lights up the Lessons disclosure.
+  const courseActive = Boolean(params.courseSlug) && !params.lessonSlug;
   const sidebarWidth = sidebarPreferences.collapsed ? APP_SIDEBAR_RAIL_WIDTH : sidebarPreferences.width;
   const sidebarStyle = { "--app-sidebar-width": `${sidebarWidth}px` } as CSSProperties;
   // Below the desktop breakpoint the same <aside> behaves as a modal drawer.
@@ -1260,6 +1257,14 @@ function AppSidebarContent({
               label="Dashboard"
             />
             {currentCourse ? (
+              <NavLink
+                href={courseHref(locale, currentCourse.slug)}
+                active={courseActive}
+                icon={GraduationCap}
+                label={locale === "sr" ? "Kurs" : "Course"}
+              />
+            ) : null}
+            {currentCourse ? (
               <LessonsAccordion
                 locale={locale}
                 currentCourse={currentCourse}
@@ -1314,7 +1319,7 @@ function AppSidebarContent({
               
               <div className="overflow-hidden rounded-[12px] divide-y divide-line/80">
                 <Link
-                  href={currentCourse ? navHref(locale, profilePath, currentCourse.slug) : withLocale(locale, profilePath)}
+                  href={withLocale(locale, profilePath)}
                   onClick={() => setProfileMenuOpen(false)}
                   className={cn(
                     "flex min-h-10 items-center gap-3 px-3 py-2 text-[13px] font-black uppercase text-ink transition font-extrabold",
@@ -1343,7 +1348,7 @@ function AppSidebarContent({
                   </div>
                 ) : null}
                 <Link
-                  href={currentCourse ? navHref(locale, "/app/billing", currentCourse.slug) : withLocale(locale, "/app/billing")}
+                  href={withLocale(locale, "/app/billing")}
                   onClick={() => setProfileMenuOpen(false)}
                   className="flex min-h-10 items-center gap-3 bg-white px-3 py-2 text-[13px] font-black uppercase text-ink transition hover:bg-yellow/35 font-extrabold"
                 >
@@ -1397,14 +1402,14 @@ function AppSidebarContent({
       {profileData && (
         <div className="mt-4 grid grid-cols-3 gap-2 border-t-2 border-ink pt-4 md:hidden">
           <Link
-            href={currentCourse ? navHref(locale, profilePath, currentCourse.slug) : withLocale(locale, profilePath)}
+            href={withLocale(locale, profilePath)}
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-white px-3 py-2 text-xs font-black text-ink"
           >
             {hasAccountAdvisory ? <CircleAlert className={cn("size-4", profileIncomplete ? "text-red-700" : emailVerificationRequired ? "text-amber-700" : "text-indigo-700")} /> : <User className="size-4" />}
             {profileLabel}
           </Link>
           <Link
-            href={currentCourse ? navHref(locale, "/app/billing", currentCourse.slug) : withLocale(locale, "/app/billing")}
+            href={withLocale(locale, "/app/billing")}
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-white px-3 py-2 text-xs font-black text-ink"
           >
             <CreditCard className="size-4" />
@@ -1476,7 +1481,7 @@ function AppSidebarContent({
                   <p className="truncate text-sm font-black">{profileName}</p>
                   <p className="truncate text-xs font-bold text-muted">{profileUsername}</p>
                 </div>
-                <Link href={currentCourse ? navHref(locale, profilePath, currentCourse.slug) : withLocale(locale, profilePath)} className={cn("flex min-h-11 items-center gap-3 rounded-full px-3 text-sm font-black", profileIncomplete ? "bg-red-50 text-red-900" : emailVerificationRequired ? "bg-amber-50 text-amber-900" : passwordRecommended ? "bg-indigo-50 text-indigo-900" : "hover:bg-yellow/25")}>
+                <Link href={withLocale(locale, profilePath)} className={cn("flex min-h-11 items-center gap-3 rounded-full px-3 text-sm font-black", profileIncomplete ? "bg-red-50 text-red-900" : emailVerificationRequired ? "bg-amber-50 text-amber-900" : passwordRecommended ? "bg-indigo-50 text-indigo-900" : "hover:bg-yellow/25")}>
                   {hasAccountAdvisory ? <CircleAlert className="size-4" /> : <User className="size-4" />} {profileLabel}
                 </Link>
                 {hasAccountAdvisory ? (
@@ -1486,7 +1491,7 @@ function AppSidebarContent({
                     {passwordRecommended ? <p className="rounded-full border border-indigo-400 bg-indigo-50 px-2.5 py-1 text-[10px] font-black text-indigo-900">{locale === "sr" ? "Dodaj opcionu lozinku" : "Add an optional password"}</p> : null}
                   </div>
                 ) : null}
-                <Link href={currentCourse ? navHref(locale, "/app/billing", currentCourse.slug) : withLocale(locale, "/app/billing")} className="flex min-h-11 items-center gap-3 rounded-full px-3 text-sm font-black hover:bg-yellow/25"><CreditCard className="size-4" /> {t.billing}</Link>
+                <Link href={withLocale(locale, "/app/billing")} className="flex min-h-11 items-center gap-3 rounded-full px-3 text-sm font-black hover:bg-yellow/25"><CreditCard className="size-4" /> {t.billing}</Link>
                 <button type="button" onClick={async () => { await signOut(); router.push(withLocale(locale, "/sign-in")); }} className="mt-2 flex min-h-11 w-full items-center gap-3 bg-ink px-3 text-sm font-black text-white"><LogOut className="size-4" /> {locale === "sr" ? "Odjavi se" : "Sign out"}</button>
               </div>
             ) : null}
@@ -1523,7 +1528,7 @@ function AppSidebarContent({
         locale={locale}
         currentCourse={currentCourse}
         dashboardActive={dashboardActive}
-        lessonsActive={lessonsActive}
+        courseActive={courseActive}
         communityActive={communityActive}
         messagesActive={messagesActive}
         communityBadge={communityBadge}

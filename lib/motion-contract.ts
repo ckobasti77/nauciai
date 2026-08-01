@@ -32,9 +32,18 @@ export const pageMotionContract = {
 
 const localeRootPattern = /^\/(?:sr|en)\/?$/;
 const appRootPattern = /^\/(?:sr|en)\/app\/?$/;
+// Course detail, not a lesson beneath it.
+const courseDetailPattern = /^\/(?:sr|en)\/app\/courses\/[^/]+\/?$/;
 
 export function pageMotionVariantForPath(pathname: string): PageMotionVariant {
-  if (localeRootPattern.test(pathname) || appRootPattern.test(pathname) || pathname.includes("/app/community")) {
+  if (
+    localeRootPattern.test(pathname) ||
+    appRootPattern.test(pathname) ||
+    // Course detail used to live at /app?course=… and so inherited the app root's
+    // showcase treatment. Moving it to its own path must not quietly demote it.
+    courseDetailPattern.test(pathname) ||
+    pathname.includes("/app/community")
+  ) {
     return "showcase";
   }
 
@@ -45,7 +54,11 @@ export function pageMotionVariantForPath(pathname: string): PageMotionVariant {
   return "standard";
 }
 
-export function pageMotionSceneKey(pathname: string, dashboardCourse?: string | null): string {
-  if (!appRootPattern.test(pathname)) return pathname;
-  return `${pathname}|course:${dashboardCourse || "home"}`;
+/**
+ * The pathname alone identifies a scene. Course detail was the one exception — it used to
+ * be a search param on /app — and it now has its own segment, so no search param may key
+ * an entrance again: community filters and lesson view modes must not replay it.
+ */
+export function pageMotionSceneKey(pathname: string): string {
+  return pathname;
 }

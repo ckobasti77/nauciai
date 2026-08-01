@@ -214,7 +214,7 @@ function courseFromLive(
   courseSlug?: string,
 ): DashboardCourse | null {
   const liveCourse = liveNavigation?.courses?.find((course) => course.slug === courseSlug);
-  // An unknown ?course= slug used to silently render liveCourses[0] — a different course than
+  // An unknown course slug used to silently render liveCourses[0] — a different course than
   // the URL asked for. Return null so the caller can say so instead.
   if (!liveCourse) return null;
 

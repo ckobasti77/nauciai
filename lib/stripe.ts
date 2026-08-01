@@ -34,7 +34,7 @@ export async function createCourseCheckoutSession(params: {
   return stripe.checkout.sessions.create({
     mode: "subscription",
     line_items: [{ price: params.priceId, quantity: 1 }],
-    success_url: `${siteUrl}/${params.locale}/app?checkout=success&course=${params.courseSlug}`,
+    success_url: `${siteUrl}/${params.locale}/app/courses/${params.courseSlug}?checkout=success`,
     cancel_url: `${siteUrl}/${params.locale}?checkout=cancelled&course=${params.courseSlug}`,
     customer_email: params.customerEmail,
     allow_promotion_codes: true,

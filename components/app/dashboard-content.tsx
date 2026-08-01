@@ -254,7 +254,7 @@ function formatLastActivity(locale: Locale, timestamp?: number) {
 }
 
 function courseDetailHref(locale: Locale, courseSlug: string) {
-  return `${withLocale(locale, "/app")}?course=${courseSlug}`;
+  return withLocale(locale, `/app/courses/${courseSlug}`);
 }
 
 function courseCommunityHref(locale: Locale, courseSlug: string) {
