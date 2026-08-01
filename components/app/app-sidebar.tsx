@@ -297,6 +297,23 @@ function CourseSwitcher({
   isAdmin: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  // Both surfaces are handed the same full list, so the switcher is also the only place
+  // that can show a course outside the current track. Grouping keeps smer -> kurs legible
+  // rather than presenting one flat list of everything.
+  const trackGroups = useMemo(() => {
+    const groups = new Map<string, { key: string; title: string | null; courses: AppCourseNav[] }>();
+    for (const course of courses) {
+      const key = course.trackSlug ?? "";
+      let group = groups.get(key);
+      if (!group) {
+        group = { key, title: course.trackTitle ? localized(course.trackTitle, locale) : null, courses: [] };
+        groups.set(key, group);
+      }
+      group.courses.push(course);
+    }
+    // A single unnamed group is the static no-Convex fallback: no tracks, so no headers.
+    return Array.from(groups.values());
+  }, [courses, locale]);
   const currentStatus =
     currentCourse.status !== "published"
       ? locale === "sr"
@@ -363,98 +380,107 @@ function CourseSwitcher({
               </span>
             </div>
             <div className="max-h-[60vh] space-y-2 overflow-y-auto pr-1">
-              {courses.map((course) => {
-                const comingSoon = isCourseComingSoon(course, isAdmin);
-                const locked = isCourseLocked(course, isAdmin);
-                const canEditCourse = Boolean(course.id && course.id !== course.slug);
-                const active = course.slug === currentCourse.slug;
-                const statusLabel = comingSoon
-                  ? locale === "sr"
-                    ? "Uskoro"
-                    : "Coming soon"
-                  : locked
-                    ? locale === "sr"
-                      ? "Zakljucano"
-                      : "Locked"
-                    : locale === "sr"
-                      ? "Aktivno"
-                      : "Active";
+              {trackGroups.map((group) => (
+                <div key={group.key} className="space-y-2">
+                  {group.title ? (
+                    <p className="px-1 pt-1 text-[10px] font-black uppercase tracking-[0.12em] text-muted">
+                      {group.title}
+                    </p>
+                  ) : null}
+                  {group.courses.map((course) => {
+                    const comingSoon = isCourseComingSoon(course, isAdmin);
+                    const locked = isCourseLocked(course, isAdmin);
+                    const canEditCourse = Boolean(course.id && course.id !== course.slug);
+                    const active = course.slug === currentCourse.slug;
+                    const statusLabel = comingSoon
+                      ? locale === "sr"
+                        ? "Uskoro"
+                        : "Coming soon"
+                      : locked
+                        ? locale === "sr"
+                          ? "Zakljucano"
+                          : "Locked"
+                        : locale === "sr"
+                          ? "Aktivno"
+                          : "Active";
 
-                return (
-                  <motion.div
-                    key={course.slug}
-                    layout
-                    whileHover={{ x: 2 }}
-                    className={cn(
-                      "group relative overflow-hidden rounded-[16px] border-2 p-3 pr-11 transition",
-                      active ? "border-ink bg-yellow/35 shadow-[2px_2px_0_0_rgba(14,49,88,0.12)]" : "border-line bg-paper hover:border-ink/45 hover:bg-white",
-                    )}
-                  >
-                    {active ? <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1.5 bg-yellow" /> : null}
-                    <div className="sidebar-action-row flex items-center gap-1">
-                      {comingSoon ? (
-                        <div className="flex min-w-0 flex-1 items-center gap-3 text-sm font-black text-muted">
-                          <span className="grid size-9 shrink-0 place-items-center rounded-[10px] border border-line bg-white">
-                            <GraduationCap className="size-4" />
-                          </span>
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate text-ink">{localized(course.title, locale)}</span>
-                            <span className="mt-1 inline-flex rounded-full border border-line bg-white px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.08em] text-muted">
-                              {statusLabel}
-                            </span>
-                          </span>
+                    return (
+                      <motion.div
+                        key={course.slug}
+                        layout
+                        whileHover={{ x: 2 }}
+                        className={cn(
+                          "group relative overflow-hidden rounded-[16px] border-2 p-3 pr-11 transition",
+                          active ? "border-ink bg-yellow/35 shadow-[2px_2px_0_0_rgba(14,49,88,0.12)]" : "border-line bg-paper hover:border-ink/45 hover:bg-white",
+                        )}
+                      >
+                        {active ? <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1.5 bg-yellow" /> : null}
+                        <div className="sidebar-action-row flex items-center gap-1">
+                          {comingSoon ? (
+                            <div className="flex min-w-0 flex-1 items-center gap-3 text-sm font-black text-muted">
+                              <span className="grid size-9 shrink-0 place-items-center rounded-[10px] border border-line bg-white">
+                                <GraduationCap className="size-4" />
+                              </span>
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate text-ink">{localized(course.title, locale)}</span>
+                                <span className="mt-1 inline-flex rounded-full border border-line bg-white px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.08em] text-muted">
+                                  {statusLabel}
+                                </span>
+                              </span>
+                            </div>
+                          ) : (
+                            <Link
+                              href={courseHref(locale, course.slug)}
+                              onClick={() => setOpen(false)}
+                              className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-[10px] text-sm font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                            >
+                              <span className="grid size-9 shrink-0 place-items-center rounded-[10px] border border-ink/15 bg-white">
+                                {locked ? <Lock className="size-4" /> : <GraduationCap className="size-4" />}
+                              </span>
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate">{localized(course.title, locale)}</span>
+                                <span className="mt-1 inline-flex items-center gap-1 rounded-full border border-line bg-white px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.08em] text-muted">
+                                  {locked ? <Lock className="size-3" /> : <ShieldCheck className="size-3" />}
+                                  {statusLabel}
+                                </span>
+                              </span>
+                              {locked ? <Lock className="size-4 shrink-0" /> : <ChevronRight className="size-4 shrink-0" />}
+                            </Link>
+                          )}
+                        {isAdmin && canEditCourse ? (
+                          <SidebarAdminActions className="absolute right-2 top-2">
+                            <EditCourseAction
+                              locale={locale}
+                              courseId={course.id}
+                              initial={{
+                                slug: course.slug,
+                                title: course.title,
+                                subtitle: course.subtitle,
+                                description: course.description,
+                                status: course.status,
+                                sortOrder: course.sortOrder,
+                              }}
+                              nextSortOrder={course.sortOrder}
+                              iconOnly
+                            />
+                          </SidebarAdminActions>
+                        ) : null}
                         </div>
-                      ) : (
-                        <Link
-                          href={courseHref(locale, course.slug)}
-                          onClick={() => setOpen(false)}
-                          className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-[10px] text-sm font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-                        >
-                          <span className="grid size-9 shrink-0 place-items-center rounded-[10px] border border-ink/15 bg-white">
-                            {locked ? <Lock className="size-4" /> : <GraduationCap className="size-4" />}
-                          </span>
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate">{localized(course.title, locale)}</span>
-                            <span className="mt-1 inline-flex items-center gap-1 rounded-full border border-line bg-white px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.08em] text-muted">
-                              {locked ? <Lock className="size-3" /> : <ShieldCheck className="size-3" />}
-                              {statusLabel}
-                            </span>
-                          </span>
-                          {locked ? <Lock className="size-4 shrink-0" /> : <ChevronRight className="size-4 shrink-0" />}
-                        </Link>
-                      )}
-                    {isAdmin && canEditCourse ? (
-                      <SidebarAdminActions className="absolute right-2 top-2">
-                        <EditCourseAction
-                          locale={locale}
-                          courseId={course.id}
-                          initial={{
-                            slug: course.slug,
-                            title: course.title,
-                            subtitle: course.subtitle,
-                            description: course.description,
-                            status: course.status,
-                            sortOrder: course.sortOrder,
-                          }}
-                          nextSortOrder={course.sortOrder}
-                          iconOnly
-                        />
-                      </SidebarAdminActions>
-                    ) : null}
-                    </div>
-                    {locked ? (
-                      <div className="mt-3 border-t border-ink/10 pt-3">
-                        <CheckoutButton
-                          courseSlug={course.slug}
-                          locale={locale}
-                          label={locale === "sr" ? "Plati" : "Pay"}
-                          size="compact"
-                        />
-                      </div>
-                    ) : null}
-                  </motion.div>
-                );
-              })}
+                        {locked ? (
+                          <div className="mt-3 border-t border-ink/10 pt-3">
+                            <CheckoutButton
+                              courseSlug={course.slug}
+                              locale={locale}
+                              label={locale === "sr" ? "Plati" : "Pay"}
+                              size="compact"
+                            />
+                          </div>
+                        ) : null}
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              ))}
             </div>
           </motion.div>
         ) : null}
@@ -496,7 +522,7 @@ function NavLink({
         </span>
         {badge && badge > 0 ? (
           <span className="ml-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-black text-white border border-ink shrink-0">
-            {badge}
+            {badge > 99 ? "99+" : badge}
           </span>
         ) : null}
       </Link>
@@ -671,6 +697,24 @@ function RailAction({
   );
 }
 
+/** Shared so the rail can decide whether to offer Upgrade without re-deriving the plan. */
+function resolvePlan(role?: string, plan?: string) {
+  const normalizedRole = role ?? "student";
+  return plan ?? (
+    normalizedRole === "admin"
+      ? "admin"
+      : normalizedRole === "moderator"
+        ? "moderator"
+        : normalizedRole === "pro_student"
+          ? "pro"
+          : "free"
+  );
+}
+
+function planOffersUpgrade(plan: string) {
+  return plan === "free" || plan === "lite";
+}
+
 function SidebarRoleBadge({
   role,
   plan,
@@ -682,16 +726,7 @@ function SidebarRoleBadge({
   locale: Locale;
   collapsed?: boolean;
 }) {
-  const normalizedRole = role ?? "student";
-  const resolvedPlan = plan ?? (
-    normalizedRole === "admin"
-      ? "admin"
-      : normalizedRole === "moderator"
-        ? "moderator"
-        : normalizedRole === "pro_student"
-          ? "pro"
-          : "free"
-  );
+  const resolvedPlan = resolvePlan(role, plan);
 
   const label =
     resolvedPlan === "admin"
@@ -735,7 +770,7 @@ function SidebarRoleBadge({
     );
   }
 
-  const showUpgrade = resolvedPlan === "free" || resolvedPlan === "lite";
+  const showUpgrade = planOffersUpgrade(resolvedPlan);
 
   const badgeContent = (
     <div
@@ -781,6 +816,7 @@ function SidebarRoleBadge({
 function AppBottomNav({
   locale,
   currentCourse,
+  communityLandingHref,
   dashboardActive,
   courseActive,
   communityActive,
@@ -791,6 +827,7 @@ function AppBottomNav({
 }: {
   locale: Locale;
   currentCourse?: AppCourseNav;
+  communityLandingHref: string;
   dashboardActive: boolean;
   courseActive: boolean;
   communityActive: boolean;
@@ -800,6 +837,12 @@ function AppBottomNav({
   hidden: boolean;
 }) {
   const t = dictionary[locale];
+  // Exactly four slots, deliberately. Smer, Lekcije, Admin panel, Chat sigurnost, Profil,
+  // Pretplata and Odjavi se are all absent here and reachable in two taps via the "Više" /
+  // "More" button in the phone header, which opens the drawer — and the drawer *is* the
+  // expanded sidebar, so it exposes everything the expanded sidebar does by construction.
+  // Cramming a fifth tab in, or spending a slot on a More button, would cost Poruke its
+  // unread badge. Do not add a fifth entry to this array.
   const tabs = [
     {
       key: "dashboard",
@@ -831,9 +874,7 @@ function AppBottomNav({
         },
     {
       key: "community",
-      href: currentCourse
-        ? communityHref(locale, currentCourse.slug)
-        : withLocale(locale, "/app/community/discussions"),
+      href: communityLandingHref,
       icon: MessageCircle,
       label: t.community,
       active: communityActive,
@@ -1155,6 +1196,14 @@ function AppSidebarContent({
   // Course detail only; a lesson is a deeper node and lights up the Lessons disclosure.
   const courseActive = Boolean(params.courseSlug) && !params.lessonSlug;
   const trackActive = Boolean(params.trackSlug);
+  const adminActive = pathname === withLocale(locale, "/app/admin");
+  const chatSafetyActive = pathname === withLocale(locale, "/app/admin/chat");
+  const showUpgrade = planOffersUpgrade(resolvePlan(navigation.role, navigation.plan));
+  // Community is a destination in its own right, not a property of the selected course.
+  // Scope it to the course when there is one, but never withhold the link when there is not.
+  const communityLandingHref = currentCourse
+    ? communityHref(locale, currentCourse.slug)
+    : withLocale(locale, "/app/community/discussions");
   // Optional on AppCourseNav, and never set by the static no-Convex fallback, so the
   // track entry has to be able to not exist.
   const currentTrackSlug = currentCourse?.trackSlug;
@@ -1242,7 +1291,7 @@ function AppSidebarContent({
         </div>
         <SidebarRoleBadge role={navigation.role} plan={navigation.plan} locale={locale} />
         {currentCourse ? (
-          <CourseSwitcher locale={locale} courses={currentCourse.trackId ? courses.filter((course) => course.trackId === currentCourse.trackId) : courses} currentCourse={currentCourse} isAdmin={isAdmin} />
+          <CourseSwitcher locale={locale} courses={courses} currentCourse={currentCourse} isAdmin={isAdmin} />
         ) : null}
         <nav aria-label={navLabel} className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3 md:flex md:flex-col">
             <NavLink
@@ -1275,15 +1324,13 @@ function AppSidebarContent({
                 isAdmin={isAdmin}
               />
             ) : null}
-            {currentCourse ? (
-              <NavLink
-                href={communityHref(locale, currentCourse.slug)}
-                active={communityActive}
-                icon={MessageCircle}
-                label={t.community}
-                badge={communityBadge}
-              />
-            ) : null}
+            <NavLink
+              href={communityLandingHref}
+              active={communityActive}
+              icon={MessageCircle}
+              label={t.community}
+              badge={communityBadge}
+            />
             <NavLink
               href={withLocale(locale, "/app/messages")}
               active={messagesActive}
@@ -1341,7 +1388,7 @@ function AppSidebarContent({
                     <User className="size-4 shrink-0" />
                   )}
                   <span>{profileLabel}</span>
-                  {accountBadge > 0 ? <span className="ml-auto rounded-full border border-ink bg-white px-2 py-0.5 text-[9px] font-black text-ink">{accountBadge}</span> : null}
+                  {accountBadge > 0 ? <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full border border-ink bg-red-600 px-1 text-[10px] font-black text-white">{accountBadge > 99 ? "99+" : accountBadge}</span> : null}
                 </Link>
                 {hasAccountAdvisory ? (
                   <div className="space-y-1.5 bg-white px-2 py-2">
@@ -1462,16 +1509,25 @@ function AppSidebarContent({
           {currentCourse ? (
             <RailAction label={t.lessons} icon={<BookOpen className="size-5" />} active={Boolean(params.lessonSlug)} expanded={railFlyout === "lessons"} onClick={() => setRailFlyout((value) => value === "lessons" ? null : "lessons")} />
           ) : null}
-          {currentCourse ? (
-            <RailAction href={communityHref(locale, currentCourse.slug)} label={t.community} icon={<MessageCircle className="size-5" />} active={communityActive} badge={communityBadge} />
-          ) : null}
+          <RailAction href={communityLandingHref} label={t.community} icon={<MessageCircle className="size-5" />} active={communityActive} badge={communityBadge} />
           <RailAction href={withLocale(locale, "/app/messages")} label={locale === "sr" ? "Poruke" : "Messages"} icon={<MessagesSquare className="size-5" />} active={messagesActive} badge={messagesBadge} />
+          {/* Collapse state lives in a one-year cookie, so anything missing here is missing
+              for a year. Admin panel and Chat safety used to be expanded-sidebar-only. */}
+          {isAdmin ? (
+            <RailAction href={withLocale(locale, "/app/admin")} label={locale === "sr" ? "Admin panel" : "Admin panel"} icon={<ShieldCheck className="size-5" />} active={adminActive} />
+          ) : null}
+          {isStaff ? (
+            <RailAction href={withLocale(locale, "/app/admin/chat")} label={locale === "sr" ? "Chat sigurnost" : "Chat safety"} icon={<Shield className="size-5" />} active={chatSafetyActive} />
+          ) : null}
+          {showUpgrade ? (
+            <RailAction href={`${withLocale(locale)}#pricing`} label={locale === "sr" ? "Unapredi" : "Upgrade"} icon={<ArrowUpRight className="size-5" />} />
+          ) : null}
         </nav>
 
         {railFlyout && railFlyout !== "profile" && currentCourse ? (
           <div className={cn("absolute left-[calc(100%_+_32px)] z-[70] w-[380px] max-w-[calc(100vw_-_112px)] rounded-[16px] border-2 border-ink bg-white p-4 text-ink shadow-[10px_10px_0_rgba(14,49,88,0.16)]", railFlyout === "course" ? "top-20" : "top-40 max-h-[calc(100vh_-_190px)] overflow-y-auto overflow-x-hidden")}>
             <div className="flex items-center justify-between gap-3 border-b border-line pb-3">
-              <p className="text-sm font-black">{railFlyout === "course" ? (locale === "sr" ? "Izaberi smer" : "Choose track") : t.lessons}</p>
+              <p className="text-sm font-black">{railFlyout === "course" ? (locale === "sr" ? "Izaberi kurs" : "Choose a course") : t.lessons}</p>
               <button type="button" aria-label={locale === "sr" ? "Zatvori" : "Close"} onClick={() => setRailFlyout(null)} className="inline-flex size-9 items-center justify-center border border-line bg-paper text-ink"><X className="size-4" /></button>
             </div>
             {railFlyout === "course" ? (
@@ -1512,7 +1568,7 @@ function AppSidebarContent({
                   <img src={profileAvatar} alt="" className="size-full object-cover" />
                 ) : profileInitials}
               </span>
-              {accountBadge > 0 ? <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-ink bg-red-600 px-1 text-[9px] text-white">{accountBadge > 99 ? "99+" : accountBadge}</span> : null}
+              {accountBadge > 0 ? <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-ink bg-red-600 px-1 text-[9px] font-black text-white">{accountBadge > 99 ? "99+" : accountBadge}</span> : null}
             </button>
           </div>
         ) : null}
@@ -1536,6 +1592,7 @@ function AppSidebarContent({
       <AppBottomNav
         locale={locale}
         currentCourse={currentCourse}
+        communityLandingHref={communityLandingHref}
         dashboardActive={dashboardActive}
         courseActive={courseActive}
         communityActive={communityActive}
