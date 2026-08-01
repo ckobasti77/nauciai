@@ -61,13 +61,45 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 ## UI shape convention
 
-For live coding in this site, keep UI radius values consistent:
+Four sanctioned radius values. Nothing else should be introduced:
 
-- Standard cards, panels, framed content blocks, and image containers use `16px` border radius.
-- Media inside a card uses half the card radius: `8px`.
+| tier | value | utility |
+| --- | --- | --- |
+| card | `16px` | `surface-card` |
+| inset | `12px` | `surface-inset` |
+| media | `8px` | `surface-media` |
+| pill | fully round | `rounded-full` |
+
+- Standard cards, panels, framed content blocks, and image containers use the **card** tier.
+- Media inside a card uses half the card radius: the **media** tier.
+- Nested panels and controls sitting inside a card use the **inset** tier.
 - When a card contains an inset image, use `12px` padding between the card border and the image on prominent cards, while keeping compact surfaces at least `8px`.
-- Pills, price badges, avatar/favorite icon buttons, and compact status chips should be fully rounded.
+- Pills, price badges, avatar/favorite icon buttons, and compact status chips use `rounded-full`. There is deliberately no `pill` utility — `rounded-full` already says it.
 - Do not introduce sharp-corner cards unless a specific design request overrides this convention.
+
+### How the defaults work
+
+`app/globals.css` supplies a radius **only when the element does not author one**:
+a bordered element with no `rounded-*` class gets `16px`, and a `<button>` (or a
+button-shaped `<a>`/`<label>`) with no `rounded-*` class gets a pill. Those rules live
+in `@layer base` and therefore lose to every Tailwind utility, so **an authored
+`rounded-*` class always wins**.
+
+This is load-bearing. Those rules previously sat outside any cascade layer, which beats
+every layer regardless of specificity, so every authored `rounded-*` on a button or a
+bordered element was silently dead — 45 distinct element recipes were rendering at the
+wrong shape, including the course cover, which asked for `8px` and rendered at `16px`.
+That is also why the tree accumulated 27 `rounded-*!` escapes and 4 inline
+`style={{ borderRadius: 0 }}` hacks; all were removed once the layer was fixed. **Never
+move these rules back out of `@layer base`, and never reach for `!` or an inline
+`borderRadius` to force a corner** — if a radius is not applying, that is a bug worth
+diagnosing, not overriding.
+
+### Known off-scale debt
+
+Roughly 38 call sites still use `6px`, `10px`, `18px`, `28px`, `7px`, `5px`, `4px`, or
+`3px`. They are legacy, not sanctioned; migrate them to the nearest tier when you are
+already editing the file. Do not add new ones.
 
 ## Full-screen single-target drop convention
 

@@ -73,6 +73,20 @@ body {
   }
 }
 
+/* The sanctioned radius scale. These are the only values a new surface should
+   use; `rounded-full` covers the pill tier. See AGENTS.md. */
+@utility surface-card {
+  border-radius: 16px;
+}
+
+@utility surface-inset {
+  border-radius: 12px;
+}
+
+@utility surface-media {
+  border-radius: 8px;
+}
+
 button,
 a,
 input,
