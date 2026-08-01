@@ -5,15 +5,11 @@ import {
   BookOpen,
   ChevronRight,
   CircleHelp,
-  Clock3,
   Compass,
   GraduationCap,
   Loader2,
-  MessageCircle,
   Pin,
   Search,
-  Sparkles,
-  Star,
 } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
@@ -28,31 +24,6 @@ import type { Locale } from "@/lib/i18n";
 import { withLocale } from "@/lib/i18n";
 
 import type { CommunityPostRow, CommunityScope } from "./community-types";
-
-export function CommunityPageHeading({
-  eyebrow,
-  title,
-  body,
-  action,
-}: {
-  eyebrow: string;
-  title: string;
-  body: string;
-  action?: ReactNode;
-}) {
-  return (
-    <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-      <div className="max-w-2xl">
-        <p className="font-display text-xl leading-none text-ink/80">{eyebrow}</p>
-        <h1 className="mt-2 text-[clamp(1.75rem,4vw,2.75rem)] font-black leading-[1.02] tracking-[-0.035em] text-ink">
-          {title}
-        </h1>
-        <p className="mt-3 max-w-xl text-sm font-semibold leading-6 text-muted sm:text-base">{body}</p>
-      </div>
-      {action}
-    </header>
-  );
-}
 
 export function CommunitySearch({
   value,
@@ -249,8 +220,10 @@ export function ThreadCard({
     <article
       data-motion="card"
       className={cn(
-        "group relative isolate overflow-hidden rounded-[16px]! border bg-white transition duration-200 focus-within:border-ink hover:border-ink hover:shadow-[3px_3px_0_rgba(14,49,88,0.08)]",
-        highlighted ? "border-[#d7a91b] bg-[#fffaf0] shadow-[3px_3px_0_rgba(244,190,48,0.32)]" : "border-line",
+        "group relative isolate overflow-hidden rounded-[16px]! border-2 bg-white transition duration-200 focus-within:border-ink hover:border-ink",
+        highlighted
+          ? "border-[#d7a91b] bg-[#fffaf0] shadow-[6px_6px_0_0_rgba(244,190,48,0.32)] hover:shadow-[8px_8px_0_0_rgba(244,190,48,0.32)]"
+          : "border-ink shadow-[6px_6px_0_0_rgba(14,49,88,0.13)] hover:shadow-[8px_8px_0_0_rgba(14,49,88,0.13)]",
       )}
     >
       <div className="flex min-w-0 gap-2.5 p-3 sm:gap-3 sm:p-3.5">
@@ -294,36 +267,12 @@ export function ThreadCard({
               </h2>
               <p className="mt-0.5 line-clamp-1 text-[13px] font-semibold leading-5 text-muted">{post.body}</p>
             </Link>
-            <div className="relative z-10 flex shrink-0 items-center gap-1 self-end sm:self-start">
+            <div className="relative z-10 flex shrink-0 flex-wrap items-center justify-end gap-1 self-end sm:flex-nowrap sm:self-start">
               {leadingAction}
               {action}
             </div>
           </div>
           {notice ? <div className="mt-3">{notice}</div> : null}
-          <div className="hidden">
-            <div className="flex items-center gap-3 text-xs font-black text-muted">
-              <span className="inline-flex items-center gap-1.5">
-                <MessageCircle className="size-3.5" aria-hidden="true" />
-                {post.commentsCount ?? 0}
-                <span className="sr-only">{locale === "sr" ? "odgovora" : "replies"}</span>
-              </span>
-              <span className={cn("inline-flex items-center gap-1.5", (post.voteScore ?? 0) < 0 && "text-red-700")}>
-                <span aria-hidden="true">↕</span>
-                {post.voteScore ?? 0}
-                <span className="sr-only">{locale === "sr" ? "neto glasova" : "net votes"}</span>
-              </span>
-              {post.isFeaturedGlobal || post.isPinned ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-yellow/25 px-2 py-1 text-ink">
-                  <Star className="size-3 fill-yellow text-ink" aria-hidden="true" />
-                  {locale === "sr" ? "Mentorski izbor" : "Mentor pick"}
-                </span>
-              ) : null}
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              {leadingAction}
-              {action}
-            </div>
-          </div>
         </div>
       </div>
       <div className={cn("absolute left-0 top-0 h-full w-1", roleTone(post.authorRole))} aria-hidden="true" />
@@ -404,16 +353,3 @@ export function CommunityRouteSkeleton() {
   );
 }
 
-export function CommunityMetric({ icon: Icon, label, value }: { icon: typeof Clock3; label: string; value: ReactNode }) {
-  return (
-    <div className="flex items-center gap-2 rounded-[12px] bg-[#eef3f7] px-3 py-2">
-      <Icon className="size-4 text-ink/55" aria-hidden="true" />
-      <span className="min-w-0">
-        <span className="block font-mono text-sm font-black text-ink">{value}</span>
-        <span className="block truncate text-[10px] font-black uppercase tracking-[0.1em] text-muted">{label}</span>
-      </span>
-    </div>
-  );
-}
-
-export const sharedIcons = { Clock3, Sparkles };

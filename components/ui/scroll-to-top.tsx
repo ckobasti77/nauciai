@@ -26,7 +26,8 @@ export function ScrollToTop() {
       }}
       aria-label="Nazad na vrh"
       className={cn(
-        "fixed bottom-6 right-4 z-50 grid size-12 place-items-center rounded-full border-2 border-ink bg-white text-ink shadow-[3px_3px_0_rgba(14,49,88,0.18)] transition hover:-translate-y-0.5 hover:bg-yellow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:right-6",
+        // The sub-md lift clears the fixed bottom tab bar on /app; harmless on marketing pages.
+        "fixed bottom-[calc(5rem_+_env(safe-area-inset-bottom))] right-4 z-50 grid size-12 place-items-center rounded-full border-2 border-ink bg-white text-ink shadow-[3px_3px_0_rgba(14,49,88,0.18)] transition hover:-translate-y-0.5 hover:bg-yellow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:right-6 md:bottom-6",
       )}
     >
       <ArrowUp className="size-5" aria-hidden="true" />

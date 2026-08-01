@@ -9,6 +9,7 @@ import {
   ChevronRight,
   CornerDownRight,
   Ellipsis,
+  Link2,
   Loader2,
   MessageCircleReply,
   Send,
@@ -279,7 +280,33 @@ function CommentItem({
   const handledExpandLoaded = useRef(0);
   const canDelete = canModerate || Boolean(viewerUserId && node.authorId === viewerUserId);
   const canToggleHelpful = canMarkHelpful && node.authorId !== viewerUserId;
-  const depthStyle = { "--comment-depth": Math.min(depth, 10) } as CSSProperties;
+  const cardRef = useRef<HTMLElement>(null);
+  const [highlighted, setHighlighted] = useState(false);
+  const toast = useToast();
+
+  useEffect(() => {
+    if (window.location.hash !== `#comment-${node._id}`) return;
+    let timeout = 0;
+    const frame = window.requestAnimationFrame(() => {
+      cardRef.current?.scrollIntoView({ block: "center" });
+      setHighlighted(true);
+      timeout = window.setTimeout(() => setHighlighted(false), 1800);
+    });
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(timeout);
+    };
+  }, [node._id]);
+
+  async function copyLink() {
+    const url = `${window.location.origin}${withLocale(locale, `/app/community/${postId}`)}#comment-${node._id}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success(locale === "sr" ? "Link je kopiran." : "Link copied.");
+    } catch {
+      toast.error(locale === "sr" ? "Kopiranje nije uspelo." : "Copy failed.");
+    }
+  }
 
   useEffect(() => {
     if (collapseSignal !== handledCollapse.current) {
@@ -307,15 +334,12 @@ function CommentItem({
   }
 
   return (
-    <div className="space-y-3" style={depthStyle}>
+    <div className="space-y-3">
       <article
+        ref={cardRef}
+        id={`comment-${node._id}`}
         data-comment-card
-        onClick={(event) => {
-          if (!hasReplies || (event.target as HTMLElement).closest("button, textarea, form, a")) return;
-          setRepliesRequested(true);
-          setIsExpanded((value) => !value);
-        }}
-        className={cn("group rounded-[16px] border bg-white p-4 transition", node.isHelpful ? "border-amber-400 shadow-[0_8px_24px_rgba(244,190,48,0.12)]" : "border-line hover:border-ink/30", hasReplies && "cursor-pointer hover:border-ink")}
+        className={cn("group rounded-[16px] border bg-white p-4 transition", node.isHelpful ? "border-amber-400 shadow-[0_8px_24px_rgba(244,190,48,0.12)]" : "border-line hover:border-ink/30", highlighted && "ring-4 ring-yellow/70 ring-offset-2")}
       >
         <div className="flex items-start gap-3">
           <Link href={node.authorUsername ? withLocale(locale, `/app/members/${node.authorUsername}`) : "#"} aria-disabled={!node.authorUsername} className="shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
@@ -339,13 +363,14 @@ function CommentItem({
             <p className="mt-2 whitespace-pre-wrap text-sm font-semibold leading-6 text-ink/80">{node.body}</p>
             <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-black text-ink">
               <div className="inline-flex items-center gap-0.5 rounded-full border border-line bg-white p-0.5">
-                <button type="button" onClick={() => void run("upvote", () => onReact(node._id, "upvote"))} disabled={!isAuthenticated || !canInteract || busy !== null} aria-label={locale === "sr" ? "Upvote komentara" : "Upvote comment"} aria-pressed={node.userVote === "upvote"} className={cn("grid size-8 place-items-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-40", node.userVote === "upvote" ? "bg-yellow text-ink" : "text-muted hover:bg-yellow/20 hover:text-ink")}><ArrowUp className="size-3.5" /></button>
+                <button type="button" onClick={() => void run("upvote", () => onReact(node._id, "upvote"))} disabled={!isAuthenticated || !canInteract || busy !== null} aria-label={locale === "sr" ? "Upvote komentara" : "Upvote comment"} aria-pressed={node.userVote === "upvote"} className={cn("grid size-11 place-items-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-40 sm:size-8", node.userVote === "upvote" ? "bg-yellow text-ink" : "text-muted hover:bg-yellow/20 hover:text-ink")}><ArrowUp className="size-3.5" /></button>
                 <span className={cn("min-w-7 text-center text-xs font-black", (node.voteScore ?? 0) < 0 && "text-red-700")} aria-label={locale === "sr" ? `${node.voteScore ?? 0} neto glasova` : `${node.voteScore ?? 0} net votes`}>{node.voteScore ?? 0}</span>
-                <button type="button" onClick={() => void run("downvote", () => onReact(node._id, "downvote"))} disabled={!isAuthenticated || !canInteract || busy !== null} aria-label={locale === "sr" ? "Downvote komentara" : "Downvote comment"} aria-pressed={node.userVote === "downvote"} className={cn("grid size-8 place-items-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-40", node.userVote === "downvote" ? "bg-red-100 text-red-700" : "text-muted hover:bg-red-50 hover:text-red-700")}><ArrowDown className="size-3.5" /></button>
+                <button type="button" onClick={() => void run("downvote", () => onReact(node._id, "downvote"))} disabled={!isAuthenticated || !canInteract || busy !== null} aria-label={locale === "sr" ? "Downvote komentara" : "Downvote comment"} aria-pressed={node.userVote === "downvote"} className={cn("grid size-11 place-items-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-40 sm:size-8", node.userVote === "downvote" ? "bg-red-100 text-red-700" : "text-muted hover:bg-red-50 hover:text-red-700")}><ArrowDown className="size-3.5" /></button>
               </div>
               {isAuthenticated && canInteract ? <button type="button" onClick={() => setShowReplyForm((value) => !value)} aria-expanded={showReplyForm} className={cn("min-h-9 rounded-full px-3 text-ink/60 transition hover:bg-ink/5 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink", showReplyForm && "bg-yellow/20 text-ink")}>{locale === "sr" ? "Odgovori" : "Reply"}</button> : null}
               {hasReplies ? <button type="button" onClick={() => { setRepliesRequested(true); setIsExpanded((value) => !value); }} aria-expanded={isExpanded} aria-controls={`replies-${node._id}`} className="inline-flex min-h-9 items-center gap-1 rounded-full border border-line bg-paper/50 px-3 text-ink/70 transition hover:border-ink hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"><ChevronRight className={cn("size-3.5 transition-transform", isExpanded && "rotate-90")} />{isExpanded ? locale === "sr" ? "Sažmi" : "Collapse" : locale === "sr" ? `Prikaži ${node.directReplyCount ?? ""} odgovora` : `Show ${node.directReplyCount ?? ""} replies`}</button> : null}
               {canToggleHelpful ? <button type="button" onClick={() => void run("helpful", () => onSetHelpful(node._id, !node.isHelpful))} disabled={busy !== null} aria-pressed={Boolean(node.isHelpful)} className={cn("inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50", node.isHelpful ? "border-amber-400 bg-amber-50 text-amber-950 hover:bg-amber-100" : "border-line bg-white text-ink/60 hover:border-amber-400 hover:bg-amber-50 hover:text-amber-950")}>{busy === "helpful" ? <Loader2 className="size-3.5 animate-spin" /> : <BadgeCheck className="size-3.5" />}{node.isHelpful ? locale === "sr" ? "Ukloni oznaku" : "Remove helpful" : locale === "sr" ? "Označi kao korisno" : "Mark helpful"}</button> : null}
+              <button type="button" onClick={() => void copyLink()} aria-label={locale === "sr" ? "Kopiraj link komentara" : "Copy comment link"} className="grid size-11 place-items-center rounded-full text-ink/50 transition hover:bg-ink/5 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:size-9"><Link2 className="size-3.5" aria-hidden="true" /></button>
             </div>
           </div>
           {canDelete ? <button type="button" onClick={() => onDelete(node._id)} className="inline-flex size-9 shrink-0 items-center justify-center rounded-full border border-transparent text-red-500 opacity-100 transition hover:border-red-200 hover:bg-red-50 hover:text-red-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 md:opacity-0 md:group-hover:opacity-100" aria-label={locale === "sr" ? "Obriši komentar" : "Delete comment"}><Trash2 className="size-3.5" /></button> : null}
@@ -360,5 +385,5 @@ function CommentItem({
 function CommentReplies({ id, postId, parentId, locale, isAuthenticated, canModerate, canMarkHelpful, canInteract, viewerUserId, depth, collapseSignal, expandLoadedSignal, isExpanded, onReact, onSetHelpful, onDelete, onReply, onError }: { id: string; postId: string; parentId: string; locale: Locale; isAuthenticated: boolean; canModerate: boolean; canMarkHelpful: boolean; canInteract: boolean; viewerUserId?: string; depth: number; collapseSignal: number; expandLoadedSignal: number; isExpanded: boolean; onReact: (commentId: string, vote: "upvote" | "downvote") => Promise<unknown>; onSetHelpful: (commentId: string, helpful: boolean) => Promise<unknown>; onDelete: (commentId: string) => void; onReply: (commentId: string, text: string) => Promise<unknown>; onError: () => void }) {
   const repliesQuery = usePaginatedQuery(api.community.listRepliesPage, isAuthenticated ? { postId: postId as Id<"communityPosts">, parentId: parentId as Id<"comments"> } : "skip", { initialNumItems: 3 });
   const replies = repliesQuery.results as FlatComment[];
-  return <div id={id} hidden={!isExpanded} className="mt-3 space-y-3 border-l-2 border-ink/20 pl-3 md:pl-4 ms-[calc(min(var(--comment-depth),8)*10px)] md:ms-[calc(min(var(--comment-depth),8)*12px)]" style={{ "--comment-depth": depth } as CSSProperties}>{repliesQuery.status === "LoadingFirstPage" ? <div className="flex items-center gap-2 py-3 text-xs font-bold text-muted"><Loader2 className="size-4 animate-spin" />{locale === "sr" ? "Učitavanje odgovora…" : "Loading replies…"}</div> : replies.map((reply) => <CommentItem key={reply._id} node={reply} depth={depth} locale={locale} isAuthenticated={isAuthenticated} canModerate={canModerate} canMarkHelpful={canMarkHelpful} canInteract={canInteract} viewerUserId={viewerUserId} postId={postId} collapseSignal={collapseSignal} expandLoadedSignal={expandLoadedSignal} isExpanded={false} onReact={onReact} onSetHelpful={onSetHelpful} onDelete={onDelete} onReply={onReply} onError={onError} />)}{repliesQuery.status === "CanLoadMore" || repliesQuery.status === "LoadingMore" ? <button type="button" onClick={() => repliesQuery.loadMore(5)} disabled={repliesQuery.status === "LoadingMore"} className="inline-flex min-h-9 items-center justify-center rounded-full border border-line bg-white px-3 text-xs font-black text-ink transition hover:border-ink disabled:opacity-60">{repliesQuery.status === "LoadingMore" ? locale === "sr" ? "Učitavanje…" : "Loading…" : locale === "sr" ? "Prikaži još" : "Show more"}</button> : null}</div>;
+  return <div id={id} hidden={!isExpanded} className={cn("mt-3 space-y-3", depth <= 4 && "border-l-2 border-ink/20 pl-3 md:pl-4 ms-[calc(var(--comment-depth)*10px)] md:ms-[calc(var(--comment-depth)*12px)]")} style={{ "--comment-depth": depth } as CSSProperties}>{repliesQuery.status === "LoadingFirstPage" ? <div className="flex items-center gap-2 py-3 text-xs font-bold text-muted"><Loader2 className="size-4 animate-spin" />{locale === "sr" ? "Učitavanje odgovora…" : "Loading replies…"}</div> : replies.map((reply) => <CommentItem key={reply._id} node={reply} depth={depth} locale={locale} isAuthenticated={isAuthenticated} canModerate={canModerate} canMarkHelpful={canMarkHelpful} canInteract={canInteract} viewerUserId={viewerUserId} postId={postId} collapseSignal={collapseSignal} expandLoadedSignal={expandLoadedSignal} isExpanded={false} onReact={onReact} onSetHelpful={onSetHelpful} onDelete={onDelete} onReply={onReply} onError={onError} />)}{repliesQuery.status === "CanLoadMore" || repliesQuery.status === "LoadingMore" ? <button type="button" onClick={() => repliesQuery.loadMore(5)} disabled={repliesQuery.status === "LoadingMore"} className="inline-flex min-h-9 items-center justify-center rounded-full border border-line bg-white px-3 text-xs font-black text-ink transition hover:border-ink disabled:opacity-60">{repliesQuery.status === "LoadingMore" ? locale === "sr" ? "Učitavanje…" : "Loading…" : locale === "sr" ? "Prikaži još" : "Show more"}</button> : null}</div>;
 }

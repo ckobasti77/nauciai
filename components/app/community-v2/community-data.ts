@@ -124,12 +124,6 @@ type CommunityApiV2 = {
     markAllMentionsAsRead: PublicMutation<Record<string, never>, null>;
     markAllCommunityNotificationsAsRead: PublicMutation<Record<string, never>, null>;
   };
-  profiles: {
-    setProfileRole: PublicMutation<
-      { profileId: string; role: "student" | "pro_student" | "moderator" },
-      unknown
-    >;
-  };
 };
 
 // Keep the API compatibility boundary in one place while Convex V2 types are generated.
@@ -358,6 +352,7 @@ export function useCommunityMentions({
     excerpt: event.excerpt,
     postId: event.thread?.postId,
     postTitle: event.thread?.title,
+    commentId: event.commentId,
     trackTitleSr: event.thread?.trackTitleSr,
     trackTitleEn: event.thread?.trackTitleEn,
     courseTitleSr: event.thread?.courseTitleSr,
@@ -400,7 +395,6 @@ export function useCommunityMembers({
       : "skip",
     { initialNumItems: 20 },
   );
-  const setRole = useMutation(apiV2.profiles.setProfileRole);
   const results: CommunityMemberRow[] = query.results.map((member) => ({
     _id: member.profileId ?? member.userId,
     profileId: member.profileId,
@@ -424,7 +418,6 @@ export function useCommunityMembers({
     ...query,
     results: hasConvex ? results : [],
     isInitialLoading: hasConvex ? query.status === "LoadingFirstPage" : false,
-    setRole,
   };
 }
 

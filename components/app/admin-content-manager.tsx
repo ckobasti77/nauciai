@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery } from "convex/react";
-import { AnimatePresence, motion } from "motion/react";
+import { motion } from "motion/react";
 import { AlertTriangle, BarChart3, CheckCircle2, CirclePlus, Loader2, Megaphone, Save, Settings2, Users, XCircle } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent, type RefObject } from "react";
@@ -528,26 +528,6 @@ export function AdminContentManager({ locale }: { locale: Locale }) {
             <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-3">{readiness.items.map((entry) => <button key={entry.key} type="button" onClick={() => { if (entry.key === "slug" || entry.key === "view" || entry.key === "duration") setSettingsOpen(true); document.getElementById("admin-live-preview")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className={cn("flex min-h-12 items-center gap-3 rounded-[16px] border-2 px-3 py-2 text-left text-xs font-black", entry.ok ? "border-emerald-700 bg-emerald-50 text-emerald-900" : entry.blocking ? "border-red-700 bg-red-50 text-red-900" : "border-amber-700 bg-amber-50 text-amber-950")}>{entry.ok ? <CheckCircle2 className="size-5 shrink-0" /> : entry.blocking ? <XCircle className="size-5 shrink-0" /> : <AlertTriangle className="size-5 shrink-0" />}<span>{entry.labelSr}</span></button>)}</div>
           </section> : null}
 
-          {false ? <AnimatePresence mode="wait">
-            <motion.section key={`${activeKind}-${creating ?? lessonId ?? courseId ?? trackId ?? "empty"}`} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="overflow-hidden rounded-[16px] border-2 border-ink bg-white shadow-[8px_8px_0_rgba(14,49,88,0.13)]">
-              <div className="grid bg-yellow px-6 py-5 lg:grid-cols-[1fr_auto] lg:items-center">
-                <div><p className="text-xs font-black uppercase tracking-[0.12em] text-muted">{creating ? "Novi nacrt" : activeKind === "track" ? "Smer" : activeKind === "course" ? "Kurs" : "Lekcija"}</p><h2 className="mt-1 font-display text-4xl text-ink">{titleSr || (creating ? "Unesi naziv" : "Izaberi sadržaj")}</h2></div>
-                <span className="mt-3 w-fit rounded-full border-2 border-ink bg-white px-4 py-2 text-xs font-black uppercase lg:mt-0">{status === "published" ? "Objavljeno" : "Nacrt"}</span>
-              </div>
-              <div className="grid lg:grid-cols-[minmax(0,1fr)_360px]">
-                <form onSubmit={save} className="grid gap-5 p-6">
-                  <div className="grid gap-4 md:grid-cols-2"><Field label="Naziv SR"><input required className={inputClass} value={titleSr} onChange={(e) => setTitleSr(e.target.value)} placeholder="Jasan naziv sadržaja" /></Field><Field label="Title EN"><input className={inputClass} value={titleEn} onChange={(e) => setTitleEn(e.target.value)} /></Field></div>
-                  <Field label="URL naziv"><input required className={inputClass} value={slug} onChange={(e) => setSlug(e.target.value)} placeholder={slugify(titleSr) || "url-naziv"} /></Field>
-                  {activeKind !== "lesson" ? <div className="grid gap-4 md:grid-cols-2"><Field label="Podnaslov SR"><input className={inputClass} value={subtitleSr} onChange={(e) => setSubtitleSr(e.target.value)} placeholder="Kratko obećanje sadržaja" /></Field><Field label="Subtitle EN"><input className={inputClass} value={subtitleEn} onChange={(e) => setSubtitleEn(e.target.value)} /></Field></div> : null}
-                  <div className="grid gap-4 md:grid-cols-2"><Field label={activeKind === "lesson" ? "Sažetak SR" : "Opis SR"}><textarea required={status === "published"} className={cn(inputClass, "min-h-32 py-3")} value={descriptionSr} onChange={(e) => setDescriptionSr(e.target.value)} placeholder="Objasni šta student dobija i šta treba da uradi." /></Field><Field label={activeKind === "lesson" ? "Summary EN" : "Description EN"}><textarea className={cn(inputClass, "min-h-32 py-3")} value={descriptionEn} onChange={(e) => setDescriptionEn(e.target.value)} /></Field></div>
-                  {activeKind === "lesson" ? <div className="grid gap-4 md:grid-cols-3"><Field label="Trajanje (min)"><input type="number" min={1} className={inputClass} value={durationMinutes} onChange={(e) => setDurationMinutes(Math.max(1, Number(e.target.value)))} /></Field><label className="flex min-h-11 items-center gap-3 rounded-[8px] border-2 border-ink px-3 text-sm font-black"><input type="checkbox" checked={proEnabled} onChange={(e) => setProEnabled(e.target.checked)} /> Pro prikaz</label><label className="flex min-h-11 items-center gap-3 rounded-[8px] border-2 border-ink px-3 text-sm font-black"><input type="checkbox" checked={lightEnabled} onChange={(e) => setLightEnabled(e.target.checked)} /> Light prikaz</label></div> : null}
-                  <div className="flex flex-wrap items-end justify-between gap-4 border-t-2 border-line pt-5"><Field label="Status"><select className={inputClass} value={status} onChange={(e) => setStatus(e.target.value as Status)}><option value="draft">Nacrt</option><option value="published">Objavljeno</option>{activeKind !== "lesson" ? <option value="archived">Arhivirano</option> : null}</select></Field><button type="submit" disabled={pending || (!trackId && !creating && !selectedTrack)} className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-ink px-5 text-sm font-black text-white shadow-[3px_3px_0_#f4be30] disabled:opacity-50">{pending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} Sačuvaj izmene</button></div>
-                  {message ? <p role="status" className={cn("rounded-[8px] border-2 p-3 text-sm font-black", message?.tone === "success" ? "border-emerald-700 bg-emerald-50 text-emerald-800" : "border-red-700 bg-red-50 text-red-800")}>{message?.text}</p> : null}
-                </form>
-                <aside className="border-t-2 border-ink bg-paper p-6 lg:border-l-2 lg:border-t-0"><p className="text-xs font-black uppercase tracking-[0.12em] text-muted">Studentski prikaz</p><p className="mt-3 text-sm font-bold leading-6 text-muted">Ispod ove forme nalazi se stvarna stranica smera, kursa ili lekcije. Inline izmene se rade direktno u tom prikazu.</p></aside>
-              </div>
-            </motion.section>
-          </AnimatePresence> : null}
           {trackSurface || courseSurface || lessonSurface ? (
             <section id="admin-live-preview" className="relative mt-8 scroll-mt-6 overflow-hidden rounded-[16px] border-2 border-ink bg-paper shadow-[8px_8px_0_rgba(14,49,88,0.13)]">
               <div className="absolute right-3 top-3 z-40">

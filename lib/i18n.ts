@@ -20,6 +20,10 @@ export function localized(text: LocalizedText, locale: Locale): string {
   return text[locale] ?? text.sr;
 }
 
+export function t(locale: Locale, sr: string, en: string): string {
+  return locale === "sr" ? sr : en;
+}
+
 export function withLocale(locale: Locale, path = ""): string {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
   return `/${locale}${normalizedPath === "/" ? "" : normalizedPath}`;

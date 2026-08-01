@@ -45,7 +45,7 @@ import { cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { Course, Lesson } from "@/lib/content";
-import { localized, type Locale, withLocale } from "@/lib/i18n";
+import { localized, t, type Locale, withLocale } from "@/lib/i18n";
 
 type ColumnType = "explanation" | "chatbot" | "output";
 type OutputKind = "text" | "image" | "audio" | "video" | "file";
@@ -183,18 +183,14 @@ const outputOptions: Array<{ value: OutputKind; sr: string; en: string }> = [
   { value: "file", sr: "Fajl", en: "File" },
 ];
 
-function labelFor(locale: Locale, sr: string, en: string) {
-  return locale === "sr" ? sr : en;
-}
-
 function localText(locale: Locale, sr: string, en: string) {
   return locale === "sr" ? sr || en : en || sr;
 }
 
 function panelLabel(locale: Locale, type: ColumnType, mode: "short" | "long" = "long") {
   const meta = PANEL_META[type];
-  if (mode === "short") return labelFor(locale, meta.shortSr, meta.shortEn);
-  return labelFor(locale, meta.labelSr, meta.labelEn);
+  if (mode === "short") return t(locale, meta.shortSr, meta.shortEn);
+  return t(locale, meta.labelSr, meta.labelEn);
 }
 
 function widthToUnits(width?: number): WidthUnits {
@@ -211,7 +207,7 @@ function unitsToWidth(units: WidthUnits) {
 }
 
 function unitLabel(locale: Locale, units: WidthUnits) {
-  if (units === 3) return labelFor(locale, "Ceo ekran", "Full width");
+  if (units === 3) return t(locale, "Ceo ekran", "Full width");
   return `${units}/3`;
 }
 
@@ -384,7 +380,7 @@ function PanelPalette({
           <span className="min-w-0">
             <span className="block truncate">{panelLabel(locale, type)}</span>
             <span className="block text-[10px] uppercase text-muted">
-              {labelFor(locale, "Deo panela", "Panel block")}
+              {t(locale, "Deo panela", "Panel block")}
             </span>
           </span>
         </button>
@@ -413,8 +409,8 @@ function EditorSidebarRail({
         type="button"
         onClick={onExpand}
         className="inline-flex size-9 items-center justify-center rounded-[8px] border-2 border-ink bg-yellow text-ink shadow-[2px_2px_0_0_rgba(14,49,88,0.14)] transition hover:-translate-y-0.5"
-        aria-label={labelFor(locale, `Otvori ${label}`, `Open ${label}`)}
-        title={labelFor(locale, `Otvori ${label}`, `Open ${label}`)}
+        aria-label={t(locale, `Otvori ${label}`, `Open ${label}`)}
+        title={t(locale, `Otvori ${label}`, `Open ${label}`)}
       >
         {chevron}
       </button>
@@ -441,7 +437,7 @@ function SidebarResizeHandle({
     <div
       role="separator"
       aria-orientation="vertical"
-      title={labelFor(locale, "Prevuci za sirinu", "Drag to resize")}
+      title={t(locale, "Prevuci za sirinu", "Drag to resize")}
       onMouseDown={onMouseDown}
       className={cn(
         "group absolute top-0 z-30 hidden h-full w-3 cursor-col-resize items-center justify-center bg-transparent transition hover:bg-yellow/25 lg:flex",
@@ -485,10 +481,10 @@ function CanvasDropZone({
         <Plus className="size-5" />
       </div>
       <p className="mt-4 text-sm font-black uppercase text-ink">
-        {labelFor(locale, "Trecina", "Third")} {slotIndex + 1}
+        {t(locale, "Trecina", "Third")} {slotIndex + 1}
       </p>
       <p className="mt-1 text-xs font-bold text-muted">
-        {draggingType ? panelLabel(locale, draggingType) : labelFor(locale, "Prazan deo ekrana", "Empty screen area")}
+        {draggingType ? panelLabel(locale, draggingType) : t(locale, "Prazan deo ekrana", "Empty screen area")}
       </p>
       <div className="mt-4 grid w-full max-w-52 gap-2">
         {PANEL_TYPES.map((type) => (
@@ -512,7 +508,7 @@ function StatusBadge({ status, locale }: { status: SaveStatus; locale: Locale })
     return (
       <span className="inline-flex min-h-9 items-center gap-2 rounded-[8px] border-2 border-line bg-paper px-3 text-xs font-black text-muted">
         <Loader2 className="size-3.5 animate-spin text-yellow" />
-        {labelFor(locale, "Cuvanje...", "Saving...")}
+        {t(locale, "Cuvanje...", "Saving...")}
       </span>
     );
   }
@@ -521,7 +517,7 @@ function StatusBadge({ status, locale }: { status: SaveStatus; locale: Locale })
     return (
       <span className="inline-flex min-h-9 items-center gap-2 rounded-[8px] border-2 border-red-300 bg-red-50 px-3 text-xs font-black text-red-700">
         <X className="size-3.5" />
-        {labelFor(locale, "Greska", "Error")}
+        {t(locale, "Greska", "Error")}
       </span>
     );
   }
@@ -529,7 +525,7 @@ function StatusBadge({ status, locale }: { status: SaveStatus; locale: Locale })
   return (
     <span className="inline-flex min-h-9 items-center gap-2 rounded-[8px] border-2 border-green-200 bg-green-50 px-3 text-xs font-black text-green-700">
       <Check className="size-3.5" />
-      {labelFor(locale, "Sacuvano", "Saved")}
+      {t(locale, "Sacuvano", "Saved")}
     </span>
   );
 }
@@ -755,7 +751,7 @@ export function LessonStepsEditor({
 
   async function handleDeleteStep(stepId: Id<"lessonSteps">, index: number) {
     const confirmed = window.confirm(
-      labelFor(locale, "Obrisati ovaj korak i sve njegove zadatke?", "Delete this step and all of its tasks?"),
+      t(locale, "Obrisati ovaj korak i sve njegove zadatke?", "Delete this step and all of its tasks?"),
     );
     if (!confirmed) return;
     setSaving(true);
@@ -813,7 +809,7 @@ export function LessonStepsEditor({
     const layout = [...stepForm.layout];
     layout[slotIndex] = null;
     if (!activeEntries(layout).length) {
-      window.alert(labelFor(locale, "Korak mora imati bar jedan panel.", "A step needs at least one panel."));
+      window.alert(t(locale, "Korak mora imati bar jedan panel.", "A step needs at least one panel."));
       return;
     }
     const nextSelected = activeEntries(layout)[0]?.slotIndex ?? 0;
@@ -925,7 +921,7 @@ export function LessonStepsEditor({
   }
 
   async function handleDeleteTask(taskId: Id<"lessonTasks">) {
-    const confirmed = window.confirm(labelFor(locale, "Obrisati ovaj zadatak?", "Delete this task?"));
+    const confirmed = window.confirm(t(locale, "Obrisati ovaj zadatak?", "Delete this task?"));
     if (!confirmed) return;
     setSaving(true);
     try {
@@ -992,7 +988,7 @@ export function LessonStepsEditor({
         <div className="rounded-[8px] border-2 border-ink bg-white p-6 text-center shadow-[6px_6px_0_0_rgba(14,49,88,0.13)]">
           <Loader2 className="mx-auto size-8 animate-spin text-yellow" />
           <p className="mt-3 text-sm font-black text-muted">
-            {labelFor(locale, "Ucitavam admin editor...", "Loading admin editor...")}
+            {t(locale, "Ucitavam admin editor...", "Loading admin editor...")}
           </p>
         </div>
       </div>
@@ -1014,7 +1010,7 @@ export function LessonStepsEditor({
           <Link
             href={withLocale(locale, `/app/courses/${course.slug}/lessons/${lesson.slug}`)}
             className="inline-flex size-10 shrink-0 items-center justify-center rounded-[8px] border-2 border-ink bg-paper text-ink transition hover:bg-yellow"
-            aria-label={labelFor(locale, "Nazad na lekciju", "Back to lesson")}
+            aria-label={t(locale, "Nazad na lekciju", "Back to lesson")}
           >
             <ChevronLeft className="size-4" />
           </Link>
@@ -1022,12 +1018,12 @@ export function LessonStepsEditor({
             <div className="flex min-w-0 items-center gap-2 text-[11px] font-black uppercase text-muted">
               <span className="truncate">{localized(course.title, locale)}</span>
               <span>/</span>
-              <span>{labelFor(locale, "Ciklus", "Cycle")}</span>
+              <span>{t(locale, "Ciklus", "Cycle")}</span>
               <span>/</span>
               <span className="truncate">{localized(lesson.title, locale)}</span>
             </div>
             <h1 className="truncate text-xl font-black leading-tight text-ink lg:text-2xl">
-              {labelFor(locale, "Admin panel lekcije", "Lesson admin panel")}
+              {t(locale, "Admin panel lekcije", "Lesson admin panel")}
             </h1>
           </div>
         </div>
@@ -1041,10 +1037,10 @@ export function LessonStepsEditor({
           <ToolbarButton
             active={!stepsCollapsed}
             onClick={() => setStepsCollapsed((current) => !current)}
-            title={stepsCollapsed ? labelFor(locale, "Otvori korake", "Open steps") : labelFor(locale, "Skupi korake", "Collapse steps")}
+            title={stepsCollapsed ? t(locale, "Otvori korake", "Open steps") : t(locale, "Skupi korake", "Collapse steps")}
           >
             {stepsCollapsed ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />}
-            {labelFor(locale, "Koraci", "Steps")}
+            {t(locale, "Koraci", "Steps")}
           </ToolbarButton>
           <ToolbarButton onClick={() => setMobileTab("inspector")} title="Inspector">
             <PanelRight className="size-4" />
@@ -1053,24 +1049,24 @@ export function LessonStepsEditor({
           <ToolbarButton
             active={!inspectorCollapsed}
             onClick={() => setInspectorCollapsed((current) => !current)}
-            title={inspectorCollapsed ? labelFor(locale, "Otvori inspector", "Open inspector") : labelFor(locale, "Skupi inspector", "Collapse inspector")}
+            title={inspectorCollapsed ? t(locale, "Otvori inspector", "Open inspector") : t(locale, "Skupi inspector", "Collapse inspector")}
           >
             {inspectorCollapsed ? <ChevronLeft className="size-4" /> : <ChevronRight className="size-4" />}
-            {labelFor(locale, "Desno", "Right")}
+            {t(locale, "Desno", "Right")}
           </ToolbarButton>
           <Link
             href={withLocale(locale, `/app/courses/${course.slug}/lessons/${lesson.slug}`)}
             className="inline-flex min-h-9 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-yellow px-3 text-xs font-black text-ink shadow-[2px_2px_0_0_rgba(14,49,88,0.16)] transition hover:-translate-y-0.5"
           >
             <Eye className="size-4" />
-            {labelFor(locale, "Preview", "Preview")}
+            {t(locale, "Preview", "Preview")}
           </Link>
         </div>
       </header>
 
       <div className="grid shrink-0 grid-cols-3 border-b-2 border-line bg-white p-2 lg:hidden">
         {[
-          ["steps", labelFor(locale, "Koraci", "Steps"), <ListPlus key="steps" className="size-4" />],
+          ["steps", t(locale, "Koraci", "Steps"), <ListPlus key="steps" className="size-4" />],
           ["canvas", "Canvas", <LayoutDashboard key="canvas" className="size-4" />],
           ["inspector", "Inspector", <Settings2 key="inspector" className="size-4" />],
         ].map(([tab, label, icon]) => (
@@ -1103,7 +1099,7 @@ export function LessonStepsEditor({
             <EditorSidebarRail
               locale={locale}
               side="steps"
-              label={labelFor(locale, "Koraci", "Steps")}
+              label={t(locale, "Koraci", "Steps")}
               icon={<ListPlus className="size-4" />}
               onExpand={() => setStepsCollapsed(false)}
             />
@@ -1113,16 +1109,16 @@ export function LessonStepsEditor({
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-[11px] font-black uppercase text-muted">
-                    {labelFor(locale, "Roadmap", "Roadmap")}
+                    {t(locale, "Roadmap", "Roadmap")}
                   </p>
-                  <h2 className="text-lg font-black text-ink">{labelFor(locale, "Koraci", "Steps")}</h2>
+                  <h2 className="text-lg font-black text-ink">{t(locale, "Koraci", "Steps")}</h2>
                 </div>
                 <button
                   type="button"
                   onClick={handleAddStep}
                   disabled={!hasIds || saving}
                   className="inline-flex size-10 items-center justify-center rounded-[8px] border-2 border-ink bg-yellow text-ink shadow-[2px_2px_0_0_rgba(14,49,88,0.16)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
-                  aria-label={labelFor(locale, "Dodaj korak", "Add step")}
+                  aria-label={t(locale, "Dodaj korak", "Add step")}
                 >
                   {saving ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-5" />}
                 </button>
@@ -1130,8 +1126,8 @@ export function LessonStepsEditor({
                   type="button"
                   onClick={() => setStepsCollapsed(true)}
                   className="inline-flex size-10 items-center justify-center rounded-[8px] border-2 border-line bg-paper text-muted transition hover:border-ink hover:bg-yellow hover:text-ink"
-                  aria-label={labelFor(locale, "Skupi korake", "Collapse steps")}
-                  title={labelFor(locale, "Skupi korake", "Collapse steps")}
+                  aria-label={t(locale, "Skupi korake", "Collapse steps")}
+                  title={t(locale, "Skupi korake", "Collapse steps")}
                 >
                   <ChevronLeft className="size-4" />
                 </button>
@@ -1159,8 +1155,8 @@ export function LessonStepsEditor({
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="text-[10px] font-black uppercase text-muted">
-                          {labelFor(locale, "Korak", "Step")} {index + 1}
-                          {!step.isPublished ? ` / ${labelFor(locale, "Nacrt", "Draft")}` : ""}
+                          {t(locale, "Korak", "Step")} {index + 1}
+                          {!step.isPublished ? ` / ${t(locale, "Nacrt", "Draft")}` : ""}
                         </p>
                         <p className="mt-1 truncate text-sm font-black text-ink">
                           {localText(locale, step.titleSr, step.titleEn)}
@@ -1193,7 +1189,7 @@ export function LessonStepsEditor({
                           disabled={index === 0}
                           onClick={() => void handleMoveStep(index, "up")}
                           className="inline-flex size-6 items-center justify-center rounded border border-line bg-white text-muted hover:border-ink hover:text-ink disabled:opacity-25"
-                          aria-label={labelFor(locale, "Pomeri gore", "Move up")}
+                          aria-label={t(locale, "Pomeri gore", "Move up")}
                         >
                           <ArrowUp className="size-3.5" />
                         </button>
@@ -1202,7 +1198,7 @@ export function LessonStepsEditor({
                           disabled={index === sortedSteps.length - 1}
                           onClick={() => void handleMoveStep(index, "down")}
                           className="inline-flex size-6 items-center justify-center rounded border border-line bg-white text-muted hover:border-ink hover:text-ink disabled:opacity-25"
-                          aria-label={labelFor(locale, "Pomeri dole", "Move down")}
+                          aria-label={t(locale, "Pomeri dole", "Move down")}
                         >
                           <ArrowDown className="size-3.5" />
                         </button>
@@ -1210,7 +1206,7 @@ export function LessonStepsEditor({
                           type="button"
                           onClick={() => void handleDeleteStep(step._id, index)}
                           className="inline-flex size-6 items-center justify-center rounded border border-red-200 bg-red-50 text-red-600 hover:border-red-500"
-                          aria-label={labelFor(locale, "Obrisi", "Delete")}
+                          aria-label={t(locale, "Obrisi", "Delete")}
                         >
                           <Trash2 className="size-3.5" />
                         </button>
@@ -1224,7 +1220,7 @@ export function LessonStepsEditor({
                 <div className="rounded-[8px] border-2 border-dashed border-line bg-paper p-5 text-center">
                   <ListPlus className="mx-auto size-8 text-ink" />
                   <p className="mt-3 text-sm font-black text-muted">
-                    {labelFor(locale, "Dodaj prvi korak za ovu lekciju.", "Add the first step for this lesson.")}
+                    {t(locale, "Dodaj prvi korak za ovu lekciju.", "Add the first step for this lesson.")}
                   </p>
                   <button
                     type="button"
@@ -1233,7 +1229,7 @@ export function LessonStepsEditor({
                     className="mt-4 inline-flex min-h-10 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-yellow px-4 text-sm font-black text-ink"
                   >
                     <Plus className="size-4" />
-                    {labelFor(locale, "Dodaj korak", "Add step")}
+                    {t(locale, "Dodaj korak", "Add step")}
                   </button>
                 </div>
               ) : null}
@@ -1245,7 +1241,7 @@ export function LessonStepsEditor({
           ) : null}
         </aside>
 
-        <main
+        <section
           className={cn(
             "min-h-0 overflow-hidden bg-paper",
             mobileTab !== "canvas" && "hidden lg:block",
@@ -1290,7 +1286,7 @@ export function LessonStepsEditor({
                     )}
                   >
                     {stepForm.isPublished ? <CheckCircle2 className="size-4" /> : <Circle className="size-4" />}
-                    {stepForm.isPublished ? labelFor(locale, "Objavljeno", "Published") : labelFor(locale, "Nacrt", "Draft")}
+                    {stepForm.isPublished ? t(locale, "Objavljeno", "Published") : t(locale, "Nacrt", "Draft")}
                   </button>
                 </div>
               </div>
@@ -1300,7 +1296,7 @@ export function LessonStepsEditor({
                   <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b-2 border-ink bg-white px-4 py-3">
                     <div className="min-w-0">
                       <p className="text-[10px] font-black uppercase text-muted">
-                        {labelFor(locale, "Learner preview canvas", "Learner preview canvas")}
+                        {t(locale, "Learner preview canvas", "Learner preview canvas")}
                       </p>
                       <h2 className="truncate text-lg font-black text-ink">
                         {localText(locale, stepForm.titleSr, stepForm.titleEn)}
@@ -1386,15 +1382,15 @@ export function LessonStepsEditor({
               <div className="max-w-md rounded-[8px] border-2 border-dashed border-line bg-white p-8 text-center">
                 <LayoutDashboard className="mx-auto size-10 text-ink" />
                 <h2 className="mt-4 text-xl font-black text-ink">
-                  {labelFor(locale, "Nema aktivnog koraka", "No active step")}
+                  {t(locale, "Nema aktivnog koraka", "No active step")}
                 </h2>
                 <p className="mt-2 text-sm font-bold leading-6 text-muted">
-                  {labelFor(locale, "Dodaj korak sa leve strane da otvoris canvas.", "Add a step on the left to open the canvas.")}
+                  {t(locale, "Dodaj korak sa leve strane da otvoris canvas.", "Add a step on the left to open the canvas.")}
                 </p>
               </div>
             </div>
           )}
-        </main>
+        </section>
 
         <aside
           className={cn(
@@ -1407,7 +1403,7 @@ export function LessonStepsEditor({
             <EditorSidebarRail
               locale={locale}
               side="inspector"
-              label={labelFor(locale, "Inspector", "Inspector")}
+              label={t(locale, "Inspector", "Inspector")}
               icon={<Settings2 className="size-4" />}
               onExpand={() => setInspectorCollapsed(false)}
             />
@@ -1520,7 +1516,7 @@ function EditorPanel({
               onRemove();
             }}
             className="inline-flex size-10 shrink-0 items-center justify-center rounded-[8px] border-2 border-line bg-paper text-muted transition hover:border-red-400 hover:bg-red-50 hover:text-red-600"
-            aria-label={labelFor(locale, "Ukloni panel", "Remove panel")}
+            aria-label={t(locale, "Ukloni panel", "Remove panel")}
           >
             <X className="size-4" />
           </button>
@@ -1581,7 +1577,7 @@ function ExplanationEditor({
 }) {
   return (
     <div className="space-y-4">
-      <SectionCard title={labelFor(locale, "Tekst objasnjenja", "Explanation copy")} icon={<FileText className="size-4" />}>
+      <SectionCard title={t(locale, "Tekst objasnjenja", "Explanation copy")} icon={<FileText className="size-4" />}>
         <div className="grid gap-3">
           <label>
             <span className="text-[10px] font-black uppercase text-muted">SR</span>
@@ -1603,7 +1599,7 @@ function ExplanationEditor({
       </SectionCard>
 
       <SectionCard
-        title={labelFor(locale, "Zadaci / checkpoints", "Tasks / checkpoints")}
+        title={t(locale, "Zadaci / checkpoints", "Tasks / checkpoints")}
         icon={<CheckCircle2 className="size-4" />}
         action={
           <button
@@ -1612,7 +1608,7 @@ function ExplanationEditor({
             className="inline-flex min-h-8 items-center justify-center gap-1.5 rounded-[6px] border border-ink bg-white px-2 text-xs font-black text-ink transition hover:bg-yellow"
           >
             <Plus className="size-3.5" />
-            {labelFor(locale, "Dodaj", "Add")}
+            {t(locale, "Dodaj", "Add")}
           </button>
         }
       >
@@ -1629,7 +1625,7 @@ function ExplanationEditor({
                     disabled={index === 0}
                     onClick={() => onMoveTask(index, "up")}
                     className="inline-flex size-7 items-center justify-center rounded border border-line bg-white text-muted hover:border-ink hover:text-ink disabled:opacity-25"
-                    aria-label={labelFor(locale, "Pomeri gore", "Move up")}
+                    aria-label={t(locale, "Pomeri gore", "Move up")}
                   >
                     <ArrowUp className="size-3.5" />
                   </button>
@@ -1638,7 +1634,7 @@ function ExplanationEditor({
                     disabled={index === tasks.length - 1}
                     onClick={() => onMoveTask(index, "down")}
                     className="inline-flex size-7 items-center justify-center rounded border border-line bg-white text-muted hover:border-ink hover:text-ink disabled:opacity-25"
-                    aria-label={labelFor(locale, "Pomeri dole", "Move down")}
+                    aria-label={t(locale, "Pomeri dole", "Move down")}
                   >
                     <ArrowDown className="size-3.5" />
                   </button>
@@ -1646,7 +1642,7 @@ function ExplanationEditor({
                     type="button"
                     onClick={() => onDeleteTask(task._id)}
                     className="inline-flex size-7 items-center justify-center rounded border border-red-200 bg-red-50 text-red-600 hover:border-red-500"
-                    aria-label={labelFor(locale, "Obrisi", "Delete")}
+                    aria-label={t(locale, "Obrisi", "Delete")}
                   >
                     <Trash2 className="size-3.5" />
                   </button>
@@ -1693,7 +1689,7 @@ function ExplanationEditor({
                     checked={task.required}
                     onChange={(event) => onUpdateTask(task, { required: event.target.checked })}
                   />
-                  {labelFor(locale, "Obavezan", "Required")}
+                  {t(locale, "Obavezan", "Required")}
                 </label>
                 <select
                   className="h-8 rounded-[6px] border border-ink bg-white px-2 text-xs font-black text-ink"
@@ -1710,14 +1706,14 @@ function ExplanationEditor({
 
           {!tasks.length ? (
             <div className="rounded-[8px] border-2 border-dashed border-line bg-white p-4 text-center text-sm font-black text-muted">
-              {labelFor(locale, "Nema zadataka u ovom koraku.", "No tasks in this step.")}
+              {t(locale, "Nema zadataka u ovom koraku.", "No tasks in this step.")}
             </div>
           ) : null}
         </div>
       </SectionCard>
 
       <SectionCard
-        title={labelFor(locale, "Brzi promptovi", "Quick prompts")}
+        title={t(locale, "Brzi promptovi", "Quick prompts")}
         icon={<Sparkles className="size-4" />}
         action={
           <button
@@ -1726,7 +1722,7 @@ function ExplanationEditor({
             className="inline-flex min-h-8 items-center justify-center gap-1.5 rounded-[6px] border border-ink bg-white px-2 text-xs font-black text-ink transition hover:bg-yellow"
           >
             <Plus className="size-3.5" />
-            {labelFor(locale, "Dodaj", "Add")}
+            {t(locale, "Dodaj", "Add")}
           </button>
         }
       >
@@ -1742,7 +1738,7 @@ function ExplanationEditor({
                   type="button"
                   onClick={() => onDeletePrompt(index)}
                   className="inline-flex size-7 items-center justify-center rounded border border-red-200 bg-red-50 text-red-600 hover:border-red-500"
-                  aria-label={labelFor(locale, "Obrisi prompt", "Delete prompt")}
+                  aria-label={t(locale, "Obrisi prompt", "Delete prompt")}
                 >
                   <Trash2 className="size-3.5" />
                 </button>
@@ -1771,7 +1767,7 @@ function ExplanationEditor({
 
           {!stepForm.prompts.length ? (
             <div className="rounded-[8px] border-2 border-dashed border-line bg-white p-4 text-center text-sm font-black text-muted">
-              {labelFor(locale, "Nema brzih promptova.", "No quick prompts.")}
+              {t(locale, "Nema brzih promptova.", "No quick prompts.")}
             </div>
           ) : null}
         </div>
@@ -1794,9 +1790,9 @@ function ChatbotEditor({
   const firstTask = tasks[0];
   return (
     <div className="space-y-4">
-      <SectionCard title={labelFor(locale, "AI instrukcije", "AI instructions")} icon={<Bot className="size-4" />}>
+      <SectionCard title={t(locale, "AI instrukcije", "AI instructions")} icon={<Bot className="size-4" />}>
         <p className="mb-3 text-xs font-bold leading-5 text-muted">
-          {labelFor(
+          {t(
             locale,
             "Ovo su posebna pravila chatbota za ovaj korak. Korisnicki UI ostaje isti, ali AI cita ove instrukcije.",
             "These are the chatbot rules for this step. The student UI stays the same, but AI reads these instructions.",
@@ -1806,7 +1802,7 @@ function ChatbotEditor({
           className={cn(textareaClass, "min-h-64 font-mono text-xs")}
           value={stepForm.systemInstruction}
           onChange={(event) => onStepChange({ systemInstruction: event.target.value })}
-          placeholder={labelFor(
+          placeholder={t(
             locale,
             "Npr. Vodi studenta kroz zadatak, ne daj finalno resenje odmah...",
             "Example: Guide the student through the task, do not give the final answer immediately...",
@@ -1814,20 +1810,20 @@ function ChatbotEditor({
         />
       </SectionCard>
 
-      <SectionCard title={labelFor(locale, "Chat preview", "Chat preview")} icon={<MessageSquareText className="size-4" />}>
+      <SectionCard title={t(locale, "Chat preview", "Chat preview")} icon={<MessageSquareText className="size-4" />}>
         <div className="space-y-3">
           <div className="rounded-[8px] border-2 border-line bg-paper p-3">
             <p className="text-[10px] font-black uppercase text-muted">
-              {labelFor(locale, "Trenutni zadatak", "Current task")}
+              {t(locale, "Trenutni zadatak", "Current task")}
             </p>
             <p className="mt-1 text-sm font-bold leading-6 text-ink">
-              {firstTask ? localText(locale, firstTask.promptSr, firstTask.promptEn) : labelFor(locale, "Nema zadatka.", "No task.")}
+              {firstTask ? localText(locale, firstTask.promptSr, firstTask.promptEn) : t(locale, "Nema zadatka.", "No task.")}
             </p>
           </div>
           <div className="rounded-[8px] border-2 border-ink bg-white p-3">
             <p className="text-[10px] font-black uppercase text-muted">AI</p>
             <p className="mt-1 text-sm font-bold leading-6 text-ink">
-              {labelFor(
+              {t(
                 locale,
                 "Spreman sam. Posalji pitanje za ovaj korak i vodicu te kroz rad.",
                 "Ready. Send a question for this step and I will guide you through the work.",
@@ -1835,9 +1831,9 @@ function ChatbotEditor({
             </p>
           </div>
           <div className="ml-auto max-w-[88%] rounded-[8px] border-2 border-ink bg-yellow p-3">
-            <p className="text-[10px] font-black uppercase text-muted">{labelFor(locale, "Student", "Student")}</p>
+            <p className="text-[10px] font-black uppercase text-muted">{t(locale, "Student", "Student")}</p>
             <p className="mt-1 text-sm font-bold leading-6 text-ink">
-              {labelFor(locale, "Kako da pocnem?", "How do I start?")}
+              {t(locale, "Kako da pocnem?", "How do I start?")}
             </p>
           </div>
         </div>
@@ -1858,7 +1854,7 @@ function OutputEditor({
   const selected = outputOptions.find((option) => option.value === stepForm.outputKind) ?? outputOptions[0];
   return (
     <div className="space-y-4">
-      <SectionCard title={labelFor(locale, "Output format", "Output format")} icon={<Save className="size-4" />}>
+      <SectionCard title={t(locale, "Output format", "Output format")} icon={<Save className="size-4" />}>
         <div className="grid gap-2">
           {outputOptions.map((option) => {
             const active = stepForm.outputKind === option.value;
@@ -1872,7 +1868,7 @@ function OutputEditor({
                   active ? "border-ink bg-yellow text-ink" : "border-line bg-white text-muted hover:border-ink hover:text-ink",
                 )}
               >
-                {labelFor(locale, option.sr, option.en)}
+                {t(locale, option.sr, option.en)}
                 {active ? <Check className="size-4" /> : null}
               </button>
             );
@@ -1880,14 +1876,14 @@ function OutputEditor({
         </div>
       </SectionCard>
 
-      <SectionCard title={labelFor(locale, "Output preview", "Output preview")} icon={<Wand2 className="size-4" />}>
+      <SectionCard title={t(locale, "Output preview", "Output preview")} icon={<Wand2 className="size-4" />}>
         <div className="rounded-[8px] border-2 border-dashed border-line bg-paper p-5 text-center">
           <Save className="mx-auto size-8 text-ink" />
           <p className="mt-3 text-sm font-black text-ink">
-            {labelFor(locale, selected.sr, selected.en)} {labelFor(locale, "output", "output")}
+            {t(locale, selected.sr, selected.en)} {t(locale, "output", "output")}
           </p>
           <p className="mt-2 text-xs font-bold leading-5 text-muted">
-            {labelFor(
+            {t(
               locale,
               "Korisnik ce ovde videti sacuvane rezultate iz AI chata ili upload.",
               "The student will see saved AI chat results or uploads here.",
@@ -1934,15 +1930,15 @@ function Inspector({
     <div className="space-y-4 p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[11px] font-black uppercase text-muted">{labelFor(locale, "Editor", "Editor")}</p>
-          <h2 className="truncate text-2xl font-black text-ink">{labelFor(locale, "Paneli stepa", "Step panels")}</h2>
+          <p className="text-[11px] font-black uppercase text-muted">{t(locale, "Editor", "Editor")}</p>
+          <h2 className="truncate text-2xl font-black text-ink">{t(locale, "Paneli stepa", "Step panels")}</h2>
         </div>
         <button
           type="button"
           onClick={onCollapse}
           className="inline-flex size-10 shrink-0 items-center justify-center rounded-[8px] border-2 border-line bg-paper text-muted transition hover:border-ink hover:bg-yellow hover:text-ink"
-          aria-label={labelFor(locale, "Skupi inspector", "Collapse inspector")}
-          title={labelFor(locale, "Skupi inspector", "Collapse inspector")}
+          aria-label={t(locale, "Skupi inspector", "Collapse inspector")}
+          title={t(locale, "Skupi inspector", "Collapse inspector")}
         >
           <ChevronRight className="size-4" />
         </button>
@@ -1951,9 +1947,9 @@ function Inspector({
       <section className="rounded-[8px] border-2 border-ink bg-ink p-4 text-white shadow-[5px_5px_0_0_#f4be30]">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-[10px] font-black uppercase text-white/60">{labelFor(locale, "Aktivan korak", "Active step")}</p>
+            <p className="text-[10px] font-black uppercase text-white/60">{t(locale, "Aktivan korak", "Active step")}</p>
             <p className="mt-1 text-lg font-black leading-tight">
-              {stepForm ? localText(locale, stepForm.titleSr, stepForm.titleEn) : labelFor(locale, "Nema koraka", "No step")}
+              {stepForm ? localText(locale, stepForm.titleSr, stepForm.titleEn) : t(locale, "Nema koraka", "No step")}
             </p>
           </div>
           {saving ? <Loader2 className="size-5 animate-spin text-yellow" /> : <CheckCircle2 className="size-5 text-yellow" />}
@@ -1962,7 +1958,7 @@ function Inspector({
 
       {stepForm ? (
         <>
-          <SectionCard title={labelFor(locale, "Delovi", "Blocks")} icon={<Sparkles className="size-4" />}>
+          <SectionCard title={t(locale, "Delovi", "Blocks")} icon={<Sparkles className="size-4" />}>
             <PanelPalette
               locale={locale}
               onDragStart={onPanelDragStart}
@@ -1977,7 +1973,7 @@ function Inspector({
             />
           </SectionCard>
 
-          <SectionCard title={labelFor(locale, "Trecine ekrana", "Screen thirds")} icon={<LayoutDashboard className="size-4" />}>
+          <SectionCard title={t(locale, "Trecine ekrana", "Screen thirds")} icon={<LayoutDashboard className="size-4" />}>
             <div className="grid grid-cols-3 gap-2">
               {[0, 1, 2].map((slotIndex) => {
                 const col = stepForm.layout[slotIndex];
@@ -2000,7 +1996,7 @@ function Inspector({
                         ? panelLabel(locale, col.type, "short")
                         : occupant
                           ? panelLabel(locale, occupant.col.type, "short")
-                          : labelFor(locale, "Prazno", "Empty")}
+                          : t(locale, "Prazno", "Empty")}
                     </span>
                   </button>
                 );
@@ -2012,7 +2008,7 @@ function Inspector({
             <SectionCard title={panelLabel(locale, selectedCol.type)} icon={<Settings2 className="size-4" />}>
               <div className="space-y-4">
                 <label className="block">
-                  <span className="text-[10px] font-black uppercase text-muted">{labelFor(locale, "Tip panela", "Panel type")}</span>
+                  <span className="text-[10px] font-black uppercase text-muted">{t(locale, "Tip panela", "Panel type")}</span>
                   <select
                     className={cn(inputClass, "mt-1")}
                     value={selectedCol.type}
@@ -2024,7 +2020,7 @@ function Inspector({
                   </select>
                 </label>
                 <div>
-                  <p className="mb-2 text-[10px] font-black uppercase text-muted">{labelFor(locale, "Sirina", "Width")}</p>
+                  <p className="mb-2 text-[10px] font-black uppercase text-muted">{t(locale, "Sirina", "Width")}</p>
                   <WidthStepper
                     locale={locale}
                     units={slotUnits(selectedCol, selectedSlot)}
@@ -2037,12 +2033,12 @@ function Inspector({
                   className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-[8px] border-2 border-red-300 bg-red-50 px-3 text-sm font-black text-red-700 hover:border-red-500"
                 >
                   <Trash2 className="size-4" />
-                  {labelFor(locale, "Ukloni panel", "Remove panel")}
+                  {t(locale, "Ukloni panel", "Remove panel")}
                 </button>
               </div>
             </SectionCard>
           ) : (
-            <SectionCard title={labelFor(locale, "Prazna trecina", "Empty third")} icon={<Plus className="size-4" />}>
+            <SectionCard title={t(locale, "Prazna trecina", "Empty third")} icon={<Plus className="size-4" />}>
               <PanelPalette
                 locale={locale}
                 onDragStart={onPanelDragStart}
@@ -2052,14 +2048,14 @@ function Inspector({
             </SectionCard>
           )}
 
-          <SectionCard title={labelFor(locale, "Brzi rasporedi", "Quick layouts")} icon={<Columns3 className="size-4" />}>
+          <SectionCard title={t(locale, "Brzi rasporedi", "Quick layouts")} icon={<Columns3 className="size-4" />}>
             <div className="grid gap-2">
               <button
                 type="button"
                 onClick={() => onPreset(DEFAULT_LAYOUT)}
                 className="rounded-[8px] border-2 border-line bg-white p-3 text-left text-xs font-black text-ink hover:border-ink hover:bg-yellow"
               >
-                {labelFor(locale, "Tri dela po 1/3", "Three 1/3 blocks")}
+                {t(locale, "Tri dela po 1/3", "Three 1/3 blocks")}
               </button>
               <button
                 type="button"
@@ -2072,7 +2068,7 @@ function Inspector({
                 }
                 className="rounded-[8px] border-2 border-line bg-white p-3 text-left text-xs font-black text-ink hover:border-ink hover:bg-yellow"
               >
-                {labelFor(locale, "Objasnjenje 2/3 + output 1/3", "Explanation 2/3 + output 1/3")}
+                {t(locale, "Objasnjenje 2/3 + output 1/3", "Explanation 2/3 + output 1/3")}
               </button>
               <button
                 type="button"
@@ -2085,21 +2081,21 @@ function Inspector({
                 }
                 className="rounded-[8px] border-2 border-line bg-white p-3 text-left text-xs font-black text-ink hover:border-ink hover:bg-yellow"
               >
-                {labelFor(locale, "Objasnjenje 1/3 + chatbot 2/3", "Explanation 1/3 + chatbot 2/3")}
+                {t(locale, "Objasnjenje 1/3 + chatbot 2/3", "Explanation 1/3 + chatbot 2/3")}
               </button>
               <button
                 type="button"
                 onClick={() => onPreset([{ type: "explanation", width: 100 }, null, null])}
                 className="rounded-[8px] border-2 border-line bg-white p-3 text-left text-xs font-black text-ink hover:border-ink hover:bg-yellow"
               >
-                {labelFor(locale, "Jedan deo preko celog ekrana", "One full-width block")}
+                {t(locale, "Jedan deo preko celog ekrana", "One full-width block")}
               </button>
               </div>
           </SectionCard>
         </>
       ) : (
         <div className="rounded-[8px] border-2 border-dashed border-line bg-paper p-4 text-sm font-black text-muted">
-          {labelFor(locale, "Izaberi ili dodaj korak.", "Select or add a step.")}
+          {t(locale, "Izaberi ili dodaj korak.", "Select or add a step.")}
         </div>
       )}
     </div>

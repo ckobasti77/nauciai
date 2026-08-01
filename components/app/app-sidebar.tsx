@@ -29,6 +29,7 @@ import { gsap } from "gsap";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Image from "next/image";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useParams, usePathname, useSearchParams, useRouter } from "next/navigation";
 import {
   useCallback,
@@ -42,10 +43,6 @@ import {
   type ReactNode,
 } from "react";
 
-import {
-  AddCourseAction,
-  EditCourseAction,
-} from "@/components/app/admin-inline-actions";
 import { CheckoutButton } from "@/components/app/checkout-button";
 import { BrandMark, cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
@@ -62,6 +59,16 @@ import { publicProfilePath } from "@/lib/profile-links";
 import type { AppCourseNav, AppNavigationData } from "@/lib/app-navigation";
 import { primaryCourseSlug } from "@/lib/content";
 import { dictionary, localized, type Locale, withLocale } from "@/lib/i18n";
+
+const AddCourseAction = dynamic(() => import("@/components/app/admin-inline-actions").then((m) => m.AddCourseAction), { ssr: false });
+const EditCourseAction = dynamic(() => import("@/components/app/admin-inline-actions").then((m) => m.EditCourseAction), { ssr: false });
+
+/**
+ * Width at which the <aside> stops being a modal drawer and becomes the persistent
+ * sidebar. Must track the `md:` prefixes on the sidebar shell classes below. This is
+ * deliberately NOT the same threshold as the pointer-resize handle, which stays at 1024px.
+ */
+const DESKTOP_SIDEBAR_MEDIA_QUERY = "(min-width: 768px)";
 
 function dashboardHref(locale: Locale) {
   return withLocale(locale, "/app");
@@ -318,7 +325,7 @@ function CourseSwitcher({
           : "Locked";
 
   return (
-    <div className="sidebar-reveal relative mt-5 lg:mt-8">
+    <div className="sidebar-reveal relative mt-5 md:mt-8">
       <div className="flex items-center gap-2">
         <motion.button
           type="button"
@@ -484,12 +491,17 @@ function NavLink({
   badge?: number;
 }) {
   return (
-    <motion.div whileHover={{ x: 2 }} whileTap={{ scale: 0.98 }} className="min-w-0">
+    <motion.div whileHover={{ x: 2 }} whileTap={{ scale: 0.98 }} className="relative min-w-0">
       <Link
         href={href}
+        aria-current={active ? "page" : undefined}
         className={cn(
-          "inline-flex min-h-11 min-w-0 items-center justify-between rounded-[8px] border-2 border-transparent px-3 py-2 text-sm font-extrabold text-ink transition hover:border-ink hover:bg-yellow sm:justify-start lg:w-full",
-          active && "border-ink bg-paper shadow-[3px_3px_0_0_rgba(14,49,88,0.14)]",
+          // Ternary, not base+append: cn() is a plain join, so both branches would otherwise
+          // be emitted and the winner decided by generated-CSS order.
+          "inline-flex min-h-11 min-w-0 items-center justify-between rounded-full border-2 px-3 py-2 text-sm font-extrabold text-ink transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:justify-start md:w-full",
+          active
+            ? "border-ink bg-yellow shadow-[3px_3px_0_0_rgba(14,49,88,0.14)]"
+            : "border-transparent bg-transparent hover:border-ink hover:bg-yellow/25",
         )}
       >
         <span className="flex items-center gap-3 min-w-0">
@@ -502,6 +514,12 @@ function NavLink({
           </span>
         ) : null}
       </Link>
+      {active ? (
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute -left-1 top-1/2 z-10 h-6 w-1.5 -translate-y-1/2 rounded-full bg-ink"
+        />
+      ) : null}
     </motion.div>
   );
 }
@@ -528,15 +546,20 @@ function LessonsAccordion({
   const totalLessons = directLessons.length;
 
   return (
-    <div className="sidebar-reveal col-span-2 sm:col-span-3 lg:col-span-1">
+    <div className="sidebar-reveal col-span-2 sm:col-span-3 md:col-span-1">
       <motion.button
         type="button"
         onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
         whileHover={{ x: 2 }}
         whileTap={{ scale: 0.98 }}
         className={cn(
-          "inline-flex min-h-11 w-full min-w-0 items-center justify-center gap-3 rounded-[8px] border-2 border-transparent px-3 py-2 text-sm font-extrabold text-ink transition hover:border-ink hover:bg-yellow sm:justify-start",
-          currentLessonSlug && "border-ink bg-paper",
+          "inline-flex min-h-11 w-full min-w-0 items-center justify-center gap-3 rounded-full border-2 px-3 py-2 text-sm font-extrabold text-ink transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:justify-start",
+          // This disclosure *contains* the current page rather than being it, so it stays
+          // distinguishable from an active NavLink.
+          currentLessonSlug
+            ? "border-ink bg-yellow/40"
+            : "border-transparent bg-transparent hover:border-ink hover:bg-yellow/25",
         )}
       >
         <BookOpen className="size-4" />
@@ -586,7 +609,7 @@ function LessonsAccordion({
                 const active = currentLessonSlug === lesson.slug;
                 return (
                   <motion.div layout key={lesson.id ?? lesson.slug} className="relative">
-                    <Link href={lessonHref(locale, currentCourse.slug, lesson.slug)} className={cn("flex min-h-11 items-center gap-2 rounded-[8px] border-2 bg-white px-3 text-sm font-black text-ink", active ? "border-ink bg-yellow" : "border-line hover:border-ink")}>
+                    <Link href={lessonHref(locale, currentCourse.slug, lesson.slug)} aria-current={active ? "page" : undefined} className={cn("flex min-h-11 items-center gap-2 rounded-[8px] border-2 bg-white px-3 text-sm font-black text-ink", active ? "border-ink bg-yellow" : "border-line hover:border-ink")}>
                       <PlayCircle className="size-4 shrink-0" /><span className="min-w-0 flex-1 truncate">{localized(lesson.title, locale)}</span>{isAdmin && !lesson.isPublished ? <span className="rounded-full border border-ink bg-paper px-2 py-0.5 text-[9px] uppercase">Nacrt</span> : null}
                     </Link>
                   </motion.div>
@@ -649,7 +672,7 @@ function RailAction({
 
   if (href) {
     return (
-      <Link href={href} aria-label={label} className={className}>
+      <Link href={href} aria-label={label} aria-current={active ? "page" : undefined} className={className}>
         {content}
       </Link>
     );
@@ -763,6 +786,128 @@ function SidebarRoleBadge({
   );
 }
 
+/**
+ * Phone-width primary navigation. Height is a contract with the bottom padding on
+ * <main> in app-shell.tsx — changing min-h-14 there means changing it here too.
+ * Avoids any class containing "border" on the tab links, because globals.css turns
+ * bordered anchors into pills.
+ */
+function AppBottomNav({
+  locale,
+  currentCourse,
+  dashboardActive,
+  lessonsActive,
+  communityActive,
+  messagesActive,
+  communityBadge,
+  messagesBadge,
+  hidden,
+}: {
+  locale: Locale;
+  currentCourse?: AppCourseNav;
+  dashboardActive: boolean;
+  lessonsActive: boolean;
+  communityActive: boolean;
+  messagesActive: boolean;
+  communityBadge: number;
+  messagesBadge: number;
+  hidden: boolean;
+}) {
+  const t = dictionary[locale];
+  const tabs = [
+    {
+      key: "dashboard",
+      href: dashboardHref(locale),
+      icon: LayoutDashboard,
+      // Literal, matching the sidebar NavLink for the same destination.
+      label: "Dashboard",
+      active: dashboardActive,
+      badge: 0,
+    },
+    currentCourse
+      ? {
+          key: "lessons",
+          href: courseHref(locale, currentCourse.slug),
+          icon: BookOpen,
+          label: t.lessons,
+          active: lessonsActive,
+          badge: 0,
+        }
+      : {
+          key: "courses",
+          href: dashboardHref(locale),
+          icon: GraduationCap,
+          label: locale === "sr" ? "Kursevi" : "Courses",
+          active: false,
+          badge: 0,
+        },
+    {
+      key: "community",
+      href: currentCourse
+        ? communityHref(locale, currentCourse.slug)
+        : withLocale(locale, "/app/community/discussions"),
+      icon: MessageCircle,
+      label: t.community,
+      active: communityActive,
+      badge: communityBadge,
+    },
+    {
+      key: "messages",
+      href: withLocale(locale, "/app/messages"),
+      icon: MessagesSquare,
+      label: locale === "sr" ? "Poruke" : "Messages",
+      active: messagesActive,
+      badge: messagesBadge,
+    },
+  ];
+
+  return (
+    <nav
+      data-app-bottom-nav=""
+      aria-label={locale === "sr" ? "Brza navigacija" : "Quick navigation"}
+      inert={hidden}
+      className="fixed inset-x-0 bottom-0 z-30 border-t-2 border-ink bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-6px_18px_rgba(14,49,88,0.14)] md:hidden"
+    >
+      <ul className="grid grid-cols-4">
+        {tabs.map(({ key, href, icon: Icon, label, active, badge }) => (
+          <li key={key} className="min-w-0">
+            <Link
+              href={href}
+              aria-current={active ? "page" : undefined}
+              className={cn(
+                "relative flex min-h-14 w-full flex-col items-center justify-center gap-0.5 px-1 pb-1.5 pt-2 text-[10px] font-black uppercase tracking-[0.04em] transition focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink",
+                active ? "text-ink" : "text-muted",
+              )}
+            >
+              <span
+                aria-hidden="true"
+                className={cn(
+                  "absolute inset-x-4 top-0 h-1 rounded-b-full",
+                  active ? "bg-yellow" : "bg-transparent",
+                )}
+              />
+              <span
+                className={cn(
+                  "relative grid size-8 place-items-center rounded-full transition",
+                  active && "bg-yellow ring-2 ring-ink",
+                )}
+              >
+                <Icon className="size-5" aria-hidden="true" />
+                {badge > 0 ? (
+                  <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full border-2 border-ink bg-red-600 px-1 text-[9px] font-black leading-none text-white">
+                    {badge > 99 ? "99+" : badge}
+                  </span>
+                ) : null}
+              </span>
+              <span className="w-full truncate text-center">{label}</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  );
+}
+
 function AppSidebarContent({
   locale,
   navigation,
@@ -808,6 +953,10 @@ function AppSidebarContent({
   const sidebarPreferencesRef = useRef(sidebarPreferences);
   const [isResizing, setIsResizing] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
+  // Defaults to true (fail-open) on purpose: a false default would ship `inert` on the
+  // desktop sidebar in the SSR payload and leave it dead until hydration.
+  const [isDesktopSidebar, setIsDesktopSidebar] = useState(true);
   const [railFlyout, setRailFlyout] = useState<"course" | "lessons" | "profile" | null>(null);
   const railLayerRef = useRef<HTMLDivElement>(null);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
@@ -937,6 +1086,7 @@ function AppSidebarContent({
     if (!mobileOpen) return;
 
     const previousOverflow = document.body.style.overflow;
+    const menuButton = mobileMenuButtonRef.current;
     document.body.style.overflow = "hidden";
     const sidebar = rootRef.current;
     const focusable = Array.from(
@@ -965,13 +1115,22 @@ function AppSidebarContent({
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = previousOverflow;
+      // Only reclaim focus if it is still inside the drawer (or nowhere); a link click
+      // legitimately moves it onward.
+      const active = document.activeElement;
+      if (!active || active === document.body || sidebar?.contains(active)) menuButton?.focus();
     };
   }, [mobileOpen]);
 
   useEffect(() => {
-    const desktopQuery = window.matchMedia("(min-width: 1024px)");
+    const desktopQuery = window.matchMedia(DESKTOP_SIDEBAR_MEDIA_QUERY);
+    function sync(matches: boolean) {
+      setIsDesktopSidebar(matches);
+      if (matches) setMobileOpen(false);
+    }
+    sync(desktopQuery.matches);
     function handleBreakpointChange(event: MediaQueryListEvent) {
-      if (event.matches) setMobileOpen(false);
+      sync(event.matches);
     }
     desktopQuery.addEventListener("change", handleBreakpointChange);
     return () => desktopQuery.removeEventListener("change", handleBreakpointChange);
@@ -1001,36 +1160,52 @@ function AppSidebarContent({
   const hasAccountAdvisory = profileIncomplete || emailVerificationRequired || passwordRecommended;
   const profileLabel = locale === "sr" ? "Profil" : "Profile";
   const profilePath = publicProfilePath(profileData?.username);
-  const dashboardActive = pathname === withLocale(locale, "/app") && !searchParams.get("course");
+  // courseHref() targets /app?course=…, which *is* the dashboard, so course selection must
+  // not clear the highlight.
+  const dashboardActive = pathname === withLocale(locale, "/app");
   const communityActive = pathname === withLocale(locale, "/app/community") || pathname.includes("/app/community/");
   const messagesActive = pathname === withLocale(locale, "/app/messages") || pathname.includes("/app/messages/");
+  const lessonsActive = Boolean(params.lessonSlug);
   const sidebarWidth = sidebarPreferences.collapsed ? APP_SIDEBAR_RAIL_WIDTH : sidebarPreferences.width;
   const sidebarStyle = { "--app-sidebar-width": `${sidebarWidth}px` } as CSSProperties;
+  // Below the desktop breakpoint the same <aside> behaves as a modal drawer.
+  const drawerIsModal = !isDesktopSidebar;
+  const navLabel = locale === "sr" ? "Glavna navigacija" : "Main navigation";
 
   return (
     <>
-      <header className="sticky top-0 z-40 flex min-h-16 items-center justify-between border-b-2 border-ink bg-white px-4 lg:hidden">
+      <header inert={drawerIsModal && mobileOpen} className="sticky top-0 z-40 flex min-h-16 items-center justify-between border-b-2 border-ink bg-white px-4 md:hidden">
         <BrandMark href={withLocale(locale)} label={t.appName} />
         <button
+          ref={mobileMenuButtonRef}
           type="button"
-          aria-label={locale === "sr" ? "Otvori navigaciju" : "Open navigation"}
+          aria-haspopup="dialog"
           aria-expanded={mobileOpen}
+          aria-controls="app-sidebar-drawer"
           onClick={() => setMobileOpen(true)}
-          className="inline-flex size-11 items-center justify-center border-2 border-ink bg-yellow text-ink shadow-[3px_3px_0_rgba(14,49,88,0.16)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          className="inline-flex min-h-11 items-center gap-2 border-2 border-ink bg-yellow px-3.5 text-xs font-black uppercase tracking-[0.06em] text-ink shadow-[3px_3px_0_rgba(14,49,88,0.16)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         >
-          <Menu className="size-5" />
+          <Menu className="size-5" aria-hidden="true" />
+          {locale === "sr" ? "Više" : "More"}
         </button>
       </header>
       <div
         aria-hidden="true"
         onClick={() => setMobileOpen(false)}
         className={cn(
-          "pointer-events-none fixed inset-0 z-40 bg-ink/45 opacity-0 backdrop-blur-[2px] transition-opacity lg:hidden",
+          "pointer-events-none fixed inset-0 z-40 bg-ink/45 opacity-0 backdrop-blur-[2px] transition-opacity md:hidden",
           mobileOpen && "pointer-events-auto opacity-100",
         )}
       />
     <aside
       ref={rootRef}
+      id="app-sidebar-drawer"
+      // Only assert dialog semantics while the element actually behaves as one; on desktop
+      // `undefined` leaves the native complementary landmark intact.
+      role={drawerIsModal ? "dialog" : undefined}
+      aria-modal={drawerIsModal && mobileOpen ? true : undefined}
+      aria-label={drawerIsModal ? navLabel : undefined}
+      inert={drawerIsModal && !mobileOpen}
       data-sidebar-source={source}
       data-sidebar-auth={authState}
       data-sidebar-role={navigation.role ?? "none"}
@@ -1047,11 +1222,11 @@ function AppSidebarContent({
       className={cn(
         "fixed inset-y-0 left-0 z-50 flex h-dvh w-[min(336px,calc(100vw_-_32px))] min-w-0 -translate-x-full flex-col border-r-2 border-ink bg-white px-4 py-4 shadow-[18px_0_45px_rgba(14,49,88,0.18)] transition-transform duration-200",
         mobileOpen && "translate-x-0",
-        "lg:sticky lg:top-0 lg:z-30 lg:h-screen lg:w-[var(--app-sidebar-width)] lg:shrink-0 lg:translate-x-0 lg:overflow-visible lg:px-5 lg:py-7 lg:shadow-none",
-        !isResizing && "lg:transition-[width] lg:duration-200",
+        "md:sticky md:top-0 md:z-30 md:h-screen md:w-[var(--app-sidebar-width)] md:shrink-0 md:translate-x-0 md:overflow-visible md:px-5 md:py-7 md:shadow-none",
+        !isResizing && "md:transition-[width] md:duration-200",
       )}
     >
-      <div className={cn("flex h-full min-w-0 flex-col", sidebarPreferences.collapsed && "lg:hidden")}>
+      <div className={cn("flex h-full min-w-0 flex-col", sidebarPreferences.collapsed && "md:hidden")}>
       <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden pr-1">
         <div className="sidebar-reveal flex items-center justify-between gap-4">
           <BrandMark href={withLocale(locale)} label={t.appName} />
@@ -1059,7 +1234,7 @@ function AppSidebarContent({
             type="button"
             aria-label={locale === "sr" ? "Kolapsiraj sidebar" : "Collapse sidebar"}
             onClick={toggleSidebar}
-            className="hidden size-11 shrink-0 items-center justify-center border-2 border-ink bg-white text-ink transition hover:bg-yellow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink lg:inline-flex"
+            className="hidden size-11 shrink-0 items-center justify-center border-2 border-ink bg-white text-ink transition hover:bg-yellow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink md:inline-flex"
           >
             <PanelLeftClose className="size-5" />
           </button>
@@ -1067,7 +1242,7 @@ function AppSidebarContent({
             type="button"
             aria-label={locale === "sr" ? "Zatvori navigaciju" : "Close navigation"}
             onClick={() => setMobileOpen(false)}
-            className="inline-flex size-11 shrink-0 items-center justify-center border-2 border-ink bg-white text-ink lg:hidden"
+            className="inline-flex size-11 shrink-0 items-center justify-center border-2 border-ink bg-white text-ink md:hidden"
           >
             <X className="size-5" />
           </button>
@@ -1077,10 +1252,10 @@ function AppSidebarContent({
         {currentCourse ? (
           <CourseSwitcher locale={locale} courses={currentCourse.trackId ? courses.filter((course) => course.trackId === currentCourse.trackId) : courses} currentCourse={currentCourse} isAdmin={isAdmin} />
         ) : null}
-        <nav className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:flex lg:flex-col">
+        <nav aria-label={navLabel} className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3 md:flex md:flex-col">
             <NavLink
               href={dashboardHref(locale)}
-              active={pathname === withLocale(locale, "/app") && !searchParams.get("course")}
+              active={dashboardActive}
               icon={LayoutDashboard}
               label="Dashboard"
             />
@@ -1129,7 +1304,7 @@ function AppSidebarContent({
 
       {/* Bottom Profile Card */}
       {profileData && (
-        <div className="relative mt-auto border-t-2 border-ink pt-4 hidden lg:block" ref={profileMenuRef}>
+        <div className="relative mt-auto border-t-2 border-ink pt-4 hidden md:block" ref={profileMenuRef}>
           {profileMenuOpen ? (
             <div className="absolute bottom-[calc(100%+0.65rem)] left-0 z-50 w-full rounded-[16px] border-2 border-ink bg-white p-2.5 text-ink shadow-[8px_8px_0_0_rgba(14,49,88,0.14)]">
               <span
@@ -1220,7 +1395,7 @@ function AppSidebarContent({
 
       {/* Mobile profile link */}
       {profileData && (
-        <div className="mt-4 grid grid-cols-3 gap-2 border-t-2 border-ink pt-4 lg:hidden">
+        <div className="mt-4 grid grid-cols-3 gap-2 border-t-2 border-ink pt-4 md:hidden">
           <Link
             href={currentCourse ? navHref(locale, profilePath, currentCourse.slug) : withLocale(locale, profilePath)}
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-white px-3 py-2 text-xs font-black text-ink"
@@ -1250,7 +1425,7 @@ function AppSidebarContent({
       )}
       </div>
 
-      <div ref={railLayerRef} className={cn("relative hidden h-full w-full flex-col items-center", sidebarPreferences.collapsed && "lg:flex")}>
+      <div ref={railLayerRef} className={cn("relative hidden h-full w-full flex-col items-center", sidebarPreferences.collapsed && "md:flex")}>
         <button
           type="button"
           aria-label={locale === "sr" ? "Proširi sidebar" : "Expand sidebar"}
@@ -1344,6 +1519,17 @@ function AppSidebarContent({
         <span className="h-14 w-1 rounded-full bg-line transition group-hover:w-1.5 group-hover:bg-yellow group-focus-visible:w-1.5 group-focus-visible:bg-yellow group-focus-visible:ring-2 group-focus-visible:ring-ink" />
       </div>
     </aside>
+      <AppBottomNav
+        locale={locale}
+        currentCourse={currentCourse}
+        dashboardActive={dashboardActive}
+        lessonsActive={lessonsActive}
+        communityActive={communityActive}
+        messagesActive={messagesActive}
+        communityBadge={communityBadge}
+        messagesBadge={messagesBadge}
+        hidden={drawerIsModal && mobileOpen}
+      />
     </>
   );
 }

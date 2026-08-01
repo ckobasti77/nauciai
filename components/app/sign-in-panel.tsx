@@ -7,7 +7,7 @@ import { FormEvent, useState } from "react";
 
 import { Panel, cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
-import type { Locale } from "@/lib/i18n";
+import { t, type Locale } from "@/lib/i18n";
 import { passwordRequirements, passwordValidationErrors } from "@/lib/password-policy";
 import {
   isValidUsername,
@@ -18,14 +18,10 @@ import {
 
 type AuthFlow = "signIn" | "signUp" | "reset" | "resetVerification";
 
-function labelFor(locale: Locale, sr: string, en: string) {
-  return locale === "sr" ? sr : en;
-}
-
 function passwordError(locale: Locale, password: string) {
   const first = passwordValidationErrors(password)[0];
   return first
-    ? labelFor(locale, `Lozinka mora da sadrži: ${first.labelSr.toLowerCase()}.`, `Password must include: ${first.labelEn.toLowerCase()}.`)
+    ? t(locale, `Lozinka mora da sadrži: ${first.labelSr.toLowerCase()}.`, `Password must include: ${first.labelEn.toLowerCase()}.`)
     : null;
 }
 
@@ -86,7 +82,7 @@ function ConvexSignInForm({
         });
         setMessage({
           tone: "success",
-          text: labelFor(
+          text: t(
             locale,
             "Ako nalog postoji, poslali smo link za reset lozinke na email.",
             "If the account exists, we sent a password reset link to that email.",
@@ -97,14 +93,14 @@ function ConvexSignInForm({
 
       if (flow === "resetVerification") {
         if (!resetCode) {
-          throw new Error(labelFor(locale, "Reset link nije ispravan.", "The reset link is not valid."));
+          throw new Error(t(locale, "Reset link nije ispravan.", "The reset link is not valid."));
         }
         const resetPasswordError = passwordError(locale, newPassword);
         if (resetPasswordError) {
           throw new Error(resetPasswordError);
         }
         if (newPassword !== confirmPassword) {
-          throw new Error(labelFor(locale, "Lozinke se ne poklapaju.", "Passwords do not match."));
+          throw new Error(t(locale, "Lozinke se ne poklapaju.", "Passwords do not match."));
         }
 
         const result = await signIn("password", {
@@ -131,11 +127,11 @@ function ConvexSignInForm({
           throw new Error(signupPasswordError);
         }
         if (password !== signupConfirmPassword) {
-          throw new Error(labelFor(locale, "Lozinke se ne poklapaju.", "Passwords do not match."));
+          throw new Error(t(locale, "Lozinke se ne poklapaju.", "Passwords do not match."));
         }
         if (!isValidUsername(normalizedUsername)) {
           throw new Error(
-            labelFor(
+            t(
               locale,
               USERNAME_VALIDATION_MESSAGE_SR,
               USERNAME_VALIDATION_MESSAGE_EN,
@@ -143,7 +139,7 @@ function ConvexSignInForm({
           );
         }
         if (usernameAvailable === false) {
-          throw new Error(labelFor(locale, "Korisničko ime je već zauzeto.", "That username is already taken."));
+          throw new Error(t(locale, "Korisničko ime je već zauzeto.", "That username is already taken."));
         }
       }
 
@@ -162,7 +158,7 @@ function ConvexSignInForm({
           window.location.href = completionRedirect;
           return;
         }
-        throw new Error(labelFor(locale, "Pogrešno korisničko ime/email ili lozinka.", "Incorrect username/email or password."));
+        throw new Error(t(locale, "Pogrešno korisničko ime/email ili lozinka.", "Incorrect username/email or password."));
       }
       const result = await signIn("password", {
         flow,
@@ -184,18 +180,18 @@ function ConvexSignInForm({
         tone: "success",
         text:
           flow === "signUp"
-            ? labelFor(
+            ? t(
                 locale,
                 "Proveri email i potvrdi nalog. Ako profil vec postoji, nastavices bez dupliranja.",
                 "Check your email and confirm the account. If the profile already exists, it will continue without duplicating.",
               )
-            : labelFor(locale, "Proveri email za nastavak prijave.", "Check your email to continue signing in."),
+            : t(locale, "Proveri email za nastavak prijave.", "Check your email to continue signing in."),
       });
     } catch (error) {
       if (flow === "reset") {
         setMessage({
           tone: "success",
-          text: labelFor(
+          text: t(
             locale,
             "Ako nalog postoji, poslali smo link za reset lozinke na email.",
             "If the account exists, we sent a password reset link to that email.",
@@ -206,10 +202,10 @@ function ConvexSignInForm({
       setMessage({
         tone: "error",
         text: flow === "signIn"
-          ? labelFor(locale, "Pogrešno korisničko ime/email ili lozinka.", "Incorrect username/email or password.")
+          ? t(locale, "Pogrešno korisničko ime/email ili lozinka.", "Incorrect username/email or password.")
           : error instanceof Error
             ? error.message
-            : labelFor(locale, "Prijava nije uspela.", "Sign-in failed."),
+            : t(locale, "Prijava nije uspela.", "Sign-in failed."),
       });
     } finally {
       setPendingProvider(null);
@@ -228,7 +224,7 @@ function ConvexSignInForm({
     } catch (error) {
       setMessage({
         tone: "error",
-        text: error instanceof Error ? error.message : labelFor(locale, "Prijava nije uspela.", "Sign-in failed."),
+        text: error instanceof Error ? error.message : t(locale, "Prijava nije uspela.", "Sign-in failed."),
       });
       setPendingProvider(null);
     }
@@ -238,9 +234,9 @@ function ConvexSignInForm({
   const showPrimaryTabs = flow === "signIn" || flow === "signUp";
   const title =
     flow === "reset"
-      ? labelFor(locale, "Reset lozinke", "Reset password")
+      ? t(locale, "Reset lozinke", "Reset password")
       : flow === "resetVerification"
-        ? labelFor(locale, "Nova lozinka", "New password")
+        ? t(locale, "Nova lozinka", "New password")
         : null;
 
   return (
@@ -256,7 +252,7 @@ function ConvexSignInForm({
               flow === "signIn" ? "bg-ink text-white" : "bg-white text-ink hover:bg-yellow/25",
             )}
           >
-            {labelFor(locale, "Prijavi se", "Sign in")}
+            {t(locale, "Prijavi se", "Sign in")}
           </button>
           <div className="w-0.5 bg-ink" />
           <button
@@ -268,7 +264,7 @@ function ConvexSignInForm({
               flow === "signUp" ? "bg-ink text-white" : "bg-white text-ink hover:bg-yellow/25",
             )}
           >
-            {labelFor(locale, "Napravi profil", "Create profile")}
+            {t(locale, "Napravi profil", "Create profile")}
           </button>
         </div>
       ) : (
@@ -279,7 +275,7 @@ function ConvexSignInForm({
             className="inline-flex items-center gap-2 text-sm font-black text-ink underline"
           >
             <ArrowLeft className="size-4" />
-            {labelFor(locale, "Nazad na prijavu", "Back to sign in")}
+            {t(locale, "Nazad na prijavu", "Back to sign in")}
           </button>
           <h2 className="mt-4 text-3xl font-black text-ink">{title}</h2>
         </div>
@@ -288,7 +284,7 @@ function ConvexSignInForm({
       <form onSubmit={handlePassword} className="space-y-4">
         <div>
           <label htmlFor="email" className="text-sm font-black text-ink">
-            {flow === "signIn" ? labelFor(locale, "Korisničko ime ili email", "Username or email") : "Email"}
+            {flow === "signIn" ? t(locale, "Korisničko ime ili email", "Username or email") : "Email"}
           </label>
           <input
             id="email"
@@ -298,7 +294,7 @@ function ConvexSignInForm({
             onChange={(event) => setEmail(event.target.value)}
             required
             autoComplete={flow === "signIn" ? "username" : "email"}
-            placeholder={flow === "signIn" ? labelFor(locale, "@username ili ime@email.com", "@username or name@email.com") : undefined}
+            placeholder={flow === "signIn" ? t(locale, "@username ili ime@email.com", "@username or name@email.com") : undefined}
             className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-white px-4 text-base font-bold text-ink outline-none focus:border-yellow"
           />
         </div>
@@ -306,7 +302,7 @@ function ConvexSignInForm({
         {flow === "signUp" ? (
           <div>
             <label htmlFor="username" className="text-sm font-black text-ink">
-              {labelFor(locale, "Korisničko ime", "Username")}
+              {t(locale, "Korisničko ime", "Username")}
             </label>
             <div className="relative mt-2">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-base font-black text-ink/45">@</span>
@@ -326,14 +322,14 @@ function ConvexSignInForm({
             </div>
             <p className={cn("mt-1.5 text-xs font-bold", usernameAvailable === false ? "text-red-700" : "text-muted")}>
               {!normalizedUsername
-                ? labelFor(locale, "Username se koristi za @pominjanja u Zajednici.", "Your username is used for @mentions in Community.")
+                ? t(locale, "Username se koristi za @pominjanja u Zajednici.", "Your username is used for @mentions in Community.")
                 : !usernameFormatValid
-                  ? labelFor(locale, USERNAME_VALIDATION_MESSAGE_SR, USERNAME_VALIDATION_MESSAGE_EN)
+                  ? t(locale, USERNAME_VALIDATION_MESSAGE_SR, USERNAME_VALIDATION_MESSAGE_EN)
                 : usernameAvailable === undefined
-                  ? labelFor(locale, "Provera dostupnosti…", "Checking availability…")
+                  ? t(locale, "Provera dostupnosti…", "Checking availability…")
                   : usernameAvailable
-                    ? labelFor(locale, "Username je slobodan.", "Username is available.")
-                    : labelFor(locale, "Korisničko ime je već zauzeto.", "That username is already taken.")}
+                    ? t(locale, "Username je slobodan.", "Username is available.")
+                    : t(locale, "Korisničko ime je već zauzeto.", "That username is already taken.")}
             </p>
           </div>
         ) : null}
@@ -356,7 +352,7 @@ function ConvexSignInForm({
             {flow === "signUp" ? (
               <div className="mt-2 grid gap-1 text-xs font-bold text-muted sm:grid-cols-2">
                 {passwordRequirements.map((requirement) => (
-                  <span key={requirement.id}>• {labelFor(locale, requirement.labelSr, requirement.labelEn)}</span>
+                  <span key={requirement.id}>• {t(locale, requirement.labelSr, requirement.labelEn)}</span>
                 ))}
               </div>
             ) : null}
@@ -366,7 +362,7 @@ function ConvexSignInForm({
                 onClick={() => switchFlow("reset")}
                 className="mt-2 text-sm font-black text-blue-700 underline"
               >
-                {labelFor(locale, "Zaboravili ste lozinku?", "Forgot password?")}
+                {t(locale, "Zaboravili ste lozinku?", "Forgot password?")}
               </button>
             ) : null}
           </div>
@@ -375,7 +371,7 @@ function ConvexSignInForm({
         {flow === "signUp" ? (
           <div>
             <label htmlFor="signupConfirmPassword" className="text-sm font-black text-ink">
-              {labelFor(locale, "Potvrdi lozinku", "Confirm password")}
+              {t(locale, "Potvrdi lozinku", "Confirm password")}
             </label>
             <input
               id="signupConfirmPassword"
@@ -389,7 +385,7 @@ function ConvexSignInForm({
             />
             {signupConfirmPassword && password !== signupConfirmPassword ? (
               <p className="mt-1.5 text-xs font-black text-red-700">
-                {labelFor(locale, "Lozinke se ne poklapaju.", "Passwords do not match.")}
+                {t(locale, "Lozinke se ne poklapaju.", "Passwords do not match.")}
               </p>
             ) : null}
           </div>
@@ -399,7 +395,7 @@ function ConvexSignInForm({
           <>
             <div>
               <label htmlFor="newPassword" className="text-sm font-black text-ink">
-                {labelFor(locale, "Nova lozinka", "New password")}
+                {t(locale, "Nova lozinka", "New password")}
               </label>
               <input
                 id="newPassword"
@@ -412,13 +408,13 @@ function ConvexSignInForm({
               />
               <div className="mt-2 grid gap-1 text-xs font-bold text-muted sm:grid-cols-2">
                 {passwordRequirements.map((requirement) => (
-                  <span key={requirement.id}>• {labelFor(locale, requirement.labelSr, requirement.labelEn)}</span>
+                  <span key={requirement.id}>• {t(locale, requirement.labelSr, requirement.labelEn)}</span>
                 ))}
               </div>
             </div>
             <div>
               <label htmlFor="confirmPassword" className="text-sm font-black text-ink">
-                {labelFor(locale, "Ponovi lozinku", "Repeat password")}
+                {t(locale, "Ponovi lozinku", "Repeat password")}
               </label>
               <input
                 id="confirmPassword"
@@ -449,12 +445,12 @@ function ConvexSignInForm({
             <Mail className="size-4" />
           )}
           {flow === "signIn"
-            ? labelFor(locale, "Prijavi se", "Sign in")
+            ? t(locale, "Prijavi se", "Sign in")
             : flow === "signUp"
-              ? labelFor(locale, "Napravi profil", "Create profile")
+              ? t(locale, "Napravi profil", "Create profile")
               : flow === "reset"
-                ? labelFor(locale, "Posalji link", "Send link")
-                : labelFor(locale, "Sacuvaj lozinku", "Save password")}
+                ? t(locale, "Posalji link", "Send link")
+                : t(locale, "Sacuvaj lozinku", "Save password")}
         </button>
       </form>
 
@@ -469,7 +465,7 @@ function ConvexSignInForm({
             className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-white px-5 py-2.5 text-sm font-extrabold text-ink transition-all duration-200 hover:bg-yellow/25 disabled:opacity-70"
           >
             {pendingProvider === "google" ? <Loader2 className="size-4 animate-spin" /> : <span className="text-lg">G</span>}
-            {labelFor(locale, "Prijavi se preko Google-a", "Sign in with Google")}
+            {t(locale, "Prijavi se preko Google-a", "Sign in with Google")}
           </button>
         </>
       ) : null}
@@ -508,10 +504,10 @@ export function SignInPanel({
     return (
       <Panel className="p-6 md:p-8">
         <h2 className="text-2xl font-black text-ink">
-          {labelFor(locale, "Prijava je spremna za Convex", "Sign-in is ready for Convex")}
+          {t(locale, "Prijava je spremna za Convex", "Sign-in is ready for Convex")}
         </h2>
         <p className="mt-3 text-base leading-7 text-muted">
-          {labelFor(
+          {t(
             locale,
             "Dodaj NEXT_PUBLIC_CONVEX_URL i Convex Auth tajne da aktiviras email i Google prijavu.",
             "Add NEXT_PUBLIC_CONVEX_URL and Convex Auth secrets to activate email and Google sign-in.",

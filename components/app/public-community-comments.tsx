@@ -63,7 +63,7 @@ function PublicCommentNode({ postId, comment, locale }: { postId: string; commen
       <p className="text-xs font-black text-muted">{comment.authorUsername ? `@${comment.authorUsername}` : comment.authorName}</p>
       <p className="mt-2 whitespace-pre-wrap text-sm font-semibold leading-6 text-ink">{comment.body}</p>
       <div className="mt-3 flex flex-wrap items-center gap-3 text-xs font-black text-muted">
-        <span>{comment.voteScore} net glasova</span>
+        <span>{comment.voteScore} {locale === "sr" ? "neto glasova" : "net votes"}</span>
         {hasReplies ? <button type="button" onClick={() => setOpen((value) => !value)} className="inline-flex items-center gap-1 rounded-full border border-line bg-white px-3 py-1.5 text-ink"><ChevronRight className={`size-3.5 transition-transform ${open ? "rotate-90" : ""}`} />{open ? (locale === "sr" ? "Sažmi" : "Collapse") : `${locale === "sr" ? "Prikaži" : "Show"} ${comment.directReplyCount} ${locale === "sr" ? "odgovora" : "replies"}`}</button> : null}
       </div>
       {open ? <PublicReplies postId={postId} parentId={comment._id} locale={locale} /> : null}

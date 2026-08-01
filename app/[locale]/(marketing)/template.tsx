@@ -2,9 +2,9 @@ import { Suspense, type ReactNode } from "react";
 
 import { SiteRouteMotion } from "@/components/motion/page-motion";
 
-export default function LocaleTemplate({ children }: { children: ReactNode }) {
+export default function MarketingTemplate({ children }: { children: ReactNode }) {
   return (
-    <Suspense fallback={<div className="contents">{children}</div>}>
+    <Suspense fallback={null}>
       <SiteRouteMotion>{children}</SiteRouteMotion>
     </Suspense>
   );

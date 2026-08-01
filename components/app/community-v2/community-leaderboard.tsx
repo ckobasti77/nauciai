@@ -1,6 +1,6 @@
 "use client";
 
-import { Award, BookOpenCheck, CheckCircle2, Crown, HelpCircle, Medal, Sparkles, Trophy } from "lucide-react";
+import { Award, BookOpenCheck, CheckCircle2, ChevronDown, Crown, HelpCircle, Medal, Sparkles, Trophy } from "lucide-react";
 import Link from "next/link";
 
 import { CommunityAvatar } from "@/components/app/community-identity";
@@ -12,7 +12,6 @@ import { fallbackCommunityFilters, useCommunityFilters, useLeaderboard } from ".
 import { CommunityScopeControls, useCommunityQueryParams, useResolvedCommunityScope } from "./community-filters";
 import { CommunityStickyToolbar } from "./community-sticky-toolbar";
 import {
-  CommunityPageHeading,
   CommunityRouteSkeleton,
   EmptyCommunityState,
   LearningSpine,
@@ -197,18 +196,6 @@ function LeaderboardView({
 
   return (
     <div className="space-y-5">
-      <div className="hidden">
-      <CommunityPageHeading
-        eyebrow={locale === "sr" ? "Napredak, ne popularnost" : "Progress, not popularity"}
-        title={locale === "sr" ? "Leaderboard učenja" : "Learning leaderboard"}
-        body={
-          locale === "sr"
-            ? "Rang se gradi završenim lekcijama, obaveznim zadacima i korisnim odgovorima — jednako za Lite i Pro."
-            : "Rank is earned through completed lessons, required tasks, and helpful replies — equally for Lite and Pro."
-        }
-      />
-      </div>
-
       <CommunityStickyToolbar>
       <section className="overflow-x-auto rounded-[16px]! border border-line bg-white p-3 sm:p-4">
         <div className="flex min-w-max items-center gap-2">
@@ -309,7 +296,7 @@ function LeaderboardView({
             ) : null}
           </section>
 
-          <aside className="hidden space-y-4 xl:sticky xl:top-6">
+          <div className="mt-5 grid gap-4 md:grid-cols-2">
             <LearningSpine
               locale={locale}
               scope={scopeState.scope}
@@ -317,34 +304,49 @@ function LeaderboardView({
               course={scopeState.courseLabel}
               xp={viewer?.row?.xp}
             />
-            <section className="rounded-[16px]! border border-ink bg-white p-4 shadow-[4px_4px_0_rgba(244,190,48,0.7)]">
-              <div className="flex items-center gap-2">
-                <Sparkles className="size-4 text-yellow" aria-hidden="true" />
-                <h2 className="text-sm font-black text-ink">{locale === "sr" ? "Kako se dobija XP" : "How XP is earned"}</h2>
+            <details open className="group overflow-hidden rounded-[16px]! border border-ink bg-white shadow-[4px_4px_0_rgba(244,190,48,0.7)]">
+              <summary className="flex min-h-16 cursor-pointer list-none items-center gap-3 px-4 py-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
+                <Sparkles className="size-4 shrink-0 text-yellow" aria-hidden="true" />
+                <h2 className="min-w-0 flex-1 text-sm font-black text-ink">{locale === "sr" ? "Kako se dobija XP" : "How XP is earned"}</h2>
+                <ChevronDown className="size-5 shrink-0 text-ink transition group-open:rotate-180" aria-hidden="true" />
+              </summary>
+              <div className="border-t border-line px-4 py-4">
+                <ul className="space-y-3">
+                  {[
+                    { icon: BookOpenCheck, value: "+100", sr: "Završena lekcija", en: "Completed lesson" },
+                    { icon: CheckCircle2, value: "+20", sr: "Obavezni zadatak", en: "Required task" },
+                    { icon: HelpCircle, value: "+10", sr: "Koristan odgovor", en: "Helpful reply", href: `${withLocale(locale, "/app/community/discussions")}?sort=unanswered` },
+                  ].map((item) => {
+                    const Icon = item.icon;
+                    const label = locale === "sr" ? item.sr : item.en;
+                    return (
+                      <li key={item.value} className="flex items-center gap-3">
+                        <span className="grid size-8 place-items-center rounded-full bg-[#eef3f7] text-ink"><Icon className="size-4" aria-hidden="true" /></span>
+                        <span className="min-w-0 flex-1 text-sm font-bold text-ink">
+                          {item.href ? (
+                            <Link
+                              href={item.href}
+                              className="inline-flex min-h-11 items-center underline decoration-yellow decoration-2 underline-offset-4 transition hover:text-[#164d7d] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                            >
+                              {label}
+                            </Link>
+                          ) : (
+                            label
+                          )}
+                        </span>
+                        <span className="font-mono text-sm font-black text-ink">{item.value}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <p className="mt-4 border-t border-line pt-3 text-xs font-semibold leading-5 text-muted">
+                  {locale === "sr"
+                    ? "Lite i Pro imaju iste vrednosti. Staff nije rangiran. Jednaki XP deli isti rang."
+                    : "Lite and Pro use the same values. Staff is unranked. Equal XP shares the same rank."}
+                </p>
               </div>
-              <ul className="mt-4 space-y-3">
-                {[
-                  { icon: BookOpenCheck, value: "+100", sr: "Završena lekcija", en: "Completed lesson" },
-                  { icon: CheckCircle2, value: "+20", sr: "Obavezni zadatak", en: "Required task" },
-                  { icon: HelpCircle, value: "+10", sr: "Koristan odgovor", en: "Helpful reply" },
-                ].map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <li key={item.value} className="flex items-center gap-3">
-                      <span className="grid size-8 place-items-center rounded-full bg-[#eef3f7] text-ink"><Icon className="size-4" aria-hidden="true" /></span>
-                      <span className="min-w-0 flex-1 text-sm font-bold text-ink">{locale === "sr" ? item.sr : item.en}</span>
-                      <span className="font-mono text-sm font-black text-ink">{item.value}</span>
-                    </li>
-                  );
-                })}
-              </ul>
-              <p className="mt-4 border-t border-line pt-3 text-xs font-semibold leading-5 text-muted">
-                {locale === "sr"
-                  ? "Lite i Pro imaju iste vrednosti. Staff nije rangiran. Jednaki XP deli isti rang."
-                  : "Lite and Pro use the same values. Staff is unranked. Equal XP shares the same rank."}
-              </p>
-            </section>
-          </aside>
+            </details>
+          </div>
         </div>
       )}
     </div>

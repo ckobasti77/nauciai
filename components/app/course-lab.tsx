@@ -26,7 +26,7 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { InlineContentText } from "@/components/app/inline-content";
 import { cn } from "@/components/ui/primitives";
 import type { Course, Lesson } from "@/lib/content";
-import { localized, type Locale, withLocale } from "@/lib/i18n";
+import { localized, t, type Locale, withLocale } from "@/lib/i18n";
 
 type OutputKind = "text" | "image" | "audio" | "video" | "file";
 type CompletionMode = "manual" | "automatic" | "hybrid";
@@ -120,10 +120,6 @@ type ChatMessage = {
   messageId?: Id<"aiMessages">;
 };
 
-function labelFor(locale: Locale, sr: string, en: string) {
-  return locale === "sr" ? sr : en;
-}
-
 function localText(locale: Locale, sr: string, en: string) {
   return locale === "sr" ? sr || en : en || sr;
 }
@@ -145,7 +141,7 @@ function outputLabel(kind: OutputKind, locale: Locale) {
     file: ["Fajl", "File"],
   };
   const [sr, en] = labels[kind];
-  return labelFor(locale, sr, en);
+  return t(locale, sr, en);
 }
 
 function QuickPromptButton({
@@ -180,8 +176,8 @@ function QuickPromptButton({
       )}
     >
       <Sparkles className={cn("size-3.5", copied && "text-green-600")} />
-      {labelFor(locale, prompt.labelSr, prompt.labelEn)}
-      {copied && <span className="text-[10px] font-bold text-green-650 ml-0.5">({labelFor(locale, "Kopirano", "Copied")})</span>}
+      {t(locale, prompt.labelSr, prompt.labelEn)}
+      {copied && <span className="text-[10px] font-bold text-green-650 ml-0.5">({t(locale, "Kopirano", "Copied")})</span>}
     </button>
   );
 }
@@ -330,7 +326,7 @@ export function CourseLab({
         ...(latestOutput?._id ? { evidenceOutputId: latestOutput._id } : {}),
       });
     } catch (error) {
-      setStatusMessage(error instanceof Error ? error.message : labelFor(locale, "Zadatak nije sacuvan.", "Task was not saved."));
+      setStatusMessage(error instanceof Error ? error.message : t(locale, "Zadatak nije sacuvan.", "Task was not saved."));
     }
   }
 
@@ -345,9 +341,9 @@ export function CourseLab({
         return;
       }
       await markLessonProgress({ lessonId, completed: true, positionSeconds: 0 });
-      setStatusMessage(labelFor(locale, "Lekcija je zavrsena.", "Lesson completed."));
+      setStatusMessage(t(locale, "Lekcija je zavrsena.", "Lesson completed."));
     } catch (error) {
-      setStatusMessage(error instanceof Error ? error.message : labelFor(locale, "Napredak nije sacuvan.", "Progress was not saved."));
+      setStatusMessage(error instanceof Error ? error.message : t(locale, "Napredak nije sacuvan.", "Progress was not saved."));
     }
   }
 
@@ -355,7 +351,7 @@ export function CourseLab({
     if (!composer.trim() || !activeStep) return;
     const content = composer.trim();
     if (unconnectedModels.has(selectedModel)) {
-      setStatusMessage(labelFor(locale, "Integracija ovog modela uskoro.", "This model integration is coming soon."));
+      setStatusMessage(t(locale, "Integracija ovog modela uskoro.", "This model integration is coming soon."));
       return;
     }
     setComposer("");
@@ -416,9 +412,9 @@ export function CourseLab({
         text: lastAssistant.content,
       });
       setActiveMobileTab("output");
-      setStatusMessage(labelFor(locale, "Output je sacuvan.", "Output saved."));
+      setStatusMessage(t(locale, "Output je sacuvan.", "Output saved."));
     } catch (error) {
-      setStatusMessage(error instanceof Error ? error.message : labelFor(locale, "Output nije sacuvan.", "Output was not saved."));
+      setStatusMessage(error instanceof Error ? error.message : t(locale, "Output nije sacuvan.", "Output was not saved."));
     } finally {
       setIsSavingOutput(false);
     }
@@ -431,9 +427,9 @@ export function CourseLab({
       <div className="grid min-h-[560px] place-items-center rounded-[8px] border-2 border-ink bg-paper p-8 text-center">
         <div className="max-w-md">
           <Sparkles className="mx-auto size-10 text-ink" />
-          <h2 className="mt-4 text-2xl font-black text-ink">{labelFor(locale, "Pro prikaz je spreman", "Pro view is ready")}</h2>
-          <p className="mt-2 text-sm font-bold leading-6 text-muted">{labelFor(locale, "Dodaj prvi korak i zadatak u Pro editoru da bi se troslojni harness pojavio.", "Add the first step and task in the Pro editor to populate the three-column harness.")}</p>
-          {lab.isAdmin && !inlineEdit ? <Link href={withLocale(locale, `/app/courses/${course.slug}/lessons/${lesson.slug}/edit`)} className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black">{labelFor(locale, "Otvori Pro editor", "Open Pro editor")}</Link> : null}
+          <h2 className="mt-4 text-2xl font-black text-ink">{t(locale, "Pro prikaz je spreman", "Pro view is ready")}</h2>
+          <p className="mt-2 text-sm font-bold leading-6 text-muted">{t(locale, "Dodaj prvi korak i zadatak u Pro editoru da bi se troslojni harness pojavio.", "Add the first step and task in the Pro editor to populate the three-column harness.")}</p>
+          {lab.isAdmin && !inlineEdit ? <Link href={withLocale(locale, `/app/courses/${course.slug}/lessons/${lesson.slug}/edit`)} className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black">{t(locale, "Otvori Pro editor", "Open Pro editor")}</Link> : null}
         </div>
       </div>
     );
@@ -474,7 +470,7 @@ export function CourseLab({
               className="rounded-[8px] border-2 border-ink bg-white px-3 py-2 text-xs font-black text-ink hover:bg-yellow inline-flex items-center gap-1.5"
             >
               <Sparkles className="size-3.5" />
-              {labelFor(locale, "Otvori Editor vežbe", "Open Exercise Editor")}
+              {t(locale, "Otvori Editor vežbe", "Open Exercise Editor")}
             </Link>
           ) : null}
           <span className="rounded-[8px] border-2 border-ink bg-yellow px-3 py-2 text-xs font-black text-ink">
@@ -484,9 +480,9 @@ export function CourseLab({
       </div>
 
       <div className="flex gap-2 border-b-2 border-line bg-paper p-3 lg:hidden">
-        {activeColumns.some((c) => c.type === "explanation") && tabButton("lesson", labelFor(locale, "Lekcija", "Lesson"))}
+        {activeColumns.some((c) => c.type === "explanation") && tabButton("lesson", t(locale, "Lekcija", "Lesson"))}
         {activeColumns.some((c) => c.type === "chatbot") && tabButton("ai", "AI")}
-        {activeColumns.some((c) => c.type === "output") && tabButton("output", labelFor(locale, "Output", "Output"))}
+        {activeColumns.some((c) => c.type === "output") && tabButton("output", t(locale, "Output", "Output"))}
       </div>
 
       <div className="flex flex-col lg:flex-row min-h-[560px] max-h-[calc(100vh-260px)] min-w-0 w-full overflow-hidden select-none relative">
@@ -508,7 +504,7 @@ export function CourseLab({
               {col.type === "explanation" && (
                 <section className="h-full w-full bg-white overflow-hidden">
                   <div className="max-h-full overflow-y-auto p-5 select-text">
-                    <p className="text-xs font-black uppercase text-muted">{labelFor(locale, "Lekcija", "Lesson")}</p>
+                    <p className="text-xs font-black uppercase text-muted">{t(locale, "Lekcija", "Lesson")}</p>
                     <h2 className="mt-2 text-3xl font-black leading-tight text-ink">
                       <InlineContentText entityId={activeStep._id} parentId={lessonId} kind="step" field="title" locale={inlineLocale} sr={activeStep.titleSr} en={activeStep.titleEn} admin={inlineEdit}>
                         {localText(locale, activeStep.titleSr, activeStep.titleEn)}
@@ -523,7 +519,7 @@ export function CourseLab({
                     {activeStep.prompts && (activeStep.prompts as QuickPrompt[]).length > 0 && (
                       <div className="mt-6 border-t-2 border-line pt-4">
                         <p className="text-xs font-black uppercase text-muted mb-3">
-                          {labelFor(locale, "Brzi promptovi (klikni za kopiranje)", "Quick Prompts (click to copy)")}
+                          {t(locale, "Brzi promptovi (klikni za kopiranje)", "Quick Prompts (click to copy)")}
                         </p>
                         <div className="flex flex-wrap gap-2">
                           {(activeStep.prompts as QuickPrompt[]).map((prompt, pIdx) => (
@@ -538,7 +534,7 @@ export function CourseLab({
                     <div className="mt-6 border-t-2 border-line pt-4">
                       <div className="flex items-center gap-2">
                         <CheckCircle2 className="size-5 text-ink" />
-                        <h3 className="text-lg font-black text-ink">{labelFor(locale, "Zadaci", "Tasks")}</h3>
+                        <h3 className="text-lg font-black text-ink">{t(locale, "Zadaci", "Tasks")}</h3>
                       </div>
                       <div className="mt-4 space-y-3">
                         {sortedTasks.map((task, index) => {
@@ -560,7 +556,7 @@ export function CourseLab({
                                 {done ? <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-yellow" /> : <Circle className="mt-0.5 size-5 shrink-0 text-line" />}
                                 <div>
                                   <p className="text-xs font-black uppercase text-muted">
-                                    {labelFor(locale, "Checkpoint", "Checkpoint")} {index + 1}
+                                    {t(locale, "Checkpoint", "Checkpoint")} {index + 1}
                                     {task.required ? " *" : ""}
                                   </p>
                                   <p className="mt-1 text-sm font-bold leading-6 text-ink">
@@ -576,7 +572,7 @@ export function CourseLab({
                       </div>
                       {selectedTask?.hintSr || selectedTask?.hintEn ? (
                         <details className="mt-4 rounded-[8px] border-2 border-ink bg-yellow/40 p-3">
-                          <summary className="cursor-pointer text-sm font-black text-ink">{labelFor(locale, "Stuck? Otvori hint", "Stuck? Open hint")}</summary>
+                          <summary className="cursor-pointer text-sm font-black text-ink">{t(locale, "Stuck? Otvori hint", "Stuck? Open hint")}</summary>
                           <p className="mt-3 text-sm font-bold leading-6 text-muted">
                             <InlineContentText entityId={selectedTask._id} parentId={activeStep._id} kind="task" field="hint" locale={inlineLocale} sr={selectedTask.hintSr ?? ""} en={selectedTask.hintEn ?? ""} admin={inlineEdit} multiline>
                               {localText(locale, selectedTask.hintSr ?? "", selectedTask.hintEn ?? "")}
@@ -615,18 +611,18 @@ export function CourseLab({
                           ))}
                         </select>
                       </div>
-                      {unconnectedModels.has(selectedModel) ? <p className="mt-2 text-xs font-black text-muted">{labelFor(locale, "Model je prikazan za pregled. Integracija uskoro.", "Model is shown for preview. Integration coming soon.")}</p> : null}
+                      {unconnectedModels.has(selectedModel) ? <p className="mt-2 text-xs font-black text-muted">{t(locale, "Model je prikazan za pregled. Integracija uskoro.", "Model is shown for preview. Integration coming soon.")}</p> : null}
                       <div className="mt-4 rounded-[8px] border-2 border-line bg-paper p-3">
-                        <p className="text-xs font-black uppercase text-muted">{labelFor(locale, "Trenutni zadatak", "Current task")}</p>
+                        <p className="text-xs font-black uppercase text-muted">{t(locale, "Trenutni zadatak", "Current task")}</p>
                         <p className="mt-1 text-sm font-bold leading-6 text-ink">
-                          {selectedTask ? localText(locale, selectedTask.promptSr, selectedTask.promptEn) : labelFor(locale, "Nema taska.", "No task.")}
+                          {selectedTask ? localText(locale, selectedTask.promptSr, selectedTask.promptEn) : t(locale, "Nema taska.", "No task.")}
                         </p>
                       </div>
                       <div className="mt-3 flex flex-wrap gap-2">
                         {[
-                          labelFor(locale, "Objasni mi ovaj zadatak", "Explain this task"),
-                          labelFor(locale, "Daj mi plan rada", "Give me a work plan"),
-                          labelFor(locale, "Predlozi bolji output", "Suggest a better output"),
+                          t(locale, "Objasni mi ovaj zadatak", "Explain this task"),
+                          t(locale, "Daj mi plan rada", "Give me a work plan"),
+                          t(locale, "Predlozi bolji output", "Suggest a better output"),
                         ].map((prompt) => (
                           <button key={prompt} type="button" onClick={() => setComposer(prompt)} className="rounded-[8px] border-2 border-line bg-white px-3 py-2 text-xs font-black text-ink hover:border-ink">
                             <Sparkles className="mr-1 inline size-3" />
@@ -639,7 +635,7 @@ export function CourseLab({
                       {chatMessages.length ? (
                         chatMessages.map((message) => (
                           <div key={message.id} className={cn("max-w-[88%] rounded-[8px] border-2 p-3", message.role === "assistant" ? "border-ink bg-white" : "ml-auto border-ink bg-yellow")}>
-                            <p className="text-xs font-black uppercase text-muted">{message.role === "assistant" ? "AI" : labelFor(locale, "Ti", "You")}</p>
+                            <p className="text-xs font-black uppercase text-muted">{message.role === "assistant" ? "AI" : t(locale, "Ti", "You")}</p>
                             <p className="mt-1 whitespace-pre-wrap text-sm font-bold leading-6 text-ink">{message.content}</p>
                           </div>
                         ))
@@ -647,7 +643,7 @@ export function CourseLab({
                         <div className="rounded-[8px] border-2 border-dashed border-line bg-white p-5 text-center">
                           <MessageSquareText className="mx-auto size-8 text-ink" />
                           <p className="mt-3 text-sm font-black text-muted">
-                            {labelFor(locale, "Pitaj AI za pomoc oko trenutnog zadatka.", "Ask AI for help with the current task.")}
+                            {t(locale, "Pitaj AI za pomoc oko trenutnog zadatka.", "Ask AI for help with the current task.")}
                           </p>
                         </div>
                       )}
@@ -657,7 +653,7 @@ export function CourseLab({
                         <textarea
                           value={composer}
                           onChange={(event) => setComposer(event.target.value)}
-                          placeholder={labelFor(locale, "Posalji poruku...", "Send a message...")}
+                          placeholder={t(locale, "Posalji poruku...", "Send a message...")}
                           className="min-h-12 flex-1 resize-none rounded-[8px] border-2 border-ink px-3 py-2 text-sm font-bold text-ink outline-none"
                         />
                         <button
@@ -676,7 +672,7 @@ export function CourseLab({
                         className="mt-3 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-ink px-4 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {isSavingOutput ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-                        {labelFor(locale, "Save to output", "Save to output")}
+                        {t(locale, "Save to output", "Save to output")}
                       </button>
                     </div>
                   </div>
@@ -720,7 +716,7 @@ export function CourseLab({
                       <div className="mt-5 rounded-[8px] border-2 border-dashed border-line bg-paper p-6 text-center">
                         <Save className="mx-auto size-8 text-ink" />
                         <p className="mt-3 text-sm font-black text-muted">
-                          {labelFor(locale, "Sacuvaj AI odgovor ili uploadovan fajl da bi se pojavio ovde.", "Save an AI answer or uploaded file to show it here.")}
+                          {t(locale, "Sacuvaj AI odgovor ili uploadovan fajl da bi se pojavio ovde.", "Save an AI answer or uploaded file to show it here.")}
                         </p>
                       </div>
                     )}
@@ -740,7 +736,7 @@ export function CourseLab({
                 <div
                   onMouseDown={(e) => startResizing(idx, e)}
                   className="absolute top-0 right-0 w-2.5 h-full cursor-col-resize hover:bg-yellow/85 bg-transparent transition duration-150 z-20 group hidden lg:block"
-                  title={labelFor(locale, "Prevuci da resajzuješ", "Drag to resize")}
+                  title={t(locale, "Prevuci da resajzuješ", "Drag to resize")}
                 >
                   <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white border-2 border-ink rounded p-0.5 shadow opacity-0 group-hover:opacity-100 transition duration-150">
                     <GripVertical className="size-3 text-ink" />
@@ -758,7 +754,7 @@ export function CourseLab({
             {activeStepIndex + 1}/{sortedSteps.length}
           </span>
           <span className="text-sm font-bold text-muted">
-            {requiredDone ? labelFor(locale, "Svi obavezni zadaci su gotovi.", "All required tasks are done.") : labelFor(locale, "Next se otkljucava kada zavrsis zadatke.", "Next unlocks after required tasks.")}
+            {requiredDone ? t(locale, "Svi obavezni zadaci su gotovi.", "All required tasks are done.") : t(locale, "Next se otkljucava kada zavrsis zadatke.", "Next unlocks after required tasks.")}
           </span>
         </div>
         <div className="flex gap-2">

@@ -76,8 +76,8 @@ export function MessagesHub({ locale, selectedConversationId }: { locale: Locale
   };
 
   return (
-    <ChatMotionScope sceneKey={selected ? String(selected) : view} className="mx-auto flex h-[calc(100dvh-7rem)] min-h-0 max-w-[1500px] min-w-0 flex-col md:min-h-[560px] lg:h-[calc(100vh-4rem)]">
-      <header className={cn("mb-4 items-center justify-between gap-4 rounded-[16px] border-2 border-line bg-white px-4 py-3 shadow-[4px_4px_0_0_rgba(14,49,88,0.08)] sm:px-5", selected ? "hidden xl:flex" : "flex")}>
+    <ChatMotionScope sceneKey={selected ? String(selected) : view} className="mx-auto flex h-[calc(100dvh-7rem)] min-h-0 max-w-[1500px] min-w-0 flex-col lg:h-[calc(100dvh-4rem)]">
+      <header className={cn("mb-4 items-center justify-between gap-4 rounded-[16px] border-2 border-line bg-white px-4 py-3 shadow-[4px_4px_0_0_rgba(14,49,88,0.08)] sm:px-5", selected ? "hidden lg:flex" : "flex")}>
         <div className="shrink-0">
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#2e6f9f]">Nauči AI</p>
           <h1 className="whitespace-nowrap text-xl font-black text-ink sm:text-2xl">{label(locale, "Poruke", "Messages")}</h1>
@@ -89,8 +89,8 @@ export function MessagesHub({ locale, selectedConversationId }: { locale: Locale
       </header>
 
       {view === "study" ? <StudyHub locale={locale} courseSlug={courseSlug || undefined} onCourseSlugChange={(slug) => updateParams({ course: slug || undefined })} onOpenConversation={(conversationId) => { const next = new URLSearchParams(); next.set("view", "study"); if (courseSlug) next.set("course", courseSlug); router.push(`${withLocale(locale, `/app/messages/${conversationId}`)}?${next.toString()}`); }} className="min-h-0 flex-1 overflow-y-auto" /> : <div className="flex min-h-0 min-w-0 flex-1 gap-4">
-        <div className={cn("flex min-w-0 flex-1 xl:w-[340px] xl:flex-none 2xl:w-[360px]", selected && "hidden xl:flex")}><InboxPane locale={locale} selectedConversationId={selectedConversationId} section={section} query={query} onSectionChange={(nextSection) => updateParams({ section: nextSection === "all" ? undefined : nextSection })} onQueryChange={(nextQuery) => updateParams({ q: nextQuery || undefined })} onOpenStudy={() => changeView("study")} /></div>
-        <div className={cn("min-h-0 min-w-0 flex-1", selected ? "flex" : "hidden xl:flex")}>
+        <div className={cn("flex min-w-0 flex-1 lg:w-[340px] lg:flex-none 2xl:w-[360px]", selected && "hidden lg:flex")}><InboxPane locale={locale} selectedConversationId={selectedConversationId} section={section} query={query} onSectionChange={(nextSection) => updateParams({ section: nextSection === "all" ? undefined : nextSection })} onQueryChange={(nextQuery) => updateParams({ q: nextQuery || undefined })} onOpenStudy={() => changeView("study")} /></div>
+        <div className={cn("min-h-0 min-w-0 flex-1", selected ? "flex" : "hidden lg:flex")}>
           {selected ? <ConversationPanel key={selected} locale={locale} conversationId={selected} onBack={backToInbox} /> : <div data-chat-motion-surface="thread" className="grid h-full flex-1 place-items-center rounded-[16px] border-2 border-dashed border-line bg-white p-8 text-center"><div className="max-w-md"><span className="mx-auto grid size-16 place-items-center rounded-full border-2 border-ink bg-[#d7e9f5]"><BookOpenCheck className="size-7" /></span><h2 className="mt-4 text-2xl font-black">{label(locale, "Tvoj prostor za razgovor", "Your conversation space")}</h2><p className="mt-2 text-sm font-bold leading-6 text-muted">{label(locale, "Izaberi razgovor sa liste ili pronađi nekoga sa kim želiš da učiš.", "Choose a conversation from the list or find someone to study with.")}</p><div className="mt-5 flex flex-wrap justify-center gap-2"><button type="button" onClick={() => changeView("study")} className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-xs font-black"><Sparkles className="size-4" />{label(locale, "Pronađi partnera", "Find a partner")}</button><Link href={withLocale(locale, "/app/community/members")} className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-white px-4 text-xs font-black"><Users className="size-4" />{label(locale, "Pregledaj članove", "Browse members")}</Link></div></div></div>}
         </div>
       </div>}

@@ -3,6 +3,13 @@ import { redirect } from "next/navigation";
 import { ChatModerationConsole } from "@/components/app/chat/chat-moderation-console";
 import { getCurrentViewerProfile } from "@/lib/current-viewer";
 import { normalizeLocale, withLocale } from "@/lib/i18n";
+import type { Metadata } from "next";
+import { appPageMetadata } from "@/lib/app-metadata";
+
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const { locale } = await params;
+  return appPageMetadata(locale, { sr: "Chat sigurnost", en: "Chat safety" });
+}
 
 export default async function ChatModerationPage({
   params,

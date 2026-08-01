@@ -6,7 +6,9 @@ import type { FunctionReturnType } from "convex/server";
 import { cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import type { Locale } from "@/lib/i18n";
+import { t, type Locale } from "@/lib/i18n";
+
+export { t as label } from "@/lib/i18n";
 
 export type InboxSection = "all" | "unread" | "requests" | "groups" | "archive";
 export type InboxItem = NonNullable<FunctionReturnType<typeof api.chat.listInboxPage>["page"][number]>;
@@ -57,16 +59,89 @@ export const sections: Array<{ value: InboxSection; sr: string; en: string }> = 
   { value: "archive", sr: "Arhiva", en: "Archive" },
 ];
 
-export function label(locale: Locale, sr: string, en: string) {
-  return locale === "sr" ? sr : en;
-}
-
 export function creationError(locale: Locale, error: unknown) {
   const message = error instanceof Error ? error.message : "";
-  if (message.includes("DM_PRIVACY")) return label(locale, "Ovaj član trenutno ne prima nove poruke.", "This member is not accepting new messages right now.");
-  if (message.includes("CHAT_BLOCKED")) return label(locale, "Razgovor nije dostupan zbog blokiranja.", "This conversation is unavailable because of a block.");
-  if (message.includes("RATE_LIMIT")) return label(locale, "Previše poziva odjednom. Pokušaj ponovo kasnije.", "Too many invites at once. Try again later.");
-  return label(locale, "Razgovor nije mogao da se kreira. Pokušaj ponovo.", "The conversation could not be created. Try again.");
+  if (message.includes("DM_PRIVACY")) return t(locale, "Ovaj član trenutno ne prima nove poruke.", "This member is not accepting new messages right now.");
+  if (message.includes("CHAT_BLOCKED")) return t(locale, "Razgovor nije dostupan zbog blokiranja.", "This conversation is unavailable because of a block.");
+  if (message.includes("RATE_LIMIT")) return t(locale, "Previše poziva odjednom. Pokušaj ponovo kasnije.", "Too many invites at once. Try again later.");
+  return t(locale, "Razgovor nije mogao da se kreira. Pokušaj ponovo.", "The conversation could not be created. Try again.");
+}
+
+// Codes thrown by api.chat.sendMessage. Kept separate from creationError, whose
+// fallback copy is about creating a conversation and whose RATE_LIMIT branch is
+// only reachable from the invite path.
+export function sendError(locale: Locale, error: unknown) {
+  const message = error instanceof Error ? error.message : "";
+  if (message.includes("CHAT_SUSPENDED")) return t(locale, "Slanje poruka ti je privremeno onemogućeno.", "Sending messages is temporarily disabled for you.");
+  if (message.includes("CHAT_BLOCKED")) return t(locale, "Razgovor nije dostupan zbog blokiranja.", "This conversation is unavailable because of a block.");
+  if (message.includes("REQUEST_DECLINED")) return t(locale, "Zahtev za razgovor je odbijen.", "The conversation request was declined.");
+  if (message.includes("REQUEST_MESSAGE_LIMIT")) return t(locale, "Sačekaj da član prihvati razgovor pre nego što pošalješ još poruka.", "Wait for the member to accept before sending more messages.");
+  if (message.includes("REQUEST_NOT_ACCEPTED")) return t(locale, "Zahtev za razgovor još nije prihvaćen.", "The conversation request has not been accepted yet.");
+  if (message.includes("IMAGES_TOO_LARGE")) return t(locale, "Slike u jednoj poruci mogu imati ukupno najviše 25 MB.", "Images in one message may total at most 25 MB.");
+  if (message.includes("TOO_MANY_IMAGES")) return t(locale, "Jedna poruka može imati najviše četiri slike.", "A message can contain up to four images.");
+  if (message.includes("INVALID_PREPARED_IMAGE")) return t(locale, "Slika više nije spremna za slanje. Dodaj je ponovo.", "The image is no longer ready to send. Add it again.");
+  return t(locale, "Poruka nije poslata. Pokušaj ponovo.", "The message was not sent. Try again.");
+}
+
+const OPTIMISTIC_PREFIX = "optimistic:";
+
+// The synthetic id doubles as the pending marker so the server-derived
+// ChatMessage type does not have to be widened with a `pending` field.
+export function optimisticMessageId(clientNonce: string) {
+  return `${OPTIMISTIC_PREFIX}${clientNonce}` as Id<"chatMessages">;
+}
+
+export function isOptimisticMessage(message: ChatMessage) {
+  return String(message.id).startsWith(OPTIMISTIC_PREFIX);
+}
+
+export function buildOptimisticMessage({
+  clientNonce,
+  sequence,
+  body,
+  sender,
+  replyTo,
+  mentionUserIds,
+  images,
+}: {
+  clientNonce: string;
+  sequence: number;
+  body?: string;
+  sender: ChatMessage["sender"];
+  replyTo: ChatMessage | null;
+  mentionUserIds: Array<Id<"users">>;
+  images: PreparedChatImage[];
+}): ChatMessage {
+  return {
+    id: optimisticMessageId(clientNonce),
+    sequence,
+    sender,
+    kind: "user",
+    body,
+    replyTo: replyTo
+      ? { id: replyTo.id, senderName: replyTo.sender?.name, body: replyTo.body, collapsed: false }
+      : null,
+    mentions: mentionUserIds,
+    imageCount: images.length,
+    images: images.map((image) => ({
+      id: image.imageId,
+      fileName: image.fileName,
+      mimeType: image.mimeType,
+      byteSize: image.byteSize,
+      width: image.width,
+      height: image.height,
+      url: null,
+    })),
+    reactions: [],
+    editedAt: undefined,
+    deletedAt: undefined,
+    createdAt: Date.now(),
+    seenCount: 0,
+    seenBy: [],
+    seenByTruncated: false,
+    linkPreview: null,
+    collapsed: false,
+  };
 }
 
 export function preferredScrollBehavior(): ScrollBehavior {
@@ -80,6 +155,36 @@ export function newMessagesLabel(locale: Locale, count: number) {
   if (last === 1 && lastTwo !== 11) return count === 1 ? "Nova poruka" : `${count} nova poruka`;
   if (last >= 2 && last <= 4 && (lastTwo < 12 || lastTwo > 14)) return `${count} nove poruke`;
   return `${count} novih poruka`;
+}
+
+export function dayKey(timestamp: number) {
+  const date = new Date(timestamp);
+  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+}
+
+export function dayLabel(locale: Locale, timestamp: number) {
+  const now = new Date();
+  if (dayKey(now.getTime()) === dayKey(timestamp)) return t(locale, "Danas", "Today");
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (dayKey(yesterday.getTime()) === dayKey(timestamp)) return t(locale, "Juče", "Yesterday");
+  const date = new Date(timestamp);
+  return new Intl.DateTimeFormat(locale === "sr" ? "sr-Latn" : "en", {
+    day: "numeric",
+    month: "long",
+    ...(date.getFullYear() === now.getFullYear() ? {} : { year: "numeric" }),
+  }).format(date);
+}
+
+const GROUPING_WINDOW_MS = 5 * 60 * 1000;
+
+export function canGroupMessages(previous: ChatMessage, current: ChatMessage) {
+  if (previous.kind !== "user" || current.kind !== "user") return false;
+  const previousSender = previous.sender;
+  const currentSender = current.sender;
+  if (!previousSender || !currentSender || !("userId" in previousSender) || !("userId" in currentSender)) return false;
+  if (previousSender.userId !== currentSender.userId) return false;
+  return current.createdAt - previous.createdAt <= GROUPING_WINDOW_MS;
 }
 
 export function relativeTime(locale: Locale, timestamp?: number) {

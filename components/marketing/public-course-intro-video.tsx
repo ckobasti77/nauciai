@@ -4,11 +4,7 @@ import { PlayCircle } from "lucide-react";
 import Image from "next/image";
 
 import { cn } from "@/components/ui/primitives";
-import type { Locale } from "@/lib/i18n";
-
-function labelFor(locale: Locale, sr: string, en: string) {
-  return locale === "sr" ? sr : en;
-}
+import { t, type Locale } from "@/lib/i18n";
 
 export function PublicCourseIntroVideo({
   videoUrl,
@@ -49,7 +45,7 @@ export function PublicCourseIntroVideo({
             <PlayCircle className="size-10 fill-current" />
           </span>
           <p className="mt-4 text-sm font-black text-white/80">
-            {labelFor(locale, "Intro video trenutno nije dostupan.", "The intro video is not available right now.")}
+            {t(locale, "Intro video trenutno nije dostupan.", "The intro video is not available right now.")}
           </p>
         </div>
       </div>

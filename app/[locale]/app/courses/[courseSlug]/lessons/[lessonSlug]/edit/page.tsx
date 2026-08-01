@@ -7,6 +7,13 @@ import type { Course, Lesson } from "@/lib/content";
 import { findCourse, findLesson } from "@/lib/content";
 import { convexQueries, getConvexHttpClient } from "@/lib/convex-http";
 import { normalizeLocale, withLocale } from "@/lib/i18n";
+import type { Metadata } from "next";
+import { appPageMetadata } from "@/lib/app-metadata";
+
+export async function generateMetadata({ params }: { params: Promise<{ locale: string; courseSlug: string; lessonSlug: string }> }): Promise<Metadata> {
+  const { locale } = await params;
+  return appPageMetadata(locale, { sr: "Izmena lekcije", en: "Edit lesson" });
+}
 
 type LiveLessonPayload = {
   course?: {

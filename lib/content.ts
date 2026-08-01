@@ -416,41 +416,6 @@ export const courses: Course[] = [
   },
 ];
 
-export const communityPosts = [
-  {
-    id: "post-1",
-    author: "Mina Petrović",
-    role: "student",
-    title: {
-      sr: "Moj prvi AI voiceover workflow",
-      en: "My first AI voiceover workflow",
-    },
-    body: {
-      sr: "Kombinovala sam kratki scenario, dva tona glasa i tri iteracije montaže. Najviše je pomogao radni list za tempo.",
-      en: "I combined a short script, two voice tones, and three edit passes. The pacing worksheet helped most.",
-    },
-    createdAt: 1762257600000,
-    reactions: 18,
-    comments: 6,
-  },
-  {
-    id: "post-2",
-    author: "Fakultet za AI",
-    role: "admin",
-    title: {
-      sr: "Novi materijali za editor lekciju",
-      en: "New materials for the editor lesson",
-    },
-    body: {
-      sr: "Dodati su checklist za finalni eksport i primer briefa za završni projekat.",
-      en: "The final export checklist and final project brief example have been added.",
-    },
-    createdAt: 1762171200000,
-    reactions: 31,
-    comments: 9,
-  },
-];
-
 export const studentProfile = {
   name: "Nikola Jovanović",
   email: "nikola@example.com",

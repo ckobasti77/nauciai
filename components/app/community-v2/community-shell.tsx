@@ -335,7 +335,7 @@ function CommunityShellView({
       </section>
 
       <SmartStickyRegion
-        className="top-16 z-30 overflow-hidden border-b-2 border-line/75 bg-paper/95 shadow-[0_8px_18px_-16px_rgba(14,49,88,0.55)] backdrop-blur lg:top-0"
+        className="top-16 z-30 overflow-hidden border-b-2 border-line/75 bg-paper/95 shadow-[0_8px_18px_-16px_rgba(14,49,88,0.55)] backdrop-blur md:top-0"
       >
       <nav aria-label={locale === "sr" ? "Sekcije zajednice" : "Community sections"}>
         <div className="hidden overflow-x-auto sm:block">
@@ -404,7 +404,7 @@ function CommunityShellView({
         </Link>
       ) : null}
 
-      <main>{children}</main>
+      <div>{children}</div>
 
       {mobileMenuOpen ? (
         <div className="fixed inset-0 z-50 sm:hidden" role="presentation">

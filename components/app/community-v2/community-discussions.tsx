@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation } from "convex/react";
-import { ArrowBigDown, ArrowBigUp, ArrowDown, ArrowUp, Bookmark, ChevronDown, Lightbulb, MessageCircle, MessageSquareText, PenLine, Pin, Share2, Sparkles } from "lucide-react";
+import { ArrowBigDown, ArrowBigUp, Bookmark, ChevronDown, MessageCircle, MessageSquareText, PenLine, Pin, Share2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -23,13 +23,10 @@ import {
 import { CommunityScopeControls, useCommunityQueryParams, useResolvedCommunityScope } from "./community-filters";
 import { CommunityStickyToolbar } from "./community-sticky-toolbar";
 import {
-  CommunityPageHeading,
   CommunityRouteSkeleton,
   CommunitySearch,
   EmptyCommunityState,
-  LearningSpine,
   LoadMoreButton,
-  ScopeTrail,
   ThreadCard,
 } from "./community-shared";
 import type { CommunityFilters, CommunityPostRow } from "./community-types";
@@ -114,7 +111,7 @@ function ShareThreadButton({ locale, post }: { locale: Locale; post: CommunityPo
       onClick={() => void shareThread()}
       disabled={busy}
       aria-label={locale === "sr" ? "Podeli diskusiju" : "Share discussion"}
-      className="grid size-8 place-items-center rounded-full text-muted transition hover:bg-ink/5 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
+      className="grid size-11 place-items-center rounded-full text-muted transition hover:bg-ink/5 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50 sm:size-8"
     >
       <Share2 className="size-4" aria-hidden="true" />
     </button>
@@ -288,7 +285,7 @@ function DiscussionsView({
         highlighted={highlighted}
         leadingAction={
           <>
-            <div className="flex items-center gap-0.5">
+            <div className="flex items-center gap-0.5 text-ink">
               <button
                 type="button"
                 disabled={!canInteract || !onReactPost}
@@ -298,10 +295,14 @@ function DiscussionsView({
                 }}
                 aria-label={locale === "sr" ? "Upvote diskusije" : "Upvote discussion"}
                 aria-pressed={post.userVote === "upvote"}
-                className="grid size-8 place-items-center rounded-full text-muted transition hover:bg-emerald-50 hover:text-emerald-600 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-35"
+                className="grid size-11 place-items-center rounded-full text-muted transition hover:bg-emerald-50 hover:text-emerald-600 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-35 sm:size-8"
               >
                 <ArrowBigUp className={cn("size-[18px] fill-transparent", post.userVote === "upvote" && "fill-emerald-500 text-emerald-600")} />
               </button>
+              <span className={cn("min-w-8 text-center text-xs font-black", (post.voteScore ?? 0) < 0 && "text-red-700")}>
+                {post.voteScore ?? 0}
+                <span className="sr-only"> {locale === "sr" ? "neto glasova" : "net votes"}</span>
+              </span>
               <button
                 type="button"
                 disabled={!canInteract || !onReactPost}
@@ -311,7 +312,7 @@ function DiscussionsView({
                 }}
                 aria-label={locale === "sr" ? "Downvote diskusije" : "Downvote discussion"}
                 aria-pressed={post.userVote === "downvote"}
-                className="grid size-8 place-items-center rounded-full text-muted transition hover:bg-red-50 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-35"
+                className="grid size-11 place-items-center rounded-full text-muted transition hover:bg-red-50 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-35 sm:size-8"
               >
                 <ArrowBigDown className={cn("size-[18px] fill-transparent", post.userVote === "downvote" && "fill-red-500 text-red-600")} />
               </button>
@@ -329,13 +330,14 @@ function DiscussionsView({
                 }
               }}
               aria-expanded={expandedPostId === post._id}
-              aria-label={expandedPostId === post._id ? locale === "sr" ? "Sakrij komentare treda" : "Hide thread comments" : locale === "sr" ? "Prikaži komentare treda" : "Show thread comments"}
+              aria-label={`${expandedPostId === post._id ? (locale === "sr" ? "Sakrij komentare treda" : "Hide thread comments") : locale === "sr" ? "Prikaži komentare treda" : "Show thread comments"} (${post.commentsCount ?? 0})`}
               className={cn(
-                "grid size-8 place-items-center rounded-full text-muted transition hover:bg-ink/5 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink",
+                "inline-flex min-h-11 items-center gap-1 rounded-full px-2.5 text-xs font-black text-muted transition hover:bg-ink/5 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink sm:min-h-8",
                 expandedPostId === post._id && "bg-ink/5 text-ink",
               )}
             >
               <MessageCircle className="size-[18px]" aria-hidden="true" />
+              {post.commentsCount ?? 0}
             </button>
           </>
         }
@@ -352,7 +354,7 @@ function DiscussionsView({
               aria-label={post.isFavorited ? locale === "sr" ? "Ukloni iz sačuvanih" : "Remove from saved" : locale === "sr" ? "Sačuvaj diskusiju" : "Save discussion"}
               aria-pressed={Boolean(post.isFavorited)}
               className={cn(
-                "grid size-8 place-items-center rounded-full text-muted transition hover:bg-ink/5 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-35",
+                "grid size-11 place-items-center rounded-full text-muted transition hover:bg-ink/5 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-35 sm:size-8",
                 post.isFavorited && "bg-yellow/25 text-ink",
               )}
             >
@@ -381,26 +383,6 @@ function DiscussionsView({
 
   return (
     <div className="space-y-5">
-      <div className="hidden">
-      <CommunityPageHeading
-        eyebrow={locale === "sr" ? "Otvoreni studio" : "Open studio"}
-        title={locale === "sr" ? "Diskusije koje pomeraju rad napred" : "Discussions that move the work forward"}
-        body={
-          locale === "sr"
-            ? "Pronađi odgovor po smeru ili kursu, vidi šta je aktivno i otvori pitanje sa dovoljno konteksta."
-            : "Find answers by track or course, see what is active, and open a question with enough context."
-        }
-        action={
-          canInteract ? <Link
-            href={withLocale(locale, "/app/community/new")}
-            className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-sm font-black text-ink shadow-[3px_3px_0_rgba(14,49,88,0.18)] transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-          >
-            <PenLine className="size-4" aria-hidden="true" />
-            {locale === "sr" ? "Nova diskusija" : "New discussion"}
-          </Link> : <span className="inline-flex min-h-11 items-center justify-center rounded-full border-2 border-line bg-paper px-4 text-sm font-black text-muted">{locale === "sr" ? "Podesi username za akcije" : "Set a username to interact"}</span>
-        }
-      />
-      </div>
 
       <CommunityStickyToolbar>
       <section className="rounded-[16px]! border border-line bg-white p-3 sm:p-4" aria-label={locale === "sr" ? "Filteri diskusija" : "Discussion filters"}>
@@ -509,198 +491,6 @@ function DiscussionsView({
               </div>
             ) : null}
           </section>
-
-          <section className="hidden" aria-hidden="true">
-            <div className="flex items-center justify-between gap-3 px-1">
-              <div className="flex items-center gap-2">
-                <MessageSquareText className="size-4 text-ink/60" aria-hidden="true" />
-                <h2 className="text-sm font-black uppercase tracking-[0.1em] text-ink/65">
-                  {locale === "sr" ? "Razgovori" : "Conversations"}
-                </h2>
-              </div>
-              <span className="font-mono text-xs font-black text-muted">
-                {posts.length} {locale === "sr" ? "učitano" : "loaded"}
-              </span>
-            </div>
-            {feedPosts.length ? (
-              feedPosts.map((post) => (
-                <ThreadCard
-                  key={post._id}
-                  locale={locale}
-                  post={post}
-                  track={postTrackTitle(post, filters, locale)}
-                  course={postCourseTitle(post, filters, locale)}
-                  leadingAction={
-                    <>
-                      {onReactPost ? (
-                        <div className="inline-flex items-center gap-0.5 rounded-full border border-line bg-white p-0.5">
-                          <button type="button" disabled={!canInteract} onClick={() => void handlePostReaction(post._id, "upvote")} aria-label={locale === "sr" ? "Upvote diskusije" : "Upvote discussion"} aria-pressed={post.userVote === "upvote"} className={cn("grid size-9 place-items-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-40", post.userVote === "upvote" ? "bg-yellow text-ink" : "text-muted hover:bg-yellow/20 hover:text-ink")}><ArrowUp className="size-4" /></button>
-                          <span className={cn("min-w-8 text-center text-xs font-black", (post.voteScore ?? 0) < 0 && "text-red-700")}>{post.voteScore ?? 0}</span>
-                          <button type="button" disabled={!canInteract} onClick={() => void handlePostReaction(post._id, "downvote")} aria-label={locale === "sr" ? "Downvote diskusije" : "Downvote discussion"} aria-pressed={post.userVote === "downvote"} className={cn("grid size-9 place-items-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-40", post.userVote === "downvote" ? "bg-red-100 text-red-700" : "text-muted hover:bg-red-50 hover:text-red-700")}><ArrowDown className="size-4" /></button>
-                        </div>
-                      ) : null}
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          const willOpen = expandedPostId !== post._id;
-                          setExpandedPostId((current) => (current === post._id ? null : post._id));
-                          if (willOpen) {
-                            window.requestAnimationFrame(() => {
-                              document.querySelector<HTMLElement>(`[data-community-comments="${post._id}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" });
-                            });
-                          }
-                        }}
-                        aria-expanded={expandedPostId === post._id}
-                        aria-label={expandedPostId === post._id ? locale === "sr" ? "Sakrij komentare treda" : "Hide thread comments" : locale === "sr" ? "Prikaži komentare treda" : "Show thread comments"}
-                        data-comment-state={
-                          expandedPostId === post._id
-                            ? locale === "sr"
-                              ? "Sakrij komentare"
-                              : "Hide comments"
-                            : locale === "sr"
-                              ? "Prikaži komentare"
-                              : "Show comments"
-                        }
-                        className={cn(
-                          "inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-black transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
-                          "border-line bg-white text-muted hover:border-ink hover:text-ink",
-                        )}
-                      >
-                        <MessageCircle className="size-4" aria-hidden="true" />
-                        {post.commentsCount ?? 0}
-                      </button>
-                    </>
-                  }
-                  action={
-                    <div className="flex items-center gap-1.5">
-                      <ShareThreadButton locale={locale} post={post} />
-                      {onToggleFavorite ? (
-                      <button
-                        type="button"
-                        disabled={!canInteract}
-                        onClick={() => void handleFavorite(post._id)}
-                        aria-label={
-                          post.isFavorited
-                            ? locale === "sr"
-                              ? "Ukloni iz sačuvanih"
-                              : "Remove from saved"
-                            : locale === "sr"
-                              ? "Sačuvaj diskusiju"
-                              : "Save discussion"
-                        }
-                        aria-pressed={Boolean(post.isFavorited)}
-                        className={cn(
-                          "grid size-9 place-items-center rounded-full border transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
-                          post.isFavorited ? "border-ink bg-yellow text-ink" : "border-line bg-white text-muted hover:border-ink hover:text-ink",
-                        )}
-                      >
-                        <Bookmark className={cn("size-4", post.isFavorited && "fill-ink")} aria-hidden="true" />
-                      </button>
-                      ) : null}
-                    </div>
-                  }
-                  below={
-                    expandedPostId === post._id ? (
-                      <CommentsSection
-                        postId={post._id}
-                        locale={locale}
-                        isAuthenticated={isAuthenticated}
-                        canModerate={canModerate}
-                        canMarkHelpful={canModerate || post.authorId === viewerUserId}
-                        canInteract={canInteract}
-                        viewerUserId={viewerUserId}
-                        compact
-                        showCommandDock
-                      />
-                    ) : null
-                  }
-                />
-              ))
-            ) : (
-              <EmptyCommunityState
-                locale={locale}
-                icon={MessageSquareText}
-                title={locale === "sr" ? "Nema diskusija za ovaj izbor" : "No discussions match this view"}
-                body={
-                  locale === "sr"
-                    ? "Promeni opseg ili pretragu, ili pokreni prvu diskusiju za ovaj kurs."
-                    : "Change the scope or search, or start the first discussion for this course."
-                }
-                action={
-                  <Link
-                    href={withLocale(locale, "/app/community/new")}
-                    className="inline-flex min-h-11 items-center justify-center rounded-full border border-ink bg-yellow px-4 text-sm font-black text-ink"
-                  >
-                    {locale === "sr" ? "Pokreni diskusiju" : "Start a discussion"}
-                  </Link>
-                }
-              />
-            )}
-            {canLoadMore && onLoadMore ? (
-              <div className="flex justify-center pt-3">
-                <LoadMoreButton locale={locale} loading={loadingMore} onClick={onLoadMore} />
-              </div>
-            ) : null}
-          </section>
-
-          <aside className="hidden space-y-4 xl:sticky xl:top-6">
-            <LearningSpine
-              locale={locale}
-              scope={scopeState.scope}
-              track={scopeState.trackLabel}
-              course={scopeState.courseLabel}
-            />
-            <section className="rounded-[16px]! border border-ink bg-white p-4 shadow-[4px_4px_0_rgba(244,190,48,0.7)]">
-              <div className="flex items-center gap-2">
-                <span className="grid size-8 place-items-center rounded-full bg-yellow text-ink">
-                  <Sparkles className="size-4" aria-hidden="true" />
-                </span>
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.12em] text-muted">
-                    {locale === "sr" ? "Kurirano" : "Curated"}
-                  </p>
-                  <h2 className="text-base font-black text-ink">
-                    {locale === "sr" ? "Mentorski izbor" : "Mentor picks"}
-                  </h2>
-                </div>
-              </div>
-              {pinnedPosts.length ? (
-                <ol className="mt-4 divide-y divide-line">
-                  {pinnedPosts.map((post, index) => (
-                    <li key={post._id} className="py-3 first:pt-0 last:pb-0">
-                      <Link
-                        href={
-                          post._id.startsWith("preview-")
-                            ? withLocale(locale, "/app/community/discussions")
-                            : withLocale(locale, `/app/community/${post._id}`)
-                        }
-                        className="group block rounded-[8px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-                      >
-                        <span className="font-mono text-[10px] font-black text-yellow">0{index + 1}</span>
-                        <span className="mt-1 block text-sm font-black leading-5 text-ink group-hover:underline">{post.title}</span>
-                        <span className="mt-1 block">
-                          <ScopeTrail
-                            locale={locale}
-                            track={postTrackTitle(post, filters, locale)}
-                            course={postCourseTitle(post, filters, locale)}
-                            compact
-                          />
-                        </span>
-                      </Link>
-                    </li>
-                  ))}
-                </ol>
-              ) : (
-                <div className="mt-4 flex items-start gap-2 rounded-[12px] bg-[#eef3f7] p-3 text-sm font-semibold leading-5 text-muted">
-                  <Lightbulb className="mt-0.5 size-4 shrink-0 text-ink" aria-hidden="true" />
-                  {locale === "sr"
-                    ? "Mentorski odgovori će se pojaviti ovde kada budu označeni."
-                    : "Mentor answers will appear here when they are selected."}
-                </div>
-              )}
-            </section>
-          </aside>
         </div>
       )}
     </div>

@@ -8,14 +8,19 @@ export function cn(...classes: Array<string | false | null | undefined>): string
 
 type ButtonProps = ComponentProps<typeof Link> & {
   tone?: "ink" | "paper" | "yellow";
+  size?: "md" | "lg";
 };
 
-export function LinkButton({ className, tone = "ink", ...props }: ButtonProps) {
+export function LinkButton({ className, tone = "ink", size = "md", ...props }: ButtonProps) {
   return (
     <Link
       data-motion="interactive"
       className={cn(
-        "inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 px-5 py-2.5 text-sm font-extrabold transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2",
+        "inline-flex items-center justify-center gap-2 rounded-full border-2 font-extrabold transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2",
+        // `cn` is a plain join, not tailwind-merge, so a caller's `className` cannot reliably
+        // beat these — sizing is selected here instead. "md" matches the previous hardcoded base.
+        size === "md" && "min-h-11 px-5 py-2.5 text-sm",
+        size === "lg" && "min-h-12 px-6 py-3 text-base sm:text-lg",
         tone === "ink" &&
           "border-ink bg-ink text-white shadow-[4px_4px_0_0_#f4be30] hover:-translate-y-0.5 hover:shadow-[6px_6px_0_0_#f4be30] focus-visible:outline-ink",
         tone === "yellow" &&

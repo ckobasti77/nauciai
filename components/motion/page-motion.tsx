@@ -319,3 +319,22 @@ export function SiteRouteMotion({ children }: { children: ReactNode }) {
     </PageMotion>
   );
 }
+
+/**
+ * App-segment variant. It renders inside AppShell's <main>, so playPageEntrance finds
+ * neither [data-motion="page"] nor a <main> below it and falls through to the PageMotion
+ * root — which therefore must NOT be `display: contents`, or the tween would no-op.
+ */
+export function AppRouteMotion({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const variant = pageMotionVariantForPath(pathname);
+  const dashboardCourse = /^\/(?:sr|en)\/app\/?$/.test(pathname) ? searchParams.get("course") : null;
+  const sceneKey = pageMotionSceneKey(pathname, dashboardCourse);
+
+  return (
+    <PageMotion variant={variant} sceneKey={sceneKey}>
+      {children}
+    </PageMotion>
+  );
+}

@@ -4,6 +4,13 @@ import { connection } from "next/server";
 
 import { normalizeLocale, withLocale } from "@/lib/i18n";
 import { LiveCommunityThreadPage } from "@/components/app/community-thread-detail";
+import type { Metadata } from "next";
+import { appPageMetadata } from "@/lib/app-metadata";
+
+export async function generateMetadata({ params }: { params: Promise<{ locale: string; postId: string }> }): Promise<Metadata> {
+  const { locale } = await params;
+  return appPageMetadata(locale, { sr: "Tred", en: "Thread" });
+}
 
 export default async function CommunityThreadPage({
   params,

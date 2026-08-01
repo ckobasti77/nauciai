@@ -6,15 +6,10 @@ import { useMutation, useQuery } from "convex/react";
 import { ArrowDown, ArrowUp, CheckCircle2, Download, FileText, LayoutDashboard, Loader2, PlayCircle, Sparkles, Trash2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 
-import {
-  AddAssetAction,
-  AddLessonPartAction,
-  EditLessonAction,
-  EditLessonPartAction,
-} from "@/components/app/admin-inline-actions";
 import { InlineContentText } from "@/components/app/inline-content";
 import { InlineRichText, RichTextContent } from "@/components/app/rich-text";
 import { CourseLab, type LessonLabData } from "@/components/app/course-lab";
@@ -23,6 +18,11 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { Panel } from "@/components/ui/primitives";
 import type { Course, Lesson, LessonPart } from "@/lib/content";
 import { localized, type Locale, withLocale } from "@/lib/i18n";
+
+const AddAssetAction = dynamic(() => import("@/components/app/admin-inline-actions").then((m) => m.AddAssetAction), { ssr: false });
+const AddLessonPartAction = dynamic(() => import("@/components/app/admin-inline-actions").then((m) => m.AddLessonPartAction), { ssr: false });
+const EditLessonAction = dynamic(() => import("@/components/app/admin-inline-actions").then((m) => m.EditLessonAction), { ssr: false });
+const EditLessonPartAction = dynamic(() => import("@/components/app/admin-inline-actions").then((m) => m.EditLessonPartAction), { ssr: false });
 
 function PartContent({ part, locale }: { part: LessonPart; locale: Locale }) {
   if (part.kind === "image") {

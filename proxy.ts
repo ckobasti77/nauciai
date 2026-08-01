@@ -59,6 +59,11 @@ const authProxy = convexAuthNextjsMiddleware(async (request, { convexAuth }) => 
 });
 
 export default function proxy(request: NextRequest, event: NextFetchEvent) {
+  // The root layout lives under app/[locale], so there is no app/page.tsx to redirect from.
+  if (request.nextUrl.pathname === "/") {
+    return NextResponse.redirect(new URL("/sr", request.nextUrl));
+  }
+
   if (!process.env.NEXT_PUBLIC_CONVEX_URL) {
     return NextResponse.next();
   }

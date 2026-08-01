@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 
@@ -128,9 +129,9 @@ export default async function PublicCommunityThreadPage({
   return (
     <main className="min-h-screen bg-paper px-4 py-8 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-4xl space-y-6">
-        <a href={withLocale(locale, "/app/community/discussions")} className="inline-flex text-sm font-black text-ink underline">
+        <Link href={withLocale(locale, "/app/community/discussions")} className="inline-flex text-sm font-black text-ink underline">
           {locale === "sr" ? "Nazad na zajednicu" : "Back to community"}
-        </a>
+        </Link>
         <article className="overflow-hidden rounded-[16px] border-2 border-ink bg-white shadow-[6px_6px_0_rgba(14,49,88,0.13)]">
           <header className="border-b border-line bg-paper/55 px-5 py-7 md:px-8">
             <p className="text-xs font-black uppercase tracking-[0.12em] text-muted">
@@ -141,13 +142,17 @@ export default async function PublicCommunityThreadPage({
               {post.authorUsername ? `@${post.authorUsername}` : post.authorName} · {new Date(post.createdAt).toLocaleDateString(locale === "sr" ? "sr-Latn-RS" : "en-US")}
             </p>
           </header>
-          <div className="prose prose-slate max-w-none px-5 py-7 text-base leading-8 md:px-8">{post.body}</div>
+          <div className="prose prose-slate max-w-none whitespace-pre-wrap px-5 py-7 text-base leading-8 md:px-8">{post.body}</div>
           <footer className="flex flex-wrap items-center gap-3 border-t border-line px-5 py-4 md:px-8">
-            <span className="rounded-full border border-line bg-paper px-3 py-1 text-xs font-black">{post.voteScore} net glasova</span>
-            <span className="rounded-full border border-line bg-paper px-3 py-1 text-xs font-black">{post.commentsCount} komentara</span>
-            <a href={signInUrl} className="ml-auto rounded-full border-2 border-ink bg-yellow px-4 py-2 text-xs font-black text-ink shadow-[3px_3px_0_rgba(14,49,88,0.14)]">
+            <span className="rounded-full border border-line bg-paper px-3 py-1 text-xs font-black">
+              {post.voteScore} {locale === "sr" ? "neto glasova" : "net votes"}
+            </span>
+            <span className="rounded-full border border-line bg-paper px-3 py-1 text-xs font-black">
+              {post.commentsCount} {locale === "sr" ? "komentara" : "comments"}
+            </span>
+            <Link href={signInUrl} className="ml-auto rounded-full border-2 border-ink bg-yellow px-4 py-2 text-xs font-black text-ink shadow-[3px_3px_0_rgba(14,49,88,0.14)]">
               {locale === "sr" ? "Prijavi se za akcije" : "Sign in to interact"}
-            </a>
+            </Link>
           </footer>
         </article>
 

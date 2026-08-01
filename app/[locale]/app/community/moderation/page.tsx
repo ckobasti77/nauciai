@@ -4,6 +4,13 @@ import { connection } from "next/server";
 
 import { CommunityModerationQueue } from "@/components/app/community-thread-moderation";
 import { normalizeLocale, withLocale } from "@/lib/i18n";
+import type { Metadata } from "next";
+import { appPageMetadata } from "@/lib/app-metadata";
+
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const { locale } = await params;
+  return appPageMetadata(locale, { sr: "Moderacija", en: "Moderation" });
+}
 
 export default async function CommunityModerationPage({
   params,

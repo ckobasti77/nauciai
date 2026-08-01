@@ -3,9 +3,9 @@
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { AppComposerSheet } from "@/components/app/app-composer-sheet";
-import { RichTextEditor } from "@/components/app/rich-text";
+import RichTextEditor from "@/components/app/rich-text-editor";
 import { cn } from "@/components/ui/primitives";
-import { withLocale, type Locale } from "@/lib/i18n";
+import { t, withLocale, type Locale } from "@/lib/i18n";
 
 import { useMutation, useQuery } from "convex/react";
 import {
@@ -61,14 +61,10 @@ function slugify(value: string) {
     .slice(0, 72);
 }
 
-function labelFor(locale: Locale, sr: string, en: string) {
-  return locale === "sr" ? sr : en;
-}
-
 function statusLabel(locale: Locale, status: CourseStatus) {
-  if (status === "published") return labelFor(locale, "Objavljeno", "Published");
-  if (status === "archived") return labelFor(locale, "Arhivirano", "Archived");
-  return labelFor(locale, "Nacrt", "Draft");
+  if (status === "published") return t(locale, "Objavljeno", "Published");
+  if (status === "archived") return t(locale, "Arhivirano", "Archived");
+  return t(locale, "Nacrt", "Draft");
 }
 
 function hasVideoCandidateDrag(dataTransfer: DataTransfer | null | undefined) {
@@ -263,7 +259,7 @@ function SlugField({
   return (
     <Field
       label={label}
-      hint={labelFor(
+      hint={t(
         locale,
         "URL identifikator. Ako ostane prazno, generise se iz naziva.",
         "URL identifier. Leave empty to generate it from the title.",
@@ -296,18 +292,18 @@ function CourseStatusControl({
   const options: Array<{ value: CourseStatus; label: string; body: string }> = [
     {
       value: "draft",
-      label: labelFor(locale, "Nacrt", "Draft"),
-      body: labelFor(locale, "Vidljivo adminu", "Admin visible"),
+      label: t(locale, "Nacrt", "Draft"),
+      body: t(locale, "Vidljivo adminu", "Admin visible"),
     },
     {
       value: "published",
-      label: labelFor(locale, "Objavljeno", "Published"),
-      body: labelFor(locale, "Vidljivo korisnicima", "Visible to users"),
+      label: t(locale, "Objavljeno", "Published"),
+      body: t(locale, "Vidljivo korisnicima", "Visible to users"),
     },
     {
       value: "archived",
-      label: labelFor(locale, "Arhiva", "Archive"),
-      body: labelFor(locale, "Sklonjeno iz toka", "Removed from flow"),
+      label: t(locale, "Arhiva", "Archive"),
+      body: t(locale, "Sklonjeno iz toka", "Removed from flow"),
     },
   ];
 
@@ -357,11 +353,11 @@ function PublishToggle({
       )}
     >
       <span>
-        <span className="block text-sm font-black">{labelFor(locale, "Objavi odmah", "Publish now")}</span>
+        <span className="block text-sm font-black">{t(locale, "Objavi odmah", "Publish now")}</span>
         <span className="mt-1 block text-xs font-bold">
           {checked
-            ? labelFor(locale, "Korisnici mogu da vide ovaj sadrzaj.", "Users can see this content.")
-            : labelFor(locale, "Sacuvano kao radna verzija.", "Saved as a draft.")}
+            ? t(locale, "Korisnici mogu da vide ovaj sadrzaj.", "Users can see this content.")
+            : t(locale, "Sacuvano kao radna verzija.", "Saved as a draft.")}
         </span>
       </span>
       <span
@@ -441,7 +437,7 @@ function FileDropzone({
       <span className="text-sm font-black text-ink">{label}</span>
       {currentFile ? (
         <p className="mt-2 rounded-[8px] border-2 border-line bg-paper px-3 py-2 text-xs font-black text-muted">
-          {labelFor(locale, "Trenutni fajl", "Current file")}: {currentFile}
+          {t(locale, "Trenutni fajl", "Current file")}: {currentFile}
         </p>
       ) : null}
       <label
@@ -450,12 +446,12 @@ function FileDropzone({
       >
         <UploadCloud className="size-8 text-ink" />
         <span className="mt-3 text-sm font-black text-ink">
-          {file?.name ?? labelFor(locale, "Izaberi ili prevuci fajl", "Choose or drop a file")}
+          {file?.name ?? t(locale, "Izaberi ili prevuci fajl", "Choose or drop a file")}
         </span>
         <span className="mt-1 text-xs font-bold text-muted">
           {file
             ? `${Math.max(1, Math.round(file.size / 1024))} KB`
-            : labelFor(locale, "Upload se cuva kroz Convex storage.", "Upload is saved through Convex storage.")}
+            : t(locale, "Upload se cuva kroz Convex storage.", "Upload is saved through Convex storage.")}
         </span>
       </label>
       <input
@@ -487,7 +483,7 @@ function EntityPreview({
 }) {
   return (
     <aside className="composer-stagger h-fit rounded-[16px] border-2 border-ink bg-ink p-4 text-white shadow-[5px_5px_0_0_#f4be30]">
-      <p className="text-xs font-black uppercase text-white/65">{labelFor(locale, "Pregled", "Preview")}</p>
+      <p className="text-xs font-black uppercase text-white/65">{t(locale, "Pregled", "Preview")}</p>
       <p className="mt-3 text-2xl font-black leading-tight">{title?.trim() || emptyLabel}</p>
       {subtitle ? <p className="mt-3 text-sm font-bold leading-6 text-white/75">{subtitle}</p> : null}
       <div className="mt-5 flex flex-wrap gap-2">
@@ -648,7 +644,7 @@ function CourseIntroPreview({
           <Film className="size-6" />
         </span>
         <p className="mt-3 text-sm font-black text-ink">
-          {labelFor(locale, "Intro video preview", "Intro video preview")}
+          {t(locale, "Intro video preview", "Intro video preview")}
         </p>
       </div>
     </div>
@@ -710,7 +706,7 @@ export function AddCourseAction({
   const hydratedCourseRef = useRef<string | null>(null);
   const isEditing = Boolean(courseId);
   const actionLabel =
-    buttonLabel ?? (isEditing ? labelFor(locale, "Izmeni kurs", "Edit course") : labelFor(locale, "Dodaj kurs", "Add course"));
+    buttonLabel ?? (isEditing ? t(locale, "Izmeni kurs", "Edit course") : t(locale, "Dodaj kurs", "Add course"));
   const currentSlug = slug || slugify(titleSr || titleEn);
   const currentSnapshot = JSON.stringify({
     titleSr,
@@ -863,7 +859,7 @@ export function AddCourseAction({
 
   function openVideoPicker() {
     if (!courseId || videoUploading || videoDeleting) {
-      setVideoMessage(labelFor(locale, "Sacuvaj kurs pre upload-a intro videa.", "Save the course before uploading an intro video."));
+      setVideoMessage(t(locale, "Sacuvaj kurs pre upload-a intro videa.", "Save the course before uploading an intro video."));
       return;
     }
     videoInputRef.current?.click();
@@ -875,7 +871,7 @@ export function AddCourseAction({
 
   async function uploadIntroVideo(file: File) {
     if (!courseId) {
-      setVideoMessage(labelFor(locale, "Sacuvaj kurs pre upload-a intro videa.", "Save the course before uploading an intro video."));
+      setVideoMessage(t(locale, "Sacuvaj kurs pre upload-a intro videa.", "Save the course before uploading an intro video."));
       return;
     }
 
@@ -894,14 +890,14 @@ export function AddCourseAction({
         const detail = await upload.text().catch(() => "");
         throw new Error(
           detail
-            ? `${labelFor(locale, "Upload nije uspeo", "Upload failed")}: ${detail.slice(0, 240)}`
-            : labelFor(locale, "Upload nije uspeo.", "Upload failed."),
+            ? `${t(locale, "Upload nije uspeo", "Upload failed")}: ${detail.slice(0, 240)}`
+            : t(locale, "Upload nije uspeo.", "Upload failed."),
         );
       }
 
       const { storageId } = (await upload.json()) as { storageId?: Id<"_storage"> };
       if (!storageId) {
-        throw new Error(labelFor(locale, "Convex nije vratio storageId.", "Convex did not return a storageId."));
+        throw new Error(t(locale, "Convex nije vratio storageId.", "Convex did not return a storageId."));
       }
 
       await saveCourseVideo({
@@ -912,10 +908,10 @@ export function AddCourseAction({
         mimeType: file.type || "application/octet-stream",
       });
 
-      setVideoMessage(labelFor(locale, "Intro video je uspesno sacuvan.", "Intro video saved successfully."));
+      setVideoMessage(t(locale, "Intro video je uspesno sacuvan.", "Intro video saved successfully."));
       router.refresh();
     } catch (error) {
-      setVideoMessage(error instanceof Error ? error.message : labelFor(locale, "Upload nije uspeo.", "Upload failed."));
+      setVideoMessage(error instanceof Error ? error.message : t(locale, "Upload nije uspeo.", "Upload failed."));
       setIntroVideoPreview(null);
     } finally {
       setVideoUploading(false);
@@ -1007,21 +1003,21 @@ export function AddCourseAction({
     try {
       await deleteCourseVideo({ courseId: courseId as Id<"courses"> });
       setIntroVideoPreview(null);
-      setVideoMessage(labelFor(locale, "Intro video je uklonjen.", "Intro video was removed."));
+      setVideoMessage(t(locale, "Intro video je uklonjen.", "Intro video was removed."));
       router.refresh();
     } catch (error) {
-      setVideoMessage(error instanceof Error ? error.message : labelFor(locale, "Brisanje nije uspelo.", "Delete failed."));
+      setVideoMessage(error instanceof Error ? error.message : t(locale, "Brisanje nije uspelo.", "Delete failed."));
     } finally {
       setVideoDeleting(false);
     }
   }
 
   async function saveCourse() {
-    if (!titleSr.trim()) throw new Error(labelFor(locale, "Popuni naziv na srpskom.", "Complete the Serbian title."));
-    if (status === "published" && (!subtitleSr.trim() || !richTextHasContent(descriptionRichSr, descriptionSr))) throw new Error(labelFor(locale, "Popuni SR podnaslov i opis pre objave.", "Complete the Serbian subtitle and description before publishing."));
+    if (!titleSr.trim()) throw new Error(t(locale, "Popuni naziv na srpskom.", "Complete the Serbian title."));
+    if (status === "published" && (!subtitleSr.trim() || !richTextHasContent(descriptionRichSr, descriptionSr))) throw new Error(t(locale, "Popuni SR podnaslov i opis pre objave.", "Complete the Serbian subtitle and description before publishing."));
     const savedSlug = slug || slugify(titleSr || titleEn);
     if (!savedSlug) {
-      throw new Error(labelFor(locale, "Unesi naziv ili slug kursa.", "Enter a course title or slug."));
+      throw new Error(t(locale, "Unesi naziv ili slug kursa.", "Enter a course title or slug."));
     }
     const safeSortOrder = Number.isFinite(sortOrder) ? sortOrder : nextSortOrder;
     await upsertCourse({
@@ -1067,7 +1063,7 @@ export function AddCourseAction({
       router.push(`${withLocale(locale, "/app")}?course=${savedSlug}`);
       router.refresh();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : labelFor(locale, "Cuvanje nije uspelo.", "Save failed."));
+      setMessage(error instanceof Error ? error.message : t(locale, "Cuvanje nije uspelo.", "Save failed."));
     } finally {
       setPending(false);
     }
@@ -1145,7 +1141,7 @@ export function AddCourseAction({
       router.refresh();
     } catch (error) {
       setModuleOrder(previousOrder);
-      setMessage(error instanceof Error ? error.message : labelFor(locale, "Promena redosleda nije uspela.", "Reorder failed."));
+      setMessage(error instanceof Error ? error.message : t(locale, "Promena redosleda nije uspela.", "Reorder failed."));
     } finally {
       setReorderPending(false);
     }
@@ -1166,7 +1162,7 @@ export function AddCourseAction({
       setPendingAction(null);
       continueAfter(action, savedSlug);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : labelFor(locale, "Cuvanje nije uspelo.", "Save failed."));
+      setMessage(error instanceof Error ? error.message : t(locale, "Cuvanje nije uspelo.", "Save failed."));
     } finally {
       setPending(false);
     }
@@ -1192,7 +1188,7 @@ export function AddCourseAction({
       )}
       <AdminComposerSheet
         title={actionLabel}
-        eyebrow={labelFor(locale, "Composer kursa", "Course composer")}
+        eyebrow={t(locale, "Composer kursa", "Course composer")}
         open={open}
         onClose={requestClose}
       >
@@ -1201,8 +1197,8 @@ export function AddCourseAction({
             <div className="space-y-5">
               <FormSection
                 icon={<Sparkles className="size-5" />}
-                title={labelFor(locale, "Identitet kursa", "Course identity")}
-                body={labelFor(locale, "Naziv, URL i status koji odredjuju kako kurs ulazi u aplikaciju.", "Name, URL, and status that control how this course appears in the app.")}
+                title={t(locale, "Identitet kursa", "Course identity")}
+                body={t(locale, "Naziv, URL i status koji odredjuju kako kurs ulazi u aplikaciju.", "Name, URL, and status that control how this course appears in the app.")}
               >
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="md:col-span-2"><LocalizedPairSwitch locale={contentLocale} onChange={setContentLocale} sr={titleSr} en={titleEn} /></div>
@@ -1216,10 +1212,10 @@ export function AddCourseAction({
                     placeholder={slugify(titleSr || titleEn)}
                     locale={locale}
                   />
-                  <Field label={labelFor(locale, "Status", "Status")}>
+                  <Field label={t(locale, "Status", "Status")}>
                     <CourseStatusControl locale={locale} value={status} onChange={setStatus} />
                   </Field>
-                  <Field label={labelFor(locale, "Redosled", "Sort order")}>
+                  <Field label={t(locale, "Redosled", "Sort order")}>
                     <input
                       className={inputClass}
                       type="number"
@@ -1235,8 +1231,8 @@ export function AddCourseAction({
 
               <FormSection
                 icon={<BookOpen className="size-5" />}
-                title={labelFor(locale, "Opis i pozicioniranje", "Description and positioning")}
-                body={labelFor(locale, "Kratak podnaslov i opis koji korisniku objasnjavaju zasto ovaj kurs postoji.", "A short subtitle and description that explain why this course exists.")}
+                title={t(locale, "Opis i pozicioniranje", "Description and positioning")}
+                body={t(locale, "Kratak podnaslov i opis koji korisniku objasnjavaju zasto ovaj kurs postoji.", "A short subtitle and description that explain why this course exists.")}
               >
                 <div className="space-y-3">
                   <LocalizedPairSwitch locale={contentLocale} onChange={setContentLocale} sr={subtitleSr} en={subtitleEn} />
@@ -1253,10 +1249,10 @@ export function AddCourseAction({
 
               <FormSection
                 icon={<CreditCard className="size-5" />}
-                title={labelFor(locale, "Placanje i pristup", "Billing and access")}
-                body={labelFor(locale, "Stripe price ID je live podatak kursa. Prazno polje uklanja cenu iz Convex kursa.", "The Stripe price ID is live course data. Leaving it empty removes the price from the Convex course.")}
+                title={t(locale, "Placanje i pristup", "Billing and access")}
+                body={t(locale, "Stripe price ID je live podatak kursa. Prazno polje uklanja cenu iz Convex kursa.", "The Stripe price ID is live course data. Leaving it empty removes the price from the Convex course.")}
               >
-                <Field label="Stripe price ID" hint={labelFor(locale, "Primer: price_...", "Example: price_...")}>
+                <Field label="Stripe price ID" hint={t(locale, "Primer: price_...", "Example: price_...")}>
                   <input
                     className={inputClass}
                     value={stripePriceId}
@@ -1268,21 +1264,21 @@ export function AddCourseAction({
 
               <FormSection
                 icon={<Film className="size-5" />}
-                title={labelFor(locale, "Intro video kursa", "Course intro video")}
-                body={labelFor(locale, "Ovaj video se prikazuje u dashboardu i na javnoj strani kursa.", "This video appears in the dashboard and on the public course page.")}
+                title={t(locale, "Intro video kursa", "Course intro video")}
+                body={t(locale, "Ovaj video se prikazuje u dashboardu i na javnoj strani kursa.", "This video appears in the dashboard and on the public course page.")}
               >
                 <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
                   <CourseIntroPreview
-                    title={titleSr || titleEn || labelFor(locale, "Intro video", "Intro video")}
+                    title={titleSr || titleEn || t(locale, "Intro video", "Intro video")}
                     videoUrl={videoUrl}
                     localPreviewUrl={localVideoPreviewUrl}
                     locale={locale}
                   />
                   <div className="space-y-3">
                     <div className="rounded-[16px] border-2 border-line bg-paper p-3">
-                      <p className="text-[10px] font-black uppercase text-muted">{labelFor(locale, "Status videa", "Video status")}</p>
+                      <p className="text-[10px] font-black uppercase text-muted">{t(locale, "Status videa", "Video status")}</p>
                       <p className="mt-1 text-sm font-black text-ink">
-                        {videoUrl ? labelFor(locale, "Spreman", "Ready") : labelFor(locale, "Nema videa", "No video")}
+                        {videoUrl ? t(locale, "Spreman", "Ready") : t(locale, "Nema videa", "No video")}
                       </p>
                       {liveCourse?.videoUpdatedAt ? (
                         <p className="mt-1 text-xs font-bold text-muted">
@@ -1298,8 +1294,8 @@ export function AddCourseAction({
                     >
                       {videoUploading ? <Loader2 className="size-4 animate-spin" /> : <UploadCloud className="size-4" />}
                       {videoUrl
-                        ? labelFor(locale, "Zameni video", "Replace video")
-                        : labelFor(locale, "Upload intro videa", "Upload intro video")}
+                        ? t(locale, "Zameni video", "Replace video")
+                        : t(locale, "Upload intro videa", "Upload intro video")}
                     </button>
                     {videoUrl ? (
                       <button
@@ -1309,7 +1305,7 @@ export function AddCourseAction({
                         className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-full border-2 border-red-700 bg-white px-4 text-xs font-black text-red-700 disabled:cursor-wait disabled:opacity-60"
                       >
                         {videoDeleting ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
-                        {labelFor(locale, "Ukloni video", "Remove video")}
+                        {t(locale, "Ukloni video", "Remove video")}
                       </button>
                     ) : null}
                     {videoMessage ? (
@@ -1324,17 +1320,17 @@ export function AddCourseAction({
 
               <FormSection
                 icon={<Layers className="size-5" />}
-                title={labelFor(locale, "Ciklusi u kursu", "Course cycles")}
-                body={labelFor(locale, "Otvori ciklus ili lekciju direktno iz kurs editora. Ako kurs ima izmene, prvo biras sta se cuva.", "Open a cycle or lesson directly from the course editor. If the course has changes, choose what happens first.")}
+                title={t(locale, "Ciklusi u kursu", "Course cycles")}
+                body={t(locale, "Otvori ciklus ili lekciju direktno iz kurs editora. Ako kurs ima izmene, prvo biras sta se cuva.", "Open a cycle or lesson directly from the course editor. If the course has changes, choose what happens first.")}
               >
                 {!isEditing ? (
                   <p className="rounded-[16px] border-2 border-dashed border-line bg-paper p-4 text-sm font-black text-muted">
-                    {labelFor(locale, "Ciklusi su dostupni kada sacuvas novi kurs.", "Cycles are available after you save the new course.")}
+                    {t(locale, "Ciklusi su dostupni kada sacuvas novi kurs.", "Cycles are available after you save the new course.")}
                   </p>
                 ) : courseEditorData === undefined ? (
                   <div className="flex items-center gap-3 rounded-[16px] border-2 border-line bg-paper p-4 text-sm font-black text-muted">
                     <Loader2 className="size-4 animate-spin" />
-                    {labelFor(locale, "Ucitavanje ciklusa", "Loading cycles")}
+                    {t(locale, "Ucitavanje ciklusa", "Loading cycles")}
                   </div>
                 ) : modules.length ? (
                   <div className="space-y-3">
@@ -1365,7 +1361,7 @@ export function AddCourseAction({
                               <span className="min-w-0">
                                 <span className="block truncate">{moduleTitle}</span>
                                 <span className="mt-1 block text-[11px] font-bold text-muted">
-                                  {publishedLessons}/{module.lessons.length} {labelFor(locale, "lekcija", "lessons")}
+                                  {publishedLessons}/{module.lessons.length} {t(locale, "lekcija", "lessons")}
                                 </span>
                               </span>
                               <ChevronDown className={cn("size-4 shrink-0 transition", isOpen && "rotate-180")} />
@@ -1377,7 +1373,7 @@ export function AddCourseAction({
                                 className="inline-flex min-h-8 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-3 text-xs font-black text-ink shadow-[2px_2px_0_0_rgba(14,49,88,0.15)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                               >
                                 <Pencil className="size-3.5" />
-                                <span className="hidden sm:inline">{labelFor(locale, "Izmeni", "Edit")}</span>
+                                <span className="hidden sm:inline">{t(locale, "Izmeni", "Edit")}</span>
                               </button>
                               <button
                                 type="button"
@@ -1385,8 +1381,8 @@ export function AddCourseAction({
                                 onDragStart={(event) => handleModuleDragStart(event, module._id)}
                                 onDragEnd={handleModuleDragEnd}
                                 disabled={reorderPending}
-                                aria-label={labelFor(locale, "Promeni redosled ciklusa", "Reorder cycle")}
-                                title={labelFor(locale, "Promeni redosled ciklusa", "Reorder cycle")}
+                                aria-label={t(locale, "Promeni redosled ciklusa", "Reorder cycle")}
+                                title={t(locale, "Promeni redosled ciklusa", "Reorder cycle")}
                                 className={cn(
                                   "inline-flex size-9 shrink-0 items-center justify-center rounded-[8px] border-2 border-ink bg-white text-ink shadow-[2px_2px_0_0_rgba(14,49,88,0.14)] transition hover:bg-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-wait disabled:opacity-60",
                                   isDraggingModule ? "cursor-grabbing bg-yellow" : "cursor-grab active:cursor-grabbing",
@@ -1425,8 +1421,8 @@ export function AddCourseAction({
                                           <button
                                             type="button"
                                             onClick={() => requestLessonEditor(lesson.slug)}
-                                            aria-label={labelFor(locale, "Otvori editor lekcije", "Open lesson editor")}
-                                            title={labelFor(locale, "Otvori editor lekcije", "Open lesson editor")}
+                                            aria-label={t(locale, "Otvori editor lekcije", "Open lesson editor")}
+                                            title={t(locale, "Otvori editor lekcije", "Open lesson editor")}
                                             className="inline-flex size-7 shrink-0 items-center justify-center rounded-full border border-ink bg-white text-ink opacity-0 shadow-[2px_2px_0_0_rgba(14,49,88,0.12)] transition hover:bg-yellow focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink group-hover:opacity-100"
                                           >
                                             <LayoutDashboard className="size-3.5" />
@@ -1436,7 +1432,7 @@ export function AddCourseAction({
                                           </span>
                                           {!lesson.isPublished ? (
                                             <span className="shrink-0 rounded-full border border-line bg-paper px-2 py-0.5 text-[10px] uppercase">
-                                              {labelFor(locale, "Nacrt", "Draft")}
+                                              {t(locale, "Nacrt", "Draft")}
                                             </span>
                                           ) : null}
                                         </div>
@@ -1444,7 +1440,7 @@ export function AddCourseAction({
                                     })
                                   ) : (
                                     <p className="rounded-[8px] border-2 border-dashed border-line bg-paper p-3 text-xs font-black text-muted">
-                                      {labelFor(locale, "Nema lekcija u ovom ciklusu.", "No lessons in this cycle.")}
+                                      {t(locale, "Nema lekcija u ovom ciklusu.", "No lessons in this cycle.")}
                                     </p>
                                   )}
                                 </div>
@@ -1457,7 +1453,7 @@ export function AddCourseAction({
                   </div>
                 ) : (
                   <p className="rounded-[16px] border-2 border-dashed border-line bg-paper p-4 text-sm font-black text-muted">
-                    {labelFor(locale, "Kurs jos nema cikluse.", "This course has no cycles yet.")}
+                    {t(locale, "Kurs jos nema cikluse.", "This course has no cycles yet.")}
                   </p>
                 )}
               </FormSection>
@@ -1467,13 +1463,13 @@ export function AddCourseAction({
               title={titleSr || titleEn}
               subtitle={subtitleSr || subtitleEn || descriptionSr || descriptionEn}
               status={statusLabel(locale, status)}
-              meta={`${currentSlug || "slug"} / ${modules.length} ${labelFor(locale, "ciklusa", "cycles")} / ${totalLessons} ${labelFor(locale, "lekcija", "lessons")}`}
-              emptyLabel={labelFor(locale, "Novi kurs", "New course")}
+              meta={`${currentSlug || "slug"} / ${modules.length} ${t(locale, "ciklusa", "cycles")} / ${totalLessons} ${t(locale, "lekcija", "lessons")}`}
+              emptyLabel={t(locale, "Novi kurs", "New course")}
             />
           </div>
           <ComposerFooter
             pending={pending}
-            submitLabel={isEditing ? labelFor(locale, "Sacuvaj kurs", "Save course") : labelFor(locale, "Dodaj kurs", "Add course")}
+            submitLabel={isEditing ? t(locale, "Sacuvaj kurs", "Save course") : t(locale, "Dodaj kurs", "Add course")}
             message={message}
           />
         </form>
@@ -1495,10 +1491,10 @@ export function AddCourseAction({
               >
                 <UploadCloud className="mx-auto size-9" />
                 <p className="mt-3 text-lg font-black">
-                  {labelFor(locale, "Pusti video bilo gde", "Drop the video anywhere")}
+                  {t(locale, "Pusti video bilo gde", "Drop the video anywhere")}
                 </p>
                 <p className="mt-2 text-sm font-bold leading-6 text-muted">
-                  {labelFor(
+                  {t(
                     locale,
                     "Intro video kursa ce odmah krenuti na upload.",
                     "The course intro video will start uploading immediately.",
@@ -1527,12 +1523,12 @@ export function AddCourseAction({
                   animate={{ y: 0, scale: 1 }}
                   exit={{ y: 10, scale: 0.99 }}
                 >
-                  <p className="text-xs font-black uppercase text-muted">{labelFor(locale, "Nesnimljene izmene", "Unsaved changes")}</p>
+                  <p className="text-xs font-black uppercase text-muted">{t(locale, "Nesnimljene izmene", "Unsaved changes")}</p>
                   <h3 className="mt-2 text-2xl font-black text-ink">
-                    {labelFor(locale, "Sacuvati izmene na kursu?", "Save changes to this course?")}
+                    {t(locale, "Sacuvati izmene na kursu?", "Save changes to this course?")}
                   </h3>
                   <p className="mt-3 text-sm font-bold leading-6 text-muted">
-                    {labelFor(locale, "Pre nastavka izaberi da li se informacije o kursu cuvaju.", "Before continuing, choose whether to save the course information.")}
+                    {t(locale, "Pre nastavka izaberi da li se informacije o kursu cuvaju.", "Before continuing, choose whether to save the course information.")}
                   </p>
                   {message ? (
                     <p className="mt-4 rounded-[8px] border-2 border-red-200 bg-red-50 px-3 py-2 text-sm font-black text-red-700">
@@ -1547,21 +1543,21 @@ export function AddCourseAction({
                       className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-3 text-xs font-black text-ink disabled:cursor-wait disabled:opacity-60"
                     >
                       {pending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-                      {labelFor(locale, "Sacuvaj i nastavi", "Save and continue")}
+                      {t(locale, "Sacuvaj i nastavi", "Save and continue")}
                     </button>
                     <button
                       type="button"
                       onClick={discardAndContinue}
                       className="inline-flex min-h-11 items-center justify-center rounded-full border-2 border-ink bg-white px-3 text-xs font-black text-ink"
                     >
-                      {labelFor(locale, "Ponisti i nastavi", "Discard and continue")}
+                      {t(locale, "Ponisti i nastavi", "Discard and continue")}
                     </button>
                     <button
                       type="button"
                       onClick={() => setPendingAction(null)}
                       className="inline-flex min-h-11 items-center justify-center rounded-full border-2 border-line bg-paper px-3 text-xs font-black text-muted"
                     >
-                      {labelFor(locale, "Ostani", "Stay")}
+                      {t(locale, "Ostani", "Stay")}
                     </button>
                   </div>
                 </motion.div>
@@ -1576,7 +1572,7 @@ export function AddCourseAction({
 }
 
 export function EditCourseAction(props: Omit<Parameters<typeof AddCourseAction>[0], "buttonLabel">) {
-  return <AddCourseAction {...props} buttonLabel={labelFor(props.locale, "Izmeni kurs", "Edit course")} />;
+  return <AddCourseAction {...props} buttonLabel={t(props.locale, "Izmeni kurs", "Edit course")} />;
 }
 
 type ModuleActionInitial = {
@@ -1708,7 +1704,7 @@ export function AddModuleAction({
   const hydratedModuleRef = useRef<string | null>(null);
   const isEditing = Boolean(moduleId);
   const actionLabel =
-    buttonLabel ?? (isEditing ? labelFor(locale, "Izmeni ciklus", "Edit cycle") : labelFor(locale, "Dodaj ciklus", "Add cycle"));
+    buttonLabel ?? (isEditing ? t(locale, "Izmeni ciklus", "Edit cycle") : t(locale, "Dodaj ciklus", "Add cycle"));
   const sortOrder = initial?.sortOrder ?? moduleEditorData?.module.sortOrder ?? nextSortOrder;
   const currentSnapshot = JSON.stringify({
     titleSr,
@@ -1830,13 +1826,13 @@ export function AddModuleAction({
       const detail = await response.text().catch(() => "");
       throw new Error(
         detail
-          ? `${labelFor(locale, "Upload slike nije uspeo", "Image upload failed")}: ${detail.slice(0, 240)}`
-          : labelFor(locale, "Upload slike nije uspeo.", "Image upload failed."),
+          ? `${t(locale, "Upload slike nije uspeo", "Image upload failed")}: ${detail.slice(0, 240)}`
+          : t(locale, "Upload slike nije uspeo.", "Image upload failed."),
       );
     }
     const result = (await response.json()) as { storageId?: Id<"_storage"> };
     if (!result.storageId) {
-      throw new Error(labelFor(locale, "Convex nije vratio storageId za sliku.", "Convex did not return image storageId."));
+      throw new Error(t(locale, "Convex nije vratio storageId za sliku.", "Convex did not return image storageId."));
     }
     return {
       imageStorageId: result.storageId,
@@ -1847,7 +1843,7 @@ export function AddModuleAction({
   }
 
   async function saveCycle() {
-    if (!courseId) throw new Error(labelFor(locale, "Nedostaje kurs za ciklus.", "Missing course for this cycle."));
+    if (!courseId) throw new Error(t(locale, "Nedostaje kurs za ciklus.", "Missing course for this cycle."));
     const imagePayload = await uploadSelectedImage();
     const savedModuleId = await upsertModule({
       ...(moduleId ? { moduleId: moduleId as Id<"modules"> } : {}),
@@ -1892,7 +1888,7 @@ export function AddModuleAction({
       }
       router.refresh();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : labelFor(locale, "Cuvanje nije uspelo.", "Save failed."));
+      setMessage(error instanceof Error ? error.message : t(locale, "Cuvanje nije uspelo.", "Save failed."));
     } finally {
       setPending(false);
     }
@@ -1924,7 +1920,7 @@ export function AddModuleAction({
       setPendingAction(null);
       continueAfter(action);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : labelFor(locale, "Cuvanje nije uspelo.", "Save failed."));
+      setMessage(error instanceof Error ? error.message : t(locale, "Cuvanje nije uspelo.", "Save failed."));
       setPendingAction(null);
     } finally {
       setPending(false);
@@ -1968,7 +1964,7 @@ export function AddModuleAction({
             <span className="truncate">{locale === "sr" ? part.titleSr : part.titleEn || part.titleSr}</span>
             {part.isPublished === false ? (
               <span className="ml-auto shrink-0 rounded-[5px] border border-line bg-white px-1.5 py-0.5 text-[9px] uppercase text-muted">
-                {labelFor(locale, "Nacrt", "Draft")}
+                {t(locale, "Nacrt", "Draft")}
               </span>
             ) : null}
           </button>
@@ -2000,7 +1996,7 @@ export function AddModuleAction({
         <span className="truncate">{title}</span>
         {draft ? (
           <span className="ml-auto shrink-0 rounded-[5px] border border-line bg-white px-1.5 py-0.5 text-[9px] uppercase text-muted">
-            {labelFor(locale, "Nacrt", "Draft")}
+            {t(locale, "Nacrt", "Draft")}
           </span>
         ) : null}
       </button>
@@ -2021,7 +2017,7 @@ export function AddModuleAction({
       )}
       <AdminComposerSheet
         title={actionLabel}
-        eyebrow={labelFor(locale, "Composer ciklusa", "Cycle composer")}
+        eyebrow={t(locale, "Composer ciklusa", "Cycle composer")}
         open={sheetOpen}
         onClose={requestClose}
       >
@@ -2030,8 +2026,8 @@ export function AddModuleAction({
             <div className="space-y-5">
               <FormSection
                 icon={<Layers className="size-5" />}
-                title={labelFor(locale, "Osnovne informacije", "Basics")}
-                body={labelFor(locale, "Naziv, opis, slika i redosled ciklusa u kursu.", "Name, description, image, and cycle order inside the course.")}
+                title={t(locale, "Osnovne informacije", "Basics")}
+                body={t(locale, "Naziv, opis, slika i redosled ciklusa u kursu.", "Name, description, image, and cycle order inside the course.")}
               >
                 <div className="grid gap-4 md:grid-cols-2">
                   <Field label="Naziv SR">
@@ -2046,7 +2042,7 @@ export function AddModuleAction({
                   <Field label="Description EN">
                     <textarea className={textareaClass} rows={5} value={descriptionEn} onChange={(event) => setDescriptionEn(event.target.value)} />
                   </Field>
-                  <Field label={labelFor(locale, "Redosled", "Sort order")}>
+                  <Field label={t(locale, "Redosled", "Sort order")}>
                     <input className={inputClass} type="number" value={sortOrder} readOnly />
                   </Field>
                 </div>
@@ -2054,14 +2050,14 @@ export function AddModuleAction({
 
               <FormSection
                 icon={<ImageIcon className="size-5" />}
-                title={labelFor(locale, "Slika ciklusa", "Cycle image")}
-                body={labelFor(locale, "Slika se prikazuje na kartici ciklusa i u pregledu.", "The image is shown on the cycle card and preview.")}
+                title={t(locale, "Slika ciklusa", "Cycle image")}
+                body={t(locale, "Slika se prikazuje na kartici ciklusa i u pregledu.", "The image is shown on the cycle card and preview.")}
               >
                 <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
                   <div className="space-y-4">
                     <FileDropzone
                       locale={locale}
-                      label={labelFor(locale, "Upload slike", "Image upload")}
+                      label={t(locale, "Upload slike", "Image upload")}
                       accept="image/*"
                       file={imageFile}
                       onFileChange={setCycleImage}
@@ -2082,7 +2078,7 @@ export function AddModuleAction({
                     ) : (
                       <div className="flex aspect-[4/3] items-center justify-center p-5 text-center text-sm font-black text-muted">
                         <ImageIcon className="mr-2 size-5" />
-                        {labelFor(locale, "Nema slike", "No image")}
+                        {t(locale, "Nema slike", "No image")}
                       </div>
                     )}
                   </div>
@@ -2091,17 +2087,17 @@ export function AddModuleAction({
 
               <FormSection
                 icon={<BookOpen className="size-5" />}
-                title={labelFor(locale, "Lekcije u ciklusu", "Lessons in this cycle")}
-                body={labelFor(locale, "Otvori jednu lekciju, pa idi direktno na njen editor ili konkretan deo.", "Open one lesson, then jump directly to its editor or a specific piece.")}
+                title={t(locale, "Lekcije u ciklusu", "Lessons in this cycle")}
+                body={t(locale, "Otvori jednu lekciju, pa idi direktno na njen editor ili konkretan deo.", "Open one lesson, then jump directly to its editor or a specific piece.")}
               >
                 {!isEditing ? (
                   <p className="rounded-[8px] border-2 border-dashed border-line bg-paper p-4 text-sm font-black text-muted">
-                    {labelFor(locale, "Lekcije su dostupne kada sacuvas novi ciklus.", "Lessons are available after you save the new cycle.")}
+                    {t(locale, "Lekcije su dostupne kada sacuvas novi ciklus.", "Lessons are available after you save the new cycle.")}
                   </p>
                 ) : moduleEditorData === undefined ? (
                   <div className="flex items-center gap-3 rounded-[8px] border-2 border-line bg-paper p-4 text-sm font-black text-muted">
                     <Loader2 className="size-4 animate-spin" />
-                    {labelFor(locale, "Ucitavanje lekcija", "Loading lessons")}
+                    {t(locale, "Ucitavanje lekcija", "Loading lessons")}
                   </div>
                 ) : lessons.length ? (
                   <div className="space-y-3">
@@ -2123,7 +2119,7 @@ export function AddModuleAction({
                               <span className="min-w-0">
                                 <span className="block truncate">{lessonTitle}</span>
                               <span className="mt-1 block text-[11px] font-bold text-muted">
-                                  {itemCount} {labelFor(locale, "stavki", "items")}
+                                  {itemCount} {t(locale, "stavki", "items")}
                                 </span>
                               </span>
                             </span>
@@ -2145,7 +2141,7 @@ export function AddModuleAction({
                                     className="inline-flex min-h-9 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-yellow px-3 text-xs font-black text-ink shadow-[2px_2px_0_0_rgba(14,49,88,0.15)]"
                                   >
                                     <LayoutDashboard className="size-4" />
-                                    {labelFor(locale, "Editor lekcije", "Lesson editor")}
+                                    {t(locale, "Editor lekcije", "Lesson editor")}
                                   </button>
                                 </div>
                                 <div className="mt-4 rounded-[8px] bg-white p-2">
@@ -2157,7 +2153,7 @@ export function AddModuleAction({
                                           key: step._id,
                                           title:
                                             (locale === "sr" ? step.titleSr : step.titleEn) ||
-                                            `${labelFor(locale, "Korak", "Step")} ${index + 1}`,
+                                            `${t(locale, "Korak", "Step")} ${index + 1}`,
                                           href: `${lessonHref}?step=${step._id}`,
                                         }),
                                       )}
@@ -2166,14 +2162,14 @@ export function AddModuleAction({
                                           key: task._id,
                                           title:
                                             (locale === "sr" ? task.titleSr : task.titleEn) ||
-                                            `${labelFor(locale, "Zadatak", "Task")} ${index + 1}`,
+                                            `${t(locale, "Zadatak", "Task")} ${index + 1}`,
                                           href: `${lessonHref}?task=${task._id}`,
                                         }),
                                       )}
                                     </div>
                                   ) : (
                                     <p className="rounded-[8px] border-2 border-dashed border-line bg-paper p-3 text-xs font-black text-muted">
-                                      {labelFor(locale, "Nema dodatnih delova u ovoj lekciji.", "No extra items in this lesson.")}
+                                      {t(locale, "Nema dodatnih delova u ovoj lekciji.", "No extra items in this lesson.")}
                                     </p>
                                   )}
                                 </div>
@@ -2186,7 +2182,7 @@ export function AddModuleAction({
                   </div>
                 ) : (
                   <p className="rounded-[8px] border-2 border-dashed border-line bg-paper p-4 text-sm font-black text-muted">
-                    {labelFor(locale, "Nema lekcija u ovom ciklusu.", "No lessons in this cycle.")}
+                    {t(locale, "Nema lekcija u ovom ciklusu.", "No lessons in this cycle.")}
                   </p>
                 )}
               </FormSection>
@@ -2194,14 +2190,14 @@ export function AddModuleAction({
             <EntityPreview
               locale={locale}
               title={titleSr || titleEn}
-              subtitle={descriptionSr || descriptionEn || labelFor(locale, "Ciklus u trenutnom kursu", "Cycle in the current course")}
+              subtitle={descriptionSr || descriptionEn || t(locale, "Ciklus u trenutnom kursu", "Cycle in the current course")}
               meta={`${sortOrder}`}
-              emptyLabel={labelFor(locale, "Novi ciklus", "New cycle")}
+              emptyLabel={t(locale, "Novi ciklus", "New cycle")}
             />
           </div>
           <ComposerFooter
             pending={pending}
-            submitLabel={isEditing ? labelFor(locale, "Sacuvaj ciklus", "Save cycle") : labelFor(locale, "Dodaj ciklus", "Add cycle")}
+            submitLabel={isEditing ? t(locale, "Sacuvaj ciklus", "Save cycle") : t(locale, "Dodaj ciklus", "Add cycle")}
             message={message}
             icon={<Layers className="size-4" />}
           />
@@ -2225,12 +2221,12 @@ export function AddModuleAction({
                   animate={{ y: 0, scale: 1 }}
                   exit={{ y: 10, scale: 0.99 }}
                 >
-                  <p className="text-xs font-black uppercase text-muted">{labelFor(locale, "Nesnimljene izmene", "Unsaved changes")}</p>
+                  <p className="text-xs font-black uppercase text-muted">{t(locale, "Nesnimljene izmene", "Unsaved changes")}</p>
                   <h3 className="mt-2 text-2xl font-black text-ink">
-                    {labelFor(locale, "Sacuvati izmene na ciklusu?", "Save changes to this cycle?")}
+                    {t(locale, "Sacuvati izmene na ciklusu?", "Save changes to this cycle?")}
                   </h3>
                   <p className="mt-3 text-sm font-bold leading-6 text-muted">
-                    {labelFor(locale, "Pre nastavka izaberi da li se informacije o ciklusu cuvaju.", "Before continuing, choose whether to save the cycle information.")}
+                    {t(locale, "Pre nastavka izaberi da li se informacije o ciklusu cuvaju.", "Before continuing, choose whether to save the cycle information.")}
                   </p>
                   <div className="mt-5 grid gap-2 sm:grid-cols-3">
                     <button
@@ -2240,21 +2236,21 @@ export function AddModuleAction({
                       className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-3 text-xs font-black text-ink disabled:cursor-wait disabled:opacity-60"
                     >
                       {pending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-                      {labelFor(locale, "Sacuvaj", "Save")}
+                      {t(locale, "Sacuvaj", "Save")}
                     </button>
                     <button
                       type="button"
                       onClick={discardAndContinue}
                       className="inline-flex min-h-11 items-center justify-center rounded-[8px] border-2 border-ink bg-white px-3 text-xs font-black text-ink"
                     >
-                      {labelFor(locale, "Ponisti", "Discard")}
+                      {t(locale, "Ponisti", "Discard")}
                     </button>
                     <button
                       type="button"
                       onClick={() => setPendingAction(null)}
                       className="inline-flex min-h-11 items-center justify-center rounded-[8px] border-2 border-line bg-paper px-3 text-xs font-black text-muted"
                     >
-                      {labelFor(locale, "Ostani", "Stay")}
+                      {t(locale, "Ostani", "Stay")}
                     </button>
                   </div>
                 </motion.div>
@@ -2269,7 +2265,7 @@ export function AddModuleAction({
 }
 
 export function EditModuleAction(props: Omit<Parameters<typeof AddModuleAction>[0], "buttonLabel">) {
-  return <AddModuleAction {...props} buttonLabel={labelFor(props.locale, "Izmeni ciklus", "Edit cycle")} />;
+  return <AddModuleAction {...props} buttonLabel={t(props.locale, "Izmeni ciklus", "Edit cycle")} />;
 }
 
 type LessonActionInitial = {
@@ -2324,8 +2320,8 @@ export function AddLessonAction({
   const [pending, setPending] = useState(false);
   const [dismissedOpenKey, setDismissedOpenKey] = useState<string | null>(null);
   const isEditing = Boolean(lessonId);
-  const actionLabel = buttonLabel ?? (isEditing ? labelFor(locale, "Izmeni lekciju", "Edit lesson") : labelFor(locale, "Dodaj lekciju", "Add lesson"));
-  const dialogTitle = isEditing ? labelFor(locale, "Izmeni lekciju", "Edit lesson") : labelFor(locale, "Dodaj lekciju", "Add lesson");
+  const actionLabel = buttonLabel ?? (isEditing ? t(locale, "Izmeni lekciju", "Edit lesson") : t(locale, "Dodaj lekciju", "Add lesson"));
+  const dialogTitle = isEditing ? t(locale, "Izmeni lekciju", "Edit lesson") : t(locale, "Dodaj lekciju", "Add lesson");
   const shouldAutoOpen = Boolean(
     initialOpenKey && moduleId && !lessonId && initialOpenKey === moduleId && dismissedOpenKey !== initialOpenKey,
   );
@@ -2342,7 +2338,7 @@ export function AddLessonAction({
     event.preventDefault();
     if (!courseId || !moduleId) return;
     if (!titleSr.trim() || (isPublished && !richTextHasContent(summaryRichSr, summarySr))) {
-      setMessage(labelFor(locale, "Popuni SR naziv i sažetak pre objave lekcije.", "Complete the Serbian title and summary before publishing the lesson."));
+      setMessage(t(locale, "Popuni SR naziv i sažetak pre objave lekcije.", "Complete the Serbian title and summary before publishing the lesson."));
       return;
     }
     setPending(true);
@@ -2371,7 +2367,7 @@ export function AddLessonAction({
       }
       router.refresh();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : labelFor(locale, "Cuvanje nije uspelo.", "Save failed."));
+      setMessage(error instanceof Error ? error.message : t(locale, "Cuvanje nije uspelo.", "Save failed."));
     } finally {
       setPending(false);
     }
@@ -2391,7 +2387,7 @@ export function AddLessonAction({
       )}
       <AdminComposerSheet
         title={dialogTitle}
-        eyebrow={labelFor(locale, "Composer lekcije", "Lesson composer")}
+        eyebrow={t(locale, "Composer lekcije", "Lesson composer")}
         open={sheetOpen}
         onClose={closeSheet}
       >
@@ -2400,8 +2396,8 @@ export function AddLessonAction({
             <div className="space-y-5">
               <FormSection
                 icon={<ListPlus className="size-5" />}
-                title={labelFor(locale, "Osnovni podaci", "Basics")}
-                body={labelFor(locale, "Naziv, URL i trajanje lekcije za navigaciju i player.", "Name, URL, and duration used by navigation and the player.")}
+                title={t(locale, "Osnovni podaci", "Basics")}
+                body={t(locale, "Naziv, URL i trajanje lekcije za navigaciju i player.", "Name, URL, and duration used by navigation and the player.")}
               >
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="md:col-span-2"><LocalizedPairSwitch locale={contentLocale} onChange={setContentLocale} sr={titleSr} en={titleEn} /></div>
@@ -2415,7 +2411,7 @@ export function AddLessonAction({
                     placeholder={slugify(titleSr || titleEn)}
                     locale={locale}
                   />
-                  <Field label={labelFor(locale, "Trajanje u minutima", "Duration in minutes")}>
+                  <Field label={t(locale, "Trajanje u minutima", "Duration in minutes")}>
                     <input
                       className={inputClass}
                       type="number"
@@ -2432,8 +2428,8 @@ export function AddLessonAction({
 
               <FormSection
                 icon={<FileText className="size-5" />}
-                title={labelFor(locale, "Kratak opis", "Summary")}
-                body={labelFor(locale, "Ovo korisnik vidi pre ulaska u lekciju.", "This is what a user sees before opening the lesson.")}
+                title={t(locale, "Kratak opis", "Summary")}
+                body={t(locale, "Ovo korisnik vidi pre ulaska u lekciju.", "This is what a user sees before opening the lesson.")}
               >
                 <div className="space-y-3">
                   <LocalizedPairSwitch locale={contentLocale} onChange={setContentLocale} sr={summarySr} en={summaryEn} />
@@ -2444,8 +2440,8 @@ export function AddLessonAction({
 
               <FormSection
                 icon={<Check className="size-5" />}
-                title={labelFor(locale, "Vidljivost", "Visibility")}
-                body={labelFor(locale, "Admin moze da radi na nacrtu bez prikaza korisnicima.", "Admins can work on drafts before users see them.")}
+                title={t(locale, "Vidljivost", "Visibility")}
+                body={t(locale, "Admin moze da radi na nacrtu bez prikaza korisnicima.", "Admins can work on drafts before users see them.")}
               >
                 <PublishToggle locale={locale} checked={isPublished} onChange={setIsPublished} />
               </FormSection>
@@ -2454,14 +2450,14 @@ export function AddLessonAction({
               locale={locale}
               title={titleSr || titleEn}
               subtitle={summarySr || summaryEn}
-              status={isPublished ? labelFor(locale, "Objavljeno", "Published") : labelFor(locale, "Nacrt", "Draft")}
+              status={isPublished ? t(locale, "Objavljeno", "Published") : t(locale, "Nacrt", "Draft")}
               meta={`${Math.max(1, durationMinutes || 1)} min`}
-              emptyLabel={labelFor(locale, "Nova lekcija", "New lesson")}
+              emptyLabel={t(locale, "Nova lekcija", "New lesson")}
             />
           </div>
           <ComposerFooter
             pending={pending}
-            submitLabel={isEditing ? labelFor(locale, "Sacuvaj lekciju", "Save lesson") : labelFor(locale, "Dodaj lekciju", "Add lesson")}
+            submitLabel={isEditing ? t(locale, "Sacuvaj lekciju", "Save lesson") : t(locale, "Dodaj lekciju", "Add lesson")}
             message={message}
             icon={<ListPlus className="size-4" />}
           />
@@ -2472,7 +2468,7 @@ export function AddLessonAction({
 }
 
 export function EditLessonAction(props: Omit<Parameters<typeof AddLessonAction>[0], "buttonLabel">) {
-  return <AddLessonAction {...props} buttonLabel={labelFor(props.locale, "Izmeni lekciju", "Edit lesson")} />;
+  return <AddLessonAction {...props} buttonLabel={t(props.locale, "Izmeni lekciju", "Edit lesson")} />;
 }
 
 type LessonPartActionInitial = {
@@ -2537,15 +2533,15 @@ export function AddLessonPartAction({
   const actionLabel =
     buttonLabel ??
     (isEditing
-      ? labelFor(locale, "Izmeni blok", "Edit block")
+      ? t(locale, "Izmeni blok", "Edit block")
       : effectiveParentPartId
-        ? labelFor(locale, "Dodaj blok", "Add block")
-        : labelFor(locale, "Dodaj blok", "Add block"));
+        ? t(locale, "Dodaj blok", "Add block")
+        : t(locale, "Dodaj blok", "Add block"));
   const dialogTitle = isEditing
-    ? labelFor(locale, "Izmeni sadržajni blok", "Edit content block")
+    ? t(locale, "Izmeni sadržajni blok", "Edit content block")
     : effectiveParentPartId
-      ? labelFor(locale, "Dodaj sadržajni blok", "Add content block")
-      : labelFor(locale, "Dodaj sadržajni blok", "Add content block");
+      ? t(locale, "Dodaj sadržajni blok", "Add content block")
+      : t(locale, "Dodaj sadržajni blok", "Add content block");
 
   const applyDroppedFile = useEffectEvent((candidate: File) => {
     if (pending || (kind === "video" && !isVideoFile(candidate)) || (kind === "image" && !isImageFile(candidate))) return;
@@ -2596,7 +2592,7 @@ export function AddLessonPartAction({
       const accepted = Boolean(candidate && (kind === "file" || (kind === "video" && isVideoFile(candidate)) || (kind === "image" && isImageFile(candidate))));
       resetDragging();
       if (candidate && accepted) applyDroppedFile(candidate);
-      else setMessage(labelFor(locale, "Ovaj tip fajla nije dozvoljen.", "This file type is not allowed."));
+      else setMessage(t(locale, "Ovaj tip fajla nije dozvoljen.", "This file type is not allowed."));
     }
 
     window.addEventListener("dragenter", handleWindowDragEnter);
@@ -2624,13 +2620,13 @@ export function AddLessonPartAction({
       const detail = await response.text().catch(() => "");
       throw new Error(
         detail
-          ? `${labelFor(locale, "Upload nije uspeo", "Upload failed")}: ${detail.slice(0, 240)}`
-          : labelFor(locale, "Upload nije uspeo.", "Upload failed."),
+          ? `${t(locale, "Upload nije uspeo", "Upload failed")}: ${detail.slice(0, 240)}`
+          : t(locale, "Upload nije uspeo.", "Upload failed."),
       );
     }
     const result = (await response.json()) as { storageId?: Id<"_storage"> };
     if (!result.storageId) {
-      throw new Error(labelFor(locale, "Convex nije vratio storageId.", "Convex did not return a storageId."));
+      throw new Error(t(locale, "Convex nije vratio storageId.", "Convex did not return a storageId."));
     }
     return {
       storageId: result.storageId,
@@ -2644,11 +2640,11 @@ export function AddLessonPartAction({
     event.preventDefault();
     if (!courseId || !lessonId) return;
     if (kind === "text" && isPublished && !richTextHasContent(bodyRichSr, bodySr)) {
-      setMessage(labelFor(locale, "Dodaj tekst na srpskom pre objave bloka.", "Add Serbian text before publishing the block."));
+      setMessage(t(locale, "Dodaj tekst na srpskom pre objave bloka.", "Add Serbian text before publishing the block."));
       return;
     }
     if ((kind === "image" || kind === "video" || kind === "file") && !file && !hasExistingFile) {
-      setMessage(labelFor(locale, "Izaberi fajl za ovaj blok.", "Choose a file for this block."));
+      setMessage(t(locale, "Izaberi fajl za ovaj blok.", "Choose a file for this block."));
       return;
     }
 
@@ -2678,7 +2674,7 @@ export function AddLessonPartAction({
       setOpen(false);
       router.refresh();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : labelFor(locale, "Cuvanje nije uspelo.", "Save failed."));
+      setMessage(error instanceof Error ? error.message : t(locale, "Cuvanje nije uspelo.", "Save failed."));
     } finally {
       setPending(false);
     }
@@ -2698,7 +2694,7 @@ export function AddLessonPartAction({
       )}
       <AdminComposerSheet
         title={dialogTitle}
-        eyebrow={labelFor(locale, "Light sadržaj lekcije", "Light lesson content")}
+        eyebrow={t(locale, "Light sadržaj lekcije", "Light lesson content")}
         open={open}
         onClose={() => setOpen(false)}
       >
@@ -2707,8 +2703,8 @@ export function AddLessonPartAction({
             <div className="space-y-5">
               <FormSection
                 icon={<FileText className="size-5" />}
-                title={labelFor(locale, "Tip bloka", "Block type")}
-                body={labelFor(locale, "Izaberi šta dodaješ. Interni naziv se pravi automatski i student ga ne vidi.", "Choose what to add. The internal name is generated automatically and stays hidden.")}
+                title={t(locale, "Tip bloka", "Block type")}
+                body={t(locale, "Izaberi šta dodaješ. Interni naziv se pravi automatski i student ga ne vidi.", "Choose what to add. The internal name is generated automatically and stays hidden.")}
               >
                 <div>
                   <KindControl<LessonPartKind>
@@ -2718,10 +2714,10 @@ export function AddLessonPartAction({
                       setFile(null);
                     }}
                     options={[
-                      { value: "text", label: labelFor(locale, "Tekst", "Text"), body: labelFor(locale, "Lekcija u pisanom obliku", "Written lesson content") },
-                      { value: "image", label: labelFor(locale, "Slika", "Image"), body: labelFor(locale, "Fotografija, ilustracija ili screenshot", "Photo, illustration, or screenshot") },
-                      { value: "video", label: labelFor(locale, "Video", "Video"), body: labelFor(locale, "Upload video fajla", "Video file upload") },
-                      { value: "file", label: labelFor(locale, "Fajl", "File"), body: labelFor(locale, "Materijal za preuzimanje", "Downloadable material") },
+                      { value: "text", label: t(locale, "Tekst", "Text"), body: t(locale, "Lekcija u pisanom obliku", "Written lesson content") },
+                      { value: "image", label: t(locale, "Slika", "Image"), body: t(locale, "Fotografija, ilustracija ili screenshot", "Photo, illustration, or screenshot") },
+                      { value: "video", label: t(locale, "Video", "Video"), body: t(locale, "Upload video fajla", "Video file upload") },
+                      { value: "file", label: t(locale, "Fajl", "File"), body: t(locale, "Materijal za preuzimanje", "Downloadable material") },
                     ]}
                   />
                 </div>
@@ -2729,11 +2725,11 @@ export function AddLessonPartAction({
 
               <FormSection
                 icon={kind === "text" ? <BookOpen className="size-5" /> : <UploadCloud className="size-5" />}
-                title={kind === "text" ? labelFor(locale, "Sadrzaj", "Content") : labelFor(locale, "Upload", "Upload")}
+                title={kind === "text" ? t(locale, "Sadrzaj", "Content") : t(locale, "Upload", "Upload")}
                 body={
                   kind === "text"
-                    ? labelFor(locale, "Tekst ostaje direktno u delu lekcije.", "Text stays directly inside the lesson part.")
-                    : labelFor(locale, "Fajl se prvo uploaduje u Convex storage, zatim se cuva deo lekcije.", "The file uploads to Convex storage before the lesson part is saved.")
+                    ? t(locale, "Tekst ostaje direktno u delu lekcije.", "Text stays directly inside the lesson part.")
+                    : t(locale, "Fajl se prvo uploaduje u Convex storage, zatim se cuva deo lekcije.", "The file uploads to Convex storage before the lesson part is saved.")
                 }
               >
                 {kind === "text" ? (
@@ -2745,38 +2741,38 @@ export function AddLessonPartAction({
                 ) : (
                   <div><FileDropzone
                     locale={locale}
-                    label={kind === "video" ? "Video fajl" : kind === "image" ? labelFor(locale, "Slika", "Image") : labelFor(locale, "Fajl za preuzimanje", "Download file")}
+                    label={kind === "video" ? "Video fajl" : kind === "image" ? t(locale, "Slika", "Image") : t(locale, "Fajl za preuzimanje", "Download file")}
                     accept={kind === "video" ? "video/*" : kind === "image" ? "image/*" : undefined}
                     file={file}
                     onFileChange={setFile}
                     required={!hasExistingFile}
                     currentFile={initial?.fileName}
                   />
-                  {lessonPartId && hasExistingFile ? <button type="button" disabled={pending} onClick={async () => { if (!confirm(labelFor(locale, "Ukloniti fajl iz ovog bloka?", "Remove the file from this block?"))) return; setPending(true); try { await removeLessonPartFile({ lessonPartId: lessonPartId as Id<"lessonParts"> }); setExistingFileRemoved(true); setIsPublished(false); setFile(null); router.refresh(); } catch (error) { setMessage(error instanceof Error ? error.message : "Uklanjanje nije uspelo."); } finally { setPending(false); } }} className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-red-700 bg-white px-4 text-xs font-black text-red-700"><Trash2 className="size-4" />{labelFor(locale, "Ukloni postojeći fajl", "Remove existing file")}</button> : null}
+                  {lessonPartId && hasExistingFile ? <button type="button" disabled={pending} onClick={async () => { if (!confirm(t(locale, "Ukloniti fajl iz ovog bloka?", "Remove the file from this block?"))) return; setPending(true); try { await removeLessonPartFile({ lessonPartId: lessonPartId as Id<"lessonParts"> }); setExistingFileRemoved(true); setIsPublished(false); setFile(null); router.refresh(); } catch (error) { setMessage(error instanceof Error ? error.message : "Uklanjanje nije uspelo."); } finally { setPending(false); } }} className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-red-700 bg-white px-4 text-xs font-black text-red-700"><Trash2 className="size-4" />{t(locale, "Ukloni postojeći fajl", "Remove existing file")}</button> : null}
                   </div>
                 )}
               </FormSection>
 
               <FormSection
                 icon={<Check className="size-5" />}
-                title={labelFor(locale, "Vidljivost", "Visibility")}
-                body={labelFor(locale, "Poddelovi nasledjuju kontekst lekcije, ali imaju svoj publish status.", "Subparts inherit the lesson context but keep their own publish state.")}
+                title={t(locale, "Vidljivost", "Visibility")}
+                body={t(locale, "Poddelovi nasledjuju kontekst lekcije, ali imaju svoj publish status.", "Subparts inherit the lesson context but keep their own publish state.")}
               >
                 <PublishToggle locale={locale} checked={isPublished} onChange={setIsPublished} />
               </FormSection>
             </div>
             <EntityPreview
               locale={locale}
-              title={kind === "text" ? labelFor(locale, "Tekstualni blok", "Text block") : kind === "image" ? labelFor(locale, "Slika", "Image") : kind === "video" ? "Video" : labelFor(locale, "Fajl", "File")}
+              title={kind === "text" ? t(locale, "Tekstualni blok", "Text block") : kind === "image" ? t(locale, "Slika", "Image") : kind === "video" ? "Video" : t(locale, "Fajl", "File")}
               subtitle={kind === "text" ? bodySr || bodyEn : file?.name || initial?.fileName}
-              status={isPublished ? labelFor(locale, "Objavljeno", "Published") : labelFor(locale, "Nacrt", "Draft")}
-              meta={effectiveParentPartId ? labelFor(locale, "Poddeo", "Subpart") : kind}
-              emptyLabel={labelFor(locale, "Novi blok", "New block")}
+              status={isPublished ? t(locale, "Objavljeno", "Published") : t(locale, "Nacrt", "Draft")}
+              meta={effectiveParentPartId ? t(locale, "Poddeo", "Subpart") : kind}
+              emptyLabel={t(locale, "Novi blok", "New block")}
             />
           </div>
           <ComposerFooter
             pending={pending}
-            submitLabel={isEditing ? labelFor(locale, "Sačuvaj blok", "Save block") : labelFor(locale, "Dodaj blok", "Add block")}
+            submitLabel={isEditing ? t(locale, "Sačuvaj blok", "Save block") : t(locale, "Dodaj blok", "Add block")}
             message={message}
           />
         </form>
@@ -2793,13 +2789,13 @@ export function AddLessonPartAction({
                 <UploadCloud className="mx-auto size-9" />
                 <p className="mt-3 text-lg font-black">
                   {kind === "video"
-                    ? labelFor(locale, "Pusti video bilo gde", "Drop the video anywhere")
+                    ? t(locale, "Pusti video bilo gde", "Drop the video anywhere")
                     : kind === "image"
-                      ? labelFor(locale, "Pusti sliku bilo gde", "Drop the image anywhere")
-                    : labelFor(locale, "Pusti fajl bilo gde", "Drop the file anywhere")}
+                      ? t(locale, "Pusti sliku bilo gde", "Drop the image anywhere")
+                    : t(locale, "Pusti fajl bilo gde", "Drop the file anywhere")}
                 </p>
                 <p className="mt-2 text-sm font-bold text-muted">
-                  {labelFor(locale, "Fajl će biti dodat ovom Light bloku.", "The file will be attached to this Light block.")}
+                  {t(locale, "Fajl će biti dodat ovom Light bloku.", "The file will be attached to this Light block.")}
                 </p>
               </div>
             </motion.div>
@@ -2811,7 +2807,7 @@ export function AddLessonPartAction({
 }
 
 export function EditLessonPartAction(props: Omit<Parameters<typeof AddLessonPartAction>[0], "buttonLabel">) {
-  return <AddLessonPartAction {...props} buttonLabel={labelFor(props.locale, "Izmeni blok", "Edit block")} />;
+  return <AddLessonPartAction {...props} buttonLabel={t(props.locale, "Izmeni blok", "Edit block")} />;
 }
 
 export function AddAssetAction({
@@ -2841,7 +2837,7 @@ export function AddAssetAction({
     event.preventDefault();
     if (!courseId || !lessonId || !file) return;
     if (!titleSr.trim() || !titleEn.trim()) {
-      setMessage(labelFor(locale, "Popuni naziv materijala na SR i EN.", "Complete the material name in SR and EN."));
+      setMessage(t(locale, "Popuni naziv materijala na SR i EN.", "Complete the material name in SR and EN."));
       return;
     }
     setPending(true);
@@ -2857,13 +2853,13 @@ export function AddAssetAction({
         const detail = await upload.text().catch(() => "");
         throw new Error(
           detail
-            ? `${labelFor(locale, "Upload nije uspeo", "Upload failed")}: ${detail.slice(0, 240)}`
-            : labelFor(locale, "Upload nije uspeo.", "Upload failed."),
+            ? `${t(locale, "Upload nije uspeo", "Upload failed")}: ${detail.slice(0, 240)}`
+            : t(locale, "Upload nije uspeo.", "Upload failed."),
         );
       }
       const { storageId } = (await upload.json()) as { storageId?: Id<"_storage"> };
       if (!storageId) {
-        throw new Error(labelFor(locale, "Convex nije vratio storageId.", "Convex did not return a storageId."));
+        throw new Error(t(locale, "Convex nije vratio storageId.", "Convex did not return a storageId."));
       }
       await saveLessonAsset({
         courseId: courseId as Id<"courses">,
@@ -2878,7 +2874,7 @@ export function AddAssetAction({
       setOpen(false);
       router.refresh();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : labelFor(locale, "Cuvanje nije uspelo.", "Save failed."));
+      setMessage(error instanceof Error ? error.message : t(locale, "Cuvanje nije uspelo.", "Save failed."));
     } finally {
       setPending(false);
     }
@@ -2888,11 +2884,11 @@ export function AddAssetAction({
     <>
       <AdminActionButton onClick={() => setOpen(true)} tone={tone} disabled={!courseId || !lessonId}>
         <FileUp className="size-4" />
-        {labelFor(locale, "Dodaj fajl", "Add file")}
+        {t(locale, "Dodaj fajl", "Add file")}
       </AdminActionButton>
       <AdminComposerSheet
-        title={labelFor(locale, "Dodaj fajl", "Add file")}
-        eyebrow={labelFor(locale, "Composer materijala", "Material composer")}
+        title={t(locale, "Dodaj fajl", "Add file")}
+        eyebrow={t(locale, "Composer materijala", "Material composer")}
         open={open}
         onClose={() => setOpen(false)}
       >
@@ -2901,8 +2897,8 @@ export function AddAssetAction({
             <div className="space-y-5">
               <FormSection
                 icon={<FileUp className="size-5" />}
-                title={labelFor(locale, "Naziv materijala", "Material name")}
-                body={labelFor(locale, "Materijali stoje uz lekciju kao PDF, prompt, worksheet ili projekat.", "Materials sit next to the lesson as PDFs, prompts, worksheets, or projects.")}
+                title={t(locale, "Naziv materijala", "Material name")}
+                body={t(locale, "Materijali stoje uz lekciju kao PDF, prompt, worksheet ili projekat.", "Materials sit next to the lesson as PDFs, prompts, worksheets, or projects.")}
               >
                 <div className="space-y-3">
                   <LocalizedPairSwitch locale={contentLocale} onChange={setContentLocale} sr={titleSr} en={titleEn} />
@@ -2927,7 +2923,7 @@ export function AddAssetAction({
               <FormSection
                 icon={<UploadCloud className="size-5" />}
                 title="Upload"
-                body={labelFor(locale, "Izaberi fajl koji ce biti povezan sa ovom lekcijom.", "Choose the file that will be attached to this lesson.")}
+                body={t(locale, "Izaberi fajl koji ce biti povezan sa ovom lekcijom.", "Choose the file that will be attached to this lesson.")}
               >
                 <FileDropzone locale={locale} label="Upload" file={file} onFileChange={setFile} required />
               </FormSection>
@@ -2938,12 +2934,12 @@ export function AddAssetAction({
               subtitle={file?.name}
               status={kind.toUpperCase()}
               meta={file ? `${Math.max(1, Math.round(file.size / 1024))} KB` : undefined}
-              emptyLabel={labelFor(locale, "Novi materijal", "New material")}
+              emptyLabel={t(locale, "Novi materijal", "New material")}
             />
           </div>
           <ComposerFooter
             pending={pending}
-            submitLabel={labelFor(locale, "Upload fajla", "Upload file")}
+            submitLabel={t(locale, "Upload fajla", "Upload file")}
             message={message}
             icon={<UploadCloud className="size-4" />}
           />

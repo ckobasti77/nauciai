@@ -649,7 +649,7 @@ export function CommunityPostEditor({
       ) : null}
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
-        <main className="min-w-0">
+        <section className="min-w-0">
           <Panel className="overflow-hidden rounded-[16px] border-2 border-ink bg-white shadow-[6px_6px_0_rgba(14,49,88,0.13)]">
             <div className="border-b border-line bg-paper/55 px-5 py-5 md:px-7">
               <div className="flex flex-wrap items-center justify-between gap-4">
@@ -910,7 +910,7 @@ export function CommunityPostEditor({
               </div>
             </div>
           </Panel>
-        </main>
+        </section>
 
         <aside className="space-y-4 xl:sticky xl:top-5 xl:self-start">
           <Panel className="rounded-[16px] border border-line bg-white p-4 shadow-none">

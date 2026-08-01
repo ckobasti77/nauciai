@@ -1,6 +1,6 @@
 "use client";
 
-import { Bookmark, CheckCircle2, Clock3, FilePenLine, Inbox, PencilLine, Send, Sparkles } from "lucide-react";
+import { Bookmark, CheckCircle2, Clock3, FilePenLine, Inbox, PencilLine } from "lucide-react";
 import { useMutation } from "convex/react";
 import Link from "next/link";
 
@@ -11,7 +11,6 @@ import type { Locale } from "@/lib/i18n";
 import { withLocale } from "@/lib/i18n";
 
 import {
-  fallbackCommunityFilters,
   fallbackCommunityPosts,
   useCommunityFilters,
   useCommunityMyPosts,
@@ -20,7 +19,6 @@ import {
 import { useCommunityQueryParams } from "./community-filters";
 import { CommunityStickyToolbar } from "./community-sticky-toolbar";
 import {
-  CommunityPageHeading,
   CommunityRouteSkeleton,
   EmptyCommunityState,
   LoadMoreButton,
@@ -60,14 +58,13 @@ function StaticMyThreadsPage({ locale }: { locale: Locale }) {
       loading={false}
       canLoadMore={false}
       loadingMore={false}
-      totalNotice={fallbackCommunityFilters.counts?.myThreads ?? 0}
     />
   );
 }
 
 function LiveMyThreadsPage({ locale }: { locale: Locale }) {
   const viewState = useThreadView();
-  const { filters, isLoading: filtersLoading } = useCommunityFilters(true);
+  const { isLoading: filtersLoading } = useCommunityFilters(true);
   const postsQuery = useCommunityMyPosts({ view: viewState.view });
   const toggleFavorite = useToggleCommunityFavorite();
   const markPostNotificationsAsRead = useMutation(api.notifications.markPostNotificationsAsRead);
@@ -83,7 +80,6 @@ function LiveMyThreadsPage({ locale }: { locale: Locale }) {
       onLoadMore={() => postsQuery.loadMore(20)}
       onToggleFavorite={(postId) => toggleFavorite({ postId })}
       onOpenPost={(postId) => markPostNotificationsAsRead({ postId: postId as Id<"communityPosts"> })}
-      totalNotice={filters.counts?.myThreads ?? 0}
     />
   );
 }
@@ -181,7 +177,6 @@ function MyThreadsView({
   loading,
   canLoadMore,
   loadingMore,
-  totalNotice,
   onLoadMore,
   onToggleFavorite,
   onOpenPost,
@@ -192,7 +187,6 @@ function MyThreadsView({
   loading: boolean;
   canLoadMore: boolean;
   loadingMore: boolean;
-  totalNotice: number;
   onLoadMore?: () => void;
   onToggleFavorite?: (postId: string) => Promise<unknown>;
   onOpenPost?: (postId: string) => Promise<unknown>;
@@ -202,26 +196,6 @@ function MyThreadsView({
 
   return (
     <div className="space-y-5">
-      <div className="hidden">
-      <CommunityPageHeading
-        eyebrow={locale === "sr" ? "Tvoj radni sto" : "Your workbench"}
-        title={locale === "sr" ? "Od skice do korisne diskusije" : "From rough draft to useful discussion"}
-        body={
-          locale === "sr"
-            ? "Svaki tred ima jasno stanje i sledeći korak. Skice ostaju tvoje dok ih ne pošalješ na odobrenje."
-            : "Every thread has a clear state and next step. Drafts remain yours until you send them for review."
-        }
-        action={
-          <Link
-            href={withLocale(locale, "/app/community/new")}
-            className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-sm font-black text-ink shadow-[3px_3px_0_rgba(14,49,88,0.18)] transition hover:-translate-y-0.5"
-          >
-            <FilePenLine className="size-4" aria-hidden="true" />
-            {locale === "sr" ? "Nova skica" : "New draft"}
-          </Link>
-        }
-      />
-      </div>
       <CommunityStickyToolbar>
       <nav className="overflow-x-auto rounded-[16px]! border border-line bg-white p-1.5" aria-label={locale === "sr" ? "Status mojih predloga" : "My ideas status"}>
         <div className="relative grid min-w-[760px] grid-cols-5">
@@ -339,40 +313,6 @@ function MyThreadsView({
               </div>
             ) : null}
           </section>
-
-          <aside className="hidden space-y-4 xl:sticky xl:top-6">
-            <section className="rounded-[16px]! border border-ink bg-[#eef3f7] p-4">
-              <div className="flex items-center gap-2">
-                <Sparkles className="size-4 text-ink" aria-hidden="true" />
-                <h2 className="text-sm font-black text-ink">{locale === "sr" ? "Tok objavljivanja" : "Publishing flow"}</h2>
-              </div>
-              <ol className="relative mt-4 space-y-4 before:absolute before:bottom-5 before:left-3 before:top-5 before:w-px before:bg-ink/20">
-                {VIEW_ITEMS.slice(0, 3).map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <li key={item.id} className="relative flex items-start gap-3">
-                      <span className="relative z-10 grid size-6 shrink-0 place-items-center rounded-full border border-ink bg-white">
-                        <Icon className="size-3" aria-hidden="true" />
-                      </span>
-                      <span className="block pt-0.5 text-sm font-black text-ink">{locale === "sr" ? item.labelSr : item.labelEn}</span>
-                    </li>
-                  );
-                })}
-              </ol>
-            </section>
-            {totalNotice > 0 ? (
-              <section className="rounded-[16px]! border border-yellow bg-yellow/20 p-4">
-                <div className="flex items-start gap-3">
-                  <Send className="mt-0.5 size-4 shrink-0 text-ink" aria-hidden="true" />
-                  <p className="text-sm font-bold leading-5 text-ink">
-                    {locale === "sr"
-                      ? `Imaš ${totalNotice} novih aktivnosti na svojim tredovima.`
-                      : `You have ${totalNotice} new activities on your threads.`}
-                  </p>
-                </div>
-              </section>
-            ) : null}
-          </aside>
         </div>
       )}
     </div>

@@ -6,11 +6,13 @@ import { useQuery } from "convex/react";
 import {
   DashboardContent,
   DashboardHomeContent,
+  DashboardHomeSkeleton,
   type DashboardCourse,
 } from "@/components/app/dashboard-content";
+import { LinkButton } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
 import type { ViewerProfile } from "@/lib/current-viewer";
-import type { Locale } from "@/lib/i18n";
+import { withLocale, type Locale } from "@/lib/i18n";
 
 type LiveNavigationResult = {
   profile?: {
@@ -193,13 +195,11 @@ function courseFromLiveCourse(
   };
 }
 
+// fallbackCourses is only a slug-matched source for the decorative cover image of a course
+// that has no coverUrl. It is never a stand-in for the viewer's real course list — doing that
+// rendered marketing content as the student's own data for the whole in-flight window.
 function coursesFromLive(liveNavigation: LiveNavigationResult, fallbackCourses: DashboardCourse[]): DashboardCourse[] {
-  const liveCourses = liveNavigation?.courses;
-  if (!liveCourses?.length) {
-    return fallbackCourses;
-  }
-
-  return liveCourses.map((course) =>
+  return (liveNavigation?.courses ?? []).map((course) =>
     courseFromLiveCourse(
       course,
       fallbackCourses.find((fallbackCourse) => fallbackCourse.slug === course.slug),
@@ -212,13 +212,12 @@ function courseFromLive(
   fallbackCourse: DashboardCourse,
   fallbackCourses: DashboardCourse[],
   courseSlug?: string,
-): DashboardCourse {
-  const liveCourses = liveNavigation?.courses;
-  if (!liveCourses?.length) {
-    return fallbackCourse;
-  }
+): DashboardCourse | null {
+  const liveCourse = liveNavigation?.courses?.find((course) => course.slug === courseSlug);
+  // An unknown ?course= slug used to silently render liveCourses[0] — a different course than
+  // the URL asked for. Return null so the caller can say so instead.
+  if (!liveCourse) return null;
 
-  const liveCourse = liveCourses.find((course) => course.slug === courseSlug) ?? liveCourses[0];
   return courseFromLiveCourse(
     liveCourse,
     fallbackCourses.find((course) => course.slug === liveCourse.slug) ?? fallbackCourse,
@@ -231,35 +230,63 @@ export function LiveStudentDashboard({
   courseSlug,
   fallbackCourse,
   fallbackCourses,
-  newLessonModuleId,
-  editModuleId,
 }: {
   locale: Locale;
   profile?: ViewerProfile;
   courseSlug?: string;
   fallbackCourse: DashboardCourse;
   fallbackCourses: DashboardCourse[];
-  newLessonModuleId?: string;
-  editModuleId?: string;
 }) {
-  const { isAuthenticated } = useConvexAuth();
+  const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
   const liveNavigation = useQuery(api.courses.getAppNavigation, isAuthenticated ? {} : "skip") as LiveNavigationResult;
-  const courses = coursesFromLive(liveNavigation, fallbackCourses);
-  const course = courseFromLive(liveNavigation, fallbackCourse, fallbackCourses, courseSlug);
   const isAdmin = profile?.role === "admin" || liveNavigation?.profile?.role === "admin";
 
-  if (!courseSlug) {
-    return <DashboardHomeContent locale={locale} profile={profile} courses={courses} isAdmin={isAdmin} />;
+  // Three states, kept distinct: loading (auth resolving, or query still undefined),
+  // empty (query resolved with nothing), loaded. Conflating the first two is what made the
+  // dashboard show fabricated data on every page load.
+  if (authLoading || (isAuthenticated && liveNavigation === undefined)) {
+    return <DashboardHomeSkeleton />;
   }
 
+  if (!courseSlug) {
+    return (
+      <DashboardHomeContent
+        locale={locale}
+        profile={profile}
+        courses={coursesFromLive(liveNavigation, fallbackCourses)}
+        isAdmin={isAdmin}
+      />
+    );
+  }
+
+  const course = courseFromLive(liveNavigation, fallbackCourse, fallbackCourses, courseSlug);
+
+  if (!course) {
+    return <DashboardCourseNotFound locale={locale} />;
+  }
+
+  return <DashboardContent locale={locale} profile={profile} course={course} isAdmin={isAdmin} />;
+}
+
+function DashboardCourseNotFound({ locale }: { locale: Locale }) {
   return (
-    <DashboardContent
-      locale={locale}
-      profile={profile}
-      course={course}
-      isAdmin={isAdmin}
-      newLessonModuleId={newLessonModuleId}
-      editModuleId={editModuleId}
-    />
+    <section
+      role="alert"
+      className="grid min-h-80 place-items-center rounded-[16px]! border-2 border-ink bg-white p-6 text-center shadow-[6px_6px_0_rgba(14,49,88,0.12)]"
+    >
+      <div className="max-w-md">
+        <h2 className="text-2xl font-black text-ink">
+          {locale === "sr" ? "Ovaj kurs ne postoji" : "That course does not exist"}
+        </h2>
+        <p className="mt-3 text-sm font-semibold leading-6 text-muted">
+          {locale === "sr"
+            ? "Link je možda zastareo. Vrati se na pregled i izaberi kurs sa liste."
+            : "The link may be out of date. Go back to the overview and pick a course from the list."}
+        </p>
+        <LinkButton href={withLocale(locale, "/app")} tone="yellow" className="mt-6">
+          {locale === "sr" ? "Nazad na pregled" : "Back to overview"}
+        </LinkButton>
+      </div>
+    </section>
   );
 }

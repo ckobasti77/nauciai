@@ -144,46 +144,16 @@ export function LiveCommunityThreadPage({
           {locale === "sr" ? "Nazad na diskusije" : "Back to discussions"}
         </Link>
 
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          {isAuthor ? (
-            <Link
-              href={withLocale(locale, `/app/community/${postId}/edit`)}
-              className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line bg-white px-4 text-sm font-black text-ink transition hover:border-ink hover:bg-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-            >
-              <Pencil className="size-4" />
-              {locale === "sr" ? "Izmeni" : "Edit"}
-            </Link>
-          ) : null}
-          <button
-            type="button"
-            onClick={handleToggleFavorite}
-            disabled={favoriteBusy}
-            aria-pressed={Boolean(post.isFavorited)}
-            className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-white px-4 text-sm font-black text-ink shadow-[3px_3px_0_rgba(14,49,88,0.14)] transition hover:bg-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-wait disabled:opacity-60"
+        {isAuthor ? (
+          <Link
+            href={withLocale(locale, `/app/community/${postId}/edit`)}
+            className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line bg-white px-4 text-sm font-black text-ink transition hover:border-ink hover:bg-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
-            {favoriteBusy ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : post.isFavorited ? (
-              <BookmarkCheck className="size-4 fill-yellow text-ink" />
-            ) : (
-              <Bookmark className="size-4" />
-            )}
-            {post.isFavorited
-              ? locale === "sr"
-                ? "Sačuvano"
-                : "Saved"
-              : locale === "sr"
-                ? "Sačuvaj"
-                : "Save"}
-          </button>
-        </div>
+            <Pencil className="size-4" />
+            {locale === "sr" ? "Izmeni" : "Edit"}
+          </Link>
+        ) : null}
       </div>
-
-      {favoriteError ? (
-        <p role="alert" className="rounded-[12px] border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-800">
-          {favoriteError}
-        </p>
-      ) : null}
 
       {post.status === "changes_requested" ? (
         <div className="flex items-start gap-3 rounded-[16px] border-2 border-amber-500 bg-amber-50 p-4 text-amber-950">
@@ -201,7 +171,7 @@ export function LiveCommunityThreadPage({
       ) : null}
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <main className="min-w-0 space-y-5">
+        <section className="min-w-0 space-y-5">
           <Panel as="article" className="overflow-hidden rounded-[16px] border-2 border-ink bg-white shadow-[6px_6px_0_rgba(14,49,88,0.13)]">
             <header className="relative border-b border-line bg-paper/55 px-5 py-6 md:px-8 md:py-8">
               <div aria-hidden="true" className="absolute bottom-0 left-8 top-0 hidden w-px bg-ink/15 md:block" />
@@ -266,6 +236,53 @@ export function LiveCommunityThreadPage({
                 ) : null}
               </div>
             </div>
+
+            <footer className="border-t border-line bg-paper/55 px-5 py-4 md:px-8">
+              <div className="mx-auto flex max-w-[720px] flex-wrap items-center gap-2">
+                <CommunityThreadActions
+                  locale={locale}
+                  postId={post._id}
+                  courseId={post.courseId}
+                  trackId={post.trackId}
+                  isFeaturedGlobal={post.isFeaturedGlobal}
+                  featuredTrackId={post.featuredTrackId}
+                  featuredCourseId={post.featuredCourseId}
+                  reactionsCount={post.reactionsCount}
+                  voteScore={post.voteScore}
+                  commentsCount={post.commentsCount}
+                  userReaction={post.userReaction}
+                  userVote={post.userVote}
+                  viewerRole={post.viewerRole}
+                />
+                <button
+                  type="button"
+                  onClick={handleToggleFavorite}
+                  disabled={favoriteBusy}
+                  aria-pressed={Boolean(post.isFavorited)}
+                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-line bg-white px-3 text-xs font-black text-ink transition hover:border-ink hover:bg-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-wait disabled:opacity-60"
+                >
+                  {favoriteBusy ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : post.isFavorited ? (
+                    <BookmarkCheck className="size-4 fill-yellow text-ink" />
+                  ) : (
+                    <Bookmark className="size-4" />
+                  )}
+                  {post.isFavorited
+                    ? locale === "sr"
+                      ? "Sačuvano"
+                      : "Saved"
+                    : locale === "sr"
+                      ? "Sačuvaj"
+                      : "Save"}
+                </button>
+              </div>
+              {favoriteError ? (
+                <p role="alert" className="mx-auto mt-3 max-w-[720px] rounded-[12px] border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-800">
+                  {favoriteError}
+                </p>
+              ) : null}
+            </footer>
           </Panel>
 
           <Panel id="comments" className="rounded-[16px] border border-line bg-white p-4 shadow-none md:p-6">
@@ -289,7 +306,7 @@ export function LiveCommunityThreadPage({
               viewerUserId={viewerProfile.userId}
             />
           </Panel>
-        </main>
+        </section>
 
         <aside className="space-y-4 xl:sticky xl:top-6 xl:self-start">
           <Panel as="aside" className="rounded-[16px] border border-line bg-white p-4 shadow-none">
@@ -303,23 +320,6 @@ export function LiveCommunityThreadPage({
                 icon={<Star className={cn("size-4", pinned && "fill-ink")} />}
               />
             </dl>
-            <div className="mt-5 border-t border-line pt-4">
-              <CommunityThreadActions
-                locale={locale}
-                postId={post._id}
-                courseId={post.courseId}
-                trackId={post.trackId}
-                isFeaturedGlobal={post.isFeaturedGlobal}
-                featuredTrackId={post.featuredTrackId}
-                featuredCourseId={post.featuredCourseId}
-                reactionsCount={post.reactionsCount}
-                voteScore={post.voteScore}
-                commentsCount={post.commentsCount}
-                userReaction={post.userReaction}
-                userVote={post.userVote}
-                viewerRole={post.viewerRole}
-              />
-            </div>
           </Panel>
         </aside>
       </div>

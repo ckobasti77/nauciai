@@ -115,6 +115,7 @@ export type CommunityMentionEvent = {
   body?: string;
   postId?: string;
   postTitle?: string;
+  commentId?: string;
   trackTitleSr?: string;
   trackTitleEn?: string;
   courseTitleSr?: string;

@@ -158,20 +158,9 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
   }
 
   return (
-    <section aria-labelledby="moderation-title" className="space-y-5">
+    <section aria-label={locale === "sr" ? "Odobrenja" : "Approvals"} className="space-y-5">
       <CommunityStickyToolbar>
       <div className="flex flex-wrap items-end justify-end gap-4 rounded-[16px] border border-line bg-white p-2">
-        <div className="hidden max-w-2xl">
-          <p className="font-display text-xl text-ink">{locale === "sr" ? "Kvalitet pre brzine" : "Quality before speed"}</p>
-          <h1 id="moderation-title" className="mt-1 text-3xl font-black tracking-[-0.02em] text-ink md:text-4xl">
-            {locale === "sr" ? "Odobrenja" : "Approvals"}
-          </h1>
-          <p className="mt-2 text-sm font-semibold leading-6 text-muted">
-            {locale === "sr"
-              ? "Pregledaj ceo kontekst u redu, pa objavi ili vrati autoru jednu jasnu sledeću akciju."
-              : "Review the full context in place, then publish or return one clear next action to the author."}
-          </p>
-        </div>
         <span className="inline-flex min-h-10 items-center gap-2 rounded-full border border-line bg-white px-3 text-xs font-black text-ink/65">
           <Clock3 className="size-4" />
           {queue.results.length} {locale === "sr" ? "učitano" : "loaded"}

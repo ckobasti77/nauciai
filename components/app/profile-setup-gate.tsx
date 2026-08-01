@@ -14,13 +14,25 @@ import { withLocale } from "@/lib/i18n";
  * Login completion sends viewers without a username to Profile once; after that
  * they can browse the app and Community in read-only mode.
  */
-export function ProfileSetupGate({ locale, children }: { locale: Locale; children: React.ReactNode }) {
-  const { isLoading, isAuthenticated } = useConvexAuth();
+export function ProfileSetupGate({
+  locale,
+  initialProfileComplete,
+  children,
+}: {
+  locale: Locale;
+  initialProfileComplete: boolean | null;
+  children: React.ReactNode;
+}) {
+  // isAuthenticated only drives the subscription argument, never render output.
+  const { isAuthenticated } = useConvexAuth();
   const pathname = usePathname();
   const router = useRouter();
   const status = useQuery(api.profiles.getViewerProfileStatus, isAuthenticated ? {} : "skip");
   const profilePath = withLocale(locale, "/app/profile");
-  const needsUsername = status?.complete === false;
+  // `false` is a meaningful resolved value, so test for `undefined` rather than using `??`.
+  // `null` means unknown (signed out, or the server read failed) and must neither block nor redirect.
+  const complete = status === undefined ? initialProfileComplete : status.complete;
+  const needsUsername = complete === false;
 
   useEffect(() => {
     if (!needsUsername || pathname === profilePath) return;
@@ -28,7 +40,7 @@ export function ProfileSetupGate({ locale, children }: { locale: Locale; childre
     router.replace(`${profilePath}?onboarding=1&focus=username&returnTo=${returnTo}`);
   }, [needsUsername, pathname, profilePath, router]);
 
-  if (isLoading || (isAuthenticated && status === undefined) || (needsUsername && pathname !== profilePath)) {
+  if (needsUsername && pathname !== profilePath) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center p-6">
         <div className="rounded-[16px] border-2 border-ink bg-yellow/25 px-6 py-5 text-center shadow-[5px_5px_0_0_rgba(14,49,88,0.12)]">

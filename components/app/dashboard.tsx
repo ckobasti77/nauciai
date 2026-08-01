@@ -51,15 +51,11 @@ export function StudentDashboard({
   locale,
   profile,
   courseSlug,
-  newLessonModuleId,
-  editModuleId,
   hasConvex = false,
 }: {
   locale: Locale;
   profile?: ViewerProfile;
   courseSlug?: string;
-  newLessonModuleId?: string;
-  editModuleId?: string;
   hasConvex?: boolean;
 }) {
   const fallbackCourse = staticDashboardCourse(courseSlug);
@@ -74,8 +70,6 @@ export function StudentDashboard({
         courseSlug={courseSlug}
         fallbackCourse={fallbackCourse}
         fallbackCourses={fallbackCourses}
-        newLessonModuleId={newLessonModuleId}
-        editModuleId={editModuleId}
       />
     );
   }
@@ -97,8 +91,6 @@ export function StudentDashboard({
       profile={resolvedProfile}
       course={fallbackCourse}
       isAdmin={resolvedProfile?.role === "admin"}
-      newLessonModuleId={newLessonModuleId}
-      editModuleId={editModuleId}
     />
   );
 }
