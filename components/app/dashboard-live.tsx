@@ -272,7 +272,7 @@ function DashboardCourseNotFound({ locale }: { locale: Locale }) {
   return (
     <section
       role="alert"
-      className="grid min-h-80 place-items-center rounded-[16px]! border-2 border-ink bg-white p-6 text-center shadow-[6px_6px_0_rgba(14,49,88,0.12)]"
+      className="grid min-h-80 place-items-center rounded-[16px] border-2 border-ink bg-white p-6 text-center shadow-[6px_6px_0_rgba(14,49,88,0.12)]"
     >
       <div className="max-w-md">
         <h2 className="text-2xl font-black text-ink">

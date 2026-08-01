@@ -385,7 +385,7 @@ function DiscussionsView({
     <div className="space-y-5">
 
       <CommunityStickyToolbar>
-      <section className="rounded-[16px]! border border-line bg-white p-3 sm:p-4" aria-label={locale === "sr" ? "Filteri diskusija" : "Discussion filters"}>
+      <section className="rounded-[16px] border border-line bg-white p-3 sm:p-4" aria-label={locale === "sr" ? "Filteri diskusija" : "Discussion filters"}>
         <div className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <CommunityScopeControls

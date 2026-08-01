@@ -150,7 +150,7 @@ export function LearningSpine({
   ];
 
   return (
-    <aside className="rounded-[16px]! border border-ink/15 bg-[#eef3f7] p-4" aria-label={locale === "sr" ? "Putanja učenja" : "Learning path"}>
+    <aside className="rounded-[16px] border border-ink/15 bg-[#eef3f7] p-4" aria-label={locale === "sr" ? "Putanja učenja" : "Learning path"}>
       <div className="flex items-center justify-between gap-3">
         <p className="text-[11px] font-black uppercase tracking-[0.15em] text-ink/60">
           {locale === "sr" ? "Learning spine" : "Learning spine"}
@@ -220,7 +220,7 @@ export function ThreadCard({
     <article
       data-motion="card"
       className={cn(
-        "group relative isolate overflow-hidden rounded-[16px]! border-2 bg-white transition duration-200 focus-within:border-ink hover:border-ink",
+        "group relative isolate overflow-hidden rounded-[16px] border-2 bg-white transition duration-200 focus-within:border-ink hover:border-ink",
         highlighted
           ? "border-[#d7a91b] bg-[#fffaf0] shadow-[6px_6px_0_0_rgba(244,190,48,0.32)] hover:shadow-[8px_8px_0_0_rgba(244,190,48,0.32)]"
           : "border-ink shadow-[6px_6px_0_0_rgba(14,49,88,0.13)] hover:shadow-[8px_8px_0_0_rgba(14,49,88,0.13)]",
@@ -295,7 +295,7 @@ export function EmptyCommunityState({
   action?: ReactNode;
 }) {
   return (
-    <section className="grid min-h-72 place-items-center rounded-[16px]! border border-dashed border-ink/35 bg-white/70 p-6 text-center">
+    <section className="grid min-h-72 place-items-center rounded-[16px] border border-dashed border-ink/35 bg-white/70 p-6 text-center">
       <div className="max-w-md">
         <span className="mx-auto grid size-12 place-items-center rounded-full border border-ink bg-yellow text-ink">
           <Icon className="size-5" aria-hidden="true" />
@@ -340,14 +340,14 @@ export function LoadMoreButton({
 export function CommunityRouteSkeleton() {
   return (
     <div className="space-y-6" aria-busy="true" aria-label="Loading community content">
-      <div className="h-24 animate-pulse rounded-[16px]! bg-ink/8" />
+      <div className="h-24 animate-pulse rounded-[16px] bg-ink/8" />
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
         <div className="space-y-3">
           {[0, 1, 2].map((item) => (
-            <div key={item} className="h-44 animate-pulse rounded-[16px]! border border-line bg-white" />
+            <div key={item} className="h-44 animate-pulse rounded-[16px] border border-line bg-white" />
           ))}
         </div>
-        <div className="hidden h-64 animate-pulse rounded-[16px]! bg-ink/8 xl:block" />
+        <div className="hidden h-64 animate-pulse rounded-[16px] bg-ink/8 xl:block" />
       </div>
     </div>
   );

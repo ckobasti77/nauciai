@@ -22,7 +22,7 @@ export default function CommunityError({
 
   return (
     <section
-      className="grid min-h-80 place-items-center rounded-[16px]! border-2 border-ink bg-white p-6 text-center shadow-[6px_6px_0_rgba(14,49,88,0.12)]"
+      className="grid min-h-80 place-items-center rounded-[16px] border-2 border-ink bg-white p-6 text-center shadow-[6px_6px_0_rgba(14,49,88,0.12)]"
       role="alert"
     >
       <div className="max-w-md">

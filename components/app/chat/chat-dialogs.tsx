@@ -127,7 +127,7 @@ export function NewConversationDialog({ locale, onClose }: { locale: Locale; onC
 
   return (
     <div className="fixed inset-0 z-[100] grid place-items-end p-0 sm:place-items-center sm:p-4">
-      <button type="button" tabIndex={-1} onClick={onClose} aria-label={label(locale, "Zatvori novi razgovor", "Close new conversation")} className="absolute inset-0 rounded-none border-0 bg-ink/55 p-0 backdrop-blur-[2px]" style={{ borderRadius: 0 }} />
+      <button type="button" tabIndex={-1} onClick={onClose} aria-label={label(locale, "Zatvori novi razgovor", "Close new conversation")} className="absolute inset-0 rounded-none border-0 bg-ink/55 p-0 backdrop-blur-[2px]" />
       <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="new-conversation-title" tabIndex={-1} data-chat-motion-surface="sheet" className="relative flex max-h-[min(760px,92dvh)] w-full flex-col overflow-hidden rounded-t-[16px] border-[3px] border-ink bg-white shadow-[9px_9px_0_0_rgba(14,49,88,0.24)] sm:w-[min(560px,100%)] sm:rounded-[16px]">
         <div className="flex items-center justify-between gap-3 border-b-2 border-ink p-4">
           <div><p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#2e6f9f]">{label(locale, `Korak ${step} od 2`, `Step ${step} of 2`)}</p><h2 id="new-conversation-title" className="font-display text-2xl">{label(locale, "Novi razgovor", "New conversation")}</h2></div>
@@ -208,7 +208,7 @@ export function ReportDialog({ locale, target, onClose }: { locale: Locale; targ
 
   return (
     <div className="fixed inset-0 z-[110] grid place-items-center p-4">
-      <button type="button" tabIndex={-1} onClick={onClose} aria-label={label(locale, "Zatvori prijavu", "Close report")} className="absolute inset-0 rounded-none border-0 bg-ink/55 p-0 backdrop-blur-[2px]" style={{ borderRadius: 0 }} />
+      <button type="button" tabIndex={-1} onClick={onClose} aria-label={label(locale, "Zatvori prijavu", "Close report")} className="absolute inset-0 rounded-none border-0 bg-ink/55 p-0 backdrop-blur-[2px]" />
       <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="report-dialog-title" tabIndex={-1} data-chat-motion-surface="sheet" className="relative w-[min(440px,100%)] rounded-[16px] border-[3px] border-ink bg-white p-5 shadow-[8px_8px_0_0_rgba(14,49,88,0.24)]">
         <div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-black uppercase tracking-[0.16em] text-red-700">{label(locale, "Bezbednost", "Safety")}</p><h2 id="report-dialog-title" className="font-display text-2xl">{target.type === "message" ? label(locale, "Prijavi poruku", "Report message") : label(locale, "Prijavi grupu", "Report group")}</h2></div><button type="button" onClick={onClose} className="grid size-9 place-items-center rounded-full border-2 border-ink" aria-label={label(locale, "Zatvori", "Close")}><X className="size-4" /></button></div>
         {submitted ? <div className="mt-5"><p className="rounded-[12px] border-2 border-ink bg-yellow/25 p-4 text-sm font-black">{label(locale, "Prijava je poslata moderatorskom timu.", "The report was sent to the moderation team.")}</p><button type="button" onClick={onClose} className="mt-4 h-11 w-full rounded-full border-2 border-ink bg-ink px-4 text-sm font-black text-white">{label(locale, "Gotovo", "Done")}</button></div> : (

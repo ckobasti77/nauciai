@@ -946,16 +946,16 @@ export function DashboardHomeSkeleton() {
   return (
     <div className="space-y-6" aria-busy="true" aria-label="Učitavanje / Loading">
       {/* Heights track the loaded layout so the swap does not shift anything below it. */}
-      <div className="h-[22rem] animate-pulse rounded-[16px]! border-2 border-line bg-white sm:h-64" />
-      <div className="rounded-[16px]! border-2 border-line bg-white p-5 sm:p-6">
-        <div className="h-12 w-64 max-w-full animate-pulse rounded-[8px]! bg-ink/8" />
+      <div className="h-[22rem] animate-pulse rounded-[16px] border-2 border-line bg-white sm:h-64" />
+      <div className="rounded-[16px] border-2 border-line bg-white p-5 sm:p-6">
+        <div className="h-12 w-64 max-w-full animate-pulse rounded-[8px] bg-ink/8" />
         <div className="mt-5 grid gap-5 lg:grid-cols-2">
           {[0, 1].map((item) => (
-            <div key={item} className="h-[30rem] animate-pulse rounded-[16px]! border-2 border-line bg-paper" />
+            <div key={item} className="h-[30rem] animate-pulse rounded-[16px] border-2 border-line bg-paper" />
           ))}
         </div>
       </div>
-      <div className="h-72 animate-pulse rounded-[16px]! border-2 border-line bg-white" />
+      <div className="h-72 animate-pulse rounded-[16px] border-2 border-line bg-white" />
     </div>
   );
 }

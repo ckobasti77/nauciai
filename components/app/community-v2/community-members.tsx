@@ -137,7 +137,7 @@ function MemberCard({
   }
 
   return (
-    <article className="group relative flex min-h-28 w-full items-start gap-3 rounded-[16px]! border border-line bg-white p-3 text-left transition hover:border-ink hover:shadow-[3px_3px_0_rgba(14,49,88,0.08)]">
+    <article className="group relative flex min-h-28 w-full items-start gap-3 rounded-[16px] border border-line bg-white p-3 text-left transition hover:border-ink hover:shadow-[3px_3px_0_rgba(14,49,88,0.08)]">
       <CommunityAvatar
         name={member.name}
         avatarUrl={member.avatarUrl}
@@ -206,7 +206,7 @@ function MembersView({
   return (
     <div className="space-y-5">
       <CommunityStickyToolbar>
-      <section className="rounded-[16px]! border border-line bg-white p-3 sm:p-4">
+      <section className="rounded-[16px] border border-line bg-white p-3 sm:p-4">
         <div className="mb-3 flex gap-2 overflow-x-auto" role="tablist" aria-label={locale === "sr" ? "Veze članova" : "Member connections"}>
           {([
             ["all", locale === "sr" ? "Svi" : "All"],

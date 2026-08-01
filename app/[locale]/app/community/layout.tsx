@@ -17,7 +17,7 @@ export default async function CommunityLayout({
     <Suspense
       fallback={
         <div className="mx-auto w-full max-w-[1180px] space-y-6">
-          <div className="h-64 animate-pulse rounded-[16px]! bg-ink/10" />
+          <div className="h-64 animate-pulse rounded-[16px] bg-ink/10" />
           <CommunityRouteSkeleton />
         </div>
       }

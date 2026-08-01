@@ -197,7 +197,7 @@ function MyThreadsView({
   return (
     <div className="space-y-5">
       <CommunityStickyToolbar>
-      <nav className="overflow-x-auto rounded-[16px]! border border-line bg-white p-1.5" aria-label={locale === "sr" ? "Status mojih predloga" : "My ideas status"}>
+      <nav className="overflow-x-auto rounded-[16px] border border-line bg-white p-1.5" aria-label={locale === "sr" ? "Status mojih predloga" : "My ideas status"}>
         <div className="relative grid min-w-[760px] grid-cols-5">
           <span
             aria-hidden="true"

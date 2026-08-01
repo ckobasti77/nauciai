@@ -90,7 +90,7 @@ function PodiumCard({ locale, row }: { locale: Locale; row: LeaderboardRow }) {
       href={row.username ? withLocale(locale, `/app/members/${row.username}`) : "#"}
       aria-disabled={!row.username}
       className={cn(
-        "relative overflow-hidden rounded-[16px]! border bg-white p-4 text-center",
+        "relative overflow-hidden rounded-[16px] border bg-white p-4 text-center",
         row.rank === 1
           ? "border-2 border-ink shadow-[5px_5px_0_rgba(244,190,48,0.8)] md:-translate-y-3"
           : "border-line",
@@ -197,7 +197,7 @@ function LeaderboardView({
   return (
     <div className="space-y-5">
       <CommunityStickyToolbar>
-      <section className="overflow-x-auto rounded-[16px]! border border-line bg-white p-3 sm:p-4">
+      <section className="overflow-x-auto rounded-[16px] border border-line bg-white p-3 sm:p-4">
         <div className="flex min-w-max items-center gap-2">
         <CommunityScopeControls
           locale={locale}
@@ -250,7 +250,7 @@ function LeaderboardView({
             ) : null}
 
             {rows.length ? (
-              <div className="overflow-hidden rounded-[16px]! border border-ink bg-white">
+              <div className="overflow-hidden rounded-[16px] border border-ink bg-white">
                 <div className="hidden grid-cols-[52px_minmax(0,1fr)_100px_100px] gap-3 border-b border-ink bg-[#eef3f7] px-3 py-2 text-[10px] font-black uppercase tracking-[0.1em] text-muted sm:grid">
                   <span>{locale === "sr" ? "Rang" : "Rank"}</span>
                   <span>{locale === "sr" ? "Član" : "Member"}</span>
@@ -273,7 +273,7 @@ function LeaderboardView({
             )}
 
             {viewerOutsidePage ? (
-              <section className="rounded-[16px]! border-2 border-ink bg-yellow/20 p-2" aria-label={locale === "sr" ? "Tvoj rang" : "Your rank"}>
+              <section className="rounded-[16px] border-2 border-ink bg-yellow/20 p-2" aria-label={locale === "sr" ? "Tvoj rang" : "Your rank"}>
                 <p className="px-3 pb-1 pt-2 text-[10px] font-black uppercase tracking-[0.1em] text-ink/65">
                   {locale === "sr" ? "Tvoja pozicija" : "Your position"}
                 </p>
@@ -282,7 +282,7 @@ function LeaderboardView({
             ) : null}
 
             {viewer && !viewer.eligible ? (
-              <section className="rounded-[16px]! border border-line bg-[#eef3f7] p-4 text-sm font-bold leading-6 text-muted">
+              <section className="rounded-[16px] border border-line bg-[#eef3f7] p-4 text-sm font-bold leading-6 text-muted">
                 {locale === "sr"
                   ? "Staff nalozi se prikazuju u zajednici, ali ne učestvuju u rangiranju."
                   : "Staff accounts appear in the community but do not participate in rankings."}
@@ -304,7 +304,7 @@ function LeaderboardView({
               course={scopeState.courseLabel}
               xp={viewer?.row?.xp}
             />
-            <details open className="group overflow-hidden rounded-[16px]! border border-ink bg-white shadow-[4px_4px_0_rgba(244,190,48,0.7)]">
+            <details open className="group overflow-hidden rounded-[16px] border border-ink bg-white shadow-[4px_4px_0_rgba(244,190,48,0.7)]">
               <summary className="flex min-h-16 cursor-pointer list-none items-center gap-3 px-4 py-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
                 <Sparkles className="size-4 shrink-0 text-yellow" aria-hidden="true" />
                 <h2 className="min-w-0 flex-1 text-sm font-black text-ink">{locale === "sr" ? "Kako se dobija XP" : "How XP is earned"}</h2>

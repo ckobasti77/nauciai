@@ -309,7 +309,7 @@ function CommunityShellView({
 
   return (
     <div className="mx-auto w-full max-w-[1180px] space-y-5" aria-busy={isLoading}>
-      <section data-motion="hero" className="relative overflow-hidden rounded-[16px]! border-2 border-ink bg-ink text-white shadow-[4px_4px_0_rgba(244,190,48,0.55)]">
+      <section data-motion="hero" className="relative overflow-hidden rounded-[16px] border-2 border-ink bg-ink text-white shadow-[4px_4px_0_rgba(244,190,48,0.55)]">
         <div className="pointer-events-none absolute inset-y-0 left-1/2 right-0 hidden bg-[radial-gradient(circle_at_center,rgba(244,190,48,0.22)_0_2px,transparent_2px)] [background-size:24px_24px] [mask-image:linear-gradient(to_right,transparent_0%,black_50%,black_100%)] md:block" />
         <div className="relative p-3.5 sm:p-4">
           <div className="flex flex-col gap-2">
@@ -411,7 +411,6 @@ function CommunityShellView({
           <button
             type="button"
             className="absolute inset-0 h-full w-full rounded-none bg-ink/55 backdrop-blur-[2px]"
-            style={{ borderRadius: 0 }}
             onClick={() => setMobileMenuOpen(false)}
             aria-label={locale === "sr" ? "Zatvori meni" : "Close menu"}
           />
@@ -419,7 +418,7 @@ function CommunityShellView({
             role="dialog"
             aria-modal="true"
             aria-labelledby="community-mobile-menu-title"
-            className="absolute inset-x-0 bottom-0 max-h-[82vh] overflow-y-auto rounded-t-[24px]! border-2 border-b-0 border-ink bg-paper p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-12px_40px_rgba(14,49,88,0.25)]"
+            className="absolute inset-x-0 bottom-0 max-h-[82vh] overflow-y-auto rounded-t-[24px] border-2 border-b-0 border-ink bg-paper p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-12px_40px_rgba(14,49,88,0.25)]"
           >
             <div className="mx-auto mb-4 h-1 w-12 rounded-full bg-ink/18" aria-hidden="true" />
             <div className="flex items-center justify-between gap-3">
