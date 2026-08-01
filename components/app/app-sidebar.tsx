@@ -61,6 +61,7 @@ import {
   communitySectionLabel,
   communitySectionsFor,
 } from "@/lib/community-sections";
+import { coursePath, lessonPath, trackPath } from "@/lib/app-routes";
 import { publicProfilePath } from "@/lib/profile-links";
 import type { AppCourseNav, AppNavigationData } from "@/lib/app-navigation";
 import { primaryCourseSlug } from "@/lib/content";
@@ -80,20 +81,8 @@ function dashboardHref(locale: Locale) {
   return withLocale(locale, "/app");
 }
 
-function courseHref(locale: Locale, courseSlug: string) {
-  return withLocale(locale, `/app/courses/${courseSlug}`);
-}
-
-function trackHref(locale: Locale, trackSlug: string) {
-  return withLocale(locale, `/app/tracks/${trackSlug}`);
-}
-
 function communityHref(locale: Locale, courseSlug: string) {
   return `${withLocale(locale, "/app/community/discussions")}?scope=course&course=${courseSlug}`;
-}
-
-function lessonHref(locale: Locale, courseSlug: string, lessonSlug: string) {
-  return withLocale(locale, `/app/courses/${courseSlug}/lessons/${lessonSlug}`);
 }
 
 function nextSortOrder(items: Array<{ sortOrder: number }>) {
@@ -435,7 +424,7 @@ function CourseSwitcher({
                             </div>
                           ) : (
                             <Link
-                              href={courseHref(locale, course.slug)}
+                              href={coursePath(locale, course.slug)}
                               onClick={() => setOpen(false)}
                               className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-[10px] text-sm font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                             >
@@ -724,7 +713,7 @@ function LessonsAccordion({
                 const active = currentLessonSlug === lesson.slug;
                 return (
                   <motion.div layout key={lesson.id ?? lesson.slug} className="relative">
-                    <Link href={lessonHref(locale, currentCourse.slug, lesson.slug)} aria-current={active ? "page" : undefined} className={cn("flex min-h-11 items-center gap-2 rounded-[8px] border-2 bg-white px-3 text-sm font-black text-ink", active ? "border-ink bg-yellow" : "border-line hover:border-ink")}>
+                    <Link href={lessonPath(locale, currentCourse.slug, lesson.slug)} aria-current={active ? "page" : undefined} className={cn("flex min-h-11 items-center gap-2 rounded-[8px] border-2 bg-white px-3 text-sm font-black text-ink", active ? "border-ink bg-yellow" : "border-line hover:border-ink")}>
                       <PlayCircle className="size-4 shrink-0" /><span className="min-w-0 flex-1 truncate">{localized(lesson.title, locale)}</span>{isAdmin && !lesson.isPublished ? <span className="rounded-full border border-ink bg-paper px-2 py-0.5 text-[9px] uppercase">Nacrt</span> : null}
                     </Link>
                   </motion.div>
@@ -957,7 +946,7 @@ function AppBottomNav({
     currentCourse
       ? {
           key: "course",
-          href: courseHref(locale, currentCourse.slug),
+          href: coursePath(locale, currentCourse.slug),
           icon: GraduationCap,
           // Was labelled "Lekcije" while linking to course detail. The destination was
           // right; the label was the lie.
@@ -1406,7 +1395,7 @@ function AppSidebarContent({
             />
             {currentTrackSlug ? (
               <NavLink
-                href={trackHref(locale, currentTrackSlug)}
+                href={trackPath(locale, currentTrackSlug)}
                 active={trackActive}
                 icon={Compass}
                 label={trackLabel}
@@ -1414,7 +1403,7 @@ function AppSidebarContent({
             ) : null}
             {currentCourse ? (
               <NavLink
-                href={courseHref(locale, currentCourse.slug)}
+                href={coursePath(locale, currentCourse.slug)}
                 active={courseActive}
                 icon={GraduationCap}
                 label={locale === "sr" ? "Kurs" : "Course"}
@@ -1605,10 +1594,10 @@ function AppSidebarContent({
           ) : null}
           <RailAction href={dashboardHref(locale)} label="Dashboard" icon={<LayoutDashboard className="size-5" />} active={dashboardActive} />
           {currentTrackSlug ? (
-            <RailAction href={trackHref(locale, currentTrackSlug)} label={trackLabel} icon={<Compass className="size-5" />} active={trackActive} />
+            <RailAction href={trackPath(locale, currentTrackSlug)} label={trackLabel} icon={<Compass className="size-5" />} active={trackActive} />
           ) : null}
           {currentCourse ? (
-            <RailAction href={courseHref(locale, currentCourse.slug)} label={locale === "sr" ? "Kurs" : "Course"} icon={<GraduationCap className="size-5" />} active={courseActive} />
+            <RailAction href={coursePath(locale, currentCourse.slug)} label={locale === "sr" ? "Kurs" : "Course"} icon={<GraduationCap className="size-5" />} active={courseActive} />
           ) : null}
           {currentCourse ? (
             <RailAction label={t.lessons} icon={<BookOpen className="size-5" />} active={Boolean(params.lessonSlug)} expanded={railFlyout === "lessons"} onClick={() => setRailFlyout((value) => value === "lessons" ? null : "lessons")} />

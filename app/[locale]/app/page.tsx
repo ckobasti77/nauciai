@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
 
 import { StudentDashboard } from "@/components/app/dashboard";
+import { legacyCourseRedirect } from "@/lib/app-routes";
 import { getCurrentViewerProfile } from "@/lib/current-viewer";
-import { normalizeLocale, withLocale } from "@/lib/i18n";
+import { normalizeLocale } from "@/lib/i18n";
 import type { Metadata } from "next";
 
 // `absolute` because a layout's title template applies to child segments, not to the page
@@ -29,21 +30,8 @@ export default async function StudentDashboardPage({
   // old shape with a redirect rather than silently rendering the grid instead. Temporary
   // (307) not permanent: /app/** is robots-disallowed so there is no SEO argument for a
   // 308, and a 308 would be cached by the browser indefinitely.
-  const rawCourse = incomingSearchParams.course;
-  const course = Array.isArray(rawCourse) ? rawCourse[0] : rawCourse;
-  if (course) {
-    const preserved = new URLSearchParams();
-    for (const [key, value] of Object.entries(incomingSearchParams)) {
-      if (key === "course" || value === undefined) continue;
-      if (Array.isArray(value)) {
-        value.forEach((item) => preserved.append(key, item));
-      } else {
-        preserved.set(key, value);
-      }
-    }
-    const query = preserved.toString();
-    redirect(`${withLocale(locale, `/app/courses/${encodeURIComponent(course)}`)}${query ? `?${query}` : ""}`);
-  }
+  const legacyTarget = legacyCourseRedirect(locale, incomingSearchParams);
+  if (legacyTarget) redirect(legacyTarget);
 
   const profile = await getCurrentViewerProfile();
   return (
