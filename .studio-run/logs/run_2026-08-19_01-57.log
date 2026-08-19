@@ -1,0 +1,86 @@
+﻿[01:57:11] ==================================================
+[01:57:11]  STUDIO FAZA A - nocni run
+[01:57:11]  Repo:   C:\Users\admin\Desktop\Web Dev Projects\nauciai
+[01:57:11]  Grana:  feat/studio-faza-a
+[01:57:11]  Koraka: 11
+[01:57:11]  Log:    C:\Users\admin\Desktop\Web Dev Projects\nauciai\.studio-run\logs\run_2026-08-19_01-57.log
+[01:57:11] ==================================================
+[01:57:12] Grana: feat/studio-faza-a
+[01:57:12] 
+[01:57:12] --------------------------------------------------
+[01:57:12]  A1  |  Convex sema za kredite, katalog modela i poslove
+[01:57:12]  model=sonnet  effort=high
+[01:57:12] --------------------------------------------------
+[01:57:12] DRY RUN - prompt zapisan, izvrsavanje preskoceno.
+[01:57:12] 
+[01:57:12] --------------------------------------------------
+[01:57:12]  A2  |  Ledger: creditsCore + credits.ts + testovi
+[01:57:12]  model=opus  effort=max
+[01:57:12] --------------------------------------------------
+[01:57:12] DRY RUN - prompt zapisan, izvrsavanje preskoceno.
+[01:57:12] 
+[01:57:12] --------------------------------------------------
+[01:57:12]  A3  |  Planovi Basic/Premium i pristup Pro lekcijama
+[01:57:12]  model=opus  effort=high
+[01:57:12] --------------------------------------------------
+[01:57:12] DRY RUN - prompt zapisan, izvrsavanje preskoceno.
+[01:57:12] 
+[01:57:12] --------------------------------------------------
+[01:57:12]  A4  |  Paketi kredita i planovi u bazi + seed
+[01:57:12]  model=sonnet  effort=high
+[01:57:12] --------------------------------------------------
+[01:57:12] DRY RUN - prompt zapisan, izvrsavanje preskoceno.
+[01:57:12] 
+[01:57:12] --------------------------------------------------
+[01:57:12]  A5  |  Stripe checkout: paketi kredita i planovi
+[01:57:12]  model=opus  effort=high
+[01:57:12] --------------------------------------------------
+[01:57:12] DRY RUN - prompt zapisan, izvrsavanje preskoceno.
+[01:57:12] 
+[01:57:12] --------------------------------------------------
+[01:57:12]  A6  |  Stripe webhook: dodela kredita, idempotentno
+[01:57:12]  model=opus  effort=max
+[01:57:12] --------------------------------------------------
+[01:57:12] DRY RUN - prompt zapisan, izvrsavanje preskoceno.
+[01:57:12] 
+[01:57:12] --------------------------------------------------
+[01:57:12]  A7  |  Katalog modela sa cenama
+[01:57:12]  model=sonnet  effort=medium
+[01:57:12] --------------------------------------------------
+[01:57:12] DRY RUN - prompt zapisan, izvrsavanje preskoceno.
+[01:57:12] 
+[01:57:12] --------------------------------------------------
+[01:57:12]  A8  |  fal.ai klijent i submit akcija
+[01:57:12]  model=sonnet  effort=high
+[01:57:12] --------------------------------------------------
+[01:57:12] DRY RUN - prompt zapisan, izvrsavanje preskoceno.
+[01:57:12] 
+[01:57:12] --------------------------------------------------
+[01:57:12]  A9  |  createJob sa rezervacijom kredita
+[01:57:12]  model=opus  effort=max
+[01:57:12] --------------------------------------------------
+[01:57:12] DRY RUN - prompt zapisan, izvrsavanje preskoceno.
+[01:57:12] 
+[01:57:12] --------------------------------------------------
+[01:57:12]  A10  |  fal webhook: ED25519 verifikacija i idempotentna obrada
+[01:57:12]  model=opus  effort=max
+[01:57:12] --------------------------------------------------
+[01:57:12] DRY RUN - prompt zapisan, izvrsavanje preskoceno.
+[01:57:12] 
+[01:57:12] --------------------------------------------------
+[01:57:12]  RV  |  Zavrsni review i izvestaj
+[01:57:12]  model=opus  effort=xhigh
+[01:57:12] --------------------------------------------------
+[01:57:12] DRY RUN - prompt zapisan, izvrsavanje preskoceno.
+[01:57:12] 
+[01:57:12] ==================================================
+[01:57:12]  GOTOVO
+[01:57:12] ==================================================
+[01:57:12] Ukupna cena: USD 0.00
+[01:57:12] Grana: feat/studio-faza-a  (NIJE push-ovana, NIJE deploy-ovana)
+[01:57:12] 
+[01:57:12] Ujutru:
+[01:57:12]   1. docs\STUDIO-NIGHT-REPORT.md   - izvestaj i rucni koraci
+[01:57:12]   2. docs\STUDIO-PROGRESS.md       - dnevnik po koracima
+[01:57:12]   3. .studio-run\logs\             - sirovi logovi
+[01:57:12]   4. Javi Claude-u da je gotovo.

@@ -28,7 +28,7 @@ export async function AppShell({ locale, children }: { locale: Locale; children:
   const shell = (
     <div className="min-h-screen bg-paper text-ink">
       {process.env.NEXT_PUBLIC_CONVEX_URL ? <ViewerPresence /> : null}
-      <div className="shell-container mx-auto flex min-h-screen min-w-0 w-full flex-col min-[1600px]:w-[calc(100%_-_48px)] min-[1600px]:max-w-[1760px] md:flex-row">
+      <div className="shell-container mx-auto flex min-h-screen min-w-0 w-full flex-col min-[1600px]:w-[calc(100%-48px)] min-[1600px]:max-w-[1760px] md:flex-row">
         <AppSidebar
           locale={locale}
           navigation={navigation}
@@ -36,7 +36,7 @@ export async function AppShell({ locale, children }: { locale: Locale; children:
           initialPreferences={initialSidebarPreferences}
         />
         {/* pb clears the fixed bottom tab bar in app-sidebar.tsx (min-h-14 + 2px border). */}
-        <main id="main-content" tabIndex={-1} className="min-w-0 flex-1 px-4 pt-5 pb-[calc(4.5rem_+_env(safe-area-inset-bottom))] sm:px-6 md:px-8 md:pt-8 md:pb-8">
+        <main id="main-content" tabIndex={-1} className="min-w-0 flex-1 px-4 pt-5 pb-[calc(4.5rem+env(safe-area-inset-bottom))] sm:px-6 md:px-8 md:pt-8 md:pb-8">
           {gatedChildren}
         </main>
       </div>
