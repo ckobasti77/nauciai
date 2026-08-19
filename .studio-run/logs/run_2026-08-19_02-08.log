@@ -54,3 +54,10 @@
 [03:03:23]  A7  |  Katalog modela sa cenama
 [03:03:23]  model=sonnet  effort=medium
 [03:03:23] --------------------------------------------------
+[03:07:37] Commit 00d925c - 8 izmenjenih putanja
+[03:07:37] A7 -> BLOKADA  (4 min, USD 1.97)
+[03:07:37] 
+[03:07:37] --------------------------------------------------
+[03:07:37]  A8  |  fal.ai klijent i submit akcija
+[03:07:37]  model=sonnet  effort=high
+[03:07:37] --------------------------------------------------

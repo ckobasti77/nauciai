@@ -772,3 +772,143 @@ postojeći red po `_id` bez dupliranja.
 - `seedModelCatalog` se poziva istim obrascem kao `seedCreditPacks`: sa
   `syncSecret` koji mora da se poklopi sa `WEBHOOK_SYNC_SECRET` env
   promenljivom.
+
+## A8 - fal klijent + submit akcija   (2026-08-19 03:20)
+
+**Fajlovi:**
+- dodato: `lib/fal.ts`, `lib/fal.test.ts`, `convex/studioActions.ts`,
+  `convex/studioActions.test.ts`
+
+**Šta je uradjeno:** `lib/fal.ts` je tanak `fetch` klijent ka fal.ai queue
+API-ju, bez fal SDK-a, tačno po A8.md: `buildQueueUrl` sastavlja
+`https://queue.fal.run/{endpoint}?fal_webhook={encoded}`, `submitToFal` šalje
+`POST` sa `Authorization: Key ${apiKey}` i baca grešku sa HTTP statusom i
+telom odgovora u poruci na svaki ne-2xx odgovor. `convex/studioActions.ts`
+dobija internu akciju `submitJob({ jobId })` koja učita posao i model iz
+kataloga, sastavi `input` iz `model.defaultParams` i `job.params` (job
+polja pobeđuju pri konfliktu), sastavi webhook URL iz
+`process.env.CONVEX_SITE_URL` (ne hardkodovano), pozove `submitToFal` sa
+`process.env.FAL_KEY`, i na uspeh markira posao `running` sa
+`falRequestId`-jem, a na BILO KOJU grešku ga refundira preko postojećeg
+`credits.refundCredits` iz A2. Ništa iz A1-A7 nije dirano.
+
+**ODLUKE:**
+- **`submitJob` je dobio i tri prateće interne funkcije koje A8.md ne
+  imenuje eksplicitno: `getJobForSubmit` (query), `markJobRunning` i
+  `failJob` (mutacije).** A8.md kaže da `submitJob` "runQuery učitaj job",
+  zove `markJobRunning({jobId, falRequestId})` i `failJob({jobId, error})`
+  - ali nijedna od te tri funkcije ne postoji u repou, jer `convex/studio.ts`
+  (gde bi po konvenciji pripadale mutacije nad `generationJobs`) tek dolazi u
+  A9 (`createJob`). Bez njih `submitJob` ne bi mogao da radi ništa. Najkonzervativnija
+  opcija je bila da ih napravim sada, u istom fajlu koji A8.md jedini
+  imenuje (`convex/studioActions.ts`), umesto da pogađam kako će izgledati
+  budući `convex/studio.ts` i rizikujem sudar imena sa A9. Ako A9 odluči da
+  ih preseli u `studio.ts`, to je jednostavan mehanički pomeraj.
+- **Greške u `submitJob` se hvataju SVUDA, ne samo oko `submitToFal` poziva.**
+  A8.md-ova numerisana lista ("4. submitToFal ... 5. Uspeh -> markJobRunning
+  6. Greška -> failJob") čita se kao da je "greška" vezana samo za fal poziv.
+  Pročitao sam je šire: ako se posao ili model ne učitaju, ili `FAL_KEY`/
+  `CONVEX_SITE_URL` fale, ili je `job.params`/`model.defaultParams` loš JSON,
+  posao bi ostao zaglavljen u `reserved` sa VEĆ skinutim kreditima i nikad
+  se ne bi refundirao - to je gori ishod od "tiho pada" koje A8.md izričito
+  zabranjuje za `FAL_KEY`. Ceo handler (učitavanje + slanje) je u jednom
+  `try`; svaka greška vodi u `failJob`, koja je idempotentna i uvek ostavlja
+  posao u `refunded`.
+- **`failJob` prvo patch-uje `status: "failed"` sa `error`-om, PA TEK ONDA**
+  poziva `credits.refundCredits` i patch-uje `status: "refunded"`.** Sledi
+  redosled iz sekcije 4.2 STUDIO-PLAN-a ("ERROR → status: failed ... →
+  status: refunded"), i znači da čak i kad bi `refundCredits` bacio (npr.
+  `NEMA_TROSKA_ZA_REFUND` ako `createJob` iz nekog razloga nije upisao
+  `spend` transakciju), `error` poruka je vidljiva na poslu pre nego što
+  cela mutacija eventualno padne i vrati sve nazad - lakše za dijagnozu.
+- **`input` sastavljanje je `{ ...defaultParams, ...jobParams }`** - polja iz
+  konkretnog posla (npr. `prompt`, `aspect_ratio` koje je korisnik izabrao)
+  pobeđuju model podrazumevane vrednosti. A8.md ne kaže eksplicitno koji
+  pobeđuje, ovo je jedini smislen izbor - default vrednosti postoje da
+  popune ono što korisnik NIJE poslao.
+- **`lib/fal.ts` nema `import "server-only"`** (za razliku od `lib/stripe.ts`).
+  Taj fajl se poziva isključivo iz Convex akcije, nikad iz Next.js rute ili
+  RSC-a, pa nema granicu klijent/server koju `server-only` čuva - dodavanje
+  bi bilo nepotreban import bez svrhe u ovom fajlu.
+- **`buildQueueUrl` je prost template string sa `encodeURIComponent`**, ne
+  `URL`/`URLSearchParams` objekat. Ekvivalentno je i lakše za test (tačan
+  string iz A8.md primera), a izbegava eventualne razlike u tome kako `URL`
+  enkodira endpoint segmente.
+
+**Testovi:**
+`lib/fal.test.ts`, 4 testa (eksplicitno traženi A8.md-om): `buildQueueUrl`
+enkoduje webhook URL i ne pravi dupli `?` (2 testa) · `submitToFal` uspeh
+vraća `requestId` i šalje tačan `Authorization`/body/URL · `submitToFal` na
+422 baca grešku sa statusom i telom odgovora u poruci (2 provere u istom
+testu).
+
+`convex/studioActions.test.ts`, 7 testova (nisu eksplicitno traženi A8.md-om,
+ali su dodati jer `markJobRunning`/`failJob` pomeraju kredite, a repo do sad
+dosledno testira svaki kod koji dira ledger - videti A2/A6): `markJobRunning`
+postavlja `status`/`falRequestId` · `failJob` upisuje grešku, refundira tačan
+iznos preko pravog `credits.refundCredits`, i drugi poziv ne duplira refund ·
+`submitJob` sa fali `FAL_KEY` - refundira, `fetch` NIJE pozvan, poruka je
+tačno "FAL_KEY nije postavljen" · isto za `CONVEX_SITE_URL` · `submitJob`
+uspeh - proverava tačan URL/header/JSON-spojeni body ka fal-u, posao postaje
+`running` sa `falRequestId` · `submitJob` na fal 422 - refundira, poruka
+sadrži i status i telo · `submitJob` kad model ne postoji u katalogu -
+refundira umesto da ostavi posao zaglavljen. `fetch` je mokovan preko
+`vi.stubGlobal("fetch", ...)` unutar `convex-test` akcija - ovo NIJE ranije
+korišćen obrazac u repou (nijedan postojeći test ne testira `internalAction`
+sa mreže), pa je pre pisanja testova provereno da mokovanje stvarno hvata
+poziv (test bi inače lažno prošao ako bi prava mreža bila pozvana i pukla
+na `ECONNREFUSED` van testa, ili prošla nezapaženo) - `fetchMock` asertuje
+tačan URL/header/body iznutra i `toHaveBeenCalledTimes(1)` spolja.
+
+**Rezultat verifikacije:**
+- `npx convex codegen` - prošlo (TypeScript bez grešaka)
+- `npm run lint` - prošlo (0 grešaka; istih 7 postojećih upozorenja u
+  nepovezanim fajlovima kao posle A1-A7)
+- `npm run test` - prošlo (29 test fajlova, 163 testa; A7 je ostavio 27 / 152)
+- dodatno `npx tsc --noEmit` - dve NOVE linije istog poznatog problema iz A5
+  (`by_user` nije prepoznat kao indeks u `convex-test` tipovima), u
+  `convex/studioActions.test.ts:96`. Isti uzrok, ista neblokirajuća priroda
+  kao već dokumentovano u A5 - `codegen`/`lint`/`vitest` sve prolaze.
+
+**BLOKADA:** nema.
+
+**Za Jovana ujutru:**
+- Ništa nije deploy-ovano, fal nikad nije pozvan uživo (svi testovi mokuju
+  `fetch`).
+- **`FAL_KEY` MORA da se postavi u Convex env pre nego što bilo koji posao
+  stvarno može da se pošalje fal-u** (bez njega `submitJob` odmah refundira
+  sa jasnom porukom, ne pada tiho):
+  ```
+  npx convex env set FAL_KEY "<tvoj fal.ai API key>"
+  npx convex env --prod set FAL_KEY "<tvoj fal.ai API key>"
+  ```
+- **`CONVEX_SITE_URL` se NE postavlja ručno** - to je Convex-ov ugrađen env
+  promenljiva, automatski prisutna u svakom deploymentu (dev i prod imaju
+  svaki svoj `*.convex.site` domen), tačno kao što `convex/auth.config.ts`
+  već pretpostavlja. A8.md je frazirao kao da se "postavlja", ali u ovom
+  repou (i uopšte u Convexu) to nije komanda koju pokrećeš - samo proveri da
+  postoji:
+  ```
+  npx convex run --inline-query 'return process.env.CONVEX_SITE_URL'
+  npx convex run --prod --inline-query 'return process.env.CONVEX_SITE_URL'
+  ```
+- **`submitJob` još nema pozivaoca.** Ništa u repou još ne zakazuje ovu
+  akciju - `createJob` (A9) je taj koji će posle rezervacije kredita zvati
+  `ctx.scheduler.runAfter(0, internal.studioActions.submitJob, { jobId })`.
+  Do A9, `submitJob` se može ručno okinuti samo preko `npx convex run
+  studioActions:submitJob '{"jobId": "..."}'` nad ručno ubačenim
+  `generationJobs` redom (kao što testovi rade).
+- **`markJobRunning`/`failJob`/`getJobForSubmit` trenutno žive u
+  `convex/studioActions.ts`, ne u `convex/studio.ts`** - vidi prvu ODLUKU.
+  Kad budeš radio A9 i otvaraš `convex/studio.ts` za `createJob`, odluči da
+  li ih premeštaš tamo (čisto kozmetičko, `internal.studioActions.X` ->
+  `internal.studio.X`, jedna izmena u `submitJob`) ili ih ostavljaš gde jesu.
+  Test suite prati funkcije bez obzira gde žive, pa premeštaj neće ništa
+  pokvariti dok god se pozivi ažuriraju.
+- **Fal webhook handler (A10, `/fal/webhook`) i dalje ne postoji.** Kad
+  `submitJob` uspe, posao ostaje zaglavljen u `running` zauvek dok A10 ne
+  napiše handler koji ga pomera u `done`/`failed` na osnovu fal-ovog
+  webhook poziva. To je očekivano - ovaj korak samo šalje zahtev.
+  Posledica: **stuck job reaper (B6) takođe još ne postoji**, pa ručno
+  testiranje pre A10 ostavlja `running` poslove trajno "u vazduhu" - to je
+  poznato, ne popravljaj to sad.

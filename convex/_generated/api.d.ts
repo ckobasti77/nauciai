@@ -46,6 +46,7 @@ import type * as profileActivityCore from "../profileActivityCore.js";
 import type * as profiles from "../profiles.js";
 import type * as publicProfiles from "../publicProfiles.js";
 import type * as seed from "../seed.js";
+import type * as studioActions from "../studioActions.js";
 import type * as study from "../study.js";
 import type * as studyHubSummaryCore from "../studyHubSummaryCore.js";
 import type * as video from "../video.js";
@@ -95,6 +96,7 @@ declare const fullApi: ApiFromModules<{
   profiles: typeof profiles;
   publicProfiles: typeof publicProfiles;
   seed: typeof seed;
+  studioActions: typeof studioActions;
   study: typeof study;
   studyHubSummaryCore: typeof studyHubSummaryCore;
   video: typeof video;
