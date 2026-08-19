@@ -1,14 +1,36 @@
 /// <reference types="vite/client" />
 
 import { convexTest } from "convex-test";
-import { expect, test } from "vitest";
+import { afterAll, beforeAll, expect, test } from "vitest";
 
-import { internal } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-import { computeExpiry, planSpend, usableBalance, validatePrompt, type Lot } from "./creditsCore";
+import {
+  computeExpiry,
+  creditPackGrants,
+  invoicePaidGrants,
+  planSpend,
+  studioPlanSlug,
+  usableBalance,
+  validatePrompt,
+  WELCOME_BONUS_CREDITS,
+  type Lot,
+  type StripeGrant,
+} from "./creditsCore";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
+const previousSyncSecret = process.env.WEBHOOK_SYNC_SECRET;
+const SYNC_SECRET = "test-sync-secret";
+
+beforeAll(() => {
+  process.env.WEBHOOK_SYNC_SECRET = SYNC_SECRET;
+});
+
+afterAll(() => {
+  if (previousSyncSecret === undefined) delete process.env.WEBHOOK_SYNC_SECRET;
+  else process.env.WEBHOOK_SYNC_SECRET = previousSyncSecret;
+});
 
 type TestConvex = ReturnType<typeof convexTest>;
 
@@ -315,4 +337,288 @@ test("spendCredits tačno na balans prolazi i ostavlja balans 0", async () => {
   expect(lots.every((row) => row.remaining === 0 && row.exhaustedAt !== undefined)).toBe(true);
   expect(transactions).toHaveLength(3);
   expect(transactions.at(-1)).toMatchObject({ amount: -100, type: "spend", balanceAfter: 0 });
+});
+
+// ── Stripe webhook -> ledger ───────────────────────────────────────────────
+
+const PREMIUM_MONTHLY_CREDITS = 2000;
+
+async function seedPack(
+  t: TestConvex,
+  pack: { slug: string; credits: number; kind: "pack" | "plan"; planTier?: "basic" | "premium" },
+) {
+  return t.run(async (ctx) =>
+    ctx.db.insert("creditPacks", {
+      slug: pack.slug,
+      titleSr: pack.slug,
+      titleEn: pack.slug,
+      priceEurCents: 2499,
+      credits: pack.credits,
+      bonusPercent: 0,
+      kind: pack.kind,
+      planTier: pack.planTier,
+      sortOrder: 10,
+      isActive: true,
+    }),
+  );
+}
+
+/** Metapodaci pretplate koje `createPlanCheckoutSession` upisuje (A5). */
+function planMetadata(userId: Id<"users">): Record<string, string> {
+  return {
+    kind: "plan",
+    planSlug: "premium",
+    courseId: "course_seed",
+    courseSlug: "ai-osnove",
+    userId,
+  };
+}
+
+/** Ista petlja koju vrti `app/api/stripe/webhook/route.ts`. */
+async function applyStripeGrants(t: TestConvex, grants: StripeGrant[]) {
+  for (const grant of grants) {
+    await t.mutation(api.credits.applyStripeGrant, {
+      ...grant,
+      syncSecret: SYNC_SECRET,
+      userId: grant.userId as Id<"users">,
+      packId: grant.packId as Id<"creditPacks"> | undefined,
+    });
+  }
+}
+
+test("ista invoice.paid faktura obradjena dvaput ostavlja tačno jedan lot", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await seedUser(t);
+  const packId = await seedPack(t, {
+    slug: "premium",
+    credits: PREMIUM_MONTHLY_CREDITS,
+    kind: "plan",
+    planTier: "premium",
+  });
+  const grants = invoicePaidGrants({
+    invoiceId: "in_cycle_1",
+    billingReason: "subscription_cycle",
+    subscriptionMetadata: planMetadata(userId),
+    planCredits: PREMIUM_MONTHLY_CREDITS,
+    planPackId: packId,
+  });
+
+  await applyStripeGrants(t, grants);
+  await applyStripeGrants(t, grants);
+
+  const { balance, lots, transactions } = await ledger(t, userId);
+  expect(lots).toHaveLength(1);
+  expect(transactions).toHaveLength(1);
+  expect(balance?.balance).toBe(PREMIUM_MONTHLY_CREDITS);
+  expect(balance?.lifetimePurchased).toBe(PREMIUM_MONTHLY_CREDITS);
+  expect(lots[0]).toMatchObject({
+    source: "plan_grant",
+    stripeInvoiceId: "in_cycle_1",
+    packId,
+  });
+});
+
+test("ista checkout.session.completed sesija obradjena dvaput ostavlja tačno jedan lot", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await seedUser(t);
+  const packId = await seedPack(t, { slug: "starter", credits: 500, kind: "pack" });
+  const grants = creditPackGrants({
+    sessionId: "cs_test_starter",
+    metadata: {
+      kind: "credit_pack",
+      packId,
+      packSlug: "starter",
+      userId,
+      credits: "500",
+    },
+  });
+
+  await applyStripeGrants(t, grants);
+  await applyStripeGrants(t, grants);
+
+  const { balance, lots, transactions } = await ledger(t, userId);
+  expect(lots).toHaveLength(1);
+  expect(transactions).toHaveLength(1);
+  expect(balance?.balance).toBe(500);
+  expect(balance?.lifetimePurchased).toBe(500);
+  expect(lots[0]).toMatchObject({
+    source: "purchase",
+    stripeSessionId: "cs_test_starter",
+    packId,
+  });
+});
+
+test("subscription_create faktura dodeli dozu plana I welcome bonus, oba nezavisno idempotentna", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await seedUser(t);
+  const packId = await seedPack(t, {
+    slug: "premium",
+    credits: PREMIUM_MONTHLY_CREDITS,
+    kind: "plan",
+    planTier: "premium",
+  });
+  const grants = invoicePaidGrants({
+    invoiceId: "in_create_1",
+    billingReason: "subscription_create",
+    subscriptionMetadata: planMetadata(userId),
+    planCredits: PREMIUM_MONTHLY_CREDITS,
+    planPackId: packId,
+  });
+
+  expect(grants.map((grant) => grant.source)).toEqual(["plan_grant", "welcome_bonus"]);
+  expect(grants.map((grant) => grant.stripeInvoiceId)).toEqual([
+    "in_create_1",
+    "in_create_1:welcome",
+  ]);
+
+  await applyStripeGrants(t, grants);
+  const first = await ledger(t, userId);
+  expect(first.lots).toHaveLength(2);
+  expect(first.balance?.balance).toBe(PREMIUM_MONTHLY_CREDITS + WELCOME_BONUS_CREDITS);
+  // Bonus nije uplata, pa ne ulazi u `lifetimePurchased`.
+  expect(first.balance?.lifetimePurchased).toBe(PREMIUM_MONTHLY_CREDITS);
+
+  // Svaki lot se ponavlja nezavisno od drugog: prvo samo doza, pa samo bonus,
+  // pa oba - ni jedan redosled ne sme da otvori treći lot.
+  await applyStripeGrants(t, [grants[0]]);
+  await applyStripeGrants(t, [grants[1]]);
+  await applyStripeGrants(t, grants);
+
+  const after = await ledger(t, userId);
+  expect(after.lots).toHaveLength(2);
+  expect(after.transactions).toHaveLength(2);
+  expect(after.balance?.balance).toBe(PREMIUM_MONTHLY_CREDITS + WELCOME_BONUS_CREDITS);
+  expect(after.lots.map((row) => row.source).sort()).toEqual(["plan_grant", "welcome_bonus"]);
+  expect(after.lots.map((row) => row.stripeInvoiceId).sort()).toEqual([
+    "in_create_1",
+    "in_create_1:welcome",
+  ]);
+});
+
+test("obnova pretplate dodeli SAMO dozu plana, bez welcome bonusa", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await seedUser(t);
+  const packId = await seedPack(t, {
+    slug: "premium",
+    credits: PREMIUM_MONTHLY_CREDITS,
+    kind: "plan",
+    planTier: "premium",
+  });
+  const grants = invoicePaidGrants({
+    invoiceId: "in_cycle_2",
+    billingReason: "subscription_cycle",
+    subscriptionMetadata: planMetadata(userId),
+    planCredits: PREMIUM_MONTHLY_CREDITS,
+    planPackId: packId,
+  });
+
+  expect(grants).toHaveLength(1);
+  await applyStripeGrants(t, grants);
+
+  const { balance, lots, transactions } = await ledger(t, userId);
+  expect(lots).toHaveLength(1);
+  expect(lots[0].source).toBe("plan_grant");
+  expect(lots.some((row) => row.source === "welcome_bonus")).toBe(false);
+  expect(transactions.some((row) => row.type === "bonus")).toBe(false);
+  expect(balance?.balance).toBe(PREMIUM_MONTHLY_CREDITS);
+});
+
+test("invoice.paid bez plan metapodataka ne dodeli ništa i ne pukne", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await seedUser(t);
+  // Pretplata na kurs iz postojećeg flow-a: ima userId i courseId, ali nema `kind`.
+  const courseMetadata: Record<string, string> = {
+    courseId: "course_seed",
+    courseSlug: "ai-osnove",
+    userId,
+  };
+
+  expect(studioPlanSlug(courseMetadata)).toBeNull();
+  // Marker `kind` je taj koji kaze da je pretplata Studio plan - sam `planSlug`
+  // u metapodacima nije dovoljan, inace bi tudji marker otvorio ledger.
+  expect(studioPlanSlug({ ...courseMetadata, planSlug: "premium" })).toBeNull();
+  expect(studioPlanSlug({ ...courseMetadata, kind: "credit_pack", planSlug: "premium" })).toBeNull();
+
+  const grants = invoicePaidGrants({
+    invoiceId: "in_kurs_1",
+    billingReason: "subscription_create",
+    subscriptionMetadata: courseMetadata,
+    planCredits: PREMIUM_MONTHLY_CREDITS,
+  });
+  expect(grants).toEqual([]);
+
+  await applyStripeGrants(t, grants);
+
+  const { balance, lots, transactions } = await ledger(t, userId);
+  expect(balance).toBeNull();
+  expect(lots).toEqual([]);
+  expect(transactions).toEqual([]);
+});
+
+test("applyStripeGrant odbija pogrešan syncSecret i grant bez tačno jednog ključa", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await seedUser(t);
+  const base = { userId, amount: 500, source: "purchase" as const };
+
+  await expect(
+    t.mutation(api.credits.applyStripeGrant, {
+      ...base,
+      syncSecret: "pogresan-sekret",
+      stripeSessionId: "cs_forbidden",
+    }),
+  ).rejects.toThrow("Forbidden");
+
+  await expect(
+    t.mutation(api.credits.applyStripeGrant, { ...base, syncSecret: SYNC_SECRET }),
+  ).rejects.toThrow("NEVALIDAN_KLJUC_IDEMPOTENCIJE");
+
+  await expect(
+    t.mutation(api.credits.applyStripeGrant, {
+      ...base,
+      syncSecret: SYNC_SECRET,
+      stripeInvoiceId: "in_oba",
+      stripeSessionId: "cs_oba",
+    }),
+  ).rejects.toThrow("NEVALIDAN_KLJUC_IDEMPOTENCIJE");
+
+  const { balance, lots, transactions } = await ledger(t, userId);
+  expect(balance).toBeNull();
+  expect(lots).toEqual([]);
+  expect(transactions).toEqual([]);
+});
+
+test("regresioni cuvar: sesija pretplate na kurs ne ulazi u grane Studija", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await seedUser(t);
+  // Tacno ono sto `createCourseCheckoutSession` upisuje danas (lib/stripe.ts).
+  const courseSession = {
+    sessionId: "cs_kurs_1",
+    metadata: {
+      courseId: "course_seed",
+      courseSlug: "ai-osnove",
+      courseTitle: "AI osnove",
+      userId,
+    },
+  };
+
+  expect(creditPackGrants(courseSession)).toEqual([]);
+  expect(creditPackGrants({ ...courseSession, metadata: null })).toEqual([]);
+  // Paket bez upotrebljivih metapodataka takodje ne sme nista da doznaci.
+  expect(
+    creditPackGrants({ sessionId: "cs_prazan", metadata: { kind: "credit_pack", userId } }),
+  ).toEqual([]);
+  // Ni sesija plana - ista uplata bi tada legla i ovde i na `invoice.paid`.
+  expect(
+    creditPackGrants({
+      sessionId: "cs_plan_1",
+      metadata: { kind: "plan", planSlug: "premium", userId, credits: "2000" },
+    }),
+  ).toEqual([]);
+
+  await applyStripeGrants(t, creditPackGrants(courseSession));
+
+  const { balance, lots, transactions } = await ledger(t, userId);
+  expect(balance).toBeNull();
+  expect(lots).toEqual([]);
+  expect(transactions).toEqual([]);
 });

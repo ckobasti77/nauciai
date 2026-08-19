@@ -40,3 +40,10 @@
 [02:40:50]  A5  |  Stripe checkout: paketi kredita i planovi
 [02:40:50]  model=opus  effort=high
 [02:40:50] --------------------------------------------------
+[02:46:08] Commit fb7eaed - 8 izmenjenih putanja
+[02:46:08] A5 -> BLOKADA  (5 min, USD 2.08)
+[02:46:08] 
+[02:46:08] --------------------------------------------------
+[02:46:08]  A6  |  Stripe webhook: dodela kredita, idempotentno
+[02:46:08]  model=opus  effort=max
+[02:46:08] --------------------------------------------------

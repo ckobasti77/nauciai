@@ -1,11 +1,12 @@
 import { paginationOptsValidator } from "convex/server";
 import { v, type Infer } from "convex/values";
 
+import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
-import { internalMutation, query } from "./_generated/server";
+import { internalMutation, mutation, query } from "./_generated/server";
 import { computeExpiry, isValidCreditAmount, planSpend } from "./creditsCore";
-import { requireUserId } from "./helpers";
+import { requireSyncSecret, requireUserId } from "./helpers";
 
 const creditLotSource = v.union(
   v.literal("purchase"),
@@ -16,6 +17,13 @@ const creditLotSource = v.union(
 );
 
 type LotSource = Infer<typeof creditLotSource>;
+
+/** Webhook sme da doznači samo ono za šta je Stripe stvarno naplatio. */
+const stripeGrantSource = v.union(
+  v.literal("purchase"),
+  v.literal("plan_grant"),
+  v.literal("welcome_bonus"),
+);
 
 /**
  * Ključ ide u `stripeInvoiceId` ili `stripeSessionId` lota, pa se pre svakog
@@ -310,6 +318,43 @@ export const refundCredits = internalMutation({
       lotId,
       expiresAt,
       createdAt: now,
+    });
+
+    return lotId;
+  },
+});
+
+/**
+ * Jedini ulaz za Stripe webhook. Ne zna ništa o lotovima - proveri `syncSecret`,
+ * sklopi ključ idempotencije od Stripe ID-ja koji je stigao i prosledi ga
+ * `grantCredits`-u, koji jedini zna kako se lot otvara.
+ */
+export const applyStripeGrant = mutation({
+  args: {
+    syncSecret: v.string(),
+    userId: v.id("users"),
+    amount: v.number(),
+    source: stripeGrantSource,
+    stripeInvoiceId: v.optional(v.string()),
+    stripeSessionId: v.optional(v.string()),
+    packId: v.optional(v.id("creditPacks")),
+  },
+  handler: async (ctx, args): Promise<Id<"creditLots">> => {
+    requireSyncSecret(args.syncSecret);
+
+    // Tačno jedan ključ: bez ijednog bi se grant ponovio na svakom Stripe
+    // retry-ju, a sa oba bi isti novac mogao da legne pod svaki od njih.
+    const keys: IdempotencyKey[] = [];
+    if (args.stripeInvoiceId) keys.push({ field: "stripeInvoiceId", value: args.stripeInvoiceId });
+    if (args.stripeSessionId) keys.push({ field: "stripeSessionId", value: args.stripeSessionId });
+    if (keys.length !== 1) throw new Error("NEVALIDAN_KLJUC_IDEMPOTENCIJE");
+
+    const lotId: Id<"creditLots"> = await ctx.runMutation(internal.credits.grantCredits, {
+      userId: args.userId,
+      amount: args.amount,
+      source: args.source,
+      idempotencyKey: keys[0],
+      meta: args.packId ? { packId: args.packId } : undefined,
     });
 
     return lotId;

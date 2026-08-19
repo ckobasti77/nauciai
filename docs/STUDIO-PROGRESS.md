@@ -486,3 +486,183 @@ oba puta padaju po dva testa. Izmene vraćene, `diff` čist.
   prepoznati kao indeksi u `convex-test` tipovima). Postoje od A2, ne obara ih
   ni `codegen` ni `lint` ni `vitest`, pa suite i dalje prolazi. Nisam ih dirao
   jer nemaju veze sa A5.
+
+---
+
+## A6 - Stripe webhook: krediti iz paketa i mesečna doza plana   (2026-08-19 03:00)
+
+**Fajlovi:**
+- izmenjeno: `convex/creditsCore.ts`, `convex/credits.ts`, `convex/credits.test.ts`,
+  `app/api/stripe/webhook/route.ts`, `lib/convex-http.ts`
+
+**Šta je uradjeno:** Novac koji je Stripe naplatio sada stvarno stiže u ledger.
+`convex/creditsCore.ts` je dobio čistu odluku "šta ovaj event treba da doznači":
+`studioPlanSlug` (prepoznaje Studio plan po `metadata.kind === "plan"`),
+`creditPackGrants` (jednokratna kupovina paketa) i `invoicePaidGrants` (mesečna
+doza + welcome bonus), sve bez `ctx`-a i bez baze. `convex/credits.ts` je dobio
+`applyStripeGrant`, mutaciju zaštićenu `requireSyncSecret`-om, koja sklopi ključ
+idempotencije od Stripe ID-ja i prosledi ga postojećem `grantCredits`-u preko
+`ctx.runMutation` - idempotencijska logika ostaje na jednom mestu, u A2 kodu koji
+niko nije dirao. `app/api/stripe/webhook/route.ts` je proširen na tri načina:
+`checkout.session.completed` PRVO proverava granu paketa kredita (`mode: "payment"`
++ `kind === "credit_pack"`) pa tek onda ide u postojeću subscription granu, dodat
+je nov `case "invoice.paid"` (mesečna doza po `invoice.id`, welcome bonus po
+`invoice.id + ":welcome"` samo kad je `billing_reason === "subscription_create"`),
+i `syncStripeSubscription` sada dobija `plan` izveden iz `metadata.planSlug` - čime
+se A3 šina konačno pušta u rad. Postojeći subscription flow za kurseve nije
+promenjen ni u jednom ponašanju i to čuva poseban regresioni test.
+
+**ODLUKE:**
+- **`applyStripeGrant` je JAVNA (`mutation`), ne `internalMutation`.** Webhook je
+  Next.js ruta koja ide preko `ConvexHttpClient`, a HTTP klijent po definiciji ne
+  može da pozove internu funkciju. Zaštita je `requireSyncSecret`, isti obrazac
+  kao `syncStripeSubscription` (`billing.ts`) i `seedCreditPacks` (`seed.ts`).
+- **`source` je sužen na `purchase | plan_grant | welcome_bonus`**, iako
+  `creditLotSource` u šemi ima pet vrednosti. Webhook nema nikakav razlog da kuje
+  `admin_grant` ili `refund` lot, a uži validator znači da ne može ni greškom.
+- **Tačno jedan ključ idempotencije, inače `NEVALIDAN_KLJUC_IDEMPOTENCIJE`.** Bez
+  ijednog bi se grant ponovio na svakom Stripe retry-ju; sa oba bi ista uplata
+  mogla da legne pod svaki od njih (dva lota, dupli krediti). A6.md ne kaže šta
+  raditi kad stignu oba - odbijanje je jedina opcija koja ne kuje novac.
+- **`ctx.runMutation` umesto izdvajanja zajedničke funkcije.** A6.md doslovno
+  traži "interno zove `grantCredits`". Cena je jedna podtransakcija po grantu;
+  dobitak je da `grantCredits` iz A2 (i njegovi testovi) ostaje netaknut.
+- **Iznos paketa kredita se čita iz `session.metadata.credits`, ne iz
+  `creditPacks` reda.** To je ponuda koju je korisnik prihvatio u trenutku
+  plaćanja; ako admin u medjuvremenu promeni paket, kupac dobija ono za šta je
+  platio. A5 već upisuje `credits` u metapodatke sesije baš zbog ovoga.
+- **Iznos mesečne doze plana se, obrnuto, čita iz `creditPacks` po `planSlug`-u.**
+  Faktura obnove nema nikakav podatak o broju kredita - jedini izvor istine je
+  katalog. Basic ima `credits: 0`, pa `isValidCreditAmount` odbija dozu i
+  Basic pretplatnik dobija samo welcome bonus, tačno po STUDIO-PLAN D.1.
+- **Welcome bonus je 150 (`WELCOME_BONUS_CREDITS` iz A2), za OBA plana**, po
+  STUDIO-PLAN D.1 ("za oba plana"). Ne postoji red u `creditPacks` za bonus, pa
+  je imenovana konstanta u `creditsCore.ts` jedino mesto gde broj živi.
+- **Metapodaci plana se čitaju iz `invoice.parent.subscription_details.metadata`
+  (snimak sa fakture), a sa same pretplate SAMO ako je snimak prazan.** Stripe
+  22.x (API `2026-06-24.dahlia`) više nema `invoice.subscription`. Snimak je
+  jeftiniji i deterministički; fallback postoji jer prva faktura ciklusa ume da
+  bude finalizovana pre nego što metapodaci pretplate slegnu, a bez njega bi
+  prvi mesec Premiuma i welcome bonus tiho propali. Pretplate na kurseve imaju
+  neprazan snimak (courseId, courseSlug, userId) pa nikad ne plaćaju taj
+  dodatni poziv ka Stripe-u.
+- **`plan` se prosledjuje samo kad `metadata.planSlug` postoji**
+  (`planSlug ? normalizePlan(planSlug) : undefined`). `normalizePlan(undefined)`
+  vraća `"basic"`, pa bi bezuslovno prosledjivanje degradiralo svakog Premium
+  korisnika čim stigne bilo koji `customer.subscription.updated` sa pretplate na
+  kurs. A3 je istu zaštitu već ugradio u `syncStripeSubscription`; ovo je druga
+  brava na istim vratima.
+- **`case "invoice.paid"` NE zove `syncSubscription`.** Status pretplate i dalje
+  vozi isključivo `customer.subscription.*`, kako A6.md i traži. Faktura dira
+  samo kredite.
+- **Grana paketa kredita se prekida (`break`) čim se marker prepozna**, i pre
+  nego što se pogleda `session.subscription`. Sesija paketa je `mode: "payment"`
+  i nikad nema pretplatu, pa je ovo formalnost - ali je formalnost koja
+  garantuje da nova grana ne može da otme postojeći flow.
+- **Jedan `console.error` kad sesija ima `kind: "credit_pack"` a metapodaci nisu
+  upotrebljivi.** To znači da je neko naplatio novac a krediti nisu dodeljeni;
+  bez loga bi to bila potpuno nevidljiva rupa. Jedini `console` u `app/api/`,
+  namerno.
+- **`invoice.paid` sa `billing_reason: "subscription_update"` dobija punu
+  mesečnu dozu.** Tako doslovno kaže tabela u A6.md ("ako pretplata ima
+  `metadata.kind === "plan"` -> dodeli mesečnu dozu"). Posledica pri nadogradnji
+  Basic -> Premium usred ciklusa je opisana dole, u sekciji za Jovana.
+- **Nema testa za samu Next rutu.** `vitest.config.ts` uključuje isključivo
+  `convex/**/*.test.ts` i `lib/**/*.test.ts`; dodavanje `app/**` je izmena
+  konfiguracije koju A6.md ne traži. Zato je SVA odluka rute izvučena u
+  `creditsCore.ts` i testirana tamo, a ruta je svedena na dohvatanje podataka i
+  petlju - tako da nema neistestirane logike, samo neistestirano vezivanje.
+
+**Testovi:** `convex/credits.test.ts`, 7 novih (ukupno 19 u fajlu).
+1. Ista `invoice.paid` faktura obradjena dvaput -> tačno jedan lot, jedna
+   transakcija, balans 2000 (ne 4000), ključ leži u `stripeInvoiceId`.
+2. Ista `checkout.session.completed` sesija obradjena dvaput -> tačno jedan lot,
+   balans 500, `stripeSessionId` i `packId` na lotu.
+3. `subscription_create` faktura -> dva lota (`plan_grant` + `welcome_bonus`) sa
+   ključevima `in_create_1` i `in_create_1:welcome`; ponavljanje samo doze, pa
+   samo bonusa, pa oba zajedno ne otvara treći lot. Bonus ne ulazi u
+   `lifetimePurchased`.
+4. `subscription_cycle` faktura -> tačno jedan grant, `plan_grant`, nigde
+   `welcome_bonus` lot ni `bonus` transakcija.
+5. `invoice.paid` bez `kind === "plan"` -> `studioPlanSlug` je `null`, grantovi
+   prazni, ledger ostaje prazan (nema ni `creditBalances` reda). Uz to: ni sam
+   `planSlug` bez markera, ni tudji marker (`kind: "credit_pack"`) ne prolaze.
+6. `applyStripeGrant` odbija pogrešan `syncSecret` ("Forbidden"), grant bez
+   ijednog ključa i grant sa oba ključa - i posle sva tri odbijanja ledger je
+   netaknut.
+7. Regresioni čuvar: sesija pretplate na kurs (tačno oni metapodaci koje
+   `createCourseCheckoutSession` upisuje danas), sesija bez metapodataka i
+   sesija plana ne daju nijedan grant kroz granu paketa.
+
+Suite je proveren mutacionim testiranjem - sedam namerno ubačenih grešaka, svih
+sedam oboreno: welcome bonus bez `:welcome` sufiksa (deli ključ sa dozom) ·
+welcome bonus na svakoj fakturi umesto samo na `subscription_create` ·
+`studioPlanSlug` koji ne gleda `kind` · `applyStripeGrant` bez
+`requireSyncSecret` · dozvoljena oba ključa idempotencije · doza plana upisana
+pod `stripeSessionId` umesto `stripeInvoiceId` · `creditPackGrants` koji ne
+gleda `kind`. Sve izmene su vraćene, `diff` prema rezervnoj kopiji je čist.
+
+**Rezultat verifikacije:**
+- `npx convex codegen` - prošlo (TypeScript bez grešaka)
+- `npm run lint` - prošlo (0 grešaka; istih 7 postojećih upozorenja u
+  nepovezanim fajlovima kao posle A1-A5)
+- `npm run test` - prošlo (26 test fajlova, 147 testova; A5 je ostavio 26 / 140)
+- dodatno `npx tsc --noEmit` - nema nijedne nove greške; ostaje istih 6
+  postojećih u `convex/credits.test.ts` (`by_user` / `by_user_expiry` u
+  `convex-test` tipovima), poznatih još od A2
+
+**BLOKADA:** nema.
+
+**Za Jovana ujutru:**
+
+- Ništa nije deploy-ovano, nijedan poziv ka Stripe-u nije napravljen, nijedna
+  env varijabla nije dirana.
+
+- **OVO MORAŠ DA URADIŠ RUČNO: uključi event tipove na POSTOJEĆEM webhook
+  endpointu** (`/api/stripe/webhook`, ne pravi nov). Tačna lista, svih pet:
+  1. `checkout.session.completed`
+  2. `invoice.paid`
+  3. `customer.subscription.created`
+  4. `customer.subscription.updated`
+  5. `customer.subscription.deleted`
+
+  Prva, treća, četvrta i peta su verovatno već uključene (postojeći flow ih
+  koristi) - **`invoice.paid` je nova i bez nje Premium pretplatnik ne dobija
+  ni jedan jedini kredit.** Ne dodaj `invoice.payment_succeeded`; kod je ne
+  obradjuje i samo bi pravila šum.
+
+- **Pre prve prave uplate mora da se popuni `creditPacks.stripePriceId`** za
+  `basic`, `premium`, `starter`, `creator`, `pro` (nasledjeno iz A4, još nije
+  uradjeno). Planovi moraju biti **recurring** cene, paketi **one-time**.
+
+- **Test scenario koji vredi proći lokalno** (`stripe listen --forward-to
+  localhost:3000/api/stripe/webhook`, ja ga nisam pokretao jer mi je Stripe CLI
+  zabranjen):
+  1. Kupovina Starter paketa -> balans skoči za 500, jedan lot izvora `purchase`.
+  2. Prva pretplata na Premium -> balans skoči za 2150 (2000 doza + 150 bonus),
+     DVA lota, i `enrollments.plan` postane `premium`.
+  3. `stripe trigger invoice.paid` na istoj pretplati sa
+     `billing_reason: subscription_cycle` -> +2000, bez novog bonusa.
+  4. Ponovi bilo koji od njih -> balans se NE menja.
+
+- **Poznata rupa koju A6 ne zatvara: promena plana kroz Customer Portal.**
+  `metadata.planSlug` se upisuje pri kreiranju pretplate i naš kod ga posle
+  nikad ne menja. Ako korisnik kroz portal predje sa Premium na Basic, metapodaci
+  i dalje kažu `premium`, pa bi i dalje dobijao 2000 kredita mesečno i zadržao
+  pristup Pro lekcijama. Dva puta gde se to rešava, kad budeš spreman: ili
+  webhook na `customer.subscription.updated` prepiše `subscription.metadata`
+  preko Stripe API-ja, ili se plan izvodi iz `stripePriceId` preko
+  `planFromPriceId` iz `lib/plan.ts` (A3 ga je ostavio baš za ovo, samo mu treba
+  mapa price ID -> plan). Dok se ne odluči, **nemoj dozvoliti menjanje plana u
+  Customer Portal konfiguraciji** - to je najjeftinija privremena brava.
+
+- **Nadogradnja Basic -> Premium usred ciklusa daje punu mesečnu dozu odmah**
+  (proration faktura ima `billing_reason: "subscription_update"`), pa taj mesec
+  korisnik plati srazmerno a dobije 2000 kredita. Tako traži A6.md. Ako ti to
+  smeta, promena je jedan `if` u `invoicePaidGrants` - ograniči dozu na
+  `subscription_create` i `subscription_cycle`. Test 4 i dalje prolazi, treba
+  dopisati nov za `subscription_update`.
+
+- Podsetnik iz A2 koji i dalje važi: **cron za istek kredita (D5) NIJE napisan.**
+  Krediti dodeljeni od danas ističu za 12 meseci, ali ih niko još ne gasi, pa
+  keširan balans posle godinu dana može da bude veći od stvarno potrošivog.

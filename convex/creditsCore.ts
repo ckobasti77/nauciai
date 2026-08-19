@@ -166,3 +166,109 @@ export function validatePrompt(text: string): PromptValidation {
 
   return { ok: true };
 }
+
+// ── Stripe -> grantovi ─────────────────────────────────────────────────────
+
+/**
+ * Jedan grant koji webhook prosleđuje `applyStripeGrant`-u, bez `syncSecret`.
+ * `stripeInvoiceId` / `stripeSessionId` su ujedno i ključ idempotencije, pa
+ * tačno jedan od njih mora da bude postavljen.
+ */
+export type StripeGrant = {
+  userId: string;
+  amount: number;
+  source: "purchase" | "plan_grant" | "welcome_bonus";
+  stripeInvoiceId?: string;
+  stripeSessionId?: string;
+  packId?: string;
+};
+
+type StripeMetadata = Record<string, string> | null | undefined;
+
+function trimmed(value: string | undefined): string | undefined {
+  const text = value?.trim();
+  return text ? text : undefined;
+}
+
+/**
+ * `planSlug` sa pretplate koja je zaista Studio plan. Pretplate na kurseve
+ * (postojeći flow) nemaju `kind` u metapodacima, pa uvek daju `null` i nikad
+ * ne dobiju kredite.
+ */
+export function studioPlanSlug(metadata: StripeMetadata): string | null {
+  if (metadata?.kind !== "plan") return null;
+  return trimmed(metadata.planSlug) ?? null;
+}
+
+/**
+ * Krediti za jednu plaćenu `checkout.session.completed` sesiju paketa. Iznos se
+ * čita iz metapodataka sesije, jer je to ponuda koju je korisnik prihvatio - a
+ * ne trenutno stanje `creditPacks` reda, koje je admin u međuvremenu mogao da
+ * promeni. Prazan niz znači "ovo nije (ispravan) paket kredita".
+ */
+export function creditPackGrants(session: {
+  sessionId: string;
+  metadata: StripeMetadata;
+}): StripeGrant[] {
+  const metadata = session.metadata;
+  if (metadata?.kind !== "credit_pack") return [];
+
+  const userId = trimmed(metadata.userId);
+  const sessionId = trimmed(session.sessionId);
+  const amount = Number(metadata.credits);
+  if (!userId || !sessionId || !isValidCreditAmount(amount)) return [];
+
+  return [
+    {
+      userId,
+      amount,
+      source: "purchase",
+      stripeSessionId: sessionId,
+      packId: trimmed(metadata.packId),
+    },
+  ];
+}
+
+/**
+ * Krediti za jednu plaćenu `invoice.paid` fakturu Studio plana. Mesečna doza
+ * visi na fakturi, ne na `checkout.session.completed`, jer taj event puca samo
+ * pri prvom plaćanju (STUDIO-PLAN D.5). Ključ idempotencije je `invoice.id`, a
+ * za bonus dobrodošlice `invoice.id + ":welcome"` - dva odvojena lota koja se
+ * ponavljaju nezavisno jedan od drugog.
+ *
+ * `planCredits <= 0` (Basic nema mesečnu dozu) preskače dozu, ali ne i bonus.
+ */
+export function invoicePaidGrants(invoice: {
+  invoiceId: string;
+  billingReason: string | null | undefined;
+  subscriptionMetadata: StripeMetadata;
+  planCredits: number;
+  planPackId?: string;
+}): StripeGrant[] {
+  if (!studioPlanSlug(invoice.subscriptionMetadata)) return [];
+
+  const userId = trimmed(invoice.subscriptionMetadata?.userId);
+  const invoiceId = trimmed(invoice.invoiceId);
+  if (!userId || !invoiceId) return [];
+
+  const grants: StripeGrant[] = [];
+  if (isValidCreditAmount(invoice.planCredits)) {
+    grants.push({
+      userId,
+      amount: invoice.planCredits,
+      source: "plan_grant",
+      stripeInvoiceId: invoiceId,
+      packId: invoice.planPackId,
+    });
+  }
+  if (invoice.billingReason === "subscription_create") {
+    grants.push({
+      userId,
+      amount: WELCOME_BONUS_CREDITS,
+      source: "welcome_bonus",
+      stripeInvoiceId: `${invoiceId}:welcome`,
+    });
+  }
+
+  return grants;
+}
