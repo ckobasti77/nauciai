@@ -2,7 +2,7 @@ import { paginationOptsValidator } from "convex/server";
 import { v, type Infer } from "convex/values";
 
 import { internal } from "./_generated/api";
-import type { Id } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { internalMutation, mutation, query } from "./_generated/server";
 import { computeExpiry, isValidCreditAmount, planSpend } from "./creditsCore";
@@ -177,6 +177,20 @@ export const grantCredits = internalMutation({
     const existing = await findLotByKey(ctx, args.idempotencyKey);
     if (existing) return existing._id;
 
+    // Bonus dobrodošlice je jednom po KORISNIKU (STUDIO-PLAN D.1), a ne po
+    // pretplati: otkazivanje pa ponovna pretplata pravi novu `invoice.id`, a uz
+    // kupon od 100% i besplatnu petlju. Ključ `welcome:<userId>` to sam po sebi
+    // rešava; ova provera je drugi sloj, za lotove otvorene pre te promene.
+    if (args.source === "welcome_bonus") {
+      const existingBonus = await ctx.db
+        .query("creditLots")
+        .withIndex("by_user_source", (q) =>
+          q.eq("userId", args.userId).eq("source", "welcome_bonus"),
+        )
+        .first();
+      if (existingBonus) return existingBonus._id;
+    }
+
     const now = Date.now();
     const expiresAt = computeExpiry(now);
     const stripeInvoiceId =
@@ -218,59 +232,100 @@ export const grantCredits = internalMutation({
 });
 
 /**
- * FIFO potrošnja preko `planSpend`. Ako plan ne postoji, mutacija baca pre bilo
- * kakvog upisa, pa poziv ne ostavlja nikakav trag.
+ * FIFO potrošnja preko `planSpend`. Ako plan ne postoji, baca PRE bilo kakvog
+ * upisa, pa poziv ne ostavlja nikakav trag.
+ *
+ * Obična funkcija, a ne samo mutacija: `studio.createJob` je zove direktno, u
+ * svojoj transakciji. Ugnježden `ctx.runMutation` je podtransakcija koju
+ * pozivalac sme da uhvati i nastavi - a tamo posao i potrošnja moraju da padnu
+ * zajedno, bez oslanjanja na to što oko poziva slučajno nema `try/catch`.
  */
+export async function applySpend(
+  ctx: MutationCtx,
+  args: { userId: Id<"users">; amount: number; jobId: Id<"generationJobs"> },
+) {
+  if (!isValidCreditAmount(args.amount)) throw new Error("NEVALIDAN_IZNOS");
+
+  const now = Date.now();
+  // Svi lotovi sa preostalim kreditima moraju da se pročitaju: parcijalno
+  // čitanje bi tiho potcenilo balans i odbilo generaciju koja je plaćena.
+  const lots = await ctx.db
+    .query("creditLots")
+    .withIndex("by_user_active", (q) => q.eq("userId", args.userId).eq("exhaustedAt", undefined))
+    .collect();
+
+  const plan = planSpend(
+    lots.map((lot) => ({ id: lot._id, remaining: lot.remaining, expiresAt: lot.expiresAt })),
+    args.amount,
+    now,
+  );
+  if (!plan) throw new Error("NEDOVOLJNO_KREDITA");
+
+  const takeByLot = new Map(plan.map((step) => [step.lotId, step.take]));
+  for (const lot of lots) {
+    const take = takeByLot.get(lot._id);
+    if (!take) continue;
+    const remaining = lot.remaining - take;
+    await ctx.db.patch(lot._id, remaining === 0 ? { remaining, exhaustedAt: now } : { remaining });
+  }
+
+  const balanceAfter = await applyBalanceDelta(ctx, args.userId, now, {
+    balance: -args.amount,
+    purchased: 0,
+    spent: args.amount,
+  });
+  await ctx.db.insert("creditTransactions", {
+    userId: args.userId,
+    amount: -args.amount,
+    type: "spend",
+    balanceAfter,
+    jobId: args.jobId,
+    // Trag ka lotu ima smisla samo kad je potrošnja stala u jedan lot.
+    lotId: plan.length === 1 ? (plan[0].lotId as Id<"creditLots">) : undefined,
+    createdAt: now,
+  });
+
+  return { balanceAfter };
+}
+
+/**
+ * Gasi lot kojem je istekao rok (STUDIO-PLAN D.2): `remaining` na 0,
+ * `exhaustedAt` na `now`, red tipa `expiry` u ledgeru i keširan balans manji za
+ * isti iznos. Poslednji korak je obavezan - `planSpend` istekle lotove ionako
+ * preskače, pa bi bez njega `creditBalances.balance` posle godinu dana
+ * pokazivao kredite koji se ne mogu potrošiti.
+ *
+ * Obična funkcija, kao `applySpend`: cron gasi više lotova u jednoj transakciji.
+ */
+export async function applyLotExpiry(ctx: MutationCtx, lot: Doc<"creditLots">, now: number) {
+  await ctx.db.patch(lot._id, { remaining: 0, exhaustedAt: now });
+  const balanceAfter = await applyBalanceDelta(ctx, lot.userId, now, {
+    balance: -lot.remaining,
+    purchased: 0,
+    // `lifetimeSpent` je ono što je korisnik potrošio; istekli krediti nisu
+    // potrošeni nego propali, pa se tu ne broje.
+    spent: 0,
+  });
+  await ctx.db.insert("creditTransactions", {
+    userId: lot.userId,
+    amount: -lot.remaining,
+    type: "expiry",
+    balanceAfter,
+    lotId: lot._id,
+    createdAt: now,
+  });
+
+  return balanceAfter;
+}
+
+/** Tanak omotač za pozivaoce van transakcije (testovi, ručni `convex run`). */
 export const spendCredits = internalMutation({
   args: {
     userId: v.id("users"),
     amount: v.number(),
     jobId: v.id("generationJobs"),
   },
-  handler: async (ctx, args) => {
-    if (!isValidCreditAmount(args.amount)) throw new Error("NEVALIDAN_IZNOS");
-
-    const now = Date.now();
-    // Svi lotovi sa preostalim kreditima moraju da se pročitaju: parcijalno
-    // čitanje bi tiho potcenilo balans i odbilo generaciju koja je plaćena.
-    const lots = await ctx.db
-      .query("creditLots")
-      .withIndex("by_user_active", (q) => q.eq("userId", args.userId).eq("exhaustedAt", undefined))
-      .collect();
-
-    const plan = planSpend(
-      lots.map((lot) => ({ id: lot._id, remaining: lot.remaining, expiresAt: lot.expiresAt })),
-      args.amount,
-      now,
-    );
-    if (!plan) throw new Error("NEDOVOLJNO_KREDITA");
-
-    const takeByLot = new Map(plan.map((step) => [step.lotId, step.take]));
-    for (const lot of lots) {
-      const take = takeByLot.get(lot._id);
-      if (!take) continue;
-      const remaining = lot.remaining - take;
-      await ctx.db.patch(lot._id, remaining === 0 ? { remaining, exhaustedAt: now } : { remaining });
-    }
-
-    const balanceAfter = await applyBalanceDelta(ctx, args.userId, now, {
-      balance: -args.amount,
-      purchased: 0,
-      spent: args.amount,
-    });
-    await ctx.db.insert("creditTransactions", {
-      userId: args.userId,
-      amount: -args.amount,
-      type: "spend",
-      balanceAfter,
-      jobId: args.jobId,
-      // Trag ka lotu ima smisla samo kad je potrošnja stala u jedan lot.
-      lotId: plan.length === 1 ? (plan[0].lotId as Id<"creditLots">) : undefined,
-      createdAt: now,
-    });
-
-    return { balanceAfter };
-  },
+  handler: (ctx, args) => applySpend(ctx, args),
 });
 
 /**

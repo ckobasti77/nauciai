@@ -1314,6 +1314,9 @@ export default defineSchema({
   })
     .index("by_user_expiry", ["userId", "expiresAt"])
     .index("by_user_active", ["userId", "exhaustedAt"])
+    // Bonus dobrodošlice je jednom po korisniku, pa se pre dodele traži
+    // postojeći lot tog izvora - i kad je odavno potrošen.
+    .index("by_user_source", ["userId", "source"])
     .index("by_stripe_invoice", ["stripeInvoiceId"])
     .index("by_stripe_session", ["stripeSessionId"])
     .index("by_expiry", ["expiresAt"]),

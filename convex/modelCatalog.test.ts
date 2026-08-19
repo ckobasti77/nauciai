@@ -132,6 +132,21 @@ test("getModelBySlug vraća cenu koja se poklapa sa STUDIO-PLAN §2.3 za bar 3 n
   expect(missing).toBeNull();
 });
 
+test("listAllModels vraća i isključene modele, zaštićen requireAdmin", async () => {
+  const t = convexTest(schema, modules);
+  await runSeed(t);
+  const admin = await seedAdmin(t);
+  const student = await seedStudent(t);
+
+  await expect(student.query(api.modelCatalog.listAllModels, {})).rejects.toThrow("Forbidden");
+
+  const all = await admin.query(api.modelCatalog.listAllModels, {});
+  expect(all).toHaveLength(22);
+  expect(all.some((model) => !model.isEnabled)).toBe(true);
+  const sortOrders = all.map((model) => model.sortOrder);
+  expect(sortOrders).toEqual([...sortOrders].sort((a, b) => a - b));
+});
+
 test("upsertModel, setModelEnabled i setModelCost su zaštićeni sa requireAdmin", async () => {
   const t = convexTest(schema, modules);
   await runSeed(t);
@@ -198,4 +213,34 @@ test("setModelEnabled i setModelCost menjaju postojeći red bez dupliranja", asy
 
   const rows = await t.run((ctx) => ctx.db.query("modelCatalog").collect());
   expect(rows.filter((row) => row.slug === "seedance-20-mini-480p")).toHaveLength(1);
+});
+
+test("slugovi koji dele endpoint razlikuju se rezolucijom iz defaultParams, ne iz šeme", async () => {
+  const t = convexTest(schema, modules);
+  await runSeed(t);
+
+  const bySlug = async (slug: string) =>
+    t.run((ctx) => ctx.runQuery(internal.modelCatalog.getModelBySlug, { slug }));
+
+  const pairs = [
+    ["nano-banana-2", "nano-banana-2-2k", "1K", "2K"],
+    ["nano-banana-pro", "nano-banana-pro-4k", "1K", "4K"],
+  ] as const;
+
+  for (const [cheapSlug, expensiveSlug, cheapResolution, expensiveResolution] of pairs) {
+    const cheap = await bySlug(cheapSlug);
+    const expensive = await bySlug(expensiveSlug);
+
+    // Isti endpoint, različita cena - jedina razlika mora da bude serverska.
+    expect(cheap?.falEndpoint).toBe(expensive?.falEndpoint);
+    expect(expensive!.creditCost).toBeGreaterThan(cheap!.creditCost);
+    expect(JSON.parse(cheap!.defaultParams).resolution).toBe(cheapResolution);
+    expect(JSON.parse(expensive!.defaultParams).resolution).toBe(expensiveResolution);
+
+    // Da je `resolution` u šemi, jeftiniji slug bi se plaćao a skuplji dobijao.
+    const schemaKeys = (JSON.parse(cheap!.paramSchema) as { key: string }[]).map(
+      (field) => field.key,
+    );
+    expect(schemaKeys).not.toContain("resolution");
+  }
 });

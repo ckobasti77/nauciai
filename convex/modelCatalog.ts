@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 
 import { internalQuery, mutation, query } from "./_generated/server";
-import { requireAdmin } from "./helpers";
+import { getCurrentProfile, requireAdmin } from "./helpers";
 
 const studioModelKind = v.union(v.literal("image"), v.literal("video"), v.literal("audio"));
 const modelCatalogBadge = v.union(
@@ -21,6 +21,24 @@ export const listModels = query({
     return rows
       .filter((model) => model.isEnabled && (!args.kind || model.kind === args.kind))
       .sort((a, b) => a.sortOrder - b.sortOrder);
+  },
+});
+
+/**
+ * Admin varijanta `listModels`-a: svi modeli, uključujući isključene, jer
+ * admin mora da vidi (i ponovo uključi) ono što je sam ugasio. `listModels`
+ * ostaje javan i filtriran - ovaj je iza `requireAdmin`.
+ */
+export const listAllModels = query({
+  args: {},
+  handler: async (ctx) => {
+    // `requireAdmin` (iz `helpers.ts`) upisuje profil (bootstrap) i zato traži
+    // pisiv kontekst - ne sme se pozvati iz query-ja. `getCurrentProfile` je
+    // isti obrazac koji koristi `contentHierarchy.getAdminHierarchy`.
+    const { profile } = await getCurrentProfile(ctx);
+    if (profile.role !== "admin") throw new Error("Forbidden");
+    const rows = await ctx.db.query("modelCatalog").take(MAX_MODELS);
+    return rows.sort((a, b) => a.sortOrder - b.sortOrder);
   },
 });
 

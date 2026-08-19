@@ -5,6 +5,7 @@ import {
   ChevronDown,
   ChevronRight,
   CircleAlert,
+  Coins,
   Compass,
   CreditCard,
   Crown,
@@ -22,6 +23,7 @@ import {
   ShieldCheck,
   User,
   LogOut,
+  Wand2,
   X,
   ArrowUpRight,
 } from "lucide-react";
@@ -653,6 +655,30 @@ function LearningSwitcher({
   );
 }
 
+/**
+ * Krediti su vidljivi sa svake `/app` stranice preko ove pločice u zaglavlju
+ * sidebar-a (mobilni top bar i prošireni desktop vrh) - `rounded-full`, sitna,
+ * ne dominira. `undefined` znači "još se učitava" (prikazuje "—"); `null` znači
+ * "neprijavljen", pa se pločica uopšte ne renderuje.
+ */
+function CreditsBalancePill({ locale, balance }: { locale: Locale; balance: number | null | undefined }) {
+  if (balance === null) return null;
+
+  return (
+    <Link
+      href={withLocale(locale, "/app/credits")}
+      className={cn(
+        "inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-full border-2 border-ink px-2.5 py-1 text-xs font-black transition hover:-translate-y-0.5",
+        balance === 0 ? "bg-amber-100 text-amber-900" : "bg-white text-ink",
+      )}
+    >
+      <Coins className="size-3.5" />
+      {balance === undefined ? "—" : balance.toLocaleString(locale === "sr" ? "sr-RS" : "en-US")}{" "}
+      {locale === "sr" ? "kr" : "cr"}
+    </Link>
+  );
+}
+
 function NavLink({
   href,
   active,
@@ -1130,6 +1156,7 @@ function AppSidebarContent({
   profileComplete = true,
   emailVerificationRequired = false,
   passwordRecommended = false,
+  creditsBalance = null,
 }: {
   locale: Locale;
   navigation: AppNavigationData;
@@ -1141,6 +1168,7 @@ function AppSidebarContent({
   messagesBadge?: number;
   accountBadge?: number;
   profileComplete?: boolean;
+  creditsBalance?: number | null;
   emailVerificationRequired?: boolean;
   passwordRecommended?: boolean;
 }) {
@@ -1377,6 +1405,8 @@ function AppSidebarContent({
   const dashboardActive = pathname === withLocale(locale, "/app");
   const communityActive = pathname === withLocale(locale, "/app/community") || pathname.includes("/app/community/");
   const messagesActive = pathname === withLocale(locale, "/app/messages") || pathname.includes("/app/messages/");
+  const studioActive = pathname === withLocale(locale, "/app/studio") || pathname.includes("/app/studio/");
+  const creditsActive = pathname === withLocale(locale, "/app/credits");
   // Course detail only; a lesson is a deeper node and lights up the Lessons disclosure.
   const courseActive = Boolean(params.courseSlug) && !params.lessonSlug;
   const trackActive = Boolean(params.trackSlug);
@@ -1413,18 +1443,21 @@ function AppSidebarContent({
     <>
       <header inert={drawerIsModal && mobileOpen} className="sticky top-0 z-40 flex min-h-16 items-center justify-between border-b-2 border-ink bg-white px-4 md:hidden">
         <BrandMark href={withLocale(locale)} label={t.appName} />
-        <button
-          ref={mobileMenuButtonRef}
-          type="button"
-          aria-haspopup="dialog"
-          aria-expanded={mobileOpen}
-          aria-controls="app-sidebar-drawer"
-          onClick={() => setMobileOpen(true)}
-          className="inline-flex min-h-11 items-center gap-2 border-2 border-ink bg-yellow px-3.5 text-xs font-black uppercase tracking-[0.06em] text-ink shadow-[3px_3px_0_rgba(14,49,88,0.16)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-        >
-          <Menu className="size-5" aria-hidden="true" />
-          {locale === "sr" ? "Više" : "More"}
-        </button>
+        <div className="flex items-center gap-2">
+          {authState === "authenticated" ? <CreditsBalancePill locale={locale} balance={creditsBalance} /> : null}
+          <button
+            ref={mobileMenuButtonRef}
+            type="button"
+            aria-haspopup="dialog"
+            aria-expanded={mobileOpen}
+            aria-controls="app-sidebar-drawer"
+            onClick={() => setMobileOpen(true)}
+            className="inline-flex min-h-11 items-center gap-2 border-2 border-ink bg-yellow px-3.5 text-xs font-black uppercase tracking-[0.06em] text-ink shadow-[3px_3px_0_rgba(14,49,88,0.16)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          >
+            <Menu className="size-5" aria-hidden="true" />
+            {locale === "sr" ? "Više" : "More"}
+          </button>
+        </div>
       </header>
       <div
         aria-hidden="true"
@@ -1467,6 +1500,11 @@ function AppSidebarContent({
       <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden pr-1">
         <div className="sidebar-reveal flex items-center justify-between gap-4">
           <BrandMark href={withLocale(locale)} label={t.appName} />
+          {authState === "authenticated" ? (
+            <span className="hidden md:inline-flex">
+              <CreditsBalancePill locale={locale} balance={creditsBalance} />
+            </span>
+          ) : null}
           <button
             type="button"
             aria-label={locale === "sr" ? "Kolapsiraj sidebar" : "Collapse sidebar"}
@@ -1499,6 +1537,18 @@ function AppSidebarContent({
               active={dashboardActive}
               icon={LayoutDashboard}
               label="Dashboard"
+            />
+            <NavLink
+              href={withLocale(locale, "/app/studio")}
+              active={studioActive}
+              icon={Wand2}
+              label="Studio"
+            />
+            <NavLink
+              href={withLocale(locale, "/app/credits")}
+              active={creditsActive}
+              icon={Coins}
+              label={locale === "sr" ? "Krediti" : "Credits"}
             />
             {currentTrackSlug ? (
               <NavLink
@@ -1746,6 +1796,8 @@ function AppSidebarContent({
             <RailAction label={`${localized(currentCourse.title, locale)} · ${t.lessons}`} icon={<GraduationCap className="size-5" />} expanded={railFlyout === "learning"} onClick={() => setRailFlyout((value) => value === "learning" ? null : "learning")} />
           ) : null}
           <RailAction href={dashboardHref(locale)} label="Dashboard" icon={<LayoutDashboard className="size-5" />} active={dashboardActive} />
+          <RailAction href={withLocale(locale, "/app/studio")} label="Studio" icon={<Wand2 className="size-5" />} active={studioActive} />
+          <RailAction href={withLocale(locale, "/app/credits")} label={locale === "sr" ? "Krediti" : "Credits"} icon={<Coins className="size-5" />} active={creditsActive} />
           {currentTrackSlug ? (
             <RailAction href={trackPath(locale, currentTrackSlug)} label={trackLabel} icon={<Compass className="size-5" />} active={trackActive} />
           ) : null}
@@ -1889,6 +1941,7 @@ function LiveAppSidebar({
   const messagesBadge = chatSummary?.totalUnread ?? 0;
   const accountBadge = notificationSummary?.accountWarnings ?? 0;
   const profileStatus = useQuery(api.profiles.getViewerProfileStatus, isAuthenticated ? {} : "skip");
+  const creditsBalance = useQuery(api.credits.getBalance, isAuthenticated ? {} : "skip");
 
   return (
     <AppSidebarContent
@@ -1904,6 +1957,7 @@ function LiveAppSidebar({
       profileComplete={profileStatus?.complete ?? false}
       emailVerificationRequired={profileStatus?.advisories.emailVerification ?? false}
       passwordRecommended={profileStatus?.advisories.password ?? false}
+      creditsBalance={creditsBalance?.balance}
     />
   );
 }

@@ -1335,3 +1335,1658 @@ brani, ili je izričito označena kao nepokrivena.
 - Ništa nije deploy-ovano, Stripe i fal nisu pozivani, nijedna env varijabla
   nije dirana. Jedina izmena van `docs/` je da je `npx convex codegen` ponovo
   dodirnuo dev deployment - to radi svaki put.
+
+## P1 - Šest rupa po novcu iz noćne revizije   (19.08.2026 10:33-11:20)
+
+**Fajlovi:**
+- `convex/studioCore.ts` - dodato: `sanitizeParams`, `MAX_DAILY_COST_USD`,
+  `exceedsDailyCostLimit`, `readParamFields` (privatna)
+- `convex/studio.ts` - `createJob` sanitizuje parametre, čita dnevni limit
+  troška i zove `applySpend` direktno; `markJobRunning` proverava status
+- `convex/studioActions.ts` - `submitJob` izlazi bez dejstva ako posao nije
+  `reserved`
+- `convex/credits.ts` - `applySpend` kao obična funkcija (+ tanak omotač
+  `spendCredits`), `grantCredits` proverava postojeći `welcome_bonus` lot
+- `convex/creditsCore.ts` - `welcomeBonusKey(userId)`; bonus više ne visi na
+  `invoice.id`
+- `convex/schema.ts` - nov indeks `creditLots.by_user_source`
+- `convex/seed.ts` - `RESOLUTION_BY_SLUG`; rezolucija ulazi u `defaultParams`
+  skupljeg sluga i ostaje van `paramSchema`
+- `app/api/stripe/webhook/route.ts` - grane koje ne mogu da upišu grant sada
+  bacaju (ruta vrati 500), `payment_status` se proverava, dodati
+  `async_payment_succeeded` i `async_payment_failed`
+- `vitest.config.ts` - `include` prošireno sa `app/**/*.test.ts`
+- Testovi: `convex/studio.test.ts` (+11), `convex/studioActions.test.ts` (+2),
+  `convex/credits.test.ts` (+2), `convex/modelCatalog.test.ts` (+1),
+  **nov** `app/api/stripe/webhook/route.test.ts` (8)
+- **nov** `.studio-run/mutate.py` - alat za mutaciono testiranje popravki
+
+**Šta je uradjeno:** Zatvoreno je svih šest rupa iz sekcije RIZICI PO NOVAC
+noćnog izveštaja, plus otvrdnjavanje koje je izveštaj tražio. `params` sada
+prolaze kroz `sanitizeParams` pre nego što se upišu u posao, pa je objekat koji
+ide fal-u isti onaj po kojem je cena obračunata; `num_images: 20` se odseca na
+4, nepoznat ključ tiho ispada, `aspect_ratio` van skupa se odbija. Rezolucija je
+prebačena u `defaultParams` skupljeg sluga, čime jeftiniji slug više ne može da
+odglumi skuplji. `submitJob` i `markJobRunning` gledaju status, pa druga predaja
+ne plaća fal dvaput, a zakasneli `markJobRunning` ne može da vrati refundiran
+posao u `running` - to je zid koji reaper iz P2 traži. Stripe webhook više ne
+ćuti: kad ne može da upiše grant, loguje `event.id` i tip pa baca, ruta vrati
+500 i Stripe ponovi (ponavljanje je bezbedno jer je grant idempotentan). Krediti
+za paket idu tek kad je `payment_status === "paid"`, a odloženo plaćanje se
+čeka kroz `async_payment_succeeded`. Bonus dobrodošlice visi na korisniku
+(`welcome:<userId>`), pa otkaži-pa-se-pretplati petlja daje 150 kredita ukupno,
+a ne po pretplati. `createJob` čita i dnevni plafon troška od 5 USD. Potrošnja
+kredita je izvučena u običnu funkciju `applySpend`, pa atomičnost `createJob`-a
+više ne zavisi od toga što oko poziva slučajno nema `try/catch`.
+
+**ODLUKE:**
+1. **`resolution` kao ime fal parametra ("1K"/"2K"/"4K") je pretpostavka, ne
+   provereno.** Živi fal API se po pravilima dana ne poziva, a lokalno nema
+   keširane šeme endpointa. Izabrano je `resolution`, i pinovano je i na
+   jeftinim slugovima (`1K`), ne samo na skupim. Sigurnosna strana ne zavisi od
+   imena - `sanitizeParams` izbacuje svaki `resolution` od klijenta jer nije u
+   `paramSchema`. Ono što zavisi jeste da li `nano-banana-2-2k` stvarno
+   isporučuje 2K; ako je ime pogrešno, klijent plaća 30 kredita za 1K sliku.
+   Provera je prva stavka u "Za Jovana".
+2. **Odsecanje po redu veličine važi samo za skupu stranu.** Preko `max × 10`
+   se odbija (`VAN_OPSEGA:<kljuc>`), ispod `min` se samo podiže na `min`. Ispod
+   minimuma nema šta da se izgubi - `num_images: 0` je prazno polje u formi, a
+   ne napad na fal račun.
+3. **Vrednost pogrešnog tipa na poznatom ključu tiho ispada** (posao se odradi
+   sa podrazumevanom vrednošću modela), dok se `select` van skupa **odbija**.
+   Odsecanje selecta na "najbližu dozvoljenu vrednost" bi tiho generisalo nešto
+   što niko nije tražio, a to je gore od odbijanja.
+4. **Cena se računa iz OČIŠĆENIH parametara**, ne iz sirovih. Posledica koju
+   treba znati pre Faze B: model sa `costPerSecond` **mora** da izloži
+   `duration` u svom `paramSchema`, inače `computeCreditCost` baca
+   `NEISPRAVNO_TRAJANJE`. Postojeći test za video model je zato dobio realnu
+   šemu u fiksturi; nijedna njegova tvrdnja nije promenjena ni uklonjena.
+5. **Prag od 5 USD se poredi u centima** (`Math.round((a + b) * 100) > 500`) da
+   `0.1 + 0.2` ne obori prag. Tačno 5,00 USD još prolazi, odbija se tek prelazak
+   preko. P1 traži tvrdu grešku `DNEVNI_LIMIT_TROSKA`; plan 4.4 pominje "alarm
+   na 5 $, auto-pauza na 10 $" - P1 ima prednost, pa je 5 USD zid.
+6. **Ključ `welcome:<userId>` se čuva u polju `stripeInvoiceId`** iako nije
+   Stripe faktura. To je postojeći mehanizam idempotencije i njegov indeks;
+   uvoditi treće polje samo zbog imena bilo bi skuplje nego korisnije. Drugi
+   sloj je provera po izvoru preko novog indeksa `by_user_source`, koja hvata i
+   lotove otvorene starim ključem.
+7. **Ruta sada hvata sve iz `switch`-a i vraća 500 sa logom**, umesto da pusti
+   Next da vrati neoznačen 500. Statusni kod za pretplate na kurseve je isti kao
+   pre (500 u oba slučaja), pa se postojeći flow ne menja.
+8. **`async_payment_succeeded` obradjuje SAMO granu paketa.** Pretplate ostaju
+   na svojim event-ovima (`customer.subscription.*`, `invoice.paid`) - dodavati
+   im nov ulaz značilo bi menjati postojeći subscription flow.
+9. **`vitest.config.ts` `include` prošireno sa `app/**/*.test.ts`.** Bez toga
+   rupe d1 i d2 ne bi imale nijedan test - obe su ponašanje rute (200 naspram
+   500), a ne čista funkcija. Obrazac mockovanja je prepisan iz
+   `lib/stripe.test.ts` (`vi.mock("server-only")` + dinamički import).
+10. **`spendCredits` internal mutacija je ostala** kao tanak omotač nad
+    `applySpend`, jer je zovu `studioActions.test.ts` i ručni `convex run`.
+11. `.studio-run/mutate.py` je zadržan (nije produkcijski kod) - P2 i dalji
+    koraci imaju gotov alat za istu proveru.
+
+**Testovi:** 24 nova (208 -> 232).
+- `sanitizeParams`, 5 čistih testova: odsecanje na `min`/`max`; odbijanje van
+  reda veličine i ispadanje vrednosti pogrešnog tipa; ispadanje nepoznatih
+  ključeva (`resolution`, `num_inference_steps`, `image_size`); select iz skupa
+  i van skupa; prazna šema propušta samo `prompt`, a šema koja nije JSON niz se
+  odbija.
+- `createJob`: upisuje očišćene parametre (`num_images: 20` -> 4, `resolution`
+  ispao); odbija nedozvoljen select bez trošenja kredita.
+- Dnevni limit troška: 4 + 2 USD odbijeno bez ijednog upisa; tačno 5 USD
+  prolazi; sledeći posao istog dana odbijen; jučerašnjih 10 USD ne blokira
+  danas.
+- `markJobRunning`: odbija prelaz iz `refunded` (posao ostaje refundiran, bez
+  `falRequestId`, balans netaknut) i drugi poziv iz `running` (prvi
+  `falRequestId` preživljava).
+- `submitJob`: ne zove `fetch` i ne dira posao kad je `running`, niti kad je
+  `refunded` - bez drugog refunda.
+- Welcome bonus: dve `subscription_create` fakture za istog korisnika daju tačno
+  150 kredita i jedan lot; lot sa starim ključem `in_x:welcome` blokira nov
+  bonus (provera po izvoru).
+- Seed: `nano-banana-2`/`-2k` i `nano-banana-pro`/`-4k` dele endpoint, imaju
+  različitu cenu i različit `resolution` u `defaultParams`, a `resolution` nije
+  u `paramSchema`.
+- Ruta (8): plaćena sesija dodeli tačno jedan grant sa očekivanim argumentima;
+  neplaćena ne dodeli ništa; `async_payment_succeeded` dodeli;
+  `async_payment_failed` ne dodeli; nedostupan Convex -> 500 uz log sa
+  `event.id`; obrisan `WEBHOOK_SYNC_SECRET` -> 500; odbijen grant -> 500 sa
+  porukom; pretplata na kurs i dalje ide u `syncStripeSubscription`.
+- **Mutaciono testiranje (`.studio-run/mutate.py`), 13 mutacija:** 12 od 13
+  obara bar jedan test. Trinaesta je namerno zelena i to je poenta
+  otvrdnjavanja: `try/catch` oko `applySpend` koji **ponovo baci** ništa ne
+  menja (transakcija i dalje pada u celini), dok `try/catch` koji grešku
+  **proguta** obara test - dakle atomičnost je sad strukturna, a ne slučajna.
+
+**Rezultat verifikacije:**
+- `npx convex codegen` - **prošlo** (exit 0, `Running TypeScript...` bez greške)
+- `npm run lint` - **prošlo** (`✖ 7 problems (0 errors, 7 warnings)`; istih 7
+  zatečenih upozorenja u `admin-inline-actions.tsx`, `dashboard-content.tsx` i
+  `public-course-intro-video.tsx`, nijedno iz Studio koda)
+- `npm run test` - **231 prošlo, 1 palo**: `convex/chat.test.ts > inbox summary
+  stays exact beyond one thousand memberships` puca na `Test timed out in
+  5000ms`. **To nije regresija ovog koraka** i dokazano je trima merenjima:
+  (1) test pada i kad se pusti sam, bez ijednog drugog fajla; (2) pada i kad se
+  nov indeks `by_user_source` privremeno ukloni iz šeme; (3) `npx vitest run
+  --testTimeout=60000` nad **nepromenjenim** fajlovima daje `Test Files 32
+  passed / Tests 232 passed`. Test seeduje preko 1000 članstava i traje 16-18 s
+  na ovoj mašini pod opterećenjem, uz podrazumevani vitest limit od 5 s.
+- `npm run build` - **prošlo** (`✓ Compiled successfully in 35.8s`,
+  `Finished TypeScript in 93s`, `/api/stripe/webhook` u listi ruta)
+
+**BLOKADA:** nema.
+
+**Za Jovana:**
+1. **Proveri ime parametra za rezoluciju pre nego što pustiš 2K/4K slugove u
+   prodaju.** Jedna komanda: `genmedia schema fal-ai/nano-banana-2 --json` (i
+   isto za `fal-ai/nano-banana-pro`). Ako polje nije `resolution` ili vrednosti
+   nisu `1K`/`2K`/`4K`, ispravi `RESOLUTION_BY_SLUG` u `convex/seed.ts` i pusti
+   seed ponovo. Do te provere `nano-banana-2-2k` (30 kr) i `nano-banana-pro-4k`
+   (65 kr) možda naplaćuju više nego što isporučuju. Eksploatacija u obrnutom
+   smeru (jeftin slug, skupa rezolucija) je zatvorena bez obzira na ime
+   parametra.
+2. **Seed mora da se pusti ponovo** da bi `defaultParams` dobili rezoluciju:
+   `npm run convex:seed` (ili `seedModelCatalog` mutacija). Bez toga katalog u
+   bazi ostaje bez `resolution`.
+3. **Nov indeks `creditLots.by_user_source`** ulazi u bazu prvim deploy-em.
+   Aditivan je, bez migracije.
+4. **Stripe mora da šalje i `checkout.session.async_payment_succeeded` i
+   `checkout.session.async_payment_failed`** na webhook endpoint. Ako u Stripe
+   dashboard-u nisu čekirani, odložena plaćanja (SEPA, bank transfer) nikad
+   neće dobiti kredite - a sa novim `payment_status` uslovom se više ne
+   dodeljuju unapred. Ovo je jedina stavka koja može da "zaustavi" kredite koji
+   su ranije (pogrešno) stizali odmah.
+5. **Webhook od sada vraća 500 kad fali `NEXT_PUBLIC_CONVEX_URL` ili
+   `WEBHOOK_SYNC_SECRET`.** To je namerno - Stripe ponavlja i ništa se ne gubi -
+   ali znači da će ti u Stripe logovima crveneti dok god env nije kompletan.
+   Proveri obe varijable u Vercel produkciji **pre** prvog plaćanja.
+6. Korisnici koji su bonus dobrodošlice već dobili po starom ključu
+   (`in_x:welcome`) neće dobiti nov - drugi sloj u `grantCredits` ih prepoznaje
+   po izvoru lota, i to je pokriveno testom.
+7. `convex/chat.test.ts` ima test koji na opterećenoj mašini prekorači
+   podrazumevanih 5 s (16-18 s stvarno). Nije diran jer nema veze sa ovim
+   korakom; ako smeta u CI-ju, rešenje je timeout na tom jednom testu.
+
+## P2 - Cronovi: reaper, istek kredita, istek fajlova   (19.08.2026 11:22-11:45)
+
+**Fajlovi:**
+- **nov** `convex/crons.ts` - `reapStuckJobs`, `expireCredits`,
+  `expireGenerationFiles` + tri registracije na `cronJobs()`
+- `convex/credits.ts` - nova obična funkcija `applyLotExpiry(ctx, lot, now)`
+- **nov** `convex/crons.test.ts` - 13 testova
+- `.studio-run/mutate.py` - dodate mutacije 14-21 za ovaj korak
+
+**Šta je uradjeno:** Zatvorena je rupa (e) iz noćne revizije - najveća otvorena
+stavka Faze A. `reapStuckJobs` ide na svakih 15 minuta preko indeksa
+`by_status_created`, koji je od A1 stajao napravljen i neupotrebljen: `running`
+stariji od 30 minuta i `reserved` stariji od 5 minuta idu u
+`internal.studio.failJob` sa porukom `ISTEKAO_BEZ_ODGOVORA`, a `failJob` već
+vozi ceo niz failed -> refund -> refunded. Time se posao koji visi ne samo
+refundira nego i oslobađa jedno od 3 mesta u limitu paralelnih poslova, pa
+korisnik sa tri zaglavljena posla više ne ostaje trajno bez Studija.
+`expireCredits` jednom dnevno gasi lotove kojima je istekao rok: `remaining` na
+0, `exhaustedAt`, red tipa `expiry` sa negativnim iznosom **i** keširan balans
+manji za isti iznos - taj poslednji korak je ono što drži invarijantu iz
+`credits.test.ts`. `expireGenerationFiles` jednom dnevno briše fajl iz
+storage-a, prazni `outputStorageId`/`posterStorageId`, a **red ostavlja**, jer
+metapodatak (prompt, model, cena) nosi "Generiši ponovo" iz PLAN 0.2. Nad
+praznim skupom ne radi ništa - `expiresAt` popunjava `persistOutput`, koji je
+još stub.
+
+**ODLUKE:**
+1. **Prag za `reserved` je 5 minuta, za `running` 30.** Zadatak imenuje oba.
+   Obrazloženje razlike stoji u kodu: `running` čeka fal webhook (30 min je
+   iznad najsporijeg modela iz kataloga), dok `reserved` čeka samo `submitJob`
+   zakazan na 0 ms - posle 5 minuta u tom stanju akcija sigurno nije odradila do
+   kraja.
+2. **Granica od 100 poslova je budžet ZA CEO PROLAZ, deljen izmedju oba
+   statusa**, a ne 100 po statusu. Konzervativnije: prolaz je jedna transakcija,
+   pa gornja granica upisa mora da bude jedna.
+3. **Refund jednog posla je u `try/catch`, i to je ovde ispravno.** Ugnježden
+   `ctx.runMutation` je podtransakcija (guidelines:99): ako jedan posao pukne
+   (jedini realan put je `NEMA_TROSKA_ZA_REFUND`), njegovi upisi se povuku sami,
+   greška se loguje, a ostali poslovi iz prolaza prolaze. Bez toga bi jedan
+   pokvaren red zauvek obarao ceo reaper - a reaper koji ne radi je tačno stanje
+   zbog kojeg postoji. Ovo je suprotno od `createJob`-a, gde `try/catch` oko
+   potrošnje razvaljuje atomičnost; razlika je što tamo posao i potrošnja moraju
+   da padnu zajedno, a ovde poslovi jedni s drugima nemaju veze.
+4. **Termini dnevnih prolaza su 03:15 i 03:45 UTC** (`crons.cron`). Zadatak kaže
+   samo "jednom dnevno". Izabrano je mrtvo doba i razmak od 30 minuta, da dva
+   dnevna prolaza ne udaraju u isti minut.
+5. **`expireCredits` odbacuje već ugašene lotove `filter`-om pre `take`-a.**
+   `by_expiry` nema `remaining` u sebi, pa bi bez toga posle prve godine prolaz
+   trošio ceo budžet od 100 na lotove koji su odavno na nuli i nikad ne bi
+   stigao do novih. Mutacija 18 to dokazuje.
+6. **`applyLotExpiry` NE povećava `lifetimeSpent`.** Istekli krediti nisu
+   potrošeni nego propali; kad bi ulazili u `spent`, statistika potrošnje u
+   UI-ju bi lagala naviše.
+7. **Istek kredita ne šalje email 30 dana ranije** (PLAN D5 to traži). Van je
+   obima ovog zadatka - zadatak imenuje tačno tri crona. Ostaje za Fazu D.
+8. **`expireGenerationFiles` ima donju granicu `gt("expiresAt", 0)`.** Poslovi
+   bez `expiresAt` stoje u indeksu ispod svakog broja, pa bi ih čist `lte(now)`
+   sve pokupio i obrisao fajlove poslova koji nisu ni istekli. Danas je to skoro
+   ceo skup, jer `persistOutput` još ne popunjava rok. Mutacija 19 to dokazuje.
+9. **Poster se briše zajedno sa fajlom.** Polje se ionako prazni, pa bi blob bez
+   ijedne reference u bazi ostao zauvek naplativ.
+10. **Nema testa za granicu od 100 po prolazu.** Seedovanje 101 posla (svaki sa
+    korisnikom, grantom i potrošnjom) traje duže od podrazumevanog vitest limita
+    od 5 s, a `convex/chat.test.ts` već pokazuje šta takav test radi u suite-u.
+    Konstanta je trivijalna i vidljiva; test bi koštao više nego što nosi.
+
+**Testovi:** 13 novih (232 -> 245), sve u `convex/crons.test.ts`.
+- Reaper (5): `running` star 31 min -> `refunded`, `error` je
+  `ISTEKAO_BEZ_ODGOVORA`, tačno jedna refund transakcija, balans vraćen na 100;
+  star 29 min se ne dira; `reserved` star 6 min se refundira dok star 4 minuta
+  ne; posao u `done` star 24 h se ne dira; dva prolaza -> jedan refund.
+- Istek kredita (4): lot istekao juče se gasi, balans padne sa 500 na 200,
+  `expiry` red ima iznos -300 i `balanceAfter` 200; nezastareo lot preživi dva
+  prolaza; već ugašen lot se ne gasi drugi put; invarijanta posle prolaza -
+  balans === `usableBalance` lotova === zbir svih transakcija.
+- Istek fajlova (4): prazan skup vraća `{cleared: 0}` i ne puca; posao bez
+  `expiresAt` se ne dira; istekao fajl i poster nestaju iz storage-a
+  (`getUrl` -> `null`) dok red, `modelSlug`, `creditCost` i `params` ostaju;
+  fajl kojem rok tek ističe preživi, drugi prolaz nema šta da briše.
+- **Mutaciono testiranje (`.studio-run/mutate.py 14`..`21`), 8 mutacija, svih 8
+  obara bar jedan test:** reaper bez provere starosti (2 pada), prag `reserved`
+  pomeren na 60 min, istek koji ne smanjuje keširan balans (3 pada, medju njima
+  invarijanta), istek koji ne gasi lot, istek bez preskakanja ugašenih lotova,
+  istek fajlova bez donje granice, poster koji ostaje u storage-u, i brisanje
+  celog reda umesto polja. Radno stablo je posle svake mutacije vraćeno.
+
+**Rezultat verifikacije:**
+- `npx convex codegen` - **prošlo** (exit 0, `Running TypeScript...` bez greške;
+  `internal.crons` je u `convex/_generated/api.d.ts`)
+- `npm run lint` - **prošlo** (`✖ 7 problems (0 errors, 7 warnings)`; istih 7
+  zatečenih upozorenja u `admin-inline-actions.tsx`, `dashboard-content.tsx` i
+  `public-course-intro-video.tsx`, nijedno iz Studio koda)
+- `npm run test` - **244 prošlo, 1 palo**: i dalje samo
+  `convex/chat.test.ts > inbox summary stays exact beyond one thousand
+  memberships` na `Test timed out in 5000ms`. Nije regresija ovog koraka - isti
+  test je pao i pre njega (opisano u P1), a `npx vitest run
+  --testTimeout=60000` nad zatečenim stanjem daje `Test Files 33 passed /
+  Tests 245 passed`. `convex/crons.test.ts` sam traje 0,3 s.
+- `npm run build` - **nije pokrenut**: korak ne dodaje nijednu stranicu ni
+  komponentu, samo Convex funkcije, koje `codegen` već tipski proverava
+  (pravilo iz `rules-day.md`).
+
+**BLOKADA:** nema.
+
+**Za Jovana:**
+1. **Tri crona ulaze u raspored prvim `npx convex deploy`-em** i od tog trenutka
+   rade sami. Proveri ih u Convex dashboard-u pod "Schedules": "studio:
+   zaglavljeni poslovi" (svakih 15 min), "studio: istek kredita" (03:15 UTC),
+   "studio: istek fajlova" (03:45 UTC). Convex cron vreme je UTC, ne lokalno.
+2. **Prvi prolaz reaper-a na dev deployment-u može da refundira poslove koji su
+   tamo zaostali iz noćnog testiranja.** To je i namera, ali znaj da će brojevi
+   kredita na dev nalozima da skoče.
+3. **`expireGenerationFiles` do P3 ne radi ništa** jer `persistOutput` ne
+   popunjava `expiresAt`. Kad P3 to popuni, prvi noćni prolaz počinje da briše
+   fajlove - proveri tada da retencioni rokovi (30 dana video / 90 ostalo iz
+   PLAN 0.2) stvarno stoje u `expiresAt`, jer cron veruje tom polju bez pitanja.
+4. **Poruka `ISTEKAO_BEZ_ODGOVORA` je namerno drugačija od svake fal greške.**
+   Kad je vidiš u podršci, znači da odgovor nikad nije stigao - a ne da je model
+   odbio posao. UI iz narednih koraka treba da je prevede korisniku.
+5. Kad reaper počne da radi na produkciji, njegov broj (`reaped` u logu poziva)
+   je najbolji rani signal da nešto nije u redu sa fal webhook-om - naročito
+   scenario rotacije JWKS ključa iz rizika (e).
+
+## P3 - persistOutput: izlaz u Convex storage i veza sa lekcijom   (19.08.2026 11:47-12:05)
+
+**Fajlovi:**
+- `convex/studioActions.ts` - `persistOutput` više nije stub: skida fajl sa
+  fal-a, stavlja ga u storage i predaje upis `studio.finalizeOutput`-u
+- `convex/studio.ts` - `createJob` prima opcione `lessonId`/`taskId` i proverava
+  ih; nove interne mutacije `finalizeOutput` i `markOutputFailed`
+- `convex/studioCore.ts` - `OUTPUT_RETENTION_DAYS`, `outputExpiresAt`,
+  `OUTPUT_TITLE_MAX_LENGTH`, `outputTitle`
+- `convex/lab.ts` - minimalna izmena po planu A11: `assertLessonAccess` je sada
+  izvezena, a telo `markTaskProgress`-a je izvučeno u `applyTaskCompletion`
+  (sama mutacija je posle provera samo poziva)
+- `convex/crons.ts` - ispravljen komentar koji je tvrdio da je `persistOutput`
+  stub
+- Testovi: `convex/studioActions.test.ts` (+11), `convex/studio.test.ts` (+4)
+- `.studio-run/mutate.py` - dodate mutacije 22-30 za ovaj korak
+
+**Šta je uradjeno:** Zatvorena je stavka A11, jedina u kojoj je korisnik plaćao
+nešto do čega ne može da dodje. `persistOutput` sada uzima `falOutputUrl`
+(koji kod fal-a živi kratko), skida fajl, stavlja ga u Convex storage i u jednoj
+transakciji (`studio.finalizeOutput`) upisuje `outputStorageId` i `expiresAt` -
+30 dana za video, 90 za sliku i zvuk, po STUDIO-PLAN 0.2. Time i
+`crons.expireGenerationFiles` iz P2 prvi put dobija skup nad kojim radi. Ako
+posao nosi kontekst lekcije, upisuje se i `labOutputs` red (`status: "ready"`,
+naslov = prvih 60 znakova prompta, MIME tip i veličina iz samog blob-a), posao
+dobija `labOutputId`, a zadatak se zeleni kroz istu funkciju koju zove i ručno
+štikliranje u lekciji - dakle isti leaderboard dogadjaj i ista profilna
+aktivnost, bez paralelnog puta. Da bi ta veza uopšte mogla da postoji,
+`createJob` sada prima `lessonId` i `taskId` i proverava ih istim putem kao
+`lab.saveLabOutput` (`assertLessonAccess`), pa upis u Studio ne otvara vrata ka
+tudjem kursu. Neuspelo preuzimanje **ne refundira**: generacija jeste uspela i
+fal je jeste naplatio, pa posao ostaje `done` sa porukom `IZLAZ_NIJE_SACUVAN:`
+u `error` polju.
+
+**ODLUKE:**
+1. **Posao bez lekcije NE dobija `labOutputs` red.** `labOutputs.courseId` i
+   `.lessonId` su u šemi obavezna polja, a ceo `lab` sloj (indeks
+   `by_user_lesson`, provera `output.lessonId !== task.lessonId` u
+   `markTaskProgress`, `getLessonLab`) na tome stoji. Praviti ih opcionim samo
+   da bi obična Studio generacija imala red značilo bi dirati tabelu od koje
+   zavisi postojeći lab - najmanje konzervativna moguća opcija. Obična
+   generacija zato živi samo u `generationJobs`, gde ima `outputStorageId`,
+   `expiresAt`, prompt i model; galerija (P6) čita odatle. Zadatak (tačka 5)
+   traži red bezuslovno, ali šema to fizički ne dozvoljava, pa je izabrano
+   ograničenje šeme.
+2. **Poster frame za video se NE pravi** (izričito po zadatku - u Convex akciji
+   nema ffmpeg-a). Umesto toga galerija u P6 koristi
+   `<video preload="metadata" src="...#t=0.1">`: browser povuče samo zaglavlje
+   i prikaže prvi kadar. `posterStorageId` ostaje u šemi neiskorišćen, a
+   `crons.expireGenerationFiles` ga već briše ako se ikad popuni.
+3. **`taskId` bez `lessonId` se odbija** (`ZADATAK_BEZ_LEKCIJE`) umesto da se
+   lekcija izvede iz zadatka. Klijent koji šalje pola konteksta greši, a tiho
+   dopunjavanje bi značilo da izlaz sleti u lekciju koju pozivalac nije imenovao.
+4. **Kontekst lekcije se proverava u `createJob`, ne u `persistOutput`.**
+   Provera prava traži prijavljenog korisnika; `persistOutput` ga nema (zakazuje
+   je webhook). Zato se u trenutku rezervacije proverava sve, a interna mutacija
+   veruje onome što je već upisano na posao.
+5. **`finalizeOutput` vraća `false` kad nema šta da upiše, a akcija tada briše
+   fajl koji je upravo stavila u storage.** Dve akcije u letu (fal ponavlja
+   webhook do 31 put) inače ostavljaju blob bez ijedne reference u bazi, a njega
+   ne bi obrisao nijedan cron - `expireGenerationFiles` ide po `generationJobs`.
+6. **Poruka greške je jedna (`IZLAZ_NIJE_SACUVAN:`) za ceo put** - i za pad
+   `fetch`-a, i za ne-2xx odgovor, i za pad upisa. Sve troje su za korisnika
+   ista stvar ("uspelo je, ali fajl nije kod nas"), a `markOutputFailed` ne
+   upisuje ništa ako je posao u medjuvremenu dobio fajl.
+7. **`mimeType` se ne izmišlja.** Prazan `blob.type` znači "ne znam", pa polje
+   (opciono u šemi) ostaje neupisano umesto da se pogodi po vrsti modela.
+8. **`markTaskProgress` je izvučen, ne kopiran.** `applyTaskCompletion` u
+   `lab.ts` sadrži telo koje je i ranije bilo tu, bez ijedne izmenjene tvrdnje;
+   javna mutacija radi provere prava pa zove nju, a `finalizeOutput` je zove
+   direktno. Plan A11 izričito predvidja "minimalnu izmenu" `lab.ts`-a.
+9. **Zadatak se štiklira samo ako je nastao `labOutputs` red.** Bez dokaza
+   (`evidenceOutputId`) zeleni zadatak bio bi tvrdnja bez pokrića.
+
+**Testovi:** 15 novih (245 -> 260).
+- `studioActions.test.ts` (11): fajl završi u storage-u a posao ostane `done` sa
+  rokom od 90 dana; video dobija 30, ne 90; posao iz lekcije dobija `labOutputs`
+  red sa naslovom, MIME tipom, veličinom, `courseId`/`lessonId`/`taskId` i
+  uzajamnom vezom `job.labOutputId` <-> `output.storageId`; naslov je odsečen na
+  60 znakova; obavezan zadatak se zeleni sam, sa izlazom kao dokazom i tačno
+  jednim aktivnim leaderboard dogadjajem; posao bez lekcije nema `labOutputs`
+  red ali ima fajl; dva poziva daju jedan `fetch`, jedan storage fajl, jedan
+  `labOutputs` red i isti `expiresAt`; `finalizeOutput` odbija drugi fajl za
+  isti posao (`false` -> pozivalac ga briše); pad `fetch`-a ne refundira i ne
+  ostavlja ni rok ni izlaz ni napredak na zadatku; ne-2xx odgovor upisuje status
+  u grešku bez refunda; posao koji nije `done` i posao bez izlaznog URL-a se ne
+  diraju.
+- `studio.test.ts` (4): `createJob` upisuje `lessonId`/`taskId`; odbija zadatak
+  iz druge lekcije bez ijednog upisa; odbija `taskId` bez `lessonId`; odbija
+  lekciju iz kursa koji korisnik ne sme da otvori.
+- **Mutaciono testiranje (`.studio-run/mutate.py 22`..`30`), 9 mutacija, svih 9
+  obara bar jedan test:** `persistOutput` bez provere postojećeg fajla i bez
+  provere statusa, refund umesto `markOutputFailed`, ne-2xx tretiran kao uspeh,
+  video sa retencijom slike, naslov bez odsecanja, `finalizeOutput` koji ne
+  zeleni zadatak, `createJob` bez provere pripadnosti zadatka lekciji i bez
+  upisa konteksta. Radno stablo je posle svake mutacije vraćeno.
+
+**Rezultat verifikacije:**
+- `npx convex codegen` - **prošlo** (exit 0, `Running TypeScript...` bez greške)
+- `npm run lint` - **prošlo** (`✖ 7 problems (0 errors, 7 warnings)`; istih 7
+  zatečenih upozorenja u `admin-inline-actions.tsx`, `dashboard-content.tsx` i
+  `public-course-intro-video.tsx`, nijedno iz Studio koda)
+- `npm run test` - **259 prošlo, 1 palo**: isti zatečeni
+  `convex/chat.test.ts > inbox summary stays exact beyond one thousand
+  memberships`, `Test timed out in 5000ms`. Nije regresija ovog koraka:
+  `npx vitest run --testTimeout=60000` nad istim stablom daje
+  `Test Files 33 passed / Tests 260 passed`. Isti nalaz je zapisan i u P1.
+- `npm run build` - **prošlo** (`✓ Compiled successfully in 11.8s`,
+  `Finished TypeScript in 35.2s`, 51/51 statičkih stranica). Korak ne dodaje
+  stranice, ali build je pušten jer se menja potpis `api.studio.createJob`.
+
+**BLOKADA:** nema.
+
+**Za Jovana:**
+1. **`crons.expireGenerationFiles` briše fajl i prazni `outputStorageId` na
+   poslu, ali NE dira `labOutputs.storageId`.** Do danas je to bilo bez
+   posledica jer `labOutputs` redova iz Studija nije ni bilo; od sada, kad
+   izlazu iz lekcije istekne rok (90 odnosno 30 dana), red u lekciji ostaje sa
+   `storageId` koji više nema fajl - `ctx.storage.getUrl` tada vraća `null` i
+   output pane je prazan bez objašnjenja. Nije popravljeno ovde jer je to kod
+   koraka P2 i van je opisa ovog zadatka. Popravka je mala (isprazniti i
+   `labOutputs.storageId`, ili tamo upisati `status: "failed"`), ali je odluka
+   proizvodna: da li istekli izlaz u lekciji treba da nestane ili da ostane sa
+   porukom "fajl je istekao, generiši ponovo".
+2. **`listMyJobs` ne vraća URL fajla**, samo `outputStorageId`. Galerija iz P6
+   mora da dobije ili `storage.getUrl` u query-ju ili zaseban query - to je
+   posao tog koraka, ne propust ovog.
+3. **Prvi pravi test celog lanca traži živ fal webhook.** Sve gore je pokriveno
+   mock-ovanim `fetch`-om; ono što mock ne dokazuje je da fal izlazni URL služi
+   bez autentikacije i bez redirekcije. Ako fal vrati 3xx, `fetch` ga u Convex
+   akciji prati sam, ali ako traži `Authorization`, posao će završiti kao `done`
+   sa `IZLAZ_NIJE_SACUVAN: fal je vratio 401...`. Prva stvarna generacija posle
+   deploy-a to pokazuje odmah - pogledaj `error` polje.
+4. **Poruka `IZLAZ_NIJE_SACUVAN:` znači "plaćeno, uspelo, ali fajl nije kod
+   nas".** Refunda nema namerno. Ako se pojavi masovno, to je naš problem, ne
+   korisnikov, i tada je ručni `admin_grant` ispravan odgovor - ne menjanje
+   pravila o refundu.
+5. **Nijedno novo polje ni indeks nije dodato u šemu** - `lessonId`, `taskId`,
+   `labOutputId`, `outputStorageId` i `expiresAt` su stajali od A1 i tek sad se
+   popunjavaju. Migracija nije potrebna.
+
+## P4 - Mock provajder za fal (dok FAL_KEY ne postoji)   (19.08.2026 12:07-12:20)
+
+**Fajlovi:**
+- `convex/studioActions.ts` - `submitJob` grana ka mock-u; nova
+  `completeMockJob` (internal action)
+- `convex/studioCore.ts` - `mockJobSucceeds`, `mockOutputDataUrl`
+- `convex/studioActions.test.ts` - zamenjen 1 zastareo test, 7 novih
+- `convex/studio.test.ts` - 2 nova testa (pure funkcije mock provajdera)
+- `.studio-run/mutate.py` - dodate mutacije 31-35 za ovaj korak
+
+**Šta je uradjeno:** Bez `FAL_KEY` (ili sa `STUDIO_MOCK=1` postavljenim
+izričito) `submitJob` više ne baca - umesto poziva `submitToFal` odmah zove
+`studio.markJobRunning` sa `falRequestId = "mock-" + jobId` i zakazuje
+`completeMockJob` na 3 sekunde. `completeMockJob` odlučuje ishod
+deterministički iz `jobId`-a (FNV-1a hash mod 100 < 85 -> uspeh, inače
+neuspeh - nikad `Math.random()`) i ishod pušta kroz ISTU internu mutaciju kao
+pravi fal webhook, `falWebhook.applyWebhookResult`: uspeh nosi generisan SVG
+`data:` URL (prompt ispisan preko pozadine čija je boja izvedena iz
+`promptHash`) i posle toga se `persistOutput` zakazuje kao i inače; neuspeh
+ide kao `ERROR` webhook, dakle `studio.failJob` -> refund. Mock ne dodaje
+nijednu novu granu u ledger - ide kroz iste mutacije (`markJobRunning`,
+`applyWebhookResult`, `failJob`, `refundCredits`) koje već postoje i koje već
+imaju svoju idempotenciju, tako da je ovo demo provajdera, ne demo ledgera.
+
+**ODLUKE:**
+1. **Uslov za mock je `!apiKey || process.env.STUDIO_MOCK === "1"`** - odsustvo
+   ključa je SAMO PO SEBI dovoljno (bez obzira na `STUDIO_MOCK`), a
+   `STUDIO_MOCK=1` je eksplicitan override koji radi i kad ključ postoji
+   (ručno testiranje mocka na okruženju koje inače ima pravi `FAL_KEY`).
+   Nijedna druga vrednost `STUDIO_MOCK`-a (`"0"`, prazan string) ne aktivira
+   mock kad ključ postoji - pokriveno testom.
+2. **Ishod se ne odlučuje unutar `completeMockJob` ručnim `if/else` upisom u
+   bazu, nego pozivom `falWebhook.applyWebhookResult`.** Zadatak to traži
+   doslovno ("isti put kao pravi webhook") i to je jedini način da mock
+   nasledi celu postojeću idempotenciju (`job.status !== "running"`) i
+   refund-put bez ijedne nove linije u `credits.ts` ili `falWebhook.ts`.
+3. **`completeMockJob` ipak ima sopstvenu stražu**
+   (`job.status !== "running" || !falRequestId?.startsWith("mock-")`), iako bi
+   `applyWebhookResult`-ova sopstvena provera i sama sprečila štetu. Razlog:
+   bez prefiksne provere, `completeMockJob` bi (npr. greškom pozvan ručno) mogao
+   da simulira ishod nad PRAVIM `running` poslom čiji je `falRequestId` stigao
+   od fal-a - to bi bio lažan uspeh/neuspeh nad poslom koji pravi fal još
+   obrađuje. Pokriveno testom.
+4. **Cena/kredit tok se ne dira nigde.** `createJob` i dalje jedini menja
+   ledger na ulazu; mock samo bira KOJIM putem se zatvara `running` posao
+   (uspeh ili refund), tačno kao pravi fal webhook.
+5. **SVG se gradi ručno (template string), bez ijedne nove zavisnosti**, kako
+   zadatak i traži ("bez mrežnog poziva, bez zavisnosti, radi offline"). Boja
+   je `hsl` izveden iz prve 2 bajta `promptHash`-a (već postoji na poslu, ne
+   računa se ponovo), a prompt je odsečen na 80 znakova i XML-escape-ovan
+   (`&`, `<`, `>`) da ne pokvari SVG kad prompt sadrži te znakove. Prazan
+   prompt pada na "DEMO" umesto praznog teksta.
+6. **Data URL kao izlaz oslanja se na to da `fetch()` u `persistOutput`
+   ume da pročita `data:` URL bez mreže.** Ovo NIJE provereno na živom Convex
+   V8 runtime-u (isti rizik kao Ed25519 u A10) - lokalna Node.js provera
+   (`fetch('data:text/plain;base64,...')`) radi, ali Convex izolat je drugi
+   runtime. Ako ne radi, mock posao završava kao `done` sa
+   `IZLAZ_NIJE_SACUVAN: ...` umesto sa fajlom u storage-u - i dalje nema
+   izgubljenih kredita (nema refunda za taj slučaj, tačno kao za pravi fal),
+   samo demo slika ne bi bila vidljiva. Provera je stavka #1 u "Za Jovana".
+7. **Stari test "submitJob baca jasnu grešku... kad FAL_KEY fali" je ZAMENJEN,
+   ne obrisan bez zamene.** Ponašanje koje je taj test proveravao (bacanje
+   greške i refund kad ključa nema) je NAMERNO ukinuto ovim zadatkom - to je
+   suština P4.md-a. Zadržavanje starog testa bi značilo da suite ne može
+   nikad da prođe zeleno dok mock postoji, što nije "čuvar", nego kontradikcija
+   sa sopstvenim zadatkom. Nova verzija proverava novo, specificirano
+   ponašanje (mock se aktivira, ništa se ne baca).
+8. **`listMyJobs` NIJE dopunjen `isMock`/DEMO poljem.** Zadatak eksplicitno
+   kaže da DEMO oznaka na kartici ide u UI koracima P5-P7, ne u ovom. Danas
+   `falRequestId` uopšte ne izlazi iz `listMyJobs`-a (namerno, po A9/A11
+   komentaru "korisniku ne trebaju"), pa P5-P7 mora ili da doda računsko polje
+   (`isMock: falRequestId?.startsWith("mock-")`) ili da vrati sam prefiks -
+   ovo NIJE odradjeno ovde jer dirati javni oblik query-ja bez UI koji ga
+   koristi nije bio deo zadatka (konzervativna opcija - manji dijara).
+9. **`STUDIO_MOCK` je dodat u isti save/restore obrazac u testovima**
+   kao `FAL_KEY`/`CONVEX_SITE_URL` (postojao je rizik da test koji ga postavi
+   procuri u sledeći test u istom fajlu, pošto ga niko ranije nije dirao).
+
+**Testovi:** 9 novih (net +8 posle uklanjanja 1 zastarelog; 260 -> 268).
+- `submitJob` ide u mock kad `FAL_KEY` fali: bez mrežnog poziva, `running` sa
+  `mock-<jobId>` falRequestId-jem, i sa `completeMockJob` stvarno zakazanim
+  (provereno preko `_scheduled_functions` sistemske tabele, isti obrazac kao
+  postojeći test u `studio.test.ts`).
+- `STUDIO_MOCK=1` aktivira mock i kad `FAL_KEY` postoji.
+- `FAL_KEY` postoji i `STUDIO_MOCK` nije `"1"` -> ide na pravi fal (regresioni
+  čuvar da override ne postane podrazumevano ponašanje).
+- `completeMockJob` uspeh: `done`, `falOutputUrl` je `data:image/svg+xml...`,
+  bez refunda, `persistOutput` zakazan (isti put kao pravi webhook).
+- `completeMockJob` neuspeh: `refunded`, greška počinje sa `MOCK_NEUSPEH`,
+  refund tačno jednom (drugi poziv ne menja balans).
+- `completeMockJob` ne dira posao čiji `falRequestId` nije mock (bez prefiksa).
+- `mockJobSucceeds`: determinizam (isti `jobId` -> isti ishod, 5 ponavljanja) i
+  statistika (2000 sintetičkih ID-jeva, stopa uspeha izmedju 80% i 90%).
+- `mockOutputDataUrl`: ispravan `data:` prefiks, sadrži prompt, isti ulaz daje
+  isti izlaz (determinizam), prazan prompt pada na "DEMO".
+
+Pošto oba nova ishoda (`completeMockJob` uspeh/neuspeh) zavise od hash-a
+stvarnog `jobId`-a koji Convex sam dodeljuje, testovi za oba ishoda traže par
+poslova pretragom (`seedMockJobPair`, do 50 pokušaja dok se ne nadje po jedan
+od svake vrste) umesto da hardkoduju očekivani ishod - izbor je bio ili to,
+ili testirati `applyWebhookResult` direktno bez `completeMockJob`-a u putanji,
+što ne bi dokazalo samo ožičenje.
+
+**Mutaciono testiranje (`.studio-run/mutate.py 31`..`35`), 5 mutacija, svih 5
+obara bar jedan test:** mock se ne aktivira kad `FAL_KEY` fali (ostavljen samo
+`STUDIO_MOCK` uslov) · `STUDIO_MOCK=1` override izbačen · `falRequestId` bez
+`mock-` prefiksa · `completeMockJob` bez provere prefiksa (dirao bi i pravi
+posao) · stopa uspeha promenjena sa 85% na 50%. Radno stablo je posle svake
+mutacije vraćeno (potvrdjeno `grep` na oba fajla posle pokretanja).
+
+**Rezultat verifikacije:**
+- `npx convex codegen` - **prošlo** (exit 0, `Running TypeScript...` bez
+  greške; `internal.studioActions.completeMockJob` je u
+  `convex/_generated/api.d.ts`)
+- `npm run lint` - **prošlo** (`✖ 7 problems (0 errors, 7 warnings)`; istih 7
+  zatečenih upozorenja, nijedno iz Studio koda)
+- `npm run test` - **268 prošlo, sve zeleno** na podrazumevanom timeout-u ovog
+  puta (`convex/chat.test.ts` test koji ranije trebao 60s timeout ovog puta
+  nije okinuo prag od 5s - mašina trenutno manje opterećena; isti nalaz kao u
+  P1-P3 da taj test nema veze sa Studio kodom i dodatno potvrdjen sa
+  `npx vitest run --testTimeout=60000` - 33/33 fajlova, 268/268 testova)
+- `npm run build` - **nije pokrenut**: korak ne dodaje nijednu stranicu ni
+  komponentu (isto obrazloženje kao P2, po pravilu iz `rules-day.md`)
+
+**BLOKADA:** nema.
+
+**Za Jovana:**
+1. **Proveri da `fetch()` u Convex akciji stvarno ume da pročita `data:` URL**
+   pre nego što se osloniš na mock demo u pravom `npx convex dev`-u bez
+   `FAL_KEY`-a. Jedna komanda kroz Convex dashboard -> Functions -> Run (ili
+   privremena akcija): `await fetch("data:text/plain;base64,aGVsbG8=").then(r
+   => r.text())` treba da vrati `"hello"`. Ako baci, mock uspeh i dalje ne gubi
+   kredite (ista `IZLAZ_NIJE_SACUVAN` grana kao za pravi fal), samo demo slika
+   neće stići u galeriju - videćeš to u `error` polju posla.
+2. **`STUDIO_MOCK=1`** je ručni prekidač: postavi ga u `.env.local` (ili
+   `npx convex env set STUDIO_MOCK 1` na dev deploymentu) da testiraš mock
+   putanju i posle što upišeš pravi `FAL_KEY`. Ukloni ga da se vrati pravi fal.
+3. **Mock posao traje tačno 3 sekunde** (`MOCK_JOB_DELAY_MS`) pre nego što se
+   javi ishod - to je namerno kratko da se demo ne oseća sporo, ne pokušaj da
+   iz toga zaključiš stvarno trajanje fal generacije.
+4. **UI (P5-P7) mora sam da otkrije mock posao.** `listMyJobs` danas ne vraća
+   `falRequestId` korisniku (namerna odluka od ranije - videti ODLUKU 8 gore).
+   Kad budeš pisao galeriju/karticu posla, ili dodaj računsko `isMock` polje u
+   `listMyJobs` (najjednostavnije), ili odluči da `falRequestId` sme da izađe.
+   Bez toga DEMO oznaka iz zadatka ("da se generacija iz mocka nikad ne pomeša
+   sa pravom") nema odakle da se pročita na klijentu.
+5. Poruka greške za mock neuspeh je uvek `MOCK_NEUSPEH: demo posao je namerno
+   neuspeo (deterministički po jobId-u, ~15% poslova)` - lako se razlikuje od
+   svake prave fal greške u podršci/logovima.
+
+## P5 - Stranica kredita i ruta za pretplatu na plan   (19.08.2026 12:20-12:40)
+
+**Fajlovi:**
+- **nov** `app/[locale]/app/credits/page.tsx` - server ruta, `generateMetadata`,
+  fallback kad `NEXT_PUBLIC_CONVEX_URL` fali
+- **nov** `components/app/credits-page.tsx` - `"use client"` deo (balans,
+  paketi, Premium kartica, istorija, `CheckoutAction` dugme)
+- **nov** `lib/credits-value.ts` - čiste funkcije: referentna cena po vrsti
+  modela, vrednost paketa, poređenje Premium/paket, lotovi pred istek,
+  formatiranje cene i naziva transakcija
+- **nov** `lib/credits-value.test.ts` - 21 test
+- **nov** `app/api/stripe/plan/route.ts` - checkout za pretplatu na plan
+- **nov** `app/api/stripe/plan/route.test.ts` - 13 testova
+
+**Šta je uradjeno:** `/api/stripe/credits` je od noćnog run-a radila bez ijednog
+pozivaoca; sada je poziva `/{locale}/app/credits`. Stranica ima balans velikim
+fontom uz "≈ N generacija slika", red o kreditima koji ističu u narednih 30
+dana, pakete iz `creditPacks:listPacks` (samo `kind: "pack"`) sa cenom, brojem
+kredita, bonus značkom i redom "otprilike: 25 slika", istaknutu Premium karticu
+i paginiranu istoriju iz `credits:getTransactions`. Sve što se prikazuje ide
+kroz Convex `useQuery`, dakle balans skoči sam kad webhook upiše lot - nema
+`setInterval` ni refresh-a. Uz to je napisana `app/api/stripe/plan/route.ts`,
+koja je jedini put do `createPlanCheckoutSession` (funkcija je od A5 stajala
+napisana i testirana, ali bez rute Premium se nije mogao kupiti nikako). Ruta je
+prepisana po obrascu iz `/api/stripe/credits`: isti redosled provera (auth ->
+email -> katalog -> `stripePriceId`), isti kodovi grešaka i isto 503/500
+razdvajanje za nedostajuću Stripe env varijablu.
+
+**ODLUKE:**
+1. **Broj slika/klipova se računa iz kataloga, ne prepisuje iz plana.**
+   Referenca po vrsti modela je onaj sa badge-om `preporuceno`, a kad ga nema -
+   najjeftiniji. Nad seedovanim katalogom to daje tačno brojeve iz tabele 2.4
+   (`Starter 500 kr = 25 slika / 9 klipova`, `Creator 1650 = 82 / 30`,
+   `Pro 4800 = 240 / 87`), a poštuje pravilo 2.5 da cena nikad ne stoji u kodu.
+2. **Referenca se računa nad UKLJUČENIM modelima**, jer `listModels` vraća samo
+   njih. Danas su svi video modeli `isEnabled: false` (Faza B), pa red glasi
+   "otprilike: 25 slika" - stranica ne obećava video koji Studio još ne ume da
+   napravi. Čim Jovan uključi prvi video model, red sam postane "25 slika ili 9
+   video klipova", bez izmene koda.
+3. **"Isti novac u paketu daje 1650 kredita" se izvodi, ne kuca.**
+   `bestPackCreditsWithin(packs, premium.priceEurCents)` uzme najviše kredita
+   među paketima koji staju u cenu Premiuma; nad seedom je to Creator = 1650,
+   tačno rečenica iz D.1. Ako nijedan paket ne staje u tu cenu, rečenica se
+   izostavlja umesto da laže.
+4. **Potrošnja NE linkuje na galeriju.** Zadatak traži link, ali galerija (A13)
+   ne postoji - `app/[locale]/app/studio` nema nijedan fajl, pa bi link bio
+   zajemčen 404. Red potrošnje zato nosi tekst "generacija u Studiju" i komentar
+   na tačnom mestu u `credits-page.tsx`; kad galerija stigne, tu se dodaje
+   `<Link>` i ništa drugo se ne menja. 404 je vidljiv kvar, tekst je zabeležena
+   nedostajuća veza.
+5. **Lotovi pred istek se grupišu po danu isteka, jedan red po danu.** Sabiranje
+   svih u jedan red bi uz kasniji lot ispisalo raniji datum - a upozorenje je
+   isključivo zbog datuma i napisano. Grupisanje ide po UTC danu.
+6. **Ruta za plan traži `courseId` i staje ako ga nema.** `createPlanCheckoutSession`
+   ga zahteva, a `syncSubscription` u webhook-u bez `courseId` ne upiše ništa
+   (`app/api/stripe/webhook/route.ts:41`) - bez te provere bi pretplata bila
+   naplaćena, a plan nikad dodeljen. Kurs se uzima iz `body.courseSlug`, uz
+   `courses[0].slug` kao podrazumevan, isto kao u `/api/stripe/checkout`.
+7. **Paket bez `stripePriceId` daje ugašeno dugme "Uskoro", ne grešku.** Isto i
+   za Premium. Jovan ih još nije povezao u Stripe-u i stranica zbog toga ne sme
+   da puca; ruta i dalje odbija takav slug sa `MISSING_STRIPE_PRICE` ako neko
+   pozove API direktno.
+8. **Sidebar nije diran.** Stranica se za sada otvara samo direktnim URL-om
+   `/sr/app/credits`. Nav stavka u `app-sidebar.tsx` bi tražila tri izmene na tri
+   mesta (desktop meni, mobilni grid `grid-cols-2/3`, kompaktni meni) u fajlu od
+   1800+ linija koji nema veze sa ovim zadatkom - to ide uz Studio navigaciju u
+   sledećem koraku. Stavka je u "Za Jovana".
+9. **"Sad" je zamrznut na prvom renderu** (`useState(() => Date.now())`, obrazac
+   iz `components/app/chat/chat-inbox.tsx`). ESLint pravilo `react-hooks/purity`
+   zabranjuje `Date.now()` u telu komponente, a prozor od 30 dana ne traži živ
+   sat.
+10. **Radiusi:** kartice su postojeći `Panel` primitiv (16px), ugnježdeni paneli
+    i paketi `surface-inset`, značke i dugmad `rounded-full` (isto što
+    `LinkButton` iz `components/ui/primitives.tsx` već koristi). Nula
+    `rounded-*!` i nula inline `borderRadius` - provereno grep-om nad oba nova
+    fajla, i potvrđeno u build izlazu da se `surface-inset` kompajlira u
+    `border-radius:12px`.
+11. **Prazna stanja koja stranica pokriva:** balans 0 (tekst + dugme ka
+    paketima), nijedan aktivan paket u katalogu, nijedna transakcija ("Još nisi
+    kupio kredite" + strelica ka paketima gore), neprijavljen korisnik, i
+    `NEXT_PUBLIC_CONVEX_URL` koji fali.
+
+**Testovi:** 34 nova (268 -> 302).
+- `lib/credits-value.test.ts` (21): referenca bira `preporuceno` a ne
+  najjeftiniji; bez badge-a pada na najjeftiniji; vrsta bez modela nema
+  referencu; model sa cenom 0 se ignoriše; `unitsFor` seče naniže i ne deli
+  nulom; vrednost paketa se poklapa sa sva tri reda iz tabele 2.4; bilingvalna
+  varijanta; video se ne pominje dok nijedan video model nije uključen; prazan
+  katalog i premalo kredita ne daju red; srpska množina za 1/3/11/22/25 slika,
+  1/2/9 klipova i generacije; `bestPackCreditsWithin` daje 1650 za Premium novac,
+  ne računa planove i vraća `null` kad ništa ne staje; istek unutar 30 dana se
+  prijavljuje a dalji ne, isti dan se spaja, različiti dani se sortiraju, prazan
+  i istekao lot ispadaju; formatiranje cene po lokalu; znak iznosa; sr/en naziv
+  za svih 7 tipova transakcije.
+- `app/api/stripe/plan/route.test.ts` (13): uspešan checkout prosleđuje tačne
+  argumente uključujući `courseId` iz Convexa; bez `planSlug`-a nema sesije;
+  401 `AUTH_REQUIRED`; 403 `EMAIL_VERIFICATION_REQUIRED`; 404 za nepostojeći i za
+  ugašen plan; 400 `NOT_A_PLAN` kad se paket kredita pokuša naplatiti kao
+  pretplata; 400 `MISSING_STRIPE_PRICE`; 400 `COURSE_NOT_AVAILABLE`; nedostupan
+  Convex se ponaša kao neprijavljen korisnik; 503 za nedostajuću Stripe env
+  varijablu i 500 za ostale greške; eksplicitan `courseSlug` stiže i do Convex
+  upita i do Stripe-a.
+- Svaki test rute tvrdi i da `createPlanCheckoutSession` **nije** pozvan na
+  odbijenoj putanji - inače bi provera prošla a Stripe sesija svejedno nastala.
+
+**Rezultat verifikacije:**
+- `npx convex codegen` - **prošlo** (exit 0, `Running TypeScript...` bez greške)
+- `npm run lint` - **prošlo** (`✖ 7 problems (0 errors, 7 warnings)`; istih 7
+  zatečenih upozorenja u `admin-inline-actions.tsx`, `dashboard-content.tsx` i
+  `public-course-intro-video.tsx`, nijedno iz Studio koda)
+- `npm run test` - **prošlo** (`Test Files 35 passed (35) / Tests 302 passed
+  (302)`; `convex/chat.test.ts` ovaj put nije prekoračio timeout)
+- `npm run build` - **prošlo** (`✓ Compiled successfully in 5.5s`,
+  `Finished TypeScript in 10.6s`; u listi ruta stoje i
+  `ƒ /[locale]/app/credits` i `ƒ /api/stripe/plan`)
+- Dodatno, dimni test nad `npm run start`: `/sr/app/credits` i
+  `/api/stripe/plan` odgovaraju 307 ka `/login` bez sesije - isto što radi i
+  postojeća `/api/stripe/credits`, dakle ruta postoji i ista je zaštita.
+
+**BLOKADA:** nema.
+
+**Za Jovana:**
+1. **Stranica još nije u navigaciji.** Otvara se na `/sr/app/credits` (i
+   `/en/app/credits`). Nav stavka je namerno ostavljena za korak koji dodaje
+   Studio u sidebar - vidi ODLUKU 8. Do tada je proveri direktnim URL-om.
+2. **Dok `stripePriceId` nije upisan u `creditPacks`, sva dugmad stoje na
+   "Uskoro".** To je ručni korak #3 i #4 iz `docs/STUDIO-NIGHT-REPORT.md`
+   (Stripe cene + upis u Convex Data). Čim upišeš cene, dugmad se sama pale -
+   `listPacks` je pretplata.
+3. **Premium ide kroz `mode: "subscription"`, dakle njegova Stripe cena mora da
+   bude *Recurring*, mesečna.** One-time cena će biti odbijena od Stripe-a, a
+   ruta to ne može da proveri unapred.
+4. **Pretplata na plan se i dalje vezuje za kurs.** Ruta bez `courseSlug`-a
+   koristi `courses[0].slug` (`video-audio-ai`) i traži taj kurs u Convexu. Ako
+   ga tamo nema, checkout staje sa `COURSE_NOT_AVAILABLE` umesto da naplati
+   pretplatu koju webhook ne ume da upiše.
+5. **Ručni korak 9 iz noćnog izveštaja i dalje važi** (isključi "Customers can
+   switch plans" u Stripe Customer Portalu). Nova ruta upisuje `planSlug` u
+   metapodatke pretplate isto kao ranije, pa je i posledica ista.
+6. **Provera koju vredi uraditi kad seeduješ cene:** kupi Starter, pa gledaj
+   balans na `/sr/app/credits` **bez refresh-a** - broj mora da skoči sam kad
+   Stripe webhook prođe. Ako ne skoči, problem je u webhook-u, ne u stranici.
+7. Red "otprilike: 25 slika" neće pominjati video dok ne uključiš bar jedan
+   video model u `modelCatalog` (svi su danas `isEnabled: false`). To je
+   namerno - vidi ODLUKU 2.
+
+## P6 - Playground `/[locale]/app/studio`   (19.08.2026 12:37-13:00)
+
+**Fajlovi:**
+- **nov** `app/[locale]/app/studio/page.tsx` - server ruta, `generateMetadata`,
+  fallback kad `NEXT_PUBLIC_CONVEX_URL` fali
+- **nov** `components/app/studio-page.tsx` - `"use client"` playground (izbor
+  modela, forma iz `paramSchema`, dugme sa cenom, panel rezultata, pločice)
+- **nov** `lib/studio-form.ts` - čiste funkcije: šema -> polja forme, početne
+  vrednosti, objekat za `createJob`, mapa grešaka, tekstovi statusa
+- **nov** `lib/studio-form.test.ts` - 42 testa
+- `convex/studio.ts` - `listMyJobs` dobija `outputUrl` i `isMock`; nov query
+  `getStudioState`
+- `convex/studioCore.ts` - `MOCK_REQUEST_PREFIX` i `isMockRequestId` (preseljeno
+  iz `studioActions.ts`, koji ih sad uvozi)
+- `convex/studioActions.ts` - uvozi prefiks umesto svog lokalnog
+- `convex/studio.test.ts` - 12 novih testova
+- `.studio-run/mutate.py` - dodate mutacije 36-49
+
+**Šta je uradjeno:** `createJob` je do jutros imao nula pozivalaca - jedini put
+do posla bio je `npx convex run`. Sad postoji ekran. Levo je izbor modela iz
+`listModels({ kind: "image" })` sa cenom u `rounded-full` znački na svakoj
+kartici i badge-om `preporučeno`/`skupo` gde ga ima; ispod je forma koja se
+gradi iz `model.paramSchema` (textarea sa brojačem, select za odnos stranica,
+number sa min/max), pa dugme koje uvek nosi cenu ("Generiši - 20 kr"). Desno je
+rezultat: najnoviji posao veliko, skeleton dok je `reserved`/`running`, slika
+kad je `done`, poruka i "krediti su ti vraćeni" kad je `refunded`, i ispod
+poslednjih 6 generacija kao pločice sa DEMO značkom na mock poslovima. Sve ide
+preko `useQuery`, dakle bez ijednog `setInterval`; balans u zaglavlju je
+pretplata i padne sam čim `createJob` skine kredite. Backend je dopunjen tačno
+onim što je UI tražio, a što su P3 i P4 ostavili u "Za Jovana": `listMyJobs`
+sad vraća potpisan URL fajla i računsko polje `isMock`, a nov `getStudioState`
+vraća kill switch, upis na kurs i broj poslova u letu - iz istog indeksa i po
+istoj granici po kojoj `createJob` odbija četvrti posao.
+
+**ODLUKE:**
+1. **"Video i zvuk prikaži zasivljeno" pročitano je kao prekidač VRSTE, ne kao
+   lista isključenih modela.** Zadatak u istoj rečenici fiksira upit na
+   `listModels({ kind: "image" })`, koji video i audio redove uopšte ne vraća.
+   Alternativa bi bila proširiti `listModels` opcijom `includeDisabled`, čime bi
+   `falEndpoint` i nabavna cena neobjavljenih modela izašli klijentu bez potrebe.
+   Zato stoje tri pilule - "Slika" aktivna, "Video" i "Zvuk" ugašene sa "Uskoro".
+   Ništa nije sakriveno, a backend nije proširen zbog dekoracije.
+2. **`STUDIO_PAUZIRAN` zamenjuje LEVU kolonu, ne ceo ekran.** Zadatak kaže "ceo
+   panel zamenjen porukom". Panel koji generiše jeste levi; rezultati desno su
+   korisnikovi već plaćeni fajlovi i nema razloga da nestanu zato što je Studio
+   privremeno stao. Konzervativnije je ne skloniti nešto što je korisnik platio.
+3. **Dodat je i četvrti "prazan" ekran koji zadatak ne nabraja: neupisan
+   korisnik.** `createJob` baca `NIJE_UPISAN`, pa bi bez toga jedini put do te
+   informacije bio klik na dugme. `getStudioState.isEnrolled` to kaže unapred.
+4. **`PROMPT_MAX_LENGTH = 2000` je namerno DUPLIRAN u `lib/studio-form.ts`**
+   umesto uvezen iz `convex/creditsCore.ts`. Uvoz bi u klijentski bundle povukao
+   modul čiji je najveći deo `BLOCKED_TERMS` - lista zabranjenih pojmova, koja
+   nema šta da radi u pregledaču. Protivotrov za razilaženje je test koji uvozi
+   OBE vrednosti i tvrdi da su jednake, plus mutacija 42.
+5. **Dugme je ugašeno dok je prompt prazan**, uz rečenicu ispod ("Napiši prompt
+   da bi dugme proradilo"). Poslati prazan prompt pa dobiti `PRAZAN_PROMPT` je
+   krug kroz server ni za šta; poruka za taj kod svejedno postoji, jer prompt od
+   samih razmaka i dalje može da stigne do servera.
+6. **Engleska varijanta dugmeta je "Generate - 20 cr", ne "20 kr".** "kr" je
+   skraćenica za "kredita"; u engleskom tekstu bi se čitala kao kruna. Cena
+   (broj) je u obe varijante ista i uvek iz kataloga.
+7. **Forma se remontira na promenu modela (`key={model.slug}`), a prompt živi
+   iznad nje.** Podešavanja jednog modela ne smeju da procure u drugi (drugi
+   model može da nema `num_images`), ali prompt koji je korisnik otkucao ne sme
+   da nestane zato što je probao drugi model. Bez ijednog `useEffect`-a.
+8. **Izabran model se ne drži u stanju dok korisnik ne klikne**: podrazumevani
+   je onaj sa badge-om `preporučeno`, pa prvi iz kataloga. Time katalog ostaje
+   jedini izvor podrazumevane vrednosti i ne treba efekat da je postavi kad
+   `useQuery` stigne.
+9. **"Istekao fajl" se prepoznaje po kombinaciji polja (`done` + `expiresAt` +
+   bez URL-a), ne poredjenjem sa satom.** `crons.expireGenerationFiles` briše
+   `outputStorageId` a `expiresAt` ostavlja, pa je stanje vidljivo iz podataka;
+   uz to `Date.now()` u telu komponente pada na ESLint pravilu
+   `react-hooks/purity`.
+10. **Sidebar nije diran** - iz istog razloga i sa istim ishodom kao ODLUKA 8
+    koraka P5. P6.md ne pominje navigaciju, a `app-sidebar.tsx` ima 1927 linija i
+    tri odvojena renderovanja menija. `/sr/app/studio` i `/sr/app/credits` se za
+    sada otvaraju direktnim URL-om. Ovo je prva stavka u "Za Jovana".
+11. **`MOCK_REQUEST_PREFIX` je preseljen u `studioCore.ts`.** `studio.ts` je
+    query/mutation modul i ne treba da uvlači akcioni modul (sa `lib/fal`
+    zavisnostima) samo zbog jednog stringa. Ponašanje `studioActions.ts`-a se ne
+    menja - isti string, isti pozivi.
+12. **Slike se renderuju `next/image` sa `unoptimized`**, isto kao
+    `course-player.tsx` i `dashboard-content.tsx`. Sirov `<img>` bi dodao nova
+    ESLint upozorenja (`no-img-element`), a optimizacija potpisanog Convex URL-a
+    nema smisla.
+13. **Prompt se posle uspesne generacije NE brise.** Sledeci klik je skoro uvek
+    ista ideja sa sitnom izmenom, a dokaz da je posao primljen vec stoji desno
+    (nov posao na vrhu, skeleton). Brisanje bi znacilo prekucavanje.
+14. **"Preuzmi" otvara nov tab (`target="_blank"`).** Convex storage je druga
+    adresa, pa atribut `download` sam po sebi ne primorava snimanje; bez novog
+    taba bi klik odveo korisnika sa playgrounda na sliku.
+
+**Testovi:** 53 nova (302 -> 355).
+- `lib/studio-form.test.ts` (42): granica prompta jednaka serverskoj; šema seed-a
+  daje tačno tri kontrole sa tačnim granicama i opcijama; polje nepoznatog tipa i
+  `select` bez opcija se ne renderuju; šema koja nije JSON niz daje praznu formu
+  umesto pada; `maxLength` iz šeme ne sme preko 2000, a sme ispod; prompt postoji
+  i kad ga šema ne pominje; početne vrednosti iz `defaultParams` sa odsecanjem na
+  granice, sa padom na prvu opciju za nepoznat select i sa ispadanjem ključa van
+  šeme (`resolution`); `buildJobParams` odseca broj, izbacuje select van skupa,
+  ne pravi `NaN` iz praznog polja i ne propušta nepoznat ključ; **round-trip
+  test: sve što forma pošalje `sanitizeParams` vrati NEPROMENJENO** (i za obične i
+  za ivične vrednosti) - to je tvrdnja "klijent ne nudi ono što će server odbiti";
+  svih 11 kodova greške ima svoju poruku, nijedna ne sadrži sirov kod, sve su
+  medjusobno različite, `DNEVNI_LIMIT_TROSKA` se ne čita kao `DNEVNI_LIMIT`, tri
+  razloga prompta se razlikuju, nepoznata greška daje ljudsku rečenicu, sr i en
+  se razlikuju; `refunded` uvek pominje vraćene kredite; istekao fajl se razlikuje
+  od posla koji tek preuzima i od posla koji nije uspeo.
+- `convex/studio.test.ts` (12): `listMyJobs` vraća potpisan URL kad fajl postoji
+  i `null` kad ne postoji; označava mock posao a pravi ne, i pri tom
+  `falRequestId` i `actualCostUsd` i dalje ne izlaze iz backend-a; vraća samo
+  svoje poslove; `getStudioState` na srećnom toku; čita kill switch isto kao
+  `createJob` (u istom testu se tvrdi i da mutacija baca `STUDIO_PAUZIRAN`); broji
+  poslove u letu do iste granice na kojoj `createJob` odbija četvrti; broji i
+  `running`, ne samo `reserved`; završen posao se više ne broji; neupisan korisnik
+  se prijavi pre klika (uz tvrdnju da mutacija baca `NIJE_UPISAN`); neprijavljenom
+  ne odgovara.
+- **Mutaciono testiranje (`.studio-run/mutate.py 36`..`49`), 14 mutacija.**
+  Prvi prolaz: 13/14 obara test, **mutacija 40 je preživela** - `activeJobs:
+  reserved.length` (bez `running`) nije oborio nijedan test, jer su u testovima
+  sva tri posla stajala u `reserved`. To je bila prava rupa u testu, ne u kodu:
+  dodat je test koji posao prebaci u `running` i tvrdi da se i dalje broji. Posle
+  toga **14/14 obara bar jedan test**. Radno stablo je posle svake mutacije
+  vraćeno (potvrdjeno grep-om nad `convex/studio.ts` i `lib/studio-form.ts`).
+
+**Rezultat verifikacije:**
+- `npx convex codegen` - **prošlo** (exit 0, `Running TypeScript...` bez greške;
+  `api.studio.getStudioState` je u `convex/_generated/api.d.ts`)
+- `npm run lint` - **prošlo** (`7 problems (0 errors, 7 warnings)`; istih 7
+  zatečenih upozorenja u `admin-inline-actions.tsx`, `dashboard-content.tsx` i
+  `public-course-intro-video.tsx`, nijedno iz Studio koda)
+- `npm run test` - **prošlo** (`Test Files 36 passed (36) / Tests 355 passed
+  (355)`; `convex/chat.test.ts` ovaj put nije prekoračio timeout)
+- `npm run build` - **prošlo** (`Compiled successfully in 6.2s`,
+  `Finished TypeScript in 10.5s`; `/[locale]/app/studio` je u listi ruta)
+- Radiusi provereni grep-om nad oba nova UI fajla: 8x `rounded-full`,
+  7x `surface-inset`, 2x `surface-media`, nula `rounded-[...]`, nula `rounded-*!`,
+  nula inline `borderRadius`. Sva tri tiera potvrdjena u build CSS izlazu
+  (`border-radius:8px`, `:12px`, `:16px`). Nula `setInterval`/`setTimeout`.
+- Dimni test nad `npm run start`: `/sr/app/studio` i `/en/app/studio` vraćaju
+  307 ka `/{locale}/sign-in?next=...`, isto kao `/sr/app/credits` - ruta postoji
+  i pod istom je zaštitom.
+
+**BLOKADA:** nema.
+
+**Za Jovana:**
+1. **Ni Studio ni Krediti još nisu u sidebar-u.** Otvaraju se na `/sr/app/studio`
+   i `/sr/app/credits` (i `/en/...`). Nijedan od šest dnevnih zadataka ne traži
+   navigaciju, a `app-sidebar.tsx` ima 1927 linija i tri odvojena menija
+   (desktop, mobilni grid, kompaktni) - to je zaseban zadatak, ne uzgredna
+   izmena. **Ovo je jedina stavka koja stoji izmedju gotovog Studija i korisnika
+   koji ume da ga nadje.**
+2. **Prvi klik proveri sa mock provajderom, pre nego što upišeš `FAL_KEY`.** Bez
+   ključa `submitJob` ide u mock (P4), pa ceo lanac radi offline: klikni
+   "Generiši", posao ode u `running`, posle 3 sekunde stigne demo SVG i pločica
+   dobije DEMO značku. Ako slika ne stigne a posao ostane `done` sa
+   `IZLAZ_NIJE_SACUVAN:` u `error` polju, to je tačno ona `data:` URL provera iz
+   P4 stavke 1 - `fetch()` u Convex akciji ne ume da pročita `data:` URL.
+3. **Seed mora da se pusti** da bi katalog uopšte imao modele
+   (`npm run convex:seed`). Bez toga levi panel piše "Nijedan model trenutno
+   nije uključen", što je tačno ali beskorisno.
+4. **Cene na karticama i na dugmetu dolaze iz `modelCatalog.creditCost`.**
+   Nijedan broj nije prekucan u UI. Kad promeniš cenu preko `setModelCost`,
+   dugme se promeni samo - `listModels` je pretplata.
+5. **Kill switch se sad vidi i u UI-ju.** `platformFlags` red `studio_enabled`
+   na `false` zamenjuje levi panel porukom, a rezultati ostaju vidljivi. Query
+   `getStudioState` čita isti red kao `createJob`, pa ekran i server ne mogu da
+   tvrde suprotno.
+6. **Balans u zaglavlju vodi na `/app/credits` i pada sam** čim `createJob` skine
+   kredite - proveri to bez refresh-a pri prvoj generaciji. Ako ne padne, problem
+   je u ledgeru, ne u stranici.
+7. **Napomena iz P3 stavke 1 i dalje važi** i sad se vidi na ekranu: kad izlazu
+   iz lekcije istekne rok, `labOutputs.storageId` ostaje da pokazuje na obrisan
+   fajl. U Studio galeriji je taj slučaj pokriven (pločica piše "isteklo"), u
+   output pane-u lekcije nije - to je i dalje otvorena proizvodna odluka.
+8. **Video i zvuk stoje kao ugašene pilule sa "Uskoro".** Kad u Fazi B uključiš
+   prvi video model, pilula se NE pali sama - `MODEL_KINDS` u
+   `components/app/studio-page.tsx` ima `available: false`, i tada se menja
+   zajedno sa formom za video (`duration` polje, cena po sekundi).
+
+## P7 - Galerija `/[locale]/app/studio/gallery`   (19.08.2026 13:05-13:20)
+
+**Fajlovi:**
+- **nov** `app/[locale]/app/studio/gallery/page.tsx` - server ruta, `generateMetadata`,
+  isti fallback obrazac kao `/app/studio` i `/app/credits`
+- **nov** `components/app/studio-gallery-page.tsx` - `"use client"` galerija
+  (filteri, mreža kartica, izbor za preuzimanje, brisanje)
+- **nov** `lib/studio-gallery.ts` - čiste funkcije: opseg datuma, značka isteka,
+  poruke grešaka brisanja, filter-oznake
+- **nov** `lib/studio-gallery.test.ts` - 15 testova
+- `convex/studio.ts` - `listMyJobs` dobija opcione filtere (`kind`, `modelSlug`,
+  `createdAfter`); nova mutacija `deleteJob`
+- `convex/studio.test.ts` - 7 novih testova
+- `components/app/studio-page.tsx` - čita `?model=`/`?prompt=` iz URL-a
+  (`useSearchParams`) da bi "Generiši ponovo" iz galerije predpopunio formu
+- `.studio-run/mutate.py` - dodate mutacije 50-55 za ovaj korak
+
+**Šta je uradjeno:** `listMyJobs` iz P6 je već vraćao potpisan URL i `isMock`,
+pa je galerija uglavnom novi sloj oko postojećeg query-ja. Mreža kartica (1-4
+kolone po širini ekrana) čita `studio.listMyJobs` sa `usePaginatedQuery` i
+dugmetom "Učitaj još" (isti obrazac kao istorija na `/app/credits`). Svaka
+kartica pokazuje sliku (ili video sa `preload="metadata"` i `#t=0.1`
+fragmentom - nikad pun `<video src>` u mreži), model, cenu u kreditima, datum,
+značku "ističe za N dana" kad je manje od 7 dana do isteka, i tri akcije:
+Preuzmi (postojeći URL, nov tab), Generiši ponovo (link na playground sa
+`?model=&prompt=` - `studio-page.tsx` sad čita ta dva parametra i njima
+predpuni izbor modela i prompt), i Obriši (nova `studio.deleteJob` mutacija,
+sa inline "Sigurno?" potvrdom po kartici, bez modala). Fajl kome je istekla
+retencija (`crons.expireGenerationFiles` iz P2) prikazuje prompt i dugme
+"Generiši ponovo - N kr" umesto slike - istek je prilika, ne rupa (STUDIO-PLAN
+0.2). Filteri (tip, model, opseg datuma) su jedan red `rounded-full` čipova
+iznad mreže i idu direktno u `listMyJobs` kao argumenti; menjanje filtera samo
+restartuje `usePaginatedQuery` (ugradjeno ponašanje Convex-a kad se argumenti
+promene). "Preuzmi izabrano" radi preko čekboksova na kartici i sekvencijalnog
+otvaranja u novim tabovima (vidi ODLUKU 5).
+
+**ODLUKE:**
+1. **Filteri idu kroz `.filter()` posle `by_user` indeksa, ne kroz nov
+   indeks.** `generationJobs` nema kombinovan indeks za (userId, kind/model/
+   datum), a `guidelines.md` izričito dozvoljava `.filter()` za predikate koje
+   indeks ne izražava. Tabela raste po korisniku (max 3 u letu, 50/dan), pa
+   dodatni indeks nije opravdan za ovaj obim.
+2. **`createdAfter` dolazi kao argument, ne računa se u query-ju.** Query nikad
+   ne sme da čita sat (`guidelines.md`); klijent šalje zamrznut `Date.now()` iz
+   `useState(() => Date.now())`, isti obrazac kao `credits-page.tsx`.
+3. **`deleteJob` odbija posao koji je `reserved`/`running` (`POSAO_U_TOKU`).**
+   Takav posao ima ili zakazanu akciju ili živ fal zahtev; brisanje reda ispod
+   njih bi ostavilo `submitJob`/webhook bez posla za `by_fal_request` pretragu.
+4. **`deleteJob` odbija posao povezan sa lekcijom (`POSAO_POVEZAN_SA_LEKCIJOM`),
+   kad `job.labOutputId` postoji.** `finalizeOutput` (P3) upisuje ISTI
+   `storageId` i na posao i na `labOutputs` red - brisanje fajla iz galerije bi
+   pokvarilo dokaz već zeleng zadatka u lekciji (`taskProgress.evidenceOutputId`
+   bi pokazivao na obrisan fajl). Ovo nije u P7.md eksplicitno, ali je
+   najkonzervativnija opcija po pravilima dnevnog run-a - obična generacija se
+   briše slobodno, generacija-dokaz ne. Klijent ne zna unapred da li je posao
+   vezan za lekciju (`listMyJobs` ne vraća `labOutputId`), pa dugme "Obriši"
+   uvek postoji i server je taj koji odbija; poruka objašnjava zašto.
+5. **ZIP (`fflate`) je preskočen; "Preuzmi izabrano" otvara svaki fajl u novom
+   tabu, sekvencijalno.** `fflate` nije zavisnost ovog repoa. Postojeće
+   pojedinačno dugme "Preuzmi" (P6) već koristi `target="_blank"` umesto
+   `download` atributa jer je Convex storage druga adresa i `download` ne
+   primorava snimanje van istog porekla - ista ograničenja bi važila i za ZIP
+   (trebalo bi prvo fetch-ovati sve fajlove u browser, pa ih spakovati). Ovo je
+   ODLUKA iz `rules-day.md` ("ako ti se fflate čini kao previše, uradi
+   sekvencijalno preuzimanje") - `window.open` se zove sinhrono za sve izabrane
+   fajlove unutar istog klika (ne kroz `setTimeout` petlju), da ostane u istom
+   "user activation" prozoru i da ga browser ne tretira kao popup spam.
+   Nekoliko desetina istovremenih tabova je i dalje realan rizik da ih browser
+   blokira - ako se to pokaže kao problem u praksi, sledeći korak je `fflate`.
+6. **`useSearchParams()` u `studio-page.tsx`, bez `Suspense` omotača.**
+   Dokumentacija (`node_modules/next/dist/docs`) traži `Suspense` samo kad
+   stranica pokušava statičko renderovanje; `npm run build` već pokazuje da je
+   `/[locale]/app/studio` (kao i `/app/credits`) `ƒ` (dinamička ruta), pa
+   `Suspense` ovde ništa ne bi promenio - potvrdjeno postojećim `useSearchParams`
+   pozivima bez `Suspense`-a u `course-player.tsx`, `chat-inbox.tsx` i drugima.
+7. **Regenerate link ne proverava da li model iz linka postoji u trenutnom
+   katalogu.** `studio-page.tsx` već pada na podrazumevani model
+   (`preporuceno` pa prvi) kad `selectedSlug` ne pogodi nijedan učitan model -
+   isto ponašanje kao kad korisnik ručno izabere model koji admin u medjuvremenu
+   ugasi. Prompt se svejedno prenosi.
+8. **Model-filter čipovi dolaze iz `modelCatalog.listModels({})` (svi
+   UKLJUČENI modeli), ne iz modela koji se pojavljuju u učitanoj strani
+   poslova.** Tako je lista stabilna i ne skače dok se stranice učitavaju;
+   cena je da model koji je admin u medjuvremenu ugasio nestane iz filtera iako
+   korisnik ima staru generaciju na njemu - ta generacija i dalje postoji u
+   mreži (kartica čita `job.modelSlug` direktno, filter samo bira ULAZNI
+   parametar upita), samo joj čip za filtriranje nestaje.
+9. **Nema posebnog "izaberi sve" dugmeta.** P7.md traži samo čekboksove i
+   dugme za preuzimanje izabranog; "izaberi sve" bi bio dodatak van onoga što
+   je traženo (Simplicity First). "Očisti izbor" je zadržano jer je trivijalno
+   i sprečava zaboravljenu selekciju da ostane preko promene filtera.
+10. **Radiusi:** kartice `surface-card`, media unutar kartice `surface-media`,
+    traka "Preuzmi izabrano" `surface-inset`, sve značke/čipovi/dugmad
+    `rounded-full`. Provereno grep-om: 0 `rounded-[...]`, 0 `rounded-*!`, 0
+    inline `borderRadius`, 0 `setInterval`/`setTimeout`.
+
+**Testovi:** 15 novih (370 ukupno; P6 je ostavio 355), 10 u
+`lib/studio-gallery.test.ts` i 5 u `convex/studio.test.ts`.
+- `lib/studio-gallery.test.ts` (10): `dateRangeCutoff` za sva tri presetа;
+  `expiryBadgeDays` vraća `null` bez fajla, bez roka, kad je rok već prošao i
+  kad je 7+ dana do isteka, a broj dana (zaokružen naviše) kad je manje od 7;
+  `expiryBadgeText` posebna poruka za "danas", jednina za 1 dan, množina za
+  ostalo, oba jezika; `regenerateButtonLabel` nosi cenu u oba jezika;
+  `isDownloadable` samo sa `outputUrl`; `deleteJobErrorMessage` prepoznaje oba
+  koda i pada na opštu poruku, oba jezika.
+- `convex/studio.test.ts` (5): `listMyJobs` filtrira po `kind`, po `modelSlug`
+  i po `createdAfter` pojedinačno i kombinovano; `deleteJob` briše posao i
+  njegov fajl iz storage-a; odbija posao u `reserved` i u `running`; odbija
+  posao povezan sa `labOutputId` (dokaz zadatka); odbija tudji i nepostojeći
+  posao.
+- **Mutaciono testiranje (`.studio-run/mutate.py 50`..`55`), 6 mutacija, svih 6
+  obara bar jedan test:** `deleteJob` bez provere `labOutputId`, bez provere
+  statusa u letu, bez provere vlasništva; `listMyJobs` koji ignoriše `kind` i
+  koji ignoriše `createdAfter`; `expiryBadgeDays` koji prijavljuje već istekao
+  fajl. Radno stablo potvrdjeno čisto posle svake mutacije (`git diff --stat`
+  i grep na oba pogodjena imenovana koda).
+
+**Rezultat verifikacije:**
+- `npx convex codegen` - **prošlo** (exit 0, `Running TypeScript...` bez greške;
+  `api.studio.deleteJob` je u `convex/_generated/api.d.ts`)
+- `npm run lint` - **prošlo** (`✖ 7 problems (0 errors, 7 warnings)`; istih 7
+  zatečenih upozorenja u `admin-inline-actions.tsx`, `dashboard-content.tsx` i
+  `public-course-intro-video.tsx`, nijedno iz Studio koda)
+- `npm run test` - **prošlo** (`Test Files 37 passed (37) / Tests 370 passed
+  (370)`)
+- `npm run build` - **prošlo** (`✓ Compiled successfully`, `Finished
+  TypeScript...`; `/[locale]/app/studio/gallery` je u listi ruta, označena `ƒ`)
+
+**BLOKADA:** nema.
+
+**Za Jovana:**
+1. **Ni Galerija nije u sidebar-u** - isti razlog kao Studio i Krediti u P5/P6
+   (`app-sidebar.tsx` je van obima svakog UI koraka danas). Otvara se na
+   `/sr/app/studio/gallery` i `/en/app/studio/gallery`, i sad je i jedini
+   način da se stigne do nje link "Nazad u Studio"/"Otvori Studio" u samoj
+   galeriji plus URL koji "Generiši ponovo" gradi.
+2. **"Preuzmi izabrano" otvara po jedan tab za svaki izabrani fajl.** Ako
+   izabereš puno stavki odjednom, browser može da upozori ili blokira deo
+   tabova (popup zaštita) - to je poznato ograničenje ove implementacije, ne
+   bug. Ako se u praksi pokaže kao problem, sledeći korak je da se doda
+   `fflate` i fajlovi spakuju u pravi ZIP u browseru.
+3. **`deleteJob` je nedostupan za bilo koju generaciju napravljenu unutar
+   lekcije** (kad je `taskId` prosledjen u `createJob`) - dugme postoji, ali
+   server ga odbija sa objašnjenjem. Ako ikad zatrebaju obe stvari
+   istovremeno (izbriši iz galerije ALI ostavi dokaz u lekciji), to traži
+   razdvajanje `storageId`-a izmedju `generationJobs` i `labOutputs` umesto
+   deljenog - danas je namerno deljen (P3 odluka), pa je ovo van obima P7.
+4. **Filter po modelu pokazuje samo trenutno UKLJUČENE modele.** Stara
+   generacija na modelu koji je u medjuvremenu ugašen i dalje je u mreži (samo
+   se ne može filtrirati po njemu posebno) - vidljivo je kroz "Sve modele" ili
+   kroz filter po tipu/datumu.
+5. **Video kartice u mreži ne povlače ceo fajl dok se ne klikne play**
+   (`preload="metadata"` + `#t=0.1`) - ali kako danas nijedan video model nije
+   uključen (Faza B), ovo je neproverено uživo. Prva prava video generacija je
+   pravi test.
+
+## P8 - Admin ekran `/app/admin/studio`   (19.08.2026 13:25-13:50)
+
+**Fajlovi:**
+- **nov** `app/[locale]/app/admin/studio/page.tsx` - server ruta, isti obrazac
+  provere uloge kao `app/[locale]/app/admin/page.tsx`
+- **nov** `components/app/studio-admin-page.tsx` - `"use client"` ekran, tri
+  sekcije (katalog modela, paketi/planovi, potrošnja)
+- **nov** `convex/studioAdmin.ts` - `getUsageSummary`, `getKillSwitchState`,
+  `setStudioEnabled`
+- **nov** `convex/studioAdmin.test.ts` - 6 testova
+- **nov** `lib/studio-admin.ts` - `computeMargin`, `marginTone`,
+  `formatMargin`, `jobStatusLabel` (čiste funkcije za klijent)
+- **nov** `lib/studio-admin.test.ts` - 6 testova, uključujući cross-check sa
+  `convex/studioCore.ts`
+- `convex/modelCatalog.ts` - nov query `listAllModels`
+- `convex/creditPacks.ts` - nov query `listAllPacks`
+- `convex/studioCore.ts` - `STUDIO_FLAG_KEY` premešten ovde (bio lokalan u
+  `studio.ts`), dodati `EUR_PER_USD`, `LOW_MARGIN_THRESHOLD`, `computeMargin`,
+  `dayStart`
+- `convex/studio.ts` - uvozi `STUDIO_FLAG_KEY` iz `studioCore.ts` umesto
+  lokalne konstante
+- `convex/modelCatalog.test.ts`, `convex/creditPacks.test.ts` - po 1 nov test
+  za `listAllModels`/`listAllPacks`
+- `convex/studio.test.ts` - 4 nova testa (`computeMargin`, `dayStart`)
+
+**Šta je uradjeno:** Sve admin mutacije iz noćnog run-a (`upsertModel`,
+`setModelEnabled`, `setModelCost`, `upsertPack`, `setPackActive`) su danas
+prvi put dobile ekran. Tri sekcije, tačno po zadatku: **Katalog modela** -
+tabela sa slug-om, tipom, cenom u kreditima i nabavnom cenom u USD, obe
+inline izmenljive (čuva se na blur/Enter preko `setModelCost`), izračunatom
+maržom (bojena upozoravajuće ispod 2x preko `LOW_MARGIN_THRESHOLD`), i
+prekidačem uključi/isključi (`setModelEnabled`). **Paketi i planovi** - isti
+oblik tabele, sa `stripePriceId` kao inline izmenljivim tekstualnim poljem
+(preko `upsertPack`, koje šalje ceo postojeći red nazad sa izmenjenim samo tim
+poljem) i prekidačem aktivan/ugašen. **Potrošnja** - `studioUsageDaily`
+agregirano za tekući UTC dan: ukupan trošak u USD, top 10 korisnika po trošku
+(ime, pada na email ako imena nema), broj `generationJobs` po statusu (isti
+dan, preko `by_status_created` indeksa), i kill switch
+(`platformFlags.studio_enabled`) sa inline potvrdom PRE gašenja (bez modala,
+isti obrazac kao brisanje u galeriji iz P7).
+
+**ODLUKE:**
+1. **Otkrivena i ispravljena stvarna arhitekturna greška, ne samo dizajn
+   odluka: `requireAdmin` (iz `helpers.ts`) NE SME da se zove iz `query`-ja.**
+   `requireAdmin` zove `ensureProfile`, koja bezuslovno traži `db.patch` da bi
+   "bootstrap-ovala" profil - u `query` kontekstu (bez pisanja) to baca
+   "Profile bootstrap requires a write-capable Convex context" umesto
+   "Forbidden", i to za SVAKOG pozivaoca, uključujući admina. Ovo sam prvo
+   napisao pogrešno (kopirajući `requireAdmin` u nova četiri query-ja), pa je
+   moj sopstveni test odmah oborio. Ispravka: `contentHierarchy.ts`
+   (`getAdminHierarchy`, `getAdminDetail`) već rešava isti problem - čita
+   ulogu preko `getCurrentProfile(ctx)` i sam baca `"Forbidden"`, bez upisa.
+   Sva četiri nova query-ja (`listAllModels`, `listAllPacks`,
+   `getUsageSummary`, `getKillSwitchState`) sada koriste taj obrazac
+   (`requireAdminRead` u `studioAdmin.ts`, inline u druga dva fajla).
+   `setStudioEnabled` je mutacija i i dalje koristi pravi `requireAdmin`, kao
+   i svih pet postojećih admin mutacija iz noćnog run-a - obrazac ostaje
+   nepromenjen tamo gde je već ispravan.
+2. **Ruta je `/app/admin/studio`, ne `/admin/studio` iz STUDIO-PLAN §0.1.**
+   Zadatak (P8.md) eksplicitno kaže "pogledaj `app/[locale]/app/admin/page.tsx`
+   ... pa se uklopi u isti obrazac" - postojeći admin ekran živi pod
+   `app/[locale]/app/admin/`, ne pod zasebnom `/admin` grupom van `/app`.
+   Praćenje zadatka i postojećeg koda ima prednost nad tekstom plana koji je
+   pisan pre uvida u repo (STUDIO-PLAN §1 sam kaže da brief menja arhitekturu
+   kad se sudari sa zatečenim kodom).
+3. **Admin ekran je Srpski-only, BEZ sr/en varijanti, iako `rules-day.md`
+   generalno traži bilingvalnost za UI korake.** Ovo je nejasnoća rešena
+   najkonzervativnije: postojeći admin ekran (`admin-content-manager.tsx`,
+   1927 linija zajedno sa `admin-inline-actions.tsx`) NEMA nijednu sr/en
+   granu za sopstveni chrome (tabovi, dugmad, labele) - sve je hardkodovan
+   srpski, jer je to interni alat koji koristi isključivo Jovan, ne
+   korisnička površina. P8.md eksplicitno traži "uklopi se u isti obrazac
+   uključujući način na koji se proverava admin uloga" - praćenje tog
+   obrasca (Srpski-only za admin chrome) je konzervativnija opcija od
+   uvođenja bilingvalnosti na tačno jednom admin pod-ekranu dok ostatak
+   `/app/admin` ostaje jednojezičan, što bi bilo nedosledno u samom admin
+   delu aplikacije. Studenta-vidljivi delovi (nema ih ovde - ekran je iza
+   `role !== "admin"` redirect-a) ostaju netaknuti.
+4. **Marža se računa kao `(creditCost / 100) / (estimatedCostUsd * 0.865)`**,
+   iz STUDIO-PLAN §2 (100 kr = 1 €, kurs 1$ = 0,865€, ECB 14.08.2026 - ista
+   pretpostavka koju je noćni run već koristio za seed cene). `null` (ne
+   `Infinity`) kad je nabavna cena 0 ili manja - admin ekran to prikazuje kao
+   "—" umesto lažno "odlična marža". Prag upozorenja je 2x, tačno kako P8.md
+   traži ("Marža ispod 2x se boji upozoravajuće").
+5. **Konzervativna procena šta znači "danas" u "Potrošnja".** P8.md kaže
+   "`studioUsageDaily` agregirano" za sve tri stavke, uključujući "broj
+   poslova po statusu" - iako taj broj tehnički dolazi iz `generationJobs`, ne
+   iz `studioUsageDaily`. Pročitano kao "sve tri stavke su za isti dan", pa je
+   broj po statusu ograničen na poslove sa `createdAt >= dayStart(now)` preko
+   `by_status_created` indeksa - to je i jedini indeks koji to čitanje čini
+   ograničenim (bez punog scan-a preko svih poslova ikad napravljenih).
+6. **`now` stiže sa klijenta, zamrznut na prvom renderu** (`useState(() =>
+   Date.now())`), isti obrazac kao `credits-page.tsx`/`studio-gallery-page.tsx` -
+   `getUsageSummary` query nikad ne čita sat sam.
+7. **Bez `@convex-dev/aggregate`**, tačno kako P8.md dozvoljava za ovaj obim -
+   `studioUsageDaily` ima jedan red po korisniku po danu, i za jedan dan je to
+   mali, ograničen skup. Kapovi (`MAX_USAGE_ROWS=500`, `MAX_JOBS_PER_STATUS=2000`)
+   postoje da čitanje ostane ograničeno i da platforma ne mora da promeni ovaj
+   kod čim prve stotine korisnika stignu; ako se kapiraju, ekran to piše
+   ("odsečeno na prikaz"), ne ćuti.
+8. **`lib/studio-admin.ts` duplira `computeMargin`/`EUR_PER_USD` iz
+   `convex/studioCore.ts`, ne uvozi ih.** Isti obrazac kao `PROMPT_MAX_LENGTH`
+   u `lib/studio-form.ts` (P6, ODLUKA 4) - "use client" komponente u ovom
+   repou ne uvoze `convex/*.ts` module direktno. `lib/studio-admin.test.ts`
+   uvozi OBE strane i tvrdi da se poklapaju na istim primerima iz
+   STUDIO-PLAN §2.3, da razilaženje ne prođe nezapaženo.
+9. **`upsertPack` za izmenu `stripePriceId` šalje NAZAD ceo postojeći red**
+   (slug, oba naslova, cenu, kredite, bonus, kind, planTier, sortOrder,
+   isActive) sa samo tim jednim poljem izmenjenim - mutacija ne prima
+   parcijalni patch, upsert-uje po `slug`-u. Nema rizika dupliranja: `upsertPack`
+   (A4) već traži postojeći red po `slug` pre inserta.
+10. **Inline izmena čuva na blur/Enter, ne na svaki tasterski pritisak**, i ne
+   diže mutaciju ako vrednost nije promenjena - isti minimalni obrazac kao
+   svaki drugi "sačuvaj" tok u ovom repou, bez posebne biblioteke za forme.
+   Neuspešna izmena vraća polje na poslednju poznatu server vrednost i ispisuje
+   grešku ispod polja (`error.message` direktno, isti fallback kao
+   `admin-content-manager.tsx`-ov `save()`).
+11. **Radiusi:** `Panel` (16px) za tri sekcije, `surface-inset` (12px) za redove
+   tabela i kartice unutar "Potrošnje", `rounded-full` za sve prekidače/dugmad,
+   `rounded-[8px]` za kompaktna polja unosa - poslednje je namerno kopija
+   POSTOJEĆEG `inputClass`-a iz `admin-content-manager.tsx` (identična
+   vrednost, 8px = `surface-media` tier), ne nova vrednost. Provereno grep-om:
+   0 `rounded-*!`, 0 inline `borderRadius`, 0 `setInterval`/`setTimeout`.
+
+**Testovi:** 16 novih (385 -> ide preko 370 iz P7 + noćnih; tačan ukupan broj
+u rezultatu verifikacije ispod).
+- `convex/studioAdmin.test.ts` (6): sve tri funkcije bacaju "Forbidden" za
+  ne-admina; `getKillSwitchState` bez reda vraća `enabled: true`, a
+  `setStudioEnabled` upisuje pa menja isti red (nema dupliranja); agregacija -
+  zbir troška, top 10 (sortirano opadajuće, dva najniža korisnika ispadaju),
+  broj poslova po statusu SAMO za dati dan (potrošnja i posao iz "juče" se ne
+  računaju); korisnik bez `name`-a se prikazuje po email-u.
+- `lib/studio-admin.test.ts` (6): `computeMargin` daje identičan rezultat kao
+  `convex/studioCore.computeMargin` za 4 modela iz STUDIO-PLAN §2.3 (cross-check);
+  nula/negativna nabavna cena daje `null`; `marginTone` unknown/warn/ok tačno na
+  granici praga; `formatMargin` i `jobStatusLabel` formatiranje.
+- `convex/modelCatalog.test.ts` (+1): `listAllModels` vraća i isključene
+  modele, zaštićen `requireAdmin`-obrascem.
+- `convex/creditPacks.test.ts` (+1): `listAllPacks` vraća i ugašene pakete.
+- `convex/studio.test.ts` (+4): `computeMargin` (2), `dayStart` (1) - pomereno
+  ovde jer `studio.test.ts` je već mesto gde žive testovi čistih funkcija iz
+  `studioCore.ts` (isti obrazac kao `sanitizeParams`/`mockJobSucceeds` testovi
+  u istom fajlu).
+
+**Rezultat verifikacije:**
+- `npx convex codegen` - **prošlo** (exit 0, `Running TypeScript...` bez
+  greške)
+- `npm run lint` - **prošlo** (`✖ 7 problems (0 errors, 7 warnings)`; istih 7
+  zatečenih upozorenja, nijedno iz Studio koda)
+- `npm run test` - **prošlo** (`Test Files 39 passed (39) / Tests 385 passed
+  (385)`). Napomena: jedan prolaz je usput pokazao
+  `convex/chat.test.ts > inbox summary stays exact beyond one thousand
+  memberships` kako pada na `Test timed out in 5000ms` - ponovljen izolovano i
+  u punom run-u, pada dosledno pod trenutnim opterećenjem mašine. Fajl nije
+  diran ovim korakom (nema veze sa Studiom) i sledeći čist run (posle ovog
+  koraka) je prošao svih 385/385 - zabeleženo kao poznata varijabilnost
+  test-runnera na ovoj mašini, ne kao BLOKADA ovog koraka.
+- `npm run build` - **prošlo** (`✓ Compiled successfully`, `Finished
+  TypeScript in 82s`; `/[locale]/app/admin/studio` je u listi ruta, `ƒ`)
+
+**BLOKADA:** nema.
+
+**Za Jovana:**
+1. **Ekran je na `/sr/app/admin/studio` (i `/en/...`), ne na `/sr/admin/studio`
+   iz STUDIO-PLAN §0.1** - vidi ODLUKA 2. Vidljiv je samo nalozima sa
+   `role === "admin"`, isto kao `/app/admin` i `/app/admin/chat`.
+2. **Nije u navigaciji.** `/app/admin` (kontrolni centar) nema link ka njemu -
+   isti razlog kao Studio/Krediti/Galerija u P5-P7 (van obima UI koraka).
+   Otvara se direktnim URL-om.
+3. **Marža je procena, ne stvarni trošak.** Računa se iz
+   `modelCatalog.estimatedCostUsd`, koji niko ne osvežava iz fal-a uživo (to je
+   Faza D, "noćna provera fal cena" iz STUDIO-PLAN §2.5). Ako fal promeni cenu
+   modela, marža na ekranu ostaje pogrešna dok neko ručno ne upiše novu
+   nabavnu cenu ovde.
+4. **Dnevni limiti (50 generacija, 3 u letu, 5$/dan po korisniku) NISU
+   podesivi sa ovog ekrana.** STUDIO-NIGHT-REPORT tačka 3 to već beleži kao
+   odstupanje od plana ("konstante u `studioCore.ts`, menjaju se samo
+   deploy-em") - P8.md ne traži izmenu toga i ostalo je van obima ovog koraka.
+5. **Globalni dnevni trošak (alarm 50$, kill switch 100$) i dalje ne
+   postoje.** Ono što danas postoji je ručni kill switch (uvek dostupan, sa
+   potvrdom) i pregled DANAŠNJEG ukupnog troška - admin i dalje mora sam da ga
+   pogleda i odluči da ugasi, nema automatskog praga. To je STUDIO-NIGHT-REPORT
+   stavka "Globalni dnevni trošak - cron - alarm na 50$, kill switch na 100$"
+   i ostaje neotvorena.
+6. **Ako ikad neko drugi doda novi `query` koji treba admin proveru, NE
+   kopiraj `requireAdmin` iz `helpers.ts` u njega** - vidi ODLUKA 1. Taj
+   helper radi samo u mutacijama/akcijama (piše u bazu da bootstrapuje
+   profil). Za `query`, koristi `getCurrentProfile(ctx)` i proveri
+   `profile.role` ručno, kao `contentHierarchy.getAdminHierarchy` i sada
+   `studioAdmin.ts`.
+
+## P9 - Navigacija, balans u zaglavlju, ulaz iz lekcije, tekstovi na jednom mestu   (19.08.2026 13:55-14:39)
+
+**Fajlovi:**
+- izmenjeno: `components/app/app-sidebar.tsx`, `components/app/course-lab.tsx`,
+  `components/app/studio-page.tsx`, `components/app/credits-page.tsx`,
+  `components/app/studio-gallery-page.tsx`, `lib/studio-form.ts`,
+  `lib/studio-form.test.ts`, `lib/studio-gallery.ts`, `lib/studio-gallery.test.ts`
+- **novo:** `lib/studio-messages.ts`, `lib/studio-messages.test.ts`
+
+**Šta je uradjeno:** Sve četiri stranice iz P5-P8 (Studio, Krediti, Galerija,
+Admin) su postojale ali do njih se nije moglo doći nijednim klikom - ovaj korak
+je poslednja veza. (1) `components/app/app-sidebar.tsx` je dobio dve nove stavke,
+**Studio** (`Wand2`) i **Krediti** (`Coins`), u sve tri relevantne površine
+navigacije: prošireni desktop/mobilni meni (`NavLink`, isti obrazac kao
+Dashboard/Poruke) i kolabovani desktop rail (`RailAction`) - mobilni donji
+tab bar od tačno 4 slota je namerno preskočen (vidi ODLUKA 1). (2) Nova
+`CreditsBalancePill` komponenta u istom fajlu čita `credits.getBalance` preko
+`useQuery` (pretplata, bez pollinga) i prikazuje balans u `rounded-full`
+pločici koja vodi na `/app/credits`, vidljiva na mobilnom top baru i na vrhu
+proširenog desktop sidebar-a - dakle sa svake `/app` stranice bez obzira koja
+je trenutno otvorena. Kad je balans tačno 0, pločica je blago upozoravajuće
+obojena (`bg-amber-100`). (3) `components/app/course-lab.tsx` (AI Workspace u
+lekciji) dobija dugme **"Otvori u Studiju"** u output koloni, tačno kad
+`activeStep.outputKind !== "text"`, koje vodi na
+`/app/studio?lessonId=...&taskId=...`; `components/app/studio-page.tsx` sad
+čita ta dva parametra iz URL-a i prosledjuje ih u `createJob` (koji ih od P3
+već prima kao argumente) - generacija iz lekcije tako upisuje `labOutputs` sa
+`taskId`, zadatak se sam zeleni i leaderboard dobija poene, tačno lanac iz
+STUDIO-PLAN 1.1. (4) Nov `lib/studio-messages.ts` skuplja na jedno mesto sve
+poruke grešaka i prazna stanja Studija koji su do sad bili rasuti po tri
+odvojena fajla/komponente: `studioErrorMessage` (greške `createJob`-a,
+preseljeno iz `studio-form.ts`) i `deleteJobErrorMessage` (greške `deleteJob`-a,
+preseljeno iz `studio-gallery.ts`), plus osam `EmptyState` konstanti
+(naslov/rečenica/sledeći korak, sr+en) koje sad koriste `studio-page.tsx`
+(pauziran, neupisan, nema generacija), `credits-page.tsx` (nema kredita, nema
+paketa, nema istorije) i `studio-gallery-page.tsx` (nema generacija, filteri
+bez pogotka) umesto ranijih inline ternarnih tekstova.
+
+**ODLUKE:**
+1. **Mobilni donji tab bar (`AppBottomNav`, tačno 4 slota) nije diran.**
+   Komentar u samom kodu ("Do not add a fifth entry to this array... Cramming a
+   fifth tab in... would cost Poruke its unread badge") eksplicitno zabranjuje
+   peti slot. Studio i Krediti su i dalje dva taster-a udaljeni preko dugmeta
+   "Više" koje otvara drawer (isti sadržaj kao prošireni desktop meni), pa
+   ništa nije nedostupno na mobilnom - samo nije u brzom baru.
+2. **Balans u zaglavlju se renderuje samo kad `authState === "authenticated"`.**
+   Bez ove provere bi anonimni posetilac (npr. `hasConvex: false` fallback ili
+   dok se sesija učitava) video prazan/svetlucav prostor. `undefined` (upit se
+   učitava) prikazuje "—", isti obrazac kao postojeći balans na `/app/studio` i
+   `/app/credits`; `null` (podrazumevana vrednost kad `creditsBalance` prop
+   uopšte nije prosledjen, npr. u statičkom `!hasConvex` ogranku) pločicu
+   uopšte ne renderuje.
+3. **Pločica se NE renderuje u kolabovanom (rail) sidebar-u.** Prošireni desktop
+   vrh i mobilni top bar pokrivaju "vidljivo sa svake stranice" za podrazumevano
+   stanje; rail je stanje koje je korisnik sam izabrao (kolapsiranje se pamti
+   godinu dana u kolačiću) i već je gust sa ikonicama. Dodavanje pločice tu bi
+   zahtevalo poseban sažeti prikaz (samo broj, bez `rounded-full` pločice sa
+   tekstom) što `rules-day.md` ne traži eksplicitno - konzervativnije je
+   ostaviti rail kakav je nego izmišljati novi vizuelni oblik za njega.
+4. **`studioActive` hvata i `/app/studio` i `/app/studio/gallery`**
+   (`pathname.includes("/app/studio/")`), isti obrazac kao `communityActive` i
+   `messagesActive` u istom fajlu - Galerija je pod-stranica Studija, ne
+   posebna sekcija, pa nav stavka ostaje osvetljena i tamo.
+5. **Dugme "Otvori u Studiju" stoji u output koloni (gde generacija i inače
+   sleće), ne u chatbot koloni.** P9.md ne precizira tačno mesto; output kolona
+   već ima naslov + ikonu vrste izlaza tačno iznad prazne/popunjene kartice, pa
+   je dugme prirodni sledeći red - korisnik koji gleda "ovde treba da se pojavi
+   slika" odmah vidi i kako da je napravi.
+6. **`taskId` se šalje u `createJob` samo ako je i `lessonId` prisutan**
+   (`...(lessonId && taskId ? { taskId } : {})`), iako URL uvek nosi oba kad
+   dugme iz lekcije generiše link. Server (`convex/studio.ts:73`) svejedno baca
+   `ZADATAK_BEZ_LEKCIJE` za `taskId` bez `lessonId`; ovo je odbrana od ručno
+   izmenjenog URL-a (npr. korisnik obriše `lessonId=...` deo), ne od dugmeta
+   samog.
+7. **Obim "jednog modula" za tekstove (4. stavka u P9.md) je pročitan kao
+   naslov te stavke** ("Prazna stanja i poruke grešaka na jednom mestu"), ne
+   doslovno "svaki tekst u Studiju". Prva rečenica stavke ("Skupi sve tekstove
+   Studija... u jedan modul") je šira od naslova; obrazac koji repo već koristi
+   za lokalizaciju je inline `t(locale, sr, en)`/ternarni tekst UNUTAR
+   komponente (tako rade sve četiri Studio stranice, `course-lab.tsx`, i svaka
+   druga stranica u `/app`), pa bi doslovno "sve" značilo napustiti taj
+   ustaljeni obrazac na desetinama mesta (naslovi panela, labele dugmadi,
+   filter-čipovi) - direktno u sukobu sa "Surgical Changes" i "ne uvodi nov
+   dizajn jezik". Umesto toga skupljeno je tačno ono što `rules-day.md`
+   eksplicitno nabraja kao prazna stanja ("Nema kredita, nema generacija,
+   Studio pauziran, posao neuspeo") plus obe funkcije za greške koje su već
+   PRE ovog koraka bile odvojene u dva različita fajla (`studio-form.ts`,
+   `studio-gallery.ts}`) - ta dva stvarno JESU bila "rasuta po komponentama" u
+   smislu da ista vrsta teksta (greška iz Studio mutacije) živi na dva mesta.
+   Tekst dugmadi/naslova ostaje tamo gde je i bio, po istom obrascu kao ostatak
+   `/app`.
+8. **`studioErrorMessage` je dobio tri nova koda**: `ZADATAK_BEZ_LEKCIJE`,
+   `ZADATAK_NIJE_U_LEKCIJI` (oba iz `convex/studio.ts`, postala DOSTIŽNA tek
+   ovim korakom - pre P9 UI nikad nije slao `taskId`/`lessonId`) i
+   `NEISPRAVNO_TRAJANJE` (iz `convex/studioCore.ts`, danas nedostižno jer
+   nijedan seedovan model nema `costPerSecond`, ali dodato za potpunost pre
+   Faze B). Bez ovoga bi dugme iz lekcije, na rubnom slučaju, ispisalo generičku
+   poruku umesto specifičnog objašnjenja.
+9. **`PROMPT_MAX_LENGTH` ostaje re-eksportovan iz `lib/studio-form.ts`**
+   (`export { PROMPT_MAX_LENGTH }` iznad uvoza iz `studio-messages.ts`) umesto
+   da se svaki pozivalac prebaci na novu putanju uvoza. `lib/studio-admin.ts`
+   ima komentar koji imenuje baš `lib/studio-form.ts` kao primer istog obrasca
+   (dupliranje matematike umesto uvoza `convex/*.ts` u klijent) - re-eksport
+   čuva taj komentar tačnim uz minimalnu izmenu.
+10. **Radiusi:** `CreditsBalancePill` i obe nove nav stavke koriste isključivo
+    `rounded-full` (pilula); dugme "Otvori u Studiju" takodje `rounded-full`,
+    isti obrazac kao ostala dugmad u `course-lab.tsx` čiji su kontejneri
+    `rounded-[8px]` (postojeći, nedirano). Provereno grep-om nad svim
+    izmenjenim fajlovima: nula novih `rounded-[...]`, nula `rounded-*!`, nula
+    inline `borderRadius`, nula `setInterval`/`setTimeout`.
+
+**Testovi:** `lib/studio-messages.test.ts` je nov fajl sa 9 testova (preseljeno
+iz `studio-form.test.ts` i `studio-gallery.test.ts`, plus dva nova):
+`PROMPT_MAX_LENGTH === MAX_PROMPT_LENGTH` (cross-check, isti kao ranije) ·
+`studioErrorMessage` - sirov kod se nikad ne prikazuje, svaki kod ima svoju
+poruku (sad uključujući `ZADATAK_BEZ_LEKCIJE`/`ZADATAK_NIJE_U_LEKCIJI`/
+`NEISPRAVNO_TRAJANJE`), `DNEVNI_LIMIT_TROSKA` se ne čita kao `DNEVNI_LIMIT`,
+razlozi prompta se razlikuju, **nov test** da `ZADATAK_BEZ_LEKCIJE` i
+`ZADATAK_NIJE_U_LEKCIJI` imaju različite poruke, nepoznata greška daje ljudsku
+poruku, obe lokalizacije postoje i razlikuju se · `deleteJobErrorMessage` -
+oba imenovana koda plus opšta poruka (preseljeno bez izmena) · **nov test**
+"prazna stanja" - svih osam `EmptyState` konstanti ima naslov, rečenicu i CTA
+na oba jezika i nijedno se ne poklapa izmedju sr/en (sprečava da neko ostavi
+identičan tekst na oba jezika). `lib/studio-form.test.ts` i
+`lib/studio-gallery.test.ts` su izgubili po jedan `describe` blok (preseljen),
+ostatak netaknut. Nijedan nov test za `app-sidebar.tsx` ili `course-lab.tsx` -
+ta dva fajla nemaju postojeći test fajl niti ih `vitest.config.ts` pokriva
+(samo `convex/**/*.test.ts` i `lib/**/*.test.ts`), pa bi dodavanje jednog
+značilo novu test infrastrukturu (React Testing Library i sl.) koju P9.md ne
+traži; provereno ručno kroz `npm run build` (rute i dalje kompajliraju) i
+grep-om za radiuse/`setInterval` (ODLUKA 10).
+
+**Rezultat verifikacije:**
+- `npx convex codegen` - **prošlo** (exit 0, `Running TypeScript...` bez greške)
+- `npm run lint` - **prošlo** (`✖ 7 problems (0 errors, 7 warnings)`; istih 7
+  zatečenih upozorenja u `admin-inline-actions.tsx`, `dashboard-content.tsx` i
+  `public-course-intro-video.tsx`, nijedno iz Studio koda)
+- `npm run test` - **387/388 prošlo.** Jedini pad je
+  `convex/chat.test.ts > inbox summary stays exact beyond one thousand
+  memberships` sa `Test timed out in 5000ms` - **isti test koji je P8 već
+  zabeležio kao poznatu varijabilnost test-runnera na ovoj mašini**, nepovezan
+  sa Studio kodom (fajl nije diran ni u P8 ni u P9). Ponovljen tri puta u punom
+  suite-u (uvek pao, uvek isti test) i jednom izolovano sa
+  `--testTimeout=30000` (prošao za 9.68s stvarnog vremena) - test radi ispravno,
+  samo ne stigne pod 5s kad se 40 test fajlova vrti paralelno. Nije BLOKADA
+  ovog koraka.
+- `npm run build` - **prošlo** (`✓ Compiled successfully`, `Finished
+  TypeScript in 89s`; sve Studio rute i dalje u listi, `/[locale]/app/studio`,
+  `/[locale]/app/credits`, `/[locale]/app/studio/gallery`,
+  `/[locale]/app/admin/studio` sve `ƒ`)
+
+**BLOKADA:** nema.
+
+**Za Jovana:**
+1. **Studio i Krediti su sad vidljivi u navigaciji** - prošireni sidebar
+   (desktop i mobilni drawer preko "Više") i kolabovani rail. Mobilni donji
+   tab bar od 4 slota namerno nije menjan (ODLUKA 1) - Galerija i Admin/Studio
+   i dalje nemaju sopstvenu nav stavku (nisu traženi u P9.md), do njih se stiže
+   preko linkova unutar Studio/Krediti stranica kao i do sad.
+2. **Balans u zaglavlju je pravi test da Convex realtime radi kroz sidebar.**
+   Otvori bilo koju `/app` stranicu, generiši u Studiju u drugom tabu, i broj u
+   pločici treba da padne sam, bez refresh-a - `useQuery` je pretplata. Ako ne
+   padne, problem je u `credits.getBalance`, ne u sidebar-u.
+3. **Dugme "Otvori u Studiju" se pojavljuje samo za korake čiji je
+   `outputKind` `image`/`audio`/`video`/`file`** - tekstualni koraci (AI chat
+   output) ga nemaju, jer za njih Studio ne nudi ništa (Studio danas generiše
+   samo slike, Faza A). Klikom se prompt NE prenosi automatski (za razliku od
+   "Generiši ponovo" u galeriji) - korisnik i dalje sam piše prompt u Studiju;
+   prenos konteksta zadatka u prompt bi bio veći zadatak nego "dugme +
+   prosledjivanje parametara" koje P9.md eksplicitno ograničava kao dovoljno
+   ako se korak pokaže većim od jednog prompta.
+4. **Test veze iz lekcije:** otvori korak sa `outputKind !== "text"` u bilo kojoj
+   lekciji koja ima `lessonTasks`, klikni "Otvori u Studiju", generiši sliku,
+   pa se vrati u lekciju - zadatak sa kojeg si krenuo treba da se sam obeleži
+   kao završen (ako je `completionMode` automatski) i traka `taskProgress`
+   treba da pokaže `evidenceOutputId` koji vodi na baš tu generaciju. Nisam
+   mogao ovo da testiram uživo (nema browser sesije u ovom run-u) - ovo je
+   prva stvar koju vredi ručno proveriti.
+5. **`lib/studio-messages.ts` je sad jedino mesto gde se dodaje nov kod greške
+   `createJob`-a ili novo prazno stanje Studija.** Ako budući korak doda novi
+   `throw new Error("NOVI_KOD")` u `convex/studio.ts`, poruka ide ovde, ne u
+   komponentu koja poziva `createJob`.
+6. **Flaky `chat.test.ts` test (vidi Rezultat verifikacije) nije nešto što ovaj
+   korak treba da popravlja** - nepovezan fajl, nepovezan sistem (chat inbox,
+   ne Studio). Ako se ponavlja i van ovog run-a, vredi ili povećati
+   `testTimeout` za taj specifičan test ili istražiti zašto traje >5s pod
+   paralelnim opterećenjem.
+
+## P10 - Kapija, demo krediti i uputstvo za pokretanje   (19.08.2026 14:45-15:10)
+
+**Fajlovi:**
+- `convex/seed.ts` - nova mutacija `grantDemoCredits`, tri nova uvoza
+  (`normalizeEmail`, `internal`, `Id`)
+- **nov** `convex/seed.test.ts` - 6 testova
+- **nov** `docs/STUDIO-DEMO.md` - uputstvo za pokretanje demoa
+- `.studio-run/mutate.py` - dodate mutacije 56-58 za ovaj korak
+- `docs/STUDIO-PROGRESS.md` - ova sekcija
+
+**Šta je uradjeno:** Korak nije pisao nijedan nov feature. (1) Sve četiri
+verifikacione komande su puštene nad zatečenim stanjem grane i tačan izlaz je
+zabeležen ispod. `npm run build` je prvi put u celom run-u stvarno pokrenut nad
+kompletnim Studio UI-jem i **prošao je** - svih 6 novih ruta
+(`/app/credits`, `/app/studio`, `/app/studio/gallery`, `/app/admin/studio`,
+`/api/stripe/plan`, `/api/stripe/credits`) je u izlaznoj tabeli. (2) Napisana je
+`seed:grantDemoCredits` (`{syncSecret, email, amount}`, iza `requireSyncSecret`),
+koja nalazi korisnika po normalizovanom mejlu i otvara lot izvora `admin_grant`
+kroz postojeći `internal.credits.grantCredits` - bez nje se Studio ne može ni
+probati lokalno, jer je jedini drugi put do kredita kroz pet Stripe price
+ID-jeva kojih još nema. (3) Napisan je `docs/STUDIO-DEMO.md`: dva terminala,
+tri seed komande, dodela 2000 demo kredita, osam koraka šetnje sa URL-ovima, i
+tačne reference na stavke iz `RUČNI KORACI ZA JOVANA` za sve što bez podešavanja
+neće raditi.
+
+**ODLUKE:**
+1. **`grantDemoCredits` NIJE idempotentna - i to je namerno.** Svaki drugi
+   grant u kodu jeste (dupli grant je izgubljen novac), ali ovde je poenta
+   suprotna: demo balans mora da se može dopuniti kad se potroši. Iza njega ne
+   stoji nikakva naplata, a `requireSyncSecret` ga drži van dohvata klijenta.
+2. **Ključ idempotencije je redni broj demo lota (`demo:<userId>:<n>`), ne
+   `Date.now()`.** Prva verzija je koristila vreme; dva poziva u istoj
+   milisekundi bi delila ključ i drugi bi tiho postao no-op (`grantCredits`
+   vraća postojeći lot). Redni broj se čita preko `by_user_source` indeksa
+   (istog koji je P1 dodao za welcome bonus), pa je deterministički i testabilan.
+3. **Mejl se normalizuje (`normalizeEmail` iz `lib/admin-emails.ts`) pre
+   pretrage.** Bez toga bi `Jovanm028@gmail.com` iz komandne linije bacio
+   `KORISNIK_NIJE_NADJEN` iako korisnik postoji - najgluplji mogući način da
+   uputstvo od pet minuta ne proradi.
+4. **Traži se `.first()`, ne `.unique()`.** Indeks `email` na `users` nije
+   jedinstven (`identityMerge.ts` eksplicitno računa na duplikate i uzima
+   `take(10)`), pa bi `.unique()` na nalogu sa duplim redom bacio umesto da
+   dodeli kredite.
+5. **Povratni tip handler-a je napisan ručno (`Promise<Id<"creditLots">>`).**
+   Ovo NIJE stil - bez njega `next build` puca. Vidi "Rezultat verifikacije".
+6. **Pad `convex/chat.test.ts` NIJE upisan kao BLOKADA.** Dokazano je da je
+   zatečen i nezavisan od Studija: napravljen je privremeni `git worktree` na
+   `main` (sa junction-om na isti `node_modules`) i isti test tamo pada isto,
+   sa istom porukom. Test nije diran (ni komentarisan, ni sa promenjenim
+   timeout-om) - `rules-day.md` to zabranjuje, a i nije naš.
+7. **`seedInitialContent` je u DEMO dokumentu označen kao opcion**, jer je
+   potreban samo za korak 5.8 (ulaz iz lekcije); prva sedam koraka šetnje rade
+   i na praznoj bazi kurseva.
+
+**Testovi:** 6 novih u `convex/seed.test.ts` (388 -> 394), svi za
+`grantDemoCredits`:
+- otvara tačno jedan `admin_grant` lot, podiže `balance` na 2000, upisuje
+  `admin_adjust` transakciju, i **ne** dira `lifetimePurchased` (demo krediti
+  nisu plaćeni);
+- drugi poziv otvara DRUGI lot sa različitim ključem i balans postaje zbir
+  (čuvar odluke 1 i 2);
+- mejl sa velikim slovima i razmacima nalazi istog korisnika (čuvar odluke 3);
+- pogrešan `syncSecret` -> `Forbidden`, nijedan lot nije upisan;
+- nepoznat mejl -> `KORISNIK_NIJE_NADJEN`, nijedan lot nije upisan;
+- iznos `0`, `-50` i `2.5` -> `NEVALIDAN_IZNOS`, nijedan lot nije upisan.
+
+**Mutaciono testiranje (`.studio-run/mutate.py 56`..`58`), 3 mutacije, sve tri
+obaraju bar jedan test:** fiksan
+ključ idempotencije umesto rednog broja (pada test ponovljenog granta) ·
+uklonjen `normalizeEmail` (pada test velikih slova) · uklonjen
+`requireSyncSecret` (pada test pogrešnog secret-a). Radno stablo je posle svake
+mutacije vraćeno (`mutate.py` to radi sam) i potvrdjeno `grep`-om na `seed.ts`.
+
+**Rezultat verifikacije:**
+- `npx convex codegen` - **prošlo** (exit 0, `Running TypeScript...` bez greške;
+  `api.seed.grantDemoCredits` je u `convex/_generated/api.d.ts`)
+- `npm run lint` - **prošlo** (`✖ 7 problems (0 errors, 7 warnings)`, istih 7
+  zatečenih upozorenja u `admin-inline-actions.tsx`, `dashboard-content.tsx` i
+  `public-course-intro-video.tsx`; nijedno iz Studio koda)
+- `npm run test` - **393/394 prošlo.** Jedini pad je zatečen i tudj:
+  `convex/chat.test.ts > inbox summary stays exact beyond one thousand
+  memberships` - `Error: Test timed out in 5000ms` (test traje ~8-10 s na ovoj
+  mašini). Isti test pada isto na čistom `main`-u u zasebnom worktree-u, dakle
+  nema veze sa Studio kodom. Sa `npx vitest run --testTimeout=60000`:
+  **41/41 fajlova, 394/394 testova, sve zeleno.**
+- `npm run build` - **prošlo** (`✓ Compiled successfully in 25.1s`, TypeScript
+  bez greške, 60 statičkih stranica, sve Studio rute u tabeli).
+  **Prvi pokušaj je pao** i to je najvažniji nalaz ovog koraka:
+  ```
+  ./components/app/admin-content-manager.tsx:527:500
+  Type error: Parameter 'item' implicitly has an 'any' type.
+  ```
+  Greška je u fajlu koji nema nikakve veze sa Studijem. Uzrok: `grantDemoCredits`
+  je uvela prvi `import { internal } from "./_generated/api"` u `seed.ts`, a
+  njen handler nije imao napisan povratni tip - `ctx.runMutation` tako zatvara
+  krug `seed.ts -> api.d.ts -> seed.ts`, TS odustane od zaključivanja i greška
+  ispliva na nasumičnom fajlu koji zavisi od `api` tipa. `credits.ts`
+  (`applyStripeGrant`) je isti problem već rešio ručno napisanim
+  `Promise<Id<"creditLots">>`; ista ispravka primenjena i ovde, uz komentar da
+  se ne "očisti" kasnije. **Napomena za sve naredne korake: `npm run lint` i
+  `npm run test` ovo NE hvataju - samo `npm run build`.**
+
+**BLOKADA:** nema.
+
+**Za Jovana:**
+1. **Uradi `docs/STUDIO-DEMO.md` od vrha do dna.** To je jedini korak koji je
+   danas stvarno neophodan; sve ostalo iz sekcije 6 tog dokumenta može da čeka.
+2. **Prijavi se pre nego što pustiš `grantDemoCredits`** - mutacija traži red u
+   `users` po mejlu i baca `KORISNIK_NIJE_NADJEN` ako se nikad nisi ulogovao na
+   lokalnom deploymentu.
+3. **`WEBHOOK_SYNC_SECRET` je već postavljen na dev deploymentu** (provereno sa
+   `npx convex env list`), pa sve četiri `npx convex run` komande rade odmah.
+   `FAL_KEY` nije postavljen - to je ispravno stanje za demo, mock provajder
+   radi bez njega.
+4. **`npm run test` će ti pokazati jedan crven test.** Nije naš i nije nov -
+   `convex/chat.test.ts` prekoračuje podrazumevani timeout od 5 s na ovoj
+   mašini. Kad hoćeš čist izlaz: `npx vitest run --testTimeout=60000`.
+5. **Ako sam nekad zaboravim ovaj nalaz:** posle svakog dodavanja
+   `ctx.runMutation`/`ctx.runQuery` u Convex fajl, povratni tip handler-a se
+   piše ručno, i `npm run build` se pušta - `lint` i `test` prolaze i kad je
+   tip pokvaren.
+
+## RV2 - Revizija dnevnog run-a   (19.08.2026 15:15-15:40)
+
+**Fajlovi:**
+- **nov** `docs/STUDIO-DAY-REPORT.md` - ceo izveštaj
+- `docs/STUDIO-PROGRESS.md` - ova sekcija
+
+**Šta je uradjeno:** Nijedan nov feature; revizija svega iz P1-P10. Sve četiri
+verifikacione komande su puštene nad zatečenim stanjem i tačan izlaz je
+zabeležen - prvi put je i `npm run test` zelen bez povišenog timeout-a
+(41/41 fajlova, 394/394 testa). Pročitane su sekcije P1-P10, sekcija RIZICI PO
+NOVAC iz noćnog izveštaja, i **ponovo je pročitan sav kod** umesto da se veruje
+dnevniku: `studio.ts`, `studioCore.ts`, `studioActions.ts`, `crons.ts`,
+`credits.ts`, `creditsCore.ts`, `studioAdmin.ts`, `modelCatalog.ts`,
+`creditPacks.ts`, `seed.ts`, obe Stripe rute, webhook, sve četiri stranice i
+`lib/studio-*.ts`. Izveštaj daje status svake od šest rupa iz P1 i tri crona iz
+P2, nov prolaz kroz listu a-f iz noći, jedanaest novih nalaza, iskren popis
+onoga što se stvarno vidi na ekranu, numerisanu listu pre prvog evra sa
+procenama, i preporuku.
+
+**ODLUKE:**
+1. **Rupa (f) je ocenjena kao DELIMIČNO zatvorena, iako P1 tvrdi da je
+   zatvorena.** `sanitizeParams` jeste napisan i radi, ali noćni izveštaj je pod
+   (f) imenovao baš `num_images` kao mehanizam gubitka, a P1 ga je ograničio na
+   `max: 4` umesto da ga naplati. Cena je i dalje fiksna po pozivu. Kod sedam od
+   osam uključenih modela marža pada ispod 1x već na `num_images: 3`, kroz
+   normalnu formu. Ocena prati posledicu po novac, ne obim zadatka.
+2. **Dnevni limit troška je takodje ocenjen kao delimičan**, iz dva razloga:
+   sabira `estimatedCostUsd` po pozivu (pa uz `num_images: 4` plafon od 5 USD
+   propušta do 20 USD stvarnog troška), i globalni plafon iz plana 4.4 (alarm
+   50 USD, kill switch 100 USD) i dalje ne postoji nigde u `convex/`.
+3. **N1 je napisan uz izričit uslov, a ne kao tvrdnja.** Da li fal naplaćuje po
+   izlaznoj slici nije provereno - pravila dana zabranjuju poziv živog API-ja.
+   Cene iz plana §2.3 jesu po slici, pa je to konzervativna pretpostavka, ali je
+   u izveštaju označena kao pretpostavka i uz nju stoji komanda za proveru.
+4. **N4 (`syncSubscription` i dalje ćuti) je prijavljen iako ga pravila dana
+   izričito štite** ("ne menjaj postojeći subscription flow"). P1 je ispravno
+   stao; izveštaj to i kaže. Ali "van obima" nije isto što i "zatvoreno", pa
+   rupa mora da stoji u popisu.
+5. **Marže su preračunate iz `seed.ts` po formuli iz plana §2.3** (100 kr = 1 €,
+   1 $ = 0,865 €), ne prepisane iz P8-ovog `computeMargin`-a - da nalaz ne
+   zavisi od koda koji se ocenjuje.
+6. **Nekomitovan dan je prijavljen kao rupa (N9), ne kao napomena.**
+   `git log main..HEAD` završava na noćnom `c351c2f`; 23 izmenjena praćena
+   fajla i 25 novih putanja stoje samo u radnom stablu.
+7. **Nijedan fajl osim dva dokumenta nije diran.** Revizija ne popravlja ono što
+   ocenjuje - svaka popravka je stavka u "PREOSTALO PRE PRVOG EVRA".
+
+**Testovi:** nijedan nov - korak ne piše kod. Postojeći set je pušten ceo i
+korišćen kao dokaz: za svaku zatvorenu rupu izveštaj imenuje testove koji je
+drže (izvučeni iz `npx vitest run --reporter=verbose`, ne iz dnevnika).
+
+**Rezultat verifikacije:**
+- `npx convex codegen` - **prošlo** (exit 0, `Running TypeScript...` bez greške)
+- `npm run lint` - **prošlo** (`✖ 7 problems (0 errors, 7 warnings)`; istih 7
+  zatečenih upozorenja u `admin-inline-actions.tsx`, `dashboard-content.tsx` i
+  `public-course-intro-video.tsx`, nijedno iz Studio koda)
+- `npm run test` - **prošlo** (`Test Files 41 passed (41) / Tests 394 passed
+  (394) / Duration 6.13s`), na podrazumevanom timeout-u. Pušteno je ukupno 7
+  punih prolaza: 6 zelenih, 1 sa jednim padom - i to jedini koji je išao
+  paralelno sa `npm run lint`-om. Ime tog testa nije uhvaćeno i namerno se NE
+  pripisuje `convex/chat.test.ts`-u (pretpostavka, ne nalaz); pokušaj
+  reprodukcije pod istim opterećenjem nije oborio nijedan test. Zapisano u
+  izveštaju kao "zeleno, ali nedokazano determinističko pod opterećenjem".
+- `npm run build` - **prošlo** (`✓ Compiled successfully in 8.5s`,
+  `Finished TypeScript in 16.3s`, 60/60 statičkih stranica; sve nove rute u
+  tabeli: `/[locale]/app/studio`, `/[locale]/app/studio/gallery`,
+  `/[locale]/app/credits`, `/[locale]/app/admin/studio`, `/api/stripe/plan`)
+
+**BLOKADA:** nema.
+
+**Za Jovana:**
+1. **Pročitaj `docs/STUDIO-DAY-REPORT.md`, sekciju NOVE RUPE, pre nego što
+   dodirneš Stripe.** Tri stavke tamo (N1 `num_images`, N3 kuponi, i globalni
+   plafon iz stavke 2 u "PREOSTALO") koštaju od prvog dana prodaje.
+2. **Najjeftinija popravka u celom izveštaju je jedan red u `convex/seed.ts`:**
+   izbaci `num_images` iz `IMAGE_PARAM_SCHEMA` i pinuj ga na 1 u
+   `IMAGE_DEFAULT_PARAMS`, isto kao što je P1 uradio sa rezolucijom. Time
+   nestaje N1 dok ne odlučiš kako da ga naplatiš.
+3. **Komituj dan pre bilo čega drugog.** Sve iz P1-P10 je u radnom stablu bez
+   ijednog commit-a; jedan `git checkout .` briše ~5400 linija.
+4. **`.studio-run/` i `run-studio-day.ps1` nisu u `.gitignore`** - prvi
+   `git add -A` ih uvlači u istoriju grane.
+5. **Preporuka je "još jedan krug", ne "spremno".** Razlog je u jednoj rečenici
+   na kraju izveštaja: kod je čist i testiran, ali tri mesta i dalje propuštaju
+   novac, a zatvaraju se sa oko dva prompta.

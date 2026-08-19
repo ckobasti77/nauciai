@@ -97,6 +97,21 @@ test("listPacks vraća samo aktivne pakete sortirane po sortOrder i poštuje kin
   expect(afterDeactivate.map((pack) => pack.slug)).toEqual(["basic", "starter", "creator", "pro"]);
 });
 
+test("listAllPacks vraća i ugašene pakete, zaštićen requireAdmin", async () => {
+  const t = convexTest(schema, modules);
+  await runSeed(t);
+  const admin = await seedAdmin(t);
+  const student = await seedStudent(t);
+  const premium = await t.query(api.creditPacks.getPackBySlug, { slug: "premium" });
+  await admin.mutation(api.creditPacks.setPackActive, { packId: premium!._id, isActive: false });
+
+  await expect(student.query(api.creditPacks.listAllPacks, {})).rejects.toThrow("Forbidden");
+
+  const all = await admin.query(api.creditPacks.listAllPacks, {});
+  expect(all.map((pack) => pack.slug)).toEqual(["basic", "premium", "starter", "creator", "pro"]);
+  expect(all.find((pack) => pack.slug === "premium")?.isActive).toBe(false);
+});
+
 test("upsertPack i setPackActive su zaštićeni sa requireAdmin", async () => {
   const t = convexTest(schema, modules);
   await runSeed(t);

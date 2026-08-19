@@ -15,6 +15,16 @@ export const CREDIT_LIFETIME_MONTHS = 12;
 /** Jednokratno, na prvoj uspešnoj uplati, za oba plana (STUDIO-PLAN D.1). */
 export const WELCOME_BONUS_CREDITS = 150;
 
+/**
+ * Ključ idempotencije bonusa visi na KORISNIKU, ne na fakturi. Sa `invoice.id`
+ * je otkazivanje pa ponovna pretplata značilo novih 150 kredita - a uz
+ * `allow_promotion_codes` i kupon od 100%, faktura na 0 € se i dalje vodi kao
+ * plaćena, pa je to bila besplatna petlja.
+ */
+export function welcomeBonusKey(userId: string): string {
+  return `welcome:${userId}`;
+}
+
 /** STUDIO-PLAN 4.4 - gornja granica dužine prompta. */
 export const MAX_PROMPT_LENGTH = 2000;
 
@@ -232,8 +242,8 @@ export function creditPackGrants(session: {
 /**
  * Krediti za jednu plaćenu `invoice.paid` fakturu Studio plana. Mesečna doza
  * visi na fakturi, ne na `checkout.session.completed`, jer taj event puca samo
- * pri prvom plaćanju (STUDIO-PLAN D.5). Ključ idempotencije je `invoice.id`, a
- * za bonus dobrodošlice `invoice.id + ":welcome"` - dva odvojena lota koja se
+ * pri prvom plaćanju (STUDIO-PLAN D.5). Ključ idempotencije doze je
+ * `invoice.id`, a bonusa `welcome:<userId>` - dva odvojena lota koja se
  * ponavljaju nezavisno jedan od drugog.
  *
  * `planCredits <= 0` (Basic nema mesečnu dozu) preskače dozu, ali ne i bonus.
@@ -266,7 +276,7 @@ export function invoicePaidGrants(invoice: {
       userId,
       amount: WELCOME_BONUS_CREDITS,
       source: "welcome_bonus",
-      stripeInvoiceId: `${invoiceId}:welcome`,
+      stripeInvoiceId: welcomeBonusKey(userId),
     });
   }
 

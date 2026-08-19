@@ -13,6 +13,7 @@ import {
   studioPlanSlug,
   usableBalance,
   validatePrompt,
+  welcomeBonusKey,
   WELCOME_BONUS_CREDITS,
   type Lot,
   type StripeGrant,
@@ -466,9 +467,11 @@ test("subscription_create faktura dodeli dozu plana I welcome bonus, oba nezavis
   });
 
   expect(grants.map((grant) => grant.source)).toEqual(["plan_grant", "welcome_bonus"]);
+  // Doza visi na fakturi, bonus na korisniku - inače nova pretplata donosi
+  // novih 150 kredita.
   expect(grants.map((grant) => grant.stripeInvoiceId)).toEqual([
     "in_create_1",
-    "in_create_1:welcome",
+    welcomeBonusKey(userId),
   ]);
 
   await applyStripeGrants(t, grants);
@@ -489,10 +492,9 @@ test("subscription_create faktura dodeli dozu plana I welcome bonus, oba nezavis
   expect(after.transactions).toHaveLength(2);
   expect(after.balance?.balance).toBe(PREMIUM_MONTHLY_CREDITS + WELCOME_BONUS_CREDITS);
   expect(after.lots.map((row) => row.source).sort()).toEqual(["plan_grant", "welcome_bonus"]);
-  expect(after.lots.map((row) => row.stripeInvoiceId).sort()).toEqual([
-    "in_create_1",
-    "in_create_1:welcome",
-  ]);
+  expect(after.lots.map((row) => row.stripeInvoiceId).sort()).toEqual(
+    ["in_create_1", welcomeBonusKey(userId)].sort(),
+  );
 });
 
 test("obnova pretplate dodeli SAMO dozu plana, bez welcome bonusa", async () => {
@@ -621,4 +623,60 @@ test("regresioni cuvar: sesija pretplate na kurs ne ulazi u grane Studija", asyn
   expect(balance).toBeNull();
   expect(lots).toEqual([]);
   expect(transactions).toEqual([]);
+});
+
+test("dve subscription_create fakture za istog korisnika daju tačno 150 kredita", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await seedUser(t);
+
+  // Prva pretplata, pa otkazivanje, pa nova pretplata: nova faktura, nov
+  // `invoice.id`, isti korisnik. Basic nema mesečnu dozu, pa je bonus jedini
+  // grant i lako se prebroji.
+  for (const invoiceId of ["in_prva", "in_druga_posle_otkazivanja"]) {
+    await applyStripeGrants(
+      t,
+      invoicePaidGrants({
+        invoiceId,
+        billingReason: "subscription_create",
+        subscriptionMetadata: planMetadata(userId),
+        planCredits: 0,
+      }),
+    );
+  }
+
+  const { balance, lots, transactions } = await ledger(t, userId);
+  expect(lots).toHaveLength(1);
+  expect(lots[0]).toMatchObject({
+    source: "welcome_bonus",
+    stripeInvoiceId: welcomeBonusKey(userId),
+  });
+  expect(transactions.filter((row) => row.type === "bonus")).toHaveLength(1);
+  expect(balance?.balance).toBe(WELCOME_BONUS_CREDITS);
+});
+
+test("bonus se ne dodeljuje drugi put ni kad lot nosi stari ključ po fakturi", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await seedUser(t);
+  // Lot otvoren pre prelaska na ključ po korisniku - drugi sloj u
+  // `grantCredits` ga mora prepoznati po izvoru, ne po ključu.
+  await t.mutation(internal.credits.grantCredits, {
+    userId,
+    amount: WELCOME_BONUS_CREDITS,
+    source: "welcome_bonus",
+    idempotencyKey: { field: "stripeInvoiceId", value: "in_stara:welcome" },
+  });
+
+  await applyStripeGrants(
+    t,
+    invoicePaidGrants({
+      invoiceId: "in_nova",
+      billingReason: "subscription_create",
+      subscriptionMetadata: planMetadata(userId),
+      planCredits: 0,
+    }),
+  );
+
+  const { balance, lots } = await ledger(t, userId);
+  expect(lots).toHaveLength(1);
+  expect(balance?.balance).toBe(WELCOME_BONUS_CREDITS);
 });

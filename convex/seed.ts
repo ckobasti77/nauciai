@@ -1,6 +1,9 @@
 import { mutationGeneric } from "convex/server";
 import { v } from "convex/values";
 
+import { normalizeEmail } from "../lib/admin-emails";
+import { internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 import { mutation } from "./_generated/server";
 import { requireSyncSecret } from "./helpers";
 
@@ -501,7 +504,21 @@ const IMAGE_PARAM_SCHEMA = JSON.stringify([
   },
   { key: "num_images", type: "number", label: "Broj slika", min: 1, max: 4 },
 ] as const);
-const IMAGE_DEFAULT_PARAMS = JSON.stringify({ aspect_ratio: "1:1", num_images: 1 });
+const IMAGE_DEFAULT_PARAMS = { aspect_ratio: "1:1", num_images: 1 };
+
+/**
+ * Rezolucija je deo IDENTITETA sluga, ne polje koje klijent bira: `nano-banana-2`
+ * i `nano-banana-2-2k` dele isti `falEndpoint` uz 20 naspram 30 kredita, pa bi
+ * inače dovoljno bilo izabrati jeftiniji slug i sam poslati 2K parametar. Zato
+ * vrednost ulazi u `defaultParams`, a u `paramSchema` se NE izlaže - `sanitizeParams`
+ * (studioCore) tiho izbacuje svaki `resolution` koji stigne od klijenta.
+ */
+const RESOLUTION_BY_SLUG: Record<string, string> = {
+  "nano-banana-2": "1K",
+  "nano-banana-2-2k": "2K",
+  "nano-banana-pro": "1K",
+  "nano-banana-pro-4k": "4K",
+};
 
 // Video i zvuk se uključuju u Fazi B i C - forma za njih se piše tad, pa je
 // param šema ovde namerno svedena na jedino polje koje je zajedničko svima.
@@ -836,6 +853,7 @@ export const seedModelCatalog = mutation({
         .withIndex("by_slug", (q) => q.eq("slug", seed.slug))
         .unique();
       const isImage = seed.kind === "image";
+      const resolution = RESOLUTION_BY_SLUG[seed.slug];
       const patch = {
         slug: seed.slug,
         kind: seed.kind,
@@ -845,7 +863,12 @@ export const seedModelCatalog = mutation({
         descriptionEn: seed.descriptionEn,
         provider: "fal",
         falEndpoint: seed.falEndpoint,
-        defaultParams: isImage ? IMAGE_DEFAULT_PARAMS : EMPTY_DEFAULT_PARAMS,
+        defaultParams: isImage
+          ? JSON.stringify({
+              ...IMAGE_DEFAULT_PARAMS,
+              ...(resolution ? { resolution } : {}),
+            })
+          : EMPTY_DEFAULT_PARAMS,
         paramSchema: isImage ? IMAGE_PARAM_SCHEMA : MINIMAL_PARAM_SCHEMA,
         creditCost: seed.creditCost,
         estimatedCostUsd: seed.estimatedCostUsd,
@@ -886,5 +909,51 @@ export const seedPlatformFlags = mutation({
     }
 
     return null;
+  },
+});
+
+/**
+ * Demo krediti bez Stripe-a. Bez ovoga se `/app/studio` ne može ni probati
+ * lokalno: balans je 0, `createJob` baca `NEDOVOLJNO_KREDITA`, i jedini put do
+ * kredita vodi kroz pet Stripe price ID-jeva kojih još nema.
+ *
+ * Ključ idempotencije je redni broj demo lota tog korisnika, pa svako
+ * pokretanje otvara NOV lot - namerno, jer je poenta da se demo balans može
+ * dopuniti kad se potroši. Redni broj, a ne `Date.now()`: dva poziva u istoj
+ * milisekundi bi delila ključ i drugi bi tiho postao no-op.
+ *
+ * Ovo je jedini grant u kodu koji nije idempotentan; sme da bude jer iza njega
+ * ne stoji nikakva naplata, a `requireSyncSecret` ga drži van dohvata klijenta.
+ */
+export const grantDemoCredits = mutation({
+  args: { syncSecret: v.string(), email: v.string(), amount: v.number() },
+  // Povratni tip je napisan ručno, kao i u `credits.applyStripeGrant`: bez
+  // njega `ctx.runMutation` uvodi kružnu zavisnost kroz `_generated/api`, TS
+  // odustane od zaključivanja i `next build` pukne na sasvim drugom fajlu.
+  handler: async (ctx, args): Promise<Id<"creditLots">> => {
+    requireSyncSecret(args.syncSecret);
+
+    const email = normalizeEmail(args.email);
+    const user = await ctx.db
+      .query("users")
+      .withIndex("email", (q) => q.eq("email", email))
+      .first();
+    if (!user) throw new Error("KORISNIK_NIJE_NADJEN");
+
+    const existingGrants = await ctx.db
+      .query("creditLots")
+      .withIndex("by_user_source", (q) => q.eq("userId", user._id).eq("source", "admin_grant"))
+      .collect();
+
+    return await ctx.runMutation(internal.credits.grantCredits, {
+      userId: user._id,
+      amount: args.amount,
+      source: "admin_grant",
+      idempotencyKey: {
+        field: "stripeSessionId",
+        value: `demo:${user._id}:${existingGrants.length + 1}`,
+      },
+      meta: { note: `demo grant za ${email}` },
+    });
   },
 });

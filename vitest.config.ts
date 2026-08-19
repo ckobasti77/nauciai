@@ -10,6 +10,6 @@ export default defineConfig({
   },
   test: {
     environment: "edge-runtime",
-    include: ["convex/**/*.test.ts", "lib/**/*.test.ts"],
+    include: ["app/**/*.test.ts", "convex/**/*.test.ts", "lib/**/*.test.ts"],
   },
 });

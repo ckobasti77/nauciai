@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 
 import { mutation, query } from "./_generated/server";
-import { requireAdmin } from "./helpers";
+import { getCurrentProfile, requireAdmin } from "./helpers";
 
 const creditPackKind = v.union(v.literal("pack"), v.literal("plan"));
 const planTier = v.union(v.literal("basic"), v.literal("premium"));
@@ -30,6 +30,23 @@ export const listPacks = query({
         planTier: pack.planTier,
         sortOrder: pack.sortOrder,
       }));
+  },
+});
+
+/**
+ * Admin varijanta `listPacks`-a: svi paketi/planovi, uključujući ugašene, i
+ * bez `.map` projekcije - admin uređuje `stripePriceId` koje `listPacks`
+ * namerno vraća ali ovde treba puno stanje za upsert nazad.
+ */
+export const listAllPacks = query({
+  args: {},
+  handler: async (ctx) => {
+    // Vidi napomenu u `modelCatalog.listAllModels`: `requireAdmin` traži
+    // pisiv kontekst, pa se u query-ju koristi `getCurrentProfile` direktno.
+    const { profile } = await getCurrentProfile(ctx);
+    if (profile.role !== "admin") throw new Error("Forbidden");
+    const rows = await ctx.db.query("creditPacks").take(MAX_PACKS);
+    return rows.sort((a, b) => a.sortOrder - b.sortOrder);
   },
 });
 

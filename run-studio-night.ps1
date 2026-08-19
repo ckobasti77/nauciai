@@ -884,7 +884,15 @@ foreach ($step in $Steps) {
         $buf = New-Object byte[] ($fs.Length - $progLenBefore)
         $fs.Read($buf, 0, $buf.Length) | Out-Null
         $tail = [System.Text.Encoding]::UTF8.GetString($buf)
-        if ($tail -match "BLOKADA:\s*\S") { $blocked = $true }
+        foreach ($line in ($tail -split "`r?`n")) {
+          # Samo redovi koji POCINJU poljem BLOKADA; recenice koje je pominju
+          # usput ("nije BLOKADA ovog koraka") se preskacu.
+          if ($line -notmatch '^\s*\*{0,2}BLOKADA') { continue }
+          $rest = ($line -replace '^\s*\*{0,2}BLOKADA[:\*\s]*', '').Trim().ToLower()
+          if ($rest -and $rest -notmatch '^(nema|nije|ne postoji|nijedna|n/a|-)') {
+            $blocked = $true
+          }
+        }
       }
     } finally { $fs.Close() }
   }

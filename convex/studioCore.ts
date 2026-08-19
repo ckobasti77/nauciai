@@ -9,9 +9,21 @@ export const MAX_ACTIVE_JOBS = 3;
 /** STUDIO-PLAN 4.4 - najviše 50 generacija po korisniku dnevno. */
 export const MAX_DAILY_GENERATIONS = 50;
 
+/**
+ * Kill switch iz STUDIO-PLAN 4.4; red živi u `platformFlags`. Ovde, a ne u
+ * `studio.ts`, jer ga čita i admin ekran (P8) - dva query/mutation modula ne
+ * smeju da drže dva odvojena literala za isti ključ.
+ */
+export const STUDIO_FLAG_KEY = "studio_enabled";
+
 /** Ključ reda u `studioUsageDaily`: UTC dan, "2026-08-18". */
 export function dayKey(now: number): string {
   return new Date(now).toISOString().slice(0, 10);
+}
+
+/** UTC ponoć dana kom `now` pripada - donja granica za "poslovi napravljeni danas". */
+export function dayStart(now: number): number {
+  return new Date(`${dayKey(now)}T00:00:00.000Z`).getTime();
 }
 
 /**
@@ -78,4 +90,222 @@ export function computeCreditCost(model: PricedModel, params: Record<string, unk
   }
 
   return Math.ceil(model.costPerSecond * duration);
+}
+
+/** ECB kurs iz STUDIO-PLAN §2 (14.08.2026): 1 $ = 0,865 €. Nije uživo - ista pretpostavka kao seed cena. */
+export const EUR_PER_USD = 0.865;
+
+/** Ispod ovog množioca admin ekran boji maržu upozoravajuće (P8). */
+export const LOW_MARGIN_THRESHOLD = 2;
+
+/**
+ * Marža modela = maloprodajna vrednost `creditCost`-a u evrima (100 kr = 1 €,
+ * STUDIO-PLAN §2.3) podeljena nabavnom cenom u evrima. `null` kad nabavna
+ * cena nije upisana (0 ili manje) - deljenje nulom bi dalo `Infinity`, a to bi
+ * admin ekran pogrešno obojio kao "odlična marža" umesto "nema podatka".
+ */
+export function computeMargin(creditCost: number, estimatedCostUsd: number): number | null {
+  const costEur = estimatedCostUsd * EUR_PER_USD;
+  if (costEur <= 0) return null;
+  return creditCost / 100 / costEur;
+}
+
+/**
+ * STUDIO-PLAN 4.4 - dnevni plafon STVARNOG troška po korisniku, u dolarima.
+ * Limit od 50 generacija dnevno nije plafon dok korisnik sam bira model:
+ * 50 × `veo-31-standard-1080p` je preko 100 $ nabavno.
+ */
+export const MAX_DAILY_COST_USD = 5;
+
+/**
+ * Sabira u centima jer `0.1 + 0.2` u binarnom zapisu nije `0.3` - bez toga bi
+ * prag umeo da pukne na tačnoj petici, u jednu ili u drugu stranu.
+ */
+export function exceedsDailyCostLimit(spentUsd: number, addedUsd: number): boolean {
+  return Math.round((spentUsd + addedUsd) * 100) > MAX_DAILY_COST_USD * 100;
+}
+
+/**
+ * Koliko puta preko `max` je još "promašaj forme" (pa se odseca), a odakle je
+ * "neko gađa naš fal račun" (pa se odbija). `num_images: 20` uz `max: 4` je
+ * prvo, `num_images: 200` je drugo.
+ */
+const PARAM_MAGNITUDE_FACTOR = 10;
+
+/** Polje iz `modelCatalog.paramSchema`; nepoznat `type` se ne propušta. */
+type ParamField = {
+  key: string;
+  type: string;
+  min?: number;
+  max?: number;
+  options?: unknown;
+};
+
+export type SanitizedParams =
+  | { ok: true; params: Record<string, unknown> }
+  | { ok: false; reason: string };
+
+/** Prompt je jedino polje koje prolazi i kad ga šema ne pominje. */
+const IMPLICIT_PROMPT_FIELD: ParamField = { key: "prompt", type: "textarea" };
+
+function readParamFields(schemaJson: string): Map<string, ParamField> | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(schemaJson);
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(parsed)) return null;
+
+  const fields = new Map<string, ParamField>();
+  for (const entry of parsed) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
+    const field = entry as Record<string, unknown>;
+    if (typeof field.key !== "string" || typeof field.type !== "string") continue;
+    fields.set(field.key, {
+      key: field.key,
+      type: field.type,
+      min: typeof field.min === "number" ? field.min : undefined,
+      max: typeof field.max === "number" ? field.max : undefined,
+      options: field.options,
+    });
+  }
+
+  return fields;
+}
+
+/**
+ * Jedina kapija između onoga što je klijent poslao i onoga što fal naplaćuje.
+ * Cena posla je fiksna (iz kataloga), pa svaka poluga koja množi fal račun -
+ * `num_images`, rezolucija, broj koraka - mora da bude ili u šemi i ograničena,
+ * ili da nikad ne stigne do fal-a.
+ *
+ * Pravila, redom: nepoznat ključ tiho ispada (klijent ne dobija mapu polja
+ * koja postoje); broj se odseca na `min`/`max`, ali se odbija ako je van reda
+ * veličine; `select` mora da bude iz svog skupa, inače se odbija - odsecanje
+ * na "najbližu dozvoljenu vrednost" bi tiho generisalo nešto što niko nije
+ * tražio. Vrednost pogrešnog tipa ispada kao i nepoznat ključ, pa se posao
+ * odradi sa podrazumevanom vrednošću modela.
+ */
+export function sanitizeParams(
+  schemaJson: string,
+  raw: Record<string, unknown>,
+): SanitizedParams {
+  const fields = readParamFields(schemaJson);
+  if (!fields) return { ok: false, reason: "NEISPRAVNA_SEMA" };
+
+  const params: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    const field = fields.get(key) ?? (key === "prompt" ? IMPLICIT_PROMPT_FIELD : undefined);
+    if (!field) continue;
+
+    if (field.type === "number") {
+      if (typeof value !== "number" || !Number.isFinite(value)) continue;
+      // Odbija se samo skupa strana. Ispod `min` nema šta da se izgubi -
+      // `num_images: 0` je prazno polje u formi, a ne napad na fal račun.
+      if (field.max !== undefined && value > field.max * PARAM_MAGNITUDE_FACTOR) {
+        return { ok: false, reason: `VAN_OPSEGA:${key}` };
+      }
+      const clampedLow = field.min !== undefined ? Math.max(value, field.min) : value;
+      params[key] = field.max !== undefined ? Math.min(clampedLow, field.max) : clampedLow;
+      continue;
+    }
+
+    if (field.type === "select") {
+      const options = Array.isArray(field.options) ? field.options : [];
+      if (!options.includes(value)) return { ok: false, reason: `NEDOZVOLJENA_VREDNOST:${key}` };
+      params[key] = value;
+      continue;
+    }
+
+    if (field.type === "textarea" || field.type === "text") {
+      if (typeof value !== "string") continue;
+      params[key] = value;
+      continue;
+    }
+  }
+
+  return { ok: true, params };
+}
+
+/**
+ * STUDIO-PLAN 0.2 - tiered retencija. Video je jedini tip koji stvarno jede
+ * bajtove, pa živi 30 dana; slike i zvuk 90. Red u bazi ostaje i posle isteka
+ * fajla (`crons.expireGenerationFiles`) - prompt i model nose "Generiši
+ * ponovo", pa je istek proizvod, a ne gubitak.
+ */
+export const OUTPUT_RETENTION_DAYS = { image: 90, audio: 90, video: 30 } as const;
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+export function outputExpiresAt(kind: keyof typeof OUTPUT_RETENTION_DAYS, now: number): number {
+  return now + OUTPUT_RETENTION_DAYS[kind] * DAY_MS;
+}
+
+/**
+ * Prefiks `falRequestId`-ja mock posla. Živi ovde, a ne u `studioActions.ts`,
+ * jer ga čita i `studio.listMyJobs` (DEMO značka u galeriji) - a query modul ne
+ * sme da uvlači akcioni modul samo zbog jednog stringa.
+ */
+export const MOCK_REQUEST_PREFIX = "mock-";
+
+/** Je li posao odradio mock provajder; posao bez `falRequestId`-ja nije. */
+export function isMockRequestId(falRequestId: string | undefined): boolean {
+  return falRequestId !== undefined && falRequestId.startsWith(MOCK_REQUEST_PREFIX);
+}
+
+/**
+ * STUDIO-PLAN mock provajder (P4) - koliko poslova "uspe" dok Jovan nema
+ * `FAL_KEY`. 15% neuspeha je namerno: mora da se vidi da refund stvarno radi,
+ * ne samo srećan put.
+ */
+const MOCK_SUCCESS_RATE = 0.85;
+
+/**
+ * Deterministički ishod mock posla, izveden iz `jobId`-a - NIKAD
+ * `Math.random()`, da isti posao uvek daje isti ishod i da testovi budu
+ * ponovljivi. Ista FNV-1a konstrukcija kao `promptHash`, jedna traka je
+ * dovoljna jer ovde nije bitna otpornost na koliziju, samo raspodela.
+ */
+export function mockJobSucceeds(jobId: string): boolean {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < jobId.length; index += 1) {
+    hash = Math.imul(hash ^ jobId.charCodeAt(index), 0x01000193) >>> 0;
+  }
+
+  return (hash % 100) / 100 < MOCK_SUCCESS_RATE;
+}
+
+/**
+ * Demo izlaz mock provajdera: SVG sa promptom ispisanim preko obojene
+ * pozadine (boja izvedena iz `hash`, tj. iz `generationJobs.promptHash`),
+ * kodiran kao `data:` URL. Bez mrežnog poziva i bez zavisnosti - radi
+ * offline, a boja odmah pokazuje koji prompt je dao koju "sliku".
+ */
+export function mockOutputDataUrl(prompt: string, hash: string): string {
+  const hue = parseInt(hash.slice(0, 4) || "0", 16) % 360;
+  const label = (prompt.trim() || "DEMO").slice(0, 80).replace(/[&<>]/g, (char) =>
+    char === "&" ? "&amp;" : char === "<" ? "&lt;" : "&gt;",
+  );
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512">` +
+    `<rect width="512" height="512" fill="hsl(${hue},65%,45%)"/>` +
+    `<text x="24" y="256" fill="white" font-family="sans-serif" font-size="22">${label}</text>` +
+    `</svg>`;
+
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
+/** Koliko znakova prompta stane u naslov `labOutputs` reda. */
+export const OUTPUT_TITLE_MAX_LENGTH = 60;
+
+/**
+ * Naslov izlaza je početak prompta - to je jedino što korisnik prepoznaje u
+ * galeriji. Prompt koji je prazan (model bez teksta, ili prompt sam od
+ * razmaka) pada na `fallback`, jer je `labOutputs.title` obavezno polje i
+ * prazan naslov bi u listi izgledao kao pokvaren red.
+ */
+export function outputTitle(prompt: string, fallback: string): string {
+  const trimmed = prompt.trim().slice(0, OUTPUT_TITLE_MAX_LENGTH).trim();
+  return trimmed || fallback;
 }
