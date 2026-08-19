@@ -60,6 +60,36 @@ const chatRequestStatus = v.union(
   v.literal("accepted"),
   v.literal("declined"),
 );
+const planTier = v.union(v.literal("basic"), v.literal("premium"));
+const creditLotSource = v.union(
+  v.literal("purchase"),
+  v.literal("plan_grant"),
+  v.literal("welcome_bonus"),
+  v.literal("admin_grant"),
+);
+const creditTransactionType = v.union(
+  v.literal("purchase"),
+  v.literal("spend"),
+  v.literal("refund"),
+  v.literal("bonus"),
+  v.literal("trial"),
+  v.literal("expiry"),
+  v.literal("admin_adjust"),
+);
+const creditPackKind = v.union(v.literal("pack"), v.literal("plan"));
+const studioModelKind = v.union(v.literal("image"), v.literal("video"), v.literal("audio"));
+const modelCatalogBadge = v.union(
+  v.literal("preporuceno"),
+  v.literal("skupo"),
+  v.literal("novo"),
+);
+const generationJobStatus = v.union(
+  v.literal("reserved"),
+  v.literal("running"),
+  v.literal("done"),
+  v.literal("failed"),
+  v.literal("refunded"),
+);
 const localizedCopy = v.object({ sr: v.string(), en: v.string() });
 const pageCopy = v.object({
   primaryCta: v.optional(localizedCopy),
@@ -1012,6 +1042,8 @@ export default defineSchema({
     userId: v.id("users"),
     courseId: v.id("courses"),
     status: v.union(v.literal("active"), v.literal("blocked")),
+    // Optional so existing rows stay valid; absence means "basic".
+    plan: v.optional(planTier),
     startedAt: v.number(),
     updatedAt: v.number(),
   })
@@ -1263,4 +1295,125 @@ export default defineSchema({
       "eligible",
       "xp",
     ]),
+
+  // ── STUDIO: KREDITI ───────────────────────────────────────────────────
+  creditLots: defineTable({
+    userId: v.id("users"),
+    source: creditLotSource,
+    granted: v.number(),
+    remaining: v.number(),
+    // Uvek grantedAt + 12 meseci, bez obzira na izvor.
+    expiresAt: v.number(),
+    grantedAt: v.number(),
+    stripeInvoiceId: v.optional(v.string()),
+    stripeSessionId: v.optional(v.string()),
+    packId: v.optional(v.id("creditPacks")),
+    exhaustedAt: v.optional(v.number()),
+  })
+    .index("by_user_expiry", ["userId", "expiresAt"])
+    .index("by_user_active", ["userId", "exhaustedAt"])
+    .index("by_stripe_invoice", ["stripeInvoiceId"])
+    .index("by_stripe_session", ["stripeSessionId"])
+    .index("by_expiry", ["expiresAt"]),
+
+  creditTransactions: defineTable({
+    userId: v.id("users"),
+    amount: v.number(),
+    type: creditTransactionType,
+    balanceAfter: v.number(),
+    jobId: v.optional(v.id("generationJobs")),
+    lotId: v.optional(v.id("creditLots")),
+    stripeSessionId: v.optional(v.string()),
+    packId: v.optional(v.id("creditPacks")),
+    note: v.optional(v.string()),
+    expiresAt: v.optional(v.number()),
+    createdAt: v.number(),
+  })
+    .index("by_user", ["userId", "createdAt"])
+    .index("by_job_type", ["jobId", "type"])
+    .index("by_stripe_session", ["stripeSessionId"])
+    .index("by_expiry", ["expiresAt"]),
+
+  // Denormalizovan keš; izvor istine je zbir `creditLots.remaining`.
+  creditBalances: defineTable({
+    userId: v.id("users"),
+    balance: v.number(),
+    lifetimePurchased: v.number(),
+    lifetimeSpent: v.number(),
+    updatedAt: v.number(),
+  }).index("by_user", ["userId"]),
+
+  creditPacks: defineTable({
+    slug: v.string(),
+    titleSr: v.string(),
+    titleEn: v.string(),
+    priceEurCents: v.number(),
+    credits: v.number(),
+    bonusPercent: v.number(),
+    stripePriceId: v.optional(v.string()),
+    kind: creditPackKind,
+    planTier: v.optional(planTier),
+    sortOrder: v.number(),
+    isActive: v.boolean(),
+  }).index("by_slug", ["slug"]),
+
+  // ── STUDIO: KATALOG MODELA ───────────────────────────────────────────
+  modelCatalog: defineTable({
+    slug: v.string(),
+    kind: studioModelKind,
+    labelSr: v.string(),
+    labelEn: v.string(),
+    descriptionSr: v.string(),
+    descriptionEn: v.string(),
+    provider: v.string(),
+    falEndpoint: v.string(),
+    defaultParams: v.string(),
+    paramSchema: v.string(),
+    creditCost: v.number(),
+    costPerSecond: v.optional(v.number()),
+    estimatedCostUsd: v.number(),
+    badge: v.optional(modelCatalogBadge),
+    isEnabled: v.boolean(),
+    sortOrder: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_kind_enabled", ["kind", "isEnabled", "sortOrder"])
+    .index("by_slug", ["slug"]),
+
+  // ── STUDIO: POSLOVI ──────────────────────────────────────────────────
+  generationJobs: defineTable({
+    userId: v.id("users"),
+    modelSlug: v.string(),
+    kind: studioModelKind,
+    params: v.string(),
+    promptHash: v.string(),
+    status: generationJobStatus,
+    creditCost: v.number(),
+    falRequestId: v.optional(v.string()),
+    actualCostUsd: v.optional(v.number()),
+    outputStorageId: v.optional(v.id("_storage")),
+    posterStorageId: v.optional(v.id("_storage")),
+    labOutputId: v.optional(v.id("labOutputs")),
+    lessonId: v.optional(v.id("lessons")),
+    taskId: v.optional(v.id("lessonTasks")),
+    error: v.optional(v.string()),
+    expiresAt: v.optional(v.number()),
+    createdAt: v.number(),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_user", ["userId", "createdAt"])
+    .index("by_fal_request", ["falRequestId"])
+    .index("by_user_status", ["userId", "status"])
+    .index("by_expiry", ["expiresAt"])
+    .index("by_status_created", ["status", "createdAt"]),
+
+  studioUsageDaily: defineTable({
+    userId: v.id("users"),
+    day: v.string(),
+    generations: v.number(),
+    creditsSpent: v.number(),
+    costUsd: v.number(),
+  })
+    .index("by_user_day", ["userId", "day"])
+    .index("by_day", ["day"]),
 });
