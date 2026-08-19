@@ -1418,4 +1418,12 @@ export default defineSchema({
   })
     .index("by_user_day", ["userId", "day"])
     .index("by_day", ["day"]),
+
+  // ── PLATFORMA: SKLOPKE ───────────────────────────────────────────────
+  // Kill switch iz STUDIO-PLAN 4.4. `studio.createJob` čita "studio_enabled"
+  // pre svake druge provere; `enabled: false` gasi Studio bez deploy-a.
+  platformFlags: defineTable({
+    key: v.string(),
+    enabled: v.boolean(),
+  }).index("by_key", ["key"]),
 });

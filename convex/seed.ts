@@ -862,3 +862,29 @@ export const seedModelCatalog = mutation({
     return null;
   },
 });
+
+const platformFlagKeys = ["studio_enabled"] as const;
+
+/**
+ * Kill switch iz STUDIO-PLAN 4.4. Za razliku od `seedCreditPacks` i
+ * `seedModelCatalog`, ponovljen seed NE prepisuje postojeći red: ako je
+ * Studio ručno ugašen (`enabled: false`), ponovno pokretanje seed-a ne sme
+ * da ga tiho upali nazad.
+ */
+export const seedPlatformFlags = mutation({
+  args: { syncSecret: v.string() },
+  handler: async (ctx, args) => {
+    requireSyncSecret(args.syncSecret);
+
+    for (const key of platformFlagKeys) {
+      const existing = await ctx.db
+        .query("platformFlags")
+        .withIndex("by_key", (q) => q.eq("key", key))
+        .unique();
+      if (existing) continue;
+      await ctx.db.insert("platformFlags", { key, enabled: true });
+    }
+
+    return null;
+  },
+});

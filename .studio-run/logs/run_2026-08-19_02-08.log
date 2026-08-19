@@ -61,3 +61,10 @@
 [03:07:37]  A8  |  fal.ai klijent i submit akcija
 [03:07:37]  model=sonnet  effort=high
 [03:07:37] --------------------------------------------------
+[03:15:58] Commit f06a3d5 - 9 izmenjenih putanja
+[03:15:58] A8 -> BLOKADA  (8 min, USD 3.52)
+[03:15:58] 
+[03:15:58] --------------------------------------------------
+[03:15:58]  A9  |  createJob sa rezervacijom kredita
+[03:15:58]  model=opus  effort=max
+[03:15:58] --------------------------------------------------

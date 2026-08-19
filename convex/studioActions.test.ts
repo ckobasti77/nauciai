@@ -99,39 +99,8 @@ async function balanceOf(t: TestConvex, userId: Id<"users">) {
   return row?.balance ?? 0;
 }
 
-test("markJobRunning postavlja status running i falRequestId", async () => {
-  const t = convexTest(schema, modules);
-  const userId = await seedUser(t);
-  const jobId = await seedReservedJob(t, userId, { modelSlug: "flux-2-flash" });
-
-  await t.mutation(internal.studioActions.markJobRunning, { jobId, falRequestId: "req_1" });
-
-  const job = await t.run((ctx) => ctx.db.get(jobId));
-  expect(job?.status).toBe("running");
-  expect(job?.falRequestId).toBe("req_1");
-});
-
-test("failJob upisuje grešku, refundira tačan iznos, i ostaje idempotentan", async () => {
-  const t = convexTest(schema, modules);
-  const userId = await seedUser(t);
-  const jobId = await seedReservedJob(t, userId, { modelSlug: "flux-2-flash", creditCost: 20 });
-  const before = await balanceOf(t, userId);
-
-  await t.mutation(internal.studioActions.failJob, {
-    jobId,
-    error: "fal request failed (422): bad prompt",
-  });
-
-  const job = await t.run((ctx) => ctx.db.get(jobId));
-  expect(job?.status).toBe("refunded");
-  expect(job?.error).toBe("fal request failed (422): bad prompt");
-  expect(await balanceOf(t, userId)).toBe(before + 20);
-
-  // Drugi poziv ne sme da udvostruči refund - refundCredits je idempotentno
-  // preko `by_job_type` (A2).
-  await t.mutation(internal.studioActions.failJob, { jobId, error: "isti opet" });
-  expect(await balanceOf(t, userId)).toBe(before + 20);
-});
+// `markJobRunning` i `failJob` su se u A9 preselile u `convex/studio.ts`;
+// njihovi testovi žive u `convex/studio.test.ts`.
 
 test("submitJob baca jasnu grešku i refundira kad FAL_KEY fali - ne pada tiho", async () => {
   const t = convexTest(schema, modules);

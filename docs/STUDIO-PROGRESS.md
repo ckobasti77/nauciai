@@ -912,3 +912,186 @@ tačan URL/header/body iznutra i `toHaveBeenCalledTimes(1)` spolja.
   Posledica: **stuck job reaper (B6) takođe još ne postoji**, pa ručno
   testiranje pre A10 ostavlja `running` poslove trajno "u vazduhu" - to je
   poznato, ne popravljaj to sad.
+
+## A9 - `createJob` mutacija sa rezervacijom   (2026-08-19 03:30)
+
+**Fajlovi:**
+- dodato: `convex/studio.ts`, `convex/studioCore.ts`, `convex/studio.test.ts`
+- izmenjeno: `convex/schema.ts` (nova tabela `platformFlags`), `convex/seed.ts`
+  (`seedPlatformFlags`), `convex/studioActions.ts` (`markJobRunning` i
+  `failJob` preseljeni u `studio.ts`), `convex/studioActions.test.ts`
+  (njihova dva testa preseljena u `studio.test.ts`)
+
+**Šta je uradjeno:** `convex/studio.ts` donosi `createJob` - javnu mutaciju
+koja radi ceo korak 1 iz sekcije 4.2 STUDIO-PLAN-a kao JEDNU transakciju:
+kill switch iz nove `platformFlags` tabele, provera aktivnog upisa,
+moderacija prompta preko `validatePrompt` iz `creditsCore`, model iz kataloga,
+limit od 3 posla u letu, dnevni limit od 50 generacija, serverski izračunata
+cena, `credits.spendCredits`, upis `generationJobs` reda u statusu `reserved`,
+inkrement `studioUsageDaily` i `scheduler.runAfter(0, submitJob)`. Čista
+logika (dan potrošnje, hash prompta, formula cene, parsiranje `params`) je po
+konvenciji repoa izdvojena u `convex/studioCore.ts`. Uz `createJob` u
+`studio.ts` su i `markJobRunning`, `failJob` (refundira preko postojećeg
+`credits.refundCredits`) i `listMyJobs` (paginirani query, dakle realtime
+pretplata). Ledger iz A2 nije menjan - `createJob` ga samo poziva.
+
+**ODLUKE:**
+- **Upis posla ide PRE `spendCredits`, iako A9.md navodi obrnut redosled
+  (korak 9 pa 10).** `credits.spendCredits` (A2) traži `jobId` kao argument -
+  to je ključ pod kojim `refundCredits` kasnije prepoznaje trošak
+  (`by_job_type` indeks). Bez postojećeg reda u `generationJobs` taj ID ne
+  postoji, a menjati potpis `spendCredits`-a bi značilo dirati ledger koji
+  radi i pokvariti idempotenciju refunda. Garancija je ista jer je sve u istoj
+  transakciji: ako `spendCredits` baci `NEDOVOLJNO_KREDITA`, insert se
+  poništava sam. To NIJE pretpostavka - proverio sam je tako što sam
+  privremeno stavio `try/catch` oko `spendCredits` i pustio testove: test
+  "nedovoljno kredita" je odmah pao, sa poslom koji je ostao u bazi bez
+  skinutih kredita. `try/catch` je uklonjen, test je ponovo zelen.
+- **Enrollment provera = bar jedan `enrollments` red sa `status: "active"`,
+  bilo koji kurs.** A9.md kaže "aktivan enrollment na kursu", ali
+  `generationJobs` nema `courseId`, a Studio je zasebna stranica
+  (`/app/studio`, A12) bez konteksta kursa - tražiti konkretan `courseId` bi
+  značilo izmisliti argument koji UI ne može da popuni. `requireCourseAccess`
+  iz `helpers.ts` nije korišćen iz istog razloga (traži `courseId`). Greška je
+  `NIJE_UPISAN` - A9.md ne imenuje grešku za ovaj korak.
+- **Kill switch: red koji NE postoji znači "uključeno".** Samo eksplicitan
+  `enabled: false` gasi Studio. Fail-closed bi značio da svaki deployment na
+  kome seed nije pokrenut ima mrtav Studio sa zbunjujućom porukom, a
+  podrazumevana vrednost seed-a je ionako `true`. Ponašanje je zakovano
+  testovima (i za red koji ne postoji i za `enabled: true`).
+- **`seedPlatformFlags` NE prepisuje postojeći red** - za razliku od
+  `seedCreditPacks` (A4) i `seedModelCatalog` (A7), koji rade bezuslovan
+  `patch`. Kod kill switcha bi taj obrazac bio opasan: ponovno pokretanje
+  seed-a bi tiho upalilo Studio koji je namerno ugašen. Insert samo ako reda
+  nema.
+- **Nije napravljena admin mutacija za paljenje/gašenje flag-a.** A9.md je ne
+  traži, a nema ni admin UI-ja koji bi je zvao. Do koraka koji to izričito
+  traži, prekidač se okreće iz Convex dashboard-a (radi i na telefonu, što je
+  scenario iz STUDIO-PLAN 4.4).
+- **`markJobRunning` i `failJob` su preseljeni iz `studioActions.ts` u
+  `studio.ts`**, tačno kako je A8 predvideo ("ako A9 odluči da ih preseli...
+  to je jednostavan mehanički pomeraj") i kako A9.md traži ("Dodaj i
+  `markJobRunning`, `failJob`"). Telo funkcija nije promenjeno ni u jednom
+  znaku - samo je fajl drugi, a `submitJob` sada zove `internal.studio.*`.
+  Duplirati ih u oba fajla bi bilo gore od pomeranja. `getJobForSubmit` je
+  ostao u `studioActions.ts` jer služi isključivo `submitJob`-u.
+- **`createJob` prima `{ modelSlug, params }` - prompt je unutar `params`
+  JSON-a**, jer `submitJob` (A8) ceo `params` prosleđuje fal-u kao ulaz, pa
+  prompt mora da bude tamo. `params` se čuvaju doslovno onako kako su stigli.
+- **`createJob` NEMA `lessonId`/`taskId` argumente**, iako ih šema (A1) ima.
+  A9.md ih ne pominje; veza sa lekcijom/zadatkom je posao A11 ("Persist output
+  + veza sa `labOutputs`"). Dodavanje neiskorišćenih opcionih argumenata
+  unapred bi bilo spekulativno (AGENTS.md "Simplicity First"). **A11 ili A12
+  moraju da ih dodaju** da bi `taskProgress.evidenceOutputId` uopšte mogao da
+  se popuni.
+- **Greška prompta nosi i razlog: `NEISPRAVAN_PROMPT:ZABRANJEN_POJAM`** (ili
+  `:PRAZAN_PROMPT` / `:PREDUGACAK_PROMPT`). A9.md traži `NEISPRAVAN_PROMPT`;
+  prefiks je tačno to, a razlog iza dvotačke ostaje da bi UI mogao da razlikuje
+  "prompt je predugačak" od "prompt sadrži zabranjen pojam" umesto da nudi
+  jednu maglovitu poruku.
+- **Model koji ne postoji u katalogu daje istu grešku kao isključen model
+  (`MODEL_NEDOSTUPAN`).** Za korisnika je to ista situacija, a razlikovanje bi
+  odalo koji slug-ovi postoje u bazi.
+- **Cena: `costPerSecond` postoji -> `ceil(costPerSecond * duration)`, inače
+  fiksni `creditCost` iz kataloga** (STUDIO-PLAN B2). Ako model naplaćuje po
+  sekundi, a `duration` nije poslat kao pozitivan broj, mutacija baca
+  `NEISPRAVNO_TRAJANJE` umesto da padne na baznu cenu - naplatiti baznu cenu
+  za klip nepoznate dužine je tiho potkradanje kase. Nijedan model iz A7
+  seed-a još nema `costPerSecond`, pa ova grana za sada pogađa samo modele
+  koje Faza B tek uvodi.
+- **`promptHash` je FNV-1a u dve trake (16 hex znakova), ne SHA-256.** Polje
+  služi za dedup i grupisanje u moderaciji, a ne za bezbednost; ovako je
+  funkcija čista, sinhrona i deterministička, bez oslanjanja na `crypto.subtle`
+  (async, vezan za runtime). Ako zatreba kriptografska jačina, zamena je jedna
+  funkcija u `studioCore.ts`.
+- **Dan u `studioUsageDaily` je UTC dan** (`toISOString().slice(0,10)`).
+  STUDIO-PLAN ne propisuje vremensku zonu; UTC je deterministički i isti za
+  sve korisnike. Praktična posledica: dnevni limit se resetuje u 01:00 ili
+  02:00 po beogradskom vremenu, ne u ponoć.
+- **`studioUsageDaily.costUsd` se puni `model.estimatedCostUsd`-om** pri
+  rezervaciji - to je jedina cena poznata u tom trenutku. Stvarni trošak
+  (`actualCostUsd`) donosi noćna rekonsilijacija iz B9.
+- **`listMyJobs` vraća projekciju, ne cele redove** - `falRequestId` i
+  `actualCostUsd` (naša stvarna fal cena, dakle marža) ne izlaze iz backend-a.
+  Isti obrazac kao `credits.getTransactions` iz A2.
+- **Limiti (3 paralelna, 50 dnevno) su konstante u `studioCore.ts`**, ne
+  podesive u adminu. STUDIO-PLAN 4.4 kaže "podesivo u adminu", ali A9.md traži
+  konkretne brojeve, a admin UI ne postoji - konfigurabilnost bez ekrana koji
+  je koristi bila bi spekulativna.
+- **Čista logika je u `convex/studioCore.ts`, iako A9.md imenuje samo
+  `studio.ts` i `studio.test.ts`.** `rules.md` to traži kao obaveznu
+  konvenciju repoa ("Čista logika ide u `convex/<ime>Core.ts`"), a formula
+  cene je deo koji najviše zaslužuje da bude direktno testabilan. Testovi su
+  ostali u `studio.test.ts`, kako A9.md traži.
+
+**Testovi:** `convex/studio.test.ts`, 20 testova. Svih 8 traženih iz A9.md:
+(1) nedovoljno kredita - proverena sva tri uslova plus dva dodatna: nema
+`generationJobs` reda, broj `creditTransactions` redova nepromenjen i nijedan
+nije `spend`, balans nepromenjen, nema `studioUsageDaily` reda, nema zakazane
+akcije · (2) tri posla prolaze, četvrti baca `PREVISE_POSLOVA`, u bazi su
+tačno 3 posla i skinuto je tačno 3 × 20 kredita · (3) `deepfake` u promptu
+baca `NEISPRAVAN_PROMPT:ZABRANJEN_POJAM`, bez posla i bez `spend` transakcije ·
+(4) isključen model i model van kataloga -> `MODEL_NEDOSTUPAN`, balans
+netaknut · (5) klijent pošalje `creditCost: 1` u `params`, posao se naplati 20
+iz kataloga · (6) `failJob` vrati tačno 20, posao je `refunded`, tačno jedna
+`refund` transakcija · (7) `failJob` dvaput - i dalje jedna `refund`
+transakcija i isti balans · (8) 50. generacija tog dana prolazi, 51. baca
+`DNEVNI_LIMIT`.
+
+Dodatno: srećan tok (polja posla, `promptHash` formata `^[0-9a-f]{16}$`,
+`params` sačuvani doslovno, `studioUsageDaily` inkrementiran, zakazana tačno
+jedna `submitJob` akcija sa pravim `jobId`) · posao koji predje u `done`
+oslobađa mesto u limitu, a `running` ne · prazan / predugačak / nepostojeći
+prompt sa svojim razlogom · video model `ceil(4.5 × 6) = 27` i
+`NEISPRAVNO_TRAJANJE` bez trajanja · `markJobRunning` · dnevni limit vezan za
+dan (jučerašnjih 50 ne blokira danas) · kill switch `false` blokira, `true`
+pušta · neupisan i blokiran korisnik -> `NIJE_UPISAN` · neprijavljen ->
+`Unauthorized` · neispravan JSON u `params` -> `NEISPRAVNI_PARAMETRI` ·
+`listMyJobs` vraća samo svoje poslove, najnoviji prvi, bez `falRequestId`,
+`actualCostUsd` i `userId`.
+
+Ključna tvrdnja (atomičnost) je proverena mutacijom koda, ne samo posmatranjem
+zelenog testa - videti prvu ODLUKU.
+
+**Rezultat verifikacije:**
+- `npx convex codegen` - prošlo (TypeScript bez grešaka)
+- `npm run lint` - prošlo (0 grešaka; istih 7 postojećih upozorenja u
+  nepovezanim fajlovima kao posle A1-A8)
+- `npm run test` - prošlo (30 test fajlova, 181 test; A8 je ostavio 29 / 163:
+  +20 novih u `studio.test.ts`, -2 preseljena iz `studioActions.test.ts`)
+- dodatno `npx tsc --noEmit` - 14 linija, sve isti poznati problem iz A5/A8
+  (`by_user` nije prepoznat kao indeks u `convex-test` tipovima unutar `t.run`
+  helpera): 6 postojećih u `credits.test.ts` (fajl nije diran), 2 postojeće u
+  `studioActions.test.ts`, 6 novih u `studio.test.ts` iz istog `ledger()`
+  helpera prepisanog iz `credits.test.ts`. Neblokirajuće - `codegen`, `lint` i
+  `vitest` svi prolaze.
+
+**BLOKADA:** nema.
+
+**Za Jovana ujutru:**
+- Ništa nije deploy-ovano; fal nije pozvan uživo. `npx convex codegen` je
+  pisao samo u `convex/_generated/`.
+- **Nova tabela `platformFlags` traži seed pre nego što kill switch može da se
+  koristi** (bez reda Studio radi, ali nemaš šta da ugasiš):
+  ```
+  npx convex run seed:seedPlatformFlags '{"syncSecret":"<WEBHOOK_SYNC_SECRET>"}'
+  ```
+  Gašenje/paljenje se za sada radi iz Convex dashboard-a: tabela
+  `platformFlags`, red `studio_enabled`, polje `enabled`. Ponovno pokretanje
+  seed-a NEĆE upaliti Studio nazad - namerno.
+- **`createJob` traži aktivan `enrollments` red.** Tvoj test nalog mora da bude
+  upisan bar na jedan kurs, inače dobijaš `NIJE_UPISAN`. Admin uloga NE
+  zaobilazi ovu proveru.
+- **Ništa u UI-ju još ne poziva `createJob`** - Playground stranica je A12.
+  Ručno testiranje ide preko `npx convex run studio:createJob` uz prijavljenog
+  korisnika, ili sačekaj A12.
+- **Ako `FAL_KEY` nije postavljen, `createJob` će i dalje uspeti**, skinuti
+  kredite i zakazati `submitJob`, koja će odmah pasti i refundirati (A8). To je
+  ispravno ponašanje, ali znači da ćeš u ledgeru videti par `spend` + `refund`
+  za svaki pokušaj dok ključ ne postoji.
+- **`createJob` još ne prima `lessonId`/`taskId`** - kad A11 poveže izlaze sa
+  lekcijama, moraće da ih doda u argumente, inače `generationJobs.taskId`
+  ostaje uvek prazan.
+- **Dnevni limit se resetuje po UTC-u**, dakle u 02:00 po beogradskom letnjem
+  vremenu. Ako to smeta, promena je jedna funkcija (`dayKey` u
+  `studioCore.ts`).
