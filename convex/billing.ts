@@ -14,6 +14,8 @@ const subscriptionStatus = v.union(
   v.literal("paused"),
 );
 
+const planTier = v.union(v.literal("basic"), v.literal("premium"));
+
 export const getBillingSummary = queryGeneric({
   args: {},
   handler: async (ctx) => {
@@ -36,6 +38,7 @@ export const syncStripeSubscription = mutationGeneric({
     status: subscriptionStatus,
     currentPeriodEnd: v.optional(v.number()),
     cancelAtPeriodEnd: v.boolean(),
+    plan: v.optional(planTier),
   },
   handler: async (ctx, args) => {
     requireSyncSecret(args.syncSecret);
@@ -72,6 +75,8 @@ export const syncStripeSubscription = mutationGeneric({
       userId: args.userId,
       courseId: args.courseId,
       status: args.status === "active" || args.status === "trialing" ? "active" : "blocked",
+      // Omitted when the webhook does not know the plan, so the stored tier survives.
+      ...(args.plan ? { plan: args.plan } : {}),
       updatedAt: Date.now(),
     };
 

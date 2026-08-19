@@ -120,7 +120,11 @@ export const getLessonLab = query({
     const profile = await requireCourseAccess(ctx, match.course._id);
     const isAdmin = profile.role === "admin";
     if (!isAdmin && !match.lesson.isPublished) return null;
-    const canUsePro = canUseProLesson(profile.role, match.lesson.proEnabled !== false);
+    const enrollment = await ctx.db
+      .query("enrollments")
+      .withIndex("by_user_course", (q) => q.eq("userId", userId).eq("courseId", match.course._id))
+      .unique();
+    const canUsePro = canUseProLesson(enrollment?.plan, profile.role, match.lesson.proEnabled !== false);
     if (!canUsePro) {
       return {
         course: match.course,

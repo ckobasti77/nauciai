@@ -3,14 +3,28 @@ import { describe, expect, it } from "vitest";
 import { canUseProLesson } from "./lesson-access";
 
 describe("Pro lesson access", () => {
-  it("allows admins, moderators and Pro students", () => {
-    expect(canUseProLesson("admin")).toBe(true);
-    expect(canUseProLesson("moderator")).toBe(true);
-    expect(canUseProLesson("pro_student")).toBe(true);
+  it("allows staff regardless of the enrollment plan", () => {
+    expect(canUseProLesson(undefined, "admin")).toBe(true);
+    expect(canUseProLesson("basic", "admin")).toBe(true);
+    expect(canUseProLesson("basic", "moderator")).toBe(true);
   });
 
-  it("keeps Pro data unavailable to Light users and disabled lessons", () => {
-    expect(canUseProLesson("student")).toBe(false);
-    expect(canUseProLesson("pro_student", false)).toBe(false);
+  it("still allows the legacy pro_student role", () => {
+    expect(canUseProLesson(undefined, "pro_student")).toBe(true);
+  });
+
+  it("allows Premium enrollments", () => {
+    expect(canUseProLesson("premium", "student")).toBe(true);
+  });
+
+  it("keeps Pro data unavailable to Basic and to missing enrollments", () => {
+    expect(canUseProLesson("basic", "student")).toBe(false);
+    expect(canUseProLesson(undefined, "student")).toBe(false);
+  });
+
+  it("keeps Pro data unavailable on disabled lessons, even for Premium", () => {
+    expect(canUseProLesson("premium", "student", false)).toBe(false);
+    expect(canUseProLesson("premium", "admin", false)).toBe(false);
+    expect(canUseProLesson(undefined, "pro_student", false)).toBe(false);
   });
 });

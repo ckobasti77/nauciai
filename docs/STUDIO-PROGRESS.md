@@ -199,3 +199,93 @@ pet je oboreno. Sve izmene su vraćene, `diff` je čist.
   taj test je čuvar.
 - `creditPacks` i `modelCatalog` su i dalje prazni (to je A3), pa Studio još ne
   može da naplati ni jednu generaciju.
+
+---
+
+## A3 - Planovi pretplate vezani za pristup Pro lekcijama   (2026-08-19 02:35)
+
+**Fajlovi:**
+- dodato: `lib/plan.ts`, `lib/plan.test.ts`
+- izmenjeno: `lib/lesson-access.ts`, `lib/lesson-access.test.ts`, `convex/lab.ts`,
+  `convex/billing.ts`
+
+**Šta je uradjeno:** Pro lekcije se sada otključavaju preko `enrollments.plan`
+(po kursu), ne preko globalnog `users.role`. Nov `lib/plan.ts` drži tip `Plan` i
+`normalizePlan` / `planFromPriceId`, gde odsustvo ili nepoznata vrednost uvek
+padaju na `"basic"`. `canUseProLesson` je dobila nov potpis
+`(plan, role, proEnabled = true)` i vraća `true` samo ako je `proEnabled` i
+korisnik je staff ili mu je plan `premium`; legacy `role === "pro_student"` je
+namerno zadržan. Jedini pozivalac, `getLessonLab` u `convex/lab.ts`, pre provere
+učita `enrollments` red za taj `userId` + `courseId` preko `by_user_course` i
+prosledi `enrollment?.plan`. `syncStripeSubscription` je dobio opcioni argument
+`plan` koji se upisuje u isti `enrollmentPatch` koji već postoji.
+
+**ODLUKE:**
+- **`plan` se u `enrollmentPatch` dodaje samo kad je prosledjen**
+  (`...(args.plan ? { plan: args.plan } : {})`). Bez toga bi `undefined` u
+  `ctx.db.patch` obrisao postojeći tier, pa bi svaki webhook koji ne zna plan
+  (a takvi su svi dok A6 ne prosledi `metadata.planSlug`) tiho degradirao
+  Premium korisnika na Basic.
+- **`app/api/stripe/webhook/route.ts` NIJE diran.** A3 spec traži samo argument
+  na mutaciji; prosledjivanje `plan`-a iz `metadata.planSlug` je eksplicitno
+  posao A6 (vidi A6.md, red za `customer.subscription.*`), a mapiranje
+  price → plan traži Stripe price ID-jeve koje po pravilima ne smem da postavim.
+  Posledica: dok se A6 ne odradi, `enrollments.plan` niko ne upisuje, pa se
+  ponašanje Pro lekcija ne menja u odnosu na sada (vidi "Za Jovana ujutru").
+- **`planFromPriceId` propušta rezultat kroz `normalizePlan`**, pa nepostojeći
+  ključ u mapi daje `"basic"` umesto `undefined`. Mapa je parametar, ne globalni
+  konstantan objekat - price ID-jevi žive u env-u, a ovaj sloj mora da ostane
+  čist i testabilan.
+- **`normalizePlan` ne prihvata varijante velikih slova** (`"Premium"` → `"basic"`).
+  Svaka nepoznata vrednost pada na najmanju privilegiju; bolje da Premium
+  korisnik jednom ne vidi Pro lekciju nego da Basic korisnik dobije pristup.
+- **Legacy `role === "pro_student"` je ostavljen** iako po D.4 `role` treba da
+  ostane samo za admin/moderator. Skidanje bi u istom trenutku oduzelo pristup
+  svakom ručno postavljenom `pro_student` nalogu. Test to pokriva eksplicitno,
+  pa je uklanjanje kasnije svesna odluka, ne slučajna regresija.
+- **`enrollments` se čita sa `.unique()`** preko `by_user_course`, kako to već
+  rade `courses.ts` (423, 455), `study.ts` (317) i `identityMerge.ts` (1275).
+  Jedan dodatni dokument po pozivu.
+
+**Testovi:** `lib/plan.test.ts` (5) i prepisan `lib/lesson-access.test.ts` (5).
+Pokrivaju: `normalizePlan(undefined) === "basic"` · oba poznata tiera prolaze
+netaknuta · prazan string, `"Premium"` i `"pro"` padaju na `"basic"` ·
+`planFromPriceId` čita iz mape i vraća `"basic"` za neupisan price ID i za
+praznu mapu · admin i moderator vide Pro lekciju bez obzira na plan (i kad plana
+uopšte nema) · legacy `pro_student` i dalje vidi · `premium` vidi · `basic` i
+korisnik bez `enrollments` reda ne vide · `proEnabled: false` sakriva lekciju i
+Premium korisniku i adminu i legacy `pro_student`-u.
+
+Suite je proveren mutacionim testiranjem, tri namerne greške - `normalizePlan`
+koji podrazumeva `"premium"`, `canUseProLesson` koja ignoriše `proEnabled`, i
+brisanje legacy `pro_student` grane - sve tri oborene. Izmene vraćene, `diff`
+čist.
+
+**Rezultat verifikacije:**
+- `npx convex codegen` - prošlo (TypeScript bez grešaka; ovog puta ništa nije
+  promenjeno u `convex/_generated/`, jer nema novih Convex fajlova)
+- `npm run lint` - prošlo (0 grešaka; istih 7 postojećih upozorenja u
+  nepovezanim fajlovima kao posle A1 i A2)
+- `npm run test` - prošlo (24 test fajla, 132 testa; A2 je ostavio 23 / 124)
+
+**BLOKADA:** nema.
+
+**Za Jovana ujutru:**
+- Ništa nije deploy-ovano, Stripe nije diran.
+- **Bug iz D.4 je popravljen u logici, ali još nije popravljen u praksi.** Niko
+  ne upisuje `enrollments.plan` dok A6 ne prosledi `plan` u
+  `syncStripeSubscription`, pa Pro lekcije i dalje vide samo admin, moderator i
+  ručno postavljeni `pro_student`. To je namerno - A3 je pripremio šinu, A6
+  pušta voz. Ako hoćeš da to proveriš pre A6, ručno postavi
+  `plan: "premium"` na svoj `enrollments` red u Convex dashboardu i Pro lekcija
+  se otvara.
+- **Kad budeš radio A6:** plan izvedi iz `subscription.metadata.planSlug` i
+  prosledi kroz nov `plan` argument. `planFromPriceId` je tu kao rezerva ako
+  odlučiš da mapiraš po `stripePriceId` umesto po metadata - tad ti treba mapa
+  price ID → plan iz env-a, koju ja nisam pravio.
+- **Postojeće `enrollments` redove ne treba migrirati.** Odsustvo `plan`-a je
+  validno i znači Basic, tako i šema (A1) i `normalizePlan` to čitaju.
+- `checkout.session.completed` trenutno u `subscription_data.metadata` šalje
+  samo `courseId`, `courseSlug` i `userId` (`lib/stripe.ts`). Da bi A6 imao šta
+  da pročita, tu mora da se doda i `planSlug` - inače će svaka obnova pretplate
+  stizati bez plana i `enrollments.plan` će ostati prazan.
