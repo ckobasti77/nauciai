@@ -289,3 +289,93 @@ brisanje legacy `pro_student` grane - sve tri oborene. Izmene vraćene, `diff`
   samo `courseId`, `courseSlug` i `userId` (`lib/stripe.ts`). Da bi A6 imao šta
   da pročita, tu mora da se doda i `planSlug` - inače će svaka obnova pretplate
   stizati bez plana i `enrollments.plan` će ostati prazan.
+
+---
+
+## A4 - Katalog paketa/planova (creditPacks) + seed   (2026-08-19 02:41)
+
+**Fajlovi:**
+- dodato: `convex/creditPacks.ts`, `convex/creditPacks.test.ts`
+- izmenjeno: `convex/seed.ts`
+
+**Šta je uradjeno:** `convex/creditPacks.ts` daje pristupne funkcije nad
+`creditPacks` tabelom iz A1: javni `listPacks({ kind? })` (bounded scan preko
+`.take(200)`, filtrira samo `isActive`, sortira po `sortOrder` u memoriji - tabela
+je po dizajnu mala, par planova i paketa), javni `getPackBySlug` (preko
+`by_slug` indeksa, vraća red bez obzira na `isActive` da bi budući admin/checkout
+kod mogao sam da odluči šta da radi sa neaktivnim paketom), i admin mutacije
+`upsertPack` (upsert po `slug`) i `setPackActive`, obe iza `requireAdmin`.
+`convex/seed.ts` je dobio `creditPackSeeds` niz sa svih 5 redova iz zaključanih
+podataka (18.08.2026) i `seedCreditPacks` mutaciju, zaštićenu istim
+`requireSyncSecret` obrascem kao postojeći `seedInitialContent`, koja upisuje
+redove IDEMPOTENTNO (traži postojeći red po `slug` preko `by_slug` indeksa, pa
+`patch` ili `insert`).
+
+**ODLUKE:**
+- **`seedCreditPacks` je pisan sa `mutation` iz `./_generated/server`**, ne sa
+  `mutationGeneric` kao postojeći `seedInitialContent` u istom fajlu - tako
+  `rules.md` eksplicitno traži ("ne `mutationGeneric`, stariji stil iz
+  `billing.ts`"). Postojeća funkcija u fajlu nije dirana (Surgical Changes) -
+  samo je dodat nov `import { mutation }` pored postojećeg
+  `mutationGeneric` importa, pa oba stila privremeno kohabitiraju u istom
+  fajlu dok neko ne migrira `seedInitialContent`.
+- **Ponovljen seed radi pun `patch` svih polja, uključujući `isActive: true`**,
+  isto kao što `seedInitialContent` već radi za kurseve/module/lekcije
+  (bezuslovan patch, ne samo insert-ako-ne-postoji). Posledica: ako admin ručno
+  ugasi paket preko `setPackActive`, pa se seed ponovo pokrene, paket će se
+  ponovo aktivirati. Alternativa (patch bez `isActive`) bi značila da prvi seed
+  MORA da eksplicitno postavi `isActive: true` samo na insert grani, a svaki
+  sledeći poziv ne bi smeo da ga dira - odabrana je jednostavnija, dosledna
+  varijanta jer u ovom koraku ne postoji nikakav UI za gašenje paketa, pa je
+  scenario teorijski.
+- **`getPackBySlug` NE filtrira po `isActive`.** `listPacks` je "javni katalog"
+  (samo aktivno), `getPackBySlug` je namenjen internim pozivaocima (budući
+  Stripe checkout iz sledećeg koraka, admin editor) kojima treba i neaktivan
+  red da bi mogli sami da odluče (npr. da odbiju kupovinu ugašenog paketa sa
+  jasnijom porukom nego "ne postoji").
+- **`listPacks` čita `.take(200)` pa filtrira/sortira u memoriji**, umesto novog
+  indeksa po `isActive`+`sortOrder`. Tabela ima 5 redova i raste isključivo
+  ručno preko admin mutacije, pa je bounded scan dovoljan i ne zahteva izmenu
+  šeme koju A4.md nije tražio.
+- **Nema dodatne validacije iznosa/kredita u `upsertPack`** (npr. da
+  `priceEurCents` ili `credits` ne budu negativni) - A4.md to ne traži, a
+  jedini pozivalac je admin preko `requireAdmin`, ne korisnički unos.
+
+**Testovi:** `convex/creditPacks.test.ts`, 5 testova. Pokrivaju: seed upisuje
+tačno 5 redova sa očekivanim slug-ovima i ponovljen seed ne duplira (isti
+`_id`-jevi pre/posle) · `listPacks` bez `kind` vraća sve aktivne sortirane po
+`sortOrder` (`basic, premium, starter, creator, pro`), sa `kind: "plan"` i
+`kind: "pack"` filterima, i nestaje paket kad ga admin ugasi preko
+`setPackActive` · `upsertPack` i `setPackActive` bacaju `"Forbidden"` za
+ne-admin korisnika · `upsertPack` na postojeći `slug` menja red (isti `_id`,
+nema duplikata) umesto da ga duplira.
+
+**Rezultat verifikacije:**
+- `npx convex codegen` - prošlo (TypeScript bez grešaka)
+- `npm run lint` - prošlo (0 grešaka; istih 7 postojećih upozorenja u
+  nepovezanim fajlovima kao posle A1-A3)
+- `npm run test` - prošlo (25 test fajla, 136 testova; A3 je ostavio 24 / 132)
+
+**BLOKADA:** nema.
+
+**Za Jovana ujutru:**
+- Ništa nije deploy-ovano ni poslato Stripe-u. `npx convex codegen` je pisao
+  samo u `convex/_generated/`.
+- **`stripePriceId` je prazan za svih 5 redova.** Kad budeš u Stripe
+  dashboardu, moraš da povežeš tačno ove slug-ove (redosled kao u
+  `.studio-run/prompts/A4.md`):
+  - `basic` (Basic, 9,99 €, mesečna pretplata)
+  - `premium` (Premium, 24,99 €, mesečna pretplata)
+  - `starter` (Starter, 5 €, jednokratno)
+  - `creator` (Creator, 15 €, jednokratno)
+  - `pro` (Pro, 40 €, jednokratno)
+
+  Popuni preko `upsertPack` (ili direktno u Convex dashboardu) - `creditPacks.ts`
+  ne pravi Stripe cene sam, samo drži katalog.
+- `creditPacks` tabela je sad puna i `listPacks`/`getPackBySlug` rade, ali i
+  dalje ništa u aplikaciji ne poziva ove funkcije - nema UI-ja niti checkout
+  akcije koja bi ih koristila (to je sledeći korak, Stripe checkout za
+  kredite/planove).
+- `seedCreditPacks` se poziva istim obrascem kao postojeći
+  `seedInitialContent`: sa `syncSecret` koji mora da se poklopi sa
+  `WEBHOOK_SYNC_SECRET` env promenljivom.

@@ -1,6 +1,7 @@
 import { mutationGeneric } from "convex/server";
 import { v } from "convex/values";
 
+import { mutation } from "./_generated/server";
 import { requireSyncSecret } from "./helpers";
 
 const trackSeeds = [
@@ -394,5 +395,96 @@ export const seedInitialContent = mutationGeneric({
     }
 
     return { trackIds, courseIds };
+  },
+});
+
+// Cene su zaključane 18.08.2026 (.studio-run/prompts/A4.md). `stripePriceId`
+// je namerno prazan - popunjava se ručno iz Stripe dashboarda.
+const creditPackSeeds = [
+  {
+    slug: "basic",
+    titleSr: "Basic",
+    titleEn: "Basic",
+    priceEurCents: 999,
+    credits: 0,
+    bonusPercent: 0,
+    kind: "plan" as const,
+    planTier: "basic" as const,
+    sortOrder: 10,
+  },
+  {
+    slug: "premium",
+    titleSr: "Premium",
+    titleEn: "Premium",
+    priceEurCents: 2499,
+    credits: 2000,
+    bonusPercent: 0,
+    kind: "plan" as const,
+    planTier: "premium" as const,
+    sortOrder: 20,
+  },
+  {
+    slug: "starter",
+    titleSr: "Starter",
+    titleEn: "Starter",
+    priceEurCents: 500,
+    credits: 500,
+    bonusPercent: 0,
+    kind: "pack" as const,
+    planTier: undefined,
+    sortOrder: 30,
+  },
+  {
+    slug: "creator",
+    titleSr: "Creator",
+    titleEn: "Creator",
+    priceEurCents: 1500,
+    credits: 1650,
+    bonusPercent: 10,
+    kind: "pack" as const,
+    planTier: undefined,
+    sortOrder: 40,
+  },
+  {
+    slug: "pro",
+    titleSr: "Pro",
+    titleEn: "Pro",
+    priceEurCents: 4000,
+    credits: 4800,
+    bonusPercent: 20,
+    kind: "pack" as const,
+    planTier: undefined,
+    sortOrder: 50,
+  },
+] as const;
+
+export const seedCreditPacks = mutation({
+  args: { syncSecret: v.string() },
+  handler: async (ctx, args) => {
+    requireSyncSecret(args.syncSecret);
+
+    for (const seed of creditPackSeeds) {
+      const existing = await ctx.db
+        .query("creditPacks")
+        .withIndex("by_slug", (q) => q.eq("slug", seed.slug))
+        .unique();
+      const patch = {
+        slug: seed.slug,
+        titleSr: seed.titleSr,
+        titleEn: seed.titleEn,
+        priceEurCents: seed.priceEurCents,
+        credits: seed.credits,
+        bonusPercent: seed.bonusPercent,
+        kind: seed.kind,
+        planTier: seed.planTier,
+        sortOrder: seed.sortOrder,
+        isActive: true,
+      };
+
+      if (existing) await ctx.db.patch(existing._id, patch);
+      else await ctx.db.insert("creditPacks", patch);
+    }
+
+    return null;
   },
 });
