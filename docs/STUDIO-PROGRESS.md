@@ -1095,3 +1095,161 @@ zelenog testa - videti prvu ODLUKU.
 - **Dnevni limit se resetuje po UTC-u**, dakle u 02:00 po beogradskom letnjem
   vremenu. Ako to smeta, promena je jedna funkcija (`dayKey` u
   `studioCore.ts`).
+
+
+---
+
+## A10 - fal webhook handler   (2026-08-19 03:50)
+
+**Fajlovi:**
+- `convex/falWebhook.ts` (novo) - `httpAction` + `applyWebhookResult` mutacija
+- `convex/falWebhookCore.ts` (novo) - čista logika verifikacije i parsiranja
+- `convex/falWebhook.test.ts` (novo) - 27 testova
+- `convex/http.ts` - registrovana ruta `POST /fal/webhook`
+- `convex/schema.ts` - `generationJobs.falOutputUrl` (novo opciono polje)
+- `convex/studioActions.ts` - `persistOutput` stub koji webhook zakazuje
+
+**Šta je uradjeno:** Webhook verifikuje ED25519 potpis preko JWKS-a sa
+`rest.fal.ai` tačno po STUDIO-PLAN 4.3: sirovi bajtovi tela se čitaju
+`request.arrayBuffer()`-om PRE bilo kakvog parsiranja, SHA-256 ide nad njima,
+potpisana poruka je `requestId`, `userId`, `timestamp` i `hexSha256(rawBody)`
+spojeni novim redom, potpis se hex-dekoduje a `x` iz JWKS-a base64url-dekoduje.
+Verifikacija koristi Web Crypto (`crypto.subtle.importKey("raw", ...,
+{ name: "Ed25519" })`) - bez nove npm zavisnosti. Tek posle verifikacije se telo
+parsira, a jedna interna mutacija nalazi posao preko `by_fal_request`: nema ga
+ili nije `running` -> izlazi odmah, `ERROR` -> `studio.failJob` (failed ->
+refund -> refunded), `OK` -> `done` + sačuvan fal URL +
+`scheduler.runAfter(0, persistOutput)`. Skidanje fajla se ne radi u handleru; on
+samo verifikuje, upiše i vrati 200.
+
+**ODLUKE:**
+- **Ed25519 preko Web Crypto radi u test okruženju (`edge-runtime`), ali NIJE
+  potvrdjen na živom Convex runtime-u** - to bi tražilo deploy, koji je
+  zabranjen u ovom runu. Nisam upisao BLOKADU jer nema greške koju bih
+  prijavio: `importKey("raw", ..., Ed25519)` i `verify` prolaze u testovima.
+  Provera na dev deployment-u je stavka za ujutru (videti "Za Jovana").
+- **Novo polje `generationJobs.falOutputUrl`.** A10.md traži "sačuvaj fal output
+  URL", a šema iz A1 nema gde da ga smesti. Opciono polje ne traži migraciju.
+  Alternativa (proslediti URL kao argument zakazanoj akciji) bi značila da URL
+  ne postoji nigde u bazi ako akcija padne.
+- **Lookup ide po headeru `X-Fal-Webhook-Request-Id`, ne po `request_id` iz
+  tela.** Oba su potpisana (telo preko heša), ali header je direktno deo
+  potpisane poruke, pa je za jedan korak bliže potpisu.
+- **Mutacija je `internalMutation`, ne javna** - jedini pozivalac je
+  `handleFalWebhook`, posle verifikacije. Javna bi značila da svako sa interneta
+  može da označi tudji posao kao neuspeo i izazove refund.
+- **ERROR grana zove postojeći `studio.failJob` umesto da ponovo piše
+  failed -> refund -> refunded.** Refund logika ostaje na jednom mestu.
+- **Idempotencija je dvoslojna:** `job.status !== "running"` -> izlaz odmah, a
+  ispod toga `credits.refundCredits` koji je već idempotentan preko
+  `by_job_type`. Prvi sloj čuva i `persistOutput` od duplog zakazivanja, drugi
+  čuva novac čak i ako bi prvi otkazao.
+- **JWKS nedostupan -> 500, ne 401.** 401 bi rekao "potpis je loš", a mi zapravo
+  ne znamo; 500 tera fal da ponovi.
+- **Validan potpis ali telo koje ne razumemo (status nije `OK` ni `ERROR`, ili
+  JSON ne može da se parsira) -> 200 i posao se NE dira.** Nagadjanje ishoda je
+  ili tiha kradja (lažni "done") ili tihi gubitak (lažni refund). Posao ostaje
+  `running` i pokupiće ga stuck job reaper iz STUDIO-PLAN 4.4. **Taj reaper još
+  ne postoji** - dok se ne napiše, ovakav posao ostaje zauvek `running` i
+  zauzima jedno od 3 mesta u limitu paralelnih poslova.
+- **`extractJwkPublicKeys` ne filtrira po `kty`/`crv`,** uzima svaki unos sa
+  string `x` poljem. STUDIO-PLAN 4.3 kaže "bilo koji ključ iz seta koji
+  verifikuje potpis"; ključ pogrešnog tipa svakako padne na `importKey` i
+  preskače se. Filtriranje bi značilo da promena oblika JWKS-a kod fal-a tiho
+  obori sve webhookove.
+- **`extractOutputUrl` pokriva `images[0].url`, `video.url`, `audio.url`,
+  `image`, `audio_file`, liste `videos`/`audios`/`audio_files` i golo `url` na
+  vrhu payload-a.** Ako nijedan oblik ne prepozna, posao je i dalje `done` ali
+  bez URL-a - A11 (`persistOutput`) odlučuje šta sa tim. Nisam refundirao taj
+  slučaj: generacija je uspela i fal nas je već naplatio, a A10.md za `OK` traži
+  baš `done`.
+- **JWKS keš je običan modul-level objekat sa TTL-om od 24h, bez ponovnog
+  dohvata kad verifikacija ne prodje.** Posledica: ako fal rotira ključ,
+  webhookovi padaju najduže do isteka keša. Ponovni dohvat na svaki neuspeo
+  potpis bi bio DoS vektor (bilo ko šalje djubre -> mi bombardujemo
+  `rest.fal.ai`). Degradacija je bezbedna: poslovi ostaju `running` i reaper ih
+  refundira.
+- **`persistOutput` je prazan stub u `convex/studioActions.ts`**, ne u
+  `falWebhook.ts` - STUDIO-PLAN 4.2 korak 4 i A11 ga smeštaju tamo, pa A11 samo
+  popunjava telo.
+- **Poruka greške se seče na 500 znakova** (`error` + detalji iz `payload`).
+  Ceo fal payload u `generationJobs.error` bi bio red baze nepoznate veličine.
+- **Čista logika je u `convex/falWebhookCore.ts`,** iako A10.md imenuje samo
+  `falWebhook.ts` - `rules.md` to traži kao obaveznu konvenciju repoa. Testovi
+  su ostali u `falWebhook.test.ts`, kako A10.md traži.
+
+**Testovi:** `convex/falWebhook.test.ts`, 27 testova. Test par ED25519 ključeva
+se generiše u fajlu, telo se potpisuje lokalno, a `fetch` je mockovan da vrati
+JWKS sa tim javnim ključem. Set namerno sadrži 4 unosa - drugi ključ, unos sa
+neispravnim `x`, RSA unos bez `x`, i tek onda pravi ključ - da bi se dokazalo da
+prolazi bilo koji ključ iz seta i da neispravni unosi ne obaraju verifikaciju.
+
+Svih 7 traženih iz A10.md: (1) neispravan potpis (potpisan ključem van seta) ->
+401, posao ostaje `running`, balans nepromenjen, nula refund transakcija ·
+(2) timestamp stariji od 300 s -> 401 · (3) fali `X-Fal-Webhook-Signature` ->
+401 · (4) validan ERROR webhook -> posao `refunded`, tačno jedna refund
+transakcija na tačan iznos, balans vraćen, ništa nije zakazano · (5) isti
+validan ERROR webhook 5 puta -> i dalje tačno jedna refund transakcija i isti
+balans · (6) validan OK webhook -> `done`, `falOutputUrl` sačuvan, nula
+refundova, tačno jedan zakazan `persistOutput` sa pravim `jobId` ·
+(7) nepoznat `request_id` -> 200, ništa se ne menja i ništa se ne zakazuje.
+
+Dodatno: telo izmenjeno posle potpisa -> 401 (dokazuje da heš ide nad telom) ·
+potpis koji nije hex -> 401 · timestamp iz budućnosti van tolerancije -> 401 ·
+timestamp na 299 s prolazi · fali svaki od preostala tri headera -> 401 · posao
+koji više nije `running` se ne dira · dupli OK webhook ne zakazuje
+`persistOutput` dvaput i ne prepisuje URL · validan potpis sa nepoznatim
+statusom -> 200 bez ikakve promene · plus 10 jediničnih testova čistih funkcija
+iz `falWebhookCore.ts` (headeri, tolerancija u oba smera, oblik potpisane
+poruke, hex i base64url dekodiranje, izvlačenje ključeva, parsiranje tela,
+prepoznavanje URL-a za sliku/video/zvuk, sažimanje poruke greške).
+
+Testovi su provereni mutacijom koda, ne samo posmatranjem zelenog rezultata.
+Pet mutacija, svaka uhvaćena: heš nad re-serijalizovanim JSON-om umesto nad
+sirovim bajtovima (7 padova) · izbačena provera timestampa (2) · izbačen uslov
+`job.status !== "running"` (2) · izbačena provera nedostajućih headera (4) ·
+preskočena verifikacija potpisa (2). Original: 27/27 zeleno.
+
+**Rezultat verifikacije:**
+- `npx convex codegen` - prošlo (TypeScript bez grešaka)
+- `npm run lint` - prošlo (0 grešaka; istih 7 postojećih upozorenja u
+  nepovezanim fajlovima kao posle A1-A9)
+- `npm run test` - prošlo (31 test fajl, 208 testova; A9 je ostavio 30 / 181,
+  dakle +1 fajl i +27 testova)
+- dodatno `npx tsc --noEmit` - 14 linija, sve isti poznati problem iz A5/A8/A9
+  (`ReturnType<typeof convexTest>` gubi šemu, pa se `withIndex` tipizira kao
+  sistemski indeks): 6 u `credits.test.ts`, 6 u `studio.test.ts`, 2 u
+  `studioActions.test.ts`. **Nijedna nije iz A10** - `falWebhook.test.ts`
+  koristi `TestConvex<typeof schema>` iz `convex-test`, što taj problem rešava u
+  korenu. Postojeća tri fajla nisam dirao (rules.md: hirurške izmene), ali ista
+  jednolinijska izmena bi očistila i njih.
+
+**BLOKADA:** nema.
+
+**Za Jovana ujutru:**
+- **Obavezno: potvrdi da Ed25519 radi na živom Convex runtime-u.** Testovi
+  dokazuju samo da radi u `edge-runtime`-u koji vitest koristi. Najbrža provera,
+  bez ijednog deploy-a na produkciju, je `npx convex dev` pa pozvati bilo koju
+  akciju koja radi `crypto.subtle.generateKey({ name: "Ed25519" }, ...)`. Ako
+  Convex to ne podržava, rešenje je `@noble/ed25519` (jedna zavisnost, bez
+  native koda) - ali to je odluka koju nisam smeo da donesem sam.
+- **Webhook URL koji fal gadja je
+  `https://quick-yak-270.convex.site/fal/webhook`** (`.convex.site`, ne
+  `.convex.cloud`). `submitJob` (A8) ga sklapa iz `CONVEX_SITE_URL`, pa ta env
+  varijabla mora da postoji na deployment-u - inače posao odmah pada i
+  refundira se.
+- **Ruta nije deploy-ovana.** `npx convex codegen` je pisao samo u
+  `convex/_generated/`. Do `npx convex dev` / deploy-a endpoint ne postoji.
+- **Nova kolona `generationJobs.falOutputUrl`** - opciona, bez migracije,
+  postojeći redovi je nemaju.
+- **`persistOutput` je prazan stub.** Posle A10 posao stiže do `done` sa fal
+  URL-om, ali fajl NIJE u Convex storage-u i `labOutputs` red ne postoji. fal
+  URL-ovi žive kratko - dok A11 ne bude gotov, uspešna generacija je praktično
+  nedostupna korisniku.
+- **Stuck job reaper iz STUDIO-PLAN 4.4 još ne postoji**, a webhook računa na
+  njega u dva slučaja: telo koje ne razumemo i JWKS koji je zaostao posle
+  rotacije ključa. Bez njega takav posao ostaje `running` zauvek i troši jedno
+  od 3 mesta u limitu paralelnih poslova tog korisnika.
+- **Prvi pravi test kraj-do-kraja** (ako Ed25519 prodje): pusti `createJob` sa
+  namerno neispravnim parametrima da fal vrati ERROR i proveri da je kredit
+  vraćen tačno jednom.

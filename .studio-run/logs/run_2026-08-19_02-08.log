@@ -68,3 +68,10 @@
 [03:15:58]  A9  |  createJob sa rezervacijom kredita
 [03:15:58]  model=opus  effort=max
 [03:15:58] --------------------------------------------------
+[03:33:10] Commit 53789c0 - 12 izmenjenih putanja
+[03:33:10] A9 -> BLOKADA  (17 min, USD 5.99)
+[03:33:10] 
+[03:33:10] --------------------------------------------------
+[03:33:10]  A10  |  fal webhook: ED25519 verifikacija i idempotentna obrada
+[03:33:10]  model=opus  effort=max
+[03:33:10] --------------------------------------------------

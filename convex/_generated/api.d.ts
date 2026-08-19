@@ -32,6 +32,8 @@ import type * as credits from "../credits.js";
 import type * as creditsCore from "../creditsCore.js";
 import type * as emailVerification from "../emailVerification.js";
 import type * as emailVerificationInternal from "../emailVerificationInternal.js";
+import type * as falWebhook from "../falWebhook.js";
+import type * as falWebhookCore from "../falWebhookCore.js";
 import type * as helpTopics from "../helpTopics.js";
 import type * as helpers from "../helpers.js";
 import type * as http from "../http.js";
@@ -84,6 +86,8 @@ declare const fullApi: ApiFromModules<{
   creditsCore: typeof creditsCore;
   emailVerification: typeof emailVerification;
   emailVerificationInternal: typeof emailVerificationInternal;
+  falWebhook: typeof falWebhook;
+  falWebhookCore: typeof falWebhookCore;
   helpTopics: typeof helpTopics;
   helpers: typeof helpers;
   http: typeof http;

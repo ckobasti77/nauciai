@@ -60,3 +60,16 @@ export const submitJob = internalAction({
     return null;
   },
 });
+
+/**
+ * STUB (A10). Webhook je zakazuje čim posao stigne kao uspešan, da se skidanje
+ * fajla ne bi radilo u samom handleru - fal daje 15 s na prvi pokušaj.
+ *
+ * Telo puni A11: fetch(`job.falOutputUrl`) -> `ctx.storage.store` -> insert u
+ * `labOutputs` -> `expiresAt` po tipu (video 30 dana, ostalo 90). Do tada
+ * posao ostaje `done` sa fal URL-om, koji kod fal-a živi kratko.
+ */
+export const persistOutput = internalAction({
+  args: { jobId: v.id("generationJobs") },
+  handler: async () => null,
+});

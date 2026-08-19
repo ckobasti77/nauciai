@@ -1393,6 +1393,9 @@ export default defineSchema({
     creditCost: v.number(),
     falRequestId: v.optional(v.string()),
     actualCostUsd: v.optional(v.number()),
+    // fal URL iz webhook-a; kratko živi kod fal-a, pa ga `persistOutput`
+    // preuzima u Convex storage (`outputStorageId`) čim posao stigne.
+    falOutputUrl: v.optional(v.string()),
     outputStorageId: v.optional(v.id("_storage")),
     posterStorageId: v.optional(v.id("_storage")),
     labOutputId: v.optional(v.id("labOutputs")),
