@@ -33,3 +33,10 @@
 [02:36:02]  A4  |  Paketi kredita i planovi u bazi + seed
 [02:36:02]  model=sonnet  effort=high
 [02:36:02] --------------------------------------------------
+[02:40:50] Commit ecd39dd - 8 izmenjenih putanja
+[02:40:50] A4 -> BLOKADA  (5 min, USD 1.86)
+[02:40:50] 
+[02:40:50] --------------------------------------------------
+[02:40:50]  A5  |  Stripe checkout: paketi kredita i planovi
+[02:40:50]  model=opus  effort=high
+[02:40:50] --------------------------------------------------

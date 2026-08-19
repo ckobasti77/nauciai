@@ -66,3 +66,66 @@ export async function createCustomerPortalSession(params: {
     return_url: `${siteUrl}/${params.locale}/app/billing`,
   });
 }
+
+export async function createCreditPackCheckoutSession(params: {
+  packSlug: string;
+  packId: string;
+  credits: number;
+  locale: string;
+  priceId: string;
+  userId: string;
+  customerEmail?: string;
+}) {
+  const stripe = getStripe();
+  const siteUrl = getSiteUrl();
+
+  return stripe.checkout.sessions.create({
+    mode: "payment",
+    line_items: [{ price: params.priceId, quantity: 1 }],
+    success_url: `${siteUrl}/${params.locale}/app/credits?checkout=success`,
+    cancel_url: `${siteUrl}/${params.locale}/app/credits?checkout=cancelled`,
+    customer_email: params.customerEmail,
+    allow_promotion_codes: true,
+    metadata: {
+      kind: "credit_pack",
+      packId: params.packId,
+      packSlug: params.packSlug,
+      userId: params.userId,
+      credits: String(params.credits),
+    },
+  });
+}
+
+export async function createPlanCheckoutSession(params: {
+  planSlug: string;
+  courseId: string;
+  courseSlug: string;
+  locale: string;
+  priceId: string;
+  userId: string;
+  customerEmail?: string;
+}) {
+  const stripe = getStripe();
+  const siteUrl = getSiteUrl();
+  // Renewals fire `invoice.paid`, which only ever sees the subscription's own
+  // metadata - so the same payload has to live on both the session and the
+  // subscription, otherwise the webhook cannot tell whose plan just renewed.
+  const metadata = {
+    kind: "plan",
+    planSlug: params.planSlug,
+    courseId: params.courseId,
+    courseSlug: params.courseSlug,
+    userId: params.userId,
+  };
+
+  return stripe.checkout.sessions.create({
+    mode: "subscription",
+    line_items: [{ price: params.priceId, quantity: 1 }],
+    success_url: `${siteUrl}/${params.locale}/app/courses/${params.courseSlug}?checkout=success`,
+    cancel_url: `${siteUrl}/${params.locale}/app/courses/${params.courseSlug}?checkout=cancelled`,
+    customer_email: params.customerEmail,
+    allow_promotion_codes: true,
+    subscription_data: { metadata },
+    metadata,
+  });
+}

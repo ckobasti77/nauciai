@@ -43,4 +43,5 @@ export const convexQueries = {
   getBillingSummary: makeFunctionReference<"query">("billing:getBillingSummary"),
   getViewerProfileStatus: makeFunctionReference<"query">("profiles:getViewerProfileStatus"),
   getMySuspension: makeFunctionReference<"query">("chatModeration:getMySuspension"),
+  getPackBySlug: makeFunctionReference<"query">("creditPacks:getPackBySlug"),
 };

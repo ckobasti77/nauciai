@@ -379,3 +379,110 @@ nema duplikata) umesto da ga duplira.
 - `seedCreditPacks` se poziva istim obrascem kao postojeći
   `seedInitialContent`: sa `syncSecret` koji mora da se poklopi sa
   `WEBHOOK_SYNC_SECRET` env promenljivom.
+
+---
+
+## A5 - Stripe checkout za kredite i planove   (2026-08-19 02:45)
+
+**Fajlovi:**
+- dodato: `app/api/stripe/credits/route.ts`, `lib/stripe.test.ts`
+- izmenjeno: `lib/stripe.ts`, `lib/convex-http.ts`
+
+**Šta je uradjeno:** `lib/stripe.ts` je dobio dve nove funkcije pored postojećih.
+`createCreditPackCheckoutSession` pravi JEDNOKRATNU (`mode: "payment"`) sesiju sa
+`metadata.kind === "credit_pack"` i vraća kupca na `/{locale}/app/credits`.
+`createPlanCheckoutSession` pravi pretplatničku sesiju i upisuje ISTI metadata
+objekat (`kind: "plan"`, `planSlug`, `courseId`, `courseSlug`, `userId`) i u
+`metadata` i u `subscription_data.metadata` - bez ovog drugog webhook na
+`invoice.paid` (obnova) ne bi znao kome da doda mesečnu dozu. Nova ruta
+`app/api/stripe/credits/route.ts` prati redosled iz `app/api/stripe/checkout/route.ts`
+liniju po liniju: `convexAuthNextjsToken()` -> `getConvexHttpClient(token)` ->
+paralelni `getPackBySlug` / `viewer` / `getViewerProfileStatus` -> 401 ako nije
+ulogovan -> 403 ako email nije potvrdjen -> provere paketa -> sesija -> `{ url }`.
+`createCourseCheckoutSession` NIJE dirana ni jednim karakterom i test to čuva.
+
+**ODLUKE:**
+- **`createPlanCheckoutSession` još nema pozivaoca.** A5.md traži funkciju, ali
+  traži samo JEDNU novu rutu (`/api/stripe/credits`). Rutu za planove nisam
+  izmišljao - `A6.md` je već rezervisao `metadata.planSlug` za webhook, a koja
+  ruta/UI je pravi nije definisano ni u A5 ni u `STUDIO-PLAN`. Funkcija je
+  eksportovana i testirana, pa je čeka spreman.
+- **Ruta odbija plan-slug sa 400 (`NOT_A_CREDIT_PACK`).** `getPackBySlug` po
+  dizajnu (A4) vraća i planove i pakete. Da `basic`/`premium` prodje kroz ovu
+  rutu, korisnik bi platio pretplatnički plan kao jednokratnu uplatu i dobio
+  kredite bez ijedne obnove. Filtriranje po `kind === "pack"` je jedina
+  konzervativna opcija.
+- **Neaktivan paket -> 404 (`PACK_NOT_AVAILABLE`), zajedno sa nepostojećim.**
+  A4 je namerno ostavio `getPackBySlug` bez `isActive` filtera "da pozivalac sam
+  odluči" - ovo je ta odluka: ugašen paket se ne prodaje.
+- **Poruka za `stripePriceId` doslovno imenuje polje koje fali** (a ne env
+  varijablu), jer za pakete kredita cena živi u `creditPacks.stripePriceId`, ne
+  u `process.env` kao kod kurseva. Nema `process.env` fallback-a namerno: nema
+  imenovane env varijable za pakete, pa bi izmišljanje jedne značilo dva izvora
+  istine za istu cenu.
+- **`body.priceId` iz zahteva se NE prihvata.** Postojeća `checkout` ruta ima taj
+  fallback za kurseve; ovde bi značio da klijent može da naplati proizvoljnu
+  Stripe cenu i dobije kredite iz paketa. Cena dolazi isključivo iz baze.
+- **`credits` u `metadata` se šalje kao string** (`String(pack.credits)`). Stripe
+  ionako sve metadata vrednosti vraća kao stringove, pa ovako ono što A6 pročita
+  izgleda isto kao ono što je poslato.
+- **`bonusPercent` se ne dodaje na `credits`.** U seed-u iz A4 je bonus već
+  uračunat (Creator: 15 € -> 1650 kredita uz `bonusPercent: 10`), pa bi ponovno
+  množenje dalo duplu dozu.
+- **U `lib/convex-http.ts` je dodata samo jedna referenca, `getPackBySlug`.**
+  To je jedina nova Convex funkcija koju ovaj korak zaista poziva sa servera;
+  `listPacks` će trebati stranici iz A6/A7 (a ona ide preko `useQuery`, ne preko
+  HTTP klijenta), a `grantCredits` iz A2 je interna mutacija i ne može da se
+  pozove HTTP klijentom - `applyStripeGrant` koji A6 tek treba da napiše je taj
+  koji ovde ide, ali ga još nema.
+- **Cancel URL plana vodi na stranicu kursa**, ne na landing kao kod
+  `createCourseCheckoutSession` (`/{locale}?checkout=cancelled&course=...`).
+  Korisnik koji odustane od nadogradnje plana je već unutar aplikacije;
+  izbacivanje na marketing stranicu bi bio korak unazad.
+
+**Testovi:** `lib/stripe.test.ts`, 4 testa, bez ijednog mrežnog poziva - `stripe`
+paket je zamenjen klasom-stubom čiji `checkout.sessions.create` samo beleži
+parametre (`vi.mock("stripe", ...)`, plus `vi.mock("server-only")` da modul može
+da se uveze van RSC okruženja). Pokrivaju: paket kredita ide kao `mode: "payment"`
+BEZ `subscription_data`, sa tačnim `line_items`, `allow_promotion_codes`,
+`customer_email` i celim `metadata` objektom (`toEqual`, ne `toMatchObject`, da
+višak polja ne prodje) · oba URL-a (success i cancel) vode na
+`/{locale}/app/credits` · plan ide kao `mode: "subscription"` i nosi
+`kind`/`planSlug`/`courseId`/`userId` I u `subscription_data.metadata` I u
+`metadata` · **regresioni čuvar**: `createCourseCheckoutSession` i dalje šalje
+tačno četiri stara metadata polja i NEMA `kind` marker ni na jednom mestu - da
+nova `credit_pack` grana webhook-a iz A6 nikad ne otme postojeći subscription
+flow.
+
+Suite je proveren mutacionim testiranjem: `mode: "payment"` promenjen u
+`"subscription"` i `subscription_data.metadata` osiromašen na samo `courseId` -
+oba puta padaju po dva testa. Izmene vraćene, `diff` čist.
+
+**Rezultat verifikacije:**
+- `npx convex codegen` - prošlo
+- `npm run lint` - prošlo (0 grešaka; istih 7 postojećih upozorenja u
+  nepovezanim fajlovima kao posle A1-A4)
+- `npm run test` - prošlo (26 test fajlova, 140 testova; A4 je ostavio 25 / 136)
+- dodatno `npx tsc --noEmit` - novi fajlovi čisti (vidi napomenu dole)
+
+**BLOKADA:** nema.
+
+**Za Jovana ujutru:**
+- Ništa nije deploy-ovano, nijedan poziv ka Stripe-u nije napravljen.
+- **Ruta `/api/stripe/credits` neće raditi dok ne upišeš `stripePriceId` u
+  `creditPacks`** za `starter`, `creator` i `pro`. Bez toga vraća 400 sa
+  porukom koja imenuje `stripePriceId` i slug paketa. Cene moraju biti
+  **One-time**, ne recurring - `mode: "payment"` odbija recurring cenu.
+- Ruta se poziva `POST /api/stripe/credits` sa `{ packSlug, locale }` i vraća
+  `{ url }`. UI koji je zove ne postoji (to je A6/A12).
+- **Krediti se još ne dodeljuju.** Ovaj korak samo pravi Stripe sesiju; webhook
+  koji posle uplate zove ledger je A6. Do tada test kupovina prodje, novac se
+  naplati, a balans ostane nula.
+- **`createPlanCheckoutSession` nema pozivaoca** - vidi prvu ODLUKU. Kad se
+  bude pravila ruta za planove, `planSlug` mora da bude `basic` ili `premium`
+  (slug iz `creditPacks`), jer A6 iz njega izvodi `enrollments.plan`.
+- Napomena, nije uzrokovano ovim korakom: `npx tsc --noEmit` prijavljuje 6
+  grešaka u `convex/credits.test.ts` (`by_user` / `by_user_expiry` nisu
+  prepoznati kao indeksi u `convex-test` tipovima). Postoje od A2, ne obara ih
+  ni `codegen` ni `lint` ni `vitest`, pa suite i dalje prolazi. Nisam ih dirao
+  jer nemaju veze sa A5.
