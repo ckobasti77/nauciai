@@ -7,6 +7,7 @@ import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import schema from "./schema";
 import {
+  computeCreditCost,
   computeMargin,
   dayKey,
   dayStart,
@@ -781,7 +782,107 @@ test("createJob upisuje očišćene parametre - to je isto ono što ide fal-u", 
     num_images: 4,
     aspect_ratio: "16:9",
   });
+  // Odsečen `num_images` i dalje množi cenu: naplaćuje se ono što će fal
+  // isporučiti (4 slike), ne ono što je klijent zatražio (20).
+  expect(job?.creditCost).toBe(4 * MODEL_COST);
+});
+
+test("num_images: 4 naplaćuje 4x cenu iz kataloga - i u ledgeru i u dnevnom trošku", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedUser(t);
+  await seedModel(t, { paramSchema: IMAGE_SCHEMA });
+  await grant(t, userId, 200);
+
+  const jobId = await asUser.mutation(api.studio.createJob, {
+    modelSlug: MODEL_SLUG,
+    params: promptParams("cetiri lisice", { num_images: 4 }),
+  });
+
+  const { balance, transactions } = await ledger(t, userId);
+  const job = await t.run((ctx) => ctx.db.get(jobId));
+  // fal naplaćuje po IZLAZNOJ slici. Dok je cena bila fiksna po pozivu, marža
+  // je padala ispod 1x već na trećoj slici, jednim klikom na strelicu gore.
+  expect(job?.creditCost).toBe(4 * MODEL_COST);
+  expect(balance).toBe(200 - 4 * MODEL_COST);
+  expect(transactions.find((transaction) => transaction.type === "spend")?.amount).toBe(
+    -4 * MODEL_COST,
+  );
+
+  const usage = await t.run((ctx) =>
+    ctx.db
+      .query("studioUsageDaily")
+      .withIndex("by_user_day", (q) => q.eq("userId", userId).eq("day", dayKey(Date.now())))
+      .unique(),
+  );
+  expect(usage?.creditsSpent).toBe(4 * MODEL_COST);
+  // Plafon od 5 USD je bio plafon od 20 USD dok je ovo bilo `estimatedCostUsd`
+  // po pozivu.
+  expect(usage?.costUsd).toBeCloseTo(4 * MODEL_COST_USD);
+});
+
+test("odsutan num_images je jedna slika: cena i dnevni trošak ostaju 1x", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedUser(t);
+  await seedModel(t, { paramSchema: IMAGE_SCHEMA });
+  await grant(t, userId, 200);
+
+  const jobId = await asUser.mutation(api.studio.createJob, {
+    modelSlug: MODEL_SLUG,
+    params: promptParams("jedna lisica"),
+  });
+
+  const job = await t.run((ctx) => ctx.db.get(jobId));
   expect(job?.creditCost).toBe(MODEL_COST);
+  expect((await ledger(t, userId)).balance).toBe(200 - MODEL_COST);
+
+  const usage = await t.run((ctx) =>
+    ctx.db
+      .query("studioUsageDaily")
+      .withIndex("by_user_day", (q) => q.eq("userId", userId).eq("day", dayKey(Date.now())))
+      .unique(),
+  );
+  expect(usage?.creditsSpent).toBe(MODEL_COST);
+  expect(usage?.costUsd).toBeCloseTo(MODEL_COST_USD);
+});
+
+test("dnevni plafon troška računa pomnožen trošak, pa 4 slike obara isti posao koji jedna prolazi", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedUser(t);
+  // 2 USD po slici: jedna slika staje u plafon od 5 USD, četiri (8 USD) ne.
+  await seedModel(t, {
+    slug: "skupi-model",
+    creditCost: 10,
+    estimatedCostUsd: 2,
+    paramSchema: IMAGE_SCHEMA,
+  });
+  await grant(t, userId, 200);
+
+  await expect(
+    asUser.mutation(api.studio.createJob, {
+      modelSlug: "skupi-model",
+      params: promptParams("cetiri skupe", { num_images: 4 }),
+    }),
+  ).rejects.toThrow(/DNEVNI_LIMIT_TROSKA/);
+  expect((await ledger(t, userId)).jobs).toHaveLength(0);
+
+  await asUser.mutation(api.studio.createJob, {
+    modelSlug: "skupi-model",
+    params: promptParams("jedna skupa", { num_images: 1 }),
+  });
+  expect((await ledger(t, userId)).jobs).toHaveLength(1);
+});
+
+test("computeCreditCost: num_images množi i granu sa costPerSecond", () => {
+  const perCall = { creditCost: 20 };
+  expect(computeCreditCost(perCall, { prompt: "x" })).toBe(20);
+  expect(computeCreditCost(perCall, { prompt: "x", num_images: 3 })).toBe(60);
+  // Vrednost koja nije upotrebljiv broj je jedna slika, nikad nula generacija.
+  expect(computeCreditCost(perCall, { num_images: "4" })).toBe(20);
+  expect(computeCreditCost(perCall, { num_images: 0 })).toBe(20);
+
+  const perSecond = { creditCost: 4, costPerSecond: 4.5 };
+  expect(computeCreditCost(perSecond, { duration: 6 })).toBe(27);
+  expect(computeCreditCost(perSecond, { duration: 6, num_images: 2 })).toBe(54);
 });
 
 test("createJob odbija nedozvoljen select pre nego što skine ijedan kredit", async () => {

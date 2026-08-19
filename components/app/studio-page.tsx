@@ -18,6 +18,7 @@ import {
   controlFields,
   generateButtonLabel,
   initialParamValues,
+  jobCreditCost,
   jobPrompt,
   jobStatusText,
   jobTileState,
@@ -38,7 +39,6 @@ type CatalogModel = {
   descriptionEn: string;
   creditCost: number;
   paramSchema: string;
-  defaultParams: string;
   badge?: "preporuceno" | "skupo" | "novo";
 };
 
@@ -127,10 +127,14 @@ function GenerateForm({
   topUpHref: string;
 }) {
   const fields = parseParamSchema(model.paramSchema);
-  const [values, setValues] = useState<ParamValues>(() => initialParamValues(fields, model.defaultParams));
+  const [values, setValues] = useState<ParamValues>(() => initialParamValues(fields));
   const promptMeta = promptField(fields);
   const controls = controlFields(fields);
   const remaining = promptMeta.maxLength - prompt.length;
+  // Isti objekat ide i u cenu i u `createJob`, pa dugme ne može da pokaže
+  // jednu cifru a server da naplati drugu: `num_images` množi obe strane.
+  const jobParams = buildJobParams(fields, values, prompt);
+  const creditCost = jobCreditCost(model.creditCost, jobParams);
 
   function setValue(field: StudioField, raw: string) {
     setValues((current) => ({
@@ -230,8 +234,8 @@ function GenerateForm({
           </Link>
           <p className="text-sm font-bold text-muted">
             {locale === "sr"
-              ? `Ova generacija košta ${model.creditCost} kr, a toliko trenutno nemaš na nalogu.`
-              : `This generation costs ${model.creditCost} credits, which is more than your balance.`}
+              ? `Ova generacija košta ${creditCost} kr, a toliko trenutno nemaš na nalogu.`
+              : `This generation costs ${creditCost} credits, which is more than your balance.`}
           </p>
         </div>
       ) : (
@@ -239,14 +243,14 @@ function GenerateForm({
           <button
             type="button"
             disabled={isPending || disabledReason === "active" || prompt.trim().length === 0}
-            onClick={() => onSubmit(buildJobParams(fields, values, prompt))}
+            onClick={() => onSubmit(jobParams)}
             className={cn(
               PILL,
               "w-full border-ink bg-ink text-white shadow-[4px_4px_0_0_#f4be30] hover:-translate-y-0.5",
             )}
           >
             {isPending ? <Loader2 className="size-4 animate-spin" /> : <Wand2 className="size-4" />}
-            {generateButtonLabel(model.creditCost, locale)}
+            {generateButtonLabel(creditCost, locale)}
           </button>
           {disabledReason === "active" ? (
             <p className="text-sm font-bold text-muted">

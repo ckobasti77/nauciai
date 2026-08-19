@@ -2990,3 +2990,165 @@ drže (izvučeni iz `npx vitest run --reporter=verbose`, ne iz dnevnika).
 5. **Preporuka je "još jedan krug", ne "spremno".** Razlog je u jednoj rečenici
    na kraju izveštaja: kod je čist i testiran, ali tri mesta i dalje propuštaju
    novac, a zatvaraju se sa oko dva prompta.
+
+## Z1 - Tri rupe iz NOVIH RUPA: cena po slici, javan katalog, kuponi   (19.08.2026 16:05-16:35)
+
+**Fajlovi:**
+- `convex/studioCore.ts` - nova `requestedImageCount`, `computeCreditCost`
+  množi obe grane
+- `convex/studio.ts` - `estimatedCostUsd` se množi pre plafona i pre upisa u
+  `studioUsageDaily` (tri mesta), nov uvoz
+- `convex/modelCatalog.ts` - `.map` projekcija na `listModels`
+- `convex/creditsCore.ts` - `invoicePaidGrants` dobija obavezan `amountPaid`
+- `app/api/stripe/webhook/route.ts` - kapija na `session.amount_total`,
+  prosleđen `invoice.amount_paid`
+- `lib/stripe.ts` - `allow_promotion_codes: false` na sesiji paketa i plana
+- `lib/studio-form.ts` - nova `jobCreditCost` (+ privatna `requestedImageCount`),
+  `initialParamValues` prima podrazumevan `"{}"`
+- `components/app/studio-page.tsx` - cena na dugmetu prati "Broj slika",
+  `defaultParams` više ne ulazi u `CatalogModel`
+- `convex/studio.test.ts` - 4 nova testa, 1 ažuriran assertion
+- `convex/modelCatalog.test.ts` - 1 nov test, 1 ažuriran assertion
+- `convex/credits.test.ts` - 1 nov test, `amountPaid` na 6 postojećih poziva
+- `app/api/stripe/webhook/route.test.ts` - 3 nova testa, `amount_total` u fixture-u
+- `lib/stripe.test.ts` - 1 nov test, 1 ažuriran assertion
+- `lib/studio-form.test.ts` - 2 nova testa
+- `docs/STUDIO-PROGRESS.md` - ova sekcija
+
+**Šta je uradjeno:**
+
+**N1 - `num_images` se sad naplaćuje po slici.** `computeCreditCost` množi
+rezultat brojem naručenih slika, u obe grane: fiksna cena postaje
+`creditCost * n`, a cena po sekundi `ceil(costPerSecond * duration) * n`. Broj
+se čita iz OČIŠĆENIH parametara (`requestedImageCount`), dakle iz istog objekta
+koji ide fal-u, i podrazumeva se 1 kad polje ne postoji. `createJob` isto tako
+množi `estimatedCostUsd` - i pre provere dnevnog plafona i pri upisu u
+`studioUsageDaily.costUsd`, jer plafon koji broji cenu po pozivu nije plafon.
+`num_images` ostaje u `paramSchema` sa `max: 4`, netaknut. Na dugmetu se cena
+sada pomera odmah: `GenerateForm` gradi `buildJobParams` jednom po renderu i
+istim objektom hrani i `jobCreditCost` (dugme) i `onSubmit` (`createJob`), pa
+prikazana i naplaćena cifra ne mogu da se raziđu.
+
+**N2 - `listModels` više ne vraća ceo red.** `.map` projekcija po uzoru na
+`creditPacks.listPacks`: napolje idu `slug`, `kind`, `labelSr/En`,
+`descriptionSr/En`, `creditCost`, `badge`, `paramSchema`, `sortOrder`.
+`falEndpoint`, `estimatedCostUsd`, `provider` i `defaultParams` ostaju unutra.
+Sva tri pozivaoca su proverena: galerija (`slug`, labele) i stranica kredita
+(`kind`, `creditCost`, `badge`) ne gube ništa; playground je koristio
+`defaultParams` za početne vrednosti forme, pa je tu popravljen. `listAllModels`
+je netaknut.
+
+**N3 - kupon od 100% više ne puni ledger.** Uradjeno je oboje:
+`allow_promotion_codes: false` na sesiji paketa i sesiji plana, i provera
+stvarno naplaćenog iznosa - `invoicePaidGrants` odbija fakturu bez
+`amountPaid > 0`, a `grantCreditPackCredits` sesiju bez `amount_total > 0`.
+Obe vrednosti sada dolaze iz `route.ts`; `amountPaid` je namerno OBAVEZNO polje,
+pa ga `tsc` traži od svakog budućeg pozivaoca.
+
+**ODLUKE:**
+1. **N1 pretpostavlja da fal naplaćuje PO IZLAZNOJ SLICI, ne po zahtevu.** To
+   nije provereno protiv živog fal API-ja. Cene iz plana §2.3 su po slici, pa je
+   ovo konzervativan smer: ako se pokaže da fal naplaćuje po zahtevu, popravka
+   je da se množenje ukloni (`requestedImageCount` ispada iz `computeCreditCost`
+   i iz `createJob`-ovog `estimatedCostUsd`), a ne da se menja išta drugo.
+2. **`requestedImageCount` nikad ne vraća manje od 1.** `sanitizeParams` danas
+   podiže `num_images: 0` na `min: 1` iz šeme, ali šema bez `min`-a bi inače
+   dala cenu 0 - dakle besplatnu generaciju. Zaštita je u funkciji koja računa
+   novac, ne u šemi.
+3. **U grani sa `costPerSecond` množi se ZAOKRUŽENA cena po klipu**
+   (`ceil(c*d) * n`), ne obrnuto (`ceil(c*d*n)`). Razlika je najviše par
+   kredita i uvek u korist kase; spec traži "množi rezultat".
+4. **`costPerSecond` NIJE u projekciji `listModels`-a.** Spec ga uslovljava sa
+   "ako ga UI koristi za prikaz cene" - ne koristi ga nijedna od tri stranice, a
+   nijedan model sa tim poljem danas nije ni uključen (video je Faza B). Kad se
+   video forma bude pisala, polje se dodaje tada.
+5. **`isEnabled` takodje nije u projekciji, pa je postojeći assertion prepisan,
+   ne obrisan.** `listModels vraća samo isEnabled modele` sada dokazuje istu
+   stvar preko slugova: nijedan slug iz baze koji je isključen ne sme da se
+   pojavi u odgovoru. Isto važi za `job?.creditCost` u testu očišćenih
+   parametara (`MODEL_COST` -> `4 * MODEL_COST`) i za `allow_promotion_codes` u
+   `lib/stripe.test.ts` (`true` -> `false`) - ta tri assertiona su nosila staro
+   ponašanje koje je zadatak i menjao.
+6. **`defaultParams` više ne stiže do forme, i to menja jednu sitnicu:**
+   početne vrednosti kontrola sada padaju na prvu opciju odnosno `min` umesto na
+   vrednost iz kataloga. Za današnji seed je ishod identičan (`aspect_ratio`
+   default je "1:1", što je i prva opcija; `num_images` default je 1, što je i
+   `min`). Ako admin sutra promeni `defaultParams` za polje koje je U ŠEMI,
+   forma to neće pokazati - a `submitJob` i dalje spaja `defaultParams` ispod
+   `job.params`, pa pinovana rezolucija i sve što nije u šemi rade nepromenjeno.
+7. **Kapija na iznos sesije je u `grantCreditPackCredits` (ruta), ne u
+   `creditPackGrants` (core).** Tako stoji odmah pored postojeće
+   `payment_status` kapije, sa svojim `console.info`, i ne pravi lažan
+   `console.error("...without usable metadata")` za sesiju čiji su metapodaci
+   sasvim ispravni - samo je iznos nula.
+8. **`createCourseCheckoutSession` (`lib/stripe.ts:40`) nije diran.** Spec
+   imenuje "obe sesije" = paket i plan; kurs je postojeći subscription flow koji
+   je i P1 ostavio na miru. Treći `allow_promotion_codes: true` i dalje stoji
+   tamo i nije deo N3.
+9. **`shortOnCredits` u roditelju i dalje poredi balans sa BAZNOM cenom
+   modela.** Stanje `num_images` živi u `GenerateForm`-u, pa bi tačan uslov
+   tražio podizanje tog stanja za nivo više. Posledica je uska: korisnik sa
+   balansom izmedju bazne i pomnožene cene vidi dugme umesto ponude za dopunu,
+   klikne, i dobije `NEDOVOLJNO_KREDITA` koji `studioErrorMessage` već lepo
+   ispisuje. Novac ne curi - `createJob` odbija posao pre bilo kakvog upisa.
+
+**Testovi:** 12 novih (394 -> 406), plus tri ažurirana assertiona iz odluke 5 i
+`amountPaid` dodat na 6 postojećih poziva `invoicePaidGrants`-a (polje je
+obavezno, pa je to posledica tipa, ne izmena tvrdnje).
+
+N1 (`convex/studio.test.ts`, 4):
+- `num_images: 4` naplaćuje `4 * MODEL_COST` - u poslu, u balansu, u `spend`
+  transakciji i u `studioUsageDaily.creditsSpent`, a `costUsd` poraste za
+  `4 * MODEL_COST_USD`;
+- odsutan `num_images` ostaje na 1x (cena i `costUsd`);
+- dnevni plafon troška: model od 2 $/slika obara posao sa `num_images: 4`
+  (8 $ > 5 $) i propušta isti posao sa `num_images: 1` - dokaz da plafon broji
+  pomnožen trošak;
+- čista jedinica `computeCreditCost`: 1x/3x, netipičan i nulti ulaz padaju na 1,
+  i `costPerSecond` grana (`27` -> `54` na dve slike).
+
+N1 UI (`lib/studio-form.test.ts`, 2): dugme prikazuje `20/60/80 kr` za 1/3/4
+slike (i `0` se podiže na `min`); `jobCreditCost` se poklapa sa serverskim
+`computeCreditCost`-om za sve vrednosti iz šeme - isti obrazac unakrsne provere
+kao `lib/studio-admin.test.ts`.
+
+N2 (`convex/modelCatalog.test.ts`, 1): `listModels` ne vraća `falEndpoint`,
+`estimatedCostUsd`, `provider` ni `defaultParams`, a i dalje vraća sve što ekran
+crta; `listAllModels` i dalje vidi nabavnu cenu i endpoint.
+
+N3 (`convex/credits.test.ts` 1, `app/api/stripe/webhook/route.test.ts` 3):
+faktura sa `amountPaid: 0` ne dodeljuje ništa ni za `subscription_create` ni za
+tri uzastopna ciklusa, `amountPaid: null` isto, a ista faktura sa stvarnom
+uplatom i dalje dodeli punih 2000; na nivou rute - sesija sa `amount_total: 0`
+ne zove Convex, `invoice.paid` sa `amount_paid: 0` ne zove Convex, a plaćena
+faktura dodeli mesečnu dozu (ta grana do sada nije imala nijedan test na nivou
+rute).
+
+**Rezultat verifikacije:** sve četiri komande čiste, iz prvog pokušaja.
+- `npx convex codegen` - **prošlo** (exit 0, `Running TypeScript...` bez greške)
+- `npm run lint` - **prošlo** (`✖ 7 problems (0 errors, 7 warnings)`; istih 7
+  zatečenih upozorenja u `admin-inline-actions.tsx`, `dashboard-content.tsx` i
+  `public-course-intro-video.tsx`, nijedno iz Studio koda)
+- `npm run test` - **prošlo** (`Test Files 41 passed (41) / Tests 406 passed
+  (406)`), na podrazumevanom timeout-u
+- `npm run build` - **prošlo** (`✓ Compiled successfully in 6.3s`,
+  `Finished TypeScript in 11.7s`, 60/60 statičkih stranica, sve rute na broju)
+
+**BLOKADA:** nema.
+
+**Za Jovana:**
+1. **Proveri kako fal stvarno naplaćuje `num_images` pre nego što ovo ode u
+   produkciju.** Cela N1 popravka visi o toj jednoj činjenici (odluka 1). Ako
+   naplaćuje po zahtevu, korisnik od danas plaća 4x više nego što treba za 4
+   slike - a to je gora greška od one koju smo zatvorili.
+2. **Kuponi su isključeni na oba mesta.** Kad budeš hteo kampanju, uključi
+   `allow_promotion_codes` nazad - provera iznosa iz N3 ostaje i tada radi, pa
+   kupon od 100% i dalje neće dodeliti kredite (verovatno tačno ponašanje za
+   "besplatno probaj", ali odluči svesno).
+3. **N4-N8 iz `docs/STUDIO-DAY-REPORT.md` su i dalje otvorene**, uključujući
+   N8 (nema 18+ checkbox-a ni `/uslovi-studio` stranice) koji stoji izmedju
+   tebe i prvog naplaćenog evra.
+4. **Ovaj korak nije proveren u browseru** - menja cenu i projekciju, a obe se
+   drže testovima; playground traži pokrenut Convex, upis u kurs i kredite.
+   Kad sledeći put pokreneš demo, pogledaj samo jedno: da li strelica gore na
+   polju "Broj slika" odmah pomeri cifru u dugmetu.

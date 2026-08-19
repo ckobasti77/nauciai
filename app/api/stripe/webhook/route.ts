@@ -119,6 +119,19 @@ async function grantCreditPackCredits(event: Stripe.Event, session: Stripe.Check
     return true;
   }
 
+  // `payment_status: "paid"` does not mean money moved: a 100% coupon settles
+  // the session at zero. Credits are only ever granted against an amount.
+  if (typeof session.amount_total !== "number" || session.amount_total <= 0) {
+    console.info(
+      "Stripe credit_pack session settled at zero, no credits granted",
+      event.id,
+      event.type,
+      session.id,
+      session.amount_total,
+    );
+    return true;
+  }
+
   const grants = creditPackGrants({ sessionId: session.id, metadata: session.metadata });
   if (grants.length === 0) {
     console.error("Stripe credit_pack session without usable metadata", session.id);
@@ -170,6 +183,7 @@ async function grantInvoiceCredits(event: Stripe.Event, stripe: Stripe, invoice:
       subscriptionMetadata: metadata,
       planCredits: pack?.credits ?? 0,
       planPackId: pack?._id,
+      amountPaid: invoice.amount_paid,
     }),
   );
 }

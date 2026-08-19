@@ -72,24 +72,40 @@ export type PricedModel = {
 };
 
 /**
+ * Koliko izlaza posao naručuje. fal naplaćuje po IZLAZNOJ slici, ne po
+ * zahtevu, pa je `num_images: 4` četiri puta veći račun - i cena mora da ga
+ * prati. Polje koje šema ne izlaže znači jedan izlaz. Ulaz su OČIŠĆENI
+ * parametri, dakle vrednost je već odsečena na `min`/`max` iz šeme.
+ */
+export function requestedImageCount(params: Record<string, unknown>): number {
+  const count = params.num_images;
+  if (typeof count !== "number" || !Number.isFinite(count)) return 1;
+  // Nikad ispod 1: šema bez `min`-a bi inače `num_images: 0` pretvorila u
+  // besplatnu generaciju.
+  return Math.max(1, Math.floor(count));
+}
+
+/**
  * Cena se UVEK računa ovde, iz kataloga - nikad iz onoga što je klijent
  * poslao u `params`. Model sa `costPerSecond` (video promenljivog trajanja,
  * STUDIO-PLAN B2) košta `ceil(costPerSecond * duration)`; sve ostalo ima
- * fiksni `creditCost`.
+ * fiksni `creditCost`. Oba se množe brojem naručenih slika, jer se toliko puta
+ * množi i fal račun.
  *
  * Model koji naplaćuje po sekundi, a `duration` nije poslat kao pozitivan
  * broj, baca umesto da padne na fiksnu cenu: naplatiti baznu cenu za klip
  * nepoznate dužine je tiho potkradanje kase.
  */
 export function computeCreditCost(model: PricedModel, params: Record<string, unknown>): number {
-  if (model.costPerSecond === undefined) return model.creditCost;
+  const images = requestedImageCount(params);
+  if (model.costPerSecond === undefined) return model.creditCost * images;
 
   const duration = params.duration;
   if (typeof duration !== "number" || !Number.isFinite(duration) || duration <= 0) {
     throw new Error("NEISPRAVNO_TRAJANJE");
   }
 
-  return Math.ceil(model.costPerSecond * duration);
+  return Math.ceil(model.costPerSecond * duration) * images;
 }
 
 /** ECB kurs iz STUDIO-PLAN §2 (14.08.2026): 1 $ = 0,865 €. Nije uživo - ista pretpostavka kao seed cena. */
@@ -123,6 +139,49 @@ export const MAX_DAILY_COST_USD = 5;
  */
 export function exceedsDailyCostLimit(spentUsd: number, addedUsd: number): boolean {
   return Math.round((spentUsd + addedUsd) * 100) > MAX_DAILY_COST_USD * 100;
+}
+
+/**
+ * STUDIO-PLAN 4.4 - GLOBALNI dnevni plafon troška, preko svih korisnika. Dnevni
+ * limit po korisniku (`MAX_DAILY_COST_USD`) ne vidi zbir: deset korisnika koji
+ * svaki udari u svojih 5 $ je 50 $ koje niko ne primeti. Ova dva praga su
+ * jedina AUTOMATSKA zaštita nad ukupnim fal računom - alarm da neko pogleda,
+ * kill switch da se Studio sam ugasi u 3 ujutru. Admin ekran (P8) samo
+ * prikazuje trošak; prikaz nije zaštita.
+ */
+export const GLOBAL_DAILY_ALARM_USD = 50;
+export const GLOBAL_DAILY_KILL_USD = 100;
+
+/** Šta cron treba da uradi na osnovu današnjeg globalnog troška. */
+export type GlobalCostAction = "none" | "alarm" | "kill";
+
+export type GlobalCostState = {
+  /** Je li alarm od 50 $ za TAJ dan već poslat (cron se vrti na 15 min). */
+  alarmSentToday: boolean;
+  /** Je li Studio trenutno upaljen (`platformFlags.studio_enabled`). */
+  studioEnabled: boolean;
+};
+
+/**
+ * Čista odluka, odvojena od crona i baze. Kill ima prednost i vezan je za
+ * `studioEnabled`: već ugašen Studio se ne gasi drugi put i ne šalje drugi
+ * mejl. Alarm ide najviše jednom po danu i takođe samo dok Studio radi - čim
+ * ga kill ugasi, prestaje i alarm. Nov dan resetuje oboje sam od sebe:
+ * `costUsd` se sabira po danu, a `alarmSentToday` se pamti po danu.
+ *
+ * Poredi se u centima iz istog razloga kao `exceedsDailyCostLimit` - zbir
+ * mnogo malih `costUsd` vrednosti u binarnom zapisu ume da promaši ceo prag.
+ */
+export function decideGlobalCostAction(
+  totalCostUsd: number,
+  state: GlobalCostState,
+): GlobalCostAction {
+  const cents = Math.round(totalCostUsd * 100);
+  if (state.studioEnabled && cents > GLOBAL_DAILY_KILL_USD * 100) return "kill";
+  if (state.studioEnabled && !state.alarmSentToday && cents > GLOBAL_DAILY_ALARM_USD * 100) {
+    return "alarm";
+  }
+  return "none";
 }
 
 /**

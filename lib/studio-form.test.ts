@@ -1,7 +1,10 @@
 import { describe, expect, test } from "vitest";
 
 import { MAX_PROMPT_LENGTH } from "@/convex/creditsCore";
-import { sanitizeParams } from "@/convex/studioCore";
+import {
+  computeCreditCost as serverComputeCreditCost,
+  sanitizeParams,
+} from "@/convex/studioCore";
 import {
   buildJobParams,
   clampNumber,
@@ -9,6 +12,7 @@ import {
   generateButtonLabel,
   initialParamValues,
   isExpiredOutput,
+  jobCreditCost,
   jobPrompt,
   jobStatusText,
   jobTileState,
@@ -267,5 +271,32 @@ describe("generateButtonLabel", () => {
     expect(generateButtonLabel(20, "sr")).toBe("Generiši - 20 kr");
     expect(generateButtonLabel(65, "sr")).toContain("65");
     expect(generateButtonLabel(20, "en")).toContain("20");
+  });
+
+  test("dugme prikazuje pomnoženu cenu čim se pomeri polje 'Broj slika'", () => {
+    const fields = parseParamSchema(IMAGE_SCHEMA);
+    const priceFor = (numImages: number) =>
+      jobCreditCost(20, buildJobParams(fields, { aspect_ratio: "1:1", num_images: numImages }, "lisica"));
+
+    expect(generateButtonLabel(priceFor(1), "sr")).toBe("Generiši - 20 kr");
+    expect(generateButtonLabel(priceFor(3), "sr")).toBe("Generiši - 60 kr");
+    expect(generateButtonLabel(priceFor(4), "en")).toBe("Generate - 80 cr");
+    // Klijent ne sme da isprosi nižu cenu: `clampNumber` u `buildJobParams`
+    // podiže 0 na `min`, isto kao `sanitizeParams` na serveru.
+    expect(priceFor(0)).toBe(20);
+  });
+});
+
+describe("jobCreditCost poklapa se sa convex/studioCore.ts (namerna duplikacija)", () => {
+  test("cena na dugmetu je ista ona koju createJob skine", () => {
+    const fields = parseParamSchema(IMAGE_SCHEMA);
+    for (const numImages of [1, 2, 3, 4]) {
+      const params = buildJobParams(fields, { aspect_ratio: "1:1", num_images: numImages }, "lisica");
+      expect(jobCreditCost(20, params)).toBe(serverComputeCreditCost({ creditCost: 20 }, params));
+    }
+
+    // Model bez `num_images` u šemi: obe strane naplaćuju jednu sliku.
+    const bare = buildJobParams(parseParamSchema("[]"), {}, "lisica");
+    expect(jobCreditCost(35, bare)).toBe(serverComputeCreditCost({ creditCost: 35 }, bare));
   });
 });

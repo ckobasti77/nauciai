@@ -1432,4 +1432,15 @@ export default defineSchema({
     key: v.string(),
     enabled: v.boolean(),
   }).index("by_key", ["key"]),
+
+  // Zapamćeno stanje globalnog dnevnog alarma (STUDIO-PLAN 4.4). Jedan red po
+  // UTC danu za koji je alarm od 50 $ već poslat - cron se vrti na 15 min, a
+  // bez ovog reda bi isti mejl stizao svakih 15 minuta do ponoći. Namerno
+  // odvojeno od `platformFlags`: `enabled` boolean gasi Studio, a "alarm
+  // poslat" nije isto stanje i ne sme da se pomeša sa kill switch-om.
+  // Kill (100 $) ne treba svoj red - on gasi `platformFlags.studio_enabled`,
+  // pa je već ugašen Studio sam sebi pamćenje.
+  studioCostAlarms: defineTable({
+    day: v.string(),
+  }).index("by_day", ["day"]),
 });

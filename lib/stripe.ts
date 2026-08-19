@@ -85,7 +85,9 @@ export async function createCreditPackCheckoutSession(params: {
     success_url: `${siteUrl}/${params.locale}/app/credits?checkout=success`,
     cancel_url: `${siteUrl}/${params.locale}/app/credits?checkout=cancelled`,
     customer_email: params.customerEmail,
-    allow_promotion_codes: true,
+    // Nema kuponske politike, pa nema ni kupona: kupon od 100% pravi sesiju
+    // koja je uredno `paid` na 0 € i puni ledger besplatno.
+    allow_promotion_codes: false,
     metadata: {
       kind: "credit_pack",
       packId: params.packId,
@@ -124,7 +126,9 @@ export async function createPlanCheckoutSession(params: {
     success_url: `${siteUrl}/${params.locale}/app/courses/${params.courseSlug}?checkout=success`,
     cancel_url: `${siteUrl}/${params.locale}/app/courses/${params.courseSlug}?checkout=cancelled`,
     customer_email: params.customerEmail,
-    allow_promotion_codes: true,
+    // Kupon od 100% "forever" na plan proizvodi `invoice.paid` svakog meseca,
+    // svaki sa novim `invoice.id` - dakle mesečna doza kredita, neograničeno.
+    allow_promotion_codes: false,
     subscription_data: { metadata },
     metadata,
   });

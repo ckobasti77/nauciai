@@ -1,8 +1,17 @@
 import { cronJobs } from "convex/server";
 
 import { internal } from "./_generated/api";
-import { internalMutation } from "./_generated/server";
+import { env, internalAction, internalMutation } from "./_generated/server";
 import { applyLotExpiry } from "./credits";
+import {
+  dayKey,
+  decideGlobalCostAction,
+  GLOBAL_DAILY_ALARM_USD,
+  GLOBAL_DAILY_KILL_USD,
+  type GlobalCostAction,
+  STUDIO_FLAG_KEY,
+} from "./studioCore";
+import { parseAdminEmails } from "../lib/admin-emails";
 
 /**
  * Poruka koju zaglavljen posao dobija u `error`. Namerno je drugačija od svake

@@ -1,0 +1,78 @@
+﻿[00:30:29] ==================================================
+[00:30:29]  STUDIO - katalog v3, tri provajdera
+[00:30:29]  Grana:  feat/studio-faza-a
+[00:30:29]  Koraka: 9
+[00:30:29] ==================================================
+[00:30:29] Grana: feat/studio-faza-a
+[00:30:29] 
+[00:30:29] --------------------------------------------------
+[00:30:29]  S0  |  Dovrsi Z2: globalni plafon troska
+[00:30:29]  model=opus  effort=high
+[00:30:29] --------------------------------------------------
+[00:30:29] DRY RUN - prompt zapisan.
+[00:30:29] 
+[00:30:29] --------------------------------------------------
+[00:30:29]  S1  |  Nova sema: models, paramSpec, priceRule, computeCostUsd
+[00:30:29]  model=opus  effort=max
+[00:30:29] --------------------------------------------------
+[00:30:29] DRY RUN - prompt zapisan.
+[00:30:29] 
+[00:30:29] --------------------------------------------------
+[00:30:29]  S2  |  Google slike - Nano Banana 2 i Pro, sinhrono
+[00:30:29]  model=opus  effort=high
+[00:30:29] --------------------------------------------------
+[00:30:29] DRY RUN - prompt zapisan.
+[00:30:29] 
+[00:30:29] --------------------------------------------------
+[00:30:29]  S3  |  BytePlus - Seedream 5 Pro i Seedance 2.0/2.5
+[00:30:29]  model=opus  effort=max
+[00:30:29] --------------------------------------------------
+[00:30:29] DRY RUN - prompt zapisan.
+[00:30:29] 
+[00:30:29] --------------------------------------------------
+[00:30:29]  S4  |  Google video poller - Veo Fast i Gemini Omni
+[00:30:29]  model=opus  effort=high
+[00:30:29] --------------------------------------------------
+[00:30:29] DRY RUN - prompt zapisan.
+[00:30:29] 
+[00:30:29] --------------------------------------------------
+[00:30:29]  S5  |  Seed kataloga - oko 30 modela sa parametrima i cenama
+[00:30:29]  model=opus  effort=high
+[00:30:29] --------------------------------------------------
+[00:30:29] DRY RUN - prompt zapisan.
+[00:30:29] 
+[00:30:29] --------------------------------------------------
+[00:30:29]  S6  |  Deljene komponente: ParamControl, DropSlot, FrameSlotPair
+[00:30:29]  model=opus  effort=high
+[00:30:29] --------------------------------------------------
+[00:30:29] DRY RUN - prompt zapisan.
+[00:30:29] 
+[00:30:29] --------------------------------------------------
+[00:30:29]  S7  |  Playground, galerija i admin na novim komponentama
+[00:30:29]  model=opus  effort=high
+[00:30:29] --------------------------------------------------
+[00:30:29] DRY RUN - prompt zapisan.
+[00:30:29] 
+[00:30:29] --------------------------------------------------
+[00:30:29]  SRV  |  Zavrsni review kataloskog run-a
+[00:30:29]  model=opus  effort=xhigh
+[00:30:29] --------------------------------------------------
+[00:30:29] DRY RUN - prompt zapisan.
+[00:30:29] 
+[00:30:29] ==================================================
+[00:30:29]  GOTOVO
+[00:30:29] ==================================================
+[00:30:29] Ukupna cena: USD 0.00
+[00:30:29] Grana: feat/studio-faza-a  (NIJE push-ovana, NIJE deploy-ovana)
+[00:30:29] 
+[00:30:29] Kad se vratis:
+[00:30:29]   1. docs\STUDIO-CATALOG-REPORT.md  - marze po modelu, rutiranje, rizici
+[00:30:29]   2. docs\STUDIO-PROGRESS.md        - dnevnik po koracima
+[00:30:29]   3. npm run dev  pa  /sr/app/studio
+[00:30:49] ==================================================
+[00:30:49]  STUDIO - katalog v3, tri provajdera
+[00:30:49]  Grana:  feat/studio-faza-a
+[00:30:49]  Koraka: 9
+[00:30:49] ==================================================
+[00:30:50] Grana: feat/studio-faza-a
+[00:30:50] Nekomitovane izmene - commitujem pre starta.

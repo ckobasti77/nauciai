@@ -14,13 +14,34 @@ const modelCatalogBadge = v.union(
 // unosa - bounded scan je dovoljan bez dodatnog indeksa.
 const MAX_MODELS = 200;
 
+/**
+ * Javan upit: `NEXT_PUBLIC_CONVEX_URL` je po definiciji u browser bundle-u, pa
+ * ovo čita bilo ko sa interneta, bez naloga. Zato ide `.map` projekcija, isti
+ * obrazac kao `creditPacks.listPacks` - napolje izlazi samo ono što ekran
+ * crta. `falEndpoint`, `estimatedCostUsd`, `provider` i `defaultParams` (u
+ * kojima je pinovana rezolucija) ostaju unutra: zajedno su kalkulacija marže i
+ * spisak poluga koje množe fal račun. Admin ih vidi kroz `listAllModels`, iza
+ * provere uloge.
+ */
 export const listModels = query({
   args: { kind: v.optional(studioModelKind) },
   handler: async (ctx, args) => {
     const rows = await ctx.db.query("modelCatalog").take(MAX_MODELS);
     return rows
       .filter((model) => model.isEnabled && (!args.kind || model.kind === args.kind))
-      .sort((a, b) => a.sortOrder - b.sortOrder);
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map((model) => ({
+        slug: model.slug,
+        kind: model.kind,
+        labelSr: model.labelSr,
+        labelEn: model.labelEn,
+        descriptionSr: model.descriptionSr,
+        descriptionEn: model.descriptionEn,
+        creditCost: model.creditCost,
+        badge: model.badge,
+        paramSchema: model.paramSchema,
+        sortOrder: model.sortOrder,
+      }));
   },
 });
 

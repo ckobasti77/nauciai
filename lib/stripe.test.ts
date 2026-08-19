@@ -48,7 +48,9 @@ describe("createCreditPackCheckoutSession", () => {
     expect(params.mode).toBe("payment");
     expect(params.subscription_data).toBeUndefined();
     expect(params.line_items).toEqual([{ price: "price_starter", quantity: 1 }]);
-    expect(params.allow_promotion_codes).toBe(true);
+    // Dok kuponske politike nema, kupon od 100% je jedini ishod koji bi ovo
+    // polje omogućilo: sesija `paid` na 0 € sa punim brojem kredita.
+    expect(params.allow_promotion_codes).toBe(false);
     expect(params.customer_email).toBe("jovan@example.com");
     expect(params.metadata).toEqual({
       kind: "credit_pack",
@@ -101,6 +103,19 @@ describe("createPlanCheckoutSession", () => {
       userId: "user_3",
     });
     expect(params.success_url).toBe("https://nauciai.test/sr/app/courses/ai-osnove?checkout=success");
+  });
+
+  it("takes no promotion codes: a 100% forever coupon would renew for free every month", async () => {
+    await createPlanCheckoutSession({
+      planSlug: "premium",
+      courseId: "course_1",
+      courseSlug: "ai-osnove",
+      locale: "sr",
+      priceId: "price_premium",
+      userId: "user_3",
+    });
+
+    expect(lastParams().allow_promotion_codes).toBe(false);
   });
 });
 

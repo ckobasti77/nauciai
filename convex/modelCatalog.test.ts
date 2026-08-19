@@ -78,7 +78,15 @@ test("listModels vraća samo isEnabled modele, sortirane po sortOrder, i poštuj
 
   const all = await t.query(api.modelCatalog.listModels, {});
   expect(all.length).toBeGreaterThan(0);
-  expect(all.every((model) => model.isEnabled)).toBe(true);
+  // `isEnabled` više ne izlazi iz projekcije, pa se filter dokazuje slugovima:
+  // nijedan isključen model ne sme da bude u odgovoru.
+  const disabledSlugs = await t.run(async (ctx) =>
+    (await ctx.db.query("modelCatalog").collect())
+      .filter((model) => !model.isEnabled)
+      .map((model) => model.slug),
+  );
+  expect(disabledSlugs.length).toBeGreaterThan(0);
+  expect(all.filter((model) => disabledSlugs.includes(model.slug))).toEqual([]);
   expect(all.every((model) => model.kind === "image")).toBe(true);
   const sortOrders = all.map((model) => model.sortOrder);
   expect(sortOrders).toEqual([...sortOrders].sort((a, b) => a - b));
@@ -90,6 +98,39 @@ test("listModels vraća samo isEnabled modele, sortirane po sortOrder, i poštuj
 
   const nanoBanana2 = all.find((model) => model.slug === "nano-banana-2");
   expect(nanoBanana2?.badge).toBe("preporuceno");
+});
+
+test("listModels ne vraća falEndpoint ni estimatedCostUsd - upit je javan", async () => {
+  const t = convexTest(schema, modules);
+  await runSeed(t);
+
+  const all = await t.query(api.modelCatalog.listModels, {});
+  expect(all.length).toBeGreaterThan(0);
+
+  // `NEXT_PUBLIC_CONVEX_URL` je u browser bundle-u, pa je ovo doslovno ono što
+  // može da pročita bilo ko sa interneta, bez naloga. Nabavna cena, endpoint,
+  // provajder i pinovana rezolucija iz `defaultParams` ostaju unutra.
+  for (const model of all) {
+    const row = model as Record<string, unknown>;
+    expect(row.falEndpoint).toBeUndefined();
+    expect(row.estimatedCostUsd).toBeUndefined();
+    expect(row.provider).toBeUndefined();
+    expect(row.defaultParams).toBeUndefined();
+  }
+
+  // A ono što ekran crta i dalje stiže.
+  const nanoBanana2 = all.find((model) => model.slug === "nano-banana-2");
+  expect(nanoBanana2).toMatchObject({ kind: "image", badge: "preporuceno" });
+  expect(nanoBanana2?.creditCost).toBeGreaterThan(0);
+  expect(typeof nanoBanana2?.paramSchema).toBe("string");
+  expect(typeof nanoBanana2?.labelSr).toBe("string");
+  expect(typeof nanoBanana2?.descriptionEn).toBe("string");
+
+  // Admin i dalje vidi nabavnu cenu - bez nje P8 ne može da izračuna maržu.
+  const admin = await seedAdmin(t);
+  const adminRows = await admin.query(api.modelCatalog.listAllModels, {});
+  expect(adminRows.every((model) => typeof model.estimatedCostUsd === "number")).toBe(true);
+  expect(adminRows.every((model) => typeof model.falEndpoint === "string")).toBe(true);
 });
 
 test("getModelBySlug vraća cenu koja se poklapa sa STUDIO-PLAN §2.3 za bar 3 nasumična modela", async () => {

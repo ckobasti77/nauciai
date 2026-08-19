@@ -38,12 +38,33 @@ function creditPackSession(overrides: Partial<Stripe.Checkout.Session> = {}) {
     id: "cs_test_starter",
     mode: "payment",
     payment_status: "paid",
+    amount_total: 1990,
     metadata: {
       kind: "credit_pack",
       packId: "pack_starter",
       packSlug: "starter",
       userId: "user_1",
       credits: "500",
+    },
+    ...overrides,
+  };
+}
+
+function planInvoice(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "in_test_premium",
+    billing_reason: "subscription_cycle",
+    amount_paid: 1990,
+    parent: {
+      subscription_details: {
+        subscription: "sub_premium",
+        metadata: {
+          kind: "plan",
+          planSlug: "premium",
+          courseId: "course_1",
+          userId: "user_1",
+        },
+      },
     },
     ...overrides,
   };
@@ -124,6 +145,46 @@ test("async_payment_failed grants nothing and only logs", async () => {
     data: { object: creditPackSession({ payment_status: "unpaid" }) },
   });
 
+  expect(response.status).toBe(200);
+  expect(convexMutation).not.toHaveBeenCalled();
+});
+
+test("credit pack session settled at zero grants nothing - a 100% coupon is not a payment", async () => {
+  const response = await post({
+    type: "checkout.session.completed",
+    data: { object: creditPackSession({ amount_total: 0 }) },
+  });
+
+  // `payment_status` is still "paid" on a fully discounted session, so the
+  // amount is the only thing that separates a sale from a giveaway.
+  expect(response.status).toBe(200);
+  expect(convexMutation).not.toHaveBeenCalled();
+});
+
+test("paid plan invoice grants the monthly dose", async () => {
+  const response = await post({
+    type: "invoice.paid",
+    data: { object: planInvoice() },
+  });
+
+  expect(response.status).toBe(200);
+  expect(convexMutation).toHaveBeenCalledTimes(1);
+  expect(convexMutation.mock.calls[0][1]).toMatchObject({
+    userId: "user_1",
+    amount: 2000,
+    source: "plan_grant",
+    stripeInvoiceId: "in_test_premium",
+  });
+});
+
+test("plan invoice paid at zero grants nothing - a forever coupon would renew monthly", async () => {
+  const response = await post({
+    type: "invoice.paid",
+    data: { object: planInvoice({ amount_paid: 0, billing_reason: "subscription_create" }) },
+  });
+
+  // Every cycle produces a fresh `invoice.id`, so idempotency cannot stop this
+  // one - only the amount can.
   expect(response.status).toBe(200);
   expect(convexMutation).not.toHaveBeenCalled();
 });

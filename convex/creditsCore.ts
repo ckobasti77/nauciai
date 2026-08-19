@@ -247,6 +247,11 @@ export function creditPackGrants(session: {
  * ponavljaju nezavisno jedan od drugog.
  *
  * `planCredits <= 0` (Basic nema mesečnu dozu) preskače dozu, ali ne i bonus.
+ *
+ * `amountPaid` je iznos koji je Stripe stvarno naplatio, u najmanjoj jedinici
+ * valute. Faktura na 0 € (kupon od 100%) je i dalje `invoice.paid` sa novim
+ * `invoice.id` svakog meseca, pa bi bez ove provere doza tekla besplatno i
+ * neograničeno - polje je zato obavezno, da ga nov pozivalac ne zaboravi.
  */
 export function invoicePaidGrants(invoice: {
   invoiceId: string;
@@ -254,8 +259,10 @@ export function invoicePaidGrants(invoice: {
   subscriptionMetadata: StripeMetadata;
   planCredits: number;
   planPackId?: string;
+  amountPaid: number | null | undefined;
 }): StripeGrant[] {
   if (!studioPlanSlug(invoice.subscriptionMetadata)) return [];
+  if (typeof invoice.amountPaid !== "number" || invoice.amountPaid <= 0) return [];
 
   const userId = trimmed(invoice.subscriptionMetadata?.userId);
   const invoiceId = trimmed(invoice.invoiceId);

@@ -20,6 +20,7 @@ import {
   outputTitle,
   parseParams,
   promptHash,
+  requestedImageCount,
   sanitizeParams,
   STUDIO_FLAG_KEY,
 } from "./studioCore";
@@ -100,6 +101,9 @@ export const createJob = mutation({
     const sanitized = sanitizeParams(model.paramSchema, params);
     if (!sanitized.ok) throw new Error(`NEISPRAVNI_PARAMETRI:${sanitized.reason}`);
     const cleanParams = sanitized.params;
+    // Nabavna cena raste sa brojem slika isto kao i naplata: bez toga dnevni
+    // plafon od 5 $ propušta do 20 $ stvarnog troška (`num_images: 4`).
+    const estimatedCostUsd = model.estimatedCostUsd * requestedImageCount(cleanParams);
 
     const reserved = await ctx.db
       .query("generationJobs")
@@ -120,7 +124,7 @@ export const createJob = mutation({
     if ((usage?.generations ?? 0) >= MAX_DAILY_GENERATIONS) throw new Error("DNEVNI_LIMIT");
     // Drugi plafon je u dolarima, ne u komadima: broj generacija ne kaže ništa
     // dok korisnik bira između modela od 0,005 $ i modela od 2 $.
-    if (exceedsDailyCostLimit(usage?.costUsd ?? 0, model.estimatedCostUsd)) {
+    if (exceedsDailyCostLimit(usage?.costUsd ?? 0, estimatedCostUsd)) {
       throw new Error("DNEVNI_LIMIT_TROSKA");
     }
 
@@ -153,7 +157,7 @@ export const createJob = mutation({
       await ctx.db.patch(usage._id, {
         generations: usage.generations + 1,
         creditsSpent: usage.creditsSpent + creditCost,
-        costUsd: usage.costUsd + model.estimatedCostUsd,
+        costUsd: usage.costUsd + estimatedCostUsd,
       });
     } else {
       await ctx.db.insert("studioUsageDaily", {
@@ -161,7 +165,7 @@ export const createJob = mutation({
         day,
         generations: 1,
         creditsSpent: creditCost,
-        costUsd: model.estimatedCostUsd,
+        costUsd: estimatedCostUsd,
       });
     }
 

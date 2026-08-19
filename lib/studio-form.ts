@@ -96,8 +96,13 @@ export function clampNumber(value: number, field: { min?: number; max?: number }
  * upotrebljiva, inače prva opcija odnosno `min`. Vrednost iz `defaultParams`
  * koja nije u skupu opcija se ne prikazuje - server bi je odbio
  * (`NEDOZVOLJENA_VREDNOST`), pa forma ne sme da je ponudi.
+ *
+ * `modelCatalog.listModels` od N2 više ne izlaže `defaultParams` klijentu, pa
+ * Studio forma zove ovu funkciju bez drugog argumenta i pada na prvu opciju
+ * odnosno `min`. Podrazumevane vrednosti modela i dalje stižu do fal-a -
+ * `studioActions.submitJob` ih spaja ispod `job.params`.
  */
-export function initialParamValues(fields: StudioField[], defaultParamsJson: string): ParamValues {
+export function initialParamValues(fields: StudioField[], defaultParamsJson = "{}"): ParamValues {
   let defaults: Record<string, unknown> = {};
   try {
     const parsed: unknown = JSON.parse(defaultParamsJson);
@@ -248,6 +253,27 @@ export function jobPrompt(paramsJson: string): string {
   } catch {
     return "";
   }
+}
+
+/**
+ * Koliko slika forma naručuje. Matematika je namerno DUPLIRANA iz
+ * `convex/studioCore.ts` (isti obrazac kao `lib/studio-admin.ts`) - "use
+ * client" komponente u ovom repou ne uvoze `convex/*.ts` module direktno;
+ * `lib/studio-form.test.ts` uvozi obe strane i tvrdi da se poklapaju.
+ */
+function requestedImageCount(params: Record<string, unknown>): number {
+  const count = params.num_images;
+  if (typeof count !== "number" || !Number.isFinite(count)) return 1;
+  return Math.max(1, Math.floor(count));
+}
+
+/**
+ * Cena posla koju vidi korisnik: cena modela iz kataloga puta broj naručenih
+ * slika. Mora da se poklapa sa `studioCore.computeCreditCost`, inače dugme
+ * obeća jednu cifru a `createJob` skine drugu.
+ */
+export function jobCreditCost(creditCost: number, params: Record<string, unknown>): number {
+  return creditCost * requestedImageCount(params);
 }
 
 /**

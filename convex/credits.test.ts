@@ -402,6 +402,7 @@ test("ista invoice.paid faktura obradjena dvaput ostavlja tačno jedan lot", asy
     subscriptionMetadata: planMetadata(userId),
     planCredits: PREMIUM_MONTHLY_CREDITS,
     planPackId: packId,
+    amountPaid: 1000,
   });
 
   await applyStripeGrants(t, grants);
@@ -464,6 +465,7 @@ test("subscription_create faktura dodeli dozu plana I welcome bonus, oba nezavis
     subscriptionMetadata: planMetadata(userId),
     planCredits: PREMIUM_MONTHLY_CREDITS,
     planPackId: packId,
+    amountPaid: 1000,
   });
 
   expect(grants.map((grant) => grant.source)).toEqual(["plan_grant", "welcome_bonus"]);
@@ -512,6 +514,7 @@ test("obnova pretplate dodeli SAMO dozu plana, bez welcome bonusa", async () => 
     subscriptionMetadata: planMetadata(userId),
     planCredits: PREMIUM_MONTHLY_CREDITS,
     planPackId: packId,
+    amountPaid: 1000,
   });
 
   expect(grants).toHaveLength(1);
@@ -546,6 +549,7 @@ test("invoice.paid bez plan metapodataka ne dodeli ništa i ne pukne", async () 
     billingReason: "subscription_create",
     subscriptionMetadata: courseMetadata,
     planCredits: PREMIUM_MONTHLY_CREDITS,
+    amountPaid: 1000,
   });
   expect(grants).toEqual([]);
 
@@ -640,6 +644,7 @@ test("dve subscription_create fakture za istog korisnika daju tačno 150 kredita
         billingReason: "subscription_create",
         subscriptionMetadata: planMetadata(userId),
         planCredits: 0,
+        amountPaid: 1000,
       }),
     );
   }
@@ -652,6 +657,69 @@ test("dve subscription_create fakture za istog korisnika daju tačno 150 kredita
   });
   expect(transactions.filter((row) => row.type === "bonus")).toHaveLength(1);
   expect(balance?.balance).toBe(WELCOME_BONUS_CREDITS);
+});
+
+test("faktura naplaćena na 0 € ne dodeljuje ništa - ni mesečnu dozu, ni welcome bonus", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await seedUser(t);
+  const packId = await seedPack(t, {
+    slug: "premium",
+    credits: PREMIUM_MONTHLY_CREDITS,
+    kind: "plan",
+    planTier: "premium",
+  });
+
+  // Kupon od 100% "forever" na Premium: svakog meseca uredna `invoice.paid` sa
+  // novim `invoice.id`, dakle nova doza - a naplaćeno je nula. Idempotencija po
+  // fakturi tu ne pomaže, jer je svaka faktura zaista nova.
+  const coupon = [
+    { invoiceId: "in_kupon_prva", billingReason: "subscription_create" },
+    { invoiceId: "in_kupon_druga", billingReason: "subscription_cycle" },
+    { invoiceId: "in_kupon_treca", billingReason: "subscription_cycle" },
+  ];
+  for (const invoice of coupon) {
+    const grants = invoicePaidGrants({
+      ...invoice,
+      subscriptionMetadata: planMetadata(userId),
+      planCredits: PREMIUM_MONTHLY_CREDITS,
+      planPackId: packId,
+      amountPaid: 0,
+    });
+    expect(grants).toEqual([]);
+    await applyStripeGrants(t, grants);
+  }
+
+  // Faktura bez iznosa je isto "nije naplaćeno" - nagađanje bi ovde bilo
+  // besplatan Premium.
+  expect(
+    invoicePaidGrants({
+      invoiceId: "in_bez_iznosa",
+      billingReason: "subscription_cycle",
+      subscriptionMetadata: planMetadata(userId),
+      planCredits: PREMIUM_MONTHLY_CREDITS,
+      planPackId: packId,
+      amountPaid: null,
+    }),
+  ).toEqual([]);
+
+  const { balance, lots, transactions } = await ledger(t, userId);
+  expect(balance).toBeNull();
+  expect(lots).toEqual([]);
+  expect(transactions).toEqual([]);
+
+  // Ista faktura sa stvarnom uplatom i dalje prolazi.
+  await applyStripeGrants(
+    t,
+    invoicePaidGrants({
+      invoiceId: "in_placena",
+      billingReason: "subscription_cycle",
+      subscriptionMetadata: planMetadata(userId),
+      planCredits: PREMIUM_MONTHLY_CREDITS,
+      planPackId: packId,
+      amountPaid: 1990,
+    }),
+  );
+  expect((await ledger(t, userId)).balance?.balance).toBe(PREMIUM_MONTHLY_CREDITS);
 });
 
 test("bonus se ne dodeljuje drugi put ni kad lot nosi stari ključ po fakturi", async () => {
@@ -673,6 +741,7 @@ test("bonus se ne dodeljuje drugi put ni kad lot nosi stari ključ po fakturi", 
       billingReason: "subscription_create",
       subscriptionMetadata: planMetadata(userId),
       planCredits: 0,
+      amountPaid: 1000,
     }),
   );
 
