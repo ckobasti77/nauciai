@@ -40,6 +40,7 @@ import type * as lab from "../lab.js";
 import type * as leaderboard from "../leaderboard.js";
 import type * as leaderboardCore from "../leaderboardCore.js";
 import type * as migrations from "../migrations.js";
+import type * as modelCatalog from "../modelCatalog.js";
 import type * as notifications from "../notifications.js";
 import type * as profileActivityCore from "../profileActivityCore.js";
 import type * as profiles from "../profiles.js";
@@ -88,6 +89,7 @@ declare const fullApi: ApiFromModules<{
   leaderboard: typeof leaderboard;
   leaderboardCore: typeof leaderboardCore;
   migrations: typeof migrations;
+  modelCatalog: typeof modelCatalog;
   notifications: typeof notifications;
   profileActivityCore: typeof profileActivityCore;
   profiles: typeof profiles;

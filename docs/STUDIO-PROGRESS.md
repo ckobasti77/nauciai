@@ -666,3 +666,109 @@ gleda `kind`. Sve izmene su vraćene, `diff` prema rezervnoj kopiji je čist.
 - Podsetnik iz A2 koji i dalje važi: **cron za istek kredita (D5) NIJE napisan.**
   Krediti dodeljeni od danas ističu za 12 meseci, ali ih niko još ne gasi, pa
   keširan balans posle godinu dana može da bude veći od stvarno potrošivog.
+
+---
+
+## A7 - Katalog modela (modelCatalog) + seed   (2026-08-19 03:10)
+
+**Fajlovi:**
+- dodato: `convex/modelCatalog.ts`, `convex/modelCatalog.test.ts`
+- izmenjeno: `convex/seed.ts`
+
+**Šta je uradjeno:** `convex/modelCatalog.ts` daje pristupne funkcije nad
+`modelCatalog` tabelom iz A1: javni `listModels({ kind? })` (bounded
+`.take(200)`, vraća samo `isEnabled: true`, sortirano po `sortOrder` - isti
+obrazac kao `creditPacks.listPacks` iz A4), `getModelBySlug` kao
+`internalQuery` preko `by_slug` indeksa, i tri admin mutacije zaštićene
+`requireAdmin`-om: `upsertModel` (upsert po `slug`), `setModelEnabled` i
+`setModelCost` (menja `creditCost` i opciono `estimatedCostUsd`, za buduće
+alarme o marži). `convex/seed.ts` je dobio `modelCatalogSeeds` niz sa svih 22
+modela iz `docs/STUDIO-PLAN.md` §2.3 (8 slika, 11 video, 3 zvuk) i
+`seedModelCatalog` mutaciju, idempotentnu preko `by_slug`, istim obrascem kao
+`seedCreditPacks` iz A4.
+
+**ODLUKE:**
+- **Cene, fal endpointi i `estimatedCostUsd` su prepisani TAČNO iz
+  STUDIO-PLAN §2.3, bez preračunavanja.** Gde je tabela davala cenu "po MP"
+  ili "po 1000 znakova" (FLUX.2, ElevenLabs), broj je prepisan doslovno kao
+  `estimatedCostUsd` - A7.md eksplicitno zabranjuje ponovno računanje, pa
+  normalizacija jedinica (po slici vs. po MP, po generaciji vs. po sekundi)
+  nije rađena. To je posao Faze B (B2: "cena zavisna od trajanja, izračunato
+  u mutaciji").
+- **`badge: "skupo"` je stavljen na svaki video model označen sa ⚠️ (jedan ili
+  dva znaka upozorenja) u §2.3 tabeli** - to je jedini marker koji plan koristi
+  za "skupo"; A7.md ga opisuje kao "(!)" ali u planu se pojavljuje kao ⚠️.
+  Modeli sa ⚠️⚠️ ("vrlo skupo") dobijaju isti `"skupo"` badge, jer šema (A1)
+  ima samo jedan literal za to stanje - nema `"vrlo skupo"` varijante.
+- **`badge: "preporuceno"` je stavljen SAMO na `nano-banana-2` (bazna, ne 2K
+  varijanta)** - tako A7.md doslovno traži ("na Nano Banana 2"), i tako je
+  označen jedinim ⭐ u §2.3. `nano-banana-2-2k` je isti model u drugoj
+  rezoluciji i nije posebno označen u planu, pa nije dobio badge.
+- **Slike (8 modela) su `isEnabled: true`; video (11) i zvuk (3) su
+  `isEnabled: false`** - tačno kako A7.md traži. Redosled `sortOrder`: slike
+  10-80, video 110-210, zvuk 310-330 (razmaci od 100 između vrsta ostavljaju
+  prostor da se kasnije ubaci model bez pomeranja svih ostalih).
+- **`paramSchema` za slike je tačno onako kako A7.md specificira**: `prompt`
+  (textarea, obavezno, max 2000), `aspect_ratio` (select, opcije
+  1:1/16:9/9:16/4:3/3:4 - plan ne propisuje tačan set, pa je ovo razuman
+  podrazumevani izbor za formu koja se piše kasnije), `num_images` (number
+  1-4). **Video i zvuk dobijaju minimalnu šemu sa samo `prompt` poljem** - A7.md
+  propisuje formu samo "za slike"; izmišljanje polja za video/zvuk (trajanje,
+  glas, itd.) pre Faze B/C bi bilo van obima ovog koraka i van "Simplicity
+  First" - ta polja dolaze kad B1/C1 stvarno počnu da grade tu formu.
+- **`getModelBySlug` je `internalQuery`, ne javni `query`** - A7.md eksplicitno
+  traži "interni". Testiran preko `t.run((ctx) => ctx.runQuery(internal...))`,
+  isti obrazac koji `convex-test` dokumentacija i ostali interni testovi u
+  repou (npr. `identityMerge.test.ts`) koriste za internal funkcije.
+- **`upsertModel` nema `updatedAt` kao argument** - mutacija ga sama postavlja
+  na `Date.now()` pri svakom upisu (dozvoljeno u mutacijama po Convex
+  smernicama), da pozivalac (budući admin UI) ne mora da ga računa niti da
+  slučajno pošalje zastareo timestamp.
+- **`seedModelCatalog` radi bezuslovan pun `patch` na ponovljenom pozivu**
+  (uključujući `isEnabled`), isti obrazac kao `seedCreditPacks` iz A4 - ako
+  admin ručno uključi video model preko `setModelEnabled`, pa se seed ponovo
+  pokrene, model će se vratiti na `isEnabled: false` iz plana. Isti kompromis
+  kao u A4: nema još UI-ja za ovo, scenario je teorijski, a dosledno ponašanje
+  je jednostavnije za razumeti.
+- **Nije napravljena `/sr/app/admin/studio` stranica.** `docs/STUDIO-PLAN.md`
+  §5 (A7 red u tabeli) je pominje, ali `.studio-run/prompts/A7.md` (stvarni
+  zadatak ovog koraka) je eksplicitno traži samo `convex/modelCatalog.ts` i
+  seed - nijedna UI stranica nije u sekciji "Šta napisati". `rules.md`
+  zabranjuje pravljenje UI stranica "osim ako korak to izričito traži" - ovaj
+  ne traži, pa admin ekran nije pravljen. Ostaje za budući korak koji će
+  eksplicitno tražiti UI.
+
+**Testovi:** `convex/modelCatalog.test.ts`, 5 testova. Seed upisuje tačno 22
+reda i ponovljen seed ne duplira (isti `_id`-jevi pre/posle) · `listModels`
+vraća samo `isEnabled: true` (svih 8 su `kind: "image"`), sortirano po
+`sortOrder`, poštuje `kind` filter (video/audio vraćaju prazno jer još nisu
+uključeni), i `nano-banana-2` ima `badge: "preporuceno"` · `getModelBySlug`
+vraća tačnu cenu za 3 nasumična modela (FLUX.2 Flash, Veo 3.1 Lite 720p, Kling
+v3 Pro + zvuk) poređenu red po red sa STUDIO-PLAN §2.3, plus `null` za
+nepostojeći slug · sve tri admin mutacije bacaju `"Forbidden"` za ne-admin
+korisnika i ne menjaju ništa · `setModelEnabled` i `setModelCost` menjaju
+postojeći red po `_id` bez dupliranja.
+
+**Rezultat verifikacije:**
+- `npx convex codegen` - prošlo (TypeScript bez grešaka)
+- `npm run lint` - prošlo (0 grešaka; istih 7 postojećih upozorenja u
+  nepovezanim fajlovima kao posle A1-A6)
+- `npm run test` - prošlo (27 test fajlova, 152 testova; A6 je ostavio 26 / 147)
+
+**BLOKADA:** nema.
+
+**Za Jovana ujutru:**
+- Ništa nije deploy-ovano ni poslato fal-u. `npx convex codegen` je pisao samo
+  u `convex/_generated/`.
+- **Katalog je pun, ali ništa u aplikaciji ga još ne koristi.** Nema UI-ja koji
+  poziva `listModels`, nema `studioActions.ts`/fal klijenta koji čita
+  `falEndpoint` - to su sledeći koraci (A8+).
+- **Video i zvuk modeli su u bazi ali `isEnabled: false`** - to je namerno, po
+  A7.md, i uključuju se tek u Fazi B i C.
+- **Cene u katalogu su tačno onakve kakve su bile 18.08.2026.** fal menja cene
+  mesečno (STUDIO-PLAN §2.5) - `estimatedCostUsd` i `creditCost` u ovoj tabeli
+  treba periodično proveravati, ali ta provera (noćni cron poredi sa fal
+  API-jem) nije deo ovog koraka.
+- `seedModelCatalog` se poziva istim obrascem kao `seedCreditPacks`: sa
+  `syncSecret` koji mora da se poklopi sa `WEBHOOK_SYNC_SECRET` env
+  promenljivom.

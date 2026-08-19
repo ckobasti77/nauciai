@@ -47,3 +47,10 @@
 [02:46:08]  A6  |  Stripe webhook: dodela kredita, idempotentno
 [02:46:08]  model=opus  effort=max
 [02:46:08] --------------------------------------------------
+[03:03:23] Commit a7a3221 - 9 izmenjenih putanja
+[03:03:23] A6 -> BLOKADA  (17 min, USD 6.96)
+[03:03:23] 
+[03:03:23] --------------------------------------------------
+[03:03:23]  A7  |  Katalog modela sa cenama
+[03:03:23]  model=sonnet  effort=medium
+[03:03:23] --------------------------------------------------
