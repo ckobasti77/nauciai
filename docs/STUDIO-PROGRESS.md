@@ -1253,3 +1253,85 @@ preskočena verifikacija potpisa (2). Original: 27/27 zeleno.
 - **Prvi pravi test kraj-do-kraja** (ako Ed25519 prodje): pusti `createJob` sa
   namerno neispravnim parametrima da fal vrati ERROR i proveri da je kredit
   vraćen tačno jednom.
+
+
+---
+
+## RV - Revizija noćnog run-a   (2026-08-19 04:10)
+
+**Fajlovi:**
+- dodato: `docs/STUDIO-NIGHT-REPORT.md`
+- izmenjeno: `docs/STUDIO-PROGRESS.md` (samo ova sekcija)
+- **nijedan produkcijski fajl nije diran** - RV.md izričito zabranjuje nove
+  feature, pa `convex/`, `lib/` i `app/` stoje tačno kako ih je A10 ostavio
+
+**Šta je uradjeno:** Ponovo su puštene sve tri verifikacione komande nad
+zatečenim stanjem grane, pročitan je ceo `docs/STUDIO-PROGRESS.md`, ceo
+`docs/STUDIO-PLAN.md` i sav novi kod (`credits.ts`, `creditsCore.ts`,
+`studio.ts`, `studioCore.ts`, `studioActions.ts`, `falWebhook.ts`,
+`falWebhookCore.ts`, `seed.ts`, `lib/fal.ts`, `lib/stripe.ts`,
+`app/api/stripe/webhook/route.ts`). Rezultat je `docs/STUDIO-NIGHT-REPORT.md` sa
+pet traženih sekcija: STANJE, RIZICI PO NOVAC (nalaz za svih 6 puteva a-f),
+NEDOSLEDNOSTI (11 stavki u odnosu na plan), RUČNI KORACI ZA JOVANA (13
+numerisanih, sa tačnim komandama i putanjama kroz dashboard) i ŠTA NIJE URAĐENO
+(sa procenama). Pored 6 traženih rizika, nadjeno je i 5 dodatnih puteva kojima
+novac curi, upisanih kao d1-d5.
+
+**ODLUKE:**
+- **Izveštaj imenuje rupe koje RV.md nije tražio.** Šest traženih puteva je
+  obradjeno tačno kako je traženo, ali pri čitanju koda ispalo je još pet
+  (d1-d5: tiho ćutanje webhook-a bez env-a, neprovereni `payment_status`,
+  welcome bonus po pretplati umesto po korisniku, nepostojeći clawback,
+  javna `applyStripeGrant` mutacija). Prećutati ih zato što nisu u listi bilo
+  bi suprotno svrsi revizije.
+- **Najozbiljniji nalaz nije nijedan od šest, nego kombinacija (f) i (e):**
+  `createJob` ne validira `params` prema `model.paramSchema`, a `submitJob` ceo
+  taj objekat prosledjuje fal-u. `num_images: 4` na `nano-banana-2` znači 20
+  naplaćenih kredita za četvorostruki fal račun. Ovo je zabeleženo kao stavka
+  koja blokira naplatu, ali NIJE popravljeno - RV.md kaže "ne piši nove
+  feature", a ovo je izmena logike naplate, ne revizija.
+- **Nijedna od nadjenih rupa nije popravljena.** Svaka bi bila izmena
+  produkcijskog koda, što je van obima ovog koraka. Sve su upisane sa tačnom
+  lokacijom (fajl:linija) i procenom veličine popravke, da ujutru mogu da se
+  odrade redom.
+- **Ocena "🟢 pokriveno" data je samo tamo gde postoji test koji tvrdnju
+  obara ako se pokvari**, ne tamo gde kod izgleda ispravno. Zato (a) i (b)
+  imaju dvostruku ocenu: zeleno unutar transakcije, crveno posle nje.
+- **Procene rada su izražene u "promptovima"** veličine noćnih koraka, ne u
+  satima - to je jedina jedinica koja se u ovom runu pokazala merljivom.
+- **Datum i vreme u zaglavlju izveštaja su vreme pokretanja komandi**
+  (03:53-04:10), ne vreme početka noćnog run-a.
+
+**Testovi:** Nijedan nov test nije pisan - ovaj korak ne sme da menja kod. Svi
+postojeći testovi su ponovo pušteni i pročitani (208 testova u 31 fajlu);
+pokrivenost svakog od 6 rizika je u izveštaju vezana za konkretan test koji ga
+brani, ili je izričito označena kao nepokrivena.
+
+**Rezultat verifikacije:**
+- `npx convex codegen` - **prošlo** (exit 0; `Generating TypeScript bindings... /
+  Running TypeScript...` bez greške)
+- `npm run lint` - **prošlo** (`✖ 7 problems (0 errors, 7 warnings)`; istih 7
+  zatečenih upozorenja u `admin-inline-actions.tsx`, `dashboard-content.tsx` i
+  `public-course-intro-video.tsx`, nepromenjeno od A1)
+- `npm run test` - **prošlo** (`Test Files 31 passed (31) / Tests 208 passed
+  (208) / Duration 3.92s`) - identično onome što A10 tvrdi
+
+**BLOKADA:** nema.
+
+**Za Jovana ujutru:**
+- **Pročitaj `docs/STUDIO-NIGHT-REPORT.md` pre nego što bilo šta deploy-uješ.**
+  Tamo je 13 numerisanih ručnih koraka sa tačnim komandama, i tabela od 8
+  stavki koje blokiraju naplatu.
+- **Tri stvari koje te koštaju prvog dana ako pustiš ovako:**
+  1. `num_images` u `params` - marža je u minusu na drugoj slici (rizik f);
+  2. Stripe webhook koji tiho ćuti kad fali env varijabla - novac naplaćen,
+     krediti nikad dodeljeni, bez retry-ja i bez loga (rizik d1);
+  3. poslovi koji zauvek vise u `running` - nema reaper-a (rizik e).
+- **Jedna neproverena pretpostavka nosi ceo webhook:** Ed25519 na živom Convex
+  runtime-u. Provera je 5 minuta, opisana kao ručni korak #8.
+- **Welcome bonus se može farmovati** otkazivanjem i ponovnom pretplatom, a uz
+  kupon od 100% i besplatno. Testni scenario koji to dokazuje je ručni korak
+  #13, tačka 5.
+- Ništa nije deploy-ovano, Stripe i fal nisu pozivani, nijedna env varijabla
+  nije dirana. Jedina izmena van `docs/` je da je `npx convex codegen` ponovo
+  dodirnuo dev deployment - to radi svaki put.

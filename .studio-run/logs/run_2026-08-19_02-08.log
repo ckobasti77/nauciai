@@ -75,3 +75,10 @@
 [03:33:10]  A10  |  fal webhook: ED25519 verifikacija i idempotentna obrada
 [03:33:10]  model=opus  effort=max
 [03:33:10] --------------------------------------------------
+[03:53:11] Commit add763d - 11 izmenjenih putanja
+[03:53:11] A10 -> BLOKADA  (20 min, USD 7.12)
+[03:53:11] 
+[03:53:11] --------------------------------------------------
+[03:53:11]  RV  |  Zavrsni review i izvestaj
+[03:53:11]  model=opus  effort=xhigh
+[03:53:11] --------------------------------------------------
