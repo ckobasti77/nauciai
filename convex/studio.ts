@@ -179,15 +179,61 @@ export const createJob = mutation({
  * Jedini dozvoljen prelaz je `reserved` -> `running`. Zakasneo poziv (reaper
  * je posao već refundirao, pa stigne stara predaja) ne sme da ga vrati u
  * `running`: korisnik bi tada dobio i refund i sliku.
+ *
+ * `providerRequestId` je isti podatak koji je do sada stajao samo u
+ * `falRequestId`-ju, ali pod imenom koje važi i za BytePlus i za Google
+ * (STUDIO-CATALOG-V4 sekcija 7). Upisuju se OBA polja dok traje prelaz: fal
+ * webhook i dalje traži posao kroz `by_fal_request`, BytePlus callback kroz
+ * `by_provider_request`.
  */
 export const markJobRunning = internalMutation({
-  args: { jobId: v.id("generationJobs"), falRequestId: v.string() },
+  args: { jobId: v.id("generationJobs"), providerRequestId: v.string() },
   handler: async (ctx, args) => {
     const job = await ctx.db.get(args.jobId);
     if (!job) throw new Error("Posao nije pronađen.");
     if (job.status !== "reserved") throw new Error(`POSAO_NIJE_REZERVISAN:${job.status}`);
-    await ctx.db.patch(args.jobId, { status: "running", falRequestId: args.falRequestId });
+    await ctx.db.patch(args.jobId, {
+      status: "running",
+      falRequestId: args.providerRequestId,
+      providerRequestId: args.providerRequestId,
+    });
     return null;
+  },
+});
+
+/**
+ * Sinhroni provajder (BytePlus slike, Google slike) nema webhook: rezultat
+ * stiže u istom pozivu u kojem je posao i predat, pa posao ide
+ * `reserved` -> `done` i NIKAD ne prolazi kroz `running`. Zato ne može da
+ * koristi `falWebhook.applyWebhookResult`, koji stoji upravo na `running`-u.
+ *
+ * Idempotencija je ista po duhu - prelaz je dozvoljen samo iz `reserved` -
+ * pa druga predaja istog posla ne prepisuje izlaz i ne zakazuje `persistOutput`
+ * drugi put. Vraća `false` kad nije bilo šta da se uradi.
+ */
+export const markJobDone = internalMutation({
+  args: {
+    jobId: v.id("generationJobs"),
+    outputUrl: v.string(),
+    providerRequestId: v.optional(v.string()),
+    actualCostUsd: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const job = await ctx.db.get(args.jobId);
+    if (!job || job.status !== "reserved") return false;
+
+    await ctx.db.patch(args.jobId, {
+      status: "done",
+      falOutputUrl: args.outputUrl,
+      completedAt: Date.now(),
+      ...(args.providerRequestId ? { providerRequestId: args.providerRequestId } : {}),
+      ...(args.actualCostUsd !== undefined ? { actualCostUsd: args.actualCostUsd } : {}),
+    });
+    // Skidanje fajla ide u zakazanu akciju, kao i kod webhook puta - akcija
+    // koja je upravo pričala sa provajderom ne sme da čeka i na preuzimanje.
+    await ctx.scheduler.runAfter(0, internal.studioActions.persistOutput, { jobId: args.jobId });
+
+    return true;
   },
 });
 

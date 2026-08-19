@@ -252,7 +252,7 @@ test("posao koji je izašao iz reda (running -> done) oslobađa mesto za nov", a
   }
 
   // `running` se i dalje broji u limit, `done` ne.
-  await t.mutation(internal.studio.markJobRunning, { jobId: jobIds[0], falRequestId: "req_1" });
+  await t.mutation(internal.studio.markJobRunning, { jobId: jobIds[0], providerRequestId: "req_1" });
   await expect(
     asUser.mutation(api.studio.createJob, { modelSlug: MODEL_SLUG, params: promptParams("jos") }),
   ).rejects.toThrow(/PREVISE_POSLOVA/);
@@ -435,7 +435,7 @@ test("failJob pozvan dvaput vrati kredite samo jednom", async () => {
   expect(transactions.filter((transaction) => transaction.type === "refund")).toHaveLength(1);
 });
 
-test("markJobRunning postavlja status running i falRequestId", async () => {
+test("markJobRunning postavlja status running i oba polja sa ID-jem zahteva", async () => {
   const t = convexTest(schema, modules);
   const { asUser } = await seedWorld(t);
 
@@ -443,11 +443,14 @@ test("markJobRunning postavlja status running i falRequestId", async () => {
     modelSlug: MODEL_SLUG,
     params: promptParams("lisica"),
   });
-  await t.mutation(internal.studio.markJobRunning, { jobId, falRequestId: "req_1" });
+  await t.mutation(internal.studio.markJobRunning, { jobId, providerRequestId: "req_1" });
 
   const job = await t.run((ctx) => ctx.db.get(jobId));
   expect(job?.status).toBe("running");
+  // Prelazna faza: staro polje drži fal webhook (`by_fal_request`), novo drži
+  // BytePlus callback (`by_provider_request`). Oba moraju da nose isti ID.
   expect(job?.falRequestId).toBe("req_1");
+  expect(job?.providerRequestId).toBe("req_1");
 });
 
 // ── 8. dnevni limit ────────────────────────────────────────────────────────
@@ -622,7 +625,7 @@ test("listMyJobs vraća samo svoje poslove, najnoviji prvi, bez internih polja",
     modelSlug: MODEL_SLUG,
     params: promptParams("drugi"),
   });
-  await t.mutation(internal.studio.markJobRunning, { jobId: second, falRequestId: "req_tajni" });
+  await t.mutation(internal.studio.markJobRunning, { jobId: second, providerRequestId: "req_tajni" });
 
   const page = await asUser.query(api.studio.listMyJobs, {
     paginationOpts: { numItems: 10, cursor: null },
@@ -994,7 +997,7 @@ test("markJobRunning odbija prelaz kad posao nije reserved", async () => {
   await t.mutation(internal.studio.failJob, { jobId, error: "reaper" });
 
   await expect(
-    t.mutation(internal.studio.markJobRunning, { jobId, falRequestId: "req_kasni" }),
+    t.mutation(internal.studio.markJobRunning, { jobId, providerRequestId: "req_kasni" }),
   ).rejects.toThrow(/POSAO_NIJE_REZERVISAN:refunded/);
 
   const job = await t.run((ctx) => ctx.db.get(jobId));
@@ -1011,10 +1014,10 @@ test("markJobRunning odbija i drugi poziv za isti posao", async () => {
     modelSlug: MODEL_SLUG,
     params: promptParams("lisica"),
   });
-  await t.mutation(internal.studio.markJobRunning, { jobId, falRequestId: "req_prvi" });
+  await t.mutation(internal.studio.markJobRunning, { jobId, providerRequestId: "req_prvi" });
 
   await expect(
-    t.mutation(internal.studio.markJobRunning, { jobId, falRequestId: "req_drugi" }),
+    t.mutation(internal.studio.markJobRunning, { jobId, providerRequestId: "req_drugi" }),
   ).rejects.toThrow(/POSAO_NIJE_REZERVISAN:running/);
 
   // `falRequestId` prve predaje ostaje - inače bi njen webhook ostao siroče.
@@ -1473,7 +1476,7 @@ test("deleteJob odbija posao koji je još u letu", async () => {
     /POSAO_U_TOKU/,
   );
 
-  await t.mutation(internal.studio.markJobRunning, { jobId: reservedId, falRequestId: "req_1" });
+  await t.mutation(internal.studio.markJobRunning, { jobId: reservedId, providerRequestId: "req_1" });
   await expect(asUser.mutation(api.studio.deleteJob, { jobId: reservedId })).rejects.toThrow(
     /POSAO_U_TOKU/,
   );

@@ -1385,6 +1385,44 @@ export default defineSchema({
     .index("by_kind_enabled", ["kind", "isEnabled", "sortOrder"])
     .index("by_slug", ["slug"]),
 
+  // ── STUDIO: KATALOG v4 ───────────────────────────────────────────────
+  // STUDIO-CATALOG-V4 sekcija 1.1. Nasleđuje `modelCatalog`: tamo je jedan red
+  // po KOMBINACIJI parametara (`nb2`, `nb2-2k`, `nb2-4k`), ovde jedan red po
+  // stvarnom modelu, a rezolucija/zvuk/trajanje su parametri iz kojih se cena
+  // RAČUNA (`convex/studioPricing.ts`). Stara tabela namerno ostaje jedan
+  // ciklus - v4 katalog se seeduje iznova, redovi se ne prevode automatski.
+  models: defineTable({
+    slug: v.string(),
+    provider: v.union(v.literal("fal"), v.literal("google"), v.literal("byteplus")),
+    kind: studioModelKind,
+    family: v.string(),
+
+    labelSr: v.string(),
+    labelEn: v.string(),
+    taglineSr: v.string(),
+    taglineEn: v.string(),
+    descriptionSr: v.string(),
+    descriptionEn: v.string(),
+
+    // Svi su JSON stringovi iz istog razloga iz kojeg je to i `paramSchema`:
+    // oblik im se razlikuje po modelu, a Convex validator za uniju svih oblika
+    // bio bi duži od kataloga koji opisuje.
+    endpoints: v.string(), // { inputMode: "endpoint ili model ID kod provajdera" }
+    inputModes: v.string(), // ["text","image","reference"]
+    inputSpec: v.string(), // { inputMode: { slot: { max, accept } } }
+    paramSpec: v.string(), // niz kontrola, `convex/studioParamSpec.ts`
+    priceRule: v.string(), // cenovno pravilo, `convex/studioPricing.ts`
+    capabilities: v.string(), // { audio: true, maxDurationS: 15, maxRefImages: 9 }
+
+    badge: v.optional(modelCatalogBadge),
+    isEnabled: v.boolean(),
+    sortOrder: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_slug", ["slug"])
+    .index("by_kind_enabled", ["kind", "isEnabled", "sortOrder"])
+    .index("by_family", ["family", "sortOrder"]),
+
   // ── STUDIO: POSLOVI ──────────────────────────────────────────────────
   generationJobs: defineTable({
     userId: v.id("users"),
@@ -1395,6 +1433,21 @@ export default defineSchema({
     status: generationJobStatus,
     creditCost: v.number(),
     falRequestId: v.optional(v.string()),
+    // Isti podatak kao `falRequestId`, samo pod imenom koje važi za sva tri
+    // provajdera (STUDIO-CATALOG-V4 sekcija 7). Faza je namerno "prošireno pa
+    // preseljeno": `markJobRunning` upisuje OBA polja, fal webhook i dalje
+    // gleda `by_fal_request`, a BytePlus callback `by_provider_request`.
+    // Gašenje `falRequestId`-ja je zaseban korak, posle backfill-a
+    // (`migrations.backfillProviderRequestId`).
+    providerRequestId: v.optional(v.string()),
+    // Koji ulazni režim je posao naručio (STUDIO-CATALOG-V4 sekcija 5). Bira
+    // endpoint kod provajdera (`models.endpoints[inputMode]`) i ulazi u cenu
+    // preko `modeMultipliers`. Poslovi iz starog kataloga ga nemaju.
+    inputMode: v.optional(v.string()),
+    // JSON: slot -> lista `_storage` ID-jeva koje je korisnik okačio za taj
+    // slot ("image", "video", "audio"). Redosled je značajan - prompt citira
+    // reference po broju ("slika 2").
+    inputs: v.optional(v.string()),
     actualCostUsd: v.optional(v.number()),
     // fal URL iz webhook-a; kratko živi kod fal-a, pa ga `persistOutput`
     // preuzima u Convex storage (`outputStorageId`) čim posao stigne.
@@ -1411,6 +1464,7 @@ export default defineSchema({
   })
     .index("by_user", ["userId", "createdAt"])
     .index("by_fal_request", ["falRequestId"])
+    .index("by_provider_request", ["providerRequestId"])
     .index("by_user_status", ["userId", "status"])
     .index("by_expiry", ["expiresAt"])
     .index("by_status_created", ["status", "createdAt"]),

@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { internalAction, internalQuery } from "./_generated/server";
 import { submitToFal } from "../lib/fal";
+import { submitBytePlusJob } from "./providers/byteplus";
 import {
   extractPrompt,
   MOCK_REQUEST_PREFIX,
@@ -43,6 +44,18 @@ export const submitJob = internalAction({
       // dejstva - posao je već `running`, `done` ili refundiran.
       if (job.status !== "reserved") return null;
 
+      // Rutiranje po provajderu (STUDIO-CATALOG-V4 sekcija 7). v4 katalog
+      // (`models`) zna svog provajdera; stari `modelCatalog` je uvek fal, pa
+      // model kojeg u `models` nema pada na fal put nepromenjen.
+      const v4Model = await ctx.runQuery(internal.studioModels.getModelBySlug, {
+        slug: job.modelSlug,
+      });
+      if (v4Model?.provider === "byteplus") {
+        await submitBytePlusJob(ctx, args.jobId);
+
+        return null;
+      }
+
       const model = await ctx.runQuery(internal.modelCatalog.getModelBySlug, { slug: job.modelSlug });
       if (!model) throw new Error("Model nije pronađen u katalogu.");
 
@@ -56,7 +69,7 @@ export const submitJob = internalAction({
       if (!apiKey || process.env.STUDIO_MOCK === "1") {
         await ctx.runMutation(internal.studio.markJobRunning, {
           jobId: args.jobId,
-          falRequestId: `${MOCK_REQUEST_PREFIX}${args.jobId}`,
+          providerRequestId: `${MOCK_REQUEST_PREFIX}${args.jobId}`,
         });
         await ctx.scheduler.runAfter(MOCK_JOB_DELAY_MS, internal.studioActions.completeMockJob, {
           jobId: args.jobId,
@@ -82,7 +95,7 @@ export const submitJob = internalAction({
 
       await ctx.runMutation(internal.studio.markJobRunning, {
         jobId: args.jobId,
-        falRequestId: result.requestId,
+        providerRequestId: result.requestId,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

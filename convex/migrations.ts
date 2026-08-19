@@ -595,6 +595,22 @@ export const finalizeStudyHubAggregateV1 = migrations.define({
   },
 });
 
+/**
+ * `falRequestId` -> `providerRequestId` (STUDIO-CATALOG-V4 sekcija 7): isti
+ * podatak, ime koje važi i za BytePlus i za Google. Prošireno pa preseljeno -
+ * ovaj prolaz popunjava novo polje na zatečenim poslovima, a staro ostaje dok
+ * ga zaseban korak ne ugasi. Bez njega bi `by_provider_request` video samo
+ * poslove napravljene posle deploy-a.
+ */
+export const backfillProviderRequestId = migrations.define({
+  table: "generationJobs",
+  batchSize: 100,
+  migrateOne: (_ctx, job) => {
+    if (job.providerRequestId || !job.falRequestId) return;
+    return { providerRequestId: job.falRequestId };
+  },
+});
+
 export const verifyPublicProfileAggregateForUser = internalQuery({
   args: { userId: v.id("users") },
   handler: async (ctx, args) => {
@@ -673,4 +689,5 @@ export const runAll = migrations.runner([
   migrationApi.backfillStudyHubGroupInvitesV1,
   migrationApi.backfillStudyHubGroupMembershipsV1,
   migrationApi.finalizeStudyHubAggregateV1,
+  migrationApi.backfillProviderRequestId,
 ]);
