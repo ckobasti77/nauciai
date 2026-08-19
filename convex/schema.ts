@@ -66,6 +66,8 @@ const creditLotSource = v.union(
   v.literal("plan_grant"),
   v.literal("welcome_bonus"),
   v.literal("admin_grant"),
+  // Refund neuspelog posla otvara nov lot umesto da vraća kredite u originalni.
+  v.literal("refund"),
 );
 const creditTransactionType = v.union(
   v.literal("purchase"),

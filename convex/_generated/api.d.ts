@@ -27,6 +27,8 @@ import type * as communityScope from "../communityScope.js";
 import type * as contentHierarchy from "../contentHierarchy.js";
 import type * as contentReadiness from "../contentReadiness.js";
 import type * as courses from "../courses.js";
+import type * as credits from "../credits.js";
+import type * as creditsCore from "../creditsCore.js";
 import type * as emailVerification from "../emailVerification.js";
 import type * as emailVerificationInternal from "../emailVerificationInternal.js";
 import type * as helpTopics from "../helpTopics.js";
@@ -72,6 +74,8 @@ declare const fullApi: ApiFromModules<{
   contentHierarchy: typeof contentHierarchy;
   contentReadiness: typeof contentReadiness;
   courses: typeof courses;
+  credits: typeof credits;
+  creditsCore: typeof creditsCore;
   emailVerification: typeof emailVerification;
   emailVerificationInternal: typeof emailVerificationInternal;
   helpTopics: typeof helpTopics;
