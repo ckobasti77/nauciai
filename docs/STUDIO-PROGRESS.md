@@ -5889,3 +5889,134 @@ PRVOBITNOM procenom, cime nalaz N2 dobija detektor.
 5. **Alarm na odstupanje od sada moze da opali zbog nalaza N2**, ne samo zbog
    greske u katalogu: mejl kaze "popravlja se `baseUsd`/`addUsd`", ali ako je
    model jedan od sedam mernih, prvo proveri je li neko podvalio zaglavlje.
+
+## X4 - N1: dva nivoa uvida u tudje poslove, dnevnik otkrivanja, obavestenje korisniku   (2026-08-20 23:59)
+
+**Fajlovi:**
+- `convex/schema.ts` - nova tabela `studioAuditLog` (`by_actor`, `by_job`)
+- `convex/studioCore.ts` - nova cista funkcija `ownerHandle`
+- `convex/studio.ts` - `toGalleryJob` razdvojen na `toModerationJob` + pun red,
+  `requireStudioStaff` vraca ulogu, nov `requireStudioAdmin`, `listAllJobs` po
+  ulozi, `listJobOwners` vraca `label`, nova mutacija `revealJobDetail`,
+  `getStudioState` dopunjen sa `isStudioAdmin`
+- `convex/studio.test.ts` - cetiri nova testa + dopune tri zatecena
+- `lib/studio-gallery.ts` - `filterJobOwners` po `label`, tri nove labele dugmeta
+- `lib/studio-gallery.test.ts` - test filtera dopunjen otiscima
+- `lib/studio-messages.ts` - `STUDIO_CONTENT_NOTICE`, `..._LINK`, `STUDIO_TERMS_PATH`
+- `components/app/studio-gallery-page.tsx` - kartica bez automatskog prikaza,
+  dugme "Prikazi detalje" sa napomenom
+- `components/app/studio-page.tsx` - recenica u podnozju forme
+
+**Sta je uradjeno:** `listAllJobs` vise ne vraca isti red svima. Moderator dobija
+`toModerationJob` - model, provajder, status, kredit, mejl vlasnika, vreme i
+izlaz, a bez `params` i bez `inputThumbs`. Razdvojeno je na dve funkcije, a ne na
+jednu koja polja brise na kraju, jer `resolveInputThumbs` POTPISUJE tudje fajlove
+preko `ctx.storage.getUrl` - potpis koji se napravi pa odbaci je i dalje bio
+napravljen. Nova mutacija `revealJobDetail` (strogo `admin`) vraca prompt,
+parametre i ceo spisak ulaznih slicica jednog posla i u ISTOJ transakciji upisuje
+red u `studioAuditLog`. `listJobOwners` moderatoru vraca `ownerHandle` - prvih
+sest znakova `promptHash`-a `userId`-ja - umesto mejla, i njegov red u `users`
+uopste ne cita. U galeriji tudja kartica ne prikazuje nista privatno dok admin ne
+klikne "Prikazi detalje"; uz dugme stoji recenica da se pristup belezi. U
+podnozju forme Studija stoji recenica o cuvanju i moderaciji sadrzaja, sa linkom
+na `/uslovi-studio`.
+
+**ODLUKE:**
+1. **`revealJobDetail` je mutacija, ne query.** Query ne moze da upise trag, a
+   otkrivanje bez traga je tacno ono sto nalaz prijavljuje. Ovako podatak i
+   dnevnik izlaze iz jedne transakcije: ako upis padne, podatak se ne vraca.
+2. **Sekcija 1 i sekcija 2 zadatka vuku na razlicite strane.** Sekcija 1 kaze da
+   admin iz `listAllJobs` dobija pun red (i to trazi spisak testova: "admin
+   dobija pun red"), sekcija 2 kaze da prikaz ne sme da bude automatski. Resio
+   sam tako da SERVERSKI ugovor prati sekciju 1 - admin iz `listAllJobs` dobija
+   `params` i `inputThumbs` - a UI prati sekciju 2: kartica u rezimu "Svi
+   korisnici" crta iskljucivo ono sto je vratila `revealJobDetail`, dakle nista
+   dok se ne klikne. Posledica koju treba znati: za admina prompt i cetiri
+   potpisane slicice tudjeg posla i dalje putuju do browsera u odgovoru
+   `listAllJobs`-a, samo se ne crtaju. Ako se to smatra rupom, ispravka je jedan
+   red (`role === "admin"` iz `listAllJobs` da radi `toModerationJob`) uz izmenu
+   jednog assertion-a - ali to bi bilo suprotno spisku testova iz zadatka, pa
+   nisam menjao sam.
+3. **Moderator na kartici i dalje vidi mejl vlasnika**, jer ga sekcija 1
+   izricito navodi u moderacijskom redu. To znaci da sekcija 3 (anonimizovan
+   spisak vlasnika) sprecava samo masovan spisak mejlova u jednom pozivu, a ne i
+   sakupljanje mejlova listanjem stranica galerije. Nisam sirio zadatak preko
+   onoga sto pise; stavljeno u "Za Jovana" kao odluka koju treba doneti.
+4. **Polje `listJobOwners`-a preimenovano iz `email` u `label`.** Pola vremena to
+   vise nije mejl nego otisak, a polje koje se zove `email` a nosi hes je gore od
+   oba. Povuklo je izmenu u `filterJobOwners` i u placeholder-u pretrage
+   ("Pretrazi vlasnike" umesto "Pretrazi po mejlu").
+5. **`ownerHandle` koristi postojeci `promptHash`, nije uveden nov hes.**
+   Funkcija je vec tu, sinhrona je i deterministicka, i njena namena je ista -
+   stabilan otisak. Nije kriptografska i komentar to izricito kaze.
+6. **Otisak je 6 heksadecimalnih znakova**, kako zadatak i predlaze. Sudar dva
+   korisnika je moguc; posledica sudara je da bi filter pokazao poslove dvoje
+   ljudi kao jednog - neprijatno, ali ne curenje.
+7. **Dnevnik se ne deduplikuje.** Drugi klik na isti posao upisuje drugi red;
+   dnevnik u kojem drugo gledanje ne postoji nije dnevnik. Indeksi su
+   `by_actor` i `by_job`, tacno kako zadatak trazi (jedno polje po indeksu, po
+   konvenciji repoa).
+8. **`getStudioState` je dobio `isStudioAdmin`.** Bez njega bi UI dugme
+   "Prikazi detalje" nudio i moderatoru, koji bi na klik dobio `Forbidden`.
+   Isto kao `isStaff`: samo prikaz, server proverava ponovo.
+9. **`revealJobDetail` odbija i vlasnika posla.** Nije put do sopstvenih
+   parametara - za to postoji `getJobForRegenerate`. Alat moderacije je alat
+   moderacije.
+10. **Stranica `/uslovi-studio` nije napravljena** - to je korak X7. Link
+    postoji i vodi na rutu koja ce postojati, kako zadatak izricito trazi.
+11. **Cenovni motor nije diran.** `convex/studioPricing.ts` nema nijednu izmenu;
+    marza 2,5x je netaknuta.
+
+**Testovi:** U `convex/studio.test.ts` cetiri nova:
+- `listAllJobs: moderator dobija red bez prompta i bez ulaznih slicica, admin pun
+  red` - moderatorov red ima `params === undefined` i `inputThumbs === undefined`
+  (polje NEMA, nije prazno), a `JSON.stringify` reda ne sadrzi prompt; model,
+  provajder, status, kredit, vlasnik, vreme i `outputUrl` su i dalje tu; adminov
+  red nosi i prompt i `inputThumbs.total === 1`.
+- `revealJobDetail: moderatoru Forbidden, adminu prompt i ulazi` - i provera da
+  odbijen poziv NE ostavlja red u dnevniku.
+- `revealJobDetail: svako otkrivanje upisuje tacno jedan red u studioAuditLog` -
+  jedan poziv jedan red, sadrzaj reda (akter, posao, vlasnik, `revealed`), drugi
+  klik na isti posao upisuje drugi red, posao bez ulaza stoji na `["params"]`, i
+  oba indeksa vracaju svoje redove.
+- `listJobOwners: moderator dobija otisak bez ijednog znaka @, admin mejl` -
+  nijedan znak `@` u celom odgovoru, otisci razliciti i duzine 6, adminu mejlovi.
+
+Dopunjena tri zatecena: `listAllJobs i listJobOwners su iza uloge na SERVERU` sad
+proverava i `revealJobDetail` za obicnog i za neprijavljenog korisnika;
+`getStudioState pusta admina...` proverava `isStudioAdmin` za admina (`true`) i
+za moderatora (`false`); `listJobOwners...` cita `label` umesto `email`.
+U `lib/studio-gallery.test.ts` filter dopunjen slucajem u kojem labela nije mejl
+nego otisak.
+
+**Rezultat verifikacije:**
+- `npx convex codegen` - prolazi (`Running TypeScript...`, exit 0)
+- `npm run lint` - `8 problems (0 errors, 8 warnings)`, sva zatecena, nijedno u
+  fajlovima ovog koraka
+- `npm run test` - `Test Files 60 passed (60)`, `Tests 806 passed (806)`
+- `npm run build` - `Compiled successfully in 6.9s`, `Generating static pages (60/60)`
+
+**BLOKADA:** nema
+
+**Za Jovana:**
+1. **Nova tabela `studioAuditLog` trazi `npx convex deploy`** da bi shema izasla
+   na produkciju. Backfill ne postoji i ne treba - dnevnik pocinje od prvog
+   klika posle deploy-a.
+2. **Odluci sta sa mejlom vlasnika na moderatorskoj kartici** (ODLUKA 3).
+   Anonimizovan spisak u `listJobOwners` je poluodbrana dok isti mejlovi stoje
+   na karticama koje moderator lista. Ako mejl treba da nestane i odatle,
+   izmena je u `listAllJobs`: `ownerEmail` da za moderatora bude
+   `ownerHandle(job.userId)`. Nisam uradio jer sekcija 1 zadatka izricito trazi
+   mejl u moderacijskom redu.
+3. **Odluci sta sa punim redom za admina u `listAllJobs`** (ODLUKA 2). Danas
+   prompt i cetiri potpisane slicice putuju do admin browsera i pre klika, samo
+   se ne crtaju.
+4. **Ruta `/uslovi-studio` jos ne postoji** - link u podnozju forme Studija do
+   koraka X7 vodi na 404. Ako X7 ne stigne pre prvog korisnika, ta recenica je
+   obecanje bez pokrica.
+5. **Proveri ko sve ima ulogu `moderator`** pre nego sto Studio krene uzivo.
+   Uloga se dodeljuje kroz `profiles.setProfileRole` i do danas je znacila
+   moderaciju foruma; od ovog koraka znaci i uvid u izlaze Studija svih
+   korisnika (bez promptova i bez okacenih fajlova).
+6. **Dnevnik se nigde ne prikazuje.** `studioAuditLog` se cita iz Convex
+   dashboard-a; admin ekran za njega nije trazen ovim korakom.

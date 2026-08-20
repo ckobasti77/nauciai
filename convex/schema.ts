@@ -1639,4 +1639,25 @@ export default defineSchema({
     sample: v.string(),
     updatedAt: v.number(),
   }).index("by_provider_modelSlug", ["provider", "modelSlug"]),
+
+  // Ko je otvorio tuđi prompt i tuđe okačene fajlove (X4, nalaz N1). Moderacijski
+  // red iz `studio.listAllJobs` te podatke ne nosi; do njih se dolazi isključivo
+  // preko `studio.revealJobDetail`, koja upisuje red OVDE u istoj transakciji u
+  // kojoj ih vraća. Pristup bez traga je bio treća stavka nalaza.
+  //
+  // Red se nikad ne menja i nikad ne briše iz koda - dnevnik koji se prepisuje
+  // nije dnevnik.
+  studioAuditLog: defineTable({
+    /** Admin koji je kliknuo. */
+    actorId: v.id("users"),
+    jobId: v.id("generationJobs"),
+    /** Vlasnik posla - čiji je sadržaj otkriven. */
+    ownerId: v.id("users"),
+    // Šta je stvarno izašlo: `"params"` uvek, `"inputs"` samo kad posao ima
+    // okačene fajlove. Konstantan spisak ne bi govorio ništa.
+    revealed: v.array(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_actor", ["actorId"])
+    .index("by_job", ["jobId"]),
 });

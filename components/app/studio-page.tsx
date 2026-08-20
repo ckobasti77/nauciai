@@ -23,9 +23,12 @@ import { jobPrompt, jobStatusText, jobTileState, RECENT_JOBS_COUNT } from "@/lib
 import { parseStudioModel, type StudioModel, type StudioModelRow } from "@/lib/studio-models";
 import {
   measuredDurationNotice,
+  STUDIO_CONTENT_NOTICE,
+  STUDIO_CONTENT_NOTICE_LINK,
   STUDIO_NOT_ENROLLED,
   STUDIO_NO_GENERATIONS,
   STUDIO_PAUSED,
+  STUDIO_TERMS_PATH,
 } from "@/lib/studio-messages";
 import { creditsFor, type ParamValues } from "@/lib/studio-params";
 import {
@@ -798,6 +801,15 @@ export function StudioPage({ locale }: { locale: Locale }) {
               error={error}
               onGenerate={generate}
             />
+
+            {/* Podnožje forme: šta se sa sadržajem dešava, pre nego što se
+                sadržaj preda (X4, nalaz N1). */}
+            <p className="mt-5 border-t-2 border-ink/10 pt-4 text-xs font-bold text-muted">
+              {STUDIO_CONTENT_NOTICE[locale]}{" "}
+              <Link href={withLocale(locale, STUDIO_TERMS_PATH)} className="font-black text-ink underline">
+                {STUDIO_CONTENT_NOTICE_LINK[locale]}
+              </Link>
+            </p>
           </Panel>
         ) : null}
       </div>

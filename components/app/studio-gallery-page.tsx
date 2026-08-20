@@ -2,7 +2,7 @@
 
 import { useConvexAuth } from "@convex-dev/auth/react";
 import { usePaginatedQuery, useMutation, useQuery } from "convex/react";
-import { CheckSquare, Download, Loader2, RefreshCw, Sparkles, Square, Trash2, Wand2 } from "lucide-react";
+import { CheckSquare, Download, Eye, Loader2, RefreshCw, Sparkles, Square, Trash2, Wand2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
@@ -33,6 +33,9 @@ import {
   JOB_STATUS_LABELS,
   JOB_STATUSES,
   regenerateButtonLabel,
+  REVEAL_AUDIT_NOTE,
+  REVEAL_DETAILS,
+  REVEAL_FAILED,
   STUDIO_PROVIDER_LABELS,
   STUDIO_PROVIDERS,
   type DateRangePreset,
@@ -51,18 +54,23 @@ const CHIP =
 const ACTION =
   "inline-flex min-h-8 items-center justify-center gap-1.5 rounded-full border-2 border-ink px-3 py-1 text-xs font-extrabold transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-50";
 
+type InputThumbs = { items: Array<{ slot: string; storageId: string; url: string | null }>; total: number };
+
 type GalleryJob = {
   _id: Id<"generationJobs">;
   modelSlug: string;
   kind: "image" | "video" | "audio";
-  params: string;
+  // U režimu "Svi korisnici" ovih dvoje NEMA (X4): moderacijski red iz
+  // `listAllJobs` ne nosi ni prompt ni potpisane URL-ove tuđih fajlova, a
+  // adminu ih na klik daje `revealJobDetail`, koja pristup i beleži.
+  params?: string;
   status: string;
   creditCost: number;
   outputUrl: string | null;
   // Ulazi kojima je posao naručen - bez njih "Generiši ponovo" kod modela sa
   // slikama nema smisla, jer se ne vidi šta je bio ulaz (S7).
   inputMode?: string;
-  inputThumbs: { items: Array<{ slot: string; storageId: string; url: string | null }>; total: number };
+  inputThumbs?: InputThumbs;
   error?: string;
   isMock: boolean;
   expiresAt?: number;
@@ -73,14 +81,14 @@ type GalleryJob = {
 };
 
 /** Sličice ulaza. Video nikad kao goli `<video src>` - `preload="metadata"` sa `#t=0.1`. */
-function InputThumbs({ job, locale }: { job: GalleryJob; locale: Locale }) {
-  const thumbs = job.inputThumbs?.items ?? [];
+function InputThumbs({ inputThumbs, locale }: { inputThumbs: InputThumbs | undefined; locale: Locale }) {
+  const thumbs = inputThumbs?.items ?? [];
   if (thumbs.length === 0) return null;
 
   return (
     <div>
       <p className="text-[10px] font-black uppercase tracking-wide text-muted">
-        {inputsLabel(thumbs.length, job.inputThumbs.total, locale)}
+        {inputsLabel(thumbs.length, inputThumbs?.total ?? thumbs.length, locale)}
       </p>
       <div className="mt-1 flex flex-wrap gap-1.5">
         {thumbs.map((thumb, index) => (
@@ -135,6 +143,7 @@ function GalleryCard({
   onToggleSelect,
   onDelete,
   owner,
+  onReveal,
 }: {
   job: GalleryJob;
   locale: Locale;
@@ -151,13 +160,26 @@ function GalleryCard({
    * ionako traže vlasnika), pa kartica tada nosi podatke umesto akcija.
    */
   owner?: { email: string; provider: string };
+  /**
+   * Otkrivanje prompta i ulaznih sličica JEDNOG tuđeg posla (X4). Postoji samo
+   * adminu; moderator dugme ne dobija, a i da ga pozove, `revealJobDetail` bi
+   * ga odbila na serveru.
+   */
+  onReveal?: (jobId: Id<"generationJobs">) => Promise<{ params: string; inputThumbs: InputThumbs }>;
 }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [revealed, setRevealed] = useState<{ params: string; inputThumbs: InputThumbs } | null>(null);
+  const [isRevealing, setIsRevealing] = useState(false);
+  const [revealError, setRevealError] = useState<string | null>(null);
 
-  const prompt = jobPrompt(job.params);
-  const paramSummary = jobParamSummary(job.params, paramSpec, locale);
+  // Na tuđoj kartici NIŠTA privatno ne stoji dok admin svesno ne klikne - i
+  // tada se crta ono što je vratila `revealJobDetail`, ista pozivnica koja je
+  // upisala red u `studioAuditLog`. Sopstvena galerija ide starim putem.
+  const detail = owner ? revealed : { params: job.params ?? "", inputThumbs: job.inputThumbs };
+  const prompt = jobPrompt(detail?.params ?? "");
+  const paramSummary = jobParamSummary(detail?.params ?? "", paramSpec, locale);
   const expired = isExpiredOutput(job);
   const badgeDays = expiryBadgeDays(job, now);
   const downloadable = isDownloadable(job);
@@ -276,7 +298,34 @@ function GalleryCard({
 
       {prompt ? <p className="line-clamp-2 text-xs font-bold text-muted">{prompt}</p> : null}
 
-      <InputThumbs job={job} locale={locale} />
+      <InputThumbs inputThumbs={detail?.inputThumbs} locale={locale} />
+
+      {/* Tiha napomena stoji UZ dugme, pre klika - posle klika je kasno. */}
+      {owner && onReveal && revealed === null ? (
+        <div>
+          <button
+            type="button"
+            disabled={isRevealing}
+            onClick={async () => {
+              setIsRevealing(true);
+              setRevealError(null);
+              try {
+                setRevealed(await onReveal(job._id));
+              } catch {
+                setRevealError(REVEAL_FAILED[locale]);
+              } finally {
+                setIsRevealing(false);
+              }
+            }}
+            className={cn(ACTION, "border-ink bg-white text-ink hover:-translate-y-0.5")}
+          >
+            {isRevealing ? <Loader2 className="size-3.5 animate-spin" /> : <Eye className="size-3.5" />}
+            {REVEAL_DETAILS[locale]}
+          </button>
+          <p className="mt-1 text-[10px] font-bold text-muted">{REVEAL_AUDIT_NOTE[locale]}</p>
+          {revealError ? <p className="mt-1 text-[11px] font-black text-red-700">{revealError}</p> : null}
+        </div>
+      ) : null}
 
       {/* Parametri kojima je posao naručen - bez njih kartica ne kaže zašto su
           dve iste generacije koštale različito. */}
@@ -394,6 +443,9 @@ export function StudioGalleryPage({ locale }: { locale: Locale }) {
   // proverava ponovo, pa sakriveno dugme nije jedina brana.
   const studioState = useQuery(api.studio.getStudioState, isAuthenticated ? {} : "skip");
   const isStaff = studioState?.isStaff === true;
+  // Dugme "Prikaži detalje" na tuđoj kartici je samo za admina; `revealJobDetail`
+  // istu ulogu traži ponovo, na serveru.
+  const isStudioAdmin = studioState?.isStudioAdmin === true;
   const allScope = isStaff && scope === "all";
 
   const models = useQuery(api.studioModels.listModels, isAuthenticated ? {} : "skip");
@@ -422,6 +474,7 @@ export function StudioGalleryPage({ locale }: { locale: Locale }) {
   const owners = useQuery(api.studio.listJobOwners, allScope ? {} : "skip");
   const jobs = allScope ? allJobs : myJobs;
   const deleteJob = useMutation(api.studio.deleteJob);
+  const revealJobDetail = useMutation(api.studio.revealJobDetail);
 
   const studioHref = withLocale(locale, "/app/studio");
   // Katalog v4 se parsira jednom: kartica iz njega uzima i ime modela i
@@ -559,7 +612,7 @@ export function StudioGalleryPage({ locale }: { locale: Locale }) {
                 type="search"
                 value={ownerSearch}
                 onChange={(event) => setOwnerSearch(event.target.value)}
-                placeholder={locale === "sr" ? "Pretraži po mejlu" : "Search by email"}
+                placeholder={locale === "sr" ? "Pretraži vlasnike" : "Search owners"}
                 aria-label={locale === "sr" ? "Pretraži korisnike" : "Search users"}
                 className="surface-inset min-h-9 border-2 border-ink bg-white px-3 py-1.5 text-xs font-bold text-ink"
               />
@@ -574,7 +627,7 @@ export function StudioGalleryPage({ locale }: { locale: Locale }) {
                 <option value="">{locale === "sr" ? "Svi korisnici" : "All users"}</option>
                 {ownerOptions.map((owner) => (
                   <option key={owner.userId} value={owner.userId}>
-                    {`${owner.email} (${owner.jobCount})`}
+                    {`${owner.label} (${owner.jobCount})`}
                   </option>
                 ))}
               </select>
@@ -767,6 +820,7 @@ export function StudioGalleryPage({ locale }: { locale: Locale }) {
                 selected={selected.has(job._id)}
                 onToggleSelect={toggleSelect}
                 onDelete={(jobId) => deleteJob({ jobId })}
+                onReveal={isStudioAdmin ? (jobId) => revealJobDetail({ jobId }) : undefined}
                 owner={
                   job.ownerEmail === undefined
                     ? undefined

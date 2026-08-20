@@ -120,11 +120,11 @@ test("bez reda kataloga nema opisa - sirovi kljucevi se ne ispisuju", () => {
 
 // ── W1: prekidac "Samo moji" / "Svi korisnici" ─────────────────────────────
 
-test("filterJobOwners suzava spisak po mejlu, bez obzira na velika slova", () => {
+test("filterJobOwners suzava spisak po labeli, bez obzira na velika slova", () => {
   const owners = [
-    { userId: "1", email: "ana@example.com" },
-    { userId: "2", email: "Bojan@Example.com" },
-    { userId: "3", email: "cveta@drugi.rs" },
+    { userId: "1", label: "ana@example.com" },
+    { userId: "2", label: "Bojan@Example.com" },
+    { userId: "3", label: "cveta@drugi.rs" },
   ];
 
   expect(filterJobOwners(owners, "example").map((owner) => owner.userId)).toEqual(["1", "2"]);
@@ -132,6 +132,13 @@ test("filterJobOwners suzava spisak po mejlu, bez obzira na velika slova", () =>
   // Prazna pretraga nije filter - vraca sve, ne nista.
   expect(filterJobOwners(owners, "   ")).toHaveLength(3);
   expect(filterJobOwners(owners, "nikoga")).toHaveLength(0);
+
+  // Moderatoru labela nije mejl nego otisak - pretraga radi i nad njim.
+  const handles = [
+    { userId: "1", label: "a1b2c3" },
+    { userId: "2", label: "d4e5f6" },
+  ];
+  expect(filterJobOwners(handles, "D4E").map((owner) => owner.userId)).toEqual(["2"]);
 });
 
 test("labele prekidaca, statusa i provajdera postoje za svaku vrednost", () => {

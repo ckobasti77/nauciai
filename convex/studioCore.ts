@@ -88,6 +88,20 @@ export function promptHash(prompt: string): string {
   return low.toString(16).padStart(8, "0") + high.toString(16).padStart(8, "0");
 }
 
+/**
+ * Vlasnik posla za oči MODERATORA (X4, nalaz N1, tačka 3): dovoljno da se
+ * poslovi jednog naloga izdvoje u filteru, a nedovoljno da se sazna ko je taj
+ * nalog. Mejlove vidi samo admin.
+ *
+ * Šest heksadecimalnih znakova `promptHash`-a - ista funkcija, jer je već ovde
+ * i jer joj je posao isti: stabilan, sinhron, deterministički otisak. Nije
+ * kriptografska i ne pretvara se da jeste; `userId` se iz nje ne vraća, ali se
+ * ni ne tvrdi da je neprobojna.
+ */
+export function ownerHandle(userId: string): string {
+  return promptHash(userId).slice(0, 6);
+}
+
 export type PricedModel = {
   creditCost: number;
   costPerSecond?: number;

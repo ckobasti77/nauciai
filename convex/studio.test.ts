@@ -16,6 +16,7 @@ import {
   MAX_DAILY_COST_USD,
   mockJobSucceeds,
   mockOutputDataUrl,
+  ownerHandle,
   sanitizeParams,
 } from "./studioCore";
 
@@ -1338,6 +1339,7 @@ test("getStudioState: upaljen Studio, upisan korisnik, nijedan posao u letu", as
     enabled: true,
     hasStudioAccess: true,
     isStaff: false,
+    isStudioAdmin: false,
     activeJobs: 0,
     maxActiveJobs: 3,
   });
@@ -1659,6 +1661,13 @@ test("getStudioState pušta admina bez upisa i prijavljuje ga kao osoblje", asyn
   const state = await admin.asUser.query(api.studio.getStudioState, {});
   expect(state.hasStudioAccess).toBe(true);
   expect(state.isStaff).toBe(true);
+  expect(state.isStudioAdmin).toBe(true);
+
+  // Moderator je osoblje, ali nije admin - dugme "Prikazi detalje" ne dobija (X4).
+  const moderator = await seedStaff(t, "moderator");
+  const moderatorState = await moderator.asUser.query(api.studio.getStudioState, {});
+  expect(moderatorState.isStaff).toBe(true);
+  expect(moderatorState.isStudioAdmin).toBe(false);
 });
 
 /** Red posla bez `createJob`-a: query se testira nad zadatim vlasnikom, slugom i statusom. */
@@ -1669,6 +1678,8 @@ async function insertJob(
     modelSlug: string;
     status: "reserved" | "running" | "done" | "failed" | "refunded";
     createdAt: number;
+    prompt?: string;
+    inputs?: string;
   },
 ) {
   return t.run((ctx) =>
@@ -1676,10 +1687,11 @@ async function insertJob(
       userId,
       modelSlug: overrides.modelSlug,
       kind: "image" as const,
-      params: JSON.stringify({ prompt: "posao" }),
+      params: JSON.stringify({ prompt: overrides.prompt ?? "posao" }),
       promptHash: "0".repeat(16),
       status: overrides.status,
       creditCost: 10,
+      ...(overrides.inputs ? { inputs: overrides.inputs } : {}),
       createdAt: overrides.createdAt,
     }),
   );
@@ -1792,7 +1804,7 @@ test("listAllJobs i listJobOwners su iza uloge na SERVERU, ne u UI-ju", async ()
   const t = convexTest(schema, modules);
   const { userId, asUser } = await seedWorld(t);
   await insertCatalogModel(t, "m-fal", "fal");
-  await insertJob(t, userId, { modelSlug: "m-fal", status: "done", createdAt: 1_000 });
+  const jobId = await insertJob(t, userId, { modelSlug: "m-fal", status: "done", createdAt: 1_000 });
 
   const opts = { numItems: 10, cursor: null };
   await expect(asUser.query(api.studio.listAllJobs, { paginationOpts: opts })).rejects.toThrow(
@@ -1801,12 +1813,179 @@ test("listAllJobs i listJobOwners su iza uloge na SERVERU, ne u UI-ju", async ()
   await expect(asUser.query(api.studio.listJobOwners, {})).rejects.toThrow(/Forbidden/);
   await expect(t.query(api.studio.listAllJobs, { paginationOpts: opts })).rejects.toThrow();
 
+  // Ni sopstveni posao: `revealJobDetail` je alat moderacije, ne jos jedan put
+  // do svojih parametara (X4). Obican korisnik na sve tri dobija Forbidden.
+  await expect(asUser.mutation(api.studio.revealJobDetail, { jobId })).rejects.toThrow(/Forbidden/);
+  await expect(t.mutation(api.studio.revealJobDetail, { jobId })).rejects.toThrow();
+
   // Ista tabela kroz korisnički upit i dalje vraća samo svoje.
   const mine = await asUser.query(api.studio.listMyJobs, { paginationOpts: opts });
   expect(mine.page).toHaveLength(1);
 });
 
-test("listJobOwners vraća vlasnike sa brojem poslova, sortirane po mejlu", async () => {
+// -- X4: dva nivoa uvida u tudje poslove (nalaz N1) -------------------------
+
+/** Posao sa jednim stvarnim okacenim fajlom - `inputThumbs` se tada stvarno potpisuju. */
+async function insertJobWithInput(
+  t: TestConvex,
+  userId: Id<"users">,
+  overrides: { modelSlug: string; createdAt: number; prompt: string },
+) {
+  const storageId = await t.run((ctx) =>
+    ctx.storage.store(new Blob(["lice"], { type: "image/png" })),
+  );
+
+  return insertJob(t, userId, {
+    modelSlug: overrides.modelSlug,
+    status: "done",
+    createdAt: overrides.createdAt,
+    prompt: overrides.prompt,
+    inputs: JSON.stringify({ image: [storageId] }),
+  });
+}
+
+test("listAllJobs: moderator dobija red bez prompta i bez ulaznih slicica, admin pun red", async () => {
+  const t = convexTest(schema, modules);
+  const { userId } = await seedWorld(t);
+  const admin = await seedStaff(t, "admin");
+  const moderator = await seedStaff(t, "moderator");
+  await insertCatalogModel(t, "m-fal", "fal");
+  await insertJobWithInput(t, userId, {
+    modelSlug: "m-fal",
+    createdAt: 1_000,
+    prompt: "moj privatan prompt",
+  });
+
+  const opts = { numItems: 10, cursor: null };
+
+  const forModerator = await moderator.asUser.query(api.studio.listAllJobs, {
+    paginationOpts: opts,
+  });
+  expect(forModerator.page).toHaveLength(1);
+  const moderatorRow = forModerator.page[0];
+  // Podatak koji ne izadje iz Convex-a ne moze da iscuri: polja NEMA, nije prazno.
+  expect(moderatorRow.params).toBeUndefined();
+  expect(moderatorRow.inputThumbs).toBeUndefined();
+  expect(JSON.stringify(moderatorRow)).not.toContain("moj privatan prompt");
+  // Ono sto moderacija trazi je i dalje tu: model, provajder, status, kredit,
+  // vlasnik, vreme i izlaz.
+  expect(moderatorRow.modelSlug).toBe("m-fal");
+  expect(moderatorRow.provider).toBe("fal");
+  expect(moderatorRow.status).toBe("done");
+  expect(moderatorRow.creditCost).toBe(10);
+  expect(moderatorRow.ownerEmail).toBe("student@example.com");
+  expect(moderatorRow.createdAt).toBe(1_000);
+  expect(moderatorRow).toHaveProperty("outputUrl");
+
+  const forAdmin = await admin.asUser.query(api.studio.listAllJobs, { paginationOpts: opts });
+  const adminRow = forAdmin.page[0];
+  expect(adminRow.params).toContain("moj privatan prompt");
+  expect(adminRow.inputThumbs?.total).toBe(1);
+});
+
+test("revealJobDetail: moderatoru Forbidden, adminu prompt i ulazi", async () => {
+  const t = convexTest(schema, modules);
+  const { userId } = await seedWorld(t);
+  const admin = await seedStaff(t, "admin");
+  const moderator = await seedStaff(t, "moderator");
+  await insertCatalogModel(t, "m-fal", "fal");
+  const jobId = await insertJobWithInput(t, userId, {
+    modelSlug: "m-fal",
+    createdAt: 1_000,
+    prompt: "lisica u snegu",
+  });
+
+  await expect(moderator.asUser.mutation(api.studio.revealJobDetail, { jobId })).rejects.toThrow(
+    /Forbidden/,
+  );
+  // Odbijen poziv ne sme da ostavi red - dnevnik bi inace brojao i pokusaje.
+  expect(await t.run((ctx) => ctx.db.query("studioAuditLog").collect())).toHaveLength(0);
+
+  const detail = await admin.asUser.mutation(api.studio.revealJobDetail, { jobId });
+  expect(JSON.parse(detail.params).prompt).toBe("lisica u snegu");
+  expect(detail.inputThumbs.items).toHaveLength(1);
+  expect(detail.inputThumbs.items[0].slot).toBe("image");
+  expect(detail.inputThumbs.items[0].url).not.toBeNull();
+});
+
+test("revealJobDetail: svako otkrivanje upisuje tacno jedan red u studioAuditLog", async () => {
+  const t = convexTest(schema, modules);
+  const { userId } = await seedWorld(t);
+  const admin = await seedStaff(t, "admin");
+  await insertCatalogModel(t, "m-fal", "fal");
+  const withInput = await insertJobWithInput(t, userId, {
+    modelSlug: "m-fal",
+    createdAt: 1_000,
+    prompt: "sa ulazom",
+  });
+  const withoutInput = await insertJob(t, userId, {
+    modelSlug: "m-fal",
+    status: "done",
+    createdAt: 2_000,
+    prompt: "bez ulaza",
+  });
+
+  await admin.asUser.mutation(api.studio.revealJobDetail, { jobId: withInput });
+  const afterFirst = await t.run((ctx) => ctx.db.query("studioAuditLog").collect());
+  expect(afterFirst).toHaveLength(1);
+  expect(afterFirst[0].actorId).toBe(admin.userId);
+  expect(afterFirst[0].jobId).toBe(withInput);
+  expect(afterFirst[0].ownerId).toBe(userId);
+  expect(afterFirst[0].revealed).toEqual(["params", "inputs"]);
+
+  // Drugi klik na ISTI posao je drugi pristup, dakle drugi red - dnevnik se ne
+  // deduplikuje, inace bi drugo gledanje bilo nevidljivo.
+  await admin.asUser.mutation(api.studio.revealJobDetail, { jobId: withInput });
+  await admin.asUser.mutation(api.studio.revealJobDetail, { jobId: withoutInput });
+  const all = await t.run((ctx) => ctx.db.query("studioAuditLog").collect());
+  expect(all).toHaveLength(3);
+  // Posao bez okacenih fajlova otkriva samo parametre, i tako i stoji u dnevniku.
+  expect(all.filter((row) => row.jobId === withoutInput)[0].revealed).toEqual(["params"]);
+
+  // Oba indeksa vracaju svoje redove kroz svoju putanju.
+  const byActor = await t.run((ctx) =>
+    ctx.db
+      .query("studioAuditLog")
+      .withIndex("by_actor", (q) => q.eq("actorId", admin.userId))
+      .collect(),
+  );
+  expect(byActor).toHaveLength(3);
+  const byJob = await t.run((ctx) =>
+    ctx.db
+      .query("studioAuditLog")
+      .withIndex("by_job", (q) => q.eq("jobId", withInput))
+      .collect(),
+  );
+  expect(byJob).toHaveLength(2);
+});
+
+test("listJobOwners: moderator dobija otisak bez ijednog znaka @, admin mejl", async () => {
+  const t = convexTest(schema, modules);
+  const { userId } = await seedWorld(t);
+  const admin = await seedStaff(t, "admin");
+  const moderator = await seedStaff(t, "moderator");
+  await insertCatalogModel(t, "m-fal", "fal");
+  await insertJob(t, userId, { modelSlug: "m-fal", status: "done", createdAt: 1_000 });
+  await insertJob(t, admin.userId, { modelSlug: "m-fal", status: "done", createdAt: 2_000 });
+
+  const forModerator = await moderator.asUser.query(api.studio.listJobOwners, {});
+  expect(forModerator).toHaveLength(2);
+  expect(JSON.stringify(forModerator)).not.toContain("@");
+  // Otisak je stabilan i razlicit po korisniku - filter po njemu i dalje radi.
+  expect(forModerator.map((owner) => owner.label).sort()).toEqual(
+    [ownerHandle(admin.userId), ownerHandle(userId)].sort(),
+  );
+  expect(new Set(forModerator.map((owner) => owner.label)).size).toBe(2);
+  expect(forModerator.every((owner) => owner.label.length === 6)).toBe(true);
+
+  const forAdmin = await admin.asUser.query(api.studio.listJobOwners, {});
+  expect(forAdmin.map((owner) => owner.label)).toEqual([
+    "admin@example.com",
+    "student@example.com",
+  ]);
+});
+
+test("listJobOwners adminu vraća vlasnike sa mejlom i brojem poslova, sortirane po mejlu", async () => {
   const t = convexTest(schema, modules);
   const { userId } = await seedWorld(t);
   const admin = await seedStaff(t, "admin");
@@ -1817,6 +1996,6 @@ test("listJobOwners vraća vlasnike sa brojem poslova, sortirane po mejlu", asyn
   await insertJob(t, admin.userId, { modelSlug: "m-fal", status: "done", createdAt: 3_000 });
 
   const owners = await admin.asUser.query(api.studio.listJobOwners, {});
-  expect(owners.map((owner) => owner.email)).toEqual(["admin@example.com", "student@example.com"]);
+  expect(owners.map((owner) => owner.label)).toEqual(["admin@example.com", "student@example.com"]);
   expect(owners.map((owner) => owner.jobCount)).toEqual([1, 2]);
 });

@@ -52,6 +52,7 @@ import {
   MAX_DAILY_GENERATIONS,
   outputExpiresAt,
   outputTitle,
+  ownerHandle,
   parseParams,
   promptHash,
   requestedImageCount,
@@ -912,10 +913,33 @@ export const listMyJobs = query({
  */
 async function toGalleryJob(ctx: QueryCtx, job: Doc<"generationJobs">) {
   return {
+    ...(await toModerationJob(ctx, job)),
+    params: job.params,
+    // Ulazi kao sličice na kartici: bez njih "Generiši ponovo" kod modela
+    // sa slikama nema smisla, jer se ne vidi šta je uopšte bio ulaz.
+    // Potpisuje se najviše `GALLERY_INPUT_THUMBS` po poslu - stranica od
+    // dvanaest kartica sa devet referenci je sto osam potpisa za mrežu
+    // sličica; ceo spisak vraća `getJobForRegenerate`, jedan posao.
+    inputThumbs: await resolveInputThumbs(ctx, job.inputs),
+  };
+}
+
+/**
+ * Isti red BEZ prompta i BEZ ulaznih sličica (X4, nalaz N1). Ovo je sve što
+ * moderacija traži: šta je pušteno, ko je pustio, koliko je koštalo i kako
+ * izgleda IZLAZ - jer se izlaz moderira. Prompt koji je korisnik otkucao i
+ * fotografija lica koju je okačio nisu deo tog posla.
+ *
+ * Razdvojeno na dve funkcije, a ne na jednu koja polja briše na kraju, iz
+ * jednog razloga: `resolveInputThumbs` POTPISUJE tuđe fajlove
+ * (`ctx.storage.getUrl`). Potpis koji se napravi pa odbaci je i dalje bio
+ * napravljen; ovako se ne pravi.
+ */
+async function toModerationJob(ctx: QueryCtx, job: Doc<"generationJobs">) {
+  return {
     _id: job._id,
     modelSlug: job.modelSlug,
     kind: job.kind,
-    params: job.params,
     status: job.status,
     creditCost: job.creditCost,
     outputStorageId: job.outputStorageId,
@@ -925,13 +949,8 @@ async function toGalleryJob(ctx: QueryCtx, job: Doc<"generationJobs">) {
     // Fajl kojem je istekla retencija (`crons.expireGenerationFiles`)
     // vrati `null` - kartica tada pokazuje istek, ne pokvarenu sliku.
     outputUrl: job.outputStorageId ? await ctx.storage.getUrl(job.outputStorageId) : null,
-    // Ulazi kao sličice na kartici: bez njih "Generiši ponovo" kod modela
-    // sa slikama nema smisla, jer se ne vidi šta je uopšte bio ulaz.
-    // Potpisuje se najviše `GALLERY_INPUT_THUMBS` po poslu - stranica od
-    // dvanaest kartica sa devet referenci je sto osam potpisa za mrežu
-    // sličica; ceo spisak vraća `getJobForRegenerate`, jedan posao.
+    // Ime režima, ne sadržaj: "reference" ne odaje šta je na referenci.
     inputMode: job.inputMode,
-    inputThumbs: await resolveInputThumbs(ctx, job.inputs),
     error: job.error,
     isMock: isMockRequestId(job.falRequestId),
     expiresAt: job.expiresAt,
@@ -966,16 +985,38 @@ const MAX_OWNER_SCAN_JOBS = 300;
  * `helpers.ts` ide preko `ensureProfile`, koji profil upisuje i zato baca
  * unutar query-ja - isti obrazac rešava `studioAdmin.requireAdminRead`: uloga
  * se čita preko `getCurrentProfile`, bez upisa.
+ *
+ * Vraća KOJA je od dve uloge prošla, jer od X4 (nalaz N1) ne dobijaju istu
+ * količinu podataka: moderator je uloga zajednice koju admin dodeljuje
+ * (`profiles.setProfileRole`), pa nema šta da traži u tuđim promptovima.
  */
-async function requireStudioStaff(ctx: QueryCtx) {
+async function requireStudioStaff(ctx: QueryCtx): Promise<"admin" | "moderator"> {
   const { profile } = await getCurrentProfile(ctx);
   if (!isStudioStaff(profile.role)) throw new Error("Forbidden");
+  return profile.role === "admin" ? "admin" : "moderator";
 }
 
-/** Red admin galerije: isto što vidi i korisnik, plus vlasnik i provajder. */
-type StaffJob = Awaited<ReturnType<typeof toGalleryJob>> & {
+/**
+ * Strogo `admin`, isti prag koji već važi za ekran sa novcem
+ * (`studioAdmin.requireAdminRead`). Piše se u mutaciji, pa `getCurrentProfile`
+ * ovde nije zbog upisa nego zbog `userId`-ja aktera koji ide u dnevnik.
+ */
+async function requireStudioAdmin(ctx: MutationCtx): Promise<Id<"users">> {
+  const { profile, userId } = await getCurrentProfile(ctx);
+  if (profile.role !== "admin") throw new Error("Forbidden");
+  return userId;
+}
+
+/**
+ * Red staff galerije: moderacijski podskup plus vlasnik i provajder. Admin uz
+ * njega dobija i prompt i ulazne sličice - moderator ne, pa su ta dva polja
+ * opciona u tipu, a ne opciona u praksi.
+ */
+type StaffJob = Awaited<ReturnType<typeof toModerationJob>> & {
   ownerEmail: string;
   provider: string;
+  params?: string;
+  inputThumbs?: Awaited<ReturnType<typeof resolveInputThumbs>>;
 };
 
 /**
@@ -991,6 +1032,11 @@ type StaffJob = Awaited<ReturnType<typeof toGalleryJob>> & {
  *
  * Provajder se ne pamti na poslu nego na modelu, pa se filter po njemu
  * prevodi u spisak slugova iz kataloga.
+ *
+ * DVA NIVOA (X4, nalaz N1). Moderator dobija `toModerationJob` - bez prompta i
+ * bez potpisanih URL-ova tuđih okačenih fajlova. Admin dobija pun red. Razlika
+ * se pravi OVDE, a ne u React-u: podatak koji ne izađe iz Convex-a ne može da
+ * iscuri.
  */
 export const listAllJobs = query({
   args: {
@@ -1000,7 +1046,7 @@ export const listAllJobs = query({
     provider: v.optional(studioProvider),
   },
   handler: async (ctx, args) => {
-    await requireStudioStaff(ctx);
+    const role = await requireStudioStaff(ctx);
 
     const models = await ctx.db.query("models").take(MAX_CATALOG_MODELS);
     const providerBySlug = new Map(models.map((model) => [model.slug, model.provider]));
@@ -1049,7 +1095,7 @@ export const listAllJobs = query({
         emailByUser.set(job.userId, owner?.email ?? "");
       }
       page.push({
-        ...(await toGalleryJob(ctx, job)),
+        ...(role === "admin" ? await toGalleryJob(ctx, job) : await toModerationJob(ctx, job)),
         ownerEmail: emailByUser.get(job.userId) ?? "",
         provider: providerBySlug.get(job.modelSlug) ?? "",
       });
@@ -1063,11 +1109,16 @@ export const listAllJobs = query({
  * Vlasnici za select "filter po korisniku". Distinct korisnici poslednjih
  * `MAX_OWNER_SCAN_JOBS` poslova, a ne cela tabela korisnika - filtrira se po
  * onome ko je stvarno nešto generisao, i čitanje ostaje ograničeno.
+ *
+ * `label` je mejl SAMO adminu (X4, nalaz N1, tačka 3). Moderatoru je to bio
+ * spisak mejlova svih korisnika Studija u jednom pozivu - a njemu za filter
+ * treba samo nešto po čemu se poslovi jednog naloga razlikuju od drugog, i to
+ * je `ownerHandle`. Polje se zato ne zove `email`: pola vremena to nije.
  */
 export const listJobOwners = query({
   args: {},
   handler: async (ctx) => {
-    await requireStudioStaff(ctx);
+    const role = await requireStudioStaff(ctx);
 
     const jobs = await ctx.db.query("generationJobs").order("desc").take(MAX_OWNER_SCAN_JOBS);
     const jobsByUser = new Map<Id<"users">, number>();
@@ -1077,12 +1128,64 @@ export const listJobOwners = query({
 
     const owners = await Promise.all(
       [...jobsByUser.entries()].map(async ([userId, jobCount]) => {
+        // Moderatoru se red korisnika uopšte ne čita - otisak se računa iz
+        // `userId`-ja, pa mejl ne izlazi iz baze ni da bi bio odbačen.
+        if (role !== "admin") return { userId, label: ownerHandle(userId), jobCount };
         const owner = await ctx.db.get(userId);
-        return { userId, email: owner?.email ?? "", jobCount };
+        return { userId, label: owner?.email ?? "", jobCount };
       }),
     );
 
-    return owners.sort((a, b) => a.email.localeCompare(b.email));
+    return owners.sort((a, b) => a.label.localeCompare(b.label));
+  },
+});
+
+/**
+ * Prompt, parametri i ULAZNE SLIČICE jednog tuđeg posla - i red u
+ * `studioAuditLog` o tome (X4, nalaz N1, tačka 2).
+ *
+ * Mutacija, a ne query, iz jednog razloga: query ne može da upiše trag. Otkriće
+ * bez traga je stanje koje je ovaj nalaz i prijavio, pa se to dvoje ovde
+ * dešava u JEDNOJ transakciji - ako upis padne, podatak se ne vraća.
+ *
+ * Strogo `admin`. Moderator do ovoga ne dolazi ni klikom ni pozivom.
+ *
+ * Za razliku od galerijske kartice, ovde se potpisuje CEO spisak ulaza, ne
+ * prva četiri: ovo je jedan posao na zahtev, ne mreža od dvanaest kartica.
+ */
+export const revealJobDetail = mutation({
+  args: { jobId: v.id("generationJobs") },
+  handler: async (ctx, args) => {
+    const actorId = await requireStudioAdmin(ctx);
+
+    const job = await ctx.db.get(args.jobId);
+    if (!job) throw new Error("Posao nije pronađen.");
+
+    const inputs = parseJobInputs(job.inputs);
+    const thumbs: Array<{ slot: string; storageId: string; url: string | null }> = [];
+    for (const [slot, ids] of Object.entries(inputs)) {
+      for (const storageId of ids) {
+        thumbs.push({
+          slot,
+          storageId,
+          url: await ctx.storage.getUrl(storageId as Id<"_storage">),
+        });
+      }
+    }
+
+    await ctx.db.insert("studioAuditLog", {
+      actorId,
+      jobId: args.jobId,
+      ownerId: job.userId,
+      revealed: thumbs.length > 0 ? ["params", "inputs"] : ["params"],
+      createdAt: Date.now(),
+    });
+
+    return {
+      params: job.params,
+      inputMode: job.inputMode,
+      inputThumbs: { items: thumbs, total: thumbs.length },
+    };
   },
 });
 
@@ -1346,6 +1449,9 @@ export const getStudioState = query({
       // Prekidač "Samo moji / Svi korisnici" u galeriji. Ovo je samo prikaz -
       // `listAllJobs` istu ulogu proverava ponovo, na serveru.
       isStaff: isStudioStaff(role),
+      // Dugme "Prikaži detalje" na tuđoj kartici (X4). Isto samo prikaz -
+      // `revealJobDetail` traži strogo `admin`, na serveru.
+      isStudioAdmin: role === "admin",
       activeJobs: reserved.length + running.length,
       maxActiveJobs: MAX_ACTIVE_JOBS,
     };

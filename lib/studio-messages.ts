@@ -228,6 +228,27 @@ export function deleteJobErrorMessage(raw: string, locale: Locale): string {
   return locale === "sr" ? "Brisanje nije uspelo. Pokušaj ponovo." : "Delete failed. Try again.";
 }
 
+/**
+ * Rečenica u podnožju forme (X4, nalaz N1, tačka 4). Nalaz je imao tri stavke,
+ * i ovo je treća: obim je bio širi od admina, traga nije bilo, i korisnik za to
+ * nije znao. Prve dve rešava `convex/studio.ts`; ovu rešava jedna rečenica koja
+ * stoji tu gde se sadržaj i predaje.
+ *
+ * Link vodi na `/uslovi-studio` - stranicu pravi korak X7, ruta je do tada
+ * prazna. Namerno: rečenica bez linka ne bi bila obaveštenje nego napomena.
+ */
+export const STUDIO_TERMS_PATH = "/uslovi-studio";
+
+export const STUDIO_CONTENT_NOTICE: Record<Locale, string> = {
+  sr: "Ono što generišeš ostaje sačuvano na tvom nalogu, a osoblje platforme može da ga pregleda zbog moderacije; važi politika privatnosti.",
+  en: "What you generate stays saved on your account, platform staff may review it for moderation, and the privacy policy applies.",
+};
+
+export const STUDIO_CONTENT_NOTICE_LINK: Record<Locale, string> = {
+  sr: "Uslovi Studija i privatnost",
+  en: "Studio terms and privacy",
+};
+
 export type EmptyState = {
   title: Record<Locale, string>;
   body: Record<Locale, string>;

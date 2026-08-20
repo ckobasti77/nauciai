@@ -171,13 +171,34 @@ export const STUDIO_PROVIDER_LABELS: Record<StudioProvider, string> = {
 };
 
 /**
- * Korisnici ponuđeni u selectu, suženi na ono što je ukucano. Pretraga je po
- * mejlu jer je mejl i ono što piše na kartici - admin traži isti niz znakova
- * koji je upravo pročitao.
+ * Dugme kojim admin otvara prompt i ulazne sličice TUĐEG posla, i rečenica
+ * ispod njega (X4, nalaz N1, tačka 2). Napomena o beleženju stoji PRE klika -
+ * posle klika je red u `studioAuditLog` već upisan.
  */
-export function filterJobOwners<T extends { email: string }>(owners: T[], search: string): T[] {
+export const REVEAL_DETAILS: Record<Locale, string> = {
+  sr: "Prikaži detalje",
+  en: "Show details",
+};
+
+export const REVEAL_AUDIT_NOTE: Record<Locale, string> = {
+  sr: "Otvaranje tuđeg prompta i okačenih fajlova se beleži.",
+  en: "Opening another user's prompt and uploaded files is logged.",
+};
+
+export const REVEAL_FAILED: Record<Locale, string> = {
+  sr: "Detalji nisu učitani. Pokušaj ponovo.",
+  en: "The details did not load. Try again.",
+};
+
+/**
+ * Korisnici ponuđeni u selectu, suženi na ono što je ukucano. Pretraga je po
+ * onome što u selectu i piše - a to od X4 nije uvek mejl: `listJobOwners`
+ * moderatoru vraća anonimizovan otisak umesto mejla (nalaz N1, tačka 3), pa se
+ * polje zove `label` i pretraga ide po njemu.
+ */
+export function filterJobOwners<T extends { label: string }>(owners: T[], search: string): T[] {
   const needle = search.trim().toLowerCase();
   if (needle === "") return owners;
 
-  return owners.filter((owner) => owner.email.toLowerCase().includes(needle));
+  return owners.filter((owner) => owner.label.toLowerCase().includes(needle));
 }
