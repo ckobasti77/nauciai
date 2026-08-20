@@ -267,9 +267,18 @@ export function computeCredits(
   params: Record<string, unknown>,
   inputMode?: string,
 ): number {
-  const raw = computeCostUsd(rule, params, inputMode) * CREDIT_FACTOR;
+  return creditsFromUsd(computeCostUsd(rule, params, inputMode));
+}
 
-  return Math.ceil(Math.round(raw * 1e6) / 1e6);
+/**
+ * Drugi i poslednji ulaz u istu formulu, izdvojen zbog poravnanja (X2): kad
+ * provajder prijavi CENU a ne količinu, katalog nema šta da preračuna - a
+ * krediti moraju da izađu iz istog `ceil`-a, jednom i na kraju. Bez ovoga bi
+ * `ceil(C × 216,25)` postojao na dva mesta, a marža od 2,5× visi baš o tome da
+ * postoji na jednom.
+ */
+export function creditsFromUsd(costUsd: number): number {
+  return Math.ceil(Math.round(costUsd * CREDIT_FACTOR * 1e6) / 1e6);
 }
 
 /**

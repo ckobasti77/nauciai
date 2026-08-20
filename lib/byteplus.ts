@@ -13,6 +13,7 @@
  */
 
 import { readTokenUsage, type TokenUsage } from "../convex/studioActualCostCore";
+import { readReportedSeconds } from "../convex/studioSettlementCore";
 
 export type BytePlusConfig = { baseUrl: string; apiKey: string };
 
@@ -106,6 +107,11 @@ export type BytePlusTask = {
   error: string | null;
   /** Potroseni tokeni zadatka (W6); `null` kad ih odgovor nema. */
   usage: TokenUsage | null;
+  /**
+   * Stvarno trajanje klipa u sekundama, kad ga zadatak javi (X2, nalaz N2).
+   * Ulaz u poravnanje; `null` znaci da provajder nije prijavio nista.
+   */
+  seconds: number | null;
 };
 
 /**
@@ -173,5 +179,6 @@ export async function fetchBytePlusVideoTask(params: {
     videoUrl: readString(content, "video_url"),
     error: readString(error, "message") ?? readString(error, "code"),
     usage: readTokenUsage(data),
+    seconds: readReportedSeconds(data),
   };
 }

@@ -164,6 +164,30 @@ export function exceedsDailyCostLimit(spentUsd: number, addedUsd: number): boole
 }
 
 /**
+ * Koliko procenjenog troška sme da stoji NEPORAVNATO po korisniku (X2, nalaz
+ * N2). Poravnanje ispravlja cenu tek kad je posao gotov, pa između rezervacije
+ * i tog trenutka postoji prozor u kojem oba plafona i dalje gledaju procenu.
+ * Ovo je jeftina brava nad tim prozorom: čim korisnik ima toliko u vazduhu, nov
+ * posao čeka da se prethodni završe.
+ *
+ * Tri dolara je namerno ispod dnevnog plafona od pet: ovo nije drugi dnevni
+ * plafon nego granica PARALELNE izloženosti, a `MAX_ACTIVE_JOBS` je ograničava
+ * na najviše tri posla.
+ */
+export const MAX_UNSETTLED_COST_USD = 3;
+
+/**
+ * Meri se samo ono što je VEĆ u letu, bez cene posla koji se upravo naručuje:
+ * ovo nije drugi dnevni plafon i ne sme da obori jedan skup posao koji staje u
+ * plafon od 5 $. Prvi posao od 72 $ prolazi (i biće poravnat), drugi čeka.
+ *
+ * Poredi se u centima iz istog razloga kao `exceedsDailyCostLimit`.
+ */
+export function exceedsUnsettledCostLimit(unsettledUsd: number): boolean {
+  return Math.round(unsettledUsd * 100) > MAX_UNSETTLED_COST_USD * 100;
+}
+
+/**
  * STUDIO-PLAN 4.4 - GLOBALNI dnevni plafon troška, preko svih korisnika. Dnevni
  * limit po korisniku (`MAX_DAILY_COST_USD`) ne vidi zbir: deset korisnika koji
  * svaki udari u svojih 5 $ je 50 $ koje niko ne primeti. Ova dva praga su

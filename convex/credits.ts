@@ -5,7 +5,7 @@ import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { internalMutation, mutation, query } from "./_generated/server";
-import { computeExpiry, isValidCreditAmount, planSpend } from "./creditsCore";
+import { computeExpiry, isValidCreditAmount, planSpend, usableBalance } from "./creditsCore";
 import { requireSyncSecret, requireUserId } from "./helpers";
 
 const creditLotSource = v.union(
@@ -329,9 +329,131 @@ export const spendCredits = internalMutation({
 });
 
 /**
+ * Zajedničko jezgro povraćaja: nov lot sa istekom 12 meseci od sad, pomeren
+ * balans i JEDAN red u ledgeru. Zovu ga `refundCredits` (pun iznos, tip
+ * `refund`) i `applySettlement` (razlika naniže, tip `settlement`) - dva
+ * pozivaoca, jedan upis, pa se ledger ne može razići sam sa sobom.
+ */
+async function openReturnLot(
+  ctx: MutationCtx,
+  args: {
+    userId: Id<"users">;
+    jobId: Id<"generationJobs">;
+    amount: number;
+    type: "refund" | "settlement";
+    now: number;
+  },
+) {
+  const expiresAt = computeExpiry(args.now);
+  const lotId = await ctx.db.insert("creditLots", {
+    userId: args.userId,
+    source: "refund",
+    granted: args.amount,
+    remaining: args.amount,
+    expiresAt,
+    grantedAt: args.now,
+  });
+  const balanceAfter = await applyBalanceDelta(ctx, args.userId, args.now, {
+    balance: args.amount,
+    purchased: 0,
+    spent: -args.amount,
+  });
+  await ctx.db.insert("creditTransactions", {
+    userId: args.userId,
+    amount: args.amount,
+    type: args.type,
+    balanceAfter,
+    jobId: args.jobId,
+    lotId,
+    expiresAt,
+    createdAt: args.now,
+  });
+
+  return lotId;
+}
+
+/**
+ * Korekcija posle završenog posla (X2, nalaz N2). `credits` je razlika u
+ * kreditima: pozitivna se SKIDA, negativna VRAĆA.
+ *
+ * Naviše se skida koliko korisnik ima, ne koliko duguje: posao je već završen i
+ * provajder je već naplaćen, pa odbijanje ovde ne vraća ništa. Ono što nije
+ * uspelo da se skine vraća se pozivaocu kao `unsettled` i on ga upisuje kao dug
+ * na red posla; dok dug postoji, `createJob` tom korisniku ne otvara nov posao.
+ *
+ * Obična funkcija, kao `applySpend`: poravnanje i njegov trag na poslu moraju da
+ * padnu zajedno, u istoj transakciji.
+ */
+export async function applySettlement(
+  ctx: MutationCtx,
+  args: { userId: Id<"users">; jobId: Id<"generationJobs">; credits: number },
+): Promise<{ applied: number; unsettled: number }> {
+  if (!Number.isInteger(args.credits) || args.credits === 0) {
+    return { applied: 0, unsettled: 0 };
+  }
+
+  const now = Date.now();
+  if (args.credits < 0) {
+    await openReturnLot(ctx, {
+      userId: args.userId,
+      jobId: args.jobId,
+      amount: -args.credits,
+      type: "settlement",
+      now,
+    });
+
+    return { applied: args.credits, unsettled: 0 };
+  }
+
+  const lots = await ctx.db
+    .query("creditLots")
+    .withIndex("by_user_active", (q) => q.eq("userId", args.userId).eq("exhaustedAt", undefined))
+    .collect();
+  const plain = lots.map((lot) => ({
+    id: lot._id,
+    remaining: lot.remaining,
+    expiresAt: lot.expiresAt,
+  }));
+
+  const take = Math.min(args.credits, usableBalance(plain, now));
+  const plan = take > 0 ? planSpend(plain, take, now) : null;
+  if (!plan) return { applied: 0, unsettled: args.credits };
+
+  const takeByLot = new Map(plan.map((step) => [step.lotId, step.take]));
+  for (const lot of lots) {
+    const step = takeByLot.get(lot._id);
+    if (!step) continue;
+    const remaining = lot.remaining - step;
+    await ctx.db.patch(lot._id, remaining === 0 ? { remaining, exhaustedAt: now } : { remaining });
+  }
+
+  const balanceAfter = await applyBalanceDelta(ctx, args.userId, now, {
+    balance: -take,
+    purchased: 0,
+    spent: take,
+  });
+  await ctx.db.insert("creditTransactions", {
+    userId: args.userId,
+    amount: -take,
+    type: "settlement",
+    balanceAfter,
+    jobId: args.jobId,
+    lotId: plan.length === 1 ? (plan[0].lotId as Id<"creditLots">) : undefined,
+    createdAt: now,
+  });
+
+  return { applied: -take, unsettled: args.credits - take };
+}
+
+/**
  * Vraća tačno onoliko kredita koliko je posao skinuo, u NOV lot sa istekom 12
  * meseci od sad. Idempotentno preko `by_job_type`: drugi poziv vraća `null` i
  * ne dira ništa.
+ *
+ * "Koliko je posao skinuo" je zbir rezervacije i poravnanja (X2): posao kojem je
+ * posle rezervacije skinuta razlika mora da vrati i nju, a posao kojem je deo
+ * već vraćen ne sme da ga dobije drugi put. `spend` je obavezan, `settlement`
+ * postoji samo kad je posao poravnat.
  */
 export const refundCredits = internalMutation({
   args: { jobId: v.id("generationJobs") },
@@ -348,34 +470,25 @@ export const refundCredits = internalMutation({
       .unique();
     if (!spend) throw new Error("NEMA_TROSKA_ZA_REFUND");
 
-    const amount = -spend.amount;
-    const now = Date.now();
-    const expiresAt = computeExpiry(now);
-    const lotId = await ctx.db.insert("creditLots", {
+    const settlement = await ctx.db
+      .query("creditTransactions")
+      .withIndex("by_job_type", (q) => q.eq("jobId", args.jobId).eq("type", "settlement"))
+      .unique();
+
+    const amount = -spend.amount - (settlement?.amount ?? 0);
+    // Posao kojem je poravnanje već vratilo sve što je skinuo nema šta da se
+    // refundira; prazan lot bi bio red u ledgeru koji ne pomera nijedan broj.
+    if (amount <= 0) return null;
+
+    const lotId = await openReturnLot(ctx, {
       userId: spend.userId,
-      source: "refund",
-      granted: amount,
-      remaining: amount,
-      expiresAt,
-      grantedAt: now,
-    });
-    const balanceAfter = await applyBalanceDelta(ctx, spend.userId, now, {
-      balance: amount,
-      purchased: 0,
-      spent: -amount,
-    });
-    await ctx.db.insert("creditTransactions", {
-      userId: spend.userId,
+      jobId: args.jobId,
       amount,
       type: "refund",
-      balanceAfter,
-      jobId: args.jobId,
-      lotId,
-      expiresAt,
-      createdAt: now,
+      now: Date.now(),
     });
 
-    return lotId;
+    return { lotId, credits: amount };
   },
 });
 

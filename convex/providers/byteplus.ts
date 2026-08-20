@@ -97,13 +97,12 @@ export async function submitBytePlusJob(ctx: ActionCtx, jobId: Id<"generationJob
       });
       // Trošak je zaseban upis, a ne argument `markJobDone`-a: `markJobDone`
       // sme da izađe bez dejstva (druga predaja istog posla), a upis stvarnog
-      // troška ima svoju idempotenciju i svoj zbir po modelu.
-      if (result.usage) {
-        await ctx.runMutation(internal.studioActualCost.recordProviderUsage, {
-          jobId,
-          usage: result.usage,
-        });
-      }
+      // troška ima svoju idempotenciju i svoj zbir po modelu. Isti poziv
+      // zakazuje i poravnanje (X2).
+      await ctx.runMutation(internal.studioActualCost.recordProviderUsage, {
+        jobId,
+        usage: result.usage ?? {},
+      });
 
       return;
     }
@@ -228,6 +227,7 @@ export const verifyAndApplyTask = internalAction({
         status: "OK",
         outputUrl: task.videoUrl,
         ...(task.usage ? { usage: task.usage } : {}),
+        ...(task.seconds !== null ? { reportedSeconds: task.seconds } : {}),
       });
 
       return null;
@@ -284,6 +284,8 @@ export const applyTaskResult = internalMutation({
     // Potrošeni tokeni zadatka (W6) - BytePlus ne vraća cenu, pa je ovo jedini
     // podatak iz kojeg se stvaran trošak uopšte može izračunati.
     usage: v.optional(tokenUsageValidator),
+    // Stvarno trajanje klipa, kad ga zadatak javi (X2) - ulaz u poravnanje.
+    reportedSeconds: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const job = await ctx.db
@@ -314,6 +316,12 @@ export const applyTaskResult = internalMutation({
     // pita, pa drugog trenutka za merenje troška nema.
     await recordTokenUsage(ctx, job, args.usage);
     await ctx.scheduler.runAfter(0, internal.studioActions.persistOutput, { jobId: job._id });
+    // Poravnanje (X2) se ZAKAZUJE: naplata razlike ne sme da povuče već zatvoren
+    // posao sa sobom ako pukne.
+    await ctx.scheduler.runAfter(0, internal.studio.settleJobCredits, {
+      jobId: job._id,
+      ...(args.reportedSeconds !== undefined ? { reportedSeconds: args.reportedSeconds } : {}),
+    });
 
     return null;
   },

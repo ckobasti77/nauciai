@@ -77,6 +77,11 @@ const creditTransactionType = v.union(
   v.literal("trial"),
   v.literal("expiry"),
   v.literal("admin_adjust"),
+  // Korekcija posle završenog posla (X2, nalaz N2): `spend` je rezervacija po
+  // proceni, ovo je razlika do stvarne količine. Zaseban tip, a ne drugi
+  // `spend`/`refund` red, da se u istoriji vidi i jedno i drugo - i da
+  // `by_job_type` ostane jedinstven po poslu za svaki od tri tipa.
+  v.literal("settlement"),
 );
 const creditPackKind = v.union(v.literal("pack"), v.literal("plan"));
 const studioModelKind = v.union(v.literal("image"), v.literal("video"), v.literal("audio"));
@@ -1469,6 +1474,24 @@ export default defineSchema({
     // `providerRequestId`-ju. Provajder koji podatak ne vrati ostavlja polje
     // prazno - izmišljen broj bi popravio maržu koja je u stvari loša.
     actualCostUsd: v.optional(v.number()),
+    // ── PORAVNANJE (X2, nalaz N2) ────────────────────────────────────
+    // Kad je posao poravnat. Polje je i JEDINA brava idempotencije
+    // `studio.settleJobCredits`-a: i webhook i poller umeju da ga pozovu za
+    // isti posao, a razlika sme da se naplati tačno jednom.
+    settledAt: v.optional(v.number()),
+    // Po čemu je poravnato (`studioSettlementCore.SETTLEMENT_REASON`). Posao
+    // za koji provajder nije prijavio ni količinu ni cenu dobija razlog, ali
+    // NE i `settledAt` - takav ostaje na rezervaciji i sme da se poravna
+    // kasnije, kad stigne noćna rekonsilijacija.
+    settlementReason: v.optional(v.string()),
+    // Nabavna cena po STVARNOJ količini. Od nje, a ne od `estimatedCostUsd`-a,
+    // živi ispravljeni dnevni zbir (`studioUsageDaily.costUsd`) - dakle i
+    // plafon po korisniku i globalni plafon.
+    settledCostUsd: v.optional(v.number()),
+    // Krediti koje poravnanje nije uspelo da skine jer ih korisnik nije imao.
+    // Dok je veći od nule, `createJob` tom korisniku odbija nove poslove
+    // (`by_user_unsettled`) - već završen posao se ipak isporučuje.
+    unsettledCredits: v.optional(v.number()),
     // Odakle je došlo trajanje po kojem je posao naplaćen (X1, nalaz N2):
     // "header" je ono što `mvhd`/`fmt `/Xing tvrde, "lower_bound" znači da je
     // zaglavlje tvrdilo kraće nego što fajl te veličine fizički može da traje,
@@ -1499,7 +1522,11 @@ export default defineSchema({
     .index("by_user_status", ["userId", "status"])
     .index("by_expiry", ["expiresAt"])
     .index("by_status_created", ["status", "createdAt"])
-    .index("by_provider_status", ["provider", "status", "createdAt"]),
+    .index("by_provider_status", ["provider", "status", "createdAt"])
+    // Ima li korisnik neplaćen dug iz poravnanja (X2). `createJob` ga pita pre
+    // svakog novog posla, pa mora da bude jedno čitanje po indeksu, a ne
+    // skeniranje istorije.
+    .index("by_user_unsettled", ["userId", "unsettledCredits"]),
 
   // Ko je koji ulazni fajl okačio. `createInputUploadUrl` vraća gol Convex
   // upload URL i ne zna ishod uploada, pa vezu `storageId` -> korisnik pravi

@@ -210,6 +210,14 @@ function scheduledIn(t: TestConvexWithSchema) {
   return t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect());
 }
 
+/**
+ * Zakazane funkcije jednog imena. Uspešan webhook zakazuje DVE (X2): skidanje
+ * fajla i poravnanje kredita - pa broj po imenu kaže više od ukupnog zbira.
+ */
+async function scheduledNamed(t: TestConvexWithSchema, name: string) {
+  return (await scheduledIn(t)).filter((entry) => entry.name.includes(name));
+}
+
 function post(t: TestConvexWithSchema, init: RequestInit) {
   return t.fetch("/fal/webhook", init);
 }
@@ -397,10 +405,13 @@ test("validan OK webhook -> posao done sa fal URL-om, bez refunda", async () => 
   expect(await balanceOf(t, userId)).toBe(GRANTED - JOB_COST);
 
   // Skidanje fajla ide u zakazanu akciju, ne u handler.
-  const scheduled = await scheduledIn(t);
+  const scheduled = await scheduledNamed(t, "persistOutput");
   expect(scheduled).toHaveLength(1);
-  expect(scheduled[0].name).toContain("persistOutput");
   expect(scheduled[0].args[0]).toEqual({ jobId });
+  // Poravnanje (X2) ide istim putem i iz istog razloga.
+  const settlement = await scheduledNamed(t, "settleJobCredits");
+  expect(settlement).toHaveLength(1);
+  expect(settlement[0].args[0]).toEqual({ jobId });
 });
 
 test("dupli OK webhook ne zakazuje persistOutput dvaput", async () => {
@@ -411,7 +422,8 @@ test("dupli OK webhook ne zakazuje persistOutput dvaput", async () => {
   const second = await post(t, await signedRequest({ body: okBody("https://fal.media/drugo.png") }));
 
   expect(second.status).toBe(200);
-  expect(await scheduledIn(t)).toHaveLength(1);
+  expect(await scheduledNamed(t, "persistOutput")).toHaveLength(1);
+  expect(await scheduledNamed(t, "settleJobCredits")).toHaveLength(1);
   expect((await jobOf(t, jobId))?.falOutputUrl).toBe(OUTPUT_URL);
 });
 

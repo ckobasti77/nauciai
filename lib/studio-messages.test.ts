@@ -51,6 +51,8 @@ describe("studioErrorMessage", () => {
     "TUDJI_FAJL",
     "MERENJE_NIJE_DOSTUPNO",
     "ZAGLAVLJE_NEMOGUCE",
+    "NEPORAVNAT_DUG",
+    "PREVISE_NEPORAVNATOG",
   ];
 
   test("nijedna poruka ne prikazuje sirov kod greške", () => {

@@ -5592,3 +5592,161 @@ placa punih 120 minuta.
    fajl prolazi bez ijedne granice - tiho, bezbedno po korisnika, ali i bez
    zastite. Vredi provera na deployment-u: red `studioUploads` bez `mimeType`-a
    posle uploada iz forme ne bi trebalo da postoji.
+
+## X2 - Poravnanje kredita po stvarnoj kolicini   (20. avgust 2026, 23:05)
+
+**Fajlovi:**
+- dodato: `convex/studioSettlementCore.ts`, `convex/studioSettlementCore.test.ts`,
+  `convex/studioSettlement.test.ts`
+- izmenjeno: `convex/schema.ts`, `convex/studioPricing.ts`, `convex/studioCore.ts`,
+  `convex/credits.ts`, `convex/studio.ts`, `convex/studioActualCost.ts`,
+  `convex/falWebhook.ts`, `convex/providers/google.ts`,
+  `convex/providers/byteplus.ts`, `lib/google-video.ts`, `lib/byteplus.ts`,
+  `lib/studio-messages.ts`
+- testovi dopunjeni: `lib/studio-messages.test.ts`, `convex/falWebhook.test.ts`,
+  `convex/studioCatalogJob.test.ts`, `convex/studioActualCost.test.ts`
+
+**Sta je uradjeno:** Naplata je od jednofazne postala dvofazna, po ugledu na ono
+sto vec postoji za Stripe: `createJob` i dalje REZERVISE po proceni, a nova
+internalMutation `studio.settleJobCredits` na kraju posla PORAVNAVA razliku.
+Stvarna kolicina se trazi po redu pouzdanosti - prijavljena kolicina
+(`readReportedSeconds`, prosiren `recordProviderUsage`), pa prijavljena cena
+(`actualCostUsd`), pa nista, i tada se rezervacija ne dira nego se upisuje
+`settlementReason: "provajder nije prijavio"`. Razlika navise se skida koliko
+korisnik ima, ostatak je `unsettledCredits` na redu posla i zakljucava mu nove
+poslove; razlika nanize se vraca kroz isto jezgro kroz koje ide i pun refund
+(`openReturnLot`). Kljucna posledica za N2: `settleJobCredits` koriguje
+`studioUsageDaily.costUsd` za dan rezervacije, pa i plafon po korisniku i globalni
+plafon iz `crons.ts` od sada mere poravnat broj, a ne procenu koju napadac bira.
+Uz to, `failJob` refundiran posao sada ODUZIMA iz dnevnog zbira (ista rupa u
+malom), a `studioCore` je dobio `MAX_UNSETTLED_COST_USD = 3` kao bravu nad
+prozorom izmedju rezervacije i poravnanja.
+
+**ODLUKE:**
+1. **Dirnut je cenovni motor, i evo zasto.** `computeCredits` je razlozen na
+   `creditsFromUsd(computeCostUsd(...))`; `creditsFromUsd` je izvezen. Poravnanje
+   po prijavljenoj CENI nema sta da preracuna kroz katalog, a treba mu
+   dolar -> kredit. Jedina alternativa je bio drugi `ceil(C x 216,25)` u drugom
+   fajlu - dakle tacno ono cega se pravilo o marzi plasi. Ovako `ceil` i dalje
+   postoji na jednom mestu i radi tacno jednom; `studioPricing.test.ts` nije diran
+   i prolazi nepromenjen.
+2. **`settledAt` je brava, `settlementReason` nije.** Slucaj 3 (provajder nije
+   prijavio nista) upisuje SAMO razlog i ostavlja `settledAt` prazan. Da je i on
+   upisan, prvi fal webhook - koji cenu ne nosi nikad - zauvek bi zakljucao posao,
+   pa nocna rekonsilijacija (jedini put kojim fal cena uopste stize) ne bi imala
+   sta da poravna. Novac se i dalje pomera tacno jednom: `settledAt` se pecatira
+   iskljucivo kad se pomerio.
+3. **`MAX_UNSETTLED_COST_USD` meri samo ono sto je VEC u letu**, bez cene posla
+   koji se upravo narucuje. Sa uracunatom svojom cenom, plafon bi obarao svaki
+   pojedinacan posao skuplji od 3 $, a dnevni plafon po korisniku je 5 $ - dva
+   zatecena testa (`studio.test.ts`) izricito tvrde da posao od 8 $ mora da padne
+   na `DNEVNI_LIMIT_TROSKA`, dakle na svojoj kapiji. "Novi posao ceka" iz naloga
+   je bas to: ceka da se prethodni zavrse.
+4. **Nalog trazi da plafon obori 4. posao kad su 3 u vazduhu - to je nedostizno.**
+   `MAX_ACTIVE_JOBS = 3` baca `PREVISE_POSLOVA` ranije u istoj funkciji, pa 4.
+   posao nikad ne stigne do ove provere. Test je zato pisan za 3. posao kad su 2 u
+   vazduhu, i namerno je namesten tako da ni dnevni plafon ni granica paralelnih
+   poslova ne mogu da opale umesto njega (2 x 1,62 $ u letu, treci posao 0,06 $).
+5. **"Neporavnato" su `reserved` + `running`, ne i `done` bez poravnanja.** Ti
+   redovi se vec citaju zbog `MAX_ACTIVE_JOBS`, pa provera ne kosta nijedno novo
+   citanje. Brojanje `done` poslova bi trazilo neograniceno skeniranje istorije i
+   duplo bi radilo posao `MAX_DAILY_COST_USD`-a - koji je bas ovim korakom postao
+   istinit.
+6. **Imena i jedinice polja sa trajanjem nisu potvrdjena protiv zivog API-ja**
+   (isto ogranicenje koje W6 ODLUKA 10 vec nosi za tokene). Parser je zato
+   tolerantan po imenu, a jedinicu cita iz SUFIKSA: `_ms` je milisekunda,
+   `_minutes` minut, golo `duration` sekunda. Nepoznato ime je slucaj 3, ne pad.
+   Odbrana od pogresno procitane jedinice je `resolveMeasuredQuantity`, kroz koji
+   poravnanje prolazi isto kao i rezervacija: odsecanje na `min`/`max` iz kataloga
+   znaci da promasaj od 1000x ne moze da naplati preko onoga sto katalog za taj
+   model uopste dozvoljava.
+7. **`refundCredits` od sada vraca zbir rezervacije I poravnanja.** Ovaj korak je
+   uveo drugi red naplate po poslu; da je refund i dalje gledao samo `spend`,
+   poravnata razlika bi ostala kod nas. Povratna vrednost je zato
+   `{ lotId, credits }` umesto golog `lotId`-ja.
+8. **Refund NE vraca `studioUsageDaily.generations`.** To je brojac pokusaja, a ne
+   novca - vracanje bi znacilo da se `MAX_DAILY_GENERATIONS` obilazi petljom
+   neuspelih poslova. Vracaju se `costUsd` i `creditsSpent`.
+9. **`settledCostUsd` je zasebno polje, a ne `actualCostUsd`.** `actualCostUsd` po
+   definiciji iz W6 znaci "sta je provajder naplatio" i iz njega se crta stvarna
+   marza; cena preracunata po nasem katalogu nad stvarnom kolicinom nije to, pa bi
+   upis na isto polje pokvario jedini uzorak koji taj ekran ima.
+10. **Poravnanje se ZAKAZUJE, nikad ne zove ugnjezdeno** iz mutacije koja posao
+    zatvara. Nalog izricito kaze "ne blokiraj isporuku vec zavrsenog posla":
+    greska u naplati ne sme da povuce `done` i izlaz sa sobom.
+11. **BytePlus sinhrone slike sada uvek zovu `recordProviderUsage`**, i kad odgovor
+    nema potrosnju (`usage: {}`). Ranije se zvala samo kad `usage` postoji; bez
+    izmene takav posao ne bi imao ko da zakaze poravnanje ni da mu upise razlog.
+12. **Dva nova koda greske imaju svoje ljudske poruke** (`NEPORAVNAT_DUG`,
+    `PREVISE_NEPORAVNATOG`) u `lib/studio-messages.ts`, po zatecenom pravilu da se
+    sirov kod nikad ne prikazuje.
+
+**Testovi:**
+- `convex/studioSettlementCore.test.ts` (12): `readReportedSeconds` cita trajanje
+  uz izlazni fajl i kroz niz - prevodi `_ms` i `_minutes` u sekunde - vraca `null`
+  za nulu, string i nepoznat oblik - prijavljena kolicina od 7200 s pretvara
+  rezervaciju od 0,1 min u 72 $ i 15570 kredita - manja kolicina daje razliku
+  nanize - 7 200 000 s se odseca na `max` iz kataloga (72 $) - bez kolicine se ide
+  po ceni, kroz isti `ceil` - kolicina pobedjuje cenu - nista prijavljeno ostavlja
+  rezervaciju - slika, tekst i posao bez pravila ne idu putem kolicine.
+- `convex/studioSettlement.test.ts` (10): poravnanje navise skida razliku i upisuje
+  dva odvojena reda u ledger - dnevni zbir posle poravnanja sadrzi 72 $ a ne
+  0,06 $ - poravnanje nanize otvara refund lot - drugi poziv ne radi nista i ne
+  pomera `settledAt` - provajder bez ikakvog podatka ostavlja rezervaciju, upisuje
+  razlog i NE pecatira `settledAt`, pa kasnija cena sme da poravna isti posao -
+  korisnik bez dovoljno kredita dobija dug, posao ostaje `done`, a sledeci
+  `createJob` pada na `NEPORAVNAT_DUG` - korisnik sa nula kredita ne dobija prazan
+  red u ledgeru - refundiran posao izlazi iz dnevnog zbira a broj generacija
+  ostaje - refund poravnatog posla vraca i rezervaciju i razliku.
+- `convex/studioCatalogJob.test.ts` (+2): ceo napad iz N2 od uploada do naplate -
+  zaglavlje od 6 s prodje granice iz X1, posao se rezervise na 0,1 min i 13
+  kredita, fal prijavi 7200 s i korisniku bude skinuto 15570 kredita uz `costUsd`
+  od 72 $; i zbir neporavnatih poslova koji obara treci posao dok su dva u letu.
+- `convex/studioActualCost.test.ts` (+1): nocni fal prolaz upise cenu sa izvoda pa
+  ZAKAZANO poravnanje vrati 19 kredita - ceo lanac rekonsilijacija -> poravnanje.
+- `convex/falWebhook.test.ts`: brojanje zakazanih funkcija je precizirano po imenu
+  (uspesan webhook sada zakazuje dve) i dopunjeno tvrdnjom da se poravnanje
+  zakazuje tacno jednom i za dupli webhook.
+- `lib/studio-messages.test.ts`: dva nova koda su u spisku koji vec tvrdi da svaka
+  poruka mora da bude jedinstvena i bez sirovog koda.
+
+**Rezultat verifikacije:**
+- `npx convex codegen` -> `Running TypeScript...`, exit 0
+- `npm run lint` -> `8 problems (0 errors, 8 warnings)`, exit 0 (istih 8 zatecenih
+  upozorenja, nijedno u fajlovima ovog koraka)
+- `npm run test` -> `Test Files 60 passed (60)`, `Tests 785 passed (785)`
+  (zateceno 58 / 760)
+- `npm run build` -> `Compiled successfully in 9.4s`,
+  `Generating static pages (60/60)`, exit 0
+
+**BLOKADA:** nema.
+
+**Za Jovana:**
+1. **Dug nema ekran ni dugme za brisanje.** Kad poravnanje ne uspe da skine
+   razliku, korisnik ostaje zakljucan dok se `unsettledCredits` ne skine sa reda
+   posla rucno (`npx convex run` nad tim redom). Admin akcija za to bi bila nov
+   feature, sto je ovom run-u zabranjeno - ali ako se dug pojavi na stvarnom
+   nalogu, to je prva stvar koja ce ti zatrebati.
+2. **Prva ziva generacija po modelu sada ima jos jedan zadatak:** zapisati pod
+   kojim IMENOM i u kojoj JEDINICI provajder vraca trajanje. Ako neko vrati
+   milisekunde pod golim `duration`, poravnanje ce naplatiti previse - odseceno na
+   `max` iz kataloga, ali i dalje previse. Upit koji to pokazuje: poslovi sa
+   `settlementReason: "prijavljena kolicina"` kod kojih je odnos
+   `settledCostUsd / estimatedCostUsd` neprijatno velik.
+3. **Suprotan signal je isto vazan:** ako veliki broj poslova nosi
+   `settlementReason: "provajder nije prijavio"`, poravnanje ne proizvodi nijedan
+   podatak i N2 je zatvoren samo do granice koju je dao X1. To je isto upozorenje
+   koje N6 vec nosi za `actualCostUsd`.
+4. **Marza nije dirana.** `computeCredits` i dalje radi jedan `ceil` na kraju, samo
+   sada kroz `creditsFromUsd`; test cenovnog motora nije menjan i prolazi. Isti
+   `ceil` vazi i za korekciju, pa poravnat posao ima istu marzu od 2,5x kao i
+   rezervisan.
+5. **Nov indeks `by_user_unsettled` na `generationJobs`** se backfiluje pri
+   deploy-u. Tabela je mala, ali ako deploy stane na indeksu - to je razlog.
+6. **Poslovi upisani pre ovog koraka nemaju polja poravnanja** i nikad se nece
+   poravnati. To je bezopasno (svi su zatvoreni), ali ce u admin pregledu izgledati
+   kao da im poravnanje nedostaje.
+7. **Preporuka iz izvestaja i dalje vazi:** `dubbing`, `voice-changer` i
+   `audio-isolation` ostaju ugaseni do prve zive generacije sa fakturom. X2 cini
+   prolaz bezopasnim tek kad provajder stvarno prijavi kolicinu - a to je jedina
+   pretpostavka u ovom koraku koju kod ne moze da dokaze sam.

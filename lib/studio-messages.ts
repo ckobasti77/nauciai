@@ -75,6 +75,25 @@ const CREATE_JOB_ERROR_MESSAGES: Array<[string, { sr: string; en: string }]> = [
     },
   ],
   [
+    // Poravnanje (X2) nije uspelo da skine razliku do stvarne cene, pa je
+    // ostala kao dug na poslu. Dopuna kredita ga ne briše sama od sebe - dug
+    // skida podrška, pa poruka vodi tamo, a ne na dugme "Dopuni".
+    "NEPORAVNAT_DUG",
+    {
+      sr: "Poslednja generacija je koštala više nego što je rezervisano, a razliku nismo mogli da naplatimo. Javi se podršci da to razrešimo.",
+      en: "Your last generation cost more than was reserved and we could not charge the difference. Contact support so we can clear it.",
+    },
+  ],
+  [
+    // Zbir procena poslova koji su još u letu je premašio granicu paralelne
+    // izloženosti. Nije dnevni limit: čim se prethodni završe, nov posao prolazi.
+    "PREVISE_NEPORAVNATOG",
+    {
+      sr: "Sačekaj da se završe generacije koje su u toku - vredne su previše da bi uz njih krenula i nova.",
+      en: "Wait for the generations already running to finish - they are too costly to start another alongside them.",
+    },
+  ],
+  [
     "STUDIO_PAUZIRAN",
     {
       sr: "Studio je privremeno pauziran. Krediti ti ostaju na nalogu, probaj kasnije.",

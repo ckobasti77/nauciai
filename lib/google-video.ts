@@ -21,6 +21,7 @@
  */
 
 import { readTokenUsage, type TokenUsage } from "../convex/studioActualCostCore";
+import { readReportedSeconds } from "../convex/studioSettlementCore";
 
 export type GoogleConfig = { baseUrl: string; apiKey: string };
 
@@ -128,6 +129,12 @@ export type GoogleOperation = {
    * odgovor ne nosi cenu. `null` kad ih odgovor nema.
    */
   usage: TokenUsage | null;
+  /**
+   * Stvarno trajanje klipa u sekundama, kad ga operacija javi (X2, nalaz N2).
+   * Po njemu se posao poravnava; `null` znaci da provajder nije prijavio nista
+   * i da rezervacija ostaje kakva jeste.
+   */
+  seconds: number | null;
 };
 
 export async function startGoogleOperation(params: {
@@ -243,6 +250,7 @@ export function parseOperation(path: string, data: unknown): GoogleOperation {
     error: null,
     quota: false,
     usage: null,
+    seconds: null,
   };
   if (!data || typeof data !== "object" || Array.isArray(data)) return empty;
 
@@ -250,6 +258,10 @@ export function parseOperation(path: string, data: unknown): GoogleOperation {
   // Potrosnja se cita i kad je operacija neuspela: Google naplacuje tokene koje
   // je model potrosio pre nego sto je posao pukao.
   const usage = readTokenUsage(payload);
+  // Trajanje klipa se cita iz istog odgovora i istom tolerancijom kao tokeni
+  // (X2): ime polja nije potvrdjeno protiv zivog API-ja, pa nepoznat zapis
+  // ispada kao "nema podatka", ne kao nula.
+  const seconds = readReportedSeconds(payload);
   const state = stateOf(payload);
   const done = payload.done === true || (state !== null && DONE_STATES.has(state));
 
@@ -264,10 +276,11 @@ export function parseOperation(path: string, data: unknown): GoogleOperation {
       error: error.slice(0, MAX_ERROR_LENGTH),
       quota: isQuotaResponse(0, error),
       usage,
+      seconds,
     };
   }
 
-  if (!done) return { ...empty, usage };
+  if (!done) return { ...empty, usage, seconds };
 
   return {
     path,
@@ -276,5 +289,6 @@ export function parseOperation(path: string, data: unknown): GoogleOperation {
     error: null,
     quota: false,
     usage,
+    seconds,
   };
 }

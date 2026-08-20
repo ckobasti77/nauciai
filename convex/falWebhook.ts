@@ -16,6 +16,7 @@ import {
   parseWebhookBody,
   readWebhookHeaders,
 } from "./falWebhookCore";
+import { readReportedSeconds } from "./studioSettlementCore";
 
 const ED25519 = { name: "Ed25519" } as const;
 
@@ -118,11 +119,16 @@ export const handleFalWebhook = httpAction(async (ctx, request) => {
     return new Response(null, { status: 200 });
   }
 
+  // Trajanje obrađenog snimka, kad ga fal uz izlaz javi (X2, nalaz N2): po
+  // njemu se posao poravnava odmah, umesto da čeka noćnu rekonsilijaciju.
+  const reportedSeconds = body.status === "OK" ? readReportedSeconds(body.payload) : null;
+
   await ctx.runMutation(internal.falWebhook.applyWebhookResult, {
     falRequestId: headers.requestId,
     status: body.status,
     outputUrl: body.status === "OK" ? (extractOutputUrl(body.payload) ?? undefined) : undefined,
     error: body.status === "ERROR" ? extractErrorMessage(body) : undefined,
+    ...(reportedSeconds !== null ? { reportedSeconds } : {}),
   });
 
   return new Response(null, { status: 200 });
@@ -144,6 +150,8 @@ export const applyWebhookResult = internalMutation({
     status: v.union(v.literal("OK"), v.literal("ERROR")),
     outputUrl: v.optional(v.string()),
     error: v.optional(v.string()),
+    // Trajanje izlaza koje je fal prijavio (X2) - ulaz u poravnanje.
+    reportedSeconds: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const job = await ctx.db
@@ -171,6 +179,12 @@ export const applyWebhookResult = internalMutation({
     });
     // Skidanje fajla NE ide ovde - handler mora da vrati 200 u roku od 15 s.
     await ctx.scheduler.runAfter(0, internal.studioActions.persistOutput, { jobId: job._id });
+    // Isto važi i za poravnanje (X2): naplata razlike je zaseban posao od
+    // isporuke, pa se zakazuje umesto da drži handler.
+    await ctx.scheduler.runAfter(0, internal.studio.settleJobCredits, {
+      jobId: job._id,
+      ...(args.reportedSeconds !== undefined ? { reportedSeconds: args.reportedSeconds } : {}),
+    });
 
     return null;
   },

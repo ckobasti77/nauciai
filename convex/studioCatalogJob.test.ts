@@ -9,6 +9,7 @@ import { MIN_PLAUSIBLE_BITRATE_BPS } from "../lib/media-duration";
 import { STUDIO_MODELS } from "./providers/catalogModels";
 import type { StudioModelSeed } from "./providers/modelSeed";
 import schema from "./schema";
+import { dayKey } from "./studioCore";
 import { computeCredits } from "./studioPricing";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -1134,4 +1135,71 @@ test("prijavljena veličina dolazi iz storage-a, ne iz onoga što je klijent rek
   const [upload] = await uploadsOf(t);
   expect(upload.bytes).toBe(2_000_000);
   expect(upload.slot).toBe("audio");
+});
+
+// -- N2 od pocetka do kraja (X2) --------------------------------------------
+
+test("napad iz N2 zavrsava naplacenih 120 minuta, nikad 0,1", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedUser(t);
+  await seedCatalogModel(t, "dubbing");
+  // Zaglavlje kaze sest sekundi i fajl je toliko velik da granica iz X1 nema
+  // sta da podigne - dakle rezervacija JESTE 0,1 minut, kao u izvestaju.
+  const { storageId: audio } = await storeMeasured(asUser, "audio/mp4", 6);
+
+  const jobId = await asUser.mutation(api.studio.createJob, {
+    modelSlug: "dubbing",
+    params: JSON.stringify({ target_language: "en" }),
+    inputMode: "audio",
+    inputs: JSON.stringify({ audio: [audio] }),
+  });
+
+  const reserved = await jobsOf(t, userId);
+  expect((JSON.parse(reserved[0].params) as Record<string, unknown>).minutes).toBe(0.1);
+  expect(reserved[0].creditCost).toBe(13);
+  expect(reserved[0].estimatedCostUsd).toBeCloseTo(0.06, 6);
+
+  // fal je obradio dva sata i toliko ce i naplatiti.
+  await t.mutation(internal.studio.settleJobCredits, { jobId, reportedSeconds: 7200 });
+
+  // Skinuto je 120 minuta, a oba plafona od sada gledaju 72 $, a ne 0,06 $.
+  expect(await balanceOf(t, userId)).toBe(100000 - 15570);
+  const usage = await t.run((ctx) =>
+    ctx.db
+      .query("studioUsageDaily")
+      .withIndex("by_user_day", (q) => q.eq("userId", userId).eq("day", dayKey(Date.now())))
+      .unique(),
+  );
+  expect(usage?.costUsd).toBeCloseTo(72, 6);
+});
+
+test("zbir neporavnatih poslova u letu blokira sledeci posao", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedUser(t);
+  await seedCatalogModel(t, "dubbing");
+  // 160 s -> 2,7 minuta -> 1,62 $ po poslu; dva takva su 3,24 $ u vazduhu.
+  const { storageId: audio } = await storeMeasured(asUser, "audio/mp4", 160);
+  const { storageId: kratak } = await storeMeasured(asUser, "audio/mp4", 6);
+
+  for (let round = 0; round < 2; round += 1) {
+    await asUser.mutation(api.studio.createJob, {
+      modelSlug: "dubbing",
+      params: JSON.stringify({ target_language: "en" }),
+      inputMode: "audio",
+      inputs: JSON.stringify({ audio: [audio] }),
+    });
+  }
+  expect(await jobsOf(t, userId)).toHaveLength(2);
+
+  // Treci posao kosta 0,06 $, dakle ni dnevni plafon od 5 $ ni granica od tri
+  // paralelna posla ga ne bi odbili - odbija ga bas neporavnata izlozenost.
+  await expect(
+    asUser.mutation(api.studio.createJob, {
+      modelSlug: "dubbing",
+      params: JSON.stringify({ target_language: "en" }),
+      inputMode: "audio",
+      inputs: JSON.stringify({ audio: [kratak] }),
+    }),
+  ).rejects.toThrow("PREVISE_NEPORAVNATOG");
+  expect(await jobsOf(t, userId)).toHaveLength(2);
 });

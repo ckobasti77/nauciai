@@ -77,3 +77,10 @@
 [21:56:26]  X1  |  N2 prva polovina: donja granica trajanja iz bajtova
 [21:56:26]  model=opus  effort=max
 [21:56:26] --------------------------------------------------
+[22:30:32] Commit b62f570 - 17 putanja
+[22:30:32] X1 -> OK  (34 min, 1 pokusaja, USD 13.74)
+[22:30:32] 
+[22:30:32] --------------------------------------------------
+[22:30:32]  X2  |  N2 druga polovina: naplata po stvarnom trosku, poravnanje razlike
+[22:30:32]  model=opus  effort=max
+[22:30:32] --------------------------------------------------

@@ -150,14 +150,29 @@ export async function recordTokenUsage(
  * Ulaz za sinhrone provajdere koji potrošnju saznaju u AKCIJI, a ne u mutaciji
  * koja posao zatvara (BytePlus slike). Posao koji je u međuvremenu nestao ili
  * već ima cenu izlazi bez dejstva.
+ *
+ * Pored tokena hvata i KOLIČINU (X2, nalaz N2): trajanje obrađenog snimka je
+ * jedini podatak iz kojeg se cena posla može preračunati po stvarnoj količini, a
+ * ne po zaglavlju koje je korisnik okačio. Poravnanje se zakazuje, ne zove -
+ * greška u naplati ne sme da povuče upis stvarnog troška sa sobom.
  */
 export const recordProviderUsage = internalMutation({
-  args: { jobId: v.id("generationJobs"), usage: tokenUsageValidator },
+  args: {
+    jobId: v.id("generationJobs"),
+    usage: tokenUsageValidator,
+    reportedSeconds: v.optional(v.number()),
+  },
   handler: async (ctx, args) => {
     const job = await ctx.db.get(args.jobId);
     if (!job) return false;
 
-    return recordTokenUsage(ctx, job, args.usage);
+    const recorded = await recordTokenUsage(ctx, job, args.usage);
+    await ctx.scheduler.runAfter(0, internal.studio.settleJobCredits, {
+      jobId: args.jobId,
+      ...(args.reportedSeconds !== undefined ? { reportedSeconds: args.reportedSeconds } : {}),
+    });
+
+    return recorded;
   },
 });
 
@@ -229,8 +244,13 @@ export const applyFalBillingEvents = internalMutation({
         unmatched += 1;
         continue;
       }
-      if (await recordJobActualCost(ctx, job, event.usd)) matched += 1;
-      else alreadyPriced += 1;
+      if (await recordJobActualCost(ctx, job, event.usd)) {
+        matched += 1;
+        // fal u odgovoru nema cenu, pa je ovo za većinu fal poslova JEDINI
+        // trenutak u kojem se poravnanje uopšte može izvesti (X2). Posao koji je
+        // već poravnat po prijavljenoj količini `settleJobCredits` odbija sam.
+        await ctx.scheduler.runAfter(0, internal.studio.settleJobCredits, { jobId: job._id });
+      } else alreadyPriced += 1;
     }
 
     return { matched, unmatched, alreadyPriced };

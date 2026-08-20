@@ -327,6 +327,48 @@ test("fal: noćni prolaz spaja događaje naplate po providerRequestId-ju", async
   expect((await jobOf(t, jobId))?.actualCostUsd).toBeCloseTo(0.42, 6);
 });
 
+test("fal: noćni prolaz poravnava posao po ceni sa izvoda (X2)", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await seedUser(t);
+  const jobId = await seedJob(t, userId, {
+    modelSlug: "kling-30",
+    status: "done",
+    providerRequestId: "fal-req-9",
+    estimatedCostUsd: 0.4,
+    creditCost: 110,
+  });
+  await t.mutation(internal.credits.grantCredits, {
+    userId,
+    amount: 1000,
+    source: "admin_grant",
+    idempotencyKey: { field: "stripeSessionId", value: "cs_settle" },
+  });
+  await t.mutation(internal.credits.spendCredits, { userId, amount: 110, jobId });
+
+  stubFetch((url) =>
+    url.includes("/v1/models/billing-events")
+      ? json({ events: [{ request_id: "fal-req-9", total_cost_usd: 0.42 }] })
+      : undefined,
+  );
+
+  await t.action(internal.studioActualCost.reconcileFalCosts, { day: "2026-08-19" });
+  // Poravnanje je zakazano, ne ugnježdeno - upis stvarnog troška ne sme da
+  // zavisi od naplate.
+  await settle(t);
+
+  const job = await jobOf(t, jobId);
+  expect(job?.settledCostUsd).toBeCloseTo(0.42, 6);
+  expect(job?.settledAt).toBeGreaterThan(0);
+  // `ceil(0,42 × 216,25) = 91`, dakle 19 kredita nazad na rezervisanih 110.
+  const balance = await t.run((ctx) =>
+    ctx.db
+      .query("creditBalances")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .unique(),
+  );
+  expect(balance?.balance).toBe(1000 - 91);
+});
+
 test("fal: nepoznat request_id se preskače bez greške", async () => {
   const t = convexTest(schema, modules);
   const userId = await seedUser(t);

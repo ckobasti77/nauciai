@@ -285,6 +285,7 @@ export const pollGoogleVideoJobs = internalAction({
             status: "OK",
             outputUrl: operation.videoUrl,
             ...(operation.usage ? { usage: operation.usage } : {}),
+            ...(operation.seconds !== null ? { reportedSeconds: operation.seconds } : {}),
           });
           finished += 1;
           continue;
@@ -329,6 +330,8 @@ export const applyOperationResult = internalMutation({
     // uopste vraca (W6). Preracunava ih `studioActualCost.recordTokenUsage`, po
     // tarifi reda kataloga; model bez tarife ostaje bez `actualCostUsd`.
     usage: v.optional(tokenUsageValidator),
+    // Stvarno trajanje klipa, kad ga operacija javi (X2) - ulaz u poravnanje.
+    reportedSeconds: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const job = await ctx.db
@@ -358,6 +361,12 @@ export const applyOperationResult = internalMutation({
     // operaciju vise ne ispitujemo.
     await recordTokenUsage(ctx, job, args.usage);
     await ctx.scheduler.runAfter(0, internal.studioActions.persistOutput, { jobId: job._id });
+    // Poravnanje (X2) se ZAKAZUJE: naplata razlike ne sme da povuce vec zatvoren
+    // posao sa sobom ako pukne.
+    await ctx.scheduler.runAfter(0, internal.studio.settleJobCredits, {
+      jobId: job._id,
+      ...(args.reportedSeconds !== undefined ? { reportedSeconds: args.reportedSeconds } : {}),
+    });
 
     return null;
   },

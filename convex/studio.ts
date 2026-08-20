@@ -11,7 +11,7 @@ import {
   query,
   type QueryCtx,
 } from "./_generated/server";
-import { applySpend } from "./credits";
+import { applySettlement, applySpend } from "./credits";
 import { MAX_PROMPT_LENGTH, validatePrompt } from "./creditsCore";
 import { getCurrentProfile, requireUserId } from "./helpers";
 import { applyTaskCompletion, assertLessonAccess } from "./lab";
@@ -37,10 +37,12 @@ import {
 } from "./studioJobCore";
 import { parseParamSpec, sanitizeSpecParams } from "./studioParamSpec";
 import { computeCostUsd, computeCredits, parsePriceRule, pricingModeFor } from "./studioPricing";
+import { planSettlement } from "./studioSettlementCore";
 import {
   computeCreditCost,
   dayKey,
   exceedsDailyCostLimit,
+  exceedsUnsettledCostLimit,
   extractPrompt,
   hasStudioAccess,
   INPUT_UPLOAD_TTL_MS,
@@ -430,6 +432,16 @@ export const createJob = mutation({
     const cleanParams = order.params;
     const estimatedCostUsd = order.estimatedCostUsd;
 
+    // Dug iz poravnanja (X2, nalaz N2): posao čiji je stvaran trošak premašio
+    // ono što je korisnik imao ostavlja `unsettledCredits` na svom redu. Dok dug
+    // stoji, novih poslova nema - bez ove brave bi nalog sa 6,50 € kredita mogao
+    // ceo dan da radi na dug.
+    const debt = await ctx.db
+      .query("generationJobs")
+      .withIndex("by_user_unsettled", (q) => q.eq("userId", userId).gt("unsettledCredits", 0))
+      .first();
+    if (debt) throw new Error("NEPORAVNAT_DUG");
+
     const reserved = await ctx.db
       .query("generationJobs")
       .withIndex("by_user_status", (q) => q.eq("userId", userId).eq("status", "reserved"))
@@ -439,6 +451,17 @@ export const createJob = mutation({
       .withIndex("by_user_status", (q) => q.eq("userId", userId).eq("status", "running"))
       .take(MAX_ACTIVE_JOBS);
     if (reserved.length + running.length >= MAX_ACTIVE_JOBS) throw new Error("PREVISE_POSLOVA");
+
+    // Prozor između rezervacije i poravnanja (X2). Poslovi u letu su jedini o
+    // kojima se još ništa ne zna osim procene, pa se njihov zbir drži nisko:
+    // tri paralelna posla od po 72 $ su isti napad kao pedeset uzastopnih, a
+    // poravnanje ih ispravlja tek kad se završe. `take` iznad je vratio SVE
+    // takve poslove (inače bi provera reda gore već bacila), pa je zbir tačan.
+    const inFlightCostUsd = [...reserved, ...running].reduce(
+      (sum, job) => sum + (job.estimatedCostUsd ?? 0),
+      0,
+    );
+    if (exceedsUnsettledCostLimit(inFlightCostUsd)) throw new Error("PREVISE_NEPORAVNATOG");
 
     const now = Date.now();
     const day = dayKey(now);
@@ -589,10 +612,134 @@ export const markJobDone = internalMutation({
 });
 
 /**
+ * Korekcija dnevnog zbira jednog korisnika (X2, nalaz N2). `createJob` u
+ * `studioUsageDaily` upisuje PROCENU, a iz tog istog polja čitaju i dnevni
+ * plafon po korisniku (`MAX_DAILY_COST_USD`) i globalni plafon
+ * (`crons.applyGlobalCostAction`). Dok se procena nije ispravljala, oba plafona
+ * su merila broj koji napadač bira.
+ *
+ * Zbog toga ovuda prolaze OBE ispravke: poravnanje (razlika do stvarne cene) i
+ * refund (posao koji je vraćen ne sme da ostane u zbiru). Dan je dan
+ * REZERVACIJE, ne dan poravnanja - inače bi posao započet pred ponoć popravljao
+ * tuđi sutrašnji plafon.
+ *
+ * Ne pada ispod nule: zbir dana je zbir troška, a negativan trošak bi bio
+ * kredit koji plafon poklanja narednim poslovima.
+ */
+async function applyDailyUsageDelta(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  day: string,
+  delta: { costUsd: number; creditsSpent: number },
+) {
+  if (delta.costUsd === 0 && delta.creditsSpent === 0) return;
+
+  const usage = await ctx.db
+    .query("studioUsageDaily")
+    .withIndex("by_user_day", (q) => q.eq("userId", userId).eq("day", day))
+    .unique();
+  if (!usage) return;
+
+  await ctx.db.patch(usage._id, {
+    costUsd: Math.max(0, usage.costUsd + delta.costUsd),
+    creditsSpent: Math.max(0, usage.creditsSpent + delta.creditsSpent),
+  });
+}
+
+/**
+ * PORAVNANJE posla (X2, nalaz N2): rezervacija je skinula kredite po proceni iz
+ * kataloga, ovde se naplaćuje ono što je stvarno potrošeno.
+ *
+ * **Idempotentno je preko `settledAt`.** I fal webhook, i Google poller, i
+ * BytePlus callback, i noćna rekonsilijacija umeju da stignu do istog posla, a
+ * razlika sme da se naplati tačno jednom. Posao za koji provajder nije prijavio
+ * ni količinu ni cenu dobija samo `settlementReason` - `settledAt` ostaje
+ * prazan, jer takav posao još nije poravnat i noćna rekonsilijacija sme da
+ * proba ponovo sa cenom sa fakture.
+ *
+ * Razlika naviše se skida koliko korisnik ima; ostatak je dug na redu posla i
+ * zaključava mu nove poslove. Već završen posao se ISPORUČUJE i sa dugom -
+ * naplata i isporuka su dva pitanja.
+ *
+ * Zbog istog razloga se i zakazuje, a ne zove ugnježdeno iz mutacije koja posao
+ * zatvara: greška u poravnanju ne sme da povuče `done` i izlaz sa njim.
+ */
+export const settleJobCredits = internalMutation({
+  args: {
+    jobId: v.id("generationJobs"),
+    // Trajanje koje je provajder prijavio, u sekundama. Nema ga kad provajder
+    // ništa nije javio - tada se poravnava po ceni, ili nikako.
+    reportedSeconds: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const job = await ctx.db.get(args.jobId);
+    if (!job || job.settledAt !== undefined) return null;
+
+    const model = await ctx.db
+      .query("models")
+      .withIndex("by_slug", (q) => q.eq("slug", job.modelSlug))
+      .unique();
+    const params = parseParams(job.params) ?? {};
+
+    const plan = planSettlement({
+      // Posao iz starog kataloga nema pravilo, pa se poravnava samo po ceni.
+      rule: model ? parsePriceRule(model.priceRule) : null,
+      params,
+      // Isti ključ režima koji je koristila i rezervacija - `reference` sa
+      // video ulazom se i tada naplaćivao po svojoj tarifi.
+      pricingMode:
+        job.inputMode === undefined
+          ? undefined
+          : pricingModeFor(job.inputMode, hasVideoInput(parseJobInputs(job.inputs))),
+      source: model ? parseQuantitySource(model.capabilities) : null,
+      reportedSeconds: args.reportedSeconds ?? null,
+      reportedCostUsd: job.actualCostUsd ?? null,
+      reservedCredits: job.creditCost,
+      reservedCostUsd: job.estimatedCostUsd ?? 0,
+    });
+
+    if (!plan.settled) {
+      if (job.settlementReason === undefined) {
+        await ctx.db.patch(args.jobId, { settlementReason: plan.reason });
+      }
+
+      return null;
+    }
+
+    const { applied, unsettled } = await applySettlement(ctx, {
+      userId: job.userId,
+      jobId: args.jobId,
+      credits: plan.creditDelta,
+    });
+
+    await ctx.db.patch(args.jobId, {
+      settledAt: Date.now(),
+      settlementReason: plan.reason,
+      settledCostUsd: plan.costUsd,
+      ...(unsettled > 0 ? { unsettledCredits: unsettled } : {}),
+    });
+
+    // Tek posle ovoga oba plafona gledaju stvaran trošak: `costUsd` dana više
+    // nije procena nego poravnat broj.
+    await applyDailyUsageDelta(ctx, job.userId, dayKey(job.createdAt), {
+      costUsd: plan.costDeltaUsd,
+      creditsSpent: -applied,
+    });
+
+    return { reason: plan.reason, credits: -applied, unsettled };
+  },
+});
+
+/**
  * Označava posao kao neuspeo i odmah refundira preko `credits.refundCredits`
  * (idempotentno preko `by_job_type` - videti `convex/credits.ts`). Poziva se
  * kad `submitJob` ne uspe da preda zahtev fal-u, pre nego što je bilo šta
  * poslato - posao nikad nije ušao u `running`.
+ *
+ * Refundiran posao IZLAZI i iz dnevnog zbira (X2): trošak koji je vraćen
+ * korisniku nije trošak, a dok se nije oduzimao, plafon je punio poslovima koji
+ * nikad nisu ni obrađeni. Broj generacija se namerno NE vraća - to je brojač
+ * pokušaja, a ne novca.
  */
 export const failJob = internalMutation({
   args: { jobId: v.id("generationJobs"), error: v.string() },
@@ -600,8 +747,21 @@ export const failJob = internalMutation({
     const job = await ctx.db.get(args.jobId);
     if (!job) throw new Error("Posao nije pronađen.");
     await ctx.db.patch(args.jobId, { status: "failed", error: args.error, completedAt: Date.now() });
-    await ctx.runMutation(internal.credits.refundCredits, { jobId: args.jobId });
+    const refund: { lotId: Id<"creditLots">; credits: number } | null = await ctx.runMutation(
+      internal.credits.refundCredits,
+      { jobId: args.jobId },
+    );
     await ctx.db.patch(args.jobId, { status: "refunded" });
+
+    if (refund) {
+      await applyDailyUsageDelta(ctx, job.userId, dayKey(job.createdAt), {
+        // Poravnat posao je u zbiru sa poravnatom cenom, neporavnat sa procenom
+        // - oduzima se ono što je stvarno i upisano.
+        costUsd: -(job.settledCostUsd ?? job.estimatedCostUsd ?? 0),
+        creditsSpent: -refund.credits,
+      });
+    }
+
     return null;
   },
 });
