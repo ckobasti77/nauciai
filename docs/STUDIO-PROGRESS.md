@@ -5342,3 +5342,108 @@ kojih je izracunata, a model bez ijednog merenja nosi isprekidan okvir i tekst
 4. **`STUDIO-CATALOG-V4.md` kreditne tabele su sad izricito oznacene kao
    orijentacione.** Ako se katalog ikad ponovo izda, ili prepisati kolone po
    `computeCredits`-u ili zadrzati ovu napomenu u zaglavlju.
+
+---
+
+## WRV - Revizija fix run-a (W1-W7)   (2026-08-20 16:30)
+
+**Fajlovi:**
+- `docs/STUDIO-FIX-REPORT.md` (novo) - ceo izvestaj
+- `docs/STUDIO-PROGRESS.md` (izmenjeno) - ova sekcija
+- privremeno napravljen i **obrisan**: `convex/__wrv_audit.test.ts` (enumerator
+  marze). Nijedan fajl proizvoda nije diran.
+
+**Sta je uradjeno:** Puštene su sve cetiri komande nad zatecenim stanjem grane i
+zabelezen tacan izlaz. Za svaki nalaz R1-R5 procitan je kod na koji nalaz
+pokazuje, a ne sekcija dnevnika koja tvrdi da je popravljen; R1, R2, R4 i R5 su
+potvrdjeni kao zatvoreni sa navedenim fajlom, linijom i testom, a R3 je vracen u
+status **delimicno**. Marza je premerena nad zatecenim kodom - 3 073 806 cenjivih
+kombinacija preko 30 modela, globalni minimum 2,5000x - i posebno je provereno da
+uklanjanje popusta iz R2 nije nigde ostavilo dvostruko naplacivanje (nije, na
+cetiri nezavisna nacina). Za sedam mernih modela utvrdjeno je da su svi vraceni i
+da nijedan nije vracen a nepokriven parserom. Otvoreno je sedam novih nalaza
+(N1-N7), od kojih je N2 najskuplji u celom izvestaju.
+
+**ODLUKE:**
+1. **R3 je ocenjen kao DELIMICNO, iako je zadatak W5 zatvorio.** Zadatak WRV
+   trazi status "iz koda, ne iz dnevnika". Kod zaista vise ne prima klijentov
+   broj - to je zatvoreno i dokazano testom. Ali `mvhd` je metapodatak koji fajl
+   sam o sebi daje, pa ista tabela od 0,002x koja je opravdavala prvobitni nalaz
+   i dalje stoji, samo iza hex editora. W5 je to pošteno zapisao pod "Za Jovana"
+   5; dnevnik nije mesto na kojem stoji otvoren rizik od 0,002x. Najkonzervativno
+   citanje je "delimicno".
+2. **N2 je prijavljen kao NOVA rupa, a ne kao rep R3.** Formalno je posledica
+   R3, ali ga nose W2 i W5 zajedno: W2 je sagradio plafon nad `estimatedCostUsd`,
+   W5 je ispod tog plafona vratio sedam modela ciji `estimatedCostUsd` zavisi od
+   zaglavlja. Nijedan od ta dva koraka to nije mogao da vidi sam - tek zajedno
+   daju 6,50 EUR prema $3 600. Zato ima svoj broj i svoj naslov.
+3. **N1 je ocenjen 🟠, ne 🔴.** Zadatak pita dve stvari odvojeno: propusta li
+   pregled nesto sto ne bi smeo (da - tudje promptove i potpisane URL-ove tudjih
+   okacenih fajlova) i je li provera uloge na serveru (jeste, `requireStudioStaff`
+   je prva linija oba query-ja, pokriveno testom). Posto autentikacija i
+   autorizacija rade, ovo je pitanje obima podataka i privatnosti, ne probojna
+   rupa - otud narandzasto. Sirina uloge (`moderator`, ne samo `admin`) i
+   nepostojanje audit loga su navedeni kao deo istog nalaza.
+4. **Privremeni enumerator je vitest fajl u `convex/`, ne skripta van repoa.**
+   Uvozi (`STUDIO_MODELS`, `computeCredits`) se rešavaju samo unutar
+   `vitest.config.ts` alias-a; skripta van repoa bi tražila svoj build. Isti
+   postupak i isti razlog kao u kataloškom run-u (SRV). Fajl je obrisan odmah
+   posle merenja - `git status` ga ne prijavljuje.
+5. **Enumeracija namerno prolazi i kroz kontrole koje ne uticu na cenu.**
+   Otud 3,07 M kombinacija umesto 3 965 iz prethodnog izvestaja (`tts` ima cetiri
+   slajdera bez `affectsPrice`). Suzavanje bi bilo brze, ali bi zahtevalo da
+   verujem `affectsPrice` zastavici - a upravo ona je vrsta podatka koji ume da
+   bude pogresan. Sirok prolaz ne moze da propusti kombinaciju; minimumi se ne
+   pomeraju.
+6. **R6-R8 su dopisani iako ih zadatak ne trazi.** R7 je direktno vezan za N6
+   (`actualCostUsd` bez ijednog upisa), a R6 je jedina otvorena stavka koja moze
+   sama da obori marzu ispod 2,5x. Ostavljeni su kao kratka tabela, ne kao
+   sekcija.
+7. **Stripe rupe d1-d5 iz nocnog izvestaja su ponovo provere.** d1, d2 i d3 su
+   zatvorene ranije (P1) - webhook baca umesto da cuti, `payment_status` se
+   proverava, `welcome:<userId>` je kljuc bonusa. d4 (clawback) i d5 (rotacija
+   tajne) su i dalje otvorene i navedene su u "SPREMNO ZA NAPLATU", jer su
+   pravno i operativno blokirajuce.
+
+**Testovi:** Nijedan nov test nije napisan - ovo je revizija, ne korak koji menja
+kod. Zatecenih 741 testova je pusteno i sve prolazi. Privremeni enumerator marze
+je bio jedini nov `.test.ts` fajl i obrisan je posle merenja; njegov izlaz je
+tabela u sekciji 3 izvestaja.
+
+**Rezultat verifikacije:**
+- `npx convex codegen` - **OK**, `Running TypeScript...`, exit 0
+- `npm run lint` - **OK**, `✖ 8 problems (0 errors, 8 warnings)`, exit 0
+  (bilo 17 pre fix run-a; devet iz `crons.ts` je nestalo sa R1)
+- `npm run test` - **OK**, `Test Files 58 passed (58)`, `Tests 741 passed (741)`,
+  exit 0
+- `npm run build` - **OK**, `✓ Compiled successfully in 7.3s`,
+  `✓ Generating static pages (60/60)`, exit 0
+
+**BLOKADA:** nema.
+
+**Za Jovana:**
+1. **Procitaj `docs/STUDIO-FIX-REPORT.md` sekciju N2 pre nego sto pustis
+   `migrations:enableMeasuredModels`.** To je jedini nalaz u izvestaju sa cenom
+   od cetiri cifre: 6,50 EUR kredita otvara do $3 600 fal racuna dnevno po
+   nalogu, a nijedan od dva plafona to ne vidi jer oba mere procenu koju napadac
+   bira. Dok donja granica trajanja iz bajtova ne postoji, `dubbing`,
+   `voice-changer` i `audio-isolation` treba da ostanu ugaseni.
+2. **Redosled rucnih koraka na deployment-u je u sekciji 5 izvestaja, i namenski
+   je.** Rotacija `WEBHOOK_SYNC_SECRET`-a ide PRE seed-a, a
+   `enableMeasuredModels` POSLE odluke iz tacke 1.
+3. **Uslovi koriscenja i politika privatnosti ne postoje u repou.** Provereno:
+   `find app -iname "*terms*" -o -iname "*privacy*"` vraca prazno, a string
+   "nepovratni"/"non-refundable" se ne pojavljuje nigde. To je pravna blokada za
+   naplatu, ne kozmetika - `charge.refunded` i `charge.dispute.created` se i
+   dalje ne obradjuju (rupa d4 iz nocnog izvestaja), pa je klauzula o
+   nepovratnosti kredita jedini odgovor na chargeback.
+4. **Politika privatnosti mora da pokrije i N1:** admin I moderator u rezimu
+   "Svi korisnici" vide tudje promptove i potpisane URL-ove tudjih okacenih
+   fajlova (fotografije lica, glasovni snimci). Provera uloge je ispravna i na
+   serveru je - pitanje je sta korisnik zna da staff vidi.
+5. **`actualCostUsd` je danas prazan za svih 30 modela** (N6). Kolona "Stvarna
+   marza" ce pisati "nema merenja" dok ne dopises `tokenRatesUsdPerMillion.prompt`
+   na `nano-banana-pro` i ne potvrdis imena polja fal `billing-events` odgovora.
+   Dok je tako, alarm na odstupanje preko 30% - jedini detektor za N2 - ne radi.
+6. **Istorija grane ima dva duplirana commit-a** (W4 i W5 po dva sa skoro istom
+   porukom). Vredi squash pre merge-a u `main`.
