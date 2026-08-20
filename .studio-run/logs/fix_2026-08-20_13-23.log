@@ -91,3 +91,10 @@
 [13:59:48]  W3  |  R2 i R3: popust bez osnova i merena kolicina
 [13:59:48]  model=opus  effort=max
 [13:59:48] --------------------------------------------------
+[14:27:24] Commit 363a7fe - 17 putanja
+[14:27:24] W3 -> OK  (28 min, 1 pokusaja, USD 10.95)
+[14:27:24] 
+[14:27:24] --------------------------------------------------
+[14:27:24]  W4  |  R4: vlasnistvo nad uploadovanim fajlom
+[14:27:24]  model=opus  effort=high
+[14:27:24] --------------------------------------------------
