@@ -249,44 +249,28 @@ export function measuredSlotsFor(source: QuantitySource): string[] {
 }
 
 /**
- * Konzervativan MINIMALNI bitrate po vrsti fajla, u bitovima u sekundi. Iz
- * njega izlazi najduže trajanje koje u dati broj bajtova uopšte može da stane:
- * `sekunde = bajtovi × 8 / bitrate`.
+ * Trajanje mernih slotova, sabrano i prevedeno u jedinicu pravila.
  *
- * Brojevi su namerno niski - niži nego što iko stvarno kodira - jer greška na
- * ovu stranu samo propusti previsoku prijavu, a greška na drugu odbija pošten
- * posao. 32 kbps je donji kraj govornog MP3/Opus-a (ispod toga se govor više ne
- * razume), 200 kbps donji kraj 480p H.264. WAV, ProRes i svaki bogatiji format
- * daju KRAĆE trajanje po bajtu, pa granicu samo produbljuju.
- */
-const MIN_BITRATE_BPS: Record<string, number> = {
-  [AUDIO_SLOT]: 32_000,
-  [VIDEO_SLOT]: 200_000,
-};
-
-/**
- * Gornja granica prijavljene količine, izvedena iz VELIČINE fajla koju server
- * stvarno vidi (`_storage.size`). Nije merenje - fajl od 2 MB i dalje može biti
- * bilo šta ispod ~8 minuta zvuka - ali je jedina serverska činjenica o trajanju
- * koja danas postoji, i obara prijavu koja je fizički nemoguća.
+ * Ulaz su SEKUNDE koje je server izmerio iz zaglavlja fajla i upisao u
+ * `studioUploads.durationS` (W5, `lib/media-duration.ts`) - ne ono što je
+ * klijent pročitao iz `<video>` metapodataka. `stt` i `dubbing` primaju i video
+ * i zvuk pod istim pravilom po minutu, pa se oba slota sabiraju.
  *
- * `null` znači "nema se šta izmeriti": nijedan merni slot nije okačen, ili
- * pozivalac nije uspeo da pročita metapodatke ijednog fajla. Tada
- * `resolveMeasuredQuantity` odbija posao umesto da veruje klijentu.
+ * `null` znači "nema se šta naplatiti": nijedan merni slot nije okačen, ili
+ * nijedan okačen fajl nije izmeren (nepoznat format, nečitljivo zaglavlje).
+ * Tada `resolveMeasuredQuantity` odbija posao.
  */
-export function maxQuantityFromBytes(
+export function measuredQuantityFromSeconds(
   source: QuantitySource,
-  bytesBySlot: Record<string, number> | null,
+  secondsBySlot: Record<string, number>,
 ): number | null {
-  if (bytesBySlot === null) return null;
-
   let seconds = 0;
   let measured = false;
   for (const slot of measuredSlotsFor(source)) {
-    const bytes = bytesBySlot[slot];
-    if (typeof bytes !== "number" || !Number.isFinite(bytes) || bytes <= 0) continue;
+    const value = secondsBySlot[slot];
+    if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) continue;
     measured = true;
-    seconds += (bytes * 8) / MIN_BITRATE_BPS[slot];
+    seconds += value;
   }
   if (!measured) return null;
 
@@ -298,35 +282,25 @@ export type MeasuredQuantity = { ok: true; quantity: number } | { ok: false; rea
 /**
  * Izmerena količina za naplatu.
  *
- * Tekst server meri sam - ukucan je u `params` i tu je ceo. Dužinu okačenog
- * fajla ne može: Convex storage zna veličinu u bajtovima, ne trajanje, a
- * dekodiranje medija u mutaciji ne postoji. Zato je `reported` (klijent je
- * pročitao `duration` iz `<video>`/`<audio>` metapodataka) jedini izvor
- * trajanja - i baš zato ne sme da bude i jedina reč o tome koliko se naplaćuje.
+ * Tekst server meri sam - ukucan je u `params` i tu je ceo. Trajanje okačenog
+ * snimka meri `studioActions.measureInputUpload`, koja pročita zaglavlje fajla
+ * i upiše sekunde uz sam upload; ovde stiže gotov broj. **Ono što je klijent
+ * prijavio ne ulazi u ovu funkciju uopšte** - njegov broj služi samo da cena
+ * na dugmetu stoji dok merenje ne stigne (nalaz R3).
  *
  * Kapije, ovim redom:
- * 1. `MERENJE_NIJE_DOSTUPNO` - `maxFromFile` je `null`, dakle nijedan merni
- *    slot nije okačen ili se metapodaci ne mogu pročitati. Bez ijednog bajta
- *    koji je server video nema se šta proveriti, pa se posao ODBIJA umesto da
- *    tiho prođe. Kapija ostaje i kad merenje postane tačno, kao mreža: ono što
- *    server nije video, ne naplaćuje se.
- * 2. mora biti pozitivan broj;
- * 3. zaokružuje se NAVIŠE na celu jedinicu (zaokruživanje nikad u korist
+ * 1. `MERENJE_NIJE_DOSTUPNO` - nema izmerenog trajanja: nijedan merni slot nije
+ *    okačen, ili se nijednom zaglavlje ne može pročitati. Posao se ODBIJA umesto
+ *    da se padne na pretpostavku. Kapija je zatečena iz W3 i ostaje kao mreža:
+ *    ono što server nije izmerio, ne naplaćuje se.
+ * 2. zaokružuje se NAVIŠE na celu jedinicu (zaokruživanje nikad u korist
  *    klijenta);
- * 4. `KOLICINA_VECA_OD_FAJLA` - prijava veća od onoga što u toliko bajtova može
- *    da stane (`maxQuantityFromBytes`). Proverava se PRE sečenja na `max`, jer
- *    bi `clamp` inače sakrio nemoguću prijavu iza kataloškog plafona;
- * 5. seče se na `min`/`max` iz kataloga.
- *
- * Ono što ovo NE hvata je prijava MANJA od stvarnog fajla - granica po veličini
- * je jednostrana. Zato sedam modela koji se po ovoj količini naplaćuju stoje
- * ugašeni dok se trajanje ne bude merilo tačno.
+ * 3. seče se na `min`/`max` iz kataloga.
  */
 export function resolveMeasuredQuantity(
   source: QuantitySource,
   params: Record<string, unknown>,
-  reported: number | undefined,
-  maxFromFile: number | null,
+  measured: number | null,
 ): MeasuredQuantity {
   if (source.from === "text_length") {
     const value = params[source.measuredFrom ?? "text"];
@@ -336,17 +310,14 @@ export function resolveMeasuredQuantity(
     return { ok: true, quantity: clampQuantity(length, source) };
   }
 
-  if (maxFromFile === null) return { ok: false, reason: "MERENJE_NIJE_DOSTUPNO" };
-
-  if (reported === undefined || !Number.isFinite(reported) || reported <= 0) {
-    return { ok: false, reason: `NEDOSTAJE_KOLICINA:${source.param}` };
+  if (measured === null || !Number.isFinite(measured) || measured <= 0) {
+    return { ok: false, reason: "MERENJE_NIJE_DOSTUPNO" };
   }
 
   // Minuti se zaokružuju na desetinku (pravilo ih naplaćuje sa dve decimale
   // tarife), sekunde na celu sekundu - u oba slučaja naviše.
   const rounded =
-    source.from === "input_media_minutes" ? Math.ceil(reported * 10) / 10 : Math.ceil(reported);
-  if (rounded > maxFromFile) return { ok: false, reason: `KOLICINA_VECA_OD_FAJLA:${source.param}` };
+    source.from === "input_media_minutes" ? Math.ceil(measured * 10) / 10 : Math.ceil(measured);
 
   return { ok: true, quantity: clampQuantity(rounded, source) };
 }

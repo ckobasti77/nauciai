@@ -3,7 +3,14 @@ import { v } from "convex/values";
 
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import { internalMutation, type MutationCtx, mutation, query, type QueryCtx } from "./_generated/server";
+import {
+  internalMutation,
+  internalQuery,
+  type MutationCtx,
+  mutation,
+  query,
+  type QueryCtx,
+} from "./_generated/server";
 import { applySpend } from "./credits";
 import { MAX_PROMPT_LENGTH, validatePrompt } from "./creditsCore";
 import { getCurrentProfile, requireUserId } from "./helpers";
@@ -14,7 +21,7 @@ import {
   hasVideoInput,
   type JobInputs,
   jobInputStorageIds,
-  maxQuantityFromBytes,
+  measuredQuantityFromSeconds,
   parseClientInputs,
   parseInputModes,
   parseInputSpec,
@@ -71,8 +78,8 @@ type PricedOrder = {
 };
 
 /**
- * Okačeni fajlovi jednog posla: provera vlasništva i veličina po slotu, iz
- * istog prolaza (nalaz R4).
+ * Okačeni fajlovi jednog posla: provera vlasništva i izmereno trajanje po
+ * slotu, iz istog prolaza (nalazi R4 i R3).
  *
  * `storageId` dolazi sa klijenta, a `studioUploads` je jedino mesto koje pamti
  * KO ga je okačio. Fajl bez svog reda - ili sa tuđim - se odbija: nepogodivost
@@ -82,22 +89,24 @@ type PricedOrder = {
  * koji uopšte ne postoji nema svoj red, pa više ne prolazi kroz naplatu da bi
  * pao tek na predaji posla i vratio se kroz refund.
  *
- * `bytes` je isti broj koji je `registerInputUpload` pročitao iz `_storage`; iz
- * njega `maxQuantityFromBytes` izvodi gornju granicu prijavljenog trajanja, pa
- * se veličina fajla čita jednom, na prijavi uploada.
+ * `seconds` je trajanje koje je `studioActions.measureInputUpload` pročitao iz
+ * zaglavlja fajla. Slot bez ijednog izmerenog fajla nema svoj ključ, pa posao
+ * koji se po trajanju naplaćuje pada na `MERENJE_NIJE_DOSTUPNO` umesto da se
+ * naplati po broju koji je poslao klijent.
  */
 async function ownedInputUploads(
   ctx: MutationCtx,
   userId: Id<"users">,
   inputs: JobInputs,
-): Promise<{ bytes: Record<string, number>; uploadIds: Array<Id<"studioUploads">> }> {
-  const bytes: Record<string, number> = {};
+): Promise<{ seconds: Record<string, number>; uploadIds: Array<Id<"studioUploads">> }> {
+  const seconds: Record<string, number> = {};
   const uploadIds: Array<Id<"studioUploads">> = [];
 
   for (const [slot, ids] of Object.entries(inputs)) {
     if (ids.length === 0) continue;
 
     let total = 0;
+    let measured = false;
     for (const rawId of ids) {
       // `normalizeId` pre upita: niz koji nije `_storage` ID nema šta da traži
       // u indeksu, a dolazi sa klijenta.
@@ -110,13 +119,16 @@ async function ownedInputUploads(
         .withIndex("by_storage", (q) => q.eq("storageId", storageId))
         .first();
       if (!upload || upload.userId !== userId) throw new Error("TUDJI_FAJL");
-      total += upload.bytes;
       uploadIds.push(upload._id);
+      if (upload.durationS !== undefined && upload.durationS > 0) {
+        measured = true;
+        total += upload.durationS;
+      }
     }
-    bytes[slot] = total;
+    if (measured) seconds[slot] = total;
   }
 
-  return { bytes, uploadIds };
+  return { seconds, uploadIds };
 }
 
 /**
@@ -134,7 +146,7 @@ async function buildCatalogOrder(
   userId: Id<"users">,
   model: Doc<"models">,
   raw: Record<string, unknown>,
-  args: { inputMode?: string; inputs?: string; measuredQuantity?: number },
+  args: { inputMode?: string; inputs?: string },
 ): Promise<PricedOrder> {
   if (!model.isEnabled) throw new Error("MODEL_NEDOSTUPAN");
 
@@ -165,16 +177,15 @@ async function buildCatalogOrder(
   // `sanitizeSpecParams` je već izbacio.
   const source = parseQuantitySource(model.capabilities);
   if (source) {
-    // Prijavljena količina se poredi sa VELIČINOM fajla koji je server stvarno
-    // video - isti princip po kojem se `extras` broje iz `inputs`-a, a ne iz
-    // onoga što je klijent naveo. Bajtovi su već pročitani iznad, uz proveru
-    // vlasništva; slot bez ijednog okačenog fajla u mapi nema svoj ključ, pa
-    // `maxQuantityFromBytes` vrati `null` i posao pada na MERENJE_NIJE_DOSTUPNO.
+    // Naplaćuje se trajanje koje je SERVER pročitao iz zaglavlja okačenog fajla
+    // - isti princip po kojem se `extras` broje iz `inputs`-a, a ne iz onoga
+    // što je klijent naveo. Sekunde su već pročitane iznad, uz proveru
+    // vlasništva; slot bez ijednog izmerenog fajla nema svoj ključ, pa posao
+    // pada na `MERENJE_NIJE_DOSTUPNO`.
     const measured = resolveMeasuredQuantity(
       source,
       params,
-      args.measuredQuantity,
-      maxQuantityFromBytes(source, uploads.bytes),
+      measuredQuantityFromSeconds(source, uploads.seconds),
     );
     if (!measured.ok) throw new Error(measured.reason);
     params[source.param] = measured.quantity;
@@ -278,10 +289,10 @@ export const createJob = mutation({
     // samo za v4 katalog; stari `modelCatalog` ih nema i ignoriše ih.
     inputMode: v.optional(v.string()),
     inputs: v.optional(v.string()),
-    // Količina koju korisnik ne bira nego se meri iz okačenog fajla (sekunde
-    // zvuka, minuti snimka). Prolazi kroz `resolveMeasuredQuantity` - videti
-    // tamo zašto klijentu ovde ipak nije poslednja reč.
-    measuredQuantity: v.optional(v.number()),
+    // Trajanje okačenog snimka se OVDE VIŠE NE PRIMA (W5, nalaz R3). Meri ga
+    // `studioActions.measureInputUpload` iz zaglavlja fajla i upisuje uz sam
+    // upload; ono što je klijent pročitao iz `<video>` metapodataka služi samo
+    // da cena na dugmetu stoji dok merenje ne stigne.
     // Kontekst lekcije (STUDIO-PLAN 1.1): kad Studio widget stoji u output
     // pane-u lekcije, izlaz treba da postane `labOutputs` red i dokaz da je
     // zadatak uradjen. Bez ovih polja ta veza se kasnije ne može rekonstruisati.
@@ -870,6 +881,7 @@ export const getJobForRegenerate = query({
       url: string | null;
       mime: string;
       size: number;
+      durationS?: number;
     }> = [];
     for (const [slot, ids] of Object.entries(inputs)) {
       for (const rawId of ids) {
@@ -878,6 +890,13 @@ export const getJobForRegenerate = query({
         // iz imena slota: forma po `mime`-u odlučuje šta je pregled a šta se
         // broji kao ulazna slika u ceni.
         const meta = await ctx.db.system.get(storageId);
+        // Izmereno trajanje ide uz fajl: bez njega bi forma posle "Generiši
+        // ponovo" mislila da fajl još nije izmeren i zaključala dugme, iako je
+        // isti fajl već izmeren i posao bi prošao (W5).
+        const upload = await ctx.db
+          .query("studioUploads")
+          .withIndex("by_storage", (q) => q.eq("storageId", storageId))
+          .first();
 
         files.push({
           slot,
@@ -885,6 +904,7 @@ export const getJobForRegenerate = query({
           url: await ctx.storage.getUrl(storageId),
           mime: meta?.contentType ?? "",
           size: meta?.size ?? 0,
+          ...(upload?.durationS !== undefined ? { durationS: upload.durationS } : {}),
         });
       }
     }
@@ -985,6 +1005,44 @@ export const registerInputUpload = mutation({
       createdAt: now,
       expiresAt: now + INPUT_UPLOAD_TTL_MS,
     });
+
+    return null;
+  },
+});
+
+/**
+ * Prijavljen upload SVOG fajla, za merenje trajanja (W5).
+ *
+ * Interno, a ipak proverava korisnika: `studioActions.measureInputUpload` je
+ * javna akcija, pa bi bez ove provere tuđi `storageId` mogao da se pošalje na
+ * merenje - a odgovor (trajanje) je podatak o tuđem fajlu.
+ */
+export const getOwnedUpload = internalQuery({
+  args: { storageId: v.id("_storage") },
+  handler: async (ctx, args) => {
+    const userId = await requireUserId(ctx);
+    const upload = await ctx.db
+      .query("studioUploads")
+      .withIndex("by_storage", (q) => q.eq("storageId", args.storageId))
+      .first();
+    if (!upload || upload.userId !== userId) return null;
+
+    return { uploadId: upload._id, bytes: upload.bytes, durationS: upload.durationS };
+  },
+});
+
+/**
+ * Izmereno trajanje se upisuje JEDNOM i ne prepisuje se: fajl u Convex
+ * storage-u je nepromenljiv, pa drugo merenje istog `storageId`-ja ne može da
+ * da drugi broj - a ponovljeni poziv akcije (mreža, dva slota nad istim fajlom)
+ * sme da se desi.
+ */
+export const setUploadDuration = internalMutation({
+  args: { uploadId: v.id("studioUploads"), seconds: v.number() },
+  handler: async (ctx, args) => {
+    const upload = await ctx.db.get(args.uploadId);
+    if (!upload || upload.durationS !== undefined) return null;
+    await ctx.db.patch(args.uploadId, { durationS: args.seconds });
 
     return null;
   },

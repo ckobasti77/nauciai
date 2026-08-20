@@ -14,6 +14,8 @@
 
 import { expect, test } from "vitest";
 
+import { canMeasure } from "../../lib/media-duration";
+import { measuredSlotsFor, type QuantitySource } from "../studioJobCore";
 import {
   type ParamControl,
   isControlVisible,
@@ -385,17 +387,13 @@ test("katalog ima 30 redova, jedinstvene slugove i jedinstven redosled", () => {
   expect(studioModelBySlug("nema-me")).toBeUndefined();
 });
 
-test("modeli koji se naplaćuju po dužini OKAČENOG fajla su ugašeni u katalogu", () => {
+test("sedam modela koji se naplaćuju po dužini OKAČENOG fajla je vraćeno u ponudu", () => {
   const fromFile = STUDIO_MODELS.filter((seed) => {
     const quantity = seed.capabilities.quantity as { from?: string } | undefined;
 
     return quantity !== undefined && quantity.from !== "text_length";
   });
 
-  // Dužinu snimka danas meri klijent i pošalje je kao `measuredQuantity`; server
-  // je poredi samo sa veličinom fajla, pa hvata nemoguću prijavu ali ne i
-  // prijavu manju od stvarne. Za 120 minuta prijavljenih kao 0,1 plaća se 13
-  // evrocenti, a kod ElevenLabs-a se naruči 72 dolara posla.
   expect(fromFile.map((seed) => seed.slug).sort()).toEqual([
     "audio-isolation",
     "dubbing",
@@ -405,11 +403,40 @@ test("modeli koji se naplaćuju po dužini OKAČENOG fajla su ugašeni u katalog
     "stt",
     "voice-changer",
   ]);
-  for (const seed of fromFile) expect(seed.isEnabled, seed.slug).toBe(false);
+  // Vraćeni su zato što trajanje sada meri SERVER iz zaglavlja fajla (W5), a ne
+  // klijent. Dok je bilo obrnuto, 120 minuta prijavljenih kao 0,1 plaćalo se 13
+  // evrocenti, a kod ElevenLabs-a se naručivalo 72 dolara posla (nalaz R3).
+  for (const seed of fromFile) expect(seed.isEnabled, seed.slug).toBeUndefined();
 
-  // Tekst server meri sam, iz `params`-a, pa `tts` i `dialogue` ostaju u ponudi.
+  // Tekst server meri sam, iz `params`-a, pa `tts` i `dialogue` nikad nisu ni gašeni.
   expect(TTS.isEnabled).toBeUndefined();
   expect(DIALOGUE.isEnabled).toBeUndefined();
+});
+
+test("nijedan merni slot ne prihvata format koji parser ne ume da izmeri", () => {
+  const fromFile = STUDIO_MODELS.filter((seed) => {
+    const quantity = seed.capabilities.quantity as QuantitySource | undefined;
+
+    return quantity !== undefined && quantity.from !== "text_length";
+  });
+
+  // Model pušten na format koji se ne meri imao bi tačno jedan mogući ishod:
+  // upload prođe, pa `createJob` padne na `MERENJE_NIJE_DOSTUPNO`. Zato je
+  // uslov za paljenje mašinski proveren, a ne obećan u komentaru.
+  let checked = 0;
+  for (const seed of fromFile) {
+    const slots = measuredSlotsFor(seed.capabilities.quantity as QuantitySource);
+    for (const mode of Object.values(seed.inputSpec)) {
+      for (const [slot, spec] of Object.entries(mode)) {
+        if (!slots.includes(slot)) continue;
+        for (const mime of spec.accept) {
+          expect(canMeasure(mime), `${seed.slug}/${slot}/${mime}`).toBe(true);
+          checked += 1;
+        }
+      }
+    }
+  }
+  expect(checked).toBeGreaterThan(0);
 });
 
 // ── tabele cena iz kataloga (sekcije 2, 3, 4) ──────────────────────────────

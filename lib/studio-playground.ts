@@ -89,6 +89,21 @@ export function measuredQuantityFrom(source: QuantitySource, seconds: number): n
 }
 
 /**
+ * Koliko sme da se razidju dužina koju je pročitao browser i ona koju je
+ * izmerio server pre nego što se korisniku to i kaže. Sitna razlika je normalna
+ * - `<video>.duration` vraća dužinu prikaza, a `mvhd` dužinu zapisa - ali
+ * razlika od desetine dužine znači da cena na dugmetu nije ono što je korisnik
+ * očekivao dok je birao fajl.
+ */
+export const MEASURE_MISMATCH_RATIO = 0.05;
+
+export function measureMismatch(browserSeconds: number | null, serverSeconds: number | null): boolean {
+  if (browserSeconds === null || serverSeconds === null || serverSeconds <= 0) return false;
+
+  return Math.abs(browserSeconds - serverSeconds) / serverSeconds > MEASURE_MISMATCH_RATIO;
+}
+
+/**
  * Količina koja se MERI ide i u cenu na dugmetu, pod svojim ključem iz
  * `capabilities.quantity`. Bez nje cena je `null` ("ne znam"), nikad nula.
  */
@@ -142,9 +157,10 @@ export function generateBlock(input: {
   }
   if (input.promptMissing) return { kind: "prompt" };
   // Redosled prati formu odozgo nadole: prvo ulazi, pa prompt, pa cena. Fajl
-  // kojem dužina još nije izmerena i kombinacija koja nema cenu završavaju
-  // isto - dugme bez cifre ne sme da se otključa.
-  if (input.quantityMissing || credits === null) return { kind: "price" };
+  // kojem server još nije izmerio dužinu ima svoju poruku, jer to nije stvar
+  // podešavanja nego čekanja (ili formata koji se ne čita).
+  if (input.quantityMissing) return { kind: "measure" };
+  if (credits === null) return { kind: "price" };
   if (balance !== undefined && balance < credits) return { kind: "credits", needed: credits };
 
   return null;

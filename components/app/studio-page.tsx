@@ -20,13 +20,19 @@ import { parseQuantitySource, promptControlOf } from "@/convex/studioJobCore";
 import { withLocale, type Locale } from "@/lib/i18n";
 import { jobPrompt, jobStatusText, jobTileState, RECENT_JOBS_COUNT } from "@/lib/studio-form";
 import { parseStudioModel, type StudioModel, type StudioModelRow } from "@/lib/studio-models";
-import { STUDIO_NOT_ENROLLED, STUDIO_NO_GENERATIONS, STUDIO_PAUSED } from "@/lib/studio-messages";
+import {
+  measuredDurationNotice,
+  STUDIO_NOT_ENROLLED,
+  STUDIO_NO_GENERATIONS,
+  STUDIO_PAUSED,
+} from "@/lib/studio-messages";
 import { creditsFor, type ParamValues } from "@/lib/studio-params";
 import {
   generateBlock,
   inputsPayload,
   measuredFile,
   measuredParams,
+  measureMismatch,
   optionalSlots,
   promptRequired,
   type PlaygroundState,
@@ -100,7 +106,6 @@ type JobPayload = {
   params: Record<string, unknown>;
   inputMode: string;
   inputs: Record<string, string[]>;
-  measuredQuantity?: number;
 };
 
 /**
@@ -191,10 +196,12 @@ function ModeInputs({
 }
 
 /**
- * Dužina okačenog snimka, pročitana iz metapodataka u browseru. Server je ne
- * može izmeriti (storage zna bajtove, ne sekunde), pa se šalje uz posao i tamo
- * prolazi kroz `resolveMeasuredQuantity` - zaokruživanje naviše i granice iz
- * kataloga (videti `convex/studioJobCore.ts`).
+ * Dužina okačenog snimka, pročitana iz metapodataka u browseru.
+ *
+ * Po njoj se NE naplaćuje - trajanje meri server iz zaglavlja fajla (W5,
+ * `studioActions.measureInputUpload`) i ono ide u cenu. Ova cifra stoji samo
+ * radi poređenja: kad se dve raziđu za više od 5%, korisniku se izmereno
+ * trajanje kaže pre nego što pritisne dugme.
  */
 function useMediaSeconds(file: SlotFile | null): number | null {
   // Rezultat se pamti ZAJEDNO sa adresom fajla, pa se pri promeni fajla ne
@@ -270,7 +277,11 @@ function PlaygroundForm({
   const measureTarget = quantitySource
     ? measuredFile(quantitySource, model.inputSpec, inputMode, effectiveFiles)
     : null;
-  const seconds = useMediaSeconds(measureTarget);
+  const browserSeconds = useMediaSeconds(measureTarget);
+  // Naplaćuje se ono što je server pročitao iz zaglavlja fajla, pa se po tome i
+  // prikazuje cena (katalog 1.3: cifra na dugmetu i naplaćena cifra su ista
+  // računica nad istim brojem). Browserova dužina služi samo za poređenje.
+  const serverSeconds = measureTarget?.measuredSeconds ?? null;
 
   const promptControl = promptControlOf(model.paramSpec, inputMode);
   const initialValues = useMemo(() => {
@@ -285,7 +296,7 @@ function PlaygroundForm({
   // dugmetu i ono što `createJob` naplati (katalog 1.3).
   const textValueKey = quantitySource?.measuredFrom ?? promptControl?.key;
   const [textLength, setTextLength] = useState(0);
-  const measured = measuredParams(quantitySource, seconds, textLength);
+  const measured = measuredParams(quantitySource, serverSeconds, textLength);
   const extras = measuredExtraCounts(model.priceRule, effectiveFiles);
   const form = useParamValues(model.paramSpec, inputMode, { ...measured, ...extras }, initialValues);
 
@@ -315,12 +326,7 @@ function PlaygroundForm({
   });
 
   function submit() {
-    onGenerate({
-      params: form.params,
-      inputMode,
-      inputs: inputsPayload(effectiveFiles),
-      ...(quantitySource && seconds !== null ? { measuredQuantity: seconds } : {}),
-    });
+    onGenerate({ params: form.params, inputMode, inputs: inputsPayload(effectiveFiles) });
   }
 
   return (
@@ -364,6 +370,11 @@ function PlaygroundForm({
         onGenerate={submit}
         topUpHref={topUpHref}
         error={error}
+        notice={
+          serverSeconds !== null && measureMismatch(browserSeconds, serverSeconds)
+            ? measuredDurationNotice(serverSeconds, locale)
+            : null
+        }
       />
     </div>
   );
@@ -538,6 +549,7 @@ export function StudioPage({ locale }: { locale: Locale }) {
         mime: input.mime ?? "",
         size: input.size ?? 0,
         url: input.url,
+        ...(input.durationS !== undefined ? { measuredSeconds: input.durationS } : {}),
       });
       files[input.slot] = list;
     }
@@ -643,9 +655,6 @@ export function StudioPage({ locale }: { locale: Locale }) {
         inputMode: payload.inputMode,
         ...(Object.keys(payload.inputs).length > 0
           ? { inputs: JSON.stringify(payload.inputs) }
-          : {}),
-        ...(payload.measuredQuantity !== undefined
-          ? { measuredQuantity: payload.measuredQuantity }
           : {}),
         ...(lessonId ? { lessonId } : {}),
         ...(lessonId && taskId ? { taskId } : {}),

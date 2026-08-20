@@ -7,12 +7,12 @@
  * video. Zato im količina koju cenovno pravilo množi ne dolazi iz forme nego iz
  * ulaznog fajla - videti `capabilities.quantity` i `modelControls.QuantitySource`.
  *
- * **Tri modela koja se po toj količini naplaćuju stoje ugašena.** Trajanje danas
- * meri klijent i pošalje ga kao `measuredQuantity`; server ga poredi samo sa
- * veličinom fajla, što obara nemoguću prijavu ali ne i prijavu manju od
- * stvarne. Za 60 s videa prijavljenu kao 1 s plaća se sekunda, a kod fal-a se
- * naruči minut. Vraćaju se kad server bude čitao trajanje iz zaglavlja fajla;
- * do tada je jedina tačna cena ona koju niko ne može da smanji.
+ * **Trajanje meri SERVER** (W5, `lib/media-duration.ts`):
+ * `studioActions.measureInputUpload` pročita `mvhd` odnosno EBML zaglavlje
+ * okačenog fajla i upiše sekunde u `studioUploads.durationS`, a `createJob`
+ * naplaćuje isključivo taj broj. Parser čita sva tri formata iz
+ * `VIDEO_ACCEPT`-a i sva četiri iz `AUDIO_ACCEPT`-a, pa su tri modela koja se
+ * po trajanju naplaćuju vraćena u ponudu.
  *
  * Cene su prepisane iz kataloga doslovno. Ne preračunavaju se.
  */
@@ -76,8 +76,6 @@ export const KLING_AVATAR: StudioModelSeed = {
     audio: true,
     quantity: { param: "duration", from: "input_audio_seconds", min: 1, max: 60 },
   },
-  // Ugašen dok se trajanje meri kod klijenta - videti belešku uz `FAL_TOOL_MODELS` iznad.
-  isEnabled: false,
   sortOrder: 390,
 };
 
@@ -147,8 +145,6 @@ export const KLING_LIPSYNC: StudioModelSeed = {
     roundUpToS: 5,
     quantity: { param: "duration", from: "input_video_seconds", min: 1, max: 60 },
   },
-  // Ugašen dok se trajanje meri kod klijenta - videti belešku uz `FAL_TOOL_MODELS` iznad.
-  isEnabled: false,
   sortOrder: 392,
 };
 
@@ -184,8 +180,6 @@ export const KLING_MOTION: StudioModelSeed = {
     mode: "async_webhook",
     quantity: { param: "duration", from: "input_video_seconds", min: 1, max: 60 },
   },
-  // Ugašen dok se trajanje meri kod klijenta - videti belešku uz `FAL_TOOL_MODELS` iznad.
-  isEnabled: false,
   sortOrder: 394,
 };
 

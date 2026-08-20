@@ -650,6 +650,37 @@ export const backfillStudioUploads = migrations.define({
   },
 });
 
+/**
+ * Sedam modela koje je W3 ugasio, vraćeno u ponudu (W5).
+ *
+ * Seed ume da GASI red na već seedovanom deployment-u, ali ne i da ga pali -
+ * inače bi svaki `npm run convex:seed` vratio model koji je Jovan namerno
+ * isključio (`studioModels.seedStudioModels`). Marker `isEnabled: false` je
+ * uklonjen iz kataloga, pa nov deployment ove modele upisuje uključene, a na
+ * postojećem ih pali ovaj jednokratan prolaz.
+ *
+ * Uslov za paljenje - da parser čita svaki format koji merni slot prihvata -
+ * tvrdi `providers/catalogModels.test.ts`, ne ovaj spisak.
+ */
+const MEASURED_MODEL_SLUGS = [
+  "kling-avatar",
+  "kling-lipsync",
+  "kling-motion",
+  "stt",
+  "voice-changer",
+  "audio-isolation",
+  "dubbing",
+];
+
+export const enableMeasuredModels = migrations.define({
+  table: "models",
+  batchSize: 50,
+  migrateOne: (_ctx, model) => {
+    if (model.isEnabled || !MEASURED_MODEL_SLUGS.includes(model.slug)) return;
+    return { isEnabled: true, updatedAt: Date.now() };
+  },
+});
+
 export const verifyPublicProfileAggregateForUser = internalQuery({
   args: { userId: v.id("users") },
   handler: async (ctx, args) => {
@@ -730,4 +761,5 @@ export const runAll = migrations.runner([
   migrationApi.finalizeStudyHubAggregateV1,
   migrationApi.backfillProviderRequestId,
   migrationApi.backfillStudioUploads,
+  migrationApi.enableMeasuredModels,
 ]);

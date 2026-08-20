@@ -29,6 +29,13 @@ export type SlotFile = {
   size: number;
   /** Potpisan URL za pregled sličice; `null` dok se ne dobije. */
   url?: string | null;
+  /**
+   * Trajanje u sekundama koje je SERVER pročitao iz zaglavlja fajla
+   * (`studioActions.measureInputUpload`). Po njemu se naplaćuje, pa se po njemu
+   * i prikazuje cena; polja nema dok merenje ne stigne, i dotle je dugme
+   * zaključano na modelima koji se po trajanju naplaćuju.
+   */
+  measuredSeconds?: number;
 };
 
 /** Sadržaj svih slotova jednog režima: `{ image: [...], audio: [...] }`. */

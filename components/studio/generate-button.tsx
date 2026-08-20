@@ -30,6 +30,7 @@ export function GenerateButton({
   onGenerate,
   topUpHref,
   error,
+  notice,
 }: {
   locale: Locale;
   /** `null` = cena još nije poznata (nedostaje merena količina ili kombinacija nema cenu). */
@@ -40,6 +41,8 @@ export function GenerateButton({
   topUpHref: string;
   /** Sirova poruka poslednje greške `createJob`-a; prevodi se ovde. */
   error?: string | null;
+  /** Objašnjenje uz CENU koja radi - ne razlog zbog kojeg dugme ne radi. */
+  notice?: string | null;
 }) {
   const message = block ? generateBlockMessage(block, locale) : null;
 
@@ -74,6 +77,7 @@ export function GenerateButton({
           : generateButtonLabel(credits, locale)}
       </button>
       {message ? <p className="text-sm font-bold text-muted">{message}</p> : null}
+      {notice ? <p className="text-sm font-bold text-muted">{notice}</p> : null}
       {error ? <p className="text-sm font-black text-red-700">{studioErrorMessage(error, locale)}</p> : null}
     </div>
   );

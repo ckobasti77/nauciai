@@ -121,6 +121,16 @@ const CREATE_JOB_ERROR_MESSAGES: Array<[string, { sr: string; en: string }]> = [
     },
   ],
   [
+    // Server nije uspeo da pročita trajanje ni iz jednog okačenog snimka, pa
+    // nema po čemu da naplati (W5). Naplata po broju koji je poslao klijent je
+    // upravo rupa koju ovaj korak zatvara, pa se posao odbija.
+    "MERENJE_NIJE_DOSTUPNO",
+    {
+      sr: "Ne možemo da pročitamo koliko snimak traje, a po tome se naplaćuje. Okači MP4, MOV, WebM, WAV ili MP3.",
+      en: "We cannot read how long the recording is, and that is what it is charged by. Upload MP4, MOV, WebM, WAV or MP3.",
+    },
+  ],
+  [
     "NEISPRAVNI_PARAMETRI",
     {
       sr: "Podešavanja nisu ispravna. Osveži stranicu i pokušaj ponovo.",
@@ -255,6 +265,7 @@ export type GenerateBlock =
   | { kind: "active"; max: number }
   | { kind: "inputs"; message: string }
   | { kind: "prompt" }
+  | { kind: "measure" }
   | { kind: "price" };
 
 export function generateBlockMessage(block: GenerateBlock, locale: Locale): string {
@@ -277,9 +288,30 @@ export function generateBlockMessage(block: GenerateBlock, locale: Locale): stri
       return locale === "sr"
         ? "Napiši opis da bi dugme proradilo."
         : "Write a prompt to enable the button.";
+    case "measure":
+      // Pokriva oba stanja: merenje koje traje i format koji se ne čita. Prvo
+      // prodje za sekund, drugo ne prodje nikad - pa druga rečenica kaže šta da
+      // se radi ako poruka ostane.
+      return locale === "sr"
+        ? "Merimo koliko snimak traje - po tome se naplaćuje. Ako poruka ostane, format nije podržan: okači MP4, MOV, WebM, WAV ili MP3."
+        : "We are measuring how long the recording is - that is what it is charged by. If this stays, the format is unsupported: upload MP4, MOV, WebM, WAV or MP3.";
     case "price":
       return locale === "sr"
         ? "Ova kombinacija podešavanja nema cenu. Promeni rezoluciju ili tarifu."
         : "This combination of settings has no price. Change the resolution or the tier.";
   }
+}
+
+/**
+ * Kad se dužina koju je pročitao browser i ona koju je izmerio server raziđu za
+ * više od 5%, naplaćuje se serverska - pa se ona i kaže, PRE nego što korisnik
+ * pritisne dugme (W5). Cifra na dugmetu je već serverska; ovo objašnjava zašto
+ * se promenila.
+ */
+export function measuredDurationNotice(seconds: number, locale: Locale): string {
+  const rounded = seconds >= 60 ? `${Math.round(seconds / 6) / 10} min` : `${Math.round(seconds)} s`;
+
+  return locale === "sr"
+    ? `Izmereno trajanje snimka je ${rounded} - cena na dugmetu je po tome.`
+    : `The measured length of the recording is ${rounded} - the price on the button follows it.`;
 }

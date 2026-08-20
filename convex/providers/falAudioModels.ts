@@ -115,11 +115,11 @@ const CHAR_QUANTITY = {
 /**
  * Količina za naplatu po minutu: dužina OKAČENOG snimka.
  *
- * **Meri je klijent, ne server** - i zato sva četiri modela koja je koriste
- * stoje ugašena. Server prijavljeni broj poredi jedino sa veličinom fajla, pa
- * odbija nemoguće trajanje, ali ne i ono manje od stvarnog: 120 minuta
- * prijavljenih kao 0,1 naplati se kao 0,1, a ElevenLabs naplati 120. Vraćaju se
- * kad server bude čitao trajanje iz zaglavlja fajla.
+ * **Meri je SERVER** (W5, `lib/media-duration.ts`):
+ * `studioActions.measureInputUpload` pročita zaglavlje okačenog fajla i upiše
+ * sekunde u `studioUploads.durationS`, a `createJob` naplaćuje isključivo taj
+ * broj. Dok je taj broj dolazio od klijenta, 120 minuta prijavljenih kao 0,1
+ * naplaćivalo se kao 0,1 a ElevenLabs je naplaćivao 120 (nalaz R3).
  */
 const MINUTE_QUANTITY = {
   param: "minutes",
@@ -310,8 +310,6 @@ export const STT: StudioModelSeed = {
   paramSpec: [],
   priceRule: { unit: "minute", baseUsd: 0.008, quantityParam: "minutes" },
   capabilities: { mode: "async_webhook", quantity: MINUTE_QUANTITY },
-  // Ugašen dok se trajanje meri kod klijenta - videti belešku uz `MINUTE_QUANTITY` iznad.
-  isEnabled: false,
   sortOrder: 440,
 };
 
@@ -335,8 +333,6 @@ export const VOICE_CHANGER: StudioModelSeed = {
   paramSpec: [voiceControl()],
   priceRule: { unit: "minute", baseUsd: 0.3, quantityParam: "minutes" },
   capabilities: { mode: "async_webhook", quantity: MINUTE_QUANTITY },
-  // Ugašen dok se trajanje meri kod klijenta - videti belešku uz `MINUTE_QUANTITY` iznad.
-  isEnabled: false,
   sortOrder: 450,
 };
 
@@ -360,8 +356,6 @@ export const AUDIO_ISOLATION: StudioModelSeed = {
   paramSpec: [],
   priceRule: { unit: "minute", baseUsd: 0.1, quantityParam: "minutes" },
   capabilities: { mode: "async_webhook", quantity: MINUTE_QUANTITY },
-  // Ugašen dok se trajanje meri kod klijenta - videti belešku uz `MINUTE_QUANTITY` iznad.
-  isEnabled: false,
   sortOrder: 460,
 };
 
@@ -409,8 +403,6 @@ export const DUBBING: StudioModelSeed = {
   ],
   priceRule: { unit: "minute", baseUsd: 0.6, quantityParam: "minutes" },
   capabilities: { mode: "async_webhook", quantity: MINUTE_QUANTITY },
-  // Ugašen dok se trajanje meri kod klijenta - videti belešku uz `MINUTE_QUANTITY` iznad.
-  isEnabled: false,
   sortOrder: 470,
 };
 

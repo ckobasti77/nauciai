@@ -89,27 +89,28 @@ test("ponovljen seed ne pravi duplikate i NE pali model koji je admin ugasio", a
   expect(rows.filter((row) => row.isEnabled)).toHaveLength(STUDIO_MODELS.length - 1 - RETIRED);
 });
 
-test("model koji je katalog povukao seed GASI i na već upisanom redu", async () => {
+test("sedam modela sa merenom dužinom seed upisuje UKLJUČENE", async () => {
   const t = createTest();
   await t.mutation(api.studioModels.seedStudioModels, { syncSecret: SYNC_SECRET });
 
-  // Neko ga je uključio iz admin ekrana (ili je red seedovan pre nego što je
-  // katalog model povukao).
-  await t.run(async (ctx) => {
-    const row = await ctx.db
-      .query("models")
-      .withIndex("by_slug", (q) => q.eq("slug", "dubbing"))
-      .unique();
-    if (row) await ctx.db.patch(row._id, { isEnabled: true });
-  });
-
-  await t.mutation(api.studioModels.seedStudioModels, { syncSecret: SYNC_SECRET });
-
   const rows = await t.run((ctx) => ctx.db.query("models").collect());
-  // Gašenje ide u oba smera, uključivanje samo ručno: model koji se naplaćuje
-  // po količini koju meri klijent ne sme da ostane u ponudi po deployment-u.
-  expect(rows.find((row) => row.slug === "dubbing")?.isEnabled).toBe(false);
-  expect(RETIRED).toBe(7);
+  for (const slug of [
+    "kling-avatar",
+    "kling-lipsync",
+    "kling-motion",
+    "stt",
+    "voice-changer",
+    "audio-isolation",
+    "dubbing",
+  ]) {
+    expect(rows.find((row) => row.slug === slug)?.isEnabled, slug).toBe(true);
+  }
+
+  // W3 ih je povukao markerom `isEnabled: false`, jer je dužinu snimka merio
+  // klijent; W5 ih vraća, jer je meri server iz zaglavlja fajla. Katalog trenutno
+  // ne povlači nijedan model - grana u `seedStudioModels` koja gasi već upisan
+  // red je time bez subjekta, a ne uklonjena: prvi sledeći marker je ponovo pali.
+  expect(RETIRED).toBe(0);
 });
 
 test("seed bez tačnog sync secreta ne upisuje ništa", async () => {

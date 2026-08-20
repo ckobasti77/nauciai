@@ -1,10 +1,11 @@
 "use client";
 
-import { useMutation } from "convex/react";
+import { useAction, useMutation } from "convex/react";
 import { useCallback } from "react";
 
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { canMeasure } from "@/lib/media-duration";
 import type { SlotFile } from "@/lib/studio-slots";
 
 /**
@@ -18,10 +19,16 @@ import type { SlotFile } from "@/lib/studio-slots";
  * Prijava posle uploada nije opciona: upload URL ne zna ishod, pa vlasnika
  * fajla pamti tek `registerInputUpload` - a `createJob` neprijavljen `storageId`
  * ne prima (nalaz R4). Ako prijava padne, upload se računa kao neuspeo.
+ *
+ * Merenje trajanja ide odmah za njom, i to samo za formate koje parser čita
+ * (`canMeasure`). Neuspelo merenje NIJE neuspeo upload - fajl je gore i vidi
+ * se; posao koji se po trajanju naplaćuje na njemu prosto ne može da krene, pa
+ * dugme ostaje zaključano umesto da `createJob` padne posle klika.
  */
 export function useSlotUpload() {
   const createUploadUrl = useMutation(api.studio.createInputUploadUrl);
   const registerUpload = useMutation(api.studio.registerInputUpload);
+  const measureUpload = useAction(api.studioActions.measureInputUpload);
 
   return useCallback(
     async (file: File, slot: string, onProgress: (fraction: number) => void): Promise<SlotFile> => {
@@ -29,15 +36,22 @@ export function useSlotUpload() {
       const storageId = await putWithProgress(uploadUrl, file, onProgress);
       await registerUpload({ storageId: storageId as Id<"_storage">, slot });
 
+      let measuredSeconds: number | undefined;
+      if (canMeasure(file.type)) {
+        const measured = await measureUpload({ storageId: storageId as Id<"_storage"> });
+        if (measured.ok) measuredSeconds = measured.seconds;
+      }
+
       return {
         storageId,
         name: file.name,
         mime: file.type,
         size: file.size,
         url: URL.createObjectURL(file),
+        ...(measuredSeconds !== undefined ? { measuredSeconds } : {}),
       };
     },
-    [createUploadUrl, registerUpload],
+    [createUploadUrl, measureUpload, registerUpload],
   );
 }
 

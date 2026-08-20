@@ -8,12 +8,15 @@ import {
   deleteJobErrorMessage,
   GALLERY_NO_GENERATIONS,
   GALLERY_NO_MATCHES,
+  generateBlockMessage,
+  measuredDurationNotice,
   PROMPT_MAX_LENGTH,
   STUDIO_NOT_ENROLLED,
   STUDIO_NO_GENERATIONS,
   STUDIO_PAUSED,
   studioErrorMessage,
   type EmptyState,
+  type GenerateBlock,
 } from "@/lib/studio-messages";
 
 /** Ovako Convex klijent umota grešku bačenu u mutaciji. */
@@ -45,6 +48,7 @@ describe("studioErrorMessage", () => {
     "DNEVNI_LIMIT_TROSKA",
     "NEDOVOLJNO_KREDITA",
     "TUDJI_FAJL",
+    "MERENJE_NIJE_DOSTUPNO",
   ];
 
   test("nijedna poruka ne prikazuje sirov kod greške", () => {
@@ -91,6 +95,41 @@ describe("studioErrorMessage", () => {
     expect(studioErrorMessage(wrap("NEDOVOLJNO_KREDITA"), "sr")).not.toBe(
       studioErrorMessage(wrap("NEDOVOLJNO_KREDITA"), "en"),
     );
+  });
+});
+
+describe("merenje trajanja", () => {
+  const BLOCKS: GenerateBlock[] = [
+    { kind: "paused" },
+    { kind: "not_enrolled" },
+    { kind: "credits", needed: 20 },
+    { kind: "active", max: 3 },
+    { kind: "inputs", message: "Dodaj sliku" },
+    { kind: "prompt" },
+    { kind: "measure" },
+    { kind: "price" },
+  ];
+
+  test("svaki razlog zbog kojeg dugme ne radi ima svoju rečenicu na oba jezika", () => {
+    for (const block of BLOCKS) {
+      for (const locale of ["sr", "en"] as const) {
+        const message = generateBlockMessage(block, locale);
+        expect(message, `${block.kind}.${locale}`).toBeTruthy();
+        expect(message).not.toContain("_");
+      }
+    }
+    // "Merim trajanje" i "kombinacija nema cenu" su različita stanja i ne smeju
+    // da dele rečenicu - prvo prolazi samo od sebe, drugo traži izmenu.
+    expect(generateBlockMessage({ kind: "measure" }, "sr")).not.toBe(
+      generateBlockMessage({ kind: "price" }, "sr"),
+    );
+  });
+
+  test("izmereno trajanje se korisniku kaže u sekundama ili minutima", () => {
+    expect(measuredDurationNotice(42.4, "sr")).toContain("42 s");
+    expect(measuredDurationNotice(420, "sr")).toContain("7 min");
+    expect(measuredDurationNotice(420, "en")).toContain("7 min");
+    expect(measuredDurationNotice(420, "sr")).not.toBe(measuredDurationNotice(420, "en"));
   });
 });
 

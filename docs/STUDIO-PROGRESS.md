@@ -4863,3 +4863,213 @@ red); cim `storageId` udje u posao, `createJob` mu `expiresAt` sklanja.
    je `expiresAt` nestao. Za drugu stranu: uzmi `storageId` iz tudjeg reda i
    posalji ga kroz `createJob` (npr. iz dashboard-a) - mora da vrati
    `TUDJI_FAJL` i da ne skine kredite.
+
+## W5 - R3 pravo resenje: trajanje iz zaglavlja fajla   (20. avgust 2026, 15:20)
+
+**Fajlovi:**
+- `lib/media-duration.ts` (novo) - parser trajanja za MP4/M4A/MOV, WAV, MP3 i
+  WebM/MKV; `MEASURABLE_MIME` i `canMeasure`; `MEDIA_HEAD_BYTES`/`MEDIA_TAIL_BYTES`
+- `lib/media-duration.test.ts` (novo) - 18 testova nad sintetickim zaglavljima
+- `convex/schema.ts` - `studioUploads.durationS`
+- `convex/studioActions.ts` - `measureInputUpload` (javna akcija),
+  `readDurationOverRange`, `readRange`
+- `convex/studio.ts` - `getOwnedUpload` i `setUploadDuration` (interni),
+  `ownedInputUploads` vraca sekunde umesto bajtova, `createJob` vise ne prima
+  `measuredQuantity`, `getJobForRegenerate` vraca `durationS`
+- `convex/studioJobCore.ts` - `measuredQuantityFromSeconds` zamenio
+  `maxQuantityFromBytes`; `resolveMeasuredQuantity` izgubio argument `reported`
+- `convex/providers/falToolModels.ts`, `convex/providers/falAudioModels.ts` -
+  sedam modela vraceno (marker `isEnabled: false` uklonjen)
+- `convex/migrations.ts` - `enableMeasuredModels`, dopisana u `runAll`
+- `components/studio/use-slot-upload.ts` - merenje posle prijave uploada
+- `components/studio/generate-button.tsx` - prop `notice`
+- `components/app/studio-page.tsx` - cena ide po SERVERSKOM trajanju, poruka o
+  razlici preko 5%
+- `lib/studio-slots.ts` - `SlotFile.measuredSeconds`
+- `lib/studio-playground.ts` - `measureMismatch`, `MEASURE_MISMATCH_RATIO`, nova
+  kapija `measure` u `generateBlock`
+- `lib/studio-messages.ts` - tekst za `MERENJE_NIJE_DOSTUPNO`, poruka za blok
+  `measure`, `measuredDurationNotice`
+- testovi: `convex/studioCatalogJob.test.ts`, `convex/studioJobCore.test.ts`,
+  `convex/studioModels.test.ts`, `convex/providers/catalogModels.test.ts`,
+  `lib/studio-messages.test.ts`, `lib/studio-playground.test.ts`
+
+**Sta je uradjeno:** Trajanje okacenog snimka od sada meri server, citajuci
+zaglavlje fajla. Parser je cista funkcija bez ijedne nove zavisnosti i pokriva
+cetiri kontejnera: `mvhd` atom (MP4/M4A/MOV), `fmt `+`data` (WAV), Xing/VBRI ili
+procena iz bitrate-a prvog frejma (MP3) i `Duration`+`TimecodeScale` (WebM/MKV).
+Akcija `measureInputUpload` dovlaci samo opseg bajtova - pola megabajta sa
+pocetka, i za MP4 jos toliko sa kraja kad `moov` nije na pocetku - i upisuje
+sekunde u `studioUploads.durationS`. `createJob` naplacuje iskljucivo taj broj;
+argument `measuredQuantity` je uklonjen iz mutacije, pa put kojim je klijent
+birao cenu vise ne postoji. Sedam modela je vraceno u ponudu, jer parser cita
+svaki MIME tip koji njihovi merni slotovi prihvataju - to tvrdi masinski test, ne
+komentar. Forma cenu prikazuje po serverskom broju, dugme drzi zakljucano dok
+merenje ne stigne, a kad se serverska i browserova duzina raziđu za vise od 5%
+kaze koliko snimak stvarno traje pre nego sto se pritisne dugme.
+
+**ODLUKE:**
+1. **Izabran je put (a) iz zadatka**, kako je i predlozeno: klijent posle
+   uploada zove akciju, akcija upise `durationS` u `studioUploads`, `createJob`
+   cita gotovu vrednost. Put (b) - posao u stanju `measuring` pa rezervacija
+   posle - bi uveo novo stanje posla i podelio jednu transakciju (upis posla +
+   `applySpend`) na dva koraka izmedju kojih posao stoji naplacen a nepredat.
+   Merenje je svojstvo FAJLA, ne posla: isti fajl u dva posla se meri jednom, a
+   fajl u Convex storage-u je nepromenljiv pa drugi rezultat ni ne postoji.
+2. **`measuredQuantity` je UKLONJEN iz `createJob`-a, nije ostavljen pa
+   ignorisan.** Zadatak kaze da ga server ignorise; argument koji nista ne radi
+   je poziv na nesporazum, a Convex validator odbija nepoznat argument, pa je
+   uklanjanje ujedno i dokaz - test tvrdi da poziv sa `measuredQuantity: 0.1`
+   pada. Klijentov broj i dalje postoji, ali samo u browseru, za cenu dok
+   merenje ne stigne.
+3. **Granica po velicini fajla iz W3 (`maxQuantityFromBytes`, `MIN_BITRATE_BPS`,
+   `KOLICINA_VECA_OD_FAJLA`) je UKLONJENA.** Postojala je da obori PRIJAVU vecu
+   od onoga sto u bajtove staje, a prijave vise nema - server meri sam. Da je
+   ostala, primenjivala bi se na sopstveni izmereni broj i mogla bi samo da
+   odbije postenog korisnika: 10 minuta govora u Opus-u na 6 kbps je oko 450 kB,
+   a granica od 32 kbps bi za toliko bajtova dozvolila 112 sekundi. Kapija
+   `MERENJE_NIJE_DOSTUPNO` iz W3 OSTAJE i sada znaci "nijedan merni slot nema
+   izmereno trajanje" - i dalje je mreza, i dalje odbija posao umesto da
+   pretpostavi. Testovi za uklonjenu granicu su uklonjeni zajedno sa njom;
+   testovi za kapiju su prosireni.
+4. **Prihvata se iskljucivo HTTP 206 na `Range` zahtev.** Status 200 znaci da
+   opseg nije ispostovan i da telo nosi ceo fajl - do 200 MB u memoriji akcije.
+   Umesto toga se merenje proglasava neuspelim, a posao se odbija. Zatvoreno
+   umesto sirokog: neizmeren fajl je poruka korisniku, 200 MB u akciji je pad.
+   **Ovo je jedina pretpostavka o Convex storage-u koju treba proveriti uzivo**
+   (videti "Za Jovana").
+5. **Head i tail su po 512 kB, i tail se cita SAMO za MP4.** WAV, WebM i MP3
+   zaglavlje su uvek na pocetku; jedino `moov` atom ume da bude na kraju (izlaz
+   telefona i `ffmpeg` bez `-movflags faststart`). 512 kB pokriva i ID3 tag sa
+   omotom albuma.
+6. **`mvhd` se TRAZI po potpisu, ne obilaskom stabla kutija.** Rep fajla ne
+   pocinje na granici kutije, pa obilazak odande nema odakle da krene. Lazan
+   pogodak je iskljucen proverom same kutije: velicina pre imena mora da bude
+   108 (v0) ili 120 (v1), verzija 0 ili 1, tri bajta zastavica nula. Test tvrdi
+   da tekst koji sadrzi rec "mvhd" ne prolazi kao MP4.
+7. **MP3 podrzava samo Layer III.** To i jeste MP3; Layer I/II u `audio/mpeg`
+   uploadu prakticno ne postoji, a tabele bitrate-a za njih bi udvostrucile
+   parser. Nepodrzan sloj daje `ZAGLAVLJE_NIJE_PROCITANO`, dakle odbijen posao.
+8. **`MEASURABLE_MIME` je podatak, ne komentar.** Zadatak trazi da se vrate
+   "samo oni ciji ulazni format parser stvarno podrzava". To je uslov koji se
+   moze pokvariti tiho (neko doda `audio/ogg` u `AUDIO_ACCEPT`), pa ga tvrdi
+   test u `catalogModels.test.ts`: svaki MIME tip svakog mernog slota svakog od
+   sedam modela mora da bude merljiv. Ispalo je da su sva tri video i sva cetiri
+   zvucna formata pokrivena, pa se vracaju svih sedam - `kling-motion` ukljucen.
+9. **Sedam redova se na deployment-u pali migracijom, ne seed-om.** W3 ODLUKA 3
+   je seed-u dala pravo da GASI ali ne i da pali, jer bi inace svaki seed vratio
+   model koji je Jovan namerno iskljucio. Ta semantika je ostavljena netaknuta;
+   marker `isEnabled: false` je uklonjen iz kataloga (nov deployment ih upisuje
+   ukljucene), a na postojecem ih pali jednokratan `enableMeasuredModels`. Isti
+   obrazac kao `backfillStudioUploads` iz W4.
+10. **Zateceni test "seed GASI povucen model" je prepisan, a ne obrisan.** Posle
+    ovog koraka nijedan red kataloga nema `isEnabled: false`, pa taj test nema
+    subjekta. Zamenjen je testom koji tvrdi ono sto W5 stvarno menja - da seed
+    sedam modela upisuje ukljucene - plus `expect(RETIRED).toBe(0)`, koji ce
+    pasti cim neko opet povuce model i tako naterati da se grana ponovo pokrije.
+    Grana u `seedStudioModels` NIJE uklonjena.
+11. **Dugme dobija svoje stanje `measure`, ne deli poruku sa `price`.** "Merim
+    trajanje" prolazi samo od sebe za sekund, a "kombinacija nema cenu" trazi da
+    korisnik nesto promeni - jedna recenica za oba bi lagala u jednom slucaju.
+    Ista recenica pokriva i format koji se ne cita, sa uputstvom sta da okaci ako
+    poruka ostane.
+12. **Razlika preko 5% se prikazuje kao dopuna uz cenu, ne kao blokada.** Cena na
+    dugmetu je vec serverska (katalog 1.3: jedna racunica nad jednim brojem), pa
+    poruka objasnjava zasto se cifra promenila umesto da trazi jos jednu
+    potvrdu. Prag od 5% je izabran jer `<video>.duration` vraca duzinu prikaza a
+    `mvhd` duzinu zapisa - sitna razlika je normalna i ne treba je pominjati.
+13. **`getJobForRegenerate` vraca i `durationS`.** Bez toga bi "Generisi ponovo"
+    na poslu sa merenim modelom zakljucalo dugme na `measure`, iako je fajl vec
+    izmeren i `createJob` bi prosao - regresija, ne zatvorena rupa.
+14. **Neuspelo merenje NIJE neuspeo upload.** Akcija vraca ishod umesto da baca,
+    a mrezna greska se hvata u `readRange`: fajl jeste gore i vidi se u slotu,
+    samo se po njemu ne moze naplatiti. Da se bacalo, `useSlotIntake` bi prikazao
+    "Fajl nije uspeo da se posalje", sto nije tacno.
+
+**Testovi:**
+- `lib/media-duration.test.ts` (18) - MP4 v0 i v1 daju tacno trajanje; `moov` na
+  KRAJU fajla se nalazi u isecenom repu koji ne pocinje na granici kutije; MP4
+  bez `moov`-a u opsegu se prepoznaje kao MP4 ali odbija (po tome akcija zna da
+  proba rep); fajl presecen usred `mvhd` tela se odbija; `duration` 0 i
+  0xFFFFFFFF se odbijaju umesto da daju nulu; WAV racuna `dataSize / byteRate` i
+  preskace `LIST` komad pre `fmt `-a; WAV bez `data` komada se odbija; MP3 sa
+  Xing-om, MP3 sa ID3 tagom pre zvuka, MP3 bez Xing-a (procena iz bitrate-a);
+  WebM sa podrazumevanom i sa nestandardnom skalom; WebM bez `Duration`-a se
+  odbija; PNG i prazan fajl se odbijaju; tekst koji sadrzi rec "mvhd" ne prolazi
+  kao MP4
+- `convex/studioCatalogJob.test.ts` - helper `storeMeasured` prolazi CEO put
+  (upload, `registerInputUpload`, `measureInputUpload` sa `fetch`-om koji postuje
+  `Range`); izmerenih 4,2 s se naplacuje kao 5; `dubbing` sa izmerenih 7 minuta
+  se naplacuje 7 minuta iako `params` nosi `minutes: 0.1`, a poziv sa
+  `measuredQuantity` pada na validatoru; neizmeren fajl daje
+  `MERENJE_NIJE_DOSTUPNO` bez posla i bez skinutog kredita; fajl cije se
+  zaglavlje ne cita ostaje bez `durationS` i posao na njemu pada; tudji fajl se
+  ne meri (`TUDJI_FAJL`); ponovljeno merenje vraca isti broj bez ijednog
+  `fetch`-a; "Generisi ponovo" nosi `durationS`
+- `convex/studioJobCore.test.ts` - `measuredQuantityFromSeconds` sabira merne
+  slotove i prevodi u jedinicu pravila, a slot koji se ne meri ne ulazi u racun;
+  bez merenja ide `MERENJE_NIJE_DOSTUPNO` i za `null` i za nulu i za `NaN`;
+  zaokruzivanje navise (sekunde na celu, minuti na desetinku) i secenje na
+  kataloske granice; tekst i dalje meri server iz parametara
+- `convex/providers/catalogModels.test.ts` - sedam slugova je vraceno
+  (`isEnabled` nedefinisan); nijedan merni slot ne prihvata format koji parser ne
+  ume da izmeri
+- `convex/studioModels.test.ts` - seed sedam modela upisuje ukljucene; katalog
+  trenutno ne povlaci nijedan model
+- `lib/studio-messages.test.ts` - `MERENJE_NIJE_DOSTUPNO` ima svoju recenicu na
+  oba jezika i ne prikazuje sirov kod; svaki razlog blokade dugmeta ima svoju
+  recenicu, a `measure` i `price` se ne poklapaju; `measuredDurationNotice` daje
+  sekunde ispod minuta i minute iznad
+- `lib/studio-playground.test.ts` - `measureMismatch` se okida tek preko 5%, u
+  oba smera, i miruje dok merenja nema; `quantityMissing` daje blok `measure`
+
+**Rezultat verifikacije:**
+- `npx convex codegen` - **OK** (`Running TypeScript...`, exit 0)
+- `npm run lint` - **OK**, `8 problems (0 errors, 8 warnings)` - isto stanje kao
+  posle W4, nijedno upozorenje nije u fajlovima ovog koraka
+- `npm run test` - **OK**, `Test Files 56 passed (56)`, `Tests 707 passed (707)`
+  (+24 posle W4, jedan nov fajl)
+- `npm run build` - **OK**, `Compiled successfully in 7.1s`,
+  `Generating static pages (60/60)`
+
+**BLOKADA:** nema.
+
+**Za Jovana:**
+1. **Proveri da Convex storage postuje `Range` zaglavlje - od toga zavisi celo
+   merenje.** Akcija prihvata samo odgovor 206; ako Convex vrati 200, merenje
+   pada i sedam modela javlja "Ne mozemo da procitamo koliko snimak traje".
+   Najbrza provera posle deploy-a, nad potpisanim URL-om bilo kog fajla iz
+   `studioUploads`:
+   ```
+   curl -s -o /dev/null -w "%{http_code}\n" -H "Range: bytes=0-99" "<potpisan storage URL>"
+   ```
+   Mora da ispise `206`. Ako ispise `200`, javi - resenje je citanje toka sa
+   prekidom umesto `arrayBuffer()`-a, izmena od desetak linija u `readRange`.
+2. **Pusti migraciju posle deploy-a, inace sedam modela ostaje ugaseno.** Seed
+   ih ne pali (namerno, W3 ODLUKA 3):
+   ```
+   npx convex run migrations:run '{"fn":"migrations:enableMeasuredModels"}'
+   ```
+   (ili kroz `migrations:runAll`, gde je dopisana na kraj). Posle toga na
+   `/sr/app/studio` mora da bude 30 modela, ne 23.
+3. **Pusti i seed** (`npm run convex:seed`), da bi `paramSpec` i `priceRule`
+   sedam vracenih modela bili svezi. Redosled nije bitan - migracija dira samo
+   `isEnabled`.
+4. **Prva ziva generacija na svakom od sedam modela je i dalje neophodna**
+   (stavka 12 iz izvestaja). Merenje je sada tacno, ali ono sto fal naplati nije
+   provereno nijednom fakturom. Predlog: `stt` na snimku od jednog minuta - to je
+   najjeftiniji od sedam ($0,008), pa je racun mali a odgovor isti.
+5. **Ostaje rupa koju ovaj korak ne zatvara: krivotvoreno zaglavlje.** Fajl kojem
+   je `mvhd` rucno prepravljen na 1 sekundu naplatice se kao 1 sekunda, a
+   provajder ce obraditi ono sto je stvarno unutra. Za to bi trebalo naplatiti
+   posle posla, iz `actualCostUsd` koji vrati provajder - put (c) iz stavke 3
+   izvestaja, koji menja ceo ledger tok. Do tada je ovo poznato i primljeno k
+   znanju; napad sada trazi hex editor, a ne jedan poziv API-ja kao ranije.
+6. **R2 (Seedance popust za `reference` sa videom) je sada odblokiran.** Izvestaj
+   kaze da nema smisla raditi pre merenja - merenje postoji.
+   `referenceVideoBillableSeconds` u `convex/studioPricing.ts` je netaknuta i
+   ceka, a trajanje ulaznog videa se cita iz `studioUploads.durationS` istim
+   putem kao ovde. `STUDIO-CATALOG-V4.md` 3.4 i dalje opisuje snizenu tarifu, pa
+   se katalog i kod poklope tek tada.
+7. **Ulazni fajlovi se i dalje ne brisu kad se posao obrise** - zateceno
+   ponasanje, nije dirano ni ovim korakom.

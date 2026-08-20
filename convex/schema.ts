@@ -1480,10 +1480,14 @@ export default defineSchema({
     storageId: v.id("_storage"),
     slot: v.string(),
     // Veličina i tip se čitaju iz `_storage` u trenutku prijave, ne iz onoga
-    // što je klijent rekao. `bytes` je isti broj iz kojeg `maxQuantityFromBytes`
-    // izvodi gornju granicu prijavljenog trajanja, pa se fajl meri jednom.
+    // što je klijent rekao.
     bytes: v.number(),
     mimeType: v.optional(v.string()),
+    // Trajanje snimka u sekundama, pročitano iz ZAGLAVLJA fajla
+    // (`studioActions.measureInputUpload`, W5). Polja nema dok se ne izmeri, i
+    // dok ga nema `createJob` odbija svaki posao koji se po trajanju naplaćuje
+    // - klijentov broj se ne uzima u obzir (nalaz R3).
+    durationS: v.optional(v.number()),
     createdAt: v.number(),
     // Postoji samo dok upload nije ušao ni u jedan posao: nevezan fajl briše
     // `crons.expireGenerationFiles` posle 24 h. `createJob` polje sklanja, pa

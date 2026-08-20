@@ -2,8 +2,14 @@ import { v } from "convex/values";
 
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import { type ActionCtx, internalAction, internalQuery } from "./_generated/server";
+import { action, type ActionCtx, internalAction, internalQuery } from "./_generated/server";
 import { submitToFal } from "../lib/fal";
+import {
+  type DurationRead,
+  MEDIA_HEAD_BYTES,
+  MEDIA_TAIL_BYTES,
+  readMediaDuration,
+} from "../lib/media-duration";
 import { submitBytePlusJob } from "./providers/byteplus";
 import { falInputFields, resolveEndpointTier } from "./providers/falInputs";
 import { parseJobInputs } from "./providers/jobInputs";
@@ -280,3 +286,93 @@ export const persistOutput = internalAction({
     return null;
   },
 });
+
+/**
+ * Trajanje okačenog snimka, izmereno na SERVERU (W5, nalaz R3).
+ *
+ * Klijent je zove odmah posle `studio.registerInputUpload`-a, za audio i video
+ * fajlove. Do ovog koraka je dužinu prijavljivao browser, pa je jedan poziv sa
+ * `measuredQuantity: 0.1` kupovao dva sata sinhronizacije za 13 kredita. Od sada
+ * `createJob` naplaćuje isključivo ono što je ovde upisano u
+ * `studioUploads.durationS`, a klijentov broj služi samo da cena na dugmetu
+ * stoji dok merenje ne stigne.
+ *
+ * Vraća ishod umesto da baca: forma prikazuje stvarno trajanje i cenu pre
+ * potvrde, a fajl koji se ne može izmeriti nije neuspeo upload - samo se po
+ * njemu ne može naplatiti, pa `createJob` odbija posao.
+ */
+export const measureInputUpload = action({
+  args: { storageId: v.id("_storage") },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ ok: true; seconds: number } | { ok: false; reason: string }> => {
+    const upload = await ctx.runQuery(internal.studio.getOwnedUpload, {
+      storageId: args.storageId,
+    });
+    if (!upload) return { ok: false, reason: "TUDJI_FAJL" };
+    // Fajl u storage-u je nepromenljiv: jednom izmeren, uvek isti broj. Drugi
+    // poziv (mreža, isti fajl u dva slota) ne čita bajtove ponovo.
+    if (upload.durationS !== undefined) return { ok: true, seconds: upload.durationS };
+
+    const url = await ctx.storage.getUrl(args.storageId);
+    if (!url) return { ok: false, reason: "FAJL_NE_POSTOJI" };
+
+    const read = await readDurationOverRange(url, upload.bytes);
+    if (!read.ok) return { ok: false, reason: read.reason };
+
+    await ctx.runMutation(internal.studio.setUploadDuration, {
+      uploadId: upload.uploadId,
+      seconds: read.seconds,
+    });
+
+    return { ok: true, seconds: read.seconds };
+  },
+});
+
+/**
+ * Zaglavlje se čita opsegom, ne celim fajlom: video sme da bude 200 MB, a
+ * trajanje stoji u prvih (ili poslednjih) pola megabajta.
+ *
+ * `moov` atom MP4 fajla je na početku samo kad je fajl prošao kroz
+ * `-movflags faststart`; izlaz telefona i kamere ga nosi na kraju. Zato se
+ * posle neuspelog čitanja početka - i samo za MP4 - proba i rep.
+ */
+async function readDurationOverRange(url: string, totalBytes: number): Promise<DurationRead> {
+  const head = await readRange(url, 0, Math.min(MEDIA_HEAD_BYTES, totalBytes));
+  if (!head) return { ok: false, format: null, reason: "ZAGLAVLJE_NIJE_PROCITANO" };
+
+  const fromHead = readMediaDuration(head, totalBytes);
+  if (fromHead.ok || fromHead.format !== "mp4" || totalBytes <= MEDIA_HEAD_BYTES) return fromHead;
+
+  const length = Math.min(MEDIA_TAIL_BYTES, totalBytes);
+  const tail = await readRange(url, totalBytes - length, length);
+  if (!tail) return fromHead;
+  const fromTail = readMediaDuration(tail, totalBytes);
+
+  return fromTail.ok ? fromTail : fromHead;
+}
+
+/**
+ * Jedan `Range` zahtev. Prihvata se ISKLJUČIVO 206: status 200 znači da opseg
+ * nije ispoštovan i da telo nosi ceo fajl, pa bi ga `arrayBuffer()` uvukao u
+ * memoriju akcije ceo. Neizmeren fajl je odbijen posao, što je ispravan ishod;
+ * 200 MB u memoriji nije.
+ *
+ * Mrežna greška se hvata ovde, a ne pušta iz akcije: fajl JESTE okačen, pa
+ * upload ne sme da se prikaže kao neuspeo zato što merenje nije prošlo.
+ */
+async function readRange(url: string, start: number, length: number): Promise<Uint8Array | null> {
+  if (length <= 0) return null;
+
+  try {
+    const response = await fetch(url, {
+      headers: { Range: `bytes=${start}-${start + length - 1}` },
+    });
+    if (response.status !== 206) return null;
+
+    return new Uint8Array(await response.arrayBuffer());
+  } catch {
+    return null;
+  }
+}

@@ -9,6 +9,7 @@ import {
   measuredFile,
   measuredParams,
   measuredQuantityFrom,
+  measureMismatch,
   optionalSlots,
   promptRequired,
 } from "./studio-playground";
@@ -143,6 +144,21 @@ test("sekunde se prevode u jedinicu pravila, a bez izmerene dužine nema ključa
   expect(measuredParams(null, 12, 100)).toEqual({});
 });
 
+test("razlika izmedju browserove i serverske dužine se prijavljuje tek preko 5%", () => {
+  // `<video>.duration` vraća dužinu prikaza, `mvhd` dužinu zapisa - sitna
+  // razlika je normalna i ne treba je pominjati.
+  expect(measureMismatch(60, 60)).toBe(false);
+  expect(measureMismatch(62, 60)).toBe(false);
+  expect(measureMismatch(63.1, 60)).toBe(true);
+  // Odstupanje naniže se prijavljuje isto: cena raste, i to se kaže pre klika.
+  expect(measureMismatch(1, 60)).toBe(true);
+
+  // Dok merenja nema, nema ni šta da se poredi - dugme je ionako zaključano.
+  expect(measureMismatch(60, null)).toBe(false);
+  expect(measureMismatch(null, 60)).toBe(false);
+  expect(measureMismatch(60, 0)).toBe(false);
+});
+
 // ── zaključavanje dugmeta ──────────────────────────────────────────────────
 
 const OPEN = {
@@ -172,7 +188,9 @@ test("razlozi idu od najšireg ka najužem, a kredit se proverava poslednji", ()
     message: "Dodaj završni kadar",
   });
   expect(generateBlock({ ...OPEN, promptMissing: true })).toEqual({ kind: "prompt" });
-  expect(generateBlock({ ...OPEN, quantityMissing: true })).toEqual({ kind: "price" });
+  // Neizmereno trajanje i kombinacija bez cene su dva različita razloga: prvo
+  // je stvar fajla i prolazi samo od sebe, drugo je stvar podešavanja.
+  expect(generateBlock({ ...OPEN, quantityMissing: true })).toEqual({ kind: "measure" });
   expect(generateBlock({ ...OPEN, credits: null })).toEqual({ kind: "price" });
   expect(generateBlock({ ...OPEN, balance: 5 })).toEqual({ kind: "credits", needed: 20 });
 });

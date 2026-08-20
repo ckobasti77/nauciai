@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 
 import { convexTest } from "convex-test";
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
@@ -120,10 +120,10 @@ async function balanceOf(t: TestConvex, userId: Id<"users">) {
  * upload, pa `registerInputUpload`. Neprijavljen `storageId` `createJob` više
  * ne prima (nalaz R4), pa ni test ne sme da preskoči drugi korak.
  *
- * `bytes` je bitan samo tamo gde se naplaćuje po dužini snimka: server iz
- * veličine izvodi najduže trajanje koje u fajl staje, pa jednobajtni blob ne
- * može da bude klip od pet sekundi. Slot se podrazumeva iz MIME tipa - jedini
- * put na kojem to nije tačno (proba odeće) ga navodi izričito.
+ * Fajl okačen ovim putem NIJE izmeren: `durationS` mu se ne upisuje, pa model
+ * koji se naplaćuje po trajanju na njemu pada. Za to je `storeMeasured` ispod.
+ * Slot se podrazumeva iz MIME tipa - jedini put na kojem to nije tačno (proba
+ * odeće) ga navodi izričito.
  */
 async function storeFile(as: TestUser, type: string, bytes = 1, slot = type.split("/")[0]) {
   const storageId = await as.run((ctx) =>
@@ -132,6 +132,76 @@ async function storeFile(as: TestUser, type: string, bytes = 1, slot = type.spli
   await as.mutation(api.studio.registerInputUpload, { storageId, slot });
 
   return storageId;
+}
+
+/**
+ * MP4 fajl čiji `mvhd` atom tvrdi tačno zadato trajanje - jedini podatak koji
+ * `measureInputUpload` iz njega čita. Skala je 1 000 otkucaja u sekundi, pa
+ * 4,2 s ide kao 4 200 otkucaja i deljenje je tačno.
+ */
+function mp4Bytes(seconds: number): Uint8Array {
+  const u32 = (value: number) => [
+    (value >>> 24) & 0xff,
+    (value >>> 16) & 0xff,
+    (value >>> 8) & 0xff,
+    value & 0xff,
+  ];
+  const chars = (text: string) => [...text].map((letter) => letter.charCodeAt(0));
+  const mvhd = [
+    ...u32(108),
+    ...chars("mvhd"),
+    0,
+    0,
+    0,
+    0,
+    ...u32(0),
+    ...u32(0),
+    ...u32(1000),
+    ...u32(Math.round(seconds * 1000)),
+    ...new Array(80).fill(0),
+  ];
+
+  return Uint8Array.from([
+    ...u32(16),
+    ...chars("ftyp"),
+    ...chars("isom"),
+    ...u32(512),
+    ...u32(mvhd.length + 8),
+    ...chars("moov"),
+    ...mvhd,
+  ]);
+}
+
+/**
+ * Fajl okačen, prijavljen i IZMEREN - ceo put kojim ide klijent, uključujući
+ * akciju koja čita zaglavlje. Convex storage se u produkciji čita `Range`
+ * zahtevom preko potpisanog URL-a, pa se `fetch` zamenjuje serverom koji taj
+ * zahtev poštuje nad istim bajtovima koji su i upisani.
+ */
+async function storeMeasured(as: TestUser, type: string, seconds: number, slot = type.split("/")[0]) {
+  const data = mp4Bytes(seconds);
+  const storageId = await as.run((ctx) => ctx.storage.store(new Blob([data], { type })));
+  await as.mutation(api.studio.registerInputUpload, { storageId, slot });
+
+  vi.stubGlobal("fetch", rangeServer(data));
+  try {
+    const measured = await as.action(api.studioActions.measureInputUpload, { storageId });
+
+    return { storageId, measured };
+  } finally {
+    vi.unstubAllGlobals();
+  }
+}
+
+/** `fetch` koji poštuje `Range` zaglavlje i vraća 206, kao Convex storage. */
+function rangeServer(data: Uint8Array) {
+  return (_url: string, init?: { headers?: Record<string, string> }) => {
+    const range = /bytes=(\d+)-(\d+)/.exec(init?.headers?.Range ?? "");
+    if (!range) return Promise.resolve(new Response(null, { status: 400 }));
+    const slice = data.slice(Number(range[1]), Number(range[2]) + 1);
+
+    return Promise.resolve(new Response(slice, { status: 206 }));
+  };
 }
 
 // ── srećan tok ─────────────────────────────────────────────────────────────
@@ -242,20 +312,20 @@ test("TTS se naplaćuje po broju znakova koje server prebroji sam", async () => 
     modelSlug: "tts",
     params: JSON.stringify({ text, char_count: 1 }),
     inputMode: "text",
-    measuredQuantity: 1,
   });
 
   const jobs = await jobsOf(t, userId);
   const params = JSON.parse(jobs[0].params) as Record<string, unknown>;
-  // Ni prijavljena količina ni poslati `char_count` ne prolaze - meri se tekst.
+  // Poslati `char_count` ne prolazi - meri se tekst.
   expect(params.char_count).toBe(1000);
   expect(jobs[0].creditCost).toBe(computeCredits(seedOf("tts").priceRule, params, "text"));
 });
 
-test("posao koji se naplaćuje po dužini fajla bez izmerene dužine ne prolazi", async () => {
+test("posao koji se naplaćuje po dužini fajla bez SERVERSKOG merenja ne prolazi", async () => {
   const t = convexTest(schema, modules);
   const { userId, asUser } = await seedUser(t);
   await seedCatalogModel(t, "kling-motion");
+  // Okačen i prijavljen, ali neizmeren: `durationS` mu nema.
   const video = await storeFile(asUser, "video/mp4");
   const image = await storeFile(asUser, "image/png");
 
@@ -266,31 +336,66 @@ test("posao koji se naplaćuje po dužini fajla bez izmerene dužine ne prolazi"
       inputMode: "video_image",
       inputs: JSON.stringify({ video: [video], image: [image] }),
     }),
-  ).rejects.toThrow("NEDOSTAJE_KOLICINA:duration");
+  ).rejects.toThrow("MERENJE_NIJE_DOSTUPNO");
 
   expect(await jobsOf(t, userId)).toHaveLength(0);
   expect(await balanceOf(t, userId)).toBe(100000);
 });
 
-test("prijavljena dužina se zaokružuje naviše pre naplate", async () => {
+test("izmerena dužina se zaokružuje naviše pre naplate", async () => {
   const t = convexTest(schema, modules);
   const { userId, asUser } = await seedUser(t);
-  // Sedam modela sa merenom količinom je u katalogu ugašeno; red se ovde
-  // seeduje uključen jer se testira kapija, a ne prekidač.
   await seedCatalogModel(t, "kling-motion");
-  const video = await storeFile(asUser, "video/mp4", 1_000_000);
+  const { storageId: video, measured } = await storeMeasured(asUser, "video/mp4", 4.2);
   const image = await storeFile(asUser, "image/png");
+
+  expect(measured).toEqual({ ok: true, seconds: 4.2 });
 
   await asUser.mutation(api.studio.createJob, {
     modelSlug: "kling-motion",
     params: JSON.stringify({ resolution: "720p" }),
     inputMode: "video_image",
     inputs: JSON.stringify({ video: [video], image: [image] }),
-    measuredQuantity: 4.2,
   });
 
   const jobs = await jobsOf(t, userId);
   expect((JSON.parse(jobs[0].params) as Record<string, unknown>).duration).toBe(5);
+});
+
+test("naplaćuje se IZMERENO trajanje, a klijent nema čime da prijavi svoje", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedUser(t);
+  await seedCatalogModel(t, "dubbing");
+  // Sedam minuta govora, prijavljenih kao 0,1 - to je nalaz R3 u malom.
+  // (Dva sata iz izveštaja bi pala na dnevnom plafonu troška od 5 $, dakle na
+  // kapiji koja nema veze sa merenjem.)
+  const { storageId: audio } = await storeMeasured(asUser, "audio/mp4", 420);
+
+  // `measuredQuantity` više nije argument `createJob`-a: validator ga odbija,
+  // pa put kojim je klijent birao cenu ne postoji ni da se zaobiđe.
+  await expect(
+    asUser.mutation(api.studio.createJob, {
+      modelSlug: "dubbing",
+      params: JSON.stringify({ target_language: "en" }),
+      inputMode: "audio",
+      inputs: JSON.stringify({ audio: [audio] }),
+      measuredQuantity: 0.1,
+    } as unknown as { modelSlug: string; params: string }),
+  ).rejects.toThrow();
+
+  await asUser.mutation(api.studio.createJob, {
+    modelSlug: "dubbing",
+    params: JSON.stringify({ target_language: "en", minutes: 0.1 }),
+    inputMode: "audio",
+    inputs: JSON.stringify({ audio: [audio] }),
+  });
+
+  const jobs = await jobsOf(t, userId);
+  const params = JSON.parse(jobs[0].params) as Record<string, unknown>;
+  // Ni `minutes` poslat kroz `params` ne prolazi - upisuje se izmereno.
+  expect(params.minutes).toBe(7);
+  expect(jobs[0].creditCost).toBe(computeCredits(seedOf("dubbing").priceRule, params, "audio"));
+  expect(await balanceOf(t, userId)).toBe(100000 - jobs[0].creditCost);
 });
 
 test("model sa merenom količinom bez ijednog serverski vidljivog fajla se odbija", async () => {
@@ -306,19 +411,17 @@ test("model sa merenom količinom bez ijednog serverski vidljivog fajla se odbij
       params: JSON.stringify({ resolution: "720p" }),
       inputMode: "video_image",
       inputs: JSON.stringify({ image: [image] }),
-      measuredQuantity: 30,
     }),
   ).rejects.toThrow("MERENJE_NIJE_DOSTUPNO");
 
   // `storageId` koji nije ID pada ranije, na vlasništvu (nalaz R4): fajl bez
-  // prijave nije ničiji, pa se ne meri ni koliko ima bajtova.
+  // prijave nije ničiji, pa se ne meri ni koliko traje.
   await expect(
     asUser.mutation(api.studio.createJob, {
       modelSlug: "kling-motion",
       params: JSON.stringify({ resolution: "720p" }),
       inputMode: "video_image",
       inputs: JSON.stringify({ video: ["izmisljen-id"], image: [image] }),
-      measuredQuantity: 30,
     }),
   ).rejects.toThrow("TUDJI_FAJL");
 
@@ -326,47 +429,83 @@ test("model sa merenom količinom bez ijednog serverski vidljivog fajla se odbij
   expect(await balanceOf(t, userId)).toBe(100000);
 });
 
-test("prijavljena dužina veća od onoga što u fajl staje se odbija PRE skidanja kredita", async () => {
+test("fajl čije se zaglavlje ne čita ostaje neizmeren i posao na njemu pada", async () => {
   const t = convexTest(schema, modules);
   const { userId, asUser } = await seedUser(t);
   await seedCatalogModel(t, "dubbing");
-  // 2 MB zvuka je pri 32 kbps najviše ~8,7 minuta, ma koliko klijent prijavio.
-  const audio = await storeFile(asUser, "audio/mpeg", 2_000_000);
+
+  const junk = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, ...new Array(200).fill(7)]);
+  const storageId = await asUser.run((ctx) =>
+    ctx.storage.store(new Blob([junk], { type: "audio/mp4" })),
+  );
+  await asUser.mutation(api.studio.registerInputUpload, { storageId, slot: "audio" });
+
+  vi.stubGlobal("fetch", rangeServer(junk));
+  const measured = await asUser.action(api.studioActions.measureInputUpload, { storageId });
+  vi.unstubAllGlobals();
+
+  expect(measured).toEqual({ ok: false, reason: "NEPOZNAT_FORMAT" });
+  // Neuspelo merenje NE upisuje trajanje, pa se posao ne može naplatiti.
+  const upload = await t.run((ctx) =>
+    ctx.db
+      .query("studioUploads")
+      .withIndex("by_storage", (q) => q.eq("storageId", storageId))
+      .first(),
+  );
+  expect(upload?.durationS).toBeUndefined();
 
   await expect(
     asUser.mutation(api.studio.createJob, {
       modelSlug: "dubbing",
       params: JSON.stringify({ target_language: "en" }),
       inputMode: "audio",
-      inputs: JSON.stringify({ audio: [audio] }),
-      measuredQuantity: 120,
+      inputs: JSON.stringify({ audio: [storageId] }),
     }),
-  ).rejects.toThrow("KOLICINA_VECA_OD_FAJLA:minutes");
+  ).rejects.toThrow("MERENJE_NIJE_DOSTUPNO");
 
   expect(await jobsOf(t, userId)).toHaveLength(0);
   expect(await balanceOf(t, userId)).toBe(100000);
 });
 
-test("realan odnos veličine i trajanja prolazi i naplaćuje se po prijavi", async () => {
+test("tuđi fajl se ne meri - trajanje je podatak o tuđem fajlu", async () => {
   const t = convexTest(schema, modules);
-  const { userId, asUser } = await seedUser(t);
-  await seedCatalogModel(t, "dubbing");
-  // ~3 minuta govora na 128 kbps je oko 2,9 MB - granica je ~12,5 minuta.
-  const audio = await storeFile(asUser, "audio/mpeg", 3_000_000);
+  const { asUser } = await seedUser(t);
+  const other = await t.run(async (ctx) =>
+    ctx.db.insert("users", {
+      email: "drugi@example.com",
+      name: "Drugi",
+      username: "drugi",
+      role: "student" as const,
+      language: "sr" as const,
+      createdAt: 1,
+      updatedAt: 1,
+    }),
+  );
+  const asOther = t.withIdentity({ subject: other, tokenIdentifier: `test|${other}` });
 
-  await asUser.mutation(api.studio.createJob, {
-    modelSlug: "dubbing",
-    params: JSON.stringify({ target_language: "en" }),
-    inputMode: "audio",
-    inputs: JSON.stringify({ audio: [audio] }),
-    measuredQuantity: 3,
+  const { storageId } = await storeMeasured(asUser, "audio/mp4", 30);
+
+  expect(await asOther.action(api.studioActions.measureInputUpload, { storageId })).toEqual({
+    ok: false,
+    reason: "TUDJI_FAJL",
   });
+});
 
-  const jobs = await jobsOf(t, userId);
-  const params = JSON.parse(jobs[0].params) as Record<string, unknown>;
-  expect(params.minutes).toBe(3);
-  expect(jobs[0].creditCost).toBe(computeCredits(seedOf("dubbing").priceRule, params, "audio"));
-  expect(await balanceOf(t, userId)).toBe(100000 - jobs[0].creditCost);
+test("ponovljeno merenje istog fajla vraća isti broj i ne čita bajtove opet", async () => {
+  const t = convexTest(schema, modules);
+  const { asUser } = await seedUser(t);
+  const { storageId, measured } = await storeMeasured(asUser, "audio/mp4", 12.5);
+  expect(measured).toEqual({ ok: true, seconds: 12.5 });
+
+  // Bez ijednog `fetch`-a: drugi poziv čita gotov `durationS` iz reda. Fajl u
+  // Convex storage-u je nepromenljiv, pa drugi rezultat ne postoji.
+  const fetchMock = vi.fn();
+  vi.stubGlobal("fetch", fetchMock);
+  const again = await asUser.action(api.studioActions.measureInputUpload, { storageId });
+  vi.unstubAllGlobals();
+
+  expect(again).toEqual({ ok: true, seconds: 12.5 });
+  expect(fetchMock).not.toHaveBeenCalled();
 });
 
 // ── kapije ─────────────────────────────────────────────────────────────────
@@ -534,6 +673,29 @@ test("galerija dobija ulaze kao sličice, a `getJobForRegenerate` ceo spisak", a
   // veličina; nad pravim storage-om isto polje nosi pravi MIME.)
   expect(typeof seed?.inputs[0].mime).toBe("string");
   expect(seed?.inputs[0].size).toBe(1);
+  // Slika se ne meri, pa trajanja nema - polje postoji samo tamo gde ga ima.
+  expect(seed?.inputs[0].durationS).toBeUndefined();
+});
+
+test("`Generiši ponovo` nosi i IZMERENO trajanje, da forma ne traži merenje opet", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedUser(t);
+  await seedCatalogModel(t, "kling-motion");
+  const { storageId: video } = await storeMeasured(asUser, "video/mp4", 9);
+  const image = await storeFile(asUser, "image/png");
+
+  await asUser.mutation(api.studio.createJob, {
+    modelSlug: "kling-motion",
+    params: JSON.stringify({ resolution: "720p" }),
+    inputMode: "video_image",
+    inputs: JSON.stringify({ video: [video], image: [image] }),
+  });
+
+  const jobs = await jobsOf(t, userId);
+  const seed = await asUser.query(api.studio.getJobForRegenerate, { jobId: jobs[0]._id });
+  // Bez ovog polja bi forma posle "Generiši ponovo" mislila da fajl nije
+  // izmeren i zaključala dugme, iako bi `createJob` na njemu prošao.
+  expect(seed?.inputs.find((input) => input.slot === "video")?.durationS).toBe(9);
 });
 
 test("tuđi posao se ne vraća u formu", async () => {
