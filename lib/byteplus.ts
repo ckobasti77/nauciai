@@ -12,7 +12,7 @@
  *   ishod stiže na `callback_url` (i, obavezno, proverava se ponovnim upitom).
  */
 
-import { readTokenUsage, type TokenUsage } from "../convex/studioActualCostCore";
+import { readTokenUsage, sampleJson, type TokenUsage } from "../convex/studioActualCostCore";
 import { readReportedSeconds } from "../convex/studioSettlementCore";
 
 export type BytePlusConfig = { baseUrl: string; apiKey: string };
@@ -73,7 +73,16 @@ function readString(source: unknown, key: string): string | null {
  * sazna STVARAN trosak, jer BytePlus ne vraca cenu. Polje je zamenilo nekadasnji
  * `usdSpent`, koji je stajao u tipu a niko ga nije punio.
  */
-export type BytePlusImageResult = { url: string; usage: TokenUsage | null };
+export type BytePlusImageResult = {
+  url: string;
+  usage: TokenUsage | null;
+  /**
+   * Sirov odgovor, i to SAMO kad potrosnja iz njega nije procitana (X3, tacka 4).
+   * BytePlus oblik nije potvrdjen protiv zivog API-ja, pa se prvi neprepoznat
+   * odgovor pamti u `studioProviderSamples` umesto da se nagadja.
+   */
+  sample: string | null;
+};
 
 /**
  * Slike: `POST /images/generations`, OpenAI-kompatibilan oblik, odgovor je
@@ -95,7 +104,9 @@ export async function generateBytePlusImage(params: {
   const url = Array.isArray(list) ? readString(list[0], "url") : null;
   if (!url) throw new Error("BytePlus je vratio odgovor bez URL-a slike.");
 
-  return { url, usage: readTokenUsage(data) };
+  const usage = readTokenUsage(data);
+
+  return { url, usage, sample: usage === null ? sampleJson(data) : null };
 }
 
 export type BytePlusTaskStatus = "queued" | "running" | "succeeded" | "failed" | "cancelled";
@@ -109,9 +120,13 @@ export type BytePlusTask = {
   usage: TokenUsage | null;
   /**
    * Stvarno trajanje klipa u sekundama, kad ga zadatak javi (X2, nalaz N2).
-   * Ulaz u poravnanje; `null` znaci da provajder nije prijavio nista.
+   * Ulaz u poravnanje; `null` znaci da provajder nije prijavio nista. Seedance
+   * se ne naplacuje po tokenima nego po sekundi izlaza, pa je ovo i jedini
+   * izvor njegovog STVARNOG troska (X3, tacka 2).
    */
   seconds: number | null;
+  /** Sirov odgovor, samo kad iz njega nije procitano ni jedno ni drugo (X3). */
+  sample: string | null;
 };
 
 /**
@@ -172,13 +187,17 @@ export async function fetchBytePlusVideoTask(params: {
 
   const content = (data as { content?: unknown })?.content;
   const error = (data as { error?: unknown })?.error;
+  const usage = readTokenUsage(data);
+  const seconds = readReportedSeconds(data);
 
   return {
     id: readString(data, "id") ?? params.taskId,
     status: readTaskStatus((data as { status?: unknown })?.status),
     videoUrl: readString(content, "video_url"),
     error: readString(error, "message") ?? readString(error, "code"),
-    usage: readTokenUsage(data),
-    seconds: readReportedSeconds(data),
+    usage,
+    seconds,
+    // Odgovor iz kojeg je bar jedan broj izasao je oblik koji razumemo.
+    sample: usage === null && seconds === null ? sampleJson(data) : null,
   };
 }

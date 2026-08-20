@@ -84,3 +84,10 @@
 [22:30:32]  X2  |  N2 druga polovina: naplata po stvarnom trosku, poravnanje razlike
 [22:30:32]  model=opus  effort=max
 [22:30:32] --------------------------------------------------
+[23:06:51] Commit 63f9f82 - 24 putanja
+[23:06:51] X2 -> OK  (36 min, 1 pokusaja, USD 15.28)
+[23:06:51] 
+[23:06:51] --------------------------------------------------
+[23:06:51]  X3  |  N6: actualCostUsd da stvarno proizvodi podatke, i da glasno cuti
+[23:06:51]  model=opus  effort=high
+[23:06:51] --------------------------------------------------

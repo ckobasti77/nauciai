@@ -6,7 +6,11 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import schema from "./schema";
-import { COST_DEVIATION_STREAK } from "./studioActualCostCore";
+import {
+  ACTUAL_COST_REASON,
+  COST_DEVIATION_STREAK,
+  missingRateReason,
+} from "./studioActualCostCore";
 
 /**
  * Stvaran trošak posla (W6). Nijedan provajder se ne zove uživo - `fetch` je
@@ -254,7 +258,13 @@ test("Google: model bez tarife po tokenu ostaje BEZ actualCostUsd - ne pogađa s
   const job = await jobOf(t, jobId);
   expect(job?.status).toBe("done");
   expect(job?.actualCostUsd).toBeUndefined();
-  expect(await modelCostOf(t, "gemini-omni")).toBeNull();
+  // X3: cifra se i dalje ne pogađa, ali prazno polje više nije nemo - model se
+  // naplaćuje po sekundi izlaza, a operacija trajanje nije javila.
+  expect(job?.actualCostReason).toBe(ACTUAL_COST_REASON.noQuantity);
+  const cost = await modelCostOf(t, "gemini-omni");
+  expect(cost?.measuredJobs).toBe(0);
+  expect(cost?.actualCostUsd).toBe(0);
+  expect(JSON.parse(cost?.reasonCounts ?? "{}")).toEqual({ [ACTUAL_COST_REASON.noQuantity]: 1 });
 });
 
 // ── BytePlus ───────────────────────────────────────────────────────────────
@@ -505,4 +515,322 @@ test("posao u granicama prekida niz i vraća brojač na nulu", async () => {
   expect(cost?.deviationStreak).toBe(0);
   expect(cost?.measuredJobs).toBe(COST_DEVIATION_STREAK);
   expect(cost?.alarmSentAt).toBeUndefined();
+});
+
+// ── X3: nikad tiho prazno polje ────────────────────────────────────────────
+
+const samplesOf = (t: TestConvexWithSchema) =>
+  t.run((ctx) => ctx.db.query("studioProviderSamples").collect());
+
+/** Svaki `done` posao mora da izađe sa cenom ILI sa razlogom - nikad bez oba. */
+async function assertNoSilentGaps(t: TestConvexWithSchema): Promise<number> {
+  const jobs = await t.run((ctx) =>
+    ctx.db
+      .query("generationJobs")
+      .withIndex("by_status_created", (q) => q.eq("status", "done"))
+      .collect(),
+  );
+  const silent = jobs.filter(
+    (job) => job.actualCostUsd === undefined && job.actualCostReason === undefined,
+  );
+  expect(silent.map((job) => job.modelSlug)).toEqual([]);
+
+  return jobs.length;
+}
+
+test("Google: sve tri kategorije tokena sa tarifom daju broj", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await seedUser(t);
+  await seedModel(t, {
+    slug: "veo-31-fast",
+    provider: "google",
+    capabilities: { tokenRatesUsdPerMillion: { prompt: 0.5, output: 119.64, thinking: 12 } },
+  });
+  const jobId = await seedJob(t, userId, {
+    modelSlug: "veo-31-fast",
+    status: "running",
+    provider: "google",
+    providerRequestId: OPERATION,
+    estimatedCostUsd: 0.5,
+  });
+
+  stubFetch((url) =>
+    url.includes("/operations/")
+      ? json({
+          done: true,
+          response: { generatedVideos: [{ video: { uri: VIDEO_URL } }] },
+          usageMetadata: {
+            promptTokenCount: 2000,
+            candidatesTokenCount: 1120,
+            thoughtsTokenCount: 1250,
+          },
+        })
+      : binary(),
+  );
+
+  await t.action(internal.providers.google.pollGoogleVideoJobs, {});
+  await settle(t);
+
+  const job = await jobOf(t, jobId);
+  // 2 000 × 0,5/M + 1 120 × 119,64/M + 1 250 × 12/M = 0,001 + 0,134 + 0,015.
+  expect(job?.actualCostUsd).toBeCloseTo(0.15, 5);
+  expect(job?.actualCostReason).toBeUndefined();
+  expect(await assertNoSilentGaps(t)).toBe(1);
+});
+
+test("Google: bez tarife za prompt izlazi TAJ razlog, ne prazno polje", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await seedUser(t);
+  // Tačno ono što `nano-banana-pro` danas nosi: output i thinking, bez prompta.
+  await seedModel(t, {
+    slug: "nano-banana-pro",
+    provider: "google",
+    capabilities: { tokenRatesUsdPerMillion: TOKEN_RATES },
+  });
+  const jobId = await seedJob(t, userId, {
+    modelSlug: "nano-banana-pro",
+    status: "running",
+    provider: "google",
+    providerRequestId: OPERATION,
+    estimatedCostUsd: 0.149,
+  });
+
+  stubFetch((url) =>
+    url.includes("/operations/")
+      ? json({
+          done: true,
+          response: { generatedVideos: [{ video: { uri: VIDEO_URL } }] },
+          // Google `promptTokenCount` javi uz SVAKI posao - zato je ovaj model
+          // do X3 ostajao bez ijednog merenja, i to bez ijedne reči o tome.
+          usageMetadata: {
+            promptTokenCount: 2000,
+            candidatesTokenCount: 1120,
+            thoughtsTokenCount: 1250,
+          },
+        })
+      : binary(),
+  );
+
+  await t.action(internal.providers.google.pollGoogleVideoJobs, {});
+  await settle(t);
+
+  const job = await jobOf(t, jobId);
+  expect(job?.actualCostUsd).toBeUndefined();
+  expect(job?.actualCostReason).toBe(missingRateReason("prompt"));
+  // Odgovor JESTE pročitan - to nije nepoznat oblik i nema šta da se uzorkuje.
+  expect(await samplesOf(t)).toEqual([]);
+  await assertNoSilentGaps(t);
+});
+
+test("BytePlus: posao bez tarife po tokenu dobija cenu iz PRIJAVLJENE količine", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await seedUser(t);
+  // Nijedan BytePlus red nema `tokenRatesUsdPerMillion` - Seedance se i ne
+  // naplaćuje po tokenima nego po sekundi izlaza (X3, tačka 2).
+  await seedModel(t, { slug: "seedance-25", provider: "byteplus", capabilities: {} });
+  const jobId = await seedJob(t, userId, {
+    modelSlug: "seedance-25",
+    status: "running",
+    provider: "byteplus",
+    providerRequestId: "task-77",
+    estimatedCostUsd: 0.5,
+  });
+
+  stubFetch((url) =>
+    url.includes("/contents/generations/tasks/")
+      ? json({
+          id: "task-77",
+          status: "succeeded",
+          // Naručeno je 5 s (`seedJob` params), a renderovano 7 s.
+          content: { video_url: "https://byteplus.example/out.mp4", duration: 7 },
+        })
+      : binary(),
+  );
+
+  await t.action(internal.providers.byteplus.verifyAndApplyTask, { providerRequestId: "task-77" });
+  await settle(t);
+
+  const job = await jobOf(t, jobId);
+  // `baseUsd 0.1` × 7 s = 0,70 $, kroz isti `computeCostUsd` kao rezervacija.
+  expect(job?.actualCostUsd).toBeCloseTo(0.7, 6);
+  expect(job?.actualCostReason).toBeUndefined();
+  expect((await modelCostOf(t, "seedance-25"))?.measuredJobs).toBe(1);
+  await assertNoSilentGaps(t);
+});
+
+test("neprepoznat oblik odgovora upisuje uzorak i podiže razlog", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await seedUser(t);
+  await seedModel(t, { slug: "seedance-25", provider: "byteplus", capabilities: {} });
+  const jobId = await seedJob(t, userId, {
+    modelSlug: "seedance-25",
+    status: "running",
+    provider: "byteplus",
+    providerRequestId: "task-77",
+    estimatedCostUsd: 0.5,
+  });
+
+  stubFetch((url) =>
+    url.includes("/contents/generations/tasks/")
+      ? json({
+          id: "task-77",
+          status: "succeeded",
+          // Ni potrošnje ni trajanja - iz ovog odgovora ne umemo ništa.
+          content: { video_url: "https://byteplus.example/out.mp4" },
+        })
+      : binary(),
+  );
+
+  await t.action(internal.providers.byteplus.verifyAndApplyTask, { providerRequestId: "task-77" });
+  await settle(t);
+
+  const job = await jobOf(t, jobId);
+  expect(job?.actualCostUsd).toBeUndefined();
+  expect(job?.actualCostReason).toBe(ACTUAL_COST_REASON.unknownShape);
+
+  const samples = await samplesOf(t);
+  expect(samples).toHaveLength(1);
+  expect(samples[0].provider).toBe("byteplus");
+  expect(samples[0].modelSlug).toBe("seedance-25");
+  // Sirov JSON, ne prepričan: Jovan mora da vidi imena polja kakva jesu.
+  expect(JSON.parse(samples[0].sample)).toMatchObject({ id: "task-77", status: "succeeded" });
+  await assertNoSilentGaps(t);
+});
+
+test("uzorak se PREPISUJE, ne gomila - jedan red po provajderu i modelu", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await seedUser(t);
+  await seedModel(t, { slug: "seedance-25", provider: "byteplus", capabilities: {} });
+  for (const taskId of ["task-a", "task-b"]) {
+    await seedJob(t, userId, {
+      modelSlug: "seedance-25",
+      status: "running",
+      provider: "byteplus",
+      providerRequestId: taskId,
+      estimatedCostUsd: 0.5,
+    });
+  }
+
+  stubFetch((url) => {
+    const match = /tasks\/(task-[ab])/.exec(url);
+
+    return match
+      ? json({ id: match[1], status: "succeeded", content: { video_url: "https://x/y.mp4" } })
+      : binary();
+  });
+
+  for (const taskId of ["task-a", "task-b"]) {
+    await t.action(internal.providers.byteplus.verifyAndApplyTask, { providerRequestId: taskId });
+  }
+  await settle(t);
+
+  const samples = await samplesOf(t);
+  expect(samples).toHaveLength(1);
+  expect(JSON.parse(samples[0].sample).id).toBe("task-b");
+  // Dva posla, oba na istom razlogu - brojač je taj koji broji, ne tabela uzoraka.
+  const cost = await modelCostOf(t, "seedance-25");
+  expect(JSON.parse(cost?.reasonCounts ?? "{}")).toEqual({ [ACTUAL_COST_REASON.unknownShape]: 2 });
+  expect(await assertNoSilentGaps(t)).toBe(2);
+});
+
+test("fal: gotov posao čeka izvod SA razlogom, koji nestaje kad cena stigne", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await seedUser(t);
+  const jobId = await seedJob(t, userId, {
+    modelSlug: "kling-30",
+    status: "running",
+    provider: "fal",
+    falRequestId: "fal-req-1",
+    providerRequestId: "fal-req-1",
+    estimatedCostUsd: 0.4,
+  });
+
+  await t.mutation(internal.falWebhook.applyWebhookResult, {
+    falRequestId: "fal-req-1",
+    status: "OK",
+    outputUrl: "https://fal.example/out.mp4",
+  });
+
+  expect((await jobOf(t, jobId))?.actualCostReason).toBe(ACTUAL_COST_REASON.falPending);
+  expect(JSON.parse((await modelCostOf(t, "kling-30"))?.reasonCounts ?? "{}")).toEqual({
+    [ACTUAL_COST_REASON.falPending]: 1,
+  });
+  await assertNoSilentGaps(t);
+
+  await t.mutation(internal.studioActualCost.applyFalBillingEvents, {
+    events: [{ requestId: "fal-req-1", usd: 0.42 }],
+  });
+
+  const job = await jobOf(t, jobId);
+  expect(job?.actualCostUsd).toBeCloseTo(0.42, 6);
+  expect(job?.actualCostReason).toBeUndefined();
+  // Razlog nestaje i sa brojača, inače bi admin ekran zauvek pokazivao dug koji
+  // je odavno namiren.
+  expect(JSON.parse((await modelCostOf(t, "kling-30"))?.reasonCounts ?? "{}")).toEqual({});
+});
+
+test("fal: neprepoznat izvod pamti uzorak i prepisuje razlog poslova tog dana", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await seedUser(t);
+  const day = "2026-08-19";
+  const jobId = await t.run((ctx) =>
+    ctx.db.insert("generationJobs", {
+      userId,
+      modelSlug: "kling-30",
+      kind: "video" as const,
+      provider: "fal" as const,
+      params: JSON.stringify({ prompt: "lisica", duration: 5 }),
+      promptHash: "0123456789abcdef",
+      status: "done" as const,
+      creditCost: 110,
+      providerRequestId: "fal-req-1",
+      estimatedCostUsd: 0.4,
+      actualCostReason: ACTUAL_COST_REASON.falPending,
+      inputMode: "text",
+      createdAt: Date.parse(`${day}T09:00:00.000Z`),
+    }),
+  );
+
+  stubFetch((url) =>
+    url.includes("/v1/models/billing-events")
+      ? json({ events: [{ id: "evt_1", charge: { micro_usd: 420_000 } }] })
+      : undefined,
+  );
+
+  const outcome = await t.action(internal.studioActualCost.reconcileFalCosts, { day });
+
+  expect(outcome.matched).toBe(0);
+  const samples = await samplesOf(t);
+  expect(samples).toHaveLength(1);
+  expect(samples[0].provider).toBe("fal");
+  expect(JSON.parse(samples[0].sample)).toMatchObject({ id: "evt_1" });
+  // "Nije stiglo" je bila neistina: stiglo je, samo ga ne razumemo.
+  expect((await jobOf(t, jobId))?.actualCostReason).toBe(ACTUAL_COST_REASON.unknownShape);
+  await assertNoSilentGaps(t);
+});
+
+test("alarm poredi PORAVNAT trošak sa PRVOBITNOM procenom (X3, tačka 5)", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await seedUser(t);
+  const jobId = await seedJob(t, userId, {
+    modelSlug: "dubbing",
+    status: "done",
+    provider: "fal",
+    providerRequestId: "fal-req-dub",
+    // Procena je izvedena iz zaglavlja koje je korisnik okačio (nalaz N2).
+    estimatedCostUsd: 0.06,
+  });
+  // X2 je posao već poravnao po STVARNOM trajanju: 72 $, a ne 0,06 $.
+  await t.run((ctx) => ctx.db.patch(jobId, { settledCostUsd: 72, settledAt: Date.now() }));
+
+  // Sam fal događaj je ISPOD praga prema proceni - da se poredio on, alarm ne bi
+  // imao šta da vidi, a upravo to je bila rupa: N2 bez detektora.
+  await t.mutation(internal.studioActualCost.applyFalBillingEvents, {
+    events: [{ requestId: "fal-req-dub", usd: 0.05 }],
+  });
+
+  const cost = await modelCostOf(t, "dubbing");
+  expect(cost?.deviationStreak).toBe(1);
+  // Zbir ostaje na onome što je provajder naplatio - marža se računa iz toga.
+  expect(cost?.actualCostUsd).toBeCloseTo(0.05, 6);
 });

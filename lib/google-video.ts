@@ -20,7 +20,7 @@
  * koji je od dva modela u pitanju.
  */
 
-import { readTokenUsage, type TokenUsage } from "../convex/studioActualCostCore";
+import { readTokenUsage, sampleJson, type TokenUsage } from "../convex/studioActualCostCore";
 import { readReportedSeconds } from "../convex/studioSettlementCore";
 
 export type GoogleConfig = { baseUrl: string; apiKey: string };
@@ -135,6 +135,13 @@ export type GoogleOperation = {
    * i da rezervacija ostaje kakva jeste.
    */
   seconds: number | null;
+  /**
+   * Sirov odgovor, i to SAMO kad iz njega nije procitano ni `usageMetadata` ni
+   * trajanje (X3, tacka 4). Oblik Google odgovora nije potvrdjen protiv zivog
+   * API-ja, pa se prvi neprepoznat odgovor pamti u `studioProviderSamples`
+   * umesto da posao tiho ostane bez ijednog broja i bez objasnjenja.
+   */
+  sample: string | null;
 };
 
 export async function startGoogleOperation(params: {
@@ -251,6 +258,7 @@ export function parseOperation(path: string, data: unknown): GoogleOperation {
     quota: false,
     usage: null,
     seconds: null,
+    sample: null,
   };
   if (!data || typeof data !== "object" || Array.isArray(data)) return empty;
 
@@ -262,6 +270,9 @@ export function parseOperation(path: string, data: unknown): GoogleOperation {
   // (X2): ime polja nije potvrdjeno protiv zivog API-ja, pa nepoznat zapis
   // ispada kao "nema podatka", ne kao nula.
   const seconds = readReportedSeconds(payload);
+  // Uzorak se pamti samo kad NIJEDNO od to dvoje nije procitano: odgovor iz
+  // kojeg je bar jedan broj izasao je oblik koji razumemo (X3, tacka 4).
+  const sample = usage === null && seconds === null ? sampleJson(payload) : null;
   const state = stateOf(payload);
   const done = payload.done === true || (state !== null && DONE_STATES.has(state));
 
@@ -277,10 +288,11 @@ export function parseOperation(path: string, data: unknown): GoogleOperation {
       quota: isQuotaResponse(0, error),
       usage,
       seconds,
+      sample,
     };
   }
 
-  if (!done) return { ...empty, usage, seconds };
+  if (!done) return { ...empty, usage, seconds, sample };
 
   return {
     path,
@@ -290,5 +302,6 @@ export function parseOperation(path: string, data: unknown): GoogleOperation {
     quota: false,
     usage,
     seconds,
+    sample,
   };
 }

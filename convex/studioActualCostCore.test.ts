@@ -1,15 +1,21 @@
 import { expect, test } from "vitest";
 
 import {
+  ACTUAL_COST_REASON,
   COST_DEVIATION_STREAK,
   EMPTY_MODEL_COST_STATE,
   exceedsCostDeviation,
+  MAX_SAMPLE_LENGTH,
   type ModelCostState,
   nextModelCostState,
+  parseReasonCounts,
   parseTokenRates,
   previousDayKey,
   readTokenUsage,
+  sampleJson,
+  shiftReasonCounts,
   sumByRequestId,
+  tokenCostOutcome,
   tokenCostUsd,
 } from "./studioActualCostCore";
 
@@ -191,4 +197,93 @@ test("sumByRequestId sabira više događaja istog zahteva i odbacuje neispravne"
   expect(totals).toHaveLength(2);
   expect(totals.find((row) => row.requestId === "a")?.usd).toBeCloseTo(0.03, 6);
   expect(totals.find((row) => row.requestId === "b")?.usd).toBeCloseTo(0.5, 6);
+});
+
+// ── X3: razlog umesto tihog praznog polja ──────────────────────────────────
+
+test("tokenCostOutcome imenuje TAČNU kategoriju kojoj fali tarifa", () => {
+  // `nano-banana-pro` danas: output i thinking imaju cenu, prompt nema - a
+  // Google `promptTokenCount` javi uz svaki posao.
+  const outcome = tokenCostOutcome(
+    { prompt: 2000, output: 1120, thinking: 1250 },
+    { output: 119.64, thinking: 12 },
+  );
+
+  expect(outcome).toEqual({ ok: false, reason: "nema tarife za kategoriju prompt" });
+});
+
+test("tokenCostOutcome razlikuje `nema tarife uopšte` od `nema prijavljene potrošnje`", () => {
+  expect(tokenCostOutcome({ output: 1120 }, null)).toEqual({
+    ok: false,
+    reason: ACTUAL_COST_REASON.notTokenBilled,
+  });
+  expect(tokenCostOutcome(null, { output: 119.64 })).toEqual({
+    ok: false,
+    reason: ACTUAL_COST_REASON.noUsage,
+  });
+  // Objekat potrošnje bez ijedne kategorije je isto što i "nije prijavljeno".
+  expect(tokenCostOutcome({}, { output: 119.64 })).toEqual({
+    ok: false,
+    reason: ACTUAL_COST_REASON.noUsage,
+  });
+});
+
+test("tokenCostOutcome sa svim tarifama daje broj", () => {
+  const outcome = tokenCostOutcome(
+    { prompt: 2000, output: 1120, thinking: 1250 },
+    { prompt: 0.5, output: 119.64, thinking: 12 },
+  );
+
+  expect(outcome.ok).toBe(true);
+  expect(outcome.ok ? outcome.usd : 0).toBeCloseTo(0.15, 5);
+});
+
+test("shiftReasonCounts skida sa starog razloga i dodaje na novi", () => {
+  const first = shiftReasonCounts(undefined, undefined, "a");
+  expect(JSON.parse(first)).toEqual({ a: 1 });
+
+  const second = shiftReasonCounts(first, undefined, "a");
+  expect(JSON.parse(second)).toEqual({ a: 2 });
+
+  const moved = shiftReasonCounts(second, "a", "b");
+  expect(JSON.parse(moved)).toEqual({ a: 1, b: 1 });
+
+  // Razlog koji je pao na nulu nestaje, a ne stoji kao `0` - inače bi admin
+  // ekran prikazivao razloge kojih više nema.
+  const cleared = shiftReasonCounts(moved, "a", undefined);
+  expect(JSON.parse(cleared)).toEqual({ b: 1 });
+});
+
+test("parseReasonCounts odbija sve što nije pozitivan broj", () => {
+  expect(parseReasonCounts(undefined)).toEqual({});
+  expect(parseReasonCounts("nije json")).toEqual({});
+  expect(parseReasonCounts('["a"]')).toEqual({});
+  expect(parseReasonCounts('{"a":2,"b":0,"c":-1,"d":"x"}')).toEqual({ a: 2 });
+});
+
+test("sampleJson seče dugačak odgovor i preživljava ciklus", () => {
+  const long = sampleJson({ text: "x".repeat(9000) });
+  expect(long.length).toBeLessThanOrEqual(MAX_SAMPLE_LENGTH + 20);
+  expect(long.endsWith("[odseceno]")).toBe(true);
+
+  const cyclic: Record<string, unknown> = {};
+  cyclic.self = cyclic;
+  // `JSON.stringify` na ciklusu baca - uzorak ne sme da obori upis razloga.
+  expect(typeof sampleJson(cyclic)).toBe("string");
+});
+
+test("odstupanje se meri po PORAVNATOM trošku kad on postoji (X3, tačka 5)", () => {
+  // Procena je izvedena iz zaglavlja koje je korisnik okačio: 0,06 $. Provajder
+  // je javio 0,05 $, ali je poravnanje po stvarnom trajanju ispalo 72 $.
+  const update = nextModelCostState(null, {
+    actualCostUsd: 0.05,
+    estimatedCostUsd: 0.06,
+    settledCostUsd: 72,
+    creditCost: 650,
+  });
+
+  expect(update.deviationCostUsd).toBe(72);
+  expect(update.state.deviationStreak).toBe(1);
+  // Zbir i dalje sabira ono što je provajder naplatio.
+  expect(update.state.actualCostUsd).toBeCloseTo(0.05, 6);
 });

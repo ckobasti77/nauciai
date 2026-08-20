@@ -90,27 +90,60 @@ function readEventNumber(source: Record<string, unknown>, keys: string[]): numbe
   return null;
 }
 
-/** Telo odgovora -> događaji. Prihvata go niz, `{ events: [] }` i `{ data: [] }`. */
-export function parseFalBillingEvents(payload: unknown): FalBillingEvent[] {
+/** Spisak događaja u telu odgovora. Prihvata go niz, `{ events: [] }` i `{ data: [] }`. */
+function falEventList(payload: unknown): unknown[] | null {
   const list = Array.isArray(payload)
     ? payload
     : payload && typeof payload === "object"
       ? ((payload as { events?: unknown; data?: unknown }).events ??
         (payload as { data?: unknown }).data)
       : null;
-  if (!Array.isArray(list)) return [];
+
+  return Array.isArray(list) ? list : null;
+}
+
+function readFalBillingEvent(item: unknown): FalBillingEvent | null {
+  if (!item || typeof item !== "object" || Array.isArray(item)) return null;
+  const source = item as Record<string, unknown>;
+  const requestId = readEventString(source, REQUEST_ID_KEYS);
+  const usd = readEventNumber(source, COST_KEYS);
+  if (requestId === null || usd === null || usd <= 0) return null;
+
+  return { requestId, usd };
+}
+
+/** Telo odgovora -> događaji. */
+export function parseFalBillingEvents(payload: unknown): FalBillingEvent[] {
+  const list = falEventList(payload);
+  if (!list) return [];
 
   const events: FalBillingEvent[] = [];
   for (const item of list) {
-    if (!item || typeof item !== "object" || Array.isArray(item)) continue;
-    const source = item as Record<string, unknown>;
-    const requestId = readEventString(source, REQUEST_ID_KEYS);
-    const usd = readEventNumber(source, COST_KEYS);
-    if (requestId === null || usd === null || usd <= 0) continue;
-    events.push({ requestId, usd });
+    const event = readFalBillingEvent(item);
+    if (event) events.push(event);
   }
 
   return events;
+}
+
+/**
+ * PRVI događaj iz kojeg nismo pročitali ni `request_id` ni iznos (X3, tačka 4).
+ * Imena polja iznad su pogađana iz dokumentacije, a nikad viđena uživo - pa
+ * umesto da nepoznat red tiho nestane, on se pamti kao uzorak i posle prve
+ * prave rekonsilijacije Jovan ima tačan oblik pred sobom.
+ *
+ * Telo koje uopšte nema spisak je i samo nepoznat oblik: vraća se celo.
+ * `null` znači da je sve pročitano - nema šta da se pamti.
+ */
+export function unrecognizedFalBillingEvent(payload: unknown): unknown | null {
+  const list = falEventList(payload);
+  if (!list) return payload ?? null;
+
+  for (const item of list) {
+    if (!readFalBillingEvent(item)) return item;
+  }
+
+  return null;
 }
 
 export function buildFalBillingUrl(params: {
@@ -128,12 +161,16 @@ export function buildFalBillingUrl(params: {
   return `${base}/v1/models/billing-events?${query.toString()}`;
 }
 
+/**
+ * Uz događaje se vraća i PRVI neprepoznat red, ako ga ima - pozivalac ga upisuje
+ * kao uzorak umesto da ga tiho preskoči (X3, tačka 4).
+ */
 export async function fetchFalBillingEvents(params: {
   apiKey: string;
   baseUrl?: string;
   startTime: string;
   endTime: string;
-}): Promise<FalBillingEvent[]> {
+}): Promise<{ events: FalBillingEvent[]; unrecognized: unknown | null }> {
   const response = await fetch(
     buildFalBillingUrl({
       baseUrl: params.baseUrl,
@@ -148,5 +185,10 @@ export async function fetchFalBillingEvents(params: {
     throw new Error(`fal billing-events nije uspeo (${response.status}): ${body.slice(0, 300)}`);
   }
 
-  return parseFalBillingEvents(await response.json());
+  const payload = await response.json();
+
+  return {
+    events: parseFalBillingEvents(payload),
+    unrecognized: unrecognizedFalBillingEvent(payload),
+  };
 }

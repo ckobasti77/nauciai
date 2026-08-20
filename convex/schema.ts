@@ -1474,6 +1474,13 @@ export default defineSchema({
     // `providerRequestId`-ju. Provajder koji podatak ne vrati ostavlja polje
     // prazno - izmišljen broj bi popravio maržu koja je u stvari loša.
     actualCostUsd: v.optional(v.number()),
+    // ZAŠTO `actualCostUsd`-a nema (X3, nalaz N6). Svaki završen posao izlazi sa
+    // TAČNO JEDNIM od to dvoje: ili cenom, ili razlogom iz
+    // `studioActualCostCore.ACTUAL_COST_REASON`. Prazno polje bez razloga je
+    // bilo neraspoznatljivo od kvara, pa je "nema merenja" na admin ekranu
+    // pisalo i za model koji se po dizajnu ne meri i za model kojem nešto ne
+    // radi. Razlog nestaje čim cena stigne.
+    actualCostReason: v.optional(v.string()),
     // ── PORAVNANJE (X2, nalaz N2) ────────────────────────────────────
     // Kad je posao poravnat. Polje je i JEDINA brava idempotencije
     // `studio.settleJobCredits`-a: i webhook i poller umeju da ga pozovu za
@@ -1607,6 +1614,29 @@ export default defineSchema({
     // Postoji dok traje niz zbog kojeg je alarm poslat; prvi posao ispod praga
     // ga sklanja, pa sledeći niz od pet ponovo javlja.
     alarmSentAt: v.optional(v.number()),
+    // JSON: razlog (`ACTUAL_COST_REASON`) -> broj poslova ovog modela koji na
+    // njemu stoje (X3, tačka 3). Održava se pomeranjem pri svakoj promeni
+    // razloga, ne prebrojavanjem pri čitanju - prebrojavanje bi bilo skeniranje
+    // cele istorije poslova, tačno ono zbog čega ova tabela postoji.
+    reasonCounts: v.optional(v.string()),
     updatedAt: v.number(),
   }).index("by_modelSlug", ["modelSlug"]),
+
+  // Prvi odgovor provajdera iz kojeg nismo umeli da pročitamo ni potrošnju ni
+  // cenu (X3, tačka 4). Imena polja kod sva tri provajdera nisu potvrđena protiv
+  // živog API-ja, a pravila run-a zabranjuju poziv - pa se umesto nagađanja
+  // pamti sirov JSON, i posle prve prave generacije Jovan ima tačan oblik pred
+  // sobom.
+  //
+  // JEDAN RED PO PROVAJDERU I MODELU, prepisuje se: uzorak je dokaz o obliku, a
+  // ne dnevnik - hiljadu poslova sa istim nepoznatim oblikom je i dalje jedan
+  // podatak. `modelSlug` je slug posla; fal događaji naplate nisu vezani ni za
+  // jedan model, pa stoje pod `FAL_BILLING_SAMPLE_SLUG`.
+  studioProviderSamples: defineTable({
+    provider: v.string(),
+    modelSlug: v.string(),
+    /** Sirov JSON, odsečen na `MAX_SAMPLE_LENGTH` znakova. */
+    sample: v.string(),
+    updatedAt: v.number(),
+  }).index("by_provider_modelSlug", ["provider", "modelSlug"]),
 });

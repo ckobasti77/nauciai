@@ -24,7 +24,7 @@ import {
   parseCallbackBody,
 } from "./bytePlusCore";
 import { parseJobInputs } from "./jobInputs";
-import { recordTokenUsage, tokenUsageValidator } from "../studioActualCost";
+import { recordProviderCost, tokenUsageValidator } from "../studioActualCost";
 import { parseParams } from "../studioCore";
 import { type ModeSpec, parseInputSpec } from "../studioJobCore";
 
@@ -101,7 +101,8 @@ export async function submitBytePlusJob(ctx: ActionCtx, jobId: Id<"generationJob
       // zakazuje i poravnanje (X2).
       await ctx.runMutation(internal.studioActualCost.recordProviderUsage, {
         jobId,
-        usage: result.usage ?? {},
+        ...(result.usage ? { usage: result.usage } : {}),
+        ...(result.sample !== null ? { sample: result.sample } : {}),
       });
 
       return;
@@ -228,6 +229,7 @@ export const verifyAndApplyTask = internalAction({
         outputUrl: task.videoUrl,
         ...(task.usage ? { usage: task.usage } : {}),
         ...(task.seconds !== null ? { reportedSeconds: task.seconds } : {}),
+        ...(task.sample !== null ? { sample: task.sample } : {}),
       });
 
       return null;
@@ -284,8 +286,11 @@ export const applyTaskResult = internalMutation({
     // Potrošeni tokeni zadatka (W6) - BytePlus ne vraća cenu, pa je ovo jedini
     // podatak iz kojeg se stvaran trošak uopšte može izračunati.
     usage: v.optional(tokenUsageValidator),
-    // Stvarno trajanje klipa, kad ga zadatak javi (X2) - ulaz u poravnanje.
+    // Stvarno trajanje klipa, kad ga zadatak javi (X2) - ulaz u poravnanje, a za
+    // Seedance (naplata po sekundi izlaza) i jedini izvor stvarnog troska (X3).
     reportedSeconds: v.optional(v.number()),
+    // Sirov odgovor, samo kad iz njega nije procitano ni jedno ni drugo (X3).
+    sample: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const job = await ctx.db
@@ -313,8 +318,13 @@ export const applyTaskResult = internalMutation({
       completedAt: Date.now(),
     });
     // Ista transakcija u kojoj se posao zatvara: zadatak se posle ovoga više ne
-    // pita, pa drugog trenutka za merenje troška nema.
-    await recordTokenUsage(ctx, job, args.usage);
+    // pita, pa drugog trenutka za merenje troška nema. Kad troška nema, izlazi
+    // RAZLOG umesto praznog polja (X3).
+    await recordProviderCost(ctx, job, {
+      ...(args.usage !== undefined ? { usage: args.usage } : {}),
+      ...(args.reportedSeconds !== undefined ? { reportedSeconds: args.reportedSeconds } : {}),
+      ...(args.sample !== undefined ? { sample: args.sample } : {}),
+    });
     await ctx.scheduler.runAfter(0, internal.studioActions.persistOutput, { jobId: job._id });
     // Poravnanje (X2) se ZAKAZUJE: naplata razlike ne sme da povuče već zatvoren
     // posao sa sobom ako pukne.

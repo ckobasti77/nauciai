@@ -5750,3 +5750,142 @@ prozorom izmedju rezervacije i poravnanja.
    `audio-isolation` ostaju ugaseni do prve zive generacije sa fakturom. X2 cini
    prolaz bezopasnim tek kad provajder stvarno prijavi kolicinu - a to je jedina
    pretpostavka u ovom koraku koju kod ne moze da dokaze sam.
+
+## X3 - N6: stvaran trosak koji stvarno izlazi, ili razlog zasto ne   (2026-08-20 23:40)
+
+**Fajlovi:**
+- `convex/studioActualCostCore.ts` - `ACTUAL_COST_REASON`, `missingRateReason`,
+  `tokenCostOutcome`, `sampleJson`, `parseReasonCounts`, `shiftReasonCounts`,
+  `MeasuredJob.settledCostUsd`, `ModelCostUpdate.deviationCostUsd`
+- `convex/studioActualCost.ts` - `recordProviderCost`, `recordActualCostReason`,
+  `saveProviderSample`, `quantityCostOutcome`, `applyFalBillingShapeFailure`,
+  `FAL_BILLING_SAMPLE_SLUG`; `recordTokenUsage` zamenjen `recordProviderCost`-om
+- `convex/schema.ts` - `generationJobs.actualCostReason`,
+  `studioModelCost.reasonCounts`, nova tabela `studioProviderSamples`
+- `convex/studioAdmin.ts` - `getModelCostSummary` vraca `reasons` i
+  `unmeasuredJobs`; nov query `getProviderSamples`
+- `convex/falWebhook.ts` - zavrsen fal posao dobija razlog `fal billing event nije stigao`
+- `convex/providers/google.ts`, `convex/providers/byteplus.ts` - prosledjuju
+  `sample` i idu kroz `recordProviderCost`
+- `convex/providers/googleImageModels.ts` - dopunjen komentar uz `nano-banana-pro`
+- `lib/google-video.ts`, `lib/byteplus.ts` - `sample` uz odgovor
+- `lib/fal.ts` - `unrecognizedFalBillingEvent`, `fetchFalBillingEvents` vraca i
+  prvi neprepoznat red
+- `components/app/studio-admin-page.tsx` - razlozi ispod "Stvarne marze"
+- testovi: `convex/studioActualCostCore.test.ts` (+7),
+  `convex/studioActualCost.test.ts` (+8), `convex/studioAdmin.test.ts` (+2)
+
+**Sta je uradjeno:** Mehanizam za stvaran trosak iz W6 je bio ceo napisan a nije
+proizvodio nijedan podatak. Sada svaki zavrsen posao izlazi sa tacno jednim od
+dva: `actualCostUsd` ili `actualCostReason`. Modeli koji se ne naplacuju po
+tokenima nego po sekundi izlaza (Seedance, Veo Fast, Gemini Omni) dobijaju cenu
+iz PRIJAVLJENE kolicine, kroz isti `computeCostUsd` kojim su i rezervisani -
+cenovni motor nije diran, samo mu je data stvarna kolicina. Odgovor iz kojeg ne
+umemo da procitamo ni tokene ni kolicinu ostavlja sirov JSON u novoj tabeli
+`studioProviderSamples` (jedan red po provajderu i modelu, prepisuje se) i
+podize razlog `nepoznat oblik odgovora`; isto vazi za Google `usageMetadata`,
+BytePlus odgovor i fal spisak naplate. Admin ekran vise ne pise "nema merenja"
+za sve - ispod celije stoji razlog i broj poslova po razlogu, a brojace odrzava
+`recordActualCostReason` pomeranjem (skida sa starog razloga, dodaje na novi),
+ne prebrojavanjem istorije. Alarm na odstupanje sada poredi PORAVNAT trosak sa
+PRVOBITNOM procenom, cime nalaz N2 dobija detektor.
+
+**ODLUKE:**
+1. **Tarifa za `prompt` tokene se NE dopisuje.** Katalog v4 (2.2) daje samo
+   `thinking` $12/M, a `output` 119,64 $/M je izveden iz `baseUsd`-a. Ulazna
+   tarifa u v4 ne postoji. V3 (2.1) pominje $0,50/M za ulazne slike, ali kod
+   **Nano Banane 2** (Flash), ne kod Pro-a - preneti Flash cifru na Pro bi bilo
+   izmisljanje, sto tacka 1 izricito zabranjuje. `nano-banana-pro` zato izlazi sa
+   razlogom `nema tarife za kategoriju prompt`, koji imenuje tacno jednu cifru
+   koja katalogu fali.
+2. **`veo-31-fast` i `gemini-omni` ne dobijaju tarifu po tokenu nego putanju po
+   kolicini.** Oba su `unit: "second"` sa `quantityParam: "duration"`, dakle
+   naplacuju se po sekundi izlaza kao i Seedance. Tacka 2 tu putanju trazi za
+   BytePlus; napravljena je kao JEDAN kod za sve provajdere jer je racun isti, a
+   dva odvojena puta do istog broja bi bila druga racunica cene u projektu.
+3. **Sedam razloga, a ne pet.** Uz pet iz zadatka dodata su dva bez kojih bi se
+   razlicita stanja slila u jedno: `provajder nije prijavio kolicinu` (model se
+   meri po sekundi, ali ih odgovor nije javio - to nije isto sto i "ne meri se")
+   i `model nije u katalogu` (posao iz starog `modelCatalog`-a, nema ni pravilo
+   ni tarifu).
+4. **Kad je uzorak `nepoznat oblik odgovora`, a kad `provajder nije prijavio
+   upotrebu`.** Sirov odgovor se prosledjuje SAMO kad iz njega nije procitan
+   nijedan broj. Postojanje uzorka je zato i sam signal: odgovor je stigao a mi
+   ga ne razumemo. Poziv koji sirov odgovor uopste nije doneo ostaje na
+   `provajder nije prijavio upotrebu`.
+5. **Brojaci razloga stoje u `studioModelCost.reasonCounts` kao JSON, ne u novoj
+   tabeli.** Admin ekran taj red ionako cita, a prebrojavanje poslova pri
+   citanju bi bilo skeniranje cele istorije - tacno ono zbog cega ta tabela
+   postoji. Model bez ijednog izmerenog posla sada dobija red sa
+   `measuredJobs: 0`; prikaz "nema merenja" se time ne menja.
+6. **fal posao dobija razlog `fal billing event nije stigao` odmah po zavrsetku,
+   iz webhook-a.** Drugog trenutka nema: dok noc ne dodje, prazno polje bi bilo
+   neraspoznatljivo od kvara. `recordJobActualCost` razlog skida cim cena stigne.
+7. **Neprepoznat fal spisak prepisuje razlog poslovima TOG dana**, u zatvorenom
+   prozoru od 24 h preko `by_provider_status`, sa kapom od 500 poslova. Razlog se
+   ne moze vezati za konkretan dogadjaj (nema `request_id`-ja), a "nije stiglo"
+   bi bila neistina - stiglo je, samo ga ne razumemo.
+8. **Alarm poredi `settledCostUsd ?? actualCostUsd` sa `estimatedCostUsd`-om.**
+   Tacka 5 kaze doslovno "poravnat trosak sa prvobitnom procenom, ne obrnuto".
+   `estimatedCostUsd` X2 ne dira (provereno: upisuje se samo u `createJob`), pa
+   je procena i dalje prvobitna. Zbirovi u `studioModelCost` ostaju na
+   `actualCostUsd`-u - marza se racuna iz onoga sto je provajder naplatio.
+9. **fal uzorci stoje pod `modelSlug: "billing-events"`.** Spisak naplate nije
+   vezan ni za jedan model - nepoznat je oblik SPISKA - pa mu treba svoj red, a
+   ne tudji.
+10. **Izmenjena je jedna postojeca tvrdnja u testu, ne obrisana.** Test "Google:
+    model bez tarife po tokenu ostaje BEZ actualCostUsd" je tvrdio da red u
+    `studioModelCost` UOPSTE ne postoji; sada postoji jer nosi razlog. Tvrdnja
+    je pooštrena, ne uklonjena: i dalje se proverava da cene nema, plus da je
+    `measuredJobs` nula i da je razlog tacno onaj koji treba.
+
+**Testovi:**
+- `studioActualCostCore.test.ts` (+7): `tokenCostOutcome` imenuje tacnu
+  kategoriju kojoj fali tarifa · razlikuje "nema tarife uopste" od "nema
+  prijavljene potrosnje" · sa svim tarifama daje broj · `shiftReasonCounts`
+  pomera i brise razlog koji je pao na nulu · `parseReasonCounts` odbija sve sto
+  nije pozitivan broj · `sampleJson` sece dug odgovor i prezivljava ciklicnu
+  strukturu · odstupanje se meri po poravnatom trosku.
+- `studioActualCost.test.ts` (+8): Google sa sve tri kategorije daje broj · bez
+  tarife za `prompt` daje TAJ razlog i NE upisuje uzorak (odgovor je procitan) ·
+  BytePlus bez tarife dobija 0,70 $ iz prijavljenih 7 s · neprepoznat oblik
+  upisuje uzorak i razlog · uzorak se prepisuje (dva posla, jedan red, brojac
+  razloga 2) · fal ceka izvod sa razlogom koji nestaje kad cena stigne · fal
+  neprepoznat izvod pamti uzorak i prepisuje razlog · alarm poredi poravnat
+  trosak sa prvobitnom procenom (fal je javio 0,05 $, sto je ispod praga - alarm
+  bi bez X3 promasio).
+- `studioAdmin.test.ts` (+2): agregat grupise po razlogu, najbrojniji prvi, i
+  daje `unmeasuredJobs` · `getProviderSamples` je zatvoren za ne-admina.
+- **Invarijanta koja mora da prolazi prazna:** `assertNoSilentGaps` skuplja SVE
+  `done` poslove i tvrdi da nijedan nema ni cenu ni razlog. Zove se u sedam
+  testova, kroz sva tri provajdera.
+
+**Rezultat verifikacije:**
+- `npx convex codegen` - prolazi
+- `npm run lint` - 0 gresaka (8 upozorenja, sva zatecena, nijedno u izmenjenim fajlovima)
+- `npm run test` - 60 fajlova, 802 testa, sve prolazi
+- `npm run build` - Compiled successfully
+
+**BLOKADA:** nema
+
+**Za Jovana:**
+1. **Nova tabela `studioProviderSamples` i dva nova polja** (`actualCostReason`,
+   `reasonCounts`) traze `npx convex deploy` da bi shema izasla na produkciju.
+   Backfill ne treba: postojeci poslovi ostaju bez razloga, novi ga dobijaju.
+2. **Posle PRVE prave generacije po provajderu, otvori admin ekran.** Ako neki
+   model pise `nepoznat oblik odgovora`, sirov JSON je u `studioProviderSamples`
+   - procitaj imena polja i dopuni `USAGE_KEYS` / `DURATION_KEYS` / `COST_KEYS`.
+   To je jedini nacin da se oblik potvrdi, jer pravila run-a zabranjuju ziv poziv.
+   Query je `studioAdmin.getProviderSamples` (zasad bez ekrana - citaj iz
+   Convex dashboard-a ili kroz taj query).
+3. **`nano-banana-pro` ce pisati `nema tarife za kategoriju prompt` sve dok mu
+   ne dopises ulaznu tarifu** u `googleImageModels.ts`
+   (`tokenRatesUsdPerMillion.prompt`). Broj uzmi sa PRVE Google fakture, ne iz
+   dokumentacije - katalog v4 ga nema, a Flash cifra od $0,50/M nije Pro cifra.
+4. **Razlog `model se ne naplacuje po tokenima` je ocekivano stanje**, ne kvar:
+   to su modeli koji se ne mere ni po tokenu ni po sekundi (slike sa fal-a).
+   `nepoznat oblik odgovora`, `nema tarife za kategoriju` i
+   `provajder nije prijavio kolicinu` su ono sto trazi tvoju ruku.
+5. **Alarm na odstupanje od sada moze da opali zbog nalaza N2**, ne samo zbog
+   greske u katalogu: mejl kaze "popravlja se `baseUsd`/`addUsd`", ali ako je
+   model jedan od sedam mernih, prvo proveri je li neko podvalio zaglavlje.

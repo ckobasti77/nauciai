@@ -241,6 +241,9 @@ type ModelCostRow = {
   measuredJobs: number;
   actualCostUsd: number;
   creditCost: number;
+  /** Zasto poslovi ovog modela nemaju izmeren trosak, i koliko ih je po razlogu (X3). */
+  reasons: Array<{ reason: string; jobs: number }>;
+  unmeasuredJobs: number;
 };
 
 /**
@@ -249,12 +252,31 @@ type ModelCostRow = {
  * cifre. Ista `computeMargin` kao za procenu, samo nad zbirom izmerenog troska i
  * zbirom naplacenih kredita TIH ISTIH poslova.
  */
+function ReasonList({ cost }: { cost: ModelCostRow | undefined }) {
+  if (!cost || cost.reasons.length === 0) return null;
+
+  return (
+    <ul className="mt-1 space-y-0.5">
+      {cost.reasons.map((row) => (
+        <li key={row.reason} className="text-[11px] font-bold leading-tight text-muted">
+          {row.reason} · {row.jobs}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function ActualMarginCell({ cost }: { cost: ModelCostRow | undefined }) {
   if (!cost || cost.measuredJobs === 0) {
     return (
-      <span className="inline-flex min-h-7 items-center rounded-full border-2 border-dashed border-muted bg-white px-2.5 py-0.5 text-xs font-black text-muted">
-        nema merenja
-      </span>
+      <div>
+        <span className="inline-flex min-h-7 items-center rounded-full border-2 border-dashed border-muted bg-white px-2.5 py-0.5 text-xs font-black text-muted">
+          {cost && cost.unmeasuredJobs > 0
+            ? `bez merenja / ${cost.unmeasuredJobs}`
+            : "nema merenja"}
+        </span>
+        <ReasonList cost={cost} />
+      </div>
     );
   }
 
@@ -262,20 +284,23 @@ function ActualMarginCell({ cost }: { cost: ModelCostRow | undefined }) {
   const tone = marginTone(margin);
 
   return (
-    <span
-      className={cn(
-        "inline-flex min-h-7 items-center gap-1 rounded-full border-2 border-ink px-2.5 py-0.5 text-xs font-black",
-        tone === "warn" && "bg-red-100 text-red-800",
-        tone === "ok" && "bg-emerald-100 text-emerald-900",
-        tone === "unknown" && "bg-white text-muted",
-      )}
-    >
-      {tone === "warn" ? <AlertTriangle className="size-3.5" /> : null}
-      {formatMargin(margin)}
-      <span className="font-bold text-muted">
-        / {cost.measuredJobs} {cost.measuredJobs === 1 ? "posao" : "poslova"}
+    <div>
+      <span
+        className={cn(
+          "inline-flex min-h-7 items-center gap-1 rounded-full border-2 border-ink px-2.5 py-0.5 text-xs font-black",
+          tone === "warn" && "bg-red-100 text-red-800",
+          tone === "ok" && "bg-emerald-100 text-emerald-900",
+          tone === "unknown" && "bg-white text-muted",
+        )}
+      >
+        {tone === "warn" ? <AlertTriangle className="size-3.5" /> : null}
+        {formatMargin(margin)}
+        <span className="font-bold text-muted">
+          / {cost.measuredJobs} {cost.measuredJobs === 1 ? "posao" : "poslova"}
+        </span>
       </span>
-    </span>
+      <ReasonList cost={cost} />
+    </div>
   );
 }
 
@@ -393,8 +418,10 @@ function CatalogSection() {
       <p className="mt-2 text-sm font-bold text-muted">
         Marža je za podrazumevana podešavanja; ispod 2,0x je crvena. Izmena nabavne cene odmah
         pomera cenu SVAKE kombinacije - razvij red da vidiš koje. Stvarna marža je iz onoga što je
-        provajder naplatio, uz broj poslova iz kojih je izračunata; oznaka nema merenja znači da
-        je jedini broj o tom modelu i dalje procena iz kataloga.
+        provajder naplatio, uz broj poslova iz kojih je izračunata. Ispod nje stoji zašto ostali
+        poslovi nemaju izmeren trošak i koliko ih je po razlogu: model se ne naplacuje po tokenima
+        je očekivano stanje, a nepoznat oblik odgovora i nema tarife za kategoriju su posao za
+        tebe.
       </p>
 
       {models === undefined ? (

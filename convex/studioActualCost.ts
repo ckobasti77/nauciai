@@ -7,15 +7,22 @@ import { sendAdminAlertEmail } from "./adminAlert";
 import { FAL_BILLING_PAGE_LIMIT, fetchFalBillingEvents } from "../lib/fal";
 import { parseParams } from "./studioCore";
 import {
+  ACTUAL_COST_REASON,
+  type ActualCostOutcome,
   COST_DEVIATION_RATIO,
   COST_DEVIATION_STREAK,
   nextModelCostState,
   parseTokenRates,
   previousDayKey,
+  sampleJson,
+  shiftReasonCounts,
   sumByRequestId,
   type TokenUsage,
-  tokenCostUsd,
+  tokenCostOutcome,
 } from "./studioActualCostCore";
+import { parseJobInputs } from "./providers/jobInputs";
+import { hasVideoInput } from "./studioJobCore";
+import { computeCostUsd, parsePriceRule, type PriceRule, pricingModeFor } from "./studioPricing";
 
 /**
  * STVARAN trošak posla (W6, `docs/STUDIO-CATALOG-REPORT.md` sekcija 6 stavka 6).
@@ -30,6 +37,20 @@ import {
  * Sve troje prolazi kroz `recordJobActualCost` - jedno mesto koje upisuje polje
  * i održava zbir po modelu, pa stvarna marža u admin ekranu i alarm na
  * odstupanje uvek gledaju isti uzorak.
+ *
+ * **X3, nalaz N6: nikad tiho `null`.** Mehanizam iznad je bio ceo napisan a nije
+ * proizvodio nijedan podatak - nijedan Google model nije imao tarifu za
+ * `prompt` tokene koje Google uvek prijavi, nijedan BytePlus red nije imao
+ * tarifu uopšte, a fal je zavisio od oblika odgovora koji niko nije video.
+ * Zato sada svaki završen posao izlazi sa TAČNO JEDNIM od dva: `actualCostUsd`,
+ * ili `actualCostReason` koji kaže zašto ga nema. Uz to:
+ *
+ * - model koji se ne naplaćuje po tokenima nego po KOLIČINI izlaza (Seedance po
+ *   sekundi, Veo Fast, Gemini Omni) dobija cenu iz prijavljene količine, kroz
+ *   isti `computeCostUsd` kojim je i rezervisan;
+ * - odgovor iz kojeg ne umemo da pročitamo ni jedno ni drugo ostavlja sirov
+ *   uzorak u `studioProviderSamples`, pa se oblik posle prve prave generacije
+ *   ne nagađa nego čita.
  */
 
 /** Oblik potrošnje na granici Convex funkcija; `TokenUsage` iz Core-a. */
@@ -38,6 +59,90 @@ export const tokenUsageValidator = v.object({
   output: v.optional(v.number()),
   thinking: v.optional(v.number()),
 });
+
+/**
+ * Pod kojim "modelom" stoje fal događaji naplate u `studioProviderSamples`.
+ * Spisak naplate nije vezan ni za jedan model - nepoznat je oblik SPISKA, ne
+ * oblik odgovora nekog modela - pa mu treba svoj red, a ne tuđi.
+ */
+export const FAL_BILLING_SAMPLE_SLUG = "billing-events";
+
+/** Red zbira za model; `first` a ne `unique` iz istog razloga kao svuda ovde. */
+function modelCostRow(ctx: MutationCtx, modelSlug: string) {
+  return ctx.db
+    .query("studioModelCost")
+    .withIndex("by_modelSlug", (q) => q.eq("modelSlug", modelSlug))
+    .first();
+}
+
+/**
+ * Upisuje RAZLOG zašto posao nema izmeren trošak i pomera brojač razloga svog
+ * modela. Posao koji cenu već ima se ne dira: razlog i cena se međusobno
+ * isključuju, a cena je jača.
+ *
+ * Isti razlog se ne upisuje dvaput - inače bi ponovljen callback pomerio brojač
+ * za posao koji je već prebrojan.
+ */
+export async function recordActualCostReason(
+  ctx: MutationCtx,
+  job: Doc<"generationJobs">,
+  reason: string,
+): Promise<boolean> {
+  if (job.actualCostUsd !== undefined) return false;
+  if (job.actualCostReason === reason) return false;
+
+  await ctx.db.patch(job._id, { actualCostReason: reason });
+  await shiftModelReason(ctx, job.modelSlug, job.actualCostReason, reason);
+
+  return true;
+}
+
+/** Skida jedan posao sa starog razloga i dodaje ga na novi, u redu `studioModelCost`. */
+async function shiftModelReason(
+  ctx: MutationCtx,
+  modelSlug: string,
+  from: string | undefined,
+  to: string | undefined,
+): Promise<void> {
+  const row = await modelCostRow(ctx, modelSlug);
+  const reasonCounts = shiftReasonCounts(row?.reasonCounts, from, to);
+  const now = Date.now();
+  if (row) {
+    await ctx.db.patch(row._id, { reasonCounts, updatedAt: now });
+
+    return;
+  }
+
+  // Model bez ijednog izmerenog posla još nema red. Pravi se ovde da bi admin
+  // ekran imao gde da pročita razlog - `measuredJobs: 0` i dalje znači "nema
+  // merenja", pa se prikaz stvarne marže ne menja.
+  await ctx.db.insert("studioModelCost", {
+    modelSlug,
+    measuredJobs: 0,
+    actualCostUsd: 0,
+    estimatedCostUsd: 0,
+    creditCost: 0,
+    deviationStreak: 0,
+    reasonCounts,
+    updatedAt: now,
+  });
+}
+
+/** Uzorak neprepoznatog odgovora; jedan red po provajderu i modelu, prepisuje se. */
+export async function saveProviderSample(
+  ctx: MutationCtx,
+  provider: string,
+  modelSlug: string,
+  sample: string,
+): Promise<void> {
+  const existing = await ctx.db
+    .query("studioProviderSamples")
+    .withIndex("by_provider_modelSlug", (q) => q.eq("provider", provider).eq("modelSlug", modelSlug))
+    .first();
+  const now = Date.now();
+  if (existing) await ctx.db.patch(existing._id, { sample, updatedAt: now });
+  else await ctx.db.insert("studioProviderSamples", { provider, modelSlug, sample, updatedAt: now });
+}
 
 /**
  * Upisuje stvaran trošak jednog posla i pomera zbir njegovog modela.
@@ -58,16 +163,18 @@ export async function recordJobActualCost(
   if (!Number.isFinite(actualCostUsd) || actualCostUsd <= 0) return false;
   if (job.actualCostUsd !== undefined) return false;
 
-  await ctx.db.patch(job._id, { actualCostUsd });
+  // Cena je jača od razloga: čim je stigla, razlog nestaje sa posla i sa brojača
+  // svog modela (X3, tačka 3).
+  await ctx.db.patch(job._id, {
+    actualCostUsd,
+    ...(job.actualCostReason !== undefined ? { actualCostReason: undefined } : {}),
+  });
 
-  const row = await ctx.db
-    .query("studioModelCost")
-    .withIndex("by_modelSlug", (q) => q.eq("modelSlug", job.modelSlug))
-    // `first` a ne `unique`: slučajan duplikat sme da pomeri zbir, ne da obori
-    // upis stvarnog troška - isto obrazloženje kao kod `studioCostAlarms`.
-    .first();
+  // `first` a ne `unique`: slučajan duplikat sme da pomeri zbir, ne da obori
+  // upis stvarnog troška - isto obrazloženje kao kod `studioCostAlarms`.
+  const row = await modelCostRow(ctx, job.modelSlug);
 
-  const { state, alarm } = nextModelCostState(
+  const { state, alarm, deviationCostUsd } = nextModelCostState(
     row
       ? {
           measuredJobs: row.measuredJobs,
@@ -81,6 +188,8 @@ export async function recordJobActualCost(
     {
       actualCostUsd,
       ...(job.estimatedCostUsd !== undefined ? { estimatedCostUsd: job.estimatedCostUsd } : {}),
+      // Alarm poredi PORAVNAT trošak sa PRVOBITNOM procenom (X3, tačka 5).
+      ...(job.settledCostUsd !== undefined ? { settledCostUsd: job.settledCostUsd } : {}),
       // Refundiran posao je naplatio NULA kredita, a provajdera smo ipak
       // platili. Da mu se krediti računali, stvarna marža bi ispala bolja nego
       // što jeste - a to je tačno laž koju ovaj korak sklanja. Trošak i procena
@@ -99,6 +208,8 @@ export async function recordJobActualCost(
     // `alarmSent: false` mora da OBRIŠE raniji pečat, inače bi jedan alarm
     // zauvek zaključao sve buduće nizove za taj model.
     alarmSentAt: state.alarmSent ? (row?.alarmSentAt ?? now) : undefined,
+    // Posao je upravo prešao sa razloga na cenu - brojač razloga to prati.
+    reasonCounts: shiftReasonCounts(row?.reasonCounts, job.actualCostReason, undefined),
     updatedAt: now,
   };
   if (row) await ctx.db.patch(row._id, fields);
@@ -109,7 +220,8 @@ export async function recordJobActualCost(
     // od toga da li Resend radi (isti razlog kao kod globalnog plafona, W2).
     await ctx.scheduler.runAfter(0, internal.studioActualCost.sendCostDeviationAlarm, {
       modelSlug: job.modelSlug,
-      actualCostUsd,
+      // Broj koji je alarm i podigao, a ne nužno onaj koji je provajder javio.
+      actualCostUsd: deviationCostUsd,
       estimatedCostUsd: job.estimatedCostUsd,
       measuredJobs: state.measuredJobs,
     });
@@ -118,32 +230,109 @@ export async function recordJobActualCost(
   return true;
 }
 
+/** Šta je provajder javio uz gotov posao - ulaz u `recordProviderCost`. */
+export type ProviderReport = {
+  /** Potrošeni tokeni; `undefined` kad ih u odgovoru nema. */
+  usage?: TokenUsage;
+  /** Trajanje izlaza u sekundama; `undefined` kad ga u odgovoru nema. */
+  reportedSeconds?: number;
+  /**
+   * Sirov odgovor, ali SAMO kad iz njega nije pročitano ni jedno ni drugo.
+   * Postojanje uzorka je i signal: odgovor je stigao, a mi ga ne razumemo -
+   * to je `nepoznat oblik odgovora`, za razliku od poziva koji sirov odgovor
+   * uopšte nije ni doneo (`provajder nije prijavio upotrebu`).
+   */
+  sample?: string;
+};
+
 /**
- * Tokeni koje je provajder prijavio -> dolari, po tarifi REDA kataloga.
+ * Cena po KOLIČINI koju je provajder prijavio (X3, tačka 2). Seedance se ne
+ * naplaćuje po tokenima nego po sekundi izlaza, a isto važi i za Veo Fast i
+ * Gemini Omni - za njih je stvaran trošak nabavna cena kataloga izračunata nad
+ * onim što je stvarno renderovano, a ne nad onim što je korisnik naručio.
  *
- * Model bez tarife (ili sa tarifom koja ne pokriva jednu prijavljenu
- * kategoriju) ostaje bez `actualCostUsd`. To je namerno i to je ceo smisao
- * koraka: katalog objavljuje cenu po slici i po sekundi, a cenu po tokenu samo
- * za `nano-banana-pro` thinking tokene ($12/M, katalog 2.2). Dok ostale tarife
- * ne budu potvrdjene sa prve fakture, prazno polje je jedini pošten ishod.
+ * Ide kroz `computeCostUsd`, dakle kroz JEDINU računicu cene u projektu -
+ * cenovni motor se ne dira, samo mu se daje stvarna količina.
  */
-export async function recordTokenUsage(
+function quantityCostOutcome(
+  rule: PriceRule | null,
+  job: Doc<"generationJobs">,
+  reportedSeconds: number | undefined,
+): ActualCostOutcome {
+  const perSecond = rule?.unit === "second" || rule?.unit === "minute";
+  if (!rule || !perSecond || rule.quantityParam === undefined) {
+    return { ok: false, reason: ACTUAL_COST_REASON.notTokenBilled };
+  }
+  if (reportedSeconds === undefined || !Number.isFinite(reportedSeconds) || reportedSeconds <= 0) {
+    return { ok: false, reason: ACTUAL_COST_REASON.noQuantity };
+  }
+
+  const params = {
+    ...(parseParams(job.params) ?? {}),
+    [rule.quantityParam]: rule.unit === "minute" ? reportedSeconds / 60 : reportedSeconds,
+  };
+  const pricingMode =
+    job.inputMode === undefined
+      ? undefined
+      : pricingModeFor(job.inputMode, hasVideoInput(parseJobInputs(job.inputs)));
+
+  try {
+    return { ok: true, usd: computeCostUsd(rule, params, pricingMode) };
+  } catch {
+    // Pravilo koje za prijavljenu količinu ne ume da izračuna cenu ne sme da
+    // obori zatvaranje posla - izlazi kao razlog, isto kao u `planSettlement`.
+    return { ok: false, reason: ACTUAL_COST_REASON.noQuantity };
+  }
+}
+
+/**
+ * Ono što je provajder javio -> `actualCostUsd`, ILI `actualCostReason`. Ovo je
+ * jedini put kojim Google i BytePlus posao dobija stvaran trošak, i jedino
+ * mesto koje odlučuje koji je razlog tačan kad ga nema.
+ *
+ * Redosled je redosled pouzdanosti:
+ * 1. **tarifa po tokenu** ako je katalog za taj model objavljuje - tada je
+ *    prijavljena potrošnja tokena sam trošak;
+ * 2. **prijavljena količina** za modele koji se naplaćuju po sekundi izlaza;
+ * 3. **razlog**, nikad nagađanje.
+ */
+export async function recordProviderCost(
   ctx: MutationCtx,
   job: Doc<"generationJobs">,
-  usage: TokenUsage | undefined,
+  report: ProviderReport,
 ): Promise<boolean> {
-  if (!usage) return false;
+  if (job.actualCostUsd !== undefined) return false;
 
   const model = await ctx.db
     .query("models")
     .withIndex("by_slug", (q) => q.eq("slug", job.modelSlug))
     .unique();
-  if (!model) return false;
+  if (!model) {
+    await recordActualCostReason(ctx, job, ACTUAL_COST_REASON.noCatalogRow);
 
-  const usd = tokenCostUsd(usage, parseTokenRates(parseParams(model.capabilities)));
-  if (usd === null) return false;
+    return false;
+  }
 
-  return recordJobActualCost(ctx, job, usd);
+  const rates = parseTokenRates(parseParams(model.capabilities));
+  const outcome: ActualCostOutcome = rates
+    ? tokenCostOutcome(report.usage ?? null, rates)
+    : quantityCostOutcome(parsePriceRule(model.priceRule), job, report.reportedSeconds);
+
+  if (outcome.ok) return recordJobActualCost(ctx, job, outcome.usd);
+
+  // Odgovor je stigao a nismo pročitali ni tokene ni količinu: to nije "model
+  // se ne meri", to je oblik koji ne razumemo. Uzorak je jedini način da se
+  // posle prve prave generacije vidi kako odgovor stvarno izgleda.
+  if (report.sample !== undefined) {
+    await saveProviderSample(ctx, model.provider, model.slug, report.sample);
+    await recordActualCostReason(ctx, job, ACTUAL_COST_REASON.unknownShape);
+
+    return false;
+  }
+
+  await recordActualCostReason(ctx, job, outcome.reason);
+
+  return false;
 }
 
 /**
@@ -159,14 +348,19 @@ export async function recordTokenUsage(
 export const recordProviderUsage = internalMutation({
   args: {
     jobId: v.id("generationJobs"),
-    usage: tokenUsageValidator,
+    usage: v.optional(tokenUsageValidator),
     reportedSeconds: v.optional(v.number()),
+    sample: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const job = await ctx.db.get(args.jobId);
     if (!job) return false;
 
-    const recorded = await recordTokenUsage(ctx, job, args.usage);
+    const recorded = await recordProviderCost(ctx, job, {
+      ...(args.usage !== undefined ? { usage: args.usage } : {}),
+      ...(args.reportedSeconds !== undefined ? { reportedSeconds: args.reportedSeconds } : {}),
+      ...(args.sample !== undefined ? { sample: args.sample } : {}),
+    });
     await ctx.scheduler.runAfter(0, internal.studio.settleJobCredits, {
       jobId: args.jobId,
       ...(args.reportedSeconds !== undefined ? { reportedSeconds: args.reportedSeconds } : {}),
@@ -264,6 +458,45 @@ export const applyFalBillingEvents = internalMutation({
  */
 const FAL_EVENT_BATCH = 50;
 
+/** Koliko fal poslova jednog dana se najviše prepisuje na `nepoznat oblik odgovora`. */
+const FAL_SHAPE_FAILURE_LIMIT = 500;
+
+/**
+ * Spisak naplate je stigao, ali ga ne razumemo (X3, tačka 4). Dva upisa:
+ *
+ * 1. sirov JSON prvog neprepoznatog reda ide u `studioProviderSamples`, jedan
+ *    red na ceo fal - to je jedini način da se oblik posle prve prave
+ *    rekonsilijacije pročita umesto da se nagađa;
+ * 2. fal poslovi TOG dana koji i dalje nemaju cenu prestaju da pišu "fal
+ *    billing event nije stigao" - jer jeste stigao, samo ga ne razumemo.
+ *
+ * Prozor je jedan dan i ograničen je: prepis je popravka prikaza, ne migracija.
+ */
+export const applyFalBillingShapeFailure = internalMutation({
+  args: { day: v.string(), sample: v.string() },
+  handler: async (ctx, args) => {
+    await saveProviderSample(ctx, "fal", FAL_BILLING_SAMPLE_SLUG, args.sample);
+
+    // Prozor je ZATVOREN sa obe strane: bez gornje granice bi poslovi kasnijih
+    // dana pojeli kap i baš dan koji nas zanima ostao bi neobeležen.
+    const since = new Date(`${args.day}T00:00:00.000Z`).getTime();
+    const until = since + 24 * 60 * 60 * 1000;
+    const jobs = await ctx.db
+      .query("generationJobs")
+      .withIndex("by_provider_status", (q) =>
+        q.eq("provider", "fal").eq("status", "done").gte("createdAt", since).lt("createdAt", until),
+      )
+      .take(FAL_SHAPE_FAILURE_LIMIT);
+
+    let flagged = 0;
+    for (const job of jobs) {
+      if (await recordActualCostReason(ctx, job, ACTUAL_COST_REASON.unknownShape)) flagged += 1;
+    }
+
+    return { flagged, capped: jobs.length >= FAL_SHAPE_FAILURE_LIMIT };
+  },
+});
+
 /**
  * Noćna rekonsilijacija fal troška (W6). fal u odgovoru posla ne nosi cenu, pa
  * je ovo jedini put kojim stvarna fal cena uopšte dolazi do nas.
@@ -286,7 +519,7 @@ export const reconcileFalCosts = internalAction({
     }
 
     const day = args.day ?? previousDayKey(Date.now());
-    const events = await fetchFalBillingEvents({
+    const { events, unrecognized } = await fetchFalBillingEvents({
       apiKey,
       baseUrl: process.env.FAL_REST_BASE_URL,
       startTime: `${day}T00:00:00.000Z`,
@@ -297,6 +530,15 @@ export const reconcileFalCosts = internalAction({
     // trošak koji niko nikad ne bi izmerio.
     if (events.length >= FAL_BILLING_PAGE_LIMIT) {
       console.error("fal_reconcile_truncated", { day, limit: FAL_BILLING_PAGE_LIMIT });
+    }
+
+    // Uzorak se pamti PRE spajanja: red koji nismo pročitali je jedini dokaz o
+    // obliku, a spajanje ga ionako nema odakle da uzme.
+    if (unrecognized !== null) {
+      await ctx.runMutation(internal.studioActualCost.applyFalBillingShapeFailure, {
+        day,
+        sample: sampleJson(unrecognized),
+      });
     }
 
     const totals = sumByRequestId(events);

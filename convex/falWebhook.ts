@@ -16,6 +16,8 @@ import {
   parseWebhookBody,
   readWebhookHeaders,
 } from "./falWebhookCore";
+import { recordActualCostReason } from "./studioActualCost";
+import { ACTUAL_COST_REASON } from "./studioActualCostCore";
 import { readReportedSeconds } from "./studioSettlementCore";
 
 const ED25519 = { name: "Ed25519" } as const;
@@ -177,6 +179,11 @@ export const applyWebhookResult = internalMutation({
       falOutputUrl: args.outputUrl,
       completedAt: Date.now(),
     });
+    // fal u odgovoru NEMA cenu - donosi je noćna rekonsilijacija. Do tada posao
+    // nosi razlog umesto praznog polja (X3, tačka 3): "još nije stiglo" i "ovaj
+    // model se ne meri" su dva različita stanja i admin ekran mora da ih
+    // razlikuje. `recordJobActualCost` razlog skida čim cena stigne.
+    await recordActualCostReason(ctx, job, ACTUAL_COST_REASON.falPending);
     // Skidanje fajla NE ide ovde - handler mora da vrati 200 u roku od 15 s.
     await ctx.scheduler.runAfter(0, internal.studioActions.persistOutput, { jobId: job._id });
     // Isto važi i za poravnanje (X2): naplata razlike je zaseban posao od

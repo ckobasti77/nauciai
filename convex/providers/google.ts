@@ -24,7 +24,7 @@ import {
   toBase64,
 } from "./googleCore";
 import { parseJobInputs } from "./jobInputs";
-import { recordTokenUsage, tokenUsageValidator } from "../studioActualCost";
+import { recordProviderCost, tokenUsageValidator } from "../studioActualCost";
 import { parseParams } from "../studioCore";
 
 /**
@@ -286,6 +286,7 @@ export const pollGoogleVideoJobs = internalAction({
             outputUrl: operation.videoUrl,
             ...(operation.usage ? { usage: operation.usage } : {}),
             ...(operation.seconds !== null ? { reportedSeconds: operation.seconds } : {}),
+            ...(operation.sample !== null ? { sample: operation.sample } : {}),
           });
           finished += 1;
           continue;
@@ -330,8 +331,11 @@ export const applyOperationResult = internalMutation({
     // uopste vraca (W6). Preracunava ih `studioActualCost.recordTokenUsage`, po
     // tarifi reda kataloga; model bez tarife ostaje bez `actualCostUsd`.
     usage: v.optional(tokenUsageValidator),
-    // Stvarno trajanje klipa, kad ga operacija javi (X2) - ulaz u poravnanje.
+    // Stvarno trajanje klipa, kad ga operacija javi (X2) - ulaz u poravnanje, a
+    // za modele koji se naplacuju po sekundi i jedini izvor stvarnog troska (X3).
     reportedSeconds: v.optional(v.number()),
+    // Sirov odgovor, samo kad iz njega nije procitano ni jedno ni drugo (X3).
+    sample: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const job = await ctx.db
@@ -358,8 +362,12 @@ export const applyOperationResult = internalMutation({
     });
     // Trosak ide u ISTU transakciju u kojoj se posao zatvara: posao koji je
     // `done` a nema izmeren trosak ne bi imao ko kasnije da izmeri, jer Google
-    // operaciju vise ne ispitujemo.
-    await recordTokenUsage(ctx, job, args.usage);
+    // operaciju vise ne ispitujemo. Kad troska nema, izlazi RAZLOG (X3).
+    await recordProviderCost(ctx, job, {
+      ...(args.usage !== undefined ? { usage: args.usage } : {}),
+      ...(args.reportedSeconds !== undefined ? { reportedSeconds: args.reportedSeconds } : {}),
+      ...(args.sample !== undefined ? { sample: args.sample } : {}),
+    });
     await ctx.scheduler.runAfter(0, internal.studioActions.persistOutput, { jobId: job._id });
     // Poravnanje (X2) se ZAKAZUJE: naplata razlike ne sme da povuce vec zatvoren
     // posao sa sobom ako pukne.

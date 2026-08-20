@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { getCurrentProfile, requireAdmin } from "./helpers";
 import { STUCK_JOB_ERROR } from "./crons";
+import { parseReasonCounts } from "./studioActualCostCore";
 import {
   dayKey,
   dayStart,
@@ -124,6 +125,13 @@ const MAX_MODEL_COST_ROWS = 200;
  *
  * Zbir održava `studioActualCost.recordJobActualCost` u istoj transakciji u
  * kojoj posao dobija cenu, pa se ovde ništa ne sabira nad poslovima.
+ *
+ * Uz zbir izlaze i RAZLOZI (X3, nalaz N6): koliko poslova ovog modela je ostalo
+ * bez izmerenog troška i zašto. Bez toga je kolona "Stvarna marža" pisala "nema
+ * merenja" i za model koji se po dizajnu ne meri po tokenima i za model kojem
+ * nešto ne radi - a to su dva potpuno različita posla za Jovana. Brojače
+ * održava `studioActualCost.recordActualCostReason`, pa se ni ovde ništa ne
+ * prebrojava nad poslovima.
  */
 export const getModelCostSummary = query({
   args: {},
@@ -131,14 +139,45 @@ export const getModelCostSummary = query({
     await requireAdminRead(ctx);
     const rows = await ctx.db.query("studioModelCost").take(MAX_MODEL_COST_ROWS);
 
-    return rows.map((row) => ({
-      modelSlug: row.modelSlug,
-      measuredJobs: row.measuredJobs,
-      actualCostUsd: row.actualCostUsd,
-      estimatedCostUsd: row.estimatedCostUsd,
-      creditCost: row.creditCost,
-      deviationStreak: row.deviationStreak,
-    }));
+    return rows.map((row) => {
+      const counts = parseReasonCounts(row.reasonCounts);
+
+      return {
+        modelSlug: row.modelSlug,
+        measuredJobs: row.measuredJobs,
+        actualCostUsd: row.actualCostUsd,
+        estimatedCostUsd: row.estimatedCostUsd,
+        creditCost: row.creditCost,
+        deviationStreak: row.deviationStreak,
+        // Najbrojniji razlog je prvi - to je onaj koji za taj model treba rešiti.
+        reasons: Object.entries(counts)
+          .map(([reason, jobs]) => ({ reason, jobs }))
+          .sort((a, b) => b.jobs - a.jobs),
+        unmeasuredJobs: Object.values(counts).reduce((sum, jobs) => sum + jobs, 0),
+      };
+    });
+  },
+});
+
+/**
+ * Sirov odgovor provajdera koji nismo umeli da pročitamo (X3, tačka 4). Jedan
+ * red po provajderu i modelu; postoji da bi se oblik posle prve prave
+ * generacije čitao, a ne nagađao.
+ */
+export const getProviderSamples = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireAdminRead(ctx);
+    const rows = await ctx.db.query("studioProviderSamples").take(MAX_MODEL_COST_ROWS);
+
+    return rows
+      .map((row) => ({
+        provider: row.provider,
+        modelSlug: row.modelSlug,
+        sample: row.sample,
+        updatedAt: row.updatedAt,
+      }))
+      .sort((a, b) => b.updatedAt - a.updatedAt);
   },
 });
 

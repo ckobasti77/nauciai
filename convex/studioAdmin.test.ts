@@ -185,3 +185,71 @@ test("getUsageSummary: korisnik bez imena se prikazuje po email-u", async () => 
     { userId: studentId, name: "bezimena@example.com", costUsd: 0.1, creditsSpent: 20, generations: 1 },
   ]);
 });
+
+/**
+ * X3, nalaz N6: kolona "Stvarna marža" je za svih 30 modela pisala "nema
+ * merenja", pa se model koji se po dizajnu ne meri nije razlikovao od modela
+ * kojem nešto ne radi. Sada uz zbir izlazi i razlog, sa brojem poslova po
+ * razlogu, najbrojniji prvi.
+ */
+test("getModelCostSummary: razlozi izlaze po modelu, sa brojem poslova po razlogu", async () => {
+  const t = convexTest(schema, modules);
+  const { asAdmin } = await seedAdmin(t);
+  await t.run(async (ctx) => {
+    await ctx.db.insert("studioModelCost", {
+      modelSlug: "seedance-25",
+      measuredJobs: 0,
+      actualCostUsd: 0,
+      estimatedCostUsd: 0,
+      creditCost: 0,
+      deviationStreak: 0,
+      reasonCounts: JSON.stringify({
+        "nepoznat oblik odgovora": 2,
+        "provajder nije prijavio kolicinu": 7,
+      }),
+      updatedAt: TODAY,
+    });
+    await ctx.db.insert("studioModelCost", {
+      modelSlug: "kling-30",
+      measuredJobs: 3,
+      actualCostUsd: 1.2,
+      estimatedCostUsd: 1,
+      creditCost: 300,
+      deviationStreak: 0,
+      updatedAt: TODAY,
+    });
+  });
+
+  const rows = await asAdmin.query(api.studioAdmin.getModelCostSummary, {});
+  const bySlug = new Map(rows.map((row) => [row.modelSlug, row]));
+
+  expect(bySlug.get("seedance-25")?.unmeasuredJobs).toBe(9);
+  // Najbrojniji razlog je prvi - to je onaj koji za taj model treba rešiti.
+  expect(bySlug.get("seedance-25")?.reasons).toEqual([
+    { reason: "provajder nije prijavio kolicinu", jobs: 7 },
+    { reason: "nepoznat oblik odgovora", jobs: 2 },
+  ]);
+  // Model bez ijednog nemerenog posla nema šta da prijavi.
+  expect(bySlug.get("kling-30")?.reasons).toEqual([]);
+  expect(bySlug.get("kling-30")?.unmeasuredJobs).toBe(0);
+});
+
+test("getProviderSamples: sirov uzorak vidi samo admin", async () => {
+  const t = convexTest(schema, modules);
+  const { asAdmin } = await seedAdmin(t);
+  const { asStudent } = await seedStudent(t);
+  await t.run((ctx) =>
+    ctx.db.insert("studioProviderSamples", {
+      provider: "fal",
+      modelSlug: "billing-events",
+      sample: '{"id":"evt_1"}',
+      updatedAt: TODAY,
+    }),
+  );
+
+  await expect(asStudent.query(api.studioAdmin.getProviderSamples, {})).rejects.toThrow("Forbidden");
+  const samples = await asAdmin.query(api.studioAdmin.getProviderSamples, {});
+  expect(samples).toEqual([
+    { provider: "fal", modelSlug: "billing-events", sample: '{"id":"evt_1"}', updatedAt: TODAY },
+  ]);
+});
