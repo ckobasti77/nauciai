@@ -170,6 +170,21 @@ test("ceil se primenjuje tačno jednom, na kraju - ne po sekundi", () => {
   expect(computeCredits(rule, { duration: 5 })).toBe(164);
 });
 
+test("chars1k deli količinu sa hiljadu - tarifa je po 1 000 znakova, količina po znaku", () => {
+  // ElevenLabs v3 iz kataloga 4.1: $0,10 po hiljadu znakova.
+  const rule: PriceRule = { unit: "chars1k", baseUsd: 0.1, quantityParam: "char_count" };
+
+  expect(computeCostUsd(rule, { char_count: 1000 })).toBeCloseTo(0.1, 10);
+  expect(computeCostUsd(rule, { char_count: 250 })).toBeCloseTo(0.025, 10);
+  expect(computeCredits(rule, { char_count: 1000 })).toBe(22);
+
+  // Nijedna druga jedinica se ne deli - sekunda je sekunda.
+  expect(computeCostUsd({ unit: "second", baseUsd: 0.1, quantityParam: "duration" }, { duration: 1000 })).toBeCloseTo(
+    100,
+    10,
+  );
+});
+
 test("parsePriceRule odbija sve što nije pravilo sa poznatim unit-om", () => {
   expect(parsePriceRule("nije json")).toBeNull();
   expect(parsePriceRule("[]")).toBeNull();

@@ -156,6 +156,24 @@ function baseUsdFor(rule: PriceRule, params: Record<string, unknown>): number {
   return rule.baseUsd;
 }
 
+/**
+ * Koliko izmerenih jedinica ide u JEDNU naplativu jedinicu pravila. Svuda je 1
+ * osim kod `chars1k`: ElevenLabs tarifa (katalog 4.1) je $0,10 po HILJADI
+ * znakova, a `quantityParam` je broj znakova - bez ovog deljenja bi jedan
+ * pasus koštao kao hiljadu pasusa.
+ *
+ * Nepoznata jedinica pada na 1: bolje naplatiti po izmerenoj jedinici nego
+ * podeliti cenu nečim što ne znamo.
+ */
+const QUANTITY_PER_UNIT: Record<PriceUnit, number> = {
+  image: 1,
+  second: 1,
+  chars1k: 1000,
+  layer: 1,
+  minute: 1,
+  generation: 1,
+};
+
 function quantityFor(rule: PriceRule, params: Record<string, unknown>): number {
   if (rule.quantityParam === undefined) return 1;
 
@@ -199,6 +217,9 @@ function extrasUsdFor(rule: PriceRule, params: Record<string, unknown>): number 
  * (`baseUsd 0.067`, `addUsd 0.003`, 4K množilac 2): `0,067 × 2 + 0,003 =
  * 0,137` - tačno cifra iz kataloga, što ne bi bio slučaj da se `addUsd`
  * sabira pre množenja.
+ *
+ * Količina se pre množenja svodi na jedinicu pravila (`QUANTITY_PER_UNIT`) -
+ * jedino `chars1k` tu nije 1.
  */
 export function computeCostUsd(
   rule: PriceRule,
@@ -223,7 +244,7 @@ export function computeCostUsd(
     if (modeFactor !== null) usd *= modeFactor;
   }
 
-  usd *= quantityFor(active, params);
+  usd *= quantityFor(active, params) / (QUANTITY_PER_UNIT[active.unit] ?? 1);
   usd += active.addUsd ?? 0;
   usd += extrasUsdFor(active, params);
 

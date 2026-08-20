@@ -3560,3 +3560,284 @@ se ne zove uživo nijednom - svaki `fetch` je stub koji beleži šta je poslato.
    nekorišćenih uvoza (globalni plafon troška iz S0 nije dovršen), a
    `docs/STUDIO-PROGRESS.md` i dalje nema sekcije za S1 i S2 - S2 uz to nije ni
    isporučio kod (ODLUKA 12), pa Google slike treba ponovo naručiti kao korak.
+
+## S5 - Seed kataloga: 30 modela sa parametrima i cenama   (20.08.2026 02:45-03:10)
+
+**Fajlovi:**
+- `convex/providers/modelControls.ts` - NOV. Kontrole koje se ponavljaju kroz
+  ceo katalog (prompt, rezolucija, trajanje, broj slika, odnos stranica, zvuk),
+  MIME liste i tip `QuantitySource`.
+- `convex/providers/googleImageModels.ts` - NOV. `nano-banana-2`, `nano-banana-pro`.
+- `convex/providers/falImageModels.ts` - NOV. `gpt-image-2`, `gpt-image-15`,
+  `seedream-45`, `seedream-5-lite`.
+- `convex/providers/falVideoModels.ts` - NOV. `kling-3`, `kling-3-turbo`,
+  `kling-omni`, `minimax-h3`.
+- `convex/providers/falToolModels.ts` - NOV. `kling-avatar`, `kling-lipsync`,
+  `kling-motion`, `kling-tryon`, `kling-v2a`.
+- `convex/providers/falAudioModels.ts` - NOV. `tts`, `dialogue`, `sfx`, `music`,
+  `stt`, `voice-changer`, `audio-isolation`, `dubbing`.
+- `convex/providers/catalogModels.ts` - NOV. `STUDIO_MODELS` - svih 30 redova na
+  jednom mestu, poredjani po `sortOrder`-u.
+- `convex/studioModels.ts` - dodata mutacija `seedStudioModels` (idempotentna,
+  iza `requireSyncSecret`).
+- `convex/studioPricing.ts` - `QUANTITY_PER_UNIT`: `chars1k` deli količinu sa
+  1 000 (zamka 10 iz S5.md). Ostale jedinice su nepromenjene (deli se sa 1).
+- `scripts/seed-convex.mjs` - `npm run convex:seed` sada upisuje i katalog v4.
+- `convex/providers/catalogModels.test.ts` - NOV, 21 test (oba obavezna).
+- `convex/studioModels.test.ts` - NOV, 4 testa (seed kroz `convex-test`).
+- `convex/studioPricing.test.ts` - dodat jedan test za `chars1k`.
+- `docs/STUDIO-PROGRESS.md` - ova sekcija.
+
+**Šta je uradjeno:**
+
+**Katalog je kompletan: 30 redova, ne 110 slugova.** Za svaki model su napisani
+`paramSpec`, `priceRule`, `inputSpec`, `endpoints` i `capabilities`; cene su
+prepisane iz `docs/STUDIO-CATALOG-V4.md` doslovno i nijedna nije preračunata.
+Redovi koje su doneli S3 i S4 (Seedream 5 Pro, Seedance 2.0/2.5, tri Veo reda,
+Gemini Omni) nisu dirani - `catalogModels.ts` ih samo uključuje u isti niz, i
+test to tvrdi identitetom objekta, pa se izvor ne može tiho razići.
+
+**Zabrane nisu spiskovi u kodu nego rupe u cenovnoj mapi.** Kling kontrola glasa
+bez zvuka, Kling Turbo na 4K, Nano Banana Pro na 1K i Seedance Mini na 1080p ne
+postoje kao ključ u `lookup` mapi, pa ih `isCombinationPriceable` odbija i u
+formi i na serveru iz istog izvora. Isto važi za rezoluciju koja zavisi od
+režima: Turbo radi prvi i poslednji kadar samo u 720p, i to je druga kontrola sa
+istim ključem i `showInModes: ["first_last"]` - isti obrazac koji je S4 uveo za
+trajanje produžetka, a ne `if (mode === ...)` negde u UI-ju.
+
+**Količina koja se meri, a ne bira.** Kling avatar se naplaćuje po sekundi
+okačenog zvuka, lipsync i prenos pokreta po sekundi okačenog videa,
+transkripcija i sinhronizacija po minutu snimka, a TTS po znaku ukucanog teksta.
+Te količine nisu kontrole - da jesu, klijent bi prijavio minut a okačio sat.
+Stoje u `capabilities.quantity` (tip `QuantitySource`), server ih upisuje pre
+`computeCredits`-a, isto kao `input_images` kod Seedream-a, a test doslednosti
+tvrdi da svaki `quantityParam` ima ili kontrolu ili merilo.
+
+**`chars1k` je jedina promena u cenovnom motoru.** ElevenLabs tarifa je $0,10 po
+HILJADI znakova, a `quantityParam` je broj znakova (zamka 10), pa `computeCostUsd`
+količinu svodi na jedinicu pravila. Svaka druga jedinica se deli sa 1 i ponaša
+se identično kao pre; nepoznata jedinica takodje pada na 1, jer je bolje
+naplatiti po izmerenoj jedinici nego deliti nečim što ne znamo.
+
+**ODLUKE:**
+
+1. **Katalog ima 30 redova, ne 31.** S5.md piše "Video (11)" ali nabraja deset
+   slugova (`kling-3`, `kling-3-turbo`, `kling-omni`, `minimax-h3`, `veo-31-lite`,
+   `veo-31`, `veo-31-fast`, `gemini-omni`, `seedance-20`, `seedance-25`).
+   Ubačeni su svi nabrojani, nijedan nije izmišljen da bi se stiglo do jedanaest:
+   7 modela za slike + 10 video + 5 Kling alata + 8 audio = **30**, što je i
+   cifra iz kataloga (sekcija 8). Puna lista sa brojem kombinacija je na kraju
+   ove sekcije.
+2. **`kind` opisuje IZLAZ, ne ulaz.** Galerija i filteri crtaju po `kind`-u, pa
+   `kling-tryon` (izlaz je slika) ide kao `image`, a `kling-v2a` (izlaz je
+   zvučni zapis) kao `audio`. Zato je podela po `kind` polju 8 / 13 / 9, a po
+   nameni 7 / 10 / 5 / 8. `kling-v2a` je jedina stavka gde oblik izlaza nije
+   potvrdjen protiv živog API-ja - videti "Za Jovana".
+3. **`1024x768` je dodat kao opcija kod GPT Image 2.** Katalog u tekstu nabraja
+   šest dimenzija, ali `lookup` mapa ima sedam - i tu sedmu (`1024x768`) na sva
+   tri nivoa kvaliteta. Mapa je izvor istine (sekcija 1.3), pa je dodata OPCIJA
+   umesto da se briše cena: doslednost traži da svaka vrednost koju `lookup`
+   očekuje postoji kao izbor, a ta ćelija je uz to i jeftinija od portreta.
+   Nijedan broj iz mape nije menjan.
+4. **Gde se tekst kataloga i JSON pravilo razilaze, pravilo pobedjuje.** To je
+   ista odluka koju je doneo S3 (ODLUKA 7) i ovde se ponavlja jer se tiče sedam
+   mesta. Sve razlike su posledica zaokruživanja u tekstu i sve idu u korist
+   korisnika (naplaćuje se manje nego što tekst kaže), a marža ostaje iznad 1,0
+   u svakoj:
+   - `seedream-45`: tekst 10 kredita, pravilo `ceil(0,04 x 216,25) = 9`;
+   - `tts` i `dialogue`: tekst 25 po 1 000 znakova, pravilo 22;
+   - `stt`: tekst 3 po minutu, pravilo 2;
+   - `kling-lipsync`: tekst "4 kr/s, minimum 20", pravilo 16 za pet sekundi;
+   - `gpt-image-15` high 1024²: tekst 30, pravilo 29;
+   - `gpt-image-*` low tarifa: tekst "od 3", pravilo 2;
+   - kolona "5s" kod Klinga: tekst množi ZAOKRUŽENU sekundu (28 x 5 = 140), a
+     sekcija 1.3 traži `ceil` tačno jednom nad ukupnom cenom (137). Isto kao kod
+     Seedance-a, gde je katalog već tabelirao 33 kr/s i 164 za pet sekundi.
+5. **Fal rute sa `{tier}` placeholderom.** Katalog za Kling 3.0 daje
+   `v3/{tier}/text-to-video`, gde tarifa NIJE kvalitet nego rezolucija. Endpoint
+   je zato ostavljen sa placeholderom, a `capabilities.tierByResolution` kaže
+   šta se u njega upisuje (`720p -> standard`, `1080p -> pro`, `4K -> pro`).
+   Test tvrdi da placeholder ne može da ostane bez mape, i da nijedna opcija
+   rezolucije nije ostala bez tarife. Ruta za 4K nije potvrdjena (pravila
+   zabranjuju živi poziv) - videti "Za Jovana".
+6. **ID-jevi kod provajdera koje katalog ne propisuje su izabrani konzervativno
+   i ostaju polje reda.** Katalog doslovno daje samo neke (`gemini-3.1-flash-image`,
+   `gemini-3-pro-image`, `openai/gpt-image-2`, `minimax/h3/*`,
+   `fal-ai/elevenlabs/*`). Ostali su izvedeni po obrascu porodice:
+   `openai/gpt-image-1-5`, `fal-ai/bytedance/seedream/v4.5/edit`,
+   `fal-ai/bytedance/seedream/v5/lite/*`, `fal-ai/kling-video/v3/...`,
+   `fal-ai/kling-video/v3/turbo/...`, `fal-ai/kling-video/o3/...`,
+   `fal-ai/kling-video/v1/pro/ai-avatar`, `fal-ai/kling-video/lipsync`,
+   `fal-ai/kling-video/motion-transfer`, `fal-ai/kling/v1-5/kolors-virtual-try-on`,
+   `fal-ai/kling-video/v2a`. Svi su u `endpoints` polju reda, pa se menjaju iz
+   admin ekrana bez deploy-a; pogrešan ID daje grešku i refund, ne tihi trošak.
+7. **Spiskovi koje katalog broji ali ne nabraja su popunjeni konzervativno.**
+   MiniMax ima "7 opcija" odnosa stranica bez liste - uzeto je sedam uobičajenih
+   (16:9, 9:16, 1:1, 4:3, 3:4, 21:9, 2:3). ElevenLabs "lista glasova" je deset
+   podrazumevanih glasova. Nijedno ne dira cenu (`affectsPrice: false`) i oboje
+   je polje reda.
+8. **Raspone koje katalog ne daje uzeo sam po najužoj razumnoj vrednosti:**
+   Kling klip 5-10 s (katalog to daje za Kling 3.0, pa isto važi za Turbo i
+   Omni), muzika 0,5-5 minuta, zvučni efekat 5-22 s (donja granica je katalogov
+   "min 5"), merena količina za alate 1-60 s odnosno 0,1-120 minuta. Granice se
+   testiraju kroz maržu na oba kraja.
+9. **`seedream-5-lite` nema kontrolu rezolucije.** Cena mu je ravna bez obzira
+   na rezoluciju, a kontrola koja ne menja ni sliku ni cenu je laž o izboru -
+   isti razlog zbog kojeg Gemini Omni nema kontrolu rezolucije (S4). Podatak da
+   ide do 4K stoji u `capabilities`.
+10. **`kling-tryon` ima DVA imenovana slota** (`person`, `garment`) umesto
+    jednog `image` slota sa `max: 2`. Redosled tu nije svejedno, a `inputSpec` je
+    po definiciji mapa slotova - dva slota su jedini način da forma zna koja je
+    slika koja.
+11. **`kling-omni` u `reference` režimu nema audio slot.** Katalog (sekcija 5)
+    daje opšti okvir "9 slika + 3 videa + 3 audio", ali za Omnija ne potvrdjuje
+    audio; slot koji možda ne radi je gora poruka od poruke, pa su ostali slike
+    (9) i video (3). Isti izbor koji je S4 napravio za Gemini Omni.
+12. **Svi modeli ulaze uključeni, ali seed ne pali ono što je admin ugasio.**
+    S5.md traži pun katalog, pa `isEnabled: true` ide pri PRVOM upisu; ponovljen
+    seed patchuje sve osim `isEnabled`. Razlog je isti kao kod `seedPlatformFlags`:
+    ako je model ugašen zbog kvote ili spornog računa, seed ne sme tiho da ga
+    vrati korisnicima. Dva Google modela za slike su time uključena iako S2 nije
+    isporučio kod - videti "Za Jovana", tačka 3.
+13. **`createJob` i dalje računa cenu preko starog `modelCatalog`-a** (zatečeno,
+    S3 ODLUKA 8 i S4 ODLUKA 13). Ovaj korak seeduje tabelu `models`, ali je ne
+    prespaja na tok naručivanja - to je S6/S7 i dodirivalo bi ceo postojeći tok
+    naplate. Do tada se novi modeli ne mogu naručiti sa stranice.
+14. **Marža se poredi sa cenom zaokruženom na šest decimala**, isto kao u
+    `computeCredits`-u. `0,05 x 3,2 x 15 x 216,25` u binarnom zapisu ispadne
+    519,0000000000001, pa bi sirovo poredjenje prijavilo maržu 0,9999... na ceni
+    koja je tačno pokrivena. Granica je ista ona koju pravilo već koristi, nije
+    uvedena zbog testa.
+
+**Testovi:** 26 novih (503 -> 529).
+
+`convex/providers/catalogModels.test.ts` (21):
+- **OBAVEZAN 1 - marža nad celim prostorom parametara:** za svaki od 30 modela
+  se generiše dekartov proizvod svih kontrola koje diraju cenu, po svakom
+  ulaznom režimu (plus sniženi `reference_with_video`), sa merenim količinama na
+  obe granice i sa brojem dodatnih ulaznih fajlova (0, kvota, kvota+3). Ukupno
+  **1 105 kombinacija**; svaka tvrdi `krediti >= nabavno x 216,25` i
+  `nabavno > 0`, a svaki model mora da ima bar jednu kombinaciju sa cenom.
+- **OBAVEZAN 2 - doslednost specifikacija**, u četiri testa: svaki režim iz
+  `inputModes` ima endpoint i `inputSpec` (i obrnuto - nema endpointa ni slotova
+  za režim koji model ne nudi); svaki parametar koji `lookup` ili množilac
+  pominje postoji kao kontrola i prijavljuje `affectsPrice: true`; svaki
+  `quantityParam` je ili kontrola ili `capabilities.quantity`; `extras` parametri
+  NISU kontrole (broji ih server); svaka vrednost koju `lookup` ili množilac
+  očekuje postoji kao opcija (a kod prekidača je `on`/`off`); podrazumevane
+  vrednosti su unutar svojih opcija i opsega, i prazna forma ima cenu u SVAKOM
+  režimu; endpoint sa `{tier}` placeholderom ima tarifu za svaku rezoluciju.
+- **tabele iz kataloga:** Nano Banana 2 (12/16/23/30) i Pro (33/56) i thinking
+  tokeni jednom po generaciji; GPT Image nemonotonost (high 1024² skuplji od
+  high 1536x1024) i ćelije 12/87/29/44; Seedream 4.5 i 5 Lite; Kling 3.0 svih
+  sedam ćelija plus "4K je isti sa zvukom i bez njega"; Kling Turbo 25/31 bez
+  4K; Kling Omni 19/25/31/91 i množilac 1,5 za izmenu videa; MiniMax 11/13/29/35,
+  LoRA +25% i šesta referenca; Kling alati 13/25/28/37/16/8 i zaokruživanje
+  lipsync-a na pet sekundi; TTS po hiljadu znakova; ostali audio 3/130/2/65/22/130.
+- **zamke:** Pro nema 1K; kontrola glasa bez zvuka nema cenu; `quality` i `size`
+  kod GPT Image-a su pinovani podrazumevanom vrednošću (prazan zahtev daje
+  `medium|1024x1024`, ne fal-ov `high`); Kling labele su rezolucije, nikad
+  "standard"/"pro"; Scribe je V2; broj redova, jedinstveni slugovi i sortOrder,
+  podela po vrsti i po provajderu; redovi iz S3/S4 su isti objekti.
+
+`convex/studioModels.test.ts` (4): seed upisuje svih 30 redova i sva složena
+polja se čitaju NAZAD istim funkcijama kojima ih čita server (`parsePriceRule`,
+`parseParamSpec`, `JSON.parse`); ponovljen seed ne pravi duplikate i NE pali
+model koji je admin ugasio; seed bez tačnog `syncSecret`-a ne upiše ništa;
+čitanje po slugu radi, a nepoznat slug daje `null`.
+
+`convex/studioPricing.test.ts` (+1): `chars1k` deli količinu sa hiljadu, a
+nijedna druga jedinica se ne dira.
+
+**Rezultat verifikacije:** sve četiri komande čiste.
+- `npx convex codegen` - **prošlo** (exit 0, `Running TypeScript...` bez greške)
+- `npm run lint` - **prošlo** (`17 problems (0 errors, 17 warnings)`; nijedno
+  upozorenje nije iz fajlova ovog koraka - 7 zatečenih u
+  `admin-inline-actions.tsx`, `dashboard-content.tsx` i
+  `public-course-intro-video.tsx`, 9 nekorišćenih uvoza u `convex/crons.ts` iz
+  nedovršenog S0, 1 u `get_google_creds.js`)
+- `npm run test` - **prošlo** (`Test Files 47 passed (47) / Tests 529 passed (529)`)
+- `npm run build` - **prošlo** (`Compiled successfully in 7.2s`,
+  `Finished TypeScript in 12.8s`, 60/60 statičkih stranica)
+
+**BLOKADA:** nema.
+
+**Za Jovana:**
+1. **Katalog se upisuje sa `npm run convex:seed`** (skripta sada zove i
+   `studioModels:seedStudioModels`), ili ručno tom mutacijom iz Convex
+   dashboard-a sa `WEBHOOK_SYNC_SECRET`-om. Seed je idempotentan i ne pali
+   modele koje si ugasio iz admin ekrana.
+2. **Modeli se još NE MOGU naručiti sa stranice** (ODLUKA 13). `createJob` i
+   dalje traži slug u starom `modelCatalog`-u; prespajanje na `models` je S6/S7.
+   Seed je bezbedan da se pusti odmah - popunjava tabelu koju još niko ne
+   naplaćuje.
+3. **Nano Banana 2 i Pro su uključeni, ali Google slike nisu povezane.** S2 nije
+   isporučio kod (S4 ODLUKA 12), pa bi posao na njima danas završio refundom sa
+   porukom `GOOGLE_SLIKE_NISU_POVEZANE`. Ako S2 ne bude ponovljen pre nego što
+   pustiš Studio korisnicima, ta dva reda isključi iz admin ekrana - seed ih
+   posle toga neće vratiti.
+4. **Proveri rute koje katalog ne propisuje** (ODLUKA 6), po jednom pozivu na
+   fal-ovoj stranici modela: Kling v3 i v3 Turbo (naročito **koja ruta nosi 4K**,
+   jer `{tier}` mapa danas šalje `pro`), Kling O3, četiri Kling alata, Seedream
+   4.5 edit, Seedream 5 Lite, GPT Image 1.5 i ElevenLabs music/dubbing/voice-changer.
+   Svaki od njih je jedno polje u redu i menja se iz admin ekrana bez deploy-a.
+5. **Proveri šta `kling-v2a` stvarno vraća** (ODLUKA 2). Ako vraća video sa
+   zvukom umesto zvučnog zapisa, red treba da nosi `kind: "video"` - inače će
+   galerija pokušati da ga pusti kao audio.
+6. **MiniMax H3 cena je i dalje sporna** (katalog 3.6): stranice modela kažu
+   $0,13/s na 2K, "learn" stranice $0,26/s. Pusti jednu generaciju i pročitaj
+   fakturu pre nego što taj model pustiš korisnicima; ako je stvarna cena duplo
+   veća, marža na 2K i 4K pada ispod jedan.
+7. **Cifre u tekstu kataloga se na sedam mesta razlikuju od JSON pravila**
+   (ODLUKA 4). Sve idu u korist korisnika i sve su posledica zaokruživanja, ali
+   ako želiš baš one iz teksta, menja se `baseUsd` u redu - ne zaokruživanje u
+   `computeCredits`-u, jer je `ceil` tačno jednom na kraju normativan.
+8. **Nije iz S5, i dalje stoji:** `convex/crons.ts` ima 9 nekorišćenih uvoza
+   (globalni plafon troška iz S0 nije dovršen), a `docs/STUDIO-PROGRESS.md` nema
+   sekcije za S1 i S2.
+
+**Katalog - 30 modela i broj kombinacija parametara po modelu**
+
+Podela po nameni: **7 slika · 10 video · 5 Kling alata · 8 audio.**
+Podela po `kind` polju: **8 image · 13 video · 9 audio.**
+Podela po provajderu: **23 fal · 4 google · 3 byteplus.**
+Ukupno kombinacija u testu marže: **1 105.**
+
+| `kind` | slug | provajder | kombinacija |
+|---|---|---|---|
+| image | `nano-banana-2` | google | 24 |
+| image | `nano-banana-pro` | google | 12 |
+| image | `gpt-image-2` | fal | 126 |
+| image | `gpt-image-15` | fal | 54 |
+| image | `seedream-45` | fal | 6 |
+| image | `seedream-5-pro` | byteplus | 54 |
+| image | `seedream-5-lite` | fal | 6 |
+| image | `kling-tryon` | fal | 1 |
+| video | `kling-3` | fal | 54 |
+| video | `kling-3-turbo` | fal | 15 |
+| video | `kling-omni` | fal | 72 |
+| video | `minimax-h3` | fal | 288 |
+| video | `seedance-20` | byteplus | 96 |
+| video | `seedance-25` | byteplus | 36 |
+| video | `veo-31-lite` | fal | 36 |
+| video | `veo-31-fast` | google | 90 |
+| video | `veo-31` | fal | 90 |
+| video | `gemini-omni` | google | 12 |
+| video | `kling-avatar` | fal | 4 |
+| video | `kling-lipsync` | fal | 2 |
+| video | `kling-motion` | fal | 4 |
+| audio | `tts` | fal | 2 |
+| audio | `dialogue` | fal | 2 |
+| audio | `sfx` | fal | 3 |
+| audio | `music` | fal | 3 |
+| audio | `stt` | fal | 4 |
+| audio | `voice-changer` | fal | 2 |
+| audio | `audio-isolation` | fal | 2 |
+| audio | `dubbing` | fal | 4 |
+| audio | `kling-v2a` | fal | 1 |
+
+Broj kombinacija je broj CENOVNO RAZLIČITIH izbora koje test marže stvarno
+prodje: sve opcije kontrola koje diraju cenu, u svakom režimu, sa klizačima na
+donjoj, srednjoj i gornjoj vrednosti. Kontrole koje ne diraju cenu (odnos
+stranica, glas, klizači izgovora) ne ulaze u proizvod - ne mogu da obore maržu,
+a udesetostručile bi prostor.
