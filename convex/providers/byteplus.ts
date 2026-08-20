@@ -7,6 +7,7 @@ import {
   httpAction,
   internalAction,
   internalMutation,
+  internalQuery,
 } from "../_generated/server";
 import {
   createBytePlusVideoTask,
@@ -17,6 +18,7 @@ import {
 import {
   buildImageRequestBody,
   buildVideoContent,
+  type BytePlusVideoInputs,
   bytePlusErrorMessage,
   challengeResponseBody,
   parseCallbackBody,
@@ -36,11 +38,8 @@ import { parseParams } from "../studioCore";
  *   `bytePlusCore.ts` i `verifyAndApplyTask` niže).
  */
 
-/** Koliko ulaznih fajlova po slotu uopšte prosledjujemo; iznad toga se seče. */
+/** Koliko ulaznih fajlova PO SLOTU prosledjujemo; iznad toga se seče. */
 const MAX_INPUT_URLS = 10;
-
-/** Redosled slotova u kojem ulazi idu provajderu - slike pa video. */
-const INPUT_SLOT_ORDER = ["image", "video"] as const;
 
 /**
  * Obična funkcija, ne `internalAction`: zove je `studioActions.submitJob`, koja
@@ -74,13 +73,13 @@ export async function submitBytePlusJob(ctx: ActionCtx, jobId: Id<"generationJob
 
     const config = readBytePlusConfig(process.env);
     const params = parseParams(job.params) ?? {};
-    const inputUrls = await resolveInputUrls(ctx, job.inputs);
+    const inputs = await resolveInputUrls(ctx, job.inputs);
 
     if (model.kind === "image") {
       const result = await generateBytePlusImage({
         config,
         model: providerModel,
-        input: buildImageRequestBody(params, inputUrls),
+        input: buildImageRequestBody(params, inputs.images),
       });
       // Sinhrono: posao NIKAD ne ulazi u `running`, jer nema šta da se čeka.
       await ctx.runMutation(internal.studio.markJobDone, {
@@ -97,7 +96,7 @@ export async function submitBytePlusJob(ctx: ActionCtx, jobId: Id<"generationJob
     const task = await createBytePlusVideoTask({
       config,
       model: providerModel,
-      content: buildVideoContent(params, inputUrls),
+      content: buildVideoContent(params, inputs),
       callbackUrl: `${siteUrl}/byteplus/webhook`,
     });
     await ctx.runMutation(internal.studio.markJobRunning, {
@@ -115,20 +114,28 @@ export async function submitBytePlusJob(ctx: ActionCtx, jobId: Id<"generationJob
  * se pravi ovde jer `ctx.storage.getUrl` postoji samo u akciji, a ne u čistoj
  * funkciji. Fajl kojem je istekla retencija vrati `null` i tiho ispada - posao
  * tada ide sa manje referenci umesto da pukne.
+ *
+ * Slotovi se broje ODVOJENO, a ne u jedan zajednički limit: u `reference`
+ * režimu video je taj koji obara tarifu na 0,6 (katalog 3.4), pa ne sme da
+ * ispadne zato što je korisnik pre njega okačio deset slika.
  */
-async function resolveInputUrls(ctx: ActionCtx, rawInputs: string | undefined): Promise<string[]> {
+async function resolveInputUrls(
+  ctx: ActionCtx,
+  rawInputs: string | undefined,
+): Promise<BytePlusVideoInputs> {
   const inputs = parseJobInputs(rawInputs);
-  const urls: string[] = [];
 
-  for (const slot of INPUT_SLOT_ORDER) {
-    for (const storageId of inputs[slot] ?? []) {
-      if (urls.length >= MAX_INPUT_URLS) return urls;
+  const urlsFor = async (slot: string): Promise<string[]> => {
+    const urls: string[] = [];
+    for (const storageId of (inputs[slot] ?? []).slice(0, MAX_INPUT_URLS)) {
       const url = await ctx.storage.getUrl(storageId as Id<"_storage">);
       if (url) urls.push(url);
     }
-  }
 
-  return urls;
+    return urls;
+  };
+
+  return { images: await urlsFor("image"), videos: await urlsFor("video") };
 }
 
 /**
@@ -179,6 +186,19 @@ export const handleBytePlusWebhook = httpAction(async (ctx, request) => {
 export const verifyAndApplyTask = internalAction({
   args: { providerRequestId: v.string() },
   handler: async (ctx, args) => {
+    // Poziv na task endpoint ide TEK kad znamo da zadatak pripada našem poslu
+    // koji je još u letu. Callback nije potpisan, pa bi bez ove provere bilo ko
+    // sa našom putanjom mogao da nas natera da zovemo BytePlus proizvoljan broj
+    // puta sa proizvoljnim ID-jevima - na naš rate limit i naš nalog.
+    //
+    // Cena provere je zanemarljiv rizik: callback koji pretekne našu
+    // `markJobRunning` mutaciju ispadne, ali posao tada pokupi sledeći callback
+    // (BytePlus javlja svaku promenu statusa), a u najgorem slučaju reaper.
+    const pending = await ctx.runQuery(internal.providers.byteplus.isTaskPending, {
+      providerRequestId: args.providerRequestId,
+    });
+    if (!pending) return null;
+
     const config = readBytePlusConfig(process.env);
     const task = await fetchBytePlusVideoTask({ config, taskId: args.providerRequestId });
 
@@ -205,6 +225,22 @@ export const verifyAndApplyTask = internalAction({
     // `succeeded` bez URL-a je isto što i nedovršen posao: nemamo šta da
     // sačuvamo, a refund bi bio pogrešan jer je generacija možda naplaćena.
     return null;
+  },
+});
+
+/**
+ * Postoji li posao u `running`-u za ovaj zadatak. Odvojen upit, a ne deo
+ * `applyTaskResult`-a, jer se čita PRE mrežnog poziva.
+ */
+export const isTaskPending = internalQuery({
+  args: { providerRequestId: v.string() },
+  handler: async (ctx, args) => {
+    const job = await ctx.db
+      .query("generationJobs")
+      .withIndex("by_provider_request", (q) => q.eq("providerRequestId", args.providerRequestId))
+      .unique();
+
+    return job?.status === "running";
   },
 });
 

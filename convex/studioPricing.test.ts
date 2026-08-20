@@ -133,12 +133,19 @@ test("extras ne naplaćuju ništa ispod besplatne kvote", () => {
   const base = computeCostUsd(rule, { duration: 5, reference_images: 5 });
   expect(base).toBeCloseTo(0.25, 10);
   expect(computeCostUsd(rule, { duration: 5, reference_images: 3 })).toBeCloseTo(0.25, 10);
-  // Šesta referenca je prva naplaćena: +0,08 = +18 kredita (katalog 3.6).
+  // Šesta referenca je prva naplaćena: +0,08 $.
   expect(computeCostUsd(rule, { duration: 5, reference_images: 6 })).toBeCloseTo(0.33, 10);
+  // Katalog (3.6) tu stavku vodi kao "+18 kredita", i to je cena SAME stavke:
+  // `ceil(0,08 × 216,25) = 18`.
+  expect(Math.ceil(0.08 * CREDIT_FACTOR)).toBe(18);
+  // Na računu se ipak vidi +17, jer `ceil` ide TAČNO JEDNOM nad ukupnom cenom
+  // (55 -> 72), a ne po stavci. Naplaćeno je i dalje >= nabavno (invarijanta
+  // marže niže to i tvrdi nad celim prostorom), pa je razlika u korist kupca za
+  // jedan kredit, nikad u korist kase.
   expect(
     computeCredits(rule, { duration: 5, reference_images: 6 }) -
       computeCredits(rule, { duration: 5, reference_images: 5 }),
-  ).toBe(18);
+  ).toBe(17);
 });
 
 test("modeMultipliers menjaju cenu po režimu, a nepoznat režim je množilac 1", () => {

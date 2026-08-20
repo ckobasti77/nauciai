@@ -3152,3 +3152,208 @@ rute).
    drže testovima; playground traži pokrenut Convex, upis u kurs i kredite.
    Kad sledeći put pokreneš demo, pogledaj samo jedno: da li strelica gore na
    polju "Broj slika" odmah pomeri cifru u dugmetu.
+
+## S3 - BytePlus: Seedream 5 Pro i Seedance 2.0/2.5   (20.08.2026 01:44-02:10)
+
+**Fajlovi:**
+- `convex/providers/bytePlusCore.ts` - `buildVideoContent` prima ulaze razvrstane
+  po slotu i šalje `--tier` za ne-podrazumevane tarife; nov tip
+  `BytePlusVideoInputs` i konstanta `DEFAULT_SEEDANCE_TIER`
+- `convex/providers/byteplus.ts` - `resolveInputUrls` vraća `{ images, videos }`
+  sa limitom PO SLOTU; nov `isTaskPending` internalQuery; `verifyAndApplyTask`
+  proverava posao PRE mrežnog poziva
+- `convex/providers/byteplus.test.ts` - NOV, 27 testova
+- `convex/studioParamSpec.test.ts` - NOV, 13 testova
+- `convex/studioPricing.test.ts` - jedan ispravljen assertion (videti ODLUKA 1)
+- `docs/STUDIO-PROGRESS.md` - ova sekcija
+
+Zatečeno iz prekinutog S3 pokušaja (commit `2ffec3e`, "wip: stanje pre
+kataloskog run-a") i NIJE pisano ispočetka: `lib/byteplus.ts`,
+`convex/providers/bytePlusCore.ts`, `convex/providers/byteplus.ts`,
+`convex/providers/bytePlusModels.ts`, ruta `/byteplus/webhook` u `convex/http.ts`,
+`models` grana u `studioActions.submitJob` i BytePlus cenovni testovi u
+`convex/studioPricing.test.ts`. Ovaj korak je to pročitao, popravio tri stvari
+koje dodiruju novac i pokrio ceo tok testovima.
+
+**Šta je uradjeno:**
+
+**Callback se i dalje ne uzima zdravo za gotovo, ali sada ni ne košta.**
+`verifyAndApplyTask` prvo pita bazu (`isTaskPending`) da li uopšte postoji posao
+u `running`-u za taj `providerRequestId`, pa tek onda zove task endpoint. Bez
+toga je "vrati 200 i ne uradi ništa" bilo netačno: nepoznat ID je i dalje
+proizvodio poziv ka BytePlus-u, a callback nije potpisan - dakle bilo ko sa
+našom putanjom je mogao da nam troši rate limit i kvotu. Provera verifikaciju ne
+slabi: telo callback-a i dalje daje SAMO koji zadatak da proverimo, nikad kako
+se završio, i to je pokriveno sa dva testa u oba smera.
+
+**`tier` sada stiže do BytePlus-a - za Fast i Mini.** Zatečeni kod ga uopšte
+nije slao, uz komentar da tarifu bira nalog. To je bila tiha rupa u kasi: Fast
+(0,121 $/s) i Mini (0,077 $/s) su JEFTINIJI od Standarda (0,151 $/s), pa bi
+korisnik plaćao Mini a BytePlus radio Standard - razliku plaćamo mi. Komanda
+`--tier` se šalje samo kad tarifa nije `standard`, pa podrazumevan put ne može
+da pukne na nepoznatu komandu, a jeftina tarifa ili radi tačno ili posao pukne i
+refundira se. Tihog gubitka nema ni u jednom ishodu.
+
+**Video referenca više ne ide kao slika.** `resolveInputUrls` je slotove trpao u
+jedan niz, a `buildVideoContent` sve slao kao `image_url`. U `reference` režimu
+sa videom se naplaćuje i ULAZNI video po sniženoj tarifi 0,6 (katalog 3.4) -
+poslati ga kao sliku znači naplatiti ulaz koji model nikad nije dobio. Sada
+slike idu kao `image_url`, video kao `video_url`, a limit od 10 fajlova važi PO
+SLOTU, pa video ne ispada zato što je korisnik pre njega okačio deset slika.
+
+**ODLUKE:**
+
+1. **`convex/studioPricing.test.ts` je zatečen CRVEN i jedan assertion je
+   ispravljen, ne obrisan.** Test je tvrdio da šesta referentna slika podiže
+   račun za 18 kredita; stvarna razlika je 17. Oboje je tačno iz svog ugla:
+   katalog (3.6) tu stavku vodi kao "+18 kredita", i to je cena SAME stavke
+   (`ceil(0,08 x 216,25) = 18`), ali `computeCredits` po sekciji 1.3 radi `ceil`
+   TAČNO JEDNOM nad ukupnom cenom (55 -> 72). Ispravljena je OČEKIVANA vrednost
+   (18 -> 17) i dodat NOV assertion koji katalošku cifru i dalje pribija
+   (`Math.ceil(0,08 x CREDIT_FACTOR) === 18`), pa test sada tvrdi obe stvari
+   umesto jedne. Cena se nije menjala - menja se samo pogrešno očekivanje.
+2. **`tier` se šalje kao tekstualna komanda (`--tier mini`), i to samo za
+   ne-podrazumevane tarife.** Ark parametre za video prima kao komande
+   nalepljene na prompt, ali za `tier` to nije potvrdjeno protiv živog API-ja
+   (pravila zabranjuju poziv). Izbor je najkonzervativniji od tri moguća: ne
+   slati ništa znači tih gubitak na svakom Fast/Mini poslu; slati uvek znači
+   rizik da podrazumevan Standard posao pukne na nepoznatu komandu; slati samo
+   za jeftine tarife ostavlja Standard netaknut, a najgori ishod na Fast/Mini je
+   greška koja refundira. **Jovan mora ovo da proveri protiv fakture pre nego
+   što otvori Fast i Mini** - vidi "Za Jovana".
+3. **`layers` se i dalje šalje kao polje u telu `/images/generations`.** Nije
+   dirano jer nije bilo načina da se potvrdi bez živog poziva, a greška u ovom
+   smeru ne košta: ako polje ne postoji, BytePlus vrati grešku i posao se
+   refundira. Naplata po sloju je nezavisno pokrivena testom.
+4. **`MAX_INPUT_URLS` ostaje 10, ali sada PO SLOTU.** Seedance 2.5 po katalogu
+   prima do 50 referenci, pa se preko desete i dalje tiho seče. Nije podizano
+   jer gornju granicu po režimu drži `models.inputSpec` (do 50), a mesto koje tu
+   granicu proverava je forma/`createJob` - to je posao S5/S7, ne ovog koraka.
+   Ostaje kao poznato ograničenje, ne kao tvrdnja da je 10 dovoljno.
+5. **`verifyAndApplyTask` sme da propusti callback koji pretekne
+   `markJobRunning`.** Provera `isTaskPending` gleda posao u `running`-u, a
+   izmedju `createBytePlusVideoTask` i `markJobRunning` postoji uzan prozor u kom
+   posao još nema `providerRequestId`. Rizik je prihvaćen svesno: BytePlus javlja
+   SVAKU promenu statusa, pa taj posao pokupi sledeći callback, a u najgorem
+   slučaju `crons.reapStuckJobs` posle 30 minuta refundira. Alternativa (bez
+   provere) otvara nepotpisanu putanju za pozive na tudji račun.
+6. **`import.meta.glob` u `convex/providers/byteplus.test.ts` ide od korena
+   projekta (`/convex/**/*.ts`), ne relativno.** Relativan oblik iz
+   poddirektorijuma (`../**/*.ts`) NE zahvata sam taj poddirektorijum, pa
+   `convex-test` scheduler pada sa `Could not find module for:
+   providers/byteplus`. Zapisano i kao komentar u fajlu da se ne "popravi" nazad.
+7. **Cena po sekundi za Seedance 2.5 na 1080p ostaje 124 kredita, ne 125 kako
+   piše u tekstu kataloga.** Ovu odluku je doneo prethodni (prekinut) pokušaj i
+   ona je zadržana: JSON pravilo je izvor istine po sekciji 1.3, a
+   `ceil(0,569 x 216,25) = 124`. Nijedna cifra iz JSON tabela nije menjana.
+8. **`createJob` i dalje računa cenu preko STAROG `modelCatalog`-a.** v4 pravila
+   (`models.priceRule`) su kompletna i dokazana testovima, ali ih još niko ne
+   zove pri pravljenju posla - `createJob` traži slug u `modelCatalog`-u i računa
+   `computeCreditCost`. To znači da BytePlus model danas ne može da se naruči sa
+   stranice dok mu slug ne stoji u OBE tabele. Nije rešavano ovde jer je
+   prespajanje `createJob`-a na `models` posao seed-a i UI-ja (S5/S7), a
+   dodirivalo bi ceo postojeći tok naplate. Ovo je najveća otvorena stavka posle
+   ovog koraka i stoji i u "Za Jovana".
+
+**Testovi:** 40 novih (433 -> 473), plus jedan ispravljen i jedan dodat
+assertion iz ODLUKE 1.
+
+`convex/providers/byteplus.test.ts` (27) - ceo tok, BytePlus se ne zove uživo
+nijednom (svaki `fetch` je stub koji beleži šta je poslato):
+- **verifikacija putanje:** `challenge` se vraća NEPROMENJEN sa 200, i to bez
+  ijednog čitanja baze i bez ijednog mrežnog poziva (rok je 3 sekunde); obična
+  poruka o statusu NE dobija challenge odgovor; telo bez `challenge` polja
+  (prazan objekat, ne-JSON, prazan string) nema šta da vrati, pa verifikacija
+  kroz njega ne prolazi;
+- **nepoznat `providerRequestId`:** 200, nula poziva ka BytePlus-u, posao ostaje
+  `running`, nula refundova; isto i za posao koji više nije `running`;
+- **telo nije izvor istine, u oba smera:** callback koji tvrdi `succeeded` ne
+  prolazi kad task endpoint kaže `failed` (posao refundiran, bez `falOutputUrl`),
+  i callback koji tvrdi `failed` ne refundira kad endpoint kaže `succeeded`;
+- **dupli callback menja posao TAČNO JEDNOM:** isti `completedAt`, isti balans,
+  jedan zakazan `persistOutput`, i samo JEDAN poziv ka BytePlus-u - drugi pada na
+  proveri pre mreže;
+- **greška refundira tačno jednom:** `failed` i `cancelled` daju jednu `refund`
+  transakciju i vraćen balans, a ponovljen callback to ne menja; `succeeded` bez
+  URL-a ne obara posao u `done` i ne refundira ga;
+- **predaja:** Seedream 5 Pro ide sinhrono `reserved -> done` (nikad kroz
+  `running`) sa tačnim telom (`model`, `size`, `n`, `watermark: false`); Seedance
+  ide asinhrono u `running` sa `callback_url` na `/byteplus/webhook`;
+- **tarifa:** Standard ne šalje `--tier`, Fast i Mini ga šalju, i Mini posao ga
+  stvarno nosi u zahtevu koji ide BytePlus-u;
+- **video referenca:** okačen video stiže kao `video_url`, slika kao `image_url`;
+- **neuspesi u predaji refundiraju tačno jednom, bez mrežnog poziva:** bez
+  `BYTEPLUS_API_KEY`, bez `BYTEPLUS_BASE_URL`, na režim koji model nema
+  (`NEDOZVOLJEN_REZIM`), i na 500 sa BytePlus-a; posao koji nije `reserved` se ne
+  predaje drugi put.
+
+`convex/studioParamSpec.test.ts` (13) - kapija izmedju forme i provajdera:
+- Mini nudi samo 480p i 720p, a 1080p nudi samo Standard - u oba smera, iz
+  cenovnog pravila, bez ijednog spiska zabrana u kodu;
+- **Mini + 1080p se ODBIJA na serveru** (`NEDOSTUPNA_KOMBINACIJA` sa imenima
+  parametara u poruci), isto i Mini + 4K, dok Mini + 720p prolazi;
+- vrednost van skupa opcija se odbija a ne odseca; trajanje se odseca na min/max
+  ali se van reda veličine odbija; izostavljeni parametri se popunjavaju
+  podrazumevanim vrednostima pre nego što se cena uopšte traži;
+- `layers` postoji samo u `layerize` režimu a `num_images` samo van njega, i
+  `num_images` poslat u `layerize` tiho ispada; broj slojeva se drži u 2-17;
+- `paramSpec` preživi put kroz bazu kao JSON string.
+
+Zatečeni testovi u `convex/studioPricing.test.ts` (27) su ostavljeni i sada
+prolaze; oni pokrivaju layerize sa 8 slojeva = 8x, množilac 0,6 za referencu sa
+videom (uključujući naplatu i ulaznog i izlaznog videa preko
+`referenceVideoBillableSeconds`), tabele iz kataloga 2.6/3.4/3.5 i invarijantu
+marže >= 1,0 nad preko 400 kombinacija.
+
+**Rezultat verifikacije:** sve četiri komande čiste.
+- `npx convex codegen` - **prošlo** (exit 0, `Running TypeScript...` bez greške)
+- `npm run lint` - **prošlo** (`17 problems (0 errors, 17 warnings)`; nijedno
+  upozorenje nije iz fajlova ovog koraka - 7 su zatečena iz
+  `admin-inline-actions.tsx`, `dashboard-content.tsx` i
+  `public-course-intro-video.tsx`, 9 su nekorišćeni uvozi u `convex/crons.ts`
+  koje je ostavio prekinut S0, 1 je u `get_google_creds.js`)
+- `npm run test` - **prošlo** (`Test Files 44 passed (44) / Tests 473 passed (473)`)
+- `npm run build` - **prošlo** (`Compiled successfully in 9.2s`,
+  `Finished TypeScript in 17.7s`, 60/60 statičkih stranica)
+
+Za red reči: zatečeno stanje grane na početku ovog koraka NIJE bilo zeleno -
+`npm run test` je davao `2 failed | 431 passed (433)`. Jedan pad je bio assertion
+iz ODLUKE 1, drugi `convex/chat.test.ts > inbox summary stays exact beyond one
+thousand memberships` sa `Test timed out in 5000ms` (test radi 1 105 članstava i
+traje ~9,9 s na ovoj mašini). Taj test u punom prolazu prolazi i nije diran - to
+je ista nestabilnost pod opterećenjem koju je zabeležio i
+`docs/STUDIO-DAY-REPORT.md`.
+
+**BLOKADA:** nema.
+
+**Za Jovana:**
+1. **$30 na BytePlus nalogu PO SEEDANCE MODELU - $60 za oba**, i taj novac je
+   zaključan dok su modeli aktivni. Seedream 5 Pro nema taj uslov. Bez toga
+   Seedance 2.0 i 2.5 ne rade, ma šta kod radio.
+2. **Aktiviraj sva tri modela u BytePlus konzoli** i proveri da li Seedance nosi
+   oznaku **"Restricted Model"**. Ako nosi, spisak zemalja na kome je Srbija NE
+   važi za njega i ceo Seedance deo kataloga pada - to proveri PRE nego što
+   uplatiš $60.
+3. **Postavi dve Convex env varijable** (ovaj run ih po pravilima nije
+   postavljao): `BYTEPLUS_BASE_URL=https://ark.ap-southeast.bytepluses.com/api/v3`
+   i `BYTEPLUS_API_KEY`. Obe su obavezne i bez njih posao ne pukne tiho nego se
+   refundira sa doslovnom porukom koja kaže koja fali.
+4. **Prijavi `/byteplus/webhook` u konzoli.** Puna putanja je
+   `<CONVEX_SITE_URL>/byteplus/webhook`. Prvi zahtev je verifikacioni i mi na
+   njega odgovaramo `challenge`-om nepromenjeno; ako konzola javi da verifikacija
+   nije prošla, prvo proveri da si stavio `.site` domen a ne `.cloud`.
+5. **Pusti po JEDNU generaciju na Fast i na Mini i pročitaj fakturu** pre nego
+   što te dve tarife pustiš korisnicima (ODLUKA 2). Ako se na fakturi vidi
+   Standard cena, `--tier` komanda nije prošla i te dve opcije moraju da se
+   sakriju dok se ne nadje pravi kanal. Standard je bezbedan i bez te provere.
+6. **Pusti jednu `layerize` generaciju** i proveri da je BytePlus stvarno vratio
+   slojeve (ODLUKA 3). Naplata po sloju je testirana, ali oblik zahteva nije
+   potvrdjen protiv živog API-ja.
+7. **BytePlus modeli se još ne mogu naručiti sa stranice** (ODLUKA 8):
+   `createJob` traži slug u starom `modelCatalog`-u, a nova cenovna pravila žive
+   u `models`. Prespajanje je posao S5/S7 - ne pokušavaj demo sa Seedance-om pre
+   toga.
+8. **Dve stvari koje su ostale za sobom iz ranijih koraka, nisu iz S3:**
+   `convex/crons.ts` ima 9 nekorišćenih uvoza (globalni plafon troška iz S0 nije
+   dovršen), a `docs/STUDIO-PROGRESS.md` nema sekcije za S1 i S2 - oba ta koraka
+   su po logu izašla sa greškom iako je kod ostao u grani.
