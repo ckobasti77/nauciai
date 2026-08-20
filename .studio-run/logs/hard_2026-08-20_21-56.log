@@ -1,0 +1,74 @@
+﻿[21:56:22] ==================================================
+[21:56:22]  STUDIO - zatvaranje rupa N1-N7
+[21:56:22]  Grana:  feat/studio-faza-a
+[21:56:22]  Koraka: 8
+[21:56:22]  Mrezni pad: cekanje 180s, do 5 pokusaja
+[21:56:22] ==================================================
+[21:56:22] Grana: feat/studio-faza-a
+[21:56:22] 
+[21:56:22] --------------------------------------------------
+[21:56:22]  X1  |  N2 prva polovina: donja granica trajanja iz bajtova
+[21:56:22]  model=opus  effort=max
+[21:56:22] --------------------------------------------------
+[21:56:22] DRY RUN - prompt zapisan.
+[21:56:22] 
+[21:56:22] --------------------------------------------------
+[21:56:22]  X2  |  N2 druga polovina: naplata po stvarnom trosku, poravnanje razlike
+[21:56:22]  model=opus  effort=max
+[21:56:22] --------------------------------------------------
+[21:56:22] DRY RUN - prompt zapisan.
+[21:56:22] 
+[21:56:22] --------------------------------------------------
+[21:56:22]  X3  |  N6: actualCostUsd da stvarno proizvodi podatke, i da glasno cuti
+[21:56:22]  model=opus  effort=high
+[21:56:22] --------------------------------------------------
+[21:56:22] DRY RUN - prompt zapisan.
+[21:56:22] 
+[21:56:22] --------------------------------------------------
+[21:56:22]  X4  |  N1: moderator ne sme da vidi tudje promptove i tudje snimke
+[21:56:22]  model=opus  effort=high
+[21:56:22] --------------------------------------------------
+[21:56:22] DRY RUN - prompt zapisan.
+[21:56:22] 
+[21:56:22] --------------------------------------------------
+[21:56:22]  X5  |  N3 i N4: vlasnistvo po izdatom tokenu, i brava na merenje
+[21:56:22]  model=opus  effort=high
+[21:56:22] --------------------------------------------------
+[21:56:22] DRY RUN - prompt zapisan.
+[21:56:22] 
+[21:56:22] --------------------------------------------------
+[21:56:22]  X6  |  N5 i N7: plafon koji tiho pukne, i ulazi koji ostaju zauvek
+[21:56:22]  model=sonnet  effort=high
+[21:56:22] --------------------------------------------------
+[21:56:22] DRY RUN - prompt zapisan.
+[21:56:22] 
+[21:56:22] --------------------------------------------------
+[21:56:22]  X7  |  Pravni tekst, 18+, PDV i tri Stripe dogadjaja kojih nema
+[21:56:22]  model=opus  effort=high
+[21:56:22] --------------------------------------------------
+[21:56:22] DRY RUN - prompt zapisan.
+[21:56:22] 
+[21:56:22] --------------------------------------------------
+[21:56:22]  XRV  |  Zavrsni review
+[21:56:22]  model=opus  effort=xhigh
+[21:56:22] --------------------------------------------------
+[21:56:22] DRY RUN - prompt zapisan.
+[21:56:22] 
+[21:56:22] ==================================================
+[21:56:22]  GOTOVO
+[21:56:22] ==================================================
+[21:56:22] Ukupna cena: USD 0.00
+[21:56:22] Grana: feat/studio-faza-a  (NIJE push-ovana, NIJE deploy-ovana)
+[21:56:22] 
+[21:56:22] Kad se vratis:
+[21:56:22]   1. docs\STUDIO-HARD-REPORT.md  - nov status N1-N7, sme li se Stripe upaliti
+[21:56:22]   2. docs\STUDIO-PROGRESS.md     - dnevnik X1-X7
+[21:56:22]   3. npm run dev  pa  /sr/app/studio
+[21:56:25] ==================================================
+[21:56:25]  STUDIO - zatvaranje rupa N1-N7
+[21:56:25]  Grana:  feat/studio-faza-a
+[21:56:25]  Koraka: 8
+[21:56:25]  Mrezni pad: cekanje 180s, do 5 pokusaja
+[21:56:25] ==================================================
+[21:56:25] Grana: feat/studio-faza-a
+[21:56:25] Nekomitovane izmene - commitujem pre starta.

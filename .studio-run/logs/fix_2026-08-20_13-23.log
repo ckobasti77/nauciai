@@ -126,3 +126,26 @@
 [16:22:17]  WRV  |  Zavrsni review
 [16:22:17]  model=opus  effort=xhigh
 [16:22:17] --------------------------------------------------
+[16:44:33] Commit 04ca6d7 - 5 putanja
+[16:44:33] WRV -> OK  (22 min, 1 pokusaja, USD 9.32)
+[16:44:33] 
+[16:44:33] ==================================================
+[16:44:33]  GOTOVO
+[16:44:33] ==================================================
+[16:44:33] Korak Status Minuta CenaUSD Pokusaja Commit 
+[16:44:33] ----- ------ ------ ------- -------- ------ 
+[16:44:33] W1    OK         22 9.61           1 0b705a9
+[16:44:33] W2    OK         14 4.66           1 9cde1fa
+[16:44:33] W3    OK         28 10.95          1 363a7fe
+[16:44:33] W4    OK         18 8.06           1 b9bab2a
+[16:44:33] W5    OK         40 24.89          1 497d774
+[16:44:33] W6    OK         26 10.63          1 a71eb35
+[16:44:33] W7    OK         31 21.08          1 a865dde
+[16:44:33] WRV   OK         22 9.32           1 04ca6d7
+[16:44:33] Ukupna cena: USD 99.19
+[16:44:33] Grana: feat/studio-faza-a  (NIJE push-ovana, NIJE deploy-ovana)
+[16:44:33] 
+[16:44:33] Kad se vratis:
+[16:44:33]   1. docs\STUDIO-FIX-REPORT.md   - nov status R1-R5, spremnost za naplatu
+[16:44:33]   2. docs\STUDIO-PROGRESS.md     - dnevnik W1-W7
+[16:44:33]   3. npm run dev  pa  /sr/app/studio
