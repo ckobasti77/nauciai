@@ -234,6 +234,33 @@ export function parseQuantitySource(capabilities: string): QuantitySource | null
 }
 
 /**
+ * Rezim koji se ne naručuje uploadom nego IZBOROM prethodne generacije ISTOG
+ * modela iz `generationJobs` (STUDIO-CATALOG-V4 3.8, nalaz S3: Gemini Omni
+ * "video" - izmena klipa koji je model sam napravio). Stoji u
+ * `capabilities.continuation` reda kataloga; `mode` je ime ulaznog režima na
+ * koji se odnosi, `param` ključ pod kojim se ID prethodne generacije upisuje u
+ * `params` da bi ga provajder pročitao (`providers/google.ts`).
+ */
+export type ContinuationSource = { mode: string; param: string };
+
+export function parseContinuationSource(capabilities: string): ContinuationSource | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(capabilities);
+  } catch {
+    return null;
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+
+  const raw = (parsed as { continuation?: unknown }).continuation;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const source = raw as ContinuationSource;
+  if (typeof source.mode !== "string" || typeof source.param !== "string") return null;
+
+  return source;
+}
+
+/**
  * Iz kojih slotova se koja količina meri. `stt` i `dubbing` primaju i video i
  * zvuk pod istim pravilom po minutu, pa `input_media_minutes` gleda oba slota.
  */

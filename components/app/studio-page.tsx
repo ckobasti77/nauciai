@@ -13,10 +13,11 @@ import { GenerateButton } from "@/components/studio/generate-button";
 import { ModelPicker } from "@/components/studio/model-picker";
 import { ModeSwitcher } from "@/components/studio/mode-switcher";
 import { ParamForm, useParamValues } from "@/components/studio/param-form";
+import { SourceJobPicker } from "@/components/studio/source-job-picker";
 import { Panel, SectionHeader, cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { parseQuantitySource, promptControlOf } from "@/convex/studioJobCore";
+import { parseContinuationSource, parseQuantitySource, promptControlOf } from "@/convex/studioJobCore";
 import { withLocale, type Locale } from "@/lib/i18n";
 import { jobPrompt, jobStatusText, jobTileState, RECENT_JOBS_COUNT } from "@/lib/studio-form";
 import { parseStudioModel, type StudioModel, type StudioModelRow } from "@/lib/studio-models";
@@ -106,12 +107,17 @@ type JobPayload = {
   params: Record<string, unknown>;
   inputMode: string;
   inputs: Record<string, string[]>;
+  sourceJobId?: Id<"generationJobs">;
 };
 
 /**
  * Slotovi izabranog režima. Koje komponente idu na ekran kaže `inputSpec`, ne
  * kod: par kadrova ima svoj oblik, reference svoj, a sve ostalo je jedan slot
  * po ulazu (STUDIO-CATALOG-V4 sekcija 5).
+ *
+ * Režim bez slotova NIJE uvek prazan: `capabilities.continuation` (nalaz S3)
+ * kaže da taj režim traži IZBOR prethodne generacije, ne fajl - Gemini Omni
+ * "video" je danas jedini takav.
  */
 function ModeInputs({
   model,
@@ -120,6 +126,9 @@ function ModeInputs({
   onFilesChange,
   frames,
   onFramesChange,
+  sourceJobId,
+  onSourceJobIdChange,
+  optional,
   locale,
   disabled,
 }: {
@@ -129,11 +138,36 @@ function ModeInputs({
   onFilesChange: (next: SlotFiles) => void;
   frames: FramePair;
   onFramesChange: (next: FramePair) => void;
+  sourceJobId: Id<"generationJobs"> | null;
+  onSourceJobIdChange: (next: Id<"generationJobs"> | null) => void;
+  /**
+   * Slotovi koje je isključila VREDNOST kontrole (npr. Kling lipsync sa
+   * izvorom teksta ne treba zvuk). Ne samo da nisu obavezni - ne prikazuju se,
+   * jer prazan slot koji korisnik ne sme ni da popuni je gora poruka od
+   * poruke (nalaz S2, W7).
+   */
+  optional: string[];
   locale: Locale;
   disabled: boolean;
 }) {
-  const slots = slotsForMode(model.inputSpec, inputMode);
-  if (slots.length === 0) return null;
+  const slots = slotsForMode(model.inputSpec, inputMode).filter((entry) => !optional.includes(entry.slot));
+  if (slots.length === 0) {
+    const continuation = parseContinuationSource(JSON.stringify(model.capabilities));
+    if (continuation && continuation.mode === inputMode) {
+      return (
+        <SourceJobPicker
+          modelSlug={model.slug}
+          kind={model.kind}
+          value={sourceJobId}
+          onChange={onSourceJobIdChange}
+          locale={locale}
+          disabled={disabled}
+        />
+      );
+    }
+
+    return null;
+  }
 
   // Režim sa tačno jednim slotom je jedini smislen cilj za prijem preko celog
   // ekrana (AGENTS.md); sa dva se iz fajla ne vidi u koji slot ide.
@@ -267,6 +301,7 @@ function PlaygroundForm({
     first: seed?.files?.image?.[0] ?? null,
     last: seed?.files?.image?.[1] ?? null,
   }));
+  const [sourceJobId, setSourceJobId] = useState<Id<"generationJobs"> | null>(null);
 
   // `first_last` drži par imenovano (S6 ODLUKA 9), ali i cena i `createJob`
   // gledaju obične slotove - pa se par ovde spaja nazad u slot `image`.
@@ -314,6 +349,10 @@ function PlaygroundForm({
   );
   const credits = creditsFor(model.priceRule, form.params, inputMode);
   const promptValue = promptControl ? form.values[promptControl.key] : undefined;
+  // Rezim koji trazi izbor prethodne generacije (nalaz S3) nema slotove, pa
+  // `missingInput` iznad ne vidi da mu nesto fali - proverava se posebno.
+  const continuation = useMemo(() => parseContinuationSource(JSON.stringify(model.capabilities)), [model]);
+  const sourceRequired = continuation !== null && continuation.mode === inputMode;
   const block = generateBlock({
     state: studioState,
     balance,
@@ -323,10 +362,16 @@ function PlaygroundForm({
       promptRequired(model.inputSpec, inputMode) &&
       (typeof promptValue !== "string" || promptValue.trim().length === 0),
     quantityMissing: quantitySource !== null && measured[quantitySource.param] === undefined,
+    sourceMissing: sourceRequired && sourceJobId === null,
   });
 
   function submit() {
-    onGenerate({ params: form.params, inputMode, inputs: inputsPayload(effectiveFiles) });
+    onGenerate({
+      params: form.params,
+      inputMode,
+      inputs: inputsPayload(effectiveFiles),
+      ...(sourceRequired && sourceJobId ? { sourceJobId } : {}),
+    });
   }
 
   return (
@@ -349,6 +394,9 @@ function PlaygroundForm({
         onFilesChange={setFiles}
         frames={frames}
         onFramesChange={setFrames}
+        sourceJobId={sourceJobId}
+        onSourceJobIdChange={setSourceJobId}
+        optional={optional}
         locale={locale}
         disabled={isPending}
       />
@@ -656,6 +704,7 @@ export function StudioPage({ locale }: { locale: Locale }) {
         ...(Object.keys(payload.inputs).length > 0
           ? { inputs: JSON.stringify(payload.inputs) }
           : {}),
+        ...(payload.sourceJobId ? { sourceJobId: payload.sourceJobId } : {}),
         ...(lessonId ? { lessonId } : {}),
         ...(lessonId && taskId ? { taskId } : {}),
       });

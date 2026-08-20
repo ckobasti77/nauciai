@@ -62,6 +62,31 @@ describe("ParamForm - vrednosti koje forma drži", () => {
     }
   });
 
+  test("kling-tryon nema nijednu kontrolu - <ParamForm> vraća null, forma je samo upload i dugme (W7 stavka 7)", () => {
+    const tryon = studioModelBySlug("kling-tryon");
+    expect(tryon).toBeDefined();
+    if (!tryon) return;
+
+    // `components/studio/param-form.tsx` ima `if (controls.length === 0) return null`
+    // - ovo tvrdi PREMISU tog uslova za tačno ovaj model, ne samu komponentu
+    // (repo nema konvenciju za testiranje React renderovanja).
+    for (const mode of tryon.inputModes) {
+      expect(visibleControls(tryon.paramSpec, mode)).toEqual([]);
+    }
+  });
+
+  test("kling-v2a ima tačno jednu kontrolu (prompt) - forma je prompt, upload i dugme (W7 stavka 7)", () => {
+    const v2a = studioModelBySlug("kling-v2a");
+    expect(v2a).toBeDefined();
+    if (!v2a) return;
+
+    for (const mode of v2a.inputModes) {
+      const controls = visibleControls(v2a.paramSpec, mode);
+      expect(controls).toHaveLength(1);
+      expect(controls[0]?.type).toBe("textarea");
+    }
+  });
+
   test("kontrola sa istim ključem u dva režima daje tačno jednu kontrolu po režimu", () => {
     // Kling 3.0 Turbo ima DVE `resolution` kontrole: jednu za `text`/`image`,
     // drugu (samo 720p) za prvi i poslednji kadar.

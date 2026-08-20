@@ -64,7 +64,8 @@ test("seedModelCatalog upisuje sve modele i ponovljen seed ne duplira", async ()
 
   await runSeed(t);
   const firstRun = await t.run((ctx) => ctx.db.query("modelCatalog").collect());
-  expect(firstRun).toHaveLength(22);
+  // FLUX je izbačen iz `modelCatalogSeeds` (R5, W7): 22 - 2 = 20.
+  expect(firstRun).toHaveLength(20);
 
   await runSeed(t);
   const secondRun = await t.run((ctx) => ctx.db.query("modelCatalog").collect());
@@ -76,33 +77,40 @@ test("listModels vraća samo isEnabled modele, sortirane po sortOrder, i poštuj
   const t = convexTest(schema, modules);
   await runSeed(t);
 
+  // Svaki red starog kataloga se sad seed-uje ugašen (R5, W7) - v4 katalog
+  // pokriva svaku porodicu. Prazan javni spisak je zato TAČNO stanje, ne
+  // propust testa.
+  const seeded = await t.run((ctx) => ctx.db.query("modelCatalog").collect());
+  expect(seeded.length).toBeGreaterThan(0);
+  expect(seeded.every((model) => !model.isEnabled)).toBe(true);
+  expect(await t.query(api.modelCatalog.listModels, {})).toEqual([]);
+  expect(await t.query(api.modelCatalog.listModels, { kind: "video" })).toHaveLength(0);
+  expect(await t.query(api.modelCatalog.listModels, { kind: "audio" })).toHaveLength(0);
+
+  // Filter i sortiranje se i dalje proveravaju - samo je ovde uslov da red bude
+  // vidljiv naveden eksplicitno, umesto da se osloni na seed koji više ne
+  // uključuje nijedan legacy red.
+  const nanoBanana2 = seeded.find((model) => model.slug === "nano-banana-2");
+  await t.run((ctx) => ctx.db.patch(nanoBanana2!._id, { isEnabled: true }));
+
   const all = await t.query(api.modelCatalog.listModels, {});
-  expect(all.length).toBeGreaterThan(0);
-  // `isEnabled` više ne izlazi iz projekcije, pa se filter dokazuje slugovima:
-  // nijedan isključen model ne sme da bude u odgovoru.
-  const disabledSlugs = await t.run(async (ctx) =>
-    (await ctx.db.query("modelCatalog").collect())
-      .filter((model) => !model.isEnabled)
-      .map((model) => model.slug),
-  );
-  expect(disabledSlugs.length).toBeGreaterThan(0);
-  expect(all.filter((model) => disabledSlugs.includes(model.slug))).toEqual([]);
+  expect(all).toHaveLength(1);
+  expect(all[0]?.slug).toBe("nano-banana-2");
+  expect(all[0]?.badge).toBe("preporuceno");
   expect(all.every((model) => model.kind === "image")).toBe(true);
   const sortOrders = all.map((model) => model.sortOrder);
   expect(sortOrders).toEqual([...sortOrders].sort((a, b) => a - b));
-
-  const video = await t.query(api.modelCatalog.listModels, { kind: "video" });
-  expect(video).toHaveLength(0);
-  const audio = await t.query(api.modelCatalog.listModels, { kind: "audio" });
-  expect(audio).toHaveLength(0);
-
-  const nanoBanana2 = all.find((model) => model.slug === "nano-banana-2");
-  expect(nanoBanana2?.badge).toBe("preporuceno");
 });
 
 test("listModels ne vraća falEndpoint ni estimatedCostUsd - upit je javan", async () => {
   const t = convexTest(schema, modules);
   await runSeed(t);
+  // Svi legacy redovi su sad ugašeni (R5) - da bi se testirala projekcija
+  // javnog upita, jedan red se ovde ručno pali, kao u testu iznad.
+  const nanoBanana2 = await t.run(async (ctx) =>
+    (await ctx.db.query("modelCatalog").collect()).find((model) => model.slug === "nano-banana-2"),
+  );
+  await t.run((ctx) => ctx.db.patch(nanoBanana2!._id, { isEnabled: true }));
 
   const all = await t.query(api.modelCatalog.listModels, {});
   expect(all.length).toBeGreaterThan(0);
@@ -119,12 +127,12 @@ test("listModels ne vraća falEndpoint ni estimatedCostUsd - upit je javan", asy
   }
 
   // A ono što ekran crta i dalje stiže.
-  const nanoBanana2 = all.find((model) => model.slug === "nano-banana-2");
-  expect(nanoBanana2).toMatchObject({ kind: "image", badge: "preporuceno" });
-  expect(nanoBanana2?.creditCost).toBeGreaterThan(0);
-  expect(typeof nanoBanana2?.paramSchema).toBe("string");
-  expect(typeof nanoBanana2?.labelSr).toBe("string");
-  expect(typeof nanoBanana2?.descriptionEn).toBe("string");
+  const nanoBanana2Public = all.find((model) => model.slug === "nano-banana-2");
+  expect(nanoBanana2Public).toMatchObject({ kind: "image", badge: "preporuceno" });
+  expect(nanoBanana2Public?.creditCost).toBeGreaterThan(0);
+  expect(typeof nanoBanana2Public?.paramSchema).toBe("string");
+  expect(typeof nanoBanana2Public?.labelSr).toBe("string");
+  expect(typeof nanoBanana2Public?.descriptionEn).toBe("string");
 
   // Admin i dalje vidi nabavnu cenu - bez nje P8 ne može da izračuna maržu.
   const admin = await seedAdmin(t);
@@ -137,14 +145,21 @@ test("getModelBySlug vraća cenu koja se poklapa sa STUDIO-PLAN §2.3 za bar 3 n
   const t = convexTest(schema, modules);
   await runSeed(t);
 
+  // FLUX je izbačen iz `modelCatalogSeeds` (R5, W7) - katalog §7 ga isključuje
+  // i nema svog naslednika u v4, pa ne postoji ni ovde.
   const flux2Flash = await t.run((ctx) =>
     ctx.runQuery(internal.modelCatalog.getModelBySlug, { slug: "flux-2-flash" }),
   );
-  expect(flux2Flash).toMatchObject({
-    falEndpoint: "fal-ai/flux-2/flash",
-    creditCost: 3,
-    estimatedCostUsd: 0.005,
-    isEnabled: true,
+  expect(flux2Flash).toBeNull();
+
+  const seedream45 = await t.run((ctx) =>
+    ctx.runQuery(internal.modelCatalog.getModelBySlug, { slug: "seedream-45" }),
+  );
+  expect(seedream45).toMatchObject({
+    falEndpoint: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+    creditCost: 10,
+    estimatedCostUsd: 0.04,
+    isEnabled: false,
   });
 
   const veo31Lite = await t.run((ctx) =>
@@ -182,7 +197,7 @@ test("listAllModels vraća i isključene modele, zaštićen requireAdmin", async
   await expect(student.query(api.modelCatalog.listAllModels, {})).rejects.toThrow("Forbidden");
 
   const all = await admin.query(api.modelCatalog.listAllModels, {});
-  expect(all).toHaveLength(22);
+  expect(all).toHaveLength(20);
   expect(all.some((model) => !model.isEnabled)).toBe(true);
   const sortOrders = all.map((model) => model.sortOrder);
   expect(sortOrders).toEqual([...sortOrders].sort((a, b) => a - b));
@@ -192,32 +207,32 @@ test("upsertModel, setModelEnabled i setModelCost su zaštićeni sa requireAdmin
   const t = convexTest(schema, modules);
   await runSeed(t);
   const student = await seedStudent(t);
-  const flux2Flash = await t.run((ctx) =>
-    ctx.runQuery(internal.modelCatalog.getModelBySlug, { slug: "flux-2-flash" }),
+  const seedream45 = await t.run((ctx) =>
+    ctx.runQuery(internal.modelCatalog.getModelBySlug, { slug: "seedream-45" }),
   );
 
   await expect(
     student.mutation(api.modelCatalog.setModelEnabled, {
-      modelId: flux2Flash!._id,
+      modelId: seedream45!._id,
       isEnabled: false,
     }),
   ).rejects.toThrow("Forbidden");
   await expect(
     student.mutation(api.modelCatalog.setModelCost, {
-      modelId: flux2Flash!._id,
+      modelId: seedream45!._id,
       creditCost: 1,
     }),
   ).rejects.toThrow("Forbidden");
   await expect(
     student.mutation(api.modelCatalog.upsertModel, {
-      slug: "flux-2-flash",
+      slug: "seedream-45",
       kind: "image",
       labelSr: "x",
       labelEn: "x",
       descriptionSr: "x",
       descriptionEn: "x",
       provider: "fal",
-      falEndpoint: "fal-ai/flux-2/flash",
+      falEndpoint: "fal-ai/bytedance/seedream/v4.5/text-to-image",
       defaultParams: "{}",
       paramSchema: "[]",
       creditCost: 1,

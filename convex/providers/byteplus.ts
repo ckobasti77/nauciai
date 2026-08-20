@@ -26,6 +26,7 @@ import {
 import { parseJobInputs } from "./jobInputs";
 import { recordTokenUsage, tokenUsageValidator } from "../studioActualCost";
 import { parseParams } from "../studioCore";
+import { type ModeSpec, parseInputSpec } from "../studioJobCore";
 
 /**
  * BytePlus provajder (STUDIO-CATALOG-V4 2.6, 3.4, 3.5). Seedream 5 Pro,
@@ -39,8 +40,14 @@ import { parseParams } from "../studioCore";
  *   `bytePlusCore.ts` i `verifyAndApplyTask` niže).
  */
 
-/** Koliko ulaznih fajlova PO SLOTU prosledjujemo; iznad toga se seče. */
-const MAX_INPUT_URLS = 10;
+/**
+ * Rezervna gornja granica ako model/režim nema svoj `inputSpec` unos (ne bi
+ * trebalo da se desi - `sanitizeJobInputs` je već odbio posao sa više fajlova
+ * nego što slot dozvoljava). Stvarna granica dole dolazi iz `inputSpec.max`
+ * TOG modela i TOG slota (nalaz S1: `seedance-25` prima do 50 referenci, a
+ * ovde je stajala fiksna granica od 10 za sve modele i slotove).
+ */
+const MAX_INPUT_URLS_FALLBACK = 10;
 
 /**
  * Obična funkcija, ne `internalAction`: zove je `studioActions.submitJob`, koja
@@ -74,7 +81,8 @@ export async function submitBytePlusJob(ctx: ActionCtx, jobId: Id<"generationJob
 
     const config = readBytePlusConfig(process.env);
     const params = parseParams(job.params) ?? {};
-    const inputs = await resolveInputUrls(ctx, job.inputs);
+    const modeSpec = parseInputSpec(model.inputSpec)[inputMode] ?? {};
+    const inputs = await resolveInputUrls(ctx, job.inputs, modeSpec);
 
     if (model.kind === "image") {
       const result = await generateBytePlusImage({
@@ -132,12 +140,14 @@ export async function submitBytePlusJob(ctx: ActionCtx, jobId: Id<"generationJob
 async function resolveInputUrls(
   ctx: ActionCtx,
   rawInputs: string | undefined,
+  modeSpec: ModeSpec,
 ): Promise<BytePlusVideoInputs> {
   const inputs = parseJobInputs(rawInputs);
 
   const urlsFor = async (slot: string): Promise<string[]> => {
+    const max = modeSpec[slot]?.max ?? MAX_INPUT_URLS_FALLBACK;
     const urls: string[] = [];
-    for (const storageId of (inputs[slot] ?? []).slice(0, MAX_INPUT_URLS)) {
+    for (const storageId of (inputs[slot] ?? []).slice(0, max)) {
       const url = await ctx.storage.getUrl(storageId as Id<"_storage">);
       if (url) urls.push(url);
     }

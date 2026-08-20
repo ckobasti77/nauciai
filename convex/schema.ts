@@ -80,6 +80,7 @@ const creditTransactionType = v.union(
 );
 const creditPackKind = v.union(v.literal("pack"), v.literal("plan"));
 const studioModelKind = v.union(v.literal("image"), v.literal("video"), v.literal("audio"));
+const studioModelProvider = v.union(v.literal("fal"), v.literal("google"), v.literal("byteplus"));
 const modelCatalogBadge = v.union(
   v.literal("preporuceno"),
   v.literal("skupo"),
@@ -1393,7 +1394,7 @@ export default defineSchema({
   // ciklus - v4 katalog se seeduje iznova, redovi se ne prevode automatski.
   models: defineTable({
     slug: v.string(),
-    provider: v.union(v.literal("fal"), v.literal("google"), v.literal("byteplus")),
+    provider: studioModelProvider,
     kind: studioModelKind,
     family: v.string(),
 
@@ -1432,6 +1433,15 @@ export default defineSchema({
     promptHash: v.string(),
     status: generationJobStatus,
     creditCost: v.number(),
+    // Provajder OVOG posla (STUDIO-CATALOG-V4 sekcija 7), upisan pri kreiranju
+    // (`studio.ts`: v4 model nosi `models.provider`, stari katalog je uvek
+    // "fal"). Nalaz W7-6: bez ovog polja Google poller mora da skenira SVE
+    // "running" poslove kroz `by_status_created` i za svaki učita model da bi
+    // znao da li je google - zaostatak od 200+ fal poslova bi izgurao google
+    // posao iz prozora, pa bi ga reaper refundirao iako je uspeo i naplaćen.
+    // Poslovi upisani pre ovog polja ga nemaju dok ih ne popuni
+    // `migrations.backfillGenerationJobProvider`.
+    provider: v.optional(studioModelProvider),
     falRequestId: v.optional(v.string()),
     // Isti podatak kao `falRequestId`, samo pod imenom koje važi za sva tri
     // provajdera (STUDIO-CATALOG-V4 sekcija 7). Faza je namerno "prošireno pa
@@ -1477,7 +1487,8 @@ export default defineSchema({
     .index("by_provider_request", ["providerRequestId"])
     .index("by_user_status", ["userId", "status"])
     .index("by_expiry", ["expiresAt"])
-    .index("by_status_created", ["status", "createdAt"]),
+    .index("by_status_created", ["status", "createdAt"])
+    .index("by_provider_status", ["provider", "status", "createdAt"]),
 
   // Ko je koji ulazni fajl okačio. `createInputUploadUrl` vraća gol Convex
   // upload URL i ne zna ishod uploada, pa vezu `storageId` -> korisnik pravi

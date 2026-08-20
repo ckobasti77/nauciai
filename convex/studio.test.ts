@@ -184,6 +184,9 @@ test("createJob rezerviše posao, skida kredite i zakazuje slanje - sve u jednoj
   expect(jobs[0].modelSlug).toBe(MODEL_SLUG);
   expect(jobs[0].creditCost).toBe(MODEL_COST);
   expect(jobs[0].promptHash).toMatch(/^[0-9a-f]{16}$/);
+  // Stari `modelCatalog` ide isključivo na fal (katalog §7) - poller ovo polje
+  // koristi da SAMO google poslove ispituje (nalaz W7-6, `by_provider_status`).
+  expect(jobs[0].provider).toBe("fal");
   // `params` su prošli kroz `sanitizeParams` - to je objekat koji ide fal-u.
   expect(JSON.parse(jobs[0].params)).toEqual({ prompt: "lisica u snegu" });
 

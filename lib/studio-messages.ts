@@ -266,7 +266,8 @@ export type GenerateBlock =
   | { kind: "inputs"; message: string }
   | { kind: "prompt" }
   | { kind: "measure" }
-  | { kind: "price" };
+  | { kind: "price" }
+  | { kind: "source" };
 
 export function generateBlockMessage(block: GenerateBlock, locale: Locale): string {
   switch (block.kind) {
@@ -299,6 +300,10 @@ export function generateBlockMessage(block: GenerateBlock, locale: Locale): stri
       return locale === "sr"
         ? "Ova kombinacija podešavanja nema cenu. Promeni rezoluciju ili tarifu."
         : "This combination of settings has no price. Change the resolution or the tier.";
+    case "source":
+      return locale === "sr"
+        ? "Izaberi raniju generaciju koju menjaš - ovaj režim ne prima okačen fajl."
+        : "Pick an earlier generation to edit - this mode does not accept an uploaded file.";
   }
 }
 

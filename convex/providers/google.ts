@@ -15,6 +15,7 @@ import {
   startGoogleOperation,
 } from "../../lib/google-video";
 import {
+  bareInteractionId,
   buildOmniRequest,
   buildVeoRequest,
   type GoogleInputFile,
@@ -138,10 +139,17 @@ function startOmni(
   const restriction = omniInputRestriction(inputMode, inputs);
   if (restriction) throw new Error(restriction);
 
+  // `studio.ts` je već proverio vlasništvo i model izvorne generacije i upisao
+  // njen SIROV `providerRequestId` u `params` (nalaz S3) - oblik tog polja je
+  // Google-ova stvar, pa se tumači tek ovde.
+  const rawSourceId = params.previous_interaction_id;
+  const previousInteractionId =
+    typeof rawSourceId === "string" ? bareInteractionId(rawSourceId) : undefined;
+
   return startGoogleOperation({
     config,
     path: "/interactions",
-    body: buildOmniRequest(providerModel, params, inputs, inputMode),
+    body: buildOmniRequest(providerModel, params, inputs, inputMode, previousInteractionId),
     fallbackCollection: "interactions",
   });
 }
@@ -202,35 +210,28 @@ const POLL_BATCH_LIMIT = 25;
 
 /**
  * Poslovi koje treba pitati Google za stanje: `running`, sa upisanim
- * `providerRequestId`-jem, čiji je model iz `models` sa `provider: "google"`.
+ * `providerRequestId`-jem, sa `provider: "google"` (nalaz W7-6).
  *
- * Redovi modela se keširaju po slugu unutar prolaza - u jednom prolazu se isti
- * model ponavlja, a svaki bi inače bio zasebno čitanje indeksa.
+ * `by_provider_status` skenira SAMO google poslove, ne sve provajdere - stari
+ * put (`by_status_created` + učitavanje modela po poslu) je čitao šire nego
+ * što je ispitivao: zaostatak od 200+ fal poslova starijih od jednog google
+ * posla bi ga izgurao iz prozora od `scanLimit`, a reaper bi ga posle 30
+ * minuta refundirao iako je uspeo i naplaćen. Posao upisan pre ovog polja
+ * (`provider === undefined`) čeka `migrations.backfillGenerationJobProvider`;
+ * dotle ga i dalje pokriva reaper.
  */
 export const listPollableGoogleJobs = internalQuery({
   args: { scanLimit: v.number(), batchLimit: v.number() },
   handler: async (ctx, args) => {
     const running = await ctx.db
       .query("generationJobs")
-      .withIndex("by_status_created", (q) => q.eq("status", "running"))
+      .withIndex("by_provider_status", (q) => q.eq("provider", "google").eq("status", "running"))
       .take(args.scanLimit);
 
-    const providerBySlug = new Map<string, string | null>();
     const pollable: Array<{ jobId: Id<"generationJobs">; providerRequestId: string }> = [];
-
     for (const job of running) {
       if (pollable.length >= args.batchLimit) break;
       if (!job.providerRequestId) continue;
-
-      if (!providerBySlug.has(job.modelSlug)) {
-        const model = await ctx.db
-          .query("models")
-          .withIndex("by_slug", (q) => q.eq("slug", job.modelSlug))
-          .unique();
-        providerBySlug.set(job.modelSlug, model?.provider ?? null);
-      }
-      if (providerBySlug.get(job.modelSlug) !== "google") continue;
-
       pollable.push({ jobId: job._id, providerRequestId: job.providerRequestId });
     }
 

@@ -15,6 +15,7 @@ import {
   readGoogleConfig,
 } from "../../lib/google-video";
 import {
+  bareInteractionId,
   buildOmniRequest,
   buildVeoRequest,
   EMPTY_GOOGLE_INPUTS,
@@ -173,6 +174,7 @@ async function seedReservedJob(
       userId,
       modelSlug: opts.seed.slug,
       kind: opts.seed.kind,
+      provider: opts.seed.provider,
       params: JSON.stringify(
         opts.params ?? { prompt: "lisica trči kroz sneg", resolution: "720p", audio: true, duration: 5 },
       ),
@@ -425,6 +427,11 @@ test("fetchGoogleOperation odbija putanju koja nije ime Google resursa, pre mre�
   expect(calls).toHaveLength(0);
 });
 
+test("bareInteractionId skida interactions/ prefiks, a go ID ostavlja netaknut", () => {
+  expect(bareInteractionId("interactions/intr_abc")).toBe("intr_abc");
+  expect(bareInteractionId("intr_abc")).toBe("intr_abc");
+});
+
 test("googleDownloadHeaders daje ključ samo Google hostu, i toBase64 radi na praznom nizu", () => {
   expect(googleDownloadHeaders(VIDEO_URL, API_KEY)).toEqual({ "x-goog-api-key": API_KEY });
   expect(googleDownloadHeaders("https://fal.media/izlaz.mp4", API_KEY)).toEqual({});
@@ -483,6 +490,28 @@ test("Gemini Omni ide na Interactions API, ne na generateContent", async () => {
   // Go `id` iz Interactions API-ja dobija kolekciju kojoj pripada, da bi poller
   // imao šta da pita.
   expect((await jobOf(t, jobId))?.providerRequestId).toBe("interactions/intr_9f21");
+});
+
+test("Omni video rezim salje previous_interaction_id BEZ interactions/ prefiksa (nalaz S3, W7)", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await seedUser(t);
+  await seedModel(t, GEMINI_OMNI);
+  // `studio.ts` upisuje SIROV `providerRequestId` izvorne generacije u
+  // `params.previous_interaction_id` - oblik tog polja (`interactions/<id>`)
+  // je tumačenje Google-a, pa se skida tek ovde (`bareInteractionId`).
+  const jobId = await seedReservedJob(t, userId, {
+    seed: GEMINI_OMNI,
+    inputMode: "video",
+    params: { prompt: "nastavi", aspect_ratio: "16:9", duration: 5, previous_interaction_id: "interactions/intr_prethodni" },
+  });
+  const calls = stubFetch(() => json({ id: "intr_novi" }));
+
+  await submit(t, jobId);
+
+  const [call] = googleCalls(calls);
+  expect(call.url).toBe(`${BASE_URL}/interactions`);
+  expect(call.body?.previous_interaction_id).toBe("intr_prethodni");
+  expect(await refundsFor(t, jobId)).toHaveLength(0);
 });
 
 test("Omni izmena OKAČENOG videa se odbija jasnom porukom, bez ijednog poziva", async () => {
@@ -678,6 +707,47 @@ test("poller ne dira poslove drugih provajdera", async () => {
   expect(result.polled).toBe(0);
   expect(calls).toHaveLength(0);
   expect((await jobOf(t, jobId))?.status).toBe("running");
+});
+
+test("poller ne gubi google posao iza zaostatka STARIJIH poslova drugih provajdera (nalaz W7-6)", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await seedUser(t);
+  await seedModel(t, SEEDANCE_20);
+  await seedModel(t, VEO_31_FAST);
+
+  // Tri STARIJA byteplus posla. Stari put je skenirao `by_status_created`
+  // (najstariji prvo) pa bi mali `scanLimit` gurnuo google posao van prozora -
+  // reaper bi ga posle 30 min refundirao iako je uspeo i naplaćen.
+  for (const [suffix, createdAt] of [
+    ["a", 1],
+    ["b", 2],
+    ["c", 3],
+  ] as const) {
+    const jobId = await seedReservedJob(t, userId, { seed: SEEDANCE_20 });
+    await t.run((ctx) =>
+      ctx.db.patch(jobId, { status: "running", providerRequestId: `cgt-byteplus-${suffix}`, createdAt }),
+    );
+  }
+  const googleJobId = await seedReservedJob(t, userId, { seed: VEO_31_FAST });
+  await t.run((ctx) =>
+    ctx.db.patch(googleJobId, { status: "running", providerRequestId: OPERATION, createdAt: 1000 }),
+  );
+
+  stubFetch(
+    operationEndpoint({
+      name: OPERATION,
+      done: true,
+      response: { generatedVideos: [{ video: { uri: VIDEO_URL } }] },
+    }),
+  );
+
+  // `by_provider_status` skenira SAMO google poslove, pa čak i `scanLimit: 3`
+  // (manje od tri byteplus posla) i dalje nalazi google posao.
+  const result = await poll(t, { scanLimit: 3 });
+  await settle(t);
+
+  expect(result).toEqual({ polled: 1, finished: 1, failed: 0 });
+  expect((await jobOf(t, googleJobId))?.status).toBe("done");
 });
 
 test("batch limit se poštuje - ostatak sačeka sledeći prolaz", async () => {

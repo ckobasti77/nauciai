@@ -5195,3 +5195,150 @@ kojih je izracunata, a model bez ijednog merenja nosi isprekidan okvir i tekst
 5. **Kolona "Stvarna marza" ce prvih dana pisati "nema merenja" za sve.** To je
    tacno stanje, ne kvar: dok fal cron ne prodje prvi put (ili dok ne dopises
    tarife po tokenu), jedini broj o marzi je i dalje procena iz kataloga.
+
+## W7 - sedam sitnica iz STUDIO-CATALOG-REPORT sekcija 6   (20.08.2026. 17:20)
+
+**Fajlovi:**
+- dodato: `components/studio/source-job-picker.tsx`
+- izmenjeno: `convex/schema.ts`, `convex/migrations.ts`, `convex/seed.ts`,
+  `convex/studio.ts`, `convex/studioJobCore.ts`, `convex/providers/google.ts`,
+  `convex/providers/googleCore.ts`, `convex/providers/googleModels.ts`,
+  `convex/providers/byteplus.ts`, `convex/providers/falToolModels.ts`,
+  `components/app/studio-page.tsx`, `lib/studio-messages.ts`,
+  `lib/studio-playground.ts`, `docs/STUDIO-CATALOG-V4.md`
+- testovi: `convex/modelCatalog.test.ts`, `convex/studio.test.ts`,
+  `convex/studioCatalogJob.test.ts`, `convex/studioActualCost.test.ts`,
+  `convex/providers/google.test.ts`, `convex/providers/byteplus.test.ts`,
+  `lib/studio-params.test.ts`
+
+**Svih sedam je uradjeno, nista nije odlozeno:**
+
+1. **R5 - legacy `modelCatalog` put.** `flux-2-flash`/`flux-2-pro` izbaceni iz
+   `modelCatalogSeeds` (FLUX je izricito iskljucen iz kataloga §7, nema
+   naslednika u v4). Svi preostali redovi (Seedream 4.5, oba Nano Banana,
+   GPT Image 1.5) su ugaseni (`isEnabled: false`) - `buildLegacyOrder` vec
+   odbija ugasen model, pa proizvoljan `modelSlug` mimo forme sad pada na
+   `MODEL_NEDOSTUPAN` za SVAKU legacy porodicu, ne samo za flux.
+2. **S1 - `seedance-25` je sekao na 10 od 50 referenci.** `byteplus.ts` je
+   imao fiksan `MAX_INPUT_URLS = 10` za sve modele i oba slota. Sad se granica
+   po slotu cita iz `model.inputSpec[inputMode][slot].max` (isti izvor koji je
+   vec proverio `sanitizeJobInputs` pri kreiranju posla), sa fallback-om od 10
+   samo ako spec nema unos za taj slot.
+3. **S3 - `gemini-omni` "video" rezim je bio corsokak.** Dobio je pravi
+   mehanizam: `capabilities.continuation` na redu modela kaze koji `inputMode`
+   trazi izbor prethodne generacije; `createJob` prima `sourceJobId`, proverava
+   vlasnistvo/model/status i upisuje sirov `providerRequestId` izvora u
+   `params.previous_interaction_id`; `providers/google.ts` ga tumaci
+   (`bareInteractionId` skida `interactions/` prefiks) i salje kao Google-ov
+   `previous_interaction_id` - polje koje je `buildOmniRequest` vec primao a
+   niko ga nije postavljao (S4 ODLUKA 3, ostavljeno za kasnije). Frontend dobio
+   `<SourceJobPicker>` - bira medju gotovim `gemini-omni` generacijama iz
+   `listMyJobs`, umesto praznog rezima bez ijedne kontrole.
+4. **S2 - `kling-lipsync` nema zaseban `video`+`text` rezim.** ODLUKA: ostaje
+   `source` kontrola unutar jednog `video_audio` rezima (obrazlozenje ispod).
+   Stvarna zamerka nalaza - prazan i zbunjujuc audio slot kad je izvor tekst -
+   resena je u UI-ju: `ModeInputs` sad NE PRIKAZUJE slot koji je iskljucila
+   vrednost kontrole (`optionalSlots`), ne samo da ga ne trazi.
+5. **1.1 - kreditne tabele u katalogu ne odgovaraju motoru.** U zaglavlje
+   `STUDIO-CATALOG-V4.md` dopisano da su kolone "kr/s"/"5s" orijentacione i da
+   je `computeCredits` merodavan - drugi predlog iz izvestaja, jer je posteniji
+   i manje posla od preracunavanja svake celije.
+6. **Poller je skenirao 200 najstarijih `running` poslova SVIH provajdera.**
+   `generationJobs` dobio polje `provider` (upisuje ga `createJob` pri
+   rezervaciji) i indeks `by_provider_status`; `listPollableGoogleJobs` sad
+   cita SAMO google poslove, direktno, bez ucitavanja modela po poslu.
+   Zatecen poslovi ga nemaju dok ne prodje `migrations.backfillGenerationJobProvider`.
+7. **`kling-tryon` i `kling-v2a` - provera prazne forme.** Nema kvara:
+   `<ParamForm>` (`components/studio/param-form.tsx`) vec ima
+   `if (controls.length === 0) return null`, a `<ModeSwitcher>` vec ima
+   `if (modes.length < 2) return null` - oba modela imaju tacno jedan
+   `inputMode`. Kling-tryon (nula kontrola) i kling-v2a (samo prompt) vec
+   dobijaju tacno "prompt/upload i dugme"; dodat je test koji tvrdi premisu
+   (broj vidljivih kontrola) da se to ne pokvari tiho.
+
+**ODLUKE:**
+1. **Stavka 1: gasenje SVIH legacy redova, ne samo flux-a, i ne dodavanje
+   `family`-provere u `createJob`.** Zadatak je nudio oba puta. Gasenje je
+   manje koda (nijedna nova grana u `studio.ts`) i zatvara rupu POTPUNO -
+   `buildLegacyOrder` vec proverava `isEnabled`, pa proizvoljan `modelSlug`
+   mimo forme vise nema nijedan živ legacy red da pogodi, bez obzira na
+   `family`. Family-provera bi i dalje ostavila prozor za buduce legacy redove
+   cija se porodica jos ne poklapa.
+2. **Stavka 3: `sourceJobId` se ne pamti kao trajna veza u semi.** Server
+   proveri izvor JEDNOM, pri kreiranju posla, i prepise njegov
+   `providerRequestId` u `params` novog posla - isti princip kao merena
+   kolicina i `extraCounts` (server dopisuje POSLE kapije, klijent to ne
+   salje). Nov red u `generationJobs` bi trazio da neko kasnije prati lanac
+   izmena; `params.previous_interaction_id` je dovoljan jer Google API sam
+   zna ceo razgovor preko interakcijskog ID-ja.
+3. **Stavka 3: izvor mora biti generacija ISTOG modela (`gemini-omni`), ne
+   iste "family".** Najkonzervativnije citanje kataloga 3.8 ("video koji je
+   model sam napravio") - sprecava scenario gde bi se npr. Veo izlaz poslao
+   Gemini-ju kao `previous_interaction_id` (Google bi to najverovatnije
+   odbio, ali provera na nasoj strani je jeftinija od zivog poziva koji to
+   otkriva).
+4. **Stavka 4: `source` kontrola ostaje, dodavanje 12. `inputMode`-a
+   izbegnuto.** Katalog imenuje 11 rezima (`lib/studio-slots.ts` MODE_LABELS,
+   potvrdjeno u STUDIO-CATALOG-REPORT sekciji 4 kao zatvoren spisak).
+   `video`+`text` bi bio isti fal poziv (`fal-ai/kling-video/lipsync` prima ili
+   `audio_url` ili `text`) pod dva imena - dva `inputMode`-a za jedan endpoint
+   je vise koda nego STA nalaz stvarno trazi (da audio slot ne bude vidljiv i
+   prazan kad je izvor tekst). To je resen na nivou prikaza.
+5. **Stavka 6: `provider` je NOVO polje na `generationJobs`, ne izvedeno
+   citanjem `models` u query-ju.** Poenta nalaza je da poller VISE NE SME da
+   cita model po poslu da bi znao provajdera - izvedeno polje bi vratilo isti
+   problem. Polje je `optional` (stari poslovi ga nemaju) uz migraciju koja ga
+   backfilluje iz `models.provider`, ili "fal" za slugove kojih u `models`
+   nema (stari katalog, §7).
+
+**Testovi:**
+- `convex/providers/byteplus.test.ts`: `seedance-25` sa 50 referenci - sve
+  stignu do BytePlus-a, ne samo 10.
+- `convex/providers/google.test.ts`: `bareInteractionId` skida prefiks; Omni
+  video rezim salje `previous_interaction_id` BEZ prefiksa; nov regresioni
+  test - tri STARIJA byteplus posla i `scanLimit: 3` vise ne izguraju noviji
+  google posao iz prozora (tacno scenario iz nalaza).
+- `convex/studioCatalogJob.test.ts`: `gemini-omni` "video" bez izabranog
+  izvora se odbija (`IZVOR_NIJE_IZABRAN`); izvor mora biti gotova generacija
+  ISTOG modela u vlasnistvu istog korisnika (tri odbijena slucaja: tudji
+  model, nije gotov, tudji korisnik); vazeci izvor upisuje
+  `previous_interaction_id`; izvor poslat za rezim koji ga ne trazi se odbija
+  (`IZVOR_NIJE_PODRZAN`); v4 posao upisuje `provider` sa reda kataloga.
+- `convex/studio.test.ts`: legacy posao upisuje `provider: "fal"`.
+- `convex/modelCatalog.test.ts`: prepravljeno da odrazava da su SVI legacy
+  redovi sad ugaseni po default-u (seed broji 20, ne 22; javni `listModels`
+  je prazan dok se admin rucno ne upali red - dokazano paljenjem jednog reda
+  direktno u testu).
+- `convex/studioActualCost.test.ts`: dva Google testa dobila `provider:
+  "google"` na seedovanom poslu (poller sad zahteva to polje).
+- `lib/studio-params.test.ts`: `kling-tryon` nema nijednu vidljivu kontrolu ni
+  u jednom rezimu; `kling-v2a` ima tacno jednu (prompt).
+
+**Rezultat verifikacije:**
+- `npx convex codegen` - prolazi
+- `npm run lint` - 0 gresaka (8 zatecenih upozorenja, nijedno u fajlovima koje
+  ovaj korak dira)
+- `npm run test` - 58 fajlova, 741 test, sve prolazi
+- `npm run build` - `Compiled successfully`
+
+**BLOKADA:** nema
+
+**Za Jovana:**
+1. **Pusti `migrations:backfillGenerationJobProvider` posle deploy-a**, ili
+   poller nece pratiti zatecene `running` Google poslove dok se sami ne
+   zavrse/istekne im reaper rok (30 min) - novi poslovi rade ispravno od
+   deploy-a. `npx convex run migrations:run '{"fn":"migrations:backfillGenerationJobProvider"}'`.
+2. **Legacy `modelCatalog` je sad ceo ugasen posle sledeceg `npm run
+   convex:seed`.** Ako je neko rucno drzao neki od tih redova upaljenim
+   (nije trebalo, ali proveri), seed ce ga ugasiti - to je namerna posledica
+   R5, ne greska. v4 katalog pokriva svaku porodicu koju je nosio.
+3. **Prva ziva generacija na `gemini-omni` "video" rezimu je i dalje
+   neophodna** (STUDIO-CATALOG-REPORT stavka 12) - oblik `previous_interaction_id`
+   u zahtevu i ime polja u odgovoru operacije (odakle bi se citao novi
+   interakcijski ID) nisu potvrdjeni protiv zivog Google API-ja. Danas se
+   interakcijski ID uzima iz `providerRequestId`-ja (`normalizeOperationPath`),
+   sto je vec potvrdjen oblik iz S4 - ali tek ce prava generacija reci da li
+   Google to prihvata na `previous_interaction_id` polju.
+4. **`STUDIO-CATALOG-V4.md` kreditne tabele su sad izricito oznacene kao
+   orijentacione.** Ako se katalog ikad ponovo izda, ili prepisati kolone po
+   `computeCredits`-u ili zadrzati ovu napomenu u zaglavlju.

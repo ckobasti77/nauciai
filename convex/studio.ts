@@ -23,6 +23,7 @@ import {
   jobInputStorageIds,
   measuredQuantityFromSeconds,
   parseClientInputs,
+  parseContinuationSource,
   parseInputModes,
   parseInputSpec,
   parseQuantitySource,
@@ -67,6 +68,8 @@ const studioModelKind = v.union(v.literal("image"), v.literal("video"), v.litera
 type PricedOrder = {
   slug: string;
   kind: "image" | "video" | "audio";
+  /** Ko posao izvršava (nalaz W7-6) - `models.provider` za v4, uvek "fal" za legacy. */
+  provider: "fal" | "google" | "byteplus";
   params: Record<string, unknown>;
   prompt: string;
   creditCost: number;
@@ -146,7 +149,7 @@ async function buildCatalogOrder(
   userId: Id<"users">,
   model: Doc<"models">,
   raw: Record<string, unknown>,
-  args: { inputMode?: string; inputs?: string },
+  args: { inputMode?: string; inputs?: string; sourceJobId?: Id<"generationJobs"> },
 ): Promise<PricedOrder> {
   if (!model.isEnabled) throw new Error("MODEL_NEDOSTUPAN");
 
@@ -192,6 +195,30 @@ async function buildCatalogOrder(
   }
   Object.assign(params, extraCounts(rule, inputs.inputs));
 
+  // Rezim koji se naručuje IZBOROM prethodne generacije, ne uploadom (nalaz S3:
+  // Gemini Omni "video" - izmena klipa koji je model sam napravio, katalog 3.8).
+  // `sourceJobId` nije kontrola forme ni slot, pa ide kao zaseban argument
+  // `createJob`-a; ovde se proverava vlasništvo i da je izvor STVARNO ovog istog
+  // modela pre nego što njegov `providerRequestId` udje u zahtev ka provajderu.
+  const continuation = parseContinuationSource(model.capabilities);
+  if (continuation && inputMode === continuation.mode) {
+    if (!args.sourceJobId) throw new Error("IZVOR_NIJE_IZABRAN");
+    const sourceJob = await ctx.db.get(args.sourceJobId);
+    if (
+      !sourceJob ||
+      sourceJob.userId !== userId ||
+      sourceJob.modelSlug !== model.slug ||
+      sourceJob.status !== "done" ||
+      !sourceJob.providerRequestId
+    ) {
+      throw new Error("IZVOR_NIJE_DOSTUPAN");
+    }
+    params[continuation.param] = sourceJob.providerRequestId;
+  } else if (args.sourceJobId) {
+    // Poslat mimo forme, za režim koji ga ne traži - forma ga nikad ne šalje.
+    throw new Error("IZVOR_NIJE_PODRZAN");
+  }
+
   // Prompt se traži samo tamo gde je JEDINI ulaz. Kling lipsync ima `textarea`
   // koja se koristi tek kad je izvor govora tekst, pa bi bezuslovan zahtev
   // odbio sasvim ispravan posao sa okačenim zvukom. Tekst koji POSTOJI ide
@@ -223,6 +250,7 @@ async function buildCatalogOrder(
   return {
     slug: model.slug,
     kind: model.kind,
+    provider: model.provider,
     params,
     prompt,
     creditCost,
@@ -264,6 +292,10 @@ async function buildLegacyOrder(
   return {
     slug: model.slug,
     kind: model.kind,
+    // Stari katalog ima samo fal redove (§7 kataloga) - `modelCatalog.provider`
+    // je slobodan string iz istog razloga kao `paramSchema`, pa se ovde piše
+    // doslovno umesto da se veruje sadržaju polja.
+    provider: "fal",
     params: cleanParams,
     prompt,
     creditCost: computeCreditCost(model, cleanParams),
@@ -289,6 +321,10 @@ export const createJob = mutation({
     // samo za v4 katalog; stari `modelCatalog` ih nema i ignoriše ih.
     inputMode: v.optional(v.string()),
     inputs: v.optional(v.string()),
+    // ID prethodne generacije OVOG modela iz `generationJobs`, izabran u galeriji
+    // - jedini ulaz koji rezimi sa `capabilities.continuation` primaju (nalaz S3,
+    // Gemini Omni "video"). Nije upload, pa ne ide kroz `inputs`.
+    sourceJobId: v.optional(v.id("generationJobs")),
     // Trajanje okačenog snimka se OVDE VIŠE NE PRIMA (W5, nalaz R3). Meri ga
     // `studioActions.measureInputUpload` iz zaglavlja fajla i upisuje uz sam
     // upload; ono što je klijent pročitao iz `<video>` metapodataka služi samo
@@ -387,6 +423,7 @@ export const createJob = mutation({
       userId,
       modelSlug: order.slug,
       kind: order.kind,
+      provider: order.provider,
       params: JSON.stringify(cleanParams),
       promptHash: promptHash(order.prompt),
       status: "reserved",

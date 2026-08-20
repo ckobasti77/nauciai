@@ -85,6 +85,18 @@ export const KLING_AVATAR: StudioModelSeed = {
  *
  * **Naplaćuje se na pun peti sekund**: video od 3 s košta kao 5 s. To je
  * `roundUpTo: 5` u pravilu, a ne poruka u UI-ju koja se lako zaboravi.
+ *
+ * ODLUKA (nalaz S2, W7 stavka 4): katalog imenuje dva režima,
+ * `video_audio` · `video+text`, a ovaj red ima samo `video_audio` sa kontrolom
+ * `source` koja bira izmedju zvuka i teksta unutar njega. Namerno NIJE
+ * podeljen na dva `inputMode`-a: fal endpoint je isti poziv za oba izvora
+ * (`fal-ai/kling-video/lipsync` prima ili `audio_url` ili `text`), pa bi drugi
+ * `inputMode` bio dva imena za jedan poziv - a dodavanje 12. režima van
+ * zatvorenog spiska od 11 (`lib/studio-slots.ts` MODE_LABELS) je veća izmena
+ * od onoga što ovaj nalaz traži. Stvarna zamerka nalaza - da `source: text`
+ * ostavlja prazan i zbunjujuć audio slot - rešena je u UI-ju: `ModeInputs`
+ * (`components/app/studio-page.tsx`) sada slotove koje je isključila VREDNOST
+ * kontrole (`optionalSlots`) ne prikazuje, ne samo da ih ne traži.
  */
 export const KLING_LIPSYNC: StudioModelSeed = {
   slug: "kling-lipsync",

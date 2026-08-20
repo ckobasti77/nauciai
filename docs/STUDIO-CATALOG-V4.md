@@ -5,6 +5,14 @@
 > Kurs 1 USD = 0,865 EUR · marža 2,5× · 100 kredita = 1 EUR
 > **`FAKTOR = 0,865 × 2,5 × 100 = 216,25`**
 > **`krediti = ceil(nabavno_USD × 216,25)`**
+>
+> **Kolone „kr/s" i „5s" (i slične po modelu) su ORIJENTACIONE.** Računaju se
+> po jedinici pa množe brojem jedinica (`ceil(po_jedinici) × n`), dok motor
+> (`convex/studioPricing.ts computeCredits`) radi `ceil` TAČNO JEDNOM, na kraju,
+> nad ukupnom nabavnom cenom. Motor zato naplaćuje isto ili malo manje od ovih
+> kolona (STUDIO-CATALOG-REPORT.md, nalaz 1.1) — nikad više, i marža ostaje
+> ≥2,5× u svakom slučaju. **Merodavan je uvek `computeCredits`, ove kolone su
+> samo za brzu procenu pri čitanju kataloga.**
 
 ---
 

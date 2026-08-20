@@ -613,6 +613,25 @@ export const backfillProviderRequestId = migrations.define({
 });
 
 /**
+ * `generationJobs.provider` (nalaz W7-6): Google poller sad čita
+ * `by_provider_status` umesto da skenira sve "running" poslove i učitava
+ * model za svaki. Poslovi upisani pre ovog polja ga nemaju - v4 model se nadje
+ * po `modelSlug`, a stari `modelCatalog` slug je uvek fal (katalog §7).
+ */
+export const backfillGenerationJobProvider = migrations.define({
+  table: "generationJobs",
+  batchSize: 100,
+  migrateOne: async (ctx, job) => {
+    if (job.provider) return;
+    const model = await ctx.db
+      .query("models")
+      .withIndex("by_slug", (q) => q.eq("slug", job.modelSlug))
+      .unique();
+    return { provider: model?.provider ?? "fal" };
+  },
+});
+
+/**
  * Vlasništvo nad ulaznim fajlovima zatečenih poslova (nalaz R4). `createJob` od
  * sada prima samo `storageId` koji ima svoj red u `studioUploads`, a poslovi
  * napravljeni pre toga ga nemaju - bez ovog prolaza bi im "Generiši ponovo"
@@ -762,4 +781,5 @@ export const runAll = migrations.runner([
   migrationApi.backfillProviderRequestId,
   migrationApi.backfillStudioUploads,
   migrationApi.enableMeasuredModels,
+  migrationApi.backfillGenerationJobProvider,
 ]);

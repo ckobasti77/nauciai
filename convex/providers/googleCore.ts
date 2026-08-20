@@ -125,10 +125,27 @@ export function buildVeoRequest(
  * opcijom je kontrola koja laže da ima izbora.
  *
  * `previous_interaction_id` je kanal za višekružnu izmenu (izmena videa koji je
- * model sam napravio). Prosledjuje se kad ga pozivalac ima; danas ga niko ne
- * postavlja - videti ODLUKE u `docs/STUDIO-PROGRESS.md`, sekcija S4.
+ * model sam napravio). Prosledjuje se kad ga pozivalac ima - `video` rezim
+ * Omnija sad ga postavlja iz `sourceJobId`-ja koji `createJob` proveri i upiše
+ * u `params` (`studio.ts`, `capabilities.continuation`, nalaz S3 iz W7). Videti
+ * i ODLUKE u `docs/STUDIO-PROGRESS.md`, sekcija S4, gde je ovo bilo odloženo.
  */
 export const OMNI_RESOLUTION = "720p";
+
+/**
+ * `providerRequestId` jednog Omni posla je `normalizeOperationPath`-ovan
+ * (`lib/google-video.ts`): go `id` iz Interactions API-ja dobije prefiks
+ * `interactions/` da bi poller znao odakle dolazi. Za `previous_interaction_id`
+ * Google traži go ID, pa se prefiks ovde skida - to je jedini oblik koji je
+ * ikad upisan (`startGoogleOperation`), pa nema nagadjanja oko drugog oblika.
+ */
+const INTERACTIONS_PATH_PREFIX = "interactions/";
+
+export function bareInteractionId(providerRequestId: string): string {
+  return providerRequestId.startsWith(INTERACTIONS_PATH_PREFIX)
+    ? providerRequestId.slice(INTERACTIONS_PATH_PREFIX.length)
+    : providerRequestId;
+}
 
 export function buildOmniRequest(
   model: string,

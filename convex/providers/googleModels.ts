@@ -343,6 +343,10 @@ export const GEMINI_OMNI: StudioModelSeed = {
     // Bez audio slota, i to namerno: upload audio referenci je dokumentovan ali
     // NE RADI (katalog 3.8). Slot koji ne radi je gora poruka od poruke.
     reference: { image: { max: 3, accept: IMAGE_ACCEPT } },
+    // Bez slota i namerno: `video` rezim ne prima upload (izmena OKAČENOG videa
+    // nije dozvoljena iz EEA/CH/UK), nego IZBOR prethodne generacije OVOG modela
+    // iz galerije - `capabilities.continuation` niže kaže formi i `createJob`-u
+    // da taj rezim traži `sourceJobId`, ne fajl (nalaz S3, W7 stavka 3).
     video: {},
   },
   paramSpec: [
@@ -377,6 +381,12 @@ export const GEMINI_OMNI: StudioModelSeed = {
     extend: false,
     firstLast: false,
     audioReference: false,
+    // `video` rezim: `sourceJobId` mora biti ID neke OD RANIJE `done` generacije
+    // OVOG istog modela (`studio.ts` proverava vlasništvo i model). Server iz
+    // njenog `providerRequestId`-ja izvuče Google-ov interakcijski ID i pošalje
+    // ga kao `previous_interaction_id` - izmena tako ide nad klipom koji je
+    // model sam napravio, nikad nad uploadovanim fajlom.
+    continuation: { mode: "video", param: "previous_interaction_id" },
     restrictionsSr: [
       "Izmena videa koji si sam okačio nije dozvoljena iz EEA, Švajcarske i Ujedinjenog Kraljevstva - menja se samo klip koji je model napravio.",
       "Upload zvučnih referenci ne radi, iako je dokumentovan. Zvuk dolazi iz samog modela.",

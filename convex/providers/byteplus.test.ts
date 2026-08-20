@@ -13,7 +13,7 @@ import {
   parseCallbackBody,
 } from "./bytePlusCore";
 import { parseJobInputs } from "./jobInputs";
-import { type BytePlusModelSeed, SEEDANCE_20, SEEDREAM_5_PRO } from "./bytePlusModels";
+import { type BytePlusModelSeed, SEEDANCE_20, SEEDANCE_25, SEEDREAM_5_PRO } from "./bytePlusModels";
 
 /**
  * Putanja je od korena projekta, ne relativna: `import.meta.glob("../**")` iz
@@ -598,6 +598,30 @@ test("okačen video iz `reference` režima stiže do BytePlus-a kao video_url", 
     .content;
   expect(content.filter((part) => part.type === "image_url")).toHaveLength(1);
   expect(content.filter((part) => part.type === "video_url")).toHaveLength(1);
+});
+
+test("Seedance 2.5 prosledjuje svih 50 referenci, ne seče na 10 (nalaz S1)", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await seedUser(t);
+  await seedModel(t, SEEDANCE_25);
+  const imageIds = await Promise.all(
+    Array.from({ length: 50 }, (_, i) =>
+      t.run((ctx) => ctx.storage.store(new Blob([new Uint8Array([i])], { type: "image/png" }))),
+    ),
+  );
+  const jobId = await seedReservedJob(t, userId, {
+    seed: SEEDANCE_25,
+    inputMode: "reference",
+    inputs: { image: imageIds },
+    params: { prompt: "50 referenci", resolution: "720p", duration: 5 },
+  });
+  const calls = stubFetch(() => json({ id: TASK_ID }));
+
+  await t.action(internal.studioActions.submitJob, { jobId });
+
+  const content = (bytePlusCalls(calls)[0]?.body as { content: Array<Record<string, unknown>> })
+    .content;
+  expect(content.filter((part) => part.type === "image_url")).toHaveLength(50);
 });
 
 // ── 9. Greške u predaji refundiraju, bez mrežnog poziva gde ga ne treba ────

@@ -112,3 +112,10 @@
 [15:24:47]  W6  |  actualCostUsd i nocna rekonsilijacija
 [15:24:47]  model=opus  effort=high
 [15:24:47] --------------------------------------------------
+[15:51:03] Commit a71eb35 - 21 putanja
+[15:51:03] W6 -> OK  (26 min, 1 pokusaja, USD 10.63)
+[15:51:03] 
+[15:51:03] --------------------------------------------------
+[15:51:03]  W7  |  Sitnice iz sekcije 6 izvestaja
+[15:51:03]  model=sonnet  effort=high
+[15:51:03] --------------------------------------------------

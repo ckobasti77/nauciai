@@ -227,6 +227,9 @@ test("v4 model se naplaćuje po `computeCredits`-u nad istim parametrima koje up
   // objektom - katalog 1.3 zabranjuje drugu računicu.
   expect(jobs[0].creditCost).toBe(computeCredits(seedOf("nano-banana-2").priceRule, params, "text"));
   expect(await balanceOf(t, userId)).toBe(100000 - jobs[0].creditCost);
+  // Upisano sa reda kataloga (nalaz W7-6) - poller kroz `by_provider_status`
+  // ispituje SAMO ovaj provajder, bez skeniranja svih "running" poslova.
+  expect(jobs[0].provider).toBe(seedOf("nano-banana-2").provider);
 });
 
 test("ulazi se upisuju uz posao, sa slotom i redosledom", async () => {
@@ -632,6 +635,134 @@ test("ElevenLabs tekst preko 2 000 znakova prolazi, jer je granica granica te ko
 
   const jobs = await jobsOf(t, userId);
   expect((JSON.parse(jobs[0].params) as Record<string, unknown>).char_count).toBe(3000);
+});
+
+// ── Gemini Omni: nastavak prethodne generacije (nalaz S3, W7) ──────────────
+
+/** Posao koji izgleda kao gotova ranija generacija - ono na šta `sourceJobId` pokazuje. */
+async function seedDoneJob(
+  t: TestConvex,
+  userId: Id<"users">,
+  overrides: Partial<{
+    modelSlug: string;
+    status: "reserved" | "running" | "done" | "failed" | "refunded";
+    providerRequestId: string;
+  }> = {},
+) {
+  return t.run((ctx) =>
+    ctx.db.insert("generationJobs", {
+      userId,
+      modelSlug: overrides.modelSlug ?? "gemini-omni",
+      kind: "video" as const,
+      params: JSON.stringify({ prompt: "prva generacija" }),
+      promptHash: "0123456789abcdef",
+      status: overrides.status ?? "done",
+      creditCost: 66,
+      inputMode: "text",
+      ...(overrides.providerRequestId ? { providerRequestId: overrides.providerRequestId } : {}),
+      createdAt: 1,
+      completedAt: 1,
+    }),
+  );
+}
+
+test("Gemini Omni video rezim bez izabranog izvora se odbija", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedUser(t);
+  await seedCatalogModel(t, "gemini-omni");
+
+  await expect(
+    asUser.mutation(api.studio.createJob, {
+      modelSlug: "gemini-omni",
+      params: JSON.stringify({ prompt: "nastavi klip", aspect_ratio: "16:9", duration: 5 }),
+      inputMode: "video",
+    }),
+  ).rejects.toThrow("IZVOR_NIJE_IZABRAN");
+
+  expect(await jobsOf(t, userId)).toHaveLength(0);
+});
+
+test("izvor mora biti GOTOVA generacija ISTOG modela, u vlasništvu istog korisnika", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedUser(t);
+  await seedCatalogModel(t, "gemini-omni");
+
+  const wrongModel = await seedDoneJob(t, userId, {
+    modelSlug: "veo-31-fast",
+    providerRequestId: "models/veo/operations/1",
+  });
+  const notDone = await seedDoneJob(t, userId, {
+    status: "running",
+    providerRequestId: "interactions/intr_u_letu",
+  });
+
+  const strangerId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "tudji-omni@example.com",
+      name: "Tudji",
+      username: "tudji_omni",
+      role: "student" as const,
+      language: "sr" as const,
+      createdAt: 1,
+      updatedAt: 1,
+    }),
+  );
+  const strangersJob = await seedDoneJob(t, strangerId, { providerRequestId: "interactions/intr_tudji" });
+
+  for (const sourceJobId of [wrongModel, notDone, strangersJob]) {
+    await expect(
+      asUser.mutation(api.studio.createJob, {
+        modelSlug: "gemini-omni",
+        params: JSON.stringify({ prompt: "nastavi klip", aspect_ratio: "16:9", duration: 5 }),
+        inputMode: "video",
+        sourceJobId,
+      }),
+    ).rejects.toThrow("IZVOR_NIJE_DOSTUPAN");
+  }
+
+  // Samo `wrongModel` i `notDone` su seedovani direktno na `userId` - nijedan
+  // pokušaj gore nije uspeo da doda treći.
+  expect(await jobsOf(t, userId)).toHaveLength(2);
+});
+
+test("važeći izvor upisuje njegov providerRequestId u previous_interaction_id", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedUser(t);
+  await seedCatalogModel(t, "gemini-omni");
+  const sourceJobId = await seedDoneJob(t, userId, { providerRequestId: "interactions/intr_prvi" });
+
+  await asUser.mutation(api.studio.createJob, {
+    modelSlug: "gemini-omni",
+    params: JSON.stringify({ prompt: "nastavi klip", aspect_ratio: "16:9", duration: 5 }),
+    inputMode: "video",
+    sourceJobId,
+  });
+
+  const jobs = await jobsOf(t, userId);
+  // Novi posao, ne izmena starog - `sourceJobId` se ne pamti kao veza u šemi,
+  // samo se njegov `providerRequestId` prenosi kao ulaz sledećeg zahteva
+  // (`providers/google.ts` ga tumači i skida "interactions/" prefiks).
+  const newJob = jobs.find((job) => job._id !== sourceJobId);
+  const params = JSON.parse(newJob!.params) as Record<string, unknown>;
+  expect(params.previous_interaction_id).toBe("interactions/intr_prvi");
+});
+
+test("sourceJobId poslat za rezim koji ga ne traži se odbija", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedUser(t);
+  await seedCatalogModel(t, "gemini-omni");
+  const sourceJobId = await seedDoneJob(t, userId, { providerRequestId: "interactions/intr_prvi" });
+
+  await expect(
+    asUser.mutation(api.studio.createJob, {
+      modelSlug: "gemini-omni",
+      params: JSON.stringify({ prompt: "obicna slika" }),
+      inputMode: "text",
+      sourceJobId,
+    }),
+  ).rejects.toThrow("IZVOR_NIJE_PODRZAN");
+
+  expect(await jobsOf(t, userId)).toHaveLength(1);
 });
 
 // ── čitanje za galeriju i "Generiši ponovo" ────────────────────────────────

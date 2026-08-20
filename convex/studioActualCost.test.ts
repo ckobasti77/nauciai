@@ -144,6 +144,7 @@ async function seedJob(
   opts: {
     modelSlug: string;
     status: "running" | "done";
+    provider?: "fal" | "google" | "byteplus";
     providerRequestId?: string;
     falRequestId?: string;
     estimatedCostUsd?: number;
@@ -155,6 +156,7 @@ async function seedJob(
       userId,
       modelSlug: opts.modelSlug,
       kind: "video" as const,
+      ...(opts.provider ? { provider: opts.provider } : {}),
       params: JSON.stringify({ prompt: "lisica", duration: 5 }),
       promptHash: "0123456789abcdef",
       status: opts.status,
@@ -192,6 +194,7 @@ test("Google: gotova operacija sa tokenima upisuje actualCostUsd i zbir modela",
   const jobId = await seedJob(t, userId, {
     modelSlug: "veo-31-fast",
     status: "running",
+    provider: "google",
     providerRequestId: OPERATION,
     estimatedCostUsd: 0.5,
   });
@@ -230,6 +233,7 @@ test("Google: model bez tarife po tokenu ostaje BEZ actualCostUsd - ne pogađa s
   const jobId = await seedJob(t, userId, {
     modelSlug: "gemini-omni",
     status: "running",
+    provider: "google",
     providerRequestId: "interactions/op-99",
     estimatedCostUsd: 0.5,
   });

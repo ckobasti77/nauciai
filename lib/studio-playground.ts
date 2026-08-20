@@ -144,6 +144,7 @@ export function generateBlock(input: {
   missingInputMessage: string | null;
   promptMissing: boolean;
   quantityMissing: boolean;
+  sourceMissing?: boolean;
 }): GenerateBlock | null {
   const { state, balance, credits } = input;
 
@@ -155,6 +156,10 @@ export function generateBlock(input: {
   if (input.missingInputMessage !== null) {
     return { kind: "inputs", message: input.missingInputMessage };
   }
+  // Rezim koji se naručuje izborom prethodne generacije (Gemini Omni "video",
+  // nalaz S3) nema slotove, pa ne prolazi kroz `missingInputMessage` iznad -
+  // treba mu sopstvena provera pre prompta, koji taj rezim takodje traži.
+  if (input.sourceMissing) return { kind: "source" };
   if (input.promptMissing) return { kind: "prompt" };
   // Redosled prati formu odozgo nadole: prvo ulazi, pa prompt, pa cena. Fajl
   // kojem server još nije izmerio dužinu ima svoju poruku, jer to nije stvar

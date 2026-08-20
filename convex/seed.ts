@@ -527,36 +527,21 @@ const MINIMAL_PARAM_SCHEMA = JSON.stringify([
 ] as const);
 const EMPTY_DEFAULT_PARAMS = JSON.stringify({});
 
+/**
+ * Nalaz R5 (STUDIO-CATALOG-REPORT 5.3, W7 stavka 1): svaka porodica iz ovog
+ * starog kataloga sada ima svog naslednika u `models` (v4) - nano-banana,
+ * seedream i gpt-image dele čak i isti slug, pa `createJob` u `studio.ts` za
+ * njih ionako ide na v4 put. FLUX nema naslednika jer ga katalog §7 izričito
+ * isključuje (Jovanova odluka) - zato je izbačen ovde, ne samo ugašen.
+ *
+ * Za sve OSTALE redove je najčistije rešenje ugasiti ih (`isEnabled: false`)
+ * umesto da `createJob` dobije novu granu koja poredi slug legacy reda sa
+ * `family` poljem u `models`: `buildLegacyOrder` već odbija ugašen model
+ * (`MODEL_NEDOSTUPAN`), pa gašenje ovde zatvara rupu i za proizvoljan
+ * `modelSlug` poslat mimo forme, bez ijedne nove grane koda u `studio.ts`.
+ */
 const modelCatalogSeeds = [
-  // ── SLIKE (isEnabled: true) ──────────────────────────────────────────
-  {
-    slug: "flux-2-flash",
-    kind: "image" as const,
-    labelSr: "FLUX.2 Flash",
-    labelEn: "FLUX.2 Flash",
-    descriptionSr: "Najjeftiniji model za brzo eksperimentisanje sa slikama.",
-    descriptionEn: "Cheapest model for fast image experimentation.",
-    falEndpoint: "fal-ai/flux-2/flash",
-    creditCost: 3,
-    estimatedCostUsd: 0.005,
-    badge: undefined,
-    isEnabled: true,
-    sortOrder: 10,
-  },
-  {
-    slug: "flux-2-pro",
-    kind: "image" as const,
-    labelSr: "FLUX.2 Pro",
-    labelEn: "FLUX.2 Pro",
-    descriptionSr: "Kvalitetnija verzija FLUX.2 za finalne slike.",
-    descriptionEn: "Higher-quality FLUX.2 for final images.",
-    falEndpoint: "fal-ai/flux-2-pro",
-    creditCost: 7,
-    estimatedCostUsd: 0.03,
-    badge: undefined,
-    isEnabled: true,
-    sortOrder: 20,
-  },
+  // ── SLIKE - porodica pokrivena v4 katalogom, ugašeno (R5) ─────────────
   {
     slug: "seedream-45",
     kind: "image" as const,
@@ -568,7 +553,7 @@ const modelCatalogSeeds = [
     creditCost: 10,
     estimatedCostUsd: 0.04,
     badge: undefined,
-    isEnabled: true,
+    isEnabled: false,
     sortOrder: 30,
   },
   {
@@ -582,7 +567,7 @@ const modelCatalogSeeds = [
     creditCost: 20,
     estimatedCostUsd: 0.08,
     badge: "preporuceno" as const,
-    isEnabled: true,
+    isEnabled: false,
     sortOrder: 40,
   },
   {
@@ -596,7 +581,7 @@ const modelCatalogSeeds = [
     creditCost: 30,
     estimatedCostUsd: 0.12,
     badge: undefined,
-    isEnabled: true,
+    isEnabled: false,
     sortOrder: 50,
   },
   {
@@ -610,7 +595,7 @@ const modelCatalogSeeds = [
     creditCost: 35,
     estimatedCostUsd: 0.15,
     badge: undefined,
-    isEnabled: true,
+    isEnabled: false,
     sortOrder: 60,
   },
   {
@@ -624,7 +609,7 @@ const modelCatalogSeeds = [
     creditCost: 65,
     estimatedCostUsd: 0.3,
     badge: undefined,
-    isEnabled: true,
+    isEnabled: false,
     sortOrder: 70,
   },
   {
@@ -638,7 +623,7 @@ const modelCatalogSeeds = [
     creditCost: 30,
     estimatedCostUsd: 0.133,
     badge: undefined,
-    isEnabled: true,
+    isEnabled: false,
     sortOrder: 80,
   },
   // ── VIDEO (isEnabled: false - Faza B) ────────────────────────────────
