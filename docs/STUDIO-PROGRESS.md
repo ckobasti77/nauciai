@@ -4598,3 +4598,147 @@ uvoza sada stvarno pozvan - nijedan nije brisan.
 5. Nalazi **R2** (`reference_with_video` ne naplacuje ulazni video) i **R3**
    (klijent bira `measuredQuantity`) ovim korakom **nisu** dirani i dalje stoje.
    R3 je i dalje najveca rupa u katalogu.
+
+---
+
+## W3 - R2: popust bez osnova + R3: klijent bira koliko ce mu se naplatiti   (2026-08-20 14:22)
+
+**Fajlovi:**
+- `convex/providers/bytePlusModels.ts` - `modeMultipliers: { reference_with_video: 0.6 }`
+  uklonjen iz oba Seedance pravila, uz obrazlozenje na mestu uklanjanja
+- `convex/studioPricing.ts` - prepisan doc-komentar
+  `referenceVideoBillableSeconds`-a (ceka serversko merenje, referise R3)
+- `convex/studioJobCore.ts` - novi `measuredSlotsFor`, `MIN_BITRATE_BPS`,
+  `maxQuantityFromBytes`; `resolveMeasuredQuantity` prima cetvrti argument
+  `maxFromFile` i dobija dve nove kapije
+- `convex/studio.ts` - novi `measuredInputBytes` (cita `_storage.size`);
+  `buildCatalogOrder` je sada `async` i prima `ctx`
+- `convex/providers/modelSeed.ts` - novo polje `isEnabled?: false`
+- `convex/providers/falToolModels.ts` - `kling-avatar`, `kling-lipsync`,
+  `kling-motion` ugaseni
+- `convex/providers/falAudioModels.ts` - `stt`, `voice-changer`,
+  `audio-isolation`, `dubbing` ugaseni
+- `convex/studioModels.ts` - seed gasi red koji katalog povlaci
+- `convex/studioPricing.test.ts`, `convex/studioJobCore.test.ts`,
+  `convex/studioCatalogJob.test.ts`, `convex/studioModels.test.ts`,
+  `convex/providers/catalogModels.test.ts` - prepisani i novi testovi
+
+**Sta je uradjeno:** Seedance vise ne daje 40% popusta za `reference` sa video
+ulazom. Popust je po katalogu 3.4 postojao zato sto se uz izlaz naplacuje i
+ulazni video - a ulazni video se nije naplacivao, jer server ne zna koliko
+traje; marza je time padala na 0,50x. `referenceVideoBillableSeconds` je
+ostavljena netaknuta u kodu, sa prepisanim komentarom koji kaze da ceka
+serversko merenje i da se vraca zajedno sa mnoziocem. Sedam modela koji se
+naplacuju po duzini okacenog fajla (`kling-avatar`, `kling-lipsync`,
+`kling-motion`, `stt`, `voice-changer`, `audio-isolation`, `dubbing`) je
+ugaseno u seed-u, i seed ih od sada gasi i na vec upisanom redu. `createJob`
+prijavljenu kolicinu vise ne prima na rec: cita `_storage.size` okacenih fajlova
+mernog slota, iz njega izvodi najduze trajanje koje u toliko bajtova uopste moze
+da stane (32 kbps zvuk, 200 kbps video) i odbija prijavu preko te granice
+(`KOLICINA_VECA_OD_FAJLA`), a posao bez ijednog serverski vidljivog bajta odbija
+odmah (`MERENJE_NIJE_DOSTUPNO`).
+
+**ODLUKE:**
+1. **Sta tacno znaci "tvrda kapija bez serverskog merenja" (tacka 2 zadatka).**
+   Dva citanja: (a) hard-block - svaki model sa merenom kolicinom iz fajla pada
+   dok W5 ne napravi pravo merenje; (b) kapija se okida kad server nema NIJEDAN
+   bajt uz koji bi prijavu proverio. Izabrano je (b), iz dva razloga: W5.md sam
+   kaze "W3 je zatvorio rupu grubom granicom po velicini fajla i iskljucio sedam
+   modela", dakle granica iz tacke 3 mora da bude ziva; a pod (a) bi ta granica u
+   `createJob`-u bila mrtav kod, sto je tacno nalaz R1 iz istog izvestaja. Kapija
+   je pisana tako da W5 samo doda svoj izvor merenja - ostaje kao mreza.
+2. **Zasto je onda napad od 0,002x zaista zatvoren.** Granica po velicini je
+   JEDNOSTRANA: hvata prijavu vecu od fajla, ne i manju (120 minuta prijavljenih
+   kao 0,1 i dalje bi prosli). Suprotna granica (najkraci moguci snimak iz
+   MAKSIMALNOG bitrate-a) nije uvedena namerno: da bi bila sigurna, gornji
+   bitrate mora da pokrije WAV 96/24 i ProRes, pa bi ili odbijala postene
+   korisnike ili bila bezuba. Zato je nosilac zastite tacka 1 - sedam modela je
+   ugaseno - a kapija i granica su mreza ispod nje.
+3. **Seed od sada GASI red koji katalog povlaci.** Zatecena semantika je bila
+   "`isEnabled` se postavlja samo pri prvom upisu", zbog cega bi `isEnabled:
+   false` u seed-u na vec seedovanom deployment-u bio bez ikakvog dejstva - a to
+   je jedina zastita iz tacke 1 iznad. Izmena je JEDNOSMERNA: seed sme da ugasi,
+   nikad da upali. Zato je i tip polja `isEnabled?: false`, a ne `boolean` -
+   `isEnabled: true` u seed-u je greska prevodjenja, ne tiho ignorisana vrednost.
+   Kad W5 bude vracao sedam modela, brise se marker iz seed-a, a paljenje ide iz
+   admin ekrana (ili se ova odluka svesno menja u tom koraku).
+4. **Bitrate: 32 kbps zvuk, 200 kbps video** (predlog iz zadatka, prihvacen).
+   Greska na nisku stranu samo propusti previsoku prijavu; greska na visoku
+   odbija postenog korisnika. 32 kbps je donji kraj razumljivog govornog
+   MP3/Opus-a, 200 kbps donji kraj 480p H.264. Svaki bogatiji format daje krace
+   trajanje po bajtu, pa granicu samo produbljuje.
+5. **`input_media_minutes` sabira i video i zvuk slot.** `stt` i `dubbing` primaju
+   oba pod istim pravilom po minutu, pa granica gleda oba; svaki slot se racuna
+   po svom bitrate-u.
+6. **Granica se proverava PRE secenja na kataloski `max`.** Da je posle,
+   prijavljenih 3600 sekundi bi se najpre steslo na 60 pa proslo kroz granicu od
+   100 - nemoguca prijava bi se sakrila iza plafona. Pokriveno testom.
+7. **`normalizeId` pre `ctx.db.system.get`-a.** `storageId` dolazi sa klijenta, a
+   `get` na nizu koji nije ID baca umesto da vrati `null`. Nepostojeci i
+   neispravan ID daju isti ishod - `MERENJE_NIJE_DOSTUPNO`.
+8. **Dve nove poruke greske nemaju svoj tekst u `lib/studio-messages.ts`.**
+   Nedostizne su dok je sedam modela ugaseno (`MODEL_NEDOSTUPAN` pada ranije), a
+   zatecen `NEDOSTAJE_KOLICINA` je vec u istoj situaciji - pada na opstu poruku.
+   Tekst pise korak koji modele vraca (W5), da se ne pise kopija za put koji
+   trenutno niko ne moze da prodje.
+9. **`buildCatalogOrder` je postao `async` i prima `ctx`.** Merenje trazi citanje
+   iz baze; isti oblik vec ima `buildLegacyOrder(ctx, ...)`, pa je izabran on
+   umesto da se bajtovi citaju izvan funkcije i provlace kroz argument.
+
+**Testovi:**
+- `studioPricing.test.ts` - `reference` sa videom se naplacuje po PUNOJ tarifi
+  (164 kr u oba rezima, odnos 1,0); nijedno Seedance pravilo nema
+  `modeMultipliers`; `referenceVideoBillableSeconds` i dalje racuna tacno
+  (5+4=9), ali je niko ne zove, pa je cena `0,151 x 5` a ne `x 0,6`
+- `studioCatalogJob.test.ts` - Seedance sa video referencom nema popust kroz ceo
+  `createJob`; model sa merenom kolicinom bez video fajla i sa izmisljenim
+  `storageId`-jem daje `MERENJE_NIJE_DOSTUPNO` (0 poslova, balans netaknut);
+  `dubbing` sa 2 MB zvuka i prijavljenih 120 minuta daje
+  `KOLICINA_VECA_OD_FAJLA:minutes` PRE skidanja kredita; `dubbing` sa 3 MB zvuka
+  i prijavljena 3 minuta prolazi i naplacuje se po `computeCredits`-u
+- `studioJobCore.test.ts` - `maxQuantityFromBytes` (250 kB videa = 10 s,
+  240 kB zvuka = 60 s = 1 min, slot koji se ne meri ne pomera granicu, prazan
+  fajl i `null` daju `null`); `measuredSlotsFor` za sva tri izvora; kapija se
+  okida i kad prijave nema; granica se proverava pre secenja; tacno na granici
+  prolazi; tekst i dalje prolazi sa `maxFromFile = null`
+- `studioModels.test.ts` - povucen model ostaje ugasen i posle ponovnog seed-a
+  cak i kad ga je neko upalio; `listModels` vraca 23 reda umesto 30
+- `catalogModels.test.ts` - tacno tih sedam slugova se naplacuje po duzini
+  fajla i sva sedmorica su `isEnabled: false`, dok `tts`/`dialogue` (tekst meri
+  server) ostaju u ponudi
+
+**Rezultat verifikacije:**
+- `npx convex codegen` - **OK** (`Running TypeScript...`, exit 0)
+- `npm run lint` - **OK**, `8 problems (0 errors, 8 warnings)` - isto stanje kao
+  posle W2, nijedno upozorenje nije u fajlovima ovog koraka
+- `npm run test` - **OK**, `Test Files 55 passed (55)`, `Tests 674 passed (674)`
+  (+8 posle W2)
+- `npm run build` - **OK**, `Compiled successfully in 7.3s`,
+  `Generating static pages (60/60)`
+
+**BLOKADA:** nema.
+
+**Za Jovana:**
+1. **Sedam modela se ne gasi samo od sebe na deployment-u - moras pustiti seed.**
+   Kod je promenjen, red u bazi nije. Posle deploy-a:
+   ```
+   npm run convex:seed
+   ```
+   (ili `studioModels.seedStudioModels` sa `WEBHOOK_SYNC_SECRET`-om). Do tada su
+   `kling-avatar`, `kling-lipsync`, `kling-motion`, `stt`, `voice-changer`,
+   `audio-isolation` i `dubbing` i dalje u ponudi, i rupa 0,002x na njima i dalje
+   stoji. Proveri posle seed-a da ih na `/sr/app/studio` vise nema u izboru.
+2. **Katalog ce korisniku prikazati 23 modela umesto 30.** To je namerno i traje
+   do W5; nista drugo nije uklonjeno.
+3. **Seedance je poskupeo za `reference` sa videom** - 164 kr umesto 98 kr na
+   720p/5 s. Ako je negde u marketingu ili u kursu upisana stara cifra, treba je
+   ispraviti.
+4. **R4 (`storageId` bez provere vlasnistva) nije diran.** Novi
+   `measuredInputBytes` cita velicinu fajla po `storageId`-ju koji je poslao
+   klijent, dakle jedno mesto vise koje bi tudji fajl dotaklo - ali `createJob`
+   je tudji `storageId` primao i ranije, i galerija ga je i ranije potpisivala,
+   pa ovo nije nova rupa. Zatvara je W4 (tabela `studioUploads`).
+5. **`STUDIO-CATALOG-V4.md` 3.4 i dalje opisuje snizenu tarifu za `reference` sa
+   videom.** Kod je sada strozi od kataloga. Ostavljeno je namerno - katalog je
+   opis dogovora sa provajderom, ne stanja koda - ali kad W5 vrati merenje,
+   proveri da se opet poklapaju.

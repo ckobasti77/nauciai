@@ -61,10 +61,15 @@ function toRow(seed: StudioModelSeed, now: number) {
  * Seed celog kataloga v4 (STUDIO-CATALOG-V4 sekcija 8). Idempotentan: model se
  * traži po slugu i patchuje, pa ponovljen seed ne pravi duplikate.
  *
- * **`isEnabled` se postavlja SAMO pri prvom upisu.** Isti razlog zbog kojeg
+ * **`isEnabled` se PALI samo pri prvom upisu.** Isti razlog zbog kojeg
  * `seedPlatformFlags` ne pali kill switch nazad: ako je Jovan model ugasio iz
  * admin ekrana (kvota, sporan račun, model povučen kod provajdera), ponovno
  * pokretanje seed-a ne sme tiho da ga vrati korisnicima.
+ *
+ * Gašenje ide u suprotnom smeru: red kataloga sa `isEnabled: false` je model
+ * koji katalog POVLAČI, pa se gasi i na već upisanom redu. Skidanje modela sa
+ * ponude ne može da bude gubitak, a čekanje da neko ručno ugasi sedam redova
+ * po deployment-u može.
  */
 export const seedStudioModels = mutation({
   args: { syncSecret: v.string() },
@@ -82,10 +87,10 @@ export const seedStudioModels = mutation({
       const row = toRow(seed, now);
 
       if (existing) {
-        await ctx.db.patch(existing._id, row);
+        await ctx.db.patch(existing._id, seed.isEnabled === false ? { ...row, isEnabled: false } : row);
         updated += 1;
       } else {
-        await ctx.db.insert("models", { ...row, isEnabled: true });
+        await ctx.db.insert("models", { ...row, isEnabled: seed.isEnabled ?? true });
         inserted += 1;
       }
     }

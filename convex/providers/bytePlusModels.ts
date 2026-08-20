@@ -212,6 +212,11 @@ export const SEEDANCE_20: BytePlusModelSeed = {
       affectsPrice: true,
     },
   ],
+  // Katalog 3.4 daje `reference` sa videom sniženu tarifu ZATO ŠTO se uz izlaz
+  // naplaćuje i ulazni video. Ulazni video se ne naplaćuje - trajanje okačenog
+  // fajla server ne meri (videti `referenceVideoBillableSeconds`) - pa je
+  // množilac 0,6 popust bez osnova i vraća se tek zajedno sa merenjem.
+  // Puna cena nikad nije gubitak; snižena bez osnova jeste.
   priceRule: {
     unit: "second",
     quantityParam: "duration",
@@ -228,7 +233,6 @@ export const SEEDANCE_20: BytePlusModelSeed = {
         "mini|720p": 0.077,
       },
     },
-    modeMultipliers: { reference_with_video: 0.6 },
   },
   capabilities: { audio: false, minDurationS: 4, maxDurationS: 12, maxRefImages: 9, maxRefVideos: 3 },
   sortOrder: 340,
@@ -294,6 +298,7 @@ export const SEEDANCE_25: BytePlusModelSeed = {
       affectsPrice: true,
     },
   ],
+  // Bez `modeMultipliers` iz istog razloga kao Seedance 2.0 iznad.
   priceRule: {
     unit: "second",
     quantityParam: "duration",
@@ -301,7 +306,6 @@ export const SEEDANCE_25: BytePlusModelSeed = {
       params: ["resolution"],
       map: { "480p": 0.103, "720p": 0.231, "1080p": 0.569 },
     },
-    modeMultipliers: { reference_with_video: 0.6 },
   },
   capabilities: { audio: false, minDurationS: 4, maxDurationS: 30, maxRefImages: 50, maxRefVideos: 3 },
   sortOrder: 350,

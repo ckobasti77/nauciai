@@ -114,9 +114,15 @@ async function balanceOf(t: TestConvex, userId: Id<"users">) {
   return row?.balance ?? 0;
 }
 
-/** Fajl u storage-u, da `inputs` pokazuju na nešto što stvarno postoji. */
-async function storeFile(t: TestConvex, type: string) {
-  return t.run((ctx) => ctx.storage.store(new Blob(["x"], { type })));
+/**
+ * Fajl u storage-u, da `inputs` pokazuju na nešto što stvarno postoji.
+ *
+ * `bytes` je bitan samo tamo gde se naplaćuje po dužini snimka: server iz
+ * veličine izvodi najduže trajanje koje u fajl staje, pa jednobajtni blob ne
+ * može da bude klip od pet sekundi.
+ */
+async function storeFile(t: TestConvex, type: string, bytes = 1) {
+  return t.run((ctx) => ctx.storage.store(new Blob(["x".repeat(bytes)], { type })));
 }
 
 // ── srećan tok ─────────────────────────────────────────────────────────────
@@ -189,7 +195,7 @@ test("dodatne ulazne slike broji SERVER, ne ono što je klijent prijavio", async
   );
 });
 
-test("Seedance sa video referencom ide po sniženoj tarifi - i to iz ULAZA, ne iz zahteva", async () => {
+test("Seedance sa video referencom NEMA popust dok se ulazni video ne naplaćuje", async () => {
   const t = convexTest(schema, modules);
   const { userId, asUser } = await seedUser(t);
   await seedCatalogModel(t, "seedance-25");
@@ -204,12 +210,14 @@ test("Seedance sa video referencom ide po sniženoj tarifi - i to iz ULAZA, ne i
 
   const jobs = await jobsOf(t, userId);
   const params = JSON.parse(jobs[0].params) as Record<string, unknown>;
+  // Snižena tarifa iz kataloga 3.4 postoji ZATO ŠTO se naplaćuje i ulazni
+  // video. Trajanje tog videa server ne meri, pa se ne naplaćuje - i popusta
+  // nema. Sa popustom a bez naplaćenog ulaza marža pada na 0,50x.
+  expect(jobs[0].creditCost).toBe(
+    computeCredits(seedOf("seedance-25").priceRule, params, "reference"),
+  );
   expect(jobs[0].creditCost).toBe(
     computeCredits(seedOf("seedance-25").priceRule, params, "reference_with_video"),
-  );
-  // Bez video ulaza ista kombinacija košta više.
-  expect(jobs[0].creditCost).toBeLessThan(
-    computeCredits(seedOf("seedance-25").priceRule, params, "reference"),
   );
 });
 
@@ -258,8 +266,10 @@ test("posao koji se naplaćuje po dužini fajla bez izmerene dužine ne prolazi"
 test("prijavljena dužina se zaokružuje naviše pre naplate", async () => {
   const t = convexTest(schema, modules);
   const { userId, asUser } = await seedUser(t);
+  // Sedam modela sa merenom količinom je u katalogu ugašeno; red se ovde
+  // seeduje uključen jer se testira kapija, a ne prekidač.
   await seedCatalogModel(t, "kling-motion");
-  const video = await storeFile(t, "video/mp4");
+  const video = await storeFile(t, "video/mp4", 1_000_000);
   const image = await storeFile(t, "image/png");
 
   await asUser.mutation(api.studio.createJob, {
@@ -272,6 +282,82 @@ test("prijavljena dužina se zaokružuje naviše pre naplate", async () => {
 
   const jobs = await jobsOf(t, userId);
   expect((JSON.parse(jobs[0].params) as Record<string, unknown>).duration).toBe(5);
+});
+
+test("model sa merenom količinom bez ijednog serverski vidljivog fajla se odbija", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedUser(t);
+  await seedCatalogModel(t, "kling-motion");
+  const image = await storeFile(t, "image/png");
+
+  // Slika je tu, video - iz kojeg se meri - nije. Nema se šta izmeriti.
+  await expect(
+    asUser.mutation(api.studio.createJob, {
+      modelSlug: "kling-motion",
+      params: JSON.stringify({ resolution: "720p" }),
+      inputMode: "video_image",
+      inputs: JSON.stringify({ image: [image] }),
+      measuredQuantity: 30,
+    }),
+  ).rejects.toThrow("MERENJE_NIJE_DOSTUPNO");
+
+  // Isto i za `storageId` koji nije ID - klijent ga bira, pa se ne sme
+  // proslediti `ctx.db.system.get`-u kakav jeste.
+  await expect(
+    asUser.mutation(api.studio.createJob, {
+      modelSlug: "kling-motion",
+      params: JSON.stringify({ resolution: "720p" }),
+      inputMode: "video_image",
+      inputs: JSON.stringify({ video: ["izmisljen-id"], image: [image] }),
+      measuredQuantity: 30,
+    }),
+  ).rejects.toThrow("MERENJE_NIJE_DOSTUPNO");
+
+  expect(await jobsOf(t, userId)).toHaveLength(0);
+  expect(await balanceOf(t, userId)).toBe(100000);
+});
+
+test("prijavljena dužina veća od onoga što u fajl staje se odbija PRE skidanja kredita", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedUser(t);
+  await seedCatalogModel(t, "dubbing");
+  // 2 MB zvuka je pri 32 kbps najviše ~8,7 minuta, ma koliko klijent prijavio.
+  const audio = await storeFile(t, "audio/mpeg", 2_000_000);
+
+  await expect(
+    asUser.mutation(api.studio.createJob, {
+      modelSlug: "dubbing",
+      params: JSON.stringify({ target_language: "en" }),
+      inputMode: "audio",
+      inputs: JSON.stringify({ audio: [audio] }),
+      measuredQuantity: 120,
+    }),
+  ).rejects.toThrow("KOLICINA_VECA_OD_FAJLA:minutes");
+
+  expect(await jobsOf(t, userId)).toHaveLength(0);
+  expect(await balanceOf(t, userId)).toBe(100000);
+});
+
+test("realan odnos veličine i trajanja prolazi i naplaćuje se po prijavi", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedUser(t);
+  await seedCatalogModel(t, "dubbing");
+  // ~3 minuta govora na 128 kbps je oko 2,9 MB - granica je ~12,5 minuta.
+  const audio = await storeFile(t, "audio/mpeg", 3_000_000);
+
+  await asUser.mutation(api.studio.createJob, {
+    modelSlug: "dubbing",
+    params: JSON.stringify({ target_language: "en" }),
+    inputMode: "audio",
+    inputs: JSON.stringify({ audio: [audio] }),
+    measuredQuantity: 3,
+  });
+
+  const jobs = await jobsOf(t, userId);
+  const params = JSON.parse(jobs[0].params) as Record<string, unknown>;
+  expect(params.minutes).toBe(3);
+  expect(jobs[0].creditCost).toBe(computeCredits(seedOf("dubbing").priceRule, params, "audio"));
+  expect(await balanceOf(t, userId)).toBe(100000 - jobs[0].creditCost);
 });
 
 // ── kapije ─────────────────────────────────────────────────────────────────

@@ -7,6 +7,8 @@ import {
   extraCounts,
   hasVideoInput,
   jobInputStorageIds,
+  maxQuantityFromBytes,
+  measuredSlotsFor,
   parseClientInputs,
   parseInputModes,
   parseInputSpec,
@@ -138,13 +140,16 @@ test("tekst meri server sam, iz parametara - klijent tu nema šta da prijavi", (
     max: 5000,
   } as const;
 
-  expect(resolveMeasuredQuantity(source, { text: "zdravo" }, undefined)).toEqual({
+  expect(resolveMeasuredQuantity(source, { text: "zdravo" }, undefined, null)).toEqual({
     ok: true,
     quantity: 6,
   });
   // Prijavljena količina se ignoriše kad je tekst tu - naplaćuje se ono što je ukucano.
-  expect(resolveMeasuredQuantity(source, { text: "zdravo" }, 1)).toEqual({ ok: true, quantity: 6 });
-  expect(resolveMeasuredQuantity(source, { text: "" }, 100)).toEqual({
+  expect(resolveMeasuredQuantity(source, { text: "zdravo" }, 1, null)).toEqual({
+    ok: true,
+    quantity: 6,
+  });
+  expect(resolveMeasuredQuantity(source, { text: "" }, 100, null)).toEqual({
     ok: false,
     reason: "NEDOSTAJE_KOLICINA:char_count",
   });
@@ -153,20 +158,20 @@ test("tekst meri server sam, iz parametara - klijent tu nema šta da prijavi", (
 test("dužina fajla se zaokružuje NAVIŠE i seče na granice iz kataloga", () => {
   const seconds = { param: "duration", from: "input_video_seconds", min: 1, max: 60 } as const;
 
-  expect(resolveMeasuredQuantity(seconds, {}, 3.2)).toEqual({ ok: true, quantity: 4 });
-  expect(resolveMeasuredQuantity(seconds, {}, 0.4)).toEqual({ ok: true, quantity: 1 });
+  expect(resolveMeasuredQuantity(seconds, {}, 3.2, 4000)).toEqual({ ok: true, quantity: 4 });
+  expect(resolveMeasuredQuantity(seconds, {}, 0.4, 4000)).toEqual({ ok: true, quantity: 1 });
   // Prijavljen sat na modelu koji prima minut se seče na minut, ne naplaćuje se sat.
-  expect(resolveMeasuredQuantity(seconds, {}, 3600)).toEqual({ ok: true, quantity: 60 });
+  expect(resolveMeasuredQuantity(seconds, {}, 3600, 4000)).toEqual({ ok: true, quantity: 60 });
 
-  expect(resolveMeasuredQuantity(seconds, {}, undefined)).toEqual({
+  expect(resolveMeasuredQuantity(seconds, {}, undefined, 4000)).toEqual({
     ok: false,
     reason: "NEDOSTAJE_KOLICINA:duration",
   });
-  expect(resolveMeasuredQuantity(seconds, {}, 0)).toEqual({
+  expect(resolveMeasuredQuantity(seconds, {}, 0, 4000)).toEqual({
     ok: false,
     reason: "NEDOSTAJE_KOLICINA:duration",
   });
-  expect(resolveMeasuredQuantity(seconds, {}, Number.NaN)).toEqual({
+  expect(resolveMeasuredQuantity(seconds, {}, Number.NaN, 4000)).toEqual({
     ok: false,
     reason: "NEDOSTAJE_KOLICINA:duration",
   });
@@ -175,8 +180,71 @@ test("dužina fajla se zaokružuje NAVIŠE i seče na granice iz kataloga", () =
 test("minuti se zaokružuju na desetinku naviše, ne na ceo minut", () => {
   const minutes = { param: "minutes", from: "input_media_minutes", min: 0.1, max: 120 } as const;
 
-  expect(resolveMeasuredQuantity(minutes, {}, 1.01)).toEqual({ ok: true, quantity: 1.1 });
-  expect(resolveMeasuredQuantity(minutes, {}, 0.01)).toEqual({ ok: true, quantity: 0.1 });
+  expect(resolveMeasuredQuantity(minutes, {}, 1.01, 120)).toEqual({ ok: true, quantity: 1.1 });
+  expect(resolveMeasuredQuantity(minutes, {}, 0.01, 120)).toEqual({ ok: true, quantity: 0.1 });
+});
+
+test("bez ijednog bajta koji je server video prijavljena dužina ne prolazi", () => {
+  const seconds = { param: "duration", from: "input_video_seconds", min: 1, max: 60 } as const;
+
+  expect(resolveMeasuredQuantity(seconds, {}, 12, null)).toEqual({
+    ok: false,
+    reason: "MERENJE_NIJE_DOSTUPNO",
+  });
+  // Kapija stoji ISPRED provere samog broja: fajl kojeg server nije video je
+  // ozbiljniji problem od prijave koje nema.
+  expect(resolveMeasuredQuantity(seconds, {}, undefined, null)).toEqual({
+    ok: false,
+    reason: "MERENJE_NIJE_DOSTUPNO",
+  });
+
+  // Tekst server meri iz parametara, pa za njega granica po fajlu ne postoji.
+  const chars = { param: "char_count", from: "text_length", measuredFrom: "text", min: 1, max: 5000 } as const;
+  expect(resolveMeasuredQuantity(chars, { text: "zdravo" }, undefined, null)).toEqual({
+    ok: true,
+    quantity: 6,
+  });
+});
+
+test("prijava veća od onoga što u fajl staje se odbija PRE sečenja na max", () => {
+  const seconds = { param: "duration", from: "input_video_seconds", min: 1, max: 60 } as const;
+
+  expect(resolveMeasuredQuantity(seconds, {}, 30, 12)).toEqual({
+    ok: false,
+    reason: "KOLICINA_VECA_OD_FAJLA:duration",
+  });
+  // Da se seklo pre provere, 3600 bi postalo 60 i prošlo kroz granicu od 100.
+  expect(resolveMeasuredQuantity(seconds, {}, 3600, 100)).toEqual({
+    ok: false,
+    reason: "KOLICINA_VECA_OD_FAJLA:duration",
+  });
+  // Tačno na granici prolazi - granica je "najduže što staje", ne "manje od".
+  expect(resolveMeasuredQuantity(seconds, {}, 12, 12)).toEqual({ ok: true, quantity: 12 });
+});
+
+test("granica po veličini fajla je najduže trajanje koje u te bajtove staje", () => {
+  const seconds = { param: "duration", from: "input_video_seconds", min: 1, max: 60 } as const;
+  const audio = { param: "duration", from: "input_audio_seconds", min: 1, max: 60 } as const;
+  const minutes = { param: "minutes", from: "input_media_minutes", min: 0.1, max: 120 } as const;
+
+  expect(measuredSlotsFor(seconds)).toEqual(["video"]);
+  expect(measuredSlotsFor(audio)).toEqual(["audio"]);
+  // `stt` i `dubbing` primaju i video i zvuk pod istim pravilom po minutu.
+  expect(measuredSlotsFor(minutes)).toEqual(["video", "audio"]);
+
+  // 250 000 bajtova pri 200 kbps je najviše 10 sekundi videa.
+  expect(maxQuantityFromBytes(seconds, { video: 250_000 })).toBeCloseTo(10, 10);
+  // 240 000 bajtova pri 32 kbps je najviše 60 sekundi zvuka, dakle 1 minut.
+  expect(maxQuantityFromBytes(audio, { audio: 240_000 })).toBeCloseTo(60, 10);
+  expect(maxQuantityFromBytes(minutes, { audio: 240_000 })).toBeCloseTo(1, 10);
+
+  // Slot koji se ne meri ne pomera granicu - slika uz video kod prenosa pokreta.
+  expect(maxQuantityFromBytes(seconds, { video: 250_000, image: 9_000_000 })).toBeCloseTo(10, 10);
+  // Nijedan merni slot, prazan fajl, nepročitani metapodaci -> nema granice, a
+  // `resolveMeasuredQuantity` na to odbija posao.
+  expect(maxQuantityFromBytes(seconds, { image: 9_000_000 })).toBeNull();
+  expect(maxQuantityFromBytes(seconds, { video: 0 })).toBeNull();
+  expect(maxQuantityFromBytes(seconds, null)).toBeNull();
 });
 
 // ── parseri polja reda ─────────────────────────────────────────────────────

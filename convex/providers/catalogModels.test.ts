@@ -385,6 +385,33 @@ test("katalog ima 30 redova, jedinstvene slugove i jedinstven redosled", () => {
   expect(studioModelBySlug("nema-me")).toBeUndefined();
 });
 
+test("modeli koji se naplaćuju po dužini OKAČENOG fajla su ugašeni u katalogu", () => {
+  const fromFile = STUDIO_MODELS.filter((seed) => {
+    const quantity = seed.capabilities.quantity as { from?: string } | undefined;
+
+    return quantity !== undefined && quantity.from !== "text_length";
+  });
+
+  // Dužinu snimka danas meri klijent i pošalje je kao `measuredQuantity`; server
+  // je poredi samo sa veličinom fajla, pa hvata nemoguću prijavu ali ne i
+  // prijavu manju od stvarne. Za 120 minuta prijavljenih kao 0,1 plaća se 13
+  // evrocenti, a kod ElevenLabs-a se naruči 72 dolara posla.
+  expect(fromFile.map((seed) => seed.slug).sort()).toEqual([
+    "audio-isolation",
+    "dubbing",
+    "kling-avatar",
+    "kling-lipsync",
+    "kling-motion",
+    "stt",
+    "voice-changer",
+  ]);
+  for (const seed of fromFile) expect(seed.isEnabled, seed.slug).toBe(false);
+
+  // Tekst server meri sam, iz `params`-a, pa `tts` i `dialogue` ostaju u ponudi.
+  expect(TTS.isEnabled).toBeUndefined();
+  expect(DIALOGUE.isEnabled).toBeUndefined();
+});
+
 // ── tabele cena iz kataloga (sekcije 2, 3, 4) ──────────────────────────────
 
 function creditsFor(seed: StudioModelSeed, params: Record<string, unknown>, mode?: string): number {

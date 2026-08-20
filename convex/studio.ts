@@ -12,7 +12,10 @@ import { parseJobInputs } from "./providers/jobInputs";
 import {
   extraCounts,
   hasVideoInput,
+  type JobInputs,
   jobInputStorageIds,
+  maxQuantityFromBytes,
+  measuredSlotsFor,
   parseClientInputs,
   parseInputModes,
   parseInputSpec,
@@ -66,6 +69,42 @@ type PricedOrder = {
 };
 
 /**
+ * Ukupno bajtova po mernom slotu, iz sistemske tabele `_storage`. To je jedino
+ * što server o okačenom fajlu zna u mutaciji - trajanje ne zna - pa je i jedina
+ * osnova za proveru prijavljene količine.
+ *
+ * `null` znači da bar jedan fajl nije pročitan: ID koji nije `_storage` ID, ili
+ * fajl koji ne postoji. Za naplatu je to ista stvar kao da fajla nema - nema se
+ * šta izmeriti - pa `resolveMeasuredQuantity` na to odbija posao.
+ */
+async function measuredInputBytes(
+  ctx: MutationCtx,
+  inputs: JobInputs,
+  slots: string[],
+): Promise<Record<string, number> | null> {
+  const bytes: Record<string, number> = {};
+
+  for (const slot of slots) {
+    const ids = inputs[slot];
+    if (!ids || ids.length === 0) continue;
+
+    let total = 0;
+    for (const rawId of ids) {
+      // `normalizeId` PRE `get`-a: `ctx.db.system.get` na nizu koji nije ID baca,
+      // a ovaj niz dolazi sa klijenta.
+      const storageId = ctx.db.system.normalizeId("_storage", rawId);
+      if (!storageId) return null;
+      const meta = await ctx.db.system.get("_storage", storageId);
+      if (!meta) return null;
+      total += meta.size;
+    }
+    bytes[slot] = total;
+  }
+
+  return bytes;
+}
+
+/**
  * Posao iz v4 kataloga (STUDIO-CATALOG-V4). Cena ide kroz `computeCredits` nad
  * OČIŠĆENIM parametrima - istu funkciju nad istim objektom zove i forma, pa se
  * cifra na dugmetu i naplaćena cifra ne mogu razići (katalog 1.3).
@@ -75,11 +114,12 @@ type PricedOrder = {
  * pa merena količina - tek onda prompt i cena, jer i jedno i drugo zavise od
  * svega iznad.
  */
-function buildCatalogOrder(
+async function buildCatalogOrder(
+  ctx: MutationCtx,
   model: Doc<"models">,
   raw: Record<string, unknown>,
   args: { inputMode?: string; inputs?: string; measuredQuantity?: number },
-): PricedOrder {
+): Promise<PricedOrder> {
   if (!model.isEnabled) throw new Error("MODEL_NEDOSTUPAN");
 
   const spec = parseParamSpec(model.paramSpec);
@@ -105,7 +145,16 @@ function buildCatalogOrder(
   // `sanitizeSpecParams` je već izbacio.
   const source = parseQuantitySource(model.capabilities);
   if (source) {
-    const measured = resolveMeasuredQuantity(source, params, args.measuredQuantity);
+    // Prijavljena količina se poredi sa VELIČINOM fajla koji je server stvarno
+    // video - isti princip po kojem se `extras` broje iz `inputs`-a, a ne iz
+    // onoga što je klijent naveo.
+    const bytes = await measuredInputBytes(ctx, inputs.inputs, measuredSlotsFor(source));
+    const measured = resolveMeasuredQuantity(
+      source,
+      params,
+      args.measuredQuantity,
+      maxQuantityFromBytes(source, bytes),
+    );
     if (!measured.ok) throw new Error(measured.reason);
     params[source.param] = measured.quantity;
   }
@@ -265,7 +314,7 @@ export const createJob = mutation({
       .unique();
 
     const order = v4Model
-      ? buildCatalogOrder(v4Model, params, args)
+      ? await buildCatalogOrder(ctx, v4Model, params, args)
       : await buildLegacyOrder(ctx, args.modelSlug, params);
     const cleanParams = order.params;
     const estimatedCostUsd = order.estimatedCostUsd;

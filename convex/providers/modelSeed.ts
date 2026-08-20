@@ -30,4 +30,12 @@ export type StudioModelSeed = {
   priceRule: PriceRule;
   capabilities: Record<string, unknown>;
   sortOrder: number;
+  /**
+   * Samo `false` ima značenje, i zato je tip `false` a ne `boolean`: katalog
+   * POVLAČI model, pa ga seed gasi i pri ponovnom upisu. Polja nema = odlučuje
+   * admin: nov red ulazi uključen, a postojeći zadržava ono što je podešeno iz
+   * admin ekrana. Uključivanje se NIKAD ne upisuje ovde - to je ručna odluka,
+   * inače bi seed vraćao model koji je neko namerno ugasio.
+   */
+  isEnabled?: false;
 };

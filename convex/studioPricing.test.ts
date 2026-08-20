@@ -269,7 +269,7 @@ test("Seedance 2.0 Mini nema 1080p ni 4K - kombinacija nema cenu, pa ni ponudu",
   );
 });
 
-test("reference režim sa video ulazom nosi množilac 0,6", () => {
+test("reference režim sa video ulazom se naplaćuje po PUNOJ tarifi", () => {
   const rule = SEEDANCE_20.priceRule;
   const params = { tier: "standard", resolution: "720p", duration: 5 };
 
@@ -277,18 +277,24 @@ test("reference režim sa video ulazom nosi množilac 0,6", () => {
   const withVideo = computeCostUsd(rule, params, "reference_with_video");
 
   expect(withoutVideo).toBeCloseTo(0.755, 10);
-  expect(withVideo / withoutVideo).toBeCloseTo(0.6, 10);
-  expect(withVideo).toBeCloseTo(0.453, 10);
+  // Snižena tarifa iz kataloga 3.4 važi ZATO ŠTO se uz izlaz naplaćuje i ulazni
+  // video. Ulazni video se ne naplaćuje (server mu ne meri trajanje), pa nema
+  // ni popusta: množilac 0,6 nad samim izlazom je marža 1,50x, a sa stvarnim
+  // ulaznim videom 0,50x.
+  expect(withVideo).toBeCloseTo(withoutVideo, 10);
   expect(computeCredits(rule, params, "reference")).toBe(164);
-  expect(computeCredits(rule, params, "reference_with_video")).toBe(98);
+  expect(computeCredits(rule, params, "reference_with_video")).toBe(164);
 });
 
-test("isti množilac 0,6 važi i za Seedance 2.5", () => {
+test("nijedno Seedance pravilo nema množilac režima", () => {
   const rule = SEEDANCE_25.priceRule;
   const params = { resolution: "720p", duration: 5 };
 
-  expect(computeCostUsd(rule, params, "reference_with_video") / computeCostUsd(rule, params, "reference"))
-    .toBeCloseTo(0.6, 10);
+  expect(computeCostUsd(rule, params, "reference_with_video")).toBe(
+    computeCostUsd(rule, params, "reference"),
+  );
+  expect(rule.modeMultipliers).toBeUndefined();
+  expect(SEEDANCE_20.priceRule.modeMultipliers).toBeUndefined();
 });
 
 test("pricingModeFor prebacuje na sniženu tarifu SAMO za reference sa videom", () => {
@@ -298,16 +304,18 @@ test("pricingModeFor prebacuje na sniženu tarifu SAMO za reference sa videom", 
   expect(pricingModeFor("text", false)).toBe("text");
 });
 
-test("kod reference sa videom se naplaćuje i ulazni i izlazni video", () => {
-  const rule = SEEDANCE_20.priceRule;
-  // Izlaz 5 s, okačen video 4 s -> naplativo 9 s po sniženoj tarifi.
-  const billable = referenceVideoBillableSeconds(5, 4);
-  expect(billable).toBe(9);
-
-  const params = { tier: "standard", resolution: "720p", duration: billable };
-  expect(computeCostUsd(rule, params, "reference_with_video")).toBeCloseTo(0.151 * 9 * 0.6, 10);
+test("referenceVideoBillableSeconds čeka serversko merenje - popusta dotle nema", () => {
+  // Funkcija računa tačno: izlaz 5 s + okačen video 4 s = 9 naplativih sekundi.
+  expect(referenceVideoBillableSeconds(5, 4)).toBe(9);
   // Bez ulaznog videa ostaje samo izlaz.
   expect(referenceVideoBillableSeconds(5, 0)).toBe(5);
+
+  // Ali je NIKO ne zove, jer trajanje ulaznog videa danas dolazi od klijenta.
+  // Dok je tako, `reference_with_video` se naplaćuje po punoj tarifi nad samim
+  // izlazom - popust bez naplaćenog ulaza je marža 0,50x.
+  const rule = SEEDANCE_20.priceRule;
+  const params = { tier: "standard", resolution: "720p", duration: 5 };
+  expect(computeCostUsd(rule, params, "reference_with_video")).toBeCloseTo(0.151 * 5, 10);
 });
 
 test("Seedance 2.5 tabela iz kataloga 3.5", () => {

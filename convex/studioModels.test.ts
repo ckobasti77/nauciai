@@ -10,6 +10,8 @@ import { parseParamSpec } from "./studioParamSpec";
 import { parsePriceRule } from "./studioPricing";
 
 const modules = import.meta.glob("./**/*.ts");
+/** Redovi koje katalog povlači (`isEnabled: false`) - ne izlaze korisniku. */
+const RETIRED = STUDIO_MODELS.filter((seed) => seed.isEnabled === false).length;
 const previousSyncSecret = process.env.WEBHOOK_SYNC_SECRET;
 const previousAdmins = process.env.INITIAL_ADMIN_EMAILS;
 const SYNC_SECRET = "test-sync-secret";
@@ -49,7 +51,7 @@ test("seed upisuje ceo katalog i sva složena polja prežive put kroz bazu kao J
     expect(row.provider).toBe(seed.provider);
     expect(row.kind).toBe(seed.kind);
     expect(row.family).toBe(seed.family);
-    expect(row.isEnabled).toBe(true);
+    expect(row.isEnabled, seed.slug).toBe(seed.isEnabled ?? true);
     expect(row.sortOrder).toBe(seed.sortOrder);
 
     // Pravilo i kontrole moraju da se pročitaju NAZAD onim istim funkcijama
@@ -82,8 +84,32 @@ test("ponovljen seed ne pravi duplikate i NE pali model koji je admin ugasio", a
   const rows = await t.run((ctx) => ctx.db.query("models").collect());
   expect(rows).toHaveLength(STUDIO_MODELS.length);
   expect(rows.find((row) => row.slug === "gemini-omni")?.isEnabled).toBe(false);
-  // Ostali su i dalje uključeni - Jovan traži pun katalog.
-  expect(rows.filter((row) => row.isEnabled)).toHaveLength(STUDIO_MODELS.length - 1);
+  // Ostali su i dalje uključeni - Jovan traži pun katalog, minus ono što je
+  // katalog povukao.
+  expect(rows.filter((row) => row.isEnabled)).toHaveLength(STUDIO_MODELS.length - 1 - RETIRED);
+});
+
+test("model koji je katalog povukao seed GASI i na već upisanom redu", async () => {
+  const t = createTest();
+  await t.mutation(api.studioModels.seedStudioModels, { syncSecret: SYNC_SECRET });
+
+  // Neko ga je uključio iz admin ekrana (ili je red seedovan pre nego što je
+  // katalog model povukao).
+  await t.run(async (ctx) => {
+    const row = await ctx.db
+      .query("models")
+      .withIndex("by_slug", (q) => q.eq("slug", "dubbing"))
+      .unique();
+    if (row) await ctx.db.patch(row._id, { isEnabled: true });
+  });
+
+  await t.mutation(api.studioModels.seedStudioModels, { syncSecret: SYNC_SECRET });
+
+  const rows = await t.run((ctx) => ctx.db.query("models").collect());
+  // Gašenje ide u oba smera, uključivanje samo ručno: model koji se naplaćuje
+  // po količini koju meri klijent ne sme da ostane u ponudi po deployment-u.
+  expect(rows.find((row) => row.slug === "dubbing")?.isEnabled).toBe(false);
+  expect(RETIRED).toBe(7);
 });
 
 test("seed bez tačnog sync secreta ne upisuje ništa", async () => {
@@ -146,7 +172,7 @@ test("listModels trazi prijavu i ne izlaze rute kod provajdera", async () => {
 
   const asUser = await seedStudent(t);
   const rows = await asUser.query(api.studioModels.listModels, {});
-  expect(rows).toHaveLength(STUDIO_MODELS.length);
+  expect(rows).toHaveLength(STUDIO_MODELS.length - RETIRED);
   expect(Object.hasOwn(rows[0], "endpoints")).toBe(false);
   expect(rows[0].priceRule).toBeTypeOf("string");
   // Sortirano po `sortOrder`-u, isto kao u seed-u.

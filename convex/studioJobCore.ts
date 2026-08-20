@@ -233,6 +233,66 @@ export function parseQuantitySource(capabilities: string): QuantitySource | null
   return source;
 }
 
+/**
+ * Iz kojih slotova se koja količina meri. `stt` i `dubbing` primaju i video i
+ * zvuk pod istim pravilom po minutu, pa `input_media_minutes` gleda oba slota.
+ */
+const MEASURED_SLOTS: Record<QuantitySource["from"], string[]> = {
+  input_audio_seconds: [AUDIO_SLOT],
+  input_video_seconds: [VIDEO_SLOT],
+  input_media_minutes: [VIDEO_SLOT, AUDIO_SLOT],
+  text_length: [],
+};
+
+export function measuredSlotsFor(source: QuantitySource): string[] {
+  return MEASURED_SLOTS[source.from] ?? [];
+}
+
+/**
+ * Konzervativan MINIMALNI bitrate po vrsti fajla, u bitovima u sekundi. Iz
+ * njega izlazi najduže trajanje koje u dati broj bajtova uopšte može da stane:
+ * `sekunde = bajtovi × 8 / bitrate`.
+ *
+ * Brojevi su namerno niski - niži nego što iko stvarno kodira - jer greška na
+ * ovu stranu samo propusti previsoku prijavu, a greška na drugu odbija pošten
+ * posao. 32 kbps je donji kraj govornog MP3/Opus-a (ispod toga se govor više ne
+ * razume), 200 kbps donji kraj 480p H.264. WAV, ProRes i svaki bogatiji format
+ * daju KRAĆE trajanje po bajtu, pa granicu samo produbljuju.
+ */
+const MIN_BITRATE_BPS: Record<string, number> = {
+  [AUDIO_SLOT]: 32_000,
+  [VIDEO_SLOT]: 200_000,
+};
+
+/**
+ * Gornja granica prijavljene količine, izvedena iz VELIČINE fajla koju server
+ * stvarno vidi (`_storage.size`). Nije merenje - fajl od 2 MB i dalje može biti
+ * bilo šta ispod ~8 minuta zvuka - ali je jedina serverska činjenica o trajanju
+ * koja danas postoji, i obara prijavu koja je fizički nemoguća.
+ *
+ * `null` znači "nema se šta izmeriti": nijedan merni slot nije okačen, ili
+ * pozivalac nije uspeo da pročita metapodatke ijednog fajla. Tada
+ * `resolveMeasuredQuantity` odbija posao umesto da veruje klijentu.
+ */
+export function maxQuantityFromBytes(
+  source: QuantitySource,
+  bytesBySlot: Record<string, number> | null,
+): number | null {
+  if (bytesBySlot === null) return null;
+
+  let seconds = 0;
+  let measured = false;
+  for (const slot of measuredSlotsFor(source)) {
+    const bytes = bytesBySlot[slot];
+    if (typeof bytes !== "number" || !Number.isFinite(bytes) || bytes <= 0) continue;
+    measured = true;
+    seconds += (bytes * 8) / MIN_BITRATE_BPS[slot];
+  }
+  if (!measured) return null;
+
+  return source.from === "input_media_minutes" ? seconds / 60 : seconds;
+}
+
 export type MeasuredQuantity = { ok: true; quantity: number } | { ok: false; reason: string };
 
 /**
@@ -241,15 +301,32 @@ export type MeasuredQuantity = { ok: true; quantity: number } | { ok: false; rea
  * Tekst server meri sam - ukucan je u `params` i tu je ceo. Dužinu okačenog
  * fajla ne može: Convex storage zna veličinu u bajtovima, ne trajanje, a
  * dekodiranje medija u mutaciji ne postoji. Zato je `reported` (klijent je
- * pročitao `duration` iz `<video>`/`<audio>` metapodataka) jedini izvor, i
- * ide kroz tri kapije: mora biti pozitivan broj, zaokružuje se NAVIŠE na celu
- * jedinicu (zaokruživanje nikad u korist klijenta) i seče se na `min`/`max`
- * iz kataloga, pa ni prijavljeni sat ni prijavljena stotinka ne prolaze.
+ * pročitao `duration` iz `<video>`/`<audio>` metapodataka) jedini izvor
+ * trajanja - i baš zato ne sme da bude i jedina reč o tome koliko se naplaćuje.
+ *
+ * Kapije, ovim redom:
+ * 1. `MERENJE_NIJE_DOSTUPNO` - `maxFromFile` je `null`, dakle nijedan merni
+ *    slot nije okačen ili se metapodaci ne mogu pročitati. Bez ijednog bajta
+ *    koji je server video nema se šta proveriti, pa se posao ODBIJA umesto da
+ *    tiho prođe. Kapija ostaje i kad merenje postane tačno, kao mreža: ono što
+ *    server nije video, ne naplaćuje se.
+ * 2. mora biti pozitivan broj;
+ * 3. zaokružuje se NAVIŠE na celu jedinicu (zaokruživanje nikad u korist
+ *    klijenta);
+ * 4. `KOLICINA_VECA_OD_FAJLA` - prijava veća od onoga što u toliko bajtova može
+ *    da stane (`maxQuantityFromBytes`). Proverava se PRE sečenja na `max`, jer
+ *    bi `clamp` inače sakrio nemoguću prijavu iza kataloškog plafona;
+ * 5. seče se na `min`/`max` iz kataloga.
+ *
+ * Ono što ovo NE hvata je prijava MANJA od stvarnog fajla - granica po veličini
+ * je jednostrana. Zato sedam modela koji se po ovoj količini naplaćuju stoje
+ * ugašeni dok se trajanje ne bude merilo tačno.
  */
 export function resolveMeasuredQuantity(
   source: QuantitySource,
   params: Record<string, unknown>,
   reported: number | undefined,
+  maxFromFile: number | null,
 ): MeasuredQuantity {
   if (source.from === "text_length") {
     const value = params[source.measuredFrom ?? "text"];
@@ -259,6 +336,8 @@ export function resolveMeasuredQuantity(
     return { ok: true, quantity: clampQuantity(length, source) };
   }
 
+  if (maxFromFile === null) return { ok: false, reason: "MERENJE_NIJE_DOSTUPNO" };
+
   if (reported === undefined || !Number.isFinite(reported) || reported <= 0) {
     return { ok: false, reason: `NEDOSTAJE_KOLICINA:${source.param}` };
   }
@@ -267,6 +346,7 @@ export function resolveMeasuredQuantity(
   // tarife), sekunde na celu sekundu - u oba slučaja naviše.
   const rounded =
     source.from === "input_media_minutes" ? Math.ceil(reported * 10) / 10 : Math.ceil(reported);
+  if (rounded > maxFromFile) return { ok: false, reason: `KOLICINA_VECA_OD_FAJLA:${source.param}` };
 
   return { ok: true, quantity: clampQuantity(rounded, source) };
 }

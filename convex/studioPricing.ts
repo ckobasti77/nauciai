@@ -305,12 +305,19 @@ export function parsePriceRule(raw: string): PriceRule | null {
 
 /**
  * Seedance u `reference` režimu sa VIDEO ulazom (STUDIO-CATALOG-V4 3.4/3.5)
- * naplaćuje i ulazni i izlazni video, po sniženoj tarifi (`modeMultipliers`
- * 0,6). Množilac je u pravilu; ovde je druga polovina istog uslova - koliko
- * sekundi uopšte ulazi u `duration`.
+ * naplaćuje i ulazni i izlazni video, po sniženoj tarifi. Ovo je druga polovina
+ * tog uslova - koliko sekundi uopšte ulazi u `duration`.
  *
- * Poziva je onaj ko pravi posao (`createJob`), pre `computeCredits`-a: pravilo
- * zna tarifu, ali ne zna koliko je dugačak fajl koji je korisnik okačio.
+ * **Ne poziva je niko, i to je namerno.** Prva polovina uslova - množilac 0,6 u
+ * `modeMultipliers`-ima oba Seedance pravila - uklonjena je zato što je snižena
+ * tarifa važila bez svoje osnove: ulazni video se nije naplaćivao, jer server
+ * nije umeo da izmeri koliko traje. Dok tog merenja nema, Seedance se naplaćuje
+ * po punoj tarifi, samo po izlaznom trajanju.
+ *
+ * Funkcija čeka pouzdano SERVERSKO merenje trajanja okačenog fajla (isti uslov
+ * koji drži sedam modela sa merenom količinom ugašenim - videti
+ * `resolveMeasuredQuantity` i `MERENJE_NIJE_DOSTUPNO`). Kad merenje postoji,
+ * vraćaju se zajedno: prvo ovaj sabirak, pa množilac.
  */
 export function referenceVideoBillableSeconds(
   outputSeconds: number,
