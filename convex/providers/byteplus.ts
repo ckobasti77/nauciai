@@ -22,8 +22,8 @@ import {
   bytePlusErrorMessage,
   challengeResponseBody,
   parseCallbackBody,
-  parseJobInputs,
 } from "./bytePlusCore";
+import { parseJobInputs } from "./jobInputs";
 import { parseParams } from "../studioCore";
 
 /**

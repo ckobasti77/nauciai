@@ -8,27 +8,11 @@
  */
 
 import type { ParamControl } from "../studioParamSpec";
-import type { PriceRule } from "../studioPricing";
+import type { StudioModelSeed } from "./modelSeed";
 
-export type BytePlusModelSeed = {
-  slug: string;
-  provider: "byteplus";
-  kind: "image" | "video";
-  family: string;
-  labelSr: string;
-  labelEn: string;
-  taglineSr: string;
-  taglineEn: string;
-  descriptionSr: string;
-  descriptionEn: string;
-  endpoints: Record<string, string>;
-  inputModes: string[];
-  inputSpec: Record<string, Record<string, { max: number; accept: string[] }>>;
-  paramSpec: ParamControl[];
-  priceRule: PriceRule;
-  capabilities: Record<string, unknown>;
-  sortOrder: number;
-};
+// Oblik reda je isti za sva tri provajdera (`modelSeed.ts`); ovde je sužen na
+// `byteplus` da red iz ovog fajla ne može slučajno da odglumi drugu rutu.
+export type BytePlusModelSeed = StudioModelSeed & { provider: "byteplus" };
 
 const IMAGE_ACCEPT = ["image/png", "image/jpeg", "image/webp"];
 const VIDEO_ACCEPT = ["video/mp4", "video/quicktime", "video/webm"];

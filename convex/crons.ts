@@ -145,6 +145,16 @@ export const expireGenerationFiles = internalMutation({
 const crons = cronJobs();
 
 crons.interval("studio: zaglavljeni poslovi", { minutes: 15 }, internal.crons.reapStuckJobs, {});
+// Google nema webhookove za video (STUDIO-CATALOG-V4 3.7), pa je ovo jedini put
+// kojim gotov Veo Fast ili Gemini Omni posao stiže do korisnika. Minut je Convex
+// minimum. `reapStuckJobs` iznad ostaje mreža ispod pollera i ne sme da se gasi:
+// posao koji poller iz bilo kog razloga promaši refundira se posle 30 minuta.
+crons.interval(
+  "studio: google poller",
+  { minutes: 1 },
+  internal.providers.google.pollGoogleVideoJobs,
+  {},
+);
 crons.cron("studio: istek kredita", "15 3 * * *", internal.crons.expireCredits, {});
 crons.cron("studio: istek fajlova", "45 3 * * *", internal.crons.expireGenerationFiles, {});
 

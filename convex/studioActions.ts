@@ -4,6 +4,8 @@ import { internal } from "./_generated/api";
 import { internalAction, internalQuery } from "./_generated/server";
 import { submitToFal } from "../lib/fal";
 import { submitBytePlusJob } from "./providers/byteplus";
+import { submitGoogleJob } from "./providers/google";
+import { googleDownloadHeaders } from "./providers/googleCore";
 import {
   extractPrompt,
   MOCK_REQUEST_PREFIX,
@@ -52,6 +54,11 @@ export const submitJob = internalAction({
       });
       if (v4Model?.provider === "byteplus") {
         await submitBytePlusJob(ctx, args.jobId);
+
+        return null;
+      }
+      if (v4Model?.provider === "google") {
+        await submitGoogleJob(ctx, args.jobId);
 
         return null;
       }
@@ -155,7 +162,12 @@ export const persistOutput = internalAction({
     if (!job || job.status !== "done" || !job.falOutputUrl || job.outputStorageId) return null;
 
     try {
-      const response = await fetch(job.falOutputUrl);
+      // Google-ov izlaz stoji na `generativelanguage.googleapis.com` i traži
+      // ključ; fal i BytePlus daju potpisan URL i ne smeju da ga vide. Bez ovog
+      // zaglavlja bi Google posao ostao `done` bez fajla, a plaćen je.
+      const response = await fetch(job.falOutputUrl, {
+        headers: googleDownloadHeaders(job.falOutputUrl, process.env.GOOGLE_AI_API_KEY),
+      });
       if (!response.ok) {
         throw new Error(`fal je vratio ${response.status} pri preuzimanju izlaza.`);
       }

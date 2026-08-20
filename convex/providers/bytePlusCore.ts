@@ -155,27 +155,3 @@ export function buildVideoContent(
 
   return content;
 }
-
-/**
- * `generationJobs.inputs` je JSON `{ slot: [storageId, ...] }`. Redosled unutar
- * slota je značajan (prompt citira "slika 2"), pa se čuva kakav jeste. Sve što
- * nije taj oblik je prazan skup - posao tada ide bez ulaza umesto da pukne.
- */
-export function parseJobInputs(raw: string | undefined): Record<string, string[]> {
-  if (!raw) return {};
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    return {};
-  }
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
-
-  const inputs: Record<string, string[]> = {};
-  for (const [slot, value] of Object.entries(parsed as Record<string, unknown>)) {
-    if (!Array.isArray(value)) continue;
-    inputs[slot] = value.filter((entry): entry is string => typeof entry === "string");
-  }
-
-  return inputs;
-}

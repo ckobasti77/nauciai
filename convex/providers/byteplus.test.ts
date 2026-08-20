@@ -11,8 +11,8 @@ import {
   buildVideoContent,
   challengeResponseBody,
   parseCallbackBody,
-  parseJobInputs,
 } from "./bytePlusCore";
+import { parseJobInputs } from "./jobInputs";
 import { type BytePlusModelSeed, SEEDANCE_20, SEEDREAM_5_PRO } from "./bytePlusModels";
 
 /**

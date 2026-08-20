@@ -532,7 +532,9 @@ test("persistOutput skida fajl u storage, upisuje rok i ostavlja posao u done", 
   const before = Date.now();
   await t.action(internal.studioActions.persistOutput, { jobId });
 
-  expect(fetchMock).toHaveBeenCalledWith(FAL_URL);
+  // Skidanje ide na fal URL BEZ Google ključa: zaglavlje se dodaje samo za
+  // `generativelanguage.googleapis.com` (videti `googleDownloadHeaders`).
+  expect(fetchMock).toHaveBeenCalledWith(FAL_URL, { headers: {} });
   const job = await t.run((ctx) => ctx.db.get(jobId));
   expect(job?.status).toBe("done");
   expect(job?.error).toBeUndefined();

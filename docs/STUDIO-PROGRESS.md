@@ -3357,3 +3357,206 @@ je ista nestabilnost pod opterećenjem koju je zabeležio i
    `convex/crons.ts` ima 9 nekorišćenih uvoza (globalni plafon troška iz S0 nije
    dovršen), a `docs/STUDIO-PROGRESS.md` nema sekcije za S1 i S2 - oba ta koraka
    su po logu izašla sa greškom iako je kod ostao u grani.
+
+## S4 - Google video: Veo 3.1 Fast, Gemini Omni i poller   (20.08.2026 02:15-02:45)
+
+**Fajlovi:**
+- `lib/google-video.ts` - NOV. Tanak fetch-klijent: `readGoogleConfig`,
+  `startGoogleOperation` (Veo `predictLongRunning` i Omni `/interactions`),
+  `fetchGoogleOperation`, `parseOperation`, prepoznavanje kvotne greške.
+- `convex/providers/googleCore.ts` - NOV. Čista logika: `buildVeoRequest`,
+  `buildOmniRequest`, tri ograničenja Omnija (`omniInputRestriction`),
+  `googleDownloadHeaders`, `toBase64`.
+- `convex/providers/google.ts` - NOV. `submitGoogleJob`, `listPollableGoogleJobs`,
+  `pollGoogleVideoJobs` (cron akcija), `applyOperationResult`.
+- `convex/providers/googleModels.ts` - NOV. Četiri reda za `models`:
+  `veo-31-lite` (fal), `veo-31-fast` (google), `veo-31` (fal), `gemini-omni` (google).
+- `convex/providers/modelSeed.ts` - NOV. Zajednički tip reda kataloga.
+- `convex/providers/jobInputs.ts` - NOV. `parseJobInputs` preseljen iz
+  `bytePlusCore.ts` (drugi pozivalac; funkcija ne zna ni za jednog provajdera).
+- `convex/providers/google.test.ts` - NOV, 30 testova.
+- `convex/crons.ts` - registrovan četvrti cron, na 1 minut.
+- `convex/studioActions.ts` - grana za `provider: "google"` u `submitJob`;
+  `persistOutput` skida Google izlaz sa `x-goog-api-key` zaglavljem.
+- `convex/studioActions.test.ts` - jedan assertion proširen (videti ODLUKA 6).
+- `convex/providers/bytePlusCore.ts`, `bytePlusModels.ts`, `byteplus.ts`,
+  `byteplus.test.ts` - samo posledice dva preseljenja (`parseJobInputs`, tip reda).
+- `docs/STUDIO-PROGRESS.md` - ova sekcija.
+
+**Šta je uradjeno:**
+
+**Poller - jedina nova mašinerija u katalogu.** Google za video nema
+webhookove: `submitGoogleJob` dobije ime operacije, upiše ga u
+`providerRequestId` i posao ide u `running`. Cron `studio: google poller` na
+svakih minut (Convex minimum) pročita `running` poslove čiji je model iz
+`models` sa `provider: "google"`, pita Google za stanje, i gotov posao vodi u
+`done` + `persistOutput`, a neuspeo u `failJob` (koji refundira). Postojeći
+`reapStuckJobs` nije diran i ostaje mreža ispod pollera - posao koji poller iz
+bilo kog razloga promaši refundira se posle 30 minuta.
+
+**Veo je tri reda, ne jedan.** `provider` je polje reda, pa tarifa koja menja
+rutu mora da bude zaseban red: Lite i Standard su kod fal-a parity i ostaju
+tamo, Fast ide direktno jer fal na njemu uzima 17-50%. Lite u `inputModes` i
+`endpoints` **nema** ni `reference` ni produžavanje - režim koji ne postoji u
+redu ne može ni da se naruči (`NEDOZVOLJEN_REZIM`), pa nema spiska zabrana u
+kodu. Sve tri cenovne tabele iz kataloga 3.7 su prepisane doslovno i pokrivene
+testom koji tvrdi kr/s po ćeliji.
+
+**Gemini Omni ide na Interactions API, ne na `generateContent`**, i njegova tri
+ograničenja su poruka, ne tiha greška: stoje kao `restrictionsSr`/`restrictionsEn`
+u `capabilities` (odakle ih forma prikazuje **pre** nego što korisnik okači
+fajl), a isti tekst se koristi doslovno kao greška posla ako zahtev ipak stigne.
+Rezolucija je fiksnih 720p i namerno **nije** kontrola - kontrola sa jednom
+opcijom laže da ima izbora; stoji u `capabilities` kao podatak. Kvotna greška
+(HTTP 429 ili `RESOURCE_EXHAUSTED` u operaciji) refundira i kaže zašto, na oba
+mesta gde može da se pojavi - pri predaji i pri ispitivanju.
+
+**ODLUKE:**
+
+1. **Oblik zahteva i odgovora NIJE potvrdjen protiv živog Google API-ja** -
+   pravila run-a zabranjuju poziv. Zato je sve što se šalje na jednom mestu
+   (`googleCore.buildVeoRequest` / `buildOmniRequest`), sve što se čita u
+   `lib/google-video.parseOperation`, a ID modela kod provajdera je polje reda
+   (`endpoints`), pa se menja iz admin ekrana bez deploy-a. Izabrani ID za Veo
+   Fast je `veo-3.1-fast-generate-preview` (Google-ov obrazac imenovanja);
+   katalog ga ne propisuje, za razliku od `gemini-omni-flash-preview` koji
+   propisuje. `parseOperation` čita izlazni URL **rekurzivno**, a ne po jednoj
+   tačnoj putanji, jer se ista operacija u dokumentaciji pojavljuje u tri oblika
+   i nijedan nije mogao da se proveri.
+2. **Izmena OKAČENOG videa kod Omnija se odbija unapred, sa porukom.** Katalog
+   kaže da nije dozvoljena iz EEA/Švajcarske/UK. Odakle je korisnik ne znamo i
+   ne možemo pouzdano da utvrdimo, pa je najkonzervativniji izbor odbiti pre
+   mreže i reći tačno zašto (posao se refundira, Google nije ni pozvan).
+   Izmena videa koji je model sam napravio time nije zatvorena - ona ide preko
+   `previous_interaction_id`, ne preko okačenog fajla.
+3. **`previous_interaction_id` se prosledjuje ako postoji, ali ga danas niko ne
+   postavlja.** Višekružna izmena traži polje koje vezuje nov posao za prethodni,
+   a `generationJobs` ga nema; dodavanje polja je izmena šeme koja pripada S5,
+   ne ovom koraku. Zato `video` režim Omnija za sada radi samo kroz to buduće
+   vezivanje, a okačen fajl dobija poruku iz ODLUKE 2.
+4. **Poller čita 200 `running` poslova po prolazu, a ispituje najviše 25.**
+   Ostali cronovi imaju budžet 100, ali su njihove stavke upisi u bazu, a ovde
+   je svaka stavka jedan HTTPS poziv. Kroz `by_status_created` prolaze i fal i
+   BytePlus poslovi, pa se čita šire nego što se ispituje; indeks ide od
+   najstarijeg, a najstariji `running` je i najverovatnije gotov. Ostatak sačeka
+   sledeći minut. Granice su argumenti akcije sa podrazumevanim vrednostima iz
+   konstanti, pa ih test proverava bez diranja konstante.
+5. **Mrežna greška pri ispitivanju NE refundira, i gotova operacija bez izlaza
+   NE refundira.** 500 ili 429 na `GET`-u znači "ne znam stanje", a ne "posao je
+   propao" - refund bi vratio kredite za generaciju koju Google možda i naplati.
+   Isto važi za operaciju koja je gotova a nemamo URL: pošto oblik odgovora nije
+   potvrdjen (ODLUKA 1), jedan promašen ključ bi tiho vraćao kredite za uspešne
+   generacije. Oba slučaja se loguju, a posao pokupi reaper. Isti izbor koji je
+   S3 napravio za `succeeded` bez URL-a.
+6. **`persistOutput` je dobio zaglavlje `x-goog-api-key`, i to samo za
+   `generativelanguage.googleapis.com`.** Google izlaz bez ključa vrati 403, pa
+   bi posao ostao `done` bez fajla - plaćen, a neisporučen. fal i BytePlus daju
+   potpisan URL i njihov `fetch` ključ ne vidi (`googleDownloadHeaders` vraća
+   prazan objekat). Zatečen test u `studioActions.test.ts` je tvrdio
+   `toHaveBeenCalledWith(FAL_URL)`; assertion **nije obrisan nego proširen** na
+   `(FAL_URL, { headers: {} })`, pa sada tvrdi i da fal URL ne dobija naš Google
+   ključ - dakle više nego pre.
+7. **`parseJobInputs` je preseljen u `convex/providers/jobInputs.ts`**, a tip
+   reda kataloga u `convex/providers/modelSeed.ts` (`BytePlusModelSeed` je sada
+   sužen alias). Oba su bila napisana u S3 za jednog provajdera, a ovaj korak je
+   drugi pozivalac; duplirati ih znači dva mesta koja se razilaze.
+8. **Veo Lite i Standard su definisani ovde iako idu na fal.** Prompt izričito
+   traži tri reda i traži da Lite u `inputModes` nema `reference` ni extend.
+   Fajl je jedan jer je porodica jedna; `provider` je polje reda i to je jedina
+   razlika izmedju ta tri.
+9. **`reference` prima do 3 slike kod Veo-a i kod Omnija, bez audio slota.**
+   Katalog za te modele ne daje broj (sekcija 5 daje opšti gornji okvir 9+3+3),
+   pa je uzeta konzervativna vrednost; audio slota nema jer upload audio
+   referenci kod Omnija ne radi.
+10. **Trajanje je DVE kontrole sa istim ključem, razdvojene po `showInModes`:**
+    4-8 s u režimima klipa i 4-30 s u `video` režimu (produžavanje, katalog 3.7).
+    U datom režimu vidi se tačno jedna, pa forma i `sanitizeSpecParams` gledaju
+    istu granicu.
+11. **Nema mock provajdera za Google**, isto kao za BytePlus: bez
+    `GOOGLE_AI_API_KEY` posao se refundira sa doslovnom porukom koja kaže koja
+    varijabla fali. Mock (`STUDIO_MOCK`) i dalje pokriva samo fal put.
+12. **Google SLIKE nisu povezane.** Korak S2 (Nano Banana 2 i Pro, sinhrono) po
+    logu nije isporučio kod - u grani ne postoji ni `lib/google-images.ts` ni
+    google grana za slike. Zato `submitGoogleJob` model sa `kind !== "video"`
+    odbija odmah, porukom `GOOGLE_SLIKE_NISU_POVEZANE`, umesto da ga poller
+    doveka ispituje. To je posao za ponovljen S2, ne za ovaj korak.
+13. **`createJob` i dalje računa cenu preko starog `modelCatalog`-a** (zatečeno
+    iz S3, ODLUKA 8). Google modeli se, kao ni BytePlus, još ne mogu naručiti sa
+    stranice - prespajanje je S5/S7.
+
+**Testovi:** 30 novih (473 -> 503), u `convex/providers/google.test.ts`. Google
+se ne zove uživo nijednom - svaki `fetch` je stub koji beleži šta je poslato.
+
+- **poller:** gotova operacija vodi posao u `done`, upisuje izlaz i skida ga
+  **sa ključem** u zaglavlju · neuspela operacija refundira TAČNO JEDNOM (drugi
+  prolaz posao uopšte ne pokupi jer više nije `running`) · kvotna greška u
+  operaciji refundira sa porukom o kvoti · posao koji nije `running` se ne
+  ispituje (ni `reserved` ni `done`, nula mrežnih poziva) · poslovi drugih
+  provajdera se ne diraju · **batch limit se poštuje** (3 posla, limit 2, dva
+  poziva) · 500 pri ispitivanju NE refundira, posao ostaje u letu · gotova
+  operacija bez izlaza i bez greške ostaje u letu.
+- **predaja:** Veo Fast ide na `predictLongRunning` sa ključem u ZAGLAVLJU (ne u
+  URL-u) i završi u `running` sa imenom operacije · Omni ide na `/interactions`
+  i go `id` dobija kolekciju · **Omni izmena okačenog videa vraća jasnu grešku
+  za zabranjen region, bez ijednog poziva, i refundira** · kvotna greška pri
+  predaji (429) refundira sa porukom · bez `GOOGLE_AI_API_KEY` refund pre mreže
+  · režim koji model nema se odbija · posao koji nije `reserved` se ne predaje
+  drugi put.
+- **telo zahteva:** `resolution`/`duration`/`audio` ulaze u zahtev isto kao u
+  cenu · `first_last` šalje oba kadra, a bez drugog traži "Dodaj završni kadar"
+  · `reference` šalje sve slike · Omni šalje fiksnih 720p, odnos stranica i
+  trajanje.
+- **čitanje operacije:** tri oblika odgovora (LRO `done`, `state: COMPLETED`,
+  nedovršena) · greška je gotova operacija · `RESOURCE_EXHAUSTED` se prepoznaje
+  kao kvota · putanja koja nije ime Google resursa se odbija PRE mreže ·
+  `googleDownloadHeaders` daje ključ samo Google hostu.
+- **katalog:** kr/s za sva tri Veo reda i za Omni tačno kao u katalogu 3.7/3.8
+  (7/11/11/18 · 22/26/65 · 44/87/130 · 22 kr/s i 110 za 5 s) · Lite nema 4K ni
+  `reference` ni extend, Fast ima · Omni nema audio slot ni `first_last` i nosi
+  tekst ograničenja · svaki režim iz `inputModes` ima `endpoint` i `inputSpec`,
+  i svaka vrednost iz `lookup` mape postoji kao opcija.
+
+**Rezultat verifikacije:** sve četiri komande čiste.
+- `npx convex codegen` - **prošlo** (exit 0, `Running TypeScript...` bez greške)
+- `npm run lint` - **prošlo** (`17 problems (0 errors, 17 warnings)`; nijedno
+  upozorenje nije iz fajlova ovog koraka - 7 zatečenih u
+  `admin-inline-actions.tsx`, `dashboard-content.tsx` i
+  `public-course-intro-video.tsx`, 9 nekorišćenih uvoza u `convex/crons.ts` koje
+  je ostavio nedovršen S0, 1 u `get_google_creds.js`)
+- `npm run test` - **prošlo** (`Test Files 45 passed (45) / Tests 503 passed (503)`)
+- `npm run build` - **prošlo** (`Compiled successfully in 6.4s`,
+  `Finished TypeScript in 13.5s`, `Generating static pages (60/60)`)
+
+**BLOKADA:** nema.
+
+**Za Jovana:**
+1. **Postavi `GOOGLE_AI_API_KEY` u Convex env** (ovaj run po pravilima ne
+   postavlja env). `GOOGLE_AI_BASE_URL` je opciona i podrazumevano je
+   `https://generativelanguage.googleapis.com/v1beta` - Google ima jedan globalni
+   endpoint, pa nema zamke sa regionom kakvu ima BytePlus. Bez ključa se Google
+   posao ne gubi tiho: refundira se sa porukom koja imenuje varijablu.
+2. **Poller ulazi u raspored tek prvim `npx convex deploy`.** Do tada Google
+   posao ostane u `running`-u dok ga reaper ne refundira posle 30 minuta.
+3. **Pusti po JEDNU generaciju na Veo Fast i na Gemini Omni i pogledaj sirov
+   odgovor** (Convex dashboard -> Logs). Tri stvari se proveravaju, sve tri iz
+   ODLUKE 1: da li je ID modela `veo-3.1-fast-generate-preview` tačan, kako
+   izgleda telo koje Interactions API prima, i pod kojim ključem stiže URL
+   izlaznog videa. Ako u logu vidiš `operacija ... je gotova bez izlaza i bez
+   greške`, poller je našao gotovu operaciju ali ne i URL - tada se menja samo
+   `parseOperation`, a posao je u medjuvremenu refundiran preko reaper-a.
+4. **Proveri da li skidanje izlaza stvarno traži ključ.** Šaljemo
+   `x-goog-api-key` samo za Google host; ako se ispostavi da je URL potpisan i
+   da ključ smeta, to je jedan red u `googleCore.googleDownloadHeaders`.
+5. **Oba modela su u javnom pregledu sa uskom kvotom.** Kvotna greška refundira
+   i kaže zašto, ali ako je kvota stalno prazna, ta dva reda su bolje isključena
+   nego da korisnik dobija refund umesto videa. Kvotu vidiš u Google AI Studio
+   konzoli.
+6. **Veo Lite i Standard idu na fal i traže `FAL_KEY`**, a ne Google ključ - to
+   su isti model i ista porodica, ali druga ruta i drugi račun.
+7. **Google modeli se još ne mogu naručiti sa stranice** (ODLUKA 13), isto kao
+   BytePlus - `createJob` traži slug u starom `modelCatalog`-u. Ne pokušavaj
+   demo sa Veo-om pre S5/S7.
+8. **Nije iz S4, ostalo za sobom:** `convex/crons.ts` i dalje ima 9
+   nekorišćenih uvoza (globalni plafon troška iz S0 nije dovršen), a
+   `docs/STUDIO-PROGRESS.md` i dalje nema sekcije za S1 i S2 - S2 uz to nije ni
+   isporučio kod (ODLUKA 12), pa Google slike treba ponovo naručiti kao korak.
