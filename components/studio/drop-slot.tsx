@@ -60,11 +60,13 @@ type Pending = { name: string; progress: number };
  * slotova odbijali isti fajl istom rečenicom.
  */
 function useSlotIntake({
+  slot,
   spec,
   locale,
   capacity,
   onAccept,
 }: {
+  slot: string;
   spec: SlotSpec;
   locale: Locale;
   capacity: number;
@@ -105,7 +107,7 @@ function useSlotIntake({
 
         setPending({ name: file.name, progress: 0 });
         try {
-          const uploaded = await upload(file, (fraction) =>
+          const uploaded = await upload(file, slot, (fraction) =>
             setPending({ name: file.name, progress: fraction }),
           );
           accepted.push(uploaded);
@@ -123,7 +125,7 @@ function useSlotIntake({
 
       if (accepted.length > 0) onAccept(accepted);
     },
-    [capacity, locale, onAccept, spec, upload],
+    [capacity, locale, onAccept, slot, spec, upload],
   );
 
   return { intake, pending, error, setError };
@@ -289,6 +291,7 @@ export function DropSlot({
   );
 
   const { intake, pending, error } = useSlotIntake({
+    slot,
     spec,
     locale,
     capacity: disabled ? 0 : 1,
@@ -448,6 +451,7 @@ export function DropSlotGrid({
   );
 
   const { intake, pending, error } = useSlotIntake({
+    slot,
     spec,
     locale,
     capacity: disabled ? 0 : spec.max - files.length,

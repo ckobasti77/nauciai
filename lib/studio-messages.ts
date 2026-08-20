@@ -112,6 +112,15 @@ const CREATE_JOB_ERROR_MESSAGES: Array<[string, { sr: string; en: string }]> = [
     },
   ],
   [
+    // Okačen fajl koji nije prijavljen na ovog korisnika: ili je tudji, ili mu
+    // je istekao rok od 24 h dok je forma stajala otvorena.
+    "TUDJI_FAJL",
+    {
+      sr: "Neki od okačenih fajlova više nije dostupan. Okači ga ponovo pa pokreni generaciju.",
+      en: "One of the uploaded files is no longer available. Upload it again and start the generation.",
+    },
+  ],
+  [
     "NEISPRAVNI_PARAMETRI",
     {
       sr: "Podešavanja nisu ispravna. Osveži stranicu i pokušaj ponovo.",

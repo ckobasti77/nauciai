@@ -324,6 +324,15 @@ export function outputExpiresAt(kind: keyof typeof OUTPUT_RETENTION_DAYS, now: n
 }
 
 /**
+ * Koliko živi okačen ulazni fajl koji nije ušao ni u jedan posao (nalaz R4).
+ * Sesija u kojoj se bira model, pišu parametri i tek onda pritiska dugme staje
+ * u sat vremena; 24 h je zato daleko iznad svake poštene upotrebe, a i dalje
+ * ne ostavlja napušten upload da se plaća zauvek. Čim `storageId` udje u posao,
+ * `expiresAt` se sklanja i fajl više ne ističe.
+ */
+export const INPUT_UPLOAD_TTL_MS = DAY_MS;
+
+/**
  * Prefiks `falRequestId`-ja mock posla. Živi ovde, a ne u `studioActions.ts`,
  * jer ga čita i `studio.listMyJobs` (DEMO značka u galeriji) - a query modul ne
  * sme da uvlači akcioni modul samo zbog jednog stringa.

@@ -1469,6 +1469,31 @@ export default defineSchema({
     .index("by_expiry", ["expiresAt"])
     .index("by_status_created", ["status", "createdAt"]),
 
+  // Ko je koji ulazni fajl okačio. `createInputUploadUrl` vraća gol Convex
+  // upload URL i ne zna ishod uploada, pa vezu `storageId` -> korisnik pravi
+  // `studio.registerInputUpload`, koju klijent zove POSLE uploada.
+  // `createJob` bez ovog reda ne prima nijedan `storageId`: bez njega je jedina
+  // odbrana bila nepogodivost ID-ja, a to nije kontrola pristupa - tuđi fajl bi
+  // ušao u tuđi posao i galerija bi ga potpisala (`ctx.storage.getUrl`).
+  studioUploads: defineTable({
+    userId: v.id("users"),
+    storageId: v.id("_storage"),
+    slot: v.string(),
+    // Veličina i tip se čitaju iz `_storage` u trenutku prijave, ne iz onoga
+    // što je klijent rekao. `bytes` je isti broj iz kojeg `maxQuantityFromBytes`
+    // izvodi gornju granicu prijavljenog trajanja, pa se fajl meri jednom.
+    bytes: v.number(),
+    mimeType: v.optional(v.string()),
+    createdAt: v.number(),
+    // Postoji samo dok upload nije ušao ni u jedan posao: nevezan fajl briše
+    // `crons.expireGenerationFiles` posle 24 h. `createJob` polje sklanja, pa
+    // ulaz posla živi koliko i posao.
+    expiresAt: v.optional(v.number()),
+  })
+    .index("by_storage", ["storageId"])
+    .index("by_user", ["userId", "createdAt"])
+    .index("by_expiry", ["expiresAt"]),
+
   studioUsageDaily: defineTable({
     userId: v.id("users"),
     day: v.string(),

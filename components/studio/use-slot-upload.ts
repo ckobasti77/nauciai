@@ -4,6 +4,7 @@ import { useMutation } from "convex/react";
 import { useCallback } from "react";
 
 import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import type { SlotFile } from "@/lib/studio-slots";
 
 /**
@@ -13,14 +14,20 @@ import type { SlotFile } from "@/lib/studio-slots";
  *
  * Pregled se pravi lokalno (`URL.createObjectURL`), pa sličica stoji odmah i
  * ne čeka drugi obilazak do servera; pozivalac ga oslobadja kad slot isprazni.
+ *
+ * Prijava posle uploada nije opciona: upload URL ne zna ishod, pa vlasnika
+ * fajla pamti tek `registerInputUpload` - a `createJob` neprijavljen `storageId`
+ * ne prima (nalaz R4). Ako prijava padne, upload se računa kao neuspeo.
  */
 export function useSlotUpload() {
   const createUploadUrl = useMutation(api.studio.createInputUploadUrl);
+  const registerUpload = useMutation(api.studio.registerInputUpload);
 
   return useCallback(
-    async (file: File, onProgress: (fraction: number) => void): Promise<SlotFile> => {
+    async (file: File, slot: string, onProgress: (fraction: number) => void): Promise<SlotFile> => {
       const uploadUrl = await createUploadUrl();
       const storageId = await putWithProgress(uploadUrl, file, onProgress);
+      await registerUpload({ storageId: storageId as Id<"_storage">, slot });
 
       return {
         storageId,
@@ -30,7 +37,7 @@ export function useSlotUpload() {
         url: URL.createObjectURL(file),
       };
     },
-    [createUploadUrl],
+    [createUploadUrl, registerUpload],
   );
 }
 

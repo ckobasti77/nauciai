@@ -44,6 +44,7 @@ describe("studioErrorMessage", () => {
     "DNEVNI_LIMIT",
     "DNEVNI_LIMIT_TROSKA",
     "NEDOVOLJNO_KREDITA",
+    "TUDJI_FAJL",
   ];
 
   test("nijedna poruka ne prikazuje sirov kod greške", () => {

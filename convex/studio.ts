@@ -15,7 +15,6 @@ import {
   type JobInputs,
   jobInputStorageIds,
   maxQuantityFromBytes,
-  measuredSlotsFor,
   parseClientInputs,
   parseInputModes,
   parseInputSpec,
@@ -33,6 +32,7 @@ import {
   exceedsDailyCostLimit,
   extractPrompt,
   hasStudioAccess,
+  INPUT_UPLOAD_TTL_MS,
   isMockRequestId,
   isStudioStaff,
   MAX_ACTIVE_JOBS,
@@ -66,42 +66,57 @@ type PricedOrder = {
   estimatedCostUsd: number;
   inputMode?: string;
   inputs?: string;
+  /** Redovi `studioUploads` koje ovaj posao veže za sebe - njima se sklanja `expiresAt`. */
+  uploadIds: Array<Id<"studioUploads">>;
 };
 
 /**
- * Ukupno bajtova po mernom slotu, iz sistemske tabele `_storage`. To je jedino
- * što server o okačenom fajlu zna u mutaciji - trajanje ne zna - pa je i jedina
- * osnova za proveru prijavljene količine.
+ * Okačeni fajlovi jednog posla: provera vlasništva i veličina po slotu, iz
+ * istog prolaza (nalaz R4).
  *
- * `null` znači da bar jedan fajl nije pročitan: ID koji nije `_storage` ID, ili
- * fajl koji ne postoji. Za naplatu je to ista stvar kao da fajla nema - nema se
- * šta izmeriti - pa `resolveMeasuredQuantity` na to odbija posao.
+ * `storageId` dolazi sa klijenta, a `studioUploads` je jedino mesto koje pamti
+ * KO ga je okačio. Fajl bez svog reda - ili sa tuđim - se odbija: nepogodivost
+ * ID-ja nije kontrola pristupa, a posao svoje ulaze kasnije potpisuje kroz
+ * `ctx.storage.getUrl` (galerija, "Generiši ponovo"), pa bi tuđi `storageId`
+ * značio čitanje tuđeg fajla. Time pada i druga polovina nalaza: `storageId`
+ * koji uopšte ne postoji nema svoj red, pa više ne prolazi kroz naplatu da bi
+ * pao tek na predaji posla i vratio se kroz refund.
+ *
+ * `bytes` je isti broj koji je `registerInputUpload` pročitao iz `_storage`; iz
+ * njega `maxQuantityFromBytes` izvodi gornju granicu prijavljenog trajanja, pa
+ * se veličina fajla čita jednom, na prijavi uploada.
  */
-async function measuredInputBytes(
+async function ownedInputUploads(
   ctx: MutationCtx,
+  userId: Id<"users">,
   inputs: JobInputs,
-  slots: string[],
-): Promise<Record<string, number> | null> {
+): Promise<{ bytes: Record<string, number>; uploadIds: Array<Id<"studioUploads">> }> {
   const bytes: Record<string, number> = {};
+  const uploadIds: Array<Id<"studioUploads">> = [];
 
-  for (const slot of slots) {
-    const ids = inputs[slot];
-    if (!ids || ids.length === 0) continue;
+  for (const [slot, ids] of Object.entries(inputs)) {
+    if (ids.length === 0) continue;
 
     let total = 0;
     for (const rawId of ids) {
-      // `normalizeId` PRE `get`-a: `ctx.db.system.get` na nizu koji nije ID baca,
-      // a ovaj niz dolazi sa klijenta.
+      // `normalizeId` pre upita: niz koji nije `_storage` ID nema šta da traži
+      // u indeksu, a dolazi sa klijenta.
       const storageId = ctx.db.system.normalizeId("_storage", rawId);
-      if (!storageId) return null;
-      const meta = await ctx.db.system.get("_storage", storageId);
-      if (!meta) return null;
-      total += meta.size;
+      if (!storageId) throw new Error("TUDJI_FAJL");
+      // `first` a ne `unique`: prijava je jedinstvena po `storageId`-ju, ali
+      // slučajan duplikat sme da propusti posao, ne da ga obori.
+      const upload = await ctx.db
+        .query("studioUploads")
+        .withIndex("by_storage", (q) => q.eq("storageId", storageId))
+        .first();
+      if (!upload || upload.userId !== userId) throw new Error("TUDJI_FAJL");
+      total += upload.bytes;
+      uploadIds.push(upload._id);
     }
     bytes[slot] = total;
   }
 
-  return bytes;
+  return { bytes, uploadIds };
 }
 
 /**
@@ -110,12 +125,13 @@ async function measuredInputBytes(
  * cifra na dugmetu i naplaćena cifra ne mogu razići (katalog 1.3).
  *
  * Redosled provera je namerno ovakav: prvo režim (bira endpoint i množilac),
- * pa ulazi (broje se u `extras` i odlučuju o sniženoj tarifi), pa parametri,
- * pa merena količina - tek onda prompt i cena, jer i jedno i drugo zavise od
- * svega iznad.
+ * pa ulazi (broje se u `extras`, proverava im se vlasništvo i odlučuju o
+ * sniženoj tarifi), pa parametri, pa merena količina - tek onda prompt i cena,
+ * jer i jedno i drugo zavise od svega iznad.
  */
 async function buildCatalogOrder(
   ctx: MutationCtx,
+  userId: Id<"users">,
   model: Doc<"models">,
   raw: Record<string, unknown>,
   args: { inputMode?: string; inputs?: string; measuredQuantity?: number },
@@ -136,6 +152,10 @@ async function buildCatalogOrder(
   const inputs = sanitizeJobInputs(parsedInputs, inputSpec, inputMode);
   if (!inputs.ok) throw new Error(`NEISPRAVNI_ULAZI:${inputs.reason}`);
 
+  // Vlasništvo nad okačenim fajlovima se proverava PRE cene, dakle i pre
+  // svakog upisa i pre skidanja kredita (nalaz R4).
+  const uploads = await ownedInputUploads(ctx, userId, inputs.inputs);
+
   const sanitized = sanitizeSpecParams(spec, rule, raw, inputMode);
   if (!sanitized.ok) throw new Error(`NEISPRAVNI_PARAMETRI:${sanitized.reason}`);
   const params = sanitized.params;
@@ -147,13 +167,14 @@ async function buildCatalogOrder(
   if (source) {
     // Prijavljena količina se poredi sa VELIČINOM fajla koji je server stvarno
     // video - isti princip po kojem se `extras` broje iz `inputs`-a, a ne iz
-    // onoga što je klijent naveo.
-    const bytes = await measuredInputBytes(ctx, inputs.inputs, measuredSlotsFor(source));
+    // onoga što je klijent naveo. Bajtovi su već pročitani iznad, uz proveru
+    // vlasništva; slot bez ijednog okačenog fajla u mapi nema svoj ključ, pa
+    // `maxQuantityFromBytes` vrati `null` i posao pada na MERENJE_NIJE_DOSTUPNO.
     const measured = resolveMeasuredQuantity(
       source,
       params,
       args.measuredQuantity,
-      maxQuantityFromBytes(source, bytes),
+      maxQuantityFromBytes(source, uploads.bytes),
     );
     if (!measured.ok) throw new Error(measured.reason);
     params[source.param] = measured.quantity;
@@ -196,6 +217,7 @@ async function buildCatalogOrder(
     creditCost,
     estimatedCostUsd,
     inputMode,
+    uploadIds: uploads.uploadIds,
     ...(storageIds.length > 0 ? { inputs: JSON.stringify(inputs.inputs) } : {}),
   };
 }
@@ -237,6 +259,8 @@ async function buildLegacyOrder(
     // Nabavna cena raste sa brojem slika isto kao i naplata: bez toga dnevni
     // plafon od 5 $ propušta do 20 $ stvarnog troška (`num_images: 4`).
     estimatedCostUsd: model.estimatedCostUsd * requestedImageCount(cleanParams),
+    // Stari katalog nema ulazne slotove, pa nema ni šta da veže za sebe.
+    uploadIds: [],
   };
 }
 
@@ -314,7 +338,7 @@ export const createJob = mutation({
       .unique();
 
     const order = v4Model
-      ? await buildCatalogOrder(ctx, v4Model, params, args)
+      ? await buildCatalogOrder(ctx, userId, v4Model, params, args)
       : await buildLegacyOrder(ctx, args.modelSlug, params);
     const cleanParams = order.params;
     const estimatedCostUsd = order.estimatedCostUsd;
@@ -362,6 +386,13 @@ export const createJob = mutation({
       ...(args.taskId ? { taskId: args.taskId } : {}),
       createdAt: now,
     });
+
+    // Fajl koji je ušao u posao više ne ističe: rok od 24 h postoji samo za
+    // uploade koje niko nije upotrebio, a ulaz posla mora da preživi koliko i
+    // posao - galerija i "Generiši ponovo" ga potpisuju i mnogo kasnije.
+    for (const uploadId of order.uploadIds) {
+      await ctx.db.patch(uploadId, { expiresAt: undefined });
+    }
 
     // Obična funkcija, a ne `ctx.runMutation`: ugnježdena mutacija je
     // podtransakcija koju pozivalac SME da uhvati i nastavi, pa bi jedan
@@ -898,9 +929,9 @@ export const deleteJob = mutation({
  * obrazac kao `lab.createLabOutputUploadUrl` i `profiles.createAvatarUploadUrl`:
  * URL važi kratko i traži prijavljenog korisnika.
  *
- * Slot, tip i veličinu proverava `<DropSlot>` PRE poziva, a vezu
- * `storageId` -> posao pravi tek `createJob`, koji `inputs` upisuje pod svojim
- * korisnikom.
+ * Slot, tip i veličinu proverava `<DropSlot>` PRE poziva. Ko je fajl okačio
+ * pamti tek `registerInputUpload` ispod: ova mutacija vraća URL i ne zna ishod
+ * uploada, pa ni `storageId` koji će iz njega ispasti.
  */
 export const createInputUploadUrl = mutation({
   args: {},
@@ -908,6 +939,54 @@ export const createInputUploadUrl = mutation({
     await requireUserId(ctx);
 
     return ctx.storage.generateUploadUrl();
+  },
+});
+
+/**
+ * Prijava okačenog fajla (nalaz R4). Klijent je zove ČIM upload prođe, i tek
+ * ovaj red daje `createJob`-u pravo da taj `storageId` primi.
+ *
+ * Veličina i MIME tip se čitaju iz `_storage`, ne iz onoga što je klijent
+ * poslao - to je ista cifra na koju se kasnije oslanja granica prijavljenog
+ * trajanja. Fajl koji ne postoji se odbija ovde, dakle pre nego što uopšte
+ * stigne do naplate.
+ *
+ * Rok od 24 h nose samo uploadi koje niko nije upotrebio; `createJob` ga
+ * sklanja, a `crons.expireGenerationFiles` briše ono što ostane.
+ */
+export const registerInputUpload = mutation({
+  args: { storageId: v.id("_storage"), slot: v.string() },
+  handler: async (ctx, args) => {
+    const userId = await requireUserId(ctx);
+
+    const meta = await ctx.db.system.get("_storage", args.storageId);
+    if (!meta) throw new Error("FAJL_NE_POSTOJI");
+
+    const existing = await ctx.db
+      .query("studioUploads")
+      .withIndex("by_storage", (q) => q.eq("storageId", args.storageId))
+      .first();
+    if (existing) {
+      // Ponovljena prijava istog fajla (mrežni pokušaj iz drugog pokušaja) nije
+      // greška; prijava tudjeg fajla jeste - ona je jedini način da se
+      // vlasništvo prepiše.
+      if (existing.userId !== userId) throw new Error("TUDJI_FAJL");
+
+      return null;
+    }
+
+    const now = Date.now();
+    await ctx.db.insert("studioUploads", {
+      userId,
+      storageId: args.storageId,
+      slot: args.slot,
+      bytes: meta.size,
+      ...(meta.contentType ? { mimeType: meta.contentType } : {}),
+      createdAt: now,
+      expiresAt: now + INPUT_UPLOAD_TTL_MS,
+    });
+
+    return null;
   },
 });
 

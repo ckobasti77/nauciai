@@ -4742,3 +4742,124 @@ odmah (`MERENJE_NIJE_DOSTUPNO`).
    videom.** Kod je sada strozi od kataloga. Ostavljeno je namerno - katalog je
    opis dogovora sa provajderom, ne stanja koda - ali kad W5 vrati merenje,
    proveri da se opet poklapaju.
+
+## W4 - R4: vlasnistvo nad okacenim fajlovima   (20. avgust 2026, 14:45)
+
+**Fajlovi:**
+- `convex/schema.ts` - nova tabela `studioUploads`
+- `convex/studioCore.ts` - `INPUT_UPLOAD_TTL_MS`
+- `convex/studio.ts` - `registerInputUpload` (nova mutacija), `ownedInputUploads`
+  (zamenila `measuredInputBytes`), `buildCatalogOrder` prima `userId`,
+  `createJob` sklanja `expiresAt` vezanim uploadima
+- `convex/crons.ts` - `expireGenerationFiles` brise i nevezane uploade
+- `convex/migrations.ts` - `backfillStudioUploads`
+- `components/studio/use-slot-upload.ts`, `components/studio/drop-slot.tsx` -
+  prijava posle uploada, slot se prosledjuje kroz `useSlotIntake`
+- `lib/studio-messages.ts` - poruka za `TUDJI_FAJL`
+- testovi: `convex/studioCatalogJob.test.ts`, `convex/crons.test.ts`,
+  `lib/studio-messages.test.ts`
+
+**Sta je uradjeno:** Ko je koji fajl okacio sada se pamti. `createInputUploadUrl`
+je ostao kakav jeste - vraca URL i ne zna ishod uploada - a vezu `storageId` ->
+korisnik pravi nova mutacija `registerInputUpload`, koju klijent zove odmah
+posle uploada; ona proverava da fajl stvarno postoji (`ctx.db.system.get`) i
+upisuje vlasnika, velicinu i MIME tip iz `_storage`. `createJob` od sada svaki
+`storageId` iz `inputs` trazi u toj tabeli i odbija ga sa `TUDJI_FAJL` ako reda
+nema ili je tudji - pre cene, pre upisa posla i pre skidanja kredita. Time pada
+i druga polovina nalaza: nepostojeci `storageId` vise ne prolazi kroz naplatu da
+bi pao tek na predaji i vratio se kroz refund. Velicina fajla se cita jednom, na
+prijavi uploada, i isti `bytes` nosi granicu prijavljenog trajanja iz W3 - stara
+funkcija `measuredInputBytes` je zato obrisana, a ne dopunjena. Nevezan upload
+nosi `expiresAt` +24 h i brise ga postojeci cron za istek fajlova (i blob i
+red); cim `storageId` udje u posao, `createJob` mu `expiresAt` sklanja.
+
+**ODLUKE:**
+1. **Nepostojeci `storageId` daje `TUDJI_FAJL`, ne svoju gresku.** Zadatak trazi
+   jednu proveru ("postoji u toj tabeli i pripada tom korisniku"), a razlika
+   izmedju "ne postoji" i "nije tvoj" je informacija koju napadac ne treba da
+   dobije - identicna poruka za oba slucaja je ista logika po kojoj
+   `getJobForRegenerate` na tudji posao vraca `null`, a ne "zabranjeno".
+2. **Slot se upisuje ali se NE proverava.** `studioUploads.slot` pamti u koji je
+   slot fajl okacen, ali `createJob` ne trazi da se poklopi sa slotom u
+   `inputs`-u. Zadatak trazi proveru vlasnistva i postojanja; provera slota bi
+   bila nova kapija koju niko nije narucio, a lako odbija postenog korisnika
+   (isti fajl u dva slota, `FrameSlotPair` koji oba kadra salje kao `image`).
+   Broj i vrsta fajlova po slotu se i dalje proveravaju u `sanitizeJobInputs`.
+3. **`registerInputUpload` trazi samo prijavu, ne i upis na kurs.** Ista kapija
+   koju ima `createInputUploadUrl` iznad; pravo da se generise proverava
+   `createJob`, i to nije promenjeno. Uze bi znacilo dve razlicite kapije nad
+   istim korakom.
+4. **Ponovljena prijava istog fajla od istog korisnika prolazi bez novog reda.**
+   Klijent mutaciju zove posle uploada, dakle preko mreze koja sme da ponovi
+   zahtev. Prijava tudjeg vec prijavljenog fajla se odbija - to je jedini nacin
+   da se vlasnistvo prepise.
+5. **Dodat je indeks `by_expiry` kojeg zadatak ne pominje.** Bez njega cron ne
+   moze da nadje istekle uploade osim skeniranjem cele tabele. Isti oblik i isti
+   `q.gt("expiresAt", 0)` kao kod `generationJobs` - polje je opciono, pa redovi
+   bez roka stoje u indeksu ispod svakog broja i cist `lte(now)` bi ih pokupio.
+6. **Dodat je `backfillStudioUploads`, koji zadatak ne trazi.** Bez njega bi
+   "Generisi ponovo" na svakom poslu napravljenom PRE ovog koraka vracalo
+   `TUDJI_FAJL` nad sopstvenim fajlom - regresija, ne zatvorena rupa. Prolaz
+   upisuje vlasnika posla kao vlasnika njegovih ulaza, bez roka; fajl kojeg u
+   storage-u vise nema se preskace.
+7. **Cron vraca `{ cleared, uploads }` umesto `{ cleared }`.** Dva razlicita
+   posla u istom prolazu se broje odvojeno: izlaz gubi fajl a zadrzava red,
+   nevezan upload nestaje ceo. Tri zatecena testa su dopunjena novim poljem,
+   nijedna tvrdnja nije uklonjena.
+8. **Postojeci test "bez ijednog serverski vidljivog fajla" sada za izmisljen
+   `storageId` ocekuje `TUDJI_FAJL` umesto `MERENJE_NIJE_DOSTUPNO`.** Ponasanje
+   je namerno promenjeno - zadatak izricito trazi da nepostojeci ID padne na
+   vlasnistvu, dakle ranije. Prva polovina tog testa (slika okacena, video ne)
+   i dalje daje `MERENJE_NIJE_DOSTUPNO` i nije dirana.
+9. **Test helper `storeFile` sada ide pravom mutacijom** (`upload` pa
+   `registerInputUpload`) umesto direktnog `ctx.db.insert`-a, i prima korisnika
+   umesto `t`-a. Testovi tako prolaze isti put kao klijent; da helper upisuje
+   red rucno, prijava bi ostala nepokrivena.
+
+**Testovi:**
+- `studioCatalogJob.test.ts` - tudji `storageId` daje `TUDJI_FAJL`, bez posla i
+  bez skinutog kredita, a tudji upload ostaje nevezan sa svojim rokom; okacen ali
+  neprijavljen fajl ne prolazi; `storageId` koji uopste ne postoji pada pre
+  naplate (0 poslova, balans netaknut); svoj fajl prolazi i posle posla nema
+  `expiresAt`; prijava ne prepisuje vlasnika, ponovljena prijava ne pravi drugi
+  red, obrisan fajl daje `FAJL_NE_POSTOJI`; `bytes` u redu je stvarna velicina iz
+  storage-a (2 MB), a ne ono sto je klijent rekao
+- `crons.test.ts` - nevezan upload stariji od 24 h nestaje ceo (i blob i red);
+  upload koji je usao u posao (`expiresAt` sklonjen) preziva prolaz koji istog
+  trenutka brise nevezanog suseda; upload kojem rok tek istice se ne dira
+- `lib/studio-messages.test.ts` - `TUDJI_FAJL` je dopisan u listu kodova, pa
+  zatecena dva testa tvrde i za njega da ima svoju recenicu i da ne prikazuje
+  sirov kod
+- Zatecenih 21 poziv `storeFile`-a sada prolazi kroz `registerInputUpload`, pa
+  ceo postojeci skup testova nad ulazima usput pokriva i srecan tok prijave
+
+**Rezultat verifikacije:**
+- `npx convex codegen` - **OK** (`Running TypeScript...`, exit 0)
+- `npm run lint` - **OK**, `8 problems (0 errors, 8 warnings)` - isto stanje kao
+  posle W3, nijedno upozorenje nije u fajlovima ovog koraka
+- `npm run test` - **OK**, `Test Files 55 passed (55)`, `Tests 683 passed (683)`
+  (+9 posle W3)
+- `npm run build` - **OK**, `Compiled successfully in 6.7s`,
+  `Generating static pages (60/60)`
+
+**BLOKADA:** nema.
+
+**Za Jovana:**
+1. **Posle deploy-a pusti `backfillStudioUploads`**, inace "Generisi ponovo" na
+   poslovima napravljenim pre ovog koraka pada na `TUDJI_FAJL`:
+   ```
+   npx convex run migrations:run '{"fn":"migrations:backfillStudioUploads"}'
+   ```
+   (ili kroz `migrations:runAll`, gde je dopisan na kraj liste). Prolaz je
+   idempotentan - drugi put ne upisuje nista.
+2. **Fajlovi okaceni pre deploy-a a nikad upotrebljeni ostaju siroce.** Nemaju
+   red u `studioUploads`, pa ih ni cron ne vidi; backfill hvata samo one koji su
+   usli u posao. Ako ih ima puno u dashboard-u, brisu se rucno.
+3. **Ulazni fajlovi se i dalje ne brisu kad se posao obrise.** `deleteJob` brise
+   izlaz i poster, ulaze nikad - zateceno ponasanje, nije dirano ovim korakom.
+   Vredi zasebnog koraka ako racun za storage pocne da smeta.
+4. **Provera na deployment-u:** okaci sliku u Studiju, pogledaj da je red u
+   `studioUploads` nastao sa tacnom velicinom, pokreni generaciju i proveri da
+   je `expiresAt` nestao. Za drugu stranu: uzmi `storageId` iz tudjeg reda i
+   posalji ga kroz `createJob` (npr. iz dashboard-a) - mora da vrati
+   `TUDJI_FAJL` i da ne skine kredite.

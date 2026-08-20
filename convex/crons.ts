@@ -119,6 +119,11 @@ export const expireCredits = internalMutation({
  * `expiresAt` popunjava `persistOutput`, i to samo poslovima koji su stvarno
  * dobili fajl. Donja granica `> 0` je zato obavezna: poslovi bez `expiresAt`
  * stoje u indeksu ispod svakog broja, pa bi ih čist `lte(now)` sve pokupio.
+ *
+ * Isti prolaz čisti i ULAZNE uploade koje niko nije upotrebio (nalaz R4). Tamo
+ * je pravilo obrnuto od izlaza: red nosi `expiresAt` samo dok fajl nije ušao ni
+ * u jedan posao, pa se briše CEO - i blob i red - jer bez reda taj fajl nema
+ * nijednu referencu u bazi.
  */
 export const expireGenerationFiles = internalMutation({
   args: {},
@@ -138,7 +143,17 @@ export const expireGenerationFiles = internalMutation({
       await ctx.db.patch(job._id, { outputStorageId: undefined, posterStorageId: undefined });
     }
 
-    return { cleared: expired.length };
+    const orphans = await ctx.db
+      .query("studioUploads")
+      .withIndex("by_expiry", (q) => q.gt("expiresAt", 0).lte("expiresAt", now))
+      .take(EXPIRY_BATCH_LIMIT);
+
+    for (const upload of orphans) {
+      await ctx.storage.delete(upload.storageId);
+      await ctx.db.delete(upload._id);
+    }
+
+    return { cleared: expired.length, uploads: orphans.length };
   },
 });
 

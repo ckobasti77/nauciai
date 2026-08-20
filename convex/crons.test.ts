@@ -295,7 +295,10 @@ function fileUrl(t: TestConvex, storageId: Id<"_storage">) {
 test("prazan skup: prolaz ne radi ništa i ne puca", async () => {
   const t = convexTest(schema, modules);
 
-  expect(await t.mutation(internal.crons.expireGenerationFiles, {})).toEqual({ cleared: 0 });
+  expect(await t.mutation(internal.crons.expireGenerationFiles, {})).toEqual({
+    cleared: 0,
+    uploads: 0,
+  });
 });
 
 test("posao bez expiresAt (persistOutput još ne postoji) se ne dira", async () => {
@@ -304,7 +307,7 @@ test("posao bez expiresAt (persistOutput još ne postoji) se ne dira", async () 
 
   const result = await t.mutation(internal.crons.expireGenerationFiles, {});
 
-  expect(result).toEqual({ cleared: 0 });
+  expect(result).toEqual({ cleared: 0, uploads: 0 });
   expect((await jobOf(t, jobId))?.outputStorageId).toBe(outputStorageId);
   expect(await fileUrl(t, outputStorageId)).not.toBeNull();
 });
@@ -318,7 +321,7 @@ test("istekao fajl se briše iz storage-a, red i metapodaci ostaju", async () =>
 
   const result = await t.mutation(internal.crons.expireGenerationFiles, {});
 
-  expect(result).toEqual({ cleared: 1 });
+  expect(result).toEqual({ cleared: 1, uploads: 0 });
   expect(await fileUrl(t, outputStorageId)).toBeNull();
   expect(await fileUrl(t, posterStorageId as Id<"_storage">)).toBeNull();
 
@@ -340,9 +343,73 @@ test("fajl kojem rok tek ističe se ne dira, a drugi prolaz nema šta da briše"
   await t.mutation(internal.crons.expireGenerationFiles, {});
   const second = await t.mutation(internal.crons.expireGenerationFiles, {});
 
-  expect(second).toEqual({ cleared: 0 });
+  expect(second).toEqual({ cleared: 0, uploads: 0 });
   expect((await jobOf(t, future.jobId))?.outputStorageId).toBe(future.outputStorageId);
   expect(await fileUrl(t, future.outputStorageId)).not.toBeNull();
+});
+
+// ── 3b. istek nevezanih ulaznih uploada (nalaz R4) ─────────────────────────
+
+/**
+ * Red `studioUploads` kakav ostavlja `studio.registerInputUpload`. `expiresAt`
+ * nosi samo upload koji nije ušao ni u jedan posao; `createJob` ga sklanja.
+ */
+async function seedUpload(t: TestConvex, opts: { expiresAt?: number } = {}) {
+  const userId = await seedUser(t);
+  const storageId = await seedFile(t);
+  const uploadId = await t.run((ctx) =>
+    ctx.db.insert("studioUploads", {
+      userId,
+      storageId,
+      slot: "image",
+      bytes: 5,
+      mimeType: "image/png",
+      createdAt: Date.now() - DAY,
+      expiresAt: opts.expiresAt,
+    }),
+  );
+
+  return { userId, uploadId, storageId };
+}
+
+test("nevezan upload stariji od 24 h nestaje - i fajl i red", async () => {
+  const t = convexTest(schema, modules);
+  const { uploadId, storageId } = await seedUpload(t, { expiresAt: Date.now() - MINUTE });
+
+  const result = await t.mutation(internal.crons.expireGenerationFiles, {});
+
+  expect(result).toEqual({ cleared: 0, uploads: 1 });
+  // Za razliku od izlaza, ovde nestaje i red: bez njega fajl nema nijednu
+  // referencu u bazi, pa bi ostao zauvek naplativ.
+  expect(await fileUrl(t, storageId)).toBeNull();
+  expect(await t.run((ctx) => ctx.db.get(uploadId))).toBeNull();
+});
+
+test("upload koji je ušao u posao se ne briše, ma koliko star bio", async () => {
+  const t = convexTest(schema, modules);
+  // `createJob` je sklonio `expiresAt`, pa upload nema rok - iako je red
+  // upisan pre 24 h i stoji u istom indeksu ispod svakog broja.
+  const { uploadId, storageId } = await seedUpload(t);
+  const orphan = await seedUpload(t, { expiresAt: Date.now() - MINUTE });
+
+  const result = await t.mutation(internal.crons.expireGenerationFiles, {});
+
+  expect(result).toEqual({ cleared: 0, uploads: 1 });
+  expect(await fileUrl(t, storageId)).not.toBeNull();
+  expect(await t.run((ctx) => ctx.db.get(uploadId))).not.toBeNull();
+  expect(await t.run((ctx) => ctx.db.get(orphan.uploadId))).toBeNull();
+});
+
+test("upload kojem rok tek ističe se ne dira", async () => {
+  const t = convexTest(schema, modules);
+  const { uploadId, storageId } = await seedUpload(t, { expiresAt: Date.now() + MINUTE });
+
+  expect(await t.mutation(internal.crons.expireGenerationFiles, {})).toEqual({
+    cleared: 0,
+    uploads: 0,
+  });
+  expect(await fileUrl(t, storageId)).not.toBeNull();
+  expect(await t.run((ctx) => ctx.db.get(uploadId))).not.toBeNull();
 });
 
 // ── 4. globalni dnevni plafon troška ───────────────────────────────────────

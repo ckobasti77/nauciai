@@ -13,6 +13,7 @@ import { computeCredits } from "./studioPricing";
 const modules = import.meta.glob("./**/*.ts");
 
 type TestConvex = ReturnType<typeof convexTest>;
+type TestUser = ReturnType<TestConvex["withIdentity"]>;
 
 function seedOf(slug: string): StudioModelSeed {
   const seed = STUDIO_MODELS.find((model) => model.slug === slug);
@@ -115,14 +116,22 @@ async function balanceOf(t: TestConvex, userId: Id<"users">) {
 }
 
 /**
- * Fajl u storage-u, da `inputs` pokazuju na nešto što stvarno postoji.
+ * Fajl u storage-u PRIJAVLJEN na korisnika, istim putem kojim ide klijent:
+ * upload, pa `registerInputUpload`. Neprijavljen `storageId` `createJob` više
+ * ne prima (nalaz R4), pa ni test ne sme da preskoči drugi korak.
  *
  * `bytes` je bitan samo tamo gde se naplaćuje po dužini snimka: server iz
  * veličine izvodi najduže trajanje koje u fajl staje, pa jednobajtni blob ne
- * može da bude klip od pet sekundi.
+ * može da bude klip od pet sekundi. Slot se podrazumeva iz MIME tipa - jedini
+ * put na kojem to nije tačno (proba odeće) ga navodi izričito.
  */
-async function storeFile(t: TestConvex, type: string, bytes = 1) {
-  return t.run((ctx) => ctx.storage.store(new Blob(["x".repeat(bytes)], { type })));
+async function storeFile(as: TestUser, type: string, bytes = 1, slot = type.split("/")[0]) {
+  const storageId = await as.run((ctx) =>
+    ctx.storage.store(new Blob(["x".repeat(bytes)], { type })),
+  );
+  await as.mutation(api.studio.registerInputUpload, { storageId, slot });
+
+  return storageId;
 }
 
 // ── srećan tok ─────────────────────────────────────────────────────────────
@@ -154,8 +163,8 @@ test("ulazi se upisuju uz posao, sa slotom i redosledom", async () => {
   const t = convexTest(schema, modules);
   const { userId, asUser } = await seedUser(t);
   await seedCatalogModel(t, "nano-banana-2");
-  const first = await storeFile(t, "image/png");
-  const second = await storeFile(t, "image/png");
+  const first = await storeFile(asUser, "image/png");
+  const second = await storeFile(asUser, "image/png");
 
   await asUser.mutation(api.studio.createJob, {
     modelSlug: "nano-banana-2",
@@ -174,9 +183,9 @@ test("dodatne ulazne slike broji SERVER, ne ono što je klijent prijavio", async
   const { userId, asUser } = await seedUser(t);
   await seedCatalogModel(t, "seedream-5-pro");
   const ids = [
-    await storeFile(t, "image/png"),
-    await storeFile(t, "image/png"),
-    await storeFile(t, "image/png"),
+    await storeFile(asUser, "image/png"),
+    await storeFile(asUser, "image/png"),
+    await storeFile(asUser, "image/png"),
   ];
 
   await asUser.mutation(api.studio.createJob, {
@@ -199,7 +208,7 @@ test("Seedance sa video referencom NEMA popust dok se ulazni video ne naplaćuje
   const t = convexTest(schema, modules);
   const { userId, asUser } = await seedUser(t);
   await seedCatalogModel(t, "seedance-25");
-  const video = await storeFile(t, "video/mp4");
+  const video = await storeFile(asUser, "video/mp4");
 
   await asUser.mutation(api.studio.createJob, {
     modelSlug: "seedance-25",
@@ -247,8 +256,8 @@ test("posao koji se naplaćuje po dužini fajla bez izmerene dužine ne prolazi"
   const t = convexTest(schema, modules);
   const { userId, asUser } = await seedUser(t);
   await seedCatalogModel(t, "kling-motion");
-  const video = await storeFile(t, "video/mp4");
-  const image = await storeFile(t, "image/png");
+  const video = await storeFile(asUser, "video/mp4");
+  const image = await storeFile(asUser, "image/png");
 
   await expect(
     asUser.mutation(api.studio.createJob, {
@@ -269,8 +278,8 @@ test("prijavljena dužina se zaokružuje naviše pre naplate", async () => {
   // Sedam modela sa merenom količinom je u katalogu ugašeno; red se ovde
   // seeduje uključen jer se testira kapija, a ne prekidač.
   await seedCatalogModel(t, "kling-motion");
-  const video = await storeFile(t, "video/mp4", 1_000_000);
-  const image = await storeFile(t, "image/png");
+  const video = await storeFile(asUser, "video/mp4", 1_000_000);
+  const image = await storeFile(asUser, "image/png");
 
   await asUser.mutation(api.studio.createJob, {
     modelSlug: "kling-motion",
@@ -288,7 +297,7 @@ test("model sa merenom količinom bez ijednog serverski vidljivog fajla se odbij
   const t = convexTest(schema, modules);
   const { userId, asUser } = await seedUser(t);
   await seedCatalogModel(t, "kling-motion");
-  const image = await storeFile(t, "image/png");
+  const image = await storeFile(asUser, "image/png");
 
   // Slika je tu, video - iz kojeg se meri - nije. Nema se šta izmeriti.
   await expect(
@@ -301,8 +310,8 @@ test("model sa merenom količinom bez ijednog serverski vidljivog fajla se odbij
     }),
   ).rejects.toThrow("MERENJE_NIJE_DOSTUPNO");
 
-  // Isto i za `storageId` koji nije ID - klijent ga bira, pa se ne sme
-  // proslediti `ctx.db.system.get`-u kakav jeste.
+  // `storageId` koji nije ID pada ranije, na vlasništvu (nalaz R4): fajl bez
+  // prijave nije ničiji, pa se ne meri ni koliko ima bajtova.
   await expect(
     asUser.mutation(api.studio.createJob, {
       modelSlug: "kling-motion",
@@ -311,7 +320,7 @@ test("model sa merenom količinom bez ijednog serverski vidljivog fajla se odbij
       inputs: JSON.stringify({ video: ["izmisljen-id"], image: [image] }),
       measuredQuantity: 30,
     }),
-  ).rejects.toThrow("MERENJE_NIJE_DOSTUPNO");
+  ).rejects.toThrow("TUDJI_FAJL");
 
   expect(await jobsOf(t, userId)).toHaveLength(0);
   expect(await balanceOf(t, userId)).toBe(100000);
@@ -322,7 +331,7 @@ test("prijavljena dužina veća od onoga što u fajl staje se odbija PRE skidanj
   const { userId, asUser } = await seedUser(t);
   await seedCatalogModel(t, "dubbing");
   // 2 MB zvuka je pri 32 kbps najviše ~8,7 minuta, ma koliko klijent prijavio.
-  const audio = await storeFile(t, "audio/mpeg", 2_000_000);
+  const audio = await storeFile(asUser, "audio/mpeg", 2_000_000);
 
   await expect(
     asUser.mutation(api.studio.createJob, {
@@ -343,7 +352,7 @@ test("realan odnos veličine i trajanja prolazi i naplaćuje se po prijavi", asy
   const { userId, asUser } = await seedUser(t);
   await seedCatalogModel(t, "dubbing");
   // ~3 minuta govora na 128 kbps je oko 2,9 MB - granica je ~12,5 minuta.
-  const audio = await storeFile(t, "audio/mpeg", 3_000_000);
+  const audio = await storeFile(asUser, "audio/mpeg", 3_000_000);
 
   await asUser.mutation(api.studio.createJob, {
     modelSlug: "dubbing",
@@ -384,7 +393,7 @@ test("slot kojeg režim nema i režim kojeg model nema se odbijaju", async () =>
   const t = convexTest(schema, modules);
   const { userId, asUser } = await seedUser(t);
   await seedCatalogModel(t, "nano-banana-2");
-  const audio = await storeFile(t, "audio/mpeg");
+  const audio = await storeFile(asUser, "audio/mpeg");
 
   await expect(
     asUser.mutation(api.studio.createJob, {
@@ -457,8 +466,8 @@ test("prompt je obavezan samo tamo gde je jedini ulaz", async () => {
   ).rejects.toThrow("NEISPRAVAN_PROMPT:PRAZAN_PROMPT");
 
   // Proba odeće nema nijednu tekstualnu kontrolu - i ne mora da je ima.
-  const person = await storeFile(t, "image/png");
-  const garment = await storeFile(t, "image/png");
+  const person = await storeFile(asUser, "image/png", 1, "person");
+  const garment = await storeFile(asUser, "image/png", 1, "garment");
   await asUser.mutation(api.studio.createJob, {
     modelSlug: "kling-tryon",
     params: "{}",
@@ -493,11 +502,11 @@ test("galerija dobija ulaze kao sličice, a `getJobForRegenerate` ceo spisak", a
   const { userId, asUser } = await seedUser(t);
   await seedCatalogModel(t, "nano-banana-2");
   const ids = [
-    await storeFile(t, "image/png"),
-    await storeFile(t, "image/png"),
-    await storeFile(t, "image/png"),
-    await storeFile(t, "image/png"),
-    await storeFile(t, "image/png"),
+    await storeFile(asUser, "image/png"),
+    await storeFile(asUser, "image/png"),
+    await storeFile(asUser, "image/png"),
+    await storeFile(asUser, "image/png"),
+    await storeFile(asUser, "image/png"),
   ];
 
   await asUser.mutation(api.studio.createJob, {
@@ -552,4 +561,157 @@ test("tuđi posao se ne vraća u formu", async () => {
   const stranger = t.withIdentity({ subject: strangerId, tokenIdentifier: `test|${strangerId}` });
 
   expect(await stranger.query(api.studio.getJobForRegenerate, { jobId: jobs[0]._id })).toBeNull();
+});
+
+// ── vlasništvo nad okačenim fajlovima (nalaz R4) ───────────────────────────
+
+/** Drugi prijavljen korisnik, sa svojim identitetom - "tuđi" u testovima ispod. */
+async function seedStranger(t: TestConvex): Promise<TestUser> {
+  const strangerId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "tudji@example.com",
+      name: "Tudji",
+      username: "tudji",
+      role: "student" as const,
+      language: "sr" as const,
+      createdAt: 1,
+      updatedAt: 1,
+    }),
+  );
+
+  return t.withIdentity({ subject: strangerId, tokenIdentifier: `test|${strangerId}` });
+}
+
+function uploadsOf(t: TestConvex) {
+  return t.run((ctx) => ctx.db.query("studioUploads").collect());
+}
+
+test("tuđi `storageId` se odbija PRE nego što skine ijedan kredit", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedUser(t);
+  await seedCatalogModel(t, "nano-banana-2");
+  const stranger = await seedStranger(t);
+  const strangersFile = await storeFile(stranger, "image/png");
+
+  await expect(
+    asUser.mutation(api.studio.createJob, {
+      modelSlug: "nano-banana-2",
+      params: JSON.stringify({ prompt: "vrati mi tudju sliku" }),
+      inputMode: "image_multi",
+      inputs: JSON.stringify({ image: [strangersFile] }),
+    }),
+  ).rejects.toThrow("TUDJI_FAJL");
+
+  // Ni posla ni naplate: galerija i "Generiši ponovo" potpisuju svaki
+  // `storageId` koji posao nosi, pa bi upisan posao bio čitanje tuđeg fajla.
+  expect(await jobsOf(t, userId)).toHaveLength(0);
+  expect(await balanceOf(t, userId)).toBe(100000);
+  // Tuđi upload je ostao netaknut - i dalje nevezan, sa svojim rokom.
+  const uploads = await uploadsOf(t);
+  expect(uploads).toHaveLength(1);
+  expect(uploads[0].expiresAt).toBeGreaterThan(0);
+});
+
+test("okačen ali neprijavljen `storageId` ne prolazi kroz naplatu", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedUser(t);
+  await seedCatalogModel(t, "nano-banana-2");
+  // Fajl POSTOJI u storage-u, ali ga niko nije prijavio - dakle nije ničiji.
+  const unregistered = await t.run((ctx) =>
+    ctx.storage.store(new Blob(["x"], { type: "image/png" })),
+  );
+
+  await expect(
+    asUser.mutation(api.studio.createJob, {
+      modelSlug: "nano-banana-2",
+      params: JSON.stringify({ prompt: "spoji" }),
+      inputMode: "image_multi",
+      inputs: JSON.stringify({ image: [unregistered] }),
+    }),
+  ).rejects.toThrow("TUDJI_FAJL");
+
+  expect(await jobsOf(t, userId)).toHaveLength(0);
+  expect(await balanceOf(t, userId)).toBe(100000);
+});
+
+test("`storageId` koji ne postoji pada pre naplate, ne tek na predaji", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedUser(t);
+  await seedCatalogModel(t, "nano-banana-2");
+
+  await expect(
+    asUser.mutation(api.studio.createJob, {
+      modelSlug: "nano-banana-2",
+      params: JSON.stringify({ prompt: "spoji" }),
+      inputMode: "image_multi",
+      inputs: JSON.stringify({ image: ["nema-ovakvog-fajla"] }),
+    }),
+  ).rejects.toThrow("TUDJI_FAJL");
+
+  // Ranije je ovakav posao prolazio, skidao kredite i refundirao se tek pošto
+  // predaja provajderu pukne (druga polovina nalaza R4).
+  expect(await jobsOf(t, userId)).toHaveLength(0);
+  expect(await balanceOf(t, userId)).toBe(100000);
+});
+
+test("svoj fajl prolazi, a posao mu skida rok isteka", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedUser(t);
+  await seedCatalogModel(t, "nano-banana-2");
+  const own = await storeFile(asUser, "image/png");
+
+  const before = await uploadsOf(t);
+  expect(before[0].expiresAt).toBeGreaterThan(0);
+  expect(before[0].userId).toBe(userId);
+
+  await asUser.mutation(api.studio.createJob, {
+    modelSlug: "nano-banana-2",
+    params: JSON.stringify({ prompt: "spoji" }),
+    inputMode: "image_multi",
+    inputs: JSON.stringify({ image: [own] }),
+  });
+
+  expect(await jobsOf(t, userId)).toHaveLength(1);
+  // Ulaz posla mora da preživi koliko i posao - "Generiši ponovo" ga potpisuje
+  // i mnogo kasnije.
+  const after = await uploadsOf(t);
+  expect(after[0].expiresAt).toBeUndefined();
+});
+
+test("prijava ne prepisuje vlasnika, a fajl koji ne postoji se ne prijavljuje", async () => {
+  const t = convexTest(schema, modules);
+  const { asUser } = await seedUser(t);
+  const stranger = await seedStranger(t);
+  const strangersFile = await storeFile(stranger, "image/png");
+
+  await expect(
+    asUser.mutation(api.studio.registerInputUpload, { storageId: strangersFile, slot: "image" }),
+  ).rejects.toThrow("TUDJI_FAJL");
+
+  // Ponovljena prijava istog fajla od istog korisnika nije greška i ne pravi
+  // drugi red - mrežni ponovni pokušaj sme da prođe dvaput.
+  await stranger.mutation(api.studio.registerInputUpload, { storageId: strangersFile, slot: "image" });
+  expect(await uploadsOf(t)).toHaveLength(1);
+
+  const deleted = await t.run(async (ctx) => {
+    const storageId = await ctx.storage.store(new Blob(["x"], { type: "image/png" }));
+    await ctx.storage.delete(storageId);
+
+    return storageId;
+  });
+  await expect(
+    asUser.mutation(api.studio.registerInputUpload, { storageId: deleted, slot: "image" }),
+  ).rejects.toThrow("FAJL_NE_POSTOJI");
+});
+
+test("prijavljena veličina dolazi iz storage-a, ne iz onoga što je klijent rekao", async () => {
+  const t = convexTest(schema, modules);
+  const { asUser } = await seedUser(t);
+  await storeFile(asUser, "audio/mpeg", 2_000_000);
+
+  // Isti broj kasnije nosi granicu prijavljenog trajanja (W3), pa se veličina
+  // fajla čita jednom - ovde - a ne po drugi put u `createJob`-u.
+  const [upload] = await uploadsOf(t);
+  expect(upload.bytes).toBe(2_000_000);
+  expect(upload.slot).toBe("audio");
 });

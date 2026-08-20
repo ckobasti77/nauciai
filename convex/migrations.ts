@@ -8,6 +8,7 @@ import { syncLeaderboardSourceEvent } from "./leaderboardCore";
 import { hotScoreFor, voteValue } from "./community";
 import { effectiveRoleForProfile } from "./helpers";
 import { adjustProfileActivity, adjustProfileContribution } from "./profileActivityCore";
+import { parseJobInputs } from "./providers/jobInputs";
 import {
   markChatInboxAggregateReady,
   markChatInboxSummaryReady,
@@ -611,6 +612,44 @@ export const backfillProviderRequestId = migrations.define({
   },
 });
 
+/**
+ * Vlasništvo nad ulaznim fajlovima zatečenih poslova (nalaz R4). `createJob` od
+ * sada prima samo `storageId` koji ima svoj red u `studioUploads`, a poslovi
+ * napravljeni pre toga ga nemaju - bez ovog prolaza bi im "Generiši ponovo"
+ * vraćalo `TUDJI_FAJL` nad sopstvenim fajlom.
+ *
+ * Vlasnik je vlasnik posla, jer je samo on te fajlove i mogao okačiti. Roka
+ * nema: fajl koji je već u poslu nije nevezan upload. Fajl kojeg u storage-u
+ * više nema se preskače - nema šta da se prijavi.
+ */
+export const backfillStudioUploads = migrations.define({
+  table: "generationJobs",
+  batchSize: 50,
+  migrateOne: async (ctx, job) => {
+    for (const [slot, ids] of Object.entries(parseJobInputs(job.inputs))) {
+      for (const rawId of ids) {
+        const storageId = ctx.db.system.normalizeId("_storage", rawId);
+        if (!storageId) continue;
+        const existing = await ctx.db
+          .query("studioUploads")
+          .withIndex("by_storage", (q) => q.eq("storageId", storageId))
+          .first();
+        if (existing) continue;
+        const meta = await ctx.db.system.get("_storage", storageId);
+        if (!meta) continue;
+        await ctx.db.insert("studioUploads", {
+          userId: job.userId,
+          storageId,
+          slot,
+          bytes: meta.size,
+          ...(meta.contentType ? { mimeType: meta.contentType } : {}),
+          createdAt: job.createdAt,
+        });
+      }
+    }
+  },
+});
+
 export const verifyPublicProfileAggregateForUser = internalQuery({
   args: { userId: v.id("users") },
   handler: async (ctx, args) => {
@@ -690,4 +729,5 @@ export const runAll = migrations.runner([
   migrationApi.backfillStudyHubGroupMembershipsV1,
   migrationApi.finalizeStudyHubAggregateV1,
   migrationApi.backfillProviderRequestId,
+  migrationApi.backfillStudioUploads,
 ]);
