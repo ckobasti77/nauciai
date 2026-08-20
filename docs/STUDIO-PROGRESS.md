@@ -6128,3 +6128,141 @@ isti `expiresAt`.
    je jedno mesto za podizanje.
 4. **N7 i dalje stoji.** Ulazni fajlovi koji su usli u posao se i dalje nikad ne
    brisu; ovaj korak to nije dirao.
+
+## X6 - N5: alarm na pukao plafon + heartbeat; N7: ulazi vise ne ostaju zauvek   (2026-08-21)
+
+**Fajlovi:**
+- `convex/schema.ts` - `studioCostAlarms` dobija `type`/`message`; nova tabela
+  `studioCronHeartbeats`.
+- `convex/studioCore.ts` - `GLOBAL_COST_HEARTBEAT_KEY`, `HEARTBEAT_STALE_MS`.
+- `convex/crons.ts` - `applyGlobalCostAction` osvezava heartbeat na kraju
+  uspesnog prolaza i upisuje `type: "alarm"`; nova `recordCronFailure`;
+  `enforceGlobalCostCap` hvata gresku, upisuje/salje najvise jednom dnevno,
+  pa je PONOVO baca; `sendGlobalCostEmail`/nova `sendCronFailureEmail` dele
+  `sendAdminEmail`.
+- `convex/studioAdmin.ts` - `getUsageSummary` vraca `costCapHeartbeatAt` i
+  `costCapCronFailure`.
+- `components/app/studio-admin-page.tsx` - `CronHealthBanner` ("poslednja
+  provera plafona: pre X min", crveno preko 60 min ili bez ijednog reda; poruka
+  poslednjeg pada ako postoji za danas).
+- `convex/studio.ts` - `deleteJob` brise ulazne `studioUploads` redove (i njihov
+  storage blob) koje NIJEDAN drugi posao istog korisnika vise ne koristi (nova
+  `storageIdsUsedByOtherJobs`); `finalizeOutput` postavlja rok ulaza na rok
+  izlaza, ali SAMO naviše (`Math.max`), nikad ne skraduje; `getJobForRegenerate`
+  vraca obrisan/istekao ulaz kao prazan slot (`missingSlots`), ne kao pokvarenu
+  slicicu.
+- `convex/crons.ts` (komentar) - `expireGenerationFiles` dokumentacija
+  prosirena: isti `studioUploads.by_expiry` prolaz sad cisti i R4 (nevezan
+  upload) i N7 (ulaz cijem je poslu istekao izlaz).
+- `lib/studio-messages.ts` - `missingRegenerateInputsNotice`.
+- `components/app/studio-page.tsx` - `RegenerateSeed.missingSlots`, prosledjeno
+  kao `notice` na dugmetu; prazan slot posle "Generisi ponovo" vec sam zakljuca
+  dugme kroz postojeci `missingInputMessage`, ovo samo objasnjava zasto.
+- Testovi: `convex/crons.test.ts` (+3), `convex/studioAdmin.test.ts` (+1),
+  `convex/studio.test.ts` (+2), `convex/studioActions.test.ts` (+2),
+  `convex/studioCatalogJob.test.ts` (+1).
+
+**Sta je uradjeno:**
+N5 - `applyGlobalCostAction` je i dalje jedna transakcija koja odmah upisuje
+posledicu (kill/alarm), ali sad na kraju USPESNOG prolaza upisuje i heartbeat.
+`enforceGlobalCostCap` tu mutaciju sad zove u `try/catch`: na gresku (npr.
+prekoracenje Convex-ovog limita reda po transakciji, ili bilo koja druga)
+upisuje TACNO JEDAN `cron_failed` red po danu u `studioCostAlarms`, salje mejl
+sa tacnom porukom greske (najvise jednom dnevno, isto pravilo kao alarm od
+50 $), i onda gresku PONOVO baca - da i Convex-ov sopstveni dnevnik funkcija i
+dalje vidi neuspeh, ne samo nas mejl. Admin ekran sad pod "Potrosnja" pokazuje
+"poslednja provera plafona: pre X min" (crveno preko 60 minuta ili ako reda
+uopste nema) i, ako je danas nesto puklo, crvenu poruku sa tacnim tekstom
+greske.
+
+N7 - tri odvojene popravke iz izvestaja. (1) `deleteJob` sad brise i ulazne
+fajlove posla, ali PRE brisanja skenira SVE ostale poslove istog korisnika i
+preskace svaki `storageId` koji jos neko drugi navodi u svojim ulazima - isti
+fajl ume da udje u vise poslova preko "Generisi ponovo". (2) `finalizeOutput`
+(ne cenovni motor - upisni deo persistOutput-a) sad SVAKOM ulaznom
+`studioUploads` redu ovog posla produzava `expiresAt` na isti trenutak kao
+izlazu posla, ali `Math.max`-om: nikad ga ne skracuje, jer deljen fajl mora da
+prezivi dok ga BAR JEDAN posao jos pokazuje. Time postojeci
+`crons.expireGenerationFiles` (nepromenjen kod, isti `studioUploads.by_expiry`
+indeks) pokupi i ove redove kad im rok stvarno prodje - nije trebalo nov cron.
+(3) `getJobForRegenerate` sad za svaki ulaz proverava da li `_storage` red jos
+postoji; ako ne postoji, slot izlazi PRAZAN (ne "sirovi" `storageId` sa
+`url: null`) i ime slota ide u `missingSlots`. Klijent taj slot vise ne puni u
+formu, pa vec postojeci `missingInputMessage` sam zakljuca dugme ("Dodaj
+sliku") - dodata je samo jedna recenica objasnjenja (`missingRegenerateInputsNotice`)
+zasto je slot koji je nekad imao fajl sad prazan. Bez ovoga bi klijent poslao
+mrtav `storageId` u `createJob`, koji vec ima ljudsku poruku za `TUDJI_FAJL`
+("Neki od okacenih fajlova vise nije dostupan") - ali tek POSLE klika, ne pre
+njega.
+
+**ODLUKE:**
+1. `studioCostAlarms.type` je OPCIONO polje (ne migracija) - zatecen red bez
+   njega se cita kao `"alarm"`, jer je to bio jedini tip pre ovog koraka.
+   Konzervativno: ne dira postojece redove, ne trazi backfill.
+2. Heartbeat je NOVA tabela (`studioCronHeartbeats`, jedan red po kljucu, isti
+   oblik kao `platformFlags`) umesto polja na postojecoj tabeli - jer mora da
+   prezivi i preko dana kad nema ni alarma ni pada, a `studioCostAlarms` je
+   organizovana po danu.
+3. `enforceGlobalCostCap` PONOVO baca gresku posle hvatanja (ne guta je) - da
+   Convex-ov dashboard i dalje pokazuje neuspesan run. Rules-day trazi "ne guta
+   je tiho"; tumacenje je da tihо gutanje znaci "nijedan spoljni trag", ne
+   "nijedan Convex-ov interni trag".
+4. Test za "pukao prolaz" koristi STVARAN kvar stanja (dva `platformFlags` reda
+   sa istim kljucem, sto tera `.unique()` da baci) umesto mokovanja `ctx`-a,
+   jer convex-test ne dozvoljava lako presretanje pojedinacnog poziva - ovo je
+   i realisticniji test.
+5. `deleteJob`-ova provera "koristi li ga drugi posao" cita CEO spisak poslova
+   korisnika (`by_user` indeks, bez `take`-a) - konzervativno, jer je ovo jedini
+   deo koraka gde greska trajno unistava tudji (drugog posla) fajl; kapiranje bi
+   moglo lazno da javi "nije u upotrebi" za posao koji upit nije stigao da vidi.
+   Cena je prihvatljiva: `deleteJob` je pojedinacna korisnicka akcija, ne cron.
+6. `finalizeOutput`-ov `Math.max` namerno ne dira `createJob`-ovo postojece
+   ponasanje (jos uvek bezuslovno sklanja `expiresAt` kad fajl UDJE u posao) -
+   to ostaje jedina zastita dok je posao otvoren; retencija iz N7 pocinje da
+   vazi tek kad posao ZAVRSI.
+7. `missingSlots` u `getJobForRegenerate` NE pokusava da razlikuje "istekao" od
+   "obrisan preko deleteJob-a od drugog posla" - oba izgledaju isto klijentu
+   (fajl ga nema), pa je i poruka ista.
+
+**Testovi:**
+- `convex/crons.test.ts` - uspesan prolaz osvezava heartbeat · pukao prolaz
+  upisuje `cron_failed` tacno jednom dnevno, salje tacno jedan mejl (subjekat
+  sadrzi "NIJE proveren", telo sadrzi tacnu poruku greske) i NE pomera
+  heartbeat · prolaz koji posle kvara ponovo uspe heartbeat osvezava.
+- `convex/studioAdmin.test.ts` - `getUsageSummary` vraca `null`/`null` bez
+  redova, pa tacan heartbeat i cron_failed kad postoje (i ne meša ih sa obicnim
+  `type: "alarm"` redom istog dana).
+- `convex/studio.test.ts` - `deleteJob` brise ulaz koji koristi samo taj posao
+  (red i storage blob) · `deleteJob` NE brise ulaz koji koristi i drugi posao
+  istog korisnika (ni red ni blob ni taj drugi posao nisu dirnuti).
+- `convex/studioActions.test.ts` - `finalizeOutput` postavlja rok ulaza na isti
+  rok kao izlaz · `finalizeOutput` NE skracuje rok deljenog ulaza koji drugi
+  posao vec drzi dalje (video od 30 dana ne sme da obori rok koji je slika od
+  90 dana vec postavila).
+- `convex/studioCatalogJob.test.ts` - `getJobForRegenerate` nad poslom sa dva
+  ulazna slota, gde je jedan obrisan iz storage-a, vraca samo zivi `storageId`
+  u `inputs` i `missingSlots: ["image"]`.
+
+**Rezultat verifikacije:** `npx convex codegen` cisto · `npm run lint` 0
+errors, 8 warnings (svih 8 zateceno, nijedan u fajlovima ovog koraka) ·
+`npm run test` 60 fajlova / 826 testova prolazi · `npm run build`
+`✓ Compiled successfully`.
+
+**BLOKADA:** nema
+
+**Za Jovana:**
+1. **Deploy nosi novu tabelu i nova polja.** `studioCronHeartbeats` je prazna
+   tabela; `studioCostAlarms.type`/`message` su opciona, zatecenim redovima ne
+   treba migracija.
+2. **Heartbeat pocinje prazan.** Prvih 15-60 minuta posle deploy-a admin ekran
+   ce pokazivati "poslednja provera plafona: nikad" crveno, dok se cron makar
+   jednom ne izvrsi - ocekivano, ne kvar.
+3. **N7 sad cisti i UNAPRED postojece poslove**, ne samo nove: cim neki stari
+   posao ZAVRSI (sledece pokretanje `finalizeOutput`-a se ne desava za vec
+   zavrsene poslove) - odnosno, tacnije: retencija pocinje da vazi tek za
+   poslove cije se `finalizeOutput` izvrsi POSLE ovog deploy-a. Zatecen "done"
+   posao iz vremena pre X6 nece dobiti rok na svoj ulaz dok se ne pokrene neka
+   nova migracija - danas ga nema, i nije trazen ovim korakom.
+4. **N2 (lazna kolicina koju plafoni mere) i dalje stoji.** Ovaj korak je
+   zatvorio SAMO N5 i N7; STUDIO-FIX-REPORT.md sekcija 5 tacka 2 je i dalje
+   najskuplji preostali rizik.

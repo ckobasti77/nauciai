@@ -964,6 +964,30 @@ test("`Generiši ponovo` nosi i IZMERENO trajanje, da forma ne traži merenje op
   expect(seed?.inputs.find((input) => input.slot === "video")?.durationS).toBe(9);
 });
 
+test("`getJobForRegenerate` javlja obrisan ulaz kao prazan slot, ne kao pokvarenu sličicu (nalaz N7)", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedUser(t);
+  await seedCatalogModel(t, "nano-banana-2");
+  const kept = await storeFile(asUser, "image/png");
+  const deleted = await storeFile(asUser, "image/png");
+
+  await asUser.mutation(api.studio.createJob, {
+    modelSlug: "nano-banana-2",
+    params: JSON.stringify({ prompt: "spoji" }),
+    inputMode: "image_multi",
+    inputs: JSON.stringify({ image: [kept, deleted] }),
+  });
+  // Simulira ono što retencija iz N7 na kraju uradi: fajl nestaje iz storage-a
+  // (istekao zajedno sa izlazom, ili obrisan preko `deleteJob` sa drugog posla).
+  await t.run((ctx) => ctx.storage.delete(deleted));
+
+  const jobs = await jobsOf(t, userId);
+  const seed = await asUser.query(api.studio.getJobForRegenerate, { jobId: jobs[0]._id });
+
+  expect(seed?.inputs.map((input) => input.storageId)).toEqual([kept]);
+  expect(seed?.missingSlots).toEqual(["image"]);
+});
+
 test("tuđi posao se ne vraća u formu", async () => {
   const t = convexTest(schema, modules);
   const { userId, asUser } = await seedUser(t);

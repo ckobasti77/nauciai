@@ -7,6 +7,7 @@ import { parseReasonCounts } from "./studioActualCostCore";
 import {
   dayKey,
   dayStart,
+  GLOBAL_COST_HEARTBEAT_KEY,
   GLOBAL_DAILY_ALARM_USD,
   GLOBAL_DAILY_KILL_USD,
   STUDIO_FLAG_KEY,
@@ -94,6 +95,19 @@ export const getUsageSummary = query({
       }
     }
 
+    // Heartbeat i "cron_failed" (X6, nalaz N5): kad crona nema uopšte
+    // (deployment koji nikad nije startovao), oba su odsutna - `lastRunAt: null`
+    // je isto tako crveno na ekranu kao heartbeat stariji od sat vremena.
+    const heartbeat = await ctx.db
+      .query("studioCronHeartbeats")
+      .withIndex("by_key", (q) => q.eq("key", GLOBAL_COST_HEARTBEAT_KEY))
+      .unique();
+    const failureRows = await ctx.db
+      .query("studioCostAlarms")
+      .withIndex("by_day", (q) => q.eq("day", day))
+      .collect();
+    const cronFailure = failureRows.find((row) => row.type === "cron_failed") ?? null;
+
     return {
       day,
       totalCostUsd,
@@ -106,6 +120,8 @@ export const getUsageSummary = query({
       killUsd: GLOBAL_DAILY_KILL_USD,
       usageRowsCapped: usageRows.length >= MAX_USAGE_ROWS,
       jobCountsCapped,
+      costCapHeartbeatAt: heartbeat?.lastRunAt ?? null,
+      costCapCronFailure: cronFailure ? { message: cronFailure.message ?? "" } : null,
     };
   },
 });

@@ -1,4 +1,5 @@
 import type { Locale } from "./i18n";
+import { slotLabel } from "./studio-slots";
 
 /**
  * Gornja granica dužine prompta. Ista vrednost stoji u
@@ -427,4 +428,19 @@ export function measuredDurationNotice(seconds: number, locale: Locale): string 
   return locale === "sr"
     ? `Izmereno trajanje snimka je ${rounded} - cena na dugmetu je po tome.`
     : `The measured length of the recording is ${rounded} - the price on the button follows it.`;
+}
+
+/**
+ * "Generiši ponovo" nad poslom čiji je ulaz u međuvremenu istekao ili je
+ * obrisan (nalaz N7). `getJobForRegenerate` takav slot vraća prazan, umesto
+ * pokvarene sličice - ova rečenica objašnjava ZAŠTO slot koji je nekad imao
+ * fajl sad izgleda prazno, pre nego što korisnik i stigne da klikne "Generiši".
+ */
+export function missingRegenerateInputsNotice(slots: string[], locale: Locale): string | null {
+  if (slots.length === 0) return null;
+  const labels = slots.map((slot) => slotLabel(slot, locale).toLowerCase()).join(", ");
+
+  return locale === "sr"
+    ? `Ulaz iz te generacije (${labels}) više nije dostupan - okači ga ponovo.`
+    : `The input from that generation (${labels}) is no longer available - upload it again.`;
 }

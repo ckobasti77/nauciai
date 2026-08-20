@@ -1623,9 +1623,26 @@ export default defineSchema({
   // poslat" nije isto stanje i ne sme da se pomeša sa kill switch-om.
   // Kill (100 $) ne treba svoj red - on gasi `platformFlags.studio_enabled`,
   // pa je već ugašen Studio sam sebi pamćenje.
+  //
+  // `type` (X6, nalaz N5) razlikuje ovaj red od "prolaz koji je PUKAO" reda:
+  // stari alarm redovi ga nemaju, pa se čita kao `"alarm"` (izostavljeno polje
+  // je zatečeno stanje, ne treći tip). `message` postoji samo uz `cron_failed`
+  // - tačna poruka greške, jer je to jedini trag kad Resend ne radi.
   studioCostAlarms: defineTable({
     day: v.string(),
+    type: v.optional(v.union(v.literal("alarm"), v.literal("cron_failed"))),
+    message: v.optional(v.string()),
   }).index("by_day", ["day"]),
+
+  // Poslednji USPEŠAN prolaz globalnog plafona (X6, nalaz N5). `applyGlobalCostAction`
+  // ga osvežava na kraju SVOJE transakcije, pa upis postoji samo kad prolaz nije
+  // pukao - mutacija koja baci se cela povuče, heartbeat sa njom. Admin ekran
+  // time vidi mrtav cron i bez mejla: heartbeat stariji od 60 minuta je crven,
+  // iako se cron vrti na 15.
+  studioCronHeartbeats: defineTable({
+    key: v.string(),
+    lastRunAt: v.number(),
+  }).index("by_key", ["key"]),
 
   // Zbir izmerenog troška po modelu (W6). Jedan red na ceo model, održava ga
   // `studioActualCost.recordActualCost` u istoj transakciji u kojoj posao dobija

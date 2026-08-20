@@ -1,4 +1,5 @@
 import { cronJobs } from "convex/server";
+import { v } from "convex/values";
 
 import { internal } from "./_generated/api";
 import { env, internalAction, internalMutation } from "./_generated/server";
@@ -6,6 +7,7 @@ import { applyLotExpiry } from "./credits";
 import {
   dayKey,
   decideGlobalCostAction,
+  GLOBAL_COST_HEARTBEAT_KEY,
   GLOBAL_DAILY_ALARM_USD,
   GLOBAL_DAILY_KILL_USD,
   type GlobalCostAction,
@@ -120,10 +122,16 @@ export const expireCredits = internalMutation({
  * dobili fajl. Donja granica `> 0` je zato obavezna: poslovi bez `expiresAt`
  * stoje u indeksu ispod svakog broja, pa bi ih čist `lte(now)` sve pokupio.
  *
- * Isti prolaz čisti i ULAZNE uploade koje niko nije upotrebio (nalaz R4). Tamo
- * je pravilo obrnuto od izlaza: red nosi `expiresAt` samo dok fajl nije ušao ni
- * u jedan posao, pa se briše CEO - i blob i red - jer bez reda taj fajl nema
- * nijednu referencu u bazi.
+ * Isti prolaz čisti i ULAZNE uploade preko `studioUploads.expiresAt`, iz dva
+ * razloga koja dele jedan indeks (`by_expiry`) i istu posledicu (blob I red se
+ * brišu zajedno):
+ *
+ * 1. nalaz R4 - upload koji niko nije upotrebio nosi 24h rok od okačivanja;
+ * 2. nalaz N7 - upload koji JESTE ušao u posao dobija rok kad taj posao
+ *    završi (`studio.finalizeOutput` ga postavlja na isti trenutak kad i
+ *    izlaz, produžujući ga ako je fajl deljen sa drugim, još otvorenim
+ *    poslom). Do N7 je `createJob` taj rok trajno sklanjao, pa je ulaz živeo
+ *    zauvek i posle isteka svog izlaza.
  *
  * I dozvole za upload (`studioUploadGrants`, X5) idu odavde: one nemaju fajl,
  * samo red, i posle sat vremena ne vrede ništa - ni potrošene ni nepotrošene.
@@ -193,7 +201,8 @@ export const expireGenerationFiles = internalMutation({
 export const applyGlobalCostAction = internalMutation({
   args: {},
   handler: async (ctx) => {
-    const day = dayKey(Date.now());
+    const now = Date.now();
+    const day = dayKey(now);
 
     const usage = await ctx.db
       .query("studioUsageDaily")
@@ -205,15 +214,19 @@ export const applyGlobalCostAction = internalMutation({
       .query("platformFlags")
       .withIndex("by_key", (q) => q.eq("key", STUDIO_FLAG_KEY))
       .unique();
-    // `first` a ne `unique`: pitanje je samo "postoji li red za danas", a
-    // `unique` bi na slučajnom duplikatu obarao ceo prolaz - i time plafon.
-    const alarm = await ctx.db
+    // Ceo dan se čita, ne `first`: uz alarm (N5) sada može da stoji i
+    // `cron_failed` red istog dana, pa se tip proverava u JS-u umesto da se
+    // uvodi drugi indeks za najviše dva reda po danu.
+    const alarmRows = await ctx.db
       .query("studioCostAlarms")
       .withIndex("by_day", (q) => q.eq("day", day))
-      .first();
+      .collect();
+    // Izostavljen `type` je zatečen red iz vremena pre N5 - čita se kao alarm,
+    // ne kao treće, nepoznato stanje.
+    const alarmSentToday = alarmRows.some((row) => (row.type ?? "alarm") === "alarm");
 
     const action = decideGlobalCostAction(totalCostUsd, {
-      alarmSentToday: alarm !== null,
+      alarmSentToday,
       // Red koji ne postoji znači "nikad nije ni gašen", isto čitanje kao
       // `studio.createJob` i `studioAdmin.getKillSwitchState`.
       studioEnabled: flag ? flag.enabled : true,
@@ -223,10 +236,40 @@ export const applyGlobalCostAction = internalMutation({
       if (flag) await ctx.db.patch(flag._id, { enabled: false });
       else await ctx.db.insert("platformFlags", { key: STUDIO_FLAG_KEY, enabled: false });
     } else if (action === "alarm") {
-      await ctx.db.insert("studioCostAlarms", { day });
+      await ctx.db.insert("studioCostAlarms", { day, type: "alarm" });
     }
 
+    // Heartbeat (N5): osvežava se SAMO kad prolaz stigne dovde bez bacanja -
+    // pukla mutacija se cela povuče, pa red ostaje na poslednjem uspehu i
+    // admin ekran vidi mrtav cron i bez mejla.
+    const heartbeat = await ctx.db
+      .query("studioCronHeartbeats")
+      .withIndex("by_key", (q) => q.eq("key", GLOBAL_COST_HEARTBEAT_KEY))
+      .unique();
+    if (heartbeat) await ctx.db.patch(heartbeat._id, { lastRunAt: now });
+    else await ctx.db.insert("studioCronHeartbeats", { key: GLOBAL_COST_HEARTBEAT_KEY, lastRunAt: now });
+
     return { action, day, totalCostUsd };
+  },
+});
+
+/**
+ * Jedan red po danu za PUKAO prolaz (N5) - isto obrazloženje kao alarm od
+ * 50 $: cron se vrti na 15 minuta, pa bez ove brave isti kvar šalje mejl
+ * skoro sto puta dnevno. Vraća da li je red već postojao, da pozivalac zna da
+ * li mejl treba da krene.
+ */
+export const recordCronFailure = internalMutation({
+  args: { day: v.string(), message: v.string() },
+  handler: async (ctx, args) => {
+    const rows = await ctx.db
+      .query("studioCostAlarms")
+      .withIndex("by_day", (q) => q.eq("day", args.day))
+      .collect();
+    if (rows.some((row) => row.type === "cron_failed")) return { alreadyRecorded: true };
+
+    await ctx.db.insert("studioCostAlarms", { day: args.day, type: "cron_failed", message: args.message });
+    return { alreadyRecorded: false };
   },
 });
 
@@ -261,26 +304,37 @@ function alertBody(action: Exclude<GlobalCostAction, "none">, day: string, total
 }
 
 /**
+ * Poruka za PUKAO prolaz (N5), sa istim linkom i istom "najviše jednom
+ * dnevno" napomenom kao `alertBody` - razlika je što ovde nema iznosa, nego
+ * tačna poruka greške, jer je to jedini trag kad ni Resend ne uspe.
+ */
+function cronFailureBody(day: string, message: string) {
+  return {
+    subject: `Studio: plafon troška NIJE proveren (${day})`,
+    text: [
+      `Provera globalnog dnevnog plafona za ${day} (UTC) je pukla i nije izvršena.`,
+      `Greška: ${message}`,
+      "Dok se ovo ne popravi, ni alarm od 50 $ ni gašenje na 100 $ ne rade - cron se vrti, ali ne stiže do kraja.",
+      "Ovaj mejl stiže najviše jednom dnevno, iako se provera vrti na 15 minuta.",
+      `Potrošnja: ${adminStudioLink()}`,
+    ].join("\n\n"),
+  };
+}
+
+/**
  * Mejl adminima, istim putem kao `emailVerification.ts`. **Nikad ne baca**:
  * posledica u bazi je već upisana pre ovog poziva, pa greška ovde sme samo da
- * se zaloguje. Zato i sam log nosi iznos - kad Resend ne radi, Convex log je
- * jedini trag da je plafon opalio.
+ * se zaloguje. Zato i sam log nosi kontekst - kad Resend ne radi, Convex log
+ * je jedini trag da je plafon opalio (ili da provera nije ni uspela).
  */
-async function sendGlobalCostEmail(
-  action: Exclude<GlobalCostAction, "none">,
-  day: string,
-  totalCostUsd: number,
-) {
+async function sendAdminEmail(subject: string, text: string, logContext: Record<string, unknown>) {
   const apiKey = String(env.AUTH_RESEND_KEY ?? "").trim();
   const from = String(env.AUTH_RESEND_FROM ?? "").trim();
   const to = [...parseAdminEmails(env.INITIAL_ADMIN_EMAILS)];
-  const { subject, text } = alertBody(action, day, totalCostUsd);
 
   if (!apiKey || !from || to.length === 0) {
     console.error("studio_cost_alert_not_configured", {
-      action,
-      day,
-      totalCostUsd,
+      ...logContext,
       hasApiKey: Boolean(apiKey),
       hasFrom: Boolean(from),
       recipients: to.length,
@@ -296,30 +350,64 @@ async function sendGlobalCostEmail(
     });
     if (!response.ok) {
       console.error("studio_cost_alert_provider_error", {
-        action,
-        day,
-        totalCostUsd,
+        ...logContext,
         status: response.status,
         providerRequestId: response.headers.get("x-request-id") ?? undefined,
       });
     }
   } catch (error) {
-    console.error("studio_cost_alert_failed", { action, day, totalCostUsd }, error);
+    console.error("studio_cost_alert_failed", logContext, error);
   }
+}
+
+async function sendGlobalCostEmail(
+  action: Exclude<GlobalCostAction, "none">,
+  day: string,
+  totalCostUsd: number,
+) {
+  const { subject, text } = alertBody(action, day, totalCostUsd);
+  await sendAdminEmail(subject, text, { action, day, totalCostUsd });
+}
+
+async function sendCronFailureEmail(day: string, message: string) {
+  const { subject, text } = cronFailureBody(day, message);
+  await sendAdminEmail(subject, text, { day, message });
 }
 
 /**
  * Peti cron (nalaz R1): dnevni limit po korisniku od 5 $ ne vidi zbir, pa je
  * ovo jedina automatska zaštita nad ukupnim računom sva tri provajdera.
  * Odluku donosi `decideGlobalCostAction` - ovde nema nijednog praga.
+ *
+ * Nalaz N5: `applyGlobalCostAction` ume da pukne (preko svega, npr. Convex-ov
+ * limit od 16 384 reda po transakciji) i taj prolaz se do sada gubio nemo -
+ * cron koji puca izgleda isto kao cron koji nema šta da radi. Sad se svaka
+ * greška ovde HVATA, upisuje kao `cron_failed` red (najviše jedan dnevno) i
+ * prijavljuje mejlom sa tačnom porukom - pa se PONOVO baca, da i Convex-ov
+ * sopstveni dnevnik funkcija i dalje vidi neuspeh.
  */
 export const enforceGlobalCostCap = internalAction({
   args: {},
   handler: async (ctx) => {
-    // Anotacija je obavezna: poziv ide na funkciju iz istog fajla, pa bi TS
-    // inače pukao na kružnoj referenci (Convex guidelines, "Function calling").
-    const outcome: { action: GlobalCostAction; day: string; totalCostUsd: number } =
-      await ctx.runMutation(internal.crons.applyGlobalCostAction, {});
+    let outcome: { action: GlobalCostAction; day: string; totalCostUsd: number };
+    try {
+      // Anotacija je obavezna: poziv ide na funkciju iz istog fajla, pa bi TS
+      // inače pukao na kružnoj referenci (Convex guidelines, "Function calling").
+      outcome = await ctx.runMutation(internal.crons.applyGlobalCostAction, {});
+    } catch (error) {
+      const day = dayKey(Date.now());
+      const message = error instanceof Error ? error.message : String(error);
+      let alreadyRecorded = false;
+      try {
+        const recorded = await ctx.runMutation(internal.crons.recordCronFailure, { day, message });
+        alreadyRecorded = recorded.alreadyRecorded;
+      } catch (recordError) {
+        console.error("studio_cost_cron_failure_not_recorded", { day, message }, recordError);
+      }
+      if (!alreadyRecorded) await sendCronFailureEmail(day, message);
+
+      throw error;
+    }
 
     if (outcome.action !== "none") {
       await sendGlobalCostEmail(outcome.action, outcome.day, outcome.totalCostUsd);

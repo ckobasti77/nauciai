@@ -166,6 +166,39 @@ test("getUsageSummary: zbir troška, top 10 korisnika i broj poslova po statusu,
   expect(summary.jobCountsCapped).toBe(false);
 });
 
+/**
+ * X6, nalaz N5: heartbeat i "cron_failed" moraju da stignu do admin ekrana,
+ * ne samo do mejla - inače se mrtav cron vidi samo dok neko ne obriše Resend
+ * poruku iz inboksa.
+ */
+test("getUsageSummary: nosi heartbeat plafona i današnji cron_failed, ako postoji", async () => {
+  const t = convexTest(schema, modules);
+  const { asAdmin } = await seedAdmin(t);
+
+  const empty = await asAdmin.query(api.studioAdmin.getUsageSummary, { now: TODAY });
+  expect(empty.costCapHeartbeatAt).toBeNull();
+  expect(empty.costCapCronFailure).toBeNull();
+
+  await t.run((ctx) =>
+    ctx.db.insert("studioCronHeartbeats", { key: "global_cost_cap", lastRunAt: TODAY - 5 * 60 * 1000 }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("studioCostAlarms", {
+      day: TODAY_KEY,
+      type: "cron_failed",
+      message: "InvalidArgument: expected at most one document",
+    }),
+  );
+  // Alarm "obican" istog dana ne sme da se pomeša sa cron_failed.
+  await t.run((ctx) => ctx.db.insert("studioCostAlarms", { day: TODAY_KEY, type: "alarm" }));
+
+  const summary = await asAdmin.query(api.studioAdmin.getUsageSummary, { now: TODAY });
+  expect(summary.costCapHeartbeatAt).toBe(TODAY - 5 * 60 * 1000);
+  expect(summary.costCapCronFailure).toEqual({
+    message: "InvalidArgument: expected at most one document",
+  });
+});
+
 test("getUsageSummary: korisnik bez imena se prikazuje po email-u", async () => {
   const t = convexTest(schema, modules);
   const { asAdmin } = await seedAdmin(t);

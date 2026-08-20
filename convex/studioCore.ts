@@ -212,6 +212,20 @@ export function exceedsUnsettledCostLimit(unsettledUsd: number): boolean {
 export const GLOBAL_DAILY_ALARM_USD = 50;
 export const GLOBAL_DAILY_KILL_USD = 100;
 
+/**
+ * Red u `studioCronHeartbeats` koji `crons.applyGlobalCostAction` osvežava na
+ * svaki uspešan prolaz (X6, nalaz N5). Ključ, ne novi tip reda - isti obrazac
+ * kao `STUDIO_FLAG_KEY`.
+ */
+export const GLOBAL_COST_HEARTBEAT_KEY = "global_cost_cap";
+
+/**
+ * Cron se vrti na 15 minuta; 60 je daleko iznad svakog pojedinačnog kašnjenja
+ * i ostavlja prostora za spor deploy ili trenutni zastoj Convex-a bez lažnog
+ * alarma na admin ekranu.
+ */
+export const HEARTBEAT_STALE_MS = 60 * 60 * 1000;
+
 /** Šta cron treba da uradi na osnovu današnjeg globalnog troška. */
 export type GlobalCostAction = "none" | "alarm" | "kill";
 

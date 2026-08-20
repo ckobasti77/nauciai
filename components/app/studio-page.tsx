@@ -23,6 +23,7 @@ import { jobPrompt, jobStatusText, jobTileState, RECENT_JOBS_COUNT } from "@/lib
 import { parseStudioModel, type StudioModel, type StudioModelRow } from "@/lib/studio-models";
 import {
   measuredDurationNotice,
+  missingRegenerateInputsNotice,
   STUDIO_CONTENT_NOTICE,
   STUDIO_CONTENT_NOTICE_LINK,
   STUDIO_NOT_ENROLLED,
@@ -103,6 +104,8 @@ type RegenerateSeed = {
   params?: ParamValues;
   files?: SlotFiles;
   prompt?: string;
+  /** Slotovi čiji ulaz iz te generacije više nije dostupan (nalaz N7). */
+  missingSlots?: string[];
 };
 
 /** Sve što jedan poziv `createJob`-a nosi. */
@@ -422,9 +425,11 @@ function PlaygroundForm({
         topUpHref={topUpHref}
         error={error}
         notice={
-          serverSeconds !== null && measureMismatch(browserSeconds, serverSeconds)
-            ? measuredDurationNotice(serverSeconds, locale)
-            : null
+          seed?.missingSlots
+            ? missingRegenerateInputsNotice(seed.missingSlots, locale)
+            : serverSeconds !== null && measureMismatch(browserSeconds, serverSeconds)
+              ? measuredDurationNotice(serverSeconds, locale)
+              : null
         }
       />
     </div>
@@ -620,6 +625,7 @@ export function StudioPage({ locale }: { locale: Locale }) {
       ...(regenerated.inputMode ? { inputMode: regenerated.inputMode } : {}),
       params,
       files,
+      ...(regenerated.missingSlots.length > 0 ? { missingSlots: regenerated.missingSlots } : {}),
     };
   }, [regenerateId, regenerated]);
 

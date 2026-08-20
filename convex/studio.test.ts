@@ -1578,6 +1578,80 @@ test("deleteJob odbija tudji posao i nepostojeći posao", async () => {
   );
 });
 
+// ── deleteJob i ulazni fajlovi (X6, nalaz N7) ──────────────────────────────
+
+/**
+ * Upload prijavljen na korisnika, direktno u bazi - isti oblik reda kao
+ * `registerInputUpload`, bez celog puta uploada koji ovim testovima ne treba.
+ */
+async function seedRegisteredUpload(t: TestConvex, userId: Id<"users">, bytes = "slika") {
+  return t.run(async (ctx) => {
+    const storageId = await ctx.storage.store(new Blob([bytes], { type: "image/png" }));
+    const uploadId = await ctx.db.insert("studioUploads", {
+      userId,
+      storageId,
+      slot: "image",
+      bytes: bytes.length,
+      createdAt: 1,
+      // Ušao je u posao - `createJob` bi ovde sklonio rok.
+      expiresAt: undefined,
+    });
+    return { storageId, uploadId };
+  });
+}
+
+/** Posao v4 kataloga upisan direktno, sa ulazom u dati slot - `deleteJob` ne zna niti mari za katalog. */
+async function seedJobWithInput(
+  t: TestConvex,
+  userId: Id<"users">,
+  storageId: Id<"_storage">,
+  opts: { status?: "done" | "failed" | "refunded" } = {},
+) {
+  return t.run((ctx) =>
+    ctx.db.insert("generationJobs", {
+      userId,
+      modelSlug: "nano-banana-2",
+      kind: "image" as const,
+      params: JSON.stringify({ prompt: "spoji" }),
+      promptHash: "0123456789abcdef",
+      status: opts.status ?? ("done" as const),
+      creditCost: 20,
+      inputs: JSON.stringify({ image: [storageId] }),
+      createdAt: 1,
+    }),
+  );
+}
+
+test("deleteJob briše ulaz koji koristi samo taj posao", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedWorld(t);
+  const { storageId, uploadId } = await seedRegisteredUpload(t, userId);
+  const jobId = await seedJobWithInput(t, userId, storageId);
+
+  await asUser.mutation(api.studio.deleteJob, { jobId });
+
+  expect(await t.run((ctx) => ctx.db.get(jobId))).toBeNull();
+  expect(await t.run((ctx) => ctx.db.get(uploadId))).toBeNull();
+  expect(await t.run((ctx) => ctx.storage.getUrl(storageId))).toBeNull();
+});
+
+test("deleteJob NE briše ulaz koji koristi i drugi posao istog korisnika", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedWorld(t);
+  const { storageId, uploadId } = await seedRegisteredUpload(t, userId);
+  // Isti storageId u dva posla - "Generiši ponovo" nad istim fajlom.
+  const jobId = await seedJobWithInput(t, userId, storageId);
+  const otherJobId = await seedJobWithInput(t, userId, storageId);
+
+  await asUser.mutation(api.studio.deleteJob, { jobId });
+
+  expect(await t.run((ctx) => ctx.db.get(jobId))).toBeNull();
+  // Drugi posao i njegov ulaz su netaknuti.
+  expect(await t.run((ctx) => ctx.db.get(otherJobId))).not.toBeNull();
+  expect(await t.run((ctx) => ctx.db.get(uploadId))).not.toBeNull();
+  expect(await t.run((ctx) => ctx.storage.getUrl(storageId))).not.toBeNull();
+});
+
 // ── W1: pristup bez upisa i pregled tudjih poslova ─────────────────────────
 
 test("hasStudioAccess: upis pušta svakoga, uloga admina i moderatora i bez upisa", () => {

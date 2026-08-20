@@ -819,11 +819,30 @@ export const finalizeOutput = internalMutation({
       });
     }
 
+    const expiresAt = outputExpiresAt(job.kind, now);
     await ctx.db.patch(args.jobId, {
       outputStorageId: args.storageId,
-      expiresAt: outputExpiresAt(job.kind, now),
+      expiresAt,
       ...(labOutputId ? { labOutputId } : {}),
     });
+
+    // Retencija ulaza prati rok izlaza (nalaz N7): `createJob` je uploadu
+    // sklonio rok ČIM je ušao u ovaj posao, pa bi bez ovoga ostao trajan.
+    // SAMO produžava, nikad ne skraćuje - isti `storageId` ume da uđe u više
+    // poslova (regeneracija), pa fajl mora da preživi dok ga bar JEDAN od njih
+    // još pokazuje. `createJob` tog drugog posla ionako sam skloni rok dok je
+    // taj posao otvoren; ovaj upis samo produžava kad taj posao završi.
+    for (const rawId of jobInputStorageIds(parseJobInputs(job.inputs))) {
+      const storageId = ctx.db.system.normalizeId("_storage", rawId);
+      if (!storageId) continue;
+      const upload = await ctx.db
+        .query("studioUploads")
+        .withIndex("by_storage", (q) => q.eq("storageId", storageId))
+        .first();
+      if (!upload) continue;
+      const next = upload.expiresAt === undefined ? expiresAt : Math.max(upload.expiresAt, expiresAt);
+      await ctx.db.patch(upload._id, { expiresAt: next });
+    }
 
     // Zadatak se zeleni sam, preko iste funkcije koju zove i ručno štikliranje
     // u lekciji (`lab.markTaskProgress`) - dakle isti leaderboard dogadjaj i
@@ -1244,6 +1263,11 @@ export const getJobForRegenerate = query({
       size: number;
       durationS?: number;
     }> = [];
+    // Ulaz koji je istekao zajedno sa izlazom (nalaz N7) ili je obrisan neki
+    // drugi način izlazi ovde kao PRAZAN slot, ne kao pokvarena sličica - forma
+    // onda javlja "Dodaj sliku" kroz isto dugme koje bi zaustavilo i prvi
+    // upload, umesto da tek posle klika padne na TUDJI_FAJL.
+    const missingSlots: string[] = [];
     for (const [slot, ids] of Object.entries(inputs)) {
       for (const rawId of ids) {
         const storageId = rawId as Id<"_storage">;
@@ -1251,6 +1275,10 @@ export const getJobForRegenerate = query({
         // iz imena slota: forma po `mime`-u odlučuje šta je pregled a šta se
         // broji kao ulazna slika u ceni.
         const meta = await ctx.db.system.get(storageId);
+        if (!meta) {
+          if (!missingSlots.includes(slot)) missingSlots.push(slot);
+          continue;
+        }
         // Izmereno trajanje ide uz fajl: bez njega bi forma posle "Generiši
         // ponovo" mislila da fajl još nije izmeren i zaključala dugme, iako je
         // isti fajl već izmeren i posao bi prošao (W5).
@@ -1263,8 +1291,8 @@ export const getJobForRegenerate = query({
           slot,
           storageId: rawId,
           url: await ctx.storage.getUrl(storageId),
-          mime: meta?.contentType ?? "",
-          size: meta?.size ?? 0,
+          mime: meta.contentType ?? "",
+          size: meta.size,
           ...(upload?.durationS !== undefined ? { durationS: upload.durationS } : {}),
         });
       }
@@ -1275,9 +1303,36 @@ export const getJobForRegenerate = query({
       inputMode: job.inputMode,
       params: job.params,
       inputs: files,
+      missingSlots,
     };
   },
 });
+
+/**
+ * Svi `storageId`-jevi koje neki DRUGI posao istog korisnika i dalje navodi u
+ * svojim ulazima (nalaz N7). Isti `storageId` ume da uđe u više poslova preko
+ * "Generiši ponovo" - ovo je jedini deo `deleteJob`-a gde greška trajno
+ * uništava fajl koji drugi posao još pokazuje u galeriji, pa se pre brisanja
+ * uvek proverava CEO spisak poslova ovog korisnika, ne uzorak.
+ */
+async function storageIdsUsedByOtherJobs(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  excludeJobId: Id<"generationJobs">,
+): Promise<Set<string>> {
+  const jobs = await ctx.db
+    .query("generationJobs")
+    .withIndex("by_user", (q) => q.eq("userId", userId))
+    .collect();
+
+  const used = new Set<string>();
+  for (const other of jobs) {
+    if (other._id === excludeJobId) continue;
+    for (const storageId of jobInputStorageIds(parseJobInputs(other.inputs))) used.add(storageId);
+  }
+
+  return used;
+}
 
 /**
  * "Obriši" iz galerije (P7). Posao u letu se ne briše - `reserved`/`running`
@@ -1288,6 +1343,12 @@ export const getJobForRegenerate = query({
  * upisuje ISTI `storageId` i na posao i na `labOutputs` red, pa brisanje fajla
  * ovde napravi lekciji dokaz koji pokazuje na obrisan fajl (`taskProgress`
  * ostaje zeleno sa slomljenom vezom). Galerija briše samo obične generacije.
+ *
+ * Nalaz N7: ulazi ovog posla se brišu ZAJEDNO sa izlazom - i storage blob i
+ * `studioUploads` red - ali samo oni koje nijedan drugi posao ovog korisnika
+ * više ne koristi. Do sada su ulazi ostajali zauvek: `createJob` im skida rok
+ * čim uđu u posao (`studio.ts`), a dotad je jedino `crons.expireGenerationFiles`
+ * brisao izlaz.
  */
 export const deleteJob = mutation({
   args: { jobId: v.id("generationJobs") },
@@ -1300,6 +1361,24 @@ export const deleteJob = mutation({
 
     if (job.outputStorageId) await ctx.storage.delete(job.outputStorageId);
     if (job.posterStorageId) await ctx.storage.delete(job.posterStorageId);
+
+    const ownInputs = new Set(jobInputStorageIds(parseJobInputs(job.inputs)));
+    if (ownInputs.size > 0) {
+      const stillUsed = await storageIdsUsedByOtherJobs(ctx, userId, args.jobId);
+      for (const rawId of ownInputs) {
+        if (stillUsed.has(rawId)) continue;
+        const storageId = ctx.db.system.normalizeId("_storage", rawId);
+        if (!storageId) continue;
+        const upload = await ctx.db
+          .query("studioUploads")
+          .withIndex("by_storage", (q) => q.eq("storageId", storageId))
+          .first();
+        if (!upload || upload.userId !== userId) continue;
+        await ctx.storage.delete(storageId);
+        await ctx.db.delete(upload._id);
+      }
+    }
+
     await ctx.db.delete(args.jobId);
     return null;
   },

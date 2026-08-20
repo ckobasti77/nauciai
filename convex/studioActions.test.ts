@@ -693,6 +693,63 @@ test("finalizeOutput odbija drugi fajl za isti posao - pozivalac ga briše", asy
   expect(job?.outputStorageId).toBe(first);
 });
 
+test("finalizeOutput postavlja rok ulaza na isti rok kao izlaz (nalaz N7)", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await seedUser(t);
+  const jobId = await seedDoneJob(t, userId, { kind: "image" });
+  const inputStorageId = await t.run((ctx) =>
+    ctx.storage.store(new Blob(["ulaz"], { type: "image/png" })),
+  );
+  const uploadId = await t.run((ctx) =>
+    ctx.db.insert("studioUploads", {
+      userId,
+      storageId: inputStorageId,
+      slot: "image",
+      bytes: 4,
+      createdAt: 1,
+      // Ušao je u ovaj posao - `createJob` mu je već sklonio rok.
+      expiresAt: undefined,
+    }),
+  );
+  await t.run((ctx) => ctx.db.patch(jobId, { inputs: JSON.stringify({ image: [inputStorageId] }) }));
+  const output = await t.run((ctx) => ctx.storage.store(new Blob(["izlaz"], { type: "image/png" })));
+
+  await t.mutation(internal.studio.finalizeOutput, { jobId, storageId: output, byteSize: 5 });
+
+  const job = await t.run((ctx) => ctx.db.get(jobId));
+  const upload = await t.run((ctx) => ctx.db.get(uploadId));
+  expect(upload?.expiresAt).toBe(job?.expiresAt);
+});
+
+test("finalizeOutput NE skraćuje rok deljenog ulaza koji drugi posao već drži dalje (nalaz N7)", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await seedUser(t);
+  // Video ima kraću retenciju (30 dana) od slike (90) - ovaj posao ne sme da
+  // skrati rok koji je neki drugi, još živ posao već postavio dalje.
+  const jobId = await seedDoneJob(t, userId, { kind: "video" });
+  const inputStorageId = await t.run((ctx) =>
+    ctx.storage.store(new Blob(["ulaz"], { type: "image/png" })),
+  );
+  const farExpiry = Date.now() + 1000 * DAY_MS;
+  const uploadId = await t.run((ctx) =>
+    ctx.db.insert("studioUploads", {
+      userId,
+      storageId: inputStorageId,
+      slot: "image",
+      bytes: 4,
+      createdAt: 1,
+      expiresAt: farExpiry,
+    }),
+  );
+  await t.run((ctx) => ctx.db.patch(jobId, { inputs: JSON.stringify({ image: [inputStorageId] }) }));
+  const output = await t.run((ctx) => ctx.storage.store(new Blob(["izlaz"], { type: "video/mp4" })));
+
+  await t.mutation(internal.studio.finalizeOutput, { jobId, storageId: output, byteSize: 5 });
+
+  const upload = await t.run((ctx) => ctx.db.get(uploadId));
+  expect(upload?.expiresAt).toBe(farExpiry);
+});
+
 test("neuspelo preuzimanje NE refundira - generacija je uspela i fal je naplaćen", async () => {
   const t = convexTest(schema, modules);
   const userId = await seedUser(t);

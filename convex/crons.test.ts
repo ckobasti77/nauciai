@@ -7,7 +7,7 @@ import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { usableBalance } from "./creditsCore";
 import schema from "./schema";
-import { dayKey, STUDIO_FLAG_KEY } from "./studioCore";
+import { dayKey, GLOBAL_COST_HEARTBEAT_KEY, STUDIO_FLAG_KEY } from "./studioCore";
 
 const modules = import.meta.glob("./**/*.ts");
 
@@ -660,4 +660,85 @@ test("Resend koji baci mrežnu grešku ne sprečava upis - alarm ostaje zapamće
   expect(result.action).toBe("alarm");
   expect(await alarmDays(t)).toEqual([dayKey(Date.now())]);
   expect((await t.action(internal.crons.enforceGlobalCostCap, {})).action).toBe("none");
+});
+
+// ── 5. N5: pukao prolaz plafona i heartbeat ─────────────────────────────────
+
+/**
+ * Dva reda sa istim ključem teraju `.unique()` da baci unutar
+ * `applyGlobalCostAction` - stvaran kvar stanja (Convex guidelines), ne
+ * izmišljena greška samo za test.
+ */
+async function seedDuplicateStudioFlag(t: TestConvex) {
+  await t.run((ctx) => ctx.db.insert("platformFlags", { key: STUDIO_FLAG_KEY, enabled: true }));
+  await t.run((ctx) => ctx.db.insert("platformFlags", { key: STUDIO_FLAG_KEY, enabled: true }));
+}
+
+function heartbeatAt(t: TestConvex) {
+  return t.run(async (ctx) => {
+    const row = await ctx.db
+      .query("studioCronHeartbeats")
+      .withIndex("by_key", (q) => q.eq("key", GLOBAL_COST_HEARTBEAT_KEY))
+      .unique();
+    return row?.lastRunAt ?? null;
+  });
+}
+
+function failedAlarmRows(t: TestConvex) {
+  return t.run(async (ctx) => {
+    const rows = await ctx.db.query("studioCostAlarms").collect();
+    return rows.filter((row) => row.type === "cron_failed");
+  });
+}
+
+test("uspešan prolaz osvežava heartbeat", async () => {
+  const t = convexTest(schema, modules);
+  await seedUsage(t, 10);
+  stubResendOk();
+
+  expect(await heartbeatAt(t)).toBeNull();
+  const before = Date.now();
+  await t.action(internal.crons.enforceGlobalCostCap, {});
+  expect(await heartbeatAt(t)).toBeGreaterThanOrEqual(before);
+});
+
+test("pukao prolaz upisuje cron_failed tačno jednom dnevno, šalje tačno jedan mejl i NE pomera heartbeat", async () => {
+  const t = convexTest(schema, modules);
+  await seedUsage(t, 10);
+  await seedDuplicateStudioFlag(t);
+  const fetchMock = stubResendOk();
+
+  await expect(t.action(internal.crons.enforceGlobalCostCap, {})).rejects.toThrow();
+  // Drugi pad istog dana ne sme da pošalje drugi mejl - isto pravilo kao alarm.
+  await expect(t.action(internal.crons.enforceGlobalCostCap, {})).rejects.toThrow();
+
+  const failures = await failedAlarmRows(t);
+  expect(failures).toHaveLength(1);
+  expect(failures[0].message.length).toBeGreaterThan(0);
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+  const [email] = sentEmails(fetchMock);
+  expect(email.subject).toContain("NIJE proveren");
+  expect(email.text).toContain(failures[0].message);
+  // Prolaz koji baci se ceo povuče - heartbeat ostaje kakav je bio (nikad upisan).
+  expect(await heartbeatAt(t)).toBeNull();
+});
+
+test("prolaz koji ponovo uspe posle kvara osvežava heartbeat", async () => {
+  const t = convexTest(schema, modules);
+  await seedUsage(t, 10);
+  await seedDuplicateStudioFlag(t);
+  stubResendOk();
+
+  await expect(t.action(internal.crons.enforceGlobalCostCap, {})).rejects.toThrow();
+  expect(await heartbeatAt(t)).toBeNull();
+
+  // Duplikat se čisti ručno - isto što bi Jovan uradio na dashboardu.
+  await t.run(async (ctx) => {
+    const rows = await ctx.db.query("platformFlags").collect();
+    await ctx.db.delete(rows[1]._id);
+  });
+
+  const result = await t.action(internal.crons.enforceGlobalCostCap, {});
+  expect(result.action).toBe("none");
+  expect(await heartbeatAt(t)).not.toBeNull();
 });

@@ -7,6 +7,7 @@ import { useState } from "react";
 import { Panel, cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
 import type { Doc } from "@/convex/_generated/dataModel";
+import { HEARTBEAT_STALE_MS } from "@/convex/studioCore";
 import { parsePriceRule } from "@/convex/studioPricing";
 import { formatEur } from "@/lib/credits-value";
 import { computeMargin, formatMargin, jobStatusLabel, marginTone } from "@/lib/studio-admin";
@@ -742,6 +743,43 @@ function KillSwitch() {
   );
 }
 
+/**
+ * Heartbeat globalnog plafona (X6, nalaz N5): mrtav cron mora da se vidi i bez
+ * mejla. Crveno je i odsutan red (deployment koji cron nikad nije pokrenuo) i
+ * red stariji od `HEARTBEAT_STALE_MS` - cron se vrti na 15 minuta, pa je sat
+ * vremena daleko iznad svakog pojedinačnog kašnjenja.
+ */
+function CronHealthBanner({
+  now,
+  heartbeatAt,
+  failure,
+}: {
+  now: number;
+  heartbeatAt: number | null;
+  failure: { message: string } | null;
+}) {
+  const stale = heartbeatAt === null || now - heartbeatAt > HEARTBEAT_STALE_MS;
+  const minutesAgo = heartbeatAt === null ? null : Math.round((now - heartbeatAt) / 60000);
+
+  return (
+    <div className="space-y-2">
+      <p className={cn("text-xs font-black", stale ? "text-red-700" : "text-muted")}>
+        Poslednja provera plafona:{" "}
+        {minutesAgo === null
+          ? "nikad"
+          : minutesAgo <= 0
+            ? "upravo sada"
+            : `pre ${minutesAgo} min`}
+      </p>
+      {failure ? (
+        <p className="surface-inset border-2 border-red-700 bg-red-50 p-3 text-xs font-bold text-red-800">
+          Poslednji prolaz je danas pukao: {failure.message}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 function UsageSection() {
   // Zamrznut "sad" - query nikad ne sme sam da čita sat (isti obrazac kao
   // credits-page.tsx i studio-gallery-page.tsx).
@@ -758,6 +796,16 @@ function UsageSection() {
       <div className="mt-5">
         <KillSwitch />
       </div>
+
+      {summary !== undefined ? (
+        <div className="mt-3">
+          <CronHealthBanner
+            now={now}
+            heartbeatAt={summary.costCapHeartbeatAt}
+            failure={summary.costCapCronFailure}
+          />
+        </div>
+      ) : null}
 
       {summary === undefined ? (
         <div className="mt-5 flex min-h-24 items-center justify-center">
