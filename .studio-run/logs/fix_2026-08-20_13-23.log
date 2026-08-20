@@ -1,0 +1,74 @@
+﻿[13:23:08] ==================================================
+[13:23:08]  STUDIO - otkljucavanje i blokeri
+[13:23:08]  Grana:  feat/studio-faza-a
+[13:23:08]  Koraka: 8
+[13:23:08]  Mrezni pad: cekanje 180s, do 5 pokusaja
+[13:23:08] ==================================================
+[13:23:08] Grana: feat/studio-faza-a
+[13:23:08] 
+[13:23:08] --------------------------------------------------
+[13:23:08]  W1  |  Otkljucaj Studio za admina i moderatore
+[13:23:08]  model=opus  effort=high
+[13:23:08] --------------------------------------------------
+[13:23:08] DRY RUN - prompt zapisan.
+[13:23:08] 
+[13:23:08] --------------------------------------------------
+[13:23:08]  W2  |  R1: globalni dnevni plafon troska
+[13:23:08]  model=opus  effort=max
+[13:23:08] --------------------------------------------------
+[13:23:09] DRY RUN - prompt zapisan.
+[13:23:09] 
+[13:23:09] --------------------------------------------------
+[13:23:09]  W3  |  R2 i R3: popust bez osnova i merena kolicina
+[13:23:09]  model=opus  effort=max
+[13:23:09] --------------------------------------------------
+[13:23:09] DRY RUN - prompt zapisan.
+[13:23:09] 
+[13:23:09] --------------------------------------------------
+[13:23:09]  W4  |  R4: vlasnistvo nad uploadovanim fajlom
+[13:23:09]  model=opus  effort=high
+[13:23:09] --------------------------------------------------
+[13:23:09] DRY RUN - prompt zapisan.
+[13:23:09] 
+[13:23:09] --------------------------------------------------
+[13:23:09]  W5  |  R3 pravo resenje: trajanje iz zaglavlja fajla
+[13:23:09]  model=opus  effort=max
+[13:23:09] --------------------------------------------------
+[13:23:09] DRY RUN - prompt zapisan.
+[13:23:09] 
+[13:23:09] --------------------------------------------------
+[13:23:09]  W6  |  actualCostUsd i nocna rekonsilijacija
+[13:23:09]  model=opus  effort=high
+[13:23:09] --------------------------------------------------
+[13:23:09] DRY RUN - prompt zapisan.
+[13:23:09] 
+[13:23:09] --------------------------------------------------
+[13:23:09]  W7  |  Sitnice iz sekcije 6 izvestaja
+[13:23:09]  model=sonnet  effort=high
+[13:23:09] --------------------------------------------------
+[13:23:09] DRY RUN - prompt zapisan.
+[13:23:09] 
+[13:23:09] --------------------------------------------------
+[13:23:09]  WRV  |  Zavrsni review
+[13:23:09]  model=opus  effort=xhigh
+[13:23:09] --------------------------------------------------
+[13:23:09] DRY RUN - prompt zapisan.
+[13:23:09] 
+[13:23:09] ==================================================
+[13:23:09]  GOTOVO
+[13:23:09] ==================================================
+[13:23:09] Ukupna cena: USD 0.00
+[13:23:09] Grana: feat/studio-faza-a  (NIJE push-ovana, NIJE deploy-ovana)
+[13:23:09] 
+[13:23:09] Kad se vratis:
+[13:23:09]   1. docs\STUDIO-FIX-REPORT.md   - nov status R1-R5, spremnost za naplatu
+[13:23:09]   2. docs\STUDIO-PROGRESS.md     - dnevnik W1-W7
+[13:23:09]   3. npm run dev  pa  /sr/app/studio
+[13:23:15] ==================================================
+[13:23:15]  STUDIO - otkljucavanje i blokeri
+[13:23:15]  Grana:  feat/studio-faza-a
+[13:23:15]  Koraka: 8
+[13:23:15]  Mrezni pad: cekanje 180s, do 5 pokusaja
+[13:23:15] ==================================================
+[13:23:15] Grana: feat/studio-faza-a
+[13:23:15] Nekomitovane izmene - commitujem pre starta.

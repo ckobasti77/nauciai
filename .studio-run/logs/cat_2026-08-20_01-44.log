@@ -45,3 +45,24 @@
 [04:27:01]  SRV  |  Zavrsni review kataloskog run-a
 [04:27:01]  model=opus  effort=xhigh
 [04:27:01] --------------------------------------------------
+[04:46:58] Commit e73eb3f - 5 putanja
+[04:46:58] SRV -> OK  (20 min, USD 7.39)
+[04:46:58] 
+[04:46:58] ==================================================
+[04:46:58]  GOTOVO
+[04:46:58] ==================================================
+[04:46:58] Korak Status Minuta CenaUSD Commit 
+[04:46:58] ----- ------ ------ ------- ------ 
+[04:46:58] S3    OK         31 10.79   bd3e847
+[04:46:58] S4    OK         27 9.94    3f7c813
+[04:46:58] S5    OK         28 9.37    ba60ef6
+[04:46:58] S6    OK         31 12.55   002de0e
+[04:46:58] S7    OK         45 22.63   57b8c56
+[04:46:58] SRV   OK         20 7.39    e73eb3f
+[04:46:58] Ukupna cena: USD 72.66
+[04:46:58] Grana: feat/studio-faza-a  (NIJE push-ovana, NIJE deploy-ovana)
+[04:46:58] 
+[04:46:58] Kad se vratis:
+[04:46:58]   1. docs\STUDIO-CATALOG-REPORT.md  - marze po modelu, rutiranje, rizici
+[04:46:58]   2. docs\STUDIO-PROGRESS.md        - dnevnik po koracima
+[04:46:58]   3. npm run dev  pa  /sr/app/studio
