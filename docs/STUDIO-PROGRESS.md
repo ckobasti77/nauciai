@@ -3841,3 +3841,211 @@ prodje: sve opcije kontrola koje diraju cenu, u svakom režimu, sa klizačima na
 donjoj, srednjoj i gornjoj vrednosti. Kontrole koje ne diraju cenu (odnos
 stranica, glas, klizači izgovora) ne ulaze u proizvod - ne mogu da obore maržu,
 a udesetostručile bi prostor.
+
+## S6 - Biblioteka komponenti: kontrole, slotovi, dugme, izbor modela   (20.08.2026 03:15-03:45)
+
+**Fajlovi:**
+- `lib/studio-params.ts` - NOV. Čista logika `<ParamForm>`-a i `<PriceTag>`-a:
+  vidljive kontrole po režimu, vrednosti forme, `buildParams`, `creditsFor`,
+  `priceDelta`, `stepPriceDelta`, `creditsPerUnit` i formatiranje.
+- `lib/studio-slots.ts` - NOV. Ugovor ulaznih režima iz sekcije 5: parsiranje
+  `inputSpec`-a, validacija MIME i veličine, čišćenje pri promeni režima,
+  "šta fali" poruka, `FramePair`, brojanje ulaznih slika za `extras`.
+- `lib/studio-models.ts` - NOV. `parseStudioModel` (JSON polja reda kataloga),
+  filteri i pretraga pickera, grupisanje po porodici, cena za listu.
+- `lib/studio-messages.ts` - dodat `GenerateBlock` i `generateBlockMessage`;
+  postojeći tekstovi nisu dirani.
+- `components/studio/price-tag.tsx` - NOV. `<PriceTag>`.
+- `components/studio/param-control.tsx` - NOV. `<ParamControl>`, sedam tipova.
+- `components/studio/param-form.tsx` - NOV. `<ParamForm>` i `useParamValues`.
+- `components/studio/drop-slot.tsx` - NOV. `<DropSlot>`, `<DropSlotGrid>`,
+  `<FrameSlotPair>`, `<ReferenceSlots>`, `<FullScreenDropOverlay>`.
+- `components/studio/use-slot-upload.ts` - NOV. Upload sa trakom napretka.
+- `components/studio/mode-switcher.tsx` - NOV. `<ModeSwitcher>`.
+- `components/studio/model-picker.tsx` - NOV. `<ModelPicker>`.
+- `convex/studio.ts` - dodata mutacija `createInputUploadUrl` (8 linija, isti
+  obrazac kao `lab.createLabOutputUploadUrl`).
+- `lib/studio-params.test.ts`, `lib/studio-slots.test.ts`,
+  `lib/studio-models.test.ts` - NOVI, 51 test.
+- `docs/STUDIO-PROGRESS.md` - ova sekcija.
+
+**Šta je uradjeno:**
+
+Napisana je cela biblioteka iz sekcije 6 kataloga i **nijedna komponenta ne zna
+ime nijednog modela** - pretraga za `slug ===` u `components/studio/` je prazna.
+Sve grana po `paramSpec.type`, `inputSpec` slotovima i `priceRule` mapi. Zabrane
+su i dalje rupe u cenovnoj mapi, ne spiskovi: opcija koju `availableOptionValues`
+ne vrati se u kontroli **gasi** (ne skriva), pa Seedance Mini nema 1080p iz
+istog izvora iz kojeg ga nema ni server.
+
+**Cena postoji na tačno jednom mestu.** `lib/studio-params.ts` uvozi
+`computeCredits` iz `convex/studioPricing.ts` - katalog 1.3 to izričito traži
+("uvezena i u Convex i u browser"), pa u ovom sloju nema nijedne aritmetičke
+operacije nad cenom. `useParamValues` vraća JEDAN objekat parametara koji hrani
+i `<PriceTag>`, i `<GenerateButton>`, i `createJob`; test tvrdi da taj objekat
+prodje kroz serversku kapiju `sanitizeSpecParams` i da naplaćena cifra ostane
+identična prikazanoj, za svih 30 modela u svakom njihovom režimu.
+
+**Slotovi su kompletni sa validacijom pre uploada.** MIME i veličina se
+proveravaju pre nego što ijedan bajt krene (poruka nabraja šta slot prima),
+upload ide preko `XMLHttpRequest`-a zbog trake napretka, pregled je lokalni
+`blob:` URL, video pregled je `preload="metadata"` sa `#t=0.1`. Mreža ima
+brojač `3/9`, prevlačenje za redosled i strelice za istu radnju sa tastature.
+Par kadrova stoji sa strelicom izmedju i traži oba, a reference su numerisane
+jer ih prompt citira po broju.
+
+**Prekidač režima čisti i priznaje.** `pruneFilesForMode` izbaci slotove kojih
+u novom režimu nema i skrati one koji primaju manje, a ispod prekidača se ispiše
+šta je sklonjeno - fajl ne nestaje bez reči. Cena se preračunava sama, jer režim
+ulazi u `computeCredits` (`modeMultipliers`).
+
+**ODLUKE:**
+
+1. **Repo NEMA shadcn, i nije uveden.** S6.md kaže "Repo koristi shadcn",
+   ali provereno: nema `components.json`, nema nijednog `@radix-ui` paketa,
+   `components/ui/` sadrži samo `primitives.tsx` sa ručno pisanim skicoznim
+   dizajnom. `npx shadcn init` bi doneo novu zavisnost, prepisao
+   `globals.css` i uveo drugi dizajn jezik - a pravila run-a traže uklapanje u
+   postojeće stranice i hirurške izmene. Kontrole su zato napisane nad
+   postojećim primitivama i klasama koje `studio-page.tsx` već koristi
+   (`border-2 border-ink`, `bg-paper`, `text-muted`, `shadow-[4px_4px_0_0_...]`).
+   Mapiranje iz tabele 1.2 je ispoštovano po PONAŠANJU: `segmented` je
+   jednostruki toggle grupe sa `aria-pressed`, `switch` je `role="switch"` sa
+   `aria-checked`, `slider` je `input type=range`, `select` je nativni `select`.
+2. **Testovi ne renderuju React.** Suite je `environment: "edge-runtime"`, bez
+   `jsdom` i bez `@testing-library/react`; dodavanje oba je nova zavisnost u
+   nenadziranom run-u bez garancije mreže. Umesto toga je SVE što komponenta
+   prikazuje izmešteno u čiste funkcije (`lib/studio-params.ts`,
+   `lib/studio-slots.ts`, `lib/studio-models.ts`), a komponente su tanke - cifra
+   koju `<PriceTag>` ispisuje je doslovno `priceDeltaLabel(priceDelta(...))`,
+   i baš to test tvrdi. Isti obrazac koji repo već koristi za
+   `lib/studio-form.ts` i `lib/studio-admin.ts`.
+3. **Klijentski kod OVDE uvozi `convex/studioPricing.ts` direktno**, iako
+   `lib/studio-form.ts` i `lib/studio-admin.ts` matematiku duplira. Katalog 1.3
+   je izričit ("nema druge računice cene nigde u kodu"), a duplirana formula bi
+   bila tačno ta druga računica. Uvezeni moduli (`studioPricing`,
+   `studioParamSpec`) su čisti, bez `ctx`, bez `_generated` - build to potvrdjuje.
+   Stara dva fajla nisu dirana; oni pripadaju starom `modelCatalog` toku.
+4. **`<DurationSlider>` nije zasebna komponenta.** Tabela iz sekcije 6 ga
+   nabraja, ali S6.md ga ne traži, a jedini način da ga napišem je da zna ključ
+   `duration` - dakle komponenta koja poznaje jedan konkretan parametar. Isto
+   ponašanje daje `<ParamControl type="slider">`: vrednost i jedinica u
+   zaglavlju, `<PriceTag>` sa cenom JEDNOG koraka, i ukupna cena na dugmetu koja
+   se pomera dok se klizač vuče.
+5. **Dodata je mutacija `studio.createInputUploadUrl`.** Bez adrese za upload
+   `<DropSlot>` ne može da ispuni nijedan svoj zahtev iz S6.md (traka
+   napretka, validacija pre uploada), a duplirati upload u svakoj stranici je
+   suprotno smislu biblioteke. Mutacija je 8 linija, iza `requireUserId`, i ne
+   menja nijedno postojeće ponašanje. Vezu `storageId` -> posao pravi tek
+   `createJob` (S7).
+6. **Cena je `null`, nikad nula, kad količina nije poznata.** TTS pre kucanja i
+   lipsync pre kačenja videa nemaju cenu; dugme tada piše samo "Generiši" i
+   zaključano je. Nula na dugmetu znači besplatno, a to nije istina.
+7. **`priceDelta` ima i stanje `same`.** Kling na 4K naplaćuje isto sa zvukom i
+   bez njega (katalog 3.1) - značka tada piše "ista cena" umesto da nestane,
+   jer prekidač koji naizgled ne radi ništa izgleda kao kvar.
+8. **Značka je `×N` samo kad je odnos ceo broj >= 2**, inače razlika u kreditima
+   sa znakom. Seedream 1,5K -> 2K je `×2`; Nano Banana 1K -> 4K je `+14 kr`,
+   jer `30/16` nije ceo broj i "×1,9" bi bilo lažno precizno.
+9. **Par kadrova se drži imenovano (`FramePair`), ne kao niz od dva.** U gustom
+   nizu prazan POČETNI kadar uz popunjen završni izgleda isto kao popunjen
+   početni, pa bi poruka glasila "Dodaj završni kadar" kad fali početni.
+   `missingInput` prima par kao opcioni argument i tada imenuje tačan kadar.
+10. **Obavezni ulazi su tri pravila, ne spisak po modelu:** `first_last` traži
+    oba kadra, `reference` bar jednu referencu bilo koje vrste (model koji prima
+    i slike i video ne sme da traži oboje), svaki drugi režim po jedan fajl u
+    svakom svom slotu. Izuzetak je slot koji je isključila VREDNOST KONTROLE -
+    Kling lipsync sa izvorom govora "tekst" ne traži zvuk - i za njega postoji
+    argument `optional: string[]`. Odluku donosi stranica, ali po vrednosti
+    parametra, nikad po slugu.
+11. **Prijem preko celog ekrana je uključiv, ne automatski.** `singleDropSlot`
+    kaže ima li režim tačno jedan slot (tada je ceo ekran smislen cilj po
+    AGENTS.md); komponenta prima `fullScreen` zastavicu jer sama vidi samo svoj
+    slot, ne ceo režim. Stranica iz S7 je uključuje tim upitom - zapisano je i
+    pod "Za Jovana".
+12. **Granice veličine fajla su izabrane, ne propisane:** slika 10 MB (avatar je
+    5, referenca iz telefona ume da bude veća), zvuk 50 MB, video 200 MB.
+    Katalog ih ne daje. Provera je na klijentu i sprečava besmisleno čekanje;
+    kad S7 spoji `createJob` sa ulazima, ista granica treba i na serveru.
+13. **`extras` količine (šesta referenca, druga ulazna slika) forma BROJI, ali
+    server meri.** `measuredExtraCounts` broji okačene slike samo da bi cena na
+    dugmetu bila tačna pre klika; naplata i dalje ide po onome što server prebroji.
+14. **Stanje forme se podešava tokom rendera, ne u efektu.** Efekat bi prvo
+    iscrtao cenu za stari režim pa je ispravio, a cena ne sme da treperi.
+    `useParamValues` prepoznaje promenu modela po REFERENCI `paramSpec`-a, pa
+    stranica mora da parsira red jednom (`useMemo`) - zapisano za S7.
+
+**Testovi:** 51 nov (529 -> 580).
+
+`lib/studio-params.test.ts` (20) - `<ParamForm>` i `<PriceTag>`:
+- svaki model u svakom režimu ima cenu za podrazumevani izbor;
+- **`buildParams` prodje kroz `sanitizeSpecParams` i naplaćena cena ostane
+  jednaka prikazanoj** - 30 modela, svi režimi;
+- cena forme je doslovno `computeCredits` nad istim objektom (nema druge
+  računice), i to za svaku opciju svake kontrole koja dira cenu;
+- značka svake opcije je tačno razlika `computeCredits`-a sa hipotetičkom
+  vrednošću (`base + delta === next`, odnosno `base × factor === next`);
+- `×2` kod Seedream-a 5 Pro, `+14 kr` / `−4 kr` kod Nano Banane 2, "ista cena"
+  kod Klinga na 4K, prazna značka za kombinaciju bez cene;
+- cena bez poznate količine je `null` (TTS bez teksta), a sa 1 000 znakova 22;
+- Seedance Mini nema 1080p ni u formi ni u ceni;
+- kontrola sa istim ključem u dva režima daje tačno jednu po režimu, i promena
+  režima spušta 1080p na 720p a zadržava trajanje;
+- klizač pokazuje cenu jednog koraka i na gornjoj granici;
+- `kr`/`cr` i `22 kr/s` / `21,9 kr/s` / `21.9 cr/s`.
+
+`lib/studio-slots.test.ts` (19) - slotovi:
+- slotovi režima se čitaju iz reda kataloga, neispravan JSON ne ruši formu;
+- režim sa jednim slotom je jedini smislen drop cilj, sa dva nije;
+- validacija: pogrešan tip nabraja šta slot prima, prevelik fajl imenuje
+  granicu, prazan fajl se odbija, video ima veću granicu od slike;
+- promena režima: slot kojeg nema ispada, slot koji prima manje se SKRAĆUJE, i
+  oba se prijave;
+- "šta fali": oba kadra sa tačnim imenom kadra (i kad je popunjen samo završni),
+  bar jedna referenca, oba imenovana slota, slot isključen parametrom;
+- broje se samo SLIKE za `extras`, a pravilo bez `extras` ne broji ništa.
+
+`lib/studio-models.test.ts` (12) - `<ModelPicker>`:
+- svih 30 redova prodje kroz `parseStudioModel` sa svim složenim poljima;
+- red bez upotrebljivog pravila se ne nudi, neispravne `capabilities` ne obaraju red;
+- filter po vrsti, filter po zvuku (i prekidač i zastavica), pretraga po imenu,
+  slugu i porodici, grupisanje po porodici bez gubitka modela;
+- cena u listi: Seedream 4.5 = 9, Gemini Omni prati trajanje (5 s = 110),
+  lipsync nema cenu unapred a sa pet sekundi ima 16.
+
+**Rezultat verifikacije:** sve četiri komande čiste.
+- `npx convex codegen` - **prošlo** (exit 0, `Running TypeScript...` bez greške)
+- `npm run lint` - **prošlo** (`✖ 17 problems (0 errors, 17 warnings)`; istih 17
+  zatečenih upozorenja kao posle S5 - 7 u `admin-inline-actions.tsx`,
+  `dashboard-content.tsx` i `public-course-intro-video.tsx`, 9 u
+  `convex/crons.ts` iz nedovršenog S0, 1 u `get_google_creds.js`. **Nijedno
+  upozorenje nije iz fajlova ovog koraka.** Jednu grešku koju je lint uhvatio -
+  `Cannot access refs during render` u `drop-slot.tsx` - popravio sam prelaskom
+  na `useEffectEvent`, isti obrazac koji `profile-editor.tsx` već koristi.)
+- `npm run test` - **prošlo** (`Test Files 50 passed (50) / Tests 580 passed (580)`)
+- `npm run build` - **prošlo** (`✓ Compiled successfully in 6.2s`,
+  `Finished TypeScript in 15.0s`, `60/60` statičkih stranica, sve rute na broju)
+
+**BLOKADA:** nema.
+
+**Za Jovana:**
+1. **Komponente još nisu ni na jednoj stranici** - S6 je biblioteka, S7 je
+   sastavlja. Stranice rade nepromenjeno; ništa u ovom koraku ne dira postojeći
+   tok naplate ni stari `modelCatalog`.
+2. **Odluka 1 traži tvoju potvrdu:** S6.md tvrdi da repo koristi shadcn, a ne
+   koristi. Kontrole su napisane u postojećem skicoznom stilu. Ako želiš baš
+   shadcn, to je zaseban korak (nova zavisnost + `globals.css`) i bolje ga je
+   uraditi svesno nego usput.
+3. **Provera u browseru tek posle S7.** Kad je pustiš, gledaj tri stvari:
+   pomera li se cifra na dugmetu dok vučeš klizač trajanja; da li značka uz 4K
+   kod Klinga piše "ista cena" kad je zvuk uključen; i da li prevlačenje fajla
+   preko celog ekrana radi tamo gde režim ima jedan slot.
+4. **Za S7, tri stvari koje biblioteka očekuje od stranice:** (a) `paramSpec`
+   se parsira JEDNOM po modelu (`useMemo`), jer `useParamValues` promenu modela
+   prepoznaje po referenci; (b) `fullScreen` se uključuje upitom
+   `singleDropSlot(inputSpec, mode) !== null`; (c) slot koji je isključila
+   vrednost kontrole (Kling lipsync, izvor govora "tekst") ide kao
+   `optional: ["audio"]` u `missingInput`.
+5. **Granica veličine fajla postoji samo na klijentu** (odluka 12). Kad S7 spoji
+   ulaze sa `createJob`-om, ista granica mora i na server - inače je zaobilazi
+   svako ko pozove mutaciju direktno.

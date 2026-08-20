@@ -230,3 +230,47 @@ export const GALLERY_NO_MATCHES: EmptyState = {
   },
   cta: { sr: "Resetuj filtere", en: "Reset filters" },
 };
+
+/**
+ * Zašto dugme za generisanje ne radi. Svako stanje ima svoju rečenicu i
+ * sledeći korak - "Generiši" koje je samo sivo je poruka koju korisnik ne ume
+ * da pročita (STUDIO-CATALOG-V4 sekcija 6).
+ *
+ * `inputs` nosi već sastavljenu poruku iz `lib/studio-slots.ts`
+ * (`missingInputMessage`), jer koji ulaz fali zna `inputSpec`, ne ovaj spisak.
+ */
+export type GenerateBlock =
+  | { kind: "paused" }
+  | { kind: "not_enrolled" }
+  | { kind: "credits"; needed: number }
+  | { kind: "active"; max: number }
+  | { kind: "inputs"; message: string }
+  | { kind: "prompt" }
+  | { kind: "price" };
+
+export function generateBlockMessage(block: GenerateBlock, locale: Locale): string {
+  switch (block.kind) {
+    case "paused":
+      return STUDIO_PAUSED.body[locale];
+    case "not_enrolled":
+      return STUDIO_NOT_ENROLLED.body[locale];
+    case "credits":
+      return locale === "sr"
+        ? `Ova generacija košta ${block.needed} kr, a toliko trenutno nemaš na nalogu.`
+        : `This generation costs ${block.needed} credits, which is more than your balance.`;
+    case "active":
+      return locale === "sr"
+        ? `Sačekaj da se završi trenutna generacija - najviše ${block.max} posla mogu da rade istovremeno.`
+        : `Wait for the current generation to finish - at most ${block.max} jobs can run at once.`;
+    case "inputs":
+      return block.message;
+    case "prompt":
+      return locale === "sr"
+        ? "Napiši opis da bi dugme proradilo."
+        : "Write a prompt to enable the button.";
+    case "price":
+      return locale === "sr"
+        ? "Ova kombinacija podešavanja nema cenu. Promeni rezoluciju ili tarifu."
+        : "This combination of settings has no price. Change the resolution or the tier.";
+  }
+}

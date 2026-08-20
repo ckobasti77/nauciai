@@ -442,6 +442,24 @@ export const deleteJob = mutation({
 });
 
 /**
+ * Adresa za upload jednog ulaznog fajla (STUDIO-CATALOG-V4 sekcija 5). Isti
+ * obrazac kao `lab.createLabOutputUploadUrl` i `profiles.createAvatarUploadUrl`:
+ * URL važi kratko i traži prijavljenog korisnika.
+ *
+ * Slot, tip i veličinu proverava `<DropSlot>` PRE poziva, a vezu
+ * `storageId` -> posao pravi tek `createJob`, koji `inputs` upisuje pod svojim
+ * korisnikom.
+ */
+export const createInputUploadUrl = mutation({
+  args: {},
+  handler: async (ctx) => {
+    await requireUserId(ctx);
+
+    return ctx.storage.generateUploadUrl();
+  },
+});
+
+/**
  * Sve što playground mora da zna PRE nego što korisnik pritisne dugme, u
  * jednom upitu: da li je Studio uopšte upaljen (kill switch iz 4.4) i koliko
  * poslova korisnik već ima u letu. Bez ovoga bi UI oba stanja saznao tek iz
