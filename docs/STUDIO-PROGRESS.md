@@ -4282,3 +4282,80 @@ podešavanja iz `paramSpec`-a (bez prompta i bez sirovih ključeva).
    (globalni plafon troška iz S0 nije dovršen - konstante se sada PRIKAZUJU u
    admin ekranu, ali ih i dalje niko ne sprovodi), a `docs/STUDIO-PROGRESS.md`
    nema sekcije za S1 i S2.
+
+---
+
+## SRV - Revizija kataloškog run-a (S0-S7)   (2026-08-20 04:45)
+
+**Fajlovi:** `docs/STUDIO-CATALOG-REPORT.md` (nov), `docs/STUDIO-PROGRESS.md`
+(ova sekcija). **Nijedan fajl proizvoda nije menjan** - ovo je revizija, ne kod.
+Privremeni revizorski alat `convex/providers/zzaudit.test.ts` je napisan,
+pokrenut i obrisan pre završne verifikacije.
+
+**Šta je uradjeno:** Puštene sve četiri komande i zabeležen tačan izlaz; pročitan
+`git log` i `git diff --stat main...HEAD` (252 fajla, +40 951/-534); pročitane
+sekcije S0-S7 progresa i sav nov kod u `convex/providers/`, `convex/studioPricing.ts`,
+`convex/studio.ts`, `convex/crons.ts`, `convex/studioParamSpec.ts`,
+`convex/studioJobCore.ts`, `convex/studioActions.ts` i nove komponente. Nabrojan
+je **ceo prostor parametara svih 30 modela - 3 965 cenjivih kombinacija** - i za
+svaku izračunata marža; provereno je programski rutiranje protiv sekcije 7
+kataloga i slaganje `inputModes`/`inputSpec`/`endpoints`/`paramSpec`/`priceRule`.
+Ponovo su prodjeni rizici a-f iz `STUDIO-NIGHT-REPORT.md` i dodato šest novih
+staza koje je zadatak tražio. Izveštaj je `docs/STUDIO-CATALOG-REPORT.md`.
+
+**ODLUKE:**
+1. **"Najgora marža" se računa iz cenovnog pravila, a odstupanje stvarnog troška
+   se izveštava odvojeno.** Po pravilu marža ne može ispod 2,5x (algebra:
+   `ceil(x) >= x`, pa `marza >= 216,25/86,5`), pa bi tabela sa samo tim brojem
+   bila tačna i beskorisna. Zato je uz nju izračunata i marža za scenarije u
+   kojima provajder naplati više nego što pravilo pretpostavlja - tamo idu do
+   **0,002x**. Bez te druge tabele izveštaj bi tvrdio da je sve u redu.
+2. **Kreditne tabele u `STUDIO-CATALOG-V4.md` se razilaze sa motorom, i motor je
+   ostavljen kakav jeste.** Katalog kolone „kr/s" i „5s" računa kao
+   `ceil(po jedinici) x broj jedinica`, a `computeCredits` radi `ceil` tačno
+   jednom na kraju - što je doslovno formula iz zaglavlja kataloga
+   (`krediti = ceil(nabavno_USD x 216,25)`). Razlika: Kling 3 na 5 s je 91 a ne
+   95, `tts` na 1 000 znakova 22 a ne 25, `stt` 2/min a ne 3, lipsync minimum 16
+   a ne 20, `sfx` na 5 s 3 a ne 5. Po pravilu run-a **vrednost iz kataloga se
+   koristi** - a vrednost iz kataloga je `baseUsd`, koji je prepisan tačno;
+   kreditne kolone su izvedene i sa sobom u neskladu. Marža ostaje >= 2,5x u
+   svakom slučaju, pa nije dirano ništa; upisano je u izveštaj (sekcija 1.1) kao
+   stavka za ispravku u katalogu.
+3. **Legacy `modelCatalog` put je prijavljen kao rizik, ne uklonjen.** Uklanjanje
+   bi bilo menjanje ponašanja van obima revizije. Umesto toga je u ručnim
+   koracima izričito rečeno da se `seed:seedModelCatalog` NE pušta.
+4. **Rizik (d) iz noćnog izveštaja (Stripe dupla dodela) je označen kao van
+   obima**, a ne kao rešen: Stripe put nije diran ni u jednom koraku S0-S7, pa
+   bi nov status bio izmišljen.
+
+**Testovi:** Nijedan nov trajan test - korak je revizija. Privremeni alat
+(`zzaudit.test.ts`, obrisan) je nabrajao pun prostor parametara po modelu,
+poredio `provider` sa sekcijom 7 kataloga, proveravao uzajamno slaganje
+`inputModes`/`endpoints`/`inputSpec`/`paramSpec`/`priceRule`, i računao maržu za
+scenarije odstupanja stvarnog troška. Njegovi nalazi su u izveštaju; postojećih
+646 testova je ostalo netaknuto.
+
+**Rezultat verifikacije:** codegen ✅ (exit 0) / lint ✅ (0 errors, 17 warnings) /
+test ✅ (55 fajlova, 646 testova) / build ✅ (compiled successfully, 60/60 strana).
+Sve četiri puštene ponovo posle brisanja privremenog alata.
+
+**BLOKADA:** nema.
+
+**Za Jovana:** Ceo spisak je u `docs/STUDIO-CATALOG-REPORT.md` sekcija 7. Tri
+stvari pre prvog evra, po ceni:
+- **R3** - sedam modela sa merenom količinom (`kling-avatar`, `kling-lipsync`,
+  `kling-motion`, `stt`, `voice-changer`, `audio-isolation`, `dubbing`) naplaćuju
+  onoliko koliko klijent prijavi. Za 13 kredita se dobija $72 posla kod
+  ElevenLabs-a. **Ugasi ih (`isEnabled: false`) dok se ne popravi.**
+- **R2** - `reference_with_video` daje 40% popusta a ne naplaćuje ulazni video
+  (`referenceVideoBillableSeconds` nije pozvana nigde). Marža 1,50x bez ulaznog
+  videa, **0,50x** sa njim. Izbaci `reference` iz `inputModes` Seedance-a ili ih
+  ugasi.
+- **R1** - globalni dnevni plafon troška ($50 alarm / $100 kill) **ne postoji kao
+  cron**; `decideGlobalCostAction` se uvozi u `crons.ts` i nikad ne poziva. Dok
+  to ne proradi, jedina automatska zaštita je tvrd plafon u fal dashboardu - a on
+  ne pokriva ni Google ni BytePlus.
+
+Uz to: BytePlus traži **$30 po Seedance modelu zaključano na nalogu, $60 za oba**,
+i ima **3 istovremena Seedance posla po celom nalogu**, ne po korisniku.
+**Ne puštaj `seed:seedModelCatalog`** (R5 - vraća FLUX i stare rute na fal).
