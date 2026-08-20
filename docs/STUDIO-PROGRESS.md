@@ -6266,3 +6266,263 @@ errors, 8 warnings (svih 8 zateceno, nijedan u fajlovima ovog koraka) ·
 4. **N2 (lazna kolicina koju plafoni mere) i dalje stoji.** Ovaj korak je
    zatvorio SAMO N5 i N7; STUDIO-FIX-REPORT.md sekcija 5 tacka 2 je i dalje
    najskuplji preostali rizik.
+
+---
+
+## X7 - Pravni tekstovi, prihvatanje uslova, PDV i tri Stripe dogadjaja   (21. avgust 2026, 01:40)
+
+**Fajlovi:**
+
+Dodato:
+- `lib/legal-copy.ts` - oba pravna dokumenta kao podaci, srpski i engleski
+- `lib/legal-copy.test.ts`, `lib/legal-pages.test.ts`
+- `components/marketing/legal-page.tsx` - jedan izgled za oba dokumenta
+- `app/[locale]/(marketing)/uslovi-studio/page.tsx`
+- `app/[locale]/(marketing)/politika-privatnosti/page.tsx`
+
+Izmenjeno:
+- `convex/schema.ts` - `users.acceptedStudioTermsAt`, `creditLots.revokedAt`,
+  nov tip transakcije `revocation`, nova tabela `creditReversals`
+- `convex/creditsCore.ts` - sekcija "Stripe -> povracaji": `chargeReversal`,
+  `StripeReversal`, `StripeReversalKind`
+- `convex/credits.ts` - `applyStripeReversal`
+- `convex/studio.ts` - `acceptStudioTerms`; `createJob` odbija
+  `USLOVI_NEPRIHVACENI`, `SPOR_U_TOKU`, `SALDO_U_MINUSU`; `getStudioState`
+  vraca `hasAcceptedTerms`
+- `app/api/stripe/webhook/route.ts` - `charge.refunded`,
+  `charge.dispute.created`, `invoice.payment_failed`
+- `lib/stripe.ts` - `checkoutTaxParams()` na sve tri Checkout sesije
+- `lib/convex-http.ts` - referenca na `credits:applyStripeReversal`
+- `lib/studio-messages.ts` - tri nove poruke, `STUDIO_TERMS_GATE`,
+  `PRIVACY_POLICY_PATH`
+- `components/app/studio-page.tsx` - `StudioTermsGate`
+- `convex/credits.test.ts`, `convex/studio.test.ts`,
+  `convex/studioCatalogJob.test.ts`, `convex/studioSettlement.test.ts`,
+  `app/api/stripe/webhook/route.test.ts`, `lib/stripe.test.ts`,
+  `lib/studio-messages.test.ts`
+
+**Sta je uradjeno:** Repo je do sada imao nula pravnih tekstova - `find app
+-iname "*terms*"` je vracao prazno, a string "nepovratni" nije postojao nigde.
+Sada postoje dva dokumenta na obe lokalizacije, pisana kao podaci, sa brojevima
+koji se UVOZE iz koda (`CREDIT_LIFETIME_MONTHS`, `OUTPUT_RETENTION_DAYS`), pa
+izmena roka u kodu obara test umesto da tiho ucini ugovor netacnim. Pre prvog
+posla u Studiju korisnik jednom cekira "imam 18 godina i prihvatam uslove", sto
+se upisuje kao vremenski pecat na `users.acceptedStudioTermsAt`; `createJob`
+bez pecata baca `USLOVI_NEPRIHVACENI`, i admin i moderator prolaze kroz istu
+kapiju. Na sve tri Checkout sesije - i pretplate i paket kredita - dodat je
+`automatic_tax` i `tax_id_collection`. Webhook je dobio tri dogadjaja kojih
+nije bilo: `charge.refunded` oduzima kredite koje je ta uplata dodelila i, ako
+su vec potroseni, ostavlja saldo u minusu koji zatvara Studio;
+`charge.dispute.created` uz to ostavlja i bravu na nalogu koja se ne skida
+dopunom; `invoice.payment_failed` obelezava pretplatu i ne dodeljuje ciklusne
+kredite. Cenovni motor `convex/studioPricing.ts` nije dirnut.
+
+**ODLUKE:**
+
+1. **`acceptedStudioTermsAt` je na `users`, a ne na tabeli `profiles`.** Zadatak
+   trazi polje na "profiles", ali ta tabela u ovom repou ne postoji: profil JE
+   `users` (`helpers.getCurrentProfile` cita bas nju, `schema.ts` je zove
+   `authUsers`). Polje je zato na `users`, uz komentar zasto.
+
+2. **`customer_update: { address: "auto" }` se NE salje bezuslovno.** Stripe ga
+   prima iskljucivo uz `customer` ("Can only be provided when `customer` is
+   provided", `node_modules/stripe/cjs/resources/Checkout/Sessions.d.ts:2184`),
+   a sve tri postojece sesije kupca imenuju preko `customer_email` i Customer-a
+   pravi sam Checkout. Bezuslovno slanje bi svaku kupovinu oborilo na 400 -
+   gore nego da PDV-a nema. Resenje: `checkoutTaxParams(customerId?)` ga dodaje
+   samo kad sesija ponese postojeceg `customer`-a; `automatic_tax` i
+   `tax_id_collection` idu bezuslovno. Test tvrdi oba dela.
+
+3. **Refundacija oduzima PUN dodeljen iznos, i kod delimicnog povracaja.**
+   Zadatak trazi "tacno dodeljen iznos". Kredit koji je pola placen ne postoji,
+   a delimican povracaj je ionako rucna odluka podrske - ispravka ide novim
+   grantom, ne polovinom lota.
+
+4. **"Negativan saldo" je namerno odstupanje kesa od zbira lotova.**
+   `creditBalances.balance` je inace kes zbira `creditLots.remaining`.
+   Povlacenje oduzima `granted`, ne `remaining`, pa razlika (potroseni deo)
+   ostaje kao minus. To je potrazivanje, ne greska u knjizi - i jedini nacin da
+   se "ako su vec potroseni, upisi negativan saldo" uopste zapise.
+
+5. **Brava zbog spora je red u `creditReversals`, ne polje na korisniku.**
+   Chargeback traje nedeljama i brava mora da prezivi dopunu kredita; da je
+   izvedena iz balansa, kupovina novog paketa bi je skinula. Skida se
+   uklanjanjem reda kad se spor resi - rucno, `npx convex run`. Admin ekran za
+   to nije pravljen, jer bi to bio nov feature.
+
+6. **Povracaj naplate koja nikad nije dodelila kredite ne upisuje nista i vraca
+   200.** Pretplata na kurs, ili naplata iz vremena pre Studija, nema ni Studio
+   fakturu ni sesiju paketa. Baciti gresku znacilo bi da Stripe tu istu naplatu
+   ponavlja danima. Posledica koju treba znati: chargeback nad pretplatom na
+   kurs NE ostavlja bravu, jer se iz te naplate ne zna korisnik.
+
+7. **`invoice.payment_failed` obradjuje samo Studio planove.** Pretplate na
+   kurseve nemaju `kind: "plan"` u metapodacima i ostaju netaknute - njihov
+   status i dalje pise iskljucivo postojeca grana `customer.subscription.*`.
+   Ovo je bila najkonzervativnija opcija prema zabrani "NE menjaj ponasanje
+   postojeceg subscription flow-a za kurseve".
+
+8. **Welcome bonus prezivljava povracaj po fakturi.** Doza plana visi na
+   `invoice.id`, bonus na `welcome:<userId>`. Dogadjaj nad jednom uplatom
+   povlaci samo ono sto je TA uplata otvorila; bonus povlaci odvojena odluka.
+
+9. **Put od naplate do kredit-lota ide preko `payment_intent`-a.** U verziji
+   Stripe SDK-a u repou `Charge` vise nema polje `invoice`
+   (`node_modules/stripe/cjs/resources/Charges.d.ts`), pa se faktura cita iz
+   `invoicePayments.list({ payment: { type: "payment_intent", ... } })`, a
+   sesija iz `checkout.sessions.list({ payment_intent })`. Faktura ima prednost
+   nad sesijom.
+
+10. **Pecat se ne pomera drugim prihvatanjem.** Datum pristanka je dokaz na
+    koju je VERZIJU uslova pristanak dat; dokaz koji se osvezava svakim klikom
+    nije dokaz. Kad se uslovi bitno izmene, pecat se brise migracijom - ta
+    migracija nije pisana, jer danas nema izmene.
+
+11. **`lib/legal-copy.ts` uvozi `creditsCore`, iako `studio-messages.ts` to
+    namerno izbegava.** Razlog te zabrane je da moderacijski recnik ne udje u
+    klijentski bundle; `legal-copy` se koristi iskljucivo iz serverskih
+    komponenti (dve `page.tsx` i `LegalPage`), pa ne ulazi ni u jedan
+    klijentski bundle. Napisano u zaglavlju modula.
+
+12. **`app/sitemap.ts` nije dirnut.** On danas lista iskljucivo teme zajednice;
+    dodavanje statickih stranica bi bila izmena van obima ovog koraka.
+
+**Testovi:**
+
+- `lib/legal-copy.test.ts` (21) - nijedan naslov/uvod/pasus nije prazan ni na
+  jednom jeziku · engleski nije kopija srpskog ni u jednoj klauzuli · `id`
+  sekcije jedinstven · **krediti nepovratni** i ne menjaju se za novac ·
+  **12 meseci** je isti broj koji ledger primenjuje (`CREDIT_LIFETIME_MONTHS`)
+  · neuspeo posao se refundira sam / uspeo se ne refundira zbog nesvidjanja ·
+  **18+** i "nije otvoren maloletnicima" · tudji lik bez pristanka i
+  maloletnici · **fal.ai, Google, BytePlus, ElevenLabs imenovani poimence** u
+  oba dokumenta · pregled zbog moderacije izricito ugovoren (osnov za X4) ·
+  **30 dana video / 90 dana slike i zvuk / metapodaci trajno**, isti brojevi kao
+  `OUTPUT_RETENTION_DAYS` · gasenje bez najave · posledice refundacije i spora ·
+  privatnost imenuje sve obradjivace, rokove i put do brisanja · svaka rupa iz
+  `LEGAL_PLACEHOLDERS` stvarno stoji u tekstu · nijedno `[POPUNITI` u tekstu
+  nije van spiska · nigde nema osmocifrenog broja (izmisljen PIB/maticni broj)
+  · putanje koje Studio linkuje su putanje koje stranice stvarno imaju.
+- `lib/legal-pages.test.ts` (5) - **obe rute se renderuju na oba jezika**:
+  stablo elemenata se spljosti u tekst i tvrdi se da sadrzi SVAKU klauzulu tog
+  jezika · `generateStaticParams` daje oba jezika · naslov u metapodacima prati
+  jezik · srpska stranica ne ispisuje engleski tekst i obrnuto · nepoznat jezik
+  u URL-u pada na srpski.
+- `convex/studio.test.ts` (+7) - **`createJob` bez prihvacenih uslova pada** i
+  ne skine ni kredit · **posle prihvatanja isti poziv prolazi** · **pecat se
+  upisuje jednom** (drugo prihvatanje vraca isto vreme i ne pomera ga u bazi) ·
+  ni admin ni moderator nisu izuzetak · **spor blokira nove poslove i posle
+  dopune kredita** · red o refundaciji NE blokira (blokira samo spor) ·
+  negativan saldo zatvara Studio i otvara ga poravnanje.
+- `convex/credits.test.ts` (+10) - **`charge.refunded` oduzima tacno dodeljen
+  iznos** (lot na 0, `revokedAt` upisan, `lifetimePurchased` pao, jedan red tipa
+  `revocation`) · **dvaput isporucen isti dogadjaj ne oduzme dvaput** (jedan
+  red u `creditReversals`, jedna transakcija, isti ishod oba puta) ·
+  refundacija posle potrosnje gura saldo tacno u -320 · `dispute.created`
+  zamrzava kredite i ostavlja bravu · refundacija posle spora nad istom uplatom
+  ne oduzima drugi put · povracaj po fakturi ne dira welcome bonus · povracaj
+  naplate bez lota ne upisuje nista · pogresan `syncSecret` i poziv bez tacno
+  jednog kljuca padaju · `chargeReversal` bira fakturu pre sesije.
+- `app/api/stripe/webhook/route.test.ts` (+9) - `charge.refunded` po sesiji
+  paketa i po fakturi plana · isti dogadjaj dvaput nosi isti `event.id` ·
+  naplata bez kljuca ne pise nista i vraca 200 · `dispute.created` dovlaci
+  naplatu i salje `kind: "dispute"` · spor bez naplate se loguje i ne stize do
+  Convexa · nedostupan Convex vraca 500 · **`payment_failed` ne dodeljuje
+  kredite** nego samo sinhronizuje pretplatu u `past_due` · `payment_failed` nad
+  pretplatom na kurs ne dira nista.
+- `lib/stripe.test.ts` (+2) - sve tri sesije nose `automatic_tax` i
+  `tax_id_collection` · `customer_update` se ne salje dok sesija kupca imenuje
+  preko email adrese.
+- `lib/studio-messages.test.ts` - tri nova koda ulaze u postojece provere (svaki
+  ima svoju poruku, nijedna ne prikazuje sirov kod), `STUDIO_TERMS_GATE` ulazi u
+  proveru praznih stanja.
+
+**Rezultat verifikacije:**
+- `npx convex codegen` - cisto
+- `npm run lint` - `✖ 8 problems (0 errors, 8 warnings)`; svih 8 je zateceno
+  (`admin-inline-actions.tsx`, `dashboard-content.tsx`,
+  `public-course-intro-video.tsx`, `get_google_creds.js`), nijedan u fajlovima
+  ovog koraka
+- `npm run test` - `Test Files 1 failed | 61 passed (62)`,
+  `Tests 1 failed | 878 passed (879)`. Vidi BLOKADA.
+- `npm run build` - `✓ Compiled successfully`, obe nove rute u izlazu
+  (`/[locale]/uslovi-studio`, `/[locale]/politika-privatnosti`)
+
+**BLOKADA:** nema u kodu ovog koraka, ali `npm run test` NE prolazi cist zbog
+jednog zatecenog testa:
+
+```
+FAIL  convex/chat.test.ts > inbox summary stays exact beyond one thousand memberships
+Error: Test timed out in 5000ms.
+```
+
+Test pada i na cistom stablu - provereno sa `git stash` pre nego sto je ovaj
+zakljucak zapisan: bez ijedne izmene ovog koraka pada isto, sa istom porukom.
+Nije funkcionalan kvar nego istek vremena na tezak test (seeduje preko 1000
+clanstava; na ovoj masini mu treba ~31 s uz `testTimeout` od 5 s). Nema veze ni
+sa jednim fajlom koji X7 dira i namerno NIJE "popravljen" - ni podizanjem
+timeout-a ni brisanjem assertion-a. Sve ostalo prolazi: 878 testova.
+
+Uz to, dva jednako teska testa - `convex/chatAvatar.test.ts` i
+`convex/study.test.ts` - povremeno isteknu kad se ceo suite vrti paralelno, a
+sami prolaze cisto. To je opterecenje masine, ne regresija: u drugom punom
+prolazu oba su prosla i ostao je samo `chat.test.ts` iznad.
+
+**Za Jovana:**
+
+1. **Popuni osam praznih polja u ugovoru pre nego sto se stranice objave.** Sve
+   stoje kao vidljiv `[POPUNITI: ...]` i sve su izvezene kao
+   `LEGAL_PLACEHOLDERS` u `lib/legal-copy.ts`:
+   - pun poslovni naziv i pravna forma
+   - adresa sedista
+   - maticni broj
+   - PIB
+   - PDV broj (ako je platforma u sistemu PDV-a)
+   - kontakt email za podrsku
+   - kontakt email za zastitu podataka
+   - nadlezni sud i merodavno pravo
+
+   Test tvrdi da spisak i tekst ne mogu da se razidju, i da u tekstu nema
+   nijednog osmocifrenog broja - dakle nijedan PIB nije izmisljen.
+
+2. **Ukljuci Stripe Tax na nalogu PRE nego sto se ovo deployuje.**
+   https://dashboard.stripe.com/settings/tax - treba podesiti origin adresu,
+   poresku registraciju za zemlje u kojima prodajes, i poreske kategorije
+   proizvoda (digitalna usluga) na `creditPacks` cenama. **Dok Tax nije
+   ukljucen, `checkout.sessions.create` odbija sesiju sa `automatic_tax`, pa
+   kupovina nece raditi uopste.** To je namerno vidljiv kvar umesto tiho
+   izdatog racuna bez poreza - ali znaci da redosled mora da bude: prvo Tax,
+   pa deploy.
+
+3. **Napomena za buducnost, uz ODLUKU 2:** ako neka sesija jednog dana ponese
+   postojeceg `customer`-a umesto `customer_email`, uz `tax_id_collection`
+   Stripe trazi i `customer_update.name: "auto"`, ne samo `address`.
+   `checkoutTaxParams` danas dodaje samo `address`, jer je samo to trazeno.
+
+4. **Dodaj tri nova dogadjaja u Stripe webhook endpoint.** U
+   https://dashboard.stripe.com/webhooks, na postojecem endpointu, ukljuci
+   `charge.refunded`, `charge.dispute.created` i `invoice.payment_failed`. Bez
+   toga kod postoji a nikad se ne pozove.
+
+5. **Deploy nosi novu tabelu i dva nova polja.** `creditReversals` je prazna
+   tabela; `users.acceptedStudioTermsAt` i `creditLots.revokedAt` su opciona,
+   zatecenim redovima ne treba migracija.
+
+6. **Svaki zatecen korisnik ce jednom videti kapiju sa uslovima**, ukljucujuci
+   tebe. To je namerno: pecat pre ovog deploy-a ne postoji ni za koga.
+
+7. **Skidanje brave posle resenog spora je rucan posao.** Kad Stripe javi da je
+   spor dobijen, red iz `creditReversals` sa `kind: "dispute"` za tog korisnika
+   treba obrisati - danas nema ni admin ekrana ni mutacije za to, jer bi bilo
+   sta od toga bio nov feature. Isto vazi za poravnanje negativnog salda ako ga
+   ne poravna kupovina novih kredita.
+
+8. **Chargeback nad pretplatom na kurs ne ostavlja bravu** (ODLUKA 6). Ako se to
+   desi, pristup kursu i dalje regulise postojeci subscription flow, ali Studio
+   ostaje otvoren tom korisniku.
+
+9. **N2 i dalje stoji.** Ovaj korak je zatvorio stavke 1 i 4 iz sekcije 5
+   izvestaja (pravni tekstovi i PDV) i rupu **d4** (tri Stripe dogadjaja).
+   Stavke 2 (donja granica trajanja iz bajtova) i 3 (prva ziva generacija po
+   modelu sa fakturom) su i dalje otvorene i i dalje su najskuplji preostali
+   rizik.

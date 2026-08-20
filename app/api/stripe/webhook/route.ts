@@ -1,10 +1,12 @@
 import Stripe from "stripe";
 
 import {
+  chargeReversal,
   creditPackGrants,
   invoicePaidGrants,
   studioPlanSlug,
   type StripeGrant,
+  type StripeReversalKind,
 } from "@/convex/creditsCore";
 import { convexMutations, convexQueries, getConvexHttpClient } from "@/lib/convex-http";
 import { requireServerEnv, requireWebhookSyncSecret } from "@/lib/env";
@@ -146,18 +148,24 @@ async function grantCreditPackCredits(event: Stripe.Event, session: Stripe.Check
  * fires once. The invoice carries an immutable snapshot of the subscription
  * metadata; when that snapshot is empty the plan is read off the subscription.
  */
-async function grantInvoiceCredits(event: Stripe.Event, stripe: Stripe, invoice: Stripe.Invoice) {
+async function resolveSubscriptionMetadata(stripe: Stripe, invoice: Stripe.Invoice) {
   const subscriptionDetails = invoice.parent?.subscription_details ?? null;
+  const subscription = subscriptionDetails?.subscription;
+  const subscriptionId = typeof subscription === "string" ? subscription : subscription?.id;
   let metadata = subscriptionDetails?.metadata ?? null;
 
   if (!metadata || Object.keys(metadata).length === 0) {
-    const subscription = subscriptionDetails?.subscription;
-    const subscriptionId = typeof subscription === "string" ? subscription : subscription?.id;
     if (!subscriptionId) {
-      return;
+      return { metadata: null, subscriptionId: undefined };
     }
     metadata = (await stripe.subscriptions.retrieve(subscriptionId)).metadata;
   }
+
+  return { metadata, subscriptionId };
+}
+
+async function grantInvoiceCredits(event: Stripe.Event, stripe: Stripe, invoice: Stripe.Invoice) {
+  const { metadata } = await resolveSubscriptionMetadata(stripe, invoice);
 
   const planSlug = studioPlanSlug(metadata);
   if (!planSlug) {
@@ -186,6 +194,120 @@ async function grantInvoiceCredits(event: Stripe.Event, stripe: Stripe, invoice:
       amountPaid: invoice.amount_paid,
     }),
   );
+}
+
+/**
+ * Iz jedne naplate nazad do ključa pod kojim je kredit-lot otvoren. Oba puta
+ * vode preko `payment_intent`, jer naplata od Stripe API-ja iz 2025. više ne
+ * nosi ni `invoice` ni sesiju.
+ *
+ * Faktura ima prednost: doza Studio plana visi na `invoice.id`
+ * (`invoicePaidGrants`). Jednokratan paket kredita fakturu nema i njegov lot
+ * stoji pod `checkout.session.id` (`creditPackGrants`).
+ */
+async function creditKeysOfCharge(stripe: Stripe, charge: Stripe.Charge) {
+  const paymentIntent =
+    typeof charge.payment_intent === "string" ? charge.payment_intent : charge.payment_intent?.id;
+  if (!paymentIntent) {
+    return { invoiceId: null, sessionId: null };
+  }
+
+  const payments = await stripe.invoicePayments.list({
+    payment: { type: "payment_intent", payment_intent: paymentIntent },
+    limit: 1,
+  });
+  const invoice = payments.data[0]?.invoice;
+  const invoiceId = (typeof invoice === "string" ? invoice : invoice?.id) ?? null;
+  if (invoiceId) {
+    return { invoiceId, sessionId: null };
+  }
+
+  const sessions = await stripe.checkout.sessions.list({ payment_intent: paymentIntent, limit: 1 });
+  return { invoiceId: null, sessionId: sessions.data[0]?.id ?? null };
+}
+
+/**
+ * Oduzima kredite koje je jedna naplata dodelila, pošto je vraćena
+ * (`charge.refunded`) ili osporena (`charge.dispute.created`).
+ *
+ * Naplata koja nikad nije dodelila kredite - pretplata na kurs, naplata pre
+ * nego što je Studio postojao - nema ni fakturu sa Studio metapodacima ni
+ * sesiju paketa, pa se `applyStripeReversal` završi bez ijednog upisa. To NIJE
+ * greška i ne sme da vrati 500: Stripe bi tu istu naplatu ponavljao danima.
+ *
+ * Delimičan povraćaj oduzima ceo lot, kao i pun. Kredit koji je pola plaćen ne
+ * postoji, a delimičan povraćaj je ionako ručna odluka podrške - ispravka ide
+ * novim grantom, ne polovinom lota.
+ */
+async function reverseChargeCredits(
+  event: Stripe.Event,
+  stripe: Stripe,
+  charge: Stripe.Charge,
+  kind: StripeReversalKind,
+) {
+  const { invoiceId, sessionId } = await creditKeysOfCharge(stripe, charge);
+  const reversal = chargeReversal({ eventId: event.id, kind, invoiceId, sessionId });
+
+  if (!reversal) {
+    console.info(
+      "Stripe reversal has no credit key, nothing to revoke",
+      event.id,
+      event.type,
+      charge.id,
+    );
+    return;
+  }
+
+  const convex = getConvexHttpClient();
+  if (!convex || !process.env.WEBHOOK_SYNC_SECRET) {
+    console.error(
+      "Stripe reversal cannot be written: NEXT_PUBLIC_CONVEX_URL or WEBHOOK_SYNC_SECRET is missing",
+      event.id,
+      event.type,
+    );
+    throw new Error("Convex is unreachable for credit reversals");
+  }
+
+  await convex.mutation(convexMutations.applyStripeReversal, {
+    syncSecret: requireWebhookSyncSecret(),
+    ...reversal,
+  });
+}
+
+/**
+ * Naplata pretplate koja nije prošla. Ciklusni krediti vise isključivo na
+ * `invoice.paid`, pa se ovde ništa ne dodeljuje samo po sebi - ostaje da se
+ * pretplata OBELEŽI, da bi `past_due` stigao do Convexa i pre nego što Stripe
+ * pošalje `customer.subscription.updated`.
+ *
+ * Obradjuju se samo Studio planovi. Pretplate na kurseve nemaju `kind` u
+ * metapodacima i ostaju netaknute - njihov status i dalje piše isključivo
+ * postojeća grana `customer.subscription.*`.
+ *
+ * Idempotencija ovde ne traži ključ: `syncStripeSubscription` upisuje APSOLUTNO
+ * stanje pretplate koje je Stripe upravo vratio, pa isti dogadjaj isporučen
+ * dvaput upiše isto stanje - drugi prolaz ne pomera ništa. Ključ po `event.id`
+ * treba tamo gde se upisuje RAZLIKA, a to je `applyStripeReversal`.
+ */
+async function markInvoicePaymentFailed(event: Stripe.Event, stripe: Stripe, invoice: Stripe.Invoice) {
+  const { metadata, subscriptionId } = await resolveSubscriptionMetadata(stripe, invoice);
+  if (!studioPlanSlug(metadata) || !subscriptionId) {
+    console.info(
+      "Stripe payment failed on a non-plan invoice, no credits and no sync",
+      event.id,
+      event.type,
+      invoice.id,
+    );
+    return;
+  }
+
+  console.info(
+    "Stripe plan payment failed, cycle credits are not granted",
+    event.id,
+    event.type,
+    invoice.id,
+  );
+  await syncSubscription(await stripe.subscriptions.retrieve(subscriptionId));
 }
 
 export async function POST(request: Request) {
@@ -235,6 +357,33 @@ export async function POST(request: Request) {
         break;
       case "invoice.paid":
         await grantInvoiceCredits(event, stripe, event.data.object as Stripe.Invoice);
+        break;
+      // Vraćen novac: krediti koje je ta naplata dodelila se oduzimaju. Ako su
+      // već potrošeni, saldo ostaje u minusu i `studio.createJob` ne otvara
+      // nov posao dok se minus ne poravna.
+      case "charge.refunded":
+        await reverseChargeCredits(event, stripe, event.data.object as Stripe.Charge, "refund");
+        break;
+      // Osporena naplata. Krediti se zamrzavaju ODMAH, ne kad se spor završi -
+      // chargeback traje nedeljama i za to vreme se ne sme generisati. Spor
+      // nosi ID naplate, ne samu naplatu, pa se naplata dovlači.
+      case "charge.dispute.created": {
+        const dispute = event.data.object as Stripe.Dispute;
+        const chargeId = typeof dispute.charge === "string" ? dispute.charge : dispute.charge?.id;
+        if (!chargeId) {
+          console.error("Stripe dispute without a charge", event.id, event.type, dispute.id);
+          break;
+        }
+        await reverseChargeCredits(
+          event,
+          stripe,
+          await stripe.charges.retrieve(chargeId),
+          "dispute",
+        );
+        break;
+      }
+      case "invoice.payment_failed":
+        await markInvoicePaymentFailed(event, stripe, event.data.object as Stripe.Invoice);
         break;
       case "customer.subscription.created":
       case "customer.subscription.updated":

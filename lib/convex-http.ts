@@ -27,6 +27,7 @@ export const convexMutations = {
   saveLessonAsset: makeFunctionReference<"mutation">("video:saveLessonAsset"),
   recordAiExchange: makeFunctionReference<"mutation">("lab:recordAiExchange"),
   applyStripeGrant: makeFunctionReference<"mutation">("credits:applyStripeGrant"),
+  applyStripeReversal: makeFunctionReference<"mutation">("credits:applyStripeReversal"),
 };
 
 export const convexQueries = {

@@ -119,6 +119,67 @@ describe("createPlanCheckoutSession", () => {
   });
 });
 
+describe("PDV na svakoj sesiji (X7)", () => {
+  it("sve tri sesije obračunavaju porez i primaju poreski broj", async () => {
+    await createCreditPackCheckoutSession({
+      packSlug: "starter",
+      packId: "pack_123",
+      credits: 500,
+      locale: "sr",
+      priceId: "price_starter",
+      userId: "user_1",
+    });
+    const pack = lastParams();
+
+    await createPlanCheckoutSession({
+      planSlug: "premium",
+      courseId: "course_1",
+      courseSlug: "ai-osnove",
+      locale: "sr",
+      priceId: "price_premium",
+      userId: "user_1",
+    });
+    const plan = lastParams();
+
+    await createCourseCheckoutSession({
+      courseId: "course_1",
+      courseSlug: "ai-osnove",
+      courseTitle: "AI osnove",
+      locale: "sr",
+      priceId: "price_course",
+    });
+    const course = lastParams();
+
+    for (const [name, params] of [
+      ["pack", pack],
+      ["plan", plan],
+      ["course", course],
+    ] as const) {
+      expect(params.automatic_tax, name).toEqual({ enabled: true });
+      expect(params.tax_id_collection, name).toEqual({ enabled: true });
+    }
+  });
+
+  it("ne šalje `customer_update` dok sesija kupca imenuje preko email adrese", async () => {
+    await createCreditPackCheckoutSession({
+      packSlug: "starter",
+      packId: "pack_123",
+      credits: 500,
+      locale: "sr",
+      priceId: "price_starter",
+      userId: "user_1",
+      customerEmail: "jovan@example.com",
+    });
+
+    // Stripe prima `customer_update` isključivo uz `customer`; uz
+    // `customer_email` sesija pada na 400 i kupovina se ne otvori uopšte.
+    const params = lastParams();
+    expect(params.customer_update).toBeUndefined();
+    expect(params.customer).toBeUndefined();
+    expect(params.customer_email).toBe("jovan@example.com");
+  });
+});
+
 describe("createCourseCheckoutSession", () => {
   it("is unchanged: no kind marker, so the existing webhook branch still owns it", async () => {
     await createCourseCheckoutSession({

@@ -55,6 +55,13 @@ async function seedUser(
     role?: "student" | "moderator" | "admin";
     email?: string;
     username?: string;
+    /**
+     * Pečat o prihvatanju uslova Studija (X7). Podrazumevano JE prihvaćen, jer
+     * je to zatečeno stanje svakog korisnika koji je već prošao kapiju - test
+     * koji meri nešto drugo ne treba da je prolazi ponovo. Testovi same kapije
+     * ga isključuju sa `acceptedTerms: false`.
+     */
+    acceptedTerms?: boolean;
   } = {},
 ) {
   const userId = await t.run(async (ctx) => {
@@ -64,6 +71,7 @@ async function seedUser(
       username: opts.username ?? "studio_student",
       role: opts.role ?? "student",
       language: "sr" as const,
+      ...(opts.acceptedTerms === false ? {} : { acceptedStudioTermsAt: 1 }),
       createdAt: 1,
       updatedAt: 1,
     });
@@ -1338,6 +1346,7 @@ test("getStudioState: upaljen Studio, upisan korisnik, nijedan posao u letu", as
   expect(state).toEqual({
     enabled: true,
     hasStudioAccess: true,
+    hasAcceptedTerms: true,
     isStaff: false,
     isStudioAdmin: false,
     activeJobs: 0,
@@ -2072,4 +2081,186 @@ test("listJobOwners adminu vraća vlasnike sa mejlom i brojem poslova, sortirane
   const owners = await admin.asUser.query(api.studio.listJobOwners, {});
   expect(owners.map((owner) => owner.label)).toEqual(["admin@example.com", "student@example.com"]);
   expect(owners.map((owner) => owner.jobCount)).toEqual([1, 2]);
+});
+
+// ── 18. uslovi korišćenja pred prvim poslom (X7) ───────────────────────────
+
+test("bez prihvaćenih uslova nema prvog posla - ni kredit se ne skine", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedUser(t, { acceptedTerms: false });
+  await seedModel(t);
+  await grant(t, userId, 100);
+
+  await expect(
+    asUser.mutation(api.studio.createJob, {
+      modelSlug: MODEL_SLUG,
+      params: promptParams("lisica u snegu"),
+    }),
+  ).rejects.toThrow(/USLOVI_NEPRIHVACENI/);
+
+  const { balance, jobs } = await ledger(t, userId);
+  expect(jobs).toHaveLength(0);
+  expect(balance).toBe(100);
+  // Ekran mora da zna isto što i server, inače forma stoji otvorena korisniku
+  // kojem bi prvi klik svakako pao.
+  expect((await asUser.query(api.studio.getStudioState, {})).hasAcceptedTerms).toBe(false);
+});
+
+test("posle prihvatanja uslova isti poziv prolazi", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedUser(t, { acceptedTerms: false });
+  await seedModel(t);
+  await grant(t, userId, 100);
+
+  await asUser.mutation(api.studio.acceptStudioTerms, {});
+
+  const jobId = await asUser.mutation(api.studio.createJob, {
+    modelSlug: MODEL_SLUG,
+    params: promptParams("lisica u snegu"),
+  });
+
+  const { balance, jobs } = await ledger(t, userId);
+  expect(jobs).toHaveLength(1);
+  expect(jobs[0]._id).toBe(jobId);
+  expect(balance).toBe(100 - MODEL_COST);
+  expect((await asUser.query(api.studio.getStudioState, {})).hasAcceptedTerms).toBe(true);
+});
+
+test("pečat se upisuje jednom - drugo prihvatanje vraća isto vreme i ne pomera ga", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedUser(t, { acceptedTerms: false });
+
+  const first = await asUser.mutation(api.studio.acceptStudioTerms, {});
+  const second = await asUser.mutation(api.studio.acceptStudioTerms, {});
+
+  expect(typeof first).toBe("number");
+  // Datum pristanka je dokaz na koju je VERZIJU uslova pristanak dat; dokaz
+  // koji se osvežava svakim klikom nije dokaz.
+  expect(second).toBe(first);
+  const stamp = await t.run(async (ctx) => (await ctx.db.get(userId))?.acceptedStudioTermsAt);
+  expect(stamp).toBe(first);
+});
+
+test("ni admin ni moderator nisu izuzetak od uslova", async () => {
+  for (const role of ["admin", "moderator"] as const) {
+    const t = convexTest(schema, modules);
+    const { userId, asUser } = await seedUser(t, {
+      role,
+      enrolled: false,
+      acceptedTerms: false,
+      email: role === "admin" ? "admin@example.com" : "moderator@example.com",
+    });
+    await seedModel(t);
+    await grant(t, userId, 100);
+
+    await expect(
+      asUser.mutation(api.studio.createJob, {
+        modelSlug: MODEL_SLUG,
+        params: promptParams("lisica u snegu"),
+      }),
+    ).rejects.toThrow(/USLOVI_NEPRIHVACENI/);
+
+    await asUser.mutation(api.studio.acceptStudioTerms, {});
+    await expect(
+      asUser.mutation(api.studio.createJob, {
+        modelSlug: MODEL_SLUG,
+        params: promptParams("lisica u snegu"),
+      }),
+    ).resolves.toBeDefined();
+  }
+});
+
+// ── 19. osporena i refundirana uplata zatvaraju Studio (X7) ────────────────
+
+test("spor po kartici blokira nove poslove i posle dopune kredita", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedWorld(t);
+  await t.run((ctx) =>
+    ctx.db.insert("creditReversals", {
+      eventId: "evt_dispute_1",
+      userId,
+      kind: "dispute" as const,
+      revokedCredits: 500,
+      stripeSessionId: "cs_spor",
+      createdAt: Date.now(),
+    }),
+  );
+
+  await expect(
+    asUser.mutation(api.studio.createJob, {
+      modelSlug: MODEL_SLUG,
+      params: promptParams("lisica u snegu"),
+    }),
+  ).rejects.toThrow(/SPOR_U_TOKU/);
+
+  // Dopuna ne skida bravu: spor traje nedeljama i skida ga tek njegov ishod.
+  await grant(t, userId, 5000);
+  await expect(
+    asUser.mutation(api.studio.createJob, {
+      modelSlug: MODEL_SLUG,
+      params: promptParams("lisica u snegu"),
+    }),
+  ).rejects.toThrow(/SPOR_U_TOKU/);
+
+  const { jobs } = await ledger(t, userId);
+  expect(jobs).toHaveLength(0);
+});
+
+test("red o refundaciji ne blokira - blokira samo spor", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedWorld(t);
+  await t.run((ctx) =>
+    ctx.db.insert("creditReversals", {
+      eventId: "evt_refund_1",
+      userId,
+      kind: "refund" as const,
+      revokedCredits: 500,
+      stripeSessionId: "cs_refund",
+      createdAt: Date.now(),
+    }),
+  );
+
+  await expect(
+    asUser.mutation(api.studio.createJob, {
+      modelSlug: MODEL_SLUG,
+      params: promptParams("lisica u snegu"),
+    }),
+  ).resolves.toBeDefined();
+});
+
+test("negativan saldo zatvara Studio dok se ne poravna", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedWorld(t, 100);
+  // Ovo je stanje koje `applyStripeReversal` ostavlja kad refundacija oduzme
+  // kredite koji su već potrošeni: upotrebljivi lotovi postoje, a saldo je u
+  // minusu. `applySpend` sam to ne bi uhvatio - on gleda lotove.
+  await t.run(async (ctx) => {
+    const row = await ctx.db
+      .query("creditBalances")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .unique();
+    if (row) await ctx.db.patch(row._id, { balance: -20 });
+  });
+
+  await expect(
+    asUser.mutation(api.studio.createJob, {
+      modelSlug: MODEL_SLUG,
+      params: promptParams("lisica u snegu"),
+    }),
+  ).rejects.toThrow(/SALDO_U_MINUSU/);
+
+  // Poravnanje: saldo nazad iznad nule i Studio radi.
+  await t.run(async (ctx) => {
+    const row = await ctx.db
+      .query("creditBalances")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .unique();
+    if (row) await ctx.db.patch(row._id, { balance: 100 });
+  });
+  await expect(
+    asUser.mutation(api.studio.createJob, {
+      modelSlug: MODEL_SLUG,
+      params: promptParams("lisica u snegu"),
+    }),
+  ).resolves.toBeDefined();
 });

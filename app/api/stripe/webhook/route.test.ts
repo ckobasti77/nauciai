@@ -5,6 +5,11 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 // what the route handed them. Mocks are declared before the route is imported.
 const constructEvent = vi.fn();
 const retrieveSubscription = vi.fn();
+const retrieveCharge = vi.fn();
+// Od Stripe API-ja iz 2025. naplata ne nosi ni `invoice` ni sesiju, pa put
+// nazad do kredit-lota ide preko `payment_intent`-a kroz ova dva spiska.
+const listInvoicePayments = vi.fn(async () => ({ data: [] as Array<{ invoice: string }> }));
+const listCheckoutSessions = vi.fn(async () => ({ data: [] as Array<{ id: string }> }));
 const convexMutation = vi.fn(async () => "lot_1");
 const convexQuery = vi.fn(async () => ({ _id: "pack_premium", credits: 2000 }));
 let convexReachable = true;
@@ -14,6 +19,9 @@ vi.mock("stripe", () => ({
   default: class StripeStub {
     webhooks = { constructEvent };
     subscriptions = { retrieve: retrieveSubscription };
+    charges = { retrieve: retrieveCharge };
+    invoicePayments = { list: listInvoicePayments };
+    checkout = { sessions: { list: listCheckoutSessions } };
   },
 }));
 vi.mock("@/lib/convex-http", () => ({
@@ -21,6 +29,7 @@ vi.mock("@/lib/convex-http", () => ({
     convexReachable ? { mutation: convexMutation, query: convexQuery } : null,
   convexMutations: {
     applyStripeGrant: "credits:applyStripeGrant",
+    applyStripeReversal: "credits:applyStripeReversal",
     syncStripeSubscription: "billing:syncStripeSubscription",
   },
   convexQueries: { getPackBySlug: "creditPacks:getPackBySlug" },
@@ -88,6 +97,11 @@ beforeEach(() => {
   convexMutation.mockResolvedValue("lot_1");
   convexQuery.mockClear();
   retrieveSubscription.mockClear();
+  retrieveCharge.mockClear();
+  listInvoicePayments.mockClear();
+  listInvoicePayments.mockResolvedValue({ data: [] });
+  listCheckoutSessions.mockClear();
+  listCheckoutSessions.mockResolvedValue({ data: [] });
   vi.spyOn(console, "error").mockImplementation(() => {});
   vi.spyOn(console, "info").mockImplementation(() => {});
 });
@@ -252,4 +266,156 @@ test("course subscription checkout still syncs the subscription, untouched by th
   expect(retrieveSubscription).toHaveBeenCalledWith("sub_1");
   expect(convexMutation).toHaveBeenCalledTimes(1);
   expect(convexMutation.mock.calls[0][0]).toBe("billing:syncStripeSubscription");
+});
+
+// ── X7: povraćaji i propala naplata ────────────────────────────────────────
+
+function refundedCharge(overrides: Record<string, unknown> = {}) {
+  return { id: "ch_test", payment_intent: "pi_test", amount_refunded: 1990, ...overrides };
+}
+
+test("charge.refunded revokes the credits the credit pack payment granted", async () => {
+  listCheckoutSessions.mockResolvedValue({ data: [{ id: "cs_test_starter" }] });
+
+  const response = await post({ type: "charge.refunded", data: { object: refundedCharge() } });
+
+  expect(response.status).toBe(200);
+  expect(listInvoicePayments).toHaveBeenCalledWith({
+    payment: { type: "payment_intent", payment_intent: "pi_test" },
+    limit: 1,
+  });
+  expect(convexMutation).toHaveBeenCalledTimes(1);
+  expect(convexMutation.mock.calls[0]).toEqual([
+    "credits:applyStripeReversal",
+    {
+      syncSecret: "test-sync-secret",
+      eventId: "evt_test",
+      kind: "refund",
+      stripeSessionId: "cs_test_starter",
+    },
+  ]);
+});
+
+test("charge.refunded on a subscription charge revokes by invoice, not by session", async () => {
+  listInvoicePayments.mockResolvedValue({ data: [{ invoice: "in_test_premium" }] });
+
+  const response = await post({ type: "charge.refunded", data: { object: refundedCharge() } });
+
+  expect(response.status).toBe(200);
+  // Doza plana visi na `invoice.id`; sesija se u tom slučaju i ne traži.
+  expect(listCheckoutSessions).not.toHaveBeenCalled();
+  expect(convexMutation.mock.calls[0][1]).toMatchObject({
+    kind: "refund",
+    stripeInvoiceId: "in_test_premium",
+  });
+});
+
+test("the same charge.refunded delivered twice sends the same event id both times", async () => {
+  listCheckoutSessions.mockResolvedValue({ data: [{ id: "cs_test_starter" }] });
+
+  await post({ type: "charge.refunded", data: { object: refundedCharge() } });
+  await post({ type: "charge.refunded", data: { object: refundedCharge() } });
+
+  // Ruta ne pamti ništa - idempotencija je u Convexu, po `event.id`. Zato je
+  // jedino što ovde mora da važi: oba poziva nose ISTI ključ.
+  expect(convexMutation).toHaveBeenCalledTimes(2);
+  expect(convexMutation.mock.calls[0][1]).toEqual(convexMutation.mock.calls[1][1]);
+  expect(convexMutation.mock.calls[0][1]).toMatchObject({ eventId: "evt_test" });
+});
+
+test("a refunded charge with no credit key writes nothing and still answers 200", async () => {
+  // Pretplata na kurs: nema ni fakture sa Studio dozom ni sesije paketa.
+  const response = await post({ type: "charge.refunded", data: { object: refundedCharge() } });
+
+  expect(response.status).toBe(200);
+  expect(convexMutation).not.toHaveBeenCalled();
+  // 500 bi Stripe ponavljao danima za naplatu koja nikad nije dala kredite.
+  expect(console.info).toHaveBeenCalled();
+});
+
+test("charge.dispute.created freezes the credits of the disputed charge", async () => {
+  retrieveCharge.mockResolvedValue(refundedCharge());
+  listCheckoutSessions.mockResolvedValue({ data: [{ id: "cs_test_starter" }] });
+
+  const response = await post({
+    type: "charge.dispute.created",
+    data: { object: { id: "dp_test", charge: "ch_test" } },
+  });
+
+  expect(response.status).toBe(200);
+  expect(retrieveCharge).toHaveBeenCalledWith("ch_test");
+  expect(convexMutation.mock.calls[0][1]).toMatchObject({
+    eventId: "evt_test",
+    kind: "dispute",
+    stripeSessionId: "cs_test_starter",
+  });
+});
+
+test("a dispute without a charge is logged and never reaches Convex", async () => {
+  const response = await post({
+    type: "charge.dispute.created",
+    data: { object: { id: "dp_test", charge: null } },
+  });
+
+  expect(response.status).toBe(200);
+  expect(retrieveCharge).not.toHaveBeenCalled();
+  expect(convexMutation).not.toHaveBeenCalled();
+  expect(console.error).toHaveBeenCalled();
+});
+
+test("a reversal that cannot reach Convex answers 500 so Stripe retries", async () => {
+  convexReachable = false;
+  listCheckoutSessions.mockResolvedValue({ data: [{ id: "cs_test_starter" }] });
+
+  const response = await post({ type: "charge.refunded", data: { object: refundedCharge() } });
+
+  expect(response.status).toBe(500);
+  expect(convexMutation).not.toHaveBeenCalled();
+});
+
+test("invoice.payment_failed grants no credits and marks the plan subscription", async () => {
+  retrieveSubscription.mockResolvedValue({
+    id: "sub_premium",
+    status: "past_due",
+    customer: "cus_1",
+    cancel_at_period_end: false,
+    metadata: { kind: "plan", planSlug: "premium", courseId: "course_1", userId: "user_1" },
+    items: { data: [{ price: { id: "price_premium" } }] },
+  });
+
+  const response = await post({
+    type: "invoice.payment_failed",
+    data: { object: planInvoice({ amount_paid: 0, billing_reason: "subscription_cycle" }) },
+  });
+
+  expect(response.status).toBe(200);
+  // Tačno jedan poziv, i to sinhronizacija - nijedan grant.
+  expect(convexMutation).toHaveBeenCalledTimes(1);
+  expect(convexMutation.mock.calls[0][0]).toBe("billing:syncStripeSubscription");
+  expect(convexMutation.mock.calls[0][1]).toMatchObject({ status: "past_due" });
+  expect(
+    convexMutation.mock.calls.some((call) => call[0] === "credits:applyStripeGrant"),
+  ).toBe(false);
+});
+
+test("invoice.payment_failed on a course subscription leaves the existing flow untouched", async () => {
+  const response = await post({
+    type: "invoice.payment_failed",
+    data: {
+      object: planInvoice({
+        parent: {
+          subscription_details: {
+            subscription: "sub_kurs",
+            metadata: { courseId: "course_1", userId: "user_1" },
+          },
+        },
+      }),
+    },
+  });
+
+  expect(response.status).toBe(200);
+  // Pretplata na kurs nema `kind` u metapodacima; njen status i dalje piše
+  // isključivo postojeća grana `customer.subscription.*`.
+  expect(retrieveSubscription).not.toHaveBeenCalled();
+  expect(convexMutation).not.toHaveBeenCalled();
 });

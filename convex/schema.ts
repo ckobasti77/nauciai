@@ -82,6 +82,12 @@ const creditTransactionType = v.union(
   // `spend`/`refund` red, da se u istoriji vidi i jedno i drugo - i da
   // `by_job_type` ostane jedinstven po poslu za svaki od tri tipa.
   v.literal("settlement"),
+  // Oduzimanje kredita koje je uplata dodelila, pošto je ta uplata refundirana
+  // ili osporena (X7). Nije `refund` (to je povraćaj KORISNIKU za neuspeo
+  // posao, sa suprotnim znakom) i nije `admin_adjust` (nije ručna odluka nego
+  // posledica Stripe dogadjaja) - zaseban tip, da se u istoriji vidi zašto je
+  // saldo pao.
+  v.literal("revocation"),
 );
 const creditPackKind = v.union(v.literal("pack"), v.literal("plan"));
 const studioModelKind = v.union(v.literal("image"), v.literal("video"), v.literal("audio"));
@@ -135,6 +141,12 @@ const authUsers = defineTable({
   helpStatus: v.optional(helpMode),
   dmPrivacy: v.optional(dmPrivacy),
   anonymizedAt: v.optional(v.number()),
+  // Kada je korisnik potvrdio "imam 18 godina i prihvatam uslove Studija"
+  // (X7). Vremenski pečat, a ne boolean: kad se uslovi izmene, jedini podatak
+  // koji išta znači je NA KOJU verziju je pristanak dat, a to je datum. Polje
+  // stoji na `users`, jer se profil u ovom repou ne projektuje u zasebnu
+  // tabelu - `users` JESTE profil (`helpers.getCurrentProfile`).
+  acceptedStudioTermsAt: v.optional(v.number()),
   searchText: v.optional(v.string()),
   createdAt: v.optional(v.number()),
   updatedAt: v.optional(v.number()),
@@ -1317,6 +1329,11 @@ export default defineSchema({
     stripeSessionId: v.optional(v.string()),
     packId: v.optional(v.id("creditPacks")),
     exhaustedAt: v.optional(v.number()),
+    // Lot je oduzet jer je uplata koja ga je otvorila refundirana ili osporena
+    // (X7). Odvojeno od `exhaustedAt` iako se upisuju zajedno: potrošen lot i
+    // povučen lot izgledaju isto u balansu, a ne znače isto - drugi put
+    // isporučen isti Stripe dogadjaj ne sme da ga oduzme još jednom.
+    revokedAt: v.optional(v.number()),
   })
     .index("by_user_expiry", ["userId", "expiresAt"])
     .index("by_user_active", ["userId", "exhaustedAt"])
@@ -1353,6 +1370,29 @@ export default defineSchema({
     lifetimeSpent: v.number(),
     updatedAt: v.number(),
   }).index("by_user", ["userId"]),
+
+  // Jedan red po Stripe dogadjaju koji je oduzeo kredite (X7): `charge.refunded`
+  // i `charge.dispute.created`. Postoji iz dva razloga:
+  //
+  // 1. `eventId` je ključ idempotencije. Stripe isti dogadjaj isporučuje više
+  //    puta (retry posle 500-ke, ručno slanje iz konzole), a oduzimanje nije
+  //    idempotentno samo po sebi kao dodela - lot ne bi dvaput nestao, ali bi
+  //    saldo dvaput pao.
+  // 2. red tipa `dispute` je BRAVA na nalogu. Chargeback traje nedeljama i za
+  //    to vreme se ne generiše; brava mora da preživi i dopunu kredita, pa ne
+  //    može da bude izvedena iz balansa.
+  creditReversals: defineTable({
+    eventId: v.string(),
+    userId: v.id("users"),
+    kind: v.union(v.literal("refund"), v.literal("dispute")),
+    lotId: v.optional(v.id("creditLots")),
+    revokedCredits: v.number(),
+    stripeInvoiceId: v.optional(v.string()),
+    stripeSessionId: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_eventId", ["eventId"])
+    .index("by_userId_and_kind", ["userId", "kind"]),
 
   creditPacks: defineTable({
     slug: v.string(),

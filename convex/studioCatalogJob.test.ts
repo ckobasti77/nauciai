@@ -65,6 +65,9 @@ async function seedUser(t: TestConvex) {
       username: "studio_student",
       role: "student",
       language: "sr" as const,
+      // Kapija uslova Studija (X7) je prošla: ovaj fajl meri cenu i poravnanje,
+      // a ne pristanak - njega pokriva `studio.test.ts`.
+      acceptedStudioTermsAt: 1,
       createdAt: 1,
       updatedAt: 1,
     });

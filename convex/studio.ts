@@ -387,7 +387,7 @@ export const createJob = mutation({
     // Uloga se čita zajedno sa korisnikom jer o pristupu odlučuje
     // `hasStudioAccess` niže - `requireUserId` bi vratio samo ID, pa bi
     // enrollment ostao jedini kriterijum.
-    const { userId, role } = await getCurrentProfile(ctx);
+    const { userId, role, existing } = await getCurrentProfile(ctx);
 
     // Kill switch se čita prvi, pre svega ostalog. Red koji ne postoji znači
     // "nikad nije ni gašen" - podrazumevana vrednost seed-a je `true`.
@@ -407,6 +407,13 @@ export const createJob = mutation({
       .filter((q) => q.eq(q.field("status"), "active"))
       .first();
     if (!hasStudioAccess(role, enrollment)) throw new Error("NIJE_UPISAN");
+
+    // Uslovi Studija (X7). Bez pečata nema prvog posla, i tu izuzetka nema:
+    // admin i moderator generišu istim modelima, sa istim zabranama i istim
+    // prosleđivanjem podataka provajderima, pa pristanak daju kao i svi.
+    if (typeof existing.acceptedStudioTermsAt !== "number") {
+      throw new Error("USLOVI_NEPRIHVACENI");
+    }
 
     // Kontekst lekcije se proverava istim putem kao i u `lab.saveLabOutput`:
     // upis u Studio ne daje pristup tudjem kursu, pa izlaz ne sme da sleti u
@@ -437,6 +444,27 @@ export const createJob = mutation({
       : await buildLegacyOrder(ctx, args.modelSlug, params);
     const cleanParams = order.params;
     const estimatedCostUsd = order.estimatedCostUsd;
+
+    // Osporena uplata (X7): chargeback traje nedeljama, i sve to vreme se ne
+    // sme generisati na račun novca koji će verovatno otići nazad. Brava visi
+    // na redu u `creditReversals`, ne na balansu - dopuna kredita je ne skida,
+    // skida je tek uklanjanje reda kad se spor reši.
+    const dispute = await ctx.db
+      .query("creditReversals")
+      .withIndex("by_userId_and_kind", (q) => q.eq("userId", userId).eq("kind", "dispute"))
+      .first();
+    if (dispute) throw new Error("SPOR_U_TOKU");
+
+    // Negativan saldo (X7): refundirana uplata je oduzela kredite koji su već
+    // bili potrošeni. Razlika stoji kao minus i Studio je zatvoren dok se ne
+    // poravna - dopunom ili ručnom ispravkom. `applySpend` ovo ne bi uhvatio:
+    // on gleda lotove, a minus može da stoji uz sasvim upotrebljive lotove iz
+    // druge uplate.
+    const balanceRow = await ctx.db
+      .query("creditBalances")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .unique();
+    if ((balanceRow?.balance ?? 0) < 0) throw new Error("SALDO_U_MINUSU");
 
     // Dug iz poravnanja (X2, nalaz N2): posao čiji je stvaran trošak premašio
     // ono što je korisnik imao ostavlja `unsettledCredits` na svom redu. Dok dug
@@ -1564,10 +1592,33 @@ export const recordMeasureFailure = internalMutation({
  * Broj poslova u letu se čita istim indeksom i istom granicom kao u
  * `createJob` - dugme se gasi po istom pravilu po kojem bi server odbio.
  */
+/**
+ * Pečat "imam 18 godina i prihvatam uslove korišćenja Studija" (X7). Jednom po
+ * korisniku, sa vremenom - `createJob` bez njega ne otvara posao.
+ *
+ * Drugi poziv ne pomera pečat i vraća zatečeno vreme. Datum pristanka je dokaz
+ * na koju je VERZIJU uslova pristanak dat; dokaz koji se osvežava svakim
+ * klikom nije dokaz. Kad se uslovi bitno izmene, pečat se briše migracijom, pa
+ * ekran ponovo traži potvrdu.
+ */
+export const acceptStudioTerms = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const { userId, existing } = await getCurrentProfile(ctx);
+    const accepted = existing.acceptedStudioTermsAt;
+    if (typeof accepted === "number") return accepted;
+
+    const now = Date.now();
+    await ctx.db.patch(userId, { acceptedStudioTermsAt: now });
+
+    return now;
+  },
+});
+
 export const getStudioState = query({
   args: {},
   handler: async (ctx) => {
-    const { userId, role } = await getCurrentProfile(ctx);
+    const { userId, role, existing } = await getCurrentProfile(ctx);
 
     const flag = await ctx.db
       .query("platformFlags")
@@ -1597,6 +1648,10 @@ export const getStudioState = query({
       // `createJob`, pa dugme ne može biti sivo korisniku kojeg bi server
       // pustio (ni obrnuto).
       hasStudioAccess: hasStudioAccess(role, enrollment),
+      // Da li je pečat iz `acceptStudioTerms` upisan (X7). Isti uslov koji
+      // `createJob` proverava na serveru, pa forma ne može da stoji otvorena
+      // korisniku kojem bi prvi klik svakako pao na `USLOVI_NEPRIHVACENI`.
+      hasAcceptedTerms: typeof existing.acceptedStudioTermsAt === "number",
       // Prekidač "Samo moji / Svi korisnici" u galeriji. Ovo je samo prikaz -
       // `listAllJobs` istu ulogu proverava ponovo, na serveru.
       isStaff: isStudioStaff(role),

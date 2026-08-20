@@ -95,6 +95,34 @@ const CREATE_JOB_ERROR_MESSAGES: Array<[string, { sr: string; en: string }]> = [
     },
   ],
   [
+    // Pečat o prihvatanju uslova ne postoji (X7). Kroz normalnu upotrebu je
+    // nedostižno - forma se do potvrde ni ne prikazuje - ali server odbija i
+    // poziv koji je zaobišao ekran.
+    "USLOVI_NEPRIHVACENI",
+    {
+      sr: "Pre prve generacije moraš da potvrdiš da imaš 18 godina i da prihvataš uslove Studija. Osveži stranicu, potvrda će te sačekati.",
+      en: "Before your first generation you must confirm that you are 18 and accept the Studio terms. Refresh the page and the confirmation will be waiting.",
+    },
+  ],
+  [
+    // Chargeback nad uplatom kojom su krediti kupljeni. Brava se ne skida
+    // dopunom, nego rešenim sporom - zato poruka vodi na podršku.
+    "SPOR_U_TOKU",
+    {
+      sr: "Uplata kojom su ovi krediti kupljeni je osporena, pa je generisanje zaustavljeno dok se spor ne reši. Javi se podršci.",
+      en: "The payment these credits were bought with is disputed, so generating is on hold until the dispute is resolved. Contact support.",
+    },
+  ],
+  [
+    // Refundirana uplata je oduzela kredite koji su već bili potrošeni. Ovo se
+    // rešava dopunom, pa poruka vodi na dugme "Dopuni".
+    "SALDO_U_MINUSU",
+    {
+      sr: "Uplata je vraćena, a krediti iz nje su već bili potrošeni - saldo ti je u minusu. Dopuni kredite da bi Studio ponovo radio.",
+      en: "A payment was refunded and its credits had already been spent, so your balance is negative. Top up your credits to reopen the Studio.",
+    },
+  ],
+  [
     "STUDIO_PAUZIRAN",
     {
       sr: "Studio je privremeno pauziran. Krediti ti ostaju na nalogu, probaj kasnije.",
@@ -274,6 +302,38 @@ export const STUDIO_CONTENT_NOTICE: Record<Locale, string> = {
 export const STUDIO_CONTENT_NOTICE_LINK: Record<Locale, string> = {
   sr: "Uslovi Studija i privatnost",
   en: "Studio terms and privacy",
+};
+
+/** Politika privatnosti - stranicu pravi korak X7, uz uslove korišćenja. */
+export const PRIVACY_POLICY_PATH = "/politika-privatnosti";
+
+/**
+ * Ekran koji stoji UMESTO forme dok pečat iz `studio.acceptStudioTerms` ne
+ * postoji (X7). Nije upozorenje pored dugmeta nego kapija: prvi posao je
+ * trenutak u kojem prompt odlazi provajderu i kredit se troši, pa pristanak
+ * mora da bude dat pre toga, a ne pored toga.
+ *
+ * `checkbox` i `cta` su namerno razdvojeni: čekiranje je izjava, klik je
+ * radnja, i dugme ne radi dok izjave nema.
+ */
+export const STUDIO_TERMS_GATE: EmptyState & {
+  checkbox: Record<Locale, string>;
+  failed: Record<Locale, string>;
+} = {
+  title: { sr: "Još jedna stvar pre prve generacije", en: "One thing before your first generation" },
+  body: {
+    sr: "Studio šalje tvoj prompt i okačene fajlove provajderima modela, generiše sadržaj za koji odgovaraš ti, i naplaćuje se kreditima koji su nepovratni. Pročitaj uslove i potvrdi jednom - posle ovoga te više ne pitamo.",
+    en: "The Studio sends your prompt and uploaded files to the model providers, generates content you are responsible for, and is paid in credits that are non-refundable. Read the terms and confirm once - we will not ask again.",
+  },
+  checkbox: {
+    sr: "Imam 18 godina i prihvatam uslove korišćenja Studija i politiku privatnosti.",
+    en: "I am 18 or older and I accept the Studio terms of use and the privacy policy.",
+  },
+  cta: { sr: "Prihvatam i otvaram Studio", en: "Accept and open the Studio" },
+  failed: {
+    sr: "Potvrda nije sačuvana. Pokušaj ponovo za koji trenutak.",
+    en: "The confirmation was not saved. Try again in a moment.",
+  },
 };
 
 export type EmptyState = {

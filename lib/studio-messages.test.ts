@@ -15,6 +15,7 @@ import {
   STUDIO_NOT_ENROLLED,
   STUDIO_NO_GENERATIONS,
   STUDIO_PAUSED,
+  STUDIO_TERMS_GATE,
   studioErrorMessage,
   uploadErrorMessage,
   type EmptyState,
@@ -54,6 +55,9 @@ describe("studioErrorMessage", () => {
     "ZAGLAVLJE_NEMOGUCE",
     "NEPORAVNAT_DUG",
     "PREVISE_NEPORAVNATOG",
+    "USLOVI_NEPRIHVACENI",
+    "SPOR_U_TOKU",
+    "SALDO_U_MINUSU",
   ];
 
   test("nijedna poruka ne prikazuje sirov kod greške", () => {
@@ -202,6 +206,7 @@ describe("prazna stanja", () => {
     ["CREDITS_NO_HISTORY", CREDITS_NO_HISTORY],
     ["GALLERY_NO_GENERATIONS", GALLERY_NO_GENERATIONS],
     ["GALLERY_NO_MATCHES", GALLERY_NO_MATCHES],
+    ["STUDIO_TERMS_GATE", STUDIO_TERMS_GATE],
   ];
 
   test("svako prazno stanje ima naslov, rečenicu i sledeći korak na oba jezika", () => {

@@ -24,11 +24,13 @@ import { parseStudioModel, type StudioModel, type StudioModelRow } from "@/lib/s
 import {
   measuredDurationNotice,
   missingRegenerateInputsNotice,
+  PRIVACY_POLICY_PATH,
   STUDIO_CONTENT_NOTICE,
   STUDIO_CONTENT_NOTICE_LINK,
   STUDIO_NOT_ENROLLED,
   STUDIO_NO_GENERATIONS,
   STUDIO_PAUSED,
+  STUDIO_TERMS_GATE,
   STUDIO_TERMS_PATH,
 } from "@/lib/studio-messages";
 import { creditsFor, type ParamValues } from "@/lib/studio-params";
@@ -84,6 +86,78 @@ const TILE_LABELS = {
 
 const PILL =
   "inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 px-5 py-2.5 text-sm font-extrabold transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-60";
+
+/**
+ * Kapija pred prvom generacijom (X7): jedna kvačica i jedno dugme. Stoji umesto
+ * cele leve kolone dok `acceptStudioTerms` ne upiše pečat, jer se pristanak
+ * daje PRE nego što prompt ode provajderu, a ne pored dugmeta "Generiši".
+ *
+ * Dugme je zaključano dok kvačica nije čekirana, i oba linka vode na stvarne
+ * stranice - pristanak na uslove koji se ne mogu otvoriti nije pristanak.
+ */
+function StudioTermsGate({ locale }: { locale: Locale }) {
+  const acceptTerms = useMutation(api.studio.acceptStudioTerms);
+  const [checked, setChecked] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  async function accept() {
+    setIsSaving(true);
+    setFailed(false);
+    try {
+      await acceptTerms({});
+    } catch {
+      // Pečat nije upisan, pa `getStudioState` i dalje vraća `false` i kapija
+      // ostaje - poruka objašnjava zašto ekran nije otišao dalje.
+      setFailed(true);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  return (
+    <Panel className="p-6">
+      <h3 className="text-2xl font-black text-ink">{STUDIO_TERMS_GATE.title[locale]}</h3>
+      <p className="mt-2 text-base font-bold text-muted">{STUDIO_TERMS_GATE.body[locale]}</p>
+
+      <div className="surface-inset mt-5 flex gap-3 border-2 border-ink bg-paper p-4">
+        <input
+          id="studio-terms-accept"
+          type="checkbox"
+          checked={checked}
+          onChange={(event) => setChecked(event.target.checked)}
+          className="mt-1 size-5 shrink-0 accent-ink"
+        />
+        <label htmlFor="studio-terms-accept" className="text-sm font-bold leading-6 text-ink">
+          {STUDIO_TERMS_GATE.checkbox[locale]}
+        </label>
+      </div>
+
+      <div className="mt-4 flex flex-wrap gap-4 text-sm font-extrabold">
+        <Link href={withLocale(locale, STUDIO_TERMS_PATH)} className="text-ink underline">
+          {locale === "sr" ? "Uslovi korišćenja Studija" : "Studio terms of use"}
+        </Link>
+        <Link href={withLocale(locale, PRIVACY_POLICY_PATH)} className="text-ink underline">
+          {locale === "sr" ? "Politika privatnosti" : "Privacy policy"}
+        </Link>
+      </div>
+
+      <button
+        type="button"
+        onClick={accept}
+        disabled={!checked || isSaving}
+        className={cn(PILL, "mt-5 border-ink bg-yellow text-ink shadow-[4px_4px_0_0_#0e3158] hover:-translate-y-0.5")}
+      >
+        {isSaving ? <Loader2 className="size-4 animate-spin" /> : null}
+        {STUDIO_TERMS_GATE.cta[locale]}
+      </button>
+
+      {failed ? (
+        <p className="mt-3 text-sm font-bold text-muted">{STUDIO_TERMS_GATE.failed[locale]}</p>
+      ) : null}
+    </Panel>
+  );
+}
 
 function formatDate(timestamp: number, locale: Locale) {
   return new Date(timestamp).toLocaleDateString(locale === "sr" ? "sr-RS" : "en-US", {
@@ -755,6 +829,13 @@ export function StudioPage({ locale }: { locale: Locale }) {
           </Link>
         </Panel>
       );
+    }
+
+    // Pečat o uslovima (X7) se traži tek pošto su pauza i upis prošli:
+    // korisniku koji ionako ne sme u Studio nema smisla tražiti pristanak na
+    // uslove Studija.
+    if (state !== undefined && !state.hasAcceptedTerms) {
+      return <StudioTermsGate locale={locale} />;
     }
 
     return (

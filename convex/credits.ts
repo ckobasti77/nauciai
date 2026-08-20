@@ -528,3 +528,96 @@ export const applyStripeGrant = mutation({
     return lotId;
   },
 });
+
+/**
+ * Drugi ulaz za Stripe webhook (X7): oduzimanje kredita koje je uplata
+ * dodelila, pošto je ta uplata refundirana (`charge.refunded`) ili osporena
+ * (`charge.dispute.created`).
+ *
+ * Oduzima se PUN dodeljen iznos, a ne ono što je od lota ostalo. Krediti koji
+ * su u međuvremenu potrošeni su otišli provajderu i ne vraćaju se nama, pa
+ * saldo posle povlačenja sme da bude negativan - to je tačno onoliko koliko je
+ * korisnik potrošio a nije platio. `studio.createJob` na negativan saldo ne
+ * otvara posao, pa Studio ostaje zatvoren dok se minus ne poravna.
+ *
+ * Idempotencija ide po `event.id`, ne po ključu lota: isti dogadjaj isporučen
+ * dvaput ne sme dvaput da obori saldo. Dva RAZLIČITA dogadjaja nad istom
+ * uplatom (spor pa refundacija) upisuju dva reda, ali kredite oduzima samo
+ * prvi - drugom `revokedCredits` ostaje 0, a red i dalje postoji jer brava
+ * zbog spora visi na njemu.
+ */
+export const applyStripeReversal = mutation({
+  args: {
+    syncSecret: v.string(),
+    eventId: v.string(),
+    kind: v.union(v.literal("refund"), v.literal("dispute")),
+    stripeInvoiceId: v.optional(v.string()),
+    stripeSessionId: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    requireSyncSecret(args.syncSecret);
+
+    const keys: IdempotencyKey[] = [];
+    if (args.stripeInvoiceId) keys.push({ field: "stripeInvoiceId", value: args.stripeInvoiceId });
+    if (args.stripeSessionId) keys.push({ field: "stripeSessionId", value: args.stripeSessionId });
+    if (keys.length !== 1) throw new Error("NEVALIDAN_KLJUC_IDEMPOTENCIJE");
+
+    const repeated = await ctx.db
+      .query("creditReversals")
+      .withIndex("by_eventId", (q) => q.eq("eventId", args.eventId))
+      .unique();
+    if (repeated) {
+      return { revoked: repeated.revokedCredits, blocked: repeated.kind === "dispute" };
+    }
+
+    // Uplata koja nikad nije dodelila kredite (pretplata na kurs, naplata pre
+    // nego što je Studio postojao). Nema šta da se oduzme i nema kome da se
+    // upiše brava - webhook je već proverio da je ovo ključ kredit-lota, pa je
+    // izostanak reda legitiman ishod, a ne greška.
+    const lot = await findLotByKey(ctx, keys[0]);
+    if (!lot) return { revoked: 0, blocked: false };
+
+    const now = Date.now();
+    const revoked = lot.revokedAt ? 0 : lot.granted;
+
+    if (!lot.revokedAt) {
+      await ctx.db.patch(lot._id, {
+        remaining: 0,
+        exhaustedAt: lot.exhaustedAt ?? now,
+        revokedAt: now,
+      });
+      const balanceAfter = await applyBalanceDelta(ctx, lot.userId, now, {
+        balance: -lot.granted,
+        // Novac je otišao nazad, pa "koliko je ikad kupljeno" mora da padne za
+        // isti iznos - inače bi refundiran paket zauvek stajao kao kupovina.
+        purchased: PAID_SOURCES.has(lot.source) ? -lot.granted : 0,
+        // `lifetimeSpent` se ne dira: ono što je potrošeno jeste potrošeno, i
+        // upravo je to razlika koja saldo gura u minus.
+        spent: 0,
+      });
+      await ctx.db.insert("creditTransactions", {
+        userId: lot.userId,
+        amount: -lot.granted,
+        type: "revocation",
+        balanceAfter,
+        lotId: lot._id,
+        stripeSessionId: lot.stripeSessionId,
+        packId: lot.packId,
+        createdAt: now,
+      });
+    }
+
+    await ctx.db.insert("creditReversals", {
+      eventId: args.eventId,
+      userId: lot.userId,
+      kind: args.kind,
+      lotId: lot._id,
+      revokedCredits: revoked,
+      stripeInvoiceId: args.stripeInvoiceId,
+      stripeSessionId: args.stripeSessionId,
+      createdAt: now,
+    });
+
+    return { revoked, blocked: args.kind === "dispute" };
+  },
+});

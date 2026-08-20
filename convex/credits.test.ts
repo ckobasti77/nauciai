@@ -6,6 +6,7 @@ import { afterAll, beforeAll, expect, test } from "vitest";
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import {
+  chargeReversal,
   computeExpiry,
   creditPackGrants,
   invoicePaidGrants,
@@ -748,4 +749,243 @@ test("bonus se ne dodeljuje drugi put ni kad lot nosi stari ključ po fakturi", 
   const { balance, lots } = await ledger(t, userId);
   expect(lots).toHaveLength(1);
   expect(balance?.balance).toBe(WELCOME_BONUS_CREDITS);
+});
+
+// ── Stripe webhook -> povraćaji (X7) ───────────────────────────────────────
+
+/** `charge.refunded` / `charge.dispute.created` onako kako ih webhook prosledi. */
+async function applyReversal(
+  t: TestConvex,
+  reversal: { eventId: string; kind: "refund" | "dispute"; sessionId?: string; invoiceId?: string },
+) {
+  return t.mutation(api.credits.applyStripeReversal, {
+    syncSecret: SYNC_SECRET,
+    eventId: reversal.eventId,
+    kind: reversal.kind,
+    ...(reversal.invoiceId ? { stripeInvoiceId: reversal.invoiceId } : {}),
+    ...(reversal.sessionId ? { stripeSessionId: reversal.sessionId } : {}),
+  });
+}
+
+/** Kupljen paket od 500 kredita, isto kao u testu idempotencije iznad. */
+async function seedPurchasedPack(t: TestConvex, userId: Id<"users">, sessionId: string) {
+  const packId = await seedPack(t, { slug: "starter", credits: 500, kind: "pack" });
+  await applyStripeGrants(
+    t,
+    creditPackGrants({
+      sessionId,
+      metadata: { kind: "credit_pack", packId, packSlug: "starter", userId, credits: "500" },
+    }),
+  );
+  return packId;
+}
+
+test("charge.refunded oduzima tačno onoliko kredita koliko je ta uplata dodelila", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await seedUser(t);
+  await seedPurchasedPack(t, userId, "cs_refund");
+  expect((await ledger(t, userId)).balance?.balance).toBe(500);
+
+  const outcome = await applyReversal(t, {
+    eventId: "evt_refund_1",
+    kind: "refund",
+    sessionId: "cs_refund",
+  });
+
+  expect(outcome).toEqual({ revoked: 500, blocked: false });
+  const { balance, lots, transactions } = await ledger(t, userId);
+  expect(balance?.balance).toBe(0);
+  // Novac je vraćen, pa i "koliko je ikad kupljeno" mora da padne - inače bi
+  // refundiran paket zauvek stajao kao kupovina.
+  expect(balance?.lifetimePurchased).toBe(0);
+  expect(lots).toHaveLength(1);
+  expect(lots[0].remaining).toBe(0);
+  expect(lots[0].revokedAt).toEqual(expect.any(Number));
+  expect(transactions.filter((row) => row.type === "revocation")).toHaveLength(1);
+  expect(transactions.at(-1)).toMatchObject({ amount: -500, type: "revocation", balanceAfter: 0 });
+});
+
+test("dvaput isporučen isti charge.refunded ne oduzme dvaput", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await seedUser(t);
+  await seedPurchasedPack(t, userId, "cs_refund");
+
+  const first = await applyReversal(t, {
+    eventId: "evt_refund_1",
+    kind: "refund",
+    sessionId: "cs_refund",
+  });
+  const second = await applyReversal(t, {
+    eventId: "evt_refund_1",
+    kind: "refund",
+    sessionId: "cs_refund",
+  });
+
+  expect(first).toEqual({ revoked: 500, blocked: false });
+  // Drugi prolaz vrati ISTI ishod, jer webhook na osnovu njega odlučuje šta da
+  // javi Stripe-u - a ne sme da upiše nijedan nov red.
+  expect(second).toEqual({ revoked: 500, blocked: false });
+
+  const { balance, lots, transactions } = await ledger(t, userId);
+  expect(balance?.balance).toBe(0);
+  expect(lots).toHaveLength(1);
+  expect(transactions.filter((row) => row.type === "revocation")).toHaveLength(1);
+  const reversals = await t.run((ctx) => ctx.db.query("creditReversals").collect());
+  expect(reversals).toHaveLength(1);
+});
+
+test("refundacija posle potrošnje gura saldo u minus, tačno za potrošeni deo", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await seedUser(t);
+  await seedPurchasedPack(t, userId, "cs_refund");
+  const jobId = await seedJob(t, userId, 320);
+  await t.mutation(internal.credits.spendCredits, { userId, amount: 320, jobId });
+  expect((await ledger(t, userId)).balance?.balance).toBe(180);
+
+  await applyReversal(t, { eventId: "evt_refund_1", kind: "refund", sessionId: "cs_refund" });
+
+  // 500 dodeljeno, 320 potrošeno: 180 se oduzme sa lota, 320 ostaje kao minus.
+  const { balance } = await ledger(t, userId);
+  expect(balance?.balance).toBe(-320);
+});
+
+test("charge.dispute.created zamrzava kredite i ostavlja bravu na nalogu", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await seedUser(t);
+  await seedPurchasedPack(t, userId, "cs_spor");
+
+  const outcome = await applyReversal(t, {
+    eventId: "evt_dispute_1",
+    kind: "dispute",
+    sessionId: "cs_spor",
+  });
+
+  expect(outcome).toEqual({ revoked: 500, blocked: true });
+  expect((await ledger(t, userId)).balance?.balance).toBe(0);
+  const reversals = await t.run((ctx) =>
+    ctx.db
+      .query("creditReversals")
+      .withIndex("by_userId_and_kind", (q) => q.eq("userId", userId).eq("kind", "dispute"))
+      .collect(),
+  );
+  expect(reversals).toHaveLength(1);
+  expect(reversals[0]).toMatchObject({ eventId: "evt_dispute_1", revokedCredits: 500 });
+});
+
+test("refundacija posle spora nad istom uplatom ne oduzima kredite drugi put", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await seedUser(t);
+  await seedPurchasedPack(t, userId, "cs_spor");
+
+  await applyReversal(t, { eventId: "evt_dispute_1", kind: "dispute", sessionId: "cs_spor" });
+  const refund = await applyReversal(t, {
+    eventId: "evt_refund_2",
+    kind: "refund",
+    sessionId: "cs_spor",
+  });
+
+  // Dva RAZLIČITA dogadjaja, pa oba upisuju svoj red - ali lot je već povučen,
+  // pa drugi ne pomera nijedan broj.
+  expect(refund).toEqual({ revoked: 0, blocked: false });
+  const { balance, transactions } = await ledger(t, userId);
+  expect(balance?.balance).toBe(0);
+  expect(transactions.filter((row) => row.type === "revocation")).toHaveLength(1);
+  const reversals = await t.run((ctx) => ctx.db.query("creditReversals").collect());
+  expect(reversals).toHaveLength(2);
+});
+
+test("povraćaj po fakturi oduzima dozu plana, a welcome bonus ostaje netaknut", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await seedUser(t);
+  const packId = await seedPack(t, {
+    slug: "premium",
+    credits: PREMIUM_MONTHLY_CREDITS,
+    kind: "plan",
+    planTier: "premium",
+  });
+  await applyStripeGrants(
+    t,
+    invoicePaidGrants({
+      invoiceId: "in_prva",
+      billingReason: "subscription_create",
+      subscriptionMetadata: planMetadata(userId),
+      planCredits: PREMIUM_MONTHLY_CREDITS,
+      planPackId: packId,
+      amountPaid: 1990,
+    }),
+  );
+
+  await applyReversal(t, { eventId: "evt_refund_3", kind: "refund", invoiceId: "in_prva" });
+
+  // Bonus visi na ključu `welcome:<userId>`, ne na fakturi - njega povlači
+  // odvojena odluka podrške, ne ovaj dogadjaj.
+  const { balance } = await ledger(t, userId);
+  expect(balance?.balance).toBe(WELCOME_BONUS_CREDITS);
+});
+
+test("povraćaj naplate koja nikad nije dodelila kredite ne upisuje ništa", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await seedUser(t);
+  await seedPurchasedPack(t, userId, "cs_paket");
+
+  // Pretplata na kurs: postoji faktura, ali lot pod njom nikad nije otvoren.
+  const outcome = await applyReversal(t, {
+    eventId: "evt_refund_kurs",
+    kind: "refund",
+    invoiceId: "in_kurs",
+  });
+
+  expect(outcome).toEqual({ revoked: 0, blocked: false });
+  expect((await ledger(t, userId)).balance?.balance).toBe(500);
+  expect(await t.run((ctx) => ctx.db.query("creditReversals").collect())).toHaveLength(0);
+});
+
+test("applyStripeReversal odbija pogrešan syncSecret i poziv bez tačno jednog ključa", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await seedUser(t);
+  await seedPurchasedPack(t, userId, "cs_refund");
+
+  await expect(
+    t.mutation(api.credits.applyStripeReversal, {
+      syncSecret: "pogresan",
+      eventId: "evt_x",
+      kind: "refund",
+      stripeSessionId: "cs_refund",
+    }),
+  ).rejects.toThrow(/Forbidden/);
+
+  await expect(
+    t.mutation(api.credits.applyStripeReversal, {
+      syncSecret: SYNC_SECRET,
+      eventId: "evt_y",
+      kind: "refund",
+    }),
+  ).rejects.toThrow(/NEVALIDAN_KLJUC_IDEMPOTENCIJE/);
+
+  await expect(
+    t.mutation(api.credits.applyStripeReversal, {
+      syncSecret: SYNC_SECRET,
+      eventId: "evt_z",
+      kind: "refund",
+      stripeSessionId: "cs_refund",
+      stripeInvoiceId: "in_refund",
+    }),
+  ).rejects.toThrow(/NEVALIDAN_KLJUC_IDEMPOTENCIJE/);
+
+  expect((await ledger(t, userId)).balance?.balance).toBe(500);
+});
+
+test("chargeReversal bira fakturu pre sesije i odbija naplatu bez ijednog ključa", () => {
+  expect(
+    chargeReversal({ eventId: "evt_1", kind: "refund", invoiceId: "in_1", sessionId: "cs_1" }),
+  ).toEqual({ eventId: "evt_1", kind: "refund", stripeInvoiceId: "in_1" });
+  expect(chargeReversal({ eventId: "evt_1", kind: "dispute", sessionId: "cs_1" })).toEqual({
+    eventId: "evt_1",
+    kind: "dispute",
+    stripeSessionId: "cs_1",
+  });
+  expect(
+    chargeReversal({ eventId: "evt_1", kind: "refund", invoiceId: null, sessionId: null }),
+  ).toBeNull();
+  expect(chargeReversal({ eventId: "  ", kind: "refund", sessionId: "cs_1" })).toBeNull();
 });

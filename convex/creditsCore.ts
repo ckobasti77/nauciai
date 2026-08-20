@@ -296,3 +296,55 @@ export function invoicePaidGrants(invoice: {
 
   return grants;
 }
+
+// ── Stripe -> povraćaji ────────────────────────────────────────────────────
+
+/**
+ * `refund` je vraćen novac, `dispute` je osporena uplata. Oba oduzimaju kredite
+ * iste uplate, ali `dispute` uz to i zaključava nalog: chargeback traje
+ * nedeljama, a za to vreme se ne sme generisati na tudji račun.
+ */
+export type StripeReversalKind = "refund" | "dispute";
+
+/**
+ * Ono što webhook prosleđuje `applyStripeReversal`-u, bez `syncSecret`.
+ * `eventId` je ključ idempotencije SAMOG DOGADJAJA (Stripe isti dogadjaj
+ * isporučuje ponovo posle svake 500-ke), a `stripeInvoiceId`/`stripeSessionId`
+ * je ključ pod kojim je lot otvoren - tačno jedan od ta dva mora da postoji.
+ */
+export type StripeReversal = {
+  eventId: string;
+  kind: StripeReversalKind;
+  stripeInvoiceId?: string;
+  stripeSessionId?: string;
+};
+
+/**
+ * Po kom ključu se traži lot koji je osporena uplata otvorila.
+ *
+ * Faktura ima prednost nad sesijom: naplata pretplate otvara lot pod
+ * `invoice.id` (`invoicePaidGrants`), pa i kad ista naplata ima i sesiju,
+ * lot pod sesijom ne postoji. Jednokratan paket kredita nema fakturu i ide
+ * pod `checkout.session.id` (`creditPackGrants`).
+ *
+ * `null` znači "ovoj uplati se ne zna ključ" - naplata koja nikad nije
+ * dodelila kredite (pretplata na kurs) izgleda upravo tako, i webhook je zato
+ * preskače umesto da baca.
+ */
+export function chargeReversal(charge: {
+  eventId: string;
+  kind: StripeReversalKind;
+  invoiceId?: string | null;
+  sessionId?: string | null;
+}): StripeReversal | null {
+  const eventId = trimmed(charge.eventId);
+  if (!eventId) return null;
+
+  const invoiceId = trimmed(charge.invoiceId ?? undefined);
+  if (invoiceId) return { eventId, kind: charge.kind, stripeInvoiceId: invoiceId };
+
+  const sessionId = trimmed(charge.sessionId ?? undefined);
+  if (sessionId) return { eventId, kind: charge.kind, stripeSessionId: sessionId };
+
+  return null;
+}
