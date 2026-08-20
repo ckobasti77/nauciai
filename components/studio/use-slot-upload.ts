@@ -20,6 +20,10 @@ import type { SlotFile } from "@/lib/studio-slots";
  * fajla pamti tek `registerInputUpload` - a `createJob` neprijavljen `storageId`
  * ne prima (nalaz R4). Ako prijava padne, upload se računa kao neuspeo.
  *
+ * Uz upload URL stiže i dozvola (`grantId`, X5), koja se vraća prijavi: bez nje
+ * server od sada ne prima nijedan `storageId`. Slot ide u zahtev za URL, ne u
+ * prijavu - upisan je u samu dozvolu.
+ *
  * Merenje trajanja ide odmah za njom, i to samo za formate koje parser čita
  * (`canMeasure`). Neuspelo merenje NIJE neuspeo upload - fajl je gore i vidi
  * se; posao koji se po trajanju naplaćuje na njemu prosto ne može da krene, pa
@@ -32,9 +36,9 @@ export function useSlotUpload() {
 
   return useCallback(
     async (file: File, slot: string, onProgress: (fraction: number) => void): Promise<SlotFile> => {
-      const uploadUrl = await createUploadUrl();
+      const { uploadUrl, grantId } = await createUploadUrl({ slot });
       const storageId = await putWithProgress(uploadUrl, file, onProgress);
-      await registerUpload({ storageId: storageId as Id<"_storage">, slot });
+      await registerUpload({ storageId: storageId as Id<"_storage">, grantId });
 
       let measuredSeconds: number | undefined;
       let measureFailure: string | undefined;

@@ -124,6 +124,9 @@ export const expireCredits = internalMutation({
  * je pravilo obrnuto od izlaza: red nosi `expiresAt` samo dok fajl nije ušao ni
  * u jedan posao, pa se briše CEO - i blob i red - jer bez reda taj fajl nema
  * nijednu referencu u bazi.
+ *
+ * I dozvole za upload (`studioUploadGrants`, X5) idu odavde: one nemaju fajl,
+ * samo red, i posle sat vremena ne vrede ništa - ni potrošene ni nepotrošene.
  */
 export const expireGenerationFiles = internalMutation({
   args: {},
@@ -153,7 +156,20 @@ export const expireGenerationFiles = internalMutation({
       await ctx.db.delete(upload._id);
     }
 
-    return { cleared: expired.length, uploads: orphans.length };
+    // Dozvole za upload (X5, nalaz N3). Jedan prolaz pokriva i istekle i
+    // iskorišćene: potrošena dozvola nosi isti `expiresAt` kao i neiskorišćena,
+    // pa nestaje najkasnije sat vremena posle uploada. Fajla ovde nema - grant
+    // je samo red.
+    const grants = await ctx.db
+      .query("studioUploadGrants")
+      .withIndex("by_expiry", (q) => q.lte("expiresAt", now))
+      .take(EXPIRY_BATCH_LIMIT);
+
+    for (const grant of grants) {
+      await ctx.db.delete(grant._id);
+    }
+
+    return { cleared: expired.length, uploads: orphans.length, grants: grants.length };
   },
 });
 

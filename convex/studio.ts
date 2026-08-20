@@ -46,10 +46,13 @@ import {
   extractPrompt,
   hasStudioAccess,
   INPUT_UPLOAD_TTL_MS,
+  isMeasureBlocked,
   isMockRequestId,
   isStudioStaff,
   MAX_ACTIVE_JOBS,
   MAX_DAILY_GENERATIONS,
+  MEASURE_RATE_WINDOW_MS,
+  MEASURE_UPLOAD_HOURLY_LIMIT,
   outputExpiresAt,
   outputTitle,
   ownerHandle,
@@ -58,6 +61,8 @@ import {
   requestedImageCount,
   sanitizeParams,
   STUDIO_FLAG_KEY,
+  UPLOAD_GRANT_CLOCK_SLACK_MS,
+  UPLOAD_GRANT_TTL_MS,
 } from "./studioCore";
 
 /**
@@ -1305,22 +1310,40 @@ export const deleteJob = mutation({
  * obrazac kao `lab.createLabOutputUploadUrl` i `profiles.createAvatarUploadUrl`:
  * URL važi kratko i traži prijavljenog korisnika.
  *
- * Slot, tip i veličinu proverava `<DropSlot>` PRE poziva. Ko je fajl okačio
- * pamti tek `registerInputUpload` ispod: ova mutacija vraća URL i ne zna ishod
- * uploada, pa ni `storageId` koji će iz njega ispasti.
+ * Uz URL ide i DOZVOLA (X5, nalaz N3): jedan red u `studioUploadGrants`, čiji
+ * `_id` klijent vraća nazad kroz `registerInputUpload`. Convex `storageId` ne
+ * postoji pre uploada, pa se dozvola ne može vezati za fajl - vezuje se za ovaj
+ * poziv, i bez nje se nijedan tuđi `_storage` ID ne može prijaviti kao svoj.
+ *
+ * Slot, tip i veličinu proverava `<DropSlot>` PRE poziva; slot ipak ide i ovde,
+ * jer ga od sada `registerInputUpload` čita iz dozvole umesto sa klijenta.
  */
 export const createInputUploadUrl = mutation({
-  args: {},
-  handler: async (ctx) => {
-    await requireUserId(ctx);
+  args: { slot: v.string() },
+  handler: async (ctx, args) => {
+    const userId = await requireUserId(ctx);
 
-    return ctx.storage.generateUploadUrl();
+    const now = Date.now();
+    const grantId = await ctx.db.insert("studioUploadGrants", {
+      userId,
+      slot: args.slot,
+      createdAt: now,
+      expiresAt: now + UPLOAD_GRANT_TTL_MS,
+    });
+
+    return { uploadUrl: await ctx.storage.generateUploadUrl(), grantId };
   },
 });
 
 /**
- * Prijava okačenog fajla (nalaz R4). Klijent je zove ČIM upload prođe, i tek
- * ovaj red daje `createJob`-u pravo da taj `storageId` primi.
+ * Prijava okačenog fajla (nalaz R4, pooštreno u X5 zbog N3). Klijent je zove
+ * ČIM upload prođe, i tek ovaj red daje `createJob`-u pravo da taj `storageId`
+ * primi.
+ *
+ * Prima se ISKLJUČIVO `storageId` uz neiskorišćenu, neisteklu dozvolu tog
+ * korisnika, i to fajl koji je nastao POSLE nje; dozvola se odmah troši. Bez
+ * toga je jedina odbrana bila nepogodivost ID-ja, a `_storage` je zajednički
+ * imenski prostor - naslovna slika kursa je isto tako `_storage` ID.
  *
  * Veličina i MIME tip se čitaju iz `_storage`, ne iz onoga što je klijent
  * poslao - to je ista cifra na koju se kasnije oslanja granica prijavljenog
@@ -1331,7 +1354,7 @@ export const createInputUploadUrl = mutation({
  * sklanja, a `crons.expireGenerationFiles` briše ono što ostane.
  */
 export const registerInputUpload = mutation({
-  args: { storageId: v.id("_storage"), slot: v.string() },
+  args: { storageId: v.id("_storage"), grantId: v.id("studioUploadGrants") },
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx);
 
@@ -1345,17 +1368,31 @@ export const registerInputUpload = mutation({
     if (existing) {
       // Ponovljena prijava istog fajla (mrežni pokušaj iz drugog pokušaja) nije
       // greška; prijava tudjeg fajla jeste - ona je jedini način da se
-      // vlasništvo prepiše.
+      // vlasništvo prepiše. Dozvola se ovde namerno ne traži: ponovljeni poziv
+      // nosi istu, već potrošenu dozvolu, a red je ionako već napravljen.
       if (existing.userId !== userId) throw new Error("TUDJI_FAJL");
 
       return null;
     }
 
     const now = Date.now();
+    const grant = await ctx.db.get(args.grantId);
+    if (!grant || grant.userId !== userId || grant.usedAt !== undefined || grant.expiresAt <= now) {
+      throw new Error("NEDOZVOLJEN_UPLOAD");
+    }
+    // Dozvola ne zna svoj `storageId` - Convex ga ne daje pre uploada - pa se
+    // veza pravi preko vremena: fajl koji je postojao pre nego što je dozvola
+    // izdata nije nastao iz nje. Bez ovoga bi jedna sveže izdata dozvola i
+    // dalje mogla da prisvoji bilo koji zatečen `_storage` ID.
+    if (meta._creationTime < grant.createdAt - UPLOAD_GRANT_CLOCK_SLACK_MS) {
+      throw new Error("NEDOZVOLJEN_UPLOAD");
+    }
+    await ctx.db.patch(grant._id, { usedAt: now });
+
     await ctx.db.insert("studioUploads", {
       userId,
       storageId: args.storageId,
-      slot: args.slot,
+      slot: grant.slot,
       bytes: meta.size,
       ...(meta.contentType ? { mimeType: meta.contentType } : {}),
       createdAt: now,
@@ -1374,7 +1411,9 @@ export const registerInputUpload = mutation({
  * merenje - a odgovor (trajanje) je podatak o tuđem fajlu.
  */
 export const getOwnedUpload = internalQuery({
-  args: { storageId: v.id("_storage") },
+  // `now` dolazi iz akcije: prozor rate limita je vreme, a query se ne pokreće
+  // ponovo samo zato što je sat odmakao (Convex guidelines).
+  args: { storageId: v.id("_storage"), now: v.number() },
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx);
     const upload = await ctx.db
@@ -1383,7 +1422,21 @@ export const getOwnedUpload = internalQuery({
       .first();
     if (!upload || upload.userId !== userId) return null;
 
-    return { uploadId: upload._id, bytes: upload.bytes, durationS: upload.durationS };
+    // Isti obrazac kao rate limiti u `chatCore.ts`: prozor preko indeksa,
+    // `take` odmah iznad granice, pa se nikad ne pročita više od 30 redova.
+    const recent = await ctx.db
+      .query("studioUploads")
+      .withIndex("by_user", (q) =>
+        q.eq("userId", userId).gte("createdAt", args.now - MEASURE_RATE_WINDOW_MS),
+      )
+      .take(MEASURE_UPLOAD_HOURLY_LIMIT);
+
+    return {
+      uploadId: upload._id,
+      bytes: upload.bytes,
+      durationS: upload.durationS,
+      measureBlocked: isMeasureBlocked(upload.measureFailures, recent.length),
+    };
   },
 });
 
@@ -1392,13 +1445,32 @@ export const getOwnedUpload = internalQuery({
  * storage-u je nepromenljiv, pa drugo merenje istog `storageId`-ja ne može da
  * da drugi broj - a ponovljeni poziv akcije (mreža, dva slota nad istim fajlom)
  * sme da se desi.
+ *
+ * Uspeh briše brojač neuspeha (X5): od upisanog `durationS`-a akcija kratko
+ * spaja svaki naredni poziv, pa brojač više nema šta da čuva.
  */
 export const setUploadDuration = internalMutation({
   args: { uploadId: v.id("studioUploads"), seconds: v.number() },
   handler: async (ctx, args) => {
     const upload = await ctx.db.get(args.uploadId);
     if (!upload || upload.durationS !== undefined) return null;
-    await ctx.db.patch(args.uploadId, { durationS: args.seconds });
+    await ctx.db.patch(args.uploadId, { durationS: args.seconds, measureFailures: undefined });
+
+    return null;
+  },
+});
+
+/**
+ * Jedno neuspelo čitanje zaglavlja (X5, nalaz N4). Brojač raste samo kad su
+ * bajtovi stvarno povučeni - tuđi fajl i fajl kojeg u storage-u nema ne troše
+ * pokušaj, jer ni ne dođu do `fetch`-a.
+ */
+export const recordMeasureFailure = internalMutation({
+  args: { uploadId: v.id("studioUploads") },
+  handler: async (ctx, args) => {
+    const upload = await ctx.db.get(args.uploadId);
+    if (!upload) return null;
+    await ctx.db.patch(args.uploadId, { measureFailures: (upload.measureFailures ?? 0) + 1 });
 
     return null;
   },

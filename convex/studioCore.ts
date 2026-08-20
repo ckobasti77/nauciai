@@ -371,6 +371,67 @@ export function outputExpiresAt(kind: keyof typeof OUTPUT_RETENTION_DAYS, now: n
 export const INPUT_UPLOAD_TTL_MS = DAY_MS;
 
 /**
+ * Koliko važi dozvola za jedan ulazni upload (X5, nalaz N3). Grant se izdaje
+ * uz upload URL i troši se prijavom okačenog fajla, pa mora da pokrije samo
+ * jedan upload - sat vremena je i za video od 200 MB preko slabe veze daleko
+ * iznad potrebnog, a ostavlja daleko manji prozor od TTL-a samog uploada.
+ */
+export const UPLOAD_GRANT_TTL_MS = 60 * 60 * 1000;
+
+/**
+ * Koliko sme da bude STARIJI fajl od dozvole kojom se prijavljuje (X5).
+ *
+ * Dozvola sama po sebi ne kaže KOJI fajl je okačen - `createInputUploadUrl` ih
+ * izdaje koliko ko traži, pa bi bez ovog uslova jedna dozvola i dalje kupovala
+ * jedan tuđi `_storage` ID. Veza se zato pravi preko vremena: fajl koji je u
+ * storage-u stajao pre nego što je dozvola izdata sigurno nije nastao iz nje.
+ * Prozor u kojem se tuđi ID uopšte može pogoditi time pada sa "zauvek" na
+ * "koliko traje jedan upload".
+ *
+ * Minut tolerancije je zato što `createdAt` čita sat funkcije koja dozvolu
+ * upisuje, a `_creationTime` sat koji fajl upisuje - poštena prijava ne sme da
+ * padne zbog razlike među njima.
+ */
+export const UPLOAD_GRANT_CLOCK_SLACK_MS = 60 * 1000;
+
+/**
+ * Posle koliko neuspelih merenja se ISTI fajl više ne čita (X5, nalaz N4).
+ * Fajl u Convex storage-u je nepromenljiv: ako mu se zaglavlje ne pročita iz
+ * prvog pokušaja, neće ni iz stotog. Tri pokušaja su tu samo zbog mrežnih
+ * grešaka i `Range` zahteva koji padne.
+ */
+export const MAX_MEASURE_FAILURES = 3;
+
+/**
+ * Grubi rate limit merenja, po korisniku (X5, nalaz N4). Ne broje se pozivi
+ * akcije nego uploadi koje je korisnik napravio u poslednjem satu: svaki poziv
+ * koji stvarno čita bajtove mora da ima svoj red u `studioUploads`, pa je ovo
+ * gornja granica broja fajlova nad kojima se u tom satu uopšte može meriti.
+ * Zajedno sa `MAX_MEASURE_FAILURES` to je najviše 90 čitanja na sat.
+ *
+ * Isti obrazac kao rate limiti u `chatCore.ts`: prebroj redove u prozoru preko
+ * indeksa, sa `take`-om odmah iznad granice.
+ */
+export const MEASURE_UPLOAD_HOURLY_LIMIT = 30;
+
+export const MEASURE_RATE_WINDOW_MS = 60 * 60 * 1000;
+
+/**
+ * Sme li `measureInputUpload` da povuče bajtove. Oba razloga zabrane vraćaju
+ * isti ishod korisniku (`MERENJE_ODBIJENO`), jer je sledeći korak isti:
+ * sačekaj, pa okači drugi fajl.
+ */
+export function isMeasureBlocked(
+  measureFailures: number | undefined,
+  uploadsInWindow: number,
+): boolean {
+  return (
+    (measureFailures ?? 0) >= MAX_MEASURE_FAILURES ||
+    uploadsInWindow >= MEASURE_UPLOAD_HOURLY_LIMIT
+  );
+}
+
+/**
  * Prefiks `falRequestId`-ja mock posla. Živi ovde, a ne u `studioActions.ts`,
  * jer ga čita i `studio.listMyJobs` (DEMO značka u galeriji) - a query modul ne
  * sme da uvlači akcioni modul samo zbog jednog stringa.

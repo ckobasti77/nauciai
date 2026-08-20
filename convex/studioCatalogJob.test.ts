@@ -9,7 +9,11 @@ import { MIN_PLAUSIBLE_BITRATE_BPS } from "../lib/media-duration";
 import { STUDIO_MODELS } from "./providers/catalogModels";
 import type { StudioModelSeed } from "./providers/modelSeed";
 import schema from "./schema";
-import { dayKey } from "./studioCore";
+import {
+  dayKey,
+  MEASURE_UPLOAD_HOURLY_LIMIT,
+  UPLOAD_GRANT_CLOCK_SLACK_MS,
+} from "./studioCore";
 import { computeCredits } from "./studioPricing";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -131,7 +135,8 @@ async function storeFile(as: TestUser, type: string, bytes = 1, slot = type.spli
   const storageId = await as.run((ctx) =>
     ctx.storage.store(new Blob(["x".repeat(bytes)], { type })),
   );
-  await as.mutation(api.studio.registerInputUpload, { storageId, slot });
+  const { grantId } = await as.mutation(api.studio.createInputUploadUrl, { slot });
+  await as.mutation(api.studio.registerInputUpload, { storageId, grantId });
 
   return storageId;
 }
@@ -206,7 +211,8 @@ async function storeMeasured(
 ) {
   const data = mp4Bytes(seconds, type, padBytes);
   const storageId = await as.run((ctx) => ctx.storage.store(new Blob([data], { type })));
-  await as.mutation(api.studio.registerInputUpload, { storageId, slot });
+  const { grantId } = await as.mutation(api.studio.createInputUploadUrl, { slot });
+  await as.mutation(api.studio.registerInputUpload, { storageId, grantId });
   // `convex-test` ne prenosi `contentType` u `_storage` metapodatke, pa red
   // ostane bez `mimeType`-a - a granice iz X1 se računaju baš po njemu. U
   // produkciji ga upisuje sam `registerInputUpload`, iz `_storage`.
@@ -476,7 +482,8 @@ test("fajl čije se zaglavlje ne čita ostaje neizmeren i posao na njemu pada", 
   const storageId = await asUser.run((ctx) =>
     ctx.storage.store(new Blob([junk], { type: "audio/mp4" })),
   );
-  await asUser.mutation(api.studio.registerInputUpload, { storageId, slot: "audio" });
+  const { grantId } = await asUser.mutation(api.studio.createInputUploadUrl, { slot: "audio" });
+  await asUser.mutation(api.studio.registerInputUpload, { storageId, grantId });
 
   vi.stubGlobal("fetch", rangeServer(junk));
   const measured = await asUser.action(api.studioActions.measureInputUpload, { storageId });
@@ -1105,13 +1112,19 @@ test("prijava ne prepisuje vlasnika, a fajl koji ne postoji se ne prijavljuje", 
   const stranger = await seedStranger(t);
   const strangersFile = await storeFile(stranger, "image/png");
 
+  const { grantId } = await asUser.mutation(api.studio.createInputUploadUrl, { slot: "image" });
   await expect(
-    asUser.mutation(api.studio.registerInputUpload, { storageId: strangersFile, slot: "image" }),
+    asUser.mutation(api.studio.registerInputUpload, { storageId: strangersFile, grantId }),
   ).rejects.toThrow("TUDJI_FAJL");
 
   // Ponovljena prijava istog fajla od istog korisnika nije greška i ne pravi
-  // drugi red - mrežni ponovni pokušaj sme da prođe dvaput.
-  await stranger.mutation(api.studio.registerInputUpload, { storageId: strangersFile, slot: "image" });
+  // drugi red - mrežni ponovni pokušaj sme da prođe dvaput. Dozvola je već
+  // potrošena, pa se druga prijava oslanja na postojeći red, ne na nju.
+  const strangersGrant = await stranger.mutation(api.studio.createInputUploadUrl, { slot: "image" });
+  await stranger.mutation(api.studio.registerInputUpload, {
+    storageId: strangersFile,
+    grantId: strangersGrant.grantId,
+  });
   expect(await uploadsOf(t)).toHaveLength(1);
 
   const deleted = await t.run(async (ctx) => {
@@ -1121,7 +1134,7 @@ test("prijava ne prepisuje vlasnika, a fajl koji ne postoji se ne prijavljuje", 
     return storageId;
   });
   await expect(
-    asUser.mutation(api.studio.registerInputUpload, { storageId: deleted, slot: "image" }),
+    asUser.mutation(api.studio.registerInputUpload, { storageId: deleted, grantId }),
   ).rejects.toThrow("FAJL_NE_POSTOJI");
 });
 
@@ -1135,6 +1148,255 @@ test("prijavljena veličina dolazi iz storage-a, ne iz onoga što je klijent rek
   const [upload] = await uploadsOf(t);
   expect(upload.bytes).toBe(2_000_000);
   expect(upload.slot).toBe("audio");
+});
+
+// -- N3: prijava se prima samo uz dozvolu koju je server izdao (X5) ---------
+
+/** Gol fajl u storage-u, bez ijednog reda u `studioUploads` - "sirov" ID. */
+function rawFile(t: TestConvex, type = "image/png") {
+  return t.run((ctx) => ctx.storage.store(new Blob(["x"], { type })));
+}
+
+function grantsOf(t: TestConvex) {
+  return t.run((ctx) => ctx.db.query("studioUploadGrants").collect());
+}
+
+test("bez dozvole se ne prijavljuje ni sopstveni fajl", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedUser(t);
+  // Naslovna slika kursa i avatar zive u ISTOM `_storage` imenskom prostoru kao
+  // studijski uploadi, pa sirov ID mora da bude bezvredan sam po sebi.
+  const foreign = await rawFile(t);
+
+  const { grantId } = await asUser.mutation(api.studio.createInputUploadUrl, { slot: "image" });
+  // Izmisljena dozvola: ispravan oblik ID-ja, ali reda nema.
+  const bogus = await t.run(async (ctx) => {
+    const id = await ctx.db.insert("studioUploadGrants", {
+      userId,
+      slot: "image",
+      createdAt: Date.now(),
+      expiresAt: Date.now() + 60_000,
+    });
+    await ctx.db.delete(id);
+
+    return id;
+  });
+
+  await expect(
+    asUser.mutation(api.studio.registerInputUpload, { storageId: foreign, grantId: bogus }),
+  ).rejects.toThrow("NEDOZVOLJEN_UPLOAD");
+  expect(await uploadsOf(t)).toHaveLength(0);
+
+  // Sa svojom dozvolom isti fajl prolazi - dozvola je jedina razlika.
+  await asUser.mutation(api.studio.registerInputUpload, { storageId: foreign, grantId });
+  expect(await uploadsOf(t)).toHaveLength(1);
+});
+
+test("dozvola drugog korisnika ne vredi", async () => {
+  const t = convexTest(schema, modules);
+  const { asUser } = await seedUser(t);
+  const stranger = await seedStranger(t);
+  const file = await rawFile(t);
+
+  const strangersGrant = await stranger.mutation(api.studio.createInputUploadUrl, {
+    slot: "image",
+  });
+
+  await expect(
+    asUser.mutation(api.studio.registerInputUpload, {
+      storageId: file,
+      grantId: strangersGrant.grantId,
+    }),
+  ).rejects.toThrow("NEDOZVOLJEN_UPLOAD");
+  expect(await uploadsOf(t)).toHaveLength(0);
+});
+
+test("dozvola vredi jednom: drugi fajl na istu dozvolu pada", async () => {
+  const t = convexTest(schema, modules);
+  const { asUser } = await seedUser(t);
+  const first = await rawFile(t);
+  const second = await rawFile(t, "image/jpeg");
+
+  const { grantId } = await asUser.mutation(api.studio.createInputUploadUrl, { slot: "image" });
+  await asUser.mutation(api.studio.registerInputUpload, { storageId: first, grantId });
+  expect((await grantsOf(t))[0].usedAt).toBeGreaterThan(0);
+
+  await expect(
+    asUser.mutation(api.studio.registerInputUpload, { storageId: second, grantId }),
+  ).rejects.toThrow("NEDOZVOLJEN_UPLOAD");
+  expect(await uploadsOf(t)).toHaveLength(1);
+});
+
+test("istekla dozvola pada", async () => {
+  const t = convexTest(schema, modules);
+  const { asUser } = await seedUser(t);
+  const file = await rawFile(t);
+
+  const { grantId } = await asUser.mutation(api.studio.createInputUploadUrl, { slot: "image" });
+  // Forma je stajala otvorena duze od sata; rok je prosao pre nego sto je
+  // upload zavrsen.
+  await t.run((ctx) => ctx.db.patch(grantId, { expiresAt: Date.now() - 60_000 }));
+
+  await expect(
+    asUser.mutation(api.studio.registerInputUpload, { storageId: file, grantId }),
+  ).rejects.toThrow("NEDOZVOLJEN_UPLOAD");
+  expect(await uploadsOf(t)).toHaveLength(0);
+});
+
+test("dozvola ne pokriva fajl koji je u storage-u stajao pre nje", async () => {
+  const t = convexTest(schema, modules);
+  const { asUser } = await seedUser(t);
+  // Zatecen tudji fajl: naslovna slika kursa, avatar, slika objave. Napadac ga
+  // vidi, pa TEK ONDA traži svoju dozvolu - i to je jedini put koji je
+  // dozvola sama po sebi ostavljala otvorenim.
+  const older = await rawFile(t);
+
+  const { grantId } = await asUser.mutation(api.studio.createInputUploadUrl, { slot: "image" });
+  // `convex-test` ne ume da unazadi `_creationTime` fajla, pa se ista razlika
+  // pravi sa druge strane: dozvola izdata posle fajla, preko tolerancije.
+  await t.run((ctx) =>
+    ctx.db.patch(grantId, { createdAt: Date.now() + UPLOAD_GRANT_CLOCK_SLACK_MS + 60_000 }),
+  );
+
+  await expect(
+    asUser.mutation(api.studio.registerInputUpload, { storageId: older, grantId }),
+  ).rejects.toThrow("NEDOZVOLJEN_UPLOAD");
+  expect(await uploadsOf(t)).toHaveLength(0);
+});
+
+test("posten tok prolazi, a slot dolazi iz dozvole a ne sa klijenta", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedUser(t);
+  const file = await rawFile(t, "audio/mpeg");
+
+  const { uploadUrl, grantId } = await asUser.mutation(api.studio.createInputUploadUrl, {
+    slot: "audio",
+  });
+  expect(uploadUrl).toContain("http");
+  await asUser.mutation(api.studio.registerInputUpload, { storageId: file, grantId });
+
+  const [upload] = await uploadsOf(t);
+  expect(upload.userId).toBe(userId);
+  expect(upload.storageId).toBe(file);
+  expect(upload.slot).toBe("audio");
+});
+
+// -- N4: merenje ne sme da se ponavlja u petlji (X5) ------------------------
+
+/**
+ * `fetch` koji broji pozive i vraca bajtove koje merenje ne ume da procita -
+ * tacno slucaj iz nalaza: `durationS` se nikad ne upise, pa bez brojaca svaki
+ * naredni poziv iznova povlaci bajtove.
+ */
+function countingRangeServer(data: Uint8Array) {
+  const calls = { count: 0 };
+  const inner = rangeServer(data);
+  const server = (url: string, init?: { headers?: Record<string, string> }) => {
+    calls.count += 1;
+
+    return inner(url, init);
+  };
+
+  return { calls, server };
+}
+
+const UNREADABLE = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, ...new Array(200).fill(7)]);
+
+async function storeUnreadable(t: TestConvex, as: TestUser) {
+  const storageId = await t.run((ctx) =>
+    ctx.storage.store(new Blob([UNREADABLE], { type: "audio/mp4" })),
+  );
+  const { grantId } = await as.mutation(api.studio.createInputUploadUrl, { slot: "audio" });
+  await as.mutation(api.studio.registerInputUpload, { storageId, grantId });
+
+  return storageId;
+}
+
+test("cetvrto merenje istog neparsabilnog fajla ne dira storage", async () => {
+  const t = convexTest(schema, modules);
+  const { asUser } = await seedUser(t);
+  const storageId = await storeUnreadable(t, asUser);
+
+  const { calls, server } = countingRangeServer(UNREADABLE);
+  vi.stubGlobal("fetch", server);
+  try {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const result = await asUser.action(api.studioActions.measureInputUpload, { storageId });
+      expect(result).toEqual({ ok: false, reason: "NEPOZNAT_FORMAT" });
+    }
+    const readsAfterThree = calls.count;
+    expect(readsAfterThree).toBeGreaterThan(0);
+
+    const fourth = await asUser.action(api.studioActions.measureInputUpload, { storageId });
+
+    expect(fourth).toEqual({ ok: false, reason: "MERENJE_ODBIJENO" });
+    // Kljuc nalaza: odbijeno merenje ne sme da povuce nijedan bajt.
+    expect(calls.count).toBe(readsAfterThree);
+  } finally {
+    vi.unstubAllGlobals();
+  }
+
+  const [upload] = await uploadsOf(t);
+  expect(upload.measureFailures).toBe(3);
+});
+
+test("uspesno merenje brise brojac neuspeha", async () => {
+  const t = convexTest(schema, modules);
+  const { asUser } = await seedUser(t);
+  const data = mp4Bytes(4.2, "video/mp4");
+  const storageId = await t.run((ctx) =>
+    ctx.storage.store(new Blob([data], { type: "video/mp4" })),
+  );
+  const { grantId } = await asUser.mutation(api.studio.createInputUploadUrl, { slot: "video" });
+  await asUser.mutation(api.studio.registerInputUpload, { storageId, grantId });
+  // Dva ranija neuspeha (mreza), pa fajl koji se ipak procita.
+  await t.run(async (ctx) => {
+    const [upload] = await ctx.db.query("studioUploads").collect();
+    await ctx.db.patch(upload._id, { measureFailures: 2 });
+  });
+
+  vi.stubGlobal("fetch", rangeServer(data));
+  try {
+    const measured = await asUser.action(api.studioActions.measureInputUpload, { storageId });
+    expect(measured).toEqual({ ok: true, seconds: 4.2 });
+  } finally {
+    vi.unstubAllGlobals();
+  }
+
+  const [upload] = await uploadsOf(t);
+  expect(upload.durationS).toBe(4.2);
+  expect(upload.measureFailures).toBeUndefined();
+});
+
+test("preko 30 uploada na sat merenje se odbija bez citanja", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedUser(t);
+  const storageId = await storeUnreadable(t, asUser);
+  // Grubi rate limit po korisniku: svaki poziv koji stvarno cita bajtove mora
+  // da ima svoj red u `studioUploads`, pa se broje redovi iz poslednjeg sata.
+  await t.run(async (ctx) => {
+    for (let index = 0; index < MEASURE_UPLOAD_HOURLY_LIMIT; index += 1) {
+      const file = await ctx.storage.store(new Blob(["x"], { type: "image/png" }));
+      await ctx.db.insert("studioUploads", {
+        userId,
+        storageId: file,
+        slot: "image",
+        bytes: 1,
+        createdAt: Date.now(),
+      });
+    }
+  });
+
+  const { calls, server } = countingRangeServer(UNREADABLE);
+  vi.stubGlobal("fetch", server);
+  try {
+    const result = await asUser.action(api.studioActions.measureInputUpload, { storageId });
+
+    expect(result).toEqual({ ok: false, reason: "MERENJE_ODBIJENO" });
+    expect(calls.count).toBe(0);
+  } finally {
+    vi.unstubAllGlobals();
+  }
 });
 
 // -- N2 od pocetka do kraja (X2) --------------------------------------------

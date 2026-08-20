@@ -15,7 +15,7 @@ import {
 import { useSlotUpload } from "@/components/studio/use-slot-upload";
 import { cn } from "@/components/ui/primitives";
 import type { Locale } from "@/lib/i18n";
-import { measureFailureMessage } from "@/lib/studio-messages";
+import { measureFailureMessage, uploadErrorMessage } from "@/lib/studio-messages";
 import {
   FRAME_LABELS,
   slotKind,
@@ -118,11 +118,14 @@ function useSlotIntake({
           if (uploaded.measureFailure !== undefined) {
             setError(measureFailureMessage(uploaded.measureFailure, locale));
           }
-        } catch {
+        } catch (uploadError) {
+          // Prijava bez važeće dozvole (X5) ima svoj sledeći korak - okači
+          // ponovo - pa se razlog ne gubi u opštoj rečenici.
           setError(
-            locale === "sr"
-              ? "Fajl nije uspeo da se pošalje. Pokušaj ponovo."
-              : "The file could not be uploaded. Try again.",
+            uploadErrorMessage(
+              uploadError instanceof Error ? uploadError.message : String(uploadError),
+              locale,
+            ),
           );
           break;
         } finally {

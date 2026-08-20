@@ -1554,6 +1554,12 @@ export default defineSchema({
     // dok ga nema `createJob` odbija svaki posao koji se po trajanju naplaćuje
     // - klijentov broj se ne uzima u obzir (nalaz R3).
     durationS: v.optional(v.number()),
+    // Koliko puta je merenje zaglavlja palo na OVOM fajlu (X5, nalaz N4).
+    // `measureInputUpload` je javna akcija koja bez ovog broja svaki put iznova
+    // povuče do 1 MB iz storage-a - neparsabilan fajl u petlji je bio besplatan
+    // saobraćaj. Posle tri neuspeha akcija odbija bez ijednog `fetch`-a; uspešno
+    // merenje polje briše, jer od tada `durationS` ionako kratko spaja poziv.
+    measureFailures: v.optional(v.number()),
     createdAt: v.number(),
     // Postoji samo dok upload nije ušao ni u jedan posao: nevezan fajl briše
     // `crons.expireGenerationFiles` posle 24 h. `createJob` polje sklanja, pa
@@ -1563,6 +1569,34 @@ export default defineSchema({
     .index("by_storage", ["storageId"])
     .index("by_user", ["userId", "createdAt"])
     .index("by_expiry", ["expiresAt"]),
+
+  // Dozvola za JEDAN ulazni upload (X5, nalaz N3). Do sada je
+  // `registerInputUpload` primao bilo koji `_storage` ID koji još nema red u
+  // `studioUploads` i upisivao pozivaoca kao vlasnika - a `_storage` je jedan
+  // imenski prostor za celu aplikaciju (naslovne slike kurseva, video lekcija,
+  // avatari, slike objava). Odbrana je bila nepogodivost ID-ja, što nije
+  // kontrola pristupa.
+  //
+  // Convex ne daje `storageId` pre uploada, pa se grant ne može vezati za fajl:
+  // vezuje se za sam poziv `createInputUploadUrl`, a njegov `_id` je token koji
+  // klijent vraća uz `storageId`. Jedan grant vredi jednom (`usedAt`) i sat
+  // vremena (`expiresAt`); i istekle i iskorišćene briše isti prolaz
+  // `crons.expireGenerationFiles`, jer iskorišćen grant ionako ističe u istom
+  // satu.
+  //
+  // `createdAt` nije samo dnevnik: `registerInputUpload` njime pravi jedinu
+  // vezu sa fajlom koju Convex dopušta - `_storage._creationTime` mora da bude
+  // POSLE njega. Bez toga bi sveže izdata dozvola i dalje mogla da prisvoji
+  // bilo koji zatečen `_storage` ID, jer dozvole nisu ograničene brojem.
+  studioUploadGrants: defineTable({
+    userId: v.id("users"),
+    // Slot za koji je dozvola izdata. Odavde ga čita `registerInputUpload`, pa
+    // klijent slot ne prijavljuje po drugi put - i ne može da ga podmetne.
+    slot: v.string(),
+    createdAt: v.number(),
+    expiresAt: v.number(),
+    usedAt: v.optional(v.number()),
+  }).index("by_expiry", ["expiresAt"]),
 
   studioUsageDaily: defineTable({
     userId: v.id("users"),

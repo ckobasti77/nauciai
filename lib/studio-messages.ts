@@ -204,10 +204,36 @@ export function measureFailureMessage(reason: string, locale: Locale): string {
       ? "Ovaj format ne umemo da izmerimo, a po dužini se naplaćuje. Okači MP4, MOV, WebM, WAV ili MP3."
       : "We cannot measure this format, and the length is what it is charged by. Upload MP4, MOV, WebM, WAV or MP3.";
   }
+  if (reason === "MERENJE_ODBIJENO") {
+    // X5, nalaz N4. Pokriva oba razloga odbijanja - tri neuspeha nad istim
+    // fajlom i previše uploada u poslednjem satu - jer je sledeći korak isti.
+    return locale === "sr"
+      ? "Previše puta smo pokušali da izmerimo dužinu i nije uspelo. Sačekaj koji minut pa okači snimak kao MP4 ili WAV."
+      : "We tried to measure the length too many times without success. Wait a few minutes, then upload the recording as MP4 or WAV.";
+  }
 
   return locale === "sr"
     ? "Merenje dužine snimka nije uspelo. Okači fajl ponovo pa pokušaj opet."
     : "Measuring the length of the recording failed. Upload the file again and try once more.";
+}
+
+/**
+ * Zašto upload ulaznog fajla nije prošao. Jedini imenovani kod je
+ * `NEDOZVOLJEN_UPLOAD` (X5, nalaz N3): prijava bez važeće dozvole, dakle ili je
+ * forma stajala otvorena duže od sata, ili je `storageId` stigao mimo uploada.
+ * Prvo se rešava ponovnim kačenjem, drugo nas se ne tiče - poruka govori o
+ * prvom. Sve ostalo (mreža, prekinut zahtev) deli opštu rečenicu.
+ */
+export function uploadErrorMessage(raw: string, locale: Locale): string {
+  if (raw.includes("NEDOZVOLJEN_UPLOAD")) {
+    return locale === "sr"
+      ? "Dozvola za slanje ovog fajla je istekla. Okači ga ponovo."
+      : "The permission to send this file has expired. Upload it again.";
+  }
+
+  return locale === "sr"
+    ? "Fajl nije uspeo da se pošalje. Pokušaj ponovo."
+    : "The file could not be uploaded. Try again.";
 }
 
 /**

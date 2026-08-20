@@ -298,6 +298,7 @@ test("prazan skup: prolaz ne radi ništa i ne puca", async () => {
   expect(await t.mutation(internal.crons.expireGenerationFiles, {})).toEqual({
     cleared: 0,
     uploads: 0,
+    grants: 0,
   });
 });
 
@@ -307,7 +308,7 @@ test("posao bez expiresAt (persistOutput još ne postoji) se ne dira", async () 
 
   const result = await t.mutation(internal.crons.expireGenerationFiles, {});
 
-  expect(result).toEqual({ cleared: 0, uploads: 0 });
+  expect(result).toEqual({ cleared: 0, uploads: 0, grants: 0 });
   expect((await jobOf(t, jobId))?.outputStorageId).toBe(outputStorageId);
   expect(await fileUrl(t, outputStorageId)).not.toBeNull();
 });
@@ -321,7 +322,7 @@ test("istekao fajl se briše iz storage-a, red i metapodaci ostaju", async () =>
 
   const result = await t.mutation(internal.crons.expireGenerationFiles, {});
 
-  expect(result).toEqual({ cleared: 1, uploads: 0 });
+  expect(result).toEqual({ cleared: 1, uploads: 0, grants: 0 });
   expect(await fileUrl(t, outputStorageId)).toBeNull();
   expect(await fileUrl(t, posterStorageId as Id<"_storage">)).toBeNull();
 
@@ -343,7 +344,7 @@ test("fajl kojem rok tek ističe se ne dira, a drugi prolaz nema šta da briše"
   await t.mutation(internal.crons.expireGenerationFiles, {});
   const second = await t.mutation(internal.crons.expireGenerationFiles, {});
 
-  expect(second).toEqual({ cleared: 0, uploads: 0 });
+  expect(second).toEqual({ cleared: 0, uploads: 0, grants: 0 });
   expect((await jobOf(t, future.jobId))?.outputStorageId).toBe(future.outputStorageId);
   expect(await fileUrl(t, future.outputStorageId)).not.toBeNull();
 });
@@ -378,7 +379,7 @@ test("nevezan upload stariji od 24 h nestaje - i fajl i red", async () => {
 
   const result = await t.mutation(internal.crons.expireGenerationFiles, {});
 
-  expect(result).toEqual({ cleared: 0, uploads: 1 });
+  expect(result).toEqual({ cleared: 0, uploads: 1, grants: 0 });
   // Za razliku od izlaza, ovde nestaje i red: bez njega fajl nema nijednu
   // referencu u bazi, pa bi ostao zauvek naplativ.
   expect(await fileUrl(t, storageId)).toBeNull();
@@ -394,7 +395,7 @@ test("upload koji je ušao u posao se ne briše, ma koliko star bio", async () =
 
   const result = await t.mutation(internal.crons.expireGenerationFiles, {});
 
-  expect(result).toEqual({ cleared: 0, uploads: 1 });
+  expect(result).toEqual({ cleared: 0, uploads: 1, grants: 0 });
   expect(await fileUrl(t, storageId)).not.toBeNull();
   expect(await t.run((ctx) => ctx.db.get(uploadId))).not.toBeNull();
   expect(await t.run((ctx) => ctx.db.get(orphan.uploadId))).toBeNull();
@@ -407,9 +408,43 @@ test("upload kojem rok tek ističe se ne dira", async () => {
   expect(await t.mutation(internal.crons.expireGenerationFiles, {})).toEqual({
     cleared: 0,
     uploads: 0,
+    grants: 0,
   });
   expect(await fileUrl(t, storageId)).not.toBeNull();
   expect(await t.run((ctx) => ctx.db.get(uploadId))).not.toBeNull();
+});
+
+// ── 3c. istek dozvola za upload (X5, nalaz N3) ─────────────────────────────
+
+/** Jedna dozvola kakvu ostavlja `studio.createInputUploadUrl`. */
+async function seedGrant(t: TestConvex, opts: { expiresAt: number; usedAt?: number }) {
+  const userId = await seedUser(t);
+
+  return t.run((ctx) =>
+    ctx.db.insert("studioUploadGrants", {
+      userId,
+      slot: "image",
+      createdAt: Date.now() - MINUTE,
+      expiresAt: opts.expiresAt,
+      usedAt: opts.usedAt,
+    }),
+  );
+}
+
+test("isti prolaz briše i istekle i iskorišćene dozvole za upload", async () => {
+  const t = convexTest(schema, modules);
+  const expired = await seedGrant(t, { expiresAt: Date.now() - MINUTE });
+  // Potrošena dozvola nosi isti rok kao i nepotrošena, pa nestaje istim
+  // pravilom - njoj poseban prolaz ne treba.
+  const used = await seedGrant(t, { expiresAt: Date.now() - MINUTE, usedAt: Date.now() - MINUTE });
+  const fresh = await seedGrant(t, { expiresAt: Date.now() + MINUTE });
+
+  const result = await t.mutation(internal.crons.expireGenerationFiles, {});
+
+  expect(result).toEqual({ cleared: 0, uploads: 0, grants: 2 });
+  expect(await t.run((ctx) => ctx.db.get(expired))).toBeNull();
+  expect(await t.run((ctx) => ctx.db.get(used))).toBeNull();
+  expect(await t.run((ctx) => ctx.db.get(fresh))).not.toBeNull();
 });
 
 // ── 4. globalni dnevni plafon troška ───────────────────────────────────────

@@ -16,6 +16,7 @@ import {
   STUDIO_NO_GENERATIONS,
   STUDIO_PAUSED,
   studioErrorMessage,
+  uploadErrorMessage,
   type EmptyState,
   type GenerateBlock,
 } from "@/lib/studio-messages";
@@ -132,7 +133,12 @@ describe("merenje trajanja", () => {
   test("svaki razlog neuspelog merenja ima svoj sledeći korak, ne kod greške", () => {
     // `measureInputUpload` vraća ishod umesto da baca, pa razlog do X1 nije
     // stizao do ekrana - korisnik je gledao u zaključano dugme.
-    const reasons = ["ZAGLAVLJE_NIJE_PROCITANO", "VBR_NEPOUZDAN", "NEPOZNAT_FORMAT"];
+    const reasons = [
+      "ZAGLAVLJE_NIJE_PROCITANO",
+      "VBR_NEPOUZDAN",
+      "NEPOZNAT_FORMAT",
+      "MERENJE_ODBIJENO",
+    ];
     for (const reason of reasons) {
       for (const locale of ["sr", "en"] as const) {
         const message = measureFailureMessage(reason, locale);
@@ -141,7 +147,7 @@ describe("merenje trajanja", () => {
       }
     }
 
-    // Tri razloga - tri različita sledeća koraka, plus opšta poruka za četvrti.
+    // Svaki razlog - svoj sledeći korak, plus opšta poruka za nepoznat.
     const messages = reasons.map((reason) => measureFailureMessage(reason, "sr"));
     expect(new Set(messages).size).toBe(messages.length);
     expect(measureFailureMessage("VBR_NEPOUZDAN", "sr")).toContain("stalnim bitrate-om");
@@ -154,6 +160,24 @@ describe("merenje trajanja", () => {
     expect(measuredDurationNotice(420, "sr")).toContain("7 min");
     expect(measuredDurationNotice(420, "en")).toContain("7 min");
     expect(measuredDurationNotice(420, "sr")).not.toBe(measuredDurationNotice(420, "en"));
+  });
+});
+
+describe("uploadErrorMessage", () => {
+  test("prijava bez važeće dozvole ima ljudsku rečenicu, ne kod greške", () => {
+    // Convex kod stigne umotan u "[CONVEX M(studio:registerInputUpload)] ...
+    // Uncaught Error: NEDOZVOLJEN_UPLOAD at handler", pa se TRAŽI u tekstu.
+    const raw =
+      "[CONVEX M(studio:registerInputUpload)] Uncaught Error: NEDOZVOLJEN_UPLOAD at handler";
+    for (const locale of ["sr", "en"] as const) {
+      const message = uploadErrorMessage(raw, locale);
+      expect(message).not.toContain("_");
+      expect(message.length).toBeGreaterThan(20);
+    }
+    expect(uploadErrorMessage(raw, "sr")).toContain("Okači ga ponovo");
+    // Mrežni pad nije istekla dozvola i ne sme da deli rečenicu sa njom.
+    expect(uploadErrorMessage("UPLOAD_NEUSPEO", "sr")).not.toBe(uploadErrorMessage(raw, "sr"));
+    expect(uploadErrorMessage("UPLOAD_NEUSPEO", "sr")).not.toContain("_");
   });
 });
 

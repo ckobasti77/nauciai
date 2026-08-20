@@ -300,6 +300,13 @@ export const persistOutput = internalAction({
  * Vraća ishod umesto da baca: forma prikazuje stvarno trajanje i cenu pre
  * potvrde, a fajl koji se ne može izmeriti nije neuspeo upload - samo se po
  * njemu ne može naplatiti, pa `createJob` odbija posao.
+ *
+ * Ponavljanje je ograničeno (X5, nalaz N4). Fajl čije se zaglavlje ne pročita
+ * nikad ne dobije `durationS`, pa kratko spajanje ispod nikad ne opali - do
+ * sada je svaki sledeći poziv iznova povlačio do 1 MB iz storage-a, koliko god
+ * puta. Od sada tri neuspeha gase merenje tog fajla, a broj uploada u
+ * poslednjem satu gasi merenje uopšte; oba javljaju `MERENJE_ODBIJENO` PRE
+ * ijednog `fetch`-a.
  */
 export const measureInputUpload = action({
   args: { storageId: v.id("_storage") },
@@ -309,17 +316,23 @@ export const measureInputUpload = action({
   ): Promise<{ ok: true; seconds: number } | { ok: false; reason: string }> => {
     const upload = await ctx.runQuery(internal.studio.getOwnedUpload, {
       storageId: args.storageId,
+      now: Date.now(),
     });
     if (!upload) return { ok: false, reason: "TUDJI_FAJL" };
     // Fajl u storage-u je nepromenljiv: jednom izmeren, uvek isti broj. Drugi
     // poziv (mreža, isti fajl u dva slota) ne čita bajtove ponovo.
     if (upload.durationS !== undefined) return { ok: true, seconds: upload.durationS };
+    if (upload.measureBlocked) return { ok: false, reason: "MERENJE_ODBIJENO" };
 
     const url = await ctx.storage.getUrl(args.storageId);
     if (!url) return { ok: false, reason: "FAJL_NE_POSTOJI" };
 
     const read = await readDurationOverRange(url, upload.bytes);
-    if (!read.ok) return { ok: false, reason: read.reason };
+    if (!read.ok) {
+      await ctx.runMutation(internal.studio.recordMeasureFailure, { uploadId: upload.uploadId });
+
+      return { ok: false, reason: read.reason };
+    }
 
     await ctx.runMutation(internal.studio.setUploadDuration, {
       uploadId: upload.uploadId,

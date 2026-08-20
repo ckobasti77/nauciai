@@ -6020,3 +6020,111 @@ nego otisak.
    korisnika (bez promptova i bez okacenih fajlova).
 6. **Dnevnik se nigde ne prikazuje.** `studioAuditLog` se cita iz Convex
    dashboard-a; admin ekran za njega nije trazen ovim korakom.
+
+## X5 - N3: dozvola za upload umesto "ko prvi"; N4: merenje sa kocnicom   (2026-08-21 00:18)
+
+**Fajlovi:**
+- `convex/schema.ts` - nova tabela `studioUploadGrants`, novo polje
+  `studioUploads.measureFailures`
+- `convex/studioCore.ts` - `UPLOAD_GRANT_TTL_MS`, `UPLOAD_GRANT_CLOCK_SLACK_MS`,
+  `MAX_MEASURE_FAILURES`, `MEASURE_UPLOAD_HOURLY_LIMIT`, `MEASURE_RATE_WINDOW_MS`,
+  `isMeasureBlocked`
+- `convex/studio.ts` - `createInputUploadUrl` izdaje dozvolu, `registerInputUpload`
+  je trazi, `getOwnedUpload` vraca `measureBlocked`, `setUploadDuration` cisti
+  brojac, nova `recordMeasureFailure`
+- `convex/studioActions.ts` - `measureInputUpload` odbija pre `fetch`-a i broji
+  neuspehe
+- `convex/crons.ts` - reaper brise istekle i iskoriscene dozvole
+- `components/studio/use-slot-upload.ts`, `components/studio/drop-slot.tsx` -
+  klijent nosi `grantId`, greska uploada ima svoju recenicu
+- `lib/studio-messages.ts` - `MERENJE_ODBIJENO` i novi `uploadErrorMessage`
+- testovi: `convex/studioCatalogJob.test.ts`, `convex/crons.test.ts`,
+  `lib/studio-messages.test.ts`
+
+**Sta je uradjeno:** `createInputUploadUrl` sada uz upload URL upisuje i red u
+`studioUploadGrants` (`userId`, `slot`, `createdAt`, `expiresAt` = +1 h,
+`usedAt`) i vraca njegov `_id` kao token; `registerInputUpload` prima
+`{ storageId, grantId }` i prolazi samo ako je dozvola tog korisnika,
+neiskoriscena, neistekla i ako je fajl u `_storage` nastao POSLE nje - sve
+ostalo baca `NEDOZVOLJEN_UPLOAD`. Slot se od sada cita iz dozvole, ne sa
+klijenta. `measureInputUpload` pre ijednog `fetch`-a proverava dva brojaca:
+tri neuspeha nad istim fajlom (`studioUploads.measureFailures`) i 30 uploada
+po korisniku u poslednjem satu; oba vracaju `MERENJE_ODBIJENO`. Uspesno merenje
+brise brojac. Reaper (`crons.expireGenerationFiles`) istim prolazom brise
+dozvole kojima je prosao rok - i potrosene i nepotrosene, jer potrosena nosi
+isti `expiresAt`.
+
+**ODLUKE:**
+1. **Token je `_id` samog granta, ne nasumican string.** Convex mutacija ne
+   treba svoj generator slucajnosti kad `ctx.db.insert` ionako vraca
+   nepogodiv ID, a `v.id("studioUploadGrants")` daje i validaciju oblika
+   besplatno. Cuvanje sirovog upload URL-a je odbaceno: `registerInputUpload`
+   dobija `storageId`, ne URL, pa bi klijent morao da vraca oba.
+2. **Dozvola se vezuje i za VREME, ne samo za poziv.** Sam grant ne zna svoj
+   `storageId` (Convex ga ne daje pre uploada), a `createInputUploadUrl` nije
+   ogranicen brojem poziva - dakle napadac bi mogao da izda dozvolu i njome
+   prisvoji bilo koji zatecen `_storage` ID, i rupa bi ostala otvorena. Zato
+   `registerInputUpload` trazi i `meta._creationTime >= grant.createdAt`. Prozor
+   u kojem se tudji ID uopste moze pogoditi time pada sa "zauvek" na "koliko
+   traje jedan upload". Tolerancija od 60 s (`UPLOAD_GRANT_CLOCK_SLACK_MS`)
+   postoji da postena prijava ne padne zbog razlike izmedju sata koji upisuje
+   `createdAt` i sata koji upisuje `_creationTime`.
+3. **Ponovljena prijava istog fajla ne trazi dozvolu.** Mrezni ponovni pokusaj
+   salje istu, vec potrosenu dozvolu; red u `studioUploads` tada vec postoji, pa
+   se vraca rano - kao i do sada. Bez ovoga bi svaki retry pao.
+4. **Rate limit broji UPLOADE u poslednjem satu, ne pozive akcije.** Repo vec
+   ima obrazac (`chatCore.assertDirectRequestRateLimit`): prebroj redove u
+   prozoru preko indeksa, `take` odmah iznad granice. Novu tabelu "brojac
+   poziva" nisam pravio. Svaki poziv koji stvarno cita bajtove mora da ima svoj
+   red u `studioUploads`, pa je broj uploada gornja granica broja merljivih
+   fajlova u tom satu; sa `MAX_MEASURE_FAILURES` = 3 to je najvise 90 citanja na
+   sat. **Cena te grubosti:** korisnik koji u jednom satu okaci 30 slika nece
+   moci da izmeri 31. fajl dok sat ne prodje. Degradacija je vidljiva i ima
+   poruku, a nije gubitak podataka, pa sam je uzeo kao konzervativniju od
+   nove tabele.
+5. **Jedan kod za oba razloga odbijanja.** I tri neuspeha i satni limit vracaju
+   `MERENJE_ODBIJENO`, jer je sledeci korak korisniku isti - sacekaj pa okaci
+   drugi format.
+6. **Iskoriscene dozvole se ne brisu odmah.** Prolaz po `expiresAt` pokriva i
+   njih (potrosena dozvola nestaje najkasnije sat vremena posle uploada), pa
+   reaper ima jedno pravilo umesto dva.
+7. **Cenovni motor nije diran.** `computeCredits` i `studioPricing.ts` su
+   netaknuti.
+
+**Testovi:**
+- `convex/studioCatalogJob.test.ts` (+9): prijava bez granta pada i isti fajl sa
+  grantom prolazi · grant drugog korisnika pada · potrosen grant na drugi fajl
+  pada (uz proveru da je `usedAt` upisan) · istekao grant pada · fajl stariji od
+  granta pada · posten tok prolazi i slot dolazi iz granta · cetvrto merenje
+  neparsabilnog fajla vraca `MERENJE_ODBIJENO` i brojac `fetch`-eva se NE mice ·
+  uspesno merenje brise brojac · preko 30 uploada na sat merenje se odbija sa
+  nula `fetch`-eva.
+- `convex/crons.test.ts` (+1): isti prolaz brise isteklu i iskoriscenu dozvolu, a
+  svezu ostavlja; sve postojece tvrdnje o povratnoj vrednosti prosirene na
+  `grants`.
+- `lib/studio-messages.test.ts` (+1, +1 prosiren): `NEDOZVOLJEN_UPLOAD` ima
+  ljudsku recenicu na oba jezika i ne deli je sa mreznim padom;
+  `MERENJE_ODBIJENO` je dodat u listu razloga koji moraju da imaju svoj sledeci
+  korak umesto koda.
+
+**Rezultat verifikacije:** `npx convex codegen` cisto · `npm run lint` 0 errors,
+8 warnings (svih 8 zateceno, nijedan u fajlovima ovog koraka) · `npm run test`
+60 fajlova / 817 testova prolazi · `npm run build` `✓ Compiled successfully`.
+
+**BLOKADA:** nema
+
+**Za Jovana:**
+1. **Deploy nosi novu tabelu i novo polje.** `studioUploadGrants` je prazna
+   tabela sa indeksom `by_expiry`; `studioUploads.measureFailures` je opciono
+   polje, pa zatecenim redovima ne treba migracija. Backfill NIJE potreban.
+2. **Klijent i server moraju da odu zajedno.** `registerInputUpload` vise ne
+   prima `slot` nego `grantId`, a `createInputUploadUrl` vraca objekat umesto
+   stringa. Kartica koja je ostala otvorena preko deploy-a ce na sledecem
+   uploadu dobiti gresku i traziti osvezavanje - to je jedan upload, ne posao i
+   ne kredit.
+3. **Granica od 30 uploada na sat je gruba namerno** (ODLUKA 4). Ako se u
+   podrsci pojavi prijava "ne mogu da izmerim snimak" od korisnika koji radi sa
+   mnogo slika odjednom, `MEASURE_UPLOAD_HOURLY_LIMIT` u `convex/studioCore.ts`
+   je jedno mesto za podizanje.
+4. **N7 i dalje stoji.** Ulazni fajlovi koji su usli u posao se i dalje nikad ne
+   brisu; ovaj korak to nije dirao.
