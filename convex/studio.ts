@@ -6,7 +6,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { internalMutation, type MutationCtx, mutation, query, type QueryCtx } from "./_generated/server";
 import { applySpend } from "./credits";
 import { MAX_PROMPT_LENGTH, validatePrompt } from "./creditsCore";
-import { requireUserId } from "./helpers";
+import { getCurrentProfile, requireUserId } from "./helpers";
 import { applyTaskCompletion, assertLessonAccess } from "./lab";
 import { parseJobInputs } from "./providers/jobInputs";
 import {
@@ -29,7 +29,9 @@ import {
   dayKey,
   exceedsDailyCostLimit,
   extractPrompt,
+  hasStudioAccess,
   isMockRequestId,
+  isStudioStaff,
   MAX_ACTIVE_JOBS,
   MAX_DAILY_GENERATIONS,
   outputExpiresAt,
@@ -214,7 +216,10 @@ export const createJob = mutation({
     taskId: v.optional(v.id("lessonTasks")),
   },
   handler: async (ctx, args) => {
-    const userId = await requireUserId(ctx);
+    // Uloga se čita zajedno sa korisnikom jer o pristupu odlučuje
+    // `hasStudioAccess` niže - `requireUserId` bi vratio samo ID, pa bi
+    // enrollment ostao jedini kriterijum.
+    const { userId, role } = await getCurrentProfile(ctx);
 
     // Kill switch se čita prvi, pre svega ostalog. Red koji ne postoji znači
     // "nikad nije ni gašen" - podrazumevana vrednost seed-a je `true`.
@@ -225,13 +230,15 @@ export const createJob = mutation({
     if (flag && !flag.enabled) throw new Error("STUDIO_PAUZIRAN");
 
     // Studio je samo za upisane (STUDIO-PLAN 4.4). Dovoljan je jedan aktivan
-    // upis - posao nije vezan za konkretan kurs.
+    // upis - posao nije vezan za konkretan kurs. Admin i moderator prolaze bez
+    // upisa, po istoj funkciji po kojoj se gasi i dugme u UI-ju; naplata ispod
+    // ostaje ista za sve.
     const enrollment = await ctx.db
       .query("enrollments")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .filter((q) => q.eq(q.field("status"), "active"))
       .first();
-    if (!enrollment) throw new Error("NIJE_UPISAN");
+    if (!hasStudioAccess(role, enrollment)) throw new Error("NIJE_UPISAN");
 
     // Kontekst lekcije se proverava istim putem kao i u `lab.saveLabOutput`:
     // upis u Studio ne daje pristup tudjem kursu, pa izlaz ne sme da sleti u
@@ -545,40 +552,193 @@ export const listMyJobs = query({
 
     return {
       ...result,
-      // `falRequestId` i `actualCostUsd` su naša interna cena i trag ka fal-u;
-      // korisniku ne trebaju i ne izlaze iz backend-a. `isMock` je jedino što
-      // se iz `falRequestId`-ja izvodi, jer DEMO generacija ne sme da se
-      // pomeša sa pravom.
-      page: await Promise.all(
-        result.page.map(async (job) => ({
-          _id: job._id,
-          modelSlug: job.modelSlug,
-          kind: job.kind,
-          params: job.params,
-          status: job.status,
-          creditCost: job.creditCost,
-          outputStorageId: job.outputStorageId,
-          posterStorageId: job.posterStorageId,
-          // Bez URL-a galerija ima `storageId` koji ne ume da prikaže; potpisan
-          // URL se pravi ovde, kao svuda u repou (`courses.ts`, `community.ts`).
-          // Fajl kojem je istekla retencija (`crons.expireGenerationFiles`)
-          // vrati `null` - kartica tada pokazuje istek, ne pokvarenu sliku.
-          outputUrl: job.outputStorageId ? await ctx.storage.getUrl(job.outputStorageId) : null,
-          // Ulazi kao sličice na kartici: bez njih "Generiši ponovo" kod modela
-          // sa slikama nema smisla, jer se ne vidi šta je uopšte bio ulaz.
-          // Potpisuje se najviše `GALLERY_INPUT_THUMBS` po poslu - stranica od
-          // dvanaest kartica sa devet referenci je sto osam potpisa za mrežu
-          // sličica; ceo spisak vraća `getJobForRegenerate`, jedan posao.
-          inputMode: job.inputMode,
-          inputThumbs: await resolveInputThumbs(ctx, job.inputs),
-          error: job.error,
-          isMock: isMockRequestId(job.falRequestId),
-          expiresAt: job.expiresAt,
-          createdAt: job.createdAt,
-          completedAt: job.completedAt,
-        })),
-      ),
+      page: await Promise.all(result.page.map((job) => toGalleryJob(ctx, job))),
     };
+  },
+});
+
+/**
+ * Jedan red galerije. `falRequestId` i `actualCostUsd` su naša interna cena i
+ * trag ka provajderu; korisniku ne trebaju i ne izlaze iz backend-a. `isMock`
+ * je jedino što se iz `falRequestId`-ja izvodi, jer DEMO generacija ne sme da
+ * se pomeša sa pravom.
+ *
+ * Isti oblik dobijaju i `listMyJobs` i `listAllJobs` - admin gleda tačno ono
+ * što gleda i korisnik, plus vlasnika i provajdera koje `listAllJobs` dopisuje.
+ */
+async function toGalleryJob(ctx: QueryCtx, job: Doc<"generationJobs">) {
+  return {
+    _id: job._id,
+    modelSlug: job.modelSlug,
+    kind: job.kind,
+    params: job.params,
+    status: job.status,
+    creditCost: job.creditCost,
+    outputStorageId: job.outputStorageId,
+    posterStorageId: job.posterStorageId,
+    // Bez URL-a galerija ima `storageId` koji ne ume da prikaže; potpisan
+    // URL se pravi ovde, kao svuda u repou (`courses.ts`, `community.ts`).
+    // Fajl kojem je istekla retencija (`crons.expireGenerationFiles`)
+    // vrati `null` - kartica tada pokazuje istek, ne pokvarenu sliku.
+    outputUrl: job.outputStorageId ? await ctx.storage.getUrl(job.outputStorageId) : null,
+    // Ulazi kao sličice na kartici: bez njih "Generiši ponovo" kod modela
+    // sa slikama nema smisla, jer se ne vidi šta je uopšte bio ulaz.
+    // Potpisuje se najviše `GALLERY_INPUT_THUMBS` po poslu - stranica od
+    // dvanaest kartica sa devet referenci je sto osam potpisa za mrežu
+    // sličica; ceo spisak vraća `getJobForRegenerate`, jedan posao.
+    inputMode: job.inputMode,
+    inputThumbs: await resolveInputThumbs(ctx, job.inputs),
+    error: job.error,
+    isMock: isMockRequestId(job.falRequestId),
+    expiresAt: job.expiresAt,
+    createdAt: job.createdAt,
+    completedAt: job.completedAt,
+  };
+}
+
+/**
+ * Lokalna kopija `generationJobs.status` unije, po istoj konvenciji kao
+ * `studioModelKind` iznad - `schema.ts` je ne izvozi.
+ */
+const generationJobStatus = v.union(
+  v.literal("reserved"),
+  v.literal("running"),
+  v.literal("done"),
+  v.literal("failed"),
+  v.literal("refunded"),
+);
+
+/** Tri rute iz `models.provider` (STUDIO-CATALOG-V4 sekcija 7). */
+const studioProvider = v.union(v.literal("fal"), v.literal("google"), v.literal("byteplus"));
+
+/** Katalog se čita ceo da bi se `modelSlug` preveo u provajdera; isti kap kao `studioModels`. */
+const MAX_CATALOG_MODELS = 200;
+
+/** Koliko poslova unazad se gleda kad se pravi spisak vlasnika za filter. */
+const MAX_OWNER_SCAN_JOBS = 300;
+
+/**
+ * Uloga koja sme da vidi TUĐE poslove. `requireCommunityModerator` iz
+ * `helpers.ts` ide preko `ensureProfile`, koji profil upisuje i zato baca
+ * unutar query-ja - isti obrazac rešava `studioAdmin.requireAdminRead`: uloga
+ * se čita preko `getCurrentProfile`, bez upisa.
+ */
+async function requireStudioStaff(ctx: QueryCtx) {
+  const { profile } = await getCurrentProfile(ctx);
+  if (!isStudioStaff(profile.role)) throw new Error("Forbidden");
+}
+
+/** Red admin galerije: isto što vidi i korisnik, plus vlasnik i provajder. */
+type StaffJob = Awaited<ReturnType<typeof toGalleryJob>> & {
+  ownerEmail: string;
+  provider: string;
+};
+
+/**
+ * Poslovi SVIH korisnika, najnoviji prvi (W1). Ovo je jedini upit koji izlazi
+ * iz jednog naloga, pa uloga stoji na SERVERU, ne u UI-ju - sakriven prekidač
+ * nije provera.
+ *
+ * Indeks bira najuži zadat filter: korisnik je uži od statusa, pa `by_user`
+ * ima prednost, a preostali predikat ide kroz `.filter()` (dozvoljeno za
+ * predikate koje indeks ne izražava). Bez oba, poredak je najnoviji prvi po
+ * ugrađenom `by_creation_time` indeksu - `createdAt` se upisuje istim
+ * `Date.now()`-om, pa je isti redosled kao u `by_user`.
+ *
+ * Provajder se ne pamti na poslu nego na modelu, pa se filter po njemu
+ * prevodi u spisak slugova iz kataloga.
+ */
+export const listAllJobs = query({
+  args: {
+    paginationOpts: paginationOptsValidator,
+    userId: v.optional(v.id("users")),
+    status: v.optional(generationJobStatus),
+    provider: v.optional(studioProvider),
+  },
+  handler: async (ctx, args) => {
+    await requireStudioStaff(ctx);
+
+    const models = await ctx.db.query("models").take(MAX_CATALOG_MODELS);
+    const providerBySlug = new Map(models.map((model) => [model.slug, model.provider]));
+    const providerSlugs = args.provider
+      ? models.filter((model) => model.provider === args.provider).map((model) => model.slug)
+      : null;
+    // Provajder bez ijednog modela u katalogu (nezasejana baza) nema šta da
+    // vrati; `q.or()` bez ijednog izraza ne postoji, pa se prazna strana pravi
+    // ovde umesto da se sastavi filter koji ne može da se izrazi.
+    if (providerSlugs !== null && providerSlugs.length === 0) {
+      return { page: [] as StaffJob[], isDone: true, continueCursor: "" };
+    }
+
+    const userId = args.userId;
+    const status = args.status;
+    let ordered =
+      userId !== undefined
+        ? ctx.db
+            .query("generationJobs")
+            .withIndex("by_user", (q) => q.eq("userId", userId))
+            .order("desc")
+        : status !== undefined
+          ? ctx.db
+              .query("generationJobs")
+              .withIndex("by_status_created", (q) => q.eq("status", status))
+              .order("desc")
+          : ctx.db.query("generationJobs").order("desc");
+
+    if (userId !== undefined && status !== undefined) {
+      ordered = ordered.filter((q) => q.eq(q.field("status"), status));
+    }
+    if (providerSlugs !== null) {
+      const slugs = providerSlugs;
+      ordered = ordered.filter((q) => q.or(...slugs.map((slug) => q.eq(q.field("modelSlug"), slug))));
+    }
+
+    const result = await ordered.paginate(args.paginationOpts);
+
+    // Mejl vlasnika se čita jednom po korisniku, ne jednom po poslu: strana od
+    // dvanaest kartica jednog korisnika je jedno čitanje, ne dvanaest.
+    const emailByUser = new Map<Id<"users">, string>();
+    const page: StaffJob[] = [];
+    for (const job of result.page) {
+      if (!emailByUser.has(job.userId)) {
+        const owner = await ctx.db.get(job.userId);
+        emailByUser.set(job.userId, owner?.email ?? "");
+      }
+      page.push({
+        ...(await toGalleryJob(ctx, job)),
+        ownerEmail: emailByUser.get(job.userId) ?? "",
+        provider: providerBySlug.get(job.modelSlug) ?? "",
+      });
+    }
+
+    return { ...result, page };
+  },
+});
+
+/**
+ * Vlasnici za select "filter po korisniku". Distinct korisnici poslednjih
+ * `MAX_OWNER_SCAN_JOBS` poslova, a ne cela tabela korisnika - filtrira se po
+ * onome ko je stvarno nešto generisao, i čitanje ostaje ograničeno.
+ */
+export const listJobOwners = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireStudioStaff(ctx);
+
+    const jobs = await ctx.db.query("generationJobs").order("desc").take(MAX_OWNER_SCAN_JOBS);
+    const jobsByUser = new Map<Id<"users">, number>();
+    for (const job of jobs) {
+      jobsByUser.set(job.userId, (jobsByUser.get(job.userId) ?? 0) + 1);
+    }
+
+    const owners = await Promise.all(
+      [...jobsByUser.entries()].map(async ([userId, jobCount]) => {
+        const owner = await ctx.db.get(userId);
+        return { userId, email: owner?.email ?? "", jobCount };
+      }),
+    );
+
+    return owners.sort((a, b) => a.email.localeCompare(b.email));
   },
 });
 
@@ -714,7 +874,7 @@ export const createInputUploadUrl = mutation({
 export const getStudioState = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireUserId(ctx);
+    const { userId, role } = await getCurrentProfile(ctx);
 
     const flag = await ctx.db
       .query("platformFlags")
@@ -740,7 +900,13 @@ export const getStudioState = query({
       // Red koji ne postoji znači "nikad nije ni gašen" - isto čitanje kao u
       // `createJob`, da UI i server nikad ne tvrde suprotno.
       enabled: flag ? flag.enabled : true,
-      isEnrolled: enrollment !== null,
+      // Ne "je li upisan" nego "sme li u Studio" - ista funkcija koju zove i
+      // `createJob`, pa dugme ne može biti sivo korisniku kojeg bi server
+      // pustio (ni obrnuto).
+      hasStudioAccess: hasStudioAccess(role, enrollment),
+      // Prekidač "Samo moji / Svi korisnici" u galeriji. Ovo je samo prikaz -
+      // `listAllJobs` istu ulogu proverava ponovo, na serveru.
+      isStaff: isStudioStaff(role),
       activeJobs: reserved.length + running.length,
       maxActiveJobs: MAX_ACTIVE_JOBS,
     };

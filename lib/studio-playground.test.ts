@@ -146,7 +146,7 @@ test("sekunde se prevode u jedinicu pravila, a bez izmerene dužine nema ključa
 // ── zaključavanje dugmeta ──────────────────────────────────────────────────
 
 const OPEN = {
-  state: { enabled: true, isEnrolled: true, activeJobs: 0, maxActiveJobs: 3 },
+  state: { enabled: true, hasStudioAccess: true, activeJobs: 0, maxActiveJobs: 3 },
   balance: 1000,
   credits: 20,
   missingInputMessage: null,
@@ -160,7 +160,7 @@ test("otvoren Studio sa dovoljno kredita ne zaključava dugme", () => {
 
 test("razlozi idu od najšireg ka najužem, a kredit se proverava poslednji", () => {
   expect(generateBlock({ ...OPEN, state: { ...OPEN.state, enabled: false } })).toEqual({ kind: "paused" });
-  expect(generateBlock({ ...OPEN, state: { ...OPEN.state, isEnrolled: false } })).toEqual({
+  expect(generateBlock({ ...OPEN, state: { ...OPEN.state, hasStudioAccess: false } })).toEqual({
     kind: "not_enrolled",
   });
   expect(generateBlock({ ...OPEN, state: { ...OPEN.state, activeJobs: 3 } })).toEqual({

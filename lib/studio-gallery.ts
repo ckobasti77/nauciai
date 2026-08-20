@@ -135,3 +135,49 @@ export function jobParamSummary(
 
   return parts.join(" · ");
 }
+
+/**
+ * Prekidač "Samo moji" / "Svi korisnici" (W1). Vidi ga samo admin i moderator,
+ * a i tada `listAllJobs` ulogu proverava ponovo na serveru - ovo je prikaz.
+ */
+export const GALLERY_SCOPES = ["mine", "all"] as const;
+export type GalleryScope = (typeof GALLERY_SCOPES)[number];
+
+export const GALLERY_SCOPE_LABELS: Record<GalleryScope, { sr: string; en: string }> = {
+  mine: { sr: "Samo moji", en: "Only mine" },
+  all: { sr: "Svi korisnici", en: "All users" },
+};
+
+/** Statusi posla za red filter-čipova; isti spisak kao `generationJobs.status`. */
+export const JOB_STATUSES = ["reserved", "running", "done", "failed", "refunded"] as const;
+export type JobStatus = (typeof JOB_STATUSES)[number];
+
+export const JOB_STATUS_LABELS: Record<JobStatus, { sr: string; en: string }> = {
+  reserved: { sr: "Rezervisan", en: "Reserved" },
+  running: { sr: "U radu", en: "Running" },
+  done: { sr: "Gotov", en: "Done" },
+  failed: { sr: "Pao", en: "Failed" },
+  refunded: { sr: "Refundiran", en: "Refunded" },
+};
+
+/** Tri rute iz `models.provider`; filter po njima je koristan kad jedan provajder krene da pada. */
+export const STUDIO_PROVIDERS = ["fal", "google", "byteplus"] as const;
+export type StudioProvider = (typeof STUDIO_PROVIDERS)[number];
+
+export const STUDIO_PROVIDER_LABELS: Record<StudioProvider, string> = {
+  fal: "fal",
+  google: "Google",
+  byteplus: "BytePlus",
+};
+
+/**
+ * Korisnici ponuđeni u selectu, suženi na ono što je ukucano. Pretraga je po
+ * mejlu jer je mejl i ono što piše na kartici - admin traži isti niz znakova
+ * koji je upravo pročitao.
+ */
+export function filterJobOwners<T extends { email: string }>(owners: T[], search: string): T[] {
+  const needle = search.trim().toLowerCase();
+  if (needle === "") return owners;
+
+  return owners.filter((owner) => owner.email.toLowerCase().includes(needle));
+}

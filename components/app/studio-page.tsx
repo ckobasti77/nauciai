@@ -29,6 +29,7 @@ import {
   measuredParams,
   optionalSlots,
   promptRequired,
+  type PlaygroundState,
 } from "@/lib/studio-playground";
 import {
   framePairFiles,
@@ -243,7 +244,7 @@ function PlaygroundForm({
 }: {
   model: StudioModel;
   locale: Locale;
-  studioState: { enabled: boolean; isEnrolled: boolean; activeJobs: number; maxActiveJobs: number } | undefined;
+  studioState: PlaygroundState | undefined;
   balance: number | undefined;
   topUpHref: string;
   seed: RegenerateSeed | null;
@@ -674,7 +675,7 @@ export function StudioPage({ locale }: { locale: Locale }) {
       );
     }
 
-    if (state !== undefined && !state.isEnrolled) {
+    if (state !== undefined && !state.hasStudioAccess) {
       return (
         <Panel className="p-6">
           <h3 className="text-2xl font-black text-ink">{STUDIO_NOT_ENROLLED.title[locale]}</h3>

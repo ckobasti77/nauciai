@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 
 import { convexTest } from "convex-test";
-import { expect, test } from "vitest";
+import { afterAll, beforeAll, expect, test } from "vitest";
 
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
@@ -11,6 +11,8 @@ import {
   computeMargin,
   dayKey,
   dayStart,
+  hasStudioAccess,
+  isStudioStaff,
   MAX_DAILY_COST_USD,
   mockJobSucceeds,
   mockOutputDataUrl,
@@ -18,6 +20,20 @@ import {
 } from "./studioCore";
 
 const modules = import.meta.glob("./**/*.ts");
+
+// Uloga `admin` ne dolazi iz reda u `users` nego iz `INITIAL_ADMIN_EMAILS`
+// (`effectiveRoleForProfile` u `helpers.ts` prima samo `student`, `pro_student`
+// i `moderator` iz baze). Isti obrazac kao `creditPacks.test.ts`.
+const previousAdmins = process.env.INITIAL_ADMIN_EMAILS;
+
+beforeAll(() => {
+  process.env.INITIAL_ADMIN_EMAILS = "admin@example.com";
+});
+
+afterAll(() => {
+  if (previousAdmins === undefined) delete process.env.INITIAL_ADMIN_EMAILS;
+  else process.env.INITIAL_ADMIN_EMAILS = previousAdmins;
+});
 
 type TestConvex = ReturnType<typeof convexTest>;
 
@@ -30,13 +46,22 @@ function promptParams(prompt: string, extra: Record<string, unknown> = {}) {
   return JSON.stringify({ prompt, ...extra });
 }
 
-async function seedUser(t: TestConvex, opts: { enrolled?: boolean; blocked?: boolean } = {}) {
+async function seedUser(
+  t: TestConvex,
+  opts: {
+    enrolled?: boolean;
+    blocked?: boolean;
+    role?: "student" | "moderator" | "admin";
+    email?: string;
+    username?: string;
+  } = {},
+) {
   const userId = await t.run(async (ctx) => {
     const userId = await ctx.db.insert("users", {
-      email: "student@example.com",
+      email: opts.email ?? "student@example.com",
       name: "Studio Student",
-      username: "studio_student",
-      role: "student",
+      username: opts.username ?? "studio_student",
+      role: opts.role ?? "student",
       language: "sr" as const,
       createdAt: 1,
       updatedAt: 1,
@@ -1306,7 +1331,13 @@ test("getStudioState: upaljen Studio, upisan korisnik, nijedan posao u letu", as
   const { asUser } = await seedWorld(t);
 
   const state = await asUser.query(api.studio.getStudioState, {});
-  expect(state).toEqual({ enabled: true, isEnrolled: true, activeJobs: 0, maxActiveJobs: 3 });
+  expect(state).toEqual({
+    enabled: true,
+    hasStudioAccess: true,
+    isStaff: false,
+    activeJobs: 0,
+    maxActiveJobs: 3,
+  });
 });
 
 test("getStudioState čita kill switch isto kao createJob", async () => {
@@ -1377,7 +1408,7 @@ test("getStudioState prijavljuje neupisanog korisnika pre nego što klikne dugme
   await seedModel(t);
 
   const state = await asUser.query(api.studio.getStudioState, {});
-  expect(state.isEnrolled).toBe(false);
+  expect(state.hasStudioAccess).toBe(false);
   expect(state.enabled).toBe(true);
   await expect(
     asUser.mutation(api.studio.createJob, {
@@ -1540,4 +1571,249 @@ test("deleteJob odbija tudji posao i nepostojeći posao", async () => {
   await expect(asUser.mutation(api.studio.deleteJob, { jobId })).rejects.toThrow(
     /Posao nije pronađen/,
   );
+});
+
+// ── W1: pristup bez upisa i pregled tudjih poslova ─────────────────────────
+
+test("hasStudioAccess: upis pušta svakoga, uloga admina i moderatora i bez upisa", () => {
+  // Upis je i dalje pravilo za korisnike...
+  expect(hasStudioAccess("student", { _id: "enr" })).toBe(true);
+  expect(hasStudioAccess("student", null)).toBe(false);
+  expect(hasStudioAccess("pro_student", null)).toBe(false);
+  expect(hasStudioAccess(undefined, undefined)).toBe(false);
+  // ...a admin i moderator ulaze i bez njega.
+  expect(hasStudioAccess("admin", null)).toBe(true);
+  expect(hasStudioAccess("moderator", null)).toBe(true);
+
+  expect(isStudioStaff("admin")).toBe(true);
+  expect(isStudioStaff("moderator")).toBe(true);
+  expect(isStudioStaff("pro_student")).toBe(false);
+  expect(isStudioStaff(undefined)).toBe(false);
+});
+
+async function seedStaff(t: TestConvex, role: "admin" | "moderator", credits = 100) {
+  const seeded = await seedUser(t, {
+    enrolled: false,
+    role,
+    email: `${role}@example.com`,
+    username: `studio_${role}`,
+  });
+  await grant(t, seeded.userId, credits);
+  return seeded;
+}
+
+test("admin bez upisa pravi posao - i plaća ga kao svi ostali", async () => {
+  const t = convexTest(schema, modules);
+  await seedModel(t);
+  const admin = await seedStaff(t, "admin");
+
+  const jobId = await admin.asUser.mutation(api.studio.createJob, {
+    modelSlug: MODEL_SLUG,
+    params: promptParams("lisica u snegu"),
+  });
+
+  const { balance, transactions, jobs } = await ledger(t, admin.userId);
+  expect(jobs).toHaveLength(1);
+  expect(jobs[0]._id).toBe(jobId);
+  // Pristup nije popust: skinuto je tačno onoliko koliko bi bilo i korisniku.
+  const spend = transactions.filter((transaction) => transaction.type === "spend");
+  expect(spend).toHaveLength(1);
+  expect(spend[0].amount).toBe(-MODEL_COST);
+  expect(balance).toBe(100 - MODEL_COST);
+});
+
+test("moderator bez upisa pravi posao, a obican korisnik bez upisa i dalje ne", async () => {
+  const t = convexTest(schema, modules);
+  await seedModel(t);
+  const moderator = await seedStaff(t, "moderator");
+
+  await expect(
+    moderator.asUser.mutation(api.studio.createJob, {
+      modelSlug: MODEL_SLUG,
+      params: promptParams("lisica"),
+    }),
+  ).resolves.toBeDefined();
+
+  const student = await seedUser(t, {
+    enrolled: false,
+    email: "neupisan@example.com",
+    username: "studio_neupisan",
+  });
+  await grant(t, student.userId, 100);
+  await expect(
+    student.asUser.mutation(api.studio.createJob, {
+      modelSlug: MODEL_SLUG,
+      params: promptParams("lisica"),
+    }),
+  ).rejects.toThrow(/NIJE_UPISAN/);
+});
+
+test("getStudioState pušta admina bez upisa i prijavljuje ga kao osoblje", async () => {
+  const t = convexTest(schema, modules);
+  await seedModel(t);
+  const admin = await seedStaff(t, "admin");
+
+  const state = await admin.asUser.query(api.studio.getStudioState, {});
+  expect(state.hasStudioAccess).toBe(true);
+  expect(state.isStaff).toBe(true);
+});
+
+/** Red posla bez `createJob`-a: query se testira nad zadatim vlasnikom, slugom i statusom. */
+async function insertJob(
+  t: TestConvex,
+  userId: Id<"users">,
+  overrides: {
+    modelSlug: string;
+    status: "reserved" | "running" | "done" | "failed" | "refunded";
+    createdAt: number;
+  },
+) {
+  return t.run((ctx) =>
+    ctx.db.insert("generationJobs", {
+      userId,
+      modelSlug: overrides.modelSlug,
+      kind: "image" as const,
+      params: JSON.stringify({ prompt: "posao" }),
+      promptHash: "0".repeat(16),
+      status: overrides.status,
+      creditCost: 10,
+      createdAt: overrides.createdAt,
+    }),
+  );
+}
+
+/** Minimalan red v4 kataloga - `listAllJobs` iz njega čita samo `slug` i `provider`. */
+async function insertCatalogModel(
+  t: TestConvex,
+  slug: string,
+  provider: "fal" | "google" | "byteplus",
+) {
+  return t.run((ctx) =>
+    ctx.db.insert("models", {
+      slug,
+      provider,
+      kind: "image" as const,
+      family: "test",
+      labelSr: slug,
+      labelEn: slug,
+      taglineSr: "",
+      taglineEn: "",
+      descriptionSr: "",
+      descriptionEn: "",
+      endpoints: "{}",
+      inputModes: JSON.stringify(["text"]),
+      inputSpec: "{}",
+      paramSpec: "[]",
+      priceRule: "{}",
+      capabilities: "{}",
+      isEnabled: true,
+      sortOrder: 1,
+      updatedAt: 1,
+    }),
+  );
+}
+
+test("listAllJobs: admin vidi tudje poslove sa mejlom vlasnika i provajderom", async () => {
+  const t = convexTest(schema, modules);
+  const { userId } = await seedWorld(t);
+  const admin = await seedStaff(t, "admin");
+  await insertCatalogModel(t, "m-fal", "fal");
+
+  await insertJob(t, userId, { modelSlug: "m-fal", status: "done", createdAt: 1_000 });
+  await insertJob(t, admin.userId, { modelSlug: "m-fal", status: "failed", createdAt: 2_000 });
+
+  const page = await admin.asUser.query(api.studio.listAllJobs, {
+    paginationOpts: { numItems: 10, cursor: null },
+  });
+
+  expect(page.page).toHaveLength(2);
+  expect([...page.page].map((job) => job.ownerEmail).sort()).toEqual([
+    "admin@example.com",
+    "student@example.com",
+  ]);
+  expect(page.page.every((job) => job.provider === "fal")).toBe(true);
+  // Najnoviji prvi - isti poredak koji `listMyJobs` daje za jedan nalog.
+  expect(page.page[0].createdAt).toBeGreaterThanOrEqual(page.page[1].createdAt);
+});
+
+test("listAllJobs filtrira po korisniku, statusu i provajderu", async () => {
+  const t = convexTest(schema, modules);
+  const { userId } = await seedWorld(t);
+  const admin = await seedStaff(t, "admin");
+  await insertCatalogModel(t, "m-fal", "fal");
+  await insertCatalogModel(t, "m-google", "google");
+
+  await insertJob(t, userId, { modelSlug: "m-fal", status: "done", createdAt: 1_000 });
+  await insertJob(t, userId, { modelSlug: "m-google", status: "running", createdAt: 2_000 });
+  await insertJob(t, admin.userId, { modelSlug: "m-fal", status: "failed", createdAt: 3_000 });
+
+  const opts = { numItems: 10, cursor: null };
+  const byUser = await admin.asUser.query(api.studio.listAllJobs, { paginationOpts: opts, userId });
+  expect(byUser.page).toHaveLength(2);
+  expect(byUser.page.every((job) => job.ownerEmail === "student@example.com")).toBe(true);
+  // `by_user` indeks nosi `createdAt`, pa je poredak ovde tvrd.
+  expect(byUser.page.map((job) => job.createdAt)).toEqual([2_000, 1_000]);
+
+  const byStatus = await admin.asUser.query(api.studio.listAllJobs, {
+    paginationOpts: opts,
+    status: "running",
+  });
+  expect(byStatus.page).toHaveLength(1);
+  expect(byStatus.page[0].modelSlug).toBe("m-google");
+  expect(byStatus.page[0].provider).toBe("google");
+
+  const byProvider = await admin.asUser.query(api.studio.listAllJobs, {
+    paginationOpts: opts,
+    provider: "fal",
+  });
+  expect(byProvider.page.map((job) => job.modelSlug)).toEqual(["m-fal", "m-fal"]);
+
+  // Dva filtera se seku, ne sabiraju.
+  const crossed = await admin.asUser.query(api.studio.listAllJobs, {
+    paginationOpts: opts,
+    provider: "google",
+    status: "done",
+  });
+  expect(crossed.page).toHaveLength(0);
+
+  // Provajder bez ijednog modela u katalogu vraća praznu stranu, ne sve poslove.
+  const empty = await admin.asUser.query(api.studio.listAllJobs, {
+    paginationOpts: opts,
+    provider: "byteplus",
+  });
+  expect(empty.page).toHaveLength(0);
+  expect(empty.isDone).toBe(true);
+});
+
+test("listAllJobs i listJobOwners su iza uloge na SERVERU, ne u UI-ju", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedWorld(t);
+  await insertCatalogModel(t, "m-fal", "fal");
+  await insertJob(t, userId, { modelSlug: "m-fal", status: "done", createdAt: 1_000 });
+
+  const opts = { numItems: 10, cursor: null };
+  await expect(asUser.query(api.studio.listAllJobs, { paginationOpts: opts })).rejects.toThrow(
+    /Forbidden/,
+  );
+  await expect(asUser.query(api.studio.listJobOwners, {})).rejects.toThrow(/Forbidden/);
+  await expect(t.query(api.studio.listAllJobs, { paginationOpts: opts })).rejects.toThrow();
+
+  // Ista tabela kroz korisnički upit i dalje vraća samo svoje.
+  const mine = await asUser.query(api.studio.listMyJobs, { paginationOpts: opts });
+  expect(mine.page).toHaveLength(1);
+});
+
+test("listJobOwners vraća vlasnike sa brojem poslova, sortirane po mejlu", async () => {
+  const t = convexTest(schema, modules);
+  const { userId } = await seedWorld(t);
+  const admin = await seedStaff(t, "admin");
+  await insertCatalogModel(t, "m-fal", "fal");
+
+  await insertJob(t, userId, { modelSlug: "m-fal", status: "done", createdAt: 1_000 });
+  await insertJob(t, userId, { modelSlug: "m-fal", status: "done", createdAt: 2_000 });
+  await insertJob(t, admin.userId, { modelSlug: "m-fal", status: "done", createdAt: 3_000 });
+
+  const owners = await admin.asUser.query(api.studio.listJobOwners, {});
+  expect(owners.map((owner) => owner.email)).toEqual(["admin@example.com", "student@example.com"]);
+  expect(owners.map((owner) => owner.jobCount)).toEqual([1, 2]);
 });

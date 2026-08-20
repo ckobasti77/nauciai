@@ -110,7 +110,8 @@ export function measuredParams(
 
 export type PlaygroundState = {
   enabled: boolean;
-  isEnrolled: boolean;
+  /** Sme li u Studio: aktivan upis ILI uloga koja upis ne traži (`hasStudioAccess`). */
+  hasStudioAccess: boolean;
   activeJobs: number;
   maxActiveJobs: number;
 };
@@ -132,7 +133,7 @@ export function generateBlock(input: {
   const { state, balance, credits } = input;
 
   if (state && !state.enabled) return { kind: "paused" };
-  if (state && !state.isEnrolled) return { kind: "not_enrolled" };
+  if (state && !state.hasStudioAccess) return { kind: "not_enrolled" };
   if (state && state.activeJobs >= state.maxActiveJobs) {
     return { kind: "active", max: state.maxActiveJobs };
   }

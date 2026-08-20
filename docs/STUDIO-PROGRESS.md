@@ -4359,3 +4359,122 @@ stvari pre prvog evra, po ceni:
 Uz to: BytePlus traži **$30 po Seedance modelu zaključano na nalogu, $60 za oba**,
 i ima **3 istovremena Seedance posla po celom nalogu**, ne po korisniku.
 **Ne puštaj `seed:seedModelCatalog`** (R5 - vraća FLUX i stare rute na fal).
+
+## W1 - Admin i moderator u Studiju + pregled svih poslova   (2026-08-20 13:45)
+
+**Fajlovi:**
+- `convex/studioCore.ts` - nove ciste funkcije `isStudioStaff` i `hasStudioAccess`
+- `convex/studio.ts` - `createJob` i `getStudioState` idu kroz `hasStudioAccess`;
+  projekcija reda galerije izdvojena u `toGalleryJob`; novi `requireStudioStaff`,
+  `listAllJobs` i `listJobOwners`
+- `convex/studio.test.ts` - `INITIAL_ADMIN_EMAILS` u `beforeAll`, `seedUser` prima
+  `role`/`email`/`username`, deset novih testova
+- `lib/studio-playground.ts` - `PlaygroundState.isEnrolled` -> `hasStudioAccess`
+- `lib/studio-playground.test.ts` - isto ime polja
+- `lib/studio-gallery.ts` - `GALLERY_SCOPES`, `JOB_STATUSES`, `STUDIO_PROVIDERS`,
+  njihove labele i `filterJobOwners`
+- `lib/studio-gallery.test.ts` - dva nova testa
+- `components/app/studio-page.tsx` - `state.hasStudioAccess` umesto `isEnrolled`,
+  tip panela sada `PlaygroundState`
+- `components/app/studio-gallery-page.tsx` - prekidac "Samo moji"/"Svi korisnici",
+  filteri po korisniku/statusu/provajderu, kartica sa vlasnikom
+
+**Sta je uradjeno:** Odluka "sme li neko u Studio" preseljena je u jednu cistu
+funkciju `hasStudioAccess(role, enrollment)` u `studioCore.ts`; aktivan upis pusta
+svakoga, a `admin` i `moderator` prolaze i bez njega. Istu funkciju zovu i
+`createJob` (koji baca `NIJE_UPISAN`) i `getStudioState` (po kojem se gasi dugme),
+pa UI i server ne mogu da tvrde suprotno. Naplata nije dirana - admin placa isto
+kao svako drugi, sto je pokriveno testom nad ledgerom. U galeriji admin i
+moderator dobijaju prekidac "Samo moji" / "Svi korisnici"; u rezimu "Svi" ide nov
+query `listAllJobs` (najnoviji prvi, sa mejlom vlasnika, potrosenim kreditima,
+modelom, provajderom i statusom) uz filtere po korisniku, statusu i provajderu.
+Oba nova query-ja (`listAllJobs`, `listJobOwners`) stoje iza provere uloge na
+serveru - prekidac u UI-ju je samo prikaz.
+
+**ODLUKE:**
+1. **Query-ji Studija nisu ni imali enrollment proveru, pa im nista nije
+   "zaobidjeno".** W1 trazi da admin prolazi bez upisa u `listMyJobs`, galeriji i
+   katalogu modela; provera je - `listMyJobs`, `studioModels.listModels` i
+   `getJobForRegenerate` traze samo prijavu (`requireUserId`), enrollment se nigde
+   ne cita. Dodavanje provere tamo bi bilo **novo ogranicenje za obicne korisnike**,
+   ne popravka, pa je izabrana najkonzervativnija opcija: enrollment i dalje
+   odlucuje na tacno dva mesta (`createJob` i `getStudioState`), i oba idu kroz
+   `hasStudioAccess`. Uslov nije ponovljen nigde.
+2. **"Guard stranica" je `getStudioState`, ne sam route fajl.** `/{locale}/app/studio`,
+   `/studio/gallery` i `/credits` nemaju serverski enrollment guard - jedini gate je
+   `generateBlock` -> `{ kind: "not_enrolled" }` u playground-u, koji cita
+   `getStudioState`. Zato je popravljeno tamo, a route fajlovi nisu dirani.
+3. **`isEnrolled` je preimenovano u `hasStudioAccess`** u povratnoj vrednosti
+   `getStudioState`-a i u `PlaygroundState`. Za admina bi `isEnrolled: true` bila
+   lazna tvrdnja (nije upisan, samo sme), a dva polja za istu odluku su tacno ono
+   sto zadatak zabranjuje ("ne ponavljaj uslov").
+4. **Uloga za prekidac dolazi iz `getStudioState.isStaff`, ne iz
+   `profiles.getViewerProfileStatus`.** Ta zajednicka query vraca samo `isAdmin`,
+   koristi je sedam komponenti van Studija, i sirenje njenog oblika zbog jednog
+   prekidaca je izmena van obima. `listAllJobs` ulogu proverava ponovo, sam.
+5. **`listAllJobs` bira indeks po najuzem zadatom filteru** - `by_user` kad je
+   zadat korisnik, `by_status_created` kad je zadat samo status, inace ugradjeni
+   `by_creation_time` sa `.order("desc")`. Nov indeks nije dodavan: `createdAt` se
+   upisuje istim `Date.now()`-om kao `_creationTime`, pa je poredak isti, a schema
+   migracija je rizik koji ovaj korak ne mora da uzme.
+6. **Provajder se filtrira preko spiska slugova iz kataloga**, jer
+   `generationJobs` ne pamti provajdera nego samo `modelSlug`. Provajder bez
+   ijednog modela u katalogu vraca praznu stranu (`q.or()` bez izraza ne postoji),
+   sto je pokriveno testom.
+7. **Spisak korisnika za select se gradi od poslednjih 300 poslova**, a ne iz cele
+   tabele korisnika: filtrira se po onome ko je stvarno nesto generisao, i citanje
+   ostaje ograniceno. Ko je stao dublje od tog prozora i dalje se nalazi preko
+   filtera po statusu i provajderu.
+8. **Tudji posao se u galeriji ne brise i ne regenerise.** `deleteJob` i
+   `getJobForRegenerate` ionako traze vlasnika, pa bi dugmad bacala gresku;
+   kartica u rezimu "Svi" zato nosi podatke (mejl, provajder, status) umesto tih
+   akcija. Preuzimanje izlaza ostaje - to je poenta pregleda.
+9. **Uloga `admin` ne dolazi iz reda u `users`.** `effectiveRoleForProfile`
+   (`helpers.ts`) iz baze prima samo `student`, `pro_student` i `moderator`;
+   `admin` se izvodi iskljucivo iz `INITIAL_ADMIN_EMAILS`. Zateceno ponasanje nije
+   menjano - testovi zato postavljaju tu env varijablu, isto kao
+   `creditPacks.test.ts`. Videti "Za Jovana".
+
+**Testovi:** `convex/studio.test.ts` - `hasStudioAccess`/`isStudioStaff` kao ciste
+funkcije (upis pusta svakoga, `admin`/`moderator` i bez upisa, `pro_student` ne);
+admin bez upisa pravi posao **i placa ga** (assertion nad `spend` transakcijom i
+balansom); moderator bez upisa pravi posao a neupisan student i dalje dobija
+`NIJE_UPISAN`; `getStudioState` javlja `hasStudioAccess: true` i `isStaff: true`
+za admina; `listAllJobs` vraca tudje poslove sa mejlom vlasnika i provajderom,
+najnoviji prvi; filtriranje po korisniku, statusu i provajderu, presek dva
+filtera, i prazan provajder; `listAllJobs` i `listJobOwners` bacaju `Forbidden`
+obicnom korisniku i neprijavljenom, dok `listMyJobs` istom korisniku i dalje vraca
+samo njegovo; `listJobOwners` vraca vlasnike sortirane po mejlu sa brojem poslova.
+`lib/studio-gallery.test.ts` - `filterJobOwners` (pretraga bez obzira na velika
+slova, prazna pretraga nije filter) i postojanje labela za svaki scope/status/
+provajder, uz proveru da se spisak provajdera ne razilazi sa katalogom.
+
+**Rezultat verifikacije:** codegen OK (exit 0) / lint OK (0 errors, 17 warnings -
+istih 17 kao pre koraka) / test OK (55 fajlova, 656 testova, +10) / build OK
+(compiled successfully, 60/60 strana).
+
+**BLOKADA:** nema.
+
+**Za Jovana:**
+1. **Proveri da je `INITIAL_ADMIN_EMAILS` postavljen na Convex deployment-u**, ne
+   samo u `.env.local`. Uloga `admin` se izvodi iskljucivo iz te liste
+   (`effectiveRoleForProfile`), pa bez nje ni ovaj korak ne pusta te u Studio:
+   ```
+   npx convex env list
+   ```
+   Ako `INITIAL_ADMIN_EMAILS` nema u izlazu, postavi je (ja to ne smem po
+   pravilima run-a) - vrednost iz `.env.local` je
+   `jovanm028@gmail.com,aleksadjor3@gmail.com`.
+2. **Krediti se i dalje trose, i adminu.** Za testiranje bez trosenja svojih:
+   ```
+   npx convex run seed:grantDemoCredits '{"syncSecret":"<SYNC>","email":"jovanm028@gmail.com","amount":2000}'
+   ```
+   (`<SYNC>` je `WEBHOOK_SYNC_SECRET`; mutacija trazi da korisnik vec postoji,
+   dakle prijavi se bar jednom pre nje. Nije idempotentna - svaki poziv otvara nov
+   lot.)
+3. **Rezim "Svi korisnici" se vidi u `/app/studio/gallery`**, prekidac je prvi red
+   u panelu sa filterima i pokazuje se samo adminu i moderatoru. Provera da guard
+   nije samo kozmeticki: obican nalog koji direktno pozove
+   `api.studio.listAllJobs` dobija `Forbidden` (pokriveno testom).
+4. Nalazi R1-R3 iz `docs/STUDIO-CATALOG-REPORT.md` ovim korakom **nisu** dirani i
+   dalje stoje kao pre.

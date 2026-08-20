@@ -21,15 +21,25 @@ import {
   dateRangeCutoff,
   expiryBadgeDays,
   expiryBadgeText,
+  filterJobOwners,
   inputsLabel,
   jobParamSummary,
   regenerateHref,
   GALLERY_KIND_LABELS,
   GALLERY_KINDS,
+  GALLERY_SCOPE_LABELS,
+  GALLERY_SCOPES,
   isDownloadable,
+  JOB_STATUS_LABELS,
+  JOB_STATUSES,
   regenerateButtonLabel,
+  STUDIO_PROVIDER_LABELS,
+  STUDIO_PROVIDERS,
   type DateRangePreset,
   type GalleryKind,
+  type GalleryScope,
+  type JobStatus,
+  type StudioProvider,
 } from "@/lib/studio-gallery";
 import { deleteJobErrorMessage, GALLERY_NO_GENERATIONS, GALLERY_NO_MATCHES } from "@/lib/studio-messages";
 
@@ -57,6 +67,9 @@ type GalleryJob = {
   isMock: boolean;
   expiresAt?: number;
   createdAt: number;
+  // Samo u režimu "Svi korisnici" (`listAllJobs`); obična galerija ih nema.
+  ownerEmail?: string;
+  provider?: string;
 };
 
 /** Sličice ulaza. Video nikad kao goli `<video src>` - `preload="metadata"` sa `#t=0.1`. */
@@ -121,6 +134,7 @@ function GalleryCard({
   selected,
   onToggleSelect,
   onDelete,
+  owner,
 }: {
   job: GalleryJob;
   locale: Locale;
@@ -131,6 +145,12 @@ function GalleryCard({
   selected: boolean;
   onToggleSelect: (jobId: Id<"generationJobs">) => void;
   onDelete: (jobId: Id<"generationJobs">) => Promise<unknown>;
+  /**
+   * Vlasnik posla - postoji samo u režimu "Svi korisnici". Tuđi posao se ne
+   * briše i ne regeneriše iz galerije (`deleteJob` i `getJobForRegenerate`
+   * ionako traže vlasnika), pa kartica tada nosi podatke umesto akcija.
+   */
+  owner?: { email: string; provider: string };
 }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -163,7 +183,7 @@ function GalleryCard({
   return (
     <div className="surface-card flex flex-col gap-3 border-2 border-ink bg-white p-3">
       <div className="surface-media relative aspect-square w-full overflow-hidden border-2 border-ink bg-paper">
-        {downloadable ? (
+        {downloadable && !owner ? (
           <label className="absolute left-2 top-2 z-10 grid size-7 cursor-pointer place-items-center rounded-full border-2 border-ink bg-white">
             <input
               type="checkbox"
@@ -210,10 +230,12 @@ function GalleryCard({
         ) : expired ? (
           <div className="flex h-full flex-col items-center justify-center gap-3 p-4 text-center">
             <p className="line-clamp-3 text-sm font-bold text-muted">{prompt || job.modelSlug}</p>
-            <Link href={regenerateLink} className={cn(ACTION, "border-ink bg-yellow text-ink hover:-translate-y-0.5")}>
-              <Wand2 className="size-3.5" />
-              {regenerateButtonLabel(job.creditCost, locale)}
-            </Link>
+            {owner ? null : (
+              <Link href={regenerateLink} className={cn(ACTION, "border-ink bg-yellow text-ink hover:-translate-y-0.5")}>
+                <Wand2 className="size-3.5" />
+                {regenerateButtonLabel(job.creditCost, locale)}
+              </Link>
+            )}
           </div>
         ) : (
           <div className="grid h-full place-items-center p-4 text-center">
@@ -234,7 +256,23 @@ function GalleryCard({
             {expiryBadgeText(badgeDays, locale)}
           </span>
         ) : null}
+        {owner ? (
+          <>
+            <span className="rounded-full border-2 border-ink bg-paper px-2.5 py-0.5 text-[11px] font-black text-ink">
+              {STUDIO_PROVIDER_LABELS[owner.provider as StudioProvider] ?? owner.provider}
+            </span>
+            <span className="rounded-full border-2 border-ink bg-white px-2.5 py-0.5 text-[11px] font-black text-ink">
+              {JOB_STATUS_LABELS[job.status as JobStatus]?.[locale] ?? job.status}
+            </span>
+          </>
+        ) : null}
       </div>
+
+      {owner ? (
+        <p className="truncate text-[11px] font-black text-ink" title={owner.email}>
+          {owner.email}
+        </p>
+      ) : null}
 
       {prompt ? <p className="line-clamp-2 text-xs font-bold text-muted">{prompt}</p> : null}
 
@@ -279,22 +317,24 @@ function GalleryCard({
               {locale === "sr" ? "Preuzmi" : "Download"}
             </a>
           ) : null}
-          {!expired ? (
+          {!expired && !owner ? (
             <Link href={regenerateLink} className={cn(ACTION, "border-ink bg-white text-ink hover:-translate-y-0.5")}>
               <RefreshCw className="size-3.5" />
               {locale === "sr" ? "Generiši ponovo" : "Generate again"}
             </Link>
           ) : null}
-          <button
-            type="button"
-            disabled={inFlight}
-            title={inFlight ? (locale === "sr" ? "Sačekaj da se posao završi." : "Wait for the job to finish.") : undefined}
-            onClick={() => setConfirmingDelete(true)}
-            className={cn(ACTION, "ml-auto border-ink bg-white text-ink hover:-translate-y-0.5")}
-          >
-            <Trash2 className="size-3.5" />
-            {locale === "sr" ? "Obriši" : "Delete"}
-          </button>
+          {owner ? null : (
+            <button
+              type="button"
+              disabled={inFlight}
+              title={inFlight ? (locale === "sr" ? "Sačekaj da se posao završi." : "Wait for the job to finish.") : undefined}
+              onClick={() => setConfirmingDelete(true)}
+              className={cn(ACTION, "ml-auto border-ink bg-white text-ink hover:-translate-y-0.5")}
+            >
+              <Trash2 className="size-3.5" />
+              {locale === "sr" ? "Obriši" : "Delete"}
+            </button>
+          )}
         </div>
       )}
       {deleteError ? <p className="text-xs font-black text-red-700">{deleteError}</p> : null}
@@ -340,11 +380,26 @@ export function StudioGalleryPage({ locale }: { locale: Locale }) {
   const [modelFilter, setModelFilter] = useState<string | null>(null);
   const [dateFilter, setDateFilter] = useState<DateRangePreset>("all");
   const [selected, setSelected] = useState<Set<Id<"generationJobs">>>(new Set());
+  // Režim "Svi korisnici" i njegova tri filtera (W1). Odvojeni su od filtera
+  // obične galerije jer `listAllJobs` prima druge argumente - vrsta, model i
+  // datum su pitanja jednog naloga, a vlasnik, status i provajder su pitanja
+  // cele platforme.
+  const [scope, setScope] = useState<GalleryScope>("mine");
+  const [ownerFilter, setOwnerFilter] = useState<Id<"users"> | null>(null);
+  const [ownerSearch, setOwnerSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<JobStatus | null>(null);
+  const [providerFilter, setProviderFilter] = useState<StudioProvider | null>(null);
+
+  // Uloga stiže sa servera i ovde samo crta prekidač; `listAllJobs` je
+  // proverava ponovo, pa sakriveno dugme nije jedina brana.
+  const studioState = useQuery(api.studio.getStudioState, isAuthenticated ? {} : "skip");
+  const isStaff = studioState?.isStaff === true;
+  const allScope = isStaff && scope === "all";
 
   const models = useQuery(api.studioModels.listModels, isAuthenticated ? {} : "skip");
-  const jobs = usePaginatedQuery(
+  const myJobs = usePaginatedQuery(
     api.studio.listMyJobs,
-    isAuthenticated
+    isAuthenticated && !allScope
       ? {
           ...(kindFilter ? { kind: kindFilter } : {}),
           ...(modelFilter ? { modelSlug: modelFilter } : {}),
@@ -353,6 +408,19 @@ export function StudioGalleryPage({ locale }: { locale: Locale }) {
       : "skip",
     { initialNumItems: PAGE_SIZE },
   );
+  const allJobs = usePaginatedQuery(
+    api.studio.listAllJobs,
+    allScope
+      ? {
+          ...(ownerFilter ? { userId: ownerFilter } : {}),
+          ...(statusFilter ? { status: statusFilter } : {}),
+          ...(providerFilter ? { provider: providerFilter } : {}),
+        }
+      : "skip",
+    { initialNumItems: PAGE_SIZE },
+  );
+  const owners = useQuery(api.studio.listJobOwners, allScope ? {} : "skip");
+  const jobs = allScope ? allJobs : myJobs;
   const deleteJob = useMutation(api.studio.deleteJob);
 
   const studioHref = withLocale(locale, "/app/studio");
@@ -363,7 +431,10 @@ export function StudioGalleryPage({ locale }: { locale: Locale }) {
     .filter((model): model is StudioModel => model !== null);
   const modelBySlug = new Map(catalogModels.map((model) => [model.slug, model]));
   const jobRows = jobs.results as unknown as GalleryJob[];
-  const filtersActive = kindFilter !== null || modelFilter !== null || dateFilter !== "all";
+  const filtersActive = allScope
+    ? ownerFilter !== null || statusFilter !== null || providerFilter !== null
+    : kindFilter !== null || modelFilter !== null || dateFilter !== "all";
+  const ownerOptions = filterJobOwners(owners ?? [], ownerSearch);
 
   const sentinelRef = useInfiniteScroll(jobs.status === "CanLoadMore", () => jobs.loadMore(PAGE_SIZE));
 
@@ -380,6 +451,17 @@ export function StudioGalleryPage({ locale }: { locale: Locale }) {
     setKindFilter(null);
     setModelFilter(null);
     setDateFilter("all");
+    setOwnerFilter(null);
+    setOwnerSearch("");
+    setStatusFilter(null);
+    setProviderFilter(null);
+  }
+
+  // Izbor za preuzimanje se prazni pri promeni režima: tuđi posao nema
+  // kvadratić, pa bi izbor napravljen u "Samo moji" ostao nevidljiv i aktivan.
+  function switchScope(next: GalleryScope) {
+    setScope(next);
+    setSelected(new Set());
   }
 
   // ZIP se pravi u browseru (fflate) po specifikaciji - ali `fflate` nije
@@ -453,66 +535,157 @@ export function StudioGalleryPage({ locale }: { locale: Locale }) {
 
       {/* Filteri: jedan red rounded-full čipova (STUDIO-PLAN A13). */}
       <Panel className="p-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setKindFilter(null)}
-            aria-pressed={kindFilter === null}
-            className={cn(CHIP, kindFilter === null ? "bg-ink text-white" : "bg-white text-ink hover:-translate-y-0.5")}
-          >
-            {locale === "sr" ? "Sve vrste" : "All types"}
-          </button>
-          {GALLERY_KINDS.map((kind) => (
+        {/* Prekidač vidi samo admin i moderator; obična putanja je netaknuta. */}
+        {isStaff ? (
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            {GALLERY_SCOPES.map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => switchScope(option)}
+                aria-pressed={scope === option}
+                className={cn(CHIP, scope === option ? "bg-yellow text-ink" : "bg-white text-ink hover:-translate-y-0.5")}
+              >
+                {GALLERY_SCOPE_LABELS[option][locale]}
+              </button>
+            ))}
+          </div>
+        ) : null}
+
+        {allScope ? (
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                type="search"
+                value={ownerSearch}
+                onChange={(event) => setOwnerSearch(event.target.value)}
+                placeholder={locale === "sr" ? "Pretraži po mejlu" : "Search by email"}
+                aria-label={locale === "sr" ? "Pretraži korisnike" : "Search users"}
+                className="surface-inset min-h-9 border-2 border-ink bg-white px-3 py-1.5 text-xs font-bold text-ink"
+              />
+              <select
+                value={ownerFilter ?? ""}
+                onChange={(event) =>
+                  setOwnerFilter(event.target.value === "" ? null : (event.target.value as Id<"users">))
+                }
+                aria-label={locale === "sr" ? "Filter po korisniku" : "Filter by user"}
+                className="surface-inset min-h-9 border-2 border-ink bg-white px-3 py-1.5 text-xs font-bold text-ink"
+              >
+                <option value="">{locale === "sr" ? "Svi korisnici" : "All users"}</option>
+                {ownerOptions.map((owner) => (
+                  <option key={owner.userId} value={owner.userId}>
+                    {`${owner.email} (${owner.jobCount})`}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setStatusFilter(null)}
+                aria-pressed={statusFilter === null}
+                className={cn(CHIP, statusFilter === null ? "bg-ink text-white" : "bg-white text-ink hover:-translate-y-0.5")}
+              >
+                {locale === "sr" ? "Svi statusi" : "All statuses"}
+              </button>
+              {JOB_STATUSES.map((status) => (
+                <button
+                  key={status}
+                  type="button"
+                  onClick={() => setStatusFilter(status)}
+                  aria-pressed={statusFilter === status}
+                  className={cn(CHIP, statusFilter === status ? "bg-ink text-white" : "bg-white text-ink hover:-translate-y-0.5")}
+                >
+                  {JOB_STATUS_LABELS[status][locale]}
+                </button>
+              ))}
+
+              <span className="mx-1 h-6 w-px bg-ink/15" aria-hidden="true" />
+
+              <button
+                type="button"
+                onClick={() => setProviderFilter(null)}
+                aria-pressed={providerFilter === null}
+                className={cn(CHIP, providerFilter === null ? "bg-ink text-white" : "bg-white text-ink hover:-translate-y-0.5")}
+              >
+                {locale === "sr" ? "Svi provajderi" : "All providers"}
+              </button>
+              {STUDIO_PROVIDERS.map((provider) => (
+                <button
+                  key={provider}
+                  type="button"
+                  onClick={() => setProviderFilter(provider)}
+                  aria-pressed={providerFilter === provider}
+                  className={cn(CHIP, providerFilter === provider ? "bg-ink text-white" : "bg-white text-ink hover:-translate-y-0.5")}
+                >
+                  {STUDIO_PROVIDER_LABELS[provider]}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-center gap-2">
             <button
-              key={kind}
               type="button"
-              onClick={() => setKindFilter(kind)}
-              aria-pressed={kindFilter === kind}
-              className={cn(CHIP, kindFilter === kind ? "bg-ink text-white" : "bg-white text-ink hover:-translate-y-0.5")}
+              onClick={() => setKindFilter(null)}
+              aria-pressed={kindFilter === null}
+              className={cn(CHIP, kindFilter === null ? "bg-ink text-white" : "bg-white text-ink hover:-translate-y-0.5")}
             >
-              {GALLERY_KIND_LABELS[kind][locale]}
+              {locale === "sr" ? "Sve vrste" : "All types"}
             </button>
-          ))}
+            {GALLERY_KINDS.map((kind) => (
+              <button
+                key={kind}
+                type="button"
+                onClick={() => setKindFilter(kind)}
+                aria-pressed={kindFilter === kind}
+                className={cn(CHIP, kindFilter === kind ? "bg-ink text-white" : "bg-white text-ink hover:-translate-y-0.5")}
+              >
+                {GALLERY_KIND_LABELS[kind][locale]}
+              </button>
+            ))}
 
-          <span className="mx-1 h-6 w-px bg-ink/15" aria-hidden="true" />
+            <span className="mx-1 h-6 w-px bg-ink/15" aria-hidden="true" />
 
-          <button
-            type="button"
-            onClick={() => setModelFilter(null)}
-            aria-pressed={modelFilter === null}
-            className={cn(CHIP, modelFilter === null ? "bg-ink text-white" : "bg-white text-ink hover:-translate-y-0.5")}
-          >
-            {locale === "sr" ? "Svi modeli" : "All models"}
-          </button>
-          {catalogModels.map((model) => (
             <button
-              key={model.slug}
               type="button"
-              onClick={() => setModelFilter(model.slug)}
-              aria-pressed={modelFilter === model.slug}
-              className={cn(
-                CHIP,
-                modelFilter === model.slug ? "bg-ink text-white" : "bg-white text-ink hover:-translate-y-0.5",
-              )}
+              onClick={() => setModelFilter(null)}
+              aria-pressed={modelFilter === null}
+              className={cn(CHIP, modelFilter === null ? "bg-ink text-white" : "bg-white text-ink hover:-translate-y-0.5")}
             >
-              {modelLabel(model, locale)}
+              {locale === "sr" ? "Svi modeli" : "All models"}
             </button>
-          ))}
+            {catalogModels.map((model) => (
+              <button
+                key={model.slug}
+                type="button"
+                onClick={() => setModelFilter(model.slug)}
+                aria-pressed={modelFilter === model.slug}
+                className={cn(
+                  CHIP,
+                  modelFilter === model.slug ? "bg-ink text-white" : "bg-white text-ink hover:-translate-y-0.5",
+                )}
+              >
+                {modelLabel(model, locale)}
+              </button>
+            ))}
 
-          <span className="mx-1 h-6 w-px bg-ink/15" aria-hidden="true" />
+            <span className="mx-1 h-6 w-px bg-ink/15" aria-hidden="true" />
 
-          {DATE_RANGE_PRESETS.map((preset) => (
-            <button
-              key={preset}
-              type="button"
-              onClick={() => setDateFilter(preset)}
-              aria-pressed={dateFilter === preset}
-              className={cn(CHIP, dateFilter === preset ? "bg-ink text-white" : "bg-white text-ink hover:-translate-y-0.5")}
-            >
-              {DATE_RANGE_LABELS[preset][locale]}
-            </button>
-          ))}
-        </div>
+            {DATE_RANGE_PRESETS.map((preset) => (
+              <button
+                key={preset}
+                type="button"
+                onClick={() => setDateFilter(preset)}
+                aria-pressed={dateFilter === preset}
+                className={cn(CHIP, dateFilter === preset ? "bg-ink text-white" : "bg-white text-ink hover:-translate-y-0.5")}
+              >
+                {DATE_RANGE_LABELS[preset][locale]}
+              </button>
+            ))}
+          </div>
+        )}
       </Panel>
 
       {/* Preuzmi izabrano - vidljivo samo dok je nešto izabrano. */}
@@ -594,6 +767,11 @@ export function StudioGalleryPage({ locale }: { locale: Locale }) {
                 selected={selected.has(job._id)}
                 onToggleSelect={toggleSelect}
                 onDelete={(jobId) => deleteJob({ jobId })}
+                owner={
+                  job.ownerEmail === undefined
+                    ? undefined
+                    : { email: job.ownerEmail, provider: job.provider ?? "" }
+                }
               />
             ))}
           </div>

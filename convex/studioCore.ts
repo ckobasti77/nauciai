@@ -16,6 +16,28 @@ export const MAX_DAILY_GENERATIONS = 50;
  */
 export const STUDIO_FLAG_KEY = "studio_enabled";
 
+/**
+ * Uloge koje Studio vide i bez upisa na kurs. Admin i moderator su ti koji
+ * Studio proveravaju - kad bi i njih zaustavljao `enrollment`, jedini način da
+ * se uđe u sopstvenu platformu bio bi upis na sopstveni kurs.
+ */
+export function isStudioStaff(role: unknown): boolean {
+  return role === "admin" || role === "moderator";
+}
+
+/**
+ * Jedino mesto na kojem se odlučuje sme li neko u Studio: aktivan upis, ili
+ * uloga koja upis ne traži. Isti odgovor dobijaju `createJob` (koji baca
+ * `NIJE_UPISAN`) i `getStudioState` (po kojem se gasi dugme), pa UI i server ne
+ * mogu da tvrde suprotno.
+ *
+ * **Pristup nije popust.** Krediti se skidaju istom putanjom svakome - videti
+ * `applySpend` u `createJob`-u, gde uloga ne učestvuje.
+ */
+export function hasStudioAccess(role: unknown, enrollment: unknown): boolean {
+  return enrollment !== null && enrollment !== undefined ? true : isStudioStaff(role);
+}
+
 /** Ključ reda u `studioUsageDaily`: UTC dan, "2026-08-18". */
 export function dayKey(now: number): string {
   return new Date(now).toISOString().slice(0, 10);

@@ -6,11 +6,18 @@ import {
   dateRangeCutoff,
   expiryBadgeDays,
   expiryBadgeText,
+  filterJobOwners,
+  GALLERY_SCOPE_LABELS,
+  GALLERY_SCOPES,
   inputsLabel,
   isDownloadable,
+  JOB_STATUS_LABELS,
+  JOB_STATUSES,
   jobParamSummary,
   regenerateButtonLabel,
   regenerateHref,
+  STUDIO_PROVIDER_LABELS,
+  STUDIO_PROVIDERS,
 } from "./studio-gallery";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -109,4 +116,38 @@ test("bez reda kataloga nema opisa - sirovi kljucevi se ne ispisuju", () => {
   expect(jobParamSummary(JSON.stringify({ resolution: "1080p" }), undefined, "sr")).toBe("");
   const seed = STUDIO_MODELS.find((model) => model.slug === "kling-3");
   expect(jobParamSummary("nije json", seed?.paramSpec, "sr")).toBe("");
+});
+
+// ── W1: prekidac "Samo moji" / "Svi korisnici" ─────────────────────────────
+
+test("filterJobOwners suzava spisak po mejlu, bez obzira na velika slova", () => {
+  const owners = [
+    { userId: "1", email: "ana@example.com" },
+    { userId: "2", email: "Bojan@Example.com" },
+    { userId: "3", email: "cveta@drugi.rs" },
+  ];
+
+  expect(filterJobOwners(owners, "example").map((owner) => owner.userId)).toEqual(["1", "2"]);
+  expect(filterJobOwners(owners, "BOJAN").map((owner) => owner.userId)).toEqual(["2"]);
+  // Prazna pretraga nije filter - vraca sve, ne nista.
+  expect(filterJobOwners(owners, "   ")).toHaveLength(3);
+  expect(filterJobOwners(owners, "nikoga")).toHaveLength(0);
+});
+
+test("labele prekidaca, statusa i provajdera postoje za svaku vrednost", () => {
+  for (const scope of GALLERY_SCOPES) {
+    expect(GALLERY_SCOPE_LABELS[scope].sr).not.toBe("");
+    expect(GALLERY_SCOPE_LABELS[scope].en).not.toBe("");
+  }
+  for (const status of JOB_STATUSES) {
+    expect(JOB_STATUS_LABELS[status].sr).not.toBe("");
+    expect(JOB_STATUS_LABELS[status].en).not.toBe("");
+  }
+  for (const provider of STUDIO_PROVIDERS) {
+    expect(STUDIO_PROVIDER_LABELS[provider]).not.toBe("");
+  }
+  // Spisak provajdera se ne sme raziti sa katalogom - filter bi tiho izgubio rutu.
+  expect([...new Set(STUDIO_MODELS.map((model) => model.provider))].sort()).toEqual(
+    [...STUDIO_PROVIDERS].sort(),
+  );
 });
