@@ -98,3 +98,10 @@
 [14:27:24]  W4  |  R4: vlasnistvo nad uploadovanim fajlom
 [14:27:24]  model=opus  effort=high
 [14:27:24] --------------------------------------------------
+[14:45:11] Commit b9bab2a - 3 putanja
+[14:45:11] W4 -> OK  (18 min, 1 pokusaja, USD 8.06)
+[14:45:11] 
+[14:45:11] --------------------------------------------------
+[14:45:11]  W5  |  R3 pravo resenje: trajanje iz zaglavlja fajla
+[14:45:11]  model=opus  effort=max
+[14:45:11] --------------------------------------------------
