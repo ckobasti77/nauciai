@@ -9,18 +9,17 @@
  * `inputModes`-a reda kataloga.
  */
 
+import type { InputSpec, SlotSpec } from "@/convex/studioJobCore";
 import type { PriceRule } from "@/convex/studioPricing";
 
 import type { Locale } from "./i18n";
 
-/** Jedan slot jednog režima: koliko fajlova prima i koje MIME tipove. */
-export type SlotSpec = { max: number; accept: string[] };
-
-/** Slotovi jednog režima: `{ image: { max: 9, accept: [...] }, video: {...} }`. */
-export type ModeSpec = Record<string, SlotSpec>;
-
-/** Ceo `models.inputSpec`: `{ inputMode: { slot: SlotSpec } }`. */
-export type InputSpec = Record<string, ModeSpec>;
+/**
+ * Slotovi i njihov parser stoje u `convex/studioJobCore.ts` i uvoze se odande:
+ * server proverava ISTI `inputSpec` po kojem forma crta slotove, a dva parsera
+ * istog polja su dva ugovora koja se mogu razići.
+ */
+export type { SlotSpec, ModeSpec, InputSpec } from "@/convex/studioJobCore";
 
 /** Fajl koji je već otišao u Convex storage i sad stoji u slotu. */
 export type SlotFile = {
@@ -50,44 +49,7 @@ export const MAX_SLOT_BYTES: Record<SlotKind, number> = {
 
 export type SlotKind = "image" | "video" | "audio" | "file";
 
-export function parseInputSpec(raw: string): InputSpec {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    return {};
-  }
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
-
-  const spec: InputSpec = {};
-  for (const [mode, slots] of Object.entries(parsed as Record<string, unknown>)) {
-    if (!slots || typeof slots !== "object" || Array.isArray(slots)) continue;
-    const modeSpec: ModeSpec = {};
-    for (const [slot, value] of Object.entries(slots as Record<string, unknown>)) {
-      if (!value || typeof value !== "object" || Array.isArray(value)) continue;
-      const entry = value as { max?: unknown; accept?: unknown };
-      const max = typeof entry.max === "number" && entry.max > 0 ? Math.floor(entry.max) : 1;
-      const accept = Array.isArray(entry.accept)
-        ? entry.accept.filter((mime): mime is string => typeof mime === "string")
-        : [];
-      modeSpec[slot] = { max, accept };
-    }
-    spec[mode] = modeSpec;
-  }
-
-  return spec;
-}
-
-export function parseInputModes(raw: string): string[] {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    return [];
-  }
-
-  return Array.isArray(parsed) ? parsed.filter((mode): mode is string => typeof mode === "string") : [];
-}
+export { parseInputSpec, parseInputModes } from "@/convex/studioJobCore";
 
 export function slotsForMode(spec: InputSpec, mode: string): Array<{ slot: string } & SlotSpec> {
   const modeSpec = Object.hasOwn(spec, mode) ? spec[mode] : undefined;

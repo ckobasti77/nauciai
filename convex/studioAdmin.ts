@@ -2,7 +2,14 @@ import { v } from "convex/values";
 
 import { mutation, query } from "./_generated/server";
 import { getCurrentProfile, requireAdmin } from "./helpers";
-import { dayKey, dayStart, STUDIO_FLAG_KEY } from "./studioCore";
+import { STUCK_JOB_ERROR } from "./crons";
+import {
+  dayKey,
+  dayStart,
+  GLOBAL_DAILY_ALARM_USD,
+  GLOBAL_DAILY_KILL_USD,
+  STUDIO_FLAG_KEY,
+} from "./studioCore";
 
 /**
  * `requireAdmin` (helpers.ts) bootstrapuje profil preko `db.patch` i zato
@@ -70,6 +77,10 @@ export const getUsageSummary = query({
       refunded: 0,
     };
     let jobCountsCapped = false;
+    // Koliko je poslova danas pokupio reaper. To nije isto što i "refundirano":
+    // refund je i model koji je odbio posao, a ovo je odgovor koji NIKAD nije
+    // stigao - jedini broj koji kaže da li nešto visi kod provajdera.
+    let reapedToday = 0;
     for (const status of STATUSES) {
       const rows = await ctx.db
         .query("generationJobs")
@@ -77,6 +88,9 @@ export const getUsageSummary = query({
         .take(MAX_JOBS_PER_STATUS + 1);
       if (rows.length > MAX_JOBS_PER_STATUS) jobCountsCapped = true;
       jobCounts[status] = Math.min(rows.length, MAX_JOBS_PER_STATUS);
+      if (status === "refunded") {
+        reapedToday = rows.filter((job) => job.error === STUCK_JOB_ERROR).length;
+      }
     }
 
     return {
@@ -84,6 +98,11 @@ export const getUsageSummary = query({
       totalCostUsd,
       topUsers,
       jobCounts,
+      reapedToday,
+      // Pragovi dolaze sa servera, iz iste konstante po kojoj cron gasi Studio -
+      // admin ekran ne sme da crta drugu liniju od one na kojoj se stvarno gasi.
+      alarmUsd: GLOBAL_DAILY_ALARM_USD,
+      killUsd: GLOBAL_DAILY_KILL_USD,
       usageRowsCapped: usageRows.length >= MAX_USAGE_ROWS,
       jobCountsCapped,
     };

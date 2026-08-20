@@ -2,12 +2,28 @@ import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 
 import { internal } from "./_generated/api";
-import type { Id } from "./_generated/dataModel";
-import { internalMutation, mutation, query } from "./_generated/server";
+import type { Doc, Id } from "./_generated/dataModel";
+import { internalMutation, type MutationCtx, mutation, query, type QueryCtx } from "./_generated/server";
 import { applySpend } from "./credits";
-import { validatePrompt } from "./creditsCore";
+import { MAX_PROMPT_LENGTH, validatePrompt } from "./creditsCore";
 import { requireUserId } from "./helpers";
 import { applyTaskCompletion, assertLessonAccess } from "./lab";
+import { parseJobInputs } from "./providers/jobInputs";
+import {
+  extraCounts,
+  hasVideoInput,
+  jobInputStorageIds,
+  parseClientInputs,
+  parseInputModes,
+  parseInputSpec,
+  parseQuantitySource,
+  promptControlOf,
+  promptFromParams,
+  resolveMeasuredQuantity,
+  sanitizeJobInputs,
+} from "./studioJobCore";
+import { parseParamSpec, sanitizeSpecParams } from "./studioParamSpec";
+import { computeCostUsd, computeCredits, parsePriceRule, pricingModeFor } from "./studioPricing";
 import {
   computeCreditCost,
   dayKey,
@@ -32,6 +48,148 @@ import {
 const studioModelKind = v.union(v.literal("image"), v.literal("video"), v.literal("audio"));
 
 /**
+ * Sve što jedan posao mora da zna PRE nego što se upiše: očišćeni parametri,
+ * cena u kreditima i nabavna cena. Dva kataloga daju isti oblik, pa
+ * `createJob` ispod ne zna po kojem je model naručen.
+ */
+type PricedOrder = {
+  slug: string;
+  kind: "image" | "video" | "audio";
+  params: Record<string, unknown>;
+  prompt: string;
+  creditCost: number;
+  estimatedCostUsd: number;
+  inputMode?: string;
+  inputs?: string;
+};
+
+/**
+ * Posao iz v4 kataloga (STUDIO-CATALOG-V4). Cena ide kroz `computeCredits` nad
+ * OČIŠĆENIM parametrima - istu funkciju nad istim objektom zove i forma, pa se
+ * cifra na dugmetu i naplaćena cifra ne mogu razići (katalog 1.3).
+ *
+ * Redosled provera je namerno ovakav: prvo režim (bira endpoint i množilac),
+ * pa ulazi (broje se u `extras` i odlučuju o sniženoj tarifi), pa parametri,
+ * pa merena količina - tek onda prompt i cena, jer i jedno i drugo zavise od
+ * svega iznad.
+ */
+function buildCatalogOrder(
+  model: Doc<"models">,
+  raw: Record<string, unknown>,
+  args: { inputMode?: string; inputs?: string; measuredQuantity?: number },
+): PricedOrder {
+  if (!model.isEnabled) throw new Error("MODEL_NEDOSTUPAN");
+
+  const spec = parseParamSpec(model.paramSpec);
+  const rule = parsePriceRule(model.priceRule);
+  if (!spec || !rule) throw new Error("MODEL_NEDOSTUPAN");
+
+  const modes = parseInputModes(model.inputModes);
+  const inputMode = args.inputMode ?? modes[0];
+  if (inputMode === undefined || !modes.includes(inputMode)) throw new Error("NEISPRAVAN_REZIM");
+
+  const inputSpec = parseInputSpec(model.inputSpec);
+  const parsedInputs = parseClientInputs(args.inputs);
+  if (!parsedInputs) throw new Error("NEISPRAVNI_ULAZI");
+  const inputs = sanitizeJobInputs(parsedInputs, inputSpec, inputMode);
+  if (!inputs.ok) throw new Error(`NEISPRAVNI_ULAZI:${inputs.reason}`);
+
+  const sanitized = sanitizeSpecParams(spec, rule, raw, inputMode);
+  if (!sanitized.ok) throw new Error(`NEISPRAVNI_PARAMETRI:${sanitized.reason}`);
+  const params = sanitized.params;
+
+  // Merena količina i broj dodatnih ulaza NISU kontrole - klijent ih ne bira,
+  // pa se dopisuju ovde, posle kapije. Ono što forma pošalje pod tim ključevima
+  // `sanitizeSpecParams` je već izbacio.
+  const source = parseQuantitySource(model.capabilities);
+  if (source) {
+    const measured = resolveMeasuredQuantity(source, params, args.measuredQuantity);
+    if (!measured.ok) throw new Error(measured.reason);
+    params[source.param] = measured.quantity;
+  }
+  Object.assign(params, extraCounts(rule, inputs.inputs));
+
+  // Prompt se traži samo tamo gde je JEDINI ulaz. Kling lipsync ima `textarea`
+  // koja se koristi tek kad je izvor govora tekst, pa bi bezuslovan zahtev
+  // odbio sasvim ispravan posao sa okačenim zvukom. Tekst koji POSTOJI ide
+  // kroz moderaciju uvek, i to ceo - granica je granica te kontrole, jer
+  // ElevenLabs prima 5 000 znakova a prompt za sliku 2 000.
+  const control = promptControlOf(spec, inputMode);
+  const prompt = promptFromParams(spec, params, inputMode) ?? "";
+  const hasSlots = Object.keys(Object.hasOwn(inputSpec, inputMode) ? inputSpec[inputMode] : {}).length > 0;
+  if (!hasSlots || prompt.trim().length > 0) {
+    const maxLength = typeof control?.max === "number" ? control.max : MAX_PROMPT_LENGTH;
+    const check = validatePrompt(prompt, maxLength);
+    if (!check.ok) throw new Error(`NEISPRAVAN_PROMPT:${check.reason}`);
+  }
+
+  const pricingMode = pricingModeFor(inputMode, hasVideoInput(inputs.inputs));
+  let creditCost: number;
+  let estimatedCostUsd: number;
+  try {
+    creditCost = computeCredits(rule, params, pricingMode);
+    estimatedCostUsd = computeCostUsd(rule, params, pricingMode);
+  } catch (error) {
+    // Cena koja ne može da se izračuna je odbijen posao, nikad nula.
+    throw new Error(`NEISPRAVNI_PARAMETRI:${error instanceof Error ? error.message : "CENA"}`);
+  }
+  if (!Number.isFinite(creditCost) || creditCost <= 0) throw new Error("NEISPRAVNI_PARAMETRI:CENA");
+
+  const storageIds = jobInputStorageIds(inputs.inputs);
+
+  return {
+    slug: model.slug,
+    kind: model.kind,
+    params,
+    prompt,
+    creditCost,
+    estimatedCostUsd,
+    inputMode,
+    ...(storageIds.length > 0 ? { inputs: JSON.stringify(inputs.inputs) } : {}),
+  };
+}
+
+/**
+ * Posao iz starog `modelCatalog`-a - zatečeno ponašanje, nepromenjeno.
+ * Postoji dok se poslednji red ne preseli u `models` (STUDIO-CATALOG-V4 1.1).
+ */
+async function buildLegacyOrder(
+  ctx: MutationCtx,
+  modelSlug: string,
+  params: Record<string, unknown>,
+): Promise<PricedOrder> {
+  const prompt = extractPrompt(params);
+  const promptCheck = validatePrompt(prompt);
+  if (!promptCheck.ok) throw new Error(`NEISPRAVAN_PROMPT:${promptCheck.reason}`);
+
+  // Model koji ne postoji i model koji je admin isključio su za korisnika
+  // ista stvar: ne može se generisati na njemu.
+  const model = await ctx.db
+    .query("modelCatalog")
+    .withIndex("by_slug", (q) => q.eq("slug", modelSlug))
+    .unique();
+  if (!model || !model.isEnabled) throw new Error("MODEL_NEDOSTUPAN");
+
+  // Od ove tačke se radi ISKLJUČIVO sa očišćenim parametrima: i cena i ono
+  // što `submitJob` pošalje fal-u moraju da izađu iz istog objekta, inače
+  // naplaćujemo jedan posao a naručujemo drugi.
+  const sanitized = sanitizeParams(model.paramSchema, params);
+  if (!sanitized.ok) throw new Error(`NEISPRAVNI_PARAMETRI:${sanitized.reason}`);
+  const cleanParams = sanitized.params;
+
+  return {
+    slug: model.slug,
+    kind: model.kind,
+    params: cleanParams,
+    prompt,
+    creditCost: computeCreditCost(model, cleanParams),
+    // Nabavna cena raste sa brojem slika isto kao i naplata: bez toga dnevni
+    // plafon od 5 $ propušta do 20 $ stvarnog troška (`num_images: 4`).
+    estimatedCostUsd: model.estimatedCostUsd * requestedImageCount(cleanParams),
+  };
+}
+
+/**
  * Rezervacija posla iz koraka 1 sekcije 4.2 STUDIO-PLAN-a. Sve provere idu
  * PRE prvog upisa, a rezervacija posla i skidanje kredita su u istoj
  * transakciji - ne sme da ostane ni skinut kredit bez posla, ni posao bez
@@ -41,6 +199,14 @@ export const createJob = mutation({
   args: {
     modelSlug: v.string(),
     params: v.string(),
+    // Ulazni režim i okačeni fajlovi (STUDIO-CATALOG-V4 sekcija 5). Postoje
+    // samo za v4 katalog; stari `modelCatalog` ih nema i ignoriše ih.
+    inputMode: v.optional(v.string()),
+    inputs: v.optional(v.string()),
+    // Količina koju korisnik ne bira nego se meri iz okačenog fajla (sekunde
+    // zvuka, minuti snimka). Prolazi kroz `resolveMeasuredQuantity` - videti
+    // tamo zašto klijentu ovde ipak nije poslednja reč.
+    measuredQuantity: v.optional(v.number()),
     // Kontekst lekcije (STUDIO-PLAN 1.1): kad Studio widget stoji u output
     // pane-u lekcije, izlaz treba da postane `labOutputs` red i dokaz da je
     // zadatak uradjen. Bez ovih polja ta veza se kasnije ne može rekonstruisati.
@@ -80,30 +246,22 @@ export const createJob = mutation({
       }
     }
 
-    // Moderacija pre svake provere koja košta čitanje ledgera.
     const params = parseParams(args.params);
     if (!params) throw new Error("NEISPRAVNI_PARAMETRI");
-    const prompt = extractPrompt(params);
-    const promptCheck = validatePrompt(prompt);
-    if (!promptCheck.ok) throw new Error(`NEISPRAVAN_PROMPT:${promptCheck.reason}`);
 
-    // Model koji ne postoji i model koji je admin isključio su za korisnika
-    // ista stvar: ne može se generisati na njemu.
-    const model = await ctx.db
-      .query("modelCatalog")
+    // Katalog v4 ima prednost nad starim `modelCatalog`-om: isti slug u obe
+    // tabele znači model koji je PRESELJEN, a ne dva modela. Model kojeg u
+    // `models` nema ide starim putem nepromenjen.
+    const v4Model = await ctx.db
+      .query("models")
       .withIndex("by_slug", (q) => q.eq("slug", args.modelSlug))
       .unique();
-    if (!model || !model.isEnabled) throw new Error("MODEL_NEDOSTUPAN");
 
-    // Od ove tačke se radi ISKLJUČIVO sa očišćenim parametrima: i cena i ono
-    // što `submitJob` pošalje fal-u moraju da izađu iz istog objekta, inače
-    // naplaćujemo jedan posao a naručujemo drugi.
-    const sanitized = sanitizeParams(model.paramSchema, params);
-    if (!sanitized.ok) throw new Error(`NEISPRAVNI_PARAMETRI:${sanitized.reason}`);
-    const cleanParams = sanitized.params;
-    // Nabavna cena raste sa brojem slika isto kao i naplata: bez toga dnevni
-    // plafon od 5 $ propušta do 20 $ stvarnog troška (`num_images: 4`).
-    const estimatedCostUsd = model.estimatedCostUsd * requestedImageCount(cleanParams);
+    const order = v4Model
+      ? buildCatalogOrder(v4Model, params, args)
+      : await buildLegacyOrder(ctx, args.modelSlug, params);
+    const cleanParams = order.params;
+    const estimatedCostUsd = order.estimatedCostUsd;
 
     const reserved = await ctx.db
       .query("generationJobs")
@@ -128,7 +286,7 @@ export const createJob = mutation({
       throw new Error("DNEVNI_LIMIT_TROSKA");
     }
 
-    const creditCost = computeCreditCost(model, cleanParams);
+    const creditCost = order.creditCost;
 
     // Upis posla ide PRE potrošnje jer `credits.applySpend` (A2) traži `jobId`
     // - to je ključ pod kojim se refund kasnije prepoznaje. Sve je i dalje
@@ -136,12 +294,14 @@ export const createJob = mutation({
     // se poništava sam, bez ručnog rollback-a.
     const jobId = await ctx.db.insert("generationJobs", {
       userId,
-      modelSlug: model.slug,
-      kind: model.kind,
+      modelSlug: order.slug,
+      kind: order.kind,
       params: JSON.stringify(cleanParams),
-      promptHash: promptHash(prompt),
+      promptHash: promptHash(order.prompt),
       status: "reserved",
       creditCost,
+      ...(order.inputMode ? { inputMode: order.inputMode } : {}),
+      ...(order.inputs ? { inputs: order.inputs } : {}),
       ...(args.lessonId ? { lessonId: args.lessonId } : {}),
       ...(args.taskId ? { taskId: args.taskId } : {}),
       createdAt: now,
@@ -404,6 +564,13 @@ export const listMyJobs = query({
           // Fajl kojem je istekla retencija (`crons.expireGenerationFiles`)
           // vrati `null` - kartica tada pokazuje istek, ne pokvarenu sliku.
           outputUrl: job.outputStorageId ? await ctx.storage.getUrl(job.outputStorageId) : null,
+          // Ulazi kao sličice na kartici: bez njih "Generiši ponovo" kod modela
+          // sa slikama nema smisla, jer se ne vidi šta je uopšte bio ulaz.
+          // Potpisuje se najviše `GALLERY_INPUT_THUMBS` po poslu - stranica od
+          // dvanaest kartica sa devet referenci je sto osam potpisa za mrežu
+          // sličica; ceo spisak vraća `getJobForRegenerate`, jedan posao.
+          inputMode: job.inputMode,
+          inputThumbs: await resolveInputThumbs(ctx, job.inputs),
           error: job.error,
           isMock: isMockRequestId(job.falRequestId),
           expiresAt: job.expiresAt,
@@ -411,6 +578,82 @@ export const listMyJobs = query({
           completedAt: job.completedAt,
         })),
       ),
+    };
+  },
+});
+
+/** Koliko ulaznih sličica jedna kartica u mreži dobija potpisane. */
+const GALLERY_INPUT_THUMBS = 4;
+
+/**
+ * Ulazi jednog posla, spremni za prikaz: slot, potpisan URL i ukupan broj.
+ * `url` je `null` za fajl koji je u medjuvremenu obrisan - kartica tada
+ * pokazuje prazan slot, ne pokvarenu sliku.
+ */
+async function resolveInputThumbs(ctx: QueryCtx, rawInputs: string | undefined) {
+  const inputs = parseJobInputs(rawInputs);
+  const thumbs: Array<{ slot: string; storageId: string; url: string | null }> = [];
+  let total = 0;
+
+  for (const [slot, ids] of Object.entries(inputs)) {
+    total += ids.length;
+    for (const storageId of ids) {
+      if (thumbs.length >= GALLERY_INPUT_THUMBS) continue;
+      thumbs.push({
+        slot,
+        storageId,
+        url: await ctx.storage.getUrl(storageId as Id<"_storage">),
+      });
+    }
+  }
+
+  return { items: thumbs, total };
+}
+
+/**
+ * "Generiši ponovo" (S7): vraća MODEL, REŽIM, PARAMETRE I ULAZE jednog posla,
+ * da forma može da se vrati u tačno isto stanje. Ide preko `jobId`-ja, a ne
+ * kroz URL: spisak `storageId`-jeva u query stringu bio bi duži od svakog
+ * razumnog linka, i zastareo bi čim fajl nestane.
+ */
+export const getJobForRegenerate = query({
+  args: { jobId: v.id("generationJobs") },
+  handler: async (ctx, args) => {
+    const userId = await requireUserId(ctx);
+    const job = await ctx.db.get(args.jobId);
+    if (!job || job.userId !== userId) return null;
+
+    const inputs = parseJobInputs(job.inputs);
+    const files: Array<{
+      slot: string;
+      storageId: string;
+      url: string | null;
+      mime: string;
+      size: number;
+    }> = [];
+    for (const [slot, ids] of Object.entries(inputs)) {
+      for (const rawId of ids) {
+        const storageId = rawId as Id<"_storage">;
+        // Tip i veličina se čitaju iz sistemske tabele umesto da se pogadjaju
+        // iz imena slota: forma po `mime`-u odlučuje šta je pregled a šta se
+        // broji kao ulazna slika u ceni.
+        const meta = await ctx.db.system.get(storageId);
+
+        files.push({
+          slot,
+          storageId: rawId,
+          url: await ctx.storage.getUrl(storageId),
+          mime: meta?.contentType ?? "",
+          size: meta?.size ?? 0,
+        });
+      }
+    }
+
+    return {
+      modelSlug: job.modelSlug,
+      inputMode: job.inputMode,
+      params: job.params,
+      inputs: files,
     };
   },
 });

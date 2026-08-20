@@ -164,10 +164,17 @@ function normalizeForModeration(text: string): string {
   return ` ${stripped.replace(/[^a-z0-9]+/g, " ").trim()} `;
 }
 
-export function validatePrompt(text: string): PromptValidation {
+/**
+ * `maxLength` postoji zbog v4 kataloga: ElevenLabs `text` kontrola ide do
+ * 5 000 znakova (STUDIO-CATALOG-V4 4.1), a `MAX_PROMPT_LENGTH` je granica
+ * prompta za slike. Podrazumevana vrednost je stara granica, pa se ni jedan
+ * postojeći pozivalac ne ponaša drugačije - i moderacija se u oba slučaja
+ * radi nad CELIM tekstom, ne nad odsečenim.
+ */
+export function validatePrompt(text: string, maxLength = MAX_PROMPT_LENGTH): PromptValidation {
   const trimmed = text.trim();
   if (!trimmed) return { ok: false, reason: "PRAZAN_PROMPT" };
-  if (trimmed.length > MAX_PROMPT_LENGTH) return { ok: false, reason: "PREDUGACAK_PROMPT" };
+  if (trimmed.length > maxLength) return { ok: false, reason: "PREDUGACAK_PROMPT" };
 
   const normalized = normalizeForModeration(trimmed);
   if (BLOCKED_TERMS.some((term) => normalized.includes(` ${term}`))) {

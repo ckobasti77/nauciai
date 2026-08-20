@@ -2,6 +2,7 @@ import { expect, test } from "vitest";
 
 import { SEEDANCE_20, SEEDANCE_25, SEEDREAM_5_PRO } from "./providers/bytePlusModels";
 import {
+  applyPriceEdit,
   computeCostUsd,
   computeCredits,
   CREDIT_FACTOR,
@@ -378,4 +379,63 @@ test("marža nikad ne pada ispod 1,0 ni na jednoj kombinaciji BytePlus modela", 
     expect(costUsd).toBeGreaterThan(0);
     expect(credits / (costUsd * CREDIT_FACTOR)).toBeGreaterThanOrEqual(1);
   }
+});
+
+// ── izmena nabavne cene iz admin ekrana (S7) ───────────────────────────────
+
+test("applyPriceEdit pomera osnovu, a cena cele porodice varijanti prati", () => {
+  const rule: PriceRule = {
+    unit: "image",
+    baseUsd: 0.045,
+    multipliers: [{ param: "resolution", map: { "1.5K": 1, "2K": 2 } }],
+    quantityParam: "num_images",
+  };
+
+  const edited = applyPriceEdit(rule, { baseUsd: 0.05 });
+  expect(edited.ok).toBe(true);
+  if (!edited.ok) return;
+
+  // Jedan broj, dve cene: obe kroz `computeCredits`, nijedna prepisana rukom.
+  expect(computeCredits(edited.rule, { resolution: "1.5K", num_images: 1 })).toBe(
+    Math.ceil(0.05 * 216.25),
+  );
+  expect(computeCredits(edited.rule, { resolution: "2K", num_images: 1 })).toBe(
+    Math.ceil(0.05 * 2 * 216.25),
+  );
+});
+
+test("osnova se ne sme menjati na pravilu koje cenu čita iz tabele", () => {
+  const rule: PriceRule = { unit: "image", lookup: { params: ["quality"], map: { low: 0.006 } } };
+
+  // Tabela ima prednost nad `baseUsd`-om (katalog 1.3), pa bi upisan broj
+  // stajao u redu a ne bi se video ni u jednoj ceni - to je odbijanje, ne upis.
+  expect(applyPriceEdit(rule, { baseUsd: 0.1 })).toEqual({ ok: false, reason: "CENA_IZ_TABELE" });
+  // `addUsd` se sabira POSLE tabele, pa on prolazi.
+  const edited = applyPriceEdit(rule, { addUsd: 0.01 });
+  expect(edited.ok).toBe(true);
+  if (edited.ok) expect(edited.rule.addUsd).toBe(0.01);
+});
+
+test("negativna nabavna cena se odbija, a nula briše dodatak umesto da ga ostavi", () => {
+  const rule: PriceRule = { unit: "image", baseUsd: 0.067, addUsd: 0.003 };
+
+  expect(applyPriceEdit(rule, { baseUsd: -1 })).toEqual({ ok: false, reason: "NEISPRAVNA_CENA" });
+  expect(applyPriceEdit(rule, { addUsd: Number.NaN })).toEqual({ ok: false, reason: "NEISPRAVNA_CENA" });
+
+  const cleared = applyPriceEdit(rule, { addUsd: 0 });
+  expect(cleared.ok).toBe(true);
+  if (cleared.ok) expect(Object.hasOwn(cleared.rule, "addUsd")).toBe(false);
+});
+
+test("izmena ne dira ugnježdeno pravilo - layerize ima svoju osnovu", () => {
+  const rule: PriceRule = {
+    unit: "image",
+    baseUsd: 0.045,
+    modeRules: { layerize: { unit: "layer", baseUsd: 0.0225, quantityParam: "layers" } },
+  };
+
+  const edited = applyPriceEdit(rule, { baseUsd: 0.09 });
+  expect(edited.ok).toBe(true);
+  if (!edited.ok) return;
+  expect(edited.rule.modeRules?.layerize.baseUsd).toBe(0.0225);
 });

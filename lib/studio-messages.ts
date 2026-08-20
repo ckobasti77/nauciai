@@ -180,8 +180,8 @@ export const STUDIO_NOT_ENROLLED: EmptyState = {
 export const STUDIO_NO_GENERATIONS: EmptyState = {
   title: { sr: "Još nemaš nijednu generaciju", en: "No generations yet" },
   body: {
-    sr: "Studio je tvoj alat za slike: napišeš opis, izabereš model i platiš kreditima tačno onoliko koliko piše na dugmetu. Gotova slika ostaje ovde.",
-    en: "The Studio is your image tool: write a description, pick a model, and pay exactly what the button says. The finished image stays here.",
+    sr: "Studio pravi slike, video i zvuk: izabereš model, daš mu opis i ono što treba da vidi ili čuje, i platiš kreditima tačno onoliko koliko piše na dugmetu. Gotov fajl ostaje ovde.",
+    en: "The Studio makes images, video and audio: pick a model, give it a description and whatever it needs to see or hear, and pay exactly what the button says. The finished file stays here.",
   },
   cta: { sr: "Ubaci prvi prompt", en: "Use a starter prompt" },
 };

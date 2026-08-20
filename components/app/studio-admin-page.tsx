@@ -7,8 +7,11 @@ import { useState } from "react";
 import { Panel, cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
 import type { Doc } from "@/convex/_generated/dataModel";
+import { parsePriceRule } from "@/convex/studioPricing";
 import { formatEur } from "@/lib/credits-value";
 import { computeMargin, formatMargin, jobStatusLabel, marginTone } from "@/lib/studio-admin";
+import { defaultMargin, isBaseUsdEditable, priceTable } from "@/lib/studio-catalog-admin";
+import { parseStudioModel, type StudioModel } from "@/lib/studio-models";
 
 const inputClass =
   "min-h-9 w-24 rounded-[8px] border-2 border-ink bg-white px-2 text-sm font-bold text-ink outline-none transition focus:ring-4 focus:ring-yellow/35 disabled:cursor-not-allowed disabled:opacity-60";
@@ -166,6 +169,217 @@ function TogglePill({
   );
 }
 
+const PROVIDER_LABELS: Record<string, string> = { fal: "fal", google: "Google", byteplus: "BytePlus" };
+
+/**
+ * Cena SVAKE kombinacije jednog modela. Ovo je poenta v4 kataloga: jedan broj
+ * u pravilu pomera celu porodicu varijanti, pa admin mora da vidi šta se
+ * pomerilo - a ne da veruje na reč jednom redu sa podrazumevanim izborom.
+ *
+ * Cifre idu kroz isti `computeCredits` kojim se posao naplaćuje; ovde se ništa
+ * ne računa ručno.
+ */
+function PriceBreakdown({ model }: { model: StudioModel }) {
+  const table = priceTable({
+    paramSpec: model.paramSpec,
+    priceRule: model.priceRule,
+    inputModes: model.inputModes,
+    capabilities: JSON.stringify(model.capabilities),
+    locale: "sr",
+  });
+
+  if (table.rows.length === 0) {
+    return (
+      <p className="text-xs font-bold text-muted">
+        Nijedna kombinacija nema cenu - proveri cenovno pravilo ovog reda.
+      </p>
+    );
+  }
+
+  return (
+    <div>
+      <table className="w-full text-left text-xs">
+        <thead>
+          <tr className="text-[10px] font-black uppercase tracking-wide text-muted">
+            <th className="pb-1 pr-3">Režim</th>
+            <th className="pb-1 pr-3">Kombinacija</th>
+            <th className="pb-1 pr-3">Nabavno</th>
+            <th className="pb-1 pr-3">Krediti</th>
+            <th className="pb-1">Marža</th>
+          </tr>
+        </thead>
+        <tbody>
+          {table.rows.map((row) => (
+            <tr key={`${row.inputMode}:${row.label}`} className="align-top font-bold text-ink">
+              <td className="py-0.5 pr-3 text-muted">{row.inputMode || "—"}</td>
+              <td className="py-0.5 pr-3">{row.label || "podrazumevano"}</td>
+              <td className="py-0.5 pr-3 font-mono">${row.costUsd.toFixed(4)}</td>
+              <td className="py-0.5 pr-3 font-mono">{row.credits}</td>
+              <td className={cn("py-0.5 font-mono", marginTone(row.margin) === "warn" && "text-red-700")}>
+                {formatMargin(row.margin)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {table.hidden > 0 ? (
+        <p className="mt-2 text-[11px] font-black text-amber-800">
+          Prikazano je {table.rows.length} kombinacija, ima ih još {table.hidden}. Najmanja marža u
+          CELOM prostoru je {formatMargin(table.worstMargin)}.
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/** Jedan red v4 kataloga; razvija se u tabelu cena po kombinaciji. */
+function CatalogRow({
+  row,
+  onSetPrice,
+  onSetEnabled,
+}: {
+  row: Doc<"models">;
+  onSetPrice: (args: { baseUsd?: number; addUsd?: number }) => Promise<unknown>;
+  onSetEnabled: (isEnabled: boolean) => Promise<unknown>;
+}) {
+  const model = parseStudioModel(row);
+  const rule = parsePriceRule(row.priceRule);
+  const margin = model
+    ? defaultMargin({
+        paramSpec: model.paramSpec,
+        priceRule: model.priceRule,
+        inputModes: model.inputModes,
+        capabilities: row.capabilities,
+      })
+    : null;
+  const tone = marginTone(margin);
+  const editable = rule !== null && isBaseUsdEditable(rule);
+
+  return (
+    <>
+      <tr className="surface-inset border-2 border-ink bg-paper align-top text-sm">
+        <td className="px-3 py-3 font-black text-ink">
+          {row.labelSr}
+          <p className="text-xs font-bold text-muted">{row.slug}</p>
+        </td>
+        <td className="px-3 py-3 font-bold text-ink">{PROVIDER_LABELS[row.provider] ?? row.provider}</td>
+        <td className="px-3 py-3 font-bold text-ink">{KIND_LABELS[row.kind] ?? row.kind}</td>
+        <td className="px-3 py-3">
+          {editable ? (
+            <InlineNumber
+              value={rule.baseUsd ?? 0}
+              min={0}
+              step={0.001}
+              onSave={(next) => onSetPrice({ baseUsd: next })}
+            />
+          ) : (
+            <p className="text-xs font-bold text-muted">iz tabele (lookup)</p>
+          )}
+        </td>
+        <td className="px-3 py-3">
+          <InlineNumber
+            value={rule?.addUsd ?? 0}
+            min={0}
+            step={0.001}
+            onSave={(next) => onSetPrice({ addUsd: next })}
+          />
+        </td>
+        <td className="px-3 py-3">
+          <span
+            className={cn(
+              "inline-flex min-h-7 items-center gap-1 rounded-full border-2 border-ink px-2.5 py-0.5 text-xs font-black",
+              tone === "warn" && "bg-red-100 text-red-800",
+              tone === "ok" && "bg-emerald-100 text-emerald-900",
+              tone === "unknown" && "bg-white text-muted",
+            )}
+          >
+            {tone === "warn" ? <AlertTriangle className="size-3.5" /> : null}
+            {formatMargin(margin)}
+          </span>
+        </td>
+        <td className="px-3 py-3">
+          <TogglePill
+            active={row.isEnabled}
+            activeLabel="Uključen"
+            inactiveLabel="Isključen"
+            onToggle={() => onSetEnabled(!row.isEnabled)}
+          />
+        </td>
+      </tr>
+      <tr>
+        <td colSpan={7} className="px-3 pb-3">
+          {model ? (
+            <details className="surface-inset border-2 border-ink bg-white p-3">
+              <summary className="cursor-pointer text-xs font-black uppercase tracking-wide text-muted">
+                Cena po kombinaciji
+              </summary>
+              <div className="mt-3">
+                <PriceBreakdown model={model} />
+              </div>
+            </details>
+          ) : (
+            <p className="text-xs font-black text-red-700">
+              Red se ne može pročitati - model se korisnicima ne nudi.
+            </p>
+          )}
+        </td>
+      </tr>
+    </>
+  );
+}
+
+function CatalogSection() {
+  const models = useQuery(api.studioModels.listAllModels, {});
+  const setPrice = useMutation(api.studioModels.setModelPrice);
+  const setEnabled = useMutation(api.studioModels.setModelEnabled);
+
+  return (
+    <Panel className="p-6">
+      <h2 className="text-2xl font-black text-ink">Katalog v4</h2>
+      <p className="mt-2 text-sm font-bold text-muted">
+        Marža je za podrazumevana podešavanja; ispod 2,0x je crvena. Izmena nabavne cene odmah
+        pomera cenu SVAKE kombinacije - razvij red da vidiš koje.
+      </p>
+
+      {models === undefined ? (
+        <div className="mt-5 flex min-h-24 items-center justify-center">
+          <Loader2 className="size-5 animate-spin text-muted" />
+        </div>
+      ) : models.length === 0 ? (
+        <p className="surface-inset mt-5 border-2 border-ink bg-paper p-4 text-sm font-bold text-muted">
+          Katalog je prazan. Pusti `npm run convex:seed`.
+        </p>
+      ) : (
+        <div className="mt-5 overflow-x-auto">
+          <table className="w-full min-w-[900px] border-separate border-spacing-y-2 text-left">
+            <thead>
+              <tr className="text-xs font-black uppercase tracking-wide text-muted">
+                <th className="px-3 pb-1">Model</th>
+                <th className="px-3 pb-1">Provajder</th>
+                <th className="px-3 pb-1">Tip</th>
+                <th className="px-3 pb-1">baseUsd</th>
+                <th className="px-3 pb-1">addUsd</th>
+                <th className="px-3 pb-1">Marža</th>
+                <th className="px-3 pb-1">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {models.map((row: Doc<"models">) => (
+                <CatalogRow
+                  key={row._id}
+                  row={row}
+                  onSetPrice={(args) => setPrice({ modelId: row._id, ...args })}
+                  onSetEnabled={(isEnabled) => setEnabled({ modelId: row._id, isEnabled })}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Panel>
+  );
+}
+
 function ModelsSection() {
   const models = useQuery(api.modelCatalog.listAllModels, {});
   const setCost = useMutation(api.modelCatalog.setModelCost);
@@ -173,9 +387,10 @@ function ModelsSection() {
 
   return (
     <Panel className="p-6">
-      <h2 className="text-2xl font-black text-ink">Katalog modela</h2>
+      <h2 className="text-2xl font-black text-ink">Stari katalog (modelCatalog)</h2>
       <p className="mt-2 text-sm font-bold text-muted">
-        Cena i marža su odmah vidljive svakom korisniku čim se ovde promene - nema deploy-a.
+        Modeli koji još nisu preseljeni u v4. Slug koji postoji i u v4 katalogu se naručuje po
+        v4 pravilu - izmena cene ovde tada ne radi ništa.
       </p>
 
       {models === undefined ? (
@@ -467,7 +682,36 @@ function UsageSection() {
         <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_1fr]">
           <div className="surface-inset border-2 border-ink bg-paper p-4">
             <p className="text-xs font-black uppercase tracking-wide text-muted">Ukupan trošak danas</p>
-            <p className="mt-1 font-display text-4xl leading-none text-ink">${summary.totalCostUsd.toFixed(2)}</p>
+            <p
+              className={cn(
+                "mt-1 font-display text-4xl leading-none",
+                summary.totalCostUsd > summary.killUsd
+                  ? "text-red-700"
+                  : summary.totalCostUsd > summary.alarmUsd
+                    ? "text-amber-800"
+                    : "text-ink",
+              )}
+            >
+              ${summary.totalCostUsd.toFixed(2)}
+            </p>
+            {/* Pragovi dolaze sa servera, iz iste konstante po kojoj se Studio
+                gasi - prikaz ne sme da crta drugu liniju od stvarne. */}
+            <p className="mt-1 text-xs font-bold text-muted">
+              alarm na ${summary.alarmUsd} · gasi se na ${summary.killUsd}
+            </p>
+            <div
+              className="surface-media mt-2 h-2 w-full overflow-hidden border-2 border-ink bg-white"
+              role="img"
+              aria-label={`Potrošeno ${summary.totalCostUsd.toFixed(2)} od ${summary.killUsd} dolara`}
+            >
+              <div
+                className={cn(
+                  "h-full",
+                  summary.totalCostUsd > summary.alarmUsd ? "bg-red-500" : "bg-emerald-500",
+                )}
+                style={{ width: `${Math.min(100, (summary.totalCostUsd / summary.killUsd) * 100)}%` }}
+              />
+            </div>
 
             <p className="mt-4 text-xs font-black uppercase tracking-wide text-muted">Poslovi po statusu</p>
             <ul className="mt-2 flex flex-wrap gap-2">
@@ -480,6 +724,13 @@ function UsageSection() {
                 </li>
               ))}
             </ul>
+            <p className="mt-3 text-xs font-black uppercase tracking-wide text-muted">Reaper</p>
+            <p className="mt-1 text-sm font-bold text-ink">
+              {summary.reapedToday === 0
+                ? "Danas nijedan posao nije zaglavio."
+                : `Danas refundirano zbog neodgovora: ${summary.reapedToday}`}
+            </p>
+
             {summary.jobCountsCapped ? (
               <p className="mt-2 text-[11px] font-black text-amber-800">
                 Broj poslova po statusu je odsečen na prikaz - stvarno je veći.
@@ -526,6 +777,7 @@ export function StudioAdminPage() {
         <h1 className="mt-2 font-display text-5xl text-ink sm:text-6xl">Studio</h1>
       </header>
 
+      <CatalogSection />
       <ModelsSection />
       <PacksSection />
       <UsageSection />

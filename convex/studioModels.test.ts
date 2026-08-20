@@ -11,15 +11,21 @@ import { parsePriceRule } from "./studioPricing";
 
 const modules = import.meta.glob("./**/*.ts");
 const previousSyncSecret = process.env.WEBHOOK_SYNC_SECRET;
+const previousAdmins = process.env.INITIAL_ADMIN_EMAILS;
 const SYNC_SECRET = "test-sync-secret";
 
 beforeAll(() => {
   process.env.WEBHOOK_SYNC_SECRET = SYNC_SECRET;
+  // Uloga "admin" se ne dodeljuje upisom u red nego preko `INITIAL_ADMIN_EMAILS`
+  // (`helpers.effectiveRoleForProfile`) - isti obrazac kao `modelCatalog.test.ts`.
+  process.env.INITIAL_ADMIN_EMAILS = "admin@example.com";
 });
 
 afterAll(() => {
   if (previousSyncSecret === undefined) delete process.env.WEBHOOK_SYNC_SECRET;
   else process.env.WEBHOOK_SYNC_SECRET = previousSyncSecret;
+  if (previousAdmins === undefined) delete process.env.INITIAL_ADMIN_EMAILS;
+  else process.env.INITIAL_ADMIN_EMAILS = previousAdmins;
 });
 
 function createTest() {
@@ -111,3 +117,83 @@ test("getModelBySlug čita red iz v4 kataloga, a nepoznat slug daje null", async
   );
   expect(missing).toBeNull();
 });
+
+// ── citanje i admin izmene (S7) ────────────────────────────────────────────
+
+async function seedStudent(t: ReturnType<typeof createTest>, role: "student" | "admin" = "student") {
+  const userId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: `${role}@example.com`,
+      name: role,
+      username: role,
+      role,
+      language: "sr" as const,
+      createdAt: 1,
+      updatedAt: 1,
+    }),
+  );
+
+  return t.withIdentity({ subject: userId, tokenIdentifier: `test|${userId}` });
+}
+
+test("listModels trazi prijavu i ne izlaze rute kod provajdera", async () => {
+  const t = createTest();
+  await t.mutation(api.studioModels.seedStudioModels, { syncSecret: SYNC_SECRET });
+
+  // `priceRule` nosi nabavnu cenu, a katalog 1.3 trazi da se ista funkcija
+  // racuna i u browseru - zato je upit iza prijave, a ne javan.
+  await expect(t.query(api.studioModels.listModels, {})).rejects.toThrow();
+
+  const asUser = await seedStudent(t);
+  const rows = await asUser.query(api.studioModels.listModels, {});
+  expect(rows).toHaveLength(STUDIO_MODELS.length);
+  expect(Object.hasOwn(rows[0], "endpoints")).toBe(false);
+  expect(rows[0].priceRule).toBeTypeOf("string");
+  // Sortirano po `sortOrder`-u, isto kao u seed-u.
+  expect(rows.map((row) => row.sortOrder)).toEqual([...rows.map((row) => row.sortOrder)].sort((a, b) => a - b));
+});
+
+test("iskljucen model ne izlazi korisniku, ali izlazi adminu", async () => {
+  const t = createTest();
+  await t.mutation(api.studioModels.seedStudioModels, { syncSecret: SYNC_SECRET });
+  const asAdmin = await seedStudent(t, "admin");
+  const asUser = await seedStudent(t);
+
+  const all = await asAdmin.query(api.studioModels.listAllModels, {});
+  const target = all.find((row) => row.slug === "nano-banana-2");
+  if (!target) throw new Error("nema reda");
+
+  await asAdmin.mutation(api.studioModels.setModelEnabled, { modelId: target._id, isEnabled: false });
+
+  const visible = await asUser.query(api.studioModels.listModels, {});
+  expect(visible.some((row) => row.slug === "nano-banana-2")).toBe(false);
+  expect((await asAdmin.query(api.studioModels.listAllModels, {})).length).toBe(STUDIO_MODELS.length);
+
+  // Korisnik ne sme ni da gasi ni da menja cenu.
+  await expect(
+    asUser.mutation(api.studioModels.setModelEnabled, { modelId: target._id, isEnabled: true }),
+  ).rejects.toThrow();
+});
+
+test("izmena nabavne cene menja pravilo u redu, a tabela cena ostaje netaknuta", async () => {
+  const t = createTest();
+  await t.mutation(api.studioModels.seedStudioModels, { syncSecret: SYNC_SECRET });
+  const asAdmin = await seedStudent(t, "admin");
+  const all = await asAdmin.query(api.studioModels.listAllModels, {});
+
+  const flat = all.find((row) => row.slug === "seedream-45");
+  if (!flat) throw new Error("nema seedream-45");
+  await asAdmin.mutation(api.studioModels.setModelPrice, { modelId: flat._id, baseUsd: 0.05 });
+
+  const updated = await t.run((ctx) => ctx.db.get(flat._id));
+  expect(parsePriceRule(updated?.priceRule ?? "")?.baseUsd).toBe(0.05);
+
+  // Pravilo koje cenu cita iz tabele odbija izmenu osnove umesto da je primi
+  // i ne primeni.
+  const lookup = all.find((row) => row.slug === "gpt-image-2");
+  if (!lookup) throw new Error("nema gpt-image-2");
+  await expect(
+    asAdmin.mutation(api.studioModels.setModelPrice, { modelId: lookup._id, baseUsd: 0.1 }),
+  ).rejects.toThrow("CENA_IZ_TABELE");
+});
+

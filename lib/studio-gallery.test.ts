@@ -1,11 +1,16 @@
 import { describe, expect, test } from "vitest";
 
+import { STUDIO_MODELS } from "@/convex/providers/catalogModels";
+
 import {
   dateRangeCutoff,
   expiryBadgeDays,
   expiryBadgeText,
+  inputsLabel,
   isDownloadable,
+  jobParamSummary,
   regenerateButtonLabel,
+  regenerateHref,
 } from "./studio-gallery";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -68,4 +73,40 @@ describe("isDownloadable", () => {
     expect(isDownloadable({ outputUrl: undefined })).toBe(false);
     expect(isDownloadable({})).toBe(false);
   });
+});
+
+// ── "Generisi ponovo" i opis kartice (S7) ──────────────────────────────────
+
+test("regenerateHref vodi u playground sa ID-jem posla, ne sa promptom u URL-u", () => {
+  expect(regenerateHref("/sr/app/studio", "job_123")).toBe("/sr/app/studio?regenerate=job_123");
+  // ID se enkoduje - link ne sme da se raspadne na neocekivanom znaku.
+  expect(regenerateHref("/sr/app/studio", "a b")).toBe("/sr/app/studio?regenerate=a%20b");
+});
+
+test("naslov ulaza broji tek kad ih ima vise nego sto je prikazano", () => {
+  expect(inputsLabel(4, 4, "sr")).toBe("Ulazi");
+  expect(inputsLabel(4, 9, "sr")).toBe("Ulazi · 4/9");
+  expect(inputsLabel(4, 9, "en")).toBe("Inputs · 4/9");
+});
+
+test("opis podesavanja koristi imena i jedinice iz paramSpec-a tog modela", () => {
+  const seed = STUDIO_MODELS.find((model) => model.slug === "kling-3");
+  if (!seed) throw new Error("nema kling-3");
+
+  const summary = jobParamSummary(
+    JSON.stringify({ prompt: "klip", resolution: "1080p", audio: true, duration: 8 }),
+    seed.paramSpec,
+    "sr",
+  );
+
+  expect(summary).toContain("1080p");
+  expect(summary).toContain("8");
+  // Prompt je vec iznad kartice - u redu podesavanja se ne ponavlja.
+  expect(summary).not.toContain("klip");
+});
+
+test("bez reda kataloga nema opisa - sirovi kljucevi se ne ispisuju", () => {
+  expect(jobParamSummary(JSON.stringify({ resolution: "1080p" }), undefined, "sr")).toBe("");
+  const seed = STUDIO_MODELS.find((model) => model.slug === "kling-3");
+  expect(jobParamSummary("nije json", seed?.paramSpec, "sr")).toBe("");
 });

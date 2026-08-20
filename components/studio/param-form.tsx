@@ -35,11 +35,17 @@ export function useParamValues(
   spec: ParamControlSpec[],
   inputMode?: string,
   measured: Record<string, number> = {},
+  /**
+   * Početne vrednosti - "Generiši ponovo" (S7) njima vraća formu u stanje
+   * ranijeg posla. Zadržava se samo ono što kontrola i dalje prihvata, isto
+   * kao pri promeni režima; čita se JEDNOM, na prvom renderu.
+   */
+  initial: ParamValues = {},
 ): ParamFormState {
   const [state, setState] = useState(() => ({
     spec,
     mode: inputMode,
-    values: paramValuesForMode(spec, inputMode),
+    values: paramValuesForMode(spec, inputMode, initial),
   }));
 
   const stale = state.spec !== spec || state.mode !== inputMode;

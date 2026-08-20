@@ -4049,3 +4049,236 @@ ulazi u `computeCredits` (`modeMultipliers`).
 5. **Granica veličine fajla postoji samo na klijentu** (odluka 12). Kad S7 spoji
    ulaze sa `createJob`-om, ista granica mora i na server - inače je zaobilazi
    svako ko pozove mutaciju direktno.
+
+## S7 - Stranice: playground, galerija, admin nad v4 katalogom   (20.08.2026 03:50-04:25)
+
+**Fajlovi:**
+- `convex/studioJobCore.ts` - NOV. Čista logika naručivanja posla iz v4 kataloga:
+  `parseInputSpec`/`parseInputModes` (preseljeni iz `lib/studio-slots.ts`),
+  `parseClientInputs`, `sanitizeJobInputs`, `hasVideoInput`, `countInputImages`,
+  `extraCounts`, `promptControlOf`/`promptFromParams`, `parseQuantitySource`,
+  `resolveMeasuredQuantity`.
+- `convex/studio.ts` - `createJob` sada ima DVE grane: `buildCatalogOrder` (v4
+  `models`) i `buildLegacyOrder` (zatečen `modelCatalog`, nepromenjen). Novi
+  argumenti `inputMode`, `inputs`, `measuredQuantity`. `listMyJobs` vraća
+  `inputMode` i `inputThumbs`; nov upit `getJobForRegenerate`.
+- `convex/studioModels.ts` - `listModels` (iza prijave), `listAllModels` (admin),
+  `setModelEnabled`, `setModelPrice`.
+- `convex/studioPricing.ts` - `applyPriceEdit` (izmena `baseUsd`/`addUsd`).
+- `convex/studioActions.ts` - `submitFalCatalogJob`: fal grana za v4 modele
+  (ruta iz `endpoints[inputMode]`, ulazi kao potpisani URL-ovi, mock kad nema ključa).
+- `convex/providers/falInputs.ts` - NOV. Slot -> ime polja koje fal očekuje, i
+  `{tier}` u ruti.
+- `convex/studioAdmin.ts` - `getUsageSummary` vraća `reapedToday`, `alarmUsd`, `killUsd`.
+- `convex/creditsCore.ts` - `validatePrompt(text, maxLength)`; podrazumevana
+  vrednost je stara granica, pa nijedan postojeći pozivalac ne menja ponašanje.
+- `lib/studio-playground.ts` - NOV. `promptRequired`, `optionalSlots`,
+  `measuredFile`, `measuredParams`, `generateBlock`, `inputsPayload`.
+- `lib/studio-catalog-admin.ts` - NOV. `priceTable`, `defaultMargin`, `isBaseUsdEditable`.
+- `lib/studio-gallery.ts` - `regenerateHref`, `inputsLabel`, `jobParamSummary`.
+- `lib/studio-slots.ts` - parser `inputSpec`-a se sada UVOZI iz `convex/studioJobCore.ts`.
+- `lib/studio-messages.ts` - prazno stanje Studija više ne kaže "alat za slike".
+- `components/studio/param-form.tsx` - `useParamValues` prima početne vrednosti.
+- `components/app/studio-page.tsx` - sastavljena od S6 komponenti.
+- `components/app/studio-gallery-page.tsx` - ulazi kao sličice, opis parametara,
+  "Generiši ponovo" preko `jobId`-ja, beskonačan skrol.
+- `components/app/studio-admin-page.tsx` - sekcija `Katalog v4` + reaper brojač
+  i globalni trošak sa pragovima.
+- NOVI testovi: `convex/studioJobCore.test.ts`, `convex/studioCatalogJob.test.ts`,
+  `convex/providers/falInputs.test.ts`, `lib/studio-playground.test.ts`,
+  `lib/studio-catalog-admin.test.ts`; dopunjeni `convex/studioPricing.test.ts`,
+  `convex/studioModels.test.ts`, `lib/studio-gallery.test.ts`.
+- `docs/STUDIO-PROGRESS.md` - ova sekcija.
+
+**Šta je uradjeno:**
+
+Tri stranice su sastavljene od komponenti iz S6 i **prvi put su spojene sa v4
+katalogom** - do sada je `createJob` znao samo staru tabelu (S5 ODLUKA 13), pa
+se nijedan od 30 modela nije mogao naručiti. Playground levo ima `<ModelPicker>`,
+`<ModeSwitcher>`, slotove izabranog režima, `<ParamForm>` i `<GenerateButton>`;
+desno rezultat sa skeletonom i poslednjih šest generacija. Sve je `useQuery`, i
+u ovom koraku nije dodat nijedan `setInterval`.
+
+Cena postoji na tačno jednom mestu i posle ovog koraka: `buildParams` pravi
+JEDAN objekat koji hrani `<PriceTag>`, `<GenerateButton>` i `createJob`, a
+server nad tim istim objektom zove `computeCredits`. Test to tvrdi kroz bazu -
+naplaćeni iznos je doslovno `computeCredits(priceRule, upisani params, režim)`.
+
+Galerija po kartici pokazuje **ulaze kojima je posao naručen** (najviše četiri
+potpisane sličice, sa ukupnim brojem), model, podešavanja ispisana imenima iz
+`paramSpec`-a, datum, cenu i tri akcije. "Generiši ponovo" ide preko `jobId`-ja
+i vraća model, režim, parametre I ulaze; radi i na isteklom fajlu, jer red
+posla živi zauvek. Video u mreži je i dalje `preload="metadata"` sa `#t=0.1`.
+
+Admin ekran ima tabelu v4 kataloga sa provajderom, tipom, maržom za
+podrazumevana podešavanja (ispod 2,0x crvena) i prekidačem, a svaki red se
+razvija u tabelu cena **po svakoj kombinaciji** - zato što jedna izmena
+`baseUsd`-a pomera celu porodicu varijanti. Postojeće sekcije su ostale;
+dodati su reaper brojač i pragovi globalnog troška, oba sa servera.
+
+**ODLUKE:**
+
+1. **`createJob` je prespojen na v4, i v4 ima PREDNOST nad starim katalogom.**
+   S7.md traži stranice, ali stranice od S6 komponenti bez ovoga ne mogu da
+   naruče ništa - `<ModelPicker>` crta redove `models` tabele koje `createJob`
+   ne poznaje. Slug koji postoji u obe tabele (`seedream-45`, `nano-banana-2`)
+   se od sada naplaćuje po v4 pravilu; stari red je tada mrtav i to piše u
+   admin ekranu. Model koji je admin ugasio u v4 NE pada nazad na stari red.
+2. **`listModels` je iza prijave, nije javan.** `priceRule` nosi NABAVNU cenu, a
+   katalog 1.3 izričito traži da se ista funkcija računa i u browseru - dakle
+   pravilo mora do klijenta. Javan upit bi time objavio maržu svakog modela.
+   Stara javna ruta (`modelCatalog.listModels`) nije dirana, pa stranice bez
+   naloga rade nepromenjeno.
+3. **Dužinu okačenog fajla meri KLIJENT, server je zaokružuje i seče.** Convex
+   storage zna bajtove, ne sekunde, a dekodiranja medija u mutaciji nema. Zato
+   `measuredQuantity` stiže sa klijenta i prolazi kroz `resolveMeasuredQuantity`:
+   mora biti pozitivan broj, zaokružuje se NAVIŠE (sekunda, odnosno desetinka
+   minuta) i seče na `min`/`max` iz kataloga. Tekst server meri sam, iz
+   parametara. Ostatak rizika je u "Za Jovana" tačka 4.
+4. **Prompt je obavezan samo u režimu BEZ ijednog slota.** Kling lipsync ima
+   `textarea` koja se koristi tek kad je izvor govora tekst, pa bi bezuslovan
+   zahtev odbio sasvim ispravan posao sa okačenim zvukom; proba odeće nema
+   nijednu tekstualnu kontrolu. Tekst koji POSTOJI ide kroz moderaciju uvek.
+   Pravilo je izvedeno iz `inputSpec`-a, nigde ne stoji ime modela.
+5. **`validatePrompt` je dobio opcion `maxLength`.** ElevenLabs `text` ide do
+   5 000 znakova (katalog 4.1), a `MAX_PROMPT_LENGTH` je 2 000. Bez ovoga bi
+   TTS od 3 000 znakova bio odbijen kao "predugačak prompt", ili bi - gore -
+   moderacija preskočila ceo tekst. Podrazumevana vrednost je stara granica, pa
+   se nijedan postojeći pozivalac ne ponaša drugačije.
+6. **Slot koji isključuje vrednost kontrole je opšte pravilo, ne spisak.**
+   Kontrola čija bar jedna opcija nosi IME slota bira izmedju izvora, pa svaki
+   takav slot koji nije izabran postaje opcion. Jedini slučaj u katalogu je
+   lipsync (`source`: `audio`/`text`), i test tvrdi da nijedan drugi model na
+   podrazumevanom izboru ne isključi ništa.
+7. **`extras` i merenu količinu upisuje SERVER, posle kapije.** `sanitizeSpecParams`
+   izbacuje sve što nije kontrola, pa `input_images` koji klijent pošalje ispada;
+   broj se dopisuje iz `inputs`-a koje server vidi. Test šalje `input_images: 0`
+   uz tri slike i tvrdi da je naplaćeno tri.
+8. **Parser `inputSpec`-a je preseljen u `convex/`, a `lib/studio-slots.ts` ga
+   uvozi.** Server mora da proveri isti `inputSpec` po kojem forma crta slotove,
+   a dva parsera istog polja su dva ugovora koja se mogu razići. Strog čitač
+   onoga što klijent ŠALJE (`parseClientInputs`) je odvojen od blagog čitača
+   onoga što je već upisano (`providers/jobInputs.ts`) - prvi odbija, drugi
+   preskače, i to je namerno.
+9. **fal grana za v4 modele je napisana po KONVENCIJI, bez živog poziva.**
+   Pravila run-a zabranjuju poziv fal-a, pa su imena polja (`image_url`,
+   `image_urls`, `start_image_url`/`end_image_url`, `human_image_url`) uzeta po
+   fal obrascu i **nisu potvrdjena**. Pogrešno ime daje grešku i refund, ne tihi
+   trošak. Bez ove grane bi svih 23 fal modela iz v4 kataloga završavalo
+   refundom, jer ih stari `modelCatalog` ne poznaje. Provera je u "Za Jovana".
+10. **`baseUsd` se ne sme menjati na pravilu sa `lookup` tabelom.** Tabela ima
+    prednost (katalog 1.3), pa bi upisan broj stajao u redu a ne bi se video ni
+    u jednoj ceni. I mutacija (`applyPriceEdit`) i polje u UI-ju to odbijaju.
+    Ugnježdeno pravilo (`modeRules`, layerize) se ne dira - to je drugi obračun
+    i menja se svojim redom; tabela cena po kombinaciji odmah pokaže da nije
+    pratilo.
+11. **Tabela cena uzima klizače na podrazumevanoj vrednosti, a merenu količinu
+    na `min`-u.** Trajanje množi linearno, pa bi po tri reda na svaki utopilo
+    kombinacije koje cenu stvarno menjaju; `min` je mesto gde je marža najtanja.
+    Prikaz je odsečen na 24 reda, ali `worstMargin` se računa nad CELIM prostorom
+    i ispisuje se koliko je redova izostavljeno.
+12. **Stari `modelCatalog` ekran je zadržan, ne obrisan** - preimenovan u
+    "Stari katalog" sa rečenicom da v4 ima prednost. Brisanje bi bilo izmena
+    van onoga što S7 traži, a i dalje postoje redovi (`flux-2-*`) koje v4 nema.
+13. **Beskonačan skrol NE ukida dugme "Učitaj još".** `IntersectionObserver` ne
+    postoji svuda, a do sledeće stranice se sa tastature mora stići klikom.
+14. **Ulazni fajlovi nemaju rok trajanja.** `crons.expireGenerationFiles` briše
+    IZLAZE; ulazi ostaju u storage-u zauvek, inače bi "Generiši ponovo" posle
+    30 dana pokazivalo prazne slotove. To je trošak koji raste - u "Za Jovana".
+
+**Testovi:** 66 novih (580 -> 646).
+
+`convex/studioJobCore.test.ts` (15) - ulazi sa klijenta (strog oblik, nepoznat
+slot, prekoračen slot, očuvan redosled), brojanje slika i video ulaza, `extras`,
+prompt kontrola kroz prave redove kataloga (tts `text`, nano banana `prompt`,
+tryon bez ijedne), merena količina (tekst meri server; prijavljena dužina se
+zaokružuje naviše i seče na granice; nula, NaN i nedostatak su odbijanje),
+parseri polja nad svih 30 redova.
+
+`convex/studioCatalogJob.test.ts` (14) - `createJob` kroz bazu: naplaćeno je
+doslovno `computeCredits` nad upisanim parametrima; ulazi se upisuju sa slotom i
+redosledom; `input_images` broji server, ne klijent; Seedance sa video
+referencom ide po sniženoj tarifi; TTS se naplaćuje po izmerenom tekstu i preko
+2 000 znakova; posao bez izmerene dužine se odbija PRE nego što skine kredit;
+kombinacija koju katalog ne nudi se odbija; nepoznat slot i nepoznat režim se
+odbijaju; ugašen v4 model ne pada nazad na stari red sa istim slugom; prompt je
+obavezan samo tamo gde je jedini ulaz; galerija dobija četiri sličice od pet
+ulaza sa tačnim ukupnim brojem, a `getJobForRegenerate` ceo spisak; tudji posao
+se ne vraća.
+
+`convex/providers/falInputs.test.ts` (8) - jedan fajl vs više, par kadrova,
+reference, imenovani slotovi probe odeće, nepoznat slot, `{tier}` mapa i
+odbijanje rute bez tarife, plus provera da svaka fal ruta iz kataloga sa
+placeholderom ima tarifu za svaku svoju rezoluciju.
+
+`lib/studio-playground.test.ts` (12) - kad je prompt obavezan, koji slot
+isključuje vrednost kontrole (i da nijedan model to ne radi sam od sebe), iz kog
+fajla se meri količina, prevodjenje sekundi u jedinicu pravila, i ceo redosled
+zaključavanja dugmeta (ugašen Studio ima prednost nad nedostajućim ulazom, kredit
+se proverava poslednji, balans koji se učitava ne zaključava unapred).
+
+`lib/studio-catalog-admin.test.ts` (7) - svih 30 modela ima maržu >= 2,0x za
+podrazumevana podešavanja; tabela preskače kombinaciju koju katalog ne nudi;
+cena u tabeli je doslovno `computeCredits`; izmena osnove pomera svaku
+kombinaciju osim ugnježdenog layerize pravila; odsečen prikaz i dalje zna
+najgoru maržu iz celog prostora.
+
+`convex/studioPricing.test.ts` (+4) - `applyPriceEdit`: osnova pomera porodicu,
+`lookup` odbija izmenu osnove, negativna cena se odbija, nula briše dodatak,
+ugnježdeno pravilo se ne dira.
+
+`convex/studioModels.test.ts` (+3) - `listModels` traži prijavu i ne izlaže
+`endpoints`; isključen model ne izlazi korisniku ali izlazi adminu i korisnik ne
+sme da ga upali; izmena cene menja pravilo u redu, a `lookup` pravilo je odbija.
+
+`lib/studio-gallery.test.ts` (+4) - `regenerateHref`, brojač ulaza, opis
+podešavanja iz `paramSpec`-a (bez prompta i bez sirovih ključeva).
+
+**Rezultat verifikacije:** sve četiri komande čiste.
+- `npx convex codegen` - **prošlo** (exit 0, `Running TypeScript...` bez greške)
+- `npm run lint` - **prošlo** (`17 problems (0 errors, 17 warnings)`; istih 17
+  zatečenih upozorenja kao posle S6 - 7 u `admin-inline-actions.tsx`,
+  `dashboard-content.tsx` i `public-course-intro-video.tsx`, 9 nekorišćenih
+  uvoza u `convex/crons.ts` iz nedovršenog S0, 1 u `get_google_creds.js`.
+  Nijedno nije iz fajlova ovog koraka.)
+- `npm run test` - **prošlo** (`Test Files 55 passed (55) / Tests 646 passed (646)`)
+- `npm run build` - **prošlo** (`Compiled successfully in 6.1s`,
+  `Finished TypeScript in 14.4s`, `60/60` statičkih stranica; `/[locale]/app/studio`,
+  `/[locale]/app/studio/gallery` i `/[locale]/app/admin/studio` su u tabeli ruta)
+
+**BLOKADA:** nema.
+
+**Za Jovana:**
+1. **Pusti `npm run convex:seed` pre nego što otvoriš Studio** - bez reda u
+   `models` tabeli playground kaže "nijedan model nije uključen". Bez `FAL_KEY`-a
+   sve ide kroz mock provajdera, pa se ceo tok (rezervacija -> running -> done/refund)
+   može proveriti bez ijednog pravog poziva.
+2. **Fal rute i imena polja za v4 modele nisu potvrdjeni** (ODLUKA 9 i S5 ODLUKA 6).
+   Pre nego što pustiš korisnicima, pusti po jednu generaciju na svakom obliku
+   ulaza (jedna slika, više slika, prvi/poslednji kadar, reference, video+zvuk)
+   i pogledaj šta fal vrati. Greška daje refund, ne trošak, ali korisnik vidi
+   neuspeh. Imena polja su u `convex/providers/falInputs.ts`, rute u redu
+   kataloga (menjaju se iz admin ekrana, bez deploy-a).
+3. **Mock provajder uvek vraća SLIKU.** Video i audio model u demo režimu daju
+   izlaz koji galerija ne ume da pusti kao video. To je zatečen mock iz P4 i nije
+   dirano; kad dodje pravi ključ, prestaje da bude vidljivo.
+4. **Dužinu okačenog fajla prijavljuje browser** (ODLUKA 3). Ko pozove mutaciju
+   direktno može da prijavi manje sekundi nego što fajl ima i time potplati
+   generaciju - najviše do `min`-a iz kataloga. Pravo rešenje je poredjenje sa
+   `actualCostUsd`-om koji provajder vrati; polje već postoji, poredjenje ne.
+   Modeli na koje se to odnosi: `kling-avatar`, `kling-lipsync`, `kling-motion`,
+   `stt`, `voice-changer`, `audio-isolation`, `dubbing`.
+5. **Ulazni fajlovi se ne brišu nikad** (ODLUKA 14). Kad Studio krene, ovo je
+   prva stavka koja tiho raste na računu za storage. Odluka o roku (i o tome šta
+   se dešava sa "Generiši ponovo" posle njega) je tvoja.
+6. **Provera u browseru, šest stvari:** (a) cifra na dugmetu se pomera dok vučeš
+   klizač trajanja; (b) značka uz 4K kod Klinga kaže "ista cena" kad uključiš
+   zvuk; (c) prevlačenje fajla preko celog ekrana radi u režimu sa jednim
+   slotom; (d) "Generiši ponovo" iz galerije vrati i slike, ne samo prompt;
+   (e) balans u zaglavlju padne odmah po pokretanju posla; (f) u admin ekranu
+   promeni `baseUsd` Seedream-a 4.5 i pogledaj da li se cela tabela kombinacija
+   pomerila.
+7. **Nije iz S7, i dalje stoji:** `convex/crons.ts` ima 9 nekorišćenih uvoza
+   (globalni plafon troška iz S0 nije dovršen - konstante se sada PRIKAZUJU u
+   admin ekranu, ali ih i dalje niko ne sprovodi), a `docs/STUDIO-PROGRESS.md`
+   nema sekcije za S1 i S2.

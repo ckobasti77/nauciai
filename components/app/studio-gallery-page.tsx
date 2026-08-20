@@ -5,19 +5,25 @@ import { usePaginatedQuery, useMutation, useQuery } from "convex/react";
 import { CheckSquare, Download, Loader2, RefreshCw, Sparkles, Square, Trash2, Wand2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 
 import { Panel, SectionHeader, cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import type { ParamControl } from "@/convex/studioParamSpec";
 import { withLocale, type Locale } from "@/lib/i18n";
 import { isExpiredOutput, jobPrompt, jobStatusText } from "@/lib/studio-form";
+import { modelLabel, parseStudioModel, type StudioModel, type StudioModelRow } from "@/lib/studio-models";
+import { slotLabel } from "@/lib/studio-slots";
 import {
   DATE_RANGE_LABELS,
   DATE_RANGE_PRESETS,
   dateRangeCutoff,
   expiryBadgeDays,
   expiryBadgeText,
+  inputsLabel,
+  jobParamSummary,
+  regenerateHref,
   GALLERY_KIND_LABELS,
   GALLERY_KINDS,
   isDownloadable,
@@ -35,12 +41,6 @@ const CHIP =
 const ACTION =
   "inline-flex min-h-8 items-center justify-center gap-1.5 rounded-full border-2 border-ink px-3 py-1 text-xs font-extrabold transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-50";
 
-type CatalogModel = {
-  slug: string;
-  labelSr: string;
-  labelEn: string;
-};
-
 type GalleryJob = {
   _id: Id<"generationJobs">;
   modelSlug: string;
@@ -49,11 +49,59 @@ type GalleryJob = {
   status: string;
   creditCost: number;
   outputUrl: string | null;
+  // Ulazi kojima je posao naručen - bez njih "Generiši ponovo" kod modela sa
+  // slikama nema smisla, jer se ne vidi šta je bio ulaz (S7).
+  inputMode?: string;
+  inputThumbs: { items: Array<{ slot: string; storageId: string; url: string | null }>; total: number };
   error?: string;
   isMock: boolean;
   expiresAt?: number;
   createdAt: number;
 };
+
+/** Sličice ulaza. Video nikad kao goli `<video src>` - `preload="metadata"` sa `#t=0.1`. */
+function InputThumbs({ job, locale }: { job: GalleryJob; locale: Locale }) {
+  const thumbs = job.inputThumbs?.items ?? [];
+  if (thumbs.length === 0) return null;
+
+  return (
+    <div>
+      <p className="text-[10px] font-black uppercase tracking-wide text-muted">
+        {inputsLabel(thumbs.length, job.inputThumbs.total, locale)}
+      </p>
+      <div className="mt-1 flex flex-wrap gap-1.5">
+        {thumbs.map((thumb, index) => (
+          <span
+            key={thumb.storageId}
+            title={slotLabel(thumb.slot, locale)}
+            className="surface-media relative size-11 overflow-hidden border-2 border-ink bg-paper"
+          >
+            {thumb.url === null ? (
+              <span className="grid h-full place-items-center text-[9px] font-black text-muted">
+                {index + 1}
+              </span>
+            ) : thumb.slot === "video" ? (
+              <video preload="metadata" muted playsInline className="h-full w-full object-cover" src={`${thumb.url}#t=0.1`} />
+            ) : thumb.slot === "audio" ? (
+              <span className="grid h-full place-items-center text-[9px] font-black text-muted">
+                {locale === "sr" ? "zvuk" : "audio"}
+              </span>
+            ) : (
+              <Image
+                src={thumb.url}
+                alt={slotLabel(thumb.slot, locale)}
+                fill
+                unoptimized
+                sizes="44px"
+                className="object-cover"
+              />
+            )}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function formatDate(timestamp: number, locale: Locale) {
   return new Date(timestamp).toLocaleDateString(locale === "sr" ? "sr-RS" : "en-US", {
@@ -67,6 +115,7 @@ function GalleryCard({
   job,
   locale,
   modelLabel,
+  paramSpec,
   now,
   studioHref,
   selected,
@@ -76,6 +125,7 @@ function GalleryCard({
   job: GalleryJob;
   locale: Locale;
   modelLabel: string;
+  paramSpec: ParamControl[] | undefined;
   now: number;
   studioHref: string;
   selected: boolean;
@@ -87,13 +137,15 @@ function GalleryCard({
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const prompt = jobPrompt(job.params);
+  const paramSummary = jobParamSummary(job.params, paramSpec, locale);
   const expired = isExpiredOutput(job);
   const badgeDays = expiryBadgeDays(job, now);
   const downloadable = isDownloadable(job);
   const inFlight = job.status === "reserved" || job.status === "running";
-  // Isti prompt i model se prenose kroz upit - playground ih čita i unapred
-  // popunjava formu (STUDIO-PLAN A13: "Generiši ponovo").
-  const regenerateHref = `${studioHref}?model=${encodeURIComponent(job.modelSlug)}&prompt=${encodeURIComponent(prompt)}`;
+  // Playground čita ceo posao po ID-ju i vraća MODEL, REŽIM, PARAMETRE I ULAZE
+  // u formu (S7). Metapodatak posla živi i posle isteka fajla, pa link radi i
+  // na isteklom redu.
+  const regenerateLink = regenerateHref(studioHref, job._id);
 
   async function handleDelete() {
     setIsDeleting(true);
@@ -158,7 +210,7 @@ function GalleryCard({
         ) : expired ? (
           <div className="flex h-full flex-col items-center justify-center gap-3 p-4 text-center">
             <p className="line-clamp-3 text-sm font-bold text-muted">{prompt || job.modelSlug}</p>
-            <Link href={regenerateHref} className={cn(ACTION, "border-ink bg-yellow text-ink hover:-translate-y-0.5")}>
+            <Link href={regenerateLink} className={cn(ACTION, "border-ink bg-yellow text-ink hover:-translate-y-0.5")}>
               <Wand2 className="size-3.5" />
               {regenerateButtonLabel(job.creditCost, locale)}
             </Link>
@@ -185,6 +237,12 @@ function GalleryCard({
       </div>
 
       {prompt ? <p className="line-clamp-2 text-xs font-bold text-muted">{prompt}</p> : null}
+
+      <InputThumbs job={job} locale={locale} />
+
+      {/* Parametri kojima je posao naručen - bez njih kartica ne kaže zašto su
+          dve iste generacije koštale različito. */}
+      {paramSummary ? <p className="line-clamp-2 text-[11px] font-bold text-muted">{paramSummary}</p> : null}
       <p className="text-[11px] font-bold text-muted">{formatDate(job.createdAt, locale)}</p>
 
       {confirmingDelete ? (
@@ -222,7 +280,7 @@ function GalleryCard({
             </a>
           ) : null}
           {!expired ? (
-            <Link href={regenerateHref} className={cn(ACTION, "border-ink bg-white text-ink hover:-translate-y-0.5")}>
+            <Link href={regenerateLink} className={cn(ACTION, "border-ink bg-white text-ink hover:-translate-y-0.5")}>
               <RefreshCw className="size-3.5" />
               {locale === "sr" ? "Generiši ponovo" : "Generate again"}
             </Link>
@@ -244,6 +302,34 @@ function GalleryCard({
   );
 }
 
+/**
+ * Beskonacan skrol: kad se dno liste priblizi ekranu, ucita se sledeca
+ * stranica. Dugme ispod OSTAJE - `IntersectionObserver` ne postoji na svakom
+ * uredjaju, a i sa tastature se do sledece stranice mora stici klikom.
+ */
+function useInfiniteScroll(enabled: boolean, loadMore: () => void) {
+  const sentinel = useRef<HTMLDivElement | null>(null);
+  const onVisible = useEffectEvent(() => loadMore());
+
+  useEffect(() => {
+    const node = sentinel.current;
+    if (!enabled || !node || typeof IntersectionObserver === "undefined") return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) onVisible();
+      },
+      // Sledeca stranica krece pola ekrana pre dna, da se lista ne trzne.
+      { rootMargin: "50% 0px" },
+    );
+    observer.observe(node);
+
+    return () => observer.disconnect();
+  }, [enabled]);
+
+  return sentinel;
+}
+
 export function StudioGalleryPage({ locale }: { locale: Locale }) {
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
   // Prozor za "ističe za N dana" i za preset opsege datuma - zamrznut na
@@ -255,7 +341,7 @@ export function StudioGalleryPage({ locale }: { locale: Locale }) {
   const [dateFilter, setDateFilter] = useState<DateRangePreset>("all");
   const [selected, setSelected] = useState<Set<Id<"generationJobs">>>(new Set());
 
-  const models = useQuery(api.modelCatalog.listModels, {});
+  const models = useQuery(api.studioModels.listModels, isAuthenticated ? {} : "skip");
   const jobs = usePaginatedQuery(
     api.studio.listMyJobs,
     isAuthenticated
@@ -270,10 +356,16 @@ export function StudioGalleryPage({ locale }: { locale: Locale }) {
   const deleteJob = useMutation(api.studio.deleteJob);
 
   const studioHref = withLocale(locale, "/app/studio");
-  const catalogModels = (models ?? []) as CatalogModel[];
-  const modelLabelBySlug = new Map(catalogModels.map((model) => [model.slug, locale === "sr" ? model.labelSr : model.labelEn]));
+  // Katalog v4 se parsira jednom: kartica iz njega uzima i ime modela i
+  // `paramSpec` po kojem ispisuje podešavanja.
+  const catalogModels = ((models ?? []) as StudioModelRow[])
+    .map((row) => parseStudioModel(row))
+    .filter((model): model is StudioModel => model !== null);
+  const modelBySlug = new Map(catalogModels.map((model) => [model.slug, model]));
   const jobRows = jobs.results as unknown as GalleryJob[];
   const filtersActive = kindFilter !== null || modelFilter !== null || dateFilter !== "all";
+
+  const sentinelRef = useInfiniteScroll(jobs.status === "CanLoadMore", () => jobs.loadMore(PAGE_SIZE));
 
   function toggleSelect(jobId: Id<"generationJobs">) {
     setSelected((current) => {
@@ -403,7 +495,7 @@ export function StudioGalleryPage({ locale }: { locale: Locale }) {
                 modelFilter === model.slug ? "bg-ink text-white" : "bg-white text-ink hover:-translate-y-0.5",
               )}
             >
-              {locale === "sr" ? model.labelSr : model.labelEn}
+              {modelLabel(model, locale)}
             </button>
           ))}
 
@@ -491,7 +583,12 @@ export function StudioGalleryPage({ locale }: { locale: Locale }) {
                 key={job._id}
                 job={job}
                 locale={locale}
-                modelLabel={modelLabelBySlug.get(job.modelSlug) ?? job.modelSlug}
+                modelLabel={
+                  modelBySlug.has(job.modelSlug)
+                    ? modelLabel(modelBySlug.get(job.modelSlug) as StudioModel, locale)
+                    : job.modelSlug
+                }
+                paramSpec={modelBySlug.get(job.modelSlug)?.paramSpec}
                 now={now}
                 studioHref={studioHref}
                 selected={selected.has(job._id)}
@@ -500,6 +597,8 @@ export function StudioGalleryPage({ locale }: { locale: Locale }) {
               />
             ))}
           </div>
+
+          <div ref={sentinelRef} aria-hidden="true" />
 
           {jobs.status === "CanLoadMore" || jobs.status === "LoadingMore" ? (
             <div className="flex justify-center">

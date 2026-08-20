@@ -1,4 +1,7 @@
+import type { ParamControl } from "@/convex/studioParamSpec";
+
 import type { Locale } from "./i18n";
+import { controlLabel, controlUnit, optionLabel } from "./studio-params";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -65,4 +68,70 @@ export const DATE_RANGE_LABELS: Record<DateRangePreset, { sr: string; en: string
 /** Fajl se sme izabrati za preuzimanje samo dok stvarno postoji. */
 export function isDownloadable(job: { outputUrl?: string | null }): boolean {
   return Boolean(job.outputUrl);
+}
+
+/**
+ * "Generiši ponovo" vodi u playground sa ID-jem posla, ne sa promptom u URL-u:
+ * forma mora da vrati MODEL, REŽIM, PARAMETRE I ULAZE (S7), a spisak
+ * `storageId`-jeva u query stringu bi bio duži od svakog razumnog linka.
+ * Metapodatak posla živi i posle isteka fajla, pa link radi i na isteklom redu.
+ */
+export function regenerateHref(studioHref: string, jobId: string): string {
+  return `${studioHref}?regenerate=${encodeURIComponent(jobId)}`;
+}
+
+/** Naslov iznad sličica ulaza na kartici; broj se piše samo kad ih ima više od prikazanih. */
+export function inputsLabel(shown: number, total: number, locale: Locale): string {
+  const base = locale === "sr" ? "Ulazi" : "Inputs";
+
+  return total > shown ? `${base} · ${shown}/${total}` : base;
+}
+
+/**
+ * Podešavanja kojima je posao naručen, jednim redom: `1080p · 8 s · sa zvukom`.
+ * Imena i jedinice dolaze iz `paramSpec`-a tog modela, pa kartica piše ono što
+ * je pisalo i u formi - a ne sirove ključeve. Model kojeg u katalogu više nema
+ * (ugašen red) ostaje bez opisa umesto da ispiše `resolution=1080p`.
+ *
+ * Tekstualne kontrole se preskaču: prompt već stoji iznad, a drugi tekst bi
+ * progutao ceo red.
+ */
+export function jobParamSummary(
+  paramsJson: string,
+  spec: ParamControl[] | undefined,
+  locale: Locale,
+): string {
+  if (!spec) return "";
+
+  let params: Record<string, unknown>;
+  try {
+    const parsed: unknown = JSON.parse(paramsJson);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return "";
+    params = parsed as Record<string, unknown>;
+  } catch {
+    return "";
+  }
+
+  const parts: string[] = [];
+  for (const control of spec) {
+    if (control.type === "textarea" || control.type === "text") continue;
+    const value = params[control.key];
+    if (value === undefined) continue;
+
+    if (control.type === "switch") {
+      if (value === true) parts.push(controlLabel(control, locale));
+      continue;
+    }
+
+    if (typeof value === "number") {
+      const unit = controlUnit(control, locale);
+      parts.push(unit ? `${value} ${unit}` : `${controlLabel(control, locale)} ${value}`);
+      continue;
+    }
+
+    const option = (control.options ?? []).find((entry) => entry.value === value);
+    parts.push(option ? optionLabel(option, locale) : String(value));
+  }
+
+  return parts.join(" · ");
 }

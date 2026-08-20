@@ -332,3 +332,40 @@ export const REFERENCE_WITH_VIDEO_MODE = "reference_with_video";
 export function pricingModeFor(inputMode: string, hasVideoInput: boolean): string {
   return inputMode === "reference" && hasVideoInput ? REFERENCE_WITH_VIDEO_MODE : inputMode;
 }
+
+export type PriceEdit = { baseUsd?: number; addUsd?: number };
+
+export type PriceEditResult = { ok: true; rule: PriceRule } | { ok: false; reason: string };
+
+/**
+ * Izmena nabavne cene iz admin ekrana (S7): jedan broj pomera celu porodicu
+ * varijanti, jer se sve cene računaju iz pravila.
+ *
+ * Dve stvari se ODBIJAJU umesto da tiho ne urade ništa:
+ * - `baseUsd` na pravilu koje cenu čita iz `lookup` tabele - tabela ima
+ *   prednost (katalog 1.3), pa bi upisan broj stajao u redu a ne bi se video
+ *   ni u jednoj ceni;
+ * - negativan broj - nabavna cena ispod nule je marža koja raste sa
+ *   potrošnjom.
+ *
+ * Ugnježdena pravila (`modeRules`, layerize kod Seedream-a 5 Pro) se NE diraju:
+ * to je drugi obračun sa svojom osnovom, i menja se svojim redom. Admin ekran
+ * prikazuje cenu za svaku kombinaciju, pa se odmah vidi šta se pomerilo a šta nije.
+ */
+export function applyPriceEdit(rule: PriceRule, edit: PriceEdit): PriceEditResult {
+  const next: PriceRule = { ...rule };
+
+  if (edit.baseUsd !== undefined) {
+    if (!Number.isFinite(edit.baseUsd) || edit.baseUsd < 0) return { ok: false, reason: "NEISPRAVNA_CENA" };
+    if (rule.lookup) return { ok: false, reason: "CENA_IZ_TABELE" };
+    next.baseUsd = edit.baseUsd;
+  }
+
+  if (edit.addUsd !== undefined) {
+    if (!Number.isFinite(edit.addUsd) || edit.addUsd < 0) return { ok: false, reason: "NEISPRAVNA_CENA" };
+    if (edit.addUsd === 0) delete next.addUsd;
+    else next.addUsd = edit.addUsd;
+  }
+
+  return { ok: true, rule: next };
+}

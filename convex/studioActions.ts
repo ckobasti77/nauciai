@@ -1,9 +1,12 @@
 import { v } from "convex/values";
 
 import { internal } from "./_generated/api";
-import { internalAction, internalQuery } from "./_generated/server";
+import type { Doc, Id } from "./_generated/dataModel";
+import { type ActionCtx, internalAction, internalQuery } from "./_generated/server";
 import { submitToFal } from "../lib/fal";
 import { submitBytePlusJob } from "./providers/byteplus";
+import { falInputFields, resolveEndpointTier } from "./providers/falInputs";
+import { parseJobInputs } from "./providers/jobInputs";
 import { submitGoogleJob } from "./providers/google";
 import { googleDownloadHeaders } from "./providers/googleCore";
 import {
@@ -62,6 +65,14 @@ export const submitJob = internalAction({
 
         return null;
       }
+      // fal iz v4 kataloga: ruta i ulazi dolaze iz REDA (`endpoints`,
+      // `inputs`), ne iz starog `modelCatalog`-a - taj te modele i ne poznaje,
+      // pa bi bez ove grane svaki od njih završio refundom.
+      if (v4Model?.provider === "fal") {
+        await submitFalCatalogJob(ctx, args.jobId, job, v4Model);
+
+        return null;
+      }
 
       const model = await ctx.runQuery(internal.modelCatalog.getModelBySlug, { slug: job.modelSlug });
       if (!model) throw new Error("Model nije pronađen u katalogu.");
@@ -112,6 +123,81 @@ export const submitJob = internalAction({
     return null;
   },
 });
+
+/**
+ * Predaja fal-u za model iz v4 kataloga. Isti tok kao stara grana (mock kad
+ * nema ključa, `markJobRunning` na uspeh, `failJob` na grešku - hvata ga
+ * `submitJob` iznad), samo se ruta i ulazi čitaju iz reda `models`.
+ */
+async function submitFalCatalogJob(
+  ctx: ActionCtx,
+  jobId: Id<"generationJobs">,
+  job: Doc<"generationJobs">,
+  model: Doc<"models">,
+) {
+  const apiKey = process.env.FAL_KEY;
+
+  // Mock provajder (P4) važi i ovde: bez ključa posao ide kroz IDENTIČAN
+  // ledger put, samo fal poziv zamenjuje zakazana simulacija.
+  if (!apiKey || process.env.STUDIO_MOCK === "1") {
+    await ctx.runMutation(internal.studio.markJobRunning, {
+      jobId,
+      providerRequestId: `${MOCK_REQUEST_PREFIX}${jobId}`,
+    });
+    await ctx.scheduler.runAfter(MOCK_JOB_DELAY_MS, internal.studioActions.completeMockJob, { jobId });
+
+    return;
+  }
+
+  const siteUrl = process.env.CONVEX_SITE_URL;
+  if (!siteUrl) throw new Error("CONVEX_SITE_URL nije postavljen");
+
+  const endpoints = parseParams(model.endpoints) ?? {};
+  const inputMode = job.inputMode ?? Object.keys(endpoints)[0];
+  const endpoint = inputMode === undefined ? undefined : endpoints[inputMode];
+  if (typeof endpoint !== "string") throw new Error(`RUTA_NE_POSTOJI:${inputMode ?? "-"}`);
+
+  const params = parseParams(job.params) ?? {};
+  const capabilities = parseParams(model.capabilities) ?? {};
+  const urls = await resolveFalInputUrls(ctx, job.inputs);
+
+  const result = await submitToFal({
+    endpoint: resolveEndpointTier(endpoint, params, capabilities),
+    input: { ...params, ...falInputFields(inputMode ?? "", urls) },
+    webhookUrl: `${siteUrl}/fal/webhook`,
+    apiKey,
+  });
+
+  await ctx.runMutation(internal.studio.markJobRunning, {
+    jobId,
+    providerRequestId: result.requestId,
+  });
+}
+
+/**
+ * Ulazi žive u Convex storage-u, a fal ume da čita samo URL. Potpisuje se
+ * ovde jer `ctx.storage.getUrl` postoji samo u akciji; fajl koji je u
+ * medjuvremenu nestao se preskače, pa posao ide sa onim što stvarno postoji
+ * umesto da padne na `null`-u u telu zahteva.
+ */
+async function resolveFalInputUrls(ctx: ActionCtx, rawInputs: string | undefined) {
+  const inputs = parseJobInputs(rawInputs);
+  const urls: Record<string, string[]> = {};
+
+  for (const [slot, ids] of Object.entries(inputs)) {
+    const resolved: string[] = [];
+    for (const storageId of ids.slice(0, MAX_FAL_INPUT_URLS)) {
+      const url = await ctx.storage.getUrl(storageId as Id<"_storage">);
+      if (url) resolved.push(url);
+    }
+    if (resolved.length > 0) urls[slot] = resolved;
+  }
+
+  return urls;
+}
+
+/** Isti kap kao kod BytePlus-a: ni jedan režim u katalogu ne traži više. */
+const MAX_FAL_INPUT_URLS = 10;
 
 /**
  * Simulira fal webhook za mock posao, zakazana iz `submitJob` na

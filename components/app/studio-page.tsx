@@ -6,41 +6,41 @@ import { Coins, Download, Loader2, Sparkles, Wand2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
+import { DropSlot, DropSlotGrid, FrameSlotPair, ReferenceSlots } from "@/components/studio/drop-slot";
+import { GenerateButton } from "@/components/studio/generate-button";
+import { ModelPicker } from "@/components/studio/model-picker";
+import { ModeSwitcher } from "@/components/studio/mode-switcher";
+import { ParamForm, useParamValues } from "@/components/studio/param-form";
 import { Panel, SectionHeader, cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { parseQuantitySource, promptControlOf } from "@/convex/studioJobCore";
 import { withLocale, type Locale } from "@/lib/i18n";
+import { jobPrompt, jobStatusText, jobTileState, RECENT_JOBS_COUNT } from "@/lib/studio-form";
+import { parseStudioModel, type StudioModel, type StudioModelRow } from "@/lib/studio-models";
+import { STUDIO_NOT_ENROLLED, STUDIO_NO_GENERATIONS, STUDIO_PAUSED } from "@/lib/studio-messages";
+import { creditsFor, type ParamValues } from "@/lib/studio-params";
 import {
-  buildJobParams,
-  clampNumber,
-  controlFields,
-  generateButtonLabel,
-  initialParamValues,
-  jobCreditCost,
-  jobPrompt,
-  jobStatusText,
-  jobTileState,
-  parseParamSchema,
-  promptField,
-  RECENT_JOBS_COUNT,
-  type ParamValues,
-  type StudioField,
-} from "@/lib/studio-form";
-import { STUDIO_NOT_ENROLLED, STUDIO_NO_GENERATIONS, STUDIO_PAUSED, studioErrorMessage } from "@/lib/studio-messages";
-
-type CatalogModel = {
-  slug: string;
-  kind: "image" | "video" | "audio";
-  labelSr: string;
-  labelEn: string;
-  descriptionSr: string;
-  descriptionEn: string;
-  creditCost: number;
-  paramSchema: string;
-  badge?: "preporuceno" | "skupo" | "novo";
-};
+  generateBlock,
+  inputsPayload,
+  measuredFile,
+  measuredParams,
+  optionalSlots,
+  promptRequired,
+} from "@/lib/studio-playground";
+import {
+  framePairFiles,
+  measuredExtraCounts,
+  missingInput,
+  missingInputMessage,
+  singleDropSlot,
+  slotsForMode,
+  type FramePair,
+  type SlotFile,
+  type SlotFiles,
+} from "@/lib/studio-slots";
 
 type StudioJob = {
   _id: string;
@@ -62,22 +62,6 @@ const FIRST_PROMPT = {
   en: "watercolour illustration of old Belgrade, warm evening light, paper texture",
 };
 
-const BADGE_LABELS = {
-  preporuceno: { sr: "preporučeno", en: "recommended" },
-  skupo: { sr: "skupo", en: "expensive" },
-  novo: { sr: "novo", en: "new" },
-} as const;
-
-/**
- * Vrste modela. Samo slike su uključene u katalogu (Faza A); video i zvuk se
- * ne sakrivaju nego stoje zasivljeni sa "Uskoro", da se vidi šta dolazi.
- */
-const MODEL_KINDS = [
-  { kind: "image", sr: "Slika", en: "Image", available: true },
-  { kind: "video", sr: "Video", en: "Video", available: false },
-  { kind: "audio", sr: "Zvuk", en: "Audio", available: false },
-] as const;
-
 /** Tri stanja pločice bez slike; svako ima svoj tekst, nijedno nije prazno. */
 const TILE_LABELS = {
   image: { sr: "", en: "" },
@@ -97,176 +81,289 @@ function formatDate(timestamp: number, locale: Locale) {
   });
 }
 
-function modelLabel(model: CatalogModel, locale: Locale) {
-  return locale === "sr" ? model.labelSr : model.labelEn;
-}
+/**
+ * Stanje u koje "Generiši ponovo" vraća formu: model, režim, parametri i
+ * ULAZI. Bez ulaza dugme kod modela sa slikama ne znači ništa - ista slika sa
+ * drugim promptom nije ista generacija.
+ */
+type RegenerateSeed = {
+  id: string;
+  inputMode?: string;
+  params?: ParamValues;
+  files?: SlotFiles;
+  prompt?: string;
+};
+
+/** Sve što jedan poziv `createJob`-a nosi. */
+type JobPayload = {
+  params: Record<string, unknown>;
+  inputMode: string;
+  inputs: Record<string, string[]>;
+  measuredQuantity?: number;
+};
 
 /**
- * Levi panel: forma iz `paramSchema` plus dugme. Ima svoje stanje parametara i
- * zato se remontira na promenu modela (`key={model.slug}` kod pozivaoca) -
- * podešavanja jednog modela ne smeju da procure u drugi, a prompt živi iznad
- * pa se pri promeni modela ne gubi.
+ * Slotovi izabranog režima. Koje komponente idu na ekran kaže `inputSpec`, ne
+ * kod: par kadrova ima svoj oblik, reference svoj, a sve ostalo je jedan slot
+ * po ulazu (STUDIO-CATALOG-V4 sekcija 5).
  */
-function GenerateForm({
-  locale,
+function ModeInputs({
   model,
-  prompt,
-  onPromptChange,
-  onSubmit,
-  isPending,
-  disabledReason,
-  topUpHref,
+  inputMode,
+  files,
+  onFilesChange,
+  frames,
+  onFramesChange,
+  locale,
+  disabled,
 }: {
+  model: StudioModel;
+  inputMode: string;
+  files: SlotFiles;
+  onFilesChange: (next: SlotFiles) => void;
+  frames: FramePair;
+  onFramesChange: (next: FramePair) => void;
   locale: Locale;
-  model: CatalogModel;
-  prompt: string;
-  onPromptChange: (value: string) => void;
-  onSubmit: (params: Record<string, unknown>) => void;
-  isPending: boolean;
-  disabledReason: "credits" | "active" | null;
-  topUpHref: string;
+  disabled: boolean;
 }) {
-  const fields = parseParamSchema(model.paramSchema);
-  const [values, setValues] = useState<ParamValues>(() => initialParamValues(fields));
-  const promptMeta = promptField(fields);
-  const controls = controlFields(fields);
-  const remaining = promptMeta.maxLength - prompt.length;
-  // Isti objekat ide i u cenu i u `createJob`, pa dugme ne može da pokaže
-  // jednu cifru a server da naplati drugu: `num_images` množi obe strane.
-  const jobParams = buildJobParams(fields, values, prompt);
-  const creditCost = jobCreditCost(model.creditCost, jobParams);
+  const slots = slotsForMode(model.inputSpec, inputMode);
+  if (slots.length === 0) return null;
 
-  function setValue(field: StudioField, raw: string) {
-    setValues((current) => ({
-      ...current,
-      [field.key]:
-        field.kind === "number" ? (raw === "" ? "" : clampNumber(Number(raw), field)) : raw,
-    }));
+  // Režim sa tačno jednim slotom je jedini smislen cilj za prijem preko celog
+  // ekrana (AGENTS.md); sa dva se iz fajla ne vidi u koji slot ide.
+  const single = singleDropSlot(model.inputSpec, inputMode) !== null;
+
+  if (inputMode === "first_last") {
+    return (
+      <FrameSlotPair
+        spec={slots[0]}
+        frames={frames}
+        onChange={onFramesChange}
+        locale={locale}
+        disabled={disabled}
+      />
+    );
+  }
+
+  if (inputMode === "reference") {
+    return (
+      <ReferenceSlots
+        modeSpec={model.inputSpec[inputMode]}
+        files={files}
+        onChange={onFilesChange}
+        locale={locale}
+        disabled={disabled}
+      />
+    );
   }
 
   return (
     <div className="space-y-4">
-      <div>
-        <label htmlFor="studio-prompt" className="text-sm font-black uppercase tracking-wide text-muted">
-          {locale === "sr" ? "Prompt" : "Prompt"}
-        </label>
-        <textarea
-          id="studio-prompt"
-          value={prompt}
-          maxLength={promptMeta.maxLength}
-          onChange={(event) => onPromptChange(event.target.value)}
-          rows={5}
-          placeholder={
-            locale === "sr"
-              ? "Opiši sliku koju hoćeš - motiv, stil, svetlo, boje."
-              : "Describe the image you want - subject, style, light, colours."
-          }
-          className="surface-inset mt-2 w-full border-2 border-ink bg-white px-4 py-3 text-base font-bold text-ink placeholder:font-bold placeholder:text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-        />
-        <p className={cn("mt-1 text-xs font-black", remaining < 100 ? "text-amber-900" : "text-muted")}>
-          {prompt.length} / {promptMeta.maxLength}
-        </p>
-      </div>
-
-      {controls.length > 0 ? (
-        <div className="grid gap-4 sm:grid-cols-2">
-          {controls.map((field) => (
-            <div key={field.key}>
-              <label
-                htmlFor={`studio-${field.key}`}
-                className="text-sm font-black uppercase tracking-wide text-muted"
-              >
-                {field.label}
-              </label>
-              {field.kind === "select" ? (
-                <select
-                  id={`studio-${field.key}`}
-                  value={String(values[field.key] ?? "")}
-                  onChange={(event) => setValue(field, event.target.value)}
-                  className="surface-inset mt-2 w-full border-2 border-ink bg-white px-4 py-2.5 text-base font-extrabold text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-                >
-                  {field.options.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              ) : field.kind === "number" ? (
-                <input
-                  id={`studio-${field.key}`}
-                  type="number"
-                  inputMode="numeric"
-                  value={String(values[field.key] ?? "")}
-                  min={field.min}
-                  max={field.max}
-                  onChange={(event) => setValue(field, event.target.value)}
-                  className="surface-inset mt-2 w-full border-2 border-ink bg-white px-4 py-2.5 text-base font-extrabold text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-                />
-              ) : (
-                <input
-                  id={`studio-${field.key}`}
-                  type="text"
-                  value={String(values[field.key] ?? "")}
-                  onChange={(event) => setValue(field, event.target.value)}
-                  className="surface-inset mt-2 w-full border-2 border-ink bg-white px-4 py-2.5 text-base font-extrabold text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-                />
-              )}
-              {field.kind === "number" && (field.min !== undefined || field.max !== undefined) ? (
-                <p className="mt-1 text-xs font-bold text-muted">
-                  {locale === "sr" ? "dozvoljeno" : "allowed"} {field.min ?? 1}–{field.max ?? "∞"}
-                </p>
-              ) : null}
-            </div>
-          ))}
-        </div>
-      ) : null}
-
-      {/* Cena je uvek na dugmetu i uvek iz kataloga (STUDIO-PLAN 2.5). Bez
-          kredita dugme prestaje da bude dugme i postaje put do dopune. */}
-      {disabledReason === "credits" ? (
-        <div className="space-y-2">
-          <Link
-            href={topUpHref}
-            className={cn(PILL, "w-full border-ink bg-yellow text-ink shadow-[4px_4px_0_0_#0e3158] hover:-translate-y-0.5")}
-          >
-            <Coins className="size-4" />
-            {locale === "sr" ? "Dopuni kredite" : "Top up credits"}
-          </Link>
-          <p className="text-sm font-bold text-muted">
-            {locale === "sr"
-              ? `Ova generacija košta ${creditCost} kr, a toliko trenutno nemaš na nalogu.`
-              : `This generation costs ${creditCost} credits, which is more than your balance.`}
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          <button
-            type="button"
-            disabled={isPending || disabledReason === "active" || prompt.trim().length === 0}
-            onClick={() => onSubmit(jobParams)}
-            className={cn(
-              PILL,
-              "w-full border-ink bg-ink text-white shadow-[4px_4px_0_0_#f4be30] hover:-translate-y-0.5",
-            )}
-          >
-            {isPending ? <Loader2 className="size-4 animate-spin" /> : <Wand2 className="size-4" />}
-            {generateButtonLabel(creditCost, locale)}
-          </button>
-          {disabledReason === "active" ? (
-            <p className="text-sm font-bold text-muted">
-              {locale === "sr"
-                ? "Sačekaj da se završi trenutna generacija."
-                : "Wait for the current generation to finish."}
-            </p>
-          ) : prompt.trim().length === 0 ? (
-            <p className="text-sm font-bold text-muted">
-              {locale === "sr"
-                ? "Napiši prompt da bi dugme proradilo."
-                : "Write a prompt to enable the button."}
-            </p>
-          ) : null}
-        </div>
+      {slots.map((entry) =>
+        entry.max > 1 ? (
+          <DropSlotGrid
+            key={entry.slot}
+            slot={entry.slot}
+            spec={entry}
+            files={files[entry.slot] ?? []}
+            onChange={(next) => onFilesChange({ ...files, [entry.slot]: next })}
+            locale={locale}
+            numbered
+            fullScreen={single}
+            disabled={disabled}
+          />
+        ) : (
+          <DropSlot
+            key={entry.slot}
+            slot={entry.slot}
+            spec={entry}
+            file={files[entry.slot]?.[0] ?? null}
+            onChange={(next) => onFilesChange({ ...files, [entry.slot]: next ? [next] : [] })}
+            locale={locale}
+            fullScreen={single}
+            disabled={disabled}
+          />
+        ),
       )}
+    </div>
+  );
+}
+
+/**
+ * Dužina okačenog snimka, pročitana iz metapodataka u browseru. Server je ne
+ * može izmeriti (storage zna bajtove, ne sekunde), pa se šalje uz posao i tamo
+ * prolazi kroz `resolveMeasuredQuantity` - zaokruživanje naviše i granice iz
+ * kataloga (videti `convex/studioJobCore.ts`).
+ */
+function useMediaSeconds(file: SlotFile | null): number | null {
+  // Rezultat se pamti ZAJEDNO sa adresom fajla, pa se pri promeni fajla ne
+  // mora ništa nulovati u efektu - stara vrednost prosto više ne odgovara
+  // trenutnom URL-u i ne vraća se.
+  const [measured, setMeasured] = useState<{ url: string; seconds: number } | null>(null);
+  const url = file?.url ?? null;
+  const isVideo = file?.mime.startsWith("video/") ?? false;
+
+  useEffect(() => {
+    if (!url) return;
+
+    let cancelled = false;
+    const element = document.createElement(isVideo ? "video" : "audio");
+    element.preload = "metadata";
+    element.onloadedmetadata = () => {
+      if (!cancelled && Number.isFinite(element.duration)) {
+        setMeasured({ url, seconds: element.duration });
+      }
+    };
+    element.src = url;
+
+    return () => {
+      cancelled = true;
+      element.removeAttribute("src");
+    };
+  }, [url, isVideo]);
+
+  return measured !== null && measured.url === url ? measured.seconds : null;
+}
+
+/**
+ * Leva kolona: režim, ulazi, kontrole i dugme. Ima svoje stanje i zato se
+ * remontira na promenu modela (`key` kod pozivaoca) - podešavanja jednog
+ * modela ne smeju da procure u drugi.
+ */
+function PlaygroundForm({
+  model,
+  locale,
+  studioState,
+  balance,
+  topUpHref,
+  seed,
+  isPending,
+  error,
+  onGenerate,
+}: {
+  model: StudioModel;
+  locale: Locale;
+  studioState: { enabled: boolean; isEnrolled: boolean; activeJobs: number; maxActiveJobs: number } | undefined;
+  balance: number | undefined;
+  topUpHref: string;
+  seed: RegenerateSeed | null;
+  isPending: boolean;
+  error: string | null;
+  onGenerate: (payload: JobPayload) => void;
+}) {
+  const [inputMode, setInputMode] = useState(
+    () => seed?.inputMode ?? model.inputModes[0] ?? "text",
+  );
+  const [files, setFiles] = useState<SlotFiles>(() => seed?.files ?? {});
+  const [frames, setFrames] = useState<FramePair>(() => ({
+    first: seed?.files?.image?.[0] ?? null,
+    last: seed?.files?.image?.[1] ?? null,
+  }));
+
+  // `first_last` drži par imenovano (S6 ODLUKA 9), ali i cena i `createJob`
+  // gledaju obične slotove - pa se par ovde spaja nazad u slot `image`.
+  const effectiveFiles: SlotFiles =
+    inputMode === "first_last" ? { ...files, image: framePairFiles(frames) } : files;
+
+  const quantitySource = useMemo(() => parseQuantitySource(JSON.stringify(model.capabilities)), [model]);
+  const measureTarget = quantitySource
+    ? measuredFile(quantitySource, model.inputSpec, inputMode, effectiveFiles)
+    : null;
+  const seconds = useMediaSeconds(measureTarget);
+
+  const promptControl = promptControlOf(model.paramSpec, inputMode);
+  const initialValues = useMemo(() => {
+    const values: ParamValues = { ...(seed?.params ?? {}) };
+    if (seed?.prompt !== undefined && promptControl) values[promptControl.key] = seed.prompt;
+
+    return values;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- početno stanje, ne prati kasnije promene
+  }, []);
+
+  // Merena količina ide u ISTI objekat parametara iz kojeg izlazi i cena na
+  // dugmetu i ono što `createJob` naplati (katalog 1.3).
+  const textValueKey = quantitySource?.measuredFrom ?? promptControl?.key;
+  const [textLength, setTextLength] = useState(0);
+  const measured = measuredParams(quantitySource, seconds, textLength);
+  const extras = measuredExtraCounts(model.priceRule, effectiveFiles);
+  const form = useParamValues(model.paramSpec, inputMode, { ...measured, ...extras }, initialValues);
+
+  const currentText = textValueKey ? form.values[textValueKey] : undefined;
+  const currentTextLength = typeof currentText === "string" ? currentText.length : 0;
+  if (currentTextLength !== textLength) setTextLength(currentTextLength);
+
+  const optional = optionalSlots(model.paramSpec, form.values, model.inputSpec, inputMode);
+  const missing = missingInput(
+    model.inputSpec,
+    inputMode,
+    effectiveFiles,
+    optional,
+    inputMode === "first_last" ? frames : undefined,
+  );
+  const credits = creditsFor(model.priceRule, form.params, inputMode);
+  const promptValue = promptControl ? form.values[promptControl.key] : undefined;
+  const block = generateBlock({
+    state: studioState,
+    balance,
+    credits,
+    missingInputMessage: missingInputMessage(missing, locale),
+    promptMissing:
+      promptRequired(model.inputSpec, inputMode) &&
+      (typeof promptValue !== "string" || promptValue.trim().length === 0),
+    quantityMissing: quantitySource !== null && measured[quantitySource.param] === undefined,
+  });
+
+  function submit() {
+    onGenerate({
+      params: form.params,
+      inputMode,
+      inputs: inputsPayload(effectiveFiles),
+      ...(quantitySource && seconds !== null ? { measuredQuantity: seconds } : {}),
+    });
+  }
+
+  return (
+    <div className="space-y-5">
+      <ModeSwitcher
+        spec={model.inputSpec}
+        modes={model.inputModes}
+        value={inputMode}
+        onChange={setInputMode}
+        files={files}
+        onFilesChange={setFiles}
+        locale={locale}
+        disabled={isPending}
+      />
+
+      <ModeInputs
+        model={model}
+        inputMode={inputMode}
+        files={files}
+        onFilesChange={setFiles}
+        frames={frames}
+        onFramesChange={setFrames}
+        locale={locale}
+        disabled={isPending}
+      />
+
+      <ParamForm
+        spec={model.paramSpec}
+        state={form}
+        rule={model.priceRule}
+        locale={locale}
+        inputMode={inputMode}
+        disabled={isPending}
+      />
+
+      <GenerateButton
+        locale={locale}
+        credits={credits}
+        block={block}
+        isPending={isPending}
+        onGenerate={submit}
+        topUpHref={topUpHref}
+        error={error}
+      />
     </div>
   );
 }
@@ -283,6 +380,48 @@ function DemoBadge({ locale }: { locale: Locale }) {
     >
       DEMO
     </span>
+  );
+}
+
+/**
+ * Izlaz jednog posla. Video nikad ne ide kao goli `<video src>` - `preload="metadata"`
+ * sa `#t=0.1` povuče samo zaglavlje i prvi kadar.
+ */
+function JobOutput({ job, alt }: { job: StudioJob; alt: string }) {
+  if (!job.outputUrl) return null;
+
+  if (job.kind === "video") {
+    return (
+      <video
+        preload="metadata"
+        controls
+        muted
+        playsInline
+        className="h-full w-full object-cover"
+        src={`${job.outputUrl}#t=0.1`}
+      />
+    );
+  }
+
+  if (job.kind === "audio") {
+    return (
+      <div className="grid h-full place-items-center p-4">
+        <audio controls preload="metadata" src={job.outputUrl} className="w-full">
+          <track kind="captions" />
+        </audio>
+      </div>
+    );
+  }
+
+  return (
+    <Image
+      src={job.outputUrl}
+      alt={alt || job.modelSlug}
+      fill
+      unoptimized
+      sizes="(min-width: 1024px) 40vw, 100vw"
+      className="object-cover"
+    />
   );
 }
 
@@ -304,15 +443,8 @@ function LatestJob({ job, locale }: { job: StudioJob; locale: Locale }) {
       </div>
 
       <div className="surface-media relative aspect-square w-full overflow-hidden border-2 border-ink bg-paper">
-        {job.outputUrl && job.kind === "image" ? (
-          <Image
-            src={job.outputUrl}
-            alt={prompt || job.modelSlug}
-            fill
-            unoptimized
-            sizes="(min-width: 1024px) 40vw, 100vw"
-            className="object-cover"
-          />
+        {job.outputUrl ? (
+          <JobOutput job={job} alt={prompt} />
         ) : (
           <div
             className={cn(
@@ -357,27 +489,75 @@ export function StudioPage({ locale }: { locale: Locale }) {
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
   const state = useQuery(api.studio.getStudioState, isAuthenticated ? {} : "skip");
   const balance = useQuery(api.credits.getBalance, isAuthenticated ? {} : "skip");
-  const models = useQuery(api.modelCatalog.listModels, { kind: "image" });
+  const models = useQuery(api.studioModels.listModels, isAuthenticated ? {} : "skip");
   const jobs = usePaginatedQuery(api.studio.listMyJobs, isAuthenticated ? {} : "skip", {
     initialNumItems: RECENT_JOBS_COUNT + 1,
   });
   const createJob = useMutation(api.studio.createJob);
 
-  // Galerija (P7) vodi ovde sa `?model=` i `?prompt=` na "Generiši ponovo" -
-  // ako model iz linka nije (više) u uključenom katalogu, izbor pada na
-  // podrazumevani model kao i inače (vidi `activeModel` niže). Lekcija (P9)
-  // vodi ovde sa `?lessonId=` i `?taskId=` na dugme "Otvori u Studiju" - ta dva
-  // idu direktno u `createJob` da bi izlaz upisao `labOutputs` i zazeleneo
-  // zadatak, isto kao playground unutar same lekcije.
+  // Galerija vodi ovde sa `?regenerate=<jobId>`; posao nosi model, režim,
+  // parametre i ulaze, pa forma može da se vrati u tačno isto stanje. Lekcija
+  // (P9) vodi sa `?lessonId=` i `?taskId=` - ta dva idu u `createJob` da bi
+  // izlaz upisao `labOutputs` i zazeleneo zadatak.
   const searchParams = useSearchParams();
-  const [selectedSlug, setSelectedSlug] = useState<string | null>(() => searchParams.get("model"));
-  const [prompt, setPrompt] = useState(() => searchParams.get("prompt") ?? "");
+  const regenerateId = searchParams.get("regenerate");
+  const regenerated = useQuery(
+    api.studio.getJobForRegenerate,
+    regenerateId && isAuthenticated ? { jobId: regenerateId as Id<"generationJobs"> } : "skip",
+  );
   const lessonId = searchParams.get("lessonId") as Id<"lessons"> | null;
   const taskId = searchParams.get("taskId") as Id<"lessonTasks"> | null;
+
+  const [selectedSlug, setSelectedSlug] = useState<string | null>(() => searchParams.get("model"));
+  const [starterPrompt, setStarterPrompt] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
 
   const creditsHref = withLocale(locale, "/app/credits");
+
+  // Redovi se parsiraju JEDNOM: `useParamValues` promenu modela prepoznaje po
+  // REFERENCI `paramSpec`-a, pa bi parsiranje u svakom renderu obaralo formu.
+  const catalog = useMemo(
+    () =>
+      ((models ?? []) as StudioModelRow[])
+        .map((row) => parseStudioModel(row))
+        .filter((model): model is StudioModel => model !== null),
+    [models],
+  );
+
+  const seed: RegenerateSeed | null = useMemo(() => {
+    if (!regenerateId || !regenerated) return null;
+
+    const files: SlotFiles = {};
+    for (const input of regenerated.inputs) {
+      const list = files[input.slot] ?? [];
+      list.push({
+        storageId: input.storageId,
+        name: input.slot,
+        mime: input.mime ?? "",
+        size: input.size ?? 0,
+        url: input.url,
+      });
+      files[input.slot] = list;
+    }
+
+    let params: ParamValues = {};
+    try {
+      const parsed: unknown = JSON.parse(regenerated.params);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        params = parsed as ParamValues;
+      }
+    } catch {
+      params = {};
+    }
+
+    return {
+      id: regenerateId,
+      ...(regenerated.inputMode ? { inputMode: regenerated.inputMode } : {}),
+      params,
+      files,
+    };
+  }, [regenerateId, regenerated]);
 
   const header = (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -436,21 +616,20 @@ export function StudioPage({ locale }: { locale: Locale }) {
     );
   }
 
-  const imageModels = (models ?? []) as CatalogModel[];
-  const recommended = imageModels.find((model) => model.badge === "preporuceno");
+  const recommended = catalog.find((model) => model.badge === "preporuceno");
+  // Ručan izbor ima prednost nad linkom: `?regenerate=` otvara model tog posla,
+  // ali čim korisnik izabere drugi, link prestaje da ga vraća nazad.
   const activeModel =
-    imageModels.find((model) => model.slug === selectedSlug) ?? recommended ?? imageModels[0];
+    catalog.find((model) => model.slug === selectedSlug) ??
+    (regenerated ? catalog.find((model) => model.slug === regenerated.modelSlug) : undefined) ??
+    recommended ??
+    catalog[0];
 
   const jobRows = jobs.results as unknown as StudioJob[];
   const latest = jobRows[0];
   const recent = jobRows.slice(1, RECENT_JOBS_COUNT + 1);
 
-  const currentBalance = balance?.balance ?? 0;
-  const atJobLimit = state !== undefined && state.activeJobs >= state.maxActiveJobs;
-  const shortOnCredits =
-    balance !== undefined && activeModel !== undefined && currentBalance < activeModel.creditCost;
-
-  async function generate(params: Record<string, unknown>) {
+  async function generate(payload: JobPayload) {
     if (!activeModel) return;
     setIsPending(true);
     setError(null);
@@ -459,13 +638,20 @@ export function StudioPage({ locale }: { locale: Locale }) {
       // sitnom izmenom, a posao je već upisan i vidi se desno.
       await createJob({
         modelSlug: activeModel.slug,
-        params: JSON.stringify(params),
+        params: JSON.stringify(payload.params),
+        inputMode: payload.inputMode,
+        ...(Object.keys(payload.inputs).length > 0
+          ? { inputs: JSON.stringify(payload.inputs) }
+          : {}),
+        ...(payload.measuredQuantity !== undefined
+          ? { measuredQuantity: payload.measuredQuantity }
+          : {}),
         ...(lessonId ? { lessonId } : {}),
         ...(lessonId && taskId ? { taskId } : {}),
       });
     } catch (thrown) {
-      // Sirov kod greške se nikad ne prikazuje - svaki ima svoju rečenicu.
-      setError(studioErrorMessage(thrown instanceof Error ? thrown.message : String(thrown), locale));
+      // Sirov kod greške se nikad ne prikazuje - `<GenerateButton>` ima rečenicu.
+      setError(thrown instanceof Error ? thrown.message : String(thrown));
     } finally {
       setIsPending(false);
     }
@@ -508,89 +694,51 @@ export function StudioPage({ locale }: { locale: Locale }) {
         <Panel className="p-6">
           <h3 className="text-2xl font-black text-ink">{locale === "sr" ? "Model" : "Model"}</h3>
 
-          {/* Video i zvuk stižu u Fazi B i C. Ne sakrivaju se - stoje ugašeni
-              sa "Uskoro", da se vidi da Studio nije samo slike. */}
-          <div className="mt-4 flex flex-wrap gap-2">
-            {MODEL_KINDS.map((entry) => (
-              <span
-                key={entry.kind}
-                className={cn(
-                  "inline-flex items-center gap-2 rounded-full border-2 border-ink px-4 py-1.5 text-sm font-black",
-                  entry.available ? "bg-ink text-white" : "bg-paper text-muted opacity-60",
-                )}
-              >
-                {locale === "sr" ? entry.sr : entry.en}
-                {entry.available ? null : (
-                  <span className="text-xs font-black uppercase">
-                    {locale === "sr" ? "Uskoro" : "Soon"}
-                  </span>
-                )}
-              </span>
-            ))}
-          </div>
-
           {models === undefined ? (
             <div className="mt-5 flex min-h-24 items-center justify-center">
               <Loader2 className="size-5 animate-spin text-muted" />
             </div>
-          ) : imageModels.length === 0 ? (
+          ) : catalog.length === 0 ? (
             <p className="surface-inset mt-5 border-2 border-ink bg-paper p-4 text-sm font-bold text-muted">
               {locale === "sr"
                 ? "Nijedan model trenutno nije uključen. Javi se podršci."
                 : "No model is enabled right now. Please contact support."}
             </p>
           ) : (
-            <div className="mt-5 grid gap-3">
-              {imageModels.map((model) => {
-                const isActive = activeModel?.slug === model.slug;
-                return (
-                  <button
-                    key={model.slug}
-                    type="button"
-                    onClick={() => setSelectedSlug(model.slug)}
-                    aria-pressed={isActive}
-                    className={cn(
-                      "surface-inset flex w-full flex-col gap-1 border-2 border-ink p-4 text-left transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
-                      isActive
-                        ? "bg-yellow shadow-[4px_4px_0_0_#0e3158]"
-                        : "bg-paper hover:-translate-y-0.5",
-                    )}
-                  >
-                    <span className="flex flex-wrap items-center gap-2">
-                      <span className="text-base font-black text-ink">{modelLabel(model, locale)}</span>
-                      {model.badge ? (
-                        <span className="rounded-full border-2 border-ink bg-white px-2.5 py-0.5 text-xs font-black text-ink">
-                          {BADGE_LABELS[model.badge][locale]}
-                        </span>
-                      ) : null}
-                      <span className="ml-auto rounded-full border-2 border-ink bg-ink px-3 py-0.5 text-xs font-black text-white">
-                        {model.creditCost} {locale === "sr" ? "kr" : "cr"}
-                      </span>
-                    </span>
-                    <span className="text-sm font-bold text-muted">
-                      {locale === "sr" ? model.descriptionSr : model.descriptionEn}
-                    </span>
-                  </button>
-                );
-              })}
+            <div className="mt-5">
+              <ModelPicker
+                models={catalog}
+                selectedSlug={activeModel?.slug ?? null}
+                onSelect={(model) => {
+                  setSelectedSlug(model.slug);
+                  setStarterPrompt(null);
+                }}
+                locale={locale}
+              />
             </div>
           )}
         </Panel>
 
         {activeModel ? (
           <Panel className="p-6">
-            <GenerateForm
-              key={activeModel.slug}
-              locale={locale}
+            <PlaygroundForm
+              key={`${activeModel.slug}:${seed?.id ?? ""}:${starterPrompt ?? ""}`}
               model={activeModel}
-              prompt={prompt}
-              onPromptChange={setPrompt}
-              onSubmit={generate}
-              isPending={isPending}
-              disabledReason={shortOnCredits ? "credits" : atJobLimit ? "active" : null}
+              locale={locale}
+              studioState={state}
+              balance={balance?.balance}
               topUpHref={creditsHref}
+              seed={
+                starterPrompt !== null
+                  ? { id: "starter", prompt: starterPrompt }
+                  : seed && regenerated?.modelSlug === activeModel.slug
+                    ? seed
+                    : null
+              }
+              isPending={isPending}
+              error={error}
+              onGenerate={generate}
             />
-            {error ? <p className="mt-3 text-sm font-black text-red-700">{error}</p> : null}
           </Panel>
         ) : null}
       </div>
@@ -620,7 +768,7 @@ export function StudioPage({ locale }: { locale: Locale }) {
               <p className="mt-2 text-base font-bold text-muted">{STUDIO_NO_GENERATIONS.body[locale]}</p>
               <button
                 type="button"
-                onClick={() => setPrompt(FIRST_PROMPT[locale])}
+                onClick={() => setStarterPrompt(FIRST_PROMPT[locale])}
                 className={cn(PILL, "mt-4 border-ink bg-yellow text-ink shadow-[4px_4px_0_0_#0e3158] hover:-translate-y-0.5")}
               >
                 <Wand2 className="size-4" />
@@ -653,10 +801,22 @@ export function StudioPage({ locale }: { locale: Locale }) {
                             sizes="(min-width: 1024px) 12vw, 30vw"
                             className="object-cover"
                           />
+                        ) : job.outputUrl && job.kind === "video" ? (
+                          <video
+                            preload="metadata"
+                            muted
+                            playsInline
+                            className="h-full w-full object-cover"
+                            src={`${job.outputUrl}#t=0.1`}
+                          />
                         ) : (
                           <div className="grid h-full place-items-center px-2 text-center">
                             <span className="text-xs font-black text-muted">
-                              {TILE_LABELS[jobTileState(job)][locale]}
+                              {job.outputUrl && job.kind === "audio"
+                                ? locale === "sr"
+                                  ? "zvuk"
+                                  : "audio"
+                                : TILE_LABELS[jobTileState(job)][locale]}
                             </span>
                           </div>
                         )}
