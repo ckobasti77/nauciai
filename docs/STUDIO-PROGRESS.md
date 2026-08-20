@@ -4478,3 +4478,123 @@ istih 17 kao pre koraka) / test OK (55 fajlova, 656 testova, +10) / build OK
    `api.studio.listAllJobs` dobija `Forbidden` (pokriveno testom).
 4. Nalazi R1-R3 iz `docs/STUDIO-CATALOG-REPORT.md` ovim korakom **nisu** dirani i
    dalje stoje kao pre.
+
+---
+
+## W2 - Globalni dnevni plafon troska: peti cron   (2026-08-20 13:57)
+
+**Fajlovi:**
+- `convex/crons.ts` (izmenjen) - `applyGlobalCostAction` (internalMutation),
+  `adminStudioLink` / `alertBody` / `sendGlobalCostEmail` (pomocne, bez `ctx`),
+  `enforceGlobalCostCap` (internalAction), peti cron na 15 minuta
+- `convex/crons.test.ts` (izmenjen) - sekcija "4. globalni dnevni plafon troska",
+  10 novih testova + `beforeEach`/`afterEach` za env i `vi.unstubAllGlobals`
+
+**Sta je uradjeno:** Zatvoren nalaz **R1**. `decideGlobalCostAction` je do sada
+bila funkcija koju niko ne pita; sada je pita `applyGlobalCostAction` - jedna
+transakcija koja sabere `studioUsageDaily.costUsd` za tekuci UTC dan preko
+indeksa `by_day`, procita `platformFlags.studio_enabled` i postojanje reda u
+`studioCostAlarms` za taj dan, pozove odluku i **odmah upise posledicu**:
+`"kill"` gasi flag (patch ili insert, isto kao `studioAdmin.setStudioEnabled`),
+`"alarm"` upisuje red za taj dan. Nijedan prag nije prepisan - obe konstante se
+citaju iz `studioCore.ts`, u `crons.ts` nema nijednog broja. Akcija
+`enforceGlobalCostCap` poziva tu mutaciju pa tek onda salje mejl preko Resend-a
+(`https://api.resend.com/emails`, `AUTH_RESEND_KEY` + `AUTH_RESEND_FROM`, isti
+put kao `emailVerification.ts`), primaoci iz `INITIAL_ADMIN_EMAILS` preko
+`parseAdminEmails`. Registrovan je peti cron `"studio: globalni plafon troska"`
+na 15 minuta. Devet lint upozorenja iz `crons.ts` je nestalo jer je svaki od tih
+uvoza sada stvarno pozvan - nijedan nije brisan.
+
+**ODLUKE:**
+1. **Upis pre mejla, ne posle.** Mutacija commituje kill/alarm, akcija tek onda
+   salje mejl. Obrnut redosled bi znacio da pokvaren Resend kljuc drzi Studio
+   upaljen preko plafona - a to je tacno ono zbog cega plafon postoji. Posledica
+   koju sam prihvatio: ako mejl padne, alarm je i dalje zapamcen kao poslat i
+   nema ponovnog pokusaja. To je namerno - inace bi pokvaren Resend slao isti
+   mejl svakih 15 minuta do ponoci, sto je tacno ono sto `studioCostAlarms`
+   sprecava. Trag ostaje u Convex logu (`studio_cost_alert_*`), i taj log nosi
+   iznos i dan, ne samo status greske.
+2. **Zapamceno stanje alarma: tabela `studioCostAlarms` koja vec postoji u
+   `schema.ts:1497`** (`by_day`, jedan red po danu). Nista novo nije dodato u
+   semu - S0 je tabelu vec napravio i obrazlozio komentarom, samo je niko nije
+   koristio. To je najmanja stvar koja radi.
+3. **Zbir se cita `collect()`-om, bez `take` kapa.** `studioAdmin.getUsageSummary`
+   kapira na 500 redova jer crta ekran; ovde bi odsecen zbir bio MANJI od
+   stvarnog, dakle plafon koji tiho ne opali - najgori moguci ishod za korak ciji
+   je ceo smisao zastita novca. Convex limit od 16 384 reda po transakciji je
+   gornja granica: preko toga prolaz pukne glasno, sto je bolje od tihog
+   podbacaja. Na danasnjoj skali (jedan red po korisniku koji je tog dana nesto
+   generisao) to nije blizu.
+4. **`first()` a ne `unique()` za alarm red.** Pitanje je samo "postoji li red za
+   danas"; `unique()` bi na slucajnom duplikatu obarao ceo prolaz i time gasio
+   plafon. Za `platformFlags` je zadrzan `unique()` jer je to zatecen obrazac na
+   sva tri postojeca mesta.
+5. **Mejl je `text`, bez HTML-a.** `emailVerification.ts` salje i html i text jer
+   je to mejl korisniku sa dugmetom; ovo je interni alarm za dva admina i cist
+   text radi svuda. Manje koda, nista se ne gubi.
+6. **Ime crona je ASCII: `"studio: globalni plafon troska"`.** Convex odbija push
+   sa `Invalid cron identifier ... use ASCII letters that are not control
+   characters` - prva verzija sa "troska" pisanim sa kvacicom je oborila
+   `npx convex codegen`. Ostala cetiri crona su ionako bez dijakritike.
+7. **Link u mejlu se gradi iz `SITE_URL`**, isto kao `emailVerification.ts`. Ako
+   varijabla fali, ostaje gola putanja `/sr/app/admin/studio` - mejl i dalje ima
+   smisla, samo bez klika.
+8. **`costUsd` je REZERVISAN trosak, ne naplacen.** `createJob` ga upisuje u
+   trenutku rezervacije i refund ga ne vraca, pa je zbir gornja procena racuna.
+   Nisam to menjao (to bi bila izmena naplatnog puta van obima ovog koraka) -
+   greska je u konzervativnu stranu, plafon opali ranije umesto kasnije, i to je
+   zapisano u doc-komentaru mutacije.
+
+**Testovi:** `convex/crons.test.ts`, 10 novih (23 u fajlu, 666 u suite-u):
+- ispod praga (49,99 $ preko dva reda): nema mejla, nema alarm reda, flag ostaje
+- tacno 50,00 $: nista - prag je strogo preko, ne "veci ili jednak"
+- preko 50 $: tri uzastopna prolaza -> `alarm`, pa `none`, pa `none`; **tacno
+  jedan** `fetch`, tacno jedan alarm red, Studio ostaje UPALJEN; provereni su i
+  primaoci (oba admina iz env-a), iznos u subject-u i dan u telu
+- preko 100 $ (60 + 40,5): `kill`, flag na `false`, mejl sadrzi putanju admin
+  ekrana; alarm red se NE upisuje (skok pravo na kill)
+- vec ugasen Studio: drugi prolaz vraca `none`, drugog mejla nema, i dalje samo
+  jedan red u `platformFlags`
+- rucno ugasen Studio preko 50 $: ni alarm ne ide (kill i alarm oba traze
+  `studioEnabled`)
+- nov dan resetuje oba: jucerasnjih 90 $ + jucerasnji alarm red -> danas zbir 0 i
+  `none`; posle novih 55 $ danas -> `alarm` ide ponovo, dva alarm reda
+- Resend bez kljuca: `kill` prolazi, `fetch` nije ni pozvan, flag je ugasen
+- Resend vrati 500: `kill` prolazi, flag je ugasen
+- Resend baci mreznu gresku: `alarm` je i dalje zapamcen, sledeci prolaz vraca
+  `none` (ne salje se drugi put)
+
+**Rezultat verifikacije:**
+- `npx convex codegen` - **OK** (`Running TypeScript...`, exit 0)
+- `npm run lint` - **OK**, `8 problems (0 errors, 8 warnings)`. Bilo je 17;
+  **svih 9 upozorenja iz `convex/crons.ts` je nestalo**, ostalih 8 su zatecena u
+  fajlovima koje ovaj korak nije dirao.
+- `npm run test` - **OK**, `Test Files 55 passed`, `Tests 666 passed` (+10)
+- `npm run build` - **OK**, `Compiled successfully in 6.6s`,
+  `Generating static pages (60/60)`
+
+**BLOKADA:** nema.
+
+**Za Jovana:**
+1. **Plafon ne radi bez Resend varijabli na Convex deployment-u.** Gasenje radi i
+   bez njih (to je i pokriveno testom), ali mejl ne stize, pa bi Studio umeo da
+   se ugasi a da niko ne sazna dok ne otvori admin ekran. Proveri:
+   ```
+   npx convex env list
+   ```
+   Moraju da postoje `AUTH_RESEND_KEY`, `AUTH_RESEND_FROM` i
+   `INITIAL_ADMIN_EMAILS`. Ja ih po pravilima run-a ne smem postavljati.
+   `SITE_URL` je opcion - bez njega mejl ima putanju umesto pune adrese.
+2. **Cron se aktivira tek na sledecem deploy-u.** `npx convex codegen` ga je
+   validirao, ali `crons.ts` se registruje pri deploy-u; do tada plafon i dalje
+   ne radi na deployment-u.
+3. **Kill se NE gasi sam od sebe.** Kad plafon opali, `platformFlags.studio_enabled`
+   ostaje `false` dok ga rucno ne vratis na `/sr/app/admin/studio`. I posle
+   vracanja: dok traje isti UTC dan zbir se ne resetuje, pa se Studio posle
+   najvise 15 minuta gasi ponovo. To je namerno i pise u samom mejlu.
+4. **Prag je 100 $ REZERVISANOG troska, ne naplacenog.** Refundiran posao ostaje
+   u zbiru (`studioUsageDaily` se ne umanjuje pri refundu). Ako ti to smeta u
+   praksi, to je izmena naplatnog puta i treba joj svoj korak.
+5. Nalazi **R2** (`reference_with_video` ne naplacuje ulazni video) i **R3**
+   (klijent bira `measuredQuantity`) ovim korakom **nisu** dirani i dalje stoje.
+   R3 je i dalje najveca rupa u katalogu.

@@ -77,3 +77,10 @@
 [13:23:15]  W1  |  Otkljucaj Studio za admina i moderatore
 [13:23:15]  model=opus  effort=high
 [13:23:15] --------------------------------------------------
+[13:45:33] Commit 0b705a9 - 13 putanja
+[13:45:33] W1 -> OK  (22 min, 1 pokusaja, USD 9.61)
+[13:45:33] 
+[13:45:33] --------------------------------------------------
+[13:45:33]  W2  |  R1: globalni dnevni plafon troska
+[13:45:33]  model=opus  effort=max
+[13:45:33] --------------------------------------------------

@@ -142,9 +142,174 @@ export const expireGenerationFiles = internalMutation({
   },
 });
 
+/**
+ * Globalni dnevni plafon troška (STUDIO-PLAN 4.4, nalaz R1). Ovo je jedina
+ * transakcija u lancu: čita današnji zbir, pita `decideGlobalCostAction` i
+ * **odmah upisuje posledicu**. Mejl šalje akcija iznad, posle commit-a - kad bi
+ * upis čekao da mejl prođe, pokvaren Resend ključ bi značio da se Studio nikad
+ * ne ugasi, a to je tačno ono zbog čega ovaj plafon postoji.
+ *
+ * Zbir ide preko `by_day` bez `take`-a: `studioUsageDaily` je jedan red po
+ * korisniku po danu, a odsečen zbir bi bio **manji od stvarnog**, dakle plafon
+ * koji tiho ne opali. Convex-ov limit čitanja po transakciji (16 384 reda) je
+ * gornja granica; preko toga prolaz pukne glasno, što je bolje od nule na
+ * zbiru. `studioAdmin.getUsageSummary` sme da kapira jer crta ekran, ne gasi.
+ *
+ * `costUsd` upisuje `createJob` u trenutku REZERVACIJE i refund ga ne vraća,
+ * pa je ovaj zbir gornja procena stvarnog računa. To je namerno u ovu stranu:
+ * plafon radije opali ranije nego posle poslatog novca.
+ */
+export const applyGlobalCostAction = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const day = dayKey(Date.now());
+
+    const usage = await ctx.db
+      .query("studioUsageDaily")
+      .withIndex("by_day", (q) => q.eq("day", day))
+      .collect();
+    const totalCostUsd = usage.reduce((sum, row) => sum + row.costUsd, 0);
+
+    const flag = await ctx.db
+      .query("platformFlags")
+      .withIndex("by_key", (q) => q.eq("key", STUDIO_FLAG_KEY))
+      .unique();
+    // `first` a ne `unique`: pitanje je samo "postoji li red za danas", a
+    // `unique` bi na slučajnom duplikatu obarao ceo prolaz - i time plafon.
+    const alarm = await ctx.db
+      .query("studioCostAlarms")
+      .withIndex("by_day", (q) => q.eq("day", day))
+      .first();
+
+    const action = decideGlobalCostAction(totalCostUsd, {
+      alarmSentToday: alarm !== null,
+      // Red koji ne postoji znači "nikad nije ni gašen", isto čitanje kao
+      // `studio.createJob` i `studioAdmin.getKillSwitchState`.
+      studioEnabled: flag ? flag.enabled : true,
+    });
+
+    if (action === "kill") {
+      if (flag) await ctx.db.patch(flag._id, { enabled: false });
+      else await ctx.db.insert("platformFlags", { key: STUDIO_FLAG_KEY, enabled: false });
+    } else if (action === "alarm") {
+      await ctx.db.insert("studioCostAlarms", { day });
+    }
+
+    return { action, day, totalCostUsd };
+  },
+});
+
+/** Admin ekran sa prekidačem (P8); bez `SITE_URL`-a ostaje gola putanja. */
+function adminStudioLink() {
+  const siteUrl = String(env.SITE_URL ?? "").trim().replace(/\/$/, "");
+  return `${siteUrl}/sr/app/admin/studio`;
+}
+
+function alertBody(action: Exclude<GlobalCostAction, "none">, day: string, totalCostUsd: number) {
+  const spent = `${totalCostUsd.toFixed(2)} $`;
+  if (action === "alarm") {
+    return {
+      subject: `Studio: dnevni trošak ${spent} (alarm na ${GLOBAL_DAILY_ALARM_USD} $)`,
+      text: [
+        `Studio je na dan ${day} (UTC) potrošio ${spent} kod provajdera.`,
+        `Alarm je na ${GLOBAL_DAILY_ALARM_USD} $, a na ${GLOBAL_DAILY_KILL_USD} $ se Studio gasi sam.`,
+        "Ovaj mejl stiže najviše jednom dnevno, iako se provera vrti na 15 minuta.",
+        `Potrošnja: ${adminStudioLink()}`,
+      ].join("\n\n"),
+    };
+  }
+  return {
+    subject: `Studio je AUTOMATSKI UGAŠEN (dnevni trošak ${spent})`,
+    text: [
+      `Studio je ugašen: na dan ${day} (UTC) je potrošeno ${spent}, preko plafona od ${GLOBAL_DAILY_KILL_USD} $.`,
+      "Nove generacije od sada odbija `createJob` sa greškom STUDIO_PAUZIRAN. Poslovi koji su već krenuli idu do kraja.",
+      `Studio se vraća ručno: ${adminStudioLink()} -> prekidač za Studio.`,
+      "Dok traje isti UTC dan zbir se ne resetuje, pa se ručno upaljen Studio posle najviše 15 minuta gasi ponovo.",
+    ].join("\n\n"),
+  };
+}
+
+/**
+ * Mejl adminima, istim putem kao `emailVerification.ts`. **Nikad ne baca**:
+ * posledica u bazi je već upisana pre ovog poziva, pa greška ovde sme samo da
+ * se zaloguje. Zato i sam log nosi iznos - kad Resend ne radi, Convex log je
+ * jedini trag da je plafon opalio.
+ */
+async function sendGlobalCostEmail(
+  action: Exclude<GlobalCostAction, "none">,
+  day: string,
+  totalCostUsd: number,
+) {
+  const apiKey = String(env.AUTH_RESEND_KEY ?? "").trim();
+  const from = String(env.AUTH_RESEND_FROM ?? "").trim();
+  const to = [...parseAdminEmails(env.INITIAL_ADMIN_EMAILS)];
+  const { subject, text } = alertBody(action, day, totalCostUsd);
+
+  if (!apiKey || !from || to.length === 0) {
+    console.error("studio_cost_alert_not_configured", {
+      action,
+      day,
+      totalCostUsd,
+      hasApiKey: Boolean(apiKey),
+      hasFrom: Boolean(from),
+      recipients: to.length,
+    });
+    return;
+  }
+
+  try {
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ from, to, subject, text }),
+    });
+    if (!response.ok) {
+      console.error("studio_cost_alert_provider_error", {
+        action,
+        day,
+        totalCostUsd,
+        status: response.status,
+        providerRequestId: response.headers.get("x-request-id") ?? undefined,
+      });
+    }
+  } catch (error) {
+    console.error("studio_cost_alert_failed", { action, day, totalCostUsd }, error);
+  }
+}
+
+/**
+ * Peti cron (nalaz R1): dnevni limit po korisniku od 5 $ ne vidi zbir, pa je
+ * ovo jedina automatska zaštita nad ukupnim računom sva tri provajdera.
+ * Odluku donosi `decideGlobalCostAction` - ovde nema nijednog praga.
+ */
+export const enforceGlobalCostCap = internalAction({
+  args: {},
+  handler: async (ctx) => {
+    // Anotacija je obavezna: poziv ide na funkciju iz istog fajla, pa bi TS
+    // inače pukao na kružnoj referenci (Convex guidelines, "Function calling").
+    const outcome: { action: GlobalCostAction; day: string; totalCostUsd: number } =
+      await ctx.runMutation(internal.crons.applyGlobalCostAction, {});
+
+    if (outcome.action !== "none") {
+      await sendGlobalCostEmail(outcome.action, outcome.day, outcome.totalCostUsd);
+    }
+    return outcome;
+  },
+});
+
 const crons = cronJobs();
 
 crons.interval("studio: zaglavljeni poslovi", { minutes: 15 }, internal.crons.reapStuckJobs, {});
+// 15 minuta je najgori slučaj prekoračenja: toliko zbir sme da raste preko
+// plafona pre nego što se Studio ugasi. Isti period kao reaper iznad.
+// Ime crona mora biti ASCII (Convex: "use ASCII letters that are not control
+// characters"), zato "troska" bez kvačice - isto kao ostala četiri iznad.
+crons.interval(
+  "studio: globalni plafon troska",
+  { minutes: 15 },
+  internal.crons.enforceGlobalCostCap,
+  {},
+);
 // Google nema webhookove za video (STUDIO-CATALOG-V4 3.7), pa je ovo jedini put
 // kojim gotov Veo Fast ili Gemini Omni posao stiže do korisnika. Minut je Convex
 // minimum. `reapStuckJobs` iznad ostaje mreža ispod pollera i ne sme da se gasi:

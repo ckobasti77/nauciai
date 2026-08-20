@@ -1,12 +1,13 @@
 /// <reference types="vite/client" />
 
 import { convexTest } from "convex-test";
-import { expect, test } from "vitest";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { usableBalance } from "./creditsCore";
 import schema from "./schema";
+import { dayKey, STUDIO_FLAG_KEY } from "./studioCore";
 
 const modules = import.meta.glob("./**/*.ts");
 
@@ -18,6 +19,29 @@ const JOB_COST = 20;
 const GRANTED = 100;
 
 type JobStatus = "reserved" | "running" | "done" | "failed" | "refunded";
+
+// Globalni plafon troška čita Resend ključ i listu admina iz env-a; ostatak
+// fajla ih ne dira, ali se ipak vraćaju kakvi su bili (isti obrazac kao
+// `studioActions.test.ts`).
+const previousResendKey = process.env.AUTH_RESEND_KEY;
+const previousResendFrom = process.env.AUTH_RESEND_FROM;
+const previousAdmins = process.env.INITIAL_ADMIN_EMAILS;
+
+beforeEach(() => {
+  process.env.AUTH_RESEND_KEY = "re_test_key";
+  process.env.AUTH_RESEND_FROM = "Nauči AI <studio@nauciai.rs>";
+  process.env.INITIAL_ADMIN_EMAILS = "admin@example.com,drugi@example.com";
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  if (previousResendKey === undefined) delete process.env.AUTH_RESEND_KEY;
+  else process.env.AUTH_RESEND_KEY = previousResendKey;
+  if (previousResendFrom === undefined) delete process.env.AUTH_RESEND_FROM;
+  else process.env.AUTH_RESEND_FROM = previousResendFrom;
+  if (previousAdmins === undefined) delete process.env.INITIAL_ADMIN_EMAILS;
+  else process.env.INITIAL_ADMIN_EMAILS = previousAdmins;
+});
 
 async function seedUser(t: TestConvex) {
   return t.run((ctx) => ctx.db.insert("users", { email: "studio@example.com", name: "Student" }));
@@ -319,4 +343,219 @@ test("fajl kojem rok tek ističe se ne dira, a drugi prolaz nema šta da briše"
   expect(second).toEqual({ cleared: 0 });
   expect((await jobOf(t, future.jobId))?.outputStorageId).toBe(future.outputStorageId);
   expect(await fileUrl(t, future.outputStorageId)).not.toBeNull();
+});
+
+// ── 4. globalni dnevni plafon troška ───────────────────────────────────────
+
+/** Jedan red `studioUsageDaily`; `day` je podrazumevano današnji UTC dan. */
+async function seedUsage(t: TestConvex, costUsd: number, day = dayKey(Date.now())) {
+  const userId = await seedUser(t);
+  await t.run((ctx) =>
+    ctx.db.insert("studioUsageDaily", {
+      userId,
+      day,
+      generations: 1,
+      creditsSpent: 100,
+      costUsd,
+    }),
+  );
+  return userId;
+}
+
+/** Resend koji uvek uspe; `mock.calls` čuva telo svakog poziva. */
+function stubResendOk() {
+  const fetchMock = vi.fn(async () => ({
+    ok: true,
+    status: 200,
+    headers: { get: () => null },
+  }));
+  vi.stubGlobal("fetch", fetchMock as unknown as typeof fetch);
+  return fetchMock;
+}
+
+function sentEmails(fetchMock: ReturnType<typeof stubResendOk>) {
+  return fetchMock.mock.calls.map((call) =>
+    JSON.parse(String((call[1] as RequestInit).body)),
+  ) as Array<{ from: string; to: string[]; subject: string; text: string }>;
+}
+
+function studioEnabled(t: TestConvex) {
+  return t.run(async (ctx) => {
+    const flag = await ctx.db
+      .query("platformFlags")
+      .withIndex("by_key", (q) => q.eq("key", STUDIO_FLAG_KEY))
+      .unique();
+    return flag ? flag.enabled : true;
+  });
+}
+
+function alarmDays(t: TestConvex) {
+  return t.run(async (ctx) => {
+    const rows = await ctx.db.query("studioCostAlarms").collect();
+    return rows.map((row) => row.day);
+  });
+}
+
+test("ispod praga: nema mejla, nema alarm reda, Studio ostaje upaljen", async () => {
+  const t = convexTest(schema, modules);
+  await seedUsage(t, 30);
+  await seedUsage(t, 19.99);
+  const fetchMock = stubResendOk();
+
+  const result = await t.action(internal.crons.enforceGlobalCostCap, {});
+
+  expect(result.action).toBe("none");
+  expect(result.totalCostUsd).toBeCloseTo(49.99, 5);
+  expect(fetchMock).not.toHaveBeenCalled();
+  expect(await alarmDays(t)).toEqual([]);
+  expect(await studioEnabled(t)).toBe(true);
+});
+
+test("tačno na 50 $ se ne alarmira - prag je STROGO preko", async () => {
+  const t = convexTest(schema, modules);
+  await seedUsage(t, 50);
+  const fetchMock = stubResendOk();
+
+  expect((await t.action(internal.crons.enforceGlobalCostCap, {})).action).toBe("none");
+  expect(fetchMock).not.toHaveBeenCalled();
+  expect(await alarmDays(t)).toEqual([]);
+});
+
+test("preko 50 $: alarm ide adminima tačno jednom po danu, Studio ostaje upaljen", async () => {
+  const t = convexTest(schema, modules);
+  await seedUsage(t, 50.01);
+  const fetchMock = stubResendOk();
+
+  const first = await t.action(internal.crons.enforceGlobalCostCap, {});
+  const second = await t.action(internal.crons.enforceGlobalCostCap, {});
+  const third = await t.action(internal.crons.enforceGlobalCostCap, {});
+
+  expect(first.action).toBe("alarm");
+  expect(second.action).toBe("none");
+  expect(third.action).toBe("none");
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+  expect(await alarmDays(t)).toEqual([dayKey(Date.now())]);
+  // Alarm je poziv da neko pogleda, ne gašenje - Studio i dalje prima poslove.
+  expect(await studioEnabled(t)).toBe(true);
+
+  const [email] = sentEmails(fetchMock);
+  expect(email.to).toEqual(["admin@example.com", "drugi@example.com"]);
+  expect(email.subject).toContain("50.01");
+  expect(email.text).toContain(dayKey(Date.now()));
+});
+
+test("preko 100 $: flag se gasi i mejl kaže kako se Studio vraća", async () => {
+  const t = convexTest(schema, modules);
+  await seedUsage(t, 60);
+  await seedUsage(t, 40.5);
+  const fetchMock = stubResendOk();
+
+  const result = await t.action(internal.crons.enforceGlobalCostCap, {});
+
+  expect(result.action).toBe("kill");
+  expect(result.totalCostUsd).toBeCloseTo(100.5, 5);
+  expect(await studioEnabled(t)).toBe(false);
+  // Kill preskače alarm: skok sa nule na 100 $ u jednom prozoru ne ostavlja
+  // alarm red, i ne treba mu - ugašen Studio je sam sebi pamćenje.
+  expect(await alarmDays(t)).toEqual([]);
+
+  const [email] = sentEmails(fetchMock);
+  expect(email.subject).toContain("UGAŠEN");
+  expect(email.text).toContain("/sr/app/admin/studio");
+});
+
+test("već ugašen Studio se ne gasi drugi put i ne šalje drugi mejl", async () => {
+  const t = convexTest(schema, modules);
+  await seedUsage(t, 250);
+  const fetchMock = stubResendOk();
+
+  await t.action(internal.crons.enforceGlobalCostCap, {});
+  const second = await t.action(internal.crons.enforceGlobalCostCap, {});
+
+  expect(second.action).toBe("none");
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+  expect(await studioEnabled(t)).toBe(false);
+  const flags = await t.run((ctx) => ctx.db.query("platformFlags").collect());
+  expect(flags).toHaveLength(1);
+});
+
+test("ručno ugašen Studio ne dobija ni alarm preko 50 $", async () => {
+  const t = convexTest(schema, modules);
+  await seedUsage(t, 70);
+  await t.run((ctx) => ctx.db.insert("platformFlags", { key: STUDIO_FLAG_KEY, enabled: false }));
+  const fetchMock = stubResendOk();
+
+  expect((await t.action(internal.crons.enforceGlobalCostCap, {})).action).toBe("none");
+  expect(fetchMock).not.toHaveBeenCalled();
+  expect(await alarmDays(t)).toEqual([]);
+});
+
+test("nov dan resetuje i zbir i alarm", async () => {
+  const t = convexTest(schema, modules);
+  const yesterday = dayKey(Date.now() - DAY);
+  const today = dayKey(Date.now());
+  await seedUsage(t, 90, yesterday);
+  await t.run((ctx) => ctx.db.insert("studioCostAlarms", { day: yesterday }));
+  const fetchMock = stubResendOk();
+
+  // Jučerašnjih 90 $ danas ne postoji: zbir za današnji dan je nula.
+  const empty = await t.action(internal.crons.enforceGlobalCostCap, {});
+  expect(empty).toMatchObject({ action: "none", day: today, totalCostUsd: 0 });
+  expect(fetchMock).not.toHaveBeenCalled();
+
+  // Jučerašnji alarm red ne blokira današnji alarm.
+  await seedUsage(t, 55, today);
+  const fresh = await t.action(internal.crons.enforceGlobalCostCap, {});
+
+  expect(fresh.action).toBe("alarm");
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+  expect([...(await alarmDays(t))].sort()).toEqual([yesterday, today].sort());
+});
+
+test("Resend bez ključa ne sprečava gašenje Studija", async () => {
+  const t = convexTest(schema, modules);
+  await seedUsage(t, 140);
+  delete process.env.AUTH_RESEND_KEY;
+  const fetchMock = vi.fn();
+  vi.stubGlobal("fetch", fetchMock);
+
+  const result = await t.action(internal.crons.enforceGlobalCostCap, {});
+
+  expect(result.action).toBe("kill");
+  expect(fetchMock).not.toHaveBeenCalled();
+  expect(await studioEnabled(t)).toBe(false);
+});
+
+test("Resend koji vrati 500 ne sprečava gašenje Studija", async () => {
+  const t = convexTest(schema, modules);
+  await seedUsage(t, 140);
+  const fetchMock = vi.fn(async () => ({
+    ok: false,
+    status: 500,
+    headers: { get: () => "req_pukao" },
+  }));
+  vi.stubGlobal("fetch", fetchMock as unknown as typeof fetch);
+
+  const result = await t.action(internal.crons.enforceGlobalCostCap, {});
+
+  expect(result.action).toBe("kill");
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+  expect(await studioEnabled(t)).toBe(false);
+});
+
+test("Resend koji baci mrežnu grešku ne sprečava upis - alarm ostaje zapamćen", async () => {
+  const t = convexTest(schema, modules);
+  await seedUsage(t, 60);
+  const fetchMock = vi.fn(async () => {
+    throw new Error("ECONNRESET");
+  });
+  vi.stubGlobal("fetch", fetchMock as unknown as typeof fetch);
+
+  const result = await t.action(internal.crons.enforceGlobalCostCap, {});
+
+  // Alarm se pamti i kad mejl padne - inače bi pokvaren Resend značio isti
+  // pokušaj svakih 15 minuta do ponoći.
+  expect(result.action).toBe("alarm");
+  expect(await alarmDays(t)).toEqual([dayKey(Date.now())]);
+  expect((await t.action(internal.crons.enforceGlobalCostCap, {})).action).toBe("none");
 });
