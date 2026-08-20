@@ -37,9 +37,13 @@ export function useSlotUpload() {
       await registerUpload({ storageId: storageId as Id<"_storage">, slot });
 
       let measuredSeconds: number | undefined;
+      let measureFailure: string | undefined;
       if (canMeasure(file.type)) {
         const measured = await measureUpload({ storageId: storageId as Id<"_storage"> });
         if (measured.ok) measuredSeconds = measured.seconds;
+        // Razlog ide uz fajl umesto da se izgubi: bez njega korisnik vidi samo
+        // zaključano dugme i ne zna da mu je format kriv (X1 tačka 5).
+        else measureFailure = measured.reason;
       }
 
       return {
@@ -49,6 +53,7 @@ export function useSlotUpload() {
         size: file.size,
         url: URL.createObjectURL(file),
         ...(measuredSeconds !== undefined ? { measuredSeconds } : {}),
+        ...(measureFailure !== undefined ? { measureFailure } : {}),
       };
     },
     [createUploadUrl, measureUpload, registerUpload],

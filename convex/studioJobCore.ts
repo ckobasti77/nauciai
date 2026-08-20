@@ -9,6 +9,7 @@
  * živi na strani koja naplaćuje, a `lib/studio-slots.ts` ga uvozi.
  */
 
+import { lowerBoundSeconds, upperBoundSeconds } from "../lib/media-duration";
 import { isControlVisible, type ParamControl } from "./studioParamSpec";
 import type { PriceRule } from "./studioPricing";
 
@@ -276,12 +277,108 @@ export function measuredSlotsFor(source: QuantitySource): string[] {
 }
 
 /**
+ * Jedan okačen fajl u mernom slotu, onako kako stoji na redu `studioUploads`:
+ * šta ZAGLAVLJE tvrdi (`durationS`), i koliko fajl stvarno ima bajtova. Oba
+ * broja su upisana iz `_storage`, ne iz onoga što je klijent rekao (W4).
+ */
+export type MeasuredUpload = { seconds: number; bytes: number; mimeType?: string };
+
+/** Po čemu je naplaćeno trajanje ispalo onakvo kakvo jeste. */
+export type DurationSource = "header" | "lower_bound";
+
+export type BoundedSeconds =
+  | {
+      ok: true;
+      /** Sekunde po mernom slotu, posle donje granice - ulaz u `measuredQuantityFromSeconds`. */
+      seconds: Record<string, number>;
+      /** Zbir onoga što zaglavlja tvrde, preko svih mernih slotova. */
+      headerSeconds: number;
+      /** Zbir onoga po čemu se naplaćuje. Jednak `headerSeconds` kad zaglavlje nadjača granicu. */
+      billedSeconds: number;
+      durationSource: DurationSource;
+    }
+  | { ok: false; reason: string };
+
+/**
+ * Trajanje mernih slotova, provučeno kroz granice iz VELIČINE fajla (nalaz N2).
+ *
+ * Zaglavlje je metapodatak, a naplaćuje se medij: `mvhd.duration` prepravljen
+ * na 6 sekundi je i dalje fajl od 288 MB koji provajder obradi dva sata i
+ * naplati $72. Bajtovi se ne mogu lagati bez izbacivanja sadržaja, pa dva
+ * količnika iz `lib/media-duration.ts` zatvaraju obe strane:
+ *
+ * - `lowerBoundSeconds` (bajtovi / MAKSIMALAN bitrate) je najkraće trajanje
+ *   koje fajl te veličine može da ima. Kad nadjača zaglavlje, naplaćuje se ono
+ *   i posao nosi `durationSource: "lower_bound"` - po tome se kasnije prepoznaje
+ *   ko je pokušao.
+ * - `upperBoundSeconds` (bajtovi / MINIMALAN bitrate) je najduže trajanje koje
+ *   fajl te veličine može da ima. Zaglavlje iznad njega je nemoguće, pa posao
+ *   pada na `ZAGLAVLJE_NEMOGUCE` - to je suprotan napad, fajl od megabajta sa
+ *   zaglavljem od deset sati kojim se puni tuđi dnevni plafon.
+ *
+ * MIME tip koji nijedna tabela ne poznaje nema granicu i ostaje na zatečenom
+ * putu. Fajl bez pročitanog zaglavlja se ni ovde ne pojavljuje: granica podiže
+ * izmereno trajanje, ne izmišlja ga.
+ */
+export function boundedInputSeconds(
+  source: QuantitySource,
+  uploads: Record<string, MeasuredUpload[]>,
+): BoundedSeconds {
+  const seconds: Record<string, number> = {};
+  let headerSeconds = 0;
+  let billedSeconds = 0;
+  let raised = false;
+
+  for (const slot of measuredSlotsFor(source)) {
+    const files = Object.hasOwn(uploads, slot) ? uploads[slot] : undefined;
+    if (!files) continue;
+
+    let total = 0;
+    let measured = false;
+    for (const file of files) {
+      if (!Number.isFinite(file.seconds) || file.seconds <= 0) continue;
+
+      const mimeType = file.mimeType ?? "";
+      const impossible = upperBoundSeconds(file.bytes, mimeType);
+      if (impossible !== null && file.seconds > impossible) {
+        return { ok: false, reason: "ZAGLAVLJE_NEMOGUCE" };
+      }
+
+      let billable = file.seconds;
+      const floor = lowerBoundSeconds(file.bytes, mimeType);
+      if (floor !== null && floor > billable) {
+        billable = floor;
+        raised = true;
+      }
+
+      measured = true;
+      headerSeconds += file.seconds;
+      total += billable;
+    }
+    if (measured) {
+      seconds[slot] = total;
+      billedSeconds += total;
+    }
+  }
+
+  return {
+    ok: true,
+    seconds,
+    headerSeconds,
+    billedSeconds,
+    durationSource: raised ? "lower_bound" : "header",
+  };
+}
+
+/**
  * Trajanje mernih slotova, sabrano i prevedeno u jedinicu pravila.
  *
- * Ulaz su SEKUNDE koje je server izmerio iz zaglavlja fajla i upisao u
- * `studioUploads.durationS` (W5, `lib/media-duration.ts`) - ne ono što je
- * klijent pročitao iz `<video>` metapodataka. `stt` i `dubbing` primaju i video
- * i zvuk pod istim pravilom po minutu, pa se oba slota sabiraju.
+ * Ulaz su SEKUNDE koje je `boundedInputSeconds` već provukao kroz granice iz
+ * veličine fajla - dakle ono što je server pročitao iz zaglavlja
+ * (`studioUploads.durationS`, W5), podignuto na donju granicu kad je zaglavlje
+ * ispod nje. Ono što je klijent pročitao iz `<video>` metapodataka ne ulazi
+ * nigde. `stt` i `dubbing` primaju i video i zvuk pod istim pravilom po minutu,
+ * pa se oba slota sabiraju.
  *
  * `null` znači "nema se šta naplatiti": nijedan merni slot nije okačen, ili
  * nijedan okačen fajl nije izmeren (nepoznat format, nečitljivo zaglavlje).
@@ -314,6 +411,9 @@ export type MeasuredQuantity = { ok: true; quantity: number } | { ok: false; rea
  * i upiše sekunde uz sam upload; ovde stiže gotov broj. **Ono što je klijent
  * prijavio ne ulazi u ovu funkciju uopšte** - njegov broj služi samo da cena
  * na dugmetu stoji dok merenje ne stigne (nalaz R3).
+ *
+ * Granice iz veličine fajla su primenjene pre ovoga, u `boundedInputSeconds` -
+ * ovde stiže već podignut broj, a fajl sa nemogućim zaglavljem uopšte ne stiže.
  *
  * Kapije, ovim redom:
  * 1. `MERENJE_NIJE_DOSTUPNO` - nema izmerenog trajanja: nijedan merni slot nije

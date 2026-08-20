@@ -15,6 +15,7 @@ import {
 import { useSlotUpload } from "@/components/studio/use-slot-upload";
 import { cn } from "@/components/ui/primitives";
 import type { Locale } from "@/lib/i18n";
+import { measureFailureMessage } from "@/lib/studio-messages";
 import {
   FRAME_LABELS,
   slotKind,
@@ -111,6 +112,12 @@ function useSlotIntake({
             setPending({ name: file.name, progress: fraction }),
           );
           accepted.push(uploaded);
+          // Fajl je gore, ali mu se dužina ne čita - a po dužini se naplaćuje.
+          // Upload nije neuspeo, pa se fajl zadržava; razlog se kaže odmah, da
+          // korisnik ne gleda u zaključano dugme bez objašnjenja (X1).
+          if (uploaded.measureFailure !== undefined) {
+            setError(measureFailureMessage(uploaded.measureFailure, locale));
+          }
         } catch {
           setError(
             locale === "sr"

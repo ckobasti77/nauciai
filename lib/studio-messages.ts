@@ -131,6 +131,17 @@ const CREATE_JOB_ERROR_MESSAGES: Array<[string, { sr: string; en: string }]> = [
     },
   ],
   [
+    // Zaglavlje tvrdi duže nego što fajl te veličine fizički može da traje
+    // (X1): megabajt zvuka ne nosi deset sati. Ili je fajl pokvaren pri
+    // izvozu, ili je zaglavlje dirano - poruka govori o prvom, jer se drugom
+    // ionako ne obraćamo.
+    "ZAGLAVLJE_NEMOGUCE",
+    {
+      sr: "Zaglavlje snimka tvrdi dužinu koja ne odgovara veličini fajla. Izvezi snimak ponovo, kao MP4 ili WAV, pa ga okači.",
+      en: "The recording's header claims a length that does not match the file size. Export the recording again, as MP4 or WAV, and upload it.",
+    },
+  ],
+  [
     "NEISPRAVNI_PARAMETRI",
     {
       sr: "Podešavanja nisu ispravna. Osveži stranicu i pokušaj ponovo.",
@@ -147,6 +158,37 @@ export function studioErrorMessage(raw: string, locale: Locale): string {
   return locale === "sr"
     ? "Generacija nije pokrenuta. Pokušaj ponovo za koji trenutak."
     : "The generation did not start. Try again in a moment.";
+}
+
+/**
+ * Zašto merenje okačenog fajla nije uspelo.
+ *
+ * `studioActions.measureInputUpload` vraća ishod umesto da baca - fajl JESTE
+ * gore i vidi se - ali razlog do sada nije stizao do ekrana, pa je korisnik
+ * ostajao sa zaključanim dugmetom i opštom rečenicom. Svaki razlog ima svoj
+ * sledeći korak, jer se razlikuju: nepodržan format se menja izvozom, VBR MP3
+ * se menja tarifom, odsečeno zaglavlje ponovnim izvozom.
+ */
+export function measureFailureMessage(reason: string, locale: Locale): string {
+  if (reason === "VBR_NEPOUZDAN") {
+    return locale === "sr"
+      ? "Ovaj MP3 nema upisano trajanje, a bitrate mu se menja, pa dužinu ne možemo da izmerimo tačno. Izvezi ga kao MP3 sa stalnim bitrate-om ili kao WAV."
+      : "This MP3 has no recorded length and its bitrate varies, so we cannot measure it accurately. Export it as a constant-bitrate MP3 or as a WAV.";
+  }
+  if (reason === "ZAGLAVLJE_NIJE_PROCITANO") {
+    return locale === "sr"
+      ? "Ne mogu da pročitam trajanje snimka. Probaj da ga izvezeš kao MP4 ili WAV."
+      : "I cannot read the length of this recording. Try exporting it as MP4 or WAV.";
+  }
+  if (reason === "NEPOZNAT_FORMAT") {
+    return locale === "sr"
+      ? "Ovaj format ne umemo da izmerimo, a po dužini se naplaćuje. Okači MP4, MOV, WebM, WAV ili MP3."
+      : "We cannot measure this format, and the length is what it is charged by. Upload MP4, MOV, WebM, WAV or MP3.";
+  }
+
+  return locale === "sr"
+    ? "Merenje dužine snimka nije uspelo. Okači fajl ponovo pa pokušaj opet."
+    : "Measuring the length of the recording failed. Upload the file again and try once more.";
 }
 
 /**

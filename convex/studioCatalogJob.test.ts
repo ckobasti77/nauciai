@@ -5,6 +5,7 @@ import { expect, test, vi } from "vitest";
 
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
+import { MIN_PLAUSIBLE_BITRATE_BPS } from "../lib/media-duration";
 import { STUDIO_MODELS } from "./providers/catalogModels";
 import type { StudioModelSeed } from "./providers/modelSeed";
 import schema from "./schema";
@@ -138,8 +139,15 @@ async function storeFile(as: TestUser, type: string, bytes = 1, slot = type.spli
  * MP4 fajl čiji `mvhd` atom tvrdi tačno zadato trajanje - jedini podatak koji
  * `measureInputUpload` iz njega čita. Skala je 1 000 otkucaja u sekundi, pa
  * 4,2 s ide kao 4 200 otkucaja i deljenje je tačno.
+ *
+ * Fajl se dopunjava nulama do veličine koju gornja granica iz X1 traži: sedam
+ * minuta zvuka u fajlu od 150 bajtova je fizički nemoguće i `createJob` ga sada
+ * odbija sa `ZAGLAVLJE_NEMOGUCE`, pa fixture mora da bude bar toliko velik
+ * koliko medij te dužine mora da bude. `padBytes` tu veličinu prepisuje: nula
+ * pravi baš takav nemoguć fajl, a veći broj fajl na kojem donja granica
+ * nadjačava zaglavlje.
  */
-function mp4Bytes(seconds: number): Uint8Array {
+function mp4Bytes(seconds: number, type: string, padBytes?: number): Uint8Array {
   const u32 = (value: number) => [
     (value >>> 24) & 0xff,
     (value >>> 16) & 0xff,
@@ -161,7 +169,7 @@ function mp4Bytes(seconds: number): Uint8Array {
     ...new Array(80).fill(0),
   ];
 
-  return Uint8Array.from([
+  const header = Uint8Array.from([
     ...u32(16),
     ...chars("ftyp"),
     ...chars("isom"),
@@ -170,6 +178,14 @@ function mp4Bytes(seconds: number): Uint8Array {
     ...chars("moov"),
     ...mvhd,
   ]);
+
+  // Jedan bajt preko granice, da zaokruživanje ne odlučuje ishod testa.
+  const minBytes = padBytes ?? Math.ceil((seconds * (MIN_PLAUSIBLE_BITRATE_BPS[type] ?? 0)) / 8) + 1;
+  if (header.length >= minBytes) return header;
+  const padded = new Uint8Array(minBytes);
+  padded.set(header, 0);
+
+  return padded;
 }
 
 /**
@@ -178,10 +194,28 @@ function mp4Bytes(seconds: number): Uint8Array {
  * zahtevom preko potpisanog URL-a, pa se `fetch` zamenjuje serverom koji taj
  * zahtev poštuje nad istim bajtovima koji su i upisani.
  */
-async function storeMeasured(as: TestUser, type: string, seconds: number, slot = type.split("/")[0]) {
-  const data = mp4Bytes(seconds);
+async function storeMeasured(
+  as: TestUser,
+  type: string,
+  seconds: number,
+  // Veličina fajla, kad je baš ona predmet testa (granice iz X1). Bez nje se
+  // fajl dopunjava do najmanje veličine koju zaglavlje čini mogućom.
+  padBytes?: number,
+  slot = type.split("/")[0],
+) {
+  const data = mp4Bytes(seconds, type, padBytes);
   const storageId = await as.run((ctx) => ctx.storage.store(new Blob([data], { type })));
   await as.mutation(api.studio.registerInputUpload, { storageId, slot });
+  // `convex-test` ne prenosi `contentType` u `_storage` metapodatke, pa red
+  // ostane bez `mimeType`-a - a granice iz X1 se računaju baš po njemu. U
+  // produkciji ga upisuje sam `registerInputUpload`, iz `_storage`.
+  await as.run(async (ctx) => {
+    const upload = await ctx.db
+      .query("studioUploads")
+      .withIndex("by_storage", (q) => q.eq("storageId", storageId))
+      .first();
+    if (upload) await ctx.db.patch(upload._id, { mimeType: type });
+  });
 
   vi.stubGlobal("fetch", rangeServer(data));
   try {
@@ -465,6 +499,99 @@ test("fajl čije se zaglavlje ne čita ostaje neizmeren i posao na njemu pada", 
       inputs: JSON.stringify({ audio: [storageId] }),
     }),
   ).rejects.toThrow("MERENJE_NIJE_DOSTUPNO");
+
+  expect(await jobsOf(t, userId)).toHaveLength(0);
+  expect(await balanceOf(t, userId)).toBe(100000);
+});
+
+test("fajl veći nego što mu zaglavlje tvrdi se naplaćuje po donjoj granici", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedUser(t);
+  await seedCatalogModel(t, "kling-avatar");
+  // Zaglavlje kaže sekundu, a u fajlu je 200 kB zvuka - na 512 kbps, najvišoj
+  // tarifi koju AAC nosi, to je 3,125 s. Naplaćuje se granica, ne zaglavlje.
+  const { storageId: audio, measured } = await storeMeasured(asUser, "audio/mp4", 1, 200_000);
+  const image = await storeFile(asUser, "image/png");
+
+  // Merenje i dalje vraća ono što u zaglavlju piše - granica je stvar naplate.
+  expect(measured).toEqual({ ok: true, seconds: 1 });
+
+  await asUser.mutation(api.studio.createJob, {
+    modelSlug: "kling-avatar",
+    params: JSON.stringify({ quality: "720p" }),
+    inputMode: "image_audio",
+    inputs: JSON.stringify({ image: [image], audio: [audio] }),
+  });
+
+  const jobs = await jobsOf(t, userId);
+  const params = JSON.parse(jobs[0].params) as Record<string, unknown>;
+  expect(params.duration).toBe(4);
+  expect(jobs[0].creditCost).toBe(
+    computeCredits(seedOf("kling-avatar").priceRule, params, "image_audio"),
+  );
+  // Trag ostaje uz posao: po `durationSource`-u se prepoznaje ko je zaglavlje
+  // prepravljao, a oba broja kažu koliko je razlika bila.
+  expect(jobs[0].durationSource).toBe("lower_bound");
+  expect(jobs[0].headerDurationS).toBe(1);
+  expect(jobs[0].billedDurationS).toBeCloseTo(3.125, 3);
+});
+
+test("pošten fajl nosi `durationSource: header` i nijedan drugi broj", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedUser(t);
+  await seedCatalogModel(t, "kling-motion");
+  const { storageId: video } = await storeMeasured(asUser, "video/mp4", 9);
+  const image = await storeFile(asUser, "image/png");
+
+  await asUser.mutation(api.studio.createJob, {
+    modelSlug: "kling-motion",
+    params: JSON.stringify({ resolution: "720p" }),
+    inputMode: "video_image",
+    inputs: JSON.stringify({ video: [video], image: [image] }),
+  });
+
+  const jobs = await jobsOf(t, userId);
+  expect((JSON.parse(jobs[0].params) as Record<string, unknown>).duration).toBe(9);
+  expect(jobs[0].durationSource).toBe("header");
+  // Kad zaglavlje pobedi, oba broja bi bila isti podatak koji već stoji u
+  // naplaćenoj količini - ne upisuju se.
+  expect(jobs[0].headerDurationS).toBeUndefined();
+  expect(jobs[0].billedDurationS).toBeUndefined();
+});
+
+test("posao bez merene količine nema izvor trajanja", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedUser(t);
+  await seedCatalogModel(t, "nano-banana-2");
+
+  await asUser.mutation(api.studio.createJob, {
+    modelSlug: "nano-banana-2",
+    params: JSON.stringify({ prompt: "lisica u snegu", resolution: "2K" }),
+    inputMode: "text",
+  });
+
+  const jobs = await jobsOf(t, userId);
+  expect(jobs[0].durationSource).toBeUndefined();
+});
+
+test("zaglavlje duže nego što fajl te veličine može da traje obara posao pre naplate", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedUser(t);
+  await seedCatalogModel(t, "dubbing");
+  // Deset sati u fajlu od dvesta bajtova: `studioUsageDaily` bi upisao 600
+  // minuta i pojeo tuđi dnevni plafon, a fal ne bi obradio ništa.
+  const { storageId: audio, measured } = await storeMeasured(asUser, "audio/mp4", 36_000, 0);
+
+  expect(measured).toEqual({ ok: true, seconds: 36_000 });
+
+  await expect(
+    asUser.mutation(api.studio.createJob, {
+      modelSlug: "dubbing",
+      params: JSON.stringify({ target_language: "en" }),
+      inputMode: "audio",
+      inputs: JSON.stringify({ audio: [audio] }),
+    }),
+  ).rejects.toThrow("ZAGLAVLJE_NEMOGUCE");
 
   expect(await jobsOf(t, userId)).toHaveLength(0);
   expect(await balanceOf(t, userId)).toBe(100000);

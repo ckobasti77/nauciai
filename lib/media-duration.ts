@@ -15,7 +15,7 @@
  * |---|---|
  * | MP4 / M4A / MOV | `mvhd` atom: `duration / timescale` |
  * | WAV | `fmt ` daje `byteRate`, `data` veličinu: `dataSize / byteRate` |
- * | MP3 | Xing/VBRI broj frejmova, ili procena iz bitrate-a prvog frejma |
+ * | MP3 | Xing/VBRI broj frejmova, ili procena iz prosečnog bitrate-a |
  * | WebM / MKV | `Duration` i `TimecodeScale` iz `Info` segmenta |
  *
  * Ono što se ne prepozna ili ne pročita NE pada na neku pretpostavku - vraća
@@ -33,8 +33,10 @@ export type DurationRead =
  * `NEPOZNAT_FORMAT` - potpis na početku nije nijedan od četiri.
  * `ZAGLAVLJE_NIJE_PROCITANO` - format je prepoznat, ali polja sa trajanjem
  * nema u ovom opsegu bajtova (odsečen fajl, ili `moov` na kraju fajla).
+ * `VBR_NEPOUZDAN` - MP3 bez Xing/VBRI zaglavlja čiji se bitrate menja više od
+ * dvostruko: procena iz proseka bi bila broj, ali ne bi bila tačan broj (X1).
  */
-export type DurationFailure = "NEPOZNAT_FORMAT" | "ZAGLAVLJE_NIJE_PROCITANO";
+export type DurationFailure = "NEPOZNAT_FORMAT" | "ZAGLAVLJE_NIJE_PROCITANO" | "VBR_NEPOUZDAN";
 
 /**
  * Koliko bajtova sa početka odnosno kraja fajla je dovoljno.
@@ -66,15 +68,105 @@ export const MEASURABLE_MIME: Record<string, MediaFormat> = {
   "audio/webm": "webm",
 };
 
+/** `audio/webm;codecs=opus` je isti tip kao `audio/webm` - parametri ne biraju format. */
+function normalizeMime(mimeType: string): string {
+  return mimeType.split(";")[0].trim().toLowerCase();
+}
+
 export function canMeasure(mimeType: string): boolean {
-  return Object.hasOwn(MEASURABLE_MIME, mimeType.split(";")[0].trim().toLowerCase());
+  return Object.hasOwn(MEASURABLE_MIME, normalizeMime(mimeType));
+}
+
+/**
+ * Najveći bitrate koji format ume da nosi, u bitovima po sekundi.
+ *
+ * Ovo je fizika koju zaglavlje ne može da slaže: fajl od N bajtova ne može da
+ * traje kraće od `N * 8 / MAKSIMALAN_BITRATE`. Napadač sme da prepravi
+ * `mvhd.duration` na 6 sekundi, ali ne sme da smanji fajl - unutra ostaje medij
+ * koji provajder obradi i naplati. Zato je taj količnik DONJA granica trajanja
+ * i uzima se kad nadjača zaglavlje (nalaz N2).
+ *
+ * Broj sme da promaši naviše (blaža granica, ništa se ne dešava), ne naniže:
+ * granica ispod stvarnog bitrate-a formata bi poštenom fajlu izračunala duže
+ * trajanje nego što traje i naplatila ga.
+ */
+export const MAX_PLAUSIBLE_BITRATE_BPS: Record<string, number> = {
+  // MP3 standard ne poznaje tarifu iznad 320 kbps ni na jednom sloju.
+  "audio/mpeg": 320_000,
+  // 24 bita x 96 kHz x stereo = 4,6 Mbps je gornji rub PCM-a koji se sreće;
+  // 3 Mbps pokriva 24/96 mono i 16/96 stereo, a sve preko toga je studijski
+  // master koji na ovaj upload ne stiže.
+  "audio/wav": 3_072_000,
+  "audio/x-wav": 3_072_000,
+  // AAC praktičan maksimum: 256 kbps stereo je gornji rub isporuke, 512 kbps
+  // je duplo toliko.
+  "audio/mp4": 512_000,
+  // Opus praktičan maksimum - 510 kbps je granica samog kodeka.
+  "audio/webm": 512_000,
+  // Gornji rub H.264/H.265 isporuke.
+  "video/mp4": 50_000_000,
+  // ProRes 422 HQ na 4K ume 200 Mbps, i takav fajl stiže baš kao QuickTime.
+  "video/quicktime": 200_000_000,
+  // VP9/AV1 isporuka ne prelazi 50 Mbps.
+  "video/webm": 50_000_000,
+};
+
+/**
+ * Najmanji bitrate koji format ume da nosi, u bitovima po sekundi.
+ *
+ * Ista fizika sa druge strane: fajl od N bajtova ne može da traje duže od
+ * `N * 8 / MINIMALAN_BITRATE`. Time se hvata suprotan napad od donje granice -
+ * fajl od jednog megabajta sa zaglavljem koje tvrdi deset sati, kojim se pune
+ * tudji dnevni plafon i `studioUsageDaily`.
+ *
+ * Vrednosti su namerno niske: granica sme da propusti previše (napad se hvata
+ * tek kad je očigledan), ne sme da odbije pošten fajl.
+ */
+export const MIN_PLAUSIBLE_BITRATE_BPS: Record<string, number> = {
+  // Govor u najlošijem kvalitetu koji se još čuje ide oko 8 kbps.
+  "audio/mpeg": 8_000,
+  "audio/wav": 8_000,
+  "audio/x-wav": 8_000,
+  "audio/mp4": 8_000,
+  "audio/webm": 8_000,
+  // Video ispod 100 kbps nije video - to je slajd šou u pokretu.
+  "video/mp4": 100_000,
+  "video/quicktime": 100_000,
+  "video/webm": 100_000,
+};
+
+/**
+ * Najkraće trajanje koje fajl te veličine u tom formatu može da ima.
+ *
+ * `null` za MIME tip koji nije u tabeli: bez poznatog bitrate-a nema granice,
+ * pa ostaje zatečeni put (naplaćuje se ono što zaglavlje kaže).
+ */
+export function lowerBoundSeconds(bytes: number, mimeType: string): number | null {
+  return boundSeconds(bytes, mimeType, MAX_PLAUSIBLE_BITRATE_BPS);
+}
+
+/** Najduže trajanje koje fajl te veličine u tom formatu može da ima. */
+export function upperBoundSeconds(bytes: number, mimeType: string): number | null {
+  return boundSeconds(bytes, mimeType, MIN_PLAUSIBLE_BITRATE_BPS);
+}
+
+function boundSeconds(
+  bytes: number,
+  mimeType: string,
+  rates: Record<string, number>,
+): number | null {
+  const mime = normalizeMime(mimeType);
+  if (!Object.hasOwn(rates, mime)) return null;
+  if (!Number.isFinite(bytes) || bytes <= 0) return null;
+
+  return (bytes * 8) / rates[mime];
 }
 
 /**
  * Trajanje u sekundama iz datog opsega bajtova.
  *
  * `totalBytes` je veličina CELOG fajla i koristi se samo za MP3 bez Xing/VBRI
- * zaglavlja, gde se trajanje procenjuje iz bitrate-a prvog frejma.
+ * zaglavlja, gde se trajanje procenjuje iz prosečnog bitrate-a.
  *
  * Opseg ne mora da bude početak fajla: kad potpisa nema, traži se `mvhd` po
  * potpisu, pa isti poziv radi i nad poslednjih pola megabajta MP4 fajla.
@@ -296,8 +388,8 @@ function isMp3(bytes: Uint8Array): boolean {
  *
  * VBR enkoderi ga daju posredno: Xing/Info (LAME) ili VBRI (Fraunhofer)
  * zaglavlje u PRVOM frejmu nosi broj frejmova, a frejm traje uvek isto
- * (1152 uzorka na MPEG 1, 576 na MPEG 2). CBR fajl nema ni jedno ni drugo, pa
- * se trajanje računa iz bitrate-a prvog frejma i veličine fajla.
+ * (1152 uzorka na MPEG 1, 576 na MPEG 2). Fajl bez oba zaglavlja se procenjuje
+ * iz veličine i prosečnog bitrate-a prošetanih frejmova (`scanFrames`).
  */
 function readMp3(bytes: Uint8Array, totalBytes: number): DurationRead {
   const failed: DurationRead = { ok: false, format: "mp3", reason: "ZAGLAVLJE_NIJE_PROCITANO" };
@@ -326,9 +418,66 @@ function readMp3(bytes: Uint8Array, totalBytes: number): DurationRead {
     if (frames > 0) return mp3Seconds(frames, frame);
   }
 
-  if (frame.bitrate <= 0 || totalBytes <= start) return failed;
+  if (totalBytes <= start) return failed;
 
-  return { ok: true, format: "mp3", seconds: ((totalBytes - start) * 8) / frame.bitrate };
+  // Bitrate PRVOG frejma nije bitrate fajla, pa se procenjuje iz proseka.
+  const scan = scanFrames(bytes, at);
+  if (!scan) return failed;
+  // Prosek nad rasponom širim od dvostrukog nije procena nego pogađanje.
+  // Trajanje se odbija, a posao pada na `MERENJE_NIJE_DOSTUPNO` - donja granica
+  // iz veličine fajla (`lowerBoundSeconds`) samo podiže pročitano trajanje, ne
+  // izmišlja ga tamo gde ga nema.
+  if (scan.max > scan.min * 2) return { ok: false, format: "mp3", reason: "VBR_NEPOUZDAN" };
+
+  return { ok: true, format: "mp3", seconds: ((totalBytes - start) * 8) / scan.average };
+}
+
+/** Koliko frejmova se prošeta radi proseka - dovoljno za oko pet sekundi zvuka. */
+const MP3_SCAN_FRAMES = 200;
+
+/**
+ * Prosečan bitrate prošetanih frejmova i raspon u kojem se kretao.
+ *
+ * Do ovog koraka se trajanje CBR fajla računalo iz bitrate-a prvog frejma. VBR
+ * fajl bez Xing/VBRI zaglavlja čiji je prvi frejm 320 kbps a ostatak 32 kbps
+ * tako prijavi desetinu stvarnog trajanja - a to je legalan MP3 koji svaki
+ * enkoder ume da napravi, i jedini put na kojem je parser vraćao POGREŠAN broj
+ * umesto da odbije posao (nalaz R3 tačka 2).
+ *
+ * `null` znači da nijedan frejm nije pročitan; CBR fajl daje raspon od jednog
+ * broja i isti rezultat kao ranije.
+ */
+function scanFrames(
+  bytes: Uint8Array,
+  from: number,
+): { average: number; min: number; max: number } | null {
+  let at = from;
+  let total = 0;
+  let count = 0;
+  let min = Number.POSITIVE_INFINITY;
+  let max = 0;
+
+  while (count < MP3_SCAN_FRAMES) {
+    const frame = parseFrameHeader(bytes, at);
+    if (!frame || frame.bitrate <= 0) break;
+
+    total += frame.bitrate;
+    count += 1;
+    if (frame.bitrate < min) min = frame.bitrate;
+    if (frame.bitrate > max) max = frame.bitrate;
+
+    // Dužina frejma u bajtovima: `uzoraka / 8 * bitrate / učestanost`, plus
+    // bajt dopune kad deljenje ne izlazi (bit 1 trećeg bajta zaglavlja).
+    const padding = (bytes[at + 2] & 0x02) !== 0 ? 1 : 0;
+    const length =
+      Math.floor((frame.samplesPerFrame / 8) * (frame.bitrate / frame.sampleRate)) + padding;
+    if (length <= 4) break;
+    at += length;
+  }
+
+  if (count === 0) return null;
+
+  return { average: total / count, min, max };
 }
 
 type Mp3Frame = { sampleRate: number; samplesPerFrame: number; bitrate: number; xingOffset: number };

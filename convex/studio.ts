@@ -17,10 +17,13 @@ import { getCurrentProfile, requireUserId } from "./helpers";
 import { applyTaskCompletion, assertLessonAccess } from "./lab";
 import { parseJobInputs } from "./providers/jobInputs";
 import {
+  boundedInputSeconds,
+  type DurationSource,
   extraCounts,
   hasVideoInput,
   type JobInputs,
   jobInputStorageIds,
+  type MeasuredUpload,
   measuredQuantityFromSeconds,
   parseClientInputs,
   parseContinuationSource,
@@ -78,6 +81,10 @@ type PricedOrder = {
   inputs?: string;
   /** Redovi `studioUploads` koje ovaj posao veže za sebe - njima se sklanja `expiresAt`. */
   uploadIds: Array<Id<"studioUploads">>;
+  /** Odakle je došlo trajanje po kojem je naplaćeno (X1, nalaz N2). */
+  durationSource?: DurationSource;
+  headerDurationS?: number;
+  billedDurationS?: number;
 };
 
 /**
@@ -92,24 +99,25 @@ type PricedOrder = {
  * koji uopšte ne postoji nema svoj red, pa više ne prolazi kroz naplatu da bi
  * pao tek na predaji posla i vratio se kroz refund.
  *
- * `seconds` je trajanje koje je `studioActions.measureInputUpload` pročitao iz
- * zaglavlja fajla. Slot bez ijednog izmerenog fajla nema svoj ključ, pa posao
- * koji se po trajanju naplaćuje pada na `MERENJE_NIJE_DOSTUPNO` umesto da se
- * naplati po broju koji je poslao klijent.
+ * `files` nosi trajanje koje je `studioActions.measureInputUpload` pročitao iz
+ * zaglavlja fajla, zajedno sa veličinom i MIME tipom iz `_storage` - granice iz
+ * X1 traže sva tri broja, jer zaglavlje samo tvrdi, a bajtovi dokazuju. Slot bez
+ * ijednog izmerenog fajla nema svoj ključ, pa posao koji se po trajanju
+ * naplaćuje pada na `MERENJE_NIJE_DOSTUPNO` umesto da se naplati po broju koji
+ * je poslao klijent.
  */
 async function ownedInputUploads(
   ctx: MutationCtx,
   userId: Id<"users">,
   inputs: JobInputs,
-): Promise<{ seconds: Record<string, number>; uploadIds: Array<Id<"studioUploads">> }> {
-  const seconds: Record<string, number> = {};
+): Promise<{ files: Record<string, MeasuredUpload[]>; uploadIds: Array<Id<"studioUploads">> }> {
+  const files: Record<string, MeasuredUpload[]> = {};
   const uploadIds: Array<Id<"studioUploads">> = [];
 
   for (const [slot, ids] of Object.entries(inputs)) {
     if (ids.length === 0) continue;
 
-    let total = 0;
-    let measured = false;
+    const measured: MeasuredUpload[] = [];
     for (const rawId of ids) {
       // `normalizeId` pre upita: niz koji nije `_storage` ID nema šta da traži
       // u indeksu, a dolazi sa klijenta.
@@ -124,14 +132,17 @@ async function ownedInputUploads(
       if (!upload || upload.userId !== userId) throw new Error("TUDJI_FAJL");
       uploadIds.push(upload._id);
       if (upload.durationS !== undefined && upload.durationS > 0) {
-        measured = true;
-        total += upload.durationS;
+        measured.push({
+          seconds: upload.durationS,
+          bytes: upload.bytes,
+          ...(upload.mimeType !== undefined ? { mimeType: upload.mimeType } : {}),
+        });
       }
     }
-    if (measured) seconds[slot] = total;
+    if (measured.length > 0) files[slot] = measured;
   }
 
-  return { seconds, uploadIds };
+  return { files, uploadIds };
 }
 
 /**
@@ -179,19 +190,34 @@ async function buildCatalogOrder(
   // pa se dopisuju ovde, posle kapije. Ono što forma pošalje pod tim ključevima
   // `sanitizeSpecParams` je već izbacio.
   const source = parseQuantitySource(model.capabilities);
+  let duration: { source: DurationSource; headerSeconds: number; billedSeconds: number } | null =
+    null;
   if (source) {
     // Naplaćuje se trajanje koje je SERVER pročitao iz zaglavlja okačenog fajla
     // - isti princip po kojem se `extras` broje iz `inputs`-a, a ne iz onoga
     // što je klijent naveo. Sekunde su već pročitane iznad, uz proveru
     // vlasništva; slot bez ijednog izmerenog fajla nema svoj ključ, pa posao
     // pada na `MERENJE_NIJE_DOSTUPNO`.
+    //
+    // Zaglavlje samo tvrdi, pa pre naplate ide kroz granice iz veličine fajla
+    // (nalaz N2): prekratko se podiže na donju granicu, nemoguće obara posao.
+    const bounded = boundedInputSeconds(source, uploads.files);
+    if (!bounded.ok) throw new Error(bounded.reason);
     const measured = resolveMeasuredQuantity(
       source,
       params,
-      measuredQuantityFromSeconds(source, uploads.seconds),
+      measuredQuantityFromSeconds(source, bounded.seconds),
     );
     if (!measured.ok) throw new Error(measured.reason);
     params[source.param] = measured.quantity;
+    // Modeli koji se mere iz TEKSTA nemaju trajanje, pa nemaju ni izvor.
+    if (bounded.headerSeconds > 0) {
+      duration = {
+        source: bounded.durationSource,
+        headerSeconds: bounded.headerSeconds,
+        billedSeconds: bounded.billedSeconds,
+      };
+    }
   }
   Object.assign(params, extraCounts(rule, inputs.inputs));
 
@@ -258,6 +284,20 @@ async function buildCatalogOrder(
     inputMode,
     uploadIds: uploads.uploadIds,
     ...(storageIds.length > 0 ? { inputs: JSON.stringify(inputs.inputs) } : {}),
+    // Oba broja se pamte samo kad je donja granica nadjačala zaglavlje: tada
+    // razlika između njih JESTE nalaz, a kad zaglavlje pobedi, `headerDurationS`
+    // bi bio isti podatak koji već stoji u naplaćenoj količini.
+    ...(duration
+      ? {
+          durationSource: duration.source,
+          ...(duration.source === "lower_bound"
+            ? {
+                headerDurationS: duration.headerSeconds,
+                billedDurationS: duration.billedSeconds,
+              }
+            : {}),
+        }
+      : {}),
   };
 }
 
@@ -434,6 +474,16 @@ export const createJob = mutation({
       estimatedCostUsd,
       ...(order.inputMode ? { inputMode: order.inputMode } : {}),
       ...(order.inputs ? { inputs: order.inputs } : {}),
+      // Po čemu je naplaćeno trajanje ispalo onakvo kakvo jeste (X1). Kad je
+      // donja granica iz bajtova nadjačala zaglavlje, uz posao stoje i oba
+      // broja - to je jedini trag o tome ko je zaglavlje prepravljao.
+      ...(order.durationSource ? { durationSource: order.durationSource } : {}),
+      ...(order.headerDurationS !== undefined
+        ? { headerDurationS: order.headerDurationS }
+        : {}),
+      ...(order.billedDurationS !== undefined
+        ? { billedDurationS: order.billedDurationS }
+        : {}),
       ...(args.lessonId ? { lessonId: args.lessonId } : {}),
       ...(args.taskId ? { taskId: args.taskId } : {}),
       createdAt: now,

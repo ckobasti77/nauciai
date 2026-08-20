@@ -36,6 +36,13 @@ export type SlotFile = {
    * zaključano na modelima koji se po trajanju naplaćuju.
    */
   measuredSeconds?: number;
+  /**
+   * Zašto merenje nije uspelo, kad nije (`ZAGLAVLJE_NIJE_PROCITANO`,
+   * `VBR_NEPOUZDAN`, `NEPOZNAT_FORMAT`). Upload JESTE prošao, pa fajl stoji u
+   * slotu - ali dugme na modelu koji se naplaćuje po dužini ostaje zaključano,
+   * i korisnik mora da sazna zbog čega (`measureFailureMessage`).
+   */
+  measureFailure?: string;
 };
 
 /** Sadržaj svih slotova jednog režima: `{ image: [...], audio: [...] }`. */

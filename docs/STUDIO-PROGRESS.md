@@ -5447,3 +5447,148 @@ tabela u sekciji 3 izvestaja.
    Dok je tako, alarm na odstupanje preko 30% - jedini detektor za N2 - ne radi.
 6. **Istorija grane ima dva duplirana commit-a** (W4 i W5 po dva sa skoro istom
    porukom). Vredi squash pre merge-a u `main`.
+
+## X1 - Donja i gornja granica trajanja iz velicine fajla   (20. avgust 2026, 22:25)
+
+**Fajlovi:**
+- `lib/media-duration.ts` (izmenjen): `MAX_PLAUSIBLE_BITRATE_BPS`,
+  `MIN_PLAUSIBLE_BITRATE_BPS`, `lowerBoundSeconds`, `upperBoundSeconds`,
+  `normalizeMime`, `scanFrames`; `DurationFailure` dobio `VBR_NEPOUZDAN`
+- `lib/media-duration.test.ts` (izmenjen): +8 testova
+- `convex/studioJobCore.ts` (izmenjen): `MeasuredUpload`, `DurationSource`,
+  `BoundedSeconds`, `boundedInputSeconds`
+- `convex/studioJobCore.test.ts` (izmenjen): +7 testova
+- `convex/studio.ts` (izmenjen): `ownedInputUploads` vraca `files` umesto
+  `seconds`; `buildCatalogOrder` provlaci trajanje kroz granice; `createJob`
+  upisuje `durationSource`/`headerDurationS`/`billedDurationS`
+- `convex/studioCatalogJob.test.ts` (izmenjen): fixture `mp4Bytes` dopunjava
+  fajl do fizicki moguce velicine i upisuje `mimeType`; +4 testa
+- `convex/schema.ts` (izmenjen): tri opciona polja na `generationJobs`
+- `lib/studio-messages.ts` (izmenjen): poruka za `ZAGLAVLJE_NEMOGUCE`, nova
+  funkcija `measureFailureMessage`
+- `lib/studio-messages.test.ts` (izmenjen): +1 test, `ZAGLAVLJE_NEMOGUCE` u
+  spisak kodova
+- `lib/studio-slots.ts` (izmenjen): `SlotFile.measureFailure`
+- `components/studio/use-slot-upload.ts`, `components/studio/drop-slot.tsx`
+  (izmenjeni): razlog neuspelog merenja stize do ekrana
+
+**Sta je uradjeno:** Trajanje po kojem se naplacuje vise ne dolazi samo iz
+zaglavlja. Svaki merni fajl se pre naplate provuce kroz dva kolicnika iz
+velicine fajla: `bajtovi * 8 / MAKSIMALAN_BITRATE` je najkrace trajanje koje
+fajl te velicine moze da ima, pa se naplacuje kad nadjaca zaglavlje, a
+`bajtovi * 8 / MINIMALAN_BITRATE` je najduze, pa zaglavlje iznad njega obara
+posao sa `ZAGLAVLJE_NEMOGUCE`. Racun radi cista funkcija `boundedInputSeconds`
+u `studioJobCore.ts`, nad `bytes` i `mimeType` koje red `studioUploads` vec nosi
+iz `_storage` (W4); `resolveMeasuredQuantity` zaokruzuje i sece nad vec
+podignutim brojem, a cenovni motor `studioPricing.ts` nije diran. Uz to je
+popravljen VBR MP3: `readMp3` sada seta do 200 frejmova i racuna po proseku
+umesto po prvom frejmu, a kad se tarife razlikuju vise od dvostruko vraca
+`VBR_NEPOUZDAN` umesto pogresnog broja. Posao kojem je granica podigla trajanje
+nosi `durationSource: "lower_bound"` i oba broja, pa se kasnije vidi ko je
+zaglavlje prepravljao. Napad iz N2 (zaglavlje 6 s na 288 MB MP3 fajlu) sada
+placa punih 120 minuta.
+
+**ODLUKE:**
+1. **Vrednosti bitrate-a su uzete tacno onako kako ih X1 predlaze**, uz jedan
+   dodatak: `audio/x-wav` je dopisan u obe tabele sa istim brojevima kao
+   `audio/wav`. Razlog: `MEASURABLE_MIME` ga poznaje, a `registerInputUpload`
+   upisuje `mimeType` iz `_storage` bez poredjenja sa `accept` listom, pa bi
+   upload mimo forme sa tim tipom prosao bez ijedne granice. Dodavanje granice
+   je stroza opcija, pa je izabrana. Test tvrdi da SVAKI tip iz
+   `MEASURABLE_MIME` ima obe granice - da sledeci dodat format ne prodje tiho.
+2. **`VBR_NEPOUZDAN` odbija posao, ne pada na donju granicu.** X1 tacka 4 kaze
+   "pa donja granica iz tacke 2 preuzima", sto se cita dvojako. Racunica:
+   napadacki fajl iz same tacke 4 (prvi frejm 320 kbps, ostatak 32 kbps) ima
+   donju granicu od desetine stvarnog trajanja, pa bi naplata po njoj dala
+   marzu 0,25x - dakle gubitak, u koraku koji postoji da gubitak zatvori. Zato
+   granica samo PODIZE procitano trajanje, a nikad ga ne stvara: fajl bez
+   procitanog zaglavlja i dalje pada na `MERENJE_NIJE_DOSTUPNO`, tacno kao
+   danas. Posledica: posten VBR MP3 bez Xing zaglavlja se odbija umesto da se
+   procenjuje. Takvi fajlovi su retki (svaki LAME VBR izlaz ima Xing), a poruka
+   u UI-ju kaze sta da se uradi.
+3. **Oba broja se upisuju samo kad je granica nadjacala zaglavlje.** Kad
+   zaglavlje pobedi, `headerDurationS` bi bio isti podatak koji vec stoji u
+   naplacenoj kolicini, pa je upis suvisan. `durationSource` se upisuje uvek kad
+   posao ima mereno trajanje, da bi se poslovi mogli prebrojati po izvoru.
+4. **Granice se primenjuju samo na MERNE slotove** (`measuredSlotsFor`). Slika
+   uz video kod prenosa pokreta se ne naplacuje po trajanju, pa nema razloga da
+   njeno zaglavlje moze da obori posao.
+5. **`ZAGLAVLJE_NEMOGUCE` je strogo poredjenje** (`>`): zaglavlje tacno na
+   granici prolazi. Granica je gruba procena, pa jednakost ide u korist
+   korisnika.
+6. **Test fixture `mp4Bytes` je dopunjen do fizicki moguce velicine.** Zatecen
+   fixture je pravio fajl od oko 150 bajtova sa zaglavljem od sedam minuta, sto
+   je tacno ono sto gornja granica sada odbija - test bi pao na ISPRAVNOJ
+   popravci. Fixture sada dopunjava fajl nulama, a `padBytes` tu velicinu
+   prepisuje kad je bas ona predmet testa. Nijedan assertion nije uklonjen ni
+   oslabljen.
+7. **`convex-test` ne prenosi `contentType` u `_storage` metapodatke** (mereno,
+   ne pretpostavljeno: `ctx.db.system.get` vraca samo `_id`, `_creationTime`,
+   `sha256` i `size`). Bez `mimeType`-a na redu granice ne postoje, pa
+   integracioni testovi ne bi merili nista. `storeMeasured` zato posle prijave
+   dopise `mimeType` na red `studioUploads`. U produkciji ga upisuje sam
+   `registerInputUpload`, iz `_storage` - klijentov tip se i dalje ne uzima.
+
+**Testovi:** 19 novih (741 -> 760).
+- `lib/media-duration.test.ts`: donja granica (288 MB MP3, posten trominutni
+  MP3, tacan WAV) - gornja granica (megabajt zvuka, megabajt videa) - nepoznat
+  MIME i tip sa parametrima (`audio/webm;codecs=opus`) - svaki tip iz
+  `MEASURABLE_MIME` ima obe granice i min < max - CBR kroz tri frejma daje isti
+  broj kao kroz jedan - VBR 128/160 kbps se racuna po proseku od 144 kbps -
+  napadacki VBR (320 pa 32 kbps) vraca `VBR_NEPOUZDAN` - Xing nadjacava setnju.
+- `convex/studioJobCore.test.ts`: prepravljeno zaglavlje 6 s na 288 MB ->
+  naplaceno 120 min - posten fajl prolazi netaknut sa `durationSource: header` -
+  WAV nikad ne aktivira granicu - megabajt sa zaglavljem od 10 h ->
+  `ZAGLAVLJE_NEMOGUCE`, a isti fajl sa 15 min prolazi - nepoznat MIME i red bez
+  `mimeType`-a ostaju na zatecenom putu - granica po fajlu, zbir po slotovima,
+  slika se ne racuna - granica ne izmislja trajanje tamo gde ga nema.
+- `convex/studioCatalogJob.test.ts`: `kling-avatar` sa zaglavljem od 1 s na
+  200 kB zvuka se naplacuje 4 s i nosi `durationSource: lower_bound` sa oba
+  broja - posten `kling-motion` nosi `header` i nijedan drugi broj - posao bez
+  merene kolicine nema izvor - `dubbing` sa nemogucim zaglavljem pada pre
+  naplate, bez posla i bez skinutog kredita.
+- `lib/studio-messages.test.ts`: sva tri razloga neuspelog merenja imaju
+  razlicit sledeci korak na oba jezika i nijedan ne prikazuje sirov kod;
+  `ZAGLAVLJE_NEMOGUCE` je dopisan u spisak kodova koji vec tvrdi da je svaka
+  poruka jedinstvena.
+
+**Rezultat verifikacije:**
+- `npx convex codegen` -> `Running TypeScript...`, exit 0
+- `npm run lint` -> `8 problems (0 errors, 8 warnings)`, exit 0 (istih 8
+  zatecenih upozorenja, nijedno u fajlovima ovog koraka)
+- `npm run test` -> `Test Files 58 passed (58)`, `Tests 760 passed (760)`
+- `npm run build` -> `Compiled successfully in 8.7s`,
+  `Generating static pages (60/60)`, exit 0
+
+**BLOKADA:** nema.
+
+**Za Jovana:**
+1. **`video/mp4` na 50 Mbps je jedina vrednost koja moze da naplati previse
+   POSTENOM korisniku.** Kamere koje pisu MP4 (GoPro, DJI, Sony) umeju 100-150
+   Mbps; takav fajl bi dobio donju granicu duplo do trostruko vecu od stvarnog
+   trajanja i toliko bi se naplatio. Slot za video prima 200 MB, pa je promasaj
+   ogranicen na oko 32 s naplacenog trajanja. Signal je `durationSource:
+   "lower_bound"` na poslu - ako se pojavi na nalozima koji ocigledno ne varaju,
+   podigni `MAX_PLAUSIBLE_BITRATE_BPS["video/mp4"]` ka vrednosti QuickTime-a.
+   Ostalih sest tipova nemaju taj rizik: MP3 na 320 kbps i WAV na 3 Mbps su
+   stvarni maksimumi formata.
+2. **Cena na dugmetu i naplacena cena se kod podignutog fajla RAZILAZE.** Forma
+   racuna po `studioUploads.durationS` (zaglavlje), a naplata po podignutom
+   broju. Za svaki posten fajl su isti; razilaze se tacno kod fajla ciji je
+   odnos bajtova i sekundi nemoguc. Namerno nije dirano - to je prikaz cene, a
+   X1 izricito kaze da se X2 teritorija ne dira. Ako hoces da se poklope, to je
+   jedna izmena u `measureInputUpload`-u i pripada X2.
+3. **Prvi upit koji vredi pustiti na deployment-u posle ovoga:** koliko poslova
+   ima `durationSource: "lower_bound"`. Nula znaci da granica jos nikoga nije
+   dirala; vise od nekoliko na istom nalogu je ono zbog cega je polje uvedeno.
+   Poslovi upisani pre ovog koraka polje nemaju.
+4. **N2 nije zatvoren ovim korakom, nego prepolovljen.** Lazno zaglavlje vise ne
+   prolazi, ali oba plafona troska i dalje sabiraju `estimatedCostUsd` - dakle
+   procenu. To je korak X2. Do tada preporuka iz izvestaja (`dubbing`,
+   `voice-changer` i `audio-isolation` ugaseni do prve zive generacije) ostaje
+   na snazi kako je i bila.
+5. **`mimeType` na redu `studioUploads` je uslov da granica uopste radi.** Ako
+   Convex storage za neki upload ne vrati `contentType`, red ostaje bez tipa i
+   fajl prolazi bez ijedne granice - tiho, bezbedno po korisnika, ali i bez
+   zastite. Vredi provera na deployment-u: red `studioUploads` bez `mimeType`-a
+   posle uploada iz forme ne bi trebalo da postoji.

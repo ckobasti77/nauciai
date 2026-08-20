@@ -1469,6 +1469,17 @@ export default defineSchema({
     // `providerRequestId`-ju. Provajder koji podatak ne vrati ostavlja polje
     // prazno - izmišljen broj bi popravio maržu koja je u stvari loša.
     actualCostUsd: v.optional(v.number()),
+    // Odakle je došlo trajanje po kojem je posao naplaćen (X1, nalaz N2):
+    // "header" je ono što `mvhd`/`fmt `/Xing tvrde, "lower_bound" znači da je
+    // zaglavlje tvrdilo kraće nego što fajl te veličine fizički može da traje,
+    // pa je naplaćena granica iz bajtova. Drugo stanje je signal, ne statistika
+    // - po njemu se prepoznaje ko zaglavlje prepravlja. Poslovi bez merene
+    // količine (slika, tekst) polje nemaju.
+    durationSource: v.optional(v.union(v.literal("header"), v.literal("lower_bound"))),
+    // Oba broja u sekundama, i to samo kad je granica nadjačala zaglavlje: šta
+    // je zaglavlje tvrdilo, i šta je naplaćeno.
+    headerDurationS: v.optional(v.number()),
+    billedDurationS: v.optional(v.number()),
     // fal URL iz webhook-a; kratko živi kod fal-a, pa ga `persistOutput`
     // preuzima u Convex storage (`outputStorageId`) čim posao stigne.
     falOutputUrl: v.optional(v.string()),

@@ -9,6 +9,7 @@ import {
   GALLERY_NO_GENERATIONS,
   GALLERY_NO_MATCHES,
   generateBlockMessage,
+  measureFailureMessage,
   measuredDurationNotice,
   PROMPT_MAX_LENGTH,
   STUDIO_NOT_ENROLLED,
@@ -49,6 +50,7 @@ describe("studioErrorMessage", () => {
     "NEDOVOLJNO_KREDITA",
     "TUDJI_FAJL",
     "MERENJE_NIJE_DOSTUPNO",
+    "ZAGLAVLJE_NEMOGUCE",
   ];
 
   test("nijedna poruka ne prikazuje sirov kod greške", () => {
@@ -123,6 +125,26 @@ describe("merenje trajanja", () => {
     expect(generateBlockMessage({ kind: "measure" }, "sr")).not.toBe(
       generateBlockMessage({ kind: "price" }, "sr"),
     );
+  });
+
+  test("svaki razlog neuspelog merenja ima svoj sledeći korak, ne kod greške", () => {
+    // `measureInputUpload` vraća ishod umesto da baca, pa razlog do X1 nije
+    // stizao do ekrana - korisnik je gledao u zaključano dugme.
+    const reasons = ["ZAGLAVLJE_NIJE_PROCITANO", "VBR_NEPOUZDAN", "NEPOZNAT_FORMAT"];
+    for (const reason of reasons) {
+      for (const locale of ["sr", "en"] as const) {
+        const message = measureFailureMessage(reason, locale);
+        expect(message, `${reason}.${locale}`).not.toContain("_");
+        expect(message.length).toBeGreaterThan(20);
+      }
+    }
+
+    // Tri razloga - tri različita sledeća koraka, plus opšta poruka za četvrti.
+    const messages = reasons.map((reason) => measureFailureMessage(reason, "sr"));
+    expect(new Set(messages).size).toBe(messages.length);
+    expect(measureFailureMessage("VBR_NEPOUZDAN", "sr")).toContain("stalnim bitrate-om");
+    expect(measureFailureMessage("FAJL_NE_POSTOJI", "sr")).toContain("Okači fajl ponovo");
+    expect(measureFailureMessage("FAJL_NE_POSTOJI", "en")).not.toContain("_");
   });
 
   test("izmereno trajanje se korisniku kaže u sekundama ili minutima", () => {

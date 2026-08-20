@@ -3,12 +3,15 @@ import { expect, test } from "vitest";
 import { KLING_LIPSYNC, KLING_TRYON } from "./providers/falToolModels";
 import { STUDIO_MODELS } from "./providers/catalogModels";
 import {
+  boundedInputSeconds,
   countInputImages,
   extraCounts,
   hasVideoInput,
   jobInputStorageIds,
+  type MeasuredUpload,
   measuredQuantityFromSeconds,
   measuredSlotsFor,
+  type QuantitySource,
   parseClientInputs,
   parseInputModes,
   parseInputSpec,
@@ -219,6 +222,126 @@ test("izmerene sekunde se sabiraju po mernim slotovima i prevode u jedinicu prav
   expect(measuredQuantityFromSeconds(seconds, { image: 300 })).toBeNull();
   expect(measuredQuantityFromSeconds(seconds, { video: 0 })).toBeNull();
   expect(measuredQuantityFromSeconds(seconds, {})).toBeNull();
+});
+
+// ── granice trajanja iz veličine fajla ─────────────────────────────────────
+
+const MINUTES = { param: "minutes", from: "input_media_minutes", min: 0.1, max: 120 } as const;
+const AUDIO_SECONDS = { param: "duration", from: "input_audio_seconds", min: 1, max: 60 } as const;
+
+/** Granice sa suženim tipom: test koji čita `seconds` prvo tvrdi da ishoda ima. */
+function bounded(source: QuantitySource, uploads: Record<string, MeasuredUpload[]>) {
+  const result = boundedInputSeconds(source, uploads);
+  if (!result.ok) throw new Error(`granica je odbila posao: ${result.reason}`);
+
+  return result;
+}
+
+/** Naplaćena količina, kroz ceo lanac kojim ide i `createJob`. */
+function billed(source: QuantitySource, uploads: Record<string, MeasuredUpload[]>) {
+  return resolveMeasuredQuantity(
+    source,
+    {},
+    measuredQuantityFromSeconds(source, bounded(source, uploads).seconds),
+  );
+}
+
+test("prepravljeno zaglavlje se podiže na donju granicu iz veličine fajla", () => {
+  // Nalaz N2 u malom: `mvhd`/Xing tvrdi 6 sekundi, a u fajlu je 288 MB zvuka.
+  // Na 320 kbps - najvišoj tarifi koju MP3 poznaje - to je preko dva sata.
+  const forged = { audio: [{ seconds: 6, bytes: 288 * 1024 * 1024, mimeType: "audio/mpeg" }] };
+
+  const result = bounded(MINUTES, forged);
+  expect(result.durationSource).toBe("lower_bound");
+  expect(result.headerSeconds).toBe(6);
+  expect(result.billedSeconds).toBeCloseTo(7549.75, 2);
+  // 125,8 minuta se seče na kataloških 120 - ne na 0,1 koliko bi zaglavlje dalo.
+  expect(billed(MINUTES, forged)).toEqual({ ok: true, quantity: 120 });
+});
+
+test("pošten fajl prolazi netaknut - granica je ispod zaglavlja", () => {
+  // Trominutni MP3 na 128 kbps: 2,88 MB. Donja granica je 72 s, dakle ispod
+  // 180 s koliko zaglavlje tvrdi, pa se ne aktivira.
+  const honest = { audio: [{ seconds: 180, bytes: 2_880_000, mimeType: "audio/mpeg" }] };
+
+  const result = bounded(MINUTES, honest);
+  expect(result.durationSource).toBe("header");
+  expect(result.billedSeconds).toBe(180);
+  expect(billed(MINUTES, honest)).toEqual({ ok: true, quantity: 3 });
+});
+
+test("WAV je tačan po konstrukciji, pa se granica na njemu nikad ne aktivira", () => {
+  // 3 s pri 176,4 kB/s je 529 200 bajtova; donja granica na 3 Mbps je 1,38 s.
+  const wav = { audio: [{ seconds: 3, bytes: 529_200, mimeType: "audio/wav" }] };
+
+  expect(bounded(AUDIO_SECONDS, wav).durationSource).toBe("header");
+  expect(billed(AUDIO_SECONDS, wav)).toEqual({ ok: true, quantity: 3 });
+
+  // Isto i za dvominutni WAV: PCM je toliko rastrošan da mu je odnos bajtova i
+  // sekundi uvek daleko iznad granice.
+  const long = { audio: [{ seconds: 120, bytes: 21_168_000, mimeType: "audio/x-wav" }] };
+  expect(bounded(AUDIO_SECONDS, long).durationSource).toBe("header");
+});
+
+test("zaglavlje duže nego što fajl te veličine može da traje obara posao", () => {
+  // Suprotan napad: megabajt sa zaglavljem od deset sati, kojim bi se punio
+  // tuđi dnevni plafon i `studioUsageDaily`. Na 8 kbps megabajt je 17,5 minuta.
+  const impossible = { audio: [{ seconds: 36_000, bytes: 1024 * 1024, mimeType: "audio/mpeg" }] };
+
+  expect(boundedInputSeconds(MINUTES, impossible)).toEqual({
+    ok: false,
+    reason: "ZAGLAVLJE_NEMOGUCE",
+  });
+
+  // Isti fajl sa zaglavljem unutar granice prolazi - granica odbija samo ono
+  // što je nemoguće, ne sve što je dugačko.
+  const possible = { audio: [{ seconds: 900, bytes: 1024 * 1024, mimeType: "audio/mpeg" }] };
+  expect(bounded(MINUTES, possible).durationSource).toBe("header");
+});
+
+test("nepoznat MIME nema granicu i ostaje na zatečenom putu", () => {
+  // Isti fajl koji bi kao `audio/mpeg` bio podignut na dva sata: bez poznatog
+  // bitrate-a nema šta da se dokaže, pa se naplaćuje zaglavlje.
+  const unknown = { audio: [{ seconds: 6, bytes: 288 * 1024 * 1024, mimeType: "application/zip" }] };
+  expect(bounded(MINUTES, unknown).durationSource).toBe("header");
+  expect(billed(MINUTES, unknown)).toEqual({ ok: true, quantity: 0.1 });
+
+  // Red bez `mimeType`-a (upload pre W4, ili storage bez `contentType`-a) ide
+  // istim putem, bez granice u oba smera.
+  const noMime = { audio: [{ seconds: 36_000, bytes: 1024 }] };
+  expect(bounded(MINUTES, noMime).durationSource).toBe("header");
+});
+
+test("granica se primenjuje po fajlu, a sabira po mernim slotovima", () => {
+  // `stt` i `dubbing` mere i video i zvuk pod istim pravilom po minutu.
+  const mixed = {
+    video: [{ seconds: 60, bytes: 750_000_000, mimeType: "video/mp4" }],
+    audio: [{ seconds: 120, bytes: 1_920_000, mimeType: "audio/mpeg" }],
+    // Slika nije merni slot i ne ulazi ni u zbir ni u granicu.
+    image: [{ seconds: 999, bytes: 10, mimeType: "image/png" }],
+  };
+
+  const result = bounded(MINUTES, mixed);
+  // Video: 750 MB na 50 Mbps je 120 s, dakle duplo od zaglavlja - podiže se.
+  // Zvuk: 1,92 MB na 320 kbps je 48 s, ispod zaglavlja - ostaje 120 s.
+  expect(result.seconds).toEqual({ video: 120, audio: 120 });
+  expect(result.headerSeconds).toBe(180);
+  expect(result.billedSeconds).toBe(240);
+  expect(result.durationSource).toBe("lower_bound");
+  expect(billed(MINUTES, mixed)).toEqual({ ok: true, quantity: 4 });
+});
+
+test("granica podiže izmereno trajanje, ali ga ne izmišlja", () => {
+  // Fajl bez pročitanog zaglavlja nema svoje sekunde, pa nema ni šta da se
+  // podigne: kapija `MERENJE_NIJE_DOSTUPNO` iz W3 ostaje netaknuta i posle X1.
+  const unmeasured = { audio: [{ seconds: 0, bytes: 288 * 1024 * 1024, mimeType: "audio/mpeg" }] };
+
+  expect(bounded(MINUTES, unmeasured).seconds).toEqual({});
+  expect(billed(MINUTES, unmeasured)).toEqual({ ok: false, reason: "MERENJE_NIJE_DOSTUPNO" });
+
+  // Model koji se meri iz teksta nema merne slotove, pa ni izvor trajanja.
+  const chars = { param: "char_count", from: "text_length", measuredFrom: "text", min: 1, max: 5000 } as const;
+  expect(bounded(chars, unmeasured).headerSeconds).toBe(0);
 });
 
 // ── parseri polja reda ─────────────────────────────────────────────────────
