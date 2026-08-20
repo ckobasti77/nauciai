@@ -1448,6 +1448,16 @@ export default defineSchema({
     // slot ("image", "video", "audio"). Redosled je značajan - prompt citira
     // reference po broju ("slika 2").
     inputs: v.optional(v.string()),
+    // Nabavna cena koju je katalog OBEĆAO u trenutku rezervacije
+    // (`studioPricing.computeCostUsd`). Ista cifra ulazi u `studioUsageDaily`,
+    // ali tamo je već sabrana po korisniku i danu, pa se iz nje ne može reći
+    // koliko je koštao JEDAN posao - a to je jedini broj sa kojim `actualCostUsd`
+    // ima smisla porediti. Poslovi upisani pre W6 je nemaju.
+    estimatedCostUsd: v.optional(v.number()),
+    // Šta je provajder STVARNO naplatio. Puni ga `studioActualCost`: Google i
+    // BytePlus iz tokena u odgovoru, fal iz noćne rekonsilijacije po
+    // `providerRequestId`-ju. Provajder koji podatak ne vrati ostavlja polje
+    // prazno - izmišljen broj bi popravio maržu koja je u stvari loša.
     actualCostUsd: v.optional(v.number()),
     // fal URL iz webhook-a; kratko živi kod fal-a, pa ga `persistOutput`
     // preuzima u Convex storage (`outputStorageId`) čim posao stigne.
@@ -1526,4 +1536,28 @@ export default defineSchema({
   studioCostAlarms: defineTable({
     day: v.string(),
   }).index("by_day", ["day"]),
+
+  // Zbir izmerenog troška po modelu (W6). Jedan red na ceo model, održava ga
+  // `studioActualCost.recordActualCost` u istoj transakciji u kojoj posao dobija
+  // `actualCostUsd`. Postoji iz dva razloga:
+  //
+  // 1. admin ekran iz njega crta STVARNU maržu i broj poslova iz kojih je
+  //    izračunata - bez broja merenja admin veruje cifri koja nije merenje;
+  // 2. niz uzastopnih odstupanja preko 30% se broji ovde umesto da se pri
+  //    svakom upisu skenira istorija poslova tog modela.
+  //
+  // `modelSlug`, a ne `Id<"models">`: poslovi iz starog `modelCatalog`-a nemaju
+  // red u `models`, a i njihov trošak se meri.
+  studioModelCost: defineTable({
+    modelSlug: v.string(),
+    measuredJobs: v.number(),
+    actualCostUsd: v.number(),
+    estimatedCostUsd: v.number(),
+    creditCost: v.number(),
+    deviationStreak: v.number(),
+    // Postoji dok traje niz zbog kojeg je alarm poslat; prvi posao ispod praga
+    // ga sklanja, pa sledeći niz od pet ponovo javlja.
+    alarmSentAt: v.optional(v.number()),
+    updatedAt: v.number(),
+  }).index("by_modelSlug", ["modelSlug"]),
 });

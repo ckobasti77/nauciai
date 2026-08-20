@@ -118,7 +118,25 @@ export const NANO_BANANA_PRO: StudioModelSeed = {
     multipliers: [{ param: "resolution", map: { "2K": 1, "4K": 1.791 } }],
     quantityParam: "num_images",
   },
-  capabilities: { mode: "sync", thinking: true, maxInputImages: 10, maxImagesPerRun: 4 },
+  capabilities: {
+    mode: "sync",
+    thinking: true,
+    maxInputImages: 10,
+    maxImagesPerRun: 4,
+    // Tarifa po MILIONU tokena, za preračun `actualCostUsd`-a iz odgovora (W6).
+    // Oba broja su iz kataloga 2.2, ne odnekud drugde:
+    // - `output`: 1 120 tokena je slika na 2K, a ona košta `baseUsd: 0.134` ->
+    //   0,134 / 1 120 × 10^6 = 119,64 $/M;
+    // - `thinking`: 12 $/M piše doslovno u katalogu.
+    //
+    // ULAZNI tokeni nemaju tarifu ni u katalogu ni ovde, i zato ovaj model još
+    // NE upisuje stvaran trošak: `tokenCostUsd` odbija da sabere trošak dok
+    // jedna prijavljena kategorija nema svoju cenu. Zbir bez ulaznih tokena bi
+    // bio manji od stvarnog, dakle broj koji popravlja lošu maržu. Čim se
+    // ulazna tarifa potvrdi sa prve fakture, dopisuje se `prompt` ovde i model
+    // počinje da meri - ništa drugo se ne menja.
+    tokenRatesUsdPerMillion: { output: 119.64, thinking: 12 },
+  },
   sortOrder: 20,
 };
 

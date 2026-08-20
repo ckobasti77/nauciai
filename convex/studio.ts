@@ -391,6 +391,10 @@ export const createJob = mutation({
       promptHash: promptHash(order.prompt),
       status: "reserved",
       creditCost,
+      // Procena iz kataloga se pamti UZ POSAO, ne samo u dnevnom zbiru: bez nje
+      // se stvaran trošak (`actualCostUsd`, W6) nema sa čim porediti, jer
+      // `studioUsageDaily.costUsd` je već sabran po korisniku i danu.
+      estimatedCostUsd,
       ...(order.inputMode ? { inputMode: order.inputMode } : {}),
       ...(order.inputs ? { inputs: order.inputs } : {}),
       ...(args.lessonId ? { lessonId: args.lessonId } : {}),
@@ -468,13 +472,16 @@ export const markJobRunning = internalMutation({
  * Idempotencija je ista po duhu - prelaz je dozvoljen samo iz `reserved` -
  * pa druga predaja istog posla ne prepisuje izlaz i ne zakazuje `persistOutput`
  * drugi put. Vraća `false` kad nije bilo šta da se uradi.
+ *
+ * `actualCostUsd` NE upisuje ovde: stvaran trošak ima svoj jedini ulaz
+ * (`studioActualCost.recordJobActualCost`), koji uz polje održava i zbir po
+ * modelu. Drugi put do istog polja bi značio zbir koji ne vidi sve poslove.
  */
 export const markJobDone = internalMutation({
   args: {
     jobId: v.id("generationJobs"),
     outputUrl: v.string(),
     providerRequestId: v.optional(v.string()),
-    actualCostUsd: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const job = await ctx.db.get(args.jobId);
@@ -485,7 +492,6 @@ export const markJobDone = internalMutation({
       falOutputUrl: args.outputUrl,
       completedAt: Date.now(),
       ...(args.providerRequestId ? { providerRequestId: args.providerRequestId } : {}),
-      ...(args.actualCostUsd !== undefined ? { actualCostUsd: args.actualCostUsd } : {}),
     });
     // Skidanje fajla ide u zakazanu akciju, kao i kod webhook puta - akcija
     // koja je upravo pričala sa provajderom ne sme da čeka i na preuzimanje.

@@ -20,6 +20,8 @@
  * koji je od dva modela u pitanju.
  */
 
+import { readTokenUsage, type TokenUsage } from "../convex/studioActualCostCore";
+
 export type GoogleConfig = { baseUrl: string; apiKey: string };
 
 /**
@@ -120,6 +122,12 @@ export type GoogleOperation = {
   videoUrl: string | null;
   error: string | null;
   quota: boolean;
+  /**
+   * Potroseni tokeni iz `usageMetadata` (W6). Google ih javlja uz gotovu
+   * operaciju - to je jedini podatak iz kojeg se sazna STVARAN trosak, jer
+   * odgovor ne nosi cenu. `null` kad ih odgovor nema.
+   */
+  usage: TokenUsage | null;
 };
 
 export async function startGoogleOperation(params: {
@@ -228,10 +236,20 @@ function errorTextOf(payload: Record<string, unknown>): string | null {
  * ako se nikad ne razreši, pokupi ga postojeći reaper.
  */
 export function parseOperation(path: string, data: unknown): GoogleOperation {
-  const empty: GoogleOperation = { path, done: false, videoUrl: null, error: null, quota: false };
+  const empty: GoogleOperation = {
+    path,
+    done: false,
+    videoUrl: null,
+    error: null,
+    quota: false,
+    usage: null,
+  };
   if (!data || typeof data !== "object" || Array.isArray(data)) return empty;
 
   const payload = data as Record<string, unknown>;
+  // Potrosnja se cita i kad je operacija neuspela: Google naplacuje tokene koje
+  // je model potrosio pre nego sto je posao pukao.
+  const usage = readTokenUsage(payload);
   const state = stateOf(payload);
   const done = payload.done === true || (state !== null && DONE_STATES.has(state));
 
@@ -245,10 +263,11 @@ export function parseOperation(path: string, data: unknown): GoogleOperation {
       videoUrl: null,
       error: error.slice(0, MAX_ERROR_LENGTH),
       quota: isQuotaResponse(0, error),
+      usage,
     };
   }
 
-  if (!done) return empty;
+  if (!done) return { ...empty, usage };
 
   return {
     path,
@@ -256,5 +275,6 @@ export function parseOperation(path: string, data: unknown): GoogleOperation {
     videoUrl: findOutputUrl(payload.response ?? payload.outputs ?? payload.output ?? payload),
     error: null,
     quota: false,
+    usage,
   };
 }

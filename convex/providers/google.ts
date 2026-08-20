@@ -23,6 +23,7 @@ import {
   toBase64,
 } from "./googleCore";
 import { parseJobInputs } from "./jobInputs";
+import { recordTokenUsage, tokenUsageValidator } from "../studioActualCost";
 import { parseParams } from "../studioCore";
 
 /**
@@ -282,6 +283,7 @@ export const pollGoogleVideoJobs = internalAction({
             providerRequestId: job.providerRequestId,
             status: "OK",
             outputUrl: operation.videoUrl,
+            ...(operation.usage ? { usage: operation.usage } : {}),
           });
           finished += 1;
           continue;
@@ -322,6 +324,10 @@ export const applyOperationResult = internalMutation({
     status: v.union(v.literal("OK"), v.literal("ERROR")),
     outputUrl: v.optional(v.string()),
     error: v.optional(v.string()),
+    // Tokeni iz `usageMetadata` - jedini podatak o STVARNOM trosku koji Google
+    // uopste vraca (W6). Preracunava ih `studioActualCost.recordTokenUsage`, po
+    // tarifi reda kataloga; model bez tarife ostaje bez `actualCostUsd`.
+    usage: v.optional(tokenUsageValidator),
   },
   handler: async (ctx, args) => {
     const job = await ctx.db
@@ -346,6 +352,10 @@ export const applyOperationResult = internalMutation({
       falOutputUrl: args.outputUrl,
       completedAt: Date.now(),
     });
+    // Trosak ide u ISTU transakciju u kojoj se posao zatvara: posao koji je
+    // `done` a nema izmeren trosak ne bi imao ko kasnije da izmeri, jer Google
+    // operaciju vise ne ispitujemo.
+    await recordTokenUsage(ctx, job, args.usage);
     await ctx.scheduler.runAfter(0, internal.studioActions.persistOutput, { jobId: job._id });
 
     return null;

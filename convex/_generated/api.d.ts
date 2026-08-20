@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as adminAlert from "../adminAlert.js";
 import type * as auth from "../auth.js";
 import type * as authInternal from "../authInternal.js";
 import type * as avatar from "../avatar.js";
@@ -67,6 +68,8 @@ import type * as publicProfiles from "../publicProfiles.js";
 import type * as seed from "../seed.js";
 import type * as studio from "../studio.js";
 import type * as studioActions from "../studioActions.js";
+import type * as studioActualCost from "../studioActualCost.js";
+import type * as studioActualCostCore from "../studioActualCostCore.js";
 import type * as studioAdmin from "../studioAdmin.js";
 import type * as studioCore from "../studioCore.js";
 import type * as studioJobCore from "../studioJobCore.js";
@@ -84,6 +87,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  adminAlert: typeof adminAlert;
   auth: typeof auth;
   authInternal: typeof authInternal;
   avatar: typeof avatar;
@@ -143,6 +147,8 @@ declare const fullApi: ApiFromModules<{
   seed: typeof seed;
   studio: typeof studio;
   studioActions: typeof studioActions;
+  studioActualCost: typeof studioActualCost;
+  studioActualCostCore: typeof studioActualCostCore;
   studioAdmin: typeof studioAdmin;
   studioCore: typeof studioCore;
   studioJobCore: typeof studioJobCore;

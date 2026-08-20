@@ -109,6 +109,39 @@ export const getUsageSummary = query({
   },
 });
 
+/**
+ * Katalog ima ~30 v4 redova plus stare `modelCatalog` slugove; kap je iznad
+ * oba, iz istog razloga iz kojeg kapiraju i ostala čitanja ovog ekrana.
+ */
+const MAX_MODEL_COST_ROWS = 200;
+
+/**
+ * STVARNA marža po modelu (W6). Do sada je admin ekran umeo da pokaže samo
+ * maržu iz kataloga - dakle prepričanu pretpostavku. Ovde izlazi ono što je
+ * provajder zaista naplatio, ZAJEDNO sa brojem poslova iz kojih je izračunato:
+ * model bez ijednog merenja mora da se razlikuje od modela sa sto merenja,
+ * inače admin veruje broju koji nije merenje.
+ *
+ * Zbir održava `studioActualCost.recordJobActualCost` u istoj transakciji u
+ * kojoj posao dobija cenu, pa se ovde ništa ne sabira nad poslovima.
+ */
+export const getModelCostSummary = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireAdminRead(ctx);
+    const rows = await ctx.db.query("studioModelCost").take(MAX_MODEL_COST_ROWS);
+
+    return rows.map((row) => ({
+      modelSlug: row.modelSlug,
+      measuredJobs: row.measuredJobs,
+      actualCostUsd: row.actualCostUsd,
+      estimatedCostUsd: row.estimatedCostUsd,
+      creditCost: row.creditCost,
+      deviationStreak: row.deviationStreak,
+    }));
+  },
+});
+
 /** Trenutno stanje kill switch-a za admin ekran; isto čitanje kao `studio.getStudioState`. */
 export const getKillSwitchState = query({
   args: {},

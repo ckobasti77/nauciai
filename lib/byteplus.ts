@@ -12,6 +12,8 @@
  *   ishod stiže na `callback_url` (i, obavezno, proverava se ponovnim upitom).
  */
 
+import { readTokenUsage, type TokenUsage } from "../convex/studioActualCostCore";
+
 export type BytePlusConfig = { baseUrl: string; apiKey: string };
 
 /** Poruka je namerno doslovna - ovo je prvo što Jovan vidi ako env fali. */
@@ -65,7 +67,12 @@ function readString(source: unknown, key: string): string | null {
   return typeof value === "string" && value.length > 0 ? value : null;
 }
 
-export type BytePlusImageResult = { url: string; usdSpent?: number };
+/**
+ * `usage` su potroseni tokeni iz odgovora (W6) - jedini podatak iz kojeg se
+ * sazna STVARAN trosak, jer BytePlus ne vraca cenu. Polje je zamenilo nekadasnji
+ * `usdSpent`, koji je stajao u tipu a niko ga nije punio.
+ */
+export type BytePlusImageResult = { url: string; usage: TokenUsage | null };
 
 /**
  * Slike: `POST /images/generations`, OpenAI-kompatibilan oblik, odgovor je
@@ -87,7 +94,7 @@ export async function generateBytePlusImage(params: {
   const url = Array.isArray(list) ? readString(list[0], "url") : null;
   if (!url) throw new Error("BytePlus je vratio odgovor bez URL-a slike.");
 
-  return { url };
+  return { url, usage: readTokenUsage(data) };
 }
 
 export type BytePlusTaskStatus = "queued" | "running" | "succeeded" | "failed" | "cancelled";
@@ -97,6 +104,8 @@ export type BytePlusTask = {
   status: BytePlusTaskStatus | "unknown";
   videoUrl: string | null;
   error: string | null;
+  /** Potroseni tokeni zadatka (W6); `null` kad ih odgovor nema. */
+  usage: TokenUsage | null;
 };
 
 /**
@@ -163,5 +172,6 @@ export async function fetchBytePlusVideoTask(params: {
     status: readTaskStatus((data as { status?: unknown })?.status),
     videoUrl: readString(content, "video_url"),
     error: readString(error, "message") ?? readString(error, "code"),
+    usage: readTokenUsage(data),
   };
 }

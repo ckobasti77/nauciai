@@ -105,3 +105,10 @@
 [14:45:11]  W5  |  R3 pravo resenje: trajanje iz zaglavlja fajla
 [14:45:11]  model=opus  effort=max
 [14:45:11] --------------------------------------------------
+[15:24:47] Commit 497d774 - 3 putanja
+[15:24:47] W5 -> OK  (40 min, 1 pokusaja, USD 24.89)
+[15:24:47] 
+[15:24:47] --------------------------------------------------
+[15:24:47]  W6  |  actualCostUsd i nocna rekonsilijacija
+[15:24:47]  model=opus  effort=high
+[15:24:47] --------------------------------------------------

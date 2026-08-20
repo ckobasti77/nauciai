@@ -337,5 +337,16 @@ crons.interval(
 );
 crons.cron("studio: istek kredita", "15 3 * * *", internal.crons.expireCredits, {});
 crons.cron("studio: istek fajlova", "45 3 * * *", internal.crons.expireGenerationFiles, {});
+// fal u odgovoru posla nema cenu (za razliku od Google-a i BytePlus-a, koji
+// vraćaju tokene), pa je ovo jedini put kojim stvarna fal cena dolazi do nas -
+// `GET /v1/models/billing-events` za PRETHODNI UTC dan, spojen po
+// `providerRequestId`-ju. Prethodni dan, ne tekući: događaji naplate ne stižu
+// istog trenutka, a zatvoren dan se više ne menja.
+crons.cron(
+  "studio: fal rekonsilijacija",
+  "30 4 * * *",
+  internal.studioActualCost.reconcileFalCosts,
+  {},
+);
 
 export default crons;

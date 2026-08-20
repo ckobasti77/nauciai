@@ -5073,3 +5073,125 @@ kaze koliko snimak stvarno traje pre nego sto se pritisne dugme.
    se katalog i kod poklope tek tada.
 7. **Ulazni fajlovi se i dalje ne brisu kad se posao obrise** - zateceno
    ponasanje, nije dirano ni ovim korakom.
+
+## W6 - actualCostUsd za sva tri provajdera + nocna rekonsilijacija   (20.08.2026. 15:50)
+
+**Fajlovi:**
+- dodato: `convex/studioActualCostCore.ts`, `convex/studioActualCostCore.test.ts`,
+  `convex/studioActualCost.ts`, `convex/studioActualCost.test.ts`,
+  `convex/adminAlert.ts`
+- izmenjeno: `convex/schema.ts`, `convex/studio.ts`, `convex/studioAdmin.ts`,
+  `convex/crons.ts`, `convex/providers/google.ts`, `convex/providers/byteplus.ts`,
+  `convex/providers/googleImageModels.ts`, `lib/google-video.ts`,
+  `lib/byteplus.ts`, `lib/fal.ts`, `components/app/studio-admin-page.tsx`
+
+**Sta je uradjeno:** `generationJobs` je dobio `estimatedCostUsd` (procena koju
+`createJob` vec racuna, do sada je zavrsavala samo u dnevnom zbiru) i jedini
+ulaz za stvaran trosak, `studioActualCost.recordJobActualCost`. Google i
+BytePlus sada citaju potrosene tokene iz odgovora (`usageMetadata` odnosno
+`usage`) i preracunavaju ih u dolare po tarifi iz reda kataloga
+(`capabilities.tokenRatesUsdPerMillion`); fal odgovor nema cenu, pa je za njega
+napisan nocni cron `studio: fal rekonsilijacija` koji povlaci
+`GET /v1/models/billing-events` za PRETHODNI UTC dan i spaja ih po
+`providerRequestId`-ju. Uz svaki upis se odrzava red u novoj tabeli
+`studioModelCost` - zbir stvarnog troska, procene i naplacenih kredita po
+modelu, plus brojac uzastopnih odstupanja. Peto uzastopno odstupanje preko 30%
+salje mejl adminima sa imenom modela i oba broja. Admin ekran
+`/{locale}/app/admin/studio` ima novu kolonu "Stvarna marza" sa brojem poslova iz
+kojih je izracunata, a model bez ijednog merenja nosi isprekidan okvir i tekst
+"nema merenja".
+
+**ODLUKE:**
+1. **Tarifa po tokenu stoji u `capabilities.tokenRatesUsdPerMillion`, ne u novom
+   polju seme.** `capabilities` je vec slobodan JSON drawer reda kataloga i vec
+   nosi negraficke podatke (`api: "interactions"`, `mode: "sync"`). Novo polje u
+   `models` bi trazilo izmenu tipa seeda i ponovni seed svih 30 redova zbog
+   podatka koji ima dva modela.
+2. **`tokenCostUsd` vraca `null` cim JEDNA prijavljena kategorija tokena nema
+   svoju tarifu** - ne sabira delimicno. Delimican zbir je trosak MANJI od
+   stvarnog, dakle broj koji popravlja losu marzu i sakriva tacno onu gresku u
+   katalogu zbog koje ovaj korak postoji. Prazno polje je posteno.
+3. **Nijedan model jos ne meri trosak iz tokena u produkciji, i to je namerno.**
+   Katalog objavljuje cenu po slici i po sekundi; cenu po tokenu objavljuje samo
+   za `nano-banana-pro` (thinking 12 $/M, sekcija 2.2) i posredno za njegov
+   izlaz (1 120 tokena = `baseUsd 0.134` na 2K -> 119,64 $/M). Oba broja su
+   upisana u seed tog modela. ULAZNE tokene katalog ne tarifira nigde, pa
+   `tokenCostUsd` po pravilu 2 odbija da sabere - dok Jovan ne dopise `prompt`
+   tarifu sa prve fakture. Izmisliti je bilo bi tacno ono sto zadatak zabranjuje.
+   Mehanizam je ceo napisan i testiran; nedostaje jedan broj koji se ne sme
+   pogadjati.
+4. **fal `request_id` bez posla se preskace i broji kao `unmatched`, bez greske.**
+   Isti fal nalog naplacuje i pozive van Studija (rucni test, drugi projekat), pa
+   nepoznat ID nije kvar nego tudji red u izvodu.
+5. **Poredjenje ide po JEDNOM poslu, pa je procena morala da se pamti uz posao.**
+   `studioUsageDaily.costUsd` je vec sabran po korisniku i danu, iz njega se ne
+   moze reci koliko je kostao jedan posao. Poslovi upisani pre ovog koraka nemaju
+   `estimatedCostUsd`; takav posao ulazi u zbir troska, ali NE dira niz
+   odstupanja - odstupanje bez osnove nije ni odstupanje ni dokaz da ga nema.
+6. **Refundiran posao ne nosi kredite u zbir marze.** Naplatio je nula kredita, a
+   provajder je ipak placen; da mu se krediti racunali, stvarna marza bi ispala
+   bolja nego sto jeste. Trosak i procena ostaju u zbiru jer se i dalje porede
+   medjusobno.
+7. **`markJobDone` je izgubio argument `actualCostUsd`.** Nijedan pozivalac ga
+   nije koristio, a od sada polje ima jedini ulaz koji uz njega odrzava i zbir po
+   modelu; drugi put do istog polja znacio bi zbir koji ne vidi sve poslove.
+8. **`crons.ts` zadrzava svoju kopiju slanja mejla.** Novi `convex/adminAlert.ts`
+   koristi samo nov kod - pravila run-a traze hirurske izmene, a globalni plafon
+   troska (W2) ovaj korak ne dira. Spajanje te dve kopije je zaseban korak.
+9. **fal spisak se povlaci u JEDNOM pozivu (`limit=1000`).** Odsecanje se glasno
+   loguje (`fal_reconcile_truncated`) umesto da se doda strananje za API cija
+   imena polja jos nisu potvrdjena. Tihi kap bi bio dan cija se potrosnja nikad
+   ne izmeri.
+10. **Imena polja fal `billing-events` odgovora nisu potvrdjena protiv zivog
+    API-ja** (pravila run-a zabranjuju poziv), pa se prihvata vise poznatih
+    zapisa (`total_cost_usd`, `cost_usd`, `amount_usd`...), a dogadjaj iz kojeg se
+    ne procita ni ID ni iznos se preskace umesto da obori ceo prolaz. Isto
+    upozorenje koje vec nosi `convex/providers/falInputs.ts`.
+
+**Testovi:**
+- `convex/studioActualCostCore.test.ts` (14 testova): citanje `usageMetadata` i
+  `usage` u oba zapisa; odsustvo potrosnje daje `null` a ne nulu; `parseTokenRates`;
+  `tokenCostUsd` na cifri iz kataloga 2.2 (0,134 + 0,015 = 0,149 $) i `null` na
+  nepokrivenoj kategoriji; prag od 30% ne puca NA 30% nego preko; alarm ne puca na
+  cetiri a puca tacno jednom na petom; miran posao prekida niz i oslobadja alarm;
+  posao bez procene ne dira niz; `previousDayKey`; `sumByRequestId`.
+- `convex/studioActualCost.test.ts` (10 testova, `convex-test`, nijedan ziv poziv):
+  Google poller nad gotovom operacijom sa tokenima upisuje `actualCostUsd` i zbir
+  modela; Google model bez tarife ostaje BEZ cene; BytePlus zadatak sa tokenima
+  upisuje cenu; fal nocni prolaz spaja po `providerRequestId`-ju i sabira dva
+  dogadjaja istog zahteva; nepoznat `request_id` se preskace bez greske; drugi
+  prolaz nad istim danom ne udvaja trosak; refundiran posao ne nosi kredite;
+  alarm ne puca na cetiri, puca na petom i zakazuje akciju za mejl; miran posao
+  vraca brojac na nulu.
+
+**Rezultat verifikacije:**
+- `npx convex codegen` - prolazi
+- `npm run lint` - 0 gresaka (8 zatecenih upozorenja u fajlovima koje ovaj korak
+  ne dira)
+- `npm run test` - 58 fajlova, 731 test, sve prolazi
+- `npm run build` - `Compiled successfully`
+
+**BLOKADA:** nema
+
+**Za Jovana:**
+1. **Bez tarife po tokenu nijedan Google ni BytePlus posao nece upisati
+   `actualCostUsd`** (ODLUKA 3). Kad pustis prvu pravu generaciju i vidis fakturu,
+   dopisi u `capabilities` tog reda kataloga:
+   `tokenRatesUsdPerMillion: { prompt: <$/M>, output: <$/M>, thinking: <$/M> }` -
+   sve kategorije koje odgovor prijavljuje. `nano-banana-pro` vec ima `output` i
+   `thinking` iz kataloga; fali mu samo `prompt`. Posle izmene: `npm run convex:seed`.
+2. **`FAL_REST_BASE_URL` je opcion** (podrazumevano `https://rest.alpha.fal.ai`).
+   Postavi ga samo ako fal Platform API stoji na drugoj bazi:
+   `npx convex env set FAL_REST_BASE_URL "<baza>"`.
+3. **Proveri prvi nocni prolaz.** Cron je `studio: fal rekonsilijacija`, svaki dan
+   u 04:30 UTC. U Convex logovima trazi `fal_reconcile_skipped` (nema `FAL_KEY`),
+   `fal_reconcile_truncated` (dan ima preko 1 000 dogadjaja) i povratnu vrednost
+   `{ fetched, matched, unmatched, alreadyPriced }`. Ako je `matched: 0` a
+   `unmatched` veliko, imena polja u odgovoru se razlikuju od pretpostavljenih -
+   popravlja se `REQUEST_ID_KEYS` / `COST_KEYS` u `lib/fal.ts`.
+4. **Mejl alarma ide preko istog Resend-a kao verifikacija mejla** - trazi
+   `AUTH_RESEND_KEY`, `AUTH_RESEND_FROM` i `INITIAL_ADMIN_EMAILS`. Bez njih se
+   alarm samo loguje (`admin_alert_not_configured`).
+5. **Kolona "Stvarna marza" ce prvih dana pisati "nema merenja" za sve.** To je
+   tacno stanje, ne kvar: dok fal cron ne prodje prvi put (ili dok ne dopises
+   tarife po tokenu), jedini broj o marzi je i dalje procena iz kataloga.

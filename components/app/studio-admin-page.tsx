@@ -232,13 +232,62 @@ function PriceBreakdown({ model }: { model: StudioModel }) {
   );
 }
 
+/**
+ * Zbir izmerenog troska jednog modela (W6). `undefined` je "jos nije ucitano",
+ * a red sa `measuredJobs: 0` je "izmereno nula poslova" - dva razlicita stanja.
+ */
+type ModelCostRow = {
+  modelSlug: string;
+  measuredJobs: number;
+  actualCostUsd: number;
+  creditCost: number;
+};
+
+/**
+ * STVARNA marza, iz `actualCostUsd`-a. Model bez ijednog merenja MORA da izgleda
+ * drugacije od modela sa sto merenja - isprekidan okvir i "nema merenja" umesto
+ * cifre. Ista `computeMargin` kao za procenu, samo nad zbirom izmerenog troska i
+ * zbirom naplacenih kredita TIH ISTIH poslova.
+ */
+function ActualMarginCell({ cost }: { cost: ModelCostRow | undefined }) {
+  if (!cost || cost.measuredJobs === 0) {
+    return (
+      <span className="inline-flex min-h-7 items-center rounded-full border-2 border-dashed border-muted bg-white px-2.5 py-0.5 text-xs font-black text-muted">
+        nema merenja
+      </span>
+    );
+  }
+
+  const margin = computeMargin(cost.creditCost, cost.actualCostUsd);
+  const tone = marginTone(margin);
+
+  return (
+    <span
+      className={cn(
+        "inline-flex min-h-7 items-center gap-1 rounded-full border-2 border-ink px-2.5 py-0.5 text-xs font-black",
+        tone === "warn" && "bg-red-100 text-red-800",
+        tone === "ok" && "bg-emerald-100 text-emerald-900",
+        tone === "unknown" && "bg-white text-muted",
+      )}
+    >
+      {tone === "warn" ? <AlertTriangle className="size-3.5" /> : null}
+      {formatMargin(margin)}
+      <span className="font-bold text-muted">
+        / {cost.measuredJobs} {cost.measuredJobs === 1 ? "posao" : "poslova"}
+      </span>
+    </span>
+  );
+}
+
 /** Jedan red v4 kataloga; razvija se u tabelu cena po kombinaciji. */
 function CatalogRow({
   row,
+  cost,
   onSetPrice,
   onSetEnabled,
 }: {
   row: Doc<"models">;
+  cost: ModelCostRow | undefined;
   onSetPrice: (args: { baseUsd?: number; addUsd?: number }) => Promise<unknown>;
   onSetEnabled: (isEnabled: boolean) => Promise<unknown>;
 }) {
@@ -298,6 +347,9 @@ function CatalogRow({
           </span>
         </td>
         <td className="px-3 py-3">
+          <ActualMarginCell cost={cost} />
+        </td>
+        <td className="px-3 py-3">
           <TogglePill
             active={row.isEnabled}
             activeLabel="Uključen"
@@ -307,7 +359,7 @@ function CatalogRow({
         </td>
       </tr>
       <tr>
-        <td colSpan={7} className="px-3 pb-3">
+        <td colSpan={8} className="px-3 pb-3">
           {model ? (
             <details className="surface-inset border-2 border-ink bg-white p-3">
               <summary className="cursor-pointer text-xs font-black uppercase tracking-wide text-muted">
@@ -330,15 +382,19 @@ function CatalogRow({
 
 function CatalogSection() {
   const models = useQuery(api.studioModels.listAllModels, {});
+  const costs = useQuery(api.studioAdmin.getModelCostSummary, {});
   const setPrice = useMutation(api.studioModels.setModelPrice);
   const setEnabled = useMutation(api.studioModels.setModelEnabled);
+  const costBySlug = new Map((costs ?? []).map((row) => [row.modelSlug, row]));
 
   return (
     <Panel className="p-6">
       <h2 className="text-2xl font-black text-ink">Katalog v4</h2>
       <p className="mt-2 text-sm font-bold text-muted">
         Marža je za podrazumevana podešavanja; ispod 2,0x je crvena. Izmena nabavne cene odmah
-        pomera cenu SVAKE kombinacije - razvij red da vidiš koje.
+        pomera cenu SVAKE kombinacije - razvij red da vidiš koje. Stvarna marža je iz onoga što je
+        provajder naplatio, uz broj poslova iz kojih je izračunata; oznaka nema merenja znači da
+        je jedini broj o tom modelu i dalje procena iz kataloga.
       </p>
 
       {models === undefined ? (
@@ -351,7 +407,7 @@ function CatalogSection() {
         </p>
       ) : (
         <div className="mt-5 overflow-x-auto">
-          <table className="w-full min-w-[900px] border-separate border-spacing-y-2 text-left">
+          <table className="w-full min-w-[1020px] border-separate border-spacing-y-2 text-left">
             <thead>
               <tr className="text-xs font-black uppercase tracking-wide text-muted">
                 <th className="px-3 pb-1">Model</th>
@@ -360,6 +416,7 @@ function CatalogSection() {
                 <th className="px-3 pb-1">baseUsd</th>
                 <th className="px-3 pb-1">addUsd</th>
                 <th className="px-3 pb-1">Marža</th>
+                <th className="px-3 pb-1">Stvarna marža</th>
                 <th className="px-3 pb-1">Status</th>
               </tr>
             </thead>
@@ -368,6 +425,7 @@ function CatalogSection() {
                 <CatalogRow
                   key={row._id}
                   row={row}
+                  cost={costBySlug.get(row.slug)}
                   onSetPrice={(args) => setPrice({ modelId: row._id, ...args })}
                   onSetEnabled={(isEnabled) => setEnabled({ modelId: row._id, isEnabled })}
                 />

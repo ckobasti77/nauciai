@@ -24,6 +24,7 @@ import {
   parseCallbackBody,
 } from "./bytePlusCore";
 import { parseJobInputs } from "./jobInputs";
+import { recordTokenUsage, tokenUsageValidator } from "../studioActualCost";
 import { parseParams } from "../studioCore";
 
 /**
@@ -86,6 +87,15 @@ export async function submitBytePlusJob(ctx: ActionCtx, jobId: Id<"generationJob
         jobId,
         outputUrl: result.url,
       });
+      // Trošak je zaseban upis, a ne argument `markJobDone`-a: `markJobDone`
+      // sme da izađe bez dejstva (druga predaja istog posla), a upis stvarnog
+      // troška ima svoju idempotenciju i svoj zbir po modelu.
+      if (result.usage) {
+        await ctx.runMutation(internal.studioActualCost.recordProviderUsage, {
+          jobId,
+          usage: result.usage,
+        });
+      }
 
       return;
     }
@@ -207,6 +217,7 @@ export const verifyAndApplyTask = internalAction({
         providerRequestId: args.providerRequestId,
         status: "OK",
         outputUrl: task.videoUrl,
+        ...(task.usage ? { usage: task.usage } : {}),
       });
 
       return null;
@@ -260,6 +271,9 @@ export const applyTaskResult = internalMutation({
     status: v.union(v.literal("OK"), v.literal("ERROR")),
     outputUrl: v.optional(v.string()),
     error: v.optional(v.string()),
+    // Potrošeni tokeni zadatka (W6) - BytePlus ne vraća cenu, pa je ovo jedini
+    // podatak iz kojeg se stvaran trošak uopšte može izračunati.
+    usage: v.optional(tokenUsageValidator),
   },
   handler: async (ctx, args) => {
     const job = await ctx.db
@@ -286,6 +300,9 @@ export const applyTaskResult = internalMutation({
       falOutputUrl: args.outputUrl,
       completedAt: Date.now(),
     });
+    // Ista transakcija u kojoj se posao zatvara: zadatak se posle ovoga više ne
+    // pita, pa drugog trenutka za merenje troška nema.
+    await recordTokenUsage(ctx, job, args.usage);
     await ctx.scheduler.runAfter(0, internal.studioActions.persistOutput, { jobId: job._id });
 
     return null;
