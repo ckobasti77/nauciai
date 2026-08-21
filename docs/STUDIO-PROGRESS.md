@@ -6995,3 +6995,70 @@ dva koraka (Ukloni pa Dodaj). Dodati `focus-within` prsten i „Zameni" dugme.
 
 **BLOKADA:** sledi korak 4 - sidebar studio-mode (aditivan swap), posle koga
 Jovan gleda prelaz uzivo pre grida.
+
+## RD3 - Faza 2, korak 4: sidebar studio-mode (usmeren prelaz)   (21.08.2026)
+
+**Fajlovi:**
+- `components/app/app-sidebar-studio.tsx` - NOV. `SidebarNavSwap` (usmeren
+  AnimatePresence swap), `StudioSidebarNav` (proshireni: „Nazad" + taksonomija sa
+  stagger-om), `StudioSidebarRail` (skupljeni: „Nazad" + ikone vrsta sa tooltipom).
+  Sav pokret ovde; sidebar-primitive nisu eksportovane (studijski redovi su
+  napisani sa istim klasama kao `NavLink`/`RailAction`, da app-sidebar.tsx ostane
+  netaknut osim umetanja).
+- `components/app/app-sidebar.tsx` - ADITIVNO: import 3 komponente +
+  `activeStudioSection` + `useSearchParams`; `searchParams`, `activeStudioId`
+  (`?kind=`), `goBackFromStudio` (useCallback); prosireni `<nav>` i rail `<nav>`
+  umotani u `<SidebarNavSwap classic={...} studio={...}>`. Klasican sadrzaj je
+  NEPROMENJEN - samo umotan kao `classic`. Kontrola za skupljanje i profil kartica
+  su izvan regiona zamene (sidra).
+
+**Sta je uradjeno:**
+
+Sidebar menja sadrzaj kad se udje u Studio (okidac `studioActive`, vec postojao).
+Prelaz je USMEREN, ne crossfade: ulaz -> studijsko s desna, klasicno ulevo;
+„Nazad" -> obrnuto (iOS stack model, Studio je „desno od" aplikacije). Visina se
+NE animira (`AnimatePresence mode="popLayout"` izbacuje sloj koji izlazi iz toka,
+pa razliku apsorbuje dno, bez reflow-a). Stavke ulaze staggered (~25 ms, ≤5).
+Trajanje: ulaz 240 ms, izlaz 200 ms, ease-out. `prefers-reduced-motion` =
+trenutna zamena, oslonac je „Nazad" dugme koje se pojavi.
+
+**ODLUKE:**
+1. **Aditivno, bez refaktora `app-sidebar.tsx`.** Klasican `<nav>` i rail `<nav>`
+   su doslovno umotani u `SidebarNavSwap` kao `classic` prop - sadrzaj nepromenjen,
+   ponasanje van Studija identicno (kad `studioActive=false`, `initial={false}`
+   znaci da se klasicno prikaze u mirovanju, bez animacije). Nova komponenta je u
+   zasebnom fajlu; sidebar-primitive nisu eksportovane (nema diranja njihovih
+   deklaracija) - studijski redovi replikuju klase.
+2. **„Nazad" bez istorije = svesna rezervna ruta.** `goBackFromStudio`:
+   `window.history.length > 1 ? router.back() : router.push(withLocale(locale,"/app"))`.
+   Vidljivo u kodu, ne tihi `?.`. Rezerva je dashboard.
+3. **Rail (skupljeno) = `compact` swap: opacity crossfade bez klizanja.** Na 80px
+   horizontalni pomeraj bi sekao ikone; znacenje nosi „Nazad" ikona koja se
+   pojavi + tooltip. Radi u oba smera, sa tooltipovima. Expand-toggle na vrhu
+   rail-a je sidro (izvan swap-a).
+4. **Mobilni = ISTI mehanizam, ne poseban obrazac.** Drawer JESTE proshireni
+   sadrzaj, pa nasledjuje swap besplatno. U praksi je prelaz vidljiv uglavnom na
+   desktopu jer tap na nav-link zatvara drawer (`onClickCapture`), pa se studijski
+   sadrzaj vidi tek kad se drawer ponovo otvori - bez animacije, sto je uredno.
+   `AppBottomNav` (4 slota, ugovor) NIJE diran.
+5. **Selekcija u studijskim redovima je ZUTA**, ne ink - jer sidebar prati
+   postojeci `NavLink` idiom (aktivan red = zut). To je suprotno panel-odluci
+   (ink selekcija), ali panel i sidebar su razliciti kontesti; doslednost SA
+   sidebarom je vaznija ovde.
+6. **`activeStudioId` iz `?kind=`** (`useSearchParams`) oznacava aktivnu vrstu
+   medija u taksonomiji; build ne pada jer je /app/* dinamican (nema static-gen
+   Suspense problema).
+
+**Testovi:** UI izmena, nema jedinicnih testova (repo obrazac: React se ne
+renderuje u suite-u; `lib/studio-sections.ts` iz koraka 1 je vec pokriven).
+
+**Rezultat verifikacije:**
+- `npx convex codegen` -> exit 0.
+- `npm run lint` -> 0 errors, 8 warnings (nasledjeno).
+- `npm run test` -> **892 passed (892)** - ovaj put i `chat.test.ts` prosao
+  (potvrda da je timeout bio samo pod opterecenjem).
+- `npm run build` -> `✓ Compiled successfully`, 64/64 (`useSearchParams` u
+  sidebaru ne kvari build - /app/* je dinamican).
+
+**BLOKADA:** STOP po dogovoru - Jovan gleda prelaz uzivo pre nego sto predjem na
+grid (korak 5). Ne dirati grid do potvrde.

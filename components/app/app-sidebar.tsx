@@ -34,7 +34,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Image from "next/image";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { useParams, usePathname, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   useCallback,
   useEffect,
@@ -70,6 +70,8 @@ import { publicProfilePath } from "@/lib/profile-links";
 import type { AppCourseNav, AppNavigationData } from "@/lib/app-navigation";
 import { primaryCourseSlug } from "@/lib/content";
 import { dictionary, localized, type Locale, withLocale } from "@/lib/i18n";
+import { activeStudioSection } from "@/lib/studio-sections";
+import { SidebarNavSwap, StudioSidebarNav, StudioSidebarRail } from "@/components/app/app-sidebar-studio";
 
 const AddCourseAction = dynamic(() => import("@/components/app/admin-inline-actions").then((m) => m.AddCourseAction), { ssr: false });
 const EditCourseAction = dynamic(() => import("@/components/app/admin-inline-actions").then((m) => m.EditCourseAction), { ssr: false });
@@ -1173,6 +1175,7 @@ function AppSidebarContent({
   passwordRecommended?: boolean;
 }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const params = useParams<{ courseSlug?: string; lessonSlug?: string; trackSlug?: string }>();
   const t = dictionary[locale];
   const courses = navigation.courses;
@@ -1234,6 +1237,17 @@ function AppSidebarContent({
     setRailFlyout(null);
     applySidebarPreferences(next);
   }, [applySidebarPreferences]);
+
+  const goBackFromStudio = useCallback(() => {
+    // Direktan link ili refresh na /app/studio ne ostavlja in-app istoriju koju bi
+    // router.back() vratio - zato SVESNA rezervna ruta na dashboard, ne tihi no-op.
+    const fallback = withLocale(locale, "/app");
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
+    } else {
+      router.push(fallback);
+    }
+  }, [locale, router]);
 
   const startSidebarResize = useCallback(
     (startEvent: ReactPointerEvent<HTMLDivElement>) => {
@@ -1406,6 +1420,9 @@ function AppSidebarContent({
   const communityActive = pathname === withLocale(locale, "/app/community") || pathname.includes("/app/community/");
   const messagesActive = pathname === withLocale(locale, "/app/messages") || pathname.includes("/app/messages/");
   const studioActive = pathname === withLocale(locale, "/app/studio") || pathname.includes("/app/studio/");
+  // Vrsta medija po kojoj je biblioteka filtrirana (?kind=), za aktivnu stavku u
+  // studijskoj taksonomiji; nepoznato pada na "all".
+  const activeStudioId = activeStudioSection(searchParams.get("kind"));
   const creditsActive = pathname === withLocale(locale, "/app/credits");
   // Course detail only; a lesson is a deeper node and lights up the Lessons disclosure.
   const courseActive = Boolean(params.courseSlug) && !params.lessonSlug;
@@ -1522,16 +1539,24 @@ function AppSidebarContent({
             <X className="size-5" />
           </button>
         </div>
-        {currentCourse ? (
-          <LearningSwitcher
-            locale={locale}
-            courses={courses}
-            currentCourse={currentCourse}
-            currentLessonSlug={params.lessonSlug}
-            isAdmin={isAdmin}
-          />
-        ) : null}
-        <nav aria-label={navLabel} className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3 md:flex md:flex-col">
+        {/* Studio zamenjuje sadržaj sidebara (aditivno, iza `studioActive`): kontrola
+            za skupljanje iznad ostaje sidro, menja se samo ovo ispod nje. Klasičan
+            sadržaj (kursevi/lekcije/zajednica) je netaknut - samo umotan kao `classic`. */}
+        <SidebarNavSwap
+          active={studioActive}
+          reduce={shouldReduceMotion ?? false}
+          classic={
+            <>
+              {currentCourse ? (
+                <LearningSwitcher
+                  locale={locale}
+                  courses={courses}
+                  currentCourse={currentCourse}
+                  currentLessonSlug={params.lessonSlug}
+                  isAdmin={isAdmin}
+                />
+              ) : null}
+              <nav aria-label={navLabel} className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3 md:flex md:flex-col">
             <NavLink
               href={dashboardHref(locale)}
               active={dashboardActive}
@@ -1596,7 +1621,19 @@ function AppSidebarContent({
                 label={locale === "sr" ? "Chat sigurnost" : "Chat safety"}
               />
             ) : null}
-          </nav>
+              </nav>
+            </>
+          }
+          studio={
+            <StudioSidebarNav
+              locale={locale}
+              activeId={activeStudioId}
+              onBack={goBackFromStudio}
+              reduce={shouldReduceMotion ?? false}
+              isStaff={isStaff}
+            />
+          }
+        />
       </div>
 
       {/* Bottom Profile Card */}
@@ -1791,7 +1828,15 @@ function AppSidebarContent({
         </Link>
 
         <div className="my-4 h-px w-8 bg-line" />
-        <nav className="flex flex-col items-center gap-2" aria-label={locale === "sr" ? "Glavna navigacija" : "Main navigation"}>
+        {/* Rail (skupljeno): isti swap, ali `compact` - opacity crossfade bez klizanja
+            (80px je preusko za horizontalni pomeraj); „Nazad" ikona nosi značenje. */}
+        <SidebarNavSwap
+          compact
+          active={studioActive}
+          reduce={shouldReduceMotion ?? false}
+          className="w-full"
+          classic={
+            <nav className="flex flex-col items-center gap-2" aria-label={locale === "sr" ? "Glavna navigacija" : "Main navigation"}>
           {currentCourse ? (
             <RailAction label={`${localized(currentCourse.title, locale)} · ${t.lessons}`} icon={<GraduationCap className="size-5" />} expanded={railFlyout === "learning"} onClick={() => setRailFlyout((value) => value === "learning" ? null : "learning")} />
           ) : null}
@@ -1820,7 +1865,17 @@ function AppSidebarContent({
           {showUpgrade ? (
             <RailAction href={`${withLocale(locale)}#pricing`} label={locale === "sr" ? "Unapredi" : "Upgrade"} icon={<ArrowUpRight className="size-5" />} />
           ) : null}
-        </nav>
+            </nav>
+          }
+          studio={
+            <StudioSidebarRail
+              locale={locale}
+              activeId={activeStudioId}
+              onBack={goBackFromStudio}
+              isStaff={isStaff}
+            />
+          }
+        />
 
         {railFlyout === "learning" && currentCourse ? (
           <div className="absolute left-[calc(100%_+_32px)] top-20 z-[70] max-h-[calc(100vh_-_140px)] w-[380px] max-w-[calc(100vw_-_112px)] overflow-y-auto overflow-x-hidden rounded-[16px] border-2 border-ink bg-white p-4 text-ink shadow-[10px_10px_0_rgba(14,49,88,0.16)]">
