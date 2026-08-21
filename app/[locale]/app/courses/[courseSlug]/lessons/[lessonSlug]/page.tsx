@@ -212,7 +212,7 @@ export default async function LessonPage({
   }
 
   if (!liveLesson && course.status !== "published") {
-    redirect(withLocale(locale, `/app?course=${course.slug}`));
+    redirect(withLocale(locale, `/app/courses/${course.slug}`));
   }
 
   const resolved = liveCourseAndLesson(liveLesson, course, lesson);

@@ -1,0 +1,68 @@
+﻿[01:44:22] ==================================================
+[01:44:22]  STUDIO - katalog v3, tri provajdera
+[01:44:22]  Grana:  feat/studio-faza-a
+[01:44:22]  Koraka: 6
+[01:44:22] ==================================================
+[01:44:22] Grana: feat/studio-faza-a
+[01:44:22] Nekomitovane izmene - commitujem pre starta.
+[01:44:24] 
+[01:44:24] --------------------------------------------------
+[01:44:24]  S3  |  BytePlus - Seedream 5 Pro i Seedance 2.0/2.5
+[01:44:24]  model=opus  effort=max
+[01:44:24] --------------------------------------------------
+[02:15:37] Commit bd3e847 - 8 putanja
+[02:15:37] S3 -> OK  (31 min, USD 10.79)
+[02:15:37] 
+[02:15:37] --------------------------------------------------
+[02:15:37]  S4  |  Google video poller - Veo Fast i Gemini Omni
+[02:15:37]  model=opus  effort=high
+[02:15:37] --------------------------------------------------
+[02:43:00] Commit 3f7c813 - 19 putanja
+[02:43:00] S4 -> OK  (27 min, USD 9.94)
+[02:43:00] 
+[02:43:00] --------------------------------------------------
+[02:43:00]  S5  |  Seed kataloga - oko 30 modela sa parametrima i cenama
+[02:43:00]  model=opus  effort=high
+[02:43:00] --------------------------------------------------
+[03:11:27] Commit ba60ef6 - 18 putanja
+[03:11:27] S5 -> OK  (28 min, USD 9.37)
+[03:11:27] 
+[03:11:27] --------------------------------------------------
+[03:11:27]  S6  |  Deljene komponente: ParamControl, DropSlot, FrameSlotPair
+[03:11:27]  model=opus  effort=high
+[03:11:27] --------------------------------------------------
+[03:42:29] Commit 002de0e - 13 putanja
+[03:42:29] S6 -> OK  (31 min, USD 12.55)
+[03:42:29] 
+[03:42:29] --------------------------------------------------
+[03:42:29]  S7  |  Playground, galerija i admin na novim komponentama
+[03:42:29]  model=opus  effort=high
+[03:42:29] --------------------------------------------------
+[04:27:01] Commit 57b8c56 - 30 putanja
+[04:27:01] S7 -> OK  (45 min, USD 22.63)
+[04:27:01] 
+[04:27:01] --------------------------------------------------
+[04:27:01]  SRV  |  Zavrsni review kataloskog run-a
+[04:27:01]  model=opus  effort=xhigh
+[04:27:01] --------------------------------------------------
+[04:46:58] Commit e73eb3f - 5 putanja
+[04:46:58] SRV -> OK  (20 min, USD 7.39)
+[04:46:58] 
+[04:46:58] ==================================================
+[04:46:58]  GOTOVO
+[04:46:58] ==================================================
+[04:46:58] Korak Status Minuta CenaUSD Commit 
+[04:46:58] ----- ------ ------ ------- ------ 
+[04:46:58] S3    OK         31 10.79   bd3e847
+[04:46:58] S4    OK         27 9.94    3f7c813
+[04:46:58] S5    OK         28 9.37    ba60ef6
+[04:46:58] S6    OK         31 12.55   002de0e
+[04:46:58] S7    OK         45 22.63   57b8c56
+[04:46:58] SRV   OK         20 7.39    e73eb3f
+[04:46:58] Ukupna cena: USD 72.66
+[04:46:58] Grana: feat/studio-faza-a  (NIJE push-ovana, NIJE deploy-ovana)
+[04:46:58] 
+[04:46:58] Kad se vratis:
+[04:46:58]   1. docs\STUDIO-CATALOG-REPORT.md  - marze po modelu, rutiranje, rizici
+[04:46:58]   2. docs\STUDIO-PROGRESS.md        - dnevnik po koracima
+[04:46:58]   3. npm run dev  pa  /sr/app/studio

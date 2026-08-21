@@ -26,6 +26,8 @@ export const convexMutations = {
   createDocumentUploadUrl: makeFunctionReference<"mutation">("video:createDocumentUploadUrl"),
   saveLessonAsset: makeFunctionReference<"mutation">("video:saveLessonAsset"),
   recordAiExchange: makeFunctionReference<"mutation">("lab:recordAiExchange"),
+  applyStripeGrant: makeFunctionReference<"mutation">("credits:applyStripeGrant"),
+  applyStripeReversal: makeFunctionReference<"mutation">("credits:applyStripeReversal"),
 };
 
 export const convexQueries = {
@@ -43,4 +45,5 @@ export const convexQueries = {
   getBillingSummary: makeFunctionReference<"query">("billing:getBillingSummary"),
   getViewerProfileStatus: makeFunctionReference<"query">("profiles:getViewerProfileStatus"),
   getMySuspension: makeFunctionReference<"query">("chatModeration:getMySuspension"),
+  getPackBySlug: makeFunctionReference<"query">("creditPacks:getPackBySlug"),
 };

@@ -1,19 +1,6 @@
 "use client";
 
-import {
-  BarChart3,
-  Bell,
-  BookOpenText,
-  ChevronRight,
-  CircleAlert,
-  Menu,
-  MessageSquareText,
-  PenLine,
-  ShieldCheck,
-  Sparkles,
-  Users,
-  X,
-} from "lucide-react";
+import { ChevronRight, CircleAlert, Menu, PenLine, Sparkles, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import type { ReactNode } from "react";
@@ -21,20 +8,19 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { cn } from "@/components/ui/primitives";
 import { SmartStickyRegion } from "@/components/ui/smart-sticky";
+import {
+  activeCommunitySection,
+  communitySectionLabel,
+  communitySectionsFor,
+  type CommunitySection,
+} from "@/lib/community-sections";
 import type { Locale } from "@/lib/i18n";
 import { withLocale } from "@/lib/i18n";
 
 import { fallbackCommunityFilters, useCommunityFilters } from "./community-data";
 import type { CommunityFilters } from "./community-types";
 
-type CommunityNavItem = {
-  id: string;
-  path: string;
-  labelSr: string;
-  labelEn: string;
-  icon: typeof MessageSquareText;
-  badge?: number;
-};
+type CommunityNavItem = CommunitySection & { badge?: number };
 
 type CommunityHeroCopy = {
   badgeSr: string;
@@ -106,18 +92,6 @@ const COMMUNITY_HERO_COPY: Record<string, CommunityHeroCopy> = {
 
 const PRESERVED_SEARCH_KEYS = ["scope", "track", "course", "q", "sort"];
 
-function activeCommunitySection(pathname: string) {
-  const match = pathname.match(/\/community\/([^/?#]+)/);
-  const segment = match?.[1];
-  if (!segment || segment === "new" || segment === "edit" || !Number.isNaN(Number(segment))) {
-    return "discussions";
-  }
-  if (["discussions", "my-threads", "mentions", "notifications", "members", "leaderboard", "moderation"].includes(segment)) {
-    return segment;
-  }
-  return "discussions";
-}
-
 function navHref(locale: Locale, path: string, searchParams: URLSearchParams) {
   const preserved = new URLSearchParams();
   PRESERVED_SEARCH_KEYS.forEach((key) => {
@@ -153,7 +127,7 @@ function CommunityNavLink({
   mobile?: boolean;
 }) {
   const Icon = item.icon;
-  const label = locale === "sr" ? item.labelSr : item.labelEn;
+  const label = communitySectionLabel(item, locale);
 
   return (
     <Link
@@ -231,58 +205,12 @@ function CommunityShellView({
   const isStaff = filters.viewer.role === "admin" || filters.viewer.role === "moderator";
 
   const navItems = useMemo<CommunityNavItem[]>(
-    () => [
-      {
-        id: "discussions",
-        path: "discussions",
-        labelSr: "Diskusije",
-        labelEn: "Discussions",
-        icon: MessageSquareText,
-      },
-      {
-        id: "my-threads",
-        path: "my-threads",
-        labelSr: "Moji predlozi",
-        labelEn: "My ideas",
-        icon: BookOpenText,
-        badge: filters.counts?.myThreads,
-      },
-      {
-        id: "notifications",
-        path: "notifications",
-        labelSr: "Obaveštenja",
-        labelEn: "Notifications",
-        icon: Bell,
-        badge: filters.counts?.community,
-      },
-      {
-        id: "members",
-        path: "members",
-        labelSr: "Članovi",
-        labelEn: "Members",
-        icon: Users,
-      },
-      {
-        id: "leaderboard",
-        path: "leaderboard",
-        labelSr: "Leaderboard",
-        labelEn: "Leaderboard",
-        icon: BarChart3,
-      },
-      ...(isStaff
-        ? [
-            {
-              id: "moderation",
-              path: "moderation",
-              labelSr: "Odobrenja",
-              labelEn: "Approvals",
-              icon: ShieldCheck,
-              badge: filters.counts?.pendingApprovals,
-            },
-          ]
-        : []),
-    ],
-    [filters.counts?.community, filters.counts?.myThreads, filters.counts?.pendingApprovals, isStaff],
+    () =>
+      communitySectionsFor(isStaff).map((section) => ({
+        ...section,
+        badge: section.badgeKey ? filters.counts?.[section.badgeKey] : undefined,
+      })),
+    [filters.counts, isStaff],
   );
   const activeNavIndex = Math.max(0, navItems.findIndex((item) => item.id === activeSection));
   const activeNavWidth = `${100 / Math.max(navItems.length, 1)}%`;

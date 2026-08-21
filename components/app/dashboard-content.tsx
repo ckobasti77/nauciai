@@ -40,6 +40,7 @@ import {
 import { InlineContentText } from "@/components/app/inline-content";
 import { InlineRichText } from "@/components/app/rich-text";
 import { CheckoutButton } from "@/components/app/checkout-button";
+import { coursePath, lessonPath } from "@/lib/app-routes";
 import { LinkButton, Panel, cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -254,7 +255,7 @@ function formatLastActivity(locale: Locale, timestamp?: number) {
 }
 
 function courseDetailHref(locale: Locale, courseSlug: string) {
-  return `${withLocale(locale, "/app")}?course=${courseSlug}`;
+  return coursePath(locale, courseSlug);
 }
 
 function courseCommunityHref(locale: Locale, courseSlug: string) {
@@ -263,7 +264,7 @@ function courseCommunityHref(locale: Locale, courseSlug: string) {
 
 function courseContinueHref(locale: Locale, course: DashboardCourse, nextLesson?: DashboardLesson) {
   if (!nextLesson) return courseDetailHref(locale, course.slug);
-  return withLocale(locale, `/app/courses/${course.slug}/lessons/${nextLesson.slug}`);
+  return lessonPath(locale, course.slug, nextLesson.slug);
 }
 
 function MetricTile({

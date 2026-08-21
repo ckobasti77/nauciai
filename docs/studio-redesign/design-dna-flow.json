@@ -1,0 +1,148 @@
+{
+  "meta": {
+    "name": "Google Flow — structure DNA (the skeleton)",
+    "description": "Interaction and information architecture of Google Flow (labs.google/fx/tools/flow). This is the STRUCTURE half of the Studio fusion: we take Flow's skeleton (grid-as-canvas, floating contextual composer, drop-up param panel, media-as-editor, prompt-as-identity) and reject its skin (dark room, monochrome chrome). Extracted from a live click-through of a real project on 2026-08-21.",
+    "source_references": [
+      "labs.google/fx/sr/tools/flow/project/4bda8910... (grid + composer + drop-up panel, image & video variants, model dropdown, card hover)",
+      "labs.google/fx/tools/flow/.../edit/<mediaId> (media detail editor with contextual composer + history panel)",
+      "higgsfield.ai/ai-video (secondary: labeled state-chip composer, for control readability only)"
+    ],
+    "created_at": "2026-08-21"
+  },
+  "design_system": {
+    "color": {
+      "palette_type": "monochromatic-grayscale (achromatic)",
+      "primary": { "hex": "#0a0a0a", "role": "canvas ground — the whole app background, near-black" },
+      "secondary": { "hex": "#1c1c1e", "role": "elevated surface — composer, drop-up panel, dropdowns" },
+      "accent": { "hex": "#e8e8e8", "role": "there is NO chromatic accent. 'Accent' = a lighter gray fill (#3a3a3c) marking the selected segment, or white text. Color comes ONLY from the generated media." },
+      "neutral": {
+        "scale": ["#000000", "#0a0a0a", "#141416", "#1c1c1e", "#2c2c2e", "#3a3a3c", "#8e8e93", "#c7c7cc", "#ffffff"],
+        "usage": "A pure gray ramp. Ground → surface → hovered/selected surface → muted text → bright text. Zero hue anywhere in the chrome."
+      },
+      "semantic": { "success": "gray/white", "warning": "gray/white", "error": "muted red only when unavoidable", "info": "gray" },
+      "surface": { "background": "#0a0a0a", "card": "transparent — media tiles have NO card; they ARE the surface, edge to edge", "elevated": "#1c1c1e with a faint 1px lighter border and soft shadow (composer, panel)" },
+      "contrast_strategy": "Dark room. The chrome recedes to near-black so the eye never competes between UI and media; the only bright, saturated thing on screen is the generated content. Text is white/gray on black."
+    },
+    "typography": {
+      "type_scale": {
+        "display": { "size": "n/a — a tool, not a marketing page; no display type", "weight": "n/a", "line_height": "n/a", "tracking": "n/a" },
+        "heading_1": { "size": "~1rem (media title = the prompt, in the editor top bar)", "weight": "500", "line_height": "1.3", "tracking": "0" },
+        "heading_2": { "size": "0.9rem", "weight": "500", "line_height": "1.3", "tracking": "0" },
+        "heading_3": { "size": "0.85rem", "weight": "500", "line_height": "1.3", "tracking": "0" },
+        "body": { "size": "0.875rem (14px)", "weight": "400", "line_height": "1.4", "tracking": "0" },
+        "body_small": { "size": "0.8125rem (13px)", "weight": "400", "line_height": "1.4", "tracking": "0" },
+        "caption": { "size": "0.75rem (12px)", "weight": "400–500", "line_height": "1.3", "tracking": "0.01em" },
+        "overline": { "size": "0.6875rem", "weight": "500", "line_height": "1.2", "tracking": "0.02em" }
+      },
+      "font_families": { "heading": "Google Sans / Product Sans-like geometric sans", "body": "Roboto / Google Sans Text", "mono": "Roboto Mono (rare, timecodes)" },
+      "font_style_notes": "Neutral, quiet, low-weight geometric sans. Type is deliberately un-styled so it never competes with media. Small sizes, regular/medium weights, no black weights, no personality. Type is chrome, not content."
+    },
+    "spacing": {
+      "base_unit": "4px",
+      "scale": ["4", "8", "12", "16", "20", "24", "32"],
+      "content_density": "comfortable-to-compact — controls are tight pills; the GRID is spacious (media given maximum room)",
+      "section_rhythm": "media grid uses a small, even gutter (~12–16px); composer floats with generous margin from the viewport bottom"
+    },
+    "layout": {
+      "grid_system": "Three zones: (1) left taxonomy rail ~250px, (2) edge-to-edge media grid = the canvas, (3) floating composer bottom-center that hovers OVER the scrolling grid. The grid scrolls UNDER the translucent composer.",
+      "max_content_width": "full-bleed — the media grid uses all available width",
+      "columns": "2 large columns on desktop for the media grid (very large tiles); masonry-ish by media aspect",
+      "gutter": "~12–16px between media tiles",
+      "breakpoints": "desktop-first; the rail collapses and composer adapts on narrow",
+      "alignment_tendency": "full-bleed grid, centered floating composer, left-aligned rail"
+    },
+    "shape": {
+      "border_radius": { "small": "8px (segmented pills, chips)", "medium": "12px (buttons in panel)", "large": "16–20px (composer bar, drop-up panel, dropdown)", "pill": "9999px (state chip, segmented groups, icon buttons)" },
+      "border_usage": "almost none — surfaces separate by lightness, not by stroke. At most a faint 1px rgba(255,255,255,0.08) hairline on elevated panels.",
+      "divider_style": "faint 1px light-on-dark hairline, or just a spacing gap; a thin rule under the rail's 'Uploads' before 'Tools'"
+    },
+    "elevation": {
+      "shadow_style": "soft diffused — large-radius, low-opacity black shadows under the floating composer and drop-up panel; blur present (opposite of the platform)",
+      "levels": { "low": "media tiles: none (flat on ground)", "medium": "composer bar: soft shadow + slight surface lift (#1c1c1e)", "high": "drop-up panel / dropdown: larger soft shadow, sits above composer" },
+      "depth_cues": "surface lightness (darker=further) + soft blurred shadow + layering (composer over grid). NO offset, NO hard edge."
+    },
+    "iconography": { "style": "thin line icons, monochrome, Material-adjacent", "stroke_weight": "~1.5–2px", "size_scale": "18 / 20 / 24", "preferred_set": "Google Material Symbols (outlined)" },
+    "motion": {
+      "easing": "standard Material easing (ease-out / emphasized-decelerate)",
+      "duration_scale": { "micro": "100–150ms (hover chrome reveal on cards)", "normal": "200–250ms (drop-up panel open, chip morph)", "macro": "300–400ms (grid ↔ editor route transition)" },
+      "entrance_pattern": "drop-up panel scales/slides up from the composer; card chrome fades in on hover; editor cross-fades from the grid",
+      "exit_pattern": "reverse — panel collapses down into the chip",
+      "philosophy": "cinematic-restraint — motion is smooth and quiet, in service of continuity (the composer persists and morphs rather than being replaced), never decorative"
+    },
+    "components": {
+      "button_style": "quiet — icon buttons are bare circles that gain a subtle gray hover fill; the send button is a small circle with an arrow; no borders",
+      "input_style": "the composer textarea is borderless, placeholder-only ('Šta želite da napravite?'), transparent on the surface",
+      "card_style": "NO card. Media is presented raw, edge-to-edge; 'card' chrome (favorite/reuse/more pill, play+prompt, extend star) appears only on hover, floating on top of the media",
+      "navigation_pattern": "left taxonomy rail that is NOT app-navigation but a media-library filter: All media · Images · Videos · Characters · Lighting · Uploads — rule — Tools — bottom: Trash · Collapse",
+      "modal_style": "clicking media does NOT open a modal — it ROUTES to /edit/<id>, a full editor (player + timeline + history panel + the same composer). Detail-as-place, not detail-as-overlay.",
+      "list_style": "dropdowns are simple dark rounded panels; model list = emoji + name rows with hover highlight",
+      "component_notes": "THE central component is the composer: one persistent element with two intents. In the grid its placeholder is 'Šta želite da napravite?' and it CREATES. In the editor its placeholder is 'Opišite izmene' and it EDITS, with a different model in the chip. A summary state chip ('Video · 720p · 8s · x4') always mirrors the drop-up panel; clicking it opens the panel above. The panel is model-driven: switching Image↔Video changes which rows exist (video adds Frames/Ingredients + duration; image shows 5 ratios vs video's 2) and auto-selects a compatible model. A live credit line at the panel bottom updates as controls change."
+    }
+  },
+  "design_style": {
+    "aesthetic": {
+      "mood": ["focused", "cinematic", "pro", "calm", "immersive"],
+      "visual_metaphor": "a darkened editing suite / color-grading room — the walls disappear so the footage on the wall is all you see",
+      "era_influence": "modern pro creative tooling (video editors, DAWs, After Effects dark UI)",
+      "genre": "dark professional creative tool",
+      "personality_traits": ["understated", "efficient", "deferential to content", "expert"],
+      "adjectives": ["dark", "quiet", "spacious", "frameless", "continuous"]
+    },
+    "visual_language": {
+      "complexity": "minimal chrome, rich content",
+      "ornamentation": "none — zero decoration; every pixel of chrome earns its place",
+      "whitespace_usage": "the black ground IS the whitespace; media is given maximal room",
+      "visual_weight_distribution": "all weight on the media; chrome is near-weightless",
+      "focal_strategy": "the media is always the hero; chrome recedes until hovered",
+      "contrast_level": "high between media and ground, low within the chrome",
+      "texture_usage": "none — flat black"
+    },
+    "composition": {
+      "hierarchy_method": "spatial isolation + darkness — the important thing (media) is bright and large, everything else is dim and small",
+      "balance_type": "mosaic (media grid) with a fixed floating anchor (composer)",
+      "flow_direction": "vertical scroll through the grid; the composer is a fixed gravity well at the bottom",
+      "grouping_strategy": "implicit — grouping by proximity and the taxonomy rail, never by drawn containers",
+      "negative_space_role": "dominant and load-bearing — the dark negative space is the entire readability strategy"
+    },
+    "imagery": {
+      "photo_treatment": "raw, full-bleed, uncropped-feeling; media is never framed or bordered",
+      "illustration_style": "none",
+      "graphic_elements": "hover pills, play glyph, small state chips — all monochrome and translucent",
+      "pattern_usage": "none",
+      "image_shape": "large rounded rectangles (subtle radius) in a 2-column grid; the media fills the tile"
+    },
+    "interaction_feel": {
+      "feedback_style": "quiet and instantaneous — hover reveals affordances, selection is a subtle fill",
+      "hover_behavior": "media tile reveals a top-right action pill (favorite/reuse/more), a bottom-left play+prompt title, and a bottom-right extend/animate star",
+      "transition_personality": "smooth glide — continuity over spectacle; the composer morphs, the editor cross-fades",
+      "loading_style": "in-place progress; generated media streams into its tile",
+      "microinteraction_density": "low-moderate — precise, never busy"
+    },
+    "brand_voice_in_ui": {
+      "tone": "neutral, terse, professional",
+      "formality": "neutral",
+      "cta_style": "subtle — a small send arrow, not a shouted button; the panel states cost plainly ('Generisanje će koristiti 48 kredita')",
+      "empty_state_approach": "quiet",
+      "error_tone": "terse/system"
+    }
+  },
+  "visual_effects": {
+    "overview": { "effect_intensity": "subtle-accent", "performance_tier": "lightweight", "fallback_strategy": "disable chrome animation", "primary_technology": "CSS + JS transitions; media playback is the spectacle" },
+    "background_effects": { "type": "none — flat near-black", "description": "no animated background; the media grid is the visual field", "technology": "none", "params": { "color_palette": ["#0a0a0a"], "speed": "static", "density": "n/a", "opacity": "1", "blend_mode": "normal" } },
+    "particle_systems": { "enabled": false, "type": "none", "description": "none", "technology": "none", "params": { "count": "0", "shape": "n/a", "size_range": "n/a", "movement_pattern": "n/a", "color_behavior": "n/a", "interaction": "none", "spawn_area": "n/a" } },
+    "3d_elements": { "enabled": false, "type": "none", "description": "none", "technology": "none", "params": { "renderer": "n/a", "lighting": "n/a", "camera": "n/a", "materials": "n/a", "geometry": "n/a", "post_processing": [], "interaction_model": "none" } },
+    "shader_effects": { "enabled": false, "type": "none", "description": "none", "technology": "none", "params": { "uniforms": "n/a", "vertex_manipulation": "n/a", "fragment_output": "n/a", "noise_type": "n/a", "distortion": "n/a" } },
+    "scroll_effects": {
+      "parallax": { "enabled": false, "layers": "0", "depth_range": "n/a", "speed_curve": "n/a" },
+      "scroll_triggered_animations": { "enabled": false, "trigger_points": "n/a", "animation_type": "n/a", "scrub_behavior": "n/a" },
+      "scroll_morphing": { "enabled": true, "description": "the composer stays fixed and translucent while the media grid scrolls beneath it — a persistent floating layer over a moving canvas" }
+    },
+    "text_effects": { "type": "none", "description": "the prompt-as-title simply fades in with the card chrome on hover", "technology": "CSS", "params": { "split_strategy": "n/a", "animation_per_unit": "n/a", "stagger": "n/a", "effect_style": "fade" } },
+    "cursor_effects": { "enabled": false, "type": "none", "description": "standard cursor", "params": { "shape": "n/a", "size": "n/a", "blend_mode": "n/a", "trail": "n/a", "interaction_zone": "n/a" } },
+    "image_effects": { "type": "hover-reveal-chrome", "description": "on hover the media dims very slightly and floating monochrome controls fade in over it", "technology": "CSS opacity/transform", "params": { "filter_pipeline": "slight dim overlay on hover", "hover_transform": "chrome fade-in", "reveal_animation": "media streams in as it generates", "distortion_type": "none" } },
+    "glassmorphism_neumorphism": { "enabled": true, "style": "frosted-layers (light)", "params": { "blur_radius": "the floating composer is subtly translucent/blurred over the grid", "transparency": "~0.85 surface with slight backdrop blur", "border_treatment": "faint 1px light hairline", "shadow_type": "soft diffused", "light_source_angle": "ambient" } },
+    "canvas_drawings": { "enabled": false, "type": "none", "description": "none", "technology": "none", "params": { "draw_method": "n/a", "animation_loop": "n/a", "color_scheme": "n/a", "responsiveness": "n/a", "interaction": "none" } },
+    "svg_animations": { "enabled": false, "type": "none", "description": "none", "params": { "animation_method": "n/a", "path_morphing": "n/a", "stroke_animation": "n/a", "filter_effects": "n/a" } },
+    "composite_notes": "Flow's readability engine is exactly one thing: the dark room. Chrome is achromatic and near-invisible so media is the sole source of color and light; a subtly frosted floating composer keeps controls present without stealing the field. THIS IS THE ONE THING WE CANNOT COPY — the platform is cream with hard ink borders and a yellow accent, the opposite of a dark room. So the fusion keeps Flow's SKELETON (grid-as-canvas, persistent contextual composer, drop-up model-driven panel, media-as-editor route, prompt-as-identity, hover-reveal chrome, reuse-as-input) and must re-solve readability in the platform's SKIN without a dark ground — the central design problem of Phase 1 (see the three 'media on cream' directions in the report)."
+  }
+}

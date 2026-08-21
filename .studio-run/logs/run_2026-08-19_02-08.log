@@ -1,0 +1,111 @@
+﻿[02:08:30] ==================================================
+[02:08:30]  STUDIO FAZA A - nocni run
+[02:08:30]  Repo:   C:\Users\admin\Desktop\Web Dev Projects\nauciai
+[02:08:30]  Grana:  feat/studio-faza-a
+[02:08:30]  Koraka: 11
+[02:08:30]  Log:    C:\Users\admin\Desktop\Web Dev Projects\nauciai\.studio-run\logs\run_2026-08-19_02-08.log
+[02:08:30] ==================================================
+[02:08:30] Vec na grani feat/studio-faza-a
+[02:08:30] Nekomitovane izmene zatecene - commitujem ih pre starta.
+[02:08:30] 
+[02:08:30] --------------------------------------------------
+[02:08:30]  A1  |  Convex sema za kredite, katalog modela i poslove
+[02:08:30]  model=sonnet  effort=high
+[02:08:30] --------------------------------------------------
+[02:12:31] Commit 4215507 - 5 izmenjenih putanja
+[02:12:31] A1 -> BLOKADA  (4 min, USD 1.26)
+[02:12:31] 
+[02:12:31] --------------------------------------------------
+[02:12:31]  A2  |  Ledger: creditsCore + credits.ts + testovi
+[02:12:31]  model=opus  effort=max
+[02:12:31] --------------------------------------------------
+[02:29:54] Commit d1f98a9 - 9 izmenjenih putanja
+[02:29:54] A2 -> BLOKADA  (17 min, USD 6.11)
+[02:29:54] 
+[02:29:54] --------------------------------------------------
+[02:29:54]  A3  |  Planovi Basic/Premium i pristup Pro lekcijama
+[02:29:54]  model=opus  effort=high
+[02:29:54] --------------------------------------------------
+[02:36:02] Commit 245ff00 - 10 izmenjenih putanja
+[02:36:02] A3 -> BLOKADA  (6 min, USD 2.37)
+[02:36:02] 
+[02:36:02] --------------------------------------------------
+[02:36:02]  A4  |  Paketi kredita i planovi u bazi + seed
+[02:36:02]  model=sonnet  effort=high
+[02:36:02] --------------------------------------------------
+[02:40:50] Commit ecd39dd - 8 izmenjenih putanja
+[02:40:50] A4 -> BLOKADA  (5 min, USD 1.86)
+[02:40:50] 
+[02:40:50] --------------------------------------------------
+[02:40:50]  A5  |  Stripe checkout: paketi kredita i planovi
+[02:40:50]  model=opus  effort=high
+[02:40:50] --------------------------------------------------
+[02:46:08] Commit fb7eaed - 8 izmenjenih putanja
+[02:46:08] A5 -> BLOKADA  (5 min, USD 2.08)
+[02:46:08] 
+[02:46:08] --------------------------------------------------
+[02:46:08]  A6  |  Stripe webhook: dodela kredita, idempotentno
+[02:46:08]  model=opus  effort=max
+[02:46:08] --------------------------------------------------
+[03:03:23] Commit a7a3221 - 9 izmenjenih putanja
+[03:03:23] A6 -> BLOKADA  (17 min, USD 6.96)
+[03:03:23] 
+[03:03:23] --------------------------------------------------
+[03:03:23]  A7  |  Katalog modela sa cenama
+[03:03:23]  model=sonnet  effort=medium
+[03:03:23] --------------------------------------------------
+[03:07:37] Commit 00d925c - 8 izmenjenih putanja
+[03:07:37] A7 -> BLOKADA  (4 min, USD 1.97)
+[03:07:37] 
+[03:07:37] --------------------------------------------------
+[03:07:37]  A8  |  fal.ai klijent i submit akcija
+[03:07:37]  model=sonnet  effort=high
+[03:07:37] --------------------------------------------------
+[03:15:58] Commit f06a3d5 - 9 izmenjenih putanja
+[03:15:58] A8 -> BLOKADA  (8 min, USD 3.52)
+[03:15:58] 
+[03:15:58] --------------------------------------------------
+[03:15:58]  A9  |  createJob sa rezervacijom kredita
+[03:15:58]  model=opus  effort=max
+[03:15:58] --------------------------------------------------
+[03:33:10] Commit 53789c0 - 12 izmenjenih putanja
+[03:33:10] A9 -> BLOKADA  (17 min, USD 5.99)
+[03:33:10] 
+[03:33:10] --------------------------------------------------
+[03:33:10]  A10  |  fal webhook: ED25519 verifikacija i idempotentna obrada
+[03:33:10]  model=opus  effort=max
+[03:33:10] --------------------------------------------------
+[03:53:11] Commit add763d - 11 izmenjenih putanja
+[03:53:11] A10 -> BLOKADA  (20 min, USD 7.12)
+[03:53:11] 
+[03:53:11] --------------------------------------------------
+[03:53:11]  RV  |  Zavrsni review i izvestaj
+[03:53:11]  model=opus  effort=xhigh
+[03:53:11] --------------------------------------------------
+[04:08:39] Commit c351c2f - 5 izmenjenih putanja
+[04:08:39] RV -> BLOKADA  (15 min, USD 4.77)
+[04:08:39] 
+[04:08:39] ==================================================
+[04:08:39]  GOTOVO
+[04:08:39] ==================================================
+[04:08:39] Korak Status  Minuta CenaUSD Commit 
+[04:08:39] ----- ------  ------ ------- ------ 
+[04:08:39] A1    BLOKADA      4 1.26    4215507
+[04:08:39] A2    BLOKADA     17 6.11    d1f98a9
+[04:08:39] A3    BLOKADA      6 2.37    245ff00
+[04:08:39] A4    BLOKADA      5 1.86    ecd39dd
+[04:08:39] A5    BLOKADA      5 2.08    fb7eaed
+[04:08:39] A6    BLOKADA     17 6.96    a7a3221
+[04:08:39] A7    BLOKADA      4 1.97    00d925c
+[04:08:39] A8    BLOKADA      8 3.52    f06a3d5
+[04:08:39] A9    BLOKADA     17 5.99    53789c0
+[04:08:39] A10   BLOKADA     20 7.12    add763d
+[04:08:39] RV    BLOKADA     15 4.77    c351c2f
+[04:08:39] Ukupna cena: USD 44.01
+[04:08:39] Grana: feat/studio-faza-a  (NIJE push-ovana, NIJE deploy-ovana)
+[04:08:39] 
+[04:08:39] Ujutru:
+[04:08:39]   1. docs\STUDIO-NIGHT-REPORT.md   - izvestaj i rucni koraci
+[04:08:39]   2. docs\STUDIO-PROGRESS.md       - dnevnik po koracima
+[04:08:39]   3. .studio-run\logs\             - sirovi logovi
+[04:08:39]   4. Javi Claude-u da je gotovo.

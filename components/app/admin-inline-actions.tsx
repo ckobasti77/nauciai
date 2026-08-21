@@ -1045,7 +1045,7 @@ export function AddCourseAction({
       setOpen(false);
     } else if (action.type === "module") {
       setOpen(false);
-      router.push(`${withLocale(locale, "/app")}?course=${slugForNavigation}&editModule=${action.moduleId}`);
+      router.push(`${withLocale(locale, `/app/courses/${slugForNavigation}`)}?editModule=${action.moduleId}`);
     } else {
       setOpen(false);
       router.push(withLocale(locale, `/app/courses/${slugForNavigation}/lessons/${action.lessonSlug}/edit`));
@@ -1060,7 +1060,7 @@ export function AddCourseAction({
     try {
       const savedSlug = await saveCourse();
       setOpen(false);
-      router.push(`${withLocale(locale, "/app")}?course=${savedSlug}`);
+      router.push(withLocale(locale, `/app/courses/${savedSlug}`));
       router.refresh();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : t(locale, "Cuvanje nije uspelo.", "Save failed."));
@@ -1754,7 +1754,7 @@ export function AddModuleAction({
     if (autoOpenKey) {
       setDismissedAutoOpenKey(autoOpenKey);
       if (courseSlug) {
-        router.replace(`${withLocale(locale, "/app")}?course=${courseSlug}`, { scroll: false });
+        router.replace(withLocale(locale, `/app/courses/${courseSlug}`), { scroll: false });
       }
     }
   }
@@ -1884,7 +1884,7 @@ export function AddModuleAction({
       const savedModuleId = await saveCycle();
       closeSheet();
       if (!moduleId && courseSlug && openLessonAfterCreate) {
-        router.push(`${withLocale(locale, "/app")}?course=${courseSlug}&newLessonModule=${savedModuleId}`);
+        router.push(`${withLocale(locale, `/app/courses/${courseSlug}`)}?newLessonModule=${savedModuleId}`);
       }
       router.refresh();
     } catch (error) {

@@ -60,6 +60,50 @@ const chatRequestStatus = v.union(
   v.literal("accepted"),
   v.literal("declined"),
 );
+const planTier = v.union(v.literal("basic"), v.literal("premium"));
+const creditLotSource = v.union(
+  v.literal("purchase"),
+  v.literal("plan_grant"),
+  v.literal("welcome_bonus"),
+  v.literal("admin_grant"),
+  // Refund neuspelog posla otvara nov lot umesto da vraća kredite u originalni.
+  v.literal("refund"),
+);
+const creditTransactionType = v.union(
+  v.literal("purchase"),
+  v.literal("spend"),
+  v.literal("refund"),
+  v.literal("bonus"),
+  v.literal("trial"),
+  v.literal("expiry"),
+  v.literal("admin_adjust"),
+  // Korekcija posle završenog posla (X2, nalaz N2): `spend` je rezervacija po
+  // proceni, ovo je razlika do stvarne količine. Zaseban tip, a ne drugi
+  // `spend`/`refund` red, da se u istoriji vidi i jedno i drugo - i da
+  // `by_job_type` ostane jedinstven po poslu za svaki od tri tipa.
+  v.literal("settlement"),
+  // Oduzimanje kredita koje je uplata dodelila, pošto je ta uplata refundirana
+  // ili osporena (X7). Nije `refund` (to je povraćaj KORISNIKU za neuspeo
+  // posao, sa suprotnim znakom) i nije `admin_adjust` (nije ručna odluka nego
+  // posledica Stripe dogadjaja) - zaseban tip, da se u istoriji vidi zašto je
+  // saldo pao.
+  v.literal("revocation"),
+);
+const creditPackKind = v.union(v.literal("pack"), v.literal("plan"));
+const studioModelKind = v.union(v.literal("image"), v.literal("video"), v.literal("audio"));
+const studioModelProvider = v.union(v.literal("fal"), v.literal("google"), v.literal("byteplus"));
+const modelCatalogBadge = v.union(
+  v.literal("preporuceno"),
+  v.literal("skupo"),
+  v.literal("novo"),
+);
+const generationJobStatus = v.union(
+  v.literal("reserved"),
+  v.literal("running"),
+  v.literal("done"),
+  v.literal("failed"),
+  v.literal("refunded"),
+);
 const localizedCopy = v.object({ sr: v.string(), en: v.string() });
 const pageCopy = v.object({
   primaryCta: v.optional(localizedCopy),
@@ -97,6 +141,12 @@ const authUsers = defineTable({
   helpStatus: v.optional(helpMode),
   dmPrivacy: v.optional(dmPrivacy),
   anonymizedAt: v.optional(v.number()),
+  // Kada je korisnik potvrdio "imam 18 godina i prihvatam uslove Studija"
+  // (X7). Vremenski pečat, a ne boolean: kad se uslovi izmene, jedini podatak
+  // koji išta znači je NA KOJU verziju je pristanak dat, a to je datum. Polje
+  // stoji na `users`, jer se profil u ovom repou ne projektuje u zasebnu
+  // tabelu - `users` JESTE profil (`helpers.getCurrentProfile`).
+  acceptedStudioTermsAt: v.optional(v.number()),
   searchText: v.optional(v.string()),
   createdAt: v.optional(v.number()),
   updatedAt: v.optional(v.number()),
@@ -1012,6 +1062,8 @@ export default defineSchema({
     userId: v.id("users"),
     courseId: v.id("courses"),
     status: v.union(v.literal("active"), v.literal("blocked")),
+    // Optional so existing rows stay valid; absence means "basic".
+    plan: v.optional(planTier),
     startedAt: v.number(),
     updatedAt: v.number(),
   })
@@ -1263,4 +1315,440 @@ export default defineSchema({
       "eligible",
       "xp",
     ]),
+
+  // ── STUDIO: KREDITI ───────────────────────────────────────────────────
+  creditLots: defineTable({
+    userId: v.id("users"),
+    source: creditLotSource,
+    granted: v.number(),
+    remaining: v.number(),
+    // Uvek grantedAt + 12 meseci, bez obzira na izvor.
+    expiresAt: v.number(),
+    grantedAt: v.number(),
+    stripeInvoiceId: v.optional(v.string()),
+    stripeSessionId: v.optional(v.string()),
+    packId: v.optional(v.id("creditPacks")),
+    exhaustedAt: v.optional(v.number()),
+    // Lot je oduzet jer je uplata koja ga je otvorila refundirana ili osporena
+    // (X7). Odvojeno od `exhaustedAt` iako se upisuju zajedno: potrošen lot i
+    // povučen lot izgledaju isto u balansu, a ne znače isto - drugi put
+    // isporučen isti Stripe dogadjaj ne sme da ga oduzme još jednom.
+    revokedAt: v.optional(v.number()),
+  })
+    .index("by_user_expiry", ["userId", "expiresAt"])
+    .index("by_user_active", ["userId", "exhaustedAt"])
+    // Bonus dobrodošlice je jednom po korisniku, pa se pre dodele traži
+    // postojeći lot tog izvora - i kad je odavno potrošen.
+    .index("by_user_source", ["userId", "source"])
+    .index("by_stripe_invoice", ["stripeInvoiceId"])
+    .index("by_stripe_session", ["stripeSessionId"])
+    .index("by_expiry", ["expiresAt"]),
+
+  creditTransactions: defineTable({
+    userId: v.id("users"),
+    amount: v.number(),
+    type: creditTransactionType,
+    balanceAfter: v.number(),
+    jobId: v.optional(v.id("generationJobs")),
+    lotId: v.optional(v.id("creditLots")),
+    stripeSessionId: v.optional(v.string()),
+    packId: v.optional(v.id("creditPacks")),
+    note: v.optional(v.string()),
+    expiresAt: v.optional(v.number()),
+    createdAt: v.number(),
+  })
+    .index("by_user", ["userId", "createdAt"])
+    .index("by_job_type", ["jobId", "type"])
+    .index("by_stripe_session", ["stripeSessionId"])
+    .index("by_expiry", ["expiresAt"]),
+
+  // Denormalizovan keš; izvor istine je zbir `creditLots.remaining`.
+  creditBalances: defineTable({
+    userId: v.id("users"),
+    balance: v.number(),
+    lifetimePurchased: v.number(),
+    lifetimeSpent: v.number(),
+    updatedAt: v.number(),
+  }).index("by_user", ["userId"]),
+
+  // Jedan red po Stripe dogadjaju koji je oduzeo kredite (X7): `charge.refunded`
+  // i `charge.dispute.created`. Postoji iz dva razloga:
+  //
+  // 1. `eventId` je ključ idempotencije. Stripe isti dogadjaj isporučuje više
+  //    puta (retry posle 500-ke, ručno slanje iz konzole), a oduzimanje nije
+  //    idempotentno samo po sebi kao dodela - lot ne bi dvaput nestao, ali bi
+  //    saldo dvaput pao.
+  // 2. red tipa `dispute` je BRAVA na nalogu. Chargeback traje nedeljama i za
+  //    to vreme se ne generiše; brava mora da preživi i dopunu kredita, pa ne
+  //    može da bude izvedena iz balansa.
+  creditReversals: defineTable({
+    eventId: v.string(),
+    userId: v.id("users"),
+    kind: v.union(v.literal("refund"), v.literal("dispute")),
+    lotId: v.optional(v.id("creditLots")),
+    revokedCredits: v.number(),
+    stripeInvoiceId: v.optional(v.string()),
+    stripeSessionId: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_eventId", ["eventId"])
+    .index("by_userId_and_kind", ["userId", "kind"]),
+
+  creditPacks: defineTable({
+    slug: v.string(),
+    titleSr: v.string(),
+    titleEn: v.string(),
+    priceEurCents: v.number(),
+    credits: v.number(),
+    bonusPercent: v.number(),
+    stripePriceId: v.optional(v.string()),
+    kind: creditPackKind,
+    planTier: v.optional(planTier),
+    sortOrder: v.number(),
+    isActive: v.boolean(),
+  }).index("by_slug", ["slug"]),
+
+  // ── STUDIO: KATALOG MODELA ───────────────────────────────────────────
+  modelCatalog: defineTable({
+    slug: v.string(),
+    kind: studioModelKind,
+    labelSr: v.string(),
+    labelEn: v.string(),
+    descriptionSr: v.string(),
+    descriptionEn: v.string(),
+    provider: v.string(),
+    falEndpoint: v.string(),
+    defaultParams: v.string(),
+    paramSchema: v.string(),
+    creditCost: v.number(),
+    costPerSecond: v.optional(v.number()),
+    estimatedCostUsd: v.number(),
+    badge: v.optional(modelCatalogBadge),
+    isEnabled: v.boolean(),
+    sortOrder: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_kind_enabled", ["kind", "isEnabled", "sortOrder"])
+    .index("by_slug", ["slug"]),
+
+  // ── STUDIO: KATALOG v4 ───────────────────────────────────────────────
+  // STUDIO-CATALOG-V4 sekcija 1.1. Nasleđuje `modelCatalog`: tamo je jedan red
+  // po KOMBINACIJI parametara (`nb2`, `nb2-2k`, `nb2-4k`), ovde jedan red po
+  // stvarnom modelu, a rezolucija/zvuk/trajanje su parametri iz kojih se cena
+  // RAČUNA (`convex/studioPricing.ts`). Stara tabela namerno ostaje jedan
+  // ciklus - v4 katalog se seeduje iznova, redovi se ne prevode automatski.
+  models: defineTable({
+    slug: v.string(),
+    provider: studioModelProvider,
+    kind: studioModelKind,
+    family: v.string(),
+
+    labelSr: v.string(),
+    labelEn: v.string(),
+    taglineSr: v.string(),
+    taglineEn: v.string(),
+    descriptionSr: v.string(),
+    descriptionEn: v.string(),
+
+    // Svi su JSON stringovi iz istog razloga iz kojeg je to i `paramSchema`:
+    // oblik im se razlikuje po modelu, a Convex validator za uniju svih oblika
+    // bio bi duži od kataloga koji opisuje.
+    endpoints: v.string(), // { inputMode: "endpoint ili model ID kod provajdera" }
+    inputModes: v.string(), // ["text","image","reference"]
+    inputSpec: v.string(), // { inputMode: { slot: { max, accept } } }
+    paramSpec: v.string(), // niz kontrola, `convex/studioParamSpec.ts`
+    priceRule: v.string(), // cenovno pravilo, `convex/studioPricing.ts`
+    capabilities: v.string(), // { audio: true, maxDurationS: 15, maxRefImages: 9 }
+
+    badge: v.optional(modelCatalogBadge),
+    isEnabled: v.boolean(),
+    sortOrder: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_slug", ["slug"])
+    .index("by_kind_enabled", ["kind", "isEnabled", "sortOrder"])
+    .index("by_family", ["family", "sortOrder"]),
+
+  // ── STUDIO: POSLOVI ──────────────────────────────────────────────────
+  generationJobs: defineTable({
+    userId: v.id("users"),
+    modelSlug: v.string(),
+    kind: studioModelKind,
+    params: v.string(),
+    promptHash: v.string(),
+    status: generationJobStatus,
+    creditCost: v.number(),
+    // Provajder OVOG posla (STUDIO-CATALOG-V4 sekcija 7), upisan pri kreiranju
+    // (`studio.ts`: v4 model nosi `models.provider`, stari katalog je uvek
+    // "fal"). Nalaz W7-6: bez ovog polja Google poller mora da skenira SVE
+    // "running" poslove kroz `by_status_created` i za svaki učita model da bi
+    // znao da li je google - zaostatak od 200+ fal poslova bi izgurao google
+    // posao iz prozora, pa bi ga reaper refundirao iako je uspeo i naplaćen.
+    // Poslovi upisani pre ovog polja ga nemaju dok ih ne popuni
+    // `migrations.backfillGenerationJobProvider`.
+    provider: v.optional(studioModelProvider),
+    falRequestId: v.optional(v.string()),
+    // Isti podatak kao `falRequestId`, samo pod imenom koje važi za sva tri
+    // provajdera (STUDIO-CATALOG-V4 sekcija 7). Faza je namerno "prošireno pa
+    // preseljeno": `markJobRunning` upisuje OBA polja, fal webhook i dalje
+    // gleda `by_fal_request`, a BytePlus callback `by_provider_request`.
+    // Gašenje `falRequestId`-ja je zaseban korak, posle backfill-a
+    // (`migrations.backfillProviderRequestId`).
+    providerRequestId: v.optional(v.string()),
+    // Koji ulazni režim je posao naručio (STUDIO-CATALOG-V4 sekcija 5). Bira
+    // endpoint kod provajdera (`models.endpoints[inputMode]`) i ulazi u cenu
+    // preko `modeMultipliers`. Poslovi iz starog kataloga ga nemaju.
+    inputMode: v.optional(v.string()),
+    // JSON: slot -> lista `_storage` ID-jeva koje je korisnik okačio za taj
+    // slot ("image", "video", "audio"). Redosled je značajan - prompt citira
+    // reference po broju ("slika 2").
+    inputs: v.optional(v.string()),
+    // Nabavna cena koju je katalog OBEĆAO u trenutku rezervacije
+    // (`studioPricing.computeCostUsd`). Ista cifra ulazi u `studioUsageDaily`,
+    // ali tamo je već sabrana po korisniku i danu, pa se iz nje ne može reći
+    // koliko je koštao JEDAN posao - a to je jedini broj sa kojim `actualCostUsd`
+    // ima smisla porediti. Poslovi upisani pre W6 je nemaju.
+    estimatedCostUsd: v.optional(v.number()),
+    // Šta je provajder STVARNO naplatio. Puni ga `studioActualCost`: Google i
+    // BytePlus iz tokena u odgovoru, fal iz noćne rekonsilijacije po
+    // `providerRequestId`-ju. Provajder koji podatak ne vrati ostavlja polje
+    // prazno - izmišljen broj bi popravio maržu koja je u stvari loša.
+    actualCostUsd: v.optional(v.number()),
+    // ZAŠTO `actualCostUsd`-a nema (X3, nalaz N6). Svaki završen posao izlazi sa
+    // TAČNO JEDNIM od to dvoje: ili cenom, ili razlogom iz
+    // `studioActualCostCore.ACTUAL_COST_REASON`. Prazno polje bez razloga je
+    // bilo neraspoznatljivo od kvara, pa je "nema merenja" na admin ekranu
+    // pisalo i za model koji se po dizajnu ne meri i za model kojem nešto ne
+    // radi. Razlog nestaje čim cena stigne.
+    actualCostReason: v.optional(v.string()),
+    // ── PORAVNANJE (X2, nalaz N2) ────────────────────────────────────
+    // Kad je posao poravnat. Polje je i JEDINA brava idempotencije
+    // `studio.settleJobCredits`-a: i webhook i poller umeju da ga pozovu za
+    // isti posao, a razlika sme da se naplati tačno jednom.
+    settledAt: v.optional(v.number()),
+    // Po čemu je poravnato (`studioSettlementCore.SETTLEMENT_REASON`). Posao
+    // za koji provajder nije prijavio ni količinu ni cenu dobija razlog, ali
+    // NE i `settledAt` - takav ostaje na rezervaciji i sme da se poravna
+    // kasnije, kad stigne noćna rekonsilijacija.
+    settlementReason: v.optional(v.string()),
+    // Nabavna cena po STVARNOJ količini. Od nje, a ne od `estimatedCostUsd`-a,
+    // živi ispravljeni dnevni zbir (`studioUsageDaily.costUsd`) - dakle i
+    // plafon po korisniku i globalni plafon.
+    settledCostUsd: v.optional(v.number()),
+    // Krediti koje poravnanje nije uspelo da skine jer ih korisnik nije imao.
+    // Dok je veći od nule, `createJob` tom korisniku odbija nove poslove
+    // (`by_user_unsettled`) - već završen posao se ipak isporučuje.
+    unsettledCredits: v.optional(v.number()),
+    // Odakle je došlo trajanje po kojem je posao naplaćen (X1, nalaz N2):
+    // "header" je ono što `mvhd`/`fmt `/Xing tvrde, "lower_bound" znači da je
+    // zaglavlje tvrdilo kraće nego što fajl te veličine fizički može da traje,
+    // pa je naplaćena granica iz bajtova. Drugo stanje je signal, ne statistika
+    // - po njemu se prepoznaje ko zaglavlje prepravlja. Poslovi bez merene
+    // količine (slika, tekst) polje nemaju.
+    durationSource: v.optional(v.union(v.literal("header"), v.literal("lower_bound"))),
+    // Oba broja u sekundama, i to samo kad je granica nadjačala zaglavlje: šta
+    // je zaglavlje tvrdilo, i šta je naplaćeno.
+    headerDurationS: v.optional(v.number()),
+    billedDurationS: v.optional(v.number()),
+    // fal URL iz webhook-a; kratko živi kod fal-a, pa ga `persistOutput`
+    // preuzima u Convex storage (`outputStorageId`) čim posao stigne.
+    falOutputUrl: v.optional(v.string()),
+    outputStorageId: v.optional(v.id("_storage")),
+    posterStorageId: v.optional(v.id("_storage")),
+    labOutputId: v.optional(v.id("labOutputs")),
+    lessonId: v.optional(v.id("lessons")),
+    taskId: v.optional(v.id("lessonTasks")),
+    error: v.optional(v.string()),
+    expiresAt: v.optional(v.number()),
+    createdAt: v.number(),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_user", ["userId", "createdAt"])
+    .index("by_fal_request", ["falRequestId"])
+    .index("by_provider_request", ["providerRequestId"])
+    .index("by_user_status", ["userId", "status"])
+    .index("by_expiry", ["expiresAt"])
+    .index("by_status_created", ["status", "createdAt"])
+    .index("by_provider_status", ["provider", "status", "createdAt"])
+    // Ima li korisnik neplaćen dug iz poravnanja (X2). `createJob` ga pita pre
+    // svakog novog posla, pa mora da bude jedno čitanje po indeksu, a ne
+    // skeniranje istorije.
+    .index("by_user_unsettled", ["userId", "unsettledCredits"]),
+
+  // Ko je koji ulazni fajl okačio. `createInputUploadUrl` vraća gol Convex
+  // upload URL i ne zna ishod uploada, pa vezu `storageId` -> korisnik pravi
+  // `studio.registerInputUpload`, koju klijent zove POSLE uploada.
+  // `createJob` bez ovog reda ne prima nijedan `storageId`: bez njega je jedina
+  // odbrana bila nepogodivost ID-ja, a to nije kontrola pristupa - tuđi fajl bi
+  // ušao u tuđi posao i galerija bi ga potpisala (`ctx.storage.getUrl`).
+  studioUploads: defineTable({
+    userId: v.id("users"),
+    storageId: v.id("_storage"),
+    slot: v.string(),
+    // Veličina i tip se čitaju iz `_storage` u trenutku prijave, ne iz onoga
+    // što je klijent rekao.
+    bytes: v.number(),
+    mimeType: v.optional(v.string()),
+    // Trajanje snimka u sekundama, pročitano iz ZAGLAVLJA fajla
+    // (`studioActions.measureInputUpload`, W5). Polja nema dok se ne izmeri, i
+    // dok ga nema `createJob` odbija svaki posao koji se po trajanju naplaćuje
+    // - klijentov broj se ne uzima u obzir (nalaz R3).
+    durationS: v.optional(v.number()),
+    // Koliko puta je merenje zaglavlja palo na OVOM fajlu (X5, nalaz N4).
+    // `measureInputUpload` je javna akcija koja bez ovog broja svaki put iznova
+    // povuče do 1 MB iz storage-a - neparsabilan fajl u petlji je bio besplatan
+    // saobraćaj. Posle tri neuspeha akcija odbija bez ijednog `fetch`-a; uspešno
+    // merenje polje briše, jer od tada `durationS` ionako kratko spaja poziv.
+    measureFailures: v.optional(v.number()),
+    createdAt: v.number(),
+    // Postoji samo dok upload nije ušao ni u jedan posao: nevezan fajl briše
+    // `crons.expireGenerationFiles` posle 24 h. `createJob` polje sklanja, pa
+    // ulaz posla živi koliko i posao.
+    expiresAt: v.optional(v.number()),
+  })
+    .index("by_storage", ["storageId"])
+    .index("by_user", ["userId", "createdAt"])
+    .index("by_expiry", ["expiresAt"]),
+
+  // Dozvola za JEDAN ulazni upload (X5, nalaz N3). Do sada je
+  // `registerInputUpload` primao bilo koji `_storage` ID koji još nema red u
+  // `studioUploads` i upisivao pozivaoca kao vlasnika - a `_storage` je jedan
+  // imenski prostor za celu aplikaciju (naslovne slike kurseva, video lekcija,
+  // avatari, slike objava). Odbrana je bila nepogodivost ID-ja, što nije
+  // kontrola pristupa.
+  //
+  // Convex ne daje `storageId` pre uploada, pa se grant ne može vezati za fajl:
+  // vezuje se za sam poziv `createInputUploadUrl`, a njegov `_id` je token koji
+  // klijent vraća uz `storageId`. Jedan grant vredi jednom (`usedAt`) i sat
+  // vremena (`expiresAt`); i istekle i iskorišćene briše isti prolaz
+  // `crons.expireGenerationFiles`, jer iskorišćen grant ionako ističe u istom
+  // satu.
+  //
+  // `createdAt` nije samo dnevnik: `registerInputUpload` njime pravi jedinu
+  // vezu sa fajlom koju Convex dopušta - `_storage._creationTime` mora da bude
+  // POSLE njega. Bez toga bi sveže izdata dozvola i dalje mogla da prisvoji
+  // bilo koji zatečen `_storage` ID, jer dozvole nisu ograničene brojem.
+  studioUploadGrants: defineTable({
+    userId: v.id("users"),
+    // Slot za koji je dozvola izdata. Odavde ga čita `registerInputUpload`, pa
+    // klijent slot ne prijavljuje po drugi put - i ne može da ga podmetne.
+    slot: v.string(),
+    createdAt: v.number(),
+    expiresAt: v.number(),
+    usedAt: v.optional(v.number()),
+  }).index("by_expiry", ["expiresAt"]),
+
+  studioUsageDaily: defineTable({
+    userId: v.id("users"),
+    day: v.string(),
+    generations: v.number(),
+    creditsSpent: v.number(),
+    costUsd: v.number(),
+  })
+    .index("by_user_day", ["userId", "day"])
+    .index("by_day", ["day"]),
+
+  // ── PLATFORMA: SKLOPKE ───────────────────────────────────────────────
+  // Kill switch iz STUDIO-PLAN 4.4. `studio.createJob` čita "studio_enabled"
+  // pre svake druge provere; `enabled: false` gasi Studio bez deploy-a.
+  platformFlags: defineTable({
+    key: v.string(),
+    enabled: v.boolean(),
+  }).index("by_key", ["key"]),
+
+  // Zapamćeno stanje globalnog dnevnog alarma (STUDIO-PLAN 4.4). Jedan red po
+  // UTC danu za koji je alarm od 50 $ već poslat - cron se vrti na 15 min, a
+  // bez ovog reda bi isti mejl stizao svakih 15 minuta do ponoći. Namerno
+  // odvojeno od `platformFlags`: `enabled` boolean gasi Studio, a "alarm
+  // poslat" nije isto stanje i ne sme da se pomeša sa kill switch-om.
+  // Kill (100 $) ne treba svoj red - on gasi `platformFlags.studio_enabled`,
+  // pa je već ugašen Studio sam sebi pamćenje.
+  //
+  // `type` (X6, nalaz N5) razlikuje ovaj red od "prolaz koji je PUKAO" reda:
+  // stari alarm redovi ga nemaju, pa se čita kao `"alarm"` (izostavljeno polje
+  // je zatečeno stanje, ne treći tip). `message` postoji samo uz `cron_failed`
+  // - tačna poruka greške, jer je to jedini trag kad Resend ne radi.
+  studioCostAlarms: defineTable({
+    day: v.string(),
+    type: v.optional(v.union(v.literal("alarm"), v.literal("cron_failed"))),
+    message: v.optional(v.string()),
+  }).index("by_day", ["day"]),
+
+  // Poslednji USPEŠAN prolaz globalnog plafona (X6, nalaz N5). `applyGlobalCostAction`
+  // ga osvežava na kraju SVOJE transakcije, pa upis postoji samo kad prolaz nije
+  // pukao - mutacija koja baci se cela povuče, heartbeat sa njom. Admin ekran
+  // time vidi mrtav cron i bez mejla: heartbeat stariji od 60 minuta je crven,
+  // iako se cron vrti na 15.
+  studioCronHeartbeats: defineTable({
+    key: v.string(),
+    lastRunAt: v.number(),
+  }).index("by_key", ["key"]),
+
+  // Zbir izmerenog troška po modelu (W6). Jedan red na ceo model, održava ga
+  // `studioActualCost.recordActualCost` u istoj transakciji u kojoj posao dobija
+  // `actualCostUsd`. Postoji iz dva razloga:
+  //
+  // 1. admin ekran iz njega crta STVARNU maržu i broj poslova iz kojih je
+  //    izračunata - bez broja merenja admin veruje cifri koja nije merenje;
+  // 2. niz uzastopnih odstupanja preko 30% se broji ovde umesto da se pri
+  //    svakom upisu skenira istorija poslova tog modela.
+  //
+  // `modelSlug`, a ne `Id<"models">`: poslovi iz starog `modelCatalog`-a nemaju
+  // red u `models`, a i njihov trošak se meri.
+  studioModelCost: defineTable({
+    modelSlug: v.string(),
+    measuredJobs: v.number(),
+    actualCostUsd: v.number(),
+    estimatedCostUsd: v.number(),
+    creditCost: v.number(),
+    deviationStreak: v.number(),
+    // Postoji dok traje niz zbog kojeg je alarm poslat; prvi posao ispod praga
+    // ga sklanja, pa sledeći niz od pet ponovo javlja.
+    alarmSentAt: v.optional(v.number()),
+    // JSON: razlog (`ACTUAL_COST_REASON`) -> broj poslova ovog modela koji na
+    // njemu stoje (X3, tačka 3). Održava se pomeranjem pri svakoj promeni
+    // razloga, ne prebrojavanjem pri čitanju - prebrojavanje bi bilo skeniranje
+    // cele istorije poslova, tačno ono zbog čega ova tabela postoji.
+    reasonCounts: v.optional(v.string()),
+    updatedAt: v.number(),
+  }).index("by_modelSlug", ["modelSlug"]),
+
+  // Prvi odgovor provajdera iz kojeg nismo umeli da pročitamo ni potrošnju ni
+  // cenu (X3, tačka 4). Imena polja kod sva tri provajdera nisu potvrđena protiv
+  // živog API-ja, a pravila run-a zabranjuju poziv - pa se umesto nagađanja
+  // pamti sirov JSON, i posle prve prave generacije Jovan ima tačan oblik pred
+  // sobom.
+  //
+  // JEDAN RED PO PROVAJDERU I MODELU, prepisuje se: uzorak je dokaz o obliku, a
+  // ne dnevnik - hiljadu poslova sa istim nepoznatim oblikom je i dalje jedan
+  // podatak. `modelSlug` je slug posla; fal događaji naplate nisu vezani ni za
+  // jedan model, pa stoje pod `FAL_BILLING_SAMPLE_SLUG`.
+  studioProviderSamples: defineTable({
+    provider: v.string(),
+    modelSlug: v.string(),
+    /** Sirov JSON, odsečen na `MAX_SAMPLE_LENGTH` znakova. */
+    sample: v.string(),
+    updatedAt: v.number(),
+  }).index("by_provider_modelSlug", ["provider", "modelSlug"]),
+
+  // Ko je otvorio tuđi prompt i tuđe okačene fajlove (X4, nalaz N1). Moderacijski
+  // red iz `studio.listAllJobs` te podatke ne nosi; do njih se dolazi isključivo
+  // preko `studio.revealJobDetail`, koja upisuje red OVDE u istoj transakciji u
+  // kojoj ih vraća. Pristup bez traga je bio treća stavka nalaza.
+  //
+  // Red se nikad ne menja i nikad ne briše iz koda - dnevnik koji se prepisuje
+  // nije dnevnik.
+  studioAuditLog: defineTable({
+    /** Admin koji je kliknuo. */
+    actorId: v.id("users"),
+    jobId: v.id("generationJobs"),
+    /** Vlasnik posla - čiji je sadržaj otkriven. */
+    ownerId: v.id("users"),
+    // Šta je stvarno izašlo: `"params"` uvek, `"inputs"` samo kad posao ima
+    // okačene fajlove. Konstantan spisak ne bi govorio ništa.
+    revealed: v.array(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_actor", ["actorId"])
+    .index("by_job", ["jobId"]),
 });

@@ -1,5 +1,7 @@
 import "server-only";
 
+import { cache } from "react";
+
 import { convexAuthNextjsToken } from "@convex-dev/auth/nextjs/server";
 
 import { courses, primaryCourseSlug } from "@/lib/content";
@@ -196,7 +198,12 @@ function staticNavigationData(): AppNavigationData {
   };
 }
 
-export async function getAppNavigationData(locale: Locale): Promise<AppNavigationData> {
+/**
+ * `cache`d because two callers need it per request: AppShell, and the course-detail
+ * route's generateMetadata. Deduping keeps that a single Convex round-trip and
+ * guarantees the tab title names the same course the sidebar switcher shows.
+ */
+export const getAppNavigationData = cache(async (locale: Locale): Promise<AppNavigationData> => {
   if (!process.env.NEXT_PUBLIC_CONVEX_URL) {
     return staticNavigationData();
   }
@@ -327,7 +334,7 @@ export async function getAppNavigationData(locale: Locale): Promise<AppNavigatio
       };
     }),
   };
-}
+});
 
 export function resolveCourseSlug(candidate?: string | null) {
   return candidate || primaryCourseSlug;

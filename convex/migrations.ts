@@ -8,6 +8,7 @@ import { syncLeaderboardSourceEvent } from "./leaderboardCore";
 import { hotScoreFor, voteValue } from "./community";
 import { effectiveRoleForProfile } from "./helpers";
 import { adjustProfileActivity, adjustProfileContribution } from "./profileActivityCore";
+import { parseJobInputs } from "./providers/jobInputs";
 import {
   markChatInboxAggregateReady,
   markChatInboxSummaryReady,
@@ -595,6 +596,110 @@ export const finalizeStudyHubAggregateV1 = migrations.define({
   },
 });
 
+/**
+ * `falRequestId` -> `providerRequestId` (STUDIO-CATALOG-V4 sekcija 7): isti
+ * podatak, ime koje važi i za BytePlus i za Google. Prošireno pa preseljeno -
+ * ovaj prolaz popunjava novo polje na zatečenim poslovima, a staro ostaje dok
+ * ga zaseban korak ne ugasi. Bez njega bi `by_provider_request` video samo
+ * poslove napravljene posle deploy-a.
+ */
+export const backfillProviderRequestId = migrations.define({
+  table: "generationJobs",
+  batchSize: 100,
+  migrateOne: (_ctx, job) => {
+    if (job.providerRequestId || !job.falRequestId) return;
+    return { providerRequestId: job.falRequestId };
+  },
+});
+
+/**
+ * `generationJobs.provider` (nalaz W7-6): Google poller sad čita
+ * `by_provider_status` umesto da skenira sve "running" poslove i učitava
+ * model za svaki. Poslovi upisani pre ovog polja ga nemaju - v4 model se nadje
+ * po `modelSlug`, a stari `modelCatalog` slug je uvek fal (katalog §7).
+ */
+export const backfillGenerationJobProvider = migrations.define({
+  table: "generationJobs",
+  batchSize: 100,
+  migrateOne: async (ctx, job) => {
+    if (job.provider) return;
+    const model = await ctx.db
+      .query("models")
+      .withIndex("by_slug", (q) => q.eq("slug", job.modelSlug))
+      .unique();
+    return { provider: model?.provider ?? "fal" };
+  },
+});
+
+/**
+ * Vlasništvo nad ulaznim fajlovima zatečenih poslova (nalaz R4). `createJob` od
+ * sada prima samo `storageId` koji ima svoj red u `studioUploads`, a poslovi
+ * napravljeni pre toga ga nemaju - bez ovog prolaza bi im "Generiši ponovo"
+ * vraćalo `TUDJI_FAJL` nad sopstvenim fajlom.
+ *
+ * Vlasnik je vlasnik posla, jer je samo on te fajlove i mogao okačiti. Roka
+ * nema: fajl koji je već u poslu nije nevezan upload. Fajl kojeg u storage-u
+ * više nema se preskače - nema šta da se prijavi.
+ */
+export const backfillStudioUploads = migrations.define({
+  table: "generationJobs",
+  batchSize: 50,
+  migrateOne: async (ctx, job) => {
+    for (const [slot, ids] of Object.entries(parseJobInputs(job.inputs))) {
+      for (const rawId of ids) {
+        const storageId = ctx.db.system.normalizeId("_storage", rawId);
+        if (!storageId) continue;
+        const existing = await ctx.db
+          .query("studioUploads")
+          .withIndex("by_storage", (q) => q.eq("storageId", storageId))
+          .first();
+        if (existing) continue;
+        const meta = await ctx.db.system.get("_storage", storageId);
+        if (!meta) continue;
+        await ctx.db.insert("studioUploads", {
+          userId: job.userId,
+          storageId,
+          slot,
+          bytes: meta.size,
+          ...(meta.contentType ? { mimeType: meta.contentType } : {}),
+          createdAt: job.createdAt,
+        });
+      }
+    }
+  },
+});
+
+/**
+ * Sedam modela koje je W3 ugasio, vraćeno u ponudu (W5).
+ *
+ * Seed ume da GASI red na već seedovanom deployment-u, ali ne i da ga pali -
+ * inače bi svaki `npm run convex:seed` vratio model koji je Jovan namerno
+ * isključio (`studioModels.seedStudioModels`). Marker `isEnabled: false` je
+ * uklonjen iz kataloga, pa nov deployment ove modele upisuje uključene, a na
+ * postojećem ih pali ovaj jednokratan prolaz.
+ *
+ * Uslov za paljenje - da parser čita svaki format koji merni slot prihvata -
+ * tvrdi `providers/catalogModels.test.ts`, ne ovaj spisak.
+ */
+const MEASURED_MODEL_SLUGS = [
+  "kling-avatar",
+  "kling-lipsync",
+  "kling-motion",
+  "stt",
+  "voice-changer",
+  "audio-isolation",
+  "dubbing",
+];
+
+export const enableMeasuredModels = migrations.define({
+  table: "models",
+  batchSize: 50,
+  migrateOne: (_ctx, model) => {
+    if (model.isEnabled || !MEASURED_MODEL_SLUGS.includes(model.slug)) return;
+    return { isEnabled: true, updatedAt: Date.now() };
+  },
+});
+
 export const verifyPublicProfileAggregateForUser = internalQuery({
   args: { userId: v.id("users") },
   handler: async (ctx, args) => {
@@ -673,4 +778,8 @@ export const runAll = migrations.runner([
   migrationApi.backfillStudyHubGroupInvitesV1,
   migrationApi.backfillStudyHubGroupMembershipsV1,
   migrationApi.finalizeStudyHubAggregateV1,
+  migrationApi.backfillProviderRequestId,
+  migrationApi.backfillStudioUploads,
+  migrationApi.enableMeasuredModels,
+  migrationApi.backfillGenerationJobProvider,
 ]);

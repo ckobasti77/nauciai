@@ -1,0 +1,30 @@
+﻿[01:52:56] Filtrirano na: XRV
+[01:52:56] ==================================================
+[01:52:56]  STUDIO - zatvaranje rupa N1-N7
+[01:52:56]  Grana:  feat/studio-faza-a
+[01:52:56]  Koraka: 1
+[01:52:56]  Mrezni pad: cekanje 180s, do 5 pokusaja
+[01:52:56] ==================================================
+[01:52:56] Grana: feat/studio-faza-a
+[01:52:56] Nekomitovane izmene - commitujem pre starta.
+[01:52:56] 
+[01:52:56] --------------------------------------------------
+[01:52:56]  XRV  |  Zavrsni review
+[01:52:56]  model=opus  effort=xhigh
+[01:52:56] --------------------------------------------------
+[02:27:15] Commit 267e783 - 4 putanja
+[02:27:15] XRV -> OK  (34 min, 1 pokusaja, USD 11.11)
+[02:27:15] 
+[02:27:15] ==================================================
+[02:27:15]  GOTOVO
+[02:27:15] ==================================================
+[02:27:15] Korak Status Minuta CenaUSD Pokusaja Commit 
+[02:27:15] ----- ------ ------ ------- -------- ------ 
+[02:27:15] XRV   OK         34 11.11          1 267e783
+[02:27:15] Ukupna cena: USD 11.11
+[02:27:15] Grana: feat/studio-faza-a  (NIJE push-ovana, NIJE deploy-ovana)
+[02:27:15] 
+[02:27:15] Kad se vratis:
+[02:27:15]   1. docs\STUDIO-HARD-REPORT.md  - nov status N1-N7, sme li se Stripe upaliti
+[02:27:15]   2. docs\STUDIO-PROGRESS.md     - dnevnik X1-X7
+[02:27:15]   3. npm run dev  pa  /sr/app/studio

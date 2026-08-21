@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 
-import type { Id } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { mutation, query } from "./_generated/server";
 import { requireAdmin, requireCourseAccess, requireUserId } from "./helpers";
@@ -82,7 +82,7 @@ async function getCourseAndLesson(ctx: QueryCtx | MutationCtx, courseSlug: strin
   return { course, lesson };
 }
 
-async function assertLessonAccess(ctx: QueryCtx | MutationCtx, lessonId: Id<"lessons">) {
+export async function assertLessonAccess(ctx: QueryCtx | MutationCtx, lessonId: Id<"lessons">) {
   const lesson = await ctx.db.get(lessonId);
   if (!lesson) {
     throw new Error("Lesson not found");
@@ -120,7 +120,11 @@ export const getLessonLab = query({
     const profile = await requireCourseAccess(ctx, match.course._id);
     const isAdmin = profile.role === "admin";
     if (!isAdmin && !match.lesson.isPublished) return null;
-    const canUsePro = canUseProLesson(profile.role, match.lesson.proEnabled !== false);
+    const enrollment = await ctx.db
+      .query("enrollments")
+      .withIndex("by_user_course", (q) => q.eq("userId", userId).eq("courseId", match.course._id))
+      .unique();
+    const canUsePro = canUseProLesson(enrollment?.plan, profile.role, match.lesson.proEnabled !== false);
     if (!canUsePro) {
       return {
         course: match.course,
@@ -212,6 +216,73 @@ export const getLessonLab = query({
   },
 });
 
+/**
+ * Upis napretka na zadatku, bez ijedne provere prava - pozivalac je već
+ * utvrdio ko je korisnik i sme li da dira lekciju. Izvučeno iz
+ * `markTaskProgress` da bi Studio (`studio.finalizeOutput`) mogao da zeleni
+ * zadatak iz interne mutacije, gde nema prijavljenog korisnika, a da leaderboard
+ * i profilna aktivnost idu istim putem kao i ručno štikliranje.
+ */
+export async function applyTaskCompletion(
+  ctx: MutationCtx,
+  args: {
+    userId: Id<"users">;
+    task: Doc<"lessonTasks">;
+    completed: boolean;
+    evidenceOutputId?: Id<"labOutputs">;
+  },
+) {
+  const { userId, task } = args;
+  const now = Date.now();
+  const existing = await ctx.db
+    .query("taskProgress")
+    .withIndex("by_user_task", (q) => q.eq("userId", userId).eq("taskId", task._id))
+    .unique();
+  const patch = {
+    userId,
+    courseId: task.courseId,
+    lessonId: task.lessonId,
+    stepId: task.stepId,
+    taskId: task._id,
+    completed: args.completed,
+    ...optionalFields({
+      evidenceOutputId: args.evidenceOutputId,
+      completedAt: args.completed ? now : undefined,
+    }),
+    updatedAt: now,
+  };
+
+  const progressId = existing
+    ? (await ctx.db.patch(existing._id, patch), existing._id)
+    : await ctx.db.insert("taskProgress", patch);
+
+  if (task.required && Boolean(existing?.completed) !== args.completed) {
+    const leaderboardEvent = await ctx.db
+      .query("leaderboardEvents")
+      .withIndex("by_userId_and_sourceType_and_sourceId", (q) =>
+        q.eq("userId", userId).eq("sourceType", "required_task").eq("sourceId", String(task._id)),
+      )
+      .unique();
+    await syncLeaderboardSourceEvent(ctx, {
+      userId,
+      sourceType: "required_task",
+      sourceId: String(task._id),
+      active: args.completed,
+      occurredAt: now,
+      courseId: task.courseId,
+    });
+    await adjustProfileActivity(ctx, {
+      userId,
+      kind: "tasks",
+      delta: args.completed ? 1 : -1,
+      timestamp: leaderboardEvent?.occurredAt
+        ?? (args.completed ? now : existing?.completedAt ?? existing?.updatedAt ?? now),
+    });
+  }
+
+  return progressId;
+}
+
 export const markTaskProgress = mutation({
   args: {
     taskId: v.id("lessonTasks"),
@@ -233,54 +304,12 @@ export const markTaskProgress = mutation({
       }
     }
 
-    const now = Date.now();
-    const existing = await ctx.db
-      .query("taskProgress")
-      .withIndex("by_user_task", (q) => q.eq("userId", userId).eq("taskId", args.taskId))
-      .unique();
-    const patch = {
+    return applyTaskCompletion(ctx, {
       userId,
-      courseId: task.courseId,
-      lessonId: task.lessonId,
-      stepId: task.stepId,
-      taskId: args.taskId,
+      task,
       completed: args.completed,
-      ...optionalFields({
-        evidenceOutputId: args.evidenceOutputId,
-        completedAt: args.completed ? now : undefined,
-      }),
-      updatedAt: now,
-    };
-
-    const progressId = existing
-      ? (await ctx.db.patch(existing._id, patch), existing._id)
-      : await ctx.db.insert("taskProgress", patch);
-
-    if (task.required && Boolean(existing?.completed) !== args.completed) {
-      const leaderboardEvent = await ctx.db
-        .query("leaderboardEvents")
-        .withIndex("by_userId_and_sourceType_and_sourceId", (q) =>
-          q.eq("userId", userId).eq("sourceType", "required_task").eq("sourceId", String(args.taskId)),
-        )
-        .unique();
-      await syncLeaderboardSourceEvent(ctx, {
-        userId,
-        sourceType: "required_task",
-        sourceId: String(args.taskId),
-        active: args.completed,
-        occurredAt: now,
-        courseId: task.courseId,
-      });
-      await adjustProfileActivity(ctx, {
-        userId,
-        kind: "tasks",
-        delta: args.completed ? 1 : -1,
-        timestamp: leaderboardEvent?.occurredAt
-          ?? (args.completed ? now : existing?.completedAt ?? existing?.updatedAt ?? now),
-      });
-    }
-
-    return progressId;
+      evidenceOutputId: args.evidenceOutputId,
+    });
   },
 });
 

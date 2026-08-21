@@ -42,6 +42,7 @@ if (!syncSecret) {
 
 const client = new ConvexHttpClient(convexUrl);
 const seedInitialContent = makeFunctionReference("seed:seedInitialContent");
+const seedStudioModels = makeFunctionReference("studioModels:seedStudioModels");
 
 const result = await client.mutation(seedInitialContent, {
   syncSecret,
@@ -49,4 +50,9 @@ const result = await client.mutation(seedInitialContent, {
   vibeCodingStripePriceId: process.env.STRIPE_PRICE_VIBE_CODING || undefined,
 });
 
-console.log(JSON.stringify(result, null, 2));
+// Katalog v4 (`models`) je zaseban seed jer je zasebna tabela - stari
+// `modelCatalog` živi još jedan ciklus (STUDIO-CATALOG-V4 1.1). Idempotentan je
+// i ne pali modele koje je admin ugasio.
+const studioModels = await client.mutation(seedStudioModels, { syncSecret });
+
+console.log(JSON.stringify({ ...result, studioModels }, null, 2));

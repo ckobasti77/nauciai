@@ -1,0 +1,24 @@
+
+> nauciai@0.1.0 lint
+> eslint
+
+
+C:\Users\admin\Desktop\Web Dev Projects\nauciai\components\app\admin-inline-actions.tsx
+   611:6   warning  'PlaybackTokenState' is defined but never used                                                                                                                                                                                                                                           @typescript-eslint/no-unused-vars
+   624:3   warning  'title' is defined but never used                                                                                                                                                                                                                                                        @typescript-eslint/no-unused-vars
+  2077:23  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Users\admin\Desktop\Web Dev Projects\nauciai\components\app\dashboard-content.tsx
+  308:6   warning  'PlaybackTokenPayload' is defined but never used  @typescript-eslint/no-unused-vars
+  310:43  warning  'title' is defined but never used                 @typescript-eslint/no-unused-vars
+
+C:\Users\admin\Desktop\Web Dev Projects\nauciai\components\marketing\public-course-intro-video.tsx
+   6:10  warning  'cn' is defined but never used     @typescript-eslint/no-unused-vars
+  11:3   warning  'title' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\admin\Desktop\Web Dev Projects\nauciai\get_google_creds.js
+  17:7  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+
+✖ 8 problems (0 errors, 8 warnings)
+
+EXIT=0

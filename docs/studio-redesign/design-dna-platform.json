@@ -1,0 +1,187 @@
+{
+  "meta": {
+    "name": "Nauči AI — platform DNA (the skin)",
+    "description": "Design identity of the nauciai.com learning platform. This is the IDENTITY half of the Studio fusion: Studio must read as this app from the first frame. Neo-brutalist, hand-drawn warmth, hard offset shadows, cream paper, one dark-blue ink, one yellow accent. Extracted from app/globals.css, components/ui/primitives.tsx, components/app/app-sidebar.tsx, AGENTS.md.",
+    "source_references": [
+      "app/globals.css",
+      "components/ui/primitives.tsx",
+      "components/app/app-sidebar.tsx",
+      "AGENTS.md (UI shape convention)",
+      "components/marketing/marketing-page.tsx"
+    ],
+    "created_at": "2026-08-21"
+  },
+  "design_system": {
+    "color": {
+      "palette_type": "monochromatic-ink-plus-single-accent",
+      "primary": { "hex": "#0e3158", "role": "ink — text, all borders (border-2 border-ink), dark CTA fill, structural everything" },
+      "secondary": { "hex": "#536273", "role": "muted — secondary text, help copy, metadata" },
+      "accent": { "hex": "#f4be30", "role": "yellow — reserved for ACTION and emphasis only (primary CTA fill, sketch-icon chips, hand-underline, ::selection, shadow offset on ink buttons). Never decorative filler." },
+      "neutral": {
+        "scale": ["#ffffff (paper-strong / white cards)", "#fffdf8 (background / cream paper)", "#c9d4df (line — hairline dividers)", "#536273 (muted)", "#0e3158 (ink)"],
+        "usage": "Two grounds only: cream #fffdf8 for the page, white #ffffff for cards/surfaces. #c9d4df for the rare hairline. Everything structural is ink."
+      },
+      "semantic": {
+        "success": "#0e3158 on #f4be30 or a green not yet tokenized — success is usually shown structurally, not chromatically",
+        "warning": "#f4be30 (yellow doubles as caution)",
+        "error": "red used inline for form errors (not a global token; role='alert' text)",
+        "info": "#536273 muted / ink"
+      },
+      "surface": {
+        "background": "#fffdf8 (cream)",
+        "card": "#ffffff (white)",
+        "elevated": "#ffffff with a larger hard offset shadow (no blur)"
+      },
+      "contrast_strategy": "High-contrast dark-on-light dominant. Ink #0e3158 on cream/white is ~11:1. Contrast is carried by BORDER + SHADOW, not by tonal layering. There is no gray-scale elevation ramp — depth is a hard-edged offset shadow, not a blur."
+    },
+    "typography": {
+      "type_scale": {
+        "display": { "size": "clamp ~3rem–3.75rem (text-5xl at md)", "weight": "900 (font-black)", "line_height": "1.05–1.1 (leading-tight)", "tracking": "0 (letter-spacing:0 enforced globally)" },
+        "heading_1": { "size": "3rem md:5xl", "weight": "900", "line_height": "1.1", "tracking": "0" },
+        "heading_2": { "size": "1.875rem (text-3xl) → 3rem (md:text-5xl)", "weight": "900 font-black", "line_height": "1.15 leading-tight", "tracking": "0" },
+        "heading_3": { "size": "1.25–1.5rem (text-xl/2xl)", "weight": "800–900", "line_height": "1.2", "tracking": "0" },
+        "body": { "size": "1rem → 1.125rem (text-base md:text-lg)", "weight": "400–600", "line_height": "1.75 (leading-7)", "tracking": "0" },
+        "body_small": { "size": "0.875rem (text-sm)", "weight": "500–700", "line_height": "1.5", "tracking": "0" },
+        "caption": { "size": "0.75rem (text-xs)", "weight": "700–900 (font-black used even on tiny labels/tooltips)", "line_height": "1.4", "tracking": "0" },
+        "overline": { "size": "font-display 1.25rem (Patrick Hand kicker) — hand-drawn, not an uppercase tracked overline", "weight": "400 (the display face)", "line_height": "1.2", "tracking": "0" }
+      },
+      "font_families": {
+        "heading": "Nunito (700–900) for structural headings; Patrick Hand (font-display) for kickers/hand-drawn accents",
+        "body": "Nunito, Nunito Fallback, ui-sans-serif",
+        "mono": "Geist Mono (credits, numbers, code-ish)"
+      },
+      "font_style_notes": "Rounded humanist sans (Nunito) carrying most weight, paired with a genuine handwriting face (Patrick Hand) used sparingly for personality. letter-spacing is forced to 0 everywhere (body, button, a, input, textarea, select). Weight is the primary hierarchy lever — font-black (900) is used liberally, even on 12px tooltips. Friendly, high-energy, confident."
+    },
+    "spacing": {
+      "base_unit": "4px (Tailwind default scale)",
+      "scale": ["4", "8", "12", "16", "20", "24", "32", "40", "48", "64"],
+      "content_density": "comfortable — generous padding inside cards (px-5/px-6, py-2.5/py-3 on buttons), roomy sections",
+      "section_rhythm": "Large vertical gaps between marketing sections; inside the app, medium rhythm. Cards breathe (16px card radius wants ≥12–16px inner padding)."
+    },
+    "layout": {
+      "grid_system": "Flex/CSS-grid, no formal 12-col token. App shell = sidebar (rail 80px / expanded 280–420px) + main, .shell-container centers and at ≥1600px main clamps to max-width 1380px",
+      "max_content_width": "1380px (app main at ultra-wide), 3xl/max-w-3xl for reading columns",
+      "columns": "Content-driven; card grids are responsive (1→2→3)",
+      "gutter": "16–24px",
+      "breakpoints": "sm 640, md 768 (sidebar desktop threshold), lg 1024 (resize handle), xl 1280, 1600 (shell widen)",
+      "alignment_tendency": "mixed — strict left alignment for app chrome, centered heroes for marketing"
+    },
+    "shape": {
+      "border_radius": {
+        "small": "8px (surface-media)",
+        "medium": "12px (surface-inset)",
+        "large": "16px (surface-card) — the default for any bordered element via @layer base",
+        "pill": "9999px (rounded-full — all buttons by default, chips, badges, avatars)"
+      },
+      "border_usage": "bold borders — border-2 (2px) border-ink is the signature; occasional border-[3px]. Borders are structural and omnipresent, not subtle. Inputs, cards, chips, buttons all carry the ink border.",
+      "divider_style": "either the ink border-2 itself, or a 1px #c9d4df (--line) hairline for quiet separation"
+    },
+    "elevation": {
+      "shadow_style": "hard drop — ZERO blur, solid color, offset only. The defining trait. e.g. shadow-[4px_4px_0_0_#f4be30], shadow-[6px_6px_0_0_rgba(14,49,88,0.13)]",
+      "levels": {
+        "low": "shadow-[3px_3px_0_0_rgba(14,49,88,0.18)] (paper buttons, quiet cards)",
+        "medium": "shadow-[4px_4px_0_0_...] (ink/yellow buttons at rest)",
+        "high": "shadow-[6px_6px_0_0_...] (panels; button hover state)"
+      },
+      "depth_cues": "hard offset shadow + bold border. Depth reads as a physical paper cutout, not as light/blur. Hover deepens the offset (4→6px) and lifts the element (-translate-y-0.5)."
+    },
+    "iconography": {
+      "style": "lucide-react line icons, consistent stroke, occasionally placed inside a yellow bordered SketchIcon chip",
+      "stroke_weight": "~2px (lucide default), reads as hand-confident",
+      "size_scale": "16 / 20 / 24; SketchIcon container size-10 (40px)",
+      "preferred_set": "lucide-react (v1.23)"
+    },
+    "motion": {
+      "easing": "power2.out (GSAP), ease/ease-out; spring-ish via motion/react",
+      "duration_scale": { "micro": "150–200ms (transition duration-200 on hovers)", "normal": "300–320ms (GSAP reveals 0.32s)", "macro": "400–600ms (drawers, larger transitions)" },
+      "entrance_pattern": "fade + small rise (autoAlpha 0, y:10) with a 0.04s stagger via .sidebar-reveal; motion/react AnimatePresence for accordions",
+      "exit_pattern": "reverse fade/collapse; grid-rows 1fr→0fr for disclosures",
+      "philosophy": "minimal functional with playful accents — motion confirms and delights but never blocks. data-motion attribute system tags elements (interactive/card/copy/scribble/circle). prefers-reduced-motion is globally honored (all durations forced to 0.01ms)."
+    },
+    "components": {
+      "button_style": "Pill (rounded-full), border-2 border-ink, font-extrabold. Three tones: ink (bg-ink text-white, yellow hard shadow), yellow (bg-yellow text-ink, ink hard shadow), paper (bg-white text-ink, soft ink shadow). Hover: -translate-y-0.5 and shadow grows 4→6px. min-h-11/12.",
+      "input_style": "border-2 border-ink, 12px radius (bordered-control-radius via @layer base), bg-white, sits on cream. Clear focus-visible outline.",
+      "card_style": "Panel = rounded-[16px] border-2 border-ink bg-white shadow-[6px_6px_0_0_rgba(14,49,88,0.13)]. The paper-cutout card is the atom of the whole UI.",
+      "navigation_pattern": "Left sidebar (hand-rolled aside): collapsible to an 80px icon rail with right-side tooltips; mobile off-canvas drawer + a 4-slot bottom tab bar. NavLink rows, NavDisclosure accordions.",
+      "modal_style": "White Panel card, ink border, hard shadow, over a scrim; drawer variant uses role=dialog + focus trap",
+      "list_style": "Nav rows with active state (filled/bordered), disclosure groups with grid-rows expand",
+      "component_notes": "cn() is a plain class-join (NOT tailwind-merge) — earlier classes cannot be overridden by caller className, so variants are resolved inside the component. Authored rounded-* always wins over the @layer base defaults; NEVER use ! or inline borderRadius to force a corner. Repo has NO shadcn and NO radix — components/ui is a hand-written primitives.tsx."
+    }
+  },
+  "design_style": {
+    "aesthetic": {
+      "mood": ["warm", "confident", "playful", "trustworthy", "energetic"],
+      "visual_metaphor": "a well-made paper workbook / sketchbook — printed ink on cream stock, cut-out cards casting hard little shadows, hand-drawn marks in the margin",
+      "era_influence": "contemporary neo-brutalism softened by 90s craft-workbook warmth",
+      "genre": "neo-brutalist edu-product (friendly brutalism)",
+      "personality_traits": ["approachable", "meticulous", "bold", "human", "unpretentious"],
+      "adjectives": ["cream", "inky", "hard-edged", "hand-drawn", "high-contrast", "chunky"]
+    },
+    "visual_language": {
+      "complexity": "moderate",
+      "ornamentation": "subtle accents — hand-drawn underlines (HandUnderline), yellow sketch-icon chips, optional sketch-grid / ink-hatch textures; restrained overall",
+      "whitespace_usage": "generous but structured; cream ground reads as calm space between inked cards",
+      "visual_weight_distribution": "heavy borders and black type give strong, even weight; yellow is the only thing allowed to pull focus, so it is rationed",
+      "focal_strategy": "single strong CTA per view via yellow/ink contrast; distributed card interest elsewhere",
+      "contrast_level": "high",
+      "texture_usage": "occasional flat CSS textures (sketch-grid dotted grid, ink-hatch diagonal hatch) at very low opacity"
+    },
+    "composition": {
+      "hierarchy_method": "weight contrast (font-black vs muted) + border/shadow prominence + rationed yellow",
+      "balance_type": "asymmetric within cards, symmetric for hero moments",
+      "flow_direction": "top-down, left-aligned reading; CTA anchors the eye",
+      "grouping_strategy": "bordered cards as hard containers — grouping is explicit, drawn, not implied by whitespace alone",
+      "negative_space_role": "the cream ground is active negative space that makes inked cards pop"
+    },
+    "imagery": {
+      "photo_treatment": "photos/media sit inside bordered cards; historically image containers also carry the ink frame",
+      "illustration_style": "hand-drawn line accents, scribble underlines, marker-like strokes",
+      "graphic_elements": "hard offset shadows, 2px ink borders, yellow chips, hand underlines, dotted sketch grid",
+      "pattern_usage": "minimal — hatch/grid textures used as quiet background flavor only",
+      "image_shape": "rounded rectangles on the sanctioned radius scale; media at 8px (surface-media), half the card radius"
+    },
+    "interaction_feel": {
+      "feedback_style": "physical and immediate — press lifts the element and deepens its shadow, like pressing a paper tab",
+      "hover_behavior": "-translate-y-0.5 lift + shadow offset grows (4→6px); tooltips fade in on the rail",
+      "transition_personality": "snappy with a touch of bounce",
+      "loading_style": "honest inline states; role=status announcements; skeletons/spinners kept simple",
+      "microinteraction_density": "moderate — enough to feel alive, never busy"
+    },
+    "brand_voice_in_ui": {
+      "tone": "friendly, plain-spoken, encouraging — teaches, never lectures",
+      "formality": "informal (Serbian ti-form), warm",
+      "cta_style": "direct friendly imperative ('Generiši', 'Pogledaj kurseve')",
+      "empty_state_approach": "warm and useful — a short human sentence plus (usually) one concrete next action; drops the CTA when no action would actually help",
+      "error_tone": "human, non-technical, no raw codes on screen — tells the learner what to do next"
+    }
+  },
+  "visual_effects": {
+    "overview": {
+      "effect_intensity": "subtle-accent",
+      "performance_tier": "lightweight",
+      "fallback_strategy": "reduce to CSS; prefers-reduced-motion globally forces near-zero durations",
+      "primary_technology": "CSS + GSAP + motion/react (both already in package.json)"
+    },
+    "background_effects": {
+      "type": "flat CSS texture (dotted sketch-grid, diagonal ink-hatch) — optional, very low opacity",
+      "description": "sketch-grid: two crossed linear-gradients at 28px creating a 6%-ink dotted grid; ink-hatch: repeating -18deg 8%-ink hatch",
+      "technology": "CSS background-image gradients",
+      "params": { "color_palette": ["rgba(14,49,88,0.06)", "rgba(14,49,88,0.08)"], "speed": "static", "density": "28px grid / 7px hatch", "opacity": "0.06–0.08", "blend_mode": "normal" }
+    },
+    "particle_systems": { "enabled": false, "type": "none", "description": "none", "technology": "none", "params": { "count": "0", "shape": "n/a", "size_range": "n/a", "movement_pattern": "n/a", "color_behavior": "n/a", "interaction": "none", "spawn_area": "n/a" } },
+    "3d_elements": { "enabled": false, "type": "none", "description": "none", "technology": "none", "params": { "renderer": "n/a", "lighting": "n/a", "camera": "n/a", "materials": "n/a", "geometry": "n/a", "post_processing": [], "interaction_model": "none" } },
+    "shader_effects": { "enabled": false, "type": "none", "description": "none", "technology": "none", "params": { "uniforms": "n/a", "vertex_manipulation": "n/a", "fragment_output": "n/a", "noise_type": "n/a", "distortion": "n/a" } },
+    "scroll_effects": {
+      "parallax": { "enabled": false, "layers": "0", "depth_range": "n/a", "speed_curve": "n/a" },
+      "scroll_triggered_animations": { "enabled": true, "trigger_points": "on mount / in-view", "animation_type": "fade-up", "scrub_behavior": "none — one-shot reveal, not scrubbed" },
+      "scroll_morphing": { "enabled": false, "description": "none" }
+    },
+    "text_effects": { "type": "none", "description": "hand-underline SVG sits under key words but text itself is not animated per-glyph", "technology": "SVG", "params": { "split_strategy": "n/a", "animation_per_unit": "n/a", "stagger": "n/a", "effect_style": "static hand underline" } },
+    "cursor_effects": { "enabled": false, "type": "none", "description": "standard cursor", "params": { "shape": "n/a", "size": "n/a", "blend_mode": "n/a", "trail": "n/a", "interaction_zone": "n/a" } },
+    "image_effects": { "type": "hover-lift", "description": "cards lift and deepen shadow on hover; no image distortion", "technology": "CSS transform + box-shadow", "params": { "filter_pipeline": "none", "hover_transform": "translateY(-2px) + shadow grow", "reveal_animation": "fade-up on mount", "distortion_type": "none" } },
+    "glassmorphism_neumorphism": { "enabled": false, "style": "none", "params": { "blur_radius": "0 — the aesthetic is explicitly anti-blur (hard shadows)", "transparency": "n/a", "border_treatment": "solid 2px ink", "shadow_type": "hard offset", "light_source_angle": "top-left implied (shadow down-right)" } },
+    "canvas_drawings": { "enabled": false, "type": "none", "description": "none", "technology": "none", "params": { "draw_method": "n/a", "animation_loop": "n/a", "color_scheme": "n/a", "responsiveness": "n/a", "interaction": "none" } },
+    "svg_animations": { "enabled": true, "type": "decorative", "description": "HandUnderline is a static two-stroke SVG scribble (yellow + ink); could be path-drawn on reveal", "params": { "animation_method": "static today; GSAP DrawSVG-style possible", "path_morphing": "none", "stroke_animation": "candidate for reveal", "filter_effects": "none" } },
+    "composite_notes": "The platform's entire 'effect' vocabulary is hard-edged paper physics: 2px ink borders, zero-blur offset shadows, a rationed yellow, and hand-drawn SVG marks. There is deliberately NO glass, NO blur, NO glow, NO particle/3D wizardry. For Studio this is the crucial constraint: the trick Flow uses to make media readable (a black room) is unavailable, and the platform offers no dark surface or blur to hide behind — media must be made calm by containment (its own dark media well inside a card), rhythm, and restraint, not by effects."
+  }
+}

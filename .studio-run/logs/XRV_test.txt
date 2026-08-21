@@ -1,0 +1,32 @@
+
+> nauciai@0.1.0 test
+> vitest run
+
+
+ RUN  v4.1.10 C:/Users/admin/Desktop/Web Dev Projects/nauciai
+
+ ❯ convex/chat.test.ts (18 tests | 1 failed) 17416ms
+   × inbox summary stays exact beyond one thousand memberships 15877ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  convex/chat.test.ts > inbox summary stays exact beyond one thousand memberships
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ convex/chat.test.ts:768:1
+    766| });
+    767|
+    768| test("inbox summary stays exact beyond one thousand memberships", asyn…
+       | ^
+    769|   const t = createTest();
+    770|   const [viewerId] = await seedUsers(t, 1);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 61 passed (62)
+      Tests  1 failed | 878 passed (879)
+   Start at  01:47:15
+   Duration  19.55s (transform 41.15s, setup 0ms, import 54.66s, tests 35.50s, environment 4.62s)
+
+EXIT=1

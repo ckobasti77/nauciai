@@ -17,6 +17,7 @@ import {
   Send,
   Sparkles,
   Video,
+  Wand2,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -691,6 +692,15 @@ export function CourseLab({
                         <OutputKindIcon kind={activeStep.outputKind} className="size-5" />
                       </span>
                     </div>
+                    {activeStep.outputKind !== "text" ? (
+                      <Link
+                        href={`${withLocale(locale, "/app/studio")}?lessonId=${lessonId}${selectedTask ? `&taskId=${selectedTask._id}` : ""}`}
+                        className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-sm font-black text-ink shadow-[3px_3px_0_0_rgba(14,49,88,0.18)] transition hover:-translate-y-0.5"
+                      >
+                        <Wand2 className="size-4" />
+                        {t(locale, "Otvori u Studiju", "Open in the Studio")}
+                      </Link>
+                    ) : null}
                     {latestOutput ? (
                       <div className="mt-5 rounded-[8px] border-2 border-ink bg-paper p-4">
                         <p className="text-sm font-black text-ink">{latestOutput.title}</p>

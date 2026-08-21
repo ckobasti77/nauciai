@@ -1,0 +1,10 @@
+
+> nauciai@0.1.0 build
+> next build
+
+▲ Next.js 16.2.10 (Turbopack)
+- Environments: .env.local
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 35.7s
+  Running TypeScript ...

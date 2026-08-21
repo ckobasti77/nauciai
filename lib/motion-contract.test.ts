@@ -6,6 +6,7 @@ describe("page motion route contract", () => {
   it("uses showcase motion for the signature landing surfaces", () => {
     expect(pageMotionVariantForPath("/sr")).toBe("showcase");
     expect(pageMotionVariantForPath("/en/app")).toBe("showcase");
+    expect(pageMotionVariantForPath("/sr/app/courses/video-audio-ai")).toBe("showcase");
     expect(pageMotionVariantForPath("/sr/app/community/discussions")).toBe("showcase");
   });
 
@@ -14,11 +15,12 @@ describe("page motion route contract", () => {
     expect(pageMotionVariantForPath("/en/app/courses/video/lessons/intro/edit")).toBe("focus");
   });
 
-  it("replays dashboard home and course scenes without keying community filters", () => {
-    expect(pageMotionSceneKey("/sr/app", null)).toBe("/sr/app|course:home");
-    expect(pageMotionSceneKey("/sr/app", "video-audio-ai")).toBe("/sr/app|course:video-audio-ai");
-    expect(pageMotionSceneKey("/sr/app/community/discussions", "ignored-filter")).toBe(
-      "/sr/app/community/discussions",
+  it("keys a scene on the pathname alone, so each course is its own scene", () => {
+    expect(pageMotionSceneKey("/sr/app")).toBe("/sr/app");
+    expect(pageMotionSceneKey("/sr/app/courses/video-audio-ai")).toBe("/sr/app/courses/video-audio-ai");
+    expect(pageMotionSceneKey("/sr/app/courses/websites")).not.toBe(
+      pageMotionSceneKey("/sr/app/courses/video-audio-ai"),
     );
+    expect(pageMotionSceneKey("/sr/app/community/discussions")).toBe("/sr/app/community/discussions");
   });
 });

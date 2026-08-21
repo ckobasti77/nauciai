@@ -31,6 +31,13 @@
   --color-yellow: #f4be30;
   --color-muted: #536273;
   --color-line: #c9d4df;
+  /* Studio-scoped, derived from the tokens above. `canvas` is one notch deeper
+     than paper so bright media has an edge where grid density is highest; `well`
+     is ink darkened toward near-black-blue (NEVER #000) for the per-tile media
+     well; `well-edge` is a 1px inset ring that catches pale media on white. */
+  --color-studio-canvas: #f5efe2;
+  --color-studio-well: #0e1a2b;
+  --color-studio-well-edge: rgba(14, 49, 88, 0.14);
   --font-sans: "Nunito", "Nunito Fallback", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Patrick Hand", "Patrick Hand Fallback", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Geist Mono", "Geist Mono Fallback", ui-monospace, monospace;

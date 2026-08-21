@@ -14,7 +14,7 @@ async function main() {
         executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
         headless: true,
       }
-    );
+    );`3`
     console.log("Browser context launched successfully.");
     
     const page = await context.newPage();
