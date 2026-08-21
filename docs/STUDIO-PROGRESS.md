@@ -6526,3 +6526,107 @@ prolazu oba su prosla i ostao je samo `chat.test.ts` iznad.
    Stavke 2 (donja granica trajanja iz bajtova) i 3 (prva ziva generacija po
    modelu sa fakturom) su i dalje otvorene i i dalje su najskuplji preostali
    rizik.
+
+---
+
+## XRV - Revizija X1-X7   (21. avgust 2026, 02:15)
+
+**Fajlovi:**
+- dodato: `docs/STUDIO-HARD-REPORT.md`
+- izmenjeno: `docs/STUDIO-PROGRESS.md` (ova sekcija)
+- privremeno pa obrisano: `convex/__xrv_audit.test.ts` (revizorski alat)
+- **nijedan fajl proizvoda nije menjan**
+
+**Sta je uradjeno:** Sve cetiri komande pokrenute nad cistim stablom i tacan
+izlaz prepisan u izvestaj. Za svaki nalaz (N1-N7, R3, R6, R7, R8) procitan je
+kod na koji nalaz pokazuje, ne dnevnik. Napad iz N2 simuliran je brojkama kroz
+pet varijanti istog fajla. Enumeracija marze ponovljena je nad zatecenim kodom:
+4 085 743 kombinacije preko 30 modela. Nove rupe koje je ovaj run otvorio
+nabrojane su kao Y1-Y5, istom ostrinom kojom su N1-N7 bili nabrojani.
+
+**Glavni nalaz: N2 NIJE zatvoren, ni prepolovljen.** Granica iz X1
+(`boundedInputSeconds`, `studioJobCore.ts:323`) kljuca se po `mimeType`-u sa
+reda `studioUploads`, a taj string dolazi iz `Content-Type` zaglavlja koje
+klijent sam salje pri uploadu (`use-slot-upload.ts:75` ->
+`registerInputUpload`, `studio.ts:1504`). Parser (`readMediaDuration`,
+`media-duration.ts:174`) format bira po BAJTOVIMA i MIME tip ne gleda uopste.
+Dve polovine iste odbrane gledaju u dva razlicita podatka. Napadac koji isti
+fajl prijavi kao `video/quicktime` (200 Mbps gornja tarifa) ili kao
+`application/octet-stream` (nema tarife pa nema ni granice) prolazi sa
+**identicnim brojkama kao pre X1**: 13 kredita za $72,00 fal troska, 50 poslova
+iz 650 kredita, plafoni vide $3,00 umesto $3 600,00. Za posteno prijavljen MP3
+granica radi tacno kako je zamisljena (6 228 kredita, napad pada na
+`NEDOVOLJNO_KREDITA`) - dakle mehanizam je dobar, kapija mu je pogresna.
+
+**ODLUKE:**
+1. **Status "delimicno" umesto "zatvoren" tamo gde odbrana zavisi od
+   nepotvrdjene pretpostavke.** N2 je oznacen kao otvoren (ne delimican) jer
+   brojke prolaza nisu manje nego pre koraka; N6 je delimican jer podatak koji
+   izlazi za cetiri modela nije cena provajdera nego nasa; N3 je delimican jer
+   `createInputUploadUrl` nema rate limit pa se prozor samo pomerio sa "zauvek"
+   na "od sada nadalje". Najkonzervativnije citanje, po pravilima run-a.
+2. **Y2 je oznacen kao PLAUZIBILAN, ne potvrdjen.** `readReportedSeconds`
+   (`studioSettlementCore.ts:93`) prihvata gola imena `minutes`/`duration`/
+   `seconds`, a `studioActions.ts:172` fal-u salje `{ ...params }` koji bas
+   `minutes` sadrzi (nalaz R8). Ako odgovor eho-uje ulaz, poravnanje ce nasu
+   lazu procitati kao potvrdu provajdera i zapecatiti `settledAt`, cime nocna
+   rekonsilijacija gubi pravo da isti posao ikad ispravi. Oblik fal odgovora
+   nije viden (pravila zabranjuju ziv poziv), pa je nalaz zapisan sa tom ogradom
+   - ali je stavljen u blokade, jer je cena pogresnog pogotka trajna.
+3. **Y4 je imenovan kao krsenje apsolutne zabrane, ne kao stil.**
+   `checkoutTaxParams()` je dodat i na `createCourseCheckoutSession`
+   (`lib/stripe.ts:68`), sto je izmena ponasanja postojeceg subscription flow-a
+   za kurseve. Posledica koju je X7 tacno opisao za pakete kredita ("dok Tax
+   nije ukljucen, sesija se odbija") vazi i za kurseve, dakle deploy pre
+   ukljucivanja Stripe Tax-a obara prodaju koja danas jedina donosi novac.
+   Nisam to popravio - revizija ne pise kod - nego je stavljeno kao blokada A2
+   sa dve moguce odluke (ukljuci Tax prvo, ili skini porez sa kurseva).
+4. **Enumeracija dodaje trecu vrednost svakom `extras` parametru** (0 / kvota /
+   kvota+5), pa je broj kombinacija veci nego u prethodnom izvestaju (4,09 M
+   prema 3,07 M). To je metod, ne kod: nijedan minimum se nije pomerio.
+5. **X7-ova `BLOKADA:` je razresena u korist X7.** `chat.test.ts` u ovom
+   prolazu prolazi, ceo suite je cist za 8,94 s, broj testova je isti (879) -
+   dakle bilo je opterecenje masine, tacno kako je X7 pretpostavio, i bio je u
+   pravu sto test nije "popravio" podizanjem timeout-a.
+
+**Testovi:** Nijedan nov test nije napisan - ovo je revizija. Privremeni alat
+`convex/__xrv_audit.test.ts` je nabrojao ceo prostor parametara svih 30 modela
+i odigrao pet varijanti napada iz N2 nad zatecenim `boundedInputSeconds`-om i
+`computeCredits`-om; obrisan je odmah posle merenja i stablo je cisto
+(`git status` cist osim log fajla).
+
+**Rezultat verifikacije:**
+- `npx convex codegen` -> `Running TypeScript...`, exit 0
+- `npm run lint` -> `✖ 8 problems (0 errors, 8 warnings)`, exit 0 (svih 8
+  zateceno: `admin-inline-actions.tsx`, `dashboard-content.tsx`,
+  `public-course-intro-video.tsx`, `get_google_creds.js`)
+- `npm run test` -> `Test Files 62 passed (62)`, `Tests 879 passed (879)`,
+  `Duration 8.94s`, exit 0
+- `npm run build` -> `✓ Compiled successfully in 14.7s`,
+  `✓ Generating static pages using 15 workers (64/64) in 265ms`, exit 0
+  (napomena: 64, ne 60 kako je X7 prijavio - X7 je sam dodao cetiri rute)
+
+**BLOKADA:** nema
+
+**Za Jovana:**
+1. **Procitaj `docs/STUDIO-HARD-REPORT.md` sekciju 2 pre svega ostalog.** Tamo
+   je napad razlozen na jedanaest koraka sa brojkama. Zakljucak u jednoj
+   recenici: N2 je i dalje $3 600 prema 6,50 €, i sledeci korak nije nov feature
+   nego da `mimeType` prestane da bude podatak koji klijent bira.
+2. **Redosled deploy-a se promenio.** Stripe Tax se sada ukljucuje PRE deploy-a,
+   ne posle - inace pada i kupovina kursa (Y4). Pun spisak je sekcija 5B, i
+   `enableMeasuredModels` je namerno spustena na 10. mesto: to je jedina
+   komanda u spisku koja otvara napad iz sekcije 2.
+3. **Tri koraka su prijavila vise nego sto su isporucila i imenovana su u
+   sekciji 6:** X1 (tvrdi da napad "sada placa punih 120 minuta" - ne placa),
+   X3 (upisuje nasu tarifu pod imenom "stvarna cena" za cetiri modela) i X7
+   (porez na kurseve). Ostalo iz run-a stoji: N4, N5 i N7 su stvarno zatvoreni,
+   VBR MP3 je zatvoren bez ograde, pravni tekst je uvezan sa brojevima iz koda.
+4. **Marza je potvrdjena.** Globalni minimum je tacno 2,500000x kroz 4 085 743
+   kombinacije; `computeCredits` i dalje radi jedan `ceil` na jednom mestu.
+   Izmena cenovnog motora koju je X2 napravio (izvoz `creditsFromUsd`-a) je bila
+   najmanja moguca i nije je pokvarila.
+5. **Y5 je jedina nova rupa koja ce te ugristi u podrsci, ne u racunu:**
+   povracaj od 1 € ponistava ceo paket kredita, a dobijen spor ne otkljucava
+   nalog sam (nema `charge.dispute.closed`). Oboje trazi rucnu intervenciju
+   koja danas nema ni ekran ni obavestenje da je potrebna.
