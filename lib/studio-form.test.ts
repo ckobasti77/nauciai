@@ -215,6 +215,23 @@ describe("jobStatusText", () => {
       jobStatusText({ status: "done", outputUrl: null, error: "IZLAZ_NIJE_SACUVAN: 401" }, "sr"),
     ).toContain("nije uspela da se sačuva");
   });
+
+  test("posao imenuje medij po vrsti - video i zvuk nisu slika (C6)", () => {
+    expect(jobStatusText({ status: "running", kind: "video" }, "sr")).toContain("videu");
+    expect(jobStatusText({ status: "running", kind: "audio" }, "sr")).toContain("zvuku");
+    expect(jobStatusText({ status: "running", kind: "image" }, "sr")).toContain("slici");
+    expect(jobStatusText({ status: "running", kind: "video" }, "en")).toContain("video");
+    expect(jobStatusText({ status: "running", kind: "audio" }, "en")).toContain("audio");
+    // "done" bez fajla granaju isto po vrsti
+    expect(jobStatusText({ status: "done", outputUrl: null, kind: "video" }, "sr")).toContain(
+      "Preuzimamo video",
+    );
+    expect(
+      jobStatusText({ status: "done", outputUrl: null, error: "IZLAZ_NIJE_SACUVAN", kind: "audio" }, "sr"),
+    ).toContain("Zvuk je generisan");
+    // bez `kind` se ponaša kao slika - nema regresije
+    expect(jobStatusText({ status: "running" }, "sr")).toContain("slici");
+  });
 });
 
 describe("istekao fajl", () => {

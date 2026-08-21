@@ -166,9 +166,15 @@ async function ledger(t: TestConvex, userId: Id<"users">) {
   });
 }
 
-/** Puna postavka za srećan tok: upisan korisnik, uključen model, krediti. */
+/**
+ * Puna postavka za srećan tok: uključen model, krediti, i korisnik koji SME u
+ * Studio. Dok je `STUDIO_STAFF_ONLY` upaljeno, sam upis to više ne obezbeđuje
+ * (vidi "kill switch i enrollment" i "W1" ispod) - zato je ovde `moderator`,
+ * ne obican `student`. Testovi kojima treba baš NEupisan/NEosoblje glumac
+ * zovu `seedUser` direktno, sa svojom ulogom.
+ */
 async function seedWorld(t: TestConvex, credits = 100) {
-  const { userId, asUser } = await seedUser(t);
+  const { userId, asUser } = await seedUser(t, { role: "moderator" });
   await seedModel(t);
   await grant(t, userId, credits);
   return { userId, asUser };
@@ -350,7 +356,7 @@ test("prazan i predugačak prompt su odbijeni sa svojim razlogom", async () => {
 
 test("isključen model i model van kataloga su odbijeni bez trošenja kredita", async () => {
   const t = convexTest(schema, modules);
-  const { userId, asUser } = await seedUser(t);
+  const { userId, asUser } = await seedUser(t, { role: "moderator" });
   await seedModel(t, { slug: "ugasen-model", isEnabled: false });
   await grant(t, userId, 100);
 
@@ -393,7 +399,7 @@ test("cena dolazi iz kataloga i kad klijent pošalje svoju vrednost u params", a
 
 test("video model se naplaćuje ceil(costPerSecond * duration), a ne fiksnom cenom", async () => {
   const t = convexTest(schema, modules);
-  const { userId, asUser } = await seedUser(t);
+  const { userId, asUser } = await seedUser(t, { role: "moderator" });
   await seedModel(t, {
     slug: "veo-3-1-lite",
     kind: "video",
@@ -595,7 +601,7 @@ test("neupisan i blokiran korisnik ne mogu da generišu", async () => {
       modelSlug: MODEL_SLUG,
       params: promptParams("lisica"),
     }),
-  ).rejects.toThrow(/NIJE_UPISAN/);
+  ).rejects.toThrow(/NEMA_PRISTUPA/);
 
   const t2 = convexTest(schema, modules);
   const blocked = await seedUser(t2, { blocked: true });
@@ -607,7 +613,7 @@ test("neupisan i blokiran korisnik ne mogu da generišu", async () => {
       modelSlug: MODEL_SLUG,
       params: promptParams("lisica"),
     }),
-  ).rejects.toThrow(/NIJE_UPISAN/);
+  ).rejects.toThrow(/NEMA_PRISTUPA/);
 });
 
 test("neprijavljen korisnik ne može da rezerviše posao", async () => {
@@ -802,7 +808,7 @@ test("dayStart vraća UTC ponoć dana kom `now` pripada", () => {
 
 test("createJob upisuje očišćene parametre - to je isto ono što ide fal-u", async () => {
   const t = convexTest(schema, modules);
-  const { userId, asUser } = await seedUser(t);
+  const { userId, asUser } = await seedUser(t, { role: "moderator" });
   await seedModel(t, { paramSchema: IMAGE_SCHEMA });
   await grant(t, userId, 100);
 
@@ -829,7 +835,7 @@ test("createJob upisuje očišćene parametre - to je isto ono što ide fal-u", 
 
 test("num_images: 4 naplaćuje 4x cenu iz kataloga - i u ledgeru i u dnevnom trošku", async () => {
   const t = convexTest(schema, modules);
-  const { userId, asUser } = await seedUser(t);
+  const { userId, asUser } = await seedUser(t, { role: "moderator" });
   await seedModel(t, { paramSchema: IMAGE_SCHEMA });
   await grant(t, userId, 200);
 
@@ -862,7 +868,7 @@ test("num_images: 4 naplaćuje 4x cenu iz kataloga - i u ledgeru i u dnevnom tro
 
 test("odsutan num_images je jedna slika: cena i dnevni trošak ostaju 1x", async () => {
   const t = convexTest(schema, modules);
-  const { userId, asUser } = await seedUser(t);
+  const { userId, asUser } = await seedUser(t, { role: "moderator" });
   await seedModel(t, { paramSchema: IMAGE_SCHEMA });
   await grant(t, userId, 200);
 
@@ -887,7 +893,7 @@ test("odsutan num_images je jedna slika: cena i dnevni trošak ostaju 1x", async
 
 test("dnevni plafon troška računa pomnožen trošak, pa 4 slike obara isti posao koji jedna prolazi", async () => {
   const t = convexTest(schema, modules);
-  const { userId, asUser } = await seedUser(t);
+  const { userId, asUser } = await seedUser(t, { role: "moderator" });
   // 2 USD po slici: jedna slika staje u plafon od 5 USD, četiri (8 USD) ne.
   await seedModel(t, {
     slug: "skupi-model",
@@ -927,7 +933,7 @@ test("computeCreditCost: num_images množi i granu sa costPerSecond", () => {
 
 test("createJob odbija nedozvoljen select pre nego što skine ijedan kredit", async () => {
   const t = convexTest(schema, modules);
-  const { userId, asUser } = await seedUser(t);
+  const { userId, asUser } = await seedUser(t, { role: "moderator" });
   await seedModel(t, { paramSchema: IMAGE_SCHEMA });
   await grant(t, userId, 100);
 
@@ -947,7 +953,7 @@ test("createJob odbija nedozvoljen select pre nego što skine ijedan kredit", as
 
 test("dnevni limit troška odbija posao koji bi prešao 5 USD tog dana", async () => {
   const t = convexTest(schema, modules);
-  const { userId, asUser } = await seedUser(t);
+  const { userId, asUser } = await seedUser(t, { role: "moderator" });
   await seedModel(t, { slug: "skupi-model", creditCost: 10, estimatedCostUsd: 2 });
   await grant(t, userId, 100);
   const day = dayKey(Date.now());
@@ -998,7 +1004,7 @@ test("dnevni limit troška odbija posao koji bi prešao 5 USD tog dana", async (
 
 test("dnevni limit troška je vezan za dan", async () => {
   const t = convexTest(schema, modules);
-  const { userId, asUser } = await seedUser(t);
+  const { userId, asUser } = await seedUser(t, { role: "moderator" });
   await seedModel(t, { slug: "skupi-model", creditCost: 10, estimatedCostUsd: 2 });
   await grant(t, userId, 100);
 
@@ -1338,7 +1344,7 @@ test("listMyJobs vraća samo poslove prijavljenog korisnika", async () => {
   expect(page.page).toHaveLength(0);
 });
 
-test("getStudioState: upaljen Studio, upisan korisnik, nijedan posao u letu", async () => {
+test("getStudioState: upaljen Studio, osoblje bez posla u letu", async () => {
   const t = convexTest(schema, modules);
   const { asUser } = await seedWorld(t);
 
@@ -1347,11 +1353,31 @@ test("getStudioState: upaljen Studio, upisan korisnik, nijedan posao u letu", as
     enabled: true,
     hasStudioAccess: true,
     hasAcceptedTerms: true,
-    isStaff: false,
+    isStaff: true,
     isStudioAdmin: false,
     activeJobs: 0,
     maxActiveJobs: 3,
   });
+});
+
+test("upisan korisnik bez uloge NE prolazi dok je STUDIO_STAFF_ONLY upaljen - server i UI se slažu", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedUser(t, { role: "student" });
+  await seedModel(t);
+  await grant(t, userId, 100);
+
+  const state = await asUser.query(api.studio.getStudioState, {});
+  expect(state.hasStudioAccess).toBe(false);
+  expect(state.isStaff).toBe(false);
+
+  await expect(
+    asUser.mutation(api.studio.createJob, {
+      modelSlug: MODEL_SLUG,
+      params: promptParams("lisica u snegu"),
+    }),
+  ).rejects.toThrow(/NEMA_PRISTUPA/);
+
+  expect((await ledger(t, userId)).jobs).toHaveLength(0);
 });
 
 test("getStudioState čita kill switch isto kao createJob", async () => {
@@ -1429,7 +1455,7 @@ test("getStudioState prijavljuje neupisanog korisnika pre nego što klikne dugme
       modelSlug: MODEL_SLUG,
       params: promptParams("lisica u snegu"),
     }),
-  ).rejects.toThrow(/NIJE_UPISAN/);
+  ).rejects.toThrow(/NEMA_PRISTUPA/);
 });
 
 test("getStudioState ne odgovara neprijavljenom korisniku", async () => {
@@ -1573,7 +1599,7 @@ test("deleteJob odbija posao povezan sa lekcijom, da dokaz zadatka ne nestane", 
 test("deleteJob odbija tudji posao i nepostojeći posao", async () => {
   const t = convexTest(schema, modules);
   const { asUser } = await seedWorld(t);
-  const other = await seedUser(t);
+  const other = await seedUser(t, { role: "moderator" });
   await grant(t, other.userId, 100);
 
   const jobId = await other.asUser.mutation(api.studio.createJob, {
@@ -1663,15 +1689,17 @@ test("deleteJob NE briše ulaz koji koristi i drugi posao istog korisnika", asyn
 
 // ── W1: pristup bez upisa i pregled tudjih poslova ─────────────────────────
 
-test("hasStudioAccess: upis pušta svakoga, uloga admina i moderatora i bez upisa", () => {
-  // Upis je i dalje pravilo za korisnike...
-  expect(hasStudioAccess("student", { _id: "enr" })).toBe(true);
+test("hasStudioAccess: dok je STUDIO_STAFF_ONLY upaljen, upis ništa ne menja - samo uloga osoblja ulazi", () => {
+  // Upis više NE pušta - Studio je zatvoreno testiranje (STUDIO_STAFF_ONLY).
+  expect(hasStudioAccess("student", { _id: "enr" })).toBe(false);
   expect(hasStudioAccess("student", null)).toBe(false);
-  expect(hasStudioAccess("pro_student", null)).toBe(false);
+  expect(hasStudioAccess("pro_student", { _id: "enr" })).toBe(false);
   expect(hasStudioAccess(undefined, undefined)).toBe(false);
-  // ...a admin i moderator ulaze i bez njega.
+  // Admin i moderator i dalje ulaze, upisani ili ne - fleg proverava SAMO ulogu.
   expect(hasStudioAccess("admin", null)).toBe(true);
   expect(hasStudioAccess("moderator", null)).toBe(true);
+  expect(hasStudioAccess("admin", { _id: "enr" })).toBe(true);
+  expect(hasStudioAccess("moderator", { _id: "enr" })).toBe(true);
 
   expect(isStudioStaff("admin")).toBe(true);
   expect(isStudioStaff("moderator")).toBe(true);
@@ -1733,7 +1761,7 @@ test("moderator bez upisa pravi posao, a obican korisnik bez upisa i dalje ne", 
       modelSlug: MODEL_SLUG,
       params: promptParams("lisica"),
     }),
-  ).rejects.toThrow(/NIJE_UPISAN/);
+  ).rejects.toThrow(/NEMA_PRISTUPA/);
 });
 
 test("getStudioState pušta admina bez upisa i prijavljuje ga kao osoblje", async () => {
@@ -1885,7 +1913,9 @@ test("listAllJobs filtrira po korisniku, statusu i provajderu", async () => {
 
 test("listAllJobs i listJobOwners su iza uloge na SERVERU, ne u UI-ju", async () => {
   const t = convexTest(schema, modules);
-  const { userId, asUser } = await seedWorld(t);
+  // `seedWorld` je osoblje (STUDIO_STAFF_ONLY) - ovom testu treba baš OBICAN
+  // korisnik, pa ide direktno preko `seedUser` (podrazumevana uloga `student`).
+  const { userId, asUser } = await seedUser(t);
   await insertCatalogModel(t, "m-fal", "fal");
   const jobId = await insertJob(t, userId, { modelSlug: "m-fal", status: "done", createdAt: 1_000 });
 
@@ -2087,7 +2117,7 @@ test("listJobOwners adminu vraća vlasnike sa mejlom i brojem poslova, sortirane
 
 test("bez prihvaćenih uslova nema prvog posla - ni kredit se ne skine", async () => {
   const t = convexTest(schema, modules);
-  const { userId, asUser } = await seedUser(t, { acceptedTerms: false });
+  const { userId, asUser } = await seedUser(t, { role: "moderator", acceptedTerms: false });
   await seedModel(t);
   await grant(t, userId, 100);
 
@@ -2108,7 +2138,7 @@ test("bez prihvaćenih uslova nema prvog posla - ni kredit se ne skine", async (
 
 test("posle prihvatanja uslova isti poziv prolazi", async () => {
   const t = convexTest(schema, modules);
-  const { userId, asUser } = await seedUser(t, { acceptedTerms: false });
+  const { userId, asUser } = await seedUser(t, { role: "moderator", acceptedTerms: false });
   await seedModel(t);
   await grant(t, userId, 100);
 

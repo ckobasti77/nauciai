@@ -26,15 +26,40 @@ export function isStudioStaff(role: unknown): boolean {
 }
 
 /**
+ * Naplata za Studio još ne postoji: Stripe ne radi u Srbiji, a srpski paywall
+ * čeka da se otvori firma. Dok toga nema, svaka generacija je pravi trošak kod
+ * fal-a koji niko ne plaća, pa je Studio PRIVREMENO zatvoreno testiranje - samo
+ * za osoblje, bez obzira na upis. Logika upisa ispod ostaje netaknuta jer se
+ * vraća čim naplata proradi: da se ugasi, promeni SAMO ovaj red u
+ * `STUDIO_STAFF_ONLY = false`.
+ */
+export const STUDIO_STAFF_ONLY = true;
+
+/**
  * Jedino mesto na kojem se odlučuje sme li neko u Studio: aktivan upis, ili
  * uloga koja upis ne traži. Isti odgovor dobijaju `createJob` (koji baca
- * `NIJE_UPISAN`) i `getStudioState` (po kojem se gasi dugme), pa UI i server ne
+ * `NEMA_PRISTUPA`) i `getStudioState` (po kojem se gasi dugme), pa UI i server ne
  * mogu da tvrde suprotno.
+ *
+ * Dok je `STUDIO_STAFF_ONLY` upaljen, upis se uopšte ne pita - prolazi samo
+ * osoblje. To je PRIVREMENO (vidi komentar iznad fleg): kad se ugasi, upis se
+ * vraća kao dovoljan uslov, u potpunosti kao pre.
  *
  * **Pristup nije popust.** Krediti se skidaju istom putanjom svakome - videti
  * `applySpend` u `createJob`-u, gde uloga ne učestvuje.
+ *
+ * Treći argument postoji SAMO za `studioCore.test.ts`: `STUDIO_STAFF_ONLY` je
+ * `const`, pa ga test ne može da promeni izvana bez ovoga - a upravo taj test
+ * ("gašenje flega vraća staro ponašanje u potpunosti") je jedini dokaz da je
+ * gašenje flega dovoljno. `createJob` i `getStudioState` ga NE prosleđuju -
+ * za njih uvek važi pravi fleg.
  */
-export function hasStudioAccess(role: unknown, enrollment: unknown): boolean {
+export function hasStudioAccess(
+  role: unknown,
+  enrollment: unknown,
+  staffOnly: boolean = STUDIO_STAFF_ONLY,
+): boolean {
+  if (staffOnly) return isStudioStaff(role);
   return enrollment !== null && enrollment !== undefined ? true : isStudioStaff(role);
 }
 

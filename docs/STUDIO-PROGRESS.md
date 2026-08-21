@@ -6630,3 +6630,368 @@ i odigrao pet varijanti napada iz N2 nad zatecenim `boundedInputSeconds`-om i
    povracaj od 1 € ponistava ceo paket kredita, a dobijen spor ne otkljucava
    nalog sam (nema `charge.dispute.closed`). Oboje trazi rucnu intervenciju
    koja danas nema ni ekran ni obavestenje da je potrebna.
+
+---
+
+## X8 - Studio zatvoren za sve osim admina i moderatora, iza flega koji se kasnije gasi   (21.08.2026)
+
+**Fajlovi:**
+- `convex/studioCore.ts` - novi `STUDIO_STAFF_ONLY = true`; `hasStudioAccess`
+  sad prvo pita fleg (`if (staffOnly) return isStudioStaff(role)`) i tek kad
+  je ugasen pada na staru formulu upisa. Treci, opcioni argument
+  (`staffOnly = STUDIO_STAFF_ONLY`) postoji SAMO za test koji dokazuje da
+  gasenje flega vraca staro ponasanje - `createJob` i `getStudioState` ga ne
+  prosledjuju, za njih uvek vazi pravi fleg.
+- `convex/studio.ts` - `createJob` sad baca `NEMA_PRISTUPA` (preimenovano iz
+  `NIJE_UPISAN` - taj razlog vise nije tacan za vecinu korisnika koji ga
+  dobijaju, i sami su upisani); komentar iznad provere objasnjava da je upis
+  privremeno "necitan", ne obrisan.
+- `lib/studio-messages.ts` - `NEMA_PRISTUPA` poruka (zatvoreno testiranje, bez
+  obecanog datuma); `STUDIO_NOT_ENROLLED` prepisan na istu poruku i BEZ `cta`
+  (nov tip `EmptyStateNoCta = Pick<EmptyState, "title" | "body">`, jer stara
+  "Pogledaj kurseve" ne bi radila ono sto pise); komentar uz `GenerateBlock`
+  koji objasnjava da `kind: "not_enrolled"` vise ne znaci doslovno "nije
+  upisan" (ime zadrzano nepromenjeno - preimenovanje diskriminovanog tipa
+  kroz vise fajlova nije bilo jeftino, preimenovanje jednog error koda jeste).
+- `lib/studio-playground.ts` - komentar uz `PlaygroundState.hasStudioAccess`
+  azuriran (funkcija nepromenjena).
+- `components/app/studio-page.tsx` - "nema pristupa" panel vise ne prikazuje
+  dugme ka `/app/courses` (uklonjeno, ne zamenjeno - nema ekvivalentne radnje).
+- Testovi: `convex/studioCore.test.ts` (nov fajl, +2), `convex/studio.test.ts`
+  (seedWorld/seedUser prevedeni na osoblje gde je pristup bio uzgredan uslov,
+  +2 nova, nekoliko prepisanih), `convex/studioCatalogJob.test.ts` i
+  `convex/studioSettlement.test.ts` (sopstveni `seedUser` prevedeni na
+  `moderator` iz istog razloga - nisu bili u prvobitnom spisku od "25 mesta",
+  otkriveni tek na `npm run test`), `lib/studio-messages.test.ts` (+1),
+  `lib/studio-playground.test.ts` (samo komentar).
+
+**Sta je uradjeno:**
+Naplata za Studio ne postoji i nece jos neko vreme (Stripe ne radi u Srbiji,
+srpski paywall ceka otvaranje firme), pa je Studio zatvoren za sve sem
+admina i moderatora dok se to ne resi - svaka generacija je danas pravi trosak
+kod fal-a koji niko ne placa. `hasStudioAccess` u `studioCore.ts` je JEDINA
+tacka odluke u repou (zovu je i `createJob`, koji baca, i `getStudioState`, po
+kojem se gasi dugme), pa je promenjena samo ona: `STUDIO_STAFF_ONLY = true`
+sad prolazi ispred stare formule "upis ili osoblje" i, dok je upaljen, propusta
+SAMO osoblje - upis se cita i dalje (prosledjuje se u funkciju nepromenjen) ali
+se ne pita. Kad naplata proradi, gasenje je jedan red: `STUDIO_STAFF_ONLY =
+false` vraca staru formulu u potpunosti, sto je i eksplicitno testirano
+(`studioCore.test.ts`).
+
+Poruka korisniku (`NIJE_UPISAN` -> `NEMA_PRISTUPA`, i `STUDIO_NOT_ENROLLED`)
+vise ne obecava da upis pomaze, niti tvrdi da su polaznici ciljna grupa - kaze
+da je Studio u zatvorenom testiranju i da ce se otvoriti polaznicima kasnije,
+bez datuma. Dugme "Pogledaj kurseve" koje je stajalo uz staru poruku je
+uklonjeno (ne zamenjeno necim drugim), jer upis vise ne otvara nista - ostavljen
+CTA koji ne radi ono sto pise bi bio gori od praznog panela.
+
+`isStudioStaff` (uvid u tudje poslove, `listAllJobs`/`listJobOwners`),
+`convex/studioPricing.ts`, Stripe kod i `requireCourseAccess` nisu dirani -
+van dosega ovog koraka, po eksplicitnom zahtevu.
+
+**ODLUKE:**
+1. **`hasStudioAccess` dobija treci, OPCIONI argument** (`staffOnly =
+   STUDIO_STAFF_ONLY`), iako zahtev daje tacan kod bez njega. `STUDIO_STAFF_ONLY`
+   je `const` - ni jedan test ga ne moze promeniti spolja bez ili ovoga, ili
+   krhkog mokovanja ESM modula koje ne radi pouzdano (mokovan `hasStudioAccess`
+   preko `vi.doMock` i dalje cita PRAVI, nemokovan `STUDIO_STAFF_ONLY` iz
+   svog leksickog opsega, ne iz mokovanog exporta). Treci argument ne menja
+   nijedan stvaran poziv (`createJob`, `getStudioState` i UI i dalje zovu sa
+   dva argumenta, pa za njih uvek vazi pravi fleg) i postoji ISKLJUCIVO da
+   "gasenje flega vraca staro ponasanje u potpunosti" bude dokazivo, a ne samo
+   tvrdjeno u komentaru.
+2. **`NIJE_UPISAN` preimenovan u `NEMA_PRISTUPA`, `not_enrolled` (GenerateBlock
+   kind) NIJE.** Zahtev je dao izbor ("zadrzi ako je skupo, preimenuj ako je
+   jeftino"). Error kod je jedan string na cetiri mesta (throw, poruka, dva
+   testna fajla) - jeftino. `kind: "not_enrolled"` je clan diskriminovanog
+   `GenerateBlock` unije koji preko `GenerateButton`-a dodiruje i
+   `lib/studio-playground.ts` i dva testna fajla - preimenovanje bi diralo
+   fajlove van dosega ovog koraka bez ijedne funkcionalne dobiti (nijedan
+   korisnik ne vidi string `"not_enrolled"`, samo poruku koja je vec tacna).
+   Umesto toga, komentar uz definiciju kaze da ime vise ne opisuje razlog.
+3. **`EmptyState.cta` ostaje OBAVEZAN; `STUDIO_NOT_ENROLLED` dobija sopstveni
+   uzi tip (`EmptyStateNoCta`), ne `cta?`.** Prva verzija je pravila `cta`
+   opcionim na deljenom tipu - `npm run build` je to odbio na sest DRUGIH
+   `EmptyState` konstanti (`CREDITS_NO_BALANCE.cta[locale]` itd.), jer TS ne
+   zna da je SAMO `STUDIO_NOT_ENROLLED` bez dugmeta. `Pick<EmptyState, "title"
+   | "body">` drzi tih sest mesta netaknutim i i dalje strogo tipiziranim.
+4. **`seedWorld` u `studio.test.ts` (i analogni `seedUser` u
+   `studioCatalogJob.test.ts`/`studioSettlement.test.ts`) sad seeduje
+   `moderator`, ne `student`.** Ogromna vecina testova koji koriste ove
+   pomocne funkcije proverava cenu/kvotu/moderaciju/poravnanje - pristup im je
+   uzgredan uslov, ne ono sto mere. Umesto da svaki od ~60 poziva dobije
+   rucno dodat `role: "moderator"`, promenjena je podrazumevana vrednost
+   pomocne funkcije; mesta kojima treba BAS neupisan/neosoblje glumac
+   (`neupisan i blokiran korisnik...`, W1 testovi, Forbidden test za
+   `listAllJobs`) i dalje eksplicitno traze `student` ili idu direktno kroz
+   `seedUser` bez izmene.
+5. **`studioCatalogJob.test.ts` i `studioSettlement.test.ts` nisu bili u
+   spisku od "25 mesta" (20+3+2) iz zahteva, ali su pukli na `npm run test`
+   posle izmene flega** - imaju sopstvene, odvojene `seedUser` pomocne
+   funkcije sa istim hardkodovanim `role: "student"`. Popravljene istim
+   obrascem kao (4). Broj testova posle ovog koraka je 883 (879 + 4 nova:
+   `studioCore.test.ts` x2, `studio.test.ts` x1, `studio-messages.test.ts`
+   x1) - nijedan zatecen test nije obrisan ni preskocen da bi suite prosao.
+
+**Testovi:**
+- `convex/studioCore.test.ts` (nov) - `STUDIO_STAFF_ONLY` je `true`: upis sam
+  ne pusta nikog van osoblja, admin/moderator ulaze upisani ili ne ·
+  `STUDIO_STAFF_ONLY = false` (preko treceg argumenta) vraca staru formulu u
+  POTPUNOSTI - upis ponovo pusta svakoga, bez upisa samo osoblje.
+- `convex/studio.test.ts` - `hasStudioAccess` unit test prepisan: upisan
+  student/pro_student vise NE prolazi, admin/moderator prolaze upisani ili ne
+  · nov test "upisan korisnik bez uloge NE prolazi" - i `createJob` (baca
+  `NEMA_PRISTUPA`) i `getStudioState` (`hasStudioAccess: false`) se slazu ·
+  `getStudioState` happy-path test prepisan na osoblje (`isStaff: true`) jer
+  je `seedWorld` sad osoblje · Forbidden test za `listAllJobs`/`listJobOwners`/
+  `revealJobDetail` premesten sa `seedWorld` na direktan `seedUser` (mora da
+  ostane STVARNO neosoblje) · postojeci "admin/moderator bez upisa prave
+  posao, obican korisnik bez upisa ne" i "pristup nije popust" testovi (iz W1)
+  ostaju bez izmene, i dalje prolaze.
+- `lib/studio-messages.test.ts` - `NEMA_PRISTUPA` u spisku kodova · prazna
+  stanja: `cta` se proverava samo kad postoji · nov test da
+  `STUDIO_NOT_ENROLLED` NEMA `cta` polja uopste.
+
+**Rezultat verifikacije:**
+- `npx convex codegen` -> zavrsava sa `Running TypeScript...`, exit 0
+- `npm run lint` -> `✖ 8 problems (0 errors, 8 warnings)`, exit 0 (svih 8
+  zateceno, nijedan u fajlovima ovog koraka)
+- `npm run test` -> `Test Files 63 passed (63)`, `Tests 883 passed (883)`,
+  exit 0
+- `npm run build` -> `✓ Compiled successfully`, `Generating static pages
+  using 15 workers (64/64)`, exit 0
+
+`chat.test.ts > inbox summary stays exact beyond one thousand memberships` nije
+padao ni u punom prolazu - nije bilo potrebe da se izoluje.
+
+**BLOKADA:** nema
+
+**Za Jovana:**
+1. **Studio je od ovog deploy-a zatvoren za sve polaznike, ukljucujuci vec
+   upisane.** Ovo je namerno i privremeno. Kad naplata proradi (Stripe u
+   Srbiji, ili srpski paywall posle otvaranja firme), gasenje je JEDAN red u
+   `convex/studioCore.ts`: `export const STUDIO_STAFF_ONLY = true;` -> `false`.
+   Nista drugo se ne dira - logika upisa je i dalje tu, samo se trenutno ne
+   pita.
+2. **Nema migracije i nema nove tabele.** Fleg je literal u kodu, ne red u
+   `platformFlags` (za razliku od `studio_enabled` kill svica) - namerno, jer
+   ne treba admin ekran da ga menja dok naplata ne postoji; kad se ugasi, to
+   radi neko ko dira kod.
+3. **Postojeci upisani korisnici koji su ranije koristili Studio (ako ih ima)
+   ce od ovog deploy-a dobiti "Studio je u zatvorenom testiranju" umesto
+   forme.** Kreditni bilans im ostaje netaknut - poruka to i kaze.
+4. **`convex/studioCatalogJob.test.ts` i `convex/studioSettlement.test.ts` su
+   diranuti iako nisu bili u zahtevu** - imaju svoje `seedUser` pomocne
+   funkcije van `studio.test.ts`, otkriveno tek kad je pun `npm run test`
+   pukao na njima. Vredi zapamtiti za sledeci korak koji dira nesto sto sve
+   testne fajlove deli: pretrazi CEO `convex/` po sablonu, ne samo fajl koji
+   je zahtev naveo.
+
+## RD1 - Studio redizajn: Faza 1 (pravac, bez produkcijskog koda)   (21.08.2026)
+
+**Fajlovi (svi novi, svi u `docs/studio-redesign/`, nijedan produkcijski):**
+- `design-dna-platform.json` - NOV. Design DNA platforme (koza): tokeni
+  (#fffdf8 krem, #0e3158 ink, #f4be30 zuto), Nunito/Patrick Hand/Geist Mono,
+  cetiri radiusa, tvrde offset senke bez blur-a, neo-brutalizam. Iz `globals.css`,
+  `primitives.tsx`, `app-sidebar.tsx`, `AGENTS.md`.
+- `design-dna-flow.json` - NOV. Design DNA Google Flow-a (skelet): tamna soba,
+  ahromatska hroma, mreza-kao-platno, lebdeci kontekstualan composer, drop-up
+  panel voden modelom, medij-kao-editor ruta, prompt-kao-identitet. Iz zive
+  seanse u Flow-u (mreza, panel slika+video, model dropdown, hover kartica,
+  detalj editor) + higgsfield.ai (citljivost kontrola).
+- `PHASE-1-DIRECTION.md` - NOV. Ceo pravac: dijagnoza sa fajlom/linijom, tri
+  resenja "medij na krem" (preporuka A), koreografija sidebar prelaza, tokeni/
+  tipografija/mreza/spacing, tri pravca composer/panel (preporuka 3), shadcn
+  tenzija, projekti van obima.
+- `studio-mockup.html` - NOV. Samostalan klikabilan mockup (Nunito preko Google
+  Fonts, ostalo inline). Radi: morfovanje panela slika<->video (5<->2 ratija,
+  trajanje/zvuk se pojave, model se sam prebaci), promena modela cuva prompt
+  (C4), cena procena->tacna (C1), mreza->detalj sa kontekstualnim composerom i
+  panelom istorije, prelaz sidebara, SR/EN, skupljeno stanje, mobilni sheet,
+  `prefers-reduced-motion`. Verifikovan u browseru (panel, morf, detalj).
+
+**Sta je uradjeno:**
+
+Faza 1 je ISKLJUCIVO pravac - nijedna linija produkcijskog koda nije dirnuta,
+pa su kapije nepromenjene (883/883, isto stanje kao posle X8). Procitan je ceo
+Studio podsistem (katalog od **30** modela - ne 31 kako zahtev kaze; `paramSpec`
+7 tipova kontrola, `inputSpec` 11 rezima, tri oblika reda seed->DB->parsed),
+sidebar (rucno pisan `<aside>` 1982 linije, jedan potrosac `app-shell.tsx:32`),
+i18n (prop iz `[locale]`, bez hook-a/provider-a). Provedeno vreme u Flow-u i
+napisana oba `design-dna` profila. Princip fuzije je doslovan: **skelet od
+Flow-a, koza od platforme**, svaki sudar u korist platforme za identitet, Flow-a
+za strukturu.
+
+Centralni nalaz arhitekture: danasnji Studio je formular u dve kolone
+(`studio-page.tsx`), a galerija je zaseban ekran (`studio-gallery-page.tsx`) -
+pravis u jednoj sobi, gledas u drugoj. Redizajn ih spaja: mreza generacija JESTE
+pozadina playground-a, composer lebdi preko nje i menja nameru (mreza=pravi,
+detalj=menja), detalj je mesto (ruta) a ne query param. Svih osam defekata je
+lokalizovano sa fajlom/linijom (sekcija 1.3 u `PHASE-1-DIRECTION.md`).
+
+**ODLUKE:**
+1. **Pet skilova je koristeno kao SOCIVA, ne kao masina.** `design-dna` je
+   pokrenut kao producer (dva profila, zahtev to izricito trazi). `impeccable`
+   (Operate rezim), `ui-ux-pro-max` (mere), `design-taste-frontend` (korektiv),
+   `motion-design` (koreografija) su primenjeni kao okviri razmisljanja - NIJE
+   pokrenuta njihova scaffolding masina (`context.mjs`/`init` bi upisao
+   PRODUCT.md, sto Faza 1 ne sme). Jovan je usput potvrdio da nije obavezno
+   koristiti svih pet.
+2. **shadcn se NE uvodi.** Repo ga nema (nema `components.json`, nema `@radix-ui`,
+   `components/ui/` je rucni `primitives.tsx`), korak S6 je to vec odlucio, a
+   uvodjenje bi prekrsilo "nijedna nova zavisnost" + aditivnost + `@layer base`.
+   Cita se "shadcn" kao "shadcn-obrazac", ne kao paket. Ceka se potvrda.
+3. **Preporuka medij-na-krem: A (Mastionica) + pozajmica iz B.** Svaki medij u
+   svom tamnom bunaru (`--studio-well #0e1a2b`, ne #000) unutar bele kartice sa
+   ink okvirom; identitet ostaje u mirovanju, citljivost resena sadrzavanjem, ne
+   globalnom tamnom temom. B i C su ponudjeni kao alternative.
+4. **Preporuka composer: 3 (dvoslojno).** Bitni cipovi inline (model + dve jace
+   kontrole) + cena UVEK vidljiva + drop-up panel za ostatak. Jedini pravac koji
+   cenu cini stalnim gradjaninom bara (emocionalni zahtev #1) i vezuje C1.
+5. **Sidebar prelaz je aditivan, bez refaktora.** Okidac `studioActive` vec
+   postoji (`app-sidebar.tsx:1408`); swap oba sadrzaja u kontejneru fiksne visine
+   (bez sudara visine/reflow-a); "Nazad" bez istorije ima svesnu rezervnu rutu
+   (dashboard), ne tihi `?.`; mobilni crossfade bez horizontalnog klizanja;
+   `prefers-reduced-motion` = trenutna zamena.
+6. **Projekti ostaju van obima** - mesto rezervisano u traci (`[ Bez projekta ]`),
+   cena dodavanja kasnije opisana; struktura ih prima bez preoblikovanja.
+
+**Testovi:** nema izmena koda -> nema novih testova. 883/883 stoji.
+
+**Rezultat verifikacije:**
+- Mockup renderovan i klikan u browseru: drop-up panel se otvara, slika->video
+  morf radi (ratiji 5->2, model Nano Banana Pro->Veo 3.1, trajanje+zvuk se
+  pojave, cena -> procena ~), prompt prezivi promenu modela, mreza->detalj
+  otvara editor sa kontekstualnim composerom i panelom istorije.
+- Kapije nisu ponovo pokretane u ovoj fazi (kod nije dirnut); ostaju kako su
+  bile posle X8 (codegen exit 0, lint 8 warn/0 err, test 883/883, build 64/64).
+
+**BLOKADA:** cekam Jovanov izbor pre Faze 2.
+
+**Za Jovana (tri odluke pre Faze 2):**
+1. Medij na krem: **A** (Mastionica, preporuka) / B (bez okvira) / C (kontakt-tabak)?
+2. Composer/panel: 1 (Flow-verno) / 2 (red cipova) / **3** (dvoslojno, preporuka)?
+3. shadcn: gradimo na postojecim rucnim primitivama bez nove zavisnosti
+   (preporuka) ili uvodimo pravi shadcn (nova zavisnost, ne-aditivno)?
+
+## RD1.1 - Fokusiran prolaz: panel podesavanja modela (jos uvek Faza 1)   (21.08.2026)
+
+**Fajlovi (svi u `docs/studio-redesign/`, nijedan produkcijski):**
+- `PANEL-DIRECTION.md` - NOV. Dijagnoza svih 8 stavki (nezavisno potvrdjeno kroz
+  3 sociva: IA / komponente+a11y / craft) + dodatni nalazi + dva pravca panela
+  (P1 model-prvi / P2 birac+konzola) + 3-vs-9 kontrola + mobilni + preporuka P2.
+- `studio-mockup.html` - PREPRAVLJEN panel: HUD prekidac P1/P2, ~13 modela po
+  familijama, cena po redu + `+N kr` delte, disabled-with-reason, fiksna visina +
+  interni scroll (bez skoka), ink-selekcija (zuto samo cena/akcija), monohromni
+  mark umesto emoji, preseti/last-used, procena->tacno, prekidaci 3/9 kontrola,
+  mobilni sheet, tastatura u biracu.
+
+**Sta je uradjeno:**
+Panel je jedini deo mockupa koji je bio samo prepisan Flow, a Flow tu ne skalira
+(5 modela vs nasih 30). Pokrenuta dva workflow-a: (1) nezavisna dijagnoza kroz 3
+sociva - svih 8 stavki POTVRDJENO, plus novi nalazi (ratio pre modela =
+dependency inversion; x4 podrazumevano = max cena; zuto za selekciju krsi
+identitet; nula ARIA; <44px targeti; emoji marka; tiha cena; slajder laze o 2
+diskretne vrednosti). (2) adversarna verifikacija prepravljenog mockupa kroz 3
+sociva (P1/P2/JS) - nasla BLOKADU (globalni document click je zatvarao panel cim
+ga HUD dugme otvori) + <44px + duplirani redovi u biracu + neispravna jedinica
+cene + neuvezani preseti + gubitak fokusa. Sve popravljeno.
+
+**ODLUKE / nalazi:**
+1. **Realan katalog je 30 modela (8 slika / 13 video / 9 zvuk)**, ne 31 - potvrdio
+   spec-agent. Panel se generise iz `paramSpec`-a (jedan `map`, grananje samo po
+   `control.type`); 3-kontrolni model je prosto kratak, 9-kontrolni promovise
+   glavne + „Napredno" + interni scroll. Isti loop, bez `if(slug===)`.
+2. **`aspect_ratio` je `affectsPrice:false` u pravom katalogu** - zato ratio
+   opcije NEMAJU cenovnu deltu (to je tacno, ne bug); delte se prikazuju samo na
+   kontrolama koje stvarno menjaju cenu (rezolucija, trajanje, broj, zvuk).
+3. **Preporuka: P2 (birac + konzola)** za skalu/tastaturu/stabilnost; P1 (model
+   prvi, jedan panel) je mirniji i Flow-verniji; hibrid moguc.
+4. **JS verifikovan izvrsavanjem** (preview pane renderuje staticki, pa je skripta
+   pokrenuta rucno preko konzole): skripta radi bez izuzetka, 9-kontrolni model
+   daje 7 kontrola + Napredno + procenu ~10, pretraga „kling" grupise, delte
+   +7/+14/+21, disabled 1080p sa razlogom, P1/P2 prekidac radi.
+
+**Testovi:** nema izmena produkcijskog koda -> 888/888 stoji (nepromenjeno od RD1).
+
+**BLOKADA:** cekam izbor P1 / P2 pre nastavka na lib-defekte (2-3) pa sidebar (4).
+
+## RD2 - Faza 2, koraci 2-3: lib-defekti (C1, greske, C6, fokus slota)   (21.08.2026)
+
+> Jovan izabrao **P2 (birac + konzola)** za panel. Nastavak redom: lib-defekti,
+> pa sidebar. Kapija posle SVAKOG koraka (C1 zasebno, pa ostatak).
+
+**Fajlovi:**
+- `convex/studioJobCore.ts` - izdvojena `roundAndClampQuantity(source, value)` iz
+  `resolveMeasuredQuantity` (ponasanje IDENTICNO - server testovi nepromenjeni),
+  da je uvozi i klijent. **Jedini dozvoljeni Convex-dodir (defekt 1).**
+- `lib/studio-playground.ts` - `measuredParams` sad zove `roundAndClampQuantity`
+  (ceil + clamp) umesto sirovog `measuredQuantityFrom`. `measuredQuantityFrom`
+  ostaje kao sirov konverter sekunde->jedinica (komentar azuriran).
+- `lib/studio-messages.ts` - dodato 5 kodova greske koje `createJob` stvarno baca
+  a mapper nije imao: `NEISPRAVAN_REZIM`, `NEISPRAVNI_ULAZI` (+ podrazlozi preko
+  `includes`), `IZVOR_NIJE_IZABRAN`, `IZVOR_NIJE_DOSTUPAN`, `IZVOR_NIJE_PODRZAN`.
+  (`TUDJI_FAJL` je vec bio dodat ranije.)
+- `lib/studio-form.ts` - `jobStatusText` dobija `job.kind` i grana rečenice po
+  vrsti medija (slika/video/zvuk), sa srpskim padežom po rodu. Bez `kind` pada na
+  `image` - nema regresije; pozivaoci (`studio-page.tsx:597`,
+  `studio-gallery-page.tsx:264`) vec prosledjuju ceo `job`, pa `kind` tece sam.
+- `components/studio/drop-slot.tsx` - (nalaz 8) `focus-within` prsten na slotu
+  (vidljiv fokus za tastaturu nad sr-only file inputom) + dugme „Zameni" (`<label>`
+  vezan za isti input) za zamenu fajla u JEDNOM koraku, levo od „Ukloni".
+- Testovi: `lib/studio-playground.test.ts` (+1: C1 paritet klijent==server),
+  `lib/studio-messages.test.ts` (+2: podrazlog deli poruku; tri izvor-razloga se
+  razlikuju; + 5 kodova u glavnoj listi), `lib/studio-form.test.ts` (+1: medij po
+  vrsti).
+
+**Sta je uradjeno:**
+
+**C1 (korak 2).** Cifra na dugmetu je bila sirov razlomak (`measuredQuantityFrom`
+je vracao `seconds` / `seconds/60`), a server naplacuje `Math.ceil` pa clamp na
+`[min,max]`. Klip 7,4 s: dugme 202, naplata 218. Sad klijent uvozi ISTU
+`roundAndClampQuantity` kao server; paritet je test-om dokazan (7,4->8, 90->clamp
+60, 3h->clamp 120min, 6000 znak.->5000). Postojece assertion-e nisam menjao -
+stare vrednosti (12/90/1000) su unutar granica i celobrojne, pa daju isti rezultat.
+
+**Greske (korak 3).** Pet kodova je padalo na „Pokušaj ponovo za koji trenutak",
+sto je pogresan savet (ponavljanje ne pomaze). Sad svaki ima ljudsku recenicu sa
+tacnim sledecim korakom. Podrazlog (`NEISPRAVNI_ULAZI:NEPOZNAT_SLOT`) deli poruku
+sa bare kodom preko `includes`.
+
+**C6 (korak 3).** Video i zvuk u letu su se opisivali kao „slika". Sad
+`jobStatusText` grana po `job.kind` sa gramaticki tacnim srpskim (na tvom videu /
+na tvom zvuku / na tvojoj slici; Zvuk je generisaN / Slika je generisanA).
+
+**Nalaz 8 (korak 3).** Drop slot nije imao vidljiv fokus, a zamena fajla je bila
+dva koraka (Ukloni pa Dodaj). Dodati `focus-within` prsten i „Zameni" dugme.
+
+**ODLUKE:**
+1. **`roundAndClampQuantity` je izdvojena, ne duplirana.** Katalog 1.3 trazi
+   „nema druge racunice cene nigde" - pa umesto da klijent ponovi ceil+clamp,
+   ista funkcija je izdvojena iz `resolveMeasuredQuantity` (izlaz identican, dokaz:
+   svi Convex settlement/catalog testovi prolaze nepromenjeni) i uvozi je i klijent.
+2. **`measuredQuantityFrom` zadrzan** kao sirov konverter (koristi ga
+   `measuredParams` za sekunde->jedinica pre ceil/clamp; i dalje se testira). Nije
+   mu promenjena semantika, pa test `measuredQuantityFrom(seconds,90)===90` stoji.
+3. **`kind` je opcion na `jobStatusText`** - bez njega je `image` (staro
+   ponasanje), pa nijedan postojeci test/pozivalac ne puca; pozivaoci vec salju
+   ceo `job` koji nosi `kind`.
+4. **Grid (`DropSlotGrid`) add-tile fokus nije diran u ovom koraku** - jednostruki
+   `DropSlot` je glavni slucaj; per-tile zamena u mrezi je zaseban, manji follow-up.
+5. **Prikaz „procena -> tacno"** (drugi deo C1 iz zahteva) dolazi sa NOVIM
+   composerom (korak 6) - danasnja forma vec zakljucava dugme dok cena nije poznata
+   (`null`, ne nula), sto je posteno; „~procena" oznaka je UI stvar novog bara.
+
+**Testovi / verifikacija:**
+- `npx convex codegen` -> exit 0.
+- `npm run lint` -> 0 errors, 8 warnings (svih 8 nasleceno).
+- `npm run test` -> **891 prolazi, 1 pada**. Jedini pad je
+  `convex/chat.test.ts > inbox summary stays exact beyond one thousand memberships`
+  - TIMEOUT (5000ms) pod opterecenjem, NE assertion, i NE dodiruje nista iz ovog
+  koraka. Pokrenut sam: **18/18 prolazi za 4,1s**. Isti test je X8 log vec oznacio
+  kao spor. Ukupno je 892 (888 + 4 nova). Nijedan test nije obrisan ni oslabljen.
+- `npm run build` -> `✓ Compiled successfully`, 64/64 (klijent uvozi
+  `roundAndClampQuantity` iz `studioJobCore` bez problema sa bundle-om).
+
+**BLOKADA:** sledi korak 4 - sidebar studio-mode (aditivan swap), posle koga
+Jovan gleda prelaz uzivo pre grida.

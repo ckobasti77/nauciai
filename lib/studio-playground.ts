@@ -8,7 +8,7 @@
  * posle njega. Nijedna funkcija ne zna ime nijednog modela.
  */
 
-import type { QuantitySource } from "@/convex/studioJobCore";
+import { roundAndClampQuantity, type QuantitySource } from "@/convex/studioJobCore";
 import type { ParamControl } from "@/convex/studioParamSpec";
 
 import type { GenerateBlock } from "./studio-messages";
@@ -83,7 +83,11 @@ export function measuredFile(
   return null;
 }
 
-/** Izmerene sekunde -> količina u jedinici pravila (minuti za `..._minutes`). */
+/**
+ * Sirove izmerene sekunde -> količina u jedinici pravila (minuti za
+ * `..._minutes`), BEZ zaokruživanja i klampovanja. Ceo broj za naplatu daje tek
+ * `roundAndClampQuantity` (deljeno sa serverom, nalaz C1) - vidi `measuredParams`.
+ */
 export function measuredQuantityFrom(source: QuantitySource, seconds: number): number {
   return source.from === "input_media_minutes" ? seconds / 60 : seconds;
 }
@@ -114,18 +118,26 @@ export function measuredParams(
 ): Record<string, number> {
   if (!source) return {};
 
+  // C1: ista `roundAndClampQuantity` kojom server izračuna NAPLAĆENU količinu -
+  // zaokruženo naviše na jedinicu pravila i isečeno na `min`/`max`. Bez toga je
+  // cifra na dugmetu bila sirov razlomak (klip 7,4 s davao 7,4 umesto 8), pa se
+  // naplaćivalo više nego što na dugmetu piše.
   if (source.from === "text_length") {
-    return textLength > 0 ? { [source.param]: textLength } : {};
+    return textLength > 0 ? { [source.param]: roundAndClampQuantity(source, textLength) } : {};
   }
 
   return seconds !== null && seconds > 0
-    ? { [source.param]: measuredQuantityFrom(source, seconds) }
+    ? { [source.param]: roundAndClampQuantity(source, measuredQuantityFrom(source, seconds)) }
     : {};
 }
 
 export type PlaygroundState = {
   enabled: boolean;
-  /** Sme li u Studio: aktivan upis ILI uloga koja upis ne traži (`hasStudioAccess`). */
+  /**
+   * Sme li u Studio (`hasStudioAccess` u `convex/studioCore.ts`). Dok je
+   * Studio privremeno suženo na osoblje (`STUDIO_STAFF_ONLY`), ovo je "ima li
+   * ulogu osoblja"; kad se fleg ugasi, vraća se na "aktivan upis ILI uloga".
+   */
   hasStudioAccess: boolean;
   activeJobs: number;
   maxActiveJobs: number;

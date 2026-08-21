@@ -205,15 +205,36 @@ export function jobTileState(job: {
  * Poruka koju posao nosi na kartici rezultata. `refunded` uvek kaže i da su
  * krediti vraćeni - to je jedino što korisnika u tom trenutku zanima.
  */
+type JobTextKind = "image" | "video" | "audio";
+
+/** Vrsta medija za rečenice statusa; nepoznato pada na `image` (nalaz C6). */
+function jobTextKind(kind?: string): JobTextKind {
+  return kind === "video" ? "video" : kind === "audio" ? "audio" : "image";
+}
+
 export function jobStatusText(
-  job: { status: string; error?: string; outputUrl?: string | null; expiresAt?: number },
+  job: { status: string; error?: string; outputUrl?: string | null; expiresAt?: number; kind?: string },
   locale: Locale,
 ): string {
+  const kind = jobTextKind(job.kind);
   if (job.status === "reserved") {
     return locale === "sr" ? "Posao je u redu za obradu…" : "The job is queued…";
   }
   if (job.status === "running") {
-    return locale === "sr" ? "Model radi na tvojoj slici…" : "The model is working on your image…";
+    // C6: video i zvuk se više ne opisuju kao „slika". Srpski traži padež po
+    // rodu imenice (slici / videu / zvuku), pa je svaka rečenica cela.
+    if (locale === "sr") {
+      return kind === "video"
+        ? "Model radi na tvom videu…"
+        : kind === "audio"
+          ? "Model radi na tvom zvuku…"
+          : "Model radi na tvojoj slici…";
+    }
+    return kind === "video"
+      ? "The model is working on your video…"
+      : kind === "audio"
+        ? "The model is working on your audio…"
+        : "The model is working on your image…";
   }
   if (job.status === "failed") {
     return locale === "sr" ? "Generacija nije uspela. Vraćamo kredite…" : "The generation failed. Refunding credits…";
@@ -230,14 +251,26 @@ export function jobStatusText(
         : "The file's retention window has passed. The prompt and model remain - generate it again.";
     }
     // `IZLAZ_NIJE_SACUVAN` iz `persistOutput`: model je isporučio, fajl nije
-    // stigao do nas. Namerno bez refunda, pa poruka to i kaže.
-    return job.error
-      ? locale === "sr"
-        ? "Slika je generisana, ali nije uspela da se sačuva. Javi podršci."
-        : "The image was generated but could not be saved. Please contact support."
-      : locale === "sr"
-        ? "Preuzimamo sliku…"
-        : "Fetching the image…";
+    // stigao do nas. Namerno bez refunda, pa poruka to i kaže. Rod: slika je
+    // generisanA/uspelA, video/zvuk generisaN/uspeO.
+    if (job.error) {
+      if (locale === "sr") {
+        return kind === "video"
+          ? "Video je generisan, ali nije uspeo da se sačuva. Javi podršci."
+          : kind === "audio"
+            ? "Zvuk je generisan, ali nije uspeo da se sačuva. Javi podršci."
+            : "Slika je generisana, ali nije uspela da se sačuva. Javi podršci.";
+      }
+      return kind === "video"
+        ? "The video was generated but could not be saved. Please contact support."
+        : kind === "audio"
+          ? "The audio was generated but could not be saved. Please contact support."
+          : "The image was generated but could not be saved. Please contact support.";
+    }
+    if (locale === "sr") {
+      return kind === "video" ? "Preuzimamo video…" : kind === "audio" ? "Preuzimamo zvuk…" : "Preuzimamo sliku…";
+    }
+    return kind === "video" ? "Fetching the video…" : kind === "audio" ? "Fetching the audio…" : "Fetching the image…";
   }
 
   return locale === "sr" ? "Gotovo." : "Done.";

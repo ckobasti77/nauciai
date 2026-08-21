@@ -434,19 +434,36 @@ export function resolveMeasuredQuantity(
     const length = typeof value === "string" ? value.length : 0;
     if (length <= 0) return { ok: false, reason: `NEDOSTAJE_KOLICINA:${source.param}` };
 
-    return { ok: true, quantity: clampQuantity(length, source) };
+    return { ok: true, quantity: roundAndClampQuantity(source, length) };
   }
 
   if (measured === null || !Number.isFinite(measured) || measured <= 0) {
     return { ok: false, reason: "MERENJE_NIJE_DOSTUPNO" };
   }
 
-  // Minuti se zaokružuju na desetinku (pravilo ih naplaćuje sa dve decimale
-  // tarife), sekunde na celu sekundu - u oba slučaja naviše.
-  const rounded =
-    source.from === "input_media_minutes" ? Math.ceil(measured * 10) / 10 : Math.ceil(measured);
+  return { ok: true, quantity: roundAndClampQuantity(source, measured) };
+}
 
-  return { ok: true, quantity: clampQuantity(rounded, source) };
+/**
+ * Zaokruži naviše na jedinicu pravila, pa iseci na `min`/`max` iz kataloga.
+ *
+ * Izdvojeno iz `resolveMeasuredQuantity` (gde je stajalo inline) da bi je uvozio
+ * i KLIJENT: nalaz C1 - cifra na dugmetu mora da bude ista računica nad istim
+ * brojem kao naplaćena cifra, a ne sirov razlomak (`lib/studio-playground.ts`
+ * je vraćao `seconds` / `seconds / 60` bez zaokruživanja i klampovanja). Ulaz je
+ * količina VEĆ u jedinici pravila (sekunde, ili minuti za `..._minutes`; tekst
+ * je cela dužina). Zaokruživanje je uvek naviše, nikad u korist klijenta: minuti
+ * na desetinku (pravilo ih naplaćuje sa dve decimale tarife), sekunde na celu
+ * sekundu; tekst je već ceo broj znakova, pa se samo seče na granice.
+ */
+export function roundAndClampQuantity(source: QuantitySource, value: number): number {
+  const rounded =
+    source.from === "text_length"
+      ? value
+      : source.from === "input_media_minutes"
+        ? Math.ceil(value * 10) / 10
+        : Math.ceil(value);
+  return clampQuantity(rounded, source);
 }
 
 function clampQuantity(value: number, source: QuantitySource): number {

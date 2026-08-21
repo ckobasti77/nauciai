@@ -19,6 +19,7 @@ import {
   studioErrorMessage,
   uploadErrorMessage,
   type EmptyState,
+  type EmptyStateNoCta,
   type GenerateBlock,
 } from "@/lib/studio-messages";
 
@@ -37,11 +38,16 @@ describe("granica prompta", () => {
 describe("studioErrorMessage", () => {
   const codes = [
     "STUDIO_PAUZIRAN",
-    "NIJE_UPISAN",
+    "NEMA_PRISTUPA",
     "ZADATAK_BEZ_LEKCIJE",
     "ZADATAK_NIJE_U_LEKCIJI",
     "NEISPRAVNO_TRAJANJE",
     "NEISPRAVNI_PARAMETRI",
+    "NEISPRAVAN_REZIM",
+    "NEISPRAVNI_ULAZI",
+    "IZVOR_NIJE_IZABRAN",
+    "IZVOR_NIJE_DOSTUPAN",
+    "IZVOR_NIJE_PODRZAN",
     "NEISPRAVAN_PROMPT:PRAZAN_PROMPT",
     "NEISPRAVAN_PROMPT:PREDUGACAK_PROMPT",
     "NEISPRAVAN_PROMPT:ZABRANJEN_POJAM",
@@ -92,6 +98,22 @@ describe("studioErrorMessage", () => {
     expect(studioErrorMessage(wrap("ZADATAK_BEZ_LEKCIJE"), "sr")).not.toBe(
       studioErrorMessage(wrap("ZADATAK_NIJE_U_LEKCIJI"), "sr"),
     );
+  });
+
+  test("NEISPRAVNI_ULAZI sa podrazlogom deli poruku sa bare kodom, i nije opšta", () => {
+    const bare = studioErrorMessage(wrap("NEISPRAVNI_ULAZI"), "sr");
+    const withReason = studioErrorMessage(wrap("NEISPRAVNI_ULAZI:NEPOZNAT_SLOT:audio"), "sr");
+    expect(withReason).toBe(bare);
+    expect(bare).toContain("ne odgovaraju");
+    expect(bare).not.toContain("Pokušaj ponovo za koji trenutak");
+  });
+
+  test("tri razloga za izvor (nije izabran / nedostupan / nepodržan) imaju različite poruke", () => {
+    const messages = ["IZVOR_NIJE_IZABRAN", "IZVOR_NIJE_DOSTUPAN", "IZVOR_NIJE_PODRZAN"].map((code) =>
+      studioErrorMessage(wrap(code), "sr"),
+    );
+    expect(new Set(messages).size).toBe(3);
+    for (const message of messages) expect(message).not.toContain("Pokušaj ponovo za koji trenutak");
   });
 
   test("nepoznata greška daje ljudsku poruku, ne prazan ekran", () => {
@@ -197,7 +219,7 @@ describe("deleteJobErrorMessage", () => {
 });
 
 describe("prazna stanja", () => {
-  const EMPTY_STATES: Array<[string, EmptyState]> = [
+  const EMPTY_STATES: Array<[string, EmptyState | EmptyStateNoCta]> = [
     ["STUDIO_PAUSED", STUDIO_PAUSED],
     ["STUDIO_NOT_ENROLLED", STUDIO_NOT_ENROLLED],
     ["STUDIO_NO_GENERATIONS", STUDIO_NO_GENERATIONS],
@@ -209,16 +231,22 @@ describe("prazna stanja", () => {
     ["STUDIO_TERMS_GATE", STUDIO_TERMS_GATE],
   ];
 
-  test("svako prazno stanje ima naslov, rečenicu i sledeći korak na oba jezika", () => {
+  test("svako prazno stanje ima naslov i rečenicu na oba jezika; sledeći korak kad postoji", () => {
     for (const [name, state] of EMPTY_STATES) {
       for (const locale of ["sr", "en"] as const) {
         expect(state.title[locale], `${name}.title.${locale}`).toBeTruthy();
         expect(state.body[locale], `${name}.body.${locale}`).toBeTruthy();
-        expect(state.cta[locale], `${name}.cta.${locale}`).toBeTruthy();
+        if ("cta" in state) expect(state.cta[locale], `${name}.cta.${locale}`).toBeTruthy();
       }
       expect(state.title.sr).not.toBe(state.title.en);
       expect(state.body.sr).not.toBe(state.body.en);
-      expect(state.cta.sr).not.toBe(state.cta.en);
+      if ("cta" in state) expect(state.cta.sr).not.toBe(state.cta.en);
     }
+  });
+
+  test("STUDIO_NOT_ENROLLED nema CTA - dok je Studio zatvoreno testiranje, nema radnje koju bi dugme radilo", () => {
+    // Upis na kurs ne otvara pristup (STUDIO_STAFF_ONLY), pa staro "Pogledaj
+    // kurseve" dugme ne bi radilo ono što piše - uklonjeno je, ne zamenjeno.
+    expect("cta" in STUDIO_NOT_ENROLLED).toBe(false);
   });
 });

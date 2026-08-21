@@ -67,7 +67,10 @@ async function seedUser(t: TestConvex, credits: number) {
       email: "student@example.com",
       name: "Studio Student",
       username: "studio_student",
-      role: "student",
+      // `moderator`, ne `student`: dok je Studio zatvoreno testiranje
+      // (`STUDIO_STAFF_ONLY` u `studioCore.ts`), sam upis ispod više ne
+      // otvara `createJob` - ovaj fajl meri poravnanje, ne pristup.
+      role: "moderator",
       language: "sr" as const,
       // Kapija uslova Studija (X7) je prošla: ovaj fajl meri cenu i poravnanje,
       // a ne pristanak - njega pokriva `studio.test.ts`.

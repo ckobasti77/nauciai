@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element -- pregled je lokalni `blob:` URL, koji next/image ne obradjuje. */
 "use client";
 
-import { ChevronLeft, ChevronRight, MoveRight, Music, UploadCloud, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, MoveRight, Music, RefreshCw, UploadCloud, X } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -40,6 +40,11 @@ const SURFACE =
 
 const REMOVE =
   "absolute right-1.5 top-1.5 inline-flex size-8 items-center justify-center rounded-full border-2 border-ink bg-white text-ink shadow-[2px_2px_0_0_rgba(14,49,88,0.18)] hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
+
+// Zamena fajla u JEDNOM koraku (nalaz 8): `<label>` vezan za isti, uvek prisutan
+// file input otvara birač bez prethodnog "Ukloni". Levo od dugmeta za uklanjanje.
+const REPLACE =
+  "absolute right-11 top-1.5 inline-flex size-8 cursor-pointer items-center justify-center rounded-full border-2 border-ink bg-white text-ink shadow-[2px_2px_0_0_rgba(14,49,88,0.18)] hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
 
 const TILE_BUTTON =
   "inline-flex size-7 items-center justify-center rounded-full border-2 border-ink bg-white text-ink disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
@@ -352,6 +357,9 @@ export function DropSlot({
         className={cn(
           SURFACE,
           "mt-2 min-h-40",
+          // Vidljiv fokus za tastaturu (nalaz 8): sr-only file input je fokusabilan,
+          // pa ceo slot dobija prsten kad je bilo šta u njemu fokusirano.
+          "focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ink",
           over && "bg-yellow/40",
           disabled && "opacity-60",
           file && "border-solid p-0",
@@ -362,6 +370,16 @@ export function DropSlot({
             <div className="surface-inset size-full min-h-40 overflow-hidden">
               <Preview file={file} />
             </div>
+            {!disabled ? (
+              <label
+                htmlFor={inputId}
+                aria-label={locale === "sr" ? `Zameni ${title}` : `Replace ${title}`}
+                title={locale === "sr" ? "Zameni fajl" : "Replace file"}
+                className={REPLACE}
+              >
+                <RefreshCw className="size-4" aria-hidden="true" />
+              </label>
+            ) : null}
             <button
               type="button"
               aria-label={locale === "sr" ? `Ukloni ${title}` : `Remove ${title}`}

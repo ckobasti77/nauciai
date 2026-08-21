@@ -397,16 +397,17 @@ export const createJob = mutation({
       .unique();
     if (flag && !flag.enabled) throw new Error("STUDIO_PAUZIRAN");
 
-    // Studio je samo za upisane (STUDIO-PLAN 4.4). Dovoljan je jedan aktivan
-    // upis - posao nije vezan za konkretan kurs. Admin i moderator prolaze bez
-    // upisa, po istoj funkciji po kojoj se gasi i dugme u UI-ju; naplata ispod
-    // ostaje ista za sve.
+    // Pristup (STUDIO-PLAN 4.4), privremeno suženo na osoblje dok naplata ne
+    // proradi - vidi `STUDIO_STAFF_ONLY` u `studioCore.ts`. Upis se i dalje čita
+    // i prosleđuje u `hasStudioAccess`, jer ta logika ostaje netaknuta ispod
+    // fleg - samo se trenutno ne pita. Ista funkcija odlučuje gde se gasi
+    // dugme u UI-ju; naplata ispod ostaje ista za sve.
     const enrollment = await ctx.db
       .query("enrollments")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .filter((q) => q.eq(q.field("status"), "active"))
       .first();
-    if (!hasStudioAccess(role, enrollment)) throw new Error("NIJE_UPISAN");
+    if (!hasStudioAccess(role, enrollment)) throw new Error("NEMA_PRISTUPA");
 
     // Uslovi Studija (X7). Bez pečata nema prvog posla, i tu izuzetka nema:
     // admin i moderator generišu istim modelima, sa istim zabranama i istim

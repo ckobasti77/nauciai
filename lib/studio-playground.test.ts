@@ -1,7 +1,7 @@
 import { expect, test } from "vitest";
 
 import { STUDIO_MODELS } from "@/convex/providers/catalogModels";
-import { parseQuantitySource } from "@/convex/studioJobCore";
+import { parseQuantitySource, resolveMeasuredQuantity } from "@/convex/studioJobCore";
 
 import {
   generateBlock,
@@ -144,6 +144,37 @@ test("sekunde se prevode u jedinicu pravila, a bez izmerene dužine nema ključa
   expect(measuredParams(null, 12, 100)).toEqual({});
 });
 
+test("C1: klijentska količina je zaokružena naviše i isečena na granice, ista kao serverska", () => {
+  const seconds = { param: "duration", from: "input_video_seconds", min: 1, max: 60 } as const;
+  const minutes = { param: "minutes", from: "input_media_minutes", min: 0.1, max: 120 } as const;
+  const chars = { param: "char_count", from: "text_length", measuredFrom: "text", min: 1, max: 5000 } as const;
+
+  // Razlomljen klip: 7,4 s se naplaćuje kao 8 s (Math.ceil), ne kao sirovih 7,4.
+  expect(measuredParams(seconds, 7.4, 0)).toEqual({ duration: 8 });
+  // Preko gornje granice: 90 s se seče na max 60.
+  expect(measuredParams(seconds, 90, 0)).toEqual({ duration: 60 });
+  // Minuti: 7 s -> 0,1166… min -> naviše na desetinku -> 0,2.
+  expect(measuredParams(minutes, 7, 0)).toEqual({ minutes: 0.2 });
+  // Fajl od 3 h se seče na max 120 min (audit: dugme je pre računalo punih 3 h).
+  expect(measuredParams(minutes, 3 * 3600, 0)).toEqual({ minutes: 120 });
+  // Tekst preko granice se seče na max.
+  expect(measuredParams(chars, null, 6000)).toEqual({ char_count: 5000 });
+
+  // Ista računica kao server: measuredParams == resolveMeasuredQuantity za isti broj.
+  for (const raw of [0.5, 7.4, 12, 59.9, 90]) {
+    const server = resolveMeasuredQuantity(seconds, {}, measuredQuantityFrom(seconds, raw));
+    expect(server.ok ? server.quantity : null).toBe(measuredParams(seconds, raw, 0).duration);
+  }
+  for (const raw of [7, 90, 3600, 3 * 3600]) {
+    const server = resolveMeasuredQuantity(minutes, {}, measuredQuantityFrom(minutes, raw));
+    expect(server.ok ? server.quantity : null).toBe(measuredParams(minutes, raw, 0).minutes);
+  }
+  for (const len of [1, 100, 5000, 6000]) {
+    const server = resolveMeasuredQuantity(chars, { text: "x".repeat(len) }, null);
+    expect(server.ok ? server.quantity : null).toBe(measuredParams(chars, null, len).char_count);
+  }
+});
+
 test("razlika izmedju browserove i serverske dužine se prijavljuje tek preko 5%", () => {
   // `<video>.duration` vraća dužinu prikaza, `mvhd` dužinu zapisa - sitna
   // razlika je normalna i ne treba je pominjati.
@@ -161,6 +192,10 @@ test("razlika izmedju browserove i serverske dužine se prijavljuje tek preko 5%
 
 // ── zaključavanje dugmeta ──────────────────────────────────────────────────
 
+// `hasStudioAccess` je samo boolean ovde - `generateBlock` ne zna NI zna li
+// šta ga daje (upis, uloga, ili trenutno samo uloga dok je Studio zatvoreno
+// testiranje - `STUDIO_STAFF_ONLY` u `convex/studioCore.ts`). Testovi ispod
+// zato ostaju tačni bez obzira na fleg.
 const OPEN = {
   state: { enabled: true, hasStudioAccess: true, activeJobs: 0, maxActiveJobs: 3 },
   balance: 1000,

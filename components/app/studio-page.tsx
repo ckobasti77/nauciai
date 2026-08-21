@@ -817,16 +817,13 @@ export function StudioPage({ locale }: { locale: Locale }) {
     }
 
     if (state !== undefined && !state.hasStudioAccess) {
+      // Nema CTA ovde namerno (X8): dok je Studio zatvoreno testiranje, upis
+      // na kurs ne otvara pristup, pa dugme koje bi to obećavalo ne bi radilo
+      // ono što piše.
       return (
         <Panel className="p-6">
           <h3 className="text-2xl font-black text-ink">{STUDIO_NOT_ENROLLED.title[locale]}</h3>
           <p className="mt-2 text-base font-bold text-muted">{STUDIO_NOT_ENROLLED.body[locale]}</p>
-          <Link
-            href={withLocale(locale, "/app/courses")}
-            className={cn(PILL, "mt-4 border-ink bg-yellow text-ink shadow-[4px_4px_0_0_#0e3158] hover:-translate-y-0.5")}
-          >
-            {STUDIO_NOT_ENROLLED.cta[locale]}
-          </Link>
         </Panel>
       );
     }

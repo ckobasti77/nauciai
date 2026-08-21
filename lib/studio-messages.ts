@@ -130,10 +130,14 @@ const CREATE_JOB_ERROR_MESSAGES: Array<[string, { sr: string; en: string }]> = [
     },
   ],
   [
-    "NIJE_UPISAN",
+    // Privremeno, dok naplata ne proradi (`STUDIO_STAFF_ONLY` u
+    // `studioCore.ts`) - Studio je zatvoreno testiranje za osoblje, ne za
+    // polaznike. Kod je preimenovan iz `NIJE_UPISAN`: taj razlog više nije
+    // tačan za većinu korisnika koji ovo dobiju - i sami su upisani.
+    "NEMA_PRISTUPA",
     {
-      sr: "Studio je otvoren za polaznike kurseva. Upiši se na kurs pa se vrati.",
-      en: "The Studio is open to course students. Enroll in a course and come back.",
+      sr: "Studio je trenutno u zatvorenom testiranju, dostupan samo osoblju platforme. Otvoriće se polaznicima kasnije.",
+      en: "The Studio is currently in closed testing, available only to platform staff. It will open to students later.",
     },
   ],
   [
@@ -157,6 +161,49 @@ const CREATE_JOB_ERROR_MESSAGES: Array<[string, { sr: string; en: string }]> = [
     {
       sr: "Trajanje koje si zadao nije dozvoljeno za ovaj model. Vrati ga na podrazumevanu vrednost i pokušaj ponovo.",
       en: "The duration you set is not allowed for this model. Reset it to the default and try again.",
+    },
+  ],
+  [
+    // `createJob` odbija režim koji izabrani model ne nudi (studio.ts). Kroz
+    // formu nedostižno - prebacivač nudi samo režime modela - ali stara forma
+    // je znala da ostane na režimu prethodnog modela dok se novi učitava.
+    "NEISPRAVAN_REZIM",
+    {
+      sr: "Ovaj ulazni režim nije dostupan za izabrani model. Osveži stranicu i izaberi režim ponovo.",
+      en: "This input mode isn't available for the selected model. Refresh the page and pick the mode again.",
+    },
+  ],
+  [
+    // Bare kod i `NEISPRAVNI_ULAZI:${razlog}` (npr. NEPOZNAT_SLOT) dele poruku -
+    // sledeći korak je isti: okačeni fajlovi ne odgovaraju modelu.
+    "NEISPRAVNI_ULAZI",
+    {
+      sr: "Okačeni fajlovi ne odgovaraju izabranom modelu. Osveži stranicu i okači ih ponovo.",
+      en: "The uploaded files don't match the selected model. Refresh the page and upload them again.",
+    },
+  ],
+  [
+    // Režim koji se naručuje izborom ranije generacije (Gemini Omni „video"), a
+    // nijedna nije izabrana. Isti savet kao `GenerateBlock` „source", odavde jer
+    // je posao ipak stigao do servera (zaobiđena forma, ili istekao izbor).
+    "IZVOR_NIJE_IZABRAN",
+    {
+      sr: "Izaberi raniju generaciju koju menjaš - ovaj režim ne prima okačen fajl.",
+      en: "Pick an earlier generation to edit - this mode doesn't accept an uploaded file.",
+    },
+  ],
+  [
+    "IZVOR_NIJE_DOSTUPAN",
+    {
+      sr: "Ranija generacija koju si izabrao više nije dostupna. Izaberi drugu iz liste.",
+      en: "The earlier generation you picked is no longer available. Choose another from the list.",
+    },
+  ],
+  [
+    "IZVOR_NIJE_PODRZAN",
+    {
+      sr: "Ova generacija ne može da se koristi kao ulaz za izabrani model. Izaberi drugu ili promeni model.",
+      en: "This generation can't be used as input for the selected model. Pick another or change the model.",
     },
   ],
   [
@@ -343,6 +390,13 @@ export type EmptyState = {
 };
 
 /**
+ * Prazno stanje bez sledećeg koraka - npr. `STUDIO_NOT_ENROLLED` dok je
+ * Studio zatvoreno testiranje: nema datuma da se obeća, pa nema ni dugmeta
+ * koje bi obećavalo radnju koja ništa ne menja.
+ */
+export type EmptyStateNoCta = Pick<EmptyState, "title" | "body">;
+
+/**
  * Prazna stanja Studija na jednom mestu (rules-day.md: "Prazna stanja se
  * pišu, ne zaboravljaju"). Svako ima naslov, rečenicu i sledeći korak - nijedno
  * ne staje na praznom ekranu bez predloga šta dalje.
@@ -356,13 +410,17 @@ export const STUDIO_PAUSED: EmptyState = {
   cta: { sr: "Pogledaj svoje kredite", en: "See your credits" },
 };
 
-export const STUDIO_NOT_ENROLLED: EmptyState = {
-  title: { sr: "Studio je za polaznike", en: "The Studio is for students" },
+/**
+ * Privremeno stanje dok naplata za Studio ne proradi (`STUDIO_STAFF_ONLY` u
+ * `convex/studioCore.ts`) - zatvoreno testiranje, samo osoblje. Bez `cta`:
+ * upis ne pomaže, a ovaj ekran ionako ne vidi polaznik.
+ */
+export const STUDIO_NOT_ENROLLED: EmptyStateNoCta = {
+  title: { sr: "Studio je u zatvorenom testiranju", en: "The Studio is in closed testing" },
   body: {
-    sr: "Generisanje se otključava upisom na kurs. Krediti koje već imaš te čekaju.",
-    en: "Generation unlocks when you enrol in a course. The credits you already have will be waiting.",
+    sr: "Studio je trenutno dostupan samo osoblju platforme, dok se ne reši naplata. Otvoriće se polaznicima kasnije - krediti koje već imaš te čekaju.",
+    en: "The Studio is currently available only to platform staff, until billing is in place. It will open to students later - the credits you already have will be waiting.",
   },
-  cta: { sr: "Pogledaj kurseve", en: "Browse courses" },
 };
 
 export const STUDIO_NO_GENERATIONS: EmptyState = {
@@ -429,6 +487,10 @@ export const GALLERY_NO_MATCHES: EmptyState = {
  */
 export type GenerateBlock =
   | { kind: "paused" }
+  // Ime je iz vremena kad je upis bio jedini uslov. Dok je Studio privremeno
+  // suženo na osoblje (`STUDIO_STAFF_ONLY`), ovaj kind znači "nema uloge",
+  // ne "nije upisan" - poruka ispod (`STUDIO_NOT_ENROLLED.body`) to i kaže.
+  // Zadržano nepromenjeno da se ne dira ceo diskriminovani tip zbog imena.
   | { kind: "not_enrolled" }
   | { kind: "credits"; needed: number }
   | { kind: "active"; max: number }
