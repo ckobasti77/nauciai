@@ -1338,6 +1338,32 @@ export const getJobForRegenerate = query({
 });
 
 /**
+ * Jedan SOPSTVENI posao za detalj/editor, u istom obliku kao red mreže
+ * (`toGalleryJob`): izlaz, stvaran status, vrsta, cena, vreme, `params`.
+ *
+ * Nalaz H2. Detalj otvoren direktnim linkom (refresh / deljen link na
+ * `/app/studio/m/<id>`) mora da prikaže ISTI medij kao detalj otvoren klikom iz
+ * mreže. `getJobForRegenerate` vraća samo ULAZE (za "Generiši ponovo" seme), pa
+ * je stranica ranije fabrikovala `outputUrl` iz prvog ulaza i zakucavala
+ * `status: "completed"` - text-to-image je izgledao istekao, image-to-video je
+ * prikazivao ulaznu sliku, posao u toku je izgledao gotov. Ovaj upit vraća
+ * pravi izlaz i pravi status, aditivno, bez diranja `getJobForRegenerate`.
+ *
+ * Vlasništvo se proverava kao svuda; tuđi posao je `null`, ne greška (isti
+ * obrazac kao `getJobForRegenerate`). Ulazne sličice se ne potpisuju ovde -
+ * provenijencija ide kroz `getJobForRegenerate`, pa se `getUrl` ne troši dvaput.
+ */
+export const getJobForDetail = query({
+  args: { jobId: v.id("generationJobs") },
+  handler: async (ctx, args) => {
+    const userId = await requireUserId(ctx);
+    const job = await ctx.db.get(args.jobId);
+    if (!job || job.userId !== userId) return null;
+    return { ...(await toModerationJob(ctx, job)), params: job.params };
+  },
+});
+
+/**
  * Svi `storageId`-jevi koje neki DRUGI posao istog korisnika i dalje navodi u
  * svojim ulazima (nalaz N7). Isti `storageId` ume da uđe u više poslova preko
  * "Generiši ponovo" - ovo je jedini deo `deleteJob`-a gde greška trajno

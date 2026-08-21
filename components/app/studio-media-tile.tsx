@@ -8,6 +8,7 @@ import { motion, useReducedMotion } from "motion/react";
 import { cn } from "@/components/ui/primitives";
 import type { Locale } from "@/lib/i18n";
 import { isExpiredOutput, jobPrompt, jobStatusText } from "@/lib/studio-form";
+import { downloadSingleMedia } from "@/lib/studio-gallery";
 import { formatElapsedTime, studioMotionTokens } from "@/lib/studio-motion";
 
 export type StudioTileJob = {
@@ -297,17 +298,18 @@ export function StudioMediaTile({
               </button>
             ) : null}
 
-            <a
-              href={job.outputUrl as string}
-              download
-              target="_blank"
-              rel="noreferrer"
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                void downloadSingleMedia({ _id: job._id, outputUrl: job.outputUrl, kind: job.kind });
+              }}
               aria-label={locale === "sr" ? "Preuzmi" : "Download"}
               title={locale === "sr" ? "Preuzmi" : "Download"}
               className="inline-flex size-7 items-center justify-center rounded-full transition hover:bg-white/20"
             >
               <Download className="size-3.5" />
-            </a>
+            </button>
           </div>
         ) : null}
 

@@ -33,6 +33,7 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { Locale } from "@/lib/i18n";
 import { isExpiredOutput, jobPrompt, jobStatusText } from "@/lib/studio-form";
+import { downloadSingleMedia } from "@/lib/studio-gallery";
 import { deleteJobErrorMessage, studioErrorMessage } from "@/lib/studio-messages";
 import { familyMark, modelLabel, MODEL_BADGE_LABELS, type StudioModel } from "@/lib/studio-models";
 import { studioMotionTokens } from "@/lib/studio-motion";
@@ -396,17 +397,17 @@ export function StudioMediaDetail({
 
           {/* Preuzmi */}
           {hasOutput ? (
-            <a
-              href={job.outputUrl as string}
-              download
-              target="_blank"
-              rel="noreferrer"
+            <button
+              type="button"
+              onClick={() => {
+                void downloadSingleMedia({ _id: job._id, outputUrl: job.outputUrl, kind: job.kind });
+              }}
               aria-label={t.download}
               title={t.download}
               className="inline-flex size-10 items-center justify-center rounded-full border-2 border-ink bg-white text-ink shadow-[2px_2px_0_0_rgba(14,49,88,0.18)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
               <Download className="size-4" />
-            </a>
+            </button>
           ) : null}
 
           {/* Obriši */}

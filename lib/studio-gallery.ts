@@ -219,11 +219,53 @@ export type DownloadResult = {
   failed: Array<{ id: string; error: string }>;
 };
 
+/** Nastavak imena fajla po vrsti medija. */
+function downloadExtension(kind: string | undefined): string {
+  return kind === "video" ? "mp4" : kind === "audio" ? "mp3" : "webp";
+}
+
 /**
- * Grupno preuzimanje fajlova (popravka defekta C7):
- * Preuzima fajlove sekvencijalno sa vremenskim razmakom (300ms) i javlja napredak.
- * Koristi Blob fetch za direktan download gde je moguće, uz fallback na link download.
- * Ne prazni selekciju pre završetka i vraća spisak uspešnih i neuspešnih poslova.
+ * Preuzmi JEDAN fajl. Vraća `null` na potvrđen uspeh, ili poruku greške -
+ * NIKAD ne tvrdi uspeh koji nije potvrđen (nalaz H1).
+ *
+ * Blob fetch je jedini put koji stvarno preuzima, i radi cross-origin: Convex
+ * storage servira GET sa CORS-om, pa `fetch` prolazi. `download` atribut se
+ * primenjuje samo na `blob:` URL (koji je same-origin) - na cross-origin URL ga
+ * browser ignoriše i umesto preuzimanja otvori tab, zato se sirov URL NE koristi
+ * kao fallback koji laže o uspehu. Ako `fetch` padne (CORS ugašen na deploymentu,
+ * mreža, istekao potpis), fajl ide u grešku, ne u uspeh.
+ */
+export async function downloadSingleMedia(item: DownloadItem): Promise<string | null> {
+  if (!item.outputUrl) return "Nema URL za preuzimanje";
+  if (typeof window === "undefined" || typeof document === "undefined") {
+    return "Preuzimanje je moguće samo u browseru";
+  }
+
+  try {
+    const response = await fetch(item.outputUrl);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = blobUrl;
+    link.download = `generation-${item._id.slice(-8)}.${downloadExtension(item.kind)}`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 10_000);
+    return null;
+  } catch (err) {
+    return err instanceof Error ? err.message : "Preuzimanje nije uspelo";
+  }
+}
+
+/**
+ * Grupno preuzimanje (nalaz C7 + H1): sekvencijalno, sa napretkom. Svaki fajl
+ * ide kroz `downloadSingleMedia`; u `succeeded` ulazi SAMO potvrđeno preuzimanje,
+ * a svaka greška (nema URL-a, CORS, mreža) ide u `failed` sa razlogom - grid
+ * onda čisti selekciju samo za stvarno preuzete. Razmak od 300ms da browser ne
+ * odbije niz uzastopnih preuzimanja.
  */
 export async function downloadMediaFiles(
   items: DownloadItem[],
@@ -233,53 +275,11 @@ export async function downloadMediaFiles(
   const failed: Array<{ id: string; error: string }> = [];
 
   for (let i = 0; i < items.length; i++) {
-    const item = items[i];
-    if (!item.outputUrl) {
-      failed.push({ id: item._id, error: "Nema URL za preuzimanje" });
-      onProgress?.(i + 1, items.length);
-      continue;
-    }
-
-    try {
-      if (typeof window !== "undefined" && typeof document !== "undefined") {
-        try {
-          const response = await fetch(item.outputUrl);
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
-          const blob = await response.blob();
-          const blobUrl = URL.createObjectURL(blob);
-          const ext = item.kind === "video" ? "mp4" : item.kind === "audio" ? "mp3" : "webp";
-          const filename = `generation-${item._id.slice(-8)}.${ext}`;
-
-          const link = document.createElement("a");
-          link.href = blobUrl;
-          link.download = filename;
-          link.target = "_blank";
-          link.rel = "noopener noreferrer";
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
-          succeeded.push(item._id);
-        } catch {
-          // Fallback: direct anchor click
-          const link = document.createElement("a");
-          link.href = item.outputUrl;
-          link.download = "";
-          link.target = "_blank";
-          link.rel = "noopener noreferrer";
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          succeeded.push(item._id);
-        }
-      } else {
-        succeeded.push(item._id);
-      }
-    } catch (err) {
-      failed.push({
-        id: item._id,
-        error: err instanceof Error ? err.message : "Download failed",
-      });
+    const error = await downloadSingleMedia(items[i]);
+    if (error === null) {
+      succeeded.push(items[i]._id);
+    } else {
+      failed.push({ id: items[i]._id, error });
     }
 
     onProgress?.(i + 1, items.length);

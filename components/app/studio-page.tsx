@@ -11,12 +11,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { StudioMediaDetail } from "@/components/app/studio-media-detail";
 import { StudioMediaGrid } from "@/components/app/studio-media-grid";
 import type { StudioTileJob } from "@/components/app/studio-media-tile";
+import { StudioModerationGrid } from "@/components/app/studio-moderation-grid";
 import { StudioComposer, type JobPayload, type RegenerateSeed } from "@/components/studio/studio-composer";
 import { Panel, SectionHeader, cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { withLocale, type Locale } from "@/lib/i18n";
 import { jobPrompt } from "@/lib/studio-form";
+import { GALLERY_SCOPE_LABELS, GALLERY_SCOPES, type GalleryScope } from "@/lib/studio-gallery";
 import { parseStudioModel, type StudioModel, type StudioModelRow } from "@/lib/studio-models";
 import {
   PRIVACY_POLICY_PATH,
@@ -134,6 +136,8 @@ export function StudioPage({
       : null;
 
   const [selectedSlug, setSelectedSlug] = useState<string | null>(() => searchParams.get("model"));
+  // Moderatorski pregled (H3): "Samo moji" / "Svi korisnici", samo za osoblje.
+  const [scope, setScope] = useState<GalleryScope>("mine");
   const [starterPrompt, setStarterPrompt] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
@@ -213,8 +217,10 @@ export function StudioPage({
     recommended ??
     catalog[0];
 
+  // H2: detalj otvoren direktnim linkom (posao nije u učitanoj mreži) čita PRAVI
+  // izlaz i status kroz `getJobForDetail` - ne fabrikuje izlaz iz prvog ulaza.
   const singleJobQuery = useQuery(
-    api.studio.getJobForRegenerate,
+    api.studio.getJobForDetail,
     activeJobId && !loadedJobs.some((j) => j._id === activeJobId) && isAuthenticated
       ? { jobId: activeJobId as Id<"generationJobs"> }
       : "skip",
@@ -225,22 +231,23 @@ export function StudioPage({
     const found = loadedJobs.find((j) => j._id === activeJobId);
     if (found) return found;
     if (singleJobQuery) {
-      const firstInput = singleJobQuery.inputs?.[0];
       return {
-        _id: activeJobId,
+        _id: singleJobQuery._id,
         modelSlug: singleJobQuery.modelSlug,
-        kind: catalog.find((m) => m.slug === singleJobQuery.modelSlug)?.kind ?? "image",
-        status: "completed",
-        creditCost: 0,
+        kind: singleJobQuery.kind,
+        status: singleJobQuery.status,
+        creditCost: singleJobQuery.creditCost,
         params: singleJobQuery.params,
-        outputUrl: firstInput?.url ?? null,
-        isMock: false,
-        createdAt: 0,
+        outputUrl: singleJobQuery.outputUrl,
+        isMock: singleJobQuery.isMock,
+        createdAt: singleJobQuery.createdAt,
+        ...(singleJobQuery.error !== undefined ? { error: singleJobQuery.error } : {}),
+        ...(singleJobQuery.expiresAt !== undefined ? { expiresAt: singleJobQuery.expiresAt } : {}),
         ...(singleJobQuery.inputMode ? { inputMode: singleJobQuery.inputMode } : {}),
       };
     }
     return null;
-  }, [activeJobId, loadedJobs, singleJobQuery, catalog]);
+  }, [activeJobId, loadedJobs, singleJobQuery]);
 
   function handleOpenDetail(job: StudioTileJob) {
     router.push(withLocale(locale, `/app/studio/m/${job._id}`), { scroll: false });
@@ -457,18 +464,48 @@ export function StudioPage({
 
         {/* Mreža generisanih medija sa dinamičkim donjim paddingom prema izmerenoj visini composera */}
         <div style={{ paddingBottom: `${floatingHeight + 28}px` }}>
-          <StudioMediaGrid
-            locale={locale}
-            kind={activeKind}
-            catalog={catalog}
-            onKindChange={handleKindChange}
-            onReuse={handleReuse}
-            onExtend={handleExtend}
-            onOpenDetail={handleOpenDetail}
-            onLoadedJobsChange={setLoadedJobs}
-            onUseStarterPrompt={handleUseStarterPrompt}
-            onResetKind={handleResetKind}
-          />
+          {/* Prekidač obima — vidi ga samo osoblje (H3) */}
+          {state?.isStaff ? (
+            <div className="mb-4 flex items-center gap-1.5">
+              {GALLERY_SCOPES.map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => setScope(option)}
+                  aria-pressed={scope === option}
+                  className={cn(
+                    "inline-flex min-h-8 items-center gap-1 rounded-full border-2 border-ink px-3 py-1 text-xs font-black transition duration-150 cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+                    scope === option
+                      ? "bg-yellow text-ink shadow-[2px_2px_0_0_#0e3158]"
+                      : "bg-white text-ink hover:-translate-y-0.5",
+                  )}
+                >
+                  {GALLERY_SCOPE_LABELS[option][locale]}
+                </button>
+              ))}
+            </div>
+          ) : null}
+
+          {scope === "all" && state?.isStaff ? (
+            <StudioModerationGrid
+              locale={locale}
+              isStudioAdmin={state?.isStudioAdmin === true}
+              catalog={catalog}
+            />
+          ) : (
+            <StudioMediaGrid
+              locale={locale}
+              kind={activeKind}
+              catalog={catalog}
+              onKindChange={handleKindChange}
+              onReuse={handleReuse}
+              onExtend={handleExtend}
+              onOpenDetail={handleOpenDetail}
+              onLoadedJobsChange={setLoadedJobs}
+              onUseStarterPrompt={handleUseStarterPrompt}
+              onResetKind={handleResetKind}
+            />
+          )}
         </div>
       </div>
 

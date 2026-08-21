@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
-import { AnimatePresence, motion, type Variants } from "motion/react";
+import { AnimatePresence, motion, MotionConfig, type Variants } from "motion/react";
 import type { ReactNode } from "react";
 
 import { cn } from "@/components/ui/primitives";
@@ -79,37 +79,45 @@ export function SidebarNavSwap({
   compact?: boolean;
   className?: string;
 }) {
-  // Reduced motion: trenutna zamena, bez ijedne animacije.
-  if (reduce) {
-    return <div className={cn("relative", className)}>{active ? studio : classic}</div>;
-  }
-
   const offset = compact ? 0 : OFFSET;
 
+  // `MotionConfig reducedMotion="user"` gasi transform-animacije SVE dece
+  // sidebara odjednom kad korisnik traži manje pokreta - ne samo swap (koji
+  // dodatno gasi `reduce` fast-path ispod, radi trenutne zamene bez fade-a),
+  // nego i ulaz stavki, `whileHover` i `whileTap` u `StudioSidebarNav`/`Rail`,
+  // koji su ranije animirali i pod `prefers-reduced-motion` (nalaz iz izveštaja,
+  // sekcija 4).
   return (
-    <div className={cn("relative", className)}>
-      <AnimatePresence initial={false} mode="popLayout">
-        {active ? (
-          <motion.div
-            key="studio"
-            initial={{ x: offset, opacity: 0 }}
-            animate={{ x: 0, opacity: 1, transition: ENTER }}
-            exit={{ x: offset, opacity: 0, transition: EXIT }}
-          >
-            {studio}
-          </motion.div>
-        ) : (
-          <motion.div
-            key="classic"
-            initial={{ x: -offset, opacity: 0 }}
-            animate={{ x: 0, opacity: 1, transition: ENTER }}
-            exit={{ x: -offset, opacity: 0, transition: EXIT }}
-          >
-            {classic}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+    <MotionConfig reducedMotion="user">
+      {reduce ? (
+        // Trenutna zamena, bez klizanja/fade-a swap-a.
+        <div className={cn("relative", className)}>{active ? studio : classic}</div>
+      ) : (
+        <div className={cn("relative", className)}>
+          <AnimatePresence initial={false} mode="popLayout">
+            {active ? (
+              <motion.div
+                key="studio"
+                initial={{ x: offset, opacity: 0 }}
+                animate={{ x: 0, opacity: 1, transition: ENTER }}
+                exit={{ x: offset, opacity: 0, transition: EXIT }}
+              >
+                {studio}
+              </motion.div>
+            ) : (
+              <motion.div
+                key="classic"
+                initial={{ x: -offset, opacity: 0 }}
+                animate={{ x: 0, opacity: 1, transition: ENTER }}
+                exit={{ x: -offset, opacity: 0, transition: EXIT }}
+              >
+                {classic}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      )}
+    </MotionConfig>
   );
 }
 

@@ -167,7 +167,7 @@ test("studioMediaDetailHref gradi ispravnu deljivu putanju", () => {
 });
 
 describe("downloadMediaFiles", () => {
-  test("prijavljuje grešku za stavke bez outputUrl i nastavlja dalje", async () => {
+  test("nikad ne prijavljuje nepotvrđen uspeh; greške ne prekidaju niz (H1)", async () => {
     const progress: Array<[number, number]> = [];
     const result = await downloadMediaFiles(
       [
@@ -177,8 +177,13 @@ describe("downloadMediaFiles", () => {
       (completed, total) => progress.push([completed, total]),
     );
 
-    expect(result.succeeded).toContain("job2");
-    expect(result.failed).toEqual([{ id: "job1", error: "Nema URL za preuzimanje" }]);
+    // Nalaz H1: uspeh se NIKAD ne broji bez potvrđenog preuzimanja. U test
+    // okruženju (edge-runtime, bez DOM-a) nijedno preuzimanje se ne može
+    // potvrditi, pa `succeeded` mora biti prazan, a oba posla u `failed`.
+    expect(result.succeeded).toEqual([]);
+    expect(result.failed).toContainEqual({ id: "job1", error: "Nema URL za preuzimanje" });
+    expect(result.failed.map((f) => f.id)).toContain("job2");
+    // Napredak se javlja za svaku stavku bez obzira na ishod.
     expect(progress).toEqual([
       [1, 2],
       [2, 2],
