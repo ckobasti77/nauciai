@@ -7,6 +7,7 @@ import type { ReactNode } from "react";
 
 import { cn } from "@/components/ui/primitives";
 import { withLocale, type Locale } from "@/lib/i18n";
+import { studioMotionTokens } from "@/lib/studio-motion";
 import { studioSectionLabel, studioSectionsFor, type StudioSection } from "@/lib/studio-sections";
 
 /**
@@ -16,26 +17,46 @@ import { studioSectionLabel, studioSectionsFor, type StudioSection } from "@/lib
  * `studioActive`): kontrola za skupljanje je iznad regiona zamene i ne pomera se,
  * a menja se samo sadržaj ispod nje - „isti sidebar, drugi sadržaj".
  *
- * Koreografija (zahtev Jovana):
+ * Koreografija (rečnik pokreta — prelaz + element stagger):
  * - USMEREN, ne simetričan: ulaz u Studio -> studijsko ulazi s DESNA, klasično
  *   izlazi ULEVO; „Nazad" -> obrnuto (iOS navigation-stack model, Studio je
  *   „desno od" aplikacije, `Nazad` je korak unazad).
  * - Visina se NE animira: `AnimatePresence mode="popLayout"` izbacuje sloj koji
  *   izlazi iz toka (apsolutan), pa razliku u visini apsorbuje dno, bez reflow-a.
  * - Stavke ulaze staggered (~25 ms, odozgo nadole), najviše 5-6.
- * - Kratko: ulaz ~240 ms, izlaz ~200 ms, ease-out.
+ * - Rečnik pokreta: ulaz 260 ms, izlaz 200 ms (izlaz brži od ulaza), MD3 easing.
  * - `prefers-reduced-motion`: bez klizanja i stagger-a, trenutna zamena; oslonac
  *   je dugme „Nazad" koje se pojavi, ne pokret.
  */
 
 const OFFSET = 24;
-const ENTER = { duration: 0.24, ease: "easeOut" as const };
-const EXIT = { duration: 0.2, ease: "easeOut" as const };
+const ENTER = {
+  duration: studioMotionTokens.prelaz.enterDuration,
+  ease: studioMotionTokens.prelaz.easeEnter,
+};
+const EXIT = {
+  duration: studioMotionTokens.prelaz.exitDuration,
+  ease: studioMotionTokens.prelaz.easeExit,
+};
 
-const LIST: Variants = { show: { transition: { staggerChildren: 0.025, delayChildren: 0.04 } } };
+const LIST: Variants = {
+  show: {
+    transition: {
+      staggerChildren: studioMotionTokens.element.stagger,
+      delayChildren: 0.04,
+    },
+  },
+};
 const ITEM: Variants = {
   hidden: { opacity: 0, y: 6 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.22, ease: "easeOut" } },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: studioMotionTokens.element.enterDuration,
+      ease: studioMotionTokens.element.easeEnter,
+    },
+  },
 };
 
 /**

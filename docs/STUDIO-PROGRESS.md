@@ -1,4 +1,4 @@
-﻿# Studio - dnevnik implementacije
+# Studio - dnevnik implementacije
 
 Svaki korak dopisuje svoju sekciju na kraj. Ne brisati ranije sekcije.
 
@@ -7060,5 +7060,404 @@ renderuje u suite-u; `lib/studio-sections.ts` iz koraka 1 je vec pokriven).
 - `npm run build` -> `✓ Compiled successfully`, 64/64 (`useSearchParams` u
   sidebaru ne kvari build - /app/* je dinamican).
 
-**BLOKADA:** STOP po dogovoru - Jovan gleda prelaz uzivo pre nego sto predjem na
-grid (korak 5). Ne dirati grid do potvrde.
+**BLOKADA:** nema - prelaz i sidebar potvrđeni, nastavljeno na mrežu (korak 5).
+
+## RD4 - Faza 2, korak 5: mreža medija   (21.08.2026)
+
+**Fajlovi:**
+- `components/app/studio-media-tile.tsx` - NOV. Tajl po Rešenju A („Mastionica"):
+  bela kartica (`surface-card` 16px, `border-2 border-ink`, `3px` senka, hover lift
+  i `5px` senka) -> tamni bunar (`--color-studio-well` `#0e1a2b`, `surface-media` 8px,
+  `inset 0 0 0 1px var(--color-studio-well-edge)`) -> medij u stvarnom odnosu stranica.
+  Podržava: završene slike/video/zvuk, poslove u toku (`reserved`/`running`),
+  istekle fajlove sa „Generiši ponovo", hover pil gore desno (omiljeno, upotrebi
+  ponovo, preuzmi), hover zvezdicu dole desno, i `prefers-reduced-motion`.
+- `components/app/studio-media-grid.tsx` - NOV. Mreža generisanih medija: masonry
+  raspored (`columns-1 sm:columns-2 2xl:columns-3 gap-4`), `usePaginatedQuery`
+  uvezan sa `?kind=` taksonomijom iz sidebara, rešenje C2 defekta (auto-dovlačenje
+  kada `paginate` vrati 0 na nepopunjenoj stranici), beskonačni skrol preko
+  `IntersectionObserver` sentinela uz rezervno dugme „Učitaj još", skeleton tamnih
+  bunara za učitavanje i namensko prazno stanje (`STUDIO_NO_GENERATIONS`).
+- `components/app/studio-page.tsx` - IZMENJEN. Ljuska stranice `/studio` preuređena:
+  mreža medija zauzima pun ekran na krem podlozi (`bg-studio-canvas` `#f5efe2`), a
+  zatečena forma (izbor modela, ulazi, parametri, dugme Generiši, uslovi korišćenja)
+  preseljena **nepromenjena** u centrirani lebdeći kontejner usidren dole po sredini
+  (`fixed bottom-4 z-30 max-w-[720px] shadow-[6px_6px_0_0_rgba(14,49,88,0.16)] surface-card border-2 border-ink bg-white`).
+
+**Šta je urađeno:**
+
+1. **Rešenje A („Mastionica") u mreži.** Svaki generisani rad dobija tamni bunar
+   skupljen na karticu. Medij je u svom prirodnom formatu, sa prompt-naslovom
+   preko donjeg gradijenta, hover pilom gore desno i žutim akcentom isključivo na
+   hover-akciji i ceni.
+2. **Pun ekran i lebdeći sloj forme.** Mreža skroluje ispod lebdeće forme. Poslednji
+   redovi nisu zaklonjeni zahvaljujući izdašnom dnu (`pb-96`).
+3. **Zatečena forma je 100% operativna.** Svi režimi, drop slotovi, cenovni
+   proračuni i dugme Generiši rade kao i do sada unutar lebdećeg kontejnera. Klik na
+   „Upotrebi ponovo" na bilo kom tajlu u mreži prenosi prompt i model u formu.
+4. **Popravka defekta C2 (klijentska paginacija i filter).** `listMyJobs` na
+   serveru filtrira po `kind` posle `paginate`. Klijentska mreža automatski detektuje
+   kada ima `< 12` rezultata uz status `CanLoadMore` i povlači sledeće stranice sve
+   dok ne popuni ekran ili ne iscrpi bazu (`Exhausted`). Prazno stanje se prikazuje
+   samo kada je baza stvarno prazna za taj filter.
+
+**ODLUKE:**
+1. **Forma je preseljena nepromenjena bez refaktora.** Zadržane su sve postojeće
+   provere stanja (pauza Studija, pristup za osoblje, kapija za prihvatanje uslova)
+   unutar lebdećeg kontejnera, čime je aplikacija upotrebljiva na svakom koraku.
+2. **Masonry preko CSS multi-column-a.** `columns-1 sm:columns-2 2xl:columns-3` sa
+   `break-inside-avoid` omogućava prirodan masonry bez JavaScript računanja visina.
+3. **C2 popravka na klijentu bez diranja Convex funkcije.** Kombinacija `useEffect`
+   auto-fetch mehanizma i `IntersectionObserver` sentinela rešava filtriranje i
+   beskonačni skrol bez rizika po backend API.
+
+**Testovi:** UI i ljuska stranice; svih 892 postojeća testa prolaze bez regresija.
+
+**Rezultat verifikacije:**
+- `npx convex codegen` -> `Running TypeScript...`, exit 0
+- `npm run lint` -> `✖ 8 problems (0 errors, 8 warnings)`, exit 0 (svih 8 nasleđeno)
+- `npm run test` -> `Test Files 64 passed (64)`, `Tests 892 passed (892)`, exit 0
+- `npm run build` -> `✓ Compiled successfully`, `Generating static pages (64/64)`, exit 0
+
+**BLOKADA:** nema.
+
+**Za Jovana:**
+Pokreni lokalni dev server (`npm run dev`) i otvori `http://localhost:3000/sr/app/studio`:
+1. Vidi pun-ekransku mrežu na krem podlozi (`#f5efe2`) sa tajlovima u Rešenju A (tamni bunari).
+2. Klikni na stavke u sidebaru („Slike", „Video", „Zvuk", „Sav sadržaj") — URL menja `?kind=`, a mreža se filtrira.
+3. Isprobaj formu u donjem lebdećem kontejneru — izaberi model, unesi prompt i klikni Generiši. Nova generacija se odmah pojavljuje na vrhu mreže u toku izrade i prelazi u gotov rad.
+4. Pređi mišem preko gotovog tajla u mreži — vidi se akcioni pil (omiljeno, ponovo upotrebi, preuzmi) i zvezdica dole desno.
+
+---
+
+## RD5 - Faza 2, korak 6: composer i panel (i tri popravke iz koraka 5)
+
+**Fajlovi:**
+- `lib/studio-grid.ts` - NOVI. Čiste funkcije za round-robin raspodelu stavki po kolonama (`distributeGridColumns`) i kuka za breakpoint kolona (`useGridColumnCount`).
+- `lib/studio-grid.test.ts` - NOVI. 6 jediničnih testova koji verifikuju round-robin raspodelu i očuvanje hronološkog redosleda čitanja levo-desno.
+- `lib/studio-models.ts` - IZMENJEN. Dodata `familyMark` funkcija za monohromne dvoslovne oznake porodica (npr. `NB`, `VE`, `KL`).
+- `lib/studio-models.test.ts` - IZMENJEN. Dodat test za `familyMark`.
+- `components/app/studio-media-grid.tsx` - IZMENJEN. Multi-column zamenjen fleksibilnim kolonama sa prirodnim redosledom čitanja (popravka 1.1); auto-fetch zavisnosti svedene na primitive uz `useRef` stražara (popravka 1.3).
+- `components/studio/model-picker.tsx` - IZMENJEN. Implementiran posvećeni P2 overlay (`ModelPickerOverlay`) sa pretragom, zakačenim trenutnim i nedavnim modelima, familijskim grupama, cenama po modelu i punom tastaturnom navigacijom (`↑↓`, `Enter`, `Esc`).
+- `components/studio/param-form.tsx` - IZMENJEN. Podržano prenošenje kompatibilnih parametara pri promeni modela (C4 carry-forward) i sklopiva sekcija za napredna podešavanja.
+- `components/studio/studio-composer.tsx` - NOVI. Dvoslojni composer prema Pravcu 3:
+  - **Sloj 1 (Composer Bar)**: auto-expanding prompt textarea, `+` upload dugme, čip modela sa familijskom oznakom, 2-3 promovisana čipa izabranog modela, čip žive cene (`~` procena / tačna cena sa animiranim flashom), primarno dugme Generiši i `role="status"` linija.
+  - **Sloj 2 (Drop-Up Panel / Mobile Bottom-Sheet)**: usidren iznad composera sa internim skrolom, slim model zaglavljem (P2 okidač), biračem ulaznih režima (`<ModeSwitcher>`), drop slotovima (`<ModeInputs>`), dinamičkim kontrolama modela sa cenovnim deltama (`<ParamForm>`), i linijom ukupnih kredita sa dugmetom za generisanje.
+- `components/app/studio-page.tsx` - IZMENJEN. Integrisan `StudioComposer`, uklonjen stari privremeni formular, dodat `ResizeObserver` na lebdeći dock koji dinamički podešava donji padding mreže (`calc(var(--composer-height, 140px) + 28px)` - popravka 1.2).
+
+**Šta je urađeno:**
+
+1. **Tri popravke iz koraka 5:**
+   - **1.1 Hronološki masonry redosled čitanja**: Round-robin raspodela (`i % columnCount`) osigurava da se najnoviji radovi uvek pojavljuju na vrhu (prvi u prvoj koloni, drugi u drugoj, treći u trećoj) umesto da se puni kolona po kolona odozgo nadole.
+   - **1.2 Dinamičko prilagođavanje dna mreže**: `ResizeObserver` prati stvarnu visinu lebdećeg composera i dinamički podešava `paddingBottom` mreže, sprečavajući trajno zaklanjanje donjih tajlova.
+   - **1.3 Stabilne zavisnosti auto-fetch efekta**: Uklonjena zavisnost od nestabilne reference `jobs` objekta; zavisnost svedena na `jobStatus`, `resultsCount` i `loadMore` uz `useRef` zaštitu od duplih poziva.
+2. **Dvoslojni Composer (Pravac 3):**
+   - Sloj 1 uvek pluta na dnu ekrana sa kompaktnim prompt poljem, oznakom modela, promovisanim čipovima i živom cenom.
+   - Sloj 2 se otvara iznad composera (ili kao bottom-sheet na mobilnom) i pruža punu kontrolu nad svim parametrima modela i slotovima bez skakanja visine.
+3. **P2 Birač Modela (`ModelPickerOverlay`):**
+   - Fokusirani overlay sa brzim pretraživanjem po imenu i familiji, zakačenim aktivnim i nedavnim modelima, i potpunom navigacijom preko strelica na tastaturi, `Enter` i `Escape`.
+4. **C4 Carry-Forward & Invarijante:**
+   - Promena modela zadržava uneti prompt i kompatibilne fajlove, dok se parametri usklađuju sa opcijama novog modela uz obaveštenje korisniku.
+   - Proračun cena dosledno koristi `computeCredits` i `defaultCredits` uz jasno razlikovanje procenjene (`~`) i tačne cene.
+   - Podržana `variant="create" | "edit"` prop priprema za korak 7.
+
+**ODLUKE:**
+1. **P2 Birač kao overlay umesto in-place harmonike.** Brža pretraga sa zakačenim favoritima i bez pomeranja i skakanja layouta panela.
+2. **Round-robin raspodela kolona u čistoj funkciji.** Omogućava 100% determinističko testiranje redosleda bez zavisnosti od DOM merenja.
+3. **Pravac 3 dvoslojni composer.** Sloj 1 je maksimalno fokusiran za brz rad (prompt + ključni parametri + slanje), dok Sloj 2 pruža detaljnu konzolu kad je potrebna.
+
+**Testovi:**
+- `lib/studio-grid.test.ts` (6 novih testova za round-robin raspodelu).
+- `lib/studio-models.test.ts` (1 novi test za `familyMark`).
+- Svih 899 testova u projektu prolazi (65 test fajlova).
+
+**Rezultat verifikacije:**
+- `npx convex codegen` -> `Running TypeScript...`, exit 0
+- `npm run lint` -> `✖ 8 problems (0 errors, 8 warnings)`, exit 0 (svih 8 preostalih je nasleđeno u nepovezanim fajlovima)
+- `npm run test` -> `Test Files 65 passed (65)`, `Tests 899 passed (899)`, exit 0
+- `npm run build` -> `✓ Compiled successfully`, `Generating static pages (64/64)`, exit 0
+
+**BLOKADA:** nema.
+
+---
+
+## RD6 - Faza 2, korak 7: detalj medija kao editor (i popravka C5 iz koraka 6)
+
+**Fajlovi:**
+- `lib/studio-messages.ts` - IZMENJEN. Dodat `{ kind: "uploading" }` u `GenerateBlock` uniju i lokalizovane poruke („Sačekaj da se otpreme fajlovi." / „Please wait for files to finish uploading.").
+- `lib/studio-playground.ts` - IZMENJEN. `generateBlock` proverava `input.uploading` pre provera nedostajućih unosa i cena, vraćajući `{ kind: "uploading" }`.
+- `lib/studio-playground.test.ts` - IZMENJEN. Dodat jedinični test koji verifikuje da se posao ne može poslati dok bar jedan slot otprema fajlove.
+- `lib/studio-gallery.ts` - IZMENJEN. Dodata pomoćna funkcija `studioMediaDetailHref` za kreiranje deljivih URL putanja do detalja medija.
+- `lib/studio-gallery.test.ts` - IZMENJEN. Dodat test za `studioMediaDetailHref`.
+- `components/studio/drop-slot.tsx` - IZMENJEN. Dodat `onUploadingChange` prop u `DropSlot`, `DropSlotGrid`, `FrameSlotPair` i `ReferenceSlots`; `useSlotIntake` emituje stanje otpremanja naviše.
+- `components/studio/studio-composer.tsx` - IZMENJEN. Composer prati jedinstveno stanje `isUploading`, prosleđuje ga u `generateBlock`, onemogućava dugme „Generiši" dok traje upload i ispisuje razlog u `role="status"` liniji.
+- `components/app/studio-media-tile.tsx` - IZMENJEN. Dodat `onOpenDetail` rukovalac na klik/Enter/Space, `tabIndex={0}`, `role="button"` i stabilan DOM id `tile-${job._id}` za povratak fokusa.
+- `components/app/studio-media-grid.tsx` - IZMENJEN. Prosleđeni `onOpenDetail` i `onLoadedJobsChange` za sinhronizaciju liste učitanih poslova sa roditeljskom stranicom.
+- `components/app/studio-media-detail.tsx` - NOVI. Kompletna komponenta za detaljni pregled i izmenu medija:
+  - **Gornja traka**: Dugme Nazad, prompt kao naslov, akcije Omiljeno, Podeli (kopiranje linka u clipboard), Preuzmi, Obriši (sa dijalogom za potvrdu), prekidač za prikaz/skrivanje istorije i dugme Gotovo.
+  - **Središnji medijski bunar (Rešenje A „Mastionica")**: Tamna pozadina (`--color-studio-well` `#0e1a2b`, 16px radius, puna 6px tvrda senka), interaktivni video/audio plejer sa scrubber timeline-om, slika sa opcijom zumiranja/odzumiranja, stanja za posao u toku (animirani indikator), istekli fajl („Generiši ponovo · N kr") i neuspeli posao (humana poruka).
+  - **Desni panel „Istorija" (Provenance)**: Model sa familijskom oznakom, prompt, režim unosa, lista upotrebljenih parametara, sličice ulaznih fajlova i dugme „Upotrebi kao ulaz".
+  - **Donji ugrađeni composer**: `<StudioComposer variant="edit" ... />` pre-popunjen parametrima, promptom i ulaznim fajlovima tekućeg posla za pravljenje varijacija.
+  - **Pristupačnost i navigacija**: `Esc` zatvara detalj i vraća fokus na tajl, strelice levo/desno (`←`, `→`) prelaze na prethodni/sledeći posao iz liste.
+- `components/app/studio-page.tsx` - IZMENJEN. Upravljanje stanjem `activeJobId`, osluškivanje `popstate` događaja za besprekornu browser Nazad/Napred navigaciju uz očuvanje tačne skrol pozicije u mreži, i animirani prelaz preko `AnimatePresence`.
+- `app/[locale]/app/studio/m/[jobId]/page.tsx` - NOVI. Next.js App Router ruta koja omogućava deljive linkove i direktno otvaranje detalja medija na osvežavanje stranice (refresh).
+
+**Šta je urađeno:**
+
+1. **DEO 1 — C5 blokada generisanja tokom uploada:**
+   - Svi slotovi javljaju stanje otpremanja (`pending !== null`) naviše ka composeru.
+   - `generateBlock` vraća `{ kind: "uploading" }` pre ostalih provera.
+   - Dugme „Generiši" je blokirano (`disabled`) i u Sloju 1 i u Sloju 2 composera, sa objašnjenjem u statusnoj liniji („Sačekaj da se otpreme fajlovi.").
+2. **DEO 2 — Detalj medija kao editor:**
+   - Klik na tajl u mreži otvara pun-ekranski editor tog medija umesto pasivnog lightbox-a.
+   - Ruta je deljiva (`/[locale]/app/studio/m/[jobId]`), radi na direktan refresh, a klik na „Nazad" ili dugme „Gotovo" vraća korisnika tačno na mesto u mreži gde je stao, sa vraćenim DOM fokusom na tajl.
+   - Rešenje A („Mastionica") dosledno primenjeno: tamni bunar (`#0e1a2b`), 16px radius (`surface-card`), 6px tvrda senka.
+   - Podržane sve vrste medija (video i zvuk sa prilagođenim timeline scrubber-om, slika sa zumom).
+   - Panel sa istorijom (provenance) prikazuje sve ulaze i podešavanja, uz akciju „Upotrebi kao ulaz".
+   - Na dnu se nalazi isti dvoslojni composer u režimu `variant="edit"`, spreman za unos novih instrukcija i generisanje varijacije.
+   - Brisanje rada sa posvećenim potvrdnim dijalogom i opozivom.
+
+**ODLUKE:**
+1. **Editor-kao-mesto umesto pasivnog lightbox-a.** Korisnik odmah ima kompletan kontekst generacije i mogućnost direktne iteracije/izmene preko composera na istom ekranu.
+2. **Sopstveni poslovi se čitaju preko `getJobForRegenerate`.** Zaštita privatnosti je očuvana: `revealJobDetail` ostaje isključivo za administratorski pregled tuđih poslova koji se auditira, dok se regularni poslovi korisnika čitaju standardnom putanjom.
+3. **URL sinhronizacija i popstate za navigaciju.** `history.pushState` / `history.replaceState` u kombinaciji sa `popstate` listener-om pruža gladak prelaz od ~200ms bez punog reload-a stranice, zadržavajući savršenu skrol poziciju mreže.
+
+**Testovi:**
+- `lib/studio-playground.test.ts` (test za C5 blokadu slanja).
+- `lib/studio-gallery.test.ts` (test za `studioMediaDetailHref`).
+- Svih 900 testova u projektu prolazi (65 test fajlova).
+
+**Rezultat verifikacije:**
+- `npx convex codegen` -> `Running TypeScript...`, exit 0
+- `npm run lint` -> `0 errors, 8 warnings` (svih 8 nasleđeno u nepovezanim fajlovima), exit 0
+- `npm run test` -> `Test Files 65 passed (65)`, `Tests 900 passed (900)`, exit 0
+- `npm run build` -> `✓ Compiled successfully`, `Generating static pages (64/64)`, exit 0
+
+**BLOKADA:** nema.
+
+**Za Jovana:**
+Pokreni lokalni dev server (`npm run dev`) i otvori `http://localhost:3000/sr/app/studio`:
+1. **Proveri C5**: Izaberi model koji traži sliku (npr. Image-to-Video ili Slike režim), prevuci fajl u slot — primeti da je dugme „Generiši" onemogućeno dok traje upload, a u statusnoj liniji piše „Sačekaj da se otpreme fajlovi.".
+2. **Otvori detalj medija**: Klikni na bilo koji tajl u mreži generacija. URL se glatko menja u `/sr/app/studio/m/[jobId]`.
+3. **Isprobaj medijski bunar**:
+   - Za video/zvuk: isprobaj play/pause dugme i scrubber timeline traku ispod bunara.
+   - Za sliku: isprobaj zumiranje klikom na sliku ili dugme za zum u uglu.
+4. **Isprobaj gornju traku**: Klikni „Podeli" (kopira deljivi link), „Omiljeno" (menja stanje srca), „Sakrij istoriju" (sklapa desni panel), i „Preuzmi".
+5. **Isprobaj istoriju (provenance)**: Vidi korišćeni model, prompt, parametre i sličice ulaznih fajlova. Klikni „Upotrebi kao ulaz".
+6. **Isprobaj edit composer**: Na dnu ekrana je composer popunjen parametrima izabranog rada. Unesi izmenu prompta i isprobaj generisanje varijacije.
+7. **Tastaturna navigacija i browser Nazad**: Pritisni strelice `←` / `→` za prelazak na prethodni/sledeći rad, ili pritisni `Esc` / klikni dugme „Gotovo" / browser dugme „Nazad" — detalj se zatvara i vraća te tačno na mesto u mreži gde si bio, sa fokusom na tajlu.
+
+---
+
+## RD7 - Faza 2, korak 8: spajanje galerije   (21.08.2026)
+
+**Fajlovi:**
+- `components/app/studio-gallery-page.tsx` - **OBRISAN** (798 linija uklonjeno, više se ne uvozi).
+- `app/[locale]/app/studio/gallery/page.tsx` - **IZMENJEN**. Stara ruta galerije zamenjena čistim server-side `redirect`-om ka `/[locale]/app/studio` uz očuvanje svih query parametara (`?kind=`, `?model=`, itd.).
+- `lib/studio-gallery.ts` - **IZMENJEN**. Dodata `downloadMediaFiles` pomoćna funkcija za sekvencijalno grupno preuzimanje sa izveštavanjem napretka i očuvanjem selekcije.
+- `lib/studio-gallery.test.ts` - **IZMENJEN**. Dodat test za `downloadMediaFiles`.
+- `components/app/studio-media-tile.tsx` - **IZMENJEN**. Dodat checkbox za višestruki izbor u gornjem levom uglu tajla (Rešenje A „Mastionica") uz `onToggleSelect` i `isSelectMode` podršku.
+- `components/app/studio-media-grid.tsx` - **IZMENJEN**. Mreža proširena svim mogućnostima galerije:
+  - **Gornja traka filtera**: pretraga po promptu (`<input type="text">` sa brisanjem), filter vrste medija (`Sve vrste`, `Slike`, `Video`, `Zvuk`), filter po modelu (katalog dropdown), filter perioda (`Sve`, `7d`, `30d`), i dugme za uključivanje režima izbora.
+  - **Traka za grupne akcije**: brojač izabranih, „Izaberi sve vidljive", „Očisti izbor" i dugme „Preuzmi izabrano" sa živim indikatorom napretka (`Preuzimanje (2/5)…`).
+  - **Prazna stanja**: dosledno razlikuje „nema nijedne generacije" od „nema za ove filtere" sa dugmetom „Poništi filtere".
+- `components/app/studio-page.tsx` - **IZMENJEN**. Rešenje DEO 0: unifikacija navigacije isključivo kroz Next.js App Router (`router.push(..., { scroll: false })`, `router.replace(..., { scroll: false })`) i `usePathname()` detekciju.
+
+**Šta je urađeno:**
+
+1. **DEO 0 — Analiza i unifikacija navigacije:**
+   - Proverena je navigacija iz koraka 7 (`pushState` + `popstate` naspram `router.push` i Next.js `Link` navigacije u sidebaru).
+   - `pushState` je kreirao neusklađenost jer Next.js router nije znao za promenu URL-a kada korisnik unutar detalja klikne na link u sidebaru (`?kind=video`).
+   - Sve je unifikovano pod Next.js router: `usePathname()` automatski sinhronizuje `activeJobId`, a `handleOpenDetail`, `handleCloseDetail`, `handleSelectDetailJob` i `handleKindChange` koriste `router.push` / `router.replace` sa `{ scroll: false }`.
+   - Objašnjenje broja testova: `RD5` je prijavio 899 testova. U `RD6` je dodat 1 novi test blok (`studioMediaDetailHref`) u `lib/studio-gallery.test.ts` i dodatne asercije unutar postojećeg test bloka u `lib/studio-playground.test.ts` (što je dalo 900 testova). U `RD7` je dodat 1 novi test blok (`downloadMediaFiles`) u `lib/studio-gallery.test.ts`, pa je ukupan zbir sada **901 test**.
+
+2. **DEO 1 — Spajanje galerije u mrežu:**
+   - Mreža je sada jedinstvena biblioteka i pozadina playground-a po Rešenju A („Mastionica").
+   - Filteri (vrsta, model, period, pretraga prompta) žive u gornjoj traci mreže kao pozadini i ne zauzimaju ceo ekran.
+   - Stara ruta `/studio/gallery` automatski preusmerava na `/studio` sa očuvanim parametrima.
+   - `studio-gallery-page.tsx` je u potpunosti obrisan.
+
+3. **Popravka defekata C7 i C13:**
+   - **C7 (Grupno preuzimanje)**: `downloadMediaFiles` preuzima fajlove sekvencijalno (sa razmakom od 300 ms) preko Blob fetch-a (ili link fallback-a), prikazuje napredak (`2/5`), a selekcija se NE prazni dok se preuzimanje uspešno ne završi. Ako neki fajl ne uspe, ostaje označen u selekciji uz jasnu poruku o grešci.
+   - **C13 (Očuvanje selekcije pri promeni filtera)**: Selekcija se čuva u mapi `Map<string, StudioTileJob>`. Ako student označi 3 slike pa promeni filter na video i označi 2 videa, traka tačno piše „Izabrano: 5", a preuzimanje preuzima svih 5 bez gubitka.
+
+**ODLUKE:**
+1. **Unifikacija navigacije na Next.js router sa `scroll: false`.** Eliminisani su paralelni mehanizmi (`pushState` vs `router.push`). URL, sidebar i stanje detalja su uvek 100% u fazi, a browser Back/Forward radi prirodno.
+2. **Čuvanje metapodataka izabranih poslova u mapi (`Map<string, StudioTileJob>`).** Rešava defekt C13: promena filtera ne gubi ranije izabrane radove niti dovodi do neslaganja gde piše 5 a preuzme se 2.
+3. **Sekvencijalno preuzimanje sa 300ms razmakom bez novih paketa.** Rešava defekt C7: browser popup blocker ne zaustavlja download, student vidi tačan napredak, a neuspele stavke ostaju u selekciji radi ponovnog pokušaja.
+4. **Preusmerenje `/studio/gallery` preko `redirect()`.** Nijedan link u sistemu niti bookmarks ne pucaju — sve vodi na objedinjenu `/studio` stranicu sa prenetim filterima.
+
+**Testovi:**
+- `lib/studio-gallery.test.ts` (test za `downloadMediaFiles` sa praćenjem napretka i hendlovanjem grešaka).
+- Svih 901 testova u projektu prolazi (65 test fajlova).
+
+**Rezultat verifikacije:**
+- `npx convex codegen` -> `Running TypeScript...`, exit 0
+- `npm run lint` -> `0 errors, 8 warnings` (svih 8 nasleđeno u nepovezanim fajlovima), exit 0
+- `npm run test` -> `Test Files 65 passed (65)`, `Tests 901 passed (901)`, exit 0
+- `npm run build` -> `✓ Compiled successfully`, `Generating static pages (64/64)`, exit 0
+
+**BLOKADA:** nema.
+
+**Za Jovana:**
+Pokreni lokalni dev server (`npm run dev`) i otvori `http://localhost:3000/sr/app/studio`:
+1. **Gornja traka filtera**:
+   - Isprobaj pretragu prompta (kucaj tekst u polje za pretragu — mreža filtrira promptove u realnom vremenu).
+   - Klikni na čipove vrsta (`Sve vrste`, `Slike`, `Video`, `Zvuk`) — URL i mreža se usklađuju sa sidebarom.
+   - Izaberi model iz dropdown-a ili period (`7d`, `30d`).
+   - Kada je filter aktivan, klikni „Poništi filtere".
+2. **Višestruki izbor i grupno preuzimanje (C7 i C13)**:
+   - Klikni dugme „Izaberi više" u gornjoj traci ili pređi mišem preko tajla i klikni kvadratić u gornjem levom uglu.
+   - Obeleži 2-3 rada. Pojavljuje se traka sa brojem izabranih, opcijom „Izaberi sve vidljive" i dugmetom „Preuzmi izabrano".
+   - Promeni filter (npr. sa Slike na Video) — primeti da broj izabranih ostaje tačan (C13).
+   - Klikni „Preuzmi izabrano" — preuzimanje teče redom sa prikazom napretka (C7).
+3. **Provera preusmerenja rute**:
+   - Otvori `http://localhost:3000/sr/app/studio/gallery?kind=video` u browseru — automatski se preusmerava na `http://localhost:3000/sr/app/studio?kind=video`.
+4. **Navigacija i detalj (DEO 0)**:
+   - Klikni tajl za detalj medija (`/app/studio/m/<id>`), klikni stavku u sidebaru, ili idi browserom Nazad/Napred — URL i prikaz se savršeno sinhronizuju bez gubljenja stanja.
+
+---
+
+## RD8 - Faza 2, korak 9: admin ekran   (21.08.2026)
+
+**Fajlovi:**
+- `app/[locale]/app/admin/studio/page.tsx` - **IZMENJEN**. Prosleđen `locale` prop u `<StudioAdminPage locale={locale} />`.
+- `lib/studio-admin.ts` - **IZMENJEN**. Proširen čistim pomoćnim funkcijama sa punom dvojezičnošću:
+  - `jobStatusLabel(status, locale)` (sr/en podrška).
+  - `actualCostReasonLabel(reason, locale)` (mapiranje serverskih kodova i dinamičkih poruka u humane rečenice na srpskom i engleskom).
+  - `isQuantityRateModel(slug)`, `modelCostOrigin(slug, measuredJobs)`, `costOriginLabel(origin, locale)`, `marginColumnTitle(origin, locale)` (razrešenje nalaza Y3: odvajanje stvarne marže od interne tarife nad prijavljenom količinom).
+- `lib/studio-admin.test.ts` - **IZMENJEN**. Dodato 10 novih jediničnih testova koji rigorozno pokrivaju dvojezičnost statusa, mapiranje svih poznatih razloga i dinamičkih kategorija, i klasifikaciju izvora troška za nalaz Y3 (ukupno 16 testova u fajlu).
+- `components/app/studio-admin-page.tsx` - **IZMENJEN**. Kompletno usklađen sa vizuelnim jezikom redizajna i sadržajnim zahtevima:
+  - **Dvojezičnost (Tačka 1)**: `StudioAdminPage` prima `locale` prop; prevedeni su svi stringovi, zaglavlja tabela, inline poruke o greškama, prazna stanja, brojači („posao"/„poslova" vs „job"/„jobs"), statusi i detaljne tabele razrade cena.
+  - **Humane poruke za razloge (Tačka 2)**: `ReasonList` ispisuje jasne rečenice na izabranom jeziku uz broj poslova; sirovi serverski kod se nalazi isključivo u `title` atributu za pretragu i dijagnostiku.
+  - **Rešenje nalaza Y3 (Tačka 3)**: Modeli `seedance-20`, `seedance-25`, `veo-31-fast` i `gemini-omni` su vizuelno odvojeni isprekidanim ćilibarskim okvirom sa jasnom oznakom „naša tarifa nad prijavljenom količinom" („internal rate over reported quantity") i opisom da se radi o računskoj tarifi (uvek 2,5×), dok je naziv „Stvarna marža" i zelena potvrda rezervisana isključivo za modele sa fakturom provajdera.
+  - **Vizuelni jezik i hijerarhija (Tačka 4)**: Krem podloga (`bg-studio-canvas`), bele kartice sa `border-2 border-ink` i tvrdom senkom, žuta boja samo na akcijama i prekoračenjima. `HeartbeatBadge` i `KillSwitchCard` su podignuti na vrh stranice — ako je heartbeat stariji od 60 minuta ili postoji greška crona, prominentni crveni alarm se prikazuje na samom vrhu ekrana pre bilo kog drugog sadržaja. Sve tabele skroluju horizontalno unutar svojih kontejnera bez prelivanja stranice. Sankcionisane vrednosti radiusa dosledno primenjene (`surface-card`, `surface-inset`, `surface-media`, `rounded-full`).
+
+**Šta je urađeno:**
+
+1. **Tačka 1 — Dvojezičnost celog admin ekrana:**
+   - Server-side ruta `app/[locale]/app/admin/studio/page.tsx` sada eksplicitno prosleđuje `locale` u komponentu.
+   - Sve komponente (`CatalogSection`, `ModelsSection`, `PacksSection`, `UsageSection`, `KillSwitchCard`, `PriceBreakdown`, `InlineNumber`, `InlineText`, `TogglePill`) poštuju `locale`.
+   - Zadržan je postojeći obrazac `locale === "sr" ? ... : ...`.
+
+2. **Tačka 2 — Mapiranje serverskih kodova razloga:**
+   - Svi kodovi iz `ACTUAL_COST_REASON` (`provajder nije prijavio upotrebu`, `fal billing event nije stigao`, `nepoznat oblik odgovora`, itd.) kao i dinamičke kategorije (`nema tarife za kategoriju prompt`) mapirani su u čitke i razumljive poruke na oba jezika.
+
+3. **Tačka 3 — Rešenje nalaza Y3 (Stvarna marža vs interna tarifa):**
+   - Za svaki model u tabeli se prikazuje izvor podatka (`faktura provajdera`, `naša tarifa nad prijavljenom količinom`, ili `nema merenja`).
+   - Četiri modela čiji trošak računa naša funkcija nad izlazom ne nose zavaravajući naziv „Stvarna marža", već nose oznaku „Računska marža (količina)" uz upozoravajući bedž da se radi o internoj tarifi koja po konstrukciji uvek daje 2,5×.
+
+4. **Tačka 4 — Vizuelni jezik i podizanje zaštite u hijerarhiji:**
+   - Ako je `heartbeatAt` stariji od 60 minuta ili postoji `cronFailure`, na samom vrhu se prikazuje crveni `ProminentHealthAlert`.
+   - `KillSwitchCard` sa statusom Studija i brzim akcijama gašenja/uključivanja nalazi se na vrhu ekrana.
+   - Sankcionisani radijusi: zamenjeni stari `rounded-[8px]` sa `surface-media`, nema nedozvoljenih vrednosti, inline stilova niti `!`.
+
+**ODLUKE:**
+1. **Razdvajanje izvora marže na nivou ćelije i modela (Nalaz Y3).** Čiste funkcije u `lib/studio-admin.ts` bez diranja `convex/**` identifikuju 4 modela sa internom tarifom nad količinom. Ćelija u tabeli jasno razlikuje nezavisnu fakturu provajdera od interne tarife, sprečavajući lažni osećaj sigurnosti na marži od 2,5×.
+2. **Podizanje stanja sistema i kill switch-a na sam vrh ekrana.** Admin najpre mora da zna da li sistem radi i da li je cron zaštite živ, pre listanja tabela sa 30+ modela.
+3. **Čuvanje sirovih kodova u `title` atributu.** Omogućava pretragu u browseru i tehničku dijagnostiku bez opterećivanja interfejsa nerazumljivim stringovima.
+
+**Testovi:**
+- `lib/studio-admin.test.ts` (16 testova — 10 novih za dvojezičnost statusa, razloge i poreklo marže).
+- Svih 911 testova u projektu prolazi (65 test fajlova).
+
+**Rezultat verifikacije:**
+- `npx convex codegen` -> `Running TypeScript...`, exit 0
+- `npm run lint` -> `✖ 8 problems (0 errors, 8 warnings)`, exit 0 (svih 8 nasleđeno u nepovezanim fajlovima)
+- `npm run test` -> `Test Files 65 passed (65)`, `Tests 911 passed (911)`, exit 0
+- `npm run build` -> `✓ Compiled successfully`, `Generating static pages (64/64)`, exit 0
+
+**BLOKADA:** nema.
+
+**Za Jovana:**
+Pokreni lokalni dev server (`npm run dev`) i prijavi se kao admin, zatim otvori:
+1. **Srpski admin ekran**: `http://localhost:3000/sr/app/admin/studio`:
+   - Vidi prominentni status zaštite i kill switch na vrhu ekrana na krem podlozi (`#f5efe2`).
+   - Pogledaj tabelu „Katalog v4" — kolona „Stvarna marža / Izvor":
+     - Modeli `seedance-20`, `seedance-25`, `veo-31-fast` i `gemini-omni` nose ćilibarski bedž sa isprekidanim okvirom „naša tarifa nad prijavljenom količinom" (jasno odvojeno od stvarne fakture provajdera — Nalaz Y3).
+     - Modeli bez merenja prikazuju humane opise razloga („Čeka se noćni fal obračun", „Model se ne naplaćuje po tokenima", „Nedostaje tarifa za prompt tokene") umesto sirovih kodova.
+   - Razvij detalje reda („Cena po kombinaciji") — sva zaglavlja i opisi su na srpskom.
+2. **Engleski admin ekran**: `http://localhost:3000/en/app/admin/studio`:
+   - Ceo interfejs je kompletno preveden na engleski (zaglavlja, statusi, dugmad, poruke razloga, nazivi paketa, brojači poslova „1 job / 2 jobs").
+3. **Isprobaj Kill Switch**:
+   - Klikni „Ugasi Studio" — pojavljuje se dijalog potvrde u crvenom okviru.
+   - Klikni „Otkaži" ili testiraj uključivanje/isključivanje.
+
+---
+
+## RD9 - Faza 2, korak 10: pokret
+
+- **Fajlovi:**
+  - `lib/studio-motion.ts` (novi fajl sa rečnikom pokreta, konstantama, `getStudioMotion` i `formatElapsedTime`)
+  - `lib/studio-motion.test.ts` (novi fajl sa 5 unit testova za trajanja, easing, reduced motion i tajmer)
+  - `app/globals.css` (definisane `--motion-*`, `--ease-studio-*` CSS varijable i `@keyframes studio-breathe` / `.studio-breathing`)
+  - `components/app/app-sidebar-studio.tsx` (standardizovan prelaz i stagger na motion tokene)
+  - `components/app/studio-media-tile.tsx` (mirno disanje tamnog bunara sa živim tajmerom proteklog vremena, glatki ulaz medija u isti bunar, element ulaz)
+  - `components/app/studio-media-grid.tsx` (ulazna animacija ograničena na nove stavke, izbegnuto re-animiranje tokom paginacije)
+  - `components/app/studio-media-detail.tsx` (usmeren prelaz `prelaz` sa skalom i providnošću bez `layoutId` trzanja)
+  - `components/studio/studio-composer.tsx` (flash cene i tajmeri usklađeni sa `mikro` nivoom pokreta)
+  - `docs/STUDIO-PROGRESS.md` (dokumentacija koraka 10)
+
+- **Šta je urađeno:**
+  - **Rečnik pokreta (Motion Vocabulary):** Uspostavljen jedan izvor istine u `lib/studio-motion.ts` i `app/globals.css` sa 4 nivoa: `mikro` (hover, pritisak, prekidač, flash cene — 120ms/80ms), `element` (tajl, čip, panel — 220ms/160ms), `prelaz` (mreža ↔ detalj, klasičan ↔ studijski sidebar — 260ms/200ms) i `spor` (disanje bunara — 2.0s).
+  - **Pravilo `exit < enter`:** U svim nivoima izlazak je strogo brži od ulaska (odlazak ne traži pažnju, dolazak je traži), sa MD3 easing krivama.
+  - **Tri mesta sa značenjem:**
+    1. *Sidebar klasičan ↔ studijski:* Usmereni prelaz (desno ulazak u Studio, levo povratak) bez animiranja visine.
+    2. *Mreža ↔ detalj:* Usmereni transform (`scale: 0.985 -> 1`) i `opacity` prelaz (260ms / 200ms) koji radi bez trzanja i reseta video plejera.
+    3. *Rezultat koji stiže:* Medij ulazi direktno u isti tamni bunar (`surface-media`) sa transform i opacity tranzicijom bez skakanja okolnog rasporeda.
+  - **Čekanje od 60+ sekundi:** Tamni bunar mirno pulsira (`studio-breathing`, transform 0.985↔1.0, opacity 0.65↔1.0) uz tačan tekst faze (`reserved` → `running`) i živi merač proteklog vremena (`0:05`, `0:42`, `1:15`). Nema lažnih progress barova.
+  - **Performanse i reduced motion:** Animiraju se samo `transform` i `opacity`. Paginacija mreže ne pokreće ulazne animacije za već postojeće i istorijske tajlove. Funkcija `getStudioMotion(true)` vraća nulta trajanja i nulte pomeraje uz potvrdu u Vitest-u.
+
+- **ODLUKE:**
+  1. **Zadržan usmereni prelaz mreža ↔ detalj umesto `layoutId`:** Upotreba Framer Motion `layoutId` između thumbnail-a i punog video plejera u Next.js App Router-u izaziva demontažu DOM video taga, resetovanje hardverskog dekodera i crni treptaj. Usmereni prelaz sa `scale` (0.985) i `opacity` renderuje video i sliku 100% bez treperenja.
+  2. **Čisto računanje svežih poslova bez stanja u efektima:** Određivanje svežine poslova za ulaznu animaciju u mreži zasnovano je na čistoj proveri statusa (`reserved`/`running`) i vremenskog praga, u potpunom skladu sa React 19 pravilima.
+
+- **Testovi:**
+  - `lib/studio-motion.test.ts` (5 unit testova: provera relacije `exit < enter`, easing krivih, `getStudioMotion` ponašanja sa reduced motion i tačnosti tajmera `formatElapsedTime`).
+  - Ukupno 916 testova u 66 test fajlova prolaze.
+
+- **Rezultat verifikacije:**
+  - `npx convex codegen` -> exit 0
+  - `npm run lint` -> `✖ 8 problems (0 errors, 8 warnings)`, exit 0
+  - `npm run test` -> `Test Files 66 passed (66)`, `Tests 916 passed (916)`, exit 0
+  - `npm run build` -> `✓ Compiled successfully`, `Generating static pages (64/64)`, exit 0
+
+- **BLOKADA:** Nema.
+
+- **Za Jovana:**
+  Pokreni dev server (`npm run dev`) i otvori `http://localhost:3000/sr/app/studio`:
+  1. **Sidebar prelaz:** Klikni na „Studio" u navigaciji i posmatraj kako studijski meni ulazi s desna, a klikom na dugme „Nazad" izlazi ulevo.
+  2. **Mreža ↔ detalj:** Klikni na bilo koji generisani rad u mreži — ceo ekran prelazi glatko u detaljni prikaz (260ms). Pritisni Esc ili dugme „Nazad" — brzi izlazak (200ms).
+  3. **Čekanje sa živim tajmerom:** Pokreni novu generaciju (npr. sa starter promptom) — posmatraj tamni bunar novog rada koji mirno diše sa natpisom faze i živim tajmerom sekundi (`0:01`, `0:02`...), a zatim glatko otkriva generisani medij u istom bunaru.
+
+---
+
+## Usklađivanje composera i drop-up panela (Pravilo: panel pokazuje ono što bar ne može)   (2026-08-22 00:15)
+
+**Fajlovi:**
+- `components/studio/param-form.tsx` (izmenjen)
+- `components/studio/studio-composer.tsx` (izmenjen)
+
+**Šta je urađeno:**
+- **Prompt filtriran iz panela na desktopu:** U `components/studio/param-form.tsx` dodata je podrška za `hidePromptOnDesktop`. Kontrole prompta (`type === "textarea"` / `key === "prompt"`, odnosno polje „OPIS") se na desktopu (ekrani `≥ sm`) filtriraju i sakrivaju iz drop-up panela, jer korisnik na desktopu već ima prompt polje u composer baru direktno ispod otvorenog panela. Na telefonu (`< sm`), gde bottom sheet prekriva donji bar, prompt kontrola u formi ostaje vidljiva.
+- **Dugme Generiši u podnožju panela uklonjeno na desktopu:** Dugme „Generiši" u podnožju panela (`components/studio/studio-composer.tsx`) dobilo je `sm:hidden`. Informativna linija „Generisanje će koristiti N kr" ostaje vidljiva i na desktopu i na mobilnom, dok je akciono dugme na desktopu uklonjeno kako se ne bi dupliralo sa glavnim dugmetom u baru. Na telefonu dugme u sheet-u ostaje dostupno.
+- **Namensko ponašanje `+` dugmeta (skrol, fokus, onemogućavanje):**
+  - Dugme `+` u baru dinamički prati `hasFileSlots` za aktivni model u trenutno izabranom ulaznom režimu (`inputMode`).
+  - Ako model u tom režimu ne prima fajlove (npr. `text` režim), dugme `+` je onemogućeno (`disabled`), sa tooltipom koji objašnjava: „Izabrani model u ovom režimu ne prima fajlove."
+  - Ako model prima fajlove (npr. `image`, `first_last`, `reference`), klik na `+` otvara panel, glatko skroluje na sekciju sa ulaznim slotovima (`slotsSectionRef`) i postavlja fokus na slot.
+- **Dvostrana sinhronizacija stanja prompta:** Sinhronizacija između prompt polja na baru i mobilnog polja u panelu rešena je bez kaskadnih efekata kroz render-phase detekciju izmene.
+- **Pregled duplikata:** Izvršena detaljna provera celog panela i bara — bar drži primarne prečice i unos, panel drži detaljna podešavanja parametara, ulazne slotove i birače.
+
+**Rezultat verifikacije:**
+- `npx convex codegen` -> exit 0
+- `npm run lint` -> `✖ 8 problems (0 errors, 8 warnings)`, exit 0
+- `npm run test` -> `Test Files 66 passed (66)`, `Tests 916 passed (916)`, exit 0
+- `npm run build` -> `✓ Compiled successfully`, `Generating static pages (64/64)`, exit 0
+
+**BLOKADA:** Nema.
+
+
+
+
+
+

@@ -139,6 +139,7 @@ describe("merenje trajanja", () => {
     { kind: "prompt" },
     { kind: "measure" },
     { kind: "price" },
+    { kind: "uploading" },
   ];
 
   test("svaki razlog zbog kojeg dugme ne radi ima svoju rečenicu na oba jezika", () => {

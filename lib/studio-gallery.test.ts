@@ -18,6 +18,8 @@ import {
   regenerateHref,
   STUDIO_PROVIDER_LABELS,
   STUDIO_PROVIDERS,
+  studioMediaDetailHref,
+  downloadMediaFiles,
 } from "./studio-gallery";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -158,3 +160,29 @@ test("labele prekidaca, statusa i provajdera postoje za svaku vrednost", () => {
     [...STUDIO_PROVIDERS].sort(),
   );
 });
+
+test("studioMediaDetailHref gradi ispravnu deljivu putanju", () => {
+  expect(studioMediaDetailHref("sr", "job123")).toBe("/sr/app/studio/m/job123");
+  expect(studioMediaDetailHref("en", "job456")).toBe("/en/app/studio/m/job456");
+});
+
+describe("downloadMediaFiles", () => {
+  test("prijavljuje grešku za stavke bez outputUrl i nastavlja dalje", async () => {
+    const progress: Array<[number, number]> = [];
+    const result = await downloadMediaFiles(
+      [
+        { _id: "job1", outputUrl: null },
+        { _id: "job2", outputUrl: "https://example.com/file.webp", kind: "image" },
+      ],
+      (completed, total) => progress.push([completed, total]),
+    );
+
+    expect(result.succeeded).toContain("job2");
+    expect(result.failed).toEqual([{ id: "job1", error: "Nema URL za preuzimanje" }]);
+    expect(progress).toEqual([
+      [1, 2],
+      [2, 2],
+    ]);
+  });
+});
+

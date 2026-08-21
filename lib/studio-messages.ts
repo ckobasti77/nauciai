@@ -498,6 +498,7 @@ export type GenerateBlock =
   | { kind: "prompt" }
   | { kind: "measure" }
   | { kind: "price" }
+  | { kind: "uploading" }
   | { kind: "source" };
 
 export function generateBlockMessage(block: GenerateBlock, locale: Locale): string {
@@ -514,6 +515,10 @@ export function generateBlockMessage(block: GenerateBlock, locale: Locale): stri
       return locale === "sr"
         ? `Sačekaj da se završi trenutna generacija - najviše ${block.max} posla mogu da rade istovremeno.`
         : `Wait for the current generation to finish - at most ${block.max} jobs can run at once.`;
+    case "uploading":
+      return locale === "sr"
+        ? "Sačekaj da se otpreme fajlovi."
+        : "Please wait for files to finish uploading.";
     case "inputs":
       return block.message;
     case "prompt":

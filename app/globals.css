@@ -21,6 +21,19 @@
   --bordered-radius: 1rem;
   --bordered-control-radius: 1rem;
   --button-radius: 9999px;
+
+  /* Studio Motion Tokens (Korak 10) */
+  --motion-mikro-in: 120ms;
+  --motion-mikro-out: 80ms;
+  --motion-element-in: 220ms;
+  --motion-element-out: 160ms;
+  --motion-prelaz-in: 260ms;
+  --motion-prelaz-out: 200ms;
+  --motion-spor: 2000ms;
+
+  --ease-studio-out: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --ease-studio-in: cubic-bezier(0.3, 0, 1, 1);
+  --ease-studio-in-out: cubic-bezier(0.2, 0, 0, 1);
 }
 
 @theme inline {
@@ -158,6 +171,21 @@ select {
     max-width: 1380px !important;
     width: 100% !important;
   }
+}
+
+@keyframes studio-breathe {
+  0%, 100% {
+    opacity: 0.65;
+    transform: scale(0.985);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.studio-breathing {
+  animation: studio-breathe var(--motion-spor) ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {

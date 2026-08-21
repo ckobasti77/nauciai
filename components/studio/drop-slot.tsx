@@ -71,16 +71,22 @@ function useSlotIntake({
   locale,
   capacity,
   onAccept,
+  onUploadingChange,
 }: {
   slot: string;
   spec: SlotSpec;
   locale: Locale;
   capacity: number;
   onAccept: (files: SlotFile[]) => void;
+  onUploadingChange?: (uploading: boolean) => void;
 }) {
   const upload = useSlotUpload();
   const [pending, setPending] = useState<Pending | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    onUploadingChange?.(pending !== null);
+  }, [pending, onUploadingChange]);
 
   const intake = useCallback(
     async (incoming: File[]) => {
@@ -281,6 +287,7 @@ export function DropSlot({
   fullScreen = false,
   disabled = false,
   className,
+  onUploadingChange,
 }: {
   slot: string;
   spec: SlotSpec;
@@ -291,6 +298,7 @@ export function DropSlot({
   fullScreen?: boolean;
   disabled?: boolean;
   className?: string;
+  onUploadingChange?: (uploading: boolean) => void;
 }) {
   const inputId = useId();
   const [over, setOver] = useState(false);
@@ -311,6 +319,7 @@ export function DropSlot({
     locale,
     capacity: disabled ? 0 : 1,
     onAccept: accept,
+    onUploadingChange,
   });
 
   const dragging = useFullScreenDrop(fullScreen && !disabled && pending === null, (files) => {
@@ -456,6 +465,7 @@ export function DropSlotGrid({
   fullScreen = false,
   disabled = false,
   className,
+  onUploadingChange,
 }: {
   slot: string;
   spec: SlotSpec;
@@ -467,6 +477,7 @@ export function DropSlotGrid({
   fullScreen?: boolean;
   disabled?: boolean;
   className?: string;
+  onUploadingChange?: (uploading: boolean) => void;
 }) {
   const inputId = useId();
   const [over, setOver] = useState(false);
@@ -484,6 +495,7 @@ export function DropSlotGrid({
     locale,
     capacity: disabled ? 0 : spec.max - files.length,
     onAccept: accept,
+    onUploadingChange,
   });
 
   const dragging = useFullScreenDrop(fullScreen && !disabled && pending === null, (dropped) => {
@@ -661,12 +673,14 @@ export function FrameSlotPair({
   onChange,
   locale,
   disabled = false,
+  onUploadingChange,
 }: {
   spec: SlotSpec;
   frames: FramePair;
   onChange: (next: FramePair) => void;
   locale: Locale;
   disabled?: boolean;
+  onUploadingChange?: (uploading: boolean) => void;
 }) {
   const single: SlotSpec = { max: 1, accept: spec.accept };
 
@@ -681,6 +695,7 @@ export function FrameSlotPair({
         label={FRAME_LABELS.first[locale]}
         disabled={disabled}
         className="flex-1"
+        onUploadingChange={onUploadingChange}
       />
       <MoveRight className="mx-auto size-6 shrink-0 rotate-90 text-ink sm:rotate-0" aria-hidden="true" />
       <DropSlot
@@ -692,6 +707,7 @@ export function FrameSlotPair({
         label={FRAME_LABELS.last[locale]}
         disabled={disabled}
         className="flex-1"
+        onUploadingChange={onUploadingChange}
       />
     </div>
   );
@@ -708,12 +724,14 @@ export function ReferenceSlots({
   onChange,
   locale,
   disabled = false,
+  onUploadingChange,
 }: {
   modeSpec: ModeSpec;
   files: SlotFiles;
   onChange: (next: SlotFiles) => void;
   locale: Locale;
   disabled?: boolean;
+  onUploadingChange?: (uploading: boolean) => void;
 }) {
   const groups = Object.entries(modeSpec);
 
@@ -730,6 +748,7 @@ export function ReferenceSlots({
           numbered
           fullScreen={false}
           disabled={disabled}
+          onUploadingChange={onUploadingChange}
         />
       ))}
     </div>

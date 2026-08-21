@@ -202,3 +202,93 @@ export function filterJobOwners<T extends { label: string }>(owners: T[], search
 
   return owners.filter((owner) => owner.label.toLowerCase().includes(needle));
 }
+
+/** Deljivi link do detalja / editora medija. */
+export function studioMediaDetailHref(locale: Locale, jobId: string): string {
+  return `/${locale}/app/studio/m/${jobId}`;
+}
+
+export type DownloadItem = {
+  _id: string;
+  outputUrl: string | null;
+  kind?: "image" | "video" | "audio" | string;
+};
+
+export type DownloadResult = {
+  succeeded: string[];
+  failed: Array<{ id: string; error: string }>;
+};
+
+/**
+ * Grupno preuzimanje fajlova (popravka defekta C7):
+ * Preuzima fajlove sekvencijalno sa vremenskim razmakom (300ms) i javlja napredak.
+ * Koristi Blob fetch za direktan download gde je moguće, uz fallback na link download.
+ * Ne prazni selekciju pre završetka i vraća spisak uspešnih i neuspešnih poslova.
+ */
+export async function downloadMediaFiles(
+  items: DownloadItem[],
+  onProgress?: (completed: number, total: number) => void,
+): Promise<DownloadResult> {
+  const succeeded: string[] = [];
+  const failed: Array<{ id: string; error: string }> = [];
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    if (!item.outputUrl) {
+      failed.push({ id: item._id, error: "Nema URL za preuzimanje" });
+      onProgress?.(i + 1, items.length);
+      continue;
+    }
+
+    try {
+      if (typeof window !== "undefined" && typeof document !== "undefined") {
+        try {
+          const response = await fetch(item.outputUrl);
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const blob = await response.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          const ext = item.kind === "video" ? "mp4" : item.kind === "audio" ? "mp3" : "webp";
+          const filename = `generation-${item._id.slice(-8)}.${ext}`;
+
+          const link = document.createElement("a");
+          link.href = blobUrl;
+          link.download = filename;
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+          succeeded.push(item._id);
+        } catch {
+          // Fallback: direct anchor click
+          const link = document.createElement("a");
+          link.href = item.outputUrl;
+          link.download = "";
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          succeeded.push(item._id);
+        }
+      } else {
+        succeeded.push(item._id);
+      }
+    } catch (err) {
+      failed.push({
+        id: item._id,
+        error: err instanceof Error ? err.message : "Download failed",
+      });
+    }
+
+    onProgress?.(i + 1, items.length);
+
+    if (i < items.length - 1) {
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    }
+  }
+
+  return { succeeded, failed };
+}
+

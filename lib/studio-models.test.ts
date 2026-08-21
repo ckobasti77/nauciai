@@ -12,6 +12,7 @@ import type { StudioModelSeed } from "@/convex/providers/modelSeed";
 import {
   defaultCredits,
   defaultInputMode,
+  familyMark,
   filterModels,
   groupByFamily,
   hasAudio,
@@ -164,3 +165,12 @@ describe("cena uz model u listi", () => {
     expect(defaultCredits(parsed("kling-lipsync"), { duration: 5 })).toBe(16);
   });
 });
+
+describe("familyMark", () => {
+  test("generiše dvoslovni monohromni znak iz imena porodice", () => {
+    expect(familyMark(parsed("nano-banana-2"))).toBe("NB");
+    expect(familyMark(parsed("kling-3"))).toBe("KL");
+    expect(familyMark(parsed("veo-31"))).toBe("VE");
+  });
+});
+

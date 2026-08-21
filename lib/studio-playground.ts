@@ -157,6 +157,7 @@ export function generateBlock(input: {
   promptMissing: boolean;
   quantityMissing: boolean;
   sourceMissing?: boolean;
+  uploading?: boolean;
 }): GenerateBlock | null {
   const { state, balance, credits } = input;
 
@@ -165,6 +166,8 @@ export function generateBlock(input: {
   if (state && state.activeJobs >= state.maxActiveJobs) {
     return { kind: "active", max: state.maxActiveJobs };
   }
+  // C5: Dok traje upload fajlova, dugme je onemogućeno sa razlogom u statusnoj liniji
+  if (input.uploading) return { kind: "uploading" };
   if (input.missingInputMessage !== null) {
     return { kind: "inputs", message: input.missingInputMessage };
   }

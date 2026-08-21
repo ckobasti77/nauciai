@@ -218,6 +218,16 @@ test("razlozi idu od najšireg ka najužem, a kredit se proverava poslednji", ()
     kind: "active",
     max: 3,
   });
+  // C5: upload u toku zaključava dugme pre nedostajućih unosa i prompta
+  expect(generateBlock({ ...OPEN, uploading: true })).toEqual({ kind: "uploading" });
+  expect(
+    generateBlock({
+      ...OPEN,
+      uploading: true,
+      promptMissing: true,
+      missingInputMessage: "Dodaj sliku",
+    }),
+  ).toEqual({ kind: "uploading" });
   expect(generateBlock({ ...OPEN, missingInputMessage: "Dodaj završni kadar" })).toEqual({
     kind: "inputs",
     message: "Dodaj završni kadar",

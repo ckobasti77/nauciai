@@ -105,6 +105,19 @@ export function modelTagline(model: StudioModel, locale: Locale): string {
   return locale === "sr" ? model.taglineSr : model.taglineEn;
 }
 
+/**
+ * Monohromni inicijal / dvoslovni znak porodice modela (npr. NB za Nano Banana,
+ * VE za Veo, KL za Kling). Zamenjuje emoji markere za dosledan izgled.
+ */
+export function familyMark(model: StudioModel): string {
+  const name = model.family.trim();
+  const parts = name.split(/[\s-]+/);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+  return name.slice(0, 2).toUpperCase();
+}
+
 export const MODEL_BADGE_LABELS: Record<StudioModelBadge, Record<Locale, string>> = {
   preporuceno: { sr: "preporučeno", en: "recommended" },
   skupo: { sr: "skupo", en: "expensive" },

@@ -1,46 +1,28 @@
-import type { Metadata } from "next";
-
-import { StudioGalleryPage } from "@/components/app/studio-gallery-page";
-import { Panel, SectionHeader } from "@/components/ui/primitives";
-import { appPageMetadata } from "@/lib/app-metadata";
-import { normalizeLocale } from "@/lib/i18n";
-
-export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
-  const { locale } = await params;
-  return appPageMetadata(locale, { sr: "Galerija", en: "Gallery" });
-}
+import { redirect } from "next/navigation";
+import { normalizeLocale, withLocale } from "@/lib/i18n";
 
 export default async function StudioGalleryRoute({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { locale: localeParam } = await params;
+  const query = await searchParams;
   const locale = normalizeLocale(localeParam);
 
-  // Isti fallback obrazac kao `/app/studio` i `/app/credits`: bez Convex URL-a
-  // nema provider-a, pa stranica kaže zašto umesto da padne pri renderu.
-  if (!process.env.NEXT_PUBLIC_CONVEX_URL) {
-    return (
-      <div className="space-y-6">
-        <SectionHeader
-          title={locale === "sr" ? "Galerija" : "Gallery"}
-          body={
-            locale === "sr"
-              ? "Sve tvoje generacije na jednom mestu."
-              : "All your generations in one place."
-          }
-        />
-        <Panel className="p-6">
-          <p className="text-base font-bold text-muted">
-            {locale === "sr"
-              ? "Backend nije povezan na ovoj instalaciji, pa galerija ne može da učita generacije."
-              : "The backend is not connected on this installation, so the gallery cannot load generations."}
-          </p>
-        </Panel>
-      </div>
-    );
+  const sp = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    if (typeof value === "string") {
+      sp.set(key, value);
+    } else if (Array.isArray(value)) {
+      for (const v of value) sp.append(key, v);
+    }
   }
 
-  return <StudioGalleryPage locale={locale} />;
+  const queryString = sp.toString();
+  const target = withLocale(locale, queryString ? `/app/studio?${queryString}` : "/app/studio");
+  redirect(target);
 }
+
