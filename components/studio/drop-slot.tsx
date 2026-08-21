@@ -67,6 +67,7 @@ type Pending = { name: string; progress: number };
  */
 function useSlotIntake({
   slot,
+  uploadKey,
   spec,
   locale,
   capacity,
@@ -74,19 +75,27 @@ function useSlotIntake({
   onUploadingChange,
 }: {
   slot: string;
+  // Jedinstven ključ instance slota za agregaciju uploada (C5). Dva slota istog
+  // imena (npr. `image` prvi/poslednji kadar) moraju da se broje odvojeno, pa
+  // ključ dolazi iznad; podrazumevano je ime slota.
+  uploadKey?: string;
   spec: SlotSpec;
   locale: Locale;
   capacity: number;
   onAccept: (files: SlotFile[]) => void;
-  onUploadingChange?: (uploading: boolean) => void;
+  onUploadingChange?: (key: string, uploading: boolean) => void;
 }) {
   const upload = useSlotUpload();
   const [pending, setPending] = useState<Pending | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const key = uploadKey ?? slot;
 
   useEffect(() => {
-    onUploadingChange?.(pending !== null);
-  }, [pending, onUploadingChange]);
+    onUploadingChange?.(key, pending !== null);
+    // Kad se slot demontira dok upload traje, prijavi da više ne otprema, da
+    // composer ne ostane zauvek zaključan na fantomskom ključu.
+    return () => onUploadingChange?.(key, false);
+  }, [key, pending, onUploadingChange]);
 
   const intake = useCallback(
     async (incoming: File[]) => {
@@ -260,7 +269,7 @@ function useFullScreenDrop(enabled: boolean, onFiles: (files: File[]) => void) {
 export function FullScreenDropOverlay({ label, hint }: { label: string; hint: string }) {
   return (
     <div className="pointer-events-none fixed inset-0 z-50">
-      <div className="absolute inset-4 rounded-[16px] border-[3px] border-dashed border-yellow bg-ink/45 backdrop-blur-[3px]" />
+      <div className="absolute inset-4 surface-card border-[3px] border-dashed border-yellow bg-ink/45 backdrop-blur-[3px]" />
       <div className="surface-card absolute left-1/2 top-1/2 w-[min(92vw,34rem)] -translate-x-1/2 -translate-y-1/2 border-[3px] border-ink bg-yellow p-6 text-center shadow-[10px_10px_0_0_rgba(255,255,255,0.95)]">
         <span className="mx-auto inline-flex size-16 items-center justify-center rounded-full border-[3px] border-ink bg-white text-ink">
           <UploadCloud className="size-8" />
@@ -287,6 +296,7 @@ export function DropSlot({
   fullScreen = false,
   disabled = false,
   className,
+  uploadKey,
   onUploadingChange,
 }: {
   slot: string;
@@ -298,7 +308,8 @@ export function DropSlot({
   fullScreen?: boolean;
   disabled?: boolean;
   className?: string;
-  onUploadingChange?: (uploading: boolean) => void;
+  uploadKey?: string;
+  onUploadingChange?: (key: string, uploading: boolean) => void;
 }) {
   const inputId = useId();
   const [over, setOver] = useState(false);
@@ -315,6 +326,7 @@ export function DropSlot({
 
   const { intake, pending, error } = useSlotIntake({
     slot,
+    uploadKey,
     spec,
     locale,
     capacity: disabled ? 0 : 1,
@@ -465,6 +477,7 @@ export function DropSlotGrid({
   fullScreen = false,
   disabled = false,
   className,
+  uploadKey,
   onUploadingChange,
 }: {
   slot: string;
@@ -477,7 +490,8 @@ export function DropSlotGrid({
   fullScreen?: boolean;
   disabled?: boolean;
   className?: string;
-  onUploadingChange?: (uploading: boolean) => void;
+  uploadKey?: string;
+  onUploadingChange?: (key: string, uploading: boolean) => void;
 }) {
   const inputId = useId();
   const [over, setOver] = useState(false);
@@ -491,6 +505,7 @@ export function DropSlotGrid({
 
   const { intake, pending, error } = useSlotIntake({
     slot,
+    uploadKey,
     spec,
     locale,
     capacity: disabled ? 0 : spec.max - files.length,
@@ -680,7 +695,7 @@ export function FrameSlotPair({
   onChange: (next: FramePair) => void;
   locale: Locale;
   disabled?: boolean;
-  onUploadingChange?: (uploading: boolean) => void;
+  onUploadingChange?: (key: string, uploading: boolean) => void;
 }) {
   const single: SlotSpec = { max: 1, accept: spec.accept };
 
@@ -688,6 +703,7 @@ export function FrameSlotPair({
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
       <DropSlot
         slot="image"
+        uploadKey="image:first"
         spec={single}
         file={frames.first}
         onChange={(file) => onChange({ ...frames, first: file })}
@@ -700,6 +716,7 @@ export function FrameSlotPair({
       <MoveRight className="mx-auto size-6 shrink-0 rotate-90 text-ink sm:rotate-0" aria-hidden="true" />
       <DropSlot
         slot="image"
+        uploadKey="image:last"
         spec={single}
         file={frames.last}
         onChange={(file) => onChange({ ...frames, last: file })}
@@ -731,7 +748,7 @@ export function ReferenceSlots({
   onChange: (next: SlotFiles) => void;
   locale: Locale;
   disabled?: boolean;
-  onUploadingChange?: (uploading: boolean) => void;
+  onUploadingChange?: (key: string, uploading: boolean) => void;
 }) {
   const groups = Object.entries(modeSpec);
 

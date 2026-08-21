@@ -29,7 +29,7 @@ import { modelLabel, type StudioModel } from "@/lib/studio-models";
 const PAGE_SIZE = 12;
 
 const CHIP =
-  "inline-flex min-h-8 items-center gap-1 rounded-full border-2 border-ink px-3 py-1 text-xs font-black transition duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink cursor-pointer disabled:cursor-not-allowed disabled:opacity-50";
+  "inline-flex min-h-8 items-center gap-1 rounded-full border-2 border-ink px-3 py-1 text-xs font-black studio-anim-mikro focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink cursor-pointer disabled:cursor-not-allowed disabled:opacity-50";
 
 type InputThumbs = { items: Array<{ slot: string; storageId: string; url: string | null }>; total: number };
 

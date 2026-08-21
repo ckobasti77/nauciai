@@ -22,18 +22,13 @@
   --bordered-control-radius: 1rem;
   --button-radius: 9999px;
 
-  /* Studio Motion Tokens (Korak 10) */
-  --motion-mikro-in: 120ms;
-  --motion-mikro-out: 80ms;
-  --motion-element-in: 220ms;
-  --motion-element-out: 160ms;
-  --motion-prelaz-in: 260ms;
-  --motion-prelaz-out: 200ms;
+  /* Studio pokret — CSS koristi samo mikro (hover/press) i spor (disanje bunara).
+     Pun rečnik po tierovima (enter/exit, element, prelaz, sva tri easinga) živi u
+     `lib/studio-motion.ts` kao JEDAN izvor istine za Framer animacije; ovde stoji
+     samo ono što CSS stvarno animira, da ne ostane mrtvih tokena (RD10). */
+  --motion-mikro: 120ms;
   --motion-spor: 2000ms;
-
   --ease-studio-out: cubic-bezier(0.05, 0.7, 0.1, 1);
-  --ease-studio-in: cubic-bezier(0.3, 0, 1, 1);
-  --ease-studio-in-out: cubic-bezier(0.2, 0, 0, 1);
 }
 
 @theme inline {
@@ -186,6 +181,16 @@ select {
 
 .studio-breathing {
   animation: studio-breathe var(--motion-spor) ease-in-out infinite;
+}
+
+/* Mikro hover/press tranzicija vezana za rečnik pokreta (RD10). Suzi na osobine
+   koje hover STVARNO menja (transform/opacity/boja/senka) umesto Tailwind
+   podrazumevanog seta koji dira i `filter`/`backdrop-filter`. `prefers-reduced-motion`
+   blok ispod svejedno gasi trajanje. */
+.studio-anim-mikro {
+  transition-property: transform, opacity, color, background-color, border-color, box-shadow;
+  transition-duration: var(--motion-mikro);
+  transition-timing-function: var(--ease-studio-out);
 }
 
 @media (prefers-reduced-motion: reduce) {

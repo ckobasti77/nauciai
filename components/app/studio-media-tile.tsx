@@ -87,7 +87,7 @@ export function StudioMediaTile({
       }}
       className={cn(
         "surface-card group relative mb-4 break-inside-avoid border-2 border-ink bg-white p-2 text-ink cursor-pointer",
-        "shadow-[3px_3px_0_0_rgba(14,49,88,0.12)] transition-[transform,box-shadow] duration-150 ease-out",
+        "shadow-[3px_3px_0_0_rgba(14,49,88,0.12)] studio-anim-mikro",
         "hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_rgba(14,49,88,0.16)]",
         "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
       )}

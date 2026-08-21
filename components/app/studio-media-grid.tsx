@@ -31,7 +31,7 @@ const FIRST_PROMPT = {
 };
 
 const CHIP =
-  "inline-flex min-h-8 items-center gap-1 rounded-full border-2 border-ink px-3 py-1 text-xs font-black transition duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink cursor-pointer disabled:cursor-not-allowed disabled:opacity-50";
+  "inline-flex min-h-8 items-center gap-1 rounded-full border-2 border-ink px-3 py-1 text-xs font-black studio-anim-mikro focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink cursor-pointer disabled:cursor-not-allowed disabled:opacity-50";
 
 export function StudioMediaGrid({
   locale,
@@ -157,13 +157,21 @@ export function StudioMediaGrid({
     setSearchQuery("");
   }
 
-  // Selekcija pojedinačnog tajla
+  // Preuzimljiv posao = ima izlaz i završen je. Status završenog je "done"
+  // (schema), ne "completed" - stara provera je bila mrtva, pa "Izaberi sve
+  // vidljive" nikad nije izlazio.
+  function isJobDownloadable(job: StudioTileJob): boolean {
+    return Boolean(job.outputUrl) && job.status === "done";
+  }
+
+  // Selekcija pojedinačnog tajla: u izbor ulazi SAMO preuzimljiv posao (brojač i
+  // preuzimanje inače lažu). Uklanjanje je uvek dozvoljeno.
   function handleToggleSelect(job: StudioTileJob) {
     setSelectedJobs((prev) => {
       const next = new Map(prev);
       if (next.has(job._id)) {
         next.delete(job._id);
-      } else {
+      } else if (isJobDownloadable(job)) {
         next.set(job._id, job);
       }
       return next;
@@ -171,10 +179,7 @@ export function StudioMediaGrid({
   }
 
   // Preuzimljivi poslovi sa ekrana koji odgovaraju trenutnom prikazu
-  const visibleDownloadable = useMemo(
-    () => filteredJobs.filter((job) => Boolean(job.outputUrl) && job.status === "completed"),
-    [filteredJobs],
-  );
+  const visibleDownloadable = useMemo(() => filteredJobs.filter(isJobDownloadable), [filteredJobs]);
 
   function handleSelectAllVisible() {
     setSelectedJobs((prev) => {

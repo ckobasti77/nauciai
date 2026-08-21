@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -143,7 +144,7 @@ function ModeInputs({
   optional: string[];
   locale: Locale;
   disabled: boolean;
-  onUploadingChange?: (uploading: boolean) => void;
+  onUploadingChange?: (key: string, uploading: boolean) => void;
 }) {
   const slots = slotsForMode(model.inputSpec, inputMode).filter((entry) => !optional.includes(entry.slot));
   if (slots.length === 0) {
@@ -262,7 +263,21 @@ export function StudioComposer({
   const [prompt, setPrompt] = useState(() => starterPrompt ?? seed?.prompt ?? "");
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [isPriceFlashing, setIsPriceFlashing] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
+  // C5: svaki slot prijavljuje SVOJ ključ; upload traje dok je bar jedan aktivan.
+  // Jedan boolean je gubio stanje kad se od više slotova jedan otpremi pre drugih
+  // (poslednji emiter je pobeđivao i otključavao dugme dok drugi još traje) - Set
+  // po ključu broji sve slotove ispravno.
+  const [uploadingKeys, setUploadingKeys] = useState<Set<string>>(() => new Set());
+  const isUploading = uploadingKeys.size > 0;
+  const handleUploadingChange = useCallback((key: string, uploading: boolean) => {
+    setUploadingKeys((prev) => {
+      if (uploading === prev.has(key)) return prev;
+      const next = new Set(prev);
+      if (uploading) next.add(key);
+      else next.delete(key);
+      return next;
+    });
+  }, []);
   const [recentSlugs, setRecentSlugs] = useState<string[]>(() => [activeModel.slug]);
 
   // Sinhronizacija starterPrompt / seed tokom rendera bez cascading renders
@@ -358,6 +373,20 @@ export function StudioComposer({
     () => optionalSlots(activeModel.paramSpec, form.values, activeModel.inputSpec, inputMode),
     [activeModel.paramSpec, form.values, activeModel.inputSpec, inputMode],
   );
+  // C3: fajl u slotu koji je vrednost kontrole SAKRILA (opcion) ne sme da ode
+  // provajderu ni da se naplati. `optionalSlots` ga skloni sa ekrana, ali je
+  // ostajao u `files`; ovde se izbacuje iz payload-a. Merenje/cena i dalje idu
+  // preko `effectiveFiles` - red measured→form→optional ne sme da postane ciklus;
+  // eventualan opcion "extra" bi prikazao cenu naviše (bezbedan smer), a server
+  // naplaćuje po onome što je stvarno primio.
+  const payloadFiles = useMemo(() => {
+    if (optional.length === 0) return effectiveFiles;
+    const next: SlotFiles = {};
+    for (const [slot, list] of Object.entries(effectiveFiles)) {
+      if (!optional.includes(slot)) next[slot] = list;
+    }
+    return next;
+  }, [effectiveFiles, optional]);
   const availableSlots = useMemo(
     () => slotsForMode(activeModel.inputSpec, inputMode).filter((entry) => !optional.includes(entry.slot)),
     [activeModel.inputSpec, inputMode, optional],
@@ -457,7 +486,7 @@ export function StudioComposer({
   function handleSelectNewModel(newModel: StudioModel) {
     if (newModel.slug === activeModel.slug) return;
 
-    setIsUploading(false);
+    setUploadingKeys(new Set());
     setRecentSlugs((prev) => [newModel.slug, ...prev.filter((s) => s !== newModel.slug)].slice(0, 5));
     onSelectModel(newModel);
 
@@ -519,7 +548,7 @@ export function StudioComposer({
     onGenerate({
       params: form.params,
       inputMode,
-      inputs: inputsPayload(effectiveFiles),
+      inputs: inputsPayload(payloadFiles),
       ...(sourceRequired && sourceJobId ? { sourceJobId } : {}),
     });
   }
@@ -577,7 +606,12 @@ export function StudioComposer({
   }, [activeModel.paramSpec, inputMode, form.values]);
 
   // Prikaz cene na baru: procena `~` ili tačna
-  const isEstimated = quantitySource !== null && serverSeconds === null && !Number.isFinite(serverSeconds);
+  // Procena `~` samo dok se MEDIJSKO trajanje ne izmeri na serveru. Tekstualni
+  // modeli (`tts`, `dialogue`) broje znakove tačno i na klijentu i na serveru -
+  // za njih cena nije procena, pa ne nose `~` (ranije su ga nosili uvek, jer je
+  // `serverSeconds` za njih uvek `null`).
+  const isEstimated =
+    quantitySource !== null && quantitySource.from !== "text_length" && serverSeconds === null;
   const priceDisplay = useMemo(() => {
     if (credits === null) {
       const def = defaultCredits(activeModel);
@@ -708,7 +742,7 @@ export function StudioComposer({
                   optional={optional}
                   locale={locale}
                   disabled={isPending}
-                  onUploadingChange={setIsUploading}
+                  onUploadingChange={handleUploadingChange}
                 />
               </div>
 
