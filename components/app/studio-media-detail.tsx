@@ -428,7 +428,7 @@ export function StudioMediaDetail({
             aria-label={historyOpen ? t.hideHistory : t.showHistory}
             title={historyOpen ? t.hideHistory : t.showHistory}
             className={cn(
-              "hidden size-10 items-center justify-center rounded-full border-2 border-ink bg-white text-ink shadow-[2px_2px_0_0_rgba(14,49,88,0.18)] transition hover:-translate-y-0.5 md:inline-flex",
+              "hidden size-10 items-center justify-center rounded-full border-2 border-ink bg-white text-ink shadow-[2px_2px_0_0_rgba(14,49,88,0.18)] transition hover:-translate-y-0.5 md:inline-flex studio-focus-ink",
               historyOpen && "bg-yellow/30",
             )}
           >
@@ -496,7 +496,7 @@ export function StudioMediaDetail({
                 onClick={() => onSelectJob(prevJob)}
                 aria-label={t.prev}
                 title={t.prev}
-                className="absolute -left-5 z-20 hidden size-10 items-center justify-center rounded-full border-2 border-ink bg-white text-ink shadow-[2px_2px_0_0_rgba(14,49,88,0.18)] transition hover:-translate-y-0.5 lg:inline-flex"
+                className="absolute -left-5 z-20 hidden size-10 items-center justify-center rounded-full border-2 border-ink bg-white text-ink shadow-[2px_2px_0_0_rgba(14,49,88,0.18)] transition hover:-translate-y-0.5 lg:inline-flex studio-focus-ink"
               >
                 <ChevronLeft className="size-5" />
               </button>
@@ -593,7 +593,7 @@ export function StudioMediaDetail({
                         }}
                         aria-label={isZoomed ? t.zoomOut : t.zoomIn}
                         title={isZoomed ? t.zoomOut : t.zoomIn}
-                        className="absolute bottom-3 right-3 flex size-8 items-center justify-center rounded-full border border-white/20 bg-black/60 text-white backdrop-blur-xs transition hover:bg-white/20"
+                        className="absolute bottom-3 right-3 flex size-8 items-center justify-center rounded-full border border-white/20 bg-black/60 text-white backdrop-blur-xs transition hover:bg-white/20 studio-focus-ink"
                       >
                         {isZoomed ? <ZoomOut className="size-4" /> : <ZoomIn className="size-4" />}
                       </button>
@@ -625,7 +625,7 @@ export function StudioMediaDetail({
                           type="button"
                           onClick={handleTogglePlay}
                           aria-label={t.play}
-                          className="absolute inset-0 m-auto flex size-16 items-center justify-center rounded-full border-2 border-ink bg-white/90 text-ink shadow-lg transition hover:scale-105"
+                          className="absolute inset-0 m-auto flex size-16 items-center justify-center rounded-full border-2 border-ink bg-white/90 text-ink shadow-lg transition hover:scale-105 studio-focus-ink"
                         >
                           <Play className="ml-1 size-7 fill-current" />
                         </button>
@@ -665,7 +665,7 @@ export function StudioMediaDetail({
                 onClick={() => onSelectJob(nextJob)}
                 aria-label={t.next}
                 title={t.next}
-                className="absolute -right-5 z-20 hidden size-10 items-center justify-center rounded-full border-2 border-ink bg-white text-ink shadow-[2px_2px_0_0_rgba(14,49,88,0.18)] transition hover:-translate-y-0.5 lg:inline-flex"
+                className="absolute -right-5 z-20 hidden size-10 items-center justify-center rounded-full border-2 border-ink bg-white text-ink shadow-[2px_2px_0_0_rgba(14,49,88,0.18)] transition hover:-translate-y-0.5 lg:inline-flex studio-focus-ink"
               >
                 <ChevronRight className="size-5" />
               </button>
@@ -680,7 +680,7 @@ export function StudioMediaDetail({
                 type="button"
                 onClick={handleTogglePlay}
                 aria-label={isPlaying ? t.pause : t.play}
-                className="inline-flex size-8 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-paper text-ink transition hover:bg-yellow"
+                className="inline-flex size-8 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-paper text-ink transition hover:bg-yellow studio-focus-ink"
               >
                 {isPlaying ? <Pause className="size-4 fill-current" /> : <Play className="ml-0.5 size-4 fill-current" />}
               </button>
@@ -710,7 +710,7 @@ export function StudioMediaDetail({
                 type="button"
                 onClick={() => setIsMuted((prev) => !prev)}
                 aria-label={isMuted ? t.unmute : t.mute}
-                className="inline-flex size-7 shrink-0 items-center justify-center rounded-full text-muted transition hover:text-ink"
+                className="inline-flex size-7 shrink-0 items-center justify-center rounded-full text-muted transition hover:text-ink studio-focus-ink"
               >
                 {isMuted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
               </button>
@@ -739,7 +739,7 @@ export function StudioMediaDetail({
               {/* Model */}
               <div>
                 <span className="block text-[11px] font-black uppercase tracking-wide text-muted">{t.model}</span>
-                <div className="mt-1.5 flex items-center gap-2.5 rounded-[12px] border-2 border-ink bg-paper p-2.5">
+                <div className="mt-1.5 flex items-center gap-2.5 surface-inset border-2 border-ink bg-paper p-2.5">
                   {jobModel ? (
                     <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-ink font-mono text-xs font-black text-white">
                       {familyMark(jobModel)}

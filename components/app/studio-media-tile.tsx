@@ -195,6 +195,8 @@ export function StudioMediaTile({
                   playsInline
                   loop
                   controls
+                  // Klik na kontrole plejera ne sme da otvori detalj (tile onClick).
+                  onClick={(e) => e.stopPropagation()}
                   className="block max-h-[560px] w-full object-cover"
                 />
               </div>
@@ -208,7 +210,7 @@ export function StudioMediaTile({
                     {locale === "sr" ? "Audio zapis" : "Audio track"}
                   </span>
                 </div>
-                <div className="py-4">
+                <div className="py-4" onClick={(e) => e.stopPropagation()}>
                   <audio controls src={job.outputUrl as string} className="w-full" />
                 </div>
               </div>
@@ -237,7 +239,7 @@ export function StudioMediaTile({
                 : (locale === "sr" ? "Izaberi za preuzimanje" : "Select for download")
             }
             className={cn(
-              "absolute left-3 top-3 z-30 grid size-7 place-items-center rounded-full border-2 border-ink transition duration-150 cursor-pointer",
+              "absolute left-3 top-3 z-30 grid size-7 place-items-center rounded-full border-2 border-ink studio-anim-mikro cursor-pointer studio-focus-ink",
               selected
                 ? "bg-yellow text-ink shadow-[2px_2px_0_0_#0e3158] opacity-100"
                 : cn(
@@ -279,7 +281,7 @@ export function StudioMediaTile({
               aria-label={locale === "sr" ? "Omiljeno" : "Favorite"}
               title={locale === "sr" ? "Omiljeno" : "Favorite"}
               className={cn(
-                "inline-flex size-7 items-center justify-center rounded-full transition hover:bg-white/20",
+                "inline-flex size-7 items-center justify-center rounded-full studio-anim-mikro hover:bg-white/20 studio-focus-ink",
                 isFavorited && "text-yellow",
               )}
             >
@@ -292,7 +294,7 @@ export function StudioMediaTile({
                 onClick={() => onReuse(job)}
                 aria-label={locale === "sr" ? "Upotrebi ponovo" : "Reuse"}
                 title={locale === "sr" ? "Upotrebi ponovo" : "Reuse"}
-                className="inline-flex size-7 items-center justify-center rounded-full transition hover:bg-white/20"
+                className="inline-flex size-7 items-center justify-center rounded-full studio-anim-mikro hover:bg-white/20 studio-focus-ink"
               >
                 <RefreshCw className="size-3.5" />
               </button>
@@ -306,7 +308,7 @@ export function StudioMediaTile({
               }}
               aria-label={locale === "sr" ? "Preuzmi" : "Download"}
               title={locale === "sr" ? "Preuzmi" : "Download"}
-              className="inline-flex size-7 items-center justify-center rounded-full transition hover:bg-white/20"
+              className="inline-flex size-7 items-center justify-center rounded-full studio-anim-mikro hover:bg-white/20 studio-focus-ink"
             >
               <Download className="size-3.5" />
             </button>

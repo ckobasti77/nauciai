@@ -474,7 +474,7 @@ export function StudioPage({
                   onClick={() => setScope(option)}
                   aria-pressed={scope === option}
                   className={cn(
-                    "inline-flex min-h-8 items-center gap-1 rounded-full border-2 border-ink px-3 py-1 text-xs font-black transition duration-150 cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+                    "inline-flex min-h-8 items-center gap-1 rounded-full border-2 border-ink px-3 py-1 text-xs font-black studio-anim-mikro cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
                     scope === option
                       ? "bg-yellow text-ink shadow-[2px_2px_0_0_#0e3158]"
                       : "bg-white text-ink hover:-translate-y-0.5",

@@ -238,7 +238,7 @@ export function StudioMediaGrid({
   return (
     <div className="space-y-4">
       {/* ── Gornja traka filtera mreže ────────────────────────────────────────── */}
-      <div className="flex flex-col gap-3 rounded-2xl border-2 border-ink bg-white p-3 shadow-[3px_3px_0_0_rgba(14,49,88,0.12)] sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+      <div className="surface-card flex flex-col gap-3 border-2 border-ink bg-white p-3 shadow-[3px_3px_0_0_rgba(14,49,88,0.12)] sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div className="flex flex-1 flex-wrap items-center gap-2">
           {/* Pretraga po promptu */}
           <div className="relative min-w-[180px] max-w-xs flex-1 sm:flex-none">
@@ -248,7 +248,7 @@ export function StudioMediaGrid({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={locale === "sr" ? "Pretraži promptove…" : "Search prompts…"}
-              className="surface-inset h-8 w-full border-2 border-ink bg-paper pl-8 pr-7 text-xs font-bold text-ink outline-none placeholder:text-muted focus:bg-white focus:ring-2 focus:ring-yellow/30"
+              className="surface-inset h-8 w-full border-2 border-ink bg-paper pl-8 pr-7 text-xs font-bold text-ink outline-none placeholder:text-muted focus:bg-white studio-focus-ink"
             />
             {searchQuery ? (
               <button
@@ -301,7 +301,7 @@ export function StudioMediaGrid({
               value={modelFilter ?? ""}
               onChange={(e) => setModelFilter(e.target.value === "" ? null : e.target.value)}
               aria-label={locale === "sr" ? "Filter po modelu" : "Filter by model"}
-              className="surface-inset h-8 border-2 border-ink bg-white px-2.5 text-xs font-black text-ink outline-none cursor-pointer hover:bg-paper"
+              className="surface-inset h-8 border-2 border-ink bg-white px-2.5 text-xs font-black text-ink outline-none cursor-pointer hover:bg-paper studio-focus-ink"
             >
               <option value="">{locale === "sr" ? "Svi modeli" : "All models"}</option>
               {catalog.map((model) => (

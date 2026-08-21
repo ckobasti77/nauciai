@@ -432,3 +432,52 @@ izdvojena funkcija, ne dve slične, sa paritet-testom. **RD1–RD5 su verne prav
 kapije drže.** Ali samoprocena ima plafon, i on je tačno tamo gde je i prošli put:
 u onome što se ne vidi u mreži i u mock režimu — deljiv link, moderatorski pregled,
 grupno preuzimanje kroz pravi storage, i pristupačnost sidebara.
+
+---
+
+## 8. Ažuriranje statusa posle sprovođenja (RD10, 22.08.2026)
+
+> Grana `feat/studio-redesign` (koraci 5–10 sada ukomitovani; `main` netaknut).
+> Kapije: codegen 0 · lint 8w/0e · test 916 · build 64/64.
+
+**Sekcija 2 (defekti):**
+- **C1** cena — 🟢 zatvoren (nepromenjeno, potvrđeno).
+- **C2** galerija-prazno — 🟢 zatvoren (nepromenjeno).
+- **C3** sakriven slot se šalje — 🟢 **ZATVOREN.** `payloadFiles` izbacuje opcione
+  slotove iz `inputsPayload` (`studio-composer.tsx`).
+- **C4** promena modela — 🟢 zatvoren (nepromenjeno).
+- **C5** upload blokada — 🟢 **OJAČAN.** `isUploading` boolean → `Set` po ključu
+  slota; više ne visi o `missingInput`-u; `FrameSlotPair` slotovi razdvojeni.
+- **C6** sitnice — 🟢 uglavnom zatvoren; tts/dialogue „procena" oznaka popravljena;
+  `rounded-[16px]` u `drop-slot` migriran na `surface-card`.
+
+**Sekcija 3 (nove rupe):**
+- **H1** download laže uspeh — 🟢 **ZATVOREN.** `downloadMediaFiles`/
+  `downloadSingleMedia` broje uspeh samo kad je preuzimanje potvrđeno; CORS/greška
+  ide u `failed`; lažni `<a download>` fallback uklonjen. (Živa CORS provera i
+  dalje za Jovana — mock je `data:`.)
+- **H2** deljiv link prikazuje ulaz — 🟢 **ZATVOREN.** `getJobForDetail` vraća
+  pravi izlaz+status; `studio-page.tsx` više ne fabrikuje izlaz iz prvog ulaza.
+- **H3** moderatorski pregled nestao — 🟢 **ZATVOREN.** `StudioModerationGrid`
+  vraća „Svi korisnici" + reveal (audit) u jeziku mreže.
+- Navigacija `pushState` — 🟢 čisto (nepromenjeno).
+- Selekcija/brojač — 🟢 pošten; uz to ispravljen mrtvi `status === "completed"`
+  (šema je `"done"`) pa „Izaberi sve vidljive" sada radi; izbor samo preuzimljivih.
+
+**Sekcija 4 (pokret):**
+- Reduced-motion na tri prelaza — 🟢 **ZATVOREN.** `MotionConfig reducedMotion="user"`
+  u `SidebarNavSwap` pokriva swap + stavke + hover/tap; sidebar je bio jedina rupa.
+- Mrtvi CSS motion tokeni — 🟢 **ZATVOREN.** Reducirani na korišćene
+  (`--motion-mikro`/`--motion-spor`/`--ease-studio-out`) i uvezani u
+  `.studio-anim-mikro`; pun rečnik je u `lib/studio-motion.ts`.
+- Hover sloj van rečnika — 🟡 **DELIMIČNO.** Čipovi/tajl/scope/checkbox uvezani;
+  composer dugmad ostaju (jeftine osobine, reduced-motion ih gasi) — backlog.
+
+**Sekcija 6 (presuda) — šta je i dalje otvoreno:**
+- **Git** — 🟢 sređeno (rad na grani, main netaknut).
+- **Favorite = mrtva kontrola** i **grid pretraga klijentska** — 🔴 **OSTAJU**
+  (prava popravka traži `convex/**`, van dozvole ovog prolaza; backlog, vidi
+  `POLISH-NALAZI.md` L1/L2).
+- **`STUDIO-HARD-REPORT.md` sekcija 5.A** (N2/Y1/Y2/Y4, `mimeType` kao serverski
+  podatak, Stripe Tax) — 🔴 **NETAKNUTO.** Redizajn je frontend; ovaj prolaz ih
+  nije ni dirao niti zatvara. I dalje blokada pre nego što Stripe/studenti uđu.

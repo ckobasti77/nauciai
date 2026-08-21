@@ -137,7 +137,7 @@ export function StudioModerationGrid({
   return (
     <div className="space-y-4">
       {/* ── Filter bar (osoblje) ─────────────────────────────────────────────── */}
-      <div className="flex flex-col gap-3 rounded-2xl border-2 border-ink bg-white p-3 shadow-[3px_3px_0_0_rgba(14,49,88,0.12)]">
+      <div className="surface-card flex flex-col gap-3 border-2 border-ink bg-white p-3 shadow-[3px_3px_0_0_rgba(14,49,88,0.12)]">
         <div className="flex flex-wrap items-center gap-2">
           {/* Filter po vlasniku */}
           {owners && owners.length > 0 ? (
@@ -149,14 +149,14 @@ export function StudioModerationGrid({
                   value={ownerSearch}
                   onChange={(e) => setOwnerSearch(e.target.value)}
                   placeholder={locale === "sr" ? "Traži vlasnika…" : "Search owner…"}
-                  className="surface-inset h-8 w-[150px] border-2 border-ink bg-paper pl-7 pr-2 text-xs font-bold text-ink outline-none placeholder:text-muted focus:bg-white focus:ring-2 focus:ring-yellow/30"
+                  className="surface-inset h-8 w-[150px] border-2 border-ink bg-paper pl-7 pr-2 text-xs font-bold text-ink outline-none placeholder:text-muted focus:bg-white studio-focus-ink"
                 />
               </div>
               <select
                 value={ownerId ?? ""}
                 onChange={(e) => setOwnerId(e.target.value === "" ? null : (e.target.value as Id<"users">))}
                 aria-label={locale === "sr" ? "Filter po vlasniku" : "Filter by owner"}
-                className="surface-inset h-8 max-w-[180px] border-2 border-ink bg-white px-2 text-xs font-black text-ink outline-none cursor-pointer hover:bg-paper"
+                className="surface-inset h-8 max-w-[180px] border-2 border-ink bg-white px-2 text-xs font-black text-ink outline-none cursor-pointer hover:bg-paper studio-focus-ink"
               >
                 <option value="">{locale === "sr" ? "Svi vlasnici" : "All owners"}</option>
                 {visibleOwners.map((owner) => (

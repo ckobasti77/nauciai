@@ -193,6 +193,13 @@ select {
   transition-timing-function: var(--ease-studio-out);
 }
 
+/* Dosledan ink fokus-prsten za dugmad koja ga nemaju inline (RD10 a11y). Kratko
+   da se applied na više medijskih kontrola bez ponavljanja pune Tailwind niske. */
+.studio-focus-ink:focus-visible {
+  outline: 2px solid #0e3158;
+  outline-offset: 2px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

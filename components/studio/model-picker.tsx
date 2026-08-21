@@ -240,7 +240,7 @@ export function ModelPickerOverlay({
     >
       <div
         onClick={(event) => event.stopPropagation()}
-        className="surface-card flex max-h-[85vh] w-full max-w-[720px] flex-col overflow-hidden border-2 border-ink bg-white shadow-[6px_6px_0_0_rgba(14,49,88,0.16)] sm:max-h-[80vh] sm:rounded-[16px]"
+        className="surface-card flex max-h-[85vh] w-full max-w-[720px] flex-col overflow-hidden border-2 border-ink bg-white shadow-[6px_6px_0_0_rgba(14,49,88,0.16)] sm:max-h-[80vh]"
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b-2 border-ink bg-paper px-4 py-3 sm:px-6">

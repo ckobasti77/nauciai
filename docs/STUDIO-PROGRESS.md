@@ -7456,8 +7456,80 @@ Pokreni lokalni dev server (`npm run dev`) i prijavi se kao admin, zatim otvori:
 
 **BLOKADA:** Nema.
 
+---
 
+## RD10 - Zavrsni UI/UX prolaz (sprovodjenje ZAVRSNI-IZVESTAJ-a)   (22.08.2026)
 
+> Grana sredjena: koraci 5-10 su bili neukomitovani na `main`; prebaceni na
+> `feat/studio-redesign` (commit `Studio redizajn: koraci 5-10`) + odvojen
+> `chore(skills)`; `main` netaknut na `ed11ef4`; zastarela grana sacuvana kao
+> `feat/studio-redesign-stale-5168312`.
+
+**FAZA 1 - tri crvene rupe + pristupacnost:**
+- **H2 (deljiv link prikazuje ulaz):** nov aditivni query `getJobForDetail`
+  (`convex/studio.ts`) vraca pravi `outputUrl`+status; `studio-page.tsx` vise ne
+  fabrikuje izlaz iz prvog ulaza. `getJobForRegenerate` netaknut.
+- **H1 (download laze uspeh):** `downloadMediaFiles` + nov `downloadSingleMedia`
+  (`lib/studio-gallery.ts`) - uspeh se broji SAMO kad je blob preuzimanje
+  potvrdjeno; greska (CORS/mreza) ide u `failed`; uklonjen `<a download>`
+  cross-origin fallback koji je otvarao tabove i lagao uspeh. Tile i detalj
+  single-download presli na isti put. Test azuriran.
+- **H3 (moderacija nestala):** nov `StudioModerationGrid` u jeziku mreze -
+  scope prekidac (osoblje, u `studio-page.tsx`), filter po vlasniku/statusu/
+  provajderu, `revealJobDetail` (admin, audit red) sa napomenom pre klika;
+  moderator dobija podskup bez prompta/thumbs. `listAllJobs`/`listJobOwners`/
+  `revealJobDetail` opet imaju potrosaca.
+- **1.4 (sidebar reduced-motion):** `MotionConfig reducedMotion="user"` u
+  `SidebarNavSwap` gasi SVE Framer animacije sidebara (swap + stavke + hover/tap)
+  odjednom - ranije je swap postovao `reduce` prop, ali ugnjezdene item animacije
+  nisu.
+
+**FAZA 2 - repovi:**
+- **C3:** `payloadFiles` izbacuje opcione (sakrivene) slotove iz `inputsPayload`
+  (`studio-composer.tsx`) - sakriven fajl vise ne ide provajderu ni u naplatu.
+- **C5:** `isUploading` boolean -> `Set` po kljucu slota; `FrameSlotPair` dva
+  `image` slota dobijaju `image:first`/`image:last`; unmount cleanup gasi
+  fantomski kljuc (`drop-slot.tsx` + `studio-composer.tsx`).
+- **Pokret:** mrtvi CSS tokeni sklonjeni (`--motion-mikro`/`--motion-spor`/
+  `--ease-studio-out` ostaju), uvezani u `.studio-anim-mikro` (suzen na jeftine
+  osobine), primenjen na cipove/tajl/scope. Pun tierovan recnik je u
+  `lib/studio-motion.ts` kao izvor istine.
+- Sitno: `drop-slot` `rounded-[16px]` -> `surface-card`; tts/dialogue vise ne
+  pisu „procena" (znakovi su tacni); selekcija samo preuzimljivih poslova;
+  ispravljen status `"completed"` -> `"done"` (mrtva provera je gasila „Izaberi
+  sve vidljive").
+
+**FAZA 3 - polish (ceo spisak u `docs/studio-redesign/POLISH-NALAZI.md`):**
+Zivi klik-kroz je blokiran (Studio iza Google logina + staff-only; OAuth/pravljenje
+naloga van pravila), pa je prolaz staticka analiza koda. Nadjeno **17**,
+popravljeno **9**, svesno ostavljeno **8** (svaki sa razlogom - najvaznije:
+favorite je mrtva kontrola i grid pretraga je klijentska, a obe prave popravke
+traze `convex/**` koji je van dozvole ovog prolaza). Popravljeno: focus-visible na
+7 kontrola detalja + tile pil/checkbox + 2 selecta + 2 search inputa
+(`.studio-focus-ink`), tile video/audio kontrole vise ne otimaju klik za detalj
+(stopPropagation), radiusi na `surface-*`.
+
+**ODLUKE:**
+1. **`convex/**` samo za H2 i H3, aditivno** - `getJobForDetail` i potrosac
+   `listAllJobs`/`revealJobDetail`. Nista drugo (favorite backend, server-side
+   pretraga) nije dirano; to je zapisano kao backlog, ne uradjeno.
+2. **Dizajn nije preispitivan** - sve popravke su unutar resenog dizajna
+   (Mastionica, Pravac 3, prelaz sidebara, detalj-editor, spojena galerija).
+3. **Sidebar reduced-motion preko `MotionConfig`, ne po komponenti** - jedan gate
+   pokriva ceo sidebar subtree.
+
+**Testovi:**
+- Azuriran `downloadMediaFiles` test (H1): nikad ne prijavljuje nepotvrdjen uspeh.
+- Ostali testovi nepromenjeni; UI izmene se ne renderuju u suite-u (repo obrazac).
+
+**Rezultat verifikacije (posle svake faze; poslednji prolaz):**
+- `npx convex codegen` -> exit 0
+- `npm run lint` -> `✖ 8 problems (0 errors, 8 warnings)`, exit 0 (svih 8 nasledjeno)
+- `npm run test` -> `Test Files 66 passed (66)`, `Tests 916 passed (916)`, exit 0
+- `npm run build` -> `✓ Compiled successfully`, `Generating static pages (64/64)`, exit 0
+
+**BLOKADA:** Nema. Za Jovana: zive provere u `POLISH-NALAZI.md` (reduced-motion,
+sirine, moderacija audit) - blokirane loginom u ovom okruzenju.
 
 
 
