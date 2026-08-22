@@ -1,26 +1,17 @@
 "use client";
 
-import { ChevronRight, CircleAlert, Menu, PenLine, Sparkles, X } from "lucide-react";
+import { CircleAlert, Sparkles } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
 
-import { cn } from "@/components/ui/primitives";
 import { SmartStickyRegion } from "@/components/ui/smart-sticky";
-import {
-  activeCommunitySection,
-  communitySectionLabel,
-  communitySectionsFor,
-  type CommunitySection,
-} from "@/lib/community-sections";
+import { activeCommunitySection } from "@/lib/community-sections";
 import type { Locale } from "@/lib/i18n";
 import { withLocale } from "@/lib/i18n";
 
 import { fallbackCommunityFilters, useCommunityFilters } from "./community-data";
 import type { CommunityFilters } from "./community-types";
-
-type CommunityNavItem = CommunitySection & { badge?: number };
 
 type CommunityHeroCopy = {
   badgeSr: string;
@@ -90,70 +81,6 @@ const COMMUNITY_HERO_COPY: Record<string, CommunityHeroCopy> = {
   },
 };
 
-const PRESERVED_SEARCH_KEYS = ["scope", "track", "course", "q", "sort"];
-
-function navHref(locale: Locale, path: string, searchParams: URLSearchParams) {
-  const preserved = new URLSearchParams();
-  PRESERVED_SEARCH_KEYS.forEach((key) => {
-    searchParams.getAll(key).forEach((value) => preserved.append(key, value));
-  });
-  const query = preserved.toString();
-  return `${withLocale(locale, `/app/community/${path}`)}${query ? `?${query}` : ""}`;
-}
-
-function NavBadge({ count, locale }: { count?: number; locale: Locale }) {
-  if (!count) return null;
-  return (
-    <span className="inline-flex min-w-5 items-center justify-center rounded-full border border-ink bg-yellow px-1.5 py-0.5 font-mono text-[10px] font-black leading-none text-ink">
-      <span className="sr-only">{locale === "sr" ? "Nepročitano:" : "Unread:"}</span>
-      {count > 99 ? "99+" : count}
-    </span>
-  );
-}
-
-function CommunityNavLink({
-  item,
-  locale,
-  active,
-  href,
-  onNavigate,
-  mobile = false,
-}: {
-  item: CommunityNavItem;
-  locale: Locale;
-  active: boolean;
-  href: string;
-  onNavigate?: () => void;
-  mobile?: boolean;
-}) {
-  const Icon = item.icon;
-  const label = communitySectionLabel(item, locale);
-
-  return (
-    <Link
-      href={href}
-      onClick={onNavigate}
-      aria-current={active ? "page" : undefined}
-      className={cn(
-        "group inline-flex min-h-11 items-center gap-2 px-3.5 text-sm font-black transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yellow",
-        mobile && "w-full justify-between rounded-[12px] px-4",
-        !mobile && "w-full justify-center",
-        active
-          ? "text-ink"
-          : mobile
-            ? "border-line bg-paper-strong text-ink hover:border-ink hover:bg-yellow/15"
-            : "text-muted hover:text-ink",
-      )}
-    >
-      <span className="flex min-w-0 items-center gap-2">
-        <Icon className="size-4 shrink-0" aria-hidden="true" />
-        <span className="truncate">{label}</span>
-      </span>
-      <NavBadge count={item.badge} locale={locale} />
-    </Link>
-  );
-}
-
 export function CommunityShell({
   locale,
   hasConvex,
@@ -196,44 +123,10 @@ function CommunityShellView({
   children: ReactNode;
 }) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const menuButtonRef = useRef<HTMLButtonElement>(null);
-  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  // Community renders a section-aware hero; the sidebar's community context now owns the
+  // section navigation itself (scope/track/course/q/sort preserved there).
   const activeSection = activeCommunitySection(pathname);
   const heroCopy = COMMUNITY_HERO_COPY[activeSection] ?? COMMUNITY_HERO_COPY.discussions;
-  const isStaff = filters.viewer.role === "admin" || filters.viewer.role === "moderator";
-
-  const navItems = useMemo<CommunityNavItem[]>(
-    () =>
-      communitySectionsFor(isStaff).map((section) => ({
-        ...section,
-        badge: section.badgeKey ? filters.counts?.[section.badgeKey] : undefined,
-      })),
-    [filters.counts, isStaff],
-  );
-  const activeNavIndex = Math.max(0, navItems.findIndex((item) => item.id === activeSection));
-  const activeNavWidth = `${100 / Math.max(navItems.length, 1)}%`;
-  const activeNavTransform = `translateX(${activeNavIndex * 100}%)`;
-
-  useEffect(() => {
-    if (!mobileMenuOpen) return;
-    const previousOverflow = document.body.style.overflow;
-    const menuButton = menuButtonRef.current;
-    document.body.style.overflow = "hidden";
-    closeButtonRef.current?.focus();
-
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") setMobileMenuOpen(false);
-    }
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", onKeyDown);
-      menuButton?.focus();
-    };
-  }, [mobileMenuOpen]);
 
   return (
     <div className="mx-auto w-full max-w-[1180px] space-y-5" aria-busy={isLoading}>
@@ -265,56 +158,10 @@ function CommunityShellView({
       <SmartStickyRegion
         className="top-16 z-30 overflow-hidden border-b-2 border-line/75 bg-paper/95 shadow-[0_8px_18px_-16px_var(--shadow-hard-55)] backdrop-blur md:top-0"
       >
-      <nav aria-label={locale === "sr" ? "Sekcije zajednice" : "Community sections"}>
-        <div className="hidden overflow-x-auto sm:block">
-          <div
-            className="relative grid min-w-[720px]"
-            style={{ gridTemplateColumns: `repeat(${Math.max(navItems.length, 1)}, minmax(0, 1fr))` }}
-          >
-            <span
-              aria-hidden="true"
-              className="pointer-events-none absolute bottom-0 left-0 z-10 h-1 border-t-2 border-ink bg-yellow shadow-[0_-1px_0_var(--shadow-hard)] transition-transform duration-300 ease-out motion-reduce:transition-none"
-              style={{ width: activeNavWidth, transform: activeNavTransform }}
-            />
-            {navItems.map((item) => (
-              <CommunityNavLink
-                key={item.id}
-                item={item}
-                locale={locale}
-                active={activeSection === item.id}
-                href={navHref(locale, item.path, new URLSearchParams(searchParams.toString()))}
-              />
-            ))}
-          </div>
-        </div>
-        <div className="flex items-center justify-between gap-3 px-1 py-2 sm:hidden">
-          <div className="min-w-0">
-            <p className="text-[10px] font-black uppercase tracking-[0.15em] text-muted">
-              {locale === "sr" ? "Trenutna sekcija" : "Current section"}
-            </p>
-            <p className="mt-1 truncate text-sm font-black text-ink">
-              {locale === "sr"
-                ? navItems.find((item) => item.id === activeSection)?.labelSr
-                : navItems.find((item) => item.id === activeSection)?.labelEn}
-            </p>
-          </div>
-          <button
-            ref={menuButtonRef}
-            type="button"
-            onClick={() => setMobileMenuOpen(true)}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-line bg-paper-strong px-4 text-sm font-black text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-            aria-haspopup="dialog"
-            aria-expanded={mobileMenuOpen}
-          >
-            <Menu className="size-4" aria-hidden="true" />
-            {locale === "sr" ? "Sve sekcije" : "All sections"}
-          </button>
-        </div>
-      </nav>
-      <div
-        className="border-t border-line/75 p-2 empty:hidden sm:p-3"
-        data-community-toolbar-target
-      />
+        <div
+          className="p-2 empty:hidden sm:p-3"
+          data-community-toolbar-target
+        />
       </SmartStickyRegion>
 
       {filters.counts?.profileIncomplete ? (
@@ -333,66 +180,6 @@ function CommunityShellView({
       ) : null}
 
       <div>{children}</div>
-
-      {mobileMenuOpen ? (
-        <div className="fixed inset-0 z-50 sm:hidden" role="presentation">
-          <button
-            type="button"
-            className="absolute inset-0 h-full w-full rounded-none bg-scrim/55 backdrop-blur-[2px]"
-            onClick={() => setMobileMenuOpen(false)}
-            aria-label={locale === "sr" ? "Zatvori meni" : "Close menu"}
-          />
-          <section
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="community-mobile-menu-title"
-            className="absolute inset-x-0 bottom-0 max-h-[82vh] overflow-y-auto rounded-t-[24px] border-2 border-b-0 border-ink bg-paper p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-12px_40px_var(--shadow-hard-25)]"
-          >
-            <div className="mx-auto mb-4 h-1 w-12 rounded-full bg-ink/18" aria-hidden="true" />
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="font-display text-lg text-ink/70">AI Studio Commons</p>
-                <h2 id="community-mobile-menu-title" className="text-xl font-black text-ink">
-                  {locale === "sr" ? "Izaberi sekciju" : "Choose a section"}
-                </h2>
-              </div>
-              <button
-                ref={closeButtonRef}
-                type="button"
-                onClick={() => setMobileMenuOpen(false)}
-                className="grid size-11 place-items-center rounded-full border border-ink bg-paper-strong text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-                aria-label={locale === "sr" ? "Zatvori" : "Close"}
-              >
-                <X className="size-5" aria-hidden="true" />
-              </button>
-            </div>
-            <nav className="mt-5 grid gap-2" aria-label={locale === "sr" ? "Sekcije zajednice" : "Community sections"}>
-              {navItems.map((item) => (
-                <CommunityNavLink
-                  key={item.id}
-                  item={item}
-                  locale={locale}
-                  active={activeSection === item.id}
-                  href={navHref(locale, item.path, new URLSearchParams(searchParams.toString()))}
-                  onNavigate={() => setMobileMenuOpen(false)}
-                  mobile
-                />
-              ))}
-            </nav>
-            <Link
-              href={withLocale(locale, "/app/community/new")}
-              onClick={() => setMobileMenuOpen(false)}
-              className="mt-4 inline-flex min-h-12 w-full items-center justify-between rounded-[12px] border-2 border-ink bg-yellow px-4 text-sm font-black text-ink shadow-[3px_3px_0_var(--shadow-hard-16)]"
-            >
-              <span className="flex items-center gap-2">
-                <PenLine className="size-4" aria-hidden="true" />
-                {locale === "sr" ? "Pokreni diskusiju" : "Start a discussion"}
-              </span>
-              <ChevronRight className="size-4" aria-hidden="true" />
-            </Link>
-          </section>
-        </div>
-      ) : null}
     </div>
   );
 }

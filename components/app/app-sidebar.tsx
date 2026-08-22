@@ -61,17 +61,17 @@ import {
   preferencesFromDraggedWidth,
   serializeAppSidebarPreferences,
 } from "@/lib/app-sidebar-preferences";
-import {
-  activeCommunitySection,
-  communitySectionLabel,
-  communitySectionsFor,
-} from "@/lib/community-sections";
 import { coursePath, lessonPath, trackPath } from "@/lib/app-routes";
 import { publicProfilePath } from "@/lib/profile-links";
 import type { AppCourseNav, AppNavigationData } from "@/lib/app-navigation";
 import { primaryCourseSlug } from "@/lib/content";
 import { dictionary, localized, type Locale, withLocale } from "@/lib/i18n";
-import { activeSectionId, resolveSidebarContext, type SidebarHrefParams } from "@/lib/sidebar-contexts";
+import {
+  COMMUNITY_PRESERVED_KEYS,
+  activeSectionId,
+  resolveSidebarContext,
+  type SidebarHrefParams,
+} from "@/lib/sidebar-contexts";
 import { SidebarNavSwap, ContextSidebarNav, ContextSidebarRail } from "@/components/app/app-sidebar-context";
 
 const AddCourseAction = dynamic(() => import("@/components/app/admin-inline-actions").then((m) => m.AddCourseAction), { ssr: false });
@@ -723,130 +723,6 @@ function NavLink({
   );
 }
 
-/**
- * The one nesting primitive in the primary nav. Lekcije established it; the community
- * group reuses it rather than introducing a second disclosure model for the same job.
- *
- * `containsActive` is deliberately distinct from a NavLink's `active`: this control
- * *contains* the current page rather than being it, so it must not look like a
- * destination you already arrived at.
- */
-function NavDisclosure({
-  icon: Icon,
-  label,
-  count,
-  containsActive,
-  open,
-  onToggle,
-  children,
-}: {
-  icon: typeof LayoutDashboard;
-  label: string;
-  count?: number;
-  containsActive: boolean;
-  open: boolean;
-  onToggle: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <div className="sidebar-reveal col-span-2 sm:col-span-3 md:col-span-1">
-      <motion.button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={open}
-        whileHover={{ x: 2 }}
-        whileTap={{ scale: 0.98 }}
-        className={cn(
-          "inline-flex min-h-11 w-full min-w-0 items-center justify-center gap-3 rounded-full border-2 px-3 py-2 text-sm font-extrabold text-ink transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:justify-start",
-          containsActive
-            ? "border-ink bg-yellow/40"
-            : "border-transparent bg-transparent hover:border-ink hover:bg-yellow/25",
-        )}
-      >
-        <Icon className="size-4" />
-        <span className="flex-1 text-center sm:text-left">
-          {label}
-          {count === undefined ? null : (
-            <span className="ml-2 rounded-[6px] border-2 border-line bg-paper-strong px-2 py-0.5 text-[10px] font-black text-muted">
-              {count}
-            </span>
-          )}
-        </span>
-        <ChevronDown className={cn("size-4 transition", open && "rotate-180")} />
-      </motion.button>
-      <div
-        className={cn(
-          "grid transition-[grid-template-rows,opacity] duration-200",
-          open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
-        )}
-      >
-        {/* grid-rows-[0fr] only clips. Without inert the collapsed rows stay in the tab
-            order while aria-expanded="false" tells assistive tech they are not there. */}
-        <div className="overflow-hidden" inert={!open}>{children}</div>
-      </div>
-    </div>
-  );
-}
-
-function CommunitySections({
-  locale,
-  isStaff,
-  activeSection,
-  containsActive,
-  notificationsBadge,
-  initiallyOpen = false,
-}: {
-  locale: Locale;
-  isStaff: boolean;
-  activeSection: string;
-  containsActive: boolean;
-  notificationsBadge: number;
-  initiallyOpen?: boolean;
-}) {
-  const [open, setOpen] = useState(containsActive || initiallyOpen);
-  const sections = communitySectionsFor(isStaff);
-
-  return (
-    <NavDisclosure
-      icon={MessageCircle}
-      label={dictionary[locale].community}
-      containsActive={containsActive}
-      open={open}
-      onToggle={() => setOpen((value) => !value)}
-    >
-      <div className="mt-2 space-y-2 rounded-[8px] border-2 border-line bg-paper-strong p-2 shadow-[4px_4px_0_0_var(--shadow-hard-08)]">
-        {sections.map((section) => {
-          const active = containsActive && activeSection === section.id;
-          const SectionIcon = section.icon;
-          // Only the notifications count is available here: it is the same server value
-          // the parent Zajednica badge already uses. myThreads and pendingApprovals live
-          // on community's own filters query, which the sidebar does not subscribe to.
-          const badge = section.badgeKey === "community" ? notificationsBadge : 0;
-          return (
-            <Link
-              key={section.id}
-              href={withLocale(locale, `/app/community/${section.path}`)}
-              aria-current={active ? "page" : undefined}
-              className={cn(
-                "flex min-h-11 items-center gap-2 rounded-[8px] border-2 bg-paper-strong px-3 text-sm font-black text-ink",
-                active ? "border-ink bg-yellow" : "border-line hover:border-ink",
-              )}
-            >
-              <SectionIcon className="size-4 shrink-0" />
-              <span className="min-w-0 flex-1 truncate">{communitySectionLabel(section, locale)}</span>
-              {badge > 0 ? (
-                <span className="flex h-5 min-w-5 items-center justify-center rounded-full border border-ink bg-red-600 px-1 text-[10px] font-black text-white">
-                  {badge > 99 ? "99+" : badge}
-                </span>
-              ) : null}
-            </Link>
-          );
-        })}
-      </div>
-    </NavDisclosure>
-  );
-}
-
 function RailAction({
   label,
   icon,
@@ -1032,6 +908,8 @@ function AppBottomNav({
   messagesActive,
   communityBadge,
   messagesBadge,
+  contextActive,
+  onOpenSections,
   hidden,
 }: {
   locale: Locale;
@@ -1043,6 +921,8 @@ function AppBottomNav({
   messagesActive: boolean;
   communityBadge: number;
   messagesBadge: number;
+  contextActive: boolean;
+  onOpenSections: () => void;
   hidden: boolean;
 }) {
   const t = dictionary[locale];
@@ -1052,7 +932,15 @@ function AppBottomNav({
   // expanded sidebar, so it exposes everything the expanded sidebar does by construction.
   // Cramming a fifth tab in, or spending a slot on a More button, would cost Poruke its
   // unread badge. Do not add a fifth entry to this array.
-  const tabs = [
+  const tabs: Array<{
+    key: string;
+    icon: typeof LayoutDashboard;
+    label: string;
+    active: boolean;
+    badge: number;
+    href?: string;
+    onClick?: () => void;
+  }> = [
     {
       key: "dashboard",
       href: dashboardHref(locale),
@@ -1081,14 +969,25 @@ function AppBottomNav({
           active: false,
           badge: 0,
         },
-    {
-      key: "community",
-      href: communityLandingHref,
-      icon: MessageCircle,
-      label: t.community,
-      active: communityActive,
-      badge: communityBadge,
-    },
+    // Unutar konteksta (studio/community/admin) treći slot postaje „Sekcije" — otvara drawer
+    // (prošireni sidebar sa sekcijama konteksta). Na home ostaje link na Zajednicu.
+    contextActive
+      ? {
+          key: "sections",
+          onClick: onOpenSections,
+          icon: Menu,
+          label: locale === "sr" ? "Sekcije" : "Sections",
+          active: false,
+          badge: 0,
+        }
+      : {
+          key: "community",
+          href: communityLandingHref,
+          icon: MessageCircle,
+          label: t.community,
+          active: communityActive,
+          badge: communityBadge,
+        },
     {
       key: "messages",
       href: withLocale(locale, "/app/messages"),
@@ -1107,40 +1006,51 @@ function AppBottomNav({
       className="fixed inset-x-0 bottom-0 z-30 border-t-2 border-ink bg-paper-strong pb-[env(safe-area-inset-bottom)] shadow-[0_-6px_18px_var(--shadow-hard-14)] md:hidden"
     >
       <ul className="grid grid-cols-4">
-        {tabs.map(({ key, href, icon: Icon, label, active, badge }) => (
-          <li key={key} className="min-w-0">
-            <Link
-              href={href}
-              aria-current={active ? "page" : undefined}
-              className={cn(
-                "relative flex min-h-14 w-full flex-col items-center justify-center gap-0.5 px-1 pb-1.5 pt-2 text-[10px] font-black uppercase tracking-[0.04em] transition focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink",
-                active ? "text-ink" : "text-muted",
-              )}
-            >
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          const className = cn(
+            "relative flex min-h-14 w-full flex-col items-center justify-center gap-0.5 px-1 pb-1.5 pt-2 text-[10px] font-black uppercase tracking-[0.04em] transition focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink",
+            tab.active ? "text-ink" : "text-muted",
+          );
+          const inner = (
+            <>
               <span
                 aria-hidden="true"
                 className={cn(
                   "absolute inset-x-4 top-0 h-1 rounded-b-full",
-                  active ? "bg-yellow" : "bg-transparent",
+                  tab.active ? "bg-yellow" : "bg-transparent",
                 )}
               />
               <span
                 className={cn(
                   "relative grid size-8 place-items-center rounded-full transition",
-                  active && "bg-yellow ring-2 ring-ink",
+                  tab.active && "bg-yellow ring-2 ring-ink",
                 )}
               >
                 <Icon className="size-5" aria-hidden="true" />
-                {badge > 0 ? (
+                {tab.badge > 0 ? (
                   <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full border-2 border-ink bg-red-600 px-1 text-[9px] font-black leading-none text-white">
-                    {badge > 99 ? "99+" : badge}
+                    {tab.badge > 99 ? "99+" : tab.badge}
                   </span>
                 ) : null}
               </span>
-              <span className="w-full truncate text-center">{label}</span>
-            </Link>
-          </li>
-        ))}
+              <span className="w-full truncate text-center">{tab.label}</span>
+            </>
+          );
+          return (
+            <li key={tab.key} className="min-w-0">
+              {tab.href ? (
+                <Link href={tab.href} aria-current={tab.active ? "page" : undefined} className={className}>
+                  {inner}
+                </Link>
+              ) : (
+                <button type="button" onClick={tab.onClick} aria-haspopup="dialog" className={className}>
+                  {inner}
+                </button>
+              )}
+            </li>
+          );
+        })}
       </ul>
     </nav>
   );
@@ -1155,6 +1065,8 @@ function AppSidebarContent({
   profileData,
   communityBadge = 0,
   messagesBadge = 0,
+  myThreadsBadge = 0,
+  pendingApprovalsBadge = 0,
   accountBadge = 0,
   profileComplete = true,
   emailVerificationRequired = false,
@@ -1169,6 +1081,8 @@ function AppSidebarContent({
   profileData?: { name?: string; username?: string; email?: string; avatarUrl?: string } | null;
   communityBadge?: number;
   messagesBadge?: number;
+  myThreadsBadge?: number;
+  pendingApprovalsBadge?: number;
   accountBadge?: number;
   profileComplete?: boolean;
   creditsBalance?: number | null;
@@ -1424,14 +1338,27 @@ function AppSidebarContent({
   const contextActive = sidebarContext.id !== "home";
   const studioActive = sidebarContext.id === "studio";
   // `searchParams` iz useSearchParams je read-only, pa ga kopiramo u pravi URLSearchParams za
-  // `isActive`/`href` sekcija. Studio čita `?kind=`; zajednica (1b) dodaje `preserved`.
+  // `isActive`/`href` sekcija. Studio čita `?kind=`; zajednica čuva scope/track/course/q/sort.
   const currentSearch = new URLSearchParams(searchParams.toString());
+  const preservedSearch = new URLSearchParams();
+  for (const key of COMMUNITY_PRESERVED_KEYS) {
+    currentSearch.getAll(key).forEach((value) => preservedSearch.append(key, value));
+  }
   const contextParams: SidebarHrefParams = {
     courseSlug: params.courseSlug,
     trackSlug: params.trackSlug,
     lessonSlug: params.lessonSlug,
+    preserved: preservedSearch,
   };
   const activeContextSectionId = activeSectionId(sidebarContext, pathname, currentSearch, contextParams);
+  // Jedan izvor badge-eva za sekcije konteksta; `getUserNotificationSummary` u `LiveAppSidebar`
+  // već daje community/myThreads/pendingApprovals — ne uvodi se nov query.
+  const contextBadges = {
+    community: communityBadge,
+    myThreads: myThreadsBadge,
+    pendingApprovals: pendingApprovalsBadge,
+    messages: messagesBadge,
+  };
   const creditsActive = pathname === withLocale(locale, "/app/credits");
   // Course detail only; a lesson is a deeper node and lights up the Lessons disclosure.
   const courseActive = Boolean(params.courseSlug) && !params.lessonSlug;
@@ -1445,9 +1372,6 @@ function AppSidebarContent({
   const communityLandingHref = currentCourse
     ? communityHref(locale, currentCourse.slug)
     : withLocale(locale, "/app/community/discussions");
-  // Community already knows which section you are in — it renders a section-aware hero
-  // from exactly this. Resolving it here is what lets the primary nav say so too.
-  const activeSection = activeCommunitySection(pathname);
   // Optional on AppCourseNav, and never set by the static no-Convex fallback, so the
   // track entry has to be able to not exist.
   const currentTrackSlug = currentCourse?.trackSlug;
@@ -1600,12 +1524,14 @@ function AppSidebarContent({
                 label={courseLabel}
               />
             ) : null}
-            <CommunitySections
-              locale={locale}
-              isStaff={isStaff}
-              activeSection={activeSection}
-              containsActive={communityActive}
-              notificationsBadge={communityBadge}
+            {/* Zajednica je odredište; sekcije zajednice sada renderuje `community` kontekst
+                sidebara (uz očuvanje scope/track/course/q/sort). */}
+            <NavLink
+              href={communityLandingHref}
+              active={communityActive}
+              icon={MessageCircle}
+              label={t.community}
+              badge={communityBadge}
             />
             <NavLink
               href={withLocale(locale, "/app/messages")}
@@ -1643,6 +1569,7 @@ function AppSidebarContent({
               isStaff={isStaff}
               isAdmin={isAdmin}
               params={contextParams}
+              badges={contextBadges}
             />
           }
         />
@@ -1891,6 +1818,7 @@ function AppSidebarContent({
               isStaff={isStaff}
               isAdmin={isAdmin}
               params={contextParams}
+              badges={contextBadges}
             />
           }
         />
@@ -1983,6 +1911,8 @@ function AppSidebarContent({
         messagesActive={messagesActive}
         communityBadge={communityBadge}
         messagesBadge={messagesBadge}
+        contextActive={contextActive}
+        onOpenSections={() => setMobileOpen(true)}
         hidden={drawerIsModal && mobileOpen}
       />
     </>
@@ -2011,6 +1941,8 @@ function LiveAppSidebar({
     isAuthenticated ? {} : "skip"
   );
   const communityBadge = notificationSummary?.community ?? 0;
+  const myThreadsBadge = notificationSummary?.myThreads ?? 0;
+  const pendingApprovalsBadge = notificationSummary?.pendingApprovals ?? 0;
   const chatSummary = useQuery(api.chat.getInboxSummary, isAuthenticated ? {} : "skip");
   const messagesBadge = chatSummary?.totalUnread ?? 0;
   const accountBadge = notificationSummary?.accountWarnings ?? 0;
@@ -2027,6 +1959,8 @@ function LiveAppSidebar({
       profileData={liveNavigation?.profile}
       communityBadge={communityBadge}
       messagesBadge={messagesBadge}
+      myThreadsBadge={myThreadsBadge}
+      pendingApprovalsBadge={pendingApprovalsBadge}
       accountBadge={accountBadge}
       profileComplete={profileStatus?.complete ?? false}
       emailVerificationRequired={profileStatus?.advisories.emailVerification ?? false}

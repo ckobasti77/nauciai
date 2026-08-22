@@ -68,3 +68,57 @@ describe("sidebar contexts — studio sections", () => {
     );
   });
 });
+
+describe("sidebar contexts — community sections", () => {
+  const community = resolveSidebarContext("/sr/app/community/discussions");
+
+  it("resolves community from its route and deeper nodes, in either locale", () => {
+    expect(resolveSidebarContext("/sr/app/community").id).toBe("community");
+    expect(resolveSidebarContext("/en/app/community/discussions").id).toBe("community");
+    expect(resolveSidebarContext("/sr/app/community/12345").id).toBe("community");
+  });
+
+  it("shows five sections to students and adds moderation for staff", () => {
+    const studentIds = sectionsFor(community, studentOpts).map((s) => s.id);
+    const staffIds = sectionsFor(community, staffOpts).map((s) => s.id);
+    expect(studentIds).toEqual(["discussions", "my-threads", "notifications", "members", "leaderboard"]);
+    expect(staffIds).toContain("moderation");
+    expect(staffIds).toHaveLength(studentIds.length + 1);
+  });
+
+  it("reads thread/new/edit as discussions, mentions as notifications", () => {
+    const sp = new URLSearchParams();
+    expect(activeSectionId(community, "/sr/app/community/12345", sp, {})).toBe("discussions");
+    expect(activeSectionId(community, "/sr/app/community/new", sp, {})).toBe("discussions");
+    expect(activeSectionId(community, "/sr/app/community/edit", sp, {})).toBe("discussions");
+    expect(activeSectionId(community, "/sr/app/community/mentions", sp, {})).toBe("notifications");
+    expect(activeSectionId(community, "/sr/app/community/moderation", sp, {})).toBe("moderation");
+  });
+
+  it("carries each section's badge key through to the shared shape", () => {
+    const byId = Object.fromEntries(community.sections.map((s) => [s.id, s]));
+    expect(byId["my-threads"].badgeKey).toBe("myThreads");
+    expect(byId.notifications.badgeKey).toBe("community");
+    expect(byId.moderation.badgeKey).toBe("pendingApprovals");
+    expect(byId.discussions.badgeKey).toBeUndefined();
+  });
+
+  it("preserves scope/track/course/q/sort (incl. URL-encoded q) across a section switch", () => {
+    const preserved = new URLSearchParams("scope=course&track=x&course=y&q=neko%20pitanje&sort=new");
+    const notifications = community.sections.find((s) => s.id === "notifications")!;
+    const href = notifications.href("sr", { preserved });
+
+    expect(href.startsWith("/sr/app/community/notifications?")).toBe(true);
+    const carried = new URLSearchParams(href.split("?")[1]);
+    expect(carried.get("scope")).toBe("course");
+    expect(carried.get("track")).toBe("x");
+    expect(carried.get("course")).toBe("y");
+    expect(carried.get("q")).toBe("neko pitanje");
+    expect(carried.get("sort")).toBe("new");
+  });
+
+  it("omits the query when there is nothing to preserve", () => {
+    const discussions = community.sections.find((s) => s.id === "discussions")!;
+    expect(discussions.href("en", {})).toBe("/en/app/community/discussions");
+  });
+});

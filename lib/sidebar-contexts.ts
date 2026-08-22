@@ -1,5 +1,10 @@
-import { LayoutDashboard, Wand2, type LucideIcon } from "lucide-react";
+import { LayoutDashboard, MessageCircle, Wand2, type LucideIcon } from "lucide-react";
 
+import {
+  COMMUNITY_SECTIONS,
+  activeCommunitySection,
+  type CommunitySection,
+} from "@/lib/community-sections";
 import { locales, withLocale, type Locale } from "@/lib/i18n";
 import {
   STUDIO_SECTIONS,
@@ -112,6 +117,45 @@ const studioContext: SidebarContext = {
   sections: STUDIO_SECTIONS.map(fromStudioSection),
 };
 
+// --- community ---------------------------------------------------------------
+
+/**
+ * The query keys community carries between sections. The sidebar used to drop these; the
+ * registry preserves them, matching community's own nav. The caller builds `params.preserved`
+ * from these keys; the href re-appends whatever it is given.
+ */
+export const COMMUNITY_PRESERVED_KEYS = ["scope", "track", "course", "q", "sort"] as const;
+
+/** Adapts one declarative `CommunitySection` (a route segment) into the shared shape. */
+function fromCommunitySection(section: CommunitySection): SidebarSection {
+  return {
+    id: section.id,
+    labelSr: section.labelSr,
+    labelEn: section.labelEn,
+    icon: section.icon,
+    staffOnly: section.staffOnly,
+    badgeKey: section.badgeKey,
+    href: (locale, params) => {
+      const base = withLocale(locale, `/app/community/${section.path}`);
+      const query = params.preserved?.toString() ?? "";
+      return query ? `${base}?${query}` : base;
+    },
+    isActive: (pathname) => activeCommunitySection(pathname) === section.id,
+  };
+}
+
+const communityContext: SidebarContext = {
+  id: "community",
+  matches: ["/app/community"],
+  rootHref: (locale) => withLocale(locale, "/app/community/discussions"),
+  labelSr: "Sekcije zajednice",
+  labelEn: "Community sections",
+  icon: MessageCircle,
+  groupLabelSr: "Zajednica",
+  groupLabelEn: "Community",
+  sections: COMMUNITY_SECTIONS.map(fromCommunitySection),
+};
+
 // --- home (fallback sentinel) ------------------------------------------------
 
 const homeContext: SidebarContext = {
@@ -127,8 +171,8 @@ const homeContext: SidebarContext = {
   sections: [],
 };
 
-// Non-home contexts, checked in order; community + admin are added in Phase 1b/1c.
-const CONTEXTS: readonly SidebarContext[] = [studioContext];
+// Non-home contexts, checked in order; admin is added in Phase 1c.
+const CONTEXTS: readonly SidebarContext[] = [studioContext, communityContext];
 
 export function resolveSidebarContext(pathname: string): SidebarContext {
   const path = stripLocale(pathname);
