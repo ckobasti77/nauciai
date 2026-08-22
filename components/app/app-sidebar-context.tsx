@@ -6,10 +6,15 @@ import { AnimatePresence, motion, MotionConfig, type Variants } from "motion/rea
 import type { ReactNode } from "react";
 
 import { cn } from "@/components/ui/primitives";
-import { withLocale, type Locale } from "@/lib/i18n";
+import { type Locale } from "@/lib/i18n";
+import {
+  sectionsFor,
+  type SidebarBadgeKey,
+  type SidebarContext,
+  type SidebarHrefParams,
+} from "@/lib/sidebar-contexts";
 import { activeFilterCount, openStudioFilters, useStudioFilters } from "@/lib/studio-filters-store";
 import { studioMotionTokens } from "@/lib/studio-motion";
-import { studioSectionLabel, studioSectionsFor, type StudioSection } from "@/lib/studio-sections";
 
 /**
  * Studijski sadržaj sidebara i USMEREN prelaz izmedju klasičnog i studijskog.
@@ -156,11 +161,6 @@ function FiltersDivider({ locale }: { locale: Locale }) {
   );
 }
 
-function sectionHref(locale: Locale, section: StudioSection): string {
-  const base = withLocale(locale, "/app/studio");
-  return section.kind ? `${base}?kind=${section.kind}` : base;
-}
-
 function Item({ reduce, children }: { reduce: boolean; children: ReactNode }) {
   if (reduce) return <div className="min-w-0">{children}</div>;
   return (
@@ -170,24 +170,37 @@ function Item({ reduce, children }: { reduce: boolean; children: ReactNode }) {
   );
 }
 
-/** Prošireni studijski sadržaj: „Nazad" + taksonomija biblioteke (vrste medija). */
-export function StudioSidebarNav({
+/**
+ * Prošireni sadržaj konteksta: „Nazad" + sekcije konteksta (`context.sections`). Studio
+ * dodatno dobija `FiltersDivider` (studio-specifičan, uslovan na `context.id === "studio"`),
+ * pa zajednica/admin ne dobijaju studijske filtere. Sekcije su i dalje deklarisane u
+ * `lib/studio-sections.ts` / `lib/community-sections.ts`; registry ih samo adaptira.
+ */
+export function ContextSidebarNav({
+  context,
   locale,
   activeId,
   onBack,
   reduce,
   isStaff = false,
+  isAdmin = false,
+  params = {},
+  badges = {},
 }: {
+  context: SidebarContext;
   locale: Locale;
-  activeId: string;
+  activeId: string | null;
   onBack: () => void;
   reduce: boolean;
   isStaff?: boolean;
+  isAdmin?: boolean;
+  params?: SidebarHrefParams;
+  badges?: Partial<Record<SidebarBadgeKey, number>>;
 }) {
-  const sections = studioSectionsFor(isStaff);
-  const navLabel = locale === "sr" ? "Studijska biblioteka" : "Studio library";
+  const sections = sectionsFor(context, { isStaff, isAdmin, params });
+  const navLabel = locale === "sr" ? context.labelSr : context.labelEn;
   const backLabel = locale === "sr" ? "Nazad" : "Back";
-  const libraryLabel = locale === "sr" ? "Biblioteka" : "Library";
+  const groupLabel = locale === "sr" ? context.groupLabelSr : context.groupLabelEn;
 
   const rows = (
     <>
@@ -197,28 +210,43 @@ export function StudioSidebarNav({
           <span className="truncate">{backLabel}</span>
         </button>
       </Item>
-      <p className="px-3 pb-1 pt-3 text-[11px] font-black uppercase tracking-[0.04em] text-muted">
-        {libraryLabel}
-      </p>
+      {groupLabel ? (
+        <p className="px-3 pb-1 pt-3 text-[11px] font-black uppercase tracking-[0.04em] text-muted">
+          {groupLabel}
+        </p>
+      ) : null}
       {sections.map((section) => {
         const Icon = section.icon;
         const active = section.id === activeId;
+        const label = section.dynamicLabel
+          ? section.dynamicLabel(params, locale)
+          : locale === "sr"
+            ? section.labelSr
+            : section.labelEn;
+        const badge = section.badgeKey ? badges[section.badgeKey] ?? 0 : 0;
         return (
           <Item key={section.id} reduce={reduce}>
             <Link
-              href={sectionHref(locale, section)}
+              href={section.href(locale, params)}
               aria-current={active ? "page" : undefined}
               className={cn(ROW_BASE, active ? ROW_ACTIVE : ROW_IDLE)}
             >
               <Icon className="size-4 shrink-0" />
-              <span className="truncate">{studioSectionLabel(section, locale)}</span>
+              <span className="truncate">{label}</span>
+              {badge > 0 ? (
+                <span className="ml-auto flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full border border-ink bg-red-600 px-1 text-[10px] font-black text-white">
+                  {badge > 99 ? "99+" : badge}
+                </span>
+              ) : null}
             </Link>
           </Item>
         );
       })}
-      <Item reduce={reduce}>
-        <FiltersDivider locale={locale} />
-      </Item>
+      {context.id === "studio" ? (
+        <Item reduce={reduce}>
+          <FiltersDivider locale={locale} />
+        </Item>
+      ) : null}
     </>
   );
 
@@ -255,20 +283,28 @@ function RailTooltip({ label }: { label: string }) {
   );
 }
 
-/** Skupljeni studijski rail: „Nazad" + ikone vrsta medija sa tooltipom. */
-export function StudioSidebarRail({
+/** Skupljeni rail konteksta: „Nazad" + ikone sekcija sa tooltipom (+ studio filteri). */
+export function ContextSidebarRail({
+  context,
   locale,
   activeId,
   onBack,
   isStaff = false,
+  isAdmin = false,
+  params = {},
+  badges = {},
 }: {
+  context: SidebarContext;
   locale: Locale;
-  activeId: string;
+  activeId: string | null;
   onBack: () => void;
   isStaff?: boolean;
+  isAdmin?: boolean;
+  params?: SidebarHrefParams;
+  badges?: Partial<Record<SidebarBadgeKey, number>>;
 }) {
-  const sections = studioSectionsFor(isStaff);
-  const navLabel = locale === "sr" ? "Studijska biblioteka" : "Studio library";
+  const sections = sectionsFor(context, { isStaff, isAdmin, params });
+  const navLabel = locale === "sr" ? context.labelSr : context.labelEn;
   const backLabel = locale === "sr" ? "Nazad" : "Back";
 
   return (
@@ -280,11 +316,16 @@ export function StudioSidebarRail({
       {sections.map((section) => {
         const Icon = section.icon;
         const active = section.id === activeId;
-        const label = studioSectionLabel(section, locale);
+        const label = section.dynamicLabel
+          ? section.dynamicLabel(params, locale)
+          : locale === "sr"
+            ? section.labelSr
+            : section.labelEn;
+        const badge = section.badgeKey ? badges[section.badgeKey] ?? 0 : 0;
         return (
           <Link
             key={section.id}
-            href={sectionHref(locale, section)}
+            href={section.href(locale, params)}
             aria-label={label}
             aria-current={active ? "page" : undefined}
             className={cn(RAIL_BASE, active ? RAIL_ACTIVE : RAIL_IDLE)}
@@ -293,11 +334,16 @@ export function StudioSidebarRail({
               <span aria-hidden="true" className="absolute -left-[15px] h-7 w-1.5 rounded-full bg-yellow ring-2 ring-ink" />
             ) : null}
             <Icon className="size-5" />
+            {badge > 0 ? (
+              <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-ink bg-red-600 px-1 text-[9px] font-black text-white">
+                {badge > 99 ? "99+" : badge}
+              </span>
+            ) : null}
             <RailTooltip label={label} />
           </Link>
         );
       })}
-      <RailFilters locale={locale} />
+      {context.id === "studio" ? <RailFilters locale={locale} /> : null}
     </nav>
   );
 }

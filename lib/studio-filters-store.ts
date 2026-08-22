@@ -1,7 +1,7 @@
 /**
  * Filteri mreže Studija (SP2) kao mali deljeni store, bez zavisnosti.
  *
- * Zašto store, a ne props: okidač je LINIJA u sidebaru (`app-sidebar-studio.tsx`,
+ * Zašto store, a ne props: okidač je LINIJA u sidebaru (`app-sidebar-context.tsx`,
  * drugo React stablo), prozor renderuje `studio-page.tsx`, a vrednosti čita
  * `studio-media-grid.tsx`. Vrsta (Slika/Video/Zvuk) NIJE ovde - nju i dalje nosi
  * URL (`?kind=`) i sidebar, kao i do sad.

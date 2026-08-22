@@ -71,8 +71,8 @@ import { publicProfilePath } from "@/lib/profile-links";
 import type { AppCourseNav, AppNavigationData } from "@/lib/app-navigation";
 import { primaryCourseSlug } from "@/lib/content";
 import { dictionary, localized, type Locale, withLocale } from "@/lib/i18n";
-import { activeStudioSection } from "@/lib/studio-sections";
-import { SidebarNavSwap, StudioSidebarNav, StudioSidebarRail } from "@/components/app/app-sidebar-studio";
+import { activeSectionId, resolveSidebarContext, type SidebarHrefParams } from "@/lib/sidebar-contexts";
+import { SidebarNavSwap, ContextSidebarNav, ContextSidebarRail } from "@/components/app/app-sidebar-context";
 
 const AddCourseAction = dynamic(() => import("@/components/app/admin-inline-actions").then((m) => m.AddCourseAction), { ssr: false });
 const EditCourseAction = dynamic(() => import("@/components/app/admin-inline-actions").then((m) => m.EditCourseAction), { ssr: false });
@@ -1239,7 +1239,7 @@ function AppSidebarContent({
     applySidebarPreferences(next);
   }, [applySidebarPreferences]);
 
-  const goBackFromStudio = useCallback(() => {
+  const goBackFromContext = useCallback(() => {
     // "Nazad" znaci IZLAZ IZ ALATA -> uvek dashboard, nikad router.back().
     // router.back() je vracao poslednji unos u istoriji, a otvaranje i zatvaranje
     // generacije gura DVA unosa (/app/studio/m/<id> pa /app/studio), pa je "Nazad"
@@ -1418,10 +1418,20 @@ function AppSidebarContent({
   const dashboardActive = pathname === withLocale(locale, "/app");
   const communityActive = pathname === withLocale(locale, "/app/community") || pathname.includes("/app/community/");
   const messagesActive = pathname === withLocale(locale, "/app/messages") || pathname.includes("/app/messages/");
-  const studioActive = pathname === withLocale(locale, "/app/studio") || pathname.includes("/app/studio/");
-  // Vrsta medija po kojoj je biblioteka filtrirana (?kind=), za aktivnu stavku u
-  // studijskoj taksonomiji; nepoznato pada na "all".
-  const activeStudioId = activeStudioSection(searchParams.get("kind"));
+  // Registry vozi swap: kontekst iz pathname-a umesto boolean-a. `studioActive` ostaje samo
+  // za highlight postojećih NavLink-ova u `home` (classic) grani.
+  const sidebarContext = resolveSidebarContext(pathname);
+  const contextActive = sidebarContext.id !== "home";
+  const studioActive = sidebarContext.id === "studio";
+  // `searchParams` iz useSearchParams je read-only, pa ga kopiramo u pravi URLSearchParams za
+  // `isActive`/`href` sekcija. Studio čita `?kind=`; zajednica (1b) dodaje `preserved`.
+  const currentSearch = new URLSearchParams(searchParams.toString());
+  const contextParams: SidebarHrefParams = {
+    courseSlug: params.courseSlug,
+    trackSlug: params.trackSlug,
+    lessonSlug: params.lessonSlug,
+  };
+  const activeContextSectionId = activeSectionId(sidebarContext, pathname, currentSearch, contextParams);
   const creditsActive = pathname === withLocale(locale, "/app/credits");
   // Course detail only; a lesson is a deeper node and lights up the Lessons disclosure.
   const courseActive = Boolean(params.courseSlug) && !params.lessonSlug;
@@ -1542,7 +1552,7 @@ function AppSidebarContent({
             za skupljanje iznad ostaje sidro, menja se samo ovo ispod nje. Klasičan
             sadržaj (kursevi/lekcije/zajednica) je netaknut - samo umotan kao `classic`. */}
         <SidebarNavSwap
-          active={studioActive}
+          active={contextActive}
           reduce={shouldReduceMotion ?? false}
           classic={
             <>
@@ -1624,12 +1634,15 @@ function AppSidebarContent({
             </>
           }
           studio={
-            <StudioSidebarNav
+            <ContextSidebarNav
+              context={sidebarContext}
               locale={locale}
-              activeId={activeStudioId}
-              onBack={goBackFromStudio}
+              activeId={activeContextSectionId}
+              onBack={goBackFromContext}
               reduce={shouldReduceMotion ?? false}
               isStaff={isStaff}
+              isAdmin={isAdmin}
+              params={contextParams}
             />
           }
         />
@@ -1834,7 +1847,7 @@ function AppSidebarContent({
             (80px je preusko za horizontalni pomeraj); „Nazad" ikona nosi značenje. */}
         <SidebarNavSwap
           compact
-          active={studioActive}
+          active={contextActive}
           reduce={shouldReduceMotion ?? false}
           className="w-full"
           classic={
@@ -1870,11 +1883,14 @@ function AppSidebarContent({
             </nav>
           }
           studio={
-            <StudioSidebarRail
+            <ContextSidebarRail
+              context={sidebarContext}
               locale={locale}
-              activeId={activeStudioId}
-              onBack={goBackFromStudio}
+              activeId={activeContextSectionId}
+              onBack={goBackFromContext}
               isStaff={isStaff}
+              isAdmin={isAdmin}
+              params={contextParams}
             />
           }
         />
