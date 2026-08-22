@@ -385,7 +385,7 @@ function DiscussionsView({
     <div className="space-y-5">
 
       <CommunityStickyToolbar>
-      <section className="rounded-[16px] border border-line bg-white p-3 sm:p-4" aria-label={locale === "sr" ? "Filteri diskusija" : "Discussion filters"}>
+      <section className="rounded-[16px] border border-line bg-paper-strong p-3 sm:p-4" aria-label={locale === "sr" ? "Filteri diskusija" : "Discussion filters"}>
         <div className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <CommunityScopeControls
@@ -410,7 +410,7 @@ function DiscussionsView({
               <select
                 value={controls.sort}
                 onChange={(event) => controls.setSort(event.target.value as DiscussionSort)}
-                className="min-h-10 w-full appearance-none rounded-full border border-line bg-white py-2 pl-4 pr-10 text-sm font-black text-ink outline-none transition hover:border-ink/55 focus:border-ink focus:ring-4 focus:ring-yellow/25 sm:w-auto"
+                className="min-h-10 w-full appearance-none rounded-full border border-line bg-paper-strong py-2 pl-4 pr-10 text-sm font-black text-ink outline-none transition hover:border-ink/55 focus:border-ink focus:ring-4 focus:ring-yellow/25 sm:w-auto"
               >
                 <option value="hot">{locale === "sr" ? "U trendu" : "Hot"}</option>
                 <option value="top">{locale === "sr" ? "Popularno" : "Top voted"}</option>
@@ -423,7 +423,7 @@ function DiscussionsView({
             {canInteract ? (
               <Link
                 href={withLocale(locale, "/app/community/new")}
-                className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-sm font-black text-ink shadow-[2px_2px_0_rgba(14,49,88,0.16)] transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink w-full sm:w-auto"
+                className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-sm font-black text-ink shadow-[2px_2px_0_var(--shadow-hard-16)] transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink w-full sm:w-auto"
               >
                 <PenLine className="size-4" aria-hidden="true" />
                 {locale === "sr" ? "Nova diskusija" : "New discussion"}

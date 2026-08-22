@@ -446,23 +446,28 @@ function creditsFor(seed: StudioModelSeed, params: Record<string, unknown>, mode
 }
 
 test("Nano Banana 2 i Pro: tabele iz kataloga 2.1 i 2.2", () => {
+  // 0,5K i 4K su POMERENI prema zvaničnom cenovniku Google-a: nabavna je
+  // $0,045 i $0,151, a stari množioci (0,75 i 2) su računali $0,050 i $0,134.
+  // Na 4K je to bilo 11% ispod nabavne, dakle marža 2,27x umesto 2,5x.
   for (const [resolution, credits] of [
-    ["0.5K", 12],
+    ["0.5K", 11],
     ["1K", 16],
     ["2K", 23],
-    ["4K", 30],
+    ["4K", 34],
   ] as const) {
-    expect(creditsFor(NANO_BANANA_2, { resolution, num_images: 1 })).toBe(credits);
+    expect(creditsFor(NANO_BANANA_2, { resolution })).toBe(credits);
   }
 
-  expect(creditsFor(NANO_BANANA_PRO, { resolution: "2K", num_images: 1 })).toBe(33);
-  expect(creditsFor(NANO_BANANA_PRO, { resolution: "4K", num_images: 1 })).toBe(56);
+  expect(creditsFor(NANO_BANANA_PRO, { resolution: "2K" })).toBe(33);
+  expect(creditsFor(NANO_BANANA_PRO, { resolution: "4K" })).toBe(56);
 
-  // Thinking tokeni se plaćaju jednom po generaciji, ne po slici.
-  expect(computeCostUsd(NANO_BANANA_2.priceRule, { resolution: "1K", num_images: 4 })).toBeCloseTo(
-    0.271,
-    10,
-  );
+  // `num_images` više nije ni kontrola ni `quantityParam` (Interactions API
+  // vraća jednu sliku po pozivu), pa cena NE sme da se pomeri kad ga neko
+  // ipak pošalje - inače bi klijent birao koliko će da plati.
+  expect(computeCostUsd(NANO_BANANA_2.priceRule, { resolution: "1K" })).toBeCloseTo(0.07, 10);
+  expect(
+    computeCostUsd(NANO_BANANA_2.priceRule, { resolution: "1K", num_images: 4 }),
+  ).toBeCloseTo(0.07, 10);
 });
 
 test("Nano Banana Pro NEMA 1K - Google ga naplaćuje isto kao 2K (katalog 2.2)", () => {

@@ -45,3 +45,6 @@ next-env.d.ts
 # radius cascade-layer visual audit
 .radius-baseline/
 .radius-after/
+
+# Privremeni folder za fajlove koje treba obrisati rucno (device bridge ne brise)
+_to_delete/

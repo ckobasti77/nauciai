@@ -284,18 +284,18 @@ function MetricTile({
         "rounded-[8px] border-2 p-4",
         tone === "paper" && "border-line bg-paper text-ink",
         tone === "yellow" && "border-ink bg-yellow text-ink",
-        tone === "ink" && "border-white/25 bg-white/10 text-white",
+        tone === "ink" && "border-paper-strong/25 bg-paper-strong/10 text-paper-strong",
       )}
     >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className={cn("text-xs font-black uppercase", tone === "ink" ? "text-white/65" : "text-muted")}>{label}</p>
-          <p className={cn("mt-2 text-2xl font-black leading-none", tone === "ink" ? "text-white" : "text-ink")}>{value}</p>
+          <p className={cn("text-xs font-black uppercase", tone === "ink" ? "text-paper-strong/65" : "text-muted")}>{label}</p>
+          <p className={cn("mt-2 text-2xl font-black leading-none", tone === "ink" ? "text-paper-strong" : "text-ink")}>{value}</p>
         </div>
         <span
           className={cn(
             "inline-flex size-9 shrink-0 items-center justify-center rounded-[8px] border-2",
-            tone === "ink" ? "border-white bg-yellow text-ink" : "border-ink bg-white text-ink",
+            tone === "ink" ? "border-paper-strong bg-yellow text-ink" : "border-ink bg-paper-strong text-ink",
           )}
         >
           {icon}
@@ -342,7 +342,7 @@ function CourseCoverEditor({ locale, course }: { locale: Locale; course: Dashboa
   }
 
   const preview = course.coverUrl || course.image?.src;
-  return <Panel className="dashboard-reveal p-4 sm:p-5"><div className="flex flex-col gap-4 lg:flex-row lg:items-center"><div className="relative aspect-video w-full overflow-hidden rounded-[8px] border-2 border-ink bg-paper lg:w-80">{preview ? <Image src={preview} alt={localized(course.title, locale)} fill unoptimized className="object-cover" /> : <div className="grid h-full place-items-center text-sm font-black text-muted">Naslovna slika nije dodata</div>}</div><div className="flex-1"><p className="font-display text-2xl text-ink">Naslovna slika kursa</p><p className="mt-1 text-sm font-bold text-muted">Koristi se na dashboard kartici i stranici smera.</p><input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file); event.target.value = ""; }} /><div className="mt-4 flex flex-wrap gap-2"><button type="button" disabled={pending} onClick={() => inputRef.current?.click()} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-xs font-black">{pending ? <Loader2 className="size-4 animate-spin" /> : <ImageIcon className="size-4" />}{course.coverUrl ? "Zameni sliku" : "Dodaj sliku"}</button>{course.coverUrl ? <button type="button" disabled={pending} onClick={async () => { if (!course.id || !confirm("Ukloniti naslovnu sliku kursa?")) return; setPending(true); try { await deleteCover({ courseId: course.id as Id<"courses"> }); router.refresh(); } finally { setPending(false); } }} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-red-700 bg-white px-4 text-xs font-black text-red-700"><Trash2 className="size-4" />Ukloni</button> : null}</div>{message ? <p className="mt-3 text-sm font-black text-red-700">{message}</p> : null}</div></div></Panel>;
+  return <Panel className="dashboard-reveal p-4 sm:p-5"><div className="flex flex-col gap-4 lg:flex-row lg:items-center"><div className="relative aspect-video w-full overflow-hidden rounded-[8px] border-2 border-ink bg-paper lg:w-80">{preview ? <Image src={preview} alt={localized(course.title, locale)} fill unoptimized className="object-cover" /> : <div className="grid h-full place-items-center text-sm font-black text-muted">Naslovna slika nije dodata</div>}</div><div className="flex-1"><p className="font-display text-2xl text-ink">Naslovna slika kursa</p><p className="mt-1 text-sm font-bold text-muted">Koristi se na dashboard kartici i stranici smera.</p><input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file); event.target.value = ""; }} /><div className="mt-4 flex flex-wrap gap-2"><button type="button" disabled={pending} onClick={() => inputRef.current?.click()} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-xs font-black">{pending ? <Loader2 className="size-4 animate-spin" /> : <ImageIcon className="size-4" />}{course.coverUrl ? "Zameni sliku" : "Dodaj sliku"}</button>{course.coverUrl ? <button type="button" disabled={pending} onClick={async () => { if (!course.id || !confirm("Ukloniti naslovnu sliku kursa?")) return; setPending(true); try { await deleteCover({ courseId: course.id as Id<"courses"> }); router.refresh(); } finally { setPending(false); } }} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-red-700 bg-paper-strong px-4 text-xs font-black text-red-700"><Trash2 className="size-4" />Ukloni</button> : null}</div>{message ? <p className="mt-3 text-sm font-black text-red-700">{message}</p> : null}</div></div></Panel>;
 }
 
 function CourseVideoSection({ locale, isAdmin, course }: { locale: Locale; isAdmin: boolean; course: DashboardCourse }) {
@@ -488,14 +488,14 @@ function CourseVideoSection({ locale, isAdmin, course }: { locale: Locale; isAdm
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           className={cn(
-            "group relative flex min-h-[320px] overflow-hidden rounded-[8px] border-2 bg-ink text-white sm:min-h-[360px] lg:h-[42vh] lg:min-h-[380px]",
+            "group relative flex min-h-[320px] overflow-hidden rounded-[8px] border-2 bg-scrim text-white sm:min-h-[360px] lg:h-[42vh] lg:min-h-[380px]",
             isAdmin ? "cursor-pointer border-dashed border-ink bg-paper text-ink" : "border-ink",
-            (videoUrl || localPreviewUrl) && "border-solid bg-ink text-white",
+            (videoUrl || localPreviewUrl) && "border-solid bg-scrim text-white",
             isDragging && "bg-yellow/25",
           )}
         >
           {localPreviewUrl ? (
-            <video className="h-full w-full bg-ink object-contain" src={localPreviewUrl} controls muted preload="metadata" />
+            <video className="h-full w-full bg-scrim object-contain" src={localPreviewUrl} controls muted preload="metadata" />
           ) : videoUrl ? (
             <DashboardVideoPlayer videoUrl={videoUrl} title={localized(course.title, locale)} />
           ) : (
@@ -504,13 +504,13 @@ function CourseVideoSection({ locale, isAdmin, course }: { locale: Locale; isAdm
                 className={cn(
                   "absolute inset-0",
                   isAdmin
-                    ? "bg-[linear-gradient(135deg,rgba(14,49,88,0.07)_0,rgba(14,49,88,0.07)_1px,transparent_1px,transparent_18px)]"
+                    ? "bg-[linear-gradient(135deg,color-mix(in_srgb,var(--ink)_7%,transparent)_0,color-mix(in_srgb,var(--ink)_7%,transparent)_1px,transparent_1px,transparent_18px)]"
                     : "bg-[radial-gradient(circle_at_18%_18%,rgba(244,190,48,0.35),transparent_26%),linear-gradient(135deg,#0e3158,#173d6b)]",
                 )}
               />
                   <span className="relative z-10 flex w-full items-center justify-center p-6 text-center">
                 <span className="max-w-md">
-                  <span className="mx-auto inline-flex size-16 items-center justify-center rounded-[8px] border-2 border-ink bg-white text-ink shadow-[4px_4px_0_0_rgba(14,49,88,0.18)]">
+                  <span className="mx-auto inline-flex size-16 items-center justify-center rounded-[8px] border-2 border-ink bg-paper-strong text-ink shadow-[4px_4px_0_0_var(--shadow-hard)]">
                     {isUploading ? <Loader2 className="size-8 animate-spin" /> : isAdmin ? <UploadCloud className="size-8" /> : <PlayCircle className="size-9" />}
                   </span>
                   <span className={cn("mt-5 block text-2xl font-black", isAdmin ? "text-ink" : "text-white")}>
@@ -520,7 +520,7 @@ function CourseVideoSection({ locale, isAdmin, course }: { locale: Locale; isAdm
                         ? tr(locale, "Prevuci video ili klikni za upload", "Drop a video or click to upload")
                         : tr(locale, "Video lekcija uskoro", "Video lesson soon")}
                   </span>
-                  <span className={cn("mt-2 block text-sm font-extrabold", isAdmin ? "text-muted" : "text-white/75")}>
+                  <span className={cn("mt-2 block text-sm font-extrabold", isAdmin ? "text-muted" : "text-paper-strong/75")}>
                     {isAdmin
                       ? tr(locale, "Glavni video kursa se cuva preko Convex storage.", "The main course video is saved through Convex storage.")
                       : tr(locale, "Ovaj prostor cuva mesto za glavni video kursa.", "This surface reserves the main course video.")}
@@ -541,7 +541,7 @@ function CourseVideoSection({ locale, isAdmin, course }: { locale: Locale; isAdm
                 disabled={isUploading || isDeleting}
                 aria-label={tr(locale, "Zameni video", "Replace video")}
                 title={tr(locale, "Zameni video", "Replace video")}
-                className="inline-flex size-10 items-center justify-center rounded-[8px] border-2 border-ink bg-white text-ink shadow-[3px_3px_0_0_rgba(14,49,88,0.18)] transition hover:bg-yellow disabled:cursor-wait disabled:opacity-60"
+                className="inline-flex size-10 items-center justify-center rounded-[8px] border-2 border-ink bg-paper-strong text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] transition hover:bg-yellow disabled:cursor-wait disabled:opacity-60"
               >
                 {isUploading ? <Loader2 className="size-4 animate-spin" /> : <Pencil className="size-4" />}
               </button>
@@ -552,7 +552,7 @@ function CourseVideoSection({ locale, isAdmin, course }: { locale: Locale; isAdm
                   disabled={isUploading || isDeleting}
                   aria-label={tr(locale, "Ukloni video", "Remove video")}
                   title={tr(locale, "Ukloni video", "Remove video")}
-                  className="inline-flex size-10 items-center justify-center rounded-[8px] border-2 border-red-700 bg-white text-red-700 shadow-[3px_3px_0_0_rgba(127,29,29,0.18)] transition hover:bg-red-50 disabled:cursor-wait disabled:opacity-60"
+                  className="inline-flex size-10 items-center justify-center rounded-[8px] border-2 border-red-700 bg-paper-strong text-red-700 shadow-[3px_3px_0_0_rgba(127,29,29,0.18)] transition hover:bg-red-50 disabled:cursor-wait disabled:opacity-60"
                 >
                   {isDeleting ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
                 </button>
@@ -560,7 +560,7 @@ function CourseVideoSection({ locale, isAdmin, course }: { locale: Locale; isAdm
             </div>
           ) : null}
           {message ? (
-            <span className="absolute bottom-3 left-3 right-3 z-20 rounded-[8px] border-2 border-ink bg-white px-3 py-2 text-xs font-black text-ink shadow-[3px_3px_0_0_rgba(14,49,88,0.18)]">
+            <span className="absolute bottom-3 left-3 right-3 z-20 rounded-[8px] border-2 border-ink bg-paper-strong px-3 py-2 text-xs font-black text-ink shadow-[3px_3px_0_0_var(--shadow-hard)]">
               {message}
             </span>
           ) : null}
@@ -625,7 +625,7 @@ function FeaturedThreadsSection({ locale, course }: { locale: Locale; course: Da
                   <Link
                     key={post._id}
                     href={withLocale(locale, `/app/community?course=${course.slug}`)}
-                    className="block rounded-[8px] border-2 border-line bg-paper p-4 transition hover:-translate-y-0.5 hover:border-ink hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                    className="block rounded-[8px] border-2 border-line bg-paper p-4 transition hover:-translate-y-0.5 hover:border-ink hover:bg-paper-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                   >
                     <div className="flex flex-wrap gap-2">
                       {courseFeatured ? (
@@ -634,7 +634,7 @@ function FeaturedThreadsSection({ locale, course }: { locale: Locale; course: Da
                         </span>
                       ) : null}
                       {post.isFeaturedGlobal ? (
-                        <span className="rounded-[6px] border-2 border-ink bg-white px-2 py-0.5 text-[10px] font-black uppercase text-ink">
+                        <span className="rounded-[6px] border-2 border-ink bg-paper-strong px-2 py-0.5 text-[10px] font-black uppercase text-ink">
                           {tr(locale, "Opsti", "Global")}
                         </span>
                       ) : null}
@@ -664,7 +664,7 @@ function FeaturedThreadsSection({ locale, course }: { locale: Locale; course: Da
           className="group flex min-h-32 items-center justify-center rounded-[8px] border-2 border-dashed border-ink bg-paper p-5 text-center text-ink transition hover:-translate-y-0.5 hover:bg-yellow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         >
           <span>
-            <span className="mx-auto inline-flex size-12 items-center justify-center rounded-[8px] border-2 border-ink bg-white shadow-[3px_3px_0_0_rgba(14,49,88,0.18)] transition group-hover:rotate-2">
+            <span className="mx-auto inline-flex size-12 items-center justify-center rounded-[8px] border-2 border-ink bg-paper-strong shadow-[3px_3px_0_0_var(--shadow-hard)] transition group-hover:rotate-2">
               <Plus className="size-6" />
             </span>
             <span className="mt-3 block text-sm font-black">
@@ -711,7 +711,7 @@ function ActivityPanel({ locale, activity }: { locale: Locale; activity: Array<{
               aria-pressed={range === option}
               className={cn(
                 "min-h-8 rounded-full px-3 text-xs font-black transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
-                range === option ? "bg-ink text-white" : "text-muted hover:text-ink",
+                range === option ? "bg-ink text-paper-strong" : "text-muted hover:text-ink",
               )}
             >
               {option}
@@ -738,7 +738,7 @@ function ActivityPanel({ locale, activity }: { locale: Locale; activity: Array<{
               `Completed lessons per day, last ${range} days. ${total} total, up to ${max} in a single day.`,
             )}
             className={cn(
-              "flex h-40 items-end border-b border-line px-1 [background-image:linear-gradient(to_bottom,rgba(14,49,88,0.08)_1px,transparent_1px)] [background-size:100%_50%]",
+              "flex h-40 items-end border-b border-line px-1 [background-image:linear-gradient(to_bottom,color-mix(in_srgb,var(--ink)_8%,transparent)_1px,transparent_1px)] [background-size:100%_50%]",
               isDense ? "gap-px" : "gap-[2px]",
             )}
           >
@@ -791,7 +791,7 @@ function CourseCover({ course, locale }: { course: DashboardCourse; locale: Loca
     <div className="relative h-full overflow-hidden rounded-[8px] bg-paper">
       <div className="absolute inset-0 ink-hatch" />
       <div className="relative flex h-full items-center justify-center p-6 text-center">
-        <span className="inline-flex size-14 items-center justify-center rounded-full border-2 border-ink bg-yellow text-ink shadow-[4px_4px_0_0_rgba(14,49,88,0.15)]">
+        <span className="inline-flex size-14 items-center justify-center rounded-full border-2 border-ink bg-yellow text-ink shadow-[4px_4px_0_0_var(--shadow-hard-15)]">
           <BookOpen className="size-7" />
         </span>
       </div>
@@ -824,7 +824,7 @@ function CourseProgress({
         "h-3 overflow-hidden border-2",
         // paper: ink fill on paper track = 12.92:1. Yellow on paper was 1.69:1, under the
         // 3:1 floor for graphical objects (WCAG 1.4.11), and yellow is now the primary CTA only.
-        tone === "paper" ? "rounded-full border-line bg-paper" : "rounded-[8px] border-white bg-white/15",
+        tone === "paper" ? "rounded-full border-line bg-paper" : "rounded-[8px] border-paper-strong bg-paper-strong/15",
       )}
     >
       <motion.div
@@ -860,12 +860,12 @@ export function DashboardCourseCard({
       layout
       whileHover={{ y: -3 }}
       whileTap={{ scale: 0.99 }}
-      className="dashboard-reveal overflow-hidden rounded-[16px] border-2 border-ink bg-white shadow-[6px_6px_0_0_rgba(14,49,88,0.12)]"
+      className="dashboard-reveal overflow-hidden rounded-[16px] border-2 border-ink bg-paper-strong shadow-[6px_6px_0_0_var(--shadow-hard-12)]"
     >
       <div className="p-3">
         <div className="relative aspect-[16/9] overflow-hidden rounded-[8px] bg-paper">
           <CourseCover course={course} locale={locale} />
-          <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full border-2 border-ink bg-white px-3 py-1 text-[11px] font-black uppercase text-ink">
+          <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full border-2 border-ink bg-paper-strong px-3 py-1 text-[11px] font-black uppercase text-ink">
             <ShieldCheck className="size-3.5" />
             {statusCopy(locale, course, isAdmin)}
           </span>
@@ -947,8 +947,8 @@ export function DashboardHomeSkeleton() {
   return (
     <div className="space-y-6" aria-busy="true" aria-label="Učitavanje / Loading">
       {/* Heights track the loaded layout so the swap does not shift anything below it. */}
-      <div className="h-[22rem] animate-pulse rounded-[16px] border-2 border-line bg-white sm:h-64" />
-      <div className="rounded-[16px] border-2 border-line bg-white p-5 sm:p-6">
+      <div className="h-[22rem] animate-pulse rounded-[16px] border-2 border-line bg-paper-strong sm:h-64" />
+      <div className="rounded-[16px] border-2 border-line bg-paper-strong p-5 sm:p-6">
         <div className="h-12 w-64 max-w-full animate-pulse rounded-[8px] bg-ink/8" />
         <div className="mt-5 grid gap-5 lg:grid-cols-2">
           {[0, 1].map((item) => (
@@ -956,7 +956,7 @@ export function DashboardHomeSkeleton() {
           ))}
         </div>
       </div>
-      <div className="h-72 animate-pulse rounded-[16px] border-2 border-line bg-white" />
+      <div className="h-72 animate-pulse rounded-[16px] border-2 border-line bg-paper-strong" />
     </div>
   );
 }
@@ -1083,7 +1083,7 @@ export function DashboardHomeContent({
     <div className="space-y-6">
       <section
         data-motion="hero"
-        className="overflow-hidden rounded-[16px] border-2 border-ink bg-white shadow-[6px_6px_0_0_rgba(14,49,88,0.12)]"
+        className="overflow-hidden rounded-[16px] border-2 border-ink bg-paper-strong shadow-[6px_6px_0_0_var(--shadow-hard-12)]"
       >
         <div className="grid gap-0 xl:grid-cols-[minmax(0,1fr)_260px]">
           <div className="p-4 sm:p-5 lg:p-6" data-motion="copy">
@@ -1139,9 +1139,9 @@ export function DashboardHomeContent({
             )}
           </div>
 
-          <div className="border-t-2 border-ink bg-ink p-4 text-white xl:border-l-2 xl:border-t-0">
+          <div className="border-t-2 border-ink bg-ink p-4 text-paper-strong xl:border-l-2 xl:border-t-0">
             <div className="flex h-full flex-col justify-center gap-2">
-              <p className="text-xs font-black uppercase tracking-[0.12em] text-white/65">
+              <p className="text-xs font-black uppercase tracking-[0.12em] text-paper-strong/65">
                 {tr(locale, "Ukupno", "Overall")}
               </p>
               <p className="text-4xl font-black leading-none">{overallPercent}%</p>
@@ -1150,7 +1150,7 @@ export function DashboardHomeContent({
                 tone="ink"
                 label={tr(locale, "Ukupan napredak", "Overall progress")}
               />
-              <p className="text-xs font-bold leading-5 text-white/70">
+              <p className="text-xs font-bold leading-5 text-paper-strong/70">
                 {completedLessons}/{totalLessons || 0} {tr(locale, "zavrsenih lekcija", "completed lessons")}
               </p>
             </div>
@@ -1159,7 +1159,7 @@ export function DashboardHomeContent({
       </section>
 
       <Panel className="overflow-hidden">
-        <div className="border-b-2 border-ink bg-white p-5 sm:p-6">
+        <div className="border-b-2 border-ink bg-paper-strong p-5 sm:p-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-xs font-black uppercase text-muted">{tr(locale, "Kursevi", "Courses")}</p>
@@ -1239,7 +1239,7 @@ export function DashboardContent({
 
   return (
     <div className="space-y-6">
-      <section data-motion="hero" className="dashboard-reveal overflow-hidden rounded-[10px] border-2 border-ink bg-white shadow-[8px_8px_0_0_rgba(14,49,88,0.14)]">
+      <section data-motion="hero" className="dashboard-reveal overflow-hidden rounded-[10px] border-2 border-ink bg-paper-strong shadow-[8px_8px_0_0_var(--shadow-hard-14)]">
         <div className="grid gap-0 xl:grid-cols-[minmax(0,1fr)_360px]">
           <div className="p-5 sm:p-7" data-motion="copy">
             <div className="flex flex-wrap items-center gap-2">
@@ -1308,10 +1308,10 @@ export function DashboardContent({
               </LinkButton>
             </div>
           </div>
-          <div className="border-t-2 border-ink bg-ink p-5 text-white xl:border-l-2 xl:border-t-0">
+          <div className="border-t-2 border-ink bg-ink p-5 text-paper-strong xl:border-l-2 xl:border-t-0">
             <div className="flex h-full flex-col justify-between gap-4">
               <div>
-                <p className="text-sm font-black uppercase text-white/65">{tr(locale, "Pregled kursa", "Course overview")}</p>
+                <p className="text-sm font-black uppercase text-paper-strong/65">{tr(locale, "Pregled kursa", "Course overview")}</p>
                 <p className="mt-4 text-5xl font-black leading-none">{surfaceIsAdmin ? "Admin" : `${completionPercent}%`}</p>
                 <div className="mt-5">
                   <CourseProgress
@@ -1340,7 +1340,7 @@ export function DashboardContent({
       <FeaturedThreadsSection locale={locale} course={course} />
 
       <Panel className="dashboard-reveal overflow-hidden">
-        <div className="border-b-2 border-ink bg-white p-5 sm:p-6">
+        <div className="border-b-2 border-ink bg-paper-strong p-5 sm:p-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-xs font-black uppercase text-muted"><InlineContentText entityId={course.id ?? ""} parentId={course.trackId} kind="course" field="pageCopy_sectionEyebrow" locale={inlineLocale} sr={course.pageCopy?.sectionEyebrow?.sr ?? "Lekcije u kursu"} en={course.pageCopy?.sectionEyebrow?.en ?? "Course lessons"} admin={isAdmin && Boolean(course.id && course.trackId)}>{locale === "sr" ? course.pageCopy?.sectionEyebrow?.sr ?? "Lekcije u kursu" : course.pageCopy?.sectionEyebrow?.en ?? "Course lessons"}</InlineContentText></p>
@@ -1356,7 +1356,7 @@ export function DashboardContent({
         </div>
         <div className="space-y-4 p-5 sm:p-6">
           {modules.flatMap((module) => module.lessons).map((lesson, lessonIndex) => (
-            <details key={lesson.id ?? lesson.slug} className="group overflow-hidden rounded-[16px] border-2 border-ink bg-white" open={lessonIndex === 0}>
+            <details key={lesson.id ?? lesson.slug} className="group overflow-hidden rounded-[16px] border-2 border-ink bg-paper-strong" open={lessonIndex === 0}>
               <summary className="flex min-h-16 cursor-pointer list-none items-center gap-4 px-4 py-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
                 <span className="grid size-9 shrink-0 place-items-center rounded-full border-2 border-ink bg-yellow text-xs font-black">{lessonIndex + 1}</span>
                 <div className="min-w-0 flex-1"><p className="truncate text-base font-black text-ink"><InlineContentText entityId={lesson.id ?? ""} parentId={course.id} kind="lesson" field="title" locale={inlineLocale} sr={lesson.title.sr} en={lesson.title.en} admin={isAdmin && Boolean(lesson.id && course.id)}>{localized(lesson.title, locale)}</InlineContentText></p><p className="mt-0.5 text-xs font-bold text-muted">{lesson.duration}</p></div>
@@ -1365,7 +1365,7 @@ export function DashboardContent({
               </summary>
               <div className="border-t-2 border-line bg-paper px-4 py-4 sm:pl-[4.25rem]">
                 {lesson.summary ? <InlineRichText kind="lesson" entityId={lesson.id ?? ""} parentId={course.id} field="summary" locale={inlineLocale} richSr={lesson.summaryRich?.sr} richEn={lesson.summaryRich?.en} sr={lesson.summary.sr} en={lesson.summary.en} admin={isAdmin && Boolean(lesson.id && course.id)} className="max-w-3xl text-sm font-semibold leading-6 text-muted" /> : <p className="max-w-3xl text-sm font-semibold leading-6 text-muted">{tr(locale, "Sažetak lekcije još nije dodat.", "Lesson summary has not been added yet.")}</p>}
-                <div className="mt-4 flex flex-wrap gap-2"><Link href={courseContinueHref(locale, course, lesson)} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-xs font-black"><PlayCircle className="size-4" /> {tr(locale, "Otvori lekciju", "Open lesson")}</Link>{surfaceIsAdmin ? <Link href={withLocale(locale, "/app/admin")} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-white px-4 text-xs font-black"><ShieldCheck className="size-4" /> {tr(locale, "Uredi u admin panelu", "Edit in admin panel")}</Link> : null}</div>
+                <div className="mt-4 flex flex-wrap gap-2"><Link href={courseContinueHref(locale, course, lesson)} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-xs font-black"><PlayCircle className="size-4" /> {tr(locale, "Otvori lekciju", "Open lesson")}</Link>{surfaceIsAdmin ? <Link href={withLocale(locale, "/app/admin")} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 text-xs font-black"><ShieldCheck className="size-4" /> {tr(locale, "Uredi u admin panelu", "Edit in admin panel")}</Link> : null}</div>
               </div>
             </details>
           ))}

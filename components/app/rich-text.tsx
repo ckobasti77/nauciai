@@ -107,7 +107,7 @@ export function InlineRichText({
       <AppComposerSheet title="Uredi formatirani tekst" eyebrow="Live Admin rich text" open={open} onClose={() => setOpen(false)}>
         <div className="space-y-4">
           <div className="inline-flex rounded-full border-2 border-ink bg-paper p-1">
-            {(["sr", "en"] as const).map((entry) => <button key={entry} type="button" onClick={() => setContentLocale(entry)} className={cn("rounded-full px-4 py-2 text-xs font-black uppercase", contentLocale === entry && "bg-ink text-white")}>{entry}</button>)}
+            {(["sr", "en"] as const).map((entry) => <button key={entry} type="button" onClick={() => setContentLocale(entry)} className={cn("rounded-full px-4 py-2 text-xs font-black uppercase", contentLocale === entry && "bg-ink text-paper-strong")}>{entry}</button>)}
           </div>
           <RichTextEditor value={contentLocale === "sr" ? nextRichSr : nextRichEn} fallback={contentLocale === "sr" ? sr : en} onChange={(json) => contentLocale === "sr" ? setNextRichSr(json) : setNextRichEn(json)} />
           {contentLocale === "en" && !richTextToPlainText(nextRichEn) ? <p className="rounded-[8px] border-2 border-amber-700 bg-amber-50 p-3 text-sm font-black text-amber-950">EN tekst nedostaje. Ovo upozorenje ne blokira objavu.</p> : null}

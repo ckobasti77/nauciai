@@ -7,7 +7,25 @@ import { cn } from "@/components/ui/primitives";
 import type { ParamControl as ParamControlSpec } from "@/convex/studioParamSpec";
 import type { PriceRule } from "@/convex/studioPricing";
 import type { Locale } from "@/lib/i18n";
+import { splitControlsByImportance } from "@/lib/studio-panel";
 import { buildParams, paramValuesForMode, visibleControls, type ParamValue, type ParamValues } from "@/lib/studio-params";
+
+/**
+ * Kontrola koja u dvokolonskoj mreži zauzima CEO red (2 kolone): sve široko
+ * (tekst, klizač), pun `select`, i brojčane kontrole (broj slika se rasteže na
+ * ceo red). Uske kontrole (segmentovano, odnos-ikone, prekidač) staju u pola
+ * reda - pa rezolucija i odnos stranica sednu jedno pored drugog.
+ */
+function spanFull(control: ParamControlSpec): boolean {
+  if (control.type === "textarea" || control.type === "text" || control.type === "slider") return true;
+  if (control.type === "number") return true;
+  if (control.type === "select") {
+    const options = control.options ?? [];
+    const ratio = options.length > 0 && options.every((option) => /^\d+:\d+$/.test(option.value));
+    return !ratio; // dug dropdown = ceo red; odnos-ikone = pola reda
+  }
+  return false; // segmented, switch = pola reda
+}
 
 export type ParamFormState = {
   /** Vrednosti kontrola, po ključu iz `paramSpec`-a. */
@@ -94,21 +112,28 @@ export function ParamForm({
   if (controls.length === 0) return null;
 
   const isPrompt = (c: ParamControlSpec) => c.type === "textarea" || c.key === "prompt";
-  const promptControls = hidePromptOnDesktop ? controls.filter(isPrompt) : [];
-  const standardControls = hidePromptOnDesktop ? controls.filter((c) => !isPrompt(c)) : controls;
+  const promptControls = controls.filter(isPrompt);
+  const nonPromptControls = controls.filter((c) => !isPrompt(c));
 
-  if (hidePromptOnDesktop && promptControls.length === 0 && standardControls.length === 0) {
+  if (hidePromptOnDesktop && promptControls.length === 0 && nonPromptControls.length === 0) {
     return null;
   }
 
-  const shouldSplit = standardControls.length > 4;
-  const basicControls = shouldSplit ? standardControls.slice(0, 3) : standardControls;
-  const advControls = shouldSplit ? standardControls.slice(3) : [];
+  // Osnovno vs napredno se izvodi iz paramSpec-a (SP1, tačka 3), ne iz fiksnog
+  // preseka: kontrola koja menja cenu ili bira oblik izlaza je osnovna, ostalo
+  // je napredno i stoji sklopljeno. Ako po pravilu NIŠTA nije osnovno (npr. TTS,
+  // gde cenu diktira dužina teksta a ne kontrole), prikaži prvu kontrolu iz
+  // paramSpec-a (najvažniju, npr. glas) a ostalo sklopi - da panel nikad ne
+  // krene sa nula vidljivih kontrola, ni sa svih devet otvorenih.
+  const split = splitControlsByImportance(nonPromptControls);
+  const hasBasic = split.basic.length > 0;
+  const basicControls = hasBasic ? split.basic : split.advanced.slice(0, 1);
+  const advControls = hasBasic ? split.advanced : split.advanced.slice(1);
 
   return (
-    <div className={cn("space-y-4", standardControls.length === 0 && "sm:hidden")}>
+    <div className={cn("space-y-4", nonPromptControls.length === 0 && hidePromptOnDesktop && "sm:hidden")}>
       {promptControls.length > 0 ? (
-        <div className="space-y-4 sm:hidden">
+        <div className={cn("space-y-4", hidePromptOnDesktop && "sm:hidden")}>
           {promptControls.map((control) => (
             <ParamControl
               key={control.key}
@@ -125,19 +150,22 @@ export function ParamForm({
         </div>
       ) : null}
 
-      {basicControls.map((control) => (
-        <ParamControl
-          key={control.key}
-          control={control}
-          value={state.values[control.key] ?? control.default}
-          onChange={(next) => state.setValue(control.key, next)}
-          locale={locale}
-          rule={rule}
-          params={state.params}
-          inputMode={inputMode}
-          disabled={disabled}
-        />
-      ))}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {basicControls.map((control) => (
+          <div key={control.key} className={cn(spanFull(control) && "sm:col-span-2")}>
+            <ParamControl
+              control={control}
+              value={state.values[control.key] ?? control.default}
+              onChange={(next) => state.setValue(control.key, next)}
+              locale={locale}
+              rule={rule}
+              params={state.params}
+              inputMode={inputMode}
+              disabled={disabled}
+            />
+          </div>
+        ))}
+      </div>
 
       {advControls.length > 0 ? (
         <div className="border-t-2 border-ink/10 pt-2">

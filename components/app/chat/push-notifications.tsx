@@ -85,7 +85,7 @@ export function PushNotificationButton({ locale }: { locale: Locale }) {
       : (locale === "sr" ? "Uključi browser push" : "Enable browser push");
 
   return (
-    <button type="button" onClick={() => void toggle()} disabled={status === "pending" || status === "denied"} className="grid size-11 place-items-center rounded-full border-2 border-ink bg-white disabled:opacity-50" aria-label={title} title={title}>
+    <button type="button" onClick={() => void toggle()} disabled={status === "pending" || status === "denied"} className="grid size-11 place-items-center rounded-full border-2 border-ink bg-paper-strong disabled:opacity-50" aria-label={title} title={title}>
       {status === "pending" ? <Loader2 className="size-4 animate-spin" /> : status === "subscribed" ? <Bell className="size-4 fill-current" /> : <BellOff className="size-4" />}
     </button>
   );

@@ -48,7 +48,7 @@ export function CommunitySearch({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        className="min-h-10 w-full rounded-full border border-line bg-white py-2 pl-11 pr-4 text-sm font-bold text-ink outline-none transition placeholder:font-semibold placeholder:text-muted/65 hover:border-ink/50 focus:border-ink focus:ring-4 focus:ring-yellow/25"
+        className="min-h-10 w-full rounded-full border border-line bg-paper-strong py-2 pl-11 pr-4 text-sm font-bold text-ink outline-none transition placeholder:font-semibold placeholder:text-muted/65 hover:border-ink/50 focus:border-ink focus:ring-4 focus:ring-yellow/25"
       />
     </label>
   );
@@ -71,8 +71,8 @@ export function FilterChip({
       className={cn(
         "inline-flex min-h-11 shrink-0 items-center justify-center rounded-full border px-4 text-sm font-black transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
         active
-          ? "border-ink bg-ink text-white shadow-[2px_2px_0_rgba(244,190,48,0.9)]"
-          : "border-line bg-white text-ink/75 hover:border-ink hover:bg-yellow/15",
+          ? "border-ink bg-ink text-paper-strong shadow-[2px_2px_0_rgba(244,190,48,0.9)]"
+          : "border-line bg-paper-strong text-ink/75 hover:border-ink hover:bg-yellow/15",
       )}
     >
       {children}
@@ -150,7 +150,7 @@ export function LearningSpine({
   ];
 
   return (
-    <aside className="rounded-[16px] border border-ink/15 bg-[#eef3f7] p-4" aria-label={locale === "sr" ? "Putanja učenja" : "Learning path"}>
+    <aside className="rounded-[16px] border border-ink/15 bg-[#eef3f7] dark:bg-ink/10 p-4" aria-label={locale === "sr" ? "Putanja učenja" : "Learning path"}>
       <div className="flex items-center justify-between gap-3">
         <p className="text-[11px] font-black uppercase tracking-[0.15em] text-ink/60">
           {locale === "sr" ? "Learning spine" : "Learning spine"}
@@ -166,7 +166,7 @@ export function LearningSpine({
           <li key={key} className="relative flex min-w-0 items-center gap-3">
             <span
               className={cn(
-                "relative z-10 grid size-8 shrink-0 place-items-center rounded-full border bg-white",
+                "relative z-10 grid size-8 shrink-0 place-items-center rounded-full border bg-paper-strong",
                 active ? "border-ink bg-yellow text-ink" : "border-ink/20 text-ink/45",
               )}
             >
@@ -185,8 +185,8 @@ export function LearningSpine({
 
 function roleTone(role?: CommunityRole) {
   if (role === "admin") return "bg-yellow";
-  if (role === "moderator") return "bg-[#dcecf1]";
-  return "bg-white";
+  if (role === "moderator") return "bg-[#dcecf1] dark:bg-ink/10";
+  return "bg-paper-strong";
 }
 
 export function ThreadCard({
@@ -220,10 +220,10 @@ export function ThreadCard({
     <article
       data-motion="card"
       className={cn(
-        "group relative isolate overflow-hidden rounded-[16px] border-2 bg-white transition duration-200 focus-within:border-ink hover:border-ink",
+        "group relative isolate overflow-hidden rounded-[16px] border-2 bg-paper-strong transition duration-200 focus-within:border-ink hover:border-ink",
         highlighted
-          ? "border-[#d7a91b] bg-[#fffaf0] shadow-[6px_6px_0_0_rgba(244,190,48,0.32)] hover:shadow-[8px_8px_0_0_rgba(244,190,48,0.32)]"
-          : "border-ink shadow-[6px_6px_0_0_rgba(14,49,88,0.13)] hover:shadow-[8px_8px_0_0_rgba(14,49,88,0.13)]",
+          ? "border-[#d7a91b] bg-[#fffaf0] dark:bg-yellow/15 shadow-[6px_6px_0_0_rgba(244,190,48,0.32)] hover:shadow-[8px_8px_0_0_rgba(244,190,48,0.32)]"
+          : "border-ink shadow-[6px_6px_0_0_var(--shadow-hard-13)] hover:shadow-[8px_8px_0_0_var(--shadow-hard-13)]",
       )}
     >
       <div className="flex min-w-0 gap-2.5 p-3 sm:gap-3 sm:p-3.5">
@@ -262,7 +262,7 @@ export function ThreadCard({
               href={threadHref}
               className="min-w-0 flex-1 rounded-[8px] after:absolute after:inset-0 after:z-0 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink"
             >
-              <h2 className="truncate text-[16px] font-black leading-5 tracking-[-0.018em] text-ink transition group-hover:text-[#164d7d] sm:text-[17px]">
+              <h2 className="truncate text-[16px] font-black leading-5 tracking-[-0.018em] text-ink transition group-hover:text-[#164d7d] dark:group-hover:text-ink sm:text-[17px]">
                 {post.title}
               </h2>
               <p className="mt-0.5 line-clamp-1 text-[13px] font-semibold leading-5 text-muted">{post.body}</p>
@@ -295,7 +295,7 @@ export function EmptyCommunityState({
   action?: ReactNode;
 }) {
   return (
-    <section className="grid min-h-72 place-items-center rounded-[16px] border border-dashed border-ink/35 bg-white/70 p-6 text-center">
+    <section className="grid min-h-72 place-items-center rounded-[16px] border border-dashed border-ink/35 bg-paper-strong/70 p-6 text-center">
       <div className="max-w-md">
         <span className="mx-auto grid size-12 place-items-center rounded-full border border-ink bg-yellow text-ink">
           <Icon className="size-5" aria-hidden="true" />
@@ -323,7 +323,7 @@ export function LoadMoreButton({
       type="button"
       onClick={onClick}
       disabled={loading}
-      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-ink bg-white px-5 text-sm font-black text-ink transition hover:bg-yellow/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-wait disabled:opacity-60"
+      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-ink bg-paper-strong px-5 text-sm font-black text-ink transition hover:bg-yellow/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-wait disabled:opacity-60"
     >
       {loading ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <ArrowRight className="size-4" aria-hidden="true" />}
       {loading
@@ -344,7 +344,7 @@ export function CommunityRouteSkeleton() {
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
         <div className="space-y-3">
           {[0, 1, 2].map((item) => (
-            <div key={item} className="h-44 animate-pulse rounded-[16px] border border-line bg-white" />
+            <div key={item} className="h-44 animate-pulse rounded-[16px] border border-line bg-paper-strong" />
           ))}
         </div>
         <div className="hidden h-64 animate-pulse rounded-[16px] bg-ink/8 xl:block" />

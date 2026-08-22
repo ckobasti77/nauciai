@@ -3,9 +3,8 @@
 import { Minus, Plus } from "lucide-react";
 import { useId } from "react";
 
-import { PriceTag } from "@/components/studio/price-tag";
 import { cn } from "@/components/ui/primitives";
-import { availableOptionValues, type ParamControl as ParamControlSpec } from "@/convex/studioParamSpec";
+import { availableOptionValues, type ParamControl as ParamControlSpec, type ParamOption } from "@/convex/studioParamSpec";
 import type { PriceRule } from "@/convex/studioPricing";
 import type { Locale } from "@/lib/i18n";
 import {
@@ -14,28 +13,105 @@ import {
   controlLabel,
   controlUnit,
   optionLabel,
-  priceDelta,
-  stepPriceDelta,
   type ParamValue,
 } from "@/lib/studio-params";
 
 const FIELD =
-  "surface-inset w-full border-2 border-ink bg-white px-4 py-2.5 text-base font-extrabold text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-60";
+  "surface-inset w-full border-2 border-ink bg-paper-strong px-3 py-2 text-sm font-extrabold text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-60";
 
-const LABEL = "text-sm font-black uppercase tracking-wide text-muted";
+const LABEL = "text-[11px] font-black uppercase tracking-wide text-muted";
 
 const STEPPER =
-  "inline-flex size-11 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-white text-ink transition duration-200 hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-40";
+  "inline-flex size-9 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink transition duration-200 hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-40";
+
+// Jedan izbor iz reda (rezolucija / odnos / broj): sva tri koriste ISTI red
+// dugmica iste visine, pa se dve kontrole jedna do druge poravnaju (nema više
+// niskog reda pored visokog). Aktivno/neaktivno se dodaje preko `cn`.
+const CHOICE_ROW = "mt-1.5 flex flex-wrap gap-1.5";
+const CHOICE =
+  "surface-inset inline-flex min-h-[44px] flex-1 items-center justify-center border-2 border-ink px-2 py-1 text-xs font-black transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-40";
+const CHOICE_ACTIVE = "bg-ink text-paper-strong";
+const CHOICE_IDLE = "bg-paper-strong text-ink hover:-translate-y-0.5";
+
+/** Opcija oblika `W:H` (odnos stranica) - takva kontrola se crta ikonama, ne tekstom. */
+const RATIO_RE = /^(\d+):(\d+)$/;
+
+function isRatioOptions(options: ParamOption[]): boolean {
+  return options.length > 0 && options.every((option) => RATIO_RE.test(option.value));
+}
+
+/** Mali pravougaonik u proporciji odnosa - ikona koja pokazuje oblik izlaza. */
+function RatioIcon({ value }: { value: string }) {
+  const match = RATIO_RE.exec(value);
+  if (!match) return null;
+  const w = Number(match[1]);
+  const h = Number(match[2]);
+  const box = 15;
+  const rw = w >= h ? box : (box * w) / h;
+  const rh = h >= w ? box : (box * h) / w;
+  const x = (20 - rw) / 2;
+  const y = (20 - rh) / 2;
+
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+      <rect x={x} y={y} width={rw} height={rh} rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.8" />
+    </svg>
+  );
+}
+
+/** Kontrola sa opcijama-odnosima: 5 dugmica sa ikonom oblika + tekstom ispod. */
+function RatioButtons({
+  options,
+  value,
+  available,
+  label,
+  disabled,
+  onChange,
+  locale,
+}: {
+  options: ParamOption[];
+  value: ParamValue;
+  available: string[];
+  label: string;
+  disabled: boolean;
+  onChange: (next: ParamValue) => void;
+  locale: Locale;
+}) {
+  return (
+    <div role="group" aria-label={label} className={CHOICE_ROW}>
+      {options.map((option) => {
+        const active = value === option.value;
+        const priceable = available.includes(option.value);
+        return (
+          <button
+            key={option.value}
+            type="button"
+            aria-pressed={active}
+            disabled={disabled || (!priceable && !active)}
+            title={locale === "sr" ? `Odnos ${option.value}` : `Ratio ${option.value}`}
+            onClick={() => onChange(option.value)}
+            className={cn(
+              CHOICE,
+              "flex-col gap-0.5 px-1 text-[10px] leading-none",
+              active ? CHOICE_ACTIVE : CHOICE_IDLE,
+            )}
+          >
+            <RatioIcon value={option.value} />
+            <span>{optionLabel(option, locale)}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 /**
  * Jedna kontrola iz `paramSpec`-a (STUDIO-CATALOG-V4 1.2). Grana ISKLJUČIVO po
- * `type`-u - `segmented`, `select`, `slider`, `number`, `switch`, `textarea`,
- * `text` - i ne zna ime nijednog modela.
+ * `type`-u i ne zna ime nijednog modela. Cena više NE stoji uz svaku opciju
+ * (živa cena je na baru composera, ispod inputa) - kontrole su čiste i gušće.
  *
- * Opcija koja uz trenutne ostale parametre nema cenu se ne skriva nego gasi:
- * Seedance Mini nema 1080p, i korisnik treba da vidi zašto mu nedostaje, a ne
- * da mu se ponuda tiho menja. Odgovor dolazi iz cenovnog pravila
- * (`availableOptionValues`), ne iz spiska zabrana.
+ * Odnos stranica se crta ikonama oblika (5 dugmica), a mali brojčani opseg
+ * (npr. broj slika 1-4) kao red dugmica umesto steppera.
  */
 export function ParamControl({
   control,
@@ -52,7 +128,7 @@ export function ParamControl({
   onChange: (next: ParamValue) => void;
   locale: Locale;
   rule: PriceRule;
-  /** Trenutni parametri - značka cene se računa nad njima, ne nad podrazumevanima. */
+  /** Trenutni parametri - služe samo za `availableOptionValues` (šta je dostupno). */
   params: Record<string, unknown>;
   inputMode?: string;
   disabled?: boolean;
@@ -63,43 +139,48 @@ export function ParamControl({
   const unit = controlUnit(control, locale);
   const options = control.options ?? [];
   const available = availableOptionValues(control, rule, params, inputMode);
-
-  function optionTag(optionValue: string) {
-    if (!control.affectsPrice) return null;
-
-    return <PriceTag delta={priceDelta(rule, params, control.key, optionValue, inputMode)} locale={locale} />;
-  }
+  const ratio = isRatioOptions(options);
 
   const header = (
     <div className="flex flex-wrap items-center gap-2">
       <label htmlFor={id} className={LABEL}>
         {label}
       </label>
-      {control.type === "slider" || control.type === "number" ? (
-        <span className="text-sm font-black text-ink">
+      {control.type === "slider" ? (
+        <span className="text-xs font-black text-ink">
           {typeof value === "number" ? value : control.default}
           {unit ? ` ${unit}` : ""}
         </span>
-      ) : null}
-      {control.affectsPrice && (control.type === "slider" || control.type === "number") ? (
-        <PriceTag delta={stepPriceDelta(rule, params, control, inputMode)} locale={locale} />
       ) : null}
     </div>
   );
 
   const helpText = help ? <p className="mt-1 text-xs font-bold leading-5 text-muted">{help}</p> : null;
 
-  if (control.type === "segmented") {
+  if (control.type === "segmented" || (control.type === "select" && ratio)) {
+    if (ratio) {
+      return (
+        <div>
+          {header}
+          <RatioButtons
+            options={options}
+            value={value}
+            available={available}
+            label={label}
+            disabled={disabled}
+            onChange={onChange}
+            locale={locale}
+          />
+          {helpText}
+        </div>
+      );
+    }
+
+    // Segmentovano: red dugmica iste visine kao odnos stranica (bez cenovnih znački).
     return (
       <div>
         {header}
-        {/* ToggleGroup: jedan izbor, sve opcije u redu. */}
-        <div
-          id={id}
-          role="group"
-          aria-label={label}
-          className="surface-inset mt-2 flex flex-wrap gap-1 border-2 border-ink bg-paper p-1"
-        >
+        <div id={id} role="group" aria-label={label} className={CHOICE_ROW}>
           {options.map((option) => {
             const active = value === option.value;
             const priceable = available.includes(option.value);
@@ -118,13 +199,9 @@ export function ParamControl({
                       : "Not available with the current settings."
                 }
                 onClick={() => onChange(option.value)}
-                className={cn(
-                  "inline-flex items-center gap-1.5 rounded-full border-2 border-ink px-3 py-1.5 text-sm font-black transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-40",
-                  active ? "bg-ink text-white" : "bg-white text-ink hover:-translate-y-0.5",
-                )}
+                className={cn(CHOICE, active ? CHOICE_ACTIVE : CHOICE_IDLE)}
               >
                 {optionLabel(option, locale)}
-                {active ? null : optionTag(option.value)}
               </button>
             );
           })}
@@ -143,7 +220,7 @@ export function ParamControl({
           value={typeof value === "string" ? value : String(control.default)}
           disabled={disabled}
           onChange={(event) => onChange(event.target.value)}
-          className={cn(FIELD, "mt-2")}
+          className={cn(FIELD, "mt-1.5")}
         >
           {options.map((option) => (
             <option key={option.value} value={option.value} disabled={!available.includes(option.value)}>
@@ -151,22 +228,6 @@ export function ParamControl({
             </option>
           ))}
         </select>
-        {/* Kod `select`-a značka stoji uz kontrolu, za trenutno izabranu vrednost
-            se ne prikazuje razlika prema samoj sebi - zato se gleda prva druga
-            opcija koja menja cenu. */}
-        {control.affectsPrice ? (
-          <div className="mt-2 flex flex-wrap gap-1">
-            {options
-              .filter((option) => option.value !== value && available.includes(option.value))
-              .slice(0, 4)
-              .map((option) => (
-                <span key={option.value} className="inline-flex items-center gap-1 text-xs font-bold text-muted">
-                  {optionLabel(option, locale)}
-                  {optionTag(option.value)}
-                </span>
-              ))}
-          </div>
-        ) : null}
         {helpText}
       </div>
     );
@@ -190,9 +251,9 @@ export function ParamControl({
           value={current}
           disabled={disabled}
           onChange={(event) => onChange(clampControlNumber(control, Number(event.target.value)))}
-          className="mt-3 w-full accent-ink"
+          className="mt-2 w-full accent-ink"
         />
-        <div className="flex justify-between text-xs font-bold text-muted">
+        <div className="flex justify-between text-[10px] font-bold text-muted">
           <span>
             {min}
             {unit ? ` ${unit}` : ""}
@@ -210,15 +271,46 @@ export function ParamControl({
   if (control.type === "number") {
     const current = typeof value === "number" ? value : Number(control.default);
     const step = control.step ?? 1;
+    const min = control.min;
+    const max = control.max;
+
+    // Mali celobrojni opseg (npr. broj slika 1-4) -> red dugmica, ne stepper.
+    const isCount = control.key === "num_images" || control.key === "num_outputs" || control.key === "count";
+    if (min !== undefined && max !== undefined && step === 1 && max - min >= 1 && max - min <= 5) {
+      const values = Array.from({ length: max - min + 1 }, (_, i) => min + i);
+      return (
+        <div>
+          {header}
+          <div role="group" aria-label={label} className={CHOICE_ROW}>
+            {values.map((n) => {
+              const active = current === n;
+              return (
+                <button
+                  key={n}
+                  type="button"
+                  aria-pressed={active}
+                  disabled={disabled}
+                  onClick={() => onChange(n)}
+                  className={cn(CHOICE, active ? CHOICE_ACTIVE : CHOICE_IDLE)}
+                >
+                  {isCount ? `${n}×` : n}
+                </button>
+              );
+            })}
+          </div>
+          {helpText}
+        </div>
+      );
+    }
 
     return (
       <div>
         {header}
-        <div className="mt-2 flex items-center gap-2">
+        <div className="mt-1.5 flex items-center gap-2">
           <button
             type="button"
             aria-label={locale === "sr" ? `Manje: ${label}` : `Less: ${label}`}
-            disabled={disabled || (control.min !== undefined && current <= control.min)}
+            disabled={disabled || (min !== undefined && current <= min)}
             onClick={() => onChange(clampControlNumber(control, current - step))}
             className={STEPPER}
           >
@@ -229,20 +321,20 @@ export function ParamControl({
             type="number"
             inputMode="numeric"
             value={current}
-            min={control.min}
-            max={control.max}
+            min={min}
+            max={max}
             step={step}
             disabled={disabled}
             onChange={(event) => {
               const next = Number(event.target.value);
               if (Number.isFinite(next)) onChange(clampControlNumber(control, next));
             }}
-            className={cn(FIELD, "w-24 text-center")}
+            className={cn(FIELD, "w-20 text-center")}
           />
           <button
             type="button"
             aria-label={locale === "sr" ? `Više: ${label}` : `More: ${label}`}
-            disabled={disabled || (control.max !== undefined && current >= control.max)}
+            disabled={disabled || (max !== undefined && current >= max)}
             onClick={() => onChange(clampControlNumber(control, current + step))}
             className={STEPPER}
           >
@@ -270,20 +362,17 @@ export function ParamControl({
             onClick={() => onChange(!on)}
             className={cn(
               "inline-flex h-7 w-12 shrink-0 items-center rounded-full border-2 border-ink p-0.5 transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-60",
-              on ? "bg-yellow" : "bg-white",
+              on ? "bg-yellow" : "bg-paper-strong",
             )}
           >
             <span
               className={cn(
-                "size-5 rounded-full border-2 border-ink bg-white transition duration-200",
+                "size-5 rounded-full border-2 border-ink bg-paper-strong transition duration-200",
                 on && "translate-x-5",
               )}
             />
           </button>
           <span className={LABEL}>{label}</span>
-          {control.affectsPrice ? (
-            <PriceTag delta={priceDelta(rule, params, control.key, !on, inputMode)} locale={locale} />
-          ) : null}
         </div>
         {helpText}
       </div>
@@ -299,12 +388,12 @@ export function ParamControl({
         {header}
         <textarea
           id={id}
-          rows={5}
+          rows={4}
           value={text}
           maxLength={max}
           disabled={disabled}
           onChange={(event) => onChange(event.target.value)}
-          className={cn(FIELD, "mt-2 py-3 font-bold placeholder:font-bold placeholder:text-muted")}
+          className={cn(FIELD, "mt-1.5 py-2.5 font-bold placeholder:font-bold placeholder:text-muted")}
         />
         {max !== undefined ? (
           <p
@@ -331,7 +420,7 @@ export function ParamControl({
         maxLength={control.max}
         disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
-        className={cn(FIELD, "mt-2")}
+        className={cn(FIELD, "mt-1.5")}
       />
       {helpText}
     </div>

@@ -84,7 +84,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             <div
               key={toast.id}
               role={toast.tone === "error" ? "alert" : "status"}
-              className={`pointer-events-auto w-full rounded-[16px] border-2 p-3 shadow-[5px_5px_0_rgba(14,49,88,0.18)] motion-safe:animate-in ${style.surface}`}
+              className={`pointer-events-auto w-full rounded-[16px] border-2 p-3 shadow-[5px_5px_0_var(--shadow-hard)] motion-safe:animate-in ${style.surface}`}
             >
               <div className="flex items-start gap-3">
                 <Icon className="mt-0.5 size-5 shrink-0" aria-hidden="true" />

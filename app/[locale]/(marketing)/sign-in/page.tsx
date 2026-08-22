@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { ThemeToggle } from "@/components/app/theme-toggle";
 import { SignInPanel } from "@/components/app/sign-in-panel";
 import { BrandMark, HandUnderline } from "@/components/ui/primitives";
 import { dictionary, locales, normalizeLocale, type Locale, withLocale } from "@/lib/i18n";
@@ -11,7 +12,10 @@ export function generateStaticParams() {
 function SignInCopy({ locale }: { locale: Locale }) {
   return (
     <div data-motion="copy">
-      <BrandMark href={withLocale(locale)} label={dictionary[locale].appName} />
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <BrandMark href={withLocale(locale)} label={dictionary[locale].appName} />
+        <ThemeToggle locale={locale} compact />
+      </div>
       <h1 className="mt-10 text-5xl font-black leading-tight text-ink md:text-6xl">
         {locale === "sr" ? "Uđi u svoj AI kurs" : "Enter your AI course"}
       </h1>

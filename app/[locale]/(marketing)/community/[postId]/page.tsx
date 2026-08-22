@@ -132,7 +132,7 @@ export default async function PublicCommunityThreadPage({
         <Link href={withLocale(locale, "/app/community/discussions")} className="inline-flex text-sm font-black text-ink underline">
           {locale === "sr" ? "Nazad na zajednicu" : "Back to community"}
         </Link>
-        <article className="overflow-hidden rounded-[16px] border-2 border-ink bg-white shadow-[6px_6px_0_rgba(14,49,88,0.13)]">
+        <article className="overflow-hidden rounded-[16px] border-2 border-ink bg-paper-strong shadow-[6px_6px_0_var(--shadow-hard-13)]">
           <header className="border-b border-line bg-paper/55 px-5 py-7 md:px-8">
             <p className="text-xs font-black uppercase tracking-[0.12em] text-muted">
               {locale === "sr" ? "Javna diskusija" : "Public discussion"}
@@ -150,13 +150,13 @@ export default async function PublicCommunityThreadPage({
             <span className="rounded-full border border-line bg-paper px-3 py-1 text-xs font-black">
               {post.commentsCount} {locale === "sr" ? "komentara" : "comments"}
             </span>
-            <Link href={signInUrl} className="ml-auto rounded-full border-2 border-ink bg-yellow px-4 py-2 text-xs font-black text-ink shadow-[3px_3px_0_rgba(14,49,88,0.14)]">
+            <Link href={signInUrl} className="ml-auto rounded-full border-2 border-ink bg-yellow px-4 py-2 text-xs font-black text-ink shadow-[3px_3px_0_var(--shadow-hard-14)]">
               {locale === "sr" ? "Prijavi se za akcije" : "Sign in to interact"}
             </Link>
           </footer>
         </article>
 
-        <section id="comments" className="rounded-[16px] border border-line bg-white p-5 md:p-8">
+        <section id="comments" className="rounded-[16px] border border-line bg-paper-strong p-5 md:p-8">
           <PublicCommunityComments postId={postId} locale={locale} initialComments={comments} />
         </section>
       </div>

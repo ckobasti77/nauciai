@@ -140,7 +140,7 @@ function AdminActionButton({
       whileHover={disabled ? undefined : { y: -1 }}
       whileTap={disabled ? undefined : { scale: 0.97 }}
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-white text-sm font-extrabold text-ink shadow-[3px_3px_0_0_rgba(14,49,88,0.16)] transition hover:bg-yellow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-50",
+        "inline-flex items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-paper-strong text-sm font-extrabold text-ink shadow-[3px_3px_0_0_var(--shadow-hard-16)] transition hover:bg-yellow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-50",
         tone === "inline" && "min-h-10 px-3",
         tone === "compact" && "min-h-8 px-2 text-xs",
         className,
@@ -171,7 +171,7 @@ function AdminIconButton({
       disabled={disabled}
       whileHover={disabled ? undefined : { y: -1, rotate: -1 }}
       whileTap={disabled ? undefined : { scale: 0.92 }}
-      className="inline-flex size-7 shrink-0 items-center justify-center rounded-[6px] border border-ink bg-white text-ink shadow-[2px_2px_0_0_rgba(14,49,88,0.14)] transition hover:bg-yellow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-50"
+      className="inline-flex size-7 shrink-0 items-center justify-center rounded-[6px] border border-ink bg-paper-strong text-ink shadow-[2px_2px_0_0_var(--shadow-hard-14)] transition hover:bg-yellow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-50"
     >
       {children}
     </motion.button>
@@ -192,7 +192,7 @@ function FormSection({
   children: ReactNode;
 }) {
   return (
-    <section className="composer-stagger rounded-[16px] border-2 border-ink bg-white p-4 shadow-[5px_5px_0_0_rgba(14,49,88,0.12)]">
+    <section className="composer-stagger rounded-[16px] border-2 border-ink bg-paper-strong p-4 shadow-[5px_5px_0_0_var(--shadow-hard-12)]">
       <div className="flex items-start gap-3">
         <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-[8px] border-2 border-ink bg-yellow text-ink">
           {icon}
@@ -232,16 +232,16 @@ function LocalizedPairSwitch({ locale, onChange, sr, en }: { locale: Locale; onC
     <div className="inline-flex items-center gap-1 rounded-full border-2 border-ink bg-paper p-1" role="group" aria-label="Jezik polja">
       {(["sr", "en"] as const).map((item) => {
         const warning = item === "sr" ? missingSr : missingEn;
-        return <button key={item} type="button" onClick={() => onChange(item)} className={cn("inline-flex min-h-7 items-center gap-1 rounded-full border px-3 text-[11px] font-black uppercase", locale === item ? "border-ink bg-ink text-white" : "border-transparent text-muted", warning && "border-amber-600 bg-amber-100 text-amber-950 ring-2 ring-amber-400/40")}>{warning ? <AlertTriangle className="size-3" /> : null}{item}</button>;
+        return <button key={item} type="button" onClick={() => onChange(item)} className={cn("inline-flex min-h-7 items-center gap-1 rounded-full border px-3 text-[11px] font-black uppercase", locale === item ? "border-ink bg-ink text-paper-strong" : "border-transparent text-muted", warning && "border-amber-600 bg-amber-100 text-amber-950 ring-2 ring-amber-400/40")}>{warning ? <AlertTriangle className="size-3" /> : null}{item}</button>;
       })}
     </div>
   );
 }
 
 const inputClass =
-  "h-11 w-full rounded-[8px] border-2 border-ink bg-white px-3 text-sm font-bold text-ink outline-none transition placeholder:text-muted/70 focus:border-yellow focus:ring-4 focus:ring-yellow/25";
+  "h-11 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-3 text-sm font-bold text-ink outline-none transition placeholder:text-muted/70 focus:border-yellow focus:ring-4 focus:ring-yellow/25";
 const textareaClass =
-  "w-full resize-none rounded-[8px] border-2 border-ink bg-white p-3 text-sm font-bold leading-6 text-ink outline-none transition placeholder:text-muted/70 focus:border-yellow focus:ring-4 focus:ring-yellow/25";
+  "w-full resize-none rounded-[8px] border-2 border-ink bg-paper-strong p-3 text-sm font-bold leading-6 text-ink outline-none transition placeholder:text-muted/70 focus:border-yellow focus:ring-4 focus:ring-yellow/25";
 
 function SlugField({
   label,
@@ -265,12 +265,12 @@ function SlugField({
         "URL identifier. Leave empty to generate it from the title.",
       )}
     >
-      <div className="flex overflow-hidden rounded-[8px] border-2 border-ink bg-white focus-within:border-yellow focus-within:ring-4 focus-within:ring-yellow/25">
+      <div className="flex overflow-hidden rounded-[8px] border-2 border-ink bg-paper-strong focus-within:border-yellow focus-within:ring-4 focus-within:ring-yellow/25">
         <span className="flex min-h-11 items-center border-r-2 border-line bg-paper px-3 text-xs font-black text-muted">
           /
         </span>
         <input
-          className="h-11 min-w-0 flex-1 bg-white px-3 text-sm font-bold text-ink outline-none"
+          className="h-11 min-w-0 flex-1 bg-paper-strong px-3 text-sm font-bold text-ink outline-none"
           value={value}
           onChange={(event) => onChange(slugify(event.target.value))}
           placeholder={placeholder}
@@ -319,7 +319,7 @@ function CourseStatusControl({
             whileTap={{ scale: 0.98 }}
             className={cn(
               "rounded-[8px] border-2 p-3 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
-              active ? "border-ink bg-yellow text-ink" : "border-line bg-paper text-muted hover:border-ink hover:bg-white",
+              active ? "border-ink bg-yellow text-ink" : "border-line bg-paper text-muted hover:border-ink hover:bg-paper-strong",
             )}
           >
             <span className="flex items-center justify-between gap-2 text-sm font-black">
@@ -362,7 +362,7 @@ function PublishToggle({
       </span>
       <span
         className={cn(
-          "relative h-7 w-12 rounded-full border-2 border-ink bg-white transition",
+          "relative h-7 w-12 rounded-full border-2 border-ink bg-paper-strong transition",
           checked && "bg-ink",
         )}
       >
@@ -398,7 +398,7 @@ function KindControl<T extends string>({
             whileTap={{ scale: 0.98 }}
             className={cn(
               "rounded-[8px] border-2 p-3 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
-              active ? "border-ink bg-yellow text-ink" : "border-line bg-paper text-muted hover:border-ink hover:bg-white",
+              active ? "border-ink bg-yellow text-ink" : "border-line bg-paper text-muted hover:border-ink hover:bg-paper-strong",
             )}
           >
             <span className="flex items-center justify-between gap-2 text-sm font-black">
@@ -442,7 +442,7 @@ function FileDropzone({
       ) : null}
       <label
         htmlFor={id}
-        className="mt-2 flex min-h-32 cursor-pointer flex-col items-center justify-center rounded-[8px] border-2 border-dashed border-ink bg-white p-4 text-center transition hover:bg-yellow/25"
+        className="mt-2 flex min-h-32 cursor-pointer flex-col items-center justify-center rounded-[8px] border-2 border-dashed border-ink bg-paper-strong p-4 text-center transition hover:bg-yellow/25"
       >
         <UploadCloud className="size-8 text-ink" />
         <span className="mt-3 text-sm font-black text-ink">
@@ -482,18 +482,18 @@ function EntityPreview({
   emptyLabel: string;
 }) {
   return (
-    <aside className="composer-stagger h-fit rounded-[16px] border-2 border-ink bg-ink p-4 text-white shadow-[5px_5px_0_0_#f4be30]">
-      <p className="text-xs font-black uppercase text-white/65">{t(locale, "Pregled", "Preview")}</p>
+    <aside className="composer-stagger h-fit rounded-[16px] border-2 border-ink bg-ink p-4 text-paper-strong shadow-[5px_5px_0_0_var(--yellow)]">
+      <p className="text-xs font-black uppercase text-paper-strong/65">{t(locale, "Pregled", "Preview")}</p>
       <p className="mt-3 text-2xl font-black leading-tight">{title?.trim() || emptyLabel}</p>
-      {subtitle ? <p className="mt-3 text-sm font-bold leading-6 text-white/75">{subtitle}</p> : null}
+      {subtitle ? <p className="mt-3 text-sm font-bold leading-6 text-paper-strong/75">{subtitle}</p> : null}
       <div className="mt-5 flex flex-wrap gap-2">
         {status ? (
-          <span className="rounded-full border-2 border-white bg-yellow px-3 py-1 text-xs font-black text-ink">
+          <span className="rounded-full border-2 border-paper-strong bg-yellow px-3 py-1 text-xs font-black text-ink">
             {status}
           </span>
         ) : null}
         {meta ? (
-          <span className="rounded-full border-2 border-white/35 px-3 py-1 text-xs font-black text-white">
+          <span className="rounded-full border-2 border-paper-strong/35 px-3 py-1 text-xs font-black text-paper-strong">
             {meta}
           </span>
         ) : null}
@@ -528,7 +528,7 @@ function ComposerFooter({
           disabled={pending}
           whileHover={pending ? undefined : { y: -1 }}
           whileTap={pending ? undefined : { scale: 0.98 }}
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-yellow px-5 text-sm font-extrabold text-ink shadow-[4px_4px_0_0_#0e3158] transition disabled:cursor-wait disabled:opacity-70"
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-yellow px-5 text-sm font-extrabold text-ink shadow-[4px_4px_0_0_var(--ink)] transition disabled:cursor-wait disabled:opacity-70"
         >
           {pending ? <Loader2 className="size-4 animate-spin" /> : icon}
           {submitLabel}
@@ -634,7 +634,7 @@ function CourseIntroPreview({
   const activeUrl = localPreviewUrl || videoUrl;
 
   if (activeUrl) {
-    return <video className="aspect-video w-full rounded-[8px] bg-ink object-contain" src={activeUrl} controls preload="metadata" />;
+    return <video className="aspect-video w-full rounded-[8px] bg-scrim object-contain" src={activeUrl} controls preload="metadata" />;
   }
 
   return (
@@ -1290,7 +1290,7 @@ export function AddCourseAction({
                       type="button"
                       onClick={openVideoPicker}
                       disabled={videoUploading || videoDeleting}
-                      className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-xs font-black text-ink shadow-[3px_3px_0_0_rgba(14,49,88,0.16)] disabled:cursor-wait disabled:opacity-60"
+                      className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-xs font-black text-ink shadow-[3px_3px_0_0_var(--shadow-hard-16)] disabled:cursor-wait disabled:opacity-60"
                     >
                       {videoUploading ? <Loader2 className="size-4 animate-spin" /> : <UploadCloud className="size-4" />}
                       {videoUrl
@@ -1302,14 +1302,14 @@ export function AddCourseAction({
                         type="button"
                         onClick={deleteIntroVideo}
                         disabled={videoUploading || videoDeleting}
-                        className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-full border-2 border-red-700 bg-white px-4 text-xs font-black text-red-700 disabled:cursor-wait disabled:opacity-60"
+                        className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-full border-2 border-red-700 bg-paper-strong px-4 text-xs font-black text-red-700 disabled:cursor-wait disabled:opacity-60"
                       >
                         {videoDeleting ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
                         {t(locale, "Ukloni video", "Remove video")}
                       </button>
                     ) : null}
                     {videoMessage ? (
-                      <p className="rounded-[8px] border-2 border-line bg-white px-3 py-2 text-xs font-black text-muted">
+                      <p className="rounded-[8px] border-2 border-line bg-paper-strong px-3 py-2 text-xs font-black text-muted">
                         {videoMessage}
                       </p>
                     ) : null}
@@ -1351,7 +1351,7 @@ export function AddCourseAction({
                             isDraggingModule && "opacity-60 ring-4 ring-yellow/35",
                           )}
                         >
-                          <div className="flex min-h-12 items-stretch bg-white">
+                          <div className="flex min-h-12 items-stretch bg-paper-strong">
                             <button
                               type="button"
                               onClick={() => setOpenModuleId((current) => (current === module._id ? null : module._id))}
@@ -1370,7 +1370,7 @@ export function AddCourseAction({
                               <button
                                 type="button"
                                 onClick={() => requestModuleEditor(module._id)}
-                                className="inline-flex min-h-8 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-3 text-xs font-black text-ink shadow-[2px_2px_0_0_rgba(14,49,88,0.15)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                                className="inline-flex min-h-8 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-3 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--shadow-hard-15)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                               >
                                 <Pencil className="size-3.5" />
                                 <span className="hidden sm:inline">{t(locale, "Izmeni", "Edit")}</span>
@@ -1384,7 +1384,7 @@ export function AddCourseAction({
                                 aria-label={t(locale, "Promeni redosled ciklusa", "Reorder cycle")}
                                 title={t(locale, "Promeni redosled ciklusa", "Reorder cycle")}
                                 className={cn(
-                                  "inline-flex size-9 shrink-0 items-center justify-center rounded-[8px] border-2 border-ink bg-white text-ink shadow-[2px_2px_0_0_rgba(14,49,88,0.14)] transition hover:bg-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-wait disabled:opacity-60",
+                                  "inline-flex size-9 shrink-0 items-center justify-center rounded-[8px] border-2 border-ink bg-paper-strong text-ink shadow-[2px_2px_0_0_var(--shadow-hard-14)] transition hover:bg-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-wait disabled:opacity-60",
                                   isDraggingModule ? "cursor-grabbing bg-yellow" : "cursor-grab active:cursor-grabbing",
                                 )}
                               >
@@ -1401,7 +1401,7 @@ export function AddCourseAction({
                                 exit={{ height: 0, opacity: 0 }}
                                 transition={{ duration: 0.2 }}
                               >
-                                <div className="space-y-2 rounded-[8px] bg-white p-2">
+                                <div className="space-y-2 rounded-[8px] bg-paper-strong p-2">
                                   {module.lessons.length ? (
                                     module.lessons.map((lesson) => {
                                       const lessonTitle = locale === "sr" ? lesson.titleSr : lesson.titleEn || lesson.titleSr;
@@ -1423,11 +1423,11 @@ export function AddCourseAction({
                                             onClick={() => requestLessonEditor(lesson.slug)}
                                             aria-label={t(locale, "Otvori editor lekcije", "Open lesson editor")}
                                             title={t(locale, "Otvori editor lekcije", "Open lesson editor")}
-                                            className="inline-flex size-7 shrink-0 items-center justify-center rounded-full border border-ink bg-white text-ink opacity-0 shadow-[2px_2px_0_0_rgba(14,49,88,0.12)] transition hover:bg-yellow focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink group-hover:opacity-100"
+                                            className="inline-flex size-7 shrink-0 items-center justify-center rounded-full border border-ink bg-paper-strong text-ink opacity-0 shadow-[2px_2px_0_0_var(--shadow-hard-12)] transition hover:bg-yellow focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink group-hover:opacity-100"
                                           >
                                             <LayoutDashboard className="size-3.5" />
                                           </button>
-                                          <span className="shrink-0 rounded-full border border-line bg-white px-2 py-0.5 text-[10px]">
+                                          <span className="shrink-0 rounded-full border border-line bg-paper-strong px-2 py-0.5 text-[10px]">
                                             {formatMinutes(lesson.durationSeconds)}
                                           </span>
                                           {!lesson.isPublished ? (
@@ -1476,7 +1476,7 @@ export function AddCourseAction({
         <AnimatePresence>
           {videoDragging ? (
             <motion.div
-              className="pointer-events-none fixed inset-0 z-[60] flex items-center justify-center bg-ink/45 p-4 backdrop-blur-[3px]"
+              className="pointer-events-none fixed inset-0 z-[60] flex items-center justify-center bg-scrim/45 p-4 backdrop-blur-[3px]"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -1484,7 +1484,7 @@ export function AddCourseAction({
             >
               <div className="absolute inset-4 rounded-[28px] border-[3px] border-dashed border-yellow" />
               <motion.div
-                className="relative max-w-sm rounded-[16px] border-2 border-ink bg-white p-6 text-center text-ink shadow-[8px_8px_0_0_rgba(244,190,48,0.85)]"
+                className="relative max-w-sm rounded-[16px] border-2 border-ink bg-paper-strong p-6 text-center text-ink shadow-[8px_8px_0_0_rgba(244,190,48,0.85)]"
                 initial={{ y: 10, scale: 0.98 }}
                 animate={{ y: 0, scale: 1 }}
                 exit={{ y: 8, scale: 0.99 }}
@@ -1510,7 +1510,7 @@ export function AddCourseAction({
           <AnimatePresence>
             {pendingAction ? (
               <motion.div
-                className="fixed inset-0 z-[70] flex items-center justify-center bg-ink/45 p-4 backdrop-blur-[2px]"
+                className="fixed inset-0 z-[70] flex items-center justify-center bg-scrim/45 p-4 backdrop-blur-[2px]"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
@@ -1518,7 +1518,7 @@ export function AddCourseAction({
                 <motion.div
                   role="dialog"
                   aria-modal="true"
-                  className="w-full max-w-md rounded-[16px] border-2 border-ink bg-white p-5 shadow-[8px_8px_0_0_rgba(14,49,88,0.22)]"
+                  className="w-full max-w-md rounded-[16px] border-2 border-ink bg-paper-strong p-5 shadow-[8px_8px_0_0_var(--shadow-hard-22)]"
                   initial={{ y: 16, scale: 0.98 }}
                   animate={{ y: 0, scale: 1 }}
                   exit={{ y: 10, scale: 0.99 }}
@@ -1548,7 +1548,7 @@ export function AddCourseAction({
                     <button
                       type="button"
                       onClick={discardAndContinue}
-                      className="inline-flex min-h-11 items-center justify-center rounded-full border-2 border-ink bg-white px-3 text-xs font-black text-ink"
+                      className="inline-flex min-h-11 items-center justify-center rounded-full border-2 border-ink bg-paper-strong px-3 text-xs font-black text-ink"
                     >
                       {t(locale, "Ponisti i nastavi", "Discard and continue")}
                     </button>
@@ -1963,7 +1963,7 @@ export function AddModuleAction({
             <FileText className="size-3.5 shrink-0" />
             <span className="truncate">{locale === "sr" ? part.titleSr : part.titleEn || part.titleSr}</span>
             {part.isPublished === false ? (
-              <span className="ml-auto shrink-0 rounded-[5px] border border-line bg-white px-1.5 py-0.5 text-[9px] uppercase text-muted">
+              <span className="ml-auto shrink-0 rounded-[5px] border border-line bg-paper-strong px-1.5 py-0.5 text-[9px] uppercase text-muted">
                 {t(locale, "Nacrt", "Draft")}
               </span>
             ) : null}
@@ -1995,7 +1995,7 @@ export function AddModuleAction({
         <FileText className="size-3.5 shrink-0" />
         <span className="truncate">{title}</span>
         {draft ? (
-          <span className="ml-auto shrink-0 rounded-[5px] border border-line bg-white px-1.5 py-0.5 text-[9px] uppercase text-muted">
+          <span className="ml-auto shrink-0 rounded-[5px] border border-line bg-paper-strong px-1.5 py-0.5 text-[9px] uppercase text-muted">
             {t(locale, "Nacrt", "Draft")}
           </span>
         ) : null}
@@ -2112,7 +2112,7 @@ export function AddModuleAction({
                           <button
                             type="button"
                             onClick={() => setOpenLessonId((current) => (current === lesson._id ? null : lesson._id))}
-                            className="flex min-h-12 w-full items-center justify-between gap-3 bg-white px-4 py-3 text-left text-sm font-black text-ink hover:bg-yellow/25"
+                            className="flex min-h-12 w-full items-center justify-between gap-3 bg-paper-strong px-4 py-3 text-left text-sm font-black text-ink hover:bg-yellow/25"
                           >
                             <span className="flex min-w-0 items-start gap-2">
                               <PlayCircle className="mt-0.5 size-4 shrink-0" />
@@ -2138,13 +2138,13 @@ export function AddModuleAction({
                                   <button
                                     type="button"
                                     onClick={() => requestNavigate(lessonHref)}
-                                    className="inline-flex min-h-9 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-yellow px-3 text-xs font-black text-ink shadow-[2px_2px_0_0_rgba(14,49,88,0.15)]"
+                                    className="inline-flex min-h-9 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-yellow px-3 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--shadow-hard-15)]"
                                   >
                                     <LayoutDashboard className="size-4" />
                                     {t(locale, "Editor lekcije", "Lesson editor")}
                                   </button>
                                 </div>
-                                <div className="mt-4 rounded-[8px] bg-white p-2">
+                                <div className="mt-4 rounded-[8px] bg-paper-strong p-2">
                                   {itemCount ? (
                                     <div className="ml-3 space-y-1 border-l-2 border-line pl-4">
                                       {renderCyclePartTree(parts, lessonHref)}
@@ -2208,7 +2208,7 @@ export function AddModuleAction({
           <AnimatePresence>
             {pendingAction ? (
               <motion.div
-                className="fixed inset-0 z-[70] flex items-center justify-center bg-ink/45 p-4 backdrop-blur-[2px]"
+                className="fixed inset-0 z-[70] flex items-center justify-center bg-scrim/45 p-4 backdrop-blur-[2px]"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
@@ -2216,7 +2216,7 @@ export function AddModuleAction({
                 <motion.div
                   role="dialog"
                   aria-modal="true"
-                  className="w-full max-w-md rounded-[10px] border-2 border-ink bg-white p-5 shadow-[8px_8px_0_0_rgba(14,49,88,0.22)]"
+                  className="w-full max-w-md rounded-[10px] border-2 border-ink bg-paper-strong p-5 shadow-[8px_8px_0_0_var(--shadow-hard-22)]"
                   initial={{ y: 16, scale: 0.98 }}
                   animate={{ y: 0, scale: 1 }}
                   exit={{ y: 10, scale: 0.99 }}
@@ -2241,7 +2241,7 @@ export function AddModuleAction({
                     <button
                       type="button"
                       onClick={discardAndContinue}
-                      className="inline-flex min-h-11 items-center justify-center rounded-[8px] border-2 border-ink bg-white px-3 text-xs font-black text-ink"
+                      className="inline-flex min-h-11 items-center justify-center rounded-[8px] border-2 border-ink bg-paper-strong px-3 text-xs font-black text-ink"
                     >
                       {t(locale, "Ponisti", "Discard")}
                     </button>
@@ -2748,7 +2748,7 @@ export function AddLessonPartAction({
                     required={!hasExistingFile}
                     currentFile={initial?.fileName}
                   />
-                  {lessonPartId && hasExistingFile ? <button type="button" disabled={pending} onClick={async () => { if (!confirm(t(locale, "Ukloniti fajl iz ovog bloka?", "Remove the file from this block?"))) return; setPending(true); try { await removeLessonPartFile({ lessonPartId: lessonPartId as Id<"lessonParts"> }); setExistingFileRemoved(true); setIsPublished(false); setFile(null); router.refresh(); } catch (error) { setMessage(error instanceof Error ? error.message : "Uklanjanje nije uspelo."); } finally { setPending(false); } }} className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-red-700 bg-white px-4 text-xs font-black text-red-700"><Trash2 className="size-4" />{t(locale, "Ukloni postojeći fajl", "Remove existing file")}</button> : null}
+                  {lessonPartId && hasExistingFile ? <button type="button" disabled={pending} onClick={async () => { if (!confirm(t(locale, "Ukloniti fajl iz ovog bloka?", "Remove the file from this block?"))) return; setPending(true); try { await removeLessonPartFile({ lessonPartId: lessonPartId as Id<"lessonParts"> }); setExistingFileRemoved(true); setIsPublished(false); setFile(null); router.refresh(); } catch (error) { setMessage(error instanceof Error ? error.message : "Uklanjanje nije uspelo."); } finally { setPending(false); } }} className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-red-700 bg-paper-strong px-4 text-xs font-black text-red-700"><Trash2 className="size-4" />{t(locale, "Ukloni postojeći fajl", "Remove existing file")}</button> : null}
                   </div>
                 )}
               </FormSection>
@@ -2779,13 +2779,13 @@ export function AddLessonPartAction({
         <AnimatePresence>
           {fileDragging ? (
             <motion.div
-              className="pointer-events-none fixed inset-0 z-[80] flex items-center justify-center bg-ink/45 p-4 backdrop-blur-[3px]"
+              className="pointer-events-none fixed inset-0 z-[80] flex items-center justify-center bg-scrim/45 p-4 backdrop-blur-[3px]"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
             >
               <div className="absolute inset-4 rounded-[28px] border-[3px] border-dashed border-yellow" />
-              <div className="relative max-w-sm rounded-[16px] border-2 border-ink bg-white p-6 text-center shadow-[8px_8px_0_rgba(244,190,48,0.85)]">
+              <div className="relative max-w-sm rounded-[16px] border-2 border-ink bg-paper-strong p-6 text-center shadow-[8px_8px_0_rgba(244,190,48,0.85)]">
                 <UploadCloud className="mx-auto size-9" />
                 <p className="mt-3 text-lg font-black">
                   {kind === "video"

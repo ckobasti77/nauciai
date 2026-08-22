@@ -110,7 +110,7 @@ type TrackRow = {
 };
 type AdminDetail = { lesson: LessonRow | null };
 
-const inputClass = "min-h-11 w-full rounded-[8px] border-2 border-ink bg-white px-3 text-sm font-bold text-ink outline-none transition focus:ring-4 focus:ring-yellow/35 disabled:cursor-not-allowed disabled:border-line disabled:bg-slate-100 disabled:text-muted";
+const inputClass = "min-h-11 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-3 text-sm font-bold text-ink outline-none transition focus:ring-4 focus:ring-yellow/35 disabled:cursor-not-allowed disabled:border-line disabled:bg-slate-100 disabled:text-muted";
 const labelClass = "grid gap-1.5 text-xs font-black uppercase tracking-[0.08em] text-ink";
 
 function slugify(value: string) {
@@ -208,7 +208,7 @@ function ResetButton({ onClick, disabled }: { onClick: () => void; disabled?: bo
 
 function FutureModule({ icon: Icon, title, body }: { icon: typeof Users; title: string; body: string }) {
   return (
-    <article className="rounded-[16px] border-2 border-ink bg-white p-6 shadow-[6px_6px_0_rgba(14,49,88,0.12)]">
+    <article className="rounded-[16px] border-2 border-ink bg-paper-strong p-6 shadow-[6px_6px_0_var(--shadow-hard-12)]">
       <span className="grid size-11 place-items-center rounded-full border-2 border-ink bg-yellow"><Icon className="size-5" /></span>
       <p className="mt-5 text-xl font-black text-ink">{title}</p>
       <p className="mt-2 text-sm font-bold leading-6 text-muted">{body}</p>
@@ -505,7 +505,7 @@ export function AdminContentManager({ locale }: { locale: Locale }) {
         </div>
       ) : (
         <>
-          <section className="rounded-[16px] border-2 border-ink bg-white p-4 shadow-[6px_6px_0_rgba(14,49,88,0.12)]">
+          <section className="rounded-[16px] border-2 border-ink bg-paper-strong p-4 shadow-[6px_6px_0_var(--shadow-hard-12)]">
             <div className="grid gap-3 lg:grid-cols-[1fr_auto_1fr_auto_1fr_auto] lg:items-end">
               <Field label="1. Smer"><select ref={trackSelectRef} className={cn(inputClass, creationIntent && !selectedTrack && "border-amber-600 ring-4 ring-amber-400/30")} value={trackId} onChange={(e) => void handleTrackSelection(e.target.value)}><option value="">Izaberi smer</option>{hierarchy.map((track) => <option key={track._id} value={track._id}>{track.titleSr || "Novi smer (nacrt)"}</option>)}</select></Field>
               <ResetButton disabled={!trackId} onClick={() => select("track", "")} />
@@ -516,29 +516,29 @@ export function AdminContentManager({ locale }: { locale: Locale }) {
             </div>
             <div className="mt-4 flex flex-wrap gap-2 border-t border-line pt-4">
               <button type="button" disabled={creationPending} onClick={() => void createTemplate("track")} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-xs font-black disabled:opacity-50"><CirclePlus className="size-4" /> Novi smer</button>
-              <button type="button" disabled={creationPending} onClick={() => { if (selectedTrack) void createTemplate("course", { trackId: selectedTrack._id }); else { setCreationIntent("course"); openNativeSelect(trackSelectRef); } }} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-white px-4 text-xs font-black disabled:opacity-50"><CirclePlus className="size-4" /> Novi kurs</button>
-              <button type="button" disabled={creationPending} onClick={() => { if (selectedCourse && selectedTrack) void createTemplate("lesson", { trackId: selectedTrack._id, courseId: selectedCourse._id }); else { setCreationIntent("lesson"); if (!selectedTrack) openNativeSelect(trackSelectRef); else openNativeSelect(courseSelectRef); } }} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-white px-4 text-xs font-black disabled:opacity-50"><CirclePlus className="size-4" /> Nova lekcija</button>
+              <button type="button" disabled={creationPending} onClick={() => { if (selectedTrack) void createTemplate("course", { trackId: selectedTrack._id }); else { setCreationIntent("course"); openNativeSelect(trackSelectRef); } }} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 text-xs font-black disabled:opacity-50"><CirclePlus className="size-4" /> Novi kurs</button>
+              <button type="button" disabled={creationPending} onClick={() => { if (selectedCourse && selectedTrack) void createTemplate("lesson", { trackId: selectedTrack._id, courseId: selectedCourse._id }); else { setCreationIntent("lesson"); if (!selectedTrack) openNativeSelect(trackSelectRef); else openNativeSelect(courseSelectRef); } }} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 text-xs font-black disabled:opacity-50"><CirclePlus className="size-4" /> Nova lekcija</button>
             </div>
             {creationIntent ? <p role="status" className="mt-3 inline-flex items-center gap-2 rounded-[8px] border-2 border-amber-700 bg-amber-50 px-3 py-2 text-xs font-black text-amber-950"><AlertTriangle className="size-4" />{creationIntent === "course" ? "Izaberi smer u označenom selectu. Novi kurs će se odmah napraviti u njemu." : selectedTrack ? "Izaberi kurs u označenom selectu. Nova lekcija biće dodata na njegovo dno." : "Prvo izaberi smer, zatim kurs za novu lekciju."}</p> : null}
             {message ? <p role="status" className={cn("mt-3 rounded-[8px] border-2 px-3 py-2 text-xs font-black", message.tone === "success" ? "border-emerald-700 bg-emerald-50 text-emerald-800" : "border-red-700 bg-red-50 text-red-800")}>{message.text}</p> : null}
           </section>
 
-          {readiness ? <section className="mt-5 rounded-[16px] border-2 border-ink bg-white p-4 shadow-[6px_6px_0_rgba(14,49,88,0.12)]" aria-label="Spremno za objavu">
+          {readiness ? <section className="mt-5 rounded-[16px] border-2 border-ink bg-paper-strong p-4 shadow-[6px_6px_0_var(--shadow-hard-12)]" aria-label="Spremno za objavu">
             <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-[0.12em] text-muted">Kontrola sadržaja</p><h2 className="mt-1 font-display text-3xl text-ink">{readiness.ready ? "Spremno za objavu" : "Dovrši pre objave"}</h2></div><span className={cn("rounded-full border-2 border-ink px-4 py-2 text-xs font-black uppercase", readiness.ready ? "bg-emerald-100 text-emerald-900" : "bg-yellow text-ink")}>{readiness.items.filter((item) => item.ok).length}/{readiness.items.length}</span></div>
             <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-3">{readiness.items.map((entry) => <button key={entry.key} type="button" onClick={() => { if (entry.key === "slug" || entry.key === "view" || entry.key === "duration") setSettingsOpen(true); document.getElementById("admin-live-preview")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className={cn("flex min-h-12 items-center gap-3 rounded-[16px] border-2 px-3 py-2 text-left text-xs font-black", entry.ok ? "border-emerald-700 bg-emerald-50 text-emerald-900" : entry.blocking ? "border-red-700 bg-red-50 text-red-900" : "border-amber-700 bg-amber-50 text-amber-950")}>{entry.ok ? <CheckCircle2 className="size-5 shrink-0" /> : entry.blocking ? <XCircle className="size-5 shrink-0" /> : <AlertTriangle className="size-5 shrink-0" />}<span>{entry.labelSr}</span></button>)}</div>
           </section> : null}
 
           {trackSurface || courseSurface || lessonSurface ? (
-            <section id="admin-live-preview" className="relative mt-8 scroll-mt-6 overflow-hidden rounded-[16px] border-2 border-ink bg-paper shadow-[8px_8px_0_rgba(14,49,88,0.13)]">
+            <section id="admin-live-preview" className="relative mt-8 scroll-mt-6 overflow-hidden rounded-[16px] border-2 border-ink bg-paper shadow-[8px_8px_0_var(--shadow-hard-13)]">
               <div className="absolute right-3 top-3 z-40">
-                <button type="button" onClick={() => setSettingsOpen((open) => !open)} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-white/95 px-4 text-xs font-black shadow-[3px_3px_0_rgba(14,49,88,0.18)] backdrop-blur"><Settings2 className="size-4" /> Podešavanja</button>
+                <button type="button" onClick={() => setSettingsOpen((open) => !open)} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong/95 px-4 text-xs font-black shadow-[3px_3px_0_var(--shadow-hard)] backdrop-blur"><Settings2 className="size-4" /> Podešavanja</button>
                 {settingsOpen ? (
-                  <form onSubmit={save} className="mt-2 grid w-[min(320px,calc(100vw-3rem))] gap-3 rounded-[16px] border-2 border-ink bg-white p-4 shadow-[7px_7px_0_rgba(14,49,88,0.18)]">
+                  <form onSubmit={save} className="mt-2 grid w-[min(320px,calc(100vw-3rem))] gap-3 rounded-[16px] border-2 border-ink bg-paper-strong p-4 shadow-[7px_7px_0_var(--shadow-hard)]">
                     <p className="text-xs font-black uppercase tracking-[0.1em] text-muted">Sistemska podešavanja</p>
                     <Field label="URL / SEO naziv"><input className={inputClass} value={slug} onChange={(event) => setSlug(event.target.value)} placeholder={slugify(titleSr || titleEn) || "automatski-iz-naslova"} /></Field>
                     <Field label="Status"><select className={inputClass} value={status} onChange={(event) => setStatus(event.target.value as Status)}><option value="draft">Nacrt</option><option value="published">Objavljeno</option>{activeKind !== "lesson" ? <option value="archived">Arhivirano</option> : null}</select></Field>
                     {activeKind === "lesson" ? <><Field label="Trajanje (min)"><input type="number" min={1} className={inputClass} value={durationMinutes} onChange={(event) => setDurationMinutes(Math.max(1, Number(event.target.value)))} /></Field><label className="flex items-center gap-2 text-xs font-black"><input type="checkbox" checked={proEnabled} onChange={(event) => setProEnabled(event.target.checked)} /> Pro prikaz</label><label className="flex items-center gap-2 text-xs font-black"><input type="checkbox" checked={lightEnabled} onChange={(event) => setLightEnabled(event.target.checked)} /> Light prikaz</label></> : null}
-                    <button type="submit" disabled={pending} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border-2 border-ink bg-ink px-4 text-xs font-black text-white disabled:opacity-50">{pending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} Sačuvaj podešavanja</button>
+                    <button type="submit" disabled={pending} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border-2 border-ink bg-ink px-4 text-xs font-black text-paper-strong disabled:opacity-50">{pending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} Sačuvaj podešavanja</button>
                   </form>
                 ) : null}
               </div>

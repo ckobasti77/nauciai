@@ -6,19 +6,30 @@
  * Oba su sinhrona - odgovor nosi sliku, pa im ne treba ni webhook ni poller.
  *
  * Cene su prepisane iz kataloga doslovno. Ne preračunavaju se.
+ *
+ * **`num_images` NIJE kontrola ovih modela.** Interactions API vraća tačno jednu
+ * sliku po pozivu, a posao u bazi ima tačno jedno izlazno polje. Kontrola koja
+ * naplaćuje četiri a isporučuje jednu je gora od kontrole koje nema, pa je
+ * uklonjena i iz `paramSpec`-a i iz `priceRule.quantityParam`-a (količina je
+ * time 1, `studioPricing.quantityFor`).
  */
 
 import {
   aspectRatioControl,
   IMAGE_ACCEPT,
-  numImagesControl,
   promptControl,
   resolutionControl,
 } from "./modelControls";
 import type { StudioModelSeed } from "./modelSeed";
 
-/** Pet odnosa stranica koje katalog 2.1 nabraja za Nano Bananu. */
-const NANO_BANANA_RATIOS = ["1:1", "16:9", "9:16", "4:3", "3:4"];
+/**
+ * Odnosi stranica koje Interactions API DOKUMENTUJE za Nano Bananu
+ * (`1:1, 16:9, 9:16, 5:4, 3:2, 2:3, 1:4, 4:1, 1:8, 8:1`). Katalog je pisao
+ * `4:3` i `3:4` - njih na spisku nema, a nepodrzana vrednost vraca 400 TEK
+ * POSLE rezervacije kredita. Zato su zamenjeni najblizim dokumentovanim parom
+ * (`3:2` i `2:3`); ostalo je pet opcija, isto kao pre.
+ */
+const NANO_BANANA_RATIOS = ["1:1", "16:9", "9:16", "3:2", "2:3"];
 
 /**
  * `nano-banana-2` - Gemini 3.1 Flash Image (katalog 2.1).
@@ -53,18 +64,28 @@ export const NANO_BANANA_2: StudioModelSeed = {
     promptControl(),
     resolutionControl({ values: ["0.5K", "1K", "2K", "4K"], default: "1K" }),
     aspectRatioControl(NANO_BANANA_RATIOS),
-    numImagesControl(),
   ],
   priceRule: {
     unit: "image",
     baseUsd: 0.067,
     addUsd: 0.003,
+    // Mnozioci su KOLICNICI zvanicnog cenovnika prema 1K ($0,067), ne okrugli
+    // brojevi: 0,5K = 0,045; 2K = 0,101; 4K = 0,151. Stari niz (0,75 / 1 / 1,5 / 2)
+    // je na 4K racunao 0,134 umesto 0,151 - jedanaest posto ISPOD nabavne, i to
+    // bas na najskupljoj opciji.
     multipliers: [
-      { param: "resolution", map: { "0.5K": 0.75, "1K": 1, "2K": 1.5, "4K": 2 } },
+      { param: "resolution", map: { "0.5K": 0.6716, "1K": 1, "2K": 1.5075, "4K": 2.2537 } },
     ],
-    quantityParam: "num_images",
   },
-  capabilities: { mode: "sync", maxInputImages: 10, maxImagesPerRun: 4 },
+  capabilities: {
+    mode: "sync",
+    maxInputImages: 10,
+    maxImagesPerRun: 1,
+    // Zvanicni cenovnik (`ai.google.dev/gemini-api/docs/pricing`, paid tier):
+    // izlaz 60 $/M tokena, ulaz 0,50 $/M. Sa oba broja posao upisuje STVARAN
+    // trosak iz `usageMetadata`, umesto da ostane na proceni.
+    tokenRatesUsdPerMillion: { output: 60, prompt: 0.5 },
+  },
   sortOrder: 10,
 };
 
@@ -109,36 +130,29 @@ export const NANO_BANANA_PRO: StudioModelSeed = {
       helpEn: "There is no 1K - Google charges the same for it as for 2K.",
     }),
     aspectRatioControl(NANO_BANANA_RATIOS),
-    numImagesControl(),
   ],
   priceRule: {
     unit: "image",
     baseUsd: 0.134,
     addUsd: 0.015,
     multipliers: [{ param: "resolution", map: { "2K": 1, "4K": 1.791 } }],
-    quantityParam: "num_images",
   },
   capabilities: {
     mode: "sync",
     thinking: true,
     maxInputImages: 10,
-    maxImagesPerRun: 4,
+    maxImagesPerRun: 1,
     // Tarifa po MILIONU tokena, za preračun `actualCostUsd`-a iz odgovora (W6).
     // Oba broja su iz kataloga 2.2, ne odnekud drugde:
     // - `output`: 1 120 tokena je slika na 2K, a ona košta `baseUsd: 0.134` ->
     //   0,134 / 1 120 × 10^6 = 119,64 $/M;
     // - `thinking`: 12 $/M piše doslovno u katalogu.
     //
-    // ULAZNI tokeni nemaju tarifu ni u katalogu ni ovde, i zato ovaj model još
-    // NE upisuje stvaran trošak: `tokenCostOutcome` odbija da sabere trošak dok
-    // jedna prijavljena kategorija nema svoju cenu. Zbir bez ulaznih tokena bi
-    // bio manji od stvarnog, dakle broj koji popravlja lošu maržu. Čim se
-    // ulazna tarifa potvrdi sa prve fakture, dopisuje se `prompt` ovde i model
-    // počinje da meri - ništa drugo se ne menja.
-    //
-    // Do tada posao NIJE nem (X3, nalaz N6): izlazi sa razlogom `nema tarife za
-    // kategoriju prompt`, pa admin ekran pokazuje tačno koja jedna cifra fali.
-    tokenRatesUsdPerMillion: { output: 119.64, thinking: 12 },
+    // ULAZNA tarifa je sada popunjena sa zvaničnog cenovnika
+    // (`ai.google.dev/gemini-api/docs/pricing`, paid tier): 2,00 $/M za tekst i
+    // sliku na ulazu. Time `tokenCostOutcome` više ne odbija zbir i model
+    // UPISUJE stvaran trošak umesto razloga `nema tarife za kategoriju prompt`.
+    tokenRatesUsdPerMillion: { output: 119.64, prompt: 2, thinking: 12 },
   },
   sortOrder: 20,
 };

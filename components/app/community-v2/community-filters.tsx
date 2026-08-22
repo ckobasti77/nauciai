@@ -220,7 +220,7 @@ export function CommunityScopeControls({
         <select
           value={scopeState.selectedTrack?._id ?? ""}
           onChange={(event) => scopeState.setTrack(event.target.value)}
-          className="min-h-11 w-full rounded-[12px] border border-line bg-white px-3 text-sm font-black text-ink outline-none transition hover:border-ink/55 focus:border-ink focus:ring-4 focus:ring-yellow/25"
+          className="min-h-11 w-full rounded-[12px] border border-line bg-paper-strong px-3 text-sm font-black text-ink outline-none transition hover:border-ink/55 focus:border-ink focus:ring-4 focus:ring-yellow/25"
         >
           {filters.tracks.map((track) => (
             <option key={track._id} value={track._id}>
@@ -237,7 +237,7 @@ export function CommunityScopeControls({
             if (event.target.value) scopeState.setCourse(event.target.value);
             else scopeState.setScopeKind("track");
           }}
-          className="min-h-11 w-full rounded-[12px] border border-line bg-white px-3 text-sm font-black text-ink outline-none transition hover:border-ink/55 focus:border-ink focus:ring-4 focus:ring-yellow/25"
+          className="min-h-11 w-full rounded-[12px] border border-line bg-paper-strong px-3 text-sm font-black text-ink outline-none transition hover:border-ink/55 focus:border-ink focus:ring-4 focus:ring-yellow/25"
         >
           <option value="">{locale === "sr" ? "Svi kursevi u smeru" : "All courses in track"}</option>
           {scopeState.availableCourses.map((course) => (
@@ -253,7 +253,7 @@ export function CommunityScopeControls({
           value={scopeState.selectedCycle?._id ?? ""}
           onChange={(event) => scopeState.setCycle(event.target.value)}
           disabled={!selectedCourseValue || scopeState.availableCycles.length === 0}
-          className="min-h-11 w-full rounded-[12px] border border-line bg-white px-3 text-sm font-black text-ink outline-none transition hover:border-ink/55 focus:border-ink focus:ring-4 focus:ring-yellow/25 disabled:cursor-not-allowed disabled:bg-[#eef3f7] disabled:text-muted"
+          className="min-h-11 w-full rounded-[12px] border border-line bg-paper-strong px-3 text-sm font-black text-ink outline-none transition hover:border-ink/55 focus:border-ink focus:ring-4 focus:ring-yellow/25 disabled:cursor-not-allowed disabled:bg-[#eef3f7] dark:disabled:bg-ink/10 disabled:text-muted"
         >
           <option value="">{locale === "sr" ? "Svi ciklusi" : "All cycles"}</option>
           {scopeState.availableCycles.map((cycle) => (
@@ -269,7 +269,7 @@ export function CommunityScopeControls({
           value={scopeState.selectedLesson?._id ?? ""}
           onChange={(event) => scopeState.setLesson(event.target.value)}
           disabled={!scopeState.selectedCycle || scopeState.availableLessons.length === 0}
-          className="min-h-11 w-full rounded-[12px] border border-line bg-white px-3 text-sm font-black text-ink outline-none transition hover:border-ink/55 focus:border-ink focus:ring-4 focus:ring-yellow/25 disabled:cursor-not-allowed disabled:bg-[#eef3f7] disabled:text-muted"
+          className="min-h-11 w-full rounded-[12px] border border-line bg-paper-strong px-3 text-sm font-black text-ink outline-none transition hover:border-ink/55 focus:border-ink focus:ring-4 focus:ring-yellow/25 disabled:cursor-not-allowed disabled:bg-[#eef3f7] dark:disabled:bg-ink/10 disabled:text-muted"
         >
           <option value="">{locale === "sr" ? "Sve lekcije" : "All lessons"}</option>
           {scopeState.availableLessons.map((lesson) => (
@@ -290,7 +290,7 @@ export function CommunityScopeControls({
     <div className={cn(inline ? "flex min-w-max items-center gap-2" : "space-y-3", compact && !inline && "space-y-2")}>
       {isToggle && (
         <div
-          className={cn("relative grid shrink-0 grid-cols-2 gap-1 rounded-full border border-line bg-[#eef3f7] p-1", compact && "w-[280px] max-w-full")}
+          className={cn("relative grid shrink-0 grid-cols-2 gap-1 rounded-full border border-line bg-[#eef3f7] dark:bg-ink/10 p-1", compact && "w-[280px] max-w-full")}
           role="group"
           aria-label={locale === "sr" ? "Prikaz zajednice" : "Community view"}
         >
@@ -311,7 +311,7 @@ export function CommunityScopeControls({
             className={cn(
               "relative z-10 inline-flex items-center justify-center gap-1.5 rounded-full px-3 text-xs font-black transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink",
               compact ? "min-h-9" : "min-h-10",
-              !settingsOpen ? "text-white" : "text-ink/65 hover:text-ink",
+              !settingsOpen ? "text-paper-strong" : "text-ink/65 hover:text-ink",
             )}
           >
             <Compass className="size-3.5" aria-hidden="true" />
@@ -327,7 +327,7 @@ export function CommunityScopeControls({
             className={cn(
               "relative z-10 inline-flex items-center justify-center gap-1.5 rounded-full px-3 text-xs font-black transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink",
               compact ? "min-h-9" : "min-h-10",
-              settingsOpen ? "text-white" : "text-ink/65 hover:text-ink",
+              settingsOpen ? "text-paper-strong" : "text-ink/65 hover:text-ink",
             )}
           >
             <Settings2 className="size-3.5" aria-hidden="true" />

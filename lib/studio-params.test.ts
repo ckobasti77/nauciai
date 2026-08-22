@@ -288,14 +288,15 @@ describe("PriceTag - značka pokazuje razliku pre klika", () => {
     const params = formParams(nano, "text");
     expect(creditsFor(nano.priceRule, params, "text")).toBe(16); // 1K
 
+    // 1K 16 -> 4K 34 i 0,5K 11, po zvaničnom cenovniku Google-a.
     expect(priceDeltaLabel(priceDelta(nano.priceRule, params, "resolution", "4K", "text"), "sr")).toBe(
-      "+14 kr",
+      "+18 kr",
     );
     expect(priceDeltaLabel(priceDelta(nano.priceRule, params, "resolution", "0.5K", "text"), "sr")).toBe(
-      "−4 kr",
+      "−5 kr",
     );
     expect(priceDeltaLabel(priceDelta(nano.priceRule, params, "resolution", "4K", "text"), "en")).toBe(
-      "+14 cr",
+      "+18 cr",
     );
   });
 

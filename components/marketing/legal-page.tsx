@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { ThemeToggle } from "@/components/app/theme-toggle";
 import { BrandMark, HandUnderline, Panel } from "@/components/ui/primitives";
 import type { LegalDocument } from "@/lib/legal-copy";
 import { PRIVACY_POLICY, STUDIO_TERMS } from "@/lib/legal-copy";
@@ -23,12 +24,15 @@ export function LegalPage({ locale, document }: { locale: Locale; document: Lega
       <div className="mx-auto max-w-3xl">
         <div className="flex items-center justify-between gap-4">
           <BrandMark href={withLocale(locale)} label={dictionary[locale].appName} />
+          <div className="flex items-center gap-2">
+            <ThemeToggle locale={locale} compact />
           <Link
             href={withLocale(nextLocale, document.path)}
-            className="rounded-full border-2 border-ink bg-white px-3 py-2 text-sm font-black"
+            className="rounded-full border-2 border-ink bg-paper-strong px-3 py-2 text-sm font-black"
           >
             {nextLocale.toUpperCase()}
           </Link>
+          </div>
         </div>
 
         <h1 className="mt-10 text-4xl font-black leading-tight text-ink md:text-5xl" data-motion="copy">

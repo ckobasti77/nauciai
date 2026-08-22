@@ -15,7 +15,13 @@ import {
   readGoogleConfig,
 } from "../../lib/google-video";
 import {
+  fromBase64,
+  parseInteraction,
+  readInteractionMedia,
+} from "../../lib/google-image";
+import {
   bareInteractionId,
+  buildGoogleImageRequest,
   buildOmniRequest,
   buildVeoRequest,
   EMPTY_GOOGLE_INPUTS,
@@ -25,8 +31,9 @@ import {
   omniInputRestriction,
   toBase64,
 } from "./googleCore";
+import { NANO_BANANA_2, NANO_BANANA_PRO } from "./googleImageModels";
 import { GEMINI_OMNI, GOOGLE_VIDEO_MODELS, VEO_31, VEO_31_FAST, VEO_31_LITE } from "./googleModels";
-import { computeCredits, isCombinationPriceable } from "../studioPricing";
+import { computeCostUsd, computeCredits, isCombinationPriceable } from "../studioPricing";
 import { SEEDANCE_20 } from "./bytePlusModels";
 import type { StudioModelSeed } from "./modelSeed";
 
@@ -274,8 +281,9 @@ test("buildVeoRequest: first_last šalje OBA kadra, a bez drugog traži završni
 
   const instances = (request.instances as Array<Record<string, unknown>>)[0];
   const parameters = request.parameters as Record<string, unknown>;
-  expect(instances.image).toEqual({ bytesBase64Encoded: "prvi", mimeType: "image/png" });
-  expect(parameters.lastFrame).toEqual({ bytesBase64Encoded: "drugi", mimeType: "image/png" });
+  // `inlineData`, ne `bytesBase64Encoded` - Gemini API, ne Vertex `predict`.
+  expect(instances.image).toEqual({ inlineData: { mimeType: "image/png", data: "prvi" } });
+  expect(parameters.lastFrame).toEqual({ inlineData: { mimeType: "image/png", data: "drugi" } });
 
   expect(() =>
     buildVeoRequest({ prompt: "prelaz" }, { ...EMPTY_GOOGLE_INPUTS, image: [file()] }, "first_last"),
@@ -856,6 +864,158 @@ test("svaki režim iz inputModes ima endpoint i inputSpec, i svaka cena ima svoj
         if (!values) return;
         expect(values).toContain(parts[index]);
       });
+    }
+  }
+});
+
+// --- Google slike: Interactions API (katalog 2.1 i 2.2) ---------------------
+
+const IMAGE_FILE = { mimeType: "image/jpeg", base64: "QUJD" };
+
+test("buildGoogleImageRequest: text režim šalje samo prompt, u obliku koji API traži", () => {
+  const body = buildGoogleImageRequest(
+    "gemini-3.1-flash-image",
+    { prompt: "maca na krovu", resolution: "1K", aspect_ratio: "16:9" },
+    EMPTY_GOOGLE_INPUTS,
+    "text",
+  );
+
+  expect(body.model).toBe("gemini-3.1-flash-image");
+  // `input` je NIZ blokova, ne `contents.parts` - to je razlika Interactions
+  // API-ja prema `generateContent`-u i najlakše mesto da se pogreši.
+  expect(body.input).toEqual([{ type: "text", text: "maca na krovu" }]);
+  expect(body.response_format).toEqual({
+    type: "image",
+    mime_type: "image/png",
+    aspect_ratio: "16:9",
+    image_size: "1K",
+  });
+});
+
+test("buildGoogleImageRequest: 0.5K se prevodi u 512px, a nepoznata rezolucija puca PRE mreže", () => {
+  const body = buildGoogleImageRequest(
+    "gemini-3.1-flash-image",
+    { prompt: "x", resolution: "0.5K" },
+    EMPTY_GOOGLE_INPUTS,
+    "text",
+  );
+  expect((body.response_format as Record<string, unknown>).image_size).toBe("512px");
+
+  expect(() =>
+    buildGoogleImageRequest(
+      "gemini-3.1-flash-image",
+      { prompt: "x", resolution: "8K" },
+      EMPTY_GOOGLE_INPUTS,
+      "text",
+    ),
+  ).toThrow(/NEPOZNATA_REZOLUCIJA/);
+});
+
+test("buildGoogleImageRequest: image_multi šalje sve slike, a prazan ulaz je greška", () => {
+  const body = buildGoogleImageRequest(
+    "gemini-3-pro-image",
+    { prompt: "spoji ih" },
+    { ...EMPTY_GOOGLE_INPUTS, image: [IMAGE_FILE, IMAGE_FILE] },
+    "image_multi",
+  );
+
+  expect(body.input).toEqual([
+    { type: "text", text: "spoji ih" },
+    { type: "image", mime_type: "image/jpeg", data: "QUJD" },
+    { type: "image", mime_type: "image/jpeg", data: "QUJD" },
+  ]);
+
+  expect(() =>
+    buildGoogleImageRequest("gemini-3-pro-image", { prompt: "x" }, EMPTY_GOOGLE_INPUTS, "image_multi"),
+  ).toThrow(/NEPOTPUN_ULAZ/);
+});
+
+test("readInteractionMedia: nalazi sliku u steps[].content[] i preskače misli", () => {
+  const media = readInteractionMedia({
+    steps: [
+      { type: "user_input", content: [{ type: "text", text: "prompt" }] },
+      { type: "thought", content: [{ type: "thought", text: "razmišljam" }] },
+      {
+        type: "model_output",
+        content: [
+          { type: "text", text: "evo" },
+          { type: "image", mime_type: "image/png", data: "AAAA" },
+        ],
+      },
+    ],
+  });
+
+  expect(media).toEqual({ data: "AAAA", mimeType: "image/png" });
+});
+
+test("readInteractionMedia: podržan je i skraćeni output_image oblik", () => {
+  expect(readInteractionMedia({ output_image: { data: "BBBB" } })).toEqual({
+    data: "BBBB",
+    mimeType: "image/png",
+  });
+  expect(readInteractionMedia({ steps: [{ type: "model_output", content: [] }] })).toBeNull();
+});
+
+test("parseInteraction: odgovor bez slike sa status:failed je GREŠKA, ne uspeh", () => {
+  const failed = parseInteraction({ id: "v1_x", status: "failed" });
+  expect(failed.media).toBeNull();
+  expect(failed.error).toMatch(/failed/i);
+  // Greška je pročitana, pa uzorak nije potreban.
+  expect(failed.sample).toBeNull();
+
+  const unknown = parseInteraction({ nesto: "drugo" });
+  expect(unknown.media).toBeNull();
+  expect(unknown.error).toBeNull();
+  // Ni slika ni potrošnja ni greška -> oblik koji ne razumemo se PAMTI.
+  expect(unknown.sample).not.toBeNull();
+});
+
+test("parseInteraction: id se čita, jer je ulaz za previous_interaction_id", () => {
+  const ok = parseInteraction({
+    id: "v1_abc",
+    steps: [{ type: "model_output", content: [{ type: "image", data: "AAAA" }] }],
+  });
+  expect(ok.interactionId).toBe("v1_abc");
+  expect(ok.media?.data).toBe("AAAA");
+  expect(bareInteractionId(`interactions/${ok.interactionId}`)).toBe("v1_abc");
+});
+
+test("fromBase64 je inverz toBase64 - izlaz iz Google-a mora da se vrati u iste bajtove", () => {
+  const bytes = new Uint8Array([0, 1, 2, 250, 251, 255, 65, 66]);
+  expect(Array.from(fromBase64(toBase64(bytes)))).toEqual(Array.from(bytes));
+});
+
+test("Google slike: cena prati zvanični cenovnik i NE množi se brojem slika", () => {
+  // Interactions API vraća jednu sliku po pozivu, pa `num_images` ne sme ni da
+  // postoji - ni kao kontrola ni kao `quantityParam`.
+  for (const seed of [NANO_BANANA_2, NANO_BANANA_PRO]) {
+    expect(seed.paramSpec.some((control) => control.key === "num_images")).toBe(false);
+    expect(seed.priceRule.quantityParam).toBeUndefined();
+    expect((seed.capabilities as Record<string, unknown>).maxImagesPerRun).toBe(1);
+  }
+
+  // Nabavna cena po zvaničnom cenovniku, u dolarima. Marža je odvojeno pitanje;
+  // ovde se čuva samo da tarifa ne padne ISPOD nabavne.
+  const nb2 = (resolution: string) =>
+    computeCostUsd(NANO_BANANA_2.priceRule, { resolution }) - 0.003;
+  expect(nb2("1K")).toBeCloseTo(0.067, 3);
+  expect(nb2("2K")).toBeCloseTo(0.101, 3);
+  // Stara vrednost je ovde bila 0,134 - jedanaest posto ispod nabavne.
+  expect(nb2("4K")).toBeCloseTo(0.151, 3);
+
+  const pro = (resolution: string) =>
+    computeCostUsd(NANO_BANANA_PRO.priceRule, { resolution }) - 0.015;
+  expect(pro("2K")).toBeCloseTo(0.134, 3);
+  expect(pro("4K")).toBeCloseTo(0.24, 2);
+});
+
+test("Google slike: odnosi stranica su samo oni koje API dokumentuje", () => {
+  const DOCUMENTED = ["1:1", "16:9", "9:16", "5:4", "3:2", "2:3", "1:4", "4:1", "1:8", "8:1"];
+  for (const seed of [NANO_BANANA_2, NANO_BANANA_PRO]) {
+    const control = seed.paramSpec.find((item) => item.key === "aspect_ratio");
+    expect(control).toBeDefined();
+    for (const option of control?.options ?? []) {
+      expect(DOCUMENTED).toContain(option.value);
     }
   }
 });

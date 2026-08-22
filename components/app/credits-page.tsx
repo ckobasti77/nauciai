@@ -59,8 +59,8 @@ function CheckoutAction({
 
   const buttonClass = cn(
     "inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border-2 px-5 py-2.5 text-sm font-extrabold transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-60",
-    tone === "ink" && "border-ink bg-ink text-white shadow-[4px_4px_0_0_#f4be30] hover:-translate-y-0.5",
-    tone === "yellow" && "border-ink bg-yellow text-ink shadow-[4px_4px_0_0_#0e3158] hover:-translate-y-0.5",
+    tone === "ink" && "border-ink bg-ink text-paper-strong shadow-[4px_4px_0_0_var(--yellow)] hover:-translate-y-0.5",
+    tone === "yellow" && "border-ink bg-yellow text-ink shadow-[4px_4px_0_0_var(--ink)] hover:-translate-y-0.5",
   );
 
   async function startCheckout() {
@@ -163,7 +163,7 @@ export function CreditsPage({ locale }: { locale: Locale }) {
           </p>
           <Link
             href={withLocale(locale, "/sign-in")}
-            className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-ink px-5 py-2.5 text-sm font-extrabold text-white shadow-[4px_4px_0_0_#f4be30] transition hover:-translate-y-0.5"
+            className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-ink px-5 py-2.5 text-sm font-extrabold text-paper-strong shadow-[4px_4px_0_0_var(--yellow)] transition hover:-translate-y-0.5"
           >
             {locale === "sr" ? "Prijavi se" : "Sign in"}
           </Link>
@@ -208,7 +208,7 @@ export function CreditsPage({ locale }: { locale: Locale }) {
           {balance !== undefined && currentBalance === 0 ? (
             <Link
               href={`#${PACKS_ANCHOR}`}
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 py-2.5 text-sm font-extrabold text-ink shadow-[4px_4px_0_0_#0e3158] transition hover:-translate-y-0.5"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 py-2.5 text-sm font-extrabold text-ink shadow-[4px_4px_0_0_var(--ink)] transition hover:-translate-y-0.5"
             >
               <Coins className="size-4" />
               {CREDITS_NO_BALANCE.cta[locale]}
@@ -352,7 +352,7 @@ export function CreditsPage({ locale }: { locale: Locale }) {
             <p className="text-base font-bold text-muted">{CREDITS_NO_HISTORY.body[locale]}</p>
             <Link
               href={`#${PACKS_ANCHOR}`}
-              className="mt-3 inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-white px-5 py-2.5 text-sm font-extrabold text-ink shadow-[3px_3px_0_0_rgba(14,49,88,0.18)] transition hover:-translate-y-0.5"
+              className="mt-3 inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-5 py-2.5 text-sm font-extrabold text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5"
             >
               <ArrowUp className="size-4" />
               {CREDITS_NO_HISTORY.cta[locale]}
@@ -400,7 +400,7 @@ export function CreditsPage({ locale }: { locale: Locale }) {
                 type="button"
                 onClick={() => transactions.loadMore(10)}
                 disabled={transactions.status === "LoadingMore"}
-                className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-white px-5 py-2.5 text-sm font-extrabold text-ink shadow-[3px_3px_0_0_rgba(14,49,88,0.18)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+                className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-5 py-2.5 text-sm font-extrabold text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {transactions.status === "LoadingMore" ? <Loader2 className="size-4 animate-spin" /> : null}
                 {locale === "sr" ? "Prikaži još" : "Show more"}

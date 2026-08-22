@@ -5,6 +5,10 @@ import { describe, expect, test, vi } from "vitest";
 // okruženju bez DOM-a. Zamena je prazna komponenta: ova stranica nema nijednu
 // sliku osim logotipa u zaglavlju, pa mock ne skriva ništa što se proverava.
 vi.mock("next/image", () => ({ default: () => null }));
+// Prekidac teme je klijentska komponenta sa hook-om (`useTheme`), a `textOf` ispod
+// poziva komponente kao obicne funkcije van React rendera. Nema pravni tekst, pa
+// prazna zamena ne skriva nista sto se proverava.
+vi.mock("@/components/app/theme-toggle", () => ({ ThemeToggle: () => null }));
 
 import PrivacyPolicyRoute, {
   generateMetadata as privacyMetadata,

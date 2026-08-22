@@ -7533,3 +7533,339 @@ sirine, moderacija audit) - blokirane loginom u ovom okruzenju.
 
 
 
+
+## TH1 - Dark/light tema   (22.08.2026)
+
+Grana `feat/dark-theme` (odvojena sa vrha `feat/studio-redesign`, 9290e26).
+Paleta je data unapred i nije menjana; posao je bio mehanizam + ciscenje
+zakucanih boja kroz ceo `app/`, `components/`, `lib/`.
+
+**Fajlovi:**
+- NOVO `lib/theme.ts` - tokeni izbora (`light|dark|system`), `resolveTheme`,
+  `THEME_COLORS` i `THEME_INIT_SCRIPT` (inline skripta za `<head>`).
+- NOVO `lib/theme.test.ts` - 6 testova (parse, resolve, boje, skripta kao
+  samostalan ES5: razresava isto kao `resolveTheme`, ne pada kad je storage
+  blokiran).
+- NOVO `components/providers/theme-provider.tsx` - `ThemeProvider` +
+  `useTheme` (localStorage `nauci_theme`, `useSyncExternalStore`, matchMedia
+  dok je izbor "sistem", cross-tab `storage`, `<meta theme-color>`, klasa
+  `theme-switching` ~220ms samo na klik).
+- NOVO `components/app/theme-toggle.tsx` - tri stanja, ikona + tekst, sr/en,
+  `role=radiogroup`; isti obrazac kao kursevi/lekcije tabovi u sidebaru.
+- NOVO `public/images/logos/logo-dark.png`, `logo-emblem-dark.png` - mastilo
+  u PNG-u prebojeno u tamni `--ink` (#e9eef6), zuta netaknuta (sharp skripta,
+  ne CSS filter).
+- `app/globals.css` - tokeni u `:root`, tamni parnjak pod `[data-theme="dark"]`,
+  `@custom-variant dark`, `@theme inline` preusmeren na `var(--*)`,
+  `--paper-strong`, `--shadow-hard` (+ nasledjeni stepeni), `--scrim`,
+  ostrvo zute (vidi ODLUKE), prelaz 150ms, `.sketch-grid`/`.ink-hatch`/
+  `.studio-focus-ink` na tokene.
+- `app/[locale]/layout.tsx` - `<head><script>` pre prve boje,
+  `suppressHydrationWarning` na `<html>`, `viewport.themeColor` za obe seme.
+- `components/providers/app-providers.tsx` - `ThemeProvider` oko svega.
+- `components/app/app-sidebar.tsx` - prekidac na 3 mesta (ispod profil
+  kartice, u rail flyout-u, u mobilnom drawer-u), tamni emblem.
+- `components/ui/primitives.tsx` - `BrandMark` sa tamnim logom, tokeni.
+- 76 fajlova u `app/`, `components/` - mehanicka zamena literala (ispod).
+
+**Sta je uradjeno:**
+- Mehanizam: tri stanja, `system` podrazumevano; izbor se primeni u `<head>`
+  pre prve boje (`data-theme` na `<html>`), pa nema bleska - provereno
+  Playwright-om na `commit` dogadjaju (`data-theme="dark"` vec postavljen).
+  Tailwind 4 `dark:` varijanta cita isti atribut. `color-scheme` prati temu
+  (nativni select/scrollbar). `prefers-reduced-motion` gasi prelaz.
+- Ciscenje, po kategorijama (nadjeno -> prevedeno -> svesno ostavljeno):
+  - Tailwind literali `*-white` / `*-black`: **762 -> 688 -> 74**.
+    `bg-white` -> `bg-paper-strong` (538), `text-white` -> `text-paper-strong`
+    (tekst na mastilu), `border-white` -> `border-paper-strong`, `/NN` varijante
+    isto. Ostavljeno 74: tekst/okvir/ispuna PREKO medija, scrim-a ili boje koja
+    je ista u obe teme - Studio tajl i detalj iznad bunara (54), crvene znacke
+    `bg-red-600` i zeleno `bg-[#10b981]` dugme (17), `bg-black/60` kontrola
+    preko medija (1), prsten play dugmeta preko uvodnog videa (2).
+  - `rgba(14,49,88,A)` mastilo-senke: **197 -> 197 -> 0**. U `.tsx` vise nema
+    nijedne; sve su `var(--shadow-hard)` (58) ili `var(--shadow-hard-NN)` (136),
+    2 linijske mreze u dashboardu su `color-mix(in srgb, var(--ink) 7-8%, ...)`.
+    Vrednosti zive samo u `globals.css` kao definicije tokena.
+  - Hex iz palete u `.tsx`/`.ts` (van globals): **74 -> 69 -> 5**.
+    `_#0e3158]` -> `_var(--ink)]`, `_#f4be30]` -> `_var(--yellow)]`,
+    `_#fff]` -> `_var(--paper-strong)]`, `bg-[#fffdf8]` -> `bg-paper`,
+    `from/via-[#0e1a2b]` -> `studio-well`, SVG `stroke="#..."` ->
+    `className="stroke-ink|line|yellow"`. Ostavljeno 5: dashboard hero gradijent
+    `#0e3158 -> #173d6b` (placeholder za video, tema-nezavisan kao bunar),
+    `rich-text-editor` paleta boja korisnickog teksta (2, korisnicki sadrzaj),
+    `lib/content.ts` `accent` (2, podaci, nigde se ne renderuju).
+  - Sekundarni hex VAN palete (`#d7e9f5`, `#eef3f7`, `#2e6f9f`, `#fff7e6`...):
+    **115 -> 80 dobilo `dark:` parnjak -> 35 ostavljeno**. Svetla vrednost je
+    ostala netaknuta; tamni parnjak je iskljucivo tinta postojeceg tokena
+    (`dark:bg-ink/10|15`, `dark:text-muted`, `dark:bg-yellow/15`,
+    `dark:border-line`, `dark:text-paper` za pastel znacke plana, heatmap
+    `ink/10..80`). Ostavljeno 35: status boje (zelene/crvene/ljubicaste:
+    `#10b981`, `#b42318`, `#245436`, `#eef9f1`...), `#0a0e14` cipovi preko
+    medija, `#d7a91b` zuti okvir - tabela ih ne pokriva (vidi Za Jovana).
+  - Dodatno ostavljeno: `rgba(244,190,48,A)` zute senke (18 - zuta se ne
+    menja), `rgba(255,255,255,0.95)` bela senka zutog modala preko scrim-a (2),
+    Tailwind status klase `red-*`/`amber-*`/`emerald-*`/`indigo-*` (~500).
+- Scrim token: `bg-ink/35..88` preklopi (pozadine modala, preklop preko slike/
+  videa, letterbox iza `<video>`) -> `bg-scrim/NN` (34 mesta). U svetloj je to
+  mastilo (piksel-isto), u tamnoj crna - svetlo mastilo bi pravilo maglu.
+- Logo/favicon: logo i emblem dobili tamnu varijantu (`dark:hidden` /
+  `hidden dark:block`). Naslovne slike kurseva i avatari vec imaju
+  `border-2 border-ink` okvir, pa bela pozadina ne sece - nista dodato.
+  Generisani mediji u Studiju nisu dirani (bunar je taman u obe teme).
+
+**ODLUKE:**
+1. **Zuta povrsina je ostrvo svetle palete.** `[data-theme="dark"] .bg-yellow`
+   (i `hover:`/`focus:`/`group-hover:` varijante) ponovo deklarise SVE tokene
+   na svetle vrednosti. Bez toga `bg-yellow text-ink` daje svetao tekst na
+   zutom (~1,3:1) - prvi prolaz je to i pokazao (izabrano "Tamna" u prekidacu,
+   inicijali avatara). Ovako zuto dugme sa tamnoplavim tekstom, okvirom i
+   senkom izgleda identicno u obe teme (7,66:1), bukvalno kako pise pravilo 1.
+   Posledica: okvir/senka zutog dugmeta su teget i na tamnom - vidi Za Jovana.
+2. **Jedan token senke + nasledjeni stepeni.** `--shadow-hard` (0.18 -> crna
+   0.55) je jedini za nove povrsine. Repo je vec imao 12 razlicitih alfi
+   (0.08-0.25, 0.55); da svetla ostane piksel-ista nisu spojene, nego dobile
+   `--shadow-hard-NN` sa tamnom vrednoscu skaliranom istim odnosom 0.55/0.18
+   (0.12 -> 0.37, 0.16 -> 0.49...). Crna je iz tabele; nijedna nova boja, samo
+   alfa. Komentar u globals.css kaze: ne dodaj nove stepene.
+3. **`--scrim` umesto `bg-ink/NN` za preklope** (vidi gore). Isti token sluzi
+   i kao letterbox iza `<video>` (ranije `bg-ink`) - tamno u obe teme.
+4. **Tekst preko medija/scrim-a i crvenih/zelenih znacki ostaje `text-white`
+   literal**, bez novog tokena - bela JESTE ispravna u obe teme tu, a novi
+   token bi bio samo preimenovanje.
+5. **Sekundarni tonovi van tabele nisu brisani** (svetla ostaje ista), nego
+   su dobili `dark:` parnjak iskljucivo kao tinta postojeceg tokena - isti
+   obrazac koji repo vec koristi (`bg-yellow/25`). Status boje nisu dirane.
+6. **Tamni logo je generisan, ne filtriran** - `filter: invert()` nigde.
+7. Prekidac samo u sidebaru (po zadatku); marketing/sign-in prate sistem ili
+   sacuvan izbor, bez sopstvenog prekidaca.
+8. Za no-JS scenario tema ostaje svetla (skripta je kanonski izvor; CSS
+   `@media (prefers-color-scheme)` fallback nije dodat da se tamne vrednosti
+   ne dupliraju).
+
+**Testovi:**
+- +6 u `lib/theme.test.ts`; suite sada **922** (916 nasledjenih, sve prolaze).
+- UI se ne renderuje u suite-u (repo obrazac); vizuelno pokriveno ispod.
+
+**Rezultat verifikacije:**
+- `npx convex codegen` -> exit 0
+- `npm run lint` -> `✖ 8 problems (0 errors, 8 warnings)`, exit 0 (svih 8 nasledjeno)
+- `npm run test` -> `Test Files 67 passed (67)`, `Tests 922 passed (922)`
+  (prvi pun prolaz: `convex/chat.test.ts > inbox summary` timeout pod
+  paralelnim opterecenjem; izolovano prolazi - poznati izuzetak, timeout nije
+  dizan)
+- `npm run build` -> exit 0, sve rute generisane
+- Svetla tema piksel-u-piksel: Playwright (reduced-motion) pre/posle preko
+  `git stash` za `/sr`, `/sr/sign-in`, `/sr/courses/video-audio-ai`: max razlika
+  po kanalu **1-2/255** (zaokruzivanje `color-mix` na `.sketch-grid`), nula
+  piksela iznad praga 30 van naslovne slike kursa (next/image re-enkodiranje
+  izmedju dva ucitavanja, ne tema).
+- Zivi klik-kroz u Chrome-u (ulogovan admin), svetla -> tamna -> nazad:
+  marketing (ceo scroll) · sign-in · dashboard · kurs · lekcija · zajednica
+  (lista + error stanje) · Studio mreza · composer · detalj (`/studio/m/...`)
+  · galerija · admin Studija · admin panel · krediti · poruke (prazno stanje)
+  · profil · javni profil clana · sidebar rail flyout · mobilni marketing
+  (390px). Osvezavanje u tamnoj: `data-theme="dark"` prisutan na `commit`,
+  bez bleska. Prekidac: klik menja `localStorage`, `data-theme`, `theme-color`
+  i `aria-checked`; "Sistem" brise kljuc.
+- Konzola: jedina greska je hidratacioni mismatch od browser ekstenzije
+  (`bis_skin_checked`), postoji i na `main`.
+
+**BLOKADA:** Nema. Ogranicenja verifikacije: Chrome tab je bio u pozadini, pa
+GSAP ulazne animacije (rAF) nisu tekle - za krediti/profil/admin snimci su
+uzeti uz rucno otkrivanje `[data-motion]` elemenata; mobilni drawer aplikacije
+nije snimljen (resize prozora nije primenjen), prekidac u njemu je potvrdjen
+u DOM-u. Hero video/letterbox nije video uzivo (nema videa na test kursu).
+
+**Za Jovana:**
+1. Status boje nisu u tabeli: `text-red-700` sam na tamnoj kartici je ~2,4:1,
+   `bg-indigo-50`/`bg-amber-50`/`bg-red-50` paneli ostaju pastelni pravougaonici
+   (citljivi, jer im je i tekst zakucan). Predlog: tamni parnjaci `red-400`,
+   `amber-300`, `emerald-300` + `dark:bg-red-500/15` - jedna odluka, pa
+   mehanicki prolaz (~500 mesta).
+2. Zuto dugme u tamnoj: po pravilu 1 je identicno svetloj (teget okvir +
+   teget senka), pa na tamnoj kartici cita kao "bez okvira". Alternativa:
+   svetao okvir/senka uz tamnoplav tekst (novi `--on-yellow` token) - ako to
+   zelis, ostrvo se suzava na `color`.
+3. `bg-ink` paneli (dashboard "Ukupno", kurs "Pregled kursa", zajednica hero)
+   u tamnoj postaju SVETLE ploce sa tamnim tekstom - to je inverzija po
+   pravilu 2, namerno; javi ako ti je prejako.
+4. Tamni logo je masinski prebojen (prelaz mastilo-zuta u emblemu je malo
+   mutan); dizajnerska verzija bi bila bolja. Favicon (.ico) ostaje teget na
+   providnom - u tamnom tabu slabo vidljiv, treba SVG sa `prefers-color-scheme`.
+5. `rich-text-editor` nudi `#0e3158` kao boju teksta; sadrzaj tako obojen je
+   nevidljiv u tamnoj (korisnicki podaci, nisam dirao).
+6. `nauci_theme` u tvom Chrome-u za localhost je tokom provere bio postavljen
+   na `light`/`dark` i pokusano je brisanje; ako ti tema "zaglavi", izaberi
+   "Sistem" u sidebaru.
+
+### TH1 - dopuna (22.08.2026, posle Jovanove provere)
+
+- **Prekidac van dashboarda:** `ThemeToggle` (nova `compact` varijanta: ispod `sm`
+  samo ikone, tekst u `sr-only`) dodat u zaglavlje marketinga
+  (`marketing-page.tsx`), stranice kursa (`courses/[courseSlug]/page.tsx`),
+  pravnih stranica (`legal-page.tsx`) i u red sa logom na `sign-in`.
+- **Tamni logo "se ne vidi":** uzrok nije u kodu nego u dev serveru - za kljuc
+  `logo-dark.png&w=1920&q=75` (webp) optimizator slika ima zaglavljen in-flight
+  zahtev (nastao dok je fajl kratko nedostajao tokom `git stash` provere), pa
+  svaki `<img>` sa tim `srcset` kandidatom ceka zauvek; `fetch()` (Accept */*)
+  i sve druge sirine (750/1080/2048/3840) prolaze. **Restart `next dev` resava.**
+  Uz to su oba tamna logoa prebacena sa `loading="lazy"` na `loading="eager"`
+  da logo koji postaje vidljiv tek posle promene teme ne zavisi od lazy praga.
+- **Test:** `lib/legal-pages.test.ts` poziva komponente kao obicne funkcije van
+  React rendera, pa `ThemeToggle` (hook) tamo dobija isti tretman kao `next/image`
+  - prazan `vi.mock`. Nijedan assertion nije dirnut. Suite: 922 (921 + poznati
+  `inbox summary` timeout pod opterecenjem, izolovano prolazi).
+- Kapije posle dopune: lint 0 gresaka / 8 nasledjenih, build exit 0.
+
+## SP1 - Izbor modela i panel, gustina i znakovi firmi
+
+> 22.08.2026 · grana `feat/dark-theme`. Treca runda nad panelom: jedan prozor
+> umesto dva, znak firme uz svaki model, merljiva gustina, preporuke po poslu,
+> i popravka dropdown-a "Svi modeli".
+
+### Fajlovi
+
+Novo:
+- `components/studio/provider-mark.tsx` - `ProviderMark` + registar `PROVIDER_MARKS`
+  + `ModelMark` (znak firme ili rezerva na `familyMark`).
+- `lib/studio-recommendations.ts` (+ test) - preporuke po poslu, po vrsti.
+- `lib/studio-panel.ts` (+ test) - `splitControlsByImportance` (osnovno/napredno).
+- `lib/studio-last-model.ts` - poslednji model po vrsti u `localStorage`.
+
+Menjano:
+- `lib/studio-models.ts` - `ProviderBrand`, `providerBrandOf`, `PROVIDER_BRANDS`,
+  `PROVIDER_BRAND_NAME` (+ testovi u `studio-models.test.ts`).
+- `components/studio/model-picker.tsx` - prepravljen: `ModelPickerOverlay` (zaseban
+  prozor) zamenjen sa `ModelPickerPanel` (gornja zona panela). Dva reda po modelu,
+  cena u tabularnoj koloni, znak firme, preporuke, poslednji-koriscen-po-vrsti,
+  pravna fusnota. `modelPriceSummary` sada za `chars1k` pokazuje `kr/1k` umesto
+  "cena po ulazu".
+- `components/studio/studio-composer.tsx` - birac je gornja zona panela (razvija
+  se na mestu, telo se menja bez skoka visine); kap panela podignut na
+  `min(78vh,640px)` da tipican model stane bez skrola na 900px; znak u redu
+  modela i u cipu bara (`ModelMark`); pamcenje modela po vrsti.
+- `components/studio/param-form.tsx` - osnovno/napredno iz `splitControlsByImportance`.
+- `components/app/studio-media-grid.tsx` - dropdown "Svi modeli" filtriran po vrsti,
+  reset filtera na promenu vrste, `optgroup` po vrsti kad je "Sve vrste".
+- `lib/legal-copy.ts` - recenica o znakovima modela (Uslovi Studija, sekcija 5).
+
+### Sta je uradjeno (po tackama prompta)
+
+1. **Jedan prozor.** `ModelPickerOverlay` ukinut; sadrzaj (pretraga, familije,
+   cene, tastatura ↑↓/Enter/Esc) seli u panel kao gornja zona. U mirovanju: red
+   trenutnog modela; klik ga razvija na mestu u pretragu+spisak; izbor sklapa
+   nazad. Visina panela se ne menja (isti kontejner, interni scroll).
+2. **Znak firme uz svaki model** - inline SVG, `fill=currentColor`, `viewBox 0 0 24 24`,
+   18px (16px u cipu bara). Registar, ne `switch`. Vidi se u: redu trenutnog modela,
+   svakom redu spiska, cipu kompozera - i nigde vise (ne u preporukama, ne u mrezi).
+3. **Gustina** - red modela je 2 reda (znak+ime+cena / opis truncate), bez reda
+   familije; cene desno u koloni sa `tabular-nums`; naslovi sekcija samo gde treba;
+   napredno sklopljeno sa brojem. Mereno: tipican model (Nano Banana 2) = 577px na
+   ekranu 911px, 0 overflow -> bez skrola.
+4. **Ritam/poravnanje** - jedna vertikala (znak-ime-cena), jedan korak razmaka,
+   grupa se odvaja razmakom + tankom linijom-headerom (ne oba jaka), preporuke gore
+   pa pun spisak, selekcija = ink (zuto ostaje za cenu/akciju).
+5. **Preporuke po poslu** (dole, ODLUKE).
+6. **Cena kao posledica** - `+N kr`/`×N` znacke iz istog `priceRule` (postojece);
+   `chars1k` sada nosi `kr/1k` u spisku (TTS: 22 kr/1k) umesto "cena po ulazu".
+7. **Jezik** - "Samo opis"/"Iz vise slika", "Glas", "Napredna podesavanja · N".
+8. **Pamti poslednji izbor po vrsti** - `localStorage`, izplivava kao "Poslednji
+   koriscen" kad se u bircu prebaci vrsta; upisuje se pri svakom izboru.
+9. **Bug dropdown "Svi modeli"** - popravljen (vidi verifikaciju).
+
+### ODLUKE
+
+**Preporuke po vrsti (izvedene iz `taglineEn` kataloga v4, ne izmisljene):**
+
+- SLIKA (4): `gpt-image-2` "Najbolje cita dug, precizan opis" (tagline: "reads a
+  long, precise brief best"); `seedream-45` "Najbrze i najjeftinije" (tagline "for
+  trying ideas fast", 9 kr); `nano-banana-pro` "Najvisi kvalitet" (tagline "thinking
+  image model", najskuplji kvalitet slike); `nano-banana-2` "Tekst u slici" (tagline
+  "great in-frame text").
+- VIDEO (4): `minimax-h3` "Najjeftinije, sa zvukom" (tagline "the cheapest video with
+  audio"); `veo-31` "Najvisi kvalitet" (tagline "the best quality in the catalogue");
+  `seedance-25` "Najduzi snimak (do 30 s)" (tagline "up to 30 seconds in a single
+  shot"); `gemini-omni` "Doterujes razgovorom" (tagline "refine by talking to it").
+- ZVUK (4): `tts` "Govor na srpskom" (tagline "the only voice that speaks Serbian");
+  `music` "Muzika iz opisa"; `sfx` "Zvucni efekat"; `stt` "Snimak u tekst" (tagline
+  "a recording into text, very cheap").
+- Za slike sam za "najjeftinije" izabrao `seedream-45` (9 kr) jer se u svom taglinu
+  sam definise kao brz za probe; `seedream-5-lite` je 1 kr jeftiniji (8 kr), ali se
+  reklamira na 4K/najnoviji, ne na brzinu - nuansa svesna.
+
+**Znakovi firmi - silueta ili inicijal (i zasto):**
+
+- `google` - SILUETA: prsten + precka ("G"), potez 3.5 radi jednake tezine.
+- `openai` - SILUETA: sestokraka rozeta (posten apstrakt "cveta", ne pogadjanje
+  cvora); petlje zadebljane da tezina prati ostale.
+- `elevenlabs` - SILUETA: dve uspravne grede ("‖") - njihov stvaran znak.
+- `bytedance` - INICIJAL "B": korporativni logo se ne svodi posteno na jednobojnu
+  siluetu; nisam nagadjao.
+- `kling` - INICIJAL "K": isti razlog.
+- `minimax` - INICIJAL "M": isti razlog.
+  (Tri siluete + tri postena inicijala, u istom stilu; balans tezine proveren u
+  bocnom pregledu pre/posle - google i openai su bili tanji, pa su podebljani.)
+
+**Osnovno vs napredno** (`splitControlsByImportance`): osnovno = kontrola koja menja
+CENU (`affectsPrice`) ili bira OBLIK IZLAZA (`aspect_ratio`); ostalo je napredno i
+stoji sklopljeno iza "Napredno · N". Prompt se ne racuna (na baru je). Rezerva: ako
+po pravilu nista nije osnovno (npr. TTS, gde cenu diktira duzina teksta), prikaze se
+PRVA kontrola iz `paramSpec`-a (glas), ostalo sklopljeno - da panel ne krene ni sa
+nula ni sa svih devet otvorenih. TTS tako da tacno "Napredno · 4".
+
+**Jedan prozor - telo se MENJA (swap), ne akordeon uz vidljiva podesavanja.** Kad je
+birac razvijen, telo panela je pretraga+spisak; kad se sklopi, vraca se red modela +
+rezim + slotovi + kontrole. Isti fiksni kontejner -> nula skoka visine. (Procenio
+sam da je swap citljiviji za pocetnika od istovremenog prikaza "biram model" i
+"stimujem" u istom telu.)
+
+### Testovi
+
+- `lib/studio-models.test.ts` - `providerBrandOf`: svaki red kataloga dobija poznatu
+  firmu (pukne kad se doda model bez mapiranja), firma iz familije a NE iz rute
+  (`seedream` preko `fal` i `byteplus` = ByteDance), tacne familije, nepoznata ->
+  `null`.
+- `lib/studio-recommendations.test.ts` - svaki preporuceni slug postoji u katalogu i
+  vrsta se poklapa; svaka vrsta 2-4 preporuke, razliciti modeli; ugasen model se
+  izostavlja.
+- `lib/studio-panel.test.ts` - podela osnovno/napredno nad sintetickim i nad SVIM
+  redovima kataloga (osnovno+napredno = sve sem prompta).
+- Suite: 935/935 (69 fajlova). `chat.test.ts > inbox summary` nije pao ovaj put.
+
+### Rezultat verifikacije (claude-in-chrome, dev :3000, ulogovan)
+
+- Jedan panel, birac kao gornja zona, razvijanje na mestu - radi (svetla i tamna).
+- Znakovi: svih 6 jedan pored drugog, obe teme, 18px i 48px - posle doterivanja
+  google/openai tezine izgledaju ujednaceno; u redu selektovanog modela znak je beo
+  na ink pozadini (`currentColor`).
+- Preporuke: SLIKA i ZVUK potvrdjene da se menjaju po vrsti.
+- **Gustina/visina: tipican model (Nano Banana 2) panel = 577px na innerHeight 911,
+  overflow 0 -> bez skrola.** Gust model (TTS) hita kap 640px, skroluje interno,
+  prikazuje "Glas" + "Napredna podesavanja · 4".
+- Promena modela u razvijenom redu: izabran TTS -> panel se sklopio na TTS bez skoka.
+- Prebacivanje Slika/Video/Zvuk u bircu menja i spisak i preporuke.
+- Dropdown "Svi modeli": pri "Sve vrste" `optgroup` Slika 8 / Video 13 / Zvuk 9; pri
+  vrsti - ravan spisak te vrste; filter po video modelu pa prelaz na Slika -> filter
+  se resetuje na "Svi modeli" (URL ?kind=image), umesto praznog stanja. Bug resen.
+- Obe teme potvrdjene.
+
+### BLOKADA
+
+- **375px zivi snimak nije uhvacen.** Prozor ulogovanog Chrome-a se u ovoj sesiji ne
+  smanjuje ispod maksimizovane sirine (`resize_window` ignorisan, `innerWidth` ostao
+  1920). Preko DOM-a potvrdjeno: panel nosi bottom-sheet klase
+  (`fixed bottom-0 max-h-[85vh] rounded-t-[16px]`, aktivne ispod 640px), desktop kap
+  `sm:max-h-[min(78vh,640px)]`, a znak je `width=18` + `flex-shrink:0` (red se ne
+  lomi). Piksel-tacan mobilni snimak treba proveriti na pravom telefonu/uzem prozoru.
+
+### Za Jovana
+
+1. **Pravna recenica** o znakovima ("Imena i znakovi modela... pripadaju vlasnicima,
+   radi prepoznavanja, bez podrazumevane povezanosti") stoji na DVA mesta:
+   (a) `lib/legal-copy.ts` -> Uslovi Studija, sekcija 5 (pravna strana), i
+   (b) kao sitna fusnota na dnu razvijenog spiska modela (na mestu gde se znakovi vide).
+2. **seedream-45 vs seedream-5-lite** za "najjeftinije": izabrao 45 (9 kr) zbog "brz
+   za probe"; 5-lite je 1 kr jeftiniji. Reci ako hoces da zamenimo.
+3. **Mobilni 375px** - proveri uzivo kad budes mogao (vidi BLOKADA).
+4. Marks su svesno 3 siluete + 3 inicijala (bytedance/kling/minimax) - ako imas
+   verne monohromne siluete za ta tri, ubacuju se kao jedan unos u `PROVIDER_MARKS`.

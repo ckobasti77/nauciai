@@ -137,7 +137,7 @@ function MemberCard({
   }
 
   return (
-    <article className="group relative flex min-h-28 w-full items-start gap-3 rounded-[16px] border border-line bg-white p-3 text-left transition hover:border-ink hover:shadow-[3px_3px_0_rgba(14,49,88,0.08)]">
+    <article className="group relative flex min-h-28 w-full items-start gap-3 rounded-[16px] border border-line bg-paper-strong p-3 text-left transition hover:border-ink hover:shadow-[3px_3px_0_var(--shadow-hard-08)]">
       <CommunityAvatar
         name={member.name}
         avatarUrl={member.avatarUrl}
@@ -164,7 +164,7 @@ function MemberCard({
           <span className="font-mono text-xs font-black text-ink">{member.contributionCount ?? 0} {locale === "sr" ? "doprinosa" : "contributions"}</span>
           <RoleBadge role={member.role} locale={locale} compact />
         </span>
-        {member.canFollow && member.userId ? <button type="button" onClick={() => void follow()} disabled={pending} className={cn("mt-3 inline-flex min-h-9 items-center gap-2 rounded-full border-2 border-ink px-3 text-[10px] font-black", following ? "bg-white" : "bg-yellow")}><UserPlus className="size-3.5" />{mutual ? (locale === "sr" ? "Pratite se" : "Mutual") : following ? (locale === "sr" ? "Pratiš" : "Following") : (locale === "sr" ? "Zaprati" : "Follow")}</button> : null}
+        {member.canFollow && member.userId ? <button type="button" onClick={() => void follow()} disabled={pending} className={cn("mt-3 inline-flex min-h-9 items-center gap-2 rounded-full border-2 border-ink px-3 text-[10px] font-black", following ? "bg-paper-strong" : "bg-yellow")}><UserPlus className="size-3.5" />{mutual ? (locale === "sr" ? "Pratite se" : "Mutual") : following ? (locale === "sr" ? "Pratiš" : "Following") : (locale === "sr" ? "Zaprati" : "Follow")}</button> : null}
       </span>
     </article>
   );
@@ -206,13 +206,13 @@ function MembersView({
   return (
     <div className="space-y-5">
       <CommunityStickyToolbar>
-      <section className="rounded-[16px] border border-line bg-white p-3 sm:p-4">
+      <section className="rounded-[16px] border border-line bg-paper-strong p-3 sm:p-4">
         <div className="mb-3 flex gap-2 overflow-x-auto" role="tablist" aria-label={locale === "sr" ? "Veze članova" : "Member connections"}>
           {([
             ["all", locale === "sr" ? "Svi" : "All"],
             ["following", locale === "sr" ? "Pratim" : "Following"],
             ["followers", locale === "sr" ? "Pratioci" : "Followers"],
-          ] as Array<[MemberConnectionFilter, string]>).map(([value, text]) => <button key={value} type="button" role="tab" aria-selected={controls.connection === value} onClick={() => controls.setConnection(value)} className={cn("shrink-0 rounded-full border-2 border-ink px-4 py-2 text-xs font-black", controls.connection === value ? "bg-ink text-white" : "bg-white text-ink")}>{text}</button>)}
+          ] as Array<[MemberConnectionFilter, string]>).map(([value, text]) => <button key={value} type="button" role="tab" aria-selected={controls.connection === value} onClick={() => controls.setConnection(value)} className={cn("shrink-0 rounded-full border-2 border-ink px-4 py-2 text-xs font-black", controls.connection === value ? "bg-ink text-paper-strong" : "bg-paper-strong text-ink")}>{text}</button>)}
         </div>
         <div className="grid gap-2 xl:grid-cols-[minmax(220px,0.72fr)_minmax(0,1fr)]">
           <CommunityScopeControls locale={locale} filters={filters} scopeState={scopeState} compact />
@@ -228,7 +228,7 @@ function MembersView({
               <select
                 value={controls.role}
                 onChange={(event) => controls.setRole(event.target.value as MemberRoleFilter)}
-                className="min-h-10 w-full rounded-full border border-line bg-white px-4 text-sm font-black text-ink outline-none hover:border-ink/55 focus:border-ink focus:ring-4 focus:ring-yellow/25 sm:w-auto"
+                className="min-h-10 w-full rounded-full border border-line bg-paper-strong px-4 text-sm font-black text-ink outline-none hover:border-ink/55 focus:border-ink focus:ring-4 focus:ring-yellow/25 sm:w-auto"
               >
                 {ROLE_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>{locale === "sr" ? option.sr : option.en}</option>

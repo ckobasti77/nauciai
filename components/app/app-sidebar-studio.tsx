@@ -123,11 +123,11 @@ export function SidebarNavSwap({
 
 const ROW_BASE =
   "inline-flex min-h-11 w-full min-w-0 items-center gap-3 rounded-full border-2 px-3 py-2 text-sm font-extrabold text-ink transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
-const ROW_ACTIVE = "border-ink bg-yellow shadow-[3px_3px_0_0_rgba(14,49,88,0.14)]";
+const ROW_ACTIVE = "border-ink bg-yellow shadow-[3px_3px_0_0_var(--shadow-hard-14)]";
 const ROW_IDLE = "border-transparent bg-transparent hover:border-ink hover:bg-yellow/25";
 // „Nazad" je akcija (izlaz iz alata), ne odredište - zato okvir + senka i strelica.
 const BACK_ROW =
-  "inline-flex min-h-11 w-full min-w-0 items-center gap-3 rounded-full border-2 border-ink bg-white px-3 py-2 text-sm font-extrabold text-ink shadow-[3px_3px_0_0_rgba(14,49,88,0.14)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
+  "inline-flex min-h-11 w-full min-w-0 items-center gap-3 rounded-full border-2 border-ink bg-paper-strong px-3 py-2 text-sm font-extrabold text-ink shadow-[3px_3px_0_0_var(--shadow-hard-14)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
 
 function sectionHref(locale: Locale, section: StudioSection): string {
   const base = withLocale(locale, "/app/studio");
@@ -212,10 +212,10 @@ export function StudioSidebarNav({
 // Rail (skupljeno): ikona + tooltip s desne strane, isti oblik kao `RailAction`.
 const RAIL_BASE =
   "group relative flex size-12 items-center justify-center rounded-full border-2 text-ink transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
-const RAIL_ACTIVE = "border-ink bg-yellow shadow-[3px_3px_0_rgba(14,49,88,0.16)]";
-const RAIL_IDLE = "border-transparent bg-white hover:border-ink hover:bg-yellow/25";
+const RAIL_ACTIVE = "border-ink bg-yellow shadow-[3px_3px_0_var(--shadow-hard-16)]";
+const RAIL_IDLE = "border-transparent bg-paper-strong hover:border-ink hover:bg-yellow/25";
 const RAIL_TOOLTIP =
-  "pointer-events-none absolute left-[calc(100%+12px)] z-[80] whitespace-nowrap rounded-full border-2 border-ink bg-white px-3 py-1.5 text-xs font-black text-ink opacity-0 shadow-[4px_4px_0_rgba(14,49,88,0.14)] transition group-hover:opacity-100 group-focus-visible:opacity-100";
+  "pointer-events-none absolute left-[calc(100%+12px)] z-[80] whitespace-nowrap rounded-full border-2 border-ink bg-paper-strong px-3 py-1.5 text-xs font-black text-ink opacity-0 shadow-[4px_4px_0_var(--shadow-hard-14)] transition group-hover:opacity-100 group-focus-visible:opacity-100";
 
 function RailTooltip({ label }: { label: string }) {
   return (

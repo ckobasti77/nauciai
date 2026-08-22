@@ -261,7 +261,15 @@ test("v4 model se naplaćuje po `computeCredits`-u nad istim parametrima koje up
 
   await asUser.mutation(api.studio.createJob, {
     modelSlug: "nano-banana-2",
-    params: JSON.stringify({ prompt: "lisica u snegu", resolution: "4K", num_images: 2 }),
+    params: JSON.stringify({
+      prompt: "lisica u snegu",
+      resolution: "4K",
+      aspect_ratio: "16:9",
+      // Nije kontrola ovog modela - Interactions API vraća jednu sliku po
+      // pozivu. Mora da IZLETI iz upisanih parametara, inače bi klijent slao
+      // količinu koju server ne isporučuje.
+      num_images: 2,
+    }),
     inputMode: "text",
   });
 
@@ -269,7 +277,8 @@ test("v4 model se naplaćuje po `computeCredits`-u nad istim parametrima koje up
   expect(jobs).toHaveLength(1);
   const params = JSON.parse(jobs[0].params) as Record<string, unknown>;
   expect(params.resolution).toBe("4K");
-  expect(params.num_images).toBe(2);
+  expect(params.aspect_ratio).toBe("16:9");
+  expect(params.num_images).toBeUndefined();
   expect(jobs[0].inputMode).toBe("text");
   // Cifra na dugmetu i naplaćena cifra izlaze iz ISTE funkcije nad ISTIM
   // objektom - katalog 1.3 zabranjuje drugu računicu.

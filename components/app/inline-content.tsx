@@ -177,7 +177,7 @@ export function InlineContentText({
   }
 
   return (
-    <Shell className={cn("relative inline-flex min-w-[16rem] max-w-full flex-col rounded-[8px] border-2 border-ink bg-white p-2 shadow-[3px_3px_0_rgba(14,49,88,0.18)]", block && "flex w-full", className)}>
+    <Shell className={cn("relative inline-flex min-w-[16rem] max-w-full flex-col rounded-[8px] border-2 border-ink bg-paper-strong p-2 shadow-[3px_3px_0_var(--shadow-hard)]", block && "flex w-full", className)}>
       <span className="mb-2 flex items-center justify-between gap-3">
         <span className="inline-flex items-center gap-1 rounded-full border-2 border-ink bg-paper p-1" role="group" aria-label={locale === "sr" ? "Jezik polja" : "Field language"}>
           {(["sr", "en"] as const).map((item) => {
@@ -189,7 +189,7 @@ export function InlineContentText({
                 onClick={() => setEditingLocale(item)}
                 className={cn(
                   "inline-flex min-h-7 items-center gap-1 rounded-full border px-2.5 text-[11px] font-black uppercase transition",
-                  editingLocale === item ? "border-ink bg-ink text-white" : "border-transparent text-muted",
+                  editingLocale === item ? "border-ink bg-ink text-paper-strong" : "border-transparent text-muted",
                   warning && "border-amber-600 bg-amber-100 text-amber-950 ring-2 ring-amber-400/45",
                 )}
               >
@@ -203,7 +203,7 @@ export function InlineContentText({
           <button type="button" onClick={() => void save()} disabled={saving} aria-label="Sačuvaj" className="grid size-7 place-items-center rounded-full border-2 border-ink bg-yellow disabled:cursor-not-allowed disabled:opacity-40">
             {saving ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}
           </button>
-          <button type="button" onClick={cancel} disabled={saving} aria-label="Otkaži" className="grid size-7 place-items-center rounded-full border-2 border-ink bg-white disabled:opacity-40"><X className="size-3.5" /></button>
+          <button type="button" onClick={cancel} disabled={saving} aria-label="Otkaži" className="grid size-7 place-items-center rounded-full border-2 border-ink bg-paper-strong disabled:opacity-40"><X className="size-3.5" /></button>
         </span>
       </span>
       {multiline ? (

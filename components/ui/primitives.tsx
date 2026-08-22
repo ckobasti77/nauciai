@@ -22,11 +22,11 @@ export function LinkButton({ className, tone = "ink", size = "md", ...props }: B
         size === "md" && "min-h-11 px-5 py-2.5 text-sm",
         size === "lg" && "min-h-12 px-6 py-3 text-base sm:text-lg",
         tone === "ink" &&
-          "border-ink bg-ink text-white shadow-[4px_4px_0_0_#f4be30] hover:-translate-y-0.5 hover:shadow-[6px_6px_0_0_#f4be30] focus-visible:outline-ink",
+          "border-ink bg-ink text-paper-strong shadow-[4px_4px_0_0_var(--yellow)] hover:-translate-y-0.5 hover:shadow-[6px_6px_0_0_var(--yellow)] focus-visible:outline-ink",
         tone === "yellow" &&
-          "border-ink bg-yellow text-ink shadow-[4px_4px_0_0_#0e3158] hover:-translate-y-0.5 hover:shadow-[6px_6px_0_0_#0e3158] focus-visible:outline-ink",
+          "border-ink bg-yellow text-ink shadow-[4px_4px_0_0_var(--ink)] hover:-translate-y-0.5 hover:shadow-[6px_6px_0_0_var(--ink)] focus-visible:outline-ink",
         tone === "paper" &&
-          "border-ink bg-white text-ink shadow-[3px_3px_0_0_rgba(14,49,88,0.18)] hover:-translate-y-0.5 focus-visible:outline-ink",
+          "border-ink bg-paper-strong text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] hover:-translate-y-0.5 focus-visible:outline-ink",
         className,
       )}
       {...props}
@@ -52,7 +52,7 @@ export function Panel({
       id={id}
       data-motion="card"
       className={cn(
-        "rounded-[16px] border-2 border-ink bg-white shadow-[6px_6px_0_0_rgba(14,49,88,0.13)]",
+        "rounded-[16px] border-2 border-ink bg-paper-strong shadow-[6px_6px_0_0_var(--shadow-hard-13)]",
         className,
       )}
     >
@@ -96,7 +96,7 @@ export function HandUnderline({ className }: { className?: string }) {
       />
       <path
         d="M9 14c51-3 95-1 137-6 27-3 52-1 86 4"
-        stroke="#0e3158"
+        className="stroke-ink"
         strokeLinecap="round"
         strokeWidth="2"
       />
@@ -116,8 +116,20 @@ export function BrandMark({ href = "/sr" }: { href?: string; label?: string }) {
         alt="Nauči AI"
         width={1338}
         height={460}
-        className="h-auto w-[142px] max-w-[45vw] object-contain sm:w-[176px] lg:w-[198px]"
+        className="h-auto w-[142px] max-w-[45vw] object-contain sm:w-[176px] lg:w-[198px] dark:hidden"
         priority
+      />
+      {/* Ink in the logo is baked into the PNG, so dark gets its own file (generated
+          from logo.png with ink recoloured to the dark --ink; yellow untouched). */}
+      <Image
+        src="/images/logos/logo-dark.png"
+        alt="Nauči AI"
+        width={1338}
+        height={460}
+        className="hidden h-auto w-[142px] max-w-[45vw] object-contain sm:w-[176px] lg:w-[198px] dark:block"
+        // Eager (not lazy): this one is display:none until a theme switch, and a lazy
+        // image that only becomes visible later can leave the header without a logo.
+        loading="eager"
       />
     </Link>
   );

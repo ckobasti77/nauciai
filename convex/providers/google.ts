@@ -15,7 +15,12 @@ import {
   startGoogleOperation,
 } from "../../lib/google-video";
 import {
+  fromBase64,
+  runGoogleInteraction,
+} from "../../lib/google-image";
+import {
   bareInteractionId,
+  buildGoogleImageRequest,
   buildOmniRequest,
   buildVeoRequest,
   type GoogleInputFile,
@@ -75,13 +80,6 @@ export async function submitGoogleJob(ctx: ActionCtx, jobId: Id<"generationJobs"
       slug: job.modelSlug,
     });
     if (!model) throw new Error("Model nije pronađen u katalogu.");
-    // Google slike (Nano Banana 2 i Pro) su sinhrone i idu drugim tokom - korak
-    // S2 ih nije isporučio. Dok ih nema, model te vrste se odbija odmah i
-    // refundira, umesto da ga poller doveka ispituje.
-    if (model.kind !== "video") {
-      throw new Error("GOOGLE_SLIKE_NISU_POVEZANE: Ovaj model još nije dostupan.");
-    }
-
     const inputMode = job.inputMode ?? "text";
     const endpoints = parseParams(model.endpoints) ?? {};
     const providerModel = endpoints[inputMode];
@@ -93,6 +91,15 @@ export async function submitGoogleJob(ctx: ActionCtx, jobId: Id<"generationJobs"
     const params = parseParams(job.params) ?? {};
     const inputs = await resolveInputs(ctx, job.inputs);
     const capabilities = parseParams(model.capabilities) ?? {};
+
+    // Slike su SINHRONE: odgovor istog poziva nosi bajtove, pa posao ide
+    // `reserved` -> `done` i nikad ne prolazi kroz `running` ni kroz poller.
+    // Grana stoji na `kind`-u reda kataloga, ne na imenu modela.
+    if (model.kind === "image") {
+      await runGoogleImageJob(ctx, jobId, config, providerModel, params, inputs, inputMode);
+
+      return;
+    }
 
     // Koji Google API vozi ovaj red piše u samom redu (`capabilities.api`), a ne
     // u `if (slug === ...)`: Omni ide na Interactions API, Veo na
@@ -111,6 +118,107 @@ export async function submitGoogleJob(ctx: ActionCtx, jobId: Id<"generationJobs"
     await ctx.runMutation(internal.studio.failJob, { jobId, error: message });
   }
 }
+
+/**
+ * Ceo tok jedne Google slike, u JEDNOM pozivu (katalog 2.1 i 2.2).
+ *
+ * Redosled je namerno ovakav:
+ * 1. poziv Google-u - ako pukne, `submitGoogleJob` ga hvata i refundira;
+ * 2. bajtovi u Convex storage - fajl postoji PRE nego sto je posao `done`, pa
+ *    ne moze da postoji `done` posao bez izlaza;
+ * 3. jedna mutacija zatvara posao, upise trosak i zakaze poravnanje.
+ *
+ * Ako treci korak ne uspe da zaveze fajl za posao (druga predaja istog posla),
+ * bajtovi se brisu - inace bi storage rastao na svaki ponovljeni poziv.
+ */
+async function runGoogleImageJob(
+  ctx: ActionCtx,
+  jobId: Id<"generationJobs">,
+  config: GoogleConfig,
+  providerModel: string,
+  params: Record<string, unknown>,
+  inputs: GoogleInputs,
+  inputMode: string,
+): Promise<void> {
+  const result = await runGoogleInteraction({
+    config,
+    body: buildGoogleImageRequest(providerModel, params, inputs, inputMode),
+  });
+
+  // Interactions API ume da vrati gresku sa HTTP 200 (`status: "failed"`), pa
+  // odgovor bez slike NIJE uspeh - posao se refundira sa razlogom.
+  if (!result.media) {
+    throw new Error(
+      result.error ?? "Google je vratio odgovor bez slike. Krediti su ti vraćeni.",
+    );
+  }
+
+  const bytes = fromBase64(result.media.data);
+  const storageId = await ctx.storage.store(
+    new Blob([bytes as BlobPart], { type: result.media.mimeType }),
+  );
+
+  const stored = await ctx.runMutation(internal.providers.google.completeGoogleImageJob, {
+    jobId,
+    storageId,
+    mimeType: result.media.mimeType,
+    byteSize: bytes.byteLength,
+    ...(result.interactionId ? { providerRequestId: `interactions/${result.interactionId}` } : {}),
+    ...(result.usage ? { usage: result.usage } : {}),
+    ...(result.sample !== null ? { sample: result.sample } : {}),
+  });
+  if (!stored) await ctx.storage.delete(storageId);
+}
+
+/**
+ * Zatvaranje sinhronog Google posla. Ogledalo `applyOperationResult`-a, samo bez
+ * mreze: izlaz je vec u storage-u, pa nema ni `persistOutput`-a.
+ *
+ * Idempotencija stoji na `job.status !== "reserved"` - isto pravilo kao kod
+ * `studio.markJobDone`. Druga predaja istog posla vraca `false` i njeni bajtovi
+ * se brisu.
+ */
+export const completeGoogleImageJob = internalMutation({
+  args: {
+    jobId: v.id("generationJobs"),
+    storageId: v.id("_storage"),
+    mimeType: v.optional(v.string()),
+    byteSize: v.number(),
+    providerRequestId: v.optional(v.string()),
+    usage: v.optional(tokenUsageValidator),
+    sample: v.optional(v.string()),
+  },
+  handler: async (ctx, args): Promise<boolean> => {
+    const job = await ctx.db.get(args.jobId);
+    if (!job || job.status !== "reserved") return false;
+
+    await ctx.db.patch(args.jobId, {
+      status: "done",
+      completedAt: Date.now(),
+      ...(args.providerRequestId
+        ? { providerRequestId: args.providerRequestId, falRequestId: args.providerRequestId }
+        : {}),
+    });
+    // Trosak ide u ISTU transakciju u kojoj se posao zatvara: sinhroni posao
+    // vise niko ne ispituje, pa kasnije nema ko da ga izmeri.
+    await recordProviderCost(ctx, job, {
+      ...(args.usage !== undefined ? { usage: args.usage } : {}),
+      ...(args.sample !== undefined ? { sample: args.sample } : {}),
+    });
+
+    const finalized: boolean = await ctx.runMutation(internal.studio.finalizeOutput, {
+      jobId: args.jobId,
+      storageId: args.storageId,
+      ...(args.mimeType ? { mimeType: args.mimeType } : {}),
+      byteSize: args.byteSize,
+    });
+    // Poravnanje se ZAKAZUJE: naplata razlike ne sme da povuce zatvoren posao
+    // sa sobom ako pukne.
+    await ctx.scheduler.runAfter(0, internal.studio.settleJobCredits, { jobId: args.jobId });
+
+    return finalized;
+  },
+});
 
 function startVeo(
   config: GoogleConfig,

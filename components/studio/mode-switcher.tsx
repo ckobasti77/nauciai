@@ -65,7 +65,7 @@ export function ModeSwitcher({
               onClick={() => select(mode)}
               className={cn(
                 "rounded-full border-2 border-ink px-3 py-1.5 text-sm font-black transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-60",
-                active ? "bg-ink text-white" : "bg-white text-ink hover:-translate-y-0.5",
+                active ? "bg-ink text-paper-strong" : "bg-paper-strong text-ink hover:-translate-y-0.5",
               )}
             >
               {modeLabel(mode, locale)}

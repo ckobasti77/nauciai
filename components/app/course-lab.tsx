@@ -172,8 +172,8 @@ function QuickPromptButton({
       type="button"
       onClick={handleCopy}
       className={cn(
-        "rounded-[8px] border-2 px-3 py-2 text-xs font-black transition flex items-center gap-1.5 shadow-[2px_2px_0_0_rgba(14,49,88,0.1)] hover:-translate-y-0.5",
-        copied ? "border-green-600 bg-green-50 text-green-700" : "border-ink bg-white text-ink hover:bg-yellow"
+        "rounded-[8px] border-2 px-3 py-2 text-xs font-black transition flex items-center gap-1.5 shadow-[2px_2px_0_0_var(--shadow-hard-10)] hover:-translate-y-0.5",
+        copied ? "border-green-600 bg-green-50 text-green-700" : "border-ink bg-paper-strong text-ink hover:bg-yellow"
       )}
     >
       <Sparkles className={cn("size-3.5", copied && "text-green-600")} />
@@ -442,7 +442,7 @@ export function CourseLab({
       onClick={() => setActiveMobileTab(tab)}
       className={cn(
         "min-h-10 flex-1 rounded-[8px] border-2 px-3 text-sm font-black",
-        activeMobileTab === tab ? "border-ink bg-yellow text-ink" : "border-line bg-white text-muted",
+        activeMobileTab === tab ? "border-ink bg-yellow text-ink" : "border-line bg-paper-strong text-muted",
       )}
     >
       {label}
@@ -458,8 +458,8 @@ export function CourseLab({
   const activeColumns = activeLayout.filter(Boolean) as Array<{ type: ColumnType; width: number }>;
 
   return (
-    <div className="min-h-[calc(100vh-120px)] overflow-hidden rounded-[8px] border-2 border-ink bg-paper shadow-[6px_6px_0_0_rgba(14,49,88,0.13)]">
-      <div className="flex flex-col gap-3 border-b-2 border-ink bg-white px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
+    <div className="min-h-[calc(100vh-120px)] overflow-hidden rounded-[8px] border-2 border-ink bg-paper shadow-[6px_6px_0_0_var(--shadow-hard-13)]">
+      <div className="flex flex-col gap-3 border-b-2 border-ink bg-paper-strong px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0">
           <p className="text-xs font-black uppercase text-muted">{localized(course.title, locale)}</p>
           <h1 className="truncate text-xl font-black text-ink">{localized(lesson.title, locale)}</h1>
@@ -468,7 +468,7 @@ export function CourseLab({
           {lab.isAdmin && !inlineEdit ? (
             <Link
               href={withLocale(locale, `/app/courses/${course.slug}/lessons/${lesson.slug}/edit`)}
-              className="rounded-[8px] border-2 border-ink bg-white px-3 py-2 text-xs font-black text-ink hover:bg-yellow inline-flex items-center gap-1.5"
+              className="rounded-[8px] border-2 border-ink bg-paper-strong px-3 py-2 text-xs font-black text-ink hover:bg-yellow inline-flex items-center gap-1.5"
             >
               <Sparkles className="size-3.5" />
               {t(locale, "Otvori Editor vežbe", "Open Exercise Editor")}
@@ -495,7 +495,7 @@ export function CourseLab({
             <div
               key={col.type}
               className={cn(
-                "relative flex flex-col min-h-0 bg-white border-r-2 border-line last:border-r-0",
+                "relative flex flex-col min-h-0 bg-paper-strong border-r-2 border-line last:border-r-0",
                 col.type === "explanation" && activeMobileTab !== "lesson" && "max-lg:hidden",
                 col.type === "chatbot" && activeMobileTab !== "ai" && "max-lg:hidden",
                 col.type === "output" && activeMobileTab !== "output" && "max-lg:hidden"
@@ -503,7 +503,7 @@ export function CourseLab({
               style={{ flexBasis: `${widthPct}%`, flexGrow: 0, flexShrink: 0 }}
             >
               {col.type === "explanation" && (
-                <section className="h-full w-full bg-white overflow-hidden">
+                <section className="h-full w-full bg-paper-strong overflow-hidden">
                   <div className="max-h-full overflow-y-auto p-5 select-text">
                     <p className="text-xs font-black uppercase text-muted">{t(locale, "Lekcija", "Lesson")}</p>
                     <h2 className="mt-2 text-3xl font-black leading-tight text-ink">
@@ -550,7 +550,7 @@ export function CourseLab({
                               }}
                               className={cn(
                                 "w-full rounded-[8px] border-2 p-3 text-left transition",
-                                selectedTask?._id === task._id ? "border-ink bg-paper" : "border-line bg-white hover:border-ink",
+                                selectedTask?._id === task._id ? "border-ink bg-paper" : "border-line bg-paper-strong hover:border-ink",
                               )}
                             >
                               <div className="flex items-start gap-3">
@@ -589,7 +589,7 @@ export function CourseLab({
               {col.type === "chatbot" && (
                 <section className="h-full w-full bg-paper overflow-hidden">
                   <div className="flex flex-col h-full select-text">
-                    <div className="border-b border-line bg-white p-4">
+                    <div className="border-b border-line bg-paper-strong p-4">
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="flex items-center gap-2">
                           <span className="inline-flex size-10 items-center justify-center rounded-[8px] border-2 border-ink bg-yellow text-ink">
@@ -603,7 +603,7 @@ export function CourseLab({
                         <select
                           value={selectedModel}
                           onChange={(event) => setSelectedModel(event.target.value)}
-                          className="min-h-10 rounded-[8px] border-2 border-ink bg-white px-3 text-sm font-black text-ink"
+                          className="min-h-10 rounded-[8px] border-2 border-ink bg-paper-strong px-3 text-sm font-black text-ink"
                         >
                           {modelOptions.map((model) => (
                             <option key={model} value={model}>
@@ -625,7 +625,7 @@ export function CourseLab({
                           t(locale, "Daj mi plan rada", "Give me a work plan"),
                           t(locale, "Predlozi bolji output", "Suggest a better output"),
                         ].map((prompt) => (
-                          <button key={prompt} type="button" onClick={() => setComposer(prompt)} className="rounded-[8px] border-2 border-line bg-white px-3 py-2 text-xs font-black text-ink hover:border-ink">
+                          <button key={prompt} type="button" onClick={() => setComposer(prompt)} className="rounded-[8px] border-2 border-line bg-paper-strong px-3 py-2 text-xs font-black text-ink hover:border-ink">
                             <Sparkles className="mr-1 inline size-3" />
                             {prompt}
                           </button>
@@ -635,13 +635,13 @@ export function CourseLab({
                     <div className="flex-grow space-y-3 overflow-y-auto p-4">
                       {chatMessages.length ? (
                         chatMessages.map((message) => (
-                          <div key={message.id} className={cn("max-w-[88%] rounded-[8px] border-2 p-3", message.role === "assistant" ? "border-ink bg-white" : "ml-auto border-ink bg-yellow")}>
+                          <div key={message.id} className={cn("max-w-[88%] rounded-[8px] border-2 p-3", message.role === "assistant" ? "border-ink bg-paper-strong" : "ml-auto border-ink bg-yellow")}>
                             <p className="text-xs font-black uppercase text-muted">{message.role === "assistant" ? "AI" : t(locale, "Ti", "You")}</p>
                             <p className="mt-1 whitespace-pre-wrap text-sm font-bold leading-6 text-ink">{message.content}</p>
                           </div>
                         ))
                       ) : (
-                        <div className="rounded-[8px] border-2 border-dashed border-line bg-white p-5 text-center">
+                        <div className="rounded-[8px] border-2 border-dashed border-line bg-paper-strong p-5 text-center">
                           <MessageSquareText className="mx-auto size-8 text-ink" />
                           <p className="mt-3 text-sm font-black text-muted">
                             {t(locale, "Pitaj AI za pomoc oko trenutnog zadatka.", "Ask AI for help with the current task.")}
@@ -649,7 +649,7 @@ export function CourseLab({
                         </div>
                       )}
                     </div>
-                    <div className="border-t border-line bg-white p-4 shrink-0">
+                    <div className="border-t border-line bg-paper-strong p-4 shrink-0">
                       <div className="flex gap-2">
                         <textarea
                           value={composer}
@@ -670,7 +670,7 @@ export function CourseLab({
                         type="button"
                         onClick={saveLatestOutput}
                         disabled={isSavingOutput || !lastAssistant}
-                        className="mt-3 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-ink px-4 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-60"
+                        className="mt-3 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-ink px-4 text-sm font-black text-paper-strong disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {isSavingOutput ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
                         {t(locale, "Save to output", "Save to output")}
@@ -681,7 +681,7 @@ export function CourseLab({
               )}
 
               {col.type === "output" && (
-                <section className="h-full w-full bg-white overflow-hidden">
+                <section className="h-full w-full bg-paper-strong overflow-hidden">
                   <div className="max-h-full overflow-y-auto p-5 select-text">
                     <div className="flex items-center justify-between gap-3">
                       <div>
@@ -695,7 +695,7 @@ export function CourseLab({
                     {activeStep.outputKind !== "text" ? (
                       <Link
                         href={`${withLocale(locale, "/app/studio")}?lessonId=${lessonId}${selectedTask ? `&taskId=${selectedTask._id}` : ""}`}
-                        className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-sm font-black text-ink shadow-[3px_3px_0_0_rgba(14,49,88,0.18)] transition hover:-translate-y-0.5"
+                        className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-sm font-black text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5"
                       >
                         <Wand2 className="size-4" />
                         {t(locale, "Otvori u Studiju", "Open in the Studio")}
@@ -713,10 +713,10 @@ export function CourseLab({
                           <audio className="mt-4 w-full" src={latestOutput.storageUrl ?? latestOutput.url} controls />
                         ) : null}
                         {latestOutput.kind === "video" && (latestOutput.storageUrl || latestOutput.url) ? (
-                          <video className="mt-4 aspect-video w-full rounded-[8px] border-2 border-ink bg-ink" src={latestOutput.storageUrl ?? latestOutput.url} controls />
+                          <video className="mt-4 aspect-video w-full rounded-[8px] border-2 border-ink bg-scrim" src={latestOutput.storageUrl ?? latestOutput.url} controls />
                         ) : null}
                         {latestOutput.text ? (
-                          <p className="mt-4 whitespace-pre-wrap rounded-[8px] border-2 border-line bg-white p-3 text-sm font-bold leading-6 text-ink">
+                          <p className="mt-4 whitespace-pre-wrap rounded-[8px] border-2 border-line bg-paper-strong p-3 text-sm font-bold leading-6 text-ink">
                             {latestOutput.text}
                           </p>
                         ) : null}
@@ -732,7 +732,7 @@ export function CourseLab({
                     )}
                     <div className="mt-5 space-y-2">
                       {stepOutputs.slice(1).map((output) => (
-                        <button key={output._id} type="button" className="w-full rounded-[8px] border-2 border-line bg-white p-3 text-left text-sm font-black text-ink hover:border-ink">
+                        <button key={output._id} type="button" className="w-full rounded-[8px] border-2 border-line bg-paper-strong p-3 text-left text-sm font-black text-ink hover:border-ink">
                           {output.title}
                         </button>
                       ))}
@@ -748,7 +748,7 @@ export function CourseLab({
                   className="absolute top-0 right-0 w-2.5 h-full cursor-col-resize hover:bg-yellow/85 bg-transparent transition duration-150 z-20 group hidden lg:block"
                   title={t(locale, "Prevuci da resajzuješ", "Drag to resize")}
                 >
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white border-2 border-ink rounded p-0.5 shadow opacity-0 group-hover:opacity-100 transition duration-150">
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-paper-strong border-2 border-ink rounded p-0.5 shadow opacity-0 group-hover:opacity-100 transition duration-150">
                     <GripVertical className="size-3 text-ink" />
                   </div>
                 </div>
@@ -758,7 +758,7 @@ export function CourseLab({
         })}
       </div>
 
-      <div className="sticky bottom-0 flex flex-col gap-3 border-t-2 border-ink bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="sticky bottom-0 flex flex-col gap-3 border-t-2 border-ink bg-paper-strong p-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <span className="rounded-[8px] border-2 border-ink bg-paper px-3 py-2 text-sm font-black text-ink">
             {activeStepIndex + 1}/{sortedSteps.length}
@@ -772,7 +772,7 @@ export function CourseLab({
             type="button"
             onClick={() => setActiveStepIndex((value) => Math.max(0, value - 1))}
             disabled={activeStepIndex === 0}
-            className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-white px-4 text-sm font-black text-ink disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none"
+            className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-paper-strong px-4 text-sm font-black text-ink disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none"
           >
             <ChevronLeft className="size-4" />
             Back

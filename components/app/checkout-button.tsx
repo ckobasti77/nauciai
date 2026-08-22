@@ -60,10 +60,10 @@ export function CheckoutButton({
         className={cn(
           "inline-flex items-center justify-center gap-2 rounded-[8px] border-2 border-ink text-sm font-extrabold transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70",
           tone === "yellow" && "bg-yellow text-ink",
-          tone === "ink" && "bg-ink text-white",
+          tone === "ink" && "bg-ink text-paper-strong",
           fullWidth && "w-full",
-          size === "default" && "min-h-11 px-5 py-2.5 shadow-[4px_4px_0_0_#0e3158]",
-          size === "compact" && "min-h-9 px-3 py-1.5 shadow-[2px_2px_0_0_#0e3158]",
+          size === "default" && "min-h-11 px-5 py-2.5 shadow-[4px_4px_0_0_var(--ink)]",
+          size === "compact" && "min-h-9 px-3 py-1.5 shadow-[2px_2px_0_0_var(--ink)]",
         )}
       >
         {isPending ? <Loader2 className="size-4 animate-spin" /> : <CreditCard className="size-4" />}
@@ -111,7 +111,7 @@ export function PortalButton({ locale, label }: { locale: Locale; label: string 
         type="button"
         onClick={openPortal}
         disabled={isPending}
-        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-white px-5 py-2.5 text-sm font-extrabold text-ink shadow-[3px_3px_0_0_rgba(14,49,88,0.18)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70"
+        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-paper-strong px-5 py-2.5 text-sm font-extrabold text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70"
       >
         {isPending ? <Loader2 className="size-4 animate-spin" /> : <CreditCard className="size-4" />}
         {label}

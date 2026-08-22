@@ -573,7 +573,7 @@ export function CommunityPostEditor({
           aria-live="polite"
         >
           <div className="max-w-lg text-ink">
-            <span className="mx-auto inline-flex size-20 items-center justify-center rounded-full border-2 border-ink bg-white shadow-[5px_5px_0_#0e3158] motion-safe:animate-pulse">
+            <span className="mx-auto inline-flex size-20 items-center justify-center rounded-full border-2 border-ink bg-paper-strong shadow-[5px_5px_0_var(--ink)] motion-safe:animate-pulse">
               <UploadCloud className="size-9" />
             </span>
             <p className="mt-5 text-2xl font-black md:text-4xl">
@@ -589,7 +589,7 @@ export function CommunityPostEditor({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Link
           href={backHref}
-          className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line bg-white px-4 text-sm font-black text-ink transition hover:border-ink hover:bg-yellow/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line bg-paper-strong px-4 text-sm font-black text-ink transition hover:border-ink hover:bg-yellow/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         >
           <ArrowLeft className="size-4" />
           {postId ? (locale === "sr" ? "Nazad na tred" : "Back to thread") : locale === "sr" ? "Nazad na diskusije" : "Back to discussions"}
@@ -635,7 +635,7 @@ export function CommunityPostEditor({
           </span>
           <Link
             href={profileResumeHref}
-            className="inline-flex min-h-11 items-center justify-center rounded-full border-2 border-ink bg-yellow px-4 text-sm font-black text-ink shadow-[3px_3px_0_rgba(14,49,88,0.18)]"
+            className="inline-flex min-h-11 items-center justify-center rounded-full border-2 border-ink bg-yellow px-4 text-sm font-black text-ink shadow-[3px_3px_0_var(--shadow-hard)]"
           >
             {locale === "sr" ? "Podesi profil" : "Complete profile"}
           </Link>
@@ -650,7 +650,7 @@ export function CommunityPostEditor({
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
         <section className="min-w-0">
-          <Panel className="overflow-hidden rounded-[16px] border-2 border-ink bg-white shadow-[6px_6px_0_rgba(14,49,88,0.13)]">
+          <Panel className="overflow-hidden rounded-[16px] border-2 border-ink bg-paper-strong shadow-[6px_6px_0_var(--shadow-hard-13)]">
             <div className="border-b border-line bg-paper/55 px-5 py-5 md:px-7">
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
@@ -667,7 +667,7 @@ export function CommunityPostEditor({
                     <p className="text-sm font-black text-ink">{authorName}</p>
                   </div>
                 </div>
-                <span className="rounded-full border border-line bg-white px-3 py-1.5 text-xs font-black text-ink/65">
+                <span className="rounded-full border border-line bg-paper-strong px-3 py-1.5 text-xs font-black text-ink/65">
                   {statusText(currentStatus, locale)}
                 </span>
               </div>
@@ -691,7 +691,7 @@ export function CommunityPostEditor({
                   aria-describedby={fieldErrors.title ? "community-title-error" : "community-title-help"}
                   placeholder={locale === "sr" ? "Šta želiš da pitaš ili podeliš?" : "What do you want to ask or share?"}
                   maxLength={160}
-                  className="mt-2 w-full rounded-[12px] border border-line bg-white px-4 py-3 text-xl font-black leading-tight text-ink outline-none transition placeholder:text-ink/30 focus:border-ink focus:ring-4 focus:ring-yellow/15 md:text-3xl"
+                  className="mt-2 w-full rounded-[12px] border border-line bg-paper-strong px-4 py-3 text-xl font-black leading-tight text-ink outline-none transition placeholder:text-ink/30 focus:border-ink focus:ring-4 focus:ring-yellow/15 md:text-3xl"
                 />
                 {fieldErrors.title ? (
                   <p id="community-title-error" className="mt-2 text-xs font-bold text-red-700">{fieldErrors.title}</p>
@@ -721,7 +721,7 @@ export function CommunityPostEditor({
                       setSelectedLessonId("");
                       markDirty();
                     }}
-                    className="min-h-11 w-full appearance-none rounded-[12px] border border-line bg-white py-2.5 pl-10 pr-4 text-sm font-black text-ink outline-none transition focus:border-ink focus:ring-4 focus:ring-yellow/15"
+                    className="min-h-11 w-full appearance-none rounded-[12px] border border-line bg-paper-strong py-2.5 pl-10 pr-4 text-sm font-black text-ink outline-none transition focus:border-ink focus:ring-4 focus:ring-yellow/15"
                   >
                     <option value="global">{locale === "sr" ? "Globalna zajednica" : "Global community"}</option>
                     {tracks.map((track) => (
@@ -756,7 +756,7 @@ export function CommunityPostEditor({
                           setSelectedLessonId("");
                           markDirty();
                         }}
-                        className="min-h-11 w-full rounded-[12px] border border-line bg-white px-3 text-sm font-black text-ink outline-none transition focus:border-ink focus:ring-4 focus:ring-yellow/15"
+                        className="min-h-11 w-full rounded-[12px] border border-line bg-paper-strong px-3 text-sm font-black text-ink outline-none transition focus:border-ink focus:ring-4 focus:ring-yellow/15"
                       >
                         <option value="">{locale === "sr" ? "Izaberi ciklus" : "Choose a cycle"}</option>
                         {availableCycles.map((cycle) => (
@@ -775,7 +775,7 @@ export function CommunityPostEditor({
                           markDirty();
                         }}
                         disabled={!selectedModuleId || availableLessons.length === 0}
-                        className="min-h-11 w-full rounded-[12px] border border-line bg-white px-3 text-sm font-black text-ink outline-none transition focus:border-ink focus:ring-4 focus:ring-yellow/15 disabled:cursor-not-allowed disabled:bg-[#eef3f7] disabled:text-muted"
+                        className="min-h-11 w-full rounded-[12px] border border-line bg-paper-strong px-3 text-sm font-black text-ink outline-none transition focus:border-ink focus:ring-4 focus:ring-yellow/15 disabled:cursor-not-allowed disabled:bg-[#eef3f7] dark:disabled:bg-ink/10 disabled:text-muted"
                       >
                         <option value="">{locale === "sr" ? "Izaberi lekciju" : "Choose a lesson"}</option>
                         {availableLessons.map((lesson) => (
@@ -816,7 +816,7 @@ export function CommunityPostEditor({
                   }
                   rows={13}
                   maxLength={20_000}
-                  className="mt-2 min-h-[320px] w-full resize-y rounded-[12px] border border-line bg-white px-4 py-3 text-base font-semibold leading-7 text-ink/85 outline-none transition placeholder:text-ink/30 focus:border-ink focus:ring-4 focus:ring-yellow/15"
+                  className="mt-2 min-h-[320px] w-full resize-y rounded-[12px] border border-line bg-paper-strong px-4 py-3 text-base font-semibold leading-7 text-ink/85 outline-none transition placeholder:text-ink/30 focus:border-ink focus:ring-4 focus:ring-yellow/15"
                 />
                 {fieldErrors.body ? (
                   <p id="community-body-error" className="mt-2 text-xs font-bold text-red-700">{fieldErrors.body}</p>
@@ -849,7 +849,7 @@ export function CommunityPostEditor({
 
                 {imagePreviewUrl ? (
                   <div className="mt-2 rounded-[16px] border border-line bg-paper/55 p-3">
-                    <div className="overflow-hidden rounded-[8px] bg-white">
+                    <div className="overflow-hidden rounded-[8px] bg-paper-strong">
                       <Image
                         src={imagePreviewUrl}
                         alt={locale === "sr" ? "Pregled priložene slike" : "Attachment preview"}
@@ -864,7 +864,7 @@ export function CommunityPostEditor({
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
                         disabled={uploadingImage}
-                        className="inline-flex min-h-10 items-center gap-2 rounded-full border border-line bg-white px-3 text-xs font-black text-ink transition hover:border-ink"
+                        className="inline-flex min-h-10 items-center gap-2 rounded-full border border-line bg-paper-strong px-3 text-xs font-black text-ink transition hover:border-ink"
                       >
                         <ImagePlus className="size-4" />
                         {locale === "sr" ? "Zameni sliku" : "Replace image"}
@@ -873,7 +873,7 @@ export function CommunityPostEditor({
                         <button
                           type="button"
                           onClick={restoreOriginalImage}
-                          className="inline-flex min-h-10 items-center rounded-full px-3 text-xs font-black text-ink/60 transition hover:bg-white hover:text-ink"
+                          className="inline-flex min-h-10 items-center rounded-full px-3 text-xs font-black text-ink/60 transition hover:bg-paper-strong hover:text-ink"
                         >
                           {initialPost?.imageUrl
                             ? locale === "sr"
@@ -913,7 +913,7 @@ export function CommunityPostEditor({
         </section>
 
         <aside className="space-y-4 xl:sticky xl:top-5 xl:self-start">
-          <Panel className="rounded-[16px] border border-line bg-white p-4 shadow-none">
+          <Panel className="rounded-[16px] border border-line bg-paper-strong p-4 shadow-none">
             <p className="font-display text-lg text-ink">{locale === "sr" ? "Pre objave" : "Before publishing"}</p>
             <h2 className="mt-1 text-lg font-black text-ink">{locale === "sr" ? "Brza provera" : "Quick check"}</h2>
             <ul className="mt-4 space-y-3 text-sm font-semibold leading-5 text-ink/70">
@@ -934,7 +934,7 @@ export function CommunityPostEditor({
         </aside>
       </div>
 
-      <div className="sticky bottom-3 z-30 rounded-[16px] border-2 border-ink bg-white/95 p-3 shadow-[5px_5px_0_rgba(14,49,88,0.16)] backdrop-blur sm:flex sm:items-center sm:justify-between sm:gap-4">
+      <div className="sticky bottom-3 z-30 rounded-[16px] border-2 border-ink bg-paper-strong/95 p-3 shadow-[5px_5px_0_var(--shadow-hard-16)] backdrop-blur sm:flex sm:items-center sm:justify-between sm:gap-4">
         <div className="mb-3 min-w-0 sm:mb-0">
           <p className="text-xs font-black uppercase tracking-[0.06em] text-ink/45">{statusText(currentStatus, locale)}</p>
           <p className="mt-0.5 truncate text-sm font-bold text-ink">
@@ -948,7 +948,7 @@ export function CommunityPostEditor({
               onClick={() => setDeleteOpen(true)}
               disabled={pending}
               aria-label={locale === "sr" ? "Obriši tred" : "Delete thread"}
-              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-red-200 bg-white px-3 text-red-600 transition hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 disabled:opacity-50"
+              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-red-200 bg-paper-strong px-3 text-red-600 transition hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 disabled:opacity-50"
             >
               <Trash2 className="size-4" />
             </button>
@@ -957,7 +957,7 @@ export function CommunityPostEditor({
             type="button"
             onClick={() => handleSubmit("draft")}
             disabled={pending || uploadingImage}
-            className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-white px-4 text-sm font-black text-ink transition hover:bg-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
+            className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 text-sm font-black text-ink transition hover:bg-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
           >
             {pending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
             {locale === "sr" ? "Sačuvaj skicu" : "Save draft"}
@@ -966,7 +966,7 @@ export function CommunityPostEditor({
             type="button"
             onClick={() => handleSubmit(isStaff ? "published" : "pending")}
             disabled={pending || uploadingImage}
-            className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black text-ink shadow-[3px_3px_0_rgba(14,49,88,0.18)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:translate-y-0.5 disabled:opacity-50"
+            className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black text-ink shadow-[3px_3px_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:translate-y-0.5 disabled:opacity-50"
           >
             {pending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
             {isStaff
@@ -1034,7 +1034,7 @@ function SaveIndicator({ locale, state, lastSavedAt }: { locale: Locale; state: 
     <p
       role="status"
       className={cn(
-        "inline-flex min-h-10 items-center gap-2 rounded-full border bg-white px-3 text-xs font-black",
+        "inline-flex min-h-10 items-center gap-2 rounded-full border bg-paper-strong px-3 text-xs font-black",
         state === "error" ? "border-red-200 text-red-700" : "border-line text-ink/60",
       )}
       title={lastSavedAt ? new Date(lastSavedAt).toLocaleTimeString(locale === "sr" ? "sr-RS" : "en-US") : undefined}
@@ -1052,7 +1052,7 @@ function ChecklistItem({ done, label }: { done: boolean; label: string }) {
         aria-hidden="true"
         className={cn(
           "inline-flex size-5 shrink-0 items-center justify-center rounded-full border",
-          done ? "border-emerald-400 bg-emerald-50 text-emerald-700" : "border-line bg-white text-transparent",
+          done ? "border-emerald-400 bg-emerald-50 text-emerald-700" : "border-line bg-paper-strong text-transparent",
         )}
       >
         <CheckCircle2 className="size-3.5" />

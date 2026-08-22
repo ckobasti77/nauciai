@@ -49,6 +49,7 @@ import {
 } from "react";
 
 import { CheckoutButton } from "@/components/app/checkout-button";
+import { ThemeToggle } from "@/components/app/theme-toggle";
 import { BrandMark, cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
 import {
@@ -276,7 +277,7 @@ function SidebarAdminActions({
   return (
     <div
       className={cn(
-        "sidebar-action-cluster pointer-events-auto flex shrink-0 items-center gap-1 rounded-[7px] bg-white/95 p-0.5 shadow-[2px_2px_0_0_rgba(14,49,88,0.12)] transition",
+        "sidebar-action-cluster pointer-events-auto flex shrink-0 items-center gap-1 rounded-[7px] bg-paper-strong/95 p-0.5 shadow-[2px_2px_0_0_var(--shadow-hard-12)] transition",
         className,
       )}
     >
@@ -293,7 +294,7 @@ function SidebarAdminActions({
 function switcherRowShell(active: boolean) {
   return cn(
     "group relative overflow-hidden rounded-[12px] border-2 transition",
-    active ? "border-ink bg-yellow" : "border-line bg-white hover:border-ink",
+    active ? "border-ink bg-yellow" : "border-line bg-paper-strong hover:border-ink",
   );
 }
 
@@ -301,7 +302,7 @@ const switcherRowLink =
   "flex min-h-11 min-w-0 flex-1 items-center gap-3 px-3 py-2 text-sm font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink";
 
 const switcherRowIcon =
-  "grid size-8 shrink-0 place-items-center rounded-[8px] border-2 border-ink/15 bg-white";
+  "grid size-8 shrink-0 place-items-center rounded-[8px] border-2 border-ink/15 bg-paper-strong";
 
 /**
  * One control for the two halves of the same choice: which course, and which lesson
@@ -383,11 +384,11 @@ function LearningSwitcher({
           whileHover={{ y: -1 }}
           whileTap={{ scale: 0.98 }}
           aria-expanded={open}
-          className="flex min-h-[4.5rem] min-w-0 flex-1 items-center gap-3 rounded-[16px] border-2 border-ink bg-white p-2 text-left text-sm font-black text-ink shadow-[4px_4px_0_0_rgba(14,49,88,0.18)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          className="flex min-h-[4.5rem] min-w-0 flex-1 items-center gap-3 rounded-[16px] border-2 border-ink bg-paper-strong p-2 text-left text-sm font-black text-ink shadow-[4px_4px_0_0_var(--shadow-hard)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         >
           <span className="min-w-0 flex-1">
             <span className="flex min-w-0 items-center gap-3">
-              <span className="grid size-11 shrink-0 place-items-center rounded-[12px] border-2 border-ink bg-yellow shadow-[2px_2px_0_0_rgba(14,49,88,0.12)]">
+              <span className="grid size-11 shrink-0 place-items-center rounded-[12px] border-2 border-ink bg-yellow shadow-[2px_2px_0_0_var(--shadow-hard-12)]">
                 <GraduationCap className="size-5" />
               </span>
               <span className="min-w-0 flex-1">
@@ -395,7 +396,7 @@ function LearningSwitcher({
                   {locale === "sr" ? "Kurs" : "Course"}
                 </span>
                 <span className="block truncate">{localized(currentCourse.title, locale)}</span>
-                <span className="mt-1 inline-flex items-center rounded-full bg-ink px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.08em] text-white">
+                <span className="mt-1 inline-flex items-center rounded-full bg-ink px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.08em] text-paper-strong">
                   {currentStatus}
                 </span>
               </span>
@@ -429,7 +430,7 @@ function LearningSwitcher({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -6, scale: 0.98 }}
             transition={{ duration: 0.18, ease: "easeOut" }}
-            className="relative z-20 mt-3 rounded-[16px] border-2 border-ink bg-white p-3 shadow-[6px_6px_0_0_rgba(14,49,88,0.18)]"
+            className="relative z-20 mt-3 rounded-[16px] border-2 border-ink bg-paper-strong p-3 shadow-[6px_6px_0_0_var(--shadow-hard)]"
           >
             <p className="px-1 text-[10px] font-black uppercase tracking-[0.14em] text-muted">
               {locale === "sr" ? "Tvoje učenje" : "Your learning"}
@@ -452,7 +453,7 @@ function LearningSwitcher({
                     onClick={() => setTab(key)}
                     className={cn(
                       "flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-full px-3 text-[11px] font-black uppercase tracking-[0.06em] transition",
-                      selected ? "bg-ink text-white" : "text-muted hover:text-ink",
+                      selected ? "bg-ink text-paper-strong" : "text-muted hover:text-ink",
                     )}
                   >
                     {key === "courses"
@@ -463,7 +464,7 @@ function LearningSwitcher({
                     <span
                       className={cn(
                         "rounded-full px-1.5 py-0.5 text-[10px] leading-none",
-                        selected ? "bg-white/25 text-white" : "bg-white text-muted",
+                        selected ? "bg-paper-strong/25 text-paper-strong" : "bg-paper-strong text-muted",
                       )}
                     >
                       {key === "courses" ? courses.length : directLessons.length}
@@ -522,7 +523,7 @@ function LearningSwitcher({
                                   </span>
                                   <span className="min-w-0 flex-1">
                                     <span className="block truncate text-ink">{localized(course.title, locale)}</span>
-                                    <span className="mt-1 inline-flex rounded-full border border-line bg-white px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.08em] text-muted">
+                                    <span className="mt-1 inline-flex rounded-full border border-line bg-paper-strong px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.08em] text-muted">
                                       {statusLabel}
                                     </span>
                                   </span>
@@ -539,7 +540,7 @@ function LearningSwitcher({
                                   </span>
                                   <span className="min-w-0 flex-1">
                                     <span className="block truncate">{localized(course.title, locale)}</span>
-                                    <span className="mt-1 inline-flex items-center gap-1 rounded-full border border-line bg-white px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.08em] text-muted">
+                                    <span className="mt-1 inline-flex items-center gap-1 rounded-full border border-line bg-paper-strong px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.08em] text-muted">
                                       {locked ? <Lock className="size-3" /> : <ShieldCheck className="size-3" />}
                                       {statusLabel}
                                     </span>
@@ -671,7 +672,7 @@ function CreditsBalancePill({ locale, balance }: { locale: Locale; balance: numb
       href={withLocale(locale, "/app/credits")}
       className={cn(
         "inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-full border-2 border-ink px-2.5 py-1 text-xs font-black transition hover:-translate-y-0.5",
-        balance === 0 ? "bg-amber-100 text-amber-900" : "bg-white text-ink",
+        balance === 0 ? "bg-amber-100 text-amber-900" : "bg-paper-strong text-ink",
       )}
     >
       <Coins className="size-3.5" />
@@ -704,7 +705,7 @@ function NavLink({
           // be emitted and the winner decided by generated-CSS order.
           "inline-flex min-h-11 min-w-0 items-center justify-between rounded-full border-2 px-3 py-2 text-sm font-extrabold text-ink transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:justify-start md:w-full",
           active
-            ? "border-ink bg-yellow shadow-[3px_3px_0_0_rgba(14,49,88,0.14)]"
+            ? "border-ink bg-yellow shadow-[3px_3px_0_0_var(--shadow-hard-14)]"
             : "border-transparent bg-transparent hover:border-ink hover:bg-yellow/25",
         )}
       >
@@ -766,7 +767,7 @@ function NavDisclosure({
         <span className="flex-1 text-center sm:text-left">
           {label}
           {count === undefined ? null : (
-            <span className="ml-2 rounded-[6px] border-2 border-line bg-white px-2 py-0.5 text-[10px] font-black text-muted">
+            <span className="ml-2 rounded-[6px] border-2 border-line bg-paper-strong px-2 py-0.5 text-[10px] font-black text-muted">
               {count}
             </span>
           )}
@@ -813,7 +814,7 @@ function CommunitySections({
       open={open}
       onToggle={() => setOpen((value) => !value)}
     >
-      <div className="mt-2 space-y-2 rounded-[8px] border-2 border-line bg-white p-2 shadow-[4px_4px_0_0_rgba(14,49,88,0.08)]">
+      <div className="mt-2 space-y-2 rounded-[8px] border-2 border-line bg-paper-strong p-2 shadow-[4px_4px_0_0_var(--shadow-hard-08)]">
         {sections.map((section) => {
           const active = containsActive && activeSection === section.id;
           const SectionIcon = section.icon;
@@ -827,7 +828,7 @@ function CommunitySections({
               href={withLocale(locale, `/app/community/${section.path}`)}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "flex min-h-11 items-center gap-2 rounded-[8px] border-2 bg-white px-3 text-sm font-black text-ink",
+                "flex min-h-11 items-center gap-2 rounded-[8px] border-2 bg-paper-strong px-3 text-sm font-black text-ink",
                 active ? "border-ink bg-yellow" : "border-line hover:border-ink",
               )}
             >
@@ -865,7 +866,7 @@ function RailAction({
 }) {
   const className = cn(
     "group relative flex size-12 items-center justify-center rounded-full border-2 text-ink transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
-    active ? "border-ink bg-yellow shadow-[3px_3px_0_rgba(14,49,88,0.16)]" : "border-transparent bg-white hover:border-ink hover:bg-yellow/25",
+    active ? "border-ink bg-yellow shadow-[3px_3px_0_var(--shadow-hard-16)]" : "border-transparent bg-paper-strong hover:border-ink hover:bg-yellow/25",
   );
   const content = (
     <>
@@ -879,7 +880,7 @@ function RailAction({
       <span
         role="tooltip"
         className={cn(
-          "pointer-events-none absolute left-[calc(100%+12px)] z-[80] whitespace-nowrap rounded-full border-2 border-ink bg-white px-3 py-1.5 text-xs font-black text-ink opacity-0 shadow-[4px_4px_0_rgba(14,49,88,0.14)] transition group-hover:opacity-100 group-focus-visible:opacity-100",
+          "pointer-events-none absolute left-[calc(100%+12px)] z-[80] whitespace-nowrap rounded-full border-2 border-ink bg-paper-strong px-3 py-1.5 text-xs font-black text-ink opacity-0 shadow-[4px_4px_0_var(--shadow-hard-14)] transition group-hover:opacity-100 group-focus-visible:opacity-100",
           expanded && "hidden",
         )}
       >
@@ -977,10 +978,10 @@ function SidebarRoleBadge({
 
   const tone = cn(
     resolvedPlan === "admin" && "bg-yellow",
-    resolvedPlan === "moderator" && "bg-ink text-white",
-    resolvedPlan === "pro" && "bg-[#dfc4ff]",
-    resolvedPlan === "lite" && "bg-[#d1e5ff]",
-    resolvedPlan === "free" && "bg-[#ffeed1]",
+    resolvedPlan === "moderator" && "bg-ink text-paper-strong",
+    resolvedPlan === "pro" && "bg-[#dfc4ff] dark:text-paper",
+    resolvedPlan === "lite" && "bg-[#d1e5ff] dark:text-paper",
+    resolvedPlan === "free" && "bg-[#ffeed1] dark:text-paper",
   );
 
   if (variant === "collapsed") {
@@ -990,7 +991,7 @@ function SidebarRoleBadge({
         aria-label={`${locale === "sr" ? "Uloga" : "Role"}: ${label}`}
         title={label}
         className={cn(
-          "flex size-9 items-center justify-center rounded-full border-2 border-ink text-ink shadow-[2px_2px_0_0_rgba(14,49,88,0.12)]",
+          "flex size-9 items-center justify-center rounded-full border-2 border-ink text-ink shadow-[2px_2px_0_0_var(--shadow-hard-12)]",
           tone,
         )}
       >
@@ -1005,7 +1006,7 @@ function SidebarRoleBadge({
       aria-label={`${locale === "sr" ? "Uloga" : "Role"}: ${label}`}
       title={label}
       className={cn(
-        "flex shrink-0 items-center gap-1 rounded-full border-2 border-ink px-2 py-1 text-[9px] font-black uppercase leading-none tracking-[0.04em] text-ink shadow-[2px_2px_0_0_rgba(14,49,88,0.12)]",
+        "flex shrink-0 items-center gap-1 rounded-full border-2 border-ink px-2 py-1 text-[9px] font-black uppercase leading-none tracking-[0.04em] text-ink shadow-[2px_2px_0_0_var(--shadow-hard-12)]",
         tone,
       )}
     >
@@ -1103,7 +1104,7 @@ function AppBottomNav({
       data-app-bottom-nav=""
       aria-label={locale === "sr" ? "Brza navigacija" : "Quick navigation"}
       inert={hidden}
-      className="fixed inset-x-0 bottom-0 z-30 border-t-2 border-ink bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-6px_18px_rgba(14,49,88,0.14)] md:hidden"
+      className="fixed inset-x-0 bottom-0 z-30 border-t-2 border-ink bg-paper-strong pb-[env(safe-area-inset-bottom)] shadow-[0_-6px_18px_var(--shadow-hard-14)] md:hidden"
     >
       <ul className="grid grid-cols-4">
         {tabs.map(({ key, href, icon: Icon, label, active, badge }) => (
@@ -1239,14 +1240,12 @@ function AppSidebarContent({
   }, [applySidebarPreferences]);
 
   const goBackFromStudio = useCallback(() => {
-    // Direktan link ili refresh na /app/studio ne ostavlja in-app istoriju koju bi
-    // router.back() vratio - zato SVESNA rezervna ruta na dashboard, ne tihi no-op.
-    const fallback = withLocale(locale, "/app");
-    if (typeof window !== "undefined" && window.history.length > 1) {
-      router.back();
-    } else {
-      router.push(fallback);
-    }
+    // "Nazad" znaci IZLAZ IZ ALATA -> uvek dashboard, nikad router.back().
+    // router.back() je vracao poslednji unos u istoriji, a otvaranje i zatvaranje
+    // generacije gura DVA unosa (/app/studio/m/<id> pa /app/studio), pa je "Nazad"
+    // ponovo otvarao bas tu generaciju. Odrediste je determinisano, ne zavisi od
+    // toga koliko je koraka korisnik napravio unutar Studija.
+    router.push(withLocale(locale, "/app"));
   }, [locale, router]);
 
   const startSidebarResize = useCallback(
@@ -1458,7 +1457,7 @@ function AppSidebarContent({
 
   return (
     <>
-      <header inert={drawerIsModal && mobileOpen} className="sticky top-0 z-40 flex min-h-16 items-center justify-between border-b-2 border-ink bg-white px-4 md:hidden">
+      <header inert={drawerIsModal && mobileOpen} className="sticky top-0 z-40 flex min-h-16 items-center justify-between border-b-2 border-ink bg-paper-strong px-4 md:hidden">
         <BrandMark href={withLocale(locale)} label={t.appName} />
         <div className="flex items-center gap-2">
           {authState === "authenticated" ? <CreditsBalancePill locale={locale} balance={creditsBalance} /> : null}
@@ -1469,7 +1468,7 @@ function AppSidebarContent({
             aria-expanded={mobileOpen}
             aria-controls="app-sidebar-drawer"
             onClick={() => setMobileOpen(true)}
-            className="inline-flex min-h-11 items-center gap-2 border-2 border-ink bg-yellow px-3.5 text-xs font-black uppercase tracking-[0.06em] text-ink shadow-[3px_3px_0_rgba(14,49,88,0.16)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            className="inline-flex min-h-11 items-center gap-2 border-2 border-ink bg-yellow px-3.5 text-xs font-black uppercase tracking-[0.06em] text-ink shadow-[3px_3px_0_var(--shadow-hard-16)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
             <Menu className="size-5" aria-hidden="true" />
             {locale === "sr" ? "Više" : "More"}
@@ -1480,7 +1479,7 @@ function AppSidebarContent({
         aria-hidden="true"
         onClick={() => setMobileOpen(false)}
         className={cn(
-          "pointer-events-none fixed inset-0 z-40 bg-ink/45 opacity-0 backdrop-blur-[2px] transition-opacity md:hidden",
+          "pointer-events-none fixed inset-0 z-40 bg-scrim/45 opacity-0 backdrop-blur-[2px] transition-opacity md:hidden",
           mobileOpen && "pointer-events-auto opacity-100",
         )}
       />
@@ -1507,7 +1506,7 @@ function AppSidebarContent({
         }
       }}
       className={cn(
-        "fixed inset-y-0 left-0 z-50 flex h-dvh w-[min(336px,calc(100vw_-_32px))] min-w-0 -translate-x-full flex-col border-r-2 border-ink bg-white px-4 py-4 shadow-[18px_0_45px_rgba(14,49,88,0.18)] transition-transform duration-200",
+        "fixed inset-y-0 left-0 z-50 flex h-dvh w-[min(336px,calc(100vw_-_32px))] min-w-0 -translate-x-full flex-col border-r-2 border-ink bg-paper-strong px-4 py-4 shadow-[18px_0_45px_var(--shadow-hard)] transition-transform duration-200",
         mobileOpen && "translate-x-0",
         "md:sticky md:top-0 md:z-30 md:h-screen md:w-[var(--app-sidebar-width)] md:shrink-0 md:translate-x-0 md:overflow-visible md:px-5 md:py-7 md:shadow-none",
         !isResizing && "md:transition-[width] md:duration-200",
@@ -1526,7 +1525,7 @@ function AppSidebarContent({
             type="button"
             aria-label={locale === "sr" ? "Kolapsiraj sidebar" : "Collapse sidebar"}
             onClick={toggleSidebar}
-            className="hidden size-11 shrink-0 items-center justify-center border-2 border-ink bg-white text-ink transition hover:bg-yellow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink md:inline-flex"
+            className="hidden size-11 shrink-0 items-center justify-center border-2 border-ink bg-paper-strong text-ink transition hover:bg-yellow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink md:inline-flex"
           >
             <PanelLeftClose className="size-5" />
           </button>
@@ -1534,7 +1533,7 @@ function AppSidebarContent({
             type="button"
             aria-label={locale === "sr" ? "Zatvori navigaciju" : "Close navigation"}
             onClick={() => setMobileOpen(false)}
-            className="inline-flex size-11 shrink-0 items-center justify-center border-2 border-ink bg-white text-ink md:hidden"
+            className="inline-flex size-11 shrink-0 items-center justify-center border-2 border-ink bg-paper-strong text-ink md:hidden"
           >
             <X className="size-5" />
           </button>
@@ -1640,10 +1639,10 @@ function AppSidebarContent({
       {profileData && (
         <div className="relative mt-auto border-t-2 border-ink pt-4 hidden md:block" ref={profileMenuRef}>
           {profileMenuOpen ? (
-            <div className="absolute bottom-[calc(100%+0.65rem)] left-0 z-50 w-full rounded-[16px] border-2 border-ink bg-white p-2.5 text-ink shadow-[8px_8px_0_0_rgba(14,49,88,0.14)]">
+            <div className="absolute bottom-[calc(100%+0.65rem)] left-0 z-50 w-full rounded-[16px] border-2 border-ink bg-paper-strong p-2.5 text-ink shadow-[8px_8px_0_0_var(--shadow-hard-14)]">
               <span
                 aria-hidden="true"
-                className="absolute -bottom-2 left-6 size-4 rotate-45 border-r-2 border-b-2 border-ink bg-white"
+                className="absolute -bottom-2 left-6 size-4 rotate-45 border-r-2 border-b-2 border-ink bg-paper-strong"
               />
               
               <div className="overflow-hidden rounded-[12px] divide-y divide-line/80">
@@ -1658,7 +1657,7 @@ function AppSidebarContent({
                         ? "bg-amber-50 hover:bg-amber-100"
                         : passwordRecommended
                           ? "bg-indigo-50 hover:bg-indigo-100"
-                          : "bg-white hover:bg-yellow/35",
+                          : "bg-paper-strong hover:bg-yellow/35",
                   )}
                 >
                   {hasAccountAdvisory ? (
@@ -1670,7 +1669,7 @@ function AppSidebarContent({
                   {accountBadge > 0 ? <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full border border-ink bg-red-600 px-1 text-[10px] font-black text-white">{accountBadge > 99 ? "99+" : accountBadge}</span> : null}
                 </Link>
                 {hasAccountAdvisory ? (
-                  <div className="space-y-1.5 bg-white px-2 py-2">
+                  <div className="space-y-1.5 bg-paper-strong px-2 py-2">
                     {profileIncomplete ? <p className="rounded-full border border-red-400 bg-red-50 px-2.5 py-1 text-[10px] font-black text-red-900">{locale === "sr" ? "Dodaj korisničko ime" : "Add a username"}</p> : null}
                     {emailVerificationRequired ? <p className="rounded-full border border-amber-400 bg-amber-50 px-2.5 py-1 text-[10px] font-black text-amber-900">{locale === "sr" ? "Verifikuj email za kurseve" : "Verify email for courses"}</p> : null}
                     {passwordRecommended ? <p className="rounded-full border border-indigo-400 bg-indigo-50 px-2.5 py-1 text-[10px] font-black text-indigo-900">{locale === "sr" ? "Dodaj opcionu lozinku" : "Add an optional password"}</p> : null}
@@ -1683,7 +1682,7 @@ function AppSidebarContent({
                   <Link
                     href={withLocale(locale, "/app/profile")}
                     onClick={() => setProfileMenuOpen(false)}
-                    className="flex min-h-11 items-center gap-3 bg-white px-3 py-2 text-[13px] font-black uppercase text-ink transition hover:bg-yellow/35 font-extrabold"
+                    className="flex min-h-11 items-center gap-3 bg-paper-strong px-3 py-2 text-[13px] font-black uppercase text-ink transition hover:bg-yellow/35 font-extrabold"
                   >
                     <Settings className="size-4 shrink-0" />
                     <span>{accountSettingsLabel}</span>
@@ -1692,7 +1691,7 @@ function AppSidebarContent({
                 <Link
                   href={withLocale(locale, "/app/billing")}
                   onClick={() => setProfileMenuOpen(false)}
-                  className="flex min-h-11 items-center gap-3 bg-white px-3 py-2 text-[13px] font-black uppercase text-ink transition hover:bg-yellow/35 font-extrabold"
+                  className="flex min-h-11 items-center gap-3 bg-paper-strong px-3 py-2 text-[13px] font-black uppercase text-ink transition hover:bg-yellow/35 font-extrabold"
                 >
                   <CreditCard className="size-4 shrink-0" />
                   <span>{t.billing}</span>
@@ -1719,7 +1718,7 @@ function AppSidebarContent({
                     setProfileMenuOpen(false);
                     router.push(withLocale(locale, "/sign-in"));
                   }}
-                  className="flex min-h-11 w-full items-center gap-3 rounded-[10px] bg-ink px-3 py-2 text-[13px] font-black uppercase text-white transition hover:bg-[#16446f] font-extrabold"
+                  className="flex min-h-11 w-full items-center gap-3 rounded-[10px] bg-ink px-3 py-2 text-[13px] font-black uppercase text-paper-strong transition hover:bg-[#16446f] dark:hover:bg-ink/85 font-extrabold"
                 >
                   <LogOut className="size-4 shrink-0" />
                   <span>{locale === "sr" ? "Odjavi se" : "Sign out"}</span>
@@ -1733,7 +1732,7 @@ function AppSidebarContent({
             onClick={() => setProfileMenuOpen((value) => !value)}
             aria-expanded={profileMenuOpen}
             aria-haspopup="menu"
-            className="relative flex w-full items-center gap-3 rounded-[12px] border-2 border-ink bg-white p-2 text-left text-ink shadow-[3px_3px_0_0_rgba(14,49,88,0.18)] transition hover:bg-yellow/15"
+            className="relative flex w-full items-center gap-3 rounded-[12px] border-2 border-ink bg-paper-strong p-2 text-left text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] transition hover:bg-yellow/15"
           >
             <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-ink bg-yellow text-xs font-black">
               {profileAvatar ? (
@@ -1752,6 +1751,7 @@ function AppSidebarContent({
             <ChevronDown className={cn("size-4 shrink-0 transition-transform text-muted", profileMenuOpen && "rotate-180")} />
             {accountBadge > 0 ? <span className="absolute -right-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-ink bg-red-600 px-1 text-[10px] font-black text-white">{accountBadge > 99 ? "99+" : accountBadge}</span> : null}
           </button>
+          <ThemeToggle locale={locale} className="mt-3" />
         </div>
       )}
 
@@ -1769,7 +1769,7 @@ function AppSidebarContent({
         <div className={cn("mt-3 grid gap-2 md:hidden", hasAccountSettingsRow ? "grid-cols-2" : "grid-cols-3")}>
           <Link
             href={withLocale(locale, profilePath)}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-white px-3 py-2 text-xs font-black text-ink"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-paper-strong px-3 py-2 text-xs font-black text-ink"
           >
             {hasAccountAdvisory ? <CircleAlert className={cn("size-4", profileIncomplete ? "text-red-700" : emailVerificationRequired ? "text-amber-700" : "text-indigo-700")} /> : <User className="size-4" />}
             {profileLabel}
@@ -1777,7 +1777,7 @@ function AppSidebarContent({
           {hasAccountSettingsRow ? (
             <Link
               href={withLocale(locale, "/app/profile")}
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-white px-3 py-2 text-xs font-black text-ink"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-paper-strong px-3 py-2 text-xs font-black text-ink"
             >
               <Settings className="size-4" />
               {accountSettingsLabel}
@@ -1785,7 +1785,7 @@ function AppSidebarContent({
           ) : null}
           <Link
             href={withLocale(locale, "/app/billing")}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-white px-3 py-2 text-xs font-black text-ink"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-paper-strong px-3 py-2 text-xs font-black text-ink"
           >
             <CreditCard className="size-4" />
             {t.billing}
@@ -1805,13 +1805,14 @@ function AppSidebarContent({
               await signOut();
               router.push(withLocale(locale, "/sign-in"));
             }}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-ink px-3 py-2 text-xs font-black text-white"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-ink px-3 py-2 text-xs font-black text-paper-strong"
           >
             <LogOut className="size-4" />
             {locale === "sr" ? "Odjavi se" : "Sign out"}
           </button>
         </div>
       )}
+      <ThemeToggle locale={locale} className="mt-3 md:hidden" />
       </div>
 
       <div ref={railLayerRef} className={cn("relative hidden h-full w-full flex-col items-center", sidebarPreferences.collapsed && "md:flex")}>
@@ -1819,12 +1820,13 @@ function AppSidebarContent({
           type="button"
           aria-label={locale === "sr" ? "Proširi sidebar" : "Expand sidebar"}
           onClick={toggleSidebar}
-          className="inline-flex size-11 items-center justify-center border-2 border-ink bg-yellow text-ink shadow-[3px_3px_0_rgba(14,49,88,0.16)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          className="inline-flex size-11 items-center justify-center border-2 border-ink bg-yellow text-ink shadow-[3px_3px_0_var(--shadow-hard-16)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         >
           <PanelLeftOpen className="size-5" />
         </button>
         <Link href={withLocale(locale)} aria-label={t.appName} className="mt-4 inline-flex size-11 items-center justify-center rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
-          <Image src="/images/logos/logo-emblem.png" alt="" width={160} height={160} className="size-10 object-contain" priority />
+          <Image src="/images/logos/logo-emblem.png" alt="" width={160} height={160} className="size-10 object-contain dark:hidden" priority />
+          <Image src="/images/logos/logo-emblem-dark.png" alt="" width={160} height={160} className="hidden size-10 object-contain dark:block" loading="eager" />
         </Link>
 
         <div className="my-4 h-px w-8 bg-line" />
@@ -1878,7 +1880,7 @@ function AppSidebarContent({
         />
 
         {railFlyout === "learning" && currentCourse ? (
-          <div className="absolute left-[calc(100%_+_32px)] top-20 z-[70] max-h-[calc(100vh_-_140px)] w-[380px] max-w-[calc(100vw_-_112px)] overflow-y-auto overflow-x-hidden rounded-[16px] border-2 border-ink bg-white p-4 text-ink shadow-[10px_10px_0_rgba(14,49,88,0.16)]">
+          <div className="absolute left-[calc(100%_+_32px)] top-20 z-[70] max-h-[calc(100vh_-_140px)] w-[380px] max-w-[calc(100vw_-_112px)] overflow-y-auto overflow-x-hidden rounded-[16px] border-2 border-ink bg-paper-strong p-4 text-ink shadow-[10px_10px_0_var(--shadow-hard-16)]">
             <div className="flex items-center justify-between gap-3 border-b border-line pb-3">
               <p className="text-sm font-black">{locale === "sr" ? "Kurs i lekcije" : "Course and lessons"}</p>
               <button type="button" aria-label={locale === "sr" ? "Zatvori" : "Close"} onClick={() => setRailFlyout(null)} className="inline-flex size-9 items-center justify-center border border-line bg-paper text-ink"><X className="size-4" /></button>
@@ -1897,7 +1899,7 @@ function AppSidebarContent({
         {profileData ? (
           <div className="relative mt-auto flex flex-col items-center gap-2">
             {railFlyout === "profile" ? (
-              <div className="absolute bottom-0 left-[calc(100%_+_36px)] z-[70] w-72 rounded-[16px] border-2 border-ink bg-white p-3 text-ink shadow-[10px_10px_0_rgba(14,49,88,0.16)]">
+              <div className="absolute bottom-0 left-[calc(100%_+_36px)] z-[70] w-72 rounded-[16px] border-2 border-ink bg-paper-strong p-3 text-ink shadow-[10px_10px_0_var(--shadow-hard-16)]">
                 <div className="mb-3 min-w-0 border-b border-line pb-3">
                   <p className="truncate text-sm font-black">{profileName}</p>
                   <p className="truncate text-xs font-bold text-muted">{profileUsername}</p>
@@ -1916,16 +1918,17 @@ function AppSidebarContent({
                   <Link href={withLocale(locale, "/app/profile")} className="flex min-h-11 items-center gap-3 rounded-full px-3 text-sm font-black hover:bg-yellow/25"><Settings className="size-4" /> {accountSettingsLabel}</Link>
                 ) : null}
                 <Link href={withLocale(locale, "/app/billing")} className="flex min-h-11 items-center gap-3 rounded-full px-3 text-sm font-black hover:bg-yellow/25"><CreditCard className="size-4" /> {t.billing}</Link>
+                <ThemeToggle locale={locale} className="mt-2" />
                 {showUpgrade ? (
                   <Link href={`${withLocale(locale)}#pricing`} className="mt-2 flex min-h-11 items-center gap-3 rounded-full bg-[#10b981] px-3 text-sm font-black text-white transition hover:bg-[#0ea472]"><ArrowUpRight className="size-4" /> {upgradeLabel}</Link>
                 ) : null}
-                <button type="button" onClick={async () => { await signOut(); router.push(withLocale(locale, "/sign-in")); }} className="mt-2 flex min-h-11 w-full items-center gap-3 bg-ink px-3 text-sm font-black text-white"><LogOut className="size-4" /> {locale === "sr" ? "Odjavi se" : "Sign out"}</button>
+                <button type="button" onClick={async () => { await signOut(); router.push(withLocale(locale, "/sign-in")); }} className="mt-2 flex min-h-11 w-full items-center gap-3 bg-ink px-3 text-sm font-black text-paper-strong"><LogOut className="size-4" /> {locale === "sr" ? "Odjavi se" : "Sign out"}</button>
               </div>
             ) : null}
             {/* Mirrors the expanded sidebar, where the badge sits inside the profile card:
                 the role belongs to the identity, not to the top of the navigation. */}
             <SidebarRoleBadge role={navigation.role} plan={navigation.plan} locale={locale} variant="collapsed" />
-            <button type="button" aria-label={profileName} aria-expanded={railFlyout === "profile"} onClick={() => setRailFlyout((value) => value === "profile" ? null : "profile")} className="relative flex size-12 items-center justify-center overflow-visible rounded-full border-2 border-ink bg-yellow text-xs font-black shadow-[3px_3px_0_rgba(14,49,88,0.16)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
+            <button type="button" aria-label={profileName} aria-expanded={railFlyout === "profile"} onClick={() => setRailFlyout((value) => value === "profile" ? null : "profile")} className="relative flex size-12 items-center justify-center overflow-visible rounded-full border-2 border-ink bg-yellow text-xs font-black shadow-[3px_3px_0_var(--shadow-hard-16)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
               <span className="flex size-full items-center justify-center overflow-hidden rounded-full">
                 {profileAvatar ? (
                   /* Avatar URLs are user-provided at runtime and intentionally avoid Next image host restrictions. */

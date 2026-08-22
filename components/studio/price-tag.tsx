@@ -31,8 +31,8 @@ export function PriceTag({
     <span
       className={cn(
         "inline-flex shrink-0 items-center rounded-full border-2 border-ink px-2 py-0.5 text-[11px] font-black uppercase leading-4 tracking-wide",
-        neutral && "bg-white text-muted",
-        cheaper && "bg-white text-ink",
+        neutral && "bg-paper-strong text-muted",
+        cheaper && "bg-paper-strong text-ink",
         !neutral && !cheaper && "bg-yellow text-ink",
         className,
       )}

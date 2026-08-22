@@ -112,7 +112,7 @@ function statusBadge(post: CommunityPostRow, locale: Locale) {
             ? "border-yellow bg-yellow/25 text-ink"
             : status === "published"
               ? "border-[#3d7d5a]/25 bg-[#edf8f1] text-[#285d40]"
-              : "border-line bg-[#eef3f7] text-ink/70",
+              : "border-line bg-[#eef3f7] dark:bg-ink/10 text-ink/70",
       )}
     >
       {label}
@@ -131,7 +131,7 @@ function nextAction(
       <button
         type="button"
         onClick={() => void onToggleFavorite(post._id)}
-        className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line bg-white px-3 text-xs font-black text-ink transition hover:border-ink"
+        className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line bg-paper-strong px-3 text-xs font-black text-ink transition hover:border-ink"
       >
         <Bookmark className="size-3.5 fill-ink" aria-hidden="true" />
         {locale === "sr" ? "Ukloni" : "Remove"}
@@ -151,7 +151,7 @@ function nextAction(
       }}
       className={cn(
         "inline-flex min-h-11 items-center gap-2 rounded-full border px-3 text-xs font-black transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
-        editable ? "border-ink bg-yellow text-ink" : "border-line bg-white text-ink hover:border-ink",
+        editable ? "border-ink bg-yellow text-ink" : "border-line bg-paper-strong text-ink hover:border-ink",
       )}
     >
       {editable ? <PencilLine className="size-3.5" aria-hidden="true" /> : <Inbox className="size-3.5" aria-hidden="true" />}
@@ -197,7 +197,7 @@ function MyThreadsView({
   return (
     <div className="space-y-5">
       <CommunityStickyToolbar>
-      <nav className="overflow-x-auto rounded-[16px] border border-line bg-white p-1.5" aria-label={locale === "sr" ? "Status mojih predloga" : "My ideas status"}>
+      <nav className="overflow-x-auto rounded-[16px] border border-line bg-paper-strong p-1.5" aria-label={locale === "sr" ? "Status mojih predloga" : "My ideas status"}>
         <div className="relative grid min-w-[760px] grid-cols-5">
           <span
             aria-hidden="true"
@@ -215,7 +215,7 @@ function MyThreadsView({
                 aria-current={active ? "page" : undefined}
                 className={cn(
                   "relative z-10 flex min-h-10 items-center gap-3 rounded-[12px] border border-transparent px-3 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
-                  active ? "text-white" : "text-ink hover:bg-[#eef3f7]",
+                  active ? "text-paper-strong" : "text-ink hover:bg-[#eef3f7] dark:hover:bg-ink/10",
                 )}
               >
                 <span className="flex min-w-0 items-center gap-2">
@@ -227,7 +227,7 @@ function MyThreadsView({
           })}
           <Link
             href={withLocale(locale, "/app/community/new")}
-            className="relative z-10 ml-1 inline-flex min-h-10 items-center justify-between gap-2 rounded-[12px] border-2 border-ink bg-yellow px-3 text-sm font-black text-ink shadow-[2px_2px_0_rgba(14,49,88,0.16)] transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            className="relative z-10 ml-1 inline-flex min-h-10 items-center justify-between gap-2 rounded-[12px] border-2 border-ink bg-yellow px-3 text-sm font-black text-ink shadow-[2px_2px_0_var(--shadow-hard-16)] transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
             <span className="flex min-w-0 items-center gap-2">
               <FilePenLine className="size-4 shrink-0" aria-hidden="true" />

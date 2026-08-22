@@ -11,6 +11,7 @@ import Link from "next/link";
 
 import { CheckoutButton } from "@/components/app/checkout-button";
 import { AccountMenu } from "@/components/marketing/account-menu";
+import { ThemeToggle } from "@/components/app/theme-toggle";
 import { CourseFavoriteButton } from "@/components/marketing/course-favorite-button";
 import { HeroMotion } from "@/components/marketing/hero-motion";
 import { BrandMark, HandUnderline, LinkButton, Panel, SectionHeader, SketchIcon } from "@/components/ui/primitives";
@@ -36,7 +37,7 @@ export function MarketingPage({
     <main className="bg-paper text-ink">
       <SmartStickyHeader
         data-marketing-auth={viewerProfile ? "authenticated" : "anonymous"}
-        className="top-0 z-40 border-b-2 border-ink bg-paper/95 shadow-[0_8px_18px_-16px_rgba(14,49,88,0.55)] backdrop-blur"
+        className="top-0 z-40 border-b-2 border-ink bg-paper/95 shadow-[0_8px_18px_-16px_var(--shadow-hard-55)] backdrop-blur"
       >
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
           <BrandMark href={withLocale(locale)} label={t.appName} />
@@ -46,17 +47,18 @@ export function MarketingPage({
             <a href="#pricing">{t.navPricing}</a>
           </nav>
           <div className="flex items-center gap-2">
+            <ThemeToggle locale={locale} compact />
             {viewerProfile ? (
               <Link
                 href={withLocale(locale, "/app")}
-                className="inline-flex min-h-9 items-center justify-center rounded-full border-2 border-ink bg-ink px-3 py-2 text-[11px] font-black text-white shadow-[3px_3px_0_0_#f4be30] transition hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_#f4be30] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink max-[380px]:hidden sm:min-h-10 sm:px-4 sm:text-xs"
+                className="inline-flex min-h-9 items-center justify-center rounded-full border-2 border-ink bg-ink px-3 py-2 text-[11px] font-black text-paper-strong shadow-[3px_3px_0_0_var(--yellow)] transition hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--yellow)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink max-[380px]:hidden sm:min-h-10 sm:px-4 sm:text-xs"
               >
                 DASHBOARD
               </Link>
             ) : null}
             <Link
               href={withLocale(nextLocale)}
-              className="rounded-[8px] border-2 border-ink bg-white px-3 py-2 text-sm font-black"
+              className="rounded-[8px] border-2 border-ink bg-paper-strong px-3 py-2 text-sm font-black"
             >
               {nextLocale.toUpperCase()}
             </Link>
@@ -108,7 +110,7 @@ export function MarketingPage({
                   className="h-auto w-full rounded-[6px]"
                 />
               </Panel>
-              <Panel className="sketch-float absolute bottom-0 left-0 w-[62%] bg-white p-5">
+              <Panel className="sketch-float absolute bottom-0 left-0 w-[62%] bg-paper-strong p-5">
                 <div className="flex items-start gap-4">
                   <SketchIcon>
                     <Video className="size-5" />
@@ -126,7 +128,7 @@ export function MarketingPage({
         </section>
       </HeroMotion>
 
-      <section id="courses" className="border-b-2 border-ink bg-white px-4 py-16 sm:px-6 lg:px-8">
+      <section id="courses" className="border-b-2 border-ink bg-paper-strong px-4 py-16 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
           <SectionHeader
             title={locale === "sr" ? "Kursevi koji vode do gotovog rada" : "Courses that lead to finished work"}
@@ -150,7 +152,7 @@ export function MarketingPage({
                 <article
                   key={course.slug}
                   data-motion="card"
-                  className="group relative flex min-h-full flex-col overflow-hidden rounded-[16px] border-[2px] border-ink bg-white shadow-[6px_6px_0_0_rgba(14,49,88,0.16)] transition hover:-translate-y-1 hover:shadow-[9px_9px_0_0_rgba(14,49,88,0.2)]"
+                  className="group relative flex min-h-full flex-col overflow-hidden rounded-[16px] border-[2px] border-ink bg-paper-strong shadow-[6px_6px_0_0_var(--shadow-hard-16)] transition hover:-translate-y-1 hover:shadow-[9px_9px_0_0_var(--shadow-hard-20)]"
                 >
                   <Link
                     href={courseHref}
@@ -167,7 +169,7 @@ export function MarketingPage({
                         sizes="(min-width: 1024px) 50vw, 100vw"
                         className="object-cover"
                       />
-                      <span className="absolute left-3 top-3 rounded-full border-2 border-ink bg-yellow px-4 py-2 text-sm font-black leading-none text-ink shadow-[3px_3px_0_0_rgba(14,49,88,0.22)]">
+                      <span className="absolute left-3 top-3 rounded-full border-2 border-ink bg-yellow px-4 py-2 text-sm font-black leading-none text-ink shadow-[3px_3px_0_0_var(--shadow-hard-22)]">
                         {localized(course.priceLabel, locale)}
                       </span>
                       <div className="pointer-events-auto absolute right-3 top-3">
@@ -182,7 +184,7 @@ export function MarketingPage({
                             href={signInHref}
                             aria-label={favoriteLabel}
                             title={favoriteLabel}
-                            className="relative z-10 inline-flex size-11 items-center justify-center rounded-full border-[2px] border-ink bg-white text-ink shadow-[3px_3px_0_0_rgba(14,49,88,0.24)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                            className="relative z-10 inline-flex size-11 items-center justify-center rounded-full border-[2px] border-ink bg-paper-strong text-ink shadow-[3px_3px_0_0_var(--shadow-hard-24)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                           >
                             <Heart className="size-5" />
                           </Link>
@@ -199,7 +201,7 @@ export function MarketingPage({
                     <div className="pointer-events-auto relative z-20 mt-auto flex flex-col gap-3 pt-7 lg:flex-row">
                       <Link
                         href={freeVideoHref}
-                        className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-yellow px-5 py-2.5 text-sm font-extrabold text-ink shadow-[4px_4px_0_0_#0e3158] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink lg:flex-1"
+                        className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-yellow px-5 py-2.5 text-sm font-extrabold text-ink shadow-[4px_4px_0_0_var(--ink)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink lg:flex-1"
                       >
                         <PlayCircle className="size-4" />
                         {locale === "sr" ? "Odgledaj besplatan video" : "Watch free video"}
@@ -244,7 +246,7 @@ export function MarketingPage({
               ))}
             </div>
           </div>
-          <Panel className="bg-white p-4">
+          <Panel className="bg-paper-strong p-4">
             <Image
               src="/images/Budget Graphic.png"
               alt="Hand-drawn budget jar showing subscription planning"
@@ -257,7 +259,7 @@ export function MarketingPage({
         </div>
       </section>
 
-      <section id="pricing" className="bg-white px-4 py-16 sm:px-6 lg:px-8">
+      <section id="pricing" className="bg-paper-strong px-4 py-16 sm:px-6 lg:px-8">
         <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[0.9fr_1.1fr]">
           <SectionHeader
             title={locale === "sr" ? "Mesečna pretplata po kursu" : "Monthly subscription per course"}

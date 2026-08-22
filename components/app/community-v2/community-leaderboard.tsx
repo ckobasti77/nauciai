@@ -90,7 +90,7 @@ function PodiumCard({ locale, row }: { locale: Locale; row: LeaderboardRow }) {
       href={row.username ? withLocale(locale, `/app/members/${row.username}`) : "#"}
       aria-disabled={!row.username}
       className={cn(
-        "relative overflow-hidden rounded-[16px] border bg-white p-4 text-center",
+        "relative overflow-hidden rounded-[16px] border bg-paper-strong p-4 text-center",
         row.rank === 1
           ? "border-2 border-ink shadow-[5px_5px_0_rgba(244,190,48,0.8)] md:-translate-y-3"
           : "border-line",
@@ -102,7 +102,7 @@ function PodiumCard({ locale, row }: { locale: Locale; row: LeaderboardRow }) {
         #{row.rank}
       </div>
       {row.isViewer ? (
-        <span className="absolute right-3 top-3 rounded-full bg-ink px-2 py-1 text-[9px] font-black uppercase tracking-[0.08em] text-white">
+        <span className="absolute right-3 top-3 rounded-full bg-ink px-2 py-1 text-[9px] font-black uppercase tracking-[0.08em] text-paper-strong">
           {locale === "sr" ? "Ti" : "You"}
         </span>
       ) : null}
@@ -149,7 +149,7 @@ function LeaderboardRowItem({ locale, row }: { locale: Locale; row: LeaderboardR
           <div className="flex items-center gap-2">
             <span className="truncate text-sm font-black text-ink">{row.name}</span>
             {row.isViewer ? (
-              <span className="rounded-full bg-ink px-2 py-0.5 text-[9px] font-black uppercase text-white">
+              <span className="rounded-full bg-ink px-2 py-0.5 text-[9px] font-black uppercase text-paper-strong">
                 {locale === "sr" ? "Ti" : "You"}
               </span>
             ) : null}
@@ -197,7 +197,7 @@ function LeaderboardView({
   return (
     <div className="space-y-5">
       <CommunityStickyToolbar>
-      <section className="overflow-x-auto rounded-[16px] border border-line bg-white p-3 sm:p-4">
+      <section className="overflow-x-auto rounded-[16px] border border-line bg-paper-strong p-3 sm:p-4">
         <div className="flex min-w-max items-center gap-2">
         <CommunityScopeControls
           locale={locale}
@@ -207,7 +207,7 @@ function LeaderboardView({
           layout="inline"
           showLearningDepth={false}
           inlineMiddle={
-            <div className="flex shrink-0 gap-1 rounded-full border border-line bg-[#eef3f7] p-1" role="group" aria-label={locale === "sr" ? "Period rangiranja" : "Ranking period"}>
+            <div className="flex shrink-0 gap-1 rounded-full border border-line bg-[#eef3f7] dark:bg-ink/10 p-1" role="group" aria-label={locale === "sr" ? "Period rangiranja" : "Ranking period"}>
               {(["week", "all_time"] as const).map((period) => {
                 const active = periodState.period === period;
                 return (
@@ -218,7 +218,7 @@ function LeaderboardView({
                     aria-pressed={active}
                     className={cn(
                       "min-h-9 flex-1 rounded-full px-4 text-xs font-black transition focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink",
-                      active ? "bg-ink text-white" : "text-ink/65 hover:bg-white hover:text-ink",
+                      active ? "bg-ink text-paper-strong" : "text-ink/65 hover:bg-paper-strong hover:text-ink",
                     )}
                   >
                     {period === "week"
@@ -250,8 +250,8 @@ function LeaderboardView({
             ) : null}
 
             {rows.length ? (
-              <div className="overflow-hidden rounded-[16px] border border-ink bg-white">
-                <div className="hidden grid-cols-[52px_minmax(0,1fr)_100px_100px] gap-3 border-b border-ink bg-[#eef3f7] px-3 py-2 text-[10px] font-black uppercase tracking-[0.1em] text-muted sm:grid">
+              <div className="overflow-hidden rounded-[16px] border border-ink bg-paper-strong">
+                <div className="hidden grid-cols-[52px_minmax(0,1fr)_100px_100px] gap-3 border-b border-ink bg-[#eef3f7] dark:bg-ink/10 px-3 py-2 text-[10px] font-black uppercase tracking-[0.1em] text-muted sm:grid">
                   <span>{locale === "sr" ? "Rang" : "Rank"}</span>
                   <span>{locale === "sr" ? "Član" : "Member"}</span>
                   <span className="text-right">{locale === "sr" ? "Lekcije" : "Lessons"}</span>
@@ -282,7 +282,7 @@ function LeaderboardView({
             ) : null}
 
             {viewer && !viewer.eligible ? (
-              <section className="rounded-[16px] border border-line bg-[#eef3f7] p-4 text-sm font-bold leading-6 text-muted">
+              <section className="rounded-[16px] border border-line bg-[#eef3f7] dark:bg-ink/10 p-4 text-sm font-bold leading-6 text-muted">
                 {locale === "sr"
                   ? "Staff nalozi se prikazuju u zajednici, ali ne učestvuju u rangiranju."
                   : "Staff accounts appear in the community but do not participate in rankings."}
@@ -304,7 +304,7 @@ function LeaderboardView({
               course={scopeState.courseLabel}
               xp={viewer?.row?.xp}
             />
-            <details open className="group overflow-hidden rounded-[16px] border border-ink bg-white shadow-[4px_4px_0_rgba(244,190,48,0.7)]">
+            <details open className="group overflow-hidden rounded-[16px] border border-ink bg-paper-strong shadow-[4px_4px_0_rgba(244,190,48,0.7)]">
               <summary className="flex min-h-16 cursor-pointer list-none items-center gap-3 px-4 py-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
                 <Sparkles className="size-4 shrink-0 text-yellow" aria-hidden="true" />
                 <h2 className="min-w-0 flex-1 text-sm font-black text-ink">{locale === "sr" ? "Kako se dobija XP" : "How XP is earned"}</h2>
@@ -321,12 +321,12 @@ function LeaderboardView({
                     const label = locale === "sr" ? item.sr : item.en;
                     return (
                       <li key={item.value} className="flex items-center gap-3">
-                        <span className="grid size-8 place-items-center rounded-full bg-[#eef3f7] text-ink"><Icon className="size-4" aria-hidden="true" /></span>
+                        <span className="grid size-8 place-items-center rounded-full bg-[#eef3f7] dark:bg-ink/10 text-ink"><Icon className="size-4" aria-hidden="true" /></span>
                         <span className="min-w-0 flex-1 text-sm font-bold text-ink">
                           {item.href ? (
                             <Link
                               href={item.href}
-                              className="inline-flex min-h-11 items-center underline decoration-yellow decoration-2 underline-offset-4 transition hover:text-[#164d7d] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                              className="inline-flex min-h-11 items-center underline decoration-yellow decoration-2 underline-offset-4 transition hover:text-[#164d7d] dark:hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                             >
                               {label}
                             </Link>

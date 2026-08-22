@@ -28,7 +28,7 @@ export function SignOutButton({ locale }: { locale: Locale }) {
       type="button"
       onClick={handleSignOut}
       disabled={isPending}
-      className="inline-flex min-h-11 w-full min-w-0 items-center justify-center gap-3 rounded-[8px] border-2 border-ink bg-white px-3 py-2 text-sm font-extrabold text-ink transition hover:bg-yellow disabled:cursor-wait disabled:opacity-70 sm:justify-start"
+      className="inline-flex min-h-11 w-full min-w-0 items-center justify-center gap-3 rounded-[8px] border-2 border-ink bg-paper-strong px-3 py-2 text-sm font-extrabold text-ink transition hover:bg-yellow disabled:cursor-wait disabled:opacity-70 sm:justify-start"
     >
       <LogOut className="size-4" />
       {locale === "sr" ? "Odjavi se" : "Sign out"}

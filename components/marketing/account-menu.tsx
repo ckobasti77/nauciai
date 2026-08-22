@@ -146,7 +146,7 @@ export function AccountMenu({ locale, profile }: { locale: Locale; profile: Acco
         aria-expanded={isOpen}
         aria-controls={isOpen ? menuId : undefined}
         onClick={() => setIsOpen((value) => !value)}
-        className="group relative inline-flex h-11 items-center gap-1 rounded-full border-2 border-ink bg-white p-1 pr-2 text-ink shadow-[3px_3px_0_0_rgba(14,49,88,0.18)] transition hover:bg-yellow/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+        className="group relative inline-flex h-11 items-center gap-1 rounded-full border-2 border-ink bg-paper-strong p-1 pr-2 text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] transition hover:bg-yellow/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
       >
         <span className="inline-flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-ink bg-yellow text-xs font-black">
           {profile.avatarUrl ? (
@@ -171,15 +171,15 @@ export function AccountMenu({ locale, profile }: { locale: Locale; profile: Acco
         <div
           id={menuId}
           role="menu"
-          className="absolute right-0 top-[calc(100%+0.65rem)] z-50 w-[calc(100vw-1.5rem)] max-w-[19.5rem] rounded-[16px] border-2 border-ink bg-white p-2.5 text-ink shadow-[8px_8px_0_0_rgba(14,49,88,0.14)] sm:w-[19.5rem]"
+          className="absolute right-0 top-[calc(100%+0.65rem)] z-50 w-[calc(100vw-1.5rem)] max-w-[19.5rem] rounded-[16px] border-2 border-ink bg-paper-strong p-2.5 text-ink shadow-[8px_8px_0_0_var(--shadow-hard-14)] sm:w-[19.5rem]"
         >
           <span
             aria-hidden="true"
-            className="absolute -top-2 right-6 size-4 rotate-45 border-l-2 border-t-2 border-ink bg-white"
+            className="absolute -top-2 right-6 size-4 rotate-45 border-l-2 border-t-2 border-ink bg-paper-strong"
           />
 
           <div className="rounded-[8px] border-2 border-dashed border-ink bg-paper p-3 text-center">
-            <div className="mx-auto inline-flex size-16 items-center justify-center overflow-hidden rounded-full border-2 border-ink bg-yellow text-xl font-black shadow-[3px_3px_0_0_rgba(14,49,88,0.16)]">
+            <div className="mx-auto inline-flex size-16 items-center justify-center overflow-hidden rounded-full border-2 border-ink bg-yellow text-xl font-black shadow-[3px_3px_0_0_var(--shadow-hard-16)]">
               {profile.avatarUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={profile.avatarUrl} alt="" className="h-full w-full object-cover" />
@@ -207,7 +207,7 @@ export function AccountMenu({ locale, profile }: { locale: Locale; profile: Acco
                 {locale === "sr" ? "Dodaj opcionu lozinku" : "Add an optional password"}
               </p>
             ) : null}
-            <span className="mt-2 inline-flex rounded-full border-2 border-ink bg-white px-3 py-1 text-[10px] font-black uppercase leading-none text-ink">
+            <span className="mt-2 inline-flex rounded-full border-2 border-ink bg-paper-strong px-3 py-1 text-[10px] font-black uppercase leading-none text-ink">
               {roleLabel}
             </span>
           </div>
@@ -222,7 +222,7 @@ export function AccountMenu({ locale, profile }: { locale: Locale; profile: Acco
                   href={item.href}
                   role="menuitem"
                   onClick={() => setIsOpen(false)}
-                  className="group/link flex min-h-10 items-center justify-between gap-3 bg-white px-3 py-2 text-[13px] font-black uppercase text-ink transition hover:bg-yellow/35 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ink"
+                  className="group/link flex min-h-10 items-center justify-between gap-3 bg-paper-strong px-3 py-2 text-[13px] font-black uppercase text-ink transition hover:bg-yellow/35 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ink"
                 >
                   <span className="flex min-w-0 items-center gap-3">
                     <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-paper text-ink">
@@ -246,15 +246,15 @@ export function AccountMenu({ locale, profile }: { locale: Locale; profile: Acco
               role="menuitem"
               onClick={handleSignOut}
               disabled={isPending}
-              className="flex min-h-10 w-full items-center justify-between gap-3 rounded-[10px] bg-ink px-3 py-2 text-left text-[13px] font-black uppercase text-white transition hover:bg-[#16446f] disabled:cursor-wait disabled:opacity-70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              className="flex min-h-10 w-full items-center justify-between gap-3 rounded-[10px] bg-ink px-3 py-2 text-left text-[13px] font-black uppercase text-paper-strong transition hover:bg-[#16446f] dark:hover:bg-ink/85 disabled:cursor-wait disabled:opacity-70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
               <span className="flex min-w-0 items-center gap-3">
-                <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-white text-ink">
+                <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-paper-strong text-ink">
                   <LogOut className="size-3.5" />
                 </span>
                 <span className="truncate">{locale === "sr" ? "Odjavi se" : "Sign out"}</span>
               </span>
-              {isPending ? <span className="font-mono text-[11px] text-white/70">...</span> : null}
+              {isPending ? <span className="font-mono text-[11px] text-paper-strong/70">...</span> : null}
             </button>
           </div>
         </div>

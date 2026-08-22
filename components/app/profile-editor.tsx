@@ -565,9 +565,9 @@ export function ProfileEditor({
     <div className="space-y-6">
       {dragging ? (
         <div className="pointer-events-none fixed inset-0 z-50">
-          <div className="absolute inset-4 rounded-[28px] border-[3px] border-dashed border-yellow bg-ink/45 backdrop-blur-[3px]" />
+          <div className="absolute inset-4 rounded-[28px] border-[3px] border-dashed border-yellow bg-scrim/45 backdrop-blur-[3px]" />
           <div className="absolute left-1/2 top-1/2 w-[min(92vw,34rem)] -translate-x-1/2 -translate-y-1/2 rounded-[18px] border-[3px] border-ink bg-yellow p-6 text-center shadow-[10px_10px_0_0_rgba(255,255,255,0.95)]">
-            <span className="mx-auto inline-flex size-16 items-center justify-center rounded-full border-[3px] border-ink bg-white text-ink">
+            <span className="mx-auto inline-flex size-16 items-center justify-center rounded-full border-[3px] border-ink bg-paper-strong text-ink">
               <UploadCloud className="size-8" />
             </span>
             <p className="mt-4 text-2xl font-black leading-tight text-ink">
@@ -617,7 +617,7 @@ export function ProfileEditor({
               type="button"
               onClick={requestEmailVerification}
               disabled={verificationPending}
-              className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 py-2 text-xs font-black text-ink shadow-[3px_3px_0_0_#0e3158] transition hover:-translate-y-0.5 disabled:opacity-60"
+              className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 py-2 text-xs font-black text-ink shadow-[3px_3px_0_0_var(--ink)] transition hover:-translate-y-0.5 disabled:opacity-60"
             >
               {verificationPending ? <Loader2 className="size-4 animate-spin" /> : <MailCheck className="size-4" />}
               {t(locale, "Pošalji verifikacioni link", "Send verification link")}
@@ -661,11 +661,11 @@ export function ProfileEditor({
                 </h2>
               </div>
               <div className="flex flex-wrap gap-2 text-xs font-black uppercase text-ink">
-                <span className="inline-flex items-center gap-2 rounded-[8px] border-2 border-ink bg-white px-3 py-2">
+                <span className="inline-flex items-center gap-2 rounded-[8px] border-2 border-ink bg-paper-strong px-3 py-2">
                   <ShieldCheck className="size-4" />
                   {initialValues.role}
                 </span>
-                <span className="inline-flex items-center gap-2 rounded-[8px] border-2 border-ink bg-white px-3 py-2">
+                <span className="inline-flex items-center gap-2 rounded-[8px] border-2 border-ink bg-paper-strong px-3 py-2">
                   <Globe2 className="size-4" />
                   {language.toUpperCase()}
                 </span>
@@ -681,13 +681,13 @@ export function ProfileEditor({
                 onDragOver={handleDragOver}
                 onDrop={handleDrop}
                 className={cn(
-                  "group relative mx-auto flex size-44 items-center justify-center overflow-hidden rounded-full border-[3px] border-ink bg-paper shadow-[7px_7px_0_0_rgba(14,49,88,0.18)] transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink",
+                  "group relative mx-auto flex size-44 items-center justify-center overflow-hidden rounded-full border-[3px] border-ink bg-paper shadow-[7px_7px_0_0_var(--shadow-hard)] transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink",
                   dragging && "scale-[1.02] border-yellow bg-yellow/25",
                 )}
                 aria-label={t(locale, "Upload avatar slike", "Upload avatar image")}
               >
                 <img src={avatarSrc} alt="" className="h-full w-full object-cover" />
-                <span className="absolute inset-0 flex flex-col items-center justify-center bg-ink/72 px-6 text-center text-sm font-black text-white opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100">
+                <span className="absolute inset-0 flex flex-col items-center justify-center bg-scrim/72 px-6 text-center text-sm font-black text-white opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100">
                   <UploadCloud className="mb-2 size-7" />
                   {t(locale, "Prevuci sliku ovde", "Drop image here")}
                 </span>
@@ -716,7 +716,7 @@ export function ProfileEditor({
                   onChange={(event) => {
                     setFirstName(event.target.value);
                   }}
-                  className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-white px-4 text-base font-extrabold text-ink outline-none transition focus:border-yellow focus:ring-4 focus:ring-yellow/25"
+                  className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-4 text-base font-extrabold text-ink outline-none transition focus:border-yellow focus:ring-4 focus:ring-yellow/25"
                   required
                 />
               </label>
@@ -727,7 +727,7 @@ export function ProfileEditor({
                   onChange={(event) => {
                     setLastName(event.target.value);
                   }}
-                  className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-white px-4 text-base font-extrabold text-ink outline-none transition focus:border-yellow focus:ring-4 focus:ring-yellow/25"
+                  className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-4 text-base font-extrabold text-ink outline-none transition focus:border-yellow focus:ring-4 focus:ring-yellow/25"
                   required
                 />
               </label>
@@ -749,7 +749,7 @@ export function ProfileEditor({
                     onChange={(event) => setUsername(event.target.value)}
                     maxLength={20}
                     pattern="[A-Za-zČĆŠĐŽčćšđž0-9._]{3,20}"
-                    className="h-12 w-full rounded-[8px] border-2 border-ink bg-white pl-8 pr-4 text-base font-extrabold text-ink outline-none transition focus:border-yellow focus:ring-4 focus:ring-yellow/25"
+                    className="h-12 w-full rounded-[8px] border-2 border-ink bg-paper-strong pl-8 pr-4 text-base font-extrabold text-ink outline-none transition focus:border-yellow focus:ring-4 focus:ring-yellow/25"
                     placeholder="npr. jovan_m"
                   />
                 </div>
@@ -768,7 +768,7 @@ export function ProfileEditor({
                   maxLength={280}
                   rows={4}
                   placeholder={t(locale, "Ukratko predstavi sebe, svoj rad i šta želiš da naučiš.", "Briefly introduce yourself, your work, and what you want to learn.")}
-                  className="mt-2 w-full resize-y rounded-[8px] border-2 border-ink bg-white px-4 py-3 text-base font-bold leading-6 text-ink outline-none transition focus:border-yellow focus:ring-4 focus:ring-yellow/25"
+                  className="mt-2 w-full resize-y rounded-[8px] border-2 border-ink bg-paper-strong px-4 py-3 text-base font-bold leading-6 text-ink outline-none transition focus:border-yellow focus:ring-4 focus:ring-yellow/25"
                 />
               </label>
               <div className="grid gap-4 sm:col-span-2 sm:grid-cols-2">
@@ -785,7 +785,7 @@ export function ProfileEditor({
                       value={value as string}
                       onChange={(event) => (setter as (value: string) => void)(event.target.value)}
                       placeholder={placeholder as string}
-                      className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-white px-4 text-sm font-bold text-ink outline-none transition focus:border-yellow focus:ring-4 focus:ring-yellow/25"
+                      className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-4 text-sm font-bold text-ink outline-none transition focus:border-yellow focus:ring-4 focus:ring-yellow/25"
                     />
                   </label>
                 ))}
@@ -796,7 +796,7 @@ export function ProfileEditor({
                 </div>
                 {profileStatus?.hasPassword ? (
                   <div className="mt-2 rounded-[16px] border-2 border-indigo-700 bg-indigo-50 p-4 text-indigo-950">
-                    <div className="flex min-h-12 items-center rounded-[8px] border-2 border-indigo-200 bg-white px-4 py-3">
+                    <div className="flex min-h-12 items-center rounded-[8px] border-2 border-indigo-200 bg-paper-strong px-4 py-3">
                       <span className="font-mono text-base font-black text-ink">{MASKED_PASSWORD}</span>
                     </div>
                     <p className="mt-3 text-sm font-bold leading-6">
@@ -806,7 +806,7 @@ export function ProfileEditor({
                       type="button"
                       onClick={requestPasswordReset}
                       disabled={passwordResetPending}
-                      className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 py-2 text-xs font-black text-ink shadow-[3px_3px_0_0_#0e3158] transition hover:-translate-y-0.5 disabled:opacity-60"
+                      className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 py-2 text-xs font-black text-ink shadow-[3px_3px_0_0_var(--ink)] transition hover:-translate-y-0.5 disabled:opacity-60"
                     >
                       {passwordResetPending ? <Loader2 className="size-4 animate-spin" /> : <MailCheck className="size-4" />}
                       {t(locale, "Pošalji link za promenu lozinke", "Send password-change link")}
@@ -822,7 +822,7 @@ export function ProfileEditor({
                       type="button"
                       onClick={requestEmailVerification}
                       disabled={verificationPending || !profileStatus?.hasEmail}
-                      className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 py-2 text-xs font-black text-ink shadow-[3px_3px_0_0_#0e3158] transition hover:-translate-y-0.5 disabled:opacity-60"
+                      className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 py-2 text-xs font-black text-ink shadow-[3px_3px_0_0_var(--ink)] transition hover:-translate-y-0.5 disabled:opacity-60"
                     >
                       {verificationPending ? <Loader2 className="size-4 animate-spin" /> : <MailCheck className="size-4" />}
                       {t(locale, "Pošalji ponovo", "Send again")}
@@ -840,7 +840,7 @@ export function ProfileEditor({
                         value={newPassword}
                         onChange={(event) => setNewPassword(event.target.value)}
                         autoComplete="new-password"
-                        className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-white px-4 text-base font-extrabold text-ink outline-none focus:border-yellow"
+                        className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-4 text-base font-extrabold text-ink outline-none focus:border-yellow"
                       />
                     </label>
                     <label className="block">
@@ -850,7 +850,7 @@ export function ProfileEditor({
                         value={confirmPassword}
                         onChange={(event) => setConfirmPassword(event.target.value)}
                         autoComplete="new-password"
-                        className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-white px-4 text-base font-extrabold text-ink outline-none focus:border-yellow"
+                        className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-4 text-base font-extrabold text-ink outline-none focus:border-yellow"
                       />
                     </label>
                     <div className="grid gap-1 text-xs font-bold text-muted sm:grid-cols-2">
@@ -873,7 +873,7 @@ export function ProfileEditor({
                   onChange={(event) => {
                     setLanguage(event.target.value as Locale);
                   }}
-                  className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-white px-4 text-base font-extrabold text-ink outline-none transition focus:border-yellow focus:ring-4 focus:ring-yellow/25"
+                  className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-4 text-base font-extrabold text-ink outline-none transition focus:border-yellow focus:ring-4 focus:ring-yellow/25"
                 >
                   <option value="sr">Srpski</option>
                   <option value="en">English</option>
@@ -884,7 +884,7 @@ export function ProfileEditor({
                 <select
                   value={dmPrivacy}
                   onChange={(event) => setDmPrivacy(event.target.value as "requests" | "following" | "nobody")}
-                  className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-white px-4 text-base font-extrabold text-ink outline-none transition focus:border-yellow focus:ring-4 focus:ring-yellow/25"
+                  className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-4 text-base font-extrabold text-ink outline-none transition focus:border-yellow focus:ring-4 focus:ring-yellow/25"
                 >
                   <option value="requests">{t(locale, "Svi uz request", "Anyone, with a request")}</option>
                   <option value="following">{t(locale, "Samo ljudi koje pratim", "Only people I follow")}</option>
@@ -924,10 +924,10 @@ export function ProfileEditor({
                   type="button"
                   onClick={() => selectPreset(preset.id)}
                   className={cn(
-                    "group min-h-36 rounded-[8px] border-2 bg-white p-3 text-left transition hover:-translate-y-0.5",
+                    "group min-h-36 rounded-[8px] border-2 bg-paper-strong p-3 text-left transition hover:-translate-y-0.5",
                     selected
-                      ? "border-ink shadow-[5px_5px_0_0_#f4be30]"
-                      : "border-line shadow-[3px_3px_0_0_rgba(14,49,88,0.08)] hover:border-ink",
+                      ? "border-ink shadow-[5px_5px_0_0_var(--yellow)]"
+                      : "border-line shadow-[3px_3px_0_0_var(--shadow-hard-08)] hover:border-ink",
                   )}
                 >
                   <span className="relative mx-auto flex size-20 overflow-hidden rounded-full border-2 border-ink bg-paper">
@@ -951,11 +951,11 @@ export function ProfileEditor({
               onDrop={handleDrop}
               className={cn(
                 "flex min-h-36 flex-col items-center justify-center rounded-[8px] border-2 border-dashed bg-paper p-3 text-center transition hover:-translate-y-0.5 hover:border-ink",
-                selectedFile ? "border-ink shadow-[5px_5px_0_0_#f4be30]" : "border-line",
+                selectedFile ? "border-ink shadow-[5px_5px_0_0_var(--yellow)]" : "border-line",
                 dragging && "border-yellow bg-yellow/25",
               )}
             >
-              <span className="inline-flex size-16 items-center justify-center rounded-full border-2 border-ink bg-white text-ink">
+              <span className="inline-flex size-16 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink">
                 <ImagePlus className="size-7" />
               </span>
               <span className="mt-3 text-sm font-black text-ink">
@@ -968,7 +968,7 @@ export function ProfileEditor({
             <button
               type="submit"
               disabled={pending || isLoading || !isAuthenticated || profileStatus === undefined}
-              className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-ink px-5 py-2.5 text-sm font-extrabold text-white shadow-[4px_4px_0_0_#f4be30] transition hover:-translate-y-0.5 disabled:opacity-60"
+              className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-ink px-5 py-2.5 text-sm font-extrabold text-paper-strong shadow-[4px_4px_0_0_var(--yellow)] transition hover:-translate-y-0.5 disabled:opacity-60"
             >
               {pending ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
               {t(locale, "Sacuvaj izmene", "Save changes")}

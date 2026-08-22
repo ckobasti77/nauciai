@@ -138,7 +138,7 @@ export function LiveCommunityThreadPage({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Link
           href={withLocale(locale, "/app/community/discussions")}
-          className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line bg-white px-4 text-sm font-black text-ink transition hover:border-ink hover:bg-yellow/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line bg-paper-strong px-4 text-sm font-black text-ink transition hover:border-ink hover:bg-yellow/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         >
           <ArrowLeft className="size-4" />
           {locale === "sr" ? "Nazad na diskusije" : "Back to discussions"}
@@ -147,7 +147,7 @@ export function LiveCommunityThreadPage({
         {isAuthor ? (
           <Link
             href={withLocale(locale, `/app/community/${postId}/edit`)}
-            className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line bg-white px-4 text-sm font-black text-ink transition hover:border-ink hover:bg-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line bg-paper-strong px-4 text-sm font-black text-ink transition hover:border-ink hover:bg-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
             <Pencil className="size-4" />
             {locale === "sr" ? "Izmeni" : "Edit"}
@@ -172,7 +172,7 @@ export function LiveCommunityThreadPage({
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
         <section className="min-w-0 space-y-5">
-          <Panel as="article" className="overflow-hidden rounded-[16px] border-2 border-ink bg-white shadow-[6px_6px_0_rgba(14,49,88,0.13)]">
+          <Panel as="article" className="overflow-hidden rounded-[16px] border-2 border-ink bg-paper-strong shadow-[6px_6px_0_var(--shadow-hard-13)]">
             <header className="relative border-b border-line bg-paper/55 px-5 py-6 md:px-8 md:py-8">
               <div aria-hidden="true" className="absolute bottom-0 left-8 top-0 hidden w-px bg-ink/15 md:block" />
               <div className="relative mx-auto max-w-[720px]">
@@ -197,7 +197,7 @@ export function LiveCommunityThreadPage({
                       </time>
                     </div>
                     <div className="mt-3 flex flex-wrap items-center gap-2">
-                      <span className="inline-flex min-h-8 items-center gap-2 rounded-full border border-line bg-white px-3 text-xs font-black text-ink/70">
+                      <span className="inline-flex min-h-8 items-center gap-2 rounded-full border border-line bg-paper-strong px-3 text-xs font-black text-ink/70">
                         {scopeIcon(post)}
                         {scope}
                       </span>
@@ -259,7 +259,7 @@ export function LiveCommunityThreadPage({
                   onClick={handleToggleFavorite}
                   disabled={favoriteBusy}
                   aria-pressed={Boolean(post.isFavorited)}
-                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-line bg-white px-3 text-xs font-black text-ink transition hover:border-ink hover:bg-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-wait disabled:opacity-60"
+                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-line bg-paper-strong px-3 text-xs font-black text-ink transition hover:border-ink hover:bg-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-wait disabled:opacity-60"
                 >
                   {favoriteBusy ? (
                     <Loader2 className="size-4 animate-spin" />
@@ -285,7 +285,7 @@ export function LiveCommunityThreadPage({
             </footer>
           </Panel>
 
-          <Panel id="comments" className="rounded-[16px] border border-line bg-white p-4 shadow-none md:p-6">
+          <Panel id="comments" className="rounded-[16px] border border-line bg-paper-strong p-4 shadow-none md:p-6">
             <div className="mb-5 flex items-center justify-between gap-3">
               <div>
                 <p className="font-display text-lg text-ink">{locale === "sr" ? "Razmena znanja" : "Knowledge exchange"}</p>
@@ -309,7 +309,7 @@ export function LiveCommunityThreadPage({
         </section>
 
         <aside className="space-y-4 xl:sticky xl:top-6 xl:self-start">
-          <Panel as="aside" className="rounded-[16px] border border-line bg-white p-4 shadow-none">
+          <Panel as="aside" className="rounded-[16px] border border-line bg-paper-strong p-4 shadow-none">
             <p className="font-display text-lg text-ink">{locale === "sr" ? "Learning spine" : "Learning spine"}</p>
             <dl className="mt-3 space-y-2 text-sm">
               <MetaRow label={locale === "sr" ? "Opseg" : "Scope"} value={scope} icon={scopeIcon(post)} />
@@ -341,7 +341,7 @@ export function LiveCommunityThreadEditorPage({ locale, postId }: { locale: Loca
 
   if (!post || !viewerData?.profile || post.authorId !== viewerData.profile.userId) {
     return (
-      <Panel className="mx-auto max-w-xl rounded-[16px] border border-line bg-white p-7 text-center shadow-none">
+      <Panel className="mx-auto max-w-xl rounded-[16px] border border-line bg-paper-strong p-7 text-center shadow-none">
         <CircleAlert className="mx-auto size-9 text-amber-600" />
         <h1 className="mt-4 text-2xl font-black text-ink">
           {locale === "sr" ? "Editor nije dostupan" : "Editor is not available"}
@@ -374,7 +374,7 @@ function ThreadLoading({ locale }: { locale: Locale }) {
 
 function ThreadUnavailable({ locale }: { locale: Locale }) {
   return (
-    <Panel className="mx-auto max-w-xl rounded-[16px] border border-line bg-white p-7 text-center shadow-none">
+    <Panel className="mx-auto max-w-xl rounded-[16px] border border-line bg-paper-strong p-7 text-center shadow-none">
       <CircleAlert className="mx-auto size-9 text-amber-600" />
       <h1 className="mt-4 text-2xl font-black text-ink">{locale === "sr" ? "Tred nije dostupan" : "Thread unavailable"}</h1>
       <p className="mt-2 text-sm font-semibold leading-6 text-muted">

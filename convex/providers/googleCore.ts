@@ -54,8 +54,15 @@ function promptOf(params: Record<string, unknown>): string {
   return typeof params.prompt === "string" ? params.prompt : "";
 }
 
+/**
+ * Ugradjen fajl u Veo zahtevu. Zvanicna dokumentacija (`docs/veo`) ga pise kao
+ * `{ inlineData: { mimeType, data } }` - NE kao `bytesBase64Encoded`, sto je
+ * oblik Vertex AI-jevog `predict`-a, a ovde je Gemini API. Pogresan omotac znaci
+ * da bi svaki rezim sa slikom (`image`, `first_last`, `reference`, `video`) bio
+ * odbijen tek POSLE rezervacije kredita.
+ */
 function inlinePart(file: GoogleInputFile): Record<string, unknown> {
-  return { bytesBase64Encoded: file.base64, mimeType: file.mimeType };
+  return { inlineData: { mimeType: file.mimeType, data: file.base64 } };
 }
 
 /**
@@ -215,4 +222,65 @@ export function toBase64(bytes: Uint8Array): string {
   }
 
   return btoa(binary);
+}
+
+/**
+ * Katalog pise rezoluciju onako kako stoji na dugmetu ("0.5K"), Google je u
+ * Interactions API-ju trazi kao `image_size` i za pola kilo koristi drugu rec.
+ * Preslikavanje je zato TABELA, ne `toLowerCase()`: nepoznata vrednost ne sme
+ * da se posalje kako-tako, jer 400 stize tek posle rezervacije kredita.
+ */
+export const GOOGLE_IMAGE_SIZES: Record<string, string> = {
+  "0.5K": "512px",
+  "512px": "512px",
+  "1K": "1K",
+  "2K": "2K",
+  "4K": "4K",
+};
+
+/** MIME izlaza. PNG, ne JPEG: slika sa tekstom u kadru je glavni posao ovih modela. */
+const GOOGLE_IMAGE_OUTPUT_MIME = "image/png";
+
+/**
+ * `POST /interactions` za Nano Bananu 2 i Pro (katalog 2.1 i 2.2).
+ *
+ * Oblik je iz zvanicne dokumentacije Interactions API-ja: `input` je NIZ blokova
+ * (`{type:"text"}` / `{type:"image"}`), a ne `contents.parts` kao kod
+ * `generateContent`-a. Slika se salje ugradjena, base64.
+ *
+ * **Jedna slika po pozivu.** Google vraca tacno jednu, a posao u nasoj bazi ima
+ * tacno jedno izlazno polje - zato `num_images` NIJE kontrola ovih modela
+ * (videti `googleImageModels.ts`). Naplatiti cetiri a isporuciti jednu bi bilo
+ * tiho potkradanje korisnika, a to je gore od kontrole koje nema.
+ */
+export function buildGoogleImageRequest(
+  model: string,
+  params: Record<string, unknown>,
+  inputs: GoogleInputs,
+  inputMode: string,
+): Record<string, unknown> {
+  const input: unknown[] = [{ type: "text", text: promptOf(params) }];
+
+  // Ulazne slike se salju u svakom rezimu koji ih ima; `text` rezim ih nema.
+  if (inputMode !== "text") {
+    if (inputs.image.length === 0) {
+      throw new Error("NEPOTPUN_ULAZ: Dodaj bar jednu sliku.");
+    }
+    for (const file of inputs.image) {
+      input.push({ type: "image", mime_type: file.mimeType, data: file.base64 });
+    }
+  }
+
+  const responseFormat: Record<string, unknown> = {
+    type: "image",
+    mime_type: GOOGLE_IMAGE_OUTPUT_MIME,
+  };
+  if (typeof params.aspect_ratio === "string") responseFormat.aspect_ratio = params.aspect_ratio;
+  if (typeof params.resolution === "string") {
+    const size = GOOGLE_IMAGE_SIZES[params.resolution];
+    if (!size) throw new Error(`NEPOZNATA_REZOLUCIJA:${params.resolution}`);
+    responseFormat.image_size = size;
+  }
+
+  return { model, input, response_format: responseFormat };
 }

@@ -4,6 +4,7 @@ import { Geist_Mono, Nunito, Patrick_Hand } from "next/font/google";
 
 import { AppProviders } from "@/components/providers/app-providers";
 import { normalizeLocale } from "@/lib/i18n";
+import { THEME_COLORS, THEME_INIT_SCRIPT } from "@/lib/theme";
 
 import "../globals.css";
 
@@ -39,6 +40,12 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: "cover",
   interactiveWidget: "resizes-content",
+  // Browser chrome follows the page background; the inline theme script and
+  // ThemeProvider rewrite both entries to the resolved theme when the user picks one.
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: THEME_COLORS.light },
+    { media: "(prefers-color-scheme: dark)", color: THEME_COLORS.dark },
+  ],
 };
 
 export default async function RootLayout({
@@ -63,7 +70,13 @@ export default async function RootLayout({
     <html
       lang={locale}
       className={`${nunito.variable} ${geistMono.variable} ${patrickHand.variable} h-full antialiased`}
+      // `data-theme` is written by the inline script below before React runs.
+      suppressHydrationWarning
     >
+      <head>
+        {/* Runs before first paint so no route ever flashes the light theme. */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body suppressHydrationWarning className="flex min-h-full flex-col">
         <a
           href="#main-content"

@@ -318,6 +318,22 @@ export const VEO_31: StudioModelSeed = {
  * ponavlja kao greška posla ako zahtev ipak stigne (`googleCore.ts`).
  */
 export const GEMINI_OMNI: StudioModelSeed = {
+  // ISKLJUCEN dok se oblik zahteva ne poravna sa zivim API-jem.
+  //
+  // Zvanicna dokumentacija (`ai.google.dev/gemini-api/docs/omni`) pokazuje da je
+  // Omni SINHRON: odgovor istog POST-a nosi video (base64 u
+  // `steps[].content[]`, ili URI uz `delivery: "uri"`), i ima `status:
+  // "completed"`. Nas tok ga vodi kao operaciju koja se ispituje, a
+  // `parseOperation` trazi `uri` - kojeg u sinhronom odgovoru nema. Posao bi
+  // zato visio do reaper-a i bio refundiran posle 30 minuta, umesto da isporuci.
+  //
+  // Uz to je i telo zahteva starog oblika (`inputs` + `config`), a API trazi
+  // `input` + `response_format` - isti oblik koji Nano Banana vec koristi
+  // (`buildGoogleImageRequest`).
+  //
+  // Ostaje u katalogu da se ne izgubi, ali se NE nudi. Paljenje ide tek posle
+  // prve uspesne generacije uzivo.
+  isEnabled: false,
   slug: "gemini-omni",
   provider: "google",
   kind: "video",

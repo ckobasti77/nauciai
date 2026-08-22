@@ -36,7 +36,7 @@ function PartContent({ part, locale }: { part: LessonPart; locale: Locale }) {
     if (part.downloadUrl) {
       return (
         <video
-          className="mt-4 aspect-video w-full rounded-[8px] border-2 border-ink bg-ink"
+          className="mt-4 aspect-video w-full rounded-[8px] border-2 border-ink bg-scrim"
           src={part.downloadUrl}
           controls
           preload="metadata"
@@ -69,7 +69,7 @@ function PartContent({ part, locale }: { part: LessonPart; locale: Locale }) {
             <a
               href={part.downloadUrl}
               download={part.fileName}
-              className="inline-flex min-h-9 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-white px-3 text-xs font-black text-ink hover:bg-yellow"
+              className="inline-flex min-h-9 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-paper-strong px-3 text-xs font-black text-ink hover:bg-yellow"
             >
               <Download className="size-4" />
               {locale === "sr" ? "Preuzmi" : "Download"}
@@ -198,9 +198,9 @@ export function CoursePlayer({
   if (courseId && lessonId && canUsePro && lessonView === "pro" && labData) {
     return (
       <div className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-[16px] border-2 border-ink bg-white p-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-[16px] border-2 border-ink bg-paper-strong p-3">
           <div><p className="text-sm font-black text-ink">{locale === "sr" ? "Prikaz lekcije" : "Lesson view"}</p><p className="text-xs font-bold text-muted">{locale === "sr" ? "Pro je podrazumevan za tvoj plan." : "Pro is the default for your plan."}</p></div>
-          <div className="flex rounded-full border-2 border-ink bg-paper p-1" role="group" aria-label={locale === "sr" ? "Izaberi prikaz lekcije" : "Choose lesson view"}><button type="button" onClick={() => selectLessonView("pro")} className="rounded-full bg-ink px-4 py-2 text-xs font-black text-white">Pro</button><button type="button" onClick={() => selectLessonView("light")} className="rounded-full px-4 py-2 text-xs font-black text-ink">Light</button></div>
+          <div className="flex rounded-full border-2 border-ink bg-paper p-1" role="group" aria-label={locale === "sr" ? "Izaberi prikaz lekcije" : "Choose lesson view"}><button type="button" onClick={() => selectLessonView("pro")} className="rounded-full bg-ink px-4 py-2 text-xs font-black text-paper-strong">Pro</button><button type="button" onClick={() => selectLessonView("light")} className="rounded-full px-4 py-2 text-xs font-black text-ink">Light</button></div>
         </div>
           <CourseLab course={course} lesson={lesson} locale={locale} lab={labData} lessonId={lessonId} inlineEdit={isAdmin} inlineLocale={inlineLocale} />
       </div>
@@ -241,11 +241,11 @@ export function CoursePlayer({
       return (
         <section key={part.id ?? part.slug} id={`part-${part.slug}`} className="group/block relative scroll-mt-6 py-5 first:pt-0 last:pb-0">
           {effectiveIsAdmin && part.id ? (
-            <div className="absolute right-0 top-2 z-20 flex gap-1 rounded-full border-2 border-ink bg-white/95 p-1 opacity-0 shadow-[3px_3px_0_rgba(14,49,88,0.18)] backdrop-blur transition group-hover/block:opacity-100 group-focus-within/block:opacity-100">
+            <div className="absolute right-0 top-2 z-20 flex gap-1 rounded-full border-2 border-ink bg-paper-strong/95 p-1 opacity-0 shadow-[3px_3px_0_var(--shadow-hard)] backdrop-blur transition group-hover/block:opacity-100 group-focus-within/block:opacity-100">
               <EditLessonPartAction locale={locale} courseId={courseId} lessonId={lessonId} lessonPartId={part.id} initial={{ slug: part.slug, parentPartId: part.parentPartId, title: part.title, kind: part.kind, body: part.body, bodyRich: part.bodyRich, fileName: part.fileName, downloadUrl: part.downloadUrl, isPublished: part.isPublished, sortOrder: part.sortOrder }} nextSortOrder={part.sortOrder ?? 10} iconOnly />
-              <button type="button" onClick={() => void moveBlock(part.id!, -1)} disabled={index === 0} aria-label={locale === "sr" ? "Pomeri blok nagore" : "Move block up"} className="grid size-8 place-items-center rounded-full border-2 border-ink bg-white disabled:opacity-30"><ArrowUp className="size-3.5" /></button>
-              <button type="button" onClick={() => void moveBlock(part.id!, 1)} disabled={index === ordered.length - 1} aria-label={locale === "sr" ? "Pomeri blok nadole" : "Move block down"} className="grid size-8 place-items-center rounded-full border-2 border-ink bg-white disabled:opacity-30"><ArrowDown className="size-3.5" /></button>
-              <button type="button" onClick={() => void removeBlock(part.id!)} aria-label={locale === "sr" ? "Obriši blok" : "Delete block"} className="grid size-8 place-items-center rounded-full border-2 border-red-700 bg-white text-red-700"><Trash2 className="size-3.5" /></button>
+              <button type="button" onClick={() => void moveBlock(part.id!, -1)} disabled={index === 0} aria-label={locale === "sr" ? "Pomeri blok nagore" : "Move block up"} className="grid size-8 place-items-center rounded-full border-2 border-ink bg-paper-strong disabled:opacity-30"><ArrowUp className="size-3.5" /></button>
+              <button type="button" onClick={() => void moveBlock(part.id!, 1)} disabled={index === ordered.length - 1} aria-label={locale === "sr" ? "Pomeri blok nadole" : "Move block down"} className="grid size-8 place-items-center rounded-full border-2 border-ink bg-paper-strong disabled:opacity-30"><ArrowDown className="size-3.5" /></button>
+              <button type="button" onClick={() => void removeBlock(part.id!)} aria-label={locale === "sr" ? "Obriši blok" : "Delete block"} className="grid size-8 place-items-center rounded-full border-2 border-red-700 bg-paper-strong text-red-700"><Trash2 className="size-3.5" /></button>
             </div>
           ) : null}
           {part.kind === "text" ? <InlineRichText kind="part" entityId={part.id ?? ""} parentId={lessonId} field="body" locale={inlineLocale} richSr={part.bodyRich?.sr} richEn={part.bodyRich?.en} sr={part.body?.sr ?? ""} en={part.body?.en ?? ""} admin={isAdmin && Boolean(part.id)} className="text-base leading-8 text-muted" /> : <PartContent part={part} locale={locale} />}
@@ -256,11 +256,11 @@ export function CoursePlayer({
 
   return (
     <div className="grid gap-5 xl:grid-cols-[1fr_320px]">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-[16px] border-2 border-ink bg-white p-3 xl:col-span-2">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-[16px] border-2 border-ink bg-paper-strong p-3 xl:col-span-2">
         <div><p className="text-sm font-black text-ink">{locale === "sr" ? "Prikaz lekcije" : "Lesson view"}</p><p className="text-xs font-bold text-muted">{canUsePro ? (locale === "sr" ? "Možeš da menjaš prikaz tokom učenja." : "Switch views while learning.") : (locale === "sr" ? "Pro prikaz je dostupan na višem planu." : "Pro view is available on a higher plan.")}</p></div>
         <div className="flex rounded-full border-2 border-ink bg-paper p-1" role="group" aria-label={locale === "sr" ? "Izaberi prikaz lekcije" : "Choose lesson view"}>
           <button type="button" disabled={!canUsePro} onClick={() => selectLessonView("pro")} title={!canUsePro ? (locale === "sr" ? "Dostupno uz Pro plan" : "Available with Pro") : undefined} className="inline-flex items-center gap-1 rounded-full px-4 py-2 text-xs font-black text-muted disabled:cursor-not-allowed disabled:opacity-45"><Sparkles className="size-3.5" /> Pro</button>
-          <button type="button" onClick={() => selectLessonView("light")} className="rounded-full bg-ink px-4 py-2 text-xs font-black text-white">Light</button>
+          <button type="button" onClick={() => selectLessonView("light")} className="rounded-full bg-ink px-4 py-2 text-xs font-black text-paper-strong">Light</button>
         </div>
       </div>
       <section className="space-y-5">
@@ -272,7 +272,7 @@ export function CoursePlayer({
             </div>
             <div className="flex flex-wrap gap-2">
               {effectiveIsAdmin && !inlinePreview ? (
-                <div className={inlinePreview ? "absolute right-3 top-3 z-20 flex gap-2 rounded-full border-2 border-ink bg-white/95 p-1 shadow-[3px_3px_0_rgba(14,49,88,0.18)] backdrop-blur" : "flex flex-wrap gap-2"}>
+                <div className={inlinePreview ? "absolute right-3 top-3 z-20 flex gap-2 rounded-full border-2 border-ink bg-paper-strong/95 p-1 shadow-[3px_3px_0_var(--shadow-hard)] backdrop-blur" : "flex flex-wrap gap-2"}>
                   <EditLessonAction
                     locale={locale}
                     courseId={courseId}
@@ -292,7 +292,7 @@ export function CoursePlayer({
                   />
                   <Link
                     href={withLocale(locale, `/app/courses/${course.slug}/lessons/${lesson.slug}/edit`)}
-                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-ink px-4 text-sm font-extrabold text-white shadow-[3px_3px_0_0_rgba(14,49,88,0.16)] transition hover:-translate-y-0.5 hover:bg-yellow hover:text-ink"
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-ink px-4 text-sm font-extrabold text-paper-strong shadow-[3px_3px_0_0_var(--shadow-hard-16)] transition hover:-translate-y-0.5 hover:bg-yellow hover:text-ink"
                   >
                     <LayoutDashboard className="size-4" />
                     {locale === "sr" ? "Admin editor" : "Admin editor"}
@@ -313,7 +313,7 @@ export function CoursePlayer({
           {progressMessage ? <p className="mt-4 text-sm font-bold text-muted">{progressMessage}</p> : null}
         </Panel>
 
-        <div className="rounded-[16px] border-2 border-ink bg-white p-5 shadow-[5px_5px_0_rgba(14,49,88,0.1)]">
+        <div className="rounded-[16px] border-2 border-ink bg-paper-strong p-5 shadow-[5px_5px_0_var(--shadow-hard-10)]">
           {lesson.parts.length ? (
             renderPartPanels()
           ) : (
@@ -340,7 +340,7 @@ export function CoursePlayer({
                   <p className="text-sm font-black text-ink">{localized(asset.label, locale)}</p>
                   <p className="text-xs font-bold text-muted">{asset.size}</p>
                 </div>
-                {effectiveIsAdmin && asset.id ? <button type="button" onClick={() => void removeAsset(asset.id!)} aria-label={locale === "sr" ? "Obriši materijal" : "Delete material"} className="grid size-8 place-items-center rounded-full border-2 border-red-700 bg-white text-red-700"><Trash2 className="size-3.5" /></button> : <Download className="size-4 text-ink" />}
+                {effectiveIsAdmin && asset.id ? <button type="button" onClick={() => void removeAsset(asset.id!)} aria-label={locale === "sr" ? "Obriši materijal" : "Delete material"} className="grid size-8 place-items-center rounded-full border-2 border-red-700 bg-paper-strong text-red-700"><Trash2 className="size-3.5" /></button> : <Download className="size-4 text-ink" />}
               </div>
             );
 

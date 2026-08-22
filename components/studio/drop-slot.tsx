@@ -39,15 +39,15 @@ const SURFACE =
   "surface-inset relative flex w-full flex-col items-center justify-center gap-2 border-2 border-dashed border-ink bg-paper p-4 text-center transition duration-200";
 
 const REMOVE =
-  "absolute right-1.5 top-1.5 inline-flex size-8 items-center justify-center rounded-full border-2 border-ink bg-white text-ink shadow-[2px_2px_0_0_rgba(14,49,88,0.18)] hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
+  "absolute right-1.5 top-1.5 inline-flex size-8 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
 
 // Zamena fajla u JEDNOM koraku (nalaz 8): `<label>` vezan za isti, uvek prisutan
 // file input otvara birač bez prethodnog "Ukloni". Levo od dugmeta za uklanjanje.
 const REPLACE =
-  "absolute right-11 top-1.5 inline-flex size-8 cursor-pointer items-center justify-center rounded-full border-2 border-ink bg-white text-ink shadow-[2px_2px_0_0_rgba(14,49,88,0.18)] hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
+  "absolute right-11 top-1.5 inline-flex size-8 cursor-pointer items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
 
 const TILE_BUTTON =
-  "inline-flex size-7 items-center justify-center rounded-full border-2 border-ink bg-white text-ink disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
+  "inline-flex size-7 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
 
 /** Ima li u prevlačenju uopšte fajlova - isti oblik provere kao kod avatara. */
 function hasFileDrag(dataTransfer: DataTransfer | null | undefined): boolean {
@@ -164,7 +164,7 @@ function useSlotIntake({
 function ProgressBar({ pending, locale }: { pending: Pending; locale: Locale }) {
   return (
     <div className="w-full">
-      <div className="h-3 w-full overflow-hidden rounded-full border-2 border-ink bg-white">
+      <div className="h-3 w-full overflow-hidden rounded-full border-2 border-ink bg-paper-strong">
         <div
           className="h-full rounded-full bg-yellow transition-[width] duration-200"
           style={{ width: `${Math.round(pending.progress * 100)}%` }}
@@ -177,7 +177,7 @@ function ProgressBar({ pending, locale }: { pending: Pending; locale: Locale }) 
   );
 }
 
-function Preview({ file, className }: { file: SlotFile; className?: string }) {
+export function Preview({ file, className }: { file: SlotFile; className?: string }) {
   const url = file.url ?? undefined;
 
   if (file.mime.startsWith("image/") && url) {
@@ -269,9 +269,9 @@ function useFullScreenDrop(enabled: boolean, onFiles: (files: File[]) => void) {
 export function FullScreenDropOverlay({ label, hint }: { label: string; hint: string }) {
   return (
     <div className="pointer-events-none fixed inset-0 z-50">
-      <div className="absolute inset-4 surface-card border-[3px] border-dashed border-yellow bg-ink/45 backdrop-blur-[3px]" />
+      <div className="absolute inset-4 surface-card border-[3px] border-dashed border-yellow bg-scrim/45 backdrop-blur-[3px]" />
       <div className="surface-card absolute left-1/2 top-1/2 w-[min(92vw,34rem)] -translate-x-1/2 -translate-y-1/2 border-[3px] border-ink bg-yellow p-6 text-center shadow-[10px_10px_0_0_rgba(255,255,255,0.95)]">
-        <span className="mx-auto inline-flex size-16 items-center justify-center rounded-full border-[3px] border-ink bg-white text-ink">
+        <span className="mx-auto inline-flex size-16 items-center justify-center rounded-full border-[3px] border-ink bg-paper-strong text-ink">
           <UploadCloud className="size-8" />
         </span>
         <p className="mt-4 text-2xl font-black leading-tight text-ink">{label}</p>
@@ -535,7 +535,7 @@ export function DropSlotGrid({
     <div className={className}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-sm font-black uppercase tracking-wide text-muted">{title}</span>
-        <span className="rounded-full border-2 border-ink bg-white px-2.5 py-0.5 text-xs font-black text-ink">
+        <span className="rounded-full border-2 border-ink bg-paper-strong px-2.5 py-0.5 text-xs font-black text-ink">
           {files.length}/{spec.max}
         </span>
       </div>
@@ -593,7 +593,7 @@ export function DropSlotGrid({
                   move(dragIndex.current, index);
                   dragIndex.current = null;
                 }}
-                className="surface-media relative aspect-square overflow-hidden border-2 border-ink bg-white"
+                className="surface-media relative aspect-square overflow-hidden border-2 border-ink bg-paper-strong"
               >
                 <Preview file={file} />
                 {numbered ? (

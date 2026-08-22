@@ -141,7 +141,7 @@ function CommunityNavLink({
         active
           ? "text-ink"
           : mobile
-            ? "border-line bg-white text-ink hover:border-ink hover:bg-yellow/15"
+            ? "border-line bg-paper-strong text-ink hover:border-ink hover:bg-yellow/15"
             : "text-muted hover:text-ink",
       )}
     >
@@ -237,7 +237,7 @@ function CommunityShellView({
 
   return (
     <div className="mx-auto w-full max-w-[1180px] space-y-5" aria-busy={isLoading}>
-      <section data-motion="hero" className="relative overflow-hidden rounded-[16px] border-2 border-ink bg-ink text-white shadow-[4px_4px_0_rgba(244,190,48,0.55)]">
+      <section data-motion="hero" className="relative overflow-hidden rounded-[16px] border-2 border-ink bg-ink text-paper-strong shadow-[4px_4px_0_rgba(244,190,48,0.55)]">
         <div className="pointer-events-none absolute inset-y-0 left-1/2 right-0 hidden bg-[radial-gradient(circle_at_center,rgba(244,190,48,0.22)_0_2px,transparent_2px)] [background-size:24px_24px] [mask-image:linear-gradient(to_right,transparent_0%,black_50%,black_100%)] md:block" />
         <div className="relative p-3.5 sm:p-4">
           <div className="flex flex-col gap-2">
@@ -251,7 +251,7 @@ function CommunityShellView({
               <h1 className="mt-1.5 truncate text-[clamp(1.5rem,3vw,2.4rem)] font-black leading-none tracking-[-0.04em] sm:whitespace-nowrap">
                 {locale === "sr" ? heroCopy.titleSr : heroCopy.titleEn}
               </h1>
-              <p className="mt-1 truncate text-xs font-bold leading-5 text-white/72 sm:whitespace-nowrap sm:text-sm">
+              <p className="mt-1 truncate text-xs font-bold leading-5 text-paper-strong/72 sm:whitespace-nowrap sm:text-sm">
                 {locale === "sr"
                   ? heroCopy.subtitleSr
                   : heroCopy.subtitleEn}
@@ -263,7 +263,7 @@ function CommunityShellView({
       </section>
 
       <SmartStickyRegion
-        className="top-16 z-30 overflow-hidden border-b-2 border-line/75 bg-paper/95 shadow-[0_8px_18px_-16px_rgba(14,49,88,0.55)] backdrop-blur md:top-0"
+        className="top-16 z-30 overflow-hidden border-b-2 border-line/75 bg-paper/95 shadow-[0_8px_18px_-16px_var(--shadow-hard-55)] backdrop-blur md:top-0"
       >
       <nav aria-label={locale === "sr" ? "Sekcije zajednice" : "Community sections"}>
         <div className="hidden overflow-x-auto sm:block">
@@ -273,7 +273,7 @@ function CommunityShellView({
           >
             <span
               aria-hidden="true"
-              className="pointer-events-none absolute bottom-0 left-0 z-10 h-1 border-t-2 border-ink bg-yellow shadow-[0_-1px_0_rgba(14,49,88,0.18)] transition-transform duration-300 ease-out motion-reduce:transition-none"
+              className="pointer-events-none absolute bottom-0 left-0 z-10 h-1 border-t-2 border-ink bg-yellow shadow-[0_-1px_0_var(--shadow-hard)] transition-transform duration-300 ease-out motion-reduce:transition-none"
               style={{ width: activeNavWidth, transform: activeNavTransform }}
             />
             {navItems.map((item) => (
@@ -302,7 +302,7 @@ function CommunityShellView({
             ref={menuButtonRef}
             type="button"
             onClick={() => setMobileMenuOpen(true)}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-line bg-white px-4 text-sm font-black text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-line bg-paper-strong px-4 text-sm font-black text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             aria-haspopup="dialog"
             aria-expanded={mobileMenuOpen}
           >
@@ -338,7 +338,7 @@ function CommunityShellView({
         <div className="fixed inset-0 z-50 sm:hidden" role="presentation">
           <button
             type="button"
-            className="absolute inset-0 h-full w-full rounded-none bg-ink/55 backdrop-blur-[2px]"
+            className="absolute inset-0 h-full w-full rounded-none bg-scrim/55 backdrop-blur-[2px]"
             onClick={() => setMobileMenuOpen(false)}
             aria-label={locale === "sr" ? "Zatvori meni" : "Close menu"}
           />
@@ -346,7 +346,7 @@ function CommunityShellView({
             role="dialog"
             aria-modal="true"
             aria-labelledby="community-mobile-menu-title"
-            className="absolute inset-x-0 bottom-0 max-h-[82vh] overflow-y-auto rounded-t-[24px] border-2 border-b-0 border-ink bg-paper p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-12px_40px_rgba(14,49,88,0.25)]"
+            className="absolute inset-x-0 bottom-0 max-h-[82vh] overflow-y-auto rounded-t-[24px] border-2 border-b-0 border-ink bg-paper p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-12px_40px_var(--shadow-hard-25)]"
           >
             <div className="mx-auto mb-4 h-1 w-12 rounded-full bg-ink/18" aria-hidden="true" />
             <div className="flex items-center justify-between gap-3">
@@ -360,7 +360,7 @@ function CommunityShellView({
                 ref={closeButtonRef}
                 type="button"
                 onClick={() => setMobileMenuOpen(false)}
-                className="grid size-11 place-items-center rounded-full border border-ink bg-white text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                className="grid size-11 place-items-center rounded-full border border-ink bg-paper-strong text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                 aria-label={locale === "sr" ? "Zatvori" : "Close"}
               >
                 <X className="size-5" aria-hidden="true" />
@@ -382,7 +382,7 @@ function CommunityShellView({
             <Link
               href={withLocale(locale, "/app/community/new")}
               onClick={() => setMobileMenuOpen(false)}
-              className="mt-4 inline-flex min-h-12 w-full items-center justify-between rounded-[12px] border-2 border-ink bg-yellow px-4 text-sm font-black text-ink shadow-[3px_3px_0_rgba(14,49,88,0.16)]"
+              className="mt-4 inline-flex min-h-12 w-full items-center justify-between rounded-[12px] border-2 border-ink bg-yellow px-4 text-sm font-black text-ink shadow-[3px_3px_0_var(--shadow-hard-16)]"
             >
               <span className="flex items-center gap-2">
                 <PenLine className="size-4" aria-hidden="true" />

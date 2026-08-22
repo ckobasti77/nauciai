@@ -169,6 +169,10 @@ export const STUDIO_TERMS: LegalDocument = {
           en: "The model providers are fal.ai, Google and BytePlus, and through fal.ai also ElevenLabs. Your prompt and your input files are forwarded to them so that the generation can exist at all, so their terms of use and acceptable-use policies apply to your content just as these do. Breaking their rules breaks these terms.",
         },
         {
+          sr: "Imena i znakovi modela i njihovih proizvođača pripadaju svojim vlasnicima i u Studiju se prikazuju isključivo radi prepoznavanja modela; to ne znači nikakvu podrazumevanu povezanost, sponzorstvo ni partnerstvo sa tim proizvođačima.",
+          en: "The names and marks of the models and their makers belong to their respective owners and are shown in the Studio solely to identify the models; this implies no affiliation, sponsorship or partnership with those makers.",
+        },
+        {
           sr: "Prompt prolazi kroz automatsku proveru pre slanja i može da bude odbijen. Ta provera je gruba prva linija, a ne dozvola: odbijen prompt sigurno nije prošao, ali prihvaćen prompt ne znači da je sadržaj dozvoljen.",
           en: "Every prompt passes an automatic check before it is sent and may be rejected. That check is a coarse first line, not a permission: a rejected prompt certainly did not pass, but an accepted prompt does not mean the content is allowed.",
         },

@@ -20,7 +20,7 @@ export function PublicCourseIntroVideo({
   if (videoUrl) {
     return (
       <video
-        className="aspect-video w-full overflow-hidden rounded-[8px] bg-ink object-contain border-2 border-ink"
+        className="aspect-video w-full overflow-hidden rounded-[8px] bg-scrim object-contain border-2 border-ink"
         src={videoUrl}
         controls
         preload="metadata"
@@ -30,7 +30,7 @@ export function PublicCourseIntroVideo({
   }
 
   return (
-    <div className="relative aspect-video min-h-[300px] overflow-hidden rounded-[8px] bg-ink text-white">
+    <div className="relative aspect-video min-h-[300px] overflow-hidden rounded-[8px] bg-scrim text-white">
       <Image
         src={posterSrc}
         alt=""

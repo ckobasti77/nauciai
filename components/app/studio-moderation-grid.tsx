@@ -137,7 +137,7 @@ export function StudioModerationGrid({
   return (
     <div className="space-y-4">
       {/* ── Filter bar (osoblje) ─────────────────────────────────────────────── */}
-      <div className="surface-card flex flex-col gap-3 border-2 border-ink bg-white p-3 shadow-[3px_3px_0_0_rgba(14,49,88,0.12)]">
+      <div className="surface-card flex flex-col gap-3 border-2 border-ink bg-paper-strong p-3 shadow-[3px_3px_0_0_var(--shadow-hard-12)]">
         <div className="flex flex-wrap items-center gap-2">
           {/* Filter po vlasniku */}
           {owners && owners.length > 0 ? (
@@ -149,14 +149,14 @@ export function StudioModerationGrid({
                   value={ownerSearch}
                   onChange={(e) => setOwnerSearch(e.target.value)}
                   placeholder={locale === "sr" ? "Traži vlasnika…" : "Search owner…"}
-                  className="surface-inset h-8 w-[150px] border-2 border-ink bg-paper pl-7 pr-2 text-xs font-bold text-ink outline-none placeholder:text-muted focus:bg-white studio-focus-ink"
+                  className="surface-inset h-8 w-[150px] border-2 border-ink bg-paper pl-7 pr-2 text-xs font-bold text-ink outline-none placeholder:text-muted focus:bg-paper-strong studio-focus-ink"
                 />
               </div>
               <select
                 value={ownerId ?? ""}
                 onChange={(e) => setOwnerId(e.target.value === "" ? null : (e.target.value as Id<"users">))}
                 aria-label={locale === "sr" ? "Filter po vlasniku" : "Filter by owner"}
-                className="surface-inset h-8 max-w-[180px] border-2 border-ink bg-white px-2 text-xs font-black text-ink outline-none cursor-pointer hover:bg-paper studio-focus-ink"
+                className="surface-inset h-8 max-w-[180px] border-2 border-ink bg-paper-strong px-2 text-xs font-black text-ink outline-none cursor-pointer hover:bg-paper studio-focus-ink"
               >
                 <option value="">{locale === "sr" ? "Svi vlasnici" : "All owners"}</option>
                 {visibleOwners.map((owner) => (
@@ -178,7 +178,7 @@ export function StudioModerationGrid({
                 type="button"
                 onClick={() => setStatusFilter((prev) => (prev === s ? null : s))}
                 aria-pressed={statusFilter === s}
-                className={cn(CHIP, statusFilter === s ? "bg-ink text-white" : "bg-white text-ink hover:-translate-y-0.5")}
+                className={cn(CHIP, statusFilter === s ? "bg-ink text-paper-strong" : "bg-paper-strong text-ink hover:-translate-y-0.5")}
               >
                 {JOB_STATUS_LABELS[s][locale]}
               </button>
@@ -195,7 +195,7 @@ export function StudioModerationGrid({
                 type="button"
                 onClick={() => setProviderFilter((prev) => (prev === p ? null : p))}
                 aria-pressed={providerFilter === p}
-                className={cn(CHIP, providerFilter === p ? "bg-ink text-white" : "bg-white text-ink hover:-translate-y-0.5")}
+                className={cn(CHIP, providerFilter === p ? "bg-ink text-paper-strong" : "bg-paper-strong text-ink hover:-translate-y-0.5")}
               >
                 {STUDIO_PROVIDER_LABELS[p]}
               </button>
@@ -225,7 +225,7 @@ export function StudioModerationGrid({
           <Loader2 className="size-6 animate-spin text-muted" />
         </div>
       ) : rawJobs.length === 0 ? (
-        <div className="surface-card mx-auto max-w-md border-2 border-ink bg-white p-6 text-center shadow-[3px_3px_0_0_rgba(14,49,88,0.12)]">
+        <div className="surface-card mx-auto max-w-md border-2 border-ink bg-paper-strong p-6 text-center shadow-[3px_3px_0_0_var(--shadow-hard-12)]">
           <p className="text-base font-bold text-muted">
             {locale === "sr" ? "Nema poslova za ove filtere." : "No jobs match these filters."}
           </p>
@@ -257,7 +257,7 @@ export function StudioModerationGrid({
 
           {jobStatus === "LoadingMore" ? (
             <div className="flex justify-center py-4">
-              <span className="inline-flex items-center gap-2 rounded-full border-2 border-ink bg-white px-4 py-2 text-xs font-extrabold text-ink shadow-[2px_2px_0_0_rgba(14,49,88,0.14)]">
+              <span className="inline-flex items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 py-2 text-xs font-extrabold text-ink shadow-[2px_2px_0_0_var(--shadow-hard-14)]">
                 <Loader2 className="size-4 animate-spin text-muted" />
                 {locale === "sr" ? "Učitavanje još…" : "Loading more…"}
               </span>
@@ -270,7 +270,7 @@ export function StudioModerationGrid({
                   isLoadingRef.current = true;
                   loadMore(PAGE_SIZE);
                 }}
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-white px-5 py-2.5 text-sm font-extrabold text-ink shadow-[3px_3px_0_0_rgba(14,49,88,0.18)] transition hover:-translate-y-0.5 cursor-pointer"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-5 py-2.5 text-sm font-extrabold text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 cursor-pointer"
               >
                 {locale === "sr" ? "Učitaj još" : "Load more"}
               </button>
@@ -307,11 +307,11 @@ function ModerationTile({
   const revealedSummary = revealed ? jobParamSummary(revealed.params, paramSpec, locale) : "";
 
   return (
-    <div className="surface-card mb-4 break-inside-avoid border-2 border-ink bg-white p-2 text-ink shadow-[3px_3px_0_0_rgba(14,49,88,0.12)]">
+    <div className="surface-card mb-4 break-inside-avoid border-2 border-ink bg-paper-strong p-2 text-ink shadow-[3px_3px_0_0_var(--shadow-hard-12)]">
       {/* Tamni bunar (Rešenje A) */}
-      <div className="surface-media relative min-h-[160px] overflow-hidden bg-studio-well shadow-[inset_0_0_0_1px_rgba(14,49,88,0.14)]">
+      <div className="surface-media relative min-h-[160px] overflow-hidden bg-studio-well shadow-[inset_0_0_0_1px_var(--shadow-hard-14)]">
         {job.isMock ? (
-          <span className="absolute right-2 top-2 z-10 rounded-full border-2 border-ink bg-white px-2 py-0.5 text-[10px] font-black uppercase text-ink">
+          <span className="absolute right-2 top-2 z-10 rounded-full border-2 border-ink bg-paper-strong px-2 py-0.5 text-[10px] font-black uppercase text-ink">
             DEMO
           </span>
         ) : null}
@@ -337,16 +337,16 @@ function ModerationTile({
               className="max-h-[420px] w-full object-contain"
               src={`${job.outputUrl}#t=0.1`}
             />
-            <Play className="pointer-events-none absolute left-2 top-2 size-4 text-white/70" />
+            <Play className="pointer-events-none absolute left-2 top-2 size-4 text-paper-strong/70" />
           </div>
         ) : hasOutput && !isWorking && !expired && job.kind === "audio" ? (
-          <div className="grid min-h-[160px] place-items-center gap-2 p-4 text-white/80">
+          <div className="grid min-h-[160px] place-items-center gap-2 p-4 text-paper-strong/80">
             <Volume2 className="size-6" />
             <audio controls src={job.outputUrl as string} className="w-full" />
           </div>
         ) : (
           <div className="grid min-h-[160px] place-items-center p-6 text-center">
-            <p className="text-sm font-extrabold text-white/85">
+            <p className="text-sm font-extrabold text-paper-strong/85">
               {expired ? (locale === "sr" ? "Fajl je istekao" : "File expired") : jobStatusText(job, locale)}
             </p>
           </div>
@@ -359,10 +359,10 @@ function ModerationTile({
         <span className="rounded-full border-2 border-ink bg-paper px-2.5 py-0.5 text-[11px] font-black text-ink">
           {STUDIO_PROVIDER_LABELS[job.provider as StudioProvider] ?? job.provider}
         </span>
-        <span className="rounded-full border-2 border-ink bg-white px-2.5 py-0.5 text-[11px] font-black text-ink">
+        <span className="rounded-full border-2 border-ink bg-paper-strong px-2.5 py-0.5 text-[11px] font-black text-ink">
           {JOB_STATUS_LABELS[job.status as JobStatus]?.[locale] ?? job.status}
         </span>
-        <span className="rounded-full border-2 border-ink bg-white px-2.5 py-0.5 text-[11px] font-black text-ink">
+        <span className="rounded-full border-2 border-ink bg-paper-strong px-2.5 py-0.5 text-[11px] font-black text-ink">
           {job.creditCost} {locale === "sr" ? "kr" : "cr"}
         </span>
       </div>
@@ -388,7 +388,7 @@ function ModerationTile({
                 setIsRevealing(false);
               }
             }}
-            className={cn(CHIP, "border-ink bg-white text-ink hover:-translate-y-0.5")}
+            className={cn(CHIP, "border-ink bg-paper-strong text-ink hover:-translate-y-0.5")}
           >
             {isRevealing ? <Loader2 className="size-3.5 animate-spin" /> : <Eye className="size-3.5" />}
             {REVEAL_DETAILS[locale]}

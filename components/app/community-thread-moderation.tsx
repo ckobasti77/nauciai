@@ -141,7 +141,7 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
 
   if (!isStaff) {
     return (
-      <Panel className="mx-auto max-w-xl rounded-[16px] border border-line bg-white p-7 text-center shadow-none">
+      <Panel className="mx-auto max-w-xl rounded-[16px] border border-line bg-paper-strong p-7 text-center shadow-none">
         <ShieldCheck className="mx-auto size-9 text-ink/45" />
         <h1 className="mt-4 text-2xl font-black text-ink">{locale === "sr" ? "Staff prostor" : "Staff area"}</h1>
         <p className="mt-2 text-sm font-semibold leading-6 text-muted">
@@ -160,8 +160,8 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
   return (
     <section aria-label={locale === "sr" ? "Odobrenja" : "Approvals"} className="space-y-5">
       <CommunityStickyToolbar>
-      <div className="flex flex-wrap items-end justify-end gap-4 rounded-[16px] border border-line bg-white p-2">
-        <span className="inline-flex min-h-10 items-center gap-2 rounded-full border border-line bg-white px-3 text-xs font-black text-ink/65">
+      <div className="flex flex-wrap items-end justify-end gap-4 rounded-[16px] border border-line bg-paper-strong p-2">
+        <span className="inline-flex min-h-10 items-center gap-2 rounded-full border border-line bg-paper-strong px-3 text-xs font-black text-ink/65">
           <Clock3 className="size-4" />
           {queue.results.length} {locale === "sr" ? "učitano" : "loaded"}
         </span>
@@ -185,7 +185,7 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
           <Loader2 className="size-8 animate-spin text-yellow motion-reduce:animate-none" />
         </div>
       ) : queue.results.length === 0 ? (
-        <Panel className="rounded-[16px] border border-dashed border-ink/20 bg-white p-8 text-center shadow-none">
+        <Panel className="rounded-[16px] border border-dashed border-ink/20 bg-paper-strong p-8 text-center shadow-none">
           <ShieldCheck className="mx-auto size-9 text-emerald-600" />
           <h2 className="mt-4 text-xl font-black text-ink">{locale === "sr" ? "Red je čist" : "The queue is clear"}</h2>
           <p className="mt-2 text-sm font-semibold text-muted">
@@ -198,7 +198,7 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
             const expanded = expandedPostId === post._id;
             const busy = activePostId === post._id;
             return (
-              <Panel key={post._id} as="article" className="overflow-hidden rounded-[16px] border border-line bg-white shadow-none">
+              <Panel key={post._id} as="article" className="overflow-hidden rounded-[16px] border border-line bg-paper-strong shadow-none">
                 <div className="p-4 md:p-5">
                   <div className="flex items-start gap-3">
                     {post.authorUsername ? <Link href={withLocale(locale, `/app/members/${post.authorUsername}`)} className="rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"><CommunityAvatar
@@ -230,7 +230,7 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
                       onClick={() => setExpandedPostId(expanded ? null : post._id)}
                       aria-expanded={expanded}
                       aria-controls={`moderation-preview-${post._id}`}
-                      className="inline-flex min-h-10 shrink-0 items-center gap-1 rounded-full border border-line bg-white px-3 text-xs font-black text-ink transition hover:border-ink hover:bg-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                      className="inline-flex min-h-10 shrink-0 items-center gap-1 rounded-full border border-line bg-paper-strong px-3 text-xs font-black text-ink transition hover:border-ink hover:bg-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                     >
                       {expanded ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
                       <span className="hidden sm:inline">{expanded ? (locale === "sr" ? "Sakrij" : "Collapse") : locale === "sr" ? "Pregledaj" : "Review"}</span>
@@ -249,13 +249,13 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
                           width={1200}
                           height={750}
                           unoptimized
-                          className="mt-5 h-auto max-h-80 w-full rounded-[8px] border border-line bg-white object-contain"
+                          className="mt-5 h-auto max-h-80 w-full rounded-[8px] border border-line bg-paper-strong object-contain"
                         />
                       ) : null}
                       <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
                         <Link
                           href={withLocale(locale, `/app/community/${post._id}`)}
-                          className="inline-flex min-h-10 items-center gap-2 rounded-full px-3 text-xs font-black text-ink/65 transition hover:bg-white hover:text-ink"
+                          className="inline-flex min-h-10 items-center gap-2 rounded-full px-3 text-xs font-black text-ink/65 transition hover:bg-paper-strong hover:text-ink"
                         >
                           {locale === "sr" ? "Otvori pun tred" : "Open full thread"}
                           <ArrowUpRight className="size-4" />
@@ -269,7 +269,7 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
                               setRequestPostId(post._id);
                             }}
                             disabled={busy}
-                            className="inline-flex min-h-11 items-center gap-2 rounded-full border border-amber-300 bg-white px-4 text-sm font-black text-amber-900 transition hover:bg-amber-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600 disabled:opacity-50"
+                            className="inline-flex min-h-11 items-center gap-2 rounded-full border border-amber-300 bg-paper-strong px-4 text-sm font-black text-amber-900 transition hover:bg-amber-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600 disabled:opacity-50"
                           >
                             <MessageSquareWarning className="size-4" />
                             {locale === "sr" ? "Zatraži izmenu" : "Request changes"}
@@ -278,7 +278,7 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
                             type="button"
                             onClick={() => approve(post._id)}
                             disabled={busy}
-                            className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black text-ink shadow-[3px_3px_0_rgba(14,49,88,0.16)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
+                            className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black text-ink shadow-[3px_3px_0_var(--shadow-hard-16)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
                           >
                             {busy ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
                             {locale === "sr" ? "Odobri i objavi" : "Approve and publish"}
@@ -300,7 +300,7 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
             type="button"
             onClick={() => queue.loadMore(8)}
             disabled={queue.status === "LoadingMore"}
-            className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line bg-white px-5 text-sm font-black text-ink transition hover:border-ink hover:bg-paper disabled:opacity-60"
+            className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line bg-paper-strong px-5 text-sm font-black text-ink transition hover:border-ink hover:bg-paper disabled:opacity-60"
           >
             {queue.status === "LoadingMore" ? <Loader2 className="size-4 animate-spin" /> : null}
             {locale === "sr" ? "Učitaj još" : "Load more"}
@@ -339,7 +339,7 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
           aria-invalid={Boolean(reasonError)}
           aria-describedby={reasonError ? "moderation-reason-error" : "moderation-reason-help"}
           placeholder={locale === "sr" ? "Na primer: ukloni lične podatke iz drugog pasusa…" : "For example: remove personal information from the second paragraph…"}
-          className="mt-2 w-full resize-y rounded-[12px] border border-line bg-white px-3 py-2.5 text-sm font-semibold leading-6 text-ink outline-none focus:border-ink focus:ring-4 focus:ring-yellow/15"
+          className="mt-2 w-full resize-y rounded-[12px] border border-line bg-paper-strong px-3 py-2.5 text-sm font-semibold leading-6 text-ink outline-none focus:border-ink focus:ring-4 focus:ring-yellow/15"
         />
         {reasonError ? (
           <p id="moderation-reason-error" role="alert" className="mt-2 text-xs font-bold text-red-700">{reasonError}</p>
@@ -353,7 +353,7 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
             type="button"
             onClick={() => setRequestPostId(null)}
             disabled={Boolean(activePostId)}
-            className="inline-flex min-h-11 items-center justify-center rounded-full border border-line bg-white px-5 text-sm font-black text-ink transition hover:border-ink hover:bg-paper disabled:opacity-50"
+            className="inline-flex min-h-11 items-center justify-center rounded-full border border-line bg-paper-strong px-5 text-sm font-black text-ink transition hover:border-ink hover:bg-paper disabled:opacity-50"
           >
             {locale === "sr" ? "Odustani" : "Cancel"}
           </button>
@@ -361,7 +361,7 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
             type="button"
             onClick={requestChanges}
             disabled={Boolean(activePostId)}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black text-ink shadow-[3px_3px_0_rgba(14,49,88,0.16)] disabled:opacity-60"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black text-ink shadow-[3px_3px_0_var(--shadow-hard-16)] disabled:opacity-60"
           >
             {activePostId ? <Loader2 className="size-4 animate-spin" /> : <MessageSquareWarning className="size-4" />}
             {locale === "sr" ? "Vrati autoru" : "Return to author"}

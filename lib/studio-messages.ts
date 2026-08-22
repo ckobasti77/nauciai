@@ -243,6 +243,37 @@ const CREATE_JOB_ERROR_MESSAGES: Array<[string, { sr: string; en: string }]> = [
       en: "The settings are not valid. Refresh the page and try again.",
     },
   ],
+  // Provajder nije podešen na serveru. Bez ove stavke je poruka bila
+  // "pokušaj ponovo za koji trenutak" - a ponavljanje tu ne pomaže NIKAD,
+  // pa je to bila poruka koja korisnika šalje u krug.
+  [
+    "GOOGLE_AI_API_KEY",
+    {
+      sr: "Ovaj model još nije podešen na serveru. Javi administratoru - ponovni pokušaj neće pomoći. Krediti su ti vraćeni.",
+      en: "This model is not configured on the server yet. Tell an administrator - retrying will not help. Your credits have been returned.",
+    },
+  ],
+  [
+    "KVOTA_PREKORACENA",
+    {
+      sr: "Model je trenutno preopterećen kod provajdera. Probaj za koji minut ili izaberi drugi model. Krediti su ti vraćeni.",
+      en: "The provider is rate-limiting this model right now. Try again in a few minutes or pick another model. Your credits have been returned.",
+    },
+  ],
+  [
+    "NEPOTPUN_ULAZ",
+    {
+      sr: "Fali ulazna slika za ovaj režim. Dodaj je pa pokušaj ponovo.",
+      en: "An input image is missing for this mode. Add one and try again.",
+    },
+  ],
+  [
+    "FAJL_JE_PREVELIK",
+    {
+      sr: "Fajl je prevelik za ovaj model. Smanji ga ispod 15 MB pa pokušaj ponovo.",
+      en: "The file is too large for this model. Get it under 15 MB and try again.",
+    },
+  ],
 ];
 
 export function studioErrorMessage(raw: string, locale: Locale): string {

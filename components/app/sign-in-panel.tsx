@@ -242,14 +242,14 @@ function ConvexSignInForm({
   return (
     <Panel className="p-6 md:p-8">
       {showPrimaryTabs ? (
-        <div className="mb-6 flex overflow-hidden rounded-[8px] border-2 border-ink bg-white">
+        <div className="mb-6 flex overflow-hidden rounded-[8px] border-2 border-ink bg-paper-strong">
           <button
             type="button"
             onClick={() => switchFlow("signIn")}
             disabled={Boolean(pendingProvider)}
             className={cn(
               "flex-1 py-2.5 text-center text-sm font-black transition-all",
-              flow === "signIn" ? "bg-ink text-white" : "bg-white text-ink hover:bg-yellow/25",
+              flow === "signIn" ? "bg-ink text-paper-strong" : "bg-paper-strong text-ink hover:bg-yellow/25",
             )}
           >
             {t(locale, "Prijavi se", "Sign in")}
@@ -261,7 +261,7 @@ function ConvexSignInForm({
             disabled={Boolean(pendingProvider)}
             className={cn(
               "flex-1 py-2.5 text-center text-sm font-black transition-all",
-              flow === "signUp" ? "bg-ink text-white" : "bg-white text-ink hover:bg-yellow/25",
+              flow === "signUp" ? "bg-ink text-paper-strong" : "bg-paper-strong text-ink hover:bg-yellow/25",
             )}
           >
             {t(locale, "Napravi profil", "Create profile")}
@@ -295,7 +295,7 @@ function ConvexSignInForm({
             required
             autoComplete={flow === "signIn" ? "username" : "email"}
             placeholder={flow === "signIn" ? t(locale, "@username ili ime@email.com", "@username or name@email.com") : undefined}
-            className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-white px-4 text-base font-bold text-ink outline-none focus:border-yellow"
+            className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-4 text-base font-bold text-ink outline-none focus:border-yellow"
           />
         </div>
 
@@ -316,7 +316,7 @@ function ConvexSignInForm({
                 maxLength={20}
                 pattern="[A-Za-zČĆŠĐŽčćšđž0-9._]{3,20}"
                 autoComplete="username"
-                className="h-12 w-full rounded-[8px] border-2 border-ink bg-white pl-8 pr-4 text-base font-extrabold text-ink outline-none focus:border-yellow"
+                className="h-12 w-full rounded-[8px] border-2 border-ink bg-paper-strong pl-8 pr-4 text-base font-extrabold text-ink outline-none focus:border-yellow"
                 placeholder="npr. čika_fox.123"
               />
             </div>
@@ -347,7 +347,7 @@ function ConvexSignInForm({
               onChange={(event) => setPassword(event.target.value)}
               required
               minLength={8}
-              className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-white px-4 text-base font-bold text-ink outline-none focus:border-yellow"
+              className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-4 text-base font-bold text-ink outline-none focus:border-yellow"
             />
             {flow === "signUp" ? (
               <div className="mt-2 grid gap-1 text-xs font-bold text-muted sm:grid-cols-2">
@@ -381,7 +381,7 @@ function ConvexSignInForm({
               required
               minLength={8}
               autoComplete="new-password"
-              className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-white px-4 text-base font-bold text-ink outline-none focus:border-yellow"
+              className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-4 text-base font-bold text-ink outline-none focus:border-yellow"
             />
             {signupConfirmPassword && password !== signupConfirmPassword ? (
               <p className="mt-1.5 text-xs font-black text-red-700">
@@ -404,7 +404,7 @@ function ConvexSignInForm({
                 onChange={(event) => setNewPassword(event.target.value)}
                 required
                 minLength={8}
-                className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-white px-4 text-base font-bold text-ink outline-none focus:border-yellow"
+                className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-4 text-base font-bold text-ink outline-none focus:border-yellow"
               />
               <div className="mt-2 grid gap-1 text-xs font-bold text-muted sm:grid-cols-2">
                 {passwordRequirements.map((requirement) => (
@@ -423,7 +423,7 @@ function ConvexSignInForm({
                 onChange={(event) => setConfirmPassword(event.target.value)}
                 required
                 minLength={8}
-                className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-white px-4 text-base font-bold text-ink outline-none focus:border-yellow"
+                className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-4 text-base font-bold text-ink outline-none focus:border-yellow"
               />
             </div>
           </>
@@ -433,8 +433,8 @@ function ConvexSignInForm({
           type="submit"
           disabled={Boolean(pendingProvider)}
           className={cn(
-            "inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-[8px] border-2 border-ink px-5 py-2.5 text-sm font-extrabold shadow-[4px_4px_0_0_#f4be30] transition-all duration-200 hover:-translate-y-0.5 disabled:opacity-70",
-            flow === "signUp" ? "bg-yellow text-ink shadow-[4px_4px_0_0_#0e3158]" : "bg-ink text-white",
+            "inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-[8px] border-2 border-ink px-5 py-2.5 text-sm font-extrabold shadow-[4px_4px_0_0_var(--yellow)] transition-all duration-200 hover:-translate-y-0.5 disabled:opacity-70",
+            flow === "signUp" ? "bg-yellow text-ink shadow-[4px_4px_0_0_var(--ink)]" : "bg-ink text-paper-strong",
           )}
         >
           {isPasswordPending ? (
@@ -462,7 +462,7 @@ function ConvexSignInForm({
             type="button"
             onClick={() => handleOAuth("google")}
             disabled={Boolean(pendingProvider)}
-            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-white px-5 py-2.5 text-sm font-extrabold text-ink transition-all duration-200 hover:bg-yellow/25 disabled:opacity-70"
+            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-paper-strong px-5 py-2.5 text-sm font-extrabold text-ink transition-all duration-200 hover:bg-yellow/25 disabled:opacity-70"
           >
             {pendingProvider === "google" ? <Loader2 className="size-4 animate-spin" /> : <span className="text-lg">G</span>}
             {t(locale, "Prijavi se preko Google-a", "Sign in with Google")}

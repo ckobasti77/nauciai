@@ -54,7 +54,7 @@ export function AppComposerSheet({
     <AnimatePresence>
       {open ? (
         <motion.div
-          className="fixed inset-0 z-50 bg-ink/35 p-0 backdrop-blur-[2px] sm:p-4"
+          className="fixed inset-0 z-50 bg-scrim/35 p-0 backdrop-blur-[2px] sm:p-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -70,9 +70,9 @@ export function AppComposerSheet({
             animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, x: 0, scale: 1 }}
             exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, x: 28, scale: 0.99 }}
             transition={{ type: "spring", stiffness: 420, damping: 38 }}
-            className="ml-auto flex h-full w-full max-w-6xl flex-col overflow-hidden border-l-2 border-ink bg-paper shadow-[-12px_0_0_0_rgba(14,49,88,0.16)] sm:rounded-[16px] sm:border-2"
+            className="ml-auto flex h-full w-full max-w-6xl flex-col overflow-hidden border-l-2 border-ink bg-paper shadow-[-12px_0_0_0_var(--shadow-hard-16)] sm:rounded-[16px] sm:border-2"
           >
-            <div className="flex items-start justify-between gap-4 border-b-2 border-ink bg-white px-4 py-4 sm:px-6">
+            <div className="flex items-start justify-between gap-4 border-b-2 border-ink bg-paper-strong px-4 py-4 sm:px-6">
               <div className="min-w-0">
                 <p className="text-xs font-black uppercase text-muted">{eyebrow}</p>
                 <h2 className="mt-1 text-2xl font-black leading-tight text-ink sm:text-3xl">{title}</h2>

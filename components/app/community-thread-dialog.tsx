@@ -87,7 +87,7 @@ export function CommunityThreadDialog({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[120] grid place-items-center bg-ink/45 p-4 backdrop-blur-[3px]"
+      className="fixed inset-0 z-[120] grid place-items-center bg-scrim/45 p-4 backdrop-blur-[3px]"
       onMouseDown={(event) => {
         if (event.currentTarget === event.target) onClose();
       }}
@@ -99,11 +99,11 @@ export function CommunityThreadDialog({
         aria-labelledby={titleId}
         aria-describedby={description ? descriptionId : undefined}
         className={cn(
-          "w-full max-w-lg overflow-hidden rounded-[16px] border-2 border-ink bg-paper shadow-[8px_8px_0_rgba(14,49,88,0.2)]",
+          "w-full max-w-lg overflow-hidden rounded-[16px] border-2 border-ink bg-paper shadow-[8px_8px_0_var(--shadow-hard-20)]",
           className,
         )}
       >
-        <div className="flex items-start justify-between gap-4 border-b border-line bg-white px-5 py-4">
+        <div className="flex items-start justify-between gap-4 border-b border-line bg-paper-strong px-5 py-4">
           <div className="min-w-0">
             <h2 id={titleId} className="text-xl font-black leading-tight text-ink">
               {title}
@@ -167,7 +167,7 @@ export function CommunityThreadConfirmDialog({
           type="button"
           onClick={onClose}
           disabled={busy}
-          className="inline-flex min-h-11 items-center justify-center rounded-full border border-line bg-white px-5 text-sm font-black text-ink transition hover:border-ink hover:bg-paper disabled:opacity-50"
+          className="inline-flex min-h-11 items-center justify-center rounded-full border border-line bg-paper-strong px-5 text-sm font-black text-ink transition hover:border-ink hover:bg-paper disabled:opacity-50"
         >
           {cancelLabel}
         </button>
@@ -176,7 +176,7 @@ export function CommunityThreadConfirmDialog({
           onClick={onConfirm}
           disabled={busy}
           className={cn(
-            "inline-flex min-h-11 items-center justify-center rounded-full border-2 border-ink px-5 text-sm font-black shadow-[3px_3px_0_rgba(14,49,88,0.18)] transition hover:-translate-y-0.5 disabled:cursor-wait disabled:opacity-60",
+            "inline-flex min-h-11 items-center justify-center rounded-full border-2 border-ink px-5 text-sm font-black shadow-[3px_3px_0_var(--shadow-hard)] transition hover:-translate-y-0.5 disabled:cursor-wait disabled:opacity-60",
             destructive ? "bg-red-600 text-white" : "bg-yellow text-ink",
           )}
         >

@@ -86,7 +86,7 @@ function StudioTermsGate({ locale }: { locale: Locale }) {
         type="button"
         onClick={accept}
         disabled={!checked || isSaving}
-        className={cn(PILL, "mt-5 border-ink bg-yellow text-ink shadow-[4px_4px_0_0_#0e3158] hover:-translate-y-0.5")}
+        className={cn(PILL, "mt-5 border-ink bg-yellow text-ink shadow-[4px_4px_0_0_var(--ink)] hover:-translate-y-0.5")}
       >
         {isSaving ? <Loader2 className="size-4 animate-spin" /> : null}
         {STUDIO_TERMS_GATE.cta[locale]}
@@ -97,6 +97,27 @@ function StudioTermsGate({ locale }: { locale: Locale }) {
       ) : null}
     </Panel>
   );
+}
+
+// Koja je detaljna strana otvorena klikom iz mreze (a ne direktnim linkom).
+// Per-tab, prezivljava remount izmedju /app/studio i /app/studio/m/[jobId].
+const PUSHED_DETAIL_KEY = "studio:pushed-detail";
+
+function readPushedDetailId(): string | null {
+  try {
+    return window.sessionStorage.getItem(PUSHED_DETAIL_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function setPushedDetailId(jobId: string | null) {
+  try {
+    if (jobId) window.sessionStorage.setItem(PUSHED_DETAIL_KEY, jobId);
+    else window.sessionStorage.removeItem(PUSHED_DETAIL_KEY);
+  } catch {
+    // Privatni rezim / blokiran storage: ostajemo na push() ponasanju.
+  }
 }
 
 export function StudioPage({
@@ -250,13 +271,27 @@ export function StudioPage({
   }, [activeJobId, loadedJobs, singleJobQuery]);
 
   function handleOpenDetail(job: StudioTileJob) {
+    // Belezimo da smo MI gurnuli /app/studio/m/<id> u istoriju, pa zatvaranje sme
+    // da bude back() umesto novog push()-a. Bez toga svaki par otvori/zatvori doda
+    // DVA unosa u istoriju, pa i "Nazad" u sidebaru i "Nazad" u pregledacu vracaju
+    // korisnika u istu generaciju iz koje je upravo izasao.
+    // `sessionStorage`, ne `useRef`: /app/studio i /app/studio/m/[jobId] su dve
+    // odvojene rute, pa se komponenta remount-uje i ref bi se resetovao.
+    setPushedDetailId(job._id);
     router.push(withLocale(locale, `/app/studio/m/${job._id}`), { scroll: false });
   }
 
   function handleCloseDetail() {
     const prevId = activeJobId;
-    const target = kindParam ? `/app/studio?kind=${kindParam}` : `/app/studio`;
-    router.push(withLocale(locale, target), { scroll: false });
+    const cameFromGrid = Boolean(activeJobId) && readPushedDetailId() === activeJobId;
+    setPushedDetailId(null);
+    if (cameFromGrid) {
+      router.back();
+    } else {
+      // Direktan link ili refresh na /app/studio/m/<id>: nema cemu da se vracamo.
+      const target = kindParam ? `/app/studio?kind=${kindParam}` : `/app/studio`;
+      router.push(withLocale(locale, target), { scroll: false });
+    }
     setTimeout(() => {
       if (prevId) {
         document.getElementById(`tile-${prevId}`)?.focus();
@@ -341,7 +376,7 @@ export function StudioPage({
         {/* Balans je uvek vidljiv i uvek vodi na dopunu */}
         <Link
           href={creditsHref}
-          className={cn(PILL, "shrink-0 border-ink bg-white text-ink shadow-[3px_3px_0_0_rgba(14,49,88,0.18)] hover:-translate-y-0.5")}
+          className={cn(PILL, "shrink-0 border-ink bg-paper-strong text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] hover:-translate-y-0.5")}
         >
           <Coins className="size-4" />
           {balance === undefined
@@ -376,7 +411,7 @@ export function StudioPage({
           </p>
           <Link
             href={withLocale(locale, "/sign-in")}
-            className={cn(PILL, "mt-4 border-ink bg-ink text-white shadow-[4px_4px_0_0_#f4be30] hover:-translate-y-0.5")}
+            className={cn(PILL, "mt-4 border-ink bg-ink text-paper-strong shadow-[4px_4px_0_0_var(--yellow)] hover:-translate-y-0.5")}
           >
             {locale === "sr" ? "Prijavi se" : "Sign in"}
           </Link>
@@ -388,12 +423,12 @@ export function StudioPage({
   const floatingContent = () => {
     if (state !== undefined && !state.enabled) {
       return (
-        <div className="surface-card border-2 border-ink bg-white p-5 shadow-[6px_6px_0_0_rgba(14,49,88,0.16)]">
+        <div className="surface-card border-2 border-ink bg-paper-strong p-5 shadow-[6px_6px_0_0_var(--shadow-hard-16)]">
           <h3 className="text-xl font-black text-ink">{STUDIO_PAUSED.title[locale]}</h3>
           <p className="mt-1 text-sm font-bold text-muted">{STUDIO_PAUSED.body[locale]}</p>
           <Link
             href={creditsHref}
-            className={cn(PILL, "mt-3 border-ink bg-white text-ink shadow-[3px_3px_0_0_rgba(14,49,88,0.18)] hover:-translate-y-0.5")}
+            className={cn(PILL, "mt-3 border-ink bg-paper-strong text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] hover:-translate-y-0.5")}
           >
             <Coins className="size-4" />
             {STUDIO_PAUSED.cta[locale]}
@@ -404,7 +439,7 @@ export function StudioPage({
 
     if (state !== undefined && !state.hasStudioAccess) {
       return (
-        <div className="surface-card border-2 border-ink bg-white p-5 shadow-[6px_6px_0_0_rgba(14,49,88,0.16)]">
+        <div className="surface-card border-2 border-ink bg-paper-strong p-5 shadow-[6px_6px_0_0_var(--shadow-hard-16)]">
           <h3 className="text-xl font-black text-ink">{STUDIO_NOT_ENROLLED.title[locale]}</h3>
           <p className="mt-1 text-sm font-bold text-muted">{STUDIO_NOT_ENROLLED.body[locale]}</p>
         </div>
@@ -417,7 +452,7 @@ export function StudioPage({
 
     if (models === undefined) {
       return (
-        <div className="surface-card flex min-h-24 items-center justify-center border-2 border-ink bg-white p-4 shadow-[6px_6px_0_0_rgba(14,49,88,0.16)]">
+        <div className="surface-card flex min-h-24 items-center justify-center border-2 border-ink bg-paper-strong p-4 shadow-[6px_6px_0_0_var(--shadow-hard-16)]">
           <Loader2 className="size-5 animate-spin text-muted" />
         </div>
       );
@@ -425,7 +460,7 @@ export function StudioPage({
 
     if (catalog.length === 0) {
       return (
-        <p className="surface-card border-2 border-ink bg-paper p-4 text-sm font-bold text-muted shadow-[6px_6px_0_0_rgba(14,49,88,0.16)]">
+        <p className="surface-card border-2 border-ink bg-paper p-4 text-sm font-bold text-muted shadow-[6px_6px_0_0_var(--shadow-hard-16)]">
           {locale === "sr"
             ? "Nijedan model trenutno nije uključen. Javi se podršci."
             : "No model is enabled right now. Please contact support."}
@@ -476,8 +511,8 @@ export function StudioPage({
                   className={cn(
                     "inline-flex min-h-8 items-center gap-1 rounded-full border-2 border-ink px-3 py-1 text-xs font-black studio-anim-mikro cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
                     scope === option
-                      ? "bg-yellow text-ink shadow-[2px_2px_0_0_#0e3158]"
-                      : "bg-white text-ink hover:-translate-y-0.5",
+                      ? "bg-yellow text-ink shadow-[2px_2px_0_0_var(--ink)]"
+                      : "bg-paper-strong text-ink hover:-translate-y-0.5",
                   )}
                 >
                   {GALLERY_SCOPE_LABELS[option][locale]}

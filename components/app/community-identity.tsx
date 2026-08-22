@@ -54,11 +54,11 @@ export function RoleBadge({
   return (
     <span
       className={cn(
-        "inline-flex items-center justify-center rounded-full border font-black uppercase leading-none shadow-[0_2px_0_rgba(14,49,88,0.16)]",
+        "inline-flex items-center justify-center rounded-full border font-black uppercase leading-none shadow-[0_2px_0_var(--shadow-hard-16)]",
         compact ? "px-1.5 py-0.5 text-[8px]" : "px-2 py-1 text-[10px]",
         role === "admin" && "border-ink bg-yellow text-ink",
-        role === "moderator" && "border-ink/60 bg-ink text-white",
-        role === "pro_student" && "border-ink/40 bg-white text-ink",
+        role === "moderator" && "border-ink/60 bg-ink text-paper-strong",
+        role === "pro_student" && "border-ink/40 bg-paper-strong text-ink",
         (!role || role === "student") && "border-line bg-paper text-ink/70",
         className,
       )}
@@ -82,7 +82,7 @@ export function RankBadge({
   return (
     <span
       className={cn(
-        "inline-flex items-center justify-center rounded-full border border-line bg-white px-2 py-0.5 text-[10px] font-black leading-none text-ink/65",
+        "inline-flex items-center justify-center rounded-full border border-line bg-paper-strong px-2 py-0.5 text-[10px] font-black leading-none text-ink/65",
         className,
       )}
       title={`${rank.label} - ${rank.completedLessons}`}
@@ -118,7 +118,7 @@ export function CommunityAvatar({
       <div className="relative pb-2">
         <div
           className={cn(
-            "grid place-items-center overflow-hidden rounded-full border-2 border-ink bg-yellow font-black text-ink shadow-[3px_3px_0_rgba(14,49,88,0.15)]",
+            "grid place-items-center overflow-hidden rounded-full border-2 border-ink bg-yellow font-black text-ink shadow-[3px_3px_0_var(--shadow-hard-15)]",
             avatarSize,
           )}
           aria-hidden={avatarUrl ? undefined : true}

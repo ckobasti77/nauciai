@@ -62,7 +62,7 @@ export function SuspensionGate({
 
   return (
     <main className="grid min-h-screen place-items-center bg-paper p-4 text-ink">
-      <section aria-labelledby="suspension-title" className="w-full max-w-2xl rounded-[16px] border-2 border-ink bg-white p-5 shadow-[7px_7px_0_0_#f4be30] sm:p-8">
+      <section aria-labelledby="suspension-title" className="w-full max-w-2xl rounded-[16px] border-2 border-ink bg-paper-strong p-5 shadow-[7px_7px_0_0_var(--yellow)] sm:p-8">
         <span className="grid size-12 place-items-center rounded-full border-2 border-ink bg-yellow"><CircleAlert className="size-6" /></span>
         <p className="mt-5 text-xs font-black uppercase tracking-wide text-red-700">{t(locale, "Nalog je suspendovan", "Account suspended")}</p>
         {/* Server-rendered without a fixed timeZone, so the SSR string can differ from the viewer's. */}
@@ -73,18 +73,18 @@ export function SuspensionGate({
         </div>
 
         {activeSuspension.appeal ? (
-          <div className="mt-5 rounded-[16px] border-2 border-[#70a7cf] bg-[#eef6fb] p-4">
-            <p className="text-xs font-black uppercase text-[#2e6f9f]">{t(locale, "Tvoja žalba", "Your appeal")} · {activeSuspension.appeal.status}</p>
+          <div className="mt-5 rounded-[16px] border-2 border-[#70a7cf] dark:border-line bg-[#eef6fb] dark:bg-ink/10 p-4">
+            <p className="text-xs font-black uppercase text-[#2e6f9f] dark:text-muted">{t(locale, "Tvoja žalba", "Your appeal")} · {activeSuspension.appeal.status}</p>
             <p className="mt-2 whitespace-pre-wrap text-sm font-bold leading-6">{activeSuspension.appeal.body}</p>
-            {activeSuspension.appeal.response ? <div className="mt-3 border-t-2 border-[#b9d3e8] pt-3"><p className="text-xs font-black uppercase text-[#2e6f9f]">{t(locale, "Odgovor", "Response")}</p><p className="mt-1 text-sm font-bold leading-6">{activeSuspension.appeal.response}</p></div> : null}
+            {activeSuspension.appeal.response ? <div className="mt-3 border-t-2 border-[#b9d3e8] dark:border-line pt-3"><p className="text-xs font-black uppercase text-[#2e6f9f] dark:text-muted">{t(locale, "Odgovor", "Response")}</p><p className="mt-1 text-sm font-bold leading-6">{activeSuspension.appeal.response}</p></div> : null}
           </div>
         ) : (
           <div className="mt-5">
             <label className="block text-sm font-black">
               {t(locale, "Jedina žalba", "One appeal")}
-              <textarea value={appeal} onChange={(event) => setAppeal(event.target.value)} maxLength={2_000} rows={5} placeholder={t(locale, "Objasni zbog čega tražiš ponovno razmatranje…", "Explain why you are asking for another review…")} className="mt-2 w-full resize-y rounded-[8px] border-2 border-ink bg-white px-4 py-3 text-sm font-bold leading-6 outline-none focus:border-yellow focus:ring-4 focus:ring-yellow/25" />
+              <textarea value={appeal} onChange={(event) => setAppeal(event.target.value)} maxLength={2_000} rows={5} placeholder={t(locale, "Objasni zbog čega tražiš ponovno razmatranje…", "Explain why you are asking for another review…")} className="mt-2 w-full resize-y rounded-[8px] border-2 border-ink bg-paper-strong px-4 py-3 text-sm font-bold leading-6 outline-none focus:border-yellow focus:ring-4 focus:ring-yellow/25" />
             </label>
-            <button type="button" disabled={pending || appeal.trim().length < 10} onClick={() => void sendAppeal()} className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black shadow-[3px_3px_0_0_#0e3158] disabled:opacity-50">
+            <button type="button" disabled={pending || appeal.trim().length < 10} onClick={() => void sendAppeal()} className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black shadow-[3px_3px_0_0_var(--ink)] disabled:opacity-50">
               {pending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}{t(locale, "Pošalji žalbu", "Send appeal")}
             </button>
             {error ? <p role="alert" className="mt-3 text-sm font-black text-red-700">{error}</p> : null}

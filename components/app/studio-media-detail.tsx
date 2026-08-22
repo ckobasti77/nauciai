@@ -342,7 +342,7 @@ export function StudioMediaDetail({
       {/* ========================================================================= */}
       {/* GORNJA TRAKA (Top Bar)                                                    */}
       {/* ========================================================================= */}
-      <header className="sticky top-0 z-30 flex shrink-0 items-center justify-between gap-3 border-b-2 border-ink bg-white px-4 py-3 sm:px-6 shadow-[0_2px_0_0_rgba(14,49,88,0.08)]">
+      <header className="sticky top-0 z-30 flex shrink-0 items-center justify-between gap-3 border-b-2 border-ink bg-paper-strong px-4 py-3 sm:px-6 shadow-[0_2px_0_0_var(--shadow-hard-08)]">
         <div className="flex min-w-0 items-center gap-3">
           {/* Dugme Nazad */}
           <button
@@ -350,7 +350,7 @@ export function StudioMediaDetail({
             onClick={onClose}
             aria-label={t.back}
             title={t.back}
-            className="inline-flex size-10 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-white text-ink shadow-[2px_2px_0_0_rgba(14,49,88,0.18)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            className="inline-flex size-10 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
             <ArrowLeft className="size-5" />
           </button>
@@ -377,7 +377,7 @@ export function StudioMediaDetail({
             aria-label={t.favorite}
             title={t.favorite}
             className={cn(
-              "inline-flex size-10 items-center justify-center rounded-full border-2 border-ink bg-white text-ink shadow-[2px_2px_0_0_rgba(14,49,88,0.18)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+              "inline-flex size-10 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
               isFavorited && "text-yellow",
             )}
           >
@@ -390,7 +390,7 @@ export function StudioMediaDetail({
             onClick={handleShare}
             aria-label={t.share}
             title={copiedLink ? t.copied : t.share}
-            className="relative inline-flex size-10 items-center justify-center rounded-full border-2 border-ink bg-white text-ink shadow-[2px_2px_0_0_rgba(14,49,88,0.18)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            className="relative inline-flex size-10 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
             {copiedLink ? <Check className="size-4 text-green-700" /> : <Copy className="size-4" />}
           </button>
@@ -404,7 +404,7 @@ export function StudioMediaDetail({
               }}
               aria-label={t.download}
               title={t.download}
-              className="inline-flex size-10 items-center justify-center rounded-full border-2 border-ink bg-white text-ink shadow-[2px_2px_0_0_rgba(14,49,88,0.18)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              className="inline-flex size-10 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
               <Download className="size-4" />
             </button>
@@ -416,7 +416,7 @@ export function StudioMediaDetail({
             onClick={() => setConfirmDeleteOpen(true)}
             aria-label={t.delete}
             title={t.delete}
-            className="inline-flex size-10 items-center justify-center rounded-full border-2 border-ink bg-white text-ink shadow-[2px_2px_0_0_rgba(14,49,88,0.18)] transition hover:-translate-y-0.5 hover:text-red-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            className="inline-flex size-10 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 hover:text-red-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
             <Trash2 className="size-4" />
           </button>
@@ -428,7 +428,7 @@ export function StudioMediaDetail({
             aria-label={historyOpen ? t.hideHistory : t.showHistory}
             title={historyOpen ? t.hideHistory : t.showHistory}
             className={cn(
-              "hidden size-10 items-center justify-center rounded-full border-2 border-ink bg-white text-ink shadow-[2px_2px_0_0_rgba(14,49,88,0.18)] transition hover:-translate-y-0.5 md:inline-flex studio-focus-ink",
+              "hidden size-10 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 md:inline-flex studio-focus-ink",
               historyOpen && "bg-yellow/30",
             )}
           >
@@ -439,7 +439,7 @@ export function StudioMediaDetail({
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex min-h-10 items-center justify-center rounded-full border-2 border-ink bg-ink px-4 py-1.5 text-sm font-black text-white shadow-[3px_3px_0_0_#f4be30] transition hover:-translate-y-0.5"
+            className="inline-flex min-h-10 items-center justify-center rounded-full border-2 border-ink bg-ink px-4 py-1.5 text-sm font-black text-paper-strong shadow-[3px_3px_0_0_var(--yellow)] transition hover:-translate-y-0.5"
           >
             {t.done}
           </button>
@@ -450,8 +450,8 @@ export function StudioMediaDetail({
       {/* DIJALOG ZA POTVRDU BRISANJA                                               */}
       {/* ========================================================================= */}
       {confirmDeleteOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4 backdrop-blur-xs">
-          <div className="surface-card w-full max-w-md border-2 border-ink bg-white p-6 shadow-[6px_6px_0_0_rgba(14,49,88,0.2)]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-scrim/50 p-4 backdrop-blur-xs">
+          <div className="surface-card w-full max-w-md border-2 border-ink bg-paper-strong p-6 shadow-[6px_6px_0_0_var(--shadow-hard-20)]">
             <h3 className="text-lg font-black text-ink">{t.confirmDeleteTitle}</h3>
             <p className="mt-2 text-sm font-bold text-muted">{t.confirmDeleteBody}</p>
 
@@ -464,7 +464,7 @@ export function StudioMediaDetail({
                 type="button"
                 onClick={() => setConfirmDeleteOpen(false)}
                 disabled={isDeleting}
-                className="rounded-full border-2 border-ink bg-white px-4 py-2 text-xs font-extrabold text-ink shadow-[2px_2px_0_0_rgba(14,49,88,0.18)] transition hover:-translate-y-0.5"
+                className="rounded-full border-2 border-ink bg-paper-strong px-4 py-2 text-xs font-extrabold text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5"
               >
                 {t.cancel}
               </button>
@@ -472,7 +472,7 @@ export function StudioMediaDetail({
                 type="button"
                 onClick={handleDelete}
                 disabled={isDeleting}
-                className="inline-flex items-center gap-2 rounded-full border-2 border-ink bg-red-600 px-4 py-2 text-xs font-black text-white shadow-[3px_3px_0_0_#0e3158] transition hover:-translate-y-0.5"
+                className="inline-flex items-center gap-2 rounded-full border-2 border-ink bg-red-600 px-4 py-2 text-xs font-black text-white shadow-[3px_3px_0_0_var(--ink)] transition hover:-translate-y-0.5"
               >
                 {isDeleting ? <Loader2 className="size-3.5 animate-spin" /> : null}
                 <span>{t.deleteConfirm}</span>
@@ -496,7 +496,7 @@ export function StudioMediaDetail({
                 onClick={() => onSelectJob(prevJob)}
                 aria-label={t.prev}
                 title={t.prev}
-                className="absolute -left-5 z-20 hidden size-10 items-center justify-center rounded-full border-2 border-ink bg-white text-ink shadow-[2px_2px_0_0_rgba(14,49,88,0.18)] transition hover:-translate-y-0.5 lg:inline-flex studio-focus-ink"
+                className="absolute -left-5 z-20 hidden size-10 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 lg:inline-flex studio-focus-ink"
               >
                 <ChevronLeft className="size-5" />
               </button>
@@ -505,7 +505,7 @@ export function StudioMediaDetail({
             {/* TAMNI BUNAR (Rešenje A „Mastionica") */}
             <div
               className={cn(
-                "surface-card relative w-full overflow-hidden border-2 border-ink bg-studio-well shadow-[6px_6px_0_0_rgba(14,49,88,0.16)]",
+                "surface-card relative w-full overflow-hidden border-2 border-ink bg-studio-well shadow-[6px_6px_0_0_var(--shadow-hard-16)]",
                 "flex min-h-[320px] items-center justify-center",
                 isZoomed && "cursor-zoom-out overflow-auto",
               )}
@@ -543,7 +543,7 @@ export function StudioMediaDetail({
                         });
                       }
                     }}
-                    className="mt-2 inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 py-1.5 text-xs font-black text-ink shadow-[3px_3px_0_0_#0e3158] transition hover:-translate-y-0.5"
+                    className="mt-2 inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 py-1.5 text-xs font-black text-ink shadow-[3px_3px_0_0_var(--ink)] transition hover:-translate-y-0.5"
                   >
                     <RefreshCw className="size-3.5" />
                     <span>{`${t.generateAgain} · ${job.creditCost} ${locale === "sr" ? "kr" : "cr"}`}</span>
@@ -625,7 +625,7 @@ export function StudioMediaDetail({
                           type="button"
                           onClick={handleTogglePlay}
                           aria-label={t.play}
-                          className="absolute inset-0 m-auto flex size-16 items-center justify-center rounded-full border-2 border-ink bg-white/90 text-ink shadow-lg transition hover:scale-105 studio-focus-ink"
+                          className="absolute inset-0 m-auto flex size-16 items-center justify-center rounded-full border-2 border-ink bg-paper-strong/90 text-ink shadow-lg transition hover:scale-105 studio-focus-ink"
                         >
                           <Play className="ml-1 size-7 fill-current" />
                         </button>
@@ -665,7 +665,7 @@ export function StudioMediaDetail({
                 onClick={() => onSelectJob(nextJob)}
                 aria-label={t.next}
                 title={t.next}
-                className="absolute -right-5 z-20 hidden size-10 items-center justify-center rounded-full border-2 border-ink bg-white text-ink shadow-[2px_2px_0_0_rgba(14,49,88,0.18)] transition hover:-translate-y-0.5 lg:inline-flex studio-focus-ink"
+                className="absolute -right-5 z-20 hidden size-10 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 lg:inline-flex studio-focus-ink"
               >
                 <ChevronRight className="size-5" />
               </button>
@@ -674,7 +674,7 @@ export function StudioMediaDetail({
 
           {/* TIMELINE (Ispod medija za video i audio) */}
           {(job.kind === "video" || job.kind === "audio") && hasOutput && !isWorking ? (
-            <div className="surface-inset flex w-full max-w-[780px] items-center gap-3 border-2 border-ink bg-white px-4 py-2.5 shadow-[3px_3px_0_0_rgba(14,49,88,0.12)]">
+            <div className="surface-inset flex w-full max-w-[780px] items-center gap-3 border-2 border-ink bg-paper-strong px-4 py-2.5 shadow-[3px_3px_0_0_var(--shadow-hard-12)]">
               {/* Play / Pause */}
               <button
                 type="button"
@@ -720,7 +720,7 @@ export function StudioMediaDetail({
 
         {/* DESNI DEO: PANEL „ISTORIJA" (Provenance) */}
         {historyOpen ? (
-          <aside className="surface-card mt-4 flex w-full flex-col border-2 border-ink bg-white p-4 shadow-[4px_4px_0_0_rgba(14,49,88,0.14)] md:mt-0 md:w-80 md:shrink-0">
+          <aside className="surface-card mt-4 flex w-full flex-col border-2 border-ink bg-paper-strong p-4 shadow-[4px_4px_0_0_var(--shadow-hard-14)] md:mt-0 md:w-80 md:shrink-0">
             <div className="flex items-center justify-between border-b-2 border-ink/15 pb-3">
               <div className="flex items-center gap-2">
                 <History className="size-4 text-ink" />
@@ -741,7 +741,7 @@ export function StudioMediaDetail({
                 <span className="block text-[11px] font-black uppercase tracking-wide text-muted">{t.model}</span>
                 <div className="mt-1.5 flex items-center gap-2.5 surface-inset border-2 border-ink bg-paper p-2.5">
                   {jobModel ? (
-                    <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-ink font-mono text-xs font-black text-white">
+                    <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-ink font-mono text-xs font-black text-paper-strong">
                       {familyMark(jobModel)}
                     </span>
                   ) : null}
@@ -750,7 +750,7 @@ export function StudioMediaDetail({
                       {jobModel ? modelLabel(jobModel, locale) : job.modelSlug}
                     </span>
                     {jobModel?.badge ? (
-                      <span className="ml-2 inline-block rounded-full border border-ink bg-white px-1.5 py-0.2 text-[9px] font-black uppercase text-ink">
+                      <span className="ml-2 inline-block rounded-full border border-ink bg-paper-strong px-1.5 py-0.2 text-[9px] font-black uppercase text-ink">
                         {MODEL_BADGE_LABELS[jobModel.badge][locale]}
                       </span>
                     ) : null}
@@ -824,7 +824,7 @@ export function StudioMediaDetail({
                 onClick={() => {
                   if (jobModel) onSelectModel(jobModel);
                 }}
-                className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-full border-2 border-ink bg-paper py-2 text-xs font-black text-ink shadow-[2px_2px_0_0_rgba(14,49,88,0.18)] transition hover:-translate-y-0.5"
+                className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-full border-2 border-ink bg-paper py-2 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5"
               >
                 <Sparkles className="size-3.5" />
                 <span>{t.reuseAsInput}</span>

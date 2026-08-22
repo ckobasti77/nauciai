@@ -4,6 +4,7 @@ import { ConvexAuthNextjsProvider } from "@convex-dev/auth/nextjs";
 import { ConvexReactClient } from "convex/react";
 import type { ReactNode } from "react";
 
+import { ThemeProvider } from "@/components/providers/theme-provider";
 import { ToastProvider } from "@/components/ui/toast-provider";
 import { ScrollToTop } from "@/components/ui/scroll-to-top";
 
@@ -12,13 +13,19 @@ const convexClient = convexUrl ? new ConvexReactClient(convexUrl) : null;
 
 export function AppProviders({ children }: { children: ReactNode }) {
   if (!convexClient) {
-    return <ToastProvider><ScrollToTop />{children}</ToastProvider>;
+    return (
+      <ThemeProvider>
+        <ToastProvider><ScrollToTop />{children}</ToastProvider>
+      </ThemeProvider>
+    );
   }
 
   return (
-    <ToastProvider>
-      <ScrollToTop />
-      <ConvexAuthNextjsProvider client={convexClient}>{children}</ConvexAuthNextjsProvider>
-    </ToastProvider>
+    <ThemeProvider>
+      <ToastProvider>
+        <ScrollToTop />
+        <ConvexAuthNextjsProvider client={convexClient}>{children}</ConvexAuthNextjsProvider>
+      </ToastProvider>
+    </ThemeProvider>
   );
 }

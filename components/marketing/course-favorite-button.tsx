@@ -63,7 +63,7 @@ export function CourseFavoriteButton({
       onClick={handleClick}
       disabled={isLoading || isPending}
       className={cn(
-        "relative z-10 inline-flex size-11 items-center justify-center rounded-full border-[2px] border-ink bg-white text-ink shadow-[3px_3px_0_0_rgba(14,49,88,0.24)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-wait disabled:opacity-80",
+        "relative z-10 inline-flex size-11 items-center justify-center rounded-full border-[2px] border-ink bg-paper-strong text-ink shadow-[3px_3px_0_0_var(--shadow-hard-24)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-wait disabled:opacity-80",
         isFavorite && "bg-yellow text-red-700 shadow-[3px_3px_0_0_rgba(185,28,28,0.35)]",
       )}
     >

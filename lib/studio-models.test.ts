@@ -19,6 +19,8 @@ import {
   modelLabel,
   modelTagline,
   parseStudioModel,
+  PROVIDER_BRANDS,
+  providerBrandOf,
   type StudioModel,
   type StudioModelRow,
 } from "@/lib/studio-models";
@@ -171,6 +173,42 @@ describe("familyMark", () => {
     expect(familyMark(parsed("nano-banana-2"))).toBe("NB");
     expect(familyMark(parsed("kling-3"))).toBe("KL");
     expect(familyMark(parsed("veo-31"))).toBe("VE");
+  });
+});
+
+describe("providerBrandOf", () => {
+  test("svaki model iz kataloga dobija poznatu firmu", () => {
+    for (const seed of STUDIO_MODELS) {
+      const brand = providerBrandOf(seed);
+      // Ako familija nije mapirana, `brand` je null i ovaj assertion pukne -
+      // tako novi model bez znaka ne prođe tiho (SP1, tačka 2).
+      expect(brand, seed.slug).not.toBeNull();
+      expect(PROVIDER_BRANDS, seed.slug).toContain(brand);
+    }
+  });
+
+  test("firma se izvodi iz familije, ne iz rute (`provider`)", () => {
+    // Seedream ide i preko `fal` (Lite/4.5) i preko `byteplus` (Pro), ali je
+    // firma u oba slučaja ByteDance - ruter se nikad ne prikazuje kao autor.
+    expect(parsed("seedream-45").provider).toBe("fal");
+    expect(providerBrandOf(parsed("seedream-45"))).toBe("bytedance");
+    expect(parsed("seedream-5-pro").provider).toBe("byteplus");
+    expect(providerBrandOf(parsed("seedream-5-pro"))).toBe("bytedance");
+  });
+
+  test("porodice se slikaju na tačnu firmu", () => {
+    expect(providerBrandOf(parsed("nano-banana-2"))).toBe("google");
+    expect(providerBrandOf(parsed("gemini-omni"))).toBe("google");
+    expect(providerBrandOf(parsed("veo-31"))).toBe("google");
+    expect(providerBrandOf(parsed("gpt-image-2"))).toBe("openai");
+    expect(providerBrandOf(parsed("seedance-25"))).toBe("bytedance");
+    expect(providerBrandOf(parsed("kling-3"))).toBe("kling");
+    expect(providerBrandOf(parsed("minimax-h3"))).toBe("minimax");
+    expect(providerBrandOf(parsed("tts"))).toBe("elevenlabs");
+  });
+
+  test("nepoznata familija svesno vraća null (rezerva pada na familyMark)", () => {
+    expect(providerBrandOf({ family: "izmisljena-familija" })).toBeNull();
   });
 });
 

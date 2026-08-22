@@ -162,22 +162,34 @@ Režimi: `text`, `image_multi` (edit, 1–10 slika).
 |---|---|---|---|
 | `prompt` | textarea (max 2000) | — | — |
 | `resolution` | segmented | 0.5K · **1K** · 2K · 4K | `1K` |
-| `aspect_ratio` | select | 1:1 · 16:9 · 9:16 · 4:3 · 3:4 | `1:1` |
-| `num_images` | number 1–4 | — | 1 |
+| `aspect_ratio` | select | 1:1 · 16:9 · 9:16 · 3:2 · 2:3 | `1:1` |
+
+> **`num_images` je uklonjen.** Interactions API vraća **jednu sliku po pozivu**,
+> a posao ima jedno izlazno polje. Kontrola koja naplati četiri a isporuči jednu
+> je gora od kontrole koje nema.
+>
+> **`4:3` i `3:4` su zamenjeni sa `3:2` i `2:3`** — prva dva Google ne
+> dokumentuje, a nepodržan odnos vraća 400 tek POSLE rezervacije kredita.
 
 **Cenovno pravilo**
 ```json
 { "unit": "image", "baseUsd": 0.067, "addUsd": 0.003,
-  "multipliers": [{ "param": "resolution", "map": { "0.5K": 0.75, "1K": 1, "2K": 1.5, "4K": 2 } }],
-  "quantityParam": "num_images" }
+  "multipliers": [{ "param": "resolution",
+    "map": { "0.5K": 0.6716, "1K": 1, "2K": 1.5075, "4K": 2.2537 } }] }
 ```
+
+Množioci su količnici **zvaničnog cenovnika** prema 1K, ne okrugli brojevi.
 
 | Rezolucija | Nabavno | **Krediti** |
 |---|---|---|
-| 0,5K | $0,053 | **12** |
+| 0,5K | $0,048 | **11** |
 | 1K | $0,070 | **16** |
 | 2K | $0,104 | **23** |
-| 4K | $0,137 | **30** |
+| 4K | $0,154 | **34** |
+
+> **Ispravka.** Stari red je na 4K računao $0,137 (množilac 2), a Google
+> naplaćuje **$0,151** po slici. To je bilo 11% ispod nabavne, dakle stvarna
+> marža 2,27× umesto 2,5×.
 
 ### 2.2 `nano-banana-pro` — Nano Banana Pro · `google`
 
@@ -187,13 +199,12 @@ Režimi: `text`, `image_multi`.
 > **1K ne postoji kao opcija.** Google naplaćuje identično za 1K i 2K
 > (1 120 tokena oba). Ponuditi 1K znači naplatiti isto za manju sliku.
 
-**Parametri:** `prompt`, `resolution` (segmented: **2K** · 4K),
-`aspect_ratio`, `num_images` (1–4).
+**Parametri:** `prompt`, `resolution` (segmented: **2K** · 4K), `aspect_ratio`.
+`num_images` ne postoji — isti razlog kao kod 2.1.
 
 ```json
 { "unit": "image", "baseUsd": 0.134, "addUsd": 0.015,
-  "multipliers": [{ "param": "resolution", "map": { "2K": 1, "4K": 1.791 } }],
-  "quantityParam": "num_images" }
+  "multipliers": [{ "param": "resolution", "map": { "2K": 1, "4K": 1.791 } }] }
 ```
 
 | Rezolucija | Nabavno | **Krediti** |

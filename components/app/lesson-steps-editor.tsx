@@ -163,7 +163,7 @@ const PANEL_META: Record<
     shortSr: "Chatbot",
     shortEn: "Chatbot",
     icon: <Bot className="size-4" />,
-    tone: "bg-ink text-white",
+    tone: "bg-ink text-paper-strong",
   },
   output: {
     labelSr: "Output",
@@ -171,7 +171,7 @@ const PANEL_META: Record<
     shortSr: "Output",
     shortEn: "Output",
     icon: <MessageSquareText className="size-4" />,
-    tone: "bg-white text-ink",
+    tone: "bg-paper-strong text-ink",
   },
 };
 
@@ -329,7 +329,7 @@ function WidthStepper({
   onChange: (units: WidthUnits) => void;
 }) {
   return (
-    <div className="inline-flex rounded-[8px] border-2 border-ink bg-white p-1 shadow-[2px_2px_0_0_rgba(14,49,88,0.12)]">
+    <div className="inline-flex rounded-[8px] border-2 border-ink bg-paper-strong p-1 shadow-[2px_2px_0_0_var(--shadow-hard-12)]">
       {WIDTH_UNITS.map((option) => (
         <button
           key={`width-${option}`}
@@ -372,7 +372,7 @@ function PanelPalette({
           onDragStart={(event) => onDragStart(event, type)}
           onDragEnd={onDragEnd}
           onClick={() => onClick?.(type)}
-          className="flex min-h-14 cursor-grab items-center gap-3 rounded-[8px] border-2 border-ink bg-white px-3 text-left text-sm font-black text-ink shadow-[3px_3px_0_0_rgba(14,49,88,0.12)] transition hover:-translate-y-0.5 hover:bg-yellow active:cursor-grabbing"
+          className="flex min-h-14 cursor-grab items-center gap-3 rounded-[8px] border-2 border-ink bg-paper-strong px-3 text-left text-sm font-black text-ink shadow-[3px_3px_0_0_var(--shadow-hard-12)] transition hover:-translate-y-0.5 hover:bg-yellow active:cursor-grabbing"
         >
           <span className={cn("inline-flex size-9 shrink-0 items-center justify-center rounded-[8px] border-2 border-ink", PANEL_META[type].tone)}>
             <PanelIcon type={type} />
@@ -404,11 +404,11 @@ function EditorSidebarRail({
 }) {
   const chevron = side === "steps" ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />;
   return (
-    <div className="flex h-full min-h-0 flex-col items-center gap-3 border-inherit bg-white px-1.5 py-3">
+    <div className="flex h-full min-h-0 flex-col items-center gap-3 border-inherit bg-paper-strong px-1.5 py-3">
       <button
         type="button"
         onClick={onExpand}
-        className="inline-flex size-9 items-center justify-center rounded-[8px] border-2 border-ink bg-yellow text-ink shadow-[2px_2px_0_0_rgba(14,49,88,0.14)] transition hover:-translate-y-0.5"
+        className="inline-flex size-9 items-center justify-center rounded-[8px] border-2 border-ink bg-yellow text-ink shadow-[2px_2px_0_0_var(--shadow-hard-14)] transition hover:-translate-y-0.5"
         aria-label={t(locale, `Otvori ${label}`, `Open ${label}`)}
         title={t(locale, `Otvori ${label}`, `Open ${label}`)}
       >
@@ -444,7 +444,7 @@ function SidebarResizeHandle({
         side === "steps" ? "-right-1.5" : "-left-1.5",
       )}
     >
-      <span className="inline-flex rounded-[6px] border border-ink bg-white p-1 text-ink opacity-0 shadow-[2px_2px_0_0_rgba(14,49,88,0.14)] transition group-hover:opacity-100">
+      <span className="inline-flex rounded-[6px] border border-ink bg-paper-strong p-1 text-ink opacity-0 shadow-[2px_2px_0_0_var(--shadow-hard-14)] transition group-hover:opacity-100">
         <GripVertical className="size-3" />
       </span>
     </div>
@@ -472,12 +472,12 @@ function CanvasDropZone({
       }}
       onDrop={(event) => onDrop(event, slotIndex)}
       className={cn(
-        "flex min-h-[540px] min-w-0 flex-col items-center justify-center rounded-[8px] border-2 border-dashed bg-white/70 p-5 text-center transition xl:row-start-1",
+        "flex min-h-[540px] min-w-0 flex-col items-center justify-center rounded-[8px] border-2 border-dashed bg-paper-strong/70 p-5 text-center transition xl:row-start-1",
         gridStartClass(slotIndex),
         draggingType ? "border-ink bg-yellow/15" : "border-line",
       )}
     >
-      <div className="inline-flex size-12 items-center justify-center rounded-[8px] border-2 border-ink bg-yellow text-ink shadow-[3px_3px_0_0_rgba(14,49,88,0.14)]">
+      <div className="inline-flex size-12 items-center justify-center rounded-[8px] border-2 border-ink bg-yellow text-ink shadow-[3px_3px_0_0_var(--shadow-hard-14)]">
         <Plus className="size-5" />
       </div>
       <p className="mt-4 text-sm font-black uppercase text-ink">
@@ -492,7 +492,7 @@ function CanvasDropZone({
             key={`drop-add-${slotIndex}-${type}`}
             type="button"
             onClick={() => onAdd(slotIndex, type)}
-            className="inline-flex min-h-9 items-center justify-center gap-2 rounded-[8px] border-2 border-line bg-white px-3 text-xs font-black text-ink transition hover:border-ink hover:bg-yellow"
+            className="inline-flex min-h-9 items-center justify-center gap-2 rounded-[8px] border-2 border-line bg-paper-strong px-3 text-xs font-black text-ink transition hover:border-ink hover:bg-yellow"
           >
             <PanelIcon type={type} />
             {panelLabel(locale, type, "short")}
@@ -551,7 +551,7 @@ function ToolbarButton({
       title={title}
       className={cn(
         "inline-flex min-h-9 items-center justify-center gap-2 rounded-[8px] border-2 px-3 text-xs font-black transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
-        active ? "border-ink bg-yellow text-ink" : "border-line bg-white text-muted hover:border-ink hover:text-ink",
+        active ? "border-ink bg-yellow text-ink" : "border-line bg-paper-strong text-muted hover:border-ink hover:text-ink",
         disabled && "cursor-not-allowed opacity-40 hover:border-line hover:text-muted",
       )}
     >
@@ -572,7 +572,7 @@ function SectionCard({
   action?: ReactNode;
 }) {
   return (
-    <section className="rounded-[8px] border-2 border-line bg-white p-3">
+    <section className="rounded-[8px] border-2 border-line bg-paper-strong p-3">
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
           <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-[8px] border-2 border-ink bg-yellow text-ink">
@@ -588,11 +588,11 @@ function SectionCard({
 }
 
 const inputClass =
-  "h-10 w-full rounded-[8px] border-2 border-ink bg-white px-3 text-sm font-bold text-ink outline-none transition placeholder:text-muted/60 focus:border-yellow focus:ring-4 focus:ring-yellow/25";
+  "h-10 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-3 text-sm font-bold text-ink outline-none transition placeholder:text-muted/60 focus:border-yellow focus:ring-4 focus:ring-yellow/25";
 const compactInputClass =
-  "h-8 w-full rounded-[6px] border border-ink bg-white px-2 text-xs font-bold text-ink outline-none transition placeholder:text-muted/60 focus:border-yellow";
+  "h-8 w-full rounded-[6px] border border-ink bg-paper-strong px-2 text-xs font-bold text-ink outline-none transition placeholder:text-muted/60 focus:border-yellow";
 const textareaClass =
-  "w-full resize-none rounded-[8px] border-2 border-ink bg-white p-3 text-sm font-bold leading-6 text-ink outline-none transition placeholder:text-muted/60 focus:border-yellow focus:ring-4 focus:ring-yellow/25";
+  "w-full resize-none rounded-[8px] border-2 border-ink bg-paper-strong p-3 text-sm font-bold leading-6 text-ink outline-none transition placeholder:text-muted/60 focus:border-yellow focus:ring-4 focus:ring-yellow/25";
 
 export function LessonStepsEditor({
   course,
@@ -985,7 +985,7 @@ export function LessonStepsEditor({
   if (!labData) {
     return (
       <div className="flex min-h-[480px] items-center justify-center bg-paper p-12 text-ink">
-        <div className="rounded-[8px] border-2 border-ink bg-white p-6 text-center shadow-[6px_6px_0_0_rgba(14,49,88,0.13)]">
+        <div className="rounded-[8px] border-2 border-ink bg-paper-strong p-6 text-center shadow-[6px_6px_0_0_var(--shadow-hard-13)]">
           <Loader2 className="mx-auto size-8 animate-spin text-yellow" />
           <p className="mt-3 text-sm font-black text-muted">
             {t(locale, "Ucitavam admin editor...", "Loading admin editor...")}
@@ -1005,7 +1005,7 @@ export function LessonStepsEditor({
 
   return (
     <div className="flex h-screen min-h-[720px] flex-col overflow-hidden bg-paper text-ink">
-      <header className="flex shrink-0 flex-col gap-3 border-b-2 border-ink bg-white px-4 py-3 lg:flex-row lg:items-center lg:justify-between lg:px-5">
+      <header className="flex shrink-0 flex-col gap-3 border-b-2 border-ink bg-paper-strong px-4 py-3 lg:flex-row lg:items-center lg:justify-between lg:px-5">
         <div className="flex min-w-0 items-center gap-3">
           <Link
             href={withLocale(locale, `/app/courses/${course.slug}/lessons/${lesson.slug}`)}
@@ -1056,7 +1056,7 @@ export function LessonStepsEditor({
           </ToolbarButton>
           <Link
             href={withLocale(locale, `/app/courses/${course.slug}/lessons/${lesson.slug}`)}
-            className="inline-flex min-h-9 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-yellow px-3 text-xs font-black text-ink shadow-[2px_2px_0_0_rgba(14,49,88,0.16)] transition hover:-translate-y-0.5"
+            className="inline-flex min-h-9 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-yellow px-3 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--shadow-hard-16)] transition hover:-translate-y-0.5"
           >
             <Eye className="size-4" />
             {t(locale, "Preview", "Preview")}
@@ -1064,7 +1064,7 @@ export function LessonStepsEditor({
         </div>
       </header>
 
-      <div className="grid shrink-0 grid-cols-3 border-b-2 border-line bg-white p-2 lg:hidden">
+      <div className="grid shrink-0 grid-cols-3 border-b-2 border-line bg-paper-strong p-2 lg:hidden">
         {[
           ["steps", t(locale, "Koraci", "Steps"), <ListPlus key="steps" className="size-4" />],
           ["canvas", "Canvas", <LayoutDashboard key="canvas" className="size-4" />],
@@ -1091,7 +1091,7 @@ export function LessonStepsEditor({
       >
         <aside
           className={cn(
-            "relative min-h-0 border-r-2 border-ink bg-white",
+            "relative min-h-0 border-r-2 border-ink bg-paper-strong",
             mobileTab !== "steps" && "hidden lg:block",
           )}
         >
@@ -1117,7 +1117,7 @@ export function LessonStepsEditor({
                   type="button"
                   onClick={handleAddStep}
                   disabled={!hasIds || saving}
-                  className="inline-flex size-10 items-center justify-center rounded-[8px] border-2 border-ink bg-yellow text-ink shadow-[2px_2px_0_0_rgba(14,49,88,0.16)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex size-10 items-center justify-center rounded-[8px] border-2 border-ink bg-yellow text-ink shadow-[2px_2px_0_0_var(--shadow-hard-16)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
                   aria-label={t(locale, "Dodaj korak", "Add step")}
                 >
                   {saving ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-5" />}
@@ -1149,7 +1149,7 @@ export function LessonStepsEditor({
                     }}
                     className={cn(
                       "group w-full rounded-[8px] border-2 p-3 text-left transition",
-                      active ? "border-ink bg-yellow/25 shadow-[3px_3px_0_0_rgba(14,49,88,0.14)]" : "border-line bg-paper hover:border-ink hover:bg-white",
+                      active ? "border-ink bg-yellow/25 shadow-[3px_3px_0_0_var(--shadow-hard-14)]" : "border-line bg-paper hover:border-ink hover:bg-paper-strong",
                     )}
                   >
                     <div className="flex items-start justify-between gap-3">
@@ -1188,7 +1188,7 @@ export function LessonStepsEditor({
                           type="button"
                           disabled={index === 0}
                           onClick={() => void handleMoveStep(index, "up")}
-                          className="inline-flex size-6 items-center justify-center rounded border border-line bg-white text-muted hover:border-ink hover:text-ink disabled:opacity-25"
+                          className="inline-flex size-6 items-center justify-center rounded border border-line bg-paper-strong text-muted hover:border-ink hover:text-ink disabled:opacity-25"
                           aria-label={t(locale, "Pomeri gore", "Move up")}
                         >
                           <ArrowUp className="size-3.5" />
@@ -1197,7 +1197,7 @@ export function LessonStepsEditor({
                           type="button"
                           disabled={index === sortedSteps.length - 1}
                           onClick={() => void handleMoveStep(index, "down")}
-                          className="inline-flex size-6 items-center justify-center rounded border border-line bg-white text-muted hover:border-ink hover:text-ink disabled:opacity-25"
+                          className="inline-flex size-6 items-center justify-center rounded border border-line bg-paper-strong text-muted hover:border-ink hover:text-ink disabled:opacity-25"
                           aria-label={t(locale, "Pomeri dole", "Move down")}
                         >
                           <ArrowDown className="size-3.5" />
@@ -1249,7 +1249,7 @@ export function LessonStepsEditor({
         >
           {stepForm ? (
             <div className="flex h-full flex-col">
-              <div className="shrink-0 border-b-2 border-line bg-white p-4">
+              <div className="shrink-0 border-b-2 border-line bg-paper-strong p-4">
                 <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_170px_140px]">
                   <div className="grid min-w-0 gap-3 md:grid-cols-2">
                     <label className="block min-w-0">
@@ -1292,8 +1292,8 @@ export function LessonStepsEditor({
               </div>
 
               <div className="min-h-0 flex-1 overflow-hidden p-4">
-                <div className="flex h-full min-h-[560px] flex-col overflow-hidden rounded-[8px] border-2 border-ink bg-white shadow-[6px_6px_0_0_rgba(14,49,88,0.12)]">
-                  <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b-2 border-ink bg-white px-4 py-3">
+                <div className="flex h-full min-h-[560px] flex-col overflow-hidden rounded-[8px] border-2 border-ink bg-paper-strong shadow-[6px_6px_0_0_var(--shadow-hard-12)]">
+                  <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b-2 border-ink bg-paper-strong px-4 py-3">
                     <div className="min-w-0">
                       <p className="text-[10px] font-black uppercase text-muted">
                         {t(locale, "Learner preview canvas", "Learner preview canvas")}
@@ -1379,7 +1379,7 @@ export function LessonStepsEditor({
             </div>
           ) : (
             <div className="flex h-full items-center justify-center p-8">
-              <div className="max-w-md rounded-[8px] border-2 border-dashed border-line bg-white p-8 text-center">
+              <div className="max-w-md rounded-[8px] border-2 border-dashed border-line bg-paper-strong p-8 text-center">
                 <LayoutDashboard className="mx-auto size-10 text-ink" />
                 <h2 className="mt-4 text-xl font-black text-ink">
                   {t(locale, "Nema aktivnog koraka", "No active step")}
@@ -1394,7 +1394,7 @@ export function LessonStepsEditor({
 
         <aside
           className={cn(
-            "relative min-h-0 border-l-2 border-ink bg-white",
+            "relative min-h-0 border-l-2 border-ink bg-paper-strong",
             inspectorCollapsed ? "overflow-hidden" : "overflow-y-auto",
             mobileTab !== "inspector" && "hidden lg:block",
           )}
@@ -1484,13 +1484,13 @@ function EditorPanel({
       }}
       onDrop={onDrop}
       className={cn(
-        "relative flex min-h-[540px] min-w-0 flex-col overflow-hidden rounded-[8px] border-2 bg-white shadow-[4px_4px_0_0_rgba(14,49,88,0.10)] xl:row-start-1",
+        "relative flex min-h-[540px] min-w-0 flex-col overflow-hidden rounded-[8px] border-2 bg-paper-strong shadow-[4px_4px_0_0_var(--shadow-hard-10)] xl:row-start-1",
         gridStartClass(slotIndex),
         gridSpanClass(units),
         active ? "border-ink outline outline-2 outline-yellow" : "border-line",
       )}
     >
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b-2 border-line bg-white px-4 py-3">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b-2 border-line bg-paper-strong px-4 py-3">
         <div className="flex min-w-0 items-center gap-2">
           <span
             className={cn(
@@ -1605,7 +1605,7 @@ function ExplanationEditor({
           <button
             type="button"
             onClick={onAddTask}
-            className="inline-flex min-h-8 items-center justify-center gap-1.5 rounded-[6px] border border-ink bg-white px-2 text-xs font-black text-ink transition hover:bg-yellow"
+            className="inline-flex min-h-8 items-center justify-center gap-1.5 rounded-[6px] border border-ink bg-paper-strong px-2 text-xs font-black text-ink transition hover:bg-yellow"
           >
             <Plus className="size-3.5" />
             {t(locale, "Dodaj", "Add")}
@@ -1616,7 +1616,7 @@ function ExplanationEditor({
           {tasks.map((task, index) => (
             <div key={task._id} className="rounded-[8px] border-2 border-line bg-paper p-3">
               <div className="flex items-start justify-between gap-2">
-                <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-white text-xs font-black text-ink">
+                <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-xs font-black text-ink">
                   {index + 1}
                 </span>
                 <div className="flex items-center gap-1">
@@ -1624,7 +1624,7 @@ function ExplanationEditor({
                     type="button"
                     disabled={index === 0}
                     onClick={() => onMoveTask(index, "up")}
-                    className="inline-flex size-7 items-center justify-center rounded border border-line bg-white text-muted hover:border-ink hover:text-ink disabled:opacity-25"
+                    className="inline-flex size-7 items-center justify-center rounded border border-line bg-paper-strong text-muted hover:border-ink hover:text-ink disabled:opacity-25"
                     aria-label={t(locale, "Pomeri gore", "Move up")}
                   >
                     <ArrowUp className="size-3.5" />
@@ -1633,7 +1633,7 @@ function ExplanationEditor({
                     type="button"
                     disabled={index === tasks.length - 1}
                     onClick={() => onMoveTask(index, "down")}
-                    className="inline-flex size-7 items-center justify-center rounded border border-line bg-white text-muted hover:border-ink hover:text-ink disabled:opacity-25"
+                    className="inline-flex size-7 items-center justify-center rounded border border-line bg-paper-strong text-muted hover:border-ink hover:text-ink disabled:opacity-25"
                     aria-label={t(locale, "Pomeri dole", "Move down")}
                   >
                     <ArrowDown className="size-3.5" />
@@ -1692,7 +1692,7 @@ function ExplanationEditor({
                   {t(locale, "Obavezan", "Required")}
                 </label>
                 <select
-                  className="h-8 rounded-[6px] border border-ink bg-white px-2 text-xs font-black text-ink"
+                  className="h-8 rounded-[6px] border border-ink bg-paper-strong px-2 text-xs font-black text-ink"
                   value={task.completionMode}
                   onChange={(event) => onUpdateTask(task, { completionMode: event.target.value as CompletionMode })}
                 >
@@ -1705,7 +1705,7 @@ function ExplanationEditor({
           ))}
 
           {!tasks.length ? (
-            <div className="rounded-[8px] border-2 border-dashed border-line bg-white p-4 text-center text-sm font-black text-muted">
+            <div className="rounded-[8px] border-2 border-dashed border-line bg-paper-strong p-4 text-center text-sm font-black text-muted">
               {t(locale, "Nema zadataka u ovom koraku.", "No tasks in this step.")}
             </div>
           ) : null}
@@ -1719,7 +1719,7 @@ function ExplanationEditor({
           <button
             type="button"
             onClick={onAddPrompt}
-            className="inline-flex min-h-8 items-center justify-center gap-1.5 rounded-[6px] border border-ink bg-white px-2 text-xs font-black text-ink transition hover:bg-yellow"
+            className="inline-flex min-h-8 items-center justify-center gap-1.5 rounded-[6px] border border-ink bg-paper-strong px-2 text-xs font-black text-ink transition hover:bg-yellow"
           >
             <Plus className="size-3.5" />
             {t(locale, "Dodaj", "Add")}
@@ -1766,7 +1766,7 @@ function ExplanationEditor({
           ))}
 
           {!stepForm.prompts.length ? (
-            <div className="rounded-[8px] border-2 border-dashed border-line bg-white p-4 text-center text-sm font-black text-muted">
+            <div className="rounded-[8px] border-2 border-dashed border-line bg-paper-strong p-4 text-center text-sm font-black text-muted">
               {t(locale, "Nema brzih promptova.", "No quick prompts.")}
             </div>
           ) : null}
@@ -1820,7 +1820,7 @@ function ChatbotEditor({
               {firstTask ? localText(locale, firstTask.promptSr, firstTask.promptEn) : t(locale, "Nema zadatka.", "No task.")}
             </p>
           </div>
-          <div className="rounded-[8px] border-2 border-ink bg-white p-3">
+          <div className="rounded-[8px] border-2 border-ink bg-paper-strong p-3">
             <p className="text-[10px] font-black uppercase text-muted">AI</p>
             <p className="mt-1 text-sm font-bold leading-6 text-ink">
               {t(
@@ -1865,7 +1865,7 @@ function OutputEditor({
                 onClick={() => onStepChange({ outputKind: option.value })}
                 className={cn(
                   "flex min-h-11 items-center justify-between rounded-[8px] border-2 px-3 text-left text-sm font-black transition",
-                  active ? "border-ink bg-yellow text-ink" : "border-line bg-white text-muted hover:border-ink hover:text-ink",
+                  active ? "border-ink bg-yellow text-ink" : "border-line bg-paper-strong text-muted hover:border-ink hover:text-ink",
                 )}
               >
                 {t(locale, option.sr, option.en)}
@@ -1944,10 +1944,10 @@ function Inspector({
         </button>
       </div>
 
-      <section className="rounded-[8px] border-2 border-ink bg-ink p-4 text-white shadow-[5px_5px_0_0_#f4be30]">
+      <section className="rounded-[8px] border-2 border-ink bg-ink p-4 text-paper-strong shadow-[5px_5px_0_0_var(--yellow)]">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-[10px] font-black uppercase text-white/60">{t(locale, "Aktivan korak", "Active step")}</p>
+            <p className="text-[10px] font-black uppercase text-paper-strong/60">{t(locale, "Aktivan korak", "Active step")}</p>
             <p className="mt-1 text-lg font-black leading-tight">
               {stepForm ? localText(locale, stepForm.titleSr, stepForm.titleEn) : t(locale, "Nema koraka", "No step")}
             </p>
@@ -2053,7 +2053,7 @@ function Inspector({
               <button
                 type="button"
                 onClick={() => onPreset(DEFAULT_LAYOUT)}
-                className="rounded-[8px] border-2 border-line bg-white p-3 text-left text-xs font-black text-ink hover:border-ink hover:bg-yellow"
+                className="rounded-[8px] border-2 border-line bg-paper-strong p-3 text-left text-xs font-black text-ink hover:border-ink hover:bg-yellow"
               >
                 {t(locale, "Tri dela po 1/3", "Three 1/3 blocks")}
               </button>
@@ -2066,7 +2066,7 @@ function Inspector({
                     { type: "output", width: 33.3 },
                   ])
                 }
-                className="rounded-[8px] border-2 border-line bg-white p-3 text-left text-xs font-black text-ink hover:border-ink hover:bg-yellow"
+                className="rounded-[8px] border-2 border-line bg-paper-strong p-3 text-left text-xs font-black text-ink hover:border-ink hover:bg-yellow"
               >
                 {t(locale, "Objasnjenje 2/3 + output 1/3", "Explanation 2/3 + output 1/3")}
               </button>
@@ -2079,14 +2079,14 @@ function Inspector({
                     null,
                   ])
                 }
-                className="rounded-[8px] border-2 border-line bg-white p-3 text-left text-xs font-black text-ink hover:border-ink hover:bg-yellow"
+                className="rounded-[8px] border-2 border-line bg-paper-strong p-3 text-left text-xs font-black text-ink hover:border-ink hover:bg-yellow"
               >
                 {t(locale, "Objasnjenje 1/3 + chatbot 2/3", "Explanation 1/3 + chatbot 2/3")}
               </button>
               <button
                 type="button"
                 onClick={() => onPreset([{ type: "explanation", width: 100 }, null, null])}
-                className="rounded-[8px] border-2 border-line bg-white p-3 text-left text-xs font-black text-ink hover:border-ink hover:bg-yellow"
+                className="rounded-[8px] border-2 border-line bg-paper-strong p-3 text-left text-xs font-black text-ink hover:border-ink hover:bg-yellow"
               >
                 {t(locale, "Jedan deo preko celog ekrana", "One full-width block")}
               </button>

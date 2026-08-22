@@ -60,9 +60,10 @@ test("cena u tabeli je doslovno `computeCredits` - nema druge računice", () => 
   expect(row).toBeDefined();
 
   expect(row?.credits).toBe(
-    computeCredits(seed.priceRule, { resolution: "4K", aspect_ratio: "1:1", num_images: 1 }, "text"),
+    computeCredits(seed.priceRule, { resolution: "4K", aspect_ratio: "1:1" }, "text"),
   );
-  expect(row?.credits).toBe(30);
+  // 34, ne 30: 4K kod Google-a košta $0,151, a ne $0,134 (zvanični cenovnik).
+  expect(row?.credits).toBe(34);
 });
 
 test("izmena osnove pomera SVAKU kombinaciju, i to se vidi u tabeli", () => {

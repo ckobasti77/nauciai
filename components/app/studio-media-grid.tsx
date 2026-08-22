@@ -124,6 +124,22 @@ export function StudioMediaGrid({
     return () => observer.disconnect();
   }, [jobStatus, loadMore]);
 
+  // SP1, tačka 9: kad se promeni vrsta, filter po modelu koji NE pripada novoj
+  // vrsti bi vratio nula pogodaka i korisnik vidi prazno stanje kao da je izgubio
+  // radove. Resetuj filter na „Svi modeli" umesto da ostane i vrati prazno.
+  // Sinhronizacija tokom rendera (a ne u efektu) - isti obrazac kao u composeru,
+  // tako da query nikad ne krene sa modelom van izabrane vrste.
+  const [prevKind, setPrevKind] = useState(kind);
+  if (kind !== prevKind) {
+    setPrevKind(kind);
+    if (modelFilter && kind) {
+      const selected = catalog.find((model) => model.slug === modelFilter);
+      if (selected && selected.kind !== kind) {
+        setModelFilter(null);
+      }
+    }
+  }
+
   const columnCount = useGridColumnCount();
   const rawJobRows = jobResults as unknown as StudioTileJob[];
 
@@ -238,7 +254,7 @@ export function StudioMediaGrid({
   return (
     <div className="space-y-4">
       {/* ── Gornja traka filtera mreže ────────────────────────────────────────── */}
-      <div className="surface-card flex flex-col gap-3 border-2 border-ink bg-white p-3 shadow-[3px_3px_0_0_rgba(14,49,88,0.12)] sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+      <div className="surface-card flex flex-col gap-3 border-2 border-ink bg-paper-strong p-3 shadow-[3px_3px_0_0_var(--shadow-hard-12)] sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div className="flex flex-1 flex-wrap items-center gap-2">
           {/* Pretraga po promptu */}
           <div className="relative min-w-[180px] max-w-xs flex-1 sm:flex-none">
@@ -248,7 +264,7 @@ export function StudioMediaGrid({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={locale === "sr" ? "Pretraži promptove…" : "Search prompts…"}
-              className="surface-inset h-8 w-full border-2 border-ink bg-paper pl-8 pr-7 text-xs font-bold text-ink outline-none placeholder:text-muted focus:bg-white studio-focus-ink"
+              className="surface-inset h-8 w-full border-2 border-ink bg-paper pl-8 pr-7 text-xs font-bold text-ink outline-none placeholder:text-muted focus:bg-paper-strong studio-focus-ink"
             />
             {searchQuery ? (
               <button
@@ -272,7 +288,7 @@ export function StudioMediaGrid({
               aria-pressed={kind === null}
               className={cn(
                 CHIP,
-                kind === null ? "bg-ink text-white" : "bg-white text-ink hover:-translate-y-0.5",
+                kind === null ? "bg-ink text-paper-strong" : "bg-paper-strong text-ink hover:-translate-y-0.5",
               )}
             >
               {locale === "sr" ? "Sve vrste" : "All kinds"}
@@ -285,7 +301,7 @@ export function StudioMediaGrid({
                 aria-pressed={kind === k}
                 className={cn(
                   CHIP,
-                  kind === k ? "bg-ink text-white" : "bg-white text-ink hover:-translate-y-0.5",
+                  kind === k ? "bg-ink text-paper-strong" : "bg-paper-strong text-ink hover:-translate-y-0.5",
                 )}
               >
                 {GALLERY_KIND_LABELS[k][locale]}
@@ -301,14 +317,31 @@ export function StudioMediaGrid({
               value={modelFilter ?? ""}
               onChange={(e) => setModelFilter(e.target.value === "" ? null : e.target.value)}
               aria-label={locale === "sr" ? "Filter po modelu" : "Filter by model"}
-              className="surface-inset h-8 border-2 border-ink bg-white px-2.5 text-xs font-black text-ink outline-none cursor-pointer hover:bg-paper studio-focus-ink"
+              className="surface-inset h-8 border-2 border-ink bg-paper-strong px-2.5 text-xs font-black text-ink outline-none cursor-pointer hover:bg-paper studio-focus-ink"
             >
               <option value="">{locale === "sr" ? "Svi modeli" : "All models"}</option>
-              {catalog.map((model) => (
-                <option key={model.slug} value={model.slug}>
-                  {modelLabel(model, locale)}
-                </option>
-              ))}
+              {kind
+                ? // Vrsta izabrana: samo modeli te vrste (ravan spisak).
+                  catalog
+                    .filter((model) => model.kind === kind)
+                    .map((model) => (
+                      <option key={model.slug} value={model.slug}>
+                        {modelLabel(model, locale)}
+                      </option>
+                    ))
+                : // „Sve vrste": ceo katalog, ali grupisan po vrsti (optgroup),
+                  // ne ravan zid od 31 stavke.
+                  GALLERY_KINDS.filter((k) => catalog.some((model) => model.kind === k)).map((k) => (
+                    <optgroup key={k} label={GALLERY_KIND_LABELS[k][locale]}>
+                      {catalog
+                        .filter((model) => model.kind === k)
+                        .map((model) => (
+                          <option key={model.slug} value={model.slug}>
+                            {modelLabel(model, locale)}
+                          </option>
+                        ))}
+                    </optgroup>
+                  ))}
             </select>
           ) : null}
 
@@ -322,7 +355,7 @@ export function StudioMediaGrid({
                 aria-pressed={dateFilter === preset}
                 className={cn(
                   CHIP,
-                  dateFilter === preset ? "bg-ink text-white" : "bg-white text-ink hover:-translate-y-0.5",
+                  dateFilter === preset ? "bg-ink text-paper-strong" : "bg-paper-strong text-ink hover:-translate-y-0.5",
                 )}
               >
                 {DATE_RANGE_LABELS[preset][locale]}
@@ -352,8 +385,8 @@ export function StudioMediaGrid({
             className={cn(
               CHIP,
               isSelectMode || selectedJobs.size > 0
-                ? "bg-yellow text-ink shadow-[2px_2px_0_0_#0e3158]"
-                : "bg-white text-ink hover:-translate-y-0.5",
+                ? "bg-yellow text-ink shadow-[2px_2px_0_0_var(--ink)]"
+                : "bg-paper-strong text-ink hover:-translate-y-0.5",
             )}
           >
             <CheckSquare className="size-3.5" />
@@ -370,9 +403,9 @@ export function StudioMediaGrid({
 
       {/* ── Traka za grupne akcije (C7 + C13) ─────────────────────────────────── */}
       {selectedJobs.size > 0 ? (
-        <div className="surface-card flex flex-wrap items-center justify-between gap-3 border-2 border-ink bg-paper p-3 shadow-[3px_3px_0_0_rgba(14,49,88,0.12)]">
+        <div className="surface-card flex flex-wrap items-center justify-between gap-3 border-2 border-ink bg-paper p-3 shadow-[3px_3px_0_0_var(--shadow-hard-12)]">
           <div className="flex items-center gap-3">
-            <span className="rounded-full border-2 border-ink bg-yellow px-3 py-1 text-xs font-black text-ink shadow-[2px_2px_0_0_#0e3158]">
+            <span className="rounded-full border-2 border-ink bg-yellow px-3 py-1 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--ink)]">
               {locale === "sr" ? `Izabrano: ${selectedJobs.size}` : `Selected: ${selectedJobs.size}`}
             </span>
             {visibleDownloadable.length > 0 ? (
@@ -404,7 +437,7 @@ export function StudioMediaGrid({
               type="button"
               onClick={handleDownloadSelected}
               disabled={isDownloading}
-              className="inline-flex min-h-9 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 py-1.5 text-xs font-black text-ink shadow-[3px_3px_0_0_#0e3158] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70 cursor-pointer"
+              className="inline-flex min-h-9 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 py-1.5 text-xs font-black text-ink shadow-[3px_3px_0_0_var(--ink)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70 cursor-pointer"
             >
               {isDownloading ? (
                 <>
@@ -440,14 +473,14 @@ export function StudioMediaGrid({
           )}
         </div>
       ) : filteredJobs.length === 0 ? (
-        <div className="surface-card mx-auto max-w-md border-2 border-ink bg-white p-6 text-center shadow-[3px_3px_0_0_rgba(14,49,88,0.12)]">
+        <div className="surface-card mx-auto max-w-md border-2 border-ink bg-paper-strong p-6 text-center shadow-[3px_3px_0_0_var(--shadow-hard-12)]">
           {filtersActive ? (
             <>
               <p className="text-base font-bold text-muted">{GALLERY_NO_MATCHES.body[locale]}</p>
               <button
                 type="button"
                 onClick={resetAllFilters}
-                className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-white px-5 py-2.5 text-sm font-extrabold text-ink shadow-[3px_3px_0_0_rgba(14,49,88,0.18)] transition hover:-translate-y-0.5 cursor-pointer"
+                className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-5 py-2.5 text-sm font-extrabold text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 cursor-pointer"
               >
                 {GALLERY_NO_MATCHES.cta[locale]}
               </button>
@@ -462,7 +495,7 @@ export function StudioMediaGrid({
               <button
                 type="button"
                 onClick={() => onUseStarterPrompt(FIRST_PROMPT[locale])}
-                className="mt-5 inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 py-2.5 text-sm font-extrabold text-ink shadow-[4px_4px_0_0_#0e3158] transition hover:-translate-y-0.5 cursor-pointer"
+                className="mt-5 inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 py-2.5 text-sm font-extrabold text-ink shadow-[4px_4px_0_0_var(--ink)] transition hover:-translate-y-0.5 cursor-pointer"
               >
                 <Wand2 className="size-4" />
                 {STUDIO_NO_GENERATIONS.cta[locale]}
@@ -500,7 +533,7 @@ export function StudioMediaGrid({
           {/* Indikator / dugme za još stranica */}
           {jobStatus === "LoadingMore" ? (
             <div className="flex justify-center py-4">
-              <div className="inline-flex items-center gap-2 rounded-full border-2 border-ink bg-white px-4 py-2 text-xs font-extrabold text-ink shadow-[2px_2px_0_0_rgba(14,49,88,0.14)]">
+              <div className="inline-flex items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 py-2 text-xs font-extrabold text-ink shadow-[2px_2px_0_0_var(--shadow-hard-14)]">
                 <Loader2 className="size-4 animate-spin text-muted" />
                 {locale === "sr" ? "Učitavanje još medija…" : "Loading more media…"}
               </div>
@@ -513,7 +546,7 @@ export function StudioMediaGrid({
                   isLoadingRef.current = true;
                   loadMore(PAGE_SIZE);
                 }}
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-white px-5 py-2.5 text-sm font-extrabold text-ink shadow-[3px_3px_0_0_rgba(14,49,88,0.18)] transition hover:-translate-y-0.5 cursor-pointer"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-5 py-2.5 text-sm font-extrabold text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 cursor-pointer"
               >
                 {locale === "sr" ? "Učitaj još" : "Load more"}
               </button>

@@ -95,7 +95,7 @@ export function ChatNotifications({ locale }: { locale: Locale }) {
   return (
     <div ref={motionRootRef} className="pointer-events-none fixed inset-0 z-[90]" aria-live="polite" data-chat-motion-scope="notifications">
       {toast ? <div data-chat-motion="dock-toast" data-chat-motion-new="true" className={cn(
-        "pointer-events-auto absolute rounded-[16px] border-2 border-ink bg-white p-3 shadow-[7px_7px_0_0_rgba(14,49,88,0.16)] transition-[opacity,transform] duration-200 motion-reduce:translate-y-0 motion-reduce:transition-opacity motion-reduce:duration-100",
+        "pointer-events-auto absolute rounded-[16px] border-2 border-ink bg-paper-strong p-3 shadow-[7px_7px_0_0_var(--shadow-hard-16)] transition-[opacity,transform] duration-200 motion-reduce:translate-y-0 motion-reduce:transition-opacity motion-reduce:duration-100",
         "inset-x-4 bottom-[calc(5rem_+_env(safe-area-inset-bottom))] lg:inset-x-auto lg:bottom-auto lg:right-5 lg:top-5 lg:w-[min(360px,calc(100vw-2.5rem))]",
       )}>
         <div className="flex items-start gap-3">

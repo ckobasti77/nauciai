@@ -24,7 +24,7 @@ import { defaultMargin, isBaseUsdEditable, priceTable } from "@/lib/studio-catal
 import { parseStudioModel, type StudioModel } from "@/lib/studio-models";
 
 const inputClass =
-  "min-h-9 w-24 surface-media border-2 border-ink bg-white px-2 text-sm font-bold text-ink outline-none transition focus:ring-4 focus:ring-yellow/35 disabled:cursor-not-allowed disabled:opacity-60";
+  "min-h-9 w-24 surface-media border-2 border-ink bg-paper-strong px-2 text-sm font-bold text-ink outline-none transition focus:ring-4 focus:ring-yellow/35 disabled:cursor-not-allowed disabled:opacity-60";
 
 const KIND_LABELS_SR: Record<string, string> = { image: "Slika", video: "Video", audio: "Zvuk" };
 const KIND_LABELS_EN: Record<string, string> = { image: "Image", video: "Video", audio: "Audio" };
@@ -185,7 +185,7 @@ function TogglePill({
         disabled={pending}
         className={cn(
           "inline-flex min-h-8 items-center gap-1.5 rounded-full border-2 border-ink px-3 py-1 text-xs font-black transition disabled:opacity-60",
-          active ? "bg-emerald-100 text-emerald-900" : "bg-white text-muted",
+          active ? "bg-emerald-100 text-emerald-900" : "bg-paper-strong text-muted",
         )}
       >
         {pending ? <Loader2 className="size-3.5 animate-spin" /> : active ? <CheckCircle2 className="size-3.5" /> : <XCircle className="size-3.5" />}
@@ -321,7 +321,7 @@ function ActualMarginCell({
   if (origin === "no_measurement" || !cost) {
     return (
       <div>
-        <span className="inline-flex min-h-7 items-center rounded-full border-2 border-dashed border-muted bg-white px-2.5 py-0.5 text-xs font-black text-muted">
+        <span className="inline-flex min-h-7 items-center rounded-full border-2 border-dashed border-muted bg-paper-strong px-2.5 py-0.5 text-xs font-black text-muted">
           {cost && cost.unmeasuredJobs > 0
             ? `${unmeasuredWord} / ${cost.unmeasuredJobs}`
             : noMeasurementWord}
@@ -370,7 +370,7 @@ function ActualMarginCell({
             "inline-flex min-h-7 items-center gap-1 self-start rounded-full border-2 border-ink px-2.5 py-0.5 text-xs font-black",
             tone === "warn" && "bg-red-100 text-red-800",
             tone === "ok" && "bg-emerald-100 text-emerald-900",
-            tone === "unknown" && "bg-white text-muted",
+            tone === "unknown" && "bg-paper-strong text-muted",
           )}
         >
           {tone === "warn" ? <AlertTriangle className="size-3.5" /> : null}
@@ -456,7 +456,7 @@ function CatalogRow({
               "inline-flex min-h-7 items-center gap-1 rounded-full border-2 border-ink px-2.5 py-0.5 text-xs font-black",
               tone === "warn" && "bg-red-100 text-red-800",
               tone === "ok" && "bg-emerald-100 text-emerald-900",
-              tone === "unknown" && "bg-white text-muted",
+              tone === "unknown" && "bg-paper-strong text-muted",
             )}
           >
             {tone === "warn" ? <AlertTriangle className="size-3.5" /> : null}
@@ -479,7 +479,7 @@ function CatalogRow({
       <tr>
         <td colSpan={8} className="px-3 pb-3">
           {model ? (
-            <details className="surface-inset border-2 border-ink bg-white p-3">
+            <details className="surface-inset border-2 border-ink bg-paper-strong p-3">
               <summary className="cursor-pointer text-xs font-black uppercase tracking-wide text-muted">
                 {locale === "sr" ? "Cena po kombinaciji" : "Price by combination"}
               </summary>
@@ -636,7 +636,7 @@ function ModelsSection({ locale }: { locale: Locale }) {
                           "inline-flex min-h-7 items-center gap-1 rounded-full border-2 border-ink px-2.5 py-0.5 text-xs font-black",
                           tone === "warn" && "bg-red-100 text-red-800",
                           tone === "ok" && "bg-emerald-100 text-emerald-900",
-                          tone === "unknown" && "bg-white text-muted",
+                          tone === "unknown" && "bg-paper-strong text-muted",
                         )}
                       >
                         {tone === "warn" ? <AlertTriangle className="size-3.5" /> : null}
@@ -795,7 +795,7 @@ function KillSwitchCard({ locale }: { locale: Locale }) {
 
   if (state === undefined) {
     return (
-      <div className="surface-card flex min-h-20 items-center justify-center border-2 border-ink bg-white p-4 shadow-[4px_4px_0_0_#0e3158]">
+      <div className="surface-card flex min-h-20 items-center justify-center border-2 border-ink bg-paper-strong p-4 shadow-[4px_4px_0_0_var(--ink)]">
         <Loader2 className="size-5 animate-spin text-muted" />
       </div>
     );
@@ -804,8 +804,8 @@ function KillSwitchCard({ locale }: { locale: Locale }) {
   return (
     <div
       className={cn(
-        "surface-card border-2 p-5 shadow-[4px_4px_0_0_#0e3158]",
-        state.enabled ? "border-ink bg-white" : "border-red-700 bg-red-50",
+        "surface-card border-2 p-5 shadow-[4px_4px_0_0_var(--ink)]",
+        state.enabled ? "border-ink bg-paper-strong" : "border-red-700 bg-red-50",
       )}
     >
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -838,7 +838,7 @@ function KillSwitchCard({ locale }: { locale: Locale }) {
           <button
             type="button"
             onClick={() => setConfirming(true)}
-            className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-red-800 bg-white px-4 text-xs font-black text-red-800 transition hover:bg-red-50 focus-visible:outline-red-800"
+            className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-red-800 bg-paper-strong px-4 text-xs font-black text-red-800 transition hover:bg-red-50 focus-visible:outline-red-800"
           >
             <Power className="size-3.5" />
             {locale === "sr" ? "Ugasi Studio" : "Shut down Studio"}
@@ -850,7 +850,7 @@ function KillSwitchCard({ locale }: { locale: Locale }) {
             type="button"
             disabled={pending}
             onClick={() => void apply(true)}
-            className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-xs font-black text-ink shadow-[2px_2px_0_0_#0e3158] transition hover:-translate-y-0.5 disabled:opacity-60"
+            className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--ink)] transition hover:-translate-y-0.5 disabled:opacity-60"
           >
             {pending ? <Loader2 className="size-4 animate-spin" /> : <Power className="size-3.5" />}
             {locale === "sr" ? "Ponovo uključi Studio" : "Re-enable Studio"}
@@ -880,7 +880,7 @@ function KillSwitchCard({ locale }: { locale: Locale }) {
               type="button"
               disabled={pending}
               onClick={() => setConfirming(false)}
-              className="inline-flex min-h-9 items-center gap-2 rounded-full border-2 border-ink bg-white px-4 text-xs font-black text-ink transition hover:bg-paper disabled:opacity-60"
+              className="inline-flex min-h-9 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 text-xs font-black text-ink transition hover:bg-paper disabled:opacity-60"
             >
               {locale === "sr" ? "Otkaži" : "Cancel"}
             </button>
@@ -940,7 +940,7 @@ function ProminentHealthAlert({
                 }.`}
           </p>
           {failure ? (
-            <p className="surface-inset mt-2 border-2 border-red-800 bg-white p-2.5 text-xs font-mono font-bold text-red-900">
+            <p className="surface-inset mt-2 border-2 border-red-800 bg-paper-strong p-2.5 text-xs font-mono font-bold text-red-900">
               {locale === "sr" ? "Poslednja greška crona:" : "Last cron error:"} {failure.message}
             </p>
           ) : null}
@@ -1063,7 +1063,7 @@ function UsageSection({
                 : `alarm at $${summary.alarmUsd} · kills at $${summary.killUsd}`}
             </p>
             <div
-              className="surface-media mt-2 h-2.5 w-full overflow-hidden border-2 border-ink bg-white"
+              className="surface-media mt-2 h-2.5 w-full overflow-hidden border-2 border-ink bg-paper-strong"
               role="img"
               aria-label={`Potrošeno ${summary.totalCostUsd.toFixed(2)} od ${summary.killUsd} dolara`}
             >
@@ -1083,7 +1083,7 @@ function UsageSection({
               {JOB_STATUSES.map((status) => (
                 <li
                   key={status}
-                  className="inline-flex min-h-8 items-center gap-1.5 rounded-full border-2 border-ink bg-white px-3 py-1 text-xs font-black text-ink"
+                  className="inline-flex min-h-8 items-center gap-1.5 rounded-full border-2 border-ink bg-paper-strong px-3 py-1 text-xs font-black text-ink"
                 >
                   {jobStatusLabel(status, locale)}: {summary.jobCounts[status] ?? 0}
                 </li>
@@ -1124,7 +1124,7 @@ function UsageSection({
                 {summary.topUsers.map((row) => (
                   <li
                     key={row.userId}
-                    className="surface-media flex items-center justify-between gap-3 border-2 border-ink/20 bg-white px-3 py-1.5 text-xs font-bold text-ink"
+                    className="surface-media flex items-center justify-between gap-3 border-2 border-ink/20 bg-paper-strong px-3 py-1.5 text-xs font-bold text-ink"
                   >
                     <span className="min-w-0 truncate">{row.name}</span>
                     <span className="shrink-0 font-mono">

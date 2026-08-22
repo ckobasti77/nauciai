@@ -73,7 +73,7 @@ test("ponovljen seed ne pravi duplikate i NE pali model koji je admin ugasio", a
   await t.run(async (ctx) => {
     const row = await ctx.db
       .query("models")
-      .withIndex("by_slug", (q) => q.eq("slug", "gemini-omni"))
+      .withIndex("by_slug", (q) => q.eq("slug", "nano-banana-pro"))
       .unique();
     if (row) await ctx.db.patch(row._id, { isEnabled: false });
   });
@@ -83,7 +83,7 @@ test("ponovljen seed ne pravi duplikate i NE pali model koji je admin ugasio", a
 
   const rows = await t.run((ctx) => ctx.db.query("models").collect());
   expect(rows).toHaveLength(STUDIO_MODELS.length);
-  expect(rows.find((row) => row.slug === "gemini-omni")?.isEnabled).toBe(false);
+  expect(rows.find((row) => row.slug === "nano-banana-pro")?.isEnabled).toBe(false);
   // Ostali su i dalje uključeni - Jovan traži pun katalog, minus ono što je
   // katalog povukao.
   expect(rows.filter((row) => row.isEnabled)).toHaveLength(STUDIO_MODELS.length - 1 - RETIRED);
@@ -107,10 +107,16 @@ test("sedam modela sa merenom dužinom seed upisuje UKLJUČENE", async () => {
   }
 
   // W3 ih je povukao markerom `isEnabled: false`, jer je dužinu snimka merio
-  // klijent; W5 ih vraća, jer je meri server iz zaglavlja fajla. Katalog trenutno
-  // ne povlači nijedan model - grana u `seedStudioModels` koja gasi već upisan
-  // red je time bez subjekta, a ne uklonjena: prvi sledeći marker je ponovo pali.
-  expect(RETIRED).toBe(0);
+  // klijent; W5 ih vraća, jer je meri server iz zaglavlja fajla.
+  //
+  // Katalog trenutno povlači TAČNO jedan red - `gemini-omni`, čiji oblik zahteva
+  // ne odgovara živom Interactions API-ju (videti komentar u `googleModels.ts`).
+  // Spisak je izričit, a ne samo broj: model koji neko usput povuče mora ovde da
+  // se vidi, jer povučen red korisniku ne izlazi.
+  expect(STUDIO_MODELS.filter((seed) => seed.isEnabled === false).map((seed) => seed.slug)).toEqual([
+    "gemini-omni",
+  ]);
+  expect(RETIRED).toBe(1);
 });
 
 test("seed bez tačnog sync secreta ne upisuje ništa", async () => {

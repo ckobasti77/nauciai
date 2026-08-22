@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* Tamna tema. Inline skripta iz `lib/theme.ts` postavi `data-theme="light|dark"`
+   na <html> pre prve boje (svetla/tamna/sistem se razresi tamo), pa Tailwind
+   `dark:` varijanta i tokeni ispod citaju samo taj atribut. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 .rich-editor-content p + p,
 .rich-text-content p + p { margin-top: 0.9em; }
 .rich-editor-content ul,
@@ -9,7 +14,21 @@
 .rich-editor-content li + li,
 .rich-text-content li + li { margin-top: 0.35em; }
 
-:root {
+/* Pravilo 1: zuto tema ne dira. Zuta povrsina je OSTRVO svetle palete - svaki token
+   unutar nje (tekst, okvir, ugnjezdeni paneli, senka) razresi se na svetlu vrednost,
+   pa zuto dugme sa tamnoplavim tekstom izgleda identicno u obe teme (7,66:1).
+   Lista pokriva sve pune `bg-yellow` varijante koje repo koristi (tinte /NN ne). */
+:root,
+[data-theme="dark"] :is(
+  .bg-yellow,
+  .bg-yellow\/90,
+  .hover\:bg-yellow:hover,
+  .hover\:bg-yellow\/85:hover,
+  .focus\:bg-yellow:focus,
+  .group:hover .group-hover\:bg-yellow,
+  .group:focus-visible .group-focus-visible\:bg-yellow
+) {
+  color-scheme: light;
   --background: #fffdf8;
   --foreground: #0e3158;
   --ink: #0e3158;
@@ -18,6 +37,37 @@
   --yellow: #f4be30;
   --muted: #536273;
   --line: #c9d4df;
+  /* Studio-scoped, derived from the tokens above. `canvas` is one notch deeper
+     than paper so bright media has an edge where grid density is highest; `well`
+     is ink darkened toward near-black-blue (NEVER #000) for the per-tile media
+     well; `well-edge` is a 1px inset ring that catches pale media on white. */
+  --studio-canvas: #f5efe2;
+  --studio-well: #0e1a2b;
+  --studio-well-edge: rgba(14, 49, 88, 0.14);
+  /* Tvrda ofset senka. U svetloj je mastilo na 18% (papir podignut sa stola); u
+     tamnoj cista crna na 55%, jer bi svetlo mastilo na tamnom bilo nevidljivo.
+     `--shadow-hard` je JEDINI token za nove povrsine:
+       shadow-[4px_4px_0_0_var(--shadow-hard)]
+     Stepeni ispod su nasledjene alfe koje su vec postojale po repou (svetla
+     ostaje piksel-ista); tamna ih skalira istim odnosom 0.55/0.18. Ne dodaj nove. */
+  --shadow-hard: rgba(14, 49, 88, 0.18);
+  --shadow-hard-08: rgba(14, 49, 88, 0.08);
+  --shadow-hard-10: rgba(14, 49, 88, 0.1);
+  --shadow-hard-12: rgba(14, 49, 88, 0.12);
+  --shadow-hard-13: rgba(14, 49, 88, 0.13);
+  --shadow-hard-14: rgba(14, 49, 88, 0.14);
+  --shadow-hard-15: rgba(14, 49, 88, 0.15);
+  --shadow-hard-16: rgba(14, 49, 88, 0.16);
+  --shadow-hard-20: rgba(14, 49, 88, 0.2);
+  --shadow-hard-22: rgba(14, 49, 88, 0.22);
+  --shadow-hard-24: rgba(14, 49, 88, 0.24);
+  --shadow-hard-25: rgba(14, 49, 88, 0.25);
+  --shadow-hard-55: rgba(14, 49, 88, 0.55);
+  /* Scrim: preklop koji mora ostati TAMAN u obe teme (pozadina modala, preklop
+     preko slike/videa). U svetloj je to mastilo - piksel-isto kao ranije
+     `bg-ink/NN` - a u tamnoj crna, jer bi svetlo mastilo pravilo maglu. Uvek sa
+     alfa modifikatorom: `bg-scrim/45`. */
+  --scrim: #0e3158;
   --bordered-radius: 1rem;
   --bordered-control-radius: 1rem;
   --button-radius: 9999px;
@@ -31,21 +81,50 @@
   --ease-studio-out: cubic-bezier(0.05, 0.7, 0.1, 1);
 }
 
+/* Tamni parnjak. Zuta se NE menja (isti kontrast 7,66:1 na mastilu u obe teme);
+   mastilo i papir zamene mesta, okviri time postaju svetli; kartica je za nijansu
+   svetlija od stranice, a razdvajanje rade okvir i crna senka, ne ispuna. */
+[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #0e1a2b;
+  --foreground: #e9eef6;
+  --ink: #e9eef6;
+  --paper: #0e1a2b;
+  --paper-strong: #18293f;
+  --muted: #9fb2c8;
+  --line: #2f4762;
+  --studio-canvas: #0a1421;
+  --studio-well: #070f1b;
+  --studio-well-edge: rgba(233, 238, 246, 0.16);
+  --shadow-hard: rgba(0, 0, 0, 0.55);
+  --shadow-hard-08: rgba(0, 0, 0, 0.24);
+  --shadow-hard-10: rgba(0, 0, 0, 0.31);
+  --shadow-hard-12: rgba(0, 0, 0, 0.37);
+  --shadow-hard-13: rgba(0, 0, 0, 0.4);
+  --shadow-hard-14: rgba(0, 0, 0, 0.43);
+  --shadow-hard-15: rgba(0, 0, 0, 0.46);
+  --shadow-hard-16: rgba(0, 0, 0, 0.49);
+  --shadow-hard-20: rgba(0, 0, 0, 0.61);
+  --shadow-hard-22: rgba(0, 0, 0, 0.67);
+  --shadow-hard-24: rgba(0, 0, 0, 0.73);
+  --shadow-hard-25: rgba(0, 0, 0, 0.76);
+  --shadow-hard-55: rgba(0, 0, 0, 1);
+  --scrim: #000000;
+}
+
 @theme inline {
-  --color-background: #fffdf8;
-  --color-foreground: #0e3158;
-  --color-ink: #0e3158;
-  --color-paper: #fffdf8;
-  --color-yellow: #f4be30;
-  --color-muted: #536273;
-  --color-line: #c9d4df;
-  /* Studio-scoped, derived from the tokens above. `canvas` is one notch deeper
-     than paper so bright media has an edge where grid density is highest; `well`
-     is ink darkened toward near-black-blue (NEVER #000) for the per-tile media
-     well; `well-edge` is a 1px inset ring that catches pale media on white. */
-  --color-studio-canvas: #f5efe2;
-  --color-studio-well: #0e1a2b;
-  --color-studio-well-edge: rgba(14, 49, 88, 0.14);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-ink: var(--ink);
+  --color-paper: var(--paper);
+  --color-paper-strong: var(--paper-strong);
+  --color-yellow: var(--yellow);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-scrim: var(--scrim);
+  --color-studio-canvas: var(--studio-canvas);
+  --color-studio-well: var(--studio-well);
+  --color-studio-well-edge: var(--studio-well-edge);
   --font-sans: "Nunito", "Nunito Fallback", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Patrick Hand", "Patrick Hand Fallback", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Geist Mono", "Geist Mono Fallback", ui-monospace, monospace;
@@ -56,6 +135,24 @@ body {
   color: var(--foreground);
   font-family: var(--font-nunito), ui-sans-serif, system-ui, sans-serif;
   letter-spacing: 0;
+}
+
+/* Kratak prelaz boja samo dok traje izricita promena teme (klasa je na <html>
+   ~220ms, vidi theme-provider.tsx). Pod prefers-reduced-motion blok se ne
+   primenjuje uopste - tema se menja trenutno. */
+@media (prefers-reduced-motion: no-preference) {
+  .theme-switching,
+  .theme-switching *,
+  .theme-switching *::before,
+  .theme-switching *::after {
+    transition:
+      background-color 150ms ease-out,
+      color 150ms ease-out,
+      border-color 150ms ease-out,
+      fill 150ms ease-out,
+      stroke 150ms ease-out,
+      box-shadow 150ms ease-out !important;
+  }
 }
 
 /* These are defaults, not overrides: they supply a radius only when the element
@@ -117,16 +214,16 @@ select {
 
 .sketch-grid {
   background-image:
-    linear-gradient(rgba(14, 49, 88, 0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(14, 49, 88, 0.06) 1px, transparent 1px);
+    linear-gradient(color-mix(in srgb, var(--ink) 6%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--ink) 6%, transparent) 1px, transparent 1px);
   background-size: 28px 28px;
 }
 
 .ink-hatch {
   background-image: repeating-linear-gradient(
     -18deg,
-    rgba(14, 49, 88, 0.08) 0,
-    rgba(14, 49, 88, 0.08) 1px,
+    color-mix(in srgb, var(--ink) 8%, transparent) 0,
+    color-mix(in srgb, var(--ink) 8%, transparent) 1px,
     transparent 1px,
     transparent 7px
   );
@@ -196,7 +293,7 @@ select {
 /* Dosledan ink fokus-prsten za dugmad koja ga nemaju inline (RD10 a11y). Kratko
    da se applied na više medijskih kontrola bez ponavljanja pune Tailwind niske. */
 .studio-focus-ink:focus-visible {
-  outline: 2px solid #0e3158;
+  outline: 2px solid var(--ink);
   outline-offset: 2px;
 }
 

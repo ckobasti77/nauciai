@@ -47,7 +47,7 @@ export function PublicCommunityComments({
         <p className="mt-4 text-sm font-bold text-muted">{locale === "sr" ? "Još nema komentara." : "No comments yet."}</p>
       )}
       {query.status === "CanLoadMore" || query.status === "LoadingMore" ? (
-        <button type="button" onClick={() => query.loadMore(5)} disabled={query.status === "LoadingMore"} className="mt-4 inline-flex min-h-10 items-center rounded-full border border-line bg-white px-4 text-xs font-black text-ink disabled:opacity-60">
+        <button type="button" onClick={() => query.loadMore(5)} disabled={query.status === "LoadingMore"} className="mt-4 inline-flex min-h-10 items-center rounded-full border border-line bg-paper-strong px-4 text-xs font-black text-ink disabled:opacity-60">
           {query.status === "LoadingMore" ? (locale === "sr" ? "Učitavanje…" : "Loading…") : (locale === "sr" ? "Prikaži još" : "Show more")}
         </button>
       ) : null}
@@ -64,7 +64,7 @@ function PublicCommentNode({ postId, comment, locale }: { postId: string; commen
       <p className="mt-2 whitespace-pre-wrap text-sm font-semibold leading-6 text-ink">{comment.body}</p>
       <div className="mt-3 flex flex-wrap items-center gap-3 text-xs font-black text-muted">
         <span>{comment.voteScore} {locale === "sr" ? "neto glasova" : "net votes"}</span>
-        {hasReplies ? <button type="button" onClick={() => setOpen((value) => !value)} className="inline-flex items-center gap-1 rounded-full border border-line bg-white px-3 py-1.5 text-ink"><ChevronRight className={`size-3.5 transition-transform ${open ? "rotate-90" : ""}`} />{open ? (locale === "sr" ? "Sažmi" : "Collapse") : `${locale === "sr" ? "Prikaži" : "Show"} ${comment.directReplyCount} ${locale === "sr" ? "odgovora" : "replies"}`}</button> : null}
+        {hasReplies ? <button type="button" onClick={() => setOpen((value) => !value)} className="inline-flex items-center gap-1 rounded-full border border-line bg-paper-strong px-3 py-1.5 text-ink"><ChevronRight className={`size-3.5 transition-transform ${open ? "rotate-90" : ""}`} />{open ? (locale === "sr" ? "Sažmi" : "Collapse") : `${locale === "sr" ? "Prikaži" : "Show"} ${comment.directReplyCount} ${locale === "sr" ? "odgovora" : "replies"}`}</button> : null}
       </div>
       {open ? <PublicReplies postId={postId} parentId={comment._id} locale={locale} /> : null}
     </li>
@@ -77,7 +77,7 @@ function PublicReplies({ postId, parentId, locale }: { postId: string; parentId:
   return (
     <div className="mt-3 space-y-3 border-l-2 border-ink/15 pl-3">
       {query.status === "LoadingFirstPage" ? <Loader2 className="size-4 animate-spin text-yellow" /> : replies.map((reply) => <PublicCommentNode key={reply._id} postId={postId} comment={reply} locale={locale} />)}
-      {query.status === "CanLoadMore" || query.status === "LoadingMore" ? <button type="button" onClick={() => query.loadMore(5)} disabled={query.status === "LoadingMore"} className="inline-flex min-h-9 rounded-full border border-line bg-white px-3 text-xs font-black text-ink disabled:opacity-60">{query.status === "LoadingMore" ? (locale === "sr" ? "Učitavanje…" : "Loading…") : (locale === "sr" ? "Prikaži još" : "Show more")}</button> : null}
+      {query.status === "CanLoadMore" || query.status === "LoadingMore" ? <button type="button" onClick={() => query.loadMore(5)} disabled={query.status === "LoadingMore"} className="inline-flex min-h-9 rounded-full border border-line bg-paper-strong px-3 text-xs font-black text-ink disabled:opacity-60">{query.status === "LoadingMore" ? (locale === "sr" ? "Učitavanje…" : "Loading…") : (locale === "sr" ? "Prikaži još" : "Show more")}</button> : null}
     </div>
   );
 }

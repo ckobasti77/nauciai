@@ -22,7 +22,7 @@ export default function DashboardError({
 
   return (
     <section
-      className="grid min-h-80 place-items-center rounded-[16px] border-2 border-ink bg-white p-6 text-center shadow-[6px_6px_0_rgba(14,49,88,0.12)]"
+      className="grid min-h-80 place-items-center rounded-[16px] border-2 border-ink bg-paper-strong p-6 text-center shadow-[6px_6px_0_var(--shadow-hard-12)]"
       role="alert"
     >
       <div className="max-w-md">
@@ -40,7 +40,7 @@ export default function DashboardError({
         <button
           type="button"
           onClick={reset}
-          className="mt-6 inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black text-ink shadow-[3px_3px_0_rgba(14,49,88,0.18)] transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:translate-y-0"
+          className="mt-6 inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black text-ink shadow-[3px_3px_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:translate-y-0"
         >
           <RotateCcw className="size-4" aria-hidden="true" />
           {locale === "sr" ? "Učitaj ponovo" : "Try again"}

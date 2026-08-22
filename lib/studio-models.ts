@@ -125,6 +125,66 @@ export const MODEL_BADGE_LABELS: Record<StudioModelBadge, Record<Locale, string>
 };
 
 /**
+ * Firma koja STVARNO pravi model - onaj čiji znak studentu nešto znači.
+ * NIJE isto što i `provider`: `provider` je RUTA (fal je ruter, byteplus je ruta
+ * do ByteDance modela), a brend je autor. Zato se izvodi iz `family`, ne iz
+ * `provider` - Seedream ide i preko `fal` i preko `byteplus`, a firma je u oba
+ * slučaja ByteDance.
+ */
+export type ProviderBrand =
+  | "google"
+  | "openai"
+  | "bytedance"
+  | "kling"
+  | "minimax"
+  | "elevenlabs";
+
+export const PROVIDER_BRANDS: readonly ProviderBrand[] = [
+  "google",
+  "openai",
+  "bytedance",
+  "kling",
+  "minimax",
+  "elevenlabs",
+] as const;
+
+/**
+ * Familija modela -> firma. Dodavanje familije bez unosa ovde znači da
+ * `providerBrandOf` vrati `null`, što obara test kataloga - novi model bez
+ * znaka se ne provuče tiho.
+ */
+const FAMILY_TO_BRAND: Record<string, ProviderBrand> = {
+  "nano-banana": "google",
+  gemini: "google",
+  veo: "google",
+  "gpt-image": "openai",
+  seedream: "bytedance",
+  seedance: "bytedance",
+  kling: "kling",
+  minimax: "minimax",
+  elevenlabs: "elevenlabs",
+};
+
+/** Ime firme za `aria-label` znaka. Proper nouns - isto u oba jezika. */
+export const PROVIDER_BRAND_NAME: Record<ProviderBrand, string> = {
+  google: "Google",
+  openai: "OpenAI",
+  bytedance: "ByteDance",
+  kling: "Kling",
+  minimax: "MiniMax",
+  elevenlabs: "ElevenLabs",
+};
+
+/**
+ * Firma iza modela, ili `null` kad familija nije mapirana. `null` znači "ne
+ * znam ko je autor" i pozivalac tada pada na dvoslovni `familyMark` - nikad ne
+ * izmišlja znak. Izvedeno iz `family`, jer je `provider` samo ruta.
+ */
+export function providerBrandOf(model: Pick<StudioModel, "family">): ProviderBrand | null {
+  return FAMILY_TO_BRAND[model.family] ?? null;
+}
+
+/**
  * Ima li model zvuk. Prvo `capabilities.audio` (tako ga katalog piše), pa
  * prekidač `audio` u kontrolama - model kod kojeg je zvuk stavka na računu ga
  * ima kao kontrolu, a ne kao zastavicu.

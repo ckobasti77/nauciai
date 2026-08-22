@@ -86,14 +86,14 @@ export function StudioMediaTile({
         }
       }}
       className={cn(
-        "surface-card group relative mb-4 break-inside-avoid border-2 border-ink bg-white p-2 text-ink cursor-pointer",
-        "shadow-[3px_3px_0_0_rgba(14,49,88,0.12)] studio-anim-mikro",
-        "hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_rgba(14,49,88,0.16)]",
+        "surface-card group relative mb-4 break-inside-avoid border-2 border-ink bg-paper-strong p-2 text-ink cursor-pointer",
+        "shadow-[3px_3px_0_0_var(--shadow-hard-12)] studio-anim-mikro",
+        "hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--shadow-hard-16)]",
         "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
       )}
     >
       {/* Tamni medijski bunar (Rešenje A — Mastionica) */}
-      <div className="surface-media relative min-h-[180px] overflow-hidden bg-studio-well shadow-[inset_0_0_0_1px_rgba(14,49,88,0.14)]">
+      <div className="surface-media relative min-h-[180px] overflow-hidden bg-studio-well shadow-[inset_0_0_0_1px_var(--shadow-hard-14)]">
         {/* Stanje: Posao u izradi / redu — mirno stanje koje diše uz tačan protekli tajmer */}
         {isWorking ? (
           <div className="grid min-h-[220px] place-items-center p-6 text-center">
@@ -135,7 +135,7 @@ export function StudioMediaTile({
                 <button
                   type="button"
                   onClick={() => onReuse(job)}
-                  className="mt-1 inline-flex min-h-8 items-center gap-1.5 rounded-full border-2 border-ink bg-yellow px-3 py-1 text-xs font-black text-ink shadow-[2px_2px_0_0_#0e3158] transition hover:-translate-y-0.5"
+                  className="mt-1 inline-flex min-h-8 items-center gap-1.5 rounded-full border-2 border-ink bg-yellow px-3 py-1 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--ink)] transition hover:-translate-y-0.5"
                 >
                   <RefreshCw className="size-3" />
                   {locale === "sr"
@@ -241,9 +241,9 @@ export function StudioMediaTile({
             className={cn(
               "absolute left-3 top-3 z-30 grid size-7 place-items-center rounded-full border-2 border-ink studio-anim-mikro cursor-pointer studio-focus-ink",
               selected
-                ? "bg-yellow text-ink shadow-[2px_2px_0_0_#0e3158] opacity-100"
+                ? "bg-yellow text-ink shadow-[2px_2px_0_0_var(--ink)] opacity-100"
                 : cn(
-                    "bg-white/90 text-ink backdrop-blur-xs hover:scale-105",
+                    "bg-paper-strong/90 text-ink backdrop-blur-xs hover:scale-105",
                     isSelectMode ? "opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100",
                   ),
             )}
@@ -266,7 +266,7 @@ export function StudioMediaTile({
             </span>
           ) : null}
           {job.isMock ? (
-            <span className="rounded-full border border-white/20 bg-white/90 px-2 py-0.5 text-[10px] font-black uppercase text-ink">
+            <span className="rounded-full border border-white/20 bg-paper-strong/90 px-2 py-0.5 text-[10px] font-black uppercase text-ink">
               DEMO
             </span>
           ) : null}
@@ -317,7 +317,7 @@ export function StudioMediaTile({
 
         {/* Prompt kao naslov preko medija dole levo */}
         {prompt && hasOutput && !isWorking ? (
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-[#0e1a2b]/95 via-[#0e1a2b]/60 to-transparent p-3 pt-9">
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-studio-well/95 via-studio-well/60 to-transparent p-3 pt-9">
             <p className="line-clamp-2 text-xs font-bold leading-snug text-white drop-shadow-sm sm:text-sm">
               {prompt}
             </p>
@@ -331,7 +331,7 @@ export function StudioMediaTile({
             onClick={() => onExtend(job)}
             aria-label={locale === "sr" ? "Produži ili animiraj" : "Extend or animate"}
             title={locale === "sr" ? "Produži ili animiraj" : "Extend or animate"}
-            className="absolute bottom-3 right-3 z-20 flex size-8 items-center justify-center rounded-full border-2 border-ink bg-yellow text-ink opacity-0 shadow-[2px_2px_0_0_#0e3158] transition duration-150 hover:scale-105 group-hover:opacity-100 group-focus-within:opacity-100"
+            className="absolute bottom-3 right-3 z-20 flex size-8 items-center justify-center rounded-full border-2 border-ink bg-yellow text-ink opacity-0 shadow-[2px_2px_0_0_var(--ink)] transition duration-150 hover:scale-105 group-hover:opacity-100 group-focus-within:opacity-100"
           >
             <Sparkles className="size-4" />
           </button>
@@ -365,10 +365,10 @@ export function StudioMediaTile({
 export function StudioMediaSkeletonTile() {
   const reduceMotion = useReducedMotion();
   return (
-    <div className="surface-card mb-4 break-inside-avoid border-2 border-ink bg-white p-2 shadow-[3px_3px_0_0_rgba(14,49,88,0.12)]">
+    <div className="surface-card mb-4 break-inside-avoid border-2 border-ink bg-paper-strong p-2 shadow-[3px_3px_0_0_var(--shadow-hard-12)]">
       <div
         className={cn(
-          "surface-media min-h-[220px] bg-studio-well shadow-[inset_0_0_0_1px_rgba(14,49,88,0.14)]",
+          "surface-media min-h-[220px] bg-studio-well shadow-[inset_0_0_0_1px_var(--shadow-hard-14)]",
           !reduceMotion && "studio-breathing",
         )}
       />

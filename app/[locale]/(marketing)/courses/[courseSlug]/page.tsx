@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 
 import { CheckoutButton } from "@/components/app/checkout-button";
 import { PublicCourseIntroVideo } from "@/components/marketing/public-course-intro-video";
+import { ThemeToggle } from "@/components/app/theme-toggle";
 import { BrandMark, HandUnderline, LinkButton } from "@/components/ui/primitives";
 import { courses } from "@/lib/content";
 import { convexQueries, getConvexHttpClient } from "@/lib/convex-http";
@@ -203,7 +204,7 @@ function CurriculumSection({
   const directLessons = outline.modules.flatMap((module) => module.lessons);
 
   return (
-    <section id="program" className="border-t-2 border-ink bg-white px-4 py-14 sm:px-6 lg:px-8">
+    <section id="program" className="border-t-2 border-ink bg-paper-strong px-4 py-14 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
         <div className="grid gap-8 lg:grid-cols-[0.72fr_1.28fr] lg:items-start">
           <div>
@@ -246,13 +247,13 @@ function CurriculumSection({
               directLessons.map((lesson, lessonIndex) => {
                 const href = lessonHref(locale, outline.course.slug, lesson.slug, signedIn);
                 return (
-                  <details key={lesson.id ?? lesson.slug} open={lessonIndex === 0} className="group overflow-hidden rounded-[16px] border-2 border-ink bg-paper shadow-[6px_6px_0_0_rgba(14,49,88,0.12)]">
-                    <summary className="flex min-h-16 cursor-pointer list-none items-center gap-4 bg-white px-5 py-4 marker:hidden focus-visible:outline focus-visible:outline-4 focus-visible:outline-yellow">
+                  <details key={lesson.id ?? lesson.slug} open={lessonIndex === 0} className="group overflow-hidden rounded-[16px] border-2 border-ink bg-paper shadow-[6px_6px_0_0_var(--shadow-hard-12)]">
+                    <summary className="flex min-h-16 cursor-pointer list-none items-center gap-4 bg-paper-strong px-5 py-4 marker:hidden focus-visible:outline focus-visible:outline-4 focus-visible:outline-yellow">
                       <span className="grid size-9 shrink-0 place-items-center rounded-full border-2 border-ink bg-yellow text-xs font-black">{lessonIndex + 1}</span>
                       <div className="min-w-0 flex-1"><h3 className="text-lg font-black leading-tight text-ink">{localized(lesson.title, locale)}</h3><p className="mt-1 text-xs font-bold text-muted">{formatDuration(lesson.durationSeconds, locale)}</p></div>
                       <ChevronDown className="size-5 text-ink transition group-open:rotate-180" />
                     </summary>
-                    <div className="grid gap-4 border-t-2 border-ink p-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center"><p className="text-sm font-bold leading-6 text-muted">{localized(lesson.summary, locale)}</p><Link href={href} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border-2 border-ink bg-ink px-4 text-xs font-black text-white shadow-[3px_3px_0_0_#f4be30] transition hover:-translate-y-0.5 hover:bg-yellow hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">{signedIn ? <PlayCircle className="size-4" /> : <LogIn className="size-4" />}{signedIn ? (locale === "sr" ? "Otvori u dashboardu" : "Open in dashboard") : (locale === "sr" ? "Prijavi se / napravi profil" : "Sign in / create profile")}</Link></div>
+                    <div className="grid gap-4 border-t-2 border-ink p-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center"><p className="text-sm font-bold leading-6 text-muted">{localized(lesson.summary, locale)}</p><Link href={href} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border-2 border-ink bg-ink px-4 text-xs font-black text-paper-strong shadow-[3px_3px_0_0_var(--yellow)] transition hover:-translate-y-0.5 hover:bg-yellow hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">{signedIn ? <PlayCircle className="size-4" /> : <LogIn className="size-4" />}{signedIn ? (locale === "sr" ? "Otvori u dashboardu" : "Open in dashboard") : (locale === "sr" ? "Prijavi se / napravi profil" : "Sign in / create profile")}</Link></div>
                   </details>
                 );
               })
@@ -306,9 +307,10 @@ export default async function CourseInfoPage({
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
           <BrandMark href={withLocale(locale)} label={t.appName} />
           <div className="flex items-center gap-2">
+            <ThemeToggle locale={locale} compact />
             <Link
               href={withLocale(nextLocale, `/courses/${outline.course.slug}`)}
-              className="rounded-[8px] border-2 border-ink bg-white px-3 py-2 text-sm font-black"
+              className="rounded-[8px] border-2 border-ink bg-paper-strong px-3 py-2 text-sm font-black"
             >
               {nextLocale.toUpperCase()}
             </Link>
@@ -352,7 +354,7 @@ export default async function CourseInfoPage({
             </div>
           </div>
 
-          <div data-motion="card" className="overflow-hidden rounded-[16px] border-[2px] border-ink bg-white p-3 shadow-[8px_8px_0_0_rgba(14,49,88,0.16)]">
+          <div data-motion="card" className="overflow-hidden rounded-[16px] border-[2px] border-ink bg-paper-strong p-3 shadow-[8px_8px_0_0_var(--shadow-hard-16)]">
             <Image
               src={fallbackCourse.image.src}
               alt={localized(fallbackCourse.image.alt, locale)}
@@ -365,7 +367,7 @@ export default async function CourseInfoPage({
         </div>
       </section>
 
-      <section className="border-b-2 border-ink bg-white px-4 py-14 sm:px-6 lg:px-8">
+      <section className="border-b-2 border-ink bg-paper-strong px-4 py-14 sm:px-6 lg:px-8">
         <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[0.8fr_1.2fr]">
           <div>
             <p className="font-display text-2xl text-ink">{locale === "sr" ? "Sta dobijas" : "What you get"}</p>
@@ -386,7 +388,7 @@ export default async function CourseInfoPage({
 
       <section id="besplatan-video" className="bg-paper px-4 py-14 sm:px-6 lg:px-8">
         <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[1.1fr_0.9fr]">
-          <div data-motion="card" className="overflow-hidden rounded-[16px] border-[2px] border-ink bg-ink p-3 text-white shadow-[8px_8px_0_0_#f4be30]">
+          <div data-motion="card" className="overflow-hidden rounded-[16px] border-[2px] border-ink bg-ink p-3 text-paper-strong shadow-[8px_8px_0_0_var(--yellow)]">
             <PublicCourseIntroVideo
               videoUrl={outline.course.videoUrl}
               posterSrc={fallbackCourse.image.src}

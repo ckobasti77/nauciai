@@ -1,16 +1,15 @@
 "use client";
 
-import { Search, Sparkles, X } from "lucide-react";
+import { ArrowLeft, Lightbulb, Search } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { ModelMark } from "@/components/studio/provider-mark";
 import { cn } from "@/components/ui/primitives";
 import type { Locale } from "@/lib/i18n";
 import {
   defaultCredits,
-  familyMark,
   filterModels,
   groupByFamily,
-  hasAudio,
   modelLabel,
   modelTagline,
   MODEL_BADGE_LABELS,
@@ -23,6 +22,12 @@ import {
   formatCreditsPerUnit,
   paramValuesForMode,
 } from "@/lib/studio-params";
+import {
+  recommendationLabel,
+  recommendationsFor,
+  type Recommendation,
+} from "@/lib/studio-recommendations";
+import type { StudioSectionKind } from "@/lib/studio-sections";
 
 const KIND_LABELS = {
   all: { sr: "Sve", en: "All" },
@@ -34,10 +39,21 @@ const KIND_LABELS = {
 const KINDS = ["image", "video", "audio"] as const;
 
 /**
- * Prikaz cene za red modela.
+ * Prikaz cene za red modela. Vraća kratak niz koji staje u desnu kolonu:
+ * `16 kr`, `19 kr/s · 95 kr`, ili „cena po ulazu" kad se količina meri iz fajla.
  */
 export function modelPriceSummary(model: StudioModel, locale: Locale, duration?: number): string {
   const quantityParam = model.priceRule.quantityParam;
+
+  // chars1k (TTS/dijalog): cena po 1000 znakova je stabilna i poznata unapred,
+  // pa je pokazujemo umesto „cena po ulazu" - broj koji korisnik može da uporedi.
+  if (model.priceRule.unit === "chars1k") {
+    const for1k = defaultCredits(model, { char_count: 1000 });
+    if (for1k !== null) {
+      return locale === "sr" ? `${for1k} kr/1k` : `${for1k} cr/1k`;
+    }
+  }
+
   const override: Record<string, number> =
     quantityParam === "duration" && duration !== undefined ? { duration } : {};
   const credits = defaultCredits(model, override);
@@ -46,12 +62,6 @@ export function modelPriceSummary(model: StudioModel, locale: Locale, duration?:
   }
 
   if (model.priceRule.unit !== "second") {
-    if (model.priceRule.unit === "chars1k") {
-      const for1k = defaultCredits(model, { char_count: 1000 });
-      if (for1k !== null) {
-        return locale === "sr" ? `${for1k} kr/1k znak.` : `${for1k} cr/1k ch.`;
-      }
-    }
     return formatCredits(credits, locale);
   }
 
@@ -65,72 +75,55 @@ export function modelPriceSummary(model: StudioModel, locale: Locale, duration?:
     : `${formatCreditsPerUnit(perSecond, "s", locale)} · ${formatCredits(credits, locale)}`;
 }
 
+type KindFilter = "all" | StudioSectionKind;
+
 /**
- * P2 posvećeni birač modela (Overlay / Modal) sa pretragom, familijskim grupama,
- * zakačenim trenutnim i nedavnim modelima, i punom tastaturnom navigacijom (↑↓, Enter, Esc).
+ * Birač modela kao GORNJA ZONA panela (SP1, tačka 1) - ne zaseban prozor.
+ * Fiksne je visine (flex-col: pretraga+filteri gore, spisak skroluje), pa se
+ * composer i cena ne pomeraju dok korisnik bira. Sav znak firme, gustina (dva
+ * reda po modelu, cena u tabularnoj koloni), preporuke po poslu i tastatura su
+ * ovde; nijedan `if (slug === …)`.
  */
-export function ModelPickerOverlay({
-  open,
-  onClose,
+export function ModelPickerPanel({
   models,
   selectedSlug,
+  activeKind,
   recentSlugs = [],
+  lastByKind = {},
   onSelect,
+  onCollapse,
   locale,
-  duration,
+  className,
 }: {
-  open: boolean;
-  onClose: () => void;
   models: StudioModel[];
   selectedSlug: string | null;
+  /** Vrsta trenutnog modela - filter se otvara na njoj (tačka 8: ne baca na tuđu vrstu). */
+  activeKind: StudioSectionKind;
   recentSlugs?: string[];
+  lastByKind?: Partial<Record<StudioSectionKind, string>>;
   onSelect: (model: StudioModel) => void;
+  onCollapse: () => void;
   locale: Locale;
-  duration?: number;
+  className?: string;
 }) {
-  const [kind, setKind] = useState<"image" | "video" | "audio" | null>(null);
-  const [audioOnly, setAudioOnly] = useState(false);
+  const [kind, setKind] = useState<KindFilter>(activeKind);
   const [query, setQuery] = useState("");
   const [kbdIndex, setKbdIndex] = useState<number>(-1);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
-  const [prevOpen, setPrevOpen] = useState(open);
-  if (open !== prevOpen) {
-    setPrevOpen(open);
-    if (open) {
-      setQuery("");
-      setKbdIndex(-1);
-    }
-  }
-
-  // Autofokus na polje za pretragu kad se birač otvori
+  // Autofokus na pretragu kad se zona otvori.
   useEffect(() => {
-    if (open) {
-      const timer = setTimeout(() => {
-        searchInputRef.current?.focus();
-      }, 50);
-      return () => clearTimeout(timer);
-    }
-  }, [open]);
+    const timer = setTimeout(() => searchInputRef.current?.focus(), 60);
+    return () => clearTimeout(timer);
+  }, []);
 
-  // Escape taster zatvara birač
-  useEffect(() => {
-    if (!open) return;
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        onClose();
-      }
-    }
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [open, onClose]);
+  const specificKind: StudioSectionKind | null = kind === "all" ? null : kind;
 
   const filtered = useMemo(
-    () => filterModels(models, { ...(kind ? { kind } : {}), audioOnly, query }, locale),
-    [models, kind, audioOnly, query, locale],
+    () => filterModels(models, { ...(specificKind ? { kind: specificKind } : {}), query }, locale),
+    [models, specificKind, query, locale],
   );
 
   const activeModel = useMemo(
@@ -138,57 +131,73 @@ export function ModelPickerOverlay({
     [models, selectedSlug],
   );
 
+  const matchesFilter = (model: StudioModel) =>
+    (!specificKind || model.kind === specificKind) && (query.trim().length === 0);
+
+  // „Poslednji korišćen" za trenutnu vrstu (tačka 8) - da prebacivanje vrste
+  // vrati na poznat model, ne na nasumičan. Preskače trenutni i one već gore.
+  const lastUsedModel = useMemo(() => {
+    if (!specificKind || query.trim().length > 0) return null;
+    const slug = lastByKind[specificKind];
+    if (!slug || slug === selectedSlug || recentSlugs.includes(slug)) return null;
+    const model = models.find((m) => m.slug === slug);
+    return model && model.kind === specificKind ? model : null;
+  }, [specificKind, query, lastByKind, selectedSlug, recentSlugs, models]);
+
   const recentModels = useMemo(() => {
     if (query.trim().length > 0) return [];
     return recentSlugs
-      .filter((slug) => slug !== selectedSlug)
+      .filter((slug) => slug !== selectedSlug && slug !== lastUsedModel?.slug)
       .map((slug) => models.find((m) => m.slug === slug))
-      .filter((m): m is StudioModel => m !== undefined && (!kind || m.kind === kind) && (!audioOnly || hasAudio(m)));
-  }, [recentSlugs, selectedSlug, models, kind, audioOnly, query]);
+      .filter((m): m is StudioModel => m !== undefined && (!specificKind || m.kind === specificKind));
+  }, [recentSlugs, selectedSlug, lastUsedModel, models, specificKind, query]);
+
+  const recommendations = useMemo(() => {
+    if (!specificKind || query.trim().length > 0) return [];
+    return recommendationsFor(specificKind, models);
+  }, [specificKind, query, models]);
 
   const groups = useMemo(() => {
-    const shownSlugs = new Set<string>();
+    const shown = new Set<string>();
     if (!query.trim()) {
-      if (activeModel && (!kind || activeModel.kind === kind) && (!audioOnly || hasAudio(activeModel))) {
-        shownSlugs.add(activeModel.slug);
-      }
-      for (const rm of recentModels) {
-        shownSlugs.add(rm.slug);
-      }
+      if (activeModel && matchesFilter(activeModel)) shown.add(activeModel.slug);
+      if (lastUsedModel) shown.add(lastUsedModel.slug);
+      for (const m of recentModels) shown.add(m.slug);
     }
+    return groupByFamily(filtered.filter((m) => !shown.has(m.slug)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtered, query, activeModel, lastUsedModel, recentModels, specificKind]);
 
-    const remaining = filtered.filter((m) => !shownSlugs.has(m.slug));
-    return groupByFamily(remaining);
-  }, [filtered, query, activeModel, kind, audioOnly, recentModels]);
-
-  // Spisak svih vidljivih slugova redom za tastaturnu navigaciju
+  // Redosled svih vidljivih model-redova za tastaturu (preporuke nisu u nizu -
+  // one su prečice na dodir, i dalje dostupne Tab-om).
   const visibleSlugs = useMemo(() => {
     const list: string[] = [];
     if (!query.trim()) {
-      if (activeModel && (!kind || activeModel.kind === kind) && (!audioOnly || hasAudio(activeModel))) {
-        list.push(activeModel.slug);
-      }
-      for (const rm of recentModels) {
-        list.push(rm.slug);
-      }
+      if (activeModel && matchesFilter(activeModel)) list.push(activeModel.slug);
+      if (lastUsedModel) list.push(lastUsedModel.slug);
+      for (const m of recentModels) list.push(m.slug);
     }
-    for (const group of groups) {
-      for (const m of group.models) {
-        list.push(m.slug);
-      }
-    }
+    for (const group of groups) for (const m of group.models) list.push(m.slug);
     return list;
-  }, [query, activeModel, kind, audioOnly, recentModels, groups]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, activeModel, lastUsedModel, recentModels, groups, specificKind]);
 
-  function handleSelectSlug(slug: string) {
+  function choose(slug: string) {
     const target = models.find((m) => m.slug === slug);
-    if (target) {
-      onSelect(target);
-      onClose();
-    }
+    if (target) onSelect(target);
+  }
+
+  function scrollIndexIntoView(index: number) {
+    const items = listRef.current?.querySelectorAll<HTMLElement>("[data-model-slug]");
+    items?.[index]?.scrollIntoView({ block: "nearest" });
   }
 
   function handleInputKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      onCollapse();
+      return;
+    }
     if (visibleSlugs.length === 0) return;
 
     if (event.key === "ArrowDown") {
@@ -207,113 +216,29 @@ export function ModelPickerOverlay({
       });
     } else if (event.key === "Enter") {
       event.preventDefault();
-      const targetSlug = kbdIndex >= 0 && kbdIndex < visibleSlugs.length
-        ? visibleSlugs[kbdIndex]
-        : visibleSlugs[0];
-      if (targetSlug) {
-        handleSelectSlug(targetSlug);
-      }
-    }
-  }
-
-  function scrollIndexIntoView(index: number) {
-    const container = listRef.current;
-    if (!container) return;
-    const items = container.querySelectorAll<HTMLElement>("[data-model-slug]");
-    const target = items[index];
-    if (target) {
-      target.scrollIntoView({ block: "nearest" });
+      const targetSlug =
+        kbdIndex >= 0 && kbdIndex < visibleSlugs.length ? visibleSlugs[kbdIndex] : visibleSlugs[0];
+      if (targetSlug) choose(targetSlug);
     }
   }
 
   const availableKinds = KINDS.filter((entry) => models.some((model) => model.kind === entry));
-
-  if (!open) return null;
+  const highlightedSlug = kbdIndex >= 0 ? visibleSlugs[kbdIndex] : null;
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={locale === "sr" ? "Izaberi model" : "Choose a model"}
-      className="fixed inset-0 z-50 flex items-end justify-center bg-ink/35 p-0 backdrop-blur-[2px] sm:items-center sm:p-4"
-      onClick={onClose}
-    >
-      <div
-        onClick={(event) => event.stopPropagation()}
-        className="surface-card flex max-h-[85vh] w-full max-w-[720px] flex-col overflow-hidden border-2 border-ink bg-white shadow-[6px_6px_0_0_rgba(14,49,88,0.16)] sm:max-h-[80vh]"
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between border-b-2 border-ink bg-paper px-4 py-3 sm:px-6">
-          <div className="flex items-center gap-2">
-            <Sparkles className="size-4 text-yellow" />
-            <h2 className="text-sm font-black uppercase tracking-wide text-ink">
-              {locale === "sr" ? "Izaberi model" : "Choose a model"}
-            </h2>
-            <span className="hidden text-xs font-bold text-muted sm:inline">
-              · {locale === "sr" ? "↑↓ Enter · kucaj za pretragu · Esc" : "↑↓ Enter · type to search · Esc"}
-            </span>
-          </div>
+    <div className={cn("flex min-h-0 flex-col", className)}>
+      {/* Filteri po vrsti + pretraga (zakačeni gore, ne skroluju) */}
+      <div className="space-y-2.5 pb-3">
+        <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={onClose}
-            aria-label={locale === "sr" ? "Zatvori" : "Close"}
-            className="inline-flex size-8 items-center justify-center rounded-full border-2 border-ink bg-white text-ink shadow-[2px_2px_0_0_rgba(14,49,88,0.18)] transition hover:-translate-y-0.5"
+            onClick={onCollapse}
+            aria-label={locale === "sr" ? "Nazad na podešavanja" : "Back to settings"}
+            className="inline-flex size-8 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
-            <X className="size-4" />
+            <ArrowLeft className="size-4" />
           </button>
-        </div>
-
-        {/* Filteri po vrsti & Pretraga */}
-        <div className="space-y-3 border-b-2 border-ink bg-white p-4 sm:px-6">
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              aria-pressed={kind === null}
-              onClick={() => {
-                setKind(null);
-                setKbdIndex(-1);
-              }}
-              className={cn(
-                "rounded-full border-2 border-ink px-3.5 py-1 text-xs font-black transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
-                kind === null ? "bg-ink text-white" : "bg-white text-ink hover:-translate-y-0.5",
-              )}
-            >
-              {KIND_LABELS.all[locale]}
-            </button>
-            {availableKinds.map((entry) => (
-              <button
-                key={entry}
-                type="button"
-                aria-pressed={kind === entry}
-                onClick={() => {
-                  setKind(kind === entry ? null : entry);
-                  setKbdIndex(-1);
-                }}
-                className={cn(
-                  "rounded-full border-2 border-ink px-3.5 py-1 text-xs font-black transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
-                  kind === entry ? "bg-ink text-white" : "bg-white text-ink hover:-translate-y-0.5",
-                )}
-              >
-                {KIND_LABELS[entry][locale]}
-              </button>
-            ))}
-            <button
-              type="button"
-              aria-pressed={audioOnly}
-              onClick={() => {
-                setAudioOnly((current) => !current);
-                setKbdIndex(-1);
-              }}
-              className={cn(
-                "rounded-full border-2 border-ink px-3.5 py-1 text-xs font-black transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
-                audioOnly ? "bg-yellow text-ink" : "bg-white text-ink hover:-translate-y-0.5",
-              )}
-            >
-              {locale === "sr" ? "Sa zvukom" : "With audio"}
-            </button>
-          </div>
-
-          <div className="relative">
+          <div className="relative flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" />
             <input
               ref={searchInputRef}
@@ -324,206 +249,250 @@ export function ModelPickerOverlay({
                 setKbdIndex(-1);
               }}
               onKeyDown={handleInputKeyDown}
-              placeholder={locale === "sr" ? "Pretraži modele po imenu ili familiji…" : "Search models by name or family…"}
+              placeholder={locale === "sr" ? "Pretraži modele…" : "Search models…"}
               aria-label={locale === "sr" ? "Pretraži modele" : "Search models"}
-              className="surface-inset w-full border-2 border-ink bg-paper py-2 pl-9 pr-4 text-base font-bold text-ink placeholder:font-bold placeholder:text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              className="surface-inset h-11 w-full border-2 border-ink bg-paper py-2 pl-9 pr-3 text-base font-bold text-ink placeholder:font-bold placeholder:text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             />
           </div>
         </div>
 
-        {/* Spisak modela */}
-        <div ref={listRef} className="min-h-0 flex-1 overflow-y-auto p-4 sm:px-6">
-          {visibleSlugs.length === 0 ? (
-            <p className="surface-inset border-2 border-ink bg-paper p-4 text-center text-sm font-bold text-muted">
-              {locale === "sr"
-                ? "Nijedan model ne odgovara pretrazi. Očisti pretragu ili isključi filtere."
-                : "No model matches your search. Clear the search or toggle filters."}
-            </p>
-          ) : (
-            <div className="space-y-4">
-              {/* Trenutni model (zakačen na vrh ako nema aktivne pretrage) */}
-              {!query.trim() && activeModel && (!kind || activeModel.kind === kind) && (!audioOnly || hasAudio(activeModel)) ? (
-                <div>
-                  <div className="sticky top-0 z-10 bg-white/95 pb-1 pt-0 text-[11px] font-black uppercase tracking-wider text-ink backdrop-blur-xs">
-                    {locale === "sr" ? "Trenutni model" : "Current model"}
-                  </div>
-                  <ModelRowButton
-                    model={activeModel}
-                    locale={locale}
-                    duration={duration}
-                    isSelected={true}
-                    isHighlighted={visibleSlugs[kbdIndex] === activeModel.slug}
-                    onSelect={() => handleSelectSlug(activeModel.slug)}
-                  />
-                </div>
-              ) : null}
-
-              {/* Nedavni modeli */}
-              {!query.trim() && recentModels.length > 0 ? (
-                <div>
-                  <div className="sticky top-0 z-10 bg-white/95 pb-1 pt-1 text-[11px] font-black uppercase tracking-wider text-muted backdrop-blur-xs">
-                    {locale === "sr" ? "Nedavni" : "Recent"}
-                  </div>
-                  <div className="grid gap-1.5">
-                    {recentModels.map((m) => (
-                      <ModelRowButton
-                        key={m.slug}
-                        model={m}
-                        locale={locale}
-                        duration={duration}
-                        isSelected={m.slug === selectedSlug}
-                        isHighlighted={visibleSlugs[kbdIndex] === m.slug}
-                        onSelect={() => handleSelectSlug(m.slug)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-
-              {/* Familijske grupe */}
-              {groups.map((group) => (
-                <div key={group.family} className="space-y-1.5">
-                  <div className="sticky top-0 z-10 bg-white/95 pb-1 pt-1 text-[11px] font-black uppercase tracking-wider text-muted backdrop-blur-xs">
-                    {group.family} · {group.models.length}
-                  </div>
-                  <div className="grid gap-1.5">
-                    {group.models.map((m) => (
-                      <ModelRowButton
-                        key={m.slug}
-                        model={m}
-                        locale={locale}
-                        duration={duration}
-                        isSelected={m.slug === selectedSlug}
-                        isHighlighted={visibleSlugs[kbdIndex] === m.slug}
-                        onSelect={() => handleSelectSlug(m.slug)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <KindChip label={KIND_LABELS.all[locale]} active={kind === "all"} onClick={() => { setKind("all"); setKbdIndex(-1); }} />
+          {availableKinds.map((entry) => (
+            <KindChip
+              key={entry}
+              label={KIND_LABELS[entry][locale]}
+              active={kind === entry}
+              onClick={() => { setKind(entry); setKbdIndex(-1); }}
+            />
+          ))}
         </div>
+      </div>
+
+      {/* Spisak (jedini deo koji skroluje) */}
+      <div ref={listRef} className="min-h-0 flex-1 overflow-y-auto">
+        {visibleSlugs.length === 0 && recommendations.length === 0 ? (
+          <p className="surface-inset border-2 border-ink bg-paper p-4 text-center text-sm font-bold text-muted">
+            {locale === "sr"
+              ? "Nijedan model ne odgovara pretrazi."
+              : "No model matches your search."}
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {/* Preporuke po poslu — ulaz za početnika, pre punog spiska */}
+            {recommendations.length > 0 ? (
+              <div className="space-y-1">
+                <GroupHeader label={locale === "sr" ? "Za tvoj posao" : "For your job"} />
+                {recommendations.map((rec) => (
+                  <RecommendationRow
+                    key={rec.id}
+                    rec={rec}
+                    model={models.find((m) => m.slug === rec.slug)!}
+                    locale={locale}
+                    onSelect={() => choose(rec.slug)}
+                  />
+                ))}
+              </div>
+            ) : null}
+
+            {/* Trenutni model */}
+            {!query.trim() && activeModel && matchesFilter(activeModel) ? (
+              <div className="space-y-1">
+                <GroupHeader label={locale === "sr" ? "Trenutni model" : "Current model"} />
+                <ModelRow
+                  model={activeModel}
+                  locale={locale}
+                  isSelected
+                  isHighlighted={highlightedSlug === activeModel.slug}
+                  onSelect={() => choose(activeModel.slug)}
+                />
+              </div>
+            ) : null}
+
+            {/* Poslednji korišćen za ovu vrstu */}
+            {lastUsedModel ? (
+              <div className="space-y-1">
+                <GroupHeader label={locale === "sr" ? "Poslednji korišćen" : "Last used"} />
+                <ModelRow
+                  model={lastUsedModel}
+                  locale={locale}
+                  isSelected={lastUsedModel.slug === selectedSlug}
+                  isHighlighted={highlightedSlug === lastUsedModel.slug}
+                  onSelect={() => choose(lastUsedModel.slug)}
+                />
+              </div>
+            ) : null}
+
+            {/* Nedavni */}
+            {recentModels.length > 0 ? (
+              <div className="space-y-1">
+                <GroupHeader label={locale === "sr" ? "Nedavni" : "Recent"} />
+                {recentModels.map((m) => (
+                  <ModelRow
+                    key={m.slug}
+                    model={m}
+                    locale={locale}
+                    isSelected={m.slug === selectedSlug}
+                    isHighlighted={highlightedSlug === m.slug}
+                    onSelect={() => choose(m.slug)}
+                  />
+                ))}
+              </div>
+            ) : null}
+
+            {/* Familijske grupe */}
+            {groups.map((group) => (
+              <div key={group.family} className="space-y-1">
+                <GroupHeader label={`${group.family} · ${group.models.length}`} />
+                {group.models.map((m) => (
+                  <ModelRow
+                    key={m.slug}
+                    model={m}
+                    locale={locale}
+                    isSelected={m.slug === selectedSlug}
+                    isHighlighted={highlightedSlug === m.slug}
+                    onSelect={() => choose(m.slug)}
+                  />
+                ))}
+              </div>
+            ))}
+
+            {/* Pravna napomena o znakovima (SP1, tačka 2) */}
+            <p className="px-1 pt-1 text-[10px] font-bold leading-4 text-muted">
+              {locale === "sr"
+                ? "Imena i znakovi modela pripadaju njihovim vlasnicima; koriste se radi prepoznavanja, bez podrazumevane povezanosti."
+                : "Model names and marks belong to their owners; shown for recognition, with no implied affiliation."}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-function ModelRowButton({
+function KindChip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      className={cn(
+        "rounded-full border-2 border-ink px-3 py-1 text-xs font-black transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+        active ? "bg-ink text-paper-strong" : "bg-paper-strong text-ink hover:-translate-y-0.5",
+      )}
+    >
+      {label}
+    </button>
+  );
+}
+
+function GroupHeader({ label }: { label: string }) {
+  return (
+    <div className="sticky top-0 z-10 bg-paper-strong/95 py-1 text-[11px] font-black uppercase tracking-wider text-muted backdrop-blur-xs">
+      {label}
+    </div>
+  );
+}
+
+/**
+ * Dva reda: znak + ime + cena (gore), rečenica opisa (dole, `truncate`). Cena je
+ * u desnoj tabularnoj koloni kroz ceo spisak. Selekcija je ink (žuto je samo za
+ * cenu/akciju na baru); znak je `currentColor`, pa prati i temu i selekciju.
+ */
+function ModelRow({
   model,
   locale,
-  duration,
   isSelected,
   isHighlighted,
   onSelect,
 }: {
   model: StudioModel;
   locale: Locale;
-  duration?: number;
   isSelected: boolean;
   isHighlighted: boolean;
   onSelect: () => void;
 }) {
-  const mark = familyMark(model);
-  const price = modelPriceSummary(model, locale, duration);
-
   return (
     <button
       type="button"
       data-model-slug={model.slug}
+      aria-pressed={isSelected}
       onClick={onSelect}
       className={cn(
-        "surface-inset flex min-h-[52px] w-full items-center gap-3 border-2 border-ink p-3 text-left transition duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+        "surface-inset flex min-h-[44px] w-full items-center gap-3 border-2 px-3 py-1.5 text-left transition duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
         isSelected
-          ? "bg-ink text-white"
+          ? "border-ink bg-ink text-paper-strong"
           : isHighlighted
-            ? "bg-yellow/30 text-ink"
-            : "bg-paper hover:bg-[#fff7e6] text-ink",
+            ? "border-ink bg-yellow/20 text-ink"
+            : "border-ink/15 bg-paper text-ink hover:border-ink hover:bg-[#fff7e6] dark:hover:bg-yellow/10",
       )}
     >
-      {/* Monohromni znak familije */}
-      <span
-        className={cn(
-          "inline-flex size-8 shrink-0 items-center justify-center rounded-full border-2 border-ink font-mono text-xs font-black",
-          isSelected ? "bg-white text-ink" : "bg-ink text-white",
-        )}
-      >
-        {mark}
-      </span>
-
-      {/* Naziv i opis */}
+      <ModelMark model={model} size={20} className="shrink-0" />
       <span className="min-w-0 flex-1">
-        <span className="flex flex-wrap items-center gap-2">
-          <span className="text-sm font-black leading-none">{modelLabel(model, locale)}</span>
+        <span className="flex items-center gap-2">
+          <span className="truncate text-[15px] font-black leading-tight">{modelLabel(model, locale)}</span>
           {model.badge ? (
             <span
               className={cn(
-                "rounded-full border-2 border-ink px-2 py-0.5 text-[10px] font-black uppercase tracking-wide",
-                isSelected ? "bg-paper text-ink" : "bg-white text-ink",
+                "shrink-0 rounded-full border-2 border-ink px-1.5 py-0 text-[9px] font-black uppercase tracking-wide",
+                isSelected ? "bg-paper text-ink" : "bg-paper-strong text-ink",
               )}
             >
               {MODEL_BADGE_LABELS[model.badge][locale]}
             </span>
           ) : null}
-          {hasAudio(model) ? (
-            <span
-              className={cn(
-                "rounded-full border-2 border-ink px-2 py-0.5 text-[10px] font-black uppercase tracking-wide",
-                isSelected ? "bg-paper text-ink" : "bg-white text-ink",
-              )}
-            >
-              {locale === "sr" ? "zvuk" : "audio"}
-            </span>
-          ) : null}
         </span>
         <span
           className={cn(
-            "mt-1 block truncate text-xs font-bold",
-            isSelected ? "text-white/80" : "text-muted",
+            "mt-0.5 block truncate text-[11px] font-semibold leading-tight",
+            isSelected ? "text-paper-strong/75" : "text-muted",
           )}
         >
           {modelTagline(model, locale)}
         </span>
       </span>
-
-      {/* Cena */}
       <span
         className={cn(
-          "ml-auto shrink-0 rounded-full border-2 border-ink px-3 py-1 font-mono text-xs font-black",
-          isSelected ? "bg-white text-ink" : "bg-ink text-white",
+          "shrink-0 whitespace-nowrap text-right font-mono text-[11px] font-black tabular-nums",
+          isSelected ? "text-paper-strong" : "text-ink",
         )}
       >
-        {price}
+        {modelPriceSummary(model, locale)}
       </span>
     </button>
   );
 }
 
 /**
- * Zadržana kompatibilnost sa postojećim pozivaocima.
+ * Preporuka po POSLU: vodi labela posla (bold), pa model na koji vodi (muted),
+ * cena desno. Bez znaka firme - da se ne pomeša sa spiskom modela i da znak ne
+ * postane svuda (tačka 2: znak koji je svuda prestaje da bude informacija).
  */
-export function ModelPicker({
-  models,
-  selectedSlug,
-  onSelect,
+function RecommendationRow({
+  rec,
+  model,
   locale,
-  duration,
+  onSelect,
 }: {
-  models: StudioModel[];
-  selectedSlug: string | null;
-  onSelect: (model: StudioModel) => void;
+  rec: Recommendation;
+  model: StudioModel;
   locale: Locale;
-  duration?: number;
+  onSelect: () => void;
 }) {
   return (
-    <ModelPickerOverlay
-      open={true}
-      onClose={() => {}}
-      models={models}
-      selectedSlug={selectedSlug}
-      onSelect={onSelect}
-      locale={locale}
-      duration={duration}
-    />
+    <button
+      type="button"
+      onClick={onSelect}
+      className="surface-inset flex min-h-[44px] w-full items-center gap-3 border-2 border-ink/15 bg-paper px-3 py-1.5 text-left text-ink transition duration-150 hover:border-ink hover:bg-[#fff7e6] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink dark:hover:bg-yellow/10"
+    >
+      <Lightbulb className="size-4 shrink-0 text-ink" />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-black leading-tight">{recommendationLabel(rec, locale)}</span>
+        <span className="block truncate text-xs font-bold leading-tight text-muted">{modelLabel(model, locale)}</span>
+      </span>
+      <span className="shrink-0 whitespace-nowrap text-right font-mono text-[11px] font-black tabular-nums text-ink">
+        {modelPriceSummary(model, locale)}
+      </span>
+    </button>
   );
 }
