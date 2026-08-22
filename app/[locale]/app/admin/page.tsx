@@ -1,20 +1,11 @@
 import { redirect } from "next/navigation";
 
-import { AdminContentManager } from "@/components/app/admin-content-manager";
-import { getCurrentViewerProfile } from "@/lib/current-viewer";
 import { normalizeLocale, withLocale } from "@/lib/i18n";
-import type { Metadata } from "next";
-import { appPageMetadata } from "@/lib/app-metadata";
 
-export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
-  const { locale } = await params;
-  return appPageMetadata(locale, { sr: "Admin panel", en: "Admin panel" });
-}
-
+// Admin je sada kontekst sa rutama; /app/admin je samo ulaz. 307 (Next default), a gate
+// stoji na SVAKOJ leaf ruti (content/users/growth/analytics), ne na ovoj roditeljskoj.
 export default async function AdminPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale: localeParam } = await params;
   const locale = normalizeLocale(localeParam);
-  const profile = await getCurrentViewerProfile();
-  if (profile?.role !== "admin") redirect(withLocale(locale, "/app"));
-  return <AdminContentManager locale={locale} />;
+  redirect(withLocale(locale, "/app/admin/content"));
 }

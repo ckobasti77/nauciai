@@ -1,4 +1,15 @@
-import { LayoutDashboard, MessageCircle, Wand2, type LucideIcon } from "lucide-react";
+import {
+  BarChart3,
+  FileText,
+  LayoutDashboard,
+  Megaphone,
+  MessageCircle,
+  Shield,
+  ShieldCheck,
+  Users,
+  Wand2,
+  type LucideIcon,
+} from "lucide-react";
 
 import {
   COMMUNITY_SECTIONS,
@@ -156,6 +167,51 @@ const communityContext: SidebarContext = {
   sections: COMMUNITY_SECTIONS.map(fromCommunitySection),
 };
 
+// --- admin -------------------------------------------------------------------
+
+/** Authors one admin section as a full route. Gate is per-section (adminOnly / staffOnly). */
+function adminSection(opts: {
+  id: string;
+  labelSr: string;
+  labelEn: string;
+  icon: LucideIcon;
+  path: string;
+  staffOnly?: boolean;
+  adminOnly?: boolean;
+}): SidebarSection {
+  return {
+    id: opts.id,
+    labelSr: opts.labelSr,
+    labelEn: opts.labelEn,
+    icon: opts.icon,
+    staffOnly: opts.staffOnly,
+    adminOnly: opts.adminOnly,
+    href: (locale) => withLocale(locale, opts.path),
+    isActive: (pathname) => stripLocale(pathname) === opts.path,
+  };
+}
+
+const adminContext: SidebarContext = {
+  id: "admin",
+  matches: ["/app/admin"],
+  rootHref: (locale) => withLocale(locale, "/app/admin/content"),
+  labelSr: "Admin sekcije",
+  labelEn: "Admin sections",
+  icon: ShieldCheck,
+  groupLabelSr: "Administracija",
+  groupLabelEn: "Admin",
+  // Whole group is admin-only; Chat sigurnost is the one section staff (moderators) also see.
+  adminOnly: true,
+  sections: [
+    adminSection({ id: "content", labelSr: "Sadržaj", labelEn: "Content", icon: FileText, path: "/app/admin/content", adminOnly: true }),
+    adminSection({ id: "users", labelSr: "Korisnici", labelEn: "Users", icon: Users, path: "/app/admin/users", adminOnly: true }),
+    adminSection({ id: "growth", labelSr: "Rast", labelEn: "Growth", icon: Megaphone, path: "/app/admin/growth", adminOnly: true }),
+    adminSection({ id: "analytics", labelSr: "Analitika", labelEn: "Analytics", icon: BarChart3, path: "/app/admin/analytics", adminOnly: true }),
+    adminSection({ id: "chat", labelSr: "Chat sigurnost", labelEn: "Chat safety", icon: Shield, path: "/app/admin/chat", staffOnly: true }),
+    adminSection({ id: "studio", labelSr: "Studio admin", labelEn: "Studio admin", icon: Wand2, path: "/app/admin/studio", adminOnly: true }),
+  ],
+};
+
 // --- home (fallback sentinel) ------------------------------------------------
 
 const homeContext: SidebarContext = {
@@ -171,8 +227,8 @@ const homeContext: SidebarContext = {
   sections: [],
 };
 
-// Non-home contexts, checked in order; admin is added in Phase 1c.
-const CONTEXTS: readonly SidebarContext[] = [studioContext, communityContext];
+// Non-home contexts, checked in order; the first prefix match wins.
+const CONTEXTS: readonly SidebarContext[] = [studioContext, communityContext, adminContext];
 
 export function resolveSidebarContext(pathname: string): SidebarContext {
   const path = stripLocale(pathname);

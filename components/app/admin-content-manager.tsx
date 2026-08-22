@@ -1,10 +1,9 @@
 "use client";
 
 import { useMutation, useQuery } from "convex/react";
-import { motion } from "motion/react";
 import { AlertTriangle, BarChart3, CheckCircle2, CirclePlus, Loader2, Megaphone, Save, Settings2, Users, XCircle } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState, type FormEvent, type RefObject } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode, type RefObject } from "react";
 
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -217,7 +216,50 @@ function FutureModule({ icon: Icon, title, body }: { icon: typeof Users; title: 
   );
 }
 
-export function AdminContentManager({ locale }: { locale: Locale }) {
+function AdminPageFrame({ children }: { children: ReactNode }) {
+  return (
+    <div className="mx-auto max-w-[1500px] space-y-6">
+      <header>
+        <p className="text-xs font-black uppercase tracking-[0.16em] text-muted">Administracija</p>
+        <h1 className="mt-2 font-display text-5xl text-ink sm:text-6xl">Kontrolni centar</h1>
+      </header>
+      {children}
+    </div>
+  );
+}
+
+export function AdminUsersPanel() {
+  return (
+    <AdminPageFrame>
+      <div className="grid gap-5 md:grid-cols-3">
+        <FutureModule icon={Users} title="Upravljanje korisnicima" body="Pregled, suspenzija i administracija naloga biće dodati bez izmišljanja privremenih podataka." />
+      </div>
+    </AdminPageFrame>
+  );
+}
+
+export function AdminGrowthPanel() {
+  return (
+    <AdminPageFrame>
+      <div className="grid gap-5 md:grid-cols-3">
+        <FutureModule icon={Megaphone} title="Affiliate i influenseri" body="Evidencija partnera, kampanja i atribucije." />
+        <FutureModule icon={Megaphone} title="Meta i Google Ads" body="Povezivanje stvarnih oglasnih naloga i podataka." />
+      </div>
+    </AdminPageFrame>
+  );
+}
+
+export function AdminAnalyticsPanel() {
+  return (
+    <AdminPageFrame>
+      <div className="grid gap-5 md:grid-cols-3">
+        <FutureModule icon={BarChart3} title="Google Analytics" body="Metrike će se prikazati tek nakon povezivanja stvarnog izvora podataka." />
+      </div>
+    </AdminPageFrame>
+  );
+}
+
+export function AdminContentPanel({ locale }: { locale: Locale }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -226,7 +268,6 @@ export function AdminContentManager({ locale }: { locale: Locale }) {
   const upsertCourse = useMutation(api.courses.upsertCourse);
   const upsertLesson = useMutation(api.contentHierarchy.upsertDirectLesson);
   const createDraftEntity = useMutation(api.contentHierarchy.createDraftEntity);
-  const [tab, setTab] = useState<"content" | "users" | "growth" | "analytics">("content");
   const [trackId, setTrackId] = useState(() => searchParams.get("track") ?? "");
   const [courseId, setCourseId] = useState(() => searchParams.get("course") ?? "");
   const [lessonId, setLessonId] = useState(() => searchParams.get("lesson") ?? "");
@@ -381,13 +422,6 @@ export function AdminContentManager({ locale }: { locale: Locale }) {
     });
   }, [creating, selectedCourse, selectedLesson, selectedTrack]);
 
-  const tabs = [
-    { id: "content" as const, label: "Nastavni sadržaj" },
-    { id: "users" as const, label: "Korisnici" },
-    { id: "growth" as const, label: "Affiliate i oglasi" },
-    { id: "analytics" as const, label: "Analitika" },
-  ];
-
   async function save(event: FormEvent) {
     event.preventDefault();
     setPending(true);
@@ -482,29 +516,7 @@ export function AdminContentManager({ locale }: { locale: Locale }) {
   const lessonSurface = previewLesson && selectedCourse ? lessonFromRow(previewLesson) : null;
   const lessonCourseSurface = previewLesson && selectedCourse ? courseFromRows(selectedCourse, previewLesson) : null;
   return (
-    <div className="mx-auto max-w-[1500px] space-y-6">
-      <header>
-        <p className="text-xs font-black uppercase tracking-[0.16em] text-muted">Administracija</p>
-        <h1 className="mt-2 font-display text-5xl text-ink sm:text-6xl">Kontrolni centar</h1>
-      </header>
-
-      <nav aria-label="Admin sekcije" className="relative flex w-full gap-1 overflow-x-auto border-b-2 border-ink">
-        {tabs.map((item) => (
-          <button key={item.id} type="button" onClick={() => setTab(item.id)} className={cn("relative min-h-12 shrink-0 px-4 text-sm font-black", tab === item.id ? "text-ink" : "text-muted")}>
-            {item.label}
-            {tab === item.id ? <motion.span layoutId="admin-tab-indicator" className="absolute inset-x-2 bottom-[-2px] h-1 rounded-full bg-yellow ring-2 ring-ink" transition={{ type: "spring", stiffness: 420, damping: 34 }} /> : null}
-          </button>
-        ))}
-      </nav>
-
-      {tab !== "content" ? (
-        <div className="grid gap-5 md:grid-cols-3">
-          {tab === "users" ? <FutureModule icon={Users} title="Upravljanje korisnicima" body="Pregled, suspenzija i administracija naloga biće dodati bez izmišljanja privremenih podataka." /> : null}
-          {tab === "growth" ? <><FutureModule icon={Megaphone} title="Affiliate i influenseri" body="Evidencija partnera, kampanja i atribucije." /><FutureModule icon={Megaphone} title="Meta i Google Ads" body="Povezivanje stvarnih oglasnih naloga i podataka." /></> : null}
-          {tab === "analytics" ? <FutureModule icon={BarChart3} title="Google Analytics" body="Metrike će se prikazati tek nakon povezivanja stvarnog izvora podataka." /> : null}
-        </div>
-      ) : (
-        <>
+    <AdminPageFrame>
           <section className="rounded-[16px] border-2 border-ink bg-paper-strong p-4 shadow-[6px_6px_0_var(--shadow-hard-12)]">
             <div className="grid gap-3 lg:grid-cols-[1fr_auto_1fr_auto_1fr_auto] lg:items-end">
               <Field label="1. Smer"><select ref={trackSelectRef} className={cn(inputClass, creationIntent && !selectedTrack && "border-amber-600 ring-4 ring-amber-400/30")} value={trackId} onChange={(e) => void handleTrackSelection(e.target.value)}><option value="">Izaberi smer</option>{hierarchy.map((track) => <option key={track._id} value={track._id}>{track.titleSr || "Novi smer (nacrt)"}</option>)}</select></Field>
@@ -549,8 +561,6 @@ export function AdminContentManager({ locale }: { locale: Locale }) {
               </div>
             </section>
           ) : null}
-        </>
-      )}
-    </div>
+    </AdminPageFrame>
   );
 }

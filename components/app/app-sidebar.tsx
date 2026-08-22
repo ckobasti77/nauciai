@@ -1363,7 +1363,7 @@ function AppSidebarContent({
   // Course detail only; a lesson is a deeper node and lights up the Lessons disclosure.
   const courseActive = Boolean(params.courseSlug) && !params.lessonSlug;
   const trackActive = Boolean(params.trackSlug);
-  const adminActive = pathname === withLocale(locale, "/app/admin");
+  const adminActive = pathname === withLocale(locale, "/app/admin/content");
   const chatSafetyActive = pathname === withLocale(locale, "/app/admin/chat");
   const showUpgrade = planOffersUpgrade(resolvePlan(navigation.role, navigation.plan));
   const upgradeLabel = locale === "sr" ? "Unapredi plan" : "Upgrade plan";
@@ -1542,8 +1542,8 @@ function AppSidebarContent({
             />
             {isAdmin ? (
               <NavLink
-                href={withLocale(locale, "/app/admin")}
-                active={pathname === withLocale(locale, "/app/admin")}
+                href={withLocale(locale, "/app/admin/content")}
+                active={pathname === withLocale(locale, "/app/admin/content")}
                 icon={ShieldCheck}
                 label={locale === "sr" ? "Admin panel" : "Admin panel"}
               />
@@ -1799,7 +1799,7 @@ function AppSidebarContent({
           {/* Collapse state lives in a one-year cookie, so anything missing here is missing
               for a year. Admin panel and Chat safety used to be expanded-sidebar-only. */}
           {isAdmin ? (
-            <RailAction href={withLocale(locale, "/app/admin")} label={locale === "sr" ? "Admin panel" : "Admin panel"} icon={<ShieldCheck className="size-5" />} active={adminActive} />
+            <RailAction href={withLocale(locale, "/app/admin/content")} label={locale === "sr" ? "Admin panel" : "Admin panel"} icon={<ShieldCheck className="size-5" />} active={adminActive} />
           ) : null}
           {isStaff ? (
             <RailAction href={withLocale(locale, "/app/admin/chat")} label={locale === "sr" ? "Chat sigurnost" : "Chat safety"} icon={<Shield className="size-5" />} active={chatSafetyActive} />

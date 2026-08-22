@@ -122,3 +122,44 @@ describe("sidebar contexts — community sections", () => {
     expect(discussions.href("en", {})).toBe("/en/app/community/discussions");
   });
 });
+
+describe("sidebar contexts — admin sections", () => {
+  const admin = resolveSidebarContext("/sr/app/admin/content");
+  const moderatorOpts = { isStaff: true, isAdmin: false, params: {} };
+
+  it("resolves admin from its route and every sub-route, in either locale", () => {
+    expect(resolveSidebarContext("/sr/app/admin").id).toBe("admin");
+    expect(resolveSidebarContext("/sr/app/admin/users").id).toBe("admin");
+    expect(resolveSidebarContext("/en/app/admin/chat").id).toBe("admin");
+    expect(resolveSidebarContext("/sr/app/admin/studio").id).toBe("admin");
+  });
+
+  it("gates sections by role: admin sees all, moderator sees only chat safety, student none", () => {
+    expect(sectionsFor(admin, staffOpts).map((s) => s.id)).toEqual([
+      "content",
+      "users",
+      "growth",
+      "analytics",
+      "chat",
+      "studio",
+    ]);
+    expect(sectionsFor(admin, moderatorOpts).map((s) => s.id)).toEqual(["chat"]);
+    expect(sectionsFor(admin, studentOpts)).toHaveLength(0);
+  });
+
+  it("resolves the active section by full route", () => {
+    const sp = new URLSearchParams();
+    expect(activeSectionId(admin, "/sr/app/admin/content", sp, {})).toBe("content");
+    expect(activeSectionId(admin, "/sr/app/admin/users", sp, {})).toBe("users");
+    expect(activeSectionId(admin, "/en/app/admin/chat", sp, {})).toBe("chat");
+    // A query string on the route does not change which section is active.
+    expect(activeSectionId(admin, "/sr/app/admin/content", new URLSearchParams("track=t"), {})).toBe("content");
+  });
+
+  it("builds each section href as a full locale-prefixed route", () => {
+    const byId = Object.fromEntries(admin.sections.map((s) => [s.id, s]));
+    expect(byId.content.href("sr", {})).toBe("/sr/app/admin/content");
+    expect(byId.chat.href("en", {})).toBe("/en/app/admin/chat");
+    expect(byId.studio.href("sr", {})).toBe("/sr/app/admin/studio");
+  });
+});
