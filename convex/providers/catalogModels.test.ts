@@ -379,9 +379,11 @@ test("katalog ima 30 redova, jedinstvene slugove i jedinstven redosled", () => {
 
   const byProvider = { fal: 0, google: 0, byteplus: 0 };
   for (const model of STUDIO_MODELS) byProvider[model.provider] += 1;
-  expect(byProvider.google).toBe(4);
+  // 6, ne 4: Veo Lite i Veo Standard su presli sa fal-a na Google. Bili su tamo
+  // zbog "parity" cene, a Google je jedini provajder za koji postoji kljuc.
+  expect(byProvider.google).toBe(6);
   expect(byProvider.byteplus).toBe(3);
-  expect(byProvider.fal).toBe(23);
+  expect(byProvider.fal).toBe(21);
 
   expect(studioModelBySlug("nano-banana-pro")).toBe(NANO_BANANA_PRO);
   expect(studioModelBySlug("nema-me")).toBeUndefined();

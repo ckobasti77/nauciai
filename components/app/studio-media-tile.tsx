@@ -8,7 +8,7 @@ import { motion, useReducedMotion } from "motion/react";
 import { cn } from "@/components/ui/primitives";
 import type { Locale } from "@/lib/i18n";
 import { isExpiredOutput, jobPrompt, jobStatusText } from "@/lib/studio-form";
-import { downloadSingleMedia } from "@/lib/studio-gallery";
+import { downloadSingleMedia, isDemoPoster } from "@/lib/studio-gallery";
 import { formatElapsedTime, studioMotionTokens } from "@/lib/studio-motion";
 
 export type StudioTileJob = {
@@ -56,6 +56,8 @@ export function StudioMediaTile({
   const isExpired = isExpiredOutput(job);
   const isFailed = job.status === "failed" || job.status === "refunded";
   const hasOutput = Boolean(job.outputUrl);
+  // DEMO video/zvuk nema fajl koji plejer može da pusti - prikazuje se SVG poster.
+  const showAsImage = job.kind === "image" || isDemoPoster(job);
 
   const statusMessage = jobStatusText(job, locale);
 
@@ -172,7 +174,7 @@ export function StudioMediaTile({
             }}
             className="size-full"
           >
-            {job.kind === "image" ? (
+            {showAsImage ? (
               <div className="relative w-full">
                 <Image
                   src={job.outputUrl as string}
@@ -186,33 +188,36 @@ export function StudioMediaTile({
               </div>
             ) : null}
 
-            {job.kind === "video" ? (
+            {!showAsImage && job.kind === "video" ? (
               <div className="relative w-full">
+                {/* Nemi pregled bez kontrola: klik ide tajlu i otvara detalj, koji
+                    ima svoj plejer. Ranije `controls` + stopPropagation na celom
+                    elementu gutali su SVAKI klik, pa se video detalj nije otvarao. */}
                 <video
                   src={`${job.outputUrl}#t=0.1`}
                   preload="metadata"
                   muted
                   playsInline
                   loop
-                  controls
-                  // Klik na kontrole plejera ne sme da otvori detalj (tile onClick).
-                  onClick={(e) => e.stopPropagation()}
-                  className="block max-h-[560px] w-full object-cover"
+                  className="pointer-events-none block max-h-[560px] w-full object-cover"
                 />
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-0 m-auto flex size-12 items-center justify-center rounded-full border-2 border-white/40 bg-[#0a0e14]/60 text-white backdrop-blur-xs"
+                >
+                  <Play className="ml-0.5 size-5 fill-current" />
+                </span>
               </div>
             ) : null}
 
-            {job.kind === "audio" ? (
-              <div className="flex min-h-[200px] flex-col justify-between p-4">
-                <div className="flex items-center gap-2 text-white/80">
-                  <Volume2 className="size-5 shrink-0 text-white" />
-                  <span className="text-xs font-black uppercase tracking-wider">
-                    {locale === "sr" ? "Audio zapis" : "Audio track"}
-                  </span>
-                </div>
-                <div className="py-4" onClick={(e) => e.stopPropagation()}>
-                  <audio controls src={job.outputUrl as string} className="w-full" />
-                </div>
+            {!showAsImage && job.kind === "audio" ? (
+              <div className="flex min-h-[200px] flex-col items-center justify-center gap-3 p-4 text-white/80">
+                <span className="flex size-12 items-center justify-center rounded-full border-2 border-white/40 bg-white/10 text-white">
+                  <Volume2 className="size-5" />
+                </span>
+                <span className="text-xs font-black uppercase tracking-wider">
+                  {locale === "sr" ? "Audio zapis" : "Audio track"}
+                </span>
               </div>
             ) : null}
           </motion.div>

@@ -95,15 +95,18 @@ function durationControl(opts: {
 }
 
 /**
- * `veo-31-lite` - fal, parity na sve četiri ćelije cenovnika (katalog 3.7).
+ * `veo-31-lite` - **google, direktno** (`veo-3.1-lite-generate-preview`).
  *
- * **Lite nema `reference` ni produžavanje.** To nije stvar UI-ja nego reda:
- * režima nema u `inputModes` ni u `endpoints`, pa ga ni forma ne nudi ni server
+ * Bio je na fal-u zbog "parity" cene; presao je na Google jer je to jedini
+ * provajder za koji Jovan ima kljuc, a cena je ista.
+ *
+ * **Lite nema `reference` ni produzavanje.** To nije stvar UI-ja nego reda:
+ * rezima nema u `inputModes` ni u `endpoints`, pa ga ni forma ne nudi ni server
  * ne prima (`NEDOZVOLJEN_REZIM`).
  */
 export const VEO_31_LITE: StudioModelSeed = {
   slug: "veo-31-lite",
-  provider: "fal",
+  provider: "google",
   kind: "video",
   family: "veo",
   labelSr: "Veo 3.1 Lite",
@@ -115,9 +118,9 @@ export const VEO_31_LITE: StudioModelSeed = {
   descriptionEn:
     "Google Veo 3.1 in its lightest tier. Works from text, from an image and from a first/last frame pair; no references and no clip extension.",
   endpoints: {
-    text: "fal-ai/veo3.1/lite",
-    image: "fal-ai/veo3.1/lite/image-to-video",
-    first_last: "fal-ai/veo3.1/lite/first-last-frame-to-video",
+    text: "veo-3.1-lite-generate-preview",
+    image: "veo-3.1-lite-generate-preview",
+    first_last: "veo-3.1-lite-generate-preview",
   },
   inputModes: ["text", "image", "first_last"],
   inputSpec: {
@@ -125,27 +128,30 @@ export const VEO_31_LITE: StudioModelSeed = {
     image: { image: { max: 1, accept: IMAGE_ACCEPT } },
     first_last: { image: { max: 2, accept: IMAGE_ACCEPT } },
   },
+  // BEZ `audioControl()`: kod Veo 3.1 je zvuk UVEK ukljucen i ne moze da se
+  // iskljuci (`ai.google.dev/gemini-api/docs/veo`). Prekidac koji ne radi nista
+  // je gori od prekidaca kojeg nema, a cenovnik je uz njega imao dve izmisljene
+  // celije ("bez zvuka") po kojima se naplacivalo manje nego sto Google trazi.
   paramSpec: [
     promptControl(),
     resolutionControl(["720p", "1080p"]),
-    audioControl(),
     durationControl({ min: 4, max: 8 }),
   ],
+  // Zvanicni cenovnik: $0,05/s na 720p, $0,08/s na 1080p, zvuk ukljucen.
   priceRule: {
     unit: "second",
     quantityParam: "duration",
     lookup: {
-      params: ["resolution", "audio"],
+      params: ["resolution"],
       map: {
-        "720p|off": 0.03,
-        "720p|on": 0.05,
-        "1080p|off": 0.05,
-        "1080p|on": 0.08,
+        "720p": 0.05,
+        "1080p": 0.08,
       },
     },
   },
   capabilities: {
-    mode: "async_webhook",
+    api: "predictLongRunning",
+    mode: "async_poll",
     audio: true,
     minDurationS: 4,
     maxDurationS: 8,
@@ -156,11 +162,20 @@ export const VEO_31_LITE: StudioModelSeed = {
 };
 
 /**
- * `veo-31-fast` - **google, direktno.** fal na ovoj tarifi uzima 17-50%
- * (katalog 3.7), i to je jedini razlog zašto ceo poller uopšte postoji: Google
- * za video nema webhookove.
+ * `veo-31-fast` - **NE POSTOJI i zato je ISKLJUCEN.**
+ *
+ * Google Gemini API izlaze tacno DVA Veo modela:
+ * `veo-3.1-generate-preview` (Standard) i `veo-3.1-lite-generate-preview`
+ * (Lite). "Fast" tarifa je unesena u katalog bez potvrde i svaki poziv na
+ * `veo-3.1-fast-generate-preview` bi vratio 404 - dakle refund posle
+ * rezervacije, na svaki pokusaj.
+ *
+ * Red se NE brise nego gasi: postoje poslovi koji ga po slugu pominju, a
+ * `seedStudioModels` ume da ugasi vec upisan red samo preko `isEnabled: false`.
+ * Ako Google jednog dana objavi Fast tarifu, pali se uklanjanjem ovog markera.
  */
 export const VEO_31_FAST: StudioModelSeed = {
+  isEnabled: false,
   slug: "veo-31-fast",
   provider: "google",
   kind: "video",
@@ -238,7 +253,7 @@ export const VEO_31_FAST: StudioModelSeed = {
  */
 export const VEO_31: StudioModelSeed = {
   slug: "veo-31",
-  provider: "fal",
+  provider: "google",
   kind: "video",
   family: "veo",
   labelSr: "Veo 3.1",
@@ -250,11 +265,11 @@ export const VEO_31: StudioModelSeed = {
   descriptionEn:
     "The standard Veo 3.1 tier, with every input and clip extension. Reach for it when the shot ships.",
   endpoints: {
-    text: "fal-ai/veo3.1",
-    image: "fal-ai/veo3.1/image-to-video",
-    first_last: "fal-ai/veo3.1/first-last-frame-to-video",
-    reference: "fal-ai/veo3.1/reference-to-video",
-    video: "fal-ai/veo3.1/extend",
+    text: "veo-3.1-generate-preview",
+    image: "veo-3.1-generate-preview",
+    first_last: "veo-3.1-generate-preview",
+    reference: "veo-3.1-generate-preview",
+    video: "veo-3.1-generate-preview",
   },
   inputModes: ["text", "image", "first_last", "reference", "video"],
   inputSpec: {
@@ -264,10 +279,10 @@ export const VEO_31: StudioModelSeed = {
     reference: { image: { max: 3, accept: IMAGE_ACCEPT } },
     video: { video: { max: 1, accept: VIDEO_ACCEPT } },
   },
+  // Bez `audioControl()` - isti razlog kao kod Lite: zvuk je uvek ukljucen.
   paramSpec: [
     promptControl(),
     resolutionControl(["720p", "1080p", "4K"]),
-    audioControl(),
     durationControl({ min: 4, max: 8, showInModes: CLIP_MODES }),
     durationControl({
       min: 4,
@@ -277,23 +292,23 @@ export const VEO_31: StudioModelSeed = {
       labelEn: "Extension duration",
     }),
   ],
+  // Zvanicni cenovnik: $0,40/s na 720p I na 1080p, $0,60/s na 4K.
+  // Stari red je na 4K racunao $0,42/s - trideset posto ISPOD nabavne.
   priceRule: {
     unit: "second",
     quantityParam: "duration",
     lookup: {
-      params: ["resolution", "audio"],
+      params: ["resolution"],
       map: {
-        "720p|off": 0.2,
-        "720p|on": 0.4,
-        "1080p|off": 0.2,
-        "1080p|on": 0.4,
-        "4K|off": 0.4,
-        "4K|on": 0.6,
+        "720p": 0.4,
+        "1080p": 0.4,
+        "4K": 0.6,
       },
     },
   },
   capabilities: {
-    mode: "async_webhook",
+    api: "predictLongRunning",
+    mode: "async_poll",
     audio: true,
     minDurationS: 4,
     maxDurationS: 8,
@@ -318,22 +333,6 @@ export const VEO_31: StudioModelSeed = {
  * ponavlja kao greška posla ako zahtev ipak stigne (`googleCore.ts`).
  */
 export const GEMINI_OMNI: StudioModelSeed = {
-  // ISKLJUCEN dok se oblik zahteva ne poravna sa zivim API-jem.
-  //
-  // Zvanicna dokumentacija (`ai.google.dev/gemini-api/docs/omni`) pokazuje da je
-  // Omni SINHRON: odgovor istog POST-a nosi video (base64 u
-  // `steps[].content[]`, ili URI uz `delivery: "uri"`), i ima `status:
-  // "completed"`. Nas tok ga vodi kao operaciju koja se ispituje, a
-  // `parseOperation` trazi `uri` - kojeg u sinhronom odgovoru nema. Posao bi
-  // zato visio do reaper-a i bio refundiran posle 30 minuta, umesto da isporuci.
-  //
-  // Uz to je i telo zahteva starog oblika (`inputs` + `config`), a API trazi
-  // `input` + `response_format` - isti oblik koji Nano Banana vec koristi
-  // (`buildGoogleImageRequest`).
-  //
-  // Ostaje u katalogu da se ne izgubi, ali se NE nudi. Paljenje ide tek posle
-  // prve uspesne generacije uzivo.
-  isEnabled: false,
   slug: "gemini-omni",
   provider: "google",
   kind: "video",
@@ -387,8 +386,10 @@ export const GEMINI_OMNI: StudioModelSeed = {
     baseUsd: 0.10136,
   },
   capabilities: {
+    // Interactions API je SINHRON: odgovor istog POST-a nosi video, isto kao
+    // kod Nano Banane. Nema pollera i nema webhooka.
     api: "interactions",
-    mode: "async_poll",
+    mode: "sync",
     audio: true,
     resolution: OMNI_RESOLUTION,
     fps: 24,

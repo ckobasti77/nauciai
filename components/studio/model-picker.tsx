@@ -3,6 +3,7 @@
 import { ArrowLeft, Lightbulb, Search } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { InputCapabilityIcons } from "@/components/studio/input-capabilities";
 import { ModelMark } from "@/components/studio/provider-mark";
 import { cn } from "@/components/ui/primitives";
 import type { Locale } from "@/lib/i18n";
@@ -90,6 +91,7 @@ export function ModelPickerPanel({
   activeKind,
   recentSlugs = [],
   lastByKind = {},
+  providerStatus,
   onSelect,
   onCollapse,
   locale,
@@ -101,6 +103,8 @@ export function ModelPickerPanel({
   activeKind: StudioSectionKind;
   recentSlugs?: string[];
   lastByKind?: Partial<Record<StudioSectionKind, string>>;
+  /** SP2: `false` za provajdera bez ključa - red dobija DEMO pilulu. */
+  providerStatus?: Partial<Record<StudioModel["provider"], boolean>>;
   onSelect: (model: StudioModel) => void;
   onCollapse: () => void;
   locale: Locale;
@@ -302,6 +306,7 @@ export function ModelPickerPanel({
                 <ModelRow
                   model={activeModel}
                   locale={locale}
+                  isDemo={providerStatus?.[activeModel.provider] === false}
                   isSelected
                   isHighlighted={highlightedSlug === activeModel.slug}
                   onSelect={() => choose(activeModel.slug)}
@@ -316,6 +321,7 @@ export function ModelPickerPanel({
                 <ModelRow
                   model={lastUsedModel}
                   locale={locale}
+                  isDemo={providerStatus?.[lastUsedModel.provider] === false}
                   isSelected={lastUsedModel.slug === selectedSlug}
                   isHighlighted={highlightedSlug === lastUsedModel.slug}
                   onSelect={() => choose(lastUsedModel.slug)}
@@ -332,6 +338,7 @@ export function ModelPickerPanel({
                     key={m.slug}
                     model={m}
                     locale={locale}
+                  isDemo={providerStatus?.[m.provider] === false}
                     isSelected={m.slug === selectedSlug}
                     isHighlighted={highlightedSlug === m.slug}
                     onSelect={() => choose(m.slug)}
@@ -349,6 +356,7 @@ export function ModelPickerPanel({
                     key={m.slug}
                     model={m}
                     locale={locale}
+                  isDemo={providerStatus?.[m.provider] === false}
                     isSelected={m.slug === selectedSlug}
                     isHighlighted={highlightedSlug === m.slug}
                     onSelect={() => choose(m.slug)}
@@ -404,12 +412,14 @@ function ModelRow({
   locale,
   isSelected,
   isHighlighted,
+  isDemo = false,
   onSelect,
 }: {
   model: StudioModel;
   locale: Locale;
   isSelected: boolean;
   isHighlighted: boolean;
+  isDemo?: boolean;
   onSelect: () => void;
 }) {
   return (
@@ -441,6 +451,14 @@ function ModelRow({
               {MODEL_BADGE_LABELS[model.badge][locale]}
             </span>
           ) : null}
+          {isDemo ? (
+            <span
+              title={locale === "sr" ? "Provajder nije povezan - izlaz je probni." : "Provider not connected - the output is a sample."}
+              className="shrink-0 rounded-full border-2 border-ink bg-yellow px-1.5 py-0 text-[9px] font-black uppercase tracking-wide text-ink"
+            >
+              DEMO
+            </span>
+          ) : null}
         </span>
         <span
           className={cn(
@@ -451,6 +469,8 @@ function ModelRow({
           {modelTagline(model, locale)}
         </span>
       </span>
+      {/* Šta model prima (SP2) - sivo = ne prima; vidi se PRE izbora */}
+      <InputCapabilityIcons model={model} locale={locale} muted={!isSelected} />
       <span
         className={cn(
           "shrink-0 whitespace-nowrap text-right font-mono text-[11px] font-black tabular-nums",

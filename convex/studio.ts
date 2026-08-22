@@ -58,6 +58,7 @@ import {
   ownerHandle,
   parseParams,
   promptHash,
+  providerStatus,
   requestedImageCount,
   sanitizeParams,
   STUDIO_FLAG_KEY,
@@ -1687,6 +1688,10 @@ export const getStudioState = query({
       isStudioAdmin: role === "admin",
       activeJobs: reserved.length + running.length,
       maxActiveJobs: MAX_ACTIVE_JOBS,
+      // SP2: koji provajder ima ključ - samo boolean-i, da birač označi DEMO
+      // modele PRE klika. Ista funkcija koju `submitJob` koristi za mock kapiju,
+      // pa UI i server nikad ne tvrde suprotno.
+      providerStatus: providerStatus(process.env),
     };
   },
 });

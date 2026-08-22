@@ -482,6 +482,41 @@ export function isMockRequestId(falRequestId: string | undefined): boolean {
   return falRequestId !== undefined && falRequestId.startsWith(MOCK_REQUEST_PREFIX);
 }
 
+export type StudioProviderName = "fal" | "google" | "byteplus";
+
+const PROVIDER_KEY_VARIABLE: Record<StudioProviderName, string> = {
+  fal: "FAL_KEY",
+  google: "GOOGLE_AI_API_KEY",
+  byteplus: "BYTEPLUS_API_KEY",
+};
+
+/**
+ * Da li provajder ima ključ (SP2). Jedna kapija za sva tri provajdera: bez
+ * ključa posao ide kroz mock (DEMO), umesto da fal tiho vrati mock a BytePlus
+ * baci grešku pa refundira. `STUDIO_MOCK=1` je izričit override i kad ključ
+ * postoji. Čita samo PRISUSTVO - vrednost nikad ne napušta ovu funkciju.
+ */
+export function providerKeyPresent(
+  provider: StudioProviderName,
+  env: Record<string, string | undefined>,
+): boolean {
+  if (env.STUDIO_MOCK === "1") return false;
+  const value = env[PROVIDER_KEY_VARIABLE[provider]];
+
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+/** Boolean-i po provajderu za klijenta (DEMO pilula u biraču), bez tajni. */
+export function providerStatus(
+  env: Record<string, string | undefined>,
+): Record<StudioProviderName, boolean> {
+  return {
+    fal: providerKeyPresent("fal", env),
+    google: providerKeyPresent("google", env),
+    byteplus: providerKeyPresent("byteplus", env),
+  };
+}
+
 /**
  * STUDIO-PLAN mock provajder (P4) - koliko poslova "uspe" dok Jovan nema
  * `FAL_KEY`. 15% neuspeha je namerno: mora da se vidi da refund stvarno radi,
@@ -510,14 +545,18 @@ export function mockJobSucceeds(jobId: string): boolean {
  * kodiran kao `data:` URL. Bez mrežnog poziva i bez zavisnosti - radi
  * offline, a boja odmah pokazuje koji prompt je dao koju "sliku".
  */
-export function mockOutputDataUrl(prompt: string, hash: string): string {
+export function mockOutputDataUrl(prompt: string, hash: string, kind?: string): string {
   const hue = parseInt(hash.slice(0, 4) || "0", 16) % 360;
   const label = (prompt.trim() || "DEMO").slice(0, 80).replace(/[&<>]/g, (char) =>
     char === "&" ? "&amp;" : char === "<" ? "&lt;" : "&gt;",
   );
+  // Poster je samoopisan i kad se preuzme: video/zvuk DEMO posao nema pravi
+  // fajl, pa i sam SVG kaže šta je (SP2).
+  const caption = kind ? `DEMO · ${kind}` : "DEMO";
   const svg =
     `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512">` +
     `<rect width="512" height="512" fill="hsl(${hue},65%,45%)"/>` +
+    `<text x="24" y="48" fill="white" fill-opacity="0.85" font-family="sans-serif" font-size="16" font-weight="700">${caption}</text>` +
     `<text x="24" y="256" fill="white" font-family="sans-serif" font-size="22">${label}</text>` +
     `</svg>`;
 

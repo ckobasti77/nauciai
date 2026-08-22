@@ -10,6 +10,7 @@ import {
   GALLERY_SCOPE_LABELS,
   GALLERY_SCOPES,
   inputsLabel,
+  isDemoPoster,
   isDownloadable,
   JOB_STATUS_LABELS,
   JOB_STATUSES,
@@ -191,3 +192,15 @@ describe("downloadMediaFiles", () => {
   });
 });
 
+
+describe("isDemoPoster (SP2)", () => {
+  test("mock posao je poster i kad je izlaz u storage-u; SVG data URL je rezerva; pravi URL nije", () => {
+    expect(isDemoPoster({ isMock: true, outputUrl: "https://x.convex.cloud/api/storage/abc" })).toBe(true);
+    expect(isDemoPoster({ isMock: false, outputUrl: "data:image/svg+xml;utf8,%3Csvg" })).toBe(true);
+    expect(isDemoPoster({ isMock: false, outputUrl: "https://cdn.example/out.mp4" })).toBe(false);
+    expect(isDemoPoster({ outputUrl: "data:video/mp4;base64,AAAA" })).toBe(false);
+    expect(isDemoPoster({ outputUrl: "" })).toBe(false);
+    expect(isDemoPoster({ outputUrl: null })).toBe(false);
+    expect(isDemoPoster({ isMock: false, outputUrl: undefined })).toBe(false);
+  });
+});

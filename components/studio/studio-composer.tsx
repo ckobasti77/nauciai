@@ -20,6 +20,7 @@ import {
 } from "react";
 
 import { DropSlot, DropSlotGrid, FrameSlotPair, FullScreenDropOverlay, Preview, ReferenceSlots } from "@/components/studio/drop-slot";
+import { InputCapabilityStrip } from "@/components/studio/input-capabilities";
 import { ModelPickerPanel, modelPriceSummary } from "@/components/studio/model-picker";
 import { ModeSwitcher } from "@/components/studio/mode-switcher";
 import { ParamForm, useParamValues } from "@/components/studio/param-form";
@@ -30,6 +31,7 @@ import { cn } from "@/components/ui/primitives";
 import type { Id } from "@/convex/_generated/dataModel";
 import { parseContinuationSource, parseQuantitySource, promptControlOf } from "@/convex/studioJobCore";
 import type { Locale } from "@/lib/i18n";
+import { firstFileMode, modelRestrictions } from "@/lib/studio-capabilities";
 import { readLastModelByKind, writeLastModel } from "@/lib/studio-last-model";
 import {
   generateBlockMessage,
@@ -70,7 +72,9 @@ import {
   measuredExtraCounts,
   missingInput,
   missingInputMessage,
+  pruneFilesForMode,
   slotKind,
+  slotLabel,
   slotsForMode,
   validateSlotFile,
   type FramePair,
@@ -407,6 +411,47 @@ export function StudioComposer({
     () => activeModel.inputModes.some((mode) => slotsForMode(activeModel.inputSpec, mode).length > 0),
     [activeModel.inputModes, activeModel.inputSpec],
   );
+  const isDemoModel = studioState?.providerStatus?.[activeModel.provider] === false;
+  const restrictions = useMemo(() => modelRestrictions(activeModel, locale), [activeModel, locale]);
+
+  // Jedan put za promenu režima (SP2): ModeSwitcher, traka sposobnosti i `+`
+  // ga dele. Čisti slotove kojih u novom režimu nema - uz potvrdu šta je
+  // sklonjeno, jer fajl ne sme da nestane bez reči - i time preračunava cenu.
+  function switchMode(mode: string) {
+    if (mode === inputMode || !activeModel.inputModes.includes(mode)) return;
+    const pruned = pruneFilesForMode(files, activeModel.inputSpec, mode);
+    if (pruned.removed.length > 0) {
+      setFiles(pruned.files);
+      const names = pruned.removed.map((slot) => slotLabel(slot, locale).toLowerCase()).join(", ");
+      setStatusMessage(
+        locale === "sr"
+          ? `Ovaj režim ne koristi: ${names}. Sklonjeno je iz forme.`
+          : `This mode does not use: ${names}. It was removed from the form.`,
+      );
+      setTimeout(() => setStatusMessage(null), 4500);
+    }
+    setInputMode(mode);
+  }
+
+  function focusSlots() {
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        const el = slotsSectionRef.current;
+        if (!el) return;
+        el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        const focusable = el.querySelector<HTMLElement>(
+          'input:not([disabled]), button:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        );
+        (focusable ?? el).focus();
+      }, 50);
+    });
+  }
+
+  // Klik na čip sposobnosti: u režim sa tim poljima, pa na polja.
+  function handlePickCapabilityMode(mode: string) {
+    switchMode(mode);
+    focusSlots();
+  }
 
   // Priložene slike se vide NA glavnom inputu (traci), ne samo u panelu - drop
   // spusti sliku „u glavni input" i tu je korisnik odmah vidi kao sličicu.
@@ -456,26 +501,19 @@ export function StudioComposer({
     return list;
   }, [inputMode, frames, files, availableSlots, locale]);
 
+  // `+` radi kad model prima fajl u BILO kom režimu: iz „Samo opis" sam
+  // prebaci na prvi režim sa poljima (ranije je bio ugašen sa porukom „ne prima
+  // fajlove" - netačno za model koji slike prima u drugom režimu).
   function handleOpenFileSlots() {
-    if (!hasFileSlots) return;
+    if (!modelAcceptsFiles) return;
+    if (!hasFileSlots) {
+      const target = firstFileMode(activeModel);
+      if (!target) return;
+      switchMode(target);
+    }
     setPickerExpanded(false);
     setPanelOpen(true);
-    requestAnimationFrame(() => {
-      setTimeout(() => {
-        const el = slotsSectionRef.current;
-        if (el) {
-          el.scrollIntoView({ behavior: "smooth", block: "nearest" });
-          const focusable = el.querySelector<HTMLElement>(
-            'input:not([disabled]), button:not([disabled]), [tabindex]:not([tabindex="-1"])',
-          );
-          if (focusable) {
-            focusable.focus();
-          } else {
-            el.focus();
-          }
-        }
-      }, 50);
-    });
+    focusSlots();
   }
 
   const missing = useMemo(
@@ -578,6 +616,13 @@ export function StudioComposer({
         locale === "sr"
           ? "Prilagođeno na granice novog modela. Prompt i podešavanja sačuvani."
           : "Adjusted to the new model's limits. Prompt and settings kept.",
+      );
+      setTimeout(() => setStatusMessage(null), 4500);
+    } else if (studioState?.providerStatus?.[newModel.provider] === false) {
+      setStatusMessage(
+        locale === "sr"
+          ? "Ovaj model radi u DEMO režimu - izlaz je probni, ne pravi."
+          : "This model runs in DEMO mode - the output is a sample, not real.",
       );
       setTimeout(() => setStatusMessage(null), 4500);
     }
@@ -869,7 +914,7 @@ export function StudioComposer({
             )}
           >
             {/* Panel Header */}
-            <div className="flex items-center justify-between border-b-2 border-ink bg-paper px-4 py-3 sm:px-5">
+            <div className="flex items-center justify-between rounded-t-[inherit] border-b-2 border-ink bg-paper px-4 py-3 sm:px-5">
               <span className="text-xs font-black uppercase tracking-wider text-ink">
                 {pickerExpanded
                   ? locale === "sr"
@@ -921,6 +966,7 @@ export function StudioComposer({
                   activeKind={activeModel.kind}
                   recentSlugs={recentSlugs}
                   lastByKind={lastByKind}
+                  providerStatus={studioState?.providerStatus}
                   onSelect={handleSelectNewModel}
                   onCollapse={() => setPickerExpanded(false)}
                   locale={locale}
@@ -944,6 +990,14 @@ export function StudioComposer({
                           {MODEL_BADGE_LABELS[activeModel.badge][locale]}
                         </span>
                       ) : null}
+                      {isDemoModel ? (
+                        <span
+                          title={locale === "sr" ? "Provajder nije povezan - izlaz je probni." : "Provider not connected - the output is a sample."}
+                          className="shrink-0 rounded-full border-2 border-ink bg-yellow px-1.5 py-0 text-[9px] font-black uppercase tracking-wide text-ink"
+                        >
+                          DEMO
+                        </span>
+                      ) : null}
                     </span>
                     <span className="mt-0.5 block truncate text-[11px] font-semibold leading-tight text-muted">
                       {modelTagline(activeModel, locale)}
@@ -955,14 +1009,29 @@ export function StudioComposer({
                   <ChevronDown className="size-4 shrink-0 text-muted" />
                 </button>
 
+                {/* Ograničenja modela iz kataloga (npr. Gemini Omni) - pre upload-a, ne posle greške */}
+                {restrictions.length > 0 ? (
+                  <ul role="note" className="surface-inset list-disc space-y-0.5 border-2 border-dashed border-ink/40 bg-paper py-2 pl-7 pr-3 text-[11px] font-bold text-muted">
+                    {restrictions.map((line) => (
+                      <li key={line}>{line}</li>
+                    ))}
+                  </ul>
+                ) : null}
+
+                {/* Šta model prima (SP2): podržano vodi u režim sa poljima, nepodržano je sivo */}
+                <InputCapabilityStrip
+                  model={activeModel}
+                  activeMode={inputMode}
+                  onPickMode={handlePickCapabilityMode}
+                  locale={locale}
+                  disabled={isPending}
+                />
+
                 {/* Prebacivač ulaznog režima kad ih ima više */}
                 <ModeSwitcher
-                  spec={activeModel.inputSpec}
                   modes={activeModel.inputModes}
                   value={inputMode}
-                  onChange={setInputMode}
-                  files={files}
-                  onFilesChange={setFiles}
+                  onChange={switchMode}
                   locale={locale}
                   disabled={isPending}
                 />
@@ -1002,7 +1071,7 @@ export function StudioComposer({
                 Desktop nema footer - cena je na baru ispod, „Generisanje će
                 koristiti" je uklonjeno. */}
             {!pickerExpanded ? (
-              <div className="border-t-2 border-ink bg-paper px-4 py-3 sm:hidden">
+              <div className="rounded-b-[inherit] border-t-2 border-ink bg-paper px-4 py-3 sm:hidden">
                 <button
                   type="button"
                   disabled={isPending || block !== null || credits === null}
@@ -1095,25 +1164,25 @@ export function StudioComposer({
           {/* Upload dugme (+) */}
           <button
             type="button"
-            disabled={!hasFileSlots || isPending}
+            disabled={!modelAcceptsFiles || isPending}
             onClick={handleOpenFileSlots}
             aria-label={
-              hasFileSlots
+              modelAcceptsFiles
                 ? locale === "sr"
                   ? "Priloži fajlove"
                   : "Attach files"
                 : locale === "sr"
-                  ? "Prilaganje fajlova nije dostupno"
-                  : "File attachment not available"
+                  ? "Ovaj model ne prima fajlove"
+                  : "This model does not accept files"
             }
             title={
-              hasFileSlots
+              modelAcceptsFiles
                 ? locale === "sr"
                   ? "Priloži fajlove"
                   : "Attach files"
                 : locale === "sr"
-                  ? "Izabrani model u ovom režimu ne prima fajlove."
-                  : "The selected model does not accept files in this mode."
+                  ? "Ovaj model ne prima fajlove."
+                  : "This model does not accept files."
             }
             className="inline-flex size-11 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
           >

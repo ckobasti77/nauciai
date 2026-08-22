@@ -259,6 +259,9 @@ const file = (base64 = "AAEC") => ({ mimeType: "image/png", base64 });
 
 test("buildVeoRequest: parametri koji ulaze u cenu ulaze i u zahtev", () => {
   const request = buildVeoRequest(
+    // `audio` se prosledjuje namerno: stari katalog ga je slao, a red ga vise
+    // nema. Mora da IZLETI iz zahteva - Veo 3.1 nema taj parametar i nepoznat
+    // kljuc vraca 400 tek posle rezervacije kredita.
     { prompt: "lisica u snegu", resolution: "4K", audio: false, duration: 8 },
     EMPTY_GOOGLE_INPUTS,
     "text",
@@ -266,9 +269,10 @@ test("buildVeoRequest: parametri koji ulaze u cenu ulaze i u zahtev", () => {
 
   expect(request).toEqual({
     instances: [{ prompt: "lisica u snegu" }],
-    // Zvuk je naplaćen kroz `lookup` (`4K|off` je jeftinije od `4K|on`), pa mora
-    // izričito da se traži - podrazumevana vrednost kod Google-a nije garancija.
-    parameters: { resolution: "4k", durationSeconds: 8, generateAudio: false },
+    // `durationSeconds` je BROJ (zivi API odbija string, iako ga curl primer
+    // u dokumentaciji pise pod navodnicima), a `generateAudio` ne postoji -
+    // zvuk je kod Veo 3.1 uvek ukljucen.
+    parameters: { resolution: "4k", durationSeconds: 8 },
   });
 });
 
@@ -283,7 +287,10 @@ test("buildVeoRequest: first_last šalje OBA kadra, a bez drugog traži završni
   const parameters = request.parameters as Record<string, unknown>;
   // `inlineData`, ne `bytesBase64Encoded` - Gemini API, ne Vertex `predict`.
   expect(instances.image).toEqual({ inlineData: { mimeType: "image/png", data: "prvi" } });
-  expect(parameters.lastFrame).toEqual({ inlineData: { mimeType: "image/png", data: "drugi" } });
+  // `lastFrame` je u INSTANCI, ne u `parameters` - u `parameters` bi ga Google
+  // tiho ignorisao i naplatio prvi-i-poslednji kadar a isporucio image-to-video.
+  expect(instances.lastFrame).toEqual({ inlineData: { mimeType: "image/png", data: "drugi" } });
+  expect(parameters.lastFrame).toBeUndefined();
 
   expect(() =>
     buildVeoRequest({ prompt: "prelaz" }, { ...EMPTY_GOOGLE_INPUTS, image: [file()] }, "first_last"),
@@ -304,7 +311,7 @@ test("buildVeoRequest: reference šalje sve slike, video režim traži klip", ()
   );
 });
 
-test("buildOmniRequest: fiksna rezolucija, odnos stranica i trajanje", () => {
+test("buildOmniRequest: Interactions oblik, isti kao Nano Banana samo type video", () => {
   const request = buildOmniRequest(
     "gemini-omni-flash-preview",
     { prompt: "reklama", aspect_ratio: "9:16", duration: 6 },
@@ -313,13 +320,15 @@ test("buildOmniRequest: fiksna rezolucija, odnos stranica i trajanje", () => {
   );
 
   expect(request.model).toBe("gemini-omni-flash-preview");
-  // Rezolucija je fiksna 720p (katalog 3.8) - nije kontrola, ali jeste podatak
-  // koji ide u zahtev.
-  expect(request.config).toEqual({ resolution: "720p", aspect_ratio: "9:16", duration_seconds: 6 });
-  expect(request.inputs).toEqual([
-    { text: "reklama" },
-    { inline_data: { mime_type: "image/png", data: "slika" } },
+  // `input` + `response_format`, ne `inputs` + `config`: to je oblik koji
+  // Interactions API stvarno prima (isti kao kod slike).
+  expect(request.response_format).toEqual({ type: "video", aspect_ratio: "9:16" });
+  expect(request.input).toEqual([
+    { type: "text", text: "reklama" },
+    { type: "image", mime_type: "image/png", data: "slika" },
   ]);
+  expect(request.config).toBeUndefined();
+  expect(request.inputs).toBeUndefined();
 });
 
 // ── 2. Tri ograničenja Omnija su poruka, ne tiha greška ────────────────────
@@ -357,16 +366,33 @@ test("gemini-omni ne nudi audio slot ni produžavanje, i nosi tekst ograničenja
   );
 });
 
-test("Veo Lite nema reference ni produžavanje, Fast ima oba - to je razlika izmedju redova", () => {
+test("Veo Lite nema reference ni produžavanje, Standard ima oba", () => {
   expect(VEO_31_LITE.inputModes).toEqual(["text", "image", "first_last"]);
   expect(VEO_31_LITE.endpoints.reference).toBeUndefined();
   expect(VEO_31_LITE.endpoints.video).toBeUndefined();
-  expect(VEO_31_LITE.provider).toBe("fal");
 
-  expect(VEO_31_FAST.inputModes).toContain("reference");
-  expect(VEO_31_FAST.inputModes).toContain("video");
-  // Tarifa je ta koja menja provajdera - jedini takav model u katalogu.
-  expect(VEO_31_FAST.provider).toBe("google");
+  expect(VEO_31.inputModes).toContain("reference");
+  expect(VEO_31.inputModes).toContain("video");
+});
+
+test("Veo: oba ziva reda idu na Google, a izmisljena Fast tarifa je ugasena", () => {
+  // Google izlaze TACNO dva Veo modela. Oba idu direktno, jer je Google jedini
+  // provajder za koji postoji kljuc.
+  expect(VEO_31_LITE.provider).toBe("google");
+  expect(VEO_31_LITE.endpoints.text).toBe("veo-3.1-lite-generate-preview");
+  expect(VEO_31.provider).toBe("google");
+  expect(VEO_31.endpoints.text).toBe("veo-3.1-generate-preview");
+
+  // `veo-3.1-fast-generate-preview` NE POSTOJI - svaki poziv bi bio 404, pa
+  // refund posle rezervacije. Red ostaje da bi ga seed ugasio, ne da bi radio.
+  expect(VEO_31_FAST.isEnabled).toBe(false);
+});
+
+test("Veo: zvuk nije kontrola ni kod jednog reda - kod Veo 3.1 je uvek ukljucen", () => {
+  for (const seed of [VEO_31_LITE, VEO_31]) {
+    expect(seed.paramSpec.some((control) => control.key === "audio")).toBe(false);
+    expect(seed.priceRule.lookup?.params).toEqual(["resolution"]);
+  }
 });
 
 // ── 3. Čitanje operacije ───────────────────────────────────────────────────
@@ -452,11 +478,11 @@ test("googleDownloadHeaders daje ključ samo Google hostu, i toBase64 radi na pr
 
 // ── 4. Predaja posla ───────────────────────────────────────────────────────
 
-test("Veo Fast ide direktno na Google i završi u running sa imenom operacije", async () => {
+test("Veo ide direktno na Google i završi u running sa imenom operacije", async () => {
   const t = convexTest(schema, modules);
   const userId = await seedUser(t);
-  await seedModel(t, VEO_31_FAST);
-  const jobId = await seedReservedJob(t, userId, { seed: VEO_31_FAST });
+  await seedModel(t, VEO_31_LITE);
+  const jobId = await seedReservedJob(t, userId, { seed: VEO_31_LITE });
   const calls = stubFetch(() => json({ name: OPERATION }));
 
   await submit(t, jobId);
@@ -469,18 +495,18 @@ test("Veo Fast ide direktno na Google i završi u running sa imenom operacije", 
 
   const [call] = googleCalls(calls);
   expect(call.method).toBe("POST");
-  expect(call.url).toBe(`${BASE_URL}/models/veo-3.1-fast-generate-preview:predictLongRunning`);
+  expect(call.url).toBe(`${BASE_URL}/models/veo-3.1-lite-generate-preview:predictLongRunning`);
   // Ključ ide u zaglavlje, nikad u URL.
   expect(call.key).toBe(API_KEY);
   expect(call.url).not.toContain(API_KEY);
   expect(call.body).toEqual({
     instances: [{ prompt: "lisica trči kroz sneg" }],
-    parameters: { resolution: "720p", durationSeconds: 5, generateAudio: true },
+    parameters: { resolution: "720p", durationSeconds: 5 },
   });
   expect(await refundsFor(t, jobId)).toHaveLength(0);
 });
 
-test("Gemini Omni ide na Interactions API, ne na generateContent", async () => {
+test("Gemini Omni je SINHRON: jedan poziv, posao odmah done, bez pollera", async () => {
   const t = convexTest(schema, modules);
   const userId = await seedUser(t);
   await seedModel(t, GEMINI_OMNI);
@@ -488,16 +514,28 @@ test("Gemini Omni ide na Interactions API, ne na generateContent", async () => {
     seed: GEMINI_OMNI,
     params: { prompt: "reklama za kafu", aspect_ratio: "9:16", duration: 6 },
   });
-  const calls = stubFetch(() => json({ id: "intr_9f21" }));
+  const calls = stubFetch(() =>
+    json({
+      id: "intr_9f21",
+      status: "completed",
+      steps: [
+        { type: "model_output", content: [{ type: "video", mime_type: "video/mp4", data: "QUJD" }] },
+      ],
+    }),
+  );
 
   await submit(t, jobId);
 
   const [call] = googleCalls(calls);
   expect(call.url).toBe(`${BASE_URL}/interactions`);
   expect(call.url).not.toContain("generateContent");
-  // Go `id` iz Interactions API-ja dobija kolekciju kojoj pripada, da bi poller
-  // imao šta da pita.
-  expect((await jobOf(t, jobId))?.providerRequestId).toBe("interactions/intr_9f21");
+
+  const job = await jobOf(t, jobId);
+  // `reserved` -> `done`, nikad `running`: nema sta poller da ispituje.
+  expect(job?.status).toBe("done");
+  expect(job?.providerRequestId).toBe("interactions/intr_9f21");
+  expect(job?.outputStorageId).toBeDefined();
+  expect(await refundsFor(t, jobId)).toHaveLength(0);
 });
 
 test("Omni video rezim salje previous_interaction_id BEZ interactions/ prefiksa (nalaz S3, W7)", async () => {
@@ -512,7 +550,13 @@ test("Omni video rezim salje previous_interaction_id BEZ interactions/ prefiksa 
     inputMode: "video",
     params: { prompt: "nastavi", aspect_ratio: "16:9", duration: 5, previous_interaction_id: "interactions/intr_prethodni" },
   });
-  const calls = stubFetch(() => json({ id: "intr_novi" }));
+  const calls = stubFetch(() =>
+    json({
+      id: "intr_novi",
+      status: "completed",
+      steps: [{ type: "model_output", content: [{ type: "video", data: "QUJD" }] }],
+    }),
+  );
 
   await submit(t, jobId);
 
@@ -564,7 +608,7 @@ test("kvotna greška pri predaji refundira i kaže zašto, umesto da posao visi"
   expect(await balanceOf(t, userId)).toBe(before + JOB_COST);
 });
 
-test("bez GOOGLE_AI_API_KEY posao se refundira pre ijednog poziva", async () => {
+test("bez GOOGLE_AI_API_KEY posao ide u mock (DEMO), bez poziva i bez refunda (SP2)", async () => {
   const t = convexTest(schema, modules);
   delete process.env.GOOGLE_AI_API_KEY;
   const userId = await seedUser(t);
@@ -574,9 +618,11 @@ test("bez GOOGLE_AI_API_KEY posao se refundira pre ijednog poziva", async () => 
 
   await submit(t, jobId);
 
-  expect((await jobOf(t, jobId))?.error).toContain("GOOGLE_AI_API_KEY");
+  const job = await jobOf(t, jobId);
+  expect(job?.status).toBe("running");
+  expect(job?.falRequestId?.startsWith("mock-")).toBe(true);
   expect(calls).toHaveLength(0);
-  expect(await refundsFor(t, jobId)).toHaveLength(1);
+  expect(await refundsFor(t, jobId)).toHaveLength(0);
 });
 
 test("režim koji model nema se odbija, bez poziva", async () => {
@@ -810,32 +856,28 @@ test("gotova operacija bez izlaza i bez greške ostaje u letu, ne refundira se s
 
 // ── 6. Cene iz kataloga 3.7 i 3.8 ──────────────────────────────────────────
 
-/** Cena jedne sekunde po pravilu reda - onako kako je katalog tabelira. */
-function creditsPerSecond(seed: StudioModelSeed, resolution: string, audio: boolean): number {
-  return computeCredits(seed.priceRule, { resolution, audio, duration: 1 });
+/** Cena jedne sekunde po pravilu reda. Zvuk vise nije parametar. */
+function creditsPerSecond(seed: StudioModelSeed, resolution: string): number {
+  return computeCredits(seed.priceRule, { resolution, duration: 1 });
 }
 
-test("Veo: kr/s iz pravila su tačno one iz kataloga 3.7, za sva tri reda", () => {
-  // Lite (fal): 720p nemo 7 · 720p zvuk 11 · 1080p nemo 11 · 1080p zvuk 18
-  expect(creditsPerSecond(VEO_31_LITE, "720p", false)).toBe(7);
-  expect(creditsPerSecond(VEO_31_LITE, "720p", true)).toBe(11);
-  expect(creditsPerSecond(VEO_31_LITE, "1080p", false)).toBe(11);
-  expect(creditsPerSecond(VEO_31_LITE, "1080p", true)).toBe(18);
+test("Veo: kr/s prate zvanicni cenovnik Google-a, sa zvukom uracunatim", () => {
+  // Lite: $0,05/s na 720p, $0,08/s na 1080p.
+  expect(creditsPerSecond(VEO_31_LITE, "720p")).toBe(11);
+  expect(creditsPerSecond(VEO_31_LITE, "1080p")).toBe(18);
 
-  // Fast (google): 720p zvuk 22 · 1080p zvuk 26 · 4K zvuk 65
-  expect(creditsPerSecond(VEO_31_FAST, "720p", true)).toBe(22);
-  expect(creditsPerSecond(VEO_31_FAST, "1080p", true)).toBe(26);
-  expect(creditsPerSecond(VEO_31_FAST, "4K", true)).toBe(65);
+  // Standard: $0,40/s na 720p I na 1080p, $0,60/s na 4K.
+  // Stari red je 4K racunao po $0,42/s - trideset posto ISPOD nabavne.
+  expect(creditsPerSecond(VEO_31, "720p")).toBe(87);
+  expect(creditsPerSecond(VEO_31, "1080p")).toBe(87);
+  expect(creditsPerSecond(VEO_31, "4K")).toBe(130);
 
-  // Standard (fal): bez zvuka 44 · sa zvukom 87 · 4K zvuk 130
-  expect(creditsPerSecond(VEO_31, "720p", false)).toBe(44);
-  expect(creditsPerSecond(VEO_31, "720p", true)).toBe(87);
-  expect(creditsPerSecond(VEO_31, "4K", true)).toBe(130);
+  // Zvuk vise ne postoji kao parametar; ako ga neko ipak posalje, cena se NE
+  // pomera - inace bi klijent birao koliko ce da plati.
+  expect(computeCredits(VEO_31.priceRule, { resolution: "4K", audio: false, duration: 1 })).toBe(130);
 
   // Lite nema 4K - kombinacija ne postoji u mapi, pa se ne može ni naručiti.
-  expect(isCombinationPriceable(VEO_31_LITE.priceRule, { resolution: "4K", audio: true })).toBe(
-    false,
-  );
+  expect(isCombinationPriceable(VEO_31_LITE.priceRule, { resolution: "4K" })).toBe(false);
 });
 
 test("Gemini Omni: 22 kr/s, 5 s = 110 kredita (katalog 3.8)", () => {
@@ -884,9 +926,10 @@ test("buildGoogleImageRequest: text režim šalje samo prompt, u obliku koji API
   // `input` je NIZ blokova, ne `contents.parts` - to je razlika Interactions
   // API-ja prema `generateContent`-u i najlakše mesto da se pogreši.
   expect(body.input).toEqual([{ type: "text", text: "maca na krovu" }]);
+  // `image/jpeg`, ne PNG: PNG vraca 400 sa `invalid_request` (potvrdjeno uzivo).
   expect(body.response_format).toEqual({
     type: "image",
-    mime_type: "image/png",
+    mime_type: "image/jpeg",
     aspect_ratio: "16:9",
     image_size: "1K",
   });

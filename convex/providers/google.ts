@@ -92,22 +92,27 @@ export async function submitGoogleJob(ctx: ActionCtx, jobId: Id<"generationJobs"
     const inputs = await resolveInputs(ctx, job.inputs);
     const capabilities = parseParams(model.capabilities) ?? {};
 
-    // Slike su SINHRONE: odgovor istog poziva nosi bajtove, pa posao ide
+    // Koji Google API vozi ovaj red pise u samom redu (`capabilities.api`), a ne
+    // u `if (slug === ...)`.
+    //
+    // **Interactions API je SINHRON** - i za sliku (Nano Banana) i za video
+    // (Gemini Omni): odgovor istog poziva nosi bajtove, pa posao ide
     // `reserved` -> `done` i nikad ne prolazi kroz `running` ni kroz poller.
-    // Grana stoji na `kind`-u reda kataloga, ne na imenu modela.
-    if (model.kind === "image") {
-      await runGoogleImageJob(ctx, jobId, config, providerModel, params, inputs, inputMode);
+    // Veo ide na `predictLongRunning`, koji vraca operaciju koju poller ispituje.
+    if (capabilities.api === "interactions") {
+      await runGoogleSyncJob(ctx, jobId, {
+        config,
+        providerModel,
+        params,
+        inputs,
+        inputMode,
+        kind: model.kind,
+      });
 
       return;
     }
 
-    // Koji Google API vozi ovaj red piše u samom redu (`capabilities.api`), a ne
-    // u `if (slug === ...)`: Omni ide na Interactions API, Veo na
-    // `predictLongRunning`, i to je svojstvo modela, ne imena.
-    const operation =
-      capabilities.api === "interactions"
-        ? await startOmni(config, providerModel, params, inputs, inputMode)
-        : await startVeo(config, providerModel, params, inputs, inputMode);
+    const operation = await startVeo(config, providerModel, params, inputs, inputMode);
 
     await ctx.runMutation(internal.studio.markJobRunning, {
       jobId,
@@ -120,7 +125,9 @@ export async function submitGoogleJob(ctx: ActionCtx, jobId: Id<"generationJobs"
 }
 
 /**
- * Ceo tok jedne Google slike, u JEDNOM pozivu (katalog 2.1 i 2.2).
+ * Ceo tok jednog SINHRONOG Google posla, u JEDNOM pozivu: Nano Banana (slika,
+ * katalog 2.1 i 2.2) i Gemini Omni (video, 3.8). Isti endpoint
+ * (`POST /interactions`), isti oblik odgovora - razlikuje se samo telo zahteva.
  *
  * Redosled je namerno ovakav:
  * 1. poziv Google-u - ako pukne, `submitGoogleJob` ga hvata i refundira;
@@ -131,25 +138,48 @@ export async function submitGoogleJob(ctx: ActionCtx, jobId: Id<"generationJobs"
  * Ako treci korak ne uspe da zaveze fajl za posao (druga predaja istog posla),
  * bajtovi se brisu - inace bi storage rastao na svaki ponovljeni poziv.
  */
-async function runGoogleImageJob(
+async function runGoogleSyncJob(
   ctx: ActionCtx,
   jobId: Id<"generationJobs">,
-  config: GoogleConfig,
-  providerModel: string,
-  params: Record<string, unknown>,
-  inputs: GoogleInputs,
-  inputMode: string,
+  args: {
+    config: GoogleConfig;
+    providerModel: string;
+    params: Record<string, unknown>;
+    inputs: GoogleInputs;
+    inputMode: string;
+    kind: string;
+  },
 ): Promise<void> {
+  const { config, providerModel, params, inputs, inputMode, kind } = args;
+  const isVideo = kind === "video";
+
+  if (isVideo) {
+    // Tri ogranicenja Omnija (katalog 3.8) su poruka, ne tiha greska - i
+    // proveravaju se PRE mreze, pa se posao refundira bez ijednog poziva.
+    const restriction = omniInputRestriction(inputMode, inputs);
+    if (restriction) throw new Error(restriction);
+  }
+
+  // `studio.ts` je vec proverio vlasnistvo i model izvorne generacije i upisao
+  // njen SIROV `providerRequestId` u `params` (nalaz S3) - oblik tog polja je
+  // Google-ova stvar, pa se tumaci tek ovde.
+  const rawSourceId = params.previous_interaction_id;
+  const previousInteractionId =
+    typeof rawSourceId === "string" ? bareInteractionId(rawSourceId) : undefined;
+
   const result = await runGoogleInteraction({
     config,
-    body: buildGoogleImageRequest(providerModel, params, inputs, inputMode),
+    body: isVideo
+      ? buildOmniRequest(providerModel, params, inputs, inputMode, previousInteractionId)
+      : buildGoogleImageRequest(providerModel, params, inputs, inputMode),
   });
 
   // Interactions API ume da vrati gresku sa HTTP 200 (`status: "failed"`), pa
-  // odgovor bez slike NIJE uspeh - posao se refundira sa razlogom.
+  // odgovor bez bajtova NIJE uspeh - posao se refundira sa razlogom.
   if (!result.media) {
     throw new Error(
-      result.error ?? "Google je vratio odgovor bez slike. Krediti su ti vraćeni.",
+      result.error ??
+        `Google je vratio odgovor bez ${isVideo ? "videa" : "slike"}. Krediti su ti vraćeni.`,
     );
   }
 
@@ -232,33 +262,6 @@ function startVeo(
     path: `/models/${encodeURIComponent(providerModel)}:predictLongRunning`,
     body: buildVeoRequest(params, inputs, inputMode),
     fallbackCollection: "operations",
-  });
-}
-
-function startOmni(
-  config: GoogleConfig,
-  providerModel: string,
-  params: Record<string, unknown>,
-  inputs: GoogleInputs,
-  inputMode: string,
-) {
-  // Tri ograničenja Omnija (katalog 3.8) su poruka, ne tiha greška - i proveravaju
-  // se PRE mreže, pa se posao refundira bez ijednog poziva.
-  const restriction = omniInputRestriction(inputMode, inputs);
-  if (restriction) throw new Error(restriction);
-
-  // `studio.ts` je već proverio vlasništvo i model izvorne generacije i upisao
-  // njen SIROV `providerRequestId` u `params` (nalaz S3) - oblik tog polja je
-  // Google-ova stvar, pa se tumači tek ovde.
-  const rawSourceId = params.previous_interaction_id;
-  const previousInteractionId =
-    typeof rawSourceId === "string" ? bareInteractionId(rawSourceId) : undefined;
-
-  return startGoogleOperation({
-    config,
-    path: "/interactions",
-    body: buildOmniRequest(providerModel, params, inputs, inputMode, previousInteractionId),
-    fallbackCollection: "interactions",
   });
 }
 

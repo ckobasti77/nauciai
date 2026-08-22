@@ -2,25 +2,17 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePaginatedQuery } from "convex/react";
-import { CheckSquare, Download, Loader2, Search, Sparkles, Wand2, X } from "lucide-react";
+import { Download, Loader2, Sparkles, Wand2 } from "lucide-react";
 
 import { StudioMediaSkeletonTile, StudioMediaTile, type StudioTileJob } from "@/components/app/studio-media-tile";
 import { api } from "@/convex/_generated/api";
-import { cn } from "@/components/ui/primitives";
 import type { Locale } from "@/lib/i18n";
+import { resetStudioFilters, setStudioFilters, useStudioFilters } from "@/lib/studio-filters-store";
 import { jobPrompt } from "@/lib/studio-form";
-import {
-  DATE_RANGE_LABELS,
-  DATE_RANGE_PRESETS,
-  dateRangeCutoff,
-  downloadMediaFiles,
-  GALLERY_KIND_LABELS,
-  GALLERY_KINDS,
-  type DateRangePreset,
-} from "@/lib/studio-gallery";
+import { dateRangeCutoff, downloadMediaFiles } from "@/lib/studio-gallery";
 import { distributeGridColumns, useGridColumnCount } from "@/lib/studio-grid";
 import { GALLERY_NO_MATCHES, STUDIO_NO_GENERATIONS } from "@/lib/studio-messages";
-import { modelLabel, type StudioModel } from "@/lib/studio-models";
+import type { StudioModel } from "@/lib/studio-models";
 import type { StudioSectionKind } from "@/lib/studio-sections";
 
 const PAGE_SIZE = 12;
@@ -30,14 +22,10 @@ const FIRST_PROMPT = {
   en: "watercolour illustration of old Belgrade, warm evening light, paper texture",
 };
 
-const CHIP =
-  "inline-flex min-h-8 items-center gap-1 rounded-full border-2 border-ink px-3 py-1 text-xs font-black studio-anim-mikro focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink cursor-pointer disabled:cursor-not-allowed disabled:opacity-50";
-
 export function StudioMediaGrid({
   locale,
   kind,
   catalog = [],
-  onKindChange,
   onReuse,
   onExtend,
   onOpenDetail,
@@ -48,7 +36,6 @@ export function StudioMediaGrid({
   locale: Locale;
   kind: StudioSectionKind | null;
   catalog?: StudioModel[];
-  onKindChange?: (nextKind: StudioSectionKind | null) => void;
   onReuse: (job: StudioTileJob) => void;
   onExtend: (job: StudioTileJob) => void;
   onOpenDetail: (job: StudioTileJob) => void;
@@ -59,14 +46,12 @@ export function StudioMediaGrid({
   // Prozor za zamrznut timestamp (Date.now() unutar state-a na mount-u)
   const [now] = useState(() => Date.now());
 
-  // Filteri
-  const [modelFilter, setModelFilter] = useState<string | null>(null);
-  const [dateFilter, setDateFilter] = useState<DateRangePreset>("all");
-  const [searchQuery, setSearchQuery] = useState("");
+  // Filteri (SP2): žive u deljenom store-u - prozor ih menja, sidebar-linija
+  // broji, ovde se samo čitaju. Vrsta i dalje dolazi kroz `kind` (URL).
+  const { modelSlug: modelFilter, range: dateFilter, query: searchQuery, selectMode: isSelectMode } = useStudioFilters();
 
   // Višestruki izbor i grupno preuzimanje (C7 + C13)
   const [selectedJobs, setSelectedJobs] = useState<Map<string, StudioTileJob>>(new Map());
-  const [isSelectMode, setIsSelectMode] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState<{ current: number; total: number } | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
@@ -135,7 +120,7 @@ export function StudioMediaGrid({
     if (modelFilter && kind) {
       const selected = catalog.find((model) => model.slug === modelFilter);
       if (selected && selected.kind !== kind) {
-        setModelFilter(null);
+        setStudioFilters({ modelSlug: null });
       }
     }
   }
@@ -168,9 +153,7 @@ export function StudioMediaGrid({
 
   function resetAllFilters() {
     onResetKind();
-    setModelFilter(null);
-    setDateFilter("all");
-    setSearchQuery("");
+    resetStudioFilters();
   }
 
   // Preuzimljiv posao = ima izlaz i završen je. Status završenog je "done"
@@ -253,154 +236,6 @@ export function StudioMediaGrid({
 
   return (
     <div className="space-y-4">
-      {/* ── Gornja traka filtera mreže ────────────────────────────────────────── */}
-      <div className="surface-card flex flex-col gap-3 border-2 border-ink bg-paper-strong p-3 shadow-[3px_3px_0_0_var(--shadow-hard-12)] sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-        <div className="flex flex-1 flex-wrap items-center gap-2">
-          {/* Pretraga po promptu */}
-          <div className="relative min-w-[180px] max-w-xs flex-1 sm:flex-none">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={locale === "sr" ? "Pretraži promptove…" : "Search prompts…"}
-              className="surface-inset h-8 w-full border-2 border-ink bg-paper pl-8 pr-7 text-xs font-bold text-ink outline-none placeholder:text-muted focus:bg-paper-strong studio-focus-ink"
-            />
-            {searchQuery ? (
-              <button
-                type="button"
-                onClick={() => setSearchQuery("")}
-                aria-label={locale === "sr" ? "Obriši pretragu" : "Clear search"}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted hover:text-ink cursor-pointer"
-              >
-                <X className="size-3.5" />
-              </button>
-            ) : null}
-          </div>
-
-          <span className="hidden h-5 w-px bg-ink/15 sm:inline-block" aria-hidden="true" />
-
-          {/* Filter vrste (Kind) — uvezan sa sidebarom i routerom */}
-          <div className="flex flex-wrap items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => (onKindChange ? onKindChange(null) : onResetKind())}
-              aria-pressed={kind === null}
-              className={cn(
-                CHIP,
-                kind === null ? "bg-ink text-paper-strong" : "bg-paper-strong text-ink hover:-translate-y-0.5",
-              )}
-            >
-              {locale === "sr" ? "Sve vrste" : "All kinds"}
-            </button>
-            {GALLERY_KINDS.map((k) => (
-              <button
-                key={k}
-                type="button"
-                onClick={() => (onKindChange ? onKindChange(k) : null)}
-                aria-pressed={kind === k}
-                className={cn(
-                  CHIP,
-                  kind === k ? "bg-ink text-paper-strong" : "bg-paper-strong text-ink hover:-translate-y-0.5",
-                )}
-              >
-                {GALLERY_KIND_LABELS[k][locale]}
-              </button>
-            ))}
-          </div>
-
-          <span className="hidden h-5 w-px bg-ink/15 sm:inline-block" aria-hidden="true" />
-
-          {/* Filter modela */}
-          {catalog.length > 0 ? (
-            <select
-              value={modelFilter ?? ""}
-              onChange={(e) => setModelFilter(e.target.value === "" ? null : e.target.value)}
-              aria-label={locale === "sr" ? "Filter po modelu" : "Filter by model"}
-              className="surface-inset h-8 border-2 border-ink bg-paper-strong px-2.5 text-xs font-black text-ink outline-none cursor-pointer hover:bg-paper studio-focus-ink"
-            >
-              <option value="">{locale === "sr" ? "Svi modeli" : "All models"}</option>
-              {kind
-                ? // Vrsta izabrana: samo modeli te vrste (ravan spisak).
-                  catalog
-                    .filter((model) => model.kind === kind)
-                    .map((model) => (
-                      <option key={model.slug} value={model.slug}>
-                        {modelLabel(model, locale)}
-                      </option>
-                    ))
-                : // „Sve vrste": ceo katalog, ali grupisan po vrsti (optgroup),
-                  // ne ravan zid od 31 stavke.
-                  GALLERY_KINDS.filter((k) => catalog.some((model) => model.kind === k)).map((k) => (
-                    <optgroup key={k} label={GALLERY_KIND_LABELS[k][locale]}>
-                      {catalog
-                        .filter((model) => model.kind === k)
-                        .map((model) => (
-                          <option key={model.slug} value={model.slug}>
-                            {modelLabel(model, locale)}
-                          </option>
-                        ))}
-                    </optgroup>
-                  ))}
-            </select>
-          ) : null}
-
-          {/* Filter perioda */}
-          <div className="flex flex-wrap items-center gap-1">
-            {DATE_RANGE_PRESETS.map((preset) => (
-              <button
-                key={preset}
-                type="button"
-                onClick={() => setDateFilter(preset)}
-                aria-pressed={dateFilter === preset}
-                className={cn(
-                  CHIP,
-                  dateFilter === preset ? "bg-ink text-paper-strong" : "bg-paper-strong text-ink hover:-translate-y-0.5",
-                )}
-              >
-                {DATE_RANGE_LABELS[preset][locale]}
-              </button>
-            ))}
-          </div>
-
-          {/* Poništi sve filtere ako je neki aktivan */}
-          {filtersActive ? (
-            <button
-              type="button"
-              onClick={resetAllFilters}
-              className="ml-auto inline-flex h-8 items-center gap-1 rounded-full border-2 border-dashed border-ink/40 px-2.5 text-xs font-black text-muted transition hover:border-ink hover:text-ink cursor-pointer"
-            >
-              <X className="size-3" />
-              {locale === "sr" ? "Poništi filtere" : "Reset filters"}
-            </button>
-          ) : null}
-        </div>
-
-        {/* Dugme za uključivanje režima izbora */}
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setIsSelectMode((prev) => !prev)}
-            aria-pressed={isSelectMode || selectedJobs.size > 0}
-            className={cn(
-              CHIP,
-              isSelectMode || selectedJobs.size > 0
-                ? "bg-yellow text-ink shadow-[2px_2px_0_0_var(--ink)]"
-                : "bg-paper-strong text-ink hover:-translate-y-0.5",
-            )}
-          >
-            <CheckSquare className="size-3.5" />
-            {isSelectMode || selectedJobs.size > 0
-              ? locale === "sr"
-                ? "Izbor aktivan"
-                : "Select active"
-              : locale === "sr"
-                ? "Izaberi više"
-                : "Select multiple"}
-          </button>
-        </div>
-      </div>
-
       {/* ── Traka za grupne akcije (C7 + C13) ─────────────────────────────────── */}
       {selectedJobs.size > 0 ? (
         <div className="surface-card flex flex-wrap items-center justify-between gap-3 border-2 border-ink bg-paper p-3 shadow-[3px_3px_0_0_var(--shadow-hard-12)]">

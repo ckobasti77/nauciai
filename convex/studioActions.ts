@@ -12,6 +12,7 @@ import {
 } from "../lib/media-duration";
 import { submitBytePlusJob } from "./providers/byteplus";
 import { falInputFields, resolveEndpointTier } from "./providers/falInputs";
+import { parseDataUrl } from "../lib/data-url";
 import { parseJobInputs } from "./providers/jobInputs";
 import { submitGoogleJob } from "./providers/google";
 import { googleDownloadHeaders } from "./providers/googleCore";
@@ -21,6 +22,7 @@ import {
   mockJobSucceeds,
   mockOutputDataUrl,
   parseParams,
+  providerKeyPresent,
 } from "./studioCore";
 
 export const getJobForSubmit = internalQuery({
@@ -61,6 +63,27 @@ export const submitJob = internalAction({
       const v4Model = await ctx.runQuery(internal.studioModels.getModelBySlug, {
         slug: job.modelSlug,
       });
+
+      // Mock provajder (STUDIO-PLAN dan, P4; SP2 za sva tri provajdera): dok
+      // nema ključa, posao i dalje prolazi kroz IDENTIČAN ledger put
+      // (reserved -> running -> done/refunded) - samo poziv provajderu
+      // zamenjuje zakazana simulacija. Ranije je samo fal išao u mock, a
+      // BytePlus/Google bez ključa bacali grešku pa refundirali. `STUDIO_MOCK=1`
+      // je izričit override i kad ključ postoji; odsustvo ključa SAMO PO SEBI
+      // je uvek dovoljno za mock.
+      const provider = v4Model?.provider ?? "fal";
+      if (!providerKeyPresent(provider, process.env)) {
+        await ctx.runMutation(internal.studio.markJobRunning, {
+          jobId: args.jobId,
+          providerRequestId: `${MOCK_REQUEST_PREFIX}${args.jobId}`,
+        });
+        await ctx.scheduler.runAfter(MOCK_JOB_DELAY_MS, internal.studioActions.completeMockJob, {
+          jobId: args.jobId,
+        });
+
+        return null;
+      }
+
       if (v4Model?.provider === "byteplus") {
         await submitBytePlusJob(ctx, args.jobId);
 
@@ -83,24 +106,8 @@ export const submitJob = internalAction({
       const model = await ctx.runQuery(internal.modelCatalog.getModelBySlug, { slug: job.modelSlug });
       if (!model) throw new Error("Model nije pronađen u katalogu.");
 
-      const apiKey = process.env.FAL_KEY;
-
-      // Mock provajder (STUDIO-PLAN dan, P4): dok Jovan nema FAL_KEY, posao i
-      // dalje prolazi kroz IDENTIČAN ledger put (reserved -> running ->
-      // done/refunded) - samo fal poziv zamenjuje zakazana simulacija.
-      // `STUDIO_MOCK=1` je izričit override za ručno testiranje i kad ključ
-      // već postoji; odsustvo ključa SAMO PO SEBI je uvek dovoljno za mock.
-      if (!apiKey || process.env.STUDIO_MOCK === "1") {
-        await ctx.runMutation(internal.studio.markJobRunning, {
-          jobId: args.jobId,
-          providerRequestId: `${MOCK_REQUEST_PREFIX}${args.jobId}`,
-        });
-        await ctx.scheduler.runAfter(MOCK_JOB_DELAY_MS, internal.studioActions.completeMockJob, {
-          jobId: args.jobId,
-        });
-
-        return null;
-      }
+      // Ključ je proveren u kapiji iznad; ovde je sigurno prisutan.
+      const apiKey = process.env.FAL_KEY as string;
 
       const siteUrl = process.env.CONVEX_SITE_URL;
       if (!siteUrl) throw new Error("CONVEX_SITE_URL nije postavljen");
@@ -141,19 +148,8 @@ async function submitFalCatalogJob(
   job: Doc<"generationJobs">,
   model: Doc<"models">,
 ) {
-  const apiKey = process.env.FAL_KEY;
-
-  // Mock provajder (P4) važi i ovde: bez ključa posao ide kroz IDENTIČAN
-  // ledger put, samo fal poziv zamenjuje zakazana simulacija.
-  if (!apiKey || process.env.STUDIO_MOCK === "1") {
-    await ctx.runMutation(internal.studio.markJobRunning, {
-      jobId,
-      providerRequestId: `${MOCK_REQUEST_PREFIX}${jobId}`,
-    });
-    await ctx.scheduler.runAfter(MOCK_JOB_DELAY_MS, internal.studioActions.completeMockJob, { jobId });
-
-    return;
-  }
+  // Ključ je proveren u kapiji u `submitJob`; ovde je sigurno prisutan.
+  const apiKey = process.env.FAL_KEY as string;
 
   const siteUrl = process.env.CONVEX_SITE_URL;
   if (!siteUrl) throw new Error("CONVEX_SITE_URL nije postavljen");
@@ -222,7 +218,7 @@ export const completeMockJob = internalAction({
       await ctx.runMutation(internal.falWebhook.applyWebhookResult, {
         falRequestId: job.falRequestId,
         status: "OK",
-        outputUrl: mockOutputDataUrl(extractPrompt(parseParams(job.params) ?? {}), job.promptHash),
+        outputUrl: mockOutputDataUrl(extractPrompt(parseParams(job.params) ?? {}), job.promptHash, job.kind),
       });
     } else {
       await ctx.runMutation(internal.falWebhook.applyWebhookResult, {
@@ -254,17 +250,30 @@ export const persistOutput = internalAction({
     if (!job || job.status !== "done" || !job.falOutputUrl || job.outputStorageId) return null;
 
     try {
+      // Mock provajder (bez `FAL_KEY`) upisuje `data:` URL, a Convex `fetch` zna
+      // samo http i https - takav posao je zavrsavao `done` BEZ fajla, sa
+      // `IZLAZ_NIJE_SACUVAN`, i bez refunda (`markOutputFailed` namerno ne
+      // refundira). Drugim recima: demo posao je naplacivao kredite i nije
+      // isporucivao nista. Zato se `data:` URL raspakuje ovde, bez mreze.
+      const inline = parseDataUrl(job.falOutputUrl);
       // Google-ov izlaz stoji na `generativelanguage.googleapis.com` i traži
       // ključ; fal i BytePlus daju potpisan URL i ne smeju da ga vide. Bez ovog
       // zaglavlja bi Google posao ostao `done` bez fajla, a plaćen je.
-      const response = await fetch(job.falOutputUrl, {
-        headers: googleDownloadHeaders(job.falOutputUrl, process.env.GOOGLE_AI_API_KEY),
-      });
-      if (!response.ok) {
-        throw new Error(`fal je vratio ${response.status} pri preuzimanju izlaza.`);
-      }
+      const blob = inline
+        ? new Blob([inline.bytes as BlobPart], { type: inline.mimeType })
+        : await (async () => {
+            const response = await fetch(job.falOutputUrl as string, {
+              headers: googleDownloadHeaders(
+                job.falOutputUrl as string,
+                process.env.GOOGLE_AI_API_KEY,
+              ),
+            });
+            if (!response.ok) {
+              throw new Error(`Provajder je vratio ${response.status} pri preuzimanju izlaza.`);
+            }
 
-      const blob = await response.blob();
+            return response.blob();
+          })();
       const storageId = await ctx.storage.store(blob);
       const stored = await ctx.runMutation(internal.studio.finalizeOutput, {
         jobId: args.jobId,

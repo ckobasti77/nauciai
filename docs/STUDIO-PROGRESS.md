@@ -7869,3 +7869,141 @@ sam da je swap citljiviji za pocetnika od istovremenog prikaza "biram model" i
 3. **Mobilni 375px** - proveri uzivo kad budes mogao (vidi BLOKADA).
 4. Marks su svesno 3 siluete + 3 inicijala (bytedance/kling/minimax) - ako imas
    verne monohromne siluete za ta tri, ubacuju se kao jedan unos u `PROVIDER_MARKS`.
+
+---
+
+## SP2 - Video detalj, ulazi po modelu, DEMO jasnoca, coskovi panela, filteri u sidebar   (22.08.2026)
+
+### Fajlovi
+
+Novo:
+- `lib/studio-capabilities.ts` (+ test) - `modelInputCapabilities`, `modeProviding`,
+  `firstFileMode`, `modelRestrictions`, `capabilityChips` - sve iz `inputModes` +
+  `inputSpec`, nista iz `capabilities` (sem `continuation` i `restrictionsSr/En`).
+- `lib/studio-filters-store.ts` (+ test) - deljeni store filtera mreze
+  (`useSyncExternalStore`, bez zavisnosti).
+- `components/studio/input-capabilities.tsx` - `InputCapabilityStrip` (cipovi u panelu)
+  + `InputCapabilityIcons` (ikone u redu modela).
+- `components/studio/studio-filters-dialog.tsx` - prozor filtera po sredini ekrana.
+
+Menjano:
+- `convex/studioCore.ts` - `providerKeyPresent`, `providerStatus`; `mockOutputDataUrl`
+  dobija natpis `DEMO · <vrsta>`.
+- `convex/studioActions.ts` - JEDNA mock kapija pre grananja po provajderu; duplirane
+  provere u legacy fal grani i `submitFalCatalogJob` obrisane.
+- `convex/studio.ts` - `getStudioState.providerStatus` (samo boolean-i).
+- `lib/studio-gallery.ts` - `isDemoPoster(job)`; `lib/studio-playground.ts` -
+  `PlaygroundState.providerStatus`.
+- `components/app/studio-media-tile.tsx`, `studio-media-detail.tsx`,
+  `studio-moderation-grid.tsx` - video/audio klik, DEMO poster.
+- `components/studio/studio-composer.tsx` - `switchMode` (jedan put za ModeSwitcher,
+  cipove i `+`), traka sposobnosti, ogranicenja modela, pametan `+`, DEMO pilula,
+  `rounded-t/b-[inherit]` na header/footer panela.
+- `components/studio/mode-switcher.tsx` - vise ne cisti slotove sam (radi composer).
+- `components/studio/model-picker.tsx` - `providerStatus` prop, DEMO pilula, ikone.
+- `components/app/studio-media-grid.tsx` - gornja traka filtera uklonjena; cita store.
+- `components/app/app-sidebar-studio.tsx` - linija-okidac ispod „Zvuk" (+ rail ikona).
+- `components/app/studio-page.tsx` - topbar u jedan red (obim + balans desno), renderuje
+  `StudioFiltersDialog`.
+- Testovi: `convex/studio.test.ts`, `convex/providers/byteplus.test.ts`,
+  `convex/providers/google.test.ts`, `lib/studio-gallery.test.ts`.
+
+### Sta je uradjeno
+
+1. **Video (i audio) tajl otvara detalj.** `<video controls onClick={stopPropagation}>`
+   je gutao SVAKI klik (kontrole su u shadow DOM-u istog elementa, nema sta da se
+   „izuzme"). Sad: nemi pregled bez kontrola + Play glif, klik ide tajlu ->
+   `/app/studio/m/<id>`. Isto za `<audio>`.
+2. **DEMO video/zvuk kao poster.** Mock vraca SVG za svaku vrstu, pa je `<video src=svg>`
+   bio prazan plejer. `isDemoPoster(job)` (po `isMock`, jer izlaz posle `persistOutput`
+   zivi u storage-u i vise nije `data:`; `data:image/svg` je rezerva) -> `<Image>` u
+   tajlu, detalju i moderatorskoj mrezi. SVG sad nosi i red `DEMO · video`.
+3. **Coskovi panela.** Header (`border-b-2 bg-paper`) i mobilni footer su bili
+   pravougaoni preko 16px zaobljenja (`@layer base` fallback hvata samo token `border-2`).
+   Resenje: `rounded-t-[inherit]` / `rounded-b-[inherit]`, bez `overflow-hidden` (da ne
+   sece fokus-prsten prvog/poslednjeg reda). Izmereno: header `16px 16px 0 0`.
+4. **Jedna mock kapija za sva tri provajdera.** Ranije: fal bez kljuca -> tihi mock;
+   BytePlus/Google bez kljuca -> greska + refund. Sad `providerKeyPresent` pre grananja
+   -> svi idu u isti DEMO put. `getStudioState.providerStatus` nosi boolean-e klijentu.
+5. **DEMO vidljiv PRE klika.** Pilula `DEMO` u redu modela u biracu i u redu trenutnog
+   modela; status linija „Ovaj model radi u DEMO rezimu" pri izboru.
+6. **Sta model prima - vidljivo unapred.** Traka cipova iznad `ModeSwitcher`-a:
+   Slika · Pocetni/zavrsni kadar · Referentne · Video · Zvuk. Podrzano = klik vodi u
+   rezim sa tim poljima (+ fokus na polja); nepodrzano = sivo, precrtano, „nije moguce"
+   + title. Sivi cipovi samo za ocekivane sposobnosti po vrsti (slika: Slika/Kadrovi;
+   video: + Referentne/Video; zvuk: samo sto ima). Iste sposobnosti kao ikone (16px) u
+   svakom redu biraca. `capabilities.restrictionsSr/En` (Gemini Omni) se prvi put
+   renderuju - kao `role="note"` lista ispod reda modela.
+7. **`+` dugme.** Bilo je ugaseno kad TRENUTNI rezim nema slotove (Nano Banana 2 u
+   „Samo opis" -> „ne prima fajlove", netacno). Sad: aktivno kad model prima fajl u
+   BILO kom rezimu; iz „Samo opis" sam prebaci na prvi rezim sa poljima i fokusira ih.
+   Tooltip kad stvarno ne prima: „Ovaj model ne prima fajlove."
+8. **Filteri mreze.** Vrste (Sve/Slika/Video/Zvuk) iz mreze UKLONJENE (duplikat
+   sidebara). Pretraga, model, period, „Izaberi vise", reset -> prozor po sredini ekrana
+   koji otvara LINIJA ispod „Zvuk" u sidebaru (tanka linija + ikona + broj aktivnih
+   filtera); rail ima istu ikonu. Klik van, Esc, X zatvaraju. Traka grupnih akcija
+   ostaje iznad mreze samo dok ima izabranih.
+9. **Kompaktan vrh.** Topbar u jedan red: „Studio" levo; „Samo moji / Svi korisnici"
+   (osoblje), „Bez projekta", balans desno. Opisni pasus uklonjen; `space-y-4`.
+
+### ODLUKE
+
+- Mock za SVA tri provajdera bez kljuca (umesto greska+refund za BytePlus/Google):
+  simetricno, bez naplate-bez-izlaza. Testovi za „bez kljuca" sad ocekuju `running` +
+  `mock-` umesto `refunded`.
+- DEMO video/zvuk = SVG poster, ne lazni mp4/wav.
+- `isDemoPoster` sudi po `isMock` (Plan-agent je predlozio samo `data:` URL; uzivo je
+  pokazalo da sacuvan DEMO izlaz ima storage URL, pa bi poster izostao).
+- Traka sposobnosti NE zamenjuje `ModeSwitcher` i NE renderuje sva polja odjednom:
+  `inputMode` bira endpoint, parametre (`showInModes`), cenu (`modeMultipliers`) i
+  obavezne ulaze; `first_last` deli slot `image` sa `image`/`image_multi`, pa se rezim
+  iz popunjenih polja ne bi mogao jednoznacno izvesti, a cena bi lagala.
+- „Izaberi vise" ide u filter-prozor (po „ovo ostalo u dugme").
+- Opisni pasus ispod „Studio" uklonjen radi kompaktnosti (uputstvo stoji u praznom
+  stanju mreze).
+- Filteri su session-state (store), ne URL - vrsta ostaje u URL-u kao i do sad.
+
+### Testovi
+
+- Novo: `lib/studio-capabilities.test.ts` (10; ukljucuje invarijantu nad CELIM
+  katalogom: svaki podrzani cip ima rezim, nepodrzani nema, `+` ima cilj akko model
+  prima fajl), `lib/studio-filters-store.test.ts` (3), `providerKeyPresent` /
+  `providerStatus` / `DEMO · vrsta` u `convex/studio.test.ts`, `isDemoPoster` u
+  `lib/studio-gallery.test.ts`.
+- Izmenjeno: `byteplus.test.ts` (bez `BYTEPLUS_API_KEY` -> mock; bez `BASE_URL` sa
+  kljucem -> i dalje refund), `google.test.ts` (bez `GOOGLE_AI_API_KEY` -> mock),
+  `getStudioState` oblik.
+- Suite: **72 fajla, 968/968**. `chat.test.ts > inbox summary` nije pao.
+
+### Rezultat verifikacije (claude-in-chrome, dev :3000, ulogovan, tamna tema)
+
+- `npx convex codegen` exit 0; `npm run lint` 0 gresaka (8 postojecih upozorenja, nijedno
+  iz ovih fajlova); `npm run test` 968/968; `npm run build` exit 0.
+- NB2 u „Samo opis": `+` aktivan -> klik prebacuje na „Iz vise slika", slot otvoren,
+  traka: „Slika · do 10" aktivno, „Pocetni/zavrsni kadar NIJE MOGUCE".
+- Veo 3.1: 4 cipa podrzana; klik „Pocetni/zavrsni kadar" -> rezim „Prvi i poslednji
+  kadar", dva polja (Pocetni/Zavrsni) sa strelicom; bar kaze „Dodaj pocetni kadar".
+- Birac, pretraga „veo" + Video: Veo 3.1 Lite ima Referentne/Video zatamnjene, Veo 3.1
+  sve upaljeno. Pretraga „kling": „Kling proba odece" nosi `DEMO` pilulu (fal bez
+  kljuca).
+- Header panela: `border-radius: 16px 16px 0 0` (bio `0`); coskovi cisti.
+- Klik na video tajl -> URL `/sr/app/studio/m/w570yd...`, detalj otvoren.
+- Sidebar (rail) ikona filtera -> prozor po sredini; klik van -> `dialogOpen: false`.
+- Topbar: jedan red, obim-pilule + balans desno; mreza krece odmah ispod.
+- Konzola: samo poznati `bis_skin_checked` hydration sum (extension), nista novo.
+
+### BLOKADA
+
+- Svetla tema i 375px nisu snimljeni uzivo u ovoj sesiji (sve nove povrsine koriste
+  samo postojece tokene: `bg-yellow`, `border-ink`, `bg-paper(-strong)`, `text-muted`).
+- Stari DEMO video posao `w577brwq…` je `done` BEZ izlaza (nastao pre `lib/data-url`
+  popravke, `IZLAZ_NIJE_SACUVAN`) - tajl mu je prazan bunar. Nije u obimu ovog prolaza;
+  novi DEMO poslovi dobijaju poster.
+
+### Za Jovana
+
+1. Kad dobijes `FAL_KEY` / `BYTEPLUS_API_KEY`: `npx convex env set FAL_KEY …` - DEMO
+   pilule nestaju same (`providerStatus`), nista u kodu ne treba menjati.
+2. Filteri su po sesiji (store), ne u URL-u - reci ako hoces da budu deljivi linkom.
+3. Prazan stari DEMO tajl (vidi BLOKADA) - mogu da dodam poruku „Izlaz nije sacuvan" u
+   tajl ako hoces.

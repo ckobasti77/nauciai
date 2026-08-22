@@ -78,6 +78,8 @@ export const NANO_BANANA_2: StudioModelSeed = {
     ],
   },
   capabilities: {
+    // Interactions API, isti kao Omni - provajder grana po ovome.
+    api: "interactions",
     mode: "sync",
     maxInputImages: 10,
     maxImagesPerRun: 1,
@@ -138,6 +140,7 @@ export const NANO_BANANA_PRO: StudioModelSeed = {
     multipliers: [{ param: "resolution", map: { "2K": 1, "4K": 1.791 } }],
   },
   capabilities: {
+    api: "interactions",
     mode: "sync",
     thinking: true,
     maxInputImages: 10,

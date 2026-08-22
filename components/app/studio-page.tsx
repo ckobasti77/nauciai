@@ -13,7 +13,8 @@ import { StudioMediaGrid } from "@/components/app/studio-media-grid";
 import type { StudioTileJob } from "@/components/app/studio-media-tile";
 import { StudioModerationGrid } from "@/components/app/studio-moderation-grid";
 import { StudioComposer, type JobPayload, type RegenerateSeed } from "@/components/studio/studio-composer";
-import { Panel, SectionHeader, cn } from "@/components/ui/primitives";
+import { StudioFiltersDialog } from "@/components/studio/studio-filters-dialog";
+import { Panel, cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { withLocale, type Locale } from "@/lib/i18n";
@@ -303,14 +304,6 @@ export function StudioPage({
     router.replace(withLocale(locale, `/app/studio/m/${nextJob._id}`), { scroll: false });
   }
 
-  function handleKindChange(nextKind: StudioSectionKind | null) {
-    if (nextKind) {
-      router.push(withLocale(locale, `/app/studio?kind=${nextKind}`), { scroll: false });
-    } else {
-      router.push(withLocale(locale, "/app/studio"), { scroll: false });
-    }
-  }
-
   async function generate(payload: JobPayload) {
     if (!activeModel) return;
     setIsPending(true);
@@ -354,17 +347,34 @@ export function StudioPage({
     router.push(withLocale(locale, "/app/studio"));
   }
 
+  // Jedan red (SP2): naslov levo, obim (osoblje) + balans desno - mreža kreće
+  // odmah ispod. Opisni pasus je otišao; uputstvo stoji u praznom stanju mreže.
   const topbar = (
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-      <SectionHeader
-        title={locale === "sr" ? "Studio" : "Studio"}
-        body={
-          locale === "sr"
-            ? "Opiši šta hoćeš, izaberi model i generiši. Svaka generacija se plaća kreditima."
-            : "Describe what you want, pick a model and generate. Every generation is paid in credits."
-        }
-      />
-      <div className="flex items-center gap-3">
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <h2 className="text-2xl font-black leading-tight text-ink md:text-3xl">Studio</h2>
+      <div className="flex flex-wrap items-center gap-3">
+        {/* Prekidač obima — vidi ga samo osoblje (H3) */}
+        {state?.isStaff ? (
+          <div className="flex items-center gap-1.5">
+            {GALLERY_SCOPES.map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => setScope(option)}
+                aria-pressed={scope === option}
+                className={cn(
+                  "inline-flex min-h-8 items-center gap-1 rounded-full border-2 border-ink px-3 py-1 text-xs font-black studio-anim-mikro cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+                  scope === option
+                    ? "bg-yellow text-ink shadow-[2px_2px_0_0_var(--ink)]"
+                    : "bg-paper-strong text-ink hover:-translate-y-0.5",
+                )}
+              >
+                {GALLERY_SCOPE_LABELS[option][locale]}
+              </button>
+            ))}
+          </div>
+        ) : null}
+
         {/* Placeholder za projekte */}
         <span
           title={locale === "sr" ? "Projekti nisu u obimu — mesto rezervisano" : "Projects out of scope — reserved slot"}
@@ -494,33 +504,11 @@ export function StudioPage({
 
   return (
     <div className="relative -mx-4 -mt-5 min-h-[calc(100vh-5rem)] bg-studio-canvas px-4 pt-4 text-ink sm:-mx-6 sm:px-6 md:-mx-8 md:-mt-8 md:px-8 md:pt-6">
-      <div className="space-y-6">
+      <div className="space-y-4">
         {topbar}
 
         {/* Mreža generisanih medija sa dinamičkim donjim paddingom prema izmerenoj visini composera */}
         <div style={{ paddingBottom: `${floatingHeight + 28}px` }}>
-          {/* Prekidač obima — vidi ga samo osoblje (H3) */}
-          {state?.isStaff ? (
-            <div className="mb-4 flex items-center gap-1.5">
-              {GALLERY_SCOPES.map((option) => (
-                <button
-                  key={option}
-                  type="button"
-                  onClick={() => setScope(option)}
-                  aria-pressed={scope === option}
-                  className={cn(
-                    "inline-flex min-h-8 items-center gap-1 rounded-full border-2 border-ink px-3 py-1 text-xs font-black studio-anim-mikro cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
-                    scope === option
-                      ? "bg-yellow text-ink shadow-[2px_2px_0_0_var(--ink)]"
-                      : "bg-paper-strong text-ink hover:-translate-y-0.5",
-                  )}
-                >
-                  {GALLERY_SCOPE_LABELS[option][locale]}
-                </button>
-              ))}
-            </div>
-          ) : null}
-
           {scope === "all" && state?.isStaff ? (
             <StudioModerationGrid
               locale={locale}
@@ -532,7 +520,6 @@ export function StudioPage({
               locale={locale}
               kind={activeKind}
               catalog={catalog}
-              onKindChange={handleKindChange}
               onReuse={handleReuse}
               onExtend={handleExtend}
               onOpenDetail={handleOpenDetail}
@@ -543,6 +530,9 @@ export function StudioPage({
           )}
         </div>
       </div>
+
+      {/* Prozor sa filterima mreže - otvara ga linija u sidebaru (SP2) */}
+      <StudioFiltersDialog locale={locale} kind={activeKind} catalog={catalog} />
 
       {/* Lebdeći kontejner composera (usidren dole po sredini, iznad mreže) */}
       <div

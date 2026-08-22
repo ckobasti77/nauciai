@@ -66,6 +66,18 @@ export const DATE_RANGE_LABELS: Record<DateRangePreset, { sr: string; en: string
 };
 
 /** Fajl se sme izabrati za preuzimanje samo dok stvarno postoji. */
+/**
+ * DEMO poster (SP2): mock provajder za SVAKU vrstu vraća SVG, pa video/zvuk
+ * DEMO posao nema fajl koji plejer može da pusti - prikazuje se kao slika.
+ * `isMock` je merodavan (izlaz posle `persistOutput` živi u storage-u, pa URL
+ * više nije `data:`); `data:image/svg` je rezerva za izlaz koji još nije sačuvan.
+ */
+export function isDemoPoster(job: { isMock?: boolean; outputUrl: string | null | undefined }): boolean {
+  if (job.isMock) return true;
+
+  return typeof job.outputUrl === "string" && job.outputUrl.startsWith("data:image/svg+xml");
+}
+
 export function isDownloadable(job: { outputUrl?: string | null }): boolean {
   return Boolean(job.outputUrl);
 }

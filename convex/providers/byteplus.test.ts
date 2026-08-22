@@ -626,30 +626,44 @@ test("Seedance 2.5 prosledjuje svih 50 referenci, ne seče na 10 (nalaz S1)", as
 
 // ── 9. Greške u predaji refundiraju, bez mrežnog poziva gde ga ne treba ────
 
-test.each([
-  ["BYTEPLUS_API_KEY", /BYTEPLUS_API_KEY nije postavljen/],
-  ["BYTEPLUS_BASE_URL", /BYTEPLUS_BASE_URL nije postavljen/],
-] as const)(
-  "bez %s posao se refundira tačno jednom, bez ijednog mrežnog poziva",
-  async (variable, message) => {
-    const t = convexTest(schema, modules);
-    const userId = await seedUser(t);
-    await seedModel(t, SEEDANCE_20);
-    const jobId = await seedReservedJob(t, userId, { seed: SEEDANCE_20 });
-    const before = await balanceOf(t, userId);
-    delete process.env[variable];
-    const calls = stubFetch(() => json({}));
+test("bez BYTEPLUS_API_KEY posao ide u mock (DEMO), bez mrežnog poziva i bez refunda (SP2)", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await seedUser(t);
+  await seedModel(t, SEEDANCE_20);
+  const jobId = await seedReservedJob(t, userId, { seed: SEEDANCE_20 });
+  const before = await balanceOf(t, userId);
+  delete process.env.BYTEPLUS_API_KEY;
+  const calls = stubFetch(() => json({}));
 
-    await t.action(internal.studioActions.submitJob, { jobId });
+  await t.action(internal.studioActions.submitJob, { jobId });
 
-    const job = await jobOf(t, jobId);
-    expect(job?.status).toBe("refunded");
-    expect(job?.error).toMatch(message);
-    expect(calls).toHaveLength(0);
-    expect(await refundsFor(t, jobId)).toHaveLength(1);
-    expect(await balanceOf(t, userId)).toBe(before + JOB_COST);
-  },
-);
+  const job = await jobOf(t, jobId);
+  // Ista kapija kao fal: bez ključa nije greška nego DEMO - isti ledger put.
+  expect(job?.status).toBe("running");
+  expect(job?.falRequestId?.startsWith("mock-")).toBe(true);
+  expect(calls).toHaveLength(0);
+  expect(await refundsFor(t, jobId)).toHaveLength(0);
+  expect(await balanceOf(t, userId)).toBe(before);
+});
+
+test("bez BYTEPLUS_BASE_URL (ključ postoji) posao se refundira tačno jednom, bez ijednog mrežnog poziva", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await seedUser(t);
+  await seedModel(t, SEEDANCE_20);
+  const jobId = await seedReservedJob(t, userId, { seed: SEEDANCE_20 });
+  const before = await balanceOf(t, userId);
+  delete process.env.BYTEPLUS_BASE_URL;
+  const calls = stubFetch(() => json({}));
+
+  await t.action(internal.studioActions.submitJob, { jobId });
+
+  const job = await jobOf(t, jobId);
+  expect(job?.status).toBe("refunded");
+  expect(job?.error).toMatch(/BYTEPLUS_BASE_URL nije postavljen/);
+  expect(calls).toHaveLength(0);
+  expect(await refundsFor(t, jobId)).toHaveLength(1);
+  expect(await balanceOf(t, userId)).toBe(before + JOB_COST);
+});
 
 test("BytePlus koji vrati 500 refundira posao tačno jednom", async () => {
   const t = convexTest(schema, modules);

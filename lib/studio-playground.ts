@@ -141,6 +141,8 @@ export type PlaygroundState = {
   hasStudioAccess: boolean;
   activeJobs: number;
   maxActiveJobs: number;
+  /** SP2: koji provajder ima ključ; `false` = model radi u DEMO režimu. */
+  providerStatus?: Partial<Record<"fal" | "google" | "byteplus", boolean>>;
 };
 
 /**

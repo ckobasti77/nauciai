@@ -16,6 +16,8 @@ import {
   MAX_DAILY_COST_USD,
   mockJobSucceeds,
   mockOutputDataUrl,
+  providerKeyPresent,
+  providerStatus,
   ownerHandle,
   sanitizeParams,
 } from "./studioCore";
@@ -1357,6 +1359,7 @@ test("getStudioState: upaljen Studio, osoblje bez posla u letu", async () => {
     isStudioAdmin: false,
     activeJobs: 0,
     maxActiveJobs: 3,
+    providerStatus: providerStatus(process.env),
   });
 });
 
@@ -2293,4 +2296,26 @@ test("negativan saldo zatvara Studio dok se ne poravna", async () => {
       params: promptParams("lisica u snegu"),
     }),
   ).resolves.toBeDefined();
+});
+
+// ── SP2: jedna mock kapija za sva tri provajdera ────────────────────────────
+
+test("providerKeyPresent: prisustvo ključa po provajderu, STUDIO_MOCK=1 obara sve", () => {
+  const env = { FAL_KEY: "k", GOOGLE_AI_API_KEY: "  ", BYTEPLUS_API_KEY: undefined };
+  expect(providerKeyPresent("fal", env)).toBe(true);
+  // Prazan/whitespace ključ nije ključ.
+  expect(providerKeyPresent("google", env)).toBe(false);
+  expect(providerKeyPresent("byteplus", env)).toBe(false);
+  expect(providerStatus(env)).toEqual({ fal: true, google: false, byteplus: false });
+  expect(providerStatus({ ...env, STUDIO_MOCK: "1" })).toEqual({ fal: false, google: false, byteplus: false });
+  // Bilo koja druga vrednost STUDIO_MOCK-a nije override.
+  expect(providerStatus({ ...env, STUDIO_MOCK: "0" }).fal).toBe(true);
+});
+
+test("mockOutputDataUrl: natpis 'DEMO · vrsta' stoji i kad prompt postoji", () => {
+  const svg = decodeURIComponent(
+    mockOutputDataUrl("lisica u snegu", "a1b2c3d4", "video").slice("data:image/svg+xml;utf8,".length),
+  );
+  expect(svg).toContain("DEMO · video");
+  expect(svg).toContain("lisica u snegu");
 });

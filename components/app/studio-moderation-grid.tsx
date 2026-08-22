@@ -15,6 +15,7 @@ import {
   jobParamSummary,
   JOB_STATUS_LABELS,
   JOB_STATUSES,
+  isDemoPoster,
   type JobStatus,
   REVEAL_AUDIT_NOTE,
   REVEAL_DETAILS,
@@ -316,7 +317,7 @@ function ModerationTile({
           </span>
         ) : null}
 
-        {hasOutput && !isWorking && !expired && job.kind === "image" ? (
+        {hasOutput && !isWorking && !expired && (job.kind === "image" || isDemoPoster(job)) ? (
           <div className="relative min-h-[160px] w-full">
             <Image
               src={job.outputUrl as string}

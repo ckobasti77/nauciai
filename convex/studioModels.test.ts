@@ -109,12 +109,12 @@ test("sedam modela sa merenom dužinom seed upisuje UKLJUČENE", async () => {
   // W3 ih je povukao markerom `isEnabled: false`, jer je dužinu snimka merio
   // klijent; W5 ih vraća, jer je meri server iz zaglavlja fajla.
   //
-  // Katalog trenutno povlači TAČNO jedan red - `gemini-omni`, čiji oblik zahteva
-  // ne odgovara živom Interactions API-ju (videti komentar u `googleModels.ts`).
-  // Spisak je izričit, a ne samo broj: model koji neko usput povuče mora ovde da
-  // se vidi, jer povučen red korisniku ne izlazi.
+  // Katalog trenutno povlači TAČNO jedan red - `veo-31-fast`, model koji kod
+  // Google-a NE POSTOJI (izlazu se samo `veo-3.1-generate-preview` i
+  // `veo-3.1-lite-generate-preview`). Spisak je izričit, a ne samo broj: model
+  // koji neko usput povuče mora ovde da se vidi, jer povučen red ne izlazi.
   expect(STUDIO_MODELS.filter((seed) => seed.isEnabled === false).map((seed) => seed.slug)).toEqual([
-    "gemini-omni",
+    "veo-31-fast",
   ]);
   expect(RETIRED).toBe(1);
 });

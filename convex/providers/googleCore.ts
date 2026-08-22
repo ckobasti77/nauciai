@@ -90,10 +90,14 @@ export function buildVeoRequest(
   // Rezolucija ide malim slovima ("4K" -> "4k"): Google je tako piše, a katalog
   // je velikim jer je to labela u UI-ju.
   if (typeof params.resolution === "string") parameters.resolution = params.resolution.toLowerCase();
+  // `durationSeconds` je BROJ. Zvanicni curl primer ga pise pod navodnicima
+  // (`"durationSeconds": "8"`), ali zivi API na string odgovara sa
+  // `The value type for durationSeconds needs to be a number` (400,
+  // INVALID_ARGUMENT, potvrdjeno 22.08.2026). Dokumentacija je tu pogresna.
   if (typeof params.duration === "number") parameters.durationSeconds = params.duration;
-  // Zvuk je naplaćen kroz `lookup` (`720p|on`), pa mora i da se traži izričito -
-  // podrazumevana vrednost kod Google-a nije garantovana.
-  if (typeof params.audio === "boolean") parameters.generateAudio = params.audio;
+  // `generateAudio` se NE salje: kod Veo 3.1 je zvuk uvek ukljucen i tog
+  // parametra nema u dokumentaciji. Slanje nepoznatog parametra je najlaksi
+  // nacin da se dobije 400 posle rezervacije kredita.
 
   if (inputMode === "image" || inputMode === "first_last") {
     const first = inputs.image[0];
@@ -104,7 +108,10 @@ export function buildVeoRequest(
   if (inputMode === "first_last") {
     const last = inputs.image[1];
     if (!last) throw new Error("NEPOTPUN_ULAZ: Dodaj završni kadar.");
-    parameters.lastFrame = inlinePart(last);
+    // `lastFrame` ide u INSTANCU, uz `image` - ne u `parameters`. Bio je na
+    // pogresnom mestu, pa bi ga Google tiho ignorisao: naplacen prvi-i-poslednji
+    // kadar, isporucen obican image-to-video.
+    instance.lastFrame = inlinePart(last);
   }
 
   if (inputMode === "reference") {
@@ -154,6 +161,16 @@ export function bareInteractionId(providerRequestId: string): string {
     : providerRequestId;
 }
 
+/**
+ * `POST /interactions` za Gemini Omni.
+ *
+ * Oblik je ISTI kao kod Nano Banane - `input` kao NIZ blokova i
+ * `response_format` - a ne `inputs` + `config` kako je stajalo ranije. Razlika
+ * prema slici je samo `response_format.type: "video"`.
+ *
+ * Odgovor je SINHRON i nosi bajtove videa, pa ovaj model ne prolazi kroz
+ * poller.
+ */
 export function buildOmniRequest(
   model: string,
   params: Record<string, unknown>,
@@ -161,26 +178,27 @@ export function buildOmniRequest(
   inputMode: string,
   previousInteractionId?: string,
 ): Record<string, unknown> {
-  const parts: unknown[] = [{ text: promptOf(params) }];
+  const input: unknown[] = [{ type: "text", text: promptOf(params) }];
   for (const file of inputs.image) {
-    parts.push({ inline_data: { mime_type: file.mimeType, data: file.base64 } });
+    input.push({ type: "image", mime_type: file.mimeType, data: file.base64 });
   }
-  // Video se dodaje samo u režimima koji ga primaju kao referencu; `video`
-  // režim sa okačenim fajlom uopšte ne stigne dovde (`omniInputRestriction`).
+  // Video se dodaje samo u rezimima koji ga primaju kao referencu; `video`
+  // rezim sa okacenim fajlom uopste ne stigne dovde (`omniInputRestriction`).
   if (inputMode !== "video") {
     for (const file of inputs.video) {
-      parts.push({ inline_data: { mime_type: file.mimeType, data: file.base64 } });
+      input.push({ type: "video", mime_type: file.mimeType, data: file.base64 });
     }
   }
 
-  const config: Record<string, unknown> = { resolution: OMNI_RESOLUTION };
-  if (typeof params.aspect_ratio === "string") config.aspect_ratio = params.aspect_ratio;
-  if (typeof params.duration === "number") config.duration_seconds = params.duration;
+  const responseFormat: Record<string, unknown> = { type: "video" };
+  if (typeof params.aspect_ratio === "string") {
+    responseFormat.aspect_ratio = params.aspect_ratio;
+  }
 
   return {
     model,
-    inputs: parts,
-    config,
+    input,
+    response_format: responseFormat,
     ...(previousInteractionId ? { previous_interaction_id: previousInteractionId } : {}),
   };
 }
@@ -238,8 +256,13 @@ export const GOOGLE_IMAGE_SIZES: Record<string, string> = {
   "4K": "4K",
 };
 
-/** MIME izlaza. PNG, ne JPEG: slika sa tekstom u kadru je glavni posao ovih modela. */
-const GOOGLE_IMAGE_OUTPUT_MIME = "image/png";
+/**
+ * MIME izlaza. **Samo JPEG.** Interactions API na `image/png` vraca 400:
+ * `The value 'image/png' is not supported for 'response_format.mime_type'.
+ * Supported values: 'image/jpeg'.` Potvrdjeno protiv zivog API-ja 22.08.2026,
+ * pa nije stvar ukusa nego jedina vrednost koju endpoint prima.
+ */
+const GOOGLE_IMAGE_OUTPUT_MIME = "image/jpeg";
 
 /**
  * `POST /interactions` za Nano Bananu 2 i Pro (katalog 2.1 i 2.2).

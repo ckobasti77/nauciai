@@ -1,10 +1,8 @@
 "use client";
 
-import { useState } from "react";
-
 import { cn } from "@/components/ui/primitives";
 import type { Locale } from "@/lib/i18n";
-import { modeLabel, pruneFilesForMode, slotLabel, type InputSpec, type SlotFiles } from "@/lib/studio-slots";
+import { modeLabel } from "@/lib/studio-slots";
 
 /**
  * Prekidač ulaznih režima iznad forme (STUDIO-CATALOG-V4 sekcija 5). Vidljiv
@@ -14,35 +12,26 @@ import { modeLabel, pruneFilesForMode, slotLabel, type InputSpec, type SlotFiles
  * Prebacivanje menja endpoint (isti model), čisti slotove kojih u novom režimu
  * nema - uz tihu potvrdu šta je sklonjeno, jer fajl ne sme da nestane bez reči -
  * i time preračunava cenu, pošto cena zavisi i od režima (`modeMultipliers`).
+ * Čišćenje i potvrda žive u composeru (`switchMode`, SP2), jer režim menjaju
+ * i traka sposobnosti i `+` dugme - jedan put za sva tri.
  */
 export function ModeSwitcher({
-  spec,
   modes,
   value,
   onChange,
-  files,
-  onFilesChange,
   locale,
   disabled = false,
 }: {
-  spec: InputSpec;
   modes: string[];
   value: string;
   onChange: (mode: string) => void;
-  files: SlotFiles;
-  onFilesChange: (files: SlotFiles) => void;
   locale: Locale;
   disabled?: boolean;
 }) {
-  const [removed, setRemoved] = useState<string[]>([]);
-
   if (modes.length < 2) return null;
 
   function select(mode: string) {
     if (mode === value) return;
-    const pruned = pruneFilesForMode(files, spec, mode);
-    setRemoved(pruned.removed);
-    if (pruned.removed.length > 0) onFilesChange(pruned.files);
     onChange(mode);
   }
 
@@ -73,14 +62,6 @@ export function ModeSwitcher({
           );
         })}
       </div>
-
-      {removed.length > 0 ? (
-        <p role="status" className="mt-2 text-xs font-bold text-muted">
-          {locale === "sr"
-            ? `Ovaj režim ne koristi: ${removed.map((slot) => slotLabel(slot, locale).toLowerCase()).join(", ")}. Sklonjeno je iz forme.`
-            : `This mode does not use: ${removed.map((slot) => slotLabel(slot, locale).toLowerCase()).join(", ")}. It was removed from the form.`}
-        </p>
-      ) : null}
     </div>
   );
 }

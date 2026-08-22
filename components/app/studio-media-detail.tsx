@@ -33,7 +33,7 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { Locale } from "@/lib/i18n";
 import { isExpiredOutput, jobPrompt, jobStatusText } from "@/lib/studio-form";
-import { downloadSingleMedia } from "@/lib/studio-gallery";
+import { downloadSingleMedia, isDemoPoster } from "@/lib/studio-gallery";
 import { deleteJobErrorMessage, studioErrorMessage } from "@/lib/studio-messages";
 import { familyMark, modelLabel, MODEL_BADGE_LABELS, type StudioModel } from "@/lib/studio-models";
 import { studioMotionTokens } from "@/lib/studio-motion";
@@ -184,6 +184,8 @@ export function StudioMediaDetail({
   const isExpired = isExpiredOutput(job);
   const isFailed = job.status === "failed" || job.status === "refunded";
   const hasOutput = Boolean(job.outputUrl);
+  // DEMO video/zvuk nema fajl koji plejer može da pusti - prikazuje se SVG poster.
+  const showAsImage = job.kind === "image" || isDemoPoster(job);
   const statusMessage = jobStatusText(job, locale);
 
   // Indeks u listi za levo/desno navigaciju
@@ -566,7 +568,7 @@ export function StudioMediaDetail({
               {/* Stanje: Gotov medij */}
               {!isWorking && !isExpired && !isFailed && hasOutput ? (
                 <>
-                  {job.kind === "image" ? (
+                  {showAsImage ? (
                     <div
                       className={cn(
                         "relative flex size-full items-center justify-center p-2",
@@ -600,7 +602,7 @@ export function StudioMediaDetail({
                     </div>
                   ) : null}
 
-                  {job.kind === "video" ? (
+                  {!showAsImage && job.kind === "video" ? (
                     <div className="relative size-full">
                       <video
                         ref={videoRef}
@@ -633,7 +635,7 @@ export function StudioMediaDetail({
                     </div>
                   ) : null}
 
-                  {job.kind === "audio" ? (
+                  {!showAsImage && job.kind === "audio" ? (
                     <div className="flex size-full min-h-[240px] flex-col items-center justify-center p-8 text-center text-white">
                       <audio
                         ref={audioRef}

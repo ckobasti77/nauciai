@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, SlidersHorizontal } from "lucide-react";
 import { AnimatePresence, motion, MotionConfig, type Variants } from "motion/react";
 import type { ReactNode } from "react";
 
 import { cn } from "@/components/ui/primitives";
 import { withLocale, type Locale } from "@/lib/i18n";
+import { activeFilterCount, openStudioFilters, useStudioFilters } from "@/lib/studio-filters-store";
 import { studioMotionTokens } from "@/lib/studio-motion";
 import { studioSectionLabel, studioSectionsFor, type StudioSection } from "@/lib/studio-sections";
 
@@ -129,6 +130,32 @@ const ROW_IDLE = "border-transparent bg-transparent hover:border-ink hover:bg-ye
 const BACK_ROW =
   "inline-flex min-h-11 w-full min-w-0 items-center gap-3 rounded-full border-2 border-ink bg-paper-strong px-3 py-2 text-sm font-extrabold text-ink shadow-[3px_3px_0_0_var(--shadow-hard-14)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
 
+/**
+ * Linija ispod poslednje vrste (SP2): tanka linija sa ikonom po sredini koja
+ * otvara prozor sa filterima mreže. Broj aktivnih filtera stoji kao pilula,
+ * da se vidi da mreža nije „cela" i kad je prozor zatvoren.
+ */
+function FiltersDivider({ locale }: { locale: Locale }) {
+  const count = activeFilterCount(useStudioFilters());
+  const label = locale === "sr" ? "Filteri mreže" : "Grid filters";
+
+  return (
+    <button
+      type="button"
+      onClick={openStudioFilters}
+      aria-label={count > 0 ? `${label} (${count})` : label}
+      title={label}
+      className="group relative mt-1 flex min-h-9 w-full items-center justify-center rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+    >
+      <span aria-hidden="true" className="absolute inset-x-3 top-1/2 h-0.5 -translate-y-1/2 bg-ink/25 transition group-hover:bg-ink" />
+      <span className="relative inline-flex items-center gap-1 rounded-full border-2 border-ink bg-paper-strong px-2 py-0.5 text-[11px] font-black text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition group-hover:-translate-y-0.5">
+        <SlidersHorizontal className="size-3.5" />
+        {count > 0 ? <span className="rounded-full bg-yellow px-1 leading-4">{count}</span> : null}
+      </span>
+    </button>
+  );
+}
+
 function sectionHref(locale: Locale, section: StudioSection): string {
   const base = withLocale(locale, "/app/studio");
   return section.kind ? `${base}?kind=${section.kind}` : base;
@@ -189,6 +216,9 @@ export function StudioSidebarNav({
           </Item>
         );
       })}
+      <Item reduce={reduce}>
+        <FiltersDivider locale={locale} />
+      </Item>
     </>
   );
 
@@ -267,6 +297,29 @@ export function StudioSidebarRail({
           </Link>
         );
       })}
+      <RailFilters locale={locale} />
     </nav>
+  );
+}
+
+function RailFilters({ locale }: { locale: Locale }) {
+  const count = activeFilterCount(useStudioFilters());
+  const label = locale === "sr" ? "Filteri mreže" : "Grid filters";
+
+  return (
+    <button
+      type="button"
+      onClick={openStudioFilters}
+      aria-label={count > 0 ? `${label} (${count})` : label}
+      className={cn(RAIL_BASE, RAIL_IDLE, "mt-1")}
+    >
+      <SlidersHorizontal className="size-5" />
+      {count > 0 ? (
+        <span className="absolute -right-1 -top-1 rounded-full border-2 border-ink bg-yellow px-1 text-[10px] font-black leading-4 text-ink">
+          {count}
+        </span>
+      ) : null}
+      <RailTooltip label={label} />
+    </button>
   );
 }
