@@ -14,13 +14,16 @@ import { api } from "@/convex/_generated/api";
 import type { ViewerProfile } from "@/lib/current-viewer";
 import { withLocale, type Locale } from "@/lib/i18n";
 
-type LiveNavigationResult = {
+export type LiveNavigationResult = {
   profile?: {
     role?: string;
   } | null;
   courses?: Array<{
     _id?: string;
     trackId?: string;
+    trackSlug?: string;
+    trackTitleSr?: string;
+    trackTitleEn?: string;
     slug: string;
     titleSr: string;
     titleEn: string;
@@ -198,7 +201,7 @@ function courseFromLiveCourse(
 // fallbackCourses is only a slug-matched source for the decorative cover image of a course
 // that has no coverUrl. It is never a stand-in for the viewer's real course list — doing that
 // rendered marketing content as the student's own data for the whole in-flight window.
-function coursesFromLive(liveNavigation: LiveNavigationResult, fallbackCourses: DashboardCourse[]): DashboardCourse[] {
+export function coursesFromLive(liveNavigation: LiveNavigationResult, fallbackCourses: DashboardCourse[]): DashboardCourse[] {
   return (liveNavigation?.courses ?? []).map((course) =>
     courseFromLiveCourse(
       course,

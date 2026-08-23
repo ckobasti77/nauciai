@@ -162,7 +162,7 @@ function allCourseLessons(course: DashboardCourse, locale: Locale) {
   return flattenModules(course, locale).flatMap((module) => module.lessons);
 }
 
-function getProgressSummary(course: DashboardCourse, locale: Locale) {
+export function getProgressSummary(course: DashboardCourse, locale: Locale) {
   const lessons = allCourseLessons(course, locale).filter((lesson) => lesson.isPublished !== false);
   const completedFromLessons = lessons.filter((lesson) => lesson.progress?.completed).length;
   const totalLessons = course.progress?.totalLessons ?? lessons.length;
@@ -772,7 +772,7 @@ function ActivityPanel({ locale, activity }: { locale: Locale; activity: Array<{
   );
 }
 
-function CourseCover({ course, locale }: { course: DashboardCourse; locale: Locale }) {
+export function CourseCover({ course, locale }: { course: DashboardCourse; locale: Locale }) {
   const imageSrc = course.coverUrl || course.image?.src;
   if (imageSrc) {
     return (
@@ -801,7 +801,7 @@ function CourseCover({ course, locale }: { course: DashboardCourse; locale: Loca
 
 // Single progress-bar implementation for the card and the hero. Both were bare <div>s that
 // exposed nothing to assistive tech, and only one of the two honoured reduced motion.
-function CourseProgress({
+export function CourseProgress({
   percent,
   label,
   tone = "paper",
@@ -963,7 +963,7 @@ export function DashboardHomeSkeleton() {
 
 // Day one. Reached whenever the viewer has no course they can actually open, so it also
 // covers "signed out" and "every course locked" — never a 0% hero over courses they don't own.
-function DashboardFirstRun({ locale, profileName }: { locale: Locale; profileName: string }) {
+export function DashboardFirstRun({ locale, profileName }: { locale: Locale; profileName: string }) {
   const steps = [
     {
       title: tr(locale, "Izaberi kurs", "Choose a course"),

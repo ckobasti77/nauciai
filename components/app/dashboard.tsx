@@ -43,7 +43,7 @@ function staticDashboardCourse(courseSlug?: string): DashboardCourse {
   return staticDashboardCourseFromContent(course, courseIndex * 10);
 }
 
-function staticDashboardCourses(): DashboardCourse[] {
+export function staticDashboardCourses(): DashboardCourse[] {
   return courses.map((course, index) => staticDashboardCourseFromContent(course, index * 10));
 }
 
