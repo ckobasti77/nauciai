@@ -3,7 +3,6 @@ export const APP_SIDEBAR_DEFAULT_WIDTH = 336;
 export const APP_SIDEBAR_MIN_WIDTH = 280;
 export const APP_SIDEBAR_MAX_WIDTH = 420;
 export const APP_SIDEBAR_RAIL_WIDTH = 80;
-export const APP_SIDEBAR_SNAP_WIDTH = 240;
 export const APP_SIDEBAR_KEYBOARD_STEP = 16;
 
 export type AppSidebarPreferences = {
@@ -33,15 +32,9 @@ export function preferencesFromDraggedWidth(
   width: number,
   previous: AppSidebarPreferences,
 ): AppSidebarPreferences {
-  if (!Number.isFinite(width) || width < APP_SIDEBAR_SNAP_WIDTH) {
-    return {
-      collapsed: true,
-      width: APP_SIDEBAR_RAIL_WIDTH,
-      lastExpandedWidth: clampAppSidebarWidth(previous.lastExpandedWidth),
-    };
-  }
-
-  const expandedWidth = clampAppSidebarWidth(width);
+  const expandedWidth = Number.isFinite(width)
+    ? clampAppSidebarWidth(width)
+    : clampAppSidebarWidth(previous.lastExpandedWidth);
   return {
     collapsed: false,
     width: expandedWidth,

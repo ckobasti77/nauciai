@@ -1,5 +1,6 @@
 import type { Locale } from "./i18n";
 import { PROMPT_MAX_LENGTH } from "./studio-messages";
+import { formatCreditsLong } from "./studio-params";
 
 export { PROMPT_MAX_LENGTH };
 
@@ -315,4 +316,14 @@ export function jobCreditCost(creditCost: number, params: Record<string, unknown
  */
 export function generateButtonLabel(creditCost: number, locale: Locale): string {
   return locale === "sr" ? `Generiši - ${creditCost} kr` : `Generate - ${creditCost} cr`;
+}
+
+export function generateButtonCreditsValue(creditCost: number): string {
+  return String(creditCost);
+}
+
+export function generateButtonAriaLabel(creditCost: number, locale: Locale): string {
+  return locale === "sr"
+    ? `Generiši za ${formatCreditsLong(creditCost, locale)}`
+    : `Generate for ${formatCreditsLong(creditCost, locale)}`;
 }

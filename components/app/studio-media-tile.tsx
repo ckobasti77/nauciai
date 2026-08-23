@@ -5,11 +5,13 @@ import Image from "next/image";
 import { CheckSquare, Download, Heart, Loader2, Play, RefreshCw, Sparkles, Square, Volume2 } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 
+import { CreditIcon } from "@/components/studio/credit-icon";
 import { cn } from "@/components/ui/primitives";
 import type { Locale } from "@/lib/i18n";
 import { isExpiredOutput, jobPrompt, jobStatusText } from "@/lib/studio-form";
 import { downloadSingleMedia, isDemoPoster } from "@/lib/studio-gallery";
 import { formatElapsedTime, studioMotionTokens } from "@/lib/studio-motion";
+import { formatCreditsLong } from "@/lib/studio-params";
 
 export type StudioTileJob = {
   _id: string;
@@ -35,7 +37,8 @@ export function StudioMediaTile({
   selected = false,
   onToggleSelect,
   isSelectMode = false,
-  animateEntrance = false,
+  animateEntrance = true,
+  index = 0,
 }: {
   job: StudioTileJob;
   locale: Locale;
@@ -46,6 +49,7 @@ export function StudioMediaTile({
   onToggleSelect?: (job: StudioTileJob) => void;
   isSelectMode?: boolean;
   animateEntrance?: boolean;
+  index?: number;
 }) {
   const [isFavorited, setIsFavorited] = useState(false);
   const [now, setNow] = useState(() => Date.now());
@@ -58,6 +62,9 @@ export function StudioMediaTile({
   const hasOutput = Boolean(job.outputUrl);
   // DEMO video/zvuk nema fajl koji plejer može da pusti - prikazuje se SVG poster.
   const showAsImage = job.kind === "image" || isDemoPoster(job);
+  const isAudio = !showAsImage && job.kind === "audio";
+  const [isMediaLoaded, setIsMediaLoaded] = useState(isAudio);
+  const isMediaReady = isAudio || isMediaLoaded;
 
   const statusMessage = jobStatusText(job, locale);
 
@@ -88,14 +95,14 @@ export function StudioMediaTile({
         }
       }}
       className={cn(
-        "surface-card group relative mb-4 break-inside-avoid border-2 border-ink bg-paper-strong p-2 text-ink cursor-pointer",
+        "surface-card group relative mb-4 break-inside-avoid text-ink cursor-pointer",
         "shadow-[3px_3px_0_0_var(--shadow-hard-12)] studio-anim-mikro",
         "hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--shadow-hard-16)]",
         "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
       )}
     >
       {/* Tamni medijski bunar (Rešenje A — Mastionica) */}
-      <div className="surface-media relative min-h-[180px] overflow-hidden bg-studio-well shadow-[inset_0_0_0_1px_var(--shadow-hard-14)]">
+      <div className="surface-card relative min-h-[180px] overflow-hidden bg-studio-well shadow-[inset_0_0_0_1px_var(--shadow-hard-14)]">
         {/* Stanje: Posao u izradi / redu — mirno stanje koje diše uz tačan protekli tajmer */}
         {isWorking ? (
           <div className="grid min-h-[220px] place-items-center p-6 text-center">
@@ -137,12 +144,19 @@ export function StudioMediaTile({
                 <button
                   type="button"
                   onClick={() => onReuse(job)}
+                  aria-label={
+                    locale === "sr"
+                      ? `Generiši ponovo za ${formatCreditsLong(job.creditCost, locale)}`
+                      : `Generate again for ${formatCreditsLong(job.creditCost, locale)}`
+                  }
                   className="mt-1 inline-flex min-h-8 items-center gap-1.5 rounded-full border-2 border-ink bg-yellow px-3 py-1 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--ink)] transition hover:-translate-y-0.5"
                 >
                   <RefreshCw className="size-3" />
-                  {locale === "sr"
-                    ? `Generiši ponovo · ${job.creditCost} kr`
-                    : `Generate again · ${job.creditCost} cr`}
+                  <span>{locale === "sr" ? "Generiši ponovo · " : "Generate again · "}</span>
+                  <span className="inline-flex items-center gap-0.5">
+                    <span>{job.creditCost}</span>
+                    <CreditIcon className="size-3 text-ink" />
+                  </span>
                 </button>
               ) : null}
             </div>
@@ -165,62 +179,77 @@ export function StudioMediaTile({
 
         {/* Stanje: Gotov medij — medij ulazi u isti tamni bunar (transform + opacity) */}
         {!isWorking && !isExpired && !isFailed && hasOutput ? (
-          <motion.div
-            initial={reduceMotion ? false : { opacity: 0, scale: 0.985 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{
-              duration: studioMotionTokens.element.enterDuration,
-              ease: studioMotionTokens.element.easeEnter,
-            }}
-            className="size-full"
-          >
-            {showAsImage ? (
-              <div className="relative w-full">
-                <Image
-                  src={job.outputUrl as string}
-                  alt={prompt || job.modelSlug}
-                  width={1200}
-                  height={900}
-                  unoptimized
-                  sizes="(min-width: 1500px) 33vw, (min-width: 640px) 50vw, 100vw"
-                  className="block h-auto w-full object-cover"
-                />
-              </div>
+          <>
+            {!isMediaReady ? (
+              <div
+                aria-hidden="true"
+                className={cn(
+                  "pointer-events-none absolute inset-0 z-10 bg-studio-well",
+                  !reduceMotion && "studio-breathing",
+                )}
+              />
             ) : null}
+            <motion.div
+              initial={reduceMotion ? false : { opacity: 0, scale: 0.985 }}
+              animate={isMediaReady ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.985 }}
+              transition={{
+                duration: studioMotionTokens.element.enterDuration,
+                ease: studioMotionTokens.element.easeEnter,
+              }}
+              className="size-full"
+            >
+              {showAsImage ? (
+                <div className="relative w-full">
+                  <Image
+                    src={job.outputUrl as string}
+                    alt={prompt || job.modelSlug}
+                    width={1200}
+                    height={900}
+                    unoptimized
+                    sizes="(min-width: 1500px) 33vw, (min-width: 640px) 50vw, 100vw"
+                    className="block h-auto w-full object-cover"
+                    onLoad={() => setIsMediaLoaded(true)}
+                    onError={() => setIsMediaLoaded(true)}
+                  />
+                </div>
+              ) : null}
 
-            {!showAsImage && job.kind === "video" ? (
-              <div className="relative w-full">
-                {/* Nemi pregled bez kontrola: klik ide tajlu i otvara detalj, koji
-                    ima svoj plejer. Ranije `controls` + stopPropagation na celom
-                    elementu gutali su SVAKI klik, pa se video detalj nije otvarao. */}
-                <video
-                  src={`${job.outputUrl}#t=0.1`}
-                  preload="metadata"
-                  muted
-                  playsInline
-                  loop
-                  className="pointer-events-none block max-h-[560px] w-full object-cover"
-                />
-                <span
-                  aria-hidden="true"
-                  className="pointer-events-none absolute inset-0 m-auto flex size-12 items-center justify-center rounded-full border-2 border-white/40 bg-[#0a0e14]/60 text-white backdrop-blur-xs"
-                >
-                  <Play className="ml-0.5 size-5 fill-current" />
-                </span>
-              </div>
-            ) : null}
+              {!showAsImage && job.kind === "video" ? (
+                <div className="relative w-full">
+                  {/* Nemi pregled bez kontrola: klik ide tajlu i otvara detalj, koji
+                      ima svoj plejer. Ranije `controls` + stopPropagation na celom
+                      elementu gutali su SVAKI klik, pa se video detalj nije otvarao. */}
+                  <video
+                    src={`${job.outputUrl}#t=0.1`}
+                    preload="metadata"
+                    muted
+                    playsInline
+                    loop
+                    className="pointer-events-none block max-h-[560px] w-full object-cover"
+                    onLoadedData={() => setIsMediaLoaded(true)}
+                    onError={() => setIsMediaLoaded(true)}
+                  />
+                  <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-0 m-auto flex size-12 items-center justify-center rounded-full border-2 border-white/40 bg-[#0a0e14]/60 text-white backdrop-blur-xs"
+                  >
+                    <Play className="ml-0.5 size-5 fill-current" />
+                  </span>
+                </div>
+              ) : null}
 
-            {!showAsImage && job.kind === "audio" ? (
-              <div className="flex min-h-[200px] flex-col items-center justify-center gap-3 p-4 text-white/80">
-                <span className="flex size-12 items-center justify-center rounded-full border-2 border-white/40 bg-white/10 text-white">
-                  <Volume2 className="size-5" />
-                </span>
-                <span className="text-xs font-black uppercase tracking-wider">
-                  {locale === "sr" ? "Audio zapis" : "Audio track"}
-                </span>
-              </div>
-            ) : null}
-          </motion.div>
+              {!showAsImage && job.kind === "audio" ? (
+                <div className="flex min-h-[200px] flex-col items-center justify-center gap-3 p-4 text-white/80">
+                  <span className="flex size-12 items-center justify-center rounded-full border-2 border-white/40 bg-white/10 text-white">
+                    <Volume2 className="size-5" />
+                  </span>
+                  <span className="text-xs font-black uppercase tracking-wider">
+                    {locale === "sr" ? "Audio zapis" : "Audio track"}
+                  </span>
+                </div>
+              ) : null}
+            </motion.div>
+          </>
         ) : null}
 
         {/* Checkbox za višestruki izbor (grupno preuzimanje) */}
@@ -349,6 +378,8 @@ export function StudioMediaTile({
     return tileContent;
   }
 
+  const delay = Math.min(Math.max(0, index), 8) * studioMotionTokens.element.stagger;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -356,6 +387,7 @@ export function StudioMediaTile({
       transition={{
         duration: studioMotionTokens.element.enterDuration,
         ease: studioMotionTokens.element.easeEnter,
+        delay,
       }}
     >
       {tileContent}
@@ -370,10 +402,10 @@ export function StudioMediaTile({
 export function StudioMediaSkeletonTile() {
   const reduceMotion = useReducedMotion();
   return (
-    <div className="surface-card mb-4 break-inside-avoid border-2 border-ink bg-paper-strong p-2 shadow-[3px_3px_0_0_var(--shadow-hard-12)]">
+    <div className="surface-card mb-4 break-inside-avoid shadow-[3px_3px_0_0_var(--shadow-hard-12)]">
       <div
         className={cn(
-          "surface-media min-h-[220px] bg-studio-well shadow-[inset_0_0_0_1px_var(--shadow-hard-14)]",
+          "surface-card min-h-[220px] overflow-hidden bg-studio-well shadow-[inset_0_0_0_1px_var(--shadow-hard-14)]",
           !reduceMotion && "studio-breathing",
         )}
       />

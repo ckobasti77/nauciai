@@ -9,6 +9,8 @@ import {
   buildJobParams,
   clampNumber,
   controlFields,
+  generateButtonAriaLabel,
+  generateButtonCreditsValue,
   generateButtonLabel,
   initialParamValues,
   isExpiredOutput,
@@ -288,6 +290,17 @@ describe("generateButtonLabel", () => {
     expect(generateButtonLabel(20, "sr")).toBe("Generiši - 20 kr");
     expect(generateButtonLabel(65, "sr")).toContain("65");
     expect(generateButtonLabel(20, "en")).toContain("20");
+  });
+
+  test("generateButtonCreditsValue vraća broj cene", () => {
+    expect(generateButtonCreditsValue(20)).toBe("20");
+    expect(generateButtonCreditsValue(65)).toBe("65");
+  });
+
+  test("generateButtonAriaLabel daje punu rečenicu za čitače ekrana", () => {
+    expect(generateButtonAriaLabel(16, "sr")).toBe("Generiši za 16 kredita");
+    expect(generateButtonAriaLabel(1, "sr")).toBe("Generiši za 1 kredit");
+    expect(generateButtonAriaLabel(16, "en")).toBe("Generate for 16 credits");
   });
 
   test("dugme prikazuje pomnoženu cenu čim se pomeri polje 'Broj slika'", () => {

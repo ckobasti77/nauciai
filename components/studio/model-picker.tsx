@@ -3,6 +3,7 @@
 import { ArrowLeft, Lightbulb, Search } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { CreditIcon } from "@/components/studio/credit-icon";
 import { InputCapabilityIcons } from "@/components/studio/input-capabilities";
 import { ModelMark } from "@/components/studio/provider-mark";
 import { cn } from "@/components/ui/primitives";
@@ -19,6 +20,7 @@ import {
 import {
   buildParams,
   creditsPerUnit,
+  creditsPerUnitValue,
   formatCredits,
   formatCreditsPerUnit,
   paramValuesForMode,
@@ -74,6 +76,82 @@ export function modelPriceSummary(model: StudioModel, locale: Locale, duration?:
   return perSecond === null
     ? formatCredits(credits, locale)
     : `${formatCreditsPerUnit(perSecond, "s", locale)} · ${formatCredits(credits, locale)}`;
+}
+
+/**
+ * Prikaz cene modela sa ikonicom kredita (`<CreditIcon />`) i punom aria-labelom.
+ */
+export function ModelPriceDisplay({
+  model,
+  locale,
+  duration,
+  className,
+}: {
+  model: StudioModel;
+  locale: Locale;
+  duration?: number;
+  className?: string;
+}) {
+  const summary = modelPriceSummary(model, locale, duration);
+  const quantityParam = model.priceRule.quantityParam;
+
+  if (model.priceRule.unit === "chars1k") {
+    const for1k = defaultCredits(model, { char_count: 1000 });
+    if (for1k !== null) {
+      return (
+        <span aria-label={summary} className={cn("inline-flex items-center gap-0.5", className)}>
+          <span>{for1k}</span>
+          <CreditIcon className="size-3" />
+          <span>/1k</span>
+        </span>
+      );
+    }
+  }
+
+  const override: Record<string, number> =
+    quantityParam === "duration" && duration !== undefined ? { duration } : {};
+  const credits = defaultCredits(model, override);
+  if (credits === null) {
+    return <span className={className}>{locale === "sr" ? "cena po ulazu" : "priced by input"}</span>;
+  }
+
+  if (model.priceRule.unit !== "second") {
+    return (
+      <span aria-label={summary} className={cn("inline-flex items-center gap-0.5", className)}>
+        <span>{credits}</span>
+        <CreditIcon className="size-3" />
+      </span>
+    );
+  }
+
+  const mode = model.inputModes[0];
+  const values = paramValuesForMode(model.paramSpec, mode);
+  const params = buildParams(model.paramSpec, values, mode, override);
+  const perSecond = creditsPerUnit(model.priceRule, params, mode);
+
+  if (perSecond === null) {
+    return (
+      <span aria-label={summary} className={cn("inline-flex items-center gap-0.5", className)}>
+        <span>{credits}</span>
+        <CreditIcon className="size-3" />
+      </span>
+    );
+  }
+
+  return (
+    <span aria-label={summary} className={cn("inline-flex items-center gap-1", className)}>
+      <span className="inline-flex items-center gap-0.5">
+        <span>{creditsPerUnitValue(perSecond, locale)}</span>
+        <CreditIcon className="size-3" />
+        <span>/s</span>
+      </span>
+      <span>·</span>
+      <span className="inline-flex items-center gap-0.5">
+        <span>{credits}</span>
+        <CreditIcon className="size-3" />
+      </span>
+    </span>
+  );
 }
 
 type KindFilter = "all" | StudioSectionKind;
@@ -477,7 +555,7 @@ function ModelRow({
           isSelected ? "text-paper-strong" : "text-ink",
         )}
       >
-        {modelPriceSummary(model, locale)}
+        <ModelPriceDisplay model={model} locale={locale} />
       </span>
     </button>
   );
@@ -511,7 +589,7 @@ function RecommendationRow({
         <span className="block truncate text-xs font-bold leading-tight text-muted">{modelLabel(model, locale)}</span>
       </span>
       <span className="shrink-0 whitespace-nowrap text-right font-mono text-[11px] font-black tabular-nums text-ink">
-        {modelPriceSummary(model, locale)}
+        <ModelPriceDisplay model={model} locale={locale} />
       </span>
     </button>
   );

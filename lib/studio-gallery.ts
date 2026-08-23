@@ -1,7 +1,7 @@
 import type { ParamControl } from "@/convex/studioParamSpec";
 
 import type { Locale } from "./i18n";
-import { controlLabel, controlUnit, optionLabel } from "./studio-params";
+import { controlLabel, controlUnit, formatCreditsLong, optionLabel } from "./studio-params";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -47,6 +47,16 @@ export function expiryBadgeText(days: number, locale: Locale): string {
 /** Dugme na isteklom fajlu (STUDIO-PLAN 0.2): cena je uvek na dugmetu. */
 export function regenerateButtonLabel(creditCost: number, locale: Locale): string {
   return locale === "sr" ? `Generiši ponovo - ${creditCost} kr` : `Generate again - ${creditCost} cr`;
+}
+
+export function regenerateButtonCreditsValue(creditCost: number): string {
+  return String(creditCost);
+}
+
+export function regenerateButtonAriaLabel(creditCost: number, locale: Locale): string {
+  return locale === "sr"
+    ? `Generiši ponovo za ${formatCreditsLong(creditCost, locale)}`
+    : `Generate again for ${formatCreditsLong(creditCost, locale)}`;
 }
 
 /** Vrste generacije za red filter-čipova. */

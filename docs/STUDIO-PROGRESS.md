@@ -8007,3 +8007,140 @@ Menjano:
 2. Filteri su po sesiji (store), ne u URL-u - reci ako hoces da budu deljivi linkom.
 3. Prazan stari DEMO tajl (vidi BLOKADA) - mogu da dodam poruku „Izlaz nije sacuvan" u
    tajl ako hoces.
+
+---
+
+## SP2 - Projekti i traka filtera   (23.08.2026)
+
+### Fajlovi
+
+Novo:
+- `convex/studioProjects.ts` - `listMyProjects` (query sa brojem poslova), `createProject`,
+  `renameProject`, `archiveProject`.
+- `convex/studioProjects.test.ts` - testovi za listanje, pravljenje, preimenovanje, arhiviranje,
+  autorizaciju i duplikate.
+- `lib/studio-projects.ts` (+ test `lib/studio-projects.test.ts`) - čista logika za
+  `validateProjectName`, `canCreateStudioProject`, granicu od 50 projekata i provere cene.
+- `components/studio/project-picker.tsx` - birač projekata (pilula, padajući meni, inline
+  kreiranje i preimenovanje, arhiviranje, sinhronizacija sa URL-om `?project=` i `localStorage`).
+- `components/studio/studio-filter-bar.tsx` - objedinjena traka filtera u ravni sa naslovom
+  (obim za osoblje, vrsta, pretraga prompta, model select, period 7d/30d, „Poništi filtere").
+
+Menjano:
+- `convex/schema.ts` - dodata tabela `studioProjects` sa indeksom `by_user`, dodato polje
+  `projectId: v.optional(v.id("studioProjects"))` i indeks `by_user_project` na tabelu `generationJobs`.
+- `convex/studio.ts` - `createJob` prima i proverava `projectId` PRE skidanja kredita;
+  `listMyJobs` koristi `by_user_project` kompozitni indeks kad je `projectId` prosleđen.
+- `convex/studio.test.ts` - testovi za `createJob` i `listMyJobs` sa `projectId`, provera odbijanja
+  tuđeg i arhiviranog projekta pre skidanja kredita, očuvanje cene posla.
+- `lib/studio-messages.ts` - dodati kodovi grešaka za projekte (`PROJEKAT_BEZ_IMENA`,
+  `PROJEKAT_PREDUGO_IME`, `PROJEKAT_VEC_POSTOJI`, `PREVISE_PROJEKATA`) i prazno stanje
+  `PROJECT_NO_GENERATIONS`.
+- `components/app/studio-media-grid.tsx` - podrška za `projectId` filter i prikaz
+  `PROJECT_NO_GENERATIONS` praznog stanja za prazan aktivan projekat.
+- `components/app/studio-page.tsx` - ugrađeni `ProjectPicker` i `StudioFilterBar` u jednom redu
+  sa naslovom na desktopu (i skrolujućem redu na mobilnom), `projectId` automatski uvezan u
+  `generate`, uklonjen suvišni `StudioFiltersDialog`, podnaslov se prikazuje samo kad je mreža prazna.
+- `components/app/app-sidebar-context.tsx` - uklonjen suvišni divider filtera iz sidebara.
+
+Obrisano:
+- `components/studio/studio-filters-dialog.tsx` - zamenjen direktnom jednorednom trakom filtera.
+
+### Šta je urađeno
+
+1. **A. Projekti:**
+   - Korisnik može da kreira imenovan projekat (maksimalno 50 aktivnih po korisniku).
+   - Validacija imena: obavezan naziv (1-60 karaktera), trimuje se whitespace, odbijaju se
+     duplikati kod istog korisnika (case-insensitive poređenje).
+   - Sve generacije napravljene dok je projekat aktivan automatski se vezuju za taj projekat.
+   - `createJob` proverava vlasništvo projekta i status PRE rezervacije kredita. Tuđ ili arhiviran
+     projekat baca `NEMA_PRISTUPA` bez trošenja kredita.
+   - Cena i parametri su 100% invarijantni u odnosu na `projectId`.
+   - `listMyJobs` koristi kompozitni indeks `by_user_project` (`["userId", "projectId", "createdAt"]`)
+     za optimalno filtriranje direktno iz baze.
+   - Arhiviranje projekta ne briše generacije i ne menja njihov `projectId`.
+   - Prazan projekat ima svoje specifično prazno stanje („Još nema generacija u ovom projektu").
+   - Aktivan projekat se sinhronizuje u `localStorage` i URL query parametru (`?project=`).
+
+2. **B. Traka filtera:**
+   - Jedinstvena horizontalna traka filtera smeštena pored naslova „Studio" na desktopu, a na mobilnim
+     uređajima (<640px) prelazi u horizontalno skrolujući red ispod naslova.
+   - Sve kontrole imaju fiksnu visinu od 32 px (`h-8`) i leže na istoj osnovnoj liniji.
+   - Nema okvira u stilu kartice (`surface-card`), nema senke celog bloka — traka je čist niz kontrola.
+   - Redosled: Obim (Samo moji / Svi korisnici - samo za osoblje) · Vrsta (Sve / Slika / Video / Zvuk) ·
+     Pretraga po promptu · Model select · Period (Sve / 7d / 30d) · „Poništi filtere".
+   - Podrazumevano stanje je tiho (providna pozadina čipova), aktivno stanje je žuto (`bg-yellow`).
+   - „Poništi filtere" se prikazuje samo kada je aktivan bar jedan filter.
+   - Podnaslov stranice se prikazuje isključivo kada korisnik nema nijednu generaciju u mreži.
+
+### Verifikacija
+
+- `npx convex codegen`: exit 0, tipovi regenerisani.
+- `npm run lint`: exit 0, 0 grešaka.
+- `npm run test`: 77 test fajlova, 1018/1018 prošlo uspešno.
+- `npm run build`: Next.js produkcioni build prošao uspešno sa 0 grešaka (exit 0).
+
+---
+
+## SP3 - Traka filtera: dropdown umesto skrola   (23.08.2026)
+
+### Fajlovi
+
+- `components/studio/studio-filter-bar.tsx` (izmenjen) - uklonjen vodoravni skrol (`overflow-x-auto`) i čipovi vrsta; uveden kompaktni dropdown / popover panel sa pretragom po promptu, izborom modela, periodom i dugmetom za poništavanje filtera; dugme „Filteri" sa brojačem aktivnih filtera (`Filteri · N`) i žutim stanjem kada su filteri aktivni.
+- `components/app/studio-page.tsx` (izmenjen) - uklonjeni suvišni `overflow-x-auto` i `scrollbar-none` omotači oko `StudioFilterBar` komponente; `onSelectKind` očuvan.
+- `lib/studio-filters-store.test.ts` (izmenjen) - prošireni unit testovi za `activeFilterCount` koji precizno potvrđuju da vraća 0 kad nema filtera, 1 kad je jedan aktivan, tačan zbir za više filtera (2, 3), i da vrsta (`kind`), prozor (`open`) i režim selekcije (`selectMode`) ne ulaze u zbir.
+
+### Šta je urađeno
+
+1. **Dva nivoa prikaza:**
+   - **Uvek u traci:**
+     - Obim (Samo moji / Svi korisnici) — vidljiv samo za osoblje (`isStaff`), kao i pre.
+     - Dugme `Filteri` (u mirovanju: ikonica filtera + tekst; aktivno: žuta pozadina, crna senka, tekst `Filteri · N` gde je N broj aktivnih filtera).
+   - **Uklonjen vodoravni skrol:** Traka je sada kratka, fiksne visine (32 px) i staje bez problema na 1440 px sa otvorenim sidebarom, kao i na 1024 px i 375 px, bez sečenja pretrage ili skrivanja kontrola iza ivice ekrana.
+2. **Uklanjanje čipova vrste iz trake:**
+   - Čipovi `Sve vrste · Slika · Video · Zvuk` su uklonjeni iz filter trake jer su predstavljali čist duplikat sidebara (`Sav sadržaj / Slike / Video / Zvuk`).
+   - Sidebar ostaje jedino mesto za promenu vrste (`kind`), čime je eliminisano dupliranje i rasterećena traka.
+3. **Dropdown / Popover sa filterima:**
+   - Klik na `Filteri` otvara popover panel širine 320 px usidren uz dugme (na mobilnim ekranima ispod 640 px otvara se kao donji sheet `fixed inset-x-0 bottom-0`).
+   - Sadrži:
+     - Pretragu po promptu (puna širina, automatski dobija fokus po otvaranju panela).
+     - Izbor modela (`select`, filtriran po trenutno aktivnoj vrsti iz sidebara).
+     - Period (Sve · 7 dana · 30 dana).
+     - „Poništi filtere" na dnu — prikazuje se samo kada je bar jedan filter aktivan (`count > 0`).
+   - Filteri se primenjuju odmah tokom izbora (reaktivno kroz deljeni store, bez potrebe za dugmetom „Primeni").
+   - Pristupačnost i tastatura: `role="dialog"`, `aria-modal="false"`, dugme ima `aria-expanded`, `Esc` i klik van zatvaraju panel i vraćaju fokus na dugme `Filteri`.
+   - Podrška za `prefers-reduced-motion` i animacije preko `motion/react`.
+   - Podržane obe teme (tamna/svetla) kroz standardne CSS tokene (`bg-paper-strong`, `bg-paper`, `text-ink`, `border-ink`, `var(--shadow-hard-16)`).
+   - Dvojezičnost (sr/en): nijedan string nije zakucan.
+
+### ODLUKE
+
+1. **Zašto su čipovi vrste uklonjeni:**
+   - Čipovi `Sve vrste · Slika · Video · Zvuk` u traci su bili 1:1 duplikat sidebara levo koji već nudi `Sav sadržaj / Slike / Video / Zvuk` vezan za isti URL parametar `?kind=`.
+   - Držanje dva nezavisna prekiča za istu odluku na istom ekranu stvaralo je vizuelni šum i nepotrebno zauzimalo preko 50% trake filtera, što je guralo pretragu i model van ekrana na manjim rezolucijama.
+   - Sidebar ostaje jedinstveno mesto istine za filtriranje vrste sadržaja, dok traka filtera drži specifične parametre pretrage (prompt, konkretan AI model i vremenski period).
+2. **Vrsta (`kind`) ne ulazi u broj aktivnih filtera na dugmetu:**
+   - Aktivna vrsta je globalno stanje navigacije i vidljiva je u sidebaru. Brojač na dugmetu `Filteri · N` broji isključivo filtere koji se nalaze unutar samog dropdown-a (prompt tekst, izabrani model, i period koji nije „all").
+
+### Testovi
+
+- Proširen `lib/studio-filters-store.test.ts` novim testovima za `activeFilterCount` (pokriva: 0 filtera, tačno 1 filter, 2 i 3 filtera, verifikaciju da `open` i `selectMode` ne ulaze u zbir, i nezavisnost od vrste).
+- Pokrenut ceo test suite: svih 77 test fajlova, 1021/1021 testova prošlo zeleno.
+
+### Rezultat verifikacije
+
+- `npx convex codegen`: exit 0, tipovi regenerisani.
+- `npm run lint`: exit 0, 0 grešaka.
+- `npm run test`: 77 test fajlova, 1021/1021 prošlo (exit 0).
+- `npm run build`: Next.js produkcioni build prošao uspešno sa 0 grešaka (exit 0).
+
+### BLOKADA
+
+Nema blokada.
+
+### Za Jovana
+
+1. Filter traka pored naslova Studija je sada čista i kompaktna: sadrži samo Obim (za administratore/osoblje) i dugme `Filteri` sa brojačem.
+2. Nema više horizontalnog skrolovanja u traci filtera — sve se otvara u urednom dropdown popoveru gde su pretraga, model, period i dugme za poništavanje.
+
+

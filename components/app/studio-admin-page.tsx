@@ -4,6 +4,7 @@ import { useMutation, useQuery } from "convex/react";
 import { AlertTriangle, CheckCircle2, Loader2, Power, ShieldAlert, XCircle } from "lucide-react";
 import { useState } from "react";
 
+import { CreditIcon } from "@/components/studio/credit-icon";
 import { Panel, cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
 import type { Doc } from "@/convex/_generated/dataModel";
@@ -22,6 +23,7 @@ import {
 } from "@/lib/studio-admin";
 import { defaultMargin, isBaseUsdEditable, priceTable } from "@/lib/studio-catalog-admin";
 import { parseStudioModel, type StudioModel } from "@/lib/studio-models";
+import { formatCreditsLong } from "@/lib/studio-params";
 
 const inputClass =
   "min-h-9 w-24 surface-media border-2 border-ink bg-paper-strong px-2 text-sm font-bold text-ink outline-none transition focus:ring-4 focus:ring-yellow/35 disabled:cursor-not-allowed disabled:opacity-60";
@@ -739,8 +741,13 @@ function PacksSection({ locale }: { locale: Locale }) {
                     </td>
                     <td className="px-3 py-3 font-bold text-ink">{formatEur(pack.priceEurCents, locale)}</td>
                     <td className="px-3 py-3 font-bold text-ink">
-                      {pack.credits.toLocaleString(locale === "sr" ? "sr-RS" : "en-US")}{" "}
-                      {locale === "sr" ? "kr" : "cr"}
+                      <span
+                        aria-label={formatCreditsLong(pack.credits, locale)}
+                        className="inline-flex items-center gap-1"
+                      >
+                        <span>{pack.credits.toLocaleString(locale === "sr" ? "sr-RS" : "en-US")}</span>
+                        <CreditIcon className="size-3.5" />
+                      </span>
                     </td>
                     <td className="px-3 py-3 font-bold text-ink">
                       {pack.bonusPercent > 0 ? `+${pack.bonusPercent}%` : "—"}
@@ -1127,9 +1134,10 @@ function UsageSection({
                     className="surface-media flex items-center justify-between gap-3 border-2 border-ink/20 bg-paper-strong px-3 py-1.5 text-xs font-bold text-ink"
                   >
                     <span className="min-w-0 truncate">{row.name}</span>
-                    <span className="shrink-0 font-mono">
-                      ${row.costUsd.toFixed(2)} · {row.creditsSpent} {locale === "sr" ? "kr" : "cr"} ·{" "}
-                      {row.generations}×
+                    <span className="shrink-0 font-mono inline-flex items-center gap-1">
+                      <span>${row.costUsd.toFixed(2)} · {row.creditsSpent}</span>
+                      <CreditIcon className="size-3" />
+                      <span>· {row.generations}×</span>
                     </span>
                   </li>
                 ))}

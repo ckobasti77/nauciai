@@ -14,7 +14,7 @@ function SignInCopy({ locale }: { locale: Locale }) {
     <div data-motion="copy">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <BrandMark href={withLocale(locale)} label={dictionary[locale].appName} />
-        <ThemeToggle locale={locale} compact />
+        <ThemeToggle locale={locale} />
       </div>
       <h1 className="mt-10 text-5xl font-black leading-tight text-ink md:text-6xl">
         {locale === "sr" ? "Uđi u svoj AI kurs" : "Enter your AI course"}

@@ -5,11 +5,13 @@ import { usePaginatedQuery, useMutation, useQuery } from "convex/react";
 import Image from "next/image";
 import { Eye, Loader2, Play, Search, Volume2, X } from "lucide-react";
 
+import { CreditIcon } from "@/components/studio/credit-icon";
 import { cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { Locale } from "@/lib/i18n";
 import { isExpiredOutput, jobPrompt, jobStatusText } from "@/lib/studio-form";
+import { formatCreditsLong } from "@/lib/studio-params";
 import {
   filterJobOwners,
   jobParamSummary,
@@ -363,8 +365,12 @@ function ModerationTile({
         <span className="rounded-full border-2 border-ink bg-paper-strong px-2.5 py-0.5 text-[11px] font-black text-ink">
           {JOB_STATUS_LABELS[job.status as JobStatus]?.[locale] ?? job.status}
         </span>
-        <span className="rounded-full border-2 border-ink bg-paper-strong px-2.5 py-0.5 text-[11px] font-black text-ink">
-          {job.creditCost} {locale === "sr" ? "kr" : "cr"}
+        <span
+          aria-label={formatCreditsLong(job.creditCost, locale)}
+          className="inline-flex items-center gap-1 rounded-full border-2 border-ink bg-paper-strong px-2.5 py-0.5 text-[11px] font-black text-ink"
+        >
+          <span>{job.creditCost}</span>
+          <CreditIcon className="size-3" />
         </span>
       </div>
 

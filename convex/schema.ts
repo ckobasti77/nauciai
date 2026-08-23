@@ -801,6 +801,13 @@ export default defineSchema({
     coverUpdatedAt: v.optional(v.number()),
     sortOrder: v.number(),
     createdBy: v.optional(v.id("users")),
+    // Denormalizovan broj objavljenih lekcija u kursu. Održava se pri svakoj
+    // promeni lesson.isPublished (upsertLesson / upsertDirectLesson /
+    // archiveEntity) preko recomputePublishedLessonCount; migracija
+    // backfillPublishedLessonCount popunjava postojeće kurseve. Čita ga
+    // dashboard.studentCoursesSlice za progress.totalLessons bez čitanja
+    // lekcija svih kurseva. Optional: stari dokumenti ostaju validni do backfilla.
+    publishedLessonCount: v.optional(v.number()),
     updatedAt: v.number(),
     pageCopy: v.optional(pageCopy),
   })
@@ -1469,9 +1476,21 @@ export default defineSchema({
     .index("by_kind_enabled", ["kind", "isEnabled", "sortOrder"])
     .index("by_family", ["family", "sortOrder"]),
 
+  // ── STUDIO: PROJEKTI ─────────────────────────────────────────────────
+  studioProjects: defineTable({
+    userId: v.id("users"),
+    name: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    // Arhiviran projekat se ne brise: poslovi koji ga pominju moraju da prezive.
+    archivedAt: v.optional(v.number()),
+  })
+    .index("by_user", ["userId", "createdAt"]),
+
   // ── STUDIO: POSLOVI ──────────────────────────────────────────────────
   generationJobs: defineTable({
     userId: v.id("users"),
+    projectId: v.optional(v.id("studioProjects")),
     modelSlug: v.string(),
     kind: studioModelKind,
     params: v.string(),
@@ -1564,6 +1583,7 @@ export default defineSchema({
     completedAt: v.optional(v.number()),
   })
     .index("by_user", ["userId", "createdAt"])
+    .index("by_user_project", ["userId", "projectId", "createdAt"])
     .index("by_fal_request", ["falRequestId"])
     .index("by_provider_request", ["providerRequestId"])
     .index("by_user_status", ["userId", "status"])

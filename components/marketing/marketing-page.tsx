@@ -47,7 +47,7 @@ export function MarketingPage({
             <a href="#pricing">{t.navPricing}</a>
           </nav>
           <div className="flex items-center gap-2">
-            <ThemeToggle locale={locale} compact />
+            <ThemeToggle locale={locale} />
             {viewerProfile ? (
               <Link
                 href={withLocale(locale, "/app")}

@@ -2322,3 +2322,123 @@ test("mockOutputDataUrl: natpis 'DEMO · vrsta' stoji i kad prompt postoji", () 
   expect(svg).toContain("DEMO · video");
   expect(svg).toContain("lisica u snegu");
 });
+
+// ── Projekti: createJob i listMyJobs (SP2) ──────────────────────────────────
+
+test("createJob prima projectId, upisuje ga na posao i ne menja cenu", async () => {
+  const t = convexTest(schema, modules);
+  const { asUser } = await seedWorld(t, 200);
+
+  const projectId = await asUser.mutation(api.studioProjects.createProject, {
+    name: "Moj Novi Projekat",
+  });
+
+  const balanceBefore = (await asUser.query(api.credits.getBalance, {})).balance;
+
+  const jobId = await asUser.mutation(api.studio.createJob, {
+    modelSlug: MODEL_SLUG,
+    params: promptParams("slika psa"),
+    projectId,
+  });
+
+  const balanceAfter = (await asUser.query(api.credits.getBalance, {})).balance;
+  expect(balanceBefore - balanceAfter).toBe(MODEL_COST);
+
+  const job = await t.run(async (ctx) => ctx.db.get(jobId));
+  expect(job?.projectId).toBe(projectId);
+  expect(job?.creditCost).toBe(MODEL_COST);
+});
+
+test("createJob odbija tuđ i arhiviran projectId sa NEMA_PRISTUPA pre skidanja kredita", async () => {
+  const t = convexTest(schema, modules);
+  const { asUser: alice } = await seedWorld(t, 200);
+  await seedUser(t, { email: "bob@example.com", username: "bob_student" });
+
+  const bobProject = await t.run(async (ctx) => {
+    return await ctx.db.insert("studioProjects", {
+      userId: (await ctx.db.query("users").withIndex("username", (q) => q.eq("username", "bob_student")).unique())!._id,
+      name: "Bobov Projekat",
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+  });
+
+  const aliceArchivedProject = await t.run(async (ctx) => {
+    const aliceUser = (await ctx.db.query("users").withIndex("username", (q) => q.eq("username", "studio_student")).unique())!;
+    return await ctx.db.insert("studioProjects", {
+      userId: aliceUser._id,
+      name: "Arhiviran Projekat",
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      archivedAt: Date.now(),
+    });
+  });
+
+  const balanceBefore = (await alice.query(api.credits.getBalance, {})).balance;
+
+  // Tuđ projekat -> NEMA_PRISTUPA
+  await expect(
+    alice.mutation(api.studio.createJob, {
+      modelSlug: MODEL_SLUG,
+      params: promptParams("napad na tuđ projekat"),
+      projectId: bobProject,
+    }),
+  ).rejects.toThrow("NEMA_PRISTUPA");
+
+  // Arhiviran projekat -> NEMA_PRISTUPA
+  await expect(
+    alice.mutation(api.studio.createJob, {
+      modelSlug: MODEL_SLUG,
+      params: promptParams("slika u arhivu"),
+      projectId: aliceArchivedProject,
+    }),
+  ).rejects.toThrow("NEMA_PRISTUPA");
+
+  // Krediti nisu dirani
+  const balanceAfter = (await alice.query(api.credits.getBalance, {})).balance;
+  expect(balanceAfter).toBe(balanceBefore);
+});
+
+test("listMyJobs sa projectId filtrira kroz by_user_project, bez projectId vraća sve", async () => {
+  const t = convexTest(schema, modules);
+  const { asUser } = await seedWorld(t, 500);
+
+  const p1 = await asUser.mutation(api.studioProjects.createProject, { name: "Projekat A" });
+  const p2 = await asUser.mutation(api.studioProjects.createProject, { name: "Projekat B" });
+
+  const j1 = await asUser.mutation(api.studio.createJob, {
+    modelSlug: MODEL_SLUG,
+    params: promptParams("job under p1"),
+    projectId: p1,
+  });
+
+  const j2 = await asUser.mutation(api.studio.createJob, {
+    modelSlug: MODEL_SLUG,
+    params: promptParams("job under p2"),
+    projectId: p2,
+  });
+
+  await asUser.mutation(api.studio.createJob, {
+    modelSlug: MODEL_SLUG,
+    params: promptParams("job without project"),
+  });
+
+  const allJobs = await asUser.query(api.studio.listMyJobs, {
+    paginationOpts: { numItems: 10, cursor: null },
+  });
+  expect(allJobs.page).toHaveLength(3);
+
+  const p1Jobs = await asUser.query(api.studio.listMyJobs, {
+    paginationOpts: { numItems: 10, cursor: null },
+    projectId: p1,
+  });
+  expect(p1Jobs.page).toHaveLength(1);
+  expect(p1Jobs.page[0]._id).toBe(j1);
+
+  const p2Jobs = await asUser.query(api.studio.listMyJobs, {
+    paginationOpts: { numItems: 10, cursor: null },
+    projectId: p2,
+  });
+  expect(p2Jobs.page).toHaveLength(1);
+  expect(p2Jobs.page[0]._id).toBe(j2);
+});

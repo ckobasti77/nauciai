@@ -25,7 +25,7 @@ export function LegalPage({ locale, document }: { locale: Locale; document: Lega
         <div className="flex items-center justify-between gap-4">
           <BrandMark href={withLocale(locale)} label={dictionary[locale].appName} />
           <div className="flex items-center gap-2">
-            <ThemeToggle locale={locale} compact />
+            <ThemeToggle locale={locale} />
           <Link
             href={withLocale(nextLocale, document.path)}
             className="rounded-full border-2 border-ink bg-paper-strong px-3 py-2 text-sm font-black"

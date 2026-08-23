@@ -274,6 +274,34 @@ const CREATE_JOB_ERROR_MESSAGES: Array<[string, { sr: string; en: string }]> = [
       en: "The file is too large for this model. Get it under 15 MB and try again.",
     },
   ],
+  [
+    "PROJEKAT_BEZ_IMENA",
+    {
+      sr: "Unesi ime projekta.",
+      en: "Enter a project name.",
+    },
+  ],
+  [
+    "PROJEKAT_PREDUGO_IME",
+    {
+      sr: "Ime projekta može imati najviše 60 znakova.",
+      en: "Project name can have at most 60 characters.",
+    },
+  ],
+  [
+    "PROJEKAT_VEC_POSTOJI",
+    {
+      sr: "Već imaš projekat sa ovim imenom.",
+      en: "You already have a project with this name.",
+    },
+  ],
+  [
+    "PREVISE_PROJEKATA",
+    {
+      sr: "Dostigao si limit od 50 projekata. Arhiviraj neki projekat pre pravljenja novog.",
+      en: "You have reached the limit of 50 projects. Archive a project before creating a new one.",
+    },
+  ],
 ];
 
 export function studioErrorMessage(raw: string, locale: Locale): string {
@@ -284,6 +312,16 @@ export function studioErrorMessage(raw: string, locale: Locale): string {
   return locale === "sr"
     ? "Generacija nije pokrenuta. Pokušaj ponovo za koji trenutak."
     : "The generation did not start. Try again in a moment.";
+}
+
+export function projectErrorMessage(raw: string, locale: Locale): string {
+  for (const [code, message] of CREATE_JOB_ERROR_MESSAGES) {
+    if (raw.includes(code)) return message[locale];
+  }
+
+  return locale === "sr"
+    ? "Operacija nad projektom nije uspela. Pokušaj ponovo."
+    : "Project action failed. Try again.";
 }
 
 /**
@@ -497,6 +535,15 @@ export const GALLERY_NO_GENERATIONS: EmptyState = {
     en: "Everything you make in the Studio lands here - with its prompt, model and price.",
   },
   cta: { sr: "Otvori Studio", en: "Open the Studio" },
+};
+
+export const PROJECT_NO_GENERATIONS: EmptyState = {
+  title: { sr: "Još nema generacija u ovom projektu", en: "No generations in this project yet" },
+  body: {
+    sr: "Sve što generišeš dok je ovaj projekat izabran pojaviće se ovde.",
+    en: "Everything you generate while this project is selected will appear here.",
+  },
+  cta: { sr: "Ubaci prvi prompt", en: "Use a starter prompt" },
 };
 
 export const GALLERY_NO_MATCHES: EmptyState = {

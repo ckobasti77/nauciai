@@ -37,17 +37,22 @@ describe("app sidebar preferences", () => {
     expect(parseAppSidebarPreferences(tooLarge).width).toBe(APP_SIDEBAR_MAX_WIDTH);
   });
 
-  it("snaps a drag below the threshold to the icon rail", () => {
+  it("clamps dragged width to supported expanded bounds", () => {
     const previous = { collapsed: false, width: 360, lastExpandedWidth: 360 };
     expect(preferencesFromDraggedWidth(220, previous)).toEqual({
-      collapsed: true,
-      width: APP_SIDEBAR_RAIL_WIDTH,
-      lastExpandedWidth: 360,
+      collapsed: false,
+      width: APP_SIDEBAR_MIN_WIDTH,
+      lastExpandedWidth: APP_SIDEBAR_MIN_WIDTH,
     });
     expect(preferencesFromDraggedWidth(300, previous)).toEqual({
       collapsed: false,
       width: 300,
       lastExpandedWidth: 300,
+    });
+    expect(preferencesFromDraggedWidth(500, previous)).toEqual({
+      collapsed: false,
+      width: APP_SIDEBAR_MAX_WIDTH,
+      lastExpandedWidth: APP_SIDEBAR_MAX_WIDTH,
     });
   });
 });

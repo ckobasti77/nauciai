@@ -29,8 +29,19 @@ function truncateSnippet(body: string): string {
 
 // ── resume / progress / nextLessons ─────────────────────────────────────────
 // Lean putanja: NE koristi `courses.getAppNavigation` (čita sve lessonParts bodies
-// i potpisuje 2 URL/kurs). Ovde čitamo objavljene kurseve + njihove lekcije +
-// progres viewer-a, i potpisujemo samo cover resume-kursa.
+// i potpisuje 2 URL/kurs). Ranije je za SVAKI objavljeni kurs radila zaseban
+// `lessons.take(1000)` — broj upita 2 + N, plafon 50.000 pročitanih dokumenata na
+// najopterećenijoj strani. Sada je broj upita ~konstantan:
+//   • `totalLessons` iz denormalizovanog `courses.publishedLessonCount`
+//     (održava `courses.recomputePublishedLessonCount`);
+//   • `completedLessons` i `lastActivityAt` po kursu iz već pročitanih `progress`
+//     redova (`progress.courseId` je uvek `lesson.courseId`);
+//   • lekcije se čitaju LENJO, samo za kurseve koje stvarno dodirnemo za
+//     resume/nextLessons (tipično 1–2 kursa), pa se cover potpisuje samo za resume.
+// Napomena o ponašanju (svesno prihvaćeno): `completedLessons`/`lastActivityAt`
+// sada broje i progres na lekciji koja je naknadno sakrivena (isPublished=false),
+// dok ju je ranija petlja preskakala. U uobičajenom slučaju (bez sakrivanja
+// završenih lekcija) vrednosti su identične.
 async function studentCoursesSlice(ctx: QueryCtx, userId: Id<"users">) {
   const courses = await ctx.db
     .query("courses")
@@ -52,8 +63,8 @@ async function studentCoursesSlice(ctx: QueryCtx, userId: Id<"users">) {
   const progressByLesson = new Map(progressRows.map((row) => [row.lessonId, row]));
 
   // Dnevni ritam za RITAM zonu (ActivityPanel): završene lekcije po UTC danu.
-  // Isti bucketing kao dashboard-content.activityFromLessons; `new Date(ms)` je
-  // determinstičan iz sačuvanog `updatedAt`, nije čitanje zidnog sata.
+  // Nepromenjeno — kao i ranije gleda sve progres redove; `new Date(ms)` je
+  // deterministički iz sačuvanog `updatedAt`, nije čitanje zidnog sata.
   const activityCounts = new Map<string, number>();
   for (const row of progressRows) {
     if (!row.completed) continue;
@@ -64,90 +75,111 @@ async function studentCoursesSlice(ctx: QueryCtx, userId: Id<"users">) {
     .map(([day, completed]) => ({ day, completed }))
     .sort((a, b) => a.day.localeCompare(b.day));
 
-  type CourseEntry = {
-    course: Doc<"courses">;
-    lessons: Doc<"lessons">[];
-    total: number;
-    lastActivityAt: number;
-    nextLesson: Doc<"lessons"> | null;
-  };
-  const perCourse: CourseEntry[] = [];
+  const publishedCourseIds = new Set(courses.map((course) => course._id));
+
+  // completedLessons + lastActivityAt po kursu iz progres redova (bez čitanja lekcija).
   let completedLessons = 0;
-  let totalLessons = 0;
-
-  for (const course of courses) {
-    const lessons = (
-      await ctx.db
-        .query("lessons")
-        .withIndex("by_course_and_sortOrder", (q) => q.eq("courseId", course._id))
-        .take(1000)
-    ).filter((lesson) => lesson.isPublished);
-
-    let lastActivityAt = 0;
-    let nextLesson: Doc<"lessons"> | null = null;
-    for (const lesson of lessons) {
-      const row = progressByLesson.get(lesson._id);
-      if (row?.completed) {
-        completedLessons += 1;
-      } else if (!nextLesson) {
-        nextLesson = lesson;
-      }
-      if (row && row.updatedAt > lastActivityAt) {
-        lastActivityAt = row.updatedAt;
-      }
-    }
-    totalLessons += lessons.length;
-    perCourse.push({ course, lessons, total: lessons.length, lastActivityAt, nextLesson });
+  const lastActivityByCourse = new Map<Id<"courses">, number>();
+  for (const row of progressRows) {
+    if (!publishedCourseIds.has(row.courseId)) continue;
+    if (row.completed) completedLessons += 1;
+    const prev = lastActivityByCourse.get(row.courseId) ?? 0;
+    if (row.updatedAt > prev) lastActivityByCourse.set(row.courseId, row.updatedAt);
   }
 
+  // Lenjo čitanje objavljenih lekcija kursa, sa kešom. Isti `take(1000)` pa filter
+  // isPublished kao ranija petlja → identičan redosled i plafon po kursu.
+  const lessonsCache = new Map<Id<"courses">, Doc<"lessons">[]>();
+  const readPublishedLessons = async (courseId: Id<"courses">) => {
+    let lessons = lessonsCache.get(courseId);
+    if (!lessons) {
+      lessons = (
+        await ctx.db
+          .query("lessons")
+          .withIndex("by_course_and_sortOrder", (q) => q.eq("courseId", courseId))
+          .take(1000)
+      ).filter((lesson) => lesson.isPublished);
+      lessonsCache.set(courseId, lessons);
+    }
+    return lessons;
+  };
+
+  // totalLessons iz denormalizovanog brojača; fallback na čitanje samo za kurseve
+  // kojima brojač još nije popunjen (prozor pre `backfillPublishedLessonCount`).
+  // Posle backfilla ova petlja ne radi nijedno čitanje.
+  let totalLessons = 0;
+  for (const course of courses) {
+    if (typeof course.publishedLessonCount === "number") {
+      totalLessons += course.publishedLessonCount;
+    } else {
+      totalLessons += (await readPublishedLessons(course._id)).length;
+    }
+  }
   const percent = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
 
-  // Resume: najskorije aktivan kurs koji još ima sledeću lekciju; ako viewer nema
-  // nijedan progres, prvi objavljen kurs sa objavljenom lekcijom ("Započni").
-  const engaged = perCourse
+  // Redosled kurseva identičan ranijem: angažovani (lastActivityAt desc, stabilno
+  // po originalnom redosledu na jednakost) pa neangažovani u originalnom redosledu.
+  const withOrder = courses.map((course, index) => ({
+    course,
+    index,
+    lastActivityAt: lastActivityByCourse.get(course._id) ?? 0,
+  }));
+  const engaged = withOrder
     .filter((entry) => entry.lastActivityAt > 0)
-    .sort((a, b) => b.lastActivityAt - a.lastActivityAt);
-  const resumeEntry =
-    engaged.find((entry) => entry.nextLesson) ?? perCourse.find((entry) => entry.nextLesson) ?? null;
+    .sort((a, b) => b.lastActivityAt - a.lastActivityAt || a.index - b.index);
+  const nonEngaged = withOrder.filter((entry) => entry.lastActivityAt === 0);
+  const ordered = [...engaged, ...nonEngaged];
 
-  let resume = null;
-  if (resumeEntry?.nextLesson) {
-    const lesson = resumeEntry.nextLesson;
-    const position = resumeEntry.lessons.findIndex((item) => item._id === lesson._id) + 1;
-    resume = {
-      courseSlug: resumeEntry.course.slug,
-      lessonSlug: lesson.slug,
-      courseTitle: { sr: resumeEntry.course.titleSr, en: resumeEntry.course.titleEn },
-      lessonTitle: { sr: lesson.titleSr, en: lesson.titleEn },
-      position,
-      total: resumeEntry.total,
-      coverUrl: resumeEntry.course.coverStorageId
-        ? await ctx.storage.getUrl(resumeEntry.course.coverStorageId)
-        : null,
-    };
-  }
-
-  // Sledeće lekcije (max 3): najpre iz aktivnih kurseva, pa iz ostalih.
-  const ordered = [...engaged, ...perCourse.filter((entry) => entry.lastActivityAt === 0)];
+  // Jedan prolaz kroz `ordered`: prvi kurs sa neodrađenom lekcijom je resume
+  // (ekvivalentno starom `engaged.find(nextLesson) ?? perCourse.find(nextLesson)`),
+  // a nextLessons se pune istim redom do 3. Prekidamo čim je resume nađen i
+  // nextLessons pun — lekcije se čitaju tipično za 1–2 kursa umesto za sve.
+  const isUncompleted = (lesson: Doc<"lessons">) => !progressByLesson.get(lesson._id)?.completed;
+  let resumeCourse: Doc<"courses"> | null = null;
+  let resumeLesson: Doc<"lessons"> | null = null;
+  let resumeLessons: Doc<"lessons">[] = [];
   const nextLessons: Array<{
     courseSlug: string;
     lessonSlug: string;
     title: { sr: string; en: string };
     durationSeconds: number;
   }> = [];
-  for (const entry of ordered) {
-    for (const lesson of entry.lessons) {
-      if (nextLessons.length >= 3) break;
-      if (!progressByLesson.get(lesson._id)?.completed) {
+  for (const { course } of ordered) {
+    const lessons = await readPublishedLessons(course._id);
+    for (const lesson of lessons) {
+      if (!isUncompleted(lesson)) continue;
+      if (!resumeCourse) {
+        resumeCourse = course;
+        resumeLesson = lesson;
+        resumeLessons = lessons;
+      }
+      if (nextLessons.length < 3) {
         nextLessons.push({
-          courseSlug: entry.course.slug,
+          courseSlug: course.slug,
           lessonSlug: lesson.slug,
           title: { sr: lesson.titleSr, en: lesson.titleEn },
           durationSeconds: lesson.durationSeconds,
         });
       }
+      if (nextLessons.length >= 3) break;
     }
-    if (nextLessons.length >= 3) break;
+    if (resumeCourse && nextLessons.length >= 3) break;
+  }
+
+  let resume = null;
+  if (resumeCourse && resumeLesson) {
+    const course = resumeCourse;
+    const lesson = resumeLesson;
+    const position = resumeLessons.findIndex((item) => item._id === lesson._id) + 1;
+    resume = {
+      courseSlug: course.slug,
+      lessonSlug: lesson.slug,
+      courseTitle: { sr: course.titleSr, en: course.titleEn },
+      lessonTitle: { sr: lesson.titleSr, en: lesson.titleEn },
+      position,
+      total: resumeLessons.length,
+      coverUrl: course.coverStorageId ? await ctx.storage.getUrl(course.coverStorageId) : null,
+    };
   }
 
   return { resume, progress: { completedLessons, totalLessons, percent }, nextLessons, activity };

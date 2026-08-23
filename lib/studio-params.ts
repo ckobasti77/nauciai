@@ -225,6 +225,23 @@ export function formatCredits(credits: number, locale: Locale): string {
   return `${credits} ${locale === "sr" ? "kr" : "cr"}`;
 }
 
+export function formatCreditsValue(credits: number): string {
+  return String(credits);
+}
+
+/** Puni naziv sa brojem za čitače ekrana: npr. "16 kredita" ili "1 kredit". */
+export function formatCreditsLong(credits: number, locale: Locale): string {
+  if (locale === "sr") {
+    const abs = Math.abs(credits);
+    const mod10 = abs % 10;
+    const mod100 = abs % 100;
+    if (mod10 === 1 && mod100 !== 11) return `${credits} kredit`;
+    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return `${credits} kredita`;
+    return `${credits} kredita`;
+  }
+  return `${credits} ${Math.abs(credits) === 1 ? "credit" : "credits"}`;
+}
+
 /** Tekst značke uz kontrolu: `+12 kr`, `×2`, `isto`. */
 export function priceDeltaLabel(delta: PriceDelta, locale: Locale): string | null {
   if (delta.kind === "none") return null;
@@ -234,6 +251,17 @@ export function priceDeltaLabel(delta: PriceDelta, locale: Locale): string | nul
   const sign = delta.credits > 0 ? "+" : "−";
 
   return `${sign}${formatCredits(Math.abs(delta.credits), locale)}`;
+}
+
+/** Vrednost značke bez oznake jedinice: `+12`, `−5`, `×2`, `ista cena`. */
+export function priceDeltaValue(delta: PriceDelta, locale: Locale): string | null {
+  if (delta.kind === "none") return null;
+  if (delta.kind === "same") return locale === "sr" ? "ista cena" : "same price";
+  if (delta.kind === "multiplier") return `×${delta.factor}`;
+
+  const sign = delta.credits > 0 ? "+" : "−";
+
+  return `${sign}${Math.abs(delta.credits)}`;
 }
 
 /**
@@ -264,6 +292,20 @@ export function formatCreditsPerUnit(perUnit: number, unit: string, locale: Loca
     : rounded.toFixed(1).replace(".", locale === "sr" ? "," : ".");
 
   return `${text} ${locale === "sr" ? "kr" : "cr"}/${unit}`;
+}
+
+/** `27` odnosno `27,4` - samo broj kao string. */
+export function creditsPerUnitValue(perUnit: number, locale: Locale): string {
+  const rounded = Math.round(perUnit * 10) / 10;
+  return Number.isInteger(rounded)
+    ? String(rounded)
+    : rounded.toFixed(1).replace(".", locale === "sr" ? "," : ".");
+}
+
+/** `27/s` odnosno `27,4/s` - broj sa jedinicom, bez kr/cr (za prikaz uz ikonicu). */
+export function formatCreditsPerUnitValue(perUnit: number, unit: string, locale: Locale): string {
+  const text = creditsPerUnitValue(perUnit, locale);
+  return `${text}/${unit}`;
 }
 
 export function controlLabel(control: ParamControl, locale: Locale): string {

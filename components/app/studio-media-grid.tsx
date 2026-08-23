@@ -11,9 +11,10 @@ import { resetStudioFilters, setStudioFilters, useStudioFilters } from "@/lib/st
 import { jobPrompt } from "@/lib/studio-form";
 import { dateRangeCutoff, downloadMediaFiles } from "@/lib/studio-gallery";
 import { distributeGridColumns, useGridColumnCount } from "@/lib/studio-grid";
-import { GALLERY_NO_MATCHES, STUDIO_NO_GENERATIONS } from "@/lib/studio-messages";
+import { GALLERY_NO_MATCHES, PROJECT_NO_GENERATIONS, STUDIO_NO_GENERATIONS } from "@/lib/studio-messages";
 import type { StudioModel } from "@/lib/studio-models";
 import type { StudioSectionKind } from "@/lib/studio-sections";
+import type { Id } from "@/convex/_generated/dataModel";
 
 const PAGE_SIZE = 12;
 
@@ -25,6 +26,7 @@ const FIRST_PROMPT = {
 export function StudioMediaGrid({
   locale,
   kind,
+  projectId = null,
   catalog = [],
   onReuse,
   onExtend,
@@ -35,6 +37,7 @@ export function StudioMediaGrid({
 }: {
   locale: Locale;
   kind: StudioSectionKind | null;
+  projectId?: Id<"studioProjects"> | null;
   catalog?: StudioModel[];
   onReuse: (job: StudioTileJob) => void;
   onExtend: (job: StudioTileJob) => void;
@@ -59,10 +62,11 @@ export function StudioMediaGrid({
   const queryArgs = useMemo(() => {
     return {
       ...(kind ? { kind } : {}),
+      ...(projectId ? { projectId } : {}),
       ...(modelFilter ? { modelSlug: modelFilter } : {}),
       ...(dateFilter !== "all" ? { createdAfter: dateRangeCutoff(dateFilter, now) } : {}),
     };
-  }, [kind, modelFilter, dateFilter, now]);
+  }, [kind, projectId, modelFilter, dateFilter, now]);
 
   const jobs = usePaginatedQuery(api.studio.listMyJobs, queryArgs, {
     initialNumItems: PAGE_SIZE,
@@ -142,6 +146,11 @@ export function StudioMediaGrid({
   const columns = useMemo(
     () => distributeGridColumns(filteredJobs, columnCount),
     [filteredJobs, columnCount],
+  );
+
+  const loadingMoreSkeletons = useMemo(
+    () => distributeGridColumns(Array.from({ length: Math.min(Math.max(2, columnCount), 3) }, (_, i) => i), columnCount),
+    [columnCount],
   );
 
   useEffect(() => {
@@ -320,6 +329,22 @@ export function StudioMediaGrid({
                 {GALLERY_NO_MATCHES.cta[locale]}
               </button>
             </>
+          ) : projectId ? (
+            <>
+              <p className="inline-flex items-center gap-2 text-lg font-black text-ink">
+                <Sparkles className="size-5 text-yellow" />
+                {PROJECT_NO_GENERATIONS.title[locale]}
+              </p>
+              <p className="mt-2 text-sm font-bold text-muted">{PROJECT_NO_GENERATIONS.body[locale]}</p>
+              <button
+                type="button"
+                onClick={() => onUseStarterPrompt(FIRST_PROMPT[locale])}
+                className="mt-5 inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 py-2.5 text-sm font-extrabold text-ink shadow-[4px_4px_0_0_var(--ink)] transition hover:-translate-y-0.5 cursor-pointer"
+              >
+                <Wand2 className="size-4" />
+                {PROJECT_NO_GENERATIONS.cta[locale]}
+              </button>
+            </>
           ) : (
             <>
               <p className="inline-flex items-center gap-2 text-lg font-black text-ink">
@@ -344,7 +369,7 @@ export function StudioMediaGrid({
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-3">
             {columns.map((col, colIndex) => (
               <div key={colIndex} className="flex flex-col gap-4">
-                {col.map((job) => (
+                {col.map((job, itemIndex) => (
                   <StudioMediaTile
                     key={job._id}
                     job={job}
@@ -355,9 +380,14 @@ export function StudioMediaGrid({
                     selected={selectedJobs.has(job._id)}
                     onToggleSelect={handleToggleSelect}
                     isSelectMode={isSelectMode || selectedJobs.size > 0}
-                    animateEntrance={job.status === "reserved" || job.status === "running" || now - job.createdAt < 20_000}
+                    animateEntrance
+                    index={itemIndex}
                   />
                 ))}
+                {jobStatus === "LoadingMore" &&
+                  loadingMoreSkeletons[colIndex]?.map((skeletonIndex) => (
+                    <StudioMediaSkeletonTile key={`loading-more-${skeletonIndex}`} />
+                  ))}
               </div>
             ))}
           </div>

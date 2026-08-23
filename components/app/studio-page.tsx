@@ -12,14 +12,16 @@ import { StudioMediaDetail } from "@/components/app/studio-media-detail";
 import { StudioMediaGrid } from "@/components/app/studio-media-grid";
 import type { StudioTileJob } from "@/components/app/studio-media-tile";
 import { StudioModerationGrid } from "@/components/app/studio-moderation-grid";
+import { CreditIcon } from "@/components/studio/credit-icon";
 import { StudioComposer, type JobPayload, type RegenerateSeed } from "@/components/studio/studio-composer";
-import { StudioFiltersDialog } from "@/components/studio/studio-filters-dialog";
+import { ProjectPicker } from "@/components/studio/project-picker";
+import { StudioFilterBar } from "@/components/studio/studio-filter-bar";
 import { Panel, cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { withLocale, type Locale } from "@/lib/i18n";
 import { jobPrompt } from "@/lib/studio-form";
-import { GALLERY_SCOPE_LABELS, GALLERY_SCOPES, type GalleryScope } from "@/lib/studio-gallery";
+import { type GalleryScope } from "@/lib/studio-gallery";
 import { parseStudioModel, type StudioModel, type StudioModelRow } from "@/lib/studio-models";
 import {
   PRIVACY_POLICY_PATH,
@@ -30,7 +32,7 @@ import {
 } from "@/lib/studio-messages";
 import type { StudioSectionKind } from "@/lib/studio-sections";
 import type { SlotFiles } from "@/lib/studio-slots";
-import type { ParamValues } from "@/lib/studio-params";
+import { formatCreditsLong, type ParamValues } from "@/lib/studio-params";
 
 const PILL =
   "inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 px-5 py-2.5 text-sm font-extrabold transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-60";
@@ -103,6 +105,7 @@ function StudioTermsGate({ locale }: { locale: Locale }) {
 // Koja je detaljna strana otvorena klikom iz mreze (a ne direktnim linkom).
 // Per-tab, prezivljava remount izmedju /app/studio i /app/studio/m/[jobId].
 const PUSHED_DETAIL_KEY = "studio:pushed-detail";
+const STUDIO_PROJECT_STORAGE_KEY = "nauciai_studio_project_id";
 
 function readPushedDetailId(): string | null {
   try {
@@ -145,6 +148,47 @@ export function StudioPage({
   const lessonId = searchParams.get("lessonId") as Id<"lessons"> | null;
   const taskId = searchParams.get("taskId") as Id<"lessonTasks"> | null;
 
+  // Projekat (SP2): sinhronizovan sa URL query parametrom (?project=) i localStorage-om
+  const projectParam = searchParams.get("project") as Id<"studioProjects"> | null;
+  const activeProjectId = projectParam ?? null;
+
+  useEffect(() => {
+    if (projectParam) {
+      try {
+        localStorage.setItem(STUDIO_PROJECT_STORAGE_KEY, projectParam);
+      } catch {}
+    } else {
+      try {
+        const saved = localStorage.getItem(STUDIO_PROJECT_STORAGE_KEY);
+        if (saved) {
+          const params = new URLSearchParams(window.location.search);
+          params.set("project", saved);
+          router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+        }
+      } catch {}
+    }
+  }, [projectParam, pathname, router]);
+
+  function handleSelectProject(nextProjectId: Id<"studioProjects"> | null) {
+    try {
+      if (nextProjectId) {
+        localStorage.setItem(STUDIO_PROJECT_STORAGE_KEY, nextProjectId);
+      } else {
+        localStorage.removeItem(STUDIO_PROJECT_STORAGE_KEY);
+      }
+    } catch {}
+
+    const params = new URLSearchParams(searchParams.toString());
+    if (nextProjectId) {
+      params.set("project", nextProjectId);
+    } else {
+      params.delete("project");
+    }
+    const query = params.toString();
+    const target = query ? `${pathname}?${query}` : pathname;
+    router.replace(target, { scroll: false });
+  }
+
   // Detalj medija i navigacija (sinhronizovano preko Next.js App Router-a)
   const routeDetailMatch = pathname.match(/\/app\/studio\/m\/([^/]+)/);
   const activeJobId = routeDetailMatch ? routeDetailMatch[1] : (initialJobId ?? null);
@@ -156,6 +200,18 @@ export function StudioPage({
     kindParam === "image" || kindParam === "video" || kindParam === "audio"
       ? (kindParam as StudioSectionKind)
       : null;
+
+  function handleSelectKind(kind: StudioSectionKind | null) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (kind) {
+      params.set("kind", kind);
+    } else {
+      params.delete("kind");
+    }
+    const query = params.toString();
+    const target = query ? `${pathname}?${query}` : pathname;
+    router.push(target, { scroll: false });
+  }
 
   const [selectedSlug, setSelectedSlug] = useState<string | null>(() => searchParams.get("model"));
   // Moderatorski pregled (H3): "Samo moji" / "Svi korisnici", samo za osoblje.
@@ -169,6 +225,7 @@ export function StudioPage({
   // Dinamičko merenje stvarne visine lebdećeg composera/panela preko ResizeObserver-a (popravka 1.2)
   const floatingContainerRef = useRef<HTMLDivElement | null>(null);
   const [floatingHeight, setFloatingHeight] = useState<number>(140);
+  const [isComposerCollapsed, setIsComposerCollapsed] = useState(false);
 
   useEffect(() => {
     const el = floatingContainerRef.current;
@@ -185,6 +242,35 @@ export function StudioPage({
 
     observer.observe(el);
     return () => observer.disconnect();
+  }, []);
+
+  // Merenje prostora bez sidebara (Deo A) kako bi lebdeći composer bio tačno centriran
+  const studioRootRef = useRef<HTMLDivElement | null>(null);
+  const [contentBounds, setContentBounds] = useState<{ left: number; width: number } | null>(null);
+
+  useEffect(() => {
+    const el = studioRootRef.current;
+    if (!el) return;
+
+    function updateBounds() {
+      const target = studioRootRef.current;
+      if (!target) return;
+      const rect = target.getBoundingClientRect();
+      setContentBounds({ left: rect.left, width: rect.width });
+    }
+
+    updateBounds();
+
+    const observer = new ResizeObserver(updateBounds);
+    observer.observe(el);
+
+    window.addEventListener("resize", updateBounds);
+    window.addEventListener("scroll", updateBounds, { passive: true });
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updateBounds);
+      window.removeEventListener("scroll", updateBounds);
+    };
   }, []);
 
   // Redovi se parsiraju jednom po promeni `models` liste
@@ -319,6 +405,7 @@ export function StudioPage({
         ...(payload.sourceJobId ? { sourceJobId: payload.sourceJobId } : {}),
         ...(lessonId ? { lessonId } : {}),
         ...(lessonId && taskId ? { taskId } : {}),
+        ...(activeProjectId ? { projectId: activeProjectId } : {}),
       });
     } catch (thrown) {
       setError(thrown instanceof Error ? thrown.message : String(thrown));
@@ -344,57 +431,86 @@ export function StudioPage({
   }
 
   function handleResetKind() {
-    router.push(withLocale(locale, "/app/studio"));
+    handleSelectKind(null);
   }
 
-  // Jedan red (SP2): naslov levo, obim (osoblje) + balans desno - mreža kreće
-  // odmah ispod. Opisni pasus je otišao; uputstvo stoji u praznom stanju mreže.
+  // Zaglavlje (SP2):
+  // ┌──────────────────────────────────────────────────────────────────────┐
+  // │ Studio    [filteri ────────────────────────]   [Projekat ▾] [5.000 kr] │
+  // └──────────────────────────────────────────────────────────────────────┘
+  // Jedna traka u ravni sa naslovom na desktopu, na mobilnom (< 640px) u svom redu ispod.
   const topbar = (
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <h2 className="text-2xl font-black leading-tight text-ink md:text-3xl">Studio</h2>
-      <div className="flex flex-wrap items-center gap-3">
-        {/* Prekidač obima — vidi ga samo osoblje (H3) */}
-        {state?.isStaff ? (
-          <div className="flex items-center gap-1.5">
-            {GALLERY_SCOPES.map((option) => (
-              <button
-                key={option}
-                type="button"
-                onClick={() => setScope(option)}
-                aria-pressed={scope === option}
-                className={cn(
-                  "inline-flex min-h-8 items-center gap-1 rounded-full border-2 border-ink px-3 py-1 text-xs font-black studio-anim-mikro cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
-                  scope === option
-                    ? "bg-yellow text-ink shadow-[2px_2px_0_0_var(--ink)]"
-                    : "bg-paper-strong text-ink hover:-translate-y-0.5",
-                )}
-              >
-                {GALLERY_SCOPE_LABELS[option][locale]}
-              </button>
-            ))}
+    <div className="flex flex-col gap-2.5">
+      <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+        {/* Naslov + Traka filtera u istoj ravni */}
+        <div className="flex min-w-0 flex-1 items-center gap-3 md:gap-4">
+          <h2 className="shrink-0 text-2xl font-black leading-tight text-ink md:text-3xl">Studio</h2>
+          <div className="hidden sm:flex items-center">
+            <StudioFilterBar
+              locale={locale}
+              isStaff={state?.isStaff === true}
+              scope={scope}
+              onSelectScope={setScope}
+              activeKind={activeKind}
+              onSelectKind={handleSelectKind}
+              catalog={catalog}
+            />
           </div>
-        ) : null}
+        </div>
 
-        {/* Placeholder za projekte */}
-        <span
-          title={locale === "sr" ? "Projekti nisu u obimu — mesto rezervisano" : "Projects out of scope — reserved slot"}
-          className="hidden sm:inline-flex items-center gap-1.5 rounded-full border-2 border-dashed border-line px-3 py-1.5 text-xs font-extrabold text-muted"
-        >
-          {locale === "sr" ? "Bez projekta" : "No project"}
-        </span>
+        {/* Prekidač projekta + Balans */}
+        <div className="flex shrink-0 items-center gap-2.5 sm:gap-3">
+          <ProjectPicker
+            locale={locale}
+            activeProjectId={activeProjectId}
+            onSelectProject={handleSelectProject}
+          />
 
-        {/* Balans je uvek vidljiv i uvek vodi na dopunu */}
-        <Link
-          href={creditsHref}
-          className={cn(PILL, "shrink-0 border-ink bg-paper-strong text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] hover:-translate-y-0.5")}
-        >
-          <Coins className="size-4" />
-          {balance === undefined
-            ? "—"
-            : balance.balance.toLocaleString(locale === "sr" ? "sr-RS" : "en-US")}{" "}
-          {locale === "sr" ? "kr" : "cr"}
-        </Link>
+          <Link
+            href={creditsHref}
+            aria-label={
+              balance === undefined
+                ? locale === "sr"
+                  ? "Krediti"
+                  : "Credits"
+                : formatCreditsLong(balance.balance, locale)
+            }
+            className={cn(
+              PILL,
+              "shrink-0 border-ink bg-paper-strong text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] hover:-translate-y-0.5",
+            )}
+          >
+            <CreditIcon className="size-4" />
+            <span>
+              {balance === undefined
+                ? "—"
+                : balance.balance.toLocaleString(locale === "sr" ? "sr-RS" : "en-US")}
+            </span>
+          </Link>
+        </div>
       </div>
+
+      {/* Na mobilnom (< 640px): traka filtera ide u svoj red ispod naslova */}
+      <div className="flex sm:hidden w-full items-center">
+        <StudioFilterBar
+          locale={locale}
+          isStaff={state?.isStaff === true}
+          scope={scope}
+          onSelectScope={setScope}
+          activeKind={activeKind}
+          onSelectKind={handleSelectKind}
+          catalog={catalog}
+        />
+      </div>
+
+      {/* Podnaslov: prikazuje se SAMO kad je cela mreža prazna (0 učitanih poslova) */}
+      {loadedJobs.length === 0 ? (
+        <p className="text-xs font-bold text-muted">
+          {locale === "sr"
+            ? "Opiši šta hoćeš, izaberi model i generiši slike, video i zvuk."
+            : "Describe what you want, pick a model, and generate images, video and audio."}
+        </p>
+      ) : null}
     </div>
   );
 
@@ -498,17 +614,24 @@ export function StudioPage({
         error={error}
         variant="create"
         onGenerate={generate}
+        isCollapsed={isComposerCollapsed}
+        onToggleCollapse={() => setIsComposerCollapsed((prev) => !prev)}
       />
     );
   };
 
+  const gridBottomPadding = isComposerCollapsed ? 60 : floatingHeight + 28;
+
   return (
-    <div className="relative -mx-4 -mt-5 min-h-[calc(100vh-5rem)] bg-studio-canvas px-4 pt-4 text-ink sm:-mx-6 sm:px-6 md:-mx-8 md:-mt-8 md:px-8 md:pt-6">
+    <div
+      ref={studioRootRef}
+      className="relative -mx-4 -mt-5 min-h-[calc(100vh-5rem)] bg-studio-canvas px-4 pt-4 text-ink sm:-mx-6 sm:px-6 md:-mx-8 md:-mt-8 md:px-8 md:pt-6"
+    >
       <div className="space-y-4">
         {topbar}
 
-        {/* Mreža generisanih medija sa dinamičkim donjim paddingom prema izmerenoj visini composera */}
-        <div style={{ paddingBottom: `${floatingHeight + 28}px` }}>
+        {/* Mreža generisanih medija sa dinamičkim donjim paddingom prema izmerenoj visini composera / sklopljene ručice */}
+        <div style={{ paddingBottom: `${gridBottomPadding}px` }}>
           {scope === "all" && state?.isStaff ? (
             <StudioModerationGrid
               locale={locale}
@@ -519,6 +642,7 @@ export function StudioPage({
             <StudioMediaGrid
               locale={locale}
               kind={activeKind}
+              projectId={activeProjectId}
               catalog={catalog}
               onReuse={handleReuse}
               onExtend={handleExtend}
@@ -531,13 +655,15 @@ export function StudioPage({
         </div>
       </div>
 
-      {/* Prozor sa filterima mreže - otvara ga linija u sidebaru (SP2) */}
-      <StudioFiltersDialog locale={locale} kind={activeKind} catalog={catalog} />
-
-      {/* Lebdeći kontejner composera (usidren dole po sredini, iznad mreže) */}
+      {/* Lebdeći kontejner composera (usidren dole po sredini, iznad mreže, centriran u prostoru BEZ sidebara) */}
       <div
         ref={floatingContainerRef}
-        className="pointer-events-none fixed bottom-4 left-0 right-0 z-30 flex justify-center px-4"
+        className="pointer-events-none fixed bottom-4 z-30 flex justify-center px-4"
+        style={
+          contentBounds
+            ? { left: `${contentBounds.left}px`, width: `${contentBounds.width}px` }
+            : { left: 0, width: "100%" }
+        }
       >
         <div className="pointer-events-auto w-full max-w-[720px]">
           {floatingContent()}

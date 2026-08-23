@@ -2,6 +2,7 @@
 
 import {
   ChevronDown,
+  ChevronUp,
   Coins,
   Loader2,
   Plus,
@@ -9,6 +10,7 @@ import {
   Wand2,
   X,
 } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion, type Easing } from "motion/react";
 import Link from "next/link";
 import {
   useCallback,
@@ -19,17 +21,21 @@ import {
   useState,
 } from "react";
 
+import { CreditIcon } from "@/components/studio/credit-icon";
 import { DropSlot, DropSlotGrid, FrameSlotPair, FullScreenDropOverlay, Preview, ReferenceSlots } from "@/components/studio/drop-slot";
 import { InputCapabilityStrip } from "@/components/studio/input-capabilities";
-import { ModelPickerPanel, modelPriceSummary } from "@/components/studio/model-picker";
+import { ModelPickerPanel, ModelPriceDisplay } from "@/components/studio/model-picker";
 import { ModeSwitcher } from "@/components/studio/mode-switcher";
-import { ParamForm, useParamValues } from "@/components/studio/param-form";
+import { ParamControl } from "@/components/studio/param-control";
+import { ParamForm, useParamValues, type ParamFormState } from "@/components/studio/param-form";
 import { ModelMark } from "@/components/studio/provider-mark";
 import { SourceJobPicker } from "@/components/studio/source-job-picker";
 import { useSlotUpload } from "@/components/studio/use-slot-upload";
 import { cn } from "@/components/ui/primitives";
 import type { Id } from "@/convex/_generated/dataModel";
 import { parseContinuationSource, parseQuantitySource, promptControlOf } from "@/convex/studioJobCore";
+import type { ParamControl as ParamControlSpec } from "@/convex/studioParamSpec";
+import type { PriceRule } from "@/convex/studioPricing";
 import type { Locale } from "@/lib/i18n";
 import { firstFileMode, modelRestrictions } from "@/lib/studio-capabilities";
 import { readLastModelByKind, writeLastModel } from "@/lib/studio-last-model";
@@ -48,12 +54,15 @@ import {
   MODEL_BADGE_LABELS,
   type StudioModel,
 } from "@/lib/studio-models";
-import { studioMotionTokens } from "@/lib/studio-motion";
+import { getStudioMotion, studioMotionTokens } from "@/lib/studio-motion";
 import {
+  controlLabel,
   creditsFor,
-  formatCredits,
+  formatCreditsLong,
+  optionLabel,
   paramValuesForMode,
   visibleControls,
+  type ParamValue,
   type ParamValues,
 } from "@/lib/studio-params";
 import {
@@ -236,6 +245,189 @@ function ModeInputs({
 }
 
 /**
+ * Mali lebdeći popup sa tačno jednom kontrolom za promovisani čip na baru composera.
+ */
+function ChipControlPopup({
+  control,
+  value,
+  onChange,
+  locale,
+  rule,
+  params,
+  inputMode,
+  disabled,
+  triggerRef,
+}: {
+  control: ParamControlSpec;
+  value: ParamValue;
+  onChange: (next: ParamValue) => void;
+  locale: Locale;
+  rule: PriceRule;
+  params: Record<string, unknown>;
+  inputMode?: string;
+  disabled?: boolean;
+  triggerRef?: React.RefObject<HTMLButtonElement | null>;
+}) {
+  const shouldReduceMotion = useReducedMotion();
+  const motionParams = getStudioMotion(Boolean(shouldReduceMotion));
+  const popupRef = useRef<HTMLDivElement>(null);
+  const [shiftX, setShiftX] = useState(0);
+  const [arrowLeft, setArrowLeft] = useState<number | null>(null);
+
+  useEffect(() => {
+    function updatePosition() {
+      const popup = popupRef.current;
+      if (!popup) return;
+
+      const popupRect = popup.getBoundingClientRect();
+      const triggerRect = triggerRef?.current ? triggerRef.current.getBoundingClientRect() : null;
+      const padding = 12;
+      const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
+
+      const originalLeft = popupRect.left - shiftX;
+      const originalRight = originalLeft + popupRect.width;
+
+      let shift = 0;
+      if (originalRight > viewportWidth - padding) {
+        shift = Math.round(viewportWidth - padding - originalRight);
+      } else if (originalLeft < padding) {
+        shift = Math.round(padding - originalLeft);
+      }
+
+      setShiftX(shift);
+
+      if (triggerRect) {
+        const triggerCenterX = triggerRect.left + triggerRect.width / 2;
+        const relativeArrowX = triggerCenterX - (originalLeft + shift);
+        const clampedArrowX = Math.max(16, Math.min(popupRect.width - 16, relativeArrowX));
+        setArrowLeft(clampedArrowX);
+      }
+    }
+
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    return () => window.removeEventListener("resize", updatePosition);
+  }, [triggerRef, shiftX]);
+
+  return (
+    <motion.div
+      ref={popupRef}
+      role="dialog"
+      aria-modal="false"
+      aria-label={controlLabel(control, locale)}
+      initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: 6, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1, x: shiftX }}
+      exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 4, scale: 0.98 }}
+      transition={{
+        duration: motionParams.element.enter.duration,
+        ease: motionParams.element.enter.ease as Easing,
+      }}
+      className="surface-card absolute bottom-[calc(100%+12px)] left-0 z-50 w-[280px] max-w-[calc(100vw-24px)] border-2 border-ink bg-paper-strong p-3.5 shadow-[6px_6px_0_0_var(--shadow-hard-16)]"
+    >
+      <ParamControl
+        control={control}
+        value={value}
+        onChange={onChange}
+        locale={locale}
+        rule={rule}
+        params={params}
+        inputMode={inputMode}
+        disabled={disabled}
+      />
+
+      {/* Mala rotirana strelica ka cipu */}
+      <div
+        className="pointer-events-none absolute -bottom-[7px] size-3.5 rotate-45 border-b-2 border-r-2 border-ink bg-paper-strong"
+        style={{
+          left: arrowLeft !== null ? `${arrowLeft}px` : "50%",
+          transform: "translateX(-50%) rotate(45deg)",
+        }}
+        aria-hidden="true"
+      />
+    </motion.div>
+  );
+}
+
+/**
+ * Jedan promovisani čip na baru composera koji nosi sopstveno dugme i popup.
+ */
+function PromotedChipItem({
+  chip,
+  isOpen,
+  onToggle,
+  onRegisterButton,
+  onRegisterContainer,
+  form,
+  activeModel,
+  inputMode,
+  locale,
+  disabled,
+}: {
+  chip: {
+    key: string;
+    label: string;
+    valueText: string;
+    control: ParamControlSpec;
+  };
+  isOpen: boolean;
+  onToggle: () => void;
+  onRegisterButton: (el: HTMLButtonElement | null) => void;
+  onRegisterContainer: (el: HTMLDivElement | null) => void;
+  form: ParamFormState;
+  activeModel: StudioModel;
+  inputMode: string;
+  locale: Locale;
+  disabled: boolean;
+}) {
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
+
+  const setButtonRef = useCallback(
+    (el: HTMLButtonElement | null) => {
+      buttonRef.current = el;
+      onRegisterButton(el);
+    },
+    [onRegisterButton],
+  );
+
+  return (
+    <div ref={onRegisterContainer} className="relative inline-flex">
+      <button
+        ref={setButtonRef}
+        type="button"
+        onClick={onToggle}
+        aria-haspopup="dialog"
+        aria-expanded={isOpen}
+        aria-label={chip.label}
+        className={cn(
+          "inline-flex min-h-11 items-center gap-1.5 rounded-full border-2 border-ink px-3 py-1.5 text-xs font-black transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+          isOpen
+            ? "bg-ink text-paper-strong shadow-[2px_2px_0_0_var(--shadow-hard)]"
+            : "bg-paper-strong text-ink shadow-[2px_2px_0_0_var(--shadow-hard)]",
+        )}
+      >
+        <span>{chip.valueText}</span>
+      </button>
+
+      <AnimatePresence>
+        {isOpen ? (
+          <ChipControlPopup
+            control={chip.control}
+            value={form.values[chip.control.key] ?? chip.control.default}
+            onChange={(next) => form.setValue(chip.control.key, next)}
+            locale={locale}
+            rule={activeModel.priceRule}
+            params={form.params}
+            inputMode={inputMode}
+            disabled={disabled}
+            triggerRef={buttonRef}
+          />
+        ) : null}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+/**
  * Glavni dvoslojni composer (Pravac 3 + P2 birač).
  */
 export function StudioComposer({
@@ -252,6 +444,8 @@ export function StudioComposer({
   error,
   variant = "create",
   onGenerate,
+  isCollapsed = false,
+  onToggleCollapse,
 }: {
   models: StudioModel[];
   activeModel: StudioModel;
@@ -266,11 +460,15 @@ export function StudioComposer({
   error: string | null;
   variant?: "create" | "edit";
   onGenerate: (payload: JobPayload) => void;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }) {
   const [panelOpen, setPanelOpen] = useState(false);
   // SP1: birač modela je GORNJA ZONA panela, ne zaseban prozor. `pickerExpanded`
   // menja telo panela između podešavanja i pretrage+spiska - visina se ne menja.
   const [pickerExpanded, setPickerExpanded] = useState(false);
+  // Jedan otvoren sloj za popup pojedinačnog čipa na baru
+  const [openChipKey, setOpenChipKey] = useState<string | null>(null);
   // Poslednji model po vrsti (tačka 8) - čita se jednom sa localStorage.
   const [lastByKind, setLastByKind] = useState(() => readLastModelByKind());
   const [prompt, setPrompt] = useState(() => starterPrompt ?? seed?.prompt ?? "");
@@ -311,10 +509,23 @@ export function StudioComposer({
     }
   }
 
+  // Sinhronizacija sklopljenog stanja tokom rendera (zatvara panel bez cascading renders)
+  const [prevIsCollapsed, setPrevIsCollapsed] = useState(isCollapsed);
+  if (isCollapsed !== prevIsCollapsed) {
+    setPrevIsCollapsed(isCollapsed);
+    if (isCollapsed) {
+      if (panelOpen) setPanelOpen(false);
+      if (pickerExpanded) setPickerExpanded(false);
+      if (openChipKey !== null) setOpenChipKey(null);
+    }
+  }
+
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const composerRef = useRef<HTMLDivElement>(null);
   const modelChipRef = useRef<HTMLButtonElement>(null);
   const slotsSectionRef = useRef<HTMLDivElement>(null);
+  const chipButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const chipContainerRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   // Stanje ulaznog režima i fajlova
   const [inputMode, setInputMode] = useState<string>(() => seed?.inputMode ?? activeModel.inputModes[0] ?? "text");
@@ -418,6 +629,7 @@ export function StudioComposer({
   // ga dele. Čisti slotove kojih u novom režimu nema - uz potvrdu šta je
   // sklonjeno, jer fajl ne sme da nestane bez reči - i time preračunava cenu.
   function switchMode(mode: string) {
+    setOpenChipKey(null);
     if (mode === inputMode || !activeModel.inputModes.includes(mode)) return;
     const pruned = pruneFilesForMode(files, activeModel.inputSpec, mode);
     if (pruned.removed.length > 0) {
@@ -505,6 +717,7 @@ export function StudioComposer({
   // prebaci na prvi režim sa poljima (ranije je bio ugašen sa porukom „ne prima
   // fajlove" - netačno za model koji slike prima u drugom režimu).
   function handleOpenFileSlots() {
+    setOpenChipKey(null);
     if (!modelAcceptsFiles) return;
     if (!hasFileSlots) {
       const target = firstFileMode(activeModel);
@@ -590,6 +803,7 @@ export function StudioComposer({
     writeLastModel(newModel.kind, newModel.slug);
     setLastByKind((prev) => ({ ...prev, [newModel.kind]: newModel.slug }));
     setPickerExpanded(false);
+    setOpenChipKey(null);
 
     if (newModel.slug === activeModel.slug) return;
 
@@ -628,12 +842,16 @@ export function StudioComposer({
     }
   }
 
-  // Tastaturni prečaci za zatvaranje (Esc). Kad je birač razvijen, Esc ga sklapa
-  // nazad na podešavanja; inače zatvara ceo panel.
+  // Tastaturni prečaci za zatvaranje (Esc). Kad je otvoren popup čipa, zatvara ga i vraća fokus;
+  // kad je birač razvijen, Esc ga sklapa nazad na podešavanja; inače zatvara ceo panel.
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key !== "Escape") return;
-      if (pickerExpanded) {
+      if (openChipKey !== null) {
+        const keyToFocus = openChipKey;
+        setOpenChipKey(null);
+        chipButtonRefs.current[keyToFocus]?.focus();
+      } else if (pickerExpanded) {
         setPickerExpanded(false);
       } else if (panelOpen) {
         setPanelOpen(false);
@@ -642,19 +860,52 @@ export function StudioComposer({
     }
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [panelOpen, pickerExpanded]);
+  }, [openChipKey, panelOpen, pickerExpanded]);
 
-  // Klik van composera zatvara panel (i sklapa birač)
+  function handleToggleCollapse() {
+    if (!isCollapsed) {
+      setPanelOpen(false);
+      setPickerExpanded(false);
+      setOpenChipKey(null);
+    }
+    onToggleCollapse?.();
+  }
+
+  const shouldReduceMotion = useReducedMotion();
+  const motionParams = useMemo(() => getStudioMotion(Boolean(shouldReduceMotion)), [shouldReduceMotion]);
+  const collapseTransition = useMemo(() => {
+    return isCollapsed
+      ? {
+          duration: motionParams.prelaz.exit.duration,
+          ease: motionParams.prelaz.exit.ease as Easing,
+        }
+      : {
+          duration: motionParams.prelaz.enter.duration,
+          ease: motionParams.prelaz.enter.ease as Easing,
+        };
+  }, [isCollapsed, motionParams]);
+
+  // Klik van composera zatvara panel (i sklapa birač i popup čipa)
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (!composerRef.current?.contains(event.target as Node)) {
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (!composerRef.current?.contains(target)) {
         setPanelOpen(false);
         setPickerExpanded(false);
+        setOpenChipKey(null);
+        return;
+      }
+      if (openChipKey !== null) {
+        const chipContainer = chipContainerRefs.current[openChipKey];
+        if (chipContainer && !chipContainer.contains(target)) {
+          setOpenChipKey(null);
+        }
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  }, [openChipKey]);
 
   // ── Prijem fajla preko CELOG ekrana dok smo u Studiju (AGENTS.md konvencija) ──
   // Slika/video pušten bilo gde upada u ulaz aktivnog modela. Kod prvi/poslednji
@@ -755,7 +1006,7 @@ export function StudioComposer({
   // Prijem preko celog ekrana je vezan za glavni (create) composer - detalj-editor
   // (variant "edit") ima svoj prozor iznad, pa dva window-slušaoca ne bi smela da
   // gutaju isti drop.
-  const dropEnabled = variant === "create";
+  const dropEnabled = variant === "create" && !isCollapsed;
 
   useEffect(() => {
     if (!dropEnabled) return;
@@ -824,27 +1075,35 @@ export function StudioComposer({
     const countControl = nonPrompt.find((c) => c.key === "num_images" || c.key === "num_outputs" || c.key === "count");
     const durControl = nonPrompt.find((c) => c.key === "duration");
 
-    const selected: Array<{ key: string; label: string; valueText: string }> = [];
+    const selected: Array<{
+      key: string;
+      label: string;
+      valueText: string;
+      control: ParamControlSpec;
+    }> = [];
 
     if (ratioControl && form.values[ratioControl.key]) {
       selected.push({
         key: ratioControl.key,
-        label: ratioControl.key,
+        label: controlLabel(ratioControl, locale),
         valueText: String(form.values[ratioControl.key]),
+        control: ratioControl,
       });
     }
     if (durControl && form.values[durControl.key]) {
       selected.push({
         key: durControl.key,
-        label: durControl.key,
+        label: controlLabel(durControl, locale),
         valueText: `${form.values[durControl.key]}s`,
+        control: durControl,
       });
     }
     if (countControl && form.values[countControl.key]) {
       selected.push({
         key: countControl.key,
-        label: countControl.key,
+        label: controlLabel(countControl, locale),
         valueText: `×${form.values[countControl.key]}`,
+        control: countControl,
       });
     }
 
@@ -852,16 +1111,26 @@ export function StudioComposer({
     for (const c of primary) {
       if (selected.length >= 2) break;
       if (!selected.some((s) => s.key === c.key) && form.values[c.key] !== undefined) {
+        let valueText = String(form.values[c.key]);
+        if (typeof form.values[c.key] === "boolean") {
+          valueText = form.values[c.key]
+            ? (locale === "sr" ? "zvuk" : "audio")
+            : (locale === "sr" ? "bez zvuka" : "no audio");
+        } else if (c.options) {
+          const opt = c.options.find((o) => o.value === form.values[c.key]);
+          if (opt) valueText = optionLabel(opt, locale);
+        }
         selected.push({
           key: c.key,
-          label: c.key,
-          valueText: typeof form.values[c.key] === "boolean" ? (form.values[c.key] ? "zvuk" : "bez zvuka") : String(form.values[c.key]),
+          label: controlLabel(c, locale),
+          valueText,
+          control: c,
         });
       }
     }
 
     return selected.slice(0, 2);
-  }, [activeModel.paramSpec, inputMode, form.values]);
+  }, [activeModel.paramSpec, inputMode, form.values, locale]);
 
   // Prikaz cene na baru: procena `~` ili tačna
   // Procena `~` samo dok se MEDIJSKO trajanje ne izmeri na serveru. Tekstualni
@@ -892,7 +1161,7 @@ export function StudioComposer({
       {/* ========================================================================= */}
       {/* SLOJ 2: DROP-UP PANEL (desktop: usidren iznad composera, mobilni: sheet) */}
       {/* ========================================================================= */}
-      {panelOpen ? (
+      {panelOpen && !isCollapsed ? (
         <>
           {/* Mobilni scrim */}
           <div
@@ -1004,7 +1273,7 @@ export function StudioComposer({
                     </span>
                   </span>
                   <span className="shrink-0 whitespace-nowrap font-mono text-[11px] font-black tabular-nums text-ink">
-                    {modelPriceSummary(activeModel, locale)}
+                    <ModelPriceDisplay model={activeModel} locale={locale} />
                   </span>
                   <ChevronDown className="size-4 shrink-0 text-muted" />
                 </button>
@@ -1072,18 +1341,62 @@ export function StudioComposer({
                 koristiti" je uklonjeno. */}
             {!pickerExpanded ? (
               <div className="rounded-b-[inherit] border-t-2 border-ink bg-paper px-4 py-3 sm:hidden">
-                <button
-                  type="button"
-                  disabled={isPending || block !== null || credits === null}
-                  onClick={submit}
-                  className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border-2 border-ink bg-ink px-5 py-2 text-sm font-black text-paper-strong shadow-[3px_3px_0_0_var(--yellow)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {isPending ? <Loader2 className="size-4 animate-spin" /> : <Wand2 className="size-4 text-yellow" />}
-                  <span>
-                    {locale === "sr" ? "Generiši" : "Generate"}
-                    {credits !== null ? ` · ${formatCredits(credits, locale)}` : ""}
-                  </span>
-                </button>
+                {block?.kind === "credits" ? (
+                  <Link
+                    href={topUpHref}
+                    title={locale === "sr" ? "Nedovoljno kredita. Klikni za dopunu." : "Insufficient credits. Click to top up."}
+                    aria-label={
+                      credits !== null
+                        ? locale === "sr"
+                          ? `Nedovoljno kredita. Dopuni za ${formatCreditsLong(credits, locale)}`
+                          : `Insufficient credits. Top up for ${formatCreditsLong(credits, locale)}`
+                        : locale === "sr"
+                          ? "Nedovoljno kredita. Klikni za dopunu."
+                          : "Insufficient credits. Click to top up."
+                    }
+                    className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 py-2 text-sm font-black text-ink shadow-[3px_3px_0_0_var(--ink)] transition hover:-translate-y-0.5"
+                  >
+                    <Coins className="size-4 text-ink" />
+                    <span>{locale === "sr" ? "Dopuni kredite" : "Top up credits"}</span>
+                    {credits !== null ? (
+                      <>
+                        <span className="opacity-40">·</span>
+                        <span className="inline-flex items-center gap-1 font-mono">
+                          <span>{isEstimated ? `~${credits}` : `${credits}`}</span>
+                          <CreditIcon className="size-3.5 text-ink" />
+                        </span>
+                      </>
+                    ) : null}
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={isPending || block !== null || credits === null}
+                    onClick={submit}
+                    aria-label={
+                      credits !== null
+                        ? locale === "sr"
+                          ? `Generiši za ${formatCreditsLong(credits, locale)}`
+                          : `Generate for ${formatCreditsLong(credits, locale)}`
+                        : locale === "sr"
+                          ? "Generiši"
+                          : "Generate"
+                    }
+                    className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border-2 border-ink bg-ink px-5 py-2 text-sm font-black text-paper-strong shadow-[3px_3px_0_0_var(--yellow)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {isPending ? <Loader2 className="size-4 animate-spin" /> : <Wand2 className="size-4 text-yellow" />}
+                    <span>{locale === "sr" ? "Generiši" : "Generate"}</span>
+                    {credits !== null ? (
+                      <>
+                        <span className="opacity-40">·</span>
+                        <span className="inline-flex items-center gap-1 font-mono">
+                          <span>{isEstimated ? `~${credits}` : `${credits}`}</span>
+                          <CreditIcon className="size-3.5 text-yellow" />
+                        </span>
+                      </>
+                    ) : null}
+                  </button>
+                )}
               </div>
             ) : null}
           </div>
@@ -1091,9 +1404,20 @@ export function StudioComposer({
       ) : null}
 
       {/* ========================================================================= */}
-      {/* SLOJ 1: COMPOSER BAR (Uvek vidljiv lebdeći bar)                            */}
+      {/* SLOJ 1: COMPOSER BAR (Uvek vidljiv lebdeći bar koji klizi nadole)          */}
       {/* ========================================================================= */}
-      <div className="surface-card relative z-30 w-full border-2 border-ink bg-paper-strong p-3 shadow-[6px_6px_0_0_var(--shadow-hard-16)] sm:p-4">
+      <motion.div
+        inert={isCollapsed ? true : undefined}
+        aria-hidden={isCollapsed ? true : undefined}
+        animate={{
+          y: isCollapsed ? "calc(100% + 80px)" : 0,
+        }}
+        transition={collapseTransition}
+        className={cn(
+          "surface-card relative z-30 w-full border-2 border-ink bg-paper-strong p-3 shadow-[6px_6px_0_0_var(--shadow-hard-16)] sm:p-4",
+          isCollapsed && "pointer-events-none",
+        )}
+      >
         {/* Priložene slike na glavnom inputu (drop ih spusti ovde) */}
         {attachedInputs.length > 0 ? (
           <div className="mb-2 flex flex-wrap gap-2">
@@ -1194,6 +1518,7 @@ export function StudioComposer({
             ref={modelChipRef}
             type="button"
             onClick={() => {
+              setOpenChipKey(null);
               setPanelOpen(true);
               setPickerExpanded(true);
             }}
@@ -1205,79 +1530,151 @@ export function StudioComposer({
             <span>{modelLabel(activeModel, locale)}</span>
           </button>
 
-          {/* 2-3 promovisana čipa izabranog modela */}
+          {/* 2-3 promovisana čipa izabranog modela sa zasebnim popupom za svaki čip */}
           {promotedChips.map((chip) => (
-            <button
+            <PromotedChipItem
               key={chip.key}
-              type="button"
-              onClick={() => {
+              chip={chip}
+              isOpen={openChipKey === chip.key}
+              onToggle={() => {
+                setPanelOpen(false);
                 setPickerExpanded(false);
-                setPanelOpen(true);
+                setOpenChipKey((prev) => (prev === chip.key ? null : chip.key));
               }}
-              aria-label={chip.label}
-              className="inline-flex min-h-11 items-center gap-1.5 rounded-full border-2 border-ink bg-paper-strong px-3 py-1.5 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-            >
-              <span>{chip.valueText}</span>
-            </button>
+              onRegisterButton={(el) => {
+                chipButtonRefs.current[chip.key] = el;
+              }}
+              onRegisterContainer={(el) => {
+                chipContainerRefs.current[chip.key] = el;
+              }}
+              form={form}
+              activeModel={activeModel}
+              inputMode={inputMode}
+              locale={locale}
+              disabled={isPending}
+            />
           ))}
 
           <span className="flex-1" />
 
-          {/* Živa cena na čipu (klik otvara panel) */}
-          <button
-            type="button"
-            onClick={() => {
-              setPickerExpanded(false);
-              setPanelOpen((prev) => !prev);
-            }}
-            aria-label={locale === "sr" ? "Cena generisanja" : "Generation price"}
-            className={cn(
-              "inline-flex min-h-11 items-center gap-1.5 rounded-full border-2 border-ink px-3.5 py-1.5 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition duration-200 hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
-              isPriceFlashing ? "bg-yellow scale-105" : "bg-paper-strong",
-            )}
-          >
-            {isEstimated ? (
-              <span className="text-[10px] font-extrabold uppercase tracking-tight text-muted">
-                {locale === "sr" ? "procena" : "est."}
-              </span>
-            ) : null}
-            <span className="font-mono text-sm font-black">{priceDisplay}</span>
-            <span>{locale === "sr" ? "kr" : "cr"}</span>
-          </button>
-
-          {/* Dugme Generiši / Slanje */}
+          {/* Kombinovano dugme: akcija + cena u jednom */}
           {block?.kind === "credits" ? (
             <Link
               href={topUpHref}
               title={locale === "sr" ? "Nedovoljno kredita. Klikni za dopunu." : "Insufficient credits. Click to top up."}
-              className="inline-flex size-11 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-yellow text-ink shadow-[3px_3px_0_0_var(--ink)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              aria-label={
+                credits !== null
+                  ? locale === "sr"
+                    ? `Nedovoljno kredita. Dopuni za ${formatCreditsLong(credits, locale)}`
+                    : `Insufficient credits. Top up for ${formatCreditsLong(credits, locale)}`
+                  : locale === "sr"
+                    ? "Nedovoljno kredita. Klikni za dopunu."
+                    : "Insufficient credits. Click to top up."
+              }
+              className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 py-2 text-xs font-black text-ink shadow-[3px_3px_0_0_var(--ink)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
-              <Coins className="size-5" />
+              <Coins className="size-4 text-ink" />
+              <span className="hidden sm:inline">{locale === "sr" ? "Dopuni" : "Top up"}</span>
+              <span className="hidden h-3.5 w-px bg-current opacity-30 sm:inline-block" aria-hidden="true" />
+              <span className="inline-flex items-center gap-1 font-mono text-sm font-black tabular-nums">
+                <span>{priceDisplay}</span>
+                <CreditIcon className="size-3.5 text-ink" />
+              </span>
             </Link>
           ) : (
             <button
               type="button"
               disabled={isPending || block !== null || credits === null}
               onClick={submit}
-              aria-label={locale === "sr" ? "Generiši" : "Generate"}
-              title={
-                block
-                  ? blockMessage ?? undefined
+              aria-label={
+                credits !== null
+                  ? locale === "sr"
+                    ? `Generiši za ${formatCreditsLong(credits, locale)}`
+                    : `Generate for ${formatCreditsLong(credits, locale)}`
                   : locale === "sr"
                     ? "Generiši"
                     : "Generate"
               }
-              className="inline-flex size-11 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-ink text-paper-strong shadow-[3px_3px_0_0_var(--yellow)] transition hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-[1px_1px_0_0_var(--yellow)] disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              title={
+                block
+                  ? blockMessage ?? undefined
+                  : credits !== null
+                    ? locale === "sr"
+                      ? `Generiši za ${formatCreditsLong(credits, locale)}`
+                      : `Generate for ${formatCreditsLong(credits, locale)}`
+                    : locale === "sr"
+                      ? "Generiši"
+                      : "Generate"
+              }
+              className={cn(
+                "inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full border-2 border-ink px-4 py-2 text-xs font-black transition duration-200 hover:-translate-y-0.5 active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+                isPriceFlashing
+                  ? "bg-yellow text-ink shadow-[3px_3px_0_0_var(--ink)]"
+                  : "bg-ink text-paper-strong shadow-[3px_3px_0_0_var(--yellow)] active:shadow-[1px_1px_0_0_var(--yellow)]",
+              )}
             >
               {isPending ? (
-                <Loader2 className="size-5 animate-spin" />
+                <Loader2 className="size-4 animate-spin" />
               ) : (
-                <Wand2 className="size-5 text-yellow" />
+                <Wand2 className={cn("size-4", isPriceFlashing ? "text-ink" : "text-yellow")} />
               )}
+              <span className="hidden sm:inline">
+                {locale === "sr" ? "Generiši" : "Generate"}
+              </span>
+              <span
+                className={cn(
+                  "hidden h-3.5 w-px bg-current opacity-30 sm:inline-block",
+                  isPriceFlashing ? "text-ink" : "text-paper-strong",
+                )}
+                aria-hidden="true"
+              />
+              <span className="inline-flex items-center gap-1 font-mono text-sm font-black tabular-nums">
+                {isEstimated ? (
+                  <span className="text-[10px] font-extrabold uppercase tracking-tight opacity-75">
+                    {locale === "sr" ? "proc." : "est."}
+                  </span>
+                ) : null}
+                <span>{priceDisplay}</span>
+                <CreditIcon className={cn("size-3.5", isPriceFlashing ? "text-ink" : "text-yellow")} />
+              </span>
             </button>
           )}
         </div>
-      </div>
+      </motion.div>
+
+      {/* ========================================================================= */}
+      {/* SLOJ 0: RUČICA ZA SKLAPANJE / RASKLAPANJE INPUTA                          */}
+      {/* ========================================================================= */}
+      {onToggleCollapse ? (
+        <div className="mt-2 flex justify-center">
+          <button
+            type="button"
+            onClick={handleToggleCollapse}
+            aria-expanded={!isCollapsed}
+            aria-label={
+              locale === "sr"
+                ? isCollapsed
+                  ? "Prikaži polje za unos"
+                  : "Sakrij polje za unos"
+                : isCollapsed
+                  ? "Show input"
+                  : "Hide input"
+            }
+            className="inline-flex min-h-8 items-center justify-center gap-1.5 rounded-full border-2 border-ink bg-paper-strong px-3 py-1 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          >
+            {isCollapsed ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
+            <span>
+              {locale === "sr"
+                ? isCollapsed
+                  ? "Prikaži polje za unos"
+                  : "Sakrij polje za unos"
+                : isCollapsed
+                  ? "Show input"
+                  : "Hide input"}
+            </span>
+          </button>
+        </div>
+      ) : null}
 
       {/* Prekrivač prijema fajla preko celog ekrana (drop bilo gde) */}
       {dropActive && modelAcceptsFiles ? (

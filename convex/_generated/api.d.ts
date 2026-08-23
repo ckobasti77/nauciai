@@ -78,6 +78,7 @@ import type * as studioJobCore from "../studioJobCore.js";
 import type * as studioModels from "../studioModels.js";
 import type * as studioParamSpec from "../studioParamSpec.js";
 import type * as studioPricing from "../studioPricing.js";
+import type * as studioProjects from "../studioProjects.js";
 import type * as studioSettlementCore from "../studioSettlementCore.js";
 import type * as study from "../study.js";
 import type * as studyHubSummaryCore from "../studyHubSummaryCore.js";
@@ -160,6 +161,7 @@ declare const fullApi: ApiFromModules<{
   studioModels: typeof studioModels;
   studioParamSpec: typeof studioParamSpec;
   studioPricing: typeof studioPricing;
+  studioProjects: typeof studioProjects;
   studioSettlementCore: typeof studioSettlementCore;
   study: typeof study;
   studyHubSummaryCore: typeof studyHubSummaryCore;

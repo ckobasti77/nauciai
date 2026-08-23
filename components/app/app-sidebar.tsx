@@ -49,15 +49,17 @@ import {
 
 import { CheckoutButton } from "@/components/app/checkout-button";
 import { ThemeToggle } from "@/components/app/theme-toggle";
+import { CreditIcon } from "@/components/studio/credit-icon";
 import { BrandMark, cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
 import {
   APP_SIDEBAR_COOKIE,
   APP_SIDEBAR_KEYBOARD_STEP,
   APP_SIDEBAR_MAX_WIDTH,
+  APP_SIDEBAR_MIN_WIDTH,
   APP_SIDEBAR_RAIL_WIDTH,
   type AppSidebarPreferences,
-  preferencesFromDraggedWidth,
+  clampAppSidebarWidth,
   serializeAppSidebarPreferences,
 } from "@/lib/app-sidebar-preferences";
 import { classroomPath, coursePath, lessonPath } from "@/lib/app-routes";
@@ -71,6 +73,7 @@ import {
   resolveSidebarContext,
   type SidebarHrefParams,
 } from "@/lib/sidebar-contexts";
+import { formatCreditsLong } from "@/lib/studio-params";
 import { SidebarNavSwap, ContextSidebarNav, ContextSidebarRail } from "@/components/app/app-sidebar-context";
 
 const AddCourseAction = dynamic(() => import("@/components/app/admin-inline-actions").then((m) => m.AddCourseAction), { ssr: false });
@@ -669,14 +672,24 @@ function CreditsBalancePill({ locale, balance }: { locale: Locale; balance: numb
   return (
     <Link
       href={withLocale(locale, "/app/credits")}
+      aria-label={
+        balance === undefined
+          ? locale === "sr"
+            ? "Stanje kredita"
+            : "Credits balance"
+          : locale === "sr"
+            ? `Stanje: ${formatCreditsLong(balance, locale)}`
+            : `Balance: ${formatCreditsLong(balance, locale)}`
+      }
       className={cn(
         "inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-full border-2 border-ink px-2.5 py-1 text-xs font-black transition hover:-translate-y-0.5",
         balance === 0 ? "bg-amber-100 text-amber-900" : "bg-paper-strong text-ink",
       )}
     >
-      <Coins className="size-3.5" />
-      {balance === undefined ? "—" : balance.toLocaleString(locale === "sr" ? "sr-RS" : "en-US")}{" "}
-      {locale === "sr" ? "kr" : "cr"}
+      <CreditIcon className="size-3.5" />
+      <span>
+        {balance === undefined ? "—" : balance.toLocaleString(locale === "sr" ? "sr-RS" : "en-US")}
+      </span>
     </Link>
   );
 }
@@ -1088,6 +1101,11 @@ function AppSidebarContent({
   const isAdmin = navigation.role === "admin";
   const isStaff = isAdmin || navigation.role === "moderator";
   const rootRef = useRef<HTMLElement>(null);
+  const expandedWrapperRef = useRef<HTMLDivElement>(null);
+  const brandMarkRef = useRef<HTMLDivElement>(null);
+  const collapseButtonRef = useRef<HTMLButtonElement>(null);
+  const signOutButtonRef = useRef<HTMLButtonElement>(null);
+  const hingeWidthRef = useRef<number>(APP_SIDEBAR_MIN_WIDTH + 6);
   const shouldReduceMotion = useReducedMotion();
 
   const [sidebarPreferences, setSidebarPreferences] = useState(initialPreferences);
@@ -1123,18 +1141,49 @@ function AppSidebarContent({
     [persistSidebarPreferences],
   );
 
+  const checkOverflow = useCallback(() => {
+    // 3a: omotac prosirenog sadrzaja ili unutrasnji scroll container
+    if (expandedWrapperRef.current) {
+      const el = expandedWrapperRef.current;
+      if (el.scrollWidth > el.clientWidth + 0.5) return true;
+      const scrollContainer = el.querySelector<HTMLElement>(".overflow-y-auto");
+      if (scrollContainer && scrollContainer.scrollWidth > scrollContainer.clientWidth + 0.5) {
+        return true;
+      }
+    }
+
+    // 3b: dugme „Odjavi se" prelazi desnu ivicu svog omotaca
+    if (signOutButtonRef.current) {
+      const parent = signOutButtonRef.current.parentElement;
+      if (parent) {
+        const btnRect = signOutButtonRef.current.getBoundingClientRect();
+        const parentRect = parent.getBoundingClientRect();
+        if (btnRect.right > parentRect.right + 0.5) return true;
+      }
+    }
+
+    // 3c: dugme za sklapanje pocinje da preklapa logotip u „sidebar-reveal" redu
+    if (collapseButtonRef.current && brandMarkRef.current) {
+      const btnRect = collapseButtonRef.current.getBoundingClientRect();
+      const brandRect = brandMarkRef.current.getBoundingClientRect();
+      if (btnRect.left <= brandRect.right + 0.5) return true;
+    }
+
+    return false;
+  }, []);
+
   const toggleSidebar = useCallback(() => {
     const current = sidebarPreferencesRef.current;
     const next = current.collapsed
       ? {
           collapsed: false,
-          width: current.lastExpandedWidth,
-          lastExpandedWidth: current.lastExpandedWidth,
+          width: Math.max(APP_SIDEBAR_MIN_WIDTH, current.lastExpandedWidth),
+          lastExpandedWidth: Math.max(APP_SIDEBAR_MIN_WIDTH, current.lastExpandedWidth),
         }
       : {
           collapsed: true,
           width: APP_SIDEBAR_RAIL_WIDTH,
-          lastExpandedWidth: current.width,
+          lastExpandedWidth: Math.max(APP_SIDEBAR_MIN_WIDTH, current.width),
         };
     setRailFlyout(null);
     applySidebarPreferences(next);
@@ -1157,22 +1206,95 @@ function AppSidebarContent({
       const startX = startEvent.clientX;
       const current = sidebarPreferencesRef.current;
       const startWidth = current.collapsed ? APP_SIDEBAR_RAIL_WIDTH : current.width;
+      const HINGE_MARGIN = 6;
       setIsResizing(true);
       setRailFlyout(null);
       document.body.style.cursor = "col-resize";
       document.body.style.userSelect = "none";
 
+      let rafId: number | null = null;
+      let latestDraggedWidth = startWidth;
+
+      const performResizeStep = () => {
+        rafId = null;
+        const currentPrefs = sidebarPreferencesRef.current;
+        const rawWidth = latestDraggedWidth;
+
+        if (currentPrefs.collapsed) {
+          const threshold = hingeWidthRef.current || (APP_SIDEBAR_MIN_WIDTH + HINGE_MARGIN);
+          if (rawWidth >= threshold) {
+            const expandedWidth = clampAppSidebarWidth(rawWidth);
+            applySidebarPreferences(
+              {
+                collapsed: false,
+                width: expandedWidth,
+                lastExpandedWidth: expandedWidth,
+              },
+              false,
+            );
+          }
+        } else {
+          if (rawWidth < APP_SIDEBAR_MIN_WIDTH) {
+            hingeWidthRef.current = APP_SIDEBAR_MIN_WIDTH + HINGE_MARGIN;
+            applySidebarPreferences(
+              {
+                collapsed: true,
+                width: APP_SIDEBAR_RAIL_WIDTH,
+                lastExpandedWidth: currentPrefs.width,
+              },
+              false,
+            );
+            return;
+          }
+
+          const targetWidth = clampAppSidebarWidth(rawWidth);
+          if (rootRef.current) {
+            rootRef.current.style.setProperty("--app-sidebar-width", `${targetWidth}px`);
+          }
+
+          if (checkOverflow()) {
+            hingeWidthRef.current = targetWidth + HINGE_MARGIN;
+            applySidebarPreferences(
+              {
+                collapsed: true,
+                width: APP_SIDEBAR_RAIL_WIDTH,
+                lastExpandedWidth: Math.max(APP_SIDEBAR_MIN_WIDTH, targetWidth),
+              },
+              false,
+            );
+          } else {
+            applySidebarPreferences(
+              {
+                collapsed: false,
+                width: targetWidth,
+                lastExpandedWidth: targetWidth,
+              },
+              false,
+            );
+          }
+        }
+      };
+
       const handlePointerMove = (moveEvent: PointerEvent) => {
-        const next = preferencesFromDraggedWidth(startWidth + moveEvent.clientX - startX, sidebarPreferencesRef.current);
-        applySidebarPreferences(next, false);
+        latestDraggedWidth = startWidth + moveEvent.clientX - startX;
+        if (rafId === null) {
+          rafId = requestAnimationFrame(performResizeStep);
+        }
       };
 
       const finishResize = () => {
+        if (rafId !== null) {
+          cancelAnimationFrame(rafId);
+          rafId = null;
+        }
         window.removeEventListener("pointermove", handlePointerMove);
         window.removeEventListener("pointerup", finishResize);
         window.removeEventListener("pointercancel", finishResize);
         document.body.style.cursor = "";
         document.body.style.userSelect = "";
+        if (rootRef.current) {
+          rootRef.current.style.removeProperty("--app-sidebar-width");
+        }
         setIsResizing(false);
         persistSidebarPreferences(sidebarPreferencesRef.current);
       };
@@ -1181,27 +1303,92 @@ function AppSidebarContent({
       window.addEventListener("pointerup", finishResize, { once: true });
       window.addEventListener("pointercancel", finishResize, { once: true });
     },
-    [applySidebarPreferences, persistSidebarPreferences],
+    [applySidebarPreferences, checkOverflow, persistSidebarPreferences],
   );
 
   const handleResizeKeyDown = useCallback(
     (event: ReactKeyboardEvent<HTMLDivElement>) => {
       const current = sidebarPreferencesRef.current;
-      let nextWidth: number | null = null;
-      if (event.key === "ArrowLeft") nextWidth = (current.collapsed ? APP_SIDEBAR_RAIL_WIDTH : current.width) - APP_SIDEBAR_KEYBOARD_STEP;
-      if (event.key === "ArrowRight") nextWidth = (current.collapsed ? APP_SIDEBAR_RAIL_WIDTH : current.width) + APP_SIDEBAR_KEYBOARD_STEP;
-      if (event.key === "Home") nextWidth = APP_SIDEBAR_RAIL_WIDTH;
-      if (event.key === "End") nextWidth = APP_SIDEBAR_MAX_WIDTH;
+      const HINGE_MARGIN = 6;
       if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
         toggleSidebar();
         return;
       }
-      if (nextWidth === null) return;
-      event.preventDefault();
-      applySidebarPreferences(preferencesFromDraggedWidth(nextWidth, current));
+      if (event.key === "Home") {
+        event.preventDefault();
+        applySidebarPreferences({
+          collapsed: true,
+          width: APP_SIDEBAR_RAIL_WIDTH,
+          lastExpandedWidth: Math.max(APP_SIDEBAR_MIN_WIDTH, current.collapsed ? current.lastExpandedWidth : current.width),
+        });
+        return;
+      }
+      if (event.key === "End") {
+        event.preventDefault();
+        applySidebarPreferences({
+          collapsed: false,
+          width: APP_SIDEBAR_MAX_WIDTH,
+          lastExpandedWidth: APP_SIDEBAR_MAX_WIDTH,
+        });
+        return;
+      }
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        if (current.collapsed) return;
+        const targetWidth = current.width - APP_SIDEBAR_KEYBOARD_STEP;
+        if (targetWidth < APP_SIDEBAR_MIN_WIDTH) {
+          hingeWidthRef.current = APP_SIDEBAR_MIN_WIDTH + HINGE_MARGIN;
+          applySidebarPreferences({
+            collapsed: true,
+            width: APP_SIDEBAR_RAIL_WIDTH,
+            lastExpandedWidth: current.width,
+          });
+          return;
+        }
+        if (rootRef.current) {
+          rootRef.current.style.setProperty("--app-sidebar-width", `${targetWidth}px`);
+        }
+        if (checkOverflow()) {
+          hingeWidthRef.current = targetWidth + HINGE_MARGIN;
+          applySidebarPreferences({
+            collapsed: true,
+            width: APP_SIDEBAR_RAIL_WIDTH,
+            lastExpandedWidth: Math.max(APP_SIDEBAR_MIN_WIDTH, current.width),
+          });
+        } else {
+          applySidebarPreferences({
+            collapsed: false,
+            width: targetWidth,
+            lastExpandedWidth: targetWidth,
+          });
+        }
+        if (rootRef.current) {
+          rootRef.current.style.removeProperty("--app-sidebar-width");
+        }
+        return;
+      }
+      if (event.key === "ArrowRight") {
+        event.preventDefault();
+        if (current.collapsed) {
+          const targetWidth = Math.max(APP_SIDEBAR_MIN_WIDTH, current.lastExpandedWidth);
+          applySidebarPreferences({
+            collapsed: false,
+            width: targetWidth,
+            lastExpandedWidth: targetWidth,
+          });
+        } else {
+          const targetWidth = Math.min(APP_SIDEBAR_MAX_WIDTH, current.width + APP_SIDEBAR_KEYBOARD_STEP);
+          applySidebarPreferences({
+            collapsed: false,
+            width: targetWidth,
+            lastExpandedWidth: targetWidth,
+          });
+        }
+        return;
+      }
     },
-    [applySidebarPreferences, toggleSidebar],
+    [applySidebarPreferences, checkOverflow, toggleSidebar],
   );
 
   useEffect(() => {
@@ -1423,16 +1610,14 @@ function AppSidebarContent({
         !isResizing && "md:transition-[width] md:duration-200",
       )}
     >
-      <div className={cn("flex h-full min-w-0 flex-col", sidebarPreferences.collapsed && "md:hidden")}>
+      <div ref={expandedWrapperRef} className={cn("flex h-full min-w-0 flex-col", sidebarPreferences.collapsed && "md:hidden")}>
       <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden pr-1">
         <div className="sidebar-reveal flex items-center justify-between gap-4">
-          <BrandMark href={withLocale(locale)} label={t.appName} />
-          {authState === "authenticated" ? (
-            <span className="hidden md:inline-flex">
-              <CreditsBalancePill locale={locale} balance={creditsBalance} />
-            </span>
-          ) : null}
+          <div ref={brandMarkRef} className="min-w-0">
+            <BrandMark href={withLocale(locale)} label={t.appName} />
+          </div>
           <button
+            ref={collapseButtonRef}
             type="button"
             aria-label={locale === "sr" ? "Kolapsiraj sidebar" : "Collapse sidebar"}
             onClick={toggleSidebar}
@@ -1546,7 +1731,7 @@ function AppSidebarContent({
 
       {/* Bottom Profile Card */}
       {profileData && (
-        <div className="relative mt-auto border-t-2 border-ink pt-4 hidden md:block" ref={profileMenuRef}>
+        <div className="relative mt-auto pt-4 hidden md:block" ref={profileMenuRef}>
           {profileMenuOpen ? (
             <div className="absolute bottom-[calc(100%+0.65rem)] left-0 z-50 w-full rounded-[16px] border-2 border-ink bg-paper-strong p-2.5 text-ink shadow-[8px_8px_0_0_var(--shadow-hard-14)]">
               <span
@@ -1619,18 +1804,23 @@ function AppSidebarContent({
                 ) : null}
               </div>
 
-              <div className="mt-2 border-t border-line/90 pt-2">
+              <div className="mt-2 flex items-center justify-between gap-2 border-t border-line/90 pt-2">
+                <div className="flex min-w-0 flex-1 items-center justify-start gap-2">
+                  <CreditsBalancePill locale={locale} balance={creditsBalance} />
+                  <ThemeToggle locale={locale} className="self-center" />
+                </div>
                 <button
+                  ref={signOutButtonRef}
                   type="button"
                   onClick={async () => {
                     await signOut();
                     setProfileMenuOpen(false);
                     router.push(withLocale(locale, "/sign-in"));
                   }}
-                  className="flex min-h-11 w-full items-center gap-3 rounded-[10px] bg-ink px-3 py-2 text-[13px] font-black uppercase text-paper-strong transition hover:bg-[#16446f] dark:hover:bg-ink/85 font-extrabold"
+                  className="flex min-h-11 w-1/2 shrink-0 items-center justify-center gap-2 rounded-[12px] bg-ink px-3 py-2 text-[13px] font-black uppercase text-paper-strong transition hover:bg-[#16446f] dark:hover:bg-ink/85 font-extrabold"
                 >
                   <LogOut className="size-4 shrink-0" />
-                  <span>{locale === "sr" ? "Odjavi se" : "Sign out"}</span>
+                  <span className="truncate">{locale === "sr" ? "Odjavi se" : "Sign out"}</span>
                 </button>
               </div>
             </div>
@@ -1660,7 +1850,6 @@ function AppSidebarContent({
             <ChevronDown className={cn("size-4 shrink-0 transition-transform text-muted", profileMenuOpen && "rotate-180")} />
             {accountBadge > 0 ? <span className="absolute -right-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-ink bg-red-600 px-1 text-[10px] font-black text-white">{accountBadge > 99 ? "99+" : accountBadge}</span> : null}
           </button>
-          <ThemeToggle locale={locale} className="mt-3" />
         </div>
       )}
 
@@ -1867,10 +2056,8 @@ function AppSidebarContent({
         tabIndex={0}
         onPointerDown={startSidebarResize}
         onKeyDown={handleResizeKeyDown}
-        className="group absolute -right-2 top-0 z-[75] hidden h-full w-4 cursor-col-resize items-center justify-center bg-transparent focus-visible:outline-none lg:flex"
-      >
-        <span className="h-14 w-1 rounded-full bg-line transition group-hover:w-1.5 group-hover:bg-yellow group-focus-visible:w-1.5 group-focus-visible:bg-yellow group-focus-visible:ring-2 group-focus-visible:ring-ink" />
-      </div>
+        className="group absolute -right-2 top-0 z-[75] hidden h-full w-4 cursor-col-resize items-center justify-center bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow focus-visible:ring-offset-1 focus-visible:ring-offset-ink lg:flex"
+      />
     </aside>
       <AppBottomNav
         locale={locale}

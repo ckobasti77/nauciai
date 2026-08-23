@@ -4,6 +4,7 @@ import type { Id } from "./_generated/dataModel";
 import { mutation, query, type MutationCtx } from "./_generated/server";
 import { getCurrentProfile, requireAdmin } from "./helpers";
 import { assertReadyToPublish } from "./contentReadiness";
+import { recomputePublishedLessonCount } from "./courses";
 import { parseRichText, richTextHasContent, richTextToPlainText } from "../lib/rich-text";
 
 const publishStatus = v.union(v.literal("draft"), v.literal("published"), v.literal("archived"));
@@ -463,10 +464,12 @@ export const upsertDirectLesson = mutation({
       if (!existing || existing.courseId !== args.courseId) throw new Error("Lekcija nije pronađena u ovom kursu.");
       await ctx.db.patch(args.lessonId, payload);
       if (args.isPublished) await assertReadyToPublish(ctx, "lesson", args.lessonId);
+      await recomputePublishedLessonCount(ctx, args.courseId);
       return args.lessonId;
     }
     const lessonId = await ctx.db.insert("lessons", payload);
     if (args.isPublished) await assertReadyToPublish(ctx, "lesson", lessonId);
+    await recomputePublishedLessonCount(ctx, args.courseId);
     return lessonId;
   },
 });
@@ -518,7 +521,12 @@ export const archiveEntity = mutation({
     await requireAdmin(ctx);
     if (args.kind === "track" && args.trackId) await ctx.db.patch(args.trackId, { status: "archived", updatedAt: Date.now() });
     else if (args.kind === "course" && args.courseId) await ctx.db.patch(args.courseId, { status: "archived", updatedAt: Date.now() });
-    else if (args.kind === "lesson" && args.lessonId) await ctx.db.patch(args.lessonId, { isPublished: false, updatedAt: Date.now() });
+    else if (args.kind === "lesson" && args.lessonId) {
+      const lesson = await ctx.db.get(args.lessonId);
+      if (!lesson) throw new Error("Lekcija nije pronađena.");
+      await ctx.db.patch(args.lessonId, { isPublished: false, updatedAt: Date.now() });
+      await recomputePublishedLessonCount(ctx, lesson.courseId);
+    }
     else throw new Error("Entitet nije izabran.");
     return null;
   },

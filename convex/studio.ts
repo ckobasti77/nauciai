@@ -383,12 +383,24 @@ export const createJob = mutation({
     // zadatak uradjen. Bez ovih polja ta veza se kasnije ne može rekonstruisati.
     lessonId: v.optional(v.id("lessons")),
     taskId: v.optional(v.id("lessonTasks")),
+    // Projekat kojem generacija pripada (SP2). Polje je opciono namerno:
+    // generacije bez projekta su podrazumevano stanje ("Sve generacije").
+    projectId: v.optional(v.id("studioProjects")),
   },
   handler: async (ctx, args) => {
     // Uloga se čita zajedno sa korisnikom jer o pristupu odlučuje
     // `hasStudioAccess` niže - `requireUserId` bi vratio samo ID, pa bi
     // enrollment ostao jedini kriterijum.
     const { userId, role, existing } = await getCurrentProfile(ctx);
+
+    // Provera projekta (SP2): ide PRE rezervacije kredita. Tuđ ili arhiviran
+    // projekat se odbija sa NEMA_PRISTUPA.
+    if (args.projectId) {
+      const project = await ctx.db.get(args.projectId);
+      if (!project || project.userId !== userId || project.archivedAt !== undefined) {
+        throw new Error("NEMA_PRISTUPA");
+      }
+    }
 
     // Kill switch se čita prvi, pre svega ostalog. Red koji ne postoji znači
     // "nikad nije ni gašen" - podrazumevana vrednost seed-a je `true`.
@@ -545,6 +557,7 @@ export const createJob = mutation({
         : {}),
       ...(args.lessonId ? { lessonId: args.lessonId } : {}),
       ...(args.taskId ? { taskId: args.taskId } : {}),
+      ...(args.projectId ? { projectId: args.projectId } : {}),
       createdAt: now,
     });
 
@@ -926,13 +939,22 @@ export const listMyJobs = query({
     kind: v.optional(studioModelKind),
     modelSlug: v.optional(v.string()),
     createdAfter: v.optional(v.number()),
+    projectId: v.optional(v.id("studioProjects")),
   },
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx);
-    let ordered = ctx.db
-      .query("generationJobs")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .order("desc");
+    let ordered =
+      args.projectId !== undefined
+        ? ctx.db
+            .query("generationJobs")
+            .withIndex("by_user_project", (q) =>
+              q.eq("userId", userId).eq("projectId", args.projectId),
+            )
+            .order("desc")
+        : ctx.db
+            .query("generationJobs")
+            .withIndex("by_user", (q) => q.eq("userId", userId))
+            .order("desc");
 
     if (args.kind !== undefined) {
       const kind = args.kind;

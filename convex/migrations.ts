@@ -110,6 +110,28 @@ export const backfillLessonViews = migrations.define({
   },
 });
 
+/**
+ * Popunjava denormalizovani courses.publishedLessonCount za postojeće kurseve.
+ * Ubuduće ga održava recomputePublishedLessonCount na svakoj promeni
+ * lesson.isPublished (upsertLesson / upsertDirectLesson / archiveEntity).
+ * Pokrenuti jednom posle deploy-a:
+ *   npx convex run migrations:backfillPublishedLessonCount
+ * (dashboard ima fallback dok backfill ne prođe, pa je redosled nekritičan).
+ */
+export const backfillPublishedLessonCount = migrations.define({
+  table: "courses",
+  batchSize: 50,
+  migrateOne: async (ctx, course) => {
+    const lessons = await ctx.db
+      .query("lessons")
+      .withIndex("by_course_and_sortOrder", (q) => q.eq("courseId", course._id))
+      .take(1000);
+    const publishedLessonCount = lessons.filter((lesson) => lesson.isPublished).length;
+    if (course.publishedLessonCount === publishedLessonCount) return;
+    return { publishedLessonCount };
+  },
+});
+
 export const backfillCommunityPosts = migrations.define({
   table: "communityPosts",
   batchSize: 20,

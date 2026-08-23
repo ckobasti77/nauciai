@@ -24,11 +24,16 @@ import {
   clampControlNumber,
   creditsFor,
   creditsPerUnit,
+  creditsPerUnitValue,
   formatCredits,
+  formatCreditsLong,
   formatCreditsPerUnit,
+  formatCreditsPerUnitValue,
+  formatCreditsValue,
   paramValuesForMode,
   priceDelta,
   priceDeltaLabel,
+  priceDeltaValue,
   stepPriceDelta,
   visibleControls,
 } from "@/lib/studio-params";
@@ -347,6 +352,30 @@ describe("prikaz cene", () => {
     expect(formatCredits(140, "en")).toBe("140 cr");
   });
 
+  test("formatCreditsValue vraća samo broj", () => {
+    expect(formatCreditsValue(140)).toBe("140");
+    expect(formatCreditsValue(0)).toBe("0");
+  });
+
+  test("formatCreditsLong daje puni naziv za čitače ekrana", () => {
+    expect(formatCreditsLong(1, "sr")).toBe("1 kredit");
+    expect(formatCreditsLong(2, "sr")).toBe("2 kredita");
+    expect(formatCreditsLong(5, "sr")).toBe("5 kredita");
+    expect(formatCreditsLong(16, "sr")).toBe("16 kredita");
+    expect(formatCreditsLong(21, "sr")).toBe("21 kredit");
+    expect(formatCreditsLong(1, "en")).toBe("1 credit");
+    expect(formatCreditsLong(16, "en")).toBe("16 credits");
+  });
+
+  test("priceDeltaValue vraća vrednost bez kr/cr", () => {
+    expect(priceDeltaValue({ kind: "none" }, "sr")).toBeNull();
+    expect(priceDeltaValue({ kind: "same" }, "sr")).toBe("ista cena");
+    expect(priceDeltaValue({ kind: "same" }, "en")).toBe("same price");
+    expect(priceDeltaValue({ kind: "multiplier", factor: 2 }, "sr")).toBe("×2");
+    expect(priceDeltaValue({ kind: "delta", credits: 18 }, "sr")).toBe("+18");
+    expect(priceDeltaValue({ kind: "delta", credits: -5 }, "sr")).toBe("−5");
+  });
+
   test("cena po sekundi se izvodi iz ukupne cene", () => {
     const omni = studioModelBySlug("gemini-omni");
     if (!omni) throw new Error("gemini-omni nije u katalogu");
@@ -358,6 +387,11 @@ describe("prikaz cene", () => {
     expect(formatCreditsPerUnit(22, "s", "sr")).toBe("22 kr/s");
     expect(formatCreditsPerUnit(21.94, "s", "sr")).toBe("21,9 kr/s");
     expect(formatCreditsPerUnit(21.94, "s", "en")).toBe("21.9 cr/s");
+    expect(creditsPerUnitValue(22, "sr")).toBe("22");
+    expect(creditsPerUnitValue(21.94, "sr")).toBe("21,9");
+    expect(creditsPerUnitValue(21.94, "en")).toBe("21.9");
+    expect(formatCreditsPerUnitValue(22, "s", "sr")).toBe("22/s");
+    expect(formatCreditsPerUnitValue(21.94, "s", "sr")).toBe("21,9/s");
   });
 
   test("pravilo bez količine nema cenu po jedinici", () => {

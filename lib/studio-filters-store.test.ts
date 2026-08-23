@@ -26,11 +26,34 @@ describe("reduceFilters", () => {
 });
 
 describe("activeFilterCount", () => {
-  test("broji model, period i pretragu; prozor i režim izbora nisu filteri", () => {
+  test("vraća 0 kad nijedan filter nije aktivan", () => {
     expect(activeFilterCount(DEFAULT_FILTERS)).toBe(0);
     expect(activeFilterCount({ ...DEFAULT_FILTERS, open: true, selectMode: true })).toBe(0);
     expect(activeFilterCount({ ...DEFAULT_FILTERS, query: "   " })).toBe(0);
+  });
+
+  test("vraća 1 kada je aktivan tačno jedan filter", () => {
+    expect(activeFilterCount({ ...DEFAULT_FILTERS, modelSlug: "flux-schnell" })).toBe(1);
+    expect(activeFilterCount({ ...DEFAULT_FILTERS, range: "7d" })).toBe(1);
+    expect(activeFilterCount({ ...DEFAULT_FILTERS, query: "roboti" })).toBe(1);
+  });
+
+  test("vraća tačan zbir kada je aktivno više filtera (2 ili 3)", () => {
+    expect(activeFilterCount({ ...DEFAULT_FILTERS, modelSlug: "veo-31", range: "30d" })).toBe(2);
+    expect(activeFilterCount({ ...DEFAULT_FILTERS, modelSlug: "veo-31", query: "grad" })).toBe(2);
+    expect(activeFilterCount({ ...DEFAULT_FILTERS, range: "7d", query: "grad" })).toBe(2);
     expect(activeFilterCount({ ...DEFAULT_FILTERS, modelSlug: "veo-31", range: "30d", query: "x" })).toBe(3);
+  });
+
+  test("prozor (open) i režim izbora (selectMode) NE ulaze u zbir", () => {
+    expect(
+      activeFilterCount({
+        ...DEFAULT_FILTERS,
+        open: true,
+        selectMode: true,
+        modelSlug: "veo-31",
+      }),
+    ).toBe(1);
   });
 });
 
@@ -45,3 +68,4 @@ describe("store", () => {
     expect(activeFilterCount(DEFAULT_FILTERS)).toBe(0);
   });
 });
+

@@ -27,6 +27,7 @@ import { motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { StudioTileJob } from "@/components/app/studio-media-tile";
+import { CreditIcon } from "@/components/studio/credit-icon";
 import { StudioComposer, type JobPayload, type RegenerateSeed } from "@/components/studio/studio-composer";
 import { cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
@@ -37,7 +38,7 @@ import { downloadSingleMedia, isDemoPoster } from "@/lib/studio-gallery";
 import { deleteJobErrorMessage, studioErrorMessage } from "@/lib/studio-messages";
 import { familyMark, modelLabel, MODEL_BADGE_LABELS, type StudioModel } from "@/lib/studio-models";
 import { studioMotionTokens } from "@/lib/studio-motion";
-import type { ParamValues } from "@/lib/studio-params";
+import { formatCreditsLong, type ParamValues } from "@/lib/studio-params";
 import type { PlaygroundState } from "@/lib/studio-playground";
 import type { SlotFiles } from "@/lib/studio-slots";
 
@@ -546,9 +547,17 @@ export function StudioMediaDetail({
                       }
                     }}
                     className="mt-2 inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 py-1.5 text-xs font-black text-ink shadow-[3px_3px_0_0_var(--ink)] transition hover:-translate-y-0.5"
+                    aria-label={
+                      locale === "sr"
+                        ? `Generiši ponovo za ${formatCreditsLong(job.creditCost, locale)}`
+                        : `Generate again for ${formatCreditsLong(job.creditCost, locale)}`
+                    }
                   >
                     <RefreshCw className="size-3.5" />
-                    <span>{`${t.generateAgain} · ${job.creditCost} ${locale === "sr" ? "kr" : "cr"}`}</span>
+                    <span className="inline-flex items-center gap-1">
+                      <span>{`${t.generateAgain} · ${job.creditCost}`}</span>
+                      <CreditIcon className="size-3.5" />
+                    </span>
                   </button>
                 </div>
               ) : null}

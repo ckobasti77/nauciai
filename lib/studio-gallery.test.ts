@@ -15,6 +15,8 @@ import {
   JOB_STATUS_LABELS,
   JOB_STATUSES,
   jobParamSummary,
+  regenerateButtonAriaLabel,
+  regenerateButtonCreditsValue,
   regenerateButtonLabel,
   regenerateHref,
   STUDIO_PROVIDER_LABELS,
@@ -74,6 +76,17 @@ describe("expiryBadgeText", () => {
 test("regenerateButtonLabel nosi cenu u oba jezika", () => {
   expect(regenerateButtonLabel(20, "sr")).toBe("Generiši ponovo - 20 kr");
   expect(regenerateButtonLabel(20, "en")).toBe("Generate again - 20 cr");
+});
+
+test("regenerateButtonCreditsValue vraća broj cene", () => {
+  expect(regenerateButtonCreditsValue(20)).toBe("20");
+  expect(regenerateButtonCreditsValue(100)).toBe("100");
+});
+
+test("regenerateButtonAriaLabel daje punu rečenicu za čitače ekrana", () => {
+  expect(regenerateButtonAriaLabel(20, "sr")).toBe("Generiši ponovo za 20 kredita");
+  expect(regenerateButtonAriaLabel(1, "sr")).toBe("Generiši ponovo za 1 kredit");
+  expect(regenerateButtonAriaLabel(20, "en")).toBe("Generate again for 20 credits");
 });
 
 describe("isDownloadable", () => {

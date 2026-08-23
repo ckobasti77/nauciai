@@ -3,7 +3,7 @@ import { v } from "convex/values";
 
 import type { Id } from "./_generated/dataModel";
 import { resolvedProfileAvatarUrl } from "./avatar";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, type MutationCtx } from "./_generated/server";
 import {
   ensureProfile,
   getCurrentProfile,
@@ -16,6 +16,24 @@ import { adjustProfileActivity } from "./profileActivityCore";
 import { syncStudyAvailabilityForProgressChange } from "./study";
 import { assertReadyToPublish } from "./contentReadiness";
 import { parseRichText, richTextHasContent, richTextToPlainText } from "../lib/rich-text";
+
+// Ponovo izračunava denormalizovan broj objavljenih lekcija za kurs i upisuje ga
+// na dokument kursa. Poziva se posle svake promene lesson.isPublished. Namerno
+// recompute umesto +1/-1 delte: upisi lekcija su retki (admin uređuje sadržaj),
+// a delta razbacana po 3+ mesta lako isklizne u drift; recompute je bez drifta.
+// Zadržava isti take(1000) plafon kao čitanja, pa je vrednost identična onome
+// što bi petlja u dashboard-u izbrojala.
+export async function recomputePublishedLessonCount(
+  ctx: MutationCtx,
+  courseId: Id<"courses">,
+) {
+  const lessons = await ctx.db
+    .query("lessons")
+    .withIndex("by_course_and_sortOrder", (q) => q.eq("courseId", courseId))
+    .take(1000);
+  const publishedLessonCount = lessons.filter((lesson) => lesson.isPublished).length;
+  await ctx.db.patch(courseId, { publishedLessonCount });
+}
 
 const courseInput = {
   courseId: v.optional(v.id("courses")),
@@ -936,10 +954,12 @@ export const upsertLesson = mutation({
       }
       await ctx.db.patch(args.lessonId, patch);
       if (args.isPublished) await assertReadyToPublish(ctx, "lesson", args.lessonId);
+      await recomputePublishedLessonCount(ctx, args.courseId);
       return args.lessonId;
     }
     const lessonId = await ctx.db.insert("lessons", patch);
     if (args.isPublished) await assertReadyToPublish(ctx, "lesson", lessonId);
+    await recomputePublishedLessonCount(ctx, args.courseId);
     return lessonId;
   },
 });
