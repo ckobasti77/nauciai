@@ -11,7 +11,10 @@ import { dayKey, GLOBAL_COST_HEARTBEAT_KEY, STUDIO_FLAG_KEY } from "./studioCore
 
 const modules = import.meta.glob("./**/*.ts");
 
-type TestConvex = ReturnType<typeof convexTest>;
+function makeT() {
+  return convexTest(schema, modules);
+}
+type TestConvex = ReturnType<typeof makeT>;
 
 const MINUTE = 60 * 1000;
 const DAY = 24 * 60 * MINUTE;
@@ -466,7 +469,16 @@ async function seedUsage(t: TestConvex, costUsd: number, day = dayKey(Date.now()
 
 /** Resend koji uvek uspe; `mock.calls` čuva telo svakog poziva. */
 function stubResendOk() {
-  const fetchMock = vi.fn(async () => ({
+  // Potpis se navodi kao tip-argument (ne kao imenovani parametri), pa
+  // `mock.calls` nose `[input, init?]` a da fajl ne dobije neiskorišćene
+  // parametre. `init` tako izlazi kao `RequestInit | undefined` u `sentEmails`.
+  const fetchMock = vi.fn<
+    (input: RequestInfo | URL, init?: RequestInit) => Promise<{
+      ok: boolean;
+      status: number;
+      headers: { get: () => null };
+    }>
+  >(async () => ({
     ok: true,
     status: 200,
     headers: { get: () => null },
@@ -714,7 +726,7 @@ test("pukao prolaz upisuje cron_failed tačno jednom dnevno, šalje tačno jedan
 
   const failures = await failedAlarmRows(t);
   expect(failures).toHaveLength(1);
-  expect(failures[0].message.length).toBeGreaterThan(0);
+  expect(failures[0].message?.length).toBeGreaterThan(0);
   expect(fetchMock).toHaveBeenCalledTimes(1);
   const [email] = sentEmails(fetchMock);
   expect(email.subject).toContain("NIJE proveren");

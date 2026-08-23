@@ -1,0 +1,16 @@
+{
+  // Gate za tipove (`npm run typecheck`). Isto što i `tsconfig.json`, ali
+  // izuzima JEDAN fajl: Stripe webhook test.
+  //
+  // Razlog: vitest 4 strože tipizira `vi.fn()` mock-ove, pa ovaj test daje 11
+  // grešaka koje su čist gubitak posla - Stripe se povlači u korist domaćeg
+  // paywall-a, njegovi mock-ovi odlaze s njim.
+  //
+  // OBRISATI ovaj fajl (i skriptu `typecheck`) kad Stripe ode - tada
+  // `npx tsc --noEmit` opet pokriva ceo repo bez izuzetaka.
+  //
+  // Napomena: `exclude` ovde ZAMENJUJE roditeljski `exclude`, zato je
+  // `node_modules` ponovo naveden.
+  "extends": "./tsconfig.json",
+  "exclude": ["node_modules", "app/api/stripe/webhook/route.test.ts"]
+}

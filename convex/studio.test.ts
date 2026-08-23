@@ -38,7 +38,10 @@ afterAll(() => {
   else process.env.INITIAL_ADMIN_EMAILS = previousAdmins;
 });
 
-type TestConvex = ReturnType<typeof convexTest>;
+function makeT() {
+  return convexTest(schema, modules);
+}
+type TestConvex = ReturnType<typeof makeT>;
 
 /** Slug jedinog uključenog modela u testovima; fiksna cena 20 kredita. */
 const MODEL_SLUG = "flux-2-flash";

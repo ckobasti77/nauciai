@@ -18,7 +18,10 @@ import { computeCredits } from "./studioPricing";
 
 const modules = import.meta.glob("./**/*.ts");
 
-type TestConvex = ReturnType<typeof convexTest>;
+function makeT() {
+  return convexTest(schema, modules);
+}
+type TestConvex = ReturnType<typeof makeT>;
 type TestUser = ReturnType<TestConvex["withIdentity"]>;
 
 function seedOf(slug: string): StudioModelSeed {
@@ -160,7 +163,7 @@ async function storeFile(as: TestUser, type: string, bytes = 1, slot = type.spli
  * pravi baš takav nemoguć fajl, a veći broj fajl na kojem donja granica
  * nadjačava zaglavlje.
  */
-function mp4Bytes(seconds: number, type: string, padBytes?: number): Uint8Array {
+function mp4Bytes(seconds: number, type: string, padBytes?: number): Uint8Array<ArrayBuffer> {
   const u32 = (value: number) => [
     (value >>> 24) & 0xff,
     (value >>> 16) & 0xff,

@@ -22,6 +22,7 @@ function createTest() {
   aggregateTest.register(t, "studyHub");
   return t;
 }
+type TestConvex = ReturnType<typeof createTest>;
 
 beforeAll(() => {
   process.env.INITIAL_ADMIN_EMAILS = "chat-admin@example.com";
@@ -69,12 +70,12 @@ const chatApi = {
   requestPreview: makeFunctionReference<"action">("chatLinkPreview:requestLinkPreview"),
 };
 
-function asUser(t: ReturnType<typeof convexTest>, userId: Id<"users">) {
+function asUser(t: TestConvex, userId: Id<"users">) {
   return t.withIdentity({ subject: userId, tokenIdentifier: `chat-test|${userId}` });
 }
 
 async function seedUsers(
-  t: ReturnType<typeof convexTest>,
+  t: TestConvex,
   count = 4,
   overrides: Record<number, { role?: "student" | "pro_student" | "moderator" | "admin"; dmPrivacy?: "requests" | "following" | "nobody"; email?: string }> = {},
 ) {
@@ -99,7 +100,7 @@ async function seedUsers(
 }
 
 async function acceptedDirect(
-  t: ReturnType<typeof convexTest>,
+  t: TestConvex,
   senderId: Id<"users">,
   recipientId: Id<"users">,
 ) {
@@ -114,7 +115,7 @@ async function acceptedDirect(
 }
 
 async function sendText(
-  t: ReturnType<typeof convexTest>,
+  t: TestConvex,
   userId: Id<"users">,
   conversationId: Id<"chatConversations">,
   body: string,

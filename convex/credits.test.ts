@@ -34,7 +34,10 @@ afterAll(() => {
   else process.env.WEBHOOK_SYNC_SECRET = previousSyncSecret;
 });
 
-type TestConvex = ReturnType<typeof convexTest>;
+function makeT() {
+  return convexTest(schema, modules);
+}
+type TestConvex = ReturnType<typeof makeT>;
 
 const NOW = 1_780_000_000_000;
 

@@ -10,7 +10,10 @@ import { mockJobSucceeds } from "./studioCore";
 
 const modules = import.meta.glob("./**/*.ts");
 
-type TestConvex = ReturnType<typeof convexTest>;
+function makeT() {
+  return convexTest(schema, modules);
+}
+type TestConvex = ReturnType<typeof makeT>;
 
 const previousFalKey = process.env.FAL_KEY;
 const previousSiteUrl = process.env.CONVEX_SITE_URL;

@@ -18,7 +18,10 @@ import { SETTLEMENT_REASON } from "./studioSettlementCore";
  */
 const modules = import.meta.glob("./**/*.ts");
 
-type TestConvex = ReturnType<typeof convexTest>;
+function makeT() {
+  return convexTest(schema, modules);
+}
+type TestConvex = ReturnType<typeof makeT>;
 
 /** `dubbing`: 0,60 $ po minutu, količina se meri iz snimka (katalog 4.2). */
 const MODEL_SLUG = "dubbing";
