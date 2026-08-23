@@ -5,7 +5,8 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { AppComposerSheet } from "@/components/app/app-composer-sheet";
 import RichTextEditor from "@/components/app/rich-text-editor";
 import { cn } from "@/components/ui/primitives";
-import { t, withLocale, type Locale } from "@/lib/i18n";
+import { coursePath, lessonEditPath } from "@/lib/app-routes";
+import { t, type Locale } from "@/lib/i18n";
 
 import { useMutation, useQuery } from "convex/react";
 import {
@@ -1045,10 +1046,10 @@ export function AddCourseAction({
       setOpen(false);
     } else if (action.type === "module") {
       setOpen(false);
-      router.push(`${withLocale(locale, `/app/courses/${slugForNavigation}`)}?editModule=${action.moduleId}`);
+      router.push(`${coursePath(locale, slugForNavigation)}?editModule=${action.moduleId}`);
     } else {
       setOpen(false);
-      router.push(withLocale(locale, `/app/courses/${slugForNavigation}/lessons/${action.lessonSlug}/edit`));
+      router.push(lessonEditPath(locale, slugForNavigation, action.lessonSlug));
     }
     router.refresh();
   }
@@ -1060,7 +1061,7 @@ export function AddCourseAction({
     try {
       const savedSlug = await saveCourse();
       setOpen(false);
-      router.push(withLocale(locale, `/app/courses/${savedSlug}`));
+      router.push(coursePath(locale, savedSlug));
       router.refresh();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : t(locale, "Cuvanje nije uspelo.", "Save failed."));
@@ -1754,7 +1755,7 @@ export function AddModuleAction({
     if (autoOpenKey) {
       setDismissedAutoOpenKey(autoOpenKey);
       if (courseSlug) {
-        router.replace(withLocale(locale, `/app/courses/${courseSlug}`), { scroll: false });
+        router.replace(coursePath(locale, courseSlug), { scroll: false });
       }
     }
   }
@@ -1884,7 +1885,7 @@ export function AddModuleAction({
       const savedModuleId = await saveCycle();
       closeSheet();
       if (!moduleId && courseSlug && openLessonAfterCreate) {
-        router.push(`${withLocale(locale, `/app/courses/${courseSlug}`)}?newLessonModule=${savedModuleId}`);
+        router.push(`${coursePath(locale, courseSlug)}?newLessonModule=${savedModuleId}`);
       }
       router.refresh();
     } catch (error) {
@@ -2103,7 +2104,7 @@ export function AddModuleAction({
                   <div className="space-y-3">
                     {lessons.map((lesson) => {
                       const lessonTitle = locale === "sr" ? lesson.titleSr : lesson.titleEn || lesson.titleSr;
-                      const lessonHref = withLocale(locale, `/app/courses/${moduleEditorData?.course.slug}/lessons/${lesson.slug}/edit`);
+                      const lessonHref = lessonEditPath(locale, moduleEditorData?.course.slug ?? "", lesson.slug);
                       const isOpen = openLessonId === lesson._id;
                       const parts = (lesson.parts ?? []).slice().sort((a, b) => a.sortOrder - b.sortOrder);
                       const itemCount = parts.length + (lesson.steps?.length ?? 0) + (lesson.tasks?.length ?? 0);
@@ -2363,7 +2364,7 @@ export function AddLessonAction({
       });
       closeSheet();
       if (!lessonId && courseSlug) {
-        router.push(withLocale(locale, `/app/courses/${courseSlug}/lessons/${savedSlug}/edit`));
+        router.push(lessonEditPath(locale, courseSlug, savedSlug));
       }
       router.refresh();
     } catch (error) {

@@ -45,7 +45,8 @@ import { cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { Course, Lesson } from "@/lib/content";
-import { localized, t, type Locale, withLocale } from "@/lib/i18n";
+import { lessonPath } from "@/lib/app-routes";
+import { localized, t, type Locale } from "@/lib/i18n";
 
 type ColumnType = "explanation" | "chatbot" | "output";
 type OutputKind = "text" | "image" | "audio" | "video" | "file";
@@ -1008,7 +1009,7 @@ export function LessonStepsEditor({
       <header className="flex shrink-0 flex-col gap-3 border-b-2 border-ink bg-paper-strong px-4 py-3 lg:flex-row lg:items-center lg:justify-between lg:px-5">
         <div className="flex min-w-0 items-center gap-3">
           <Link
-            href={withLocale(locale, `/app/courses/${course.slug}/lessons/${lesson.slug}`)}
+            href={lessonPath(locale, course.slug, lesson.slug)}
             className="inline-flex size-10 shrink-0 items-center justify-center rounded-[8px] border-2 border-ink bg-paper text-ink transition hover:bg-yellow"
             aria-label={t(locale, "Nazad na lekciju", "Back to lesson")}
           >
@@ -1055,7 +1056,7 @@ export function LessonStepsEditor({
             {t(locale, "Desno", "Right")}
           </ToolbarButton>
           <Link
-            href={withLocale(locale, `/app/courses/${course.slug}/lessons/${lesson.slug}`)}
+            href={lessonPath(locale, course.slug, lesson.slug)}
             className="inline-flex min-h-9 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-yellow px-3 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--shadow-hard-16)] transition hover:-translate-y-0.5"
           >
             <Eye className="size-4" />

@@ -17,7 +17,8 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { Panel } from "@/components/ui/primitives";
 import type { Course, Lesson, LessonPart } from "@/lib/content";
-import { localized, type Locale, withLocale } from "@/lib/i18n";
+import { lessonEditPath } from "@/lib/app-routes";
+import { localized, type Locale } from "@/lib/i18n";
 
 const AddAssetAction = dynamic(() => import("@/components/app/admin-inline-actions").then((m) => m.AddAssetAction), { ssr: false });
 const AddLessonPartAction = dynamic(() => import("@/components/app/admin-inline-actions").then((m) => m.AddLessonPartAction), { ssr: false });
@@ -291,7 +292,7 @@ export function CoursePlayer({
                     nextSortOrder={lesson.sortOrder ?? 10}
                   />
                   <Link
-                    href={withLocale(locale, `/app/courses/${course.slug}/lessons/${lesson.slug}/edit`)}
+                    href={lessonEditPath(locale, course.slug, lesson.slug)}
                     className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-ink px-4 text-sm font-extrabold text-paper-strong shadow-[3px_3px_0_0_var(--shadow-hard-16)] transition hover:-translate-y-0.5 hover:bg-yellow hover:text-ink"
                   >
                     <LayoutDashboard className="size-4" />

@@ -33,7 +33,7 @@ export const pageMotionContract = {
 const localeRootPattern = /^\/(?:sr|en)\/?$/;
 const appRootPattern = /^\/(?:sr|en)\/app\/?$/;
 // Course detail, not a lesson beneath it.
-const courseDetailPattern = /^\/(?:sr|en)\/app\/courses\/[^/]+\/?$/;
+const courseDetailPattern = /^\/(?:sr|en)\/app\/classroom\/courses\/[^/]+\/?$/;
 
 export function pageMotionVariantForPath(pathname: string): PageMotionVariant {
   if (
@@ -47,7 +47,7 @@ export function pageMotionVariantForPath(pathname: string): PageMotionVariant {
     return "showcase";
   }
 
-  if (/\/app\/courses\/[^/]+\/lessons\/[^/]+(?:\/edit)?\/?$/.test(pathname)) {
+  if (/\/app\/classroom\/courses\/[^/]+\/lessons\/[^/]+(?:\/edit)?\/?$/.test(pathname)) {
     return "focus";
   }
 

@@ -25,7 +25,7 @@ export default async function StudentDashboardPage({
   const [{ locale: localeParam }, incomingSearchParams] = await Promise.all([params, searchParams]);
   const locale = normalizeLocale(localeParam);
 
-  // Course detail now lives at /app/courses/[courseSlug]. Bookmarks, sidebar history
+  // Course detail now lives at /app/classroom/courses/[courseSlug]. Bookmarks, sidebar history
   // entries and Stripe success_urls issued before the move still point here, so honour the
   // old shape with a redirect rather than silently rendering the grid instead. Temporary
   // (307) not permanent: /app/** is robots-disallowed so there is no SEO argument for a

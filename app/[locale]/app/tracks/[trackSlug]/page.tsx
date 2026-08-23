@@ -1,24 +1,22 @@
-import { convexAuthNextjsToken } from "@convex-dev/auth/nextjs/server";
-import { notFound } from "next/navigation";
+import { redirect } from "next/navigation";
 
-import { TrackExperience, type TrackExperienceData } from "@/components/app/track-experience";
-import { convexQueries, getConvexHttpClient } from "@/lib/convex-http";
-import { getCurrentViewerProfile } from "@/lib/current-viewer";
+import { preserveSearchParams, trackPath, type IncomingSearchParams } from "@/lib/app-routes";
 import { normalizeLocale } from "@/lib/i18n";
-import type { Metadata } from "next";
-import { appPageMetadata } from "@/lib/app-metadata";
 
-export async function generateMetadata({ params }: { params: Promise<{ locale: string; trackSlug: string }> }): Promise<Metadata> {
-  const { locale } = await params;
-  return appPageMetadata(locale, { sr: "Smer", en: "Track" });
-}
-
-export default async function TrackPage({ params }: { params: Promise<{ locale: string; trackSlug: string }> }) {
-  const { locale: localeParam, trackSlug } = await params;
-  const locale = normalizeLocale(localeParam);
-  const [token, profile] = await Promise.all([convexAuthNextjsToken(), getCurrentViewerProfile()]);
-  const convex = getConvexHttpClient(token);
-  const data = convex ? (await convex.query(convexQueries.getTrackPage, { slug: trackSlug }).catch(() => null)) as TrackExperienceData | null : null;
-  if (!data) notFound();
-  return <TrackExperience data={data} locale={locale} admin={profile?.role === "admin"} profileName={profile?.firstName || profile?.name || "student"} />;
+/**
+ * Track detail now lives at /app/classroom/tracks/[trackSlug]. Bookmarks and sidebar history
+ * entries issued before the move still point here, so honour the old shape with a redirect
+ * rather than 404. Temporary (307) not permanent: /app/** is robots-disallowed so there is no
+ * SEO argument for a 308, and a 308 would be cached by the browser indefinitely. Every search
+ * param rides across.
+ */
+export default async function LegacyTrackRedirectPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ locale: string; trackSlug: string }>;
+  searchParams: Promise<IncomingSearchParams>;
+}) {
+  const [{ locale: localeParam, trackSlug }, sp] = await Promise.all([params, searchParams]);
+  redirect(preserveSearchParams(trackPath(normalizeLocale(localeParam), trackSlug), sp));
 }

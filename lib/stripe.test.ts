@@ -102,7 +102,7 @@ describe("createPlanCheckoutSession", () => {
       courseId: "course_1",
       userId: "user_3",
     });
-    expect(params.success_url).toBe("https://nauciai.test/sr/app/courses/ai-osnove?checkout=success");
+    expect(params.success_url).toBe("https://nauciai.test/sr/app/classroom/courses/ai-osnove?checkout=success");
   });
 
   it("takes no promotion codes: a 100% forever coupon would renew for free every month", async () => {

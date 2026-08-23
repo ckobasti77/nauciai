@@ -10,6 +10,7 @@ import { BrandMark, HandUnderline, LinkButton } from "@/components/ui/primitives
 import { courses } from "@/lib/content";
 import { convexQueries, getConvexHttpClient } from "@/lib/convex-http";
 import { getCurrentViewerProfile } from "@/lib/current-viewer";
+import { lessonPath } from "@/lib/app-routes";
 import { dictionary, locales, localized, normalizeLocale, otherLocale, type Locale, type LocalizedText, withLocale } from "@/lib/i18n";
 
 type StaticCourse = (typeof courses)[number];
@@ -186,7 +187,7 @@ function outlineTotals(outline: CourseOutline) {
 }
 
 function lessonHref(locale: Locale, courseSlug: string, lessonSlug: string, signedIn: boolean) {
-  const dashboardHref = withLocale(locale, `/app/courses/${courseSlug}/lessons/${lessonSlug}`);
+  const dashboardHref = lessonPath(locale, courseSlug, lessonSlug);
   if (signedIn) return dashboardHref;
   return `${withLocale(locale, "/sign-in")}?next=${encodeURIComponent(dashboardHref)}`;
 }

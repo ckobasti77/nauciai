@@ -2,7 +2,9 @@ import "server-only";
 
 import Stripe from "stripe";
 
+import { coursePath } from "./app-routes";
 import { getSiteUrl, requireServerEnv } from "./env";
+import { normalizeLocale } from "./i18n";
 
 let stripeClient: Stripe | null = null;
 
@@ -62,7 +64,7 @@ export async function createCourseCheckoutSession(params: {
   return stripe.checkout.sessions.create({
     mode: "subscription",
     line_items: [{ price: params.priceId, quantity: 1 }],
-    success_url: `${siteUrl}/${params.locale}/app/courses/${params.courseSlug}?checkout=success`,
+    success_url: `${siteUrl}${coursePath(normalizeLocale(params.locale), params.courseSlug)}?checkout=success`,
     cancel_url: `${siteUrl}/${params.locale}?checkout=cancelled&course=${params.courseSlug}`,
     customer_email: params.customerEmail,
     ...checkoutTaxParams(),
@@ -153,8 +155,8 @@ export async function createPlanCheckoutSession(params: {
   return stripe.checkout.sessions.create({
     mode: "subscription",
     line_items: [{ price: params.priceId, quantity: 1 }],
-    success_url: `${siteUrl}/${params.locale}/app/courses/${params.courseSlug}?checkout=success`,
-    cancel_url: `${siteUrl}/${params.locale}/app/courses/${params.courseSlug}?checkout=cancelled`,
+    success_url: `${siteUrl}${coursePath(normalizeLocale(params.locale), params.courseSlug)}?checkout=success`,
+    cancel_url: `${siteUrl}${coursePath(normalizeLocale(params.locale), params.courseSlug)}?checkout=cancelled`,
     customer_email: params.customerEmail,
     ...checkoutTaxParams(),
     // Kupon od 100% "forever" na plan proizvodi `invoice.paid` svakog meseca,

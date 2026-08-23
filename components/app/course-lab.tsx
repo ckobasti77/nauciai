@@ -27,6 +27,7 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { InlineContentText } from "@/components/app/inline-content";
 import { cn } from "@/components/ui/primitives";
 import type { Course, Lesson } from "@/lib/content";
+import { lessonEditPath } from "@/lib/app-routes";
 import { localized, t, type Locale, withLocale } from "@/lib/i18n";
 
 type OutputKind = "text" | "image" | "audio" | "video" | "file";
@@ -430,7 +431,7 @@ export function CourseLab({
           <Sparkles className="mx-auto size-10 text-ink" />
           <h2 className="mt-4 text-2xl font-black text-ink">{t(locale, "Pro prikaz je spreman", "Pro view is ready")}</h2>
           <p className="mt-2 text-sm font-bold leading-6 text-muted">{t(locale, "Dodaj prvi korak i zadatak u Pro editoru da bi se troslojni harness pojavio.", "Add the first step and task in the Pro editor to populate the three-column harness.")}</p>
-          {lab.isAdmin && !inlineEdit ? <Link href={withLocale(locale, `/app/courses/${course.slug}/lessons/${lesson.slug}/edit`)} className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black">{t(locale, "Otvori Pro editor", "Open Pro editor")}</Link> : null}
+          {lab.isAdmin && !inlineEdit ? <Link href={lessonEditPath(locale, course.slug, lesson.slug)} className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black">{t(locale, "Otvori Pro editor", "Open Pro editor")}</Link> : null}
         </div>
       </div>
     );
@@ -467,7 +468,7 @@ export function CourseLab({
         <div className="flex flex-wrap items-center gap-2">
           {lab.isAdmin && !inlineEdit ? (
             <Link
-              href={withLocale(locale, `/app/courses/${course.slug}/lessons/${lesson.slug}/edit`)}
+              href={lessonEditPath(locale, course.slug, lesson.slug)}
               className="rounded-[8px] border-2 border-ink bg-paper-strong px-3 py-2 text-xs font-black text-ink hover:bg-yellow inline-flex items-center gap-1.5"
             >
               <Sparkles className="size-3.5" />
