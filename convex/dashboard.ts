@@ -37,7 +37,12 @@ async function studentCoursesSlice(ctx: QueryCtx, userId: Id<"users">) {
     .withIndex("by_status", (q) => q.eq("status", "published"))
     .take(50);
   if (courses.length === 0) {
-    return { resume: null, progress: { completedLessons: 0, totalLessons: 0, percent: 0 }, nextLessons: [] };
+    return {
+      resume: null,
+      progress: { completedLessons: 0, totalLessons: 0, percent: 0 },
+      nextLessons: [],
+      activity: [],
+    };
   }
 
   const progressRows = await ctx.db
@@ -45,6 +50,19 @@ async function studentCoursesSlice(ctx: QueryCtx, userId: Id<"users">) {
     .withIndex("by_user_course", (q) => q.eq("userId", userId))
     .take(1000);
   const progressByLesson = new Map(progressRows.map((row) => [row.lessonId, row]));
+
+  // Dnevni ritam za RITAM zonu (ActivityPanel): završene lekcije po UTC danu.
+  // Isti bucketing kao dashboard-content.activityFromLessons; `new Date(ms)` je
+  // determinstičan iz sačuvanog `updatedAt`, nije čitanje zidnog sata.
+  const activityCounts = new Map<string, number>();
+  for (const row of progressRows) {
+    if (!row.completed) continue;
+    const day = new Date(row.updatedAt).toISOString().slice(0, 10);
+    activityCounts.set(day, (activityCounts.get(day) ?? 0) + 1);
+  }
+  const activity = [...activityCounts.entries()]
+    .map(([day, completed]) => ({ day, completed }))
+    .sort((a, b) => a.day.localeCompare(b.day));
 
   type CourseEntry = {
     course: Doc<"courses">;
@@ -132,7 +150,7 @@ async function studentCoursesSlice(ctx: QueryCtx, userId: Id<"users">) {
     if (nextLessons.length >= 3) break;
   }
 
-  return { resume, progress: { completedLessons, totalLessons, percent }, nextLessons };
+  return { resume, progress: { completedLessons, totalLessons, percent }, nextLessons, activity };
 }
 
 // ── messages (nepročitane konverzacije) ─────────────────────────────────────
@@ -325,6 +343,9 @@ export const getDashboardOverview = query({
           durationSeconds: v.number(),
         }),
       ),
+      // Dnevni ritam za RITAM zonu (ActivityPanel). Nije u §6 obliku, ali je nužno:
+      // pod pravilom „jedan query", zona D nema drugi izvor podataka.
+      activity: v.array(v.object({ day: v.string(), completed: v.number() })),
       messages: v.object({
         unreadTotal: v.number(),
         items: v.array(
@@ -413,6 +434,7 @@ export const getDashboardOverview = query({
       resume: courses.resume,
       progress: courses.progress,
       nextLessons: courses.nextLessons,
+      activity: courses.activity,
       messages,
       community: { unreadNotifications: counts.community, items: community },
       notifications: { total: counts.total, items: notifications },

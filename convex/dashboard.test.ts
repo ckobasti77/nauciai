@@ -146,6 +146,7 @@ test("prazan korisnik → sve liste prazne, percent 0, admin null", async () => 
   expect(result?.resume).toBeNull();
   expect(result?.progress.percent).toBe(0);
   expect(result?.nextLessons).toEqual([]);
+  expect(result?.activity).toEqual([]);
   expect(result?.messages.items).toEqual([]);
   expect(result?.messages.unreadTotal).toBe(0);
   expect(result?.community.items).toEqual([]);

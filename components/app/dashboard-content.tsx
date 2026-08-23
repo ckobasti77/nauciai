@@ -8,6 +8,7 @@ import {
   ChevronDown,
   Clock3,
   Gauge,
+  GraduationCap,
   ImageIcon,
   Layers,
   Loader2,
@@ -40,7 +41,13 @@ import {
 import { InlineContentText } from "@/components/app/inline-content";
 import { InlineRichText } from "@/components/app/rich-text";
 import { CheckoutButton } from "@/components/app/checkout-button";
-import { coursePath, lessonPath } from "@/lib/app-routes";
+import {
+  DashboardPulse,
+  DashboardWindowsGrid,
+  type DashboardOverview,
+  type NextLesson,
+} from "@/components/app/dashboard-windows";
+import { classroomPath, coursePath, lessonPath } from "@/lib/app-routes";
 import { LinkButton, Panel, cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -205,19 +212,6 @@ function activityFromLessons(lessons: DashboardLesson[]) {
     if (!updatedAt) continue;
     const day = new Date(updatedAt).toISOString().slice(0, 10);
     counts.set(day, (counts.get(day) ?? 0) + 1);
-  }
-  return Array.from(counts.entries())
-    .map(([day, completed]) => ({ day, completed }))
-    .sort((a, b) => a.day.localeCompare(b.day));
-}
-
-// Takes already-computed summaries; recomputing them here walked every lesson a second time.
-function mergeActivity(summaries: Array<{ activity: Array<{ day: string; completed: number }> }>) {
-  const counts = new Map<string, number>();
-  for (const summary of summaries) {
-    for (const item of summary.activity) {
-      counts.set(item.day, (counts.get(item.day) ?? 0) + item.completed);
-    }
   }
   return Array.from(counts.entries())
     .map(([day, completed]) => ({ day, completed }))
@@ -946,15 +940,18 @@ export function DashboardCourseCard({
 export function DashboardHomeSkeleton() {
   return (
     <div className="space-y-6" aria-busy="true" aria-label="Učitavanje / Loading">
-      {/* Heights track the loaded layout so the swap does not shift anything below it. */}
+      {/* Heights track the loaded layout so the swap does not shift anything below it.
+          A NASTAVI (hero) · B PULS (4 tile-a) · C PROZORI (grid) · D RITAM. */}
       <div className="h-[22rem] animate-pulse rounded-[16px] border-2 border-line bg-paper-strong sm:h-64" />
-      <div className="rounded-[16px] border-2 border-line bg-paper-strong p-5 sm:p-6">
-        <div className="h-12 w-64 max-w-full animate-pulse rounded-[8px] bg-ink/8" />
-        <div className="mt-5 grid gap-5 lg:grid-cols-2">
-          {[0, 1].map((item) => (
-            <div key={item} className="h-[30rem] animate-pulse rounded-[16px] border-2 border-line bg-paper" />
-          ))}
-        </div>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {[0, 1, 2, 3].map((item) => (
+          <div key={item} className="h-24 animate-pulse rounded-[8px] border-2 border-line bg-paper-strong" />
+        ))}
+      </div>
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 2xl:grid-cols-3">
+        {[0, 1, 2].map((item) => (
+          <div key={item} className="h-64 animate-pulse rounded-[16px] border-2 border-line bg-paper-strong" />
+        ))}
       </div>
       <div className="h-72 animate-pulse rounded-[16px] border-2 border-line bg-paper-strong" />
     </div>
@@ -1037,159 +1034,248 @@ export function DashboardFirstRun({ locale, profileName }: { locale: Locale; pro
   );
 }
 
-export function DashboardHomeContent({
+// Zajednički oblik „nastavi" hero-a — identičan payload-u agregata (`resume`),
+// da i live i statička (hasConvex === false) grana hrane isti ResumeHero.
+type ResumeData = NonNullable<DashboardOverview["resume"]>;
+
+function HeroCover({ coverUrl, title }: { coverUrl: string | null; title: string }) {
+  if (coverUrl) {
+    return (
+      <Image
+        src={coverUrl}
+        alt={title}
+        fill
+        sizes="(min-width: 1024px) 25vw, 100vw"
+        unoptimized
+        className="rounded-[8px] object-cover"
+      />
+    );
+  }
+  return (
+    <div className="relative h-full overflow-hidden rounded-[8px] bg-paper">
+      <div className="absolute inset-0 ink-hatch" />
+      <div className="relative flex h-full items-center justify-center p-6 text-center">
+        <span className="inline-flex size-14 items-center justify-center rounded-full border-2 border-ink bg-yellow text-ink shadow-[4px_4px_0_0_var(--shadow-hard-15)]">
+          <BookOpen className="size-7" />
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// Zona A — NASTAVI. Zadržan postojeći hero obrazac (cover, „Sledeća lekcija",
+// dugme „Nastavi/Započni lekciju N/M", ink panel sa ukupnim %), + sekundarni
+// link „Otvori učionicu".
+function ResumeHero({
   locale,
-  profile,
-  courses,
-  isAdmin = false,
+  profileName,
+  resume,
+  progress,
 }: {
   locale: Locale;
-  profile?: ViewerProfile;
-  courses: DashboardCourse[];
-  isAdmin?: boolean;
+  profileName: string;
+  resume: ResumeData | null;
+  progress: { completedLessons: number; totalLessons: number; percent: number };
 }) {
-  const profileName = profile?.name ?? "Student";
-  const visibleCourses = courses.filter((course) => isAdmin || course.status === "published");
-  // One pass per course. getProgressSummary used to run four times per course per render.
-  const entries = visibleCourses.map((course) => ({ course, summary: getProgressSummary(course, locale) }));
-  // Anything the viewer cannot actually open is excluded from every number on this screen,
-  // so a locked course can no longer drag the overall percentage down.
-  const accessible = entries.filter((entry) => isAdmin || entry.course.hasAccess);
+  const overallPercent = clampPercent(progress.percent);
+
+  return (
+    <section
+      data-motion="hero"
+      className="overflow-hidden rounded-[16px] border-2 border-ink bg-paper-strong shadow-[6px_6px_0_0_var(--shadow-hard-12)]"
+    >
+      <div className="grid gap-0 xl:grid-cols-[minmax(0,1fr)_260px]">
+        <div className="p-4 sm:p-5 lg:p-6" data-motion="copy">
+          <p className="text-sm font-black uppercase text-muted">
+            {locale === "sr" ? `Zdravo, ${profileName}` : `Hi, ${profileName}`}
+          </p>
+
+          {resume ? (
+            <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-start">
+              <div className="relative aspect-[16/9] w-full shrink-0 overflow-hidden rounded-[8px] bg-paper sm:w-44">
+                <HeroCover coverUrl={resume.coverUrl} title={localized(resume.courseTitle, locale)} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h1 className="text-2xl font-black leading-tight tracking-[-0.035em] text-ink sm:text-3xl">
+                  {localized(resume.courseTitle, locale)}
+                </h1>
+                <p className="mt-2 text-sm font-bold leading-6 text-muted sm:text-base">
+                  <span className="font-black text-ink">{tr(locale, "Sledeća lekcija", "Next lesson")}</span>
+                  {" · "}
+                  {localized(resume.lessonTitle, locale)}
+                </p>
+                <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-3">
+                  <LinkButton href={lessonPath(locale, resume.courseSlug, resume.lessonSlug)} tone="yellow" size="lg">
+                    <PlayCircle className="size-5" />
+                    {resume.position <= 1
+                      ? tr(
+                          locale,
+                          `Započni lekciju ${resume.position}/${resume.total}`,
+                          `Start lesson ${resume.position}/${resume.total}`,
+                        )
+                      : tr(
+                          locale,
+                          `Nastavi lekciju ${resume.position}/${resume.total}`,
+                          `Continue lesson ${resume.position}/${resume.total}`,
+                        )}
+                  </LinkButton>
+                  <Link
+                    href={classroomPath(locale)}
+                    className="inline-flex items-center gap-1 text-xs font-black text-ink underline decoration-2 underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                  >
+                    {tr(locale, "Otvori učionicu", "Open classroom")}
+                    <ArrowRight className="size-3.5" />
+                  </Link>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-3">
+              <h1 className="text-2xl font-black leading-tight tracking-[-0.035em] text-ink sm:text-3xl">
+                {tr(locale, "Sve lekcije su završene", "Every lesson is done")}
+              </h1>
+              <p className="mt-2 max-w-2xl text-sm font-bold leading-6 text-muted sm:text-base">
+                {tr(
+                  locale,
+                  "Nema više lekcija na čekanju. Otvori učionicu da ponoviš gradivo.",
+                  "Nothing is queued up. Open the classroom to revisit the material.",
+                )}
+              </p>
+              <div className="mt-4">
+                <LinkButton href={classroomPath(locale)} tone="yellow" size="lg">
+                  <GraduationCap className="size-5" />
+                  {tr(locale, "Otvori učionicu", "Open classroom")}
+                </LinkButton>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="border-t-2 border-ink bg-ink p-4 text-paper-strong xl:border-l-2 xl:border-t-0">
+          <div className="flex h-full flex-col justify-center gap-2">
+            <p className="text-xs font-black uppercase tracking-[0.12em] text-paper-strong/65">
+              {tr(locale, "Ukupno", "Overall")}
+            </p>
+            <p className="text-4xl font-black leading-none">{overallPercent}%</p>
+            <CourseProgress
+              percent={overallPercent}
+              tone="ink"
+              label={tr(locale, "Ukupan napredak", "Overall progress")}
+            />
+            <p className="text-xs font-bold leading-5 text-paper-strong/70">
+              {progress.completedLessons}/{progress.totalLessons || 0} {tr(locale, "zavrsenih lekcija", "completed lessons")}
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+type CommandTableView = {
+  hasCourses: boolean;
+  resume: ResumeData | null;
+  progress: { completedLessons: number; totalLessons: number; percent: number };
+  activity: Array<{ day: string; completed: number }>;
+  nextLessons: NextLesson[];
+};
+
+// hasConvex === false: zona A + „Učionica" prozor iz statičkog lib/content, bez ijednog
+// Convex poziva. Ostali prozori dobijaju prazna stanja (overview === null).
+function staticCommandTableView(courses: DashboardCourse[], locale: Locale): CommandTableView {
+  const accessible = courses
+    .filter((course) => course.status === "published" && course.hasAccess)
+    .map((course) => ({ course, summary: getProgressSummary(course, locale) }));
 
   if (!accessible.length) {
-    return <DashboardFirstRun locale={locale} profileName={profileName} />;
+    return { hasCourses: false, resume: null, progress: { completedLessons: 0, totalLessons: 0, percent: 0 }, activity: [], nextLessons: [] };
   }
 
   const totalLessons = accessible.reduce((count, entry) => count + entry.summary.totalLessons, 0);
   const completedLessons = accessible.reduce((count, entry) => count + entry.summary.completedLessons, 0);
-  const overallPercent = clampPercent(totalLessons ? (completedLessons / totalLessons) * 100 : 0);
-  const activity = mergeActivity(accessible.map((entry) => entry.summary));
+  const percent = clampPercent(totalLessons ? (completedLessons / totalLessons) * 100 : 0);
 
-  // Resume target: most recently touched accessible course that still has a lesson left.
-  // Array.sort is stable, so a viewer with no activity anywhere falls through to sortOrder.
-  const resume = accessible
+  const resumeEntry = accessible
     .filter((entry) => Boolean(entry.summary.nextLesson))
     .sort((a, b) => (b.summary.lastActivityAt ?? 0) - (a.summary.lastActivityAt ?? 0))[0];
 
-  const resumeLesson = resume?.summary.nextLesson;
-  // Server totals and the client-filtered lesson list can disagree (an admin's draft lessons
-  // count on one side but not the other), so clamp into a range that always reads sensibly.
-  const resumePosition = resume
-    ? Math.max(1, Math.min(resume.summary.completedLessons + 1, resume.summary.totalLessons))
-    : 0;
-  const resumeTotal = resume ? Math.max(resumePosition, resume.summary.totalLessons) : 0;
+  let resume: ResumeData | null = null;
+  if (resumeEntry?.summary.nextLesson) {
+    const lesson = resumeEntry.summary.nextLesson;
+    const position = Math.max(1, Math.min(resumeEntry.summary.completedLessons + 1, resumeEntry.summary.totalLessons));
+    resume = {
+      courseSlug: resumeEntry.course.slug,
+      lessonSlug: lesson.slug,
+      courseTitle: resumeEntry.course.title,
+      lessonTitle: lesson.title,
+      position,
+      total: Math.max(position, resumeEntry.summary.totalLessons),
+      coverUrl: resumeEntry.course.coverUrl ?? resumeEntry.course.image?.src ?? null,
+    };
+  }
+
+  const nextLessons: NextLesson[] = [];
+  for (const entry of accessible) {
+    for (const lesson of allCourseLessons(entry.course, locale).filter((item) => item.isPublished !== false)) {
+      if (nextLessons.length >= 3) break;
+      if (!lesson.progress?.completed) {
+        nextLessons.push({
+          courseSlug: entry.course.slug,
+          lessonSlug: lesson.slug,
+          title: lesson.title,
+          durationSeconds: lesson.durationSeconds ?? 0,
+        });
+      }
+    }
+    if (nextLessons.length >= 3) break;
+  }
+
+  return { hasCourses: true, resume, progress: { completedLessons, totalLessons, percent }, activity: [], nextLessons };
+}
+
+// Komandna tabla: A NASTAVI (hero) · B PULS (4 tile-a) · C PROZORI (grid 1/2/3) · D RITAM.
+// Live: `overview` iz getDashboardOverview. Statička: `overview === null` + `staticCourses`.
+export function DashboardHome({
+  locale,
+  profile,
+  overview,
+  staticCourses,
+}: {
+  locale: Locale;
+  profile?: ViewerProfile;
+  overview: DashboardOverview | null;
+  staticCourses?: DashboardCourse[];
+}) {
+  const profileName = profile?.name ?? "Student";
+
+  const view: CommandTableView = overview
+    ? {
+        hasCourses: overview.progress.totalLessons > 0 || overview.resume != null,
+        resume: overview.resume,
+        progress: overview.progress,
+        activity: overview.activity,
+        nextLessons: overview.nextLessons,
+      }
+    : staticCommandTableView(staticCourses ?? [], locale);
+
+  // DashboardFirstRun ima prednost nad svime.
+  if (!view.hasCourses) {
+    return <DashboardFirstRun locale={locale} profileName={profileName} />;
+  }
 
   return (
     <div className="space-y-6">
-      <section
-        data-motion="hero"
-        className="overflow-hidden rounded-[16px] border-2 border-ink bg-paper-strong shadow-[6px_6px_0_0_var(--shadow-hard-12)]"
-      >
-        <div className="grid gap-0 xl:grid-cols-[minmax(0,1fr)_260px]">
-          <div className="p-4 sm:p-5 lg:p-6" data-motion="copy">
-            <p className="text-sm font-black uppercase text-muted">
-              {locale === "sr" ? `Zdravo, ${profileName}` : `Hi, ${profileName}`}
-            </p>
-
-            {resume && resumeLesson ? (
-              <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-start">
-                <div className="relative aspect-[16/9] w-full shrink-0 overflow-hidden rounded-[8px] bg-paper sm:w-44">
-                  <CourseCover course={resume.course} locale={locale} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h1 className="text-2xl font-black leading-tight tracking-[-0.035em] text-ink sm:text-3xl">
-                    {localized(resume.course.title, locale)}
-                  </h1>
-                  <p className="mt-2 text-sm font-bold leading-6 text-muted sm:text-base">
-                    <span className="font-black text-ink">{tr(locale, "Sledeća lekcija", "Next lesson")}</span>
-                    {" · "}
-                    {localized(resumeLesson.title, locale)}
-                  </p>
-                  <div className="mt-4">
-                    <LinkButton href={courseContinueHref(locale, resume.course, resumeLesson)} tone="yellow" size="lg">
-                      <PlayCircle className="size-5" />
-                      {resume.summary.completedLessons === 0
-                        ? tr(
-                            locale,
-                            `Započni lekciju ${resumePosition}/${resumeTotal}`,
-                            `Start lesson ${resumePosition}/${resumeTotal}`,
-                          )
-                        : tr(
-                            locale,
-                            `Nastavi lekciju ${resumePosition}/${resumeTotal}`,
-                            `Continue lesson ${resumePosition}/${resumeTotal}`,
-                          )}
-                    </LinkButton>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="mt-3">
-                <h1 className="text-2xl font-black leading-tight tracking-[-0.035em] text-ink sm:text-3xl">
-                  {tr(locale, "Sve lekcije su završene", "Every lesson is done")}
-                </h1>
-                <p className="mt-2 max-w-2xl text-sm font-bold leading-6 text-muted sm:text-base">
-                  {tr(
-                    locale,
-                    "Nema više lekcija na čekanju. Vrati se bilo kom kursu ispod da ponoviš gradivo.",
-                    "Nothing is queued up. Revisit any course below to go over the material again.",
-                  )}
-                </p>
-              </div>
-            )}
-          </div>
-
-          <div className="border-t-2 border-ink bg-ink p-4 text-paper-strong xl:border-l-2 xl:border-t-0">
-            <div className="flex h-full flex-col justify-center gap-2">
-              <p className="text-xs font-black uppercase tracking-[0.12em] text-paper-strong/65">
-                {tr(locale, "Ukupno", "Overall")}
-              </p>
-              <p className="text-4xl font-black leading-none">{overallPercent}%</p>
-              <CourseProgress
-                percent={overallPercent}
-                tone="ink"
-                label={tr(locale, "Ukupan napredak", "Overall progress")}
-              />
-              <p className="text-xs font-bold leading-5 text-paper-strong/70">
-                {completedLessons}/{totalLessons || 0} {tr(locale, "zavrsenih lekcija", "completed lessons")}
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <Panel className="overflow-hidden">
-        <div className="border-b-2 border-ink bg-paper-strong p-5 sm:p-6">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="text-xs font-black uppercase text-muted">{tr(locale, "Kursevi", "Courses")}</p>
-              <h2 className="mt-2 text-2xl font-black text-ink sm:text-3xl">
-                {tr(locale, "Izaberi gde nastavljas", "Choose where to continue")}
-              </h2>
-            </div>
-            <span className="inline-flex w-fit items-center gap-2 rounded-full border-2 border-ink bg-paper px-4 py-2 text-xs font-black text-ink">
-              <BookOpen className="size-4" />
-              {visibleCourses.length} {tr(locale, "kursa", "courses")}
-            </span>
-          </div>
-        </div>
-        <div className="grid gap-5 p-5 lg:grid-cols-2 sm:p-6">
-          {entries.map((entry) => (
-            <DashboardCourseCard
-              key={entry.course.slug}
-              locale={locale}
-              course={entry.course}
-              isAdmin={isAdmin}
-              summary={entry.summary}
-            />
-          ))}
-        </div>
-      </Panel>
-
-      {/* Own full-width section. As the N+1-th cell of a course grid its width depended on
-          how many courses existed. Renders nothing at all when there is no activity yet. */}
-      {activity.length ? (
-        <ActivityPanel locale={locale} activity={activity} />
+      <ResumeHero locale={locale} profileName={profileName} resume={view.resume} progress={view.progress} />
+      <DashboardPulse
+        locale={locale}
+        creditsBalance={overview?.studio.creditsBalance ?? 0}
+        unreadMessages={overview?.messages.unreadTotal ?? 0}
+        notifications={overview?.notifications.total ?? 0}
+        rank={overview?.leaderboard?.rank ?? null}
+      />
+      <DashboardWindowsGrid locale={locale} overview={overview} nextLessons={view.nextLessons} />
+      {view.activity.length ? (
+        <ActivityPanel locale={locale} activity={view.activity} />
       ) : (
         <p className="flex items-center gap-2 px-1 text-sm font-bold text-muted">
           <BarChart3 className="size-4 shrink-0 text-ink" />

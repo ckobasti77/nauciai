@@ -5,7 +5,7 @@ import { useQuery } from "convex/react";
 
 import {
   DashboardContent,
-  DashboardHomeContent,
+  DashboardHome,
   DashboardHomeSkeleton,
   type DashboardCourse,
 } from "@/components/app/dashboard-content";
@@ -241,25 +241,32 @@ export function LiveStudentDashboard({
   fallbackCourses: DashboardCourse[];
 }) {
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
-  const liveNavigation = useQuery(api.courses.getAppNavigation, isAuthenticated ? {} : "skip") as LiveNavigationResult;
+  // Komandna tabla se hrani JEDNIM agregatom. courseSlug (legacy /app?course=) je
+  // preusmeren na /app/classroom u page.tsx pre nego što stigne dovde, pa je ta grana
+  // van komandne table i i dalje čita getAppNavigation samo kad je slug prisutan.
+  const overview = useQuery(api.dashboard.getDashboardOverview, isAuthenticated && !courseSlug ? {} : "skip");
+  const liveNavigation = useQuery(
+    api.courses.getAppNavigation,
+    isAuthenticated && courseSlug ? {} : "skip",
+  ) as LiveNavigationResult;
   const isAdmin = profile?.role === "admin" || liveNavigation?.profile?.role === "admin";
 
   // Three states, kept distinct: loading (auth resolving, or query still undefined),
   // empty (query resolved with nothing), loaded. Conflating the first two is what made the
   // dashboard show fabricated data on every page load.
-  if (authLoading || (isAuthenticated && liveNavigation === undefined)) {
+  if (authLoading) {
     return <DashboardHomeSkeleton />;
   }
 
   if (!courseSlug) {
-    return (
-      <DashboardHomeContent
-        locale={locale}
-        profile={profile}
-        courses={coursesFromLive(liveNavigation, fallbackCourses)}
-        isAdmin={isAdmin}
-      />
-    );
+    if (isAuthenticated && overview === undefined) {
+      return <DashboardHomeSkeleton />;
+    }
+    return <DashboardHome locale={locale} profile={profile} overview={overview ?? null} />;
+  }
+
+  if (isAuthenticated && liveNavigation === undefined) {
+    return <DashboardHomeSkeleton />;
   }
 
   const course = courseFromLive(liveNavigation, fallbackCourse, fallbackCourses, courseSlug);

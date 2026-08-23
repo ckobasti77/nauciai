@@ -1,6 +1,6 @@
 import {
   DashboardContent,
-  DashboardHomeContent,
+  DashboardHome,
   type DashboardCourse,
 } from "@/components/app/dashboard-content";
 import { LiveStudentDashboard } from "@/components/app/dashboard-live";
@@ -76,11 +76,11 @@ export function StudentDashboard({
 
   if (!courseSlug) {
     return (
-      <DashboardHomeContent
+      <DashboardHome
         locale={locale}
         profile={resolvedProfile}
-        courses={fallbackCourses}
-        isAdmin={resolvedProfile?.role === "admin"}
+        overview={null}
+        staticCourses={fallbackCourses}
       />
     );
   }
