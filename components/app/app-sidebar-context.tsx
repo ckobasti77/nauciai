@@ -17,15 +17,16 @@ import { activeFilterCount, openStudioFilters, useStudioFilters } from "@/lib/st
 import { studioMotionTokens } from "@/lib/studio-motion";
 
 /**
- * Studijski sadržaj sidebara i USMEREN prelaz izmedju klasičnog i studijskog.
+ * Sadržaj sidebara po kontekstu i USMEREN prelaz izmedju home (classic) i aktivnog konteksta.
  *
- * Aditivno uz `app-sidebar.tsx` (koji ostaje netaknut osim što ovo umeće iza
- * `studioActive`): kontrola za skupljanje je iznad regiona zamene i ne pomera se,
- * a menja se samo sadržaj ispod nje - „isti sidebar, drugi sadržaj".
+ * Vozi ga registry (`resolveSidebarContext` u `app-sidebar.tsx`), ne boolean: kontrola za
+ * skupljanje je iznad regiona zamene i ne pomera se, a menja se samo sadržaj ispod nje -
+ * „isti sidebar, drugi sadržaj". `leading` (opciono) renderuje ne-sekcijski widget IZNAD liste
+ * (classroom: LearningSwitcher); studio dodaje `FiltersDivider` ispod liste.
  *
  * Koreografija (rečnik pokreta — prelaz + element stagger):
- * - USMEREN, ne simetričan: ulaz u Studio -> studijsko ulazi s DESNA, klasično
- *   izlazi ULEVO; „Nazad" -> obrnuto (iOS navigation-stack model, Studio je
+ * - USMEREN, ne simetričan: ulaz u kontekst -> sadržaj konteksta ulazi s DESNA, home
+ *   izlazi ULEVO; „Nazad" -> obrnuto (iOS navigation-stack model, kontekst je
  *   „desno od" aplikacije, `Nazad` je korak unazad).
  * - Visina se NE animira: `AnimatePresence mode="popLayout"` izbacuje sloj koji
  *   izlazi iz toka (apsolutan), pa razliku u visini apsorbuje dno, bez reflow-a.
@@ -186,6 +187,7 @@ export function ContextSidebarNav({
   isAdmin = false,
   params = {},
   badges = {},
+  leading,
 }: {
   context: SidebarContext;
   locale: Locale;
@@ -196,6 +198,8 @@ export function ContextSidebarNav({
   isAdmin?: boolean;
   params?: SidebarHrefParams;
   badges?: Partial<Record<SidebarBadgeKey, number>>;
+  /** Non-section widget rendered above the list (classroom: LearningSwitcher). */
+  leading?: ReactNode;
 }) {
   const sections = sectionsFor(context, { isStaff, isAdmin, params });
   const navLabel = locale === "sr" ? context.labelSr : context.labelEn;
@@ -210,6 +214,7 @@ export function ContextSidebarNav({
           <span className="truncate">{backLabel}</span>
         </button>
       </Item>
+      {leading ? <Item reduce={reduce}>{leading}</Item> : null}
       {groupLabel ? (
         <p className="px-3 pb-1 pt-3 text-[11px] font-black uppercase tracking-[0.04em] text-muted">
           {groupLabel}
@@ -293,6 +298,7 @@ export function ContextSidebarRail({
   isAdmin = false,
   params = {},
   badges = {},
+  leading,
 }: {
   context: SidebarContext;
   locale: Locale;
@@ -302,6 +308,8 @@ export function ContextSidebarRail({
   isAdmin?: boolean;
   params?: SidebarHrefParams;
   badges?: Partial<Record<SidebarBadgeKey, number>>;
+  /** Non-section rail control rendered above the icons (classroom: LearningSwitcher flyout). */
+  leading?: ReactNode;
 }) {
   const sections = sectionsFor(context, { isStaff, isAdmin, params });
   const navLabel = locale === "sr" ? context.labelSr : context.labelEn;
@@ -313,6 +321,7 @@ export function ContextSidebarRail({
         <ChevronLeft className="size-5" />
         <RailTooltip label={backLabel} />
       </button>
+      {leading}
       {sections.map((section) => {
         const Icon = section.icon;
         const active = section.id === activeId;

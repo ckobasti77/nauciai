@@ -163,3 +163,61 @@ describe("sidebar contexts — admin sections", () => {
     expect(byId.studio.href("sr", {})).toBe("/sr/app/admin/studio");
   });
 });
+
+describe("sidebar contexts — classroom sections", () => {
+  const classroom = resolveSidebarContext("/sr/app/classroom");
+
+  it("resolves classroom from the hub and every deeper node, in either locale", () => {
+    expect(resolveSidebarContext("/sr/app/classroom").id).toBe("classroom");
+    expect(resolveSidebarContext("/en/app/classroom").id).toBe("classroom");
+    expect(resolveSidebarContext("/sr/app/classroom/tracks/video-audio").id).toBe("classroom");
+    expect(resolveSidebarContext("/en/app/classroom/courses/websites/lessons/intro").id).toBe("classroom");
+  });
+
+  it("does not mistake a sibling route with the same prefix for classroom", () => {
+    expect(resolveSidebarContext("/sr/app/classrooms").id).toBe("home");
+  });
+
+  it("shows only the three hub views until a track/course supplies params", () => {
+    expect(sectionsFor(classroom, studentOpts).map((s) => s.id)).toEqual(["overview", "tracks", "courses"]);
+  });
+
+  it("reveals the conditional Smer/Kurs sections only with the matching param", () => {
+    const inTrack = sectionsFor(classroom, { isStaff: false, isAdmin: false, params: { trackSlug: "video-audio" } });
+    expect(inTrack.map((s) => s.id)).toEqual(["overview", "tracks", "courses", "track"]);
+
+    const inCourse = sectionsFor(classroom, { isStaff: false, isAdmin: false, params: { courseSlug: "websites" } });
+    expect(inCourse.map((s) => s.id)).toEqual(["overview", "tracks", "courses", "course"]);
+  });
+
+  it("computes the Smer · X / Kurs · Y label from the title params, else the bare prefix", () => {
+    const track = classroom.sections.find((s) => s.id === "track")!;
+    const course = classroom.sections.find((s) => s.id === "course")!;
+    expect(track.dynamicLabel!({ trackSlug: "va", trackTitle: "Video i audio" }, "sr")).toBe("Smer · Video i audio");
+    expect(course.dynamicLabel!({ courseSlug: "w", courseTitle: "Web" }, "en")).toBe("Course · Web");
+    expect(track.dynamicLabel!({ trackSlug: "va" }, "sr")).toBe("Smer");
+  });
+
+  it("builds hub hrefs with ?view and detail hrefs through the route builders", () => {
+    const byId = Object.fromEntries(classroom.sections.map((s) => [s.id, s]));
+    expect(byId.overview.href("sr", {})).toBe("/sr/app/classroom");
+    expect(byId.tracks.href("sr", {})).toBe("/sr/app/classroom?view=tracks");
+    expect(byId.courses.href("en", {})).toBe("/en/app/classroom?view=courses");
+    expect(byId.track.href("sr", { trackSlug: "video-audio" })).toBe("/sr/app/classroom/tracks/video-audio");
+    expect(byId.course.href("en", { courseSlug: "websites" })).toBe("/en/app/classroom/courses/websites");
+  });
+
+  it("resolves the active hub view from ?view, and the detail sections from params", () => {
+    const sp = (view?: string) => new URLSearchParams(view ? `view=${view}` : "");
+    expect(activeSectionId(classroom, "/sr/app/classroom", sp(), {})).toBe("overview");
+    expect(activeSectionId(classroom, "/sr/app/classroom", sp("tracks"), {})).toBe("tracks");
+    expect(activeSectionId(classroom, "/sr/app/classroom", sp("courses"), {})).toBe("courses");
+    // On a track route the conditional Smer section owns active, not the hub views.
+    expect(activeSectionId(classroom, "/sr/app/classroom/tracks/va", sp(), { trackSlug: "va" })).toBe("track");
+    // Inside a course detail Kurs is active; inside a lesson beneath it, nothing is.
+    expect(activeSectionId(classroom, "/sr/app/classroom/courses/w", sp(), { courseSlug: "w" })).toBe("course");
+    expect(
+      activeSectionId(classroom, "/sr/app/classroom/courses/w/lessons/i", sp(), { courseSlug: "w", lessonSlug: "i" }),
+    ).toBeNull();
+  });
+});

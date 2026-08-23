@@ -6,7 +6,6 @@ import {
   ChevronRight,
   CircleAlert,
   Coins,
-  Compass,
   CreditCard,
   Crown,
   GraduationCap,
@@ -61,7 +60,7 @@ import {
   preferencesFromDraggedWidth,
   serializeAppSidebarPreferences,
 } from "@/lib/app-sidebar-preferences";
-import { coursePath, lessonPath, trackPath } from "@/lib/app-routes";
+import { classroomPath, coursePath, lessonPath } from "@/lib/app-routes";
 import { publicProfilePath } from "@/lib/profile-links";
 import type { AppCourseNav, AppNavigationData } from "@/lib/app-navigation";
 import { primaryCourseSlug } from "@/lib/content";
@@ -900,10 +899,9 @@ function SidebarRoleBadge({
  */
 function AppBottomNav({
   locale,
-  currentCourse,
   communityLandingHref,
   dashboardActive,
-  courseActive,
+  classroomActive,
   communityActive,
   messagesActive,
   communityBadge,
@@ -913,10 +911,9 @@ function AppBottomNav({
   hidden,
 }: {
   locale: Locale;
-  currentCourse?: AppCourseNav;
   communityLandingHref: string;
   dashboardActive: boolean;
-  courseActive: boolean;
+  classroomActive: boolean;
   communityActive: boolean;
   messagesActive: boolean;
   communityBadge: number;
@@ -950,25 +947,15 @@ function AppBottomNav({
       active: dashboardActive,
       badge: 0,
     },
-    currentCourse
-      ? {
-          key: "course",
-          href: coursePath(locale, currentCourse.slug),
-          icon: GraduationCap,
-          // Was labelled "Lekcije" while linking to course detail. The destination was
-          // right; the label was the lie.
-          label: locale === "sr" ? "Kurs" : "Course",
-          active: courseActive,
-          badge: 0,
-        }
-      : {
-          key: "courses",
-          href: dashboardHref(locale),
-          icon: GraduationCap,
-          label: locale === "sr" ? "Kursevi" : "Courses",
-          active: false,
-          badge: 0,
-        },
+    {
+      // Sve što se uči je jedan slot — Učionica; smer/kurs/lekcija su njen kontekst.
+      key: "classroom",
+      href: classroomPath(locale),
+      icon: GraduationCap,
+      label: locale === "sr" ? "Učionica" : "Classroom",
+      active: classroomActive,
+      badge: 0,
+    },
     // Unutar konteksta (studio/community/admin) treći slot postaje „Sekcije" — otvara drawer
     // (prošireni sidebar sa sekcijama konteksta). Na home ostaje link na Zajednicu.
     contextActive
@@ -1337,6 +1324,7 @@ function AppSidebarContent({
   const sidebarContext = resolveSidebarContext(pathname);
   const contextActive = sidebarContext.id !== "home";
   const studioActive = sidebarContext.id === "studio";
+  const classroomActive = sidebarContext.id === "classroom";
   // `searchParams` iz useSearchParams je read-only, pa ga kopiramo u pravi URLSearchParams za
   // `isActive`/`href` sekcija. Studio čita `?kind=`; zajednica čuva scope/track/course/q/sort.
   const currentSearch = new URLSearchParams(searchParams.toString());
@@ -1348,6 +1336,9 @@ function AppSidebarContent({
     courseSlug: params.courseSlug,
     trackSlug: params.trackSlug,
     lessonSlug: params.lessonSlug,
+    // Titles feed the classroom context's "Smer · X" / "Kurs · Y" dynamicLabel.
+    courseTitle: currentCourse ? localized(currentCourse.title, locale) : undefined,
+    trackTitle: currentCourse?.trackTitle ? localized(currentCourse.trackTitle, locale) : undefined,
     preserved: preservedSearch,
   };
   const activeContextSectionId = activeSectionId(sidebarContext, pathname, currentSearch, contextParams);
@@ -1360,9 +1351,6 @@ function AppSidebarContent({
     messages: messagesBadge,
   };
   const creditsActive = pathname === withLocale(locale, "/app/credits");
-  // Course detail only; a lesson is a deeper node and lights up the Lessons disclosure.
-  const courseActive = Boolean(params.courseSlug) && !params.lessonSlug;
-  const trackActive = Boolean(params.trackSlug);
   const adminActive = pathname === withLocale(locale, "/app/admin/content");
   const chatSafetyActive = pathname === withLocale(locale, "/app/admin/chat");
   const showUpgrade = planOffersUpgrade(resolvePlan(navigation.role, navigation.plan));
@@ -1372,17 +1360,6 @@ function AppSidebarContent({
   const communityLandingHref = currentCourse
     ? communityHref(locale, currentCourse.slug)
     : withLocale(locale, "/app/community/discussions");
-  // Optional on AppCourseNav, and never set by the static no-Convex fallback, so the
-  // track entry has to be able to not exist.
-  const currentTrackSlug = currentCourse?.trackSlug;
-  // Each hierarchy row names its own level *and* the thing you are currently in, so the
-  // sidebar reads "Smer · X / Kurs · Y / Lekcije". The removed <select> used to be the
-  // only place the current track was written down; without this the level is anonymous.
-  const trackTitle = currentCourse?.trackTitle ? localized(currentCourse.trackTitle, locale) : null;
-  const trackLevel = locale === "sr" ? "Smer" : "Track";
-  const courseLevel = locale === "sr" ? "Kurs" : "Course";
-  const trackLabel = trackTitle ? `${trackLevel} · ${trackTitle}` : trackLevel;
-  const courseLabel = currentCourse ? `${courseLevel} · ${localized(currentCourse.title, locale)}` : courseLevel;
   const sidebarWidth = sidebarPreferences.collapsed ? APP_SIDEBAR_RAIL_WIDTH : sidebarPreferences.width;
   const sidebarStyle = { "--app-sidebar-width": `${sidebarWidth}px` } as CSSProperties;
   // Below the desktop breakpoint the same <aside> behaves as a modal drawer.
@@ -1472,92 +1449,73 @@ function AppSidebarContent({
             <X className="size-5" />
           </button>
         </div>
-        {/* Studio zamenjuje sadržaj sidebara (aditivno, iza `studioActive`): kontrola
-            za skupljanje iznad ostaje sidro, menja se samo ovo ispod nje. Klasičan
-            sadržaj (kursevi/lekcije/zajednica) je netaknut - samo umotan kao `classic`. */}
+        {/* Registry konteksta bira sadržaj ispod: `contextActive` prebacuje sa home (classic)
+            na sekcije aktivnog konteksta (ContextSidebarNav). Kontrola za skupljanje iznad
+            ostaje sidro; menja se samo ovo ispod nje. */}
         <SidebarNavSwap
           active={contextActive}
           reduce={shouldReduceMotion ?? false}
           classic={
-            <>
-              {currentCourse ? (
-                <LearningSwitcher
-                  locale={locale}
-                  courses={courses}
-                  currentCourse={currentCourse}
-                  currentLessonSlug={params.lessonSlug}
-                  isAdmin={isAdmin}
+            <nav aria-label={navLabel} className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3 md:flex md:flex-col">
+              <NavLink
+                href={dashboardHref(locale)}
+                active={dashboardActive}
+                icon={LayoutDashboard}
+                label="Dashboard"
+              />
+              {/* Sve što se uči živi u Učionici (`/app/classroom`); smer/kurs/lekcija su njen kontekst,
+                  ne redovi globalne navigacije. */}
+              <NavLink
+                href={classroomPath(locale)}
+                active={classroomActive}
+                icon={GraduationCap}
+                label={locale === "sr" ? "Učionica" : "Classroom"}
+              />
+              <NavLink
+                href={withLocale(locale, "/app/studio")}
+                active={studioActive}
+                icon={Wand2}
+                label="Studio"
+              />
+              <NavLink
+                href={withLocale(locale, "/app/credits")}
+                active={creditsActive}
+                icon={Coins}
+                label={locale === "sr" ? "Krediti" : "Credits"}
+              />
+              {/* Zajednica je odredište; sekcije zajednice renderuje `community` kontekst
+                  sidebara (uz očuvanje scope/track/course/q/sort). */}
+              <NavLink
+                href={communityLandingHref}
+                active={communityActive}
+                icon={MessageCircle}
+                label={t.community}
+                badge={communityBadge}
+              />
+              <NavLink
+                href={withLocale(locale, "/app/messages")}
+                active={messagesActive}
+                icon={MessagesSquare}
+                label={locale === "sr" ? "Poruke" : "Messages"}
+                badge={messagesBadge}
+              />
+              {isAdmin ? (
+                <NavLink
+                  href={withLocale(locale, "/app/admin/content")}
+                  active={pathname === withLocale(locale, "/app/admin/content")}
+                  icon={ShieldCheck}
+                  label={locale === "sr" ? "Admin panel" : "Admin panel"}
                 />
               ) : null}
-              <nav aria-label={navLabel} className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3 md:flex md:flex-col">
-            <NavLink
-              href={dashboardHref(locale)}
-              active={dashboardActive}
-              icon={LayoutDashboard}
-              label="Dashboard"
-            />
-            <NavLink
-              href={withLocale(locale, "/app/studio")}
-              active={studioActive}
-              icon={Wand2}
-              label="Studio"
-            />
-            <NavLink
-              href={withLocale(locale, "/app/credits")}
-              active={creditsActive}
-              icon={Coins}
-              label={locale === "sr" ? "Krediti" : "Credits"}
-            />
-            {currentTrackSlug ? (
-              <NavLink
-                href={trackPath(locale, currentTrackSlug)}
-                active={trackActive}
-                icon={Compass}
-                label={trackLabel}
-              />
-            ) : null}
-            {currentCourse ? (
-              <NavLink
-                href={coursePath(locale, currentCourse.slug)}
-                active={courseActive}
-                icon={GraduationCap}
-                label={courseLabel}
-              />
-            ) : null}
-            {/* Zajednica je odredište; sekcije zajednice sada renderuje `community` kontekst
-                sidebara (uz očuvanje scope/track/course/q/sort). */}
-            <NavLink
-              href={communityLandingHref}
-              active={communityActive}
-              icon={MessageCircle}
-              label={t.community}
-              badge={communityBadge}
-            />
-            <NavLink
-              href={withLocale(locale, "/app/messages")}
-              active={messagesActive}
-              icon={MessagesSquare}
-              label={locale === "sr" ? "Poruke" : "Messages"}
-              badge={messagesBadge}
-            />
-            {isAdmin ? (
-              <NavLink
-                href={withLocale(locale, "/app/admin/content")}
-                active={pathname === withLocale(locale, "/app/admin/content")}
-                icon={ShieldCheck}
-                label={locale === "sr" ? "Admin panel" : "Admin panel"}
-              />
-            ) : null}
-            {isStaff ? (
-              <NavLink
-                href={withLocale(locale, "/app/admin/chat")}
-                active={pathname === withLocale(locale, "/app/admin/chat")}
-                icon={Shield}
-                label={locale === "sr" ? "Chat sigurnost" : "Chat safety"}
-              />
-            ) : null}
-              </nav>
-            </>
+              {isStaff ? (
+                <NavLink
+                  href={withLocale(locale, "/app/admin/chat")}
+                  active={pathname === withLocale(locale, "/app/admin/chat")}
+                  icon={Shield}
+                  label={locale === "sr" ? "Chat sigurnost" : "Chat safety"}
+                />
+              ) : null}
+            </nav>
           }
           studio={
             <ContextSidebarNav
@@ -1570,6 +1528,17 @@ function AppSidebarContent({
               isAdmin={isAdmin}
               params={contextParams}
               badges={contextBadges}
+              leading={
+                sidebarContext.id === "classroom" && currentCourse ? (
+                  <LearningSwitcher
+                    locale={locale}
+                    courses={courses}
+                    currentCourse={currentCourse}
+                    currentLessonSlug={params.lessonSlug}
+                    isAdmin={isAdmin}
+                  />
+                ) : undefined
+              }
             />
           }
         />
@@ -1779,21 +1748,13 @@ function AppSidebarContent({
           className="w-full"
           classic={
             <nav className="flex flex-col items-center gap-2" aria-label={locale === "sr" ? "Glavna navigacija" : "Main navigation"}>
-          {currentCourse ? (
-            <RailAction label={`${localized(currentCourse.title, locale)} · ${t.lessons}`} icon={<GraduationCap className="size-5" />} expanded={railFlyout === "learning"} onClick={() => setRailFlyout((value) => value === "learning" ? null : "learning")} />
-          ) : null}
           <RailAction href={dashboardHref(locale)} label="Dashboard" icon={<LayoutDashboard className="size-5" />} active={dashboardActive} />
+          {/* Učionica: smer/kurs/lekcija su njen kontekst; LearningSwitcher se otvara iz classroom raila. */}
+          <RailAction href={classroomPath(locale)} label={locale === "sr" ? "Učionica" : "Classroom"} icon={<GraduationCap className="size-5" />} active={classroomActive} />
           <RailAction href={withLocale(locale, "/app/studio")} label="Studio" icon={<Wand2 className="size-5" />} active={studioActive} />
           <RailAction href={withLocale(locale, "/app/credits")} label={locale === "sr" ? "Krediti" : "Credits"} icon={<Coins className="size-5" />} active={creditsActive} />
-          {currentTrackSlug ? (
-            <RailAction href={trackPath(locale, currentTrackSlug)} label={trackLabel} icon={<Compass className="size-5" />} active={trackActive} />
-          ) : null}
-          {currentCourse ? (
-            <RailAction href={coursePath(locale, currentCourse.slug)} label={courseLabel} icon={<GraduationCap className="size-5" />} active={courseActive} />
-          ) : null}
-          {/* A link, not a flyout like the course/lesson switcher: community has a canonical destination,
-              and its own section nav renders on arrival, so every section is still within
-              two interactions from here. */}
+          {/* Zajednica je odredište; njena sekcijska nav se prikazuje po dolasku, pa je svaka
+              sekcija i dalje na dva klika odavde. */}
           <RailAction href={communityLandingHref} label={t.community} icon={<MessageCircle className="size-5" />} active={communityActive} badge={communityBadge} />
           <RailAction href={withLocale(locale, "/app/messages")} label={locale === "sr" ? "Poruke" : "Messages"} icon={<MessagesSquare className="size-5" />} active={messagesActive} badge={messagesBadge} />
           {/* Collapse state lives in a one-year cookie, so anything missing here is missing
@@ -1819,6 +1780,16 @@ function AppSidebarContent({
               isAdmin={isAdmin}
               params={contextParams}
               badges={contextBadges}
+              leading={
+                sidebarContext.id === "classroom" && currentCourse ? (
+                  <RailAction
+                    label={`${localized(currentCourse.title, locale)} · ${t.lessons}`}
+                    icon={<GraduationCap className="size-5" />}
+                    expanded={railFlyout === "learning"}
+                    onClick={() => setRailFlyout((value) => (value === "learning" ? null : "learning"))}
+                  />
+                ) : undefined
+              }
             />
           }
         />
@@ -1903,10 +1874,9 @@ function AppSidebarContent({
     </aside>
       <AppBottomNav
         locale={locale}
-        currentCourse={currentCourse}
         communityLandingHref={communityLandingHref}
         dashboardActive={dashboardActive}
-        courseActive={courseActive}
+        classroomActive={classroomActive}
         communityActive={communityActive}
         messagesActive={messagesActive}
         communityBadge={communityBadge}

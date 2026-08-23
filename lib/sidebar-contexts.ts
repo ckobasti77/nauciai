@@ -1,6 +1,9 @@
 import {
   BarChart3,
+  BookOpen,
+  Compass,
   FileText,
+  GraduationCap,
   LayoutDashboard,
   Megaphone,
   MessageCircle,
@@ -11,6 +14,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
+import { classroomPath, coursePath, trackPath } from "@/lib/app-routes";
 import {
   COMMUNITY_SECTIONS,
   activeCommunitySection,
@@ -212,6 +216,76 @@ const adminContext: SidebarContext = {
   ],
 };
 
+// --- classroom ---------------------------------------------------------------
+
+const CLASSROOM_ROOT = "/app/classroom";
+
+/**
+ * Overview/Tracks/Courses all live on the hub, distinguished by `?view=`. isActive reads the
+ * query the same way studio reads `?kind=`; a track/course detail route activates its own
+ * conditional section below instead, never these three.
+ */
+function classroomViewSection(opts: {
+  id: string;
+  labelSr: string;
+  labelEn: string;
+  icon: LucideIcon;
+  view?: "tracks" | "courses";
+}): SidebarSection {
+  return {
+    id: opts.id,
+    labelSr: opts.labelSr,
+    labelEn: opts.labelEn,
+    icon: opts.icon,
+    href: (locale) => (opts.view ? `${classroomPath(locale)}?view=${opts.view}` : classroomPath(locale)),
+    isActive: (pathname, searchParams) =>
+      stripLocale(pathname) === CLASSROOM_ROOT && (searchParams.get("view") ?? "") === (opts.view ?? ""),
+  };
+}
+
+const classroomContext: SidebarContext = {
+  id: "classroom",
+  matches: [CLASSROOM_ROOT],
+  rootHref: (locale) => classroomPath(locale),
+  labelSr: "Učionica",
+  labelEn: "Classroom",
+  icon: GraduationCap,
+  groupLabelSr: "Učionica",
+  groupLabelEn: "Classroom",
+  sections: [
+    classroomViewSection({ id: "overview", labelSr: "Pregled", labelEn: "Overview", icon: LayoutDashboard }),
+    classroomViewSection({ id: "tracks", labelSr: "Smerovi", labelEn: "Tracks", icon: Compass, view: "tracks" }),
+    classroomViewSection({ id: "courses", labelSr: "Kursevi", labelEn: "Courses", icon: BookOpen, view: "courses" }),
+    // Conditional: present only inside a track/course, with a computed "Smer · X" / "Kurs · Y" label.
+    {
+      id: "track",
+      labelSr: "Smer",
+      labelEn: "Track",
+      icon: Compass,
+      visible: (params) => Boolean(params.trackSlug),
+      dynamicLabel: (params, locale) => {
+        const prefix = locale === "sr" ? "Smer" : "Track";
+        return params.trackTitle ? `${prefix} · ${params.trackTitle}` : prefix;
+      },
+      href: (locale, params) => (params.trackSlug ? trackPath(locale, params.trackSlug) : classroomPath(locale)),
+      isActive: (_pathname, _searchParams, params) => Boolean(params.trackSlug),
+    },
+    {
+      id: "course",
+      labelSr: "Kurs",
+      labelEn: "Course",
+      icon: GraduationCap,
+      visible: (params) => Boolean(params.courseSlug),
+      dynamicLabel: (params, locale) => {
+        const prefix = locale === "sr" ? "Kurs" : "Course";
+        return params.courseTitle ? `${prefix} · ${params.courseTitle}` : prefix;
+      },
+      href: (locale, params) => (params.courseSlug ? coursePath(locale, params.courseSlug) : classroomPath(locale)),
+      isActive: (_pathname, _searchParams, params) => Boolean(params.courseSlug) && !params.lessonSlug,
+    },
+  ],
+};
+
 // --- home (fallback sentinel) ------------------------------------------------
 
 const homeContext: SidebarContext = {
@@ -228,7 +302,7 @@ const homeContext: SidebarContext = {
 };
 
 // Non-home contexts, checked in order; the first prefix match wins.
-const CONTEXTS: readonly SidebarContext[] = [studioContext, communityContext, adminContext];
+const CONTEXTS: readonly SidebarContext[] = [classroomContext, studioContext, communityContext, adminContext];
 
 export function resolveSidebarContext(pathname: string): SidebarContext {
   const path = stripLocale(pathname);
