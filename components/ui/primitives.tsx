@@ -7,7 +7,7 @@ export function cn(...classes: Array<string | false | null | undefined>): string
 }
 
 type ButtonProps = ComponentProps<typeof Link> & {
-  tone?: "ink" | "paper" | "yellow";
+  tone?: "ink" | "paper" | "yellow" | "smoke";
   size?: "md" | "lg";
 };
 
@@ -16,7 +16,7 @@ export function LinkButton({ className, tone = "ink", size = "md", ...props }: B
     <Link
       data-motion="interactive"
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-full border-2 font-extrabold transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2",
+        "group inline-flex items-center justify-center gap-2 rounded-full border-2 font-extrabold transition-all duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2",
         // `cn` is a plain join, not tailwind-merge, so a caller's `className` cannot reliably
         // beat these — sizing is selected here instead. "md" matches the previous hardcoded base.
         size === "md" && "min-h-11 px-5 py-2.5 text-sm",
@@ -27,12 +27,44 @@ export function LinkButton({ className, tone = "ink", size = "md", ...props }: B
           "border-ink bg-yellow text-ink shadow-[4px_4px_0_0_var(--ink)] hover:-translate-y-0.5 hover:shadow-[6px_6px_0_0_var(--ink)] focus-visible:outline-ink",
         tone === "paper" &&
           "border-ink bg-paper-strong text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] hover:-translate-y-0.5 focus-visible:outline-ink",
+        tone === "smoke" &&
+          "border-yellow bg-paper text-yellow shadow-[3px_3px_0_0_rgba(244,190,48,0.25)] hover:-translate-y-0.5 hover:border-yellow hover:bg-yellow hover:text-white hover:shadow-[4px_4px_0_0_var(--shadow-hard)] focus-visible:outline-yellow dark:bg-paper-strong/90 dark:shadow-[3px_3px_0_0_rgba(244,190,48,0.2)]",
         className,
       )}
       {...props}
     />
   );
 }
+
+type PlainButtonProps = ComponentProps<"button"> & {
+  tone?: "ink" | "paper" | "yellow" | "smoke";
+  size?: "md" | "lg";
+};
+
+export function Button({ className, tone = "ink", size = "md", type = "button", ...props }: PlainButtonProps) {
+  return (
+    <button
+      type={type}
+      data-motion="interactive"
+      className={cn(
+        "group inline-flex items-center justify-center gap-2 rounded-full border-2 font-extrabold transition-all duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2",
+        size === "md" && "min-h-11 px-5 py-2.5 text-sm",
+        size === "lg" && "min-h-12 px-6 py-3 text-base sm:text-lg",
+        tone === "ink" &&
+          "border-ink bg-ink text-paper-strong shadow-[4px_4px_0_0_var(--yellow)] hover:-translate-y-0.5 hover:shadow-[6px_6px_0_0_var(--yellow)] focus-visible:outline-ink",
+        tone === "yellow" &&
+          "border-ink bg-yellow text-ink shadow-[4px_4px_0_0_var(--ink)] hover:-translate-y-0.5 hover:shadow-[6px_6px_0_0_var(--ink)] focus-visible:outline-ink",
+        tone === "paper" &&
+          "border-ink bg-paper-strong text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] hover:-translate-y-0.5 focus-visible:outline-ink",
+        tone === "smoke" &&
+          "border-yellow bg-paper text-yellow shadow-[3px_3px_0_0_rgba(244,190,48,0.25)] hover:-translate-y-0.5 hover:border-yellow hover:bg-yellow hover:text-white hover:shadow-[4px_4px_0_0_var(--shadow-hard)] focus-visible:outline-yellow dark:bg-paper-strong/90 dark:shadow-[3px_3px_0_0_rgba(244,190,48,0.2)]",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
 
 export function Panel({
   children,

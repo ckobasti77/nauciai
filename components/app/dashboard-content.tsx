@@ -904,7 +904,7 @@ export function DashboardCourseCard({
 
         <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
           {canOpen ? (
-            <LinkButton href={courseContinueHref(locale, course, summary.nextLesson)} tone="paper" className="min-h-10 px-4 text-xs">
+            <LinkButton href={courseContinueHref(locale, course, summary.nextLesson)} tone="smoke" className="min-h-10 px-4 text-xs font-black">
               <PlayCircle className="size-4" />
               {primaryLabel}
             </LinkButton>
@@ -1024,7 +1024,7 @@ export function DashboardFirstRun({ locale, profileName }: { locale: Locale; pro
             <Sparkles className="size-5" />
             {tr(locale, "Pogledaj kurseve", "Browse courses")}
           </LinkButton>
-          <LinkButton href={withLocale(locale, "/app/community")} tone="paper">
+          <LinkButton href={withLocale(locale, "/app/community")} tone="smoke">
             <MessageCircle className="size-4" />
             {tr(locale, "Otvori zajednicu", "Open community")}
           </LinkButton>
@@ -1388,7 +1388,7 @@ export function DashboardContent({
                     : tr(locale, "U pripremi", "In preparation")}
                 </div>
               )}
-              <LinkButton href={withLocale(locale, `/app/community?course=${course.slug}`)} tone="paper">
+              <LinkButton href={withLocale(locale, `/app/community?course=${course.slug}`)} tone="smoke">
                 <MessageCircle className="size-4" />
                 <InlineContentText entityId={course.id ?? ""} parentId={course.trackId} kind="course" field="pageCopy_communityCta" locale={inlineLocale} sr={course.pageCopy?.communityCta?.sr ?? t.community} en={course.pageCopy?.communityCta?.en ?? t.community} admin={isAdmin && Boolean(course.id && course.trackId)}>{locale === "sr" ? course.pageCopy?.communityCta?.sr ?? t.community : course.pageCopy?.communityCta?.en ?? t.community}</InlineContentText>
               </LinkButton>

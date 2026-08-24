@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Lightbulb, Search } from "lucide-react";
+import { ArrowLeft, ChevronDown, Lightbulb, Search } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { CreditIcon } from "@/components/studio/credit-icon";
@@ -15,6 +15,9 @@ import {
   modelLabel,
   modelTagline,
   MODEL_BADGE_LABELS,
+  PROVIDER_BRAND_NAME,
+  providerBrandOf,
+  type ProviderBrand,
   type StudioModel,
 } from "@/lib/studio-models";
 import {
@@ -32,14 +35,12 @@ import {
 } from "@/lib/studio-recommendations";
 import type { StudioSectionKind } from "@/lib/studio-sections";
 
-const KIND_LABELS = {
-  all: { sr: "Sve", en: "All" },
-  image: { sr: "Slika", en: "Image" },
-  video: { sr: "Video", en: "Video" },
-  audio: { sr: "Zvuk", en: "Audio" },
-} as const;
-
-const KINDS = ["image", "video", "audio"] as const;
+const KIND_OPTIONS: Array<{ value: "image" | "video" | "audio" | "all"; label: Record<Locale, string> }> = [
+  { value: "image", label: { sr: "Slika", en: "Image" } },
+  { value: "video", label: { sr: "Video", en: "Video" } },
+  { value: "audio", label: { sr: "Audio", en: "Audio" } },
+  { value: "all", label: { sr: "Sve", en: "All" } },
+];
 
 /**
  * Prikaz cene za red modela. Vraća kratak niz koji staje u desnu kolonu:
@@ -48,8 +49,6 @@ const KINDS = ["image", "video", "audio"] as const;
 export function modelPriceSummary(model: StudioModel, locale: Locale, duration?: number): string {
   const quantityParam = model.priceRule.quantityParam;
 
-  // chars1k (TTS/dijalog): cena po 1000 znakova je stabilna i poznata unapred,
-  // pa je pokazujemo umesto „cena po ulazu" - broj koji korisnik može da uporedi.
   if (model.priceRule.unit === "chars1k") {
     const for1k = defaultCredits(model, { char_count: 1000 });
     if (for1k !== null) {
@@ -157,31 +156,98 @@ export function ModelPriceDisplay({
 type KindFilter = "all" | StudioSectionKind;
 
 /**
- * Birač modela kao GORNJA ZONA panela (SP1, tačka 1) - ne zaseban prozor.
- * Fiksne je visine (flex-col: pretraga+filteri gore, spisak skroluje), pa se
- * composer i cena ne pomeraju dok korisnik bira. Sav znak firme, gustina (dva
- * reda po modelu, cena u tabularnoj koloni), preporuke po poslu i tastatura su
- * ovde; nijedan `if (slug === …)`.
+ * Prilagođena Select / Dropdown komponenta za filtere na vrhu birača.
+ */
+function FilterDropdown<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: T;
+  options: Array<{ value: T; label: string }>;
+  onChange: (value: T) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const selectedOption = options.find((opt) => opt.value === value) ?? options[0];
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [isOpen]);
+
+  return (
+    <div ref={dropdownRef} className="relative flex-1">
+      <button
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+        onClick={() => setIsOpen((prev) => !prev)}
+        className="surface-inset flex h-10 w-full items-center justify-between gap-2 border-2 border-ink bg-paper px-3 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+      >
+        <span className="truncate">{selectedOption?.label ?? label}</span>
+        <ChevronDown className={cn("size-3.5 shrink-0 transition-transform duration-150", isOpen && "rotate-180")} />
+      </button>
+
+      {isOpen ? (
+        <div
+          role="listbox"
+          className="surface-card absolute left-0 top-[calc(100%+4px)] z-50 max-h-56 w-full min-w-[140px] overflow-y-auto border-2 border-ink bg-paper-strong p-1 shadow-[4px_4px_0_0_var(--shadow-hard-16)]"
+        >
+          {options.map((opt) => {
+            const isSelected = opt.value === value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                role="option"
+                aria-selected={isSelected}
+                onClick={() => {
+                  onChange(opt.value);
+                  setIsOpen(false);
+                }}
+                className={cn(
+                  "flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs font-black text-left transition hover:bg-yellow/25",
+                  isSelected ? "bg-ink text-paper-strong" : "text-ink",
+                )}
+              >
+                <span className="truncate">{opt.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Birač modela u pojednostavljenom formatu (Slika 2 i Slika 4).
  */
 export function ModelPickerPanel({
   models,
   selectedSlug,
   activeKind,
-  recentSlugs = [],
-  lastByKind = {},
   providerStatus,
   onSelect,
-  onCollapse,
   locale,
   className,
 }: {
   models: StudioModel[];
   selectedSlug: string | null;
-  /** Vrsta trenutnog modela - filter se otvara na njoj (tačka 8: ne baca na tuđu vrstu). */
   activeKind: StudioSectionKind;
   recentSlugs?: string[];
   lastByKind?: Partial<Record<StudioSectionKind, string>>;
-  /** SP2: `false` za provajdera bez ključa - red dobija DEMO pilulu. */
   providerStatus?: Partial<Record<StudioModel["provider"], boolean>>;
   onSelect: (model: StudioModel) => void;
   onCollapse: () => void;
@@ -189,80 +255,77 @@ export function ModelPickerPanel({
   className?: string;
 }) {
   const [kind, setKind] = useState<KindFilter>(activeKind);
+  const [providerFilter, setProviderFilter] = useState<string>("all");
   const [query, setQuery] = useState("");
   const [kbdIndex, setKbdIndex] = useState<number>(-1);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
-  // Autofokus na pretragu kad se zona otvori.
+  // Autofokus na pretragu kad se otvori
   useEffect(() => {
     const timer = setTimeout(() => searchInputRef.current?.focus(), 60);
     return () => clearTimeout(timer);
   }, []);
 
-  const specificKind: StudioSectionKind | null = kind === "all" ? null : kind;
+  // Dostupni provajderi iz kataloga modela
+  const providerOptions = useMemo(() => {
+    const brands = new Set<ProviderBrand>();
+    for (const m of models) {
+      const b = providerBrandOf(m);
+      if (b) brands.add(b);
+    }
+    const list = Array.from(brands).map((b) => ({
+      value: b,
+      label: PROVIDER_BRAND_NAME[b] ?? b,
+    }));
+    return [
+      { value: "all", label: locale === "sr" ? "Svi provajderi" : "All providers" },
+      ...list,
+    ];
+  }, [models, locale]);
 
-  const filtered = useMemo(
-    () => filterModels(models, { ...(specificKind ? { kind: specificKind } : {}), query }, locale),
-    [models, specificKind, query, locale],
-  );
+  // Filtrirani modeli po vrsti, provajderu i query-ju
+  const filteredModels = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return models.filter((m) => {
+      if (kind !== "all" && m.kind !== kind) return false;
+      if (providerFilter !== "all") {
+        const brand = providerBrandOf(m);
+        if (brand !== providerFilter) return false;
+      }
+      if (q) {
+        const matchLabel = modelLabel(m, locale).toLowerCase().includes(q);
+        const matchTag = modelTagline(m, locale).toLowerCase().includes(q);
+        const matchSlug = m.slug.toLowerCase().includes(q);
+        if (!matchLabel && !matchTag && !matchSlug) return false;
+      }
+      return true;
+    });
+  }, [models, kind, providerFilter, query, locale]);
 
-  const activeModel = useMemo(
-    () => models.find((model) => model.slug === selectedSlug) ?? null,
-    [models, selectedSlug],
-  );
-
-  const matchesFilter = (model: StudioModel) =>
-    (!specificKind || model.kind === specificKind) && (query.trim().length === 0);
-
-  // „Poslednji korišćen" za trenutnu vrstu (tačka 8) - da prebacivanje vrste
-  // vrati na poznat model, ne na nasumičan. Preskače trenutni i one već gore.
-  const lastUsedModel = useMemo(() => {
-    if (!specificKind || query.trim().length > 0) return null;
-    const slug = lastByKind[specificKind];
-    if (!slug || slug === selectedSlug || recentSlugs.includes(slug)) return null;
-    const model = models.find((m) => m.slug === slug);
-    return model && model.kind === specificKind ? model : null;
-  }, [specificKind, query, lastByKind, selectedSlug, recentSlugs, models]);
-
-  const recentModels = useMemo(() => {
-    if (query.trim().length > 0) return [];
-    return recentSlugs
-      .filter((slug) => slug !== selectedSlug && slug !== lastUsedModel?.slug)
-      .map((slug) => models.find((m) => m.slug === slug))
-      .filter((m): m is StudioModel => m !== undefined && (!specificKind || m.kind === specificKind));
-  }, [recentSlugs, selectedSlug, lastUsedModel, models, specificKind, query]);
-
-  const recommendations = useMemo(() => {
-    if (!specificKind || query.trim().length > 0) return [];
-    return recommendationsFor(specificKind, models);
-  }, [specificKind, query, models]);
-
+  // Grupisanje: SAMO ako je izabrano "Sve" (kind === "all"), grupišemo po Slika, Video, Audio
   const groups = useMemo(() => {
-    const shown = new Set<string>();
-    if (!query.trim()) {
-      if (activeModel && matchesFilter(activeModel)) shown.add(activeModel.slug);
-      if (lastUsedModel) shown.add(lastUsedModel.slug);
-      for (const m of recentModels) shown.add(m.slug);
-    }
-    return groupByFamily(filtered.filter((m) => !shown.has(m.slug)));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtered, query, activeModel, lastUsedModel, recentModels, specificKind]);
+    if (kind !== "all") return null;
 
-  // Redosled svih vidljivih model-redova za tastaturu (preporuke nisu u nizu -
-  // one su prečice na dodir, i dalje dostupne Tab-om).
-  const visibleSlugs = useMemo(() => {
-    const list: string[] = [];
-    if (!query.trim()) {
-      if (activeModel && matchesFilter(activeModel)) list.push(activeModel.slug);
-      if (lastUsedModel) list.push(lastUsedModel.slug);
-      for (const m of recentModels) list.push(m.slug);
+    const kinds: Array<"image" | "video" | "audio"> = ["image", "video", "audio"];
+    const result: Array<{ kind: "image" | "video" | "audio"; label: string; models: StudioModel[] }> = [];
+
+    for (const k of kinds) {
+      const subset = filteredModels.filter((m) => m.kind === k);
+      if (subset.length > 0) {
+        const opt = KIND_OPTIONS.find((o) => o.value === k);
+        result.push({
+          kind: k,
+          label: opt?.label[locale] ?? k,
+          models: subset,
+        });
+      }
     }
-    for (const group of groups) for (const m of group.models) list.push(m.slug);
-    return list;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, activeModel, lastUsedModel, recentModels, groups, specificKind]);
+    return result;
+  }, [kind, filteredModels, locale]);
+
+  const visibleSlugs = useMemo(() => filteredModels.map((m) => m.slug), [filteredModels]);
 
   function choose(slug: string) {
     const target = models.find((m) => m.slug === slug);
@@ -275,11 +338,6 @@ export function ModelPickerPanel({
   }
 
   function handleInputKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
-    if (event.key === "Escape") {
-      event.preventDefault();
-      onCollapse();
-      return;
-    }
     if (visibleSlugs.length === 0) return;
 
     if (event.key === "ArrowDown") {
@@ -304,137 +362,77 @@ export function ModelPickerPanel({
     }
   }
 
-  const availableKinds = KINDS.filter((entry) => models.some((model) => model.kind === entry));
   const highlightedSlug = kbdIndex >= 0 ? visibleSlugs[kbdIndex] : null;
 
   return (
     <div className={cn("flex min-h-0 flex-col", className)}>
-      {/* Filteri po vrsti + pretraga (zakačeni gore, ne skroluju) */}
+      {/* Pretraga i dva dropdowna gore */}
       <div className="space-y-2.5 pb-3">
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={onCollapse}
-            aria-label={locale === "sr" ? "Nazad na podešavanja" : "Back to settings"}
-            className="inline-flex size-8 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-          >
-            <ArrowLeft className="size-4" />
-          </button>
-          <div className="relative flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" />
-            <input
-              ref={searchInputRef}
-              type="search"
-              value={query}
-              onChange={(event) => {
-                setQuery(event.target.value);
-                setKbdIndex(-1);
-              }}
-              onKeyDown={handleInputKeyDown}
-              placeholder={locale === "sr" ? "Pretraži modele…" : "Search models…"}
-              aria-label={locale === "sr" ? "Pretraži modele" : "Search models"}
-              className="surface-inset h-11 w-full border-2 border-ink bg-paper py-2 pl-9 pr-3 text-base font-bold text-ink placeholder:font-bold placeholder:text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-            />
-          </div>
+        {/* Pretraga bez strelice levo */}
+        <div className="relative w-full">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" />
+          <input
+            ref={searchInputRef}
+            type="search"
+            value={query}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setKbdIndex(-1);
+            }}
+            onKeyDown={handleInputKeyDown}
+            placeholder={locale === "sr" ? "Pretraži modele…" : "Search models…"}
+            aria-label={locale === "sr" ? "Pretraži modele" : "Search models"}
+            className="surface-inset h-11 w-full border-2 border-ink bg-paper py-2 pl-9 pr-3 text-base font-bold text-ink placeholder:font-bold placeholder:text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          />
         </div>
 
-        <div className="flex flex-wrap items-center gap-1.5">
-          <KindChip label={KIND_LABELS.all[locale]} active={kind === "all"} onClick={() => { setKind("all"); setKbdIndex(-1); }} />
-          {availableKinds.map((entry) => (
-            <KindChip
-              key={entry}
-              label={KIND_LABELS[entry][locale]}
-              active={kind === entry}
-              onClick={() => { setKind(entry); setKbdIndex(-1); }}
-            />
-          ))}
+        {/* 2 Select komponente u jednom redu: Tip (Slika/Video/Audio/Sve) i Provajder */}
+        <div className="flex items-center gap-2">
+          <FilterDropdown
+            label={locale === "sr" ? "Tip modela" : "Model type"}
+            value={kind}
+            options={KIND_OPTIONS.map((opt) => ({
+              value: opt.value,
+              label: opt.label[locale],
+            }))}
+            onChange={(val) => {
+              setKind(val);
+              setKbdIndex(-1);
+            }}
+          />
+
+          <FilterDropdown
+            label={locale === "sr" ? "Provajder" : "Provider"}
+            value={providerFilter}
+            options={providerOptions}
+            onChange={(val) => {
+              setProviderFilter(val);
+              setKbdIndex(-1);
+            }}
+          />
         </div>
       </div>
 
-      {/* Spisak (jedini deo koji skroluje) */}
+      {/* Spisak modela */}
       <div ref={listRef} className="min-h-0 flex-1 overflow-y-auto">
-        {visibleSlugs.length === 0 && recommendations.length === 0 ? (
+        {filteredModels.length === 0 ? (
           <p className="surface-inset border-2 border-ink bg-paper p-4 text-center text-sm font-bold text-muted">
             {locale === "sr"
-              ? "Nijedan model ne odgovara pretrazi."
-              : "No model matches your search."}
+              ? "Nijedan model ne odgovara izabranim filterima."
+              : "No model matches the selected filters."}
           </p>
-        ) : (
+        ) : groups ? (
+          /* Grupisanje samo kad je izabrano 'Sve' */
           <div className="space-y-3">
-            {/* Preporuke po poslu — ulaz za početnika, pre punog spiska */}
-            {recommendations.length > 0 ? (
-              <div className="space-y-1">
-                <GroupHeader label={locale === "sr" ? "Za tvoj posao" : "For your job"} />
-                {recommendations.map((rec) => (
-                  <RecommendationRow
-                    key={rec.id}
-                    rec={rec}
-                    model={models.find((m) => m.slug === rec.slug)!}
-                    locale={locale}
-                    onSelect={() => choose(rec.slug)}
-                  />
-                ))}
-              </div>
-            ) : null}
-
-            {/* Trenutni model */}
-            {!query.trim() && activeModel && matchesFilter(activeModel) ? (
-              <div className="space-y-1">
-                <GroupHeader label={locale === "sr" ? "Trenutni model" : "Current model"} />
-                <ModelRow
-                  model={activeModel}
-                  locale={locale}
-                  isDemo={providerStatus?.[activeModel.provider] === false}
-                  isSelected
-                  isHighlighted={highlightedSlug === activeModel.slug}
-                  onSelect={() => choose(activeModel.slug)}
-                />
-              </div>
-            ) : null}
-
-            {/* Poslednji korišćen za ovu vrstu */}
-            {lastUsedModel ? (
-              <div className="space-y-1">
-                <GroupHeader label={locale === "sr" ? "Poslednji korišćen" : "Last used"} />
-                <ModelRow
-                  model={lastUsedModel}
-                  locale={locale}
-                  isDemo={providerStatus?.[lastUsedModel.provider] === false}
-                  isSelected={lastUsedModel.slug === selectedSlug}
-                  isHighlighted={highlightedSlug === lastUsedModel.slug}
-                  onSelect={() => choose(lastUsedModel.slug)}
-                />
-              </div>
-            ) : null}
-
-            {/* Nedavni */}
-            {recentModels.length > 0 ? (
-              <div className="space-y-1">
-                <GroupHeader label={locale === "sr" ? "Nedavni" : "Recent"} />
-                {recentModels.map((m) => (
-                  <ModelRow
-                    key={m.slug}
-                    model={m}
-                    locale={locale}
-                  isDemo={providerStatus?.[m.provider] === false}
-                    isSelected={m.slug === selectedSlug}
-                    isHighlighted={highlightedSlug === m.slug}
-                    onSelect={() => choose(m.slug)}
-                  />
-                ))}
-              </div>
-            ) : null}
-
-            {/* Familijske grupe */}
             {groups.map((group) => (
-              <div key={group.family} className="space-y-1">
-                <GroupHeader label={`${group.family} · ${group.models.length}`} />
+              <div key={group.kind} className="space-y-1">
+                <GroupHeader label={group.label} />
                 {group.models.map((m) => (
                   <ModelRow
                     key={m.slug}
                     model={m}
                     locale={locale}
-                  isDemo={providerStatus?.[m.provider] === false}
+                    isDemo={providerStatus?.[m.provider] === false}
                     isSelected={m.slug === selectedSlug}
                     isHighlighted={highlightedSlug === m.slug}
                     onSelect={() => choose(m.slug)}
@@ -442,33 +440,32 @@ export function ModelPickerPanel({
                 ))}
               </div>
             ))}
-
-            {/* Pravna napomena o znakovima (SP1, tačka 2) */}
-            <p className="px-1 pt-1 text-[10px] font-bold leading-4 text-muted">
-              {locale === "sr"
-                ? "Imena i znakovi modela pripadaju njihovim vlasnicima; koriste se radi prepoznavanja, bez podrazumevane povezanosti."
-                : "Model names and marks belong to their owners; shown for recognition, with no implied affiliation."}
-            </p>
+          </div>
+        ) : (
+          /* Obična lista bez sekcijskih zaglavlja kad je izabran specifičan tip */
+          <div className="space-y-1">
+            {filteredModels.map((m) => (
+              <ModelRow
+                key={m.slug}
+                model={m}
+                locale={locale}
+                isDemo={providerStatus?.[m.provider] === false}
+                isSelected={m.slug === selectedSlug}
+                isHighlighted={highlightedSlug === m.slug}
+                onSelect={() => choose(m.slug)}
+              />
+            ))}
           </div>
         )}
+
+        {/* Pravna napomena o znakovima */}
+        <p className="px-1 pt-3 text-[10px] font-bold leading-4 text-muted">
+          {locale === "sr"
+            ? "Imena i znakovi modela pripadaju njihovim vlasnicima; koriste se radi prepoznavanja, bez podrazumevane povezanosti."
+            : "Model names and marks belong to their owners; shown for recognition, with no implied affiliation."}
+        </p>
       </div>
     </div>
-  );
-}
-
-function KindChip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      aria-pressed={active}
-      onClick={onClick}
-      className={cn(
-        "rounded-full border-2 border-ink px-3 py-1 text-xs font-black transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
-        active ? "bg-ink text-paper-strong" : "bg-paper-strong text-ink hover:-translate-y-0.5",
-      )}
-    >
-      {label}
-    </button>
   );
 }
 
@@ -481,9 +478,9 @@ function GroupHeader({ label }: { label: string }) {
 }
 
 /**
- * Dva reda: znak + ime + cena (gore), rečenica opisa (dole, `truncate`). Cena je
- * u desnoj tabularnoj koloni kroz ceo spisak. Selekcija je ink (žuto je samo za
- * cenu/akciju na baru); znak je `currentColor`, pa prati i temu i selekciju.
+ * Kartica modela (Slika 4):
+ * Naziv modela je GORE sa VEĆIM fontom (npr. 15px font-black).
+ * Opis modela je DOLE sa MANJIM fontom (npr. 11px font-semibold text-muted).
  */
 function ModelRow({
   model,
@@ -507,18 +504,26 @@ function ModelRow({
       aria-pressed={isSelected}
       onClick={onSelect}
       className={cn(
-        "surface-inset flex min-h-[44px] w-full items-center gap-3 border-2 px-3 py-1.5 text-left transition duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+        "surface-inset flex min-h-[46px] w-full items-center gap-3 border-2 px-3 py-2 text-left transition duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
         isSelected
-          ? "border-ink bg-ink text-paper-strong"
+          ? "border-ink bg-ink text-paper-strong shadow-[2px_2px_0_0_var(--shadow-hard)]"
           : isHighlighted
             ? "border-ink bg-yellow/20 text-ink"
             : "border-ink/15 bg-paper text-ink hover:border-ink hover:bg-[#fff7e6] dark:hover:bg-yellow/10",
       )}
     >
-      <ModelMark model={model} size={20} className="shrink-0" />
+      <ModelMark model={model} size={22} className="shrink-0" />
       <span className="min-w-0 flex-1">
+        {/* 1. Naziv modela (Gore, veći font) */}
         <span className="flex items-center gap-2">
-          <span className="truncate text-[15px] font-black leading-tight">{modelLabel(model, locale)}</span>
+          <span
+            className={cn(
+              "truncate text-[15px] font-black leading-tight",
+              isSelected ? "text-paper-strong" : "text-ink",
+            )}
+          >
+            {modelLabel(model, locale)}
+          </span>
           {model.badge ? (
             <span
               className={cn(
@@ -538,6 +543,7 @@ function ModelRow({
             </span>
           ) : null}
         </span>
+        {/* 2. Opis / Tagline modela (Dole, manji font) */}
         <span
           className={cn(
             "mt-0.5 block truncate text-[11px] font-semibold leading-tight",
@@ -547,48 +553,15 @@ function ModelRow({
           {modelTagline(model, locale)}
         </span>
       </span>
-      {/* Šta model prima (SP2) - sivo = ne prima; vidi se PRE izbora */}
+      {/* Sposobnosti unosa (ikone) */}
       <InputCapabilityIcons model={model} locale={locale} muted={!isSelected} />
+      {/* Cena */}
       <span
         className={cn(
           "shrink-0 whitespace-nowrap text-right font-mono text-[11px] font-black tabular-nums",
           isSelected ? "text-paper-strong" : "text-ink",
         )}
       >
-        <ModelPriceDisplay model={model} locale={locale} />
-      </span>
-    </button>
-  );
-}
-
-/**
- * Preporuka po POSLU: vodi labela posla (bold), pa model na koji vodi (muted),
- * cena desno. Bez znaka firme - da se ne pomeša sa spiskom modela i da znak ne
- * postane svuda (tačka 2: znak koji je svuda prestaje da bude informacija).
- */
-function RecommendationRow({
-  rec,
-  model,
-  locale,
-  onSelect,
-}: {
-  rec: Recommendation;
-  model: StudioModel;
-  locale: Locale;
-  onSelect: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      className="surface-inset flex min-h-[44px] w-full items-center gap-3 border-2 border-ink/15 bg-paper px-3 py-1.5 text-left text-ink transition duration-150 hover:border-ink hover:bg-[#fff7e6] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink dark:hover:bg-yellow/10"
-    >
-      <Lightbulb className="size-4 shrink-0 text-ink" />
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-black leading-tight">{recommendationLabel(rec, locale)}</span>
-        <span className="block truncate text-xs font-bold leading-tight text-muted">{modelLabel(model, locale)}</span>
-      </span>
-      <span className="shrink-0 whitespace-nowrap text-right font-mono text-[11px] font-black tabular-nums text-ink">
         <ModelPriceDisplay model={model} locale={locale} />
       </span>
     </button>

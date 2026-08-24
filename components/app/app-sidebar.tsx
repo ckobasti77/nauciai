@@ -48,6 +48,7 @@ import {
 } from "react";
 
 import { CheckoutButton } from "@/components/app/checkout-button";
+import { SoundToggle } from "@/components/app/sound-toggle";
 import { ThemeToggle } from "@/components/app/theme-toggle";
 import { CreditIcon } from "@/components/studio/credit-icon";
 import { BrandMark, cn } from "@/components/ui/primitives";
@@ -1804,24 +1805,30 @@ function AppSidebarContent({
                 ) : null}
               </div>
 
-              <div className="mt-2 flex items-center justify-between gap-2 border-t border-line/90 pt-2">
-                <div className="flex min-w-0 flex-1 items-center justify-start gap-2">
+              <div className="mt-2 space-y-2 border-t border-line/90 pt-2">
+                {/* Gornji red: Krediti (levo) + Tema (desno) */}
+                <div className="flex items-center justify-between gap-2">
                   <CreditsBalancePill locale={locale} balance={creditsBalance} />
                   <ThemeToggle locale={locale} className="self-center" />
                 </div>
-                <button
-                  ref={signOutButtonRef}
-                  type="button"
-                  onClick={async () => {
-                    await signOut();
-                    setProfileMenuOpen(false);
-                    router.push(withLocale(locale, "/sign-in"));
-                  }}
-                  className="flex min-h-11 w-1/2 shrink-0 items-center justify-center gap-2 rounded-[12px] bg-ink px-3 py-2 text-[13px] font-black uppercase text-paper-strong transition hover:bg-[#16446f] dark:hover:bg-ink/85 font-extrabold"
-                >
-                  <LogOut className="size-4 shrink-0" />
-                  <span className="truncate">{locale === "sr" ? "Odjavi se" : "Sign out"}</span>
-                </button>
+
+                {/* Donji red: Zvuk (levo, ispod kredita) + Odjavi se (desno, ispod teme) */}
+                <div className="flex items-center justify-between gap-2">
+                  <SoundToggle locale={locale} />
+                  <button
+                    ref={signOutButtonRef}
+                    type="button"
+                    onClick={async () => {
+                      await signOut();
+                      setProfileMenuOpen(false);
+                      router.push(withLocale(locale, "/sign-in"));
+                    }}
+                    className="inline-flex min-h-8 shrink-0 items-center justify-center gap-1.5 rounded-full border-2 border-ink bg-ink px-3 py-1 text-xs font-black uppercase text-paper-strong transition hover:bg-[#16446f] dark:hover:bg-ink/85 hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                  >
+                    <LogOut className="size-3.5 shrink-0" />
+                    <span>{locale === "sr" ? "Odjavi se" : "Sign out"}</span>
+                  </button>
+                </div>
               </div>
             </div>
           ) : null}

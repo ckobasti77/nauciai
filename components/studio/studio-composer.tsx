@@ -4,9 +4,13 @@ import {
   ChevronDown,
   ChevronUp,
   Coins,
+  FileText,
+  Image as ImageIcon,
+  ImagePlus,
   Loader2,
+  Music,
   Plus,
-  RotateCcw,
+  Video,
   Wand2,
   X,
 } from "lucide-react";
@@ -22,14 +26,11 @@ import {
 } from "react";
 
 import { CreditIcon } from "@/components/studio/credit-icon";
-import { DropSlot, DropSlotGrid, FrameSlotPair, FullScreenDropOverlay, Preview, ReferenceSlots } from "@/components/studio/drop-slot";
-import { InputCapabilityStrip } from "@/components/studio/input-capabilities";
-import { ModelPickerPanel, ModelPriceDisplay } from "@/components/studio/model-picker";
-import { ModeSwitcher } from "@/components/studio/mode-switcher";
+import { FullScreenDropOverlay, Preview } from "@/components/studio/drop-slot";
+import { ModelPickerPanel } from "@/components/studio/model-picker";
 import { ParamControl } from "@/components/studio/param-control";
-import { ParamForm, useParamValues, type ParamFormState } from "@/components/studio/param-form";
+import { useParamValues, type ParamFormState } from "@/components/studio/param-form";
 import { ModelMark } from "@/components/studio/provider-mark";
-import { SourceJobPicker } from "@/components/studio/source-job-picker";
 import { useSlotUpload } from "@/components/studio/use-slot-upload";
 import { cn } from "@/components/ui/primitives";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -37,7 +38,7 @@ import { parseContinuationSource, parseQuantitySource, promptControlOf } from "@
 import type { ParamControl as ParamControlSpec } from "@/convex/studioParamSpec";
 import type { PriceRule } from "@/convex/studioPricing";
 import type { Locale } from "@/lib/i18n";
-import { firstFileMode, modelRestrictions } from "@/lib/studio-capabilities";
+import { firstFileMode, modelInputCapabilities, modelRestrictions } from "@/lib/studio-capabilities";
 import { readLastModelByKind, writeLastModel } from "@/lib/studio-last-model";
 import {
   generateBlockMessage,
@@ -50,8 +51,6 @@ import {
 import {
   defaultCredits,
   modelLabel,
-  modelTagline,
-  MODEL_BADGE_LABELS,
   type StudioModel,
 } from "@/lib/studio-models";
 import { getStudioMotion, studioMotionTokens } from "@/lib/studio-motion";
@@ -139,108 +138,90 @@ function useMediaSeconds(file: SlotFile | null): number | null {
 }
 
 /**
- * Renderuje ulaze izabranog režima (drop slotove / birač prethodnog posla).
+ * Mali lebdeći popup za uvoz fajlova sa 4 opcije (Slika, Video, Zvuk, Fajl).
+ * U zavisnosti od aktivnog modela, nepodržane opcije su onemogućene.
  */
-function ModeInputs({
+function AttachFilePopup({
   model,
-  inputMode,
-  files,
-  onFilesChange,
-  frames,
-  onFramesChange,
-  sourceJobId,
-  onSourceJobIdChange,
-  optional,
+  onSelectType,
   locale,
   disabled,
-  onUploadingChange,
 }: {
   model: StudioModel;
-  inputMode: string;
-  files: SlotFiles;
-  onFilesChange: (next: SlotFiles) => void;
-  frames: FramePair;
-  onFramesChange: (next: FramePair) => void;
-  sourceJobId: Id<"generationJobs"> | null;
-  onSourceJobIdChange: (next: Id<"generationJobs"> | null) => void;
-  optional: string[];
+  onSelectType: (type: "image" | "video" | "audio" | "file") => void;
   locale: Locale;
-  disabled: boolean;
-  onUploadingChange?: (key: string, uploading: boolean) => void;
+  disabled?: boolean;
 }) {
-  const slots = slotsForMode(model.inputSpec, inputMode).filter((entry) => !optional.includes(entry.slot));
-  if (slots.length === 0) {
-    const continuation = parseContinuationSource(JSON.stringify(model.capabilities));
-    if (continuation && continuation.mode === inputMode) {
-      return (
-        <SourceJobPicker
-          modelSlug={model.slug}
-          kind={model.kind}
-          value={sourceJobId}
-          onChange={onSourceJobIdChange}
-          locale={locale}
-          disabled={disabled}
-        />
-      );
-    }
-    return null;
-  }
+  const caps = modelInputCapabilities(model);
+  const acceptsImage = caps.image !== null || caps.firstLast || (caps.reference?.images ?? 0) > 0;
+  const acceptsVideo = caps.video === "upload" || (caps.reference?.videos ?? 0) > 0;
+  const acceptsAudio = caps.audio || (caps.reference?.audio ?? 0) > 0;
+  const acceptsFile = firstFileMode(model) !== null;
 
-  if (inputMode === "first_last") {
-    return (
-      <FrameSlotPair
-        spec={slots[0]}
-        frames={frames}
-        onChange={onFramesChange}
-        locale={locale}
-        disabled={disabled}
-        onUploadingChange={onUploadingChange}
-      />
-    );
-  }
-
-  if (inputMode === "reference") {
-    return (
-      <ReferenceSlots
-        modeSpec={model.inputSpec[inputMode]}
-        files={files}
-        onChange={onFilesChange}
-        locale={locale}
-        disabled={disabled}
-        onUploadingChange={onUploadingChange}
-      />
-    );
-  }
+  const options: Array<{
+    type: "image" | "video" | "audio" | "file";
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+    enabled: boolean;
+  }> = [
+    {
+      type: "image",
+      label: locale === "sr" ? "Slika" : "Image",
+      icon: ImageIcon,
+      enabled: acceptsImage,
+    },
+    {
+      type: "video",
+      label: locale === "sr" ? "Video" : "Video",
+      icon: Video,
+      enabled: acceptsVideo,
+    },
+    {
+      type: "audio",
+      label: locale === "sr" ? "Zvuk" : "Audio",
+      icon: Music,
+      enabled: acceptsAudio,
+    },
+    {
+      type: "file",
+      label: locale === "sr" ? "Fajl" : "File",
+      icon: FileText,
+      enabled: acceptsFile,
+    },
+  ];
 
   return (
-    <div className="space-y-4">
-      {slots.map((entry) =>
-        entry.max > 1 ? (
-          <DropSlotGrid
-            key={entry.slot}
-            slot={entry.slot}
-            spec={entry}
-            files={files[entry.slot] ?? []}
-            onChange={(next) => onFilesChange({ ...files, [entry.slot]: next })}
-            locale={locale}
-            numbered
-            disabled={disabled}
-            onUploadingChange={onUploadingChange}
-          />
-        ) : (
-          <DropSlot
-            key={entry.slot}
-            slot={entry.slot}
-            spec={entry}
-            file={files[entry.slot]?.[0] ?? null}
-            onChange={(next) => onFilesChange({ ...files, [entry.slot]: next ? [next] : [] })}
-            locale={locale}
-            disabled={disabled}
-            onUploadingChange={onUploadingChange}
-          />
-        ),
-      )}
-    </div>
+    <motion.div
+      role="dialog"
+      aria-label={locale === "sr" ? "Priloži fajl" : "Attach file"}
+      initial={{ opacity: 0, y: 6, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 4, scale: 0.98 }}
+      className="surface-card absolute bottom-[calc(100%+12px)] left-0 z-50 w-44 border-2 border-ink bg-paper-strong p-1.5 shadow-[6px_6px_0_0_var(--shadow-hard-16)]"
+    >
+      <div className="flex flex-col gap-1">
+        {options.map((opt) => {
+          const Icon = opt.icon;
+          return (
+            <button
+              key={opt.type}
+              type="button"
+              disabled={disabled || !opt.enabled}
+              onClick={() => onSelectType(opt.type)}
+              className={cn(
+                "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-black text-left transition",
+                opt.enabled
+                  ? "text-ink hover:bg-yellow/25 hover:translate-x-0.5 active:translate-x-0 cursor-pointer"
+                  : "text-muted/40 cursor-not-allowed opacity-40",
+              )}
+            >
+              <Icon className="size-4 shrink-0" />
+              <span>{opt.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </motion.div>
   );
 }
 
@@ -272,7 +253,6 @@ function ChipControlPopup({
   const motionParams = getStudioMotion(Boolean(shouldReduceMotion));
   const popupRef = useRef<HTMLDivElement>(null);
   const [shiftX, setShiftX] = useState(0);
-  const [arrowLeft, setArrowLeft] = useState<number | null>(null);
 
   useEffect(() => {
     function updatePosition() {
@@ -280,7 +260,6 @@ function ChipControlPopup({
       if (!popup) return;
 
       const popupRect = popup.getBoundingClientRect();
-      const triggerRect = triggerRef?.current ? triggerRef.current.getBoundingClientRect() : null;
       const padding = 12;
       const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
 
@@ -295,13 +274,6 @@ function ChipControlPopup({
       }
 
       setShiftX(shift);
-
-      if (triggerRect) {
-        const triggerCenterX = triggerRect.left + triggerRect.width / 2;
-        const relativeArrowX = triggerCenterX - (originalLeft + shift);
-        const clampedArrowX = Math.max(16, Math.min(popupRect.width - 16, relativeArrowX));
-        setArrowLeft(clampedArrowX);
-      }
     }
 
     updatePosition();
@@ -333,16 +305,6 @@ function ChipControlPopup({
         params={params}
         inputMode={inputMode}
         disabled={disabled}
-      />
-
-      {/* Mala rotirana strelica ka cipu */}
-      <div
-        className="pointer-events-none absolute -bottom-[7px] size-3.5 rotate-45 border-b-2 border-r-2 border-ink bg-paper-strong"
-        style={{
-          left: arrowLeft !== null ? `${arrowLeft}px` : "50%",
-          transform: "translateX(-50%) rotate(45deg)",
-        }}
-        aria-hidden="true"
       />
     </motion.div>
   );
@@ -428,7 +390,7 @@ function PromotedChipItem({
 }
 
 /**
- * Glavni dvoslojni composer (Pravac 3 + P2 birač).
+ * Glavni dvoslojni composer sa zasebnim pop-upovima za upload, biranje modela i parametre.
  */
 export function StudioComposer({
   models,
@@ -463,21 +425,13 @@ export function StudioComposer({
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
 }) {
-  const [panelOpen, setPanelOpen] = useState(false);
-  // SP1: birač modela je GORNJA ZONA panela, ne zaseban prozor. `pickerExpanded`
-  // menja telo panela između podešavanja i pretrage+spiska - visina se ne menja.
-  const [pickerExpanded, setPickerExpanded] = useState(false);
-  // Jedan otvoren sloj za popup pojedinačnog čipa na baru
+  const [modelPickerOpen, setModelPickerOpen] = useState(false);
+  const [attachPopupOpen, setAttachPopupOpen] = useState(false);
   const [openChipKey, setOpenChipKey] = useState<string | null>(null);
-  // Poslednji model po vrsti (tačka 8) - čita se jednom sa localStorage.
-  const [lastByKind, setLastByKind] = useState(() => readLastModelByKind());
+  const [, setLastByKind] = useState(() => readLastModelByKind());
   const [prompt, setPrompt] = useState(() => starterPrompt ?? seed?.prompt ?? "");
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [isPriceFlashing, setIsPriceFlashing] = useState(false);
-  // C5: svaki slot prijavljuje SVOJ ključ; upload traje dok je bar jedan aktivan.
-  // Jedan boolean je gubio stanje kad se od više slotova jedan otpremi pre drugih
-  // (poslednji emiter je pobeđivao i otključavao dugme dok drugi još traje) - Set
-  // po ključu broji sve slotove ispravno.
   const [uploadingKeys, setUploadingKeys] = useState<Set<string>>(() => new Set());
   const isUploading = uploadingKeys.size > 0;
   const handleUploadingChange = useCallback((key: string, uploading: boolean) => {
@@ -489,9 +443,9 @@ export function StudioComposer({
       return next;
     });
   }, []);
-  const [recentSlugs, setRecentSlugs] = useState<string[]>(() => [activeModel.slug]);
+  const [, setRecentSlugs] = useState<string[]>(() => [activeModel.slug]);
 
-  // Sinhronizacija starterPrompt / seed tokom rendera bez cascading renders
+  // Sinhronizacija starterPrompt / seed tokom rendera
   const [prevStarterPrompt, setPrevStarterPrompt] = useState(starterPrompt);
   const [prevSeedId, setPrevSeedId] = useState(seed?.id);
 
@@ -509,13 +463,13 @@ export function StudioComposer({
     }
   }
 
-  // Sinhronizacija sklopljenog stanja tokom rendera (zatvara panel bez cascading renders)
+  // Sinhronizacija sklopljenog stanja
   const [prevIsCollapsed, setPrevIsCollapsed] = useState(isCollapsed);
   if (isCollapsed !== prevIsCollapsed) {
     setPrevIsCollapsed(isCollapsed);
     if (isCollapsed) {
-      if (panelOpen) setPanelOpen(false);
-      if (pickerExpanded) setPickerExpanded(false);
+      if (modelPickerOpen) setModelPickerOpen(false);
+      if (attachPopupOpen) setAttachPopupOpen(false);
       if (openChipKey !== null) setOpenChipKey(null);
     }
   }
@@ -523,7 +477,8 @@ export function StudioComposer({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const composerRef = useRef<HTMLDivElement>(null);
   const modelChipRef = useRef<HTMLButtonElement>(null);
-  const slotsSectionRef = useRef<HTMLDivElement>(null);
+  const attachContainerRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const chipButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const chipContainerRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
@@ -534,7 +489,7 @@ export function StudioComposer({
     first: seed?.files?.image?.[0] ?? null,
     last: seed?.files?.image?.[1] ?? null,
   }));
-  const [sourceJobId, setSourceJobId] = useState<Id<"generationJobs"> | null>(null);
+  const [sourceJobId] = useState<Id<"generationJobs"> | null>(null);
 
   // Spajanje first_last okvira u slot `image`
   const effectiveFiles: SlotFiles = useMemo(
@@ -573,7 +528,7 @@ export function StudioComposer({
 
   const form = useParamValues(activeModel.paramSpec, inputMode, { ...measured, ...extras }, initialValues);
 
-  // Sinhronizacija prompt teksta sa form parametrima (ako model ima prompt kontrolu)
+  // Sinhronizacija prompt teksta sa form parametrima
   useEffect(() => {
     if (promptControl && prompt && form.values[promptControl.key] !== prompt) {
       form.setValue(promptControl.key, prompt);
@@ -597,12 +552,7 @@ export function StudioComposer({
     () => optionalSlots(activeModel.paramSpec, form.values, activeModel.inputSpec, inputMode),
     [activeModel.paramSpec, form.values, activeModel.inputSpec, inputMode],
   );
-  // C3: fajl u slotu koji je vrednost kontrole SAKRILA (opcion) ne sme da ode
-  // provajderu ni da se naplati. `optionalSlots` ga skloni sa ekrana, ali je
-  // ostajao u `files`; ovde se izbacuje iz payload-a. Merenje/cena i dalje idu
-  // preko `effectiveFiles` - red measured→form→optional ne sme da postane ciklus;
-  // eventualan opcion "extra" bi prikazao cenu naviše (bezbedan smer), a server
-  // naplaćuje po onome što je stvarno primio.
+
   const payloadFiles = useMemo(() => {
     if (optional.length === 0) return effectiveFiles;
     const next: SlotFiles = {};
@@ -611,23 +561,12 @@ export function StudioComposer({
     }
     return next;
   }, [effectiveFiles, optional]);
-  const availableSlots = useMemo(
-    () => slotsForMode(activeModel.inputSpec, inputMode).filter((entry) => !optional.includes(entry.slot)),
-    [activeModel.inputSpec, inputMode, optional],
-  );
-  const hasFileSlots = availableSlots.length > 0;
-  // Model uopšte prima fajl u BILO kom režimu (za prijem preko celog ekrana i kad
-  // je trenutno „Samo opis"): drop tada sam prebaci na režim sa slikom.
+
   const modelAcceptsFiles = useMemo(
     () => activeModel.inputModes.some((mode) => slotsForMode(activeModel.inputSpec, mode).length > 0),
     [activeModel.inputModes, activeModel.inputSpec],
   );
-  const isDemoModel = studioState?.providerStatus?.[activeModel.provider] === false;
-  const restrictions = useMemo(() => modelRestrictions(activeModel, locale), [activeModel, locale]);
 
-  // Jedan put za promenu režima (SP2): ModeSwitcher, traka sposobnosti i `+`
-  // ga dele. Čisti slotove kojih u novom režimu nema - uz potvrdu šta je
-  // sklonjeno, jer fajl ne sme da nestane bez reči - i time preračunava cenu.
   function switchMode(mode: string) {
     setOpenChipKey(null);
     if (mode === inputMode || !activeModel.inputModes.includes(mode)) return;
@@ -645,28 +584,7 @@ export function StudioComposer({
     setInputMode(mode);
   }
 
-  function focusSlots() {
-    requestAnimationFrame(() => {
-      setTimeout(() => {
-        const el = slotsSectionRef.current;
-        if (!el) return;
-        el.scrollIntoView({ behavior: "smooth", block: "nearest" });
-        const focusable = el.querySelector<HTMLElement>(
-          'input:not([disabled]), button:not([disabled]), [tabindex]:not([tabindex="-1"])',
-        );
-        (focusable ?? el).focus();
-      }, 50);
-    });
-  }
-
-  // Klik na čip sposobnosti: u režim sa tim poljima, pa na polja.
-  function handlePickCapabilityMode(mode: string) {
-    switchMode(mode);
-    focusSlots();
-  }
-
-  // Priložene slike se vide NA glavnom inputu (traci), ne samo u panelu - drop
-  // spusti sliku „u glavni input" i tu je korisnik odmah vidi kao sličicu.
+  // Priloženi fajlovi se vide u gornjem delu polja za unos (Slika 3)
   const attachedInputs = useMemo(() => {
     type Attachment = { key: string; label: string; file: SlotFile; remove: () => void };
     const list: Attachment[] = [];
@@ -697,37 +615,34 @@ export function StudioComposer({
       }
       return list;
     }
-    for (const slot of availableSlots) {
-      (files[slot.slot] ?? []).forEach((file, index) => {
+    for (const [slotKey, slotFileList] of Object.entries(files)) {
+      if (!slotFileList || slotFileList.length === 0) continue;
+      slotFileList.forEach((file, index) => {
         list.push({
-          key: `${slot.slot}:${index}`,
-          label: "",
+          key: `${slotKey}:${index}`,
+          label: slotFileList.length > 1 ? `${index + 1}` : "",
           file,
           remove: () => {
             if (file.url) URL.revokeObjectURL(file.url);
-            setFiles((prev) => ({ ...prev, [slot.slot]: (prev[slot.slot] ?? []).filter((_, position) => position !== index) }));
+            setFiles((prev) => {
+              const currentList = prev[slotKey] ?? [];
+              const updated = currentList.filter((_, position) => position !== index);
+              const nextFiles = { ...prev, [slotKey]: updated };
+              if (updated.length === 0) {
+                delete nextFiles[slotKey];
+                const totalRemaining = Object.values(nextFiles).reduce((sum, arr) => sum + (arr?.length ?? 0), 0);
+                if (totalRemaining === 0 && activeModel.inputModes[0]) {
+                  setInputMode(activeModel.inputModes[0]);
+                }
+              }
+              return nextFiles;
+            });
           },
         });
       });
     }
     return list;
-  }, [inputMode, frames, files, availableSlots, locale]);
-
-  // `+` radi kad model prima fajl u BILO kom režimu: iz „Samo opis" sam
-  // prebaci na prvi režim sa poljima (ranije je bio ugašen sa porukom „ne prima
-  // fajlove" - netačno za model koji slike prima u drugom režimu).
-  function handleOpenFileSlots() {
-    setOpenChipKey(null);
-    if (!modelAcceptsFiles) return;
-    if (!hasFileSlots) {
-      const target = firstFileMode(activeModel);
-      if (!target) return;
-      switchMode(target);
-    }
-    setPickerExpanded(false);
-    setPanelOpen(true);
-    focusSlots();
-  }
+  }, [inputMode, frames, files, locale, activeModel.inputModes]);
 
   const missing = useMemo(
     () =>
@@ -783,7 +698,7 @@ export function StudioComposer({
     autoResizeTextarea();
   }
 
-  // Flash animacija pri promeni cene (rečnik pokreta — mikro)
+  // Flash animacija pri promeni cene
   const prevCreditsRef = useRef(credits);
   useEffect(() => {
     if (prevCreditsRef.current !== credits && credits !== null) {
@@ -797,13 +712,13 @@ export function StudioComposer({
     }
   }, [credits]);
 
-  // C4 Carry-Forward: promena modela bez gubljenja prompta i fajlova
+  // Carry-Forward: promena modela
   function handleSelectNewModel(newModel: StudioModel) {
-    // Zapamti izbor po vrsti i sklopi birač nazad na podešavanja (tačka 1 i 8).
     writeLastModel(newModel.kind, newModel.slug);
     setLastByKind((prev) => ({ ...prev, [newModel.kind]: newModel.slug }));
-    setPickerExpanded(false);
+    setModelPickerOpen(false);
     setOpenChipKey(null);
+    setAttachPopupOpen(false);
 
     if (newModel.slug === activeModel.slug) return;
 
@@ -842,8 +757,7 @@ export function StudioComposer({
     }
   }
 
-  // Tastaturni prečaci za zatvaranje (Esc). Kad je otvoren popup čipa, zatvara ga i vraća fokus;
-  // kad je birač razvijen, Esc ga sklapa nazad na podešavanja; inače zatvara ceo panel.
+  // Tastaturni prečaci za zatvaranje (Esc)
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key !== "Escape") return;
@@ -851,21 +765,21 @@ export function StudioComposer({
         const keyToFocus = openChipKey;
         setOpenChipKey(null);
         chipButtonRefs.current[keyToFocus]?.focus();
-      } else if (pickerExpanded) {
-        setPickerExpanded(false);
-      } else if (panelOpen) {
-        setPanelOpen(false);
+      } else if (attachPopupOpen) {
+        setAttachPopupOpen(false);
+      } else if (modelPickerOpen) {
+        setModelPickerOpen(false);
         modelChipRef.current?.focus();
       }
     }
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [openChipKey, panelOpen, pickerExpanded]);
+  }, [openChipKey, attachPopupOpen, modelPickerOpen]);
 
   function handleToggleCollapse() {
     if (!isCollapsed) {
-      setPanelOpen(false);
-      setPickerExpanded(false);
+      setModelPickerOpen(false);
+      setAttachPopupOpen(false);
       setOpenChipKey(null);
     }
     onToggleCollapse?.();
@@ -885,14 +799,14 @@ export function StudioComposer({
         };
   }, [isCollapsed, motionParams]);
 
-  // Klik van composera zatvara panel (i sklapa birač i popup čipa)
+  // Klik van composera zatvara sve pop-upove
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       const target = event.target as Node | null;
       if (!target) return;
       if (!composerRef.current?.contains(target)) {
-        setPanelOpen(false);
-        setPickerExpanded(false);
+        setModelPickerOpen(false);
+        setAttachPopupOpen(false);
         setOpenChipKey(null);
         return;
       }
@@ -902,23 +816,23 @@ export function StudioComposer({
           setOpenChipKey(null);
         }
       }
+      if (attachPopupOpen) {
+        if (attachContainerRef.current && !attachContainerRef.current.contains(target)) {
+          setAttachPopupOpen(false);
+        }
+      }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [openChipKey]);
+  }, [openChipKey, attachPopupOpen]);
 
-  // ── Prijem fajla preko CELOG ekrana dok smo u Studiju (AGENTS.md konvencija) ──
-  // Slika/video pušten bilo gde upada u ulaz aktivnog modela. Kod prvi/poslednji
-  // kadar prvi drop ide u početni, sledeći u završni; drop tačno NA polje kadra
-  // rešava sam slot (ne diramo ga ovde), pa se završni može ciljati direktno.
+  // ── Prijem fajla ──
   const uploadFile = useSlotUpload();
   const [dropActive, setDropActive] = useState(false);
   const dropBusyRef = useRef(false);
 
-  const routeDroppedFiles = useEffectEvent(async (dropped: File[], target: EventTarget | null) => {
+  const routeDroppedFiles = useEffectEvent(async (dropped: File[]) => {
     if (dropped.length === 0 || dropBusyRef.current) return;
-    // Drop tačno na neki vidljivi slot rešava sam slot (npr. baš na „završni kadar").
-    if (target instanceof Node && slotsSectionRef.current?.contains(target)) return;
 
     const first = dropped[0];
     const kind = first.type.startsWith("image/")
@@ -927,9 +841,6 @@ export function StudioComposer({
         ? "video"
         : "audio";
 
-    // Automatski biramo režim: trenutni ako prima taj tip, inače PRVI režim modela
-    // koji ga prima. Tako drop slike na modelu u „Samo opis" sam prebaci na režim
-    // sa slikom - korisnik ne mora da otvara panel ni da bira režim unapred.
     const modeAccepts = (mode: string) =>
       slotsForMode(activeModel.inputSpec, mode).some((entry) => slotKind(entry.accept) === kind);
     const targetMode = modeAccepts(inputMode) ? inputMode : activeModel.inputModes.find(modeAccepts);
@@ -998,14 +909,25 @@ export function StudioComposer({
       }
     } finally {
       dropBusyRef.current = false;
-      // Očisti „Šaljem fajl…" po uspehu; poruku greške (flash) ostavi da sama istekne.
       if (!flashed) setStatusMessage(null);
     }
   });
 
-  // Prijem preko celog ekrana je vezan za glavni (create) composer - detalj-editor
-  // (variant "edit") ima svoj prozor iznad, pa dva window-slušaoca ne bi smela da
-  // gutaju isti drop.
+  function handleSelectFileType(type: "image" | "video" | "audio" | "file") {
+    setAttachPopupOpen(false);
+    if (!fileInputRef.current) return;
+    if (type === "image") {
+      fileInputRef.current.accept = "image/png,image/jpeg,image/webp";
+    } else if (type === "video") {
+      fileInputRef.current.accept = "video/mp4,video/quicktime,video/webm";
+    } else if (type === "audio") {
+      fileInputRef.current.accept = "audio/mpeg,audio/wav,audio/mp4,audio/webm";
+    } else {
+      fileInputRef.current.accept = "*/*";
+    }
+    fileInputRef.current.click();
+  }
+
   const dropEnabled = variant === "create" && !isCollapsed;
 
   useEffect(() => {
@@ -1037,7 +959,7 @@ export function StudioComposer({
       depth = 0;
       setDropActive(false);
       const dropped = Array.from(event.dataTransfer?.files ?? []);
-      if (dropped.length > 0) void routeDroppedFiles(dropped, event.target);
+      if (dropped.length > 0) void routeDroppedFiles(dropped);
     }
     window.addEventListener("dragenter", enter);
     window.addEventListener("dragover", over);
@@ -1062,17 +984,23 @@ export function StudioComposer({
     });
   }
 
-  // Određivanje 2-3 promovisana inline čipa iz paramSpec-a
+  // Određivanje promovisanih inline čipova na traci:
+  // 1. Rezolucija (ako postoji)
+  // 2. Odnos stranica (odmah pored rezolucije)
+  // 3. Ostali parametri (trajanje, broj slika...)
   const promotedChips = useMemo(() => {
     const visible = visibleControls(activeModel.paramSpec, inputMode);
-    // Filtriraj kontrole koje nisu prompt i nisu textarea
     const nonPrompt = visible.filter((c) => c.type !== "textarea" && c.key !== "prompt");
-    const priceAffecting = nonPrompt.filter((c) => c.affectsPrice);
-    const primary = priceAffecting.length > 0 ? priceAffecting : nonPrompt;
 
-    // Prvo tražimo ratio ili count, pa ostale
-    const ratioControl = nonPrompt.find((c) => c.key === "aspect_ratio" || c.type === "segmented");
-    const countControl = nonPrompt.find((c) => c.key === "num_images" || c.key === "num_outputs" || c.key === "count");
+    const resolutionControl = nonPrompt.find(
+      (c) => c.key === "resolution" || c.key === "quality" || c.key === "resolution_mode",
+    );
+    const ratioControl = nonPrompt.find(
+      (c) => c.key === "aspect_ratio" || (c.type === "select" && c.options?.some((o) => /^\d+:\d+$/.test(o.value))),
+    );
+    const countControl = nonPrompt.find(
+      (c) => c.key === "num_images" || c.key === "num_outputs" || c.key === "count",
+    );
     const durControl = nonPrompt.find((c) => c.key === "duration");
 
     const selected: Array<{
@@ -1082,7 +1010,23 @@ export function StudioComposer({
       control: ParamControlSpec;
     }> = [];
 
-    if (ratioControl && form.values[ratioControl.key]) {
+    // 1. Rezolucija
+    if (resolutionControl && form.values[resolutionControl.key] !== undefined) {
+      let val = String(form.values[resolutionControl.key]);
+      if (resolutionControl.options) {
+        const opt = resolutionControl.options.find((o) => o.value === form.values[resolutionControl.key]);
+        if (opt) val = optionLabel(opt, locale);
+      }
+      selected.push({
+        key: resolutionControl.key,
+        label: controlLabel(resolutionControl, locale),
+        valueText: val,
+        control: resolutionControl,
+      });
+    }
+
+    // 2. Odnos stranica - odmah pored rezolucije
+    if (ratioControl && form.values[ratioControl.key] !== undefined) {
       selected.push({
         key: ratioControl.key,
         label: controlLabel(ratioControl, locale),
@@ -1090,7 +1034,9 @@ export function StudioComposer({
         control: ratioControl,
       });
     }
-    if (durControl && form.values[durControl.key]) {
+
+    // 3. Trajanje (ako postoji)
+    if (durControl && form.values[durControl.key] !== undefined && !selected.some((s) => s.key === durControl.key)) {
       selected.push({
         key: durControl.key,
         label: controlLabel(durControl, locale),
@@ -1098,7 +1044,9 @@ export function StudioComposer({
         control: durControl,
       });
     }
-    if (countControl && form.values[countControl.key]) {
+
+    // 4. Broj slika / izlaza (ako postoji)
+    if (countControl && form.values[countControl.key] !== undefined && !selected.some((s) => s.key === countControl.key)) {
       selected.push({
         key: countControl.key,
         label: controlLabel(countControl, locale),
@@ -1107,9 +1055,8 @@ export function StudioComposer({
       });
     }
 
-    // Ako nemamo dovoljno, dodaj prvu preostalu primarnu
-    for (const c of primary) {
-      if (selected.length >= 2) break;
+    // 5. Ostale kontrole koje utiču na cenu ili formu
+    for (const c of nonPrompt) {
       if (!selected.some((s) => s.key === c.key) && form.values[c.key] !== undefined) {
         let valueText = String(form.values[c.key]);
         if (typeof form.values[c.key] === "boolean") {
@@ -1129,14 +1076,9 @@ export function StudioComposer({
       }
     }
 
-    return selected.slice(0, 2);
+    return selected;
   }, [activeModel.paramSpec, inputMode, form.values, locale]);
 
-  // Prikaz cene na baru: procena `~` ili tačna
-  // Procena `~` samo dok se MEDIJSKO trajanje ne izmeri na serveru. Tekstualni
-  // modeli (`tts`, `dialogue`) broje znakove tačno i na klijentu i na serveru -
-  // za njih cena nije procena, pa ne nose `~` (ranije su ga nosili uvek, jer je
-  // `serverSeconds` za njih uvek `null`).
   const isEstimated =
     quantitySource !== null && quantitySource.from !== "text_length" && serverSeconds === null;
   const priceDisplay = useMemo(() => {
@@ -1158,253 +1100,78 @@ export function StudioComposer({
 
   return (
     <div ref={composerRef} className="relative w-full max-w-[720px]">
+      {/* Skriveni input za izbor datoteka */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        className="hidden"
+        onChange={(e) => {
+          const dropped = Array.from(e.target.files ?? []);
+          if (dropped.length > 0) {
+            void routeDroppedFiles(dropped);
+          }
+          e.target.value = "";
+        }}
+      />
+
       {/* ========================================================================= */}
-      {/* SLOJ 2: DROP-UP PANEL (desktop: usidren iznad composera, mobilni: sheet) */}
+      {/* POP-UP ZA IZBOR MODELA                                                   */}
       {/* ========================================================================= */}
-      {panelOpen && !isCollapsed ? (
+      {modelPickerOpen && !isCollapsed ? (
         <>
           {/* Mobilni scrim */}
           <div
             className="fixed inset-0 z-40 bg-scrim/35 backdrop-blur-[2px] sm:hidden"
-            onClick={() => setPanelOpen(false)}
+            onClick={() => setModelPickerOpen(false)}
           />
 
           <div
             role="dialog"
-            aria-label={locale === "sr" ? "Podešavanja generisanja" : "Generation settings"}
+            aria-label={locale === "sr" ? "Izaberi model" : "Choose a model"}
             className={cn(
               "surface-card border-2 border-ink bg-paper-strong shadow-[6px_6px_0_0_var(--shadow-hard-16)] flex flex-col z-40",
-              // Desktop: usidren iznad bara. Kap dozvoljava da tipičan model
-              // (npr. slika: režim + rezolucija + odnos + broj) stane bez skrola
-              // na ekranu visine 900px; gušći modeli i dalje skroluju interno.
-              "sm:absolute sm:bottom-[calc(100%+12px)] sm:left-0 sm:right-0 sm:max-h-[min(78vh,640px)]",
-              // Mobilni: bottom sheet
+              "sm:absolute sm:bottom-[calc(100%+12px)] sm:left-0 sm:right-0 sm:max-h-[min(78vh,600px)]",
               "fixed inset-x-0 bottom-0 max-h-[85vh] rounded-t-[16px] border-b-0 sm:rounded-[16px] sm:border-b-2",
             )}
           >
-            {/* Panel Header */}
+            {/* Header: IZABERI MODEL + X */}
             <div className="flex items-center justify-between rounded-t-[inherit] border-b-2 border-ink bg-paper px-4 py-3 sm:px-5">
               <span className="text-xs font-black uppercase tracking-wider text-ink">
-                {pickerExpanded
-                  ? locale === "sr"
-                    ? "Izaberi model"
-                    : "Choose a model"
-                  : locale === "sr"
-                    ? "Podešavanja"
-                    : "Settings"}
+                {locale === "sr" ? "Izaberi model" : "Choose a model"}
               </span>
-              <div className="flex items-center gap-1.5">
-                {!pickerExpanded ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const defs = paramValuesForMode(activeModel.paramSpec, inputMode);
-                      form.setAllValues(defs);
-                      setStatusMessage(locale === "sr" ? "Vraćeno na podrazumevana podešavanja." : "Reset to default settings.");
-                      setTimeout(() => setStatusMessage(null), 3000);
-                    }}
-                    title={locale === "sr" ? "Podrazumevano" : "Reset to defaults"}
-                    className="inline-flex items-center gap-1 rounded-full border-2 border-ink bg-paper-strong px-2.5 py-0.5 text-[11px] font-extrabold text-ink shadow-[1px_1px_0_0_var(--shadow-hard)] hover:-translate-y-0.5"
-                  >
-                    <RotateCcw className="size-3" />
-                    <span>{locale === "sr" ? "Reset" : "Reset"}</span>
-                  </button>
-                ) : null}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPanelOpen(false);
-                    setPickerExpanded(false);
-                  }}
-                  aria-label={locale === "sr" ? "Zatvori panel" : "Close panel"}
-                  className="inline-flex size-7 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5"
-                >
-                  <X className="size-3.5" />
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => setModelPickerOpen(false)}
+                aria-label={locale === "sr" ? "Zatvori" : "Close"}
+                className="inline-flex size-7 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5"
+              >
+                <X className="size-3.5" />
+              </button>
             </div>
 
-            {/* Panel Body: birač (razvijeno) ILI podešavanja (mirovanje). Ista
-                fiksna visina panela; menja se samo telo - panel ne trza. */}
-            {pickerExpanded ? (
-              <div className="flex min-h-0 flex-1 flex-col p-4 sm:p-5">
-                <ModelPickerPanel
-                  className="flex-1"
-                  models={models}
-                  selectedSlug={activeModel.slug}
-                  activeKind={activeModel.kind}
-                  recentSlugs={recentSlugs}
-                  lastByKind={lastByKind}
-                  providerStatus={studioState?.providerStatus}
-                  onSelect={handleSelectNewModel}
-                  onCollapse={() => setPickerExpanded(false)}
-                  locale={locale}
-                />
-              </div>
-            ) : (
-              <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 sm:p-5">
-                {/* Trenutni model — klik razvija birač NA MESTU (tačka 1) */}
-                <button
-                  type="button"
-                  onClick={() => setPickerExpanded(true)}
-                  aria-label={locale === "sr" ? "Promeni model" : "Change model"}
-                  className="surface-inset flex w-full items-center gap-3 border-2 border-ink bg-paper p-2.5 text-left transition hover:bg-[#fff7e6] dark:hover:bg-yellow/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-                >
-                  <ModelMark model={activeModel} size={22} className="shrink-0 text-ink" />
-                  <span className="min-w-0 flex-1">
-                    <span className="flex items-center gap-2">
-                      <span className="truncate text-[15px] font-black leading-tight text-ink">{modelLabel(activeModel, locale)}</span>
-                      {activeModel.badge ? (
-                        <span className="shrink-0 rounded-full border-2 border-ink bg-paper-strong px-1.5 py-0 text-[9px] font-black uppercase tracking-wide text-ink">
-                          {MODEL_BADGE_LABELS[activeModel.badge][locale]}
-                        </span>
-                      ) : null}
-                      {isDemoModel ? (
-                        <span
-                          title={locale === "sr" ? "Provajder nije povezan - izlaz je probni." : "Provider not connected - the output is a sample."}
-                          className="shrink-0 rounded-full border-2 border-ink bg-yellow px-1.5 py-0 text-[9px] font-black uppercase tracking-wide text-ink"
-                        >
-                          DEMO
-                        </span>
-                      ) : null}
-                    </span>
-                    <span className="mt-0.5 block truncate text-[11px] font-semibold leading-tight text-muted">
-                      {modelTagline(activeModel, locale)}
-                    </span>
-                  </span>
-                  <span className="shrink-0 whitespace-nowrap font-mono text-[11px] font-black tabular-nums text-ink">
-                    <ModelPriceDisplay model={activeModel} locale={locale} />
-                  </span>
-                  <ChevronDown className="size-4 shrink-0 text-muted" />
-                </button>
-
-                {/* Ograničenja modela iz kataloga (npr. Gemini Omni) - pre upload-a, ne posle greške */}
-                {restrictions.length > 0 ? (
-                  <ul role="note" className="surface-inset list-disc space-y-0.5 border-2 border-dashed border-ink/40 bg-paper py-2 pl-7 pr-3 text-[11px] font-bold text-muted">
-                    {restrictions.map((line) => (
-                      <li key={line}>{line}</li>
-                    ))}
-                  </ul>
-                ) : null}
-
-                {/* Šta model prima (SP2): podržano vodi u režim sa poljima, nepodržano je sivo */}
-                <InputCapabilityStrip
-                  model={activeModel}
-                  activeMode={inputMode}
-                  onPickMode={handlePickCapabilityMode}
-                  locale={locale}
-                  disabled={isPending}
-                />
-
-                {/* Prebacivač ulaznog režima kad ih ima više */}
-                <ModeSwitcher
-                  modes={activeModel.inputModes}
-                  value={inputMode}
-                  onChange={switchMode}
-                  locale={locale}
-                  disabled={isPending}
-                />
-
-                {/* Slotovi za unos fajlova */}
-                <div ref={slotsSectionRef} tabIndex={-1} className="outline-none">
-                  <ModeInputs
-                    model={activeModel}
-                    inputMode={inputMode}
-                    files={files}
-                    onFilesChange={setFiles}
-                    frames={frames}
-                    onFramesChange={setFrames}
-                    sourceJobId={sourceJobId}
-                    onSourceJobIdChange={setSourceJobId}
-                    optional={optional}
-                    locale={locale}
-                    disabled={isPending}
-                    onUploadingChange={handleUploadingChange}
-                  />
-                </div>
-
-                {/* Generisane kontrole modela */}
-                <ParamForm
-                  spec={activeModel.paramSpec}
-                  state={form}
-                  rule={activeModel.priceRule}
-                  locale={locale}
-                  inputMode={inputMode}
-                  disabled={isPending}
-                  hidePromptOnDesktop
-                />
-              </div>
-            )}
-
-            {/* Footer: samo na mobilnom (sheet prekriva bar), dugme nosi i cenu.
-                Desktop nema footer - cena je na baru ispod, „Generisanje će
-                koristiti" je uklonjeno. */}
-            {!pickerExpanded ? (
-              <div className="rounded-b-[inherit] border-t-2 border-ink bg-paper px-4 py-3 sm:hidden">
-                {block?.kind === "credits" ? (
-                  <Link
-                    href={topUpHref}
-                    title={locale === "sr" ? "Nedovoljno kredita. Klikni za dopunu." : "Insufficient credits. Click to top up."}
-                    aria-label={
-                      credits !== null
-                        ? locale === "sr"
-                          ? `Nedovoljno kredita. Dopuni za ${formatCreditsLong(credits, locale)}`
-                          : `Insufficient credits. Top up for ${formatCreditsLong(credits, locale)}`
-                        : locale === "sr"
-                          ? "Nedovoljno kredita. Klikni za dopunu."
-                          : "Insufficient credits. Click to top up."
-                    }
-                    className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 py-2 text-sm font-black text-ink shadow-[3px_3px_0_0_var(--ink)] transition hover:-translate-y-0.5"
-                  >
-                    <Coins className="size-4 text-ink" />
-                    <span>{locale === "sr" ? "Dopuni kredite" : "Top up credits"}</span>
-                    {credits !== null ? (
-                      <>
-                        <span className="opacity-40">·</span>
-                        <span className="inline-flex items-center gap-1 font-mono">
-                          <span>{isEstimated ? `~${credits}` : `${credits}`}</span>
-                          <CreditIcon className="size-3.5 text-ink" />
-                        </span>
-                      </>
-                    ) : null}
-                  </Link>
-                ) : (
-                  <button
-                    type="button"
-                    disabled={isPending || block !== null || credits === null}
-                    onClick={submit}
-                    aria-label={
-                      credits !== null
-                        ? locale === "sr"
-                          ? `Generiši za ${formatCreditsLong(credits, locale)}`
-                          : `Generate for ${formatCreditsLong(credits, locale)}`
-                        : locale === "sr"
-                          ? "Generiši"
-                          : "Generate"
-                    }
-                    className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border-2 border-ink bg-ink px-5 py-2 text-sm font-black text-paper-strong shadow-[3px_3px_0_0_var(--yellow)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {isPending ? <Loader2 className="size-4 animate-spin" /> : <Wand2 className="size-4 text-yellow" />}
-                    <span>{locale === "sr" ? "Generiši" : "Generate"}</span>
-                    {credits !== null ? (
-                      <>
-                        <span className="opacity-40">·</span>
-                        <span className="inline-flex items-center gap-1 font-mono">
-                          <span>{isEstimated ? `~${credits}` : `${credits}`}</span>
-                          <CreditIcon className="size-3.5 text-yellow" />
-                        </span>
-                      </>
-                    ) : null}
-                  </button>
-                )}
-              </div>
-            ) : null}
+            {/* Body */}
+            <div className="flex min-h-0 flex-1 flex-col p-4 sm:p-5">
+              <ModelPickerPanel
+                className="flex-1"
+                models={models}
+                selectedSlug={activeModel.slug}
+                activeKind={activeModel.kind}
+                providerStatus={studioState?.providerStatus}
+                onSelect={(m) => {
+                  handleSelectNewModel(m);
+                  setModelPickerOpen(false);
+                }}
+                onCollapse={() => setModelPickerOpen(false)}
+                locale={locale}
+              />
+            </div>
           </div>
         </>
       ) : null}
 
       {/* ========================================================================= */}
-      {/* SLOJ 1: COMPOSER BAR (Uvek vidljiv lebdeći bar koji klizi nadole)          */}
+      {/* COMPOSER BAR                                                             */}
       {/* ========================================================================= */}
       <motion.div
         inert={isCollapsed ? true : undefined}
@@ -1418,13 +1185,13 @@ export function StudioComposer({
           isCollapsed && "pointer-events-none",
         )}
       >
-        {/* Priložene slike na glavnom inputu (drop ih spusti ovde) */}
+        {/* Priloženi fajlovi na glavnom inputu (Slika 3) */}
         {attachedInputs.length > 0 ? (
-          <div className="mb-2 flex flex-wrap gap-2">
+          <div className="mb-2.5 flex flex-wrap items-center gap-2">
             {attachedInputs.map((att) => (
               <div
                 key={att.key}
-                className="surface-media relative size-14 shrink-0 overflow-hidden border-2 border-ink bg-paper-strong"
+                className="surface-media relative size-16 shrink-0 overflow-hidden border-2 border-ink bg-paper-strong"
               >
                 <Preview file={att.file} />
                 {att.label ? (
@@ -1435,13 +1202,32 @@ export function StudioComposer({
                 <button
                   type="button"
                   onClick={att.remove}
-                  aria-label={locale === "sr" ? "Ukloni sliku" : "Remove image"}
+                  aria-label={locale === "sr" ? "Ukloni fajl" : "Remove file"}
                   className="absolute right-0.5 top-0.5 inline-flex size-5 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink shadow-[1px_1px_0_0_var(--shadow-hard)] hover:-translate-y-0.5"
                 >
                   <X className="size-3" />
                 </button>
               </div>
             ))}
+
+            {/* Dugme za dodavanje novih fajlova (Slika 3) */}
+            {modelAcceptsFiles ? (
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={() => {
+                  if (fileInputRef.current) {
+                    fileInputRef.current.accept = "image/png,image/jpeg,image/webp,video/mp4,audio/mpeg";
+                    fileInputRef.current.click();
+                  }
+                }}
+                title={locale === "sr" ? "Dodaj fajl" : "Add file"}
+                aria-label={locale === "sr" ? "Dodaj fajl" : "Add file"}
+                className="surface-media inline-flex size-16 shrink-0 items-center justify-center border-2 border-dashed border-ink/40 bg-paper/50 text-ink/70 transition hover:border-ink hover:bg-paper hover:text-ink hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-40"
+              >
+                <ImagePlus className="size-6" />
+              </button>
+            ) : null}
           </div>
         ) : null}
 
@@ -1464,7 +1250,7 @@ export function StudioComposer({
           className="w-full resize-none border-0 bg-transparent text-base font-bold text-ink placeholder:font-bold placeholder:text-muted focus-visible:outline-none"
         />
 
-        {/* Statusna linija za obaveštenja (C4 prilagođavanja, greške, napomene) */}
+        {/* Statusna linija za obaveštenja */}
         {statusMessage ? (
           <div role="status" className="truncate pt-1 text-xs font-bold text-muted">
             <span className="font-mono text-ink">↺</span> {statusMessage}
@@ -1485,60 +1271,79 @@ export function StudioComposer({
 
         {/* Donji red čipova */}
         <div className="mt-2.5 flex flex-wrap items-center gap-2">
-          {/* Upload dugme (+) */}
-          <button
-            type="button"
-            disabled={!modelAcceptsFiles || isPending}
-            onClick={handleOpenFileSlots}
-            aria-label={
-              modelAcceptsFiles
-                ? locale === "sr"
-                  ? "Priloži fajlove"
-                  : "Attach files"
-                : locale === "sr"
-                  ? "Ovaj model ne prima fajlove"
-                  : "This model does not accept files"
-            }
-            title={
-              modelAcceptsFiles
-                ? locale === "sr"
-                  ? "Priloži fajlove"
-                  : "Attach files"
-                : locale === "sr"
-                  ? "Ovaj model ne prima fajlove."
-                  : "This model does not accept files."
-            }
-            className="inline-flex size-11 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
-          >
-            <Plus className="size-4" />
-          </button>
+          {/* Upload dugme (+) sa AttachFilePopup */}
+          <div ref={attachContainerRef} className="relative inline-flex">
+            <button
+              type="button"
+              disabled={!modelAcceptsFiles || isPending}
+              onClick={() => {
+                setOpenChipKey(null);
+                setModelPickerOpen(false);
+                setAttachPopupOpen((prev) => !prev);
+              }}
+              aria-haspopup="dialog"
+              aria-expanded={attachPopupOpen}
+              aria-label={
+                modelAcceptsFiles
+                  ? locale === "sr"
+                    ? "Priloži fajlove"
+                    : "Attach files"
+                  : locale === "sr"
+                    ? "Ovaj model ne prima fajlove"
+                    : "This model does not accept files"
+              }
+              title={
+                modelAcceptsFiles
+                  ? locale === "sr"
+                    ? "Priloži fajlove"
+                    : "Attach files"
+                  : locale === "sr"
+                    ? "Ovaj model ne prima fajlove."
+                    : "This model does not accept files."
+              }
+              className="inline-flex size-11 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
+            >
+              <Plus className="size-4" />
+            </button>
 
-          {/* Čip modela: otvara panel sa razvijenim biračem */}
+            <AnimatePresence>
+              {attachPopupOpen ? (
+                <AttachFilePopup
+                  model={activeModel}
+                  locale={locale}
+                  disabled={isPending}
+                  onSelectType={handleSelectFileType}
+                />
+              ) : null}
+            </AnimatePresence>
+          </div>
+
+          {/* Čip modela: otvara Model Picker */}
           <button
             ref={modelChipRef}
             type="button"
             onClick={() => {
               setOpenChipKey(null);
-              setPanelOpen(true);
-              setPickerExpanded(true);
+              setAttachPopupOpen(false);
+              setModelPickerOpen((prev) => !prev);
             }}
             aria-haspopup="dialog"
-            aria-expanded={panelOpen && pickerExpanded}
+            aria-expanded={modelPickerOpen}
             className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-3.5 py-1.5 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
             <ModelMark model={activeModel} size={16} className="shrink-0 text-ink" />
             <span>{modelLabel(activeModel, locale)}</span>
           </button>
 
-          {/* 2-3 promovisana čipa izabranog modela sa zasebnim popupom za svaki čip */}
+          {/* Promovisani čipovi (Rezolucija, Odnos stranica, Trajanje, Broj slika...) */}
           {promotedChips.map((chip) => (
             <PromotedChipItem
               key={chip.key}
               chip={chip}
               isOpen={openChipKey === chip.key}
               onToggle={() => {
-                setPanelOpen(false);
-                setPickerExpanded(false);
+                setModelPickerOpen(false);
+                setAttachPopupOpen(false);
                 setOpenChipKey((prev) => (prev === chip.key ? null : chip.key));
               }}
               onRegisterButton={(el) => {
@@ -1643,7 +1448,7 @@ export function StudioComposer({
       </motion.div>
 
       {/* ========================================================================= */}
-      {/* SLOJ 0: RUČICA ZA SKLAPANJE / RASKLAPANJE INPUTA                          */}
+      {/* RUČICA ZA SKLAPANJE / RASKLAPANJE INPUTA                                  */}
       {/* ========================================================================= */}
       {onToggleCollapse ? (
         <div className="mt-2 flex justify-center">
@@ -1676,7 +1481,7 @@ export function StudioComposer({
         </div>
       ) : null}
 
-      {/* Prekrivač prijema fajla preko celog ekrana (drop bilo gde) */}
+      {/* Prekrivač prijema fajla preko celog ekrana */}
       {dropActive && modelAcceptsFiles ? (
         <FullScreenDropOverlay
           label={

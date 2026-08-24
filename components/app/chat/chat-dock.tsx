@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element -- Convex storage URLs are signed and dynamic. */
 "use client";
 
-import { ChevronUp, MessageCircle, Volume2, VolumeX } from "lucide-react";
+import { MessageCircle } from "lucide-react";
 import { useMutation, useQuery } from "convex/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -16,7 +16,6 @@ import { t, withLocale } from "@/lib/i18n";
 
 const DEVICE_KEY = "nauciai-chat-device";
 const LOCAL_DOCK_KEY = "nauciai-chat-dock";
-const SOUND_KEY = "nauciai-chat-sound";
 
 type DockSnapshot = {
   openConversationIds: Array<Id<"chatConversations">>;
@@ -56,7 +55,6 @@ function ChatDockClient({ locale }: { locale: Locale }) {
   const [minimizedIds, setMinimizedIds] = useState<Array<Id<"chatConversations">>>([]);
   const [capacity, setCapacity] = useState(2);
   const [overflowOpen, setOverflowOpen] = useState(false);
-  const [soundEnabled, setSoundEnabled] = useState(true);
   const hydratedRef = useRef(false);
   const serverState = useQuery(api.chat.getDockState, deviceId ? { deviceId } : "skip");
   const saveDockState = useMutation(api.chat.saveDockState);
@@ -70,7 +68,6 @@ function ChatDockClient({ locale }: { locale: Locale }) {
         window.localStorage.setItem(DEVICE_KEY, value);
       }
       setDeviceId(value);
-      setSoundEnabled(window.localStorage.getItem(SOUND_KEY) !== "off");
       try {
         const local = JSON.parse(window.localStorage.getItem(LOCAL_DOCK_KEY) || "null") as DockSnapshot | null;
         if (local) {
@@ -174,10 +171,6 @@ function ChatDockClient({ locale }: { locale: Locale }) {
         {visibleCircles.map((conversationId) => <DockAvatar key={conversationId} conversationId={conversationId} locale={locale} onRestore={() => restore(conversationId)} />)}
         {hiddenCircles.length ? <button type="button" onClick={() => setOverflowOpen((value) => !value)} className="grid size-12 place-items-center rounded-full border-2 border-ink bg-paper-strong text-xs font-black shadow-[3px_3px_0_0_var(--shadow-hard)]" aria-label={t(locale, "Još razgovora", "More conversations")}>+{hiddenCircles.length}</button> : null}
         <button type="button" onClick={minimizeAll} className="relative grid size-14 place-items-center rounded-full border-2 border-ink bg-yellow shadow-[4px_4px_0_0_var(--shadow-hard-20)]" aria-label={t(locale, "Minimizuj sve razgovore", "Minimize all conversations")}><MessageCircle className="size-6" />{summary?.totalUnread ? <span className="absolute -right-1 -top-1 grid min-w-5 place-items-center rounded-full border-2 border-ink bg-red-600 px-1 text-[10px] font-black text-white">{summary.totalUnread > 99 ? "99+" : summary.totalUnread}</span> : null}</button>
-        <div className="flex gap-1 rounded-full border-2 border-ink bg-paper-strong p-1 shadow-md">
-          <Link href={withLocale(locale, "/app/messages")} className="grid size-8 place-items-center rounded-full hover:bg-paper" aria-label={t(locale, "Otvori Poruke", "Open Messages")}><ChevronUp className="size-4" /></Link>
-          <button type="button" onClick={() => { const next = !soundEnabled; setSoundEnabled(next); window.localStorage.setItem(SOUND_KEY, next ? "on" : "off"); }} className="grid size-8 place-items-center rounded-full hover:bg-paper" aria-label={soundEnabled ? t(locale, "Isključi zvuk", "Disable sound") : t(locale, "Uključi zvuk", "Enable sound")}>{soundEnabled ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />}</button>
-        </div>
       </div>
     </div>
   );

@@ -145,9 +145,9 @@ export function DashboardWindow({
         )}
       </div>
       <div className="border-t-2 border-line p-4 sm:p-5">
-        <LinkButton href={ctaHref} tone="paper" className="w-full min-h-10 px-4 text-xs">
-          {ctaLabel}
-          <ArrowRight className="size-4" />
+        <LinkButton href={ctaHref} tone="smoke" className="w-full min-h-10 px-4 text-xs font-black">
+          <span>{ctaLabel}</span>
+          <ArrowRight className="size-4 shrink-0 transition-transform duration-300 group-hover:translate-x-1" />
         </LinkButton>
       </div>
     </Panel>
@@ -201,14 +201,14 @@ function PulseTile({ href, label, value, icon: Icon }: { href: string; label: st
   return (
     <Link
       href={href}
-      className="rounded-[8px] border-2 border-line bg-paper-strong p-4 text-ink transition hover:-translate-y-0.5 hover:border-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+      className="group rounded-[8px] border-2 border-line bg-paper-strong p-4 text-ink transition hover:-translate-y-0.5 hover:border-yellow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yellow"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-xs font-black uppercase text-muted">{label}</p>
+          <p className="text-xs font-black uppercase text-muted transition-colors duration-200 group-hover:text-yellow">{label}</p>
           <p className="mt-2 text-2xl font-black leading-none text-ink">{value}</p>
         </div>
-        <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-[8px] border-2 border-ink bg-paper-strong text-ink">
+        <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-[8px] border-2 border-ink bg-paper-strong text-ink transition duration-200 group-hover:border-yellow group-hover:bg-yellow group-hover:text-[#0e3158]">
           <Icon className="size-4" />
         </span>
       </div>

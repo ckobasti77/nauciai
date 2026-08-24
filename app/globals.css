@@ -41,7 +41,7 @@
      than paper so bright media has an edge where grid density is highest; `well`
      is ink darkened toward near-black-blue (NEVER #000) for the per-tile media
      well; `well-edge` is a 1px inset ring that catches pale media on white. */
-  --studio-canvas: #f5efe2;
+  --studio-canvas: #fffdf8;
   --studio-well: #0e1a2b;
   --studio-well-edge: rgba(14, 49, 88, 0.14);
   /* Tvrda ofset senka. U svetloj je mastilo na 18% (papir podignut sa stola); u
@@ -93,7 +93,7 @@
   --paper-strong: #18293f;
   --muted: #9fb2c8;
   --line: #2f4762;
-  --studio-canvas: #0a1421;
+  --studio-canvas: #0e1a2b;
   --studio-well: #070f1b;
   --studio-well-edge: rgba(233, 238, 246, 0.16);
   --shadow-hard: rgba(0, 0, 0, 0.55);
@@ -279,6 +279,8 @@ select {
 .studio-breathing {
   animation: studio-breathe var(--motion-spor) ease-in-out infinite;
 }
+
+
 
 /* Mikro hover/press tranzicija vezana za rečnik pokreta (RD10). Suzi na osobine
    koje hover STVARNO menja (transform/opacity/boja/senka) umesto Tailwind
