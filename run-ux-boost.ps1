@@ -139,6 +139,20 @@ ofset senke) se NE menja - pojačava se i čini doslednijim.
 - Čista logika u lib/ ili convex/<ime>Core.ts sa vitest testovima, po uzoru
   na postojeće parove fajl + fajl.test.ts.
 
+## UX/UI skillovi u projektu (.claude/skills/)
+Pored Convex skillova, projekat ima i UI skillove: `impeccable`,
+`ui-ux-pro-max`, `design-taste-frontend`, `motion-design`.
+- SVAKI korak koji menja izgled ili ponašanje UI-ja MORA pre pisanja koda da
+  pročita `.claude/skills/impeccable/SKILL.md` i
+  `.claude/skills/design-taste-frontend/SKILL.md`.
+- Korak koji dodaje/menja animacije čita i `.claude/skills/motion-design/SKILL.md`.
+- `ui-ux-pro-max` koristi ciljano (tipografija, palete, chart/dashboard obrasci)
+  kad ti zatreba - ne čitaj ceo katalog napamet.
+- VAŽNO: ako se savet skilla sudari sa brendom (papir/mastilo/žuta, školski
+  sketch stil) ili sa AGENTS.md konvencijama (radiusi, senke, tokeni) - brend
+  i AGENTS.md UVEK pobeđuju. Skillovi su alat za kvalitet, ne za promenu
+  identiteta.
+
 ## Definicija završenog koraka
 Korak nije gotov dok sve tri komande ne prođu čisto:
     npm run typecheck
@@ -177,7 +191,7 @@ $Steps += @{
   Id = "U1"; Model = "opus"; Effort = "high"
   Title = "Audit: verifikacija problema + UX-BOOST-PLAN.md"
   Prompt = @'
-Korak U1 od 10. SAMO ČITANJE koda + pisanje JEDNOG dokumenta. Ne menjaj
+Korak U1 od 13. SAMO ČITANJE koda + pisanje JEDNOG dokumenta. Ne menjaj
 nijedan drugi fajl.
 
 Napravi `docs/UX-BOOST-PLAN.md` - audit inventar koji će koraci U2-U10
@@ -221,8 +235,13 @@ $Steps += @{
   Id = "U2"; Model = "opus"; Effort = "max"
   Title = "UI primitivi: Button, Spinner, Dialog, Input, Badge, EmptyState"
   Prompt = @'
-Korak U2 od 10. Pročitaj docs/UX-BOOST-PLAN.md (inventar modala i fokusa)
-i docs/design-system-proposal.md (sekcija "Proposed primitives" + sekvenca).
+Korak U2 od 13. Pročitaj docs/UX-BOOST-PLAN.md (inventar modala i fokusa),
+docs/design-system-proposal.md (sekcija "Proposed primitives" + sekvenca),
+pa OBAVEZNO .claude/skills/impeccable/SKILL.md i
+.claude/skills/design-taste-frontend/SKILL.md - primitivi koje sad praviš
+određuju kvalitet svega posle; primeni njihova pravila o stanjima
+(hover/active/focus/disabled/loading), dimenzijama dodirnih meta i
+komponentnoj arhitekturi.
 
 Napravi u `components/ui/` primitive koje repo nema, tačno po duhu postojećeg
 `primitives.tsx` (cn, Panel, LinkButton - prati taj stil API-ja):
@@ -269,8 +288,10 @@ $Steps += @{
   Id = "U3"; Model = "opus"; Effort = "max"
   Title = "In-app katalog kurseva - kraj slepe ulice"
   Prompt = @'
-Korak U3 od 10. Pročitaj docs/UX-BOOST-PLAN.md (sekcije 1 i 2) i
-docs/IA-REDESIGN-PLAN.md (Faza 2 - Učionica; već implementirana).
+Korak U3 od 13. Pročitaj docs/UX-BOOST-PLAN.md (sekcije 1 i 2),
+docs/IA-REDESIGN-PLAN.md (Faza 2 - Učionica; već implementirana), pa
+.claude/skills/impeccable/SKILL.md - kartice kataloga su prodajni ekran,
+primeni pravila o hijerarhiji i vizuelnom težištu.
 
 Najveći UX problem sajta: student bez kursa nema ŠTA da vidi u aplikaciji,
 a "Pogledaj kurseve" ga izbaci na marketing /sr#pricing. Rešenje: pravi
@@ -308,8 +329,10 @@ $Steps += @{
   Id = "U4"; Model = "opus"; Effort = "high"
   Title = "Dashboard za sve tierove (FREE, plaćeni, admin)"
   Prompt = @'
-Korak U4 od 10. Pročitaj docs/UX-BOOST-PLAN.md (sekcija 1) i commit istoriju
-Faze 3a/3b (getDashboardOverview + DashboardWindowsGrid već postoje).
+Korak U4 od 13. Pročitaj docs/UX-BOOST-PLAN.md (sekcija 1), commit istoriju
+Faze 3a/3b (getDashboardOverview + DashboardWindowsGrid već postoje), pa
+.claude/skills/impeccable/SKILL.md (hijerarhija, cognitive load, empty
+states) - dashboard je prvi ekran koji student vidi, primeni ih.
 
 Problem: DashboardFirstRun ZAMENJUJE ceo dashboard kad nema otključanih
 kurseva (dashboard-content.tsx ~:1261) - pa FREE korisnik i admin nikad ne
@@ -347,8 +370,9 @@ $Steps += @{
   Id = "U5"; Model = "opus"; Effort = "medium"
   Title = "Onboarding i mikrocopy za početnike"
   Prompt = @'
-Korak U5 od 10. Pročitaj docs/UX-BOOST-PLAN.md (inventar empty state-ova)
-i docs/UX-BOOST-PROGRESS.md (šta su U2-U4 već napravili).
+Korak U5 od 13. Pročitaj docs/UX-BOOST-PLAN.md (inventar empty state-ova),
+docs/UX-BOOST-PROGRESS.md (šta su U2-U4 već napravili) i UX copy smernice
+iz .claude/skills/impeccable/SKILL.md ako ih ima.
 
 Prolaz kroz SVE tekstove app dela očima čoveka koji slabo zna računare:
 
@@ -380,7 +404,9 @@ $Steps += @{
   Id = "U6"; Model = "opus"; Effort = "high"
   Title = "Admin Kontrolni centar redizajn"
   Prompt = @'
-Korak U6 od 10. Pročitaj docs/UX-BOOST-PLAN.md (sekcija 3) i postojeći
+Korak U6 od 13. Pročitaj docs/UX-BOOST-PLAN.md (sekcija 3),
+.claude/skills/impeccable/SKILL.md (information architecture, master-detail
+obrasci) i postojeći
 components/app/admin-content-manager.tsx + app/[locale]/app/admin/*.
 
 Admin sadržaj (/app/admin/content) je danas: tri gola native select-a
@@ -414,7 +440,7 @@ $Steps += @{
   Id = "U7"; Model = "sonnet"; Effort = "medium"
   Title = "A11y sweep: fokus, kontrast, aria, tastatura"
   Prompt = @'
-Korak U7 od 10. Pročitaj docs/UX-BOOST-PLAN.md (sekcija 4 - fokus inventar)
+Korak U7 od 13. Pročitaj docs/UX-BOOST-PLAN.md (sekcija 4 - fokus inventar)
 i docs/UX-BOOST-PROGRESS.md (U2 je napravio Input/Button primitive).
 
 Mehanički a11y prolaz kroz ceo app deo:
@@ -445,7 +471,7 @@ $Steps += @{
   Id = "U8"; Model = "sonnet"; Effort = "medium"
   Title = "Token + radius sweep"
   Prompt = @'
-Korak U8 od 10. Pročitaj docs/UX-BOOST-PLAN.md (sekcija 4 - hex i radius
+Korak U8 od 13. Pročitaj docs/UX-BOOST-PLAN.md (sekcija 4 - hex i radius
 inventar) i AGENTS.md (radius konvencija - OBAVEZNO).
 
 Mehanički sweep, nula vizuelnih promena osim gde je vrednost bila očigledna
@@ -474,9 +500,11 @@ $Steps += @{
   Id = "U9"; Model = "opus"; Effort = "high"
   Title = "Polish: motion, mikro-interakcije, školski šarm, poznati bagovi"
   Prompt = @'
-Korak U9 od 10. Pročitaj docs/UX-BOOST-PLAN.md (sekcije 5 i 6),
+Korak U9 od 13. Pročitaj docs/UX-BOOST-PLAN.md (sekcije 5 i 6),
 lib/motion-contract.ts i lib/studio-motion.ts (rečnik pokreta - JEDAN izvor
-istine, ne izmišljaj nove easinge/trajanja).
+istine, ne izmišljaj nove easinge/trajanja), pa OBAVEZNO
+.claude/skills/motion-design/SKILL.md - primeni principe (timing, easing,
+choreografija, anticipation) ali IZRAŽENE kroz postojeće tokene rečnika.
 
 1. Poznati bagovi iz inventara: horizontalni overflow na /app/studio
    (nađi uzrok, popravi bez overflow-hidden hacka ako je moguće) i toast
@@ -503,12 +531,115 @@ Verifikacija: typecheck / lint / test zeleni.
 }
 
 $Steps += @{
-  Id = "U10"; Model = "sonnet"; Effort = "high"
+  Id = "U10"; Model = "opus"; Effort = "max"
+  Title = "UI jezik: tipografija, spacing, hijerarhija sekcija"
+  Prompt = @'
+Korak U10 od 13 - početak UI boost bloka (U10-U12): sve UX izmene su
+urađene, sad se diže VIZUELNI kvalitet. Pročitaj docs/UX-BOOST-PROGRESS.md,
+pa OBAVEZNO .claude/skills/impeccable/SKILL.md,
+.claude/skills/design-taste-frontend/SKILL.md i iz
+.claude/skills/ui-ux-pro-max/ delove o tipografiji i spacingu.
+Brend (papir/mastilo/žuta, Nunito + Patrick Hand, školski sketch) i
+AGENTS.md UVEK pobeđuju savet skilla.
+
+1. Tipografska skala: popiši (grep po text-*) koje se veličine/težine danas
+   koriste za h1/h2/h3/eyebrow/body/caption po app ekranima; definiši JEDNU
+   doslednu skalu (utility klase ili komponenta SectionHeader varijante u
+   primitives.tsx - proširi postojeći SectionHeader, ne pravi rivala) i
+   primeni je na: dashboard, učionica/katalog, zajednica, poruke, krediti,
+   profil, admin. Patrick Hand (font-display) SAMO za velike naslove i
+   akcente - ne za body tekst.
+2. Spacing ritam: dosledan vertikalni ritam sekcija (razmak naslov→sadržaj,
+   sekcija→sekcija, padding kartica po istoj lestvici - drži se Tailwind
+   skale 4/6/8...); ujednači padding svih Panel/kartica površina na app
+   ekranima - popiši odstupanja i svedi ih.
+3. Hijerarhija: na svakom app ekranu tačno JEDNO vizuelno težište (primarna
+   akcija žuta, sve ostalo sekundarno); eyebrow (mala kapitalizovana
+   etiketa) + naslov + opciona HandUnderline kao dosledan obrazac zaglavlja
+   sekcija - primeni gde fali, ukloni duple naslove.
+4. Gustina: prored liste (zajednica, poruke, admin liste) - dovoljno vazduha
+   da početnik ne oseti zid teksta; max-width čitljivih blokova teksta
+   (~65-75ch) gde su pasusi.
+
+NULA promena ponašanja - čisto vizuelni sloj. Obe teme, mobilni.
+U progress upiši definisanu skalu (tabela: uloga → klase) da je U11/U12
+koriste.
+
+Verifikacija: typecheck / lint / test zeleni.
+'@
+}
+
+$Steps += @{
+  Id = "U11"; Model = "opus"; Effort = "max"
+  Title = "UI facelift: Dashboard + Učionica/Katalog"
+  Prompt = @'
+Korak U11 od 13. Pročitaj docs/UX-BOOST-PROGRESS.md (posebno U10 - skala i
+ritam su definisani, koristi NJIH), pa .claude/skills/impeccable/SKILL.md i
+.claude/skills/motion-design/SKILL.md. Brend i AGENTS.md pobeđuju skill.
+
+Vizuelni "wow" sloj na dva najvažnija ekrana, unutar brenda:
+
+1. Dashboard hero (pozdrav + checklist iz U4): kompozicija sa sketch/
+   ilustrativnim akcentom (postojeći sketch-grid / ink-hatch / HandUnderline
+   rečnik), topao pozdrav, checklist koraci kao "sveska" stavke sa
+   štikliranjem. Ne dodaji nove ilustracije spolja - radi sa postojećim
+   CSS paternima i lucide ikonama.
+2. Dashboard prozori: svaka zona dobija suptilan vizuelni identitet
+   (ikona + akcenat u zaglavlju prozora) da se na prvi pogled razlikuju
+   Učenje / Zajednica / Poruke / Krediti / Studio; hover podizanje po
+   motion rečniku; brojevi (krediti, neprocitane) kao jasan fokus.
+3. Kartice kursa u katalogu i "Nastavi učenje": cover tretman (surface-media
+   radius, dosledan aspect), progres kao vidljiva žuta traka sa procentom,
+   cena kao postojeći pill badge, hover lift + senka po rečniku; zaključana
+   kartica jasno "zaključana" ali poželjna (ne siva i mrtva).
+4. Course player stranica: hijerarhija video → koraci → beleške; sidebar
+   lekcija sa jasnim "gde sam" markerom.
+5. Prazan prostor: nijedan app ekran ne sme da izgleda kao pola praznog
+   viewporta - sekcije se šire/centriraju smisleno (max-width shell već
+   postoji u globals.css - poštuj ga).
+
+NULA promena ponašanja. Obe teme, mobilni, reduced-motion.
+
+Verifikacija: typecheck / lint / test zeleni.
+'@
+}
+
+$Steps += @{
+  Id = "U12"; Model = "opus"; Effort = "high"
+  Title = "UI facelift: Zajednica + Admin + Studio + konzistencija"
+  Prompt = @'
+Korak U12 od 13. Pročitaj docs/UX-BOOST-PROGRESS.md (U10 skala, U11 obrasci
+- koristi ISTE), pa .claude/skills/impeccable/SKILL.md. Brend i AGENTS.md
+pobeđuju skill.
+
+1. Zajednica: ritam liste diskusija (avatar, meta red, naslov, akcije -
+   poravnanje i razmaci po U10 skali); hero sekcije doslednog stila sa
+   dashboard herojem; glasanje/komentari akcije jasnije grupisane.
+2. Admin (content master-detail iz U6): vizuelno poravnaj sa ostatkom -
+   status Badge boje dosledne (draft = ink-hatch/muted, published = žuta),
+   liste po U10 ritmu, pregled stanja na vrhu kao dashboard prozori.
+3. Studio: grid i composer poravnati sa U10 skalom; empty state i uvodni
+   panel (U5) vizuelno topli.
+4. Konzistencija sweep preko SVIH app ekrana: zaglavlja sekcija po istom
+   obrascu (eyebrow + naslov + HandUnderline), ista dugmad (Button
+   primitiv) za iste akcije, iste senke (--shadow-hard tokeni), isti
+   fokus prstenovi. Popiši u progress svako mesto koje si poravnao.
+5. Poruke/chat: prolaz kroz inbox i thread - razmaci, balloni, composer po
+   U10 ritmu; bez promene funkcionalnosti.
+
+NULA promena ponašanja. Obe teme, mobilni.
+
+Verifikacija: typecheck / lint / test zeleni.
+'@
+}
+
+$Steps += @{
+  Id = "U13"; Model = "sonnet"; Effort = "high"
   Title = "Responsive prolaz + finalna verifikacija + izveštaj"
   Prompt = @'
-Korak U10 od 10 - poslednji. Pročitaj docs/UX-BOOST-PROGRESS.md ceo.
+Korak U13 od 13 - poslednji. Pročitaj docs/UX-BOOST-PROGRESS.md ceo.
 
-1. Responsive prolaz kroz kod SVIH ekrana koje su U2-U9 dirali (dashboard,
+1. Responsive prolaz kroz kod SVIH ekrana koje su U2-U12 dirali (dashboard,
    učionica/katalog, admin content, zajednica, krediti): proveri grid/flex
    prelome na sm/md/lg, da nijedan red dugmadi ne prelama ružno, da bottom
    nav i dalje ima TAČNO 4 slota, da modali staju u mali viewport
@@ -523,7 +654,7 @@ Korak U10 od 10 - poslednji. Pročitaj docs/UX-BOOST-PROGRESS.md ceo.
    Ako build padne zbog env varijabli koje noću nemaš, upiši tačnu poruku
    u BLOKADA i nastavi na tačku 3 (build zbog env-a nije tvoja greška).
 3. Napiši `docs/UX-BOOST-REPORT.md`:
-   - rezime po koracima U1-U9 (šta je urađeno, iz progress fajla)
+   - rezime po koracima U1-U12 (šta je urađeno, iz progress fajla)
    - SVE ODLUKE donete noću, na jednom mestu
    - popisani preostali dug (nemigrirana dugmad, hexovi bez tokena...)
    - "Za Jovana ujutru": šta ručno proveriti u browseru, redom po

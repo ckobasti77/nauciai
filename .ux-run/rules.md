@@ -46,6 +46,20 @@ ofset senke) se NE menja - pojačava se i čini doslednijim.
 - Čista logika u lib/ ili convex/<ime>Core.ts sa vitest testovima, po uzoru
   na postojeće parove fajl + fajl.test.ts.
 
+## UX/UI skillovi u projektu (.claude/skills/)
+Pored Convex skillova, projekat ima i UI skillove: `impeccable`,
+`ui-ux-pro-max`, `design-taste-frontend`, `motion-design`.
+- SVAKI korak koji menja izgled ili ponašanje UI-ja MORA pre pisanja koda da
+  pročita `.claude/skills/impeccable/SKILL.md` i
+  `.claude/skills/design-taste-frontend/SKILL.md`.
+- Korak koji dodaje/menja animacije čita i `.claude/skills/motion-design/SKILL.md`.
+- `ui-ux-pro-max` koristi ciljano (tipografija, palete, chart/dashboard obrasci)
+  kad ti zatreba - ne čitaj ceo katalog napamet.
+- VAŽNO: ako se savet skilla sudari sa brendom (papir/mastilo/žuta, školski
+  sketch stil) ili sa AGENTS.md konvencijama (radiusi, senke, tokeni) - brend
+  i AGENTS.md UVEK pobeđuju. Skillovi su alat za kvalitet, ne za promenu
+  identiteta.
+
 ## Definicija završenog koraka
 Korak nije gotov dok sve tri komande ne prođu čisto:
     npm run typecheck
