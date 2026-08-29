@@ -15,3 +15,32 @@
 [00:18:22] claude izasao sa kodom 1
 [00:18:22] Pokusaj 2 (retry posle greske)...
 [00:18:25] claude izasao sa kodom 1
+[00:18:26] Commit 6c6d97b - 4 izmenjenih putanja
+[00:18:26] U1 -> GRESKA  (0 min, USD 0.00)
+[00:18:26] 
+[00:18:26] STOP: korak U1 nije uspeo, a -ContinueOnError nije postavljen.
+[00:18:26] Sve do ovde je commitovano na grani feat/ux-boost.
+[00:18:26] 
+[00:18:26] ==================================================
+[00:18:26]  GOTOVO
+[00:18:26] ==================================================
+[00:18:26] Korak Status Minuta CenaUSD Commit 
+[00:18:26] ----- ------ ------ ------- ------ 
+[00:18:26] U1    GRESKA      0 0.00    6c6d97b
+[00:18:26] Ukupna cena: USD 0.00
+[00:18:26] Grana: feat/ux-boost  (NIJE push-ovana, NIJE deploy-ovana)
+[00:18:26] 
+[00:18:26] Ujutru:
+[00:18:26]   1. docs\UX-BOOST-REPORT.md    - izvestaj i rucni koraci
+[00:18:26]   2. docs\UX-BOOST-PROGRESS.md  - dnevnik po koracima
+[00:18:26]   3. .ux-run\logs\              - sirovi logovi
+[00:18:26]   4. Javi Claude-u da je gotovo.
+[00:18:42] ==================================================
+[00:18:42]  UX BOOST - nocni run
+[00:18:42]  Repo:   C:\Users\admin\Desktop\Web Dev Projects\nauciai
+[00:18:42]  Grana:  feat/ux-boost
+[00:18:42]  Koraka: 13
+[00:18:42]  Log:    C:\Users\admin\Desktop\Web Dev Projects\nauciai\.ux-run\logs\run_2026-08-30_00-18.log
+[00:18:42] ==================================================
+[00:18:42] Vec na grani feat/ux-boost
+[00:18:42] Nekomitovane izmene zatecene - commitujem ih pre starta.
