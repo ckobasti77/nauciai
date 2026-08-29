@@ -63,7 +63,7 @@ import {
   clampAppSidebarWidth,
   serializeAppSidebarPreferences,
 } from "@/lib/app-sidebar-preferences";
-import { classroomPath, coursePath, lessonPath } from "@/lib/app-routes";
+import { classroomPath, courseCatalogPath, coursePath, lessonPath } from "@/lib/app-routes";
 import { publicProfilePath } from "@/lib/profile-links";
 import type { AppCourseNav, AppNavigationData } from "@/lib/app-navigation";
 import { primaryCourseSlug } from "@/lib/content";
@@ -1795,7 +1795,7 @@ function AppSidebarContent({
                     <button>, so this is the only place the upgrade path can still be a link. */}
                 {showUpgrade ? (
                   <Link
-                    href={`${withLocale(locale)}#pricing`}
+                    href={courseCatalogPath(locale)}
                     onClick={() => setProfileMenuOpen(false)}
                     className="flex min-h-11 items-center gap-3 bg-[#10b981] px-3 py-2 text-[13px] font-black uppercase text-white transition hover:bg-[#0ea472] font-extrabold"
                   >
@@ -1897,7 +1897,7 @@ function AppSidebarContent({
           </Link>
           {showUpgrade ? (
             <Link
-              href={`${withLocale(locale)}#pricing`}
+              href={courseCatalogPath(locale)}
               className="col-span-full inline-flex min-h-11 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-[#10b981] px-3 py-2 text-xs font-black text-white"
             >
               <ArrowUpRight className="size-4" />
@@ -1962,7 +1962,7 @@ function AppSidebarContent({
             <RailAction href={withLocale(locale, "/app/admin/chat")} label={locale === "sr" ? "Chat sigurnost" : "Chat safety"} icon={<Shield className="size-5" />} active={chatSafetyActive} />
           ) : null}
           {showUpgrade ? (
-            <RailAction href={`${withLocale(locale)}#pricing`} label={locale === "sr" ? "Unapredi" : "Upgrade"} icon={<ArrowUpRight className="size-5" />} />
+            <RailAction href={courseCatalogPath(locale)} label={locale === "sr" ? "Unapredi" : "Upgrade"} icon={<ArrowUpRight className="size-5" />} />
           ) : null}
             </nav>
           }
@@ -2031,7 +2031,7 @@ function AppSidebarContent({
                 <Link href={withLocale(locale, "/app/billing")} className="flex min-h-11 items-center gap-3 rounded-full px-3 text-sm font-black hover:bg-yellow/25"><CreditCard className="size-4" /> {t.billing}</Link>
                 <ThemeToggle locale={locale} className="mt-2" />
                 {showUpgrade ? (
-                  <Link href={`${withLocale(locale)}#pricing`} className="mt-2 flex min-h-11 items-center gap-3 rounded-full bg-[#10b981] px-3 text-sm font-black text-white transition hover:bg-[#0ea472]"><ArrowUpRight className="size-4" /> {upgradeLabel}</Link>
+                  <Link href={courseCatalogPath(locale)} className="mt-2 flex min-h-11 items-center gap-3 rounded-full bg-[#10b981] px-3 text-sm font-black text-white transition hover:bg-[#0ea472]"><ArrowUpRight className="size-4" /> {upgradeLabel}</Link>
                 ) : null}
                 <button type="button" onClick={async () => { await signOut(); router.push(withLocale(locale, "/sign-in")); }} className="mt-2 flex min-h-11 w-full items-center gap-3 bg-ink px-3 text-sm font-black text-paper-strong"><LogOut className="size-4" /> {locale === "sr" ? "Odjavi se" : "Sign out"}</button>
               </div>

@@ -2,11 +2,12 @@
 
 import { useConvexAuth } from "@convex-dev/auth/react";
 import { useQuery } from "convex/react";
-import { ArrowRight, BookOpen, Clock3, Compass, GraduationCap, PlayCircle } from "lucide-react";
+import { ArrowRight, BookOpen, Clock3, Compass, PlayCircle } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { CourseCatalogCard, CourseCatalogRow } from "@/components/app/course-catalog-card";
 import {
   CourseCover,
   CourseProgress,
@@ -17,15 +18,29 @@ import {
   type DashboardCourse,
 } from "@/components/app/dashboard-content";
 import { coursesFromLive, type LiveNavigationResult } from "@/components/app/dashboard-live";
+import { EmptyState } from "@/components/ui/empty-state";
 import { LinkButton, Panel } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
 import { lessonPath, trackPath } from "@/lib/app-routes";
+import {
+  formatCourseCount,
+  groupByTrack,
+  isCourseOwned,
+  matchesCatalogFilter,
+  type CatalogFilter,
+  type CatalogTrackGroup,
+  type CatalogTrackMeta,
+} from "@/lib/course-catalog";
 import type { ViewerProfile } from "@/lib/current-viewer";
-import { localized, t as tr, type Locale, type LocalizedText } from "@/lib/i18n";
+import { localized, t as tr, withLocale, type Locale } from "@/lib/i18n";
 
-type CourseEntry = { course: DashboardCourse; summary: ReturnType<typeof getProgressSummary> };
-type TrackMeta = Record<string, { slug?: string; title: LocalizedText }>;
-type CourseFilter = "all" | "inProgress" | "completed" | "locked";
+type CourseEntry = {
+  course: DashboardCourse;
+  summary: ReturnType<typeof getProgressSummary>;
+  /** Vlasnistvo za prikaz; `isCourseOwned` iz lib/course-catalog.ts, ne `hasAccess`. */
+  owned: boolean;
+};
+type TrackMeta = CatalogTrackMeta;
 
 /**
  * Live path: reads the same `getAppNavigation` payload the sidebar and dashboard use, so the hub
@@ -90,41 +105,64 @@ export function ClassroomHubView({
   const view = searchParams.get("view");
   const tracksRef = useRef<HTMLElement>(null);
   const coursesRef = useRef<HTMLElement>(null);
-  const [filter, setFilter] = useState<CourseFilter>("all");
+  const [filter, setFilter] = useState<CatalogFilter>("all");
 
   const visibleCourses = useMemo(
     () => courses.filter((course) => isAdmin || course.status === "published"),
     [courses, isAdmin],
   );
   const entries: CourseEntry[] = useMemo(
-    () => visibleCourses.map((course) => ({ course, summary: getProgressSummary(course, locale) })),
-    [visibleCourses, locale],
+    () =>
+      visibleCourses.map((course) => ({
+        course,
+        summary: getProgressSummary(course, locale),
+        owned: isCourseOwned(course, isAdmin),
+      })),
+    [visibleCourses, locale, isAdmin],
   );
-  const accessible = useMemo(
-    () => entries.filter((entry) => isAdmin || entry.course.hasAccess),
-    [entries, isAdmin],
-  );
+  // „Nastavi", „Sledeće lekcije" i napredak smera računaju se SAMO iz kurseva koje
+  // student ima. Ranije je to bio `hasAccess`, za koji je svaki objavljen kurs
+  // dostupan — pa je hero nudio „Nastavi lekciju" u kurs koji je na kartici ispod
+  // pisao „Zaključano".
+  const ownedEntries = useMemo(() => entries.filter((entry) => entry.owned), [entries]);
 
-  const trackGroups = useMemo(() => groupByTrack(entries, trackMeta), [entries, trackMeta]);
+  const trackGroups = useMemo(
+    () => groupByTrack(entries, (entry) => entry.course.trackId, trackMeta),
+    [entries, trackMeta],
+  );
 
   const resume = useMemo(
     () =>
-      accessible
+      ownedEntries
         .filter((entry) => Boolean(entry.summary.nextLesson))
         .sort((a, b) => (b.summary.lastActivityAt ?? 0) - (a.summary.lastActivityAt ?? 0))[0],
-    [accessible],
+    [ownedEntries],
   );
 
   const upcoming = useMemo(
     () =>
-      accessible
+      ownedEntries
         .filter((entry) => Boolean(entry.summary.nextLesson))
         .sort((a, b) => (b.summary.lastActivityAt ?? 0) - (a.summary.lastActivityAt ?? 0))
         .slice(0, 5),
-    [accessible],
+    [ownedEntries],
   );
 
-  const filteredEntries = useMemo(() => entries.filter((entry) => matchesFilter(entry, filter)), [entries, filter]);
+  const filteredEntries = useMemo(
+    () =>
+      entries.filter((entry) =>
+        matchesCatalogFilter(
+          {
+            owned: entry.owned,
+            totalLessons: entry.summary.totalLessons,
+            completedLessons: entry.summary.completedLessons,
+            percent: entry.summary.percent,
+          },
+          filter,
+        ),
+      ),
+    [entries, filter],
+  );
 
   // ?view scrolls to the matching zone; the sidebar's Smerovi/Kursevi sections link here.
   useEffect(() => {
@@ -135,10 +173,6 @@ export function ClassroomHubView({
     target.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
   }, [view]);
 
-  if (!accessible.length) {
-    return <DashboardFirstRun locale={locale} profileName={profileName} />;
-  }
-
   const resumeLesson = resume?.summary.nextLesson;
   const resumePosition = resume
     ? Math.max(1, Math.min(resume.summary.completedLessons + 1, resume.summary.totalLessons))
@@ -147,64 +181,71 @@ export function ClassroomHubView({
 
   return (
     <div className="space-y-6">
-      {/* Zone 1 — Continue where you left off */}
-      <section
-        data-motion="hero"
-        className="overflow-hidden rounded-[16px] border-2 border-ink bg-paper-strong shadow-[6px_6px_0_0_var(--shadow-hard-12)]"
-      >
-        <div className="p-4 sm:p-5 lg:p-6" data-motion="copy">
-          <p className="text-sm font-black uppercase text-muted">
-            {locale === "sr" ? `Zdravo, ${profileName}` : `Hi, ${profileName}`}
-          </p>
-          {resume && resumeLesson ? (
-            <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-start">
-              <div className="relative aspect-[16/9] w-full shrink-0 overflow-hidden rounded-[8px] bg-paper sm:w-44">
-                <CourseCover course={resume.course} locale={locale} />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-black uppercase text-muted">
-                  {tr(locale, "Nastavi gde si stao", "Continue where you left off")}
-                </p>
-                <h1 className="mt-2 text-2xl font-black leading-tight tracking-[-0.035em] text-ink sm:text-3xl">
-                  {localized(resume.course.title, locale)}
-                </h1>
-                <p className="mt-2 text-sm font-bold leading-6 text-muted sm:text-base">
-                  <span className="font-black text-ink">
-                    {tr(locale, `Lekcija ${resumePosition}/${resumeTotal}`, `Lesson ${resumePosition}/${resumeTotal}`)}
-                  </span>
-                  {" · "}
-                  {localized(resumeLesson.title, locale)}
-                </p>
-                <div className="mt-4">
-                  <LinkButton
-                    href={lessonPath(locale, resume.course.slug, resumeLesson.slug)}
-                    tone="yellow"
-                    size="lg"
-                  >
-                    <PlayCircle className="size-5" />
-                    {resume.summary.completedLessons === 0
-                      ? tr(locale, "Započni lekciju", "Start lesson")
-                      : tr(locale, "Nastavi lekciju", "Continue lesson")}
-                  </LinkButton>
+      {/* Zone 1 — Continue where you left off.
+          Student bez ijednog otključanog kursa ovde dobija first-run blok, ali on
+          više NE zamenjuje celu stranicu: katalog ispod je jedini razlog zbog kog
+          taj student uopšte otvara Učionicu. */}
+      {ownedEntries.length === 0 ? (
+        <DashboardFirstRun locale={locale} profileName={profileName} />
+      ) : (
+        <section
+          data-motion="hero"
+          className="overflow-hidden rounded-[16px] border-2 border-ink bg-paper-strong shadow-[6px_6px_0_0_var(--shadow-hard-12)]"
+        >
+          <div className="p-4 sm:p-5 lg:p-6" data-motion="copy">
+            <p className="text-sm font-black uppercase text-muted">
+              {locale === "sr" ? `Zdravo, ${profileName}` : `Hi, ${profileName}`}
+            </p>
+            {resume && resumeLesson ? (
+              <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-start">
+                <div className="relative aspect-[16/9] w-full shrink-0 overflow-hidden rounded-[8px] bg-paper sm:w-44">
+                  <CourseCover course={resume.course} locale={locale} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-black uppercase text-muted">
+                    {tr(locale, "Nastavi gde si stao", "Continue where you left off")}
+                  </p>
+                  <h1 className="mt-2 text-2xl font-black leading-tight tracking-[-0.035em] text-ink sm:text-3xl">
+                    {localized(resume.course.title, locale)}
+                  </h1>
+                  <p className="mt-2 text-sm font-bold leading-6 text-muted sm:text-base">
+                    <span className="font-black text-ink">
+                      {tr(locale, `Lekcija ${resumePosition}/${resumeTotal}`, `Lesson ${resumePosition}/${resumeTotal}`)}
+                    </span>
+                    {" · "}
+                    {localized(resumeLesson.title, locale)}
+                  </p>
+                  <div className="mt-4">
+                    <LinkButton
+                      href={lessonPath(locale, resume.course.slug, resumeLesson.slug)}
+                      tone="yellow"
+                      size="lg"
+                    >
+                      <PlayCircle className="size-5" />
+                      {resume.summary.completedLessons === 0
+                        ? tr(locale, "Započni lekciju", "Start lesson")
+                        : tr(locale, "Nastavi lekciju", "Continue lesson")}
+                    </LinkButton>
+                  </div>
                 </div>
               </div>
-            </div>
-          ) : (
-            <div className="mt-3">
-              <h1 className="text-2xl font-black leading-tight tracking-[-0.035em] text-ink sm:text-3xl">
-                {tr(locale, "Sve lekcije su završene", "Every lesson is done")}
-              </h1>
-              <p className="mt-2 max-w-2xl text-sm font-bold leading-6 text-muted sm:text-base">
-                {tr(
-                  locale,
-                  "Nema više lekcija na čekanju. Vrati se bilo kom kursu ispod da ponoviš gradivo.",
-                  "Nothing is queued up. Revisit any course below to go over the material again.",
-                )}
-              </p>
-            </div>
-          )}
-        </div>
-      </section>
+            ) : (
+              <div className="mt-3">
+                <h1 className="text-2xl font-black leading-tight tracking-[-0.035em] text-ink sm:text-3xl">
+                  {tr(locale, "Sve lekcije su završene", "Every lesson is done")}
+                </h1>
+                <p className="mt-2 max-w-2xl text-sm font-bold leading-6 text-muted sm:text-base">
+                  {tr(
+                    locale,
+                    "Nema više lekcija na čekanju. Vrati se bilo kom kursu ispod da ponoviš gradivo.",
+                    "Nothing is queued up. Revisit any course below to go over the material again.",
+                  )}
+                </p>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* Zone 2 — Tracks */}
       <section ref={tracksRef} id="tracks" className="scroll-mt-6">
@@ -216,9 +257,9 @@ export function ClassroomHubView({
             </h2>
           </div>
           {trackGroups.length ? (
-            <div className="grid gap-5 p-5 sm:p-6 lg:grid-cols-2">
+            <div className="divide-y-2 divide-line">
               {trackGroups.map((group) => (
-                <TrackCard key={group.trackId} locale={locale} group={group} />
+                <TrackSection key={group.trackId} locale={locale} group={group} />
               ))}
             </div>
           ) : (
@@ -234,7 +275,7 @@ export function ClassroomHubView({
         </Panel>
       </section>
 
-      {/* Zone 3 — Courses + filter */}
+      {/* Zone 3 — Catalog: every published course, unlocked and locked side by side */}
       <section ref={coursesRef} id="courses" className="scroll-mt-6">
         <Panel className="overflow-hidden">
           <div className="border-b-2 border-ink bg-paper-strong p-5 sm:p-6">
@@ -242,43 +283,68 @@ export function ClassroomHubView({
               <div>
                 <p className="text-xs font-black uppercase text-muted">{tr(locale, "Kursevi", "Courses")}</p>
                 <h2 className="mt-2 text-2xl font-black text-ink sm:text-3xl">
-                  {tr(locale, "Izaberi gde nastavljaš", "Choose where to continue")}
+                  {ownedEntries.length
+                    ? tr(locale, "Izaberi gde nastavljaš", "Choose where to continue")
+                    : tr(locale, "Izaberi svoj prvi kurs", "Choose your first course")}
                 </h2>
               </div>
               <span className="inline-flex w-fit items-center gap-2 rounded-full border-2 border-ink bg-paper px-4 py-2 text-xs font-black text-ink">
                 <BookOpen className="size-4" />
-                {visibleCourses.length} {tr(locale, "kursa", "courses")}
+                {formatCourseCount(locale, visibleCourses.length)}
               </span>
             </div>
-            <div className="mt-4 flex flex-wrap gap-2">
-              {COURSE_FILTERS.map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  onClick={() => setFilter(option.id)}
-                  aria-pressed={filter === option.id}
-                  className={
-                    filter === option.id
-                      ? "inline-flex items-center rounded-full border-2 border-ink bg-yellow px-4 py-1.5 text-xs font-black text-ink"
-                      : "inline-flex items-center rounded-full border-2 border-line bg-paper px-4 py-1.5 text-xs font-black text-muted transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-                  }
-                >
-                  {tr(locale, option.sr, option.en)}
-                </button>
-              ))}
-            </div>
+            {visibleCourses.length ? (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {COURSE_FILTERS.map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => setFilter(option.id)}
+                    aria-pressed={filter === option.id}
+                    className={
+                      filter === option.id
+                        ? "inline-flex items-center rounded-full border-2 border-ink bg-yellow px-4 py-1.5 text-xs font-black text-ink"
+                        : "inline-flex items-center rounded-full border-2 border-line bg-paper px-4 py-1.5 text-xs font-black text-muted transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                    }
+                  >
+                    {tr(locale, option.sr, option.en)}
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
-          {filteredEntries.length ? (
+          {visibleCourses.length === 0 ? (
+            <div className="p-5 sm:p-6">
+              <EmptyState
+                icon={BookOpen}
+                title={tr(locale, "Još nema nijednog kursa", "No courses yet")}
+                body={tr(
+                  locale,
+                  "Prvi kursevi se upravo pripremaju. Dok čekaš, upoznaj se sa ostalima u zajednici — tamo se javlja i kad nešto novo izađe.",
+                  "The first courses are being prepared. In the meantime, meet the others in the community — that is also where new releases are announced.",
+                )}
+                action={
+                  <LinkButton href={withLocale(locale, "/app/community")} tone="yellow">
+                    {tr(locale, "Otvori zajednicu", "Open community")}
+                  </LinkButton>
+                }
+              />
+            </div>
+          ) : filteredEntries.length ? (
             <div className="grid gap-5 p-5 sm:p-6 lg:grid-cols-2">
-              {filteredEntries.map((entry) => (
-                <DashboardCourseCard
-                  key={entry.course.slug}
-                  locale={locale}
-                  course={entry.course}
-                  isAdmin={isAdmin}
-                  summary={entry.summary}
-                />
-              ))}
+              {filteredEntries.map((entry) =>
+                entry.owned ? (
+                  <DashboardCourseCard
+                    key={entry.course.slug}
+                    locale={locale}
+                    course={entry.course}
+                    isAdmin={isAdmin}
+                    summary={entry.summary}
+                  />
+                ) : (
+                  <CourseCatalogCard key={entry.course.slug} locale={locale} course={entry.course} />
+                ),
+              )}
             </div>
           ) : (
             <p className="flex items-center gap-2 p-5 text-sm font-bold text-muted sm:p-6">
@@ -335,98 +401,79 @@ export function ClassroomHubView({
   );
 }
 
-const COURSE_FILTERS: Array<{ id: CourseFilter; sr: string; en: string }> = [
+const COURSE_FILTERS: Array<{ id: CatalogFilter; sr: string; en: string }> = [
   { id: "all", sr: "Svi", en: "All" },
   { id: "inProgress", sr: "U toku", en: "In progress" },
   { id: "completed", sr: "Završeni", en: "Completed" },
   { id: "locked", sr: "Zaključani", en: "Locked" },
 ];
 
-function matchesFilter(entry: CourseEntry, filter: CourseFilter) {
-  if (filter === "all") return true;
-  if (filter === "locked") return !entry.course.hasAccess;
-  if (filter === "completed") return entry.summary.totalLessons > 0 && entry.summary.percent === 100;
-  if (filter === "inProgress") return entry.summary.completedLessons > 0 && entry.summary.percent < 100;
-  return true;
-}
-
-type TrackGroup = {
-  trackId: string;
-  slug?: string;
-  title: LocalizedText;
-  count: number;
-  percent: number;
-};
-
-function groupByTrack(entries: CourseEntry[], trackMeta: TrackMeta): TrackGroup[] {
-  const buckets = new Map<string, CourseEntry[]>();
-  for (const entry of entries) {
-    const trackId = entry.course.trackId;
-    if (!trackId || !trackMeta[trackId]) continue;
-    const bucket = buckets.get(trackId) ?? [];
-    bucket.push(entry);
-    buckets.set(trackId, bucket);
-  }
-
-  return Array.from(buckets.entries()).map(([trackId, items]) => {
-    const totalLessons = items.reduce((sum, item) => sum + item.summary.totalLessons, 0);
-    const completedLessons = items.reduce((sum, item) => sum + item.summary.completedLessons, 0);
-    return {
-      trackId,
-      slug: trackMeta[trackId].slug,
-      title: trackMeta[trackId].title,
-      count: items.length,
-      percent: totalLessons ? Math.round((completedLessons / totalLessons) * 100) : 0,
-    };
-  });
-}
-
-function TrackCard({ locale, group }: { locale: Locale; group: TrackGroup }) {
-  const body = (
-    <>
-      <div className="flex items-start justify-between gap-3">
-        <span className="grid size-11 shrink-0 place-items-center rounded-full border-2 border-ink bg-yellow text-ink">
-          <Compass className="size-5" />
-        </span>
-        <span className="inline-flex items-center gap-1 rounded-full border-2 border-ink bg-paper px-3 py-1 text-[11px] font-black uppercase text-ink">
-          <GraduationCap className="size-3.5" />
-          {group.count} {tr(locale, "kursa", "courses")}
-        </span>
-      </div>
-      <h3 className="mt-4 text-xl font-black leading-tight text-ink">{localized(group.title, locale)}</h3>
-      <div className="mt-4">
-        <div className="flex items-center justify-between gap-3 text-xs font-black uppercase text-muted">
-          <span>{tr(locale, "Napredak", "Progress")}</span>
-          <span>{group.percent}%</span>
-        </div>
-        <div className="mt-2">
-          <CourseProgress
-            percent={group.percent}
-            label={tr(
-              locale,
-              `Napredak smera ${localized(group.title, locale)}`,
-              `Progress for ${localized(group.title, locale)}`,
-            )}
-          />
-        </div>
-      </div>
-    </>
+/**
+ * Jedan smer sa svojim kursevima. Napredak se prikazuje tek kad student ima bar
+ * jedan kurs iz tog smera — „0%" iznad četiri zaključana kursa nije informacija
+ * nego prekor.
+ */
+function TrackSection({
+  locale,
+  group,
+}: {
+  locale: Locale;
+  group: CatalogTrackGroup<CourseEntry>;
+}) {
+  const ownedCount = group.items.filter((entry) => entry.owned).length;
+  const totalLessons = group.items.reduce((sum, entry) => sum + (entry.owned ? entry.summary.totalLessons : 0), 0);
+  const completedLessons = group.items.reduce(
+    (sum, entry) => sum + (entry.owned ? entry.summary.completedLessons : 0),
+    0,
   );
-
-  if (!group.slug) {
-    return <div className="rounded-[16px] border-2 border-line bg-paper p-5">{body}</div>;
-  }
+  const percent = totalLessons ? Math.round((completedLessons / totalLessons) * 100) : 0;
+  const title = localized(group.title, locale);
 
   return (
-    <Link
-      href={trackPath(locale, group.slug)}
-      className="block rounded-[16px] border-2 border-ink bg-paper-strong p-5 shadow-[6px_6px_0_0_var(--shadow-hard-12)] transition-transform hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-    >
-      {body}
-      <span className="mt-4 inline-flex items-center gap-1 text-xs font-black text-ink underline decoration-2 underline-offset-4">
-        {tr(locale, "Otvori smer", "Open track")}
-        <ArrowRight className="size-3.5" />
-      </span>
-    </Link>
+    <div>
+      <div className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+        <div className="min-w-0">
+          <h3 className="text-xl font-black leading-tight text-ink">{title}</h3>
+          <p className="mt-1 text-xs font-bold text-muted">
+            {formatCourseCount(locale, group.items.length)}
+            {ownedCount > 0 ? ` · ${tr(locale, `${ownedCount} otključano`, `${ownedCount} unlocked`)}` : null}
+          </p>
+        </div>
+        {group.slug ? (
+          <Link
+            href={trackPath(locale, group.slug)}
+            className="inline-flex w-fit shrink-0 items-center gap-1 text-xs font-black text-ink underline decoration-2 underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          >
+            {tr(locale, "Otvori smer", "Open track")}
+            <ArrowRight className="size-3.5" />
+          </Link>
+        ) : null}
+      </div>
+      {ownedCount > 0 ? (
+        <div className="px-5 pb-4 sm:px-6">
+          <div className="flex items-center justify-between gap-3 text-xs font-black uppercase text-muted">
+            <span>{tr(locale, "Napredak", "Progress")}</span>
+            <span>{percent}%</span>
+          </div>
+          <div className="mt-2">
+            <CourseProgress
+              percent={percent}
+              label={tr(locale, `Napredak smera ${title}`, `Progress for ${title}`)}
+            />
+          </div>
+        </div>
+      ) : null}
+      <ul className="divide-y-2 divide-line border-t-2 border-line">
+        {group.items.map((entry) => (
+          <CourseCatalogRow
+            key={entry.course.slug}
+            locale={locale}
+            course={entry.course}
+            owned={entry.owned}
+            percent={entry.summary.percent}
+          />
+        ))}
+      </ul>
+    </div>
   );
 }

@@ -178,6 +178,28 @@ export const getAppNavigation = query({
       .filter((course) => course.status !== "archived")
       .sort((a, b) => a.sortOrder - b.sortOrder);
 
+    // Upisi se citaju pre mape kurseva jer ih sada koriste dva izlaza: `plan`
+    // (kao i ranije) i `owned` po kursu.
+    const enrollments = await ctx.db
+      .query("enrollments")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+    const hasActiveEnrollment = enrollments.some((e) => e.status === "active");
+    /**
+     * `owned` je PRIKAZ vlasnistva ("da li je student otkljucao ovaj kurs"), a NE
+     * provera pristupa. Pristup i dalje odlucuju `hasAccess` ispod i
+     * `requireCourseAccess` u helpers.ts - ovo polje ih ne dira. Postoji zato sto
+     * katalog u Ucionici mora da razlikuje kurs koji student ima od kursa koji tek
+     * kupuje, a `hasAccess` na to pitanje ne odgovara (za njega je svaki objavljen
+     * kurs dostupan).
+     */
+    const ownedCourseIds = new Set(
+      enrollments.filter((e) => e.status === "active").map((e) => e.courseId),
+    );
+    // Isti pojam "staff" kao u lib/lesson-access.ts (canUseProLesson): njima se
+    // katalog ne naplacuje.
+    const isStaff = profile.role === "admin" || profile.role === "moderator" || profile.role === "pro_student";
+
     const coursesWithNavigation = await Promise.all(
       courses.map(async (course) => {
         const track = course.trackId ? await ctx.db.get(course.trackId) : null;
@@ -283,6 +305,7 @@ export const getAppNavigation = query({
           videoUpdatedAt: course.videoUpdatedAt,
           sortOrder: course.sortOrder,
           hasAccess: isAdmin || course.status === "published",
+          owned: isStaff || ownedCourseIds.has(course._id),
           progress: {
             totalLessons,
             completedLessons,
@@ -300,12 +323,6 @@ export const getAppNavigation = query({
         };
       }),
     );
-
-    const enrollments = await ctx.db
-      .query("enrollments")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .collect();
-    const hasActiveEnrollment = enrollments.some((e) => e.status === "active");
 
     let plan = "free";
     if (profile.role === "admin") {

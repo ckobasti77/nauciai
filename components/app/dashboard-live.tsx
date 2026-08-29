@@ -35,6 +35,8 @@ export type LiveNavigationResult = {
     descriptionRichEn?: string;
     status: "draft" | "published" | "archived";
     hasAccess?: boolean;
+    /** Vlasnistvo za prikaz (aktivan upis ili staff rola). Vidi lib/course-catalog.ts. */
+    owned?: boolean;
     stripePriceId?: string;
     videoUrl?: string | null;
     coverUrl?: string | null;
@@ -168,6 +170,10 @@ function courseFromLiveCourse(
     descriptionRich: liveCourse.descriptionRichSr || liveCourse.descriptionRichEn ? { sr: liveCourse.descriptionRichSr ?? "", en: liveCourse.descriptionRichEn ?? "" } : undefined,
     status: liveCourse.status,
     hasAccess: Boolean(liveCourse.hasAccess),
+    // Namerno bez `Boolean(...)`: `undefined` znaci "payload nema to polje" i
+    // `isCourseOwned` ga tada vraca na `hasAccess`. `Boolean(undefined)` bi to
+    // pretvorio u tvrdo "nema kurs".
+    owned: liveCourse.owned,
     stripePriceId: liveCourse.stripePriceId,
     videoUrl: liveCourse.videoUrl,
     videoFileName: liveCourse.videoFileName,

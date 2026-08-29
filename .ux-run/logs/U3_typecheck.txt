@@ -1,0 +1,4 @@
+
+> nauciai@0.1.0 typecheck
+> tsc -p tsconfig.tscheck.json --noEmit
+

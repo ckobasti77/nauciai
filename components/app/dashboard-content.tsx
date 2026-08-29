@@ -47,7 +47,7 @@ import {
   type DashboardOverview,
   type NextLesson,
 } from "@/components/app/dashboard-windows";
-import { classroomPath, coursePath, lessonPath } from "@/lib/app-routes";
+import { classroomPath, courseCatalogPath, coursePath, lessonPath } from "@/lib/app-routes";
 import { LinkButton, Panel, cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -99,6 +99,13 @@ export type DashboardCourse = {
   coverUrl?: string | null;
   status: "draft" | "published" | "archived";
   hasAccess: boolean;
+  /**
+   * Vlasnistvo za PRIKAZ (aktivan upis ili staff rola), odvojeno od `hasAccess`
+   * koji je i dalje jedino pravilo pristupa. `undefined` = payload ga ne nosi
+   * (staticka grana bez Convexa); citaj ga preko `isCourseOwned` iz
+   * `lib/course-catalog.ts`, nikad direktno.
+   */
+  owned?: boolean;
   stripePriceId?: string;
   videoUrl?: string | null;
   videoFileName?: string;
@@ -1020,7 +1027,7 @@ export function DashboardFirstRun({ locale, profileName }: { locale: Locale; pro
         </ol>
 
         <div className="mt-7 flex flex-wrap items-center gap-3">
-          <LinkButton href={`${withLocale(locale)}#pricing`} tone="yellow" size="lg">
+          <LinkButton href={courseCatalogPath(locale)} tone="yellow" size="lg">
             <Sparkles className="size-5" />
             {tr(locale, "Pogledaj kurseve", "Browse courses")}
           </LinkButton>

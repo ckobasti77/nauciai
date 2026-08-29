@@ -307,3 +307,186 @@ popraviti je zasebno, jedna je i lokalizovana.
   od steka modala. Ako se ikad otvori modal iz mobilne fioke, vazi isti rizik iz ODLUKE 5.
 - Off-scale radiusi koje sam usput video u dirnutim fajlovima (`community-comments.tsx:234`
   `rounded-[10px]`, `chat-group-details.tsx:201`) - nisu dirani, U9 ih ionako ima na spisku.
+
+---
+
+## U3 - In-app katalog kurseva u Učionici (zaključane kartice + checkout bez izlaska iz app-a)   (2026-08-30 01:50)
+
+**Fajlovi:**
+
+*Dodato:*
+- `lib/course-catalog.ts` (čista logika kataloga: vlasništvo, filter, grupisanje po smeru, srpska množina, trajanje, cena)
+- `lib/course-catalog.test.ts` (40 testova)
+- `components/app/course-catalog-card.tsx` (`CourseCatalogCard` — prodajna kartica zaključanog kursa + dijalog sa uvodnim videom; `CourseCatalogRow` — kompaktan red za zonu „Smerovi")
+- `convex/courseCatalog.test.ts` (7 testova nad `courses.getAppNavigation`)
+
+*Izmenjeno:*
+- `convex/courses.ts` — `getAppNavigation` vraća novo polje `owned` po kursu; čitanje `enrollments` pomereno iznad mape kurseva (isti jedan upit hrani i `plan` i `owned`, nula dodatnih čitanja)
+- `components/app/dashboard-live.tsx` — `owned` u tipu payload-a i u mapiranju u `DashboardCourse`
+- `components/app/dashboard-content.tsx` — `DashboardCourse.owned?`; CTA first-run bloka više ne vodi na marketing
+- `components/app/classroom-hub.tsx` — zone 1–3 prerađene (vidi ispod)
+- `components/app/app-sidebar.tsx` — 4 „Unapredi" CTA-a vode u katalog umesto na `/{locale}#pricing`
+- `lib/app-routes.ts` — novi builder `courseCatalogPath(locale)`
+
+**Šta je urađeno:**
+Student koji nema nijedan kurs do sinoć je u Učionici video samo first-run blok, a jedino
+dugme na njemu ga je izbacivalo iz aplikacije na marketing `#pricing` (§1A i §2B iz
+`UX-BOOST-PLAN.md`). Sada `classroom-hub.tsx` više ne prekida render: first-run blok je
+postao zona 1, a ispod njega stoji pravi katalog **svih objavljenih kurseva**. Kurs koji
+student ima renderuje postojeća `DashboardCourseCard` sa napretkom; kurs koji nema dobija
+novu karticu — naslovna slika, značka „Zaključano", cena u žutom pill-u (isti oblik i ista
+cena kao na marketing stranici), naslov, „Šta se uči" sa do tri naslova lekcije, broj lekcija
+i ukupno trajanje, pa `CheckoutButton` „Otključaj" koji pokreće postojeći
+`/api/stripe/checkout` **bez napuštanja aplikacije** i sekundarno „Pogledaj uvod" koje otvara
+`Dialog` primitiv iz U2 sa besplatnim uvodnim videom. Zona „Smerovi" je od zbirnih pločica
+postala spisak smerova sa kursevima u njima. Svih pet app→marketing `#pricing` linkova iz
+inventara (§2B, stavke 1–5) sada gađa `courseCatalogPath(locale)`; u `components/app/` više
+nema nijednog `#pricing` linka. Prazan katalog (nijedan objavljen kurs) renderuje `EmptyState`
+primitiv iz U2 — to je i njegovo drugo pozivno mesto.
+
+**ODLUKE:**
+
+1. **„Ima kurs" = aktivan upis (`enrollments.status === "active"`) ili staff rola; `hasAccess`
+   NISAM dirao.** Ovo je najvažnija odluka koraka. `convex/courses.ts:285` računa
+   `hasAccess: isAdmin || course.status === "published"` — dakle za njega **svaki objavljen
+   kurs pripada svakome**, pa na pitanje „koji kurs student nema" ne ume da odgovori. Pravila
+   run-a zabranjuju menjanje pravila pristupa, pa sam dodao **odvojeno** polje `owned`, uz
+   komentar u kodu da je ono prikaz, a ne autorizacija. Isti pojam „staff" kao
+   `lib/lesson-access.ts` (admin / moderator / pro_student). Test
+   `convex/courseCatalog.test.ts` eksplicitno tvrdi da `hasAccess` ostaje `true` za kurs koji
+   nije kupljen — da se to ne promeni tiho. **Posledica koju Jovan mora da zna: backend to
+   vlasništvo ne sprovodi** (`convex/helpers.ts:347-350` pušta svakog verifikovanog korisnika
+   u svaki objavljen kurs), pa je „Zaključano" trenutno stanje kupovine, a ne zid. Zatvaranje
+   te rupe je njegova odluka, van je obima ovog koraka.
+2. **First-run blok nije obrisan nego spušten u zonu 1.** Zadatak kaže „umesto first-run bloka
+   renderuj katalog". Doslovno brisanje bi početniku uklonilo jedini tekst koji odgovara na
+   „šta sad da uradim". Zato je uklonjen samo `return` koji je gutao celu stranicu (stari
+   `classroom-hub.tsx:138`): blok se i dalje vidi kad student nema nijedan kurs, ali katalog
+   stoji odmah ispod njega, a njegovo dugme „Pogledaj kurseve" sada skroluje do tog kataloga
+   umesto da vodi na marketing.
+3. **Zona „Smerovi" pokazuje spisak, ne drugu mrežu istih kartica.** Zadatak traži „isto,
+   grupisano po smerovima", ali doslovno isto značilo bi da se ista kartica kursa pojavi
+   dvaput na jednom ekranu — početnik to čita kao „imam ovo dva puta". Zato smer dobija
+   zaglavlje (naziv, broj kurseva, koliko je otključano, „Otvori smer") i spisak kompaktnih
+   redova sa naslovnom sličicom, dužinom i značkom stanja, a prodajna kartica sa cenom i
+   dugmetom ostaje samo u zoni „Kursevi". Ako Jovan hoće identične kartice u obe zone, to je
+   izmena u `TrackSection` od nekoliko linija.
+4. **„Nastavi", „Sledeće lekcije" i napredak smera sada čitaju `owned`, a ne `hasAccess`.**
+   Bez toga bi hero na istom ekranu nudio „Nastavi lekciju" u kursu koji kartica dvadeset
+   piksela niže zove zaključanim. Ovo je ista greška koju §1B prijavljuje za `/app` —
+   ispravljena je ovde, u Učionici; `/app` (`dashboard-content.tsx:1252`) je i dalje otvoren
+   i ostaje posao U6.
+5. **Filter čipovi ostaju ista četiri; promenjeno je samo šta „Zaključani" znači** (ranije
+   „nije objavljen", sada „student nema kurs"). „U toku" i „Završeni" sada traže vlasništvo —
+   napredak na kursu koji student nije otključao nije „u toku". Nisam dodavao peti čip.
+6. **Cena se čita iz `lib/content.ts` (`priceLabel`) po slug-u** — to je izvor koji marketing
+   stranica ispisuje (`marketing-page.tsx:173`) i koji `lib/app-navigation.ts:259` već spaja na
+   isti način. Kurs koji postoji samo u Convexu nema cenu u tom fajlu; tada kartica **ne
+   ispisuje cenu** umesto da izmisli broj ili napiše „Uskoro" pored dugmeta „Otključaj".
+   Dugme ostaje — `/api/stripe/checkout` ima svoj fallback na `stripePriceEnv`, a grešku
+   servera `CheckoutButton` već prikazuje ispod dugmeta.
+7. **Dodao sam srpsku množinu (`serbianPlural`) iako nije traženo.** Postojeći kod piše
+   `{count} kursa` bez pravila, pa bi nova kartica pisala „2 lekcija" i „2 kursa" — na
+   prodajnom ekranu to izgleda kao greška, a publika su početnici. Osam linija čiste logike sa
+   13 test slučajeva; koristi se samo u fajlovima koje ovaj korak ionako piše.
+8. **„Detalji" link ostaje i na zaključanoj kartici i na redu smera.** Postojeća
+   `DashboardCourseCard` ga već prikazuje i za kurs bez pristupa („U pripremi"), pa bi
+   uklanjanje bilo menjanje zatečenog ponašanja, a red smera bez odredišta je slepa ulica.
+   Napomena uz ODLUKU 1 važi: ta strana danas pušta svakoga.
+9. **Nisam pravio novi Convex query.** `getAppNavigation` već čita `enrollments` (za `plan`),
+   pa je čitanje samo pomereno iznad mape kurseva i iz njega se računa i `owned` — nula
+   dodatnih čitanja iz baze i nijedan novi round-trip. Test „still derives plan from
+   enrollments after the read moved up" čuva da to premeštanje nije ništa pokvarilo.
+10. **`prefers-reduced-motion` na novoj kartici.** `CourseCatalogCard` gasi `layout`,
+    `whileHover` i `whileTap` kad korisnik traži manje pokreta. **Postojeća
+    `DashboardCourseCard` to ne radi** i nisam je dirao — pravila zabranjuju popravke susednog
+    koda; upisujem kao dug.
+11. **Nema vizuelne provere u pregledaču.** Podigao sam dev server i otvorio
+    `/sr/app/classroom?view=courses`: ruta ispravno preusmerava na
+    `/sr/sign-in?next=...%3Fview%3Dcourses` (deep link preživljava prijavu), ali Playwright
+    sesija nije prijavljena, a pravljenje naloga bi pisalo u dev Convex bazu. Zato je
+    verifikacija ovog koraka: typecheck / lint / test / `npm run build`, a vizuelnu proveru
+    ostavljam Jovanu (vidi ispod).
+
+**Testovi:**
+- **Novo: `lib/course-catalog.test.ts` (40 testova).** `isCourseOwned` (uključujući test da
+  `hasAccess` ne sme da pregazi eksplicitno `owned: false` — to je cela poenta polja — i
+  fallback za statičku granu bez Convexa); `matchesCatalogFilter` za sva četiri čipa, sa
+  posebnim testom da se neotključan kurs nikad ne prijavi kao „U toku"/„Završen";
+  `groupByTrack` (redosled, ispadanje kurseva bez smera i sa nepoznatim smerom, `slug` koji
+  fali); `serbianPlural` (13 slučajeva, uključujući 11/12/14/21/22/101/111);
+  `formatLessonCount` / `formatCourseCount` u oba jezika; `formatCourseDuration`
+  (min / h / h+min, zaokruživanje ispod minuta, `null` umesto „0 min");
+  `totalDurationSeconds` (nepublikovane i besmislene vrednosti); `courseLengthLabel`;
+  `catalogPriceLabel` (poklapanje sa `lib/content.ts` i `null` za nepoznat kurs).
+- **Novo: `convex/courseCatalog.test.ts` (7 testova).** Nad pravim `getAppNavigation`
+  (convex-test, obrazac iz `dashboard.test.ts` / `contentHierarchy.test.ts`): samo upisan kurs
+  je `owned`; `hasAccess` ostaje `true` za neupisan kurs (test-čuvar pravila pristupa);
+  `blocked` upis se ne broji; admin / moderator / pro_student imaju sve bez upisa; `plan` i
+  dalje ide iz upisa posle premeštanja čitanja.
+- Nijedan postojeći test nije menjan ni obrisan.
+
+**Rezultat verifikacije:**
+- `npm run typecheck` — **PROŠLO** (exit 0)
+- `npm run test` — **PROŠLO** (80 fajlova, 1082 testa; baseline posle U2 je bio 78 / 1035)
+- `npm run build` — **PROŠLO** (exit 0) — dodatna provera, nije u obaveznoj trojci
+- `npx convex codegen` — **PROŠLO** (exit 0, bez izmena u `convex/_generated/`)
+- `npm run lint` — **exit 1, identično baseline-u**: `178 problems (1 error, 177 warnings)`,
+  broj u znak za znak isti kao U1 i U2. Uporedio sam nalaze pre i posle: jedina razlika su dva
+  **pre-postojeća** upozorenja u `dashboard-content.tsx` koja su se pomerila sa linija 302/304
+  na 309/311, jer je iznad njih dodat komentar uz novo polje. **Nijedan od četiri nova fajla
+  se ne pojavljuje u lint izlazu.**
+
+**BLOKADA:** Pre-postojeća, nasleđena iz U1 i U2, **nije je uveo ovaj korak**:
+
+```
+C:\Users\admin\Desktop\Web Dev Projects\nauciai\components\studio\studio-composer.tsx
+  1112:18  error  `routeDroppedFiles` is a function created with React Hook
+  "useEffectEvent", and can only be called from Effects and Effect Events in the
+  same component  react-hooks/rules-of-hooks
+
+✖ 178 problems (1 error, 177 warnings)
+```
+
+Dok ova greška stoji, nijedan korak ne može da prijavi „lint zelen". Treći put ponavljam
+preporuku iz U1: popraviti je zasebno, jedna je i lokalizovana.
+
+**Za Jovana ujutru:**
+
+1. **Prijavi se nalogom koji NIJE admin/moderator, inače nećeš videti nijednu zaključanu
+   karticu.** Staff ima sve kurseve (ODLUKA 1), pa Učionica za tebe izgleda skoro isto kao
+   juče. Najbrže: napravi test nalog bez kupovine, ili u Convex dashboard-u privremeno
+   prebaci `users.role` tog naloga na `student` (pazi: `INITIAL_ADMIN_EMAILS` vraća u admina
+   po emailu, bez obzira na `role`).
+2. **Najvažnija odluka za tebe: da li „Zaključano" sme da bude samo prikaz.** Danas svaki
+   prijavljen i verifikovan korisnik može da otvori svaki objavljen kurs
+   (`convex/helpers.ts:347-350`), pa kartica piše „Zaključano · 9,99 EUR", a klik na „Detalji"
+   ili direktan link do lekcije i dalje pušta unutra. Ja to nisam smeo da menjam (pravila
+   run-a: bez diranja auth i bezbednosnih pravila). Ako hoćeš da lokot bude stvaran, to je
+   poseban korak: provera upisa u `requireCourseAccess`.
+3. **Klikni „Otključaj" na zaključanoj kartici** i proveri da te vodi na Stripe Checkout bez
+   izlaska iz aplikacije, i da posle plaćanja kartica postane otključana (webhook piše
+   `enrollments`, a `owned` se računa iz njih). Ovo je jedini deo koraka koji nisam mogao da
+   proverim — Stripe CLI je zabranjen u ovom run-u.
+4. **Proveri „Pogledaj uvod"** na kursu koji ima uvodni video: dijalog, Escape, Tab u krug,
+   vraćanje fokusa na dugme (to je `Dialog` primitiv iz U2), i da se video **ne** učitava dok
+   je dijalog zatvoren.
+5. **Obe teme i telefon.** Katalog na 320px: kartice u jednu kolonu, značka i cena preko
+   naslovne slike, redovi smera se prelamaju u dva reda. Tamna tema: cena je žuti pill sa ink
+   okvirom, značka „Zaključano" je ink na papiru.
+6. **Potvrdi ODLUKU 3** (Smerovi kao spisak umesto druge mreže kartica) — to je jedina tačka
+   na kojoj sam odstupio od doslovnog teksta zadatka, i vraća se u jednoj izmeni ako ti se ne
+   sviđa.
+7. **Sidebar „Unapredi" sada vodi u katalog**, ne na marketing cenovnik. Ako je namera bila da
+   „Unapredi" znači „Premium plan", a ne „kupi kurs", reci — to je druga destinacija.
+
+**Dug koji U3 nije zatvorio:**
+- `DashboardCourseCard` ima `layout` / `whileHover` / `whileTap` bez provere
+  `prefers-reduced-motion`; nova kartica to poštuje, stara ne. Dve linije, ali je susedni kod.
+- `dashboard-content.tsx:1252` (`hasCourses` broji sve objavljene lekcije bez provere
+  vlasništva) i `ResumeHero` na `/app` i dalje mogu da ponude lekciju iz kursa koji student
+  nema — §1B iz plana, posao U6. Polje `owned` je sada tu i za to.
+- `lib/sidebar-contexts.ts:240` i dalje sklapa `?view=` string ručno; namerno ga nisam
+  prebacio na `courseCatalogPath` (gradi sve tri stavke, ne samo katalog).
+- `components/app/app-sidebar.tsx:2034` i `:1798` i dalje nose gole hexove `#10b981` /
+  `#0ea472` (§2B, stavka 5). Promenio sam samo `href`, boje ostaju za U9.
