@@ -1,0 +1,89 @@
+﻿[23:13:09] ==================================================
+[23:13:09]  UX BOOST - nocni run
+[23:13:09]  Repo:   C:\Users\admin\Desktop\Web Dev Projects\nauciai
+[23:13:09]  Grana:  feat/ux-boost
+[23:13:09]  Koraka: 10
+[23:13:09]  Log:    C:\Users\admin\Desktop\Web Dev Projects\nauciai\.ux-run\logs\run_2026-08-29_23-13.log
+[23:13:09] ==================================================
+[23:13:09] Grana: feat/ux-boost
+[23:13:10] 
+[23:13:10] --------------------------------------------------
+[23:13:10]  U1  |  Audit: verifikacija problema + UX-BOOST-PLAN.md
+[23:13:10]  model=opus  effort=high
+[23:13:10] --------------------------------------------------
+[23:13:10] DRY RUN - prompt zapisan, izvrsavanje preskoceno.
+[23:13:10] 
+[23:13:10] --------------------------------------------------
+[23:13:10]  U2  |  UI primitivi: Button, Spinner, Dialog, Input, Badge, EmptyState
+[23:13:10]  model=opus  effort=max
+[23:13:10] --------------------------------------------------
+[23:13:10] DRY RUN - prompt zapisan, izvrsavanje preskoceno.
+[23:13:10] 
+[23:13:10] --------------------------------------------------
+[23:13:10]  U3  |  In-app katalog kurseva - kraj slepe ulice
+[23:13:10]  model=opus  effort=max
+[23:13:10] --------------------------------------------------
+[23:13:10] DRY RUN - prompt zapisan, izvrsavanje preskoceno.
+[23:13:10] 
+[23:13:10] --------------------------------------------------
+[23:13:10]  U4  |  Dashboard za sve tierove (FREE, plaćeni, admin)
+[23:13:10]  model=opus  effort=high
+[23:13:10] --------------------------------------------------
+[23:13:10] DRY RUN - prompt zapisan, izvrsavanje preskoceno.
+[23:13:10] 
+[23:13:10] --------------------------------------------------
+[23:13:10]  U5  |  Onboarding i mikrocopy za početnike
+[23:13:10]  model=opus  effort=medium
+[23:13:10] --------------------------------------------------
+[23:13:10] DRY RUN - prompt zapisan, izvrsavanje preskoceno.
+[23:13:10] 
+[23:13:10] --------------------------------------------------
+[23:13:10]  U6  |  Admin Kontrolni centar redizajn
+[23:13:10]  model=opus  effort=high
+[23:13:10] --------------------------------------------------
+[23:13:10] DRY RUN - prompt zapisan, izvrsavanje preskoceno.
+[23:13:10] 
+[23:13:10] --------------------------------------------------
+[23:13:10]  U7  |  A11y sweep: fokus, kontrast, aria, tastatura
+[23:13:10]  model=sonnet  effort=medium
+[23:13:10] --------------------------------------------------
+[23:13:10] DRY RUN - prompt zapisan, izvrsavanje preskoceno.
+[23:13:10] 
+[23:13:10] --------------------------------------------------
+[23:13:10]  U8  |  Token + radius sweep
+[23:13:10]  model=sonnet  effort=medium
+[23:13:10] --------------------------------------------------
+[23:13:10] DRY RUN - prompt zapisan, izvrsavanje preskoceno.
+[23:13:10] 
+[23:13:10] --------------------------------------------------
+[23:13:10]  U9  |  Polish: motion, mikro-interakcije, školski šarm, poznati bagovi
+[23:13:10]  model=opus  effort=high
+[23:13:10] --------------------------------------------------
+[23:13:10] DRY RUN - prompt zapisan, izvrsavanje preskoceno.
+[23:13:10] 
+[23:13:10] --------------------------------------------------
+[23:13:10]  U10  |  Responsive prolaz + finalna verifikacija + izveštaj
+[23:13:10]  model=sonnet  effort=high
+[23:13:10] --------------------------------------------------
+[23:13:10] DRY RUN - prompt zapisan, izvrsavanje preskoceno.
+[23:13:10] 
+[23:13:10] ==================================================
+[23:13:10]  GOTOVO
+[23:13:10] ==================================================
+[23:13:10] Ukupna cena: USD 0.00
+[23:13:10] Grana: feat/ux-boost  (NIJE push-ovana, NIJE deploy-ovana)
+[23:13:10] 
+[23:13:10] Ujutru:
+[23:13:10]   1. docs\UX-BOOST-REPORT.md    - izvestaj i rucni koraci
+[23:13:10]   2. docs\UX-BOOST-PROGRESS.md  - dnevnik po koracima
+[23:13:10]   3. .ux-run\logs\              - sirovi logovi
+[23:13:10]   4. Javi Claude-u da je gotovo.
+[23:13:13] ==================================================
+[23:13:13]  UX BOOST - nocni run
+[23:13:13]  Repo:   C:\Users\admin\Desktop\Web Dev Projects\nauciai
+[23:13:13]  Grana:  feat/ux-boost
+[23:13:13]  Koraka: 10
+[23:13:13]  Log:    C:\Users\admin\Desktop\Web Dev Projects\nauciai\.ux-run\logs\run_2026-08-29_23-13.log
+[23:13:13] ==================================================
+[23:13:13] Vec na grani feat/ux-boost
+[23:13:13] Nekomitovane izmene zatecene - commitujem ih pre starta.
