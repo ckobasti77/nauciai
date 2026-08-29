@@ -17,7 +17,7 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { CommunityAvatar, formatCommunityTime, type CommunityRank, type CommunityRole } from "@/components/app/community-identity";
-import { CommunityThreadDialog } from "@/components/app/community-thread-dialog";
+import { Dialog } from "@/components/ui/dialog";
 import { CommunityStickyToolbar } from "@/components/app/community-v2/community-sticky-toolbar";
 import { Panel } from "@/components/ui/primitives";
 import { useToast } from "@/components/ui/toast-provider";
@@ -308,7 +308,7 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
         </div>
       ) : null}
 
-      <CommunityThreadDialog
+      <Dialog
         open={Boolean(requestPostId)}
         title={locale === "sr" ? "Zatraži izmenu" : "Request changes"}
         description={
@@ -339,7 +339,7 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
           aria-invalid={Boolean(reasonError)}
           aria-describedby={reasonError ? "moderation-reason-error" : "moderation-reason-help"}
           placeholder={locale === "sr" ? "Na primer: ukloni lične podatke iz drugog pasusa…" : "For example: remove personal information from the second paragraph…"}
-          className="mt-2 w-full resize-y rounded-[12px] border border-line bg-paper-strong px-3 py-2.5 text-sm font-semibold leading-6 text-ink outline-none focus:border-ink focus:ring-4 focus:ring-yellow/15"
+          className="mt-2 w-full resize-y rounded-[12px] border border-line bg-paper px-3 py-2.5 text-sm font-semibold leading-6 text-ink outline-none focus:border-ink focus:ring-4 focus:ring-yellow/15"
         />
         {reasonError ? (
           <p id="moderation-reason-error" role="alert" className="mt-2 text-xs font-bold text-red-700">{reasonError}</p>
@@ -367,7 +367,7 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
             {locale === "sr" ? "Vrati autoru" : "Return to author"}
           </button>
         </div>
-      </CommunityThreadDialog>
+      </Dialog>
     </section>
   );
 }

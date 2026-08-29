@@ -7,6 +7,8 @@ import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { gsap } from "gsap";
 
+import { useModalFocus } from "@/components/ui/dialog";
+
 export function AppComposerSheet({
   title,
   eyebrow,
@@ -22,17 +24,10 @@ export function AppComposerSheet({
 }) {
   const contentRef = useRef<HTMLDivElement>(null);
   const shouldReduceMotion = useReducedMotion();
-
-  useEffect(() => {
-    if (!open) return;
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose();
-    }
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [onClose, open]);
+  // Ovaj panel je imao samo Escape: bez pocetnog fokusa, bez Tab zamke, bez
+  // zakljucanog skrola i bez vracanja fokusa - a `aria-modal="true"` ispod je
+  // citacu ekrana obecavao upravo to. `useModalFocus` isporucuje svih pet.
+  const dialogRef = useModalFocus<HTMLElement>(open, onClose);
 
   useEffect(() => {
     if (!open || !contentRef.current || shouldReduceMotion) return;
@@ -62,6 +57,8 @@ export function AppComposerSheet({
           onMouseDown={onClose}
         >
           <motion.aside
+            ref={dialogRef}
+            tabIndex={-1}
             role="dialog"
             aria-modal="true"
             aria-label={title}

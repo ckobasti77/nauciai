@@ -4,6 +4,8 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { AppComposerSheet } from "@/components/app/app-composer-sheet";
 import RichTextEditor from "@/components/app/rich-text-editor";
+import { Button } from "@/components/ui/button";
+import { Dialog } from "@/components/ui/dialog";
 import { cn } from "@/components/ui/primitives";
 import { coursePath, lessonEditPath } from "@/lib/app-routes";
 import { t, type Locale } from "@/lib/i18n";
@@ -37,7 +39,6 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useRouter } from "next/navigation";
 import type { ChangeEvent, DragEvent as ReactDragEvent, FormEvent, ReactNode } from "react";
 import { useEffect, useEffectEvent, useId, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { gsap } from "gsap";
 import { plainTextToRichText, richTextHasContent } from "@/lib/rich-text";
 
@@ -1506,68 +1507,34 @@ export function AddCourseAction({
           ) : null}
         </AnimatePresence>
       </AdminComposerSheet>
-      {typeof document !== "undefined" ? (
-        createPortal(
-          <AnimatePresence>
-            {pendingAction ? (
-              <motion.div
-                className="fixed inset-0 z-[70] flex items-center justify-center bg-scrim/45 p-4 backdrop-blur-[2px]"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-              >
-                <motion.div
-                  role="dialog"
-                  aria-modal="true"
-                  className="w-full max-w-md rounded-[16px] border-2 border-ink bg-paper-strong p-5 shadow-[8px_8px_0_0_var(--shadow-hard-22)]"
-                  initial={{ y: 16, scale: 0.98 }}
-                  animate={{ y: 0, scale: 1 }}
-                  exit={{ y: 10, scale: 0.99 }}
-                >
-                  <p className="text-xs font-black uppercase text-muted">{t(locale, "Nesnimljene izmene", "Unsaved changes")}</p>
-                  <h3 className="mt-2 text-2xl font-black text-ink">
-                    {t(locale, "Sacuvati izmene na kursu?", "Save changes to this course?")}
-                  </h3>
-                  <p className="mt-3 text-sm font-bold leading-6 text-muted">
-                    {t(locale, "Pre nastavka izaberi da li se informacije o kursu cuvaju.", "Before continuing, choose whether to save the course information.")}
-                  </p>
-                  {message ? (
-                    <p className="mt-4 rounded-[8px] border-2 border-red-200 bg-red-50 px-3 py-2 text-sm font-black text-red-700">
-                      {message}
-                    </p>
-                  ) : null}
-                  <div className="mt-5 grid gap-2 sm:grid-cols-3">
-                    <button
-                      type="button"
-                      onClick={saveAndContinue}
-                      disabled={pending}
-                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-3 text-xs font-black text-ink disabled:cursor-wait disabled:opacity-60"
-                    >
-                      {pending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-                      {t(locale, "Sacuvaj i nastavi", "Save and continue")}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={discardAndContinue}
-                      className="inline-flex min-h-11 items-center justify-center rounded-full border-2 border-ink bg-paper-strong px-3 text-xs font-black text-ink"
-                    >
-                      {t(locale, "Ponisti i nastavi", "Discard and continue")}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPendingAction(null)}
-                      className="inline-flex min-h-11 items-center justify-center rounded-full border-2 border-line bg-paper px-3 text-xs font-black text-muted"
-                    >
-                      {t(locale, "Ostani", "Stay")}
-                    </button>
-                  </div>
-                </motion.div>
-              </motion.div>
-            ) : null}
-          </AnimatePresence>,
-          document.body
-        )
-      ) : null}
+      <Dialog
+        open={pendingAction !== null}
+        onClose={() => setPendingAction(null)}
+        size="sm"
+        eyebrow={t(locale, "Nesnimljene izmene", "Unsaved changes")}
+        title={t(locale, "Sacuvati izmene na kursu?", "Save changes to this course?")}
+        description={t(locale, "Pre nastavka izaberi da li se informacije o kursu cuvaju.", "Before continuing, choose whether to save the course information.")}
+        closeLabel={t(locale, "Zatvori", "Close")}
+        footer={
+          <div className="grid gap-2 sm:grid-cols-3">
+            <Button size="sm" loading={pending} icon={<Save className="size-4" />} onClick={saveAndContinue}>
+              {t(locale, "Sacuvaj i nastavi", "Save and continue")}
+            </Button>
+            <Button size="sm" variant="secondary" onClick={discardAndContinue}>
+              {t(locale, "Ponisti i nastavi", "Discard and continue")}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setPendingAction(null)}>
+              {t(locale, "Ostani", "Stay")}
+            </Button>
+          </div>
+        }
+      >
+        {message ? (
+          <p className="rounded-[8px] border-2 border-red-200 bg-red-50 px-3 py-2 text-sm font-black text-red-700">
+            {message}
+          </p>
+        ) : null}
+      </Dialog>
     </>
   );
 }
@@ -2204,63 +2171,28 @@ export function AddModuleAction({
           />
         </form>
       </AdminComposerSheet>
-      {typeof document !== "undefined" ? (
-        createPortal(
-          <AnimatePresence>
-            {pendingAction ? (
-              <motion.div
-                className="fixed inset-0 z-[70] flex items-center justify-center bg-scrim/45 p-4 backdrop-blur-[2px]"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-              >
-                <motion.div
-                  role="dialog"
-                  aria-modal="true"
-                  className="w-full max-w-md rounded-[10px] border-2 border-ink bg-paper-strong p-5 shadow-[8px_8px_0_0_var(--shadow-hard-22)]"
-                  initial={{ y: 16, scale: 0.98 }}
-                  animate={{ y: 0, scale: 1 }}
-                  exit={{ y: 10, scale: 0.99 }}
-                >
-                  <p className="text-xs font-black uppercase text-muted">{t(locale, "Nesnimljene izmene", "Unsaved changes")}</p>
-                  <h3 className="mt-2 text-2xl font-black text-ink">
-                    {t(locale, "Sacuvati izmene na ciklusu?", "Save changes to this cycle?")}
-                  </h3>
-                  <p className="mt-3 text-sm font-bold leading-6 text-muted">
-                    {t(locale, "Pre nastavka izaberi da li se informacije o ciklusu cuvaju.", "Before continuing, choose whether to save the cycle information.")}
-                  </p>
-                  <div className="mt-5 grid gap-2 sm:grid-cols-3">
-                    <button
-                      type="button"
-                      onClick={saveAndContinue}
-                      disabled={pending}
-                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-3 text-xs font-black text-ink disabled:cursor-wait disabled:opacity-60"
-                    >
-                      {pending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-                      {t(locale, "Sacuvaj", "Save")}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={discardAndContinue}
-                      className="inline-flex min-h-11 items-center justify-center rounded-[8px] border-2 border-ink bg-paper-strong px-3 text-xs font-black text-ink"
-                    >
-                      {t(locale, "Ponisti", "Discard")}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPendingAction(null)}
-                      className="inline-flex min-h-11 items-center justify-center rounded-[8px] border-2 border-line bg-paper px-3 text-xs font-black text-muted"
-                    >
-                      {t(locale, "Ostani", "Stay")}
-                    </button>
-                  </div>
-                </motion.div>
-              </motion.div>
-            ) : null}
-          </AnimatePresence>,
-          document.body
-        )
-      ) : null}
+      <Dialog
+        open={pendingAction !== null}
+        onClose={() => setPendingAction(null)}
+        size="sm"
+        eyebrow={t(locale, "Nesnimljene izmene", "Unsaved changes")}
+        title={t(locale, "Sacuvati izmene na ciklusu?", "Save changes to this cycle?")}
+        description={t(locale, "Pre nastavka izaberi da li se informacije o ciklusu cuvaju.", "Before continuing, choose whether to save the cycle information.")}
+        closeLabel={t(locale, "Zatvori", "Close")}
+        footer={
+          <div className="grid gap-2 sm:grid-cols-3">
+            <Button size="sm" loading={pending} icon={<Save className="size-4" />} onClick={saveAndContinue}>
+              {t(locale, "Sacuvaj", "Save")}
+            </Button>
+            <Button size="sm" variant="secondary" onClick={discardAndContinue}>
+              {t(locale, "Ponisti", "Discard")}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setPendingAction(null)}>
+              {t(locale, "Ostani", "Stay")}
+            </Button>
+          </div>
+        }
+      />
     </>
   );
 }

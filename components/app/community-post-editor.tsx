@@ -22,7 +22,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { CommunityAvatar, type CommunityRank } from "@/components/app/community-identity";
-import { CommunityThreadConfirmDialog } from "@/components/app/community-thread-dialog";
+import { ConfirmDialog } from "@/components/ui/dialog";
 import { Panel, cn } from "@/components/ui/primitives";
 import { useToast } from "@/components/ui/toast-provider";
 import { api } from "@/convex/_generated/api";
@@ -984,7 +984,7 @@ export function CommunityPostEditor({
         </div>
       </div>
 
-      <CommunityThreadConfirmDialog
+      <ConfirmDialog
         open={deleteOpen}
         title={locale === "sr" ? "Obrisati tred?" : "Delete thread?"}
         description={

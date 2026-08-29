@@ -15,10 +15,11 @@ import { InlineRichText, RichTextContent } from "@/components/app/rich-text";
 import { CourseLab, type LessonLabData } from "@/components/app/course-lab";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { ConfirmDialog } from "@/components/ui/dialog";
 import { Panel } from "@/components/ui/primitives";
 import type { Course, Lesson, LessonPart } from "@/lib/content";
 import { lessonEditPath } from "@/lib/app-routes";
-import { localized, type Locale } from "@/lib/i18n";
+import { localized, t, type Locale } from "@/lib/i18n";
 
 const AddAssetAction = dynamic(() => import("@/components/app/admin-inline-actions").then((m) => m.AddAssetAction), { ssr: false });
 const AddLessonPartAction = dynamic(() => import("@/components/app/admin-inline-actions").then((m) => m.AddLessonPartAction), { ssr: false });
@@ -141,6 +142,10 @@ export function CoursePlayer({
   const [isSavingProgress, setIsSavingProgress] = useState(false);
   const [progressMessage, setProgressMessage] = useState<string | null>(null);
   const [blockMessage, setBlockMessage] = useState<string | null>(null);
+  // Potvrda brisanja je bila `window.confirm` - nativni OS dijalog bez brenda,
+  // bez tokena i bez tamne teme. Sada ide kroz `ConfirmDialog`.
+  const [pendingDelete, setPendingDelete] = useState<{ kind: "block" | "asset"; id: string } | null>(null);
+  const [deletePending, setDeletePending] = useState(false);
   const [lessonView, setLessonView] = useState<"pro" | "light">(initialView ?? "light");
   const effectiveIsAdmin = isAdmin || viewerData?.profile?.role === "admin";
   const canUsePro = Boolean(labData?.canUsePro);
@@ -179,21 +184,27 @@ export function CoursePlayer({
     }
   }
 
-  async function removeBlock(blockId: string) {
-    if (!window.confirm(locale === "sr" ? "Obrisati ovaj sadržajni blok?" : "Delete this content block?")) return;
+  async function runPendingDelete() {
+    if (!pendingDelete) return;
+    const target = pendingDelete;
+    setDeletePending(true);
     setBlockMessage(null);
     try {
-      await deleteLightBlock({ blockId: blockId as Id<"lessonParts"> });
+      if (target.kind === "block") await deleteLightBlock({ blockId: target.id as Id<"lessonParts"> });
+      else await deleteLessonAsset({ assetId: target.id as Id<"lessonAssets"> });
       router.refresh();
     } catch (error) {
-      setBlockMessage(error instanceof Error ? error.message : "Brisanje nije uspelo.");
+      setBlockMessage(
+        error instanceof Error
+          ? error.message
+          : target.kind === "block"
+            ? t(locale, "Brisanje nije uspelo.", "Deleting the block failed.")
+            : t(locale, "Brisanje materijala nije uspelo.", "Deleting the material failed."),
+      );
+    } finally {
+      setDeletePending(false);
+      setPendingDelete(null);
     }
-  }
-
-  async function removeAsset(assetId: string) {
-    if (!window.confirm(locale === "sr" ? "Obrisati ovaj materijal?" : "Delete this material?")) return;
-    try { await deleteLessonAsset({ assetId: assetId as Id<"lessonAssets"> }); router.refresh(); }
-    catch (error) { setBlockMessage(error instanceof Error ? error.message : "Brisanje materijala nije uspelo."); }
   }
 
   if (courseId && lessonId && canUsePro && lessonView === "pro" && labData) {
@@ -246,7 +257,7 @@ export function CoursePlayer({
               <EditLessonPartAction locale={locale} courseId={courseId} lessonId={lessonId} lessonPartId={part.id} initial={{ slug: part.slug, parentPartId: part.parentPartId, title: part.title, kind: part.kind, body: part.body, bodyRich: part.bodyRich, fileName: part.fileName, downloadUrl: part.downloadUrl, isPublished: part.isPublished, sortOrder: part.sortOrder }} nextSortOrder={part.sortOrder ?? 10} iconOnly />
               <button type="button" onClick={() => void moveBlock(part.id!, -1)} disabled={index === 0} aria-label={locale === "sr" ? "Pomeri blok nagore" : "Move block up"} className="grid size-8 place-items-center rounded-full border-2 border-ink bg-paper-strong disabled:opacity-30"><ArrowUp className="size-3.5" /></button>
               <button type="button" onClick={() => void moveBlock(part.id!, 1)} disabled={index === ordered.length - 1} aria-label={locale === "sr" ? "Pomeri blok nadole" : "Move block down"} className="grid size-8 place-items-center rounded-full border-2 border-ink bg-paper-strong disabled:opacity-30"><ArrowDown className="size-3.5" /></button>
-              <button type="button" onClick={() => void removeBlock(part.id!)} aria-label={locale === "sr" ? "Obriši blok" : "Delete block"} className="grid size-8 place-items-center rounded-full border-2 border-red-700 bg-paper-strong text-red-700"><Trash2 className="size-3.5" /></button>
+              <button type="button" onClick={() => setPendingDelete({ kind: "block", id: part.id! })} aria-label={locale === "sr" ? "Obriši blok" : "Delete block"} className="grid size-8 place-items-center rounded-full border-2 border-red-700 bg-paper-strong text-red-700"><Trash2 className="size-3.5" /></button>
             </div>
           ) : null}
           {part.kind === "text" ? <InlineRichText kind="part" entityId={part.id ?? ""} parentId={lessonId} field="body" locale={inlineLocale} richSr={part.bodyRich?.sr} richEn={part.bodyRich?.en} sr={part.body?.sr ?? ""} en={part.body?.en ?? ""} admin={isAdmin && Boolean(part.id)} className="text-base leading-8 text-muted" /> : <PartContent part={part} locale={locale} />}
@@ -341,7 +352,7 @@ export function CoursePlayer({
                   <p className="text-sm font-black text-ink">{localized(asset.label, locale)}</p>
                   <p className="text-xs font-bold text-muted">{asset.size}</p>
                 </div>
-                {effectiveIsAdmin && asset.id ? <button type="button" onClick={() => void removeAsset(asset.id!)} aria-label={locale === "sr" ? "Obriši materijal" : "Delete material"} className="grid size-8 place-items-center rounded-full border-2 border-red-700 bg-paper-strong text-red-700"><Trash2 className="size-3.5" /></button> : <Download className="size-4 text-ink" />}
+                {effectiveIsAdmin && asset.id ? <button type="button" onClick={() => setPendingDelete({ kind: "asset", id: asset.id! })} aria-label={locale === "sr" ? "Obriši materijal" : "Delete material"} className="grid size-8 place-items-center rounded-full border-2 border-red-700 bg-paper-strong text-red-700"><Trash2 className="size-3.5" /></button> : <Download className="size-4 text-ink" />}
               </div>
             );
 
@@ -367,6 +378,35 @@ export function CoursePlayer({
           ) : null}
         </div>
       </Panel>
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        onClose={() => setPendingDelete(null)}
+        onConfirm={runPendingDelete}
+        busy={deletePending}
+        destructive
+        eyebrow={t(locale, "Brisanje", "Delete")}
+        title={
+          pendingDelete?.kind === "asset"
+            ? t(locale, "Obrisati ovaj materijal?", "Delete this material?")
+            : t(locale, "Obrisati ovaj sadržajni blok?", "Delete this content block?")
+        }
+        description={
+          pendingDelete?.kind === "asset"
+            ? t(
+                locale,
+                "Materijal nestaje iz lekcije za sve polaznike. Ovo ne može da se poništi.",
+                "The material disappears from the lesson for every student. This cannot be undone.",
+              )
+            : t(
+                locale,
+                "Blok nestaje iz lekcije za sve polaznike. Ovo ne može da se poništi.",
+                "The block disappears from the lesson for every student. This cannot be undone.",
+              )
+        }
+        confirmLabel={t(locale, "Obriši", "Delete")}
+        cancelLabel={t(locale, "Odustani", "Cancel")}
+        closeLabel={t(locale, "Zatvori", "Close")}
+      />
     </div>
   );
 }

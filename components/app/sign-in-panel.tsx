@@ -5,6 +5,7 @@ import { useQuery } from "convex/react";
 import { ArrowLeft, CheckCircle2, KeyRound, Loader2, Mail } from "lucide-react";
 import { FormEvent, useState } from "react";
 
+import { Field, Input } from "@/components/ui/field";
 import { Panel, cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
 import { t, type Locale } from "@/lib/i18n";
@@ -282,73 +283,75 @@ function ConvexSignInForm({
       )}
 
       <form onSubmit={handlePassword} className="space-y-4">
-        <div>
-          <label htmlFor="email" className="text-sm font-black text-ink">
-            {flow === "signIn" ? t(locale, "Korisničko ime ili email", "Username or email") : "Email"}
-          </label>
-          <input
-            id="email"
-            name="email"
-            type={flow === "signIn" ? "text" : "email"}
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            required
-            autoComplete={flow === "signIn" ? "username" : "email"}
-            placeholder={flow === "signIn" ? t(locale, "@username ili ime@email.com", "@username or name@email.com") : undefined}
-            className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-4 text-base font-bold text-ink outline-none focus:border-yellow"
-          />
-        </div>
+        <Field
+          id="email"
+          label={flow === "signIn" ? t(locale, "Korisničko ime ili email", "Username or email") : "Email"}
+        >
+          {(field) => (
+            <Input
+              {...field}
+              name="email"
+              type={flow === "signIn" ? "text" : "email"}
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              required
+              autoComplete={flow === "signIn" ? "username" : "email"}
+              placeholder={flow === "signIn" ? t(locale, "@username ili ime@email.com", "@username or name@email.com") : undefined}
+            />
+          )}
+        </Field>
 
         {flow === "signUp" ? (
-          <div>
-            <label htmlFor="username" className="text-sm font-black text-ink">
-              {t(locale, "Korisničko ime", "Username")}
-            </label>
-            <div className="relative mt-2">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-base font-black text-ink/45">@</span>
-              <input
-                id="username"
-                name="username"
-                value={username}
-                onChange={(event) => setUsername(event.target.value)}
-                required
-                minLength={3}
-                maxLength={20}
-                pattern="[A-Za-zČĆŠĐŽčćšđž0-9._]{3,20}"
-                autoComplete="username"
-                className="h-12 w-full rounded-[8px] border-2 border-ink bg-paper-strong pl-8 pr-4 text-base font-extrabold text-ink outline-none focus:border-yellow"
-                placeholder="npr. čika_fox.123"
-              />
-            </div>
-            <p className={cn("mt-1.5 text-xs font-bold", usernameAvailable === false ? "text-red-700" : "text-muted")}>
-              {!normalizedUsername
+          <Field
+            id="username"
+            label={t(locale, "Korisničko ime", "Username")}
+            error={usernameAvailable === false ? t(locale, "Korisničko ime je već zauzeto.", "That username is already taken.") : undefined}
+            hint={
+              !normalizedUsername
                 ? t(locale, "Username se koristi za @pominjanja u Zajednici.", "Your username is used for @mentions in Community.")
                 : !usernameFormatValid
                   ? t(locale, USERNAME_VALIDATION_MESSAGE_SR, USERNAME_VALIDATION_MESSAGE_EN)
-                : usernameAvailable === undefined
-                  ? t(locale, "Provera dostupnosti…", "Checking availability…")
-                  : usernameAvailable
-                    ? t(locale, "Username je slobodan.", "Username is available.")
-                    : t(locale, "Korisničko ime je već zauzeto.", "That username is already taken.")}
-            </p>
-          </div>
+                  : usernameAvailable === undefined
+                    ? t(locale, "Provera dostupnosti…", "Checking availability…")
+                    : t(locale, "Username je slobodan.", "Username is available.")
+            }
+          >
+            {(field) => (
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-base font-black text-ink/45">@</span>
+                <Input
+                  {...field}
+                  name="username"
+                  value={username}
+                  onChange={(event) => setUsername(event.target.value)}
+                  required
+                  minLength={3}
+                  maxLength={20}
+                  pattern="[A-Za-zČĆŠĐŽčćšđž0-9._]{3,20}"
+                  autoComplete="username"
+                  className="pl-8 pr-4"
+                  placeholder="npr. čika_fox.123"
+                />
+              </div>
+            )}
+          </Field>
         ) : null}
 
         {flow === "signIn" || flow === "signUp" ? (
           <div>
-            <label htmlFor="password" className="text-sm font-black text-ink">
-              Password
-            </label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              required
-              minLength={8}
-              className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-4 text-base font-bold text-ink outline-none focus:border-yellow"
-            />
+            <Field id="password" label="Password">
+              {(field) => (
+                <Input
+                  {...field}
+                  name="password"
+                  type="password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  required
+                  minLength={8}
+                />
+              )}
+            </Field>
             {flow === "signUp" ? (
               <div className="mt-2 grid gap-1 text-xs font-bold text-muted sm:grid-cols-2">
                 {passwordRequirements.map((requirement) => (
@@ -369,63 +372,62 @@ function ConvexSignInForm({
         ) : null}
 
         {flow === "signUp" ? (
-          <div>
-            <label htmlFor="signupConfirmPassword" className="text-sm font-black text-ink">
-              {t(locale, "Potvrdi lozinku", "Confirm password")}
-            </label>
-            <input
-              id="signupConfirmPassword"
-              type="password"
-              value={signupConfirmPassword}
-              onChange={(event) => setSignupConfirmPassword(event.target.value)}
-              required
-              minLength={8}
-              autoComplete="new-password"
-              className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-4 text-base font-bold text-ink outline-none focus:border-yellow"
-            />
-            {signupConfirmPassword && password !== signupConfirmPassword ? (
-              <p className="mt-1.5 text-xs font-black text-red-700">
-                {t(locale, "Lozinke se ne poklapaju.", "Passwords do not match.")}
-              </p>
-            ) : null}
-          </div>
+          <Field
+            id="signupConfirmPassword"
+            label={t(locale, "Potvrdi lozinku", "Confirm password")}
+            error={
+              signupConfirmPassword && password !== signupConfirmPassword
+                ? t(locale, "Lozinke se ne poklapaju.", "Passwords do not match.")
+                : undefined
+            }
+          >
+            {(field) => (
+              <Input
+                {...field}
+                type="password"
+                value={signupConfirmPassword}
+                onChange={(event) => setSignupConfirmPassword(event.target.value)}
+                required
+                minLength={8}
+                autoComplete="new-password"
+              />
+            )}
+          </Field>
         ) : null}
 
         {flow === "resetVerification" ? (
           <>
             <div>
-              <label htmlFor="newPassword" className="text-sm font-black text-ink">
-                {t(locale, "Nova lozinka", "New password")}
-              </label>
-              <input
-                id="newPassword"
-                type="password"
-                value={newPassword}
-                onChange={(event) => setNewPassword(event.target.value)}
-                required
-                minLength={8}
-                className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-4 text-base font-bold text-ink outline-none focus:border-yellow"
-              />
+              <Field id="newPassword" label={t(locale, "Nova lozinka", "New password")}>
+                {(field) => (
+                  <Input
+                    {...field}
+                    type="password"
+                    value={newPassword}
+                    onChange={(event) => setNewPassword(event.target.value)}
+                    required
+                    minLength={8}
+                  />
+                )}
+              </Field>
               <div className="mt-2 grid gap-1 text-xs font-bold text-muted sm:grid-cols-2">
                 {passwordRequirements.map((requirement) => (
                   <span key={requirement.id}>• {t(locale, requirement.labelSr, requirement.labelEn)}</span>
                 ))}
               </div>
             </div>
-            <div>
-              <label htmlFor="confirmPassword" className="text-sm font-black text-ink">
-                {t(locale, "Ponovi lozinku", "Repeat password")}
-              </label>
-              <input
-                id="confirmPassword"
-                type="password"
-                value={confirmPassword}
-                onChange={(event) => setConfirmPassword(event.target.value)}
-                required
-                minLength={8}
-                className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-4 text-base font-bold text-ink outline-none focus:border-yellow"
-              />
-            </div>
+            <Field id="confirmPassword" label={t(locale, "Ponovi lozinku", "Repeat password")}>
+              {(field) => (
+                <Input
+                  {...field}
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(event) => setConfirmPassword(event.target.value)}
+                  required
+                  minLength={8}
+                />
+              )}
+            </Field>
           </>
         ) : null}
 

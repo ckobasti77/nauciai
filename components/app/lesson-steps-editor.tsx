@@ -41,7 +41,9 @@ import {
   type ReactNode,
 } from "react";
 
+import { ConfirmDialog } from "@/components/ui/dialog";
 import { cn } from "@/components/ui/primitives";
+import { useToast } from "@/components/ui/toast-provider";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { Course, Lesson } from "@/lib/content";
@@ -639,6 +641,12 @@ export function LessonStepsEditor({
   const [inspectorCollapsed, setInspectorCollapsed] = useState(false);
   const [stepsWidth, setStepsWidth] = useState(300);
   const [inspectorWidth, setInspectorWidth] = useState(340);
+  // Brisanje koraka i zadatka islo je kroz `window.confirm` - nativni OS dijalog
+  // bez brenda, bez tokena i bez tamne teme. Sada ide kroz `ConfirmDialog`.
+  const [pendingDelete, setPendingDelete] = useState<
+    { kind: "step"; stepId: Id<"lessonSteps">; index: number } | { kind: "task"; taskId: Id<"lessonTasks"> } | null
+  >(null);
+  const toast = useToast();
 
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -750,20 +758,23 @@ export function LessonStepsEditor({
     }
   }
 
-  async function handleDeleteStep(stepId: Id<"lessonSteps">, index: number) {
-    const confirmed = window.confirm(
-      t(locale, "Obrisati ovaj korak i sve njegove zadatke?", "Delete this step and all of its tasks?"),
-    );
-    if (!confirmed) return;
+  async function runPendingDelete() {
+    const target = pendingDelete;
+    if (!target) return;
     setSaving(true);
     try {
-      await deleteLessonStep({ stepId });
-      if (index <= activeStepIndex) setActiveStepIndex(Math.max(0, activeStepIndex - 1));
+      if (target.kind === "step") {
+        await deleteLessonStep({ stepId: target.stepId });
+        if (target.index <= activeStepIndex) setActiveStepIndex(Math.max(0, activeStepIndex - 1));
+      } else {
+        await deleteLessonTask({ taskId: target.taskId });
+      }
     } catch (error) {
       console.error(error);
       setSaveStatus("error");
     } finally {
       setSaving(false);
+      setPendingDelete(null);
     }
   }
 
@@ -810,7 +821,14 @@ export function LessonStepsEditor({
     const layout = [...stepForm.layout];
     layout[slotIndex] = null;
     if (!activeEntries(layout).length) {
-      window.alert(t(locale, "Korak mora imati bar jedan panel.", "A step needs at least one panel."));
+      toast.warning(
+        t(locale, "Korak mora imati bar jedan panel.", "A step needs at least one panel."),
+        t(
+          locale,
+          "Dodaj drugi panel pa tek onda ukloni ovaj.",
+          "Add another panel first, then remove this one.",
+        ),
+      );
       return;
     }
     const nextSelected = activeEntries(layout)[0]?.slotIndex ?? 0;
@@ -918,20 +936,6 @@ export function LessonStepsEditor({
     } catch (error) {
       console.error(error);
       setSaveStatus("error");
-    }
-  }
-
-  async function handleDeleteTask(taskId: Id<"lessonTasks">) {
-    const confirmed = window.confirm(t(locale, "Obrisati ovaj zadatak?", "Delete this task?"));
-    if (!confirmed) return;
-    setSaving(true);
-    try {
-      await deleteLessonTask({ taskId });
-    } catch (error) {
-      console.error(error);
-      setSaveStatus("error");
-    } finally {
-      setSaving(false);
     }
   }
 
@@ -1205,7 +1209,7 @@ export function LessonStepsEditor({
                         </button>
                         <button
                           type="button"
-                          onClick={() => void handleDeleteStep(step._id, index)}
+                          onClick={() => setPendingDelete({ kind: "step", stepId: step._id, index })}
                           className="inline-flex size-6 items-center justify-center rounded border border-red-200 bg-red-50 text-red-600 hover:border-red-500"
                           aria-label={t(locale, "Obrisi", "Delete")}
                         >
@@ -1365,7 +1369,7 @@ export function LessonStepsEditor({
                           onStepChange={updateStepForm}
                           onAddTask={() => void handleAddTask()}
                           onUpdateTask={(task, fields) => void handleUpdateTask(task, fields)}
-                          onDeleteTask={(taskId) => void handleDeleteTask(taskId)}
+                          onDeleteTask={(taskId) => setPendingDelete({ kind: "task", taskId })}
                           onMoveTask={(taskIndex, direction) => void handleMoveTask(taskIndex, direction)}
                           onAddPrompt={addPrompt}
                           onUpdatePrompt={updatePrompt}
@@ -1431,6 +1435,35 @@ export function LessonStepsEditor({
           )}
         </aside>
       </div>
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        onClose={() => setPendingDelete(null)}
+        onConfirm={runPendingDelete}
+        busy={saving && pendingDelete !== null}
+        destructive
+        eyebrow={t(locale, "Brisanje", "Delete")}
+        title={
+          pendingDelete?.kind === "task"
+            ? t(locale, "Obrisati ovaj zadatak?", "Delete this task?")
+            : t(locale, "Obrisati ovaj korak?", "Delete this step?")
+        }
+        description={
+          pendingDelete?.kind === "task"
+            ? t(
+                locale,
+                "Zadatak nestaje iz koraka. Ovo ne može da se poništi.",
+                "The task disappears from the step. This cannot be undone.",
+              )
+            : t(
+                locale,
+                "Korak i svi njegovi zadaci se brišu. Ovo ne može da se poništi.",
+                "The step and all of its tasks are deleted. This cannot be undone.",
+              )
+        }
+        confirmLabel={t(locale, "Obriši", "Delete")}
+        cancelLabel={t(locale, "Odustani", "Cancel")}
+        closeLabel={t(locale, "Zatvori", "Close")}
+      />
     </div>
   );
 }

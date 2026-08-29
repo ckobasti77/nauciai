@@ -20,7 +20,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
 import { CommunityAvatar, formatCommunityTime, type CommunityRank, type CommunityRole } from "@/components/app/community-identity";
-import { CommunityThreadConfirmDialog } from "@/components/app/community-thread-dialog";
+import { ConfirmDialog } from "@/components/ui/dialog";
 import { cn } from "@/components/ui/primitives";
 import { useToast } from "@/components/ui/toast-provider";
 import { api } from "@/convex/_generated/api";
@@ -225,7 +225,7 @@ export function CommentsSection({
         </div>
       ) : null}
 
-      <CommunityThreadConfirmDialog open={Boolean(deleteTarget)} title={locale === "sr" ? "Obrisati komentar?" : "Delete comment?"} description={locale === "sr" ? "Komentar i svi odgovori ispod njega biće trajno uklonjeni." : "The comment and every reply below it will be permanently removed."} confirmLabel={locale === "sr" ? "Obriši komentar" : "Delete comment"} cancelLabel={locale === "sr" ? "Odustani" : "Cancel"} closeLabel={locale === "sr" ? "Zatvori dijalog" : "Close dialog"} busy={isDeleting} destructive onClose={() => setDeleteTarget(null)} onConfirm={handleDelete} />
+      <ConfirmDialog open={Boolean(deleteTarget)} title={locale === "sr" ? "Obrisati komentar?" : "Delete comment?"} description={locale === "sr" ? "Komentar i svi odgovori ispod njega biće trajno uklonjeni." : "The comment and every reply below it will be permanently removed."} confirmLabel={locale === "sr" ? "Obriši komentar" : "Delete comment"} cancelLabel={locale === "sr" ? "Odustani" : "Cancel"} closeLabel={locale === "sr" ? "Zatvori dijalog" : "Close dialog"} busy={isDeleting} destructive onClose={() => setDeleteTarget(null)} onConfirm={handleDelete} />
     </div>
   );
 }

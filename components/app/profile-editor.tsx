@@ -28,6 +28,8 @@ import {
   useState,
 } from "react";
 
+import { Button } from "@/components/ui/button";
+import { Field, Input, Select, Textarea } from "@/components/ui/field";
 import { Panel, SectionHeader, cn } from "@/components/ui/primitives";
 import { HelpSettings } from "@/components/app/help-settings";
 import { useToast } from "@/components/ui/toast-provider";
@@ -613,15 +615,15 @@ export function ProfileEditor({
           <div className="min-w-0 flex-1">
             <p className="font-black">{t(locale, "Email još nije potvrđen za pristup kursevima.", "Your email is not yet verified for course access.")}</p>
             <p className="mt-1 text-xs font-semibold leading-5">{t(locale, "Verifikacija blokira checkout i lekcije, ali ne blokira dashboard, javni pregled kurseva ili Community.", "Verification blocks checkout and lessons, but not the dashboard, public course pages, or Community.")}</p>
-            <button
-              type="button"
+            <Button
+              size="sm"
               onClick={requestEmailVerification}
-              disabled={verificationPending}
-              className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 py-2 text-xs font-black text-ink shadow-[3px_3px_0_0_var(--ink)] transition hover:-translate-y-0.5 disabled:opacity-60"
+              loading={verificationPending}
+              icon={<MailCheck className="size-4" />}
+              className="mt-3 gap-2 px-4 shadow-[3px_3px_0_0_var(--ink)] hover:-translate-y-0.5"
             >
-              {verificationPending ? <Loader2 className="size-4 animate-spin" /> : <MailCheck className="size-4" />}
               {t(locale, "Pošalji verifikacioni link", "Send verification link")}
-            </button>
+            </Button>
             {verificationMessage ? (
               <p className={cn("mt-2 text-xs font-black", verificationMessage.tone === "success" ? "text-emerald-700" : "text-red-700")}>
                 {verificationMessage.text}
@@ -709,68 +711,74 @@ export function ProfileEditor({
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
-              <label className="block">
-                <span className="text-sm font-black text-ink">{t(locale, "Ime", "First name")}</span>
-                <input
-                  value={firstName}
-                  onChange={(event) => {
-                    setFirstName(event.target.value);
-                  }}
-                  className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-4 text-base font-extrabold text-ink outline-none transition focus:border-yellow focus:ring-4 focus:ring-yellow/25"
-                  required
-                />
-              </label>
-              <label className="block">
-                <span className="text-sm font-black text-ink">{t(locale, "Prezime", "Last name")}</span>
-                <input
-                  value={lastName}
-                  onChange={(event) => {
-                    setLastName(event.target.value);
-                  }}
-                  className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-4 text-base font-extrabold text-ink outline-none transition focus:border-yellow focus:ring-4 focus:ring-yellow/25"
-                  required
-                />
-              </label>
-              <label className="block sm:col-span-2">
-                <span className="text-sm font-black text-ink">Email</span>
-                <input
-                  value={initialValues.email}
-                  readOnly
-                  className="mt-2 h-12 w-full rounded-[8px] border-2 border-line bg-paper px-4 text-base font-extrabold text-muted outline-none"
-                />
-              </label>
-              <label className="block sm:col-span-2">
-                <span className="text-sm font-black text-ink">{t(locale, "Korisnicko ime (Jedinstveno)", "Username (Unique)")}</span>
-                <div className="relative mt-2">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-base font-black text-ink/45">@</span>
-                  <input
-                    ref={usernameInputRef}
-                    value={username}
-                    onChange={(event) => setUsername(event.target.value)}
-                    maxLength={20}
-                    pattern="[A-Za-zČĆŠĐŽčćšđž0-9._]{3,20}"
-                    className="h-12 w-full rounded-[8px] border-2 border-ink bg-paper-strong pl-8 pr-4 text-base font-extrabold text-ink outline-none transition focus:border-yellow focus:ring-4 focus:ring-yellow/25"
-                    placeholder="npr. jovan_m"
+              <Field label={t(locale, "Ime", "First name")}>
+                {(field) => (
+                  <Input
+                    {...field}
+                    value={firstName}
+                    onChange={(event) => {
+                      setFirstName(event.target.value);
+                    }}
+                    required
                   />
-                </div>
-                <p className="mt-1.5 text-xs text-muted">
-                  {t(locale, "Korisničko ime mora imati između 3 i 20 znakova, najmanje 3 slova, i može sadržati samo slova, cifre, tačku i donju crtu. Koristi se za pominjanje u zajednici (@username).", "Username must be 3–20 characters, contain at least 3 letters, and use only letters, numbers, periods, and underscores. Used for mentions (@username).")}
-                </p>
-              </label>
-              <label className="block sm:col-span-2">
-                <span className="flex items-center justify-between gap-3 text-sm font-black text-ink">
-                  <span>{t(locale, "Javna biografija", "Public bio")}</span>
-                  <span className="font-mono text-xs text-muted">{bio.length}/280</span>
-                </span>
-                <textarea
-                  value={bio}
-                  onChange={(event) => setBio(event.target.value)}
-                  maxLength={280}
-                  rows={4}
-                  placeholder={t(locale, "Ukratko predstavi sebe, svoj rad i šta želiš da naučiš.", "Briefly introduce yourself, your work, and what you want to learn.")}
-                  className="mt-2 w-full resize-y rounded-[8px] border-2 border-ink bg-paper-strong px-4 py-3 text-base font-bold leading-6 text-ink outline-none transition focus:border-yellow focus:ring-4 focus:ring-yellow/25"
-                />
-              </label>
+                )}
+              </Field>
+              <Field label={t(locale, "Prezime", "Last name")}>
+                {(field) => (
+                  <Input
+                    {...field}
+                    value={lastName}
+                    onChange={(event) => {
+                      setLastName(event.target.value);
+                    }}
+                    required
+                  />
+                )}
+              </Field>
+              <Field label="Email" className="sm:col-span-2">
+                {(field) => <Input {...field} value={initialValues.email} readOnly />}
+              </Field>
+              <Field
+                className="sm:col-span-2"
+                label={t(locale, "Korisnicko ime (Jedinstveno)", "Username (Unique)")}
+                hint={t(locale, "Korisničko ime mora imati između 3 i 20 znakova, najmanje 3 slova, i može sadržati samo slova, cifre, tačku i donju crtu. Koristi se za pominjanje u zajednici (@username).", "Username must be 3–20 characters, contain at least 3 letters, and use only letters, numbers, periods, and underscores. Used for mentions (@username).")}
+              >
+                {(field) => (
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-base font-black text-ink/45">@</span>
+                    <Input
+                      {...field}
+                      ref={usernameInputRef}
+                      value={username}
+                      onChange={(event) => setUsername(event.target.value)}
+                      maxLength={20}
+                      pattern="[A-Za-zČĆŠĐŽčćšđž0-9._]{3,20}"
+                      className="pl-8 pr-4"
+                      placeholder="npr. jovan_m"
+                    />
+                  </div>
+                )}
+              </Field>
+              <Field
+                className="sm:col-span-2"
+                label={
+                  <span className="flex items-center justify-between gap-3">
+                    <span>{t(locale, "Javna biografija", "Public bio")}</span>
+                    <span className="font-mono text-xs text-muted">{bio.length}/280</span>
+                  </span>
+                }
+              >
+                {(field) => (
+                  <Textarea
+                    {...field}
+                    value={bio}
+                    onChange={(event) => setBio(event.target.value)}
+                    maxLength={280}
+                    rows={4}
+                    placeholder={t(locale, "Ukratko predstavi sebe, svoj rad i šta želiš da naučiš.", "Briefly introduce yourself, your work, and what you want to learn.")}
+                  />
+                )}
+              </Field>
               <div className="grid gap-4 sm:col-span-2 sm:grid-cols-2">
                 {[
                   ["Website", websiteUrl, setWebsiteUrl, "https://tvojsajt.rs"],
@@ -778,16 +786,18 @@ export function ProfileEditor({
                   ["LinkedIn", linkedinUrl, setLinkedinUrl, "https://linkedin.com/in/username"],
                   ["YouTube", youtubeUrl, setYoutubeUrl, "https://youtube.com/@kanal"],
                 ].map(([label, value, setter, placeholder]) => (
-                  <label key={label as string} className="block">
-                    <span className="text-sm font-black text-ink">{label as string}</span>
-                    <input
-                      type="url"
-                      value={value as string}
-                      onChange={(event) => (setter as (value: string) => void)(event.target.value)}
-                      placeholder={placeholder as string}
-                      className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-4 text-sm font-bold text-ink outline-none transition focus:border-yellow focus:ring-4 focus:ring-yellow/25"
-                    />
-                  </label>
+                  <Field key={label as string} label={label as string}>
+                    {(field) => (
+                      <Input
+                        {...field}
+                        compact
+                        type="url"
+                        value={value as string}
+                        onChange={(event) => (setter as (value: string) => void)(event.target.value)}
+                        placeholder={placeholder as string}
+                      />
+                    )}
+                  </Field>
                 ))}
               </div>
               <div id="account-settings" className="scroll-mt-6 sm:col-span-2">
@@ -802,15 +812,15 @@ export function ProfileEditor({
                     <p className="mt-3 text-sm font-bold leading-6">
                       {t(locale, "Promena lozinke je moguća samo preko sigurnog linka koji šaljemo na email tvog naloga.", "Your password can only be changed through a secure link sent to your account email.")}
                     </p>
-                    <button
-                      type="button"
+                    <Button
+                      size="sm"
                       onClick={requestPasswordReset}
-                      disabled={passwordResetPending}
-                      className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 py-2 text-xs font-black text-ink shadow-[3px_3px_0_0_var(--ink)] transition hover:-translate-y-0.5 disabled:opacity-60"
+                      loading={passwordResetPending}
+                      icon={<MailCheck className="size-4" />}
+                      className="mt-3 gap-2 px-4 shadow-[3px_3px_0_0_var(--ink)] hover:-translate-y-0.5"
                     >
-                      {passwordResetPending ? <Loader2 className="size-4 animate-spin" /> : <MailCheck className="size-4" />}
                       {t(locale, "Pošalji link za promenu lozinke", "Send password-change link")}
-                    </button>
+                    </Button>
                     {passwordResetMessage ? <p className="mt-3 text-xs font-black text-emerald-700">{passwordResetMessage}</p> : null}
                   </div>
                 ) : profileStatus?.emailVerifiedForCourses === false ? (
@@ -818,41 +828,51 @@ export function ProfileEditor({
                     <p className="text-sm font-bold">
                       {t(locale, "Potvrdi email klikom na link koji smo poslali. Polja za lozinku će se pojaviti nakon potvrde.", "Confirm your email using the link we sent. Password fields will appear after confirmation.")}
                     </p>
-                    <button
-                      type="button"
+                    <Button
+                      size="sm"
                       onClick={requestEmailVerification}
-                      disabled={verificationPending || !profileStatus?.hasEmail}
-                      className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 py-2 text-xs font-black text-ink shadow-[3px_3px_0_0_var(--ink)] transition hover:-translate-y-0.5 disabled:opacity-60"
+                      loading={verificationPending}
+                      disabled={!profileStatus?.hasEmail}
+                      icon={<MailCheck className="size-4" />}
+                      className="gap-2 px-4 shadow-[3px_3px_0_0_var(--ink)] hover:-translate-y-0.5"
                     >
-                      {verificationPending ? <Loader2 className="size-4 animate-spin" /> : <MailCheck className="size-4" />}
                       {t(locale, "Pošalji ponovo", "Send again")}
-                    </button>
+                    </Button>
                   </div>
                 ) : (
                   <div className="mt-2 space-y-3 rounded-[8px] border-2 border-indigo-700 bg-indigo-50 p-4">
                     <p className="text-sm font-bold text-ink">
                       {t(locale, "Postavi lozinku za ovaj nalog. Polja ostaju prazna dok ih sam ne uneseš.", "Set a password for this account. The fields stay empty until you enter them.")}
                     </p>
-                    <label className="block">
-                      <span className="text-xs font-black uppercase text-ink/70">{t(locale, "Nova lozinka", "New password")}</span>
-                      <input
-                        type="password"
-                        value={newPassword}
-                        onChange={(event) => setNewPassword(event.target.value)}
-                        autoComplete="new-password"
-                        className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-4 text-base font-extrabold text-ink outline-none focus:border-yellow"
-                      />
-                    </label>
-                    <label className="block">
-                      <span className="text-xs font-black uppercase text-ink/70">{t(locale, "Potvrdi lozinku", "Confirm password")}</span>
-                      <input
-                        type="password"
-                        value={confirmPassword}
-                        onChange={(event) => setConfirmPassword(event.target.value)}
-                        autoComplete="new-password"
-                        className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-4 text-base font-extrabold text-ink outline-none focus:border-yellow"
-                      />
-                    </label>
+                    <Field label={<span className="text-xs font-black uppercase text-ink/70">{t(locale, "Nova lozinka", "New password")}</span>}>
+                      {(field) => (
+                        <Input
+                          {...field}
+                          type="password"
+                          value={newPassword}
+                          onChange={(event) => setNewPassword(event.target.value)}
+                          autoComplete="new-password"
+                        />
+                      )}
+                    </Field>
+                    <Field
+                      label={<span className="text-xs font-black uppercase text-ink/70">{t(locale, "Potvrdi lozinku", "Confirm password")}</span>}
+                      error={
+                        confirmPassword && newPassword !== confirmPassword
+                          ? t(locale, "Lozinke se ne poklapaju.", "Passwords do not match.")
+                          : undefined
+                      }
+                    >
+                      {(field) => (
+                        <Input
+                          {...field}
+                          type="password"
+                          value={confirmPassword}
+                          onChange={(event) => setConfirmPassword(event.target.value)}
+                          autoComplete="new-password"
+                        />
+                      )}
+                    </Field>
                     <div className="grid gap-1 text-xs font-bold text-muted sm:grid-cols-2">
                       {passwordRequirements.map((requirement) => (
                         <span key={requirement.id} className={requirement.test(newPassword) ? "text-emerald-700" : "text-muted"}>
@@ -860,38 +880,40 @@ export function ProfileEditor({
                         </span>
                       ))}
                     </div>
-                    {confirmPassword && newPassword !== confirmPassword ? (
-                      <p className="text-xs font-black text-red-700">{t(locale, "Lozinke se ne poklapaju.", "Passwords do not match.")}</p>
-                    ) : null}
                   </div>
                 )}
               </div>
-              <label className="block sm:col-span-2">
-                <span className="text-sm font-black text-ink">{t(locale, "Jezik platforme", "Platform language")}</span>
-                <select
-                  value={language}
-                  onChange={(event) => {
-                    setLanguage(event.target.value as Locale);
-                  }}
-                  className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-4 text-base font-extrabold text-ink outline-none transition focus:border-yellow focus:ring-4 focus:ring-yellow/25"
-                >
-                  <option value="sr">Srpski</option>
-                  <option value="en">English</option>
-                </select>
-              </label>
-              <label className="block sm:col-span-2">
-                <span className="text-sm font-black text-ink">{t(locale, "Ko može da ti pošalje novu poruku", "Who can start a new chat with you")}</span>
-                <select
-                  value={dmPrivacy}
-                  onChange={(event) => setDmPrivacy(event.target.value as "requests" | "following" | "nobody")}
-                  className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-4 text-base font-extrabold text-ink outline-none transition focus:border-yellow focus:ring-4 focus:ring-yellow/25"
-                >
-                  <option value="requests">{t(locale, "Svi uz request", "Anyone, with a request")}</option>
-                  <option value="following">{t(locale, "Samo ljudi koje pratim", "Only people I follow")}</option>
-                  <option value="nobody">{t(locale, "Niko", "Nobody")}</option>
-                </select>
-                <p className="mt-1.5 text-xs font-bold text-muted">{t(locale, "Admin podrška može da započne razgovor kada je to potrebno za nalog.", "Admin support can still start a conversation when account help is required.")}</p>
-              </label>
+              <Field className="sm:col-span-2" label={t(locale, "Jezik platforme", "Platform language")}>
+                {(field) => (
+                  <Select
+                    {...field}
+                    value={language}
+                    onChange={(event) => {
+                      setLanguage(event.target.value as Locale);
+                    }}
+                  >
+                    <option value="sr">Srpski</option>
+                    <option value="en">English</option>
+                  </Select>
+                )}
+              </Field>
+              <Field
+                className="sm:col-span-2"
+                label={t(locale, "Ko može da ti pošalje novu poruku", "Who can start a new chat with you")}
+                hint={t(locale, "Admin podrška može da započne razgovor kada je to potrebno za nalog.", "Admin support can still start a conversation when account help is required.")}
+              >
+                {(field) => (
+                  <Select
+                    {...field}
+                    value={dmPrivacy}
+                    onChange={(event) => setDmPrivacy(event.target.value as "requests" | "following" | "nobody")}
+                  >
+                    <option value="requests">{t(locale, "Svi uz request", "Anyone, with a request")}</option>
+                    <option value="following">{t(locale, "Samo ljudi koje pratim", "Only people I follow")}</option>
+                    <option value="nobody">{t(locale, "Niko", "Nobody")}</option>
+                  </Select>
+                )}
+              </Field>
             </div>
           </div>
         </Panel>

@@ -16,77 +16,25 @@ import {
   UserPlus,
   Users,
   PlaySquare,
-  X,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 
 import { openChatDock } from "@/components/app/chat/chat-dock";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { Button } from "@/components/ui/button";
+import { Dialog } from "@/components/ui/dialog";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Field, Textarea } from "@/components/ui/field";
 import { cn } from "@/components/ui/primitives";
+import { Spinner } from "@/components/ui/spinner";
 import type { Locale } from "@/lib/i18n";
 import { t, withLocale } from "@/lib/i18n";
 
 type FollowListKind = "followers" | "following";
 type ContributionFilter = "all" | "threads" | "comments";
-
-function useModalFocus(open: boolean, onClose: () => void) {
-  const dialogRef = useRef<HTMLDivElement>(null);
-  const closeRef = useRef(onClose);
-
-  useEffect(() => {
-    closeRef.current = onClose;
-  }, [onClose]);
-
-  useEffect(() => {
-    if (!open) return;
-    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const frame = window.requestAnimationFrame(() => {
-      const first = dialogRef.current?.querySelector<HTMLElement>(
-        '[autofocus], button:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
-      );
-      (first ?? dialogRef.current)?.focus();
-    });
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        closeRef.current();
-        return;
-      }
-      if (event.key !== "Tab" || !dialogRef.current) return;
-      const controls = Array.from(dialogRef.current.querySelectorAll<HTMLElement>(
-        'button:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
-      )).filter((element) => element.offsetParent !== null);
-      if (!controls.length) {
-        event.preventDefault();
-        dialogRef.current.focus();
-        return;
-      }
-      const first = controls[0];
-      const last = controls[controls.length - 1];
-      if (event.shiftKey && (document.activeElement === first || !dialogRef.current.contains(document.activeElement))) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      window.cancelAnimationFrame(frame);
-      document.removeEventListener("keydown", onKeyDown);
-      document.body.style.overflow = previousOverflow;
-      if (previouslyFocused?.isConnected) previouslyFocused.focus();
-    };
-  }, [open]);
-
-  return dialogRef;
-}
 
 function roleLabel(locale: Locale, role: string) {
   const labels: Record<string, [string, string]> = {
@@ -166,52 +114,18 @@ function FollowersDialog({ kind, userId, username, locale, owner, onClose }: { k
 }
 
 function FollowDialogShell({ title, username, rows, status, loadMore, locale, onClose }: { title: string; username: string; rows: Array<{ userId: Id<"users">; name: string; username?: string; avatarUrl?: string; role: string }>; status: string; loadMore: (count: number) => void; locale: Locale; onClose: () => void }) {
-  const dialogRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-      if (event.key !== "Tab") return;
-      const focusable = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>('a[href],button:not([disabled]),[tabindex]:not([tabindex="-1"])') ?? []);
-      if (!focusable.length) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", onKeyDown);
-    };
-  }, [onClose]);
-
   return (
-    <div className="fixed inset-0 z-50 grid place-items-end bg-scrim/45 p-0 sm:place-items-center sm:p-4" role="dialog" aria-modal="true" aria-label={title}>
-      <div ref={dialogRef} className="max-h-[82vh] w-full overflow-hidden rounded-t-[16px] border-2 border-ink bg-paper shadow-2xl sm:max-w-lg sm:rounded-[16px]">
-        <div className="flex items-center justify-between border-b-2 border-line bg-paper-strong px-5 py-4">
-          <div><p className="text-lg font-black text-ink">{title}</p><p className="text-xs font-bold text-muted">@{username}</p></div>
-          <button type="button" autoFocus onClick={onClose} className="grid size-10 place-items-center rounded-full border-2 border-ink bg-paper-strong" aria-label={t(locale, "Zatvori", "Close")}><X className="size-5" /></button>
-        </div>
-        <div className="max-h-[60vh] space-y-2 overflow-y-auto p-4">
-          {rows.map((row) => row.username ? (
-            <Link key={row.userId} href={withLocale(locale, `/app/members/${row.username}`)} onClick={onClose} className="flex items-center gap-3 rounded-[16px] border-2 border-line bg-paper-strong p-3 transition hover:border-ink">
-              <img src={row.avatarUrl || "/images/avatars/mythic-mentor.png"} alt="" className="size-11 rounded-full border-2 border-ink object-cover" />
-              <span className="min-w-0 flex-1"><span className="block truncate font-black text-ink">{row.name}</span><span className="block truncate text-xs font-bold text-muted">@{row.username}</span></span>
-              <span className="rounded-full bg-yellow px-2.5 py-1 text-[10px] font-black uppercase text-ink">{roleLabel(locale, row.role)}</span>
-            </Link>
-          ) : null)}
-          {rows.length === 0 && status !== "LoadingFirstPage" ? <p className="py-10 text-center text-sm font-bold text-muted">{t(locale, "Lista je prazna.", "The list is empty.")}</p> : null}
-          {status === "CanLoadMore" ? <button type="button" onClick={() => loadMore(20)} className="w-full rounded-full border-2 border-ink bg-paper-strong px-4 py-3 text-sm font-black">{t(locale, "Učitaj još", "Load more")}</button> : null}
-        </div>
-      </div>
-    </div>
+    <Dialog open onClose={onClose} align="sheet" title={title} description={`@${username}`} closeLabel={t(locale, "Zatvori", "Close")} contentClassName="space-y-2">
+      {rows.map((row) => row.username ? (
+        <Link key={row.userId} href={withLocale(locale, `/app/members/${row.username}`)} onClick={onClose} className="flex items-center gap-3 rounded-[16px] border-2 border-line bg-paper-strong p-3 transition hover:border-ink">
+          <img src={row.avatarUrl || "/images/avatars/mythic-mentor.png"} alt="" className="size-11 rounded-full border-2 border-ink object-cover" />
+          <span className="min-w-0 flex-1"><span className="block truncate font-black text-ink">{row.name}</span><span className="block truncate text-xs font-bold text-muted">@{row.username}</span></span>
+          <span className="rounded-full bg-yellow px-2.5 py-1 text-[10px] font-black uppercase text-ink">{roleLabel(locale, row.role)}</span>
+        </Link>
+      ) : null)}
+      {rows.length === 0 && status !== "LoadingFirstPage" ? <p className="py-10 text-center text-sm font-bold text-muted">{t(locale, "Lista je prazna.", "The list is empty.")}</p> : null}
+      {status === "CanLoadMore" ? <button type="button" onClick={() => loadMore(20)} className="w-full rounded-full border-2 border-ink bg-paper-strong px-4 py-3 text-sm font-black">{t(locale, "Učitaj još", "Load more")}</button> : null}
+    </Dialog>
   );
 }
 
@@ -248,8 +162,6 @@ export function MemberProfile({ locale, username }: { locale: Locale; username: 
   const [followList, setFollowList] = useState<FollowListKind | null>(null);
   const [filter, setFilter] = useState<ContributionFilter>("all");
   const [courseId, setCourseId] = useState<string>("");
-  const studyDialogRef = useModalFocus(studyOpen, () => setStudyOpen(false));
-  const reportDialogRef = useModalFocus(reportOpen, () => setReportOpen(false));
   const commonStudyCourses = usePaginatedQuery(
     api.study.listCommonStudyCoursesPage,
     profile && studyOpen && !profile.viewer.isOwner ? { userId: profile.identity.userId } : "skip",
@@ -399,29 +311,52 @@ export function MemberProfile({ locale, username }: { locale: Locale; username: 
         <div className="order-1 min-w-0 xl:order-2">{profileCard}</div>
       </div>
       {followList ? <FollowersDialog kind={followList} userId={identity.userId} username={identity.username} locale={locale} owner={profile.viewer.isOwner} onClose={() => setFollowList(null)} /> : null}
-      {studyOpen ? (
-        <div className="fixed inset-0 z-[95] grid place-items-end bg-scrim/50 p-0 sm:place-items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="study-invite-title">
-          <div ref={studyDialogRef} tabIndex={-1} className="max-h-[82dvh] w-full overflow-hidden rounded-t-[16px] border-2 border-ink bg-paper-strong shadow-2xl sm:max-w-lg sm:rounded-[16px]">
-            <div className="flex items-start justify-between gap-3 border-b-2 border-ink p-4">
-              <div><p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#2e6f9f] dark:text-muted">{t(locale, "Zajednički kurs", "Shared course")}</p><h2 id="study-invite-title" className="mt-1 text-xl font-black">{t(locale, `Uči sa ${identity.name}`, `Study with ${identity.name}`)}</h2></div>
-              <button type="button" autoFocus onClick={() => setStudyOpen(false)} className="grid size-10 place-items-center rounded-full border-2 border-ink" aria-label={t(locale, "Zatvori", "Close")}><X className="size-4" /></button>
-            </div>
-            <div className="max-h-[62dvh] space-y-2 overflow-y-auto p-4">
-              {studyNotice ? <p role="alert" className="rounded-[8px] border border-red-300 bg-red-50 p-3 text-xs font-black text-red-800">{studyNotice}</p> : null}
-              {commonStudyCourses.status === "LoadingFirstPage" ? <div className="grid min-h-36 place-items-center"><Loader2 className="size-6 animate-spin" /></div> : null}
-              {commonStudyCourses.results.map((course) => (
-                <article key={course.courseId} className="rounded-[16px] border-2 border-line bg-paper p-3">
-                  <div className="flex items-center gap-3"><span className="grid size-11 place-items-center rounded-full border-2 border-ink bg-[#d7e9f5] dark:bg-ink/15"><BookOpen className="size-5" /></span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-black">{locale === "sr" ? course.titleSr : course.titleEn}</span><span className="block text-[10px] font-bold text-muted">{course.matchingAvailable ? t(locale, "Ista zona napretka · spremno za poziv", "Same progress zone · ready to invite") : t(locale, "Prvo uskladi dostupnost", "Set matching availability first")}</span></span></div>
-                  {course.matchingAvailable ? <button type="button" disabled={Boolean(studyPendingCourseId)} onClick={() => void inviteToStudy(course)} className="mt-3 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-xs font-black disabled:opacity-50">{studyPendingCourseId === course.courseId ? <Loader2 className="size-4 animate-spin" /> : <GraduationCap className="size-4" />}{t(locale, "Pošalji poziv", "Send invite")}</button> : <button type="button" onClick={() => router.push(`${withLocale(locale, "/app/messages")}?view=study&course=${encodeURIComponent(course.slug)}`)} className="mt-3 inline-flex min-h-10 w-full items-center justify-center rounded-full border-2 border-ink bg-paper-strong px-4 text-xs font-black">{t(locale, "Podesi u Uči zajedno", "Set up in Study together")}</button>}
-                </article>
-              ))}
-              {commonStudyCourses.status === "CanLoadMore" || commonStudyCourses.status === "LoadingMore" ? <button type="button" disabled={commonStudyCourses.status === "LoadingMore"} onClick={() => commonStudyCourses.loadMore(12)} className="w-full rounded-full border-2 border-ink bg-paper-strong px-4 py-2.5 text-xs font-black disabled:opacity-60">{commonStudyCourses.status === "LoadingMore" ? t(locale, "Učitavanje…", "Loading…") : t(locale, "Učitaj još", "Load more")}</button> : null}
-              {!commonStudyCourses.results.length && commonStudyCourses.status === "Exhausted" ? <div className="rounded-[16px] border-2 border-dashed border-line p-7 text-center"><BookOpen className="mx-auto size-8 text-muted" /><p className="mt-3 text-sm font-black">{t(locale, "Nemate zajednički aktivan kurs.", "You do not share an active course.")}</p></div> : null}
-            </div>
-          </div>
-        </div>
-      ) : null}
-      {reportOpen ? <div className="fixed inset-0 z-[90] grid place-items-center bg-scrim/50 p-4" role="dialog" aria-modal="true" aria-labelledby="profile-report-title"><div ref={reportDialogRef} tabIndex={-1} className="w-full max-w-md rounded-[16px] border-2 border-ink bg-paper-strong p-5 shadow-2xl"><div className="flex items-start justify-between gap-3"><div><p className="text-xs font-black uppercase text-red-700">{t(locale, "Prijava", "Report")}</p><h2 id="profile-report-title" className="mt-1 text-xl font-black">{identity.name}</h2></div><button type="button" autoFocus onClick={() => setReportOpen(false)} className="grid size-10 place-items-center rounded-full border-2 border-ink" aria-label={t(locale, "Zatvori", "Close")}><X className="size-4" /></button></div>{reportSent ? <p role="status" className="mt-4 rounded-[16px] border-2 border-line bg-paper p-4 text-sm font-black">{t(locale, "Prijava je poslata timu za sigurnost.", "The report was sent to the safety team.")}</p> : <><label className="mt-4 block text-sm font-black">{t(locale, "Razlog", "Reason")}<textarea value={reportReason} onChange={(event) => setReportReason(event.target.value)} rows={4} maxLength={1_000} className="mt-2 w-full rounded-[8px] border-2 border-ink bg-paper-strong p-3 font-bold" /></label><button type="button" disabled={reportPending || reportReason.trim().length < 3} onClick={async () => { setReportPending(true); try { await reportContent({ targetType: "profile", targetUserId: identity.userId, reason: reportReason }); setReportSent(true); setReportReason(""); } finally { setReportPending(false); } }} className="mt-3 inline-flex min-h-11 items-center rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black disabled:opacity-50">{reportPending ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}{t(locale, "Pošalji prijavu", "Send report")}</button></>}</div></div> : null}
+      <Dialog
+        open={studyOpen}
+        onClose={() => setStudyOpen(false)}
+        align="sheet"
+        eyebrow={t(locale, "Zajednički kurs", "Shared course")}
+        title={t(locale, `Uči sa ${identity.name}`, `Study with ${identity.name}`)}
+        closeLabel={t(locale, "Zatvori", "Close")}
+        contentClassName="space-y-2"
+      >
+        {studyNotice ? <p role="alert" className="rounded-[8px] border border-red-300 bg-red-50 p-3 text-xs font-black text-red-800">{studyNotice}</p> : null}
+        {commonStudyCourses.status === "LoadingFirstPage" ? <div className="grid min-h-36 place-items-center"><Spinner size="lg" label={t(locale, "Učitavanje…", "Loading…")} /></div> : null}
+        {commonStudyCourses.results.map((course) => (
+          <article key={course.courseId} className="rounded-[16px] border-2 border-line bg-paper p-3">
+            <div className="flex items-center gap-3"><span className="grid size-11 place-items-center rounded-full border-2 border-ink bg-[#d7e9f5] dark:bg-ink/15"><BookOpen className="size-5" /></span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-black">{locale === "sr" ? course.titleSr : course.titleEn}</span><span className="block text-[10px] font-bold text-muted">{course.matchingAvailable ? t(locale, "Ista zona napretka · spremno za poziv", "Same progress zone · ready to invite") : t(locale, "Prvo uskladi dostupnost", "Set matching availability first")}</span></span></div>
+            {course.matchingAvailable
+              ? <Button size="sm" loading={studyPendingCourseId === course.courseId} disabled={Boolean(studyPendingCourseId)} icon={<GraduationCap className="size-4" />} onClick={() => void inviteToStudy(course)} className="mt-3 w-full">{t(locale, "Pošalji poziv", "Send invite")}</Button>
+              : <Button size="sm" variant="secondary" onClick={() => router.push(`${withLocale(locale, "/app/messages")}?view=study&course=${encodeURIComponent(course.slug)}`)} className="mt-3 w-full">{t(locale, "Podesi u Uči zajedno", "Set up in Study together")}</Button>}
+          </article>
+        ))}
+        {commonStudyCourses.status === "CanLoadMore" || commonStudyCourses.status === "LoadingMore" ? <Button size="sm" variant="secondary" loading={commonStudyCourses.status === "LoadingMore"} onClick={() => commonStudyCourses.loadMore(12)} className="w-full">{commonStudyCourses.status === "LoadingMore" ? t(locale, "Učitavanje…", "Loading…") : t(locale, "Učitaj još", "Load more")}</Button> : null}
+        {!commonStudyCourses.results.length && commonStudyCourses.status === "Exhausted" ? <EmptyState icon={BookOpen} title={t(locale, "Nemate zajednički aktivan kurs.", "You do not share an active course.")} body={t(locale, "Kad oboje krenete isti kurs, ovde se pojavi dugme za poziv na zajedničko učenje.", "Once you both start the same course, an invite button appears here.")} /> : null}
+      </Dialog>
+      <Dialog
+        open={reportOpen}
+        onClose={() => setReportOpen(false)}
+        size="sm"
+        eyebrow={t(locale, "Prijava", "Report")}
+        title={identity.name}
+        closeLabel={t(locale, "Zatvori", "Close")}
+      >
+        {reportSent ? <p role="status" className="rounded-[16px] border-2 border-line bg-paper p-4 text-sm font-black">{t(locale, "Prijava je poslata timu za sigurnost.", "The report was sent to the safety team.")}</p> : (
+          <>
+            <Field label={t(locale, "Razlog", "Reason")}>
+              {(field) => <Textarea {...field} value={reportReason} onChange={(event) => setReportReason(event.target.value)} rows={4} maxLength={1_000} />}
+            </Field>
+            <Button
+              className="mt-3"
+              loading={reportPending}
+              disabled={reportReason.trim().length < 3}
+              onClick={async () => { setReportPending(true); try { await reportContent({ targetType: "profile", targetUserId: identity.userId, reason: reportReason }); setReportSent(true); setReportReason(""); } finally { setReportPending(false); } }}
+            >
+              {t(locale, "Pošalji prijavu", "Send report")}
+            </Button>
+          </>
+        )}
+      </Dialog>
     </div>
   );
 }

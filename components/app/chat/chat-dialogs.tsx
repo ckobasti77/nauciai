@@ -3,7 +3,7 @@
 import { ArrowLeft, Check, Flag, Loader2, MessageCircle, Search, UserPlus, Users, X } from "lucide-react";
 import { useMutation, usePaginatedQuery } from "convex/react";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 
 import {
   Avatar,
@@ -12,69 +12,12 @@ import {
   creationError,
   label,
 } from "@/components/app/chat/chat-shared";
+import { useModalFocus } from "@/components/ui/dialog";
 import { cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { Locale } from "@/lib/i18n";
 import { withLocale } from "@/lib/i18n";
-
-export function useModalDialog(onClose: () => void) {
-  const dialogRef = useRef<HTMLDivElement>(null);
-  const closeRef = useRef(onClose);
-
-  useEffect(() => {
-    closeRef.current = onClose;
-  }, [onClose]);
-
-  useEffect(() => {
-    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    const frame = window.requestAnimationFrame(() => {
-      const preferred = dialogRef.current?.querySelector<HTMLElement>(
-        '[autofocus], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
-      );
-      (preferred ?? dialogRef.current)?.focus();
-    });
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        closeRef.current();
-        return;
-      }
-      if (event.key !== "Tab" || !dialogRef.current) return;
-      const controls = Array.from(dialogRef.current.querySelectorAll<HTMLElement>(
-        'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
-      )).filter((element) => element.offsetParent !== null);
-      if (!controls.length) {
-        event.preventDefault();
-        dialogRef.current.focus();
-        return;
-      }
-      const first = controls[0];
-      const last = controls[controls.length - 1];
-      if (event.shiftKey && (document.activeElement === first || !dialogRef.current.contains(document.activeElement))) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      window.cancelAnimationFrame(frame);
-      document.removeEventListener("keydown", onKeyDown);
-      document.body.style.overflow = previousOverflow;
-      if (previouslyFocused?.isConnected) previouslyFocused.focus();
-    };
-  }, []);
-
-  return dialogRef;
-}
 
 export function NewConversationDialog({ locale, onClose }: { locale: Locale; onClose: () => void }) {
   const router = useRouter();
@@ -90,7 +33,7 @@ export function NewConversationDialog({ locale, onClose }: { locale: Locale; onC
   const members = usePaginatedQuery(api.community.listMembersPage, memberArgs, { initialNumItems: 30 });
   const createDirect = useMutation(api.chat.createOrGetDirect);
   const createGroup = useMutation(api.chat.createGroup);
-  const dialogRef = useModalDialog(onClose);
+  const dialogRef = useModalFocus(true, onClose);
   const availableMembers = members.results.filter(
     (member): member is CommunityMember & { userId: Id<"users"> } => Boolean(member.userId && member.role !== "admin" && member.canFollow),
   );
@@ -176,7 +119,7 @@ export function ReportDialog({ locale, target, onClose }: { locale: Locale; targ
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string>();
   const reportContent = useMutation(api.chatModeration.reportContent);
-  const dialogRef = useModalDialog(onClose);
+  const dialogRef = useModalFocus(true, onClose);
   const reasons = [
     { value: "spam", sr: "Spam ili neželjen sadržaj", en: "Spam or unwanted content" },
     { value: "harassment", sr: "Uznemiravanje ili vređanje", en: "Harassment or abuse" },

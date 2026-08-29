@@ -12,3 +12,10 @@
 [00:21:42]  U1  |  Audit: verifikacija problema + UX-BOOST-PLAN.md
 [00:21:42]  model=opus  effort=high
 [00:21:42] --------------------------------------------------
+[00:37:37] Commit 1164166 - 4 izmenjenih putanja
+[00:37:37] U1 -> BLOKADA  (16 min, USD 6.39)
+[00:37:37] 
+[00:37:37] --------------------------------------------------
+[00:37:37]  U2  |  UI primitivi: Button, Spinner, Dialog, Input, Badge, EmptyState
+[00:37:37]  model=opus  effort=max
+[00:37:37] --------------------------------------------------

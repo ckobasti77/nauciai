@@ -5,7 +5,6 @@ import { ImagePlus, Loader2, Search, UploadCloud, UserPlus, X } from "lucide-rea
 import { useAction, useMutation, usePaginatedQuery } from "convex/react";
 import { type FormEvent, useCallback, useEffect, useState } from "react";
 
-import { useModalDialog } from "@/components/app/chat/chat-dialogs";
 import {
   Avatar,
   type CommunityMember,
@@ -13,6 +12,7 @@ import {
   type ConversationMember,
   label,
 } from "@/components/app/chat/chat-shared";
+import { useModalFocus } from "@/components/ui/dialog";
 import { cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -60,7 +60,8 @@ export function ConversationDetailsDialog({
   const removeGroupMember = useMutation(api.chat.removeGroupMember);
   const transferGroupOwnership = useMutation(api.chat.transferGroupOwnership);
   const leaveGroup = useMutation(api.chat.leaveGroup);
-  const dialogRef = useModalDialog(onClose);
+  // Panel se montira samo dok je otvoren, pa je `open` ovde konstantno `true`.
+  const dialogRef = useModalFocus(true, onClose);
   const memberIds = new Set(
     [...members.results, ...invites.results].map((member) => String(member.userId)),
   );
