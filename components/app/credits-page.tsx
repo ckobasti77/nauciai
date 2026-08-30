@@ -2,9 +2,9 @@
 
 import { useConvexAuth } from "@convex-dev/auth/react";
 import { usePaginatedQuery, useQuery } from "convex/react";
-import { ArrowUp, Coins, CreditCard, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowUp, Coins, CreditCard, Sparkles } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import { Panel, SectionHeader, cn } from "@/components/ui/primitives";
 import { Spinner } from "@/components/ui/spinner";
@@ -22,7 +22,8 @@ import {
   type CreditTransactionType,
 } from "@/lib/credits-value";
 import { withLocale, type Locale } from "@/lib/i18n";
-import { CREDITS_NO_BALANCE, CREDITS_NO_HISTORY, CREDITS_NO_PACKS } from "@/lib/studio-messages";
+import { ResendVerificationLink } from "@/components/studio/verify-email-panel";
+import { CREDITS_NO_BALANCE, CREDITS_NO_HISTORY, CREDITS_NO_PACKS, STUDIO_SHELL } from "@/lib/studio-messages";
 
 const PACKS_ANCHOR = "paketi";
 
@@ -46,6 +47,7 @@ function CheckoutAction({
   label,
   tone = "ink",
   unavailableLabel,
+  emailVerificationAction,
 }: {
   locale: Locale;
   endpoint: string;
@@ -53,6 +55,8 @@ function CheckoutAction({
   label: string;
   tone?: "ink" | "yellow";
   unavailableLabel?: string;
+  /** Studio varijanta (F4): inline resend umesto linka na školski profil. */
+  emailVerificationAction?: ReactNode;
 }) {
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -105,9 +109,13 @@ function CheckoutAction({
         <div className="text-sm font-bold text-red-700">
           <p>{error}</p>
           {errorCode === "EMAIL_VERIFICATION_REQUIRED" ? (
-            <Link href={withLocale(locale, "/app/profile")} className="mt-1 inline-flex text-ink underline">
-              {locale === "sr" ? "Otvori podešavanja naloga" : "Open account settings"}
-            </Link>
+            <div className="mt-1">
+              {emailVerificationAction ?? (
+                <Link href={withLocale(locale, "/app/profile")} className="inline-flex text-ink underline">
+                  {locale === "sr" ? "Otvori podešavanja naloga" : "Open account settings"}
+                </Link>
+              )}
+            </div>
           ) : null}
         </div>
       ) : null}
@@ -115,7 +123,20 @@ function CheckoutAction({
   );
 }
 
-export function CreditsPage({ locale }: { locale: Locale }) {
+export function CreditsPage({
+  locale,
+  variant = "app",
+}: {
+  locale: Locale;
+  /**
+   * "studio" (studio-public F4): stranica živi u samostalnom shell-u - nazad
+   * vodi u /studio/app, checkout se vraća na /studio/krediti (returnContext
+   * kroz server-side allowlistu), prijava nosi ?next=, a Premium plan
+   * (kursna pretplata) se ne nudi - cross-sell je jedan tih red u shell-u (F5).
+   */
+  variant?: "app" | "studio";
+}) {
+  const isStudio = variant === "studio";
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
   // Prozor isteka je 30 dana, pa je "sad" zamrznut na prvom renderu dovoljan -
   // i drži render čistim, jer `Date.now()` u telu komponente nije dozvoljen.
@@ -131,7 +152,17 @@ export function CreditsPage({ locale }: { locale: Locale }) {
   );
 
   const header = (
-    <SectionHeader
+    <div className="space-y-3">
+      {isStudio ? (
+        <Link
+          href={withLocale(locale, "/studio/app")}
+          className="inline-flex items-center gap-1.5 rounded-full text-sm font-extrabold text-muted hover:text-ink hover:underline focus-visible:outline-2 outline-offset-2 outline-ink"
+        >
+          <ArrowLeft className="size-4" />
+          {STUDIO_SHELL.backToStudio[locale]}
+        </Link>
+      ) : null}
+      <SectionHeader
       variant="app"
       underline
       title={locale === "sr" ? "Krediti" : "Credits"}
@@ -140,7 +171,8 @@ export function CreditsPage({ locale }: { locale: Locale }) {
           ? "Kredit je bod kojim se plaća svaka slika, video ili zvuk koji napraviš u Studiju. Kupuju se jednom, važe 12 meseci i ne propadaju na kraju meseca."
           : "A credit is a point that pays for every image, video or sound you make in the Studio. Bought once, valid for 12 months, and they never expire at the end of a month."
       }
-    />
+      />
+    </div>
   );
 
   if (authLoading) {
@@ -165,7 +197,11 @@ export function CreditsPage({ locale }: { locale: Locale }) {
               : "Sign in to see how many credits you have and to buy more."}
           </p>
           <Link
-            href={withLocale(locale, "/sign-in")}
+            href={
+              isStudio
+                ? `${withLocale(locale, "/sign-in")}?next=${encodeURIComponent(withLocale(locale, "/studio/krediti"))}`
+                : withLocale(locale, "/sign-in")
+            }
             className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-ink px-5 py-2.5 text-sm font-extrabold text-paper-strong shadow-[4px_4px_0_0_var(--yellow)] transition hover:-translate-y-0.5"
           >
             {locale === "sr" ? "Prijavi se" : "Sign in"}
@@ -280,7 +316,11 @@ export function CreditsPage({ locale }: { locale: Locale }) {
                     <CheckoutAction
                       locale={locale}
                       endpoint="/api/stripe/credits"
-                      payload={{ packSlug: pack.slug }}
+                      payload={{
+                        packSlug: pack.slug,
+                        ...(isStudio ? { returnContext: "studio" } : {}),
+                      }}
+                      emailVerificationAction={isStudio ? <ResendVerificationLink locale={locale} /> : undefined}
                       tone="yellow"
                       label={`${locale === "sr" ? "Kupi" : "Buy"} - ${formatEur(pack.priceEurCents, locale)}`}
                       unavailableLabel={
@@ -295,8 +335,9 @@ export function CreditsPage({ locale }: { locale: Locale }) {
         )}
       </Panel>
 
-      {/* Premium plan: pretplata, odvojena od paketa i vizuelno istaknuta. */}
-      {premium ? (
+      {/* Premium plan: pretplata, odvojena od paketa i vizuelno istaknuta.
+          U studio varijanti se NE nudi - kursna pretplata je školska priča (F5). */}
+      {premium && !isStudio ? (
         <Panel className="border-4 bg-yellow/25 p-6">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div>
