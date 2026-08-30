@@ -463,6 +463,18 @@ export const PRIVACY_POLICY_PATH = "/politika-privatnosti";
  * radnja, i dugme ne radi dok izjave nema.
  */
 /**
+ * Stringovi tankog standalone shell-a (studio-public F3): logo vodi na
+ * landing, prijava nosi ?next= nazad u Studio, cross-sell je JEDAN tih red
+ * (brif F5 - ne pretrpavati).
+ */
+export const STUDIO_SHELL = {
+  signIn: { sr: "Prijavi se", en: "Sign in" },
+  backToStudio: { sr: "Nazad u Studio", en: "Back to the Studio" },
+  crossSell: { sr: "Nauči kako ovo da radiš → kursevi", en: "Learn how to make this → courses" },
+  localeSwitch: { sr: "Switch to English", en: "Prebaci na srpski" },
+} satisfies Record<string, Record<Locale, string>>;
+
+/**
  * Panel "potvrdi email" u Studiju (studio-public F3): prikazuje se kad je
  * javni fleg upaljen a `getStudioState.accessReason === "EMAIL_NIJE_POTVRDJEN"`
  * - umesto generičke poruke o zatvorenom testiranju, korisnik dobija resend
