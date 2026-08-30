@@ -5,6 +5,7 @@ import { ArrowBigDown, ArrowBigUp, Bookmark, ChevronDown, MessageCircle, Message
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/components/ui/primitives";
 import { CommentsSection } from "@/components/app/community-comments";
 import { api } from "@/convex/_generated/api";
@@ -285,7 +286,7 @@ function DiscussionsView({
         highlighted={highlighted}
         leadingAction={
           <>
-            <div className="flex items-center gap-0.5 text-ink">
+            <div className="flex items-center gap-0.5 rounded-full border border-line bg-paper text-ink">
               <button
                 type="button"
                 disabled={!canInteract || !onReactPost}
@@ -299,7 +300,7 @@ function DiscussionsView({
               >
                 <ArrowBigUp className={cn("size-[18px] fill-transparent", post.userVote === "upvote" && "fill-emerald-500 text-emerald-600")} />
               </button>
-              <span className={cn("min-w-8 text-center text-xs font-black", (post.voteScore ?? 0) < 0 && "text-red-700")}>
+              <span className={cn("min-w-8 text-center type-caption font-black", (post.voteScore ?? 0) < 0 && "text-red-700")}>
                 {post.voteScore ?? 0}
                 <span className="sr-only"> {locale === "sr" ? "neto glasova" : "net votes"}</span>
               </span>
@@ -332,8 +333,8 @@ function DiscussionsView({
               aria-expanded={expandedPostId === post._id}
               aria-label={`${expandedPostId === post._id ? (locale === "sr" ? "Sakrij komentare teme" : "Hide comments on this topic") : locale === "sr" ? "Prikaži komentare teme" : "Show comments on this topic"} (${post.commentsCount ?? 0})`}
               className={cn(
-                "inline-flex min-h-11 items-center gap-1 rounded-full px-2.5 text-xs font-black text-muted transition hover:bg-ink/5 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink sm:min-h-8",
-                expandedPostId === post._id && "bg-ink/5 text-ink",
+                "inline-flex min-h-11 items-center gap-1 rounded-full border border-line bg-paper px-3 type-caption font-black text-muted transition hover:bg-ink/5 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink sm:min-h-8",
+                expandedPostId === post._id && "border-ink bg-ink/5 text-ink",
               )}
             >
               <MessageCircle className="size-[18px]" aria-hidden="true" />
@@ -342,7 +343,7 @@ function DiscussionsView({
           </>
         }
         action={
-          <div className="flex items-center gap-0.5">
+          <div className="flex items-center gap-1">
             <ShareThreadButton locale={locale} post={post} />
             <button
               type="button"
@@ -385,7 +386,7 @@ function DiscussionsView({
     <div className="space-y-6">
 
       <CommunityStickyToolbar>
-      <section className="rounded-[16px] border border-line bg-paper-strong p-3 sm:p-4" aria-label={locale === "sr" ? "Filteri diskusija" : "Discussion filters"}>
+      <section className="surface-card border border-line bg-paper-strong p-4" aria-label={locale === "sr" ? "Filteri diskusija" : "Discussion filters"}>
         <div className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <CommunityScopeControls
@@ -423,13 +424,13 @@ function DiscussionsView({
             {canInteract ? (
               <Link
                 href={withLocale(locale, "/app/community/new")}
-                className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-sm font-black text-ink shadow-[2px_2px_0_var(--shadow-hard-16)] transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink w-full sm:w-auto"
+                className="inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-sm font-black text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:w-auto"
               >
                 <PenLine className="size-4" aria-hidden="true" />
                 {locale === "sr" ? "Nova diskusija" : "New discussion"}
               </Link>
             ) : (
-              <span className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-full border border-line bg-paper px-4 text-sm font-black text-muted w-full sm:w-auto">
+              <span className="inline-flex min-h-11 w-full shrink-0 items-center justify-center rounded-full border border-line bg-paper px-4 text-sm font-black text-muted sm:w-auto">
                 {locale === "sr" ? "Podesi username" : "Set username"}
               </span>
             )}
@@ -458,9 +459,9 @@ function DiscussionsView({
                 <h2 className="type-eyebrow text-ink/70">
                   {locale === "sr" ? "Zakačene teme" : "Pinned topics"}
                 </h2>
-                <span className="rounded-full bg-yellow/20 px-2 py-1 type-eyebrow-sm text-ink/65">
+                <Badge tone="muted" size="sm">
                   {locale === "sr" ? "Admin izbor" : "Admin picks"}
-                </span>
+                </Badge>
               </div>
               <div className="space-y-4">{pinnedPosts.map((post) => renderThread(post, true))}</div>
             </section>
@@ -473,7 +474,7 @@ function DiscussionsView({
                   {locale === "sr" ? "Razgovori" : "Conversations"}
                 </h2>
               </div>
-              <span className="font-mono text-xs font-black text-muted">
+              <span className="type-caption font-black text-muted">
                 {feedPosts.length} {locale === "sr" ? "učitano" : "loaded"}
               </span>
             </div>

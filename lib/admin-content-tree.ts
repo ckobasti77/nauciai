@@ -53,3 +53,34 @@ export function contentStatus(row: { status?: ContentStatus; isPublished?: boole
 export function draftCount(rows: ReadonlyArray<{ status?: ContentStatus; isPublished?: boolean }>): number {
   return rows.filter((row) => contentStatus(row) === "draft").length;
 }
+
+/**
+ * Boja znacke statusa u admin Sadrzaju (U12).
+ *
+ * Zuta je u celom proizvodu boja "ovo je zivo, ovo radi" - primarno dugme,
+ * aktivna zona komandne table, celo trake napretka. Objavljen sadrzaj je jedino
+ * stanje koje student stvarno vidi, pa nosi bas nju.
+ *
+ * Nacrt je NAMERNO tih: red u listi ga vec nosi kroz `ink-hatch` (skolska
+ * srafura = "jos je olovka na ovome"), pa bi glasna znacka pored srafure bila
+ * drugi signal za istu stvar. Arhiva je obicna pilula sa okvirom - ni ziva ni
+ * u radu.
+ *
+ * Vrednosti su `BadgeTone` iz `components/ui/badge.tsx`; tip je ovde ponovljen
+ * kao unija da `lib/` ne bi zavisio od `components/`, a TypeScript na mestu
+ * poziva proverava da se dve liste nisu razisle.
+ */
+export type ContentStatusTone = "muted" | "yellow" | "neutral";
+
+const STATUS_TONES: Record<ContentStatus, ContentStatusTone> = {
+  draft: "muted",
+  published: "yellow",
+  archived: "neutral",
+};
+
+export function contentStatusTone(status: ContentStatus): ContentStatusTone {
+  return STATUS_TONES[status];
+}
+
+/** Svi statusi u redosledu zivotnog ciklusa - ulaz za test pokrivenosti. */
+export const contentStatuses = Object.keys(STATUS_TONES) as ContentStatus[];

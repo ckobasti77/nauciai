@@ -242,7 +242,7 @@ export function MemberProfile({ locale, username }: { locale: Locale; username: 
   }
 
   const profileCard = (
-    <aside className="rounded-[16px] border-2 border-ink bg-paper-strong p-6 shadow-[6px_6px_0_0_rgba(244,190,48,0.75)] xl:sticky xl:top-8">
+    <aside className="rounded-[16px] border-2 border-ink bg-paper-strong p-6 shadow-[6px_6px_0_0_var(--yellow)] xl:sticky xl:top-8">
       <div className="mx-auto w-fit">
         <div className="relative rounded-full border-[3px] border-ink p-1.5 ring-[7px] ring-yellow/70">
           <img src={identity.avatarUrl || "/images/avatars/mythic-mentor.png"} alt={identity.name} className="size-28 rounded-full object-cover sm:size-32" />

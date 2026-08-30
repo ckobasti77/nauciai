@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   contentStatus,
+  contentStatusTone,
+  contentStatuses,
   draftCount,
   listLevelAfterChange,
   listLevelForSelection,
@@ -102,5 +104,36 @@ describe("draftCount", () => {
 
   it("is zero for an empty list", () => {
     expect(draftCount([])).toBe(0);
+  });
+});
+
+describe("contentStatusTone", () => {
+  it("objavljeno je zuto - ista boja koju ceo proizvod koristi za 'ovo radi'", () => {
+    expect(contentStatusTone("published")).toBe("yellow");
+  });
+
+  it("nacrt je tih, jer red vec nosi ink-hatch srafuru za isto znacenje", () => {
+    expect(contentStatusTone("draft")).toBe("muted");
+  });
+
+  it("arhiva se razlikuje od nacrta - dva mrtva stanja ne smeju izgledati isto", () => {
+    expect(contentStatusTone("archived")).not.toBe(contentStatusTone("draft"));
+  });
+
+  it("zuto je rezervisano tacno za objavljeno", () => {
+    const yellow = contentStatuses.filter((status) => contentStatusTone(status) === "yellow");
+    expect(yellow).toEqual(["published"]);
+  });
+
+  it("svaki status ima ton i svi tonovi su iz sankcionisane liste", () => {
+    expect(contentStatuses).toHaveLength(3);
+    for (const status of contentStatuses) {
+      expect(["muted", "yellow", "neutral"]).toContain(contentStatusTone(status));
+    }
+  });
+
+  it("ton se izvodi iz statusa koji `contentStatus` vraca, i za lekcije bez `status` polja", () => {
+    expect(contentStatusTone(contentStatus({ isPublished: true }))).toBe("yellow");
+    expect(contentStatusTone(contentStatus({ isPublished: false }))).toBe("muted");
   });
 });

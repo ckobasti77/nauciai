@@ -209,7 +209,7 @@ function AttachFilePopup({
               disabled={disabled || !opt.enabled}
               onClick={() => onSelectType(opt.type)}
               className={cn(
-                "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-black text-left transition",
+                "flex w-full items-center gap-3 surface-inset px-3 py-2 text-xs font-black text-left transition",
                 opt.enabled
                   ? "text-ink hover:bg-yellow/25 hover:translate-x-0.5 active:translate-x-0 cursor-pointer"
                   : "text-muted/40 cursor-not-allowed opacity-40",
@@ -1137,7 +1137,7 @@ export function StudioComposer({
           >
             {/* Header: IZABERI MODEL + X */}
             <div className="flex items-center justify-between rounded-t-[inherit] border-b-2 border-ink bg-paper px-4 py-3 sm:px-5">
-              <span className="text-xs font-black uppercase tracking-wider text-ink">
+              <span className="type-eyebrow text-ink">
                 {locale === "sr" ? "Izaberi model" : "Choose a model"}
               </span>
               <button
@@ -1151,7 +1151,7 @@ export function StudioComposer({
             </div>
 
             {/* Body */}
-            <div className="flex min-h-0 flex-1 flex-col p-4 sm:p-5">
+            <div className="flex min-h-0 flex-1 flex-col p-4 sm:p-6">
               <ModelPickerPanel
                 className="flex-1"
                 models={models}
@@ -1181,13 +1181,13 @@ export function StudioComposer({
         }}
         transition={collapseTransition}
         className={cn(
-          "surface-card relative z-30 w-full border-2 border-ink bg-paper-strong p-3 shadow-[6px_6px_0_0_var(--shadow-hard-16)] sm:p-4",
+          "surface-card relative z-30 w-full border-2 border-ink bg-paper-strong p-4 shadow-[6px_6px_0_0_var(--shadow-hard-16)]",
           isCollapsed && "pointer-events-none",
         )}
       >
         {/* Priloženi fajlovi na glavnom inputu (Slika 3) */}
         {attachedInputs.length > 0 ? (
-          <div className="mb-2.5 flex flex-wrap items-center gap-2">
+          <div className="mb-3 flex flex-wrap items-center gap-2">
             {attachedInputs.map((att) => (
               <div
                 key={att.key}
@@ -1195,7 +1195,7 @@ export function StudioComposer({
               >
                 <Preview file={att.file} />
                 {att.label ? (
-                  <span className="absolute inset-x-0 bottom-0 truncate bg-ink/75 px-1 py-0.5 text-[8px] font-black uppercase tracking-wide text-paper-strong">
+                  <span className="absolute inset-x-0 bottom-0 truncate bg-ink/75 px-1 py-0.5 type-eyebrow-sm text-paper-strong">
                     {att.label}
                   </span>
                 ) : null}
@@ -1435,7 +1435,7 @@ export function StudioComposer({
               />
               <span className="inline-flex items-center gap-1 font-mono text-sm font-black tabular-nums">
                 {isEstimated ? (
-                  <span className="text-[10px] font-extrabold uppercase tracking-tight opacity-75">
+                  <span className="type-eyebrow-sm opacity-75">
                     {locale === "sr" ? "proc." : "est."}
                   </span>
                 ) : null}

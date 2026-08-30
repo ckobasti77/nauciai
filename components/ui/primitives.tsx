@@ -179,7 +179,7 @@ export function BrandMark({ href = "/sr" }: { href?: string; label?: string }) {
     <Link
       href={href}
       aria-label="Nauči AI"
-      className="inline-flex min-w-0 items-center focus-visible:outline focus-visible:outline-2"
+      className="inline-flex min-w-0 items-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
     >
       <Image
         src="/images/logos/logo.png"

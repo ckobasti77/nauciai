@@ -1648,3 +1648,225 @@ prostor** zatvoren je na četiri mesta gde je ekran ostajao pola prazan sa jedni
    `/app/credits`, `/app/profile`, `/app/billing` i dalje nemaju `h1`; (c) naslov lekcije u playeru je
    `<p>`, a ne `<h1>` — semantička promena je van „nula promena ponašanja"; (d) 21 fajl sa dva ili više
    punih žutih dugmadi (U10 tačka 5) i dalje čeka proizvodnu odluku koje je od njih primarno.
+
+
+## U12 - Doslednost preko svih app ekrana: Zajednica, Admin, Studio, Poruke   (2026-08-30 05:30)
+
+**Fajlovi:**
+
+*Dodato:*
+- `lib/surface-accents.test.ts` (4 testa; regresioni čuvar rečnika tvrdih senki i
+  školskih podloga — nema modul, isti obrazac kao „letter-spacing" test iz U10)
+
+*Izmenjeno (nosivo):*
+- `app/globals.css` — nova `.ink-dots` klasa (žuti parnjak `sketch-grid`-a, za hero na mastilu)
+- `lib/admin-content-tree.ts` + `lib/admin-content-tree.test.ts` — `contentStatusTone`,
+  `contentStatuses` (+6 testova)
+- `components/app/community-v2/community-shell.tsx` — hero Zajednice prepisan po
+  obrascu pozdravnog heroja komandne table
+- `components/app/community-v2/community-shared.tsx` — `ThreadCard` (ritam, meta red,
+  grupe akcija, tokeni umesto heksova), `LearningSpine`, `ScopeTrail`, kostur
+- `components/app/community-v2/community-discussions.tsx` — glasanje kao JEDNA kontrola,
+  komentari odvojeno, traka filtera i zaglavlja sekcija
+- `components/app/admin-content-manager.tsx` — boje statusa, `StatCard` kao prozor
+  komandne table, ritam tri liste, `HandUnderline` u zaglavlju
+- `components/app/studio-page.tsx` — U10 skala + `Button`/`LinkButton` primitivi (`PILL` obrisan)
+- `components/app/studio-media-grid.tsx` — tri prazna stanja kroz `EmptyState` primitiv
+- `components/studio/studio-composer.tsx`, `components/studio/model-picker.tsx` — skala, radiusi
+- `components/app/intro-panel.tsx` — školska podloga + ritam koraka
+- `components/app/chat/chat-inbox.tsx`, `chat-thread.tsx`, `chat-composer.tsx`,
+  `messages-hub.tsx`, `study-hub.tsx` — razmaci, baloni, composer, prazna stanja, dugmad
+- `components/ui/primitives.tsx` — `BrandMark` dobio boju i odmak fokus prstena
+
+*Izmenjeno (samo sweep senki / tokena):* `admin-inline-actions.tsx`, `community-comments.tsx`,
+`community-filters.tsx`, `community-leaderboard.tsx`, `community-mentions.tsx`,
+`community-my-threads.tsx`, `help-settings.tsx`, `member-profile.tsx`,
+`app/[locale]/app/studio/page.tsx`, `app/[locale]/app/studio/m/[jobId]/page.tsx`.
+
+**Šta je urađeno:**
+Korak nije uvodio nov izgled nego je zatvarao razlike između zona koje su U10 i U11 već
+uredile i onih koje nisu. **(1) Zajednica:** hero je prestao da bude sopstveni recept i dobio je
+tačno isti sklop kao pozdravni hero komandne table — školska podloga, vodeni žig od uvećane
+lucide ikone, `etiketa → mt-2 naslov → mt-1 potez → mt-3 pasus`, `p-4 sm:p-6`. Kartica teme
+ima jedan padding (`p-4` umesto `p-3 sm:p-4`), meta red na jednoj lestvici (14/12/12 kroz uloge
+umesto tri različita `text-*` recepta) i **dve jasno razdvojene grupe akcija**: glasanje je sada
+JEDNA kontrola u zajedničkoj piluli (gore / rezultat / dole), komentari stoje pored nje kao
+zasebno dugme sa okvirom, a „podeli / sačuvaj" su druga grupa na jedan korak većem razmaku.
+**(2) Admin:** boja značke statusa je preokrenuta po zahtevu koraka (objavljeno = žuto, nacrt =
+tiho uz `ink-hatch` na redu, arhiva = obična pilula), pravilo je izmešteno u `lib/` sa testom,
+pregled stanja na vrhu je prepisan u isti sklop kao prozor komandne table (školska mreža,
+pločica sa ikonom iz `lib/dashboard-zones.ts`, etiketa pa brojka), a tri liste su na U10 ritmu.
+**(3) Studio:** `studio-page` je prešao sa 8 ručnih tipografskih recepata na skalu, `PILL`
+konstanta je obrisana jer su svih pet dugmadi sada `Button`/`LinkButton` primitiv, a tri ručno
+složena prazna stanja mreže su zamenjena `EmptyState` primitivom — filter bez pogodaka je time
+dobio naslov koji je do sada gutao. Uvodni panel je dobio istu školsku podlogu kao hero.
+**(4) Sweep:** 16 golih `rgba(244,190,48,α)` senki u **devet različitih alfi** (0.32 … 0.9) svedeno je na
+`var(--yellow)`, čime je senka postala čitljivo pravilo („žuta = istaknuto, mastilo = obična
+površina"), a novi test ne da da se gol zapis vrati. **(5) Poruke:** zaglavlje i telo inboxa
+dele isti `p-4` (bili su 24 naspram 12, pa redovi nisu bili u ravni sa naslovom), balon je dobio
+16/12 vazduha umesto 14/10, composer i traka poruka su na istom paddingu, a prazan inbox koristi
+primitiv umesto ručnog bloka.
+
+**Spisak mesta koja su poravnata (zahtev §4):**
+
+| šta | gde | pre | posle |
+| --- | --- | --- | --- |
+| Zaglavlje zone | `community-shell` hero | `p-4`, `type-hero` + `truncate` | `p-4 sm:p-6`, `type-h1`, potez, vodeni žig |
+| Zaglavlje zone | `messages-hub`, `study-hub` | bez `HandUnderline` | žuti potez kao svaka druga zona |
+| Zaglavlje zone | `AdminPageFrame` | bez `HandUnderline` | žuti potez |
+| `SectionHeader` | `/app/studio`, `/app/studio/m/[jobId]` | bez `underline` | `underline` (svih 7 app zaglavlja isto) |
+| Dugme | `studio-page` × 5 (`PILL`) | ručni recept | `Button` / `LinkButton` |
+| Dugme | `studio-media-grid` × 3 | ručni recept | `Button` |
+| Dugme | `chat-inbox` × 6 | ručni recept | `Button` |
+| Dugme | `messages-hub` × 2 | ručni recept | `Button` / `LinkButton` |
+| Dugme | `community-discussions` „Nova diskusija" | `min-h-10`, `shadow-hard-16` | `min-h-11`, `shadow-hard` |
+| Senka | 16 mesta u 10 fajlova | `rgba(244,190,48,0.32…0.9)` | `var(--yellow)` |
+| Senka | `study-hub:431` | `rgba(112,167,207,0.45)` | `var(--shadow-hard-15)` |
+| Senka | `community-comments` korisan komentar | mek `0 8px 24px` sjaj | tvrda `4px_4px_0_0_var(--yellow)` |
+| Fokus | `BrandMark` | `outline-2` bez boje i odmaka | pun recept (`outline-2/offset-2/ink`) |
+| Podloga | `intro-panel` | ravna bela | `sketch-grid` kao hero |
+| Ritam | `ThreadCard` | `p-3 sm:p-4`, `gap-2.5`, `mt-1.5`, `mt-0.5` | `p-4`, `gap-3`, `mt-2`, `mt-1` |
+| Ritam | `NavSection` (admin) | `mt-2.5`, `py-2.5`, `mt-0.5` | `mt-3`, `py-3`, `mt-1` |
+| Ritam | chat inbox / thread / composer | `p-4 sm:p-6` vs `p-3 sm:p-4` vs `p-3` | svuda `p-4` |
+| Ritam | balon poruke | `px-3.5 py-2.5`, `mt-1.5` | `px-4 py-3`, `mt-2` |
+| Ritam | `studio-composer` traka | `p-3 sm:p-4`, `mb-2.5` | `p-4`, `mb-3` |
+| Skala | `studio-page` × 8 | `text-2xl/xl/base/sm/xs` | `type-h1/h2/h3/body/body-sm/caption` |
+| Skala | `studio-composer` × 4 | `text-[8px]/[10px]/xs` + `tracking-*` | `type-eyebrow` / `type-eyebrow-sm` |
+| Skala | `ThreadCard` meta red | `text-sm` + `text-xs` × 2 | `type-body-sm` + `type-caption` × 2 |
+| Skala | `chat-inbox` red | `text-sm`, `text-xs` | `type-body-sm`, `type-caption` |
+| Radius | `rounded-lg` × 2 (studio popover) | Tailwind alias | `surface-inset` |
+| Radius | 12 `rounded-[Npx]` u fajlovima koje korak ionako menja | bracket zapis | `surface-card/inset/media` |
+| Boja | `#eef3f7`, `#dcecf1`, `#164d7d`, `#d7a91b`, `#fffaf0`, `#d7e9f5` (11 mesta) | gol heks | `bg-ink/5`, `bg-blue-mid/25`, `text-blue-mid`, `bg-yellow/10` |
+| Prazno stanje | `studio-media-grid` × 3, `chat-inbox` × 1 | ručni blok | `EmptyState` primitiv |
+
+**ODLUKE:**
+
+1. **Boja značke statusa je preokrenuta u odnosu na U6 — korak to izričito traži.** U6 je nacrt
+   namerno obojio najglasnijim tonom (`ink`) uz obrazloženje „to je jedino stanje koje studenti NE
+   vide". U12 §2 traži suprotno: „draft = ink-hatch/muted, published = žuta". Zahtev je noviji i
+   pobeđuje, a i koherentniji je sa ostatkom proizvoda: žuta je svuda „ovo je živo, ovo radi"
+   (primarno dugme, aktivna zona, čelo trake napretka), pa je objavljen sadržaj — jedino stanje
+   koje student stvarno vidi — dobio baš nju. Nacrt ništa nije izgubio: red ga i dalje nosi kroz
+   `ink-hatch` šrafuru, što je isti signal, samo tiši. **Pravilo je izmešteno u
+   `lib/admin-content-tree.ts` sa testom**, da sledeći korak ne bi tiho vratio staro.
+2. **Arhiva je `neutral`, a ne `muted`.** Korak imenuje samo nacrt i objavljeno. Da su i nacrt i
+   arhiva ostali `muted`, dva mrtva stanja izgledala bi identično, a admin ih razlikuje (arhivirano
+   se ne može objaviti klikom, nacrt može). Test to i čuva.
+3. **Žuta značka „Objavljeno" na izabranom (žutom) redu ostaje žuta.** Izabran red u navigatoru je
+   `bg-yellow`, pa je značka na njemu ista boja kao podloga — čita se kroz `border-2 border-ink`, ali
+   je ravna. Alternativa je bila da se promeni afordansa izbora, a to je promena ponašanja izbora
+   koju korak ne traži. Prijavljeno dole za pogled u pregledaču.
+4. **`StatCard` „Nacrt" značka više nije uslovna.** Bila je `tally.draft > 0 ? "ink" : "muted"`, tj.
+   ista značka je menjala boju po vrednosti. To je bilo u sukobu sa zahtevom „status Badge boje
+   dosledne" — boja sada znači STATUS, ne količinu. Signal „ima nacrta" nosi sam broj pored reči.
+5. **Žute senke su svedene na `var(--yellow)`, ne na nov `--shadow-yellow` token.** `globals.css`
+   izričito kaže „`--shadow-hard` je JEDINI token za nove površine... Ne dodaj nove", pa nisam
+   proširivao porodicu. `var(--yellow)` je već bio u upotrebi kao boja tvrde senke
+   (`LinkButton tone="ink"`), tema-nezavisan je (žuta se ne menja u tamnoj), i time senka postaje
+   PRAVILO umesto ukrasa: **žuta senka = istaknuta površina, mastilo = obična.** Sve senke rastu
+   punom žutom umesto devet alfi između 0.32 i 0.9 — na zakačenoj temi, nepročitanom obaveštenju,
+   prvom mestu rang liste i korisnom komentaru je to primetno glasnije nego juče (vidi dole).
+6. **`components/ui/primitives.tsx` (`LinkButton tone="smoke"`) je izuzet iz sweep-a senki.** Ta
+   varijanta se renderuje i na marketing stranicama, koje run izričito ne dira. Njena tiha žuta
+   senka (0.25 svetla / 0.2 tamna) ostaje kao dokumentovan izuzetak — i tako je zapisan u testu.
+7. **`ink-dots` je nova klasa u `globals.css`, ne Tailwind arbitrary vrednost.** Hero Zajednice
+   stoji na mastilu, pa `sketch-grid` (mastilo na 6%) tamo doslovno ne postoji — trebala mu je žuta
+   varijanta. Ista vrednost kao pre (22% žute, korak 24px), samo izvedena iz tokena kroz `color-mix`,
+   po uzoru na `sketch-grid`/`ink-hatch`. Provereno u izgrađenom CSS-u: pravilo postoji, sa istim
+   `@supports` fallback-om koji `sketch-grid` već ima.
+8. **Naslov heroja Zajednice je spušten `type-hero` → `type-h1` i izgubio `truncate`.** U10 je ovo
+   sam prijavio kao najrizičnije mesto („dug naslov zone može da se seče ranije"), a korak traži
+   heroje doslednog stila sa dashboard herojem — čiji je naslov `type-h1`. Time je i sečenje rešeno:
+   duga rečenica se sada prelama umesto da nestane iza `truncate`.
+9. **Redovi inboxa su ostali na `p-3`.** Podigao sam kontejner i zaglavlje na `p-4`, ali NE i sam
+   red: U10 ODLUKA 12 je već izmerila da inbox mora da pokaže što više razgovora bez skrola. 12→16px
+   po redu je +80px na deset redova, što je taj argument obesmislilo.
+10. **Sivi `text-sm` / `text-xs` bez `leading` NISU masovno prevođeni na skalu.** U10 ODLUKA 10 ih je
+    svesno ostavila (postavljanje `line-height` na kontrolu menja njenu visinu = promena rasporeda).
+    Preveo sam samo ona koja su deo mera koje korak imenuje: meta red kartice teme, red inboxa,
+    tipografija `studio-page` i `studio-composer`, i sitni tekst u traci za grupne akcije Studija.
+11. **`rounded-[Npx]` → `surface-*` NIJE rađeno kao sweep.** U8 ODLUKA 4 je zapisala da je bracket
+    zapis na sankcionisanoj vrednosti „već na skali, samo nije kanonski", i da je masovno prebacivanje
+    nepotreban diff. Preveo sam samo 12 mesta u fajlovima koje sam ionako prepisivao (AGENTS.md:
+    „migrate them when you are already editing the file"), i nijedno van njih.
+12. **Preostalih ~40 golih heksova u app obimu NIJE dirano.** Svaki od njih ima `dark:` override, pa
+    radi u obe teme, i svi su preživeli U8 sweep koji je bio baš za boje. Njihova tokenizacija je
+    zaseban, veći zahvat (nove tokene za bledoplavu, bledozelenu i bledocrvenu paletu obaveštenja) i
+    ne spada u „doslednost zaglavlja, dugmadi, senki i fokusa". Popisani su dole.
+13. **`focus-visible:outline-offset-1` (7 mesta) je ostavljen.** To su ikonice u zbijenim grupama
+    (glasanje, meni komentara); na `offset-2` bi se prstenovi susednih dugmadi dodirivali. Odstupanje
+    je opravdano i lokalno, a jedino stvarno nepotpuno mesto (`BrandMark`, bez boje i odmaka) je
+    dopunjeno.
+14. **Prazan inbox je dobio NOVU rečenicu.** „Ovde je za sada mirno." nije imala telo, a `EmptyState`
+    primitiv traži rečenicu sa sledećim korakom. Napisana je po istom pravilu kao prazna stanja iz
+    U11: kratko, srpski bez žargona, i kaže šta da uradiš. Ovo je jedini nov UI string u koraku.
+15. **Redosled i ponašanje nisu dirani nigde.** Nijedan novi upit, nijedna nova ruta, nijedno dugme
+    koje radi nešto novo. Jedine promene u DOM-u su omotači bez semantike (podloga, `relative`) i
+    zamena ručnog bloka primitivom sa istim sadržajem i istim rukovaocima.
+
+**Testovi:**
+- `lib/admin-content-tree.test.ts` (+6 testova): objavljeno je žuto; nacrt je tih; arhiva se
+  razlikuje od nacrta; žuto je rezervisano tačno za objavljeno; svaki status ima ton iz sankcionisane
+  liste; ton se ispravno izvodi i za lekcije koje nose samo `isPublished`, ne `status`.
+- `lib/surface-accents.test.ts` (nov, 4 testa): nijedan app `.tsx` ne piše žutu senku kao gol
+  `rgba(244,190,48,…)` (uz dokumentovan izuzetak `components/ui/primitives.tsx`); skener stvarno vidi
+  fajlove (inače bi test prolazio prazan); `.ink-dots` postoji u `globals.css` i izvodi se iz
+  `var(--yellow)`, ne iz golog rgba; `.sketch-grid` ostaje mastilo, pa dve podloge nisu ista stvar.
+- Nijedan postojeći test nije menjan ni uklonjen.
+
+**Rezultat verifikacije:**
+- `npm run typecheck` — **PROŠLO** (exit 0)
+- `npm run test` — **PROŠLO**, 90 fajlova / **1198 testova** (bilo 89 / 1188; +1 fajl, +10 testova)
+- `npm run lint` — **exit 1, identično baseline-u**: `178 problems (1 error, 177 warnings)`, ista
+  pred-postojeća greška `studio-composer.tsx:1112` (`useEffectEvent`, postoji od U1; ta linija nije
+  dirana). Nijedan nov nalaz ni u jednom od 27 dirnutih fajlova — dva upozorenja koja je korak sam
+  napravio (`cn` u `studio-page.tsx`, `Link` u `messages-hub.tsx`, oba osirotela mojim izmenama)
+  odmah su i uklonjena, po AGENTS.md pravilu 3.
+- `npm run build` — **PROŠLO** (`Compiled successfully`, 74/74 statičke stranice).
+- Convex fajlovi nisu dirani (`git diff --stat -- convex/` prazan) → `npx convex codegen` nije pokretan.
+- Provereno u **izgrađenom CSS-u** da svaka nova klasa stvarno postoji: `.ink-dots` (sa `@supports`
+  fallback-om, isto kao `.sketch-grid`), `.sketch-grid`, `.surface-card/inset/media`,
+  `.type-eyebrow-sm`, `text-blue-mid`.
+- Mehanička provera sudara sa tipografskom skalom posle svake izmene: **0 sudara** — nijedna
+  `type-*` uloga ne stoji uz `text-<veličina>`, `leading-*`, `tracking-*`, `uppercase` ni drugu ulogu,
+  ni u `className`, ni u granama `cn(...)`, ni kao `sm:` varijanta (skenirano celo `.tsx` stablo).
+- Tamna tema je provedena kroz tokene, ne pretpostavku: svaka nova boja je `--yellow` (tema-nezavisna),
+  `--ink`/`--paper-strong` sa alfa modifikatorom, `--blue-mid` (ima tamni parnjak od U8) ili
+  `--shadow-hard-*` (ima tamni parnjak). Vodeni žig na heroju Zajednice je `text-paper-strong/10` na
+  `bg-ink` — u obe teme to je tih otisak u boji suprotnoj od podloge.
+
+**Za Jovana ujutru:**
+1. **Boja značke statusa u adminu je preokrenuta (ODLUKA 1) — ovo je jedina izmena koja svesno
+   poništava raniju odluku (U6).** Otvori `/app/admin/content`: objavljeno je sada žuto, nacrt tih uz
+   šrafuru na redu, arhiva obična pilula. Ako ti se ne dopada, izmena je **jedan red** u
+   `lib/admin-content-tree.ts` — i test će ti odmah reći da si je napravio.
+2. **Značka „Objavljeno" na IZABRANOM redu je žuto-na-žuto (ODLUKA 3).** Izabran red je `bg-yellow`,
+   pa značka na njemu ima samo crni okvir. Pogledaj kako to izgleda uživo; ako smeta, najmanja
+   izmena je da izabran red pređe na `bg-yellow/40`.
+3. **Žute senke su sada pune, ne prigušene (ODLUKA 5).** Najprimetnije na: zakačenoj temi u Zajednici,
+   nepročitanom obaveštenju (`/app/community/mentions`), prvom mestu rang liste, korisnom komentaru i
+   heroju Zajednice. To je namerno — senka sada nosi značenje („žuta = istaknuto"). Ako je negde
+   preglasno, sve ide preko jednog obrasca `shadow-[Npx_Npx_0_0_var(--yellow)]`.
+4. **Hero Zajednice je najveća pojedinačna vizuelna promena.** Naslov je manji (`type-h1` umesto
+   `type-hero`), ali se više NE seče na srednjim širinama, i dobio je vodeni žig i `p-4 sm:p-6`.
+   Pogledaj `/app/community/discussions` u obe teme i na telefonu.
+5. **Poruke: baloni i redovi su za korak prostraniji.** Balon 14→16px unutra, zaglavlje inboxa
+   24→16px, telo inboxa 12→16px. Redovi su sada u ravni sa naslovom iznad njih, što ranije nisu bili.
+   Proveri `/app/messages` na uskom ekranu (inbox kolona je ~340px na `xl`).
+6. **Studio: `PILL` konstanta više ne postoji** — svih pet dugmadi je `Button`/`LinkButton`. Dugme
+   „Prihvatam uslove" je time izgubilo tvrdu senku (primitiv je nema), a dobilo standardni `loading`
+   spinner. Ako ti je senka nedostajala, dodaje se kroz `className` na tom jednom mestu.
+7. **Prazna stanja Studija su sada ista kao svuda** (`/app/studio` bez ijedne generacije, i filter bez
+   pogodaka). Filter bez pogodaka je do sada gutao svoj naslov — sada ga ima.
+8. **Nije provereno u pregledaču.** Kao U10 i U11: sve je verifikovano kroz typecheck / lint / test /
+   build, izgrađen CSS i mehaničke skenove, ali nijedan piksel nije viđen. Prioritet za pogled u obe
+   teme i na telefonu: `/app/community/discussions`, `/app/admin/content`, `/app/studio`,
+   `/app/messages`.
+9. **Poznat dug koji U12 nije dirao (namerno, sa razlogom):** (a) **~40 golih heksova** u app obimu —
+   svi imaju `dark:` override i svi su preživeli U8; tokenizacija traži nove tokene za bledoplavu /
+   bledozelenu / bledocrvenu paletu obaveštenja (ODLUKA 12); najgušće je u `chat/study-hub.tsx` (14),
+   `community-v2/*` (11) i `app-sidebar.tsx` (7, uključujući `#10b981` „Nadogradnja" iz U10 tačke 7);
+   (b) `rounded-[Npx]` bracket zapis ostaje kao stil (ODLUKA 11, U8 ODLUKA 4); (c) `/app/credits`,
+   `/app/profile`, `/app/billing` i dalje nemaju `h1`; (d) **21 fajl sa dva ili više punih žutih
+   dugmadi** (U10 tačka 5, U11 tačka 8d) — koje je od njih primarno je i dalje proizvodna odluka koju
+   nisam donosio bez tebe; (e) `px-*`/`py-*` parovi i dalje nisu na lestvici 4/6/8, samo `p-*`.

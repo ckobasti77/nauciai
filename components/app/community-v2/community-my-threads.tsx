@@ -201,7 +201,7 @@ function MyThreadsView({
         <div className="relative grid min-w-[760px] grid-cols-5">
           <span
             aria-hidden="true"
-            className="pointer-events-none absolute inset-y-0 left-0 w-1/5 rounded-[12px] border border-ink bg-ink shadow-[2px_2px_0_rgba(244,190,48,0.42)] transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] motion-reduce:transition-none"
+            className="pointer-events-none absolute inset-y-0 left-0 w-1/5 rounded-[12px] border border-ink bg-ink shadow-[2px_2px_0_var(--yellow)] transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] motion-reduce:transition-none"
             style={{ transform: `translateX(${activeIndex * 100}%)` }}
           />
           {VIEW_ITEMS.map((item) => {

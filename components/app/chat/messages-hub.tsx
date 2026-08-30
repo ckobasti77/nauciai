@@ -2,7 +2,6 @@
 
 import { BookOpenCheck, GraduationCap, MessageCircle, Sparkles, Users } from "lucide-react";
 import { useQuery } from "convex/react";
-import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback } from "react";
 
@@ -16,7 +15,8 @@ import {
 } from "@/components/app/chat/messages-shell";
 import { StudyHub } from "@/components/app/chat/study-hub";
 import { EmptyState } from "@/components/ui/empty-state";
-import { cn } from "@/components/ui/primitives";
+import { Button } from "@/components/ui/button";
+import { HandUnderline, LinkButton, cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { Locale } from "@/lib/i18n";
@@ -82,6 +82,8 @@ export function MessagesHub({ locale, selectedConversationId }: { locale: Locale
         <div className="shrink-0">
           <p className="type-eyebrow-sm text-blue-mid dark:text-muted">Nauči AI</p>
           <h1 className="whitespace-nowrap type-h1 text-ink">{label(locale, "Poruke", "Messages")}</h1>
+          {/* Isti žuti potpis kao ispod naslova svake druge zone. */}
+          <HandUnderline size="sm" className="mt-1" />
         </div>
         <div role="tablist" aria-label={label(locale, "Pogled poruka", "Messages view")} className="flex min-w-0 rounded-full border-2 border-ink bg-paper p-1">
           <button type="button" role="tab" aria-selected={view === "conversations"} onClick={() => changeView("conversations")} className={cn("inline-flex min-h-10 items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 type-caption font-black sm:gap-2 sm:px-4", view === "conversations" ? "bg-ink text-paper-strong" : "text-ink hover:bg-paper-strong")}><MessageCircle className="size-4" />{label(locale, "Razgovori", "Conversations")}{inboxSummary && inboxSummary.totalUnread > 0 ? <span className="rounded-full bg-yellow px-1.5 font-mono type-caption text-ink">{inboxSummary.totalUnread > 99 ? "99+" : inboxSummary.totalUnread}</span> : null}</button>
@@ -97,7 +99,7 @@ export function MessagesHub({ locale, selectedConversationId }: { locale: Locale
               icon={BookOpenCheck}
               title={label(locale, "Ovde se otvaraju tvoji razgovori", "Your conversations open here")}
               body={label(locale, "Klikni na razgovor sa liste sa leve strane. Ako lista još nema nikoga, prvo pronađi nekoga sa kim ćeš da učiš.", "Click a conversation in the list on the left. If the list is still empty, first find someone to study with.")}
-              action={<div className="flex flex-wrap justify-center gap-2"><button type="button" onClick={() => changeView("study")} className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-xs font-black"><Sparkles className="size-4" />{label(locale, "Pronađi partnera", "Find a partner")}</button><Link href={withLocale(locale, "/app/community/members")} className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 text-xs font-black"><Users className="size-4" />{label(locale, "Pregledaj članove", "Browse members")}</Link></div>}
+              action={<div className="flex flex-wrap justify-center gap-2"><Button size="sm" icon={<Sparkles className="size-4" />} onClick={() => changeView("study")}>{label(locale, "Pronađi partnera", "Find a partner")}</Button><LinkButton href={withLocale(locale, "/app/community/members")} tone="paper"><Users className="size-4" />{label(locale, "Pregledaj članove", "Browse members")}</LinkButton></div>}
             />}
         </div>
       </div>}

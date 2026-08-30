@@ -1486,7 +1486,7 @@ export function AddCourseAction({
             >
               <div className="absolute inset-4 rounded-[16px] border-[3px] border-dashed border-yellow" />
               <motion.div
-                className="relative max-w-sm rounded-[16px] border-2 border-ink bg-paper-strong p-6 text-center text-ink shadow-[8px_8px_0_0_rgba(244,190,48,0.85)]"
+                className="relative max-w-sm rounded-[16px] border-2 border-ink bg-paper-strong p-6 text-center text-ink shadow-[8px_8px_0_0_var(--yellow)]"
                 initial={{ y: 10, scale: 0.98 }}
                 animate={{ y: 0, scale: 1 }}
                 exit={{ y: 8, scale: 0.99 }}
@@ -2724,7 +2724,7 @@ export function AddLessonPartAction({
               exit={{ opacity: 0 }}
             >
               <div className="absolute inset-4 rounded-[16px] border-[3px] border-dashed border-yellow" />
-              <div className="relative max-w-sm rounded-[16px] border-2 border-ink bg-paper-strong p-6 text-center shadow-[8px_8px_0_rgba(244,190,48,0.85)]">
+              <div className="relative max-w-sm rounded-[16px] border-2 border-ink bg-paper-strong p-6 text-center shadow-[8px_8px_0_var(--yellow)]">
                 <UploadCloud className="mx-auto size-9" />
                 <p className="mt-3 type-h3">
                   {kind === "video"

@@ -17,7 +17,8 @@ import { CreditIcon } from "@/components/studio/credit-icon";
 import { StudioComposer, type JobPayload, type RegenerateSeed } from "@/components/studio/studio-composer";
 import { ProjectPicker } from "@/components/studio/project-picker";
 import { StudioFilterBar } from "@/components/studio/studio-filter-bar";
-import { Panel, cn } from "@/components/ui/primitives";
+import { Button } from "@/components/ui/button";
+import { LinkButton, Panel } from "@/components/ui/primitives";
 import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -36,9 +37,6 @@ import {
 import type { StudioSectionKind } from "@/lib/studio-sections";
 import type { SlotFiles } from "@/lib/studio-slots";
 import { formatCreditsLong, type ParamValues } from "@/lib/studio-params";
-
-const PILL =
-  "inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 px-5 py-2.5 text-sm font-extrabold transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-60";
 
 /**
  * Kapija pred prvom generacijom: jedna kvačica i jedno dugme.
@@ -63,10 +61,10 @@ function StudioTermsGate({ locale }: { locale: Locale }) {
 
   return (
     <Panel className="p-6">
-      <h3 className="text-2xl font-black text-ink">{STUDIO_TERMS_GATE.title[locale]}</h3>
-      <p className="mt-2 text-base font-bold text-muted">{STUDIO_TERMS_GATE.body[locale]}</p>
+      <h3 className="type-h2 text-ink">{STUDIO_TERMS_GATE.title[locale]}</h3>
+      <p className="mt-2 type-body type-measure font-bold text-muted">{STUDIO_TERMS_GATE.body[locale]}</p>
 
-      <div className="surface-inset mt-5 flex gap-3 border-2 border-ink bg-paper p-4">
+      <div className="surface-inset mt-4 flex gap-3 border-2 border-ink bg-paper p-4">
         <input
           id="studio-terms-accept"
           type="checkbox"
@@ -74,12 +72,12 @@ function StudioTermsGate({ locale }: { locale: Locale }) {
           onChange={(event) => setChecked(event.target.checked)}
           className="mt-1 size-5 shrink-0 accent-ink"
         />
-        <label htmlFor="studio-terms-accept" className="text-sm font-bold leading-6 text-ink">
+        <label htmlFor="studio-terms-accept" className="type-body-sm font-bold text-ink">
           {STUDIO_TERMS_GATE.checkbox[locale]}
         </label>
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-4 text-sm font-extrabold">
+      <div className="mt-4 flex flex-wrap gap-4 type-body-sm font-extrabold">
         <Link href={withLocale(locale, STUDIO_TERMS_PATH)} className="text-ink underline">
           {locale === "sr" ? "Uslovi korišćenja Studija" : "Studio terms of use"}
         </Link>
@@ -88,18 +86,12 @@ function StudioTermsGate({ locale }: { locale: Locale }) {
         </Link>
       </div>
 
-      <button
-        type="button"
-        onClick={accept}
-        disabled={!checked || isSaving}
-        className={cn(PILL, "mt-5 border-ink bg-yellow text-ink shadow-[4px_4px_0_0_var(--ink)] hover:-translate-y-0.5")}
-      >
-        {isSaving ? <Spinner /> : null}
+      <Button onClick={accept} disabled={!checked} loading={isSaving} className="mt-4">
         {STUDIO_TERMS_GATE.cta[locale]}
-      </button>
+      </Button>
 
       {failed ? (
-        <p className="mt-3 text-sm font-bold text-muted">{STUDIO_TERMS_GATE.failed[locale]}</p>
+        <p className="mt-3 type-body-sm font-bold text-muted">{STUDIO_TERMS_GATE.failed[locale]}</p>
       ) : null}
     </Panel>
   );
@@ -447,11 +439,11 @@ export function StudioPage({
   // └──────────────────────────────────────────────────────────────────────┘
   // Jedna traka u ravni sa naslovom na desktopu, na mobilnom (< 640px) u svom redu ispod.
   const topbar = (
-    <div className="flex flex-col gap-2.5">
-      <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         {/* Naslov + Traka filtera u istoj ravni */}
         <div className="flex min-w-0 flex-1 items-center gap-3 md:gap-4">
-          <h2 className="shrink-0 text-2xl font-black leading-tight text-ink md:text-3xl">Studio</h2>
+          <h2 className="shrink-0 type-h1 text-ink">Studio</h2>
           {/* `min-w-0`: bez njega ova kolona ne sme da se skupi ispod min-content trake
               filtera, pa traka gura ceo studio preko desne ivice (UX-BOOST-PLAN §5C). */}
           <div className="hidden min-w-0 sm:flex items-center">
@@ -468,15 +460,16 @@ export function StudioPage({
         </div>
 
         {/* Prekidač projekta + Balans */}
-        <div className="flex shrink-0 items-center gap-2.5 sm:gap-3">
+        <div className="flex shrink-0 items-center gap-3">
           <ProjectPicker
             locale={locale}
             activeProjectId={activeProjectId}
             onSelectProject={handleSelectProject}
           />
 
-          <Link
+          <LinkButton
             href={creditsHref}
+            tone="paper"
             aria-label={
               balance === undefined
                 ? locale === "sr"
@@ -484,10 +477,7 @@ export function StudioPage({
                   : "Credits"
                 : formatCreditsLong(balance.balance, locale)
             }
-            className={cn(
-              PILL,
-              "shrink-0 border-ink bg-paper-strong text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] hover:-translate-y-0.5",
-            )}
+            className="shrink-0"
           >
             <CreditIcon className="size-4" />
             <span>
@@ -495,7 +485,7 @@ export function StudioPage({
                 ? "—"
                 : balance.balance.toLocaleString(locale === "sr" ? "sr-RS" : "en-US")}
             </span>
-          </Link>
+          </LinkButton>
         </div>
       </div>
 
@@ -514,7 +504,7 @@ export function StudioPage({
 
       {/* Podnaslov: prikazuje se SAMO kad je cela mreža prazna (0 učitanih poslova) */}
       {loadedJobs.length === 0 ? (
-        <p className="text-xs font-bold text-muted">
+        <p className="type-body-sm type-measure font-bold text-muted">
           {locale === "sr"
             ? "Izaberi alat, opiši šta hoćeš i klikni dugme sa cenom - dobijaš sliku, video ili zvuk."
             : "Pick a tool, describe what you want, and click the button with the price - you get an image, a video or a sound."}
@@ -538,18 +528,15 @@ export function StudioPage({
     return (
       <div className="space-y-6">
         {topbar}
-        <Panel className="p-6">
-          <p className="text-base font-bold text-muted">
+        <Panel className="p-4 sm:p-6">
+          <p className="type-body type-measure font-bold text-muted">
             {locale === "sr"
               ? "Prijavi se da bi generisao u Studiju."
               : "Sign in to generate in the Studio."}
           </p>
-          <Link
-            href={withLocale(locale, "/sign-in")}
-            className={cn(PILL, "mt-4 border-ink bg-ink text-paper-strong shadow-[4px_4px_0_0_var(--yellow)] hover:-translate-y-0.5")}
-          >
+          <LinkButton href={withLocale(locale, "/sign-in")} tone="ink" className="mt-4">
             {locale === "sr" ? "Prijavi se" : "Sign in"}
-          </Link>
+          </LinkButton>
         </Panel>
       </div>
     );
@@ -558,25 +545,22 @@ export function StudioPage({
   const floatingContent = () => {
     if (state !== undefined && !state.enabled) {
       return (
-        <div className="surface-card border-2 border-ink bg-paper-strong p-5 shadow-[6px_6px_0_0_var(--shadow-hard-16)]">
-          <h3 className="text-xl font-black text-ink">{STUDIO_PAUSED.title[locale]}</h3>
-          <p className="mt-1 text-sm font-bold text-muted">{STUDIO_PAUSED.body[locale]}</p>
-          <Link
-            href={creditsHref}
-            className={cn(PILL, "mt-3 border-ink bg-paper-strong text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] hover:-translate-y-0.5")}
-          >
+        <div className="surface-card border-2 border-ink bg-paper-strong p-4 shadow-[6px_6px_0_0_var(--shadow-hard-16)] sm:p-6">
+          <h3 className="type-h3 text-ink">{STUDIO_PAUSED.title[locale]}</h3>
+          <p className="mt-2 type-body-sm font-bold text-muted">{STUDIO_PAUSED.body[locale]}</p>
+          <LinkButton href={creditsHref} tone="paper" className="mt-3">
             <Coins className="size-4" />
             {STUDIO_PAUSED.cta[locale]}
-          </Link>
+          </LinkButton>
         </div>
       );
     }
 
     if (state !== undefined && !state.hasStudioAccess) {
       return (
-        <div className="surface-card border-2 border-ink bg-paper-strong p-5 shadow-[6px_6px_0_0_var(--shadow-hard-16)]">
-          <h3 className="text-xl font-black text-ink">{STUDIO_NOT_ENROLLED.title[locale]}</h3>
-          <p className="mt-1 text-sm font-bold text-muted">{STUDIO_NOT_ENROLLED.body[locale]}</p>
+        <div className="surface-card border-2 border-ink bg-paper-strong p-4 shadow-[6px_6px_0_0_var(--shadow-hard-16)] sm:p-6">
+          <h3 className="type-h3 text-ink">{STUDIO_NOT_ENROLLED.title[locale]}</h3>
+          <p className="mt-2 type-body-sm font-bold text-muted">{STUDIO_NOT_ENROLLED.body[locale]}</p>
         </div>
       );
     }
@@ -595,7 +579,7 @@ export function StudioPage({
 
     if (catalog.length === 0) {
       return (
-        <p className="surface-card border-2 border-ink bg-paper p-4 text-sm font-bold text-muted shadow-[6px_6px_0_0_var(--shadow-hard-16)]">
+        <p className="surface-card border-2 border-ink bg-paper p-4 type-body-sm font-bold text-muted shadow-[6px_6px_0_0_var(--shadow-hard-16)]">
           {t(
             locale,
             "Nijedan alat za pravljenje sadržaja trenutno nije uključen. Ovo nije do tvog naloga - probaj ponovo kasnije ili se javi podršci.",
@@ -660,13 +644,10 @@ export function StudioPage({
               t(locale, "Klikni dugme sa cenom — gotov fajl ostaje ovde.", "Click the button with the price — the finished file stays here."),
             ]}
             action={
-              <Link
-                href={creditsHref}
-                className={cn(PILL, "border-ink bg-paper-strong text-ink shadow-[3px_3px_0_0_var(--shadow-hard)]")}
-              >
+              <LinkButton href={creditsHref} tone="paper">
                 <Coins className="size-4" aria-hidden="true" />
                 {t(locale, "Pogledaj svoje kredite", "See your credits")}
-              </Link>
+              </LinkButton>
             }
           />
         ) : null}

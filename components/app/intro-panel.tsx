@@ -95,11 +95,14 @@ export function AppIntroPanel({
             ease: anim.element.enter.ease as Easing,
           }}
           className={cn(
-            "relative rounded-[16px] border-2 border-ink bg-paper-strong p-4 shadow-[4px_4px_0_0_var(--shadow-hard)] sm:p-6",
+            "relative overflow-hidden surface-card border-2 border-ink bg-paper-strong p-4 shadow-[4px_4px_0_0_var(--shadow-hard)] sm:p-6",
             className,
           )}
         >
-          <div className="flex items-start gap-3 pr-10">
+          {/* Ista skolska podloga kao na herou zone: uvod time izgleda kao list iz
+              sveske, a ne kao sistemska traka sa obavestenjem. */}
+          <div aria-hidden="true" className="pointer-events-none absolute inset-0 sketch-grid" />
+          <div className="relative flex items-start gap-3 pr-10">
             <span className="grid size-10 shrink-0 place-items-center rounded-full border-2 border-ink bg-yellow text-ink">
               <Icon aria-hidden="true" className="size-5" />
             </span>
@@ -109,11 +112,11 @@ export function AppIntroPanel({
             </div>
           </div>
 
-          <ol className="mt-3 grid gap-2 sm:grid-cols-3">
+          <ol className="relative mt-4 grid gap-3 sm:grid-cols-3">
             {steps.map((step, index) => (
               <li
                 key={step}
-                className="flex items-start gap-2 rounded-[12px] border-2 border-line bg-paper px-3 py-2 type-body-sm font-bold text-ink"
+                className="flex items-start gap-2 surface-inset border-2 border-line bg-paper px-3 py-3 type-body-sm font-bold text-ink"
               >
                 <span className="grid size-6 shrink-0 place-items-center rounded-full border-2 border-ink bg-paper-strong text-xs font-black">
                   {index + 1}
@@ -123,7 +126,7 @@ export function AppIntroPanel({
             ))}
           </ol>
 
-          {action ? <div className="mt-4 flex flex-wrap gap-2">{action}</div> : null}
+          {action ? <div className="relative mt-4 flex flex-wrap gap-2">{action}</div> : null}
 
           <Button
             variant="ghost"

@@ -132,32 +132,45 @@ function CommunityShellView({
 
   return (
     <div className="mx-auto w-full max-w-[1180px] space-y-6" aria-busy={isLoading}>
-      <section data-motion="hero" className="relative overflow-hidden rounded-[16px] border-2 border-ink bg-ink text-paper-strong shadow-[4px_4px_0_rgba(244,190,48,0.55)]">
-        <div className="pointer-events-none absolute inset-y-0 left-1/2 right-0 hidden bg-[radial-gradient(circle_at_center,rgba(244,190,48,0.22)_0_2px,transparent_2px)] [background-size:24px_24px] [mask-image:linear-gradient(to_right,transparent_0%,black_50%,black_100%)] md:block" />
-        <div className="relative p-4">
-          <div className="flex flex-col gap-2">
-            <div className="min-w-0 max-w-4xl" data-motion="copy">
-              <div className="flex items-center gap-2 text-yellow">
-                <Sparkles className="size-4" aria-hidden="true" />
-                <p className="font-mono type-eyebrow-sm">
-                  {locale === "sr" ? heroCopy.badgeSr : heroCopy.badgeEn}
-                </p>
-              </div>
-              <h1 className="mt-2 truncate type-hero sm:whitespace-nowrap">
-                {locale === "sr" ? heroCopy.titleSr : heroCopy.titleEn}
-              </h1>
-              {/* Na ink podlozi radi samo žuti potez — tanka ink linija ispod njega je
-                  nevidljiva, i to je u redu: na tamnom heroju žuti potpis je isti brend
-                  potez kao na papiru. */}
-              <HandUnderline size="sm" className="mt-1" />
-              <p className="mt-2 truncate type-body-sm font-bold text-paper-strong/72 sm:whitespace-nowrap">
-                {locale === "sr"
-                  ? heroCopy.subtitleSr
-                  : heroCopy.subtitleEn}
+      {/* Hero zone je isti sklop kao pozdravni hero komandne table (U11): školska
+          podloga → vodeni žig od uvećane lucide ikone → etiketa → naslov → žuti
+          potez → uvodni pasus, sa istim `p-4 sm:p-6` ritmom. Razlika je samo
+          podloga: Zajednica stoji na mastilu, pa `sketch-grid` (mastilo na 6%)
+          ovde ne postoji i menja ga `ink-dots`, njegov žuti parnjak. */}
+      <section
+        data-motion="hero"
+        className="relative overflow-hidden surface-card border-2 border-ink bg-ink text-paper-strong shadow-[6px_6px_0_0_var(--yellow)]"
+      >
+        <div className="pointer-events-none absolute inset-y-0 left-1/2 right-0 hidden ink-dots [mask-image:linear-gradient(to_right,transparent_0%,black_50%,black_100%)] md:block" />
+        <MessagesSquare
+          aria-hidden="true"
+          strokeWidth={1.25}
+          className="pointer-events-none absolute -bottom-8 -right-6 hidden size-48 text-paper-strong/10 sm:block"
+        />
+        <div className="relative p-4 sm:p-6">
+          <div className="min-w-0 max-w-4xl" data-motion="copy">
+            <div className="flex items-center gap-2 text-yellow">
+              <Sparkles className="size-4 shrink-0" aria-hidden="true" />
+              <p className="type-eyebrow">
+                {locale === "sr" ? heroCopy.badgeSr : heroCopy.badgeEn}
               </p>
             </div>
+            {/* Naslov je `type-h1`, isti kao na komandnoj tabli. Ranije je bio
+                `type-hero` uz `truncate`/`sm:whitespace-nowrap`, pa se duga
+                rečenica na srednjim širinama SEKLA umesto da se prelomi. */}
+            <h1 className="mt-2 type-h1">
+              {locale === "sr" ? heroCopy.titleSr : heroCopy.titleEn}
+            </h1>
+            {/* Na ink podlozi radi samo žuti potez — tanka ink linija ispod njega je
+                nevidljiva, i to je u redu: na tamnom heroju žuti potpis je isti brend
+                potez kao na papiru. */}
+            <HandUnderline size="sm" className="mt-1" />
+            <p className="mt-3 type-body-sm type-measure font-bold text-paper-strong/72">
+              {locale === "sr"
+                ? heroCopy.subtitleSr
+                : heroCopy.subtitleEn}
+            </p>
           </div>
-
         </div>
       </section>
 
@@ -210,7 +223,7 @@ function CommunityShellView({
       {filters.counts?.profileIncomplete ? (
         <Link
           href={`${withLocale(locale, "/app/profile")}?returnTo=${encodeURIComponent(withLocale(locale, "/app/community/discussions"))}`}
-          className="flex flex-wrap items-center justify-between gap-3 rounded-[16px] border-2 border-ink bg-yellow/25 px-4 py-3 text-sm font-black text-ink shadow-[3px_3px_0_rgba(244,190,48,0.55)]"
+          className="flex flex-wrap items-center justify-between gap-3 surface-card border-2 border-ink bg-yellow/25 px-4 py-3 text-sm font-black text-ink shadow-[4px_4px_0_0_var(--yellow)]"
         >
           <span className="flex items-start gap-2">
             <CircleAlert className="mt-0.5 size-5 shrink-0" aria-hidden="true" />

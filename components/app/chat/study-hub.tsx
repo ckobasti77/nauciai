@@ -25,7 +25,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { EmptyState } from "@/components/ui/empty-state";
-import { cn } from "@/components/ui/primitives";
+import { HandUnderline, cn } from "@/components/ui/primitives";
 import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -401,7 +401,8 @@ function StudyHubMember({ locale, courseSlug, onCourseSlugChange, onOpenConversa
             <div className="min-w-0">
               <p className="type-eyebrow text-blue-mid dark:text-muted">{t(locale, "Isti tempo. Zajednički cilj.", "Same pace. Shared goal.")}</p>
               <h1 className="mt-2 type-h1">{t(locale, "Uči zajedno", "Study together")}</h1>
-              <p className="mt-1 max-w-2xl type-body-sm font-bold text-muted">{t(locale, "Pronađi osobu u svojoj zoni napretka, prihvati poziv i nastavite u privatnom ili grupnom razgovoru.", "Find a person in your progress zone, accept an invite, and continue in a private or group conversation.")}</p>
+              <HandUnderline size="sm" className="mt-1" />
+              <p className="mt-3 max-w-2xl type-body-sm font-bold text-muted">{t(locale, "Pronađi osobu u svojoj zoni napretka, prihvati poziv i nastavite u privatnom ili grupnom razgovoru.", "Find a person in your progress zone, accept an invite, and continue in a private or group conversation.")}</p>
             </div>
           </div>
           <div className="flex flex-wrap gap-2" aria-label={t(locale, "Pregled aktivnosti", "Activity summary")} aria-live="polite">
@@ -428,7 +429,7 @@ function StudyHubMember({ locale, courseSlug, onCourseSlugChange, onOpenConversa
           </div>
         ) : null}
 
-        <section className="rounded-[16px] border-2 border-ink bg-paper-strong p-4 shadow-[5px_5px_0_0_rgba(112,167,207,0.45)] sm:p-6">
+        <section className="rounded-[16px] border-2 border-ink bg-paper-strong p-4 shadow-[5px_5px_0_0_var(--shadow-hard-15)] sm:p-6">
           <div className="grid items-end gap-4 lg:grid-cols-[minmax(0,1fr)_auto]">
             <div>
               <label className="block text-sm font-black text-ink">

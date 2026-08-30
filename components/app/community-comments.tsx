@@ -345,7 +345,7 @@ function CommentItem({
         ref={cardRef}
         id={`comment-${node._id}`}
         data-comment-card
-        className={cn("group rounded-[16px] border bg-paper-strong p-4 transition", node.isHelpful ? "border-amber-400 shadow-[0_8px_24px_rgba(244,190,48,0.12)]" : "border-line hover:border-ink/30", highlighted && "ring-4 ring-yellow/70 ring-offset-2")}
+        className={cn("group rounded-[16px] border bg-paper-strong p-4 transition", node.isHelpful ? "border-ink shadow-[4px_4px_0_0_var(--yellow)]" : "border-line hover:border-ink/30", highlighted && "ring-4 ring-yellow/70 ring-offset-2")}
       >
         <div className="flex items-start gap-3">
           <Link href={node.authorUsername ? withLocale(locale, `/app/members/${node.authorUsername}`) : "#"} aria-disabled={!node.authorUsername} className="shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">

@@ -297,7 +297,7 @@ export function CommunityScopeControls({
           <span
             aria-hidden="true"
             className={cn(
-              "pointer-events-none absolute inset-y-1 left-1 w-[calc(50%-0.375rem)] rounded-full bg-ink shadow-[2px_2px_0_rgba(244,190,48,0.65)] transition-transform duration-300 ease-out motion-reduce:transition-none",
+              "pointer-events-none absolute inset-y-1 left-1 w-[calc(50%-0.375rem)] rounded-full bg-ink shadow-[2px_2px_0_var(--yellow)] transition-transform duration-300 ease-out motion-reduce:transition-none",
               settingsOpen && "translate-x-[calc(100%+0.5rem)]",
             )}
           />

@@ -92,7 +92,7 @@ function PodiumCard({ locale, row }: { locale: Locale; row: LeaderboardRow }) {
       className={cn(
         "relative overflow-hidden rounded-[16px] border bg-paper-strong p-4 text-center",
         row.rank === 1
-          ? "border-2 border-ink shadow-[5px_5px_0_rgba(244,190,48,0.8)] md:-translate-y-3"
+          ? "border-2 border-ink shadow-[5px_5px_0_var(--yellow)] md:-translate-y-3"
           : "border-line",
         row.isViewer && "ring-4 ring-yellow/35",
       )}
@@ -304,7 +304,7 @@ function LeaderboardView({
               course={scopeState.courseLabel}
               xp={viewer?.row?.xp}
             />
-            <details open className="group overflow-hidden rounded-[16px] border border-ink bg-paper-strong shadow-[4px_4px_0_rgba(244,190,48,0.7)]">
+            <details open className="group overflow-hidden rounded-[16px] border border-ink bg-paper-strong shadow-[4px_4px_0_var(--yellow)]">
               <summary className="flex min-h-16 cursor-pointer list-none items-center gap-3 px-4 py-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
                 <Sparkles className="size-4 shrink-0 text-yellow" aria-hidden="true" />
                 <h2 className="min-w-0 flex-1 type-h4 text-ink">{locale === "sr" ? "Kako se dobija XP" : "How XP is earned"}</h2>

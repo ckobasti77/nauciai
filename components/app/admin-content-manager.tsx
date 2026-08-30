@@ -9,14 +9,16 @@ import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { cn } from "@/components/ui/primitives";
+import { HandUnderline, cn } from "@/components/ui/primitives";
 import { Badge, type BadgeTone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { t, withLocale, type Locale } from "@/lib/i18n";
 import { changeContentSelection } from "@/lib/content-selection";
+import { dashboardZoneChipClass } from "@/lib/dashboard-zones";
 import {
   contentStatus,
+  contentStatusTone,
   draftCount,
   listLevelAfterChange,
   listLevelForSelection,
@@ -128,11 +130,15 @@ type AdminDetail = { lesson: LessonRow | null };
 const inputClass = "min-h-11 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-3 text-sm font-bold text-ink transition focus:ring-4 focus:ring-yellow/35 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:border-line disabled:bg-slate-100 disabled:text-muted";
 const labelClass = "grid gap-1.5 type-eyebrow text-ink";
 
-/** Nacrt je namerno najglasniji ton: to je jedino stanje koje studenti NE vide. */
+/**
+ * Pravilo zivi u `lib/admin-content-tree.ts` (sa testom), da se boja statusa ne
+ * bi tiho preokrenula u sledecoj izmeni. Ovaj `Record` postoji samo da bi
+ * TypeScript proverio da se unija iz `lib/` i `BadgeTone` nisu razisle.
+ */
 const statusTone: Record<ContentStatus, BadgeTone> = {
-  draft: "ink",
-  published: "neutral",
-  archived: "muted",
+  draft: contentStatusTone("draft"),
+  published: contentStatusTone("published"),
+  archived: contentStatusTone("archived"),
 };
 
 const listForKind: Record<SelectionLevel, ListLevel> = {
@@ -249,6 +255,8 @@ function AdminPageFrame({ locale, title, children }: { locale: Locale; title: st
         {/* Svaka admin ruta nosi svoj naslov. Ranije su sve četiri pisale
             "Kontrolni centar", pa se iz naslova nije videlo gde si (UX-BOOST-PLAN §3D). */}
         <h1 className="mt-2 font-display type-display text-ink">{title}</h1>
+        {/* Isti skolski potpis kao ispod svakog zonskog naslova u aplikaciji. */}
+        <HandUnderline size="sm" className="mt-1" />
       </header>
       {children}
     </div>
@@ -393,22 +401,34 @@ function StatCard({
   locale: Locale;
 }) {
   return (
-    <article className="surface-card border-2 border-ink bg-paper-strong p-4 shadow-[6px_6px_0_0_var(--shadow-hard-12)]">
-      <div className="flex items-center gap-2">
-        <span className="grid size-8 shrink-0 place-items-center rounded-full border-2 border-ink bg-yellow text-ink">
-          <Icon aria-hidden="true" className="size-4" />
+    // Pregled stanja je isti sklop kao prozor komandne table (U11): skolska mreza
+    // ispod, plocica sa ikonom u akcentu zone, pa etiketa i brojka. Admin je
+    // "zona koja javlja stanje", pa plocica ide na papir - akcenat dolazi iz
+    // `lib/dashboard-zones.ts`, da se ne izmislja cetvrti izgled.
+    <article className="surface-card relative overflow-hidden border-2 border-ink bg-paper-strong p-4 shadow-[6px_6px_0_0_var(--shadow-hard-12)]">
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 sketch-grid" />
+      <div className="relative flex items-start gap-3">
+        <span
+          className={cn(
+            "grid size-10 shrink-0 place-items-center surface-inset border-2",
+            dashboardZoneChipClass("adminContent"),
+          )}
+        >
+          <Icon aria-hidden="true" className="size-5" />
         </span>
-        <p className="type-eyebrow text-muted">{label}</p>
+        <div className="min-w-0">
+          <p className="type-eyebrow text-muted">{label}</p>
+          <p className="mt-1 font-display type-display text-ink">{value}</p>
+        </div>
       </div>
-      <p className="mt-3 font-display type-display text-ink">{value}</p>
       {tally ? (
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          <Badge tone="neutral" size="sm">{t(locale, "Objavljeno", "Published")} {tally.published}</Badge>
-          <Badge tone={tally.draft > 0 ? "ink" : "muted"} size="sm">{t(locale, "Nacrt", "Draft")} {tally.draft}</Badge>
-          {tally.archived > 0 ? <Badge tone="muted" size="sm">{t(locale, "Arhiva", "Archive")} {tally.archived}</Badge> : null}
+        <div className="relative mt-3 flex flex-wrap gap-1.5">
+          <Badge tone={statusTone.published} size="sm">{t(locale, "Objavljeno", "Published")} {tally.published}</Badge>
+          <Badge tone={statusTone.draft} size="sm">{t(locale, "Nacrt", "Draft")} {tally.draft}</Badge>
+          {tally.archived > 0 ? <Badge tone={statusTone.archived} size="sm">{t(locale, "Arhiva", "Archive")} {tally.archived}</Badge> : null}
         </div>
       ) : null}
-      {hint ? <p className="mt-3 type-caption font-bold text-muted">{hint}</p> : null}
+      {hint ? <p className="relative mt-3 type-caption font-bold text-muted">{hint}</p> : null}
     </article>
   );
 }
@@ -453,7 +473,7 @@ function NavSection({
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="type-eyebrow text-muted">{kicker}</p>
-          {subtitle ? <p className="mt-0.5 truncate text-xs font-bold text-ink">{subtitle}</p> : null}
+          {subtitle ? <p className="mt-1 truncate type-caption font-bold text-ink">{subtitle}</p> : null}
         </div>
         {onClear ? (
           <Button variant="ghost" size="sm" onClick={onClear} className="-mr-2 shrink-0">
@@ -462,7 +482,7 @@ function NavSection({
         ) : null}
       </div>
 
-      <div className="mt-2.5">
+      <div className="mt-3">
         {lockedLabel ? (
           <p className="surface-inset border-2 border-dashed border-line bg-paper px-3 py-3 type-caption font-bold text-muted">{lockedLabel}</p>
         ) : rows.length === 0 ? (
@@ -478,7 +498,7 @@ function NavSection({
                     onClick={() => onSelect(row.id)}
                     aria-current={selected ? "true" : undefined}
                     className={cn(
-                      "surface-inset flex w-full items-center gap-2 border-2 px-3 py-2.5 text-left transition",
+                      "surface-inset flex w-full items-center gap-3 border-2 px-3 py-3 text-left transition",
                       "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
                       // Nacrt nosi i šrafuru i najglasniji Badge - to je stavka koju studenti ne vide.
                       row.status === "draft" && "ink-hatch",
@@ -490,7 +510,7 @@ function NavSection({
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-black text-ink">{row.title}</span>
                       {row.meta ? (
-                        <span className={cn("mt-0.5 block type-caption font-bold", selected ? "text-ink" : "text-muted")}>{row.meta}</span>
+                        <span className={cn("mt-1 block type-caption font-bold", selected ? "text-ink" : "text-muted")}>{row.meta}</span>
                       ) : null}
                     </span>
                     <Badge tone={statusTone[row.status]} size="sm" className="shrink-0">{statusLabel(row.status, locale)}</Badge>
@@ -509,7 +529,7 @@ function NavSection({
         disabled={Boolean(lockedLabel)}
         loading={creating}
         onClick={onCreate}
-        className="mt-2.5 w-full"
+        className="mt-3 w-full"
       >
         {createLabel}
       </Button>
@@ -793,7 +813,7 @@ export function AdminContentPanel({ locale }: { locale: Locale }) {
       </section>
 
       {message ? (
-        <p role="status" className={cn("surface-inset border-2 px-3 py-2 text-xs font-black", message.tone === "success" ? "border-emerald-700 bg-emerald-50 text-emerald-800" : "border-red-700 bg-red-50 text-red-800")}>{message.text}</p>
+        <p role="status" className={cn("surface-inset border-2 px-3 py-2 type-body-sm font-black", message.tone === "success" ? "border-emerald-700 bg-emerald-50 text-emerald-800" : "border-red-700 bg-red-50 text-red-800")}>{message.text}</p>
       ) : null}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:items-start">
@@ -871,13 +891,13 @@ export function AdminContentPanel({ locale }: { locale: Locale }) {
         <div className="min-w-0 space-y-6">
           {readiness ? <section className="surface-card border-2 border-ink bg-paper-strong p-4 shadow-[6px_6px_0_var(--shadow-hard-12)]" aria-label={t(locale, "Spremno za objavu", "Ready to publish")}>
             <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="type-eyebrow text-muted">{t(locale, "Kontrola sadržaja", "Content check")}</p><h2 className="mt-2 font-display type-display-sm text-ink">{readiness.ready ? t(locale, "Spremno za objavu", "Ready to publish") : t(locale, "Dovrši pre objave", "Finish before publishing")}</h2></div><span className={cn("rounded-full border-2 border-ink px-4 py-2 type-eyebrow", readiness.ready ? "bg-emerald-100 text-emerald-900" : "bg-yellow text-ink")}>{readiness.items.filter((item) => item.ok).length}/{readiness.items.length}</span></div>
-            <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-3">{readiness.items.map((entry) => <button key={entry.key} type="button" onClick={() => { if (entry.key === "slug" || entry.key === "view" || entry.key === "duration") setSettingsOpen(true); document.getElementById("admin-live-preview")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className={cn("surface-card flex min-h-12 items-center gap-3 border-2 px-3 py-2 text-left text-xs font-black", entry.ok ? "border-emerald-700 bg-emerald-50 text-emerald-900" : entry.blocking ? "border-red-700 bg-red-50 text-red-900" : "border-amber-700 bg-amber-50 text-amber-950")}>{entry.ok ? <CheckCircle2 className="size-5 shrink-0" /> : entry.blocking ? <XCircle className="size-5 shrink-0" /> : <AlertTriangle className="size-5 shrink-0" />}<span>{t(locale, entry.labelSr, entry.labelEn)}</span></button>)}</div>
+            <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-3">{readiness.items.map((entry) => <button key={entry.key} type="button" onClick={() => { if (entry.key === "slug" || entry.key === "view" || entry.key === "duration") setSettingsOpen(true); document.getElementById("admin-live-preview")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className={cn("surface-inset flex min-h-12 items-center gap-3 border-2 px-3 py-2 text-left type-body-sm font-black", entry.ok ? "border-emerald-700 bg-emerald-50 text-emerald-900" : entry.blocking ? "border-red-700 bg-red-50 text-red-900" : "border-amber-700 bg-amber-50 text-amber-950")}>{entry.ok ? <CheckCircle2 className="size-5 shrink-0" /> : entry.blocking ? <XCircle className="size-5 shrink-0" /> : <AlertTriangle className="size-5 shrink-0" />}<span>{t(locale, entry.labelSr, entry.labelEn)}</span></button>)}</div>
           </section> : null}
 
           {hasSurface ? (
             <section id="admin-live-preview" className="surface-card relative scroll-mt-6 overflow-hidden border-2 border-ink bg-paper shadow-[8px_8px_0_var(--shadow-hard-13)]">
               <div className="absolute right-3 top-3 z-40">
-                <button type="button" onClick={() => setSettingsOpen((open) => !open)} aria-expanded={settingsOpen} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong/95 px-4 text-xs font-black shadow-[3px_3px_0_var(--shadow-hard)] backdrop-blur"><Settings2 className="size-4" /> {t(locale, "Podešavanja", "Settings")}</button>
+                <button type="button" onClick={() => setSettingsOpen((open) => !open)} aria-expanded={settingsOpen} className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong/95 px-4 text-sm font-black shadow-[3px_3px_0_0_var(--shadow-hard)] backdrop-blur"><Settings2 className="size-4" /> {t(locale, "Podešavanja", "Settings")}</button>
                 {settingsOpen ? (
                   <form onSubmit={save} className="surface-card mt-2 grid w-[min(320px,calc(100vw-3rem))] gap-3 border-2 border-ink bg-paper-strong p-4 shadow-[7px_7px_0_var(--shadow-hard)]">
                     <p className="type-eyebrow text-muted">{t(locale, "Sistemska podešavanja", "System settings")}</p>

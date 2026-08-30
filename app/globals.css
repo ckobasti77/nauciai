@@ -339,6 +339,19 @@ body {
   background-size: 28px 28px;
 }
 
+/* Skolska podloga za hero NA MASTILU. `sketch-grid` je mastilo na 6%, pa na
+   `bg-ink` povrsini ne postoji uopste; ovo je njen zuti parnjak, isti korak mreze.
+   Postojala je kao goli `rgba(244,190,48,0.22)` u `community-shell.tsx` - ovde je
+   ista vrednost, samo izvedena iz tokena, pa radi i ako se `--yellow` ikad promeni. */
+.ink-dots {
+  background-image: radial-gradient(
+    circle at center,
+    color-mix(in srgb, var(--yellow) 22%, transparent) 0 2px,
+    transparent 2px
+  );
+  background-size: 24px 24px;
+}
+
 .ink-hatch {
   background-image: repeating-linear-gradient(
     -18deg,

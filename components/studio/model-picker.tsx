@@ -217,7 +217,7 @@ function FilterDropdown<T extends string>({
                   setIsOpen(false);
                 }}
                 className={cn(
-                  "flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs font-black text-left transition hover:bg-yellow/25",
+                  "flex w-full items-center justify-between surface-inset px-3 py-1.5 text-xs font-black text-left transition hover:bg-yellow/25",
                   isSelected ? "bg-ink text-paper-strong" : "text-ink",
                 )}
               >

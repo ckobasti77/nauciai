@@ -2,9 +2,11 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePaginatedQuery } from "convex/react";
-import { Download, Sparkles, Wand2 } from "lucide-react";
+import { Download, SlidersHorizontal, Sparkles, Wand2 } from "lucide-react";
 
 import { StudioMediaSkeletonTile, StudioMediaTile, type StudioTileJob } from "@/components/app/studio-media-tile";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import type { Locale } from "@/lib/i18n";
@@ -250,14 +252,14 @@ export function StudioMediaGrid({
       {selectedJobs.size > 0 ? (
         <div className="surface-card flex flex-wrap items-center justify-between gap-3 border-2 border-ink bg-paper p-3 shadow-[3px_3px_0_0_var(--shadow-hard-12)]">
           <div className="flex items-center gap-3">
-            <span className="rounded-full border-2 border-ink bg-yellow px-3 py-1 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--ink)]">
+            <span className="rounded-full border-2 border-ink bg-yellow px-3 py-1 type-eyebrow text-ink shadow-[2px_2px_0_0_var(--ink)]">
               {locale === "sr" ? `Izabrano: ${selectedJobs.size}` : `Selected: ${selectedJobs.size}`}
             </span>
             {visibleDownloadable.length > 0 ? (
               <button
                 type="button"
                 onClick={handleSelectAllVisible}
-                className="text-xs font-bold text-muted underline transition hover:text-ink cursor-pointer"
+                className="type-caption font-bold text-muted underline transition hover:text-ink cursor-pointer"
               >
                 {locale === "sr"
                   ? `Izaberi sve vidljive (${visibleDownloadable.length})`
@@ -268,7 +270,7 @@ export function StudioMediaGrid({
               type="button"
               onClick={handleClearSelection}
               disabled={isDownloading}
-              className="text-xs font-bold text-muted underline transition hover:text-ink cursor-pointer disabled:opacity-50"
+              className="type-caption font-bold text-muted underline transition hover:text-ink cursor-pointer disabled:opacity-50"
             >
               {locale === "sr" ? "Očisti izbor" : "Clear selection"}
             </button>
@@ -276,7 +278,7 @@ export function StudioMediaGrid({
 
           <div className="flex items-center gap-3">
             {downloadError ? (
-              <span className="text-xs font-extrabold text-red-700">{downloadError}</span>
+              <span className="type-caption font-extrabold text-red-700">{downloadError}</span>
             ) : null}
             <button
               type="button"
@@ -318,50 +320,50 @@ export function StudioMediaGrid({
           )}
         </div>
       ) : filteredJobs.length === 0 ? (
-        <div className="surface-card mx-auto max-w-md border-2 border-ink bg-paper-strong p-6 text-center shadow-[3px_3px_0_0_var(--shadow-hard-12)]">
+        // Sva tri prazna stanja Studija idu kroz isti `EmptyState` primitiv kao
+        // ostatak aplikacije (ikona u zutom krugu, naslov, recenica sa sledecim
+        // korakom, jedno dugme). Ranije su bila tri rucno slozena bloka, a filter
+        // bez pogodaka je jedini u proizvodu koji je gutao svoj naslov.
+        <div className="mx-auto max-w-xl">
           {filtersActive ? (
-            <>
-              <p className="text-base font-bold text-muted">{GALLERY_NO_MATCHES.body[locale]}</p>
-              <button
-                type="button"
-                onClick={resetAllFilters}
-                className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-5 py-2.5 text-sm font-extrabold text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 cursor-pointer"
-              >
-                {GALLERY_NO_MATCHES.cta[locale]}
-              </button>
-            </>
+            <EmptyState
+              icon={SlidersHorizontal}
+              title={GALLERY_NO_MATCHES.title[locale]}
+              body={GALLERY_NO_MATCHES.body[locale]}
+              action={
+                <Button variant="secondary" onClick={resetAllFilters}>
+                  {GALLERY_NO_MATCHES.cta[locale]}
+                </Button>
+              }
+            />
           ) : projectId ? (
-            <>
-              <p className="inline-flex items-center gap-2 text-lg font-black text-ink">
-                <Sparkles className="size-5 text-yellow" />
-                {PROJECT_NO_GENERATIONS.title[locale]}
-              </p>
-              <p className="mt-2 text-sm font-bold text-muted">{PROJECT_NO_GENERATIONS.body[locale]}</p>
-              <button
-                type="button"
-                onClick={() => onUseStarterPrompt(FIRST_PROMPT[locale])}
-                className="mt-5 inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 py-2.5 text-sm font-extrabold text-ink shadow-[4px_4px_0_0_var(--ink)] transition hover:-translate-y-0.5 cursor-pointer"
-              >
-                <Wand2 className="size-4" />
-                {PROJECT_NO_GENERATIONS.cta[locale]}
-              </button>
-            </>
+            <EmptyState
+              icon={Sparkles}
+              title={PROJECT_NO_GENERATIONS.title[locale]}
+              body={PROJECT_NO_GENERATIONS.body[locale]}
+              action={
+                <Button icon={<Wand2 className="size-4" />} onClick={() => onUseStarterPrompt(FIRST_PROMPT[locale])}>
+                  {PROJECT_NO_GENERATIONS.cta[locale]}
+                </Button>
+              }
+            />
           ) : (
             <>
-              <p className="inline-flex items-center gap-2 text-lg font-black text-ink">
-                <Sparkles className="size-5 text-yellow" />
-                {STUDIO_NO_GENERATIONS.title[locale]}
+              <EmptyState
+                icon={Sparkles}
+                title={STUDIO_NO_GENERATIONS.title[locale]}
+                body={STUDIO_NO_GENERATIONS.body[locale]}
+                action={
+                  <Button icon={<Wand2 className="size-4" />} onClick={() => onUseStarterPrompt(FIRST_PROMPT[locale])}>
+                    {STUDIO_NO_GENERATIONS.cta[locale]}
+                  </Button>
+                }
+              />
+              {/* Primer opisa je namerno ISPOD praznog stanja i u navodnicima: to
+                  je uzorak teksta koji dugme ubacuje, ne jos jedno uputstvo. */}
+              <p className="mt-3 text-center type-caption font-bold text-muted">
+                &bdquo;{FIRST_PROMPT[locale]}&ldquo;
               </p>
-              <p className="mt-2 text-sm font-bold text-muted">{STUDIO_NO_GENERATIONS.body[locale]}</p>
-              <button
-                type="button"
-                onClick={() => onUseStarterPrompt(FIRST_PROMPT[locale])}
-                className="mt-5 inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 py-2.5 text-sm font-extrabold text-ink shadow-[4px_4px_0_0_var(--ink)] transition hover:-translate-y-0.5 cursor-pointer"
-              >
-                <Wand2 className="size-4" />
-                {STUDIO_NO_GENERATIONS.cta[locale]}
-              </button>
-              <p className="mt-3 text-xs font-bold text-muted">&bdquo;{FIRST_PROMPT[locale]}&ldquo;</p>
             </>
           )}
         </div>
@@ -399,23 +401,22 @@ export function StudioMediaGrid({
           {/* Indikator / dugme za još stranica */}
           {jobStatus === "LoadingMore" ? (
             <div className="flex justify-center py-4">
-              <div className="inline-flex items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 py-2 text-xs font-extrabold text-ink shadow-[2px_2px_0_0_var(--shadow-hard-14)]">
+              <div className="inline-flex items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 py-2 type-caption font-extrabold text-ink shadow-[2px_2px_0_0_var(--shadow-hard-14)]">
                 <Spinner className="text-muted" />
                 {locale === "sr" ? "Učitavanje još medija…" : "Loading more media…"}
               </div>
             </div>
           ) : jobStatus === "CanLoadMore" ? (
             <div className="flex justify-center py-4">
-              <button
-                type="button"
+              <Button
+                variant="secondary"
                 onClick={() => {
                   isLoadingRef.current = true;
                   loadMore(PAGE_SIZE);
                 }}
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-5 py-2.5 text-sm font-extrabold text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 cursor-pointer"
               >
                 {locale === "sr" ? "Učitaj još" : "Load more"}
-              </button>
+              </Button>
             </div>
           ) : null}
         </div>

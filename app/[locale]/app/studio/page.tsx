@@ -26,6 +26,7 @@ export default async function StudioRoute({
       <div className="space-y-6">
         <SectionHeader
           variant="app"
+          underline
           title={locale === "sr" ? "Studio" : "Studio"}
           body={
             locale === "sr"
