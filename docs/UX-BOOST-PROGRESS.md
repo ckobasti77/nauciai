@@ -787,3 +787,148 @@ koji se zatvara i pamti u `localStorage`.
    je pravilo koje React uvodi zbog stvarnog problema sa zastarelim vrednostima.
 6. **`imageGenerationsLabel` sada piše „≈ 25 napravljenih slika"** umesto „≈ 25 generacija slika" na
    stranici Kredita. Ako ti se ne sviđa, promena je u `lib/credits-value.ts` i njena četiri testa.
+
+## U6 - Admin Sadržaj: pregled stanja + master-detail hijerarhija; ostali admin moduli dobili prazna stanja   (2026-08-30 03:05)
+
+**Fajlovi:**
+
+*Dodato:*
+- `convex/adminOverviewCore.ts` (čista logika: `tallyStatuses`, `tallyLessonFlags`, `tallyStudents`, `STUDENT_COUNT_LIMIT`)
+- `convex/adminOverview.ts` (jedan agregatni query `getAdminOverview`)
+- `convex/adminOverview.test.ts` (11 testova: 4 unit nad core-om, 7 kroz `convexTest`)
+- `lib/admin-content-tree.ts` (čista logika navigacije: `listLevelForSelection`, `parentListLevel`,
+  `listLevelAfterChange`, `contentStatus`, `draftCount`)
+- `lib/admin-content-tree.test.ts` (16 testova)
+
+*Izmenjeno:*
+- `components/app/admin-content-manager.tsx` (redizajn: tri gola `<select>`-a -> master-detail;
+  `AdminUsersPanel` / `AdminGrowthPanel` / `AdminAnalyticsPanel` -> `EmptyState` + linkovi;
+  `AdminPageFrame` dobio naslov po ruti; svi stringovi kroz `t()`)
+- `app/[locale]/app/admin/{users,growth,analytics}/page.tsx` (prosleđuju `locale` panelu - jedina
+  izmena; admin gate je netaknut, red po red isti)
+- `convex/_generated/api.d.ts` (rezultat `npx convex codegen`)
+
+**Šta je urađeno:**
+`/app/admin/content` više ne počinje prazninom. Na vrhu su četiri kartice stanja platforme
+(smerovi / kursevi / lekcije / studenti), svaka sa ukupnim brojem i razbijanjem po statusu kroz
+`Badge` - admin na prvi pogled vidi koliko je objavljeno, koliko čeka u nacrtu i koliko je
+arhivirano. Ispod je master-detail: levo `Panel` sa tri nivoa hijerarhije (Smerovi -> Kursevi ->
+Lekcije) kao `surface-inset` stavke sa statusom kao `Badge` i brojem dece, desno **postojeći**
+editor (readiness + `TrackExperience` / `DashboardContent` / `CoursePlayer` inline preview) - nijedan
+red editora nije prepisan, samo je preveden na novu navigaciju. Nacrti nose `ink-hatch` šrafuru i
+najglasniji (ink) `Badge`, pa se odmah vidi šta studenti NE vide. Tri dugmeta "Novi smer / Novi kurs /
+Nova lekcija" su sada `Button` primitivi i stoje na dnu svoje liste, u kontekstu: dugme za lekciju
+piše "Nova lekcija u ovom kursu" i tačno zna u koji kurs upisuje. Na mobilnom se vidi tačno jedan
+nivo, sa dugmetom "Nazad na smerove / Nazad na kurseve"; od `lg` naviše sva tri nivoa stoje jedan
+ispod drugog. Users / Growth / Analytics su umesto sirovih `FutureModule` pločica dobile jedan
+`EmptyState` ("U pripremi" + rečenica šta će tu biti i gde se to radi danas) plus tri linka ka admin
+modulima koji rade. Svaka admin ruta konačno ima svoj `<h1>` umesto četiri puta "Kontrolni centar"
+(UX-BOOST-PLAN §3D), i nijedan string u fajlu više nije hardkodovan srpski - sve ide kroz `t()`.
+
+**ODLUKE:**
+
+1. **Gate novog query-ja je `getCurrentProfile` + provera role, a NE `requireAdmin`, iako je korak
+   tražio `requireAdmin`.** `requireAdmin` (`convex/helpers.ts:283`) ide kroz `ensureProfile`, koji na
+   `!db.patch` baca `"Profile bootstrap requires a write-capable Convex context."` - dakle radi samo u
+   mutacijama. U query kontekstu bi svaki poziv pucao. Isti gate koristi i postojeći
+   `contentHierarchy.getAdminHierarchy` (`:53-55`), pa je novi query dosledan susedu. Ponašanje je
+   identično: ne-admin dobija `Forbidden`, neulogovan `Unauthorized` - oba pokrivena testom.
+2. **Broj studenata je čitanje kroz indeks `by_role` sa granicom od 2000 po roli i `capped` zastavicom.**
+   Convex nema `count`, a novi agregat (`@convex-dev/aggregate`) bi tražio izmenu šeme i
+   `convex.config.ts` - što pravila run-a zabranjuju. Bezuslovan `.collect()` nad `users` je bomba sa
+   odloženim dejstvom (transakcioni limit čitanja). Zato granica: kad se dostigne, UI piše `2000+`
+   umesto broja koji bi bio laž. Brojani su `student`, `pro_student` **i nalozi bez upisane role** -
+   jer `helpers.effectiveRoleForProfile` takav nalog tretira kao studenta; admini i moderatori se ne
+   broje.
+3. **Query je nov fajl `convex/adminOverview.ts`, a ne dopuna `contentHierarchy.ts`.**
+   `getAdminHierarchy` ne može da ga zameni: on **izbacuje arhivirane kurseve** (`:70`) i uopšte ne
+   čita korisnike, pa bi računanje na klijentu tiho prijavljivalo manje kurseva nego što ih ima.
+4. **"Novi kurs" i "Nova lekcija" ostaju uvek vidljivi, ali su onemogućeni dok roditelj nije izabran -
+   umesto ranijeg `creationIntent` toka.** Stara verzija je na klik otvarala nativni `<select>`
+   (`showPicker()`), bojila ga amber okvirom i ispisivala žuto upozorenje - tri mehanizma za jedan
+   korak, i svi su zavisili od `<select>`-a kojeg više nema. Sada iznad onemogućenog dugmeta stoji
+   rečenica koja tačno kaže šta fali ("Prvo izaberi smer iznad. Kursevi uvek pripadaju jednom
+   smeru."), pa je dugme vidljivo i objašnjeno, a nestalo je ~40 linija stanja (`creationIntent`,
+   `openNativeSelect`, `trackSelectRef`, `courseSelectRef`, `handleTrackSelection`,
+   `handleCourseSelection` i jedan `useEffect` koji je pomerao fokus).
+5. **`/app/admin` (home) je ostavljen kao redirect na `/app/admin/content`.** Korak ga pominje u tački
+   5, ali ta ruta **nema admin gate** - komentar u fajlu izričito kaže da gate stoji na svakoj leaf
+   ruti, a ne na roditeljskoj, jer je roditelj samo redirect. Da bih tamo prikazao stranicu, morao bih
+   da dodam gate - a pravila run-a zabranjuju diranje auth/gating pravila. Sidebar ionako izlistava
+   sve admin sekcije, pa hub stranica ne bi dodala nijedan link koji već ne postoji. Linkovi ka
+   modulima koji rade su umesto toga stavljeni na sve tri prazne stranice (users/growth/analytics).
+6. **Statusni tonovi: nacrt = `ink` (najglasniji), objavljeno = `neutral`, arhivirano = `muted`.**
+   Intuitivno bi bilo da "objavljeno" bude najjače, ali admin ne traži ono što je već objavljeno -
+   traži ono što je zaglavljeno u nacrtu. Nacrt zato nosi i tamni Badge i `ink-hatch` šrafuru
+   (postojeći utility iz `globals.css`, radi u obe teme jer je `color-mix` nad `var(--ink)`).
+7. **Brojevi dece pišu se u obliku "Kurseva: 4 · Nacrt: 1", sa dvotačkom.** Srpski traži tri različita
+   oblika za 1 / 2-4 / 5+ ("1 kurs", "2 kursa", "5 kurseva"). Oblik sa dvotačkom je gramatički tačan za
+   svaki broj, ne traži tabelu množine i ne uvodi novu zavisnost. Isto važi i za `Badge`-eve u
+   karticama stanja ("Objavljeno 4", "Nacrt 2").
+8. **Zadržao sam `emerald`/`red`/`amber` Tailwind boje u traci poruka i u readiness pločicama.**
+   To je zatečeni recept u ovom fajlu (readiness sekcija ga koristi na 4 mesta) i nije goli hex.
+   Prepisivanje semantičkih boja na tokene je zaseban posao za ceo repo, ne za ovaj korak - upisano
+   dole kao dug.
+9. **Levi navigator je `lg:sticky` sa `lg:max-h-[calc(100dvh-2rem)] lg:overflow-y-auto`.** Sa tri
+   otvorena nivoa ploča ume da bude viša od ekrana; bez ograničenja visine `sticky` bi odsekao treći
+   nivo bez načina da se do njega dođe. Liste imaju svoj `max-h-96` skrol samo do `lg` (na mobilnom je
+   vidljiv jedan nivo, pa je to jedini skrol koji tamo treba).
+10. **Restartovao sam dev server na portu 3000.** Zatečeni je od 01:13 vraćao HTTP 500 na svaku rutu
+    (`Jest worker encountered 2 child process exceptions` u `.next/dev/logs/next-development.log`) i
+    bio je neupotrebljiv puna dva sata. Next 16 ne dozvoljava drugi `next dev` nad istim
+    direktorijumom, pa provera ruta bez restarta nije bila moguća. Posle restarta: `/sr` = 200, sve
+    četiri admin rute = 307 (redirect na prijavu, dakle gate radi i moduli se kompajliraju bez greške).
+
+**Testovi:**
+- `convex/adminOverview.test.ts` (novo, 11): `tallyStatuses` broji sva tri statusa i vraća nule za
+  praznu listu; `tallyLessonFlags` mapira `isPublished` na published/draft i **nikad** na archived
+  (lekcije u šemi nemaju arhivu); `tallyStudents` označava `capped` samo kad korpa dotakne granicu
+  (uključujući granični slučaj 9/9/9 pri limitu 10, koji NIJE capped). Kroz `convexTest`: agregat nad
+  dva smera / dva kursa / četiri lekcije, prebrojavanje studenata gde admin i moderator ne ulaze a
+  nalog bez role ulazi, prazan deployment vraća nule umesto pada, i gate - `moderator` / `pro_student` /
+  `student` dobijaju `Forbidden`, neulogovani `Unauthorized`.
+- `lib/admin-content-tree.test.ts` (novo, 16): koji nivo se otvara iz URL-a (uključujući pokvaren URL
+  sa `lesson` bez `course`), kuda vodi "Nazad", korak napred pri biranju i **korak nazad pri
+  poništavanju izbora** (inače bi korisnik ostao na praznoj listi dece nepostojećeg roditelja),
+  status čvora iz `status` ili iz `isPublished`, čvor bez oba polja se tretira kao nacrt (nikad kao
+  objavljen), i brojanje nacrta preko oba oblika.
+- Nijedan postojeći test nije menjan ni oslabljen.
+
+**Rezultat verifikacije:**
+- `npx convex codegen` - **prošlo** (Convex je diran)
+- `npm run typecheck` - **prošlo** (0 grešaka)
+- `npm run test` - **prošlo** (84 fajla, 1142 testa; bilo 1115, +27 novih)
+- `npm run lint` - **1 greška, ista pre-postojeća kao u U5**, i dalje
+  `components/studio/studio-composer.tsx:1112 error: routeDroppedFiles is a function created with
+  React Hook "useEffectEvent", and can only be called from Effects and Effect Events in the same
+  component (react-hooks/rules-of-hooks)`. Provereno da je moj deo čist: `npx eslint` nad svih šest
+  dodatih/izmenjenih fajlova daje **nula** nalaza (ni grešku ni upozorenje). Nisam je popravljao iz
+  istog razloga kao U5: `routeDroppedFiles` se zove iz `onChange` na skrivenom `<input type="file">`,
+  pa ispravka znači prekrajanje toka za slanje fajlova u Studiju - nepovezan kod i rizik regresije na
+  putanji otpremanja.
+- Napomena o `npm run test`: u dva od tri pokretanja pao je `convex/chat.test.ts > inbox summary stays
+  exact beyond one thousand memberships` (timeout 5000ms). Provereno da NIJE moje: isti test pada i sa
+  `git stash`-ovanim izmenama (1114/1115 na baseline-u), a prolazi kad se fajl pokrene sam. To je
+  opterećenje paralelnog suite-a, ne regresija.
+
+**Za Jovana ujutru:**
+1. **Otvori `/sr/app/admin/content` ulogovan kao admin - to je jedini deo koji nisam mogao da vidim.**
+   Playwright pokreće čist profil bez tvoje sesije, pa me admin gate (ispravno) vratio na prijavu.
+   Proveri: (a) četiri kartice na vrhu pokazuju tačne brojeve, (b) klik na smer otvara njegove kurseve
+   ispod, klik na kurs otvara lekcije, (c) desno se otvara isti inline editor kao ranije i snimanje
+   radi, (d) "Podešavanja" popover gore desno u pregledu i dalje čuva slug/status/trajanje.
+2. **Suzi prozor ispod 1024px** (ili otvori na telefonu): treba da se vidi tačno jedan nivo i dugme
+   "Nazad na smerove / Nazad na kurseve". Bottom nav i dalje ima svoja 4 slota - nije diran.
+3. **Proveri tamnu temu na toj stranici**, posebno izabranu (žutu) stavku u listi i šrafuru na
+   nacrtima. Žuta stavka je "ostrvo" iz `globals.css` pa bi tekst u njoj morao da bude tamnoplav u obe
+   teme; šrafura je `color-mix` nad `var(--ink)` pa se sama obrne.
+4. **Dev server na portu 3000 sam restartovao** - zatečeni je od 01:13 vraćao 500 na svaku rutu i bio
+   mrtav dva sata. Sada radi (`/sr` = 200). Ako si u brauzeru imao otvoren tab, osveži ga.
+5. **Broj studenata staje na `2000+`** ako ih ikad bude toliko (vidi ODLUKU 2). Kad se to približi,
+   pravo rešenje je `@convex-dev/aggregate` nad `users`, što traži izmenu šeme - namerno nije rađeno
+   noćas.
+6. **Dug koji sam popisao, a nisam dirao:** (a) traka poruka i readiness pločice u ovom fajlu i dalje
+   koriste `emerald`/`red`/`amber` Tailwind skale umesto tokena, pa ne reaguju na temu (čitljive su,
+   ali svetle u obe); (b) `inputClass` u istom fajlu i dalje ima `outline-none` bez `focus-visible`
+   zamene i `rounded-[8px]` umesto `surface-media` - kandidat za U9, zajedno sa prelaskom polja u
+   popoveru na `Field`/`Input` primitive iz U2.

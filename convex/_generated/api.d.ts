@@ -9,6 +9,8 @@
  */
 
 import type * as adminAlert from "../adminAlert.js";
+import type * as adminOverview from "../adminOverview.js";
+import type * as adminOverviewCore from "../adminOverviewCore.js";
 import type * as auth from "../auth.js";
 import type * as authInternal from "../authInternal.js";
 import type * as avatar from "../avatar.js";
@@ -92,6 +94,8 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   adminAlert: typeof adminAlert;
+  adminOverview: typeof adminOverview;
+  adminOverviewCore: typeof adminOverviewCore;
   auth: typeof auth;
   authInternal: typeof authInternal;
   avatar: typeof avatar;

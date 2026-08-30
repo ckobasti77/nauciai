@@ -16,5 +16,5 @@ export default async function AdminUsersPage({ params }: { params: Promise<{ loc
   const locale = normalizeLocale(localeParam);
   const profile = await getCurrentViewerProfile();
   if (profile?.role !== "admin") redirect(withLocale(locale, "/app"));
-  return <AdminUsersPanel />;
+  return <AdminUsersPanel locale={locale} />;
 }
