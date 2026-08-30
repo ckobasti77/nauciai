@@ -1544,7 +1544,25 @@ async function setPublicFlag(t: TestConvex, enabled: boolean) {
   await t.run((ctx) => ctx.db.insert("platformFlags", { key: "studio_public", enabled }));
 }
 
-test("javni fleg: verifikovan korisnik BEZ kursa otvara posao, server i UI se slažu", async () => {
+/**
+ * Testovi javnog toka koji STVARNO prave posao moraju da imaju provider ključ:
+ * F2.9 DEMO guard javnom korisniku odbija model bez ključa (R10). DEMO testovi
+ * u ovom fajlu se i dalje oslanjaju na ODSUTAN ključ - zato stub po testu, ne
+ * `beforeAll`.
+ */
+async function withFalKey<T>(fn: () => Promise<T>): Promise<T> {
+  const previous = process.env.FAL_KEY;
+  process.env.FAL_KEY = "test-fal-key";
+  try {
+    return await fn();
+  } finally {
+    if (previous === undefined) delete process.env.FAL_KEY;
+    else process.env.FAL_KEY = previous;
+  }
+}
+
+test("javni fleg: verifikovan korisnik BEZ kursa otvara posao, server i UI se slažu", () =>
+  withFalKey(async () => {
   const t = convexTest(schema, modules);
   const { userId, asUser } = await seedUser(t, { enrolled: false, emailVerified: true });
   await seedModel(t);
@@ -1566,7 +1584,7 @@ test("javni fleg: verifikovan korisnik BEZ kursa otvara posao, server i UI se sl
   expect(jobs[0]._id).toBe(jobId);
   // Pristup nije popust - naplata ista kao za osoblje.
   expect(balance).toBe(100 - MODEL_COST);
-});
+  }));
 
 test("javni fleg: NEverifikovan korisnik pada na EMAIL_NIJE_POTVRDJEN bez ijednog upisa - upis na kurs ne pomaže", async () => {
   const t = convexTest(schema, modules);
@@ -1642,7 +1660,8 @@ async function seedDoneJob(t: TestConvex, userId: Id<"users">, createdAt: number
   );
 }
 
-test("MINUTNI_LIMIT: sedmi posao u minutu pada bez ijednog upisa; stariji od minuta se ne broje", async () => {
+test("MINUTNI_LIMIT: sedmi posao u minutu pada bez ijednog upisa; stariji od minuta se ne broje", () =>
+  withFalKey(async () => {
   const t = convexTest(schema, modules);
   const { userId, asUser } = await seedUser(t, { enrolled: false, emailVerified: true });
   await seedModel(t);
@@ -1689,9 +1708,10 @@ test("MINUTNI_LIMIT: sedmi posao u minutu pada bez ijednog upisa; stariji od min
     modelSlug: MODEL_SLUG,
     params: promptParams("lisica u snegu"),
   });
-});
+  }));
 
-test("DNEVNI_LIMIT_KREDITA: prekoračenje dnevne potrošnje kredita ne troši ništa, osoblje nema kap", async () => {
+test("DNEVNI_LIMIT_KREDITA: prekoračenje dnevne potrošnje kredita ne troši ništa, osoblje nema kap", () =>
+  withFalKey(async () => {
   const t = convexTest(schema, modules);
   const { userId, asUser } = await seedUser(t, { enrolled: false, emailVerified: true });
   await seedModel(t);
@@ -1740,9 +1760,10 @@ test("DNEVNI_LIMIT_KREDITA: prekoračenje dnevne potrošnje kredita ne troši ni
     modelSlug: MODEL_SLUG,
     params: promptParams("lisica u snegu"),
   });
-});
+  }));
 
-test("javni korisnik: concurrency 2 (treći posao pada), getStudioState nosi istu granicu", async () => {
+test("javni korisnik: concurrency 2 (treći posao pada), getStudioState nosi istu granicu", () =>
+  withFalKey(async () => {
   const t = convexTest(schema, modules);
   const { userId, asUser } = await seedUser(t, { enrolled: false, emailVerified: true });
   await seedModel(t);
@@ -1756,9 +1777,10 @@ test("javni korisnik: concurrency 2 (treći posao pada), getStudioState nosi ist
   await expect(
     asUser.mutation(api.studio.createJob, { modelSlug: MODEL_SLUG, params: promptParams("treci") }),
   ).rejects.toThrow(/PREVISE_POSLOVA/);
-});
+  }));
 
-test("config override iz platformFlags: maxJobsPerDay=1 obara drugi posao, enabled:false vraća podrazumevano", async () => {
+test("config override iz platformFlags: maxJobsPerDay=1 obara drugi posao, enabled:false vraća podrazumevano", () =>
+  withFalKey(async () => {
   const t = convexTest(schema, modules);
   const { userId, asUser } = await seedUser(t, { enrolled: false, emailVerified: true });
   await seedModel(t);
@@ -1780,7 +1802,7 @@ test("config override iz platformFlags: maxJobsPerDay=1 obara drugi posao, enabl
   // `enabled: false` na redu = override ne važi, podrazumevanih 200 se vraća.
   await t.run((ctx) => ctx.db.patch(rowId, { enabled: false }));
   await asUser.mutation(api.studio.createJob, { modelSlug: MODEL_SLUG, params: promptParams("drugi") });
-});
+  }));
 
 // ── claimSignupBonus (studio-public F2.3) ──────────────────────────────────
 
@@ -2967,4 +2989,37 @@ test("createInputUploadUrl i registerInputUpload traže pristup Studiju (R1)", a
   const uploads = await t.run((ctx) => ctx.db.query("studioUploads").collect());
   expect(uploads).toHaveLength(1);
   expect(uploads[0].userId).toBe(userId);
+});
+
+test("DEMO guard (R10): javni korisnik ne može da plati mock job bez provider ključa, osoblje može", async () => {
+  const t = convexTest(schema, modules);
+  // Testno okruženje nema FAL_KEY - fal model je u DEMO režimu.
+  expect(providerKeyPresent("fal", process.env)).toBe(false);
+
+  const { userId, asUser } = await seedUser(t, { enrolled: false, emailVerified: true });
+  await seedModel(t);
+  await grant(t, userId, 100);
+  await setPublicFlag(t, true);
+
+  await expect(
+    asUser.mutation(api.studio.createJob, {
+      modelSlug: MODEL_SLUG,
+      params: promptParams("lisica u snegu"),
+    }),
+  ).rejects.toThrow(/MODEL_NEDOSTUPAN/);
+  const { jobs, balance } = await ledger(t, userId);
+  expect(jobs).toHaveLength(0);
+  expect(balance).toBe(100);
+
+  // Osoblje zadržava DEMO za testiranje kataloga - isti model prolazi.
+  const staff = await seedUser(t, {
+    role: "moderator",
+    email: "mod3@example.com",
+    username: "mod_user3",
+  });
+  await grant(t, staff.userId, 100);
+  await staff.asUser.mutation(api.studio.createJob, {
+    modelSlug: MODEL_SLUG,
+    params: promptParams("lisica u snegu"),
+  });
 });

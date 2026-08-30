@@ -64,6 +64,7 @@ import {
   ownerHandle,
   parseParams,
   promptHash,
+  providerKeyPresent,
   providerStatus,
   resolveStudioLimits,
   sanitizeParams,
@@ -606,6 +607,20 @@ export const createJob = mutation({
           category: order.moderation.category,
         },
       };
+    }
+
+    // DEMO zaštita (studio-public F2.9, nalaz R10): bez ključa provajdera
+    // posao ide u mock, a krediti se REALNO troše ("demo provajdera, ne
+    // ledgera"). Osoblju je to alat za testiranje; javni korisnik ne sme da
+    // plati SVG mock - model bez ključa je za njega nedostupan, isto kao
+    // isključen model. `providerKeyPresent` je ista (jedina) mock kapija koju
+    // čita i `submitJob`, pa server i DEMO pilula u biraču ne mogu da se raziđu.
+    if (
+      publicState.publicEnabled &&
+      !isStudioStaff(role) &&
+      !providerKeyPresent(order.provider, process.env)
+    ) {
+      throw new Error("MODEL_NEDOSTUPAN");
     }
 
     const cleanParams = order.params;
