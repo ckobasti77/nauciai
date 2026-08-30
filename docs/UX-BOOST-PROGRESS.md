@@ -1870,3 +1870,95 @@ primitiv umesto ručnog bloka.
    `/app/profile`, `/app/billing` i dalje nemaju `h1`; (d) **21 fajl sa dva ili više punih žutih
    dugmadi** (U10 tačka 5, U11 tačka 8d) — koje je od njih primarno je i dalje proizvodna odluka koju
    nisam donosio bez tebe; (e) `px-*`/`py-*` parovi i dalje nisu na lestvici 4/6/8, samo `p-*`.
+
+---
+
+## U13 - Responsive prolaz + finalna verifikacija + UX-BOOST-REPORT.md   (2026-08-30 05:45)
+
+**Fajlovi:**
+
+*Izmenjeno:*
+- `components/app/chat/chat-dialogs.tsx` — `NewConversationDialog` korak 1 (izbor moda) dobio
+  `min-h-0 flex-1 overflow-y-auto`, uparen sa korakom 2 koji je to već imao; `ReportDialog` oklop
+  prepravljen na `flex max-h-[92dvh] flex-col overflow-hidden` sa `shrink-0` zaglavljem i
+  `min-h-0 flex-1 overflow-y-auto` sadržajem (isti obrazac kao `Dialog` primitiv iz U2)
+- `components/app/chat/messages-hub.tsx` — traka za prebacivanje „Razgovori/Uči zajedno" u zaglavlju
+  Poruka dobila `overflow-x-auto` (ista tehnika kao `community-members.tsx` tablist)
+
+*Dodato:*
+- `docs/UX-BOOST-REPORT.md` (finalni izveštaj run-a)
+
+**Šta je urađeno:**
+Odrađen je responsive prolaz kroz kod svih app ekrana koje su U2-U12 dirali, kroz agenta sa punim
+kontekstom prethodnih odluka (deo posla je delegiran zbog obima — čitanje/izmena desetina fajlova).
+Pronađena su i popravljena dva stvarna problema: `ReportDialog` u chat-u nije imao NIKAKAV `max-h`
+ni interni skrol (na niskom viewportu poput iPhone SE dugme za slanje prijave moglo je da bude
+nedostupno, jer je `body` skrol zaključan a dijalog sam sebe ne bi skrolovao), i korak 1
+`NewConversationDialog`-a je imao istu rupu koju je korak 2 već zatvorio. Traka „Razgovori/Uči
+zajedno" u zaglavlju Poruka je po intrinsic-width računu (naslov + gap + dve `whitespace-nowrap`
+dugmadi sa značkama) šira od 375px viewporta bez ijednog mehanizma da se skupi — dobila je isti
+`overflow-x-auto` obrazac koji `community-members.tsx` već koristi za identičan dvo/tro-stavkin
+tablist. Sve ostalo iz zadatka (bottom nav 4 slota, admin master-detail, studio traka filtera i
+lebdeći composer, `AppComposerSheet`/`ConversationDetailsDialog`/`FollowDialogShell`/potvrde
+brisanja) je pregledano red po red i zatečeno već ispravno — detalji u ODLUCI 1. Posle popravki
+pokrenuta je puna finalna verifikacija (`npx convex codegen`, `npm run typecheck`, `npm run lint`,
+`npm run test`, `npm run build`) — sve pet komandi je čisto, uključujući build, pa BLOKADA iz tačke 2
+zadatka nije bila potrebna. Napisan je `docs/UX-BOOST-REPORT.md` sa rezimeom U1-U12, svim odlukama
+noćnog run-a na jednom mestu, popisom preostalog duga i prioritetnim spiskom za jutarnju proveru.
+
+**ODLUKE:**
+1. **Responsive audit je delegiran subagentu sa detaljnim pisanim brifom** (spisak svih modala koji
+   NISU migrirani na `Dialog` primitiv iz U2 ODLUKE 2, tačan referentni obrazac `max-h-[92dvh]
+   overflow-hidden` + `overflow-y-auto`, apsolutne zabrane iz `rules.md`, sankcionisana skala
+   radiusa/paddinga). Razlog: zadatak traži pregled DESETINA fajlova iz sedam različitih zona
+   (dashboard, učionica, admin, zajednica, poruke, krediti, studio) — to je šire nego što stane u
+   budžet glavne niti bez žrtvovanja pažnje na finalnu verifikaciju i izveštaj, koji su podjednako
+   deo ovog koraka. Subagent je dobio eksplicitnu instrukciju da NE piše u progress/report fajlove
+   (to radim ja, na osnovu njegovog izveštaja) i da vrati tačan spisak fajl:linija + razlog za svaku
+   izmenu, da bih mogao da ga sažmem i proverim, ne samo prepišem.
+2. **Nijedna od dve popravke ne dira fokus-trap ni vizuelni oklop dijaloga** — samo `overflow`/`max-h`
+   klase. To je namerno: zadatak je „responsive prolaz", ne redizajn, i `useModalFocus` (U2) je već
+   testiran i stabilan; diranje njegove DOM strukture bi bilo van obima ovog koraka.
+3. **Nije rađena vizuelna provera u pregledaču** — kao ni U9/U10/U11/U12, ovaj korak nema pristup
+   prijavljenoj sesiji (isti razlog dokumentovan u U3 ODLUCI 11: Playwright sesija nije autentifikovana,
+   a pravljenje test naloga bi pisalo u dev Convex bazu). Sve procene širine (npr. da traka u
+   `messages-hub.tsx` prelazi 375px) su računate iz Tailwind klasa i `type-scale` vrednosti
+   (`app/globals.css`), ne izmerene u pregledaču — obe promene su konzervativne (dodaju skrol
+   mogućnost, ne menjaju vizuelni izgled kad content stane).
+4. **`npm run build` je čist, pa BLOKADA za env varijable (predviđena tačkom 2 zadatka) nije upisana.**
+   Build je prošao sa `.env.local` koji već postoji u repou (isti kao u U2/U3/U9/U10/U11/U12 koji su
+   ga uspešno pokretali kao dodatnu, neobaveznu proveru) — nije bilo potrebe za fallback-om na tačku 3.
+
+**Testovi:** Nijedan nov test — ovo je čist layout/`overflow` CSS-klasa sweep na dva mesta, bez nove
+logike u `lib/`/`convex/` (isti obrazac kao U7 ODLUKA 8: „nema šta čisto da se testira"). Postojeći
+suite (90 fajlova, 1198 testova) pokrenut je i kao regresiona provera i kao deo obavezne finalne
+verifikacije.
+
+**Rezultat verifikacije (finalna, za ceo run):**
+- `npx convex codegen` — **PROŠLO** (exit 0, bez izmena u `convex/_generated/` — nijedan Convex fajl
+  nije diran od U12 naovamo)
+- `npm run typecheck` — **PROŠLO** (exit 0, bez izlaza)
+- `npm run lint` — **exit 0 na nivou npm skripte, ali sa istom pre-postojećom greškom kao ceo run:**
+  `178 problems (1 error, 177 warnings)` — identičan broj kao U1-U12, ista `studio-composer.tsx:1112`
+  (`routeDroppedFiles`/`useEffectEvent`), koju U13 nije dirao (van obima, dokumentovano sedam puta u
+  prethodnim koracima). Nijedan nov nalaz iz dva fajla koje je U13 izmenio.
+- `npm run test` — **PROŠLO** (90 fajlova, 1198 testova — identično baseline-u posle U12; ovaj korak
+  nije dodao ni obrisao nijedan test)
+- `npm run build` — **PROŠLO** (`Compiled successfully`, 74 rute generisane, bez grešaka)
+
+**BLOKADA:** Nema. Pre-postojeća lint greška iz U1 ostaje jedina crvena stavka u repou, i nije
+BLOKADA ovog koraka (postojala je pre njega i posle njega, van obima po pravilima run-a).
+
+**Za Jovana ujutru:**
+1. **Cela verifikaciona trojka + build su zeleni na kraju run-a** — prvi put od U1 da je i `npm run
+   build` deo formalne provere i da je sve, osim jedne poznate pre-postojeće lint greške, čisto.
+2. **Pročitaj `docs/UX-BOOST-REPORT.md`** — tu je rezime svih 13 koraka, kompletan spisak odluka, popis
+   duga i prioritetni redosled za jutarnju proveru u pregledaču.
+3. **Testiraj `ReportDialog` (prijava korisnika/poruke u chatu) i prvi korak „Novi razgovor" dijaloga
+   na uskom/niskom viewportu** (npr. DevTools na 360×640 ili iPhone SE preset) — to su jedine dve
+   funkcionalne izmene ovog koraka.
+4. **Traka „Razgovori/Uči zajedno" na `/app/messages`** na 320-375px sada ima kratki horizontalni skrol
+   umesto da prelama okvir pilule — proveri da li ti se svidi ili bi radije da se prelama u dva reda
+   (to bi bila druga, veća izmena).
+5. **`studio-composer.tsx:1112` lint greška je i dalje neotklonjena** — sedmi... sad osmi put ista
+   preporuka kroz ceo run: popraviti je u zasebnom, malom koraku van UX run-a.
