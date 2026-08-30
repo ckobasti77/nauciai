@@ -13,10 +13,18 @@ type SitemapPage = {
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const origin = (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/$/, "");
-  const convex = getConvexHttpClient();
-  if (!convex) return [];
 
-  const urls: MetadataRoute.Sitemap = [];
+  // Statične javne stranice idu i BEZ Convex-a (studio-public F3): landing
+  // Studija je akviziciona stranica i ne sme da ispadne iz mape kad backend
+  // env fali.
+  const urls: MetadataRoute.Sitemap = (["sr", "en"] as const).map((locale) => ({
+    url: `${origin}${withLocale(locale, "/studio")}`,
+    changeFrequency: "weekly",
+    priority: 0.8,
+  }));
+
+  const convex = getConvexHttpClient();
+  if (!convex) return urls;
   let cursor: string | null = null;
   let isDone = false;
   let pages = 0;

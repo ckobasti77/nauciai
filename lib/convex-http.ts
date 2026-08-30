@@ -46,4 +46,8 @@ export const convexQueries = {
   getViewerProfileStatus: makeFunctionReference<"query">("profiles:getViewerProfileStatus"),
   getMySuspension: makeFunctionReference<"query">("chatModeration:getMySuspension"),
   getPackBySlug: makeFunctionReference<"query">("creditPacks:getPackBySlug"),
+  // Javni landing Studija (studio-public F3): obe su no-auth projektovane
+  // queries, pa cene stižu u SSR HTML koji Google čita.
+  listPacks: makeFunctionReference<"query">("creditPacks:listPacks"),
+  listCatalogModels: makeFunctionReference<"query">("modelCatalog:listModels"),
 };
