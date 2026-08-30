@@ -99,7 +99,7 @@ function MechanismSketch({ locale }: { locale: Locale }) {
   const priceText = locale === "sr" ? "20 kredita" : "20 credits";
   return (
     <svg
-      viewBox="0 0 420 300"
+      viewBox="0 0 420 318"
       role="img"
       aria-label={
         locale === "sr"
@@ -196,9 +196,15 @@ export default async function StudioLandingPage({
             {viewerProfile ? (
               <AccountMenu locale={locale} profile={viewerProfile} />
             ) : (
-              <LinkButton href={trySignInHref} tone="paper" className="hidden sm:inline-flex">
-                {locale === "sr" ? "Prijavi se" : "Sign in"}
-              </LinkButton>
+              // `hidden` direktno na LinkButton-u gubi od nečeg što anchor-u
+              // nameće display:flex (PRE-POSTOJEĆI site-wide bag - i home
+              // "Prijava" je vidljiva na 375; prijavljeno kao zaseban task).
+              // Span je van tog pravila, pa sakrivanje pouzdano radi.
+              <span className="hidden sm:block">
+                <LinkButton href={trySignInHref} tone="paper">
+                  {locale === "sr" ? "Prijavi se" : "Sign in"}
+                </LinkButton>
+              </span>
             )}
           </div>
         </div>
@@ -207,16 +213,22 @@ export default async function StudioLandingPage({
       <div data-motion="page">
         <HeroMotion>
           <section data-motion="hero" className="sketch-grid overflow-hidden border-b-2 border-ink">
-            <div className="mx-auto grid min-h-[calc(100dvh-74px)] max-w-7xl items-center gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[1.02fr_0.98fr] lg:px-8 lg:py-16">
+            {/* Bez forsiranog 100dvh (za razliku od home heroja): CTA mora u
+                prvi viewport i na 720p laptopu - viša kolona bi ga gurnula u
+                deferred scroll-reveal (page-motion 92% prag). */}
+            <div className="mx-auto grid max-w-7xl items-center gap-10 px-4 py-14 sm:px-6 lg:grid-cols-[1.02fr_0.98fr] lg:px-8 lg:py-20">
+              {/* Kompaktnije od home heroja (4xl/5xl/6xl, uže margine): CTA
+                  mora iznad 92% praga i na 1366×744 laptopu, inače upada u
+                  deferred scroll-reveal i prvi viewport ostaje bez akcije. */}
               <div className="max-w-3xl" data-motion="copy">
-                <h1 className="text-5xl font-black leading-[0.95] text-ink sm:text-6xl lg:text-7xl">
+                <h1 className="text-4xl font-black leading-[0.95] text-ink sm:text-5xl lg:text-6xl">
                   {STUDIO_LANDING.heroTitle[locale]}
                 </h1>
-                <HandUnderline className="mt-5" />
-                <p className="mt-6 max-w-2xl text-lg font-bold leading-8 text-muted sm:text-xl">
+                <HandUnderline className="mt-4" />
+                <p className="mt-5 max-w-2xl text-lg font-bold leading-8 text-muted">
                   {STUDIO_LANDING.heroBody[locale]}
                 </p>
-                <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                <div className="mt-6 flex flex-col gap-3 sm:flex-row">
                   <LinkButton href={primaryHref} tone="yellow">
                     <Sparkles className="size-4" />
                     {primaryLabel}
@@ -226,7 +238,7 @@ export default async function StudioLandingPage({
                     {STUDIO_LANDING.ctaPacks[locale]}
                   </LinkButton>
                 </div>
-                <p className="mt-5 inline-flex items-center gap-2 text-sm font-extrabold text-muted">
+                <p className="mt-4 inline-flex items-center gap-2 text-sm font-extrabold text-muted">
                   <span aria-hidden className="inline-block h-2.5 w-2.5 rounded-full border-2 border-ink bg-yellow" />
                   {STUDIO_LANDING.bonusNote[locale]}
                 </p>
