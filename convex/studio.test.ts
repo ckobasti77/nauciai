@@ -67,6 +67,12 @@ async function seedUser(
      * ga isključuju sa `acceptedTerms: false`.
      */
     acceptedTerms?: boolean;
+    /**
+     * Potvrđen email po STUDIO predikatu (studio-public F1). Piše se OAuth
+     * pečat (`emailVerificationTime`) namerno - to je i dokaz da javni gejt
+     * priznaje Google verifikaciju, ne samo app/password pečate.
+     */
+    emailVerified?: boolean;
   } = {},
 ) {
   const userId = await t.run(async (ctx) => {
@@ -77,6 +83,7 @@ async function seedUser(
       role: opts.role ?? "student",
       language: "sr" as const,
       ...(opts.acceptedTerms === false ? {} : { acceptedStudioTermsAt: 1 }),
+      ...(opts.emailVerified ? { emailVerificationTime: 1 } : {}),
       createdAt: 1,
       updatedAt: 1,
     });
@@ -1357,6 +1364,9 @@ test("getStudioState: upaljen Studio, osoblje bez posla u letu", async () => {
   expect(state).toEqual({
     enabled: true,
     hasStudioAccess: true,
+    accessReason: null,
+    publicEnabled: false,
+    emailVerified: false,
     hasAcceptedTerms: true,
     isStaff: true,
     isStudioAdmin: false,
@@ -1462,6 +1472,124 @@ test("getStudioState prijavljuje neupisanog korisnika pre nego što klikne dugme
       params: promptParams("lisica u snegu"),
     }),
   ).rejects.toThrow(/NEMA_PRISTUPA/);
+});
+
+// ── STUDIO_PUBLIC fleg (studio-public F1) ──────────────────────────────────
+
+/** Red `studio_public` u `platformFlags`; odsutan red = OFF (svi ostali testovi to dokazuju). */
+async function setPublicFlag(t: TestConvex, enabled: boolean) {
+  await t.run((ctx) => ctx.db.insert("platformFlags", { key: "studio_public", enabled }));
+}
+
+test("javni fleg: verifikovan korisnik BEZ kursa otvara posao, server i UI se slažu", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedUser(t, { enrolled: false, emailVerified: true });
+  await seedModel(t);
+  await grant(t, userId, 100);
+  await setPublicFlag(t, true);
+
+  const state = await asUser.query(api.studio.getStudioState, {});
+  expect(state.publicEnabled).toBe(true);
+  expect(state.emailVerified).toBe(true);
+  expect(state.hasStudioAccess).toBe(true);
+  expect(state.accessReason).toBeNull();
+
+  const jobId = await asUser.mutation(api.studio.createJob, {
+    modelSlug: MODEL_SLUG,
+    params: promptParams("lisica u snegu"),
+  });
+  const { jobs, balance } = await ledger(t, userId);
+  expect(jobs).toHaveLength(1);
+  expect(jobs[0]._id).toBe(jobId);
+  // Pristup nije popust - naplata ista kao za osoblje.
+  expect(balance).toBe(100 - MODEL_COST);
+});
+
+test("javni fleg: NEverifikovan korisnik pada na EMAIL_NIJE_POTVRDJEN bez ijednog upisa - upis na kurs ne pomaže", async () => {
+  const t = convexTest(schema, modules);
+  // Namerno UPISAN: brif traži potvrđen email za svakoga, upis ne zaobilazi.
+  const { userId, asUser } = await seedUser(t, { enrolled: true });
+  await seedModel(t);
+  await grant(t, userId, 100);
+  await setPublicFlag(t, true);
+
+  const state = await asUser.query(api.studio.getStudioState, {});
+  expect(state.hasStudioAccess).toBe(false);
+  expect(state.accessReason).toBe("EMAIL_NIJE_POTVRDJEN");
+  expect(state.emailVerified).toBe(false);
+
+  await expect(
+    asUser.mutation(api.studio.createJob, {
+      modelSlug: MODEL_SLUG,
+      params: promptParams("lisica u snegu"),
+    }),
+  ).rejects.toThrow(/EMAIL_NIJE_POTVRDJEN/);
+
+  const { jobs, transactions, balance } = await ledger(t, userId);
+  expect(jobs).toHaveLength(0);
+  // Jedina transakcija je seed grant - odbijen pokušaj nije ostavio trag.
+  expect(transactions).toHaveLength(1);
+  expect(balance).toBe(100);
+});
+
+test("ugašen javni fleg (eksplicitan red): student NEMA_PRISTUPA, moderator prolazi - današnje ponašanje netaknuto", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedUser(t, { emailVerified: true });
+  await seedModel(t);
+  await grant(t, userId, 100);
+  // Red postoji ali je `enabled: false` - isto kao da ga nema.
+  await setPublicFlag(t, false);
+
+  expect((await asUser.query(api.studio.getStudioState, {})).accessReason).toBe("NEMA_PRISTUPA");
+  await expect(
+    asUser.mutation(api.studio.createJob, {
+      modelSlug: MODEL_SLUG,
+      params: promptParams("lisica u snegu"),
+    }),
+  ).rejects.toThrow(/NEMA_PRISTUPA/);
+
+  const staff = await seedUser(t, {
+    role: "moderator",
+    email: "mod@example.com",
+    username: "mod_user",
+    enrolled: false,
+  });
+  await grant(t, staff.userId, 100);
+  const staffState = await staff.asUser.query(api.studio.getStudioState, {});
+  expect(staffState.hasStudioAccess).toBe(true);
+  await staff.asUser.mutation(api.studio.createJob, {
+    modelSlug: MODEL_SLUG,
+    params: promptParams("lisica u snegu"),
+  });
+});
+
+test("javni fleg: kill switch i uslovi važe i za javne korisnike, istim redosledom", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedUser(t, {
+    enrolled: false,
+    emailVerified: true,
+    acceptedTerms: false,
+  });
+  await seedModel(t);
+  await grant(t, userId, 100);
+  await setPublicFlag(t, true);
+
+  // Uslovi Studija se ne preskaču ni u javnom režimu.
+  await expect(
+    asUser.mutation(api.studio.createJob, {
+      modelSlug: MODEL_SLUG,
+      params: promptParams("lisica u snegu"),
+    }),
+  ).rejects.toThrow(/USLOVI_NEPRIHVACENI/);
+
+  // Kill switch gasi i javni Studio.
+  await t.run((ctx) => ctx.db.insert("platformFlags", { key: "studio_enabled", enabled: false }));
+  await expect(
+    asUser.mutation(api.studio.createJob, {
+      modelSlug: MODEL_SLUG,
+      params: promptParams("lisica u snegu"),
+    }),
+  ).rejects.toThrow(/STUDIO_PAUZIRAN/);
 });
 
 test("getStudioState ne odgovara neprijavljenom korisniku", async () => {

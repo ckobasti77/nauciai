@@ -141,6 +141,16 @@ const CREATE_JOB_ERROR_MESSAGES: Array<[string, { sr: string; en: string }]> = [
     },
   ],
   [
+    // Javni Studio (studio-public F1) traži potvrđen email pre prve
+    // generacije - shell prikazuje panel sa resend dugmetom pre nego što se
+    // do ovoga uopšte dođe, ali server odbija i poziv koji je ekran zaobišao.
+    "EMAIL_NIJE_POTVRDJEN",
+    {
+      sr: "Potvrdi svoju email adresu da bi koristio Studio - link za potvrdu ti stiže na email. Krediti i nalog te čekaju.",
+      en: "Confirm your email address to use the Studio - the confirmation link arrives by email. Your credits and account are waiting.",
+    },
+  ],
+  [
     // Dugme "Otvori u Studiju" (P9) uvek šalje oboje zajedno, pa je ovo
     // nedostižno kroz normalnu upotrebu - ali link se može ručno izmeniti.
     "ZADATAK_BEZ_LEKCIJE",

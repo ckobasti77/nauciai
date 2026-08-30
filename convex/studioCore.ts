@@ -160,13 +160,10 @@ export function resolveStudioLimits(
  * sme da traži drugu potvrdu. Kursni predikat se NE dira — on čuva i
  * postavljanje lozinke, gde je app-kontrolisan dokaz o inboxu namerno stroži.
  */
-export function isEmailVerifiedForStudio(
-  user: {
-    appEmailVerificationTime?: number;
-    passwordEmailVerificationTime?: number;
-    emailVerificationTime?: number;
-  } | null,
-): boolean {
+export function isEmailVerifiedForStudio(user: Record<string, unknown> | null): boolean {
+  // `Record<string, unknown>` umesto `Doc<"users">` iz istog razloga kao
+  // `role: unknown` u `hasStudioAccess`: `getCurrentProfile` vraća labavi
+  // `DocLike`, a čista funkcija ionako čita samo tri pečata.
   if (!user) return false;
   return Boolean(
     user.appEmailVerificationTime ||

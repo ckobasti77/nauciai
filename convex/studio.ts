@@ -41,11 +41,12 @@ import { planSettlement } from "./studioSettlementCore";
 import {
   computeCreditCost,
   dayKey,
+  decideStudioAccess,
   exceedsDailyCostLimit,
   exceedsUnsettledCostLimit,
   extractPrompt,
-  hasStudioAccess,
   INPUT_UPLOAD_TTL_MS,
+  isEmailVerifiedForStudio,
   isMeasureBlocked,
   isMockRequestId,
   isStudioStaff,
@@ -62,6 +63,10 @@ import {
   requestedImageCount,
   sanitizeParams,
   STUDIO_FLAG_KEY,
+  STUDIO_PUBLIC_CONFIG_KEYS,
+  STUDIO_PUBLIC_FLAG_KEY,
+  type StudioAccessDecision,
+  type StudioPublicConfig,
   UPLOAD_GRANT_CLOCK_SLACK_MS,
   UPLOAD_GRANT_TTL_MS,
 } from "./studioCore";
@@ -357,6 +362,77 @@ async function buildLegacyOrder(
 }
 
 /**
+ * Javni fleg + numerički limiti (studio-public F1). Fleg OFF (ili odsutan
+ * red - suprotno podrazumevanje od kill switch-a, vidi `STUDIO_PUBLIC_FLAG_KEY`)
+ * košta tačno JEDNO indeksno čitanje; config redovi se čitaju tek kad je fleg
+ * upaljen, jer bez njega njihove vrednosti ništa ne znače.
+ */
+export async function loadStudioPublicState(
+  ctx: QueryCtx | MutationCtx,
+): Promise<{ publicEnabled: boolean; config: StudioPublicConfig }> {
+  const flag = await ctx.db
+    .query("platformFlags")
+    .withIndex("by_key", (q) => q.eq("key", STUDIO_PUBLIC_FLAG_KEY))
+    .unique();
+  if (flag?.enabled !== true) return { publicEnabled: false, config: {} };
+
+  const config: StudioPublicConfig = {};
+  for (const prop of Object.keys(STUDIO_PUBLIC_CONFIG_KEYS) as Array<
+    keyof typeof STUDIO_PUBLIC_CONFIG_KEYS
+  >) {
+    const row = await ctx.db
+      .query("platformFlags")
+      .withIndex("by_key", (q) => q.eq("key", STUDIO_PUBLIC_CONFIG_KEYS[prop]))
+      .unique();
+    // `enabled: false` je "vrati na podrazumevano" bez brisanja reda; validaciju
+    // (ceo broj > 0) radi `resolveStudioLimits`, ovde se samo prosleđuje.
+    if (row?.enabled && typeof row.value === "number") config[prop] = row.value;
+  }
+  return { publicEnabled: true, config };
+}
+
+/**
+ * Ista odluka za `createJob`, `getStudioState` i gejtovane pomoćne mutacije -
+ * `decideStudioAccess` je jedina tačka odluke (vidi komentar u `studioCore.ts`).
+ * Profil stiže već učitan da `createJob` ne bi čitao korisnika dvaput.
+ */
+async function evaluateStudioAccess(
+  ctx: QueryCtx | MutationCtx,
+  profile: { userId: Id<"users">; role: unknown; existing: Record<string, unknown> },
+  publicEnabled: boolean,
+): Promise<StudioAccessDecision> {
+  // Upis se čita i dalje (uspavana formula ispod `STUDIO_STAFF_ONLY` - X8);
+  // kad je javni fleg upaljen on ne učestvuje u odluci, ali čitanje ostaje
+  // jedno te isto da se dve grane ne bi razišle.
+  const enrollment = await ctx.db
+    .query("enrollments")
+    .withIndex("by_user", (q) => q.eq("userId", profile.userId))
+    .filter((q) => q.eq(q.field("status"), "active"))
+    .first();
+  return decideStudioAccess({
+    role: profile.role,
+    enrollment,
+    publicEnabled,
+    emailVerified: isEmailVerifiedForStudio(profile.existing),
+  });
+}
+
+/**
+ * Gejt po uzoru na `requireUserId` (brif F1): svaka Studio mutacija koja PRAVI
+ * resurse (upload grant, registracija fajla, projekat) zove ovo pre ijednog
+ * upisa, pa korisnik kojeg `createJob` ne bi pustio ne može ni da puni storage.
+ * Čitanja sopstvenih podataka (galerija, brisanje) namerno NE idu kroz ovo -
+ * gašenje flega ne sme korisniku da zaključa ono što je već platio.
+ */
+export async function requireStudioAccess(ctx: MutationCtx | QueryCtx) {
+  const profile = await getCurrentProfile(ctx);
+  const { publicEnabled, config } = await loadStudioPublicState(ctx);
+  const decision = await evaluateStudioAccess(ctx, profile, publicEnabled);
+  if (!decision.allowed) throw new Error(decision.reason);
+  return { ...profile, publicEnabled, config };
+}
+
+/**
  * Rezervacija posla iz koraka 1 sekcije 4.2 STUDIO-PLAN-a. Sve provere idu
  * PRE prvog upisa, a rezervacija posla i skidanje kredita su u istoj
  * transakciji - ne sme da ostane ni skinut kredit bez posla, ni posao bez
@@ -389,7 +465,7 @@ export const createJob = mutation({
   },
   handler: async (ctx, args) => {
     // Uloga se čita zajedno sa korisnikom jer o pristupu odlučuje
-    // `hasStudioAccess` niže - `requireUserId` bi vratio samo ID, pa bi
+    // `decideStudioAccess` niže - `requireUserId` bi vratio samo ID, pa bi
     // enrollment ostao jedini kriterijum.
     const { userId, role, existing } = await getCurrentProfile(ctx);
 
@@ -410,17 +486,15 @@ export const createJob = mutation({
       .unique();
     if (flag && !flag.enabled) throw new Error("STUDIO_PAUZIRAN");
 
-    // Pristup (STUDIO-PLAN 4.4), privremeno suženo na osoblje dok naplata ne
-    // proradi - vidi `STUDIO_STAFF_ONLY` u `studioCore.ts`. Upis se i dalje čita
-    // i prosleđuje u `hasStudioAccess`, jer ta logika ostaje netaknuta ispod
-    // fleg - samo se trenutno ne pita. Ista funkcija odlučuje gde se gasi
-    // dugme u UI-ju; naplata ispod ostaje ista za sve.
-    const enrollment = await ctx.db
-      .query("enrollments")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .filter((q) => q.eq(q.field("status"), "active"))
-      .first();
-    if (!hasStudioAccess(role, enrollment)) throw new Error("NEMA_PRISTUPA");
+    // Pristup (STUDIO-PLAN 4.4 + studio-public F1): odluku donosi
+    // `decideStudioAccess` kroz `evaluateStudioAccess` - ugašen javni fleg
+    // reprodukuje `STUDIO_STAFF_ONLY` ponašanje u potpunosti (osoblje, uspavana
+    // formula upisa), upaljen pušta i svakog prijavljenog sa POTVRĐENIM emailom.
+    // Ista funkcija odlučuje gde se gasi dugme u UI-ju (`getStudioState`);
+    // naplata ispod ostaje ista za sve.
+    const publicState = await loadStudioPublicState(ctx);
+    const access = await evaluateStudioAccess(ctx, { userId, role, existing }, publicState.publicEnabled);
+    if (!access.allowed) throw new Error(access.reason);
 
     // Uslovi Studija (X7). Bez pečata nema prvog posla, i tu izuzetka nema:
     // admin i moderator generišu istim modelima, sa istim zabranama i istim
@@ -1684,20 +1758,27 @@ export const getStudioState = query({
       .withIndex("by_user_status", (q) => q.eq("userId", userId).eq("status", "running"))
       .take(MAX_ACTIVE_JOBS);
 
-    const enrollment = await ctx.db
-      .query("enrollments")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .filter((q) => q.eq(q.field("status"), "active"))
-      .first();
+    const publicState = await loadStudioPublicState(ctx);
+    const access = await evaluateStudioAccess(ctx, { userId, role, existing }, publicState.publicEnabled);
+    const emailVerified = isEmailVerifiedForStudio(existing);
 
     return {
       // Red koji ne postoji znači "nikad nije ni gašen" - isto čitanje kao u
       // `createJob`, da UI i server nikad ne tvrde suprotno.
       enabled: flag ? flag.enabled : true,
-      // Ne "je li upisan" nego "sme li u Studio" - ista funkcija koju zove i
-      // `createJob`, pa dugme ne može biti sivo korisniku kojeg bi server
-      // pustio (ni obrnuto).
-      hasStudioAccess: hasStudioAccess(role, enrollment),
+      // Ne "je li upisan" nego "sme li u Studio" - ista odluka koju donosi i
+      // `createJob` (`decideStudioAccess`), pa dugme ne može biti sivo
+      // korisniku kojeg bi server pustio (ni obrnuto).
+      hasStudioAccess: access.allowed,
+      // ZAŠTO nema pristupa - shell po ovome bira panel: EMAIL_NIJE_POTVRDJEN
+      // dobija "potvrdi email" sa resend dugmetom, NEMA_PRISTUPA postojeću
+      // poruku o zatvorenom testiranju.
+      accessReason: access.allowed ? null : access.reason,
+      // Da li je Studio otvoren javnosti (F1 fleg) i da li je email potvrđen
+      // po STUDIO predikatu (Google OAuth se računa - vidi
+      // `isEmailVerifiedForStudio`).
+      publicEnabled: publicState.publicEnabled,
+      emailVerified,
       // Da li je pečat iz `acceptStudioTerms` upisan (X7). Isti uslov koji
       // `createJob` proverava na serveru, pa forma ne može da stoji otvorena
       // korisniku kojem bi prvi klik svakako pao na `USLOVI_NEPRIHVACENI`.
