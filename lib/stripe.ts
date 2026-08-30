@@ -106,15 +106,22 @@ export async function createCreditPackCheckoutSession(params: {
   priceId: string;
   userId: string;
   customerEmail?: string;
+  /**
+   * Putanja povratka (studio-public F4) - dolazi ISKLJUČIVO iz server-side
+   * allowliste `lib/credits-return.ts`, nikad sa klijenta. Odsutna = školski
+   * /app/credits, bajt-identično dosadašnjem ponašanju.
+   */
+  returnPath?: string;
 }) {
   const stripe = getStripe();
   const siteUrl = getSiteUrl();
+  const returnBase = `${siteUrl}/${params.locale}${params.returnPath ?? "/app/credits"}`;
 
   return stripe.checkout.sessions.create({
     mode: "payment",
     line_items: [{ price: params.priceId, quantity: 1 }],
-    success_url: `${siteUrl}/${params.locale}/app/credits?checkout=success`,
-    cancel_url: `${siteUrl}/${params.locale}/app/credits?checkout=cancelled`,
+    success_url: `${returnBase}?checkout=success`,
+    cancel_url: `${returnBase}?checkout=cancelled`,
     customer_email: params.customerEmail,
     ...checkoutTaxParams(),
     // Nema kuponske politike, pa nema ni kupona: kupon od 100% pravi sesiju

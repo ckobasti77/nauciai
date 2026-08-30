@@ -75,6 +75,24 @@ describe("createCreditPackCheckoutSession", () => {
     expect(params.success_url).toBe("https://nauciai.test/en/app/credits?checkout=success");
     expect(params.cancel_url).toBe("https://nauciai.test/en/app/credits?checkout=cancelled");
   });
+
+  it("returnPath iz allowliste vraća kupca u samostalni Studio (studio-public F4)", async () => {
+    await createCreditPackCheckoutSession({
+      packSlug: "creator",
+      packId: "pack_456",
+      credits: 1650,
+      locale: "sr",
+      priceId: "price_creator",
+      userId: "user_2",
+      returnPath: "/studio/krediti",
+    });
+
+    const params = lastParams();
+    expect(params.success_url).toBe("https://nauciai.test/sr/studio/krediti?checkout=success");
+    expect(params.cancel_url).toBe("https://nauciai.test/sr/studio/krediti?checkout=cancelled");
+    // Metapodaci za webhook su NEZAVISNI od povratne putanje - grant ide isto.
+    expect(params.metadata).toMatchObject({ kind: "credit_pack", packSlug: "creator" });
+  });
 });
 
 describe("createPlanCheckoutSession", () => {

@@ -1,6 +1,7 @@
 import { convexAuthNextjsToken } from "@convex-dev/auth/nextjs/server";
 
 import { convexQueries, getConvexHttpClient } from "@/lib/convex-http";
+import { creditsReturnPath } from "@/lib/credits-return";
 import { missingServerEnvName } from "@/lib/env";
 import { createCreditPackCheckoutSession } from "@/lib/stripe";
 
@@ -99,6 +100,9 @@ export async function POST(request: Request) {
       priceId: pack.stripePriceId,
       userId: viewer.user._id,
       customerEmail: viewer.user.email,
+      // Kontekst ("studio" iz samostalnog shell-a) se mapira kroz allowlistu -
+      // klijentov string nikad ne postaje URL (studio-public F4).
+      returnPath: creditsReturnPath(body.returnContext),
     });
 
     return Response.json({ url: session.url });
