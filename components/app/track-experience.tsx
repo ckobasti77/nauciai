@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Loader2, MessageCircle, PlayCircle, Trash2, UploadCloud } from "lucide-react";
+import { ArrowRight, MessageCircle, PlayCircle, Trash2, UploadCloud } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { useMutation } from "convex/react";
@@ -9,6 +9,7 @@ import { InlineContentText } from "@/components/app/inline-content";
 import { DashboardCourseCard, type DashboardCourse } from "@/components/app/dashboard-content";
 import { InlineRichText } from "@/components/app/rich-text";
 import { ConfirmDialog } from "@/components/ui/dialog";
+import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { findCourse } from "@/lib/content";
@@ -123,7 +124,7 @@ function TrackVideoSection({ locale, trackId, videoUrl, videoFileName, admin, ti
       {videoUrl ? <video controls preload="metadata" src={videoUrl} className="aspect-video max-h-[520px] w-full bg-scrim object-contain" /> : <div className="grid aspect-video max-h-[520px] w-full place-items-center border-2 border-dashed border-ink bg-paper text-center"><div><PlayCircle className="mx-auto size-12" /><p className="mt-3 font-black">Uvodni video smera još nije dodat.</p></div></div>}
       {(shownTitle || admin) ? <div className="pointer-events-none absolute inset-x-4 bottom-4 rounded-[16px] bg-scrim/88 px-5 py-3 text-white backdrop-blur"><div className="pointer-events-auto text-xl font-black"><InlineContentText entityId={trackId} kind="track" field="pageCopy_introVideoTitle" locale={locale} sr={title?.sr ?? ""} en={title?.en ?? ""} admin={admin}>{shownTitle || "Dodaj naslov videa"}</InlineContentText></div></div> : null}
     </div>
-    {admin ? <div className="mt-3 flex flex-wrap items-center gap-2"><input ref={inputRef} type="file" accept="video/*" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file); event.target.value = ""; }} /><button type="button" disabled={pending} onClick={() => inputRef.current?.click()} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-xs font-black">{pending ? <Loader2 className="size-4 animate-spin" /> : <UploadCloud className="size-4" />}{videoUrl ? "Zameni video" : "Dodaj video"}</button>{videoUrl ? <button type="button" disabled={pending} onClick={() => setConfirmRemoveVideo(true)} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-red-700 bg-paper-strong px-4 text-xs font-black text-red-700"><Trash2 className="size-4" />Ukloni</button> : null}<span className="text-xs font-bold text-muted">{videoFileName}</span></div> : null}
+    {admin ? <div className="mt-3 flex flex-wrap items-center gap-2"><input ref={inputRef} type="file" accept="video/*" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file); event.target.value = ""; }} /><button type="button" disabled={pending} onClick={() => inputRef.current?.click()} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-xs font-black">{pending ? <Spinner /> : <UploadCloud className="size-4" />}{videoUrl ? "Zameni video" : "Dodaj video"}</button>{videoUrl ? <button type="button" disabled={pending} onClick={() => setConfirmRemoveVideo(true)} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-red-700 bg-paper-strong px-4 text-xs font-black text-red-700"><Trash2 className="size-4" />Ukloni</button> : null}<span className="text-xs font-bold text-muted">{videoFileName}</span></div> : null}
     {message ? <p className="mt-3 rounded-[8px] border-2 border-red-700 bg-red-50 p-3 text-sm font-black text-red-800">{message}</p> : null}
     {dragging ? <div className="fixed inset-0 z-[200] grid place-items-center bg-scrim/88 p-6 text-center text-white backdrop-blur"><div className="rounded-[16px] border-2 border-paper-strong bg-ink p-8 shadow-[8px_8px_0_var(--yellow)]"><UploadCloud className="mx-auto size-12" /><p className="mt-4 font-display text-4xl">Pusti video za ovaj smer</p></div></div> : null}
     <ConfirmDialog

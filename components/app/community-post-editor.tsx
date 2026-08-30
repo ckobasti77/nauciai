@@ -10,7 +10,6 @@ import {
   Globe2,
   GraduationCap,
   ImagePlus,
-  Loader2,
   Save,
   Send,
   Trash2,
@@ -25,6 +24,7 @@ import { CommunityAvatar, type CommunityRank } from "@/components/app/community-
 import { ConfirmDialog } from "@/components/ui/dialog";
 import { Panel, cn } from "@/components/ui/primitives";
 import { useToast } from "@/components/ui/toast-provider";
+import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { Locale } from "@/lib/i18n";
@@ -559,7 +559,7 @@ export function CommunityPostEditor({
   if (isLoading || (isAuthenticated && (viewerData === undefined || communityFilters === undefined))) {
     return (
       <div className="grid min-h-96 place-items-center" aria-busy="true" aria-label={locale === "sr" ? "Učitavanje polja za pisanje" : "Loading the writing area"}>
-        <Loader2 className="size-9 animate-spin text-yellow motion-reduce:animate-none" />
+        <Spinner size="xl" className="text-yellow" />
       </div>
     );
   }
@@ -893,7 +893,7 @@ export function CommunityPostEditor({
                     disabled={uploadingImage}
                     className="mt-2 flex min-h-36 w-full flex-col items-center justify-center rounded-[16px] border border-dashed border-line bg-paper/45 p-6 text-center transition hover:border-ink hover:bg-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-wait disabled:opacity-60"
                   >
-                    {uploadingImage ? <Loader2 className="size-7 animate-spin text-ink/55" /> : <ImagePlus className="size-7 text-ink/50" />}
+                    {uploadingImage ? <Spinner size="xl" className="text-ink/55" /> : <ImagePlus className="size-7 text-ink/50" />}
                     <span className="mt-2 text-sm font-black text-ink">
                       {uploadingImage
                         ? locale === "sr"
@@ -959,7 +959,7 @@ export function CommunityPostEditor({
             disabled={pending || uploadingImage}
             className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 text-sm font-black text-ink transition hover:bg-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
           >
-            {pending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+            {pending ? <Spinner /> : <Save className="size-4" />}
             {locale === "sr" ? "Sačuvaj skicu" : "Save draft"}
           </button>
           <button
@@ -968,7 +968,7 @@ export function CommunityPostEditor({
             disabled={pending || uploadingImage}
             className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black text-ink shadow-[3px_3px_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:translate-y-0.5 disabled:opacity-50"
           >
-            {pending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+            {pending ? <Spinner /> : <Send className="size-4" />}
             {isStaff
               ? locale === "sr"
                 ? "Objavi temu"
@@ -1039,7 +1039,7 @@ function SaveIndicator({ locale, state, lastSavedAt }: { locale: Locale; state: 
       )}
       title={lastSavedAt ? new Date(lastSavedAt).toLocaleTimeString(locale === "sr" ? "sr-RS" : "en-US") : undefined}
     >
-      {state === "saving" ? <Loader2 className="size-3.5 animate-spin" /> : state === "saved_local" || state === "saved_server" ? <CloudCheck className="size-3.5" /> : <Cloud className="size-3.5" />}
+      {state === "saving" ? <Spinner size="xs" /> : state === "saved_local" || state === "saved_server" ? <CloudCheck className="size-3.5" /> : <Cloud className="size-3.5" />}
       {label}
     </p>
   );

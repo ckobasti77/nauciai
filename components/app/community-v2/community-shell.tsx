@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { AppIntroPanel } from "@/components/app/intro-panel";
+import { HandUnderline } from "@/components/ui/primitives";
 import { SmartStickyRegion } from "@/components/ui/smart-sticky";
 import { activeCommunitySection } from "@/lib/community-sections";
 import type { Locale } from "@/lib/i18n";
@@ -145,6 +146,10 @@ function CommunityShellView({
               <h1 className="mt-1.5 truncate text-[clamp(1.5rem,3vw,2.4rem)] font-black leading-none tracking-[-0.04em] sm:whitespace-nowrap">
                 {locale === "sr" ? heroCopy.titleSr : heroCopy.titleEn}
               </h1>
+              {/* Na ink podlozi radi samo žuti potez — tanka ink linija ispod njega je
+                  nevidljiva, i to je u redu: na tamnom heroju žuti potpis je isti brend
+                  potez kao na papiru. */}
+              <HandUnderline size="sm" className="mt-1" />
               <p className="mt-1 truncate text-xs font-bold leading-5 text-paper-strong/72 sm:whitespace-nowrap sm:text-sm">
                 {locale === "sr"
                   ? heroCopy.subtitleSr

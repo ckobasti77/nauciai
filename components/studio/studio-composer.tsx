@@ -7,7 +7,6 @@ import {
   FileText,
   Image as ImageIcon,
   ImagePlus,
-  Loader2,
   Music,
   Plus,
   Video,
@@ -33,6 +32,7 @@ import { useParamValues, type ParamFormState } from "@/components/studio/param-f
 import { ModelMark } from "@/components/studio/provider-mark";
 import { useSlotUpload } from "@/components/studio/use-slot-upload";
 import { cn } from "@/components/ui/primitives";
+import { Spinner } from "@/components/ui/spinner";
 import type { Id } from "@/convex/_generated/dataModel";
 import { parseContinuationSource, parseQuantitySource, promptControlOf } from "@/convex/studioJobCore";
 import type { ParamControl as ParamControlSpec } from "@/convex/studioParamSpec";
@@ -1419,7 +1419,7 @@ export function StudioComposer({
               )}
             >
               {isPending ? (
-                <Loader2 className="size-4 animate-spin" />
+                <Spinner />
               ) : (
                 <Wand2 className={cn("size-4", isPriceFlashing ? "text-ink" : "text-yellow")} />
               )}

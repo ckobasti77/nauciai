@@ -88,7 +88,9 @@ function WindowRowView({ row }: { row: WindowRow }) {
         href={row.href}
         className={cn(
           className,
-          "transition hover:-translate-y-0.5 hover:bg-yellow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+          // Pritisak spušta red nazad na nulu: podizanje je „mogu da kliknem", povratak je
+          // „kliknuo sam". Trajanje je `--motion-mikro` preko `studio-anim-mikro`.
+          "studio-anim-mikro hover:-translate-y-0.5 hover:bg-yellow active:translate-y-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
         )}
       >
         {inner}
@@ -120,8 +122,14 @@ export function DashboardWindow({
   ctaLabel: string;
   ctaHref: string;
 }) {
+  // Prozor NIJE link — ceo se ne klikće — pa se na hover ne podiže, nego mu samo poraste
+  // tvrda senka. Podizanje bi obećalo klik koji ne postoji; senka je isti „papir se odvojio
+  // od stola" jezik, ali bez lažnog obećanja. Kartice kursa (koje jesu klikabilne) rade oba.
   return (
-    <Panel as="article" className="flex flex-col overflow-hidden">
+    <Panel
+      as="article"
+      className="card-anim-elevate flex flex-col overflow-hidden hover:shadow-[8px_8px_0_0_var(--shadow-hard-20)]"
+    >
       <div className="flex items-start justify-between gap-3 border-b-2 border-line p-4 sm:p-5">
         <div className="min-w-0">
           <p className="flex items-center gap-2 text-xs font-black uppercase text-muted">

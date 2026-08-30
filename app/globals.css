@@ -76,11 +76,14 @@
   --bordered-control-radius: 1rem;
   --button-radius: 9999px;
 
-  /* Studio pokret — CSS koristi samo mikro (hover/press) i spor (disanje bunara).
-     Pun rečnik po tierovima (enter/exit, element, prelaz, sva tri easinga) živi u
-     `lib/studio-motion.ts` kao JEDAN izvor istine za Framer animacije; ovde stoji
-     samo ono što CSS stvarno animira, da ne ostane mrtvih tokena (RD10). */
+  /* Studio pokret — CSS ogledalo rečnika iz `lib/studio-motion.ts`, koji ostaje JEDAN
+     izvor istine (ove vrednosti su `studioMotionTokens.<tier>.enterDuration` u ms).
+     Ovde stoji samo ono što CSS stvarno animira, da ne ostane mrtvih tokena (RD10):
+     mikro = hover/press, element = ulazak panela/tosta, prelaz = proslava koraka,
+     spor = disanje bunara. */
   --motion-mikro: 120ms;
+  --motion-element: 220ms;
+  --motion-prelaz: 260ms;
   --motion-spor: 2000ms;
   --ease-studio-out: cubic-bezier(0.05, 0.7, 0.1, 1);
 }
@@ -286,6 +289,43 @@ select {
   animation: studio-breathe var(--motion-spor) ease-in-out infinite;
 }
 
+/* Ulazak tosta (element tier). Ranije je tu stajala klasa `motion-safe:animate-in`, koju
+   ništa ne definiše — `tailwindcss-animate` nije u `package.json`, pa je poruka iskakala
+   bez ijednog kadra. Ulazi odozgo jer je traka usidrena uz gornju ivicu. */
+@keyframes toast-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.toast-enter {
+  animation: toast-enter var(--motion-element) var(--ease-studio-out) both;
+}
+
+/* Proslava jednog završenog koraka (prelaz tier). Kratak "pop" bez nove easing krive:
+   prebačaj je u samom kadru na 45%, ne u funkciji vremena. Pokreće se SAMO kad korak
+   pređe iz neurađenog u urađen, nikad na običnom renderu. */
+@keyframes step-celebrate {
+  0% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.18);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.step-celebrate {
+  animation: step-celebrate var(--motion-prelaz) var(--ease-studio-out) both;
+}
+
 
 
 /* Mikro hover/press tranzicija vezana za rečnik pokreta (RD10). Suzi na osobine
@@ -294,6 +334,15 @@ select {
    blok ispod svejedno gasi trajanje. */
 .studio-anim-mikro {
   transition-property: transform, opacity, color, background-color, border-color, box-shadow;
+  transition-duration: var(--motion-mikro);
+  transition-timing-function: var(--ease-studio-out);
+}
+
+/* Podizanje kartice na hover kada TRANSFORM već vodi neko drugi (Framer `whileHover`).
+   CSS tu sme da animira samo tvrdu ofset senku — da se dve animacije ne otimaju o isti
+   `transform`, što je jedini razlog zašto ovo nije `studio-anim-mikro`. */
+.card-anim-elevate {
+  transition-property: box-shadow;
   transition-duration: var(--motion-mikro);
   transition-timing-function: var(--ease-studio-out);
 }

@@ -9,7 +9,6 @@ import {
   Check,
   ChevronDown,
   Clock3,
-  Loader2,
   MessageCircle,
   Plus,
   Search,
@@ -27,6 +26,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/components/ui/primitives";
+import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { Locale } from "@/lib/i18n";
@@ -232,7 +232,7 @@ function LoadMoreButton({ locale, status, onLoadMore }: { locale: Locale; status
   if (status !== "CanLoadMore" && status !== "LoadingMore") return null;
   return (
     <button type="button" disabled={status === "LoadingMore"} onClick={onLoadMore} className={cn(SECONDARY_BUTTON, "mt-2 w-full")}>
-      {status === "LoadingMore" ? <Loader2 className="size-4 animate-spin" /> : <ChevronDown className="size-4" />}
+      {status === "LoadingMore" ? <Spinner /> : <ChevronDown className="size-4" />}
       {t(locale, "Učitaj još", "Load more")}
     </button>
   );
@@ -252,7 +252,7 @@ export function StudyHub(props: StudyHubProps) {
   if (profile === undefined) {
     return (
       <section className={cn("grid min-h-[420px] place-items-center rounded-[16px] border-2 border-line bg-paper-strong", props.className)} aria-busy="true">
-        <div className="text-center"><Loader2 className="mx-auto size-6 animate-spin text-ink" /><p className="mt-3 text-sm font-black text-muted">{t(props.locale, "Pripremamo Uči zajedno…", "Preparing Study together…")}</p></div>
+        <div className="text-center"><Spinner size="lg" className="mx-auto text-ink" /><p className="mt-3 text-sm font-black text-muted">{t(props.locale, "Pripremamo Uči zajedno…", "Preparing Study together…")}</p></div>
       </section>
     );
   }
@@ -467,7 +467,7 @@ function StudyHubMember({ locale, courseSlug, onCourseSlugChange, onOpenConversa
                 FOCUS_RING,
               )}
             >
-              {pendingKey === "availability" ? <Loader2 className="size-5 animate-spin" /> : activeAvailability?.active ? <ToggleRight className="size-5" /> : <ToggleLeft className="size-5" />}
+              {pendingKey === "availability" ? <Spinner size="md" /> : activeAvailability?.active ? <ToggleRight className="size-5" /> : <ToggleLeft className="size-5" />}
               {activeAvailability?.active ? t(locale, "Dostupnost je uključena", "Availability is on") : t(locale, "Uključi dostupnost", "Turn on availability")}
             </button>
           </div>
@@ -519,7 +519,7 @@ function StudyHubMember({ locale, courseSlug, onCourseSlugChange, onOpenConversa
                     className={cn("grid size-10 shrink-0 place-items-center rounded-full border-2 border-ink bg-yellow disabled:opacity-45", FOCUS_RING)}
                     aria-label={t(locale, `Pozovi ${person.name} da učite zajedno`, `Invite ${person.name} to study together`)}
                   >
-                    {pendingKey === `invite-${person.userId}` ? <Loader2 className="size-4 animate-spin" /> : <UserRoundPlus className="size-4" />}
+                    {pendingKey === `invite-${person.userId}` ? <Spinner /> : <UserRoundPlus className="size-4" />}
                   </button>
                 </article>
               ))}
@@ -541,7 +541,7 @@ function StudyHubMember({ locale, courseSlug, onCourseSlugChange, onOpenConversa
                         <div className="min-w-0 flex-1"><p className="truncate text-sm font-black">{invite.counterpart.name}</p><p className="truncate text-xs font-bold text-muted">{courseTitle(locale, invite.course)}</p></div>
                       </div>
                       <div className="mt-3 grid grid-cols-2 gap-2">
-                        <button type="button" disabled={mutationsLocked} onClick={() => void perform(String(invite.inviteId), async () => { const result = await respondPartner({ inviteId: invite.inviteId, decision: "accept" }); openConversation(result.conversationId); }, t(locale, "Partnerstvo je prihvaćeno.", "Partnership accepted."))} className={cn(PRIMARY_BUTTON, "min-h-10 px-3 text-xs shadow-none")}>{pendingKey === String(invite.inviteId) ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}{t(locale, "Prihvati", "Accept")}</button>
+                        <button type="button" disabled={mutationsLocked} onClick={() => void perform(String(invite.inviteId), async () => { const result = await respondPartner({ inviteId: invite.inviteId, decision: "accept" }); openConversation(result.conversationId); }, t(locale, "Partnerstvo je prihvaćeno.", "Partnership accepted."))} className={cn(PRIMARY_BUTTON, "min-h-10 px-3 text-xs shadow-none")}>{pendingKey === String(invite.inviteId) ? <Spinner /> : <Check className="size-4" />}{t(locale, "Prihvati", "Accept")}</button>
                         <button type="button" disabled={mutationsLocked} onClick={() => void perform(String(invite.inviteId), () => respondPartner({ inviteId: invite.inviteId, decision: "decline" }))} className={SECONDARY_BUTTON}><X className="size-4" />{t(locale, "Odbij", "Decline")}</button>
                       </div>
                     </article>
@@ -552,7 +552,7 @@ function StudyHubMember({ locale, courseSlug, onCourseSlugChange, onOpenConversa
                       <p className="mt-1 truncate text-sm font-black">{invite.group.name}</p>
                       <p className="mt-0.5 truncate text-xs font-bold text-muted">{invite.inviter.name} · {courseTitle(locale, invite.course)}</p>
                       <div className="mt-3 grid grid-cols-2 gap-2">
-                        <button type="button" disabled={mutationsLocked} onClick={() => void perform(String(invite.inviteId), async () => { const result = await respondGroup({ inviteId: invite.inviteId, decision: "accept" }); openConversation(result.conversationId); }, t(locale, "Poziv u grupu je prihvaćen.", "Group invite accepted."))} className={cn(PRIMARY_BUTTON, "min-h-10 px-3 text-xs shadow-none")}>{pendingKey === String(invite.inviteId) ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}{t(locale, "Prihvati", "Accept")}</button>
+                        <button type="button" disabled={mutationsLocked} onClick={() => void perform(String(invite.inviteId), async () => { const result = await respondGroup({ inviteId: invite.inviteId, decision: "accept" }); openConversation(result.conversationId); }, t(locale, "Poziv u grupu je prihvaćen.", "Group invite accepted."))} className={cn(PRIMARY_BUTTON, "min-h-10 px-3 text-xs shadow-none")}>{pendingKey === String(invite.inviteId) ? <Spinner /> : <Check className="size-4" />}{t(locale, "Prihvati", "Accept")}</button>
                         <button type="button" disabled={mutationsLocked} onClick={() => void perform(String(invite.inviteId), () => respondGroup({ inviteId: invite.inviteId, decision: "decline" }))} className={SECONDARY_BUTTON}><X className="size-4" />{t(locale, "Odbij", "Decline")}</button>
                       </div>
                     </article>
@@ -570,7 +570,7 @@ function StudyHubMember({ locale, courseSlug, onCourseSlugChange, onOpenConversa
                     <article key={invite.inviteId} className="flex items-center gap-3 rounded-[16px] border-2 border-line bg-paper-strong p-3">
                       <StudyPulseAvatar avatarUrl={invite.counterpart.avatarUrl} name={invite.counterpart.name} />
                       <div className="min-w-0 flex-1"><p className="truncate text-sm font-black">{invite.counterpart.name}</p><p className="flex items-center gap-1 truncate text-xs font-bold text-muted"><Clock3 className="size-3" />{t(locale, "Čeka odgovor", "Awaiting reply")}</p></div>
-                      <button type="button" disabled={mutationsLocked} onClick={() => void perform(String(invite.inviteId), () => cancelPartner({ inviteId: invite.inviteId }), t(locale, "Poziv je otkazan.", "Invite cancelled."))} className={cn(SECONDARY_BUTTON, "min-h-9 px-3")}>{pendingKey === String(invite.inviteId) ? <Loader2 className="size-4 animate-spin" /> : null}{t(locale, "Otkaži", "Cancel")}</button>
+                      <button type="button" disabled={mutationsLocked} onClick={() => void perform(String(invite.inviteId), () => cancelPartner({ inviteId: invite.inviteId }), t(locale, "Poziv je otkazan.", "Invite cancelled."))} className={cn(SECONDARY_BUTTON, "min-h-9 px-3")}>{pendingKey === String(invite.inviteId) ? <Spinner /> : null}{t(locale, "Otkaži", "Cancel")}</button>
                     </article>
                   ))}
                   {outgoing.status !== "LoadingFirstPage" && outgoing.results.length === 0 ? <p className="rounded-[16px] bg-paper px-3 py-4 text-center text-xs font-bold text-muted">{t(locale, "Nema poziva koji čekaju odgovor.", "No sent invites are awaiting a reply.")}</p> : null}
@@ -614,7 +614,7 @@ function StudyHubMember({ locale, courseSlug, onCourseSlugChange, onOpenConversa
               </div>
               <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
                 <label className="block"><span className="sr-only">{t(locale, "Naziv studijske grupe", "Study group name")}</span><input value={groupName} onChange={(event) => setGroupName(event.target.value)} maxLength={100} placeholder={t(locale, "Naziv grupe", "Group name")} className={cn("h-11 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-3 text-sm font-black", FOCUS_RING)} /></label>
-                <button type="button" disabled={mutationsLocked || groupMembers.length < 2 || !groupName.trim()} onClick={() => void submitGroup()} className={PRIMARY_BUTTON}>{pendingKey === "create-group" ? <Loader2 className="size-4 animate-spin" /> : <ArrowRight className="size-4" />}{t(locale, "Pošalji predlog", "Send proposal")}</button>
+                <button type="button" disabled={mutationsLocked || groupMembers.length < 2 || !groupName.trim()} onClick={() => void submitGroup()} className={PRIMARY_BUTTON}>{pendingKey === "create-group" ? <Spinner /> : <ArrowRight className="size-4" />}{t(locale, "Pošalji predlog", "Send proposal")}</button>
               </div>
             </div>
           ) : null}

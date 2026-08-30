@@ -11,7 +11,6 @@ import {
   Download,
   Heart,
   History,
-  Loader2,
   Music,
   Pause,
   Play,
@@ -31,6 +30,7 @@ import { CreditIcon } from "@/components/studio/credit-icon";
 import { StudioComposer, type JobPayload, type RegenerateSeed } from "@/components/studio/studio-composer";
 import { ConfirmDialog, useModalFocus } from "@/components/ui/dialog";
 import { cn } from "@/components/ui/primitives";
+import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { Locale } from "@/lib/i18n";
@@ -511,7 +511,7 @@ export function StudioMediaDetail({
               {isWorking ? (
                 <div className="flex flex-col items-center gap-3 p-8 text-center">
                   <div className="relative flex size-12 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white">
-                    <Loader2 className="size-6 animate-spin" />
+                    <Spinner size="lg" />
                   </div>
                   <p className="max-w-[320px] text-base font-black text-white/90">{statusMessage}</p>
                   {prompt ? (

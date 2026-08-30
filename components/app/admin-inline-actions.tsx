@@ -7,6 +7,7 @@ import RichTextEditor from "@/components/app/rich-text-editor";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { cn } from "@/components/ui/primitives";
+import { Spinner } from "@/components/ui/spinner";
 import { coursePath, lessonEditPath } from "@/lib/app-routes";
 import { t, type Locale } from "@/lib/i18n";
 
@@ -26,7 +27,6 @@ import {
   Layers,
   LayoutDashboard,
   ListPlus,
-  Loader2,
   Pencil,
   PlayCircle,
   Plus,
@@ -532,7 +532,7 @@ function ComposerFooter({
           whileTap={pending ? undefined : { scale: 0.98 }}
           className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-yellow px-5 text-sm font-extrabold text-ink shadow-[4px_4px_0_0_var(--ink)] transition disabled:cursor-wait disabled:opacity-70"
         >
-          {pending ? <Loader2 className="size-4 animate-spin" /> : icon}
+          {pending ? <Spinner /> : icon}
           {submitLabel}
         </motion.button>
       </div>
@@ -1294,7 +1294,7 @@ export function AddCourseAction({
                       disabled={videoUploading || videoDeleting}
                       className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-xs font-black text-ink shadow-[3px_3px_0_0_var(--shadow-hard-16)] disabled:cursor-wait disabled:opacity-60"
                     >
-                      {videoUploading ? <Loader2 className="size-4 animate-spin" /> : <UploadCloud className="size-4" />}
+                      {videoUploading ? <Spinner /> : <UploadCloud className="size-4" />}
                       {videoUrl
                         ? t(locale, "Zameni video", "Replace video")
                         : t(locale, "Upload intro videa", "Upload intro video")}
@@ -1306,7 +1306,7 @@ export function AddCourseAction({
                         disabled={videoUploading || videoDeleting}
                         className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-full border-2 border-red-700 bg-paper-strong px-4 text-xs font-black text-red-700 disabled:cursor-wait disabled:opacity-60"
                       >
-                        {videoDeleting ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                        {videoDeleting ? <Spinner /> : <Trash2 className="size-4" />}
                         {t(locale, "Ukloni video", "Remove video")}
                       </button>
                     ) : null}
@@ -1331,7 +1331,7 @@ export function AddCourseAction({
                   </p>
                 ) : courseEditorData === undefined ? (
                   <div className="flex items-center gap-3 rounded-[16px] border-2 border-line bg-paper p-4 text-sm font-black text-muted">
-                    <Loader2 className="size-4 animate-spin" />
+                    <Spinner />
                     {t(locale, "Ucitavanje ciklusa", "Loading cycles")}
                   </div>
                 ) : modules.length ? (
@@ -2064,7 +2064,7 @@ export function AddModuleAction({
                   </p>
                 ) : moduleEditorData === undefined ? (
                   <div className="flex items-center gap-3 rounded-[8px] border-2 border-line bg-paper p-4 text-sm font-black text-muted">
-                    <Loader2 className="size-4 animate-spin" />
+                    <Spinner />
                     {t(locale, "Ucitavanje lekcija", "Loading lessons")}
                   </div>
                 ) : lessons.length ? (

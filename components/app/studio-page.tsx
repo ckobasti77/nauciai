@@ -2,7 +2,7 @@
 
 import { useConvexAuth } from "@convex-dev/auth/react";
 import { useMutation, useQuery } from "convex/react";
-import { Coins, Loader2, Wand2 } from "lucide-react";
+import { Coins, Wand2 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence } from "motion/react";
@@ -18,8 +18,10 @@ import { StudioComposer, type JobPayload, type RegenerateSeed } from "@/componen
 import { ProjectPicker } from "@/components/studio/project-picker";
 import { StudioFilterBar } from "@/components/studio/studio-filter-bar";
 import { Panel, cn } from "@/components/ui/primitives";
+import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { clampBoundsToViewport } from "@/lib/floating-bounds";
 import { t, withLocale, type Locale } from "@/lib/i18n";
 import { jobPrompt } from "@/lib/studio-form";
 import { type GalleryScope } from "@/lib/studio-gallery";
@@ -92,7 +94,7 @@ function StudioTermsGate({ locale }: { locale: Locale }) {
         disabled={!checked || isSaving}
         className={cn(PILL, "mt-5 border-ink bg-yellow text-ink shadow-[4px_4px_0_0_var(--ink)] hover:-translate-y-0.5")}
       >
-        {isSaving ? <Loader2 className="size-4 animate-spin" /> : null}
+        {isSaving ? <Spinner /> : null}
         {STUDIO_TERMS_GATE.cta[locale]}
       </button>
 
@@ -257,7 +259,11 @@ export function StudioPage({
       const target = studioRootRef.current;
       if (!target) return;
       const rect = target.getBoundingClientRect();
-      setContentBounds({ left: rect.left, width: rect.width });
+      // `clientWidth` (a ne `innerWidth`) je širina BEZ vertikalnog scrollbara — mera koja
+      // izađe iz nje pravi horizontalni skrol, vidi `lib/floating-bounds.ts`.
+      setContentBounds(
+        clampBoundsToViewport({ left: rect.left, width: rect.width }, document.documentElement.clientWidth),
+      );
     }
 
     updateBounds();
@@ -446,7 +452,9 @@ export function StudioPage({
         {/* Naslov + Traka filtera u istoj ravni */}
         <div className="flex min-w-0 flex-1 items-center gap-3 md:gap-4">
           <h2 className="shrink-0 text-2xl font-black leading-tight text-ink md:text-3xl">Studio</h2>
-          <div className="hidden sm:flex items-center">
+          {/* `min-w-0`: bez njega ova kolona ne sme da se skupi ispod min-content trake
+              filtera, pa traka gura ceo studio preko desne ivice (UX-BOOST-PLAN §5C). */}
+          <div className="hidden min-w-0 sm:flex items-center">
             <StudioFilterBar
               locale={locale}
               isStaff={state?.isStaff === true}
@@ -520,7 +528,7 @@ export function StudioPage({
       <div className="space-y-6">
         {topbar}
         <Panel className="flex min-h-32 items-center justify-center p-6">
-          <Loader2 className="size-5 animate-spin text-muted" />
+          <Spinner size="md" className="text-muted" />
         </Panel>
       </div>
     );
@@ -580,7 +588,7 @@ export function StudioPage({
     if (models === undefined) {
       return (
         <div className="surface-card flex min-h-24 items-center justify-center border-2 border-ink bg-paper-strong p-4 shadow-[6px_6px_0_0_var(--shadow-hard-16)]">
-          <Loader2 className="size-5 animate-spin text-muted" />
+          <Spinner size="md" className="text-muted" />
         </div>
       );
     }

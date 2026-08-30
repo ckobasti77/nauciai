@@ -114,50 +114,61 @@ export function StudioFilterBar({
         : "Filters";
 
   return (
-    <div ref={containerRef} className="relative inline-flex items-center gap-2">
-      {/* 1. Obim (Samo moji / Svi korisnici) — samo za osoblje */}
-      {isStaff ? (
-        <>
-          <div className="flex shrink-0 items-center gap-1">
-            {GALLERY_SCOPES.map((option) => (
-              <button
-                key={option}
-                type="button"
-                onClick={() => onSelectScope(option)}
-                aria-pressed={scope === option}
-                className={cn(
-                  "inline-flex h-8 shrink-0 items-center justify-center gap-1 rounded-full border-2 px-3 text-xs font-black transition cursor-pointer studio-focus-ink whitespace-nowrap select-none",
-                  scope === option
-                    ? CHIP_ACTIVE
-                    : "border-transparent bg-transparent text-ink/75 hover:border-ink/20 hover:bg-paper-strong hover:text-ink",
-                )}
-              >
-                {GALLERY_SCOPE_LABELS[option][locale]}
-              </button>
-            ))}
-          </div>
-          <span aria-hidden="true" className="h-4 w-px shrink-0 bg-ink/20 self-center" />
-        </>
-      ) : null}
+    <div ref={containerRef} className="relative flex min-w-0 items-center">
+      {/*
+        Traka čipova sme da se skroluje vodoravno umesto da gura ceo Studio preko desne
+        ivice ekrana (UX-BOOST-PLAN §5C: sva deca su `shrink-0 whitespace-nowrap`, nema
+        prelamanja, pa je min-content širina bila tvrda donja granica). Za osoblje traka
+        nosi još dva čipa opsega i prva pređe raspoloživu širinu.
+        `-my-1 py-1` i `-mx-0.5 px-0.5`: skrol kontejner klipuje po obe ose, pa čipovima treba
+        vazduha za tvrdu senku i podizanje na hover — a negativne margine vraćaju izmerenu
+        veličinu trake na staro, da se zaglavlje ne pomeri ni za piksel.
+      */}
+      <div className="-mx-0.5 -my-1 flex min-w-0 items-center gap-2 overflow-x-auto overflow-y-hidden px-0.5 py-1">
+        {/* 1. Obim (Samo moji / Svi korisnici) — samo za osoblje */}
+        {isStaff ? (
+          <>
+            <div className="flex shrink-0 items-center gap-1">
+              {GALLERY_SCOPES.map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => onSelectScope(option)}
+                  aria-pressed={scope === option}
+                  className={cn(
+                    "inline-flex h-8 shrink-0 items-center justify-center gap-1 rounded-full border-2 px-3 text-xs font-black transition cursor-pointer studio-focus-ink whitespace-nowrap select-none",
+                    scope === option
+                      ? CHIP_ACTIVE
+                      : "border-transparent bg-transparent text-ink/75 hover:border-ink/20 hover:bg-paper-strong hover:text-ink",
+                  )}
+                >
+                  {GALLERY_SCOPE_LABELS[option][locale]}
+                </button>
+              ))}
+            </div>
+            <span aria-hidden="true" className="h-4 w-px shrink-0 bg-ink/20 self-center" />
+          </>
+        ) : null}
 
-      {/* 2. Dugme Filteri sa brojem aktivnih filtera */}
-      <button
-        ref={triggerButtonRef}
-        type="button"
-        onClick={() => setIsOpen((prev) => !prev)}
-        aria-haspopup="dialog"
-        aria-expanded={isOpen}
-        title={filterButtonLabel}
-        className={cn(
-          CHIP_BASE,
-          hasActiveFilters ? CHIP_ACTIVE : CHIP_IDLE,
-        )}
-      >
-        <Filter className="size-3.5 shrink-0" />
-        <span>{filterButtonLabel}</span>
-      </button>
+        {/* 2. Dugme Filteri sa brojem aktivnih filtera */}
+        <button
+          ref={triggerButtonRef}
+          type="button"
+          onClick={() => setIsOpen((prev) => !prev)}
+          aria-haspopup="dialog"
+          aria-expanded={isOpen}
+          title={filterButtonLabel}
+          className={cn(
+            CHIP_BASE,
+            hasActiveFilters ? CHIP_ACTIVE : CHIP_IDLE,
+          )}
+        >
+          <Filter className="size-3.5 shrink-0" />
+          <span>{filterButtonLabel}</span>
+        </button>
+      </div>
 
-      {/* 3. Dropdown / Popover panel sa filterima */}
+      {/* 3. Dropdown / Popover panel sa filterima — sibling skrol trake, da ga ona ne klipuje */}
       <AnimatePresence>
         {isOpen && (
           <>

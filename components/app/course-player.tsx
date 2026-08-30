@@ -3,7 +3,7 @@
 
 import { useConvexAuth } from "@convex-dev/auth/react";
 import { useMutation, useQuery } from "convex/react";
-import { ArrowDown, ArrowUp, CheckCircle2, Download, FileText, LayoutDashboard, Loader2, PlayCircle, Sparkles, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, CheckCircle2, Download, FileText, LayoutDashboard, PlayCircle, Sparkles, Trash2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import dynamic from "next/dynamic";
@@ -17,6 +17,7 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { ConfirmDialog } from "@/components/ui/dialog";
 import { Panel } from "@/components/ui/primitives";
+import { Spinner } from "@/components/ui/spinner";
 import type { Course, Lesson, LessonPart } from "@/lib/content";
 import { lessonEditPath } from "@/lib/app-routes";
 import { localized, t, type Locale } from "@/lib/i18n";
@@ -317,7 +318,7 @@ export function CoursePlayer({
                 disabled={isSavingProgress}
                 className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-yellow px-4 text-sm font-extrabold text-ink disabled:cursor-wait disabled:opacity-70"
               >
-                {isSavingProgress ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
+                {isSavingProgress ? <Spinner /> : <CheckCircle2 className="size-4" />}
                 {locale === "sr" ? "Završio/la sam ovu lekciju" : "I finished this lesson"}
               </button>
             </div>

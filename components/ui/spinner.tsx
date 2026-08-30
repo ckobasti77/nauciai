@@ -8,6 +8,8 @@ const spinnerSizes = {
   sm: "size-4",
   md: "size-5",
   lg: "size-6",
+  /** Jedina velicina za "ceo ekran/panel jos nema sadrzaj"; ranije je to bilo 7, 8 ili 9. */
+  xl: "size-8",
 } as const;
 
 export type SpinnerSize = keyof typeof spinnerSizes;

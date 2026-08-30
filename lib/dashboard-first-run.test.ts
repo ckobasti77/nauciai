@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildFirstRunChecklist,
+  celebratedStepId,
   firstRunDoneCount,
+  firstRunDoneIds,
   shouldShowResumeHero,
   type FirstRunSignals,
 } from "./dashboard-first-run";
@@ -112,5 +114,41 @@ describe("shouldShowResumeHero", () => {
 
   it("admin na praznoj bazi dobija pozdravni hero, ne 'Sve lekcije su zavrsene'", () => {
     expect(shouldShowResumeHero({ hasUnlockedCourse: true, hasResume: false, totalLessons: 0 })).toBe(false);
+  });
+});
+
+describe("celebratedStepId", () => {
+  const nothing = firstRunDoneIds(buildFirstRunChecklist(signals()));
+  const withCourse = firstRunDoneIds(buildFirstRunChecklist(signals({ hasUnlockedCourse: true })));
+  const withLesson = firstRunDoneIds(
+    buildFirstRunChecklist(signals({ hasUnlockedCourse: true, completedLessons: 1 })),
+  );
+
+  it("firstRunDoneIds vraca samo stiklirane korake, u fiksnom redosledu", () => {
+    expect(nothing).toEqual([]);
+    expect(withCourse).toEqual(["course"]);
+    expect(withLesson).toEqual(["course", "lesson"]);
+  });
+
+  it("ne slavi nista na prvom renderu - nema prethodnog stanja za poredjenje", () => {
+    expect(celebratedStepId(null, withCourse)).toBeNull();
+  });
+
+  it("ne slavi kad se nista nije promenilo (obican ponovni render)", () => {
+    expect(celebratedStepId(withCourse, withCourse)).toBeNull();
+    expect(celebratedStepId(nothing, nothing)).toBeNull();
+  });
+
+  it("slavi tacno korak koji je upravo postao uradjen", () => {
+    expect(celebratedStepId(nothing, withCourse)).toBe("course");
+    expect(celebratedStepId(withCourse, withLesson)).toBe("lesson");
+  });
+
+  it("kad se vise koraka stiklira odjednom, slavi prvi po redosledu", () => {
+    expect(celebratedStepId(nothing, withLesson)).toBe("course");
+  });
+
+  it("povratak koraka u neuradjeno stanje nije proslava", () => {
+    expect(celebratedStepId(withLesson, withCourse)).toBeNull();
   });
 });

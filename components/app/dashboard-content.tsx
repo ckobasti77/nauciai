@@ -12,9 +12,9 @@ import {
   GraduationCap,
   ImageIcon,
   Layers,
-  Loader2,
   Lock,
   MessageCircle,
+  PartyPopper,
   Pencil,
   PlayCircle,
   Plus,
@@ -51,17 +51,21 @@ import {
 import { classroomPath, courseCatalogPath, coursePath, lessonPath } from "@/lib/app-routes";
 import {
   buildFirstRunChecklist,
+  celebratedStepId,
   firstRunDoneCount,
+  firstRunDoneIds,
   shouldShowResumeHero,
   type FirstRunSignals,
   type FirstRunStepId,
 } from "@/lib/dashboard-first-run";
 import { ConfirmDialog } from "@/components/ui/dialog";
-import { LinkButton, Panel, cn } from "@/components/ui/primitives";
+import { HandUnderline, LinkButton, Panel, cn } from "@/components/ui/primitives";
+import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { ViewerProfile } from "@/lib/current-viewer";
 import { dictionary, localized, t as tr, type Locale, type LocalizedText, withLocale } from "@/lib/i18n";
+import { progressEncouragement } from "@/lib/progress-encouragement";
 
 const EditCourseAction = dynamic(() => import("@/components/app/admin-inline-actions").then((m) => m.EditCourseAction), { ssr: false });
 
@@ -367,7 +371,7 @@ function CourseCoverEditor({ locale, course }: { locale: Locale; course: Dashboa
   }
 
   const preview = course.coverUrl || course.image?.src;
-  return <Panel className="dashboard-reveal p-4 sm:p-5"><div className="flex flex-col gap-4 lg:flex-row lg:items-center"><div className="relative aspect-video w-full overflow-hidden rounded-[8px] border-2 border-ink bg-paper lg:w-80">{preview ? <Image src={preview} alt={localized(course.title, locale)} fill unoptimized className="object-cover" /> : <div className="grid h-full place-items-center text-sm font-black text-muted">{tr(locale, "Naslovna slika nije dodata", "No cover image yet")}</div>}</div><div className="flex-1"><p className="font-display text-2xl text-ink">{tr(locale, "Naslovna slika kursa", "Course cover image")}</p><p className="mt-1 text-sm font-bold text-muted">{tr(locale, "Vidi se na kartici kursa i na stranici smera.", "Shown on the course card and on the track page.")}</p><input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file); event.target.value = ""; }} /><div className="mt-4 flex flex-wrap gap-2"><button type="button" disabled={pending} onClick={() => inputRef.current?.click()} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-xs font-black">{pending ? <Loader2 className="size-4 animate-spin" /> : <ImageIcon className="size-4" />}{course.coverUrl ? tr(locale, "Zameni sliku", "Replace image") : tr(locale, "Dodaj sliku", "Add image")}</button>{course.coverUrl ? <button type="button" disabled={pending} onClick={() => setConfirmRemoveCover(true)} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-red-700 bg-paper-strong px-4 text-xs font-black text-red-700"><Trash2 className="size-4" />{tr(locale, "Ukloni", "Remove")}</button> : null}</div>{message ? <p className="mt-3 text-sm font-black text-red-700">{message}</p> : null}</div></div><ConfirmDialog
+  return <Panel className="dashboard-reveal p-4 sm:p-5"><div className="flex flex-col gap-4 lg:flex-row lg:items-center"><div className="relative aspect-video w-full overflow-hidden rounded-[8px] border-2 border-ink bg-paper lg:w-80">{preview ? <Image src={preview} alt={localized(course.title, locale)} fill unoptimized className="object-cover" /> : <div className="grid h-full place-items-center text-sm font-black text-muted">{tr(locale, "Naslovna slika nije dodata", "No cover image yet")}</div>}</div><div className="flex-1"><p className="font-display text-2xl text-ink">{tr(locale, "Naslovna slika kursa", "Course cover image")}</p><p className="mt-1 text-sm font-bold text-muted">{tr(locale, "Vidi se na kartici kursa i na stranici smera.", "Shown on the course card and on the track page.")}</p><input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file); event.target.value = ""; }} /><div className="mt-4 flex flex-wrap gap-2"><button type="button" disabled={pending} onClick={() => inputRef.current?.click()} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-xs font-black">{pending ? <Spinner /> : <ImageIcon className="size-4" />}{course.coverUrl ? tr(locale, "Zameni sliku", "Replace image") : tr(locale, "Dodaj sliku", "Add image")}</button>{course.coverUrl ? <button type="button" disabled={pending} onClick={() => setConfirmRemoveCover(true)} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-red-700 bg-paper-strong px-4 text-xs font-black text-red-700"><Trash2 className="size-4" />{tr(locale, "Ukloni", "Remove")}</button> : null}</div>{message ? <p className="mt-3 text-sm font-black text-red-700">{message}</p> : null}</div></div><ConfirmDialog
     open={confirmRemoveCover}
     onClose={() => setConfirmRemoveCover(false)}
     onConfirm={removeCover}
@@ -552,7 +556,7 @@ function CourseVideoSection({ locale, isAdmin, course }: { locale: Locale; isAdm
                   <span className="relative z-10 flex w-full items-center justify-center p-6 text-center">
                 <span className="max-w-md">
                   <span className="mx-auto inline-flex size-16 items-center justify-center rounded-[8px] border-2 border-ink bg-paper-strong text-ink shadow-[4px_4px_0_0_var(--shadow-hard)]">
-                    {isUploading ? <Loader2 className="size-8 animate-spin" /> : isAdmin ? <UploadCloud className="size-8" /> : <PlayCircle className="size-9" />}
+                    {isUploading ? <Spinner size="xl" /> : isAdmin ? <UploadCloud className="size-8" /> : <PlayCircle className="size-9" />}
                   </span>
                   <span className={cn("mt-5 block text-2xl font-black", isAdmin ? "text-ink" : "text-white")}>
                     {isUploading
@@ -584,7 +588,7 @@ function CourseVideoSection({ locale, isAdmin, course }: { locale: Locale; isAdm
                 title={tr(locale, "Zameni video", "Replace video")}
                 className="inline-flex size-10 items-center justify-center rounded-[8px] border-2 border-ink bg-paper-strong text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] transition hover:bg-yellow disabled:cursor-wait disabled:opacity-60"
               >
-                {isUploading ? <Loader2 className="size-4 animate-spin" /> : <Pencil className="size-4" />}
+                {isUploading ? <Spinner /> : <Pencil className="size-4" />}
               </button>
               {videoUrl || localPreviewUrl ? (
                 <button
@@ -595,7 +599,7 @@ function CourseVideoSection({ locale, isAdmin, course }: { locale: Locale; isAdm
                   title={tr(locale, "Ukloni video", "Remove video")}
                   className="inline-flex size-10 items-center justify-center rounded-[8px] border-2 border-red-700 bg-paper-strong text-red-700 shadow-[3px_3px_0_0_rgba(127,29,29,0.18)] transition hover:bg-red-50 disabled:cursor-wait disabled:opacity-60"
                 >
-                  {isDeleting ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                  {isDeleting ? <Spinner /> : <Trash2 className="size-4" />}
                 </button>
               ) : null}
             </div>
@@ -655,7 +659,7 @@ function FeaturedThreadsSection({ locale, course }: { locale: Locale; course: Da
             </p>
           ) : featuredPosts === undefined ? (
             <div className="mt-5 flex items-center gap-3 rounded-[8px] border-2 border-line bg-paper px-4 py-3 text-sm font-black text-muted">
-              <Loader2 className="size-4 animate-spin" />
+              <Spinner />
               {tr(locale, "Ucitavanje threadova", "Loading topics")}
             </div>
           ) : posts.length ? (
@@ -889,6 +893,10 @@ export function DashboardCourseCard({
   isAdmin: boolean;
   summary?: ReturnType<typeof getProgressSummary>;
 }) {
+  // Isti ugovor kao na `CourseCatalogCard`: `layout`, podizanje i pritisak staju kada
+  // korisnik traži manje pokreta. Bez ovoga je otključana kartica jedina u mreži koja se
+  // i dalje pomera pod `prefers-reduced-motion`.
+  const reduceMotion = useReducedMotion();
   const canOpen = isAdmin || course.hasAccess;
   const primaryLabel =
     summary.completedLessons > 0
@@ -898,10 +906,13 @@ export function DashboardCourseCard({
   return (
     <motion.article
       data-motion="card"
-      layout
-      whileHover={{ y: -3 }}
-      whileTap={{ scale: 0.99 }}
-      className="dashboard-reveal overflow-hidden rounded-[16px] border-2 border-ink bg-paper-strong shadow-[6px_6px_0_0_var(--shadow-hard-12)]"
+      layout={!reduceMotion}
+      whileHover={reduceMotion ? undefined : { y: -3 }}
+      whileTap={reduceMotion ? undefined : { scale: 0.99 }}
+      // Ista mikro-interakcija kao na kartici zaključanog kursa: `whileHover` diže, CSS
+      // produbljuje tvrdu senku. Otključan i zaključan kurs u istoj mreži moraju da se
+      // ponašaju isto, inače mreža izgleda kao dva različita sistema.
+      className="card-anim-elevate dashboard-reveal overflow-hidden rounded-[16px] border-2 border-ink bg-paper-strong shadow-[6px_6px_0_0_var(--shadow-hard-12)] hover:shadow-[9px_9px_0_0_var(--shadow-hard-20)]"
     >
       <div className="p-3">
         <div className="relative aspect-[16/9] overflow-hidden rounded-[8px] bg-paper">
@@ -935,6 +946,17 @@ export function DashboardCourseCard({
               )}
             />
           </div>
+          {/* Gola brojka je pocetniku pre prekor nego podatak — ispod trake stoji jedna
+              topla recenica koja kaze gde je i sta sledi (`lib/progress-encouragement.ts`). */}
+          <p className="mt-2 flex items-center gap-1.5 text-xs font-bold text-muted">
+            {summary.percent >= 100 ? (
+              <PartyPopper className="size-3.5 shrink-0 text-ink" aria-hidden="true" />
+            ) : null}
+            {progressEncouragement(locale, {
+              completedLessons: summary.completedLessons,
+              totalLessons: summary.totalLessons,
+            })}
+          </p>
         </div>
 
         <p className="inline-flex items-center gap-2 text-sm font-bold text-muted">
@@ -1054,6 +1076,27 @@ export function DashboardFirstRun({
   const doneCount = firstRunDoneCount(steps);
   const copy = firstRunStepCopy(locale);
 
+  // Proslava stikliranja: kratak „pop" na krugu koraka, i to SAMO kad korak stvarno
+  // predje iz neuradjenog u uradjen (`celebratedStepId`). Bez tog uslova bi checklist
+  // poskakivao na svakom otvaranju komandne table. `doneKey` je jedina zavisnost efekta,
+  // pa se on i pokrece tacno na promenu stanja koraka, ne na svaki render.
+  const doneKey = firstRunDoneIds(steps).join("|");
+  const previousDoneRef = useRef<FirstRunStepId[] | null>(null);
+  const [celebratedStep, setCelebratedStep] = useState<FirstRunStepId | null>(null);
+
+  useEffect(() => {
+    const nextDone = doneKey ? (doneKey.split("|") as FirstRunStepId[]) : [];
+    const justDone = celebratedStepId(previousDoneRef.current, nextDone);
+    previousDoneRef.current = nextDone;
+    if (!justDone) return;
+
+    setCelebratedStep(justDone);
+    // Duze od same animacije (--motion-prelaz = 260ms), da se klasa skine tek kad je
+    // odsvirana do kraja; pod `prefers-reduced-motion` animacija svejedno ne traje.
+    const timer = window.setTimeout(() => setCelebratedStep(null), 600);
+    return () => window.clearTimeout(timer);
+  }, [doneKey]);
+
   const lead =
     doneCount === 0
       ? tr(
@@ -1087,6 +1130,9 @@ export function DashboardFirstRun({
             <h1 className="mt-1.5 text-2xl font-black leading-tight tracking-[-0.035em] text-ink sm:text-3xl">
               {tr(locale, "Tvoji prvi koraci", "Your first steps")}
             </h1>
+            {/* Isti školski potpis kao na marketingu, samo u aplikacijskoj veličini —
+                stoji SAMO ispod naslova zone, nikad ispod podnaslova (§4 U9: ne pretrpavaj). */}
+            <HandUnderline size="sm" className="mt-1" />
             <p className="mt-2 max-w-2xl text-sm font-bold leading-6 text-muted">{lead}</p>
           </div>
           <LinkButton
@@ -1117,6 +1163,7 @@ export function DashboardFirstRun({
                     : step.next
                       ? "bg-yellow text-ink"
                       : "bg-paper-strong text-ink",
+                  celebratedStep === step.id && "step-celebrate",
                 )}
               >
                 {step.done ? <Check aria-hidden="true" className="size-4" /> : index + 1}
@@ -1270,6 +1317,13 @@ function ResumeHero({
             />
             <p className="text-xs font-bold leading-5 text-paper-strong/70">
               {progress.completedLessons}/{progress.totalLessons || 0} {tr(locale, "zavrsenih lekcija", "completed lessons")}
+            </p>
+            {/* Ista topla recenica kao na kartici kursa, samo na ink podlozi. */}
+            <p className="text-xs font-black leading-5 text-yellow">
+              {progressEncouragement(locale, {
+                completedLessons: progress.completedLessons,
+                totalLessons: progress.totalLessons,
+              })}
             </p>
           </div>
         </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Check, Flag, Loader2, MessageCircle, Search, UserPlus, Users, X } from "lucide-react";
+import { ArrowLeft, Check, Flag, MessageCircle, Search, UserPlus, Users, X } from "lucide-react";
 import { useMutation, usePaginatedQuery } from "convex/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -14,6 +14,7 @@ import {
 } from "@/components/app/chat/chat-shared";
 import { useModalFocus } from "@/components/ui/dialog";
 import { cn } from "@/components/ui/primitives";
+import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { Locale } from "@/lib/i18n";
@@ -98,14 +99,14 @@ export function NewConversationDialog({ locale, onClose }: { locale: Locale; onC
               return <button key={member.userId} type="button" role="option" aria-selected={mode === "group" ? selected : undefined} disabled={Boolean(creatingUserId)} onClick={() => mode === "direct" ? void startDirect(member.userId) : setSelectedIds((current) => selected ? current.filter((id) => id !== member.userId) : [...current, member.userId])} className={cn("flex w-full items-center gap-3 rounded-[16px] border-2 p-3 text-left transition disabled:opacity-60", selected ? "border-ink bg-yellow/25" : "border-line bg-paper-strong hover:border-ink")}>
                 <Avatar src={member.avatarUrl} name={member.name} />
                 <span className="min-w-0 flex-1"><span className="block truncate text-sm font-black">{member.name}</span>{member.username ? <span className="block truncate text-[10px] font-bold text-muted">@{member.username}</span> : null}</span>
-                {creatingUserId === member.userId ? <Loader2 className="size-4 animate-spin" /> : mode === "group" ? <span className={cn("grid size-6 place-items-center rounded-full border-2 border-ink", selected && "bg-ink text-paper-strong")}>{selected ? <Check className="size-3.5" /> : null}</span> : <UserPlus className="size-4" />}
+                {creatingUserId === member.userId ? <Spinner /> : mode === "group" ? <span className={cn("grid size-6 place-items-center rounded-full border-2 border-ink", selected && "bg-ink text-paper-strong")}>{selected ? <Check className="size-3.5" /> : null}</span> : <UserPlus className="size-4" />}
               </button>;
             })}
-            {members.status === "LoadingFirstPage" ? <div className="grid min-h-36 place-items-center"><Loader2 className="size-6 animate-spin" /></div> : null}
+            {members.status === "LoadingFirstPage" ? <div className="grid min-h-36 place-items-center"><Spinner size="lg" /></div> : null}
             {!availableMembers.length && members.status !== "LoadingFirstPage" ? <p className="p-8 text-center text-sm font-black text-muted">{label(locale, "Nema dostupnih članova.", "No available members.")}</p> : null}
             {members.status === "CanLoadMore" ? <button type="button" onClick={() => members.loadMore(30)} className="w-full rounded-full border-2 border-ink bg-paper-strong px-4 py-2.5 text-xs font-black">{label(locale, "Učitaj još", "Load more")}</button> : null}
           </div>
-          {mode === "group" ? <form onSubmit={submitGroup} className="border-t-2 border-ink p-4"><button type="submit" disabled={submitting || groupName.trim().length < 2 || selectedIds.length < 1} className="flex h-11 w-full items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-sm font-black disabled:opacity-40">{submitting ? <Loader2 className="size-4 animate-spin" /> : <Users className="size-4" />}{label(locale, "Kreiraj grupu", "Create group")}</button></form> : null}
+          {mode === "group" ? <form onSubmit={submitGroup} className="border-t-2 border-ink p-4"><button type="submit" disabled={submitting || groupName.trim().length < 2 || selectedIds.length < 1} className="flex h-11 w-full items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-sm font-black disabled:opacity-40">{submitting ? <Spinner /> : <Users className="size-4" />}{label(locale, "Kreiraj grupu", "Create group")}</button></form> : null}
         </>}
       </div>
     </div>
@@ -159,7 +160,7 @@ export function ReportDialog({ locale, target, onClose }: { locale: Locale; targ
             <label className="block text-xs font-black">{label(locale, "Razlog", "Reason")}<select autoFocus value={reason} onChange={(event) => setReason(event.target.value)} className="mt-1 h-11 w-full rounded-[12px] border-2 border-ink bg-paper-strong px-3 text-sm font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">{reasons.map((item) => <option key={item.value} value={item.value}>{locale === "sr" ? item.sr : item.en}</option>)}</select></label>
             <label className="block text-xs font-black">{label(locale, "Dodatno objašnjenje (opciono)", "Additional details (optional)")}<textarea value={details} onChange={(event) => setDetails(event.target.value)} maxLength={900} rows={4} className="mt-1 w-full resize-y rounded-[12px] border-2 border-ink px-3 py-2 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink" /></label>
             {error ? <p role="alert" className="rounded-[8px] border border-red-400 bg-red-50 px-3 py-2 text-xs font-black text-red-800">{error}</p> : null}
-            <button type="submit" disabled={submitting} className="flex h-11 w-full items-center justify-center gap-2 rounded-full border-2 border-ink bg-red-600 px-4 text-sm font-black text-white disabled:opacity-50">{submitting ? <Loader2 className="size-4 animate-spin" /> : <Flag className="size-4" />}{label(locale, "Pošalji prijavu", "Send report")}</button>
+            <button type="submit" disabled={submitting} className="flex h-11 w-full items-center justify-center gap-2 rounded-full border-2 border-ink bg-red-600 px-4 text-sm font-black text-white disabled:opacity-50">{submitting ? <Spinner /> : <Flag className="size-4" />}{label(locale, "Pošalji prijavu", "Send report")}</button>
           </form>
         )}
       </div>

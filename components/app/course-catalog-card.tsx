@@ -55,7 +55,10 @@ export function CourseCatalogCard({ locale, course }: { locale: Locale; course: 
       layout={!reduceMotion}
       whileHover={reduceMotion ? undefined : { y: -3 }}
       whileTap={reduceMotion ? undefined : { scale: 0.99 }}
-      className="flex flex-col overflow-hidden rounded-[16px] border-2 border-ink bg-paper-strong shadow-[6px_6px_0_0_var(--shadow-hard-12)]"
+      // Senka raste na hover, a `whileHover` u istom trenutku podiže karticu za 3px:
+      // zajedno to čita kao „papir se odvojio od stola". Transform vodi Framer, senku CSS
+      // (`card-anim-elevate`), pa se dve animacije ne otimaju o istu osobinu.
+      className="card-anim-elevate flex flex-col overflow-hidden rounded-[16px] border-2 border-ink bg-paper-strong shadow-[6px_6px_0_0_var(--shadow-hard-12)] hover:shadow-[9px_9px_0_0_var(--shadow-hard-20)]"
     >
       <div className="p-3">
         <div className="relative aspect-[16/9] overflow-hidden rounded-[8px] bg-paper">

@@ -8,7 +8,6 @@ import {
   CircleAlert,
   GraduationCap,
   Globe2,
-  Loader2,
   MessageCircle,
   Pencil,
   Star,
@@ -23,6 +22,7 @@ import { CommunityAvatar, formatCommunityTime } from "@/components/app/community
 import { CommunityPostEditor, type CommunityEditorPost } from "@/components/app/community-post-editor";
 import { CommunityThreadActions } from "@/components/app/community-thread-actions";
 import { Panel, cn } from "@/components/ui/primitives";
+import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { Locale } from "@/lib/i18n";
@@ -262,7 +262,7 @@ export function LiveCommunityThreadPage({
                   className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-line bg-paper-strong px-3 text-xs font-black text-ink transition hover:border-ink hover:bg-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-wait disabled:opacity-60"
                 >
                   {favoriteBusy ? (
-                    <Loader2 className="size-4 animate-spin" />
+                    <Spinner />
                   ) : post.isFavorited ? (
                     <BookmarkCheck className="size-4 fill-yellow text-ink" />
                   ) : (
@@ -367,7 +367,7 @@ export function LiveCommunityThreadEditorPage({ locale, postId }: { locale: Loca
 function ThreadLoading({ locale }: { locale: Locale }) {
   return (
     <div className="grid min-h-96 place-items-center" aria-busy="true" aria-label={locale === "sr" ? "Učitavanje teme" : "Loading topic"}>
-      <Loader2 className="size-9 animate-spin text-yellow motion-reduce:animate-none" />
+      <Spinner size="xl" className="text-yellow" />
     </div>
   );
 }

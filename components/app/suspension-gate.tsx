@@ -3,12 +3,13 @@
 import { useConvexAuth } from "@convex-dev/auth/react";
 import { useMutation, useQuery } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
-import { CircleAlert, Loader2, Send } from "lucide-react";
+import { CircleAlert, Send } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
 
 import { api } from "@/convex/_generated/api";
 import { t, type Locale } from "@/lib/i18n";
+import { Spinner } from "@/components/ui/spinner";
 
 export type ViewerSuspension = NonNullable<
   FunctionReturnType<typeof api.chatModeration.getMySuspension>
@@ -85,7 +86,7 @@ export function SuspensionGate({
               <textarea value={appeal} onChange={(event) => setAppeal(event.target.value)} maxLength={2_000} rows={5} placeholder={t(locale, "Objasni zbog čega tražiš ponovno razmatranje…", "Explain why you are asking for another review…")} className="mt-2 w-full resize-y rounded-[8px] border-2 border-ink bg-paper-strong px-4 py-3 text-sm font-bold leading-6 focus:border-yellow focus:ring-4 focus:ring-yellow/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink" />
             </label>
             <button type="button" disabled={pending || appeal.trim().length < 10} onClick={() => void sendAppeal()} className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black shadow-[3px_3px_0_0_var(--ink)] disabled:opacity-50">
-              {pending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}{t(locale, "Pošalji žalbu", "Send appeal")}
+              {pending ? <Spinner /> : <Send className="size-4" />}{t(locale, "Pošalji žalbu", "Send appeal")}
             </button>
             {error ? <p role="alert" className="mt-3 text-sm font-black text-red-700">{error}</p> : null}
           </div>

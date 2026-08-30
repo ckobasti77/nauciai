@@ -1,10 +1,11 @@
 "use client";
 
-import { CreditCard, Loader2 } from "lucide-react";
+import { CreditCard } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
 import { cn } from "@/components/ui/primitives";
+import { Spinner } from "@/components/ui/spinner";
 import type { Locale } from "@/lib/i18n";
 import { withLocale } from "@/lib/i18n";
 
@@ -66,7 +67,7 @@ export function CheckoutButton({
           size === "compact" && "min-h-9 px-3 py-1.5 shadow-[2px_2px_0_0_var(--ink)]",
         )}
       >
-        {isPending ? <Loader2 className="size-4 animate-spin" /> : <CreditCard className="size-4" />}
+        {isPending ? <Spinner /> : <CreditCard className="size-4" />}
         {label}
       </button>
       {error ? (
@@ -113,7 +114,7 @@ export function PortalButton({ locale, label }: { locale: Locale; label: string 
         disabled={isPending}
         className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-paper-strong px-5 py-2.5 text-sm font-extrabold text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70"
       >
-        {isPending ? <Loader2 className="size-4 animate-spin" /> : <CreditCard className="size-4" />}
+        {isPending ? <Spinner /> : <CreditCard className="size-4" />}
         {label}
       </button>
       {error ? <p className="max-w-sm text-sm font-bold text-red-700">{error}</p> : null}

@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { CheckSquare, Download, Heart, Loader2, Play, RefreshCw, Sparkles, Square, Volume2 } from "lucide-react";
+import { CheckSquare, Download, Heart, Play, RefreshCw, Sparkles, Square, Volume2 } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 
 import { CreditIcon } from "@/components/studio/credit-icon";
 import { cn } from "@/components/ui/primitives";
+import { Spinner } from "@/components/ui/spinner";
 import type { Locale } from "@/lib/i18n";
 import { isExpiredOutput, jobPrompt, jobStatusText } from "@/lib/studio-form";
 import { downloadSingleMedia, isDemoPoster } from "@/lib/studio-gallery";
@@ -108,7 +109,7 @@ export function StudioMediaTile({
           <div className="grid min-h-[220px] place-items-center p-6 text-center">
             <div className={cn("flex flex-col items-center gap-3", !reduceMotion && "studio-breathing")}>
               <div className="relative flex size-11 items-center justify-center rounded-full border-2 border-white/25 bg-white/10 text-white shadow-inner">
-                <Loader2 className="size-5 animate-spin text-white/90" />
+                <Spinner size="md" className="text-white/90" />
               </div>
               <div>
                 <p className="max-w-[240px] text-sm font-extrabold leading-snug text-white/95">

@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePaginatedQuery } from "convex/react";
-import { Download, Loader2, Sparkles, Wand2 } from "lucide-react";
+import { Download, Sparkles, Wand2 } from "lucide-react";
 
 import { StudioMediaSkeletonTile, StudioMediaTile, type StudioTileJob } from "@/components/app/studio-media-tile";
+import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import type { Locale } from "@/lib/i18n";
 import { resetStudioFilters, setStudioFilters, useStudioFilters } from "@/lib/studio-filters-store";
@@ -285,7 +286,7 @@ export function StudioMediaGrid({
             >
               {isDownloading ? (
                 <>
-                  <Loader2 className="size-3.5 animate-spin" />
+                  <Spinner size="xs" />
                   {downloadProgress
                     ? `${locale === "sr" ? "Preuzimanje" : "Downloading"} (${downloadProgress.current}/${downloadProgress.total})…`
                     : locale === "sr"
@@ -399,7 +400,7 @@ export function StudioMediaGrid({
           {jobStatus === "LoadingMore" ? (
             <div className="flex justify-center py-4">
               <div className="inline-flex items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 py-2 text-xs font-extrabold text-ink shadow-[2px_2px_0_0_var(--shadow-hard-14)]">
-                <Loader2 className="size-4 animate-spin text-muted" />
+                <Spinner className="text-muted" />
                 {locale === "sr" ? "Učitavanje još medija…" : "Loading more media…"}
               </div>
             </div>

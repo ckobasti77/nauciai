@@ -8,7 +8,6 @@ import {
   ChevronUp,
   Clock3,
   GraduationCap,
-  Loader2,
   MessageSquareWarning,
   ShieldCheck,
 } from "lucide-react";
@@ -21,6 +20,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { CommunityStickyToolbar } from "@/components/app/community-v2/community-sticky-toolbar";
 import { Panel } from "@/components/ui/primitives";
 import { useToast } from "@/components/ui/toast-provider";
+import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { Locale } from "@/lib/i18n";
@@ -134,7 +134,7 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
   if (authLoading || (isAuthenticated && viewerData === undefined)) {
     return (
       <div className="grid min-h-80 place-items-center" aria-busy="true">
-        <Loader2 className="size-8 animate-spin text-yellow motion-reduce:animate-none" />
+        <Spinner size="xl" className="text-yellow" />
       </div>
     );
   }
@@ -182,7 +182,7 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
 
       {queue.status === "LoadingFirstPage" ? (
         <div className="grid min-h-64 place-items-center" aria-busy="true">
-          <Loader2 className="size-8 animate-spin text-yellow motion-reduce:animate-none" />
+          <Spinner size="xl" className="text-yellow" />
         </div>
       ) : queue.results.length === 0 ? (
         <Panel className="rounded-[16px] border border-dashed border-ink/20 bg-paper-strong p-8 text-center shadow-none">
@@ -280,7 +280,7 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
                             disabled={busy}
                             className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black text-ink shadow-[3px_3px_0_var(--shadow-hard-16)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
                           >
-                            {busy ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
+                            {busy ? <Spinner /> : <CheckCircle2 className="size-4" />}
                             {locale === "sr" ? "Odobri i objavi" : "Approve and publish"}
                           </button>
                         </div>
@@ -302,7 +302,7 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
             disabled={queue.status === "LoadingMore"}
             className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line bg-paper-strong px-5 text-sm font-black text-ink transition hover:border-ink hover:bg-paper disabled:opacity-60"
           >
-            {queue.status === "LoadingMore" ? <Loader2 className="size-4 animate-spin" /> : null}
+            {queue.status === "LoadingMore" ? <Spinner /> : null}
             {locale === "sr" ? "Učitaj još" : "Load more"}
           </button>
         </div>
@@ -363,7 +363,7 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
             disabled={Boolean(activePostId)}
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black text-ink shadow-[3px_3px_0_var(--shadow-hard-16)] disabled:opacity-60"
           >
-            {activePostId ? <Loader2 className="size-4 animate-spin" /> : <MessageSquareWarning className="size-4" />}
+            {activePostId ? <Spinner /> : <MessageSquareWarning className="size-4" />}
             {locale === "sr" ? "Vrati autoru" : "Return to author"}
           </button>
         </div>

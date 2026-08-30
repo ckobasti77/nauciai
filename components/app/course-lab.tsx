@@ -10,7 +10,6 @@ import {
   FileText,
   GripVertical,
   ImageIcon,
-  Loader2,
   MessageSquareText,
   Mic2,
   Save,
@@ -26,6 +25,7 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { InlineContentText } from "@/components/app/inline-content";
 import { cn } from "@/components/ui/primitives";
+import { Spinner } from "@/components/ui/spinner";
 import type { Course, Lesson } from "@/lib/content";
 import { lessonEditPath } from "@/lib/app-routes";
 import { localized, t, type Locale, withLocale } from "@/lib/i18n";
@@ -664,7 +664,7 @@ export function CourseLab({
                           disabled={isSending || !composer.trim()}
                           className="inline-flex min-h-12 min-w-12 items-center justify-center rounded-[8px] border-2 border-ink bg-yellow text-ink disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                          {isSending ? <Loader2 className="size-5 animate-spin" /> : <Send className="size-5" />}
+                          {isSending ? <Spinner size="md" /> : <Send className="size-5" />}
                         </button>
                       </div>
                       <button
@@ -673,7 +673,7 @@ export function CourseLab({
                         disabled={isSavingOutput || !lastAssistant}
                         className="mt-3 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-ink px-4 text-sm font-black text-paper-strong disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        {isSavingOutput ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+                        {isSavingOutput ? <Spinner /> : <Save className="size-4" />}
                         {t(locale, "Save to output", "Save to output")}
                       </button>
                     </div>

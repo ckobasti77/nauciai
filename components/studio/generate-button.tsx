@@ -1,9 +1,10 @@
 "use client";
 
-import { Coins, Loader2, Wand2 } from "lucide-react";
+import { Coins, Wand2 } from "lucide-react";
 import Link from "next/link";
 
 import { cn } from "@/components/ui/primitives";
+import { Spinner } from "@/components/ui/spinner";
 import type { Locale } from "@/lib/i18n";
 import { generateButtonLabel } from "@/lib/studio-form";
 import { generateBlockMessage, studioErrorMessage, type GenerateBlock } from "@/lib/studio-messages";
@@ -69,7 +70,7 @@ export function GenerateButton({
         onClick={onGenerate}
         className={cn(PILL, "border-ink bg-ink text-paper-strong shadow-[4px_4px_0_0_var(--yellow)] hover:-translate-y-0.5")}
       >
-        {isPending ? <Loader2 className="size-4 animate-spin" /> : <Wand2 className="size-4" />}
+        {isPending ? <Spinner /> : <Wand2 className="size-4" />}
         {credits === null
           ? locale === "sr"
             ? "Generiši"

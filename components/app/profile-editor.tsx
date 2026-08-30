@@ -10,7 +10,6 @@ import {
   Globe2,
   ImagePlus,
   KeyRound,
-  Loader2,
   MailCheck,
   ShieldCheck,
   UploadCloud,
@@ -33,6 +32,7 @@ import { Field, Input, Select, Textarea } from "@/components/ui/field";
 import { Panel, SectionHeader, cn } from "@/components/ui/primitives";
 import { HelpSettings } from "@/components/app/help-settings";
 import { useToast } from "@/components/ui/toast-provider";
+import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import type { ViewerProfile } from "@/lib/current-viewer";
 import {
@@ -992,7 +992,7 @@ export function ProfileEditor({
               disabled={pending || isLoading || !isAuthenticated || profileStatus === undefined}
               className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-ink px-5 py-2.5 text-sm font-extrabold text-paper-strong shadow-[4px_4px_0_0_var(--yellow)] transition hover:-translate-y-0.5 disabled:opacity-60"
             >
-              {pending ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
+              {pending ? <Spinner /> : <CheckCircle2 className="size-4" />}
               {t(locale, "Sacuvaj izmene", "Save changes")}
             </button>
             {message ? (

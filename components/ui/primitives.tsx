@@ -111,13 +111,24 @@ export function SectionHeader({
   );
 }
 
-export function HandUnderline({ className }: { className?: string }) {
+export function HandUnderline({
+  className,
+  size = "md",
+}: {
+  className?: string;
+  /**
+   * `cn` je obično spajanje, ne tailwind-merge, pa pozivalac ne može pouzdano da pobedi
+   * `h-5 w-56` svojom klasom — kao i kod `LinkButton`, veličinu bira komponenta.
+   * `sm` je za zaglavlja unutar aplikacije, gde marketinška širina od 224px preplavi red.
+   */
+  size?: "md" | "sm";
+}) {
   return (
     <svg
       aria-hidden="true"
       data-motion="scribble"
       viewBox="0 0 240 18"
-      className={cn("h-5 w-56 text-yellow", className)}
+      className={cn(size === "md" ? "h-5 w-56" : "h-3.5 w-40", "text-yellow", className)}
       fill="none"
     >
       <path

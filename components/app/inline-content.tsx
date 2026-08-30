@@ -1,13 +1,14 @@
 "use client";
 
 import { useMutation } from "convex/react";
-import { AlertTriangle, Check, Loader2, Pencil, X } from "lucide-react";
+import { AlertTriangle, Check, Pencil, X } from "lucide-react";
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { cn } from "@/components/ui/primitives";
 import { useToast } from "@/components/ui/toast-provider";
+import { Spinner } from "@/components/ui/spinner";
 import type { Locale } from "@/lib/i18n";
 
 export type InlineEntityKind = "track" | "course" | "lesson" | "part" | "step" | "task";
@@ -201,7 +202,7 @@ export function InlineContentText({
         </span>
         <span className="flex shrink-0 gap-1">
           <button type="button" onClick={() => void save()} disabled={saving} aria-label="Sačuvaj" className="grid size-7 place-items-center rounded-full border-2 border-ink bg-yellow disabled:cursor-not-allowed disabled:opacity-40">
-            {saving ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}
+            {saving ? <Spinner size="xs" /> : <Check className="size-3.5" />}
           </button>
           <button type="button" onClick={cancel} disabled={saving} aria-label="Otkaži" className="grid size-7 place-items-center rounded-full border-2 border-ink bg-paper-strong disabled:opacity-40"><X className="size-3.5" /></button>
         </span>

@@ -2,11 +2,12 @@
 
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useQuery } from "convex/react";
-import { ArrowLeft, CheckCircle2, KeyRound, Loader2, Mail } from "lucide-react";
+import { ArrowLeft, CheckCircle2, KeyRound, Mail } from "lucide-react";
 import { FormEvent, useState } from "react";
 
 import { Field, Input } from "@/components/ui/field";
 import { Panel, cn } from "@/components/ui/primitives";
+import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import { t, type Locale } from "@/lib/i18n";
 import { passwordRequirements, passwordValidationErrors } from "@/lib/password-policy";
@@ -440,7 +441,7 @@ function ConvexSignInForm({
           )}
         >
           {isPasswordPending ? (
-            <Loader2 className="size-4 animate-spin" />
+            <Spinner />
           ) : flow === "reset" || flow === "resetVerification" ? (
             <KeyRound className="size-4" />
           ) : (
@@ -466,7 +467,7 @@ function ConvexSignInForm({
             disabled={Boolean(pendingProvider)}
             className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-paper-strong px-5 py-2.5 text-sm font-extrabold text-ink transition-all duration-200 hover:bg-yellow/25 disabled:opacity-70"
           >
-            {pendingProvider === "google" ? <Loader2 className="size-4 animate-spin" /> : <span className="text-lg">G</span>}
+            {pendingProvider === "google" ? <Spinner /> : <span className="text-lg">G</span>}
             {t(locale, "Prijavi se preko Google-a", "Sign in with Google")}
           </button>
         </>

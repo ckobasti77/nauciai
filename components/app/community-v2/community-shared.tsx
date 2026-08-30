@@ -7,7 +7,6 @@ import {
   CircleHelp,
   Compass,
   GraduationCap,
-  Loader2,
   Pin,
   Search,
 } from "lucide-react";
@@ -21,6 +20,7 @@ import {
 } from "@/components/app/community-identity";
 import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/components/ui/primitives";
+import { Spinner } from "@/components/ui/spinner";
 import type { Locale } from "@/lib/i18n";
 import { withLocale } from "@/lib/i18n";
 
@@ -324,7 +324,7 @@ export function LoadMoreButton({
       disabled={loading}
       className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-ink bg-paper-strong px-5 text-sm font-black text-ink transition hover:bg-yellow/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-wait disabled:opacity-60"
     >
-      {loading ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <ArrowRight className="size-4" aria-hidden="true" />}
+      {loading ? <Spinner /> : <ArrowRight className="size-4" aria-hidden="true" />}
       {loading
         ? locale === "sr"
           ? "Učitavanje"

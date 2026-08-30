@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery } from "convex/react";
-import { AlertTriangle, ArrowLeft, BarChart3, BookOpen, CheckCircle2, CirclePlus, FileText, GraduationCap, Layers, ListTree, Loader2, Megaphone, Save, Settings2, Shield, Users, Wand2, XCircle } from "lucide-react";
+import { AlertTriangle, ArrowLeft, BarChart3, BookOpen, CheckCircle2, CirclePlus, FileText, GraduationCap, Layers, ListTree, Megaphone, Save, Settings2, Shield, Users, Wand2, XCircle } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -28,6 +28,7 @@ import {
 import { DashboardContent, type DashboardCourse } from "@/components/app/dashboard-content";
 import { CoursePlayer } from "@/components/app/course-player";
 import { TrackExperience, type TrackExperienceData } from "@/components/app/track-experience";
+import { Spinner } from "@/components/ui/spinner";
 import { findCourse } from "@/lib/content";
 import type { Course, Lesson, LessonAsset, LessonPart } from "@/lib/content";
 
@@ -715,7 +716,7 @@ export function AdminContentPanel({ locale }: { locale: Locale }) {
     }
   }
 
-  if (!hierarchy) return <div className="grid min-h-[60vh] place-items-center"><Loader2 className="size-8 animate-spin" /></div>;
+  if (!hierarchy) return <div className="grid min-h-[60vh] place-items-center"><Spinner size="xl" /></div>;
 
   const trackSurface: TrackExperienceData | null = selectedTrack
     ? {

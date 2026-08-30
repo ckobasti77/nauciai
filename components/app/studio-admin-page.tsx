@@ -1,11 +1,12 @@
 "use client";
 
 import { useMutation, useQuery } from "convex/react";
-import { AlertTriangle, CheckCircle2, Loader2, Power, ShieldAlert, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Power, ShieldAlert, XCircle } from "lucide-react";
 import { useState } from "react";
 
 import { CreditIcon } from "@/components/studio/credit-icon";
 import { Panel, cn } from "@/components/ui/primitives";
+import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import type { Doc } from "@/convex/_generated/dataModel";
 import { HEARTBEAT_STALE_MS } from "@/convex/studioCore";
@@ -93,7 +94,7 @@ function InlineNumber({
           }}
           className={inputClass}
         />
-        {pending ? <Loader2 className="size-3.5 shrink-0 animate-spin text-muted" /> : null}
+        {pending ? <Spinner size="xs" className="shrink-0 text-muted" /> : null}
       </div>
       <ErrorLine message={error} />
     </div>
@@ -144,7 +145,7 @@ function InlineText({
           }}
           className={cn(inputClass, "w-48 font-mono text-xs")}
         />
-        {pending ? <Loader2 className="size-3.5 shrink-0 animate-spin text-muted" /> : null}
+        {pending ? <Spinner size="xs" className="shrink-0 text-muted" /> : null}
       </div>
       <ErrorLine message={error} />
     </div>
@@ -190,7 +191,7 @@ function TogglePill({
           active ? "bg-emerald-100 text-emerald-900" : "bg-paper-strong text-muted",
         )}
       >
-        {pending ? <Loader2 className="size-3.5 animate-spin" /> : active ? <CheckCircle2 className="size-3.5" /> : <XCircle className="size-3.5" />}
+        {pending ? <Spinner size="xs" /> : active ? <CheckCircle2 className="size-3.5" /> : <XCircle className="size-3.5" />}
         {active ? activeLabel : inactiveLabel}
       </button>
       <ErrorLine message={error} />
@@ -520,7 +521,7 @@ function CatalogSection({ locale }: { locale: Locale }) {
 
       {models === undefined ? (
         <div className="mt-5 flex min-h-24 items-center justify-center">
-          <Loader2 className="size-5 animate-spin text-muted" />
+          <Spinner size="md" className="text-muted" />
         </div>
       ) : models.length === 0 ? (
         <p className="surface-inset mt-5 border-2 border-ink bg-paper p-4 text-sm font-bold text-muted">
@@ -581,7 +582,7 @@ function ModelsSection({ locale }: { locale: Locale }) {
 
       {models === undefined ? (
         <div className="mt-5 flex min-h-24 items-center justify-center">
-          <Loader2 className="size-5 animate-spin text-muted" />
+          <Spinner size="md" className="text-muted" />
         </div>
       ) : models.length === 0 ? (
         <p className="surface-inset mt-5 border-2 border-ink bg-paper p-4 text-sm font-bold text-muted">
@@ -699,7 +700,7 @@ function PacksSection({ locale }: { locale: Locale }) {
 
       {packs === undefined ? (
         <div className="mt-5 flex min-h-24 items-center justify-center">
-          <Loader2 className="size-5 animate-spin text-muted" />
+          <Spinner size="md" className="text-muted" />
         </div>
       ) : packs.length === 0 ? (
         <p className="surface-inset mt-5 border-2 border-ink bg-paper p-4 text-sm font-bold text-muted">
@@ -803,7 +804,7 @@ function KillSwitchCard({ locale }: { locale: Locale }) {
   if (state === undefined) {
     return (
       <div className="surface-card flex min-h-20 items-center justify-center border-2 border-ink bg-paper-strong p-4 shadow-[4px_4px_0_0_var(--ink)]">
-        <Loader2 className="size-5 animate-spin text-muted" />
+        <Spinner size="md" className="text-muted" />
       </div>
     );
   }
@@ -859,7 +860,7 @@ function KillSwitchCard({ locale }: { locale: Locale }) {
             onClick={() => void apply(true)}
             className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--ink)] transition hover:-translate-y-0.5 disabled:opacity-60"
           >
-            {pending ? <Loader2 className="size-4 animate-spin" /> : <Power className="size-3.5" />}
+            {pending ? <Spinner /> : <Power className="size-3.5" />}
             {locale === "sr" ? "Ponovo uključi Studio" : "Re-enable Studio"}
           </button>
         ) : null}
@@ -880,7 +881,7 @@ function KillSwitchCard({ locale }: { locale: Locale }) {
               onClick={() => void apply(false)}
               className="inline-flex min-h-9 items-center gap-2 rounded-full border-2 border-red-800 bg-red-800 px-4 text-xs font-black text-white transition hover:bg-red-900 disabled:opacity-60"
             >
-              {pending ? <Loader2 className="size-4 animate-spin" /> : null}
+              {pending ? <Spinner /> : null}
               {locale === "sr" ? "Potvrdi gašenje" : "Confirm shutdown"}
             </button>
             <button
@@ -1044,7 +1045,7 @@ function UsageSection({
 
       {summary === undefined ? (
         <div className="mt-5 flex min-h-24 items-center justify-center">
-          <Loader2 className="size-5 animate-spin text-muted" />
+          <Spinner size="md" className="text-muted" />
         </div>
       ) : (
         <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_1fr]">

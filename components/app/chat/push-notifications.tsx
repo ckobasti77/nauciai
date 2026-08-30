@@ -1,11 +1,12 @@
 "use client";
 
-import { Bell, BellOff, Loader2 } from "lucide-react";
+import { Bell, BellOff } from "lucide-react";
 import { useMutation, useQuery } from "convex/react";
 import { useEffect, useState } from "react";
 
 import { api } from "@/convex/_generated/api";
 import type { Locale } from "@/lib/i18n";
+import { Spinner } from "@/components/ui/spinner";
 
 function decodeBase64Url(value: string) {
   const padding = "=".repeat((4 - (value.length % 4)) % 4);
@@ -86,7 +87,7 @@ export function PushNotificationButton({ locale }: { locale: Locale }) {
 
   return (
     <button type="button" onClick={() => void toggle()} disabled={status === "pending" || status === "denied"} className="grid size-11 place-items-center rounded-full border-2 border-ink bg-paper-strong disabled:opacity-50" aria-label={title} title={title}>
-      {status === "pending" ? <Loader2 className="size-4 animate-spin" /> : status === "subscribed" ? <Bell className="size-4 fill-current" /> : <BellOff className="size-4" />}
+      {status === "pending" ? <Spinner /> : status === "subscribed" ? <Bell className="size-4 fill-current" /> : <BellOff className="size-4" />}
     </button>
   );
 }

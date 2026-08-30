@@ -2,6 +2,7 @@
 
 import { X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion, type Easing } from "motion/react";
 import { useSyncExternalStore } from "react";
 import type { ReactNode } from "react";
 
@@ -11,6 +12,7 @@ import type { IntroPanelId } from "@/lib/app-intro-panels";
 import { readDismissedIntroPanels, writeDismissedIntroPanel } from "@/lib/app-intro-panels";
 import type { Locale } from "@/lib/i18n";
 import { t } from "@/lib/i18n";
+import { getStudioMotion } from "@/lib/studio-motion";
 
 /**
  * `localStorage` nema sopstvenu pretplatu unutar istog taba, pa je ovo
@@ -67,54 +69,76 @@ export function AppIntroPanel({
     // panel se pojavi tek posle hidracije, umesto da bljesne pa nestane.
     () => true,
   );
-
-  if (dismissed) return null;
+  const anim = getStudioMotion(useReducedMotion() === true);
 
   return (
-    <section
-      className={cn(
-        "relative rounded-[16px] border-2 border-ink bg-paper-strong p-4 shadow-[4px_4px_0_0_var(--shadow-hard)] sm:p-5",
-        className,
-      )}
-    >
-      <div className="flex items-start gap-3 pr-10">
-        <span className="grid size-10 shrink-0 place-items-center rounded-full border-2 border-ink bg-yellow text-ink">
-          <Icon aria-hidden="true" className="size-5" />
-        </span>
-        <div className="min-w-0">
-          <h2 className="text-lg font-black leading-6 text-ink">{title}</h2>
-          <p className="mt-1 text-sm font-semibold leading-6 text-muted">{body}</p>
-        </div>
-      </div>
-
-      <ol className="mt-3 grid gap-2 sm:grid-cols-3">
-        {steps.map((step, index) => (
-          <li
-            key={step}
-            className="flex items-start gap-2 rounded-[12px] border-2 border-line bg-paper px-3 py-2 text-sm font-bold leading-5 text-ink"
-          >
-            <span className="grid size-6 shrink-0 place-items-center rounded-full border-2 border-ink bg-paper-strong text-xs font-black">
-              {index + 1}
+    <AnimatePresence>
+      {dismissed ? null : (
+        <motion.section
+          key="intro"
+          // Panel se po definiciji pojavljuje TEK posle hidracije (odgovor „da li je
+          // zatvoren" na serveru ne postoji), pa je bez ulaska to bio nagli iskok na vrhu
+          // ekrana. Ulazak je `element` tier, izlazak kraći od njega — odlazak ne traži
+          // pažnju. Pod `prefers-reduced-motion` oba trajanja padaju na nulu.
+          initial={{ opacity: 0, y: anim.isReduced ? 0 : -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{
+            opacity: 0,
+            y: anim.isReduced ? 0 : -6,
+            transition: {
+              duration: anim.element.exit.duration,
+              ease: anim.element.exit.ease as Easing,
+            },
+          }}
+          transition={{
+            duration: anim.element.enter.duration,
+            ease: anim.element.enter.ease as Easing,
+          }}
+          className={cn(
+            "relative rounded-[16px] border-2 border-ink bg-paper-strong p-4 shadow-[4px_4px_0_0_var(--shadow-hard)] sm:p-5",
+            className,
+          )}
+        >
+          <div className="flex items-start gap-3 pr-10">
+            <span className="grid size-10 shrink-0 place-items-center rounded-full border-2 border-ink bg-yellow text-ink">
+              <Icon aria-hidden="true" className="size-5" />
             </span>
-            <span className="min-w-0">{step}</span>
-          </li>
-        ))}
-      </ol>
+            <div className="min-w-0">
+              <h2 className="text-lg font-black leading-6 text-ink">{title}</h2>
+              <p className="mt-1 text-sm font-semibold leading-6 text-muted">{body}</p>
+            </div>
+          </div>
 
-      {action ? <div className="mt-4 flex flex-wrap gap-2">{action}</div> : null}
+          <ol className="mt-3 grid gap-2 sm:grid-cols-3">
+            {steps.map((step, index) => (
+              <li
+                key={step}
+                className="flex items-start gap-2 rounded-[12px] border-2 border-line bg-paper px-3 py-2 text-sm font-bold leading-5 text-ink"
+              >
+                <span className="grid size-6 shrink-0 place-items-center rounded-full border-2 border-ink bg-paper-strong text-xs font-black">
+                  {index + 1}
+                </span>
+                <span className="min-w-0">{step}</span>
+              </li>
+            ))}
+          </ol>
 
-      <Button
-        variant="ghost"
-        size="sm"
-        className="absolute right-2 top-2 size-9 border-2 border-line p-0"
-        onClick={() => {
-          writeDismissedIntroPanel(id);
-          notifyDismissalChanged();
-        }}
-        aria-label={t(locale, "Zatvori uvod i ne prikazuj ga ponovo", "Close this intro and do not show it again")}
-      >
-        <X aria-hidden="true" className="size-4" />
-      </Button>
-    </section>
+          {action ? <div className="mt-4 flex flex-wrap gap-2">{action}</div> : null}
+
+          <Button
+            variant="ghost"
+            size="sm"
+            className="absolute right-2 top-2 size-9 border-2 border-line p-0"
+            onClick={() => {
+              writeDismissedIntroPanel(id);
+              notifyDismissalChanged();
+            }}
+            aria-label={t(locale, "Zatvori uvod i ne prikazuj ga ponovo", "Close this intro and do not show it again")}
+          >
+            <X aria-hidden="true" className="size-4" />
+          </Button>
+        </motion.section>
+      )}
+    </AnimatePresence>
   );
 }

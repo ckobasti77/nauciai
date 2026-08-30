@@ -52,6 +52,30 @@ export function firstRunDoneCount(steps: readonly FirstRunStep[]): number {
 }
 
 /**
+ * Koji korak je upravo presao iz neuradjenog u uradjen.
+ *
+ * Ovo je jedini uslov za kratku "proslavu" stikliranja: animacija sme da se pusti
+ * samo na PROMENU, nikad na obican render. Bez ovoga bi checkbox poskakivao svaki
+ * put kad student otvori komandnu tablu, sto vise nije nagrada nego tik.
+ *
+ * `previous === null` znaci "jos nismo videli nijedno stanje" (prvi render), pa se
+ * tada ne slavi nista - inace bi svako ucitavanje stranice bilo proslava.
+ */
+export function celebratedStepId(
+  previousDoneIds: readonly FirstRunStepId[] | null,
+  nextDoneIds: readonly FirstRunStepId[],
+): FirstRunStepId | null {
+  if (!previousDoneIds) return null;
+  const wasDone = new Set(previousDoneIds);
+  return nextDoneIds.find((id) => !wasDone.has(id)) ?? null;
+}
+
+/** Stiklirani koraci, u fiksnom redosledu — ulaz za `celebratedStepId`. */
+export function firstRunDoneIds(steps: readonly FirstRunStep[]): FirstRunStepId[] {
+  return steps.filter((step) => step.done).map((step) => step.id);
+}
+
+/**
  * Zona A komandne table: `ResumeHero` ili pozdravni hero.
  *
  * Uslov nije samo "ima kurs": administrator (kome je svaki kurs otkljucan) na

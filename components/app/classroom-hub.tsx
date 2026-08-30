@@ -13,13 +13,12 @@ import {
   CourseProgress,
   DashboardCourseCard,
   DashboardFirstRun,
-  DashboardHomeSkeleton,
   getProgressSummary,
   type DashboardCourse,
 } from "@/components/app/dashboard-content";
 import { coursesFromLive, type LiveNavigationResult } from "@/components/app/dashboard-live";
 import { EmptyState } from "@/components/ui/empty-state";
-import { LinkButton, Panel } from "@/components/ui/primitives";
+import { HandUnderline, LinkButton, Panel } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
 import { lessonPath, trackPath } from "@/lib/app-routes";
 import {
@@ -33,6 +32,7 @@ import {
 } from "@/lib/course-catalog";
 import type { ViewerProfile } from "@/lib/current-viewer";
 import { localized, t as tr, withLocale, type Locale } from "@/lib/i18n";
+import { progressEncouragement } from "@/lib/progress-encouragement";
 
 type CourseEntry = {
   course: DashboardCourse;
@@ -63,7 +63,7 @@ export function LiveClassroomHub({
 
   // Same three states as the dashboard: loading (auth resolving or query undefined), empty, loaded.
   if (authLoading || (isAuthenticated && live === undefined)) {
-    return <DashboardHomeSkeleton />;
+    return <ClassroomHubSkeleton />;
   }
 
   const courses = coursesFromLive(live, fallbackCourses);
@@ -85,6 +85,32 @@ export function LiveClassroomHub({
       courses={courses}
       trackMeta={trackMeta}
     />
+  );
+}
+
+/**
+ * Kostur Ucionice dok traje upit. Ranije je ovde stajao `DashboardHomeSkeleton`, cije
+ * su visine merene po komandnoj tabli (puls od cetiri plocice, mreza prozora) — na
+ * Ucionici je to bio kostur ekrana koji se posle ne pojavi, pa je swap pomerao sve.
+ * Ove visine prate stvarne zone: A hero · B smerovi · C katalog (2 kolone kartica).
+ */
+export function ClassroomHubSkeleton() {
+  return (
+    <div className="space-y-6" aria-busy="true" aria-label="Učitavanje / Loading">
+      <div className="h-[19rem] animate-pulse rounded-[16px] border-2 border-line bg-paper-strong sm:h-56" />
+      <div className="h-56 animate-pulse rounded-[16px] border-2 border-line bg-paper-strong" />
+      <div className="rounded-[16px] border-2 border-line bg-paper-strong">
+        <div className="border-b-2 border-line p-5 sm:p-6">
+          <div className="h-4 w-24 animate-pulse rounded-full bg-line" />
+          <div className="mt-3 h-7 w-64 max-w-full animate-pulse rounded-full bg-line" />
+        </div>
+        <div className="grid gap-5 p-5 sm:p-6 lg:grid-cols-2">
+          {[0, 1, 2, 3].map((item) => (
+            <div key={item} className="h-[26rem] animate-pulse rounded-[16px] border-2 border-line bg-paper" />
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -302,6 +328,9 @@ export function ClassroomHubView({
                     ? tr(locale, "Izaberi gde nastavljaš", "Choose where to continue")
                     : tr(locale, "Izaberi svoj prvi kurs", "Choose your first course")}
                 </h2>
+                {/* Katalog je prodajna zona Učionice — školski potpis je nosi isto kao
+                    naslov marketinga, u aplikacijskoj veličini. */}
+                <HandUnderline size="sm" className="mt-1" />
               </div>
               <span className="inline-flex w-fit items-center gap-2 rounded-full border-2 border-ink bg-paper px-4 py-2 text-xs font-black text-ink">
                 <BookOpen className="size-4" />
@@ -476,6 +505,10 @@ function TrackSection({
               label={tr(locale, `Napredak smera ${title}`, `Progress for ${title}`)}
             />
           </div>
+          {/* Isti glas kao na kartici kursa: brojka gore, ohrabrenje ispod trake. */}
+          <p className="mt-2 text-xs font-bold text-muted">
+            {progressEncouragement(locale, { completedLessons, totalLessons })}
+          </p>
         </div>
       ) : null}
       <ul className="divide-y-2 divide-line border-t-2 border-line">

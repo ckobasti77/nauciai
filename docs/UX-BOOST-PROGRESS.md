@@ -1141,3 +1141,157 @@ pokvareno.
    redovima i dashboard hero sekciji vredi brzo pogledati u obe teme.
 4. **`docs/UX-BOOST-PLAN.md` §4D/§4E brojevi su sada zastareli** (23×`#2e6f9f`, 43 off-scale
    radiusa) - ovaj dokument ih je sve zatvorio; ne treba ih ponovo brojati u sledećem koraku.
+
+## U9 - Pokret, poliranje i loading stanja: overflow, mikro-interakcije, proslave, kosturi   (2026-08-30 03:50)
+
+**Fajlovi:**
+
+*Dodato:*
+- `lib/floating-bounds.ts` + `lib/floating-bounds.test.ts` (klampovanje izmerenog pravougaonika na viewport; 6 testova)
+- `lib/progress-encouragement.ts` + `lib/progress-encouragement.test.ts` (procenat kursa → prekretnica + topla rečenica sr/en; 8 testova)
+- `app/[locale]/app/classroom/loading.tsx` (Učionica je bila jedina glavna zona bez `loading.tsx`)
+
+*Izmenjeno (ključno):*
+- `app/globals.css` — tokeni `--motion-element` (220ms) i `--motion-prelaz` (260ms) kao CSS ogledalo
+  `lib/studio-motion.ts`; `@keyframes toast-enter` + `.toast-enter`; `@keyframes step-celebrate` +
+  `.step-celebrate`; nova utility klasa `.card-anim-elevate`
+- `components/studio/studio-filter-bar.tsx` — traka čipova u skrol strip (§5C, koren overflow-a)
+- `components/app/studio-page.tsx` — `min-w-0` na koloni trake filtera; `contentBounds` klampovan na viewport (§5D)
+- `components/ui/toast-provider.tsx` — mrtva klasa `motion-safe:animate-in` zamenjena stvarnim ulaskom; `100vw` → `100svw`
+- `components/app/intro-panel.tsx` — `AnimatePresence` ulazak/izlazak po `element` tieru
+- `components/app/dashboard-content.tsx` — proslava štikliranog koraka, ohrabrenje uz napredak, `HandUnderline`,
+  `DashboardCourseCard` dobija hover senku i `prefers-reduced-motion` gard
+- `components/app/dashboard-windows.tsx` — hover senka na prozoru, `active:` stanje na redovima
+- `components/app/course-catalog-card.tsx`, `components/app/classroom-hub.tsx`,
+  `components/app/community-v2/community-shell.tsx`, `components/ui/primitives.tsx`,
+  `components/ui/spinner.tsx`, `lib/dashboard-first-run.ts` (+ njegov test)
+- **35 dodatnih fajlova** dirnuto je samo zbog `Loader2` → `Spinner` sweep-a
+
+**Šta je urađeno:**
+Horizontalni overflow na `/app/studio` zatvoren je na oba mesta iz §5: traka filtera više nije
+nesabijiv `inline-flex` bez skrola nego skrol strip sa `min-w-0` (bez `overflow-hidden` haka i bez
+klipovanja popover-a, koji je ostao sibling), a lebdeći dok više ne uzima `left/width` bezuslovno iz
+`getBoundingClientRect` — mera prolazi kroz `clampBoundsToViewport`, pa `fixed` element ne može da
+prelije inicijalni sadržavajući blok. Toast je dobio stvarnu animaciju ulaska (klasa
+`motion-safe:animate-in` koju je koristio nigde ne postoji — `tailwindcss-animate` nije u
+`package.json`, pa poruka nije imala nijedan kadar) i `100svw` u `max-w` računu. Mikro-interakcije
+su izvedene iz postojećeg rečnika: kartice kataloga i kursa diže Framer a senku im produbljuje CSS
+(`.card-anim-elevate`, `--motion-mikro`), redovi u prozorima komandne table dobili su i stanje
+pritiska, a uvodni paneli (`AppIntroPanel`) prvi put imaju ulazak i izlazak umesto iskakanja posle
+hidracije. Napredak je prestao da bude gola brojka: `lib/progress-encouragement.ts` prevodi
+završene/ukupne lekcije u jednu toplu rečenicu (sa srpskom trostrukom množinom) ispod svake trake
+napretka, a štikliranje koraka u first-run čeklisti dobija kratku proslavu — ali samo kad korak
+STVARNO pređe u urađeno (`celebratedStepId`), nikad na običnom renderu. Školski `HandUnderline`
+dodat je na tri naslova zone (pozdravni hero, katalog kurseva, hero zajednice) u novoj `sm`
+veličini. Učionica je dobila sopstveni kostur umesto kostura komandne table, i to i kao `loading.tsx`
+rute i kao stanje dok traje Convex upit. Na kraju, **115 ručno ispisanih `Loader2` poziva u 40
+fajlova** prebačeno je na `Spinner` primitiv iz U2 (ostala su 2, svesno).
+
+**ODLUKE:**
+
+1. **Traka filtera je dobila `overflow-x-auto`, a popover je ostao van tog kontejnera.**
+   Zadatak traži popravku „bez `overflow-hidden` haka ako je moguće", a §5C sam dijagnostikuje
+   nedostatak `flex-wrap`/`overflow-x-auto` kao uzrok. Prelamanje (`flex-wrap`) sam odbacio jer bi
+   traka u ravni sa naslovom „Studio" menjala visinu zaglavlja na uskom desktopu. Skrol strip je
+   morao da bude UNUTRAŠNJI div, a ne sam `containerRef`: popover je `sm:absolute` u odnosu na
+   `containerRef`, pa bi ga skrol kontejner isekao. Sidrenje popover-a je nepromenjeno
+   (`sm:left-0` gađa levu ivicu kontejnera, ne dugmeta). Skrol kontejner klipuje po obe ose, pa
+   čipovi imaju `-my-1 py-1` i `-mx-0.5 px-0.5` — vazduh za tvrdu senku i podizanje na hover, uz
+   izmerenu veličinu trake koja ostaje piksel-ista.
+2. **Klampovanje doka je DODATO uz popravku uzroka, nije zamena za nju.** §5D kaže da je 5C koren;
+   popravio sam koren, ali sam klamp svejedno uveo jer je `left/width` iz `getBoundingClientRect`
+   bezuslovno vezan za element koji SME da se prelije — bilo koja buduća široka traka vratila bi
+   isti bag. Koristi se `document.documentElement.clientWidth`, ne `window.innerWidth`, jer
+   `innerWidth` uključuje vertikalni scrollbar pa bi klamp bio za ~15px prelabav.
+3. **Prozori komandne table se na hover NE dižu, samo im raste senka; kartice kursa rade oba.**
+   Zadatak traži „podizanje + senka" i za kartice kataloga i za dashboard prozore. Prozor
+   (`DashboardWindow`) nije link — ceo se ne klikće, klikće mu se red ili dugme u podnožju — pa bi
+   podizanje bilo obećanje klika koji ne postoji (motion-design: hover feedback je afordansa).
+   Rastuća tvrda senka je isti „papir se odvojio od stola" jezik brenda, bez tog obećanja. Kartice
+   kataloga i kursa, koje jesu ciljevi klika, rade i podizanje i senku.
+4. **`DashboardPulse` je proveren i namerno ostavljen.** Zadatak traži da se provere `CourseProgress`
+   i dashboard Pulse. Pulse pločice pokazuju kredite, poruke, obaveštenja i rang — nijedna ne nosi
+   procenat kursa, pa im „toplo i ohrabrujuće" nema šta da doda; hover podizanje, žutu akcentaciju i
+   fokus prsten već imaju. Ohrabrenje je zato otišlo tamo gde procenat stvarno postoji: kartica
+   kursa, ink panel „Ukupno" u `ResumeHero` i napredak smera u Učionici.
+5. **Proslava se pušta samo na PROMENU stanja koraka.** Alternativa (animacija pri montiranju) značila
+   bi da čeklista poskakuje pri svakom otvaranju `/app` — to više nije nagrada nego tik. Zato
+   `celebratedStepId(previousDoneIds, nextDoneIds)` u `lib/dashboard-first-run.ts`, sa eksplicitnim
+   testom da prvi render ne slavi ništa i da vraćanje koraka unazad nije proslava. Efekat u
+   komponenti zavisi isključivo od `doneKey`, bez `eslint-disable` na `exhaustive-deps`.
+6. **Bez konfeta i bez nove animacione biblioteke.** „Pop" je keyframe sa prebačajem na 45%
+   (`step-celebrate`), a ne nova easing kriva — rečnik ima samo tri easinga i nijedan nije `back`.
+   Trajanje je `--motion-prelaz` (260ms), tj. `studioMotionTokens.prelaz.enterDuration`.
+7. **CSS je dobio dva nova motion tokena, ali nijednu novu vrednost.** `--motion-element: 220ms` i
+   `--motion-prelaz: 260ms` su doslovno `studioMotionTokens.<tier>.enterDuration` u milisekundama.
+   Komentar iznad njih je dopunjen da se vidi da `lib/studio-motion.ts` ostaje JEDAN izvor istine, a
+   CSS samo ogledalo onoga što stvarno animira (pravilo „bez mrtvih tokena" iz RD10).
+8. **`HandUnderline` je dobio `size` prop umesto da se veličina prosleđuje kroz `className`.**
+   `cn` je obično spajanje, ne tailwind-merge, pa `h-3.5` iz pozivaoca ne može pouzdano da pobedi
+   `h-5` iz primitiva (Tailwind sortira po vrednosti). Isti obrazac koji `LinkButton` već koristi za
+   `size`. Podrazumevano je `md` — marketing stranice su piksel-iste.
+9. **Na ink heroju zajednice od potpisa se vidi samo žuti potez.** `HandUnderline` crta žutu liniju
+   od 7px i tanku ink liniju od 2px preko nje; na `bg-ink` podlozi je ink linija nevidljiva. To nije
+   greška nego posledica — žuti potpis na tamnom heroju je isti brend potez kao na papiru.
+   Alternativa bi bila druga varijanta SVG-a samo za tamnu podlogu, što je nova grafika, ne poliranje.
+10. **`Spinner` je dobio jedan nov tier `xl` (32px), a dva `size-3` poziva su ostavljena.**
+    Veliki spinneri „ceo panel još nema sadržaj" bili su ispisani kao 7, 8 i 9 — tri veličine za
+    jedno značenje. Sve tri idu na `xl` (32px), što je za `size-7` +4px a za `size-9` −4px; to je
+    jedina namerna vizuelna promena sweep-a. Dva `Loader2 size-3` u `project-picker.tsx` stoje tačno
+    uz `<Check className="size-3" />` u istom dugmetu, pa bi ih `xs` (14px) razmimoišao za 2px —
+    ostavljeni su i prijavljeni kao poznat, dokumentovan izuzetak.
+11. **`motion-reduce:animate-none` je izbačen iz svih migriranih spinnera.** `app/globals.css`
+    globalno gasi `animation-duration` i `animation-iteration-count` pod
+    `prefers-reduced-motion: reduce`, pa je ta klasa bila duplo osiguranje na 6 od 115 mesta — a
+    `Spinner` je nema u API-ju. Ponašanje pod reduced-motion je nepromenjeno.
+12. **`DashboardCourseCard` je dobio `prefers-reduced-motion` gard koji nije imao.** Nije „popravka
+    susednog koda": ta kartica stoji u istoj mreži kataloga kao `CourseCatalogCard`, ovaj korak joj
+    menja hover, a bez garda bi bila jedina kartica u mreži koja se i dalje pomera kad korisnik traži
+    manje pokreta.
+
+**Testovi:**
+- `lib/floating-bounds.test.ts` (nov, 6 testova): pravougaonik koji staje ostaje netaknut; širina se
+  seče na desnoj ivici; negativan `left` se vraća na nulu uz očuvan vidljivi ostatak; nikad negativna
+  širina; neupotrebljiva širina ekrana i `NaN` mera vraćaju ulaz nepromenjen.
+- `lib/progress-encouragement.test.ts` (nov, 8 testova): prazan kurs nije završen kurs (0/0 nije
+  100%); prekretnica se čita iz broja lekcija a ne iz zaokruženog procenta; granice na 50% i 80%;
+  srpska množina za preostale i za završene lekcije (5 → „lekcija", 2 → „lekcije", 21 → „lekcija");
+  engleska rečenica za svaku prekretnicu.
+- `lib/dashboard-first-run.test.ts` (dopunjen, +6 testova): `firstRunDoneIds` redosled; prvi render
+  ne slavi; nepromenjeno stanje ne slavi; slavi tačno korak koji je prešao u urađeno; kad se više
+  koraka štiklira odjednom slavi prvi po redosledu; vraćanje unazad nije proslava.
+
+**Rezultat verifikacije:**
+- `npm run typecheck` — **PROŠLO** (exit 0)
+- `npm run lint` — **exit 1, identično baseline-u**: `178 problems (1 error, 177 warnings)`, ista
+  pred-postojeća greška `studio-composer.tsx:1112` (`useEffectEvent`, postoji od U1). Nijedan nov
+  nalaz ni u jednom od 46 dirnutih fajlova.
+- `npm run test` — **85/86 fajlova, 1161/1162 testa prošlo.** Jedini pad je poznati flaky test
+  `convex/chat.test.ts > inbox summary stays exact beyond one thousand memberships`
+  (`Error: Test timed out in 5000ms`), koji pod paralelnim opterećenjem pada i bez ovih izmena;
+  pokrenut izolovano (`npx vitest run convex/chat.test.ts`) prolazi — **18/18**. Ovaj korak nije
+  dirao nijedan fajl u `convex/` (`git diff --stat -- convex/` je prazan).
+- `npm run build` — **PROŠLO** (nova ruta `/[locale]/app/classroom` i njen `loading.tsx` se grade).
+- Convex fajlovi nisu dirani → `npx convex codegen` nije pokretan.
+
+**Za Jovana ujutru:**
+1. **Studio na uskom desktopu (osoblje nalog, 640 / 768 / 900 / 1024 px)** — §5 je zatvoren u kodu,
+   ali merenje u pregledaču U1 nije radio i ja ga nisam radio. Proveri: (a) da nema horizontalnog
+   scrollbara ni na jednoj od te četiri širine, (b) da se traka filtera skroluje umesto da gura
+   stranicu, (c) da se popover „Filteri" i dalje otvara ispod dugmeta i da ga skrol traka ne iseca,
+   (d) da lebdeći composer stoji centriran u odnosu na EKRAN.
+2. **Novi `xl` spinner (32px)** zamenio je tri veličine — pogledaj `/app/messages` (loading), admin
+   „Sadržaj", detalj teme u zajednici i editor lekcija. Ako ti je negde 32px premalo ili preveliko,
+   promena je na jednom mestu (`components/ui/spinner.tsx`), ne na 115.
+3. **`HandUnderline` na tri nova mesta** — pozdravni hero na `/app`, zaglavlje kataloga u Učionici i
+   hero zajednice. Na heroju zajednice (ink podloga) vidi se samo žuti potez, vidi ODLUKU 9; ako ti
+   se to ne sviđa, reci i skidam ga samo sa tog jednog mesta.
+4. **Proslava štikliranja** se vidi tek kad korak stvarno pređe u urađeno — najlakše: otvori `/app`
+   kao student bez kursa, u drugom tabu napiši objavu u zajednici, pa se vrati na tab sa komandnom
+   tablom (live upit će štiklirati korak i krug će „pucnuti"). Na obično osvežavanje stranice se
+   NIŠTA ne animira, i to je namerno.
+5. **Toast je do sinoć ulazio bez ijednog kadra** (mrtva klasa) — sad ima ulazak od 220ms. Pokreni
+   bilo koju akciju koja diže poruku (npr. brisanje u Studiju) i proveri u obe teme i na telefonu.
+6. **Dva `Loader2 size-3` u `components/studio/project-picker.tsx` (linije 290 i 386)** svesno su
+   ostavljena van primitiva (ODLUKA 10) — ako hoćeš baš nula ad-hoc spinnera, treba im ili `size-3`
+   tier u primitivu ili da se susedni `<Check className="size-3" />` podigne na 3.5.

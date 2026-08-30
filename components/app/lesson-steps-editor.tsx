@@ -17,7 +17,6 @@ import {
   GripVertical,
   LayoutDashboard,
   ListPlus,
-  Loader2,
   MessageSquareText,
   Monitor,
   PanelRight,
@@ -44,6 +43,7 @@ import {
 import { ConfirmDialog } from "@/components/ui/dialog";
 import { cn } from "@/components/ui/primitives";
 import { useToast } from "@/components/ui/toast-provider";
+import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { Course, Lesson } from "@/lib/content";
@@ -510,7 +510,7 @@ function StatusBadge({ status, locale }: { status: SaveStatus; locale: Locale })
   if (status === "saving") {
     return (
       <span className="inline-flex min-h-9 items-center gap-2 rounded-[8px] border-2 border-line bg-paper px-3 text-xs font-black text-muted">
-        <Loader2 className="size-3.5 animate-spin text-yellow" />
+        <Spinner size="xs" className="text-yellow" />
         {t(locale, "Cuvanje...", "Saving...")}
       </span>
     );
@@ -991,7 +991,7 @@ export function LessonStepsEditor({
     return (
       <div className="flex min-h-[480px] items-center justify-center bg-paper p-12 text-ink">
         <div className="rounded-[8px] border-2 border-ink bg-paper-strong p-6 text-center shadow-[6px_6px_0_0_var(--shadow-hard-13)]">
-          <Loader2 className="mx-auto size-8 animate-spin text-yellow" />
+          <Spinner size="xl" className="mx-auto text-yellow" />
           <p className="mt-3 text-sm font-black text-muted">
             {t(locale, "Ucitavam admin editor...", "Loading admin editor...")}
           </p>
@@ -1125,7 +1125,7 @@ export function LessonStepsEditor({
                   className="inline-flex size-10 items-center justify-center rounded-[8px] border-2 border-ink bg-yellow text-ink shadow-[2px_2px_0_0_var(--shadow-hard-16)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
                   aria-label={t(locale, "Dodaj korak", "Add step")}
                 >
-                  {saving ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-5" />}
+                  {saving ? <Spinner /> : <Plus className="size-5" />}
                 </button>
                 <button
                   type="button"
@@ -1986,7 +1986,7 @@ function Inspector({
               {stepForm ? localText(locale, stepForm.titleSr, stepForm.titleEn) : t(locale, "Nema koraka", "No step")}
             </p>
           </div>
-          {saving ? <Loader2 className="size-5 animate-spin text-yellow" /> : <CheckCircle2 className="size-5 text-yellow" />}
+          {saving ? <Spinner size="md" className="text-yellow" /> : <CheckCircle2 className="size-5 text-yellow" />}
         </div>
       </section>
 

@@ -2,11 +2,12 @@
 
 import { useConvexAuth } from "@convex-dev/auth/react";
 import { usePaginatedQuery, useQuery } from "convex/react";
-import { ArrowUp, Coins, CreditCard, Loader2, Sparkles } from "lucide-react";
+import { ArrowUp, Coins, CreditCard, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
 import { Panel, SectionHeader, cn } from "@/components/ui/primitives";
+import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import {
   bestPackCreditsWithin,
@@ -97,7 +98,7 @@ function CheckoutAction({
   return (
     <div className="space-y-2">
       <button type="button" onClick={startCheckout} disabled={isPending} className={buttonClass}>
-        {isPending ? <Loader2 className="size-4 animate-spin" /> : <CreditCard className="size-4" />}
+        {isPending ? <Spinner /> : <CreditCard className="size-4" />}
         {label}
       </button>
       {error ? (
@@ -145,7 +146,7 @@ export function CreditsPage({ locale }: { locale: Locale }) {
       <div className="space-y-6">
         {header}
         <Panel className="flex min-h-32 items-center justify-center p-6">
-          <Loader2 className="size-5 animate-spin text-muted" />
+          <Spinner size="md" className="text-muted" />
         </Panel>
       </div>
     );
@@ -240,7 +241,7 @@ export function CreditsPage({ locale }: { locale: Locale }) {
 
         {packs === undefined ? (
           <div className="mt-5 flex min-h-24 items-center justify-center">
-            <Loader2 className="size-5 animate-spin text-muted" />
+            <Spinner size="md" className="text-muted" />
           </div>
         ) : creditPacks.length === 0 ? (
           <p className="surface-inset mt-5 border-2 border-ink bg-paper p-4 text-sm font-bold text-muted">
@@ -352,7 +353,7 @@ export function CreditsPage({ locale }: { locale: Locale }) {
 
         {transactions.status === "LoadingFirstPage" ? (
           <div className="mt-5 flex min-h-24 items-center justify-center">
-            <Loader2 className="size-5 animate-spin text-muted" />
+            <Spinner size="md" className="text-muted" />
           </div>
         ) : transactions.results.length === 0 ? (
           <div className="surface-inset mt-5 border-2 border-ink bg-paper p-5">
@@ -410,7 +411,7 @@ export function CreditsPage({ locale }: { locale: Locale }) {
                 disabled={transactions.status === "LoadingMore"}
                 className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-5 py-2.5 text-sm font-extrabold text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {transactions.status === "LoadingMore" ? <Loader2 className="size-4 animate-spin" /> : null}
+                {transactions.status === "LoadingMore" ? <Spinner /> : null}
                 {locale === "sr" ? "Prikaži još" : "Show more"}
               </button>
             ) : null}

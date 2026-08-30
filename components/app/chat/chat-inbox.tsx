@@ -1,6 +1,6 @@
 "use client";
 
-import { BellOff, Inbox, Loader2, MessageCircle, Pin, Search, Settings2, Users, X } from "lucide-react";
+import { BellOff, Inbox, MessageCircle, Pin, Search, Settings2, Users, X } from "lucide-react";
 import { useMutation, usePaginatedQuery, useQuery } from "convex/react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -21,6 +21,7 @@ import {
 import { PushNotificationButton } from "@/components/app/chat/push-notifications";
 import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/components/ui/primitives";
+import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { Locale } from "@/lib/i18n";
@@ -141,7 +142,7 @@ function NotificationPreferencesPopover({ locale }: { locale: Locale }) {
       {open ? (
         <div role="dialog" aria-label={label(locale, "Podešavanja obaveštenja", "Notification settings")} className="absolute right-0 top-13 z-40 w-[min(22rem,calc(100vw-2rem))] rounded-[16px] border-2 border-ink bg-paper-strong p-3 shadow-xl">
           <div className="mb-2 flex items-center justify-between gap-3"><p className="text-sm font-black">{label(locale, "Obaveštenja", "Notifications")}</p><button type="button" onClick={() => { setOpen(false); requestAnimationFrame(() => triggerRef.current?.focus()); }} className="grid size-8 place-items-center rounded-full border border-line" aria-label={label(locale, "Zatvori", "Close")}><X className="size-4" /></button></div>
-          {preferences === undefined ? <div className="grid min-h-24 place-items-center"><Loader2 className="size-5 animate-spin" /></div> : (
+          {preferences === undefined ? <div className="grid min-h-24 place-items-center"><Spinner size="md" /></div> : (
             <div className="space-y-2">
               {preferences.map((preference) => (
                 <div key={preference.category} className="rounded-[12px] border border-line bg-paper p-2.5">
@@ -232,7 +233,7 @@ function GlobalSearchResults({
       {creationMessage ? <p role="alert" className="rounded-[8px] border border-red-400 bg-red-50 px-3 py-2 text-xs font-black text-red-800">{creationMessage}</p> : null}
       {memberRows.length || memberSearch.status === "CanLoadMore" || memberSearch.status === "LoadingMore" ? <div className="space-y-2 border-b-2 border-line pb-3">
         <p className="px-1 text-[10px] font-black uppercase tracking-[0.12em] text-muted">{label(locale, "Ljudi", "People")}</p>
-        {memberRows.map((member) => <button key={member.userId} type="button" disabled={Boolean(creatingUserId)} onClick={() => void startDirect(member.userId)} className="flex w-full items-center gap-3 rounded-[16px] border-2 border-line bg-paper-strong p-3 text-left transition hover:border-ink disabled:opacity-60"><Avatar src={member.avatarUrl} name={member.name} /><span className="min-w-0 flex-1"><span className="block truncate text-sm font-black">{member.name}</span>{member.username ? <span className="block truncate text-[10px] font-bold text-muted">@{member.username}</span> : null}</span>{creatingUserId === member.userId ? <Loader2 className="size-4 animate-spin" /> : <MessageCircle className="size-4" />}</button>)}
+        {memberRows.map((member) => <button key={member.userId} type="button" disabled={Boolean(creatingUserId)} onClick={() => void startDirect(member.userId)} className="flex w-full items-center gap-3 rounded-[16px] border-2 border-line bg-paper-strong p-3 text-left transition hover:border-ink disabled:opacity-60"><Avatar src={member.avatarUrl} name={member.name} /><span className="min-w-0 flex-1"><span className="block truncate text-sm font-black">{member.name}</span>{member.username ? <span className="block truncate text-[10px] font-bold text-muted">@{member.username}</span> : null}</span>{creatingUserId === member.userId ? <Spinner /> : <MessageCircle className="size-4" />}</button>)}
         {memberSearch.status === "CanLoadMore" ? <button type="button" onClick={() => memberSearch.loadMore(8)} className="w-full rounded-full border border-ink bg-paper-strong px-3 py-2 text-[10px] font-black">{label(locale, "Učitaj još ljudi", "Load more people")}</button> : null}
       </div> : null}
       {conversationRows.length || conversationSearch.status === "CanLoadMore" || conversationSearch.status === "LoadingMore" ? <div className="space-y-2">
@@ -240,7 +241,7 @@ function GlobalSearchResults({
         {conversationRows.map((item) => <InboxRow key={String(item.conversationId)} locale={locale} item={item} selected={selectedConversationId === String(item.conversationId)} />)}
         {conversationSearch.status === "CanLoadMore" ? <button type="button" onClick={() => conversationSearch.loadMore(20)} className="w-full rounded-full border-2 border-ink bg-paper-strong px-4 py-3 text-sm font-black">{label(locale, "Učitaj još razgovora", "Load more conversations")}</button> : null}
       </div> : null}
-      {loading ? <div className="grid min-h-36 place-items-center"><Loader2 className="size-6 animate-spin" /></div> : null}
+      {loading ? <div className="grid min-h-36 place-items-center"><Spinner size="lg" /></div> : null}
       {exhausted && !conversationRows.length && !memberRows.length ? <EmptyState
         className="min-h-52"
         icon={Inbox}
@@ -317,7 +318,7 @@ export function InboxPane({
               remounted the row on every new message and stole keyboard focus. */}
           {rows.map((item: InboxItem | InboxRowItem) => <InboxRow key={String(item.conversationId)} locale={locale} item={item} selected={selectedConversationId === String(item.conversationId)} />)}
           {!hasConversationRows && inbox.status !== "LoadingFirstPage" && pinnedInbox.status !== "LoadingFirstPage" ? <div className="grid min-h-52 place-items-center rounded-[16px] border-2 border-dashed border-line bg-paper-strong p-8 text-center"><div><Inbox className="mx-auto size-9 text-muted" /><p className="mt-3 text-sm font-black text-ink">{label(locale, "Ovde je za sada mirno.", "It is quiet here for now.")}</p><div className="mt-4 flex flex-wrap justify-center gap-2"><button type="button" onClick={() => setNewConversationOpen(true)} className="rounded-full border-2 border-ink bg-yellow px-4 py-2 text-xs font-black">{label(locale, "Započni razgovor", "Start a conversation")}</button><button type="button" onClick={onOpenStudy} className="rounded-full border-2 border-ink bg-[#d7e9f5] dark:bg-ink/15 px-4 py-2 text-xs font-black">{label(locale, "Pronađi partnera", "Find a study partner")}</button></div></div></div> : null}
-          {inbox.status === "LoadingFirstPage" ? <div className="grid min-h-52 place-items-center"><Loader2 className="size-7 animate-spin" /></div> : null}
+          {inbox.status === "LoadingFirstPage" ? <div className="grid min-h-52 place-items-center"><Spinner size="xl" /></div> : null}
           {inbox.status === "CanLoadMore" ? <button type="button" onClick={() => inbox.loadMore(20)} className="w-full rounded-full border-2 border-ink bg-paper-strong px-4 py-3 text-sm font-black">{label(locale, "Učitaj još", "Load more")}</button> : null}
         </>}
       </div>
