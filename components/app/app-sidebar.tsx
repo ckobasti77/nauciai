@@ -1732,9 +1732,9 @@ function AppSidebarContent({
 
       {/* Bottom Profile Card */}
       {profileData && (
-        <div className="relative mt-auto pt-4 hidden md:block" ref={profileMenuRef}>
+        <div className="relative mt-auto hidden md:block -mx-5 -mb-7 border-t-2 border-ink bg-paper-strong" ref={profileMenuRef}>
           {profileMenuOpen ? (
-            <div className="absolute bottom-[calc(100%+0.65rem)] left-0 z-50 w-full rounded-[16px] border-2 border-ink bg-paper-strong p-2.5 text-ink shadow-[8px_8px_0_0_var(--shadow-hard-14)]">
+            <div className="absolute bottom-[calc(100%+0.65rem)] left-3 right-3 z-50 rounded-[16px] border-2 border-ink bg-paper-strong p-2.5 text-ink shadow-[8px_8px_0_0_var(--shadow-hard-14)]">
               <span
                 aria-hidden="true"
                 className="absolute -bottom-2 left-6 size-4 rotate-45 border-r-2 border-b-2 border-ink bg-paper-strong"
@@ -1838,7 +1838,7 @@ function AppSidebarContent({
             onClick={() => setProfileMenuOpen((value) => !value)}
             aria-expanded={profileMenuOpen}
             aria-haspopup="menu"
-            className="relative flex w-full items-center gap-3 rounded-[12px] border-2 border-ink bg-paper-strong p-2 text-left text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] transition hover:bg-yellow/15"
+            className="relative flex w-full items-center gap-3 rounded-none bg-paper-strong px-5 py-4 text-left text-ink transition hover:bg-yellow/15"
           >
             <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-ink bg-yellow text-xs font-black">
               {profileAvatar ? (
@@ -1855,7 +1855,7 @@ function AppSidebarContent({
             </div>
             <SidebarRoleBadge role={navigation.role} plan={navigation.plan} locale={locale} />
             <ChevronDown className={cn("size-4 shrink-0 transition-transform text-muted", profileMenuOpen && "rotate-180")} />
-            {accountBadge > 0 ? <span className="absolute -right-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-ink bg-red-600 px-1 text-[10px] font-black text-white">{accountBadge > 99 ? "99+" : accountBadge}</span> : null}
+            {accountBadge > 0 ? <span className="absolute right-3 top-3 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-ink bg-red-600 px-1 text-[10px] font-black text-white">{accountBadge > 99 ? "99+" : accountBadge}</span> : null}
           </button>
         </div>
       )}
