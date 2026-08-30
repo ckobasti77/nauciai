@@ -29,10 +29,17 @@ export default async function AuthCompletePage({
     redirect(withLocale(locale, "/sign-in"));
   }
 
+  // Studio funnel (studio-public F3): "Probaj besplatno" ne sme da završi u
+  // školskom profil-onboardingu - Studio ne traži username. Školska staza
+  // (podrazumevani next=/app) ostaje netaknuta; username i dalje može da se
+  // postavi kasnije, iz profila.
+  const goesToStudio =
+    next === withLocale(locale, "/studio") || next.startsWith(`${withLocale(locale, "/studio")}/`);
+
   const status = (await convex.query(convexQueries.getViewerProfileStatus, {}).catch(() => null)) as
     | { username?: string }
     | null;
-  if (!status?.username) {
+  if (!status?.username && !goesToStudio) {
     redirect(`${withLocale(locale, "/app/profile")}?onboarding=1&focus=username&returnTo=${encodeURIComponent(next)}`);
   }
 
