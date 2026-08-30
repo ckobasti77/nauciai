@@ -1671,9 +1671,15 @@ export default defineSchema({
   // ── PLATFORMA: SKLOPKE ───────────────────────────────────────────────
   // Kill switch iz STUDIO-PLAN 4.4. `studio.createJob` čita "studio_enabled"
   // pre svake druge provere; `enabled: false` gasi Studio bez deploy-a.
+  //
+  // `value` (studio-public F1): numerički konfig redovi (javni limiti Studija,
+  // ključevi u `STUDIO_PUBLIC_CONFIG_KEYS`) žive u ISTOJ tabeli kao flagovi —
+  // override važi samo kad je `enabled: true` i vrednost ceo broj > 0, inače
+  // se koristi podrazumevana vrednost iz `studioCore.PUBLIC_LIMIT_DEFAULTS`.
   platformFlags: defineTable({
     key: v.string(),
     enabled: v.boolean(),
+    value: v.optional(v.number()),
   }).index("by_key", ["key"]),
 
   // Zapamćeno stanje globalnog dnevnog alarma (STUDIO-PLAN 4.4). Jedan red po
