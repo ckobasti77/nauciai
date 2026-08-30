@@ -314,3 +314,192 @@ export const marketingContent = {
     },
   },
 } as const;
+
+/**
+ * Množinske forme za brojanje na srpskom (1 modul / 2 modula / 5 modula,
+ * 1 lekcija / 2 lekcije / 5 lekcija). Engleski koristi `one`/`many`.
+ * Pravilo za `sr`: 1 (ali ne 11) → one; 2–4 (ali ne 12–14) → few; ostalo → many.
+ */
+export type PluralForms = { one: string; few: string; many: string };
+
+export function pluralize(locale: Locale, count: number, forms: PluralForms): string {
+  if (locale === "en") {
+    return count === 1 ? forms.one : forms.many;
+  }
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (mod10 === 1 && mod100 !== 11) return forms.one;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return forms.few;
+  return forms.many;
+}
+
+/**
+ * Copy za javne stranice kurseva (`/courses/[courseSlug]`). Ista podela kao
+ * `marketingContent`: sav tekst živi ovde, nijedan hardkodovan string u komponentama,
+ * `sr` i `en` drže istu strukturu. Deo pod `perCourse` je keširan po slug-u kursa
+ * (naslov heroja sa marker-isticanjem i FAQ pisan konkretno za taj kurs).
+ */
+export const coursePageContent = {
+  sr: {
+    allCourses: "Svi kursevi",
+    buyNow: "Kupi sada",
+    watchFree: "Odgledaj besplatan video",
+    priceAmount: "9,99",
+    priceUnit: "EUR mesečno",
+    cancelAnytime: "Otkaži kad hoćeš",
+    moduleForms: { one: "modul", few: "modula", many: "modula" },
+    lessonForms: { one: "lekcija", few: "lekcije", many: "lekcija" },
+    outcomes: {
+      kicker: "Šta ćeš umeti",
+      title: "Na kraju kursa imaš pravi rad.",
+    },
+    program: {
+      kicker: "Program kursa",
+      title: "Sve što te čeka unutra.",
+      intro: "Svaki modul vodi do konkretnog rezultata. Prva lekcija je otključana — ostale se otvaraju uz pretplatu.",
+      moduleLabel: "Modul",
+      freeBadge: "BESPLATNO",
+      comingSoon: "Uskoro",
+      lockedLabel: "Otključava se uz pretplatu",
+      emptyTitle: "Program je u pripremi",
+      emptyBody: "Lekcije se upravo snimaju i pojaviće se ovde čim budu spremne. Besplatan uvodni video već možeš da pogledaš.",
+    },
+    faq: {
+      title: "Pitanja o ovom kursu",
+    },
+    finalCta: {
+      title: "Tvoj prvi gotov rad je jedan kurs daleko.",
+      body: "Odgledaj besplatan video, pa nastavi svojim tempom — pretplata je 9,99 EUR mesečno i otkazuješ kad hoćeš.",
+      crossSell: "Pogledaj i drugi kurs",
+    },
+    perCourse: {
+      "video-audio-ai": {
+        titleLead: "Kurs za ",
+        titleHighlight: "video i audio",
+        titleTail: "",
+        faq: [
+          {
+            q: "Treba li mi predznanje za ovaj kurs?",
+            a: "Ne. Kurs kreće od temelja produkcije: prvo dobiješ mapu alata i naučiš da postaviš kratak brief, pa tek onda prelaziš na scenario, glas i montažu.",
+          },
+          {
+            q: "Koji alati se koriste?",
+            a: "AI alati za pisanje scenarija, generisanje glasa i montažu videa — svi rade u pretraživaču. U lekcijama vidiš tačno gde se šta klikće, a uz kurs ide i mapa alata za preuzimanje.",
+          },
+          {
+            q: "Koliko traje kurs?",
+            a: "Oko dva sata video lekcija, od uvoda do finalnog projekta za klijenta. Učiš svojim tempom — lekcije te čekaju i možeš da im se vraćaš dok god traje pretplata.",
+          },
+          {
+            q: "Šta dobijam od materijala?",
+            a: "Mapu alata za produkciju, prompt start paket, radni list za scenario, checklist za finalni eksport i brief za završni projekat — sve možeš da preuzmeš i koristiš na svojim projektima.",
+          },
+        ],
+      },
+      "vibe-coding": {
+        titleLead: "Kurs za ",
+        titleHighlight: "web sajtove",
+        titleTail: "",
+        faq: [
+          {
+            q: "Treba li mi predznanje za ovaj kurs?",
+            a: "Ne, i ne treba ti nijedna linija koda. Kurs te vodi od ideje, preko jasnog brief-a i strukture stranica, do sajta spremnog za objavu.",
+          },
+          {
+            q: "Koji alati se koriste?",
+            a: "AI alati za izradu sajtova koji rade u pretraživaču — opišeš šta želiš, gledaš rezultat i popravljaš dok ne bude kako treba. Sve pokazujemo korak po korak u lekcijama.",
+          },
+          {
+            q: "Koliko traje kurs?",
+            a: "Lekcije su kratke i praktične, a prolaziš ih svojim tempom. Nove lekcije se objavljuju redom i ulaze u istu pretplatu, bez doplate.",
+          },
+          {
+            q: "Šta dobijam od materijala?",
+            a: "Šablon za website brief, liste provera za strukturu, tekst i responsive izgled stranica — sve što ti treba da sajt proveriš pre nego što ga objaviš.",
+          },
+        ],
+      },
+    },
+  },
+  en: {
+    allCourses: "All courses",
+    buyNow: "Buy now",
+    watchFree: "Watch the free video",
+    priceAmount: "9,99",
+    priceUnit: "EUR / month",
+    cancelAnytime: "Cancel anytime",
+    moduleForms: { one: "module", few: "modules", many: "modules" },
+    lessonForms: { one: "lesson", few: "lessons", many: "lessons" },
+    outcomes: {
+      kicker: "What you'll be able to do",
+      title: "You finish this course with real work.",
+    },
+    program: {
+      kicker: "Course curriculum",
+      title: "Everything waiting inside.",
+      intro: "Every module leads to a concrete result. The first lesson is unlocked — the rest open with your subscription.",
+      moduleLabel: "Module",
+      freeBadge: "FREE",
+      comingSoon: "Coming soon",
+      lockedLabel: "Unlocks with subscription",
+      emptyTitle: "The curriculum is in the works",
+      emptyBody: "Lessons are being recorded right now and will appear here as soon as they are ready. You can already watch the free intro video.",
+    },
+    faq: {
+      title: "Questions about this course",
+    },
+    finalCta: {
+      title: "Your first finished project is one course away.",
+      body: "Watch the free video, then continue at your own pace — the subscription is 9,99 EUR per month and you can cancel anytime.",
+      crossSell: "Check out the other course",
+    },
+    perCourse: {
+      "video-audio-ai": {
+        titleLead: "The ",
+        titleHighlight: "Video and Audio",
+        titleTail: " Course",
+        faq: [
+          {
+            q: "Do I need any experience for this course?",
+            a: "No. The course starts with production foundations: first you get a tool map and learn to set up a short brief, and only then move on to the script, voice, and editing.",
+          },
+          {
+            q: "Which tools are used?",
+            a: "AI tools for writing scripts, generating voice, and editing video — all of them run in the browser. The lessons show you exactly where to click, and the course includes a downloadable tool map.",
+          },
+          {
+            q: "How long does the course take?",
+            a: "About two hours of video lessons, from the intro to the client-ready final project. You learn at your own pace — the lessons wait for you and you can revisit them for as long as you're subscribed.",
+          },
+          {
+            q: "What materials do I get?",
+            a: "A production tool map, a prompt starter pack, a script worksheet, a final export checklist, and a final project brief — all downloadable and ready to use on your own projects.",
+          },
+        ],
+      },
+      "vibe-coding": {
+        titleLead: "The ",
+        titleHighlight: "Websites",
+        titleTail: " Course",
+        faq: [
+          {
+            q: "Do I need any experience for this course?",
+            a: "No, and you won't write a single line of code. The course takes you from an idea, through a clear brief and page structure, to a website ready to publish.",
+          },
+          {
+            q: "Which tools are used?",
+            a: "AI website-building tools that run in the browser — you describe what you want, watch the result, and refine it until it's right. Everything is shown step by step in the lessons.",
+          },
+          {
+            q: "How long does the course take?",
+            a: "The lessons are short and practical, and you go through them at your own pace. New lessons are released in order and join the same subscription at no extra cost.",
+          },
+          {
+            q: "What materials do I get?",
+            a: "A website brief template and checklists for structure, copy, and responsive layout — everything you need to review a site before you publish it.",
+          },
+        ],
+      },
+    },
+  },
+} as const;

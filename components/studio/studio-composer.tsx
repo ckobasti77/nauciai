@@ -831,7 +831,9 @@ export function StudioComposer({
   const [dropActive, setDropActive] = useState(false);
   const dropBusyRef = useRef(false);
 
-  const routeDroppedFiles = useEffectEvent(async (dropped: File[]) => {
+  // Obična funkcija za JSX onChange (effect event sme da se zove samo iz efekata);
+  // window drop efekat ispod je zove kroz useEffectEvent omotač da zadrži stabilan identitet.
+  const routeDroppedFilesNow = async (dropped: File[]) => {
     if (dropped.length === 0 || dropBusyRef.current) return;
 
     const first = dropped[0];
@@ -911,7 +913,8 @@ export function StudioComposer({
       dropBusyRef.current = false;
       if (!flashed) setStatusMessage(null);
     }
-  });
+  };
+  const routeDroppedFiles = useEffectEvent(routeDroppedFilesNow);
 
   function handleSelectFileType(type: "image" | "video" | "audio" | "file") {
     setAttachPopupOpen(false);
@@ -1109,7 +1112,7 @@ export function StudioComposer({
         onChange={(e) => {
           const dropped = Array.from(e.target.files ?? []);
           if (dropped.length > 0) {
-            void routeDroppedFiles(dropped);
+            void routeDroppedFilesNow(dropped);
           }
           e.target.value = "";
         }}
