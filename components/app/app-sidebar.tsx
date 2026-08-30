@@ -64,6 +64,7 @@ import {
   serializeAppSidebarPreferences,
 } from "@/lib/app-sidebar-preferences";
 import { classroomPath, courseCatalogPath, coursePath, lessonPath } from "@/lib/app-routes";
+import { lessonPosition, lessonPositionLabel } from "@/lib/lesson-position";
 import { publicProfilePath } from "@/lib/profile-links";
 import type { AppCourseNav, AppNavigationData } from "@/lib/app-navigation";
 import { primaryCourseSlug } from "@/lib/content";
@@ -305,7 +306,20 @@ const switcherRowLink =
   "flex min-h-11 min-w-0 flex-1 items-center gap-3 px-3 py-2 text-sm font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink";
 
 const switcherRowIcon =
-  "grid size-8 shrink-0 place-items-center rounded-[8px] border-2 border-ink/15 bg-paper-strong";
+  "grid size-8 shrink-0 place-items-center surface-media border-2 border-ink/15 bg-paper-strong";
+
+/**
+ * Plocica reda LEKCIJE. Nosi redni broj umesto uvek iste ikonice, a na otvorenoj
+ * lekciji se puni mastilom — to je vizuelni deo markera „gde sam". Klase se biraju
+ * ovde, a ne spajanjem u pozivaocu: `cn` je obicno spajanje, pa bi `border-ink` i
+ * `border-ink/15` u istoj nisci ostavili ishod redosledu u Tailwind izlazu.
+ */
+function switcherLessonIcon(active: boolean) {
+  return cn(
+    "grid size-8 shrink-0 place-items-center surface-media border-2",
+    active ? "border-ink bg-ink text-paper-strong" : "border-ink/15 bg-paper-strong text-ink",
+  );
+}
 
 /**
  * One control for the two halves of the same choice: which course, and which lesson
@@ -358,6 +372,9 @@ function LearningSwitcher({
   const currentLesson = currentLessonSlug
     ? directLessons.find((lesson) => lesson.slug === currentLessonSlug)
     : undefined;
+  // „Gde sam" nije samo „koja je lekcija otvorena" nego i „koja je po redu": za
+  // pocetnika je bas taj drugi podatak ono sto smiruje. `null` kad pozicije nema.
+  const currentPosition = lessonPosition(directLessons, currentLessonSlug);
   const currentStatus =
     currentCourse.status !== "published"
       ? locale === "sr"
@@ -411,7 +428,11 @@ function LearningSwitcher({
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block type-eyebrow-sm text-muted">
-                    {locale === "sr" ? "Lekcija" : "Lesson"}
+                    {currentPosition
+                      ? lessonPositionLabel(locale, currentPosition)
+                      : locale === "sr"
+                        ? "Lekcija"
+                        : "Lesson"}
                   </span>
                   <span className="block truncate">{localized(currentLesson.title, locale)}</span>
                 </span>
@@ -617,7 +638,7 @@ function LearningSwitcher({
                           {locale === "sr" ? "Kurs još nema lekcije." : "This course has no lessons yet."}
                         </p>
                       )}
-                      {directLessons.map((lesson) => {
+                      {directLessons.map((lesson, lessonIndex) => {
                         const active = currentLessonSlug === lesson.slug;
                         return (
                           <motion.div key={lesson.id ?? lesson.slug} layout className={switcherRowShell(active)}>
@@ -627,10 +648,19 @@ function LearningSwitcher({
                               aria-current={active ? "page" : undefined}
                               className={switcherRowLink}
                             >
-                              <span className={switcherRowIcon}>
-                                <PlayCircle className="size-4" />
+                              <span className={switcherLessonIcon(active)}>
+                                {active ? (
+                                  <PlayCircle aria-hidden="true" className="size-4" />
+                                ) : (
+                                  <span className="type-eyebrow-sm">{lessonIndex + 1}</span>
+                                )}
                               </span>
                               <span className="min-w-0 flex-1 truncate">{localized(lesson.title, locale)}</span>
+                              {active ? (
+                                <span className="shrink-0 rounded-full border-2 border-ink bg-paper-strong px-2 py-0.5 type-eyebrow-sm text-ink">
+                                  {locale === "sr" ? "Ovde si" : "You are here"}
+                                </span>
+                              ) : null}
                               {isAdmin && !lesson.isPublished ? (
                                 <span className="shrink-0 rounded-full border border-ink bg-paper px-2 py-0.5 type-eyebrow-sm">
                                   Nacrt

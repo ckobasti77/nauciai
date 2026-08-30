@@ -1482,3 +1482,169 @@ feedu `space-y-4`, lista redova u inboxu `space-y-3`.
    **preload hint šalje samo za `latin`**, pa se fajl sa dijakritikom povlači tek kad ga tekst
    zatraži. Za primarni jezik platforme vredi razmisliti o `subsets: ["latin", "latin-ext"]` —
    nisam menjao jer to menja mrežni saobraćaj, a nije deo ovog koraka.
+
+
+## U11 - Vizuelni „wow" sloj: hero, prozori sa identitetom zona, kartice kursa, player   (2026-08-30 05:00)
+
+**Fajlovi:**
+
+*Dodato:*
+- `lib/dashboard-zones.ts` + `lib/dashboard-zones.test.ts` (identitet zona komandne table kao
+  podatak; 9 testova)
+- `lib/lesson-position.ts` + `lib/lesson-position.test.ts` („gde sam" — pozicija lekcije u kursu i
+  koraka u lekciji; 8 testova)
+
+*Izmenjeno:*
+- `components/app/dashboard-content.tsx` — `CourseProgress` (žuta traka + procenat), `DashboardFirstRun`
+  (sveska + rukopis + vodeni žig), `ResumeHero`, `DashboardCourseCard`, `CourseCover`/`HeroCover`,
+  prazna zona „Dnevni ritam", pozdrav na stranici kursa
+- `components/app/dashboard-windows.tsx` — pločica zone u zaglavlju prozora, veći broj, hover
+  podizanje, `PulseTile` na card tier sa `type-h1` brojkom
+- `components/app/course-catalog-card.tsx` — okvir naslovne slike, `ink-hatch` na zaključanoj,
+  radius tierovi
+- `components/app/classroom-hub.tsx` — hero (rukopis + `sketch-grid`), procenat smera, prazan filter
+- `components/app/course-player.tsx` — hijerarhija video → koraci → beleške, centrirana kolona za
+  čitanje, prazno stanje lekcije, pločica „Materijala"
+- `components/app/app-sidebar.tsx` — spisak lekcija dobija redne brojeve, „Lekcija 3 od 8" i marker
+  „Ovde si"
+
+**Šta je urađeno:**
+Pet zahteva iz koraka su odrađena bez ijedne promene ponašanja — nijedan novi upit, nijedna nova ruta,
+nijedno novo dugme koje nešto radi. **(1) Hero** komandne table dobio je školsku podlogu iz postojećeg
+rečnika (`sketch-grid`), rukom pisan pozdrav (Patrick Hand kroz `type-display-sm`) i vodeni žig od
+uvećane lucide ikone, a checklist iz U4 pretvoren je u stavke iz sveske: kvadratno polje koje se
+štiklira umesto kružića sa brojem, redni broj kao etiketa iznad naslova, precrtan naslov kad je korak
+urađen i tvrda senka samo na sledećem koraku. **(2) Prozori** više nisu šest identičnih belih panela:
+svaki nosi pločicu sa svojom ikonom, a pločica ima jedan od tri akcenta po tome šta se u zoni radi
+(žuto = ti radiš, mastilo = drugi ljudi, papir = stanje) — pravilo je zapisano kao podatak u
+`lib/dashboard-zones.ts` sa testom, ne razbacano po JSX-u. Brojači su iz sitne pilule prerasli u
+pločicu od 32px sa cifrom od 16px, a `PulseTile` brojke sa `type-h2` na `type-h1`. **(3) Kartice
+kursa** dobile su uokvirenu naslovnu sliku na media radiusu (isti okvir, isti odnos 16/9 i na
+otključanoj i na zaključanoj), procenat kao najkrupniji broj kartice i traku napretka koja je sada
+žuta; zaključana kartica se ne sivi nego dobija školsku šrafuru (`ink-hatch`) preko naslovne slike.
+**(4) Player** je dobio hijerarhiju: prekidač prikaza je spušten u podređenu inset traku, naslov
+lekcije nosi kurs iznad sebe i žuti potpis ispod, sadržajni blokovi se čitaju kao numerisani koraci
+razdvojeni isprekidanom linijom, video je uokviren i podignut senkom, a „Materijali" imaju istu
+pločicu sa ikonom kao zone. Marker „gde sam" je u spisku lekcija u sidebar-u: redni brojevi na
+redovima, „Lekcija 3 od 8" u zatvorenoj kartici i pilula „Ovde si" na otvorenoj lekciji. **(5) Prazan
+prostor** zatvoren je na četiri mesta gde je ekran ostajao pola prazan sa jednim redom teksta.
+
+**ODLUKE:**
+
+1. **Traka napretka je vraćena na žutu, ali kontrast nosi MASTILO, ne ispuna.** U7/U9 su je namerno
+   prebacili na ink jer je žuta na papiru 1,69:1, ispod praga 3:1 za grafičke objekte (WCAG 1.4.11).
+   U11 izričito traži „progres kao vidljiva žuta traka sa procentom", pa je rešenje uzelo oba: okvir
+   trake je sada `border-ink` (12,92:1), čelo ispune ima 2px `border-ink` ivicu (jedino što je vrh
+   trake razdvajalo od praznog dela), i **procenat je dodat kao broj u tekstu** iznad trake na oba
+   mesta gde se `tone="paper"` koristi (kartica kursa, napredak smera). Grafika time više nije jedini
+   nosilac podatka, što je i formalni izlaz iz 1.4.11. Ivica se NE crta na 0% (izgledala bi kao mrvica
+   napretka) ni na 100% (nema šta da razdvoji).
+2. **Prozori se sada DIŽU na hover, suprotno ODLUCI 3 iz U9.** U9 je podizanje odbio jer prozor nije
+   link pa bi obećao klik koji ne postoji. U11 izričito traži „hover podizanje po motion rečniku", što
+   je noviji zahtev i pobeđuje. Kompromis je u meri: prozor se diže **2px**, kartica kursa (koja jeste
+   jedan klik) i dalje **3px** — afordansa ostaje razlučiva. Tranzicija je postojeća
+   `studio-anim-mikro` (120ms), pa `prefers-reduced-motion` blok u `globals.css` gasi trajanje.
+3. **Zone dobijaju TRI akcenta, ne osam.** Zadatak traži da se zone razlikuju na prvi pogled, ali bi
+   osam različitih izgleda mrežu učinilo šarenom a i dalje nerazlučivom, a paleta ionako ima samo
+   mastilo/papir/žutu (AGENTS.md). Zato akcenat izlazi iz ULOGE zone: „ovde ti radiš" (Učionica,
+   Studio) → žuto, „ovde su drugi ljudi" (Poruke, Zajednica, Uči zajedno) → mastilo, „ovde ti se javlja
+   stanje" (Obaveštenja, dva admin prozora) → papir. Test čuva da četvrti izgled ne može da se pojavi.
+4. **Sidebar lekcija je pojačan tamo gde JESTE, nije napravljen nov na stranici lekcije.** Zadatak
+   traži „sidebar lekcija sa jasnim ‚gde sam’ markerom". Spisak lekcija u proizvodu živi u
+   `LearningSwitcher`-u u sidebar-u i već prima `currentLessonSlug`. Nov spisak u desnoj koloni playera
+   bio bi nemoguć bez novih podataka: `CoursePlayer` dobija `course.modules` iz **statičkog**
+   `lib/content` fallback-a (`liveCourseAndLesson` prepisuje samo naslove, ne module), pa bi za kurs
+   napravljen u Convexu prikazao tuđe lekcije. Nov upit je promena ponašanja, koju korak zabranjuje.
+   Umesto toga marker je pojačan u postojećem spisku (redni brojevi, „Lekcija 3 od 8", „Ovde si"), a na
+   samom ekranu lekcije dodat je naziv kursa iznad naslova — kontekst koji se na telefonu do sada video
+   samo kroz otvaranje sidebar-a.
+5. **Redosled sadržajnih blokova NIJE diran.** „Hijerarhija video → koraci → beleške" je izvedena
+   vizuelno (video uokviren i podignut senkom, blokovi imenovani kao koraci, beleške u svom panelu sa
+   pločicom), a ne premeštanjem blokova — redosled bira autor lekcije kroz `sortOrder` i to je sadržaj,
+   ne izgled.
+6. **Pilula „Korak N od M" se ne crta kad lekcija ima jedan blok.** „Korak 1 od 1" nije informacija
+   nego šum.
+7. **Telo lekcije je ograničeno na `max-w-3xl` i centrirano.** Na širokom ekranu je panel lekcije bio
+   ~1000px, a tekst je zbog `type-measure` (68ch) stajao uz levu ivicu — desna polovina je bila prazan
+   papir. To je bio najveći pojedinačni „pola praznog viewporta" nalaz u app obimu (§5).
+8. **Tri „gola reda teksta" pretvorena su u `EmptyState`, četvrti u panel sa zaglavljem.** Zona
+   „Dnevni ritam" na komandnoj tabli, filter bez pogodaka u katalogu Učionice i Light lekcija bez
+   blokova dobili su ikonu, naslov i rečenicu sa sledećim korakom; zona „Dnevni ritam" je uz to dobila
+   i sopstveni `Panel` sa etiketom, pa ima istu visinu i kad grafikona nema. Nijedno prazno stanje nije
+   dobilo dugme — dugme bi bilo nova radnja, a korak traži nula promena ponašanja.
+9. **Pozdrav „Zdravo, {ime}" je promenio SLOG, ne tekst.** Toplina traženog „toplog pozdrava" došla je
+   iz rukopisa (Patrick Hand kroz `type-display-sm`, jedina sankcionisana upotreba tog fonta), ne iz
+   novog teksta — copy pass je bio U5 i njegove rečenice se ne diraju. Promena je urađena na sva tri
+   mesta gde student vidi svoje ime (komandna tabla, Učionica, stranica kursa), da glas bude jedan.
+10. **Vodeni žig je uvećana lucide ikona, ne nova ilustracija.** Korak izričito zabranjuje ilustracije
+    spolja i dozvoljava lucide; `GraduationCap` na 192px u mastilu od 10% radi u obe teme. Na telefonu
+    se skida (`hidden sm:block`) — na 390px bi stajao iza teksta.
+11. **Zaključana kartica je dobila šrafuru, ne zatamnjenje.** Scrim ili sivilo bi ubili poželjnost koju
+    zadatak izričito traži. `ink-hatch` (postojeći patern, mastilo na 8%) ostavlja sliku u boji, a čita
+    se kao „preko ovoga još stoji olovka".
+12. **Radius literali su prevedeni u tiere SAMO u fajlovima koje je korak ionako menjao** (AGENTS.md:
+    „migrate them to the nearest tier when you are already editing the file"). Većina je bila
+    piksel-ista zamena (`rounded-[8px]` → `surface-media`). Dve su stvarne promene: „Sledeće:" traka na
+    kartici kursa 16px → 12px (ugnježden panel u kartici → inset tier) i `PulseTile` 8px → 16px
+    (samostalna kartica na tabli → card tier).
+13. **`DashboardHomeSkeleton` nije menjan.** Hero je porastao za ~15px (pozdrav sa 15px etikete na
+    ~30px rukopisa) na kosturu od 256px; to je ~6% i nevidljivo, a pogađanje nove visine bez merenja u
+    pregledaču lako pogorša stvar.
+14. **Prekidač „Pro / Light" nije premešten, samo utišan.** Premeštanje u DOM-u je promena redosleda
+    fokusa (tastatura), tj. ponašanja. Umesto toga je sa ink panela spušten na inset površinu sa
+    etiketom, pa naslov lekcije postaje prva stvar koja se čita.
+
+**Testovi:**
+- `lib/dashboard-zones.test.ts` (nov, 9 testova): svaka od 8 zona ima akcenat; žuto je rezervisano
+  tačno za Učionicu i Studio; mastilo tačno za tri zone sa ljudima; papir za tri statusne; akcenat se
+  izvodi iz uloge (nova zona ne može da izmisli četvrti izgled); svaka pločica nosi `border-ink`; klase
+  su samo tokeni (regex ne pušta gol heks ni proizvoljnu boju); tri akcenta su međusobno različita;
+  nijedna pločica nije iste ispune kao panel na kom stoji.
+- `lib/lesson-position.test.ts` (nov, 8 testova): pozicija broji od jedan; nema pozicije kad lekcija
+  nije otvorena, kad je kurs prazan i kad je lekcija u međuvremenu skinuta (izmišljen broj je gori od
+  nikakvog); duplirani slug uzima prvi; etikete „Lekcija 3 od 8" / „Lesson 3 of 8" i „Korak 2 od 5" /
+  „Step 2 of 5" u oba jezika; kurs sa jednom lekcijom i dalje čita ispravno.
+- Nijedan postojeći test nije menjan ni uklonjen.
+
+**Rezultat verifikacije:**
+- `npm run typecheck` — **PROŠLO** (exit 0)
+- `npm run lint` — **exit 1, identično baseline-u**: `178 problems (1 error, 177 warnings)`, ista
+  pred-postojeća greška `studio-composer.tsx` (`useEffectEvent`, postoji od U1, fajl nije dirnut).
+  Nijedan nov nalaz ni u jednom od 6 dirnutih fajlova (dva upozorenja u `dashboard-content.tsx` su na
+  linijama 323/325, `PlaybackTokenPayload` i `DashboardVideoPlayer`, i postoje od ranije).
+- `npm run test` — **PROŠLO**, 89 fajlova / **1188 testova** (bilo 1171; +17 novih). Prošao je i
+  `convex/chat.test.ts` koji je u U9 bio flaky.
+- `npm run build` — **PROŠLO** (`Compiled successfully`, exit 0).
+- Convex fajlovi nisu dirani → `npx convex codegen` nije pokretan (`git diff --stat -- convex/` prazan).
+- Provereno u IZGRAĐENOM CSS-u da svaka nova klasa stvarno postoji: `.sketch-grid`, `.ink-hatch`,
+  `.surface-media` / `.surface-inset` / `.surface-card`, `.studio-anim-mikro`, `.min-w-8`, `text-ink/10`.
+- Tamna tema je provođena kroz pravilo „žutog ostrva" iz `globals.css`: svaki nov element sa
+  `bg-yellow` (čelo trake napretka, brojač prozora, pločica zone, polje za štikliranje) postaje ostrvo
+  svetle palete, pa `border-ink` / `text-ink` na njemu razrešava u tamnoplavo u OBE teme — isti obrazac
+  koji `CourseCover` fallback već koristi.
+
+**Za Jovana ujutru:**
+1. **Traka napretka je sada žuta (ODLUKA 1) — ovo je jedina izmena koja dodiruje raniju a11y odluku.**
+   Pogledaj `/app` (kartica kursa) i `/app/classroom` (napredak smera) u obe teme. Ako ti se ne dopada
+   ink ivica na čelu trake, izmena je na jednom mestu — `CourseProgress` u `dashboard-content.tsx`.
+2. **Prozori se dižu na hover (ODLUKA 2).** Ako ti se čini da prozor time obećava klik koji ne postoji,
+   skidanje je jedna klasa (`hover:-translate-y-0.5`) u `DashboardWindow`.
+3. **Boje zona su odluka o proizvodu, ne mehanika.** Trenutno: Učionica i Studio žuto, Poruke /
+   Zajednica / Uči zajedno mastilo, Obaveštenja i admin papir. Ako Studio po tebi nije „ovde ti radiš"
+   nego „ovde ti se javlja stanje", promena je jedan red u `lib/dashboard-zones.ts` — a test će ti reći
+   da si je napravio (očekuje tačno `["classroom", "studio"]` za žuto).
+4. **Pozdrav je sada rukopisom na tri ekrana.** Proveri kako Patrick Hand izgleda sa dugim imenom na
+   telefonu (`/app`, `/app/classroom`, stranica kursa) — `type-display-sm` je clamp 24→30px, pa se
+   prelama, ne seče.
+5. **Player: telo lekcije je centrirano i uže (`max-w-3xl`).** Ako imaš lekciju sa širokim tabelama ili
+   snimkom ekrana, proveri da ti 768px nije tesno — to je jedan `max-w-3xl` u `course-player.tsx`.
+6. **„Ovde si" i redni brojevi u spisku lekcija** vide se tek kad otvoriš prekidač kursa u sidebar-u,
+   na ekranu lekcije. Zatvorena kartica sada piše „Lekcija 3 od 8" umesto samo „Lekcija".
+7. **Nije provereno u pregledaču.** Kao i U10 — sve je verifikovano kroz typecheck / lint / test /
+   build i kroz izgrađen CSS, ali nijedan piksel nije viđen. Prioritet za pogled u obe teme i na
+   telefonu: `/app`, `/app/classroom`, jedna lekcija (`/app/classroom/courses/.../lessons/...`) i
+   zaključana kartica u katalogu.
+8. **Poznat dug koji U11 nije dirao:** (a) dva gola heksa iz U10 tačke 7 su i dalje tu; (b)
+   `/app/credits`, `/app/profile`, `/app/billing` i dalje nemaju `h1`; (c) naslov lekcije u playeru je
+   `<p>`, a ne `<h1>` — semantička promena je van „nula promena ponašanja"; (d) 21 fajl sa dva ili više
+   punih žutih dugmadi (U10 tačka 5) i dalje čeka proizvodnu odluku koje je od njih primarno.

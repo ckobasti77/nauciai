@@ -59,6 +59,7 @@ import {
   type FirstRunStepId,
 } from "@/lib/dashboard-first-run";
 import { ConfirmDialog } from "@/components/ui/dialog";
+import { EmptyState } from "@/components/ui/empty-state";
 import { HandUnderline, LinkButton, Panel, cn } from "@/components/ui/primitives";
 import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
@@ -827,13 +828,13 @@ export function CourseCover({ course, locale }: { course: DashboardCourse; local
         fill
         sizes="(min-width: 1024px) 50vw, 100vw"
         unoptimized
-        className="rounded-[8px] object-cover"
+        className="surface-media object-cover"
       />
     );
   }
 
   return (
-    <div className="relative h-full overflow-hidden rounded-[8px] bg-paper">
+    <div className="relative h-full overflow-hidden surface-media bg-paper">
       <div className="absolute inset-0 ink-hatch" />
       <div className="relative flex h-full items-center justify-center p-6 text-center">
         <span className="inline-flex size-14 items-center justify-center rounded-full border-2 border-ink bg-yellow text-ink shadow-[4px_4px_0_0_var(--shadow-hard-15)]">
@@ -867,13 +868,21 @@ export function CourseProgress({
       aria-valuemax={100}
       className={cn(
         "h-3 overflow-hidden border-2",
-        // paper: ink fill on paper track = 12.92:1. Yellow on paper was 1.69:1, under the
-        // 3:1 floor for graphical objects (WCAG 1.4.11), and yellow is now the primary CTA only.
-        tone === "paper" ? "rounded-full border-line bg-paper" : "rounded-[8px] border-paper-strong bg-paper-strong/15",
+        // Napredak je u celom proizvodu ZUT — jedna boja i na papiru i na mastilu (U11).
+        // Kontrast koji WCAG 1.4.11 trazi ne nosi ispuna nego MASTILO: okvir trake je
+        // `border-ink` (12,92:1), a celo ispune ima 2px ink ivicu (vidi ispod). Sam
+        // procenat uz to stoji i kao BROJ u tekstu, pa grafika nije jedini nosilac podatka.
+        tone === "paper" ? "rounded-full border-ink bg-paper" : "surface-media border-paper-strong bg-paper-strong/15",
       )}
     >
       <motion.div
-        className={cn("h-full", tone === "paper" ? "rounded-full bg-ink" : "bg-yellow")}
+        className={cn(
+          "h-full bg-yellow",
+          // Na mastilu je zuta vec 7,66:1 pa joj ivica ne treba. Na papiru je ta ivica
+          // jedino sto vrh trake razdvaja od praznog dela; na 0% i 100% nema sta da
+          // razdvoji, pa se i ne crta (na 0% bi izgledala kao mrvica napretka).
+          tone === "paper" && safePercent > 0 && safePercent < 100 && "border-r-2 border-ink",
+        )}
         initial={{ width: 0 }}
         animate={{ width: `${safePercent}%` }}
         transition={{ duration: shouldReduceMotion ? 0 : 0.65, ease: "easeOut" }}
@@ -912,10 +921,13 @@ export function DashboardCourseCard({
       // Ista mikro-interakcija kao na kartici zaključanog kursa: `whileHover` diže, CSS
       // produbljuje tvrdu senku. Otključan i zaključan kurs u istoj mreži moraju da se
       // ponašaju isto, inače mreža izgleda kao dva različita sistema.
-      className="card-anim-elevate dashboard-reveal overflow-hidden rounded-[16px] border-2 border-ink bg-paper-strong shadow-[6px_6px_0_0_var(--shadow-hard-12)] hover:shadow-[9px_9px_0_0_var(--shadow-hard-20)]"
+      className="card-anim-elevate dashboard-reveal overflow-hidden surface-card border-2 border-ink bg-paper-strong shadow-[6px_6px_0_0_var(--shadow-hard-12)] hover:shadow-[9px_9px_0_0_var(--shadow-hard-20)]"
     >
+      {/* Naslovna slika je uokvirena mastilom kao i sve ostalo na papiru, ima
+          media radius (8px) i isti odnos 16/9 kao na zakljucanoj kartici — otkljucan
+          i zakljucan kurs u istoj mrezi moraju da izgledaju kao jedan sistem. */}
       <div className="p-3">
-        <div className="relative aspect-[16/9] overflow-hidden rounded-[8px] bg-paper">
+        <div className="relative aspect-[16/9] overflow-hidden surface-media border-2 border-ink bg-paper">
           <CourseCover course={course} locale={locale} />
           <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full border-2 border-ink bg-paper-strong px-3 py-1 type-eyebrow text-ink">
             <ShieldCheck className="size-3.5" />
@@ -930,11 +942,17 @@ export function DashboardCourseCard({
         </div>
 
         <div>
-          <div className="flex items-center justify-between gap-3 type-eyebrow text-muted">
-            <span>{tr(locale, "Napredak", "Progress")}</span>
-            <span>
-              {summary.completedLessons}/{summary.totalLessons || 0} {tr(locale, "lekcija", "lessons")}
-            </span>
+          {/* Procenat je najkrupniji broj na kartici: on je odgovor na „gde sam", a
+              odnos lekcija ispod njega je detalj. Do U11 procenta uopste nije bilo,
+              nego samo odnos — traka je bila jedini nosilac velicine napretka. */}
+          <div className="flex items-end justify-between gap-3">
+            <div className="min-w-0">
+              <p className="type-eyebrow text-muted">{tr(locale, "Napredak", "Progress")}</p>
+              <p className="mt-1 type-caption font-bold text-muted">
+                {summary.completedLessons}/{summary.totalLessons || 0} {tr(locale, "lekcija", "lessons")}
+              </p>
+            </div>
+            <p className="shrink-0 type-h3 text-ink">{clampPercent(summary.percent)}%</p>
           </div>
           <div className="mt-2">
             <CourseProgress
@@ -965,7 +983,7 @@ export function DashboardCourseCard({
         </p>
 
         {summary.nextLesson ? (
-          <p className="rounded-[16px] border-2 border-line bg-paper px-3 py-2 type-body-sm font-bold text-muted">
+          <p className="surface-inset border-2 border-line bg-paper px-3 py-2 type-body-sm font-bold text-muted">
             <span className="font-black text-ink">{tr(locale, "Sledece:", "Next:")}</span>{" "}
             {localized(summary.nextLesson.title, locale)}
           </p>
@@ -1117,17 +1135,31 @@ export function DashboardFirstRun({
           );
 
   return (
-    <Panel className="overflow-hidden">
-      <div data-motion="hero" className="p-4 sm:p-6">
+    <Panel className="relative overflow-hidden">
+      {/* Skolska podloga heroja: postojeci `sketch-grid` iz `app/globals.css` (mastilo
+          na 6%, pa radi u obe teme), nijedna nova grafika. Stoji ISPOD sadrzaja i ne
+          hvata pokazivac, pa se checklist i dugme ponasaju kao i pre. */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 sketch-grid" />
+      {/* Ilustrativni akcenat je POSTOJECA lucide ikona uvecana u vodeni zig, ne nova
+          grafika: mastilo na 10% radi u obe teme, a na telefonu se skida da ne bi
+          stajala iza teksta na 390px. */}
+      <GraduationCap
+        aria-hidden="true"
+        strokeWidth={1.25}
+        className="pointer-events-none absolute -right-6 -bottom-8 hidden size-48 text-ink/10 sm:block"
+      />
+      <div data-motion="hero" className="relative p-4 sm:p-6">
         <div
           data-motion="copy"
           className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"
         >
           <div className="min-w-0">
-            <p className="type-eyebrow text-muted">
+            {/* Pozdrav je rukopis (Patrick Hand), naslov je stampano crno — dve
+                razlicite ruke na istoj visini, pa se ne takmice. */}
+            <p className="font-display type-display-sm text-ink">
               {locale === "sr" ? `Zdravo, ${profileName}` : `Hi, ${profileName}`}
             </p>
-            <h1 className="mt-2 type-h1 text-ink">
+            <h1 className="mt-1 type-h1 text-ink">
               {tr(locale, "Tvoji prvi koraci", "Your first steps")}
             </h1>
             {/* Isti školski potpis kao na marketingu, samo u aplikacijskoj veličini —
@@ -1146,18 +1178,24 @@ export function DashboardFirstRun({
           </LinkButton>
         </div>
 
-        <ol className="mt-5 grid gap-3 sm:grid-cols-3">
+        {/* Koraci su stavke iz sveske: kvadratno polje za stikliranje umesto kruzica
+            sa brojem, redni broj se seli u etiketu iznad naslova, a urađen korak se
+            precrtava — isto kao na papiru. Sledeci korak je jedini sa tvrdom senkom,
+            pa se u mrezi od tri vidi bez citanja. */}
+        <ol className="mt-6 grid gap-3 sm:grid-cols-3">
           {steps.map((step, index) => (
             <li
               key={step.id}
               className={cn(
-                "flex items-start gap-3 rounded-[12px] border-2 bg-paper p-3",
-                step.next ? "border-ink" : "border-line",
+                "flex items-start gap-3 surface-inset border-2 p-3",
+                step.next
+                  ? "border-ink bg-paper-strong shadow-[4px_4px_0_0_var(--shadow-hard-15)]"
+                  : "border-line bg-paper",
               )}
             >
               <span
                 className={cn(
-                  "grid size-8 shrink-0 place-items-center rounded-full border-2 border-ink text-xs font-black",
+                  "grid size-8 shrink-0 place-items-center surface-media border-2 border-ink",
                   step.done
                     ? "bg-ink text-paper-strong"
                     : step.next
@@ -1166,7 +1204,7 @@ export function DashboardFirstRun({
                   celebratedStep === step.id && "step-celebrate",
                 )}
               >
-                {step.done ? <Check aria-hidden="true" className="size-4" /> : index + 1}
+                {step.done ? <Check aria-hidden="true" className="size-5" /> : null}
                 <span className="sr-only">
                   {step.done
                     ? tr(locale, "Urađeno", "Done")
@@ -1176,8 +1214,13 @@ export function DashboardFirstRun({
                 </span>
               </span>
               <div className="min-w-0">
-                <p className="text-sm font-black text-ink">{copy[step.id].title}</p>
-                <p className="mt-0.5 type-caption font-bold text-muted">{copy[step.id].body}</p>
+                <p className="type-eyebrow-sm text-muted">
+                  {tr(locale, `Korak ${index + 1}`, `Step ${index + 1}`)}
+                </p>
+                <p className={cn("mt-1 type-h4", step.done ? "text-muted line-through decoration-2" : "text-ink")}>
+                  {copy[step.id].title}
+                </p>
+                <p className="mt-1 type-caption font-bold text-muted">{copy[step.id].body}</p>
               </div>
             </li>
           ))}
@@ -1200,12 +1243,12 @@ function HeroCover({ coverUrl, title }: { coverUrl: string | null; title: string
         fill
         sizes="(min-width: 1024px) 25vw, 100vw"
         unoptimized
-        className="rounded-[8px] object-cover"
+        className="surface-media object-cover"
       />
     );
   }
   return (
-    <div className="relative h-full overflow-hidden rounded-[8px] bg-paper">
+    <div className="relative h-full overflow-hidden surface-media bg-paper">
       <div className="absolute inset-0 ink-hatch" />
       <div className="relative flex h-full items-center justify-center p-6 text-center">
         <span className="inline-flex size-14 items-center justify-center rounded-full border-2 border-ink bg-yellow text-ink shadow-[4px_4px_0_0_var(--shadow-hard-15)]">
@@ -1238,14 +1281,17 @@ function ResumeHero({
       className="overflow-hidden rounded-[16px] border-2 border-ink bg-paper-strong shadow-[6px_6px_0_0_var(--shadow-hard-12)]"
     >
       <div className="grid gap-0 xl:grid-cols-[minmax(0,1fr)_260px]">
-        <div className="p-4 sm:p-6" data-motion="copy">
-          <p className="type-eyebrow text-muted">
+        <div className="relative p-4 sm:p-6" data-motion="copy">
+          {/* Ista skolska podloga kao na pozdravnom herou (`sketch-grid`), da zona A
+              izgleda kao jedna stvar bez obzira da li student ima sta da nastavi. */}
+          <div aria-hidden="true" className="pointer-events-none absolute inset-0 sketch-grid" />
+          <p className="relative font-display type-display-sm text-ink">
             {locale === "sr" ? `Zdravo, ${profileName}` : `Hi, ${profileName}`}
           </p>
 
           {resume ? (
-            <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-start">
-              <div className="relative aspect-[16/9] w-full shrink-0 overflow-hidden rounded-[8px] bg-paper sm:w-44">
+            <div className="relative mt-3 flex flex-col gap-4 sm:flex-row sm:items-start">
+              <div className="relative aspect-[16/9] w-full shrink-0 overflow-hidden surface-media border-2 border-ink bg-paper sm:w-44">
                 <HeroCover coverUrl={resume.coverUrl} title={localized(resume.courseTitle, locale)} />
               </div>
               <div className="min-w-0 flex-1">
@@ -1283,7 +1329,7 @@ function ResumeHero({
               </div>
             </div>
           ) : (
-            <div className="mt-3">
+            <div className="relative mt-3">
               <h1 className="type-h1 text-ink">
                 {tr(locale, "Sve lekcije su završene", "Every lesson is done")}
               </h1>
@@ -1467,14 +1513,23 @@ export function DashboardHome({
       {view.activity.length ? (
         <ActivityPanel locale={locale} activity={view.activity} />
       ) : (
-        <p className="flex items-center gap-2 px-1 text-sm font-bold text-muted">
-          <BarChart3 className="size-4 shrink-0 text-ink" />
-          {tr(
-            locale,
-            "Završi prvu lekciju i ovde se pojavljuje tvoj dnevni ritam.",
-            "Finish your first lesson and your daily pace shows up here.",
-          )}
-        </p>
+        // Zona D vise nije gola recenica na dnu stranice. Student bez ijedne zavrsene
+        // lekcije je do U11 dobijao jedan red teksta u pola praznog viewporta (§5);
+        // sada zona ima isto zaglavlje i istu visinu kao kad grafikon postoji.
+        <Panel className="p-4 sm:p-6">
+          <p className="type-eyebrow text-muted">{tr(locale, "Dnevni ritam", "Daily pace")}</p>
+          <div className="mt-3">
+            <EmptyState
+              icon={BarChart3}
+              title={tr(locale, "Ritam se još ne vidi", "No pace to show yet")}
+              body={tr(
+                locale,
+                "Završi prvu lekciju i ovde se pojavljuje tvoj dnevni ritam.",
+                "Finish your first lesson and your daily pace shows up here.",
+              )}
+            />
+          </div>
+        </Panel>
       )}
     </div>
   );
@@ -1552,10 +1607,12 @@ export function DashboardContent({
                 />
               ) : null}
             </div>
-            <p className="mt-6 type-eyebrow text-muted">
+            {/* Isti rukom pisan pozdrav kao na komandnoj tabli i u Ucionici — jedan
+                glas na sva tri ekrana na kojima student vidi svoje ime. */}
+            <p className="mt-6 font-display type-display-sm text-ink">
               {locale === "sr" ? `Zdravo, ${profileName}` : `Hi, ${profileName}`}
             </p>
-            <h1 className="mt-2 max-w-4xl type-hero text-ink">
+            <h1 className="mt-1 max-w-4xl type-hero text-ink">
               <InlineContentText entityId={course.id ?? ""} parentId={course.trackId} kind="course" field="title" locale={inlineLocale} sr={course.title.sr} en={course.title.en} admin={isAdmin && Boolean(course.id && course.trackId)}>{localized(course.title, locale)}</InlineContentText>
             </h1>
             <p className="mt-3 type-body type-measure font-black text-ink/75">

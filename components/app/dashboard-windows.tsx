@@ -23,6 +23,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { LinkButton, Panel, cn } from "@/components/ui/primitives";
 import type { api } from "@/convex/_generated/api";
 import { classroomPath, courseCatalogPath, lessonPath } from "@/lib/app-routes";
+import { dashboardZoneChipClass, type DashboardZoneId } from "@/lib/dashboard-zones";
 import { localized, t as tr, withLocale, type Locale, type LocalizedText } from "@/lib/i18n";
 
 // Oblik koji vraća agregatni query — jedini izvor podataka za komandnu tablu.
@@ -81,7 +82,7 @@ function WindowRowView({ row }: { row: WindowRow }) {
   );
   // Nested panel unutar kartice → inset radius (12px).
   const className =
-    "flex items-center gap-3 rounded-[12px] border-2 border-line bg-paper px-3 py-2";
+    "flex items-center gap-3 surface-inset border-2 border-line bg-paper px-3 py-2";
   if (row.href) {
     return (
       <Link
@@ -101,6 +102,7 @@ function WindowRowView({ row }: { row: WindowRow }) {
 }
 
 export function DashboardWindow({
+  zone,
   eyebrow,
   title,
   icon: Icon,
@@ -111,6 +113,8 @@ export function DashboardWindow({
   ctaLabel,
   ctaHref,
 }: {
+  /** Koja je ovo zona — odatle ide akcenat pločice sa ikonom (`lib/dashboard-zones.ts`). */
+  zone: DashboardZoneId;
   eyebrow: string;
   title: string;
   icon: LucideIcon;
@@ -122,24 +126,39 @@ export function DashboardWindow({
   ctaLabel: string;
   ctaHref: string;
 }) {
-  // Prozor NIJE link — ceo se ne klikće — pa se na hover ne podiže, nego mu samo poraste
-  // tvrda senka. Podizanje bi obećalo klik koji ne postoji; senka je isti „papir se odvojio
-  // od stola" jezik, ali bez lažnog obećanja. Kartice kursa (koje jesu klikabilne) rade oba.
+  // U9 je prozoru namerno dao samo rastuću senku, jer prozor nije link. U11 traži i
+  // podizanje („hover podizanje po motion rečniku"), pa ga prozor sada ima — ali za
+  // pola koraka (2px) umesto 3px koliko se diže kartica kursa, koja jeste jedan klik.
+  // Transform i senku vodi ista `studio-anim-mikro` tranzicija (120ms), a globalni
+  // `prefers-reduced-motion` blok u `app/globals.css` joj gasi trajanje.
   return (
     <Panel
       as="article"
-      className="card-anim-elevate flex flex-col overflow-hidden hover:shadow-[8px_8px_0_0_var(--shadow-hard-20)]"
+      className="studio-anim-mikro flex flex-col overflow-hidden hover:-translate-y-0.5 hover:shadow-[8px_8px_0_0_var(--shadow-hard-20)]"
     >
-      <div className="flex items-start justify-between gap-3 border-b-2 border-line p-4 sm:p-6">
-        <div className="min-w-0">
-          <p className="flex items-center gap-2 type-eyebrow text-muted">
-            <Icon className="size-4 text-ink" />
-            {eyebrow}
-          </p>
-          <h3 className="mt-1 type-h3 text-ink">{title}</h3>
+      {/* Zaglavlje prozora: pločica sa ikonom nosi identitet zone (žuto = ovde ti
+          radiš, mastilo = ovde su drugi ljudi, papir = ovde ti se javlja stanje), a
+          školska mreža ispod svega drži metaforu „prozor na papiru". */}
+      <div className="relative flex items-start justify-between gap-3 border-b-2 border-line p-4 sm:p-6">
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 sketch-grid" />
+        <div className="relative flex min-w-0 items-start gap-3">
+          <span
+            className={cn(
+              "grid size-10 shrink-0 place-items-center surface-inset border-2",
+              dashboardZoneChipClass(zone),
+            )}
+          >
+            <Icon aria-hidden="true" className="size-5" />
+          </span>
+          <div className="min-w-0">
+            <p className="type-eyebrow text-muted">{eyebrow}</p>
+            <h3 className="mt-1 type-h3 text-ink">{title}</h3>
+          </div>
         </div>
         {badge && badge > 0 ? (
-          <span className="shrink-0 rounded-full border-2 border-ink bg-yellow px-2.5 py-0.5 text-xs font-black text-ink">
+          // Broj je poenta prozora („koliko me čeka"), pa je pločica, a ne sitna
+          // pilula: 32px krug, 16px cifra, tvrda senka — čita se iz mreže od šest.
+          <span className="relative grid h-8 min-w-8 shrink-0 place-items-center rounded-full border-2 border-ink bg-yellow px-2 type-h4 text-ink shadow-[2px_2px_0_0_var(--shadow-hard-15)]">
             {badge > 99 ? "99+" : badge}
           </span>
         ) : null}
@@ -202,12 +221,12 @@ function ThumbLeading({ url, label }: { url: string | null; label: ReactNode }) 
         width={40}
         height={40}
         unoptimized
-        className="size-10 shrink-0 rounded-[8px] border-2 border-ink object-cover"
+        className="size-10 shrink-0 surface-media border-2 border-ink object-cover"
       />
     );
   }
   return (
-    <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-[8px] border-2 border-ink bg-paper text-ink">
+    <span className="inline-flex size-10 shrink-0 items-center justify-center surface-media border-2 border-ink bg-paper text-ink">
       {label}
     </span>
   );
@@ -216,17 +235,19 @@ function ThumbLeading({ url, label }: { url: string | null; label: ReactNode }) 
 // ── PULS: 4 kompaktna tile-a ────────────────────────────────────────────────
 function PulseTile({ href, label, value, icon: Icon }: { href: string; label: string; value: string; icon: LucideIcon }) {
   return (
+    // Pločica je samostalna kartica na tabli, pa ide na card tier (16px) kao i prozori
+    // ispod nje; brojka je jedini razlog zbog kog pločica postoji, pa nosi `type-h1`.
     <Link
       href={href}
-      className="group rounded-[8px] border-2 border-line bg-paper-strong p-4 text-ink transition hover:-translate-y-0.5 hover:border-yellow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yellow"
+      className="group surface-card border-2 border-line bg-paper-strong p-4 text-ink shadow-[3px_3px_0_0_var(--shadow-hard-10)] transition hover:-translate-y-0.5 hover:border-yellow hover:shadow-[5px_5px_0_0_var(--shadow-hard-16)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yellow"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="type-eyebrow text-muted transition-colors duration-200 group-hover:text-yellow">{label}</p>
-          <p className="mt-2 type-h2 text-ink">{value}</p>
+          <p className="mt-2 type-h1 text-ink">{value}</p>
         </div>
-        <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-[8px] border-2 border-ink bg-paper-strong text-ink transition duration-200 group-hover:border-yellow group-hover:bg-yellow group-hover:text-ink">
-          <Icon className="size-4" />
+        <span className="inline-flex size-9 shrink-0 items-center justify-center surface-media border-2 border-ink bg-paper-strong text-ink transition duration-200 group-hover:border-yellow group-hover:bg-yellow group-hover:text-ink">
+          <Icon aria-hidden="true" className="size-4" />
         </span>
       </div>
     </Link>
@@ -394,6 +415,7 @@ export function DashboardWindowsGrid({
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 2xl:grid-cols-3">
       <DashboardWindow
+        zone="classroom"
         eyebrow={tr(locale, "Učionica", "Classroom")}
         title={tr(locale, "Sledeće lekcije", "Up next")}
         icon={GraduationCap}
@@ -424,6 +446,7 @@ export function DashboardWindowsGrid({
         ctaHref={hasUnlockedCourse ? classroomPath(locale) : courseCatalogPath(locale)}
       />
       <DashboardWindow
+        zone="messages"
         eyebrow={tr(locale, "Poruke", "Messages")}
         title={tr(locale, "Nepročitane konverzacije", "Unread conversations")}
         icon={MessageCircle}
@@ -439,6 +462,7 @@ export function DashboardWindowsGrid({
         ctaHref={messagesBase}
       />
       <DashboardWindow
+        zone="community"
         eyebrow={tr(locale, "Zajednica", "Community")}
         title={tr(locale, "Nove teme", "New topics")}
         icon={Users}
@@ -454,6 +478,7 @@ export function DashboardWindowsGrid({
         ctaHref={withLocale(locale, "/app/community/discussions")}
       />
       <DashboardWindow
+        zone="notifications"
         eyebrow={tr(locale, "Obaveštenja", "Notifications")}
         title={tr(locale, "Najnovije", "Latest")}
         icon={Bell}
@@ -469,6 +494,7 @@ export function DashboardWindowsGrid({
         ctaHref={withLocale(locale, "/app/community/notifications")}
       />
       <DashboardWindow
+        zone="studio"
         eyebrow={tr(locale, "Studio", "Studio")}
         title={tr(locale, "Poslednje što si napravio/la", "The last things you made")}
         icon={Sparkles}
@@ -483,6 +509,7 @@ export function DashboardWindowsGrid({
         ctaHref={withLocale(locale, "/app/studio")}
       />
       <DashboardWindow
+        zone="study"
         eyebrow={tr(locale, "Uči zajedno", "Study together")}
         title={tr(locale, "Pozivnice i partneri", "Invites and partners")}
         icon={UsersRound}
@@ -500,6 +527,7 @@ export function DashboardWindowsGrid({
       {admin ? (
         <>
           <DashboardWindow
+            zone="adminContent"
             eyebrow={tr(locale, "Admin", "Admin")}
             title={tr(locale, "Nacrti i spremnost", "Drafts and readiness")}
             icon={PenLine}
@@ -515,6 +543,7 @@ export function DashboardWindowsGrid({
             ctaHref={adminContentBase}
           />
           <DashboardWindow
+            zone="adminPeople"
             eyebrow={tr(locale, "Admin", "Admin")}
             title={tr(locale, "Moderacija i novi članovi", "Moderation and new members")}
             icon={ShieldCheck}

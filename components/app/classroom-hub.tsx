@@ -230,13 +230,16 @@ export function ClassroomHubView({
           data-motion="hero"
           className="overflow-hidden rounded-[16px] border-2 border-ink bg-paper-strong shadow-[6px_6px_0_0_var(--shadow-hard-12)]"
         >
-          <div className="p-4 sm:p-6" data-motion="copy">
-            <p className="type-eyebrow text-muted">
+          <div className="relative p-4 sm:p-6" data-motion="copy">
+            {/* Ista školska podloga i isti rukom pisan pozdrav kao u zoni A na
+                komandnoj tabli — dva ekrana, jedan hero. */}
+            <div aria-hidden="true" className="pointer-events-none absolute inset-0 sketch-grid" />
+            <p className="relative font-display type-display-sm text-ink">
               {locale === "sr" ? `Zdravo, ${profileName}` : `Hi, ${profileName}`}
             </p>
             {resume && resumeLesson ? (
-              <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-start">
-                <div className="relative aspect-[16/9] w-full shrink-0 overflow-hidden rounded-[8px] bg-paper sm:w-44">
+              <div className="relative mt-3 flex flex-col gap-4 sm:flex-row sm:items-start">
+                <div className="relative aspect-[16/9] w-full shrink-0 overflow-hidden surface-media border-2 border-ink bg-paper sm:w-44">
                   <CourseCover course={resume.course} locale={locale} />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -268,7 +271,7 @@ export function ClassroomHubView({
                 </div>
               </div>
             ) : (
-              <div className="mt-3">
+              <div className="relative mt-3">
                 <h1 className="type-h1 text-ink">
                   {tr(locale, "Sve lekcije su završene", "Every lesson is done")}
                 </h1>
@@ -391,10 +394,19 @@ export function ClassroomHubView({
               )}
             </div>
           ) : (
-            <p className="flex items-center gap-2 p-6 text-sm font-bold text-muted">
-              <BookOpen className="size-4 shrink-0 text-ink" />
-              {tr(locale, "Nema kurseva u ovom filteru.", "No courses match this filter.")}
-            </p>
+            // Filter bez pogodaka je do U11 bio jedan red teksta u panelu visokom
+            // koliko i mreža kartica — pola praznog panela bez ijednog sledećeg koraka.
+            <div className="p-6">
+              <EmptyState
+                icon={BookOpen}
+                title={tr(locale, "Nema kurseva u ovom filteru", "No courses match this filter")}
+                body={tr(
+                  locale,
+                  "Izaberi „Svi” iznad da vidiš sve kurseve koji postoje.",
+                  "Pick “All” above to see every course there is.",
+                )}
+              />
+            </div>
           )}
         </Panel>
       </section>
@@ -495,9 +507,10 @@ function TrackSection({
       </div>
       {ownedCount > 0 ? (
         <div className="px-5 pb-4 sm:px-6">
-          <div className="flex items-center justify-between gap-3 type-eyebrow text-muted">
-            <span>{tr(locale, "Napredak", "Progress")}</span>
-            <span>{percent}%</span>
+          {/* Isti odnos kao na kartici kursa: procenat je krupan broj, sve ostalo je detalj. */}
+          <div className="flex items-end justify-between gap-3">
+            <p className="type-eyebrow text-muted">{tr(locale, "Napredak", "Progress")}</p>
+            <p className="shrink-0 type-h3 text-ink">{percent}%</p>
           </div>
           <div className="mt-2">
             <CourseProgress
