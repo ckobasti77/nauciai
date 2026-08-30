@@ -567,8 +567,8 @@ export function ProfileEditor({
     <div className="space-y-6">
       {dragging ? (
         <div className="pointer-events-none fixed inset-0 z-50">
-          <div className="absolute inset-4 rounded-[28px] border-[3px] border-dashed border-yellow bg-scrim/45 backdrop-blur-[3px]" />
-          <div className="absolute left-1/2 top-1/2 w-[min(92vw,34rem)] -translate-x-1/2 -translate-y-1/2 rounded-[18px] border-[3px] border-ink bg-yellow p-6 text-center shadow-[10px_10px_0_0_rgba(255,255,255,0.95)]">
+          <div className="absolute inset-4 rounded-[16px] border-[3px] border-dashed border-yellow bg-scrim/45 backdrop-blur-[3px]" />
+          <div className="absolute left-1/2 top-1/2 w-[min(92vw,34rem)] -translate-x-1/2 -translate-y-1/2 rounded-[16px] border-[3px] border-ink bg-yellow p-6 text-center shadow-[10px_10px_0_0_rgba(255,255,255,0.95)]">
             <span className="mx-auto inline-flex size-16 items-center justify-center rounded-full border-[3px] border-ink bg-paper-strong text-ink">
               <UploadCloud className="size-8" />
             </span>

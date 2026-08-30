@@ -73,7 +73,7 @@ export function NewConversationDialog({ locale, onClose }: { locale: Locale; onC
       <button type="button" tabIndex={-1} onClick={onClose} aria-label={label(locale, "Zatvori novi razgovor", "Close new conversation")} className="absolute inset-0 rounded-none border-0 bg-scrim/55 p-0 backdrop-blur-[2px]" />
       <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="new-conversation-title" tabIndex={-1} data-chat-motion-surface="sheet" className="relative flex max-h-[min(760px,92dvh)] w-full flex-col overflow-hidden rounded-t-[16px] border-[3px] border-ink bg-paper-strong shadow-[9px_9px_0_0_var(--shadow-hard-24)] sm:w-[min(560px,100%)] sm:rounded-[16px]">
         <div className="flex items-center justify-between gap-3 border-b-2 border-ink p-4">
-          <div><p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#2e6f9f] dark:text-muted">{label(locale, `Korak ${step} od 2`, `Step ${step} of 2`)}</p><h2 id="new-conversation-title" className="font-display text-2xl">{label(locale, "Novi razgovor", "New conversation")}</h2></div>
+          <div><p className="text-[10px] font-black uppercase tracking-[0.16em] text-blue-mid dark:text-muted">{label(locale, `Korak ${step} od 2`, `Step ${step} of 2`)}</p><h2 id="new-conversation-title" className="font-display text-2xl">{label(locale, "Novi razgovor", "New conversation")}</h2></div>
           <button type="button" onClick={onClose} className="grid size-10 place-items-center rounded-full border-2 border-ink" aria-label={label(locale, "Zatvori", "Close")}><X className="size-4" /></button>
         </div>
         {step === 1 ? <div className="grid gap-3 p-4 sm:grid-cols-2">

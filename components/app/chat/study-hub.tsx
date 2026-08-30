@@ -399,7 +399,7 @@ function StudyHubMember({ locale, courseSlug, onCourseSlugChange, onOpenConversa
           <div className="flex min-w-0 items-start gap-3">
             <span className="grid size-12 shrink-0 place-items-center rounded-full border-2 border-ink bg-[#d7e9f5] dark:bg-ink/15 shadow-[3px_3px_0_0_var(--yellow)]"><BookOpenCheck className="size-5" /></span>
             <div className="min-w-0">
-              <p className="font-display text-lg leading-none text-[#2e6f9f] dark:text-muted">{t(locale, "Isti tempo. Zajednički cilj.", "Same pace. Shared goal.")}</p>
+              <p className="font-display text-lg leading-none text-blue-mid dark:text-muted">{t(locale, "Isti tempo. Zajednički cilj.", "Same pace. Shared goal.")}</p>
               <h1 className="mt-1 text-2xl font-black leading-tight sm:text-3xl">{t(locale, "Uči zajedno", "Study together")}</h1>
               <p className="mt-1 max-w-2xl text-sm font-bold leading-5 text-muted">{t(locale, "Pronađi osobu u svojoj zoni napretka, prihvati poziv i nastavite u privatnom ili grupnom razgovoru.", "Find a person in your progress zone, accept an invite, and continue in a private or group conversation.")}</p>
             </div>
@@ -531,7 +531,7 @@ function StudyHubMember({ locale, courseSlug, onCourseSlugChange, onOpenConversa
             <SectionHeading icon={<BellRing className="size-5" />} title={t(locale, "Pozivi", "Invites")} description={t(locale, "Odgovori na poziv ili proveri šta je još na čekanju.", "Respond to an invite or review what is still pending.")} badge={pendingInviteCount} />
             <div className="mt-4 space-y-4">
               <div>
-                <h3 className="mb-2 text-xs font-black uppercase tracking-[0.14em] text-[#2e6f9f] dark:text-muted">{t(locale, "Dolazni", "Incoming")}</h3>
+                <h3 className="mb-2 text-xs font-black uppercase tracking-[0.14em] text-blue-mid dark:text-muted">{t(locale, "Dolazni", "Incoming")}</h3>
                 <div className="space-y-2">
                   {incoming.status === "LoadingFirstPage" || groupInvites.status === "LoadingFirstPage" ? <LoadingCards label={t(locale, "Učitavanje dolaznih poziva", "Loading incoming invites")} /> : null}
                   {incoming.results.map((invite) => (
@@ -548,7 +548,7 @@ function StudyHubMember({ locale, courseSlug, onCourseSlugChange, onOpenConversa
                   ))}
                   {groupInvites.results.map((invite) => (
                     <article key={invite.inviteId} className="rounded-[16px] border-2 border-[#70a7cf] dark:border-line bg-[#eef6fb] dark:bg-ink/10 p-3">
-                      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#2e6f9f] dark:text-muted">{t(locale, "Poziv u studijsku grupu", "Study group invite")}</p>
+                      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-blue-mid dark:text-muted">{t(locale, "Poziv u studijsku grupu", "Study group invite")}</p>
                       <p className="mt-1 truncate text-sm font-black">{invite.group.name}</p>
                       <p className="mt-0.5 truncate text-xs font-bold text-muted">{invite.inviter.name} · {courseTitle(locale, invite.course)}</p>
                       <div className="mt-3 grid grid-cols-2 gap-2">

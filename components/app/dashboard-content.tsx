@@ -670,12 +670,12 @@ function FeaturedThreadsSection({ locale, course }: { locale: Locale; course: Da
                   >
                     <div className="flex flex-wrap gap-2">
                       {courseFeatured ? (
-                        <span className="rounded-[6px] border-2 border-ink bg-yellow px-2 py-0.5 text-[10px] font-black uppercase text-ink">
+                        <span className="rounded-[8px] border-2 border-ink bg-yellow px-2 py-0.5 text-[10px] font-black uppercase text-ink">
                           {tr(locale, "Kurs", "Course")}
                         </span>
                       ) : null}
                       {post.isFeaturedGlobal ? (
-                        <span className="rounded-[6px] border-2 border-ink bg-paper-strong px-2 py-0.5 text-[10px] font-black uppercase text-ink">
+                        <span className="rounded-[8px] border-2 border-ink bg-paper-strong px-2 py-0.5 text-[10px] font-black uppercase text-ink">
                           {tr(locale, "Opsti", "Global")}
                         </span>
                       ) : null}
@@ -791,7 +791,7 @@ function ActivityPanel({ locale, activity }: { locale: Locale; activity: Array<{
                 // narrower than its own border, so the dense view drops the border and
                 // fills with ink (12.92:1 on paper) instead of yellow (1.69:1).
                 className={cn(
-                  "min-w-0 flex-1 rounded-t-[4px]",
+                  "min-w-0 flex-1 rounded-t-[8px]",
                   isDense
                     ? item.completed
                       ? "bg-ink"
@@ -1461,7 +1461,7 @@ export function DashboardContent({
 
   return (
     <div className="space-y-6">
-      <section data-motion="hero" className="dashboard-reveal overflow-hidden rounded-[10px] border-2 border-ink bg-paper-strong shadow-[8px_8px_0_0_var(--shadow-hard-14)]">
+      <section data-motion="hero" className="dashboard-reveal overflow-hidden rounded-[16px] border-2 border-ink bg-paper-strong shadow-[8px_8px_0_0_var(--shadow-hard-14)]">
         <div className="grid gap-0 xl:grid-cols-[minmax(0,1fr)_360px]">
           <div className="p-5 sm:p-7" data-motion="copy">
             <div className="flex flex-wrap items-center gap-2">

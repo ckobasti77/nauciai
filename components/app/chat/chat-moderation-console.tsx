@@ -228,7 +228,7 @@ export function ChatModerationConsole({ locale, role, initialUserId }: { locale:
 
   return (
     <div className="mx-auto max-w-[1500px] space-y-6">
-      <header className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-black uppercase text-[#2e6f9f] dark:text-muted">{role}</p><h1 className="font-display text-4xl text-ink">{t(locale, "Chat sigurnost", "Chat safety")}</h1><p className="mt-1 text-sm font-bold text-muted">{t(locale, "Prijave, neizmenjivi snapshoti, sankcije i audit pristupa.", "Reports, immutable snapshots, sanctions, and access auditing.")}</p></div><Link href={withLocale(locale, "/app/messages")} className="rounded-full border-2 border-ink bg-paper-strong px-4 py-2 text-xs font-black"><MessageSquareText className="mr-2 inline size-4" />{t(locale, "Poruke", "Messages")}</Link></header>
+      <header className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-black uppercase text-blue-mid dark:text-muted">{role}</p><h1 className="font-display text-4xl text-ink">{t(locale, "Chat sigurnost", "Chat safety")}</h1><p className="mt-1 text-sm font-bold text-muted">{t(locale, "Prijave, neizmenjivi snapshoti, sankcije i audit pristupa.", "Reports, immutable snapshots, sanctions, and access auditing.")}</p></div><Link href={withLocale(locale, "/app/messages")} className="rounded-full border-2 border-ink bg-paper-strong px-4 py-2 text-xs font-black"><MessageSquareText className="mr-2 inline size-4" />{t(locale, "Poruke", "Messages")}</Link></header>
 
       {role === "admin" ? <AdminUserChatAudit locale={locale} initialUserId={initialUserId} /> : null}
 

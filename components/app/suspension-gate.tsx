@@ -74,9 +74,9 @@ export function SuspensionGate({
 
         {activeSuspension.appeal ? (
           <div className="mt-5 rounded-[16px] border-2 border-[#70a7cf] dark:border-line bg-[#eef6fb] dark:bg-ink/10 p-4">
-            <p className="text-xs font-black uppercase text-[#2e6f9f] dark:text-muted">{t(locale, "Tvoja žalba", "Your appeal")} · {activeSuspension.appeal.status}</p>
+            <p className="text-xs font-black uppercase text-blue-mid dark:text-muted">{t(locale, "Tvoja žalba", "Your appeal")} · {activeSuspension.appeal.status}</p>
             <p className="mt-2 whitespace-pre-wrap text-sm font-bold leading-6">{activeSuspension.appeal.body}</p>
-            {activeSuspension.appeal.response ? <div className="mt-3 border-t-2 border-[#b9d3e8] dark:border-line pt-3"><p className="text-xs font-black uppercase text-[#2e6f9f] dark:text-muted">{t(locale, "Odgovor", "Response")}</p><p className="mt-1 text-sm font-bold leading-6">{activeSuspension.appeal.response}</p></div> : null}
+            {activeSuspension.appeal.response ? <div className="mt-3 border-t-2 border-[#b9d3e8] dark:border-line pt-3"><p className="text-xs font-black uppercase text-blue-mid dark:text-muted">{t(locale, "Odgovor", "Response")}</p><p className="mt-1 text-sm font-bold leading-6">{activeSuspension.appeal.response}</p></div> : null}
           </div>
         ) : (
           <div className="mt-5">

@@ -217,7 +217,7 @@ function PulseTile({ href, label, value, icon: Icon }: { href: string; label: st
           <p className="text-xs font-black uppercase text-muted transition-colors duration-200 group-hover:text-yellow">{label}</p>
           <p className="mt-2 text-2xl font-black leading-none text-ink">{value}</p>
         </div>
-        <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-[8px] border-2 border-ink bg-paper-strong text-ink transition duration-200 group-hover:border-yellow group-hover:bg-yellow group-hover:text-[#0e3158]">
+        <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-[8px] border-2 border-ink bg-paper-strong text-ink transition duration-200 group-hover:border-yellow group-hover:bg-yellow group-hover:text-ink">
           <Icon className="size-4" />
         </span>
       </div>

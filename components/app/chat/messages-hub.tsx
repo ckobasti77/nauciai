@@ -80,7 +80,7 @@ export function MessagesHub({ locale, selectedConversationId }: { locale: Locale
     <ChatMotionScope sceneKey={selected ? String(selected) : view} className="mx-auto flex h-[calc(100dvh-7rem)] min-h-0 max-w-[1500px] min-w-0 flex-col lg:h-[calc(100dvh-4rem)]">
       <header className={cn("mb-4 items-center justify-between gap-4 rounded-[16px] border-2 border-line bg-paper-strong px-4 py-3 shadow-[4px_4px_0_0_var(--shadow-hard-08)] sm:px-5", selected ? "hidden lg:flex" : "flex")}>
         <div className="shrink-0">
-          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#2e6f9f] dark:text-muted">Nauči AI</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-blue-mid dark:text-muted">Nauči AI</p>
           <h1 className="whitespace-nowrap text-xl font-black text-ink sm:text-2xl">{label(locale, "Poruke", "Messages")}</h1>
         </div>
         <div role="tablist" aria-label={label(locale, "Pogled poruka", "Messages view")} className="flex min-w-0 rounded-full border-2 border-ink bg-paper p-1">

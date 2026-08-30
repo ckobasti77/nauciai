@@ -65,7 +65,7 @@ function HelpTopicModeration({ locale }: { locale: Locale }) {
   const suggestions = usePaginatedQuery(api.helpTopics.listPendingSuggestions, {}, { initialNumItems: 10 });
   return (
     <section className="rounded-[16px] border-2 border-ink bg-paper-strong p-4 shadow-[4px_4px_0_0_var(--shadow-hard-10)] sm:p-5">
-      <p className="text-xs font-black uppercase text-[#2e6f9f] dark:text-muted">Admin</p>
+      <p className="text-xs font-black uppercase text-blue-mid dark:text-muted">Admin</p>
       <h3 className="mt-1 text-xl font-black text-ink">{t(locale, "Predlozi tema na čekanju", "Pending topic suggestions")}</h3>
       <div className="mt-4 space-y-2">
         {suggestions.results.map((suggestion) => <PendingTopicRow key={suggestion._id} locale={locale} suggestion={suggestion} />)}

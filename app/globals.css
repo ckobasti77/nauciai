@@ -37,6 +37,10 @@
   --yellow: #f4be30;
   --muted: #536273;
   --line: #c9d4df;
+  /* Retyped 22x kao goli #2e6f9f (uppercase eyebrow labele, XP, avatar shade) -
+     promovisano u token U8 korakom. Isti odnos kao --muted/--line: tamni parnjak
+     je posvetljen i blago desaturisan da čita na tamnoj podlozi. */
+  --blue-mid: #2e6f9f;
   /* Studio-scoped, derived from the tokens above. `canvas` is one notch deeper
      than paper so bright media has an edge where grid density is highest; `well`
      is ink darkened toward near-black-blue (NEVER #000) for the per-tile media
@@ -93,6 +97,7 @@
   --paper-strong: #18293f;
   --muted: #9fb2c8;
   --line: #2f4762;
+  --blue-mid: #7fb0d6;
   --studio-canvas: #0e1a2b;
   --studio-well: #070f1b;
   --studio-well-edge: rgba(233, 238, 246, 0.16);
@@ -121,6 +126,7 @@
   --color-yellow: var(--yellow);
   --color-muted: var(--muted);
   --color-line: var(--line);
+  --color-blue-mid: var(--blue-mid);
   --color-scrim: var(--scrim);
   --color-studio-canvas: var(--studio-canvas);
   --color-studio-well: var(--studio-well);

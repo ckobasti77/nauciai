@@ -237,7 +237,7 @@ export function CommentsSection({
 }
 
 function CommandButton({ locale, label, onClick }: { locale: Locale; label: string; onClick: () => void }) {
-  return <button type="button" role="menuitem" onClick={onClick} className="flex min-h-10 w-full items-center rounded-[10px] px-3 text-left text-xs font-black text-ink transition hover:bg-yellow/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ink">{label}<span className="sr-only">{locale === "sr" ? " komanda" : " command"}</span></button>;
+  return <button type="button" role="menuitem" onClick={onClick} className="flex min-h-10 w-full items-center rounded-[12px] px-3 text-left text-xs font-black text-ink transition hover:bg-yellow/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ink">{label}<span className="sr-only">{locale === "sr" ? " komanda" : " command"}</span></button>;
 }
 
 function CommentItem({

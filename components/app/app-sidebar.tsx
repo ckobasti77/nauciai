@@ -280,7 +280,7 @@ function SidebarAdminActions({
   return (
     <div
       className={cn(
-        "sidebar-action-cluster pointer-events-auto flex shrink-0 items-center gap-1 rounded-[7px] bg-paper-strong/95 p-0.5 shadow-[2px_2px_0_0_var(--shadow-hard-12)] transition",
+        "sidebar-action-cluster pointer-events-auto flex shrink-0 items-center gap-1 rounded-[8px] bg-paper-strong/95 p-0.5 shadow-[2px_2px_0_0_var(--shadow-hard-12)] transition",
         className,
       )}
     >

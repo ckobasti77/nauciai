@@ -173,7 +173,7 @@ function AdminIconButton({
       disabled={disabled}
       whileHover={disabled ? undefined : { y: -1, rotate: -1 }}
       whileTap={disabled ? undefined : { scale: 0.92 }}
-      className="inline-flex size-7 shrink-0 items-center justify-center rounded-[6px] border border-ink bg-paper-strong text-ink shadow-[2px_2px_0_0_var(--shadow-hard-14)] transition hover:bg-yellow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-50"
+      className="inline-flex size-7 shrink-0 items-center justify-center rounded-[8px] border border-ink bg-paper-strong text-ink shadow-[2px_2px_0_0_var(--shadow-hard-14)] transition hover:bg-yellow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-50"
     >
       {children}
     </motion.button>
@@ -1415,7 +1415,7 @@ export function AddCourseAction({
                                           <button
                                             type="button"
                                             onClick={() => requestLessonEditor(lesson.slug)}
-                                            className="flex min-w-0 flex-1 items-center gap-2 rounded-[6px] px-1 py-2 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                                            className="flex min-w-0 flex-1 items-center gap-2 rounded-[8px] px-1 py-2 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                                           >
                                             <ExternalLink className="size-3.5 shrink-0" />
                                             <span className="min-w-0 flex-1 truncate">{lessonTitle}</span>
@@ -1484,7 +1484,7 @@ export function AddCourseAction({
               exit={{ opacity: 0 }}
               transition={{ duration: 0.16 }}
             >
-              <div className="absolute inset-4 rounded-[28px] border-[3px] border-dashed border-yellow" />
+              <div className="absolute inset-4 rounded-[16px] border-[3px] border-dashed border-yellow" />
               <motion.div
                 className="relative max-w-sm rounded-[16px] border-2 border-ink bg-paper-strong p-6 text-center text-ink shadow-[8px_8px_0_0_rgba(244,190,48,0.85)]"
                 initial={{ y: 10, scale: 0.98 }}
@@ -1924,14 +1924,14 @@ export function AddModuleAction({
             type="button"
             onClick={() => requestNavigate(`${lessonHref}?part=${part._id}`)}
             className={cn(
-              "flex min-h-8 w-full min-w-0 items-center gap-2 rounded-[6px] px-2 text-left text-xs font-black text-muted transition hover:bg-paper hover:text-ink",
+              "flex min-h-8 w-full min-w-0 items-center gap-2 rounded-[8px] px-2 text-left text-xs font-black text-muted transition hover:bg-paper hover:text-ink",
               depth > 0 && "text-[11px]",
             )}
           >
             <FileText className="size-3.5 shrink-0" />
             <span className="truncate">{locale === "sr" ? part.titleSr : part.titleEn || part.titleSr}</span>
             {part.isPublished === false ? (
-              <span className="ml-auto shrink-0 rounded-[5px] border border-line bg-paper-strong px-1.5 py-0.5 text-[9px] uppercase text-muted">
+              <span className="ml-auto shrink-0 rounded-[8px] border border-line bg-paper-strong px-1.5 py-0.5 text-[9px] uppercase text-muted">
                 {t(locale, "Nacrt", "Draft")}
               </span>
             ) : null}
@@ -1958,12 +1958,12 @@ export function AddModuleAction({
         key={key}
         type="button"
         onClick={() => requestNavigate(href)}
-        className="flex min-h-8 w-full min-w-0 items-center gap-2 rounded-[6px] px-2 text-left text-xs font-black text-muted transition hover:bg-paper hover:text-ink"
+        className="flex min-h-8 w-full min-w-0 items-center gap-2 rounded-[8px] px-2 text-left text-xs font-black text-muted transition hover:bg-paper hover:text-ink"
       >
         <FileText className="size-3.5 shrink-0" />
         <span className="truncate">{title}</span>
         {draft ? (
-          <span className="ml-auto shrink-0 rounded-[5px] border border-line bg-paper-strong px-1.5 py-0.5 text-[9px] uppercase text-muted">
+          <span className="ml-auto shrink-0 rounded-[8px] border border-line bg-paper-strong px-1.5 py-0.5 text-[9px] uppercase text-muted">
             {t(locale, "Nacrt", "Draft")}
           </span>
         ) : null}
@@ -2723,7 +2723,7 @@ export function AddLessonPartAction({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
             >
-              <div className="absolute inset-4 rounded-[28px] border-[3px] border-dashed border-yellow" />
+              <div className="absolute inset-4 rounded-[16px] border-[3px] border-dashed border-yellow" />
               <div className="relative max-w-sm rounded-[16px] border-2 border-ink bg-paper-strong p-6 text-center shadow-[8px_8px_0_rgba(244,190,48,0.85)]">
                 <UploadCloud className="mx-auto size-9" />
                 <p className="mt-3 text-lg font-black">

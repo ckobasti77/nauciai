@@ -160,7 +160,7 @@ export function InlineContentText({
           : "Double-click — add content";
     return (
       <Shell
-        className={cn("group/inline relative inline-block min-h-[1em] min-w-[6rem] cursor-text rounded-[4px] transition hover:bg-yellow/20 focus-visible:bg-yellow/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink", !sr.trim() && !en.trim() && "border border-dashed border-amber-600/70 bg-amber-50/70 px-2 py-1 text-amber-900", className)}
+        className={cn("group/inline relative inline-block min-h-[1em] min-w-[6rem] cursor-text rounded-[8px] transition hover:bg-yellow/20 focus-visible:bg-yellow/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink", !sr.trim() && !en.trim() && "border border-dashed border-amber-600/70 bg-amber-50/70 px-2 py-1 text-amber-900", className)}
         tabIndex={0}
         onDoubleClick={begin}
         onKeyDown={(event) => {
@@ -207,13 +207,13 @@ export function InlineContentText({
         </span>
       </span>
       {multiline ? (
-        <textarea ref={inputRef as React.RefObject<HTMLTextAreaElement>} value={visible} onChange={(event) => setVisible(event.target.value)} onKeyDown={handleKeyDown} rows={3} className="min-h-[5rem] w-full resize-y rounded-[6px] bg-paper/60 px-3 py-2 text-inherit focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink" />
+        <textarea ref={inputRef as React.RefObject<HTMLTextAreaElement>} value={visible} onChange={(event) => setVisible(event.target.value)} onKeyDown={handleKeyDown} rows={3} className="min-h-[5rem] w-full resize-y rounded-[8px] bg-paper/60 px-3 py-2 text-inherit focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink" />
       ) : (
-        <input ref={inputRef as React.RefObject<HTMLInputElement>} value={visible} onChange={(event) => setVisible(event.target.value)} onKeyDown={handleKeyDown} className="min-h-[2.5rem] w-full rounded-[6px] bg-paper/60 px-3 text-inherit focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink" />
+        <input ref={inputRef as React.RefObject<HTMLInputElement>} value={visible} onChange={(event) => setVisible(event.target.value)} onKeyDown={handleKeyDown} className="min-h-[2.5rem] w-full rounded-[8px] bg-paper/60 px-3 text-inherit focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink" />
       )}
-      {missingEn ? <span className="mt-2 inline-flex items-center gap-1 rounded-[6px] border-2 border-amber-700 bg-amber-50 px-2 py-1 text-[10px] font-black text-amber-900"><AlertTriangle className="size-3" /> EN nedostaje, ali ne blokira čuvanje.</span> : null}
-      {missingSr ? <span className="mt-2 inline-flex items-center gap-1 rounded-[6px] border-2 border-red-700 bg-red-50 px-2 py-1 text-[10px] font-black text-red-800"><AlertTriangle className="size-3" /> SR je obavezan pre objave.</span> : null}
-      {error ? <span role="alert" className="absolute left-1 top-full z-30 mt-1 rounded-[6px] border-2 border-red-700 bg-red-50 px-2 py-1 text-[10px] font-black text-red-800">{error}</span> : null}
+      {missingEn ? <span className="mt-2 inline-flex items-center gap-1 rounded-[8px] border-2 border-amber-700 bg-amber-50 px-2 py-1 text-[10px] font-black text-amber-900"><AlertTriangle className="size-3" /> EN nedostaje, ali ne blokira čuvanje.</span> : null}
+      {missingSr ? <span className="mt-2 inline-flex items-center gap-1 rounded-[8px] border-2 border-red-700 bg-red-50 px-2 py-1 text-[10px] font-black text-red-800"><AlertTriangle className="size-3" /> SR je obavezan pre objave.</span> : null}
+      {error ? <span role="alert" className="absolute left-1 top-full z-30 mt-1 rounded-[8px] border-2 border-red-700 bg-red-50 px-2 py-1 text-[10px] font-black text-red-800">{error}</span> : null}
     </Shell>
   );
 }

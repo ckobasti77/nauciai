@@ -1054,3 +1054,90 @@ C:\Users\admin\Desktop\Web Dev Projects\nauciai\components\studio\studio-compose
    `admin-inline-actions.tsx`, `lesson-steps-editor.tsx`, `studio-admin-page.tsx` i
    `suspension-gate.tsx` i dalje imaju `rounded-[8px]`/`rounded-[6px]` off-scale radiuse** -
    nisam ih dirao (zadatak zabranjuje vizuelne promene van fokusa), ostaju za U9.
+
+---
+
+## U8 - Token + radius sweep   (2026-08-30 03:25)
+
+**Fajlovi:**
+- `app/globals.css` (nov token `--blue-mid` + tamni parnjak + `@theme inline` registracija)
+- `components/app/dashboard-windows.tsx`, `components/app/dashboard-content.tsx`,
+  `components/app/admin-inline-actions.tsx`, `components/app/app-sidebar.tsx`,
+  `components/app/inline-content.tsx`, `components/app/lesson-steps-editor.tsx`,
+  `components/app/member-profile.tsx`, `components/app/profile-editor.tsx`,
+  `components/app/community-comments.tsx`, `components/app/help-settings.tsx`,
+  `components/app/suspension-gate.tsx`, `components/app/chat/chat-dialogs.tsx`,
+  `components/app/chat/chat-group-details.tsx`, `components/app/chat/chat-inbox.tsx`,
+  `components/app/chat/chat-moderation-console.tsx`, `components/app/chat/chat-thread.tsx`,
+  `components/app/chat/messages-hub.tsx`, `components/app/chat/study-hub.tsx`
+
+**Šta je urađeno:**
+Mehanički sweep u dva dela, bez ijedne namerne vizuelne promene osim gde je vrednost bila
+van skale. **(1) Boje:** `#2e6f9f` je promovisan u `--blue-mid` (svetla `#2e6f9f`, tamna
+`#7fb0d6` po istom odnosu kao `--muted`/`--line` par - posvetljeno i blago desaturisano za
+tamnu podlogu) i registrovan kao `--color-blue-mid` u `@theme inline`; svih **22** mesta
+(`text-[#2e6f9f]` × 21, `bg-[#2e6f9f]` × 1) prepisano na `text-blue-mid`/`bg-blue-mid`,
+`dark:text-muted`/`dark:bg-ink/80` override ostavljen netaknut na svakom mestu. Jedan
+preostali goli `#0e3158` u `.tsx` van dokumentovanih izuzetaka (`dashboard-windows.tsx:220`,
+`group-hover:text-[#0e3158]`) zamenjen sa `group-hover:text-ink`. `#f4be30` u `.tsx` fajlovima
+više nema nijedan pogodak - već je pre ovog run-a u potpunosti tokenizovan (vidi ODLUKU 1).
+**(2) Radiusi van skale:** svih **39** app-scope pojava (isključujući 3 marketing mesta koja
+U1 već drži van obima) prebačeno na najbliži sankcionisani tier: `6px`→`8px` (18×), `5px`→`8px`
+(2×), `3px`→`8px` (2×), `4px`/`rounded-t-[4px]`→`8px`/`rounded-t-[8px]` (2×), `7px`→`8px` (1×),
+`28px`→`16px` (3×), `18px`→`16px` (1×), `10px`→`12px` (9×, ugnježdeni popover/meni redovi i
+form kontrole) ili `16px` (1×, samostalna hero sekcija `dashboard-content.tsx:1464`). Nijedan
+`rounded-*!` ni inline `borderRadius` nije uveden ni pronađen.
+
+**ODLUKE:**
+1. **Tri hexa ostavljena netaknuta - potvrđuju raniju, već dokumentovanu odluku, ne novu.**
+   `dashboard-content.tsx:549` (`linear-gradient(135deg,#0e3158,#173d6b)`, placeholder pre
+   učitavanja videa) je namerno tema-nezavisan kao studio bunar - `docs/STUDIO-PROGRESS.md:7594`
+   to već objašnjava. `rich-text-editor.tsx:14,73` (paleta boja za tekst koji UNOSI korisnik) i
+   `lib/content.ts:414` (`accent` polje, nigde se ne renderuje kao boja UI-ja) su podaci/sadržaj,
+   ne stilovi površine - tokenizacija bi promenila značenje (korisnik bira konkretnu boju teksta,
+   ne temu). Sve tri su već bile na ovom spisku pre ovog run-a; ja sam samo potvrdio da i dalje
+   važe i da nijedna nije className van njih.
+2. **`10px` je razdvojen na dva tier-a po kontekstu, ne mehanički na jedan.** Osam od devet
+   pojava su dugmad/redovi UNUTAR popover-a ili forme (chat podešavanja, komandni meni, naziv
+   grupe) - to je definicija inset tier-a ("ugnježdeni paneli i kontrole unutar kartice"), pa idu
+   na `12px`. `dashboard-content.tsx:1464` je samostalna hero sekcija na vrhu `/app` (nije
+   ugnježdena ni u čemu), pa ide na `16px` (card tier). Ovo nije "najbliži broj" nego "najbliži
+   tier po AGENTS.md definiciji tier-a" - oba tumačenja su podjednako blizu brojčano (razlika 2),
+   pa je odlučivala namena elementa.
+3. **`3px`→`8px` na heatmap kvadratićima u `member-profile.tsx:91,102` je vizuelno primetnije od
+   ostalih migracija.** Element je `size-3` (12px) ili `size-[9px]` kvadrat - `8px` radius na
+   12px kutiji izgleda znatno zaobljenije nego `3px`. Nema sankcionisanog tier-a manjeg od `8px`
+   osim `rounded-full` (što bi kvadrat pretvorilo u krug - druga promena, ne migracija). Pravilo
+   run-a eksplicitno traži "migriraj na najbliži sankcionisani tier", pa sam to i uradio, ali ovo
+   NIJE nulta vizuelna promena - prijavljujem ga posebno za proveru u pregledaču.
+4. **Nisam menjao stil zapisa (`rounded-[Npx]` naspram `surface-card`/`surface-inset`/
+   `surface-media` utility-ja).** Zadatak traži da VREDNOST bude na skali, ne da se promeni
+   sintaksa; `docs/UX-BOOST-PLAN.md` §4E izričito kaže da je bracket-sintaksa na sankcionisanoj
+   vrednosti već "na skali", samo nije kanonski zapisana. Prebacivanje na utility klase je veći,
+   nepotreban diff za ovaj korak i ostaje kao poznat dug (već popisan u §4E).
+
+**Testovi:** Nijedan nije pisan ni menjan - ovo je čisto mehanički CSS/className sweep bez nove
+logike; postojeći suite (84 fajla, 1142 testa) je pokrenut samo kao verifikacija da ništa nije
+pokvareno.
+
+**Rezultat verifikacije:**
+- `npm run typecheck` - **PROŠLO** (exit 0)
+- `npm run test` - **PROŠLO** (84 fajla, 1142 testova)
+- `npm run lint` - **exit 1, identično baseline-u**: `178 problems (1 error, 177 warnings)`,
+  ista pred-postojeća greška iz `studio-composer.tsx:1112` (U1/U2/U3), nijedan novi nalaz u
+  fajlovima koje je ovaj korak dirao.
+- Convex fajlovi nisu dirani - `npx convex codegen` nije pokretan.
+
+**Za Jovana ujutru:**
+1. **Heatmap kvadratići na profilu člana** (`member-profile.tsx:91,102` - traka aktivnosti ispod
+   avatara) su sada zaobljeniji nego juče (ODLUKA 3). Ako ti se ne sviđa, jedina alternativa u
+   skali je `rounded-full` (pretvara ih u tačke) ili ostati na `3px` kao dokumentovan izuzetak.
+2. **`#2e6f9f` mesta** (uppercase eyebrow labele u chat-u, XP na profilu, avatar shade skala) sad
+   koriste `text-blue-mid`/`bg-blue-mid` - u tamnoj temi izgled je nepromenjen (svako mesto već
+   ima `dark:text-muted`/`dark:bg-ink/80` koji pobeđuje), u svetloj je piksel-isto jer je token
+   postavljen na istu hex vrednost.
+3. **Provera na 640/768/900/1024px nije rađena u pregledaču** - ovaj korak je čist CSS/className
+   sweep bez logičkih izmena, pa je rizik nizak, ali novi `12px`/`16px` radiusi na chat popover
+   redovima i dashboard hero sekciji vredi brzo pogledati u obe teme.
+4. **`docs/UX-BOOST-PLAN.md` §4D/§4E brojevi su sada zastareli** (23×`#2e6f9f`, 43 off-scale
+   radiusa) - ovaj dokument ih je sve zatvorio; ne treba ih ponovo brojati u sledećem koraku.

@@ -342,7 +342,7 @@ function WidthStepper({
             onChange(option);
           }}
           className={cn(
-            "min-h-8 min-w-12 rounded-[6px] px-2 text-xs font-black transition",
+            "min-h-8 min-w-12 rounded-[8px] px-2 text-xs font-black transition",
             option === units ? "bg-yellow text-ink" : "text-muted hover:bg-paper hover:text-ink",
           )}
           aria-pressed={option === units}
@@ -447,7 +447,7 @@ function SidebarResizeHandle({
         side === "steps" ? "-right-1.5" : "-left-1.5",
       )}
     >
-      <span className="inline-flex rounded-[6px] border border-ink bg-paper-strong p-1 text-ink opacity-0 shadow-[2px_2px_0_0_var(--shadow-hard-14)] transition group-hover:opacity-100">
+      <span className="inline-flex rounded-[8px] border border-ink bg-paper-strong p-1 text-ink opacity-0 shadow-[2px_2px_0_0_var(--shadow-hard-14)] transition group-hover:opacity-100">
         <GripVertical className="size-3" />
       </span>
     </div>
@@ -593,7 +593,7 @@ function SectionCard({
 const inputClass =
   "h-10 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-3 text-sm font-bold text-ink transition placeholder:text-muted/60 focus:border-yellow focus:ring-4 focus:ring-yellow/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
 const compactInputClass =
-  "h-8 w-full rounded-[6px] border border-ink bg-paper-strong px-2 text-xs font-bold text-ink transition placeholder:text-muted/60 focus:border-yellow focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
+  "h-8 w-full rounded-[8px] border border-ink bg-paper-strong px-2 text-xs font-bold text-ink transition placeholder:text-muted/60 focus:border-yellow focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
 const textareaClass =
   "w-full resize-none rounded-[8px] border-2 border-ink bg-paper-strong p-3 text-sm font-bold leading-6 text-ink transition placeholder:text-muted/60 focus:border-yellow focus:ring-4 focus:ring-yellow/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
 
@@ -1178,7 +1178,7 @@ export function LessonStepsEditor({
                         <span
                           key={`${step._id}-${slotIndex}`}
                           className={cn(
-                            "inline-flex h-6 flex-1 items-center justify-center rounded-[6px] border border-ink text-[9px] font-black uppercase",
+                            "inline-flex h-6 flex-1 items-center justify-center rounded-[8px] border border-ink text-[9px] font-black uppercase",
                             PANEL_META[col.type].tone,
                           )}
                         >
@@ -1639,7 +1639,7 @@ function ExplanationEditor({
           <button
             type="button"
             onClick={onAddTask}
-            className="inline-flex min-h-8 items-center justify-center gap-1.5 rounded-[6px] border border-ink bg-paper-strong px-2 text-xs font-black text-ink transition hover:bg-yellow"
+            className="inline-flex min-h-8 items-center justify-center gap-1.5 rounded-[8px] border border-ink bg-paper-strong px-2 text-xs font-black text-ink transition hover:bg-yellow"
           >
             <Plus className="size-3.5" />
             {t(locale, "Dodaj", "Add")}
@@ -1726,7 +1726,7 @@ function ExplanationEditor({
                   {t(locale, "Obavezan", "Required")}
                 </label>
                 <select
-                  className="h-8 rounded-[6px] border border-ink bg-paper-strong px-2 text-xs font-black text-ink"
+                  className="h-8 rounded-[8px] border border-ink bg-paper-strong px-2 text-xs font-black text-ink"
                   value={task.completionMode}
                   onChange={(event) => onUpdateTask(task, { completionMode: event.target.value as CompletionMode })}
                 >
@@ -1753,7 +1753,7 @@ function ExplanationEditor({
           <button
             type="button"
             onClick={onAddPrompt}
-            className="inline-flex min-h-8 items-center justify-center gap-1.5 rounded-[6px] border border-ink bg-paper-strong px-2 text-xs font-black text-ink transition hover:bg-yellow"
+            className="inline-flex min-h-8 items-center justify-center gap-1.5 rounded-[8px] border border-ink bg-paper-strong px-2 text-xs font-black text-ink transition hover:bg-yellow"
           >
             <Plus className="size-3.5" />
             {t(locale, "Dodaj", "Add")}
