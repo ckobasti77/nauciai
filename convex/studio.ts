@@ -50,8 +50,6 @@ import {
   isMeasureBlocked,
   isMockRequestId,
   isStudioStaff,
-  MAX_ACTIVE_JOBS,
-  MAX_DAILY_GENERATIONS,
   MEASURE_RATE_WINDOW_MS,
   MEASURE_UPLOAD_HOURLY_LIMIT,
   outputExpiresAt,
@@ -61,6 +59,7 @@ import {
   promptHash,
   providerStatus,
   requestedImageCount,
+  resolveStudioLimits,
   sanitizeParams,
   STUDIO_FLAG_KEY,
   STUDIO_PUBLIC_CONFIG_KEYS,
@@ -496,6 +495,12 @@ export const createJob = mutation({
     const access = await evaluateStudioAccess(ctx, { userId, role, existing }, publicState.publicEnabled);
     if (!access.allowed) throw new Error(access.reason);
 
+    // Granice za OVOG korisnika (studio-public F2.4): osoblje zadržava
+    // današnje (3 posla, 50/dan, bez minutnog i kreditnog kapa), javni
+    // korisnici dobijaju {2, 6/min, 200/dan, 500 kr/dan} sa config
+    // override-om iz `platformFlags`.
+    const limits = resolveStudioLimits(publicState.config, isStudioStaff(role));
+
     // Uslovi Studija (X7). Bez pečata nema prvog posla, i tu izuzetka nema:
     // admin i moderator generišu istim modelima, sa istim zabranama i istim
     // prosleđivanjem podataka provajderima, pa pristanak daju kao i svi.
@@ -567,12 +572,14 @@ export const createJob = mutation({
     const reserved = await ctx.db
       .query("generationJobs")
       .withIndex("by_user_status", (q) => q.eq("userId", userId).eq("status", "reserved"))
-      .take(MAX_ACTIVE_JOBS);
+      .take(limits.maxConcurrentJobs);
     const running = await ctx.db
       .query("generationJobs")
       .withIndex("by_user_status", (q) => q.eq("userId", userId).eq("status", "running"))
-      .take(MAX_ACTIVE_JOBS);
-    if (reserved.length + running.length >= MAX_ACTIVE_JOBS) throw new Error("PREVISE_POSLOVA");
+      .take(limits.maxConcurrentJobs);
+    if (reserved.length + running.length >= limits.maxConcurrentJobs) {
+      throw new Error("PREVISE_POSLOVA");
+    }
 
     // Prozor između rezervacije i poravnanja (X2). Poslovi u letu su jedini o
     // kojima se još ništa ne zna osim procene, pa se njihov zbir drži nisko:
@@ -586,13 +593,37 @@ export const createJob = mutation({
     if (exceedsUnsettledCostLimit(inFlightCostUsd)) throw new Error("PREVISE_NEPORAVNATOG");
 
     const now = Date.now();
+
+    // Minutni limit (studio-public F2.4): brojanje kroz `by_user` indeks po
+    // `createdAt` opsegu. Convex OCC ovo čini bezbednim pod konkurentnošću -
+    // dva istovremena `createJob`-a čitaju isti opseg, pa insert pobednika
+    // preseca read-set gubitnika i on se ponavlja sa svežim brojem. `deleteJob`
+    // može da izbriše SAMO završen posao (in-flight odbija), pa rupa u prozoru
+    // znači završenu generaciju, ne prevaru.
+    if (limits.maxJobsPerMinute !== null) {
+      const lastMinute = await ctx.db
+        .query("generationJobs")
+        .withIndex("by_user", (q) => q.eq("userId", userId).gte("createdAt", now - 60_000))
+        .take(limits.maxJobsPerMinute);
+      if (lastMinute.length >= limits.maxJobsPerMinute) throw new Error("MINUTNI_LIMIT");
+    }
+
     const day = dayKey(now);
     const usage = await ctx.db
       .query("studioUsageDaily")
       .withIndex("by_user_day", (q) => q.eq("userId", userId).eq("day", day))
       .unique();
-    if ((usage?.generations ?? 0) >= MAX_DAILY_GENERATIONS) throw new Error("DNEVNI_LIMIT");
-    // Drugi plafon je u dolarima, ne u komadima: broj generacija ne kaže ništa
+    if ((usage?.generations ?? 0) >= limits.maxJobsPerDay) throw new Error("DNEVNI_LIMIT");
+    // Dnevni kap POTROŠNJE KREDITA (studio-public F2.4) - soft cap sa jasnom
+    // porukom: ništa se ne upisuje, krediti ostaju, sutra se nastavlja. Meri se
+    // ono što bi OVAJ posao doneo preko već potrošenog danas.
+    if (
+      limits.maxDailyCredits !== null &&
+      (usage?.creditsSpent ?? 0) + order.creditCost > limits.maxDailyCredits
+    ) {
+      throw new Error("DNEVNI_LIMIT_KREDITA");
+    }
+    // Treći plafon je u dolarima, ne u komadima: broj generacija ne kaže ništa
     // dok korisnik bira između modela od 0,005 $ i modela od 2 $.
     if (exceedsDailyCostLimit(usage?.costUsd ?? 0, estimatedCostUsd)) {
       throw new Error("DNEVNI_LIMIT_TROSKA");
@@ -1749,18 +1780,21 @@ export const getStudioState = query({
       .withIndex("by_key", (q) => q.eq("key", STUDIO_FLAG_KEY))
       .unique();
 
-    const reserved = await ctx.db
-      .query("generationJobs")
-      .withIndex("by_user_status", (q) => q.eq("userId", userId).eq("status", "reserved"))
-      .take(MAX_ACTIVE_JOBS);
-    const running = await ctx.db
-      .query("generationJobs")
-      .withIndex("by_user_status", (q) => q.eq("userId", userId).eq("status", "running"))
-      .take(MAX_ACTIVE_JOBS);
-
     const publicState = await loadStudioPublicState(ctx);
     const access = await evaluateStudioAccess(ctx, { userId, role, existing }, publicState.publicEnabled);
     const emailVerified = isEmailVerifiedForStudio(existing);
+    // Ista granica po kojoj bi `createJob` odbio sledeći posao - dugme i
+    // server ne smeju da tvrde suprotno (studio-public F2.4: osoblje 3, javni 2).
+    const limits = resolveStudioLimits(publicState.config, isStudioStaff(role));
+
+    const reserved = await ctx.db
+      .query("generationJobs")
+      .withIndex("by_user_status", (q) => q.eq("userId", userId).eq("status", "reserved"))
+      .take(limits.maxConcurrentJobs);
+    const running = await ctx.db
+      .query("generationJobs")
+      .withIndex("by_user_status", (q) => q.eq("userId", userId).eq("status", "running"))
+      .take(limits.maxConcurrentJobs);
 
     return {
       // Red koji ne postoji znači "nikad nije ni gašen" - isto čitanje kao u
@@ -1790,7 +1824,7 @@ export const getStudioState = query({
       // `revealJobDetail` traži strogo `admin`, na serveru.
       isStudioAdmin: role === "admin",
       activeJobs: reserved.length + running.length,
-      maxActiveJobs: MAX_ACTIVE_JOBS,
+      maxActiveJobs: limits.maxConcurrentJobs,
       // SP2: koji provajder ima ključ - samo boolean-i, da birač označi DEMO
       // modele PRE klika. Ista funkcija koju `submitJob` koristi za mock kapiju,
       // pa UI i server nikad ne tvrde suprotno.

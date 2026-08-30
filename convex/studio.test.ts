@@ -1563,6 +1563,162 @@ test("ugašen javni fleg (eksplicitan red): student NEMA_PRISTUPA, moderator pro
   });
 });
 
+/** Gotov posao u minutnom prozoru - ne drži concurrency slot, ali se broji u 6/min. */
+async function seedDoneJob(t: TestConvex, userId: Id<"users">, createdAt: number) {
+  await t.run((ctx) =>
+    ctx.db.insert("generationJobs", {
+      userId,
+      modelSlug: MODEL_SLUG,
+      kind: "image" as const,
+      params: "{}",
+      promptHash: `hash-${createdAt}`,
+      status: "done" as const,
+      creditCost: MODEL_COST,
+      createdAt,
+    }),
+  );
+}
+
+test("MINUTNI_LIMIT: sedmi posao u minutu pada bez ijednog upisa; stariji od minuta se ne broje", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedUser(t, { enrolled: false, emailVerified: true });
+  await seedModel(t);
+  await grant(t, userId, 500);
+  await setPublicFlag(t, true);
+
+  // Šest DOVRŠENIH poslova u poslednjih 30 sekundi (concurrency je slobodan).
+  const now = Date.now();
+  for (let index = 0; index < 6; index += 1) {
+    await seedDoneJob(t, userId, now - 30_000 + index);
+  }
+
+  const before = await ledger(t, userId);
+  await expect(
+    asUser.mutation(api.studio.createJob, {
+      modelSlug: MODEL_SLUG,
+      params: promptParams("lisica u snegu"),
+    }),
+  ).rejects.toThrow(/MINUTNI_LIMIT/);
+
+  // NULA upisa: isti broj poslova, transakcija i isti balans kao pre pokušaja.
+  const after = await ledger(t, userId);
+  expect(after.jobs).toHaveLength(before.jobs.length);
+  expect(after.transactions).toHaveLength(before.transactions.length);
+  expect(after.balance).toBe(before.balance);
+  const usage = await t.run(async (ctx) =>
+    ctx.db
+      .query("studioUsageDaily")
+      .withIndex("by_user_day", (q) => q.eq("userId", userId).eq("day", dayKey(Date.now())))
+      .unique(),
+  );
+  expect(usage).toBeNull();
+
+  // Isti korisnik sa šest poslova STARIJIM od minuta prolazi - prozor klizi.
+  const t2 = convexTest(schema, modules);
+  const fresh = await seedUser(t2, { enrolled: false, emailVerified: true });
+  await seedModel(t2);
+  await grant(t2, fresh.userId, 500);
+  await setPublicFlag(t2, true);
+  for (let index = 0; index < 6; index += 1) {
+    await seedDoneJob(t2, fresh.userId, Date.now() - 5 * 60_000 + index);
+  }
+  await fresh.asUser.mutation(api.studio.createJob, {
+    modelSlug: MODEL_SLUG,
+    params: promptParams("lisica u snegu"),
+  });
+});
+
+test("DNEVNI_LIMIT_KREDITA: prekoračenje dnevne potrošnje kredita ne troši ništa, osoblje nema kap", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedUser(t, { enrolled: false, emailVerified: true });
+  await seedModel(t);
+  await grant(t, userId, 1000);
+  await setPublicFlag(t, true);
+
+  // Danas već potrošeno 490 kredita; sledeći posao od 20 bi probio kap od 500.
+  await t.run((ctx) =>
+    ctx.db.insert("studioUsageDaily", {
+      userId,
+      day: dayKey(Date.now()),
+      generations: 3,
+      creditsSpent: 490,
+      costUsd: 0.1,
+    }),
+  );
+
+  const before = await ledger(t, userId);
+  await expect(
+    asUser.mutation(api.studio.createJob, {
+      modelSlug: MODEL_SLUG,
+      params: promptParams("lisica u snegu"),
+    }),
+  ).rejects.toThrow(/DNEVNI_LIMIT_KREDITA/);
+  const after = await ledger(t, userId);
+  expect(after.jobs).toHaveLength(0);
+  expect(after.balance).toBe(before.balance);
+
+  // Moderator sa istom dnevnom potrošnjom prolazi - osoblje nema kreditni kap.
+  const staff = await seedUser(t, {
+    role: "moderator",
+    email: "mod2@example.com",
+    username: "mod_user2",
+  });
+  await grant(t, staff.userId, 1000);
+  await t.run((ctx) =>
+    ctx.db.insert("studioUsageDaily", {
+      userId: staff.userId,
+      day: dayKey(Date.now()),
+      generations: 3,
+      creditsSpent: 490,
+      costUsd: 0.1,
+    }),
+  );
+  await staff.asUser.mutation(api.studio.createJob, {
+    modelSlug: MODEL_SLUG,
+    params: promptParams("lisica u snegu"),
+  });
+});
+
+test("javni korisnik: concurrency 2 (treći posao pada), getStudioState nosi istu granicu", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedUser(t, { enrolled: false, emailVerified: true });
+  await seedModel(t);
+  await grant(t, userId, 500);
+  await setPublicFlag(t, true);
+
+  expect((await asUser.query(api.studio.getStudioState, {})).maxActiveJobs).toBe(2);
+
+  await asUser.mutation(api.studio.createJob, { modelSlug: MODEL_SLUG, params: promptParams("prvi") });
+  await asUser.mutation(api.studio.createJob, { modelSlug: MODEL_SLUG, params: promptParams("drugi") });
+  await expect(
+    asUser.mutation(api.studio.createJob, { modelSlug: MODEL_SLUG, params: promptParams("treci") }),
+  ).rejects.toThrow(/PREVISE_POSLOVA/);
+});
+
+test("config override iz platformFlags: maxJobsPerDay=1 obara drugi posao, enabled:false vraća podrazumevano", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedUser(t, { enrolled: false, emailVerified: true });
+  await seedModel(t);
+  await grant(t, userId, 500);
+  await setPublicFlag(t, true);
+  const rowId = await t.run((ctx) =>
+    ctx.db.insert("platformFlags", {
+      key: "studio_public_max_jobs_per_day",
+      enabled: true,
+      value: 1,
+    }),
+  );
+
+  await asUser.mutation(api.studio.createJob, { modelSlug: MODEL_SLUG, params: promptParams("prvi") });
+  await expect(
+    asUser.mutation(api.studio.createJob, { modelSlug: MODEL_SLUG, params: promptParams("drugi") }),
+  ).rejects.toThrow(/DNEVNI_LIMIT/);
+
+  // `enabled: false` na redu = override ne važi, podrazumevanih 200 se vraća.
+  await t.run((ctx) => ctx.db.patch(rowId, { enabled: false }));
+  await asUser.mutation(api.studio.createJob, { modelSlug: MODEL_SLUG, params: promptParams("drugi") });
+});
+
 test("javni fleg: kill switch i uslovi važe i za javne korisnike, istim redosledom", async () => {
   const t = convexTest(schema, modules);
   const { userId, asUser } = await seedUser(t, {

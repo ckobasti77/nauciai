@@ -48,10 +48,27 @@ const CREATE_JOB_ERROR_MESSAGES: Array<[string, { sr: string; en: string }]> = [
     },
   ],
   [
+    // Dnevni kap POTROŠNJE KREDITA (studio-public F2.4, soft cap) - mora da
+    // stoji PRE "DNEVNI_LIMIT" jer je matching substring, isto kao TROSKA.
+    "DNEVNI_LIMIT_KREDITA",
+    {
+      sr: "Dostigao si dnevni limit potrošnje kredita u Studiju. Krediti ti ostaju na nalogu - nastavi sutra.",
+      en: "You have reached the Studio's daily credit-spend limit. Your credits stay on the account - continue tomorrow.",
+    },
+  ],
+  [
     "DNEVNI_LIMIT",
     {
       sr: "Dostigao si dnevni limit generacija. Nastavi sutra - krediti ostaju na nalogu.",
       en: "You have reached the daily generation limit. Continue tomorrow - your credits stay on the account.",
+    },
+  ],
+  [
+    // Previše pokrenutih generacija u JEDNOM minutu (studio-public F2.4).
+    "MINUTNI_LIMIT",
+    {
+      sr: "Polako - previše generacija u minutu. Sačekaj malo pa pokušaj ponovo.",
+      en: "Slow down - too many generations in one minute. Wait a moment and try again.",
     },
   ],
   [
@@ -69,10 +86,13 @@ const CREATE_JOB_ERROR_MESSAGES: Array<[string, { sr: string; en: string }]> = [
     },
   ],
   [
+    // Bez konkretnog broja: granica zavisi od korisnika (osoblje 3, javni 2,
+    // podesivo u config tabeli) - tačan broj nosi `getStudioState.maxActiveJobs`
+    // kroz `generateBlockMessage({kind:"active", max})`.
     "PREVISE_POSLOVA",
     {
-      sr: "Sačekaj da se završi trenutna generacija - najviše tri posla mogu da rade istovremeno.",
-      en: "Wait for the current generation to finish - at most three jobs can run at once.",
+      sr: "Sačekaj da se završi generacija koja je u toku pre nego što pokreneš novu.",
+      en: "Wait for the generation in progress to finish before starting a new one.",
     },
   ],
   [
