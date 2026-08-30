@@ -31,7 +31,7 @@ function PartContent({ part, locale }: { part: LessonPart; locale: Locale }) {
     if (part.downloadUrl) {
       return <Image src={part.downloadUrl} alt={localized(part.title, locale)} width={1600} height={900} unoptimized className="mt-4 h-auto w-full rounded-[8px] object-cover" />;
     }
-    return <div className="mt-4 grid aspect-video place-items-center rounded-[8px] border-2 border-dashed border-ink bg-paper p-6 text-center text-sm font-black text-muted">{locale === "sr" ? "Slika još nije uploadovana." : "Image has not been uploaded yet."}</div>;
+    return <div className="mt-4 grid aspect-video place-items-center rounded-[8px] border-2 border-dashed border-ink bg-paper p-6 text-center text-sm font-black text-muted">{locale === "sr" ? "Slika za ovaj deo lekcije još nije dodata." : "The image for this part of the lesson has not been added yet."}</div>;
   }
 
   if (part.kind === "video") {
@@ -51,7 +51,7 @@ function PartContent({ part, locale }: { part: LessonPart; locale: Locale }) {
         <div>
           <PlayCircle className="mx-auto size-10 text-ink" />
           <p className="mt-3 text-sm font-black text-muted">
-            {locale === "sr" ? "Video fajl jos nije uploadovan." : "Video file has not been uploaded yet."}
+            {locale === "sr" ? "Video za ovaj deo lekcije još nije dodat." : "The video for this part of the lesson has not been added yet."}
           </p>
         </div>
       </div>
@@ -86,7 +86,7 @@ function PartContent({ part, locale }: { part: LessonPart; locale: Locale }) {
     <RichTextContent value={locale === "sr" ? part.bodyRich?.sr : part.bodyRich?.en} fallback={localized(part.body, locale)} className="text-base leading-8 text-muted" />
   ) : (
     <p className="mt-4 text-sm font-bold text-muted">
-      {locale === "sr" ? "Tekst za ovaj deo jos nije dodat." : "Text for this part has not been added yet."}
+      {locale === "sr" ? "Tekst za ovaj deo lekcije još nije dodat." : "The text for this part of the lesson has not been added yet."}
     </p>
   );
 }
@@ -180,7 +180,7 @@ export function CoursePlayer({
       await reorderLightBlocks({ lessonId, blockIds: ordered.map((part) => part.id).filter(Boolean) as Id<"lessonParts">[] });
       router.refresh();
     } catch (error) {
-      setBlockMessage(error instanceof Error ? error.message : "Promena redosleda nije uspela.");
+      setBlockMessage(error instanceof Error ? error.message : t(locale, "Novi redosled nije sačuvan. Osveži stranicu da vidiš pravo stanje, pa pokušaj ponovo.", "The new order was not saved. Refresh the page to see the real state, then try again."));
     }
   }
 
@@ -198,8 +198,8 @@ export function CoursePlayer({
         error instanceof Error
           ? error.message
           : target.kind === "block"
-            ? t(locale, "Brisanje nije uspelo.", "Deleting the block failed.")
-            : t(locale, "Brisanje materijala nije uspelo.", "Deleting the material failed."),
+            ? t(locale, "Blok nije obrisan. Proveri internet i pokušaj ponovo.", "The block was not deleted. Check your connection and try again.")
+            : t(locale, "Materijal nije obrisan. Proveri internet i pokušaj ponovo.", "The material was not deleted. Check your connection and try again."),
       );
     } finally {
       setDeletePending(false);
@@ -223,8 +223,8 @@ export function CoursePlayer({
     if (!lessonId) {
       setProgressMessage(
         locale === "sr"
-          ? "Napredak je dostupan kada je lekcija povezana sa Convex zapisom."
-          : "Progress is available after the lesson is connected to Convex.",
+          ? "Ova lekcija još nije spremna za praćenje napretka. Javi se predavaču ako ti se ovo ponavlja."
+          : "This lesson is not ready to track progress yet. Tell your teacher if this keeps happening.",
       );
       return;
     }
@@ -233,14 +233,14 @@ export function CoursePlayer({
     setProgressMessage(null);
     try {
       await markProgress({ lessonId, completed: true, positionSeconds: 0 });
-      setProgressMessage(locale === "sr" ? "Napredak sacuvan." : "Progress saved.");
+      setProgressMessage(locale === "sr" ? "Zapisali smo da si završio/la ovu lekciju." : "We noted that you finished this lesson.");
     } catch (error) {
       setProgressMessage(
         error instanceof Error
           ? error.message
           : locale === "sr"
-            ? "Napredak nije sacuvan."
-            : "Progress was not saved.",
+            ? "Nismo uspeli da zapišemo da si završio/la lekciju. Proveri internet i klikni ponovo."
+            : "We could not record that you finished the lesson. Check your connection and click again.",
       );
     } finally {
       setIsSavingProgress(false);
@@ -318,7 +318,7 @@ export function CoursePlayer({
                 className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-yellow px-4 text-sm font-extrabold text-ink disabled:cursor-wait disabled:opacity-70"
               >
                 {isSavingProgress ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
-                {locale === "sr" ? "Oznaci zavrseno" : "Mark complete"}
+                {locale === "sr" ? "Završio/la sam ovu lekciju" : "I finished this lesson"}
               </button>
             </div>
           </div>

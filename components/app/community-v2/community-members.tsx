@@ -284,11 +284,11 @@ function MembersView({
         <EmptyCommunityState
           locale={locale}
           icon={SearchX}
-          title={locale === "sr" ? "Nema članova za ovaj izbor" : "No members match this view"}
+          title={locale === "sr" ? "Nijedan član ne odgovara ovom izboru" : "No member matches this selection"}
           body={
             locale === "sr"
-              ? "Promeni pretragu, ulogu ili scope. Privatni nalozi i billing podaci se nikada ne prikazuju ovde."
-              : "Change the search, role, or scope. Private account and billing data are never shown here."
+              ? "Obriši reč iz pretrage ili izaberi drugi kurs i ulogu iznad. Ovde se nikad ne vide tuđi lični podaci ni podaci o plaćanju."
+              : "Clear the search word, or pick a different course and role above. Other people's personal and payment details are never shown here."
           }
         />
       )}

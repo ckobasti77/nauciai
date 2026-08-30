@@ -19,6 +19,7 @@ import {
   formatCommunityTime,
   type CommunityRole,
 } from "@/components/app/community-identity";
+import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/components/ui/primitives";
 import type { Locale } from "@/lib/i18n";
 import { withLocale } from "@/lib/i18n";
@@ -281,6 +282,12 @@ export function ThreadCard({
   );
 }
 
+/**
+ * Prazno stanje zajednice je od U5 samo omotac oko `EmptyState` primitiva iz
+ * `components/ui/empty-state.tsx` - potpis ostaje isti zbog pet pozivaoca, ali
+ * se zajednica vise ne crta po svojim pravilima. `locale` sluzi jos samo
+ * citacu ekrana.
+ */
 export function EmptyCommunityState({
   locale,
   icon: Icon = CircleHelp,
@@ -295,16 +302,8 @@ export function EmptyCommunityState({
   action?: ReactNode;
 }) {
   return (
-    <section className="grid min-h-72 place-items-center rounded-[16px] border border-dashed border-ink/35 bg-paper-strong/70 p-6 text-center">
-      <div className="max-w-md">
-        <span className="mx-auto grid size-12 place-items-center rounded-full border border-ink bg-yellow text-ink">
-          <Icon className="size-5" aria-hidden="true" />
-        </span>
-        <h2 className="mt-4 text-xl font-black text-ink">{title}</h2>
-        <p className="mt-2 text-sm font-semibold leading-6 text-muted">{body}</p>
-        {action ? <div className="mt-5">{action}</div> : null}
-        <span className="sr-only">{locale === "sr" ? "Prazan prikaz" : "Empty view"}</span>
-      </div>
+    <section aria-label={locale === "sr" ? "Prazan prikaz" : "Empty view"}>
+      <EmptyState className="min-h-72" icon={Icon} title={title} body={body} action={action} />
     </section>
   );
 }

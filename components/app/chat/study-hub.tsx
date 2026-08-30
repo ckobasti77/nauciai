@@ -25,6 +25,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -81,7 +82,7 @@ function studyActionError(locale: Locale, error: unknown) {
     return t(locale, "Ovaj kurs više nije dostupan za zajedničko učenje.", "This course is no longer available for studying together.");
   }
   if (normalized.includes("napredak kursa je prevelik")) {
-    return t(locale, "Napredak na kursu trenutno nije moguće učitati. Pokušaj ponovo.", "Course progress could not be loaded right now. Try again.");
+    return t(locale, "Napredak na kursu ne može da se učita. Osveži stranicu; ako i dalje ne radi, pokušaj za koji minut.", "Course progress cannot be loaded. Refresh the page; if it still fails, try again in a minute.");
   }
   if (normalized.includes("oba člana moraju biti aktivna") || normalized.includes("uključi traženje partnera")) {
     return t(locale, "Dostupnost za ovaj kurs više nije aktivna. Osveži predloge pa pokušaj ponovo.", "Availability for this course is no longer active. Refresh the suggestions and try again.");
@@ -120,7 +121,7 @@ function studyActionError(locale: Locale, error: unknown) {
     return t(locale, "Grupa ili poziv više nisu dostupni.", "This group or invite is no longer available.");
   }
 
-  return t(locale, "Akcija nije uspela. Pokušaj ponovo.", "The action failed. Try again.");
+  return t(locale, "Nije uspelo. Proveri internet i pokušaj ponovo.", "That did not work. Check your connection and try again.");
 }
 
 function useOnlineStatus() {
@@ -210,17 +211,6 @@ function SectionHeading({
         </div>
         {description ? <p className="mt-1 text-sm font-bold leading-5 text-muted">{description}</p> : null}
       </div>
-    </div>
-  );
-}
-
-function EmptyState({ icon, title, body, action }: { icon: React.ReactNode; title: string; body: string; action?: React.ReactNode }) {
-  return (
-    <div role="status" className="rounded-[16px] border-2 border-dashed border-line bg-paper/70 px-4 py-6 text-center">
-      <span className="mx-auto grid size-10 place-items-center rounded-full bg-paper-strong text-muted">{icon}</span>
-      <p className="mt-3 text-sm font-black text-ink">{title}</p>
-      <p className="mx-auto mt-1 max-w-sm text-xs font-bold leading-5 text-muted">{body}</p>
-      {action ? <div className="mt-4 flex justify-center">{action}</div> : null}
     </div>
   );
 }
@@ -505,7 +495,7 @@ function StudyHubMember({ locale, courseSlug, onCourseSlugChange, onOpenConversa
             <div className="mt-4 grid gap-2">
               {!courseId || !activeAvailability?.active ? (
                 <EmptyState
-                  icon={<Sparkles className="size-5" />}
+                  icon={Sparkles}
                   title={t(locale, "Prvo izaberi kurs", "Choose a course first")}
                   body={t(locale, "Izaberi kurs i uključi dostupnost da vidiš osobe koje uče sličnim tempom.", "Choose a course and turn on availability to see people learning at a similar pace.")}
                   action={<button type="button" onClick={() => document.getElementById("study-course-select")?.focus()} className={SECONDARY_BUTTON}>{t(locale, "Izaberi kurs", "Choose a course")}</button>}
@@ -513,7 +503,7 @@ function StudyHubMember({ locale, courseSlug, onCourseSlugChange, onOpenConversa
               ) : suggestions.status === "LoadingFirstPage" ? (
                 <LoadingCards label={t(locale, "Učitavanje predloga partnera", "Loading partner suggestions")} />
               ) : suggestions.results.length === 0 ? (
-                <EmptyState icon={<Search className="size-5" />} title={t(locale, "Još nema poklapanja", "No matches yet")} body={t(locale, "Tvoja dostupnost je uključena. Nova poklapanja će se pojaviti kada neko uđe u istu zonu napretka.", "Your availability is on. New matches appear when someone enters the same progress zone.")} />
+                <EmptyState icon={Search} title={t(locale, "Još nema poklapanja", "No matches yet")} body={t(locale, "Tvoja dostupnost je uključena. Nova poklapanja će se pojaviti kada neko uđe u istu zonu napretka.", "Your availability is on. New matches appear when someone enters the same progress zone.")} />
               ) : suggestions.results.map((person) => (
                 <article key={person.userId} data-study-pulse="card" className="group flex items-center gap-3 rounded-[16px] border-2 border-line bg-paper p-3 transition-[border-color,background-color] hover:border-[#70a7cf] dark:hover:border-line hover:bg-paper-strong">
                   <Link href={withLocale(locale, `/app/members/${person.username}`)} className={cn("rounded-full", FOCUS_RING)}><StudyPulseAvatar avatarUrl={person.avatarUrl} name={person.name} progressPercent={person.progressPercent} /></Link>
@@ -567,7 +557,7 @@ function StudyHubMember({ locale, courseSlug, onCourseSlugChange, onOpenConversa
                       </div>
                     </article>
                   ))}
-                  {incoming.status !== "LoadingFirstPage" && groupInvites.status !== "LoadingFirstPage" && incoming.results.length + groupInvites.results.length === 0 ? <EmptyState icon={<Check className="size-5" />} title={t(locale, "Sve je sređeno", "You’re all caught up")} body={t(locale, "Nema novih poziva za partnerstvo ili studijsku grupu.", "There are no new partnership or study group invites.")} /> : null}
+                  {incoming.status !== "LoadingFirstPage" && groupInvites.status !== "LoadingFirstPage" && incoming.results.length + groupInvites.results.length === 0 ? <EmptyState icon={Check} title={t(locale, "Sve je sređeno", "You’re all caught up")} body={t(locale, "Nema novih poziva za partnerstvo ili studijsku grupu.", "There are no new partnership or study group invites.")} /> : null}
                   <LoadMoreButton locale={locale} status={incoming.status} onLoadMore={() => incoming.loadMore(6)} />
                   <LoadMoreButton locale={locale} status={groupInvites.status} onLoadMore={() => groupInvites.loadMore(6)} />
                 </div>
@@ -612,7 +602,7 @@ function StudyHubMember({ locale, courseSlug, onCourseSlugChange, onOpenConversa
                 </article>
               );
             })}
-            {partnerships.status !== "LoadingFirstPage" && partnerships.results.length === 0 ? <div className="md:col-span-2 xl:col-span-3"><EmptyState icon={<UserRoundPlus className="size-5" />} title={t(locale, "Još nema partnerstava", "No partnerships yet")} body={t(locale, "Pošalji poziv iz predloga iznad. Kada poziv bude prihvaćen, razgovor se otvara automatski.", "Send an invite from the suggestions above. Once accepted, the conversation opens automatically.")} action={<button type="button" onClick={() => document.getElementById("study-suggestions")?.focus()} className={SECONDARY_BUTTON}><Search className="size-4" />{t(locale, "Pronađi partnera", "Find a partner")}</button>} /></div> : null}
+            {partnerships.status !== "LoadingFirstPage" && partnerships.results.length === 0 ? <div className="md:col-span-2 xl:col-span-3"><EmptyState icon={UserRoundPlus} title={t(locale, "Još nema partnerstava", "No partnerships yet")} body={t(locale, "Pošalji poziv iz predloga iznad. Kada poziv bude prihvaćen, razgovor se otvara automatski.", "Send an invite from the suggestions above. Once accepted, the conversation opens automatically.")} action={<button type="button" onClick={() => document.getElementById("study-suggestions")?.focus()} className={SECONDARY_BUTTON}><Search className="size-4" />{t(locale, "Pronađi partnera", "Find a partner")}</button>} /></div> : null}
           </div>
           <LoadMoreButton locale={locale} status={partnerships.status} onLoadMore={() => partnerships.loadMore(12)} />
 
@@ -642,7 +632,7 @@ function StudyHubMember({ locale, courseSlug, onCourseSlugChange, onOpenConversa
                 {group.conversationId ? <button type="button" onClick={() => openConversation(group.conversationId)} className={cn("grid size-10 shrink-0 place-items-center rounded-full border-2 border-ink bg-yellow", FOCUS_RING)} aria-label={t(locale, `Otvori grupni razgovor ${group.name}`, `Open ${group.name} group chat`)}><MessageCircle className="size-4" /></button> : null}
               </article>
             ))}
-            {groups.status !== "LoadingFirstPage" && groups.results.length === 0 ? <div className="md:col-span-2"><EmptyState icon={<UsersRound className="size-5" />} title={t(locale, "Još nema studijskih grupa", "No study groups yet")} body={t(locale, "Kada imaš najmanje dva partnera na kursu, izaberi ih iznad i pošalji predlog grupe.", "Once you have at least two partners in a course, select them above and send a group proposal.")} /></div> : null}
+            {groups.status !== "LoadingFirstPage" && groups.results.length === 0 ? <div className="md:col-span-2"><EmptyState icon={UsersRound} title={t(locale, "Još nema studijskih grupa", "No study groups yet")} body={t(locale, "Kada imaš najmanje dva partnera na kursu, izaberi ih iznad i pošalji predlog grupe.", "Once you have at least two partners in a course, select them above and send a group proposal.")} /></div> : null}
           </div>
           <LoadMoreButton locale={locale} status={groups.status} onLoadMore={() => groups.loadMore(10)} />
         </section>

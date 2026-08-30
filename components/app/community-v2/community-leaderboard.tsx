@@ -263,11 +263,11 @@ function LeaderboardView({
               <EmptyCommunityState
                 locale={locale}
                 icon={Trophy}
-                title={locale === "sr" ? "Leaderboard čeka prvi XP" : "The leaderboard is waiting for its first XP"}
+                title={locale === "sr" ? "Rang lista još nema nijedan bod" : "The leaderboard has no points yet"}
                 body={
                   locale === "sr"
-                    ? "Završi lekciju ili obavezni zadatak u ovom scope-u. Rang se prikazuje čim postoji prvi XP događaj."
-                    : "Complete a lesson or required task in this scope. Rankings appear as soon as the first XP event exists."
+                    ? "Bodovi (XP) se dobijaju za završene lekcije i urađene zadatke. Završi jednu lekciju na ovom kursu i lista počinje da se puni."
+                    : "Points (XP) come from finished lessons and completed tasks. Finish one lesson in this course and the list starts filling up."
                 }
               />
             )}
@@ -284,8 +284,8 @@ function LeaderboardView({
             {viewer && !viewer.eligible ? (
               <section className="rounded-[16px] border border-line bg-[#eef3f7] dark:bg-ink/10 p-4 text-sm font-bold leading-6 text-muted">
                 {locale === "sr"
-                  ? "Staff nalozi se prikazuju u zajednici, ali ne učestvuju u rangiranju."
-                  : "Staff accounts appear in the community but do not participate in rankings."}
+                  ? "Predavači i moderatori se vide u Zajednici, ali se ne rangiraju - lista je samo za studente."
+                  : "Teachers and moderators show up in the Community but are not ranked - the list is for students only."}
               </section>
             ) : null}
 
@@ -341,8 +341,8 @@ function LeaderboardView({
                 </ul>
                 <p className="mt-4 border-t border-line pt-3 text-xs font-semibold leading-5 text-muted">
                   {locale === "sr"
-                    ? "Lite i Pro imaju iste vrednosti. Staff nije rangiran. Jednaki XP deli isti rang."
-                    : "Lite and Pro use the same values. Staff is unranked. Equal XP shares the same rank."}
+                    ? "Bodovi su isti za Lite i Pro. Predavači i moderatori se ne rangiraju. Ko ima isto bodova, deli isto mesto."
+                    : "Points are the same for Lite and Pro. Teachers and moderators are not ranked. Equal points share the same place."}
                 </p>
               </div>
             </details>

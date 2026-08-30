@@ -249,8 +249,8 @@ export function ClassroomHubView({
                 <p className="mt-2 max-w-2xl text-sm font-bold leading-6 text-muted sm:text-base">
                   {tr(
                     locale,
-                    "Nema više lekcija na čekanju. Vrati se bilo kom kursu ispod da ponoviš gradivo.",
-                    "Nothing is queued up. Revisit any course below to go over the material again.",
+                    "Prošao/la si sve lekcije koje imaš. Vrati se bilo kom kursu ispod da ponoviš gradivo ili otključaj nov kurs.",
+                    "You have been through every lesson you have. Revisit any course below to go over it again, or unlock a new course.",
                   )}
                 </p>
               </div>
@@ -275,14 +275,17 @@ export function ClassroomHubView({
               ))}
             </div>
           ) : (
-            <p className="flex items-center gap-2 p-5 text-sm font-bold text-muted sm:p-6">
-              <Compass className="size-4 shrink-0 text-ink" />
-              {tr(
-                locale,
-                "Kursevi još nisu grupisani u smerove.",
-                "Courses are not grouped into tracks yet.",
-              )}
-            </p>
+            <div className="p-5 sm:p-6">
+              <EmptyState
+                icon={Compass}
+                title={tr(locale, "Smerovi još nisu napravljeni", "Tracks are not set up yet")}
+                body={tr(
+                  locale,
+                  "Smer je više kurseva poređanih redom, od početka do kraja. Dok ih nema, kurseve biraš pojedinačno — spisak je odmah ispod.",
+                  "A track is several courses lined up in order, from start to finish. Until tracks exist, pick courses one by one — the list is right below.",
+                )}
+              />
+            </div>
           )}
         </Panel>
       </section>

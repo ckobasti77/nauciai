@@ -15,6 +15,7 @@ import {
   sections,
 } from "@/components/app/chat/messages-shell";
 import { StudyHub } from "@/components/app/chat/study-hub";
+import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -91,7 +92,13 @@ export function MessagesHub({ locale, selectedConversationId }: { locale: Locale
       {view === "study" ? <StudyHub locale={locale} courseSlug={courseSlug || undefined} onCourseSlugChange={(slug) => updateParams({ course: slug || undefined })} onOpenConversation={(conversationId) => { const next = new URLSearchParams(); next.set("view", "study"); if (courseSlug) next.set("course", courseSlug); router.push(`${withLocale(locale, `/app/messages/${conversationId}`)}?${next.toString()}`); }} className="min-h-0 flex-1 overflow-y-auto" /> : <div className="flex min-h-0 min-w-0 flex-1 gap-4">
         <div className={cn("flex min-w-0 flex-1 lg:w-[340px] lg:flex-none 2xl:w-[360px]", selected && "hidden lg:flex")}><InboxPane locale={locale} selectedConversationId={selectedConversationId} section={section} query={query} onSectionChange={(nextSection) => updateParams({ section: nextSection === "all" ? undefined : nextSection })} onQueryChange={(nextQuery) => updateParams({ q: nextQuery || undefined })} onOpenStudy={() => changeView("study")} /></div>
         <div className={cn("min-h-0 min-w-0 flex-1", selected ? "flex" : "hidden lg:flex")}>
-          {selected ? <ConversationPanel key={selected} locale={locale} conversationId={selected} onBack={backToInbox} /> : <div data-chat-motion-surface="thread" className="grid h-full flex-1 place-items-center rounded-[16px] border-2 border-dashed border-line bg-paper-strong p-8 text-center"><div className="max-w-md"><span className="mx-auto grid size-16 place-items-center rounded-full border-2 border-ink bg-[#d7e9f5] dark:bg-ink/15"><BookOpenCheck className="size-7" /></span><h2 className="mt-4 text-2xl font-black">{label(locale, "Tvoj prostor za razgovor", "Your conversation space")}</h2><p className="mt-2 text-sm font-bold leading-6 text-muted">{label(locale, "Izaberi razgovor sa liste ili pronađi nekoga sa kim želiš da učiš.", "Choose a conversation from the list or find someone to study with.")}</p><div className="mt-5 flex flex-wrap justify-center gap-2"><button type="button" onClick={() => changeView("study")} className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-xs font-black"><Sparkles className="size-4" />{label(locale, "Pronađi partnera", "Find a partner")}</button><Link href={withLocale(locale, "/app/community/members")} className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 text-xs font-black"><Users className="size-4" />{label(locale, "Pregledaj članove", "Browse members")}</Link></div></div></div>}
+          {selected ? <ConversationPanel key={selected} locale={locale} conversationId={selected} onBack={backToInbox} /> : <EmptyState
+              className="h-full flex-1"
+              icon={BookOpenCheck}
+              title={label(locale, "Ovde se otvaraju tvoji razgovori", "Your conversations open here")}
+              body={label(locale, "Klikni na razgovor sa liste sa leve strane. Ako lista još nema nikoga, prvo pronađi nekoga sa kim ćeš da učiš.", "Click a conversation in the list on the left. If the list is still empty, first find someone to study with.")}
+              action={<div className="flex flex-wrap justify-center gap-2"><button type="button" onClick={() => changeView("study")} className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-xs font-black"><Sparkles className="size-4" />{label(locale, "Pronađi partnera", "Find a partner")}</button><Link href={withLocale(locale, "/app/community/members")} className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 text-xs font-black"><Users className="size-4" />{label(locale, "Pregledaj članove", "Browse members")}</Link></div>}
+            />}
         </div>
       </div>}
     </ChatMotionScope>

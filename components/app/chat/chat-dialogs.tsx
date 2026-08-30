@@ -143,7 +143,7 @@ export function ReportDialog({ locale, target, onClose }: { locale: Locale; targ
       else await reportContent({ targetType: "group", targetConversationId: target.conversationId, reason: reportReason });
       setSubmitted(true);
     } catch {
-      setError(label(locale, "Prijava nije poslata. Pokušaj ponovo.", "The report was not sent. Try again."));
+      setError(label(locale, "Prijava nije poslata. Proveri internet i pošalji je ponovo.", "The report was not sent. Check your connection and send it again."));
     } finally {
       setSubmitting(false);
     }

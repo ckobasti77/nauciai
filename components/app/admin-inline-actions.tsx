@@ -2455,6 +2455,10 @@ export function AddLessonPartAction({
   const [bodyRichEn, setBodyRichEn] = useState(initial?.bodyRich?.en || plainTextToRichText(initial?.body?.en ?? ""));
   const [file, setFile] = useState<File | null>(null);
   const [existingFileRemoved, setExistingFileRemoved] = useState(false);
+  // Potvrda u dva koraka umesto nativnog `confirm()`: ovaj blok zivi UNUTAR
+  // composer sheet-a, pa bi pravi dijalog bio modal u modalu i dve zamke fokusa
+  // bi se otimale o isti fokus. Isti obrazac koristi i uklanjanje clana grupe.
+  const [confirmRemoveFile, setConfirmRemoveFile] = useState(false);
   const [isPublished, setIsPublished] = useState(initial?.isPublished ?? true);
   const [message, setMessage] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -2681,7 +2685,8 @@ export function AddLessonPartAction({
                     required={!hasExistingFile}
                     currentFile={initial?.fileName}
                   />
-                  {lessonPartId && hasExistingFile ? <button type="button" disabled={pending} onClick={async () => { if (!confirm(t(locale, "Ukloniti fajl iz ovog bloka?", "Remove the file from this block?"))) return; setPending(true); try { await removeLessonPartFile({ lessonPartId: lessonPartId as Id<"lessonParts"> }); setExistingFileRemoved(true); setIsPublished(false); setFile(null); router.refresh(); } catch (error) { setMessage(error instanceof Error ? error.message : "Uklanjanje nije uspelo."); } finally { setPending(false); } }} className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-red-700 bg-paper-strong px-4 text-xs font-black text-red-700"><Trash2 className="size-4" />{t(locale, "Ukloni postojeći fajl", "Remove existing file")}</button> : null}
+                  {lessonPartId && hasExistingFile ? <button type="button" disabled={pending} onClick={async () => { if (!confirmRemoveFile) { setConfirmRemoveFile(true); return; } setPending(true); try { await removeLessonPartFile({ lessonPartId: lessonPartId as Id<"lessonParts"> }); setExistingFileRemoved(true); setIsPublished(false); setFile(null); setConfirmRemoveFile(false); router.refresh(); } catch (error) { setMessage(error instanceof Error ? error.message : t(locale, "Fajl nije uklonjen. Proveri internet i pokušaj ponovo.", "The file was not removed. Check your connection and try again.")); } finally { setPending(false); } }} className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-red-700 bg-paper-strong px-4 text-xs font-black text-red-700"><Trash2 className="size-4" />{confirmRemoveFile ? t(locale, "Potvrdi: obriši fajl zauvek", "Confirm: delete the file for good") : t(locale, "Ukloni postojeći fajl", "Remove existing file")}</button> : null}
+                  {confirmRemoveFile ? <p role="status" className="mt-2 text-xs font-bold text-muted">{t(locale, "Fajl se trajno briše i ne može da se vrati. Klikni dugme još jednom da potvrdiš.", "The file is deleted for good and cannot be brought back. Click the button again to confirm.")}</p> : null}
                   </div>
                 )}
               </FormSection>

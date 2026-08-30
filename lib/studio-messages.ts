@@ -436,10 +436,10 @@ export const STUDIO_TERMS_GATE: EmptyState & {
   checkbox: Record<Locale, string>;
   failed: Record<Locale, string>;
 } = {
-  title: { sr: "Još jedna stvar pre prve generacije", en: "One thing before your first generation" },
+  title: { sr: "Još jedna stvar pre nego što počneš", en: "One more thing before you start" },
   body: {
-    sr: "Studio šalje tvoj prompt i okačene fajlove provajderima modela, generiše sadržaj za koji odgovaraš ti, i naplaćuje se kreditima koji su nepovratni. Pročitaj uslove i potvrdi jednom - posle ovoga te više ne pitamo.",
-    en: "The Studio sends your prompt and uploaded files to the model providers, generates content you are responsible for, and is paid in credits that are non-refundable. Read the terms and confirm once - we will not ask again.",
+    sr: "Studio šalje tvoj opis i fajlove koje okačiš firmama koje prave ove alate, pravi sadržaj za koji odgovaraš ti, i naplaćuje se kreditima koji se ne vraćaju. Pročitaj uslove i potvrdi jednom - posle ovoga te više ne pitamo.",
+    en: "The Studio sends your description and the files you upload to the companies that make these tools, creates content you are responsible for, and is paid in credits that are not refundable. Read the terms and confirm once - we will not ask again.",
   },
   checkbox: {
     sr: "Imam 18 godina i prihvatam uslove korišćenja Studija i politiku privatnosti.",
@@ -473,7 +473,7 @@ export type EmptyStateNoCta = Pick<EmptyState, "title" | "body">;
 export const STUDIO_PAUSED: EmptyState = {
   title: { sr: "Studio je pauziran", en: "The Studio is paused" },
   body: {
-    sr: "Privremeno smo zaustavili generisanje. Krediti ti ostaju na nalogu i ništa se ne troši dok Studio ne proradi.",
+    sr: "Privremeno smo zaustavili pravljenje novih stvari. Krediti ti ostaju na nalogu i ništa se ne troši dok Studio ne proradi.",
     en: "Generation is paused for now. Your credits stay on the account and nothing is spent until the Studio is back.",
   },
   cta: { sr: "Pogledaj svoje kredite", en: "See your credits" },
@@ -493,19 +493,19 @@ export const STUDIO_NOT_ENROLLED: EmptyStateNoCta = {
 };
 
 export const STUDIO_NO_GENERATIONS: EmptyState = {
-  title: { sr: "Još nemaš nijednu generaciju", en: "No generations yet" },
+  title: { sr: "Još nisi napravio/la nijednu stvar", en: "You have not made anything yet" },
   body: {
-    sr: "Studio pravi slike, video i zvuk: izabereš model, daš mu opis i ono što treba da vidi ili čuje, i platiš kreditima tačno onoliko koliko piše na dugmetu. Gotov fajl ostaje ovde.",
-    en: "The Studio makes images, video and audio: pick a model, give it a description and whatever it needs to see or hear, and pay exactly what the button says. The finished file stays here.",
+    sr: "Studio pravi slike, video i zvuk: izabereš alat, opišeš mu šta želiš i dodaš ono što treba da vidi ili čuje. Cena u kreditima piše na dugmetu pre nego što klikneš, a gotov fajl ostaje ovde.",
+    en: "The Studio makes images, video and sound: pick a tool, describe what you want and add anything it needs to see or hear. The price in credits is on the button before you click, and the finished file stays here.",
   },
-  cta: { sr: "Ubaci prvi prompt", en: "Use a starter prompt" },
+  cta: { sr: "Počni od gotovog primera", en: "Start from a ready example" },
 };
 
 export const CREDITS_NO_BALANCE: EmptyState = {
   title: { sr: "Nemaš kredite", en: "You have no credits" },
   body: {
-    sr: "Još nemaš kredite, pa Studio ne može ništa da generiše. Paketi su odmah ispod.",
-    en: "You have no credits yet, so the Studio cannot generate anything. The packs are right below.",
+    sr: "Krediti su bodovi kojima se plaća svaka slika, video ili zvuk u Studiju. Bez njih Studio ne može ništa da napravi. Paketi su odmah ispod.",
+    en: "Credits are the points that pay for every image, video or sound in the Studio. Without them the Studio cannot make anything. The packs are right below.",
   },
   cta: { sr: "Izaberi paket", en: "Pick a pack" },
 };
@@ -513,46 +513,46 @@ export const CREDITS_NO_BALANCE: EmptyState = {
 export const CREDITS_NO_PACKS: EmptyState = {
   title: { sr: "Nijedan paket nije u prodaji", en: "No pack is on sale" },
   body: {
-    sr: "Nijedan paket trenutno nije u prodaji. Javi se podršci.",
-    en: "No pack is on sale right now. Please contact support.",
+    sr: "Nijedan paket kredita trenutno nije u prodaji. Ovo nije do tvog naloga - javi se podršci i reci šta si hteo/la da kupiš.",
+    en: "No credit pack is on sale right now. This is not about your account - contact support and tell them what you wanted to buy.",
   },
   cta: { sr: "Javi se podršci", en: "Contact support" },
 };
 
 export const CREDITS_NO_HISTORY: EmptyState = {
-  title: { sr: "Još nisi kupio kredite", en: "You have not bought any credits yet" },
+  title: { sr: "Ovde će pisati svaka kupovina i potrošnja", en: "Every purchase and spend will be listed here" },
   body: {
-    sr: "Još nisi kupio kredite.",
-    en: "You have not bought any credits yet.",
+    sr: "Još nisi kupio/la nijedan paket, pa je spisak prazan. Čim kupiš prvi paket, ovde ćeš videti kada je kupljen, koliko je koštao i na šta je potrošen.",
+    en: "You have not bought a pack yet, so the list is empty. As soon as you buy your first one, you will see here when it was bought, what it cost, and what it went on.",
   },
-  cta: { sr: "Paketi su gore", en: "The packs are up top" },
+  cta: { sr: "Paketi su na vrhu strane", en: "The packs are at the top of the page" },
 };
 
 export const GALLERY_NO_GENERATIONS: EmptyState = {
-  title: { sr: "Još nemaš nijednu generaciju", en: "No generations yet" },
+  title: { sr: "Ovde stoji sve što napraviš", en: "Everything you make is kept here" },
   body: {
-    sr: "Sve što napraviš u Studiju sleti ovde - sa promptom, modelom i cenom.",
-    en: "Everything you make in the Studio lands here - with its prompt, model and price.",
+    sr: "Svaka slika, video i zvuk iz Studija sleti ovde - zajedno sa opisom koji si napisao/la, alatom i cenom. Još nema nijedne stvari.",
+    en: "Every image, video and sound from the Studio lands here - together with the description you wrote, the tool and the price. There is nothing here yet.",
   },
   cta: { sr: "Otvori Studio", en: "Open the Studio" },
 };
 
 export const PROJECT_NO_GENERATIONS: EmptyState = {
-  title: { sr: "Još nema generacija u ovom projektu", en: "No generations in this project yet" },
+  title: { sr: "Ovaj projekat je još prazan", en: "This project is still empty" },
   body: {
-    sr: "Sve što generišeš dok je ovaj projekat izabran pojaviće se ovde.",
-    en: "Everything you generate while this project is selected will appear here.",
+    sr: "Projekat je fascikla: sve što napraviš dok je izabran skuplja se ovde, na jednom mestu.",
+    en: "A project is a folder: everything you make while it is selected is collected here, in one place.",
   },
-  cta: { sr: "Ubaci prvi prompt", en: "Use a starter prompt" },
+  cta: { sr: "Počni od gotovog primera", en: "Start from a ready example" },
 };
 
 export const GALLERY_NO_MATCHES: EmptyState = {
-  title: { sr: "Nijedna generacija ne odgovara filterima", en: "No generation matches these filters" },
+  title: { sr: "Ništa ne odgovara ovom izboru", en: "Nothing matches this selection" },
   body: {
-    sr: "Nijedna generacija ne odgovara ovim filterima.",
-    en: "No generation matches these filters.",
+    sr: "Filteri koje si uključio/la ne propuštaju nijednu tvoju stvar. Isključi ih da vidiš sve ponovo.",
+    en: "The filters you turned on do not let anything through. Turn them off to see everything again.",
   },
-  cta: { sr: "Resetuj filtere", en: "Reset filters" },
+  cta: { sr: "Isključi filtere", en: "Turn off the filters" },
 };
 
 /**

@@ -432,11 +432,11 @@ export function DashboardWindowsGrid({
       />
       <DashboardWindow
         eyebrow={tr(locale, "Zajednica", "Community")}
-        title={tr(locale, "Nove teme", "New threads")}
+        title={tr(locale, "Nove teme", "New topics")}
         icon={Users}
         badge={overview?.community.unreadNotifications}
         items={communityRows}
-        emptyTitle={tr(locale, "Još nema novih tema", "No new threads yet")}
+        emptyTitle={tr(locale, "Još nema novih tema", "No new topics yet")}
         emptyBody={tr(
           locale,
           "Postavi prvo pitanje — neko iz zajednice će ti odgovoriti.",
@@ -462,10 +462,10 @@ export function DashboardWindowsGrid({
       />
       <DashboardWindow
         eyebrow={tr(locale, "Studio", "Studio")}
-        title={tr(locale, "Poslednja generisanja", "Latest generations")}
+        title={tr(locale, "Poslednje što si napravio/la", "The last things you made")}
         icon={Sparkles}
         items={studioRows}
-        emptyTitle={tr(locale, "Još nema generisanja", "Nothing generated yet")}
+        emptyTitle={tr(locale, "Još nisi ništa napravio/la", "You have not made anything yet")}
         emptyBody={tr(
           locale,
           "Otvori Studio i napravi prvu sliku — kredite za to već imaš.",
@@ -486,7 +486,7 @@ export function DashboardWindowsGrid({
           "Nađi nekoga ko uči isto što i ti, pa idite kroz lekcije zajedno.",
           "Find someone learning the same thing and go through the lessons together.",
         )}
-        ctaLabel={tr(locale, "Otvori Study hub", "Open Study hub")}
+        ctaLabel={tr(locale, "Otvori „Uči zajedno”", "Open “Study together”")}
         ctaHref={`${messagesBase}?view=study`}
       />
       {admin ? (

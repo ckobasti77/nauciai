@@ -19,6 +19,7 @@ import {
   sections,
 } from "@/components/app/chat/chat-shared";
 import { PushNotificationButton } from "@/components/app/chat/push-notifications";
+import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -240,7 +241,13 @@ function GlobalSearchResults({
         {conversationSearch.status === "CanLoadMore" ? <button type="button" onClick={() => conversationSearch.loadMore(20)} className="w-full rounded-full border-2 border-ink bg-paper-strong px-4 py-3 text-sm font-black">{label(locale, "Učitaj još razgovora", "Load more conversations")}</button> : null}
       </div> : null}
       {loading ? <div className="grid min-h-36 place-items-center"><Loader2 className="size-6 animate-spin" /></div> : null}
-      {exhausted && !conversationRows.length && !memberRows.length ? <div className="grid min-h-52 place-items-center rounded-[16px] border-2 border-dashed border-line bg-paper-strong p-8 text-center"><div><Inbox className="mx-auto size-9 text-muted" /><p className="mt-3 text-sm font-black text-ink">{label(locale, "Nema ljudi ni razgovora za ovu pretragu.", "No people or conversations match this search.")}</p><div className="mt-4 flex flex-wrap justify-center gap-2"><button type="button" onClick={onStartConversation} className="rounded-full border-2 border-ink bg-yellow px-4 py-2 text-xs font-black">{label(locale, "Započni razgovor", "Start a conversation")}</button><button type="button" onClick={onOpenStudy} className="rounded-full border-2 border-ink bg-[#d7e9f5] dark:bg-ink/15 px-4 py-2 text-xs font-black">{label(locale, "Pronađi partnera", "Find a study partner")}</button></div></div></div> : null}
+      {exhausted && !conversationRows.length && !memberRows.length ? <EmptyState
+        className="min-h-52"
+        icon={Inbox}
+        title={label(locale, "Nema nikoga za ovu pretragu", "Nothing matches this search")}
+        body={label(locale, "Nijedan razgovor ni član ne odgovara onome što si upisao/la. Obriši reč iz pretrage ili kreni od nekog novog.", "No conversation or member matches what you typed. Clear the search word, or start with someone new.")}
+        action={<div className="flex flex-wrap justify-center gap-2"><button type="button" onClick={onStartConversation} className="rounded-full border-2 border-ink bg-yellow px-4 py-2 text-xs font-black">{label(locale, "Započni razgovor", "Start a conversation")}</button><button type="button" onClick={onOpenStudy} className="rounded-full border-2 border-ink bg-[#d7e9f5] dark:bg-ink/15 px-4 py-2 text-xs font-black">{label(locale, "Pronađi partnera", "Find a study partner")}</button></div>}
+      /> : null}
     </div>
   );
 }

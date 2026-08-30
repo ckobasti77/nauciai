@@ -471,11 +471,11 @@ export function CommunityPostEditor({
         );
         setProfileWarning(
           locale === "sr"
-            ? "Skica je sačuvana. Podesi username da bi se tred poslao na odobrenje ili objavio."
-            : "Your draft is saved. Set a username to submit or publish this thread.",
+            ? "Skica je sačuvana. Izaberi korisničko ime da bi tema mogla da se pošalje na odobrenje ili objavi."
+            : "Your draft is saved. Choose a username so this topic can be submitted or published.",
         );
         toast.warning(
-          locale === "sr" ? "Skica je sačuvana — podesi username za nastavak." : "Draft saved — set a username to continue.",
+          locale === "sr" ? "Skica je sačuvana — izaberi korisničko ime za nastavak." : "Draft saved — choose a username to continue.",
           undefined,
           {
             label: locale === "sr" ? "Podesi profil" : "Complete profile",
@@ -494,12 +494,12 @@ export function CommunityPostEditor({
           router.replace(withLocale(locale, `/app/community/${savedPostId}/edit`));
         }
       } else if (resolvedStatus === "published" && savedPostId) {
-        toast.success(locale === "sr" ? "Tred je objavljen." : "Thread published.");
-        setSuccess(locale === "sr" ? "Tred je objavljen." : "Thread published.");
+        toast.success(locale === "sr" ? "Tema je objavljena." : "Topic published.");
+        setSuccess(locale === "sr" ? "Tema je objavljena." : "Topic published.");
         window.setTimeout(() => router.push(withLocale(locale, `/app/community/${savedPostId}`)), 550);
       } else {
-        toast.success(locale === "sr" ? "Tred je poslat na odobrenje." : "Thread submitted for review.");
-        setSuccess(locale === "sr" ? "Tred je poslat na odobrenje." : "Thread submitted for review.");
+        toast.success(locale === "sr" ? "Tema je poslata na odobrenje." : "Topic submitted for review.");
+        setSuccess(locale === "sr" ? "Tema je poslata na odobrenje." : "Topic submitted for review.");
         window.setTimeout(
           () => router.push(withLocale(locale, "/app/community/my-threads?view=pending&submitted=1")),
           550,
@@ -507,11 +507,11 @@ export function CommunityPostEditor({
       }
     } catch (caughtError) {
       console.error(caughtError);
-      toast.error(locale === "sr" ? "Tred nije sačuvan." : "Thread could not be saved.");
+      toast.error(locale === "sr" ? "Tema nije sačuvana." : "The topic could not be saved.");
       setFormError(
         locale === "sr"
-          ? "Tred nije sačuvan. Sadržaj je ostao u editoru — proveri vezu i pokušaj ponovo."
-          : "The thread was not saved. Your content is still in the editor — check your connection and try again.",
+          ? "Tema nije sačuvana. Sve što si napisao/la je ostalo u polju — proveri internet i pokušaj ponovo."
+          : "The topic was not saved. Everything you wrote is still in the field — check your connection and try again.",
       );
     } finally {
       setPending(false);
@@ -531,8 +531,8 @@ export function CommunityPostEditor({
       setDeleteOpen(false);
       setFormError(
         locale === "sr"
-          ? "Tred nije obrisan. Osveži stranicu i pokušaj ponovo."
-          : "The thread was not deleted. Refresh the page and try again.",
+          ? "Tema nije obrisana. Osveži stranicu i pokušaj ponovo."
+          : "The topic was not deleted. Refresh the page and try again.",
       );
       setPending(false);
     }
@@ -558,7 +558,7 @@ export function CommunityPostEditor({
 
   if (isLoading || (isAuthenticated && (viewerData === undefined || communityFilters === undefined))) {
     return (
-      <div className="grid min-h-96 place-items-center" aria-busy="true" aria-label={locale === "sr" ? "Učitavanje editora" : "Loading editor"}>
+      <div className="grid min-h-96 place-items-center" aria-busy="true" aria-label={locale === "sr" ? "Učitavanje polja za pisanje" : "Loading the writing area"}>
         <Loader2 className="size-9 animate-spin text-yellow motion-reduce:animate-none" />
       </div>
     );
@@ -580,7 +580,7 @@ export function CommunityPostEditor({
               {locale === "sr" ? "Spusti sliku bilo gde" : "Drop the image anywhere"}
             </p>
             <p className="mt-2 text-sm font-bold opacity-75">
-              {locale === "sr" ? "Dodaćemo je kao prilog uz tred." : "We’ll add it as the thread attachment."}
+              {locale === "sr" ? "Dodaćemo je kao sliku uz temu." : "We’ll add it as the image for this topic."}
             </p>
           </div>
         </div>
@@ -592,7 +592,7 @@ export function CommunityPostEditor({
           className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line bg-paper-strong px-4 text-sm font-black text-ink transition hover:border-ink hover:bg-yellow/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         >
           <ArrowLeft className="size-4" />
-          {postId ? (locale === "sr" ? "Nazad na tred" : "Back to thread") : locale === "sr" ? "Nazad na diskusije" : "Back to discussions"}
+          {postId ? (locale === "sr" ? "Nazad na temu" : "Back to topic") : locale === "sr" ? "Nazad na diskusije" : "Back to discussions"}
         </Link>
         <SaveIndicator locale={locale} state={saveState} lastSavedAt={lastSavedAt} />
       </div>
@@ -676,7 +676,7 @@ export function CommunityPostEditor({
             <div className="space-y-7 p-5 md:p-7">
               <div>
                 <label htmlFor="community-title" className="block text-xs font-black uppercase tracking-[0.06em] text-ink/55">
-                  {locale === "sr" ? "Naslov treda" : "Thread title"}
+                  {locale === "sr" ? "Naslov teme" : "Topic title"}
                 </label>
                 <input
                   id="community-title"
@@ -924,11 +924,11 @@ export function CommunityPostEditor({
             <div className="mt-5 rounded-[12px] border border-line bg-paper/55 p-3 text-xs font-semibold leading-5 text-ink/65">
               {isStaff
                 ? locale === "sr"
-                  ? "Staff tred se objavljuje odmah."
-                  : "Staff threads publish immediately."
+                  ? "Tvoja tema se objavljuje odmah, bez provere."
+                  : "Your topic is published immediately, without review."
                 : locale === "sr"
-                  ? "Nakon slanja, moderator proverava tred pre objave."
-                  : "After submission, a moderator reviews the thread before publishing."}
+                  ? "Kad pošalješ, moderator prvo pročita temu pa je objavi."
+                  : "Once you send it, a moderator reads the topic and then publishes it."}
             </div>
           </Panel>
         </aside>
@@ -938,7 +938,7 @@ export function CommunityPostEditor({
         <div className="mb-3 min-w-0 sm:mb-0">
           <p className="text-xs font-black uppercase tracking-[0.06em] text-ink/45">{statusText(currentStatus, locale)}</p>
           <p className="mt-0.5 truncate text-sm font-bold text-ink">
-            {title.trim() || (locale === "sr" ? "Tred bez naslova" : "Untitled thread")}
+            {title.trim() || (locale === "sr" ? "Tema bez naslova" : "Untitled topic")}
           </p>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
@@ -947,7 +947,7 @@ export function CommunityPostEditor({
               type="button"
               onClick={() => setDeleteOpen(true)}
               disabled={pending}
-              aria-label={locale === "sr" ? "Obriši tred" : "Delete thread"}
+              aria-label={locale === "sr" ? "Obriši temu" : "Delete topic"}
               className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-red-200 bg-paper-strong px-3 text-red-600 transition hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 disabled:opacity-50"
             >
               <Trash2 className="size-4" />
@@ -971,8 +971,8 @@ export function CommunityPostEditor({
             {pending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
             {isStaff
               ? locale === "sr"
-                ? "Objavi tred"
-                : "Publish thread"
+                ? "Objavi temu"
+                : "Publish topic"
               : currentStatus === "changes_requested"
                 ? locale === "sr"
                   ? "Ponovo pošalji"
@@ -986,13 +986,13 @@ export function CommunityPostEditor({
 
       <ConfirmDialog
         open={deleteOpen}
-        title={locale === "sr" ? "Obrisati tred?" : "Delete thread?"}
+        title={locale === "sr" ? "Obrisati temu?" : "Delete topic?"}
         description={
           locale === "sr"
-            ? "Tred i svi komentari biće trajno uklonjeni. Ova radnja ne može da se poništi."
-            : "The thread and all comments will be permanently removed. This action cannot be undone."
+            ? "Tema i svi komentari biće trajno obrisani. Ovo ne može da se vrati."
+            : "The topic and all its comments will be permanently deleted. This cannot be undone."
         }
-        confirmLabel={locale === "sr" ? "Obriši tred" : "Delete thread"}
+        confirmLabel={locale === "sr" ? "Obriši temu" : "Delete topic"}
         cancelLabel={locale === "sr" ? "Odustani" : "Cancel"}
         closeLabel={locale === "sr" ? "Zatvori dijalog" : "Close dialog"}
         busy={pending}
@@ -1024,11 +1024,11 @@ function SaveIndicator({ locale, state, lastSavedAt }: { locale: Locale; state: 
               : "Saved on this device"
             : state === "error"
               ? locale === "sr"
-                ? "Autosave nije uspeo"
-                : "Autosave failed"
+                ? "Nije sačuvano automatski"
+                : "Automatic saving failed"
               : locale === "sr"
-                ? "Autosave je uključen"
-                : "Autosave is on";
+                ? "Čuva se automatski"
+                : "Saved automatically";
 
   return (
     <p

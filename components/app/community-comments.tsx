@@ -21,6 +21,7 @@ import Link from "next/link";
 
 import { CommunityAvatar, formatCommunityTime, type CommunityRank, type CommunityRole } from "@/components/app/community-identity";
 import { ConfirmDialog } from "@/components/ui/dialog";
+import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/components/ui/primitives";
 import { useToast } from "@/components/ui/toast-provider";
 import { api } from "@/convex/_generated/api";
@@ -113,7 +114,7 @@ export function CommentsSection({
       console.error(caughtError);
       if (String(caughtError).includes("PROFILE_INCOMPLETE")) {
         toast.warning(
-          locale === "sr" ? "Podesi username da bi komentarisao/la." : "Set a username to comment.",
+          locale === "sr" ? "Izaberi korisničko ime da bi mogao/la da komentarišeš." : "Set a username to comment.",
           undefined,
           { label: locale === "sr" ? "Otvori Profil" : "Open Profile", onClick: () => (window.location.href = withLocale(locale, "/app/profile")) },
         );
@@ -164,7 +165,7 @@ export function CommentsSection({
         </form>
       ) : isAuthenticated ? (
         <p className="rounded-[16px] border border-amber-300 bg-amber-50 px-4 py-3 text-xs font-black text-amber-900">
-          {locale === "sr" ? "Podesi username na Profilu da komentarišeš i glasaš." : "Set a username in Profile to comment and vote."}
+          {locale === "sr" ? "Izaberi korisničko ime na Profilu da bi mogao/la da komentarišeš i glasaš." : "Choose a username in Profile so you can comment and vote."}
         </p>
       ) : null}
 
@@ -173,10 +174,15 @@ export function CommentsSection({
       {commentsQuery.status === "LoadingFirstPage" ? (
         <div className="flex justify-center py-7" aria-busy="true"><Loader2 className="size-6 animate-spin text-yellow motion-reduce:animate-none" /></div>
       ) : comments.length === 0 ? (
-        <div className="rounded-[16px] border border-dashed border-ink/20 bg-paper/40 px-5 py-7 text-center">
-          <MessageCircleReply className="mx-auto size-7 text-ink/35" />
-          <p className="mt-3 text-sm font-black text-ink/60">{locale === "sr" ? "Još nema komentara. Pokreni razmenu znanja." : "No comments yet. Start the knowledge exchange."}</p>
-        </div>
+        <EmptyState
+          icon={MessageCircleReply}
+          title={locale === "sr" ? "Još nema nijednog komentara" : "No comments yet"}
+          body={
+            locale === "sr"
+              ? "Ti možeš da budeš prvi/a. Napiši šta misliš ili pitaj ono što ti nije jasno — polje za pisanje je odmah iznad."
+              : "You can be the first. Say what you think or ask what is unclear — the writing box is right above."
+          }
+        />
       ) : (
         <div className="space-y-4" aria-live="polite">
           {comments.map((comment) => (
@@ -304,7 +310,7 @@ function CommentItem({
       await navigator.clipboard.writeText(url);
       toast.success(locale === "sr" ? "Link je kopiran." : "Link copied.");
     } catch {
-      toast.error(locale === "sr" ? "Kopiranje nije uspelo." : "Copy failed.");
+      toast.error(locale === "sr" ? "Link nije kopiran. Označi adresu u vrhu pregledača i kopiraj je ručno." : "The link was not copied. Select the address at the top of the browser and copy it yourself.");
     }
   }
 

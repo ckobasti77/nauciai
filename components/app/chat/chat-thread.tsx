@@ -729,7 +729,7 @@ export function ConversationPanel({
       if (invited) await respondGroupInvite({ conversationId, accept });
       else await respondDirectRequest({ conversationId, accept });
     } catch {
-      setRequestError(label(locale, "Odgovor nije sačuvan. Pokušaj ponovo.", "Your response was not saved. Try again."));
+      setRequestError(label(locale, "Odgovor nije sačuvan. Proveri internet i pokušaj ponovo.", "Your response was not saved. Check your connection and try again."));
     } finally {
       setRequestBusy(undefined);
     }

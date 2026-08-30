@@ -8,6 +8,7 @@ import { useMutation } from "convex/react";
 import { InlineContentText } from "@/components/app/inline-content";
 import { DashboardCourseCard, type DashboardCourse } from "@/components/app/dashboard-content";
 import { InlineRichText } from "@/components/app/rich-text";
+import { ConfirmDialog } from "@/components/ui/dialog";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { findCourse } from "@/lib/content";
@@ -78,16 +79,29 @@ function TrackVideoSection({ locale, trackId, videoUrl, videoFileName, admin, ti
   const [dragging, setDragging] = useState(false);
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  // Nativni `confirm()` nije radio u tamnoj temi i nije rekao sta se tacno gubi.
+  const [confirmRemoveVideo, setConfirmRemoveVideo] = useState(false);
+
+  async function removeVideo() {
+    setPending(true);
+    try {
+      await deleteTrackVideo({ trackId: trackId as Id<"courseTracks"> });
+      setConfirmRemoveVideo(false);
+    } finally {
+      setPending(false);
+    }
+  }
+
   async function upload(file: File) {
-    if (!file.type.startsWith("video/")) { setMessage("Dozvoljen je samo video fajl."); return; }
+    if (!file.type.startsWith("video/")) { setMessage(local(locale, "Ovde ide samo video fajl (na primer .mp4). Izaberi drugi fajl.", "Only a video file goes here (for example .mp4). Choose a different file.")); return; }
     setPending(true); setMessage(null);
     try {
       const uploadUrl = await createUploadUrl();
       const response = await fetch(uploadUrl, { method: "POST", headers: { "Content-Type": file.type }, body: file });
-      if (!response.ok) throw new Error("Upload videa nije uspeo.");
+      if (!response.ok) throw new Error(local(locale, "Video nije poslat na server. Proveri internet i pokušaj ponovo.", "The video was not uploaded. Check your connection and try again."));
       const { storageId } = await response.json() as { storageId: Id<"_storage"> };
       await saveTrackVideo({ trackId: trackId as Id<"courseTracks">, storageId, fileName: file.name, byteSize: file.size, mimeType: file.type });
-    } catch (error) { setMessage(error instanceof Error ? error.message : "Upload nije uspeo."); }
+    } catch (error) { setMessage(error instanceof Error ? error.message : local(locale, "Slanje nije uspelo. Proveri internet i pokušaj ponovo.", "The upload failed. Check your connection and try again.")); }
     finally { setPending(false); }
   }
   const uploadDropped = useEffectEvent(upload);
@@ -109,9 +123,26 @@ function TrackVideoSection({ locale, trackId, videoUrl, videoFileName, admin, ti
       {videoUrl ? <video controls preload="metadata" src={videoUrl} className="aspect-video max-h-[520px] w-full bg-scrim object-contain" /> : <div className="grid aspect-video max-h-[520px] w-full place-items-center border-2 border-dashed border-ink bg-paper text-center"><div><PlayCircle className="mx-auto size-12" /><p className="mt-3 font-black">Uvodni video smera još nije dodat.</p></div></div>}
       {(shownTitle || admin) ? <div className="pointer-events-none absolute inset-x-4 bottom-4 rounded-[16px] bg-scrim/88 px-5 py-3 text-white backdrop-blur"><div className="pointer-events-auto text-xl font-black"><InlineContentText entityId={trackId} kind="track" field="pageCopy_introVideoTitle" locale={locale} sr={title?.sr ?? ""} en={title?.en ?? ""} admin={admin}>{shownTitle || "Dodaj naslov videa"}</InlineContentText></div></div> : null}
     </div>
-    {admin ? <div className="mt-3 flex flex-wrap items-center gap-2"><input ref={inputRef} type="file" accept="video/*" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file); event.target.value = ""; }} /><button type="button" disabled={pending} onClick={() => inputRef.current?.click()} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-xs font-black">{pending ? <Loader2 className="size-4 animate-spin" /> : <UploadCloud className="size-4" />}{videoUrl ? "Zameni video" : "Dodaj video"}</button>{videoUrl ? <button type="button" disabled={pending} onClick={async () => { if (!confirm("Ukloniti uvodni video smera?")) return; setPending(true); try { await deleteTrackVideo({ trackId: trackId as Id<"courseTracks"> }); } finally { setPending(false); } }} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-red-700 bg-paper-strong px-4 text-xs font-black text-red-700"><Trash2 className="size-4" />Ukloni</button> : null}<span className="text-xs font-bold text-muted">{videoFileName}</span></div> : null}
+    {admin ? <div className="mt-3 flex flex-wrap items-center gap-2"><input ref={inputRef} type="file" accept="video/*" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file); event.target.value = ""; }} /><button type="button" disabled={pending} onClick={() => inputRef.current?.click()} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-xs font-black">{pending ? <Loader2 className="size-4 animate-spin" /> : <UploadCloud className="size-4" />}{videoUrl ? "Zameni video" : "Dodaj video"}</button>{videoUrl ? <button type="button" disabled={pending} onClick={() => setConfirmRemoveVideo(true)} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-red-700 bg-paper-strong px-4 text-xs font-black text-red-700"><Trash2 className="size-4" />Ukloni</button> : null}<span className="text-xs font-bold text-muted">{videoFileName}</span></div> : null}
     {message ? <p className="mt-3 rounded-[8px] border-2 border-red-700 bg-red-50 p-3 text-sm font-black text-red-800">{message}</p> : null}
     {dragging ? <div className="fixed inset-0 z-[200] grid place-items-center bg-scrim/88 p-6 text-center text-white backdrop-blur"><div className="rounded-[16px] border-2 border-paper-strong bg-ink p-8 shadow-[8px_8px_0_var(--yellow)]"><UploadCloud className="mx-auto size-12" /><p className="mt-4 font-display text-4xl">Pusti video za ovaj smer</p></div></div> : null}
+    <ConfirmDialog
+      open={confirmRemoveVideo}
+      onClose={() => setConfirmRemoveVideo(false)}
+      onConfirm={removeVideo}
+      busy={pending}
+      destructive
+      eyebrow={local(locale, "Brisanje", "Delete")}
+      title={local(locale, "Ukloniti uvodni video smera?", "Remove the track intro video?")}
+      description={local(
+        locale,
+        "Video se trajno brise sa servera i ne moze da se vrati. Na vrhu stranice smera ostace prazan okvir dok ne dodas nov video.",
+        "The video is deleted from the server for good and cannot be brought back. The top of the track page will show an empty frame until you add a new one.",
+      )}
+      confirmLabel={local(locale, "Ukloni video", "Remove video")}
+      cancelLabel={local(locale, "Odustani", "Cancel")}
+      closeLabel={local(locale, "Zatvori", "Close")}
+    />
   </section>;
 }
 

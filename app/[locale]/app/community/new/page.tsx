@@ -9,7 +9,7 @@ import { appPageMetadata } from "@/lib/app-metadata";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
-  return appPageMetadata(locale, { sr: "Novi tred", en: "New thread" });
+  return appPageMetadata(locale, { sr: "Nova tema", en: "New topic" });
 }
 
 export default async function NewThreadPage({

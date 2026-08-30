@@ -178,13 +178,13 @@ export function ProjectPicker({
     }
   }
 
-  const allGenerationsLabel = locale === "sr" ? "Sve generacije" : "All generations";
+  const allGenerationsLabel = locale === "sr" ? "Sve što si napravio/la" : "Everything you made";
   const newProjectLabel = locale === "sr" ? "Nov projekat" : "New project";
   const activeLabel = activeProject ? activeProject.name : allGenerationsLabel;
 
   return (
     <div ref={dropdownRef} className="relative inline-block text-left">
-      {/* Okidač: Ime aktivnog projekta ili "Sve generacije" */}
+      {/* Okidač: Ime aktivnog projekta ili "Sve što si napravio/la" */}
       <button
         type="button"
         onClick={() => {

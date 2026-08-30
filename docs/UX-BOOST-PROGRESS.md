@@ -654,3 +654,136 @@ C:\Users\admin\Desktop\Web Dev Projects\nauciai\components\studio\studio-compose
 - `EmptyState` je 16px unutar kartice umesto 12px (ODLUKA 8); važi za sva tri pozivna mesta.
 - Zona D („Ritam") bez podataka i dalje ispisuje jednu rečenicu umesto `EmptyState`-a —
   namerno, van je grida koji je zadatak imenovao.
+
+---
+
+## U5 - Copy pass: srpski bez žargona, prazna stanja kroz primitiv, uvodni paneli   (2026-08-30 02:40)
+
+**Fajlovi:**
+
+*Dodato:*
+- `lib/app-intro-panels.ts` (čista logika: koji uvodni panel je zatvoren; `localStorage`, jedan ključ)
+- `lib/app-intro-panels.test.ts` (8 testova)
+- `components/app/intro-panel.tsx` (`AppIntroPanel`: ikona + naslov + rečenica + tri koraka + CTA + dugme za zatvaranje)
+
+*Izmenjeno - terminologija i mikrocopy:*
+- `app/[locale]/app/community/{new,my-threads,[postId],[postId]/edit}/page.tsx` (naslovi stranica)
+- `components/app/community-post-editor.tsx`, `community-thread-actions.tsx`, `community-thread-detail.tsx`,
+  `community-thread-moderation.tsx`, `community-comments.tsx`
+- `components/app/community-v2/{community-shell,community-discussions,community-members,community-my-threads,community-leaderboard,community-mentions,community-shared}.tsx`
+- `components/app/{dashboard-content,dashboard-windows,classroom-hub,course-player,credits-page,profile-editor,profile-setup-gate,track-experience,studio-page,studio-media-detail,admin-inline-actions}.tsx`
+- `components/app/chat/{chat-shared,chat-thread,chat-dialogs,chat-group-details,chat-inbox,messages-hub,study-hub}.tsx`
+- `components/studio/{studio-composer,studio-filter-bar,model-picker,project-picker,source-job-picker,input-capabilities}.tsx`
+- `lib/community-sections.ts` (dve nav labele), `lib/studio-messages.ts` (8 praznih stanja),
+  `lib/credits-value.ts` + `lib/credits-value.test.ts` (`imageGenerationsLabel`)
+
+**Šta je urađeno:**
+Ceo app deo je pročitan očima nekoga ko slabo poznaje računare i prepravljen na tri fronta.
+**(1) Žargon:** reč „tred" je izbačena iz srpskog jezika platforme i zamenjena rečju **„tema"** na svih
+42 mesta (na engleskom „thread" → „topic", da dva jezika ne govore o dve različite stvari);
+„username" → „korisničko ime", „workflow" → opis radnje, „scope/opseg" → „gde pripada",
+„Leaderboard" → „Rang lista", „inbox" → „sve na jednom mestu", „autosave" → „čuva se automatski",
+„upload" → „slanje slike/fajla", „Staff" → „predavači i moderatori", „XP" → „bodovi (XP)",
+a u Studiju je imenica „generacija" zamenjena onim što korisnik zaista dobija („rad", „napravljena
+slika", „sve što si napravio/la"). **(2) Prazna stanja:** četvrti i peti mehanizam iz `UX-BOOST-PLAN §6A`
+su ugašeni - `EmptyCommunityState` je sada tanak omotač oko `EmptyState` primitiva iz U2, lokalni
+`EmptyState` u `study-hub.tsx` je obrisan, a `community-comments`, `chat-inbox`, `messages-hub` i
+zona „Smerovi" u Učionici su prebačeni na primitiv sa konkretnim sledećim korakom. **(3) Potvrde i
+greške:** pronađena su tri **nativna `confirm()`** poziva koja U2 nije uhvatio (grepovao je
+`window.confirm`) - naslovna slika kursa, uvodni video smera i fajl u bloku lekcije; prva dva su sada
+`ConfirmDialog`, treći je potvrda u dva koraka (obrazloženje u ODLUCI 3). Oko 25 poruka o grešci
+je prepisano tako da kaže **šta korisnik može da uradi** i da li je nešto izgubljeno. **(4) Uvodni
+paneli:** Zajednica i Studio dobili su po jedan panel „šta je ovo / čemu služi / prva tri koraka",
+koji se zatvara i pamti u `localStorage`.
+
+**ODLUKE:**
+
+1. **„Tred" → „tema", i to i na engleskom.** Reč „tred" je transkripcija engleskog `thread` koju
+   početnik ne zna, a „diskusija" je već zauzeta za sekciju. „Tema" je obična srpska reč i lako se
+   menja po padežima koje UI koristi. Engleski sam menjao zajedno sa srpskim jer bi inače naslov
+   stranice („Tema") i dugme („Delete thread") govorili o dve različite stvari, a `en` je po pravilima
+   repoa prevod srpskog, ne zaseban proizvod.
+2. **Glagol „Generiši" NISAM menjao, samo imenicu „generacija".** Zadatak traži da se žargon zameni,
+   ali `generateButtonLabel` je pokriven sa šest tvrdnji u `lib/studio-form.test.ts` i
+   `lib/studio-gallery.test.ts`; prepravka bi značila menjanje tuđih testova zbog jedne reči, što je
+   preko granice „surgical". Umesto toga uvodni panel Studija u prve tri rečenice objasni šta to dugme
+   radi i da cena piše na njemu, a sve imenice oko njega su na srpskom („rad", „napravljena slika").
+   `imageGenerationsLabel` je izuzetak - on stoji na stranici Kredita, u fokusu ovog koraka, pa je
+   promenjen zajedno sa svoja četiri testa („1 generacija slike" → „1 napravljena slika").
+3. **Treći nativni `confirm()` je zamenjen potvrdom u dva koraka, ne dijalogom.**
+   `admin-inline-actions.tsx:2684` živi UNUTAR `AppComposerSheet`-a, koji je modal sa svojom zamkom
+   fokusa. `ConfirmDialog` bi tu bio modal u modalu i dve zamke bi se otimale o isti fokus. Zato dugme
+   prvo postane „Potvrdi: obriši fajl zauvek" uz rečenicu objašnjenja - isti obrazac koji
+   `chat-group-details.tsx` već koristi za uklanjanje člana. Druga dva `confirm()` poziva
+   (`dashboard-content.tsx`, `track-experience.tsx`) nisu u modalu i dobila su pravi `ConfirmDialog`.
+4. **Uvodni panel Studija se prikazuje samo onome ko ima pristup Studiju** (`state.hasStudioAccess`).
+   Dok traje zatvoreno testiranje (`STUDIO_NOT_ENROLLED`), uputstvo „izaberi alat i klikni dugme"
+   bilo bi obećanje bez pokrića iznad poruke koja kaže suprotno.
+5. **Uvodni panel Zajednice stoji u `CommunityShell`, dakle na svim njenim sekcijama.** Alternativa je
+   bila da se veže samo za „Diskusije", ali onda ga ne bi video niko ko u Zajednicu uđe preko
+   obaveštenja ili linka na temu - a to je čest ulaz. Panel se zatvara jednim klikom i više se ne vraća.
+6. **`localStorage`, ne kolačić.** `lib/app-sidebar-preferences.ts` koristi kolačić jer server mora da
+   zna širinu sidebara pre prvog frejma. Ovde server ništa ne treba da zna, pa bi kolačić na svakom
+   zahtevu bio čist trošak. Zadržan je oblik tog fajla (čiste `parse`/`serialize` funkcije + testovi),
+   a `window` dodiri su iza `try/catch`, po uzoru na `lib/studio-last-model.ts`.
+7. **Panel se renderuje preko `useSyncExternalStore`, ne preko `useEffect` + `setState`.**
+   Prva verzija je pala na `react-hooks` lint pravilo („Calling setState synchronously within an effect").
+   `getServerSnapshot` vraća „zatvoren", pa se panel pojavi tek posle hidracije umesto da zasvetli
+   pa nestane pred nekim ko ga je odavno zatvorio.
+8. **`EmptyCommunityState` je zadržan kao ime, ali je iznutra sada `EmptyState` primitiv.** Brisanje bi
+   značilo diranje pet pozivalaca u fajlovima koji su pisani u jednoj liniji (rizik od tihe greške u
+   JSX-u), a dobitak je isti: zajednica se više ne crta po svojim pravilima.
+9. **`public-community-comments.tsx` NISAM dirao.** To je marketing stranica javne objave, a pravila
+   run-a zabranjuju redizajn marketinga.
+10. **Prazna galerija medija u detaljima razgovora ostala je inline `<p>`.** To je traka od tri kolone
+    unutar uske fioke; `EmptyState` primitiv sa krugom od 48px i velikim paddingom bi je razvalio.
+    Popravljen je samo tekst („Zakači sliku uz poruku i pojaviće se ovde").
+11. **`admin-content-manager.tsx` i `studio-admin-page.tsx` nisu u ovom koraku.** Admin nije na listi
+    ekrana koje U5 pokriva (komandna tabla, učionica, plejer, zajednica, poruke, krediti, profil), a
+    `UX-BOOST-PLAN §3D` ga izričito vodi kao odvojen posao.
+
+**Testovi:**
+- `lib/app-intro-panels.test.ts` (novo, 8 testova): round-trip zapisa, prazan/pokvaren `localStorage`
+  ključ pada na „ništa nije zatvoreno" (a ne na pad ekrana), nepoznat id se odbacuje, zapis je uvek u
+  istom redosledu i bez duplikata, zatvaranje jednog panela ne zatvara drugi, dvostruko zatvaranje ne
+  menja ništa.
+- `lib/credits-value.test.ts` (izmenjeno, 4 tvrdnje): tvrdnje su prepisane na nov tekst
+  („1 napravljena slika" umesto „1 generacija slike"). Nijedna tvrdnja nije obrisana ni oslabljena -
+  i dalje se proverava tačno srpsko množinsko slaganje za 1 / 5 i engleska jednina/množina.
+- Postojeći `lib/studio-messages.test.ts` (17 testova) prolazi bez izmena: on tvrdi *strukturu*
+  praznih stanja (naslov i telo na oba jezika, različiti tekstovi po jeziku, `STUDIO_NOT_ENROLLED`
+  bez CTA), pa je prepisan sadržaj proverio sam sebe.
+
+**Rezultat verifikacije:**
+- `npm run typecheck` - **prošlo** (0 grešaka)
+- `npm run test` - **prošlo** (82 fajla, 1115 testova; bilo 1107, +8 novih)
+- `npm run lint` - **1 greška, ali NIJE iz ovog koraka.** Greška je
+  `components/studio/studio-composer.tsx:1112 error: routeDroppedFiles is a function created with
+  React Hook "useEffectEvent", and can only be called from Effects and Effect Events in the same
+  component (react-hooks/rules-of-hooks)`.
+  Provereno je da postoji i na `HEAD`-u: `git show HEAD:components/studio/studio-composer.tsx` je
+  snimljen u zaseban fajl, vraćen na mesto i lintovan - ista greška, isti red. Moja jedina izmena u
+  tom fajlu je jedan `aria-label` na liniji 1249. Nisam je popravljao jer bi ispravka značila
+  prekrajanje toka za prevlačenje fajlova u Studiju - nepovezan kod i rizik regresije na putanji
+  otpremanja, što pravila run-a izričito zabranjuju.
+  Greška koju je ovaj korak uveo (`intro-panel.tsx`, `setState` u efektu) je ispravljena, ne ućutkana
+  (vidi ODLUKU 7).
+
+**Za Jovana ujutru:**
+1. **Otvori Zajednicu i Studio u incognito prozoru** (ili obriši ključ `app:intro-panels-dismissed`
+   iz `localStorage`) da vidiš oba uvodna panela. Proveri da dugme „X" gore desno zaista zatvori panel
+   i da se posle osvežavanja stranice ne vrati. Proveri i u tamnoj temi.
+2. **Terminologija je promenjena na 42 mesta: „tred" → „tema".** Ako negde u tvojim beleškama,
+   mejlovima ili marketingu stoji „tred", sad se to razlikuje od aplikacije. Reci ako hoćeš drugu reč -
+   izmena je mehanička.
+3. **Dve nav labele su promenjene:** „Moji predlozi" → **„Moje teme"**, „Leaderboard" → **„Rang lista"**
+   (`lib/community-sections.ts`). To se vidi i u sidebaru i u sekcijskoj navigaciji Zajednice.
+4. **Tri nativna OS dijaloga su nestala.** Testiraj: (a) admin → kartica kursa → „Ukloni" naslovnu
+   sliku, (b) stranica smera → „Ukloni" uvodni video, (c) u composeru bloka lekcije → „Ukloni postojeći
+   fajl" (ovaj traži dva klika, drugi klik piše „Potvrdi: obriši fajl zauvek"). Sva tri sada rade i u
+   tamnoj temi.
+5. **`npm run lint` ima jednu grešku koja je bila tu i pre ovog koraka** (`studio-composer.tsx:1112`).
+   Vredi je uvrstiti u neki od narednih koraka - nije kozmetička, `useEffectEvent` pozvan iz `onChange`
+   je pravilo koje React uvodi zbog stvarnog problema sa zastarelim vrednostima.
+6. **`imageGenerationsLabel` sada piše „≈ 25 napravljenih slika"** umesto „≈ 25 generacija slika" na
+   stranici Kredita. Ako ti se ne sviđa, promena je u `lib/credits-value.ts` i njena četiri testa.

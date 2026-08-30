@@ -73,7 +73,7 @@ export function CommunityThreadActions({
     } catch (caughtError) {
       console.error(caughtError);
       setDeleteOpen(false);
-      setError(locale === "sr" ? "Tred nije obrisan. Osveži stranicu i pokušaj ponovo." : "The thread was not deleted. Refresh the page and try again.");
+      setError(locale === "sr" ? "Tema nije obrisana. Osveži stranicu i pokušaj ponovo." : "The topic was not deleted. Refresh the page and try again.");
       setBusy(null);
     }
   }
@@ -95,7 +95,7 @@ export function CommunityThreadActions({
         {canDelete ? <ActionButton icon={<Trash2 className="size-4" />} label={locale === "sr" ? "Obriši" : "Delete"} destructive disabled={busy !== null} onClick={() => setDeleteOpen(true)} /> : null}
       </div>
       {error ? <p role="alert" className="mt-3 rounded-[12px] border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-800">{error}</p> : null}
-      <ConfirmDialog open={deleteOpen} title={locale === "sr" ? "Obrisati tred?" : "Delete thread?"} description={locale === "sr" ? "Tred, komentari i reakcije biće trajno uklonjeni. Ova radnja ne može da se poništi." : "The thread, comments, and reactions will be permanently removed. This action cannot be undone."} confirmLabel={locale === "sr" ? "Obriši tred" : "Delete thread"} cancelLabel={locale === "sr" ? "Odustani" : "Cancel"} closeLabel={locale === "sr" ? "Zatvori dijalog" : "Close dialog"} busy={busy === "delete"} destructive onClose={() => setDeleteOpen(false)} onConfirm={handleDelete} />
+      <ConfirmDialog open={deleteOpen} title={locale === "sr" ? "Obrisati temu?" : "Delete topic?"} description={locale === "sr" ? "Tema, komentari i reakcije biće trajno obrisani. Ovo ne može da se vrati." : "The topic, its comments, and its reactions will be permanently deleted. This cannot be undone."} confirmLabel={locale === "sr" ? "Obriši temu" : "Delete topic"} cancelLabel={locale === "sr" ? "Odustani" : "Cancel"} closeLabel={locale === "sr" ? "Zatvori dijalog" : "Close dialog"} busy={busy === "delete"} destructive onClose={() => setDeleteOpen(false)} onConfirm={handleDelete} />
     </div>
   );
 }

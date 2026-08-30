@@ -77,7 +77,7 @@ function CheckoutAction({
     setIsPending(false);
 
     if (!response.ok || !data.url) {
-      setError(data.error ?? (locale === "sr" ? "Kupovina nije dostupna." : "Checkout is unavailable."));
+      setError(data.error ?? (locale === "sr" ? "Kupovina trenutno ne radi. Sačekaj koji minut pa pokušaj ponovo - ništa ti nije naplaćeno." : "Checkout is not working right now. Wait a minute and try again - you have not been charged."));
       setErrorCode(data.code ?? null);
       return;
     }
@@ -134,8 +134,8 @@ export function CreditsPage({ locale }: { locale: Locale }) {
       title={locale === "sr" ? "Krediti" : "Credits"}
       body={
         locale === "sr"
-          ? "Krediti pokreću Studio. Kupuju se jednom, važe 12 meseci i ne propadaju na kraju meseca."
-          : "Credits power the Studio. Bought once, valid for 12 months, and they never expire at the end of a month."
+          ? "Kredit je bod kojim se plaća svaka slika, video ili zvuk koji napraviš u Studiju. Kupuju se jednom, važe 12 meseci i ne propadaju na kraju meseca."
+          : "A credit is a point that pays for every image, video or sound you make in the Studio. Bought once, valid for 12 months, and they never expire at the end of a month."
       }
     />
   );
@@ -158,8 +158,8 @@ export function CreditsPage({ locale }: { locale: Locale }) {
         <Panel className="p-6">
           <p className="text-base font-bold text-muted">
             {locale === "sr"
-              ? "Prijavi se da bi video svoj balans i kupio kredite."
-              : "Sign in to see your balance and buy credits."}
+              ? "Prijavi se da bi video/la koliko kredita imaš i mogao/la da kupiš još."
+              : "Sign in to see how many credits you have and to buy more."}
           </p>
           <Link
             href={withLocale(locale, "/sign-in")}
@@ -189,7 +189,7 @@ export function CreditsPage({ locale }: { locale: Locale }) {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-sm font-black uppercase tracking-wide text-muted">
-              {locale === "sr" ? "Tvoj balans" : "Your balance"}
+              {locale === "sr" ? "Koliko kredita imaš" : "How many credits you have"}
             </p>
             <div className="mt-2 flex flex-wrap items-baseline gap-3">
               <span className="font-display text-6xl leading-none text-ink">
@@ -234,8 +234,8 @@ export function CreditsPage({ locale }: { locale: Locale }) {
         <h3 className="text-2xl font-black text-ink">{locale === "sr" ? "Paketi kredita" : "Credit packs"}</h3>
         <p className="mt-2 text-base font-bold text-muted">
           {locale === "sr"
-            ? "Jednokratna kupovina. Krediti stižu na nalog čim Stripe potvrdi uplatu."
-            : "A one-time purchase. Credits land on your account as soon as Stripe confirms the payment."}
+            ? "Plaćaš jednom, bez pretplate. Krediti se pojave na nalogu čim banka potvrdi uplatu - obično za par sekundi."
+            : "You pay once, with no subscription. The credits appear on your account as soon as the payment is confirmed - usually within seconds."}
         </p>
 
         {packs === undefined ? (
@@ -341,7 +341,14 @@ export function CreditsPage({ locale }: { locale: Locale }) {
 
       {/* Istorija. */}
       <Panel className="p-6">
-        <h3 className="text-2xl font-black text-ink">{locale === "sr" ? "Istorija" : "History"}</h3>
+        <h3 className="text-2xl font-black text-ink">
+          {locale === "sr" ? "Istorija kredita" : "Credit history"}
+        </h3>
+        <p className="mt-2 text-base font-bold text-muted">
+          {locale === "sr"
+            ? "Svaka kupovina i svaka potrošnja, od najnovije."
+            : "Every purchase and every spend, newest first."}
+        </p>
 
         {transactions.status === "LoadingFirstPage" ? (
           <div className="mt-5 flex min-h-24 items-center justify-center">
@@ -349,7 +356,8 @@ export function CreditsPage({ locale }: { locale: Locale }) {
           </div>
         ) : transactions.results.length === 0 ? (
           <div className="surface-inset mt-5 border-2 border-ink bg-paper p-5">
-            <p className="text-base font-bold text-muted">{CREDITS_NO_HISTORY.body[locale]}</p>
+            <p className="text-lg font-black text-ink">{CREDITS_NO_HISTORY.title[locale]}</p>
+            <p className="mt-1 text-base font-bold text-muted">{CREDITS_NO_HISTORY.body[locale]}</p>
             <Link
               href={`#${PACKS_ANCHOR}`}
               className="mt-3 inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-5 py-2.5 text-sm font-extrabold text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5"
@@ -373,7 +381,7 @@ export function CreditsPage({ locale }: { locale: Locale }) {
                           namerno tekst - link bi vodio na 404. */}
                       {transaction.jobId ? (
                         <span className="ml-2 text-xs font-bold text-muted">
-                          {locale === "sr" ? "generacija u Studiju" : "Studio generation"}
+                          {locale === "sr" ? "potrošeno u Studiju" : "spent in the Studio"}
                         </span>
                       ) : null}
                     </p>
@@ -389,7 +397,7 @@ export function CreditsPage({ locale }: { locale: Locale }) {
                       {signedAmount(transaction.amount)}
                     </span>
                     <span className="font-mono text-xs font-bold text-muted">
-                      {locale === "sr" ? "balans" : "balance"} {transaction.balanceAfter}
+                      {locale === "sr" ? "stanje posle" : "left after"} {transaction.balanceAfter}
                     </span>
                   </div>
                 </li>

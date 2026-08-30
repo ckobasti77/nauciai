@@ -101,10 +101,10 @@ test("srpska množina prati broj", () => {
   expect(videosLabel(1, "sr")).toBe("1 video klip");
   expect(videosLabel(2, "sr")).toBe("2 video klipa");
   expect(videosLabel(9, "sr")).toBe("9 video klipova");
-  expect(imageGenerationsLabel(1, "sr")).toBe("1 generacija slike");
-  expect(imageGenerationsLabel(5, "sr")).toBe("5 generacija slika");
-  expect(imageGenerationsLabel(1, "en")).toBe("1 image generation");
-  expect(imageGenerationsLabel(2, "en")).toBe("2 image generations");
+  expect(imageGenerationsLabel(1, "sr")).toBe("1 napravljena slika");
+  expect(imageGenerationsLabel(5, "sr")).toBe("5 napravljenih slika");
+  expect(imageGenerationsLabel(1, "en")).toBe("1 image you can make");
+  expect(imageGenerationsLabel(2, "en")).toBe("2 images you can make");
 });
 
 // D.1: "Isti novac u paketu daje 1650 kredita" - Creator (15 EUR) je najbolji

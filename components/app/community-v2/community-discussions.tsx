@@ -99,7 +99,7 @@ function ShareThreadButton({ locale, post }: { locale: Locale; post: CommunityPo
       }
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
-      toast.error(locale === "sr" ? "Deljenje nije uspelo." : "Sharing failed.");
+      toast.error(locale === "sr" ? "Link nije podeljen. Kopiraj adresu iz vrha pregledača i pošalji je ručno." : "The link was not shared. Copy the address from the top of the browser and send it yourself.");
     } finally {
       setBusy(false);
     }
@@ -253,7 +253,7 @@ function DiscussionsView({
       const message = String(error);
       if (message.includes("PROFILE_INCOMPLETE")) {
         toast.warning(
-          locale === "sr" ? "Podesi username da bi reagovao/la." : "Set a username to react.",
+          locale === "sr" ? "Izaberi korisničko ime da bi mogao/la da reaguješ." : "Set a username to react.",
           undefined,
           { label: locale === "sr" ? "Otvori Profil" : "Open Profile", onClick: () => (window.location.href = withLocale(locale, "/app/profile")) },
         );
@@ -268,7 +268,7 @@ function DiscussionsView({
     try {
       await onToggleFavorite(postId);
     } catch {
-      toast.error(locale === "sr" ? "Čuvanje diskusije nije uspelo." : "Saving the discussion failed.");
+      toast.error(locale === "sr" ? "Diskusija nije sačuvana. Proveri internet i pokušaj ponovo." : "The discussion was not saved. Check your connection and try again.");
     }
   }
   const pinnedIds = new Set(pinnedPosts.map((post) => post._id));
@@ -330,7 +330,7 @@ function DiscussionsView({
                 }
               }}
               aria-expanded={expandedPostId === post._id}
-              aria-label={`${expandedPostId === post._id ? (locale === "sr" ? "Sakrij komentare treda" : "Hide thread comments") : locale === "sr" ? "Prikaži komentare treda" : "Show thread comments"} (${post.commentsCount ?? 0})`}
+              aria-label={`${expandedPostId === post._id ? (locale === "sr" ? "Sakrij komentare teme" : "Hide comments on this topic") : locale === "sr" ? "Prikaži komentare teme" : "Show comments on this topic"} (${post.commentsCount ?? 0})`}
               className={cn(
                 "inline-flex min-h-11 items-center gap-1 rounded-full px-2.5 text-xs font-black text-muted transition hover:bg-ink/5 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink sm:min-h-8",
                 expandedPostId === post._id && "bg-ink/5 text-ink",
@@ -452,11 +452,11 @@ function DiscussionsView({
       ) : (
         <div className="space-y-6">
           {pinnedPosts.length ? (
-            <section className="space-y-3" aria-label={locale === "sr" ? "Zakačeni threadovi" : "Pinned threads"}>
+            <section className="space-y-3" aria-label={locale === "sr" ? "Zakačene teme" : "Pinned topics"}>
               <div className="flex items-center gap-2 px-1">
                 <Pin className="size-4 text-yellow-600" aria-hidden="true" />
                 <h2 className="text-sm font-black uppercase tracking-[0.1em] text-ink/70">
-                  {locale === "sr" ? "Zakačeni threadovi" : "Pinned threads"}
+                  {locale === "sr" ? "Zakačene teme" : "Pinned topics"}
                 </h2>
                 <span className="rounded-full bg-yellow/20 px-2 py-1 text-[10px] font-black uppercase tracking-[0.08em] text-ink/65">
                   {locale === "sr" ? "Admin izbor" : "Admin picks"}
@@ -481,8 +481,8 @@ function DiscussionsView({
               <EmptyCommunityState
                 locale={locale}
                 icon={MessageSquareText}
-                title={locale === "sr" ? "Nema drugih diskusija za ovaj izbor" : "No other discussions match this view"}
-                body={locale === "sr" ? "Promeni opseg ili pretragu, ili pokreni prvu diskusiju za ovaj kurs." : "Change the scope or search, or start the first discussion for this course."}
+                title={locale === "sr" ? "Nema nijedne teme za ovaj izbor" : "No topics match this selection"}
+                body={locale === "sr" ? "Obriši reč iz pretrage ili izaberi drugi kurs iznad. Ako je ovo baš tvoj kurs, ti otvori prvu temu." : "Clear the search word or pick a different course above. If this is your course, be the one to open the first topic."}
               />
             )}
             {canLoadMore && onLoadMore ? (

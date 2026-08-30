@@ -80,8 +80,8 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
     setSuccess(null);
     try {
       await moderatePost({ postId: postId as Id<"communityPosts">, decision: "approve" });
-      setSuccess(locale === "sr" ? "Tred je odobren i objavljen." : "The thread was approved and published.");
-      toast.success(locale === "sr" ? "Tred je odobren i objavljen." : "The thread was approved and published.");
+      setSuccess(locale === "sr" ? "Tema je odobrena i objavljena." : "The topic was approved and published.");
+      toast.success(locale === "sr" ? "Tema je odobrena i objavljena." : "The topic was approved and published.");
       if (expandedPostId === postId) setExpandedPostId(null);
     } catch (caughtError) {
       console.error(caughtError);
@@ -113,8 +113,8 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
         decision: "request_changes",
         reason: reason.trim(),
       });
-      setSuccess(locale === "sr" ? "Tred je vraćen autoru sa jasnim razlogom." : "The thread was returned to the author with a clear reason.");
-      toast.warning(locale === "sr" ? "Tred je vraćen autoru na izmenu." : "The thread was returned to the author for changes.");
+      setSuccess(locale === "sr" ? "Tema je vraćena autoru sa jasnim razlogom." : "The topic was returned to its author with a clear reason.");
+      toast.warning(locale === "sr" ? "Tema je vraćena autoru na izmenu." : "The topic was returned to its author for changes.");
       setRequestPostId(null);
       setReason("");
       setExpandedPostId(null);
@@ -189,7 +189,7 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
           <ShieldCheck className="mx-auto size-9 text-emerald-600" />
           <h2 className="mt-4 text-xl font-black text-ink">{locale === "sr" ? "Red je čist" : "The queue is clear"}</h2>
           <p className="mt-2 text-sm font-semibold text-muted">
-            {locale === "sr" ? "Nema tredova koji čekaju proveru." : "No threads are waiting for review."}
+            {locale === "sr" ? "Nema tema koje čekaju proveru." : "No topics are waiting for review."}
           </p>
         </Panel>
       ) : (
@@ -245,7 +245,7 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
                       {post.imageUrl ? (
                         <Image
                           src={post.imageUrl}
-                          alt={locale === "sr" ? "Prilog treda" : "Thread attachment"}
+                          alt={locale === "sr" ? "Slika uz temu" : "Image for this topic"}
                           width={1200}
                           height={750}
                           unoptimized
@@ -257,7 +257,7 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
                           href={withLocale(locale, `/app/community/${post._id}`)}
                           className="inline-flex min-h-10 items-center gap-2 rounded-full px-3 text-xs font-black text-ink/65 transition hover:bg-paper-strong hover:text-ink"
                         >
-                          {locale === "sr" ? "Otvori pun tred" : "Open full thread"}
+                          {locale === "sr" ? "Otvori celu temu" : "Open the full topic"}
                           <ArrowUpRight className="size-4" />
                         </Link>
                         <div className="flex flex-wrap gap-2">

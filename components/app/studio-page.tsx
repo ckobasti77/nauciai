@@ -2,12 +2,13 @@
 
 import { useConvexAuth } from "@convex-dev/auth/react";
 import { useMutation, useQuery } from "convex/react";
-import { Coins, Loader2 } from "lucide-react";
+import { Coins, Loader2, Wand2 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { AppIntroPanel } from "@/components/app/intro-panel";
 import { StudioMediaDetail } from "@/components/app/studio-media-detail";
 import { StudioMediaGrid } from "@/components/app/studio-media-grid";
 import type { StudioTileJob } from "@/components/app/studio-media-tile";
@@ -19,7 +20,7 @@ import { StudioFilterBar } from "@/components/studio/studio-filter-bar";
 import { Panel, cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { withLocale, type Locale } from "@/lib/i18n";
+import { t, withLocale, type Locale } from "@/lib/i18n";
 import { jobPrompt } from "@/lib/studio-form";
 import { type GalleryScope } from "@/lib/studio-gallery";
 import { parseStudioModel, type StudioModel, type StudioModelRow } from "@/lib/studio-models";
@@ -507,8 +508,8 @@ export function StudioPage({
       {loadedJobs.length === 0 ? (
         <p className="text-xs font-bold text-muted">
           {locale === "sr"
-            ? "Opiši šta hoćeš, izaberi model i generiši slike, video i zvuk."
-            : "Describe what you want, pick a model, and generate images, video and audio."}
+            ? "Izaberi alat, opiši šta hoćeš i klikni dugme sa cenom - dobijaš sliku, video ili zvuk."
+            : "Pick a tool, describe what you want, and click the button with the price - you get an image, a video or a sound."}
         </p>
       ) : null}
     </div>
@@ -587,9 +588,11 @@ export function StudioPage({
     if (catalog.length === 0) {
       return (
         <p className="surface-card border-2 border-ink bg-paper p-4 text-sm font-bold text-muted shadow-[6px_6px_0_0_var(--shadow-hard-16)]">
-          {locale === "sr"
-            ? "Nijedan model trenutno nije uključen. Javi se podršci."
-            : "No model is enabled right now. Please contact support."}
+          {t(
+            locale,
+            "Nijedan alat za pravljenje sadržaja trenutno nije uključen. Ovo nije do tvog naloga - probaj ponovo kasnije ili se javi podršci.",
+            "No content tool is switched on right now. This is not about your account - try again later or contact support.",
+          )}
         </p>
       );
     }
@@ -629,6 +632,36 @@ export function StudioPage({
     >
       <div className="space-y-4">
         {topbar}
+
+        {/* Uvod se pokazuje samo onome ko Studio zaista može da koristi: dok traje
+            zatvoreno testiranje, uputstvo za rad bi bilo obećanje bez pokrića. */}
+        {state?.hasStudioAccess ? (
+          <AppIntroPanel
+            id="studio"
+            locale={locale}
+            icon={Wand2}
+            title={t(locale, "Ovo je Studio", "This is the Studio")}
+            body={t(
+              locale,
+              "Ovde od opisa u rečenici dobijaš sliku, video ili zvuk. Svaki posao se plaća kreditima, a tačna cena piše na dugmetu pre nego što klikneš.",
+              "Here a sentence you write turns into an image, a video or a sound. Each job is paid in credits, and the exact price is on the button before you click.",
+            )}
+            steps={[
+              t(locale, "Izaberi šta praviš: sliku, video ili zvuk.", "Choose what you are making: an image, a video or a sound."),
+              t(locale, "Opiši šta želiš da vidiš, u par rečenica.", "Describe what you want to see, in a couple of sentences."),
+              t(locale, "Klikni dugme sa cenom — gotov fajl ostaje ovde.", "Click the button with the price — the finished file stays here."),
+            ]}
+            action={
+              <Link
+                href={creditsHref}
+                className={cn(PILL, "border-ink bg-paper-strong text-ink shadow-[3px_3px_0_0_var(--shadow-hard)]")}
+              >
+                <Coins className="size-4" aria-hidden="true" />
+                {t(locale, "Pogledaj svoje kredite", "See your credits")}
+              </Link>
+            }
+          />
+        ) : null}
 
         {/* Mreža generisanih medija sa dinamičkim donjim paddingom prema izmerenoj visini composera / sklopljene ručice */}
         <div style={{ paddingBottom: `${gridBottomPadding}px` }}>

@@ -56,6 +56,7 @@ import {
   type FirstRunSignals,
   type FirstRunStepId,
 } from "@/lib/dashboard-first-run";
+import { ConfirmDialog } from "@/components/ui/dialog";
 import { LinkButton, Panel, cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -335,6 +336,21 @@ function CourseCoverEditor({ locale, course }: { locale: Locale; course: Dashboa
   const deleteCover = useMutation(api.video.deleteCourseCover);
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  // Nativni `confirm()` je bio jedini preostali OS dijalog na komandnoj tabli:
+  // bez tokena, bez tamne teme i bez teksta koji kaze sta se tacno brise.
+  const [confirmRemoveCover, setConfirmRemoveCover] = useState(false);
+
+  async function removeCover() {
+    if (!course.id) return;
+    setPending(true);
+    try {
+      await deleteCover({ courseId: course.id as Id<"courses"> });
+      setConfirmRemoveCover(false);
+      router.refresh();
+    } finally {
+      setPending(false);
+    }
+  }
 
   async function upload(file: File) {
     if (!course.id || !file.type.startsWith("image/")) { setMessage(tr(locale, "Izaberi sliku.", "Choose an image.")); return; }
@@ -342,16 +358,32 @@ function CourseCoverEditor({ locale, course }: { locale: Locale; course: Dashboa
     try {
       const uploadUrl = await generateUploadUrl();
       const response = await fetch(uploadUrl, { method: "POST", headers: { "Content-Type": file.type }, body: file });
-      if (!response.ok) throw new Error(tr(locale, "Upload slike nije uspeo.", "Image upload failed."));
+      if (!response.ok) throw new Error(tr(locale, "Slika nije poslata na server. Proveri internet i pokušaj ponovo.", "The image was not uploaded. Check your connection and try again."));
       const { storageId } = await response.json() as { storageId: Id<"_storage"> };
       await saveCover({ courseId: course.id as Id<"courses">, storageId, fileName: file.name, byteSize: file.size, mimeType: file.type });
       router.refresh();
-    } catch (error) { setMessage(error instanceof Error ? error.message : tr(locale, "Upload nije uspeo.", "Upload failed.")); }
+    } catch (error) { setMessage(error instanceof Error ? error.message : tr(locale, "Slanje fajla nije uspelo. Proveri internet i pokušaj ponovo.", "The file was not uploaded. Check your connection and try again.")); }
     finally { setPending(false); }
   }
 
   const preview = course.coverUrl || course.image?.src;
-  return <Panel className="dashboard-reveal p-4 sm:p-5"><div className="flex flex-col gap-4 lg:flex-row lg:items-center"><div className="relative aspect-video w-full overflow-hidden rounded-[8px] border-2 border-ink bg-paper lg:w-80">{preview ? <Image src={preview} alt={localized(course.title, locale)} fill unoptimized className="object-cover" /> : <div className="grid h-full place-items-center text-sm font-black text-muted">Naslovna slika nije dodata</div>}</div><div className="flex-1"><p className="font-display text-2xl text-ink">Naslovna slika kursa</p><p className="mt-1 text-sm font-bold text-muted">Koristi se na dashboard kartici i stranici smera.</p><input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file); event.target.value = ""; }} /><div className="mt-4 flex flex-wrap gap-2"><button type="button" disabled={pending} onClick={() => inputRef.current?.click()} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-xs font-black">{pending ? <Loader2 className="size-4 animate-spin" /> : <ImageIcon className="size-4" />}{course.coverUrl ? "Zameni sliku" : "Dodaj sliku"}</button>{course.coverUrl ? <button type="button" disabled={pending} onClick={async () => { if (!course.id || !confirm("Ukloniti naslovnu sliku kursa?")) return; setPending(true); try { await deleteCover({ courseId: course.id as Id<"courses"> }); router.refresh(); } finally { setPending(false); } }} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-red-700 bg-paper-strong px-4 text-xs font-black text-red-700"><Trash2 className="size-4" />Ukloni</button> : null}</div>{message ? <p className="mt-3 text-sm font-black text-red-700">{message}</p> : null}</div></div></Panel>;
+  return <Panel className="dashboard-reveal p-4 sm:p-5"><div className="flex flex-col gap-4 lg:flex-row lg:items-center"><div className="relative aspect-video w-full overflow-hidden rounded-[8px] border-2 border-ink bg-paper lg:w-80">{preview ? <Image src={preview} alt={localized(course.title, locale)} fill unoptimized className="object-cover" /> : <div className="grid h-full place-items-center text-sm font-black text-muted">{tr(locale, "Naslovna slika nije dodata", "No cover image yet")}</div>}</div><div className="flex-1"><p className="font-display text-2xl text-ink">{tr(locale, "Naslovna slika kursa", "Course cover image")}</p><p className="mt-1 text-sm font-bold text-muted">{tr(locale, "Vidi se na kartici kursa i na stranici smera.", "Shown on the course card and on the track page.")}</p><input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file); event.target.value = ""; }} /><div className="mt-4 flex flex-wrap gap-2"><button type="button" disabled={pending} onClick={() => inputRef.current?.click()} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-xs font-black">{pending ? <Loader2 className="size-4 animate-spin" /> : <ImageIcon className="size-4" />}{course.coverUrl ? tr(locale, "Zameni sliku", "Replace image") : tr(locale, "Dodaj sliku", "Add image")}</button>{course.coverUrl ? <button type="button" disabled={pending} onClick={() => setConfirmRemoveCover(true)} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-red-700 bg-paper-strong px-4 text-xs font-black text-red-700"><Trash2 className="size-4" />{tr(locale, "Ukloni", "Remove")}</button> : null}</div>{message ? <p className="mt-3 text-sm font-black text-red-700">{message}</p> : null}</div></div><ConfirmDialog
+    open={confirmRemoveCover}
+    onClose={() => setConfirmRemoveCover(false)}
+    onConfirm={removeCover}
+    busy={pending}
+    destructive
+    eyebrow={tr(locale, "Brisanje", "Delete")}
+    title={tr(locale, "Ukloniti naslovnu sliku kursa?", "Remove the course cover image?")}
+    description={tr(
+      locale,
+      "Kurs ostaje, ali na kartici i na stranici smera vise nece imati sliku dok ne dodas novu.",
+      "The course stays, but it will have no image on its card or on the track page until you add a new one.",
+    )}
+    confirmLabel={tr(locale, "Ukloni sliku", "Remove image")}
+    cancelLabel={tr(locale, "Odustani", "Cancel")}
+    closeLabel={tr(locale, "Zatvori", "Close")}
+  /></Panel>;
 }
 
 function CourseVideoSection({ locale, isAdmin, course }: { locale: Locale; isAdmin: boolean; course: DashboardCourse }) {
@@ -404,14 +436,14 @@ function CourseVideoSection({ locale, isAdmin, course }: { locale: Locale; isAdm
         const detail = await response.text().catch(() => "");
         throw new Error(
           detail
-            ? `${tr(locale, "Upload nije uspeo", "Upload failed")}: ${detail.slice(0, 240)}`
-            : tr(locale, "Upload nije uspeo.", "Upload failed."),
+            ? `${tr(locale, "Slanje fajla nije uspelo", "The file was not uploaded")}: ${detail.slice(0, 240)}`
+            : tr(locale, "Slanje fajla nije uspelo. Proveri internet i pokušaj ponovo.", "The file was not uploaded. Check your connection and try again."),
         );
       }
 
       const { storageId } = (await response.json()) as { storageId?: Id<"_storage"> };
       if (!storageId) {
-        throw new Error(tr(locale, "Convex nije vratio storageId.", "Convex did not return a storageId."));
+        throw new Error(tr(locale, "Server nije potvrdio prijem fajla. Pokušaj da ga pošalješ ponovo.", "The server did not confirm the file. Try uploading it again."));
       }
 
       await saveCourseVideo({
@@ -425,7 +457,7 @@ function CourseVideoSection({ locale, isAdmin, course }: { locale: Locale; isAdm
       setMessage(tr(locale, "Video je uspesno sacuvan.", "Video uploaded successfully."));
       router.refresh();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : tr(locale, "Upload nije uspeo.", "Upload failed."));
+      setMessage(error instanceof Error ? error.message : tr(locale, "Slanje fajla nije uspelo. Proveri internet i pokušaj ponovo.", "The file was not uploaded. Check your connection and try again."));
       setLocalPreviewUrl(null);
     } finally {
       setIsUploading(false);
@@ -473,7 +505,7 @@ function CourseVideoSection({ locale, isAdmin, course }: { locale: Locale; isAdm
       });
       router.refresh();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : tr(locale, "Brisanje nije uspelo.", "Delete failed."));
+      setMessage(error instanceof Error ? error.message : tr(locale, "Brisanje nije uspelo. Proveri internet i pokušaj ponovo.", "Nothing was deleted. Check your connection and try again."));
     } finally {
       setIsDeleting(false);
     }
@@ -613,18 +645,18 @@ function FeaturedThreadsSection({ locale, course }: { locale: Locale; course: Da
             <div>
               <p className="text-xs font-black uppercase text-muted">{tr(locale, "Zajednica", "Community")}</p>
               <h2 className="text-2xl font-black leading-tight text-ink">
-                {tr(locale, "Featured tredovi", "Featured threads")}
+                {tr(locale, "Izdvojene teme", "Featured threads")}
               </h2>
             </div>
           </div>
           {!course.id ? (
             <p className="mt-4 max-w-3xl text-base font-bold leading-7 text-muted">
-              {tr(locale, "Featured tredovi su dostupni kada je kurs povezan sa Convex-om.", "Featured threads are available when this course is connected to Convex.")}
+              {tr(locale, "Izdvojene teme se pojavljuju kada je kurs povezan sa bazom.", "Featured threads are available when this course is connected to Convex.")}
             </p>
           ) : featuredPosts === undefined ? (
             <div className="mt-5 flex items-center gap-3 rounded-[8px] border-2 border-line bg-paper px-4 py-3 text-sm font-black text-muted">
               <Loader2 className="size-4 animate-spin" />
-              {tr(locale, "Ucitavanje threadova", "Loading threads")}
+              {tr(locale, "Ucitavanje threadova", "Loading topics")}
             </div>
           ) : posts.length ? (
             <div className="mt-5 grid gap-3 md:grid-cols-2">
@@ -662,7 +694,7 @@ function FeaturedThreadsSection({ locale, course }: { locale: Locale; course: Da
             <p className="mt-4 max-w-3xl text-base font-bold leading-7 text-muted">
               {tr(
                 locale,
-                "Za ovaj kurs jos nisu izabrani featured tredovi. Otvori zajednicu i oznaci najvaznije diskusije.",
+                "Za ovaj kurs jos nije izdvojena nijedna tema. Otvori Zajednicu i oznaci najvaznije diskusije.",
                 "No featured threads have been selected for this course yet. Open community and mark the most useful discussions.",
               )}
             </p>

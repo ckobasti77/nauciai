@@ -206,7 +206,7 @@ export function StudioFilterBar({
                 {/* 1. Pretraga po promptu (puna širina) */}
                 <div className="flex flex-col gap-1.5">
                   <label htmlFor={searchInputId} className="text-xs font-extrabold text-ink">
-                    {locale === "sr" ? "Pretraga po promptu" : "Search prompt"}
+                    {locale === "sr" ? "Pretraga po tvom opisu" : "Search by your description"}
                   </label>
                   <div className="relative flex items-center">
                     <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted" />
@@ -216,7 +216,7 @@ export function StudioFilterBar({
                       type="search"
                       value={filters.query}
                       onChange={(e) => setStudioFilters({ query: e.target.value })}
-                      placeholder={locale === "sr" ? "Pretraži promptove…" : "Search prompts…"}
+                      placeholder={locale === "sr" ? "Upiši reč iz opisa…" : "Type a word from a description…"}
                       className="h-9 w-full rounded-full border-2 border-ink/40 bg-paper pl-8.5 pr-8 text-xs font-bold text-ink outline-none placeholder:text-muted focus:border-ink studio-focus-ink"
                     />
                     {filters.query ? (

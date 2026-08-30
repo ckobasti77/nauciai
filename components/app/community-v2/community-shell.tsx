@@ -1,14 +1,15 @@
 "use client";
 
-import { CircleAlert, Sparkles } from "lucide-react";
+import { CircleAlert, MessagesSquare, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
+import { AppIntroPanel } from "@/components/app/intro-panel";
 import { SmartStickyRegion } from "@/components/ui/smart-sticky";
 import { activeCommunitySection } from "@/lib/community-sections";
 import type { Locale } from "@/lib/i18n";
-import { withLocale } from "@/lib/i18n";
+import { t, withLocale } from "@/lib/i18n";
 
 import { fallbackCommunityFilters, useCommunityFilters } from "./community-data";
 import type { CommunityFilters } from "./community-types";
@@ -28,8 +29,8 @@ const COMMUNITY_HERO_COPY: Record<string, CommunityHeroCopy> = {
     badgeEn: "AI Studio Commons",
     titleSr: "Uči javno. Napreduj zajedno.",
     titleEn: "Learn in public. Grow together.",
-    subtitleSr: "Pitaj, podeli workflow i poveži svaku diskusiju sa smerom i kursom na kom radiš.",
-    subtitleEn: "Ask, share a workflow, and connect every discussion to the track and course you are building in.",
+    subtitleSr: "Postavi pitanje, pokaži kako si nešto uradio/la i poveži svaku temu sa smerom i kursom na kom radiš.",
+    subtitleEn: "Ask a question, show how you did something, and connect every topic to the track and course you are working on.",
   },
   "my-threads": {
     badgeSr: "Moj rad na platformi",
@@ -155,6 +156,43 @@ function CommunityShellView({
         </div>
       </section>
 
+      <AppIntroPanel
+        id="community"
+        locale={locale}
+        icon={MessagesSquare}
+        title={t(locale, "Ovo je Zajednica", "This is the Community")}
+        body={t(
+          locale,
+          "Ovde pitaš kad zapneš i pokazuješ šta si uradio/la. Na svako pitanje odgovaraju drugi studenti i predavači — nema glupog pitanja.",
+          "This is where you ask when you get stuck and show what you have made. Other students and teachers answer — no question is too basic.",
+        )}
+        steps={[
+          t(
+            locale,
+            "Otvori temu koja te zanima i pročitaj odgovore.",
+            "Open a topic that interests you and read the answers.",
+          ),
+          t(
+            locale,
+            "Napiši svoje pitanje: naslov u jednoj rečenici, pa detalji.",
+            "Write your own question: a one-sentence title, then the details.",
+          ),
+          t(
+            locale,
+            "Vrati se na „Moje teme” da vidiš ko ti je odgovorio.",
+            "Come back to “My topics” to see who replied.",
+          ),
+        ]}
+        action={
+          <Link
+            href={withLocale(locale, "/app/community/new")}
+            className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-sm font-black text-ink transition hover:bg-yellow/85 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          >
+            {t(locale, "Postavi prvo pitanje", "Ask your first question")}
+          </Link>
+        }
+      />
+
       <SmartStickyRegion
         className="top-16 z-30 overflow-hidden border-b-2 border-line/75 bg-paper/95 shadow-[0_8px_18px_-16px_var(--shadow-hard-55)] backdrop-blur md:top-0"
       >
@@ -171,7 +209,7 @@ function CommunityShellView({
         >
           <span className="flex items-start gap-2">
             <CircleAlert className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
-            {locale === "sr" ? "Podesi username da bi mogao/la da objavljuješ i učestvuješ u razgovoru." : "Set a username to publish and participate in conversations."}
+            {locale === "sr" ? "Izaberi korisničko ime da bi mogao/la da objavljuješ i učestvuješ u razgovoru." : "Set a username to publish and participate in conversations."}
           </span>
           <span className="rounded-full border border-ink bg-yellow px-3 py-2 text-xs underline underline-offset-2">
             {locale === "sr" ? "Otvori Profil" : "Open Profile"}

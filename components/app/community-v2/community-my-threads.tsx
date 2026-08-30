@@ -293,17 +293,17 @@ function MyThreadsView({
                       ? "Nema započetih skica"
                       : "No drafts yet"
                     : locale === "sr"
-                      ? "Ovde trenutno nema tredova"
+                      ? "Ovde trenutno nema tema"
                       : "There are no threads here yet"
                 }
                 body={
                   viewState.view === "drafts"
                     ? locale === "sr"
-                      ? "Započni pitanje, sačuvaj ga i vrati mu se kada prikupiš dovoljno konteksta."
-                      : "Start a question, save it, and return when you have enough context."
+                      ? "Skica je pitanje koje si počeo/la da pišeš, ali ga još nisi poslao/la. Počni pitanje, sačuvaj ga i vrati mu se kad budeš imao/la vremena."
+                      : "A draft is a question you started writing but have not sent yet. Start a question, save it, and come back when you have time."
                     : locale === "sr"
-                      ? "Kada tred pređe u ovo stanje, pojaviće se ovde sa jasnom sledećom akcijom."
-                      : "When a thread reaches this state, it will appear here with a clear next action."
+                      ? "Kada neka tvoja tema dođe u ovo stanje, pojaviće se ovde sa jasnim sledećim korakom."
+                      : "When one of your topics reaches this state, it will appear here with a clear next step."
                 }
               />
             )}

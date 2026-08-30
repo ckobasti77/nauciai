@@ -209,8 +209,8 @@ export function ProfileEditor({
           text: t(
             locale,
             result.code === "not_configured"
-              ? "Slanje emaila trenutno nije podešeno. Administrator je obavešten."
-              : "Email provajder trenutno nije prihvatio poruku. Pokušaj ponovo malo kasnije.",
+              ? "Slanje emaila trenutno ne radi. Obavestili smo administratora - probaj kasnije."
+              : "Poruka trenutno ne može da se pošalje. Pokušaj ponovo za koji minut.",
             result.code === "not_configured"
               ? "Email delivery is not configured right now. The administrator has been notified."
               : "The email provider did not accept the message. Please try again shortly.",
@@ -231,7 +231,7 @@ export function ProfileEditor({
         tone: "error",
         text: t(
           locale,
-          "Verifikacioni email nije poslat. Proveri vezu i pokušaj ponovo.",
+          "Email nije poslat. Proveri internet i pokušaj ponovo.",
           "The verification email was not sent. Check your connection and try again.",
         ),
       });
@@ -276,10 +276,10 @@ export function ProfileEditor({
 
   function validateAvatarFile(file: File) {
     if (!file.type.startsWith("image/")) {
-      throw new Error(t(locale, "Avatar mora da bude slika.", "Avatar must be an image."));
+      throw new Error(t(locale, "Za sliku profila izaberi fajl slike (na primer .jpg ili .png).", "For a profile picture choose an image file (for example .jpg or .png)."));
     }
     if (file.size > MAX_AVATAR_BYTES) {
-      throw new Error(t(locale, "Avatar mora da bude manji od 5MB.", "Avatar must be smaller than 5MB."));
+      throw new Error(t(locale, "Slika je prevelika. Izaberi sliku manju od 5 MB.", "That image is too large. Choose one under 5 MB."));
     }
   }
 
@@ -300,14 +300,14 @@ export function ProfileEditor({
         tone: "success",
         text: t(
           locale,
-          "Slika je spremna. Sacuvaj izmene da postavis novi avatar.",
-          "Image ready. Save changes to apply your new avatar.",
+          "Slika je spremna. Klikni „Sačuvaj izmene” da postane tvoja nova slika profila.",
+          "The image is ready. Click “Save changes” to make it your new profile picture.",
         ),
       });
     } catch (error) {
       setMessage({
         tone: "error",
-        text: error instanceof Error ? error.message : t(locale, "Upload nije uspeo.", "Upload failed."),
+        text: error instanceof Error ? error.message : t(locale, "Slanje slike nije uspelo. Proveri internet i pokušaj ponovo.", "The image was not uploaded. Check your connection and try again."),
       });
     }
   }
@@ -421,14 +421,14 @@ export function ProfileEditor({
       const detail = await upload.text().catch(() => "");
       throw new Error(
         detail
-          ? `${t(locale, "Upload nije uspeo", "Upload failed")}: ${detail.slice(0, 220)}`
-          : t(locale, "Upload nije uspeo.", "Upload failed."),
+          ? `${t(locale, "Slanje slike nije uspelo", "The image was not uploaded")}: ${detail.slice(0, 220)}`
+          : t(locale, "Slanje slike nije uspelo. Proveri internet i pokušaj ponovo.", "The image was not uploaded. Check your connection and try again."),
       );
     }
 
     const result = (await upload.json()) as { storageId?: Id<"_storage"> };
     if (!result.storageId) {
-      throw new Error(t(locale, "Convex nije vratio storageId.", "Convex did not return a storageId."));
+      throw new Error(t(locale, "Server nije potvrdio prijem slike. Pokušaj da je pošalješ ponovo.", "The server did not confirm the image. Try uploading it again."));
     }
     return result.storageId;
   }
@@ -444,7 +444,7 @@ export function ProfileEditor({
       const trimmedFirstName = firstName.trim();
       const trimmedLastName = lastName.trim();
       if (!trimmedFirstName || !trimmedLastName) {
-        throw new Error(t(locale, "Ime i prezime su obavezni.", "First and last name are required."));
+        throw new Error(t(locale, "Upiši ime i prezime - bez njih ne možemo da sačuvamo profil.", "Enter your first and last name - we cannot save the profile without them."));
       }
 
       const wantsNewPassword = Boolean(newPassword || confirmPassword);
@@ -462,7 +462,7 @@ export function ProfileEditor({
           );
         }
         if (newPassword !== confirmPassword) {
-          throw new Error(t(locale, "Lozinke se ne poklapaju.", "Passwords do not match."));
+          throw new Error(t(locale, "Dve lozinke nisu iste. Upiši istu lozinku u oba polja.", "The two passwords are not the same. Type the same password in both fields."));
         }
       }
 
@@ -509,8 +509,8 @@ export function ProfileEditor({
             : withLocale(locale, "/app/community/my-threads?view=pending&submitted=1");
         toast.success(
           resumed.status === "published"
-            ? t(locale, "Profil je sačuvan i tred je objavljen.", "Profile saved and thread published.")
-            : t(locale, "Profil je sačuvan i tred je poslat na odobrenje.", "Profile saved and thread submitted for review."),
+            ? t(locale, "Profil je sačuvan i tema je objavljena.", "Profile saved and thread published.")
+            : t(locale, "Profil je sačuvan i tema je poslata na odobrenje.", "Profile saved and thread submitted for review."),
         );
         router.push(destination);
         router.refresh();
@@ -535,7 +535,7 @@ export function ProfileEditor({
       }
     } catch (error) {
       if (passwordActionAttempted) {
-        const detail = error instanceof Error ? error.message : t(locale, "Greška pri čuvanju lozinke.", "Password save failed.");
+        const detail = error instanceof Error ? error.message : t(locale, "Lozinka nije sačuvana. Pokušaj ponovo za koji trenutak.", "The password was not saved. Try again in a moment.");
         toast.error(t(locale, "Profil je sačuvan, ali lozinka nije sačuvana.", "Profile saved, but the password was not saved."));
         setMessage({
           tone: "error",
@@ -546,7 +546,7 @@ export function ProfileEditor({
       toast.error(
         profileSaved
           ? t(locale, "Profil je sačuvan, ali nastavak nije uspeo.", "Profile saved, but the next action failed.")
-          : t(locale, "Čuvanje profila nije uspelo.", "Profile save failed."),
+          : t(locale, "Profil nije sačuvan. Proveri internet i pokušaj ponovo - ništa nije izgubljeno.", "The profile was not saved. Check your connection and try again - nothing is lost."),
       );
       setMessage({
         tone: "error",
@@ -573,12 +573,12 @@ export function ProfileEditor({
               <UploadCloud className="size-8" />
             </span>
             <p className="mt-4 text-2xl font-black leading-tight text-ink">
-              {t(locale, "Pusti sliku bilo gde da postavis avatar", "Drop anywhere to set your avatar")}
+              {t(locale, "Pusti sliku bilo gde na ekranu", "Drop anywhere to set your avatar")}
             </p>
             <p className="mt-3 text-sm font-bold leading-6 text-ink/80">
               {t(
                 locale,
-                "Ceo ekran je aktivan. Kada pustis sliku, odmah ce se prikazati kao novi avatar.",
+                "Kad pustiš sliku, odmah ćeš videti kako izgleda kao tvoja slika profila.",
                 "The whole screen is active. When you release the image, it will immediately preview as your new avatar.",
               )}
             </p>
@@ -591,11 +591,11 @@ export function ProfileEditor({
           <div>
             <p className="font-black">
               {resumePostId
-                ? t(locale, "Podesi username da nastaviš objavu skice.", "Set a username to continue publishing this draft.")
-                : t(locale, "Profil nije kompletan za rad u Zajednici.", "Your profile is not complete for Community yet.")}
+                ? t(locale, "Izaberi korisničko ime da nastaviš objavu skice.", "Set a username to continue publishing this draft.")
+                : t(locale, "Fali ti još korisničko ime da bi mogao/la da pišeš u Zajednici.", "You still need a username before you can post in the Community.")}
             </p>
             <p className="mt-1 text-xs font-semibold leading-5 text-ink/75">
-              {t(locale, "Username je jedini obavezni podatak i koristi se za @pominjanja.", "Username is the only required field and powers @mentions.")}
+              {t(locale, "Korisničko ime je jedino što moraš da izabereš. Po njemu te drugi pominju u Zajednici.", "A username is the only thing you must choose. Others use it to mention you in the Community.")}
             </p>
           </div>
         </div>
@@ -741,7 +741,7 @@ export function ProfileEditor({
               <Field
                 className="sm:col-span-2"
                 label={t(locale, "Korisnicko ime (Jedinstveno)", "Username (Unique)")}
-                hint={t(locale, "Korisničko ime mora imati između 3 i 20 znakova, najmanje 3 slova, i može sadržati samo slova, cifre, tačku i donju crtu. Koristi se za pominjanje u zajednici (@username).", "Username must be 3–20 characters, contain at least 3 letters, and use only letters, numbers, periods, and underscores. Used for mentions (@username).")}
+                hint={t(locale, "Od 3 do 20 znakova, najmanje 3 slova. Dozvoljeni su slova, cifre, tačka i donja crta. Drugi te ovako pominju u Zajednici.", "From 3 to 20 characters, with at least 3 letters. Letters, numbers, periods and underscores only. This is how others mention you in the Community.")}
               >
                 {(field) => (
                   <div className="relative">
@@ -859,7 +859,7 @@ export function ProfileEditor({
                       label={<span className="text-xs font-black uppercase text-ink/70">{t(locale, "Potvrdi lozinku", "Confirm password")}</span>}
                       error={
                         confirmPassword && newPassword !== confirmPassword
-                          ? t(locale, "Lozinke se ne poklapaju.", "Passwords do not match.")
+                          ? t(locale, "Dve lozinke nisu iste. Upiši istu lozinku u oba polja.", "The two passwords are not the same. Type the same password in both fields.")
                           : undefined
                       }
                     >

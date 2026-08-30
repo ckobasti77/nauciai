@@ -63,8 +63,8 @@ export function creationError(locale: Locale, error: unknown) {
   const message = error instanceof Error ? error.message : "";
   if (message.includes("DM_PRIVACY")) return t(locale, "Ovaj član trenutno ne prima nove poruke.", "This member is not accepting new messages right now.");
   if (message.includes("CHAT_BLOCKED")) return t(locale, "Razgovor nije dostupan zbog blokiranja.", "This conversation is unavailable because of a block.");
-  if (message.includes("RATE_LIMIT")) return t(locale, "Previše poziva odjednom. Pokušaj ponovo kasnije.", "Too many invites at once. Try again later.");
-  return t(locale, "Razgovor nije mogao da se kreira. Pokušaj ponovo.", "The conversation could not be created. Try again.");
+  if (message.includes("RATE_LIMIT")) return t(locale, "Poslao/la si previše poziva u kratkom roku. Sačekaj par minuta pa pokušaj ponovo.", "You have sent too many invites in a short time. Wait a few minutes and try again.");
+  return t(locale, "Razgovor nije otvoren. Proveri internet i pokušaj ponovo.", "The conversation did not open. Check your connection and try again.");
 }
 
 // Codes thrown by api.chat.sendMessage. Kept separate from creationError, whose
@@ -72,7 +72,7 @@ export function creationError(locale: Locale, error: unknown) {
 // only reachable from the invite path.
 export function sendError(locale: Locale, error: unknown) {
   const message = error instanceof Error ? error.message : "";
-  if (message.includes("CHAT_SUSPENDED")) return t(locale, "Slanje poruka ti je privremeno onemogućeno.", "Sending messages is temporarily disabled for you.");
+  if (message.includes("CHAT_SUSPENDED")) return t(locale, "Slanje poruka ti je privremeno zaustavljeno. Ako misliš da je ovo greška, javi se podršci preko Pomoći.", "Sending messages is paused for your account. If you think this is a mistake, contact support through Help.");
   if (message.includes("CHAT_BLOCKED")) return t(locale, "Razgovor nije dostupan zbog blokiranja.", "This conversation is unavailable because of a block.");
   if (message.includes("REQUEST_DECLINED")) return t(locale, "Zahtev za razgovor je odbijen.", "The conversation request was declined.");
   if (message.includes("REQUEST_MESSAGE_LIMIT")) return t(locale, "Sačekaj da član prihvati razgovor pre nego što pošalješ još poruka.", "Wait for the member to accept before sending more messages.");
@@ -80,7 +80,7 @@ export function sendError(locale: Locale, error: unknown) {
   if (message.includes("IMAGES_TOO_LARGE")) return t(locale, "Slike u jednoj poruci mogu imati ukupno najviše 25 MB.", "Images in one message may total at most 25 MB.");
   if (message.includes("TOO_MANY_IMAGES")) return t(locale, "Jedna poruka može imati najviše četiri slike.", "A message can contain up to four images.");
   if (message.includes("INVALID_PREPARED_IMAGE")) return t(locale, "Slika više nije spremna za slanje. Dodaj je ponovo.", "The image is no longer ready to send. Add it again.");
-  return t(locale, "Poruka nije poslata. Pokušaj ponovo.", "The message was not sent. Try again.");
+  return t(locale, "Poruka nije poslata. Tekst ti je ostao u polju - proveri internet i pošalji ponovo.", "The message was not sent. Your text is still in the box - check your connection and send it again.");
 }
 
 const OPTIMISTIC_PREFIX = "optimistic:";
