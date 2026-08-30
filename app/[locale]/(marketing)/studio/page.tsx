@@ -108,10 +108,19 @@ function MechanismSketch({ locale }: { locale: Locale }) {
       }
       className="h-auto w-full text-ink"
     >
-      {/* Kartica sa promptom */}
+      {/* Kartica sa promptom. `textLength` drži rukopis unutar okvira na OBA
+          jezika - EN string je duži od unutrašnjosti kartice (finish review). */}
       <g>
         <rect x="10" y="18" width="188" height="74" rx="10" fill="var(--paper-strong)" stroke="currentColor" strokeWidth="3" />
-        <text x="24" y="50" className="font-display" fontSize="21" fill="currentColor">
+        <text
+          x="24"
+          y="50"
+          className="font-display"
+          fontSize="21"
+          fill="currentColor"
+          textLength="160"
+          lengthAdjust="spacingAndGlyphs"
+        >
           {promptText}
         </text>
         <path d="M24 66 q 40 8 78 2 t 76 -2" fill="none" stroke="var(--yellow)" strokeWidth="5" strokeLinecap="round" />
@@ -136,10 +145,13 @@ function MechanismSketch({ locale }: { locale: Locale }) {
         <path d="M228 252 q 8 -18 24 -10 q 4 -10 12 -2 q 14 -4 10 12 q 6 8 -8 8 l -30 0 q -12 -2 -8 -8 Z" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinejoin="round" />
         <path d="M240 240 l 4 -8 l 6 7" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
       </g>
-      {/* Cena na žutoj piluli */}
-      <g>
-        <rect x="238" y="278" width="106" height="30" rx="15" fill="var(--yellow)" stroke="currentColor" strokeWidth="3" transform="rotate(-3 291 293)" />
-        <text x="291" y="298" textAnchor="middle" fontSize="15" fontWeight="900" fill="currentColor" transform="rotate(-3 291 293)">
+      {/* Cena na žutoj piluli. Klasa `bg-yellow` NE boji SVG - tu je zbog
+          žutog ostrva (globals.css): re-skopira --ink na tamnomastilo, pa je
+          tekst čitljiv na žutoj i U TAMNOJ temi (finish review nalaz 1 -
+          currentColor bi u dark bio papirno svetao, ~1.5:1). */}
+      <g className="bg-yellow">
+        <rect x="238" y="278" width="106" height="30" rx="15" fill="var(--yellow)" stroke="var(--ink)" strokeWidth="3" transform="rotate(-3 291 293)" />
+        <text x="291" y="298" textAnchor="middle" fontSize="15" fontWeight="900" fill="var(--ink)" transform="rotate(-3 291 293)">
           {priceText}
         </text>
       </g>
