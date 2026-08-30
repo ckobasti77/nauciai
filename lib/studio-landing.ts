@@ -90,6 +90,10 @@ export const STUDIO_LANDING = {
     sr: "25 kredita na poklon kad potvrdiš email — dovoljno za prve dve-tri slike.",
     en: "25 credits as a gift once you confirm your email — enough for your first two or three images.",
   },
+  heroVideoAlt: {
+    sr: "Petlja AI generisanja slike, videa i zvuka u Studiju",
+    en: "Loop of AI image, video and sound generation in the Studio",
+  },
   crossSell: {
     sr: "Nauči kako ovo da radiš → kursevi",
     en: "Learn how to make this → courses",

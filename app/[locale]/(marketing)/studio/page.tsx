@@ -11,7 +11,10 @@
  * STORY: posetilac shvati šta Studio pravi i koliko košta, poveruje jer su
  *   cene žive iz baze (ne obećanja), i klikne „Probaj besplatno" (25 kr poklon).
  * FIRST VIEWPORT: levo naslov + rukopisno podvlačenje + CTA red + bonus red;
- *   desno autorska SVG skica mehanizma u dva plutajuća panela.
+ *   desno HeroLoop video petlja (autoplay/muted/loop, reduced-motion → mirna
+ *   slika) u sketch-float Panel-u plus plutajući panel „Bez pretplate" — dva
+ *   plutajuća panela i dalje; autorska SVG skica mehanizma premeštena je u
+ *   sekciju „Šta Studio pravi" kao ilustracija „kako radi".
  * FORM: nasleđena hero gramatika sa marketing home-a (split 1.02/0.98,
  *   sketch-float paneli) — incumbent kompozicija, svesno.
  * FINISH: unreviewed and undocumented is unfinished; this build ends with the
@@ -25,6 +28,7 @@ import Link from "next/link";
 
 import { ThemeToggle } from "@/components/app/theme-toggle";
 import { AccountMenu } from "@/components/marketing/account-menu";
+import { HeroLoop } from "@/components/marketing/hero-loop";
 import { HeroMotion } from "@/components/marketing/hero-motion";
 import {
   BrandMark,
@@ -257,8 +261,8 @@ export default async function StudioLandingPage({
               </div>
 
               <div className="relative min-h-[420px]" aria-hidden={false}>
-                <Panel className="sketch-float absolute right-0 top-0 w-[88%] p-4">
-                  <MechanismSketch locale={locale} />
+                <Panel className="sketch-float absolute right-0 top-0 w-[88%] p-3">
+                  <HeroLoop label={STUDIO_LANDING.heroVideoAlt[locale]} />
                 </Panel>
                 <Panel className="sketch-float absolute bottom-0 left-0 w-[58%] bg-paper-strong p-5">
                   <div className="flex items-start gap-4">
@@ -286,36 +290,46 @@ export default async function StudioLandingPage({
         <section className="border-b-2 border-ink bg-paper-strong px-4 py-16 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-7xl">
             <SectionHeader title={STUDIO_LANDING.kindsTitle[locale]} />
-            <div className="mt-10 space-y-6">
-              {kinds.map(({ key, icon: Icon, price }, index) => (
-                <div
-                  key={key}
-                  className={cn(
-                    "max-w-3xl",
-                    index === 1 && "lg:ml-24",
-                    index === 2 && "lg:ml-48",
-                  )}
-                >
-                  <Panel className="flex flex-wrap items-start gap-4 p-5 sm:flex-nowrap sm:p-6">
-                    <SketchIcon>
-                      <Icon className="size-5" />
-                    </SketchIcon>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-display text-3xl text-ink">
-                        {STUDIO_LANDING.kinds[key].title[locale]}
-                      </p>
-                      <p className="mt-1.5 text-base font-bold leading-7 text-muted">
-                        {STUDIO_LANDING.kinds[key].body[locale]}
-                      </p>
-                    </div>
-                    {price !== null ? (
-                      <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border-2 border-ink bg-yellow px-3 py-1.5 text-sm font-black text-ink">
-                        {STUDIO_LANDING.priceFrom[locale]} {price} {STUDIO_LANDING.credits[locale]}
-                      </span>
-                    ) : null}
-                  </Panel>
+            <div className="mt-10 grid gap-10 lg:grid-cols-[1fr_300px] lg:items-start">
+              <div className="space-y-6">
+                {kinds.map(({ key, icon: Icon, price }, index) => (
+                  <div
+                    key={key}
+                    className={cn(
+                      "max-w-3xl",
+                      index === 1 && "lg:ml-24",
+                      index === 2 && "lg:ml-48",
+                    )}
+                  >
+                    <Panel className="flex flex-wrap items-start gap-4 p-5 sm:flex-nowrap sm:p-6">
+                      <SketchIcon>
+                        <Icon className="size-5" />
+                      </SketchIcon>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-display text-3xl text-ink">
+                          {STUDIO_LANDING.kinds[key].title[locale]}
+                        </p>
+                        <p className="mt-1.5 text-base font-bold leading-7 text-muted">
+                          {STUDIO_LANDING.kinds[key].body[locale]}
+                        </p>
+                      </div>
+                      {price !== null ? (
+                        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border-2 border-ink bg-yellow px-3 py-1.5 text-sm font-black text-ink">
+                          {STUDIO_LANDING.priceFrom[locale]} {price} {STUDIO_LANDING.credits[locale]}
+                        </span>
+                      ) : null}
+                    </Panel>
+                  </div>
+                ))}
+              </div>
+              <Panel className="sketch-float p-5">
+                <p className="font-display text-xl text-ink">
+                  {locale === "sr" ? "Kako radi" : "How it works"}
+                </p>
+                <div className="mt-4">
+                  <MechanismSketch locale={locale} />
                 </div>
-              ))}
+              </Panel>
             </div>
           </div>
         </section>

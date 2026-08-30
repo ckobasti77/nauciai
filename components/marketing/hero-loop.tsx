@@ -7,7 +7,10 @@ import { useSyncExternalStore } from "react";
  * Hero video petlja. Podrazumevano se renderuje `<video>` (autoplay/muted/loop/playsinline,
  * `preload="none"` + poster, pa se ništa teško ne skida do reprodukcije). Uz
  * `prefers-reduced-motion` ILI data-saver (`navigator.connection.saveData`) prelazi na
- * mirnu `hero.png` sliku.
+ * mirnu fallback sliku.
+ *
+ * Src-ovi idu kroz props (podrazumevano marketing home hero) da bi ista komponenta
+ * mogla da nosi drugi loop na drugim javnim stranicama (npr. Studio).
  *
  * `useSyncExternalStore` čita okruženje bez `setState`-a u efektu: server snapshot je uvek
  * `false` (SSR renderuje video, isto kao prvi klijentski kadar → nema hydration nesklada),
@@ -39,14 +42,26 @@ function getServerSnapshot(): boolean {
   return false;
 }
 
-export function HeroLoop({ label }: { label: string }) {
+export function HeroLoop({
+  label,
+  webmSrc = "/images/landing/hero-loop.webm",
+  mp4Src = "/images/landing/hero-loop.mp4",
+  posterSrc = "/images/landing/hero-poster.png",
+  fallbackSrc = "/images/landing/hero.png",
+}: {
+  label: string;
+  webmSrc?: string;
+  mp4Src?: string;
+  posterSrc?: string;
+  fallbackSrc?: string;
+}) {
   const stillOnly = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
   return (
     <div className="relative aspect-[16/9] overflow-hidden rounded-[8px] border-2 border-ink bg-paper">
       {stillOnly ? (
         <Image
-          src="/images/landing/hero.png"
+          src={fallbackSrc}
           alt={label}
           fill
           sizes="(min-width: 1024px) 44vw, 100vw"
@@ -61,11 +76,11 @@ export function HeroLoop({ label }: { label: string }) {
           loop
           playsInline
           preload="none"
-          poster="/images/landing/hero-poster.png"
+          poster={posterSrc}
           aria-label={label}
         >
-          <source src="/images/landing/hero-loop.webm" type="video/webm" />
-          <source src="/images/landing/hero-loop.mp4" type="video/mp4" />
+          <source src={webmSrc} type="video/webm" />
+          <source src={mp4Src} type="video/mp4" />
         </video>
       )}
     </div>
