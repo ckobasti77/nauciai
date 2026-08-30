@@ -186,7 +186,19 @@ export function ClassroomHubView({
           više NE zamenjuje celu stranicu: katalog ispod je jedini razlog zbog kog
           taj student uopšte otvara Učionicu. */}
       {ownedEntries.length === 0 ? (
-        <DashboardFirstRun locale={locale} profileName={profileName} />
+        <DashboardFirstRun
+          locale={locale}
+          profileName={profileName}
+          // `hasCommunityPost` namerno izostaje: `getAppNavigation` taj podatak nema,
+          // a Učionica zbog jednog čekboksa ne otvara drugi upit. Korak tada stoji
+          // neoštikliran (vidi `lib/dashboard-first-run.ts`).
+          signals={{
+            hasUnlockedCourse: false,
+            // Preko SVIH vidljivih kurseva, ne samo otključanih — isto kao
+            // `overview.progress.completedLessons` na komandnoj tabli.
+            completedLessons: entries.reduce((sum, entry) => sum + entry.summary.completedLessons, 0),
+          }}
+        />
       ) : (
         <section
           data-motion="hero"

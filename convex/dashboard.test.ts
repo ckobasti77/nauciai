@@ -155,6 +155,7 @@ test("prazan korisnik → sve liste prazne, percent 0, admin null", async () => 
   expect(result?.studio.creditsBalance).toBe(0);
   expect(result?.study).toEqual({ pendingInvites: 0, partners: 0 });
   expect(result?.leaderboard).toBeNull();
+  expect(result?.firstRun).toEqual({ hasUnlockedCourse: false, hasCommunityPost: false });
   expect(result?.admin).toBeNull();
 });
 
@@ -195,4 +196,195 @@ test("admin dobija pendingApprovals", async () => {
   expect(result?.admin).not.toBeNull();
   expect(result?.admin?.pendingApprovals).toBeGreaterThanOrEqual(1);
   expect(result?.admin?.readiness.ready).toBe(true);
+});
+
+// ── firstRun: signali za checklist prvih koraka (U4) ─────────────────────────
+// Ovo su jedina dva podatka koja pozdravni hero na `/app` ne može da izvede iz
+// onoga što je agregat već nosio; bez njih bi se koraci „štiklirali" iz
+// pretpostavke.
+
+async function seedCourse(t: TestConvexWithSchema, slug = "kurs") {
+  return t.run((ctx) =>
+    ctx.db.insert("courses", {
+      slug,
+      titleSr: "Osnove",
+      titleEn: "Basics",
+      subtitleSr: "Podnaslov",
+      subtitleEn: "Subtitle",
+      descriptionSr: "Opis",
+      descriptionEn: "Description",
+      status: "published" as const,
+      sortOrder: 10,
+      updatedAt: 1,
+    }),
+  );
+}
+
+test("firstRun: aktivan upis → hasUnlockedCourse true", async () => {
+  const t = createTest();
+  const userId = await seedUser(t);
+  const courseId = await seedCourse(t);
+  await t.run((ctx) =>
+    ctx.db.insert("enrollments", { userId, courseId, status: "active", startedAt: 1, updatedAt: 1 }),
+  );
+
+  const result = await asUser(t, userId).query(api.dashboard.getDashboardOverview, {});
+  expect(result?.firstRun.hasUnlockedCourse).toBe(true);
+});
+
+test("firstRun: blokiran upis se ne broji kao otključan kurs", async () => {
+  const t = createTest();
+  const userId = await seedUser(t);
+  const courseId = await seedCourse(t);
+  await t.run((ctx) =>
+    ctx.db.insert("enrollments", { userId, courseId, status: "blocked", startedAt: 1, updatedAt: 1 }),
+  );
+
+  const result = await asUser(t, userId).query(api.dashboard.getDashboardOverview, {});
+  expect(result?.firstRun.hasUnlockedCourse).toBe(false);
+});
+
+test("firstRun: staff ima otključan kurs i bez upisa", async () => {
+  const t = createTest();
+  const userId = await seedUser(t, { email: "pro@example.com", role: "pro_student" });
+  await seedCourse(t);
+
+  const result = await asUser(t, userId).query(api.dashboard.getDashboardOverview, {});
+  expect(result?.firstRun.hasUnlockedCourse).toBe(true);
+});
+
+test("firstRun: sopstvena objava → hasCommunityPost true", async () => {
+  const t = createTest();
+  const userId = await seedUser(t);
+  await t.run((ctx) =>
+    ctx.db.insert("communityPosts", {
+      authorId: userId,
+      language: "sr",
+      title: "Moje pitanje",
+      body: "Tekst",
+      visibility: "members",
+      status: "published",
+      createdAt: 1,
+      updatedAt: 1,
+    }),
+  );
+
+  const result = await asUser(t, userId).query(api.dashboard.getDashboardOverview, {});
+  expect(result?.firstRun.hasCommunityPost).toBe(true);
+});
+
+test("firstRun: tuđa objava NE štiklira korak zajednice", async () => {
+  const t = createTest();
+  const userId = await seedUser(t);
+  const otherId = await seedUser(t, { email: "drugi@example.com" });
+  await t.run((ctx) =>
+    ctx.db.insert("communityPosts", {
+      authorId: otherId,
+      language: "sr",
+      title: "Tuđe pitanje",
+      body: "Tekst",
+      visibility: "members",
+      status: "published",
+      createdAt: 1,
+      updatedAt: 1,
+    }),
+  );
+
+  const result = await asUser(t, userId).query(api.dashboard.getDashboardOverview, {});
+  expect(result?.firstRun.hasCommunityPost).toBe(false);
+});
+
+// ── admin prozori: nacrti + poslednji registrovani (U4) ──────────────────────
+
+test("admin: nacrti smera i kursa stižu sa id-jevima za deep link", async () => {
+  const t = createTest();
+  const adminId = await seedUser(t, { email: "dash-admin@example.com" });
+  const trackId = await t.run((ctx) =>
+    ctx.db.insert("courseTracks", {
+      slug: "smer-nacrt",
+      titleSr: "Smer u nacrtu",
+      titleEn: "Draft track",
+      status: "draft" as const,
+      sortOrder: 10,
+      createdAt: 1,
+      updatedAt: 1,
+    }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("courses", {
+      trackId,
+      slug: "kurs-nacrt",
+      titleSr: "Kurs u nacrtu",
+      titleEn: "Draft course",
+      subtitleSr: "Podnaslov",
+      subtitleEn: "Subtitle",
+      descriptionSr: "Opis",
+      descriptionEn: "Description",
+      status: "draft" as const,
+      sortOrder: 10,
+      updatedAt: 1,
+    }),
+  );
+
+  const result = await asUser(t, adminId).query(api.dashboard.getDashboardOverview, {});
+  expect(result?.admin?.drafts.total).toBe(2);
+  const kinds = result?.admin?.drafts.items.map((item) => item.kind);
+  expect(kinds).toEqual(["track", "course"]);
+  const course = result?.admin?.drafts.items.find((item) => item.kind === "course");
+  expect(course?.courseId).not.toBeNull();
+  expect(course?.trackId).toBe(trackId);
+  expect(course?.title.sr).toBe("Kurs u nacrtu");
+});
+
+test("admin: objavljen sadržaj ne ulazi u nacrte", async () => {
+  const t = createTest();
+  const adminId = await seedUser(t, { email: "dash-admin@example.com" });
+  await seedCourse(t);
+
+  const result = await asUser(t, adminId).query(api.dashboard.getDashboardOverview, {});
+  expect(result?.admin?.drafts.total).toBe(0);
+  expect(result?.admin?.drafts.items).toEqual([]);
+});
+
+test("admin: poslednji registrovani, najviše tri, bez spojenih naloga", async () => {
+  const t = createTest();
+  const adminId = await seedUser(t, { email: "dash-admin@example.com" });
+  const mergedTargetId = await seedUser(t, { email: "meta@example.com" });
+  await t.run(async (ctx) => {
+    for (let i = 0; i < 4; i += 1) {
+      await ctx.db.insert("users", {
+        email: `novi${i}@example.com`,
+        name: `Novi ${i}`,
+        username: `novi_${i}`,
+        role: "student",
+        language: "sr",
+        createdAt: 1000 + i,
+        updatedAt: 1000 + i,
+      });
+    }
+    await ctx.db.insert("users", {
+      email: "spojen@example.com",
+      name: "Spojen",
+      username: "spojen",
+      role: "student",
+      language: "sr",
+      mergedInto: mergedTargetId,
+      createdAt: 9999,
+      updatedAt: 9999,
+    });
+  });
+
+  const result = await asUser(t, adminId).query(api.dashboard.getDashboardOverview, {});
+  expect(result?.admin?.recentUsers).toHaveLength(3);
+  expect(result?.admin?.recentUsers.map((user) => user.name)).not.toContain("Spojen");
+  // `order("desc")` je po vremenu upisa, pa je poslednji registrovan prvi u listi.
+  expect(result?.admin?.recentUsers[0]?.username).toBe("novi_3");
+});
+
+test("ne-admin ne dobija ni nacrte ni listu korisnika", async () => {
+  const t = createTest();
+  const userId = await seedUser(t, { email: "plain@example.com", role: "student" });
+  await seedCourse(t);
+  const result = await asUser(t, userId).query(api.dashboard.getDashboardOverview, {});
+  expect(result?.admin).toBeNull();
 });

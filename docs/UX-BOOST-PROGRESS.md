@@ -490,3 +490,167 @@ preporuku iz U1: popraviti je zasebno, jedna je i lokalizovana.
   prebacio na `courseCatalogPath` (gradi sve tri stavke, ne samo katalog).
 - `components/app/app-sidebar.tsx:2034` i `:1798` i dalje nose gole hexove `#10b981` /
   `#0ea472` (§2B, stavka 5). Promenio sam samo `href`, boje ostaju za U9.
+
+---
+
+## U4 - Komandna tabla se više ne gasi: pozdravni hero + prozori koji uvek rade   (2026-08-30 02:10)
+
+**Fajlovi:**
+
+*Dodato:*
+- `lib/dashboard-first-run.ts` (čista logika: checklist prvih koraka + odluka koji hero ide u zonu A)
+- `lib/dashboard-first-run.test.ts` (18 testova)
+
+*Izmenjeno:*
+- `convex/dashboard.ts` — nov `firstRunSlice` (`hasUnlockedCourse`, `hasCommunityPost`); `adminSlice` proširen sa `drafts` (nacrti smerova i kurseva + id-jevi za deep link) i `recentUsers`
+- `convex/dashboard.test.ts` — 9 novih testova + `firstRun` u postojećem „prazan korisnik" testu
+- `components/app/dashboard-content.tsx` — `DashboardFirstRun` prerađen u kompaktan pozdravni hero sa štikliranim koracima; `DashboardHome` više ne prekida render; `CommandTableView.hasCourses` → `hasUnlockedCourse`
+- `components/app/dashboard-windows.tsx` — `DashboardWindow` prazno stanje ide kroz `EmptyState` primitiv; `DashboardWindowsGrid` prima `hasUnlockedCourse`; jedan admin prozor razdvojen u dva
+- `components/app/classroom-hub.tsx` — hub bez kurseva prosleđuje iste signale novom herou
+
+**Šta je urađeno:**
+`DashboardFirstRun` je prestao da bude zamena za ekran. Na `/app` je stajao `return
+<DashboardFirstRun/>` iznad svega (`dashboard-content.tsx:1261`), a u Učionici isto tako
+(`classroom-hub.tsx:139`) — pa korisnik bez otključanog kursa nikad nije video nijedan
+prozor komandne table. Sada je to kompaktan pozdravni hero na vrhu: pozdrav, tri prva
+koraka i jedno dugme ka in-app katalogu iz U3. Koraci se štikliraju iz stvarnih podataka —
+„Izaberi kurs" iz aktivnog upisa (ili staff role), „Odgledaj lekciju" iz
+`progress.completedLessons`, „Pitaj u zajednici" iz postojanja sopstvene objave — a prvi
+neurađeni korak je uokviren ink okvirom, tako da ekran odgovara na „šta sad da uradim".
+`DashboardWindowsGrid` se od sada renderuje UVEK, a svaka prazna zona dobija `EmptyState`
+primitiv iz U2 sa sledećim korakom umesto jedne sive rečenice; „Učionica" prozor bez kursa
+vodi u katalog, a ne u praznu učionicu. Admin je dobio dva prozora umesto jednog: „Nacrti i
+spremnost" (nacrti smerova i kurseva sa deep linkom u Kontrolni centar + blokeri pre objave)
+i „Moderacija i novi članovi" (objave na čekanju + poslednja tri registrovana člana sa
+linkom na profil).
+
+**ODLUKE:**
+
+1. **Gejt `hasCourses` na `/app` je zamenjen — to je bio uslov da korak uopšte radi.**
+   `UX-BOOST-PLAN §1B` merenje: `hasCourses: overview.progress.totalLessons > 0 || resume != null`,
+   a `totalLessons` (`convex/dashboard.ts:108-116`) zbraja lekcije **svih** objavljenih
+   kurseva bez provere pristupa — dakle `true` za svakog ulogovanog korisnika. Zadatak traži
+   da hero bira između pozdravnog i `ResumeHero`-a, što je nemoguće dok gejt ne razlikuje
+   vlasništvo. Zato `CommandTableView.hasUnlockedCourse` sada čita novo polje
+   `overview.firstRun.hasUnlockedCourse` (aktivan upis ili staff — **isti pojam** kao `owned`
+   iz U3, `convex/courses.ts:196`). **Ono što NISAM dirao:** `studentCoursesSlice` i dalje
+   bira `resume` i `nextLessons` iz svih objavljenih kurseva, pa student koji je otključao
+   jedan kurs može u „Nastavi lekciju" dobiti lekciju iz drugog, zaključanog. To je druga
+   polovina §1B i ostaje posao U6 — filtriranje agregata po vlasništvu menja i cenu upita i
+   redosled kurseva, što je preveliko da se prošvercuje kroz UX korak.
+2. **Novo polje ide u POSTOJEĆI agregat, nije napravljen novi query.** Pravilo koraka je
+   „novi agregat pravi U6". `getDashboardOverview` je jedini izvor komandne table, pa su dva
+   nedostajuća signala dodata u njega: jedan indeksiran `take(200)` nad `enrollments.by_user`
+   i jedan `take(1)` nad `communityPosts.by_author`. Nijedan novi round-trip sa klijenta.
+3. **`hasCommunityPost` je opciono polje, a `undefined` znači „ne znam", ne „nije urađeno".**
+   Učionica se hrani iz `getAppNavigation`, koji taj podatak nema, i nisam hteo da zbog jednog
+   čekboksa otvaram drugi upit na toj strani. Zato je u čistoj logici napisano `=== true` i to
+   ima svoj test — da neko sutra ne „pojednostavi" izraz u `Boolean(...)` i tiho pretvori
+   nedostatak podatka u tvrdnju.
+4. **Nacrti LEKCIJA nisu u admin prozoru.** Prikazani su nacrti smerova i kurseva, jer oba
+   imaju status indeks (`courseTracks.by_status_and_sortOrder`, `courses.by_status`) pa je
+   cena konstantna. `lessons.isPublished` **nema indeks**, pa bi „koliko lekcija čeka objavu"
+   značilo čitanje lekcija svakog kursa na svakom učitavanju `/app` — to je regresija cene, ne
+   UX popravka. Ako Jovan hoće i lekcije, tu treba ili indeks ili denormalizovan brojač; po
+   pravilu koraka to je posao U6.
+5. **Jedan admin prozor je postao dva.** Zadatak traži tri grupe podataka (nacrti, novi
+   korisnici, moderacija), a `DashboardWindow` prikazuje najviše tri reda ukupno — sve tri
+   grupe u jednom prozoru značile bi po jedan red na grupu, tj. tri brojača bez ijednog imena.
+   Podela je po nameni: sadržaj (nacrti + blokeri) i ljudi (moderacija + novi članovi). Grid
+   za admina sada ima 8 prozora umesto 7.
+6. **Prazno stanje u prozoru NEMA svoje dugme.** `EmptyState` primitiv prima `action`, ali
+   svaki prozor već ima tačno jedno dugme u podnožju. Dva dugmeta u kartici od 260px su šum,
+   pa je umesto toga **dugme u podnožju postalo kontekstualno**: „Učionica" prozor bez
+   otključanog kursa piše „Pogledaj kurseve" i vodi u katalog, inače „Otvori učionicu".
+7. **Pozdravni hero ima samo jedno dugme.** Stari blok je imao i „Otvori zajednicu"; to je
+   izbačeno jer isti link sada stoji u prozoru „Zajednica" dvadeset piksela niže, a hero je
+   morao da se skrati (više ne drži ekran sam, nego stoji iznad cele table). Naslov je iz
+   „Spremni smo kad i ti" prešao u „Tvoji prvi koraci", a podnaslov se menja sa brojem
+   urađenih koraka — stari tekst je tvrdio „Još nemaš nijedan otključan kurs", što posle ovog
+   koraka nije uvek tačno (hero vidi i admin na praznoj bazi).
+8. **`EmptyState` je ostavljen na 16px radiusu iako sada stoji ugnježden u kartici.**
+   Konvencija bi tražila inset (12px), ali primitiv oblik autorizuje sam, `cn` je obično
+   spajanje (ne tailwind-merge) pa ga poziv ne može pouzdano nadjačati, a oba postojeća
+   pozivna mesta iz U2/U3 su takođe ugnježdena — menjanje primitiva bi pomerilo i njih.
+   Upisujem kao sitan dug, ne kao hak.
+9. **`shouldShowResumeHero` traži i da postoji ijedna lekcija.** Bez toga bi administrator na
+   praznoj bazi (kome je svaki kurs „otključan") dobio `ResumeHero` sa tekstom „Sve lekcije su
+   završene" — netačno. Sa ovim uslovom dobija pozdravni hero i pune admin prozore.
+10. **Spojeni i anonimizovani nalozi ispadaju iz „novih članova".** `mergedInto` /
+    `anonymizedAt` / `isAnonymous` nisu novi član nego trag migracije; čita se `take(12)` pa
+    se filtrira na tri.
+
+**Testovi:**
+- **Novo: `lib/dashboard-first-run.test.ts` (18 testova).** `buildFirstRunChecklist`: fiksan
+  redosled koraka, nov korisnik (0/3), štikliranje svakog od tri koraka posebno, nula i
+  **negativan** broj lekcija, `undefined` za zajednicu koje NE sme da se čita kao „urađeno",
+  preskočen korak (lekcija odgledana bez kupljenog kursa — moguće po §1B), stanje „sve
+  urađeno" bez „sledećeg", i iscrpna provera da je „sledeći" uvek tačno jedan korak preko svih
+  8 kombinacija signala. `firstRunDoneCount` (0/1/3). `shouldShowResumeHero`: bez kursa nikad,
+  sa `resume`-om da, bez `resume`-a ali sa lekcijama da, i **admin na praznoj bazi ne** (to je
+  ODLUKA 9).
+- **Novo u `convex/dashboard.test.ts` (9 testova).** `firstRun`: aktivan upis štiklira kurs;
+  **blokiran upis ne**; staff (`pro_student`) ima otključan kurs bez upisa; sopstvena objava
+  štiklira zajednicu; **tuđa objava ne**. `admin`: nacrt smera i nacrt kursa stižu sa
+  `trackId`/`courseId` za deep link i sa oba jezika naslova; objavljen sadržaj ne ulazi u
+  nacrte; poslednji registrovani su najviše tri, u obrnutom redosledu upisa i **bez spojenih
+  naloga**; ne-admin i dalje dobija `admin: null`. Postojeći test „prazan korisnik" dopunjen
+  je tvrdnjom o `firstRun`.
+- Nijedan postojeći test nije menjan ni obrisan.
+
+**Rezultat verifikacije:**
+- `npx convex codegen` — **PROŠLO** (exit 0)
+- `npm run typecheck` — **PROŠLO** (exit 0)
+- `npm run test` — **PROŠLO** (81 fajl, 1107 testova; baseline posle U3 je bio 80 / 1082)
+- `npm run build` — **PROŠLO** (exit 0) — dodatna provera, nije u obaveznoj trojci
+- `npm run lint` — **exit 1, identično baseline-u**: `178 problems (1 error, 177 warnings)`,
+  isti broj kao U1, U2 i U3. Od fajlova koje je U4 dirao u izlazu se pojavljuje samo
+  `dashboard-content.tsx`, sa **dva pre-postojeća** upozorenja (`PlaybackTokenPayload`,
+  `title`) koja su se pomerila sa linija 309/311 na 317/319 jer je iznad njih dodat import.
+  Nijedan od dva nova fajla se u lint izlazu ne pojavljuje.
+
+**BLOKADA:** Pre-postojeća, nasleđena iz U1/U2/U3, **nije je uveo ovaj korak**:
+
+```
+C:\Users\admin\Desktop\Web Dev Projects\nauciai\components\studio\studio-composer.tsx
+  1112:18  error  `routeDroppedFiles` is a function created with React Hook
+  "useEffectEvent", and can only be called from Effects and Effect Events in the
+  same component  react-hooks/rules-of-hooks
+
+✖ 178 problems (1 error, 177 warnings)
+```
+
+Četvrti put ista preporuka: popraviti je zasebno, jedna je i lokalizovana.
+
+**Za Jovana ujutru:**
+
+1. **Prijavi se nalogom BEZ ijednog kupljenog kursa i otvori `/app`.** Očekivano: pozdravni
+   hero „Tvoji prvi koraci" (prvi korak uokviren ink okvirom), pa PULS pločice, pa **svi**
+   prozori — poruke, zajednica, obaveštenja, Studio, uči zajedno. Do sinoć si na tom nalogu
+   video samo first-run blok. Ovo je glavna provera koraka.
+2. **Proveri da `ResumeHero` NE iskače nad zaključanim kursom** — ali znaj da je popravljena
+   samo polovina: hero se sada pojavljuje tek kad zaista imaš kurs, ali koju lekciju nudi i
+   dalje bira agregat preko svih objavljenih kurseva (ODLUKA 1). Ako imaš kupljen kurs A i
+   nekupljen B, moguće je da „Nastavi lekciju" pokaže lekciju iz B. To je U6.
+3. **Admin nalog na `/app`:** dva nova prozora. Klikni jedan nacrt — mora te odvesti u
+   Kontrolni centar sa **već izabranim** smerom i kursem u padajućim listama (`?track=&course=`).
+   Ako ne izabere, javi: znači da `admin-content-manager.tsx` čita parametre drugačije nego
+   što sam pročitao na `:271-273`.
+4. **Odluči o ODLUCI 4** — da li ti u admin prozoru trebaju i lekcije u nacrtu. Ako da, treba
+   indeks ili brojač na `lessons`; nisam hteo da skeniram lekcije svih kurseva na svakom
+   učitavanju table.
+5. **Obe teme i telefon (320px).** Hero: tri koraka se slažu u kolonu, dugme je preko cele
+   širine. Prozori: prazno stanje je isprekidana kutija sa žutim krugom — proveri da u tamnoj
+   temi žuti krug nije preglasan u šest kartica odjednom. Ako jeste, promena je u jednom
+   primitivu (`components/ui/empty-state.tsx`).
+6. **Potvrdi ODLUKU 5 i 7** (dva admin prozora umesto jednog; hero bez drugog dugmeta) —
+   jedine dve tačke na kojima sam odstupio od doslovnog teksta zadatka.
+
+**Dug koji U4 nije zatvorio:**
+- `studentCoursesSlice` (`convex/dashboard.ts`) i dalje računa `resume`, `nextLessons`,
+  `totalLessons` i `percent` preko svih objavljenih kurseva, bez provere vlasništva — druga
+  polovina §1B, posao U6. Polje `firstRun.hasUnlockedCourse` je sada tu i za to.
+- Nacrti lekcija u admin prozoru (ODLUKA 4).
+- `EmptyState` je 16px unutar kartice umesto 12px (ODLUKA 8); važi za sva tri pozivna mesta.
+- Zona D („Ritam") bez podataka i dalje ispisuje jednu rečenicu umesto `EmptyState`-a —
+  namerno, van je grida koji je zadatak imenovao.

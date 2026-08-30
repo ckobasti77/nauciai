@@ -7,6 +7,7 @@ import {
   Coins,
   GraduationCap,
   MessageCircle,
+  PenLine,
   ShieldCheck,
   Sparkles,
   Trophy,
@@ -18,9 +19,10 @@ import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { EmptyState } from "@/components/ui/empty-state";
 import { LinkButton, Panel, cn } from "@/components/ui/primitives";
 import type { api } from "@/convex/_generated/api";
-import { classroomPath, lessonPath } from "@/lib/app-routes";
+import { classroomPath, courseCatalogPath, lessonPath } from "@/lib/app-routes";
 import { localized, t as tr, withLocale, type Locale, type LocalizedText } from "@/lib/i18n";
 
 // Oblik koji vraća agregatni query — jedini izvor podataka za komandnu tablu.
@@ -102,7 +104,8 @@ export function DashboardWindow({
   icon: Icon,
   badge,
   items,
-  emptyMessage,
+  emptyTitle,
+  emptyBody,
   ctaLabel,
   ctaHref,
 }: {
@@ -111,7 +114,9 @@ export function DashboardWindow({
   icon: LucideIcon;
   badge?: number;
   items: WindowRow[];
-  emptyMessage: string;
+  /** Prazna zona nije jedna siva rečenica nego `EmptyState` sa sledećim korakom. */
+  emptyTitle: string;
+  emptyBody: string;
   ctaLabel: string;
   ctaHref: string;
 }) {
@@ -141,7 +146,11 @@ export function DashboardWindow({
             ))}
           </ul>
         ) : (
-          <p className="text-sm font-bold leading-6 text-muted">{emptyMessage}</p>
+          // Dugme se namerno NE ponavlja unutar praznog stanja: svaki prozor već
+          // ima tačno jedno dugme u podnožju, a ono je kontekstualno.
+          // `cn` je obično spajanje, ne tailwind-merge — zato ovde ide samo `h-full`,
+          // klasa koja se ni sa čim u primitivu ne sudara.
+          <EmptyState icon={Icon} title={emptyTitle} body={emptyBody} className="h-full" />
         )}
       </div>
       <div className="border-t-2 border-line p-4 sm:p-5">
@@ -240,16 +249,24 @@ export function DashboardPulse({
 }
 
 // ── PROZORI: grid 1 / 2 (lg) / 3 (2xl), fiksan redosled ─────────────────────
+// Renderuje se UVEK — i za korisnika bez ijednog kursa. Ranije ga je gutao
+// `DashboardFirstRun`, pa FREE korisnik nikad nije video ni poruke, ni zajednicu,
+// ni Studio, iako svi ti podaci za njega postoje.
 export function DashboardWindowsGrid({
   locale,
   overview,
   nextLessons,
+  hasUnlockedCourse,
 }: {
   locale: Locale;
   overview: DashboardOverview | null;
   nextLessons: NextLesson[];
+  /** Menja samo prazno stanje i dugme „Učionica" prozora: katalog umesto učionice. */
+  hasUnlockedCourse: boolean;
 }) {
   const messagesBase = withLocale(locale, "/app/messages");
+  const adminContentBase = withLocale(locale, "/app/admin/content");
+  const moderationHref = withLocale(locale, "/app/community/moderation");
 
   const classroomRows: WindowRow[] = nextLessons.slice(0, 3).map((lesson) => ({
     key: `${lesson.courseSlug}/${lesson.lessonSlug}`,
@@ -306,18 +323,63 @@ export function DashboardWindowsGrid({
   }
 
   const admin = overview?.admin ?? null;
-  const adminRows: WindowRow[] = admin
+
+  // Nacrt vodi tačno u svoj red u „Kontrolnom centru" — `admin-content-manager.tsx`
+  // čita `?track=` / `?course=` i sam bira te stavke u padajućim listama.
+  const draftHref = (item: { trackId: string | null; courseId: string | null }) => {
+    const params = new URLSearchParams();
+    if (item.trackId) params.set("track", item.trackId);
+    if (item.courseId) params.set("course", item.courseId);
+    const query = params.toString();
+    return query ? `${adminContentBase}?${query}` : adminContentBase;
+  };
+
+  const adminContentRows: WindowRow[] = admin
     ? [
-        {
-          key: "readiness",
-          primary: admin.readiness.ready
-            ? tr(locale, "Sadržaj je spreman za objavu", "Content is ready to publish")
-            : `${admin.readiness.blocking} ${tr(locale, "blokera pre objave", "blockers before publishing")}`,
-        },
-        {
-          key: "approvals",
-          primary: `${admin.pendingApprovals} ${tr(locale, "objava na čekanju", "posts awaiting review")}`,
-        },
+        ...(admin.readiness.blocking > 0
+          ? [
+              {
+                key: "readiness",
+                href: adminContentBase,
+                primary: `${admin.readiness.blocking} ${tr(locale, "blokera pre objave", "blockers before publishing")}`,
+                secondary: tr(
+                  locale,
+                  "Objavljeni kursevi kojima nešto nedostaje",
+                  "Published courses that are missing something",
+                ),
+              },
+            ]
+          : []),
+        ...admin.drafts.items.map((item, index) => ({
+          key: `draft-${index}`,
+          href: draftHref(item),
+          primary: localized(item.title, locale),
+          secondary:
+            item.kind === "track" ? tr(locale, "Smer u nacrtu", "Draft track") : tr(locale, "Kurs u nacrtu", "Draft course"),
+        })),
+      ]
+    : [];
+
+  const adminPeopleRows: WindowRow[] = admin
+    ? [
+        ...(admin.pendingApprovals > 0
+          ? [
+              {
+                key: "approvals",
+                href: moderationHref,
+                primary: `${admin.pendingApprovals} ${tr(locale, "objava na čekanju", "posts awaiting review")}`,
+                secondary: tr(locale, "Moderacija zajednice", "Community moderation"),
+              },
+            ]
+          : []),
+        ...admin.recentUsers.map((user, index) => ({
+          key: `user-${index}`,
+          href: user.username ? withLocale(locale, `/app/members/${user.username}`) : undefined,
+          leading: <AvatarLeading url={null} name={user.name} />,
+          primary: user.name,
+          secondary: user.username ? `@${user.username}` : tr(locale, "Novi član", "New member"),
+          meta: formatWhen(locale, user.at),
+        })),
       ]
     : [];
 
@@ -328,9 +390,30 @@ export function DashboardWindowsGrid({
         title={tr(locale, "Sledeće lekcije", "Up next")}
         icon={GraduationCap}
         items={classroomRows}
-        emptyMessage={tr(locale, "Nema lekcija na čekanju.", "No lessons queued up.")}
-        ctaLabel={tr(locale, "Otvori učionicu", "Open classroom")}
-        ctaHref={classroomPath(locale)}
+        emptyTitle={
+          hasUnlockedCourse
+            ? tr(locale, "Nema lekcija na čekanju", "No lessons queued up")
+            : tr(locale, "Još nemaš kurs", "You have no course yet")
+        }
+        emptyBody={
+          hasUnlockedCourse
+            ? tr(
+                locale,
+                "Otvori učionicu i izaberi lekciju koju želiš da ponoviš.",
+                "Open the classroom and pick a lesson to go over again.",
+              )
+            : tr(
+                locale,
+                "Pogledaj šta te čeka i otključaj prvi kurs — lekcije se onda pojavljuju ovde.",
+                "See what is waiting and unlock your first course — lessons then show up here.",
+              )
+        }
+        ctaLabel={
+          hasUnlockedCourse
+            ? tr(locale, "Otvori učionicu", "Open classroom")
+            : tr(locale, "Pogledaj kurseve", "Browse courses")
+        }
+        ctaHref={hasUnlockedCourse ? classroomPath(locale) : courseCatalogPath(locale)}
       />
       <DashboardWindow
         eyebrow={tr(locale, "Poruke", "Messages")}
@@ -338,7 +421,12 @@ export function DashboardWindowsGrid({
         icon={MessageCircle}
         badge={overview?.messages.unreadTotal}
         items={messageRows}
-        emptyMessage={tr(locale, "Nemaš nepročitanih poruka.", "No unread messages.")}
+        emptyTitle={tr(locale, "Nemaš nepročitanih poruka", "No unread messages")}
+        emptyBody={tr(
+          locale,
+          "Sve je pročitano. Piši nekome iz zajednice kad ti zatreba pomoć.",
+          "Everything is read. Message someone from the community when you need a hand.",
+        )}
         ctaLabel={tr(locale, "Otvori poruke", "Open messages")}
         ctaHref={messagesBase}
       />
@@ -348,7 +436,12 @@ export function DashboardWindowsGrid({
         icon={Users}
         badge={overview?.community.unreadNotifications}
         items={communityRows}
-        emptyMessage={tr(locale, "Još nema novih tema.", "No new threads yet.")}
+        emptyTitle={tr(locale, "Još nema novih tema", "No new threads yet")}
+        emptyBody={tr(
+          locale,
+          "Postavi prvo pitanje — neko iz zajednice će ti odgovoriti.",
+          "Ask the first question — someone from the community will answer.",
+        )}
         ctaLabel={tr(locale, "Otvori zajednicu", "Open community")}
         ctaHref={withLocale(locale, "/app/community/discussions")}
       />
@@ -358,7 +451,12 @@ export function DashboardWindowsGrid({
         icon={Bell}
         badge={overview?.notifications.total}
         items={notificationRows}
-        emptyMessage={tr(locale, "Nema novih obaveštenja.", "No new notifications.")}
+        emptyTitle={tr(locale, "Nema novih obaveštenja", "No new notifications")}
+        emptyBody={tr(
+          locale,
+          "Kad ti neko odgovori ili te pomene, javljamo ti ovde.",
+          "When someone replies to you or mentions you, we tell you here.",
+        )}
         ctaLabel={tr(locale, "Sva obaveštenja", "All notifications")}
         ctaHref={withLocale(locale, "/app/community/notifications")}
       />
@@ -367,7 +465,12 @@ export function DashboardWindowsGrid({
         title={tr(locale, "Poslednja generisanja", "Latest generations")}
         icon={Sparkles}
         items={studioRows}
-        emptyMessage={tr(locale, "Još nema generisanja.", "Nothing generated yet.")}
+        emptyTitle={tr(locale, "Još nema generisanja", "Nothing generated yet")}
+        emptyBody={tr(
+          locale,
+          "Otvori Studio i napravi prvu sliku — kredite za to već imaš.",
+          "Open the Studio and make your first image — you already have the credits for it.",
+        )}
         ctaLabel={tr(locale, "Otvori Studio", "Open Studio")}
         ctaHref={withLocale(locale, "/app/studio")}
       />
@@ -377,21 +480,48 @@ export function DashboardWindowsGrid({
         icon={UsersRound}
         badge={study.pendingInvites}
         items={studyRows}
-        emptyMessage={tr(locale, "Nemaš pozivnica ni partnera.", "No invites or partners yet.")}
+        emptyTitle={tr(locale, "Nemaš pozivnica ni partnera", "No invites or partners yet")}
+        emptyBody={tr(
+          locale,
+          "Nađi nekoga ko uči isto što i ti, pa idite kroz lekcije zajedno.",
+          "Find someone learning the same thing and go through the lessons together.",
+        )}
         ctaLabel={tr(locale, "Otvori Study hub", "Open Study hub")}
         ctaHref={`${messagesBase}?view=study`}
       />
       {admin ? (
-        <DashboardWindow
-          eyebrow={tr(locale, "Admin", "Admin")}
-          title={tr(locale, "Spremnost i čekanje", "Readiness and queue")}
-          icon={ShieldCheck}
-          badge={admin.pendingApprovals}
-          items={adminRows}
-          emptyMessage={tr(locale, "Sve je pod kontrolom.", "Everything is under control.")}
-          ctaLabel={tr(locale, "Otvori admin", "Open admin")}
-          ctaHref={withLocale(locale, "/app/admin/content")}
-        />
+        <>
+          <DashboardWindow
+            eyebrow={tr(locale, "Admin", "Admin")}
+            title={tr(locale, "Nacrti i spremnost", "Drafts and readiness")}
+            icon={PenLine}
+            badge={admin.drafts.total}
+            items={adminContentRows}
+            emptyTitle={tr(locale, "Nema nacrta", "No drafts")}
+            emptyBody={tr(
+              locale,
+              "Sve je objavljeno. Novi smer ili kurs čeka ovde dok ga ne objaviš.",
+              "Everything is published. A new track or course waits here until you publish it.",
+            )}
+            ctaLabel={tr(locale, "Otvori Kontrolni centar", "Open the control centre")}
+            ctaHref={adminContentBase}
+          />
+          <DashboardWindow
+            eyebrow={tr(locale, "Admin", "Admin")}
+            title={tr(locale, "Moderacija i novi članovi", "Moderation and new members")}
+            icon={ShieldCheck}
+            badge={admin.pendingApprovals}
+            items={adminPeopleRows}
+            emptyTitle={tr(locale, "Ništa ne čeka", "Nothing is waiting")}
+            emptyBody={tr(
+              locale,
+              "Nema objava za pregled ni novih registracija.",
+              "No posts to review and no new sign-ups.",
+            )}
+            ctaLabel={tr(locale, "Otvori korisnike", "Open users")}
+            ctaHref={withLocale(locale, "/app/admin/users")}
+          />
+        </>
       ) : null}
     </div>
   );

@@ -5,6 +5,7 @@ import {
   ArrowRight,
   BarChart3,
   BookOpen,
+  Check,
   ChevronDown,
   Clock3,
   Gauge,
@@ -48,6 +49,13 @@ import {
   type NextLesson,
 } from "@/components/app/dashboard-windows";
 import { classroomPath, courseCatalogPath, coursePath, lessonPath } from "@/lib/app-routes";
+import {
+  buildFirstRunChecklist,
+  firstRunDoneCount,
+  shouldShowResumeHero,
+  type FirstRunSignals,
+  type FirstRunStepId,
+} from "@/lib/dashboard-first-run";
 import { LinkButton, Panel, cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -965,11 +973,9 @@ export function DashboardHomeSkeleton() {
   );
 }
 
-// Day one. Reached whenever the viewer has no course they can actually open, so it also
-// covers "signed out" and "every course locked" — never a 0% hero over courses they don't own.
-export function DashboardFirstRun({ locale, profileName }: { locale: Locale; profileName: string }) {
-  const steps = [
-    {
+function firstRunStepCopy(locale: Locale): Record<FirstRunStepId, { title: string; body: string }> {
+  return {
+    course: {
       title: tr(locale, "Izaberi kurs", "Choose a course"),
       body: tr(
         locale,
@@ -977,7 +983,7 @@ export function DashboardFirstRun({ locale, profileName }: { locale: Locale; pro
         "See what is on offer and unlock the one you need.",
       ),
     },
-    {
+    lesson: {
       title: tr(locale, "Odgledaj prvu lekciju", "Watch the first lesson"),
       body: tr(
         locale,
@@ -985,7 +991,7 @@ export function DashboardFirstRun({ locale, profileName }: { locale: Locale; pro
         "Progress saves itself, so you can pick up whenever you want.",
       ),
     },
-    {
+    community: {
       title: tr(locale, "Pitaj u zajednici", "Ask in the community"),
       body: tr(
         locale,
@@ -993,49 +999,110 @@ export function DashboardFirstRun({ locale, profileName }: { locale: Locale; pro
         "Stuck somewhere? Post a question and get an answer.",
       ),
     },
-  ];
+  };
+}
+
+// Zona A dok student još nema šta da nastavi.
+//
+// Do U4 je ovaj blok ZAMENJIVAO celu komandnu tablu (`return` u `DashboardHome` i u
+// `classroom-hub.tsx`), pa FREE korisnik i admin nikad nisu videli ni jedan prozor.
+// Sada je kompaktan pozdravni hero na VRHU table: pozdrav, tri prva koraka koja se
+// štikliraju iz stvarnih podataka (`lib/dashboard-first-run.ts`) i jedno dugme ka
+// in-app katalogu. Sve ispod njega se renderuje kao i za svakog drugog korisnika.
+export function DashboardFirstRun({
+  locale,
+  profileName,
+  signals,
+}: {
+  locale: Locale;
+  profileName: string;
+  signals: FirstRunSignals;
+}) {
+  const steps = buildFirstRunChecklist(signals);
+  const doneCount = firstRunDoneCount(steps);
+  const copy = firstRunStepCopy(locale);
+
+  const lead =
+    doneCount === 0
+      ? tr(
+          locale,
+          "Tri koraka te dele od prve lekcije.",
+          "Three steps stand between you and your first lesson.",
+        )
+      : doneCount < steps.length
+        ? tr(
+            locale,
+            `Urađeno ${doneCount} od ${steps.length}. Sledeći korak je uokviren.`,
+            `${doneCount} of ${steps.length} done. The next step is outlined.`,
+          )
+        : tr(
+            locale,
+            "Sve tri stvari si već uradio. Nastavi svojim tempom.",
+            "You have done all three. Carry on at your own pace.",
+          );
 
   return (
     <Panel className="overflow-hidden">
-      <div data-motion="hero" className="p-5 sm:p-7">
-        <div data-motion="copy">
-          <p className="text-sm font-black uppercase text-muted">
-            {locale === "sr" ? `Zdravo, ${profileName}` : `Hi, ${profileName}`}
-          </p>
-          <h1 className="mt-2 max-w-3xl text-3xl font-black leading-tight tracking-[-0.035em] text-ink sm:text-4xl">
-            {tr(locale, "Spremni smo kad i ti", "Ready when you are")}
-          </h1>
-          <p className="mt-3 max-w-2xl text-base font-bold leading-7 text-muted">
-            {tr(
-              locale,
-              "Još nemaš nijedan otključan kurs. Tri koraka te dele od prve lekcije.",
-              "You do not have an unlocked course yet. Three steps stand between you and your first lesson.",
-            )}
-          </p>
-        </div>
-
-        <ol className="mt-6 grid gap-4 md:grid-cols-3">
-          {steps.map((step, index) => (
-            <li key={step.title} className="rounded-[16px] border-2 border-line bg-paper p-4">
-              <span className="grid size-9 place-items-center rounded-full border-2 border-ink bg-yellow text-sm font-black text-ink">
-                {index + 1}
-              </span>
-              <p className="mt-3 text-base font-black text-ink">{step.title}</p>
-              <p className="mt-1 text-sm font-bold leading-6 text-muted">{step.body}</p>
-            </li>
-          ))}
-        </ol>
-
-        <div className="mt-7 flex flex-wrap items-center gap-3">
-          <LinkButton href={courseCatalogPath(locale)} tone="yellow" size="lg">
+      <div data-motion="hero" className="p-4 sm:p-5 lg:p-6">
+        <div
+          data-motion="copy"
+          className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"
+        >
+          <div className="min-w-0">
+            <p className="text-sm font-black uppercase text-muted">
+              {locale === "sr" ? `Zdravo, ${profileName}` : `Hi, ${profileName}`}
+            </p>
+            <h1 className="mt-1.5 text-2xl font-black leading-tight tracking-[-0.035em] text-ink sm:text-3xl">
+              {tr(locale, "Tvoji prvi koraci", "Your first steps")}
+            </h1>
+            <p className="mt-2 max-w-2xl text-sm font-bold leading-6 text-muted">{lead}</p>
+          </div>
+          <LinkButton
+            href={courseCatalogPath(locale)}
+            tone="yellow"
+            size="lg"
+            className="w-full shrink-0 sm:w-fit"
+          >
             <Sparkles className="size-5" />
             {tr(locale, "Pogledaj kurseve", "Browse courses")}
           </LinkButton>
-          <LinkButton href={withLocale(locale, "/app/community")} tone="smoke">
-            <MessageCircle className="size-4" />
-            {tr(locale, "Otvori zajednicu", "Open community")}
-          </LinkButton>
         </div>
+
+        <ol className="mt-5 grid gap-3 sm:grid-cols-3">
+          {steps.map((step, index) => (
+            <li
+              key={step.id}
+              className={cn(
+                "flex items-start gap-3 rounded-[12px] border-2 bg-paper p-3",
+                step.next ? "border-ink" : "border-line",
+              )}
+            >
+              <span
+                className={cn(
+                  "grid size-8 shrink-0 place-items-center rounded-full border-2 border-ink text-xs font-black",
+                  step.done
+                    ? "bg-ink text-paper-strong"
+                    : step.next
+                      ? "bg-yellow text-ink"
+                      : "bg-paper-strong text-ink",
+                )}
+              >
+                {step.done ? <Check aria-hidden="true" className="size-4" /> : index + 1}
+                <span className="sr-only">
+                  {step.done
+                    ? tr(locale, "Urađeno", "Done")
+                    : step.next
+                      ? tr(locale, "Sledeći korak", "Next step")
+                      : tr(locale, "Još nije urađeno", "Not done yet")}
+                </span>
+              </span>
+              <div className="min-w-0">
+                <p className="text-sm font-black text-ink">{copy[step.id].title}</p>
+                <p className="mt-0.5 text-xs font-bold leading-5 text-muted">{copy[step.id].body}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
       </div>
     </Panel>
   );
@@ -1180,7 +1247,16 @@ function ResumeHero({
 }
 
 type CommandTableView = {
-  hasCourses: boolean;
+  /**
+   * „Ima kurs koji sme da otvori" — NE „u bazi postoji objavljen kurs".
+   * Live grana čita `overview.firstRun.hasUnlockedCourse` (aktivan upis ili staff);
+   * ranije je ovde stajalo `progress.totalLessons > 0`, a taj broj zbraja lekcije
+   * SVIH objavljenih kurseva, pa je bio `true` za svakog ulogovanog korisnika
+   * (UX-BOOST-PLAN §1B).
+   */
+  hasUnlockedCourse: boolean;
+  /** `undefined` kad površina taj podatak nema — vidi `lib/dashboard-first-run.ts`. */
+  hasCommunityPost?: boolean;
   resume: ResumeData | null;
   progress: { completedLessons: number; totalLessons: number; percent: number };
   activity: Array<{ day: string; completed: number }>;
@@ -1195,7 +1271,7 @@ function staticCommandTableView(courses: DashboardCourse[], locale: Locale): Com
     .map((course) => ({ course, summary: getProgressSummary(course, locale) }));
 
   if (!accessible.length) {
-    return { hasCourses: false, resume: null, progress: { completedLessons: 0, totalLessons: 0, percent: 0 }, activity: [], nextLessons: [] };
+    return { hasUnlockedCourse: false, resume: null, progress: { completedLessons: 0, totalLessons: 0, percent: 0 }, activity: [], nextLessons: [] };
   }
 
   const totalLessons = accessible.reduce((count, entry) => count + entry.summary.totalLessons, 0);
@@ -1237,7 +1313,7 @@ function staticCommandTableView(courses: DashboardCourse[], locale: Locale): Com
     if (nextLessons.length >= 3) break;
   }
 
-  return { hasCourses: true, resume, progress: { completedLessons, totalLessons, percent }, activity: [], nextLessons };
+  return { hasUnlockedCourse: true, resume, progress: { completedLessons, totalLessons, percent }, activity: [], nextLessons };
 }
 
 // Komandna tabla: A NASTAVI (hero) · B PULS (4 tile-a) · C PROZORI (grid 1/2/3) · D RITAM.
@@ -1257,7 +1333,8 @@ export function DashboardHome({
 
   const view: CommandTableView = overview
     ? {
-        hasCourses: overview.progress.totalLessons > 0 || overview.resume != null,
+        hasUnlockedCourse: overview.firstRun.hasUnlockedCourse,
+        hasCommunityPost: overview.firstRun.hasCommunityPost,
         resume: overview.resume,
         progress: overview.progress,
         activity: overview.activity,
@@ -1265,14 +1342,29 @@ export function DashboardHome({
       }
     : staticCommandTableView(staticCourses ?? [], locale);
 
-  // DashboardFirstRun ima prednost nad svime.
-  if (!view.hasCourses) {
-    return <DashboardFirstRun locale={locale} profileName={profileName} />;
-  }
+  // Zona A se MENJA, tabla se ne gasi. Ranije je ovde stajao `return
+  // <DashboardFirstRun/>` koji je gutao sve ostalo (§1B iz UX-BOOST-PLAN).
+  const showResume = shouldShowResumeHero({
+    hasUnlockedCourse: view.hasUnlockedCourse,
+    hasResume: view.resume != null,
+    totalLessons: view.progress.totalLessons,
+  });
 
   return (
     <div className="space-y-6">
-      <ResumeHero locale={locale} profileName={profileName} resume={view.resume} progress={view.progress} />
+      {showResume ? (
+        <ResumeHero locale={locale} profileName={profileName} resume={view.resume} progress={view.progress} />
+      ) : (
+        <DashboardFirstRun
+          locale={locale}
+          profileName={profileName}
+          signals={{
+            hasUnlockedCourse: view.hasUnlockedCourse,
+            completedLessons: view.progress.completedLessons,
+            hasCommunityPost: view.hasCommunityPost,
+          }}
+        />
+      )}
       <DashboardPulse
         locale={locale}
         creditsBalance={overview?.studio.creditsBalance ?? 0}
@@ -1280,7 +1372,12 @@ export function DashboardHome({
         notifications={overview?.notifications.total ?? 0}
         rank={overview?.leaderboard?.rank ?? null}
       />
-      <DashboardWindowsGrid locale={locale} overview={overview} nextLessons={view.nextLessons} />
+      <DashboardWindowsGrid
+        locale={locale}
+        overview={overview}
+        nextLessons={view.nextLessons}
+        hasUnlockedCourse={view.hasUnlockedCourse}
+      />
       {view.activity.length ? (
         <ActivityPanel locale={locale} activity={view.activity} />
       ) : (
