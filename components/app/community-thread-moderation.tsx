@@ -141,10 +141,10 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
 
   if (!isStaff) {
     return (
-      <Panel className="mx-auto max-w-xl rounded-[16px] border border-line bg-paper-strong p-7 text-center shadow-none">
+      <Panel className="mx-auto max-w-xl rounded-[16px] border border-line bg-paper-strong p-6 text-center shadow-none">
         <ShieldCheck className="mx-auto size-9 text-ink/45" />
-        <h1 className="mt-4 text-2xl font-black text-ink">{locale === "sr" ? "Staff prostor" : "Staff area"}</h1>
-        <p className="mt-2 text-sm font-semibold leading-6 text-muted">
+        <h1 className="mt-4 type-h1 text-ink">{locale === "sr" ? "Staff prostor" : "Staff area"}</h1>
+        <p className="mt-2 type-body-sm font-semibold text-muted">
           {locale === "sr" ? "Odobrenjima mogu da pristupe moderator i admin." : "Approvals are available to moderators and admins."}
         </p>
         <Link
@@ -158,7 +158,7 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
   }
 
   return (
-    <section aria-label={locale === "sr" ? "Odobrenja" : "Approvals"} className="space-y-5">
+    <section aria-label={locale === "sr" ? "Odobrenja" : "Approvals"} className="space-y-6">
       <CommunityStickyToolbar>
       <div className="flex flex-wrap items-end justify-end gap-4 rounded-[16px] border border-line bg-paper-strong p-2">
         <span className="inline-flex min-h-10 items-center gap-2 rounded-full border border-line bg-paper-strong px-3 text-xs font-black text-ink/65">
@@ -187,7 +187,7 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
       ) : queue.results.length === 0 ? (
         <Panel className="rounded-[16px] border border-dashed border-ink/20 bg-paper-strong p-8 text-center shadow-none">
           <ShieldCheck className="mx-auto size-9 text-emerald-600" />
-          <h2 className="mt-4 text-xl font-black text-ink">{locale === "sr" ? "Red je čist" : "The queue is clear"}</h2>
+          <h2 className="mt-4 type-h2 text-ink">{locale === "sr" ? "Red je čist" : "The queue is clear"}</h2>
           <p className="mt-2 text-sm font-semibold text-muted">
             {locale === "sr" ? "Nema tema koje čekaju proveru." : "No topics are waiting for review."}
           </p>
@@ -199,7 +199,7 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
             const busy = activePostId === post._id;
             return (
               <Panel key={post._id} as="article" className="overflow-hidden rounded-[16px] border border-line bg-paper-strong shadow-none">
-                <div className="p-4 md:p-5">
+                <div className="p-4 md:p-6">
                   <div className="flex items-start gap-3">
                     {post.authorUsername ? <Link href={withLocale(locale, `/app/members/${post.authorUsername}`)} className="rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"><CommunityAvatar
                       name={post.authorName}
@@ -217,9 +217,9 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
                           {formatCommunityTime(post.createdAt, locale)}
                         </time>
                       </div>
-                      <h2 className="mt-2 text-lg font-black leading-tight text-ink md:text-xl">{post.title}</h2>
+                      <h2 className="mt-2 type-h3 text-ink">{post.title}</h2>
                       <div className="mt-2 flex flex-wrap items-center gap-2">
-                        <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-paper px-2.5 py-1 text-[11px] font-black text-ink/65">
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-paper px-2.5 py-1 type-caption font-black text-ink/65">
                           <GraduationCap className="size-3.5" />
                           {moderationScopeLabel(post, locale, communityFilters?.tracks)}
                         </span>
@@ -241,7 +241,7 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
                 {expanded ? (
                   <div id={`moderation-preview-${post._id}`} className="border-t border-line bg-paper/40 px-4 py-5 md:px-5">
                     <div className="mx-auto max-w-[720px]">
-                      <p className="whitespace-pre-wrap text-sm font-semibold leading-7 text-ink/80">{post.body}</p>
+                      <p className="whitespace-pre-wrap type-body-sm font-semibold text-ink/80">{post.body}</p>
                       {post.imageUrl ? (
                         <Image
                           src={post.imageUrl}
@@ -323,7 +323,7 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
           setReasonError(null);
         }}
       >
-        <label htmlFor="moderation-reason" className="block text-xs font-black uppercase tracking-[0.06em] text-ink/55">
+        <label htmlFor="moderation-reason" className="block type-eyebrow text-ink/55">
           {locale === "sr" ? "Razlog i tražena izmena" : "Reason and requested change"}
         </label>
         <textarea
@@ -339,7 +339,7 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
           aria-invalid={Boolean(reasonError)}
           aria-describedby={reasonError ? "moderation-reason-error" : "moderation-reason-help"}
           placeholder={locale === "sr" ? "Na primer: ukloni lične podatke iz drugog pasusa…" : "For example: remove personal information from the second paragraph…"}
-          className="mt-2 w-full resize-y rounded-[12px] border border-line bg-paper px-3 py-2.5 text-sm font-semibold leading-6 text-ink focus:border-ink focus:ring-4 focus:ring-yellow/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          className="mt-2 w-full resize-y rounded-[12px] border border-line bg-paper px-3 py-2.5 type-body-sm font-semibold text-ink focus:border-ink focus:ring-4 focus:ring-yellow/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         />
         {reasonError ? (
           <p id="moderation-reason-error" role="alert" className="mt-2 text-xs font-bold text-red-700">{reasonError}</p>

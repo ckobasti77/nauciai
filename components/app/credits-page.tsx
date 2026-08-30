@@ -132,6 +132,8 @@ export function CreditsPage({ locale }: { locale: Locale }) {
 
   const header = (
     <SectionHeader
+      variant="app"
+      underline
       title={locale === "sr" ? "Krediti" : "Credits"}
       body={
         locale === "sr"
@@ -157,7 +159,7 @@ export function CreditsPage({ locale }: { locale: Locale }) {
       <div className="space-y-6">
         {header}
         <Panel className="p-6">
-          <p className="text-base font-bold text-muted">
+          <p className="type-body type-measure font-bold text-muted">
             {locale === "sr"
               ? "Prijavi se da bi video/la koliko kredita imaš i mogao/la da kupiš još."
               : "Sign in to see how many credits you have and to buy more."}
@@ -189,16 +191,16 @@ export function CreditsPage({ locale }: { locale: Locale }) {
       <Panel className="p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-sm font-black uppercase tracking-wide text-muted">
+            <p className="type-eyebrow text-muted">
               {locale === "sr" ? "Koliko kredita imaš" : "How many credits you have"}
             </p>
             <div className="mt-2 flex flex-wrap items-baseline gap-3">
-              <span className="font-display text-6xl leading-none text-ink">
+              <span className="font-display type-display text-ink">
                 {balance === undefined
                   ? "—"
                   : currentBalance.toLocaleString(locale === "sr" ? "sr-RS" : "en-US")}
               </span>
-              <span className="text-lg font-black text-ink">{locale === "sr" ? "kredita" : "credits"}</span>
+              <span className="type-h3 text-ink">{locale === "sr" ? "kredita" : "credits"}</span>
               {imageGenerations > 0 ? (
                 <span className="text-sm font-bold text-muted">
                   ≈ {imageGenerationsLabel(imageGenerations, locale)}
@@ -218,7 +220,7 @@ export function CreditsPage({ locale }: { locale: Locale }) {
         </div>
 
         {balance !== undefined && currentBalance === 0 ? (
-          <p className="mt-4 text-base font-bold text-muted">{CREDITS_NO_BALANCE.body[locale]}</p>
+          <p className="mt-4 type-body type-measure font-bold text-muted">{CREDITS_NO_BALANCE.body[locale]}</p>
         ) : null}
 
         {expiring.map((row) => (
@@ -232,8 +234,8 @@ export function CreditsPage({ locale }: { locale: Locale }) {
 
       {/* Paketi kredita: jednokratna kupovina kroz /api/stripe/credits. */}
       <Panel id={PACKS_ANCHOR} className="p-6">
-        <h3 className="text-2xl font-black text-ink">{locale === "sr" ? "Paketi kredita" : "Credit packs"}</h3>
-        <p className="mt-2 text-base font-bold text-muted">
+        <h3 className="type-h2 text-ink">{locale === "sr" ? "Paketi kredita" : "Credit packs"}</h3>
+        <p className="mt-2 type-body type-measure font-bold text-muted">
           {locale === "sr"
             ? "Plaćaš jednom, bez pretplate. Krediti se pojave na nalogu čim banka potvrdi uplatu - obično za par sekundi."
             : "You pay once, with no subscription. The credits appear on your account as soon as the payment is confirmed - usually within seconds."}
@@ -257,7 +259,7 @@ export function CreditsPage({ locale }: { locale: Locale }) {
                   className="surface-inset flex flex-col gap-3 border-2 border-ink bg-paper p-4"
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <p className="text-lg font-black text-ink">
+                    <p className="type-h3 text-ink">
                       {locale === "sr" ? pack.titleSr : pack.titleEn}
                     </p>
                     {pack.bonusPercent > 0 ? (
@@ -266,10 +268,10 @@ export function CreditsPage({ locale }: { locale: Locale }) {
                       </span>
                     ) : null}
                   </div>
-                  <p className="font-display text-3xl leading-none text-ink">
+                  <p className="font-display type-display-sm text-ink">
                     {formatEur(pack.priceEurCents, locale)}
                   </p>
-                  <p className="text-base font-extrabold text-ink">
+                  <p className="type-body font-extrabold text-ink">
                     {pack.credits.toLocaleString(locale === "sr" ? "sr-RS" : "en-US")}{" "}
                     {locale === "sr" ? "kredita" : "credits"}
                   </p>
@@ -296,20 +298,20 @@ export function CreditsPage({ locale }: { locale: Locale }) {
       {/* Premium plan: pretplata, odvojena od paketa i vizuelno istaknuta. */}
       {premium ? (
         <Panel className="border-4 bg-yellow/25 p-6">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <span className="inline-flex items-center gap-2 rounded-full border-2 border-ink bg-yellow px-3 py-1 text-xs font-black uppercase text-ink">
+              <span className="inline-flex items-center gap-2 rounded-full border-2 border-ink bg-yellow px-3 py-1 type-eyebrow text-ink">
                 <Sparkles className="size-4" />
                 {locale === "sr" ? "Pretplata" : "Subscription"}
               </span>
-              <p className="mt-3 font-display text-4xl leading-none text-ink">
+              <p className="mt-3 font-display type-display-sm text-ink">
                 {locale === "sr" ? premium.titleSr : premium.titleEn}
               </p>
-              <p className="mt-2 text-lg font-black text-ink">
+              <p className="mt-2 type-h3 text-ink">
                 {formatEur(premium.priceEurCents, locale)}
                 {locale === "sr" ? " / mesečno" : " / month"}
               </p>
-              <ul className="mt-3 space-y-1 text-base font-bold text-ink">
+              <ul className="mt-3 space-y-2 type-body font-bold text-ink">
                 <li>
                   {locale === "sr"
                     ? `${premium.credits.toLocaleString("sr-RS")} kredita svakog ciklusa`
@@ -342,10 +344,10 @@ export function CreditsPage({ locale }: { locale: Locale }) {
 
       {/* Istorija. */}
       <Panel className="p-6">
-        <h3 className="text-2xl font-black text-ink">
+        <h3 className="type-h2 text-ink">
           {locale === "sr" ? "Istorija kredita" : "Credit history"}
         </h3>
-        <p className="mt-2 text-base font-bold text-muted">
+        <p className="mt-2 type-body type-measure font-bold text-muted">
           {locale === "sr"
             ? "Svaka kupovina i svaka potrošnja, od najnovije."
             : "Every purchase and every spend, newest first."}
@@ -356,9 +358,9 @@ export function CreditsPage({ locale }: { locale: Locale }) {
             <Spinner size="md" className="text-muted" />
           </div>
         ) : transactions.results.length === 0 ? (
-          <div className="surface-inset mt-5 border-2 border-ink bg-paper p-5">
-            <p className="text-lg font-black text-ink">{CREDITS_NO_HISTORY.title[locale]}</p>
-            <p className="mt-1 text-base font-bold text-muted">{CREDITS_NO_HISTORY.body[locale]}</p>
+          <div className="surface-inset mt-5 border-2 border-ink bg-paper p-6">
+            <p className="type-h3 text-ink">{CREDITS_NO_HISTORY.title[locale]}</p>
+            <p className="mt-1 type-body type-measure font-bold text-muted">{CREDITS_NO_HISTORY.body[locale]}</p>
             <Link
               href={`#${PACKS_ANCHOR}`}
               className="mt-3 inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-5 py-2.5 text-sm font-extrabold text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5"

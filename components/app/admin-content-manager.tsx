@@ -126,7 +126,7 @@ type TrackRow = {
 type AdminDetail = { lesson: LessonRow | null };
 
 const inputClass = "min-h-11 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-3 text-sm font-bold text-ink transition focus:ring-4 focus:ring-yellow/35 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:border-line disabled:bg-slate-100 disabled:text-muted";
-const labelClass = "grid gap-1.5 text-xs font-black uppercase tracking-[0.08em] text-ink";
+const labelClass = "grid gap-1.5 type-eyebrow text-ink";
 
 /** Nacrt je namerno najglasniji ton: to je jedino stanje koje studenti NE vide. */
 const statusTone: Record<ContentStatus, BadgeTone> = {
@@ -245,10 +245,10 @@ function AdminPageFrame({ locale, title, children }: { locale: Locale; title: st
   return (
     <div className="mx-auto max-w-[1500px] space-y-6">
       <header>
-        <p className="text-xs font-black uppercase tracking-[0.16em] text-muted">{t(locale, "Administracija", "Administration")}</p>
+        <p className="type-eyebrow text-muted">{t(locale, "Administracija", "Administration")}</p>
         {/* Svaka admin ruta nosi svoj naslov. Ranije su sve četiri pisale
             "Kontrolni centar", pa se iz naslova nije videlo gde si (UX-BOOST-PLAN §3D). */}
-        <h1 className="mt-2 font-display text-5xl text-ink sm:text-6xl">{title}</h1>
+        <h1 className="mt-2 font-display type-display text-ink">{title}</h1>
       </header>
       {children}
     </div>
@@ -280,7 +280,7 @@ function WorkingModuleLinks({ locale }: { locale: Locale }) {
 
   return (
     <section aria-labelledby="admin-working-modules" className="space-y-3">
-      <h2 id="admin-working-modules" className="text-xs font-black uppercase tracking-[0.12em] text-muted">
+      <h2 id="admin-working-modules" className="type-eyebrow text-muted">
         {t(locale, "Dotle možeš ovde", "What already works")}
       </h2>
       <ul className="grid gap-3 md:grid-cols-3">
@@ -295,7 +295,7 @@ function WorkingModuleLinks({ locale }: { locale: Locale }) {
               </span>
               <span className="min-w-0">
                 <span className="block text-sm font-black text-ink">{link.label}</span>
-                <span className="mt-1 block text-xs font-bold leading-5 text-muted">{link.body}</span>
+                <span className="mt-1 block type-caption font-bold text-muted">{link.body}</span>
               </span>
             </Link>
           </li>
@@ -398,9 +398,9 @@ function StatCard({
         <span className="grid size-8 shrink-0 place-items-center rounded-full border-2 border-ink bg-yellow text-ink">
           <Icon aria-hidden="true" className="size-4" />
         </span>
-        <p className="text-[11px] font-black uppercase tracking-[0.12em] text-muted">{label}</p>
+        <p className="type-eyebrow text-muted">{label}</p>
       </div>
-      <p className="mt-3 font-display text-5xl leading-none text-ink">{value}</p>
+      <p className="mt-3 font-display type-display text-ink">{value}</p>
       {tally ? (
         <div className="mt-3 flex flex-wrap gap-1.5">
           <Badge tone="neutral" size="sm">{t(locale, "Objavljeno", "Published")} {tally.published}</Badge>
@@ -408,7 +408,7 @@ function StatCard({
           {tally.archived > 0 ? <Badge tone="muted" size="sm">{t(locale, "Arhiva", "Archive")} {tally.archived}</Badge> : null}
         </div>
       ) : null}
-      {hint ? <p className="mt-3 text-[11px] font-bold leading-4 text-muted">{hint}</p> : null}
+      {hint ? <p className="mt-3 type-caption font-bold text-muted">{hint}</p> : null}
     </article>
   );
 }
@@ -452,7 +452,7 @@ function NavSection({
     <section className={cn("min-w-0", activeLevel !== level && "hidden lg:block")} aria-label={kicker}>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="text-[11px] font-black uppercase tracking-[0.12em] text-muted">{kicker}</p>
+          <p className="type-eyebrow text-muted">{kicker}</p>
           {subtitle ? <p className="mt-0.5 truncate text-xs font-bold text-ink">{subtitle}</p> : null}
         </div>
         {onClear ? (
@@ -464,11 +464,11 @@ function NavSection({
 
       <div className="mt-2.5">
         {lockedLabel ? (
-          <p className="surface-inset border-2 border-dashed border-line bg-paper px-3 py-3 text-xs font-bold leading-5 text-muted">{lockedLabel}</p>
+          <p className="surface-inset border-2 border-dashed border-line bg-paper px-3 py-3 type-caption font-bold text-muted">{lockedLabel}</p>
         ) : rows.length === 0 ? (
-          <p className="surface-inset border-2 border-dashed border-line bg-paper px-3 py-3 text-xs font-bold leading-5 text-muted">{emptyLabel}</p>
+          <p className="surface-inset border-2 border-dashed border-line bg-paper px-3 py-3 type-caption font-bold text-muted">{emptyLabel}</p>
         ) : (
-          <ul className="grid max-h-96 gap-2 overflow-y-auto pr-1 lg:max-h-none lg:overflow-visible lg:pr-0">
+          <ul className="grid max-h-96 gap-3 overflow-y-auto pr-1 lg:max-h-none lg:overflow-visible lg:pr-0">
             {rows.map((row) => {
               const selected = row.id === selectedId;
               return (
@@ -490,7 +490,7 @@ function NavSection({
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-black text-ink">{row.title}</span>
                       {row.meta ? (
-                        <span className={cn("mt-0.5 block text-[11px] font-bold", selected ? "text-ink" : "text-muted")}>{row.meta}</span>
+                        <span className={cn("mt-0.5 block type-caption font-bold", selected ? "text-ink" : "text-muted")}>{row.meta}</span>
                       ) : null}
                     </span>
                     <Badge tone={statusTone[row.status]} size="sm" className="shrink-0">{statusLabel(row.status, locale)}</Badge>
@@ -775,7 +775,7 @@ export function AdminContentPanel({ locale }: { locale: Locale }) {
   return (
     <AdminPageFrame locale={locale} title={t(locale, "Sadržaj", "Content")}>
       <section aria-labelledby="admin-platform-state" className="space-y-3">
-        <h2 id="admin-platform-state" className="text-xs font-black uppercase tracking-[0.12em] text-muted">
+        <h2 id="admin-platform-state" className="type-eyebrow text-muted">
           {t(locale, "Stanje platforme", "Platform state")}
         </h2>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -796,7 +796,7 @@ export function AdminContentPanel({ locale }: { locale: Locale }) {
         <p role="status" className={cn("surface-inset border-2 px-3 py-2 text-xs font-black", message.tone === "success" ? "border-emerald-700 bg-emerald-50 text-emerald-800" : "border-red-700 bg-red-50 text-red-800")}>{message.text}</p>
       ) : null}
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:items-start">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:items-start">
         {/* Od `lg` naviše navigator prati skrol dugačkog pregleda desno; visina je ograničena
             na ekran da se donji nivo ne odseče, pa cela ploča skroluje kao jedna celina. */}
         <aside
@@ -868,9 +868,9 @@ export function AdminContentPanel({ locale }: { locale: Locale }) {
           </div>
         </aside>
 
-        <div className="min-w-0 space-y-5">
+        <div className="min-w-0 space-y-6">
           {readiness ? <section className="surface-card border-2 border-ink bg-paper-strong p-4 shadow-[6px_6px_0_var(--shadow-hard-12)]" aria-label={t(locale, "Spremno za objavu", "Ready to publish")}>
-            <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-[0.12em] text-muted">{t(locale, "Kontrola sadržaja", "Content check")}</p><h2 className="mt-1 font-display text-3xl text-ink">{readiness.ready ? t(locale, "Spremno za objavu", "Ready to publish") : t(locale, "Dovrši pre objave", "Finish before publishing")}</h2></div><span className={cn("rounded-full border-2 border-ink px-4 py-2 text-xs font-black uppercase", readiness.ready ? "bg-emerald-100 text-emerald-900" : "bg-yellow text-ink")}>{readiness.items.filter((item) => item.ok).length}/{readiness.items.length}</span></div>
+            <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="type-eyebrow text-muted">{t(locale, "Kontrola sadržaja", "Content check")}</p><h2 className="mt-2 font-display type-display-sm text-ink">{readiness.ready ? t(locale, "Spremno za objavu", "Ready to publish") : t(locale, "Dovrši pre objave", "Finish before publishing")}</h2></div><span className={cn("rounded-full border-2 border-ink px-4 py-2 type-eyebrow", readiness.ready ? "bg-emerald-100 text-emerald-900" : "bg-yellow text-ink")}>{readiness.items.filter((item) => item.ok).length}/{readiness.items.length}</span></div>
             <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-3">{readiness.items.map((entry) => <button key={entry.key} type="button" onClick={() => { if (entry.key === "slug" || entry.key === "view" || entry.key === "duration") setSettingsOpen(true); document.getElementById("admin-live-preview")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className={cn("surface-card flex min-h-12 items-center gap-3 border-2 px-3 py-2 text-left text-xs font-black", entry.ok ? "border-emerald-700 bg-emerald-50 text-emerald-900" : entry.blocking ? "border-red-700 bg-red-50 text-red-900" : "border-amber-700 bg-amber-50 text-amber-950")}>{entry.ok ? <CheckCircle2 className="size-5 shrink-0" /> : entry.blocking ? <XCircle className="size-5 shrink-0" /> : <AlertTriangle className="size-5 shrink-0" />}<span>{t(locale, entry.labelSr, entry.labelEn)}</span></button>)}</div>
           </section> : null}
 
@@ -880,7 +880,7 @@ export function AdminContentPanel({ locale }: { locale: Locale }) {
                 <button type="button" onClick={() => setSettingsOpen((open) => !open)} aria-expanded={settingsOpen} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong/95 px-4 text-xs font-black shadow-[3px_3px_0_var(--shadow-hard)] backdrop-blur"><Settings2 className="size-4" /> {t(locale, "Podešavanja", "Settings")}</button>
                 {settingsOpen ? (
                   <form onSubmit={save} className="surface-card mt-2 grid w-[min(320px,calc(100vw-3rem))] gap-3 border-2 border-ink bg-paper-strong p-4 shadow-[7px_7px_0_var(--shadow-hard)]">
-                    <p className="text-xs font-black uppercase tracking-[0.1em] text-muted">{t(locale, "Sistemska podešavanja", "System settings")}</p>
+                    <p className="type-eyebrow text-muted">{t(locale, "Sistemska podešavanja", "System settings")}</p>
                     <Field label={t(locale, "URL / SEO naziv", "URL / SEO name")}><input className={inputClass} value={slug} onChange={(event) => setSlug(event.target.value)} placeholder={slugify(titleSr || titleEn) || "automatski-iz-naslova"} /></Field>
                     <Field label={t(locale, "Status", "Status")}><select className={inputClass} value={status} onChange={(event) => setStatus(event.target.value as Status)}><option value="draft">{t(locale, "Nacrt", "Draft")}</option><option value="published">{t(locale, "Objavljeno", "Published")}</option>{activeKind !== "lesson" ? <option value="archived">{t(locale, "Arhivirano", "Archived")}</option> : null}</select></Field>
                     {activeKind === "lesson" ? <><Field label={t(locale, "Trajanje (min)", "Duration (min)")}><input type="number" min={1} className={inputClass} value={durationMinutes} onChange={(event) => setDurationMinutes(Math.max(1, Number(event.target.value)))} /></Field><label className="flex items-center gap-2 text-xs font-black"><input type="checkbox" checked={proEnabled} onChange={(event) => setProEnabled(event.target.checked)} /> {t(locale, "Pro prikaz", "Pro view")}</label><label className="flex items-center gap-2 text-xs font-black"><input type="checkbox" checked={lightEnabled} onChange={(event) => setLightEnabled(event.target.checked)} /> {t(locale, "Light prikaz", "Light view")}</label></> : null}

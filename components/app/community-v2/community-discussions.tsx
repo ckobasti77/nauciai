@@ -382,11 +382,11 @@ function DiscussionsView({
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
 
       <CommunityStickyToolbar>
       <section className="rounded-[16px] border border-line bg-paper-strong p-3 sm:p-4" aria-label={locale === "sr" ? "Filteri diskusija" : "Discussion filters"}>
-        <div className="space-y-3">
+        <div className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <CommunityScopeControls
               locale={locale}
@@ -452,24 +452,24 @@ function DiscussionsView({
       ) : (
         <div className="space-y-6">
           {pinnedPosts.length ? (
-            <section className="space-y-3" aria-label={locale === "sr" ? "Zakačene teme" : "Pinned topics"}>
+            <section className="space-y-4" aria-label={locale === "sr" ? "Zakačene teme" : "Pinned topics"}>
               <div className="flex items-center gap-2 px-1">
                 <Pin className="size-4 text-yellow-600" aria-hidden="true" />
-                <h2 className="text-sm font-black uppercase tracking-[0.1em] text-ink/70">
+                <h2 className="type-eyebrow text-ink/70">
                   {locale === "sr" ? "Zakačene teme" : "Pinned topics"}
                 </h2>
-                <span className="rounded-full bg-yellow/20 px-2 py-1 text-[10px] font-black uppercase tracking-[0.08em] text-ink/65">
+                <span className="rounded-full bg-yellow/20 px-2 py-1 type-eyebrow-sm text-ink/65">
                   {locale === "sr" ? "Admin izbor" : "Admin picks"}
                 </span>
               </div>
-              <div className="space-y-3">{pinnedPosts.map((post) => renderThread(post, true))}</div>
+              <div className="space-y-4">{pinnedPosts.map((post) => renderThread(post, true))}</div>
             </section>
           ) : null}
-          <section className="min-w-0 space-y-3" aria-live="polite" aria-label={locale === "sr" ? "Lista diskusija" : "Discussion list"}>
+          <section className="min-w-0 space-y-4" aria-live="polite" aria-label={locale === "sr" ? "Lista diskusija" : "Discussion list"}>
             <div className="flex items-center justify-between gap-3 px-1">
               <div className="flex items-center gap-2">
                 <MessageSquareText className="size-4 text-ink/60" aria-hidden="true" />
-                <h2 className="text-sm font-black uppercase tracking-[0.1em] text-ink/65">
+                <h2 className="type-eyebrow text-ink/65">
                   {locale === "sr" ? "Razgovori" : "Conversations"}
                 </h2>
               </div>

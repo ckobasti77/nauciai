@@ -130,13 +130,13 @@ export function DashboardWindow({
       as="article"
       className="card-anim-elevate flex flex-col overflow-hidden hover:shadow-[8px_8px_0_0_var(--shadow-hard-20)]"
     >
-      <div className="flex items-start justify-between gap-3 border-b-2 border-line p-4 sm:p-5">
+      <div className="flex items-start justify-between gap-3 border-b-2 border-line p-4 sm:p-6">
         <div className="min-w-0">
-          <p className="flex items-center gap-2 text-xs font-black uppercase text-muted">
+          <p className="flex items-center gap-2 type-eyebrow text-muted">
             <Icon className="size-4 text-ink" />
             {eyebrow}
           </p>
-          <h3 className="mt-1 text-lg font-black leading-tight text-ink">{title}</h3>
+          <h3 className="mt-1 type-h3 text-ink">{title}</h3>
         </div>
         {badge && badge > 0 ? (
           <span className="shrink-0 rounded-full border-2 border-ink bg-yellow px-2.5 py-0.5 text-xs font-black text-ink">
@@ -144,7 +144,7 @@ export function DashboardWindow({
           </span>
         ) : null}
       </div>
-      <div className="flex-1 p-4 sm:p-5">
+      <div className="flex-1 p-4 sm:p-6">
         {items.length ? (
           <ul className="space-y-2">
             {items.slice(0, 3).map((row) => (
@@ -161,7 +161,7 @@ export function DashboardWindow({
           <EmptyState icon={Icon} title={emptyTitle} body={emptyBody} className="h-full" />
         )}
       </div>
-      <div className="border-t-2 border-line p-4 sm:p-5">
+      <div className="border-t-2 border-line p-4 sm:p-6">
         <LinkButton href={ctaHref} tone="smoke" className="w-full min-h-10 px-4 text-xs font-black">
           <span>{ctaLabel}</span>
           <ArrowRight className="size-4 shrink-0 transition-transform duration-300 group-hover:translate-x-1" />
@@ -222,8 +222,8 @@ function PulseTile({ href, label, value, icon: Icon }: { href: string; label: st
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-xs font-black uppercase text-muted transition-colors duration-200 group-hover:text-yellow">{label}</p>
-          <p className="mt-2 text-2xl font-black leading-none text-ink">{value}</p>
+          <p className="type-eyebrow text-muted transition-colors duration-200 group-hover:text-yellow">{label}</p>
+          <p className="mt-2 type-h2 text-ink">{value}</p>
         </div>
         <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-[8px] border-2 border-ink bg-paper-strong text-ink transition duration-200 group-hover:border-yellow group-hover:bg-yellow group-hover:text-ink">
           <Icon className="size-4" />
@@ -392,7 +392,7 @@ export function DashboardWindowsGrid({
     : [];
 
   return (
-    <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 2xl:grid-cols-3">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 2xl:grid-cols-3">
       <DashboardWindow
         eyebrow={tr(locale, "Učionica", "Classroom")}
         title={tr(locale, "Sledeće lekcije", "Up next")}

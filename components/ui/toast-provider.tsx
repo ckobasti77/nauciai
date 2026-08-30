@@ -99,8 +99,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               <div className="flex items-start gap-3">
                 <Icon className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-black">{toast.title}</p>
-                  {toast.message ? <p className="mt-0.5 text-xs font-semibold leading-5 opacity-80">{toast.message}</p> : null}
+                  <p className="type-body-sm font-black">{toast.title}</p>
+                  {toast.message ? <p className="mt-1 type-caption font-semibold opacity-80">{toast.message}</p> : null}
                   {toast.action ? (
                     <button
                       type="button"
@@ -108,7 +108,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                         toast.action?.onClick();
                         dismiss(toast.id);
                       }}
-                      className="mt-2 inline-flex min-h-9 items-center rounded-full border border-current px-3 text-xs font-black underline underline-offset-2"
+                      className="mt-2 inline-flex min-h-9 items-center rounded-full border border-current px-3 type-caption font-black underline underline-offset-2"
                     >
                       {toast.action.label}
                     </button>

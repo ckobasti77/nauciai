@@ -37,7 +37,7 @@ export function PublicCommunityComments({
 
   return (
     <div>
-      <h2 className="text-2xl font-black text-ink">{locale === "sr" ? "Komentari" : "Comments"}</h2>
+      <h2 className="type-h2 text-ink">{locale === "sr" ? "Komentari" : "Comments"}</h2>
       {query.status === "LoadingFirstPage" && comments.length === 0 ? (
         <div className="mt-5 flex items-center gap-2 text-sm font-bold text-muted"><Spinner />{locale === "sr" ? "Učitavanje…" : "Loading…"}</div>
       ) : comments.length ? (
@@ -62,7 +62,7 @@ function PublicCommentNode({ postId, comment, locale }: { postId: string; commen
   return (
     <li className="rounded-[12px] border border-line bg-paper/40 p-4">
       <p className="text-xs font-black text-muted">{comment.authorUsername ? `@${comment.authorUsername}` : comment.authorName}</p>
-      <p className="mt-2 whitespace-pre-wrap text-sm font-semibold leading-6 text-ink">{comment.body}</p>
+      <p className="mt-2 whitespace-pre-wrap type-body-sm font-semibold text-ink">{comment.body}</p>
       <div className="mt-3 flex flex-wrap items-center gap-3 text-xs font-black text-muted">
         <span>{comment.voteScore} {locale === "sr" ? "neto glasova" : "net votes"}</span>
         {hasReplies ? <button type="button" onClick={() => setOpen((value) => !value)} className="inline-flex items-center gap-1 rounded-full border border-line bg-paper-strong px-3 py-1.5 text-ink"><ChevronRight className={`size-3.5 transition-transform ${open ? "rotate-90" : ""}`} />{open ? (locale === "sr" ? "Sažmi" : "Collapse") : `${locale === "sr" ? "Prikaži" : "Show"} ${comment.directReplyCount} ${locale === "sr" ? "odgovora" : "replies"}`}</button> : null}

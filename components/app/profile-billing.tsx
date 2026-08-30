@@ -33,6 +33,8 @@ export function ProfilePage({ locale, profile }: { locale: Locale; profile?: Vie
   return (
     <div className="space-y-6">
       <SectionHeader
+        variant="app"
+        underline
         title={locale === "sr" ? "Profil" : "Profile"}
         body={locale === "sr" ? "Ime, avatar i jezik platforme." : "Name, avatar, and platform language."}
       />
@@ -42,8 +44,8 @@ export function ProfilePage({ locale, profile }: { locale: Locale; profile?: Vie
             {profileInitials(name, email)}
           </div>
           <div>
-            <p className="text-2xl font-black text-ink">{name}</p>
-            <p className="mt-1 text-base font-bold text-muted">{email}</p>
+            <p className="type-h2 text-ink">{name}</p>
+            <p className="mt-1 type-body type-measure font-bold text-muted">{email}</p>
             <div className="mt-4 flex flex-wrap gap-3 text-sm font-extrabold text-ink">
               <span className="inline-flex items-center gap-2"><UserRound className="size-4" />{role}</span>
               <span className="inline-flex items-center gap-2"><Globe2 className="size-4" />{language.toUpperCase()}</span>
@@ -61,6 +63,8 @@ export function BillingPage({ locale }: { locale: Locale }) {
   return (
     <div className="space-y-6">
         <SectionHeader
+          variant="app"
+          underline
           title={locale === "sr" ? "Pretplata" : "Billing"}
           body={
             locale === "sr"
@@ -69,10 +73,10 @@ export function BillingPage({ locale }: { locale: Locale }) {
           }
         />
       <Panel className="p-6">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <p className="font-display text-3xl text-ink">{localized(courses[0].title, locale)}</p>
-            <p className="mt-2 text-base font-bold text-muted">{locale === "sr" ? "Aktivan demo status" : "Active demo status"}</p>
+            <p className="font-display type-display-sm text-ink">{localized(courses[0].title, locale)}</p>
+            <p className="mt-2 type-body type-measure font-bold text-muted">{locale === "sr" ? "Aktivan demo status" : "Active demo status"}</p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
             <PortalButton locale={locale} label={t.portal} />

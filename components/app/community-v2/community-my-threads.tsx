@@ -105,7 +105,7 @@ function statusBadge(post: CommunityPostRow, locale: Locale) {
   return (
     <span
       className={cn(
-        "rounded-full border px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.08em]",
+        "rounded-full border px-2 py-0.5 type-eyebrow-sm",
         status === "changes_requested"
           ? "border-[#b42318]/30 bg-[#fff1f0] text-[#8f1f17]"
           : status === "pending"
@@ -195,7 +195,7 @@ function MyThreadsView({
   const activeIndex = Math.max(0, VIEW_ITEMS.findIndex((item) => item.id === viewState.view));
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <CommunityStickyToolbar>
       <nav className="overflow-x-auto rounded-[16px] border border-line bg-paper-strong p-1.5" aria-label={locale === "sr" ? "Status mojih predloga" : "My ideas status"}>
         <div className="relative grid min-w-[760px] grid-cols-5">
@@ -233,7 +233,7 @@ function MyThreadsView({
               <FilePenLine className="size-4 shrink-0" aria-hidden="true" />
               <span className="truncate">{locale === "sr" ? "Nova skica" : "New draft"}</span>
             </span>
-            <span className="font-mono text-[10px] font-black">+</span>
+            <span className="font-mono type-caption font-black">+</span>
           </Link>
         </div>
       </nav>
@@ -243,9 +243,9 @@ function MyThreadsView({
         <CommunityRouteSkeleton />
       ) : (
         <div className="block">
-          <section className="min-w-0 space-y-3" aria-live="polite">
+          <section className="min-w-0 space-y-4" aria-live="polite">
             <div className="flex items-center justify-between gap-3 px-1">
-              <h2 className="text-sm font-black uppercase tracking-[0.1em] text-ink/65">
+              <h2 className="type-eyebrow text-ink/65">
                 {locale === "sr" ? activeItem.labelSr : activeItem.labelEn}
               </h2>
               <span className="font-mono text-xs font-black text-muted">{posts.length}</span>
@@ -267,8 +267,8 @@ function MyThreadsView({
                         </div>
                       ) : null}
                       {post.status === "changes_requested" ? (
-                        <div className="mt-2 rounded-[12px] border border-[#b42318]/25 bg-[#fff7f6] p-3 text-sm font-bold leading-5 text-[#712018]">
-                          <span className="block text-[10px] font-black uppercase tracking-[0.1em] text-[#9a2a20]">
+                        <div className="mt-2 rounded-[12px] border border-[#b42318]/25 bg-[#fff7f6] p-3 type-body-sm font-bold text-[#712018]">
+                          <span className="block type-eyebrow-sm text-[#9a2a20]">
                             {locale === "sr" ? "Napomena moderatora" : "Moderator note"}
                           </span>
                           <span className="mt-1 block">

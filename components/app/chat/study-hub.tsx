@@ -206,10 +206,10 @@ function SectionHeading({
       <span className="grid size-10 shrink-0 place-items-center rounded-full border-2 border-ink bg-[#d7e9f5] dark:bg-ink/15 text-ink">{icon}</span>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <h2 className="text-lg font-black leading-tight text-ink sm:text-xl">{title}</h2>
-          {badge ? <span className="rounded-full bg-ink px-2 py-0.5 font-mono text-[10px] font-black text-paper-strong">{badge}</span> : null}
+          <h2 className="type-h3 text-ink">{title}</h2>
+          {badge ? <span className="rounded-full bg-ink px-2 py-0.5 font-mono type-caption font-black text-paper-strong">{badge}</span> : null}
         </div>
-        {description ? <p className="mt-1 text-sm font-bold leading-5 text-muted">{description}</p> : null}
+        {description ? <p className="mt-1 type-body-sm font-bold text-muted">{description}</p> : null}
       </div>
     </div>
   );
@@ -262,8 +262,8 @@ export function StudyHub(props: StudyHubProps) {
       <section className={cn("grid min-h-[420px] place-items-center rounded-[16px] border-2 border-line bg-paper-strong p-6 text-center", props.className)}>
         <div className="max-w-md">
           <span className="mx-auto grid size-14 place-items-center rounded-full border-2 border-ink bg-[#d7e9f5] dark:bg-ink/15"><BookOpenCheck className="size-6" /></span>
-          <h1 className="mt-4 text-2xl font-black text-ink">{t(props.locale, "Uči zajedno je namenjeno članovima", "Study together is for members")}</h1>
-          <p className="mt-2 text-sm font-bold leading-6 text-muted">{t(props.locale, "Admin nalog ostaje van pronalaženja partnera i studijskih grupa, ali poruke podrške i moderacija ostaju dostupne u Razgovorima.", "Admin accounts stay outside partner matching and study groups, while support messages and moderation remain available in Conversations.")}</p>
+          <h1 className="mt-4 type-h1 text-ink">{t(props.locale, "Uči zajedno je namenjeno članovima", "Study together is for members")}</h1>
+          <p className="mt-2 type-body-sm font-bold text-muted">{t(props.locale, "Admin nalog ostaje van pronalaženja partnera i studijskih grupa, ali poruke podrške i moderacija ostaju dostupne u Razgovorima.", "Admin accounts stay outside partner matching and study groups, while support messages and moderation remain available in Conversations.")}</p>
         </div>
       </section>
     );
@@ -399,9 +399,9 @@ function StudyHubMember({ locale, courseSlug, onCourseSlugChange, onOpenConversa
           <div className="flex min-w-0 items-start gap-3">
             <span className="grid size-12 shrink-0 place-items-center rounded-full border-2 border-ink bg-[#d7e9f5] dark:bg-ink/15 shadow-[3px_3px_0_0_var(--yellow)]"><BookOpenCheck className="size-5" /></span>
             <div className="min-w-0">
-              <p className="font-display text-lg leading-none text-blue-mid dark:text-muted">{t(locale, "Isti tempo. Zajednički cilj.", "Same pace. Shared goal.")}</p>
-              <h1 className="mt-1 text-2xl font-black leading-tight sm:text-3xl">{t(locale, "Uči zajedno", "Study together")}</h1>
-              <p className="mt-1 max-w-2xl text-sm font-bold leading-5 text-muted">{t(locale, "Pronađi osobu u svojoj zoni napretka, prihvati poziv i nastavite u privatnom ili grupnom razgovoru.", "Find a person in your progress zone, accept an invite, and continue in a private or group conversation.")}</p>
+              <p className="type-eyebrow text-blue-mid dark:text-muted">{t(locale, "Isti tempo. Zajednički cilj.", "Same pace. Shared goal.")}</p>
+              <h1 className="mt-2 type-h1">{t(locale, "Uči zajedno", "Study together")}</h1>
+              <p className="mt-1 max-w-2xl type-body-sm font-bold text-muted">{t(locale, "Pronađi osobu u svojoj zoni napretka, prihvati poziv i nastavite u privatnom ili grupnom razgovoru.", "Find a person in your progress zone, accept an invite, and continue in a private or group conversation.")}</p>
             </div>
           </div>
           <div className="flex flex-wrap gap-2" aria-label={t(locale, "Pregled aktivnosti", "Activity summary")} aria-live="polite">
@@ -412,7 +412,7 @@ function StudyHubMember({ locale, courseSlug, onCourseSlugChange, onOpenConversa
         </div>
       </header>
 
-      <div className="mx-auto max-w-6xl space-y-5 p-4 sm:p-6">
+      <div className="mx-auto max-w-6xl space-y-6 p-4 sm:p-6">
         {!online ? (
           <div role="status" className="flex items-center gap-3 rounded-[16px] border-2 border-[#b26a00] bg-[#fff4d6] dark:bg-yellow/15 px-4 py-3 text-sm font-black text-[#6d4300]">
             <WifiOff className="size-5 shrink-0" />
@@ -428,7 +428,7 @@ function StudyHubMember({ locale, courseSlug, onCourseSlugChange, onOpenConversa
           </div>
         ) : null}
 
-        <section className="rounded-[16px] border-2 border-ink bg-paper-strong p-4 shadow-[5px_5px_0_0_rgba(112,167,207,0.45)] sm:p-5">
+        <section className="rounded-[16px] border-2 border-ink bg-paper-strong p-4 shadow-[5px_5px_0_0_rgba(112,167,207,0.45)] sm:p-6">
           <div className="grid items-end gap-4 lg:grid-cols-[minmax(0,1fr)_auto]">
             <div>
               <label className="block text-sm font-black text-ink">
@@ -447,7 +447,7 @@ function StudyHubMember({ locale, courseSlug, onCourseSlugChange, onOpenConversa
                   <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-4 top-1/2 size-4 -translate-y-1/2" />
                 </span>
               </label>
-              {coursePage.status === "CanLoadMore" ? <button type="button" onClick={() => coursePage.loadMore(20)} className={cn("mt-2 min-h-9 rounded-full border border-ink bg-paper-strong px-3 text-[10px] font-black", FOCUS_RING)}>{t(locale, "Učitaj još kurseva", "Load more courses")}</button> : null}
+              {coursePage.status === "CanLoadMore" ? <button type="button" onClick={() => coursePage.loadMore(20)} className={cn("mt-2 min-h-9 rounded-full border border-ink bg-paper-strong px-3 type-caption font-black", FOCUS_RING)}>{t(locale, "Učitaj još kurseva", "Load more courses")}</button> : null}
             </div>
 
             <button
@@ -489,8 +489,8 @@ function StudyHubMember({ locale, courseSlug, onCourseSlugChange, onOpenConversa
           )}
         </section>
 
-        <div className="grid gap-5 xl:grid-cols-[minmax(0,1.12fr)_minmax(340px,0.88fr)]">
-          <section id="study-suggestions" tabIndex={-1} className="scroll-mt-28 rounded-[16px] border-2 border-line bg-paper-strong p-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:p-5">
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.12fr)_minmax(340px,0.88fr)]">
+          <section id="study-suggestions" tabIndex={-1} className="scroll-mt-28 rounded-[16px] border-2 border-line bg-paper-strong p-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:p-6">
             <SectionHeading icon={<Search className="size-5" />} title={t(locale, "Partneri u tvojoj zoni", "Partners in your zone")} description={t(locale, "Study Pulse prsten pokazuje napredak na kursu za svaku osobu iz tvoje zone.", "The Study Pulse ring shows course progress for each person in your zone.")} />
             <div className="mt-4 grid gap-2">
               {!courseId || !activeAvailability?.active ? (
@@ -511,7 +511,7 @@ function StudyHubMember({ locale, courseSlug, onCourseSlugChange, onOpenConversa
                     <Link href={withLocale(locale, `/app/members/${person.username}`)} className={cn("block truncate text-sm font-black text-ink hover:underline", FOCUS_RING)}>{person.name}</Link>
                     <p className="truncate text-xs font-bold text-muted">@{person.username} · {zoneLabel(locale, person.progressZone)}</p>
                   </div>
-                  <span className="hidden rounded-full border border-line bg-paper-strong px-2 py-1 font-mono text-[10px] font-black sm:inline-flex">{person.progressPercent}%</span>
+                  <span className="hidden rounded-full border border-line bg-paper-strong px-2 py-1 font-mono type-caption font-black sm:inline-flex">{person.progressPercent}%</span>
                   <button
                     type="button"
                     disabled={mutationsLocked}
@@ -527,11 +527,11 @@ function StudyHubMember({ locale, courseSlug, onCourseSlugChange, onOpenConversa
             </div>
           </section>
 
-          <section className="rounded-[16px] border-2 border-line bg-paper-strong p-4 sm:p-5">
+          <section className="rounded-[16px] border-2 border-line bg-paper-strong p-4 sm:p-6">
             <SectionHeading icon={<BellRing className="size-5" />} title={t(locale, "Pozivi", "Invites")} description={t(locale, "Odgovori na poziv ili proveri šta je još na čekanju.", "Respond to an invite or review what is still pending.")} badge={pendingInviteCount} />
             <div className="mt-4 space-y-4">
               <div>
-                <h3 className="mb-2 text-xs font-black uppercase tracking-[0.14em] text-blue-mid dark:text-muted">{t(locale, "Dolazni", "Incoming")}</h3>
+                <h3 className="mb-2 type-eyebrow text-blue-mid dark:text-muted">{t(locale, "Dolazni", "Incoming")}</h3>
                 <div className="space-y-2">
                   {incoming.status === "LoadingFirstPage" || groupInvites.status === "LoadingFirstPage" ? <LoadingCards label={t(locale, "Učitavanje dolaznih poziva", "Loading incoming invites")} /> : null}
                   {incoming.results.map((invite) => (
@@ -548,7 +548,7 @@ function StudyHubMember({ locale, courseSlug, onCourseSlugChange, onOpenConversa
                   ))}
                   {groupInvites.results.map((invite) => (
                     <article key={invite.inviteId} className="rounded-[16px] border-2 border-[#70a7cf] dark:border-line bg-[#eef6fb] dark:bg-ink/10 p-3">
-                      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-blue-mid dark:text-muted">{t(locale, "Poziv u studijsku grupu", "Study group invite")}</p>
+                      <p className="type-eyebrow-sm text-blue-mid dark:text-muted">{t(locale, "Poziv u studijsku grupu", "Study group invite")}</p>
                       <p className="mt-1 truncate text-sm font-black">{invite.group.name}</p>
                       <p className="mt-0.5 truncate text-xs font-bold text-muted">{invite.inviter.name} · {courseTitle(locale, invite.course)}</p>
                       <div className="mt-3 grid grid-cols-2 gap-2">
@@ -564,7 +564,7 @@ function StudyHubMember({ locale, courseSlug, onCourseSlugChange, onOpenConversa
               </div>
 
               <div className="border-t-2 border-line pt-4">
-                <h3 className="mb-2 text-xs font-black uppercase tracking-[0.14em] text-muted">{t(locale, "Poslati", "Sent")}</h3>
+                <h3 className="mb-2 type-eyebrow text-muted">{t(locale, "Poslati", "Sent")}</h3>
                 <div className="space-y-2">
                   {outgoing.results.map((invite) => (
                     <article key={invite.inviteId} className="flex items-center gap-3 rounded-[16px] border-2 border-line bg-paper-strong p-3">
@@ -581,7 +581,7 @@ function StudyHubMember({ locale, courseSlug, onCourseSlugChange, onOpenConversa
           </section>
         </div>
 
-        <section className="rounded-[16px] border-2 border-line bg-paper-strong p-4 sm:p-5">
+        <section className="rounded-[16px] border-2 border-line bg-paper-strong p-4 sm:p-6">
           <SectionHeading icon={<MessageCircle className="size-5" />} title={t(locale, "Moji partneri", "My partners")} description={t(locale, "Nastavi u razgovoru ili izaberi partnere za novu studijsku grupu.", "Continue in chat or choose partners for a new study group.")} />
           <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
             {partnerships.status === "LoadingFirstPage" ? <div className="md:col-span-2 xl:col-span-3"><LoadingCards label={t(locale, "Učitavanje partnerstava", "Loading partnerships")} /></div> : null}
@@ -609,7 +609,7 @@ function StudyHubMember({ locale, courseSlug, onCourseSlugChange, onOpenConversa
           {courseId && partnerships.results.length >= 2 ? (
             <div className="mt-5 rounded-[16px] border-2 border-ink bg-[#fff8df] dark:bg-yellow/15 p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
-                <div><h3 className="flex items-center gap-2 text-base font-black"><UsersRound className="size-5" />{t(locale, "Napravi studijsku grupu", "Create a study group")}</h3><p className="mt-1 max-w-2xl text-xs font-bold leading-5 text-muted">{t(locale, "Izaberi najmanje dva partnera. Grupni razgovor se aktivira kada vas bude najmanje troje.", "Choose at least two partners. The group conversation activates once at least three people accept.")}</p></div>
+                <div><h3 className="flex items-center gap-2 type-h4"><UsersRound className="size-5" />{t(locale, "Napravi studijsku grupu", "Create a study group")}</h3><p className="mt-1 max-w-2xl type-caption font-bold text-muted">{t(locale, "Izaberi najmanje dva partnera. Grupni razgovor se aktivira kada vas bude najmanje troje.", "Choose at least two partners. The group conversation activates once at least three people accept.")}</p></div>
                 <span className="rounded-full border-2 border-ink bg-paper-strong px-3 py-1.5 font-mono text-xs font-black">{groupMembers.length}/2+</span>
               </div>
               <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
@@ -620,7 +620,7 @@ function StudyHubMember({ locale, courseSlug, onCourseSlugChange, onOpenConversa
           ) : null}
         </section>
 
-        <section className="rounded-[16px] border-2 border-line bg-paper-strong p-4 sm:p-5">
+        <section className="rounded-[16px] border-2 border-line bg-paper-strong p-4 sm:p-6">
           <SectionHeading icon={<UsersRound className="size-5" />} title={t(locale, "Studijske grupe", "Study groups")} description={t(locale, "Aktivne grupe imaju zajednički razgovor; predlozi čekaju najmanje tri prihvatanja.", "Active groups have a shared conversation; proposals wait for at least three acceptances.")} />
           <div className="mt-4 grid gap-2 md:grid-cols-2">
             {groups.status === "LoadingFirstPage" ? <div className="md:col-span-2"><LoadingCards label={t(locale, "Učitavanje studijskih grupa", "Loading study groups")} /></div> : null}
@@ -628,7 +628,7 @@ function StudyHubMember({ locale, courseSlug, onCourseSlugChange, onOpenConversa
               <article key={group.groupId} data-chat-motion="member" data-chat-motion-new="true" className="flex items-center gap-3 rounded-[16px] border-2 border-line bg-paper p-3">
                 <span className="grid size-[52px] shrink-0 place-items-center rounded-full border-2 border-ink bg-[#d7e9f5] dark:bg-ink/15"><UsersRound className="size-5" /></span>
                 <div className="min-w-0 flex-1"><p className="truncate text-sm font-black">{group.name}</p><p className="truncate text-xs font-bold text-muted">{courseTitle(locale, group.course)} · <span className="font-mono">{group.activeMemberCount}</span> {t(locale, "članova", "members")}</p></div>
-                <span className={cn("hidden rounded-full px-2 py-1 text-[10px] font-black sm:inline-flex", group.status === "active" ? "bg-[#dcefe1] text-[#245436]" : "bg-[#fff0bd] dark:bg-yellow/15 text-[#6d4300]")}>{group.status === "active" ? t(locale, "Aktivna", "Active") : t(locale, "Formira se", "Forming")}</span>
+                <span className={cn("hidden rounded-full px-2 py-1 type-caption font-black sm:inline-flex", group.status === "active" ? "bg-[#dcefe1] text-[#245436]" : "bg-[#fff0bd] dark:bg-yellow/15 text-[#6d4300]")}>{group.status === "active" ? t(locale, "Aktivna", "Active") : t(locale, "Formira se", "Forming")}</span>
                 {group.conversationId ? <button type="button" onClick={() => openConversation(group.conversationId)} className={cn("grid size-10 shrink-0 place-items-center rounded-full border-2 border-ink bg-yellow", FOCUS_RING)} aria-label={t(locale, `Otvori grupni razgovor ${group.name}`, `Open ${group.name} group chat`)}><MessageCircle className="size-4" /></button> : null}
               </article>
             ))}

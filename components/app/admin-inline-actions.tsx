@@ -200,8 +200,8 @@ function FormSection({
           {icon}
         </span>
         <div className="min-w-0">
-          <h3 className="text-lg font-black text-ink">{title}</h3>
-          {body ? <p className="mt-1 text-sm font-bold leading-6 text-muted">{body}</p> : null}
+          <h3 className="type-h3 text-ink">{title}</h3>
+          {body ? <p className="mt-1 type-body-sm font-bold text-muted">{body}</p> : null}
         </div>
       </div>
       <div className="mt-4">{children}</div>
@@ -221,7 +221,7 @@ function Field({
   return (
     <label className="block">
       <span className="text-sm font-black text-ink">{label}</span>
-      {hint ? <span className="mt-0.5 block text-xs font-bold leading-5 text-muted">{hint}</span> : null}
+      {hint ? <span className="mt-0.5 block type-caption font-bold text-muted">{hint}</span> : null}
       <div className="mt-2">{children}</div>
     </label>
   );
@@ -234,7 +234,7 @@ function LocalizedPairSwitch({ locale, onChange, sr, en }: { locale: Locale; onC
     <div className="inline-flex items-center gap-1 rounded-full border-2 border-ink bg-paper p-1" role="group" aria-label="Jezik polja">
       {(["sr", "en"] as const).map((item) => {
         const warning = item === "sr" ? missingSr : missingEn;
-        return <button key={item} type="button" onClick={() => onChange(item)} className={cn("inline-flex min-h-7 items-center gap-1 rounded-full border px-3 text-[11px] font-black uppercase", locale === item ? "border-ink bg-ink text-paper-strong" : "border-transparent text-muted", warning && "border-amber-600 bg-amber-100 text-amber-950 ring-2 ring-amber-400/40")}>{warning ? <AlertTriangle className="size-3" /> : null}{item}</button>;
+        return <button key={item} type="button" onClick={() => onChange(item)} className={cn("inline-flex min-h-7 items-center gap-1 rounded-full border px-3 type-eyebrow", locale === item ? "border-ink bg-ink text-paper-strong" : "border-transparent text-muted", warning && "border-amber-600 bg-amber-100 text-amber-950 ring-2 ring-amber-400/40")}>{warning ? <AlertTriangle className="size-3" /> : null}{item}</button>;
       })}
     </div>
   );
@@ -243,7 +243,7 @@ function LocalizedPairSwitch({ locale, onChange, sr, en }: { locale: Locale; onC
 const inputClass =
   "h-11 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-3 text-sm font-bold text-ink transition placeholder:text-muted/70 focus:border-yellow focus:ring-4 focus:ring-yellow/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
 const textareaClass =
-  "w-full resize-none rounded-[8px] border-2 border-ink bg-paper-strong p-3 text-sm font-bold leading-6 text-ink transition placeholder:text-muted/70 focus:border-yellow focus:ring-4 focus:ring-yellow/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
+  "w-full resize-none rounded-[8px] border-2 border-ink bg-paper-strong p-3 type-body-sm font-bold text-ink transition placeholder:text-muted/70 focus:border-yellow focus:ring-4 focus:ring-yellow/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
 
 function SlugField({
   label,
@@ -485,9 +485,9 @@ function EntityPreview({
 }) {
   return (
     <aside className="composer-stagger h-fit rounded-[16px] border-2 border-ink bg-ink p-4 text-paper-strong shadow-[5px_5px_0_0_var(--yellow)]">
-      <p className="text-xs font-black uppercase text-paper-strong/65">{t(locale, "Pregled", "Preview")}</p>
-      <p className="mt-3 text-2xl font-black leading-tight">{title?.trim() || emptyLabel}</p>
-      {subtitle ? <p className="mt-3 text-sm font-bold leading-6 text-paper-strong/75">{subtitle}</p> : null}
+      <p className="type-eyebrow text-paper-strong/65">{t(locale, "Pregled", "Preview")}</p>
+      <p className="mt-3 type-h2">{title?.trim() || emptyLabel}</p>
+      {subtitle ? <p className="mt-3 type-body-sm font-bold text-paper-strong/75">{subtitle}</p> : null}
       <div className="mt-5 flex flex-wrap gap-2">
         {status ? (
           <span className="rounded-full border-2 border-paper-strong bg-yellow px-3 py-1 text-xs font-black text-ink">
@@ -640,7 +640,7 @@ function CourseIntroPreview({
   }
 
   return (
-    <div className="flex aspect-video w-full items-center justify-center rounded-[8px] border-2 border-dashed border-ink bg-paper p-5 text-center">
+    <div className="flex aspect-video w-full items-center justify-center rounded-[8px] border-2 border-dashed border-ink bg-paper p-6 text-center">
       <div>
         <span className="mx-auto inline-flex size-12 items-center justify-center rounded-full border-2 border-ink bg-yellow text-ink">
           <Film className="size-6" />
@@ -1195,8 +1195,8 @@ export function AddCourseAction({
         onClose={requestClose}
       >
         <form onSubmit={submit}>
-          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
-            <div className="space-y-5">
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+            <div className="space-y-6">
               <FormSection
                 icon={<Sparkles className="size-5" />}
                 title={t(locale, "Identitet kursa", "Course identity")}
@@ -1278,7 +1278,7 @@ export function AddCourseAction({
                   />
                   <div className="space-y-3">
                     <div className="rounded-[16px] border-2 border-line bg-paper p-3">
-                      <p className="text-[10px] font-black uppercase text-muted">{t(locale, "Status videa", "Video status")}</p>
+                      <p className="type-eyebrow-sm text-muted">{t(locale, "Status videa", "Video status")}</p>
                       <p className="mt-1 text-sm font-black text-ink">
                         {videoUrl ? t(locale, "Spreman", "Ready") : t(locale, "Nema videa", "No video")}
                       </p>
@@ -1362,7 +1362,7 @@ export function AddCourseAction({
                             >
                               <span className="min-w-0">
                                 <span className="block truncate">{moduleTitle}</span>
-                                <span className="mt-1 block text-[11px] font-bold text-muted">
+                                <span className="mt-1 block type-caption font-bold text-muted">
                                   {publishedLessons}/{module.lessons.length} {t(locale, "lekcija", "lessons")}
                                 </span>
                               </span>
@@ -1429,11 +1429,11 @@ export function AddCourseAction({
                                           >
                                             <LayoutDashboard className="size-3.5" />
                                           </button>
-                                          <span className="shrink-0 rounded-full border border-line bg-paper-strong px-2 py-0.5 text-[10px]">
+                                          <span className="shrink-0 rounded-full border border-line bg-paper-strong px-2 py-0.5 type-caption">
                                             {formatMinutes(lesson.durationSeconds)}
                                           </span>
                                           {!lesson.isPublished ? (
-                                            <span className="shrink-0 rounded-full border border-line bg-paper px-2 py-0.5 text-[10px] uppercase">
+                                            <span className="shrink-0 rounded-full border border-line bg-paper px-2 py-0.5 type-eyebrow-sm">
                                               {t(locale, "Nacrt", "Draft")}
                                             </span>
                                           ) : null}
@@ -1492,10 +1492,10 @@ export function AddCourseAction({
                 exit={{ y: 8, scale: 0.99 }}
               >
                 <UploadCloud className="mx-auto size-9" />
-                <p className="mt-3 text-lg font-black">
+                <p className="mt-3 type-h3">
                   {t(locale, "Pusti video bilo gde", "Drop the video anywhere")}
                 </p>
-                <p className="mt-2 text-sm font-bold leading-6 text-muted">
+                <p className="mt-2 type-body-sm font-bold text-muted">
                   {t(
                     locale,
                     "Intro video kursa ce odmah krenuti na upload.",
@@ -1925,13 +1925,13 @@ export function AddModuleAction({
             onClick={() => requestNavigate(`${lessonHref}?part=${part._id}`)}
             className={cn(
               "flex min-h-8 w-full min-w-0 items-center gap-2 rounded-[8px] px-2 text-left text-xs font-black text-muted transition hover:bg-paper hover:text-ink",
-              depth > 0 && "text-[11px]",
+              depth > 0 && "type-caption",
             )}
           >
             <FileText className="size-3.5 shrink-0" />
             <span className="truncate">{locale === "sr" ? part.titleSr : part.titleEn || part.titleSr}</span>
             {part.isPublished === false ? (
-              <span className="ml-auto shrink-0 rounded-[8px] border border-line bg-paper-strong px-1.5 py-0.5 text-[9px] uppercase text-muted">
+              <span className="ml-auto shrink-0 rounded-[8px] border border-line bg-paper-strong px-1.5 py-0.5 type-eyebrow-sm text-muted">
                 {t(locale, "Nacrt", "Draft")}
               </span>
             ) : null}
@@ -1963,7 +1963,7 @@ export function AddModuleAction({
         <FileText className="size-3.5 shrink-0" />
         <span className="truncate">{title}</span>
         {draft ? (
-          <span className="ml-auto shrink-0 rounded-[8px] border border-line bg-paper-strong px-1.5 py-0.5 text-[9px] uppercase text-muted">
+          <span className="ml-auto shrink-0 rounded-[8px] border border-line bg-paper-strong px-1.5 py-0.5 type-eyebrow-sm text-muted">
             {t(locale, "Nacrt", "Draft")}
           </span>
         ) : null}
@@ -1990,8 +1990,8 @@ export function AddModuleAction({
         onClose={requestClose}
       >
         <form onSubmit={submit}>
-          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
-            <div className="space-y-5">
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
+            <div className="space-y-6">
               <FormSection
                 icon={<Layers className="size-5" />}
                 title={t(locale, "Osnovne informacije", "Basics")}
@@ -2044,7 +2044,7 @@ export function AddModuleAction({
                     {previewImage ? (
                       <img src={previewImage} alt={imageAltSr || titleSr || "Cycle image"} className="aspect-[4/3] h-full w-full object-cover" />
                     ) : (
-                      <div className="flex aspect-[4/3] items-center justify-center p-5 text-center text-sm font-black text-muted">
+                      <div className="flex aspect-[4/3] items-center justify-center p-6 text-center text-sm font-black text-muted">
                         <ImageIcon className="mr-2 size-5" />
                         {t(locale, "Nema slike", "No image")}
                       </div>
@@ -2087,7 +2087,7 @@ export function AddModuleAction({
                               <PlayCircle className="mt-0.5 size-4 shrink-0" />
                               <span className="min-w-0">
                                 <span className="block truncate">{lessonTitle}</span>
-                              <span className="mt-1 block text-[11px] font-bold text-muted">
+                              <span className="mt-1 block type-caption font-bold text-muted">
                                   {itemCount} {t(locale, "stavki", "items")}
                                 </span>
                               </span>
@@ -2326,8 +2326,8 @@ export function AddLessonAction({
         onClose={closeSheet}
       >
         <form onSubmit={submit}>
-          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_280px]">
-            <div className="space-y-5">
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_280px]">
+            <div className="space-y-6">
               <FormSection
                 icon={<ListPlus className="size-5" />}
                 title={t(locale, "Osnovni podaci", "Basics")}
@@ -2637,8 +2637,8 @@ export function AddLessonPartAction({
         onClose={() => setOpen(false)}
       >
         <form onSubmit={submit}>
-          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_280px]">
-            <div className="space-y-5">
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_280px]">
+            <div className="space-y-6">
               <FormSection
                 icon={<FileText className="size-5" />}
                 title={t(locale, "Tip bloka", "Block type")}
@@ -2726,7 +2726,7 @@ export function AddLessonPartAction({
               <div className="absolute inset-4 rounded-[16px] border-[3px] border-dashed border-yellow" />
               <div className="relative max-w-sm rounded-[16px] border-2 border-ink bg-paper-strong p-6 text-center shadow-[8px_8px_0_rgba(244,190,48,0.85)]">
                 <UploadCloud className="mx-auto size-9" />
-                <p className="mt-3 text-lg font-black">
+                <p className="mt-3 type-h3">
                   {kind === "video"
                     ? t(locale, "Pusti video bilo gde", "Drop the video anywhere")
                     : kind === "image"
@@ -2832,8 +2832,8 @@ export function AddAssetAction({
         onClose={() => setOpen(false)}
       >
         <form onSubmit={submit}>
-          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_280px]">
-            <div className="space-y-5">
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_280px]">
+            <div className="space-y-6">
               <FormSection
                 icon={<FileUp className="size-5" />}
                 title={t(locale, "Naziv materijala", "Material name")}

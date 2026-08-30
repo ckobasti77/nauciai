@@ -565,7 +565,7 @@ export function CommunityPostEditor({
   }
 
   return (
-    <div className="relative min-h-screen space-y-5 pb-8">
+    <div className="relative min-h-screen space-y-6 pb-8">
       {dragActive ? (
         <div
           className="pointer-events-none fixed inset-0 z-[110] grid place-items-center border-[6px] border-dashed border-ink bg-yellow/90 p-6 text-center backdrop-blur-sm"
@@ -576,7 +576,7 @@ export function CommunityPostEditor({
             <span className="mx-auto inline-flex size-20 items-center justify-center rounded-full border-2 border-ink bg-paper-strong shadow-[5px_5px_0_var(--ink)] motion-safe:animate-pulse">
               <UploadCloud className="size-9" />
             </span>
-            <p className="mt-5 text-2xl font-black md:text-4xl">
+            <p className="mt-6 type-hero">
               {locale === "sr" ? "Spusti sliku bilo gde" : "Drop the image anywhere"}
             </p>
             <p className="mt-2 text-sm font-bold opacity-75">
@@ -602,7 +602,7 @@ export function CommunityPostEditor({
           <CloudCheck className="mt-0.5 size-5 shrink-0" />
           <div>
             <p className="text-sm font-black">{locale === "sr" ? "Vraćena je novija skica" : "A newer draft was restored"}</p>
-            <p className="mt-0.5 text-xs font-semibold leading-5">
+            <p className="mt-0.5 type-caption font-semibold">
               {locale === "sr" ? "Nastavi tamo gde si stao na ovom uređaju." : "Continue where you left off on this device."}
             </p>
           </div>
@@ -614,7 +614,7 @@ export function CommunityPostEditor({
           <CircleAlert className="mt-0.5 size-5 shrink-0" />
           <div>
             <p className="text-sm font-black">{locale === "sr" ? "Izmene koje je tražio moderator" : "Changes requested by a moderator"}</p>
-            <p className="mt-1 text-sm font-semibold leading-6">
+            <p className="mt-1 type-body-sm font-semibold">
               {initialPost?.moderationReason ||
                 (locale === "sr" ? "Proveri sadržaj pre ponovnog slanja." : "Review the content before submitting it again.")}
             </p>
@@ -663,7 +663,7 @@ export function CommunityPostEditor({
                     size="md"
                   />
                   <div>
-                    <p className="text-[11px] font-black uppercase tracking-[0.06em] text-ink/45">{locale === "sr" ? "Autor" : "Author"}</p>
+                    <p className="type-eyebrow text-ink/45">{locale === "sr" ? "Autor" : "Author"}</p>
                     <p className="text-sm font-black text-ink">{authorName}</p>
                   </div>
                 </div>
@@ -673,9 +673,9 @@ export function CommunityPostEditor({
               </div>
             </div>
 
-            <div className="space-y-7 p-5 md:p-7">
+            <div className="space-y-6 p-6">
               <div>
-                <label htmlFor="community-title" className="block text-xs font-black uppercase tracking-[0.06em] text-ink/55">
+                <label htmlFor="community-title" className="block type-eyebrow text-ink/55">
                   {locale === "sr" ? "Naslov teme" : "Topic title"}
                 </label>
                 <input
@@ -703,7 +703,7 @@ export function CommunityPostEditor({
               </div>
 
               <div>
-                <label htmlFor="community-scope" className="block text-xs font-black uppercase tracking-[0.06em] text-ink/55">
+                <label htmlFor="community-scope" className="block type-eyebrow text-ink/55">
                   {locale === "sr" ? "Gde pripada tema" : "Where this topic belongs"}
                 </label>
                 <div className="relative mt-2">
@@ -794,10 +794,10 @@ export function CommunityPostEditor({
 
               <div>
                 <div className="flex items-end justify-between gap-3">
-                  <label htmlFor="community-body" className="block text-xs font-black uppercase tracking-[0.06em] text-ink/55">
+                  <label htmlFor="community-body" className="block type-eyebrow text-ink/55">
                     {locale === "sr" ? "Sadržaj" : "Content"}
                   </label>
-                  <span className="text-[11px] font-bold tabular-nums text-ink/40">{body.length}</span>
+                  <span className="type-caption font-bold tabular-nums text-ink/40">{body.length}</span>
                 </div>
                 <textarea
                   id="community-body"
@@ -816,7 +816,7 @@ export function CommunityPostEditor({
                   }
                   rows={13}
                   maxLength={20_000}
-                  className="mt-2 min-h-[320px] w-full resize-y rounded-[12px] border border-line bg-paper-strong px-4 py-3 text-base font-semibold leading-7 text-ink/85 transition placeholder:text-ink/30 focus:border-ink focus:ring-4 focus:ring-yellow/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                  className="mt-2 min-h-[320px] w-full resize-y rounded-[12px] border border-line bg-paper-strong px-4 py-3 type-body font-semibold text-ink/85 transition placeholder:text-ink/30 focus:border-ink focus:ring-4 focus:ring-yellow/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                 />
                 {fieldErrors.body ? (
                   <p id="community-body-error" className="mt-2 text-xs font-bold text-red-700">{fieldErrors.body}</p>
@@ -829,10 +829,10 @@ export function CommunityPostEditor({
 
               <div>
                 <div className="flex items-end justify-between gap-3">
-                  <label htmlFor="community-image" className="block text-xs font-black uppercase tracking-[0.06em] text-ink/55">
+                  <label htmlFor="community-image" className="block type-eyebrow text-ink/55">
                     {locale === "sr" ? "Slika (opciono)" : "Image (optional)"}
                   </label>
-                  {imageFileName ? <span className="max-w-[50%] truncate text-[11px] font-bold text-ink/45">{imageFileName}</span> : null}
+                  {imageFileName ? <span className="max-w-[50%] truncate type-caption font-bold text-ink/45">{imageFileName}</span> : null}
                 </div>
                 <input
                   id="community-image"
@@ -914,14 +914,14 @@ export function CommunityPostEditor({
 
         <aside className="space-y-4 xl:sticky xl:top-5 xl:self-start">
           <Panel className="rounded-[16px] border border-line bg-paper-strong p-4 shadow-none">
-            <p className="font-display text-lg text-ink">{locale === "sr" ? "Pre objave" : "Before publishing"}</p>
-            <h2 className="mt-1 text-lg font-black text-ink">{locale === "sr" ? "Brza provera" : "Quick check"}</h2>
-            <ul className="mt-4 space-y-3 text-sm font-semibold leading-5 text-ink/70">
+            <p className="type-eyebrow text-ink">{locale === "sr" ? "Pre objave" : "Before publishing"}</p>
+            <h2 className="mt-2 type-h3 text-ink">{locale === "sr" ? "Brza provera" : "Quick check"}</h2>
+            <ul className="mt-4 space-y-3 type-body-sm font-semibold text-ink/70">
               <ChecklistItem done={Boolean(title.trim())} label={locale === "sr" ? "Jasan naslov" : "Clear title"} />
               <ChecklistItem done={Boolean(body.trim())} label={locale === "sr" ? "Dovoljno konteksta" : "Enough context"} />
               <ChecklistItem done label={locale === "sr" ? "Bez privatnih podataka" : "No private information"} />
             </ul>
-            <div className="mt-5 rounded-[12px] border border-line bg-paper/55 p-3 text-xs font-semibold leading-5 text-ink/65">
+            <div className="mt-5 rounded-[12px] border border-line bg-paper/55 p-3 type-caption font-semibold text-ink/65">
               {isStaff
                 ? locale === "sr"
                   ? "Tvoja tema se objavljuje odmah, bez provere."
@@ -936,7 +936,7 @@ export function CommunityPostEditor({
 
       <div className="sticky bottom-3 z-30 rounded-[16px] border-2 border-ink bg-paper-strong/95 p-3 shadow-[5px_5px_0_var(--shadow-hard-16)] backdrop-blur sm:flex sm:items-center sm:justify-between sm:gap-4">
         <div className="mb-3 min-w-0 sm:mb-0">
-          <p className="text-xs font-black uppercase tracking-[0.06em] text-ink/45">{statusText(currentStatus, locale)}</p>
+          <p className="type-eyebrow text-ink/45">{statusText(currentStatus, locale)}</p>
           <p className="mt-0.5 truncate text-sm font-bold text-ink">
             {title.trim() || (locale === "sr" ? "Tema bez naslova" : "Untitled topic")}
           </p>

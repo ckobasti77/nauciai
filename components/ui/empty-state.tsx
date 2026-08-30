@@ -37,8 +37,8 @@ export function EmptyState({
         <span className="mx-auto grid size-12 place-items-center rounded-full border-2 border-ink bg-yellow text-ink">
           <Icon aria-hidden="true" className="size-5" />
         </span>
-        <p className="mt-4 text-lg font-black text-ink">{title}</p>
-        <p className="mt-2 text-sm font-semibold leading-6 text-muted">{body}</p>
+        <p className="mt-4 type-h3 text-ink">{title}</p>
+        <p className="mt-2 type-body-sm font-semibold text-muted">{body}</p>
         {action ? <div className="mt-5 flex justify-center">{action}</div> : null}
       </div>
     </div>

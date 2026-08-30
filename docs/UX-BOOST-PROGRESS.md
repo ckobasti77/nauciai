@@ -1295,3 +1295,190 @@ fajlova** prebačeno je na `Spinner` primitiv iz U2 (ostala su 2, svesno).
 6. **Dva `Loader2 size-3` u `components/studio/project-picker.tsx` (linije 290 i 386)** svesno su
    ostavljena van primitiva (ODLUKA 10) — ako hoćeš baš nula ad-hoc spinnera, treba im ili `size-3`
    tier u primitivu ili da se susedni `<Check className="size-3" />` podigne na 3.5.
+
+## U10 - Tipografska skala, ritam i hijerarhija na app ekranima   (2026-08-30 04:31)
+
+**Fajlovi:**
+
+*Dodato:*
+- `lib/type-scale.ts` + `lib/type-scale.test.ts` (skala kao podatak + 9 testova koji je
+  uparuju sa `app/globals.css`)
+
+*Izmenjeno (nosivo):*
+- `app/globals.css` — 14 `@utility type-*` blokova; `letter-spacing: 0` reset premešten u
+  `@layer base`
+- `components/ui/primitives.tsx` — `SectionHeader` dobio `variant="app"`, `underline`, `className`
+- `components/ui/badge.tsx`, `dialog.tsx`, `empty-state.tsx`, `field.tsx`, `toast-provider.tsx` —
+  primitivi iz U2 prešli na skalu
+
+*Izmenjeno (primena skale):* **59 fajlova** u `components/app/**` i `app/[locale]/app/**`
+(komandna tabla, učionica/katalog, zajednica, poruke, krediti, profil, admin, app shell).
+
+**Šta je urađeno:**
+Pre pisanja koda izmereno je stanje: etiketa (eyebrow) se pisala u **7 veličina** (8/9/10/11/12/13/14px)
+i **12 vrednosti `tracking`**, naslovi u **~76 različitih recepata** na 105 mesta, a `font-display`
+(Patrick Hand) se koristio i na 18px, tj. kao telo teksta. Definisana je JEDNA skala od 14 uloga
+(tabela ispod), zapisana kao podatak u `lib/type-scale.ts` — jedan izvor istine — sa CSS ogledalom u
+`app/globals.css` i testom koji ne da da se to dvoje raziđe (isti obrazac koji `lib/studio-motion.ts`
+već ima za `--motion-*`). Skala je zatim primenjena na **599 mesta**: 188 etiketa, 145 naslova i
+uvodnih pasusa, 106 sitnih metapodataka, 98 pasusa sa eksplicitnim proredom, plus primitivi iz U2.
+Naslovi rastu kroz `clamp()` umesto kroz `sm:`/`md:` stepenice, pa jedna klasa radi i na 390px i na
+1440px. Ritam je sveden na Tailwind korake: površine imaju padding **4 / 6 / 8** (nestali `p-5`,
+`p-7`, `p-9`, `p-10`, `p-12`, `p-3.5`), razmak sekcija je **6**, a zaglavlje je svuda
+`etiketa → mt-2 → naslov → mt-1 potez → mt-3 pasus`. Liste u zajednici i porukama dobile su vazduh
+(12→16px, 8→12px), a pasusi meru čitljivosti (`type-measure`, 68ch) na 24 mesta.
+
+**Definisana skala — tabela `uloga → klasa` (za U11/U12):**
+
+| uloga | klasa | veličina | prored | težina | razmak slova | za šta |
+| --- | --- | --- | --- | --- | --- | --- |
+| Brend hero | `font-display type-display` | `clamp(36px, …, 56px)` | 1 | 400 | 0 | Patrick Hand hero zone; velika brojka u svojoj pločici |
+| Brend akcenat | `font-display type-display-sm` | `clamp(24px, …, 30px)` | 1.1 | 400 | 0 | naslov modala i istaknutog panela |
+| Zona hero | `type-hero` | `clamp(30px, …, 48px)` | 1.08 | 900 | −0.03em | pozdravni naslov zone, veliki procenat napretka |
+| Naslov ekrana | `type-h1` | `clamp(24px, …, 30px)` | 1.15 | 900 | −0.025em | jedan po ekranu |
+| Naslov sekcije | `type-h2` | `clamp(20px, …, 24px)` | 1.2 | 900 | −0.02em | sekcija, naslov kartice kursa, naslov dijaloga |
+| Naslov panela | `type-h3` | 18px | 1.3 | 900 | −0.01em | panel, prazno stanje, cena |
+| Naslov reda | `type-h4` | 16px | 1.35 | 900 | 0 | red u listi, mali blok |
+| Etiketa | `type-eyebrow` | 12px | 1.25 | 900 | 0.12em | kapitalizovana etiketa iznad naslova (nosi i `uppercase`) |
+| Etiketa (gusta) | `type-eyebrow-sm` | 10px | 1.25 | 900 | 0.14em | čip, zaglavlje kolone, značka u redu |
+| Duga forma | `type-reading` | 17px | 1.85 | — | 0 | telo lekcije, telo teme u zajednici |
+| Telo | `type-body` | 16px | 1.7 | — | 0 | uvodni pasus ispod naslova |
+| Telo (sitno) | `type-body-sm` | 14px | 1.7 | — | 0 | opis kartice, pomoć uz polje |
+| Metapodatak | `type-caption` | 12px | 1.5 | — | 0 | vreme, brojač, potpis |
+| Mera čitljivosti | `type-measure` | `max-width: 68ch` | — | — | — | svaki pasus koji se stvarno čita |
+
+Pravila uz tabelu: (1) uloga nosi veličinu/prored/težinu/razmak — **boju i raspored bira pozivalac**;
+(2) uloge tela (`reading`/`body`/`body-sm`/`caption`) NAMERNO ne postavljaju težinu, pa `font-bold`
+sme uz njih (`cn` je obično spajanje, ne tailwind-merge, pa bi sudar bio nepredvidiv); (3) uz ulogu
+se NE piše `text-*`, `font-*` (osim uz uloge tela), `leading-*`, `tracking-*` ni `uppercase` — ni kao
+`sm:` varijanta; (4) Patrick Hand ide SAMO uz `type-display` i `type-display-sm`.
+
+**Ritam (isti izvor istine, drži se i u U11/U12):**
+`etiketa → mt-2 → naslov → mt-1 → HandUnderline → mt-3 → pasus`; sekcija→sekcija `space-y-6`;
+padding površina `p-4` (kompaktno) / `p-4 sm:p-6` (standard) / `p-6 sm:p-8` (hero); lista kartica u
+feedu `space-y-4`, lista redova u inboxu `space-y-3`.
+
+**ODLUKE:**
+
+1. **`letter-spacing: 0` reset je premešten u `@layer base` — to je uslov da skala uopšte radi.**
+   Pravilo `body, button, a, input, textarea, select { letter-spacing: 0 }` stajalo je NELAYEROVANO,
+   a nelayerovan autorski CSS pobeđuje svaki sloj — isti tip greške koji AGENTS.md već dokumentuje za
+   radiuse. Bez premeštanja, `type-eyebrow` na `<button>`/`<Link>` (npr. redovi menija profila u
+   `app-sidebar.tsx`) tiho bi ostao bez razmaka slova. Premeštanje je **dokazano bez vizuelne
+   promene**: pre U10 nijedan `tracking-*` nije stajao direktno ni na jednom od tih elemenata
+   (skenirano, 0 pogodaka u 141 fajlu). Provereno i na izgrađenom CSS-u: reset je u `@layer base`,
+   `.type-eyebrow` u `@layer utilities`. Test to čuva.
+2. **Marketing `SectionHeader` je ostao piksel-isti.** Nova `variant="app"` grana koristi skalu;
+   podrazumevana `"marketing"` grana ispisuje doslovno iste klase kao pre. Marketing stranice nisu
+   tema run-a, pa nisu ni dirnute.
+3. **Nisam menjao nivo naslova (`<h2>` → `<h1>`) nigde.** `/app/credits`, `/app/profile` i
+   `/app/billing` i dalje nemaju `h1` (SectionHeader renderuje `h2`). To jeste a11y dug, ali je
+   semantička promena, a zadatak izričito traži „NULA promena ponašanja — čisto vizuelni sloj".
+   Ostavljeno kao kandidat za sledeći a11y korak.
+4. **Nisam izmišljao nove `kicker` tekstove.** Zadatak traži obrazac „etiketa + naslov ... primeni
+   gde fali", ali bi to na 4 SectionHeader zaglavlja značilo NOV UI string, a copy pass je bio U5.
+   Umesto toga sam im dao `variant="app"` + žuti `HandUnderline` (isti brend potez koji je U9 dodao
+   zonama). Etiketa se dodaje kad Jovan odluči tekst.
+5. **Četiri `font-display text-lg` mesta su prebačena u `type-eyebrow`, ne u manji Patrick Hand.**
+   Zadatak kaže da Patrick Hand ide samo na velike naslove i akcente. Sva četiri
+   („Isti tempo. Zajednički cilj.", „Pre objave", „Razmena znanja", „Learning spine") strukturno su
+   etiketa iznad naslova, a app ima 188 takvih etiketa u jednom obliku. Rukopis nije nestao — ostaje
+   na 25 mesta kroz `type-display`/`type-display-sm`.
+6. **Etikete su prevedene na DVE veličine po pravilu „≤10px → 10px, 11–14px → 12px".**
+   137 od 188 mesta ostalo je piksel-isto. **32 su porasla** (8→10, 9→10, 11→12) — čista dobit za
+   čitljivost kod početnika. **19 se smanjilo** (13→12 ×4 u meniju profila, 14→12 ×15 na zonskim
+   zaglavljima); to je namerno, jer etiketa mora da bude podređena naslovu iznad kog stoji, a
+   dodati `tracking` od 0.12em optički nadoknađuje 2px.
+7. **Sitan tekst (9/10/11/13px) van značke prebačen je na `type-caption` (12px) — 106 mesta.**
+   Publika su početnici; 9px tekst je bio ispod granice čitljivosti. Test to i čuva („nijedna uloga
+   ne pada ispod 10px").
+8. **10 brojčanih znački je NAMERNO ostavljeno na 9/10px.** To su brojači nepročitanih poruka u
+   fiksnom krugu (`h-5 min-w-5`); 12px bi razbio krug. Detektovane su preko `min-w-4|5` i
+   izostavljene mehanički, ne ručno, pa se pravilo može ponoviti. Isto važi za jedan `text-[8px]`
+   potpis preko avatara u `chat-group-details.tsx`.
+9. **`type-reading` (17px/1.85) je uveden kao 14. uloga umesto da telo lekcije padne na `type-body`.**
+   Telo lekcije i telo teme koristili su `leading-8` (2.0) — namerno prostrano, jer je to glavna
+   površina za čitanje u proizvodu. Svođenje na `type-body` (1.7) bi zgusnulo baš ono što treba da
+   diše. Uloga ima 5 poziva na dve različite površine, pa nije spekulativna apstrakcija.
+10. **`text-sm` (298) i `text-xs` (349) bez eksplicitnog `leading` NISU dirani.** Pravilo koje sam
+    primenio je: „string koji uz veličinu nosi i `leading-5|6|7` je pasus koji je neko namerno
+    prelamao". Goli `text-sm`/`text-xs` su uglavnom oznake dugmadi i redova; postavljanje `line-height`
+    na kontrolu menja njenu visinu, što je promena rasporeda, a ne vizuelnog sloja. Ostaje kao poznat,
+    ograničen dug (opisan dole).
+11. **Padding lestvica je 4/6/8 samo za POVRŠINE.** `p-1`, `p-2`, `p-3` su padding kontrola (čipovi,
+    ikonice, redovi), ne kartica, i ostaju. Svih 81 tokena ≥20px (`p-5`, `p-7`, `p-9`, `p-10`, `p-12`
+    i njihove `sm:`/`md:` varijante) svedeno je na lestvicu, uz automatsko uklanjanje responsivnog
+    koraka koji posle svođenja više ništa ne radi (`p-5 sm:p-6` → `p-6`, `p-4 sm:p-5 lg:p-6` →
+    `p-4 sm:p-6`). `px-*`/`py-*` parovi nisu dirani — to je zaseban, mnogo veći zahvat.
+12. **Poruke su dobile 12px umesto 8px između redova, ne više.** Redovi inboxa su kartice sa okvirom,
+    pa je 8px bio zid; ali inbox je i lista koja treba da pokaže što više razgovora bez skrola, pa
+    veći skok od jednog stepenika (8→12) nije opravdan.
+13. **Velike brojke napretka na komandnoj tabli ostaju na `type-hero`.** Razmatrao sam da ih spustim
+    ispod naslova zone radi „jednog težišta", ali su u zasebnim ink panelima gde su ONE težište svoje
+    pločice; pozadina ih razdvaja od naslova stranice. `purpose` uloge `hero` to sad i kaže.
+14. **Primitivi iz U2 (`Badge`, `Dialog`, `EmptyState`, `Field`, `Toast`) su ušli u obim iako su u
+    `components/ui/`.** Renderuju se na svakom imenovanom app ekranu; da su ostali van skale, skala
+    bi imala rupu tačno tamo gde se najviše ponavlja. `Badge` je pritom izgubio `text-[10px]`/
+    `text-[11px]` iz `badgeSizes` (uloga ih nosi), pa je `md` značka porasla 11→12px.
+15. **Studio (`/app/studio`, `components/studio/**`, `studio-media-*`, `studio-moderation-grid`) je
+    van obima.** U10 imenuje sedam zona i Studio nije među njima; imao je sopstveni run
+    (`docs/STUDIO-PROGRESS.md`). Izuzetak su dva „shell" fallback zaglavlja u
+    `app/[locale]/app/studio/**/page.tsx` i `studio-admin-page.tsx` (ruta `/app/admin/studio`, tj.
+    admin zona) — oni su na skali.
+
+**Testovi:**
+- `lib/type-scale.test.ts` (nov, 9 testova): svaka uloga ima jedinstvenu klasu i pokrivena je;
+  `app/globals.css` definiše svaku ulogu **tačno** kako contract kaže (font-size, line-height,
+  letter-spacing, font-weight, text-transform — uključujući i to da ih nema kad ih contract nema);
+  `type-measure` drži 68ch; uloge tela ne postavljaju težinu; samo `display` uloge nose Patrick Hand
+  težinu 400 a ostali naslovi 900; skala je monotona (svaki naslov ≤ prethodnog, `eyebrow` >
+  `eyebrow-sm`, `body` > `body-sm` > `caption`); nijedna uloga ne pada ispod 10px; `type-reading` ima
+  prostraniji prored od `type-body`; **`letter-spacing` reset mora ostati u `@layer base`** (ovaj
+  poslednji je regresioni test za ODLUKU 1 — ako pravilo ikad izađe iz sloja, `type-eyebrow` na
+  dugmadima tiho gubi razmak i test pada).
+- Nijedan postojeći test nije menjan ni uklonjen.
+
+**Rezultat verifikacije:**
+- `npm run typecheck` — **PROŠLO** (exit 0)
+- `npm run test` — **PROŠLO** (87 fajlova, 1171 test; +9 novih)
+- `npm run lint` — **exit 1, identično baseline-u**: `178 problems (1 error, 177 warnings)`, ista
+  pred-postojeća greška `studio-composer.tsx:1112` (`useEffectEvent`, postoji od U1, fajl nije dirnut).
+  Nijedan nov nalaz ni u jednom od 64 dirnuta fajla.
+- `npm run build` — **PROŠLO** (`Compiled successfully`, 74/74 statičke stranice).
+- Convex fajlovi nisu dirani → `npx convex codegen` nije pokretan.
+- Dodatne mehaničke provere posle svake izmene: **0 sudara** (nijedan `type-*` ne stoji uz `text-*`,
+  `leading-*`, `tracking-*`, `uppercase` ili drugu ulogu — ni u `className="…"`, ni u granama
+  `cn(...)`, ni kao `sm:` varijanta); **0 preostalih `tracking-*`** u app obimu (bilo ih je 12
+  različitih vrednosti).
+
+**Za Jovana ujutru:**
+1. **Ovo je najveći vizuelni diff run-a — 64 fajla — i nije proveren u pregledaču.** Prioritet za
+   pogled u OBE teme i na telefonu: `/app` (pozdravni hero + kartica kursa), `/app/classroom`,
+   `/app/community` (hero na ink podlozi), `/app/messages`, `/app/credits`, `/app/profile`,
+   `/app/admin`.
+2. **Hero zajednice (`community-shell.tsx:146`) je najrizičnije mesto.** Bio je
+   `clamp(24px…38px)` + `truncate` + `sm:whitespace-nowrap`, sad je `type-hero`
+   `clamp(30px…48px)`. Na širokom ekranu je ~10px veći, pa dug naslov zone može da se seče ranije.
+   Ako smeta, jedina izmena je `type-hero` → `type-h1` na toj liniji.
+3. **Meni profila u sidebar-u** (Moj profil / Naplata / Nadogradnja) bio je 13px uppercase bez
+   razmaka slova, sad je 12px sa 0.12em. To je prvo mesto gde se vidi efekat ODLUKE 1 — ako razmak
+   slova NIJE vidljiv tamo, znači da je reset opet izašao iz `@layer base` (i test bi trebalo da padne).
+4. **Značka `Badge size="md"` je porasla 11→12px** (ODLUKA 14), a značke uloga u zajednici
+   (`RoleBadge`) sad su svuda 10px umesto 8/10px. Vidi se u listi članova i uz svaki komentar.
+5. **Primarna akcija — nije rešeno, izmereno je.** Zahtev „tačno jedno težište, primarna akcija žuta"
+   je za naslove ispunjen skalom, ali **21 fajl ima 2+ punih žutih dugmadi**, a najviše
+   `lesson-steps-editor` i `member-profile` (po 6). Koje je od njih primarno je proizvodna odluka,
+   ne mehanička, pa je nisam donosio bez tebe — dobar zadatak za U11/U12.
+6. **Poznat dug koji je U10 svesno ostavio** (spisak je namerno konkretan da ga sledeći korak može
+   uzeti): (a) 298 `text-sm` + 349 `text-xs` bez `leading` ostaju van skale — ODLUKA 10; (b) `px-*`/
+   `py-*` parovi nisu na lestvici, samo `p-*`; (c) `gap-1.5` (35) i `mt-5` (70) su van koraka 4/6/8;
+   (d) `/app/credits`, `/app/profile`, `/app/billing` nemaju `h1` — ODLUKA 3.
+7. **Dva gola heksa koja su preživela U8 sweep** (nisam ih dirao, nisu moj zadatak, ali sam naleteo
+   na njih): `bg-[#10b981]` / `hover:bg-[#0ea472]` na „Nadogradnja" redu u `app-sidebar.tsx` i
+   `group-hover:text-[#164d7d]` u `community-v2/community-shared.tsx:266`.
+8. **Fontovi: nema greške, ali ima sitnice.** Proverio sam u izgrađenom CSS-u da naša srpska
+   dijakritika (č, ć, š, ž, đ) STVARNO dobija Nunito — `latin-ext` `@font-face` postoji jer Google
+   vraća sve podskupove. Ali `subsets: ["latin"]` u `app/[locale]/layout.tsx` znači da se
+   **preload hint šalje samo za `latin`**, pa se fajl sa dijakritikom povlači tek kad ga tekst
+   zatraži. Za primarni jezik platforme vredi razmisliti o `subsets: ["latin", "latin-ext"]` —
+   nisam menjao jer to menja mrežni saobraćaj, a nije deo ovog koraka.

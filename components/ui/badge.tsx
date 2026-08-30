@@ -16,8 +16,8 @@ const badgeTones = {
 } as const;
 
 const badgeSizes = {
-  sm: "gap-1 px-2 py-0.5 text-[10px]",
-  md: "gap-1.5 px-2.5 py-1 text-[11px]",
+  sm: "gap-1 px-2 py-0.5 type-eyebrow-sm",
+  md: "gap-1.5 px-2.5 py-1 type-eyebrow",
 } as const;
 
 export type BadgeTone = keyof typeof badgeTones;
@@ -40,7 +40,7 @@ export function Badge({
     <span
       {...props}
       className={cn(
-        "inline-flex items-center rounded-full border-2 font-black uppercase tracking-[0.08em] whitespace-nowrap",
+        "inline-flex items-center rounded-full border-2 whitespace-nowrap",
         badgeSizes[size],
         badgeTones[tone],
         className,

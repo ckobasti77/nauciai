@@ -572,10 +572,10 @@ export function ProfileEditor({
             <span className="mx-auto inline-flex size-16 items-center justify-center rounded-full border-[3px] border-ink bg-paper-strong text-ink">
               <UploadCloud className="size-8" />
             </span>
-            <p className="mt-4 text-2xl font-black leading-tight text-ink">
+            <p className="mt-4 type-h2 text-ink">
               {t(locale, "Pusti sliku bilo gde na ekranu", "Drop anywhere to set your avatar")}
             </p>
-            <p className="mt-3 text-sm font-bold leading-6 text-ink/80">
+            <p className="mt-3 type-body-sm font-bold text-ink/80">
               {t(
                 locale,
                 "Kad pustiš sliku, odmah ćeš videti kako izgleda kao tvoja slika profila.",
@@ -594,7 +594,7 @@ export function ProfileEditor({
                 ? t(locale, "Izaberi korisničko ime da nastaviš objavu skice.", "Set a username to continue publishing this draft.")
                 : t(locale, "Fali ti još korisničko ime da bi mogao/la da pišeš u Zajednici.", "You still need a username before you can post in the Community.")}
             </p>
-            <p className="mt-1 text-xs font-semibold leading-5 text-ink/75">
+            <p className="mt-1 type-caption font-semibold text-ink/75">
               {t(locale, "Korisničko ime je jedino što moraš da izabereš. Po njemu te drugi pominju u Zajednici.", "A username is the only thing you must choose. Others use it to mention you in the Community.")}
             </p>
           </div>
@@ -605,7 +605,7 @@ export function ProfileEditor({
           <CircleAlert className="mt-0.5 size-5 shrink-0" />
           <div>
             <p className="font-black">{t(locale, "Email adresa nije dostupna za verifikaciju.", "No email address is available for verification.")}</p>
-            <p className="mt-1 text-xs font-semibold leading-5">{t(locale, "Dodaj ili obnovi nalog sa email adresom da bi mogao/la da postaviš lozinku.", "Add or restore an account with an email address before setting a password.")}</p>
+            <p className="mt-1 type-caption font-semibold">{t(locale, "Dodaj ili obnovi nalog sa email adresom da bi mogao/la da postaviš lozinku.", "Add or restore an account with an email address before setting a password.")}</p>
           </div>
         </div>
       ) : null}
@@ -614,7 +614,7 @@ export function ProfileEditor({
           <MailCheck className="mt-0.5 size-5 shrink-0" />
           <div className="min-w-0 flex-1">
             <p className="font-black">{t(locale, "Email još nije potvrđen za pristup kursevima.", "Your email is not yet verified for course access.")}</p>
-            <p className="mt-1 text-xs font-semibold leading-5">{t(locale, "Verifikacija blokira checkout i lekcije, ali ne blokira dashboard, javni pregled kurseva ili Community.", "Verification blocks checkout and lessons, but not the dashboard, public course pages, or Community.")}</p>
+            <p className="mt-1 type-caption font-semibold">{t(locale, "Verifikacija blokira checkout i lekcije, ali ne blokira dashboard, javni pregled kurseva ili Community.", "Verification blocks checkout and lessons, but not the dashboard, public course pages, or Community.")}</p>
             <Button
               size="sm"
               onClick={requestEmailVerification}
@@ -637,11 +637,13 @@ export function ProfileEditor({
           <KeyRound className="mt-0.5 size-5 shrink-0" />
           <div>
             <p className="font-black">{t(locale, "Lozinka nije postavljena.", "No password is set yet.")}</p>
-            <p className="mt-1 text-xs font-semibold leading-5">{t(locale, "Ovo je opciona preporuka; prvo potvrdi email ako želiš da dodaš password prijavu.", "This is optional; verify your email first if you want to add password sign-in.")}</p>
+            <p className="mt-1 type-caption font-semibold">{t(locale, "Ovo je opciona preporuka; prvo potvrdi email ako želiš da dodaš password prijavu.", "This is optional; verify your email first if you want to add password sign-in.")}</p>
           </div>
         </div>
       ) : null}
       <SectionHeader
+        variant="app"
+        underline
         title={t(locale, "Profil", "Profile")}
         body={t(
           locale,
@@ -655,14 +657,14 @@ export function ProfileEditor({
           <div id="public-profile" className="scroll-mt-6 border-b-2 border-ink bg-yellow px-5 py-4 sm:px-6">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-sm font-black uppercase text-ink/75">
+                <p className="type-eyebrow text-ink/75">
                   {t(locale, "Javni identitet", "Public identity")}
                 </p>
-                <h2 className="mt-1 text-3xl font-black leading-tight text-ink">
+                <h2 className="mt-2 type-h2 text-ink">
                   {[firstName, lastName].filter(Boolean).join(" ") || initialValues.email}
                 </h2>
               </div>
-              <div className="flex flex-wrap gap-2 text-xs font-black uppercase text-ink">
+              <div className="flex flex-wrap gap-2 type-eyebrow text-ink">
                 <span className="inline-flex items-center gap-2 rounded-[8px] border-2 border-ink bg-paper-strong px-3 py-2">
                   <ShieldCheck className="size-4" />
                   {initialValues.role}
@@ -675,7 +677,7 @@ export function ProfileEditor({
             </div>
           </div>
 
-          <div className="grid gap-6 p-5 sm:p-6 lg:grid-cols-[220px_minmax(0,1fr)]">
+          <div className="grid gap-6 p-6 lg:grid-cols-[220px_minmax(0,1fr)]">
             <div className="space-y-4">
               <button
                 type="button"
@@ -701,7 +703,7 @@ export function ProfileEditor({
                 className="hidden"
                 onChange={handleFileChange}
               />
-              <p className="text-center text-sm font-bold leading-6 text-muted">
+              <p className="text-center type-body-sm font-bold text-muted">
                 {t(
                   locale,
                   "Klikni ili prevuci sliku bilo gde na ovoj stranici. PNG, JPG ili WebP do 5MB.",
@@ -809,7 +811,7 @@ export function ProfileEditor({
                     <div className="flex min-h-12 items-center rounded-[8px] border-2 border-indigo-200 bg-paper-strong px-4 py-3">
                       <span className="font-mono text-base font-black text-ink">{MASKED_PASSWORD}</span>
                     </div>
-                    <p className="mt-3 text-sm font-bold leading-6">
+                    <p className="mt-3 type-body-sm font-bold">
                       {t(locale, "Promena lozinke je moguća samo preko sigurnog linka koji šaljemo na email tvog naloga.", "Your password can only be changed through a secure link sent to your account email.")}
                     </p>
                     <Button
@@ -844,7 +846,7 @@ export function ProfileEditor({
                     <p className="text-sm font-bold text-ink">
                       {t(locale, "Postavi lozinku za ovaj nalog. Polja ostaju prazna dok ih sam ne uneseš.", "Set a password for this account. The fields stay empty until you enter them.")}
                     </p>
-                    <Field label={<span className="text-xs font-black uppercase text-ink/70">{t(locale, "Nova lozinka", "New password")}</span>}>
+                    <Field label={<span className="type-eyebrow text-ink/70">{t(locale, "Nova lozinka", "New password")}</span>}>
                       {(field) => (
                         <Input
                           {...field}
@@ -856,7 +858,7 @@ export function ProfileEditor({
                       )}
                     </Field>
                     <Field
-                      label={<span className="text-xs font-black uppercase text-ink/70">{t(locale, "Potvrdi lozinku", "Confirm password")}</span>}
+                      label={<span className="type-eyebrow text-ink/70">{t(locale, "Potvrdi lozinku", "Confirm password")}</span>}
                       error={
                         confirmPassword && newPassword !== confirmPassword
                           ? t(locale, "Dve lozinke nisu iste. Upiši istu lozinku u oba polja.", "The two passwords are not the same. Type the same password in both fields.")
@@ -918,16 +920,16 @@ export function ProfileEditor({
           </div>
         </Panel>
 
-        <Panel className="p-5 sm:p-6">
+        <Panel className="p-6">
           <div className="flex items-start gap-3">
             <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-[8px] border-2 border-ink bg-yellow text-ink">
               <UserRound className="size-5" />
             </span>
             <div>
-              <h3 className="text-xl font-black text-ink">
+              <h3 className="type-h3 text-ink">
                 {t(locale, "Izaberi avatar", "Choose an avatar")}
               </h3>
-              <p className="mt-1 text-sm font-bold leading-6 text-muted">
+              <p className="mt-1 type-body-sm font-bold text-muted">
                 {t(
                   locale,
                   "Tri gotova lika ili prevuci svoju sliku bilo gde na ekranu.",

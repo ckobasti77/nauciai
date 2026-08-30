@@ -71,7 +71,7 @@ function InboxRow({ locale, item, selected }: { locale: Locale; item: InboxRowIt
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-2">
           <span className={cn("min-w-0 flex-1 truncate text-sm", item.unreadCount ? "font-black" : "font-bold")}>{name}</span>
-          <span className="shrink-0 font-mono text-[10px] font-bold text-muted">{relativeTime(locale, item.lastMessageAt)}</span>
+          <span className="shrink-0 font-mono type-caption font-bold text-muted">{relativeTime(locale, item.lastMessageAt)}</span>
         </span>
         <span className="mt-1 flex min-h-4 items-center gap-2">
           <span className={cn("min-w-0 flex-1 truncate text-xs", item.unreadCount ? "font-black text-ink" : "font-semibold text-muted")}>{preview}</span>
@@ -79,9 +79,9 @@ function InboxRow({ locale, item, selected }: { locale: Locale; item: InboxRowIt
           {item.mutedUntil && (item.mutedUntil === -1 || item.mutedUntil > renderedAt) ? <BellOff className="size-3.5 shrink-0 text-muted" /> : null}
           {item.unreadCount ? <span className="grid min-w-5 place-items-center rounded-full bg-red-600 px-1.5 py-0.5 font-mono text-[10px] font-black text-white">{item.unreadCount > 99 ? "99+" : item.unreadCount}</span> : null}
         </span>
-        <span className="mt-1 flex min-h-4 items-center gap-2 text-[9px] font-black uppercase tracking-[0.08em] text-muted">
+        <span className="mt-1 flex min-h-4 items-center gap-2 type-eyebrow-sm text-muted">
           <span>{item.kind === "group" ? label(locale, "Grupni razgovor", "Group chat") : item.kind === "support" ? label(locale, "Podrška", "Support") : label(locale, "Jedan na jedan", "One to one")}</span>
-          {item.requestStatus === "pending" || item.memberStatus === "invited" ? <span className="inline-flex rounded-full border border-ink bg-paper px-2 py-0.5 text-[9px] text-ink">{item.memberStatus === "invited" ? label(locale, "Poziv u grupu", "Group invite") : label(locale, "Zahtev za poruku", "Message request")}</span> : null}
+          {item.requestStatus === "pending" || item.memberStatus === "invited" ? <span className="inline-flex rounded-full border border-ink bg-paper px-2 py-0.5 type-caption text-ink">{item.memberStatus === "invited" ? label(locale, "Poziv u grupu", "Group invite") : label(locale, "Zahtev za poruku", "Message request")}</span> : null}
         </span>
       </span>
     </Link>
@@ -150,7 +150,7 @@ function NotificationPreferencesPopover({ locale }: { locale: Locale }) {
                   <div className="mt-2 flex flex-wrap gap-1.5">{(["inApp", "push", "sound"] as const).map((key) => {
                     const active = preference[key];
                     const text = key === "inApp" ? label(locale, "U aplikaciji", "In app") : key === "push" ? "Push" : label(locale, "Zvuk", "Sound");
-                    return <button key={key} type="button" aria-pressed={active} onClick={() => void togglePreference(preference, key)} className={cn("rounded-full border border-ink px-2.5 py-1 text-[10px] font-black", active ? "bg-ink text-paper-strong" : "bg-paper-strong text-ink")}>{text}</button>;
+                    return <button key={key} type="button" aria-pressed={active} onClick={() => void togglePreference(preference, key)} className={cn("rounded-full border border-ink px-2.5 py-1 type-caption font-black", active ? "bg-ink text-paper-strong" : "bg-paper-strong text-ink")}>{text}</button>;
                   })}</div>
                 </div>
               ))}
@@ -231,13 +231,13 @@ function GlobalSearchResults({
   return (
     <div className="space-y-3" aria-live="polite">
       {creationMessage ? <p role="alert" className="rounded-[8px] border border-red-400 bg-red-50 px-3 py-2 text-xs font-black text-red-800">{creationMessage}</p> : null}
-      {memberRows.length || memberSearch.status === "CanLoadMore" || memberSearch.status === "LoadingMore" ? <div className="space-y-2 border-b-2 border-line pb-3">
-        <p className="px-1 text-[10px] font-black uppercase tracking-[0.12em] text-muted">{label(locale, "Ljudi", "People")}</p>
-        {memberRows.map((member) => <button key={member.userId} type="button" disabled={Boolean(creatingUserId)} onClick={() => void startDirect(member.userId)} className="flex w-full items-center gap-3 rounded-[16px] border-2 border-line bg-paper-strong p-3 text-left transition hover:border-ink disabled:opacity-60"><Avatar src={member.avatarUrl} name={member.name} /><span className="min-w-0 flex-1"><span className="block truncate text-sm font-black">{member.name}</span>{member.username ? <span className="block truncate text-[10px] font-bold text-muted">@{member.username}</span> : null}</span>{creatingUserId === member.userId ? <Spinner /> : <MessageCircle className="size-4" />}</button>)}
-        {memberSearch.status === "CanLoadMore" ? <button type="button" onClick={() => memberSearch.loadMore(8)} className="w-full rounded-full border border-ink bg-paper-strong px-3 py-2 text-[10px] font-black">{label(locale, "Učitaj još ljudi", "Load more people")}</button> : null}
+      {memberRows.length || memberSearch.status === "CanLoadMore" || memberSearch.status === "LoadingMore" ? <div className="space-y-3 border-b-2 border-line pb-3">
+        <p className="px-1 type-eyebrow-sm text-muted">{label(locale, "Ljudi", "People")}</p>
+        {memberRows.map((member) => <button key={member.userId} type="button" disabled={Boolean(creatingUserId)} onClick={() => void startDirect(member.userId)} className="flex w-full items-center gap-3 rounded-[16px] border-2 border-line bg-paper-strong p-3 text-left transition hover:border-ink disabled:opacity-60"><Avatar src={member.avatarUrl} name={member.name} /><span className="min-w-0 flex-1"><span className="block truncate text-sm font-black">{member.name}</span>{member.username ? <span className="block truncate type-caption font-bold text-muted">@{member.username}</span> : null}</span>{creatingUserId === member.userId ? <Spinner /> : <MessageCircle className="size-4" />}</button>)}
+        {memberSearch.status === "CanLoadMore" ? <button type="button" onClick={() => memberSearch.loadMore(8)} className="w-full rounded-full border border-ink bg-paper-strong px-3 py-2 type-caption font-black">{label(locale, "Učitaj još ljudi", "Load more people")}</button> : null}
       </div> : null}
       {conversationRows.length || conversationSearch.status === "CanLoadMore" || conversationSearch.status === "LoadingMore" ? <div className="space-y-2">
-        <p className="px-1 text-[10px] font-black uppercase tracking-[0.12em] text-muted">{label(locale, "Razgovori", "Conversations")}</p>
+        <p className="px-1 type-eyebrow-sm text-muted">{label(locale, "Razgovori", "Conversations")}</p>
         {conversationRows.map((item) => <InboxRow key={String(item.conversationId)} locale={locale} item={item} selected={selectedConversationId === String(item.conversationId)} />)}
         {conversationSearch.status === "CanLoadMore" ? <button type="button" onClick={() => conversationSearch.loadMore(20)} className="w-full rounded-full border-2 border-ink bg-paper-strong px-4 py-3 text-sm font-black">{label(locale, "Učitaj još razgovora", "Load more conversations")}</button> : null}
       </div> : null}
@@ -301,19 +301,19 @@ export function InboxPane({
 
   return (
     <section data-chat-motion-surface="inbox" className="flex min-h-0 min-w-0 flex-1 flex-col rounded-[16px] border-2 border-ink bg-paper shadow-[5px_5px_0_0_var(--shadow-hard-12)]">
-      <div className="border-b-2 border-ink bg-paper-strong p-4 sm:p-5">
+      <div className="border-b-2 border-ink bg-paper-strong p-4 sm:p-6">
         <div className="flex items-center justify-between gap-3">
-          <div><p className="text-[10px] font-black uppercase tracking-[0.18em] text-blue-mid dark:text-muted">{label(locale, "Poruke", "Messages")}</p><h2 className="text-lg font-black leading-none text-ink">{label(locale, "Razgovori", "Conversations")}</h2></div>
+          <div><p className="type-eyebrow-sm text-blue-mid dark:text-muted">{label(locale, "Poruke", "Messages")}</p><h2 className="type-h3 text-ink">{label(locale, "Razgovori", "Conversations")}</h2></div>
           <div className="flex gap-2"><PushNotificationButton locale={locale} /><NotificationPreferencesPopover locale={locale} /><button type="button" onClick={() => setNewConversationOpen(true)} className="inline-flex h-11 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-3 text-xs font-black" aria-label={label(locale, "Novi razgovor", "New conversation")}><MessageCircle className="size-4" /><span className="hidden 2xl:inline">{label(locale, "Novi", "New")}</span></button></div>
         </div>
         <label className="mt-4 flex h-11 items-center gap-2 rounded-full border-2 border-line bg-paper px-4 focus-within:border-ink"><Search className="size-4 text-muted" /><span className="sr-only">{label(locale, "Pretraži ljude i razgovore", "Search people and conversations")}</span><input value={draftQuery} onChange={(event) => setDraftQuery(event.target.value)} placeholder={label(locale, "Ljudi i razgovori", "People and conversations")} className="min-w-0 flex-1 bg-transparent text-sm font-bold placeholder:text-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink" />{draftQuery ? <button type="button" onClick={() => { setDraftQuery(""); onQueryChange(""); }} aria-label={label(locale, "Obriši pretragu", "Clear search")}><X className="size-4" /></button> : null}</label>
-        <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-5 xl:grid-cols-3" role="tablist" aria-label={label(locale, "Filter razgovora", "Conversation filter")}>{sections.map((item) => <button key={item.value} type="button" role="tab" aria-selected={section === item.value} onClick={() => onSectionChange(item.value)} className={cn("min-w-0 rounded-full border-2 border-ink px-2 py-1.5 text-[10px] font-black sm:text-[11px]", section === item.value ? "bg-ink text-paper-strong" : "bg-paper-strong text-ink")}>{locale === "sr" ? item.sr : item.en}{badgeFor(item) ? <span className={cn("ml-1 rounded-full px-1.5 font-mono text-[9px]", section === item.value ? "bg-yellow text-ink" : "bg-ink text-paper-strong")}>{badgeFor(item) > 99 ? "99+" : badgeFor(item)}</span> : null}</button>)}</div>
+        <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-5 xl:grid-cols-3" role="tablist" aria-label={label(locale, "Filter razgovora", "Conversation filter")}>{sections.map((item) => <button key={item.value} type="button" role="tab" aria-selected={section === item.value} onClick={() => onSectionChange(item.value)} className={cn("min-w-0 rounded-full border-2 border-ink px-2 py-1.5 type-caption font-black", section === item.value ? "bg-ink text-paper-strong" : "bg-paper-strong text-ink")}>{locale === "sr" ? item.sr : item.en}{badgeFor(item) ? <span className={cn("ml-1 rounded-full px-1.5 font-mono type-caption", section === item.value ? "bg-yellow text-ink" : "bg-ink text-paper-strong")}>{badgeFor(item) > 99 ? "99+" : badgeFor(item)}</span> : null}</button>)}</div>
       </div>
-      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3 sm:p-4">
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3 sm:p-4">
         {/* Stable key: keying the boundary on the query text remounted the whole
             result tree on every keystroke. */}
         {normalizedQuery.length >= 2 ? <GlobalSearchErrorBoundary key="global-search" locale={locale}><GlobalSearchResults locale={locale} query={draftQuery.trim()} section={section} selectedConversationId={selectedConversationId} onStartConversation={() => setNewConversationOpen(true)} onOpenStudy={onOpenStudy} /></GlobalSearchErrorBoundary> : <>
-          {pinnedRows.length || pinnedInbox.status === "CanLoadMore" ? <div className="space-y-2 border-b-2 border-line pb-3"><p className="px-1 text-[10px] font-black uppercase tracking-[0.12em] text-muted">{label(locale, "Zakačeni", "Pinned")}</p>{pinnedRows.map((item) => <InboxRow key={`pinned:${item.conversationId}`} locale={locale} item={item} selected={selectedConversationId === String(item.conversationId)} />)}{pinnedInbox.status === "CanLoadMore" ? <button type="button" onClick={() => pinnedInbox.loadMore(12)} className="w-full rounded-full border border-ink bg-paper-strong px-3 py-2 text-[10px] font-black">{label(locale, "Učitaj još zakačenih", "Load more pinned")}</button> : null}</div> : null}
+          {pinnedRows.length || pinnedInbox.status === "CanLoadMore" ? <div className="space-y-3 border-b-2 border-line pb-3"><p className="px-1 type-eyebrow-sm text-muted">{label(locale, "Zakačeni", "Pinned")}</p>{pinnedRows.map((item) => <InboxRow key={`pinned:${item.conversationId}`} locale={locale} item={item} selected={selectedConversationId === String(item.conversationId)} />)}{pinnedInbox.status === "CanLoadMore" ? <button type="button" onClick={() => pinnedInbox.loadMore(12)} className="w-full rounded-full border border-ink bg-paper-strong px-3 py-2 type-caption font-black">{label(locale, "Učitaj još zakačenih", "Load more pinned")}</button> : null}</div> : null}
           {/* Keyed by conversation alone: folding the sequence into the key
               remounted the row on every new message and stole keyboard focus. */}
           {rows.map((item: InboxItem | InboxRowItem) => <InboxRow key={String(item.conversationId)} locale={locale} item={item} selected={selectedConversationId === String(item.conversationId)} />)}

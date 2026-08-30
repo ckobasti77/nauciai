@@ -142,10 +142,10 @@ export function CommentsSection({
   }
 
   return (
-    <div ref={commentsTopRef} data-community-comments={postId} className={cn("relative space-y-5", compact && "space-y-4")}>
+    <div ref={commentsTopRef} data-community-comments={postId} className={cn("relative space-y-6", compact && "space-y-4")}>
       {isAuthenticated && canInteract ? (
         <form onSubmit={handleAddRootComment} className="rounded-[16px] border border-line bg-paper/45 p-3 sm:p-4">
-          <label htmlFor={`comment-${postId}`} className="block text-xs font-black uppercase tracking-[0.06em] text-ink/55">
+          <label htmlFor={`comment-${postId}`} className="block type-eyebrow text-ink/55">
             {locale === "sr" ? "Dodaj komentar" : "Add a comment"}
           </label>
           <div className="mt-2 flex items-end gap-2">
@@ -156,7 +156,7 @@ export function CommentsSection({
               onChange={(event) => setCommentText(event.target.value)}
               placeholder={locale === "sr" ? "Podeli odgovor, primer ili sledeći korak…" : "Share an answer, example, or next step…"}
               rows={compact ? 1 : 2}
-              className="min-h-11 flex-1 resize-y rounded-[12px] border border-line bg-paper-strong px-3 py-2.5 text-sm font-semibold leading-6 text-ink transition placeholder:text-ink/35 focus:border-ink focus:ring-4 focus:ring-yellow/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              className="min-h-11 flex-1 resize-y rounded-[12px] border border-line bg-paper-strong px-3 py-2.5 type-body-sm font-semibold text-ink transition placeholder:text-ink/35 focus:border-ink focus:ring-4 focus:ring-yellow/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             />
             <button type="submit" disabled={isSubmitting || !commentText.trim()} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border-2 border-ink bg-yellow px-4 text-sm font-black text-ink shadow-[3px_3px_0_var(--shadow-hard-16)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:translate-y-0.5 active:shadow-none disabled:cursor-not-allowed disabled:opacity-50" aria-label={locale === "sr" ? "Pošalji komentar" : "Send comment"}>
               {isSubmitting ? <Spinner /> : <Send className="size-4" />}
@@ -354,19 +354,19 @@ function CommentItem({
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
               {node.authorUsername ? <Link href={withLocale(locale, `/app/members/${node.authorUsername}`)} className="truncate text-xs font-black text-ink hover:underline">@{node.authorUsername}</Link> : <span className="truncate text-xs font-black text-ink">{node.authorName}</span>}
-              {node.authorUsername ? <span className="truncate text-[10px] font-semibold text-muted">{node.authorName}</span> : null}
-              <time dateTime={new Date(node.createdAt).toISOString()} className="text-[10px] font-bold text-ink/50">{formatCommunityTime(node.createdAt, locale)}</time>
-              {node.isHelpful ? <span className="inline-flex items-center gap-1 rounded-full border border-amber-400 bg-amber-50 px-2 py-0.5 text-[10px] font-black text-amber-900"><BadgeCheck className="size-3" />{locale === "sr" ? "Koristan odgovor · +10 XP" : "Helpful answer · +10 XP"}</span> : null}
+              {node.authorUsername ? <span className="truncate type-caption font-semibold text-muted">{node.authorName}</span> : null}
+              <time dateTime={new Date(node.createdAt).toISOString()} className="type-caption font-bold text-ink/50">{formatCommunityTime(node.createdAt, locale)}</time>
+              {node.isHelpful ? <span className="inline-flex items-center gap-1 rounded-full border border-amber-400 bg-amber-50 px-2 py-0.5 type-caption font-black text-amber-900"><BadgeCheck className="size-3" />{locale === "sr" ? "Koristan odgovor · +10 XP" : "Helpful answer · +10 XP"}</span> : null}
             </div>
             {node.parentId && node.replyToName ? (
-              <p className="mt-1 flex min-w-0 items-center gap-1.5 text-[11px] font-bold text-ink/55">
+              <p className="mt-1 flex min-w-0 items-center gap-1.5 type-caption font-bold text-ink/55">
                 <CornerDownRight className="size-3.5 shrink-0 text-ink/45" aria-hidden="true" />
                 <span className="shrink-0">{locale === "sr" ? "Odgovor na" : "Reply to"}</span>
                 <span className="truncate text-ink/75">{node.replyToName}</span>
                 {node.replyToBody ? <span className="truncate font-semibold text-ink/35">· {node.replyToBody}</span> : null}
               </p>
             ) : null}
-            <p className="mt-2 whitespace-pre-wrap text-sm font-semibold leading-6 text-ink/80">{node.body}</p>
+            <p className="mt-2 whitespace-pre-wrap type-body-sm font-semibold text-ink/80">{node.body}</p>
             <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-black text-ink">
               <div className="inline-flex items-center gap-0.5 rounded-full border border-line bg-paper-strong p-0.5">
                 <button type="button" onClick={() => void run("upvote", () => onReact(node._id, "upvote"))} disabled={!isAuthenticated || !canInteract || busy !== null} aria-label={locale === "sr" ? "Upvote komentara" : "Upvote comment"} aria-pressed={node.userVote === "upvote"} className={cn("grid size-11 place-items-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-40 sm:size-8", node.userVote === "upvote" ? "bg-yellow text-ink" : "text-muted hover:bg-yellow/20 hover:text-ink")}><ArrowUp className="size-3.5" /></button>
@@ -381,7 +381,7 @@ function CommentItem({
           </div>
           {canDelete ? <button type="button" onClick={() => onDelete(node._id)} className="inline-flex size-9 shrink-0 items-center justify-center rounded-full border border-transparent text-red-500 opacity-100 transition hover:border-red-200 hover:bg-red-50 hover:text-red-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 md:opacity-0 md:group-hover:opacity-100" aria-label={locale === "sr" ? "Obriši komentar" : "Delete comment"}><Trash2 className="size-3.5" /></button> : null}
         </div>
-        {showReplyForm ? <form onSubmit={handleAddReply} className="mt-4 flex items-end gap-2"><div className="relative flex-1"><CornerDownRight className="pointer-events-none absolute left-3 top-3 size-4 text-ink/45" /><label htmlFor={`reply-${node._id}`} className="sr-only">{locale === "sr" ? `Odgovor za ${node.authorName}` : `Reply to ${node.authorName}`}</label><textarea id={`reply-${node._id}`} value={replyText} onChange={(event) => setReplyText(event.target.value)} placeholder={locale === "sr" ? "Napiši odgovor…" : "Write a reply…"} rows={2} className="min-h-11 w-full resize-y rounded-[12px] border border-line bg-paper-strong px-3 py-2.5 pl-9 text-xs font-bold leading-5 text-ink focus:border-ink focus:ring-2 focus:ring-yellow/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink" autoFocus /></div><button type="submit" disabled={busy !== null || !replyText.trim()} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border-2 border-ink bg-yellow px-4 text-xs font-black text-ink shadow-[2px_2px_0_var(--shadow-hard-16)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:translate-y-0.5 active:shadow-none disabled:opacity-50" aria-label={locale === "sr" ? "Pošalji odgovor" : "Send reply"}>{busy === "reply" ? <Spinner size="xs" /> : <Send className="size-3.5" />}</button></form> : null}
+        {showReplyForm ? <form onSubmit={handleAddReply} className="mt-4 flex items-end gap-2"><div className="relative flex-1"><CornerDownRight className="pointer-events-none absolute left-3 top-3 size-4 text-ink/45" /><label htmlFor={`reply-${node._id}`} className="sr-only">{locale === "sr" ? `Odgovor za ${node.authorName}` : `Reply to ${node.authorName}`}</label><textarea id={`reply-${node._id}`} value={replyText} onChange={(event) => setReplyText(event.target.value)} placeholder={locale === "sr" ? "Napiši odgovor…" : "Write a reply…"} rows={2} className="min-h-11 w-full resize-y rounded-[12px] border border-line bg-paper-strong px-3 py-2.5 pl-9 type-caption font-bold text-ink focus:border-ink focus:ring-2 focus:ring-yellow/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink" autoFocus /></div><button type="submit" disabled={busy !== null || !replyText.trim()} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border-2 border-ink bg-yellow px-4 text-xs font-black text-ink shadow-[2px_2px_0_var(--shadow-hard-16)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:translate-y-0.5 active:shadow-none disabled:opacity-50" aria-label={locale === "sr" ? "Pošalji odgovor" : "Send reply"}>{busy === "reply" ? <Spinner size="xs" /> : <Send className="size-3.5" />}</button></form> : null}
       </article>
       {hasReplies && repliesRequested ? <CommentReplies id={`replies-${node._id}`} postId={postId} parentId={node._id} locale={locale} isAuthenticated={isAuthenticated} canModerate={canModerate} canMarkHelpful={canMarkHelpful} canInteract={canInteract} viewerUserId={viewerUserId} depth={depth + 1} collapseSignal={collapseSignal} expandLoadedSignal={expandLoadedSignal} isExpanded={isExpanded} onReact={onReact} onSetHelpful={onSetHelpful} onDelete={onDelete} onReply={onReply} onError={onError} /> : null}
     </div>

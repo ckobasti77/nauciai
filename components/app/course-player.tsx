@@ -84,7 +84,7 @@ function PartContent({ part, locale }: { part: LessonPart; locale: Locale }) {
   }
 
   return part.body ? (
-    <RichTextContent value={locale === "sr" ? part.bodyRich?.sr : part.bodyRich?.en} fallback={localized(part.body, locale)} className="text-base leading-8 text-muted" />
+    <RichTextContent value={locale === "sr" ? part.bodyRich?.sr : part.bodyRich?.en} fallback={localized(part.body, locale)} className="type-reading type-measure text-muted" />
   ) : (
     <p className="mt-4 text-sm font-bold text-muted">
       {locale === "sr" ? "Tekst za ovaj deo lekcije još nije dodat." : "The text for this part of the lesson has not been added yet."}
@@ -261,14 +261,14 @@ export function CoursePlayer({
               <button type="button" onClick={() => setPendingDelete({ kind: "block", id: part.id! })} aria-label={locale === "sr" ? "Obriši blok" : "Delete block"} className="grid size-8 place-items-center rounded-full border-2 border-red-700 bg-paper-strong text-red-700"><Trash2 className="size-3.5" /></button>
             </div>
           ) : null}
-          {part.kind === "text" ? <InlineRichText kind="part" entityId={part.id ?? ""} parentId={lessonId} field="body" locale={inlineLocale} richSr={part.bodyRich?.sr} richEn={part.bodyRich?.en} sr={part.body?.sr ?? ""} en={part.body?.en ?? ""} admin={isAdmin && Boolean(part.id)} className="text-base leading-8 text-muted" /> : <PartContent part={part} locale={locale} />}
+          {part.kind === "text" ? <InlineRichText kind="part" entityId={part.id ?? ""} parentId={lessonId} field="body" locale={inlineLocale} richSr={part.bodyRich?.sr} richEn={part.bodyRich?.en} sr={part.body?.sr ?? ""} en={part.body?.en ?? ""} admin={isAdmin && Boolean(part.id)} className="type-reading type-measure text-muted" /> : <PartContent part={part} locale={locale} />}
         </section>
       );
     });
   }
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[1fr_320px]">
+    <div className="grid gap-6 xl:grid-cols-[1fr_320px]">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-[16px] border-2 border-ink bg-paper-strong p-3 xl:col-span-2">
         <div><p className="text-sm font-black text-ink">{locale === "sr" ? "Prikaz lekcije" : "Lesson view"}</p><p className="text-xs font-bold text-muted">{canUsePro ? (locale === "sr" ? "Možeš da menjaš prikaz tokom učenja." : "Switch views while learning.") : (locale === "sr" ? "Pro prikaz je dostupan na višem planu." : "Pro view is available on a higher plan.")}</p></div>
         <div className="flex rounded-full border-2 border-ink bg-paper p-1" role="group" aria-label={locale === "sr" ? "Izaberi prikaz lekcije" : "Choose lesson view"}>
@@ -276,12 +276,12 @@ export function CoursePlayer({
           <button type="button" onClick={() => selectLessonView("light")} className="rounded-full bg-ink px-4 py-2 text-xs font-black text-paper-strong">Light</button>
         </div>
       </div>
-      <section className="space-y-5">
-        <Panel className="relative p-5">
+      <section className="space-y-6">
+        <Panel className="relative p-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div>
-              <p className="font-display text-3xl text-ink"><InlineContentText entityId={lessonId ?? ""} parentId={courseId} kind="lesson" field="title" locale={inlineLocale} sr={lesson.title.sr} en={lesson.title.en} admin={isAdmin && Boolean(lessonId)}>{localized(lesson.title, locale)}</InlineContentText></p>
-              <p className="mt-2 max-w-3xl text-base leading-7 text-muted"><InlineContentText entityId={lessonId ?? ""} parentId={courseId} kind="lesson" field="summary" locale={inlineLocale} sr={lesson.summary.sr} en={lesson.summary.en} admin={isAdmin && Boolean(lessonId)} multiline>{localized(lesson.summary, locale)}</InlineContentText></p>
+              <p className="font-display type-display-sm text-ink"><InlineContentText entityId={lessonId ?? ""} parentId={courseId} kind="lesson" field="title" locale={inlineLocale} sr={lesson.title.sr} en={lesson.title.en} admin={isAdmin && Boolean(lessonId)}>{localized(lesson.title, locale)}</InlineContentText></p>
+              <p className="mt-2 max-w-3xl type-body text-muted"><InlineContentText entityId={lessonId ?? ""} parentId={courseId} kind="lesson" field="summary" locale={inlineLocale} sr={lesson.summary.sr} en={lesson.summary.en} admin={isAdmin && Boolean(lessonId)} multiline>{localized(lesson.summary, locale)}</InlineContentText></p>
             </div>
             <div className="flex flex-wrap gap-2">
               {effectiveIsAdmin && !inlinePreview ? (
@@ -326,7 +326,7 @@ export function CoursePlayer({
           {progressMessage ? <p className="mt-4 text-sm font-bold text-muted">{progressMessage}</p> : null}
         </Panel>
 
-        <div className="rounded-[16px] border-2 border-ink bg-paper-strong p-5 shadow-[5px_5px_0_var(--shadow-hard-10)]">
+        <div className="rounded-[16px] border-2 border-ink bg-paper-strong p-6 shadow-[5px_5px_0_var(--shadow-hard-10)]">
           {lesson.parts.length ? (
             renderPartPanels()
           ) : (
@@ -341,7 +341,7 @@ export function CoursePlayer({
 
       <Panel className="relative p-4 xl:sticky xl:top-6 xl:h-fit">
         <div className="flex items-center justify-between gap-3">
-          <p className="text-lg font-black text-ink">{locale === "sr" ? "Materijali" : "Materials"}</p>
+          <p className="type-h3 text-ink">{locale === "sr" ? "Materijali" : "Materials"}</p>
           {effectiveIsAdmin ? <span className={inlinePreview ? "absolute right-3 top-3 z-20" : ""}><AddAssetAction locale={locale} courseId={courseId} lessonId={lessonId} tone="compact" /></span> : null}
         </div>
         <div className="mt-4 space-y-3">

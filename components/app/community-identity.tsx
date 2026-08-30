@@ -54,8 +54,8 @@ export function RoleBadge({
   return (
     <span
       className={cn(
-        "inline-flex items-center justify-center rounded-full border font-black uppercase leading-none shadow-[0_2px_0_var(--shadow-hard-16)]",
-        compact ? "px-1.5 py-0.5 text-[8px]" : "px-2 py-1 text-[10px]",
+        "inline-flex items-center justify-center rounded-full border type-eyebrow-sm shadow-[0_2px_0_var(--shadow-hard-16)]",
+        compact ? "px-1.5 py-0.5" : "px-2 py-1",
         role === "admin" && "border-ink bg-yellow text-ink",
         role === "moderator" && "border-ink/60 bg-ink text-paper-strong",
         role === "pro_student" && "border-ink/40 bg-paper-strong text-ink",
@@ -82,7 +82,7 @@ export function RankBadge({
   return (
     <span
       className={cn(
-        "inline-flex items-center justify-center rounded-full border border-line bg-paper-strong px-2 py-0.5 text-[10px] font-black leading-none text-ink/65",
+        "inline-flex items-center justify-center rounded-full border border-line bg-paper-strong px-2 py-0.5 type-caption font-black text-ink/65",
         className,
       )}
       title={`${rank.label} - ${rank.completedLessons}`}

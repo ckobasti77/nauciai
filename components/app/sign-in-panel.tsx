@@ -279,7 +279,7 @@ function ConvexSignInForm({
             <ArrowLeft className="size-4" />
             {t(locale, "Nazad na prijavu", "Back to sign in")}
           </button>
-          <h2 className="mt-4 text-3xl font-black text-ink">{title}</h2>
+          <h2 className="mt-4 type-h1 text-ink">{title}</h2>
         </div>
       )}
 
@@ -506,10 +506,10 @@ export function SignInPanel({
   if (!hasConvex) {
     return (
       <Panel className="p-6 md:p-8">
-        <h2 className="text-2xl font-black text-ink">
+        <h2 className="type-h2 text-ink">
           {t(locale, "Prijava je spremna za Convex", "Sign-in is ready for Convex")}
         </h2>
-        <p className="mt-3 text-base leading-7 text-muted">
+        <p className="mt-3 type-body type-measure text-muted">
           {t(
             locale,
             "Dodaj NEXT_PUBLIC_CONVEX_URL i Convex Auth tajne da aktiviras email i Google prijavu.",

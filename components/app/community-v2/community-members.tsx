@@ -148,9 +148,9 @@ function MemberCard({
       />
       <span className="min-w-0 flex-1">
         {member.username ? <Link href={withLocale(locale, `/app/members/${member.username}`)} className="flex min-w-0 items-center gap-2 rounded-[8px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
-          <span className="truncate text-base font-black text-ink">{member.name}</span>
+          <span className="truncate type-h4 text-ink">{member.name}</span>
           <ChevronRight className="size-4 shrink-0 text-line transition group-hover:translate-x-0.5 group-hover:text-ink" aria-hidden="true" />
-        </Link> : <span className="flex min-w-0 items-center gap-2"><span className="truncate text-base font-black text-ink">{member.name}</span></span>}
+        </Link> : <span className="flex min-w-0 items-center gap-2"><span className="truncate type-h4 text-ink">{member.name}</span></span>}
         {member.username ? <span className="mt-0.5 block truncate text-xs font-bold text-muted">@{member.username}</span> : null}
         <span className="mt-2 block">
           <ScopeTrail
@@ -164,7 +164,7 @@ function MemberCard({
           <span className="font-mono text-xs font-black text-ink">{member.contributionCount ?? 0} {locale === "sr" ? "doprinosa" : "contributions"}</span>
           <RoleBadge role={member.role} locale={locale} compact />
         </span>
-        {member.canFollow && member.userId ? <button type="button" onClick={() => void follow()} disabled={pending} className={cn("mt-3 inline-flex min-h-9 items-center gap-2 rounded-full border-2 border-ink px-3 text-[10px] font-black", following ? "bg-paper-strong" : "bg-yellow")}><UserPlus className="size-3.5" />{mutual ? (locale === "sr" ? "Pratite se" : "Mutual") : following ? (locale === "sr" ? "Pratiš" : "Following") : (locale === "sr" ? "Zaprati" : "Follow")}</button> : null}
+        {member.canFollow && member.userId ? <button type="button" onClick={() => void follow()} disabled={pending} className={cn("mt-3 inline-flex min-h-9 items-center gap-2 rounded-full border-2 border-ink px-3 type-caption font-black", following ? "bg-paper-strong" : "bg-yellow")}><UserPlus className="size-3.5" />{mutual ? (locale === "sr" ? "Pratite se" : "Mutual") : following ? (locale === "sr" ? "Pratiš" : "Following") : (locale === "sr" ? "Zaprati" : "Follow")}</button> : null}
       </span>
     </article>
   );
@@ -204,7 +204,7 @@ function MembersView({
   }));
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <CommunityStickyToolbar>
       <section className="rounded-[16px] border border-line bg-paper-strong p-3 sm:p-4">
         <div className="mb-3 flex gap-2 overflow-x-auto" role="tablist" aria-label={locale === "sr" ? "Veze članova" : "Member connections"}>
@@ -247,13 +247,13 @@ function MembersView({
           <div className="mb-3 flex items-center justify-between gap-3 px-1">
             <div className="flex items-center gap-2">
               <Users className="size-4 text-ink/60" aria-hidden="true" />
-              <h2 className="text-sm font-black uppercase tracking-[0.1em] text-ink/65">
+              <h2 className="type-eyebrow text-ink/65">
                 {locale === "sr" ? "Direktorijum" : "Directory"}
               </h2>
             </div>
           <span className="font-mono text-xs font-black text-muted">{scopedMembers.length}</span>
           </div>
-          <div className="space-y-5">
+          <div className="space-y-6">
             {(["admin", "moderator", "pro_student", "student"] as const).map((groupRole) => {
               const group = scopedMembers.filter((member) => member.role === groupRole);
               if (!group.length) return null;
@@ -261,11 +261,11 @@ function MembersView({
                 <section key={groupRole} aria-labelledby={`members-${groupRole}`}>
                   <div className="mb-2 flex items-center gap-2 border-b border-line pb-2">
                     <RoleBadge role={groupRole} locale={locale} compact />
-                    <h3 id={`members-${groupRole}`} className="text-xs font-black uppercase tracking-[0.12em] text-ink/60">
+                    <h3 id={`members-${groupRole}`} className="type-eyebrow text-ink/60">
                       {roleLabel(groupRole, locale)}
                     </h3>
                   </div>
-                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                     {group.map((member) => (
                       <MemberCard key={member._id} locale={locale} member={member} />
                     ))}

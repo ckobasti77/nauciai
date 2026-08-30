@@ -382,7 +382,7 @@ function PanelPalette({
           </span>
           <span className="min-w-0">
             <span className="block truncate">{panelLabel(locale, type)}</span>
-            <span className="block text-[10px] uppercase text-muted">
+            <span className="block type-eyebrow-sm text-muted">
               {t(locale, "Deo panela", "Panel block")}
             </span>
           </span>
@@ -420,7 +420,7 @@ function EditorSidebarRail({
       <span className="inline-flex size-9 items-center justify-center rounded-[8px] border-2 border-line bg-paper text-muted">
         {icon}
       </span>
-      <span className="rotate-180 [writing-mode:vertical-rl] text-[10px] font-black uppercase text-muted">
+      <span className="rotate-180 [writing-mode:vertical-rl] type-eyebrow-sm text-muted">
         {label}
       </span>
     </div>
@@ -475,7 +475,7 @@ function CanvasDropZone({
       }}
       onDrop={(event) => onDrop(event, slotIndex)}
       className={cn(
-        "flex min-h-[540px] min-w-0 flex-col items-center justify-center rounded-[8px] border-2 border-dashed bg-paper-strong/70 p-5 text-center transition xl:row-start-1",
+        "flex min-h-[540px] min-w-0 flex-col items-center justify-center rounded-[8px] border-2 border-dashed bg-paper-strong/70 p-6 text-center transition xl:row-start-1",
         gridStartClass(slotIndex),
         draggingType ? "border-ink bg-yellow/15" : "border-line",
       )}
@@ -483,7 +483,7 @@ function CanvasDropZone({
       <div className="inline-flex size-12 items-center justify-center rounded-[8px] border-2 border-ink bg-yellow text-ink shadow-[3px_3px_0_0_var(--shadow-hard-14)]">
         <Plus className="size-5" />
       </div>
-      <p className="mt-4 text-sm font-black uppercase text-ink">
+      <p className="mt-4 type-eyebrow text-ink">
         {t(locale, "Trecina", "Third")} {slotIndex + 1}
       </p>
       <p className="mt-1 text-xs font-bold text-muted">
@@ -581,7 +581,7 @@ function SectionCard({
           <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-[8px] border-2 border-ink bg-yellow text-ink">
             {icon}
           </span>
-          <h3 className="truncate text-sm font-black text-ink">{title}</h3>
+          <h3 className="truncate type-h4 text-ink">{title}</h3>
         </div>
         {action}
       </div>
@@ -595,7 +595,7 @@ const inputClass =
 const compactInputClass =
   "h-8 w-full rounded-[8px] border border-ink bg-paper-strong px-2 text-xs font-bold text-ink transition placeholder:text-muted/60 focus:border-yellow focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
 const textareaClass =
-  "w-full resize-none rounded-[8px] border-2 border-ink bg-paper-strong p-3 text-sm font-bold leading-6 text-ink transition placeholder:text-muted/60 focus:border-yellow focus:ring-4 focus:ring-yellow/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
+  "w-full resize-none rounded-[8px] border-2 border-ink bg-paper-strong p-3 type-body-sm font-bold text-ink transition placeholder:text-muted/60 focus:border-yellow focus:ring-4 focus:ring-yellow/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
 
 export function LessonStepsEditor({
   course,
@@ -989,7 +989,7 @@ export function LessonStepsEditor({
 
   if (!labData) {
     return (
-      <div className="flex min-h-[480px] items-center justify-center bg-paper p-12 text-ink">
+      <div className="flex min-h-[480px] items-center justify-center bg-paper p-8 text-ink">
         <div className="rounded-[8px] border-2 border-ink bg-paper-strong p-6 text-center shadow-[6px_6px_0_0_var(--shadow-hard-13)]">
           <Spinner size="xl" className="mx-auto text-yellow" />
           <p className="mt-3 text-sm font-black text-muted">
@@ -1020,14 +1020,14 @@ export function LessonStepsEditor({
             <ChevronLeft className="size-4" />
           </Link>
           <div className="min-w-0">
-            <div className="flex min-w-0 items-center gap-2 text-[11px] font-black uppercase text-muted">
+            <div className="flex min-w-0 items-center gap-2 type-eyebrow text-muted">
               <span className="truncate">{localized(course.title, locale)}</span>
               <span>/</span>
               <span>{t(locale, "Ciklus", "Cycle")}</span>
               <span>/</span>
               <span className="truncate">{localized(lesson.title, locale)}</span>
             </div>
-            <h1 className="truncate text-xl font-black leading-tight text-ink lg:text-2xl">
+            <h1 className="truncate type-h2 text-ink">
               {t(locale, "Admin panel lekcije", "Lesson admin panel")}
             </h1>
           </div>
@@ -1113,10 +1113,10 @@ export function LessonStepsEditor({
             <div className="border-b-2 border-line p-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-[11px] font-black uppercase text-muted">
+                  <p className="type-eyebrow text-muted">
                     {t(locale, "Roadmap", "Roadmap")}
                   </p>
-                  <h2 className="text-lg font-black text-ink">{t(locale, "Koraci", "Steps")}</h2>
+                  <h2 className="type-h3 text-ink">{t(locale, "Koraci", "Steps")}</h2>
                 </div>
                 <button
                   type="button"
@@ -1159,7 +1159,7 @@ export function LessonStepsEditor({
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="text-[10px] font-black uppercase text-muted">
+                        <p className="type-eyebrow-sm text-muted">
                           {t(locale, "Korak", "Step")} {index + 1}
                           {!step.isPublished ? ` / ${t(locale, "Nacrt", "Draft")}` : ""}
                         </p>
@@ -1178,7 +1178,7 @@ export function LessonStepsEditor({
                         <span
                           key={`${step._id}-${slotIndex}`}
                           className={cn(
-                            "inline-flex h-6 flex-1 items-center justify-center rounded-[8px] border border-ink text-[9px] font-black uppercase",
+                            "inline-flex h-6 flex-1 items-center justify-center rounded-[8px] border border-ink type-eyebrow-sm",
                             PANEL_META[col.type].tone,
                           )}
                         >
@@ -1187,7 +1187,7 @@ export function LessonStepsEditor({
                       ))}
                     </div>
                     <div className="mt-3 flex items-center justify-between gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100">
-                      <span className="text-[10px] font-black text-muted">{activeTasks.length} tasks</span>
+                      <span className="type-caption font-black text-muted">{activeTasks.length} tasks</span>
                       <span className="flex items-center gap-1" onClick={(event) => event.stopPropagation()}>
                         <button
                           type="button"
@@ -1222,7 +1222,7 @@ export function LessonStepsEditor({
               })}
 
               {!sortedSteps.length ? (
-                <div className="rounded-[8px] border-2 border-dashed border-line bg-paper p-5 text-center">
+                <div className="rounded-[8px] border-2 border-dashed border-line bg-paper p-6 text-center">
                   <ListPlus className="mx-auto size-8 text-ink" />
                   <p className="mt-3 text-sm font-black text-muted">
                     {t(locale, "Dodaj prvi korak za ovu lekciju.", "Add the first step for this lesson.")}
@@ -1258,7 +1258,7 @@ export function LessonStepsEditor({
                 <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_170px_140px]">
                   <div className="grid min-w-0 gap-3 md:grid-cols-2">
                     <label className="block min-w-0">
-                      <span className="text-[10px] font-black uppercase text-muted">Title SR</span>
+                      <span className="type-eyebrow-sm text-muted">Title SR</span>
                       <input
                         className={inputClass}
                         value={stepForm.titleSr}
@@ -1266,7 +1266,7 @@ export function LessonStepsEditor({
                       />
                     </label>
                     <label className="block min-w-0">
-                      <span className="text-[10px] font-black uppercase text-muted">Title EN</span>
+                      <span className="type-eyebrow-sm text-muted">Title EN</span>
                       <input
                         className={inputClass}
                         value={stepForm.titleEn}
@@ -1275,7 +1275,7 @@ export function LessonStepsEditor({
                     </label>
                   </div>
                   <label className="block">
-                    <span className="text-[10px] font-black uppercase text-muted">Slug</span>
+                    <span className="type-eyebrow-sm text-muted">Slug</span>
                     <input
                       className={inputClass}
                       value={stepForm.slug}
@@ -1300,10 +1300,10 @@ export function LessonStepsEditor({
                 <div className="flex h-full min-h-[560px] flex-col overflow-hidden rounded-[8px] border-2 border-ink bg-paper-strong shadow-[6px_6px_0_0_var(--shadow-hard-12)]">
                   <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b-2 border-ink bg-paper-strong px-4 py-3">
                     <div className="min-w-0">
-                      <p className="text-[10px] font-black uppercase text-muted">
+                      <p className="type-eyebrow-sm text-muted">
                         {t(locale, "Learner preview canvas", "Learner preview canvas")}
                       </p>
-                      <h2 className="truncate text-lg font-black text-ink">
+                      <h2 className="truncate type-h3 text-ink">
                         {localText(locale, stepForm.titleSr, stepForm.titleEn)}
                       </h2>
                     </div>
@@ -1386,10 +1386,10 @@ export function LessonStepsEditor({
             <div className="flex h-full items-center justify-center p-8">
               <div className="max-w-md rounded-[8px] border-2 border-dashed border-line bg-paper-strong p-8 text-center">
                 <LayoutDashboard className="mx-auto size-10 text-ink" />
-                <h2 className="mt-4 text-xl font-black text-ink">
+                <h2 className="mt-4 type-h2 text-ink">
                   {t(locale, "Nema aktivnog koraka", "No active step")}
                 </h2>
-                <p className="mt-2 text-sm font-bold leading-6 text-muted">
+                <p className="mt-2 type-body-sm font-bold text-muted">
                   {t(locale, "Dodaj korak sa leve strane da otvoris canvas.", "Add a step on the left to open the canvas.")}
                 </p>
               </div>
@@ -1535,8 +1535,8 @@ function EditorPanel({
             <PanelIcon type={col.type} />
           </span>
           <div className="min-w-0">
-            <p className="truncate text-base font-black text-ink">{panelLabel(locale, col.type)}</p>
-            <p className="text-[11px] font-black uppercase text-muted">
+            <p className="truncate type-h4 text-ink">{panelLabel(locale, col.type)}</p>
+            <p className="type-eyebrow text-muted">
               Slot {slotIndex + 1} / {unitLabel(locale, units)}
             </p>
           </div>
@@ -1614,7 +1614,7 @@ function ExplanationEditor({
       <SectionCard title={t(locale, "Tekst objasnjenja", "Explanation copy")} icon={<FileText className="size-4" />}>
         <div className="grid gap-3">
           <label>
-            <span className="text-[10px] font-black uppercase text-muted">SR</span>
+            <span className="type-eyebrow-sm text-muted">SR</span>
             <textarea
               className={cn(textareaClass, "mt-1 min-h-36")}
               value={stepForm.bodySr}
@@ -1622,7 +1622,7 @@ function ExplanationEditor({
             />
           </label>
           <label>
-            <span className="text-[10px] font-black uppercase text-muted">EN</span>
+            <span className="type-eyebrow-sm text-muted">EN</span>
             <textarea
               className={cn(textareaClass, "mt-1 min-h-28")}
               value={stepForm.bodyEn}
@@ -1684,7 +1684,7 @@ function ExplanationEditor({
               </div>
               <div className="mt-3 grid gap-2 md:grid-cols-2">
                 <label>
-                  <span className="text-[10px] font-black uppercase text-muted">Task SR</span>
+                  <span className="type-eyebrow-sm text-muted">Task SR</span>
                   <input
                     className={cn(compactInputClass, "mt-1")}
                     value={task.promptSr}
@@ -1692,7 +1692,7 @@ function ExplanationEditor({
                   />
                 </label>
                 <label>
-                  <span className="text-[10px] font-black uppercase text-muted">Task EN</span>
+                  <span className="type-eyebrow-sm text-muted">Task EN</span>
                   <input
                     className={cn(compactInputClass, "mt-1")}
                     value={task.promptEn}
@@ -1700,7 +1700,7 @@ function ExplanationEditor({
                   />
                 </label>
                 <label>
-                  <span className="text-[10px] font-black uppercase text-muted">Hint SR</span>
+                  <span className="type-eyebrow-sm text-muted">Hint SR</span>
                   <input
                     className={cn(compactInputClass, "mt-1")}
                     value={task.hintSr ?? ""}
@@ -1708,7 +1708,7 @@ function ExplanationEditor({
                   />
                 </label>
                 <label>
-                  <span className="text-[10px] font-black uppercase text-muted">Hint EN</span>
+                  <span className="type-eyebrow-sm text-muted">Hint EN</span>
                   <input
                     className={cn(compactInputClass, "mt-1")}
                     value={task.hintEn ?? ""}
@@ -1764,7 +1764,7 @@ function ExplanationEditor({
           {stepForm.prompts.map((prompt, index) => (
             <div key={`prompt-${index}`} className="rounded-[8px] border-2 border-line bg-paper p-3">
               <div className="flex items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-2 text-xs font-black uppercase text-muted">
+                <span className="inline-flex items-center gap-2 type-eyebrow text-muted">
                   <Clipboard className="size-3.5" />
                   Prompt {index + 1}
                 </span>
@@ -1825,7 +1825,7 @@ function ChatbotEditor({
   return (
     <div className="space-y-4">
       <SectionCard title={t(locale, "AI instrukcije", "AI instructions")} icon={<Bot className="size-4" />}>
-        <p className="mb-3 text-xs font-bold leading-5 text-muted">
+        <p className="mb-3 type-caption font-bold text-muted">
           {t(
             locale,
             "Ovo su posebna pravila chatbota za ovaj korak. Korisnicki UI ostaje isti, ali AI cita ove instrukcije.",
@@ -1847,16 +1847,16 @@ function ChatbotEditor({
       <SectionCard title={t(locale, "Chat preview", "Chat preview")} icon={<MessageSquareText className="size-4" />}>
         <div className="space-y-3">
           <div className="rounded-[8px] border-2 border-line bg-paper p-3">
-            <p className="text-[10px] font-black uppercase text-muted">
+            <p className="type-eyebrow-sm text-muted">
               {t(locale, "Trenutni zadatak", "Current task")}
             </p>
-            <p className="mt-1 text-sm font-bold leading-6 text-ink">
+            <p className="mt-1 type-body-sm font-bold text-ink">
               {firstTask ? localText(locale, firstTask.promptSr, firstTask.promptEn) : t(locale, "Nema zadatka.", "No task.")}
             </p>
           </div>
           <div className="rounded-[8px] border-2 border-ink bg-paper-strong p-3">
-            <p className="text-[10px] font-black uppercase text-muted">AI</p>
-            <p className="mt-1 text-sm font-bold leading-6 text-ink">
+            <p className="type-eyebrow-sm text-muted">AI</p>
+            <p className="mt-1 type-body-sm font-bold text-ink">
               {t(
                 locale,
                 "Spreman sam. Posalji pitanje za ovaj korak i vodicu te kroz rad.",
@@ -1865,8 +1865,8 @@ function ChatbotEditor({
             </p>
           </div>
           <div className="ml-auto max-w-[88%] rounded-[8px] border-2 border-ink bg-yellow p-3">
-            <p className="text-[10px] font-black uppercase text-muted">{t(locale, "Student", "Student")}</p>
-            <p className="mt-1 text-sm font-bold leading-6 text-ink">
+            <p className="type-eyebrow-sm text-muted">{t(locale, "Student", "Student")}</p>
+            <p className="mt-1 type-body-sm font-bold text-ink">
               {t(locale, "Kako da pocnem?", "How do I start?")}
             </p>
           </div>
@@ -1911,12 +1911,12 @@ function OutputEditor({
       </SectionCard>
 
       <SectionCard title={t(locale, "Output preview", "Output preview")} icon={<Wand2 className="size-4" />}>
-        <div className="rounded-[8px] border-2 border-dashed border-line bg-paper p-5 text-center">
+        <div className="rounded-[8px] border-2 border-dashed border-line bg-paper p-6 text-center">
           <Save className="mx-auto size-8 text-ink" />
           <p className="mt-3 text-sm font-black text-ink">
             {t(locale, selected.sr, selected.en)} {t(locale, "output", "output")}
           </p>
-          <p className="mt-2 text-xs font-bold leading-5 text-muted">
+          <p className="mt-2 type-caption font-bold text-muted">
             {t(
               locale,
               "Korisnik ce ovde videti sacuvane rezultate iz AI chata ili upload.",
@@ -1961,11 +1961,11 @@ function Inspector({
   saving: boolean;
 }) {
   return (
-    <div className="space-y-4 p-5">
+    <div className="space-y-4 p-6">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[11px] font-black uppercase text-muted">{t(locale, "Editor", "Editor")}</p>
-          <h2 className="truncate text-2xl font-black text-ink">{t(locale, "Paneli stepa", "Step panels")}</h2>
+          <p className="type-eyebrow text-muted">{t(locale, "Editor", "Editor")}</p>
+          <h2 className="truncate type-h2 text-ink">{t(locale, "Paneli stepa", "Step panels")}</h2>
         </div>
         <button
           type="button"
@@ -1981,8 +1981,8 @@ function Inspector({
       <section className="rounded-[8px] border-2 border-ink bg-ink p-4 text-paper-strong shadow-[5px_5px_0_0_var(--yellow)]">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-[10px] font-black uppercase text-paper-strong/60">{t(locale, "Aktivan korak", "Active step")}</p>
-            <p className="mt-1 text-lg font-black leading-tight">
+            <p className="type-eyebrow-sm text-paper-strong/60">{t(locale, "Aktivan korak", "Active step")}</p>
+            <p className="mt-1 type-h3">
               {stepForm ? localText(locale, stepForm.titleSr, stepForm.titleEn) : t(locale, "Nema koraka", "No step")}
             </p>
           </div>
@@ -2020,12 +2020,12 @@ function Inspector({
                     type="button"
                     onClick={() => onSelectSlot(targetSlot)}
                     className={cn(
-                      "min-h-20 rounded-[8px] border-2 p-2 text-center text-[10px] font-black uppercase transition",
+                      "min-h-20 rounded-[8px] border-2 p-2 text-center type-eyebrow-sm transition",
                       active ? "border-ink bg-yellow text-ink" : "border-line bg-paper text-muted hover:border-ink",
                     )}
                   >
                     <span className="block">{slotIndex + 1}/3</span>
-                    <span className="mt-2 block normal-case leading-tight">
+                    <span className="mt-2 block normal-case type-caption">
                       {col
                         ? panelLabel(locale, col.type, "short")
                         : occupant
@@ -2042,7 +2042,7 @@ function Inspector({
             <SectionCard title={panelLabel(locale, selectedCol.type)} icon={<Settings2 className="size-4" />}>
               <div className="space-y-4">
                 <label className="block">
-                  <span className="text-[10px] font-black uppercase text-muted">{t(locale, "Tip panela", "Panel type")}</span>
+                  <span className="type-eyebrow-sm text-muted">{t(locale, "Tip panela", "Panel type")}</span>
                   <select
                     className={cn(inputClass, "mt-1")}
                     value={selectedCol.type}
@@ -2054,7 +2054,7 @@ function Inspector({
                   </select>
                 </label>
                 <div>
-                  <p className="mb-2 text-[10px] font-black uppercase text-muted">{t(locale, "Sirina", "Width")}</p>
+                  <p className="mb-2 type-eyebrow-sm text-muted">{t(locale, "Sirina", "Width")}</p>
                   <WidthStepper
                     locale={locale}
                     units={slotUnits(selectedCol, selectedSlot)}

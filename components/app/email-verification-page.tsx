@@ -58,14 +58,14 @@ export function EmailVerificationPage({ locale, token }: { locale: Locale; token
   return (
     <main className="sketch-grid min-h-screen bg-paper px-4 py-8 sm:px-6 lg:px-8">
       <div className="mx-auto flex min-h-[calc(100vh-64px)] max-w-2xl items-center justify-center">
-        <Panel className="w-full p-6 text-center sm:p-10">
+        <Panel className="w-full p-6 text-center sm:p-8">
           <BrandMark href={homeHref} label="Nauči AI" />
-          <p className="mt-6 text-sm font-black uppercase tracking-[0.16em] text-muted">
+          <p className="mt-6 type-eyebrow text-muted">
             <MailCheck className="mr-2 inline size-4" />
             {t(locale, "Verifikacija email-a", "Email verification")}
           </p>
-          <h1 className="mt-3 text-4xl font-black leading-tight text-ink sm:text-5xl">{title}</h1>
-          <p className="mx-auto mt-5 max-w-xl text-base font-bold leading-7 text-muted">{body}</p>
+          <h1 className="mt-3 type-hero text-ink">{title}</h1>
+          <p className="mx-auto mt-5 max-w-xl type-body font-bold text-muted">{body}</p>
           <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
             <LinkButton href={isSuccess ? profileHref : dashboardHref} tone="ink">
               {isSuccess ? t(locale, "Nazad na Profil", "Back to Profile") : t(locale, "Dashboard", "Dashboard")}

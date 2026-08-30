@@ -76,8 +76,8 @@ export function CourseCatalogCard({ locale, course }: { locale: Locale; course: 
 
       <div className="flex flex-1 flex-col gap-4 px-5 pb-5 pt-2">
         <div>
-          <h3 className="text-2xl font-black leading-tight text-ink">{title}</h3>
-          <p className="mt-2 line-clamp-2 text-sm font-bold leading-6 text-muted">
+          <h3 className="type-h2 text-ink">{title}</h3>
+          <p className="mt-2 line-clamp-2 type-body-sm font-bold text-muted">
             {localized(course.subtitle, locale)}
           </p>
         </div>
@@ -89,10 +89,10 @@ export function CourseCatalogCard({ locale, course }: { locale: Locale; course: 
 
         {topics.length ? (
           <div className="rounded-[12px] border-2 border-line bg-paper px-3 py-3">
-            <p className="text-xs font-black uppercase text-muted">{tr(locale, "Šta se uči", "What you learn")}</p>
+            <p className="type-eyebrow text-muted">{tr(locale, "Šta se uči", "What you learn")}</p>
             <ul className="mt-2 space-y-1.5">
               {topics.map((lesson) => (
-                <li key={lesson.slug} className="flex items-start gap-2 text-sm font-bold leading-6 text-ink">
+                <li key={lesson.slug} className="flex items-start gap-2 type-body-sm font-bold text-ink">
                   <Check className="mt-1 size-3.5 shrink-0 text-ink" aria-hidden="true" />
                   <span className="min-w-0">{localized(lesson.title, locale)}</span>
                 </li>
@@ -189,7 +189,7 @@ export function CourseCatalogRow({
           <CourseCover course={course} locale={locale} />
         </div>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-base font-black text-ink">{localized(course.title, locale)}</span>
+          <span className="block truncate type-h4 text-ink">{localized(course.title, locale)}</span>
           {/* Značka stoji u istom redu sa dužinom i prelama se ispod nje na uskom
               telefonu; kao zaseban stubac gurala bi naslov na desetak piksela. */}
           <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-bold text-muted">

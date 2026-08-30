@@ -98,7 +98,7 @@ export function ScopeTrail({
     <ol
       className={cn(
         "flex min-w-0 items-center text-ink/65",
-        compact ? "gap-1 text-[11px] font-extrabold" : "gap-1.5 text-xs font-black",
+        compact ? "gap-1 type-caption font-extrabold" : "gap-1.5 text-xs font-black",
       )}
       aria-label={locale === "sr" ? "Putanja zajednice" : "Community path"}
     >
@@ -153,11 +153,11 @@ export function LearningSpine({
   return (
     <aside className="rounded-[16px] border border-ink/15 bg-[#eef3f7] dark:bg-ink/10 p-4" aria-label={locale === "sr" ? "Putanja učenja" : "Learning path"}>
       <div className="flex items-center justify-between gap-3">
-        <p className="text-[11px] font-black uppercase tracking-[0.15em] text-ink/60">
+        <p className="type-eyebrow text-ink/60">
           {locale === "sr" ? "Learning spine" : "Learning spine"}
         </p>
         {typeof xp === "number" ? (
-          <span className="rounded-full border border-ink bg-yellow px-2.5 py-1 font-mono text-[11px] font-black text-ink">
+          <span className="rounded-full border border-ink bg-yellow px-2.5 py-1 font-mono type-caption font-black text-ink">
             {xp.toLocaleString(locale === "sr" ? "sr-RS" : "en-US")} XP
           </span>
         ) : null}
@@ -174,7 +174,7 @@ export function LearningSpine({
               <Icon className="size-3.5" aria-hidden="true" />
             </span>
             <span className="min-w-0">
-              <span className="block text-[10px] font-black uppercase tracking-[0.12em] text-muted">{meta}</span>
+              <span className="block type-eyebrow-sm text-muted">{meta}</span>
               <span className={cn("block truncate text-sm font-black", active ? "text-ink" : "text-ink/70")}>{label}</span>
             </span>
           </li>
@@ -227,7 +227,7 @@ export function ThreadCard({
           : "border-ink shadow-[6px_6px_0_0_var(--shadow-hard-13)] hover:shadow-[8px_8px_0_0_var(--shadow-hard-13)]",
       )}
     >
-      <div className="flex min-w-0 gap-2.5 p-3 sm:gap-3 sm:p-3.5">
+      <div className="flex min-w-0 gap-2.5 p-3 sm:gap-3 sm:p-4">
         <Link
           href={post.authorUsername ? withLocale(locale, `/app/members/${post.authorUsername}`) : threadHref}
           className="relative z-10 shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
@@ -251,7 +251,7 @@ export function ThreadCard({
             <span className="text-xs font-bold text-muted/75">· {formatCommunityTime(post.createdAt, locale)}</span>
             {statusLabel}
             {highlighted ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-yellow/20 px-2 py-0.5 text-[10px] font-black text-ink/70">
+              <span className="inline-flex items-center gap-1 rounded-full bg-yellow/20 px-2 py-0.5 type-caption font-black text-ink/70">
                 <Pin className="size-3 fill-yellow text-ink" aria-hidden="true" />
                 {locale === "sr" ? "Zakačeno" : "Pinned"}
               </span>
@@ -263,10 +263,10 @@ export function ThreadCard({
               href={threadHref}
               className="min-w-0 flex-1 rounded-[8px] after:absolute after:inset-0 after:z-0 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink"
             >
-              <h2 className="truncate text-[16px] font-black leading-5 tracking-[-0.018em] text-ink transition group-hover:text-[#164d7d] dark:group-hover:text-ink sm:text-[17px]">
+              <h2 className="truncate type-h4 text-ink transition group-hover:text-[#164d7d] dark:group-hover:text-ink">
                 {post.title}
               </h2>
-              <p className="mt-0.5 line-clamp-1 text-[13px] font-semibold leading-5 text-muted">{post.body}</p>
+              <p className="mt-0.5 line-clamp-1 type-caption font-semibold text-muted">{post.body}</p>
             </Link>
             <div className="relative z-10 flex shrink-0 flex-wrap items-center justify-end gap-1 self-end sm:flex-nowrap sm:self-start">
               {leadingAction}

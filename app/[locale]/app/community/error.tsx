@@ -26,13 +26,13 @@ export default function CommunityError({
       role="alert"
     >
       <div className="max-w-md">
-        <p className="font-display text-2xl text-ink">
+        <p className="font-display type-display-sm text-ink">
           {locale === "sr" ? "Studio je nakratko zastao." : "The studio paused for a moment."}
         </p>
-        <h2 className="mt-2 text-2xl font-black text-ink">
+        <h2 className="mt-2 type-h2 text-ink">
           {locale === "sr" ? "Sadržaj zajednice nije učitan" : "Community content did not load"}
         </h2>
-        <p className="mt-3 text-sm font-semibold leading-6 text-muted">
+        <p className="mt-3 type-body-sm font-semibold text-muted">
           {locale === "sr"
             ? "Pokušaj ponovo. Tvoji filteri i trenutna stranica će ostati sačuvani."
             : "Try again. Your filters and current page will stay in place."}

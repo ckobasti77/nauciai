@@ -189,7 +189,7 @@ export function InlineContentText({
                 type="button"
                 onClick={() => setEditingLocale(item)}
                 className={cn(
-                  "inline-flex min-h-7 items-center gap-1 rounded-full border px-2.5 text-[11px] font-black uppercase transition",
+                  "inline-flex min-h-7 items-center gap-1 rounded-full border px-2.5 type-eyebrow transition",
                   editingLocale === item ? "border-ink bg-ink text-paper-strong" : "border-transparent text-muted",
                   warning && "border-amber-600 bg-amber-100 text-amber-950 ring-2 ring-amber-400/45",
                 )}
@@ -212,9 +212,9 @@ export function InlineContentText({
       ) : (
         <input ref={inputRef as React.RefObject<HTMLInputElement>} value={visible} onChange={(event) => setVisible(event.target.value)} onKeyDown={handleKeyDown} className="min-h-[2.5rem] w-full rounded-[8px] bg-paper/60 px-3 text-inherit focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink" />
       )}
-      {missingEn ? <span className="mt-2 inline-flex items-center gap-1 rounded-[8px] border-2 border-amber-700 bg-amber-50 px-2 py-1 text-[10px] font-black text-amber-900"><AlertTriangle className="size-3" /> EN nedostaje, ali ne blokira čuvanje.</span> : null}
-      {missingSr ? <span className="mt-2 inline-flex items-center gap-1 rounded-[8px] border-2 border-red-700 bg-red-50 px-2 py-1 text-[10px] font-black text-red-800"><AlertTriangle className="size-3" /> SR je obavezan pre objave.</span> : null}
-      {error ? <span role="alert" className="absolute left-1 top-full z-30 mt-1 rounded-[8px] border-2 border-red-700 bg-red-50 px-2 py-1 text-[10px] font-black text-red-800">{error}</span> : null}
+      {missingEn ? <span className="mt-2 inline-flex items-center gap-1 rounded-[8px] border-2 border-amber-700 bg-amber-50 px-2 py-1 type-caption font-black text-amber-900"><AlertTriangle className="size-3" /> EN nedostaje, ali ne blokira čuvanje.</span> : null}
+      {missingSr ? <span className="mt-2 inline-flex items-center gap-1 rounded-[8px] border-2 border-red-700 bg-red-50 px-2 py-1 type-caption font-black text-red-800"><AlertTriangle className="size-3" /> SR je obavezan pre objave.</span> : null}
+      {error ? <span role="alert" className="absolute left-1 top-full z-30 mt-1 rounded-[8px] border-2 border-red-700 bg-red-50 px-2 py-1 type-caption font-black text-red-800">{error}</span> : null}
     </Shell>
   );
 }

@@ -26,6 +26,7 @@ export default async function StudioJobDetailRoute({
     return (
       <div className="space-y-6">
         <SectionHeader
+          variant="app"
           title={locale === "sr" ? "Studio" : "Studio"}
           body={
             locale === "sr"
@@ -34,7 +35,7 @@ export default async function StudioJobDetailRoute({
           }
         />
         <Panel className="p-6">
-          <p className="text-base font-bold text-muted">
+          <p className="type-body type-measure font-bold text-muted">
             {locale === "sr"
               ? "Backend nije povezan na ovoj instalaciji, pa Studio ne može da generiše."
               : "The backend is not connected on this installation, so the Studio cannot generate."}

@@ -46,7 +46,7 @@ export function Field({
 
   return (
     <div className={cn("block", className)}>
-      <label htmlFor={controlId} className="block text-sm font-black text-ink">
+      <label htmlFor={controlId} className="block type-body-sm font-black text-ink">
         {label}
       </label>
       <div className="mt-2">
@@ -57,12 +57,12 @@ export function Field({
         })}
       </div>
       {error ? (
-        <p id={errorId} role="alert" className="mt-1.5 flex items-start gap-1.5 text-xs font-black text-red-700">
+        <p id={errorId} role="alert" className="mt-2 flex items-start gap-1.5 type-caption font-black text-red-700">
           <CircleAlert aria-hidden="true" className="mt-px size-3.5 shrink-0" />
           <span>{error}</span>
         </p>
       ) : hint ? (
-        <p id={hintId} className="mt-1.5 text-xs font-bold text-muted">
+        <p id={hintId} className="mt-2 type-caption font-bold text-muted">
           {hint}
         </p>
       ) : null}

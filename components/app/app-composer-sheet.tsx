@@ -71,8 +71,8 @@ export function AppComposerSheet({
           >
             <div className="flex items-start justify-between gap-4 border-b-2 border-ink bg-paper-strong px-4 py-4 sm:px-6">
               <div className="min-w-0">
-                <p className="text-xs font-black uppercase text-muted">{eyebrow}</p>
-                <h2 className="mt-1 text-2xl font-black leading-tight text-ink sm:text-3xl">{title}</h2>
+                <p className="type-eyebrow text-muted">{eyebrow}</p>
+                <h2 className="mt-2 type-h1 text-ink">{title}</h2>
               </div>
               <motion.button
                 type="button"

@@ -100,11 +100,11 @@ export function ClassroomHubSkeleton() {
       <div className="h-[19rem] animate-pulse rounded-[16px] border-2 border-line bg-paper-strong sm:h-56" />
       <div className="h-56 animate-pulse rounded-[16px] border-2 border-line bg-paper-strong" />
       <div className="rounded-[16px] border-2 border-line bg-paper-strong">
-        <div className="border-b-2 border-line p-5 sm:p-6">
+        <div className="border-b-2 border-line p-6">
           <div className="h-4 w-24 animate-pulse rounded-full bg-line" />
           <div className="mt-3 h-7 w-64 max-w-full animate-pulse rounded-full bg-line" />
         </div>
-        <div className="grid gap-5 p-5 sm:p-6 lg:grid-cols-2">
+        <div className="grid gap-6 p-6 lg:grid-cols-2">
           {[0, 1, 2, 3].map((item) => (
             <div key={item} className="h-[26rem] animate-pulse rounded-[16px] border-2 border-line bg-paper" />
           ))}
@@ -230,8 +230,8 @@ export function ClassroomHubView({
           data-motion="hero"
           className="overflow-hidden rounded-[16px] border-2 border-ink bg-paper-strong shadow-[6px_6px_0_0_var(--shadow-hard-12)]"
         >
-          <div className="p-4 sm:p-5 lg:p-6" data-motion="copy">
-            <p className="text-sm font-black uppercase text-muted">
+          <div className="p-4 sm:p-6" data-motion="copy">
+            <p className="type-eyebrow text-muted">
               {locale === "sr" ? `Zdravo, ${profileName}` : `Hi, ${profileName}`}
             </p>
             {resume && resumeLesson ? (
@@ -240,13 +240,13 @@ export function ClassroomHubView({
                   <CourseCover course={resume.course} locale={locale} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs font-black uppercase text-muted">
+                  <p className="type-eyebrow text-muted">
                     {tr(locale, "Nastavi gde si stao", "Continue where you left off")}
                   </p>
-                  <h1 className="mt-2 text-2xl font-black leading-tight tracking-[-0.035em] text-ink sm:text-3xl">
+                  <h1 className="mt-2 type-h1 text-ink">
                     {localized(resume.course.title, locale)}
                   </h1>
-                  <p className="mt-2 text-sm font-bold leading-6 text-muted sm:text-base">
+                  <p className="mt-2 type-body type-measure font-bold text-muted">
                     <span className="font-black text-ink">
                       {tr(locale, `Lekcija ${resumePosition}/${resumeTotal}`, `Lesson ${resumePosition}/${resumeTotal}`)}
                     </span>
@@ -269,10 +269,10 @@ export function ClassroomHubView({
               </div>
             ) : (
               <div className="mt-3">
-                <h1 className="text-2xl font-black leading-tight tracking-[-0.035em] text-ink sm:text-3xl">
+                <h1 className="type-h1 text-ink">
                   {tr(locale, "Sve lekcije su završene", "Every lesson is done")}
                 </h1>
-                <p className="mt-2 max-w-2xl text-sm font-bold leading-6 text-muted sm:text-base">
+                <p className="mt-2 type-body type-measure font-bold text-muted">
                   {tr(
                     locale,
                     "Prošao/la si sve lekcije koje imaš. Vrati se bilo kom kursu ispod da ponoviš gradivo ili otključaj nov kurs.",
@@ -288,9 +288,9 @@ export function ClassroomHubView({
       {/* Zone 2 — Tracks */}
       <section ref={tracksRef} id="tracks" className="scroll-mt-6">
         <Panel className="overflow-hidden">
-          <div className="border-b-2 border-ink bg-paper-strong p-5 sm:p-6">
-            <p className="text-xs font-black uppercase text-muted">{tr(locale, "Smerovi", "Tracks")}</p>
-            <h2 className="mt-2 text-2xl font-black text-ink sm:text-3xl">
+          <div className="border-b-2 border-ink bg-paper-strong p-6">
+            <p className="type-eyebrow text-muted">{tr(locale, "Smerovi", "Tracks")}</p>
+            <h2 className="mt-2 type-h2 text-ink">
               {tr(locale, "Uči po smeru", "Learn by track")}
             </h2>
           </div>
@@ -301,7 +301,7 @@ export function ClassroomHubView({
               ))}
             </div>
           ) : (
-            <div className="p-5 sm:p-6">
+            <div className="p-6">
               <EmptyState
                 icon={Compass}
                 title={tr(locale, "Smerovi još nisu napravljeni", "Tracks are not set up yet")}
@@ -319,11 +319,11 @@ export function ClassroomHubView({
       {/* Zone 3 — Catalog: every published course, unlocked and locked side by side */}
       <section ref={coursesRef} id="courses" className="scroll-mt-6">
         <Panel className="overflow-hidden">
-          <div className="border-b-2 border-ink bg-paper-strong p-5 sm:p-6">
+          <div className="border-b-2 border-ink bg-paper-strong p-6">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="text-xs font-black uppercase text-muted">{tr(locale, "Kursevi", "Courses")}</p>
-                <h2 className="mt-2 text-2xl font-black text-ink sm:text-3xl">
+                <p className="type-eyebrow text-muted">{tr(locale, "Kursevi", "Courses")}</p>
+                <h2 className="mt-2 type-h2 text-ink">
                   {ownedEntries.length
                     ? tr(locale, "Izaberi gde nastavljaš", "Choose where to continue")
                     : tr(locale, "Izaberi svoj prvi kurs", "Choose your first course")}
@@ -358,7 +358,7 @@ export function ClassroomHubView({
             ) : null}
           </div>
           {visibleCourses.length === 0 ? (
-            <div className="p-5 sm:p-6">
+            <div className="p-6">
               <EmptyState
                 icon={BookOpen}
                 title={tr(locale, "Još nema nijednog kursa", "No courses yet")}
@@ -375,7 +375,7 @@ export function ClassroomHubView({
               />
             </div>
           ) : filteredEntries.length ? (
-            <div className="grid gap-5 p-5 sm:p-6 lg:grid-cols-2">
+            <div className="grid gap-6 p-6 lg:grid-cols-2">
               {filteredEntries.map((entry) =>
                 entry.owned ? (
                   <DashboardCourseCard
@@ -391,7 +391,7 @@ export function ClassroomHubView({
               )}
             </div>
           ) : (
-            <p className="flex items-center gap-2 p-5 text-sm font-bold text-muted sm:p-6">
+            <p className="flex items-center gap-2 p-6 text-sm font-bold text-muted">
               <BookOpen className="size-4 shrink-0 text-ink" />
               {tr(locale, "Nema kurseva u ovom filteru.", "No courses match this filter.")}
             </p>
@@ -402,9 +402,9 @@ export function ClassroomHubView({
       {/* Zone 4 — Up next */}
       {upcoming.length ? (
         <Panel className="overflow-hidden">
-          <div className="border-b-2 border-ink bg-paper-strong p-5 sm:p-6">
-            <p className="text-xs font-black uppercase text-muted">{tr(locale, "Nastavlja se", "Up next")}</p>
-            <h2 className="mt-2 text-2xl font-black text-ink sm:text-3xl">
+          <div className="border-b-2 border-ink bg-paper-strong p-6">
+            <p className="type-eyebrow text-muted">{tr(locale, "Nastavlja se", "Up next")}</p>
+            <h2 className="mt-2 type-h2 text-ink">
               {tr(locale, "Sledeće lekcije", "The next lessons")}
             </h2>
           </div>
@@ -422,7 +422,7 @@ export function ClassroomHubView({
                       <PlayCircle className="size-5" />
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-base font-black text-ink">
+                      <span className="block truncate type-h4 text-ink">
                         {localized(lesson.title, locale)}
                       </span>
                       <span className="mt-1 flex items-center gap-2 text-xs font-bold text-muted">
@@ -475,9 +475,9 @@ function TrackSection({
 
   return (
     <div>
-      <div className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+      <div className="flex flex-col gap-3 p-6 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <h3 className="text-xl font-black leading-tight text-ink">{title}</h3>
+          <h3 className="type-h3 text-ink">{title}</h3>
           <p className="mt-1 text-xs font-bold text-muted">
             {formatCourseCount(locale, group.items.length)}
             {ownedCount > 0 ? ` · ${tr(locale, `${ownedCount} otključano`, `${ownedCount} unlocked`)}` : null}
@@ -495,7 +495,7 @@ function TrackSection({
       </div>
       {ownedCount > 0 ? (
         <div className="px-5 pb-4 sm:px-6">
-          <div className="flex items-center justify-between gap-3 text-xs font-black uppercase text-muted">
+          <div className="flex items-center justify-between gap-3 type-eyebrow text-muted">
             <span>{tr(locale, "Napredak", "Progress")}</span>
             <span>{percent}%</span>
           </div>

@@ -143,7 +143,6 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-nunito), ui-sans-serif, system-ui, sans-serif;
-  letter-spacing: 0;
 }
 
 /* Kratak prelaz boja samo dok traje izricita promena teme (klasa je na <html>
@@ -208,12 +207,124 @@ body {
   border-radius: 8px;
 }
 
-button,
-a,
-input,
-textarea,
-select {
+/* Reset razmaka izmedju slova. MORA da stoji u sloju: nelayerovan autorski CSS
+   pobedjuje SVAKI sloj, pa bi ovaj reset ubio Tailwind `tracking-*` i uloge iz
+   tipografske skale (`type-eyebrow`, `type-h1`...) na dugmadima, linkovima i
+   poljima -- isti tip greske koji AGENTS.md vec dokumentuje za radiuse. Premestanje
+   u `@layer base` je bez vizuelne promene: pre U10 nijedan `tracking-*` nije stajao
+   direktno ni na jednom od ovih elemenata. */
+@layer base {
+  body,
+  button,
+  a,
+  input,
+  textarea,
+  select {
+    letter-spacing: 0;
+  }
+}
+
+/* ── Tipografska skala (U10) ────────────────────────────────────────────────
+   CSS ogledalo `lib/type-scale.ts`, koji ostaje JEDAN izvor istine; sudar cuva
+   `lib/type-scale.test.ts`. Uloga nosi velicinu, prored, tezinu i razmak slova --
+   boju i raspored bira pozivalac. Naslovi rastu kroz `clamp()`, ne kroz `sm:`
+   stepenice, pa je jedna klasa dovoljna na svakoj sirini.
+
+   Patrick Hand (`font-display`) ide SAMO uz `type-display` i `type-display-sm`. */
+@utility type-display {
+  font-size: clamp(2.25rem, 1.7rem + 2.4vw, 3.5rem);
+  line-height: 1;
+  font-weight: 400;
   letter-spacing: 0;
+}
+
+@utility type-display-sm {
+  font-size: clamp(1.5rem, 1.32rem + 0.9vw, 1.875rem);
+  line-height: 1.1;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+@utility type-hero {
+  font-size: clamp(1.875rem, 1.4rem + 2.1vw, 3rem);
+  line-height: 1.08;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+}
+
+@utility type-h1 {
+  font-size: clamp(1.5rem, 1.32rem + 0.9vw, 1.875rem);
+  line-height: 1.15;
+  font-weight: 900;
+  letter-spacing: -0.025em;
+}
+
+@utility type-h2 {
+  font-size: clamp(1.25rem, 1.13rem + 0.6vw, 1.5rem);
+  line-height: 1.2;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+@utility type-h3 {
+  font-size: 1.125rem;
+  line-height: 1.3;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+}
+
+@utility type-h4 {
+  font-size: 1rem;
+  line-height: 1.35;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+@utility type-eyebrow {
+  font-size: 0.75rem;
+  line-height: 1.25;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+@utility type-eyebrow-sm {
+  font-size: 0.625rem;
+  line-height: 1.25;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* Duga forma za citanje (telo lekcije, telo teme): namerno prostraniji prored od
+   `type-body`, koji je uvodna recenica u UI-ju, ne stranica teksta. */
+@utility type-reading {
+  font-size: 1.0625rem;
+  line-height: 1.85;
+  letter-spacing: 0;
+}
+
+@utility type-body {
+  font-size: 1rem;
+  line-height: 1.7;
+  letter-spacing: 0;
+}
+
+@utility type-body-sm {
+  font-size: 0.875rem;
+  line-height: 1.7;
+  letter-spacing: 0;
+}
+
+@utility type-caption {
+  font-size: 0.75rem;
+  line-height: 1.5;
+  letter-spacing: 0;
+}
+
+/* Mera citljivosti: pasus preko ~75 znaka po redu je zid teksta za pocetnika. */
+@utility type-measure {
+  max-width: 68ch;
 }
 
 ::selection {

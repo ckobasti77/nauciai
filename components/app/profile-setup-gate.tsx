@@ -44,7 +44,7 @@ export function ProfileSetupGate({
     return (
       <div className="flex min-h-[60vh] items-center justify-center p-6">
         <div className="rounded-[16px] border-2 border-ink bg-yellow/25 px-6 py-5 text-center shadow-[5px_5px_0_0_var(--shadow-hard-12)]">
-          <p className="text-lg font-black text-ink">
+          <p className="type-h3 text-ink">
             {locale === "sr" ? "Vodimo te na Profil…" : "Taking you to your profile…"}
           </p>
           <p className="mt-1 text-sm font-bold text-muted">

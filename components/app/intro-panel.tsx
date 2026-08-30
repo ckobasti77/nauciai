@@ -95,7 +95,7 @@ export function AppIntroPanel({
             ease: anim.element.enter.ease as Easing,
           }}
           className={cn(
-            "relative rounded-[16px] border-2 border-ink bg-paper-strong p-4 shadow-[4px_4px_0_0_var(--shadow-hard)] sm:p-5",
+            "relative rounded-[16px] border-2 border-ink bg-paper-strong p-4 shadow-[4px_4px_0_0_var(--shadow-hard)] sm:p-6",
             className,
           )}
         >
@@ -104,8 +104,8 @@ export function AppIntroPanel({
               <Icon aria-hidden="true" className="size-5" />
             </span>
             <div className="min-w-0">
-              <h2 className="text-lg font-black leading-6 text-ink">{title}</h2>
-              <p className="mt-1 text-sm font-semibold leading-6 text-muted">{body}</p>
+              <h2 className="type-h3 text-ink">{title}</h2>
+              <p className="mt-1 type-body-sm font-semibold text-muted">{body}</p>
             </div>
           </div>
 
@@ -113,7 +113,7 @@ export function AppIntroPanel({
             {steps.map((step, index) => (
               <li
                 key={step}
-                className="flex items-start gap-2 rounded-[12px] border-2 border-line bg-paper px-3 py-2 text-sm font-bold leading-5 text-ink"
+                className="flex items-start gap-2 rounded-[12px] border-2 border-line bg-paper px-3 py-2 type-body-sm font-bold text-ink"
               >
                 <span className="grid size-6 shrink-0 place-items-center rounded-full border-2 border-ink bg-paper-strong text-xs font-black">
                   {index + 1}

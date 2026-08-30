@@ -131,26 +131,26 @@ function CommunityShellView({
   const heroCopy = COMMUNITY_HERO_COPY[activeSection] ?? COMMUNITY_HERO_COPY.discussions;
 
   return (
-    <div className="mx-auto w-full max-w-[1180px] space-y-5" aria-busy={isLoading}>
+    <div className="mx-auto w-full max-w-[1180px] space-y-6" aria-busy={isLoading}>
       <section data-motion="hero" className="relative overflow-hidden rounded-[16px] border-2 border-ink bg-ink text-paper-strong shadow-[4px_4px_0_rgba(244,190,48,0.55)]">
         <div className="pointer-events-none absolute inset-y-0 left-1/2 right-0 hidden bg-[radial-gradient(circle_at_center,rgba(244,190,48,0.22)_0_2px,transparent_2px)] [background-size:24px_24px] [mask-image:linear-gradient(to_right,transparent_0%,black_50%,black_100%)] md:block" />
-        <div className="relative p-3.5 sm:p-4">
+        <div className="relative p-4">
           <div className="flex flex-col gap-2">
             <div className="min-w-0 max-w-4xl" data-motion="copy">
               <div className="flex items-center gap-2 text-yellow">
                 <Sparkles className="size-4" aria-hidden="true" />
-                <p className="font-mono text-[10px] font-black uppercase tracking-[0.16em]">
+                <p className="font-mono type-eyebrow-sm">
                   {locale === "sr" ? heroCopy.badgeSr : heroCopy.badgeEn}
                 </p>
               </div>
-              <h1 className="mt-1.5 truncate text-[clamp(1.5rem,3vw,2.4rem)] font-black leading-none tracking-[-0.04em] sm:whitespace-nowrap">
+              <h1 className="mt-2 truncate type-hero sm:whitespace-nowrap">
                 {locale === "sr" ? heroCopy.titleSr : heroCopy.titleEn}
               </h1>
               {/* Na ink podlozi radi samo žuti potez — tanka ink linija ispod njega je
                   nevidljiva, i to je u redu: na tamnom heroju žuti potpis je isti brend
                   potez kao na papiru. */}
               <HandUnderline size="sm" className="mt-1" />
-              <p className="mt-1 truncate text-xs font-bold leading-5 text-paper-strong/72 sm:whitespace-nowrap sm:text-sm">
+              <p className="mt-2 truncate type-body-sm font-bold text-paper-strong/72 sm:whitespace-nowrap">
                 {locale === "sr"
                   ? heroCopy.subtitleSr
                   : heroCopy.subtitleEn}

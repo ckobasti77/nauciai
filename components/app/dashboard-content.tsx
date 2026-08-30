@@ -303,7 +303,7 @@ function MetricTile({
     >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className={cn("text-xs font-black uppercase", tone === "ink" ? "text-paper-strong/65" : "text-muted")}>{label}</p>
+          <p className={cn("type-eyebrow", tone === "ink" ? "text-paper-strong/65" : "text-muted")}>{label}</p>
           <p className={cn("mt-2 text-2xl font-black leading-none", tone === "ink" ? "text-paper-strong" : "text-ink")}>{value}</p>
         </div>
         <span
@@ -371,7 +371,7 @@ function CourseCoverEditor({ locale, course }: { locale: Locale; course: Dashboa
   }
 
   const preview = course.coverUrl || course.image?.src;
-  return <Panel className="dashboard-reveal p-4 sm:p-5"><div className="flex flex-col gap-4 lg:flex-row lg:items-center"><div className="relative aspect-video w-full overflow-hidden rounded-[8px] border-2 border-ink bg-paper lg:w-80">{preview ? <Image src={preview} alt={localized(course.title, locale)} fill unoptimized className="object-cover" /> : <div className="grid h-full place-items-center text-sm font-black text-muted">{tr(locale, "Naslovna slika nije dodata", "No cover image yet")}</div>}</div><div className="flex-1"><p className="font-display text-2xl text-ink">{tr(locale, "Naslovna slika kursa", "Course cover image")}</p><p className="mt-1 text-sm font-bold text-muted">{tr(locale, "Vidi se na kartici kursa i na stranici smera.", "Shown on the course card and on the track page.")}</p><input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file); event.target.value = ""; }} /><div className="mt-4 flex flex-wrap gap-2"><button type="button" disabled={pending} onClick={() => inputRef.current?.click()} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-xs font-black">{pending ? <Spinner /> : <ImageIcon className="size-4" />}{course.coverUrl ? tr(locale, "Zameni sliku", "Replace image") : tr(locale, "Dodaj sliku", "Add image")}</button>{course.coverUrl ? <button type="button" disabled={pending} onClick={() => setConfirmRemoveCover(true)} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-red-700 bg-paper-strong px-4 text-xs font-black text-red-700"><Trash2 className="size-4" />{tr(locale, "Ukloni", "Remove")}</button> : null}</div>{message ? <p className="mt-3 text-sm font-black text-red-700">{message}</p> : null}</div></div><ConfirmDialog
+  return <Panel className="dashboard-reveal p-4 sm:p-6"><div className="flex flex-col gap-4 lg:flex-row lg:items-center"><div className="relative aspect-video w-full overflow-hidden rounded-[8px] border-2 border-ink bg-paper lg:w-80">{preview ? <Image src={preview} alt={localized(course.title, locale)} fill unoptimized className="object-cover" /> : <div className="grid h-full place-items-center text-sm font-black text-muted">{tr(locale, "Naslovna slika nije dodata", "No cover image yet")}</div>}</div><div className="flex-1"><p className="font-display type-display-sm text-ink">{tr(locale, "Naslovna slika kursa", "Course cover image")}</p><p className="mt-1 text-sm font-bold text-muted">{tr(locale, "Vidi se na kartici kursa i na stranici smera.", "Shown on the course card and on the track page.")}</p><input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file); event.target.value = ""; }} /><div className="mt-4 flex flex-wrap gap-2"><button type="button" disabled={pending} onClick={() => inputRef.current?.click()} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-xs font-black">{pending ? <Spinner /> : <ImageIcon className="size-4" />}{course.coverUrl ? tr(locale, "Zameni sliku", "Replace image") : tr(locale, "Dodaj sliku", "Add image")}</button>{course.coverUrl ? <button type="button" disabled={pending} onClick={() => setConfirmRemoveCover(true)} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-red-700 bg-paper-strong px-4 text-xs font-black text-red-700"><Trash2 className="size-4" />{tr(locale, "Ukloni", "Remove")}</button> : null}</div>{message ? <p className="mt-3 text-sm font-black text-red-700">{message}</p> : null}</div></div><ConfirmDialog
     open={confirmRemoveCover}
     onClose={() => setConfirmRemoveCover(false)}
     onConfirm={removeCover}
@@ -517,7 +517,7 @@ function CourseVideoSection({ locale, isAdmin, course }: { locale: Locale; isAdm
 
   return (
     <Panel className="dashboard-reveal overflow-hidden">
-      <div className="p-4 sm:p-5">
+      <div className="p-4 sm:p-6">
         <div
           role={isAdmin ? "button" : undefined}
           tabIndex={isAdmin ? 0 : undefined}
@@ -639,22 +639,22 @@ function FeaturedThreadsSection({ locale, course }: { locale: Locale; course: Da
   const posts = featuredPosts ?? [];
 
   return (
-    <Panel className="dashboard-reveal p-5 sm:p-6">
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_240px] lg:items-start">
+    <Panel className="dashboard-reveal p-6">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_240px] lg:items-start">
         <div>
           <div className="flex items-center gap-3">
             <span className="inline-flex size-10 items-center justify-center rounded-[8px] border-2 border-ink bg-yellow text-ink">
               <MessageCircle className="size-5" />
             </span>
             <div>
-              <p className="text-xs font-black uppercase text-muted">{tr(locale, "Zajednica", "Community")}</p>
-              <h2 className="text-2xl font-black leading-tight text-ink">
+              <p className="type-eyebrow text-muted">{tr(locale, "Zajednica", "Community")}</p>
+              <h2 className="type-h2 text-ink">
                 {tr(locale, "Izdvojene teme", "Featured threads")}
               </h2>
             </div>
           </div>
           {!course.id ? (
-            <p className="mt-4 max-w-3xl text-base font-bold leading-7 text-muted">
+            <p className="mt-4 max-w-3xl type-body font-bold text-muted">
               {tr(locale, "Izdvojene teme se pojavljuju kada je kurs povezan sa bazom.", "Featured threads are available when this course is connected to Convex.")}
             </p>
           ) : featuredPosts === undefined ? (
@@ -674,18 +674,18 @@ function FeaturedThreadsSection({ locale, course }: { locale: Locale; course: Da
                   >
                     <div className="flex flex-wrap gap-2">
                       {courseFeatured ? (
-                        <span className="rounded-[8px] border-2 border-ink bg-yellow px-2 py-0.5 text-[10px] font-black uppercase text-ink">
+                        <span className="rounded-[8px] border-2 border-ink bg-yellow px-2 py-0.5 type-eyebrow-sm text-ink">
                           {tr(locale, "Kurs", "Course")}
                         </span>
                       ) : null}
                       {post.isFeaturedGlobal ? (
-                        <span className="rounded-[8px] border-2 border-ink bg-paper-strong px-2 py-0.5 text-[10px] font-black uppercase text-ink">
+                        <span className="rounded-[8px] border-2 border-ink bg-paper-strong px-2 py-0.5 type-eyebrow-sm text-ink">
                           {tr(locale, "Opsti", "Global")}
                         </span>
                       ) : null}
                     </div>
-                    <p className="mt-3 line-clamp-2 text-base font-black leading-tight text-ink">{post.title}</p>
-                    <p className="mt-2 line-clamp-2 text-sm font-bold leading-6 text-muted">{post.body}</p>
+                    <p className="mt-3 line-clamp-2 type-h4 text-ink">{post.title}</p>
+                    <p className="mt-2 line-clamp-2 type-body-sm font-bold text-muted">{post.body}</p>
                     <div className="mt-3 flex gap-3 text-xs font-black text-muted">
                       <span>{post.reactionsCount ?? 0} likes</span>
                       <span>{post.commentsCount ?? 0} comments</span>
@@ -695,7 +695,7 @@ function FeaturedThreadsSection({ locale, course }: { locale: Locale; course: Da
               })}
             </div>
           ) : (
-            <p className="mt-4 max-w-3xl text-base font-bold leading-7 text-muted">
+            <p className="mt-4 max-w-3xl type-body font-bold text-muted">
               {tr(
                 locale,
                 "Za ovaj kurs jos nije izdvojena nijedna tema. Otvori Zajednicu i oznaci najvaznije diskusije.",
@@ -706,7 +706,7 @@ function FeaturedThreadsSection({ locale, course }: { locale: Locale; course: Da
         </div>
         <Link
           href={withLocale(locale, `/app/community?course=${course.slug}`)}
-          className="group flex min-h-32 items-center justify-center rounded-[8px] border-2 border-dashed border-ink bg-paper p-5 text-center text-ink transition hover:-translate-y-0.5 hover:bg-yellow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          className="group flex min-h-32 items-center justify-center rounded-[8px] border-2 border-dashed border-ink bg-paper p-6 text-center text-ink transition hover:-translate-y-0.5 hover:bg-yellow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         >
           <span>
             <span className="mx-auto inline-flex size-12 items-center justify-center rounded-[8px] border-2 border-ink bg-paper-strong shadow-[3px_3px_0_0_var(--shadow-hard)] transition group-hover:rotate-2">
@@ -737,11 +737,11 @@ function ActivityPanel({ locale, activity }: { locale: Locale; activity: Array<{
   const isDense = range > 30;
 
   return (
-    <Panel className="p-5 sm:p-6">
+    <Panel className="p-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-xs font-black uppercase text-muted">{tr(locale, "Dnevni ritam", "Daily pace")}</p>
-          <h2 className="mt-1 text-xl font-black text-ink sm:text-2xl">{tr(locale, "Završene lekcije", "Completed lessons")}</h2>
+          <p className="type-eyebrow text-muted">{tr(locale, "Dnevni ritam", "Daily pace")}</p>
+          <h2 className="mt-2 type-h2 text-ink">{tr(locale, "Završene lekcije", "Completed lessons")}</h2>
         </div>
         <div
           role="group"
@@ -766,7 +766,7 @@ function ActivityPanel({ locale, activity }: { locale: Locale; activity: Array<{
         </div>
       </div>
       <div className="mt-5 flex items-stretch gap-2">
-        <div className="relative h-40 w-7 shrink-0 text-[10px] font-black text-muted" aria-hidden="true">
+        <div className="relative h-40 w-7 shrink-0 type-caption font-black text-muted" aria-hidden="true">
           <span className="absolute -top-1 right-0">{max}</span>
           <span className="absolute right-0 top-1/2 -translate-y-1/2">{middleTick}</span>
           <span className="absolute -bottom-1 right-0">0</span>
@@ -807,7 +807,7 @@ function ActivityPanel({ locale, activity }: { locale: Locale; activity: Array<{
               />
             ))}
           </div>
-          <div className="mt-2 flex justify-between text-[10px] font-black uppercase text-muted" aria-hidden="true">
+          <div className="mt-2 flex justify-between type-eyebrow-sm text-muted" aria-hidden="true">
             <span>{formatDay(days[0].day)}</span>
             <span>{formatDay(days[days.length - 1].day)}</span>
           </div>
@@ -917,7 +917,7 @@ export function DashboardCourseCard({
       <div className="p-3">
         <div className="relative aspect-[16/9] overflow-hidden rounded-[8px] bg-paper">
           <CourseCover course={course} locale={locale} />
-          <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full border-2 border-ink bg-paper-strong px-3 py-1 text-[11px] font-black uppercase text-ink">
+          <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full border-2 border-ink bg-paper-strong px-3 py-1 type-eyebrow text-ink">
             <ShieldCheck className="size-3.5" />
             {statusCopy(locale, course, isAdmin)}
           </span>
@@ -925,12 +925,12 @@ export function DashboardCourseCard({
       </div>
       <div className="space-y-4 px-5 pb-5 pt-2">
         <div>
-          <h3 className="text-2xl font-black leading-tight text-ink">{localized(course.title, locale)}</h3>
-          <p className="mt-2 line-clamp-2 text-sm font-bold leading-6 text-muted">{localized(course.subtitle, locale)}</p>
+          <h3 className="type-h2 text-ink">{localized(course.title, locale)}</h3>
+          <p className="mt-2 line-clamp-2 type-body-sm font-bold text-muted">{localized(course.subtitle, locale)}</p>
         </div>
 
         <div>
-          <div className="flex items-center justify-between gap-3 text-xs font-black uppercase text-muted">
+          <div className="flex items-center justify-between gap-3 type-eyebrow text-muted">
             <span>{tr(locale, "Napredak", "Progress")}</span>
             <span>
               {summary.completedLessons}/{summary.totalLessons || 0} {tr(locale, "lekcija", "lessons")}
@@ -965,7 +965,7 @@ export function DashboardCourseCard({
         </p>
 
         {summary.nextLesson ? (
-          <p className="rounded-[16px] border-2 border-line bg-paper px-3 py-2 text-sm font-bold leading-6 text-muted">
+          <p className="rounded-[16px] border-2 border-line bg-paper px-3 py-2 type-body-sm font-bold text-muted">
             <span className="font-black text-ink">{tr(locale, "Sledece:", "Next:")}</span>{" "}
             {localized(summary.nextLesson.title, locale)}
           </p>
@@ -1017,7 +1017,7 @@ export function DashboardHomeSkeleton() {
           <div key={item} className="h-24 animate-pulse rounded-[8px] border-2 border-line bg-paper-strong" />
         ))}
       </div>
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 2xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 2xl:grid-cols-3">
         {[0, 1, 2].map((item) => (
           <div key={item} className="h-64 animate-pulse rounded-[16px] border-2 border-line bg-paper-strong" />
         ))}
@@ -1118,22 +1118,22 @@ export function DashboardFirstRun({
 
   return (
     <Panel className="overflow-hidden">
-      <div data-motion="hero" className="p-4 sm:p-5 lg:p-6">
+      <div data-motion="hero" className="p-4 sm:p-6">
         <div
           data-motion="copy"
           className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"
         >
           <div className="min-w-0">
-            <p className="text-sm font-black uppercase text-muted">
+            <p className="type-eyebrow text-muted">
               {locale === "sr" ? `Zdravo, ${profileName}` : `Hi, ${profileName}`}
             </p>
-            <h1 className="mt-1.5 text-2xl font-black leading-tight tracking-[-0.035em] text-ink sm:text-3xl">
+            <h1 className="mt-2 type-h1 text-ink">
               {tr(locale, "Tvoji prvi koraci", "Your first steps")}
             </h1>
             {/* Isti školski potpis kao na marketingu, samo u aplikacijskoj veličini —
                 stoji SAMO ispod naslova zone, nikad ispod podnaslova (§4 U9: ne pretrpavaj). */}
             <HandUnderline size="sm" className="mt-1" />
-            <p className="mt-2 max-w-2xl text-sm font-bold leading-6 text-muted">{lead}</p>
+            <p className="mt-2 max-w-2xl type-body-sm font-bold text-muted">{lead}</p>
           </div>
           <LinkButton
             href={courseCatalogPath(locale)}
@@ -1177,7 +1177,7 @@ export function DashboardFirstRun({
               </span>
               <div className="min-w-0">
                 <p className="text-sm font-black text-ink">{copy[step.id].title}</p>
-                <p className="mt-0.5 text-xs font-bold leading-5 text-muted">{copy[step.id].body}</p>
+                <p className="mt-0.5 type-caption font-bold text-muted">{copy[step.id].body}</p>
               </div>
             </li>
           ))}
@@ -1238,8 +1238,8 @@ function ResumeHero({
       className="overflow-hidden rounded-[16px] border-2 border-ink bg-paper-strong shadow-[6px_6px_0_0_var(--shadow-hard-12)]"
     >
       <div className="grid gap-0 xl:grid-cols-[minmax(0,1fr)_260px]">
-        <div className="p-4 sm:p-5 lg:p-6" data-motion="copy">
-          <p className="text-sm font-black uppercase text-muted">
+        <div className="p-4 sm:p-6" data-motion="copy">
+          <p className="type-eyebrow text-muted">
             {locale === "sr" ? `Zdravo, ${profileName}` : `Hi, ${profileName}`}
           </p>
 
@@ -1249,10 +1249,10 @@ function ResumeHero({
                 <HeroCover coverUrl={resume.coverUrl} title={localized(resume.courseTitle, locale)} />
               </div>
               <div className="min-w-0 flex-1">
-                <h1 className="text-2xl font-black leading-tight tracking-[-0.035em] text-ink sm:text-3xl">
+                <h1 className="type-h1 text-ink">
                   {localized(resume.courseTitle, locale)}
                 </h1>
-                <p className="mt-2 text-sm font-bold leading-6 text-muted sm:text-base">
+                <p className="mt-2 type-body type-measure font-bold text-muted">
                   <span className="font-black text-ink">{tr(locale, "Sledeća lekcija", "Next lesson")}</span>
                   {" · "}
                   {localized(resume.lessonTitle, locale)}
@@ -1284,10 +1284,10 @@ function ResumeHero({
             </div>
           ) : (
             <div className="mt-3">
-              <h1 className="text-2xl font-black leading-tight tracking-[-0.035em] text-ink sm:text-3xl">
+              <h1 className="type-h1 text-ink">
                 {tr(locale, "Sve lekcije su završene", "Every lesson is done")}
               </h1>
-              <p className="mt-2 max-w-2xl text-sm font-bold leading-6 text-muted sm:text-base">
+              <p className="mt-2 type-body type-measure font-bold text-muted">
                 {tr(
                   locale,
                   "Nema više lekcija na čekanju. Otvori učionicu da ponoviš gradivo.",
@@ -1306,20 +1306,20 @@ function ResumeHero({
 
         <div className="border-t-2 border-ink bg-ink p-4 text-paper-strong xl:border-l-2 xl:border-t-0">
           <div className="flex h-full flex-col justify-center gap-2">
-            <p className="text-xs font-black uppercase tracking-[0.12em] text-paper-strong/65">
+            <p className="type-eyebrow text-paper-strong/65">
               {tr(locale, "Ukupno", "Overall")}
             </p>
-            <p className="text-4xl font-black leading-none">{overallPercent}%</p>
+            <p className="type-hero">{overallPercent}%</p>
             <CourseProgress
               percent={overallPercent}
               tone="ink"
               label={tr(locale, "Ukupan napredak", "Overall progress")}
             />
-            <p className="text-xs font-bold leading-5 text-paper-strong/70">
+            <p className="type-caption font-bold text-paper-strong/70">
               {progress.completedLessons}/{progress.totalLessons || 0} {tr(locale, "zavrsenih lekcija", "completed lessons")}
             </p>
             {/* Ista topla recenica kao na kartici kursa, samo na ink podlozi. */}
-            <p className="text-xs font-black leading-5 text-yellow">
+            <p className="type-caption font-black text-yellow">
               {progressEncouragement(locale, {
                 completedLessons: progress.completedLessons,
                 totalLessons: progress.totalLessons,
@@ -1517,7 +1517,7 @@ export function DashboardContent({
     <div className="space-y-6">
       <section data-motion="hero" className="dashboard-reveal overflow-hidden rounded-[16px] border-2 border-ink bg-paper-strong shadow-[8px_8px_0_0_var(--shadow-hard-14)]">
         <div className="grid gap-0 xl:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="p-5 sm:p-7" data-motion="copy">
+          <div className="p-6" data-motion="copy">
             <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-2 rounded-[8px] border-2 border-ink bg-yellow px-3 py-1 text-xs font-black text-ink">
                 <ShieldCheck className="size-4" />
@@ -1552,16 +1552,16 @@ export function DashboardContent({
                 />
               ) : null}
             </div>
-            <p className="mt-6 text-sm font-black uppercase text-muted">
+            <p className="mt-6 type-eyebrow text-muted">
               {locale === "sr" ? `Zdravo, ${profileName}` : `Hi, ${profileName}`}
             </p>
-            <h1 className="mt-2 max-w-4xl text-4xl font-black leading-tight text-ink sm:text-5xl">
+            <h1 className="mt-2 max-w-4xl type-hero text-ink">
               <InlineContentText entityId={course.id ?? ""} parentId={course.trackId} kind="course" field="title" locale={inlineLocale} sr={course.title.sr} en={course.title.en} admin={isAdmin && Boolean(course.id && course.trackId)}>{localized(course.title, locale)}</InlineContentText>
             </h1>
-            <p className="mt-3 max-w-3xl text-lg font-black leading-7 text-ink/75">
+            <p className="mt-3 type-body type-measure font-black text-ink/75">
               <InlineContentText entityId={course.id ?? ""} parentId={course.trackId} kind="course" field="subtitle" locale={inlineLocale} sr={course.subtitle.sr} en={course.subtitle.en} admin={isAdmin && Boolean(course.id && course.trackId)}>{localized(course.subtitle, locale)}</InlineContentText>
             </p>
-            <InlineRichText kind="course" entityId={course.id ?? ""} parentId={course.trackId} field="description" locale={inlineLocale} richSr={course.descriptionRich?.sr} richEn={course.descriptionRich?.en} sr={course.description.sr} en={course.description.en} admin={isAdmin && Boolean(course.id && course.trackId)} className="mt-4 max-w-3xl text-base font-bold leading-7 text-muted sm:text-lg" />
+            <InlineRichText kind="course" entityId={course.id ?? ""} parentId={course.trackId} field="description" locale={inlineLocale} richSr={course.descriptionRich?.sr} richEn={course.descriptionRich?.en} sr={course.description.sr} en={course.description.en} admin={isAdmin && Boolean(course.id && course.trackId)} className="mt-4 type-body type-measure font-bold text-muted" />
             <div className="mt-6 flex flex-wrap gap-3">
               {canContinue && nextLesson ? (
                 <LinkButton href={courseContinueHref(locale, course, nextLesson)} tone="yellow">
@@ -1584,11 +1584,11 @@ export function DashboardContent({
               </LinkButton>
             </div>
           </div>
-          <div className="border-t-2 border-ink bg-ink p-5 text-paper-strong xl:border-l-2 xl:border-t-0">
+          <div className="border-t-2 border-ink bg-ink p-6 text-paper-strong xl:border-l-2 xl:border-t-0">
             <div className="flex h-full flex-col justify-between gap-4">
               <div>
-                <p className="text-sm font-black uppercase text-paper-strong/65">{tr(locale, "Pregled kursa", "Course overview")}</p>
-                <p className="mt-4 text-5xl font-black leading-none">{surfaceIsAdmin ? "Admin" : `${completionPercent}%`}</p>
+                <p className="type-eyebrow text-paper-strong/65">{tr(locale, "Pregled kursa", "Course overview")}</p>
+                <p className="mt-4 type-hero">{surfaceIsAdmin ? "Admin" : `${completionPercent}%`}</p>
                 <div className="mt-5">
                   <CourseProgress
                     percent={completionPercent}
@@ -1616,11 +1616,11 @@ export function DashboardContent({
       <FeaturedThreadsSection locale={locale} course={course} />
 
       <Panel className="dashboard-reveal overflow-hidden">
-        <div className="border-b-2 border-ink bg-paper-strong p-5 sm:p-6">
+        <div className="border-b-2 border-ink bg-paper-strong p-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-xs font-black uppercase text-muted"><InlineContentText entityId={course.id ?? ""} parentId={course.trackId} kind="course" field="pageCopy_sectionEyebrow" locale={inlineLocale} sr={course.pageCopy?.sectionEyebrow?.sr ?? "Lekcije u kursu"} en={course.pageCopy?.sectionEyebrow?.en ?? "Course lessons"} admin={isAdmin && Boolean(course.id && course.trackId)}>{locale === "sr" ? course.pageCopy?.sectionEyebrow?.sr ?? "Lekcije u kursu" : course.pageCopy?.sectionEyebrow?.en ?? "Course lessons"}</InlineContentText></p>
-              <h2 className="mt-2 text-2xl font-black text-ink sm:text-3xl">
+              <p className="type-eyebrow text-muted"><InlineContentText entityId={course.id ?? ""} parentId={course.trackId} kind="course" field="pageCopy_sectionEyebrow" locale={inlineLocale} sr={course.pageCopy?.sectionEyebrow?.sr ?? "Lekcije u kursu"} en={course.pageCopy?.sectionEyebrow?.en ?? "Course lessons"} admin={isAdmin && Boolean(course.id && course.trackId)}>{locale === "sr" ? course.pageCopy?.sectionEyebrow?.sr ?? "Lekcije u kursu" : course.pageCopy?.sectionEyebrow?.en ?? "Course lessons"}</InlineContentText></p>
+              <h2 className="mt-2 type-h2 text-ink">
                 <InlineContentText entityId={course.id ?? ""} parentId={course.trackId} kind="course" field="pageCopy_sectionTitle" locale={inlineLocale} sr={course.pageCopy?.sectionTitle?.sr ?? "Nastavni tok"} en={course.pageCopy?.sectionTitle?.en ?? "Learning path"} admin={isAdmin && Boolean(course.id && course.trackId)}>{locale === "sr" ? course.pageCopy?.sectionTitle?.sr ?? "Nastavni tok" : course.pageCopy?.sectionTitle?.en ?? "Learning path"}</InlineContentText>
               </h2>
             </div>
@@ -1630,17 +1630,17 @@ export function DashboardContent({
             </span>
           </div>
         </div>
-        <div className="space-y-4 p-5 sm:p-6">
+        <div className="space-y-4 p-6">
           {modules.flatMap((module) => module.lessons).map((lesson, lessonIndex) => (
             <details key={lesson.id ?? lesson.slug} className="group overflow-hidden rounded-[16px] border-2 border-ink bg-paper-strong" open={lessonIndex === 0}>
               <summary className="flex min-h-16 cursor-pointer list-none items-center gap-4 px-4 py-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
                 <span className="grid size-9 shrink-0 place-items-center rounded-full border-2 border-ink bg-yellow text-xs font-black">{lessonIndex + 1}</span>
-                <div className="min-w-0 flex-1"><p className="truncate text-base font-black text-ink"><InlineContentText entityId={lesson.id ?? ""} parentId={course.id} kind="lesson" field="title" locale={inlineLocale} sr={lesson.title.sr} en={lesson.title.en} admin={isAdmin && Boolean(lesson.id && course.id)}>{localized(lesson.title, locale)}</InlineContentText></p><p className="mt-0.5 text-xs font-bold text-muted">{lesson.duration}</p></div>
-                {surfaceIsAdmin && lesson.isPublished === false ? <span className="rounded-full border border-ink bg-paper px-2.5 py-1 text-[10px] font-black uppercase">Nacrt</span> : null}
+                <div className="min-w-0 flex-1"><p className="truncate type-h4 text-ink"><InlineContentText entityId={lesson.id ?? ""} parentId={course.id} kind="lesson" field="title" locale={inlineLocale} sr={lesson.title.sr} en={lesson.title.en} admin={isAdmin && Boolean(lesson.id && course.id)}>{localized(lesson.title, locale)}</InlineContentText></p><p className="mt-0.5 text-xs font-bold text-muted">{lesson.duration}</p></div>
+                {surfaceIsAdmin && lesson.isPublished === false ? <span className="rounded-full border border-ink bg-paper px-2.5 py-1 type-eyebrow-sm">Nacrt</span> : null}
                 <ChevronDown className="size-5 transition group-open:rotate-180" />
               </summary>
               <div className="border-t-2 border-line bg-paper px-4 py-4 sm:pl-[4.25rem]">
-                {lesson.summary ? <InlineRichText kind="lesson" entityId={lesson.id ?? ""} parentId={course.id} field="summary" locale={inlineLocale} richSr={lesson.summaryRich?.sr} richEn={lesson.summaryRich?.en} sr={lesson.summary.sr} en={lesson.summary.en} admin={isAdmin && Boolean(lesson.id && course.id)} className="max-w-3xl text-sm font-semibold leading-6 text-muted" /> : <p className="max-w-3xl text-sm font-semibold leading-6 text-muted">{tr(locale, "Sažetak lekcije još nije dodat.", "Lesson summary has not been added yet.")}</p>}
+                {lesson.summary ? <InlineRichText kind="lesson" entityId={lesson.id ?? ""} parentId={course.id} field="summary" locale={inlineLocale} richSr={lesson.summaryRich?.sr} richEn={lesson.summaryRich?.en} sr={lesson.summary.sr} en={lesson.summary.en} admin={isAdmin && Boolean(lesson.id && course.id)} className="max-w-3xl type-body-sm font-semibold text-muted" /> : <p className="max-w-3xl type-body-sm font-semibold text-muted">{tr(locale, "Sažetak lekcije još nije dodat.", "Lesson summary has not been added yet.")}</p>}
                 <div className="mt-4 flex flex-wrap gap-2"><Link href={courseContinueHref(locale, course, lesson)} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-xs font-black"><PlayCircle className="size-4" /> {tr(locale, "Otvori lekciju", "Open lesson")}</Link>{surfaceIsAdmin ? <Link href={withLocale(locale, "/app/admin")} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 text-xs font-black"><ShieldCheck className="size-4" /> {tr(locale, "Uredi u admin panelu", "Edit in admin panel")}</Link> : null}</div>
               </div>
             </details>

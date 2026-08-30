@@ -291,10 +291,10 @@ function DashboardCourseNotFound({ locale }: { locale: Locale }) {
       className="grid min-h-80 place-items-center rounded-[16px] border-2 border-ink bg-paper-strong p-6 text-center shadow-[6px_6px_0_var(--shadow-hard-12)]"
     >
       <div className="max-w-md">
-        <h2 className="text-2xl font-black text-ink">
+        <h2 className="type-h2 text-ink">
           {locale === "sr" ? "Ovaj kurs ne postoji" : "That course does not exist"}
         </h2>
-        <p className="mt-3 text-sm font-semibold leading-6 text-muted">
+        <p className="mt-3 type-body-sm font-semibold text-muted">
           {locale === "sr"
             ? "Link je možda zastareo. Vrati se na pregled i izaberi kurs sa liste."
             : "The link may be out of date. Go back to the overview and pick a course from the list."}
