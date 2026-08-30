@@ -285,3 +285,119 @@ Menjano (6 commitova, `git log --oneline` za redosled):
    `npx convex run` ili kasniji admin prozor.
 3. Merge sada prenosi i NEGATIVAN saldo — korisnik koji je begao od chargeback-a spajanjem naloga
    više nema kuda.
+
+---
+
+## F3+F4+F5 — Standalone shell, landing, kupovina, cross-sell   (30.08.2026)
+
+### Fajlovi
+
+Novo:
+- `app/[locale]/(marketing)/studio/page.tsx` — javni landing (Persuade; brif-pinovan pravac u
+  postojećem svetu — bez concept tournament-a; direction contract kao izvorni komentar na vrhu).
+- `app/[locale]/studio/(shell)/{layout,template}.tsx` + `app/page.tsx` + `app/m/[jobId]/page.tsx` +
+  `krediti/page.tsx` — samostalni shell rute (/studio/app, /studio/app/m/<id>, /studio/krediti).
+- `components/studio/studio-shell.tsx` — tanki omotač (BrandMark→landing, F5 cross-sell red,
+  ThemeToggle, locale link, AccountMenu/Prijava; `<main>` ponavlja AppShell padding kontrakt;
+  SuspensionGate DA, ProfileSetupGate/ViewerPresence/Chat* NE).
+- `components/studio/verify-email-panel.tsx` — StudioVerifyEmailPanel (floating slot) +
+  ResendVerificationLink (inline za CheckoutAction).
+- `lib/studio-landing.ts` (+test) — copy modul + STUDIO_EXAMPLES manifest (empty-safe galerija).
+- `lib/credits-return.ts` (+test) — allowlist returnContext → putanja povratka.
+
+Menjano:
+- `components/app/studio-page.tsx` — opcioni props `basePath`/`creditsHref`/`signInHref` (default
+  /app/studio bajt-identičan; L188 regex, L367/378/389 putanje, L537 sign-in); grana za
+  `accessReason === "EMAIL_NIJE_POTVRDJEN"` → verify panel; auto-claim bonusa (useEffect + ref).
+- `components/app/credits-page.tsx` — `variant="studio"`: nazad-link na /studio/app, sign-in sa
+  ?next=, payload +returnContext:"studio", Premium plan panel sakriven, CheckoutAction
+  `emailVerificationAction` slot (studio: inline resend umesto linka na školski profil).
+- `app/api/stripe/credits/route.ts` + `lib/stripe.ts` (+test) — `returnPath` (server-side allowlist;
+  default nepromenjen — školski pozivi bajt-identični, test za obe varijante).
+- `app/[locale]/(marketing)/auth/complete/page.tsx` — preskače username onboarding za /studio ciljeve.
+- `lib/studio-messages.ts` — STUDIO_SHELL + STUDIO_VERIFY_EMAIL poruke.
+- `lib/convex-http.ts` — listPacks + listCatalogModels refs (SSR cene u crawlable HTML-u).
+- `app/sitemap.ts` (+/sr/studio, /en/studio i bez Convex-a) + `app/robots.ts` (allow landing,
+  disallow /studio/app i /studio/krediti).
+
+### Šta je urađeno
+
+Ceo standalone funnel: landing (hero sa autorskom SVG skicom mehanizma — ilustracija u brend
+rukopisu, NE lažni AI izlaz; vrste kao STEPENASTI redovi a ne tri jednake kartice; paketi živi iz
+listPacks; footer sa uslovima) → sign-in?next= → /studio/app (iste komponente, tanki shell) →
+verify-email panel po `accessReason` → StudioTermsGate (postojeći) → auto-claim 25 kr →
+/studio/krediti kupovina koja se VRAĆA u Studio. Školski /app/studio netaknut (default props).
+
+### ODLUKE
+
+1. **Brif-pinovan pravac za landing** (impeccable new-work §3: „user- or brief-pinned direction
+   beats the roll") — svet je zakovan brifom (papir/mastilo/žuta + AGENTS konvencije), sadržaj
+   sekcija brifom, pa concept tournament NIJE rađen; direction contract stoji kao IZVORNI komentar
+   (ne emitovan HTML — AGENTS surgical pravilo).
+2. **Rute**: landing u (marketing) grupi (nasleđuje SiteRouteMotion); shell u `studio/(shell)` sa
+   SOPSTVENIM template-om (AppRouteMotion) — bez marketing motion-a preko StudioPage AnimatePresence
+   koreografije. Slugovi: /studio/app (simetrija sa /app), /studio/krediti (srpski, kao
+   /uslovi-studio).
+3. **Hero BEZ forsiranog 100dvh** (za razliku od home-a): CTA mora u prvi viewport i na 1366×744 —
+   viša kolona ga je gurala ispod page-motion 92% praga u deferred scroll-reveal (nađeno u
+   verifikaciji). Naslov 4xl/5xl/6xl, uže margine.
+4. **Galerija primera = prazan manifest + BLOKADA** — ništa se ne izmišlja; sekcija se ne renderuje
+   dok Jovan ne ubaci prave generacije u `public/studio-examples/` + redove u `lib/studio-landing.ts`.
+5. **Kupovina zadržava kursni email predikat** (`emailVerifiedForCourses` u /api/stripe/credits) —
+   ZABRANA „ne slabij postojeću proveru" je jača od simetrije sa Studio predikatom. Posledica:
+   Google-only kupac mora JEDNOM da klikne app-verifikaciju pre prve kupovine — standalone kontekst
+   za to dobija inline resend link umesto skoka u školski profil. Bonus od 25 kr stiže i bez toga.
+6. **Landing cene**: server-side fetch (getConvexHttpClient) da cene budu u SSR HTML-u za Google;
+   „od N kr" hintovi koriste javni legacy `modelCatalog:listModels` (ista referenca kao
+   /app/credits) — v4 `studioModels.listModels` se NE otvara javno (nosi veleprodajni `baseUsd`).
+7. **Auto-claim bonusa živi u StudioPage** (ne u shell-u) — radi u OBA omotača istom logikom;
+   mutacija je idempotentna pa je ref-guard samo ušteda poziva.
+8. `hidden` na LinkButton-u ne radi (computed display:flex) — **PRE-POSTOJEĆI site-wide bag** (i
+   home „Prijava" je vidljiva na 375). Landing header koristi span wrapper kao zaštitu; bag
+   prijavljen kao zaseban task (chip), NIJE diran ovde (van obima, isti tip greške kao istorijski
+   radius bag iz AGENTS.md).
+
+### Testovi
+
+- `lib/studio-landing.test.ts` (manifest validacija + sr/en kompletnost), `lib/credits-return.test.ts`
+  (allowlist: "studio"→/studio/krediti; undefined/garbage/URL→/app/credits),
+  `lib/stripe.test.ts` +1 (returnPath varijanta; default bajt-identičan; metadata nezavisna).
+- Pun suite: **92 fajla, 1232/1232**; typecheck 0; lint 178 (baseline); `npm run build` ✅
+  (+4 rute: /studio, /studio/app, /studio/app/m/[jobId], /studio/krediti).
+
+### Rezultat verifikacije (uživo)
+
+Dev server WORKTREE-a na :3001 (`.claude/launch.json` → scratchpad `dev.cjs` sa
+`NODE_OPTIONS=--no-use-system-ca` zbog F0 mašinskog TLS baga; glavni checkout drži :3000).
+Pregledano u in-app pane-u + Jovanovom ulogovanom Chrome-u:
+- `/sr/studio`: obe teme, desktop 1440×900 + mobilni 375 — hero sa CTA u prvom viewportu,
+  skica mehanizma, stepenaste vrste, paketi (prazno stanje — dev baza NEMA paketa: provereno
+  direktnim query-jem `creditPacks:listPacks` → 0 redova; prod ima), footer. `/en/studio` SSR
+  stringovi u HTML-u (SEO ✓).
+- `/sr/studio/app` (ulogovan admin): tanki shell BEZ sidebara/dock-a, cross-sell red, prave
+  generacije u mreži, intro CTA → `/sr/studio/krediti` (DOM proveren), naslov
+  „Radni prostor · Studio".
+- `/sr/studio/krediti`: „Nazad u Studio", live balans 4.832, istorija, BEZ Premium panela.
+- Konzola: SAMO poznati `bis_skin_checked` extension šum (SP2 presedan) — nula novih grešaka.
+- Impeccable: context.mjs + new-work + craft-floor praćeni; `detect.mjs` nad nova 3 UI fajla → `[]`;
+  degraded finish review (svež subagent — isporučeni agent nije registrovan u harness-u,
+  supstitucija po SUBAGENT_AUTHORIZATION) — nalazi u F6 sekciji.
+
+### BLOKADA
+
+- **Galerija primera prazna** dok Jovan ne ubaci prave generacije (ODLUKA 4).
+- **Convex funkcije worktree-a se NE MOGU push-ovati na dev deployment** (isti sharp/linux-arm64
+  problem kao codegen) — javni tok sa flegom ON nije mogao da se vežba UŽIVO; pokriven je sa 30+
+  convex-test testova, a UI grane (verify panel, claimable) rade protiv `state?.` opcionih polja pa
+  stari deployment ne lomi ništa.
+- Dev baza nema creditPacks redove — paketi na landingu/krediti stranici prikazuju prazno stanje
+  (istinito; prod ima podatke).
+
+### Za Jovana
+
+1. Primeri za landing: ubaci fajlove u `public/studio-examples/` + redove u `lib/studio-landing.ts`
+   (format u komentaru manifesta) — sekcija se sama pojavi.
+2. Chip „Popravi hidden vs display na dugme-anchorima" — pre-postojeći bag koji lomi i home mobilni
+   header za neprijavljene; jedan klik za zaseban run.
+3. `.claude/launch.json` u worktree-u pokazuje na scratchpad dev skript — obriši posle merge-a ako
+   smeta (nije commitovan… proveri `git status`).
