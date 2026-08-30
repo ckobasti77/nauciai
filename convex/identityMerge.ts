@@ -159,6 +159,126 @@ async function mergeActivityRows(
   }
 }
 
+/**
+ * Krediti, Studio poslovi i - najvažnije - BRAVE prate čoveka na kanonski
+ * nalog (studio-public F2.10, nalaz R4). Do sada merge ove tabele nije dirao:
+ * plaćeni lotovi su ostajali siročići na husk redu, a `SPOR_U_TOKU`
+ * (creditReversals), `SALDO_U_MINUSU` (negativan balans) i `NEPORAVNAT_DUG`
+ * (unsettledCredits) su ostajali na napuštenom nalogu - chargeback pa prijava
+ * drugim metodom je BILA čist beg od brave.
+ *
+ * `studioUploadGrants` se namerno preskače: TTL 1 h, briše ih cron, nemaju
+ * user indeks - najgori ishod je ponovo izdat grant.
+ *
+ * `creditTransactions.balanceAfter` posle spajanja postaje preplet dve
+ * istorije - snapshot po redu ostaje veran trenutku upisa na SVOM nalogu, ne
+ * prepravlja se (ista filozofija kao chat istorija).
+ */
+async function mergeStudioAndCreditRows(
+  ctx: MutationCtx,
+  canonicalUserId: Id<"users">,
+  duplicateUserId: Id<"users">,
+) {
+  for (const row of await boundedQueryRows(
+    ctx.db.query("creditLots").withIndex("by_user_expiry", (q) => q.eq("userId", duplicateUserId)),
+    "credit lots",
+  )) {
+    await ctx.db.patch(row._id, { userId: canonicalUserId });
+  }
+  for (const row of await boundedQueryRows(
+    ctx.db.query("creditTransactions").withIndex("by_user", (q) => q.eq("userId", duplicateUserId)),
+    "credit transactions",
+  )) {
+    await ctx.db.patch(row._id, { userId: canonicalUserId });
+  }
+  // Brava zbog spora i svaki drugi reversal - OVO je zatvaranje bega.
+  for (const row of await boundedQueryRows(
+    ctx.db
+      .query("creditReversals")
+      .withIndex("by_userId_and_kind", (q) => q.eq("userId", duplicateUserId)),
+    "credit reversals",
+  )) {
+    await ctx.db.patch(row._id, { userId: canonicalUserId });
+  }
+  for (const row of await boundedQueryRows(
+    ctx.db.query("generationJobs").withIndex("by_user", (q) => q.eq("userId", duplicateUserId)),
+    "generation jobs",
+  )) {
+    await ctx.db.patch(row._id, { userId: canonicalUserId });
+  }
+  for (const row of await boundedQueryRows(
+    ctx.db.query("studioProjects").withIndex("by_user", (q) => q.eq("userId", duplicateUserId)),
+    "studio projects",
+  )) {
+    // Istoimeni projekti dva naloga smeju da koegzistiraju: jedinstvenost
+    // imena čuvaju samo createProject/renameProject, prikaz dve iste fascikle
+    // je kozmetika, a preimenovanje je jedan klik.
+    await ctx.db.patch(row._id, { userId: canonicalUserId });
+  }
+  for (const row of await boundedQueryRows(
+    ctx.db.query("studioUploads").withIndex("by_user", (q) => q.eq("userId", duplicateUserId)),
+    "studio uploads",
+  )) {
+    await ctx.db.patch(row._id, { userId: canonicalUserId });
+  }
+
+  // Dnevna potrošnja se SABIRA po danu (obrazac `mergeActivityRows`) - inače
+  // bi spajanje resetovalo današnje kvote i kapove.
+  const usageRows = requireBoundedRows(
+    [
+      ...(await ctx.db
+        .query("studioUsageDaily")
+        .withIndex("by_user_day", (q) => q.eq("userId", canonicalUserId))
+        .take(ROW_LIMIT + 1)),
+      ...(await ctx.db
+        .query("studioUsageDaily")
+        .withIndex("by_user_day", (q) => q.eq("userId", duplicateUserId))
+        .take(ROW_LIMIT + 1)),
+    ],
+    "studio usage rows",
+  );
+  const usageByDay = new Map<string, typeof usageRows>();
+  for (const row of usageRows) usageByDay.set(row.day, [...(usageByDay.get(row.day) ?? []), row]);
+  for (const [day, dayRows] of usageByDay) {
+    if (dayRows.length === 1 && dayRows[0].userId === canonicalUserId) continue;
+    const winner = dayRows.find((row) => row.userId === canonicalUserId) ?? dayRows[0];
+    await ctx.db.patch(winner._id, {
+      userId: canonicalUserId,
+      day,
+      generations: dayRows.reduce((sum, row) => sum + Math.max(0, row.generations), 0),
+      creditsSpent: dayRows.reduce((sum, row) => sum + Math.max(0, row.creditsSpent), 0),
+      costUsd: dayRows.reduce((sum, row) => sum + Math.max(0, row.costUsd), 0),
+    });
+    for (const row of dayRows) if (row._id !== winner._id) await ctx.db.delete(row._id);
+  }
+
+  // Keš balansa: zbir oba (sme u minus - `SALDO_U_MINUSU` prati čoveka),
+  // duplikatov red se briše da husk ne nosi novac.
+  const canonicalBalance = await ctx.db
+    .query("creditBalances")
+    .withIndex("by_user", (q) => q.eq("userId", canonicalUserId))
+    .unique();
+  const duplicateBalance = await ctx.db
+    .query("creditBalances")
+    .withIndex("by_user", (q) => q.eq("userId", duplicateUserId))
+    .unique();
+  if (duplicateBalance) {
+    const merged = {
+      balance: (canonicalBalance?.balance ?? 0) + duplicateBalance.balance,
+      lifetimePurchased:
+        (canonicalBalance?.lifetimePurchased ?? 0) + duplicateBalance.lifetimePurchased,
+      lifetimeSpent: (canonicalBalance?.lifetimeSpent ?? 0) + duplicateBalance.lifetimeSpent,
+      updatedAt: Date.now(),
+    };
+    if (canonicalBalance) {
+      await ctx.db.patch(canonicalBalance._id, merged);
+      await ctx.db.delete(duplicateBalance._id);
+    } else {
+      await ctx.db.patch(duplicateBalance._id, { userId: canonicalUserId, ...merged });
+    }
+  }
+}
+
 async function mergeContributionRows(
   ctx: MutationCtx,
   canonicalUserId: Id<"users">,
@@ -1358,6 +1478,7 @@ async function mergeVerifiedUsersInMutation(
       await syncStudyAvailabilityForProgressChange(ctx, args.canonicalUserId, courseId);
     }
     await mergeChatRows(ctx, args.canonicalUserId, args.duplicateUserId);
+    await mergeStudioAndCreditRows(ctx, args.canonicalUserId, args.duplicateUserId);
     await rebuildCanonicalProfileStats(
       ctx,
       args.canonicalUserId,
@@ -1409,6 +1530,10 @@ async function mergeVerifiedUsersInMutation(
       appEmailVerificationTime: verificationTime,
       passwordEmailVerificationTime: verificationTime,
       emailVerificationTime: canonicalUser.emailVerificationTime ?? duplicateUser.emailVerificationTime,
+      // Pristanak na uslove Studija prati čoveka (studio-public F2.10) - stariji
+      // pečat je dokaz na stariju verziju uslova, ali bilo koji pečat je pristanak.
+      acceptedStudioTermsAt:
+        canonicalUser.acceptedStudioTermsAt ?? duplicateUser.acceptedStudioTermsAt,
     });
     await ctx.db.patch(args.duplicateUserId, {
       email: undefined,
@@ -1432,6 +1557,7 @@ async function mergeVerifiedUsersInMutation(
       mergedInto: args.canonicalUserId,
       appEmailVerificationTime: undefined,
       passwordEmailVerificationTime: undefined,
+      acceptedStudioTermsAt: undefined,
     });
 
     return {
