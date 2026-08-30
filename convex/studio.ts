@@ -46,6 +46,7 @@ import { computeCostUsd, computeCredits, parsePriceRule, pricingModeFor } from "
 import { planSettlement } from "./studioSettlementCore";
 import {
   computeCreditCost,
+  computeEstimatedCostUsd,
   dayKey,
   decideStudioAccess,
   exceedsDailyCostLimit,
@@ -64,7 +65,6 @@ import {
   parseParams,
   promptHash,
   providerStatus,
-  requestedImageCount,
   resolveStudioLimits,
   sanitizeParams,
   STUDIO_FLAG_KEY,
@@ -400,9 +400,10 @@ async function buildLegacyOrder(
     params: cleanParams,
     prompt,
     creditCost: computeCreditCost(model, cleanParams),
-    // Nabavna cena raste sa brojem slika isto kao i naplata: bez toga dnevni
-    // plafon od 5 $ propušta do 20 $ stvarnog troška (`num_images: 4`).
-    estimatedCostUsd: model.estimatedCostUsd * requestedImageCount(cleanParams),
+    // Nabavna cena raste ISTIM faktorima kao naplata - i brojem slika i
+    // trajanjem za per-second modele (studio-public F2.8, nalaz R8): bez
+    // množenja trajanjem je 30s klip punio dnevni plafon kao da traje sekund.
+    estimatedCostUsd: computeEstimatedCostUsd(model, cleanParams),
     // Stari katalog nema ulazne slotove, pa nema ni šta da veže za sebe.
     uploadIds: [],
   };
@@ -972,6 +973,15 @@ export const failJob = internalMutation({
   handler: async (ctx, args) => {
     const job = await ctx.db.get(args.jobId);
     if (!job) throw new Error("Posao nije pronađen.");
+    // Defense-in-depth (studio-public F2.8, nalaz R9): već oboren posao se ne
+    // obara ponovo - do sada je SAMO disciplina pozivalaca stajala između
+    // duplog poziva i drugog prolaza kroz refund granu (sam refund je ionako
+    // idempotentan po `by_job_type`). `done` se NAMERNO ne blokira: refund
+    // poravnatog posla kojem izlaz nikad nije stigao je ručna support staza
+    // (X2 ugovor, `studioSettlement.test.ts` "refund poravnatog posla") -
+    // korisnik do nje ne može (failJob je internal, svi produkcijski pozivaoci
+    // proveravaju `running`).
+    if (job.status === "failed" || job.status === "refunded") return null;
     await ctx.db.patch(args.jobId, { status: "failed", error: args.error, completedAt: Date.now() });
     const refund: { lotId: Id<"creditLots">; credits: number } | null = await ctx.runMutation(
       internal.credits.refundCredits,
@@ -1340,16 +1350,21 @@ export const listAllJobs = query({
 
     // Mejl vlasnika se čita jednom po korisniku, ne jednom po poslu: strana od
     // dvanaest kartica jednog korisnika je jedno čitanje, ne dvanaest.
+    // MODERATOR mejl ne dobija (studio-public F2.8, usklađeno sa
+    // `listJobOwners` iz X4): njemu je za grupisanje dovoljan `ownerHandle` -
+    // isti pseudonim koji već vidi u filteru po korisniku. Polje zadržava ime
+    // `ownerEmail` da UI ne puca; pola vremena to i dalje jeste mejl (admin).
     const emailByUser = new Map<Id<"users">, string>();
     const page: StaffJob[] = [];
     for (const job of result.page) {
-      if (!emailByUser.has(job.userId)) {
+      if (role === "admin" && !emailByUser.has(job.userId)) {
         const owner = await ctx.db.get(job.userId);
         emailByUser.set(job.userId, owner?.email ?? "");
       }
       page.push({
         ...(role === "admin" ? await toGalleryJob(ctx, job) : await toModerationJob(ctx, job)),
-        ownerEmail: emailByUser.get(job.userId) ?? "",
+        ownerEmail:
+          role === "admin" ? (emailByUser.get(job.userId) ?? "") : ownerHandle(job.userId),
         provider: providerBySlug.get(job.modelSlug) ?? "",
       });
     }
@@ -1655,7 +1670,10 @@ export const deleteJob = mutation({
 export const createInputUploadUrl = mutation({
   args: { slot: v.string() },
   handler: async (ctx, args) => {
-    const userId = await requireUserId(ctx);
+    // Gejt, ne samo prijava (studio-public F2.8, nalaz R1): svako izdavanje
+    // pravog upload URL-a puni `_storage` - nalog kojem `createJob` ne bi dao
+    // ništa nema šta ni da kači.
+    const { userId } = await requireStudioAccess(ctx);
 
     const now = Date.now();
     const grantId = await ctx.db.insert("studioUploadGrants", {
@@ -1690,7 +1708,9 @@ export const createInputUploadUrl = mutation({
 export const registerInputUpload = mutation({
   args: { storageId: v.id("_storage"), grantId: v.id("studioUploadGrants") },
   handler: async (ctx, args) => {
-    const userId = await requireUserId(ctx);
+    // Isti gejt kao `createInputUploadUrl` (F2.8): red u `studioUploads` je
+    // ulaznica za naplatu, ne pravi se bez prava na Studio.
+    const { userId } = await requireStudioAccess(ctx);
 
     const meta = await ctx.db.system.get("_storage", args.storageId);
     if (!meta) throw new Error("FAJL_NE_POSTOJI");

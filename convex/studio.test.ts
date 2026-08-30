@@ -2448,18 +2448,22 @@ test("listAllJobs: moderator dobija red bez prompta i bez ulaznih slicica, admin
   expect(moderatorRow.inputThumbs).toBeUndefined();
   expect(JSON.stringify(moderatorRow)).not.toContain("moj privatan prompt");
   // Ono sto moderacija trazi je i dalje tu: model, provajder, status, kredit,
-  // vlasnik, vreme i izlaz.
+  // vlasnik (kao PSEUDONIM - F2.8 usaglasio sa listJobOwners: mejl vidi samo
+  // admin), vreme i izlaz.
   expect(moderatorRow.modelSlug).toBe("m-fal");
   expect(moderatorRow.provider).toBe("fal");
   expect(moderatorRow.status).toBe("done");
   expect(moderatorRow.creditCost).toBe(10);
-  expect(moderatorRow.ownerEmail).toBe("student@example.com");
+  expect(moderatorRow.ownerEmail).toBe(ownerHandle(userId));
+  expect(moderatorRow.ownerEmail).not.toContain("@");
+  expect(JSON.stringify(moderatorRow)).not.toContain("student@example.com");
   expect(moderatorRow.createdAt).toBe(1_000);
   expect(moderatorRow).toHaveProperty("outputUrl");
 
   const forAdmin = await admin.asUser.query(api.studio.listAllJobs, { paginationOpts: opts });
   const adminRow = forAdmin.page[0];
   expect(adminRow.params).toContain("moj privatan prompt");
+  expect(adminRow.ownerEmail).toBe("student@example.com");
   expect(adminRow.inputThumbs?.total).toBe(1);
 });
 
@@ -2905,4 +2909,62 @@ test("listMyJobs sa projectId filtrira kroz by_user_project, bez projectId vrać
   });
   expect(p2Jobs.page).toHaveLength(1);
   expect(p2Jobs.page[0]._id).toBe(j2);
+});
+
+// ── studio-public F2.8: hardening ──────────────────────────────────────────
+
+test("failJob je idempotentan: dupli poziv na oborenom poslu ne refundira dvaput (R9)", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedWorld(t);
+  const balanceStart = (await ledger(t, userId)).balance;
+
+  const jobId = jobIdOf(
+    await asUser.mutation(api.studio.createJob, {
+      modelSlug: MODEL_SLUG,
+      params: promptParams("lisica u snegu"),
+    }),
+  );
+
+  await t.mutation(internal.studio.failJob, { jobId, error: "submit pao" });
+  expect((await t.run((ctx) => ctx.db.get(jobId)))?.status).toBe("refunded");
+  const afterFirst = await ledger(t, userId);
+  expect(afterFirst.balance).toBe(balanceStart);
+
+  // Drugi poziv (buggy pozivalac, dupli webhook kroz drugu granu...) se
+  // odbija na statusu - ne prolazi ponovo ni kroz refund ni kroz usage deltu.
+  await t.mutation(internal.studio.failJob, { jobId, error: "dupli poziv" });
+  const afterSecond = await ledger(t, userId);
+  expect(afterSecond.balance).toBe(balanceStart);
+  expect(afterSecond.transactions.filter((row) => row.type === "refund")).toHaveLength(1);
+  expect((await t.run((ctx) => ctx.db.get(jobId)))?.status).toBe("refunded");
+  // `done` se namerno NE blokira - refund poravnatog posla bez izlaza je ručna
+  // support staza; taj ugovor drži `studioSettlement.test.ts` ("refund
+  // poravnatog posla vraća i rezervaciju i razliku").
+});
+
+test("createInputUploadUrl i registerInputUpload traže pristup Studiju (R1)", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedUser(t, { enrolled: true });
+
+  // Upisan student bez javnog flega: kapija zatvorena, nijedan grant se ne izdaje.
+  await expect(
+    asUser.mutation(api.studio.createInputUploadUrl, { slot: "image" }),
+  ).rejects.toThrow(/NEMA_PRISTUPA/);
+  const grants = await t.run((ctx) => ctx.db.query("studioUploadGrants").collect());
+  expect(grants).toHaveLength(0);
+
+  // Javni fleg + potvrđen email: isti korisnik dobija grant i prijavljuje fajl.
+  await t.run(async (ctx) => {
+    await ctx.db.insert("platformFlags", { key: "studio_public", enabled: true });
+    await ctx.db.patch(userId, { emailVerificationTime: 1 });
+  });
+  const { grantId, uploadUrl } = await asUser.mutation(api.studio.createInputUploadUrl, {
+    slot: "image",
+  });
+  expect(uploadUrl).toContain("http");
+  const storageId = await t.run((ctx) => ctx.storage.store(new Blob(["slika"], { type: "image/png" })));
+  await asUser.mutation(api.studio.registerInputUpload, { storageId, grantId });
+  const uploads = await t.run((ctx) => ctx.db.query("studioUploads").collect());
+  expect(uploads).toHaveLength(1);
+  expect(uploads[0].userId).toBe(userId);
 });

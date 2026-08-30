@@ -313,6 +313,29 @@ export function computeCreditCost(model: PricedModel, params: Record<string, unk
   return Math.ceil(model.costPerSecond * duration) * images;
 }
 
+/**
+ * Nabavna procena mora da raste ISTIM faktorima kao naplata (studio-public
+ * F2.8, nalaz R8): `estimatedCostUsd` hrani dnevni plafon od 5 $, in-flight
+ * granicu od 3 $ i globalni kill od 100 $, pa je per-second model bez množenja
+ * trajanjem potcenjivao trošak tačno onoliko puta koliko klip traje.
+ * `estimatedCostUsd` u katalogu je cena JEDNE sekunde kad model ima
+ * `costPerSecond` (paralelno sa kreditima), inače cena jednog izlaza.
+ */
+export function computeEstimatedCostUsd(
+  model: Pick<PricedModel, "costPerSecond"> & { estimatedCostUsd: number },
+  params: Record<string, unknown>,
+): number {
+  const images = requestedImageCount(params);
+  if (model.costPerSecond === undefined) return model.estimatedCostUsd * images;
+
+  const duration = params.duration;
+  if (typeof duration !== "number" || !Number.isFinite(duration) || duration <= 0) {
+    throw new Error("NEISPRAVNO_TRAJANJE");
+  }
+
+  return model.estimatedCostUsd * duration * images;
+}
+
 /** ECB kurs iz STUDIO-PLAN §2 (14.08.2026): 1 $ = 0,865 €. Nije uživo - ista pretpostavka kao seed cena. */
 export const EUR_PER_USD = 0.865;
 

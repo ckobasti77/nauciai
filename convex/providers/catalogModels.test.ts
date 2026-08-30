@@ -679,3 +679,29 @@ test("modeli koji su već bili u grani nisu promenjeni ovim korakom", () => {
     expect(studioModelBySlug(seed.slug)).toBe(seed);
   }
 });
+
+// ── studio-public F2.8: min/max invarijanta (nalaz R7) ─────────────────────
+
+/**
+ * `sanitizeSpecParams` klampuje broj na `[min, max]` i odbija red veličine
+ * preko `max` - ALI SAMO ako `min`/`max` postoje (studioParamSpec.ts:158-166).
+ * Kontrola bez granica bi propustila neograničen broj pravo u `computeCostUsd`.
+ * Danas svaka seeded kontrola granice ima; ova invarijanta drži da tako i
+ * OSTANE - nov model bez `min`/`max` na broju pada ovde, ne u produkciji.
+ */
+test("katalog invarijanta: svaka number/slider kontrola ima min i max (i min <= default <= max)", () => {
+  for (const seed of STUDIO_MODELS) {
+    for (const control of seed.paramSpec) {
+      if (control.type !== "number" && control.type !== "slider") continue;
+      expect(typeof control.min, `${seed.slug}/${control.key} nema min`).toBe("number");
+      expect(typeof control.max, `${seed.slug}/${control.key} nema max`).toBe("number");
+      const min = control.min as number;
+      const max = control.max as number;
+      expect(min, `${seed.slug}/${control.key}: min > max`).toBeLessThanOrEqual(max);
+      if (typeof control.default === "number") {
+        expect(control.default, `${seed.slug}/${control.key}: default van [min, max]`).toBeGreaterThanOrEqual(min);
+        expect(control.default, `${seed.slug}/${control.key}: default van [min, max]`).toBeLessThanOrEqual(max);
+      }
+    }
+  }
+});

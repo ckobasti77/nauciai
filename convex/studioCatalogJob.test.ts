@@ -1043,7 +1043,10 @@ async function seedStranger(t: TestConvex): Promise<TestUser> {
       email: "tudji@example.com",
       name: "Tudji",
       username: "tudji",
-      role: "student" as const,
+      // `moderator` iz istog razloga kao `seedUser` (X8 ODLUKA 4): F2.8 je
+      // gejtovao upload mutacije, a ovi testovi mere VLASNIŠTVO fajla, ne
+      // kapiju - "tuđi" znači drugi nalog, ne nalog bez pristupa.
+      role: "moderator" as const,
       language: "sr" as const,
       createdAt: 1,
       updatedAt: 1,
