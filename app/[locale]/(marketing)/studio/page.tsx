@@ -262,7 +262,13 @@ export default async function StudioLandingPage({
 
               <div className="relative min-h-[420px]" aria-hidden={false}>
                 <Panel className="sketch-float absolute right-0 top-0 w-[88%] p-3">
-                  <HeroLoop label={STUDIO_LANDING.heroVideoAlt[locale]} />
+                  <HeroLoop
+                    label={STUDIO_LANDING.heroVideoAlt[locale]}
+                    webmSrc="/images/landing/studio-hero-loop.webm"
+                    mp4Src="/images/landing/studio-hero-loop.mp4"
+                    posterSrc="/images/landing/studio-hero-poster.png"
+                    fallbackSrc="/images/landing/studio-hero.png"
+                  />
                 </Panel>
                 <Panel className="sketch-float absolute bottom-0 left-0 w-[58%] bg-paper-strong p-5">
                   <div className="flex items-start gap-4">
