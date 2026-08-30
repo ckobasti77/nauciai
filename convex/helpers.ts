@@ -5,6 +5,7 @@ import type { Id } from "./_generated/dataModel";
 import { env } from "./_generated/server";
 import { normalizeEmail, parseAdminEmails } from "../lib/admin-emails";
 import type { MutationCtx } from "./_generated/server";
+import { canonicalizeEmailForAntiFarm } from "./creditsCore";
 import { syncLeaderboardEligibilityForUser } from "./leaderboardCore";
 import {
   isValidUsername,
@@ -140,6 +141,10 @@ export async function upsertProfileFromAuthUser(
     role,
     language: user.language ?? ("sr" as const),
     searchText: `${name} ${username ?? ""} ${email}`.trim(),
+    // Anti-farm ključ (nalaz V4): kanonski Gmail oblik, ne login email. Piše se
+    // ovde jer je ovo jedini levak za `users.email` (i password i Google), pa
+    // svaki NOV nalog nosi ključ po kom ga alias-braća prepoznaju.
+    emailCanonical: canonicalizeEmailForAntiFarm(email),
     createdAt: user.createdAt ?? now,
     updatedAt: user.updatedAt ?? now,
   };

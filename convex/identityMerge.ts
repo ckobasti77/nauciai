@@ -5,6 +5,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 import { internalAction, internalMutation, internalQuery, mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { removeChatInboxSummaryMember, syncChatInboxSummaryMember } from "./chatInboxSummaryCore";
+import { canonicalizeEmailForAntiFarm } from "./creditsCore";
 import { effectiveRoleForProfile } from "./helpers";
 import { ensureStudyPartnershipMembers, syncStudyAvailabilityForProgressChange } from "./study";
 import {
@@ -1508,6 +1509,9 @@ async function mergeVerifiedUsersInMutation(
     ) || undefined;
     await ctx.db.patch(args.canonicalUserId, {
       email: canonicalEmail,
+      // Anti-farm ključ prati email (nalaz V4): spojen nalog nosi kanonski
+      // oblik zadržanog emaila.
+      emailCanonical: canonicalizeEmailForAntiFarm(canonicalEmail),
       name: preferredProfile.name ?? canonicalUser.name,
       firstName: preferredProfile.firstName ?? canonicalUser.firstName,
       lastName: preferredProfile.lastName ?? canonicalUser.lastName,
@@ -1537,6 +1541,9 @@ async function mergeVerifiedUsersInMutation(
     });
     await ctx.db.patch(args.duplicateUserId, {
       email: undefined,
+      // Husk red nema email, pa ni anti-farm ključ - inače bi mrtav nalog i
+      // dalje "zauzimao" inbox i blokirao legitiman bonus (nalaz V4).
+      emailCanonical: undefined,
       name: undefined,
       firstName: undefined,
       lastName: undefined,

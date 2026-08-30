@@ -164,8 +164,15 @@ const authUsers = defineTable({
   phoneVerificationTime: v.optional(v.number()),
   isAnonymous: v.optional(v.boolean()),
   mergedInto: v.optional(v.id("users")),
+  // Kanonski Gmail oblik SAMO za anti-farm proveru signup bonusa (nalaz V4).
+  // Nije login ni prikazani email - `red+1@` i `r.ed@gmail.com` ovde nose isti
+  // `red@gmail.com`, pa ih `studio.claimSignupBonus` vidi kao jedan inbox.
+  // Opciono: legacy redovi ga nemaju dok se ne osveže (upsert pri prijavi ili
+  // self-heal u claim-u). Vidi `creditsCore.canonicalizeEmailForAntiFarm`.
+  emailCanonical: v.optional(v.string()),
 })
   .index("email", ["email"])
+  .index("email_canonical", ["emailCanonical"])
   .index("phone", ["phone"])
   .index("username", ["username"])
   .index("by_role", ["role"])

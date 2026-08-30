@@ -44,6 +44,32 @@ export function signupBonusKey(userId: string): string {
   return `signup:${userId}`;
 }
 
+/**
+ * Kanonski oblik emaila SAMO za anti-farm proveru signup bonusa (nalaz V4).
+ * NE dira prikazani/login email - služi jedino da `claimSignupBonus` prepozna
+ * da `red@`, `red+1@` i `r.ed@gmail.com` stižu u ISTI Gmail inbox, pa je bonus
+ * već dat prvom nalogu.
+ *
+ * Gmail (i `googlemail.com`, isti inbox) ignoriše sve posle `+` i sve tačke u
+ * lokalnom delu, i dva pisanja domena su jedan sandučić. Kanonizacija je zato
+ * NAMERNO uska - samo ta dva domena, jer drugi provajderi tačku/`+` tretiraju
+ * kao različite adrese, pa bi šire pravilo spajalo tuđe naloge (lažni duplikat
+ * košta poverenje). Degenerativni slučaj (prazan lokalni deo posle skidanja)
+ * ostaje netaknut, da se mnoštvo takvih adresa ne slije u jedan ključ.
+ */
+export function canonicalizeEmailForAntiFarm(email: string | null | undefined): string {
+  const normalized = String(email ?? "").trim().toLowerCase();
+  const at = normalized.lastIndexOf("@");
+  if (at <= 0 || at === normalized.length - 1) return normalized;
+
+  const domain = normalized.slice(at + 1);
+  if (domain !== "gmail.com" && domain !== "googlemail.com") return normalized;
+
+  const local = normalized.slice(0, at).split("+")[0].replace(/\./g, "");
+  if (!local) return normalized;
+  return `${local}@gmail.com`;
+}
+
 /** STUDIO-PLAN 4.4 - gornja granica dužine prompta. */
 export const MAX_PROMPT_LENGTH = 2000;
 

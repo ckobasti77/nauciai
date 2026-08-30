@@ -13,6 +13,7 @@ import {
 } from "./_generated/server";
 import { applyGrant, applySettlement, applySpend } from "./credits";
 import {
+  canonicalizeEmailForAntiFarm,
   MAX_PROMPT_LENGTH,
   type ModerationCategory,
   SIGNUP_BONUS_CREDITS,
@@ -1900,18 +1901,40 @@ export const claimSignupBonus = mutation({
       return { granted: false as const, reason: "EMAIL_NIJE_POTVRDJEN" as const };
     }
 
-    // Anti-farm (brif F2.3): bonus se NE dodeljuje ako postoji DRUGI živ nalog
-    // sa istim emailom. Isti upit kao `identityMerge.findPasswordDuplicate` -
-    // merge takve parove spaja sam od sebe pri OAuth prijavi, pa je legitiman
-    // put "prvo se prijavi Google-om (merge), pa uzmi bonus". Husk redovi
-    // (`mergedInto`) su nevidljivi za `email` indeks jer im je email obrisan.
-    const normalizedEmail = String(email ?? "").trim().toLowerCase();
-    if (!normalizedEmail) return { granted: false as const, reason: "DUPLIRAN_EMAIL" as const };
-    const sameEmail = await ctx.db
-      .query("users")
-      .withIndex("email", (q) => q.eq("email", normalizedEmail))
-      .take(5);
-    const duplicate = sameEmail.some((row) => row._id !== userId && !row.mergedInto);
+    // Anti-farm (brif F2.3 + nalaz V4): bonus se NE dodeljuje ako postoji DRUGI
+    // živ nalog iz ISTOG inboxa. `red@`, `red+1@` i `r.ed@gmail.com` su isti
+    // Gmail sandučić ali RAZLIČITI stringovi, pa se poredi KANONSKI oblik (skinut
+    // `+tag` i tačke, `googlemail.com`->`gmail.com`) - login/prikazani email se ne
+    // dira. Merge takve parove spaja sam pri OAuth prijavi (legitiman put je
+    // "prijavi se Google-om pa uzmi bonus"); husk redovi (`mergedInto`) imaju i
+    // email i `emailCanonical` obrisane, pa ih indeksi ne vraćaju.
+    const canonical = canonicalizeEmailForAntiFarm(email);
+    if (!canonical) return { granted: false as const, reason: "DUPLIRAN_EMAIL" as const };
+
+    // Self-heal: legacy nalog bez ključa dobija ga ovde (upsert pri prijavi ga
+    // već piše za nove), da ga budući alias-claim iz istog inboxa nađe. Ne dira
+    // email. Preskače upis kad je ključ već tačan (nema suvišnog write-a ni OCC
+    // sudara na uzastopnim claim-ovima).
+    if (existing.emailCanonical !== canonical) {
+      await ctx.db.patch(userId, { emailCanonical: canonical });
+    }
+
+    // Kanonizacija na OBE strane: `email_canonical` hvata alias-braću (nose isti
+    // kanonski ključ), a `email` indeks nad kanonskim oblikom hvata i legacy
+    // nalog čiji je zapisan email SLUČAJNO već kanonski (`red@gmail.com`).
+    const [byCanonical, byEmail] = await Promise.all([
+      ctx.db
+        .query("users")
+        .withIndex("email_canonical", (q) => q.eq("emailCanonical", canonical))
+        .take(5),
+      ctx.db
+        .query("users")
+        .withIndex("email", (q) => q.eq("email", canonical))
+        .take(5),
+    ]);
+    const duplicate = [...byCanonical, ...byEmail].some(
+      (row) => row._id !== userId && !row.mergedInto,
+    );
     if (duplicate) return { granted: false as const, reason: "DUPLIRAN_EMAIL" as const };
 
     // Ista transakcija kao i sve ostalo u ovoj mutaciji; dodela se sama upiše
