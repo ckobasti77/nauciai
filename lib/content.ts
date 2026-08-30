@@ -133,7 +133,7 @@ export const courses: Course[] = [
       en: "9,99 EUR",
     },
     image: {
-      src: "/images/course-video-audio-ai-cover.png",
+      src: "/images/landing/course-video-audio.png",
       alt: {
         sr: "Ilustracija AI video i audio produkcije",
         en: "AI video and audio production illustration",
@@ -372,7 +372,7 @@ export const courses: Course[] = [
       en: "9,99 EUR",
     },
     image: {
-      src: "/images/course-websites-ai-cover.png",
+      src: "/images/landing/course-vibe-coding.png",
       alt: {
         sr: "Ilustracija AI izrade web sajta",
         en: "AI website building illustration",

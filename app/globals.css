@@ -478,6 +478,51 @@ body {
   outline-offset: 2px;
 }
 
+/* FAQ akordeon: indikator +/− prati stanje <details>-a. Zamena ikone kroz `display`
+   (ne `transform`) je namerna — CSS transform se na ovom lucide <svg> u ovom okruženju
+   ne primeni, dok display/opacity/boja rade pouzdano. */
+.faq-icon-open {
+  display: none;
+}
+
+details[open] > summary .faq-icon-closed {
+  display: none;
+}
+
+details[open] > summary .faq-icon-open {
+  display: block;
+}
+
+/* Marquee ishoda na početnoj (Faza 2). Čist CSS: traka nosi DVE identične kopije liste,
+   pa pomeraj za -50% vrati na isti kadar — bešavna petlja bez skoka. Pauza na hover;
+   potpuno ugašena uz reduced-motion (traka ostaje na početku, ne zamrznuta u sredini).
+   Animira se samo `transform`, bez layout shift-a. */
+@keyframes marquee-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.marquee-track {
+  animation: marquee-scroll 32s linear infinite;
+  will-change: transform;
+}
+
+.marquee-viewport:hover .marquee-track,
+.marquee-viewport:focus-within .marquee-track {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track {
+    animation: none;
+    transform: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
