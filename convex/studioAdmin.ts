@@ -298,6 +298,28 @@ export const setStudioPublicLimit = internalMutation({
   },
 });
 
+/**
+ * Odbijeni promptovi (studio-public F2.5) - obrasci, ne sadržaj: hash + dužina
+ * + kategorija. Isti hash iznova = neko sondira blok listu. Admin vidi i ID
+ * korisnika (isti nivo kao `getUsageSummary` koji vraća email); prompt tekst
+ * ne postoji nigde, ni za admina.
+ */
+export const listModerationEvents = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireAdminRead(ctx);
+    const rows = await ctx.db.query("studioModerationLog").order("desc").take(200);
+    return rows.map((row) => ({
+      userId: row.userId,
+      category: row.category,
+      promptHash: row.promptHash,
+      promptLength: row.promptLength,
+      modelSlug: row.modelSlug,
+      createdAt: row.createdAt,
+    }));
+  },
+});
+
 /** Trenutno stanje javnog flega i limita za admin uvid; čitanje kao `getKillSwitchState`. */
 export const getStudioPublicConfig = query({
   args: {},

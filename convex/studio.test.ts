@@ -43,6 +43,15 @@ function makeT() {
 }
 type TestConvex = ReturnType<typeof makeT>;
 
+/**
+ * `createJob` od F2.5 vraća uniju (jobId | moderationBlocked) - testovi
+ * srećnog toka je sužavaju ovim; moderacioni testovi čitaju uniju direktno.
+ */
+function jobIdOf(result: Id<"generationJobs"> | { moderationBlocked: unknown }): Id<"generationJobs"> {
+  if (typeof result !== "string") throw new Error("očekivan jobId, stigao moderationBlocked");
+  return result;
+}
+
 /** Slug jedinog uključenog modela u testovima; fiksna cena 20 kredita. */
 const MODEL_SLUG = "flux-2-flash";
 const MODEL_COST = 20;
@@ -198,10 +207,10 @@ test("createJob rezerviše posao, skida kredite i zakazuje slanje - sve u jednoj
   const t = convexTest(schema, modules);
   const { userId, asUser } = await seedWorld(t);
 
-  const jobId = await asUser.mutation(api.studio.createJob, {
+  const jobId = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("lisica u snegu"),
-  });
+  }));
 
   const { balance, transactions, jobs } = await ledger(t, userId);
   expect(jobs).toHaveLength(1);
@@ -299,10 +308,12 @@ test("posao koji je izašao iz reda (running -> done) oslobađa mesto za nov", a
   const jobIds: Id<"generationJobs">[] = [];
   for (let index = 0; index < 3; index += 1) {
     jobIds.push(
-      await asUser.mutation(api.studio.createJob, {
-        modelSlug: MODEL_SLUG,
-        params: promptParams(`posao ${index}`),
-      }),
+      jobIdOf(
+        await asUser.mutation(api.studio.createJob, {
+          modelSlug: MODEL_SLUG,
+          params: promptParams(`posao ${index}`),
+        }),
+      ),
     );
   }
 
@@ -324,21 +335,72 @@ test("posao koji je izašao iz reda (running -> done) oslobađa mesto za nov", a
 
 // ── 3. moderacija prompta ──────────────────────────────────────────────────
 
-test("zabranjen pojam je odbijen pre nego što se skine ijedan kredit", async () => {
+test("zabranjen pojam vraća moderationBlocked, upiše TAČNO jedan log red i ne troši ništa", async () => {
   const t = convexTest(schema, modules);
   const { userId, asUser } = await seedWorld(t);
 
-  await expect(
-    asUser.mutation(api.studio.createJob, {
-      modelSlug: MODEL_SLUG,
-      params: promptParams("napravi deepfake predsednika"),
-    }),
-  ).rejects.toThrow(/NEISPRAVAN_PROMPT:ZABRANJEN_POJAM/);
+  // Union-return (studio-public F2.5): nije throw, da bi log red preživeo
+  // transakciju - throw bi rollback-ovao i njega.
+  const result = await asUser.mutation(api.studio.createJob, {
+    modelSlug: MODEL_SLUG,
+    params: promptParams("napravi deepfake predsednika"),
+  });
+  expect(result).toEqual({
+    moderationBlocked: { reason: "ZABRANJEN_POJAM", category: "deepfake" },
+  });
 
   const { balance, transactions, jobs } = await ledger(t, userId);
   expect(jobs).toHaveLength(0);
   expect(transactions.some((transaction) => transaction.type === "spend")).toBe(false);
   expect(balance).toBe(100);
+
+  // Log: jedan red, bez teksta prompta - hash + dužina + kategorija.
+  const log = await t.run(async (ctx) =>
+    ctx.db
+      .query("studioModerationLog")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect(),
+  );
+  expect(log).toHaveLength(1);
+  expect(log[0].category).toBe("deepfake");
+  expect(log[0].reason).toBe("ZABRANJEN_POJAM");
+  expect(log[0].modelSlug).toBe(MODEL_SLUG);
+  expect(log[0].promptHash).toMatch(/^[0-9a-f]{16}$/);
+  expect(log[0].promptLength).toBe("napravi deepfake predsednika".length);
+  expect(JSON.stringify(log[0])).not.toContain("predsednika");
+
+  // Nijedan posao nije zakazan za slanje provajderu.
+  await t.finishInProgressScheduledFunctions();
+  expect((await ledger(t, userId)).jobs).toHaveLength(0);
+});
+
+test("kategorije moderacije: nasilje i javna ličnost se loguju svaka pod svojom kategorijom", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedWorld(t);
+
+  const violence = await asUser.mutation(api.studio.createJob, {
+    modelSlug: MODEL_SLUG,
+    params: promptParams("prikazi masakr u gradu"),
+  });
+  expect(violence).toEqual({
+    moderationBlocked: { reason: "ZABRANJEN_POJAM", category: "violence" },
+  });
+
+  const publicFigure = await asUser.mutation(api.studio.createJob, {
+    modelSlug: MODEL_SLUG,
+    params: promptParams("portret Vučića na konju"),
+  });
+  expect(publicFigure).toEqual({
+    moderationBlocked: { reason: "ZABRANJEN_POJAM", category: "public_figure" },
+  });
+
+  const log = await t.run(async (ctx) =>
+    ctx.db
+      .query("studioModerationLog")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect(),
+  );
+  expect(log.map((row) => row.category).sort()).toEqual(["public_figure", "violence"]);
 });
 
 test("prazan i predugačak prompt su odbijeni sa svojim razlogom", async () => {
@@ -397,10 +459,10 @@ test("cena dolazi iz kataloga i kad klijent pošalje svoju vrednost u params", a
   const t = convexTest(schema, modules);
   const { userId, asUser } = await seedWorld(t);
 
-  const jobId = await asUser.mutation(api.studio.createJob, {
+  const jobId = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("lisica", { creditCost: 1, credits: 1, price: 0 }),
-  });
+  }));
 
   const { balance, transactions } = await ledger(t, userId);
   const job = await t.run((ctx) => ctx.db.get(jobId));
@@ -426,10 +488,10 @@ test("video model se naplaćuje ceil(costPerSecond * duration), a ne fiksnom cen
   });
   await grant(t, userId, 100);
 
-  const jobId = await asUser.mutation(api.studio.createJob, {
+  const jobId = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: "veo-3-1-lite",
     params: promptParams("dron nad gradom", { duration: 6, creditCost: 1 }),
-  });
+  }));
 
   const job = await t.run((ctx) => ctx.db.get(jobId));
   expect(job?.creditCost).toBe(27);
@@ -451,10 +513,10 @@ test("failJob vrati tačno onoliko kredita koliko je posao skinuo", async () => 
   const t = convexTest(schema, modules);
   const { userId, asUser } = await seedWorld(t);
 
-  const jobId = await asUser.mutation(api.studio.createJob, {
+  const jobId = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("lisica"),
-  });
+  }));
   expect((await ledger(t, userId)).balance).toBe(100 - MODEL_COST);
 
   await t.mutation(internal.studio.failJob, {
@@ -477,10 +539,10 @@ test("failJob pozvan dvaput vrati kredite samo jednom", async () => {
   const t = convexTest(schema, modules);
   const { userId, asUser } = await seedWorld(t);
 
-  const jobId = await asUser.mutation(api.studio.createJob, {
+  const jobId = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("lisica"),
-  });
+  }));
 
   await t.mutation(internal.studio.failJob, { jobId, error: "prvi put" });
   await t.mutation(internal.studio.failJob, { jobId, error: "drugi put" });
@@ -494,10 +556,10 @@ test("markJobRunning postavlja status running i oba polja sa ID-jem zahteva", as
   const t = convexTest(schema, modules);
   const { asUser } = await seedWorld(t);
 
-  const jobId = await asUser.mutation(api.studio.createJob, {
+  const jobId = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("lisica"),
-  });
+  }));
   await t.mutation(internal.studio.markJobRunning, { jobId, providerRequestId: "req_1" });
 
   const job = await t.run((ctx) => ctx.db.get(jobId));
@@ -672,14 +734,14 @@ test("listMyJobs vraća samo svoje poslove, najnoviji prvi, bez internih polja",
     }),
   );
 
-  const first = await asUser.mutation(api.studio.createJob, {
+  const first = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("prvi"),
-  });
-  const second = await asUser.mutation(api.studio.createJob, {
+  }));
+  const second = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("drugi"),
-  });
+  }));
   await t.mutation(internal.studio.markJobRunning, { jobId: second, providerRequestId: "req_tajni" });
 
   const page = await asUser.query(api.studio.listMyJobs, {
@@ -824,7 +886,7 @@ test("createJob upisuje očišćene parametre - to je isto ono što ide fal-u", 
   await seedModel(t, { paramSchema: IMAGE_SCHEMA });
   await grant(t, userId, 100);
 
-  const jobId = await asUser.mutation(api.studio.createJob, {
+  const jobId = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("lisica u snegu", {
       num_images: 20,
@@ -832,7 +894,7 @@ test("createJob upisuje očišćene parametre - to je isto ono što ide fal-u", 
       // Rezolucija je deo identiteta skupljeg sluga; klijent je ne sme dizati.
       resolution: "4K",
     }),
-  });
+  }));
 
   const job = await t.run((ctx) => ctx.db.get(jobId));
   expect(JSON.parse(job?.params ?? "{}")).toEqual({
@@ -851,10 +913,10 @@ test("num_images: 4 naplaćuje 4x cenu iz kataloga - i u ledgeru i u dnevnom tro
   await seedModel(t, { paramSchema: IMAGE_SCHEMA });
   await grant(t, userId, 200);
 
-  const jobId = await asUser.mutation(api.studio.createJob, {
+  const jobId = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("cetiri lisice", { num_images: 4 }),
-  });
+  }));
 
   const { balance, transactions } = await ledger(t, userId);
   const job = await t.run((ctx) => ctx.db.get(jobId));
@@ -884,10 +946,10 @@ test("odsutan num_images je jedna slika: cena i dnevni trošak ostaju 1x", async
   await seedModel(t, { paramSchema: IMAGE_SCHEMA });
   await grant(t, userId, 200);
 
-  const jobId = await asUser.mutation(api.studio.createJob, {
+  const jobId = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("jedna lisica"),
-  });
+  }));
 
   const job = await t.run((ctx) => ctx.db.get(jobId));
   expect(job?.creditCost).toBe(MODEL_COST);
@@ -1044,10 +1106,10 @@ test("markJobRunning odbija prelaz kad posao nije reserved", async () => {
   const t = convexTest(schema, modules);
   const { userId, asUser } = await seedWorld(t);
 
-  const jobId = await asUser.mutation(api.studio.createJob, {
+  const jobId = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("lisica"),
-  });
+  }));
   // Zakasneli `markJobRunning` posle refunda bi korisniku dao i kredite i sliku.
   await t.mutation(internal.studio.failJob, { jobId, error: "reaper" });
 
@@ -1065,10 +1127,10 @@ test("markJobRunning odbija i drugi poziv za isti posao", async () => {
   const t = convexTest(schema, modules);
   const { asUser } = await seedWorld(t);
 
-  const jobId = await asUser.mutation(api.studio.createJob, {
+  const jobId = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("lisica"),
-  });
+  }));
   await t.mutation(internal.studio.markJobRunning, { jobId, providerRequestId: "req_prvi" });
 
   await expect(
@@ -1142,12 +1204,12 @@ test("createJob upisuje lessonId i taskId na posao", async () => {
   const { userId, asUser } = await seedWorld(t);
   const { lessonId, taskId } = await seedLessonWorld(t, userId);
 
-  const jobId = await asUser.mutation(api.studio.createJob, {
+  const jobId = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("lisica u snegu"),
     lessonId,
     taskId,
-  });
+  }));
 
   // Bez ove veze `persistOutput` nikad ne može da zeleni zadatak.
   expect(await t.run((ctx) => ctx.db.get(jobId))).toMatchObject({ lessonId, taskId });
@@ -1264,10 +1326,10 @@ test("listMyJobs vraća potpisan URL izlaza, a ne samo storageId", async () => {
   const t = convexTest(schema, modules);
   const { asUser } = await seedWorld(t);
 
-  const jobId = await asUser.mutation(api.studio.createJob, {
+  const jobId = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("lisica u snegu"),
-  });
+  }));
   await t.run(async (ctx) => {
     const storageId = await ctx.storage.store(new Blob(["slika"], { type: "image/png" }));
     await ctx.db.patch(jobId, { status: "done" as const, outputStorageId: storageId });
@@ -1302,14 +1364,14 @@ test("listMyJobs označava mock posao, a pravi falRequestId ne izlazi napolje", 
   const t = convexTest(schema, modules);
   const { asUser } = await seedWorld(t, 200);
 
-  const mockJobId = await asUser.mutation(api.studio.createJob, {
+  const mockJobId = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("demo posao"),
-  });
-  const realJobId = await asUser.mutation(api.studio.createJob, {
+  }));
+  const realJobId = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("pravi posao"),
-  });
+  }));
   await t.run(async (ctx) => {
     await ctx.db.patch(mockJobId, { falRequestId: `mock-${mockJobId}` });
     await ctx.db.patch(realJobId, { falRequestId: "9d1f2c30-fal-request" });
@@ -1433,10 +1495,10 @@ test("getStudioState broji i `running` posao, ne samo `reserved`", async () => {
   const t = convexTest(schema, modules);
   const { asUser } = await seedWorld(t, 200);
 
-  const prviId = await asUser.mutation(api.studio.createJob, {
+  const prviId = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("prvi"),
-  });
+  }));
   await asUser.mutation(api.studio.createJob, { modelSlug: MODEL_SLUG, params: promptParams("drugi") });
   // Posao koji je fal već primio i dalje drži jedno od tri mesta - kad se ne
   // bi brojao, dugme bi bilo upaljeno a `createJob` bi vratio PREVISE_POSLOVA.
@@ -1449,10 +1511,10 @@ test("getStudioState: završen posao više se ne broji u letu", async () => {
   const t = convexTest(schema, modules);
   const { asUser } = await seedWorld(t, 200);
 
-  const jobId = await asUser.mutation(api.studio.createJob, {
+  const jobId = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("lisica u snegu"),
-  });
+  }));
   expect((await asUser.query(api.studio.getStudioState, {})).activeJobs).toBe(1);
 
   await t.run((ctx) => ctx.db.patch(jobId, { status: "done" as const }));
@@ -1495,10 +1557,10 @@ test("javni fleg: verifikovan korisnik BEZ kursa otvara posao, server i UI se sl
   expect(state.hasStudioAccess).toBe(true);
   expect(state.accessReason).toBeNull();
 
-  const jobId = await asUser.mutation(api.studio.createJob, {
+  const jobId = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("lisica u snegu"),
-  });
+  }));
   const { jobs, balance } = await ledger(t, userId);
   expect(jobs).toHaveLength(1);
   expect(jobs[0]._id).toBe(jobId);
@@ -1877,20 +1939,20 @@ test("listMyJobs filtrira po kind, modelSlug i createdAfter", async () => {
   const { asUser } = await seedWorld(t, 200);
   await seedModel(t, { slug: "video-model", kind: "video", costPerSecond: undefined, creditCost: 40 });
 
-  const oldJobId = await asUser.mutation(api.studio.createJob, {
+  const oldJobId = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("stari posao"),
-  });
+  }));
   await t.run((ctx) => ctx.db.patch(oldJobId, { createdAt: 1000 }));
 
-  const imageJobId = await asUser.mutation(api.studio.createJob, {
+  const imageJobId = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("nov posao"),
-  });
-  const videoJobId = await asUser.mutation(api.studio.createJob, {
+  }));
+  const videoJobId = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: "video-model",
     params: promptParams("video posao"),
-  });
+  }));
 
   const onlyVideo = await asUser.query(api.studio.listMyJobs, {
     paginationOpts: { numItems: 10, cursor: null },
@@ -1924,10 +1986,10 @@ test("deleteJob briše posao i fajl iz storage-a", async () => {
   const t = convexTest(schema, modules);
   const { asUser } = await seedWorld(t);
 
-  const jobId = await asUser.mutation(api.studio.createJob, {
+  const jobId = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("lisica"),
-  });
+  }));
   const storageId = await t.run(async (ctx) => {
     const id = await ctx.storage.store(new Blob(["slika"], { type: "image/png" }));
     await ctx.db.patch(jobId, { status: "done" as const, outputStorageId: id });
@@ -1944,10 +2006,10 @@ test("deleteJob odbija posao koji je još u letu", async () => {
   const t = convexTest(schema, modules);
   const { asUser } = await seedWorld(t);
 
-  const reservedId = await asUser.mutation(api.studio.createJob, {
+  const reservedId = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("lisica"),
-  });
+  }));
   await expect(asUser.mutation(api.studio.deleteJob, { jobId: reservedId })).rejects.toThrow(
     /POSAO_U_TOKU/,
   );
@@ -1964,12 +2026,12 @@ test("deleteJob odbija posao povezan sa lekcijom, da dokaz zadatka ne nestane", 
   const { userId, asUser } = await seedWorld(t);
   const { lessonId, taskId } = await seedLessonWorld(t, userId);
 
-  const jobId = await asUser.mutation(api.studio.createJob, {
+  const jobId = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("lisica u snegu"),
     lessonId,
     taskId,
-  });
+  }));
   const { courseId, storageId } = await t.run(async (ctx) => {
     const lesson = await ctx.db.get(lessonId);
     const id = await ctx.storage.store(new Blob(["slika"], { type: "image/png" }));
@@ -2007,10 +2069,10 @@ test("deleteJob odbija tudji posao i nepostojeći posao", async () => {
   const other = await seedUser(t, { role: "moderator" });
   await grant(t, other.userId, 100);
 
-  const jobId = await other.asUser.mutation(api.studio.createJob, {
+  const jobId = jobIdOf(await other.asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("tudji"),
-  });
+  }));
   await t.run((ctx) => ctx.db.patch(jobId, { status: "done" as const }));
 
   await expect(asUser.mutation(api.studio.deleteJob, { jobId })).rejects.toThrow(
@@ -2128,10 +2190,10 @@ test("admin bez upisa pravi posao - i plaća ga kao svi ostali", async () => {
   await seedModel(t);
   const admin = await seedStaff(t, "admin");
 
-  const jobId = await admin.asUser.mutation(api.studio.createJob, {
+  const jobId = jobIdOf(await admin.asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("lisica u snegu"),
-  });
+  }));
 
   const { balance, transactions, jobs } = await ledger(t, admin.userId);
   expect(jobs).toHaveLength(1);
@@ -2549,10 +2611,10 @@ test("posle prihvatanja uslova isti poziv prolazi", async () => {
 
   await asUser.mutation(api.studio.acceptStudioTerms, {});
 
-  const jobId = await asUser.mutation(api.studio.createJob, {
+  const jobId = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("lisica u snegu"),
-  });
+  }));
 
   const { balance, jobs } = await ledger(t, userId);
   expect(jobs).toHaveLength(1);
@@ -2734,11 +2796,14 @@ test("createJob prima projectId, upisuje ga na posao i ne menja cenu", async () 
 
   const balanceBefore = (await asUser.query(api.credits.getBalance, {})).balance;
 
-  const jobId = await asUser.mutation(api.studio.createJob, {
+  const created = await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("slika psa"),
     projectId,
   });
+  // `createJob` od F2.5 vraća uniju (jobId | moderationBlocked) - suzi je.
+  if (typeof created !== "string") throw new Error("očekivan jobId");
+  const jobId = created;
 
   const balanceAfter = (await asUser.query(api.credits.getBalance, {})).balance;
   expect(balanceBefore - balanceAfter).toBe(MODEL_COST);
@@ -2805,17 +2870,17 @@ test("listMyJobs sa projectId filtrira kroz by_user_project, bez projectId vrać
   const p1 = await asUser.mutation(api.studioProjects.createProject, { name: "Projekat A" });
   const p2 = await asUser.mutation(api.studioProjects.createProject, { name: "Projekat B" });
 
-  const j1 = await asUser.mutation(api.studio.createJob, {
+  const j1 = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("job under p1"),
     projectId: p1,
-  });
+  }));
 
-  const j2 = await asUser.mutation(api.studio.createJob, {
+  const j2 = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("job under p2"),
     projectId: p2,
-  });
+  }));
 
   await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,

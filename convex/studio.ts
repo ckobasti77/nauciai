@@ -14,6 +14,7 @@ import {
 import { applyGrant, applySettlement, applySpend } from "./credits";
 import {
   MAX_PROMPT_LENGTH,
+  type ModerationCategory,
   SIGNUP_BONUS_CREDITS,
   signupBonusKey,
   validatePrompt,
@@ -106,6 +107,24 @@ type PricedOrder = {
 };
 
 /**
+ * Pogodak blok liste (studio-public F2.5). NIJE throw, nego povratna vrednost:
+ * bačena greška rollback-uje CELU transakciju, pa bi i log o odbijanju nestao
+ * - a brif traži da se odbijanja pamte. `createJob` na ovaj ishod upiše red u
+ * `studioModerationLog` (jedini upis te transakcije) i vrati
+ * `{ moderationBlocked }` klijentu. PRAZAN/PREDUGACAK i dalje bacaju - to je
+ * validacija forme, ne moderacioni događaj, i ne pravi log šum.
+ */
+type ModerationRejection = {
+  moderation: {
+    reason: "ZABRANJEN_POJAM";
+    category: ModerationCategory;
+    /** Ceo tekst se NE loguje - iz njega se izvode samo hash i dužina. */
+    prompt: string;
+    modelSlug: string;
+  };
+};
+
+/**
  * Okačeni fajlovi jednog posla: provera vlasništva i izmereno trajanje po
  * slotu, iz istog prolaza (nalazi R4 i R3).
  *
@@ -179,7 +198,7 @@ async function buildCatalogOrder(
   model: Doc<"models">,
   raw: Record<string, unknown>,
   args: { inputMode?: string; inputs?: string; sourceJobId?: Id<"generationJobs"> },
-): Promise<PricedOrder> {
+): Promise<PricedOrder | ModerationRejection> {
   if (!model.isEnabled) throw new Error("MODEL_NEDOSTUPAN");
 
   const spec = parseParamSpec(model.paramSpec);
@@ -274,7 +293,19 @@ async function buildCatalogOrder(
   if (!hasSlots || prompt.trim().length > 0) {
     const maxLength = typeof control?.max === "number" ? control.max : MAX_PROMPT_LENGTH;
     const check = validatePrompt(prompt, maxLength);
-    if (!check.ok) throw new Error(`NEISPRAVAN_PROMPT:${check.reason}`);
+    if (!check.ok) {
+      if (check.reason === "ZABRANJEN_POJAM") {
+        return {
+          moderation: {
+            reason: "ZABRANJEN_POJAM",
+            category: check.category ?? "illegal",
+            prompt,
+            modelSlug: model.slug,
+          },
+        };
+      }
+      throw new Error(`NEISPRAVAN_PROMPT:${check.reason}`);
+    }
   }
 
   const pricingMode = pricingModeFor(inputMode, hasVideoInput(inputs.inputs));
@@ -327,10 +358,22 @@ async function buildLegacyOrder(
   ctx: MutationCtx,
   modelSlug: string,
   params: Record<string, unknown>,
-): Promise<PricedOrder> {
+): Promise<PricedOrder | ModerationRejection> {
   const prompt = extractPrompt(params);
   const promptCheck = validatePrompt(prompt);
-  if (!promptCheck.ok) throw new Error(`NEISPRAVAN_PROMPT:${promptCheck.reason}`);
+  if (!promptCheck.ok) {
+    if (promptCheck.reason === "ZABRANJEN_POJAM") {
+      return {
+        moderation: {
+          reason: "ZABRANJEN_POJAM",
+          category: promptCheck.category ?? "illegal",
+          prompt,
+          modelSlug,
+        },
+      };
+    }
+    throw new Error(`NEISPRAVAN_PROMPT:${promptCheck.reason}`);
+  }
 
   // Model koji ne postoji i model koji je admin isključio su za korisnika
   // ista stvar: ne može se generisati na njemu.
@@ -540,6 +583,30 @@ export const createJob = mutation({
     const order = v4Model
       ? await buildCatalogOrder(ctx, userId, v4Model, params, args)
       : await buildLegacyOrder(ctx, args.modelSlug, params);
+
+    // Pogodak blok liste (F2.5): jedini upis ove transakcije je log red -
+    // sve pre ovoga su čitanja, pa COMMIT ne ostavlja ni posao, ni potrošnju,
+    // ni zakazano slanje. Vraća se vrednost umesto greške da log preživi
+    // (throw bi ga rollback-ovao); klijent na `moderationBlocked` prikazuje
+    // istu poruku kao za NEISPRAVAN_PROMPT:ZABRANJEN_POJAM.
+    if ("moderation" in order) {
+      await ctx.db.insert("studioModerationLog", {
+        userId,
+        category: order.moderation.category,
+        reason: order.moderation.reason,
+        promptHash: promptHash(order.moderation.prompt),
+        promptLength: order.moderation.prompt.length,
+        modelSlug: order.moderation.modelSlug,
+        createdAt: Date.now(),
+      });
+      return {
+        moderationBlocked: {
+          reason: order.moderation.reason,
+          category: order.moderation.category,
+        },
+      };
+    }
+
     const cleanParams = order.params;
     const estimatedCostUsd = order.estimatedCostUsd;
 

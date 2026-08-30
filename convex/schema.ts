@@ -1671,6 +1671,21 @@ export default defineSchema({
     .index("by_user_day", ["userId", "day"])
     .index("by_day", ["day"]),
 
+  // Odbijeni promptovi po blok listi (studio-public F2.5). BEZ teksta prompta
+  // (može da sadrži lične podatke) - samo hash, dužina i kategorija, dovoljno
+  // da admin vidi obrasce (isti hash iznova = sondiranje liste). Red upisuje
+  // `studio.createJob` u grani koja se COMMIT-uje (union-return, ne throw) -
+  // throw bi rollback-ovao i log.
+  studioModerationLog: defineTable({
+    userId: v.id("users"),
+    category: v.string(),
+    reason: v.string(),
+    promptHash: v.string(),
+    promptLength: v.number(),
+    modelSlug: v.string(),
+    createdAt: v.number(),
+  }).index("by_user", ["userId", "createdAt"]),
+
   // ── PLATFORMA: SKLOPKE ───────────────────────────────────────────────
   // Kill switch iz STUDIO-PLAN 4.4. `studio.createJob` čita "studio_enabled"
   // pre svake druge provere; `enabled: false` gasi Studio bez deploy-a.

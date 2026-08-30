@@ -7,7 +7,9 @@ export type Lot = { id: string; remaining: number; expiresAt: number };
 
 export type SpendStep = { lotId: string; take: number };
 
-export type PromptValidation = { ok: true } | { ok: false; reason: string };
+export type PromptValidation =
+  | { ok: true }
+  | { ok: false; reason: string; category?: ModerationCategory };
 
 /** Svaki kredit ističe 12 meseci od dodele, bez obzira na izvor (STUDIO-PLAN D.2). */
 export const CREDIT_LIFETIME_MONTHS = 12;
@@ -107,63 +109,145 @@ export function computeExpiry(grantedAt: number): number {
 }
 
 /**
- * Gruba prva linija odbrane, po zabranama iz STUDIO-PLAN 3.3 (prosleđena fal
- * Acceptable Use Policy): NSFW, deepfake stvarnih osoba, sadržaj sa
- * maloletnicima, ilegalan sadržaj. Pojmovi su već normalizovani (mala slova,
- * bez dijakritika) i porede se od početka reči, pa koren "porn" hvata i
- * "pornografija". Namerno bez kratkih višeznačnih korena ("gol" je i gol na
- * fudbalu) - lažno odbijen prompt košta poverenje isto koliko propušten.
+ * Kategorije moderacije (studio-public F2.5): odbijanje nosi i kategoriju, pa
+ * `studioModerationLog` može da pokaže admin-u OBRASCE (ko stalno pokušava
+ * maloletnike, ko javne ličnosti) bez čuvanja samog prompta.
  */
-const BLOCKED_TERMS = [
-  // NSFW
-  "porn",
-  "hentai",
-  "nsfw",
-  "xxx",
-  "erotik",
-  "erotic",
-  "seksualn",
-  "sexual",
-  "naked",
-  "nude",
-  "gola devojka",
-  "gola zena",
-  "golo telo",
-  "goli muskarac",
-  // maloletnici
-  "csam",
-  "loli",
-  "shota",
-  "underage",
-  "maloletnick",
-  "child porn",
-  "child sexual",
-  "child abuse",
-  "decija pornografija",
-  "decja pornografija",
-  "golo dete",
-  "gola deca",
-  "zlostavljanje dece",
-  // deepfake stvarnih osoba
-  "deepfake",
-  "deep fake",
-  "dipfejk",
-  "faceswap",
-  "face swap",
-  "zamena lica",
-  "revenge porn",
-  "nonconsensual",
-  // ilegalan sadržaj
-  "napravi bombu",
-  "kako napraviti bombu",
-  "bomb making",
-  "how to make a bomb",
-  "teroristick",
-  "terrorist attack",
-  "falsifikovan novac",
-  "counterfeit money",
-  "kako napraviti drogu",
-  "how to make meth",
+export type ModerationCategory =
+  | "nsfw"
+  | "minors"
+  | "deepfake"
+  | "illegal"
+  | "violence"
+  | "public_figure";
+
+/**
+ * Gruba prva linija odbrane, po zabranama iz STUDIO-PLAN 3.3 (prosleđena fal
+ * Acceptable Use Policy) + brif F2.5 kategorije: NSFW, sadržaj sa
+ * maloletnicima, deepfake stvarnih osoba, ilegalan sadržaj, eksplicitno
+ * nasilje, javne ličnosti. Pojmovi su već normalizovani (mala slova, bez
+ * dijakritika) i porede se od početka reči, pa koren "porn" hvata i
+ * "pornografija". Namerno bez kratkih višeznačnih korena ("gol" je i gol na
+ * fudbalu, "gore" je i prilog) - lažno odbijen prompt košta poverenje isto
+ * koliko propušten. Pojam koji se završava razmakom traži CELU reč (koristi
+ * se za imena gde bi prefiks hvatao nevine reči: "trump" bi uhvatio
+ * "trumpet").
+ *
+ * SERVER-ONLY: `lib/studio-messages.ts` NAMERNO ne uvozi ovaj modul, da
+ * rečnik ne uđe u klijentski bundle (postojeće pravilo). Sadržaj liste
+ * `violence`/`public_figure` je editorska odluka - Jovan pregleda i dopunjava
+ * (vidi STUDIO-PUBLIC-REPORT launch checklist).
+ */
+const BLOCKED_TERM_GROUPS: Array<{ category: ModerationCategory; terms: string[] }> = [
+  {
+    category: "nsfw",
+    terms: [
+      "porn",
+      "hentai",
+      "nsfw",
+      "xxx",
+      "erotik",
+      "erotic",
+      "seksualn",
+      "sexual",
+      "naked",
+      "nude",
+      "gola devojka",
+      "gola zena",
+      "golo telo",
+      "goli muskarac",
+    ],
+  },
+  {
+    category: "minors",
+    terms: [
+      "csam",
+      "loli",
+      "shota",
+      "underage",
+      "maloletnick",
+      "child porn",
+      "child sexual",
+      "child abuse",
+      "decija pornografija",
+      "decja pornografija",
+      "golo dete",
+      "gola deca",
+      "zlostavljanje dece",
+    ],
+  },
+  {
+    category: "deepfake",
+    terms: [
+      "deepfake",
+      "deep fake",
+      "dipfejk",
+      "faceswap",
+      "face swap",
+      "zamena lica",
+      "revenge porn",
+      "nonconsensual",
+    ],
+  },
+  {
+    category: "illegal",
+    terms: [
+      "napravi bombu",
+      "kako napraviti bombu",
+      "bomb making",
+      "how to make a bomb",
+      "teroristick",
+      "terrorist attack",
+      "falsifikovan novac",
+      "counterfeit money",
+      "kako napraviti drogu",
+      "how to make meth",
+    ],
+  },
+  {
+    // Eksplicitno/grafičko nasilje (novo, brif F2.5). Bez kratkih korena:
+    // "gore" (prilog), "krv" (krv na koleno u crtanom) namerno NISU ovde.
+    category: "violence",
+    terms: [
+      "masakr",
+      "massacre",
+      "pokolj",
+      "beheading",
+      "decapitat",
+      "odrubljivanje glave",
+      "odrubljena glava",
+      "odsecanje glave",
+      "raskomadan",
+      "dismember",
+      "school shooting",
+      "skolski napad",
+      "mass shooting",
+      "masovno ubistvo",
+      "mucenje zarobljenika",
+    ],
+  },
+  {
+    // Javne ličnosti (novo, brif F2.5) - najrizičnija imena za generisani
+    // sadržaj. Prefiks hvata srpske padeže ("vucica", "putinu"); pojmovi sa
+    // završnim razmakom su cela reč (kolizije: "trumpet", "trampa" = razmena).
+    // EDITORSKA LISTA - Jovan dopunjava po potrebi.
+    category: "public_figure",
+    terms: [
+      "vucic",
+      "putin",
+      "zelensk",
+      "biden",
+      "erdogan",
+      "makron",
+      "macron ",
+      "merkel",
+      "donald trump",
+      "donalda trampa",
+      "trump ",
+      "trumpa ",
+      "trumpu ",
+    ],
+  },
 ];
 
 /**
@@ -194,8 +278,12 @@ export function validatePrompt(text: string, maxLength = MAX_PROMPT_LENGTH): Pro
   if (trimmed.length > maxLength) return { ok: false, reason: "PREDUGACAK_PROMPT" };
 
   const normalized = normalizeForModeration(trimmed);
-  if (BLOCKED_TERMS.some((term) => normalized.includes(` ${term}`))) {
-    return { ok: false, reason: "ZABRANJEN_POJAM" };
+  for (const group of BLOCKED_TERM_GROUPS) {
+    if (group.terms.some((term) => normalized.includes(` ${term}`))) {
+      // Kategorija ide u `studioModerationLog`; korisniku se NE otkriva koji
+      // je pojam pogodio (poruka u `studio-messages.ts` ostaje uopštena).
+      return { ok: false, reason: "ZABRANJEN_POJAM", category: group.category };
+    }
   }
 
   return { ok: true };

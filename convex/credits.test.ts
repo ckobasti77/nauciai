@@ -167,14 +167,58 @@ test("computeExpiry na 29. februar i na kraj meseca ostaje validan datum", () =>
   ]).toEqual([2027, 0, 31]);
 });
 
-test("validatePrompt hvata prazan, predugačak i zabranjen prompt", () => {
+test("validatePrompt hvata prazan, predugačak i zabranjen prompt, sa kategorijom", () => {
   expect(validatePrompt("   ")).toEqual({ ok: false, reason: "PRAZAN_PROMPT" });
   expect(validatePrompt("a".repeat(2001))).toEqual({ ok: false, reason: "PREDUGACAK_PROMPT" });
-  expect(validatePrompt("nacrtaj mi pornografiju")).toEqual({ ok: false, reason: "ZABRANJEN_POJAM" });
-  expect(validatePrompt("deepfake predsednika")).toEqual({ ok: false, reason: "ZABRANJEN_POJAM" });
+  expect(validatePrompt("nacrtaj mi pornografiju")).toEqual({
+    ok: false,
+    reason: "ZABRANJEN_POJAM",
+    category: "nsfw",
+  });
+  expect(validatePrompt("deepfake predsednika")).toEqual({
+    ok: false,
+    reason: "ZABRANJEN_POJAM",
+    category: "deepfake",
+  });
   expect(validatePrompt("a".repeat(2000))).toEqual({ ok: true });
   // Kratki višeznačni koreni ne smeju da obore nevin prompt.
   expect(validatePrompt("Gol u 90. minutu, navijači slave na tribinama")).toEqual({ ok: true });
+});
+
+test("validatePrompt: nove kategorije (nasilje, javne ličnosti) i njihovi lažni pozitivi", () => {
+  // Nasilje (studio-public F2.5).
+  expect(validatePrompt("scena masakra u gradu")).toEqual({
+    ok: false,
+    reason: "ZABRANJEN_POJAM",
+    category: "violence",
+  });
+  expect(validatePrompt("school shooting scene")).toEqual({
+    ok: false,
+    reason: "ZABRANJEN_POJAM",
+    category: "violence",
+  });
+  // "gore" (prilog) i "krv" NISU u listi - nevin prompt prolazi.
+  expect(validatePrompt("pogled sa planine gore ka dolini")).toEqual({ ok: true });
+
+  // Javne ličnosti - prefiks hvata padeže.
+  expect(validatePrompt("portret Vučića na konju")).toEqual({
+    ok: false,
+    reason: "ZABRANJEN_POJAM",
+    category: "public_figure",
+  });
+  expect(validatePrompt("slika Putina u parku")).toEqual({
+    ok: false,
+    reason: "ZABRANJEN_POJAM",
+    category: "public_figure",
+  });
+  expect(validatePrompt("donald trump govori")).toEqual({
+    ok: false,
+    reason: "ZABRANJEN_POJAM",
+    category: "public_figure",
+  });
+  // Cela reč, ne prefiks: "trumpet" i "trampa" (razmena) su nevini.
+  expect(validatePrompt("jazz trumpet player on stage")).toEqual({ ok: true });
+  expect(validatePrompt("trampa dva bicikla za skejt")).toEqual({ ok: true });
 });
 
 // ── Convex sloj ────────────────────────────────────────────────────────────

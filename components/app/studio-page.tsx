@@ -394,7 +394,7 @@ export function StudioPage({
     setIsPending(true);
     setError(null);
     try {
-      await createJob({
+      const result = await createJob({
         modelSlug: activeModel.slug,
         params: JSON.stringify(payload.params),
         inputMode: payload.inputMode,
@@ -406,6 +406,13 @@ export function StudioPage({
         ...(lessonId && taskId ? { taskId } : {}),
         ...(activeProjectId ? { projectId: activeProjectId } : {}),
       });
+      // Pogodak blok liste (studio-public F2.5) stiže kao vrednost, ne kao
+      // greška - server tako COMMIT-uje log o odbijanju. Poruka je ista kao
+      // za bačeni NEISPRAVAN_PROMPT:ZABRANJEN_POJAM (substring mapiranje u
+      // `studioErrorMessage`), pa korisnik ne vidi razliku.
+      if (result && typeof result === "object" && "moderationBlocked" in result) {
+        setError(`NEISPRAVAN_PROMPT:${result.moderationBlocked.reason}`);
+      }
     } catch (thrown) {
       setError(thrown instanceof Error ? thrown.message : String(thrown));
     } finally {

@@ -1452,12 +1452,15 @@ test("napad iz N2 zavrsava naplacenih 120 minuta, nikad 0,1", async () => {
   // sta da podigne - dakle rezervacija JESTE 0,1 minut, kao u izvestaju.
   const { storageId: audio } = await storeMeasured(asUser, "audio/mp4", 6);
 
-  const jobId = await asUser.mutation(api.studio.createJob, {
+  const created = await asUser.mutation(api.studio.createJob, {
     modelSlug: "dubbing",
     params: JSON.stringify({ target_language: "en" }),
     inputMode: "audio",
     inputs: JSON.stringify({ audio: [audio] }),
   });
+  // `createJob` od F2.5 vraća uniju (jobId | moderationBlocked) - suzi je.
+  if (typeof created !== "string") throw new Error("očekivan jobId");
+  const jobId = created;
 
   const reserved = await jobsOf(t, userId);
   expect((JSON.parse(reserved[0].params) as Record<string, unknown>).minutes).toBe(0.1);
