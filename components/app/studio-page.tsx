@@ -15,6 +15,7 @@ import type { StudioTileJob } from "@/components/app/studio-media-tile";
 import { StudioModerationGrid } from "@/components/app/studio-moderation-grid";
 import { CreditIcon } from "@/components/studio/credit-icon";
 import { StudioComposer, type JobPayload, type RegenerateSeed } from "@/components/studio/studio-composer";
+import { StudioVerifyEmailPanel } from "@/components/studio/verify-email-panel";
 import { ProjectPicker } from "@/components/studio/project-picker";
 import { StudioFilterBar } from "@/components/studio/studio-filter-bar";
 import { Button } from "@/components/ui/button";
@@ -122,9 +123,23 @@ function setPushedDetailId(jobId: string | null) {
 export function StudioPage({
   locale,
   initialJobId,
+  basePath = "/app/studio",
+  creditsHref: creditsHrefProp,
+  signInHref: signInHrefProp,
 }: {
   locale: Locale;
   initialJobId?: string;
+  /**
+   * Ruta (bez lokala) koja drži OVU instancu Studija (studio-public F3):
+   * školski omotač je "/app/studio", samostalni shell "/studio/app". Detalj
+   * medija živi na `${basePath}/m/<id>`. Obe poznate vrednosti sadrže samo
+   * [a-z/], pa je bezbedno graditi RegExp iz stringa.
+   */
+  basePath?: string;
+  /** Kuda vodi svako "Dopuni kredite" dugme; podrazumevano školski /app/credits. */
+  creditsHref?: string;
+  /** Kuda vodi "Prijavi se" za neprijavljene; standalone dodaje ?next= nazad na Studio. */
+  signInHref?: string;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -133,6 +148,20 @@ export function StudioPage({
   const balance = useQuery(api.credits.getBalance, isAuthenticated ? {} : "skip");
   const models = useQuery(api.studioModels.listModels, isAuthenticated ? {} : "skip");
   const createJob = useMutation(api.studio.createJob);
+  const claimSignupBonus = useMutation(api.studio.claimSignupBonus);
+
+  // Bonus dobrodošlice (studio-public F2.3): server kaže kad ima šta da se
+  // uzme; mutacija je idempotentna po korisniku, ref samo štedi ponovljene
+  // pozive u istom mount-u. Radi u OBA omotača (školskom i standalone).
+  const claimAttempted = useRef(false);
+  const bonusClaimable = state?.signupBonus?.claimable === true;
+  useEffect(() => {
+    if (!bonusClaimable || claimAttempted.current) return;
+    claimAttempted.current = true;
+    void claimSignupBonus({}).catch(() => {
+      // Odbijen/pao claim nije greška UI-ja: balans i state ionako stižu live.
+    });
+  }, [bonusClaimable, claimSignupBonus]);
 
   const searchParams = useSearchParams();
   const regenerateId = searchParams.get("regenerate");
@@ -185,7 +214,7 @@ export function StudioPage({
   }
 
   // Detalj medija i navigacija (sinhronizovano preko Next.js App Router-a)
-  const routeDetailMatch = pathname.match(/\/app\/studio\/m\/([^/]+)/);
+  const routeDetailMatch = pathname.match(new RegExp(`${basePath}/m/([^/]+)`));
   const activeJobId = routeDetailMatch ? routeDetailMatch[1] : (initialJobId ?? null);
   const [loadedJobs, setLoadedJobs] = useState<StudioTileJob[]>([]);
 
@@ -215,7 +244,7 @@ export function StudioPage({
   const [error, setError] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
 
-  const creditsHref = withLocale(locale, "/app/credits");
+  const creditsHref = creditsHrefProp ?? withLocale(locale, "/app/credits");
 
   // Dinamičko merenje stvarne visine lebdećeg composera/panela preko ResizeObserver-a (popravka 1.2)
   const floatingContainerRef = useRef<HTMLDivElement | null>(null);
@@ -364,7 +393,7 @@ export function StudioPage({
     // `sessionStorage`, ne `useRef`: /app/studio i /app/studio/m/[jobId] su dve
     // odvojene rute, pa se komponenta remount-uje i ref bi se resetovao.
     setPushedDetailId(job._id);
-    router.push(withLocale(locale, `/app/studio/m/${job._id}`), { scroll: false });
+    router.push(withLocale(locale, `${basePath}/m/${job._id}`), { scroll: false });
   }
 
   function handleCloseDetail() {
@@ -375,7 +404,7 @@ export function StudioPage({
       router.back();
     } else {
       // Direktan link ili refresh na /app/studio/m/<id>: nema cemu da se vracamo.
-      const target = kindParam ? `/app/studio?kind=${kindParam}` : `/app/studio`;
+      const target = kindParam ? `${basePath}?kind=${kindParam}` : basePath;
       router.push(withLocale(locale, target), { scroll: false });
     }
     setTimeout(() => {
@@ -386,7 +415,7 @@ export function StudioPage({
   }
 
   function handleSelectDetailJob(nextJob: StudioTileJob) {
-    router.replace(withLocale(locale, `/app/studio/m/${nextJob._id}`), { scroll: false });
+    router.replace(withLocale(locale, `${basePath}/m/${nextJob._id}`), { scroll: false });
   }
 
   async function generate(payload: JobPayload) {
@@ -541,7 +570,7 @@ export function StudioPage({
               ? "Prijavi se da bi generisao u Studiju."
               : "Sign in to generate in the Studio."}
           </p>
-          <LinkButton href={withLocale(locale, "/sign-in")} tone="ink" className="mt-4">
+          <LinkButton href={signInHrefProp ?? withLocale(locale, "/sign-in")} tone="ink" className="mt-4">
             {locale === "sr" ? "Prijavi se" : "Sign in"}
           </LinkButton>
         </Panel>
@@ -564,6 +593,12 @@ export function StudioPage({
     }
 
     if (state !== undefined && !state.hasStudioAccess) {
+      // Javni režim bez potvrđenog emaila (studio-public F3): korisnik dobija
+      // resend panel, ne poruku o zatvorenom testiranju - `accessReason` stiže
+      // iz iste odluke koju server sprovodi u createJob.
+      if (state.accessReason === "EMAIL_NIJE_POTVRDJEN") {
+        return <StudioVerifyEmailPanel locale={locale} />;
+      }
       return (
         <div className="surface-card border-2 border-ink bg-paper-strong p-4 shadow-[6px_6px_0_0_var(--shadow-hard-16)] sm:p-6">
           <h3 className="type-h3 text-ink">{STUDIO_NOT_ENROLLED.title[locale]}</h3>

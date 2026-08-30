@@ -462,6 +462,33 @@ export const PRIVACY_POLICY_PATH = "/politika-privatnosti";
  * `checkbox` i `cta` su namerno razdvojeni: čekiranje je izjava, klik je
  * radnja, i dugme ne radi dok izjave nema.
  */
+/**
+ * Panel "potvrdi email" u Studiju (studio-public F3): prikazuje se kad je
+ * javni fleg upaljen a `getStudioState.accessReason === "EMAIL_NIJE_POTVRDJEN"`
+ * - umesto generičke poruke o zatvorenom testiranju, korisnik dobija resend
+ * dugme i jasan sledeći korak.
+ */
+export const STUDIO_VERIFY_EMAIL: EmptyStateNoCta & {
+  cta: Record<Locale, string>;
+  sent: Record<Locale, string>;
+  failed: Record<Locale, string>;
+} = {
+  title: { sr: "Potvrdi email da bi generisao", en: "Confirm your email to generate" },
+  body: {
+    sr: "Poslaćemo ti link za potvrdu - jedan klik i Studio je otvoren. Krediti i nalog te čekaju.",
+    en: "We will send you a confirmation link - one click and the Studio opens. Your credits and account are waiting.",
+  },
+  cta: { sr: "Pošalji link za potvrdu", en: "Send the confirmation link" },
+  sent: {
+    sr: "Link je poslat - proveri inbox (i spam). Važi 30 minuta.",
+    en: "The link is on its way - check your inbox (and spam). It is valid for 30 minutes.",
+  },
+  failed: {
+    sr: "Email nije poslat. Pokušaj ponovo za koji minut.",
+    en: "The email was not sent. Try again in a minute.",
+  },
+};
+
 export const STUDIO_TERMS_GATE: EmptyState & {
   checkbox: Record<Locale, string>;
   failed: Record<Locale, string>;
