@@ -410,7 +410,7 @@ function DiscussionsView({
               <select
                 value={controls.sort}
                 onChange={(event) => controls.setSort(event.target.value as DiscussionSort)}
-                className="min-h-10 w-full appearance-none rounded-full border border-line bg-paper-strong py-2 pl-4 pr-10 text-sm font-black text-ink outline-none transition hover:border-ink/55 focus:border-ink focus:ring-4 focus:ring-yellow/25 sm:w-auto"
+                className="min-h-10 w-full appearance-none rounded-full border border-line bg-paper-strong py-2 pl-4 pr-10 text-sm font-black text-ink transition hover:border-ink/55 focus:border-ink focus:ring-4 focus:ring-yellow/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:w-auto"
               >
                 <option value="hot">{locale === "sr" ? "U trendu" : "Hot"}</option>
                 <option value="top">{locale === "sr" ? "Popularno" : "Top voted"}</option>

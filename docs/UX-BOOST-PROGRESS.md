@@ -932,3 +932,125 @@ modulima koji rade. Svaka admin ruta konačno ima svoj `<h1>` umesto četiri put
    ali svetle u obe); (b) `inputClass` u istom fajlu i dalje ima `outline-none` bez `focus-visible`
    zamene i `rounded-[8px]` umesto `surface-media` - kandidat za U9, zajedno sa prelaskom polja u
    popoveru na `Field`/`Input` primitive iz U2.
+
+---
+
+## U7 - Mehanički a11y prolaz: fokus prstenovi, kontrast, aria-expanded   (2026-08-30 03:15)
+
+**Fajlovi (svi izmenjeni, nijedan nov):**
+`components/app/admin-content-manager.tsx`, `admin-inline-actions.tsx`, `app-sidebar.tsx`,
+`chat/chat-composer.tsx`, `chat/chat-dialogs.tsx`, `chat/chat-group-details.tsx`,
+`chat/chat-inbox.tsx`, `chat/chat-thread.tsx`, `chat/study-hub.tsx`, `community-comments.tsx`,
+`community-post-editor.tsx`, `community-thread-moderation.tsx`,
+`community-v2/community-discussions.tsx`, `community-v2/community-filters.tsx`,
+`community-v2/community-members.tsx`, `community-v2/community-shared.tsx`, `course-lab.tsx`,
+`inline-content.tsx`, `lesson-steps-editor.tsx`, `rich-text-editor.tsx`, `studio-admin-page.tsx`,
+`suspension-gate.tsx`, `components/studio/project-picker.tsx`, `components/studio/studio-composer.tsx`.
+
+**Šta je urađeno:**
+Prošao sam preostalih **43 `outline-none` mesta bez zamene** iz `UX-BOOST-PLAN §4C` (63 ukupno
+minus 16 koje je U2 već zatvorio u `sign-in-panel.tsx`/`profile-editor.tsx` i sami primitivi).
+Recept je onaj koji je U2 već utvrdio i dokumentovao u ODLUCI 1 (`docs/UX-BOOST-PROGRESS.md` U2):
+`outline-none` i `focus-visible:outline-*` na istom elementu se gase, pa se `outline-none` ne
+kombinuje sa novim prstenom nego se **uklanja**, a dodaje se
+`focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink` (ink na papiru
+prolazi >12:1 u obe teme). U studio komponentama (`project-picker.tsx`, `studio-composer.tsx`,
+`studio-admin-page.tsx`) sam iskoristio postojeći `.studio-focus-ink` utility
+(`app/globals.css:297`) umesto ručnog recepta - to je isti recept, već imenovan i već korišćen
+u susednim mestima istog fajla (`studio-filter-bar.tsx`, `studio-moderation-grid.tsx`,
+`studio-media-detail.tsx`), pa je dosledno da ga i preostala studio mesta koriste. Nijedno
+`outline-none` u `.tsx` stablu više nema ostaje bez `focus-visible` zamene (proverio sam
+`rg -n 'outline-none' --glob '*.tsx'` posle - svi preostali pogoci su ili u komentaru
+`components/ui/field.tsx` ili upareni sa `studio-focus-ink`). Uz to sam našao i zatvorio dve
+prekinute Tab/disclosure rupe: `admin-content-manager.tsx:879` (dugme „Podešavanja" iznad
+inline editora nije imalo `aria-expanded`) i `admin-inline-actions.tsx:2082` (akordeon dugme za
+lekciju u pregledu ciklusa nije imalo `aria-expanded`). Ostatak `aria-expanded`/`aria-current`
+inventara (sidebar, bottom nav, chat popover-i, moderacioni akordeoni, komentar meni) je
+proverio i zatekao već ispravnim - prethodni koraci (U2-U6) su to već pokrili.
+
+**ODLUKE:**
+1. **Nisam migrirao pogođena polja na `Input`/`Field` primitiv iz U2.** Zadatak dozvoljava obe
+   putanje („gde je forma → migriraj; gde primitiv ne odgovara → dodaj eksplicitan recept").
+   `Input` primitiv nosi sopstveni vizuelni recept (`surface-media`, `border-2`, `font-extrabold`
+   itd. - vidi U2 ODLUKU 8 o razlici u debljini fonta), a pravilo run-a je „NE menjaj vizuelni
+   izgled osim fokus prstenova". Zamena 40+ ručno stilizovanih polja primitivom bi promenila
+   padding/font/senku na svakom od njih - to je van obima ovog sweep-a. Zato sam svuda dodao
+   eksplicitan recept i **ne dirao** ostatak className stringa (uključujući postojeće
+   `focus:border-yellow`/`focus:ring-4 focus:ring-yellow/NN` sekundarne efekte).
+2. **Postojeće žute `focus:`/`focus-within:` efekte NISAM uklanjao, samo sam dodao ink prsten
+   pored njih.** Pravilo run-a traži da fokus afordans ima ≥3:1 kontrast i da žuti ring na beloj
+   pozadini ne prolazi - ali dodavanjem ink `focus-visible:outline` postiže se saglasnost bez
+   obzira na to da li stari žuti efekat i dalje radi paralelno (on je sad sporedan, ne jedini
+   afordans). Uklanjanje žutih efekata bi bila vizuelna promena van „samo fokus prstenova", pa
+   sam to izbegao.
+3. **`app-sidebar.tsx:2066` (ručica za promenu širine sidebar-a) je jedino mesto gde sam obrisao
+   postojeći `focus-visible:ring-2 focus-visible:ring-yellow ... ring-offset-ink`, a ne samo
+   dodao pored njega.** Taj prsten je već bio ekskluzivan (`focus-visible:outline-none` ispred
+   njega je brisao default) i žut preko dela ekrana koji nije uvek ink pozadina - zamenjen je istim
+   ink receptom kao svuda drugde, radi konzistentnosti i sigurne kontrast provere.
+4. **`chat/study-hub.tsx:493` (`<section tabIndex={-1}>`, scroll-metu za „Study Pulse" predloge)
+   je dobio isti ink recept iako nikad nije u Tab redosledu** (samo se programski fokusira posle
+   skrolovanja). Modernim pregledačima `:focus-visible` i dalje pravilno prepoznaje programski
+   fokus koji sledi tastaturnu akciju, pa je najkonzervativnije da i ovaj cilj ima vidljiv prsten
+   umesto da ga eksplicitno gasim.
+5. **Tiptap `rich-editor-content` (contentEditable div u `rich-text-editor.tsx`) je dobio isti
+   `focus-visible:outline-*` recept kao obično polje.** `:focus-visible` radi na contentEditable
+   elementima u svim modernim pregledačima; nisam pravio poseban slučaj.
+6. **Nisam menjao aria-label/aria-current van dve pronađene `aria-expanded` rupe.** Prošao sam
+   sidebar (5 mesta sa `aria-current`), bottom nav, sve popover-e sa `ChevronDown`/`Ellipsis`
+   trigerima (`community-comments.tsx`, `community-thread-moderation.tsx`,
+   `admin-inline-actions.tsx` x2, `chat-thread.tsx`, `chat-inbox.tsx`) i icon-only dugmad u
+   `studio-media-tile.tsx` - sve već imaju `aria-label`/`aria-expanded`/`aria-current` iz
+   prethodnih koraka (U2-U6). Nisam ponovo pisao ono što je već ispravno.
+7. **Nisam dirao `rounded-[10px]`/`rounded-[6px]` off-scale radiuse koje sam usput video u istim
+   className stringovima** (npr. `chat-group-details.tsx:202`, `lesson-steps-editor.tsx`
+   `compactInputClass`) - zadatak izričito kaže „NE menjaj vizuelni izgled osim fokus prstenova";
+   to ostaje popis za U9 (već je tamo, iz U2/U6 duga).
+8. **Nisam pisao nove testove.** Ovo je čisto CSS-klasa/atribut sweep bez nove logike u `lib/`
+   ili `convex/` - nema šta čisto da se testira, a postojeći suite (1142 testa) ostaje netaknut
+   kao regresiona mreža.
+
+**Testovi:** Nijedan nov test - vidi ODLUKU 8. Postojeći `npm run test` suite pokrenut kao
+regresiona provera.
+
+**Rezultat verifikacije:**
+- `npm run typecheck` - **PROŠLO** (exit 0, bez izlaza)
+- `npm run test` - **PROŠLO** (84 fajla, 1142 testa - identično baseline-u posle U6, nijedan test
+  nije dirao ovaj korak jer nema nove logike)
+- `npm run lint` - **exit 1, identično baseline-u iz U1-U6**: `178 problems (1 error, 177
+  warnings)`. Jedina greška je i dalje pre-postojeća `studio-composer.tsx:1112`
+  (`routeDroppedFiles`/`useEffectEvent`) - moja jedina izmena u tom fajlu je zamena
+  `focus-visible:outline-none` sa `studio-focus-ink` u className stringu textarea-e za prompt,
+  van je te funkcije. Nijedan od 24 izmenjenih fajlova ne unosi novo upozorenje - lint izlaz je
+  identičan U6 baseline-u znak za znak.
+- `npx convex codegen` - **nije pokrenuto**, nijedan Convex fajl nije diran (samo `components/`).
+
+**BLOKADA:** Ista pre-postojeća, nasleđena iz U1, sedmi put ponovljena preporuka - popraviti
+zasebno:
+```
+C:\Users\admin\Desktop\Web Dev Projects\nauciai\components\studio\studio-composer.tsx
+  1112:18  error  `routeDroppedFiles` is a function created with React Hook
+  "useEffectEvent", and can only be called from Effects and Effect Events in the
+  same component  react-hooks/rules-of-hooks
+```
+
+**Za Jovana ujutru:**
+1. **Tabuliraj kroz prijavu, profil, novi razgovor, prijavu komentara i sve select-e u
+   Zajednici/Studiju/Adminu** (kursor tastaturom, ne mišem) - svuda mora da se vidi tanak ink
+   okvir sa 2px razmaka oko polja, u obe teme. Ovo je najveća vidljiva promena koraka: 43 mesta
+   koja ranije NISU imala nikakav fokus prsten sada ga imaju.
+2. **Ručica za promenu širine sidebar-a** (tanka traka odmah desno od sidebar-a na desktopu,
+   `role="separator"`, Tab pa strelice) sada pokazuje ink prsten umesto žutog - proveri da se i
+   dalje vidi na oba ruba (svetla/tamna tema), to je jedino mesto gde sam **zamenio** postojeći
+   efekat umesto da dodam pored njega (ODLUKA 3).
+3. **Dva nova `aria-expanded`:** dugme „Podešavanja" iznad live pregleda u
+   `/app/admin/content` i akordeon dugme za lekciju u pregledu ciklusa u istom editoru
+   (`admin-inline-actions.tsx`) - vizuelno se ništa ne menja, ali čitač ekrana sad najavljuje
+   otvoreno/zatvoreno stanje.
+4. **Ako ti žuti `focus:border-yellow`/`focus:ring-*` efekti sada izgledaju suvišni** pored novog
+   ink prstena (dvostruki fokus signal na istom polju) - to je namerna ODLUKA 2, ne previd; javi
+   ako želiš da se stari žuti efekti uklone u zasebnom koraku.
+5. **`inputClass`/`textareaClass` konstante u `admin-content-manager.tsx`,
+   `admin-inline-actions.tsx`, `lesson-steps-editor.tsx`, `studio-admin-page.tsx` i
+   `suspension-gate.tsx` i dalje imaju `rounded-[8px]`/`rounded-[6px]` off-scale radiuse** -
+   nisam ih dirao (zadatak zabranjuje vizuelne promene van fokusa), ostaju za U9.

@@ -277,7 +277,7 @@ export function ProjectPicker({
                         }}
                         disabled={isSubmitting}
                         maxLength={60}
-                        className="h-7 w-full bg-transparent px-2 text-xs font-extrabold text-ink outline-none"
+                        className="h-7 w-full bg-transparent px-2 text-xs font-extrabold text-ink outline-none studio-focus-ink"
                       />
                       <button
                         type="button"
@@ -373,7 +373,7 @@ export function ProjectPicker({
                 placeholder={locale === "sr" ? "Ime projekta…" : "Project name…"}
                 disabled={isSubmitting}
                 maxLength={60}
-                className="h-7 w-full bg-transparent px-2 text-xs font-extrabold text-ink outline-none placeholder:text-muted"
+                className="h-7 w-full bg-transparent px-2 text-xs font-extrabold text-ink outline-none placeholder:text-muted studio-focus-ink"
               />
               <button
                 type="button"

@@ -124,7 +124,7 @@ type TrackRow = {
 };
 type AdminDetail = { lesson: LessonRow | null };
 
-const inputClass = "min-h-11 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-3 text-sm font-bold text-ink outline-none transition focus:ring-4 focus:ring-yellow/35 disabled:cursor-not-allowed disabled:border-line disabled:bg-slate-100 disabled:text-muted";
+const inputClass = "min-h-11 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-3 text-sm font-bold text-ink transition focus:ring-4 focus:ring-yellow/35 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:border-line disabled:bg-slate-100 disabled:text-muted";
 const labelClass = "grid gap-1.5 text-xs font-black uppercase tracking-[0.08em] text-ink";
 
 /** Nacrt je namerno najglasniji ton: to je jedino stanje koje studenti NE vide. */
@@ -876,7 +876,7 @@ export function AdminContentPanel({ locale }: { locale: Locale }) {
           {hasSurface ? (
             <section id="admin-live-preview" className="surface-card relative scroll-mt-6 overflow-hidden border-2 border-ink bg-paper shadow-[8px_8px_0_var(--shadow-hard-13)]">
               <div className="absolute right-3 top-3 z-40">
-                <button type="button" onClick={() => setSettingsOpen((open) => !open)} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong/95 px-4 text-xs font-black shadow-[3px_3px_0_var(--shadow-hard)] backdrop-blur"><Settings2 className="size-4" /> {t(locale, "Podešavanja", "Settings")}</button>
+                <button type="button" onClick={() => setSettingsOpen((open) => !open)} aria-expanded={settingsOpen} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong/95 px-4 text-xs font-black shadow-[3px_3px_0_var(--shadow-hard)] backdrop-blur"><Settings2 className="size-4" /> {t(locale, "Podešavanja", "Settings")}</button>
                 {settingsOpen ? (
                   <form onSubmit={save} className="surface-card mt-2 grid w-[min(320px,calc(100vw-3rem))] gap-3 border-2 border-ink bg-paper-strong p-4 shadow-[7px_7px_0_var(--shadow-hard)]">
                     <p className="text-xs font-black uppercase tracking-[0.1em] text-muted">{t(locale, "Sistemska podešavanja", "System settings")}</p>

@@ -691,7 +691,7 @@ export function CommunityPostEditor({
                   aria-describedby={fieldErrors.title ? "community-title-error" : "community-title-help"}
                   placeholder={locale === "sr" ? "Šta želiš da pitaš ili podeliš?" : "What do you want to ask or share?"}
                   maxLength={160}
-                  className="mt-2 w-full rounded-[12px] border border-line bg-paper-strong px-4 py-3 text-xl font-black leading-tight text-ink outline-none transition placeholder:text-ink/30 focus:border-ink focus:ring-4 focus:ring-yellow/15 md:text-3xl"
+                  className="mt-2 w-full rounded-[12px] border border-line bg-paper-strong px-4 py-3 text-xl font-black leading-tight text-ink transition placeholder:text-ink/30 focus:border-ink focus:ring-4 focus:ring-yellow/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink md:text-3xl"
                 />
                 {fieldErrors.title ? (
                   <p id="community-title-error" className="mt-2 text-xs font-bold text-red-700">{fieldErrors.title}</p>
@@ -721,7 +721,7 @@ export function CommunityPostEditor({
                       setSelectedLessonId("");
                       markDirty();
                     }}
-                    className="min-h-11 w-full appearance-none rounded-[12px] border border-line bg-paper-strong py-2.5 pl-10 pr-4 text-sm font-black text-ink outline-none transition focus:border-ink focus:ring-4 focus:ring-yellow/15"
+                    className="min-h-11 w-full appearance-none rounded-[12px] border border-line bg-paper-strong py-2.5 pl-10 pr-4 text-sm font-black text-ink transition focus:border-ink focus:ring-4 focus:ring-yellow/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                   >
                     <option value="global">{locale === "sr" ? "Globalna zajednica" : "Global community"}</option>
                     {tracks.map((track) => (
@@ -756,7 +756,7 @@ export function CommunityPostEditor({
                           setSelectedLessonId("");
                           markDirty();
                         }}
-                        className="min-h-11 w-full rounded-[12px] border border-line bg-paper-strong px-3 text-sm font-black text-ink outline-none transition focus:border-ink focus:ring-4 focus:ring-yellow/15"
+                        className="min-h-11 w-full rounded-[12px] border border-line bg-paper-strong px-3 text-sm font-black text-ink transition focus:border-ink focus:ring-4 focus:ring-yellow/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                       >
                         <option value="">{locale === "sr" ? "Izaberi ciklus" : "Choose a cycle"}</option>
                         {availableCycles.map((cycle) => (
@@ -775,7 +775,7 @@ export function CommunityPostEditor({
                           markDirty();
                         }}
                         disabled={!selectedModuleId || availableLessons.length === 0}
-                        className="min-h-11 w-full rounded-[12px] border border-line bg-paper-strong px-3 text-sm font-black text-ink outline-none transition focus:border-ink focus:ring-4 focus:ring-yellow/15 disabled:cursor-not-allowed disabled:bg-[#eef3f7] dark:disabled:bg-ink/10 disabled:text-muted"
+                        className="min-h-11 w-full rounded-[12px] border border-line bg-paper-strong px-3 text-sm font-black text-ink transition focus:border-ink focus:ring-4 focus:ring-yellow/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:bg-[#eef3f7] dark:disabled:bg-ink/10 disabled:text-muted"
                       >
                         <option value="">{locale === "sr" ? "Izaberi lekciju" : "Choose a lesson"}</option>
                         {availableLessons.map((lesson) => (
@@ -816,7 +816,7 @@ export function CommunityPostEditor({
                   }
                   rows={13}
                   maxLength={20_000}
-                  className="mt-2 min-h-[320px] w-full resize-y rounded-[12px] border border-line bg-paper-strong px-4 py-3 text-base font-semibold leading-7 text-ink/85 outline-none transition placeholder:text-ink/30 focus:border-ink focus:ring-4 focus:ring-yellow/15"
+                  className="mt-2 min-h-[320px] w-full resize-y rounded-[12px] border border-line bg-paper-strong px-4 py-3 text-base font-semibold leading-7 text-ink/85 transition placeholder:text-ink/30 focus:border-ink focus:ring-4 focus:ring-yellow/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                 />
                 {fieldErrors.body ? (
                   <p id="community-body-error" className="mt-2 text-xs font-bold text-red-700">{fieldErrors.body}</p>

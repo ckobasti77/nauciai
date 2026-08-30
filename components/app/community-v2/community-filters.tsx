@@ -220,7 +220,7 @@ export function CommunityScopeControls({
         <select
           value={scopeState.selectedTrack?._id ?? ""}
           onChange={(event) => scopeState.setTrack(event.target.value)}
-          className="min-h-11 w-full rounded-[12px] border border-line bg-paper-strong px-3 text-sm font-black text-ink outline-none transition hover:border-ink/55 focus:border-ink focus:ring-4 focus:ring-yellow/25"
+          className="min-h-11 w-full rounded-[12px] border border-line bg-paper-strong px-3 text-sm font-black text-ink transition hover:border-ink/55 focus:border-ink focus:ring-4 focus:ring-yellow/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         >
           {filters.tracks.map((track) => (
             <option key={track._id} value={track._id}>
@@ -237,7 +237,7 @@ export function CommunityScopeControls({
             if (event.target.value) scopeState.setCourse(event.target.value);
             else scopeState.setScopeKind("track");
           }}
-          className="min-h-11 w-full rounded-[12px] border border-line bg-paper-strong px-3 text-sm font-black text-ink outline-none transition hover:border-ink/55 focus:border-ink focus:ring-4 focus:ring-yellow/25"
+          className="min-h-11 w-full rounded-[12px] border border-line bg-paper-strong px-3 text-sm font-black text-ink transition hover:border-ink/55 focus:border-ink focus:ring-4 focus:ring-yellow/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         >
           <option value="">{locale === "sr" ? "Svi kursevi u smeru" : "All courses in track"}</option>
           {scopeState.availableCourses.map((course) => (
@@ -253,7 +253,7 @@ export function CommunityScopeControls({
           value={scopeState.selectedCycle?._id ?? ""}
           onChange={(event) => scopeState.setCycle(event.target.value)}
           disabled={!selectedCourseValue || scopeState.availableCycles.length === 0}
-          className="min-h-11 w-full rounded-[12px] border border-line bg-paper-strong px-3 text-sm font-black text-ink outline-none transition hover:border-ink/55 focus:border-ink focus:ring-4 focus:ring-yellow/25 disabled:cursor-not-allowed disabled:bg-[#eef3f7] dark:disabled:bg-ink/10 disabled:text-muted"
+          className="min-h-11 w-full rounded-[12px] border border-line bg-paper-strong px-3 text-sm font-black text-ink transition hover:border-ink/55 focus:border-ink focus:ring-4 focus:ring-yellow/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:bg-[#eef3f7] dark:disabled:bg-ink/10 disabled:text-muted"
         >
           <option value="">{locale === "sr" ? "Svi ciklusi" : "All cycles"}</option>
           {scopeState.availableCycles.map((cycle) => (
@@ -269,7 +269,7 @@ export function CommunityScopeControls({
           value={scopeState.selectedLesson?._id ?? ""}
           onChange={(event) => scopeState.setLesson(event.target.value)}
           disabled={!scopeState.selectedCycle || scopeState.availableLessons.length === 0}
-          className="min-h-11 w-full rounded-[12px] border border-line bg-paper-strong px-3 text-sm font-black text-ink outline-none transition hover:border-ink/55 focus:border-ink focus:ring-4 focus:ring-yellow/25 disabled:cursor-not-allowed disabled:bg-[#eef3f7] dark:disabled:bg-ink/10 disabled:text-muted"
+          className="min-h-11 w-full rounded-[12px] border border-line bg-paper-strong px-3 text-sm font-black text-ink transition hover:border-ink/55 focus:border-ink focus:ring-4 focus:ring-yellow/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:bg-[#eef3f7] dark:disabled:bg-ink/10 disabled:text-muted"
         >
           <option value="">{locale === "sr" ? "Sve lekcije" : "All lessons"}</option>
           {scopeState.availableLessons.map((lesson) => (

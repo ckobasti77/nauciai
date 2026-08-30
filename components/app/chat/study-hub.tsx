@@ -490,7 +490,7 @@ function StudyHubMember({ locale, courseSlug, onCourseSlugChange, onOpenConversa
         </section>
 
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1.12fr)_minmax(340px,0.88fr)]">
-          <section id="study-suggestions" tabIndex={-1} className="scroll-mt-28 rounded-[16px] border-2 border-line bg-paper-strong p-4 outline-none sm:p-5">
+          <section id="study-suggestions" tabIndex={-1} className="scroll-mt-28 rounded-[16px] border-2 border-line bg-paper-strong p-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:p-5">
             <SectionHeading icon={<Search className="size-5" />} title={t(locale, "Partneri u tvojoj zoni", "Partners in your zone")} description={t(locale, "Study Pulse prsten pokazuje napredak na kursu za svaku osobu iz tvoje zone.", "The Study Pulse ring shows course progress for each person in your zone.")} />
             <div className="mt-4 grid gap-2">
               {!courseId || !activeAvailability?.active ? (

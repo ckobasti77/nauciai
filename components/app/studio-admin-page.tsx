@@ -26,7 +26,7 @@ import { parseStudioModel, type StudioModel } from "@/lib/studio-models";
 import { formatCreditsLong } from "@/lib/studio-params";
 
 const inputClass =
-  "min-h-9 w-24 surface-media border-2 border-ink bg-paper-strong px-2 text-sm font-bold text-ink outline-none transition focus:ring-4 focus:ring-yellow/35 disabled:cursor-not-allowed disabled:opacity-60";
+  "min-h-9 w-24 surface-media border-2 border-ink bg-paper-strong px-2 text-sm font-bold text-ink outline-none transition focus:ring-4 focus:ring-yellow/35 studio-focus-ink disabled:cursor-not-allowed disabled:opacity-60";
 
 const KIND_LABELS_SR: Record<string, string> = { image: "Slika", video: "Video", audio: "Zvuk" };
 const KIND_LABELS_EN: Record<string, string> = { image: "Image", video: "Video", audio: "Audio" };

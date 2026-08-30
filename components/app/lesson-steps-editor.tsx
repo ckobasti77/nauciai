@@ -591,11 +591,11 @@ function SectionCard({
 }
 
 const inputClass =
-  "h-10 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-3 text-sm font-bold text-ink outline-none transition placeholder:text-muted/60 focus:border-yellow focus:ring-4 focus:ring-yellow/25";
+  "h-10 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-3 text-sm font-bold text-ink transition placeholder:text-muted/60 focus:border-yellow focus:ring-4 focus:ring-yellow/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
 const compactInputClass =
-  "h-8 w-full rounded-[6px] border border-ink bg-paper-strong px-2 text-xs font-bold text-ink outline-none transition placeholder:text-muted/60 focus:border-yellow";
+  "h-8 w-full rounded-[6px] border border-ink bg-paper-strong px-2 text-xs font-bold text-ink transition placeholder:text-muted/60 focus:border-yellow focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
 const textareaClass =
-  "w-full resize-none rounded-[8px] border-2 border-ink bg-paper-strong p-3 text-sm font-bold leading-6 text-ink outline-none transition placeholder:text-muted/60 focus:border-yellow focus:ring-4 focus:ring-yellow/25";
+  "w-full resize-none rounded-[8px] border-2 border-ink bg-paper-strong p-3 text-sm font-bold leading-6 text-ink transition placeholder:text-muted/60 focus:border-yellow focus:ring-4 focus:ring-yellow/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
 
 export function LessonStepsEditor({
   course,

@@ -1247,7 +1247,7 @@ export function StudioComposer({
                 : "What do you want to create?"
           }
           aria-label={locale === "sr" ? "Opis onoga što praviš" : "Description of what you are making"}
-          className="w-full resize-none border-0 bg-transparent text-base font-bold text-ink placeholder:font-bold placeholder:text-muted focus-visible:outline-none"
+          className="w-full resize-none border-0 bg-transparent text-base font-bold text-ink placeholder:font-bold placeholder:text-muted studio-focus-ink"
         />
 
         {/* Statusna linija za obaveštenja */}

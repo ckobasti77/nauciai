@@ -228,7 +228,7 @@ function MembersView({
               <select
                 value={controls.role}
                 onChange={(event) => controls.setRole(event.target.value as MemberRoleFilter)}
-                className="min-h-10 w-full rounded-full border border-line bg-paper-strong px-4 text-sm font-black text-ink outline-none hover:border-ink/55 focus:border-ink focus:ring-4 focus:ring-yellow/25 sm:w-auto"
+                className="min-h-10 w-full rounded-full border border-line bg-paper-strong px-4 text-sm font-black text-ink hover:border-ink/55 focus:border-ink focus:ring-4 focus:ring-yellow/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:w-auto"
               >
                 {ROLE_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>{locale === "sr" ? option.sr : option.en}</option>

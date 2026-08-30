@@ -339,7 +339,7 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
           aria-invalid={Boolean(reasonError)}
           aria-describedby={reasonError ? "moderation-reason-error" : "moderation-reason-help"}
           placeholder={locale === "sr" ? "Na primer: ukloni lične podatke iz drugog pasusa…" : "For example: remove personal information from the second paragraph…"}
-          className="mt-2 w-full resize-y rounded-[12px] border border-line bg-paper px-3 py-2.5 text-sm font-semibold leading-6 text-ink outline-none focus:border-ink focus:ring-4 focus:ring-yellow/15"
+          className="mt-2 w-full resize-y rounded-[12px] border border-line bg-paper px-3 py-2.5 text-sm font-semibold leading-6 text-ink focus:border-ink focus:ring-4 focus:ring-yellow/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         />
         {reasonError ? (
           <p id="moderation-reason-error" role="alert" className="mt-2 text-xs font-bold text-red-700">{reasonError}</p>

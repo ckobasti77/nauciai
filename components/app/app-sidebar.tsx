@@ -2063,7 +2063,7 @@ function AppSidebarContent({
         tabIndex={0}
         onPointerDown={startSidebarResize}
         onKeyDown={handleResizeKeyDown}
-        className="group absolute -right-2 top-0 z-[75] hidden h-full w-4 cursor-col-resize items-center justify-center bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow focus-visible:ring-offset-1 focus-visible:ring-offset-ink lg:flex"
+        className="group absolute -right-2 top-0 z-[75] hidden h-full w-4 cursor-col-resize items-center justify-center bg-transparent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink lg:flex"
       />
     </aside>
       <AppBottomNav

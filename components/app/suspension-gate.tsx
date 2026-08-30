@@ -82,7 +82,7 @@ export function SuspensionGate({
           <div className="mt-5">
             <label className="block text-sm font-black">
               {t(locale, "Jedina žalba", "One appeal")}
-              <textarea value={appeal} onChange={(event) => setAppeal(event.target.value)} maxLength={2_000} rows={5} placeholder={t(locale, "Objasni zbog čega tražiš ponovno razmatranje…", "Explain why you are asking for another review…")} className="mt-2 w-full resize-y rounded-[8px] border-2 border-ink bg-paper-strong px-4 py-3 text-sm font-bold leading-6 outline-none focus:border-yellow focus:ring-4 focus:ring-yellow/25" />
+              <textarea value={appeal} onChange={(event) => setAppeal(event.target.value)} maxLength={2_000} rows={5} placeholder={t(locale, "Objasni zbog čega tražiš ponovno razmatranje…", "Explain why you are asking for another review…")} className="mt-2 w-full resize-y rounded-[8px] border-2 border-ink bg-paper-strong px-4 py-3 text-sm font-bold leading-6 focus:border-yellow focus:ring-4 focus:ring-yellow/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink" />
             </label>
             <button type="button" disabled={pending || appeal.trim().length < 10} onClick={() => void sendAppeal()} className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black shadow-[3px_3px_0_0_var(--ink)] disabled:opacity-50">
               {pending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}{t(locale, "Pošalji žalbu", "Send appeal")}

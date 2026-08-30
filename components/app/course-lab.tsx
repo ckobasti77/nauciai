@@ -656,7 +656,7 @@ export function CourseLab({
                           value={composer}
                           onChange={(event) => setComposer(event.target.value)}
                           placeholder={t(locale, "Posalji poruku...", "Send a message...")}
-                          className="min-h-12 flex-1 resize-none rounded-[8px] border-2 border-ink px-3 py-2 text-sm font-bold text-ink outline-none"
+                          className="min-h-12 flex-1 resize-none rounded-[8px] border-2 border-ink px-3 py-2 text-sm font-bold text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                         />
                         <button
                           type="button"

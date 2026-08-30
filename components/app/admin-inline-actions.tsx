@@ -241,9 +241,9 @@ function LocalizedPairSwitch({ locale, onChange, sr, en }: { locale: Locale; onC
 }
 
 const inputClass =
-  "h-11 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-3 text-sm font-bold text-ink outline-none transition placeholder:text-muted/70 focus:border-yellow focus:ring-4 focus:ring-yellow/25";
+  "h-11 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-3 text-sm font-bold text-ink transition placeholder:text-muted/70 focus:border-yellow focus:ring-4 focus:ring-yellow/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
 const textareaClass =
-  "w-full resize-none rounded-[8px] border-2 border-ink bg-paper-strong p-3 text-sm font-bold leading-6 text-ink outline-none transition placeholder:text-muted/70 focus:border-yellow focus:ring-4 focus:ring-yellow/25";
+  "w-full resize-none rounded-[8px] border-2 border-ink bg-paper-strong p-3 text-sm font-bold leading-6 text-ink transition placeholder:text-muted/70 focus:border-yellow focus:ring-4 focus:ring-yellow/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
 
 function SlugField({
   label,
@@ -272,7 +272,7 @@ function SlugField({
           /
         </span>
         <input
-          className="h-11 min-w-0 flex-1 bg-paper-strong px-3 text-sm font-bold text-ink outline-none"
+          className="h-11 min-w-0 flex-1 bg-paper-strong px-3 text-sm font-bold text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           value={value}
           onChange={(event) => onChange(slugify(event.target.value))}
           placeholder={placeholder}
@@ -2080,6 +2080,7 @@ export function AddModuleAction({
                           <button
                             type="button"
                             onClick={() => setOpenLessonId((current) => (current === lesson._id ? null : lesson._id))}
+                            aria-expanded={isOpen}
                             className="flex min-h-12 w-full items-center justify-between gap-3 bg-paper-strong px-4 py-3 text-left text-sm font-black text-ink hover:bg-yellow/25"
                           >
                             <span className="flex min-w-0 items-start gap-2">

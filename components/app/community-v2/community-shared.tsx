@@ -49,7 +49,7 @@ export function CommunitySearch({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        className="min-h-10 w-full rounded-full border border-line bg-paper-strong py-2 pl-11 pr-4 text-sm font-bold text-ink outline-none transition placeholder:font-semibold placeholder:text-muted/65 hover:border-ink/50 focus:border-ink focus:ring-4 focus:ring-yellow/25"
+        className="min-h-10 w-full rounded-full border border-line bg-paper-strong py-2 pl-11 pr-4 text-sm font-bold text-ink transition placeholder:font-semibold placeholder:text-muted/65 hover:border-ink/50 focus:border-ink focus:ring-4 focus:ring-yellow/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
       />
     </label>
   );
