@@ -170,3 +170,118 @@ POTVRĐENIM emailom dobija pristup bez ijednog upisa na kurs; nepotvrđen pada n
    Gašenje istom komandom sa `false` — momentalno vraća današnje stanje.
 2. `getStudioState` sada nosi `accessReason` — F3 shell po njemu bira „potvrdi email" panel umesto
    generičke poruke o zatvorenom testiranju.
+
+---
+
+## F2 — Security / anti-abuse   (30.08.2026)
+
+### Fajlovi
+
+Menjano (6 commitova, `git log --oneline` za redosled):
+- `convex/studio.ts` — rate limiti (rezolvovan concurrency + MINUTNI_LIMIT + DNEVNI_LIMIT_KREDITA,
+  redosled: concurrency → in-flight → minutni → dnevni broj → dnevni krediti → dnevni USD);
+  `claimSignupBonus`; moderacioni union-return + upis u `studioModerationLog`; DEMO guard (R10);
+  gejt na `createInputUploadUrl`/`registerInputUpload`; `failJob` idempotencija (failed/refunded
+  rani izlaz); legacy `estimatedCostUsd` kroz `computeEstimatedCostUsd`; `listAllJobs` mejl samo
+  adminu (moderator dobija `ownerHandle`); `getStudioState.signupBonus.claimable`.
+- `convex/studioCore.ts` — `computeEstimatedCostUsd` (R8).
+- `convex/creditsCore.ts` — `SIGNUP_BONUS_CREDITS=25` + `signupBonusKey`; `BLOCKED_TERM_GROUPS` sa
+  kategorijama (`nsfw`, `minors`, `deepfake`, `illegal`, + NOVO `violence`, `public_figure`);
+  `validatePrompt` vraća kategoriju; celoreč pojmovi (završni razmak) za imena.
+- `convex/credits.ts` — `"signup_bonus"` u source union (VAN `stripeGrantSource` i `PAID_SOURCES`);
+  `applyGrant` plain ekstrakcija (grantCredits je thin wrapper); drugi sloj `by_user_source` i za
+  signup_bonus.
+- `convex/schema.ts` — `signup_bonus` literal; tabela `studioModerationLog` (bez teksta prompta).
+- `convex/studioAdmin.ts` — `listModerationEvents` (admin, take 200).
+- `convex/identityMerge.ts` — `mergeStudioAndCreditRows` (creditLots, creditTransactions,
+  creditReversals, generationJobs, studioProjects, studioUploads, studioUsageDaily sabrano po danu,
+  creditBalances sabrano — sme minus) + `acceptedStudioTermsAt` u oba user patch-a.
+- `convex/studioProjects.ts` — `createProject` kroz `requireStudioAccess`.
+- `components/app/studio-page.tsx` — `generate()` grana za `moderationBlocked` rezultat.
+- `lib/studio-messages.ts` (+test) — MINUTNI_LIMIT, DNEVNI_LIMIT_KREDITA (PRE "DNEVNI_LIMIT" u nizu
+  — substring matching), PREVISE_POSLOVA bez zakucane „tri".
+- Testovi: studio.test.ts (+13 novih uklj. nula-upisa dokaze; `jobIdOf` narrowing na 32 mesta;
+  `withFalKey` stub), credits.test.ts (200-op invarijanta +signup grana, seed 20260830; kategorije),
+  studioAdmin.test.ts, studioProjects.test.ts (+kapija; seedUser → moderator po X8 obrascu),
+  studioCatalogJob.test.ts (seedStranger → moderator), providers/catalogModels.test.ts (min/max
+  invarijanta), identityMerge.test.ts (+2 end-to-end).
+
+### Šta je urađeno (mapiranje na brif F2)
+
+1. **Trošenje** — potvrđeno da je `applySpend` jedina staza (F0 audit) + zatvoreno R7 (min/max
+   katalog invarijanta) i R8 (legacy estimatedCostUsd × trajanje — kapovi od 5$/3$/100$ više ne
+   potcenjuju per-second modele).
+2. **Refund** — potvrđeno da javne staze nema (F0); dodat `failJob` rani izlaz za failed/refunded
+   (dupli poziv ne prolazi drugi put kroz refund granu).
+3. **Welcome/signup bonus** — 25 kr kroz `claimSignupBonus`: flag ON + `isEmailVerifiedForStudio` +
+   anti-farm (drugi ŽIV nalog sa istim emailom ⇒ `DUPLIRAN_EMAIL`); idempotentno (`signup:<userId>`
+   + `by_user_source`); loguje se kroz creditTransactions (type bonus).
+4. **Rate limiti** — 2 concurrent / 6/min / 200/dan / 500 kr/dan za javne (config u `platformFlags`),
+   osoblje nepromenjeno; svi limiti bacaju PRE ijednog upisa.
+5. **Moderacija** — kategorije + log u `studioModerationLog` (hash+dužina+kategorija, NIKAD tekst);
+   odbijen prompt ne troši ništa; union-return čini da log preživi transakciju.
+6. **Stripe** — potvrđeno F0 auditom (potpis :324, idempotencija testovi :394/:427, success_url ne
+   dodeljuje ništa, syncSecret odbijanje credits.test.ts:568) — bez izmena koda.
+7. **identityMerge (R4)** — krediti i BRAVE prate čoveka; end-to-end test: SPOR_U_TOKU grize na
+   kanonskom nalogu posle merge-a; signup bonus ostaje jedan preko para.
+8. **DEMO (R10)** — javni korisnik ne može da plati mock: model bez provider ključa mu je
+   MODEL_NEDOSTUPAN; osoblje zadržava DEMO.
+
+### ODLUKE
+
+1. **Signup bonus = 25 kredita** (2-3 najjeftinije slike: BytePlus ~5 kr, Seedream ~8-9 kr; nijedan
+   video ~55 kr) — dovoljno za ukus, premalo za farmu. Odvojen source od subscription `welcome_bonus`
+   (150) — korisnik koji kasnije PLATI pretplatu dobija i njen bonus.
+2. **Claim mutacija umesto hook-a u verifikaciji/uslovima**: pokriva password-verify, Google i
+   pre-launch verifikovane; `acceptStudioTerms` rano izlazi za postojeće korisnike pa bi hook tamo
+   staff i stare naloge zauvek preskočio; sve provere su ionako server-side.
+3. **Union-return SAMO za ZABRANJEN_POJAM** — bačena greška rollback-uje i log; PRAZAN/PREDUGACAK
+   ostaju throw (validacija forme, ne moderacioni događaj). Klijentska grana u istom commit-u;
+   poruka korisniku identična staroj (ne otkriva pogođeni pojam).
+4. **`failJob` blokira samo failed/refunded, NE done**: refund poravnatog posla kojem izlaz nikad
+   nije stigao je namerna RUČNA support staza (X2 ugovor, `studioSettlement.test.ts` „refund
+   poravnatog posla") — korisnik do nje ne može (internal + svi pozivaoci proveravaju `running`).
+5. **`getPackBySlug` projekcija NIJE rađena** (plan F2.8f otpao): pozivaoci su server rute koje
+   traže baš ta polja (`_id`, kind, isActive, stripePriceId, credits), a `stripePriceId` je već
+   javan kroz `listPacks` — promena bi bila churn bez dobiti. Nalaz ostaje dokumentovan kao P4.
+6. **Javne ličnosti: celoreč pojmovi za kolizijska imena** („trump " puna reč jer prefiks hvata
+   „trumpet"; „trampa" = razmena ostaje nevina) + prefiks za srpske padeže („vucic" → „vucica").
+   Lista je EDITORSKA — Jovan pregleda i dopunjava (launch checklist).
+7. **`withFalKey` stub u testovima javnog toka**: F2.9 DEMO guard odbija javnom korisniku model bez
+   ključa, a DEMO testovi istog fajla zahtevaju ODSUTAN ključ — zato stub po testu, ne beforeAll.
+8. Merge napomene: `studioUploadGrants` se preskače (TTL 1h, cron ih briše); `balanceAfter` istorija
+   posle spajanja je preplet dve hronologije (snapshot se ne prepravlja); istoimeni projekti smeju
+   da koegzistiraju (jedinstvenost čuvaju samo create/rename).
+
+### Testovi (brif F2.7 → dokaz)
+
+- bonus dvaput → jedan lot: studio.test.ts „claimSignupBonus dvaput..." + identityMerge.test.ts
+  „posle merge-a signup bonus ostaje JEDAN preko celog para".
+- rate limit prekoračen → greška i NULA upisa: „MINUTNI_LIMIT: sedmi posao..." (snapshot ledger+jobs+
+  usage pre/posle) i „DNEVNI_LIMIT_KREDITA: ... ne troši ništa".
+- refund za uspešan job → odbijen: nema javne staze (F0) + „failJob je idempotentan: dupli poziv...".
+- klampovanje parametara: postojeći studioParamSpec/studioJobCore testovi + NOVA katalog invarijanta
+  „svaka number/slider kontrola ima min i max".
+- moderacija ne troši kredite: „zabranjen prompt vraća moderationBlocked, upiše TAČNO jedan log red
+  i ne troši ništa" + „kategorije moderacije: nasilje i javna ličnost...".
+- ledger invarijanta posle novih staza: credits.test.ts:182 prošireno signup granom (novi seed
+  20260830; assert ≤1 signup lot + brojači > 0 + invarijanta važi).
+
+### Rezultat verifikacije
+
+- `npm run typecheck` exit 0 · `npm run lint` `✖ 178 problems (1 error, 177 warnings)` — identično
+  baseline-u · `NODE_OPTIONS=--no-use-system-ca npm run test` → **90/90 fajlova, 1228/1228** (30 novih
+  testova od baseline-a). Codegen: ista BLOKADA kao F1 (nijedan nov convex modul — api.d.ts važi).
+
+### BLOKADA
+
+- Nema novih (codegen BLOKADA iz F1 i dalje važi).
+
+### Za Jovana
+
+1. Editorski pregled `violence`/`public_figure` listi u `convex/creditsCore.ts` (BLOCKED_TERM_GROUPS)
+   — mehanizam radi, sadržaj je tvoja odluka.
+2. `studioAdmin.listModerationEvents` postoji kao query (admin) — UI ekran nije pravljen (van obima);
+   `npx convex run` ili kasniji admin prozor.
+3. Merge sada prenosi i NEGATIVAN saldo — korisnik koji je begao od chargeback-a spajanjem naloga
+   više nema kuda.
