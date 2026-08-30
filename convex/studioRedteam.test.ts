@@ -518,13 +518,59 @@ test("V8 kontrola: čist zabranjen pojam JESTE blokiran", () => {
   expect(validatePrompt("child porn")).toMatchObject({ ok: false, reason: "ZABRANJEN_POJAM" });
 });
 
-test("V8 RUPA: leetspeak/razmaci/spajanje/homoglif ZAOBILAZE moderaciju", () => {
-  // Svaki od ovih PROĐE validatePrompt (ok:true), a provajder ih i dalje čita
-  // kao zabranjen sadržaj.
-  expect(validatePrompt("p0rn scene")).toEqual({ ok: true }); // leetspeak (nula)
-  expect(validatePrompt("p o r n")).toEqual({ ok: true }); // razmaci između slova
-  expect(validatePrompt("childporn")).toEqual({ ok: true }); // spajanje (vs "child porn")
-  expect(validatePrompt("pоrn")).toEqual({ ok: true }); // ćirilično 'о' (U+043E)
-  // Reč u kojoj zabranjen koren NIJE na početku prolazi (poklapa se od početka reči).
+test("V8 ZATVORENO: leetspeak/razmaci/spajanje/homoglif su sada BLOKIRANI", () => {
+  // Svi bypass primeri iz izveštaja sada padaju na normalizaciji PRE poređenja.
+  expect(validatePrompt("p0rn scene")).toMatchObject({ ok: false, reason: "ZABRANJEN_POJAM" }); // leet (nula)
+  expect(validatePrompt("p o r n")).toMatchObject({ ok: false, reason: "ZABRANJEN_POJAM" }); // razmaci između slova
+  expect(validatePrompt("childporn")).toMatchObject({ ok: false, reason: "ZABRANJEN_POJAM" }); // spajanje (vs "child porn")
+  expect(validatePrompt("pоrn")).toMatchObject({ ok: false, reason: "ZABRANJEN_POJAM" }); // ćirilično 'о' (U+043E)
+  expect(validatePrompt("revengeporn")).toMatchObject({ ok: false, reason: "ZABRANJEN_POJAM" }); // spojen složen pojam
+
+  // "childporn" pogađa kategoriju maloletnika (podniz bilo gde) - najrizičnija grupa.
+  expect(validatePrompt("childporn")).toMatchObject({ category: "minors" });
+  // "u ovoj slici p o r n zvezda" - obfuskacija razmacima NIJE na početku teksta.
+  expect(validatePrompt("u ovoj slici p o r n zvezda")).toMatchObject({ ok: false, reason: "ZABRANJEN_POJAM" });
+});
+
+test("V8 granica: koren usred reči i dalje prolazi (NSFW vezan za početak reči)", () => {
+  // NAMERNO nezatvoreno (dizajn, brif P2): podniz bilo gde traži se SAMO za
+  // maloletnike. Za ostale kategorije koren usred reči i dalje prolazi, jer bi
+  // lažni pozitiv ("notporn", "trumpet") koštao poverenje. Druga jezička polja
+  // (nemački "nackt", španski "desnudo") ostaju editorska/AUP-provajder stavka.
   expect(validatePrompt("notporn")).toEqual({ ok: true });
+  expect(validatePrompt("trumpet solo")).toEqual({ ok: true });
+});
+
+test("V8 trag: prompt koji PROĐE moderaciju ostavlja otisak u studioPromptLog (bez teksta)", async () => {
+  const t = makeT();
+  const { userId, asUser } = await seedUser(t, { role: "moderator", email: "trace@example.com" });
+  await seedModel(t);
+  await grant(t, userId, 100);
+
+  const jobId = await asUser.mutation(api.studio.createJob, {
+    modelSlug: MODEL_SLUG,
+    params: promptParams("mirno jezero u zoru"),
+  });
+  expect(typeof jobId).toBe("string"); // posao stvoren (nije moderationBlocked)
+
+  // Otisak propuštenog prompta postoji - bypass filtera više nije NEM.
+  const log = await t.run((ctx) =>
+    ctx.db.query("studioPromptLog").withIndex("by_user", (q) => q.eq("userId", userId)).collect(),
+  );
+  expect(log).toHaveLength(1);
+  expect(log[0].promptHash).toMatch(/^[0-9a-f]{16}$/);
+  expect(log[0].promptLength).toBe("mirno jezero u zoru".length);
+  expect(log[0].modelSlug).toBe(MODEL_SLUG);
+  expect(JSON.stringify(log[0])).not.toContain("jezero"); // tekst se NE čuva
+
+  // Blokiran prompt NE ide u studioPromptLog (ide u studioModerationLog).
+  const blocked = await asUser.mutation(api.studio.createJob, {
+    modelSlug: MODEL_SLUG,
+    params: promptParams("napravi porn sliku"),
+  });
+  expect(blocked).toMatchObject({ moderationBlocked: { reason: "ZABRANJEN_POJAM" } });
+  const logAfter = await t.run((ctx) =>
+    ctx.db.query("studioPromptLog").withIndex("by_user", (q) => q.eq("userId", userId)).collect(),
+  );
+  expect(logAfter).toHaveLength(1); // i dalje samo propušteni
 });

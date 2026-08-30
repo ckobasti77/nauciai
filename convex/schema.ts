@@ -1693,6 +1693,21 @@ export default defineSchema({
     createdAt: v.number(),
   }).index("by_user", ["userId", "createdAt"]),
 
+  // Otisak SVAKOG prompta koji PROĐE moderaciju (nalaz V8): hash + dužina, nikad
+  // tekst - isto kao `studioModerationLog`, samo za propuštene. Bez ovoga bypass
+  // keyword-filtera ne ostavlja NIKAKAV trag (odbijeni se loguju, propušteni ne),
+  // pa admin ne može ni da posumnja da neko sondira granice filtera. Piše se u
+  // grani `createJob`-a koja se COMMIT-uje (posle rezervacije posla). Isti hash
+  // iznova = obrazac; korelacija sa `studioModerationLog` po hash-u pokazuje ko
+  // je probao odbijen pa propušten varijantom.
+  studioPromptLog: defineTable({
+    userId: v.id("users"),
+    promptHash: v.string(),
+    promptLength: v.number(),
+    modelSlug: v.string(),
+    createdAt: v.number(),
+  }).index("by_user", ["userId", "createdAt"]).index("by_hash", ["promptHash"]),
+
   // ── PLATFORMA: SKLOPKE ───────────────────────────────────────────────
   // Kill switch iz STUDIO-PLAN 4.4. `studio.createJob` čita "studio_enabled"
   // pre svake druge provere; `enabled: false` gasi Studio bez deploy-a.

@@ -320,6 +320,28 @@ export const listModerationEvents = query({
   },
 });
 
+/**
+ * Propušteni promptovi (nalaz V8) - otisci, ne sadržaj: hash + dužina + model.
+ * Odvojeno od `listModerationEvents` da propušteni (mnogo brojniji) ne zatrpaju
+ * odbijene. Trag je tu da bypass keyword-filtera ne bude nem: isti hash koji se
+ * i u `studioModerationLog` pojavljuje kao ODBIJEN znači da je neko istu ideju
+ * provukao varijantom. Prompt tekst ne postoji nigde, ni za admina.
+ */
+export const listPromptLog = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireAdminRead(ctx);
+    const rows = await ctx.db.query("studioPromptLog").order("desc").take(200);
+    return rows.map((row) => ({
+      userId: row.userId,
+      promptHash: row.promptHash,
+      promptLength: row.promptLength,
+      modelSlug: row.modelSlug,
+      createdAt: row.createdAt,
+    }));
+  },
+});
+
 /** Trenutno stanje javnog flega i limita za admin uvid; čitanje kao `getKillSwitchState`. */
 export const getStudioPublicConfig = query({
   args: {},

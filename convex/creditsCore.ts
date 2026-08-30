@@ -277,19 +277,98 @@ const BLOCKED_TERM_GROUPS: Array<{ category: ModerationCategory; terms: string[]
 ];
 
 /**
- * Mala slova, bez dijakritika, sve što nije slovo ili cifra postaje razmak,
- * pa se rezultat oivičuje razmacima. Tako `" " + pojam` može da se traži kao
- * podniz, a poređenje ostaje vezano za početak reči.
+ * Najčešći ćirilični homoglifi -> latinica (nalaz V8): `pоrn` sa ćiriličnim
+ * „о" (U+043E) izgleda isto kao latinično, a bez ovog mapiranja postaje razmak
+ * (nije `a-z`) pa razbija reč i provuče se. `toLowerCase` je već primenjen kad
+ * se ovo koristi, pa hvata i velika ćirilična slova (О->о). Nemapirana
+ * ćirilica postaje razmak (isto kao ranije).
+ */
+const CYRILLIC_TO_LATIN: Record<string, string> = {
+  "а": "a", "в": "b", "е": "e", "ё": "e", "к": "k",
+  "м": "m", "н": "h", "о": "o", "р": "p", "с": "c",
+  "т": "t", "у": "y", "х": "x", "і": "i", "ј": "j",
+  "ѕ": "s", "ԛ": "q", "ԝ": "w",
+};
+
+/**
+ * Leet cifre/simboli -> slova (nalaz V8): `p0rn`, `@` kao „a". Bez ovoga cifra
+ * ostaje cifra i koren se ne poklopi. Cifre koje nisu čest leet (2,6,8,9)
+ * ostaju, da se `4k`/`3d` ne lome više nego što mora.
+ */
+const LEET_TO_LATIN: Record<string, string> = {
+  "0": "o", "1": "i", "3": "e", "4": "a", "5": "s", "7": "t", "@": "a",
+};
+
+/**
+ * Spaja MAKSIMALNE nizove od 2+ jednoslovnih tokena u jednu reč (nalaz V8):
+ * `p o r n` -> `porn`, a usamljeno „a"/„i" ostaje netaknuto (ne pravi lažne
+ * spojeve). Time obfuskacija razmacima pada, a poređenje ostaje vezano za
+ * početak reči (`notporn` i dalje prolazi za NSFW - koren nije na početku).
+ */
+function collapseSingleLetterRuns(words: string[]): string[] {
+  const out: string[] = [];
+  let run: string[] = [];
+  const flush = () => {
+    if (run.length >= 2) out.push(run.join(""));
+    else out.push(...run);
+    run = [];
+  };
+  for (const word of words) {
+    if (word.length === 1) run.push(word);
+    else {
+      flush();
+      out.push(word);
+    }
+  }
+  flush();
+  return out;
+}
+
+/**
+ * Agresivna normalizacija PRE poređenja (nalaz V8): mala slova, ćirilični
+ * homoglifi i leet u latinicu, `đ->dj`, bez dijakritika, sve što nije slovo ili
+ * cifra postaje razmak, pa se jednoslovni nizovi sklope. Rezultat je oivičen
+ * razmacima da `(?<= )pojam` može da se traži od početka reči.
  */
 function normalizeForModeration(text: string): string {
   const stripped = text
     .toLowerCase()
+    .replace(/[Ѐ-ӿԀ-ԯ]/g, (ch) => CYRILLIC_TO_LATIN[ch] ?? " ")
+    .replace(/[013457@]/g, (ch) => LEET_TO_LATIN[ch] ?? ch)
     .replace(/đ/g, "dj")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
 
-  return ` ${stripped.replace(/[^a-z0-9]+/g, " ").trim()} `;
+  const words = stripped.replace(/[^a-z0-9]+/g, " ").trim().split(" ").filter(Boolean);
+  return ` ${collapseSingleLetterRuns(words).join(" ")} `;
 }
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Kompajlirani izraz po pojmu (nalaz V8). Razmak UNUTAR pojma postaje ` ?`
+ * (opciono), pa `child porn` hvata i `childporn` (spajanje). Pojam sa završnim
+ * razmakom je i dalje CELA reč (`trump ` ne hvata `trumpet`). Kategorija
+ * maloletnika se traži BILO GDE u tekstu (podniz - najrizičnija grupa), sve
+ * ostalo od POČETKA reči (kao ranije). Redosled grupa je očuvan, pa prva
+ * grupa koja pogodi i dalje daje kategoriju.
+ */
+const COMPILED_BLOCKED_TERMS: Array<{ category: ModerationCategory; regex: RegExp }> =
+  BLOCKED_TERM_GROUPS.flatMap((group) =>
+    group.terms.map((term) => {
+      const wholeWord = term.endsWith(" ");
+      const body = term.trim().split(/\s+/).map(escapeRegExp).join(" ?");
+      const pattern =
+        group.category === "minors"
+          ? body
+          : wholeWord
+            ? `(?<= )${body}(?= )`
+            : `(?<= )${body}`;
+      return { category: group.category, regex: new RegExp(pattern) };
+    }),
+  );
 
 /**
  * `maxLength` postoji zbog v4 kataloga: ElevenLabs `text` kontrola ide do
@@ -304,11 +383,11 @@ export function validatePrompt(text: string, maxLength = MAX_PROMPT_LENGTH): Pro
   if (trimmed.length > maxLength) return { ok: false, reason: "PREDUGACAK_PROMPT" };
 
   const normalized = normalizeForModeration(trimmed);
-  for (const group of BLOCKED_TERM_GROUPS) {
-    if (group.terms.some((term) => normalized.includes(` ${term}`))) {
+  for (const { category, regex } of COMPILED_BLOCKED_TERMS) {
+    if (regex.test(normalized)) {
       // Kategorija ide u `studioModerationLog`; korisniku se NE otkriva koji
       // je pojam pogodio (poruka u `studio-messages.ts` ostaje uopštena).
-      return { ok: false, reason: "ZABRANJEN_POJAM", category: group.category };
+      return { ok: false, reason: "ZABRANJEN_POJAM", category };
     }
   }
 

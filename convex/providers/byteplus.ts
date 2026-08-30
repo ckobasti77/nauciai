@@ -123,6 +123,15 @@ export async function submitBytePlusJob(ctx: ActionCtx, jobId: Id<"generationJob
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    // Rani izlaz (P2 hardening): sinhroni image put zove `markJobDone` PRE nego
+    // što `recordProviderUsage` može da baci. `failJob` NAMERNO ne blokira
+    // `done` (support staza), pa bi refundirao ISPORUČEN posao - dvostruki
+    // trošak firmi (provajder plaćen + korisnik vraćen) bez koristi za napadača
+    // (izlaz je već upisan). Refund SAMO ako posao još stoji `reserved` (predaja
+    // pukla pre ijedne promene statusa); `running`/`done` prepuštamo webhook-u /
+    // support stazi. Time je naplata odvojena od isporuke na ovoj stazi.
+    const current = await ctx.runQuery(internal.studioActions.getJobForSubmit, { jobId });
+    if (!current || current.status !== "reserved") return;
     await ctx.runMutation(internal.studio.failJob, { jobId, error: message });
   }
 }

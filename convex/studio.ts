@@ -610,6 +610,23 @@ export const createJob = mutation({
       };
     }
 
+    // Trag propuštenog prompta (nalaz V8): otisak SVAKOG prompta koji je prošao
+    // keyword-filter, bez teksta - da bypass filtera (leet/homoglif/spajanje
+    // koji ipak provuče zabranjen sadržaj) NE bude nem. Piše se u ISTOJ
+    // transakciji kao rezervacija posla, pa persistira tačno kad posao zaista
+    // nastane (throw dole - DEMO/spor/limit - rollback-uje i posao i ovaj red,
+    // a takav posao ionako ne stiže do provajdera). Prazan prompt (samo-slot
+    // režim) se ne loguje: nema šta da se sondira.
+    if (order.prompt.trim().length > 0) {
+      await ctx.db.insert("studioPromptLog", {
+        userId,
+        promptHash: promptHash(order.prompt),
+        promptLength: order.prompt.length,
+        modelSlug: order.slug,
+        createdAt: Date.now(),
+      });
+    }
+
     // DEMO zaštita (studio-public F2.9, nalaz R10): bez ključa provajdera
     // posao ide u mock, a krediti se REALNO troše ("demo provajdera, ne
     // ledgera"). Osoblju je to alat za testiranje; javni korisnik ne sme da
