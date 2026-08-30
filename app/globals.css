@@ -17,7 +17,10 @@
 /* Pravilo 1: zuto tema ne dira. Zuta povrsina je OSTRVO svetle palete - svaki token
    unutar nje (tekst, okvir, ugnjezdeni paneli, senka) razresi se na svetlu vrednost,
    pa zuto dugme sa tamnoplavim tekstom izgleda identicno u obe teme (7,66:1).
-   Lista pokriva sve pune `bg-yellow` varijante koje repo koristi (tinte /NN ne). */
+   Lista pokriva sve pune `bg-yellow` varijante koje repo koristi (tinte /NN ne).
+   `.hero-paper-island` je ISTI mehanizam za full-bleed hero: krem video/slika se ne
+   invertuje, pa cela hero sekcija ostaje svetlo ostrvo (mastilo tekst, papir scrim,
+   svetla dugmad) i u tamnoj temi. */
 :root,
 [data-theme="dark"] :is(
   .bg-yellow,
@@ -26,7 +29,8 @@
   .hover\:bg-yellow\/85:hover,
   .focus\:bg-yellow:focus,
   .group:hover .group-hover\:bg-yellow,
-  .group:focus-visible .group-focus-visible\:bg-yellow
+  .group:focus-visible .group-focus-visible\:bg-yellow,
+  .hero-paper-island
 ) {
   color-scheme: light;
   --background: #fffdf8;

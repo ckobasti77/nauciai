@@ -84,14 +84,31 @@ export function MarketingPage({
       <div data-motion="page">
         {/* ── HERO ─────────────────────────────────────────────────────────── */}
         <HeroMotion>
-          <section data-motion="hero" className="sketch-grid overflow-hidden">
-            <div className="mx-auto grid max-w-7xl items-center gap-10 px-4 py-14 sm:px-6 lg:grid-cols-[1.02fr_0.98fr] lg:px-8 lg:py-20">
-              <div className="max-w-3xl" data-motion="copy">
+          <section
+            data-motion="hero"
+            className="hero-paper-island relative flex min-h-[85svh] flex-col overflow-hidden border-b-2 border-ink sm:min-h-[100svh]"
+          >
+            {/* Pozadina: full-bleed video/slika (krem, prazna leva strana za tekst). */}
+            <div className="absolute inset-0 z-0">
+              <HeroLoop label={m.hero.videoAlt} variant="cover" />
+            </div>
+            {/* Scrim za čitljivost: papir sleva → providno desno (~42% pun papir). */}
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-0 z-10 [background:linear-gradient(to_right,var(--paper)_0%,var(--paper)_42%,transparent_78%)]"
+            />
+            {/* Mobilni dodatak: blagi vertikalni scrim odozdo (video je desno-dole). */}
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-1/2 [background:linear-gradient(to_top,var(--paper)_0%,var(--paper)_12%,transparent_60%)] md:hidden"
+            />
+            <div className="relative z-20 mx-auto flex w-full max-w-7xl flex-1 items-center px-4 py-16 sm:px-6 lg:px-8">
+              <div className="max-w-xl" data-motion="copy">
                 <h1 className="text-4xl font-black leading-[1.03] text-ink sm:text-5xl lg:text-6xl">
                   {m.hero.titleLead}
                   <MarkerHighlight>{m.hero.titleHighlight}</MarkerHighlight>
                 </h1>
-                <p className="mt-6 max-w-2xl text-lg font-bold leading-8 text-muted sm:text-xl">
+                <p className="mt-6 text-lg font-bold leading-8 text-muted sm:text-xl">
                   {m.hero.subhead}
                 </p>
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -118,12 +135,6 @@ export function MarketingPage({
                     {m.hero.trustSerbian}
                   </li>
                 </ul>
-              </div>
-
-              <div className="relative">
-                <Panel className="sketch-float p-3">
-                  <HeroLoop label={m.hero.videoAlt} />
-                </Panel>
               </div>
             </div>
           </section>
