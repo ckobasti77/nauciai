@@ -7,7 +7,9 @@ export type Lot = { id: string; remaining: number; expiresAt: number };
 
 export type SpendStep = { lotId: string; take: number };
 
-export type PromptValidation = { ok: true } | { ok: false; reason: string };
+export type PromptValidation =
+  | { ok: true }
+  | { ok: false; reason: string; category?: ModerationCategory };
 
 /** Svaki kredit ističe 12 meseci od dodele, bez obzira na izvor (STUDIO-PLAN D.2). */
 export const CREDIT_LIFETIME_MONTHS = 12;
@@ -23,6 +25,49 @@ export const WELCOME_BONUS_CREDITS = 150;
  */
 export function welcomeBonusKey(userId: string): string {
   return `welcome:${userId}`;
+}
+
+/**
+ * Bonus dobrodošlice JAVNOG Studija (studio-public F2): dodeljuje se kroz
+ * `studio.claimSignupBonus` TEK posle potvrde emaila, tačno jednom po
+ * korisniku. ODLUKA o iznosu: 25 kredita = 2-3 najjeftinije slike iz v4
+ * kataloga (BytePlus ~5 kr, Seedream ~8-9 kr po `creditsFromUsd` nad seed
+ * `baseUsd`), a NIJEDAN video (najjeftiniji je ~55 kr) - dovoljno da se
+ * proizvod oseti, premalo da se farmuje. Odvojen izvor od `welcome_bonus`
+ * (150, prva plaćena pretplata): korisnik koji je uzeo signup bonus i dalje
+ * dobija subscription bonus kad plati - dva različita obećanja, dva ključa.
+ */
+export const SIGNUP_BONUS_CREDITS = 25;
+
+/** Isti obrazac kao `welcomeBonusKey` - idempotencija visi na korisniku. */
+export function signupBonusKey(userId: string): string {
+  return `signup:${userId}`;
+}
+
+/**
+ * Kanonski oblik emaila SAMO za anti-farm proveru signup bonusa (nalaz V4).
+ * NE dira prikazani/login email - služi jedino da `claimSignupBonus` prepozna
+ * da `red@`, `red+1@` i `r.ed@gmail.com` stižu u ISTI Gmail inbox, pa je bonus
+ * već dat prvom nalogu.
+ *
+ * Gmail (i `googlemail.com`, isti inbox) ignoriše sve posle `+` i sve tačke u
+ * lokalnom delu, i dva pisanja domena su jedan sandučić. Kanonizacija je zato
+ * NAMERNO uska - samo ta dva domena, jer drugi provajderi tačku/`+` tretiraju
+ * kao različite adrese, pa bi šire pravilo spajalo tuđe naloge (lažni duplikat
+ * košta poverenje). Degenerativni slučaj (prazan lokalni deo posle skidanja)
+ * ostaje netaknut, da se mnoštvo takvih adresa ne slije u jedan ključ.
+ */
+export function canonicalizeEmailForAntiFarm(email: string | null | undefined): string {
+  const normalized = String(email ?? "").trim().toLowerCase();
+  const at = normalized.lastIndexOf("@");
+  if (at <= 0 || at === normalized.length - 1) return normalized;
+
+  const domain = normalized.slice(at + 1);
+  if (domain !== "gmail.com" && domain !== "googlemail.com") return normalized;
+
+  const local = normalized.slice(0, at).split("+")[0].replace(/\./g, "");
+  if (!local) return normalized;
+  return `${local}@gmail.com`;
 }
 
 /** STUDIO-PLAN 4.4 - gornja granica dužine prompta. */
@@ -90,79 +135,240 @@ export function computeExpiry(grantedAt: number): number {
 }
 
 /**
- * Gruba prva linija odbrane, po zabranama iz STUDIO-PLAN 3.3 (prosleđena fal
- * Acceptable Use Policy): NSFW, deepfake stvarnih osoba, sadržaj sa
- * maloletnicima, ilegalan sadržaj. Pojmovi su već normalizovani (mala slova,
- * bez dijakritika) i porede se od početka reči, pa koren "porn" hvata i
- * "pornografija". Namerno bez kratkih višeznačnih korena ("gol" je i gol na
- * fudbalu) - lažno odbijen prompt košta poverenje isto koliko propušten.
+ * Kategorije moderacije (studio-public F2.5): odbijanje nosi i kategoriju, pa
+ * `studioModerationLog` može da pokaže admin-u OBRASCE (ko stalno pokušava
+ * maloletnike, ko javne ličnosti) bez čuvanja samog prompta.
  */
-const BLOCKED_TERMS = [
-  // NSFW
-  "porn",
-  "hentai",
-  "nsfw",
-  "xxx",
-  "erotik",
-  "erotic",
-  "seksualn",
-  "sexual",
-  "naked",
-  "nude",
-  "gola devojka",
-  "gola zena",
-  "golo telo",
-  "goli muskarac",
-  // maloletnici
-  "csam",
-  "loli",
-  "shota",
-  "underage",
-  "maloletnick",
-  "child porn",
-  "child sexual",
-  "child abuse",
-  "decija pornografija",
-  "decja pornografija",
-  "golo dete",
-  "gola deca",
-  "zlostavljanje dece",
-  // deepfake stvarnih osoba
-  "deepfake",
-  "deep fake",
-  "dipfejk",
-  "faceswap",
-  "face swap",
-  "zamena lica",
-  "revenge porn",
-  "nonconsensual",
-  // ilegalan sadržaj
-  "napravi bombu",
-  "kako napraviti bombu",
-  "bomb making",
-  "how to make a bomb",
-  "teroristick",
-  "terrorist attack",
-  "falsifikovan novac",
-  "counterfeit money",
-  "kako napraviti drogu",
-  "how to make meth",
+export type ModerationCategory =
+  | "nsfw"
+  | "minors"
+  | "deepfake"
+  | "illegal"
+  | "violence"
+  | "public_figure";
+
+/**
+ * Gruba prva linija odbrane, po zabranama iz STUDIO-PLAN 3.3 (prosleđena fal
+ * Acceptable Use Policy) + brif F2.5 kategorije: NSFW, sadržaj sa
+ * maloletnicima, deepfake stvarnih osoba, ilegalan sadržaj, eksplicitno
+ * nasilje, javne ličnosti. Pojmovi su već normalizovani (mala slova, bez
+ * dijakritika) i porede se od početka reči, pa koren "porn" hvata i
+ * "pornografija". Namerno bez kratkih višeznačnih korena ("gol" je i gol na
+ * fudbalu, "gore" je i prilog) - lažno odbijen prompt košta poverenje isto
+ * koliko propušten. Pojam koji se završava razmakom traži CELU reč (koristi
+ * se za imena gde bi prefiks hvatao nevine reči: "trump" bi uhvatio
+ * "trumpet").
+ *
+ * SERVER-ONLY: `lib/studio-messages.ts` NAMERNO ne uvozi ovaj modul, da
+ * rečnik ne uđe u klijentski bundle (postojeće pravilo). Sadržaj liste
+ * `violence`/`public_figure` je editorska odluka - Jovan pregleda i dopunjava
+ * (vidi STUDIO-PUBLIC-REPORT launch checklist).
+ */
+const BLOCKED_TERM_GROUPS: Array<{ category: ModerationCategory; terms: string[] }> = [
+  {
+    category: "nsfw",
+    terms: [
+      "porn",
+      "hentai",
+      "nsfw",
+      "xxx",
+      "erotik",
+      "erotic",
+      "seksualn",
+      "sexual",
+      "naked",
+      "nude",
+      "gola devojka",
+      "gola zena",
+      "golo telo",
+      "goli muskarac",
+    ],
+  },
+  {
+    category: "minors",
+    terms: [
+      "csam",
+      "loli",
+      "shota",
+      "underage",
+      "maloletnick",
+      "child porn",
+      "child sexual",
+      "child abuse",
+      "decija pornografija",
+      "decja pornografija",
+      "golo dete",
+      "gola deca",
+      "zlostavljanje dece",
+    ],
+  },
+  {
+    category: "deepfake",
+    terms: [
+      "deepfake",
+      "deep fake",
+      "dipfejk",
+      "faceswap",
+      "face swap",
+      "zamena lica",
+      "revenge porn",
+      "nonconsensual",
+    ],
+  },
+  {
+    category: "illegal",
+    terms: [
+      "napravi bombu",
+      "kako napraviti bombu",
+      "bomb making",
+      "how to make a bomb",
+      "teroristick",
+      "terrorist attack",
+      "falsifikovan novac",
+      "counterfeit money",
+      "kako napraviti drogu",
+      "how to make meth",
+    ],
+  },
+  {
+    // Eksplicitno/grafičko nasilje (novo, brif F2.5). Bez kratkih korena:
+    // "gore" (prilog), "krv" (krv na koleno u crtanom) namerno NISU ovde.
+    category: "violence",
+    terms: [
+      "masakr",
+      "massacre",
+      "pokolj",
+      "beheading",
+      "decapitat",
+      "odrubljivanje glave",
+      "odrubljena glava",
+      "odsecanje glave",
+      "raskomadan",
+      "dismember",
+      "school shooting",
+      "skolski napad",
+      "mass shooting",
+      "masovno ubistvo",
+      "mucenje zarobljenika",
+    ],
+  },
+  {
+    // Javne ličnosti (novo, brif F2.5) - najrizičnija imena za generisani
+    // sadržaj. Prefiks hvata srpske padeže ("vucica", "putinu"); pojmovi sa
+    // završnim razmakom su cela reč (kolizije: "trumpet", "trampa" = razmena).
+    // EDITORSKA LISTA - Jovan dopunjava po potrebi.
+    category: "public_figure",
+    terms: [
+      "vucic",
+      "putin",
+      "zelensk",
+      "biden",
+      "erdogan",
+      "makron",
+      "macron ",
+      "merkel",
+      "donald trump",
+      "donalda trampa",
+      "trump ",
+      "trumpa ",
+      "trumpu ",
+    ],
+  },
 ];
 
 /**
- * Mala slova, bez dijakritika, sve što nije slovo ili cifra postaje razmak,
- * pa se rezultat oivičuje razmacima. Tako `" " + pojam` može da se traži kao
- * podniz, a poređenje ostaje vezano za početak reči.
+ * Najčešći ćirilični homoglifi -> latinica (nalaz V8): `pоrn` sa ćiriličnim
+ * „о" (U+043E) izgleda isto kao latinično, a bez ovog mapiranja postaje razmak
+ * (nije `a-z`) pa razbija reč i provuče se. `toLowerCase` je već primenjen kad
+ * se ovo koristi, pa hvata i velika ćirilična slova (О->о). Nemapirana
+ * ćirilica postaje razmak (isto kao ranije).
+ */
+const CYRILLIC_TO_LATIN: Record<string, string> = {
+  "а": "a", "в": "b", "е": "e", "ё": "e", "к": "k",
+  "м": "m", "н": "h", "о": "o", "р": "p", "с": "c",
+  "т": "t", "у": "y", "х": "x", "і": "i", "ј": "j",
+  "ѕ": "s", "ԛ": "q", "ԝ": "w",
+};
+
+/**
+ * Leet cifre/simboli -> slova (nalaz V8): `p0rn`, `@` kao „a". Bez ovoga cifra
+ * ostaje cifra i koren se ne poklopi. Cifre koje nisu čest leet (2,6,8,9)
+ * ostaju, da se `4k`/`3d` ne lome više nego što mora.
+ */
+const LEET_TO_LATIN: Record<string, string> = {
+  "0": "o", "1": "i", "3": "e", "4": "a", "5": "s", "7": "t", "@": "a",
+};
+
+/**
+ * Spaja MAKSIMALNE nizove od 2+ jednoslovnih tokena u jednu reč (nalaz V8):
+ * `p o r n` -> `porn`, a usamljeno „a"/„i" ostaje netaknuto (ne pravi lažne
+ * spojeve). Time obfuskacija razmacima pada, a poređenje ostaje vezano za
+ * početak reči (`notporn` i dalje prolazi za NSFW - koren nije na početku).
+ */
+function collapseSingleLetterRuns(words: string[]): string[] {
+  const out: string[] = [];
+  let run: string[] = [];
+  const flush = () => {
+    if (run.length >= 2) out.push(run.join(""));
+    else out.push(...run);
+    run = [];
+  };
+  for (const word of words) {
+    if (word.length === 1) run.push(word);
+    else {
+      flush();
+      out.push(word);
+    }
+  }
+  flush();
+  return out;
+}
+
+/**
+ * Agresivna normalizacija PRE poređenja (nalaz V8): mala slova, ćirilični
+ * homoglifi i leet u latinicu, `đ->dj`, bez dijakritika, sve što nije slovo ili
+ * cifra postaje razmak, pa se jednoslovni nizovi sklope. Rezultat je oivičen
+ * razmacima da `(?<= )pojam` može da se traži od početka reči.
  */
 function normalizeForModeration(text: string): string {
   const stripped = text
     .toLowerCase()
+    .replace(/[Ѐ-ӿԀ-ԯ]/g, (ch) => CYRILLIC_TO_LATIN[ch] ?? " ")
+    .replace(/[013457@]/g, (ch) => LEET_TO_LATIN[ch] ?? ch)
     .replace(/đ/g, "dj")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
 
-  return ` ${stripped.replace(/[^a-z0-9]+/g, " ").trim()} `;
+  const words = stripped.replace(/[^a-z0-9]+/g, " ").trim().split(" ").filter(Boolean);
+  return ` ${collapseSingleLetterRuns(words).join(" ")} `;
 }
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Kompajlirani izraz po pojmu (nalaz V8). Razmak UNUTAR pojma postaje ` ?`
+ * (opciono), pa `child porn` hvata i `childporn` (spajanje). Pojam sa završnim
+ * razmakom je i dalje CELA reč (`trump ` ne hvata `trumpet`). Kategorija
+ * maloletnika se traži BILO GDE u tekstu (podniz - najrizičnija grupa), sve
+ * ostalo od POČETKA reči (kao ranije). Redosled grupa je očuvan, pa prva
+ * grupa koja pogodi i dalje daje kategoriju.
+ */
+const COMPILED_BLOCKED_TERMS: Array<{ category: ModerationCategory; regex: RegExp }> =
+  BLOCKED_TERM_GROUPS.flatMap((group) =>
+    group.terms.map((term) => {
+      const wholeWord = term.endsWith(" ");
+      const body = term.trim().split(/\s+/).map(escapeRegExp).join(" ?");
+      const pattern =
+        group.category === "minors"
+          ? body
+          : wholeWord
+            ? `(?<= )${body}(?= )`
+            : `(?<= )${body}`;
+      return { category: group.category, regex: new RegExp(pattern) };
+    }),
+  );
 
 /**
  * `maxLength` postoji zbog v4 kataloga: ElevenLabs `text` kontrola ide do
@@ -177,8 +383,12 @@ export function validatePrompt(text: string, maxLength = MAX_PROMPT_LENGTH): Pro
   if (trimmed.length > maxLength) return { ok: false, reason: "PREDUGACAK_PROMPT" };
 
   const normalized = normalizeForModeration(trimmed);
-  if (BLOCKED_TERMS.some((term) => normalized.includes(` ${term}`))) {
-    return { ok: false, reason: "ZABRANJEN_POJAM" };
+  for (const { category, regex } of COMPILED_BLOCKED_TERMS) {
+    if (regex.test(normalized)) {
+      // Kategorija ide u `studioModerationLog`; korisniku se NE otkriva koji
+      // je pojam pogodio (poruka u `studio-messages.ts` ostaje uopštena).
+      return { ok: false, reason: "ZABRANJEN_POJAM", category };
+    }
   }
 
   return { ok: true };

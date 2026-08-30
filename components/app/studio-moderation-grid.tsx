@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePaginatedQuery, useMutation, useQuery } from "convex/react";
 import Image from "next/image";
-import { Eye, Loader2, Play, Search, Volume2, X } from "lucide-react";
+import { Eye, Play, Search, Volume2, X } from "lucide-react";
 
 import { CreditIcon } from "@/components/studio/credit-icon";
 import { cn } from "@/components/ui/primitives";
+import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { Locale } from "@/lib/i18n";
@@ -225,7 +226,7 @@ export function StudioModerationGrid({
       {/* ── Mreža ────────────────────────────────────────────────────────────── */}
       {isLoadingFirst ? (
         <div className="grid place-items-center py-16">
-          <Loader2 className="size-6 animate-spin text-muted" />
+          <Spinner size="lg" className="text-muted" />
         </div>
       ) : rawJobs.length === 0 ? (
         <div className="surface-card mx-auto max-w-md border-2 border-ink bg-paper-strong p-6 text-center shadow-[3px_3px_0_0_var(--shadow-hard-12)]">
@@ -261,7 +262,7 @@ export function StudioModerationGrid({
           {jobStatus === "LoadingMore" ? (
             <div className="flex justify-center py-4">
               <span className="inline-flex items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 py-2 text-xs font-extrabold text-ink shadow-[2px_2px_0_0_var(--shadow-hard-14)]">
-                <Loader2 className="size-4 animate-spin text-muted" />
+                <Spinner className="text-muted" />
                 {locale === "sr" ? "Učitavanje još…" : "Loading more…"}
               </span>
             </div>
@@ -397,7 +398,7 @@ function ModerationTile({
             }}
             className={cn(CHIP, "border-ink bg-paper-strong text-ink hover:-translate-y-0.5")}
           >
-            {isRevealing ? <Loader2 className="size-3.5 animate-spin" /> : <Eye className="size-3.5" />}
+            {isRevealing ? <Spinner size="xs" /> : <Eye className="size-3.5" />}
             {REVEAL_DETAILS[locale]}
           </button>
           <p className="mt-1 text-[10px] font-bold text-muted">{REVEAL_AUDIT_NOTE[locale]}</p>

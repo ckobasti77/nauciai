@@ -189,7 +189,7 @@ export function ContextSidebarNav({
       </Item>
       {leading ? <Item reduce={reduce}>{leading}</Item> : null}
       {groupLabel ? (
-        <p className="px-3 pb-1 pt-3 text-[11px] font-black uppercase tracking-[0.04em] text-muted">
+        <p className="px-3 pb-1 pt-3 type-eyebrow text-muted">
           {groupLabel}
         </p>
       ) : null}

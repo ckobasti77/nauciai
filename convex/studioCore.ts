@@ -63,6 +63,150 @@ export function hasStudioAccess(
   return enrollment !== null && enrollment !== undefined ? true : isStudioStaff(role);
 }
 
+// ── JAVNI STUDIO (studio-public F1) ─────────────────────────────────────────
+
+/**
+ * Fleg koji Studio otvara ŠIROJ javnosti: svaki prijavljen korisnik sa
+ * potvrđenim emailom, bez upisa na kurs. Red u `platformFlags`, ali sa
+ * SUPROTNIM podrazumevanjem od `studio_enabled`: kill switch bez reda znači
+ * "radi" (osoblje ne sme da ostane zaključano zbog praznog seed-a), a javni
+ * fleg bez reda znači "OFF" — svet se ne pušta unutra dok Jovan ručno ne
+ * upiše red preko `studioAdmin.setStudioPublicFlag`. Zato ovaj ključ NE SME
+ * u `platformFlagKeys` u `seed.ts` — seed ubacuje `enabled: true`.
+ */
+export const STUDIO_PUBLIC_FLAG_KEY = "studio_public";
+
+/**
+ * Numerički konfig redovi u istoj tabeli kao fleg (zahtev brifa). Override
+ * važi samo kad je red `enabled: true` sa celim brojem > 0 — `enabled: false`
+ * je besplatan "vrati na podrazumevano" bez brisanja reda.
+ */
+export const STUDIO_PUBLIC_CONFIG_KEYS = {
+  maxConcurrentJobs: "studio_public_max_concurrent_jobs",
+  maxJobsPerMinute: "studio_public_max_jobs_per_minute",
+  maxJobsPerDay: "studio_public_max_jobs_per_day",
+  maxDailyCredits: "studio_public_max_daily_credits",
+} as const;
+
+/**
+ * Podrazumevani javni limiti (brif F2.4): 2 istovremena posla, 6 u minutu,
+ * 200 dnevno, 500 kredita potrošnje dnevno (≈ 5 € maloprodajno — soft cap sa
+ * jasnom porukom, krediti ostaju). Osoblje NIKAD ne ide kroz ove limite —
+ * vidi `resolveStudioLimits`.
+ */
+export const PUBLIC_LIMIT_DEFAULTS = {
+  maxConcurrentJobs: 2,
+  maxJobsPerMinute: 6,
+  maxJobsPerDay: 200,
+  maxDailyCredits: 500,
+} as const;
+
+/** Učitani override-ovi iz `platformFlags`; odsutno polje = podrazumevano. */
+export type StudioPublicConfig = Partial<{
+  maxConcurrentJobs: number;
+  maxJobsPerMinute: number;
+  maxJobsPerDay: number;
+  maxDailyCredits: number;
+}>;
+
+/** `null` = limit se ne primenjuje (osoblje nema minutni ni kreditni kap). */
+export type ResolvedStudioLimits = {
+  maxConcurrentJobs: number;
+  maxJobsPerMinute: number | null;
+  maxJobsPerDay: number;
+  maxDailyCredits: number | null;
+};
+
+function positiveInt(value: number | undefined): number | undefined {
+  return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : undefined;
+}
+
+/**
+ * Osoblje zadržava DANAŠNJE granice bez obzira na fleg (3 posla, 50/dan, bez
+ * minutnog i kreditnog kapa) — "fleg OFF ⇒ ništa se ne menja" time važi
+ * trivijalno, a admin/moderator testiranje kataloga ne udara u javne kapove.
+ * Javni korisnici postoje kao pozivaoci tek kad je fleg ON i dobijaju javni
+ * okvir {2, 6, 200, 500} sa config override-om.
+ */
+export function resolveStudioLimits(
+  config: StudioPublicConfig,
+  isStaff: boolean,
+): ResolvedStudioLimits {
+  if (isStaff) {
+    return {
+      maxConcurrentJobs: MAX_ACTIVE_JOBS,
+      maxJobsPerMinute: null,
+      maxJobsPerDay: MAX_DAILY_GENERATIONS,
+      maxDailyCredits: null,
+    };
+  }
+  return {
+    maxConcurrentJobs:
+      positiveInt(config.maxConcurrentJobs) ?? PUBLIC_LIMIT_DEFAULTS.maxConcurrentJobs,
+    maxJobsPerMinute:
+      positiveInt(config.maxJobsPerMinute) ?? PUBLIC_LIMIT_DEFAULTS.maxJobsPerMinute,
+    maxJobsPerDay: positiveInt(config.maxJobsPerDay) ?? PUBLIC_LIMIT_DEFAULTS.maxJobsPerDay,
+    maxDailyCredits:
+      positiveInt(config.maxDailyCredits) ?? PUBLIC_LIMIT_DEFAULTS.maxDailyCredits,
+  };
+}
+
+/**
+ * Predikat "potvrđen email" ZA STUDIO — namerno širi od kursnog
+ * `emailVerifiedForCourses` (helpers.ts / profiles.ts), koji za Google-only
+ * naloge ignoriše `emailVerificationTime`. Studio ga priznaje: Google je
+ * inbox već verifikovao (`email_verified` claim iz IdP-a, vidi
+ * `auth.ts` profile()), pa "Probaj besplatno → Google prijava → Studio" ne
+ * sme da traži drugu potvrdu. Kursni predikat se NE dira — on čuva i
+ * postavljanje lozinke, gde je app-kontrolisan dokaz o inboxu namerno stroži.
+ */
+export function isEmailVerifiedForStudio(user: Record<string, unknown> | null): boolean {
+  // `Record<string, unknown>` umesto `Doc<"users">` iz istog razloga kao
+  // `role: unknown` u `hasStudioAccess`: `getCurrentProfile` vraća labavi
+  // `DocLike`, a čista funkcija ionako čita samo tri pečata.
+  if (!user) return false;
+  return Boolean(
+    user.appEmailVerificationTime ||
+      user.passwordEmailVerificationTime ||
+      user.emailVerificationTime,
+  );
+}
+
+export type StudioAccessReason = "NEMA_PRISTUPA" | "EMAIL_NIJE_POTVRDJEN";
+
+export type StudioAccessDecision =
+  | { allowed: true }
+  | { allowed: false; reason: StudioAccessReason };
+
+/**
+ * Jedina tačka odluke o pristupu otkad postoji javni fleg — `createJob`,
+ * `getStudioState` i gejtovane pomoćne mutacije zovu OVU funkciju, nikad više
+ * `hasStudioAccess` direktno. Fleg OFF grana DELEGIRA na netaknut
+ * `hasStudioAccess`, pa X8 semantika (`STUDIO_STAFF_ONLY`, upis kao uspavana
+ * formula, treći test-only argument) važi u potpunosti i dalje. Fleg ON:
+ * osoblje uvek; ostali sa potvrđenim emailom (upisan-ali-nepotvrđen NE
+ * zaobilazi potvrdu — brif traži "prijavljen korisnik sa POTVRĐENIM emailom").
+ */
+export function decideStudioAccess(
+  input: {
+    role: unknown;
+    enrollment: unknown;
+    publicEnabled: boolean;
+    emailVerified: boolean;
+  },
+  staffOnly: boolean = STUDIO_STAFF_ONLY,
+): StudioAccessDecision {
+  if (input.publicEnabled) {
+    if (isStudioStaff(input.role)) return { allowed: true };
+    return input.emailVerified
+      ? { allowed: true }
+      : { allowed: false, reason: "EMAIL_NIJE_POTVRDJEN" };
+  }
+  return hasStudioAccess(input.role, input.enrollment, staffOnly)
+    ? { allowed: true }
+    : { allowed: false, reason: "NEMA_PRISTUPA" };
+}
+
 /** Ključ reda u `studioUsageDaily`: UTC dan, "2026-08-18". */
 export function dayKey(now: number): string {
   return new Date(now).toISOString().slice(0, 10);
@@ -167,6 +311,29 @@ export function computeCreditCost(model: PricedModel, params: Record<string, unk
   }
 
   return Math.ceil(model.costPerSecond * duration) * images;
+}
+
+/**
+ * Nabavna procena mora da raste ISTIM faktorima kao naplata (studio-public
+ * F2.8, nalaz R8): `estimatedCostUsd` hrani dnevni plafon od 5 $, in-flight
+ * granicu od 3 $ i globalni kill od 100 $, pa je per-second model bez množenja
+ * trajanjem potcenjivao trošak tačno onoliko puta koliko klip traje.
+ * `estimatedCostUsd` u katalogu je cena JEDNE sekunde kad model ima
+ * `costPerSecond` (paralelno sa kreditima), inače cena jednog izlaza.
+ */
+export function computeEstimatedCostUsd(
+  model: Pick<PricedModel, "costPerSecond"> & { estimatedCostUsd: number },
+  params: Record<string, unknown>,
+): number {
+  const images = requestedImageCount(params);
+  if (model.costPerSecond === undefined) return model.estimatedCostUsd * images;
+
+  const duration = params.duration;
+  if (typeof duration !== "number" || !Number.isFinite(duration) || duration <= 0) {
+    throw new Error("NEISPRAVNO_TRAJANJE");
+  }
+
+  return model.estimatedCostUsd * duration * images;
 }
 
 /** ECB kurs iz STUDIO-PLAN §2 (14.08.2026): 1 $ = 0,865 €. Nije uživo - ista pretpostavka kao seed cena. */

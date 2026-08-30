@@ -10,7 +10,6 @@ import {
   FileText,
   GripVertical,
   ImageIcon,
-  Loader2,
   MessageSquareText,
   Mic2,
   Save,
@@ -26,6 +25,7 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { InlineContentText } from "@/components/app/inline-content";
 import { cn } from "@/components/ui/primitives";
+import { Spinner } from "@/components/ui/spinner";
 import type { Course, Lesson } from "@/lib/content";
 import { lessonEditPath } from "@/lib/app-routes";
 import { localized, t, type Locale, withLocale } from "@/lib/i18n";
@@ -179,7 +179,7 @@ function QuickPromptButton({
     >
       <Sparkles className={cn("size-3.5", copied && "text-green-600")} />
       {t(locale, prompt.labelSr, prompt.labelEn)}
-      {copied && <span className="text-[10px] font-bold text-green-650 ml-0.5">({t(locale, "Kopirano", "Copied")})</span>}
+      {copied && <span className="type-caption font-bold text-green-650 ml-0.5">({t(locale, "Kopirano", "Copied")})</span>}
     </button>
   );
 }
@@ -429,8 +429,8 @@ export function CourseLab({
       <div className="grid min-h-[560px] place-items-center rounded-[8px] border-2 border-ink bg-paper p-8 text-center">
         <div className="max-w-md">
           <Sparkles className="mx-auto size-10 text-ink" />
-          <h2 className="mt-4 text-2xl font-black text-ink">{t(locale, "Pro prikaz je spreman", "Pro view is ready")}</h2>
-          <p className="mt-2 text-sm font-bold leading-6 text-muted">{t(locale, "Dodaj prvi korak i zadatak u Pro editoru da bi se troslojni harness pojavio.", "Add the first step and task in the Pro editor to populate the three-column harness.")}</p>
+          <h2 className="mt-4 type-h2 text-ink">{t(locale, "Pro prikaz je spreman", "Pro view is ready")}</h2>
+          <p className="mt-2 type-body-sm font-bold text-muted">{t(locale, "Dodaj prvi korak i zadatak u Pro editoru da bi se troslojni harness pojavio.", "Add the first step and task in the Pro editor to populate the three-column harness.")}</p>
           {lab.isAdmin && !inlineEdit ? <Link href={lessonEditPath(locale, course.slug, lesson.slug)} className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black">{t(locale, "Otvori Pro editor", "Open Pro editor")}</Link> : null}
         </div>
       </div>
@@ -462,8 +462,8 @@ export function CourseLab({
     <div className="min-h-[calc(100vh-120px)] overflow-hidden rounded-[8px] border-2 border-ink bg-paper shadow-[6px_6px_0_0_var(--shadow-hard-13)]">
       <div className="flex flex-col gap-3 border-b-2 border-ink bg-paper-strong px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0">
-          <p className="text-xs font-black uppercase text-muted">{localized(course.title, locale)}</p>
-          <h1 className="truncate text-xl font-black text-ink">{localized(lesson.title, locale)}</h1>
+          <p className="type-eyebrow text-muted">{localized(course.title, locale)}</p>
+          <h1 className="truncate type-h2 text-ink">{localized(lesson.title, locale)}</h1>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {lab.isAdmin && !inlineEdit ? (
@@ -505,14 +505,14 @@ export function CourseLab({
             >
               {col.type === "explanation" && (
                 <section className="h-full w-full bg-paper-strong overflow-hidden">
-                  <div className="max-h-full overflow-y-auto p-5 select-text">
-                    <p className="text-xs font-black uppercase text-muted">{t(locale, "Lekcija", "Lesson")}</p>
-                    <h2 className="mt-2 text-3xl font-black leading-tight text-ink">
+                  <div className="max-h-full overflow-y-auto p-6 select-text">
+                    <p className="type-eyebrow text-muted">{t(locale, "Lekcija", "Lesson")}</p>
+                    <h2 className="mt-2 type-h1 text-ink">
                       <InlineContentText entityId={activeStep._id} parentId={lessonId} kind="step" field="title" locale={inlineLocale} sr={activeStep.titleSr} en={activeStep.titleEn} admin={inlineEdit}>
                         {localText(locale, activeStep.titleSr, activeStep.titleEn)}
                       </InlineContentText>
                     </h2>
-                    <p className="mt-4 whitespace-pre-wrap text-base leading-8 text-muted">
+                    <p className="mt-4 whitespace-pre-wrap type-reading type-measure text-muted">
                       <InlineContentText entityId={activeStep._id} parentId={lessonId} kind="step" field="body" locale={inlineLocale} sr={activeStep.bodySr} en={activeStep.bodyEn} admin={inlineEdit} multiline>
                         {localText(locale, activeStep.bodySr, activeStep.bodyEn)}
                       </InlineContentText>
@@ -520,7 +520,7 @@ export function CourseLab({
 
                     {activeStep.prompts && (activeStep.prompts as QuickPrompt[]).length > 0 && (
                       <div className="mt-6 border-t-2 border-line pt-4">
-                        <p className="text-xs font-black uppercase text-muted mb-3">
+                        <p className="type-eyebrow text-muted mb-3">
                           {t(locale, "Brzi promptovi (klikni za kopiranje)", "Quick Prompts (click to copy)")}
                         </p>
                         <div className="flex flex-wrap gap-2">
@@ -536,7 +536,7 @@ export function CourseLab({
                     <div className="mt-6 border-t-2 border-line pt-4">
                       <div className="flex items-center gap-2">
                         <CheckCircle2 className="size-5 text-ink" />
-                        <h3 className="text-lg font-black text-ink">{t(locale, "Zadaci", "Tasks")}</h3>
+                        <h3 className="type-h3 text-ink">{t(locale, "Zadaci", "Tasks")}</h3>
                       </div>
                       <div className="mt-4 space-y-3">
                         {sortedTasks.map((task, index) => {
@@ -557,11 +557,11 @@ export function CourseLab({
                               <div className="flex items-start gap-3">
                                 {done ? <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-yellow" /> : <Circle className="mt-0.5 size-5 shrink-0 text-line" />}
                                 <div>
-                                  <p className="text-xs font-black uppercase text-muted">
+                                  <p className="type-eyebrow text-muted">
                                     {t(locale, "Checkpoint", "Checkpoint")} {index + 1}
                                     {task.required ? " *" : ""}
                                   </p>
-                                  <p className="mt-1 text-sm font-bold leading-6 text-ink">
+                                  <p className="mt-1 type-body-sm font-bold text-ink">
                                     <InlineContentText entityId={task._id} parentId={activeStep._id} kind="task" field="prompt" locale={inlineLocale} sr={task.promptSr} en={task.promptEn} admin={inlineEdit} multiline>
                                       {localText(locale, task.promptSr, task.promptEn)}
                                     </InlineContentText>
@@ -575,7 +575,7 @@ export function CourseLab({
                       {selectedTask?.hintSr || selectedTask?.hintEn ? (
                         <details className="mt-4 rounded-[8px] border-2 border-ink bg-yellow/40 p-3">
                           <summary className="cursor-pointer text-sm font-black text-ink">{t(locale, "Stuck? Otvori hint", "Stuck? Open hint")}</summary>
-                          <p className="mt-3 text-sm font-bold leading-6 text-muted">
+                          <p className="mt-3 type-body-sm font-bold text-muted">
                             <InlineContentText entityId={selectedTask._id} parentId={activeStep._id} kind="task" field="hint" locale={inlineLocale} sr={selectedTask.hintSr ?? ""} en={selectedTask.hintEn ?? ""} admin={inlineEdit} multiline>
                               {localText(locale, selectedTask.hintSr ?? "", selectedTask.hintEn ?? "")}
                             </InlineContentText>
@@ -597,7 +597,7 @@ export function CourseLab({
                             <Bot className="size-5" />
                           </span>
                           <div>
-                            <p className="text-lg font-black text-ink">AI Workspace</p>
+                            <p className="type-h3 text-ink">AI Workspace</p>
                             <p className="text-xs font-bold text-muted">{outputLabel(activeStep.outputKind, locale)} output</p>
                           </div>
                         </div>
@@ -615,8 +615,8 @@ export function CourseLab({
                       </div>
                       {unconnectedModels.has(selectedModel) ? <p className="mt-2 text-xs font-black text-muted">{t(locale, "Model je prikazan za pregled. Integracija uskoro.", "Model is shown for preview. Integration coming soon.")}</p> : null}
                       <div className="mt-4 rounded-[8px] border-2 border-line bg-paper p-3">
-                        <p className="text-xs font-black uppercase text-muted">{t(locale, "Trenutni zadatak", "Current task")}</p>
-                        <p className="mt-1 text-sm font-bold leading-6 text-ink">
+                        <p className="type-eyebrow text-muted">{t(locale, "Trenutni zadatak", "Current task")}</p>
+                        <p className="mt-1 type-body-sm font-bold text-ink">
                           {selectedTask ? localText(locale, selectedTask.promptSr, selectedTask.promptEn) : t(locale, "Nema taska.", "No task.")}
                         </p>
                       </div>
@@ -637,12 +637,12 @@ export function CourseLab({
                       {chatMessages.length ? (
                         chatMessages.map((message) => (
                           <div key={message.id} className={cn("max-w-[88%] rounded-[8px] border-2 p-3", message.role === "assistant" ? "border-ink bg-paper-strong" : "ml-auto border-ink bg-yellow")}>
-                            <p className="text-xs font-black uppercase text-muted">{message.role === "assistant" ? "AI" : t(locale, "Ti", "You")}</p>
-                            <p className="mt-1 whitespace-pre-wrap text-sm font-bold leading-6 text-ink">{message.content}</p>
+                            <p className="type-eyebrow text-muted">{message.role === "assistant" ? "AI" : t(locale, "Ti", "You")}</p>
+                            <p className="mt-1 whitespace-pre-wrap type-body-sm font-bold text-ink">{message.content}</p>
                           </div>
                         ))
                       ) : (
-                        <div className="rounded-[8px] border-2 border-dashed border-line bg-paper-strong p-5 text-center">
+                        <div className="rounded-[8px] border-2 border-dashed border-line bg-paper-strong p-6 text-center">
                           <MessageSquareText className="mx-auto size-8 text-ink" />
                           <p className="mt-3 text-sm font-black text-muted">
                             {t(locale, "Pitaj AI za pomoc oko trenutnog zadatka.", "Ask AI for help with the current task.")}
@@ -656,7 +656,7 @@ export function CourseLab({
                           value={composer}
                           onChange={(event) => setComposer(event.target.value)}
                           placeholder={t(locale, "Posalji poruku...", "Send a message...")}
-                          className="min-h-12 flex-1 resize-none rounded-[8px] border-2 border-ink px-3 py-2 text-sm font-bold text-ink outline-none"
+                          className="min-h-12 flex-1 resize-none rounded-[8px] border-2 border-ink px-3 py-2 text-sm font-bold text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                         />
                         <button
                           type="button"
@@ -664,7 +664,7 @@ export function CourseLab({
                           disabled={isSending || !composer.trim()}
                           className="inline-flex min-h-12 min-w-12 items-center justify-center rounded-[8px] border-2 border-ink bg-yellow text-ink disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                          {isSending ? <Loader2 className="size-5 animate-spin" /> : <Send className="size-5" />}
+                          {isSending ? <Spinner size="md" /> : <Send className="size-5" />}
                         </button>
                       </div>
                       <button
@@ -673,7 +673,7 @@ export function CourseLab({
                         disabled={isSavingOutput || !lastAssistant}
                         className="mt-3 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-ink px-4 text-sm font-black text-paper-strong disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        {isSavingOutput ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+                        {isSavingOutput ? <Spinner /> : <Save className="size-4" />}
                         {t(locale, "Save to output", "Save to output")}
                       </button>
                     </div>
@@ -683,11 +683,11 @@ export function CourseLab({
 
               {col.type === "output" && (
                 <section className="h-full w-full bg-paper-strong overflow-hidden">
-                  <div className="max-h-full overflow-y-auto p-5 select-text">
+                  <div className="max-h-full overflow-y-auto p-6 select-text">
                     <div className="flex items-center justify-between gap-3">
                       <div>
-                        <p className="text-xs font-black uppercase text-muted">Output</p>
-                        <h2 className="text-2xl font-black text-ink">{outputLabel(activeStep.outputKind, locale)}</h2>
+                        <p className="type-eyebrow text-muted">Output</p>
+                        <h2 className="type-h2 text-ink">{outputLabel(activeStep.outputKind, locale)}</h2>
                       </div>
                       <span className="inline-flex size-10 items-center justify-center rounded-[8px] border-2 border-ink bg-yellow text-ink">
                         <OutputKindIcon kind={activeStep.outputKind} className="size-5" />
@@ -705,7 +705,7 @@ export function CourseLab({
                     {latestOutput ? (
                       <div className="mt-5 rounded-[8px] border-2 border-ink bg-paper p-4">
                         <p className="text-sm font-black text-ink">{latestOutput.title}</p>
-                        <p className="mt-1 text-xs font-bold uppercase text-muted">{latestOutput.status}</p>
+                        <p className="mt-1 type-eyebrow text-muted">{latestOutput.status}</p>
                         {latestOutput.kind === "image" && (latestOutput.storageUrl || latestOutput.url) ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={latestOutput.storageUrl ?? latestOutput.url} alt={latestOutput.title} className="mt-4 aspect-video w-full rounded-[8px] border-2 border-ink object-cover" />
@@ -717,7 +717,7 @@ export function CourseLab({
                           <video className="mt-4 aspect-video w-full rounded-[8px] border-2 border-ink bg-scrim" src={latestOutput.storageUrl ?? latestOutput.url} controls />
                         ) : null}
                         {latestOutput.text ? (
-                          <p className="mt-4 whitespace-pre-wrap rounded-[8px] border-2 border-line bg-paper-strong p-3 text-sm font-bold leading-6 text-ink">
+                          <p className="mt-4 whitespace-pre-wrap rounded-[8px] border-2 border-line bg-paper-strong p-3 type-body-sm font-bold text-ink">
                             {latestOutput.text}
                           </p>
                         ) : null}

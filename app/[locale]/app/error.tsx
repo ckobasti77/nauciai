@@ -26,13 +26,13 @@ export default function DashboardError({
       role="alert"
     >
       <div className="max-w-md">
-        <p className="font-display text-2xl text-ink">
+        <p className="font-display type-display-sm text-ink">
           {locale === "sr" ? "Tabla je nakratko zastala." : "The board paused for a moment."}
         </p>
-        <h2 className="mt-2 text-2xl font-black text-ink">
+        <h2 className="mt-2 type-h2 text-ink">
           {locale === "sr" ? "Pregled nije učitan" : "The overview did not load"}
         </h2>
-        <p className="mt-3 text-sm font-semibold leading-6 text-muted">
+        <p className="mt-3 type-body-sm font-semibold text-muted">
           {locale === "sr"
             ? "Pokušaj ponovo. Tvoj napredak je sačuvan i ništa nije izgubljeno."
             : "Try again. Your progress is saved and nothing was lost."}

@@ -63,7 +63,8 @@ import {
   clampAppSidebarWidth,
   serializeAppSidebarPreferences,
 } from "@/lib/app-sidebar-preferences";
-import { classroomPath, coursePath, lessonPath } from "@/lib/app-routes";
+import { classroomPath, courseCatalogPath, coursePath, lessonPath } from "@/lib/app-routes";
+import { lessonPosition, lessonPositionLabel } from "@/lib/lesson-position";
 import { publicProfilePath } from "@/lib/profile-links";
 import type { AppCourseNav, AppNavigationData } from "@/lib/app-navigation";
 import { primaryCourseSlug } from "@/lib/content";
@@ -280,7 +281,7 @@ function SidebarAdminActions({
   return (
     <div
       className={cn(
-        "sidebar-action-cluster pointer-events-auto flex shrink-0 items-center gap-1 rounded-[7px] bg-paper-strong/95 p-0.5 shadow-[2px_2px_0_0_var(--shadow-hard-12)] transition",
+        "sidebar-action-cluster pointer-events-auto flex shrink-0 items-center gap-1 rounded-[8px] bg-paper-strong/95 p-0.5 shadow-[2px_2px_0_0_var(--shadow-hard-12)] transition",
         className,
       )}
     >
@@ -305,7 +306,20 @@ const switcherRowLink =
   "flex min-h-11 min-w-0 flex-1 items-center gap-3 px-3 py-2 text-sm font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink";
 
 const switcherRowIcon =
-  "grid size-8 shrink-0 place-items-center rounded-[8px] border-2 border-ink/15 bg-paper-strong";
+  "grid size-8 shrink-0 place-items-center surface-media border-2 border-ink/15 bg-paper-strong";
+
+/**
+ * Plocica reda LEKCIJE. Nosi redni broj umesto uvek iste ikonice, a na otvorenoj
+ * lekciji se puni mastilom — to je vizuelni deo markera „gde sam". Klase se biraju
+ * ovde, a ne spajanjem u pozivaocu: `cn` je obicno spajanje, pa bi `border-ink` i
+ * `border-ink/15` u istoj nisci ostavili ishod redosledu u Tailwind izlazu.
+ */
+function switcherLessonIcon(active: boolean) {
+  return cn(
+    "grid size-8 shrink-0 place-items-center surface-media border-2",
+    active ? "border-ink bg-ink text-paper-strong" : "border-ink/15 bg-paper-strong text-ink",
+  );
+}
 
 /**
  * One control for the two halves of the same choice: which course, and which lesson
@@ -358,6 +372,9 @@ function LearningSwitcher({
   const currentLesson = currentLessonSlug
     ? directLessons.find((lesson) => lesson.slug === currentLessonSlug)
     : undefined;
+  // „Gde sam" nije samo „koja je lekcija otvorena" nego i „koja je po redu": za
+  // pocetnika je bas taj drugi podatak ono sto smiruje. `null` kad pozicije nema.
+  const currentPosition = lessonPosition(directLessons, currentLessonSlug);
   const currentStatus =
     currentCourse.status !== "published"
       ? locale === "sr"
@@ -395,11 +412,11 @@ function LearningSwitcher({
                 <GraduationCap className="size-5" />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block text-[9px] font-black uppercase tracking-[0.12em] text-muted">
+                <span className="block type-eyebrow-sm text-muted">
                   {locale === "sr" ? "Kurs" : "Course"}
                 </span>
                 <span className="block truncate">{localized(currentCourse.title, locale)}</span>
-                <span className="mt-1 inline-flex items-center rounded-full bg-ink px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.08em] text-paper-strong">
+                <span className="mt-1 inline-flex items-center rounded-full bg-ink px-2 py-0.5 type-eyebrow-sm text-paper-strong">
                   {currentStatus}
                 </span>
               </span>
@@ -410,8 +427,12 @@ function LearningSwitcher({
                   <PlayCircle className="size-4" />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block text-[9px] font-black uppercase tracking-[0.12em] text-muted">
-                    {locale === "sr" ? "Lekcija" : "Lesson"}
+                  <span className="block type-eyebrow-sm text-muted">
+                    {currentPosition
+                      ? lessonPositionLabel(locale, currentPosition)
+                      : locale === "sr"
+                        ? "Lekcija"
+                        : "Lesson"}
                   </span>
                   <span className="block truncate">{localized(currentLesson.title, locale)}</span>
                 </span>
@@ -435,7 +456,7 @@ function LearningSwitcher({
             transition={{ duration: 0.18, ease: "easeOut" }}
             className="relative z-20 mt-3 rounded-[16px] border-2 border-ink bg-paper-strong p-3 shadow-[6px_6px_0_0_var(--shadow-hard)]"
           >
-            <p className="px-1 text-[10px] font-black uppercase tracking-[0.14em] text-muted">
+            <p className="px-1 type-eyebrow-sm text-muted">
               {locale === "sr" ? "Tvoje učenje" : "Your learning"}
             </p>
             <div
@@ -455,7 +476,7 @@ function LearningSwitcher({
                     aria-controls={`${tabsId}-panel-${key}`}
                     onClick={() => setTab(key)}
                     className={cn(
-                      "flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-full px-3 text-[11px] font-black uppercase tracking-[0.06em] transition",
+                      "flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-full px-3 type-eyebrow transition",
                       selected ? "bg-ink text-paper-strong" : "text-muted hover:text-ink",
                     )}
                   >
@@ -466,7 +487,7 @@ function LearningSwitcher({
                       : dictionary[locale].lessons}
                     <span
                       className={cn(
-                        "rounded-full px-1.5 py-0.5 text-[10px] leading-none",
+                        "rounded-full px-1.5 py-0.5 type-caption",
                         selected ? "bg-paper-strong/25 text-paper-strong" : "bg-paper-strong text-muted",
                       )}
                     >
@@ -486,7 +507,7 @@ function LearningSwitcher({
                 ? trackGroups.map((group) => (
                     <div key={group.key} className="space-y-2">
                       {group.title ? (
-                        <p className="px-1 pt-1 text-[10px] font-black uppercase tracking-[0.12em] text-muted">
+                        <p className="px-1 pt-1 type-eyebrow-sm text-muted">
                           {group.title}
                         </p>
                       ) : null}
@@ -526,7 +547,7 @@ function LearningSwitcher({
                                   </span>
                                   <span className="min-w-0 flex-1">
                                     <span className="block truncate text-ink">{localized(course.title, locale)}</span>
-                                    <span className="mt-1 inline-flex rounded-full border border-line bg-paper-strong px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.08em] text-muted">
+                                    <span className="mt-1 inline-flex rounded-full border border-line bg-paper-strong px-2 py-0.5 type-eyebrow-sm text-muted">
                                       {statusLabel}
                                     </span>
                                   </span>
@@ -543,7 +564,7 @@ function LearningSwitcher({
                                   </span>
                                   <span className="min-w-0 flex-1">
                                     <span className="block truncate">{localized(course.title, locale)}</span>
-                                    <span className="mt-1 inline-flex items-center gap-1 rounded-full border border-line bg-paper-strong px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.08em] text-muted">
+                                    <span className="mt-1 inline-flex items-center gap-1 rounded-full border border-line bg-paper-strong px-2 py-0.5 type-eyebrow-sm text-muted">
                                       {locked ? <Lock className="size-3" /> : <ShieldCheck className="size-3" />}
                                       {statusLabel}
                                     </span>
@@ -617,7 +638,7 @@ function LearningSwitcher({
                           {locale === "sr" ? "Kurs još nema lekcije." : "This course has no lessons yet."}
                         </p>
                       )}
-                      {directLessons.map((lesson) => {
+                      {directLessons.map((lesson, lessonIndex) => {
                         const active = currentLessonSlug === lesson.slug;
                         return (
                           <motion.div key={lesson.id ?? lesson.slug} layout className={switcherRowShell(active)}>
@@ -627,12 +648,21 @@ function LearningSwitcher({
                               aria-current={active ? "page" : undefined}
                               className={switcherRowLink}
                             >
-                              <span className={switcherRowIcon}>
-                                <PlayCircle className="size-4" />
+                              <span className={switcherLessonIcon(active)}>
+                                {active ? (
+                                  <PlayCircle aria-hidden="true" className="size-4" />
+                                ) : (
+                                  <span className="type-eyebrow-sm">{lessonIndex + 1}</span>
+                                )}
                               </span>
                               <span className="min-w-0 flex-1 truncate">{localized(lesson.title, locale)}</span>
+                              {active ? (
+                                <span className="shrink-0 rounded-full border-2 border-ink bg-paper-strong px-2 py-0.5 type-eyebrow-sm text-ink">
+                                  {locale === "sr" ? "Ovde si" : "You are here"}
+                                </span>
+                              ) : null}
                               {isAdmin && !lesson.isPublished ? (
-                                <span className="shrink-0 rounded-full border border-ink bg-paper px-2 py-0.5 text-[9px] font-black uppercase">
+                                <span className="shrink-0 rounded-full border border-ink bg-paper px-2 py-0.5 type-eyebrow-sm">
                                   Nacrt
                                 </span>
                               ) : null}
@@ -895,7 +925,7 @@ function SidebarRoleBadge({
       aria-label={`${locale === "sr" ? "Uloga" : "Role"}: ${label}`}
       title={label}
       className={cn(
-        "flex shrink-0 items-center gap-1 rounded-full border-2 border-ink px-2 py-1 text-[9px] font-black uppercase leading-none tracking-[0.04em] text-ink shadow-[2px_2px_0_0_var(--shadow-hard-12)]",
+        "flex shrink-0 items-center gap-1 rounded-full border-2 border-ink px-2 py-1 type-eyebrow-sm text-ink shadow-[2px_2px_0_0_var(--shadow-hard-12)]",
         tone,
       )}
     >
@@ -1010,7 +1040,7 @@ function AppBottomNav({
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const className = cn(
-            "relative flex min-h-14 w-full flex-col items-center justify-center gap-0.5 px-1 pb-1.5 pt-2 text-[10px] font-black uppercase tracking-[0.04em] transition focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink",
+            "relative flex min-h-14 w-full flex-col items-center justify-center gap-0.5 px-1 pb-1.5 pt-2 type-eyebrow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink",
             tab.active ? "text-ink" : "text-muted",
           );
           const inner = (
@@ -1567,7 +1597,7 @@ function AppSidebarContent({
             aria-expanded={mobileOpen}
             aria-controls="app-sidebar-drawer"
             onClick={() => setMobileOpen(true)}
-            className="inline-flex min-h-11 items-center gap-2 border-2 border-ink bg-yellow px-3.5 text-xs font-black uppercase tracking-[0.06em] text-ink shadow-[3px_3px_0_var(--shadow-hard-16)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            className="inline-flex min-h-11 items-center gap-2 border-2 border-ink bg-yellow px-3.5 type-eyebrow text-ink shadow-[3px_3px_0_var(--shadow-hard-16)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
             <Menu className="size-5" aria-hidden="true" />
             {locale === "sr" ? "Više" : "More"}
@@ -1745,7 +1775,7 @@ function AppSidebarContent({
                   href={withLocale(locale, profilePath)}
                   onClick={() => setProfileMenuOpen(false)}
                   className={cn(
-                    "flex min-h-11 items-center gap-3 px-3 py-2 text-[13px] font-black uppercase text-ink transition font-extrabold",
+                    "flex min-h-11 items-center gap-3 px-3 py-2 type-eyebrow text-ink transition",
                     profileIncomplete
                       ? "bg-red-50 hover:bg-red-100"
                       : emailVerificationRequired
@@ -1765,9 +1795,9 @@ function AppSidebarContent({
                 </Link>
                 {hasAccountAdvisory ? (
                   <div className="space-y-1.5 bg-paper-strong px-2 py-2">
-                    {profileIncomplete ? <p className="rounded-full border border-red-400 bg-red-50 px-2.5 py-1 text-[10px] font-black text-red-900">{locale === "sr" ? "Dodaj korisničko ime" : "Add a username"}</p> : null}
-                    {emailVerificationRequired ? <p className="rounded-full border border-amber-400 bg-amber-50 px-2.5 py-1 text-[10px] font-black text-amber-900">{locale === "sr" ? "Verifikuj email za kurseve" : "Verify email for courses"}</p> : null}
-                    {passwordRecommended ? <p className="rounded-full border border-indigo-400 bg-indigo-50 px-2.5 py-1 text-[10px] font-black text-indigo-900">{locale === "sr" ? "Dodaj opcionu lozinku" : "Add an optional password"}</p> : null}
+                    {profileIncomplete ? <p className="rounded-full border border-red-400 bg-red-50 px-2.5 py-1 type-caption font-black text-red-900">{locale === "sr" ? "Dodaj korisničko ime" : "Add a username"}</p> : null}
+                    {emailVerificationRequired ? <p className="rounded-full border border-amber-400 bg-amber-50 px-2.5 py-1 type-caption font-black text-amber-900">{locale === "sr" ? "Verifikuj email za kurseve" : "Verify email for courses"}</p> : null}
+                    {passwordRecommended ? <p className="rounded-full border border-indigo-400 bg-indigo-50 px-2.5 py-1 type-caption font-black text-indigo-900">{locale === "sr" ? "Dodaj opcionu lozinku" : "Add an optional password"}</p> : null}
                   </div>
                 ) : null}
                 {/* publicProfilePath resolves the row above to the *public* member page as
@@ -1777,7 +1807,7 @@ function AppSidebarContent({
                   <Link
                     href={withLocale(locale, "/app/profile")}
                     onClick={() => setProfileMenuOpen(false)}
-                    className="flex min-h-11 items-center gap-3 bg-paper-strong px-3 py-2 text-[13px] font-black uppercase text-ink transition hover:bg-yellow/35 font-extrabold"
+                    className="flex min-h-11 items-center gap-3 bg-paper-strong px-3 py-2 type-eyebrow text-ink transition hover:bg-yellow/35"
                   >
                     <Settings className="size-4 shrink-0" />
                     <span>{accountSettingsLabel}</span>
@@ -1786,7 +1816,7 @@ function AppSidebarContent({
                 <Link
                   href={withLocale(locale, "/app/billing")}
                   onClick={() => setProfileMenuOpen(false)}
-                  className="flex min-h-11 items-center gap-3 bg-paper-strong px-3 py-2 text-[13px] font-black uppercase text-ink transition hover:bg-yellow/35 font-extrabold"
+                  className="flex min-h-11 items-center gap-3 bg-paper-strong px-3 py-2 type-eyebrow text-ink transition hover:bg-yellow/35"
                 >
                   <CreditCard className="size-4 shrink-0" />
                   <span>{t.billing}</span>
@@ -1795,9 +1825,9 @@ function AppSidebarContent({
                     <button>, so this is the only place the upgrade path can still be a link. */}
                 {showUpgrade ? (
                   <Link
-                    href={`${withLocale(locale)}#pricing`}
+                    href={courseCatalogPath(locale)}
                     onClick={() => setProfileMenuOpen(false)}
-                    className="flex min-h-11 items-center gap-3 bg-[#10b981] px-3 py-2 text-[13px] font-black uppercase text-white transition hover:bg-[#0ea472] font-extrabold"
+                    className="flex min-h-11 items-center gap-3 bg-[#10b981] px-3 py-2 type-eyebrow text-white transition hover:bg-[#0ea472]"
                   >
                     <ArrowUpRight className="size-4 shrink-0" />
                     <span>{upgradeLabel}</span>
@@ -1823,7 +1853,7 @@ function AppSidebarContent({
                       setProfileMenuOpen(false);
                       router.push(withLocale(locale, "/sign-in"));
                     }}
-                    className="inline-flex min-h-8 shrink-0 items-center justify-center gap-1.5 rounded-full border-2 border-ink bg-ink px-3 py-1 text-xs font-black uppercase text-paper-strong transition hover:bg-[#16446f] dark:hover:bg-ink/85 hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                    className="inline-flex min-h-8 shrink-0 items-center justify-center gap-1.5 rounded-full border-2 border-ink bg-ink px-3 py-1 type-eyebrow text-paper-strong transition hover:bg-[#16446f] dark:hover:bg-ink/85 hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                   >
                     <LogOut className="size-3.5 shrink-0" />
                     <span>{locale === "sr" ? "Odjavi se" : "Sign out"}</span>
@@ -1851,7 +1881,7 @@ function AppSidebarContent({
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-xs font-black leading-tight text-ink">{profileName}</p>
-              <p className="mt-0.5 truncate text-[10px] font-semibold leading-normal text-muted/80">{profileUsername}</p>
+              <p className="mt-0.5 truncate type-caption font-semibold text-muted/80">{profileUsername}</p>
             </div>
             <SidebarRoleBadge role={navigation.role} plan={navigation.plan} locale={locale} />
             <ChevronDown className={cn("size-4 shrink-0 transition-transform text-muted", profileMenuOpen && "rotate-180")} />
@@ -1865,7 +1895,7 @@ function AppSidebarContent({
         <div className="mt-4 flex items-center gap-3 border-t-2 border-ink pt-4 md:hidden">
           <div className="min-w-0 flex-1">
             <p className="truncate text-xs font-black leading-tight text-ink">{profileName}</p>
-            <p className="mt-0.5 truncate text-[10px] font-semibold leading-normal text-muted/80">{profileUsername}</p>
+            <p className="mt-0.5 truncate type-caption font-semibold text-muted/80">{profileUsername}</p>
           </div>
           <SidebarRoleBadge role={navigation.role} plan={navigation.plan} locale={locale} />
         </div>
@@ -1897,7 +1927,7 @@ function AppSidebarContent({
           </Link>
           {showUpgrade ? (
             <Link
-              href={`${withLocale(locale)}#pricing`}
+              href={courseCatalogPath(locale)}
               className="col-span-full inline-flex min-h-11 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-[#10b981] px-3 py-2 text-xs font-black text-white"
             >
               <ArrowUpRight className="size-4" />
@@ -1962,7 +1992,7 @@ function AppSidebarContent({
             <RailAction href={withLocale(locale, "/app/admin/chat")} label={locale === "sr" ? "Chat sigurnost" : "Chat safety"} icon={<Shield className="size-5" />} active={chatSafetyActive} />
           ) : null}
           {showUpgrade ? (
-            <RailAction href={`${withLocale(locale)}#pricing`} label={locale === "sr" ? "Unapredi" : "Upgrade"} icon={<ArrowUpRight className="size-5" />} />
+            <RailAction href={courseCatalogPath(locale)} label={locale === "sr" ? "Unapredi" : "Upgrade"} icon={<ArrowUpRight className="size-5" />} />
           ) : null}
             </nav>
           }
@@ -2020,9 +2050,9 @@ function AppSidebarContent({
                 </Link>
                 {hasAccountAdvisory ? (
                   <div className="mt-2 space-y-1.5">
-                    {profileIncomplete ? <p className="rounded-full border border-red-400 bg-red-50 px-2.5 py-1 text-[10px] font-black text-red-900">{locale === "sr" ? "Dodaj korisničko ime" : "Add a username"}</p> : null}
-                    {emailVerificationRequired ? <p className="rounded-full border border-amber-400 bg-amber-50 px-2.5 py-1 text-[10px] font-black text-amber-900">{locale === "sr" ? "Verifikuj email za kurseve" : "Verify email for courses"}</p> : null}
-                    {passwordRecommended ? <p className="rounded-full border border-indigo-400 bg-indigo-50 px-2.5 py-1 text-[10px] font-black text-indigo-900">{locale === "sr" ? "Dodaj opcionu lozinku" : "Add an optional password"}</p> : null}
+                    {profileIncomplete ? <p className="rounded-full border border-red-400 bg-red-50 px-2.5 py-1 type-caption font-black text-red-900">{locale === "sr" ? "Dodaj korisničko ime" : "Add a username"}</p> : null}
+                    {emailVerificationRequired ? <p className="rounded-full border border-amber-400 bg-amber-50 px-2.5 py-1 type-caption font-black text-amber-900">{locale === "sr" ? "Verifikuj email za kurseve" : "Verify email for courses"}</p> : null}
+                    {passwordRecommended ? <p className="rounded-full border border-indigo-400 bg-indigo-50 px-2.5 py-1 type-caption font-black text-indigo-900">{locale === "sr" ? "Dodaj opcionu lozinku" : "Add an optional password"}</p> : null}
                   </div>
                 ) : null}
                 {hasAccountSettingsRow ? (
@@ -2031,7 +2061,7 @@ function AppSidebarContent({
                 <Link href={withLocale(locale, "/app/billing")} className="flex min-h-11 items-center gap-3 rounded-full px-3 text-sm font-black hover:bg-yellow/25"><CreditCard className="size-4" /> {t.billing}</Link>
                 <ThemeToggle locale={locale} className="mt-2" />
                 {showUpgrade ? (
-                  <Link href={`${withLocale(locale)}#pricing`} className="mt-2 flex min-h-11 items-center gap-3 rounded-full bg-[#10b981] px-3 text-sm font-black text-white transition hover:bg-[#0ea472]"><ArrowUpRight className="size-4" /> {upgradeLabel}</Link>
+                  <Link href={courseCatalogPath(locale)} className="mt-2 flex min-h-11 items-center gap-3 rounded-full bg-[#10b981] px-3 text-sm font-black text-white transition hover:bg-[#0ea472]"><ArrowUpRight className="size-4" /> {upgradeLabel}</Link>
                 ) : null}
                 <button type="button" onClick={async () => { await signOut(); router.push(withLocale(locale, "/sign-in")); }} className="mt-2 flex min-h-11 w-full items-center gap-3 bg-ink px-3 text-sm font-black text-paper-strong"><LogOut className="size-4" /> {locale === "sr" ? "Odjavi se" : "Sign out"}</button>
               </div>
@@ -2063,7 +2093,7 @@ function AppSidebarContent({
         tabIndex={0}
         onPointerDown={startSidebarResize}
         onKeyDown={handleResizeKeyDown}
-        className="group absolute -right-2 top-0 z-[75] hidden h-full w-4 cursor-col-resize items-center justify-center bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow focus-visible:ring-offset-1 focus-visible:ring-offset-ink lg:flex"
+        className="group absolute -right-2 top-0 z-[75] hidden h-full w-4 cursor-col-resize items-center justify-center bg-transparent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink lg:flex"
       />
     </aside>
       <AppBottomNav

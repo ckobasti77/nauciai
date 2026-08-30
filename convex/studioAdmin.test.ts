@@ -3,7 +3,7 @@
 import { convexTest } from "convex-test";
 import { afterAll, beforeAll, expect, test } from "vitest";
 
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import schema from "./schema";
 
@@ -285,4 +285,61 @@ test("getProviderSamples: sirov uzorak vidi samo admin", async () => {
   expect(samples).toEqual([
     { provider: "fal", modelSlug: "billing-events", sample: '{"id":"evt_1"}', updatedAt: TODAY },
   ]);
+});
+
+// ── STUDIO_PUBLIC fleg i limiti (studio-public F1) ─────────────────────────
+
+test("getStudioPublicConfig: bez reda fleg je OFF; setStudioPublicFlag ga pali i gasi", async () => {
+  const t = convexTest(schema, modules);
+  const { asAdmin } = await seedAdmin(t);
+
+  // Odsutan red = OFF - SUPROTNO od kill switch-a (`studio_enabled` bez reda
+  // je ON). Seed nikad ne sme da upiše ovaj red.
+  const before = await asAdmin.query(api.studioAdmin.getStudioPublicConfig, {});
+  expect(before.publicEnabled).toBe(false);
+  expect(before.limits.maxConcurrentJobs).toEqual({ value: null, default: 2 });
+  expect(before.limits.maxJobsPerMinute).toEqual({ value: null, default: 6 });
+  expect(before.limits.maxJobsPerDay).toEqual({ value: null, default: 200 });
+  expect(before.limits.maxDailyCredits).toEqual({ value: null, default: 500 });
+
+  await t.mutation(internal.studioAdmin.setStudioPublicFlag, { enabled: true });
+  expect((await asAdmin.query(api.studioAdmin.getStudioPublicConfig, {})).publicEnabled).toBe(true);
+
+  await t.mutation(internal.studioAdmin.setStudioPublicFlag, { enabled: false });
+  expect((await asAdmin.query(api.studioAdmin.getStudioPublicConfig, {})).publicEnabled).toBe(false);
+});
+
+test("setStudioPublicLimit: upisuje override, odbija nevalidan broj, enabled=false vraća podrazumevano", async () => {
+  const t = convexTest(schema, modules);
+  const { asAdmin } = await seedAdmin(t);
+
+  await t.mutation(internal.studioAdmin.setStudioPublicLimit, { key: "maxJobsPerMinute", value: 10 });
+  let config = await asAdmin.query(api.studioAdmin.getStudioPublicConfig, {});
+  expect(config.limits.maxJobsPerMinute).toEqual({ value: 10, default: 6 });
+
+  // Nevalidne vrednosti ne prolaze validator poziva.
+  await expect(
+    t.mutation(internal.studioAdmin.setStudioPublicLimit, { key: "maxJobsPerMinute", value: 0 }),
+  ).rejects.toThrow(/NEVALIDAN_LIMIT/);
+  await expect(
+    t.mutation(internal.studioAdmin.setStudioPublicLimit, { key: "maxJobsPerMinute", value: 2.5 }),
+  ).rejects.toThrow(/NEVALIDAN_LIMIT/);
+  await expect(
+    t.mutation(internal.studioAdmin.setStudioPublicLimit, { key: "maxJobsPerMinute", value: -3 }),
+  ).rejects.toThrow(/NEVALIDAN_LIMIT/);
+
+  // `enabled: false` je "vrati na podrazumevano" bez brisanja reda.
+  await t.mutation(internal.studioAdmin.setStudioPublicLimit, {
+    key: "maxJobsPerMinute",
+    value: 10,
+    enabled: false,
+  });
+  config = await asAdmin.query(api.studioAdmin.getStudioPublicConfig, {});
+  expect(config.limits.maxJobsPerMinute).toEqual({ value: null, default: 6 });
+});
+
+test("getStudioPublicConfig je zaštićen (admin-only), a student ne može ni na setStudioEnabled putanju", async () => {
+  const t = convexTest(schema, modules);
+  const { asStudent } = await seedStudent(t);
+  await expect(asStudent.query(api.studioAdmin.getStudioPublicConfig, {})).rejects.toThrow("Forbidden");
 });

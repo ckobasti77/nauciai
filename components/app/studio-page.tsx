@@ -2,24 +2,29 @@
 
 import { useConvexAuth } from "@convex-dev/auth/react";
 import { useMutation, useQuery } from "convex/react";
-import { Coins, Loader2 } from "lucide-react";
+import { Coins, Wand2 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { AppIntroPanel } from "@/components/app/intro-panel";
 import { StudioMediaDetail } from "@/components/app/studio-media-detail";
 import { StudioMediaGrid } from "@/components/app/studio-media-grid";
 import type { StudioTileJob } from "@/components/app/studio-media-tile";
 import { StudioModerationGrid } from "@/components/app/studio-moderation-grid";
 import { CreditIcon } from "@/components/studio/credit-icon";
 import { StudioComposer, type JobPayload, type RegenerateSeed } from "@/components/studio/studio-composer";
+import { StudioVerifyEmailPanel } from "@/components/studio/verify-email-panel";
 import { ProjectPicker } from "@/components/studio/project-picker";
 import { StudioFilterBar } from "@/components/studio/studio-filter-bar";
-import { Panel, cn } from "@/components/ui/primitives";
+import { Button } from "@/components/ui/button";
+import { LinkButton, Panel } from "@/components/ui/primitives";
+import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { withLocale, type Locale } from "@/lib/i18n";
+import { clampBoundsToViewport } from "@/lib/floating-bounds";
+import { t, withLocale, type Locale } from "@/lib/i18n";
 import { jobPrompt } from "@/lib/studio-form";
 import { type GalleryScope } from "@/lib/studio-gallery";
 import { parseStudioModel, type StudioModel, type StudioModelRow } from "@/lib/studio-models";
@@ -33,9 +38,6 @@ import {
 import type { StudioSectionKind } from "@/lib/studio-sections";
 import type { SlotFiles } from "@/lib/studio-slots";
 import { formatCreditsLong, type ParamValues } from "@/lib/studio-params";
-
-const PILL =
-  "inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 px-5 py-2.5 text-sm font-extrabold transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-60";
 
 /**
  * Kapija pred prvom generacijom: jedna kvačica i jedno dugme.
@@ -60,10 +62,10 @@ function StudioTermsGate({ locale }: { locale: Locale }) {
 
   return (
     <Panel className="p-6">
-      <h3 className="text-2xl font-black text-ink">{STUDIO_TERMS_GATE.title[locale]}</h3>
-      <p className="mt-2 text-base font-bold text-muted">{STUDIO_TERMS_GATE.body[locale]}</p>
+      <h3 className="type-h2 text-ink">{STUDIO_TERMS_GATE.title[locale]}</h3>
+      <p className="mt-2 type-body type-measure font-bold text-muted">{STUDIO_TERMS_GATE.body[locale]}</p>
 
-      <div className="surface-inset mt-5 flex gap-3 border-2 border-ink bg-paper p-4">
+      <div className="surface-inset mt-4 flex gap-3 border-2 border-ink bg-paper p-4">
         <input
           id="studio-terms-accept"
           type="checkbox"
@@ -71,12 +73,12 @@ function StudioTermsGate({ locale }: { locale: Locale }) {
           onChange={(event) => setChecked(event.target.checked)}
           className="mt-1 size-5 shrink-0 accent-ink"
         />
-        <label htmlFor="studio-terms-accept" className="text-sm font-bold leading-6 text-ink">
+        <label htmlFor="studio-terms-accept" className="type-body-sm font-bold text-ink">
           {STUDIO_TERMS_GATE.checkbox[locale]}
         </label>
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-4 text-sm font-extrabold">
+      <div className="mt-4 flex flex-wrap gap-4 type-body-sm font-extrabold">
         <Link href={withLocale(locale, STUDIO_TERMS_PATH)} className="text-ink underline">
           {locale === "sr" ? "Uslovi korišćenja Studija" : "Studio terms of use"}
         </Link>
@@ -85,18 +87,12 @@ function StudioTermsGate({ locale }: { locale: Locale }) {
         </Link>
       </div>
 
-      <button
-        type="button"
-        onClick={accept}
-        disabled={!checked || isSaving}
-        className={cn(PILL, "mt-5 border-ink bg-yellow text-ink shadow-[4px_4px_0_0_var(--ink)] hover:-translate-y-0.5")}
-      >
-        {isSaving ? <Loader2 className="size-4 animate-spin" /> : null}
+      <Button onClick={accept} disabled={!checked} loading={isSaving} className="mt-4">
         {STUDIO_TERMS_GATE.cta[locale]}
-      </button>
+      </Button>
 
       {failed ? (
-        <p className="mt-3 text-sm font-bold text-muted">{STUDIO_TERMS_GATE.failed[locale]}</p>
+        <p className="mt-3 type-body-sm font-bold text-muted">{STUDIO_TERMS_GATE.failed[locale]}</p>
       ) : null}
     </Panel>
   );
@@ -127,9 +123,23 @@ function setPushedDetailId(jobId: string | null) {
 export function StudioPage({
   locale,
   initialJobId,
+  basePath = "/app/studio",
+  creditsHref: creditsHrefProp,
+  signInHref: signInHrefProp,
 }: {
   locale: Locale;
   initialJobId?: string;
+  /**
+   * Ruta (bez lokala) koja drži OVU instancu Studija (studio-public F3):
+   * školski omotač je "/app/studio", samostalni shell "/studio/app". Detalj
+   * medija živi na `${basePath}/m/<id>`. Obe poznate vrednosti sadrže samo
+   * [a-z/], pa je bezbedno graditi RegExp iz stringa.
+   */
+  basePath?: string;
+  /** Kuda vodi svako "Dopuni kredite" dugme; podrazumevano školski /app/credits. */
+  creditsHref?: string;
+  /** Kuda vodi "Prijavi se" za neprijavljene; standalone dodaje ?next= nazad na Studio. */
+  signInHref?: string;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -138,6 +148,20 @@ export function StudioPage({
   const balance = useQuery(api.credits.getBalance, isAuthenticated ? {} : "skip");
   const models = useQuery(api.studioModels.listModels, isAuthenticated ? {} : "skip");
   const createJob = useMutation(api.studio.createJob);
+  const claimSignupBonus = useMutation(api.studio.claimSignupBonus);
+
+  // Bonus dobrodošlice (studio-public F2.3): server kaže kad ima šta da se
+  // uzme; mutacija je idempotentna po korisniku, ref samo štedi ponovljene
+  // pozive u istom mount-u. Radi u OBA omotača (školskom i standalone).
+  const claimAttempted = useRef(false);
+  const bonusClaimable = state?.signupBonus?.claimable === true;
+  useEffect(() => {
+    if (!bonusClaimable || claimAttempted.current) return;
+    claimAttempted.current = true;
+    void claimSignupBonus({}).catch(() => {
+      // Odbijen/pao claim nije greška UI-ja: balans i state ionako stižu live.
+    });
+  }, [bonusClaimable, claimSignupBonus]);
 
   const searchParams = useSearchParams();
   const regenerateId = searchParams.get("regenerate");
@@ -190,7 +214,7 @@ export function StudioPage({
   }
 
   // Detalj medija i navigacija (sinhronizovano preko Next.js App Router-a)
-  const routeDetailMatch = pathname.match(/\/app\/studio\/m\/([^/]+)/);
+  const routeDetailMatch = pathname.match(new RegExp(`${basePath}/m/([^/]+)`));
   const activeJobId = routeDetailMatch ? routeDetailMatch[1] : (initialJobId ?? null);
   const [loadedJobs, setLoadedJobs] = useState<StudioTileJob[]>([]);
 
@@ -220,7 +244,7 @@ export function StudioPage({
   const [error, setError] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
 
-  const creditsHref = withLocale(locale, "/app/credits");
+  const creditsHref = creditsHrefProp ?? withLocale(locale, "/app/credits");
 
   // Dinamičko merenje stvarne visine lebdećeg composera/panela preko ResizeObserver-a (popravka 1.2)
   const floatingContainerRef = useRef<HTMLDivElement | null>(null);
@@ -256,7 +280,11 @@ export function StudioPage({
       const target = studioRootRef.current;
       if (!target) return;
       const rect = target.getBoundingClientRect();
-      setContentBounds({ left: rect.left, width: rect.width });
+      // `clientWidth` (a ne `innerWidth`) je širina BEZ vertikalnog scrollbara — mera koja
+      // izađe iz nje pravi horizontalni skrol, vidi `lib/floating-bounds.ts`.
+      setContentBounds(
+        clampBoundsToViewport({ left: rect.left, width: rect.width }, document.documentElement.clientWidth),
+      );
     }
 
     updateBounds();
@@ -365,7 +393,7 @@ export function StudioPage({
     // `sessionStorage`, ne `useRef`: /app/studio i /app/studio/m/[jobId] su dve
     // odvojene rute, pa se komponenta remount-uje i ref bi se resetovao.
     setPushedDetailId(job._id);
-    router.push(withLocale(locale, `/app/studio/m/${job._id}`), { scroll: false });
+    router.push(withLocale(locale, `${basePath}/m/${job._id}`), { scroll: false });
   }
 
   function handleCloseDetail() {
@@ -376,7 +404,7 @@ export function StudioPage({
       router.back();
     } else {
       // Direktan link ili refresh na /app/studio/m/<id>: nema cemu da se vracamo.
-      const target = kindParam ? `/app/studio?kind=${kindParam}` : `/app/studio`;
+      const target = kindParam ? `${basePath}?kind=${kindParam}` : basePath;
       router.push(withLocale(locale, target), { scroll: false });
     }
     setTimeout(() => {
@@ -387,7 +415,7 @@ export function StudioPage({
   }
 
   function handleSelectDetailJob(nextJob: StudioTileJob) {
-    router.replace(withLocale(locale, `/app/studio/m/${nextJob._id}`), { scroll: false });
+    router.replace(withLocale(locale, `${basePath}/m/${nextJob._id}`), { scroll: false });
   }
 
   async function generate(payload: JobPayload) {
@@ -395,7 +423,7 @@ export function StudioPage({
     setIsPending(true);
     setError(null);
     try {
-      await createJob({
+      const result = await createJob({
         modelSlug: activeModel.slug,
         params: JSON.stringify(payload.params),
         inputMode: payload.inputMode,
@@ -407,6 +435,13 @@ export function StudioPage({
         ...(lessonId && taskId ? { taskId } : {}),
         ...(activeProjectId ? { projectId: activeProjectId } : {}),
       });
+      // Pogodak blok liste (studio-public F2.5) stiže kao vrednost, ne kao
+      // greška - server tako COMMIT-uje log o odbijanju. Poruka je ista kao
+      // za bačeni NEISPRAVAN_PROMPT:ZABRANJEN_POJAM (substring mapiranje u
+      // `studioErrorMessage`), pa korisnik ne vidi razliku.
+      if (result && typeof result === "object" && "moderationBlocked" in result) {
+        setError(`NEISPRAVAN_PROMPT:${result.moderationBlocked.reason}`);
+      }
     } catch (thrown) {
       setError(thrown instanceof Error ? thrown.message : String(thrown));
     } finally {
@@ -440,12 +475,14 @@ export function StudioPage({
   // └──────────────────────────────────────────────────────────────────────┘
   // Jedna traka u ravni sa naslovom na desktopu, na mobilnom (< 640px) u svom redu ispod.
   const topbar = (
-    <div className="flex flex-col gap-2.5">
-      <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         {/* Naslov + Traka filtera u istoj ravni */}
         <div className="flex min-w-0 flex-1 items-center gap-3 md:gap-4">
-          <h2 className="shrink-0 text-2xl font-black leading-tight text-ink md:text-3xl">Studio</h2>
-          <div className="hidden sm:flex items-center">
+          <h2 className="shrink-0 type-h1 text-ink">Studio</h2>
+          {/* `min-w-0`: bez njega ova kolona ne sme da se skupi ispod min-content trake
+              filtera, pa traka gura ceo studio preko desne ivice (UX-BOOST-PLAN §5C). */}
+          <div className="hidden min-w-0 sm:flex items-center">
             <StudioFilterBar
               locale={locale}
               isStaff={state?.isStaff === true}
@@ -459,15 +496,16 @@ export function StudioPage({
         </div>
 
         {/* Prekidač projekta + Balans */}
-        <div className="flex shrink-0 items-center gap-2.5 sm:gap-3">
+        <div className="flex shrink-0 items-center gap-3">
           <ProjectPicker
             locale={locale}
             activeProjectId={activeProjectId}
             onSelectProject={handleSelectProject}
           />
 
-          <Link
+          <LinkButton
             href={creditsHref}
+            tone="paper"
             aria-label={
               balance === undefined
                 ? locale === "sr"
@@ -475,10 +513,7 @@ export function StudioPage({
                   : "Credits"
                 : formatCreditsLong(balance.balance, locale)
             }
-            className={cn(
-              PILL,
-              "shrink-0 border-ink bg-paper-strong text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] hover:-translate-y-0.5",
-            )}
+            className="shrink-0"
           >
             <CreditIcon className="size-4" />
             <span>
@@ -486,7 +521,7 @@ export function StudioPage({
                 ? "—"
                 : balance.balance.toLocaleString(locale === "sr" ? "sr-RS" : "en-US")}
             </span>
-          </Link>
+          </LinkButton>
         </div>
       </div>
 
@@ -505,10 +540,10 @@ export function StudioPage({
 
       {/* Podnaslov: prikazuje se SAMO kad je cela mreža prazna (0 učitanih poslova) */}
       {loadedJobs.length === 0 ? (
-        <p className="text-xs font-bold text-muted">
+        <p className="type-body-sm type-measure font-bold text-muted">
           {locale === "sr"
-            ? "Opiši šta hoćeš, izaberi model i generiši slike, video i zvuk."
-            : "Describe what you want, pick a model, and generate images, video and audio."}
+            ? "Izaberi alat, opiši šta hoćeš i klikni dugme sa cenom - dobijaš sliku, video ili zvuk."
+            : "Pick a tool, describe what you want, and click the button with the price - you get an image, a video or a sound."}
         </p>
       ) : null}
     </div>
@@ -519,7 +554,7 @@ export function StudioPage({
       <div className="space-y-6">
         {topbar}
         <Panel className="flex min-h-32 items-center justify-center p-6">
-          <Loader2 className="size-5 animate-spin text-muted" />
+          <Spinner size="md" className="text-muted" />
         </Panel>
       </div>
     );
@@ -529,18 +564,15 @@ export function StudioPage({
     return (
       <div className="space-y-6">
         {topbar}
-        <Panel className="p-6">
-          <p className="text-base font-bold text-muted">
+        <Panel className="p-4 sm:p-6">
+          <p className="type-body type-measure font-bold text-muted">
             {locale === "sr"
               ? "Prijavi se da bi generisao u Studiju."
               : "Sign in to generate in the Studio."}
           </p>
-          <Link
-            href={withLocale(locale, "/sign-in")}
-            className={cn(PILL, "mt-4 border-ink bg-ink text-paper-strong shadow-[4px_4px_0_0_var(--yellow)] hover:-translate-y-0.5")}
-          >
+          <LinkButton href={signInHrefProp ?? withLocale(locale, "/sign-in")} tone="ink" className="mt-4">
             {locale === "sr" ? "Prijavi se" : "Sign in"}
-          </Link>
+          </LinkButton>
         </Panel>
       </div>
     );
@@ -549,25 +581,28 @@ export function StudioPage({
   const floatingContent = () => {
     if (state !== undefined && !state.enabled) {
       return (
-        <div className="surface-card border-2 border-ink bg-paper-strong p-5 shadow-[6px_6px_0_0_var(--shadow-hard-16)]">
-          <h3 className="text-xl font-black text-ink">{STUDIO_PAUSED.title[locale]}</h3>
-          <p className="mt-1 text-sm font-bold text-muted">{STUDIO_PAUSED.body[locale]}</p>
-          <Link
-            href={creditsHref}
-            className={cn(PILL, "mt-3 border-ink bg-paper-strong text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] hover:-translate-y-0.5")}
-          >
+        <div className="surface-card border-2 border-ink bg-paper-strong p-4 shadow-[6px_6px_0_0_var(--shadow-hard-16)] sm:p-6">
+          <h3 className="type-h3 text-ink">{STUDIO_PAUSED.title[locale]}</h3>
+          <p className="mt-2 type-body-sm font-bold text-muted">{STUDIO_PAUSED.body[locale]}</p>
+          <LinkButton href={creditsHref} tone="paper" className="mt-3">
             <Coins className="size-4" />
             {STUDIO_PAUSED.cta[locale]}
-          </Link>
+          </LinkButton>
         </div>
       );
     }
 
     if (state !== undefined && !state.hasStudioAccess) {
+      // Javni režim bez potvrđenog emaila (studio-public F3): korisnik dobija
+      // resend panel, ne poruku o zatvorenom testiranju - `accessReason` stiže
+      // iz iste odluke koju server sprovodi u createJob.
+      if (state.accessReason === "EMAIL_NIJE_POTVRDJEN") {
+        return <StudioVerifyEmailPanel locale={locale} />;
+      }
       return (
-        <div className="surface-card border-2 border-ink bg-paper-strong p-5 shadow-[6px_6px_0_0_var(--shadow-hard-16)]">
-          <h3 className="text-xl font-black text-ink">{STUDIO_NOT_ENROLLED.title[locale]}</h3>
-          <p className="mt-1 text-sm font-bold text-muted">{STUDIO_NOT_ENROLLED.body[locale]}</p>
+        <div className="surface-card border-2 border-ink bg-paper-strong p-4 shadow-[6px_6px_0_0_var(--shadow-hard-16)] sm:p-6">
+          <h3 className="type-h3 text-ink">{STUDIO_NOT_ENROLLED.title[locale]}</h3>
+          <p className="mt-2 type-body-sm font-bold text-muted">{STUDIO_NOT_ENROLLED.body[locale]}</p>
         </div>
       );
     }
@@ -579,17 +614,19 @@ export function StudioPage({
     if (models === undefined) {
       return (
         <div className="surface-card flex min-h-24 items-center justify-center border-2 border-ink bg-paper-strong p-4 shadow-[6px_6px_0_0_var(--shadow-hard-16)]">
-          <Loader2 className="size-5 animate-spin text-muted" />
+          <Spinner size="md" className="text-muted" />
         </div>
       );
     }
 
     if (catalog.length === 0) {
       return (
-        <p className="surface-card border-2 border-ink bg-paper p-4 text-sm font-bold text-muted shadow-[6px_6px_0_0_var(--shadow-hard-16)]">
-          {locale === "sr"
-            ? "Nijedan model trenutno nije uključen. Javi se podršci."
-            : "No model is enabled right now. Please contact support."}
+        <p className="surface-card border-2 border-ink bg-paper p-4 type-body-sm font-bold text-muted shadow-[6px_6px_0_0_var(--shadow-hard-16)]">
+          {t(
+            locale,
+            "Nijedan alat za pravljenje sadržaja trenutno nije uključen. Ovo nije do tvog naloga - probaj ponovo kasnije ili se javi podršci.",
+            "No content tool is switched on right now. This is not about your account - try again later or contact support.",
+          )}
         </p>
       );
     }
@@ -629,6 +666,33 @@ export function StudioPage({
     >
       <div className="space-y-4">
         {topbar}
+
+        {/* Uvod se pokazuje samo onome ko Studio zaista može da koristi: dok traje
+            zatvoreno testiranje, uputstvo za rad bi bilo obećanje bez pokrića. */}
+        {state?.hasStudioAccess ? (
+          <AppIntroPanel
+            id="studio"
+            locale={locale}
+            icon={Wand2}
+            title={t(locale, "Ovo je Studio", "This is the Studio")}
+            body={t(
+              locale,
+              "Ovde od opisa u rečenici dobijaš sliku, video ili zvuk. Svaki posao se plaća kreditima, a tačna cena piše na dugmetu pre nego što klikneš.",
+              "Here a sentence you write turns into an image, a video or a sound. Each job is paid in credits, and the exact price is on the button before you click.",
+            )}
+            steps={[
+              t(locale, "Izaberi šta praviš: sliku, video ili zvuk.", "Choose what you are making: an image, a video or a sound."),
+              t(locale, "Opiši šta želiš da vidiš, u par rečenica.", "Describe what you want to see, in a couple of sentences."),
+              t(locale, "Klikni dugme sa cenom — gotov fajl ostaje ovde.", "Click the button with the price — the finished file stays here."),
+            ]}
+            action={
+              <LinkButton href={creditsHref} tone="paper">
+                <Coins className="size-4" aria-hidden="true" />
+                {t(locale, "Pogledaj svoje kredite", "See your credits")}
+              </LinkButton>
+            }
+          />
+        ) : null}
 
         {/* Mreža generisanih medija sa dinamičkim donjim paddingom prema izmerenoj visini composera / sklopljene ručice */}
         <div style={{ paddingBottom: `${gridBottomPadding}px` }}>

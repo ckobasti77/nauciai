@@ -16,5 +16,5 @@ export default async function AdminAnalyticsPage({ params }: { params: Promise<{
   const locale = normalizeLocale(localeParam);
   const profile = await getCurrentViewerProfile();
   if (profile?.role !== "admin") redirect(withLocale(locale, "/app"));
-  return <AdminAnalyticsPanel />;
+  return <AdminAnalyticsPanel locale={locale} />;
 }

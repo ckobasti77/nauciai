@@ -53,7 +53,7 @@ export function SourceJobPicker({
   if (jobs.status === "LoadingFirstPage") {
     return (
       <div className="surface-inset border-2 border-dashed border-ink bg-paper p-4 text-center text-sm font-bold text-muted">
-        {locale === "sr" ? "Učitavanje ranijih generacija..." : "Loading earlier generations..."}
+        {locale === "sr" ? "Učitavanje ranijih radova..." : "Loading your earlier work..."}
       </div>
     );
   }
@@ -62,8 +62,8 @@ export function SourceJobPicker({
     return (
       <div className="surface-inset border-2 border-dashed border-ink bg-paper p-4 text-center text-sm font-bold text-muted">
         {locale === "sr"
-          ? "Nemaš još nijednu gotovu generaciju ovog modela da je izmeniš."
-          : "You don't have a finished generation of this model to edit yet."}
+          ? "Ovim alatom još nisi napravio/la ništa što bi mogao/la da menjaš. Prvo napravi jednu stvar, pa je posle doradi ovde."
+          : "You have not made anything with this tool yet, so there is nothing to edit. Make something first, then come back and rework it here."}
       </div>
     );
   }
@@ -71,7 +71,7 @@ export function SourceJobPicker({
   return (
     <div className="space-y-2">
       <p className="text-sm font-black text-ink">
-        {locale === "sr" ? "Izaberi generaciju koju menjaš" : "Pick the generation to edit"}
+        {locale === "sr" ? "Izaberi rad koji menjaš" : "Pick the work you are editing"}
       </p>
       <div role="group" className="grid grid-cols-3 gap-3 sm:grid-cols-4">
         {done.map((job) => {

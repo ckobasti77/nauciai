@@ -7,7 +7,6 @@ import {
   CircleHelp,
   Compass,
   GraduationCap,
-  Loader2,
   Pin,
   Search,
 } from "lucide-react";
@@ -19,7 +18,9 @@ import {
   formatCommunityTime,
   type CommunityRole,
 } from "@/components/app/community-identity";
+import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/components/ui/primitives";
+import { Spinner } from "@/components/ui/spinner";
 import type { Locale } from "@/lib/i18n";
 import { withLocale } from "@/lib/i18n";
 
@@ -48,7 +49,7 @@ export function CommunitySearch({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        className="min-h-10 w-full rounded-full border border-line bg-paper-strong py-2 pl-11 pr-4 text-sm font-bold text-ink outline-none transition placeholder:font-semibold placeholder:text-muted/65 hover:border-ink/50 focus:border-ink focus:ring-4 focus:ring-yellow/25"
+        className="min-h-10 w-full rounded-full border border-line bg-paper-strong py-2 pl-11 pr-4 text-sm font-bold text-ink transition placeholder:font-semibold placeholder:text-muted/65 hover:border-ink/50 focus:border-ink focus:ring-4 focus:ring-yellow/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
       />
     </label>
   );
@@ -71,7 +72,7 @@ export function FilterChip({
       className={cn(
         "inline-flex min-h-11 shrink-0 items-center justify-center rounded-full border px-4 text-sm font-black transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
         active
-          ? "border-ink bg-ink text-paper-strong shadow-[2px_2px_0_rgba(244,190,48,0.9)]"
+          ? "border-ink bg-ink text-paper-strong shadow-[2px_2px_0_var(--yellow)]"
           : "border-line bg-paper-strong text-ink/75 hover:border-ink hover:bg-yellow/15",
       )}
     >
@@ -97,7 +98,7 @@ export function ScopeTrail({
     <ol
       className={cn(
         "flex min-w-0 items-center text-ink/65",
-        compact ? "gap-1 text-[11px] font-extrabold" : "gap-1.5 text-xs font-black",
+        compact ? "gap-1 type-caption font-extrabold" : "gap-1.5 type-caption font-black",
       )}
       aria-label={locale === "sr" ? "Putanja zajednice" : "Community path"}
     >
@@ -150,13 +151,13 @@ export function LearningSpine({
   ];
 
   return (
-    <aside className="rounded-[16px] border border-ink/15 bg-[#eef3f7] dark:bg-ink/10 p-4" aria-label={locale === "sr" ? "Putanja učenja" : "Learning path"}>
+    <aside className="surface-card border border-ink/15 bg-ink/5 p-4 dark:bg-ink/10" aria-label={locale === "sr" ? "Putanja učenja" : "Learning path"}>
       <div className="flex items-center justify-between gap-3">
-        <p className="text-[11px] font-black uppercase tracking-[0.15em] text-ink/60">
+        <p className="type-eyebrow text-ink/60">
           {locale === "sr" ? "Learning spine" : "Learning spine"}
         </p>
         {typeof xp === "number" ? (
-          <span className="rounded-full border border-ink bg-yellow px-2.5 py-1 font-mono text-[11px] font-black text-ink">
+          <span className="rounded-full border border-ink bg-yellow px-2.5 py-1 font-mono type-caption font-black text-ink">
             {xp.toLocaleString(locale === "sr" ? "sr-RS" : "en-US")} XP
           </span>
         ) : null}
@@ -173,7 +174,7 @@ export function LearningSpine({
               <Icon className="size-3.5" aria-hidden="true" />
             </span>
             <span className="min-w-0">
-              <span className="block text-[10px] font-black uppercase tracking-[0.12em] text-muted">{meta}</span>
+              <span className="block type-eyebrow-sm text-muted">{meta}</span>
               <span className={cn("block truncate text-sm font-black", active ? "text-ink" : "text-ink/70")}>{label}</span>
             </span>
           </li>
@@ -185,7 +186,7 @@ export function LearningSpine({
 
 function roleTone(role?: CommunityRole) {
   if (role === "admin") return "bg-yellow";
-  if (role === "moderator") return "bg-[#dcecf1] dark:bg-ink/10";
+  if (role === "moderator") return "bg-blue-mid/25 dark:bg-ink/10";
   return "bg-paper-strong";
 }
 
@@ -220,13 +221,16 @@ export function ThreadCard({
     <article
       data-motion="card"
       className={cn(
-        "group relative isolate overflow-hidden rounded-[16px] border-2 bg-paper-strong transition duration-200 focus-within:border-ink hover:border-ink",
+        "group relative isolate overflow-hidden surface-card border-2 border-ink bg-paper-strong transition duration-200 focus-within:border-ink hover:border-ink",
+        // Zuta tvrda senka = "ova je istaknuta"; mastilo = obicna kartica u feedu.
+        // Ranije je razliku nosio goli heks okvira (#d7a91b) i pozadine (#fffaf0),
+        // koji u tamnoj temi nisu imali parnjaka.
         highlighted
-          ? "border-[#d7a91b] bg-[#fffaf0] dark:bg-yellow/15 shadow-[6px_6px_0_0_rgba(244,190,48,0.32)] hover:shadow-[8px_8px_0_0_rgba(244,190,48,0.32)]"
-          : "border-ink shadow-[6px_6px_0_0_var(--shadow-hard-13)] hover:shadow-[8px_8px_0_0_var(--shadow-hard-13)]",
+          ? "bg-yellow/10 shadow-[6px_6px_0_0_var(--yellow)] hover:shadow-[8px_8px_0_0_var(--yellow)] dark:bg-yellow/15"
+          : "shadow-[6px_6px_0_0_var(--shadow-hard-13)] hover:shadow-[8px_8px_0_0_var(--shadow-hard-13)]",
       )}
     >
-      <div className="flex min-w-0 gap-2.5 p-3 sm:gap-3 sm:p-3.5">
+      <div className="flex min-w-0 gap-3 p-4">
         <Link
           href={post.authorUsername ? withLocale(locale, `/app/members/${post.authorUsername}`) : threadHref}
           className="relative z-10 shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
@@ -245,29 +249,33 @@ export function ThreadCard({
         </Link>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            {post.authorUsername ? <Link href={withLocale(locale, `/app/members/${post.authorUsername}`)} className="relative z-10 text-sm font-black text-ink hover:underline">@{post.authorUsername}</Link> : <span className="text-sm font-black text-ink">{post.authorName}</span>}
-            {post.authorUsername ? <span className="text-xs font-semibold text-muted">{post.authorName}</span> : null}
-            <span className="text-xs font-bold text-muted/75">· {formatCommunityTime(post.createdAt, locale)}</span>
+            {post.authorUsername ? <Link href={withLocale(locale, `/app/members/${post.authorUsername}`)} className="relative z-10 type-body-sm font-black text-ink hover:underline">@{post.authorUsername}</Link> : <span className="type-body-sm font-black text-ink">{post.authorName}</span>}
+            {post.authorUsername ? <span className="type-caption font-semibold text-muted">{post.authorName}</span> : null}
+            <span className="type-caption font-bold text-muted/75">· {formatCommunityTime(post.createdAt, locale)}</span>
             {statusLabel}
             {highlighted ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-yellow/20 px-2 py-0.5 text-[10px] font-black text-ink/70">
+              <span className="inline-flex items-center gap-1 rounded-full bg-yellow/20 px-2 py-0.5 type-caption font-black text-ink/70">
                 <Pin className="size-3 fill-yellow text-ink" aria-hidden="true" />
                 {locale === "sr" ? "Zakačeno" : "Pinned"}
               </span>
             ) : null}
           </div>
           <ScopeTrail locale={locale} track={track} course={course} compact />
-          <div className="relative z-10 mt-1.5 flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+          <div className="relative z-10 mt-2 flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
             <Link
               href={threadHref}
-              className="min-w-0 flex-1 rounded-[8px] after:absolute after:inset-0 after:z-0 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink"
+              className="min-w-0 flex-1 surface-media after:absolute after:inset-0 after:z-0 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink"
             >
-              <h2 className="truncate text-[16px] font-black leading-5 tracking-[-0.018em] text-ink transition group-hover:text-[#164d7d] dark:group-hover:text-ink sm:text-[17px]">
+              <h2 className="truncate type-h4 text-ink transition group-hover:text-blue-mid dark:group-hover:text-ink">
                 {post.title}
               </h2>
-              <p className="mt-0.5 line-clamp-1 text-[13px] font-semibold leading-5 text-muted">{post.body}</p>
+              <p className="mt-1 line-clamp-1 type-caption font-semibold text-muted">{post.body}</p>
             </Link>
-            <div className="relative z-10 flex shrink-0 flex-wrap items-center justify-end gap-1 self-end sm:flex-nowrap sm:self-start">
+            {/* Dve grupe akcija, ne jedan niz od pet dugmadi: `leadingAction` je
+                razgovor (glas + komentari), `action` je sta radis sa temom (podeli,
+                sacuvaj). Razmak izmedju grupa je jedan korak veci od razmaka unutar
+                grupe, pa se granica vidi bez ijedne nove linije. */}
+            <div className="relative z-10 flex shrink-0 flex-wrap items-center justify-end gap-3 self-end sm:flex-nowrap sm:self-start">
               {leadingAction}
               {action}
             </div>
@@ -276,11 +284,17 @@ export function ThreadCard({
         </div>
       </div>
       <div className={cn("absolute left-0 top-0 h-full w-1", roleTone(post.authorRole))} aria-hidden="true" />
-      {below ? <div className="relative z-10 border-t border-line bg-paper/35 px-3 py-3 sm:px-4">{below}</div> : null}
+      {below ? <div className="relative z-10 border-t border-line bg-paper/35 p-4">{below}</div> : null}
     </article>
   );
 }
 
+/**
+ * Prazno stanje zajednice je od U5 samo omotac oko `EmptyState` primitiva iz
+ * `components/ui/empty-state.tsx` - potpis ostaje isti zbog pet pozivaoca, ali
+ * se zajednica vise ne crta po svojim pravilima. `locale` sluzi jos samo
+ * citacu ekrana.
+ */
 export function EmptyCommunityState({
   locale,
   icon: Icon = CircleHelp,
@@ -295,16 +309,8 @@ export function EmptyCommunityState({
   action?: ReactNode;
 }) {
   return (
-    <section className="grid min-h-72 place-items-center rounded-[16px] border border-dashed border-ink/35 bg-paper-strong/70 p-6 text-center">
-      <div className="max-w-md">
-        <span className="mx-auto grid size-12 place-items-center rounded-full border border-ink bg-yellow text-ink">
-          <Icon className="size-5" aria-hidden="true" />
-        </span>
-        <h2 className="mt-4 text-xl font-black text-ink">{title}</h2>
-        <p className="mt-2 text-sm font-semibold leading-6 text-muted">{body}</p>
-        {action ? <div className="mt-5">{action}</div> : null}
-        <span className="sr-only">{locale === "sr" ? "Prazan prikaz" : "Empty view"}</span>
-      </div>
+    <section aria-label={locale === "sr" ? "Prazan prikaz" : "Empty view"}>
+      <EmptyState className="min-h-72" icon={Icon} title={title} body={body} action={action} />
     </section>
   );
 }
@@ -325,7 +331,7 @@ export function LoadMoreButton({
       disabled={loading}
       className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-ink bg-paper-strong px-5 text-sm font-black text-ink transition hover:bg-yellow/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-wait disabled:opacity-60"
     >
-      {loading ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <ArrowRight className="size-4" aria-hidden="true" />}
+      {loading ? <Spinner /> : <ArrowRight className="size-4" aria-hidden="true" />}
       {loading
         ? locale === "sr"
           ? "Učitavanje"
@@ -340,14 +346,14 @@ export function LoadMoreButton({
 export function CommunityRouteSkeleton() {
   return (
     <div className="space-y-6" aria-busy="true" aria-label="Loading community content">
-      <div className="h-24 animate-pulse rounded-[16px] bg-ink/8" />
+      <div className="h-24 animate-pulse surface-card bg-ink/8" />
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
         <div className="space-y-3">
           {[0, 1, 2].map((item) => (
-            <div key={item} className="h-44 animate-pulse rounded-[16px] border border-line bg-paper-strong" />
+            <div key={item} className="h-44 animate-pulse surface-card border border-line bg-paper-strong" />
           ))}
         </div>
-        <div className="hidden h-64 animate-pulse rounded-[16px] bg-ink/8 xl:block" />
+        <div className="hidden h-64 animate-pulse surface-card bg-ink/8 xl:block" />
       </div>
     </div>
   );

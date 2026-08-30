@@ -1,18 +1,36 @@
 "use client";
 
 import { useMutation, useQuery } from "convex/react";
-import { AlertTriangle, BarChart3, CheckCircle2, CirclePlus, Loader2, Megaphone, Save, Settings2, Users, XCircle } from "lucide-react";
+import { AlertTriangle, ArrowLeft, BarChart3, BookOpen, CheckCircle2, CirclePlus, FileText, GraduationCap, Layers, ListTree, Megaphone, Save, Settings2, Shield, Users, Wand2, XCircle } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState, type FormEvent, type ReactNode, type RefObject } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { cn } from "@/components/ui/primitives";
-import type { Locale } from "@/lib/i18n";
+import { HandUnderline, cn } from "@/components/ui/primitives";
+import { Badge, type BadgeTone } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { t, withLocale, type Locale } from "@/lib/i18n";
 import { changeContentSelection } from "@/lib/content-selection";
+import { dashboardZoneChipClass } from "@/lib/dashboard-zones";
+import {
+  contentStatus,
+  contentStatusTone,
+  draftCount,
+  listLevelAfterChange,
+  listLevelForSelection,
+  parentListLevel,
+  type ContentStatus,
+  type ListLevel,
+  type SelectionLevel,
+} from "@/lib/admin-content-tree";
 import { DashboardContent, type DashboardCourse } from "@/components/app/dashboard-content";
 import { CoursePlayer } from "@/components/app/course-player";
 import { TrackExperience, type TrackExperienceData } from "@/components/app/track-experience";
+import { Spinner } from "@/components/ui/spinner";
 import { findCourse } from "@/lib/content";
 import type { Course, Lesson, LessonAsset, LessonPart } from "@/lib/content";
 
@@ -109,8 +127,36 @@ type TrackRow = {
 };
 type AdminDetail = { lesson: LessonRow | null };
 
-const inputClass = "min-h-11 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-3 text-sm font-bold text-ink outline-none transition focus:ring-4 focus:ring-yellow/35 disabled:cursor-not-allowed disabled:border-line disabled:bg-slate-100 disabled:text-muted";
-const labelClass = "grid gap-1.5 text-xs font-black uppercase tracking-[0.08em] text-ink";
+const inputClass = "min-h-11 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-3 text-sm font-bold text-ink transition focus:ring-4 focus:ring-yellow/35 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:border-line disabled:bg-slate-100 disabled:text-muted";
+const labelClass = "grid gap-1.5 type-eyebrow text-ink";
+
+/**
+ * Pravilo zivi u `lib/admin-content-tree.ts` (sa testom), da se boja statusa ne
+ * bi tiho preokrenula u sledecoj izmeni. Ovaj `Record` postoji samo da bi
+ * TypeScript proverio da se unija iz `lib/` i `BadgeTone` nisu razisle.
+ */
+const statusTone: Record<ContentStatus, BadgeTone> = {
+  draft: contentStatusTone("draft"),
+  published: contentStatusTone("published"),
+  archived: contentStatusTone("archived"),
+};
+
+const listForKind: Record<SelectionLevel, ListLevel> = {
+  track: "tracks",
+  course: "courses",
+  lesson: "lessons",
+};
+
+function statusLabel(status: ContentStatus, locale: Locale) {
+  if (status === "published") return t(locale, "Objavljeno", "Published");
+  if (status === "archived") return t(locale, "Arhivirano", "Archived");
+  return t(locale, "Nacrt", "Draft");
+}
+
+function titleOf(row: { titleSr: string; titleEn: string }, locale: Locale) {
+  const title = (locale === "sr" ? row.titleSr : row.titleEn) || row.titleSr || row.titleEn;
+  return title.trim() || t(locale, "Bez naziva", "Untitled");
+}
 
 function slugify(value: string) {
   return value.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
@@ -201,61 +247,293 @@ function courseFromRows(course: CourseRow, lesson: LessonRow): Course {
   };
 }
 
-function ResetButton({ onClick, disabled }: { onClick: () => void; disabled?: boolean }) {
-  return <button type="button" onClick={onClick} disabled={disabled} className="text-[11px] font-black text-muted underline decoration-2 underline-offset-4 disabled:opacity-35">Poništi</button>;
-}
-
-function FutureModule({ icon: Icon, title, body }: { icon: typeof Users; title: string; body: string }) {
-  return (
-    <article className="rounded-[16px] border-2 border-ink bg-paper-strong p-6 shadow-[6px_6px_0_var(--shadow-hard-12)]">
-      <span className="grid size-11 place-items-center rounded-full border-2 border-ink bg-yellow"><Icon className="size-5" /></span>
-      <p className="mt-5 text-xl font-black text-ink">{title}</p>
-      <p className="mt-2 text-sm font-bold leading-6 text-muted">{body}</p>
-      <span className="mt-5 inline-flex rounded-full border border-line bg-paper px-3 py-1 text-[10px] font-black uppercase text-muted">Planirano</span>
-    </article>
-  );
-}
-
-function AdminPageFrame({ children }: { children: ReactNode }) {
+function AdminPageFrame({ locale, title, children }: { locale: Locale; title: string; children: ReactNode }) {
   return (
     <div className="mx-auto max-w-[1500px] space-y-6">
       <header>
-        <p className="text-xs font-black uppercase tracking-[0.16em] text-muted">Administracija</p>
-        <h1 className="mt-2 font-display text-5xl text-ink sm:text-6xl">Kontrolni centar</h1>
+        <p className="type-eyebrow text-muted">{t(locale, "Administracija", "Administration")}</p>
+        {/* Svaka admin ruta nosi svoj naslov. Ranije su sve četiri pisale
+            "Kontrolni centar", pa se iz naslova nije videlo gde si (UX-BOOST-PLAN §3D). */}
+        <h1 className="mt-2 font-display type-display text-ink">{title}</h1>
+        {/* Isti skolski potpis kao ispod svakog zonskog naslova u aplikaciji. */}
+        <HandUnderline size="sm" className="mt-1" />
       </header>
       {children}
     </div>
   );
 }
 
-export function AdminUsersPanel() {
+/** Linkovi ka admin modulima koji već rade, da prazna stranica ne bude ćorsokak. */
+function WorkingModuleLinks({ locale }: { locale: Locale }) {
+  const links: Array<{ href: string; icon: LucideIcon; label: string; body: string }> = [
+    {
+      href: withLocale(locale, "/app/admin/content"),
+      icon: FileText,
+      label: t(locale, "Sadržaj", "Content"),
+      body: t(locale, "Smerovi, kursevi i lekcije - pravljenje, uređivanje i objava.", "Tracks, courses and lessons - create, edit and publish."),
+    },
+    {
+      href: withLocale(locale, "/app/admin/chat"),
+      icon: Shield,
+      label: t(locale, "Chat sigurnost", "Chat safety"),
+      body: t(locale, "Prijave iz poruka i mere prema nalozima.", "Message reports and account actions."),
+    },
+    {
+      href: withLocale(locale, "/app/admin/studio"),
+      icon: Wand2,
+      label: t(locale, "Studio admin", "Studio admin"),
+      body: t(locale, "Modeli, cene i paketi kredita u Studiju.", "Studio models, prices and credit packs."),
+    },
+  ];
+
   return (
-    <AdminPageFrame>
-      <div className="grid gap-5 md:grid-cols-3">
-        <FutureModule icon={Users} title="Upravljanje korisnicima" body="Pregled, suspenzija i administracija naloga biće dodati bez izmišljanja privremenih podataka." />
-      </div>
+    <section aria-labelledby="admin-working-modules" className="space-y-3">
+      <h2 id="admin-working-modules" className="type-eyebrow text-muted">
+        {t(locale, "Dotle možeš ovde", "What already works")}
+      </h2>
+      <ul className="grid gap-3 md:grid-cols-3">
+        {links.map((link) => (
+          <li key={link.href}>
+            <Link
+              href={link.href}
+              className="surface-card flex h-full items-start gap-3 border-2 border-ink bg-paper-strong p-4 transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            >
+              <span className="grid size-9 shrink-0 place-items-center rounded-full border-2 border-ink bg-yellow text-ink">
+                <link.icon aria-hidden="true" className="size-4" />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-sm font-black text-ink">{link.label}</span>
+                <span className="mt-1 block type-caption font-bold text-muted">{link.body}</span>
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/** Modul koji još ne postoji: jedno prazno stanje sa spiskom šta će tu biti + izlaz. */
+function AdminModulePlaceholder({
+  locale,
+  title,
+  icon,
+  emptyTitle,
+  emptyBody,
+}: {
+  locale: Locale;
+  title: string;
+  icon: LucideIcon;
+  emptyTitle: string;
+  emptyBody: string;
+}) {
+  return (
+    <AdminPageFrame locale={locale} title={title}>
+      <EmptyState icon={icon} title={emptyTitle} body={emptyBody} />
+      <WorkingModuleLinks locale={locale} />
     </AdminPageFrame>
   );
 }
 
-export function AdminGrowthPanel() {
+export function AdminUsersPanel({ locale }: { locale: Locale }) {
   return (
-    <AdminPageFrame>
-      <div className="grid gap-5 md:grid-cols-3">
-        <FutureModule icon={Megaphone} title="Affiliate i influenseri" body="Evidencija partnera, kampanja i atribucije." />
-        <FutureModule icon={Megaphone} title="Meta i Google Ads" body="Povezivanje stvarnih oglasnih naloga i podataka." />
-      </div>
-    </AdminPageFrame>
+    <AdminModulePlaceholder
+      locale={locale}
+      icon={Users}
+      title={t(locale, "Korisnici", "Users")}
+      emptyTitle={t(locale, "U pripremi", "Coming soon")}
+      emptyBody={t(
+        locale,
+        "Ovde će biti spisak naloga: ko se kad prijavio, koji kurs mu je otključan, promena uloge i privremena suspenzija. Dok to ne bude gotovo, mere prema nalogu radiš na stranici Chat sigurnost.",
+        "This will list accounts: when they signed up, which course they unlocked, role changes and temporary suspension. Until then, account actions live on the Chat safety page.",
+      )}
+    />
   );
 }
 
-export function AdminAnalyticsPanel() {
+export function AdminGrowthPanel({ locale }: { locale: Locale }) {
   return (
-    <AdminPageFrame>
-      <div className="grid gap-5 md:grid-cols-3">
-        <FutureModule icon={BarChart3} title="Google Analytics" body="Metrike će se prikazati tek nakon povezivanja stvarnog izvora podataka." />
+    <AdminModulePlaceholder
+      locale={locale}
+      icon={Megaphone}
+      title={t(locale, "Rast", "Growth")}
+      emptyTitle={t(locale, "U pripremi", "Coming soon")}
+      emptyBody={t(
+        locale,
+        "Ovde će biti evidencija partnera i influensera, njihovi linkovi i koliko su prijava doneli, plus povezivanje Meta i Google Ads naloga. Ništa se neće prikazati dok pravi podaci ne budu povezani - brojevi koje izmislimo ne vrede ništa.",
+        "This will hold affiliate and influencer records, their links and how many sign-ups they brought, plus Meta and Google Ads account connections. Nothing shows until real data is connected - invented numbers are worthless.",
+      )}
+    />
+  );
+}
+
+export function AdminAnalyticsPanel({ locale }: { locale: Locale }) {
+  return (
+    <AdminModulePlaceholder
+      locale={locale}
+      icon={BarChart3}
+      title={t(locale, "Analitika", "Analytics")}
+      emptyTitle={t(locale, "U pripremi", "Coming soon")}
+      emptyBody={t(
+        locale,
+        "Ovde će biti posete, izvori saobraćaja i koliko posetilaca postane student, iz povezanog Google Analytics naloga. Broj studenata i stanje sadržaja već sada vidiš na vrhu stranice Sadržaj.",
+        "This will show visits, traffic sources and how many visitors become students, from a connected Google Analytics account. Student and content counts are already at the top of the Content page.",
+      )}
+    />
+  );
+}
+
+type StatusTally = { total: number; draft: number; published: number; archived: number };
+
+function StatCard({
+  icon: Icon,
+  label,
+  value,
+  tally,
+  hint,
+  locale,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: string;
+  tally?: StatusTally;
+  hint?: string;
+  locale: Locale;
+}) {
+  return (
+    // Pregled stanja je isti sklop kao prozor komandne table (U11): skolska mreza
+    // ispod, plocica sa ikonom u akcentu zone, pa etiketa i brojka. Admin je
+    // "zona koja javlja stanje", pa plocica ide na papir - akcenat dolazi iz
+    // `lib/dashboard-zones.ts`, da se ne izmislja cetvrti izgled.
+    <article className="surface-card relative overflow-hidden border-2 border-ink bg-paper-strong p-4 shadow-[6px_6px_0_0_var(--shadow-hard-12)]">
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 sketch-grid" />
+      <div className="relative flex items-start gap-3">
+        <span
+          className={cn(
+            "grid size-10 shrink-0 place-items-center surface-inset border-2",
+            dashboardZoneChipClass("adminContent"),
+          )}
+        >
+          <Icon aria-hidden="true" className="size-5" />
+        </span>
+        <div className="min-w-0">
+          <p className="type-eyebrow text-muted">{label}</p>
+          <p className="mt-1 font-display type-display text-ink">{value}</p>
+        </div>
       </div>
-    </AdminPageFrame>
+      {tally ? (
+        <div className="relative mt-3 flex flex-wrap gap-1.5">
+          <Badge tone={statusTone.published} size="sm">{t(locale, "Objavljeno", "Published")} {tally.published}</Badge>
+          <Badge tone={statusTone.draft} size="sm">{t(locale, "Nacrt", "Draft")} {tally.draft}</Badge>
+          {tally.archived > 0 ? <Badge tone={statusTone.archived} size="sm">{t(locale, "Arhiva", "Archive")} {tally.archived}</Badge> : null}
+        </div>
+      ) : null}
+      {hint ? <p className="relative mt-3 type-caption font-bold text-muted">{hint}</p> : null}
+    </article>
+  );
+}
+
+type NavRow = { id: string; title: string; status: ContentStatus; meta?: string };
+
+function NavSection({
+  locale,
+  level,
+  activeLevel,
+  kicker,
+  subtitle,
+  rows,
+  selectedId,
+  lockedLabel,
+  emptyLabel,
+  createLabel,
+  creating,
+  onSelect,
+  onClear,
+  onCreate,
+}: {
+  locale: Locale;
+  level: ListLevel;
+  activeLevel: ListLevel;
+  kicker: string;
+  subtitle?: string;
+  rows: NavRow[];
+  selectedId: string;
+  /** Postavljeno kad roditelj nije izabran: lista ne postoji, ali sekcija ostaje vidljiva sa uputstvom. */
+  lockedLabel?: string;
+  emptyLabel: string;
+  createLabel: string;
+  creating: boolean;
+  onSelect: (id: string) => void;
+  onClear?: () => void;
+  onCreate: () => void;
+}) {
+  return (
+    // Na mobilnom se vidi tačno jedan nivo (koraci sa "Nazad"); od `lg` naviše sva tri stoje jedan ispod drugog.
+    <section className={cn("min-w-0", activeLevel !== level && "hidden lg:block")} aria-label={kicker}>
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="type-eyebrow text-muted">{kicker}</p>
+          {subtitle ? <p className="mt-1 truncate type-caption font-bold text-ink">{subtitle}</p> : null}
+        </div>
+        {onClear ? (
+          <Button variant="ghost" size="sm" onClick={onClear} className="-mr-2 shrink-0">
+            {t(locale, "Poništi izbor", "Clear")}
+          </Button>
+        ) : null}
+      </div>
+
+      <div className="mt-3">
+        {lockedLabel ? (
+          <p className="surface-inset border-2 border-dashed border-line bg-paper px-3 py-3 type-caption font-bold text-muted">{lockedLabel}</p>
+        ) : rows.length === 0 ? (
+          <p className="surface-inset border-2 border-dashed border-line bg-paper px-3 py-3 type-caption font-bold text-muted">{emptyLabel}</p>
+        ) : (
+          <ul className="grid max-h-96 gap-3 overflow-y-auto pr-1 lg:max-h-none lg:overflow-visible lg:pr-0">
+            {rows.map((row) => {
+              const selected = row.id === selectedId;
+              return (
+                <li key={row.id}>
+                  <button
+                    type="button"
+                    onClick={() => onSelect(row.id)}
+                    aria-current={selected ? "true" : undefined}
+                    className={cn(
+                      "surface-inset flex w-full items-center gap-3 border-2 px-3 py-3 text-left transition",
+                      "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+                      // Nacrt nosi i šrafuru i najglasniji Badge - to je stavka koju studenti ne vide.
+                      row.status === "draft" && "ink-hatch",
+                      selected
+                        ? "border-ink bg-yellow shadow-[3px_3px_0_0_var(--shadow-hard)]"
+                        : "border-line bg-paper-strong hover:border-ink",
+                    )}
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-black text-ink">{row.title}</span>
+                      {row.meta ? (
+                        <span className={cn("mt-1 block type-caption font-bold", selected ? "text-ink" : "text-muted")}>{row.meta}</span>
+                      ) : null}
+                    </span>
+                    <Badge tone={statusTone[row.status]} size="sm" className="shrink-0">{statusLabel(row.status, locale)}</Badge>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+
+      <Button
+        variant="secondary"
+        size="sm"
+        icon={<CirclePlus className="size-4" />}
+        disabled={Boolean(lockedLabel)}
+        loading={creating}
+        onClick={onCreate}
+        className="mt-3 w-full"
+      >
+        {createLabel}
+      </Button>
+    </section>
   );
 }
 
@@ -264,6 +542,7 @@ export function AdminContentPanel({ locale }: { locale: Locale }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const hierarchy = useQuery(api.contentHierarchy.getAdminHierarchy) as TrackRow[] | undefined;
+  const overview = useQuery(api.adminOverview.getAdminOverview);
   const upsertTrack = useMutation(api.contentHierarchy.upsertTrack);
   const upsertCourse = useMutation(api.courses.upsertCourse);
   const upsertLesson = useMutation(api.contentHierarchy.upsertDirectLesson);
@@ -271,28 +550,37 @@ export function AdminContentPanel({ locale }: { locale: Locale }) {
   const [trackId, setTrackId] = useState(() => searchParams.get("track") ?? "");
   const [courseId, setCourseId] = useState(() => searchParams.get("course") ?? "");
   const [lessonId, setLessonId] = useState(() => searchParams.get("lesson") ?? "");
+  const [listLevel, setListLevel] = useState<ListLevel>(() =>
+    listLevelForSelection({
+      trackId: searchParams.get("track") ?? "",
+      courseId: searchParams.get("course") ?? "",
+      lessonId: searchParams.get("lesson") ?? "",
+    }),
+  );
   const lessonView = searchParams.get("view") === "pro" ? "pro" : "light";
   const [creating, setCreating] = useState<"track" | "course" | "lesson" | null>(null);
-  const [creationIntent, setCreationIntent] = useState<"course" | "lesson" | null>(null);
-  const [creationPending, setCreationPending] = useState(false);
+  const [creationPending, setCreationPending] = useState<SelectionLevel | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
-  const trackSelectRef = useRef<HTMLSelectElement>(null);
-  const courseSelectRef = useRef<HTMLSelectElement>(null);
 
-  function select(level: "track" | "course" | "lesson", id: string) {
-    const next = changeContentSelection({ trackId, courseId, lessonId }, level, id);
+  function pushSelection(next: { trackId: string; courseId: string; lessonId: string }) {
     setTrackId(next.trackId);
     setCourseId(next.courseId);
     setLessonId(next.lessonId);
-    setCreating(null);
-    setSettingsOpen(false);
     const params = new URLSearchParams(searchParams.toString());
     if (next.trackId) params.set("track", next.trackId); else params.delete("track");
     if (next.courseId) params.set("course", next.courseId); else params.delete("course");
     if (next.lessonId) params.set("lesson", next.lessonId); else params.delete("lesson");
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }
+
+  function select(level: SelectionLevel, id: string) {
+    const next = changeContentSelection({ trackId, courseId, lessonId }, level, id);
+    setListLevel(listLevelAfterChange(next, level));
+    setCreating(null);
+    setSettingsOpen(false);
+    pushSelection(next);
   }
 
   function setLessonView(view: "pro" | "light") {
@@ -326,20 +614,9 @@ export function AdminContentPanel({ locale }: { locale: Locale }) {
           : "skip",
   );
 
-  function replaceSelection(next: { trackId: string; courseId: string; lessonId: string }) {
-    setTrackId(next.trackId);
-    setCourseId(next.courseId);
-    setLessonId(next.lessonId);
-    const params = new URLSearchParams(searchParams.toString());
-    if (next.trackId) params.set("track", next.trackId); else params.delete("track");
-    if (next.courseId) params.set("course", next.courseId); else params.delete("course");
-    if (next.lessonId) params.set("lesson", next.lessonId); else params.delete("lesson");
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-  }
-
-  async function createTemplate(kind: "track" | "course" | "lesson", parents: { trackId?: string; courseId?: string } = {}) {
+  async function createTemplate(kind: SelectionLevel, parents: { trackId?: string; courseId?: string } = {}) {
     if (creationPending) return;
-    setCreationPending(true);
+    setCreationPending(kind);
     setMessage(null);
     try {
       const result = await createDraftEntity({
@@ -353,43 +630,14 @@ export function AdminContentPanel({ locale }: { locale: Locale }) {
           : result.kind === "course"
             ? { trackId: result.trackId, courseId: result.id, lessonId: "" }
             : { trackId: result.trackId ?? parents.trackId ?? "", courseId: result.courseId, lessonId: result.id };
-      replaceSelection(next);
-      setCreationIntent(null);
-      setMessage({ tone: "success", text: kind === "track" ? "Prazan smer je spreman za inline unos." : kind === "course" ? "Prazan kurs je dodat izabranom smeru." : "Prazna lekcija je dodata na dno kursa." });
+      setListLevel(listForKind[kind]);
+      pushSelection(next);
+      setMessage({ tone: "success", text: kind === "track" ? t(locale, "Prazan smer je napravljen. Sada mu upiši naziv desno.", "An empty track is ready. Give it a name on the right.") : kind === "course" ? t(locale, "Prazan kurs je dodat u izabrani smer.", "An empty course was added to the selected track.") : t(locale, "Prazna lekcija je dodata na dno kursa.", "An empty lesson was added at the end of the course.") });
     } catch (error) {
-      setMessage({ tone: "error", text: error instanceof Error ? error.message : "Novi template nije napravljen." });
+      setMessage({ tone: "error", text: error instanceof Error ? error.message : t(locale, "Pravljenje nije uspelo. Pokušaj ponovo.", "Could not create it. Try again.") });
     } finally {
-      setCreationPending(false);
+      setCreationPending(null);
     }
-  }
-
-  async function handleTrackSelection(id: string) {
-    select("track", id);
-    if (id && creationIntent === "course") await createTemplate("course", { trackId: id });
-  }
-
-  async function handleCourseSelection(id: string) {
-    select("course", id);
-    if (id && creationIntent === "lesson" && trackId) await createTemplate("lesson", { trackId, courseId: id });
-  }
-
-  useEffect(() => {
-    if (creationIntent === "course" && !selectedTrack) trackSelectRef.current?.focus();
-    if (creationIntent === "lesson") {
-      if (!selectedTrack) trackSelectRef.current?.focus();
-      else if (!selectedCourse) courseSelectRef.current?.focus();
-    }
-  }, [creationIntent, selectedCourse, selectedTrack]);
-
-  function openNativeSelect(ref: RefObject<HTMLSelectElement | null>) {
-    requestAnimationFrame(() => {
-      ref.current?.focus();
-      try {
-        (ref.current as HTMLSelectElement & { showPicker?: () => void } | null)?.showPicker?.();
-      } catch {
-        // Focus plus the amber outline remains the accessible fallback.
-      }
-    });
   }
 
   const [titleSr, setTitleSr] = useState("");
@@ -445,7 +693,7 @@ export function AdminContentPanel({ locale }: { locale: Locale }) {
         setCourseId("");
         setLessonId("");
       } else if (activeKind === "course") {
-        if (!selectedTrack) throw new Error("Prvo izaberi smer.");
+        if (!selectedTrack) throw new Error(t(locale, "Prvo izaberi smer.", "Pick a track first."));
         const id = await upsertCourse({
           ...(!creating && selectedCourse ? { courseId: selectedCourse._id } : {}),
           trackId: selectedTrack._id,
@@ -462,7 +710,7 @@ export function AdminContentPanel({ locale }: { locale: Locale }) {
         setCourseId(id);
         setLessonId("");
       } else {
-        if (!selectedCourse) throw new Error("Prvo izaberi kurs.");
+        if (!selectedCourse) throw new Error(t(locale, "Prvo izaberi kurs.", "Pick a course first."));
         const id = await upsertLesson({
           ...(!creating && selectedLesson ? { lessonId: selectedLesson._id } : {}),
           courseId: selectedCourse._id,
@@ -480,15 +728,15 @@ export function AdminContentPanel({ locale }: { locale: Locale }) {
         setLessonId(id);
       }
       setCreating(null);
-      setMessage({ tone: "success", text: "Izmene su sačuvane i odmah dostupne u preview prikazu." });
+      setMessage({ tone: "success", text: t(locale, "Sačuvano. Prikaz desno već pokazuje novu verziju.", "Saved. The preview on the right already shows the new version.") });
     } catch (error) {
-      setMessage({ tone: "error", text: error instanceof Error ? error.message : "Čuvanje nije uspelo." });
+      setMessage({ tone: "error", text: error instanceof Error ? error.message : t(locale, "Čuvanje nije uspelo. Ništa nije izgubljeno - pokušaj ponovo.", "Saving failed. Nothing was lost - try again.") });
     } finally {
       setPending(false);
     }
   }
 
-  if (!hierarchy) return <div className="grid min-h-[60vh] place-items-center"><Loader2 className="size-8 animate-spin" /></div>;
+  if (!hierarchy) return <div className="grid min-h-[60vh] place-items-center"><Spinner size="xl" /></div>;
 
   const trackSurface: TrackExperienceData | null = selectedTrack
     ? {
@@ -515,42 +763,148 @@ export function AdminContentPanel({ locale }: { locale: Locale }) {
   const previewLesson = detail?.lesson ?? selectedLesson;
   const lessonSurface = previewLesson && selectedCourse ? lessonFromRow(previewLesson) : null;
   const lessonCourseSurface = previewLesson && selectedCourse ? courseFromRows(selectedCourse, previewLesson) : null;
-  return (
-    <AdminPageFrame>
-          <section className="rounded-[16px] border-2 border-ink bg-paper-strong p-4 shadow-[6px_6px_0_var(--shadow-hard-12)]">
-            <div className="grid gap-3 lg:grid-cols-[1fr_auto_1fr_auto_1fr_auto] lg:items-end">
-              <Field label="1. Smer"><select ref={trackSelectRef} className={cn(inputClass, creationIntent && !selectedTrack && "border-amber-600 ring-4 ring-amber-400/30")} value={trackId} onChange={(e) => void handleTrackSelection(e.target.value)}><option value="">Izaberi smer</option>{hierarchy.map((track) => <option key={track._id} value={track._id}>{track.titleSr || "Novi smer (nacrt)"}</option>)}</select></Field>
-              <ResetButton disabled={!trackId} onClick={() => select("track", "")} />
-              <Field label="2. Kurs"><select ref={courseSelectRef} className={cn(inputClass, creationIntent === "lesson" && selectedTrack && !selectedCourse && "border-amber-600 ring-4 ring-amber-400/30")} disabled={!selectedTrack} value={courseId} onChange={(e) => void handleCourseSelection(e.target.value)}><option value="">{selectedTrack ? "Izaberi kurs" : "Prvo izaberi smer"}</option>{selectedTrack?.courses.map((course) => <option key={course._id} value={course._id}>{course.titleSr || "Novi kurs (nacrt)"}</option>)}</select></Field>
-              <ResetButton disabled={!courseId} onClick={() => select("course", "")} />
-              <Field label="3. Lekcija"><select className={inputClass} disabled={!selectedCourse} value={lessonId} onChange={(e) => select("lesson", e.target.value)}><option value="">{selectedCourse ? "Izaberi lekciju" : "Prvo izaberi kurs"}</option>{selectedCourse?.lessons.map((lesson) => <option key={lesson._id} value={lesson._id}>{lesson.titleSr || "Nova lekcija (nacrt)"}</option>)}</select></Field>
-              <ResetButton disabled={!lessonId} onClick={() => select("lesson", "")} />
-            </div>
-            <div className="mt-4 flex flex-wrap gap-2 border-t border-line pt-4">
-              <button type="button" disabled={creationPending} onClick={() => void createTemplate("track")} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-xs font-black disabled:opacity-50"><CirclePlus className="size-4" /> Novi smer</button>
-              <button type="button" disabled={creationPending} onClick={() => { if (selectedTrack) void createTemplate("course", { trackId: selectedTrack._id }); else { setCreationIntent("course"); openNativeSelect(trackSelectRef); } }} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 text-xs font-black disabled:opacity-50"><CirclePlus className="size-4" /> Novi kurs</button>
-              <button type="button" disabled={creationPending} onClick={() => { if (selectedCourse && selectedTrack) void createTemplate("lesson", { trackId: selectedTrack._id, courseId: selectedCourse._id }); else { setCreationIntent("lesson"); if (!selectedTrack) openNativeSelect(trackSelectRef); else openNativeSelect(courseSelectRef); } }} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 text-xs font-black disabled:opacity-50"><CirclePlus className="size-4" /> Nova lekcija</button>
-            </div>
-            {creationIntent ? <p role="status" className="mt-3 inline-flex items-center gap-2 rounded-[8px] border-2 border-amber-700 bg-amber-50 px-3 py-2 text-xs font-black text-amber-950"><AlertTriangle className="size-4" />{creationIntent === "course" ? "Izaberi smer u označenom selectu. Novi kurs će se odmah napraviti u njemu." : selectedTrack ? "Izaberi kurs u označenom selectu. Nova lekcija biće dodata na njegovo dno." : "Prvo izaberi smer, zatim kurs za novu lekciju."}</p> : null}
-            {message ? <p role="status" className={cn("mt-3 rounded-[8px] border-2 px-3 py-2 text-xs font-black", message.tone === "success" ? "border-emerald-700 bg-emerald-50 text-emerald-800" : "border-red-700 bg-red-50 text-red-800")}>{message.text}</p> : null}
-          </section>
 
-          {readiness ? <section className="mt-5 rounded-[16px] border-2 border-ink bg-paper-strong p-4 shadow-[6px_6px_0_var(--shadow-hard-12)]" aria-label="Spremno za objavu">
-            <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-[0.12em] text-muted">Kontrola sadržaja</p><h2 className="mt-1 font-display text-3xl text-ink">{readiness.ready ? "Spremno za objavu" : "Dovrši pre objave"}</h2></div><span className={cn("rounded-full border-2 border-ink px-4 py-2 text-xs font-black uppercase", readiness.ready ? "bg-emerald-100 text-emerald-900" : "bg-yellow text-ink")}>{readiness.items.filter((item) => item.ok).length}/{readiness.items.length}</span></div>
-            <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-3">{readiness.items.map((entry) => <button key={entry.key} type="button" onClick={() => { if (entry.key === "slug" || entry.key === "view" || entry.key === "duration") setSettingsOpen(true); document.getElementById("admin-live-preview")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className={cn("flex min-h-12 items-center gap-3 rounded-[16px] border-2 px-3 py-2 text-left text-xs font-black", entry.ok ? "border-emerald-700 bg-emerald-50 text-emerald-900" : entry.blocking ? "border-red-700 bg-red-50 text-red-900" : "border-amber-700 bg-amber-50 text-amber-950")}>{entry.ok ? <CheckCircle2 className="size-5 shrink-0" /> : entry.blocking ? <XCircle className="size-5 shrink-0" /> : <AlertTriangle className="size-5 shrink-0" />}<span>{entry.labelSr}</span></button>)}</div>
+  const trackRows: NavRow[] = hierarchy.map((track) => {
+    const drafts = draftCount(track.courses);
+    return {
+      id: track._id,
+      title: titleOf(track, locale),
+      status: contentStatus(track),
+      meta: `${t(locale, "Kurseva", "Courses")}: ${track.courses.length}${drafts ? ` · ${t(locale, "Nacrt", "Draft")}: ${drafts}` : ""}`,
+    };
+  });
+  const courseRows: NavRow[] = (selectedTrack?.courses ?? []).map((course) => {
+    const drafts = draftCount(course.lessons);
+    return {
+      id: course._id,
+      title: titleOf(course, locale),
+      status: contentStatus(course),
+      meta: `${t(locale, "Lekcija", "Lessons")}: ${course.lessons.length}${drafts ? ` · ${t(locale, "Nacrt", "Draft")}: ${drafts}` : ""}`,
+    };
+  });
+  const lessonRows: NavRow[] = (selectedCourse?.lessons ?? []).map((lesson) => ({
+    id: lesson._id,
+    title: titleOf(lesson, locale),
+    status: contentStatus(lesson),
+    meta: `${Math.max(1, Math.round(lesson.durationSeconds / 60))} min`,
+  }));
+
+  const backLevel = parentListLevel(listLevel);
+  const hasSurface = Boolean(trackSurface || courseSurface || lessonSurface);
+
+  return (
+    <AdminPageFrame locale={locale} title={t(locale, "Sadržaj", "Content")}>
+      <section aria-labelledby="admin-platform-state" className="space-y-3">
+        <h2 id="admin-platform-state" className="type-eyebrow text-muted">
+          {t(locale, "Stanje platforme", "Platform state")}
+        </h2>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <StatCard locale={locale} icon={Layers} label={t(locale, "Smerovi", "Tracks")} value={overview ? String(overview.tracks.total) : "—"} tally={overview?.tracks} />
+          <StatCard locale={locale} icon={BookOpen} label={t(locale, "Kursevi", "Courses")} value={overview ? String(overview.courses.total) : "—"} tally={overview?.courses} />
+          <StatCard locale={locale} icon={ListTree} label={t(locale, "Lekcije", "Lessons")} value={overview ? String(overview.lessons.total) : "—"} tally={overview?.lessons} />
+          <StatCard
+            locale={locale}
+            icon={GraduationCap}
+            label={t(locale, "Studenti", "Students")}
+            value={overview ? `${overview.students.count}${overview.students.capped ? "+" : ""}` : "—"}
+            hint={t(locale, "Nalozi koji uče: studenti i pro studenti. Admini i moderatori se ne broje.", "Learner accounts: students and pro students. Admins and moderators are not counted.")}
+          />
+        </div>
+      </section>
+
+      {message ? (
+        <p role="status" className={cn("surface-inset border-2 px-3 py-2 type-body-sm font-black", message.tone === "success" ? "border-emerald-700 bg-emerald-50 text-emerald-800" : "border-red-700 bg-red-50 text-red-800")}>{message.text}</p>
+      ) : null}
+
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:items-start">
+        {/* Od `lg` naviše navigator prati skrol dugačkog pregleda desno; visina je ograničena
+            na ekran da se donji nivo ne odseče, pa cela ploča skroluje kao jedna celina. */}
+        <aside
+          aria-label={t(locale, "Hijerarhija sadržaja", "Content hierarchy")}
+          data-motion="card"
+          className="surface-card border-2 border-ink bg-paper-strong p-4 shadow-[6px_6px_0_0_var(--shadow-hard-13)] lg:sticky lg:top-4 lg:max-h-[calc(100dvh-2rem)] lg:overflow-y-auto"
+        >
+          {backLevel ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={<ArrowLeft className="size-4" />}
+              onClick={() => setListLevel(backLevel)}
+              className="-ml-2 mb-3 lg:hidden"
+            >
+              {backLevel === "tracks" ? t(locale, "Nazad na smerove", "Back to tracks") : t(locale, "Nazad na kurseve", "Back to courses")}
+            </Button>
+          ) : null}
+
+          <div className="grid gap-4 lg:divide-y lg:divide-line">
+            <NavSection
+              locale={locale}
+              level="tracks"
+              activeLevel={listLevel}
+              kicker={t(locale, "1. Smerovi", "1. Tracks")}
+              rows={trackRows}
+              selectedId={trackId}
+              emptyLabel={t(locale, "Još nema nijednog smera. Napravi prvi - dobićeš prazan nacrt koji studenti ne vide dok ga ne objaviš.", "No tracks yet. Create the first one - you get an empty draft students cannot see until you publish it.")}
+              createLabel={t(locale, "Novi smer", "New track")}
+              creating={creationPending === "track"}
+              onSelect={(id) => select("track", id)}
+              onClear={trackId ? () => select("track", "") : undefined}
+              onCreate={() => void createTemplate("track")}
+            />
+
+            <NavSection
+              locale={locale}
+              level="courses"
+              activeLevel={listLevel}
+              kicker={t(locale, "2. Kursevi", "2. Courses")}
+              subtitle={selectedTrack ? titleOf(selectedTrack, locale) : undefined}
+              rows={courseRows}
+              selectedId={courseId}
+              lockedLabel={selectedTrack ? undefined : t(locale, "Prvo izaberi smer iznad. Kursevi uvek pripadaju jednom smeru.", "Pick a track above first. A course always belongs to one track.")}
+              emptyLabel={t(locale, "Ovaj smer još nema kurseve.", "This track has no courses yet.")}
+              createLabel={t(locale, "Novi kurs", "New course")}
+              creating={creationPending === "course"}
+              onSelect={(id) => select("course", id)}
+              onClear={courseId ? () => select("course", "") : undefined}
+              onCreate={() => { if (selectedTrack) void createTemplate("course", { trackId: selectedTrack._id }); }}
+            />
+
+            <NavSection
+              locale={locale}
+              level="lessons"
+              activeLevel={listLevel}
+              kicker={t(locale, "3. Lekcije", "3. Lessons")}
+              subtitle={selectedCourse ? titleOf(selectedCourse, locale) : undefined}
+              rows={lessonRows}
+              selectedId={lessonId}
+              lockedLabel={selectedCourse ? undefined : t(locale, "Prvo izaberi kurs iznad. Nova lekcija ide na dno tog kursa.", "Pick a course above first. A new lesson goes to the end of that course.")}
+              emptyLabel={t(locale, "Ovaj kurs još nema lekcije.", "This course has no lessons yet.")}
+              createLabel={selectedCourse ? t(locale, "Nova lekcija u ovom kursu", "New lesson in this course") : t(locale, "Nova lekcija", "New lesson")}
+              creating={creationPending === "lesson"}
+              onSelect={(id) => select("lesson", id)}
+              onClear={lessonId ? () => select("lesson", "") : undefined}
+              onCreate={() => { if (selectedTrack && selectedCourse) void createTemplate("lesson", { trackId: selectedTrack._id, courseId: selectedCourse._id }); }}
+            />
+          </div>
+        </aside>
+
+        <div className="min-w-0 space-y-6">
+          {readiness ? <section className="surface-card border-2 border-ink bg-paper-strong p-4 shadow-[6px_6px_0_var(--shadow-hard-12)]" aria-label={t(locale, "Spremno za objavu", "Ready to publish")}>
+            <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="type-eyebrow text-muted">{t(locale, "Kontrola sadržaja", "Content check")}</p><h2 className="mt-2 font-display type-display-sm text-ink">{readiness.ready ? t(locale, "Spremno za objavu", "Ready to publish") : t(locale, "Dovrši pre objave", "Finish before publishing")}</h2></div><span className={cn("rounded-full border-2 border-ink px-4 py-2 type-eyebrow", readiness.ready ? "bg-emerald-100 text-emerald-900" : "bg-yellow text-ink")}>{readiness.items.filter((item) => item.ok).length}/{readiness.items.length}</span></div>
+            <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-3">{readiness.items.map((entry) => <button key={entry.key} type="button" onClick={() => { if (entry.key === "slug" || entry.key === "view" || entry.key === "duration") setSettingsOpen(true); document.getElementById("admin-live-preview")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className={cn("surface-inset flex min-h-12 items-center gap-3 border-2 px-3 py-2 text-left type-body-sm font-black", entry.ok ? "border-emerald-700 bg-emerald-50 text-emerald-900" : entry.blocking ? "border-red-700 bg-red-50 text-red-900" : "border-amber-700 bg-amber-50 text-amber-950")}>{entry.ok ? <CheckCircle2 className="size-5 shrink-0" /> : entry.blocking ? <XCircle className="size-5 shrink-0" /> : <AlertTriangle className="size-5 shrink-0" />}<span>{t(locale, entry.labelSr, entry.labelEn)}</span></button>)}</div>
           </section> : null}
 
-          {trackSurface || courseSurface || lessonSurface ? (
-            <section id="admin-live-preview" className="relative mt-8 scroll-mt-6 overflow-hidden rounded-[16px] border-2 border-ink bg-paper shadow-[8px_8px_0_var(--shadow-hard-13)]">
+          {hasSurface ? (
+            <section id="admin-live-preview" className="surface-card relative scroll-mt-6 overflow-hidden border-2 border-ink bg-paper shadow-[8px_8px_0_var(--shadow-hard-13)]">
               <div className="absolute right-3 top-3 z-40">
-                <button type="button" onClick={() => setSettingsOpen((open) => !open)} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong/95 px-4 text-xs font-black shadow-[3px_3px_0_var(--shadow-hard)] backdrop-blur"><Settings2 className="size-4" /> Podešavanja</button>
+                <button type="button" onClick={() => setSettingsOpen((open) => !open)} aria-expanded={settingsOpen} className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong/95 px-4 text-sm font-black shadow-[3px_3px_0_0_var(--shadow-hard)] backdrop-blur"><Settings2 className="size-4" /> {t(locale, "Podešavanja", "Settings")}</button>
                 {settingsOpen ? (
-                  <form onSubmit={save} className="mt-2 grid w-[min(320px,calc(100vw-3rem))] gap-3 rounded-[16px] border-2 border-ink bg-paper-strong p-4 shadow-[7px_7px_0_var(--shadow-hard)]">
-                    <p className="text-xs font-black uppercase tracking-[0.1em] text-muted">Sistemska podešavanja</p>
-                    <Field label="URL / SEO naziv"><input className={inputClass} value={slug} onChange={(event) => setSlug(event.target.value)} placeholder={slugify(titleSr || titleEn) || "automatski-iz-naslova"} /></Field>
-                    <Field label="Status"><select className={inputClass} value={status} onChange={(event) => setStatus(event.target.value as Status)}><option value="draft">Nacrt</option><option value="published">Objavljeno</option>{activeKind !== "lesson" ? <option value="archived">Arhivirano</option> : null}</select></Field>
-                    {activeKind === "lesson" ? <><Field label="Trajanje (min)"><input type="number" min={1} className={inputClass} value={durationMinutes} onChange={(event) => setDurationMinutes(Math.max(1, Number(event.target.value)))} /></Field><label className="flex items-center gap-2 text-xs font-black"><input type="checkbox" checked={proEnabled} onChange={(event) => setProEnabled(event.target.checked)} /> Pro prikaz</label><label className="flex items-center gap-2 text-xs font-black"><input type="checkbox" checked={lightEnabled} onChange={(event) => setLightEnabled(event.target.checked)} /> Light prikaz</label></> : null}
-                    <button type="submit" disabled={pending} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border-2 border-ink bg-ink px-4 text-xs font-black text-paper-strong disabled:opacity-50">{pending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} Sačuvaj podešavanja</button>
+                  <form onSubmit={save} className="surface-card mt-2 grid w-[min(320px,calc(100vw-3rem))] gap-3 border-2 border-ink bg-paper-strong p-4 shadow-[7px_7px_0_var(--shadow-hard)]">
+                    <p className="type-eyebrow text-muted">{t(locale, "Sistemska podešavanja", "System settings")}</p>
+                    <Field label={t(locale, "URL / SEO naziv", "URL / SEO name")}><input className={inputClass} value={slug} onChange={(event) => setSlug(event.target.value)} placeholder={slugify(titleSr || titleEn) || "automatski-iz-naslova"} /></Field>
+                    <Field label={t(locale, "Status", "Status")}><select className={inputClass} value={status} onChange={(event) => setStatus(event.target.value as Status)}><option value="draft">{t(locale, "Nacrt", "Draft")}</option><option value="published">{t(locale, "Objavljeno", "Published")}</option>{activeKind !== "lesson" ? <option value="archived">{t(locale, "Arhivirano", "Archived")}</option> : null}</select></Field>
+                    {activeKind === "lesson" ? <><Field label={t(locale, "Trajanje (min)", "Duration (min)")}><input type="number" min={1} className={inputClass} value={durationMinutes} onChange={(event) => setDurationMinutes(Math.max(1, Number(event.target.value)))} /></Field><label className="flex items-center gap-2 text-xs font-black"><input type="checkbox" checked={proEnabled} onChange={(event) => setProEnabled(event.target.checked)} /> {t(locale, "Pro prikaz", "Pro view")}</label><label className="flex items-center gap-2 text-xs font-black"><input type="checkbox" checked={lightEnabled} onChange={(event) => setLightEnabled(event.target.checked)} /> {t(locale, "Light prikaz", "Light view")}</label></> : null}
+                    <Button type="submit" loading={pending} icon={<Save className="size-4" />} size="sm">{t(locale, "Sačuvaj podešavanja", "Save settings")}</Button>
                   </form>
                 ) : null}
               </div>
@@ -560,7 +914,24 @@ export function AdminContentPanel({ locale }: { locale: Locale }) {
                 {!lessonSurface && !courseSurface && trackSurface ? <TrackExperience data={trackSurface} locale={locale} inlineLocale={locale} admin profileName="admin" /> : null}
               </div>
             </section>
-          ) : null}
+          ) : (
+            <EmptyState
+              icon={ListTree}
+              title={t(locale, "Izaberi šta uređuješ", "Pick what to edit")}
+              body={t(
+                locale,
+                "Klikni na smer u listi levo. Zatim na kurs u njemu, pa na lekciju. Ovde se otvara tačno ono što student vidi - i menjaš ga klikom na sam tekst.",
+                "Click a track in the list on the left. Then a course inside it, then a lesson. What a student sees opens here - and you edit it by clicking the text itself.",
+              )}
+              action={hierarchy.length === 0 ? (
+                <Button loading={creationPending === "track"} icon={<CirclePlus className="size-4" />} onClick={() => void createTemplate("track")}>
+                  {t(locale, "Napravi prvi smer", "Create the first track")}
+                </Button>
+              ) : undefined}
+            />
+          )}
+        </div>
+      </div>
     </AdminPageFrame>
   );
 }

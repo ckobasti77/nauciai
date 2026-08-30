@@ -8,7 +8,6 @@ import {
   ChevronUp,
   Clock3,
   GraduationCap,
-  Loader2,
   MessageSquareWarning,
   ShieldCheck,
 } from "lucide-react";
@@ -17,10 +16,11 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { CommunityAvatar, formatCommunityTime, type CommunityRank, type CommunityRole } from "@/components/app/community-identity";
-import { CommunityThreadDialog } from "@/components/app/community-thread-dialog";
+import { Dialog } from "@/components/ui/dialog";
 import { CommunityStickyToolbar } from "@/components/app/community-v2/community-sticky-toolbar";
 import { Panel } from "@/components/ui/primitives";
 import { useToast } from "@/components/ui/toast-provider";
+import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { Locale } from "@/lib/i18n";
@@ -80,8 +80,8 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
     setSuccess(null);
     try {
       await moderatePost({ postId: postId as Id<"communityPosts">, decision: "approve" });
-      setSuccess(locale === "sr" ? "Tred je odobren i objavljen." : "The thread was approved and published.");
-      toast.success(locale === "sr" ? "Tred je odobren i objavljen." : "The thread was approved and published.");
+      setSuccess(locale === "sr" ? "Tema je odobrena i objavljena." : "The topic was approved and published.");
+      toast.success(locale === "sr" ? "Tema je odobrena i objavljena." : "The topic was approved and published.");
       if (expandedPostId === postId) setExpandedPostId(null);
     } catch (caughtError) {
       console.error(caughtError);
@@ -113,8 +113,8 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
         decision: "request_changes",
         reason: reason.trim(),
       });
-      setSuccess(locale === "sr" ? "Tred je vraćen autoru sa jasnim razlogom." : "The thread was returned to the author with a clear reason.");
-      toast.warning(locale === "sr" ? "Tred je vraćen autoru na izmenu." : "The thread was returned to the author for changes.");
+      setSuccess(locale === "sr" ? "Tema je vraćena autoru sa jasnim razlogom." : "The topic was returned to its author with a clear reason.");
+      toast.warning(locale === "sr" ? "Tema je vraćena autoru na izmenu." : "The topic was returned to its author for changes.");
       setRequestPostId(null);
       setReason("");
       setExpandedPostId(null);
@@ -134,17 +134,17 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
   if (authLoading || (isAuthenticated && viewerData === undefined)) {
     return (
       <div className="grid min-h-80 place-items-center" aria-busy="true">
-        <Loader2 className="size-8 animate-spin text-yellow motion-reduce:animate-none" />
+        <Spinner size="xl" className="text-yellow" />
       </div>
     );
   }
 
   if (!isStaff) {
     return (
-      <Panel className="mx-auto max-w-xl rounded-[16px] border border-line bg-paper-strong p-7 text-center shadow-none">
+      <Panel className="mx-auto max-w-xl rounded-[16px] border border-line bg-paper-strong p-6 text-center shadow-none">
         <ShieldCheck className="mx-auto size-9 text-ink/45" />
-        <h1 className="mt-4 text-2xl font-black text-ink">{locale === "sr" ? "Staff prostor" : "Staff area"}</h1>
-        <p className="mt-2 text-sm font-semibold leading-6 text-muted">
+        <h1 className="mt-4 type-h1 text-ink">{locale === "sr" ? "Staff prostor" : "Staff area"}</h1>
+        <p className="mt-2 type-body-sm font-semibold text-muted">
           {locale === "sr" ? "Odobrenjima mogu da pristupe moderator i admin." : "Approvals are available to moderators and admins."}
         </p>
         <Link
@@ -158,7 +158,7 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
   }
 
   return (
-    <section aria-label={locale === "sr" ? "Odobrenja" : "Approvals"} className="space-y-5">
+    <section aria-label={locale === "sr" ? "Odobrenja" : "Approvals"} className="space-y-6">
       <CommunityStickyToolbar>
       <div className="flex flex-wrap items-end justify-end gap-4 rounded-[16px] border border-line bg-paper-strong p-2">
         <span className="inline-flex min-h-10 items-center gap-2 rounded-full border border-line bg-paper-strong px-3 text-xs font-black text-ink/65">
@@ -182,14 +182,14 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
 
       {queue.status === "LoadingFirstPage" ? (
         <div className="grid min-h-64 place-items-center" aria-busy="true">
-          <Loader2 className="size-8 animate-spin text-yellow motion-reduce:animate-none" />
+          <Spinner size="xl" className="text-yellow" />
         </div>
       ) : queue.results.length === 0 ? (
         <Panel className="rounded-[16px] border border-dashed border-ink/20 bg-paper-strong p-8 text-center shadow-none">
           <ShieldCheck className="mx-auto size-9 text-emerald-600" />
-          <h2 className="mt-4 text-xl font-black text-ink">{locale === "sr" ? "Red je čist" : "The queue is clear"}</h2>
+          <h2 className="mt-4 type-h2 text-ink">{locale === "sr" ? "Red je čist" : "The queue is clear"}</h2>
           <p className="mt-2 text-sm font-semibold text-muted">
-            {locale === "sr" ? "Nema tredova koji čekaju proveru." : "No threads are waiting for review."}
+            {locale === "sr" ? "Nema tema koje čekaju proveru." : "No topics are waiting for review."}
           </p>
         </Panel>
       ) : (
@@ -199,7 +199,7 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
             const busy = activePostId === post._id;
             return (
               <Panel key={post._id} as="article" className="overflow-hidden rounded-[16px] border border-line bg-paper-strong shadow-none">
-                <div className="p-4 md:p-5">
+                <div className="p-4 md:p-6">
                   <div className="flex items-start gap-3">
                     {post.authorUsername ? <Link href={withLocale(locale, `/app/members/${post.authorUsername}`)} className="rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"><CommunityAvatar
                       name={post.authorName}
@@ -217,9 +217,9 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
                           {formatCommunityTime(post.createdAt, locale)}
                         </time>
                       </div>
-                      <h2 className="mt-2 text-lg font-black leading-tight text-ink md:text-xl">{post.title}</h2>
+                      <h2 className="mt-2 type-h3 text-ink">{post.title}</h2>
                       <div className="mt-2 flex flex-wrap items-center gap-2">
-                        <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-paper px-2.5 py-1 text-[11px] font-black text-ink/65">
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-paper px-2.5 py-1 type-caption font-black text-ink/65">
                           <GraduationCap className="size-3.5" />
                           {moderationScopeLabel(post, locale, communityFilters?.tracks)}
                         </span>
@@ -241,11 +241,11 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
                 {expanded ? (
                   <div id={`moderation-preview-${post._id}`} className="border-t border-line bg-paper/40 px-4 py-5 md:px-5">
                     <div className="mx-auto max-w-[720px]">
-                      <p className="whitespace-pre-wrap text-sm font-semibold leading-7 text-ink/80">{post.body}</p>
+                      <p className="whitespace-pre-wrap type-body-sm font-semibold text-ink/80">{post.body}</p>
                       {post.imageUrl ? (
                         <Image
                           src={post.imageUrl}
-                          alt={locale === "sr" ? "Prilog treda" : "Thread attachment"}
+                          alt={locale === "sr" ? "Slika uz temu" : "Image for this topic"}
                           width={1200}
                           height={750}
                           unoptimized
@@ -257,7 +257,7 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
                           href={withLocale(locale, `/app/community/${post._id}`)}
                           className="inline-flex min-h-10 items-center gap-2 rounded-full px-3 text-xs font-black text-ink/65 transition hover:bg-paper-strong hover:text-ink"
                         >
-                          {locale === "sr" ? "Otvori pun tred" : "Open full thread"}
+                          {locale === "sr" ? "Otvori celu temu" : "Open the full topic"}
                           <ArrowUpRight className="size-4" />
                         </Link>
                         <div className="flex flex-wrap gap-2">
@@ -280,7 +280,7 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
                             disabled={busy}
                             className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black text-ink shadow-[3px_3px_0_var(--shadow-hard-16)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
                           >
-                            {busy ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
+                            {busy ? <Spinner /> : <CheckCircle2 className="size-4" />}
                             {locale === "sr" ? "Odobri i objavi" : "Approve and publish"}
                           </button>
                         </div>
@@ -302,13 +302,13 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
             disabled={queue.status === "LoadingMore"}
             className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line bg-paper-strong px-5 text-sm font-black text-ink transition hover:border-ink hover:bg-paper disabled:opacity-60"
           >
-            {queue.status === "LoadingMore" ? <Loader2 className="size-4 animate-spin" /> : null}
+            {queue.status === "LoadingMore" ? <Spinner /> : null}
             {locale === "sr" ? "Učitaj još" : "Load more"}
           </button>
         </div>
       ) : null}
 
-      <CommunityThreadDialog
+      <Dialog
         open={Boolean(requestPostId)}
         title={locale === "sr" ? "Zatraži izmenu" : "Request changes"}
         description={
@@ -323,7 +323,7 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
           setReasonError(null);
         }}
       >
-        <label htmlFor="moderation-reason" className="block text-xs font-black uppercase tracking-[0.06em] text-ink/55">
+        <label htmlFor="moderation-reason" className="block type-eyebrow text-ink/55">
           {locale === "sr" ? "Razlog i tražena izmena" : "Reason and requested change"}
         </label>
         <textarea
@@ -339,7 +339,7 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
           aria-invalid={Boolean(reasonError)}
           aria-describedby={reasonError ? "moderation-reason-error" : "moderation-reason-help"}
           placeholder={locale === "sr" ? "Na primer: ukloni lične podatke iz drugog pasusa…" : "For example: remove personal information from the second paragraph…"}
-          className="mt-2 w-full resize-y rounded-[12px] border border-line bg-paper-strong px-3 py-2.5 text-sm font-semibold leading-6 text-ink outline-none focus:border-ink focus:ring-4 focus:ring-yellow/15"
+          className="mt-2 w-full resize-y rounded-[12px] border border-line bg-paper px-3 py-2.5 type-body-sm font-semibold text-ink focus:border-ink focus:ring-4 focus:ring-yellow/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         />
         {reasonError ? (
           <p id="moderation-reason-error" role="alert" className="mt-2 text-xs font-bold text-red-700">{reasonError}</p>
@@ -363,11 +363,11 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
             disabled={Boolean(activePostId)}
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black text-ink shadow-[3px_3px_0_var(--shadow-hard-16)] disabled:opacity-60"
           >
-            {activePostId ? <Loader2 className="size-4 animate-spin" /> : <MessageSquareWarning className="size-4" />}
+            {activePostId ? <Spinner /> : <MessageSquareWarning className="size-4" />}
             {locale === "sr" ? "Vrati autoru" : "Return to author"}
           </button>
         </div>
-      </CommunityThreadDialog>
+      </Dialog>
     </section>
   );
 }

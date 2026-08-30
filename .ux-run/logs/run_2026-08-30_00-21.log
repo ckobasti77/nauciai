@@ -1,0 +1,98 @@
+﻿[00:21:41] ==================================================
+[00:21:41]  UX BOOST - nocni run
+[00:21:41]  Repo:   C:\Users\admin\Desktop\Web Dev Projects\nauciai
+[00:21:41]  Grana:  feat/ux-boost
+[00:21:41]  Koraka: 13
+[00:21:41]  Log:    C:\Users\admin\Desktop\Web Dev Projects\nauciai\.ux-run\logs\run_2026-08-30_00-21.log
+[00:21:41] ==================================================
+[00:21:41] Vec na grani feat/ux-boost
+[00:21:41] Nekomitovane izmene zatecene - commitujem ih pre starta.
+[00:21:42] 
+[00:21:42] --------------------------------------------------
+[00:21:42]  U1  |  Audit: verifikacija problema + UX-BOOST-PLAN.md
+[00:21:42]  model=opus  effort=high
+[00:21:42] --------------------------------------------------
+[00:37:37] Commit 1164166 - 4 izmenjenih putanja
+[00:37:37] U1 -> BLOKADA  (16 min, USD 6.39)
+[00:37:37] 
+[00:37:37] --------------------------------------------------
+[00:37:37]  U2  |  UI primitivi: Button, Spinner, Dialog, Input, Badge, EmptyState
+[00:37:37]  model=opus  effort=max
+[00:37:37] --------------------------------------------------
+[01:22:32] Commit 43842a9 - 28 izmenjenih putanja
+[01:22:32] U2 -> BLOKADA  (45 min, USD 30.19)
+[01:22:32] 
+[01:22:32] --------------------------------------------------
+[01:22:32]  U3  |  In-app katalog kurseva - kraj slepe ulice
+[01:22:32]  model=opus  effort=max
+[01:22:32] --------------------------------------------------
+[01:52:17] Commit 2e90f5b - 1 izmenjenih putanja
+[01:52:17] U3 -> BLOKADA  (30 min, USD 16.27)
+[01:52:17] 
+[01:52:17] --------------------------------------------------
+[01:52:17]  U4  |  Dashboard za sve tierove (FREE, plaćeni, admin)
+[01:52:17]  model=opus  effort=high
+[01:52:17] --------------------------------------------------
+[02:11:44] Commit f8af5f1 - 12 izmenjenih putanja
+[02:11:44] U4 -> BLOKADA  (19 min, USD 9.33)
+[02:11:44] 
+[02:11:44] --------------------------------------------------
+[02:11:44]  U5  |  Onboarding i mikrocopy za početnike
+[02:11:44]  model=opus  effort=medium
+[02:11:44] --------------------------------------------------
+[02:40:56] Commit 8aaef00 - 4 izmenjenih putanja
+[02:40:56] U5 -> OK  (29 min, USD 19.67)
+[02:40:56] 
+[02:40:56] --------------------------------------------------
+[02:40:56]  U6  |  Admin Kontrolni centar redizajn
+[02:40:56]  model=opus  effort=high
+[02:40:56] --------------------------------------------------
+[03:07:22] Commit a46ec06 - 4 izmenjenih putanja
+[03:07:22] U6 -> OK  (26 min, USD 14.29)
+[03:07:22] 
+[03:07:22] --------------------------------------------------
+[03:07:22]  U7  |  A11y sweep: fokus, kontrast, aria, tastatura
+[03:07:22]  model=sonnet  effort=medium
+[03:07:22] --------------------------------------------------
+[03:17:10] Commit aa01e5a - 29 izmenjenih putanja
+[03:17:10] U7 -> BLOKADA  (10 min, USD 3.88)
+[03:17:10] 
+[03:17:10] --------------------------------------------------
+[03:17:10]  U8  |  Token + radius sweep
+[03:17:10]  model=sonnet  effort=medium
+[03:17:10] --------------------------------------------------
+[03:25:55] Commit 0187513 - 24 izmenjenih putanja
+[03:25:55] U8 -> OK  (9 min, USD 1.81)
+[03:25:55] 
+[03:25:55] --------------------------------------------------
+[03:25:55]  U9  |  Polish: motion, mikro-interakcije, školski šarm, poznati bagovi
+[03:25:55]  model=opus  effort=high
+[03:25:55] --------------------------------------------------
+[03:54:39] Commit 3cd49d6 - 62 izmenjenih putanja
+[03:54:39] U9 -> OK  (29 min, USD 17.59)
+[03:54:39] 
+[03:54:39] --------------------------------------------------
+[03:54:39]  U10  |  UI jezik: tipografija, spacing, hijerarhija sekcija
+[03:54:39]  model=opus  effort=max
+[03:54:39] --------------------------------------------------
+[04:37:02] Commit 365ce25 - 69 izmenjenih putanja
+[04:37:02] U10 -> OK  (42 min, USD 24.00)
+[04:37:02] 
+[04:37:02] --------------------------------------------------
+[04:37:02]  U11  |  UI facelift: Dashboard + Učionica/Katalog
+[04:37:02]  model=opus  effort=max
+[04:37:02] --------------------------------------------------
+[05:05:45] Commit 14c9d1f - 17 izmenjenih putanja
+[05:05:45] U11 -> OK  (29 min, USD 14.91)
+[05:05:45] 
+[05:05:45] --------------------------------------------------
+[05:05:45]  U12  |  UI facelift: Zajednica + Admin + Studio + konzistencija
+[05:05:45]  model=opus  effort=high
+[05:05:45] --------------------------------------------------
+[05:35:50] Commit 419bc53 - 34 izmenjenih putanja
+[05:35:50] U12 -> OK  (30 min, USD 18.16)
+[05:35:50] 
+[05:35:50] --------------------------------------------------
+[05:35:50]  U13  |  Responsive prolaz + finalna verifikacija + izveštaj
+[05:35:50]  model=sonnet  effort=high
+[05:35:50] --------------------------------------------------

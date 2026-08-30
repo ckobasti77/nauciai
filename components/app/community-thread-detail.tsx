@@ -8,7 +8,6 @@ import {
   CircleAlert,
   GraduationCap,
   Globe2,
-  Loader2,
   MessageCircle,
   Pencil,
   Star,
@@ -23,6 +22,7 @@ import { CommunityAvatar, formatCommunityTime } from "@/components/app/community
 import { CommunityPostEditor, type CommunityEditorPost } from "@/components/app/community-post-editor";
 import { CommunityThreadActions } from "@/components/app/community-thread-actions";
 import { Panel, cn } from "@/components/ui/primitives";
+import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { Locale } from "@/lib/i18n";
@@ -114,7 +114,7 @@ export function LiveCommunityThreadPage({
   async function handleToggleFavorite() {
     if (!isAuthenticated || favoriteBusy) return;
     if (!viewerProfile?.username) {
-      setFavoriteError(locale === "sr" ? "Podesi username na Profilu da bi sačuvao/la diskusiju." : "Set a username in Profile to save this discussion.");
+      setFavoriteError(locale === "sr" ? "Izaberi korisničko ime na Profilu da bi mogao/la da sačuvaš diskusiju." : "Set a username in Profile to save this discussion.");
       return;
     }
     setFavoriteBusy(true);
@@ -125,8 +125,8 @@ export function LiveCommunityThreadPage({
       console.error(caughtError);
       setFavoriteError(
         locale === "sr"
-          ? "Tred nije sačuvan. Proveri vezu i pokušaj ponovo."
-          : "The thread was not saved. Check your connection and try again.",
+          ? "Tema nije sačuvana. Proveri internet i pokušaj ponovo."
+          : "The topic was not saved. Check your connection and try again.",
       );
     } finally {
       setFavoriteBusy(false);
@@ -134,7 +134,7 @@ export function LiveCommunityThreadPage({
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Link
           href={withLocale(locale, "/app/community/discussions")}
@@ -160,7 +160,7 @@ export function LiveCommunityThreadPage({
           <CircleAlert className="mt-0.5 size-5 shrink-0" />
           <div className="min-w-0">
             <p className="font-black">{locale === "sr" ? "Moderator traži izmene" : "A moderator requested changes"}</p>
-            <p className="mt-1 text-sm font-semibold leading-6">
+            <p className="mt-1 type-body-sm font-semibold">
               {post.moderationReason ||
                 (locale === "sr"
                   ? "Otvori editor, proveri sadržaj i pošalji novu verziju na odobrenje."
@@ -171,7 +171,7 @@ export function LiveCommunityThreadPage({
       ) : null}
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <section className="min-w-0 space-y-5">
+        <section className="min-w-0 space-y-6">
           <Panel as="article" className="overflow-hidden rounded-[16px] border-2 border-ink bg-paper-strong shadow-[6px_6px_0_var(--shadow-hard-13)]">
             <header className="relative border-b border-line bg-paper/55 px-5 py-6 md:px-8 md:py-8">
               <div aria-hidden="true" className="absolute bottom-0 left-8 top-0 hidden w-px bg-ink/15 md:block" />
@@ -215,18 +215,18 @@ export function LiveCommunityThreadPage({
                     </div>
                   </div>
                 </div>
-                <h1 className="mt-6 text-3xl font-black leading-[1.08] tracking-[-0.025em] text-ink md:text-5xl">{post.title}</h1>
+                <h1 className="mt-6 type-hero text-ink">{post.title}</h1>
               </div>
             </header>
 
             <div className="px-5 py-7 md:px-8 md:py-9">
               <div className="mx-auto max-w-[720px]">
-                <p className="whitespace-pre-wrap text-[17px] font-semibold leading-8 text-ink/82">{post.body}</p>
+                <p className="whitespace-pre-wrap type-reading type-measure font-semibold text-ink/82">{post.body}</p>
                 {post.imageUrl ? (
                   <div className="mt-8 overflow-hidden rounded-[8px] border border-line bg-paper p-1.5">
                     <Image
                       src={post.imageUrl}
-                      alt={locale === "sr" ? `Prilog uz tred „${post.title}”` : `Attachment for “${post.title}”`}
+                      alt={locale === "sr" ? `Slika uz temu „${post.title}”` : `Attachment for “${post.title}”`}
                       width={1440}
                       height={900}
                       unoptimized
@@ -262,7 +262,7 @@ export function LiveCommunityThreadPage({
                   className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-line bg-paper-strong px-3 text-xs font-black text-ink transition hover:border-ink hover:bg-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-wait disabled:opacity-60"
                 >
                   {favoriteBusy ? (
-                    <Loader2 className="size-4 animate-spin" />
+                    <Spinner />
                   ) : post.isFavorited ? (
                     <BookmarkCheck className="size-4 fill-yellow text-ink" />
                   ) : (
@@ -288,8 +288,8 @@ export function LiveCommunityThreadPage({
           <Panel id="comments" className="rounded-[16px] border border-line bg-paper-strong p-4 shadow-none md:p-6">
             <div className="mb-5 flex items-center justify-between gap-3">
               <div>
-                <p className="font-display text-lg text-ink">{locale === "sr" ? "Razmena znanja" : "Knowledge exchange"}</p>
-                <h2 className="text-2xl font-black text-ink">{locale === "sr" ? "Komentari" : "Comments"}</h2>
+                <p className="type-eyebrow text-ink">{locale === "sr" ? "Razmena znanja" : "Knowledge exchange"}</p>
+                <h2 className="type-h2 text-ink">{locale === "sr" ? "Komentari" : "Comments"}</h2>
               </div>
               <span className="inline-flex min-h-8 items-center gap-2 rounded-full border border-line bg-paper px-3 text-xs font-black text-ink/65">
                 <MessageCircle className="size-4" />
@@ -310,9 +310,9 @@ export function LiveCommunityThreadPage({
 
         <aside className="space-y-4 xl:sticky xl:top-6 xl:self-start">
           <Panel as="aside" className="rounded-[16px] border border-line bg-paper-strong p-4 shadow-none">
-            <p className="font-display text-lg text-ink">{locale === "sr" ? "Learning spine" : "Learning spine"}</p>
+            <p className="type-eyebrow text-ink">{locale === "sr" ? "Learning spine" : "Learning spine"}</p>
             <dl className="mt-3 space-y-2 text-sm">
-              <MetaRow label={locale === "sr" ? "Opseg" : "Scope"} value={scope} icon={scopeIcon(post)} />
+              <MetaRow label={locale === "sr" ? "Gde pripada" : "Belongs to"} value={scope} icon={scopeIcon(post)} />
               <MetaRow label={locale === "sr" ? "Status" : "Status"} value={statusLabel(post.status, locale)} />
               <MetaRow
                 label={locale === "sr" ? "Istaknuto" : "Pinned"}
@@ -341,21 +341,21 @@ export function LiveCommunityThreadEditorPage({ locale, postId }: { locale: Loca
 
   if (!post || !viewerData?.profile || post.authorId !== viewerData.profile.userId) {
     return (
-      <Panel className="mx-auto max-w-xl rounded-[16px] border border-line bg-paper-strong p-7 text-center shadow-none">
+      <Panel className="mx-auto max-w-xl rounded-[16px] border border-line bg-paper-strong p-6 text-center shadow-none">
         <CircleAlert className="mx-auto size-9 text-amber-600" />
-        <h1 className="mt-4 text-2xl font-black text-ink">
+        <h1 className="mt-4 type-h1 text-ink">
           {locale === "sr" ? "Editor nije dostupan" : "Editor is not available"}
         </h1>
-        <p className="mt-2 text-sm font-semibold leading-6 text-muted">
+        <p className="mt-2 type-body-sm font-semibold text-muted">
           {locale === "sr"
-            ? "Samo autor može da menja ovaj tred. Vrati se na čitački prikaz."
-            : "Only the author can edit this thread. Return to the reader view."}
+            ? "Ovu temu može da menja samo onaj ko ju je napisao. Vrati se na prikaz za čitanje."
+            : "Only the person who wrote this topic can edit it. Go back to the reading view."}
         </p>
         <Link
           href={withLocale(locale, `/app/community/${postId}`)}
           className="mt-5 inline-flex min-h-11 items-center justify-center rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black text-ink"
         >
-          {locale === "sr" ? "Otvori tred" : "Open thread"}
+          {locale === "sr" ? "Otvori temu" : "Open topic"}
         </Link>
       </Panel>
     );
@@ -366,21 +366,21 @@ export function LiveCommunityThreadEditorPage({ locale, postId }: { locale: Loca
 
 function ThreadLoading({ locale }: { locale: Locale }) {
   return (
-    <div className="grid min-h-96 place-items-center" aria-busy="true" aria-label={locale === "sr" ? "Učitavanje treda" : "Loading thread"}>
-      <Loader2 className="size-9 animate-spin text-yellow motion-reduce:animate-none" />
+    <div className="grid min-h-96 place-items-center" aria-busy="true" aria-label={locale === "sr" ? "Učitavanje teme" : "Loading topic"}>
+      <Spinner size="xl" className="text-yellow" />
     </div>
   );
 }
 
 function ThreadUnavailable({ locale }: { locale: Locale }) {
   return (
-    <Panel className="mx-auto max-w-xl rounded-[16px] border border-line bg-paper-strong p-7 text-center shadow-none">
+    <Panel className="mx-auto max-w-xl rounded-[16px] border border-line bg-paper-strong p-6 text-center shadow-none">
       <CircleAlert className="mx-auto size-9 text-amber-600" />
-      <h1 className="mt-4 text-2xl font-black text-ink">{locale === "sr" ? "Tred nije dostupan" : "Thread unavailable"}</h1>
-      <p className="mt-2 text-sm font-semibold leading-6 text-muted">
+      <h1 className="mt-4 type-h1 text-ink">{locale === "sr" ? "Tema nije dostupna" : "Topic unavailable"}</h1>
+      <p className="mt-2 type-body-sm font-semibold text-muted">
         {locale === "sr"
-          ? "Tred je obrisan, još nije objavljen ili nemaš pristup njegovom kursu."
-          : "The thread was deleted, is not published yet, or belongs to a course you cannot access."}
+          ? "Tema je obrisana, još nije objavljena ili je na kursu koji još nemaš."
+          : "The topic was deleted, is not published yet, or belongs to a course you do not have yet."}
       </p>
       <Link
         href={withLocale(locale, "/app/community/discussions")}
@@ -396,7 +396,7 @@ function ThreadUnavailable({ locale }: { locale: Locale }) {
 function MetaRow({ label, value, icon }: { label: string; value: string; icon?: ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-3 rounded-[12px] border border-line bg-paper/55 px-3 py-2.5">
-      <dt className="pt-0.5 text-[11px] font-black uppercase tracking-[0.06em] text-ink/45">{label}</dt>
+      <dt className="pt-0.5 type-eyebrow text-ink/45">{label}</dt>
       <dd className="flex min-w-0 items-center gap-2 text-right text-xs font-black text-ink">
         {icon ? <span className="mt-0.5 shrink-0 text-ink/65">{icon}</span> : null}
         <span>{value}</span>

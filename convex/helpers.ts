@@ -5,6 +5,7 @@ import type { Id } from "./_generated/dataModel";
 import { env } from "./_generated/server";
 import { normalizeEmail, parseAdminEmails } from "../lib/admin-emails";
 import type { MutationCtx } from "./_generated/server";
+import { canonicalizeEmailForAntiFarm } from "./creditsCore";
 import { syncLeaderboardEligibilityForUser } from "./leaderboardCore";
 import {
   isValidUsername,
@@ -140,6 +141,10 @@ export async function upsertProfileFromAuthUser(
     role,
     language: user.language ?? ("sr" as const),
     searchText: `${name} ${username ?? ""} ${email}`.trim(),
+    // Anti-farm ključ (nalaz V4): kanonski Gmail oblik, ne login email. Piše se
+    // ovde jer je ovo jedini levak za `users.email` (i password i Google), pa
+    // svaki NOV nalog nosi ključ po kom ga alias-braća prepoznaju.
+    emailCanonical: canonicalizeEmailForAntiFarm(email),
     createdAt: user.createdAt ?? now,
     updatedAt: user.updatedAt ?? now,
   };
@@ -352,9 +357,27 @@ export async function requireCourseAccess(ctx: AnyCtx, courseId: string) {
   return profile;
 }
 
+/**
+ * Poređenje u konstantnom vremenu (P2 hardening): `!==` bi izašao na prvom
+ * neslaganju bajta, pa bi vreme odgovora kapalo tajnu bajt po bajt. Čist JS
+ * ekvivalent `crypto.timingSafeEqual`-a - Convex default runtime nema node
+ * `crypto` u mutaciji, a `crypto.subtle` je async. Prolazi kroz CELU dužinu
+ * (bez ranog izlaza); dužina se procuri (neizbežno za stringove), sadržaj ne.
+ */
+function timingSafeEqual(a: string, b: string): boolean {
+  const length = Math.max(a.length, b.length);
+  let mismatch = a.length ^ b.length;
+  for (let index = 0; index < length; index += 1) {
+    const ca = a.charCodeAt(index);
+    const cb = b.charCodeAt(index);
+    mismatch |= (Number.isNaN(ca) ? 0 : ca) ^ (Number.isNaN(cb) ? 0 : cb);
+  }
+  return mismatch === 0;
+}
+
 export function requireSyncSecret(syncSecret: string) {
   const expected = process.env.WEBHOOK_SYNC_SECRET;
-  if (!expected || syncSecret !== expected) {
+  if (!expected || !timingSafeEqual(syncSecret, expected)) {
     throw new Error("Forbidden");
   }
 }

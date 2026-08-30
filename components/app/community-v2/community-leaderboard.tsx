@@ -92,7 +92,7 @@ function PodiumCard({ locale, row }: { locale: Locale; row: LeaderboardRow }) {
       className={cn(
         "relative overflow-hidden rounded-[16px] border bg-paper-strong p-4 text-center",
         row.rank === 1
-          ? "border-2 border-ink shadow-[5px_5px_0_rgba(244,190,48,0.8)] md:-translate-y-3"
+          ? "border-2 border-ink shadow-[5px_5px_0_var(--yellow)] md:-translate-y-3"
           : "border-line",
         row.isViewer && "ring-4 ring-yellow/35",
       )}
@@ -102,7 +102,7 @@ function PodiumCard({ locale, row }: { locale: Locale; row: LeaderboardRow }) {
         #{row.rank}
       </div>
       {row.isViewer ? (
-        <span className="absolute right-3 top-3 rounded-full bg-ink px-2 py-1 text-[9px] font-black uppercase tracking-[0.08em] text-paper-strong">
+        <span className="absolute right-3 top-3 rounded-full bg-ink px-2 py-1 type-eyebrow-sm text-paper-strong">
           {locale === "sr" ? "Ti" : "You"}
         </span>
       ) : null}
@@ -115,10 +115,10 @@ function PodiumCard({ locale, row }: { locale: Locale; row: LeaderboardRow }) {
         showRank={false}
         className="mx-auto mt-4"
       />
-      <h3 className="mt-2 truncate text-base font-black text-ink">{row.name}</h3>
+      <h3 className="mt-2 truncate type-h4 text-ink">{row.name}</h3>
       {row.username ? <p className="truncate text-xs font-bold text-muted">@{row.username}</p> : null}
       <p className="mt-3 font-mono text-xl font-black text-ink">{row.xp.toLocaleString()} XP</p>
-      <div className="mt-3 flex justify-center gap-2 text-[10px] font-black uppercase tracking-[0.08em] text-muted">
+      <div className="mt-3 flex justify-center gap-2 type-eyebrow-sm text-muted">
         <span>{locale === "sr" ? `Nivo ${row.level ?? 1}` : `Level ${row.level ?? 1}`}</span>
         <span aria-hidden="true">·</span>
         <span>{row.helpfulAnswers ?? 0} {locale === "sr" ? "korisnih" : "helpful"}</span>
@@ -149,7 +149,7 @@ function LeaderboardRowItem({ locale, row }: { locale: Locale; row: LeaderboardR
           <div className="flex items-center gap-2">
             <span className="truncate text-sm font-black text-ink">{row.name}</span>
             {row.isViewer ? (
-              <span className="rounded-full bg-ink px-2 py-0.5 text-[9px] font-black uppercase text-paper-strong">
+              <span className="rounded-full bg-ink px-2 py-0.5 type-eyebrow-sm text-paper-strong">
                 {locale === "sr" ? "Ti" : "You"}
               </span>
             ) : null}
@@ -195,7 +195,7 @@ function LeaderboardView({
   const viewerOutsidePage = viewer?.row && !rows.some((row) => row.userId === viewer.row?.userId) ? viewer.row : null;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <CommunityStickyToolbar>
       <section className="overflow-x-auto rounded-[16px] border border-line bg-paper-strong p-3 sm:p-4">
         <div className="flex min-w-max items-center gap-2">
@@ -242,7 +242,7 @@ function LeaderboardView({
         <CommunityRouteSkeleton />
       ) : (
         <div className="block">
-          <section className="min-w-0 space-y-5" aria-live="polite">
+          <section className="min-w-0 space-y-6" aria-live="polite">
             {podiumRows.length ? (
               <div className="grid gap-3 md:grid-cols-3 md:items-end md:pt-4">
                 {podiumRows.map((row) => <PodiumCard key={row.userId} locale={locale} row={row} />)}
@@ -251,7 +251,7 @@ function LeaderboardView({
 
             {rows.length ? (
               <div className="overflow-hidden rounded-[16px] border border-ink bg-paper-strong">
-                <div className="hidden grid-cols-[52px_minmax(0,1fr)_100px_100px] gap-3 border-b border-ink bg-[#eef3f7] dark:bg-ink/10 px-3 py-2 text-[10px] font-black uppercase tracking-[0.1em] text-muted sm:grid">
+                <div className="hidden grid-cols-[52px_minmax(0,1fr)_100px_100px] gap-3 border-b border-ink bg-[#eef3f7] dark:bg-ink/10 px-3 py-2 type-eyebrow-sm text-muted sm:grid">
                   <span>{locale === "sr" ? "Rang" : "Rank"}</span>
                   <span>{locale === "sr" ? "Član" : "Member"}</span>
                   <span className="text-right">{locale === "sr" ? "Lekcije" : "Lessons"}</span>
@@ -263,18 +263,18 @@ function LeaderboardView({
               <EmptyCommunityState
                 locale={locale}
                 icon={Trophy}
-                title={locale === "sr" ? "Leaderboard čeka prvi XP" : "The leaderboard is waiting for its first XP"}
+                title={locale === "sr" ? "Rang lista još nema nijedan bod" : "The leaderboard has no points yet"}
                 body={
                   locale === "sr"
-                    ? "Završi lekciju ili obavezni zadatak u ovom scope-u. Rang se prikazuje čim postoji prvi XP događaj."
-                    : "Complete a lesson or required task in this scope. Rankings appear as soon as the first XP event exists."
+                    ? "Bodovi (XP) se dobijaju za završene lekcije i urađene zadatke. Završi jednu lekciju na ovom kursu i lista počinje da se puni."
+                    : "Points (XP) come from finished lessons and completed tasks. Finish one lesson in this course and the list starts filling up."
                 }
               />
             )}
 
             {viewerOutsidePage ? (
               <section className="rounded-[16px] border-2 border-ink bg-yellow/20 p-2" aria-label={locale === "sr" ? "Tvoj rang" : "Your rank"}>
-                <p className="px-3 pb-1 pt-2 text-[10px] font-black uppercase tracking-[0.1em] text-ink/65">
+                <p className="px-3 pb-1 pt-2 type-eyebrow-sm text-ink/65">
                   {locale === "sr" ? "Tvoja pozicija" : "Your position"}
                 </p>
                 <ol><LeaderboardRowItem locale={locale} row={{ ...viewerOutsidePage, isViewer: true }} /></ol>
@@ -282,10 +282,10 @@ function LeaderboardView({
             ) : null}
 
             {viewer && !viewer.eligible ? (
-              <section className="rounded-[16px] border border-line bg-[#eef3f7] dark:bg-ink/10 p-4 text-sm font-bold leading-6 text-muted">
+              <section className="rounded-[16px] border border-line bg-[#eef3f7] dark:bg-ink/10 p-4 type-body-sm font-bold text-muted">
                 {locale === "sr"
-                  ? "Staff nalozi se prikazuju u zajednici, ali ne učestvuju u rangiranju."
-                  : "Staff accounts appear in the community but do not participate in rankings."}
+                  ? "Predavači i moderatori se vide u Zajednici, ali se ne rangiraju - lista je samo za studente."
+                  : "Teachers and moderators show up in the Community but are not ranked - the list is for students only."}
               </section>
             ) : null}
 
@@ -304,10 +304,10 @@ function LeaderboardView({
               course={scopeState.courseLabel}
               xp={viewer?.row?.xp}
             />
-            <details open className="group overflow-hidden rounded-[16px] border border-ink bg-paper-strong shadow-[4px_4px_0_rgba(244,190,48,0.7)]">
+            <details open className="group overflow-hidden rounded-[16px] border border-ink bg-paper-strong shadow-[4px_4px_0_var(--yellow)]">
               <summary className="flex min-h-16 cursor-pointer list-none items-center gap-3 px-4 py-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
                 <Sparkles className="size-4 shrink-0 text-yellow" aria-hidden="true" />
-                <h2 className="min-w-0 flex-1 text-sm font-black text-ink">{locale === "sr" ? "Kako se dobija XP" : "How XP is earned"}</h2>
+                <h2 className="min-w-0 flex-1 type-h4 text-ink">{locale === "sr" ? "Kako se dobija XP" : "How XP is earned"}</h2>
                 <ChevronDown className="size-5 shrink-0 text-ink transition group-open:rotate-180" aria-hidden="true" />
               </summary>
               <div className="border-t border-line px-4 py-4">
@@ -339,10 +339,10 @@ function LeaderboardView({
                     );
                   })}
                 </ul>
-                <p className="mt-4 border-t border-line pt-3 text-xs font-semibold leading-5 text-muted">
+                <p className="mt-4 border-t border-line pt-3 type-caption font-semibold text-muted">
                   {locale === "sr"
-                    ? "Lite i Pro imaju iste vrednosti. Staff nije rangiran. Jednaki XP deli isti rang."
-                    : "Lite and Pro use the same values. Staff is unranked. Equal XP shares the same rank."}
+                    ? "Bodovi su isti za Lite i Pro. Predavači i moderatori se ne rangiraju. Ko ima isto bodova, deli isto mesto."
+                    : "Points are the same for Lite and Pro. Teachers and moderators are not ranked. Equal points share the same place."}
                 </p>
               </div>
             </details>

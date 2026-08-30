@@ -28,6 +28,16 @@ export function classroomPath(locale: Locale) {
   return withLocale(locale, "/app/classroom");
 }
 
+/**
+ * In-app katalog kurseva — zona „Kursevi" u Učionici. Postoji kao zaseban builder
+ * zato što je to odredište svakog „Pogledaj kurseve" / „Unapredi" dugmeta u
+ * aplikaciji; ranije je svako od njih vodilo na marketing `/{locale}#pricing`, to
+ * jest izbacivalo studenta iz aplikacije.
+ */
+export function courseCatalogPath(locale: Locale) {
+  return `${classroomPath(locale)}?view=courses`;
+}
+
 export type IncomingSearchParams = Record<string, string | string[] | undefined>;
 
 /**

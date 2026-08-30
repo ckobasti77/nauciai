@@ -9,7 +9,7 @@ import { appPageMetadata } from "@/lib/app-metadata";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string; postId: string }> }): Promise<Metadata> {
   const { locale } = await params;
-  return appPageMetadata(locale, { sr: "Tred", en: "Thread" });
+  return appPageMetadata(locale, { sr: "Tema", en: "Topic" });
 }
 
 export default async function CommunityThreadPage({

@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 
-import { mutation, query } from "./_generated/server";
+import { internalMutation, mutation, type MutationCtx, query } from "./_generated/server";
 import { getCurrentProfile, requireAdmin } from "./helpers";
 import { STUCK_JOB_ERROR } from "./crons";
 import { parseReasonCounts } from "./studioActualCostCore";
@@ -10,7 +10,10 @@ import {
   GLOBAL_COST_HEARTBEAT_KEY,
   GLOBAL_DAILY_ALARM_USD,
   GLOBAL_DAILY_KILL_USD,
+  PUBLIC_LIMIT_DEFAULTS,
   STUDIO_FLAG_KEY,
+  STUDIO_PUBLIC_CONFIG_KEYS,
+  STUDIO_PUBLIC_FLAG_KEY,
 } from "./studioCore";
 
 /**
@@ -229,5 +232,139 @@ export const setStudioEnabled = mutation({
       await ctx.db.insert("platformFlags", { key: STUDIO_FLAG_KEY, enabled: args.enabled });
     }
     return null;
+  },
+});
+
+// ── JAVNI STUDIO: fleg + limiti (studio-public F1) ─────────────────────────
+
+async function upsertPlatformFlag(
+  ctx: MutationCtx,
+  key: string,
+  fields: { enabled: boolean; value?: number },
+) {
+  const row = await ctx.db
+    .query("platformFlags")
+    .withIndex("by_key", (q) => q.eq("key", key))
+    .unique();
+  if (row) {
+    await ctx.db.patch(row._id, fields);
+  } else {
+    await ctx.db.insert("platformFlags", { key, ...fields });
+  }
+}
+
+/**
+ * Prekidač kojim Jovan RUČNO otvara Studio javnosti (brif F1: default OFF,
+ * produkcija se ne menja dok se ovo ne pozove). `internalMutation` namerno -
+ * nema UI-ja za lansiranje proizvoda; poziva se sa
+ * `npx convex run studioAdmin:setStudioPublicFlag '{"enabled":true}' --prod`.
+ * Gašenje istom komandom sa `false` momentalno vraća današnje ponašanje
+ * (osoblje + uspavana formula upisa).
+ */
+export const setStudioPublicFlag = internalMutation({
+  args: { enabled: v.boolean() },
+  handler: async (ctx, args) => {
+    await upsertPlatformFlag(ctx, STUDIO_PUBLIC_FLAG_KEY, { enabled: args.enabled });
+    return null;
+  },
+});
+
+/**
+ * Numerički limiti javnog Studija, u istoj tabeli kao fleg (brif F2.4).
+ * `key` je ime polja iz `STUDIO_PUBLIC_CONFIG_KEYS` (npr. "maxJobsPerMinute"),
+ * ne sirovi ključ reda - allowlist je time ugrađen u validator poziva.
+ * `enabled: false` vraća taj limit na podrazumevanu vrednost bez brisanja reda.
+ */
+export const setStudioPublicLimit = internalMutation({
+  args: {
+    key: v.union(
+      v.literal("maxConcurrentJobs"),
+      v.literal("maxJobsPerMinute"),
+      v.literal("maxJobsPerDay"),
+      v.literal("maxDailyCredits"),
+    ),
+    value: v.number(),
+    enabled: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    if (!Number.isInteger(args.value) || args.value <= 0) {
+      throw new Error("NEVALIDAN_LIMIT");
+    }
+    await upsertPlatformFlag(ctx, STUDIO_PUBLIC_CONFIG_KEYS[args.key], {
+      enabled: args.enabled ?? true,
+      value: args.value,
+    });
+    return null;
+  },
+});
+
+/**
+ * Odbijeni promptovi (studio-public F2.5) - obrasci, ne sadržaj: hash + dužina
+ * + kategorija. Isti hash iznova = neko sondira blok listu. Admin vidi i ID
+ * korisnika (isti nivo kao `getUsageSummary` koji vraća email); prompt tekst
+ * ne postoji nigde, ni za admina.
+ */
+export const listModerationEvents = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireAdminRead(ctx);
+    const rows = await ctx.db.query("studioModerationLog").order("desc").take(200);
+    return rows.map((row) => ({
+      userId: row.userId,
+      category: row.category,
+      promptHash: row.promptHash,
+      promptLength: row.promptLength,
+      modelSlug: row.modelSlug,
+      createdAt: row.createdAt,
+    }));
+  },
+});
+
+/**
+ * Propušteni promptovi (nalaz V8) - otisci, ne sadržaj: hash + dužina + model.
+ * Odvojeno od `listModerationEvents` da propušteni (mnogo brojniji) ne zatrpaju
+ * odbijene. Trag je tu da bypass keyword-filtera ne bude nem: isti hash koji se
+ * i u `studioModerationLog` pojavljuje kao ODBIJEN znači da je neko istu ideju
+ * provukao varijantom. Prompt tekst ne postoji nigde, ni za admina.
+ */
+export const listPromptLog = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireAdminRead(ctx);
+    const rows = await ctx.db.query("studioPromptLog").order("desc").take(200);
+    return rows.map((row) => ({
+      userId: row.userId,
+      promptHash: row.promptHash,
+      promptLength: row.promptLength,
+      modelSlug: row.modelSlug,
+      createdAt: row.createdAt,
+    }));
+  },
+});
+
+/** Trenutno stanje javnog flega i limita za admin uvid; čitanje kao `getKillSwitchState`. */
+export const getStudioPublicConfig = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireAdminRead(ctx);
+    const flag = await ctx.db
+      .query("platformFlags")
+      .withIndex("by_key", (q) => q.eq("key", STUDIO_PUBLIC_FLAG_KEY))
+      .unique();
+    const limits: Record<string, { value: number | null; default: number }> = {};
+    for (const prop of Object.keys(STUDIO_PUBLIC_CONFIG_KEYS) as Array<
+      keyof typeof STUDIO_PUBLIC_CONFIG_KEYS
+    >) {
+      const row = await ctx.db
+        .query("platformFlags")
+        .withIndex("by_key", (q) => q.eq("key", STUDIO_PUBLIC_CONFIG_KEYS[prop]))
+        .unique();
+      limits[prop] = {
+        value: row?.enabled && typeof row.value === "number" ? row.value : null,
+        default: PUBLIC_LIMIT_DEFAULTS[prop],
+      };
+    }
+    // Odsutan red = OFF - suprotno od kill switch-a, vidi STUDIO_PUBLIC_FLAG_KEY.
+    return { publicEnabled: flag?.enabled === true, limits };
   },
 });

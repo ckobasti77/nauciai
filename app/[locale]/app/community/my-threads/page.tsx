@@ -5,7 +5,7 @@ import { appPageMetadata } from "@/lib/app-metadata";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
-  return appPageMetadata(locale, { sr: "Moji tredovi", en: "My threads" });
+  return appPageMetadata(locale, { sr: "Moje teme", en: "My topics" });
 }
 
 export default async function MyThreadsPage({ params }: { params: Promise<{ locale: string }> }) {

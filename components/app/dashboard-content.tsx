@@ -5,15 +5,16 @@ import {
   ArrowRight,
   BarChart3,
   BookOpen,
+  Check,
   ChevronDown,
   Clock3,
   Gauge,
   GraduationCap,
   ImageIcon,
   Layers,
-  Loader2,
   Lock,
   MessageCircle,
+  PartyPopper,
   Pencil,
   PlayCircle,
   Plus,
@@ -47,12 +48,25 @@ import {
   type DashboardOverview,
   type NextLesson,
 } from "@/components/app/dashboard-windows";
-import { classroomPath, coursePath, lessonPath } from "@/lib/app-routes";
-import { LinkButton, Panel, cn } from "@/components/ui/primitives";
+import { classroomPath, courseCatalogPath, coursePath, lessonPath } from "@/lib/app-routes";
+import {
+  buildFirstRunChecklist,
+  celebratedStepId,
+  firstRunDoneCount,
+  firstRunDoneIds,
+  shouldShowResumeHero,
+  type FirstRunSignals,
+  type FirstRunStepId,
+} from "@/lib/dashboard-first-run";
+import { ConfirmDialog } from "@/components/ui/dialog";
+import { EmptyState } from "@/components/ui/empty-state";
+import { HandUnderline, LinkButton, Panel, cn } from "@/components/ui/primitives";
+import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { ViewerProfile } from "@/lib/current-viewer";
 import { dictionary, localized, t as tr, type Locale, type LocalizedText, withLocale } from "@/lib/i18n";
+import { progressEncouragement } from "@/lib/progress-encouragement";
 
 const EditCourseAction = dynamic(() => import("@/components/app/admin-inline-actions").then((m) => m.EditCourseAction), { ssr: false });
 
@@ -99,6 +113,13 @@ export type DashboardCourse = {
   coverUrl?: string | null;
   status: "draft" | "published" | "archived";
   hasAccess: boolean;
+  /**
+   * Vlasnistvo za PRIKAZ (aktivan upis ili staff rola), odvojeno od `hasAccess`
+   * koji je i dalje jedino pravilo pristupa. `undefined` = payload ga ne nosi
+   * (staticka grana bez Convexa); citaj ga preko `isCourseOwned` iz
+   * `lib/course-catalog.ts`, nikad direktno.
+   */
+  owned?: boolean;
   stripePriceId?: string;
   videoUrl?: string | null;
   videoFileName?: string;
@@ -283,7 +304,7 @@ function MetricTile({
     >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className={cn("text-xs font-black uppercase", tone === "ink" ? "text-paper-strong/65" : "text-muted")}>{label}</p>
+          <p className={cn("type-eyebrow", tone === "ink" ? "text-paper-strong/65" : "text-muted")}>{label}</p>
           <p className={cn("mt-2 text-2xl font-black leading-none", tone === "ink" ? "text-paper-strong" : "text-ink")}>{value}</p>
         </div>
         <span
@@ -320,6 +341,21 @@ function CourseCoverEditor({ locale, course }: { locale: Locale; course: Dashboa
   const deleteCover = useMutation(api.video.deleteCourseCover);
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  // Nativni `confirm()` je bio jedini preostali OS dijalog na komandnoj tabli:
+  // bez tokena, bez tamne teme i bez teksta koji kaze sta se tacno brise.
+  const [confirmRemoveCover, setConfirmRemoveCover] = useState(false);
+
+  async function removeCover() {
+    if (!course.id) return;
+    setPending(true);
+    try {
+      await deleteCover({ courseId: course.id as Id<"courses"> });
+      setConfirmRemoveCover(false);
+      router.refresh();
+    } finally {
+      setPending(false);
+    }
+  }
 
   async function upload(file: File) {
     if (!course.id || !file.type.startsWith("image/")) { setMessage(tr(locale, "Izaberi sliku.", "Choose an image.")); return; }
@@ -327,16 +363,32 @@ function CourseCoverEditor({ locale, course }: { locale: Locale; course: Dashboa
     try {
       const uploadUrl = await generateUploadUrl();
       const response = await fetch(uploadUrl, { method: "POST", headers: { "Content-Type": file.type }, body: file });
-      if (!response.ok) throw new Error(tr(locale, "Upload slike nije uspeo.", "Image upload failed."));
+      if (!response.ok) throw new Error(tr(locale, "Slika nije poslata na server. Proveri internet i pokušaj ponovo.", "The image was not uploaded. Check your connection and try again."));
       const { storageId } = await response.json() as { storageId: Id<"_storage"> };
       await saveCover({ courseId: course.id as Id<"courses">, storageId, fileName: file.name, byteSize: file.size, mimeType: file.type });
       router.refresh();
-    } catch (error) { setMessage(error instanceof Error ? error.message : tr(locale, "Upload nije uspeo.", "Upload failed.")); }
+    } catch (error) { setMessage(error instanceof Error ? error.message : tr(locale, "Slanje fajla nije uspelo. Proveri internet i pokušaj ponovo.", "The file was not uploaded. Check your connection and try again.")); }
     finally { setPending(false); }
   }
 
   const preview = course.coverUrl || course.image?.src;
-  return <Panel className="dashboard-reveal p-4 sm:p-5"><div className="flex flex-col gap-4 lg:flex-row lg:items-center"><div className="relative aspect-video w-full overflow-hidden rounded-[8px] border-2 border-ink bg-paper lg:w-80">{preview ? <Image src={preview} alt={localized(course.title, locale)} fill unoptimized className="object-cover" /> : <div className="grid h-full place-items-center text-sm font-black text-muted">Naslovna slika nije dodata</div>}</div><div className="flex-1"><p className="font-display text-2xl text-ink">Naslovna slika kursa</p><p className="mt-1 text-sm font-bold text-muted">Koristi se na dashboard kartici i stranici smera.</p><input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file); event.target.value = ""; }} /><div className="mt-4 flex flex-wrap gap-2"><button type="button" disabled={pending} onClick={() => inputRef.current?.click()} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-xs font-black">{pending ? <Loader2 className="size-4 animate-spin" /> : <ImageIcon className="size-4" />}{course.coverUrl ? "Zameni sliku" : "Dodaj sliku"}</button>{course.coverUrl ? <button type="button" disabled={pending} onClick={async () => { if (!course.id || !confirm("Ukloniti naslovnu sliku kursa?")) return; setPending(true); try { await deleteCover({ courseId: course.id as Id<"courses"> }); router.refresh(); } finally { setPending(false); } }} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-red-700 bg-paper-strong px-4 text-xs font-black text-red-700"><Trash2 className="size-4" />Ukloni</button> : null}</div>{message ? <p className="mt-3 text-sm font-black text-red-700">{message}</p> : null}</div></div></Panel>;
+  return <Panel className="dashboard-reveal p-4 sm:p-6"><div className="flex flex-col gap-4 lg:flex-row lg:items-center"><div className="relative aspect-video w-full overflow-hidden rounded-[8px] border-2 border-ink bg-paper lg:w-80">{preview ? <Image src={preview} alt={localized(course.title, locale)} fill unoptimized className="object-cover" /> : <div className="grid h-full place-items-center text-sm font-black text-muted">{tr(locale, "Naslovna slika nije dodata", "No cover image yet")}</div>}</div><div className="flex-1"><p className="font-display type-display-sm text-ink">{tr(locale, "Naslovna slika kursa", "Course cover image")}</p><p className="mt-1 text-sm font-bold text-muted">{tr(locale, "Vidi se na kartici kursa i na stranici smera.", "Shown on the course card and on the track page.")}</p><input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file); event.target.value = ""; }} /><div className="mt-4 flex flex-wrap gap-2"><button type="button" disabled={pending} onClick={() => inputRef.current?.click()} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-xs font-black">{pending ? <Spinner /> : <ImageIcon className="size-4" />}{course.coverUrl ? tr(locale, "Zameni sliku", "Replace image") : tr(locale, "Dodaj sliku", "Add image")}</button>{course.coverUrl ? <button type="button" disabled={pending} onClick={() => setConfirmRemoveCover(true)} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-red-700 bg-paper-strong px-4 text-xs font-black text-red-700"><Trash2 className="size-4" />{tr(locale, "Ukloni", "Remove")}</button> : null}</div>{message ? <p className="mt-3 text-sm font-black text-red-700">{message}</p> : null}</div></div><ConfirmDialog
+    open={confirmRemoveCover}
+    onClose={() => setConfirmRemoveCover(false)}
+    onConfirm={removeCover}
+    busy={pending}
+    destructive
+    eyebrow={tr(locale, "Brisanje", "Delete")}
+    title={tr(locale, "Ukloniti naslovnu sliku kursa?", "Remove the course cover image?")}
+    description={tr(
+      locale,
+      "Kurs ostaje, ali na kartici i na stranici smera vise nece imati sliku dok ne dodas novu.",
+      "The course stays, but it will have no image on its card or on the track page until you add a new one.",
+    )}
+    confirmLabel={tr(locale, "Ukloni sliku", "Remove image")}
+    cancelLabel={tr(locale, "Odustani", "Cancel")}
+    closeLabel={tr(locale, "Zatvori", "Close")}
+  /></Panel>;
 }
 
 function CourseVideoSection({ locale, isAdmin, course }: { locale: Locale; isAdmin: boolean; course: DashboardCourse }) {
@@ -389,14 +441,14 @@ function CourseVideoSection({ locale, isAdmin, course }: { locale: Locale; isAdm
         const detail = await response.text().catch(() => "");
         throw new Error(
           detail
-            ? `${tr(locale, "Upload nije uspeo", "Upload failed")}: ${detail.slice(0, 240)}`
-            : tr(locale, "Upload nije uspeo.", "Upload failed."),
+            ? `${tr(locale, "Slanje fajla nije uspelo", "The file was not uploaded")}: ${detail.slice(0, 240)}`
+            : tr(locale, "Slanje fajla nije uspelo. Proveri internet i pokušaj ponovo.", "The file was not uploaded. Check your connection and try again."),
         );
       }
 
       const { storageId } = (await response.json()) as { storageId?: Id<"_storage"> };
       if (!storageId) {
-        throw new Error(tr(locale, "Convex nije vratio storageId.", "Convex did not return a storageId."));
+        throw new Error(tr(locale, "Server nije potvrdio prijem fajla. Pokušaj da ga pošalješ ponovo.", "The server did not confirm the file. Try uploading it again."));
       }
 
       await saveCourseVideo({
@@ -410,7 +462,7 @@ function CourseVideoSection({ locale, isAdmin, course }: { locale: Locale; isAdm
       setMessage(tr(locale, "Video je uspesno sacuvan.", "Video uploaded successfully."));
       router.refresh();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : tr(locale, "Upload nije uspeo.", "Upload failed."));
+      setMessage(error instanceof Error ? error.message : tr(locale, "Slanje fajla nije uspelo. Proveri internet i pokušaj ponovo.", "The file was not uploaded. Check your connection and try again."));
       setLocalPreviewUrl(null);
     } finally {
       setIsUploading(false);
@@ -458,7 +510,7 @@ function CourseVideoSection({ locale, isAdmin, course }: { locale: Locale; isAdm
       });
       router.refresh();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : tr(locale, "Brisanje nije uspelo.", "Delete failed."));
+      setMessage(error instanceof Error ? error.message : tr(locale, "Brisanje nije uspelo. Proveri internet i pokušaj ponovo.", "Nothing was deleted. Check your connection and try again."));
     } finally {
       setIsDeleting(false);
     }
@@ -466,7 +518,7 @@ function CourseVideoSection({ locale, isAdmin, course }: { locale: Locale; isAdm
 
   return (
     <Panel className="dashboard-reveal overflow-hidden">
-      <div className="p-4 sm:p-5">
+      <div className="p-4 sm:p-6">
         <div
           role={isAdmin ? "button" : undefined}
           tabIndex={isAdmin ? 0 : undefined}
@@ -505,7 +557,7 @@ function CourseVideoSection({ locale, isAdmin, course }: { locale: Locale; isAdm
                   <span className="relative z-10 flex w-full items-center justify-center p-6 text-center">
                 <span className="max-w-md">
                   <span className="mx-auto inline-flex size-16 items-center justify-center rounded-[8px] border-2 border-ink bg-paper-strong text-ink shadow-[4px_4px_0_0_var(--shadow-hard)]">
-                    {isUploading ? <Loader2 className="size-8 animate-spin" /> : isAdmin ? <UploadCloud className="size-8" /> : <PlayCircle className="size-9" />}
+                    {isUploading ? <Spinner size="xl" /> : isAdmin ? <UploadCloud className="size-8" /> : <PlayCircle className="size-9" />}
                   </span>
                   <span className={cn("mt-5 block text-2xl font-black", isAdmin ? "text-ink" : "text-white")}>
                     {isUploading
@@ -537,7 +589,7 @@ function CourseVideoSection({ locale, isAdmin, course }: { locale: Locale; isAdm
                 title={tr(locale, "Zameni video", "Replace video")}
                 className="inline-flex size-10 items-center justify-center rounded-[8px] border-2 border-ink bg-paper-strong text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] transition hover:bg-yellow disabled:cursor-wait disabled:opacity-60"
               >
-                {isUploading ? <Loader2 className="size-4 animate-spin" /> : <Pencil className="size-4" />}
+                {isUploading ? <Spinner /> : <Pencil className="size-4" />}
               </button>
               {videoUrl || localPreviewUrl ? (
                 <button
@@ -548,7 +600,7 @@ function CourseVideoSection({ locale, isAdmin, course }: { locale: Locale; isAdm
                   title={tr(locale, "Ukloni video", "Remove video")}
                   className="inline-flex size-10 items-center justify-center rounded-[8px] border-2 border-red-700 bg-paper-strong text-red-700 shadow-[3px_3px_0_0_rgba(127,29,29,0.18)] transition hover:bg-red-50 disabled:cursor-wait disabled:opacity-60"
                 >
-                  {isDeleting ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                  {isDeleting ? <Spinner /> : <Trash2 className="size-4" />}
                 </button>
               ) : null}
             </div>
@@ -588,28 +640,28 @@ function FeaturedThreadsSection({ locale, course }: { locale: Locale; course: Da
   const posts = featuredPosts ?? [];
 
   return (
-    <Panel className="dashboard-reveal p-5 sm:p-6">
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_240px] lg:items-start">
+    <Panel className="dashboard-reveal p-6">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_240px] lg:items-start">
         <div>
           <div className="flex items-center gap-3">
             <span className="inline-flex size-10 items-center justify-center rounded-[8px] border-2 border-ink bg-yellow text-ink">
               <MessageCircle className="size-5" />
             </span>
             <div>
-              <p className="text-xs font-black uppercase text-muted">{tr(locale, "Zajednica", "Community")}</p>
-              <h2 className="text-2xl font-black leading-tight text-ink">
-                {tr(locale, "Featured tredovi", "Featured threads")}
+              <p className="type-eyebrow text-muted">{tr(locale, "Zajednica", "Community")}</p>
+              <h2 className="type-h2 text-ink">
+                {tr(locale, "Izdvojene teme", "Featured threads")}
               </h2>
             </div>
           </div>
           {!course.id ? (
-            <p className="mt-4 max-w-3xl text-base font-bold leading-7 text-muted">
-              {tr(locale, "Featured tredovi su dostupni kada je kurs povezan sa Convex-om.", "Featured threads are available when this course is connected to Convex.")}
+            <p className="mt-4 max-w-3xl type-body font-bold text-muted">
+              {tr(locale, "Izdvojene teme se pojavljuju kada je kurs povezan sa bazom.", "Featured threads are available when this course is connected to Convex.")}
             </p>
           ) : featuredPosts === undefined ? (
             <div className="mt-5 flex items-center gap-3 rounded-[8px] border-2 border-line bg-paper px-4 py-3 text-sm font-black text-muted">
-              <Loader2 className="size-4 animate-spin" />
-              {tr(locale, "Ucitavanje threadova", "Loading threads")}
+              <Spinner />
+              {tr(locale, "Ucitavanje threadova", "Loading topics")}
             </div>
           ) : posts.length ? (
             <div className="mt-5 grid gap-3 md:grid-cols-2">
@@ -623,18 +675,18 @@ function FeaturedThreadsSection({ locale, course }: { locale: Locale; course: Da
                   >
                     <div className="flex flex-wrap gap-2">
                       {courseFeatured ? (
-                        <span className="rounded-[6px] border-2 border-ink bg-yellow px-2 py-0.5 text-[10px] font-black uppercase text-ink">
+                        <span className="rounded-[8px] border-2 border-ink bg-yellow px-2 py-0.5 type-eyebrow-sm text-ink">
                           {tr(locale, "Kurs", "Course")}
                         </span>
                       ) : null}
                       {post.isFeaturedGlobal ? (
-                        <span className="rounded-[6px] border-2 border-ink bg-paper-strong px-2 py-0.5 text-[10px] font-black uppercase text-ink">
+                        <span className="rounded-[8px] border-2 border-ink bg-paper-strong px-2 py-0.5 type-eyebrow-sm text-ink">
                           {tr(locale, "Opsti", "Global")}
                         </span>
                       ) : null}
                     </div>
-                    <p className="mt-3 line-clamp-2 text-base font-black leading-tight text-ink">{post.title}</p>
-                    <p className="mt-2 line-clamp-2 text-sm font-bold leading-6 text-muted">{post.body}</p>
+                    <p className="mt-3 line-clamp-2 type-h4 text-ink">{post.title}</p>
+                    <p className="mt-2 line-clamp-2 type-body-sm font-bold text-muted">{post.body}</p>
                     <div className="mt-3 flex gap-3 text-xs font-black text-muted">
                       <span>{post.reactionsCount ?? 0} likes</span>
                       <span>{post.commentsCount ?? 0} comments</span>
@@ -644,10 +696,10 @@ function FeaturedThreadsSection({ locale, course }: { locale: Locale; course: Da
               })}
             </div>
           ) : (
-            <p className="mt-4 max-w-3xl text-base font-bold leading-7 text-muted">
+            <p className="mt-4 max-w-3xl type-body font-bold text-muted">
               {tr(
                 locale,
-                "Za ovaj kurs jos nisu izabrani featured tredovi. Otvori zajednicu i oznaci najvaznije diskusije.",
+                "Za ovaj kurs jos nije izdvojena nijedna tema. Otvori Zajednicu i oznaci najvaznije diskusije.",
                 "No featured threads have been selected for this course yet. Open community and mark the most useful discussions.",
               )}
             </p>
@@ -655,7 +707,7 @@ function FeaturedThreadsSection({ locale, course }: { locale: Locale; course: Da
         </div>
         <Link
           href={withLocale(locale, `/app/community?course=${course.slug}`)}
-          className="group flex min-h-32 items-center justify-center rounded-[8px] border-2 border-dashed border-ink bg-paper p-5 text-center text-ink transition hover:-translate-y-0.5 hover:bg-yellow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          className="group flex min-h-32 items-center justify-center rounded-[8px] border-2 border-dashed border-ink bg-paper p-6 text-center text-ink transition hover:-translate-y-0.5 hover:bg-yellow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         >
           <span>
             <span className="mx-auto inline-flex size-12 items-center justify-center rounded-[8px] border-2 border-ink bg-paper-strong shadow-[3px_3px_0_0_var(--shadow-hard)] transition group-hover:rotate-2">
@@ -686,11 +738,11 @@ function ActivityPanel({ locale, activity }: { locale: Locale; activity: Array<{
   const isDense = range > 30;
 
   return (
-    <Panel className="p-5 sm:p-6">
+    <Panel className="p-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-xs font-black uppercase text-muted">{tr(locale, "Dnevni ritam", "Daily pace")}</p>
-          <h2 className="mt-1 text-xl font-black text-ink sm:text-2xl">{tr(locale, "Završene lekcije", "Completed lessons")}</h2>
+          <p className="type-eyebrow text-muted">{tr(locale, "Dnevni ritam", "Daily pace")}</p>
+          <h2 className="mt-2 type-h2 text-ink">{tr(locale, "Završene lekcije", "Completed lessons")}</h2>
         </div>
         <div
           role="group"
@@ -715,7 +767,7 @@ function ActivityPanel({ locale, activity }: { locale: Locale; activity: Array<{
         </div>
       </div>
       <div className="mt-5 flex items-stretch gap-2">
-        <div className="relative h-40 w-7 shrink-0 text-[10px] font-black text-muted" aria-hidden="true">
+        <div className="relative h-40 w-7 shrink-0 type-caption font-black text-muted" aria-hidden="true">
           <span className="absolute -top-1 right-0">{max}</span>
           <span className="absolute right-0 top-1/2 -translate-y-1/2">{middleTick}</span>
           <span className="absolute -bottom-1 right-0">0</span>
@@ -744,7 +796,7 @@ function ActivityPanel({ locale, activity }: { locale: Locale; activity: Array<{
                 // narrower than its own border, so the dense view drops the border and
                 // fills with ink (12.92:1 on paper) instead of yellow (1.69:1).
                 className={cn(
-                  "min-w-0 flex-1 rounded-t-[4px]",
+                  "min-w-0 flex-1 rounded-t-[8px]",
                   isDense
                     ? item.completed
                       ? "bg-ink"
@@ -756,7 +808,7 @@ function ActivityPanel({ locale, activity }: { locale: Locale; activity: Array<{
               />
             ))}
           </div>
-          <div className="mt-2 flex justify-between text-[10px] font-black uppercase text-muted" aria-hidden="true">
+          <div className="mt-2 flex justify-between type-eyebrow-sm text-muted" aria-hidden="true">
             <span>{formatDay(days[0].day)}</span>
             <span>{formatDay(days[days.length - 1].day)}</span>
           </div>
@@ -776,13 +828,13 @@ export function CourseCover({ course, locale }: { course: DashboardCourse; local
         fill
         sizes="(min-width: 1024px) 50vw, 100vw"
         unoptimized
-        className="rounded-[8px] object-cover"
+        className="surface-media object-cover"
       />
     );
   }
 
   return (
-    <div className="relative h-full overflow-hidden rounded-[8px] bg-paper">
+    <div className="relative h-full overflow-hidden surface-media bg-paper">
       <div className="absolute inset-0 ink-hatch" />
       <div className="relative flex h-full items-center justify-center p-6 text-center">
         <span className="inline-flex size-14 items-center justify-center rounded-full border-2 border-ink bg-yellow text-ink shadow-[4px_4px_0_0_var(--shadow-hard-15)]">
@@ -816,13 +868,21 @@ export function CourseProgress({
       aria-valuemax={100}
       className={cn(
         "h-3 overflow-hidden border-2",
-        // paper: ink fill on paper track = 12.92:1. Yellow on paper was 1.69:1, under the
-        // 3:1 floor for graphical objects (WCAG 1.4.11), and yellow is now the primary CTA only.
-        tone === "paper" ? "rounded-full border-line bg-paper" : "rounded-[8px] border-paper-strong bg-paper-strong/15",
+        // Napredak je u celom proizvodu ZUT — jedna boja i na papiru i na mastilu (U11).
+        // Kontrast koji WCAG 1.4.11 trazi ne nosi ispuna nego MASTILO: okvir trake je
+        // `border-ink` (12,92:1), a celo ispune ima 2px ink ivicu (vidi ispod). Sam
+        // procenat uz to stoji i kao BROJ u tekstu, pa grafika nije jedini nosilac podatka.
+        tone === "paper" ? "rounded-full border-ink bg-paper" : "surface-media border-paper-strong bg-paper-strong/15",
       )}
     >
       <motion.div
-        className={cn("h-full", tone === "paper" ? "rounded-full bg-ink" : "bg-yellow")}
+        className={cn(
+          "h-full bg-yellow",
+          // Na mastilu je zuta vec 7,66:1 pa joj ivica ne treba. Na papiru je ta ivica
+          // jedino sto vrh trake razdvaja od praznog dela; na 0% i 100% nema sta da
+          // razdvoji, pa se i ne crta (na 0% bi izgledala kao mrvica napretka).
+          tone === "paper" && safePercent > 0 && safePercent < 100 && "border-r-2 border-ink",
+        )}
         initial={{ width: 0 }}
         animate={{ width: `${safePercent}%` }}
         transition={{ duration: shouldReduceMotion ? 0 : 0.65, ease: "easeOut" }}
@@ -842,6 +902,10 @@ export function DashboardCourseCard({
   isAdmin: boolean;
   summary?: ReturnType<typeof getProgressSummary>;
 }) {
+  // Isti ugovor kao na `CourseCatalogCard`: `layout`, podizanje i pritisak staju kada
+  // korisnik traži manje pokreta. Bez ovoga je otključana kartica jedina u mreži koja se
+  // i dalje pomera pod `prefers-reduced-motion`.
+  const reduceMotion = useReducedMotion();
   const canOpen = isAdmin || course.hasAccess;
   const primaryLabel =
     summary.completedLessons > 0
@@ -851,15 +915,21 @@ export function DashboardCourseCard({
   return (
     <motion.article
       data-motion="card"
-      layout
-      whileHover={{ y: -3 }}
-      whileTap={{ scale: 0.99 }}
-      className="dashboard-reveal overflow-hidden rounded-[16px] border-2 border-ink bg-paper-strong shadow-[6px_6px_0_0_var(--shadow-hard-12)]"
+      layout={!reduceMotion}
+      whileHover={reduceMotion ? undefined : { y: -3 }}
+      whileTap={reduceMotion ? undefined : { scale: 0.99 }}
+      // Ista mikro-interakcija kao na kartici zaključanog kursa: `whileHover` diže, CSS
+      // produbljuje tvrdu senku. Otključan i zaključan kurs u istoj mreži moraju da se
+      // ponašaju isto, inače mreža izgleda kao dva različita sistema.
+      className="card-anim-elevate dashboard-reveal overflow-hidden surface-card border-2 border-ink bg-paper-strong shadow-[6px_6px_0_0_var(--shadow-hard-12)] hover:shadow-[9px_9px_0_0_var(--shadow-hard-20)]"
     >
+      {/* Naslovna slika je uokvirena mastilom kao i sve ostalo na papiru, ima
+          media radius (8px) i isti odnos 16/9 kao na zakljucanoj kartici — otkljucan
+          i zakljucan kurs u istoj mrezi moraju da izgledaju kao jedan sistem. */}
       <div className="p-3">
-        <div className="relative aspect-[16/9] overflow-hidden rounded-[8px] bg-paper">
+        <div className="relative aspect-[16/9] overflow-hidden surface-media border-2 border-ink bg-paper">
           <CourseCover course={course} locale={locale} />
-          <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full border-2 border-ink bg-paper-strong px-3 py-1 text-[11px] font-black uppercase text-ink">
+          <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full border-2 border-ink bg-paper-strong px-3 py-1 type-eyebrow text-ink">
             <ShieldCheck className="size-3.5" />
             {statusCopy(locale, course, isAdmin)}
           </span>
@@ -867,16 +937,22 @@ export function DashboardCourseCard({
       </div>
       <div className="space-y-4 px-5 pb-5 pt-2">
         <div>
-          <h3 className="text-2xl font-black leading-tight text-ink">{localized(course.title, locale)}</h3>
-          <p className="mt-2 line-clamp-2 text-sm font-bold leading-6 text-muted">{localized(course.subtitle, locale)}</p>
+          <h3 className="type-h2 text-ink">{localized(course.title, locale)}</h3>
+          <p className="mt-2 line-clamp-2 type-body-sm font-bold text-muted">{localized(course.subtitle, locale)}</p>
         </div>
 
         <div>
-          <div className="flex items-center justify-between gap-3 text-xs font-black uppercase text-muted">
-            <span>{tr(locale, "Napredak", "Progress")}</span>
-            <span>
-              {summary.completedLessons}/{summary.totalLessons || 0} {tr(locale, "lekcija", "lessons")}
-            </span>
+          {/* Procenat je najkrupniji broj na kartici: on je odgovor na „gde sam", a
+              odnos lekcija ispod njega je detalj. Do U11 procenta uopste nije bilo,
+              nego samo odnos — traka je bila jedini nosilac velicine napretka. */}
+          <div className="flex items-end justify-between gap-3">
+            <div className="min-w-0">
+              <p className="type-eyebrow text-muted">{tr(locale, "Napredak", "Progress")}</p>
+              <p className="mt-1 type-caption font-bold text-muted">
+                {summary.completedLessons}/{summary.totalLessons || 0} {tr(locale, "lekcija", "lessons")}
+              </p>
+            </div>
+            <p className="shrink-0 type-h3 text-ink">{clampPercent(summary.percent)}%</p>
           </div>
           <div className="mt-2">
             <CourseProgress
@@ -888,6 +964,17 @@ export function DashboardCourseCard({
               )}
             />
           </div>
+          {/* Gola brojka je pocetniku pre prekor nego podatak — ispod trake stoji jedna
+              topla recenica koja kaze gde je i sta sledi (`lib/progress-encouragement.ts`). */}
+          <p className="mt-2 flex items-center gap-1.5 text-xs font-bold text-muted">
+            {summary.percent >= 100 ? (
+              <PartyPopper className="size-3.5 shrink-0 text-ink" aria-hidden="true" />
+            ) : null}
+            {progressEncouragement(locale, {
+              completedLessons: summary.completedLessons,
+              totalLessons: summary.totalLessons,
+            })}
+          </p>
         </div>
 
         <p className="inline-flex items-center gap-2 text-sm font-bold text-muted">
@@ -896,7 +983,7 @@ export function DashboardCourseCard({
         </p>
 
         {summary.nextLesson ? (
-          <p className="rounded-[16px] border-2 border-line bg-paper px-3 py-2 text-sm font-bold leading-6 text-muted">
+          <p className="surface-inset border-2 border-line bg-paper px-3 py-2 type-body-sm font-bold text-muted">
             <span className="font-black text-ink">{tr(locale, "Sledece:", "Next:")}</span>{" "}
             {localized(summary.nextLesson.title, locale)}
           </p>
@@ -948,7 +1035,7 @@ export function DashboardHomeSkeleton() {
           <div key={item} className="h-24 animate-pulse rounded-[8px] border-2 border-line bg-paper-strong" />
         ))}
       </div>
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 2xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 2xl:grid-cols-3">
         {[0, 1, 2].map((item) => (
           <div key={item} className="h-64 animate-pulse rounded-[16px] border-2 border-line bg-paper-strong" />
         ))}
@@ -958,11 +1045,9 @@ export function DashboardHomeSkeleton() {
   );
 }
 
-// Day one. Reached whenever the viewer has no course they can actually open, so it also
-// covers "signed out" and "every course locked" — never a 0% hero over courses they don't own.
-export function DashboardFirstRun({ locale, profileName }: { locale: Locale; profileName: string }) {
-  const steps = [
-    {
+function firstRunStepCopy(locale: Locale): Record<FirstRunStepId, { title: string; body: string }> {
+  return {
+    course: {
       title: tr(locale, "Izaberi kurs", "Choose a course"),
       body: tr(
         locale,
@@ -970,7 +1055,7 @@ export function DashboardFirstRun({ locale, profileName }: { locale: Locale; pro
         "See what is on offer and unlock the one you need.",
       ),
     },
-    {
+    lesson: {
       title: tr(locale, "Odgledaj prvu lekciju", "Watch the first lesson"),
       body: tr(
         locale,
@@ -978,7 +1063,7 @@ export function DashboardFirstRun({ locale, profileName }: { locale: Locale; pro
         "Progress saves itself, so you can pick up whenever you want.",
       ),
     },
-    {
+    community: {
       title: tr(locale, "Pitaj u zajednici", "Ask in the community"),
       body: tr(
         locale,
@@ -986,49 +1071,160 @@ export function DashboardFirstRun({ locale, profileName }: { locale: Locale; pro
         "Stuck somewhere? Post a question and get an answer.",
       ),
     },
-  ];
+  };
+}
+
+// Zona A dok student još nema šta da nastavi.
+//
+// Do U4 je ovaj blok ZAMENJIVAO celu komandnu tablu (`return` u `DashboardHome` i u
+// `classroom-hub.tsx`), pa FREE korisnik i admin nikad nisu videli ni jedan prozor.
+// Sada je kompaktan pozdravni hero na VRHU table: pozdrav, tri prva koraka koja se
+// štikliraju iz stvarnih podataka (`lib/dashboard-first-run.ts`) i jedno dugme ka
+// in-app katalogu. Sve ispod njega se renderuje kao i za svakog drugog korisnika.
+export function DashboardFirstRun({
+  locale,
+  profileName,
+  signals,
+}: {
+  locale: Locale;
+  profileName: string;
+  signals: FirstRunSignals;
+}) {
+  const steps = buildFirstRunChecklist(signals);
+  const doneCount = firstRunDoneCount(steps);
+  const copy = firstRunStepCopy(locale);
+
+  // Proslava stikliranja: kratak „pop" na krugu koraka, i to SAMO kad korak stvarno
+  // predje iz neuradjenog u uradjen (`celebratedStepId`). Bez tog uslova bi checklist
+  // poskakivao na svakom otvaranju komandne table. `doneKey` je jedina zavisnost efekta,
+  // pa se on i pokrece tacno na promenu stanja koraka, ne na svaki render.
+  const doneKey = firstRunDoneIds(steps).join("|");
+  const previousDoneRef = useRef<FirstRunStepId[] | null>(null);
+  const [celebratedStep, setCelebratedStep] = useState<FirstRunStepId | null>(null);
+
+  useEffect(() => {
+    const nextDone = doneKey ? (doneKey.split("|") as FirstRunStepId[]) : [];
+    const justDone = celebratedStepId(previousDoneRef.current, nextDone);
+    previousDoneRef.current = nextDone;
+    if (!justDone) return;
+
+    setCelebratedStep(justDone);
+    // Duze od same animacije (--motion-prelaz = 260ms), da se klasa skine tek kad je
+    // odsvirana do kraja; pod `prefers-reduced-motion` animacija svejedno ne traje.
+    const timer = window.setTimeout(() => setCelebratedStep(null), 600);
+    return () => window.clearTimeout(timer);
+  }, [doneKey]);
+
+  const lead =
+    doneCount === 0
+      ? tr(
+          locale,
+          "Tri koraka te dele od prve lekcije.",
+          "Three steps stand between you and your first lesson.",
+        )
+      : doneCount < steps.length
+        ? tr(
+            locale,
+            `Urađeno ${doneCount} od ${steps.length}. Sledeći korak je uokviren.`,
+            `${doneCount} of ${steps.length} done. The next step is outlined.`,
+          )
+        : tr(
+            locale,
+            "Sve tri stvari si već uradio. Nastavi svojim tempom.",
+            "You have done all three. Carry on at your own pace.",
+          );
 
   return (
-    <Panel className="overflow-hidden">
-      <div data-motion="hero" className="p-5 sm:p-7">
-        <div data-motion="copy">
-          <p className="text-sm font-black uppercase text-muted">
-            {locale === "sr" ? `Zdravo, ${profileName}` : `Hi, ${profileName}`}
-          </p>
-          <h1 className="mt-2 max-w-3xl text-3xl font-black leading-tight tracking-[-0.035em] text-ink sm:text-4xl">
-            {tr(locale, "Spremni smo kad i ti", "Ready when you are")}
-          </h1>
-          <p className="mt-3 max-w-2xl text-base font-bold leading-7 text-muted">
-            {tr(
-              locale,
-              "Još nemaš nijedan otključan kurs. Tri koraka te dele od prve lekcije.",
-              "You do not have an unlocked course yet. Three steps stand between you and your first lesson.",
-            )}
-          </p>
-        </div>
-
-        <ol className="mt-6 grid gap-4 md:grid-cols-3">
-          {steps.map((step, index) => (
-            <li key={step.title} className="rounded-[16px] border-2 border-line bg-paper p-4">
-              <span className="grid size-9 place-items-center rounded-full border-2 border-ink bg-yellow text-sm font-black text-ink">
-                {index + 1}
-              </span>
-              <p className="mt-3 text-base font-black text-ink">{step.title}</p>
-              <p className="mt-1 text-sm font-bold leading-6 text-muted">{step.body}</p>
-            </li>
-          ))}
-        </ol>
-
-        <div className="mt-7 flex flex-wrap items-center gap-3">
-          <LinkButton href={`${withLocale(locale)}#pricing`} tone="yellow" size="lg">
+    <Panel className="relative overflow-hidden">
+      {/* Skolska podloga heroja: postojeci `sketch-grid` iz `app/globals.css` (mastilo
+          na 6%, pa radi u obe teme), nijedna nova grafika. Stoji ISPOD sadrzaja i ne
+          hvata pokazivac, pa se checklist i dugme ponasaju kao i pre. */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 sketch-grid" />
+      {/* Ilustrativni akcenat je POSTOJECA lucide ikona uvecana u vodeni zig, ne nova
+          grafika: mastilo na 10% radi u obe teme, a na telefonu se skida da ne bi
+          stajala iza teksta na 390px. */}
+      <GraduationCap
+        aria-hidden="true"
+        strokeWidth={1.25}
+        className="pointer-events-none absolute -right-6 -bottom-8 hidden size-48 text-ink/10 sm:block"
+      />
+      <div data-motion="hero" className="relative p-4 sm:p-6">
+        <div
+          data-motion="copy"
+          className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"
+        >
+          <div className="min-w-0">
+            {/* Pozdrav je rukopis (Patrick Hand), naslov je stampano crno — dve
+                razlicite ruke na istoj visini, pa se ne takmice. */}
+            <p className="font-display type-display-sm text-ink">
+              {locale === "sr" ? `Zdravo, ${profileName}` : `Hi, ${profileName}`}
+            </p>
+            <h1 className="mt-1 type-h1 text-ink">
+              {tr(locale, "Tvoji prvi koraci", "Your first steps")}
+            </h1>
+            {/* Isti školski potpis kao na marketingu, samo u aplikacijskoj veličini —
+                stoji SAMO ispod naslova zone, nikad ispod podnaslova (§4 U9: ne pretrpavaj). */}
+            <HandUnderline size="sm" className="mt-1" />
+            <p className="mt-2 max-w-2xl type-body-sm font-bold text-muted">{lead}</p>
+          </div>
+          <LinkButton
+            href={courseCatalogPath(locale)}
+            tone="yellow"
+            size="lg"
+            className="w-full shrink-0 sm:w-fit"
+          >
             <Sparkles className="size-5" />
             {tr(locale, "Pogledaj kurseve", "Browse courses")}
           </LinkButton>
-          <LinkButton href={withLocale(locale, "/app/community")} tone="smoke">
-            <MessageCircle className="size-4" />
-            {tr(locale, "Otvori zajednicu", "Open community")}
-          </LinkButton>
         </div>
+
+        {/* Koraci su stavke iz sveske: kvadratno polje za stikliranje umesto kruzica
+            sa brojem, redni broj se seli u etiketu iznad naslova, a urađen korak se
+            precrtava — isto kao na papiru. Sledeci korak je jedini sa tvrdom senkom,
+            pa se u mrezi od tri vidi bez citanja. */}
+        <ol className="mt-6 grid gap-3 sm:grid-cols-3">
+          {steps.map((step, index) => (
+            <li
+              key={step.id}
+              className={cn(
+                "flex items-start gap-3 surface-inset border-2 p-3",
+                step.next
+                  ? "border-ink bg-paper-strong shadow-[4px_4px_0_0_var(--shadow-hard-15)]"
+                  : "border-line bg-paper",
+              )}
+            >
+              <span
+                className={cn(
+                  "grid size-8 shrink-0 place-items-center surface-media border-2 border-ink",
+                  step.done
+                    ? "bg-ink text-paper-strong"
+                    : step.next
+                      ? "bg-yellow text-ink"
+                      : "bg-paper-strong text-ink",
+                  celebratedStep === step.id && "step-celebrate",
+                )}
+              >
+                {step.done ? <Check aria-hidden="true" className="size-5" /> : null}
+                <span className="sr-only">
+                  {step.done
+                    ? tr(locale, "Urađeno", "Done")
+                    : step.next
+                      ? tr(locale, "Sledeći korak", "Next step")
+                      : tr(locale, "Još nije urađeno", "Not done yet")}
+                </span>
+              </span>
+              <div className="min-w-0">
+                <p className="type-eyebrow-sm text-muted">
+                  {tr(locale, `Korak ${index + 1}`, `Step ${index + 1}`)}
+                </p>
+                <p className={cn("mt-1 type-h4", step.done ? "text-muted line-through decoration-2" : "text-ink")}>
+                  {copy[step.id].title}
+                </p>
+                <p className="mt-1 type-caption font-bold text-muted">{copy[step.id].body}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
       </div>
     </Panel>
   );
@@ -1047,12 +1243,12 @@ function HeroCover({ coverUrl, title }: { coverUrl: string | null; title: string
         fill
         sizes="(min-width: 1024px) 25vw, 100vw"
         unoptimized
-        className="rounded-[8px] object-cover"
+        className="surface-media object-cover"
       />
     );
   }
   return (
-    <div className="relative h-full overflow-hidden rounded-[8px] bg-paper">
+    <div className="relative h-full overflow-hidden surface-media bg-paper">
       <div className="absolute inset-0 ink-hatch" />
       <div className="relative flex h-full items-center justify-center p-6 text-center">
         <span className="inline-flex size-14 items-center justify-center rounded-full border-2 border-ink bg-yellow text-ink shadow-[4px_4px_0_0_var(--shadow-hard-15)]">
@@ -1085,21 +1281,24 @@ function ResumeHero({
       className="overflow-hidden rounded-[16px] border-2 border-ink bg-paper-strong shadow-[6px_6px_0_0_var(--shadow-hard-12)]"
     >
       <div className="grid gap-0 xl:grid-cols-[minmax(0,1fr)_260px]">
-        <div className="p-4 sm:p-5 lg:p-6" data-motion="copy">
-          <p className="text-sm font-black uppercase text-muted">
+        <div className="relative p-4 sm:p-6" data-motion="copy">
+          {/* Ista skolska podloga kao na pozdravnom herou (`sketch-grid`), da zona A
+              izgleda kao jedna stvar bez obzira da li student ima sta da nastavi. */}
+          <div aria-hidden="true" className="pointer-events-none absolute inset-0 sketch-grid" />
+          <p className="relative font-display type-display-sm text-ink">
             {locale === "sr" ? `Zdravo, ${profileName}` : `Hi, ${profileName}`}
           </p>
 
           {resume ? (
-            <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-start">
-              <div className="relative aspect-[16/9] w-full shrink-0 overflow-hidden rounded-[8px] bg-paper sm:w-44">
+            <div className="relative mt-3 flex flex-col gap-4 sm:flex-row sm:items-start">
+              <div className="relative aspect-[16/9] w-full shrink-0 overflow-hidden surface-media border-2 border-ink bg-paper sm:w-44">
                 <HeroCover coverUrl={resume.coverUrl} title={localized(resume.courseTitle, locale)} />
               </div>
               <div className="min-w-0 flex-1">
-                <h1 className="text-2xl font-black leading-tight tracking-[-0.035em] text-ink sm:text-3xl">
+                <h1 className="type-h1 text-ink">
                   {localized(resume.courseTitle, locale)}
                 </h1>
-                <p className="mt-2 text-sm font-bold leading-6 text-muted sm:text-base">
+                <p className="mt-2 type-body type-measure font-bold text-muted">
                   <span className="font-black text-ink">{tr(locale, "Sledeća lekcija", "Next lesson")}</span>
                   {" · "}
                   {localized(resume.lessonTitle, locale)}
@@ -1130,11 +1329,11 @@ function ResumeHero({
               </div>
             </div>
           ) : (
-            <div className="mt-3">
-              <h1 className="text-2xl font-black leading-tight tracking-[-0.035em] text-ink sm:text-3xl">
+            <div className="relative mt-3">
+              <h1 className="type-h1 text-ink">
                 {tr(locale, "Sve lekcije su završene", "Every lesson is done")}
               </h1>
-              <p className="mt-2 max-w-2xl text-sm font-bold leading-6 text-muted sm:text-base">
+              <p className="mt-2 type-body type-measure font-bold text-muted">
                 {tr(
                   locale,
                   "Nema više lekcija na čekanju. Otvori učionicu da ponoviš gradivo.",
@@ -1153,17 +1352,24 @@ function ResumeHero({
 
         <div className="border-t-2 border-ink bg-ink p-4 text-paper-strong xl:border-l-2 xl:border-t-0">
           <div className="flex h-full flex-col justify-center gap-2">
-            <p className="text-xs font-black uppercase tracking-[0.12em] text-paper-strong/65">
+            <p className="type-eyebrow text-paper-strong/65">
               {tr(locale, "Ukupno", "Overall")}
             </p>
-            <p className="text-4xl font-black leading-none">{overallPercent}%</p>
+            <p className="type-hero">{overallPercent}%</p>
             <CourseProgress
               percent={overallPercent}
               tone="ink"
               label={tr(locale, "Ukupan napredak", "Overall progress")}
             />
-            <p className="text-xs font-bold leading-5 text-paper-strong/70">
+            <p className="type-caption font-bold text-paper-strong/70">
               {progress.completedLessons}/{progress.totalLessons || 0} {tr(locale, "zavrsenih lekcija", "completed lessons")}
+            </p>
+            {/* Ista topla recenica kao na kartici kursa, samo na ink podlozi. */}
+            <p className="type-caption font-black text-yellow">
+              {progressEncouragement(locale, {
+                completedLessons: progress.completedLessons,
+                totalLessons: progress.totalLessons,
+              })}
             </p>
           </div>
         </div>
@@ -1173,7 +1379,16 @@ function ResumeHero({
 }
 
 type CommandTableView = {
-  hasCourses: boolean;
+  /**
+   * „Ima kurs koji sme da otvori" — NE „u bazi postoji objavljen kurs".
+   * Live grana čita `overview.firstRun.hasUnlockedCourse` (aktivan upis ili staff);
+   * ranije je ovde stajalo `progress.totalLessons > 0`, a taj broj zbraja lekcije
+   * SVIH objavljenih kurseva, pa je bio `true` za svakog ulogovanog korisnika
+   * (UX-BOOST-PLAN §1B).
+   */
+  hasUnlockedCourse: boolean;
+  /** `undefined` kad površina taj podatak nema — vidi `lib/dashboard-first-run.ts`. */
+  hasCommunityPost?: boolean;
   resume: ResumeData | null;
   progress: { completedLessons: number; totalLessons: number; percent: number };
   activity: Array<{ day: string; completed: number }>;
@@ -1188,7 +1403,7 @@ function staticCommandTableView(courses: DashboardCourse[], locale: Locale): Com
     .map((course) => ({ course, summary: getProgressSummary(course, locale) }));
 
   if (!accessible.length) {
-    return { hasCourses: false, resume: null, progress: { completedLessons: 0, totalLessons: 0, percent: 0 }, activity: [], nextLessons: [] };
+    return { hasUnlockedCourse: false, resume: null, progress: { completedLessons: 0, totalLessons: 0, percent: 0 }, activity: [], nextLessons: [] };
   }
 
   const totalLessons = accessible.reduce((count, entry) => count + entry.summary.totalLessons, 0);
@@ -1230,7 +1445,7 @@ function staticCommandTableView(courses: DashboardCourse[], locale: Locale): Com
     if (nextLessons.length >= 3) break;
   }
 
-  return { hasCourses: true, resume, progress: { completedLessons, totalLessons, percent }, activity: [], nextLessons };
+  return { hasUnlockedCourse: true, resume, progress: { completedLessons, totalLessons, percent }, activity: [], nextLessons };
 }
 
 // Komandna tabla: A NASTAVI (hero) · B PULS (4 tile-a) · C PROZORI (grid 1/2/3) · D RITAM.
@@ -1250,7 +1465,8 @@ export function DashboardHome({
 
   const view: CommandTableView = overview
     ? {
-        hasCourses: overview.progress.totalLessons > 0 || overview.resume != null,
+        hasUnlockedCourse: overview.firstRun.hasUnlockedCourse,
+        hasCommunityPost: overview.firstRun.hasCommunityPost,
         resume: overview.resume,
         progress: overview.progress,
         activity: overview.activity,
@@ -1258,14 +1474,29 @@ export function DashboardHome({
       }
     : staticCommandTableView(staticCourses ?? [], locale);
 
-  // DashboardFirstRun ima prednost nad svime.
-  if (!view.hasCourses) {
-    return <DashboardFirstRun locale={locale} profileName={profileName} />;
-  }
+  // Zona A se MENJA, tabla se ne gasi. Ranije je ovde stajao `return
+  // <DashboardFirstRun/>` koji je gutao sve ostalo (§1B iz UX-BOOST-PLAN).
+  const showResume = shouldShowResumeHero({
+    hasUnlockedCourse: view.hasUnlockedCourse,
+    hasResume: view.resume != null,
+    totalLessons: view.progress.totalLessons,
+  });
 
   return (
     <div className="space-y-6">
-      <ResumeHero locale={locale} profileName={profileName} resume={view.resume} progress={view.progress} />
+      {showResume ? (
+        <ResumeHero locale={locale} profileName={profileName} resume={view.resume} progress={view.progress} />
+      ) : (
+        <DashboardFirstRun
+          locale={locale}
+          profileName={profileName}
+          signals={{
+            hasUnlockedCourse: view.hasUnlockedCourse,
+            completedLessons: view.progress.completedLessons,
+            hasCommunityPost: view.hasCommunityPost,
+          }}
+        />
+      )}
       <DashboardPulse
         locale={locale}
         creditsBalance={overview?.studio.creditsBalance ?? 0}
@@ -1273,18 +1504,32 @@ export function DashboardHome({
         notifications={overview?.notifications.total ?? 0}
         rank={overview?.leaderboard?.rank ?? null}
       />
-      <DashboardWindowsGrid locale={locale} overview={overview} nextLessons={view.nextLessons} />
+      <DashboardWindowsGrid
+        locale={locale}
+        overview={overview}
+        nextLessons={view.nextLessons}
+        hasUnlockedCourse={view.hasUnlockedCourse}
+      />
       {view.activity.length ? (
         <ActivityPanel locale={locale} activity={view.activity} />
       ) : (
-        <p className="flex items-center gap-2 px-1 text-sm font-bold text-muted">
-          <BarChart3 className="size-4 shrink-0 text-ink" />
-          {tr(
-            locale,
-            "Završi prvu lekciju i ovde se pojavljuje tvoj dnevni ritam.",
-            "Finish your first lesson and your daily pace shows up here.",
-          )}
-        </p>
+        // Zona D vise nije gola recenica na dnu stranice. Student bez ijedne zavrsene
+        // lekcije je do U11 dobijao jedan red teksta u pola praznog viewporta (§5);
+        // sada zona ima isto zaglavlje i istu visinu kao kad grafikon postoji.
+        <Panel className="p-4 sm:p-6">
+          <p className="type-eyebrow text-muted">{tr(locale, "Dnevni ritam", "Daily pace")}</p>
+          <div className="mt-3">
+            <EmptyState
+              icon={BarChart3}
+              title={tr(locale, "Ritam se još ne vidi", "No pace to show yet")}
+              body={tr(
+                locale,
+                "Završi prvu lekciju i ovde se pojavljuje tvoj dnevni ritam.",
+                "Finish your first lesson and your daily pace shows up here.",
+              )}
+            />
+          </div>
+        </Panel>
       )}
     </div>
   );
@@ -1325,9 +1570,9 @@ export function DashboardContent({
 
   return (
     <div className="space-y-6">
-      <section data-motion="hero" className="dashboard-reveal overflow-hidden rounded-[10px] border-2 border-ink bg-paper-strong shadow-[8px_8px_0_0_var(--shadow-hard-14)]">
+      <section data-motion="hero" className="dashboard-reveal overflow-hidden rounded-[16px] border-2 border-ink bg-paper-strong shadow-[8px_8px_0_0_var(--shadow-hard-14)]">
         <div className="grid gap-0 xl:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="p-5 sm:p-7" data-motion="copy">
+          <div className="p-6" data-motion="copy">
             <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-2 rounded-[8px] border-2 border-ink bg-yellow px-3 py-1 text-xs font-black text-ink">
                 <ShieldCheck className="size-4" />
@@ -1362,16 +1607,18 @@ export function DashboardContent({
                 />
               ) : null}
             </div>
-            <p className="mt-6 text-sm font-black uppercase text-muted">
+            {/* Isti rukom pisan pozdrav kao na komandnoj tabli i u Ucionici — jedan
+                glas na sva tri ekrana na kojima student vidi svoje ime. */}
+            <p className="mt-6 font-display type-display-sm text-ink">
               {locale === "sr" ? `Zdravo, ${profileName}` : `Hi, ${profileName}`}
             </p>
-            <h1 className="mt-2 max-w-4xl text-4xl font-black leading-tight text-ink sm:text-5xl">
+            <h1 className="mt-1 max-w-4xl type-hero text-ink">
               <InlineContentText entityId={course.id ?? ""} parentId={course.trackId} kind="course" field="title" locale={inlineLocale} sr={course.title.sr} en={course.title.en} admin={isAdmin && Boolean(course.id && course.trackId)}>{localized(course.title, locale)}</InlineContentText>
             </h1>
-            <p className="mt-3 max-w-3xl text-lg font-black leading-7 text-ink/75">
+            <p className="mt-3 type-body type-measure font-black text-ink/75">
               <InlineContentText entityId={course.id ?? ""} parentId={course.trackId} kind="course" field="subtitle" locale={inlineLocale} sr={course.subtitle.sr} en={course.subtitle.en} admin={isAdmin && Boolean(course.id && course.trackId)}>{localized(course.subtitle, locale)}</InlineContentText>
             </p>
-            <InlineRichText kind="course" entityId={course.id ?? ""} parentId={course.trackId} field="description" locale={inlineLocale} richSr={course.descriptionRich?.sr} richEn={course.descriptionRich?.en} sr={course.description.sr} en={course.description.en} admin={isAdmin && Boolean(course.id && course.trackId)} className="mt-4 max-w-3xl text-base font-bold leading-7 text-muted sm:text-lg" />
+            <InlineRichText kind="course" entityId={course.id ?? ""} parentId={course.trackId} field="description" locale={inlineLocale} richSr={course.descriptionRich?.sr} richEn={course.descriptionRich?.en} sr={course.description.sr} en={course.description.en} admin={isAdmin && Boolean(course.id && course.trackId)} className="mt-4 type-body type-measure font-bold text-muted" />
             <div className="mt-6 flex flex-wrap gap-3">
               {canContinue && nextLesson ? (
                 <LinkButton href={courseContinueHref(locale, course, nextLesson)} tone="yellow">
@@ -1394,11 +1641,11 @@ export function DashboardContent({
               </LinkButton>
             </div>
           </div>
-          <div className="border-t-2 border-ink bg-ink p-5 text-paper-strong xl:border-l-2 xl:border-t-0">
+          <div className="border-t-2 border-ink bg-ink p-6 text-paper-strong xl:border-l-2 xl:border-t-0">
             <div className="flex h-full flex-col justify-between gap-4">
               <div>
-                <p className="text-sm font-black uppercase text-paper-strong/65">{tr(locale, "Pregled kursa", "Course overview")}</p>
-                <p className="mt-4 text-5xl font-black leading-none">{surfaceIsAdmin ? "Admin" : `${completionPercent}%`}</p>
+                <p className="type-eyebrow text-paper-strong/65">{tr(locale, "Pregled kursa", "Course overview")}</p>
+                <p className="mt-4 type-hero">{surfaceIsAdmin ? "Admin" : `${completionPercent}%`}</p>
                 <div className="mt-5">
                   <CourseProgress
                     percent={completionPercent}
@@ -1426,11 +1673,11 @@ export function DashboardContent({
       <FeaturedThreadsSection locale={locale} course={course} />
 
       <Panel className="dashboard-reveal overflow-hidden">
-        <div className="border-b-2 border-ink bg-paper-strong p-5 sm:p-6">
+        <div className="border-b-2 border-ink bg-paper-strong p-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-xs font-black uppercase text-muted"><InlineContentText entityId={course.id ?? ""} parentId={course.trackId} kind="course" field="pageCopy_sectionEyebrow" locale={inlineLocale} sr={course.pageCopy?.sectionEyebrow?.sr ?? "Lekcije u kursu"} en={course.pageCopy?.sectionEyebrow?.en ?? "Course lessons"} admin={isAdmin && Boolean(course.id && course.trackId)}>{locale === "sr" ? course.pageCopy?.sectionEyebrow?.sr ?? "Lekcije u kursu" : course.pageCopy?.sectionEyebrow?.en ?? "Course lessons"}</InlineContentText></p>
-              <h2 className="mt-2 text-2xl font-black text-ink sm:text-3xl">
+              <p className="type-eyebrow text-muted"><InlineContentText entityId={course.id ?? ""} parentId={course.trackId} kind="course" field="pageCopy_sectionEyebrow" locale={inlineLocale} sr={course.pageCopy?.sectionEyebrow?.sr ?? "Lekcije u kursu"} en={course.pageCopy?.sectionEyebrow?.en ?? "Course lessons"} admin={isAdmin && Boolean(course.id && course.trackId)}>{locale === "sr" ? course.pageCopy?.sectionEyebrow?.sr ?? "Lekcije u kursu" : course.pageCopy?.sectionEyebrow?.en ?? "Course lessons"}</InlineContentText></p>
+              <h2 className="mt-2 type-h2 text-ink">
                 <InlineContentText entityId={course.id ?? ""} parentId={course.trackId} kind="course" field="pageCopy_sectionTitle" locale={inlineLocale} sr={course.pageCopy?.sectionTitle?.sr ?? "Nastavni tok"} en={course.pageCopy?.sectionTitle?.en ?? "Learning path"} admin={isAdmin && Boolean(course.id && course.trackId)}>{locale === "sr" ? course.pageCopy?.sectionTitle?.sr ?? "Nastavni tok" : course.pageCopy?.sectionTitle?.en ?? "Learning path"}</InlineContentText>
               </h2>
             </div>
@@ -1440,17 +1687,17 @@ export function DashboardContent({
             </span>
           </div>
         </div>
-        <div className="space-y-4 p-5 sm:p-6">
+        <div className="space-y-4 p-6">
           {modules.flatMap((module) => module.lessons).map((lesson, lessonIndex) => (
             <details key={lesson.id ?? lesson.slug} className="group overflow-hidden rounded-[16px] border-2 border-ink bg-paper-strong" open={lessonIndex === 0}>
               <summary className="flex min-h-16 cursor-pointer list-none items-center gap-4 px-4 py-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
                 <span className="grid size-9 shrink-0 place-items-center rounded-full border-2 border-ink bg-yellow text-xs font-black">{lessonIndex + 1}</span>
-                <div className="min-w-0 flex-1"><p className="truncate text-base font-black text-ink"><InlineContentText entityId={lesson.id ?? ""} parentId={course.id} kind="lesson" field="title" locale={inlineLocale} sr={lesson.title.sr} en={lesson.title.en} admin={isAdmin && Boolean(lesson.id && course.id)}>{localized(lesson.title, locale)}</InlineContentText></p><p className="mt-0.5 text-xs font-bold text-muted">{lesson.duration}</p></div>
-                {surfaceIsAdmin && lesson.isPublished === false ? <span className="rounded-full border border-ink bg-paper px-2.5 py-1 text-[10px] font-black uppercase">Nacrt</span> : null}
+                <div className="min-w-0 flex-1"><p className="truncate type-h4 text-ink"><InlineContentText entityId={lesson.id ?? ""} parentId={course.id} kind="lesson" field="title" locale={inlineLocale} sr={lesson.title.sr} en={lesson.title.en} admin={isAdmin && Boolean(lesson.id && course.id)}>{localized(lesson.title, locale)}</InlineContentText></p><p className="mt-0.5 text-xs font-bold text-muted">{lesson.duration}</p></div>
+                {surfaceIsAdmin && lesson.isPublished === false ? <span className="rounded-full border border-ink bg-paper px-2.5 py-1 type-eyebrow-sm">Nacrt</span> : null}
                 <ChevronDown className="size-5 transition group-open:rotate-180" />
               </summary>
               <div className="border-t-2 border-line bg-paper px-4 py-4 sm:pl-[4.25rem]">
-                {lesson.summary ? <InlineRichText kind="lesson" entityId={lesson.id ?? ""} parentId={course.id} field="summary" locale={inlineLocale} richSr={lesson.summaryRich?.sr} richEn={lesson.summaryRich?.en} sr={lesson.summary.sr} en={lesson.summary.en} admin={isAdmin && Boolean(lesson.id && course.id)} className="max-w-3xl text-sm font-semibold leading-6 text-muted" /> : <p className="max-w-3xl text-sm font-semibold leading-6 text-muted">{tr(locale, "Sažetak lekcije još nije dodat.", "Lesson summary has not been added yet.")}</p>}
+                {lesson.summary ? <InlineRichText kind="lesson" entityId={lesson.id ?? ""} parentId={course.id} field="summary" locale={inlineLocale} richSr={lesson.summaryRich?.sr} richEn={lesson.summaryRich?.en} sr={lesson.summary.sr} en={lesson.summary.en} admin={isAdmin && Boolean(lesson.id && course.id)} className="max-w-3xl type-body-sm font-semibold text-muted" /> : <p className="max-w-3xl type-body-sm font-semibold text-muted">{tr(locale, "Sažetak lekcije još nije dodat.", "Lesson summary has not been added yet.")}</p>}
                 <div className="mt-4 flex flex-wrap gap-2"><Link href={courseContinueHref(locale, course, lesson)} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-xs font-black"><PlayCircle className="size-4" /> {tr(locale, "Otvori lekciju", "Open lesson")}</Link>{surfaceIsAdmin ? <Link href={withLocale(locale, "/app/admin")} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 text-xs font-black"><ShieldCheck className="size-4" /> {tr(locale, "Uredi u admin panelu", "Edit in admin panel")}</Link> : null}</div>
               </div>
             </details>

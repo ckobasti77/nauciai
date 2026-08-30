@@ -1,14 +1,16 @@
 "use client";
 
-import { CircleAlert, Sparkles } from "lucide-react";
+import { CircleAlert, MessagesSquare, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
+import { AppIntroPanel } from "@/components/app/intro-panel";
+import { HandUnderline } from "@/components/ui/primitives";
 import { SmartStickyRegion } from "@/components/ui/smart-sticky";
 import { activeCommunitySection } from "@/lib/community-sections";
 import type { Locale } from "@/lib/i18n";
-import { withLocale } from "@/lib/i18n";
+import { t, withLocale } from "@/lib/i18n";
 
 import { fallbackCommunityFilters, useCommunityFilters } from "./community-data";
 import type { CommunityFilters } from "./community-types";
@@ -28,8 +30,8 @@ const COMMUNITY_HERO_COPY: Record<string, CommunityHeroCopy> = {
     badgeEn: "AI Studio Commons",
     titleSr: "Uči javno. Napreduj zajedno.",
     titleEn: "Learn in public. Grow together.",
-    subtitleSr: "Pitaj, podeli workflow i poveži svaku diskusiju sa smerom i kursom na kom radiš.",
-    subtitleEn: "Ask, share a workflow, and connect every discussion to the track and course you are building in.",
+    subtitleSr: "Postavi pitanje, pokaži kako si nešto uradio/la i poveži svaku temu sa smerom i kursom na kom radiš.",
+    subtitleEn: "Ask a question, show how you did something, and connect every topic to the track and course you are working on.",
   },
   "my-threads": {
     badgeSr: "Moj rad na platformi",
@@ -129,31 +131,85 @@ function CommunityShellView({
   const heroCopy = COMMUNITY_HERO_COPY[activeSection] ?? COMMUNITY_HERO_COPY.discussions;
 
   return (
-    <div className="mx-auto w-full max-w-[1180px] space-y-5" aria-busy={isLoading}>
-      <section data-motion="hero" className="relative overflow-hidden rounded-[16px] border-2 border-ink bg-ink text-paper-strong shadow-[4px_4px_0_rgba(244,190,48,0.55)]">
-        <div className="pointer-events-none absolute inset-y-0 left-1/2 right-0 hidden bg-[radial-gradient(circle_at_center,rgba(244,190,48,0.22)_0_2px,transparent_2px)] [background-size:24px_24px] [mask-image:linear-gradient(to_right,transparent_0%,black_50%,black_100%)] md:block" />
-        <div className="relative p-3.5 sm:p-4">
-          <div className="flex flex-col gap-2">
-            <div className="min-w-0 max-w-4xl" data-motion="copy">
-              <div className="flex items-center gap-2 text-yellow">
-                <Sparkles className="size-4" aria-hidden="true" />
-                <p className="font-mono text-[10px] font-black uppercase tracking-[0.16em]">
-                  {locale === "sr" ? heroCopy.badgeSr : heroCopy.badgeEn}
-                </p>
-              </div>
-              <h1 className="mt-1.5 truncate text-[clamp(1.5rem,3vw,2.4rem)] font-black leading-none tracking-[-0.04em] sm:whitespace-nowrap">
-                {locale === "sr" ? heroCopy.titleSr : heroCopy.titleEn}
-              </h1>
-              <p className="mt-1 truncate text-xs font-bold leading-5 text-paper-strong/72 sm:whitespace-nowrap sm:text-sm">
-                {locale === "sr"
-                  ? heroCopy.subtitleSr
-                  : heroCopy.subtitleEn}
+    <div className="mx-auto w-full max-w-[1180px] space-y-6" aria-busy={isLoading}>
+      {/* Hero zone je isti sklop kao pozdravni hero komandne table (U11): školska
+          podloga → vodeni žig od uvećane lucide ikone → etiketa → naslov → žuti
+          potez → uvodni pasus, sa istim `p-4 sm:p-6` ritmom. Razlika je samo
+          podloga: Zajednica stoji na mastilu, pa `sketch-grid` (mastilo na 6%)
+          ovde ne postoji i menja ga `ink-dots`, njegov žuti parnjak. */}
+      <section
+        data-motion="hero"
+        className="relative overflow-hidden surface-card border-2 border-ink bg-ink text-paper-strong shadow-[6px_6px_0_0_var(--yellow)]"
+      >
+        <div className="pointer-events-none absolute inset-y-0 left-1/2 right-0 hidden ink-dots [mask-image:linear-gradient(to_right,transparent_0%,black_50%,black_100%)] md:block" />
+        <MessagesSquare
+          aria-hidden="true"
+          strokeWidth={1.25}
+          className="pointer-events-none absolute -bottom-8 -right-6 hidden size-48 text-paper-strong/10 sm:block"
+        />
+        <div className="relative p-4 sm:p-6">
+          <div className="min-w-0 max-w-4xl" data-motion="copy">
+            <div className="flex items-center gap-2 text-yellow">
+              <Sparkles className="size-4 shrink-0" aria-hidden="true" />
+              <p className="type-eyebrow">
+                {locale === "sr" ? heroCopy.badgeSr : heroCopy.badgeEn}
               </p>
             </div>
+            {/* Naslov je `type-h1`, isti kao na komandnoj tabli. Ranije je bio
+                `type-hero` uz `truncate`/`sm:whitespace-nowrap`, pa se duga
+                rečenica na srednjim širinama SEKLA umesto da se prelomi. */}
+            <h1 className="mt-2 type-h1">
+              {locale === "sr" ? heroCopy.titleSr : heroCopy.titleEn}
+            </h1>
+            {/* Na ink podlozi radi samo žuti potez — tanka ink linija ispod njega je
+                nevidljiva, i to je u redu: na tamnom heroju žuti potpis je isti brend
+                potez kao na papiru. */}
+            <HandUnderline size="sm" className="mt-1" />
+            <p className="mt-3 type-body-sm type-measure font-bold text-paper-strong/72">
+              {locale === "sr"
+                ? heroCopy.subtitleSr
+                : heroCopy.subtitleEn}
+            </p>
           </div>
-
         </div>
       </section>
+
+      <AppIntroPanel
+        id="community"
+        locale={locale}
+        icon={MessagesSquare}
+        title={t(locale, "Ovo je Zajednica", "This is the Community")}
+        body={t(
+          locale,
+          "Ovde pitaš kad zapneš i pokazuješ šta si uradio/la. Na svako pitanje odgovaraju drugi studenti i predavači — nema glupog pitanja.",
+          "This is where you ask when you get stuck and show what you have made. Other students and teachers answer — no question is too basic.",
+        )}
+        steps={[
+          t(
+            locale,
+            "Otvori temu koja te zanima i pročitaj odgovore.",
+            "Open a topic that interests you and read the answers.",
+          ),
+          t(
+            locale,
+            "Napiši svoje pitanje: naslov u jednoj rečenici, pa detalji.",
+            "Write your own question: a one-sentence title, then the details.",
+          ),
+          t(
+            locale,
+            "Vrati se na „Moje teme” da vidiš ko ti je odgovorio.",
+            "Come back to “My topics” to see who replied.",
+          ),
+        ]}
+        action={
+          <Link
+            href={withLocale(locale, "/app/community/new")}
+            className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-sm font-black text-ink transition hover:bg-yellow/85 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          >
+            {t(locale, "Postavi prvo pitanje", "Ask your first question")}
+          </Link>
+        }
+      />
 
       <SmartStickyRegion
         className="top-16 z-30 overflow-hidden border-b-2 border-line/75 bg-paper/95 shadow-[0_8px_18px_-16px_var(--shadow-hard-55)] backdrop-blur md:top-0"
@@ -167,11 +223,11 @@ function CommunityShellView({
       {filters.counts?.profileIncomplete ? (
         <Link
           href={`${withLocale(locale, "/app/profile")}?returnTo=${encodeURIComponent(withLocale(locale, "/app/community/discussions"))}`}
-          className="flex flex-wrap items-center justify-between gap-3 rounded-[16px] border-2 border-ink bg-yellow/25 px-4 py-3 text-sm font-black text-ink shadow-[3px_3px_0_rgba(244,190,48,0.55)]"
+          className="flex flex-wrap items-center justify-between gap-3 surface-card border-2 border-ink bg-yellow/25 px-4 py-3 text-sm font-black text-ink shadow-[4px_4px_0_0_var(--yellow)]"
         >
           <span className="flex items-start gap-2">
             <CircleAlert className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
-            {locale === "sr" ? "Podesi username da bi mogao/la da objavljuješ i učestvuješ u razgovoru." : "Set a username to publish and participate in conversations."}
+            {locale === "sr" ? "Izaberi korisničko ime da bi mogao/la da objavljuješ i učestvuješ u razgovoru." : "Set a username to publish and participate in conversations."}
           </span>
           <span className="rounded-full border border-ink bg-yellow px-3 py-2 text-xs underline underline-offset-2">
             {locale === "sr" ? "Otvori Profil" : "Open Profile"}

@@ -97,27 +97,65 @@ export function SectionHeader({
   kicker,
   title,
   body,
+  variant = "marketing",
+  underline = false,
+  className,
 }: {
   kicker?: string;
   title: string;
   body?: string;
+  /**
+   * `marketing` je zatečena marketinška skala i ostaje piksel-ista — marketing
+   * stranice nisu tema UX run-a. `app` koristi tipografsku skalu iz `lib/type-scale.ts`
+   * (`type-eyebrow` → `type-h1` → `type-body`), koja je zajednička svim app ekranima.
+   */
+  variant?: "marketing" | "app";
+  /** Školski žuti potez ispod naslova — obrazac zaglavlja zone. */
+  underline?: boolean;
+  className?: string;
 }) {
+  const isApp = variant === "app";
+
   return (
-    <div className="max-w-3xl" data-motion="copy">
-      {kicker ? <p className="font-display text-xl text-ink">{kicker}</p> : null}
-      <h2 className="mt-2 text-3xl font-black leading-tight text-ink md:text-5xl">{title}</h2>
-      {body ? <p className="mt-4 text-base leading-7 text-muted md:text-lg">{body}</p> : null}
+    <div className={cn("max-w-3xl", className)} data-motion="copy">
+      {kicker ? (
+        <p className={isApp ? "type-eyebrow text-muted" : "font-display text-xl text-ink"}>{kicker}</p>
+      ) : null}
+      <h2
+        className={
+          isApp ? "mt-2 type-h1 text-ink" : "mt-2 text-3xl font-black leading-tight text-ink md:text-5xl"
+        }
+      >
+        {title}
+      </h2>
+      {underline ? <HandUnderline size={isApp ? "sm" : "md"} className="mt-1" /> : null}
+      {body ? (
+        <p className={isApp ? "mt-3 type-body type-measure text-muted" : "mt-4 text-base leading-7 text-muted md:text-lg"}>
+          {body}
+        </p>
+      ) : null}
     </div>
   );
 }
 
-export function HandUnderline({ className }: { className?: string }) {
+export function HandUnderline({
+  className,
+  size = "md",
+}: {
+  className?: string;
+  /**
+   * `cn` je obično spajanje, ne tailwind-merge, pa pozivalac ne može pouzdano da pobedi
+   * `h-5 w-56` svojom klasom — kao i kod `LinkButton`, veličinu bira komponenta.
+   * `sm` je za zaglavlja unutar aplikacije, gde marketinška širina od 224px preplavi red.
+   */
+  size?: "md" | "sm";
+}) {
   return (
     <svg
       aria-hidden="true"
       data-motion="scribble"
       viewBox="0 0 240 18"
-      className={cn("h-5 w-56 text-yellow", className)}
+      className={cn(size === "md" ? "h-5 w-56" : "h-3.5 w-40", "text-yellow", className)}
       fill="none"
     >
       <path
@@ -141,7 +179,7 @@ export function BrandMark({ href = "/sr" }: { href?: string; label?: string }) {
     <Link
       href={href}
       aria-label="Nauči AI"
-      className="inline-flex min-w-0 items-center focus-visible:outline focus-visible:outline-2"
+      className="inline-flex min-w-0 items-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
     >
       <Image
         src="/images/logos/logo.png"

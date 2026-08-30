@@ -1,13 +1,14 @@
 "use client";
 
 import { useConvexAuth } from "@convex-dev/auth/react";
-import { Heart, Loader2 } from "lucide-react";
+import { Heart } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { MouseEvent, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 
 import { api } from "@/convex/_generated/api";
 import { cn } from "@/components/ui/primitives";
+import { Spinner } from "@/components/ui/spinner";
 
 type FavoriteStates = Record<string, boolean> | undefined;
 
@@ -68,7 +69,7 @@ export function CourseFavoriteButton({
       )}
     >
       {isPending ? (
-        <Loader2 className="size-5 animate-spin" />
+        <Spinner size="md" />
       ) : (
         <Heart className={cn("size-5", isFavorite && "fill-current")} />
       )}

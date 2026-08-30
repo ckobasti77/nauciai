@@ -2,11 +2,12 @@
 
 import { useConvexAuth } from "@convex-dev/auth/react";
 import { usePaginatedQuery, useQuery } from "convex/react";
-import { ArrowUp, Coins, CreditCard, Loader2, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowUp, Coins, CreditCard, Sparkles } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import { Panel, SectionHeader, cn } from "@/components/ui/primitives";
+import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import {
   bestPackCreditsWithin,
@@ -21,7 +22,8 @@ import {
   type CreditTransactionType,
 } from "@/lib/credits-value";
 import { withLocale, type Locale } from "@/lib/i18n";
-import { CREDITS_NO_BALANCE, CREDITS_NO_HISTORY, CREDITS_NO_PACKS } from "@/lib/studio-messages";
+import { ResendVerificationLink } from "@/components/studio/verify-email-panel";
+import { CREDITS_NO_BALANCE, CREDITS_NO_HISTORY, CREDITS_NO_PACKS, STUDIO_SHELL } from "@/lib/studio-messages";
 
 const PACKS_ANCHOR = "paketi";
 
@@ -45,6 +47,7 @@ function CheckoutAction({
   label,
   tone = "ink",
   unavailableLabel,
+  emailVerificationAction,
 }: {
   locale: Locale;
   endpoint: string;
@@ -52,6 +55,8 @@ function CheckoutAction({
   label: string;
   tone?: "ink" | "yellow";
   unavailableLabel?: string;
+  /** Studio varijanta (F4): inline resend umesto linka na školski profil. */
+  emailVerificationAction?: ReactNode;
 }) {
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -77,7 +82,7 @@ function CheckoutAction({
     setIsPending(false);
 
     if (!response.ok || !data.url) {
-      setError(data.error ?? (locale === "sr" ? "Kupovina nije dostupna." : "Checkout is unavailable."));
+      setError(data.error ?? (locale === "sr" ? "Kupovina trenutno ne radi. Sačekaj koji minut pa pokušaj ponovo - ništa ti nije naplaćeno." : "Checkout is not working right now. Wait a minute and try again - you have not been charged."));
       setErrorCode(data.code ?? null);
       return;
     }
@@ -97,16 +102,20 @@ function CheckoutAction({
   return (
     <div className="space-y-2">
       <button type="button" onClick={startCheckout} disabled={isPending} className={buttonClass}>
-        {isPending ? <Loader2 className="size-4 animate-spin" /> : <CreditCard className="size-4" />}
+        {isPending ? <Spinner /> : <CreditCard className="size-4" />}
         {label}
       </button>
       {error ? (
         <div className="text-sm font-bold text-red-700">
           <p>{error}</p>
           {errorCode === "EMAIL_VERIFICATION_REQUIRED" ? (
-            <Link href={withLocale(locale, "/app/profile")} className="mt-1 inline-flex text-ink underline">
-              {locale === "sr" ? "Otvori podešavanja naloga" : "Open account settings"}
-            </Link>
+            <div className="mt-1">
+              {emailVerificationAction ?? (
+                <Link href={withLocale(locale, "/app/profile")} className="inline-flex text-ink underline">
+                  {locale === "sr" ? "Otvori podešavanja naloga" : "Open account settings"}
+                </Link>
+              )}
+            </div>
           ) : null}
         </div>
       ) : null}
@@ -114,7 +123,20 @@ function CheckoutAction({
   );
 }
 
-export function CreditsPage({ locale }: { locale: Locale }) {
+export function CreditsPage({
+  locale,
+  variant = "app",
+}: {
+  locale: Locale;
+  /**
+   * "studio" (studio-public F4): stranica živi u samostalnom shell-u - nazad
+   * vodi u /studio/app, checkout se vraća na /studio/krediti (returnContext
+   * kroz server-side allowlistu), prijava nosi ?next=, a Premium plan
+   * (kursna pretplata) se ne nudi - cross-sell je jedan tih red u shell-u (F5).
+   */
+  variant?: "app" | "studio";
+}) {
+  const isStudio = variant === "studio";
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
   // Prozor isteka je 30 dana, pa je "sad" zamrznut na prvom renderu dovoljan -
   // i drži render čistim, jer `Date.now()` u telu komponente nije dozvoljen.
@@ -130,14 +152,27 @@ export function CreditsPage({ locale }: { locale: Locale }) {
   );
 
   const header = (
-    <SectionHeader
+    <div className="space-y-3">
+      {isStudio ? (
+        <Link
+          href={withLocale(locale, "/studio/app")}
+          className="inline-flex items-center gap-1.5 rounded-full text-sm font-extrabold text-muted hover:text-ink hover:underline focus-visible:outline-2 outline-offset-2 outline-ink"
+        >
+          <ArrowLeft className="size-4" />
+          {STUDIO_SHELL.backToStudio[locale]}
+        </Link>
+      ) : null}
+      <SectionHeader
+      variant="app"
+      underline
       title={locale === "sr" ? "Krediti" : "Credits"}
       body={
         locale === "sr"
-          ? "Krediti pokreću Studio. Kupuju se jednom, važe 12 meseci i ne propadaju na kraju meseca."
-          : "Credits power the Studio. Bought once, valid for 12 months, and they never expire at the end of a month."
+          ? "Kredit je bod kojim se plaća svaka slika, video ili zvuk koji napraviš u Studiju. Kupuju se jednom, važe 12 meseci i ne propadaju na kraju meseca."
+          : "A credit is a point that pays for every image, video or sound you make in the Studio. Bought once, valid for 12 months, and they never expire at the end of a month."
       }
-    />
+      />
+    </div>
   );
 
   if (authLoading) {
@@ -145,7 +180,7 @@ export function CreditsPage({ locale }: { locale: Locale }) {
       <div className="space-y-6">
         {header}
         <Panel className="flex min-h-32 items-center justify-center p-6">
-          <Loader2 className="size-5 animate-spin text-muted" />
+          <Spinner size="md" className="text-muted" />
         </Panel>
       </div>
     );
@@ -156,13 +191,17 @@ export function CreditsPage({ locale }: { locale: Locale }) {
       <div className="space-y-6">
         {header}
         <Panel className="p-6">
-          <p className="text-base font-bold text-muted">
+          <p className="type-body type-measure font-bold text-muted">
             {locale === "sr"
-              ? "Prijavi se da bi video svoj balans i kupio kredite."
-              : "Sign in to see your balance and buy credits."}
+              ? "Prijavi se da bi video/la koliko kredita imaš i mogao/la da kupiš još."
+              : "Sign in to see how many credits you have and to buy more."}
           </p>
           <Link
-            href={withLocale(locale, "/sign-in")}
+            href={
+              isStudio
+                ? `${withLocale(locale, "/sign-in")}?next=${encodeURIComponent(withLocale(locale, "/studio/krediti"))}`
+                : withLocale(locale, "/sign-in")
+            }
             className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-ink px-5 py-2.5 text-sm font-extrabold text-paper-strong shadow-[4px_4px_0_0_var(--yellow)] transition hover:-translate-y-0.5"
           >
             {locale === "sr" ? "Prijavi se" : "Sign in"}
@@ -188,16 +227,16 @@ export function CreditsPage({ locale }: { locale: Locale }) {
       <Panel className="p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-sm font-black uppercase tracking-wide text-muted">
-              {locale === "sr" ? "Tvoj balans" : "Your balance"}
+            <p className="type-eyebrow text-muted">
+              {locale === "sr" ? "Koliko kredita imaš" : "How many credits you have"}
             </p>
             <div className="mt-2 flex flex-wrap items-baseline gap-3">
-              <span className="font-display text-6xl leading-none text-ink">
+              <span className="font-display type-display text-ink">
                 {balance === undefined
                   ? "—"
                   : currentBalance.toLocaleString(locale === "sr" ? "sr-RS" : "en-US")}
               </span>
-              <span className="text-lg font-black text-ink">{locale === "sr" ? "kredita" : "credits"}</span>
+              <span className="type-h3 text-ink">{locale === "sr" ? "kredita" : "credits"}</span>
               {imageGenerations > 0 ? (
                 <span className="text-sm font-bold text-muted">
                   ≈ {imageGenerationsLabel(imageGenerations, locale)}
@@ -217,7 +256,7 @@ export function CreditsPage({ locale }: { locale: Locale }) {
         </div>
 
         {balance !== undefined && currentBalance === 0 ? (
-          <p className="mt-4 text-base font-bold text-muted">{CREDITS_NO_BALANCE.body[locale]}</p>
+          <p className="mt-4 type-body type-measure font-bold text-muted">{CREDITS_NO_BALANCE.body[locale]}</p>
         ) : null}
 
         {expiring.map((row) => (
@@ -231,16 +270,16 @@ export function CreditsPage({ locale }: { locale: Locale }) {
 
       {/* Paketi kredita: jednokratna kupovina kroz /api/stripe/credits. */}
       <Panel id={PACKS_ANCHOR} className="p-6">
-        <h3 className="text-2xl font-black text-ink">{locale === "sr" ? "Paketi kredita" : "Credit packs"}</h3>
-        <p className="mt-2 text-base font-bold text-muted">
+        <h3 className="type-h2 text-ink">{locale === "sr" ? "Paketi kredita" : "Credit packs"}</h3>
+        <p className="mt-2 type-body type-measure font-bold text-muted">
           {locale === "sr"
-            ? "Jednokratna kupovina. Krediti stižu na nalog čim Stripe potvrdi uplatu."
-            : "A one-time purchase. Credits land on your account as soon as Stripe confirms the payment."}
+            ? "Plaćaš jednom, bez pretplate. Krediti se pojave na nalogu čim banka potvrdi uplatu - obično za par sekundi."
+            : "You pay once, with no subscription. The credits appear on your account as soon as the payment is confirmed - usually within seconds."}
         </p>
 
         {packs === undefined ? (
           <div className="mt-5 flex min-h-24 items-center justify-center">
-            <Loader2 className="size-5 animate-spin text-muted" />
+            <Spinner size="md" className="text-muted" />
           </div>
         ) : creditPacks.length === 0 ? (
           <p className="surface-inset mt-5 border-2 border-ink bg-paper p-4 text-sm font-bold text-muted">
@@ -256,7 +295,7 @@ export function CreditsPage({ locale }: { locale: Locale }) {
                   className="surface-inset flex flex-col gap-3 border-2 border-ink bg-paper p-4"
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <p className="text-lg font-black text-ink">
+                    <p className="type-h3 text-ink">
                       {locale === "sr" ? pack.titleSr : pack.titleEn}
                     </p>
                     {pack.bonusPercent > 0 ? (
@@ -265,10 +304,10 @@ export function CreditsPage({ locale }: { locale: Locale }) {
                       </span>
                     ) : null}
                   </div>
-                  <p className="font-display text-3xl leading-none text-ink">
+                  <p className="font-display type-display-sm text-ink">
                     {formatEur(pack.priceEurCents, locale)}
                   </p>
-                  <p className="text-base font-extrabold text-ink">
+                  <p className="type-body font-extrabold text-ink">
                     {pack.credits.toLocaleString(locale === "sr" ? "sr-RS" : "en-US")}{" "}
                     {locale === "sr" ? "kredita" : "credits"}
                   </p>
@@ -277,7 +316,11 @@ export function CreditsPage({ locale }: { locale: Locale }) {
                     <CheckoutAction
                       locale={locale}
                       endpoint="/api/stripe/credits"
-                      payload={{ packSlug: pack.slug }}
+                      payload={{
+                        packSlug: pack.slug,
+                        ...(isStudio ? { returnContext: "studio" } : {}),
+                      }}
+                      emailVerificationAction={isStudio ? <ResendVerificationLink locale={locale} /> : undefined}
                       tone="yellow"
                       label={`${locale === "sr" ? "Kupi" : "Buy"} - ${formatEur(pack.priceEurCents, locale)}`}
                       unavailableLabel={
@@ -292,23 +335,24 @@ export function CreditsPage({ locale }: { locale: Locale }) {
         )}
       </Panel>
 
-      {/* Premium plan: pretplata, odvojena od paketa i vizuelno istaknuta. */}
-      {premium ? (
+      {/* Premium plan: pretplata, odvojena od paketa i vizuelno istaknuta.
+          U studio varijanti se NE nudi - kursna pretplata je školska priča (F5). */}
+      {premium && !isStudio ? (
         <Panel className="border-4 bg-yellow/25 p-6">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <span className="inline-flex items-center gap-2 rounded-full border-2 border-ink bg-yellow px-3 py-1 text-xs font-black uppercase text-ink">
+              <span className="inline-flex items-center gap-2 rounded-full border-2 border-ink bg-yellow px-3 py-1 type-eyebrow text-ink">
                 <Sparkles className="size-4" />
                 {locale === "sr" ? "Pretplata" : "Subscription"}
               </span>
-              <p className="mt-3 font-display text-4xl leading-none text-ink">
+              <p className="mt-3 font-display type-display-sm text-ink">
                 {locale === "sr" ? premium.titleSr : premium.titleEn}
               </p>
-              <p className="mt-2 text-lg font-black text-ink">
+              <p className="mt-2 type-h3 text-ink">
                 {formatEur(premium.priceEurCents, locale)}
                 {locale === "sr" ? " / mesečno" : " / month"}
               </p>
-              <ul className="mt-3 space-y-1 text-base font-bold text-ink">
+              <ul className="mt-3 space-y-2 type-body font-bold text-ink">
                 <li>
                   {locale === "sr"
                     ? `${premium.credits.toLocaleString("sr-RS")} kredita svakog ciklusa`
@@ -341,15 +385,23 @@ export function CreditsPage({ locale }: { locale: Locale }) {
 
       {/* Istorija. */}
       <Panel className="p-6">
-        <h3 className="text-2xl font-black text-ink">{locale === "sr" ? "Istorija" : "History"}</h3>
+        <h3 className="type-h2 text-ink">
+          {locale === "sr" ? "Istorija kredita" : "Credit history"}
+        </h3>
+        <p className="mt-2 type-body type-measure font-bold text-muted">
+          {locale === "sr"
+            ? "Svaka kupovina i svaka potrošnja, od najnovije."
+            : "Every purchase and every spend, newest first."}
+        </p>
 
         {transactions.status === "LoadingFirstPage" ? (
           <div className="mt-5 flex min-h-24 items-center justify-center">
-            <Loader2 className="size-5 animate-spin text-muted" />
+            <Spinner size="md" className="text-muted" />
           </div>
         ) : transactions.results.length === 0 ? (
-          <div className="surface-inset mt-5 border-2 border-ink bg-paper p-5">
-            <p className="text-base font-bold text-muted">{CREDITS_NO_HISTORY.body[locale]}</p>
+          <div className="surface-inset mt-5 border-2 border-ink bg-paper p-6">
+            <p className="type-h3 text-ink">{CREDITS_NO_HISTORY.title[locale]}</p>
+            <p className="mt-1 type-body type-measure font-bold text-muted">{CREDITS_NO_HISTORY.body[locale]}</p>
             <Link
               href={`#${PACKS_ANCHOR}`}
               className="mt-3 inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-5 py-2.5 text-sm font-extrabold text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5"
@@ -373,7 +425,7 @@ export function CreditsPage({ locale }: { locale: Locale }) {
                           namerno tekst - link bi vodio na 404. */}
                       {transaction.jobId ? (
                         <span className="ml-2 text-xs font-bold text-muted">
-                          {locale === "sr" ? "generacija u Studiju" : "Studio generation"}
+                          {locale === "sr" ? "potrošeno u Studiju" : "spent in the Studio"}
                         </span>
                       ) : null}
                     </p>
@@ -389,7 +441,7 @@ export function CreditsPage({ locale }: { locale: Locale }) {
                       {signedAmount(transaction.amount)}
                     </span>
                     <span className="font-mono text-xs font-bold text-muted">
-                      {locale === "sr" ? "balans" : "balance"} {transaction.balanceAfter}
+                      {locale === "sr" ? "stanje posle" : "left after"} {transaction.balanceAfter}
                     </span>
                   </div>
                 </li>
@@ -402,7 +454,7 @@ export function CreditsPage({ locale }: { locale: Locale }) {
                 disabled={transactions.status === "LoadingMore"}
                 className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-5 py-2.5 text-sm font-extrabold text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {transactions.status === "LoadingMore" ? <Loader2 className="size-4 animate-spin" /> : null}
+                {transactions.status === "LoadingMore" ? <Spinner /> : null}
                 {locale === "sr" ? "Prikaži još" : "Show more"}
               </button>
             ) : null}

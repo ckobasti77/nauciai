@@ -65,6 +65,9 @@ const creditLotSource = v.union(
   v.literal("purchase"),
   v.literal("plan_grant"),
   v.literal("welcome_bonus"),
+  // Bonus javnog Studija posle potvrde emaila (studio-public F2) - odvojen od
+  // `welcome_bonus` (prva plaćena pretplata) da jedno ne guta drugo.
+  v.literal("signup_bonus"),
   v.literal("admin_grant"),
   // Refund neuspelog posla otvara nov lot umesto da vraća kredite u originalni.
   v.literal("refund"),
@@ -161,8 +164,15 @@ const authUsers = defineTable({
   phoneVerificationTime: v.optional(v.number()),
   isAnonymous: v.optional(v.boolean()),
   mergedInto: v.optional(v.id("users")),
+  // Kanonski Gmail oblik SAMO za anti-farm proveru signup bonusa (nalaz V4).
+  // Nije login ni prikazani email - `red+1@` i `r.ed@gmail.com` ovde nose isti
+  // `red@gmail.com`, pa ih `studio.claimSignupBonus` vidi kao jedan inbox.
+  // Opciono: legacy redovi ga nemaju dok se ne osveže (upsert pri prijavi ili
+  // self-heal u claim-u). Vidi `creditsCore.canonicalizeEmailForAntiFarm`.
+  emailCanonical: v.optional(v.string()),
 })
   .index("email", ["email"])
+  .index("email_canonical", ["emailCanonical"])
   .index("phone", ["phone"])
   .index("username", ["username"])
   .index("by_role", ["role"])
@@ -1668,12 +1678,48 @@ export default defineSchema({
     .index("by_user_day", ["userId", "day"])
     .index("by_day", ["day"]),
 
+  // Odbijeni promptovi po blok listi (studio-public F2.5). BEZ teksta prompta
+  // (može da sadrži lične podatke) - samo hash, dužina i kategorija, dovoljno
+  // da admin vidi obrasce (isti hash iznova = sondiranje liste). Red upisuje
+  // `studio.createJob` u grani koja se COMMIT-uje (union-return, ne throw) -
+  // throw bi rollback-ovao i log.
+  studioModerationLog: defineTable({
+    userId: v.id("users"),
+    category: v.string(),
+    reason: v.string(),
+    promptHash: v.string(),
+    promptLength: v.number(),
+    modelSlug: v.string(),
+    createdAt: v.number(),
+  }).index("by_user", ["userId", "createdAt"]),
+
+  // Otisak SVAKOG prompta koji PROĐE moderaciju (nalaz V8): hash + dužina, nikad
+  // tekst - isto kao `studioModerationLog`, samo za propuštene. Bez ovoga bypass
+  // keyword-filtera ne ostavlja NIKAKAV trag (odbijeni se loguju, propušteni ne),
+  // pa admin ne može ni da posumnja da neko sondira granice filtera. Piše se u
+  // grani `createJob`-a koja se COMMIT-uje (posle rezervacije posla). Isti hash
+  // iznova = obrazac; korelacija sa `studioModerationLog` po hash-u pokazuje ko
+  // je probao odbijen pa propušten varijantom.
+  studioPromptLog: defineTable({
+    userId: v.id("users"),
+    promptHash: v.string(),
+    promptLength: v.number(),
+    modelSlug: v.string(),
+    createdAt: v.number(),
+  }).index("by_user", ["userId", "createdAt"]).index("by_hash", ["promptHash"]),
+
   // ── PLATFORMA: SKLOPKE ───────────────────────────────────────────────
   // Kill switch iz STUDIO-PLAN 4.4. `studio.createJob` čita "studio_enabled"
   // pre svake druge provere; `enabled: false` gasi Studio bez deploy-a.
+  //
+  // `value` (studio-public F1): numerički konfig redovi (javni limiti Studija,
+  // ključevi u `STUDIO_PUBLIC_CONFIG_KEYS`) žive u ISTOJ tabeli kao flagovi —
+  // override važi samo kad je `enabled: true` i vrednost ceo broj > 0, inače
+  // se koristi podrazumevana vrednost iz `studioCore.PUBLIC_LIMIT_DEFAULTS`.
   platformFlags: defineTable({
     key: v.string(),
     enabled: v.boolean(),
+    value: v.optional(v.number()),
   }).index("by_key", ["key"]),
 
   // Zapamćeno stanje globalnog dnevnog alarma (STUDIO-PLAN 4.4). Jedan red po

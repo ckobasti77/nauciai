@@ -57,7 +57,7 @@ export function capabilityLabel(caps: InputCapabilities, key: InputCapabilityKey
     return parts.length > 0 ? `${base} · ${parts.join(", ")}` : base;
   }
   if (key === "video" && caps.video === "continuation") {
-    return locale === "sr" ? "Nastavak prethodne generacije" : "Continue a previous generation";
+    return locale === "sr" ? "Nastavlja tvoj raniji video" : "Continues your earlier video";
   }
   return base;
 }

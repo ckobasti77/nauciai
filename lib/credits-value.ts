@@ -56,7 +56,7 @@ export function referenceCreditCosts(models: CatalogModelRow[]): ReferenceCosts 
   return { image: pick("image"), video: pick("video"), audio: pick("audio") };
 }
 
-/** Koliko celih generacija se plati datim brojem kredita. */
+/** Koliko celih poslova (slika / klipova) se plati datim brojem kredita. */
 export function unitsFor(credits: number, cost: number | null): number {
   if (!cost || cost <= 0) return 0;
   return Math.floor(credits / cost);
@@ -80,11 +80,15 @@ export function videosLabel(count: number, locale: Locale): string {
   return `${count} ${count === 1 ? "video clip" : "video clips"}`;
 }
 
+/**
+ * "generacija" je rec koju pocetnik ne razume - broj kredita se prevodi u ono
+ * sto korisnik zapravo dobija: napravljene slike.
+ */
 export function imageGenerationsLabel(count: number, locale: Locale): string {
   if (locale === "sr") {
-    return `${count} ${pluralSr(count, "generacija slike", "generacije slike", "generacija slika")}`;
+    return `${count} ${pluralSr(count, "napravljena slika", "napravljene slike", "napravljenih slika")}`;
   }
-  return `${count} ${count === 1 ? "image generation" : "image generations"}`;
+  return `${count} ${count === 1 ? "image you can make" : "images you can make"}`;
 }
 
 /** "otprilike: 25 slika ili 9 video klipova"; `null` kad katalog nema nijednu referencu. */

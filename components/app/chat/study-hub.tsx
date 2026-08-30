@@ -9,7 +9,6 @@ import {
   Check,
   ChevronDown,
   Clock3,
-  Loader2,
   MessageCircle,
   Plus,
   Search,
@@ -25,7 +24,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { cn } from "@/components/ui/primitives";
+import { EmptyState } from "@/components/ui/empty-state";
+import { HandUnderline, cn } from "@/components/ui/primitives";
+import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { Locale } from "@/lib/i18n";
@@ -81,7 +82,7 @@ function studyActionError(locale: Locale, error: unknown) {
     return t(locale, "Ovaj kurs više nije dostupan za zajedničko učenje.", "This course is no longer available for studying together.");
   }
   if (normalized.includes("napredak kursa je prevelik")) {
-    return t(locale, "Napredak na kursu trenutno nije moguće učitati. Pokušaj ponovo.", "Course progress could not be loaded right now. Try again.");
+    return t(locale, "Napredak na kursu ne može da se učita. Osveži stranicu; ako i dalje ne radi, pokušaj za koji minut.", "Course progress cannot be loaded. Refresh the page; if it still fails, try again in a minute.");
   }
   if (normalized.includes("oba člana moraju biti aktivna") || normalized.includes("uključi traženje partnera")) {
     return t(locale, "Dostupnost za ovaj kurs više nije aktivna. Osveži predloge pa pokušaj ponovo.", "Availability for this course is no longer active. Refresh the suggestions and try again.");
@@ -120,7 +121,7 @@ function studyActionError(locale: Locale, error: unknown) {
     return t(locale, "Grupa ili poziv više nisu dostupni.", "This group or invite is no longer available.");
   }
 
-  return t(locale, "Akcija nije uspela. Pokušaj ponovo.", "The action failed. Try again.");
+  return t(locale, "Nije uspelo. Proveri internet i pokušaj ponovo.", "That did not work. Check your connection and try again.");
 }
 
 function useOnlineStatus() {
@@ -205,22 +206,11 @@ function SectionHeading({
       <span className="grid size-10 shrink-0 place-items-center rounded-full border-2 border-ink bg-[#d7e9f5] dark:bg-ink/15 text-ink">{icon}</span>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <h2 className="text-lg font-black leading-tight text-ink sm:text-xl">{title}</h2>
-          {badge ? <span className="rounded-full bg-ink px-2 py-0.5 font-mono text-[10px] font-black text-paper-strong">{badge}</span> : null}
+          <h2 className="type-h3 text-ink">{title}</h2>
+          {badge ? <span className="rounded-full bg-ink px-2 py-0.5 font-mono type-caption font-black text-paper-strong">{badge}</span> : null}
         </div>
-        {description ? <p className="mt-1 text-sm font-bold leading-5 text-muted">{description}</p> : null}
+        {description ? <p className="mt-1 type-body-sm font-bold text-muted">{description}</p> : null}
       </div>
-    </div>
-  );
-}
-
-function EmptyState({ icon, title, body, action }: { icon: React.ReactNode; title: string; body: string; action?: React.ReactNode }) {
-  return (
-    <div role="status" className="rounded-[16px] border-2 border-dashed border-line bg-paper/70 px-4 py-6 text-center">
-      <span className="mx-auto grid size-10 place-items-center rounded-full bg-paper-strong text-muted">{icon}</span>
-      <p className="mt-3 text-sm font-black text-ink">{title}</p>
-      <p className="mx-auto mt-1 max-w-sm text-xs font-bold leading-5 text-muted">{body}</p>
-      {action ? <div className="mt-4 flex justify-center">{action}</div> : null}
     </div>
   );
 }
@@ -242,7 +232,7 @@ function LoadMoreButton({ locale, status, onLoadMore }: { locale: Locale; status
   if (status !== "CanLoadMore" && status !== "LoadingMore") return null;
   return (
     <button type="button" disabled={status === "LoadingMore"} onClick={onLoadMore} className={cn(SECONDARY_BUTTON, "mt-2 w-full")}>
-      {status === "LoadingMore" ? <Loader2 className="size-4 animate-spin" /> : <ChevronDown className="size-4" />}
+      {status === "LoadingMore" ? <Spinner /> : <ChevronDown className="size-4" />}
       {t(locale, "Učitaj još", "Load more")}
     </button>
   );
@@ -262,7 +252,7 @@ export function StudyHub(props: StudyHubProps) {
   if (profile === undefined) {
     return (
       <section className={cn("grid min-h-[420px] place-items-center rounded-[16px] border-2 border-line bg-paper-strong", props.className)} aria-busy="true">
-        <div className="text-center"><Loader2 className="mx-auto size-6 animate-spin text-ink" /><p className="mt-3 text-sm font-black text-muted">{t(props.locale, "Pripremamo Uči zajedno…", "Preparing Study together…")}</p></div>
+        <div className="text-center"><Spinner size="lg" className="mx-auto text-ink" /><p className="mt-3 text-sm font-black text-muted">{t(props.locale, "Pripremamo Uči zajedno…", "Preparing Study together…")}</p></div>
       </section>
     );
   }
@@ -272,8 +262,8 @@ export function StudyHub(props: StudyHubProps) {
       <section className={cn("grid min-h-[420px] place-items-center rounded-[16px] border-2 border-line bg-paper-strong p-6 text-center", props.className)}>
         <div className="max-w-md">
           <span className="mx-auto grid size-14 place-items-center rounded-full border-2 border-ink bg-[#d7e9f5] dark:bg-ink/15"><BookOpenCheck className="size-6" /></span>
-          <h1 className="mt-4 text-2xl font-black text-ink">{t(props.locale, "Uči zajedno je namenjeno članovima", "Study together is for members")}</h1>
-          <p className="mt-2 text-sm font-bold leading-6 text-muted">{t(props.locale, "Admin nalog ostaje van pronalaženja partnera i studijskih grupa, ali poruke podrške i moderacija ostaju dostupne u Razgovorima.", "Admin accounts stay outside partner matching and study groups, while support messages and moderation remain available in Conversations.")}</p>
+          <h1 className="mt-4 type-h1 text-ink">{t(props.locale, "Uči zajedno je namenjeno članovima", "Study together is for members")}</h1>
+          <p className="mt-2 type-body-sm font-bold text-muted">{t(props.locale, "Admin nalog ostaje van pronalaženja partnera i studijskih grupa, ali poruke podrške i moderacija ostaju dostupne u Razgovorima.", "Admin accounts stay outside partner matching and study groups, while support messages and moderation remain available in Conversations.")}</p>
         </div>
       </section>
     );
@@ -409,9 +399,10 @@ function StudyHubMember({ locale, courseSlug, onCourseSlugChange, onOpenConversa
           <div className="flex min-w-0 items-start gap-3">
             <span className="grid size-12 shrink-0 place-items-center rounded-full border-2 border-ink bg-[#d7e9f5] dark:bg-ink/15 shadow-[3px_3px_0_0_var(--yellow)]"><BookOpenCheck className="size-5" /></span>
             <div className="min-w-0">
-              <p className="font-display text-lg leading-none text-[#2e6f9f] dark:text-muted">{t(locale, "Isti tempo. Zajednički cilj.", "Same pace. Shared goal.")}</p>
-              <h1 className="mt-1 text-2xl font-black leading-tight sm:text-3xl">{t(locale, "Uči zajedno", "Study together")}</h1>
-              <p className="mt-1 max-w-2xl text-sm font-bold leading-5 text-muted">{t(locale, "Pronađi osobu u svojoj zoni napretka, prihvati poziv i nastavite u privatnom ili grupnom razgovoru.", "Find a person in your progress zone, accept an invite, and continue in a private or group conversation.")}</p>
+              <p className="type-eyebrow text-blue-mid dark:text-muted">{t(locale, "Isti tempo. Zajednički cilj.", "Same pace. Shared goal.")}</p>
+              <h1 className="mt-2 type-h1">{t(locale, "Uči zajedno", "Study together")}</h1>
+              <HandUnderline size="sm" className="mt-1" />
+              <p className="mt-3 max-w-2xl type-body-sm font-bold text-muted">{t(locale, "Pronađi osobu u svojoj zoni napretka, prihvati poziv i nastavite u privatnom ili grupnom razgovoru.", "Find a person in your progress zone, accept an invite, and continue in a private or group conversation.")}</p>
             </div>
           </div>
           <div className="flex flex-wrap gap-2" aria-label={t(locale, "Pregled aktivnosti", "Activity summary")} aria-live="polite">
@@ -422,7 +413,7 @@ function StudyHubMember({ locale, courseSlug, onCourseSlugChange, onOpenConversa
         </div>
       </header>
 
-      <div className="mx-auto max-w-6xl space-y-5 p-4 sm:p-6">
+      <div className="mx-auto max-w-6xl space-y-6 p-4 sm:p-6">
         {!online ? (
           <div role="status" className="flex items-center gap-3 rounded-[16px] border-2 border-[#b26a00] bg-[#fff4d6] dark:bg-yellow/15 px-4 py-3 text-sm font-black text-[#6d4300]">
             <WifiOff className="size-5 shrink-0" />
@@ -438,7 +429,7 @@ function StudyHubMember({ locale, courseSlug, onCourseSlugChange, onOpenConversa
           </div>
         ) : null}
 
-        <section className="rounded-[16px] border-2 border-ink bg-paper-strong p-4 shadow-[5px_5px_0_0_rgba(112,167,207,0.45)] sm:p-5">
+        <section className="rounded-[16px] border-2 border-ink bg-paper-strong p-4 shadow-[5px_5px_0_0_var(--shadow-hard-15)] sm:p-6">
           <div className="grid items-end gap-4 lg:grid-cols-[minmax(0,1fr)_auto]">
             <div>
               <label className="block text-sm font-black text-ink">
@@ -457,7 +448,7 @@ function StudyHubMember({ locale, courseSlug, onCourseSlugChange, onOpenConversa
                   <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-4 top-1/2 size-4 -translate-y-1/2" />
                 </span>
               </label>
-              {coursePage.status === "CanLoadMore" ? <button type="button" onClick={() => coursePage.loadMore(20)} className={cn("mt-2 min-h-9 rounded-full border border-ink bg-paper-strong px-3 text-[10px] font-black", FOCUS_RING)}>{t(locale, "Učitaj još kurseva", "Load more courses")}</button> : null}
+              {coursePage.status === "CanLoadMore" ? <button type="button" onClick={() => coursePage.loadMore(20)} className={cn("mt-2 min-h-9 rounded-full border border-ink bg-paper-strong px-3 type-caption font-black", FOCUS_RING)}>{t(locale, "Učitaj još kurseva", "Load more courses")}</button> : null}
             </div>
 
             <button
@@ -477,7 +468,7 @@ function StudyHubMember({ locale, courseSlug, onCourseSlugChange, onOpenConversa
                 FOCUS_RING,
               )}
             >
-              {pendingKey === "availability" ? <Loader2 className="size-5 animate-spin" /> : activeAvailability?.active ? <ToggleRight className="size-5" /> : <ToggleLeft className="size-5" />}
+              {pendingKey === "availability" ? <Spinner size="md" /> : activeAvailability?.active ? <ToggleRight className="size-5" /> : <ToggleLeft className="size-5" />}
               {activeAvailability?.active ? t(locale, "Dostupnost je uključena", "Availability is on") : t(locale, "Uključi dostupnost", "Turn on availability")}
             </button>
           </div>
@@ -499,13 +490,13 @@ function StudyHubMember({ locale, courseSlug, onCourseSlugChange, onOpenConversa
           )}
         </section>
 
-        <div className="grid gap-5 xl:grid-cols-[minmax(0,1.12fr)_minmax(340px,0.88fr)]">
-          <section id="study-suggestions" tabIndex={-1} className="scroll-mt-28 rounded-[16px] border-2 border-line bg-paper-strong p-4 outline-none sm:p-5">
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.12fr)_minmax(340px,0.88fr)]">
+          <section id="study-suggestions" tabIndex={-1} className="scroll-mt-28 rounded-[16px] border-2 border-line bg-paper-strong p-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:p-6">
             <SectionHeading icon={<Search className="size-5" />} title={t(locale, "Partneri u tvojoj zoni", "Partners in your zone")} description={t(locale, "Study Pulse prsten pokazuje napredak na kursu za svaku osobu iz tvoje zone.", "The Study Pulse ring shows course progress for each person in your zone.")} />
             <div className="mt-4 grid gap-2">
               {!courseId || !activeAvailability?.active ? (
                 <EmptyState
-                  icon={<Sparkles className="size-5" />}
+                  icon={Sparkles}
                   title={t(locale, "Prvo izaberi kurs", "Choose a course first")}
                   body={t(locale, "Izaberi kurs i uključi dostupnost da vidiš osobe koje uče sličnim tempom.", "Choose a course and turn on availability to see people learning at a similar pace.")}
                   action={<button type="button" onClick={() => document.getElementById("study-course-select")?.focus()} className={SECONDARY_BUTTON}>{t(locale, "Izaberi kurs", "Choose a course")}</button>}
@@ -513,7 +504,7 @@ function StudyHubMember({ locale, courseSlug, onCourseSlugChange, onOpenConversa
               ) : suggestions.status === "LoadingFirstPage" ? (
                 <LoadingCards label={t(locale, "Učitavanje predloga partnera", "Loading partner suggestions")} />
               ) : suggestions.results.length === 0 ? (
-                <EmptyState icon={<Search className="size-5" />} title={t(locale, "Još nema poklapanja", "No matches yet")} body={t(locale, "Tvoja dostupnost je uključena. Nova poklapanja će se pojaviti kada neko uđe u istu zonu napretka.", "Your availability is on. New matches appear when someone enters the same progress zone.")} />
+                <EmptyState icon={Search} title={t(locale, "Još nema poklapanja", "No matches yet")} body={t(locale, "Tvoja dostupnost je uključena. Nova poklapanja će se pojaviti kada neko uđe u istu zonu napretka.", "Your availability is on. New matches appear when someone enters the same progress zone.")} />
               ) : suggestions.results.map((person) => (
                 <article key={person.userId} data-study-pulse="card" className="group flex items-center gap-3 rounded-[16px] border-2 border-line bg-paper p-3 transition-[border-color,background-color] hover:border-[#70a7cf] dark:hover:border-line hover:bg-paper-strong">
                   <Link href={withLocale(locale, `/app/members/${person.username}`)} className={cn("rounded-full", FOCUS_RING)}><StudyPulseAvatar avatarUrl={person.avatarUrl} name={person.name} progressPercent={person.progressPercent} /></Link>
@@ -521,7 +512,7 @@ function StudyHubMember({ locale, courseSlug, onCourseSlugChange, onOpenConversa
                     <Link href={withLocale(locale, `/app/members/${person.username}`)} className={cn("block truncate text-sm font-black text-ink hover:underline", FOCUS_RING)}>{person.name}</Link>
                     <p className="truncate text-xs font-bold text-muted">@{person.username} · {zoneLabel(locale, person.progressZone)}</p>
                   </div>
-                  <span className="hidden rounded-full border border-line bg-paper-strong px-2 py-1 font-mono text-[10px] font-black sm:inline-flex">{person.progressPercent}%</span>
+                  <span className="hidden rounded-full border border-line bg-paper-strong px-2 py-1 font-mono type-caption font-black sm:inline-flex">{person.progressPercent}%</span>
                   <button
                     type="button"
                     disabled={mutationsLocked}
@@ -529,7 +520,7 @@ function StudyHubMember({ locale, courseSlug, onCourseSlugChange, onOpenConversa
                     className={cn("grid size-10 shrink-0 place-items-center rounded-full border-2 border-ink bg-yellow disabled:opacity-45", FOCUS_RING)}
                     aria-label={t(locale, `Pozovi ${person.name} da učite zajedno`, `Invite ${person.name} to study together`)}
                   >
-                    {pendingKey === `invite-${person.userId}` ? <Loader2 className="size-4 animate-spin" /> : <UserRoundPlus className="size-4" />}
+                    {pendingKey === `invite-${person.userId}` ? <Spinner /> : <UserRoundPlus className="size-4" />}
                   </button>
                 </article>
               ))}
@@ -537,11 +528,11 @@ function StudyHubMember({ locale, courseSlug, onCourseSlugChange, onOpenConversa
             </div>
           </section>
 
-          <section className="rounded-[16px] border-2 border-line bg-paper-strong p-4 sm:p-5">
+          <section className="rounded-[16px] border-2 border-line bg-paper-strong p-4 sm:p-6">
             <SectionHeading icon={<BellRing className="size-5" />} title={t(locale, "Pozivi", "Invites")} description={t(locale, "Odgovori na poziv ili proveri šta je još na čekanju.", "Respond to an invite or review what is still pending.")} badge={pendingInviteCount} />
             <div className="mt-4 space-y-4">
               <div>
-                <h3 className="mb-2 text-xs font-black uppercase tracking-[0.14em] text-[#2e6f9f] dark:text-muted">{t(locale, "Dolazni", "Incoming")}</h3>
+                <h3 className="mb-2 type-eyebrow text-blue-mid dark:text-muted">{t(locale, "Dolazni", "Incoming")}</h3>
                 <div className="space-y-2">
                   {incoming.status === "LoadingFirstPage" || groupInvites.status === "LoadingFirstPage" ? <LoadingCards label={t(locale, "Učitavanje dolaznih poziva", "Loading incoming invites")} /> : null}
                   {incoming.results.map((invite) => (
@@ -551,36 +542,36 @@ function StudyHubMember({ locale, courseSlug, onCourseSlugChange, onOpenConversa
                         <div className="min-w-0 flex-1"><p className="truncate text-sm font-black">{invite.counterpart.name}</p><p className="truncate text-xs font-bold text-muted">{courseTitle(locale, invite.course)}</p></div>
                       </div>
                       <div className="mt-3 grid grid-cols-2 gap-2">
-                        <button type="button" disabled={mutationsLocked} onClick={() => void perform(String(invite.inviteId), async () => { const result = await respondPartner({ inviteId: invite.inviteId, decision: "accept" }); openConversation(result.conversationId); }, t(locale, "Partnerstvo je prihvaćeno.", "Partnership accepted."))} className={cn(PRIMARY_BUTTON, "min-h-10 px-3 text-xs shadow-none")}>{pendingKey === String(invite.inviteId) ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}{t(locale, "Prihvati", "Accept")}</button>
+                        <button type="button" disabled={mutationsLocked} onClick={() => void perform(String(invite.inviteId), async () => { const result = await respondPartner({ inviteId: invite.inviteId, decision: "accept" }); openConversation(result.conversationId); }, t(locale, "Partnerstvo je prihvaćeno.", "Partnership accepted."))} className={cn(PRIMARY_BUTTON, "min-h-10 px-3 text-xs shadow-none")}>{pendingKey === String(invite.inviteId) ? <Spinner /> : <Check className="size-4" />}{t(locale, "Prihvati", "Accept")}</button>
                         <button type="button" disabled={mutationsLocked} onClick={() => void perform(String(invite.inviteId), () => respondPartner({ inviteId: invite.inviteId, decision: "decline" }))} className={SECONDARY_BUTTON}><X className="size-4" />{t(locale, "Odbij", "Decline")}</button>
                       </div>
                     </article>
                   ))}
                   {groupInvites.results.map((invite) => (
                     <article key={invite.inviteId} className="rounded-[16px] border-2 border-[#70a7cf] dark:border-line bg-[#eef6fb] dark:bg-ink/10 p-3">
-                      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#2e6f9f] dark:text-muted">{t(locale, "Poziv u studijsku grupu", "Study group invite")}</p>
+                      <p className="type-eyebrow-sm text-blue-mid dark:text-muted">{t(locale, "Poziv u studijsku grupu", "Study group invite")}</p>
                       <p className="mt-1 truncate text-sm font-black">{invite.group.name}</p>
                       <p className="mt-0.5 truncate text-xs font-bold text-muted">{invite.inviter.name} · {courseTitle(locale, invite.course)}</p>
                       <div className="mt-3 grid grid-cols-2 gap-2">
-                        <button type="button" disabled={mutationsLocked} onClick={() => void perform(String(invite.inviteId), async () => { const result = await respondGroup({ inviteId: invite.inviteId, decision: "accept" }); openConversation(result.conversationId); }, t(locale, "Poziv u grupu je prihvaćen.", "Group invite accepted."))} className={cn(PRIMARY_BUTTON, "min-h-10 px-3 text-xs shadow-none")}>{pendingKey === String(invite.inviteId) ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}{t(locale, "Prihvati", "Accept")}</button>
+                        <button type="button" disabled={mutationsLocked} onClick={() => void perform(String(invite.inviteId), async () => { const result = await respondGroup({ inviteId: invite.inviteId, decision: "accept" }); openConversation(result.conversationId); }, t(locale, "Poziv u grupu je prihvaćen.", "Group invite accepted."))} className={cn(PRIMARY_BUTTON, "min-h-10 px-3 text-xs shadow-none")}>{pendingKey === String(invite.inviteId) ? <Spinner /> : <Check className="size-4" />}{t(locale, "Prihvati", "Accept")}</button>
                         <button type="button" disabled={mutationsLocked} onClick={() => void perform(String(invite.inviteId), () => respondGroup({ inviteId: invite.inviteId, decision: "decline" }))} className={SECONDARY_BUTTON}><X className="size-4" />{t(locale, "Odbij", "Decline")}</button>
                       </div>
                     </article>
                   ))}
-                  {incoming.status !== "LoadingFirstPage" && groupInvites.status !== "LoadingFirstPage" && incoming.results.length + groupInvites.results.length === 0 ? <EmptyState icon={<Check className="size-5" />} title={t(locale, "Sve je sređeno", "You’re all caught up")} body={t(locale, "Nema novih poziva za partnerstvo ili studijsku grupu.", "There are no new partnership or study group invites.")} /> : null}
+                  {incoming.status !== "LoadingFirstPage" && groupInvites.status !== "LoadingFirstPage" && incoming.results.length + groupInvites.results.length === 0 ? <EmptyState icon={Check} title={t(locale, "Sve je sređeno", "You’re all caught up")} body={t(locale, "Nema novih poziva za partnerstvo ili studijsku grupu.", "There are no new partnership or study group invites.")} /> : null}
                   <LoadMoreButton locale={locale} status={incoming.status} onLoadMore={() => incoming.loadMore(6)} />
                   <LoadMoreButton locale={locale} status={groupInvites.status} onLoadMore={() => groupInvites.loadMore(6)} />
                 </div>
               </div>
 
               <div className="border-t-2 border-line pt-4">
-                <h3 className="mb-2 text-xs font-black uppercase tracking-[0.14em] text-muted">{t(locale, "Poslati", "Sent")}</h3>
+                <h3 className="mb-2 type-eyebrow text-muted">{t(locale, "Poslati", "Sent")}</h3>
                 <div className="space-y-2">
                   {outgoing.results.map((invite) => (
                     <article key={invite.inviteId} className="flex items-center gap-3 rounded-[16px] border-2 border-line bg-paper-strong p-3">
                       <StudyPulseAvatar avatarUrl={invite.counterpart.avatarUrl} name={invite.counterpart.name} />
                       <div className="min-w-0 flex-1"><p className="truncate text-sm font-black">{invite.counterpart.name}</p><p className="flex items-center gap-1 truncate text-xs font-bold text-muted"><Clock3 className="size-3" />{t(locale, "Čeka odgovor", "Awaiting reply")}</p></div>
-                      <button type="button" disabled={mutationsLocked} onClick={() => void perform(String(invite.inviteId), () => cancelPartner({ inviteId: invite.inviteId }), t(locale, "Poziv je otkazan.", "Invite cancelled."))} className={cn(SECONDARY_BUTTON, "min-h-9 px-3")}>{pendingKey === String(invite.inviteId) ? <Loader2 className="size-4 animate-spin" /> : null}{t(locale, "Otkaži", "Cancel")}</button>
+                      <button type="button" disabled={mutationsLocked} onClick={() => void perform(String(invite.inviteId), () => cancelPartner({ inviteId: invite.inviteId }), t(locale, "Poziv je otkazan.", "Invite cancelled."))} className={cn(SECONDARY_BUTTON, "min-h-9 px-3")}>{pendingKey === String(invite.inviteId) ? <Spinner /> : null}{t(locale, "Otkaži", "Cancel")}</button>
                     </article>
                   ))}
                   {outgoing.status !== "LoadingFirstPage" && outgoing.results.length === 0 ? <p className="rounded-[16px] bg-paper px-3 py-4 text-center text-xs font-bold text-muted">{t(locale, "Nema poziva koji čekaju odgovor.", "No sent invites are awaiting a reply.")}</p> : null}
@@ -591,7 +582,7 @@ function StudyHubMember({ locale, courseSlug, onCourseSlugChange, onOpenConversa
           </section>
         </div>
 
-        <section className="rounded-[16px] border-2 border-line bg-paper-strong p-4 sm:p-5">
+        <section className="rounded-[16px] border-2 border-line bg-paper-strong p-4 sm:p-6">
           <SectionHeading icon={<MessageCircle className="size-5" />} title={t(locale, "Moji partneri", "My partners")} description={t(locale, "Nastavi u razgovoru ili izaberi partnere za novu studijsku grupu.", "Continue in chat or choose partners for a new study group.")} />
           <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
             {partnerships.status === "LoadingFirstPage" ? <div className="md:col-span-2 xl:col-span-3"><LoadingCards label={t(locale, "Učitavanje partnerstava", "Loading partnerships")} /></div> : null}
@@ -612,25 +603,25 @@ function StudyHubMember({ locale, courseSlug, onCourseSlugChange, onOpenConversa
                 </article>
               );
             })}
-            {partnerships.status !== "LoadingFirstPage" && partnerships.results.length === 0 ? <div className="md:col-span-2 xl:col-span-3"><EmptyState icon={<UserRoundPlus className="size-5" />} title={t(locale, "Još nema partnerstava", "No partnerships yet")} body={t(locale, "Pošalji poziv iz predloga iznad. Kada poziv bude prihvaćen, razgovor se otvara automatski.", "Send an invite from the suggestions above. Once accepted, the conversation opens automatically.")} action={<button type="button" onClick={() => document.getElementById("study-suggestions")?.focus()} className={SECONDARY_BUTTON}><Search className="size-4" />{t(locale, "Pronađi partnera", "Find a partner")}</button>} /></div> : null}
+            {partnerships.status !== "LoadingFirstPage" && partnerships.results.length === 0 ? <div className="md:col-span-2 xl:col-span-3"><EmptyState icon={UserRoundPlus} title={t(locale, "Još nema partnerstava", "No partnerships yet")} body={t(locale, "Pošalji poziv iz predloga iznad. Kada poziv bude prihvaćen, razgovor se otvara automatski.", "Send an invite from the suggestions above. Once accepted, the conversation opens automatically.")} action={<button type="button" onClick={() => document.getElementById("study-suggestions")?.focus()} className={SECONDARY_BUTTON}><Search className="size-4" />{t(locale, "Pronađi partnera", "Find a partner")}</button>} /></div> : null}
           </div>
           <LoadMoreButton locale={locale} status={partnerships.status} onLoadMore={() => partnerships.loadMore(12)} />
 
           {courseId && partnerships.results.length >= 2 ? (
             <div className="mt-5 rounded-[16px] border-2 border-ink bg-[#fff8df] dark:bg-yellow/15 p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
-                <div><h3 className="flex items-center gap-2 text-base font-black"><UsersRound className="size-5" />{t(locale, "Napravi studijsku grupu", "Create a study group")}</h3><p className="mt-1 max-w-2xl text-xs font-bold leading-5 text-muted">{t(locale, "Izaberi najmanje dva partnera. Grupni razgovor se aktivira kada vas bude najmanje troje.", "Choose at least two partners. The group conversation activates once at least three people accept.")}</p></div>
+                <div><h3 className="flex items-center gap-2 type-h4"><UsersRound className="size-5" />{t(locale, "Napravi studijsku grupu", "Create a study group")}</h3><p className="mt-1 max-w-2xl type-caption font-bold text-muted">{t(locale, "Izaberi najmanje dva partnera. Grupni razgovor se aktivira kada vas bude najmanje troje.", "Choose at least two partners. The group conversation activates once at least three people accept.")}</p></div>
                 <span className="rounded-full border-2 border-ink bg-paper-strong px-3 py-1.5 font-mono text-xs font-black">{groupMembers.length}/2+</span>
               </div>
               <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
                 <label className="block"><span className="sr-only">{t(locale, "Naziv studijske grupe", "Study group name")}</span><input value={groupName} onChange={(event) => setGroupName(event.target.value)} maxLength={100} placeholder={t(locale, "Naziv grupe", "Group name")} className={cn("h-11 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-3 text-sm font-black", FOCUS_RING)} /></label>
-                <button type="button" disabled={mutationsLocked || groupMembers.length < 2 || !groupName.trim()} onClick={() => void submitGroup()} className={PRIMARY_BUTTON}>{pendingKey === "create-group" ? <Loader2 className="size-4 animate-spin" /> : <ArrowRight className="size-4" />}{t(locale, "Pošalji predlog", "Send proposal")}</button>
+                <button type="button" disabled={mutationsLocked || groupMembers.length < 2 || !groupName.trim()} onClick={() => void submitGroup()} className={PRIMARY_BUTTON}>{pendingKey === "create-group" ? <Spinner /> : <ArrowRight className="size-4" />}{t(locale, "Pošalji predlog", "Send proposal")}</button>
               </div>
             </div>
           ) : null}
         </section>
 
-        <section className="rounded-[16px] border-2 border-line bg-paper-strong p-4 sm:p-5">
+        <section className="rounded-[16px] border-2 border-line bg-paper-strong p-4 sm:p-6">
           <SectionHeading icon={<UsersRound className="size-5" />} title={t(locale, "Studijske grupe", "Study groups")} description={t(locale, "Aktivne grupe imaju zajednički razgovor; predlozi čekaju najmanje tri prihvatanja.", "Active groups have a shared conversation; proposals wait for at least three acceptances.")} />
           <div className="mt-4 grid gap-2 md:grid-cols-2">
             {groups.status === "LoadingFirstPage" ? <div className="md:col-span-2"><LoadingCards label={t(locale, "Učitavanje studijskih grupa", "Loading study groups")} /></div> : null}
@@ -638,11 +629,11 @@ function StudyHubMember({ locale, courseSlug, onCourseSlugChange, onOpenConversa
               <article key={group.groupId} data-chat-motion="member" data-chat-motion-new="true" className="flex items-center gap-3 rounded-[16px] border-2 border-line bg-paper p-3">
                 <span className="grid size-[52px] shrink-0 place-items-center rounded-full border-2 border-ink bg-[#d7e9f5] dark:bg-ink/15"><UsersRound className="size-5" /></span>
                 <div className="min-w-0 flex-1"><p className="truncate text-sm font-black">{group.name}</p><p className="truncate text-xs font-bold text-muted">{courseTitle(locale, group.course)} · <span className="font-mono">{group.activeMemberCount}</span> {t(locale, "članova", "members")}</p></div>
-                <span className={cn("hidden rounded-full px-2 py-1 text-[10px] font-black sm:inline-flex", group.status === "active" ? "bg-[#dcefe1] text-[#245436]" : "bg-[#fff0bd] dark:bg-yellow/15 text-[#6d4300]")}>{group.status === "active" ? t(locale, "Aktivna", "Active") : t(locale, "Formira se", "Forming")}</span>
+                <span className={cn("hidden rounded-full px-2 py-1 type-caption font-black sm:inline-flex", group.status === "active" ? "bg-[#dcefe1] text-[#245436]" : "bg-[#fff0bd] dark:bg-yellow/15 text-[#6d4300]")}>{group.status === "active" ? t(locale, "Aktivna", "Active") : t(locale, "Formira se", "Forming")}</span>
                 {group.conversationId ? <button type="button" onClick={() => openConversation(group.conversationId)} className={cn("grid size-10 shrink-0 place-items-center rounded-full border-2 border-ink bg-yellow", FOCUS_RING)} aria-label={t(locale, `Otvori grupni razgovor ${group.name}`, `Open ${group.name} group chat`)}><MessageCircle className="size-4" /></button> : null}
               </article>
             ))}
-            {groups.status !== "LoadingFirstPage" && groups.results.length === 0 ? <div className="md:col-span-2"><EmptyState icon={<UsersRound className="size-5" />} title={t(locale, "Još nema studijskih grupa", "No study groups yet")} body={t(locale, "Kada imaš najmanje dva partnera na kursu, izaberi ih iznad i pošalji predlog grupe.", "Once you have at least two partners in a course, select them above and send a group proposal.")} /></div> : null}
+            {groups.status !== "LoadingFirstPage" && groups.results.length === 0 ? <div className="md:col-span-2"><EmptyState icon={UsersRound} title={t(locale, "Još nema studijskih grupa", "No study groups yet")} body={t(locale, "Kada imaš najmanje dva partnera na kursu, izaberi ih iznad i pošalji predlog grupe.", "Once you have at least two partners in a course, select them above and send a group proposal.")} /></div> : null}
           </div>
           <LoadMoreButton locale={locale} status={groups.status} onLoadMore={() => groups.loadMore(10)} />
         </section>

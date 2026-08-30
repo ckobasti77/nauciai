@@ -76,7 +76,17 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={value}>
       {children}
-      <div className="pointer-events-none fixed inset-x-3 top-3 z-[200] flex flex-col items-end gap-2 sm:left-auto sm:right-4 sm:max-w-[min(28rem,calc(100vw-2rem))]" aria-live="polite">
+      {/*
+        Traka poruka nikad ne sme da izađe iz ekrana, ni na jednom brejkpointu:
+        - mobilni: `inset-x-3` je drži tačno 12px od obe ivice (širina je razlika, ne sadržaj);
+        - od `sm`: usidrena je desno (`right-4`), a `max-w` je manje od 28rem i raspoloživog
+          prostora do leve ivice, pa duga poruka lomi red umesto da gura desnu ivicu.
+        `100svw` (a ne `100vw`) jer `vw` na mobilnom Safariju ne oduzima traku za skrol.
+      */}
+      <div
+        className="pointer-events-none fixed inset-x-3 top-3 z-[200] flex flex-col items-end gap-2 sm:left-auto sm:right-4 sm:max-w-[min(28rem,calc(100svw-2rem))]"
+        aria-live="polite"
+      >
         {toasts.map((toast) => {
           const style = toneStyles[toast.tone];
           const Icon = style.icon;
@@ -84,13 +94,13 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             <div
               key={toast.id}
               role={toast.tone === "error" ? "alert" : "status"}
-              className={`pointer-events-auto w-full rounded-[16px] border-2 p-3 shadow-[5px_5px_0_var(--shadow-hard)] motion-safe:animate-in ${style.surface}`}
+              className={`toast-enter pointer-events-auto w-full rounded-[16px] border-2 p-3 shadow-[5px_5px_0_var(--shadow-hard)] ${style.surface}`}
             >
               <div className="flex items-start gap-3">
                 <Icon className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-black">{toast.title}</p>
-                  {toast.message ? <p className="mt-0.5 text-xs font-semibold leading-5 opacity-80">{toast.message}</p> : null}
+                  <p className="type-body-sm font-black">{toast.title}</p>
+                  {toast.message ? <p className="mt-1 type-caption font-semibold opacity-80">{toast.message}</p> : null}
                   {toast.action ? (
                     <button
                       type="button"
@@ -98,7 +108,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                         toast.action?.onClick();
                         dismiss(toast.id);
                       }}
-                      className="mt-2 inline-flex min-h-9 items-center rounded-full border border-current px-3 text-xs font-black underline underline-offset-2"
+                      className="mt-2 inline-flex min-h-9 items-center rounded-full border border-current px-3 type-caption font-black underline underline-offset-2"
                     >
                       {toast.action.label}
                     </button>

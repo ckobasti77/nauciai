@@ -1,0 +1,83 @@
+
+> nauciai@0.1.0 build
+> next build
+
+▲ Next.js 16.2.10 (Turbopack)
+- Environments: .env.local
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 7.8s
+  Running TypeScript ...
+  Finished TypeScript in 13.6s ...
+  Collecting page data using 15 workers ...
+  Generating static pages using 15 workers (0/74) ...
+  Generating static pages using 15 workers (18/74) 
+  Generating static pages using 15 workers (36/74) 
+  Generating static pages using 15 workers (55/74) 
+✓ Generating static pages using 15 workers (74/74) in 274ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /_not-found
+├ ƒ /[locale]
+├ ƒ /[locale]/app
+├ ƒ /[locale]/app/admin
+├ ƒ /[locale]/app/admin/analytics
+├ ƒ /[locale]/app/admin/chat
+├ ƒ /[locale]/app/admin/content
+├ ƒ /[locale]/app/admin/growth
+├ ƒ /[locale]/app/admin/studio
+├ ƒ /[locale]/app/admin/users
+├ ƒ /[locale]/app/billing
+├ ƒ /[locale]/app/classroom
+├ ƒ /[locale]/app/classroom/courses/[courseSlug]
+├ ƒ /[locale]/app/classroom/courses/[courseSlug]/lessons/[lessonSlug]
+├ ƒ /[locale]/app/classroom/courses/[courseSlug]/lessons/[lessonSlug]/edit
+├ ƒ /[locale]/app/classroom/tracks/[trackSlug]
+├ ƒ /[locale]/app/community
+├ ƒ /[locale]/app/community/[postId]
+├ ƒ /[locale]/app/community/[postId]/edit
+├ ƒ /[locale]/app/community/discussions
+├ ƒ /[locale]/app/community/leaderboard
+├ ƒ /[locale]/app/community/members
+├ ƒ /[locale]/app/community/mentions
+├ ƒ /[locale]/app/community/moderation
+├ ƒ /[locale]/app/community/my-threads
+├ ƒ /[locale]/app/community/new
+├ ƒ /[locale]/app/community/notifications
+├ ƒ /[locale]/app/courses/[courseSlug]
+├ ƒ /[locale]/app/courses/[courseSlug]/lessons/[lessonSlug]
+├ ƒ /[locale]/app/courses/[courseSlug]/lessons/[lessonSlug]/edit
+├ ƒ /[locale]/app/credits
+├ ƒ /[locale]/app/members/[username]
+├ ƒ /[locale]/app/messages
+├ ƒ /[locale]/app/messages/[conversationId]
+├ ƒ /[locale]/app/profile
+├ ƒ /[locale]/app/studio
+├ ƒ /[locale]/app/studio/gallery
+├ ƒ /[locale]/app/studio/m/[jobId]
+├ ƒ /[locale]/app/tracks/[trackSlug]
+├ ƒ /[locale]/auth/complete
+├ ƒ /[locale]/community/[postId]
+├ ƒ /[locale]/courses/[courseSlug]
+├ ƒ /[locale]/politika-privatnosti
+├ ƒ /[locale]/reset-password
+├ ƒ /[locale]/sign-in
+├ ƒ /[locale]/uslovi-studio
+├ ƒ /[locale]/verify-email
+├ ƒ /api/ai/course-chat
+├ ƒ /api/stripe/checkout
+├ ƒ /api/stripe/credits
+├ ƒ /api/stripe/plan
+├ ƒ /api/stripe/portal
+├ ƒ /api/stripe/webhook
+├ ○ /robots.txt
+└ ƒ /sitemap.xml
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
+BUILD EXIT: 0

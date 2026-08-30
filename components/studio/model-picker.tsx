@@ -217,7 +217,7 @@ function FilterDropdown<T extends string>({
                   setIsOpen(false);
                 }}
                 className={cn(
-                  "flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs font-black text-left transition hover:bg-yellow/25",
+                  "flex w-full items-center justify-between surface-inset px-3 py-1.5 text-xs font-black text-left transition hover:bg-yellow/25",
                   isSelected ? "bg-ink text-paper-strong" : "text-ink",
                 )}
               >
@@ -418,8 +418,8 @@ export function ModelPickerPanel({
         {filteredModels.length === 0 ? (
           <p className="surface-inset border-2 border-ink bg-paper p-4 text-center text-sm font-bold text-muted">
             {locale === "sr"
-              ? "Nijedan model ne odgovara izabranim filterima."
-              : "No model matches the selected filters."}
+              ? "Nijedan alat ne odgovara ovom izboru. Obriši reč iz pretrage ili izaberi drugu vrstu iznad."
+              : "No tool matches this selection. Clear the search word or pick a different type above."}
           </p>
         ) : groups ? (
           /* Grupisanje samo kad je izabrano 'Sve' */

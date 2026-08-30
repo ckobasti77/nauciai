@@ -19,6 +19,7 @@ import type { Id } from "@/convex/_generated/dataModel";
 import type { Locale } from "@/lib/i18n";
 import { projectErrorMessage } from "@/lib/studio-messages";
 import { cn } from "@/components/ui/primitives";
+import { Spinner } from "@/components/ui/spinner";
 
 export type StudioProjectItem = {
   _id: Id<"studioProjects">;
@@ -178,13 +179,13 @@ export function ProjectPicker({
     }
   }
 
-  const allGenerationsLabel = locale === "sr" ? "Sve generacije" : "All generations";
+  const allGenerationsLabel = locale === "sr" ? "Sve što si napravio/la" : "Everything you made";
   const newProjectLabel = locale === "sr" ? "Nov projekat" : "New project";
   const activeLabel = activeProject ? activeProject.name : allGenerationsLabel;
 
   return (
     <div ref={dropdownRef} className="relative inline-block text-left">
-      {/* Okidač: Ime aktivnog projekta ili "Sve generacije" */}
+      {/* Okidač: Ime aktivnog projekta ili "Sve što si napravio/la" */}
       <button
         type="button"
         onClick={() => {
@@ -249,7 +250,7 @@ export function ProjectPicker({
           <div className="max-h-56 space-y-1 overflow-y-auto pr-0.5">
             {projects === undefined ? (
               <div className="flex items-center justify-center py-3">
-                <Loader2 className="size-4 animate-spin text-muted" />
+                <Spinner className="text-muted" />
               </div>
             ) : activeProjects.length === 0 ? (
               <div className="px-3 py-2 text-center text-xs font-bold text-muted">
@@ -277,7 +278,7 @@ export function ProjectPicker({
                         }}
                         disabled={isSubmitting}
                         maxLength={60}
-                        className="h-7 w-full bg-transparent px-2 text-xs font-extrabold text-ink outline-none"
+                        className="h-7 w-full bg-transparent px-2 text-xs font-extrabold text-ink outline-none studio-focus-ink"
                       />
                       <button
                         type="button"
@@ -373,7 +374,7 @@ export function ProjectPicker({
                 placeholder={locale === "sr" ? "Ime projekta…" : "Project name…"}
                 disabled={isSubmitting}
                 maxLength={60}
-                className="h-7 w-full bg-transparent px-2 text-xs font-extrabold text-ink outline-none placeholder:text-muted"
+                className="h-7 w-full bg-transparent px-2 text-xs font-extrabold text-ink outline-none placeholder:text-muted studio-focus-ink"
               />
               <button
                 type="button"

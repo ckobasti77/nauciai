@@ -33,8 +33,8 @@ export const COMMUNITY_SECTIONS: CommunitySection[] = [
   {
     id: "my-threads",
     path: "my-threads",
-    labelSr: "Moji predlozi",
-    labelEn: "My ideas",
+    labelSr: "Moje teme",
+    labelEn: "My topics",
     icon: BookOpenText,
     badgeKey: "myThreads",
   },
@@ -56,7 +56,7 @@ export const COMMUNITY_SECTIONS: CommunitySection[] = [
   {
     id: "leaderboard",
     path: "leaderboard",
-    labelSr: "Leaderboard",
+    labelSr: "Rang lista",
     labelEn: "Leaderboard",
     icon: BarChart3,
   },

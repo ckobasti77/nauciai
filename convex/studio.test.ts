@@ -43,6 +43,15 @@ function makeT() {
 }
 type TestConvex = ReturnType<typeof makeT>;
 
+/**
+ * `createJob` od F2.5 vraća uniju (jobId | moderationBlocked) - testovi
+ * srećnog toka je sužavaju ovim; moderacioni testovi čitaju uniju direktno.
+ */
+function jobIdOf(result: Id<"generationJobs"> | { moderationBlocked: unknown }): Id<"generationJobs"> {
+  if (typeof result !== "string") throw new Error("očekivan jobId, stigao moderationBlocked");
+  return result;
+}
+
 /** Slug jedinog uključenog modela u testovima; fiksna cena 20 kredita. */
 const MODEL_SLUG = "flux-2-flash";
 const MODEL_COST = 20;
@@ -67,6 +76,12 @@ async function seedUser(
      * ga isključuju sa `acceptedTerms: false`.
      */
     acceptedTerms?: boolean;
+    /**
+     * Potvrđen email po STUDIO predikatu (studio-public F1). Piše se OAuth
+     * pečat (`emailVerificationTime`) namerno - to je i dokaz da javni gejt
+     * priznaje Google verifikaciju, ne samo app/password pečate.
+     */
+    emailVerified?: boolean;
   } = {},
 ) {
   const userId = await t.run(async (ctx) => {
@@ -77,6 +92,7 @@ async function seedUser(
       role: opts.role ?? "student",
       language: "sr" as const,
       ...(opts.acceptedTerms === false ? {} : { acceptedStudioTermsAt: 1 }),
+      ...(opts.emailVerified ? { emailVerificationTime: 1 } : {}),
       createdAt: 1,
       updatedAt: 1,
     });
@@ -191,10 +207,10 @@ test("createJob rezerviše posao, skida kredite i zakazuje slanje - sve u jednoj
   const t = convexTest(schema, modules);
   const { userId, asUser } = await seedWorld(t);
 
-  const jobId = await asUser.mutation(api.studio.createJob, {
+  const jobId = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("lisica u snegu"),
-  });
+  }));
 
   const { balance, transactions, jobs } = await ledger(t, userId);
   expect(jobs).toHaveLength(1);
@@ -292,10 +308,12 @@ test("posao koji je izašao iz reda (running -> done) oslobađa mesto za nov", a
   const jobIds: Id<"generationJobs">[] = [];
   for (let index = 0; index < 3; index += 1) {
     jobIds.push(
-      await asUser.mutation(api.studio.createJob, {
-        modelSlug: MODEL_SLUG,
-        params: promptParams(`posao ${index}`),
-      }),
+      jobIdOf(
+        await asUser.mutation(api.studio.createJob, {
+          modelSlug: MODEL_SLUG,
+          params: promptParams(`posao ${index}`),
+        }),
+      ),
     );
   }
 
@@ -317,21 +335,72 @@ test("posao koji je izašao iz reda (running -> done) oslobađa mesto za nov", a
 
 // ── 3. moderacija prompta ──────────────────────────────────────────────────
 
-test("zabranjen pojam je odbijen pre nego što se skine ijedan kredit", async () => {
+test("zabranjen pojam vraća moderationBlocked, upiše TAČNO jedan log red i ne troši ništa", async () => {
   const t = convexTest(schema, modules);
   const { userId, asUser } = await seedWorld(t);
 
-  await expect(
-    asUser.mutation(api.studio.createJob, {
-      modelSlug: MODEL_SLUG,
-      params: promptParams("napravi deepfake predsednika"),
-    }),
-  ).rejects.toThrow(/NEISPRAVAN_PROMPT:ZABRANJEN_POJAM/);
+  // Union-return (studio-public F2.5): nije throw, da bi log red preživeo
+  // transakciju - throw bi rollback-ovao i njega.
+  const result = await asUser.mutation(api.studio.createJob, {
+    modelSlug: MODEL_SLUG,
+    params: promptParams("napravi deepfake predsednika"),
+  });
+  expect(result).toEqual({
+    moderationBlocked: { reason: "ZABRANJEN_POJAM", category: "deepfake" },
+  });
 
   const { balance, transactions, jobs } = await ledger(t, userId);
   expect(jobs).toHaveLength(0);
   expect(transactions.some((transaction) => transaction.type === "spend")).toBe(false);
   expect(balance).toBe(100);
+
+  // Log: jedan red, bez teksta prompta - hash + dužina + kategorija.
+  const log = await t.run(async (ctx) =>
+    ctx.db
+      .query("studioModerationLog")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect(),
+  );
+  expect(log).toHaveLength(1);
+  expect(log[0].category).toBe("deepfake");
+  expect(log[0].reason).toBe("ZABRANJEN_POJAM");
+  expect(log[0].modelSlug).toBe(MODEL_SLUG);
+  expect(log[0].promptHash).toMatch(/^[0-9a-f]{16}$/);
+  expect(log[0].promptLength).toBe("napravi deepfake predsednika".length);
+  expect(JSON.stringify(log[0])).not.toContain("predsednika");
+
+  // Nijedan posao nije zakazan za slanje provajderu.
+  await t.finishInProgressScheduledFunctions();
+  expect((await ledger(t, userId)).jobs).toHaveLength(0);
+});
+
+test("kategorije moderacije: nasilje i javna ličnost se loguju svaka pod svojom kategorijom", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedWorld(t);
+
+  const violence = await asUser.mutation(api.studio.createJob, {
+    modelSlug: MODEL_SLUG,
+    params: promptParams("prikazi masakr u gradu"),
+  });
+  expect(violence).toEqual({
+    moderationBlocked: { reason: "ZABRANJEN_POJAM", category: "violence" },
+  });
+
+  const publicFigure = await asUser.mutation(api.studio.createJob, {
+    modelSlug: MODEL_SLUG,
+    params: promptParams("portret Vučića na konju"),
+  });
+  expect(publicFigure).toEqual({
+    moderationBlocked: { reason: "ZABRANJEN_POJAM", category: "public_figure" },
+  });
+
+  const log = await t.run(async (ctx) =>
+    ctx.db
+      .query("studioModerationLog")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect(),
+  );
+  expect(log.map((row) => row.category).sort()).toEqual(["public_figure", "violence"]);
 });
 
 test("prazan i predugačak prompt su odbijeni sa svojim razlogom", async () => {
@@ -390,10 +459,10 @@ test("cena dolazi iz kataloga i kad klijent pošalje svoju vrednost u params", a
   const t = convexTest(schema, modules);
   const { userId, asUser } = await seedWorld(t);
 
-  const jobId = await asUser.mutation(api.studio.createJob, {
+  const jobId = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("lisica", { creditCost: 1, credits: 1, price: 0 }),
-  });
+  }));
 
   const { balance, transactions } = await ledger(t, userId);
   const job = await t.run((ctx) => ctx.db.get(jobId));
@@ -419,10 +488,10 @@ test("video model se naplaćuje ceil(costPerSecond * duration), a ne fiksnom cen
   });
   await grant(t, userId, 100);
 
-  const jobId = await asUser.mutation(api.studio.createJob, {
+  const jobId = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: "veo-3-1-lite",
     params: promptParams("dron nad gradom", { duration: 6, creditCost: 1 }),
-  });
+  }));
 
   const job = await t.run((ctx) => ctx.db.get(jobId));
   expect(job?.creditCost).toBe(27);
@@ -444,10 +513,10 @@ test("failJob vrati tačno onoliko kredita koliko je posao skinuo", async () => 
   const t = convexTest(schema, modules);
   const { userId, asUser } = await seedWorld(t);
 
-  const jobId = await asUser.mutation(api.studio.createJob, {
+  const jobId = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("lisica"),
-  });
+  }));
   expect((await ledger(t, userId)).balance).toBe(100 - MODEL_COST);
 
   await t.mutation(internal.studio.failJob, {
@@ -470,10 +539,10 @@ test("failJob pozvan dvaput vrati kredite samo jednom", async () => {
   const t = convexTest(schema, modules);
   const { userId, asUser } = await seedWorld(t);
 
-  const jobId = await asUser.mutation(api.studio.createJob, {
+  const jobId = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("lisica"),
-  });
+  }));
 
   await t.mutation(internal.studio.failJob, { jobId, error: "prvi put" });
   await t.mutation(internal.studio.failJob, { jobId, error: "drugi put" });
@@ -487,10 +556,10 @@ test("markJobRunning postavlja status running i oba polja sa ID-jem zahteva", as
   const t = convexTest(schema, modules);
   const { asUser } = await seedWorld(t);
 
-  const jobId = await asUser.mutation(api.studio.createJob, {
+  const jobId = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("lisica"),
-  });
+  }));
   await t.mutation(internal.studio.markJobRunning, { jobId, providerRequestId: "req_1" });
 
   const job = await t.run((ctx) => ctx.db.get(jobId));
@@ -665,14 +734,14 @@ test("listMyJobs vraća samo svoje poslove, najnoviji prvi, bez internih polja",
     }),
   );
 
-  const first = await asUser.mutation(api.studio.createJob, {
+  const first = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("prvi"),
-  });
-  const second = await asUser.mutation(api.studio.createJob, {
+  }));
+  const second = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("drugi"),
-  });
+  }));
   await t.mutation(internal.studio.markJobRunning, { jobId: second, providerRequestId: "req_tajni" });
 
   const page = await asUser.query(api.studio.listMyJobs, {
@@ -817,7 +886,7 @@ test("createJob upisuje očišćene parametre - to je isto ono što ide fal-u", 
   await seedModel(t, { paramSchema: IMAGE_SCHEMA });
   await grant(t, userId, 100);
 
-  const jobId = await asUser.mutation(api.studio.createJob, {
+  const jobId = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("lisica u snegu", {
       num_images: 20,
@@ -825,7 +894,7 @@ test("createJob upisuje očišćene parametre - to je isto ono što ide fal-u", 
       // Rezolucija je deo identiteta skupljeg sluga; klijent je ne sme dizati.
       resolution: "4K",
     }),
-  });
+  }));
 
   const job = await t.run((ctx) => ctx.db.get(jobId));
   expect(JSON.parse(job?.params ?? "{}")).toEqual({
@@ -844,10 +913,10 @@ test("num_images: 4 naplaćuje 4x cenu iz kataloga - i u ledgeru i u dnevnom tro
   await seedModel(t, { paramSchema: IMAGE_SCHEMA });
   await grant(t, userId, 200);
 
-  const jobId = await asUser.mutation(api.studio.createJob, {
+  const jobId = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("cetiri lisice", { num_images: 4 }),
-  });
+  }));
 
   const { balance, transactions } = await ledger(t, userId);
   const job = await t.run((ctx) => ctx.db.get(jobId));
@@ -877,10 +946,10 @@ test("odsutan num_images je jedna slika: cena i dnevni trošak ostaju 1x", async
   await seedModel(t, { paramSchema: IMAGE_SCHEMA });
   await grant(t, userId, 200);
 
-  const jobId = await asUser.mutation(api.studio.createJob, {
+  const jobId = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("jedna lisica"),
-  });
+  }));
 
   const job = await t.run((ctx) => ctx.db.get(jobId));
   expect(job?.creditCost).toBe(MODEL_COST);
@@ -1037,10 +1106,10 @@ test("markJobRunning odbija prelaz kad posao nije reserved", async () => {
   const t = convexTest(schema, modules);
   const { userId, asUser } = await seedWorld(t);
 
-  const jobId = await asUser.mutation(api.studio.createJob, {
+  const jobId = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("lisica"),
-  });
+  }));
   // Zakasneli `markJobRunning` posle refunda bi korisniku dao i kredite i sliku.
   await t.mutation(internal.studio.failJob, { jobId, error: "reaper" });
 
@@ -1058,10 +1127,10 @@ test("markJobRunning odbija i drugi poziv za isti posao", async () => {
   const t = convexTest(schema, modules);
   const { asUser } = await seedWorld(t);
 
-  const jobId = await asUser.mutation(api.studio.createJob, {
+  const jobId = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("lisica"),
-  });
+  }));
   await t.mutation(internal.studio.markJobRunning, { jobId, providerRequestId: "req_prvi" });
 
   await expect(
@@ -1135,12 +1204,12 @@ test("createJob upisuje lessonId i taskId na posao", async () => {
   const { userId, asUser } = await seedWorld(t);
   const { lessonId, taskId } = await seedLessonWorld(t, userId);
 
-  const jobId = await asUser.mutation(api.studio.createJob, {
+  const jobId = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("lisica u snegu"),
     lessonId,
     taskId,
-  });
+  }));
 
   // Bez ove veze `persistOutput` nikad ne može da zeleni zadatak.
   expect(await t.run((ctx) => ctx.db.get(jobId))).toMatchObject({ lessonId, taskId });
@@ -1257,10 +1326,10 @@ test("listMyJobs vraća potpisan URL izlaza, a ne samo storageId", async () => {
   const t = convexTest(schema, modules);
   const { asUser } = await seedWorld(t);
 
-  const jobId = await asUser.mutation(api.studio.createJob, {
+  const jobId = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("lisica u snegu"),
-  });
+  }));
   await t.run(async (ctx) => {
     const storageId = await ctx.storage.store(new Blob(["slika"], { type: "image/png" }));
     await ctx.db.patch(jobId, { status: "done" as const, outputStorageId: storageId });
@@ -1295,14 +1364,14 @@ test("listMyJobs označava mock posao, a pravi falRequestId ne izlazi napolje", 
   const t = convexTest(schema, modules);
   const { asUser } = await seedWorld(t, 200);
 
-  const mockJobId = await asUser.mutation(api.studio.createJob, {
+  const mockJobId = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("demo posao"),
-  });
-  const realJobId = await asUser.mutation(api.studio.createJob, {
+  }));
+  const realJobId = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("pravi posao"),
-  });
+  }));
   await t.run(async (ctx) => {
     await ctx.db.patch(mockJobId, { falRequestId: `mock-${mockJobId}` });
     await ctx.db.patch(realJobId, { falRequestId: "9d1f2c30-fal-request" });
@@ -1357,11 +1426,15 @@ test("getStudioState: upaljen Studio, osoblje bez posla u letu", async () => {
   expect(state).toEqual({
     enabled: true,
     hasStudioAccess: true,
+    accessReason: null,
+    publicEnabled: false,
+    emailVerified: false,
     hasAcceptedTerms: true,
     isStaff: true,
     isStudioAdmin: false,
     activeJobs: 0,
     maxActiveJobs: 3,
+    signupBonus: { claimable: false },
     providerStatus: providerStatus(process.env),
   });
 });
@@ -1422,10 +1495,10 @@ test("getStudioState broji i `running` posao, ne samo `reserved`", async () => {
   const t = convexTest(schema, modules);
   const { asUser } = await seedWorld(t, 200);
 
-  const prviId = await asUser.mutation(api.studio.createJob, {
+  const prviId = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("prvi"),
-  });
+  }));
   await asUser.mutation(api.studio.createJob, { modelSlug: MODEL_SLUG, params: promptParams("drugi") });
   // Posao koji je fal već primio i dalje drži jedno od tri mesta - kad se ne
   // bi brojao, dugme bi bilo upaljeno a `createJob` bi vratio PREVISE_POSLOVA.
@@ -1438,10 +1511,10 @@ test("getStudioState: završen posao više se ne broji u letu", async () => {
   const t = convexTest(schema, modules);
   const { asUser } = await seedWorld(t, 200);
 
-  const jobId = await asUser.mutation(api.studio.createJob, {
+  const jobId = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("lisica u snegu"),
-  });
+  }));
   expect((await asUser.query(api.studio.getStudioState, {})).activeJobs).toBe(1);
 
   await t.run((ctx) => ctx.db.patch(jobId, { status: "done" as const }));
@@ -1464,6 +1537,416 @@ test("getStudioState prijavljuje neupisanog korisnika pre nego što klikne dugme
   ).rejects.toThrow(/NEMA_PRISTUPA/);
 });
 
+// ── STUDIO_PUBLIC fleg (studio-public F1) ──────────────────────────────────
+
+/** Red `studio_public` u `platformFlags`; odsutan red = OFF (svi ostali testovi to dokazuju). */
+async function setPublicFlag(t: TestConvex, enabled: boolean) {
+  await t.run((ctx) => ctx.db.insert("platformFlags", { key: "studio_public", enabled }));
+}
+
+/**
+ * Testovi javnog toka koji STVARNO prave posao moraju da imaju provider ključ:
+ * F2.9 DEMO guard javnom korisniku odbija model bez ključa (R10). DEMO testovi
+ * u ovom fajlu se i dalje oslanjaju na ODSUTAN ključ - zato stub po testu, ne
+ * `beforeAll`.
+ */
+async function withFalKey<T>(fn: () => Promise<T>): Promise<T> {
+  const previous = process.env.FAL_KEY;
+  process.env.FAL_KEY = "test-fal-key";
+  try {
+    return await fn();
+  } finally {
+    if (previous === undefined) delete process.env.FAL_KEY;
+    else process.env.FAL_KEY = previous;
+  }
+}
+
+test("javni fleg: verifikovan korisnik BEZ kursa otvara posao, server i UI se slažu", () =>
+  withFalKey(async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedUser(t, { enrolled: false, emailVerified: true });
+  await seedModel(t);
+  await grant(t, userId, 100);
+  await setPublicFlag(t, true);
+
+  const state = await asUser.query(api.studio.getStudioState, {});
+  expect(state.publicEnabled).toBe(true);
+  expect(state.emailVerified).toBe(true);
+  expect(state.hasStudioAccess).toBe(true);
+  expect(state.accessReason).toBeNull();
+
+  const jobId = jobIdOf(await asUser.mutation(api.studio.createJob, {
+    modelSlug: MODEL_SLUG,
+    params: promptParams("lisica u snegu"),
+  }));
+  const { jobs, balance } = await ledger(t, userId);
+  expect(jobs).toHaveLength(1);
+  expect(jobs[0]._id).toBe(jobId);
+  // Pristup nije popust - naplata ista kao za osoblje.
+  expect(balance).toBe(100 - MODEL_COST);
+  }));
+
+test("javni fleg: NEverifikovan korisnik pada na EMAIL_NIJE_POTVRDJEN bez ijednog upisa - upis na kurs ne pomaže", async () => {
+  const t = convexTest(schema, modules);
+  // Namerno UPISAN: brif traži potvrđen email za svakoga, upis ne zaobilazi.
+  const { userId, asUser } = await seedUser(t, { enrolled: true });
+  await seedModel(t);
+  await grant(t, userId, 100);
+  await setPublicFlag(t, true);
+
+  const state = await asUser.query(api.studio.getStudioState, {});
+  expect(state.hasStudioAccess).toBe(false);
+  expect(state.accessReason).toBe("EMAIL_NIJE_POTVRDJEN");
+  expect(state.emailVerified).toBe(false);
+
+  await expect(
+    asUser.mutation(api.studio.createJob, {
+      modelSlug: MODEL_SLUG,
+      params: promptParams("lisica u snegu"),
+    }),
+  ).rejects.toThrow(/EMAIL_NIJE_POTVRDJEN/);
+
+  const { jobs, transactions, balance } = await ledger(t, userId);
+  expect(jobs).toHaveLength(0);
+  // Jedina transakcija je seed grant - odbijen pokušaj nije ostavio trag.
+  expect(transactions).toHaveLength(1);
+  expect(balance).toBe(100);
+});
+
+test("ugašen javni fleg (eksplicitan red): student NEMA_PRISTUPA, moderator prolazi - današnje ponašanje netaknuto", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedUser(t, { emailVerified: true });
+  await seedModel(t);
+  await grant(t, userId, 100);
+  // Red postoji ali je `enabled: false` - isto kao da ga nema.
+  await setPublicFlag(t, false);
+
+  expect((await asUser.query(api.studio.getStudioState, {})).accessReason).toBe("NEMA_PRISTUPA");
+  await expect(
+    asUser.mutation(api.studio.createJob, {
+      modelSlug: MODEL_SLUG,
+      params: promptParams("lisica u snegu"),
+    }),
+  ).rejects.toThrow(/NEMA_PRISTUPA/);
+
+  const staff = await seedUser(t, {
+    role: "moderator",
+    email: "mod@example.com",
+    username: "mod_user",
+    enrolled: false,
+  });
+  await grant(t, staff.userId, 100);
+  const staffState = await staff.asUser.query(api.studio.getStudioState, {});
+  expect(staffState.hasStudioAccess).toBe(true);
+  await staff.asUser.mutation(api.studio.createJob, {
+    modelSlug: MODEL_SLUG,
+    params: promptParams("lisica u snegu"),
+  });
+});
+
+/** Gotov posao u minutnom prozoru - ne drži concurrency slot, ali se broji u 6/min. */
+async function seedDoneJob(t: TestConvex, userId: Id<"users">, createdAt: number) {
+  await t.run((ctx) =>
+    ctx.db.insert("generationJobs", {
+      userId,
+      modelSlug: MODEL_SLUG,
+      kind: "image" as const,
+      params: "{}",
+      promptHash: `hash-${createdAt}`,
+      status: "done" as const,
+      creditCost: MODEL_COST,
+      createdAt,
+    }),
+  );
+}
+
+test("MINUTNI_LIMIT: sedmi posao u minutu pada bez ijednog upisa; stariji od minuta se ne broje", () =>
+  withFalKey(async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedUser(t, { enrolled: false, emailVerified: true });
+  await seedModel(t);
+  await grant(t, userId, 500);
+  await setPublicFlag(t, true);
+
+  // Šest DOVRŠENIH poslova u poslednjih 30 sekundi (concurrency je slobodan).
+  const now = Date.now();
+  for (let index = 0; index < 6; index += 1) {
+    await seedDoneJob(t, userId, now - 30_000 + index);
+  }
+
+  const before = await ledger(t, userId);
+  await expect(
+    asUser.mutation(api.studio.createJob, {
+      modelSlug: MODEL_SLUG,
+      params: promptParams("lisica u snegu"),
+    }),
+  ).rejects.toThrow(/MINUTNI_LIMIT/);
+
+  // NULA upisa: isti broj poslova, transakcija i isti balans kao pre pokušaja.
+  const after = await ledger(t, userId);
+  expect(after.jobs).toHaveLength(before.jobs.length);
+  expect(after.transactions).toHaveLength(before.transactions.length);
+  expect(after.balance).toBe(before.balance);
+  const usage = await t.run(async (ctx) =>
+    ctx.db
+      .query("studioUsageDaily")
+      .withIndex("by_user_day", (q) => q.eq("userId", userId).eq("day", dayKey(Date.now())))
+      .unique(),
+  );
+  expect(usage).toBeNull();
+
+  // Isti korisnik sa šest poslova STARIJIM od minuta prolazi - prozor klizi.
+  const t2 = convexTest(schema, modules);
+  const fresh = await seedUser(t2, { enrolled: false, emailVerified: true });
+  await seedModel(t2);
+  await grant(t2, fresh.userId, 500);
+  await setPublicFlag(t2, true);
+  for (let index = 0; index < 6; index += 1) {
+    await seedDoneJob(t2, fresh.userId, Date.now() - 5 * 60_000 + index);
+  }
+  await fresh.asUser.mutation(api.studio.createJob, {
+    modelSlug: MODEL_SLUG,
+    params: promptParams("lisica u snegu"),
+  });
+  }));
+
+test("DNEVNI_LIMIT_KREDITA: prekoračenje dnevne potrošnje kredita ne troši ništa, osoblje nema kap", () =>
+  withFalKey(async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedUser(t, { enrolled: false, emailVerified: true });
+  await seedModel(t);
+  await grant(t, userId, 1000);
+  await setPublicFlag(t, true);
+
+  // Danas već potrošeno 490 kredita; sledeći posao od 20 bi probio kap od 500.
+  await t.run((ctx) =>
+    ctx.db.insert("studioUsageDaily", {
+      userId,
+      day: dayKey(Date.now()),
+      generations: 3,
+      creditsSpent: 490,
+      costUsd: 0.1,
+    }),
+  );
+
+  const before = await ledger(t, userId);
+  await expect(
+    asUser.mutation(api.studio.createJob, {
+      modelSlug: MODEL_SLUG,
+      params: promptParams("lisica u snegu"),
+    }),
+  ).rejects.toThrow(/DNEVNI_LIMIT_KREDITA/);
+  const after = await ledger(t, userId);
+  expect(after.jobs).toHaveLength(0);
+  expect(after.balance).toBe(before.balance);
+
+  // Moderator sa istom dnevnom potrošnjom prolazi - osoblje nema kreditni kap.
+  const staff = await seedUser(t, {
+    role: "moderator",
+    email: "mod2@example.com",
+    username: "mod_user2",
+  });
+  await grant(t, staff.userId, 1000);
+  await t.run((ctx) =>
+    ctx.db.insert("studioUsageDaily", {
+      userId: staff.userId,
+      day: dayKey(Date.now()),
+      generations: 3,
+      creditsSpent: 490,
+      costUsd: 0.1,
+    }),
+  );
+  await staff.asUser.mutation(api.studio.createJob, {
+    modelSlug: MODEL_SLUG,
+    params: promptParams("lisica u snegu"),
+  });
+  }));
+
+test("javni korisnik: concurrency 2 (treći posao pada), getStudioState nosi istu granicu", () =>
+  withFalKey(async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedUser(t, { enrolled: false, emailVerified: true });
+  await seedModel(t);
+  await grant(t, userId, 500);
+  await setPublicFlag(t, true);
+
+  expect((await asUser.query(api.studio.getStudioState, {})).maxActiveJobs).toBe(2);
+
+  await asUser.mutation(api.studio.createJob, { modelSlug: MODEL_SLUG, params: promptParams("prvi") });
+  await asUser.mutation(api.studio.createJob, { modelSlug: MODEL_SLUG, params: promptParams("drugi") });
+  await expect(
+    asUser.mutation(api.studio.createJob, { modelSlug: MODEL_SLUG, params: promptParams("treci") }),
+  ).rejects.toThrow(/PREVISE_POSLOVA/);
+  }));
+
+test("config override iz platformFlags: maxJobsPerDay=1 obara drugi posao, enabled:false vraća podrazumevano", () =>
+  withFalKey(async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedUser(t, { enrolled: false, emailVerified: true });
+  await seedModel(t);
+  await grant(t, userId, 500);
+  await setPublicFlag(t, true);
+  const rowId = await t.run((ctx) =>
+    ctx.db.insert("platformFlags", {
+      key: "studio_public_max_jobs_per_day",
+      enabled: true,
+      value: 1,
+    }),
+  );
+
+  await asUser.mutation(api.studio.createJob, { modelSlug: MODEL_SLUG, params: promptParams("prvi") });
+  await expect(
+    asUser.mutation(api.studio.createJob, { modelSlug: MODEL_SLUG, params: promptParams("drugi") }),
+  ).rejects.toThrow(/DNEVNI_LIMIT/);
+
+  // `enabled: false` na redu = override ne važi, podrazumevanih 200 se vraća.
+  await t.run((ctx) => ctx.db.patch(rowId, { enabled: false }));
+  await asUser.mutation(api.studio.createJob, { modelSlug: MODEL_SLUG, params: promptParams("drugi") });
+  }));
+
+// ── claimSignupBonus (studio-public F2.3) ──────────────────────────────────
+
+test("claimSignupBonus dvaput ostavlja tačno jedan lot, jednu bonus transakciju i balans 25", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedUser(t, { enrolled: false, emailVerified: true });
+  await setPublicFlag(t, true);
+
+  const state = await asUser.query(api.studio.getStudioState, {});
+  expect(state.signupBonus).toEqual({ claimable: true });
+
+  const first = await asUser.mutation(api.studio.claimSignupBonus, {});
+  expect(first).toEqual({ granted: true, amount: 25 });
+  const second = await asUser.mutation(api.studio.claimSignupBonus, {});
+  expect(second).toEqual({ granted: true, amount: 25 });
+
+  const { balance, transactions } = await ledger(t, userId);
+  expect(balance).toBe(25);
+  expect(transactions.filter((row) => row.type === "bonus")).toHaveLength(1);
+  const lots = await t.run(async (ctx) =>
+    ctx.db
+      .query("creditLots")
+      .withIndex("by_user_source", (q) =>
+        q.eq("userId", userId).eq("source", "signup_bonus" as const),
+      )
+      .collect(),
+  );
+  expect(lots).toHaveLength(1);
+  // Posle dodele state više ne nudi claim.
+  expect((await asUser.query(api.studio.getStudioState, {})).signupBonus).toEqual({
+    claimable: false,
+  });
+});
+
+test("claimSignupBonus odbija ugašen fleg, nepotvrđen email i dupliran email - nula lotova", async () => {
+  const t = convexTest(schema, modules);
+
+  // 1) Fleg ugašen.
+  const off = await seedUser(t, { enrolled: false, emailVerified: true });
+  expect(await off.asUser.mutation(api.studio.claimSignupBonus, {})).toEqual({
+    granted: false,
+    reason: "STUDIO_NIJE_JAVAN",
+  });
+
+  await setPublicFlag(t, true);
+
+  // 2) Email nepotvrđen.
+  const unverified = await seedUser(t, {
+    enrolled: false,
+    email: "neverif@example.com",
+    username: "neverif",
+  });
+  expect(await unverified.asUser.mutation(api.studio.claimSignupBonus, {})).toEqual({
+    granted: false,
+    reason: "EMAIL_NIJE_POTVRDJEN",
+  });
+
+  // 3) Dupliran email: DRUGI živ nalog sa istim emailom (anti-farm).
+  const duplicate = await seedUser(t, {
+    enrolled: false,
+    emailVerified: true,
+    email: "isti@example.com",
+    username: "prvi_nalog",
+  });
+  await seedUser(t, {
+    enrolled: false,
+    email: "isti@example.com",
+    username: "drugi_nalog",
+  });
+  expect(await duplicate.asUser.mutation(api.studio.claimSignupBonus, {})).toEqual({
+    granted: false,
+    reason: "DUPLIRAN_EMAIL",
+  });
+
+  // Nijedan od tri odbijena pokušaja nije ostavio lot.
+  for (const { userId } of [off, unverified, duplicate]) {
+    const lots = await t.run(async (ctx) =>
+      ctx.db
+        .query("creditLots")
+        .withIndex("by_user_source", (q) =>
+          q.eq("userId", userId).eq("source", "signup_bonus" as const),
+        )
+        .collect(),
+    );
+    expect(lots).toHaveLength(0);
+  }
+
+  // 1b) Fleg upaljen naknadno: prvi korisnik sada dobija bonus (odbijanje nije trajno).
+  expect(await off.asUser.mutation(api.studio.claimSignupBonus, {})).toEqual({
+    granted: true,
+    amount: 25,
+  });
+});
+
+test("claimSignupBonus: husk posle merge-a (mergedInto, bez emaila) ne blokira kanonski nalog", async () => {
+  const t = convexTest(schema, modules);
+  await setPublicFlag(t, true);
+  const { userId, asUser } = await seedUser(t, { enrolled: false, emailVerified: true });
+  // Ostatak starog naloga posle identity merge-a: email obrisan, mergedInto pokazuje na kanonski.
+  await t.run(async (ctx) => {
+    const huskId = await ctx.db.insert("users", {
+      role: "student",
+      language: "sr" as const,
+      createdAt: 1,
+      updatedAt: 1,
+    });
+    await ctx.db.patch(huskId, { mergedInto: userId });
+  });
+
+  expect(await asUser.mutation(api.studio.claimSignupBonus, {})).toEqual({
+    granted: true,
+    amount: 25,
+  });
+});
+
+test("javni fleg: kill switch i uslovi važe i za javne korisnike, istim redosledom", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedUser(t, {
+    enrolled: false,
+    emailVerified: true,
+    acceptedTerms: false,
+  });
+  await seedModel(t);
+  await grant(t, userId, 100);
+  await setPublicFlag(t, true);
+
+  // Uslovi Studija se ne preskaču ni u javnom režimu.
+  await expect(
+    asUser.mutation(api.studio.createJob, {
+      modelSlug: MODEL_SLUG,
+      params: promptParams("lisica u snegu"),
+    }),
+  ).rejects.toThrow(/USLOVI_NEPRIHVACENI/);
+
+  // Kill switch gasi i javni Studio.
+  await t.run((ctx) => ctx.db.insert("platformFlags", { key: "studio_enabled", enabled: false }));
+  await expect(
+    asUser.mutation(api.studio.createJob, {
+      modelSlug: MODEL_SLUG,
+      params: promptParams("lisica u snegu"),
+    }),
+  ).rejects.toThrow(/STUDIO_PAUZIRAN/);
+});
+
 test("getStudioState ne odgovara neprijavljenom korisniku", async () => {
   const t = convexTest(schema, modules);
   await seedWorld(t);
@@ -1478,20 +1961,20 @@ test("listMyJobs filtrira po kind, modelSlug i createdAfter", async () => {
   const { asUser } = await seedWorld(t, 200);
   await seedModel(t, { slug: "video-model", kind: "video", costPerSecond: undefined, creditCost: 40 });
 
-  const oldJobId = await asUser.mutation(api.studio.createJob, {
+  const oldJobId = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("stari posao"),
-  });
+  }));
   await t.run((ctx) => ctx.db.patch(oldJobId, { createdAt: 1000 }));
 
-  const imageJobId = await asUser.mutation(api.studio.createJob, {
+  const imageJobId = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("nov posao"),
-  });
-  const videoJobId = await asUser.mutation(api.studio.createJob, {
+  }));
+  const videoJobId = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: "video-model",
     params: promptParams("video posao"),
-  });
+  }));
 
   const onlyVideo = await asUser.query(api.studio.listMyJobs, {
     paginationOpts: { numItems: 10, cursor: null },
@@ -1525,10 +2008,10 @@ test("deleteJob briše posao i fajl iz storage-a", async () => {
   const t = convexTest(schema, modules);
   const { asUser } = await seedWorld(t);
 
-  const jobId = await asUser.mutation(api.studio.createJob, {
+  const jobId = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("lisica"),
-  });
+  }));
   const storageId = await t.run(async (ctx) => {
     const id = await ctx.storage.store(new Blob(["slika"], { type: "image/png" }));
     await ctx.db.patch(jobId, { status: "done" as const, outputStorageId: id });
@@ -1545,10 +2028,10 @@ test("deleteJob odbija posao koji je još u letu", async () => {
   const t = convexTest(schema, modules);
   const { asUser } = await seedWorld(t);
 
-  const reservedId = await asUser.mutation(api.studio.createJob, {
+  const reservedId = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("lisica"),
-  });
+  }));
   await expect(asUser.mutation(api.studio.deleteJob, { jobId: reservedId })).rejects.toThrow(
     /POSAO_U_TOKU/,
   );
@@ -1565,12 +2048,12 @@ test("deleteJob odbija posao povezan sa lekcijom, da dokaz zadatka ne nestane", 
   const { userId, asUser } = await seedWorld(t);
   const { lessonId, taskId } = await seedLessonWorld(t, userId);
 
-  const jobId = await asUser.mutation(api.studio.createJob, {
+  const jobId = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("lisica u snegu"),
     lessonId,
     taskId,
-  });
+  }));
   const { courseId, storageId } = await t.run(async (ctx) => {
     const lesson = await ctx.db.get(lessonId);
     const id = await ctx.storage.store(new Blob(["slika"], { type: "image/png" }));
@@ -1608,10 +2091,10 @@ test("deleteJob odbija tudji posao i nepostojeći posao", async () => {
   const other = await seedUser(t, { role: "moderator" });
   await grant(t, other.userId, 100);
 
-  const jobId = await other.asUser.mutation(api.studio.createJob, {
+  const jobId = jobIdOf(await other.asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("tudji"),
-  });
+  }));
   await t.run((ctx) => ctx.db.patch(jobId, { status: "done" as const }));
 
   await expect(asUser.mutation(api.studio.deleteJob, { jobId })).rejects.toThrow(
@@ -1729,10 +2212,10 @@ test("admin bez upisa pravi posao - i plaća ga kao svi ostali", async () => {
   await seedModel(t);
   const admin = await seedStaff(t, "admin");
 
-  const jobId = await admin.asUser.mutation(api.studio.createJob, {
+  const jobId = jobIdOf(await admin.asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("lisica u snegu"),
-  });
+  }));
 
   const { balance, transactions, jobs } = await ledger(t, admin.userId);
   expect(jobs).toHaveLength(1);
@@ -1987,18 +2470,22 @@ test("listAllJobs: moderator dobija red bez prompta i bez ulaznih slicica, admin
   expect(moderatorRow.inputThumbs).toBeUndefined();
   expect(JSON.stringify(moderatorRow)).not.toContain("moj privatan prompt");
   // Ono sto moderacija trazi je i dalje tu: model, provajder, status, kredit,
-  // vlasnik, vreme i izlaz.
+  // vlasnik (kao PSEUDONIM - F2.8 usaglasio sa listJobOwners: mejl vidi samo
+  // admin), vreme i izlaz.
   expect(moderatorRow.modelSlug).toBe("m-fal");
   expect(moderatorRow.provider).toBe("fal");
   expect(moderatorRow.status).toBe("done");
   expect(moderatorRow.creditCost).toBe(10);
-  expect(moderatorRow.ownerEmail).toBe("student@example.com");
+  expect(moderatorRow.ownerEmail).toBe(ownerHandle(userId));
+  expect(moderatorRow.ownerEmail).not.toContain("@");
+  expect(JSON.stringify(moderatorRow)).not.toContain("student@example.com");
   expect(moderatorRow.createdAt).toBe(1_000);
   expect(moderatorRow).toHaveProperty("outputUrl");
 
   const forAdmin = await admin.asUser.query(api.studio.listAllJobs, { paginationOpts: opts });
   const adminRow = forAdmin.page[0];
   expect(adminRow.params).toContain("moj privatan prompt");
+  expect(adminRow.ownerEmail).toBe("student@example.com");
   expect(adminRow.inputThumbs?.total).toBe(1);
 });
 
@@ -2150,10 +2637,10 @@ test("posle prihvatanja uslova isti poziv prolazi", async () => {
 
   await asUser.mutation(api.studio.acceptStudioTerms, {});
 
-  const jobId = await asUser.mutation(api.studio.createJob, {
+  const jobId = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("lisica u snegu"),
-  });
+  }));
 
   const { balance, jobs } = await ledger(t, userId);
   expect(jobs).toHaveLength(1);
@@ -2335,11 +2822,14 @@ test("createJob prima projectId, upisuje ga na posao i ne menja cenu", async () 
 
   const balanceBefore = (await asUser.query(api.credits.getBalance, {})).balance;
 
-  const jobId = await asUser.mutation(api.studio.createJob, {
+  const created = await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("slika psa"),
     projectId,
   });
+  // `createJob` od F2.5 vraća uniju (jobId | moderationBlocked) - suzi je.
+  if (typeof created !== "string") throw new Error("očekivan jobId");
+  const jobId = created;
 
   const balanceAfter = (await asUser.query(api.credits.getBalance, {})).balance;
   expect(balanceBefore - balanceAfter).toBe(MODEL_COST);
@@ -2406,17 +2896,17 @@ test("listMyJobs sa projectId filtrira kroz by_user_project, bez projectId vrać
   const p1 = await asUser.mutation(api.studioProjects.createProject, { name: "Projekat A" });
   const p2 = await asUser.mutation(api.studioProjects.createProject, { name: "Projekat B" });
 
-  const j1 = await asUser.mutation(api.studio.createJob, {
+  const j1 = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("job under p1"),
     projectId: p1,
-  });
+  }));
 
-  const j2 = await asUser.mutation(api.studio.createJob, {
+  const j2 = jobIdOf(await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
     params: promptParams("job under p2"),
     projectId: p2,
-  });
+  }));
 
   await asUser.mutation(api.studio.createJob, {
     modelSlug: MODEL_SLUG,
@@ -2441,4 +2931,95 @@ test("listMyJobs sa projectId filtrira kroz by_user_project, bez projectId vrać
   });
   expect(p2Jobs.page).toHaveLength(1);
   expect(p2Jobs.page[0]._id).toBe(j2);
+});
+
+// ── studio-public F2.8: hardening ──────────────────────────────────────────
+
+test("failJob je idempotentan: dupli poziv na oborenom poslu ne refundira dvaput (R9)", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedWorld(t);
+  const balanceStart = (await ledger(t, userId)).balance;
+
+  const jobId = jobIdOf(
+    await asUser.mutation(api.studio.createJob, {
+      modelSlug: MODEL_SLUG,
+      params: promptParams("lisica u snegu"),
+    }),
+  );
+
+  await t.mutation(internal.studio.failJob, { jobId, error: "submit pao" });
+  expect((await t.run((ctx) => ctx.db.get(jobId)))?.status).toBe("refunded");
+  const afterFirst = await ledger(t, userId);
+  expect(afterFirst.balance).toBe(balanceStart);
+
+  // Drugi poziv (buggy pozivalac, dupli webhook kroz drugu granu...) se
+  // odbija na statusu - ne prolazi ponovo ni kroz refund ni kroz usage deltu.
+  await t.mutation(internal.studio.failJob, { jobId, error: "dupli poziv" });
+  const afterSecond = await ledger(t, userId);
+  expect(afterSecond.balance).toBe(balanceStart);
+  expect(afterSecond.transactions.filter((row) => row.type === "refund")).toHaveLength(1);
+  expect((await t.run((ctx) => ctx.db.get(jobId)))?.status).toBe("refunded");
+  // `done` se namerno NE blokira - refund poravnatog posla bez izlaza je ručna
+  // support staza; taj ugovor drži `studioSettlement.test.ts` ("refund
+  // poravnatog posla vraća i rezervaciju i razliku").
+});
+
+test("createInputUploadUrl i registerInputUpload traže pristup Studiju (R1)", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedUser(t, { enrolled: true });
+
+  // Upisan student bez javnog flega: kapija zatvorena, nijedan grant se ne izdaje.
+  await expect(
+    asUser.mutation(api.studio.createInputUploadUrl, { slot: "image" }),
+  ).rejects.toThrow(/NEMA_PRISTUPA/);
+  const grants = await t.run((ctx) => ctx.db.query("studioUploadGrants").collect());
+  expect(grants).toHaveLength(0);
+
+  // Javni fleg + potvrđen email: isti korisnik dobija grant i prijavljuje fajl.
+  await t.run(async (ctx) => {
+    await ctx.db.insert("platformFlags", { key: "studio_public", enabled: true });
+    await ctx.db.patch(userId, { emailVerificationTime: 1 });
+  });
+  const { grantId, uploadUrl } = await asUser.mutation(api.studio.createInputUploadUrl, {
+    slot: "image",
+  });
+  expect(uploadUrl).toContain("http");
+  const storageId = await t.run((ctx) => ctx.storage.store(new Blob(["slika"], { type: "image/png" })));
+  await asUser.mutation(api.studio.registerInputUpload, { storageId, grantId });
+  const uploads = await t.run((ctx) => ctx.db.query("studioUploads").collect());
+  expect(uploads).toHaveLength(1);
+  expect(uploads[0].userId).toBe(userId);
+});
+
+test("DEMO guard (R10): javni korisnik ne može da plati mock job bez provider ključa, osoblje može", async () => {
+  const t = convexTest(schema, modules);
+  // Testno okruženje nema FAL_KEY - fal model je u DEMO režimu.
+  expect(providerKeyPresent("fal", process.env)).toBe(false);
+
+  const { userId, asUser } = await seedUser(t, { enrolled: false, emailVerified: true });
+  await seedModel(t);
+  await grant(t, userId, 100);
+  await setPublicFlag(t, true);
+
+  await expect(
+    asUser.mutation(api.studio.createJob, {
+      modelSlug: MODEL_SLUG,
+      params: promptParams("lisica u snegu"),
+    }),
+  ).rejects.toThrow(/MODEL_NEDOSTUPAN/);
+  const { jobs, balance } = await ledger(t, userId);
+  expect(jobs).toHaveLength(0);
+  expect(balance).toBe(100);
+
+  // Osoblje zadržava DEMO za testiranje kataloga - isti model prolazi.
+  const staff = await seedUser(t, {
+    role: "moderator",
+    email: "mod3@example.com",
+    username: "mod_user3",
+  });
+  await grant(t, staff.userId, 100);
+  await staff.asUser.mutation(api.studio.createJob, {
+    modelSlug: MODEL_SLUG,
+    params: promptParams("lisica u snegu"),
+  });
 });

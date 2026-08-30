@@ -4,7 +4,10 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { AppComposerSheet } from "@/components/app/app-composer-sheet";
 import RichTextEditor from "@/components/app/rich-text-editor";
+import { Button } from "@/components/ui/button";
+import { Dialog } from "@/components/ui/dialog";
 import { cn } from "@/components/ui/primitives";
+import { Spinner } from "@/components/ui/spinner";
 import { coursePath, lessonEditPath } from "@/lib/app-routes";
 import { t, type Locale } from "@/lib/i18n";
 
@@ -24,7 +27,6 @@ import {
   Layers,
   LayoutDashboard,
   ListPlus,
-  Loader2,
   Pencil,
   PlayCircle,
   Plus,
@@ -37,7 +39,6 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useRouter } from "next/navigation";
 import type { ChangeEvent, DragEvent as ReactDragEvent, FormEvent, ReactNode } from "react";
 import { useEffect, useEffectEvent, useId, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { gsap } from "gsap";
 import { plainTextToRichText, richTextHasContent } from "@/lib/rich-text";
 
@@ -172,7 +173,7 @@ function AdminIconButton({
       disabled={disabled}
       whileHover={disabled ? undefined : { y: -1, rotate: -1 }}
       whileTap={disabled ? undefined : { scale: 0.92 }}
-      className="inline-flex size-7 shrink-0 items-center justify-center rounded-[6px] border border-ink bg-paper-strong text-ink shadow-[2px_2px_0_0_var(--shadow-hard-14)] transition hover:bg-yellow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-50"
+      className="inline-flex size-7 shrink-0 items-center justify-center rounded-[8px] border border-ink bg-paper-strong text-ink shadow-[2px_2px_0_0_var(--shadow-hard-14)] transition hover:bg-yellow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-50"
     >
       {children}
     </motion.button>
@@ -199,8 +200,8 @@ function FormSection({
           {icon}
         </span>
         <div className="min-w-0">
-          <h3 className="text-lg font-black text-ink">{title}</h3>
-          {body ? <p className="mt-1 text-sm font-bold leading-6 text-muted">{body}</p> : null}
+          <h3 className="type-h3 text-ink">{title}</h3>
+          {body ? <p className="mt-1 type-body-sm font-bold text-muted">{body}</p> : null}
         </div>
       </div>
       <div className="mt-4">{children}</div>
@@ -220,7 +221,7 @@ function Field({
   return (
     <label className="block">
       <span className="text-sm font-black text-ink">{label}</span>
-      {hint ? <span className="mt-0.5 block text-xs font-bold leading-5 text-muted">{hint}</span> : null}
+      {hint ? <span className="mt-0.5 block type-caption font-bold text-muted">{hint}</span> : null}
       <div className="mt-2">{children}</div>
     </label>
   );
@@ -233,16 +234,16 @@ function LocalizedPairSwitch({ locale, onChange, sr, en }: { locale: Locale; onC
     <div className="inline-flex items-center gap-1 rounded-full border-2 border-ink bg-paper p-1" role="group" aria-label="Jezik polja">
       {(["sr", "en"] as const).map((item) => {
         const warning = item === "sr" ? missingSr : missingEn;
-        return <button key={item} type="button" onClick={() => onChange(item)} className={cn("inline-flex min-h-7 items-center gap-1 rounded-full border px-3 text-[11px] font-black uppercase", locale === item ? "border-ink bg-ink text-paper-strong" : "border-transparent text-muted", warning && "border-amber-600 bg-amber-100 text-amber-950 ring-2 ring-amber-400/40")}>{warning ? <AlertTriangle className="size-3" /> : null}{item}</button>;
+        return <button key={item} type="button" onClick={() => onChange(item)} className={cn("inline-flex min-h-7 items-center gap-1 rounded-full border px-3 type-eyebrow", locale === item ? "border-ink bg-ink text-paper-strong" : "border-transparent text-muted", warning && "border-amber-600 bg-amber-100 text-amber-950 ring-2 ring-amber-400/40")}>{warning ? <AlertTriangle className="size-3" /> : null}{item}</button>;
       })}
     </div>
   );
 }
 
 const inputClass =
-  "h-11 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-3 text-sm font-bold text-ink outline-none transition placeholder:text-muted/70 focus:border-yellow focus:ring-4 focus:ring-yellow/25";
+  "h-11 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-3 text-sm font-bold text-ink transition placeholder:text-muted/70 focus:border-yellow focus:ring-4 focus:ring-yellow/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
 const textareaClass =
-  "w-full resize-none rounded-[8px] border-2 border-ink bg-paper-strong p-3 text-sm font-bold leading-6 text-ink outline-none transition placeholder:text-muted/70 focus:border-yellow focus:ring-4 focus:ring-yellow/25";
+  "w-full resize-none rounded-[8px] border-2 border-ink bg-paper-strong p-3 type-body-sm font-bold text-ink transition placeholder:text-muted/70 focus:border-yellow focus:ring-4 focus:ring-yellow/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
 
 function SlugField({
   label,
@@ -271,7 +272,7 @@ function SlugField({
           /
         </span>
         <input
-          className="h-11 min-w-0 flex-1 bg-paper-strong px-3 text-sm font-bold text-ink outline-none"
+          className="h-11 min-w-0 flex-1 bg-paper-strong px-3 text-sm font-bold text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           value={value}
           onChange={(event) => onChange(slugify(event.target.value))}
           placeholder={placeholder}
@@ -484,9 +485,9 @@ function EntityPreview({
 }) {
   return (
     <aside className="composer-stagger h-fit rounded-[16px] border-2 border-ink bg-ink p-4 text-paper-strong shadow-[5px_5px_0_0_var(--yellow)]">
-      <p className="text-xs font-black uppercase text-paper-strong/65">{t(locale, "Pregled", "Preview")}</p>
-      <p className="mt-3 text-2xl font-black leading-tight">{title?.trim() || emptyLabel}</p>
-      {subtitle ? <p className="mt-3 text-sm font-bold leading-6 text-paper-strong/75">{subtitle}</p> : null}
+      <p className="type-eyebrow text-paper-strong/65">{t(locale, "Pregled", "Preview")}</p>
+      <p className="mt-3 type-h2">{title?.trim() || emptyLabel}</p>
+      {subtitle ? <p className="mt-3 type-body-sm font-bold text-paper-strong/75">{subtitle}</p> : null}
       <div className="mt-5 flex flex-wrap gap-2">
         {status ? (
           <span className="rounded-full border-2 border-paper-strong bg-yellow px-3 py-1 text-xs font-black text-ink">
@@ -531,7 +532,7 @@ function ComposerFooter({
           whileTap={pending ? undefined : { scale: 0.98 }}
           className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-yellow px-5 text-sm font-extrabold text-ink shadow-[4px_4px_0_0_var(--ink)] transition disabled:cursor-wait disabled:opacity-70"
         >
-          {pending ? <Loader2 className="size-4 animate-spin" /> : icon}
+          {pending ? <Spinner /> : icon}
           {submitLabel}
         </motion.button>
       </div>
@@ -639,7 +640,7 @@ function CourseIntroPreview({
   }
 
   return (
-    <div className="flex aspect-video w-full items-center justify-center rounded-[8px] border-2 border-dashed border-ink bg-paper p-5 text-center">
+    <div className="flex aspect-video w-full items-center justify-center rounded-[8px] border-2 border-dashed border-ink bg-paper p-6 text-center">
       <div>
         <span className="mx-auto inline-flex size-12 items-center justify-center rounded-full border-2 border-ink bg-yellow text-ink">
           <Film className="size-6" />
@@ -1194,8 +1195,8 @@ export function AddCourseAction({
         onClose={requestClose}
       >
         <form onSubmit={submit}>
-          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
-            <div className="space-y-5">
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+            <div className="space-y-6">
               <FormSection
                 icon={<Sparkles className="size-5" />}
                 title={t(locale, "Identitet kursa", "Course identity")}
@@ -1277,7 +1278,7 @@ export function AddCourseAction({
                   />
                   <div className="space-y-3">
                     <div className="rounded-[16px] border-2 border-line bg-paper p-3">
-                      <p className="text-[10px] font-black uppercase text-muted">{t(locale, "Status videa", "Video status")}</p>
+                      <p className="type-eyebrow-sm text-muted">{t(locale, "Status videa", "Video status")}</p>
                       <p className="mt-1 text-sm font-black text-ink">
                         {videoUrl ? t(locale, "Spreman", "Ready") : t(locale, "Nema videa", "No video")}
                       </p>
@@ -1293,7 +1294,7 @@ export function AddCourseAction({
                       disabled={videoUploading || videoDeleting}
                       className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-xs font-black text-ink shadow-[3px_3px_0_0_var(--shadow-hard-16)] disabled:cursor-wait disabled:opacity-60"
                     >
-                      {videoUploading ? <Loader2 className="size-4 animate-spin" /> : <UploadCloud className="size-4" />}
+                      {videoUploading ? <Spinner /> : <UploadCloud className="size-4" />}
                       {videoUrl
                         ? t(locale, "Zameni video", "Replace video")
                         : t(locale, "Upload intro videa", "Upload intro video")}
@@ -1305,7 +1306,7 @@ export function AddCourseAction({
                         disabled={videoUploading || videoDeleting}
                         className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-full border-2 border-red-700 bg-paper-strong px-4 text-xs font-black text-red-700 disabled:cursor-wait disabled:opacity-60"
                       >
-                        {videoDeleting ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                        {videoDeleting ? <Spinner /> : <Trash2 className="size-4" />}
                         {t(locale, "Ukloni video", "Remove video")}
                       </button>
                     ) : null}
@@ -1330,7 +1331,7 @@ export function AddCourseAction({
                   </p>
                 ) : courseEditorData === undefined ? (
                   <div className="flex items-center gap-3 rounded-[16px] border-2 border-line bg-paper p-4 text-sm font-black text-muted">
-                    <Loader2 className="size-4 animate-spin" />
+                    <Spinner />
                     {t(locale, "Ucitavanje ciklusa", "Loading cycles")}
                   </div>
                 ) : modules.length ? (
@@ -1361,7 +1362,7 @@ export function AddCourseAction({
                             >
                               <span className="min-w-0">
                                 <span className="block truncate">{moduleTitle}</span>
-                                <span className="mt-1 block text-[11px] font-bold text-muted">
+                                <span className="mt-1 block type-caption font-bold text-muted">
                                   {publishedLessons}/{module.lessons.length} {t(locale, "lekcija", "lessons")}
                                 </span>
                               </span>
@@ -1414,7 +1415,7 @@ export function AddCourseAction({
                                           <button
                                             type="button"
                                             onClick={() => requestLessonEditor(lesson.slug)}
-                                            className="flex min-w-0 flex-1 items-center gap-2 rounded-[6px] px-1 py-2 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                                            className="flex min-w-0 flex-1 items-center gap-2 rounded-[8px] px-1 py-2 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                                           >
                                             <ExternalLink className="size-3.5 shrink-0" />
                                             <span className="min-w-0 flex-1 truncate">{lessonTitle}</span>
@@ -1428,11 +1429,11 @@ export function AddCourseAction({
                                           >
                                             <LayoutDashboard className="size-3.5" />
                                           </button>
-                                          <span className="shrink-0 rounded-full border border-line bg-paper-strong px-2 py-0.5 text-[10px]">
+                                          <span className="shrink-0 rounded-full border border-line bg-paper-strong px-2 py-0.5 type-caption">
                                             {formatMinutes(lesson.durationSeconds)}
                                           </span>
                                           {!lesson.isPublished ? (
-                                            <span className="shrink-0 rounded-full border border-line bg-paper px-2 py-0.5 text-[10px] uppercase">
+                                            <span className="shrink-0 rounded-full border border-line bg-paper px-2 py-0.5 type-eyebrow-sm">
                                               {t(locale, "Nacrt", "Draft")}
                                             </span>
                                           ) : null}
@@ -1483,18 +1484,18 @@ export function AddCourseAction({
               exit={{ opacity: 0 }}
               transition={{ duration: 0.16 }}
             >
-              <div className="absolute inset-4 rounded-[28px] border-[3px] border-dashed border-yellow" />
+              <div className="absolute inset-4 rounded-[16px] border-[3px] border-dashed border-yellow" />
               <motion.div
-                className="relative max-w-sm rounded-[16px] border-2 border-ink bg-paper-strong p-6 text-center text-ink shadow-[8px_8px_0_0_rgba(244,190,48,0.85)]"
+                className="relative max-w-sm rounded-[16px] border-2 border-ink bg-paper-strong p-6 text-center text-ink shadow-[8px_8px_0_0_var(--yellow)]"
                 initial={{ y: 10, scale: 0.98 }}
                 animate={{ y: 0, scale: 1 }}
                 exit={{ y: 8, scale: 0.99 }}
               >
                 <UploadCloud className="mx-auto size-9" />
-                <p className="mt-3 text-lg font-black">
+                <p className="mt-3 type-h3">
                   {t(locale, "Pusti video bilo gde", "Drop the video anywhere")}
                 </p>
-                <p className="mt-2 text-sm font-bold leading-6 text-muted">
+                <p className="mt-2 type-body-sm font-bold text-muted">
                   {t(
                     locale,
                     "Intro video kursa ce odmah krenuti na upload.",
@@ -1506,68 +1507,34 @@ export function AddCourseAction({
           ) : null}
         </AnimatePresence>
       </AdminComposerSheet>
-      {typeof document !== "undefined" ? (
-        createPortal(
-          <AnimatePresence>
-            {pendingAction ? (
-              <motion.div
-                className="fixed inset-0 z-[70] flex items-center justify-center bg-scrim/45 p-4 backdrop-blur-[2px]"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-              >
-                <motion.div
-                  role="dialog"
-                  aria-modal="true"
-                  className="w-full max-w-md rounded-[16px] border-2 border-ink bg-paper-strong p-5 shadow-[8px_8px_0_0_var(--shadow-hard-22)]"
-                  initial={{ y: 16, scale: 0.98 }}
-                  animate={{ y: 0, scale: 1 }}
-                  exit={{ y: 10, scale: 0.99 }}
-                >
-                  <p className="text-xs font-black uppercase text-muted">{t(locale, "Nesnimljene izmene", "Unsaved changes")}</p>
-                  <h3 className="mt-2 text-2xl font-black text-ink">
-                    {t(locale, "Sacuvati izmene na kursu?", "Save changes to this course?")}
-                  </h3>
-                  <p className="mt-3 text-sm font-bold leading-6 text-muted">
-                    {t(locale, "Pre nastavka izaberi da li se informacije o kursu cuvaju.", "Before continuing, choose whether to save the course information.")}
-                  </p>
-                  {message ? (
-                    <p className="mt-4 rounded-[8px] border-2 border-red-200 bg-red-50 px-3 py-2 text-sm font-black text-red-700">
-                      {message}
-                    </p>
-                  ) : null}
-                  <div className="mt-5 grid gap-2 sm:grid-cols-3">
-                    <button
-                      type="button"
-                      onClick={saveAndContinue}
-                      disabled={pending}
-                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-3 text-xs font-black text-ink disabled:cursor-wait disabled:opacity-60"
-                    >
-                      {pending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-                      {t(locale, "Sacuvaj i nastavi", "Save and continue")}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={discardAndContinue}
-                      className="inline-flex min-h-11 items-center justify-center rounded-full border-2 border-ink bg-paper-strong px-3 text-xs font-black text-ink"
-                    >
-                      {t(locale, "Ponisti i nastavi", "Discard and continue")}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPendingAction(null)}
-                      className="inline-flex min-h-11 items-center justify-center rounded-full border-2 border-line bg-paper px-3 text-xs font-black text-muted"
-                    >
-                      {t(locale, "Ostani", "Stay")}
-                    </button>
-                  </div>
-                </motion.div>
-              </motion.div>
-            ) : null}
-          </AnimatePresence>,
-          document.body
-        )
-      ) : null}
+      <Dialog
+        open={pendingAction !== null}
+        onClose={() => setPendingAction(null)}
+        size="sm"
+        eyebrow={t(locale, "Nesnimljene izmene", "Unsaved changes")}
+        title={t(locale, "Sacuvati izmene na kursu?", "Save changes to this course?")}
+        description={t(locale, "Pre nastavka izaberi da li se informacije o kursu cuvaju.", "Before continuing, choose whether to save the course information.")}
+        closeLabel={t(locale, "Zatvori", "Close")}
+        footer={
+          <div className="grid gap-2 sm:grid-cols-3">
+            <Button size="sm" loading={pending} icon={<Save className="size-4" />} onClick={saveAndContinue}>
+              {t(locale, "Sacuvaj i nastavi", "Save and continue")}
+            </Button>
+            <Button size="sm" variant="secondary" onClick={discardAndContinue}>
+              {t(locale, "Ponisti i nastavi", "Discard and continue")}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setPendingAction(null)}>
+              {t(locale, "Ostani", "Stay")}
+            </Button>
+          </div>
+        }
+      >
+        {message ? (
+          <p className="rounded-[8px] border-2 border-red-200 bg-red-50 px-3 py-2 text-sm font-black text-red-700">
+            {message}
+          </p>
+        ) : null}
+      </Dialog>
     </>
   );
 }
@@ -1957,14 +1924,14 @@ export function AddModuleAction({
             type="button"
             onClick={() => requestNavigate(`${lessonHref}?part=${part._id}`)}
             className={cn(
-              "flex min-h-8 w-full min-w-0 items-center gap-2 rounded-[6px] px-2 text-left text-xs font-black text-muted transition hover:bg-paper hover:text-ink",
-              depth > 0 && "text-[11px]",
+              "flex min-h-8 w-full min-w-0 items-center gap-2 rounded-[8px] px-2 text-left text-xs font-black text-muted transition hover:bg-paper hover:text-ink",
+              depth > 0 && "type-caption",
             )}
           >
             <FileText className="size-3.5 shrink-0" />
             <span className="truncate">{locale === "sr" ? part.titleSr : part.titleEn || part.titleSr}</span>
             {part.isPublished === false ? (
-              <span className="ml-auto shrink-0 rounded-[5px] border border-line bg-paper-strong px-1.5 py-0.5 text-[9px] uppercase text-muted">
+              <span className="ml-auto shrink-0 rounded-[8px] border border-line bg-paper-strong px-1.5 py-0.5 type-eyebrow-sm text-muted">
                 {t(locale, "Nacrt", "Draft")}
               </span>
             ) : null}
@@ -1991,12 +1958,12 @@ export function AddModuleAction({
         key={key}
         type="button"
         onClick={() => requestNavigate(href)}
-        className="flex min-h-8 w-full min-w-0 items-center gap-2 rounded-[6px] px-2 text-left text-xs font-black text-muted transition hover:bg-paper hover:text-ink"
+        className="flex min-h-8 w-full min-w-0 items-center gap-2 rounded-[8px] px-2 text-left text-xs font-black text-muted transition hover:bg-paper hover:text-ink"
       >
         <FileText className="size-3.5 shrink-0" />
         <span className="truncate">{title}</span>
         {draft ? (
-          <span className="ml-auto shrink-0 rounded-[5px] border border-line bg-paper-strong px-1.5 py-0.5 text-[9px] uppercase text-muted">
+          <span className="ml-auto shrink-0 rounded-[8px] border border-line bg-paper-strong px-1.5 py-0.5 type-eyebrow-sm text-muted">
             {t(locale, "Nacrt", "Draft")}
           </span>
         ) : null}
@@ -2023,8 +1990,8 @@ export function AddModuleAction({
         onClose={requestClose}
       >
         <form onSubmit={submit}>
-          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
-            <div className="space-y-5">
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
+            <div className="space-y-6">
               <FormSection
                 icon={<Layers className="size-5" />}
                 title={t(locale, "Osnovne informacije", "Basics")}
@@ -2077,7 +2044,7 @@ export function AddModuleAction({
                     {previewImage ? (
                       <img src={previewImage} alt={imageAltSr || titleSr || "Cycle image"} className="aspect-[4/3] h-full w-full object-cover" />
                     ) : (
-                      <div className="flex aspect-[4/3] items-center justify-center p-5 text-center text-sm font-black text-muted">
+                      <div className="flex aspect-[4/3] items-center justify-center p-6 text-center text-sm font-black text-muted">
                         <ImageIcon className="mr-2 size-5" />
                         {t(locale, "Nema slike", "No image")}
                       </div>
@@ -2097,7 +2064,7 @@ export function AddModuleAction({
                   </p>
                 ) : moduleEditorData === undefined ? (
                   <div className="flex items-center gap-3 rounded-[8px] border-2 border-line bg-paper p-4 text-sm font-black text-muted">
-                    <Loader2 className="size-4 animate-spin" />
+                    <Spinner />
                     {t(locale, "Ucitavanje lekcija", "Loading lessons")}
                   </div>
                 ) : lessons.length ? (
@@ -2113,13 +2080,14 @@ export function AddModuleAction({
                           <button
                             type="button"
                             onClick={() => setOpenLessonId((current) => (current === lesson._id ? null : lesson._id))}
+                            aria-expanded={isOpen}
                             className="flex min-h-12 w-full items-center justify-between gap-3 bg-paper-strong px-4 py-3 text-left text-sm font-black text-ink hover:bg-yellow/25"
                           >
                             <span className="flex min-w-0 items-start gap-2">
                               <PlayCircle className="mt-0.5 size-4 shrink-0" />
                               <span className="min-w-0">
                                 <span className="block truncate">{lessonTitle}</span>
-                              <span className="mt-1 block text-[11px] font-bold text-muted">
+                              <span className="mt-1 block type-caption font-bold text-muted">
                                   {itemCount} {t(locale, "stavki", "items")}
                                 </span>
                               </span>
@@ -2204,63 +2172,28 @@ export function AddModuleAction({
           />
         </form>
       </AdminComposerSheet>
-      {typeof document !== "undefined" ? (
-        createPortal(
-          <AnimatePresence>
-            {pendingAction ? (
-              <motion.div
-                className="fixed inset-0 z-[70] flex items-center justify-center bg-scrim/45 p-4 backdrop-blur-[2px]"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-              >
-                <motion.div
-                  role="dialog"
-                  aria-modal="true"
-                  className="w-full max-w-md rounded-[10px] border-2 border-ink bg-paper-strong p-5 shadow-[8px_8px_0_0_var(--shadow-hard-22)]"
-                  initial={{ y: 16, scale: 0.98 }}
-                  animate={{ y: 0, scale: 1 }}
-                  exit={{ y: 10, scale: 0.99 }}
-                >
-                  <p className="text-xs font-black uppercase text-muted">{t(locale, "Nesnimljene izmene", "Unsaved changes")}</p>
-                  <h3 className="mt-2 text-2xl font-black text-ink">
-                    {t(locale, "Sacuvati izmene na ciklusu?", "Save changes to this cycle?")}
-                  </h3>
-                  <p className="mt-3 text-sm font-bold leading-6 text-muted">
-                    {t(locale, "Pre nastavka izaberi da li se informacije o ciklusu cuvaju.", "Before continuing, choose whether to save the cycle information.")}
-                  </p>
-                  <div className="mt-5 grid gap-2 sm:grid-cols-3">
-                    <button
-                      type="button"
-                      onClick={saveAndContinue}
-                      disabled={pending}
-                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-3 text-xs font-black text-ink disabled:cursor-wait disabled:opacity-60"
-                    >
-                      {pending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-                      {t(locale, "Sacuvaj", "Save")}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={discardAndContinue}
-                      className="inline-flex min-h-11 items-center justify-center rounded-[8px] border-2 border-ink bg-paper-strong px-3 text-xs font-black text-ink"
-                    >
-                      {t(locale, "Ponisti", "Discard")}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPendingAction(null)}
-                      className="inline-flex min-h-11 items-center justify-center rounded-[8px] border-2 border-line bg-paper px-3 text-xs font-black text-muted"
-                    >
-                      {t(locale, "Ostani", "Stay")}
-                    </button>
-                  </div>
-                </motion.div>
-              </motion.div>
-            ) : null}
-          </AnimatePresence>,
-          document.body
-        )
-      ) : null}
+      <Dialog
+        open={pendingAction !== null}
+        onClose={() => setPendingAction(null)}
+        size="sm"
+        eyebrow={t(locale, "Nesnimljene izmene", "Unsaved changes")}
+        title={t(locale, "Sacuvati izmene na ciklusu?", "Save changes to this cycle?")}
+        description={t(locale, "Pre nastavka izaberi da li se informacije o ciklusu cuvaju.", "Before continuing, choose whether to save the cycle information.")}
+        closeLabel={t(locale, "Zatvori", "Close")}
+        footer={
+          <div className="grid gap-2 sm:grid-cols-3">
+            <Button size="sm" loading={pending} icon={<Save className="size-4" />} onClick={saveAndContinue}>
+              {t(locale, "Sacuvaj", "Save")}
+            </Button>
+            <Button size="sm" variant="secondary" onClick={discardAndContinue}>
+              {t(locale, "Ponisti", "Discard")}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setPendingAction(null)}>
+              {t(locale, "Ostani", "Stay")}
+            </Button>
+          </div>
+        }
+      />
     </>
   );
 }
@@ -2393,8 +2326,8 @@ export function AddLessonAction({
         onClose={closeSheet}
       >
         <form onSubmit={submit}>
-          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_280px]">
-            <div className="space-y-5">
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_280px]">
+            <div className="space-y-6">
               <FormSection
                 icon={<ListPlus className="size-5" />}
                 title={t(locale, "Osnovni podaci", "Basics")}
@@ -2523,6 +2456,10 @@ export function AddLessonPartAction({
   const [bodyRichEn, setBodyRichEn] = useState(initial?.bodyRich?.en || plainTextToRichText(initial?.body?.en ?? ""));
   const [file, setFile] = useState<File | null>(null);
   const [existingFileRemoved, setExistingFileRemoved] = useState(false);
+  // Potvrda u dva koraka umesto nativnog `confirm()`: ovaj blok zivi UNUTAR
+  // composer sheet-a, pa bi pravi dijalog bio modal u modalu i dve zamke fokusa
+  // bi se otimale o isti fokus. Isti obrazac koristi i uklanjanje clana grupe.
+  const [confirmRemoveFile, setConfirmRemoveFile] = useState(false);
   const [isPublished, setIsPublished] = useState(initial?.isPublished ?? true);
   const [message, setMessage] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -2700,8 +2637,8 @@ export function AddLessonPartAction({
         onClose={() => setOpen(false)}
       >
         <form onSubmit={submit}>
-          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_280px]">
-            <div className="space-y-5">
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_280px]">
+            <div className="space-y-6">
               <FormSection
                 icon={<FileText className="size-5" />}
                 title={t(locale, "Tip bloka", "Block type")}
@@ -2749,7 +2686,8 @@ export function AddLessonPartAction({
                     required={!hasExistingFile}
                     currentFile={initial?.fileName}
                   />
-                  {lessonPartId && hasExistingFile ? <button type="button" disabled={pending} onClick={async () => { if (!confirm(t(locale, "Ukloniti fajl iz ovog bloka?", "Remove the file from this block?"))) return; setPending(true); try { await removeLessonPartFile({ lessonPartId: lessonPartId as Id<"lessonParts"> }); setExistingFileRemoved(true); setIsPublished(false); setFile(null); router.refresh(); } catch (error) { setMessage(error instanceof Error ? error.message : "Uklanjanje nije uspelo."); } finally { setPending(false); } }} className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-red-700 bg-paper-strong px-4 text-xs font-black text-red-700"><Trash2 className="size-4" />{t(locale, "Ukloni postojeći fajl", "Remove existing file")}</button> : null}
+                  {lessonPartId && hasExistingFile ? <button type="button" disabled={pending} onClick={async () => { if (!confirmRemoveFile) { setConfirmRemoveFile(true); return; } setPending(true); try { await removeLessonPartFile({ lessonPartId: lessonPartId as Id<"lessonParts"> }); setExistingFileRemoved(true); setIsPublished(false); setFile(null); setConfirmRemoveFile(false); router.refresh(); } catch (error) { setMessage(error instanceof Error ? error.message : t(locale, "Fajl nije uklonjen. Proveri internet i pokušaj ponovo.", "The file was not removed. Check your connection and try again.")); } finally { setPending(false); } }} className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-red-700 bg-paper-strong px-4 text-xs font-black text-red-700"><Trash2 className="size-4" />{confirmRemoveFile ? t(locale, "Potvrdi: obriši fajl zauvek", "Confirm: delete the file for good") : t(locale, "Ukloni postojeći fajl", "Remove existing file")}</button> : null}
+                  {confirmRemoveFile ? <p role="status" className="mt-2 text-xs font-bold text-muted">{t(locale, "Fajl se trajno briše i ne može da se vrati. Klikni dugme još jednom da potvrdiš.", "The file is deleted for good and cannot be brought back. Click the button again to confirm.")}</p> : null}
                   </div>
                 )}
               </FormSection>
@@ -2785,10 +2723,10 @@ export function AddLessonPartAction({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
             >
-              <div className="absolute inset-4 rounded-[28px] border-[3px] border-dashed border-yellow" />
-              <div className="relative max-w-sm rounded-[16px] border-2 border-ink bg-paper-strong p-6 text-center shadow-[8px_8px_0_rgba(244,190,48,0.85)]">
+              <div className="absolute inset-4 rounded-[16px] border-[3px] border-dashed border-yellow" />
+              <div className="relative max-w-sm rounded-[16px] border-2 border-ink bg-paper-strong p-6 text-center shadow-[8px_8px_0_var(--yellow)]">
                 <UploadCloud className="mx-auto size-9" />
-                <p className="mt-3 text-lg font-black">
+                <p className="mt-3 type-h3">
                   {kind === "video"
                     ? t(locale, "Pusti video bilo gde", "Drop the video anywhere")
                     : kind === "image"
@@ -2894,8 +2832,8 @@ export function AddAssetAction({
         onClose={() => setOpen(false)}
       >
         <form onSubmit={submit}>
-          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_280px]">
-            <div className="space-y-5">
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_280px]">
+            <div className="space-y-6">
               <FormSection
                 icon={<FileUp className="size-5" />}
                 title={t(locale, "Naziv materijala", "Material name")}

@@ -48,10 +48,27 @@ const CREATE_JOB_ERROR_MESSAGES: Array<[string, { sr: string; en: string }]> = [
     },
   ],
   [
+    // Dnevni kap POTROŠNJE KREDITA (studio-public F2.4, soft cap) - mora da
+    // stoji PRE "DNEVNI_LIMIT" jer je matching substring, isto kao TROSKA.
+    "DNEVNI_LIMIT_KREDITA",
+    {
+      sr: "Dostigao si dnevni limit potrošnje kredita u Studiju. Krediti ti ostaju na nalogu - nastavi sutra.",
+      en: "You have reached the Studio's daily credit-spend limit. Your credits stay on the account - continue tomorrow.",
+    },
+  ],
+  [
     "DNEVNI_LIMIT",
     {
       sr: "Dostigao si dnevni limit generacija. Nastavi sutra - krediti ostaju na nalogu.",
       en: "You have reached the daily generation limit. Continue tomorrow - your credits stay on the account.",
+    },
+  ],
+  [
+    // Previše pokrenutih generacija u JEDNOM minutu (studio-public F2.4).
+    "MINUTNI_LIMIT",
+    {
+      sr: "Polako - previše generacija u minutu. Sačekaj malo pa pokušaj ponovo.",
+      en: "Slow down - too many generations in one minute. Wait a moment and try again.",
     },
   ],
   [
@@ -69,10 +86,13 @@ const CREATE_JOB_ERROR_MESSAGES: Array<[string, { sr: string; en: string }]> = [
     },
   ],
   [
+    // Bez konkretnog broja: granica zavisi od korisnika (osoblje 3, javni 2,
+    // podesivo u config tabeli) - tačan broj nosi `getStudioState.maxActiveJobs`
+    // kroz `generateBlockMessage({kind:"active", max})`.
     "PREVISE_POSLOVA",
     {
-      sr: "Sačekaj da se završi trenutna generacija - najviše tri posla mogu da rade istovremeno.",
-      en: "Wait for the current generation to finish - at most three jobs can run at once.",
+      sr: "Sačekaj da se završi generacija koja je u toku pre nego što pokreneš novu.",
+      en: "Wait for the generation in progress to finish before starting a new one.",
     },
   ],
   [
@@ -138,6 +158,16 @@ const CREATE_JOB_ERROR_MESSAGES: Array<[string, { sr: string; en: string }]> = [
     {
       sr: "Studio je trenutno u zatvorenom testiranju, dostupan samo osoblju platforme. Otvoriće se polaznicima kasnije.",
       en: "The Studio is currently in closed testing, available only to platform staff. It will open to students later.",
+    },
+  ],
+  [
+    // Javni Studio (studio-public F1) traži potvrđen email pre prve
+    // generacije - shell prikazuje panel sa resend dugmetom pre nego što se
+    // do ovoga uopšte dođe, ali server odbija i poziv koji je ekran zaobišao.
+    "EMAIL_NIJE_POTVRDJEN",
+    {
+      sr: "Potvrdi svoju email adresu da bi koristio Studio - link za potvrdu ti stiže na email. Krediti i nalog te čekaju.",
+      en: "Confirm your email address to use the Studio - the confirmation link arrives by email. Your credits and account are waiting.",
     },
   ],
   [
@@ -432,14 +462,53 @@ export const PRIVACY_POLICY_PATH = "/politika-privatnosti";
  * `checkbox` i `cta` su namerno razdvojeni: čekiranje je izjava, klik je
  * radnja, i dugme ne radi dok izjave nema.
  */
+/**
+ * Stringovi tankog standalone shell-a (studio-public F3): logo vodi na
+ * landing, prijava nosi ?next= nazad u Studio, cross-sell je JEDAN tih red
+ * (brif F5 - ne pretrpavati).
+ */
+export const STUDIO_SHELL = {
+  signIn: { sr: "Prijavi se", en: "Sign in" },
+  backToStudio: { sr: "Nazad u Studio", en: "Back to the Studio" },
+  crossSell: { sr: "Nauči kako ovo da radiš → kursevi", en: "Learn how to make this → courses" },
+  localeSwitch: { sr: "Switch to English", en: "Prebaci na srpski" },
+} satisfies Record<string, Record<Locale, string>>;
+
+/**
+ * Panel "potvrdi email" u Studiju (studio-public F3): prikazuje se kad je
+ * javni fleg upaljen a `getStudioState.accessReason === "EMAIL_NIJE_POTVRDJEN"`
+ * - umesto generičke poruke o zatvorenom testiranju, korisnik dobija resend
+ * dugme i jasan sledeći korak.
+ */
+export const STUDIO_VERIFY_EMAIL: EmptyStateNoCta & {
+  cta: Record<Locale, string>;
+  sent: Record<Locale, string>;
+  failed: Record<Locale, string>;
+} = {
+  title: { sr: "Potvrdi email da bi generisao", en: "Confirm your email to generate" },
+  body: {
+    sr: "Poslaćemo ti link za potvrdu - jedan klik i Studio je otvoren. Krediti i nalog te čekaju.",
+    en: "We will send you a confirmation link - one click and the Studio opens. Your credits and account are waiting.",
+  },
+  cta: { sr: "Pošalji link za potvrdu", en: "Send the confirmation link" },
+  sent: {
+    sr: "Link je poslat - proveri inbox (i spam). Važi 30 minuta.",
+    en: "The link is on its way - check your inbox (and spam). It is valid for 30 minutes.",
+  },
+  failed: {
+    sr: "Email nije poslat. Pokušaj ponovo za koji minut.",
+    en: "The email was not sent. Try again in a minute.",
+  },
+};
+
 export const STUDIO_TERMS_GATE: EmptyState & {
   checkbox: Record<Locale, string>;
   failed: Record<Locale, string>;
 } = {
-  title: { sr: "Još jedna stvar pre prve generacije", en: "One thing before your first generation" },
+  title: { sr: "Još jedna stvar pre nego što počneš", en: "One more thing before you start" },
   body: {
-    sr: "Studio šalje tvoj prompt i okačene fajlove provajderima modela, generiše sadržaj za koji odgovaraš ti, i naplaćuje se kreditima koji su nepovratni. Pročitaj uslove i potvrdi jednom - posle ovoga te više ne pitamo.",
-    en: "The Studio sends your prompt and uploaded files to the model providers, generates content you are responsible for, and is paid in credits that are non-refundable. Read the terms and confirm once - we will not ask again.",
+    sr: "Studio šalje tvoj opis i fajlove koje okačiš firmama koje prave ove alate, pravi sadržaj za koji odgovaraš ti, i naplaćuje se kreditima koji se ne vraćaju. Pročitaj uslove i potvrdi jednom - posle ovoga te više ne pitamo.",
+    en: "The Studio sends your description and the files you upload to the companies that make these tools, creates content you are responsible for, and is paid in credits that are not refundable. Read the terms and confirm once - we will not ask again.",
   },
   checkbox: {
     sr: "Imam 18 godina i prihvatam uslove korišćenja Studija i politiku privatnosti.",
@@ -473,7 +542,7 @@ export type EmptyStateNoCta = Pick<EmptyState, "title" | "body">;
 export const STUDIO_PAUSED: EmptyState = {
   title: { sr: "Studio je pauziran", en: "The Studio is paused" },
   body: {
-    sr: "Privremeno smo zaustavili generisanje. Krediti ti ostaju na nalogu i ništa se ne troši dok Studio ne proradi.",
+    sr: "Privremeno smo zaustavili pravljenje novih stvari. Krediti ti ostaju na nalogu i ništa se ne troši dok Studio ne proradi.",
     en: "Generation is paused for now. Your credits stay on the account and nothing is spent until the Studio is back.",
   },
   cta: { sr: "Pogledaj svoje kredite", en: "See your credits" },
@@ -493,19 +562,19 @@ export const STUDIO_NOT_ENROLLED: EmptyStateNoCta = {
 };
 
 export const STUDIO_NO_GENERATIONS: EmptyState = {
-  title: { sr: "Još nemaš nijednu generaciju", en: "No generations yet" },
+  title: { sr: "Još nisi napravio/la nijednu stvar", en: "You have not made anything yet" },
   body: {
-    sr: "Studio pravi slike, video i zvuk: izabereš model, daš mu opis i ono što treba da vidi ili čuje, i platiš kreditima tačno onoliko koliko piše na dugmetu. Gotov fajl ostaje ovde.",
-    en: "The Studio makes images, video and audio: pick a model, give it a description and whatever it needs to see or hear, and pay exactly what the button says. The finished file stays here.",
+    sr: "Studio pravi slike, video i zvuk: izabereš alat, opišeš mu šta želiš i dodaš ono što treba da vidi ili čuje. Cena u kreditima piše na dugmetu pre nego što klikneš, a gotov fajl ostaje ovde.",
+    en: "The Studio makes images, video and sound: pick a tool, describe what you want and add anything it needs to see or hear. The price in credits is on the button before you click, and the finished file stays here.",
   },
-  cta: { sr: "Ubaci prvi prompt", en: "Use a starter prompt" },
+  cta: { sr: "Počni od gotovog primera", en: "Start from a ready example" },
 };
 
 export const CREDITS_NO_BALANCE: EmptyState = {
   title: { sr: "Nemaš kredite", en: "You have no credits" },
   body: {
-    sr: "Još nemaš kredite, pa Studio ne može ništa da generiše. Paketi su odmah ispod.",
-    en: "You have no credits yet, so the Studio cannot generate anything. The packs are right below.",
+    sr: "Krediti su bodovi kojima se plaća svaka slika, video ili zvuk u Studiju. Bez njih Studio ne može ništa da napravi. Paketi su odmah ispod.",
+    en: "Credits are the points that pay for every image, video or sound in the Studio. Without them the Studio cannot make anything. The packs are right below.",
   },
   cta: { sr: "Izaberi paket", en: "Pick a pack" },
 };
@@ -513,46 +582,46 @@ export const CREDITS_NO_BALANCE: EmptyState = {
 export const CREDITS_NO_PACKS: EmptyState = {
   title: { sr: "Nijedan paket nije u prodaji", en: "No pack is on sale" },
   body: {
-    sr: "Nijedan paket trenutno nije u prodaji. Javi se podršci.",
-    en: "No pack is on sale right now. Please contact support.",
+    sr: "Nijedan paket kredita trenutno nije u prodaji. Ovo nije do tvog naloga - javi se podršci i reci šta si hteo/la da kupiš.",
+    en: "No credit pack is on sale right now. This is not about your account - contact support and tell them what you wanted to buy.",
   },
   cta: { sr: "Javi se podršci", en: "Contact support" },
 };
 
 export const CREDITS_NO_HISTORY: EmptyState = {
-  title: { sr: "Još nisi kupio kredite", en: "You have not bought any credits yet" },
+  title: { sr: "Ovde će pisati svaka kupovina i potrošnja", en: "Every purchase and spend will be listed here" },
   body: {
-    sr: "Još nisi kupio kredite.",
-    en: "You have not bought any credits yet.",
+    sr: "Još nisi kupio/la nijedan paket, pa je spisak prazan. Čim kupiš prvi paket, ovde ćeš videti kada je kupljen, koliko je koštao i na šta je potrošen.",
+    en: "You have not bought a pack yet, so the list is empty. As soon as you buy your first one, you will see here when it was bought, what it cost, and what it went on.",
   },
-  cta: { sr: "Paketi su gore", en: "The packs are up top" },
+  cta: { sr: "Paketi su na vrhu strane", en: "The packs are at the top of the page" },
 };
 
 export const GALLERY_NO_GENERATIONS: EmptyState = {
-  title: { sr: "Još nemaš nijednu generaciju", en: "No generations yet" },
+  title: { sr: "Ovde stoji sve što napraviš", en: "Everything you make is kept here" },
   body: {
-    sr: "Sve što napraviš u Studiju sleti ovde - sa promptom, modelom i cenom.",
-    en: "Everything you make in the Studio lands here - with its prompt, model and price.",
+    sr: "Svaka slika, video i zvuk iz Studija sleti ovde - zajedno sa opisom koji si napisao/la, alatom i cenom. Još nema nijedne stvari.",
+    en: "Every image, video and sound from the Studio lands here - together with the description you wrote, the tool and the price. There is nothing here yet.",
   },
   cta: { sr: "Otvori Studio", en: "Open the Studio" },
 };
 
 export const PROJECT_NO_GENERATIONS: EmptyState = {
-  title: { sr: "Još nema generacija u ovom projektu", en: "No generations in this project yet" },
+  title: { sr: "Ovaj projekat je još prazan", en: "This project is still empty" },
   body: {
-    sr: "Sve što generišeš dok je ovaj projekat izabran pojaviće se ovde.",
-    en: "Everything you generate while this project is selected will appear here.",
+    sr: "Projekat je fascikla: sve što napraviš dok je izabran skuplja se ovde, na jednom mestu.",
+    en: "A project is a folder: everything you make while it is selected is collected here, in one place.",
   },
-  cta: { sr: "Ubaci prvi prompt", en: "Use a starter prompt" },
+  cta: { sr: "Počni od gotovog primera", en: "Start from a ready example" },
 };
 
 export const GALLERY_NO_MATCHES: EmptyState = {
-  title: { sr: "Nijedna generacija ne odgovara filterima", en: "No generation matches these filters" },
+  title: { sr: "Ništa ne odgovara ovom izboru", en: "Nothing matches this selection" },
   body: {
-    sr: "Nijedna generacija ne odgovara ovim filterima.",
-    en: "No generation matches these filters.",
+    sr: "Filteri koje si uključio/la ne propuštaju nijednu tvoju stvar. Isključi ih da vidiš sve ponovo.",
+    en: "The filters you turned on do not let anything through. Turn them off to see everything again.",
   },
-  cta: { sr: "Resetuj filtere", en: "Reset filters" },
+  cta: { sr: "Isključi filtere", en: "Turn off the filters" },
 };
 
 /**

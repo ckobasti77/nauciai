@@ -1,11 +1,12 @@
 "use client";
 
 import { useMutation, useQuery } from "convex/react";
-import { AlertTriangle, CheckCircle2, Loader2, Power, ShieldAlert, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Power, ShieldAlert, XCircle } from "lucide-react";
 import { useState } from "react";
 
 import { CreditIcon } from "@/components/studio/credit-icon";
 import { Panel, cn } from "@/components/ui/primitives";
+import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import type { Doc } from "@/convex/_generated/dataModel";
 import { HEARTBEAT_STALE_MS } from "@/convex/studioCore";
@@ -26,7 +27,7 @@ import { parseStudioModel, type StudioModel } from "@/lib/studio-models";
 import { formatCreditsLong } from "@/lib/studio-params";
 
 const inputClass =
-  "min-h-9 w-24 surface-media border-2 border-ink bg-paper-strong px-2 text-sm font-bold text-ink outline-none transition focus:ring-4 focus:ring-yellow/35 disabled:cursor-not-allowed disabled:opacity-60";
+  "min-h-9 w-24 surface-media border-2 border-ink bg-paper-strong px-2 text-sm font-bold text-ink outline-none transition focus:ring-4 focus:ring-yellow/35 studio-focus-ink disabled:cursor-not-allowed disabled:opacity-60";
 
 const KIND_LABELS_SR: Record<string, string> = { image: "Slika", video: "Video", audio: "Zvuk" };
 const KIND_LABELS_EN: Record<string, string> = { image: "Image", video: "Video", audio: "Audio" };
@@ -36,7 +37,7 @@ const PROVIDER_LABELS: Record<string, string> = { fal: "fal", google: "Google", 
 
 function ErrorLine({ message }: { message: string | null }) {
   if (!message) return null;
-  return <p className="text-[11px] font-black text-red-700">{message}</p>;
+  return <p className="type-caption font-black text-red-700">{message}</p>;
 }
 
 /** Broj koji se čuva na blur/Enter; ne diže mutaciju dok je vrednost nepromenjena. */
@@ -93,7 +94,7 @@ function InlineNumber({
           }}
           className={inputClass}
         />
-        {pending ? <Loader2 className="size-3.5 shrink-0 animate-spin text-muted" /> : null}
+        {pending ? <Spinner size="xs" className="shrink-0 text-muted" /> : null}
       </div>
       <ErrorLine message={error} />
     </div>
@@ -144,7 +145,7 @@ function InlineText({
           }}
           className={cn(inputClass, "w-48 font-mono text-xs")}
         />
-        {pending ? <Loader2 className="size-3.5 shrink-0 animate-spin text-muted" /> : null}
+        {pending ? <Spinner size="xs" className="shrink-0 text-muted" /> : null}
       </div>
       <ErrorLine message={error} />
     </div>
@@ -190,7 +191,7 @@ function TogglePill({
           active ? "bg-emerald-100 text-emerald-900" : "bg-paper-strong text-muted",
         )}
       >
-        {pending ? <Loader2 className="size-3.5 animate-spin" /> : active ? <CheckCircle2 className="size-3.5" /> : <XCircle className="size-3.5" />}
+        {pending ? <Spinner size="xs" /> : active ? <CheckCircle2 className="size-3.5" /> : <XCircle className="size-3.5" />}
         {active ? activeLabel : inactiveLabel}
       </button>
       <ErrorLine message={error} />
@@ -225,7 +226,7 @@ function PriceBreakdown({ model, locale }: { model: StudioModel; locale: Locale 
       <div className="overflow-x-auto">
         <table className="w-full text-left text-xs">
           <thead>
-            <tr className="text-[10px] font-black uppercase tracking-wide text-muted">
+            <tr className="type-eyebrow-sm text-muted">
               <th className="pb-1 pr-3">{locale === "sr" ? "Režim" : "Mode"}</th>
               <th className="pb-1 pr-3">{locale === "sr" ? "Kombinacija" : "Combination"}</th>
               <th className="pb-1 pr-3">{locale === "sr" ? "Nabavno" : "Cost"}</th>
@@ -249,7 +250,7 @@ function PriceBreakdown({ model, locale }: { model: StudioModel; locale: Locale 
         </table>
       </div>
       {table.hidden > 0 ? (
-        <p className="mt-2 text-[11px] font-black text-amber-800">
+        <p className="mt-2 type-caption font-black text-amber-800">
           {locale === "sr"
             ? `Prikazano je ${table.rows.length} kombinacija, ima ih još ${table.hidden}. Najmanja marža u CELOM prostoru je ${formatMargin(table.worstMargin)}.`
             : `Showing ${table.rows.length} combinations, ${table.hidden} more available. Lowest margin in the ENTIRE space is ${formatMargin(table.worstMargin)}.`}
@@ -285,7 +286,7 @@ function ReasonList({ cost, locale }: { cost: ModelCostRow | undefined; locale: 
         <li
           key={row.reason}
           title={row.reason}
-          className="text-[11px] font-bold leading-tight text-muted"
+          className="type-caption font-bold text-muted"
         >
           {actualCostReasonLabel(row.reason, locale)} · {row.jobs}
         </li>
@@ -354,7 +355,7 @@ function ActualMarginCell({
               / {cost.measuredJobs} {jobsWord}
             </span>
           </span>
-          <span className="inline-block text-[10px] font-black uppercase tracking-wider text-amber-900">
+          <span className="inline-block type-eyebrow-sm text-amber-900">
             {costOriginLabel(origin, locale)}
           </span>
         </div>
@@ -381,7 +382,7 @@ function ActualMarginCell({
             / {cost.measuredJobs} {jobsWord}
           </span>
         </span>
-        <span className="inline-block text-[10px] font-black uppercase tracking-wider text-emerald-800">
+        <span className="inline-block type-eyebrow-sm text-emerald-800">
           {costOriginLabel(origin, locale)}
         </span>
       </div>
@@ -482,7 +483,7 @@ function CatalogRow({
         <td colSpan={8} className="px-3 pb-3">
           {model ? (
             <details className="surface-inset border-2 border-ink bg-paper-strong p-3">
-              <summary className="cursor-pointer text-xs font-black uppercase tracking-wide text-muted">
+              <summary className="cursor-pointer type-eyebrow text-muted">
                 {locale === "sr" ? "Cena po kombinaciji" : "Price by combination"}
               </summary>
               <div className="mt-3">
@@ -511,7 +512,7 @@ function CatalogSection({ locale }: { locale: Locale }) {
 
   return (
     <Panel className="p-6">
-      <h2 className="text-2xl font-black text-ink">{locale === "sr" ? "Katalog v4" : "Catalog v4"}</h2>
+      <h2 className="type-h2 text-ink">{locale === "sr" ? "Katalog v4" : "Catalog v4"}</h2>
       <p className="mt-2 text-sm font-bold text-muted">
         {locale === "sr"
           ? "Marža je za podrazumevana podešavanja; ispod 2,0x je crvena. Izmena nabavne cene odmah pomera cenu SVAKE kombinacije — razvij red da vidiš koje. Stvarna marža je iz onoga što je provajder naplatio (faktura), dok modeli sa internom tarifom nad količinom nose posebnu oznaku."
@@ -520,7 +521,7 @@ function CatalogSection({ locale }: { locale: Locale }) {
 
       {models === undefined ? (
         <div className="mt-5 flex min-h-24 items-center justify-center">
-          <Loader2 className="size-5 animate-spin text-muted" />
+          <Spinner size="md" className="text-muted" />
         </div>
       ) : models.length === 0 ? (
         <p className="surface-inset mt-5 border-2 border-ink bg-paper p-4 text-sm font-bold text-muted">
@@ -532,7 +533,7 @@ function CatalogSection({ locale }: { locale: Locale }) {
         <div className="mt-5 overflow-x-auto">
           <table className="w-full min-w-[1040px] border-separate border-spacing-y-2 text-left">
             <thead>
-              <tr className="text-xs font-black uppercase tracking-wide text-muted">
+              <tr className="type-eyebrow text-muted">
                 <th className="px-3 pb-1">{locale === "sr" ? "Model" : "Model"}</th>
                 <th className="px-3 pb-1">{locale === "sr" ? "Provajder" : "Provider"}</th>
                 <th className="px-3 pb-1">{locale === "sr" ? "Tip" : "Kind"}</th>
@@ -570,7 +571,7 @@ function ModelsSection({ locale }: { locale: Locale }) {
 
   return (
     <Panel className="p-6">
-      <h2 className="text-2xl font-black text-ink">
+      <h2 className="type-h2 text-ink">
         {locale === "sr" ? "Stari katalog (modelCatalog)" : "Legacy Catalog (modelCatalog)"}
       </h2>
       <p className="mt-2 text-sm font-bold text-muted">
@@ -581,7 +582,7 @@ function ModelsSection({ locale }: { locale: Locale }) {
 
       {models === undefined ? (
         <div className="mt-5 flex min-h-24 items-center justify-center">
-          <Loader2 className="size-5 animate-spin text-muted" />
+          <Spinner size="md" className="text-muted" />
         </div>
       ) : models.length === 0 ? (
         <p className="surface-inset mt-5 border-2 border-ink bg-paper p-4 text-sm font-bold text-muted">
@@ -593,7 +594,7 @@ function ModelsSection({ locale }: { locale: Locale }) {
         <div className="mt-5 overflow-x-auto">
           <table className="w-full min-w-[820px] border-separate border-spacing-y-2 text-left">
             <thead>
-              <tr className="text-xs font-black uppercase tracking-wide text-muted">
+              <tr className="type-eyebrow text-muted">
                 <th className="px-3 pb-1">{locale === "sr" ? "Model" : "Model"}</th>
                 <th className="px-3 pb-1">{locale === "sr" ? "Tip" : "Kind"}</th>
                 <th className="px-3 pb-1">{locale === "sr" ? "Cena (kr)" : "Price (cr)"}</th>
@@ -688,7 +689,7 @@ function PacksSection({ locale }: { locale: Locale }) {
 
   return (
     <Panel className="p-6">
-      <h2 className="text-2xl font-black text-ink">
+      <h2 className="type-h2 text-ink">
         {locale === "sr" ? "Paketi i planovi" : "Packs & Plans"}
       </h2>
       <p className="mt-2 text-sm font-bold text-muted">
@@ -699,7 +700,7 @@ function PacksSection({ locale }: { locale: Locale }) {
 
       {packs === undefined ? (
         <div className="mt-5 flex min-h-24 items-center justify-center">
-          <Loader2 className="size-5 animate-spin text-muted" />
+          <Spinner size="md" className="text-muted" />
         </div>
       ) : packs.length === 0 ? (
         <p className="surface-inset mt-5 border-2 border-ink bg-paper p-4 text-sm font-bold text-muted">
@@ -711,7 +712,7 @@ function PacksSection({ locale }: { locale: Locale }) {
         <div className="mt-5 overflow-x-auto">
           <table className="w-full min-w-[820px] border-separate border-spacing-y-2 text-left">
             <thead>
-              <tr className="text-xs font-black uppercase tracking-wide text-muted">
+              <tr className="type-eyebrow text-muted">
                 <th className="px-3 pb-1">{locale === "sr" ? "Paket / plan" : "Pack / Plan"}</th>
                 <th className="px-3 pb-1">{locale === "sr" ? "Cena" : "Price"}</th>
                 <th className="px-3 pb-1">{locale === "sr" ? "Krediti" : "Credits"}</th>
@@ -803,7 +804,7 @@ function KillSwitchCard({ locale }: { locale: Locale }) {
   if (state === undefined) {
     return (
       <div className="surface-card flex min-h-20 items-center justify-center border-2 border-ink bg-paper-strong p-4 shadow-[4px_4px_0_0_var(--ink)]">
-        <Loader2 className="size-5 animate-spin text-muted" />
+        <Spinner size="md" className="text-muted" />
       </div>
     );
   }
@@ -811,7 +812,7 @@ function KillSwitchCard({ locale }: { locale: Locale }) {
   return (
     <div
       className={cn(
-        "surface-card border-2 p-5 shadow-[4px_4px_0_0_var(--ink)]",
+        "surface-card border-2 p-6 shadow-[4px_4px_0_0_var(--ink)]",
         state.enabled ? "border-ink bg-paper-strong" : "border-red-700 bg-red-50",
       )}
     >
@@ -824,7 +825,7 @@ function KillSwitchCard({ locale }: { locale: Locale }) {
                 state.enabled ? "bg-emerald-500 animate-pulse" : "bg-red-600",
               )}
             />
-            <p className="text-base font-black text-ink">
+            <p className="type-h4 text-ink">
               {locale === "sr"
                 ? `Studio zaštita: Studio je ${state.enabled ? "UKLJUČEN" : "UGAŠEN"}`
                 : `Studio Protection: Studio is ${state.enabled ? "ENABLED" : "SHUT DOWN"}`}
@@ -859,7 +860,7 @@ function KillSwitchCard({ locale }: { locale: Locale }) {
             onClick={() => void apply(true)}
             className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--ink)] transition hover:-translate-y-0.5 disabled:opacity-60"
           >
-            {pending ? <Loader2 className="size-4 animate-spin" /> : <Power className="size-3.5" />}
+            {pending ? <Spinner /> : <Power className="size-3.5" />}
             {locale === "sr" ? "Ponovo uključi Studio" : "Re-enable Studio"}
           </button>
         ) : null}
@@ -880,7 +881,7 @@ function KillSwitchCard({ locale }: { locale: Locale }) {
               onClick={() => void apply(false)}
               className="inline-flex min-h-9 items-center gap-2 rounded-full border-2 border-red-800 bg-red-800 px-4 text-xs font-black text-white transition hover:bg-red-900 disabled:opacity-60"
             >
-              {pending ? <Loader2 className="size-4 animate-spin" /> : null}
+              {pending ? <Spinner /> : null}
               {locale === "sr" ? "Potvrdi gašenje" : "Confirm shutdown"}
             </button>
             <button
@@ -928,7 +929,7 @@ function ProminentHealthAlert({
       <div className="flex items-start gap-3">
         <ShieldAlert className="mt-0.5 size-6 shrink-0 text-red-700" />
         <div className="space-y-1">
-          <p className="text-sm font-black uppercase tracking-wide text-red-900">
+          <p className="type-eyebrow text-red-900">
             {locale === "sr"
               ? "UPOZORENJE: Zaštitni cron globalnog plafona nije aktivan!"
               : "CRITICAL: Global cost cap protection cron is not active!"}
@@ -999,7 +1000,7 @@ function UsageSection({
     <Panel className="p-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="text-2xl font-black text-ink">{locale === "sr" ? "Potrošnja" : "Usage & Spend"}</h2>
+          <h2 className="type-h2 text-ink">{locale === "sr" ? "Potrošnja" : "Usage & Spend"}</h2>
           <p className="mt-1 text-sm font-bold text-muted">
             {summary
               ? `${locale === "sr" ? "Danas" : "Today"}, ${summary.day}`
@@ -1044,17 +1045,17 @@ function UsageSection({
 
       {summary === undefined ? (
         <div className="mt-5 flex min-h-24 items-center justify-center">
-          <Loader2 className="size-5 animate-spin text-muted" />
+          <Spinner size="md" className="text-muted" />
         </div>
       ) : (
         <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_1fr]">
           <div className="surface-inset border-2 border-ink bg-paper p-4">
-            <p className="text-xs font-black uppercase tracking-wide text-muted">
+            <p className="type-eyebrow text-muted">
               {locale === "sr" ? "Ukupan trošak danas" : "Total cost today"}
             </p>
             <p
               className={cn(
-                "mt-1 font-display text-4xl leading-none",
+                "mt-2 font-display type-display",
                 summary.totalCostUsd > summary.killUsd
                   ? "text-red-700"
                   : summary.totalCostUsd > summary.alarmUsd
@@ -1083,7 +1084,7 @@ function UsageSection({
               />
             </div>
 
-            <p className="mt-4 text-xs font-black uppercase tracking-wide text-muted">
+            <p className="mt-4 type-eyebrow text-muted">
               {locale === "sr" ? "Poslovi po statusu" : "Jobs by status"}
             </p>
             <ul className="mt-2 flex flex-wrap gap-2">
@@ -1096,7 +1097,7 @@ function UsageSection({
                 </li>
               ))}
             </ul>
-            <p className="mt-3 text-xs font-black uppercase tracking-wide text-muted">Reaper</p>
+            <p className="mt-3 type-eyebrow text-muted">Reaper</p>
             <p className="mt-1 text-sm font-bold text-ink">
               {summary.reapedToday === 0
                 ? locale === "sr"
@@ -1108,7 +1109,7 @@ function UsageSection({
             </p>
 
             {summary.jobCountsCapped ? (
-              <p className="mt-2 text-[11px] font-black text-amber-800">
+              <p className="mt-2 type-caption font-black text-amber-800">
                 {locale === "sr"
                   ? "Broj poslova po statusu je odsečen na prikaz — stvarno je veći."
                   : "Job count by status is capped in display — actual count is higher."}
@@ -1117,7 +1118,7 @@ function UsageSection({
           </div>
 
           <div className="surface-inset border-2 border-ink bg-paper p-4">
-            <p className="text-xs font-black uppercase tracking-wide text-muted">
+            <p className="type-eyebrow text-muted">
               {locale === "sr" ? "Top 10 korisnika po trošku" : "Top 10 users by spend"}
             </p>
             {summary.topUsers.length === 0 ? (
@@ -1144,7 +1145,7 @@ function UsageSection({
               </ul>
             )}
             {summary.usageRowsCapped ? (
-              <p className="mt-2 text-[11px] font-black text-amber-800">
+              <p className="mt-2 type-caption font-black text-amber-800">
                 {locale === "sr"
                   ? "Lista korisnika je odsečena na prikaz — stvarno ih je više."
                   : "User list is capped in display — actual count is higher."}
@@ -1167,10 +1168,10 @@ export function StudioAdminPage({ locale = "sr" }: { locale?: Locale }) {
       <div className="mx-auto max-w-[1200px] space-y-6">
         <header className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-muted">
+            <p className="type-eyebrow text-muted">
               {locale === "sr" ? "Administracija" : "Administration"}
             </p>
-            <h1 className="mt-1 font-display text-4xl text-ink sm:text-5xl">Studio</h1>
+            <h1 className="mt-2 font-display type-display text-ink">Studio</h1>
           </div>
         </header>
 

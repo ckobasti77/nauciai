@@ -10,7 +10,6 @@ import {
   Globe2,
   ImagePlus,
   KeyRound,
-  Loader2,
   MailCheck,
   ShieldCheck,
   UploadCloud,
@@ -28,9 +27,12 @@ import {
   useState,
 } from "react";
 
+import { Button } from "@/components/ui/button";
+import { Field, Input, Select, Textarea } from "@/components/ui/field";
 import { Panel, SectionHeader, cn } from "@/components/ui/primitives";
 import { HelpSettings } from "@/components/app/help-settings";
 import { useToast } from "@/components/ui/toast-provider";
+import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import type { ViewerProfile } from "@/lib/current-viewer";
 import {
@@ -207,8 +209,8 @@ export function ProfileEditor({
           text: t(
             locale,
             result.code === "not_configured"
-              ? "Slanje emaila trenutno nije podešeno. Administrator je obavešten."
-              : "Email provajder trenutno nije prihvatio poruku. Pokušaj ponovo malo kasnije.",
+              ? "Slanje emaila trenutno ne radi. Obavestili smo administratora - probaj kasnije."
+              : "Poruka trenutno ne može da se pošalje. Pokušaj ponovo za koji minut.",
             result.code === "not_configured"
               ? "Email delivery is not configured right now. The administrator has been notified."
               : "The email provider did not accept the message. Please try again shortly.",
@@ -229,7 +231,7 @@ export function ProfileEditor({
         tone: "error",
         text: t(
           locale,
-          "Verifikacioni email nije poslat. Proveri vezu i pokušaj ponovo.",
+          "Email nije poslat. Proveri internet i pokušaj ponovo.",
           "The verification email was not sent. Check your connection and try again.",
         ),
       });
@@ -274,10 +276,10 @@ export function ProfileEditor({
 
   function validateAvatarFile(file: File) {
     if (!file.type.startsWith("image/")) {
-      throw new Error(t(locale, "Avatar mora da bude slika.", "Avatar must be an image."));
+      throw new Error(t(locale, "Za sliku profila izaberi fajl slike (na primer .jpg ili .png).", "For a profile picture choose an image file (for example .jpg or .png)."));
     }
     if (file.size > MAX_AVATAR_BYTES) {
-      throw new Error(t(locale, "Avatar mora da bude manji od 5MB.", "Avatar must be smaller than 5MB."));
+      throw new Error(t(locale, "Slika je prevelika. Izaberi sliku manju od 5 MB.", "That image is too large. Choose one under 5 MB."));
     }
   }
 
@@ -298,14 +300,14 @@ export function ProfileEditor({
         tone: "success",
         text: t(
           locale,
-          "Slika je spremna. Sacuvaj izmene da postavis novi avatar.",
-          "Image ready. Save changes to apply your new avatar.",
+          "Slika je spremna. Klikni „Sačuvaj izmene” da postane tvoja nova slika profila.",
+          "The image is ready. Click “Save changes” to make it your new profile picture.",
         ),
       });
     } catch (error) {
       setMessage({
         tone: "error",
-        text: error instanceof Error ? error.message : t(locale, "Upload nije uspeo.", "Upload failed."),
+        text: error instanceof Error ? error.message : t(locale, "Slanje slike nije uspelo. Proveri internet i pokušaj ponovo.", "The image was not uploaded. Check your connection and try again."),
       });
     }
   }
@@ -419,14 +421,14 @@ export function ProfileEditor({
       const detail = await upload.text().catch(() => "");
       throw new Error(
         detail
-          ? `${t(locale, "Upload nije uspeo", "Upload failed")}: ${detail.slice(0, 220)}`
-          : t(locale, "Upload nije uspeo.", "Upload failed."),
+          ? `${t(locale, "Slanje slike nije uspelo", "The image was not uploaded")}: ${detail.slice(0, 220)}`
+          : t(locale, "Slanje slike nije uspelo. Proveri internet i pokušaj ponovo.", "The image was not uploaded. Check your connection and try again."),
       );
     }
 
     const result = (await upload.json()) as { storageId?: Id<"_storage"> };
     if (!result.storageId) {
-      throw new Error(t(locale, "Convex nije vratio storageId.", "Convex did not return a storageId."));
+      throw new Error(t(locale, "Server nije potvrdio prijem slike. Pokušaj da je pošalješ ponovo.", "The server did not confirm the image. Try uploading it again."));
     }
     return result.storageId;
   }
@@ -442,7 +444,7 @@ export function ProfileEditor({
       const trimmedFirstName = firstName.trim();
       const trimmedLastName = lastName.trim();
       if (!trimmedFirstName || !trimmedLastName) {
-        throw new Error(t(locale, "Ime i prezime su obavezni.", "First and last name are required."));
+        throw new Error(t(locale, "Upiši ime i prezime - bez njih ne možemo da sačuvamo profil.", "Enter your first and last name - we cannot save the profile without them."));
       }
 
       const wantsNewPassword = Boolean(newPassword || confirmPassword);
@@ -460,7 +462,7 @@ export function ProfileEditor({
           );
         }
         if (newPassword !== confirmPassword) {
-          throw new Error(t(locale, "Lozinke se ne poklapaju.", "Passwords do not match."));
+          throw new Error(t(locale, "Dve lozinke nisu iste. Upiši istu lozinku u oba polja.", "The two passwords are not the same. Type the same password in both fields."));
         }
       }
 
@@ -507,8 +509,8 @@ export function ProfileEditor({
             : withLocale(locale, "/app/community/my-threads?view=pending&submitted=1");
         toast.success(
           resumed.status === "published"
-            ? t(locale, "Profil je sačuvan i tred je objavljen.", "Profile saved and thread published.")
-            : t(locale, "Profil je sačuvan i tred je poslat na odobrenje.", "Profile saved and thread submitted for review."),
+            ? t(locale, "Profil je sačuvan i tema je objavljena.", "Profile saved and thread published.")
+            : t(locale, "Profil je sačuvan i tema je poslata na odobrenje.", "Profile saved and thread submitted for review."),
         );
         router.push(destination);
         router.refresh();
@@ -533,7 +535,7 @@ export function ProfileEditor({
       }
     } catch (error) {
       if (passwordActionAttempted) {
-        const detail = error instanceof Error ? error.message : t(locale, "Greška pri čuvanju lozinke.", "Password save failed.");
+        const detail = error instanceof Error ? error.message : t(locale, "Lozinka nije sačuvana. Pokušaj ponovo za koji trenutak.", "The password was not saved. Try again in a moment.");
         toast.error(t(locale, "Profil je sačuvan, ali lozinka nije sačuvana.", "Profile saved, but the password was not saved."));
         setMessage({
           tone: "error",
@@ -544,7 +546,7 @@ export function ProfileEditor({
       toast.error(
         profileSaved
           ? t(locale, "Profil je sačuvan, ali nastavak nije uspeo.", "Profile saved, but the next action failed.")
-          : t(locale, "Čuvanje profila nije uspelo.", "Profile save failed."),
+          : t(locale, "Profil nije sačuvan. Proveri internet i pokušaj ponovo - ništa nije izgubljeno.", "The profile was not saved. Check your connection and try again - nothing is lost."),
       );
       setMessage({
         tone: "error",
@@ -565,18 +567,18 @@ export function ProfileEditor({
     <div className="space-y-6">
       {dragging ? (
         <div className="pointer-events-none fixed inset-0 z-50">
-          <div className="absolute inset-4 rounded-[28px] border-[3px] border-dashed border-yellow bg-scrim/45 backdrop-blur-[3px]" />
-          <div className="absolute left-1/2 top-1/2 w-[min(92vw,34rem)] -translate-x-1/2 -translate-y-1/2 rounded-[18px] border-[3px] border-ink bg-yellow p-6 text-center shadow-[10px_10px_0_0_rgba(255,255,255,0.95)]">
+          <div className="absolute inset-4 rounded-[16px] border-[3px] border-dashed border-yellow bg-scrim/45 backdrop-blur-[3px]" />
+          <div className="absolute left-1/2 top-1/2 w-[min(92vw,34rem)] -translate-x-1/2 -translate-y-1/2 rounded-[16px] border-[3px] border-ink bg-yellow p-6 text-center shadow-[10px_10px_0_0_rgba(255,255,255,0.95)]">
             <span className="mx-auto inline-flex size-16 items-center justify-center rounded-full border-[3px] border-ink bg-paper-strong text-ink">
               <UploadCloud className="size-8" />
             </span>
-            <p className="mt-4 text-2xl font-black leading-tight text-ink">
-              {t(locale, "Pusti sliku bilo gde da postavis avatar", "Drop anywhere to set your avatar")}
+            <p className="mt-4 type-h2 text-ink">
+              {t(locale, "Pusti sliku bilo gde na ekranu", "Drop anywhere to set your avatar")}
             </p>
-            <p className="mt-3 text-sm font-bold leading-6 text-ink/80">
+            <p className="mt-3 type-body-sm font-bold text-ink/80">
               {t(
                 locale,
-                "Ceo ekran je aktivan. Kada pustis sliku, odmah ce se prikazati kao novi avatar.",
+                "Kad pustiš sliku, odmah ćeš videti kako izgleda kao tvoja slika profila.",
                 "The whole screen is active. When you release the image, it will immediately preview as your new avatar.",
               )}
             </p>
@@ -589,11 +591,11 @@ export function ProfileEditor({
           <div>
             <p className="font-black">
               {resumePostId
-                ? t(locale, "Podesi username da nastaviš objavu skice.", "Set a username to continue publishing this draft.")
-                : t(locale, "Profil nije kompletan za rad u Zajednici.", "Your profile is not complete for Community yet.")}
+                ? t(locale, "Izaberi korisničko ime da nastaviš objavu skice.", "Set a username to continue publishing this draft.")
+                : t(locale, "Fali ti još korisničko ime da bi mogao/la da pišeš u Zajednici.", "You still need a username before you can post in the Community.")}
             </p>
-            <p className="mt-1 text-xs font-semibold leading-5 text-ink/75">
-              {t(locale, "Username je jedini obavezni podatak i koristi se za @pominjanja.", "Username is the only required field and powers @mentions.")}
+            <p className="mt-1 type-caption font-semibold text-ink/75">
+              {t(locale, "Korisničko ime je jedino što moraš da izabereš. Po njemu te drugi pominju u Zajednici.", "A username is the only thing you must choose. Others use it to mention you in the Community.")}
             </p>
           </div>
         </div>
@@ -603,7 +605,7 @@ export function ProfileEditor({
           <CircleAlert className="mt-0.5 size-5 shrink-0" />
           <div>
             <p className="font-black">{t(locale, "Email adresa nije dostupna za verifikaciju.", "No email address is available for verification.")}</p>
-            <p className="mt-1 text-xs font-semibold leading-5">{t(locale, "Dodaj ili obnovi nalog sa email adresom da bi mogao/la da postaviš lozinku.", "Add or restore an account with an email address before setting a password.")}</p>
+            <p className="mt-1 type-caption font-semibold">{t(locale, "Dodaj ili obnovi nalog sa email adresom da bi mogao/la da postaviš lozinku.", "Add or restore an account with an email address before setting a password.")}</p>
           </div>
         </div>
       ) : null}
@@ -612,16 +614,16 @@ export function ProfileEditor({
           <MailCheck className="mt-0.5 size-5 shrink-0" />
           <div className="min-w-0 flex-1">
             <p className="font-black">{t(locale, "Email još nije potvrđen za pristup kursevima.", "Your email is not yet verified for course access.")}</p>
-            <p className="mt-1 text-xs font-semibold leading-5">{t(locale, "Verifikacija blokira checkout i lekcije, ali ne blokira dashboard, javni pregled kurseva ili Community.", "Verification blocks checkout and lessons, but not the dashboard, public course pages, or Community.")}</p>
-            <button
-              type="button"
+            <p className="mt-1 type-caption font-semibold">{t(locale, "Verifikacija blokira checkout i lekcije, ali ne blokira dashboard, javni pregled kurseva ili Community.", "Verification blocks checkout and lessons, but not the dashboard, public course pages, or Community.")}</p>
+            <Button
+              size="sm"
               onClick={requestEmailVerification}
-              disabled={verificationPending}
-              className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 py-2 text-xs font-black text-ink shadow-[3px_3px_0_0_var(--ink)] transition hover:-translate-y-0.5 disabled:opacity-60"
+              loading={verificationPending}
+              icon={<MailCheck className="size-4" />}
+              className="mt-3 gap-2 px-4 shadow-[3px_3px_0_0_var(--ink)] hover:-translate-y-0.5"
             >
-              {verificationPending ? <Loader2 className="size-4 animate-spin" /> : <MailCheck className="size-4" />}
               {t(locale, "Pošalji verifikacioni link", "Send verification link")}
-            </button>
+            </Button>
             {verificationMessage ? (
               <p className={cn("mt-2 text-xs font-black", verificationMessage.tone === "success" ? "text-emerald-700" : "text-red-700")}>
                 {verificationMessage.text}
@@ -635,11 +637,13 @@ export function ProfileEditor({
           <KeyRound className="mt-0.5 size-5 shrink-0" />
           <div>
             <p className="font-black">{t(locale, "Lozinka nije postavljena.", "No password is set yet.")}</p>
-            <p className="mt-1 text-xs font-semibold leading-5">{t(locale, "Ovo je opciona preporuka; prvo potvrdi email ako želiš da dodaš password prijavu.", "This is optional; verify your email first if you want to add password sign-in.")}</p>
+            <p className="mt-1 type-caption font-semibold">{t(locale, "Ovo je opciona preporuka; prvo potvrdi email ako želiš da dodaš password prijavu.", "This is optional; verify your email first if you want to add password sign-in.")}</p>
           </div>
         </div>
       ) : null}
       <SectionHeader
+        variant="app"
+        underline
         title={t(locale, "Profil", "Profile")}
         body={t(
           locale,
@@ -653,14 +657,14 @@ export function ProfileEditor({
           <div id="public-profile" className="scroll-mt-6 border-b-2 border-ink bg-yellow px-5 py-4 sm:px-6">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-sm font-black uppercase text-ink/75">
+                <p className="type-eyebrow text-ink/75">
                   {t(locale, "Javni identitet", "Public identity")}
                 </p>
-                <h2 className="mt-1 text-3xl font-black leading-tight text-ink">
+                <h2 className="mt-2 type-h2 text-ink">
                   {[firstName, lastName].filter(Boolean).join(" ") || initialValues.email}
                 </h2>
               </div>
-              <div className="flex flex-wrap gap-2 text-xs font-black uppercase text-ink">
+              <div className="flex flex-wrap gap-2 type-eyebrow text-ink">
                 <span className="inline-flex items-center gap-2 rounded-[8px] border-2 border-ink bg-paper-strong px-3 py-2">
                   <ShieldCheck className="size-4" />
                   {initialValues.role}
@@ -673,7 +677,7 @@ export function ProfileEditor({
             </div>
           </div>
 
-          <div className="grid gap-6 p-5 sm:p-6 lg:grid-cols-[220px_minmax(0,1fr)]">
+          <div className="grid gap-6 p-6 lg:grid-cols-[220px_minmax(0,1fr)]">
             <div className="space-y-4">
               <button
                 type="button"
@@ -699,7 +703,7 @@ export function ProfileEditor({
                 className="hidden"
                 onChange={handleFileChange}
               />
-              <p className="text-center text-sm font-bold leading-6 text-muted">
+              <p className="text-center type-body-sm font-bold text-muted">
                 {t(
                   locale,
                   "Klikni ili prevuci sliku bilo gde na ovoj stranici. PNG, JPG ili WebP do 5MB.",
@@ -709,68 +713,74 @@ export function ProfileEditor({
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
-              <label className="block">
-                <span className="text-sm font-black text-ink">{t(locale, "Ime", "First name")}</span>
-                <input
-                  value={firstName}
-                  onChange={(event) => {
-                    setFirstName(event.target.value);
-                  }}
-                  className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-4 text-base font-extrabold text-ink outline-none transition focus:border-yellow focus:ring-4 focus:ring-yellow/25"
-                  required
-                />
-              </label>
-              <label className="block">
-                <span className="text-sm font-black text-ink">{t(locale, "Prezime", "Last name")}</span>
-                <input
-                  value={lastName}
-                  onChange={(event) => {
-                    setLastName(event.target.value);
-                  }}
-                  className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-4 text-base font-extrabold text-ink outline-none transition focus:border-yellow focus:ring-4 focus:ring-yellow/25"
-                  required
-                />
-              </label>
-              <label className="block sm:col-span-2">
-                <span className="text-sm font-black text-ink">Email</span>
-                <input
-                  value={initialValues.email}
-                  readOnly
-                  className="mt-2 h-12 w-full rounded-[8px] border-2 border-line bg-paper px-4 text-base font-extrabold text-muted outline-none"
-                />
-              </label>
-              <label className="block sm:col-span-2">
-                <span className="text-sm font-black text-ink">{t(locale, "Korisnicko ime (Jedinstveno)", "Username (Unique)")}</span>
-                <div className="relative mt-2">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-base font-black text-ink/45">@</span>
-                  <input
-                    ref={usernameInputRef}
-                    value={username}
-                    onChange={(event) => setUsername(event.target.value)}
-                    maxLength={20}
-                    pattern="[A-Za-zČĆŠĐŽčćšđž0-9._]{3,20}"
-                    className="h-12 w-full rounded-[8px] border-2 border-ink bg-paper-strong pl-8 pr-4 text-base font-extrabold text-ink outline-none transition focus:border-yellow focus:ring-4 focus:ring-yellow/25"
-                    placeholder="npr. jovan_m"
+              <Field label={t(locale, "Ime", "First name")}>
+                {(field) => (
+                  <Input
+                    {...field}
+                    value={firstName}
+                    onChange={(event) => {
+                      setFirstName(event.target.value);
+                    }}
+                    required
                   />
-                </div>
-                <p className="mt-1.5 text-xs text-muted">
-                  {t(locale, "Korisničko ime mora imati između 3 i 20 znakova, najmanje 3 slova, i može sadržati samo slova, cifre, tačku i donju crtu. Koristi se za pominjanje u zajednici (@username).", "Username must be 3–20 characters, contain at least 3 letters, and use only letters, numbers, periods, and underscores. Used for mentions (@username).")}
-                </p>
-              </label>
-              <label className="block sm:col-span-2">
-                <span className="flex items-center justify-between gap-3 text-sm font-black text-ink">
-                  <span>{t(locale, "Javna biografija", "Public bio")}</span>
-                  <span className="font-mono text-xs text-muted">{bio.length}/280</span>
-                </span>
-                <textarea
-                  value={bio}
-                  onChange={(event) => setBio(event.target.value)}
-                  maxLength={280}
-                  rows={4}
-                  placeholder={t(locale, "Ukratko predstavi sebe, svoj rad i šta želiš da naučiš.", "Briefly introduce yourself, your work, and what you want to learn.")}
-                  className="mt-2 w-full resize-y rounded-[8px] border-2 border-ink bg-paper-strong px-4 py-3 text-base font-bold leading-6 text-ink outline-none transition focus:border-yellow focus:ring-4 focus:ring-yellow/25"
-                />
-              </label>
+                )}
+              </Field>
+              <Field label={t(locale, "Prezime", "Last name")}>
+                {(field) => (
+                  <Input
+                    {...field}
+                    value={lastName}
+                    onChange={(event) => {
+                      setLastName(event.target.value);
+                    }}
+                    required
+                  />
+                )}
+              </Field>
+              <Field label="Email" className="sm:col-span-2">
+                {(field) => <Input {...field} value={initialValues.email} readOnly />}
+              </Field>
+              <Field
+                className="sm:col-span-2"
+                label={t(locale, "Korisnicko ime (Jedinstveno)", "Username (Unique)")}
+                hint={t(locale, "Od 3 do 20 znakova, najmanje 3 slova. Dozvoljeni su slova, cifre, tačka i donja crta. Drugi te ovako pominju u Zajednici.", "From 3 to 20 characters, with at least 3 letters. Letters, numbers, periods and underscores only. This is how others mention you in the Community.")}
+              >
+                {(field) => (
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-base font-black text-ink/45">@</span>
+                    <Input
+                      {...field}
+                      ref={usernameInputRef}
+                      value={username}
+                      onChange={(event) => setUsername(event.target.value)}
+                      maxLength={20}
+                      pattern="[A-Za-zČĆŠĐŽčćšđž0-9._]{3,20}"
+                      className="pl-8 pr-4"
+                      placeholder="npr. jovan_m"
+                    />
+                  </div>
+                )}
+              </Field>
+              <Field
+                className="sm:col-span-2"
+                label={
+                  <span className="flex items-center justify-between gap-3">
+                    <span>{t(locale, "Javna biografija", "Public bio")}</span>
+                    <span className="font-mono text-xs text-muted">{bio.length}/280</span>
+                  </span>
+                }
+              >
+                {(field) => (
+                  <Textarea
+                    {...field}
+                    value={bio}
+                    onChange={(event) => setBio(event.target.value)}
+                    maxLength={280}
+                    rows={4}
+                    placeholder={t(locale, "Ukratko predstavi sebe, svoj rad i šta želiš da naučiš.", "Briefly introduce yourself, your work, and what you want to learn.")}
+                  />
+                )}
+              </Field>
               <div className="grid gap-4 sm:col-span-2 sm:grid-cols-2">
                 {[
                   ["Website", websiteUrl, setWebsiteUrl, "https://tvojsajt.rs"],
@@ -778,16 +788,18 @@ export function ProfileEditor({
                   ["LinkedIn", linkedinUrl, setLinkedinUrl, "https://linkedin.com/in/username"],
                   ["YouTube", youtubeUrl, setYoutubeUrl, "https://youtube.com/@kanal"],
                 ].map(([label, value, setter, placeholder]) => (
-                  <label key={label as string} className="block">
-                    <span className="text-sm font-black text-ink">{label as string}</span>
-                    <input
-                      type="url"
-                      value={value as string}
-                      onChange={(event) => (setter as (value: string) => void)(event.target.value)}
-                      placeholder={placeholder as string}
-                      className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-4 text-sm font-bold text-ink outline-none transition focus:border-yellow focus:ring-4 focus:ring-yellow/25"
-                    />
-                  </label>
+                  <Field key={label as string} label={label as string}>
+                    {(field) => (
+                      <Input
+                        {...field}
+                        compact
+                        type="url"
+                        value={value as string}
+                        onChange={(event) => (setter as (value: string) => void)(event.target.value)}
+                        placeholder={placeholder as string}
+                      />
+                    )}
+                  </Field>
                 ))}
               </div>
               <div id="account-settings" className="scroll-mt-6 sm:col-span-2">
@@ -799,18 +811,18 @@ export function ProfileEditor({
                     <div className="flex min-h-12 items-center rounded-[8px] border-2 border-indigo-200 bg-paper-strong px-4 py-3">
                       <span className="font-mono text-base font-black text-ink">{MASKED_PASSWORD}</span>
                     </div>
-                    <p className="mt-3 text-sm font-bold leading-6">
+                    <p className="mt-3 type-body-sm font-bold">
                       {t(locale, "Promena lozinke je moguća samo preko sigurnog linka koji šaljemo na email tvog naloga.", "Your password can only be changed through a secure link sent to your account email.")}
                     </p>
-                    <button
-                      type="button"
+                    <Button
+                      size="sm"
                       onClick={requestPasswordReset}
-                      disabled={passwordResetPending}
-                      className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 py-2 text-xs font-black text-ink shadow-[3px_3px_0_0_var(--ink)] transition hover:-translate-y-0.5 disabled:opacity-60"
+                      loading={passwordResetPending}
+                      icon={<MailCheck className="size-4" />}
+                      className="mt-3 gap-2 px-4 shadow-[3px_3px_0_0_var(--ink)] hover:-translate-y-0.5"
                     >
-                      {passwordResetPending ? <Loader2 className="size-4 animate-spin" /> : <MailCheck className="size-4" />}
                       {t(locale, "Pošalji link za promenu lozinke", "Send password-change link")}
-                    </button>
+                    </Button>
                     {passwordResetMessage ? <p className="mt-3 text-xs font-black text-emerald-700">{passwordResetMessage}</p> : null}
                   </div>
                 ) : profileStatus?.emailVerifiedForCourses === false ? (
@@ -818,41 +830,51 @@ export function ProfileEditor({
                     <p className="text-sm font-bold">
                       {t(locale, "Potvrdi email klikom na link koji smo poslali. Polja za lozinku će se pojaviti nakon potvrde.", "Confirm your email using the link we sent. Password fields will appear after confirmation.")}
                     </p>
-                    <button
-                      type="button"
+                    <Button
+                      size="sm"
                       onClick={requestEmailVerification}
-                      disabled={verificationPending || !profileStatus?.hasEmail}
-                      className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 py-2 text-xs font-black text-ink shadow-[3px_3px_0_0_var(--ink)] transition hover:-translate-y-0.5 disabled:opacity-60"
+                      loading={verificationPending}
+                      disabled={!profileStatus?.hasEmail}
+                      icon={<MailCheck className="size-4" />}
+                      className="gap-2 px-4 shadow-[3px_3px_0_0_var(--ink)] hover:-translate-y-0.5"
                     >
-                      {verificationPending ? <Loader2 className="size-4 animate-spin" /> : <MailCheck className="size-4" />}
                       {t(locale, "Pošalji ponovo", "Send again")}
-                    </button>
+                    </Button>
                   </div>
                 ) : (
                   <div className="mt-2 space-y-3 rounded-[8px] border-2 border-indigo-700 bg-indigo-50 p-4">
                     <p className="text-sm font-bold text-ink">
                       {t(locale, "Postavi lozinku za ovaj nalog. Polja ostaju prazna dok ih sam ne uneseš.", "Set a password for this account. The fields stay empty until you enter them.")}
                     </p>
-                    <label className="block">
-                      <span className="text-xs font-black uppercase text-ink/70">{t(locale, "Nova lozinka", "New password")}</span>
-                      <input
-                        type="password"
-                        value={newPassword}
-                        onChange={(event) => setNewPassword(event.target.value)}
-                        autoComplete="new-password"
-                        className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-4 text-base font-extrabold text-ink outline-none focus:border-yellow"
-                      />
-                    </label>
-                    <label className="block">
-                      <span className="text-xs font-black uppercase text-ink/70">{t(locale, "Potvrdi lozinku", "Confirm password")}</span>
-                      <input
-                        type="password"
-                        value={confirmPassword}
-                        onChange={(event) => setConfirmPassword(event.target.value)}
-                        autoComplete="new-password"
-                        className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-4 text-base font-extrabold text-ink outline-none focus:border-yellow"
-                      />
-                    </label>
+                    <Field label={<span className="type-eyebrow text-ink/70">{t(locale, "Nova lozinka", "New password")}</span>}>
+                      {(field) => (
+                        <Input
+                          {...field}
+                          type="password"
+                          value={newPassword}
+                          onChange={(event) => setNewPassword(event.target.value)}
+                          autoComplete="new-password"
+                        />
+                      )}
+                    </Field>
+                    <Field
+                      label={<span className="type-eyebrow text-ink/70">{t(locale, "Potvrdi lozinku", "Confirm password")}</span>}
+                      error={
+                        confirmPassword && newPassword !== confirmPassword
+                          ? t(locale, "Dve lozinke nisu iste. Upiši istu lozinku u oba polja.", "The two passwords are not the same. Type the same password in both fields.")
+                          : undefined
+                      }
+                    >
+                      {(field) => (
+                        <Input
+                          {...field}
+                          type="password"
+                          value={confirmPassword}
+                          onChange={(event) => setConfirmPassword(event.target.value)}
+                          autoComplete="new-password"
+                        />
+                      )}
+                    </Field>
                     <div className="grid gap-1 text-xs font-bold text-muted sm:grid-cols-2">
                       {passwordRequirements.map((requirement) => (
                         <span key={requirement.id} className={requirement.test(newPassword) ? "text-emerald-700" : "text-muted"}>
@@ -860,52 +882,54 @@ export function ProfileEditor({
                         </span>
                       ))}
                     </div>
-                    {confirmPassword && newPassword !== confirmPassword ? (
-                      <p className="text-xs font-black text-red-700">{t(locale, "Lozinke se ne poklapaju.", "Passwords do not match.")}</p>
-                    ) : null}
                   </div>
                 )}
               </div>
-              <label className="block sm:col-span-2">
-                <span className="text-sm font-black text-ink">{t(locale, "Jezik platforme", "Platform language")}</span>
-                <select
-                  value={language}
-                  onChange={(event) => {
-                    setLanguage(event.target.value as Locale);
-                  }}
-                  className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-4 text-base font-extrabold text-ink outline-none transition focus:border-yellow focus:ring-4 focus:ring-yellow/25"
-                >
-                  <option value="sr">Srpski</option>
-                  <option value="en">English</option>
-                </select>
-              </label>
-              <label className="block sm:col-span-2">
-                <span className="text-sm font-black text-ink">{t(locale, "Ko može da ti pošalje novu poruku", "Who can start a new chat with you")}</span>
-                <select
-                  value={dmPrivacy}
-                  onChange={(event) => setDmPrivacy(event.target.value as "requests" | "following" | "nobody")}
-                  className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-4 text-base font-extrabold text-ink outline-none transition focus:border-yellow focus:ring-4 focus:ring-yellow/25"
-                >
-                  <option value="requests">{t(locale, "Svi uz request", "Anyone, with a request")}</option>
-                  <option value="following">{t(locale, "Samo ljudi koje pratim", "Only people I follow")}</option>
-                  <option value="nobody">{t(locale, "Niko", "Nobody")}</option>
-                </select>
-                <p className="mt-1.5 text-xs font-bold text-muted">{t(locale, "Admin podrška može da započne razgovor kada je to potrebno za nalog.", "Admin support can still start a conversation when account help is required.")}</p>
-              </label>
+              <Field className="sm:col-span-2" label={t(locale, "Jezik platforme", "Platform language")}>
+                {(field) => (
+                  <Select
+                    {...field}
+                    value={language}
+                    onChange={(event) => {
+                      setLanguage(event.target.value as Locale);
+                    }}
+                  >
+                    <option value="sr">Srpski</option>
+                    <option value="en">English</option>
+                  </Select>
+                )}
+              </Field>
+              <Field
+                className="sm:col-span-2"
+                label={t(locale, "Ko može da ti pošalje novu poruku", "Who can start a new chat with you")}
+                hint={t(locale, "Admin podrška može da započne razgovor kada je to potrebno za nalog.", "Admin support can still start a conversation when account help is required.")}
+              >
+                {(field) => (
+                  <Select
+                    {...field}
+                    value={dmPrivacy}
+                    onChange={(event) => setDmPrivacy(event.target.value as "requests" | "following" | "nobody")}
+                  >
+                    <option value="requests">{t(locale, "Svi uz request", "Anyone, with a request")}</option>
+                    <option value="following">{t(locale, "Samo ljudi koje pratim", "Only people I follow")}</option>
+                    <option value="nobody">{t(locale, "Niko", "Nobody")}</option>
+                  </Select>
+                )}
+              </Field>
             </div>
           </div>
         </Panel>
 
-        <Panel className="p-5 sm:p-6">
+        <Panel className="p-6">
           <div className="flex items-start gap-3">
             <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-[8px] border-2 border-ink bg-yellow text-ink">
               <UserRound className="size-5" />
             </span>
             <div>
-              <h3 className="text-xl font-black text-ink">
+              <h3 className="type-h3 text-ink">
                 {t(locale, "Izaberi avatar", "Choose an avatar")}
               </h3>
-              <p className="mt-1 text-sm font-bold leading-6 text-muted">
+              <p className="mt-1 type-body-sm font-bold text-muted">
                 {t(
                   locale,
                   "Tri gotova lika ili prevuci svoju sliku bilo gde na ekranu.",
@@ -970,7 +994,7 @@ export function ProfileEditor({
               disabled={pending || isLoading || !isAuthenticated || profileStatus === undefined}
               className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-ink px-5 py-2.5 text-sm font-extrabold text-paper-strong shadow-[4px_4px_0_0_var(--yellow)] transition hover:-translate-y-0.5 disabled:opacity-60"
             >
-              {pending ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
+              {pending ? <Spinner /> : <CheckCircle2 className="size-4" />}
               {t(locale, "Sacuvaj izmene", "Save changes")}
             </button>
             {message ? (

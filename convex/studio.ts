@@ -11,8 +11,15 @@ import {
   query,
   type QueryCtx,
 } from "./_generated/server";
-import { applySettlement, applySpend } from "./credits";
-import { MAX_PROMPT_LENGTH, validatePrompt } from "./creditsCore";
+import { applyGrant, applySettlement, applySpend } from "./credits";
+import {
+  canonicalizeEmailForAntiFarm,
+  MAX_PROMPT_LENGTH,
+  type ModerationCategory,
+  SIGNUP_BONUS_CREDITS,
+  signupBonusKey,
+  validatePrompt,
+} from "./creditsCore";
 import { getCurrentProfile, requireUserId } from "./helpers";
 import { applyTaskCompletion, assertLessonAccess } from "./lab";
 import { parseJobInputs } from "./providers/jobInputs";
@@ -40,17 +47,17 @@ import { computeCostUsd, computeCredits, parsePriceRule, pricingModeFor } from "
 import { planSettlement } from "./studioSettlementCore";
 import {
   computeCreditCost,
+  computeEstimatedCostUsd,
   dayKey,
+  decideStudioAccess,
   exceedsDailyCostLimit,
   exceedsUnsettledCostLimit,
   extractPrompt,
-  hasStudioAccess,
   INPUT_UPLOAD_TTL_MS,
+  isEmailVerifiedForStudio,
   isMeasureBlocked,
   isMockRequestId,
   isStudioStaff,
-  MAX_ACTIVE_JOBS,
-  MAX_DAILY_GENERATIONS,
   MEASURE_RATE_WINDOW_MS,
   MEASURE_UPLOAD_HOURLY_LIMIT,
   outputExpiresAt,
@@ -58,10 +65,15 @@ import {
   ownerHandle,
   parseParams,
   promptHash,
+  providerKeyPresent,
   providerStatus,
-  requestedImageCount,
+  resolveStudioLimits,
   sanitizeParams,
   STUDIO_FLAG_KEY,
+  STUDIO_PUBLIC_CONFIG_KEYS,
+  STUDIO_PUBLIC_FLAG_KEY,
+  type StudioAccessDecision,
+  type StudioPublicConfig,
   UPLOAD_GRANT_CLOCK_SLACK_MS,
   UPLOAD_GRANT_TTL_MS,
 } from "./studioCore";
@@ -94,6 +106,24 @@ type PricedOrder = {
   durationSource?: DurationSource;
   headerDurationS?: number;
   billedDurationS?: number;
+};
+
+/**
+ * Pogodak blok liste (studio-public F2.5). NIJE throw, nego povratna vrednost:
+ * bačena greška rollback-uje CELU transakciju, pa bi i log o odbijanju nestao
+ * - a brif traži da se odbijanja pamte. `createJob` na ovaj ishod upiše red u
+ * `studioModerationLog` (jedini upis te transakcije) i vrati
+ * `{ moderationBlocked }` klijentu. PRAZAN/PREDUGACAK i dalje bacaju - to je
+ * validacija forme, ne moderacioni događaj, i ne pravi log šum.
+ */
+type ModerationRejection = {
+  moderation: {
+    reason: "ZABRANJEN_POJAM";
+    category: ModerationCategory;
+    /** Ceo tekst se NE loguje - iz njega se izvode samo hash i dužina. */
+    prompt: string;
+    modelSlug: string;
+  };
 };
 
 /**
@@ -170,7 +200,7 @@ async function buildCatalogOrder(
   model: Doc<"models">,
   raw: Record<string, unknown>,
   args: { inputMode?: string; inputs?: string; sourceJobId?: Id<"generationJobs"> },
-): Promise<PricedOrder> {
+): Promise<PricedOrder | ModerationRejection> {
   if (!model.isEnabled) throw new Error("MODEL_NEDOSTUPAN");
 
   const spec = parseParamSpec(model.paramSpec);
@@ -265,7 +295,19 @@ async function buildCatalogOrder(
   if (!hasSlots || prompt.trim().length > 0) {
     const maxLength = typeof control?.max === "number" ? control.max : MAX_PROMPT_LENGTH;
     const check = validatePrompt(prompt, maxLength);
-    if (!check.ok) throw new Error(`NEISPRAVAN_PROMPT:${check.reason}`);
+    if (!check.ok) {
+      if (check.reason === "ZABRANJEN_POJAM") {
+        return {
+          moderation: {
+            reason: "ZABRANJEN_POJAM",
+            category: check.category ?? "illegal",
+            prompt,
+            modelSlug: model.slug,
+          },
+        };
+      }
+      throw new Error(`NEISPRAVAN_PROMPT:${check.reason}`);
+    }
   }
 
   const pricingMode = pricingModeFor(inputMode, hasVideoInput(inputs.inputs));
@@ -318,10 +360,22 @@ async function buildLegacyOrder(
   ctx: MutationCtx,
   modelSlug: string,
   params: Record<string, unknown>,
-): Promise<PricedOrder> {
+): Promise<PricedOrder | ModerationRejection> {
   const prompt = extractPrompt(params);
   const promptCheck = validatePrompt(prompt);
-  if (!promptCheck.ok) throw new Error(`NEISPRAVAN_PROMPT:${promptCheck.reason}`);
+  if (!promptCheck.ok) {
+    if (promptCheck.reason === "ZABRANJEN_POJAM") {
+      return {
+        moderation: {
+          reason: "ZABRANJEN_POJAM",
+          category: promptCheck.category ?? "illegal",
+          prompt,
+          modelSlug,
+        },
+      };
+    }
+    throw new Error(`NEISPRAVAN_PROMPT:${promptCheck.reason}`);
+  }
 
   // Model koji ne postoji i model koji je admin isključio su za korisnika
   // ista stvar: ne može se generisati na njemu.
@@ -348,12 +402,84 @@ async function buildLegacyOrder(
     params: cleanParams,
     prompt,
     creditCost: computeCreditCost(model, cleanParams),
-    // Nabavna cena raste sa brojem slika isto kao i naplata: bez toga dnevni
-    // plafon od 5 $ propušta do 20 $ stvarnog troška (`num_images: 4`).
-    estimatedCostUsd: model.estimatedCostUsd * requestedImageCount(cleanParams),
+    // Nabavna cena raste ISTIM faktorima kao naplata - i brojem slika i
+    // trajanjem za per-second modele (studio-public F2.8, nalaz R8): bez
+    // množenja trajanjem je 30s klip punio dnevni plafon kao da traje sekund.
+    estimatedCostUsd: computeEstimatedCostUsd(model, cleanParams),
     // Stari katalog nema ulazne slotove, pa nema ni šta da veže za sebe.
     uploadIds: [],
   };
+}
+
+/**
+ * Javni fleg + numerički limiti (studio-public F1). Fleg OFF (ili odsutan
+ * red - suprotno podrazumevanje od kill switch-a, vidi `STUDIO_PUBLIC_FLAG_KEY`)
+ * košta tačno JEDNO indeksno čitanje; config redovi se čitaju tek kad je fleg
+ * upaljen, jer bez njega njihove vrednosti ništa ne znače.
+ */
+export async function loadStudioPublicState(
+  ctx: QueryCtx | MutationCtx,
+): Promise<{ publicEnabled: boolean; config: StudioPublicConfig }> {
+  const flag = await ctx.db
+    .query("platformFlags")
+    .withIndex("by_key", (q) => q.eq("key", STUDIO_PUBLIC_FLAG_KEY))
+    .unique();
+  if (flag?.enabled !== true) return { publicEnabled: false, config: {} };
+
+  const config: StudioPublicConfig = {};
+  for (const prop of Object.keys(STUDIO_PUBLIC_CONFIG_KEYS) as Array<
+    keyof typeof STUDIO_PUBLIC_CONFIG_KEYS
+  >) {
+    const row = await ctx.db
+      .query("platformFlags")
+      .withIndex("by_key", (q) => q.eq("key", STUDIO_PUBLIC_CONFIG_KEYS[prop]))
+      .unique();
+    // `enabled: false` je "vrati na podrazumevano" bez brisanja reda; validaciju
+    // (ceo broj > 0) radi `resolveStudioLimits`, ovde se samo prosleđuje.
+    if (row?.enabled && typeof row.value === "number") config[prop] = row.value;
+  }
+  return { publicEnabled: true, config };
+}
+
+/**
+ * Ista odluka za `createJob`, `getStudioState` i gejtovane pomoćne mutacije -
+ * `decideStudioAccess` je jedina tačka odluke (vidi komentar u `studioCore.ts`).
+ * Profil stiže već učitan da `createJob` ne bi čitao korisnika dvaput.
+ */
+async function evaluateStudioAccess(
+  ctx: QueryCtx | MutationCtx,
+  profile: { userId: Id<"users">; role: unknown; existing: Record<string, unknown> },
+  publicEnabled: boolean,
+): Promise<StudioAccessDecision> {
+  // Upis se čita i dalje (uspavana formula ispod `STUDIO_STAFF_ONLY` - X8);
+  // kad je javni fleg upaljen on ne učestvuje u odluci, ali čitanje ostaje
+  // jedno te isto da se dve grane ne bi razišle.
+  const enrollment = await ctx.db
+    .query("enrollments")
+    .withIndex("by_user", (q) => q.eq("userId", profile.userId))
+    .filter((q) => q.eq(q.field("status"), "active"))
+    .first();
+  return decideStudioAccess({
+    role: profile.role,
+    enrollment,
+    publicEnabled,
+    emailVerified: isEmailVerifiedForStudio(profile.existing),
+  });
+}
+
+/**
+ * Gejt po uzoru na `requireUserId` (brif F1): svaka Studio mutacija koja PRAVI
+ * resurse (upload grant, registracija fajla, projekat) zove ovo pre ijednog
+ * upisa, pa korisnik kojeg `createJob` ne bi pustio ne može ni da puni storage.
+ * Čitanja sopstvenih podataka (galerija, brisanje) namerno NE idu kroz ovo -
+ * gašenje flega ne sme korisniku da zaključa ono što je već platio.
+ */
+export async function requireStudioAccess(ctx: MutationCtx | QueryCtx) {
+  const profile = await getCurrentProfile(ctx);
+  const { publicEnabled, config } = await loadStudioPublicState(ctx);
+  const decision = await evaluateStudioAccess(ctx, profile, publicEnabled);
+  if (!decision.allowed) throw new Error(decision.reason);
+  return { ...profile, publicEnabled, config };
 }
 
 /**
@@ -389,7 +515,7 @@ export const createJob = mutation({
   },
   handler: async (ctx, args) => {
     // Uloga se čita zajedno sa korisnikom jer o pristupu odlučuje
-    // `hasStudioAccess` niže - `requireUserId` bi vratio samo ID, pa bi
+    // `decideStudioAccess` niže - `requireUserId` bi vratio samo ID, pa bi
     // enrollment ostao jedini kriterijum.
     const { userId, role, existing } = await getCurrentProfile(ctx);
 
@@ -410,17 +536,21 @@ export const createJob = mutation({
       .unique();
     if (flag && !flag.enabled) throw new Error("STUDIO_PAUZIRAN");
 
-    // Pristup (STUDIO-PLAN 4.4), privremeno suženo na osoblje dok naplata ne
-    // proradi - vidi `STUDIO_STAFF_ONLY` u `studioCore.ts`. Upis se i dalje čita
-    // i prosleđuje u `hasStudioAccess`, jer ta logika ostaje netaknuta ispod
-    // fleg - samo se trenutno ne pita. Ista funkcija odlučuje gde se gasi
-    // dugme u UI-ju; naplata ispod ostaje ista za sve.
-    const enrollment = await ctx.db
-      .query("enrollments")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .filter((q) => q.eq(q.field("status"), "active"))
-      .first();
-    if (!hasStudioAccess(role, enrollment)) throw new Error("NEMA_PRISTUPA");
+    // Pristup (STUDIO-PLAN 4.4 + studio-public F1): odluku donosi
+    // `decideStudioAccess` kroz `evaluateStudioAccess` - ugašen javni fleg
+    // reprodukuje `STUDIO_STAFF_ONLY` ponašanje u potpunosti (osoblje, uspavana
+    // formula upisa), upaljen pušta i svakog prijavljenog sa POTVRĐENIM emailom.
+    // Ista funkcija odlučuje gde se gasi dugme u UI-ju (`getStudioState`);
+    // naplata ispod ostaje ista za sve.
+    const publicState = await loadStudioPublicState(ctx);
+    const access = await evaluateStudioAccess(ctx, { userId, role, existing }, publicState.publicEnabled);
+    if (!access.allowed) throw new Error(access.reason);
+
+    // Granice za OVOG korisnika (studio-public F2.4): osoblje zadržava
+    // današnje (3 posla, 50/dan, bez minutnog i kreditnog kapa), javni
+    // korisnici dobijaju {2, 6/min, 200/dan, 500 kr/dan} sa config
+    // override-om iz `platformFlags`.
+    const limits = resolveStudioLimits(publicState.config, isStudioStaff(role));
 
     // Uslovi Studija (X7). Bez pečata nema prvog posla, i tu izuzetka nema:
     // admin i moderator generišu istim modelima, sa istim zabranama i istim
@@ -456,6 +586,61 @@ export const createJob = mutation({
     const order = v4Model
       ? await buildCatalogOrder(ctx, userId, v4Model, params, args)
       : await buildLegacyOrder(ctx, args.modelSlug, params);
+
+    // Pogodak blok liste (F2.5): jedini upis ove transakcije je log red -
+    // sve pre ovoga su čitanja, pa COMMIT ne ostavlja ni posao, ni potrošnju,
+    // ni zakazano slanje. Vraća se vrednost umesto greške da log preživi
+    // (throw bi ga rollback-ovao); klijent na `moderationBlocked` prikazuje
+    // istu poruku kao za NEISPRAVAN_PROMPT:ZABRANJEN_POJAM.
+    if ("moderation" in order) {
+      await ctx.db.insert("studioModerationLog", {
+        userId,
+        category: order.moderation.category,
+        reason: order.moderation.reason,
+        promptHash: promptHash(order.moderation.prompt),
+        promptLength: order.moderation.prompt.length,
+        modelSlug: order.moderation.modelSlug,
+        createdAt: Date.now(),
+      });
+      return {
+        moderationBlocked: {
+          reason: order.moderation.reason,
+          category: order.moderation.category,
+        },
+      };
+    }
+
+    // Trag propuštenog prompta (nalaz V8): otisak SVAKOG prompta koji je prošao
+    // keyword-filter, bez teksta - da bypass filtera (leet/homoglif/spajanje
+    // koji ipak provuče zabranjen sadržaj) NE bude nem. Piše se u ISTOJ
+    // transakciji kao rezervacija posla, pa persistira tačno kad posao zaista
+    // nastane (throw dole - DEMO/spor/limit - rollback-uje i posao i ovaj red,
+    // a takav posao ionako ne stiže do provajdera). Prazan prompt (samo-slot
+    // režim) se ne loguje: nema šta da se sondira.
+    if (order.prompt.trim().length > 0) {
+      await ctx.db.insert("studioPromptLog", {
+        userId,
+        promptHash: promptHash(order.prompt),
+        promptLength: order.prompt.length,
+        modelSlug: order.slug,
+        createdAt: Date.now(),
+      });
+    }
+
+    // DEMO zaštita (studio-public F2.9, nalaz R10): bez ključa provajdera
+    // posao ide u mock, a krediti se REALNO troše ("demo provajdera, ne
+    // ledgera"). Osoblju je to alat za testiranje; javni korisnik ne sme da
+    // plati SVG mock - model bez ključa je za njega nedostupan, isto kao
+    // isključen model. `providerKeyPresent` je ista (jedina) mock kapija koju
+    // čita i `submitJob`, pa server i DEMO pilula u biraču ne mogu da se raziđu.
+    if (
+      publicState.publicEnabled &&
+      !isStudioStaff(role) &&
+      !providerKeyPresent(order.provider, process.env)
+    ) {
+      throw new Error("MODEL_NEDOSTUPAN");
+    }
+
     const cleanParams = order.params;
     const estimatedCostUsd = order.estimatedCostUsd;
 
@@ -493,12 +678,14 @@ export const createJob = mutation({
     const reserved = await ctx.db
       .query("generationJobs")
       .withIndex("by_user_status", (q) => q.eq("userId", userId).eq("status", "reserved"))
-      .take(MAX_ACTIVE_JOBS);
+      .take(limits.maxConcurrentJobs);
     const running = await ctx.db
       .query("generationJobs")
       .withIndex("by_user_status", (q) => q.eq("userId", userId).eq("status", "running"))
-      .take(MAX_ACTIVE_JOBS);
-    if (reserved.length + running.length >= MAX_ACTIVE_JOBS) throw new Error("PREVISE_POSLOVA");
+      .take(limits.maxConcurrentJobs);
+    if (reserved.length + running.length >= limits.maxConcurrentJobs) {
+      throw new Error("PREVISE_POSLOVA");
+    }
 
     // Prozor između rezervacije i poravnanja (X2). Poslovi u letu su jedini o
     // kojima se još ništa ne zna osim procene, pa se njihov zbir drži nisko:
@@ -512,13 +699,37 @@ export const createJob = mutation({
     if (exceedsUnsettledCostLimit(inFlightCostUsd)) throw new Error("PREVISE_NEPORAVNATOG");
 
     const now = Date.now();
+
+    // Minutni limit (studio-public F2.4): brojanje kroz `by_user` indeks po
+    // `createdAt` opsegu. Convex OCC ovo čini bezbednim pod konkurentnošću -
+    // dva istovremena `createJob`-a čitaju isti opseg, pa insert pobednika
+    // preseca read-set gubitnika i on se ponavlja sa svežim brojem. `deleteJob`
+    // može da izbriše SAMO završen posao (in-flight odbija), pa rupa u prozoru
+    // znači završenu generaciju, ne prevaru.
+    if (limits.maxJobsPerMinute !== null) {
+      const lastMinute = await ctx.db
+        .query("generationJobs")
+        .withIndex("by_user", (q) => q.eq("userId", userId).gte("createdAt", now - 60_000))
+        .take(limits.maxJobsPerMinute);
+      if (lastMinute.length >= limits.maxJobsPerMinute) throw new Error("MINUTNI_LIMIT");
+    }
+
     const day = dayKey(now);
     const usage = await ctx.db
       .query("studioUsageDaily")
       .withIndex("by_user_day", (q) => q.eq("userId", userId).eq("day", day))
       .unique();
-    if ((usage?.generations ?? 0) >= MAX_DAILY_GENERATIONS) throw new Error("DNEVNI_LIMIT");
-    // Drugi plafon je u dolarima, ne u komadima: broj generacija ne kaže ništa
+    if ((usage?.generations ?? 0) >= limits.maxJobsPerDay) throw new Error("DNEVNI_LIMIT");
+    // Dnevni kap POTROŠNJE KREDITA (studio-public F2.4) - soft cap sa jasnom
+    // porukom: ništa se ne upisuje, krediti ostaju, sutra se nastavlja. Meri se
+    // ono što bi OVAJ posao doneo preko već potrošenog danas.
+    if (
+      limits.maxDailyCredits !== null &&
+      (usage?.creditsSpent ?? 0) + order.creditCost > limits.maxDailyCredits
+    ) {
+      throw new Error("DNEVNI_LIMIT_KREDITA");
+    }
+    // Treći plafon je u dolarima, ne u komadima: broj generacija ne kaže ništa
     // dok korisnik bira između modela od 0,005 $ i modela od 2 $.
     if (exceedsDailyCostLimit(usage?.costUsd ?? 0, estimatedCostUsd)) {
       throw new Error("DNEVNI_LIMIT_TROSKA");
@@ -795,6 +1006,15 @@ export const failJob = internalMutation({
   handler: async (ctx, args) => {
     const job = await ctx.db.get(args.jobId);
     if (!job) throw new Error("Posao nije pronađen.");
+    // Defense-in-depth (studio-public F2.8, nalaz R9): već oboren posao se ne
+    // obara ponovo - do sada je SAMO disciplina pozivalaca stajala između
+    // duplog poziva i drugog prolaza kroz refund granu (sam refund je ionako
+    // idempotentan po `by_job_type`). `done` se NAMERNO ne blokira: refund
+    // poravnatog posla kojem izlaz nikad nije stigao je ručna support staza
+    // (X2 ugovor, `studioSettlement.test.ts` "refund poravnatog posla") -
+    // korisnik do nje ne može (failJob je internal, svi produkcijski pozivaoci
+    // proveravaju `running`).
+    if (job.status === "failed" || job.status === "refunded") return null;
     await ctx.db.patch(args.jobId, { status: "failed", error: args.error, completedAt: Date.now() });
     const refund: { lotId: Id<"creditLots">; credits: number } | null = await ctx.runMutation(
       internal.credits.refundCredits,
@@ -1163,16 +1383,21 @@ export const listAllJobs = query({
 
     // Mejl vlasnika se čita jednom po korisniku, ne jednom po poslu: strana od
     // dvanaest kartica jednog korisnika je jedno čitanje, ne dvanaest.
+    // MODERATOR mejl ne dobija (studio-public F2.8, usklađeno sa
+    // `listJobOwners` iz X4): njemu je za grupisanje dovoljan `ownerHandle` -
+    // isti pseudonim koji već vidi u filteru po korisniku. Polje zadržava ime
+    // `ownerEmail` da UI ne puca; pola vremena to i dalje jeste mejl (admin).
     const emailByUser = new Map<Id<"users">, string>();
     const page: StaffJob[] = [];
     for (const job of result.page) {
-      if (!emailByUser.has(job.userId)) {
+      if (role === "admin" && !emailByUser.has(job.userId)) {
         const owner = await ctx.db.get(job.userId);
         emailByUser.set(job.userId, owner?.email ?? "");
       }
       page.push({
         ...(role === "admin" ? await toGalleryJob(ctx, job) : await toModerationJob(ctx, job)),
-        ownerEmail: emailByUser.get(job.userId) ?? "",
+        ownerEmail:
+          role === "admin" ? (emailByUser.get(job.userId) ?? "") : ownerHandle(job.userId),
         provider: providerBySlug.get(job.modelSlug) ?? "",
       });
     }
@@ -1478,7 +1703,10 @@ export const deleteJob = mutation({
 export const createInputUploadUrl = mutation({
   args: { slot: v.string() },
   handler: async (ctx, args) => {
-    const userId = await requireUserId(ctx);
+    // Gejt, ne samo prijava (studio-public F2.8, nalaz R1): svako izdavanje
+    // pravog upload URL-a puni `_storage` - nalog kojem `createJob` ne bi dao
+    // ništa nema šta ni da kači.
+    const { userId } = await requireStudioAccess(ctx);
 
     const now = Date.now();
     const grantId = await ctx.db.insert("studioUploadGrants", {
@@ -1513,7 +1741,9 @@ export const createInputUploadUrl = mutation({
 export const registerInputUpload = mutation({
   args: { storageId: v.id("_storage"), grantId: v.id("studioUploadGrants") },
   handler: async (ctx, args) => {
-    const userId = await requireUserId(ctx);
+    // Isti gejt kao `createInputUploadUrl` (F2.8): red u `studioUploads` je
+    // ulaznica za naplatu, ne pravi se bez prava na Studio.
+    const { userId } = await requireStudioAccess(ctx);
 
     const meta = await ctx.db.system.get("_storage", args.storageId);
     if (!meta) throw new Error("FAJL_NE_POSTOJI");
@@ -1665,6 +1895,79 @@ export const acceptStudioTerms = mutation({
   },
 });
 
+/**
+ * Bonus dobrodošlice javnog Studija (studio-public F2, brif F2.3). Eksplicitna
+ * claim mutacija koju shell sam okine kad `getStudioState.signupBonus.claimable`
+ * - pokriva i password-verify i Google i korisnike verifikovane PRE lansiranja
+ * (hook u samoj verifikaciji bi ove poslednje zauvek preskočio). Sve provere su
+ * server-side; "spoofable" ne postoji jer je direktan poziv legitiman put.
+ *
+ * Vraća diskriminisan rezultat umesto da baca: shell ovo zove oportunistički i
+ * odbijanje nije greška (fleg ugašen, email nepotvrđen, duplikat) - a granted
+ * ishod je idempotentan (`signup:<userId>` ključ + `by_user_source` drugi sloj
+ * u `applyGrant`).
+ */
+export const claimSignupBonus = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const { userId, existing, email } = await getCurrentProfile(ctx);
+
+    const { publicEnabled } = await loadStudioPublicState(ctx);
+    if (!publicEnabled) return { granted: false as const, reason: "STUDIO_NIJE_JAVAN" as const };
+    if (!isEmailVerifiedForStudio(existing)) {
+      return { granted: false as const, reason: "EMAIL_NIJE_POTVRDJEN" as const };
+    }
+
+    // Anti-farm (brif F2.3 + nalaz V4): bonus se NE dodeljuje ako postoji DRUGI
+    // živ nalog iz ISTOG inboxa. `red@`, `red+1@` i `r.ed@gmail.com` su isti
+    // Gmail sandučić ali RAZLIČITI stringovi, pa se poredi KANONSKI oblik (skinut
+    // `+tag` i tačke, `googlemail.com`->`gmail.com`) - login/prikazani email se ne
+    // dira. Merge takve parove spaja sam pri OAuth prijavi (legitiman put je
+    // "prijavi se Google-om pa uzmi bonus"); husk redovi (`mergedInto`) imaju i
+    // email i `emailCanonical` obrisane, pa ih indeksi ne vraćaju.
+    const canonical = canonicalizeEmailForAntiFarm(email);
+    if (!canonical) return { granted: false as const, reason: "DUPLIRAN_EMAIL" as const };
+
+    // Self-heal: legacy nalog bez ključa dobija ga ovde (upsert pri prijavi ga
+    // već piše za nove), da ga budući alias-claim iz istog inboxa nađe. Ne dira
+    // email. Preskače upis kad je ključ već tačan (nema suvišnog write-a ni OCC
+    // sudara na uzastopnim claim-ovima).
+    if (existing.emailCanonical !== canonical) {
+      await ctx.db.patch(userId, { emailCanonical: canonical });
+    }
+
+    // Kanonizacija na OBE strane: `email_canonical` hvata alias-braću (nose isti
+    // kanonski ključ), a `email` indeks nad kanonskim oblikom hvata i legacy
+    // nalog čiji je zapisan email SLUČAJNO već kanonski (`red@gmail.com`).
+    const [byCanonical, byEmail] = await Promise.all([
+      ctx.db
+        .query("users")
+        .withIndex("email_canonical", (q) => q.eq("emailCanonical", canonical))
+        .take(5),
+      ctx.db
+        .query("users")
+        .withIndex("email", (q) => q.eq("email", canonical))
+        .take(5),
+    ]);
+    const duplicate = [...byCanonical, ...byEmail].some(
+      (row) => row._id !== userId && !row.mergedInto,
+    );
+    if (duplicate) return { granted: false as const, reason: "DUPLIRAN_EMAIL" as const };
+
+    // Ista transakcija kao i sve ostalo u ovoj mutaciji; dodela se sama upiše
+    // u `creditTransactions` (type "bonus") - to je i traženi log dodela.
+    await applyGrant(ctx, {
+      userId,
+      amount: SIGNUP_BONUS_CREDITS,
+      source: "signup_bonus",
+      idempotencyKey: { field: "stripeInvoiceId", value: signupBonusKey(userId) },
+      meta: { note: "signup bonus (studio-public)" },
+    });
+
+    return { granted: true as const, amount: SIGNUP_BONUS_CREDITS };
+  },
+});
+
 export const getStudioState = query({
   args: {},
   handler: async (ctx) => {
@@ -1675,29 +1978,49 @@ export const getStudioState = query({
       .withIndex("by_key", (q) => q.eq("key", STUDIO_FLAG_KEY))
       .unique();
 
+    const publicState = await loadStudioPublicState(ctx);
+    const access = await evaluateStudioAccess(ctx, { userId, role, existing }, publicState.publicEnabled);
+    const emailVerified = isEmailVerifiedForStudio(existing);
+    // Ista granica po kojoj bi `createJob` odbio sledeći posao - dugme i
+    // server ne smeju da tvrde suprotno (studio-public F2.4: osoblje 3, javni 2).
+    const limits = resolveStudioLimits(publicState.config, isStudioStaff(role));
+
+    // Sme li shell da okine `claimSignupBonus`: fleg ON + potvrđen email + lot
+    // još ne postoji. Anti-farm proveru radi sama mutacija (ovo je samo prikaz).
+    const signupBonusLot =
+      publicState.publicEnabled && emailVerified
+        ? await ctx.db
+            .query("creditLots")
+            .withIndex("by_user_source", (q) => q.eq("userId", userId).eq("source", "signup_bonus"))
+            .first()
+        : null;
+
     const reserved = await ctx.db
       .query("generationJobs")
       .withIndex("by_user_status", (q) => q.eq("userId", userId).eq("status", "reserved"))
-      .take(MAX_ACTIVE_JOBS);
+      .take(limits.maxConcurrentJobs);
     const running = await ctx.db
       .query("generationJobs")
       .withIndex("by_user_status", (q) => q.eq("userId", userId).eq("status", "running"))
-      .take(MAX_ACTIVE_JOBS);
-
-    const enrollment = await ctx.db
-      .query("enrollments")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .filter((q) => q.eq(q.field("status"), "active"))
-      .first();
+      .take(limits.maxConcurrentJobs);
 
     return {
       // Red koji ne postoji znači "nikad nije ni gašen" - isto čitanje kao u
       // `createJob`, da UI i server nikad ne tvrde suprotno.
       enabled: flag ? flag.enabled : true,
-      // Ne "je li upisan" nego "sme li u Studio" - ista funkcija koju zove i
-      // `createJob`, pa dugme ne može biti sivo korisniku kojeg bi server
-      // pustio (ni obrnuto).
-      hasStudioAccess: hasStudioAccess(role, enrollment),
+      // Ne "je li upisan" nego "sme li u Studio" - ista odluka koju donosi i
+      // `createJob` (`decideStudioAccess`), pa dugme ne može biti sivo
+      // korisniku kojeg bi server pustio (ni obrnuto).
+      hasStudioAccess: access.allowed,
+      // ZAŠTO nema pristupa - shell po ovome bira panel: EMAIL_NIJE_POTVRDJEN
+      // dobija "potvrdi email" sa resend dugmetom, NEMA_PRISTUPA postojeću
+      // poruku o zatvorenom testiranju.
+      accessReason: access.allowed ? null : access.reason,
+      // Da li je Studio otvoren javnosti (F1 fleg) i da li je email potvrđen
+      // po STUDIO predikatu (Google OAuth se računa - vidi
+      // `isEmailVerifiedForStudio`).
+      publicEnabled: publicState.publicEnabled,
+      emailVerified,
       // Da li je pečat iz `acceptStudioTerms` upisan (X7). Isti uslov koji
       // `createJob` proverava na serveru, pa forma ne može da stoji otvorena
       // korisniku kojem bi prvi klik svakako pao na `USLOVI_NEPRIHVACENI`.
@@ -1709,7 +2032,12 @@ export const getStudioState = query({
       // `revealJobDetail` traži strogo `admin`, na serveru.
       isStudioAdmin: role === "admin",
       activeJobs: reserved.length + running.length,
-      maxActiveJobs: MAX_ACTIVE_JOBS,
+      maxActiveJobs: limits.maxConcurrentJobs,
+      // Bonus dobrodošlice javnog Studija (F2.3): shell na `claimable` okine
+      // `claimSignupBonus` (jednom - mutacija je idempotentna po korisniku).
+      signupBonus: {
+        claimable: publicState.publicEnabled && emailVerified && signupBonusLot === null,
+      },
       // SP2: koji provajder ima ključ - samo boolean-i, da birač označi DEMO
       // modele PRE klika. Ista funkcija koju `submitJob` koristi za mock kapiju,
       // pa UI i server nikad ne tvrde suprotno.

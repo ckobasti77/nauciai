@@ -10,7 +10,6 @@ import {
   Globe2,
   GraduationCap,
   ImagePlus,
-  Loader2,
   Save,
   Send,
   Trash2,
@@ -22,9 +21,10 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { CommunityAvatar, type CommunityRank } from "@/components/app/community-identity";
-import { CommunityThreadConfirmDialog } from "@/components/app/community-thread-dialog";
+import { ConfirmDialog } from "@/components/ui/dialog";
 import { Panel, cn } from "@/components/ui/primitives";
 import { useToast } from "@/components/ui/toast-provider";
+import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { Locale } from "@/lib/i18n";
@@ -471,11 +471,11 @@ export function CommunityPostEditor({
         );
         setProfileWarning(
           locale === "sr"
-            ? "Skica je sačuvana. Podesi username da bi se tred poslao na odobrenje ili objavio."
-            : "Your draft is saved. Set a username to submit or publish this thread.",
+            ? "Skica je sačuvana. Izaberi korisničko ime da bi tema mogla da se pošalje na odobrenje ili objavi."
+            : "Your draft is saved. Choose a username so this topic can be submitted or published.",
         );
         toast.warning(
-          locale === "sr" ? "Skica je sačuvana — podesi username za nastavak." : "Draft saved — set a username to continue.",
+          locale === "sr" ? "Skica je sačuvana — izaberi korisničko ime za nastavak." : "Draft saved — choose a username to continue.",
           undefined,
           {
             label: locale === "sr" ? "Podesi profil" : "Complete profile",
@@ -494,12 +494,12 @@ export function CommunityPostEditor({
           router.replace(withLocale(locale, `/app/community/${savedPostId}/edit`));
         }
       } else if (resolvedStatus === "published" && savedPostId) {
-        toast.success(locale === "sr" ? "Tred je objavljen." : "Thread published.");
-        setSuccess(locale === "sr" ? "Tred je objavljen." : "Thread published.");
+        toast.success(locale === "sr" ? "Tema je objavljena." : "Topic published.");
+        setSuccess(locale === "sr" ? "Tema je objavljena." : "Topic published.");
         window.setTimeout(() => router.push(withLocale(locale, `/app/community/${savedPostId}`)), 550);
       } else {
-        toast.success(locale === "sr" ? "Tred je poslat na odobrenje." : "Thread submitted for review.");
-        setSuccess(locale === "sr" ? "Tred je poslat na odobrenje." : "Thread submitted for review.");
+        toast.success(locale === "sr" ? "Tema je poslata na odobrenje." : "Topic submitted for review.");
+        setSuccess(locale === "sr" ? "Tema je poslata na odobrenje." : "Topic submitted for review.");
         window.setTimeout(
           () => router.push(withLocale(locale, "/app/community/my-threads?view=pending&submitted=1")),
           550,
@@ -507,11 +507,11 @@ export function CommunityPostEditor({
       }
     } catch (caughtError) {
       console.error(caughtError);
-      toast.error(locale === "sr" ? "Tred nije sačuvan." : "Thread could not be saved.");
+      toast.error(locale === "sr" ? "Tema nije sačuvana." : "The topic could not be saved.");
       setFormError(
         locale === "sr"
-          ? "Tred nije sačuvan. Sadržaj je ostao u editoru — proveri vezu i pokušaj ponovo."
-          : "The thread was not saved. Your content is still in the editor — check your connection and try again.",
+          ? "Tema nije sačuvana. Sve što si napisao/la je ostalo u polju — proveri internet i pokušaj ponovo."
+          : "The topic was not saved. Everything you wrote is still in the field — check your connection and try again.",
       );
     } finally {
       setPending(false);
@@ -531,8 +531,8 @@ export function CommunityPostEditor({
       setDeleteOpen(false);
       setFormError(
         locale === "sr"
-          ? "Tred nije obrisan. Osveži stranicu i pokušaj ponovo."
-          : "The thread was not deleted. Refresh the page and try again.",
+          ? "Tema nije obrisana. Osveži stranicu i pokušaj ponovo."
+          : "The topic was not deleted. Refresh the page and try again.",
       );
       setPending(false);
     }
@@ -558,14 +558,14 @@ export function CommunityPostEditor({
 
   if (isLoading || (isAuthenticated && (viewerData === undefined || communityFilters === undefined))) {
     return (
-      <div className="grid min-h-96 place-items-center" aria-busy="true" aria-label={locale === "sr" ? "Učitavanje editora" : "Loading editor"}>
-        <Loader2 className="size-9 animate-spin text-yellow motion-reduce:animate-none" />
+      <div className="grid min-h-96 place-items-center" aria-busy="true" aria-label={locale === "sr" ? "Učitavanje polja za pisanje" : "Loading the writing area"}>
+        <Spinner size="xl" className="text-yellow" />
       </div>
     );
   }
 
   return (
-    <div className="relative min-h-screen space-y-5 pb-8">
+    <div className="relative min-h-screen space-y-6 pb-8">
       {dragActive ? (
         <div
           className="pointer-events-none fixed inset-0 z-[110] grid place-items-center border-[6px] border-dashed border-ink bg-yellow/90 p-6 text-center backdrop-blur-sm"
@@ -576,11 +576,11 @@ export function CommunityPostEditor({
             <span className="mx-auto inline-flex size-20 items-center justify-center rounded-full border-2 border-ink bg-paper-strong shadow-[5px_5px_0_var(--ink)] motion-safe:animate-pulse">
               <UploadCloud className="size-9" />
             </span>
-            <p className="mt-5 text-2xl font-black md:text-4xl">
+            <p className="mt-6 type-hero">
               {locale === "sr" ? "Spusti sliku bilo gde" : "Drop the image anywhere"}
             </p>
             <p className="mt-2 text-sm font-bold opacity-75">
-              {locale === "sr" ? "Dodaćemo je kao prilog uz tred." : "We’ll add it as the thread attachment."}
+              {locale === "sr" ? "Dodaćemo je kao sliku uz temu." : "We’ll add it as the image for this topic."}
             </p>
           </div>
         </div>
@@ -592,7 +592,7 @@ export function CommunityPostEditor({
           className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line bg-paper-strong px-4 text-sm font-black text-ink transition hover:border-ink hover:bg-yellow/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         >
           <ArrowLeft className="size-4" />
-          {postId ? (locale === "sr" ? "Nazad na tred" : "Back to thread") : locale === "sr" ? "Nazad na diskusije" : "Back to discussions"}
+          {postId ? (locale === "sr" ? "Nazad na temu" : "Back to topic") : locale === "sr" ? "Nazad na diskusije" : "Back to discussions"}
         </Link>
         <SaveIndicator locale={locale} state={saveState} lastSavedAt={lastSavedAt} />
       </div>
@@ -602,7 +602,7 @@ export function CommunityPostEditor({
           <CloudCheck className="mt-0.5 size-5 shrink-0" />
           <div>
             <p className="text-sm font-black">{locale === "sr" ? "Vraćena je novija skica" : "A newer draft was restored"}</p>
-            <p className="mt-0.5 text-xs font-semibold leading-5">
+            <p className="mt-0.5 type-caption font-semibold">
               {locale === "sr" ? "Nastavi tamo gde si stao na ovom uređaju." : "Continue where you left off on this device."}
             </p>
           </div>
@@ -614,7 +614,7 @@ export function CommunityPostEditor({
           <CircleAlert className="mt-0.5 size-5 shrink-0" />
           <div>
             <p className="text-sm font-black">{locale === "sr" ? "Izmene koje je tražio moderator" : "Changes requested by a moderator"}</p>
-            <p className="mt-1 text-sm font-semibold leading-6">
+            <p className="mt-1 type-body-sm font-semibold">
               {initialPost?.moderationReason ||
                 (locale === "sr" ? "Proveri sadržaj pre ponovnog slanja." : "Review the content before submitting it again.")}
             </p>
@@ -663,7 +663,7 @@ export function CommunityPostEditor({
                     size="md"
                   />
                   <div>
-                    <p className="text-[11px] font-black uppercase tracking-[0.06em] text-ink/45">{locale === "sr" ? "Autor" : "Author"}</p>
+                    <p className="type-eyebrow text-ink/45">{locale === "sr" ? "Autor" : "Author"}</p>
                     <p className="text-sm font-black text-ink">{authorName}</p>
                   </div>
                 </div>
@@ -673,10 +673,10 @@ export function CommunityPostEditor({
               </div>
             </div>
 
-            <div className="space-y-7 p-5 md:p-7">
+            <div className="space-y-6 p-6">
               <div>
-                <label htmlFor="community-title" className="block text-xs font-black uppercase tracking-[0.06em] text-ink/55">
-                  {locale === "sr" ? "Naslov treda" : "Thread title"}
+                <label htmlFor="community-title" className="block type-eyebrow text-ink/55">
+                  {locale === "sr" ? "Naslov teme" : "Topic title"}
                 </label>
                 <input
                   id="community-title"
@@ -691,7 +691,7 @@ export function CommunityPostEditor({
                   aria-describedby={fieldErrors.title ? "community-title-error" : "community-title-help"}
                   placeholder={locale === "sr" ? "Šta želiš da pitaš ili podeliš?" : "What do you want to ask or share?"}
                   maxLength={160}
-                  className="mt-2 w-full rounded-[12px] border border-line bg-paper-strong px-4 py-3 text-xl font-black leading-tight text-ink outline-none transition placeholder:text-ink/30 focus:border-ink focus:ring-4 focus:ring-yellow/15 md:text-3xl"
+                  className="mt-2 w-full rounded-[12px] border border-line bg-paper-strong px-4 py-3 text-xl font-black leading-tight text-ink transition placeholder:text-ink/30 focus:border-ink focus:ring-4 focus:ring-yellow/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink md:text-3xl"
                 />
                 {fieldErrors.title ? (
                   <p id="community-title-error" className="mt-2 text-xs font-bold text-red-700">{fieldErrors.title}</p>
@@ -703,7 +703,7 @@ export function CommunityPostEditor({
               </div>
 
               <div>
-                <label htmlFor="community-scope" className="block text-xs font-black uppercase tracking-[0.06em] text-ink/55">
+                <label htmlFor="community-scope" className="block type-eyebrow text-ink/55">
                   {locale === "sr" ? "Gde pripada tema" : "Where this topic belongs"}
                 </label>
                 <div className="relative mt-2">
@@ -721,7 +721,7 @@ export function CommunityPostEditor({
                       setSelectedLessonId("");
                       markDirty();
                     }}
-                    className="min-h-11 w-full appearance-none rounded-[12px] border border-line bg-paper-strong py-2.5 pl-10 pr-4 text-sm font-black text-ink outline-none transition focus:border-ink focus:ring-4 focus:ring-yellow/15"
+                    className="min-h-11 w-full appearance-none rounded-[12px] border border-line bg-paper-strong py-2.5 pl-10 pr-4 text-sm font-black text-ink transition focus:border-ink focus:ring-4 focus:ring-yellow/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                   >
                     <option value="global">{locale === "sr" ? "Globalna zajednica" : "Global community"}</option>
                     {tracks.map((track) => (
@@ -756,7 +756,7 @@ export function CommunityPostEditor({
                           setSelectedLessonId("");
                           markDirty();
                         }}
-                        className="min-h-11 w-full rounded-[12px] border border-line bg-paper-strong px-3 text-sm font-black text-ink outline-none transition focus:border-ink focus:ring-4 focus:ring-yellow/15"
+                        className="min-h-11 w-full rounded-[12px] border border-line bg-paper-strong px-3 text-sm font-black text-ink transition focus:border-ink focus:ring-4 focus:ring-yellow/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                       >
                         <option value="">{locale === "sr" ? "Izaberi ciklus" : "Choose a cycle"}</option>
                         {availableCycles.map((cycle) => (
@@ -775,7 +775,7 @@ export function CommunityPostEditor({
                           markDirty();
                         }}
                         disabled={!selectedModuleId || availableLessons.length === 0}
-                        className="min-h-11 w-full rounded-[12px] border border-line bg-paper-strong px-3 text-sm font-black text-ink outline-none transition focus:border-ink focus:ring-4 focus:ring-yellow/15 disabled:cursor-not-allowed disabled:bg-[#eef3f7] dark:disabled:bg-ink/10 disabled:text-muted"
+                        className="min-h-11 w-full rounded-[12px] border border-line bg-paper-strong px-3 text-sm font-black text-ink transition focus:border-ink focus:ring-4 focus:ring-yellow/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:bg-[#eef3f7] dark:disabled:bg-ink/10 disabled:text-muted"
                       >
                         <option value="">{locale === "sr" ? "Izaberi lekciju" : "Choose a lesson"}</option>
                         {availableLessons.map((lesson) => (
@@ -794,10 +794,10 @@ export function CommunityPostEditor({
 
               <div>
                 <div className="flex items-end justify-between gap-3">
-                  <label htmlFor="community-body" className="block text-xs font-black uppercase tracking-[0.06em] text-ink/55">
+                  <label htmlFor="community-body" className="block type-eyebrow text-ink/55">
                     {locale === "sr" ? "Sadržaj" : "Content"}
                   </label>
-                  <span className="text-[11px] font-bold tabular-nums text-ink/40">{body.length}</span>
+                  <span className="type-caption font-bold tabular-nums text-ink/40">{body.length}</span>
                 </div>
                 <textarea
                   id="community-body"
@@ -816,7 +816,7 @@ export function CommunityPostEditor({
                   }
                   rows={13}
                   maxLength={20_000}
-                  className="mt-2 min-h-[320px] w-full resize-y rounded-[12px] border border-line bg-paper-strong px-4 py-3 text-base font-semibold leading-7 text-ink/85 outline-none transition placeholder:text-ink/30 focus:border-ink focus:ring-4 focus:ring-yellow/15"
+                  className="mt-2 min-h-[320px] w-full resize-y rounded-[12px] border border-line bg-paper-strong px-4 py-3 type-body font-semibold text-ink/85 transition placeholder:text-ink/30 focus:border-ink focus:ring-4 focus:ring-yellow/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                 />
                 {fieldErrors.body ? (
                   <p id="community-body-error" className="mt-2 text-xs font-bold text-red-700">{fieldErrors.body}</p>
@@ -829,10 +829,10 @@ export function CommunityPostEditor({
 
               <div>
                 <div className="flex items-end justify-between gap-3">
-                  <label htmlFor="community-image" className="block text-xs font-black uppercase tracking-[0.06em] text-ink/55">
+                  <label htmlFor="community-image" className="block type-eyebrow text-ink/55">
                     {locale === "sr" ? "Slika (opciono)" : "Image (optional)"}
                   </label>
-                  {imageFileName ? <span className="max-w-[50%] truncate text-[11px] font-bold text-ink/45">{imageFileName}</span> : null}
+                  {imageFileName ? <span className="max-w-[50%] truncate type-caption font-bold text-ink/45">{imageFileName}</span> : null}
                 </div>
                 <input
                   id="community-image"
@@ -893,7 +893,7 @@ export function CommunityPostEditor({
                     disabled={uploadingImage}
                     className="mt-2 flex min-h-36 w-full flex-col items-center justify-center rounded-[16px] border border-dashed border-line bg-paper/45 p-6 text-center transition hover:border-ink hover:bg-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-wait disabled:opacity-60"
                   >
-                    {uploadingImage ? <Loader2 className="size-7 animate-spin text-ink/55" /> : <ImagePlus className="size-7 text-ink/50" />}
+                    {uploadingImage ? <Spinner size="xl" className="text-ink/55" /> : <ImagePlus className="size-7 text-ink/50" />}
                     <span className="mt-2 text-sm font-black text-ink">
                       {uploadingImage
                         ? locale === "sr"
@@ -914,21 +914,21 @@ export function CommunityPostEditor({
 
         <aside className="space-y-4 xl:sticky xl:top-5 xl:self-start">
           <Panel className="rounded-[16px] border border-line bg-paper-strong p-4 shadow-none">
-            <p className="font-display text-lg text-ink">{locale === "sr" ? "Pre objave" : "Before publishing"}</p>
-            <h2 className="mt-1 text-lg font-black text-ink">{locale === "sr" ? "Brza provera" : "Quick check"}</h2>
-            <ul className="mt-4 space-y-3 text-sm font-semibold leading-5 text-ink/70">
+            <p className="type-eyebrow text-ink">{locale === "sr" ? "Pre objave" : "Before publishing"}</p>
+            <h2 className="mt-2 type-h3 text-ink">{locale === "sr" ? "Brza provera" : "Quick check"}</h2>
+            <ul className="mt-4 space-y-3 type-body-sm font-semibold text-ink/70">
               <ChecklistItem done={Boolean(title.trim())} label={locale === "sr" ? "Jasan naslov" : "Clear title"} />
               <ChecklistItem done={Boolean(body.trim())} label={locale === "sr" ? "Dovoljno konteksta" : "Enough context"} />
               <ChecklistItem done label={locale === "sr" ? "Bez privatnih podataka" : "No private information"} />
             </ul>
-            <div className="mt-5 rounded-[12px] border border-line bg-paper/55 p-3 text-xs font-semibold leading-5 text-ink/65">
+            <div className="mt-5 rounded-[12px] border border-line bg-paper/55 p-3 type-caption font-semibold text-ink/65">
               {isStaff
                 ? locale === "sr"
-                  ? "Staff tred se objavljuje odmah."
-                  : "Staff threads publish immediately."
+                  ? "Tvoja tema se objavljuje odmah, bez provere."
+                  : "Your topic is published immediately, without review."
                 : locale === "sr"
-                  ? "Nakon slanja, moderator proverava tred pre objave."
-                  : "After submission, a moderator reviews the thread before publishing."}
+                  ? "Kad pošalješ, moderator prvo pročita temu pa je objavi."
+                  : "Once you send it, a moderator reads the topic and then publishes it."}
             </div>
           </Panel>
         </aside>
@@ -936,9 +936,9 @@ export function CommunityPostEditor({
 
       <div className="sticky bottom-3 z-30 rounded-[16px] border-2 border-ink bg-paper-strong/95 p-3 shadow-[5px_5px_0_var(--shadow-hard-16)] backdrop-blur sm:flex sm:items-center sm:justify-between sm:gap-4">
         <div className="mb-3 min-w-0 sm:mb-0">
-          <p className="text-xs font-black uppercase tracking-[0.06em] text-ink/45">{statusText(currentStatus, locale)}</p>
+          <p className="type-eyebrow text-ink/45">{statusText(currentStatus, locale)}</p>
           <p className="mt-0.5 truncate text-sm font-bold text-ink">
-            {title.trim() || (locale === "sr" ? "Tred bez naslova" : "Untitled thread")}
+            {title.trim() || (locale === "sr" ? "Tema bez naslova" : "Untitled topic")}
           </p>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
@@ -947,7 +947,7 @@ export function CommunityPostEditor({
               type="button"
               onClick={() => setDeleteOpen(true)}
               disabled={pending}
-              aria-label={locale === "sr" ? "Obriši tred" : "Delete thread"}
+              aria-label={locale === "sr" ? "Obriši temu" : "Delete topic"}
               className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-red-200 bg-paper-strong px-3 text-red-600 transition hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 disabled:opacity-50"
             >
               <Trash2 className="size-4" />
@@ -959,7 +959,7 @@ export function CommunityPostEditor({
             disabled={pending || uploadingImage}
             className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 text-sm font-black text-ink transition hover:bg-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
           >
-            {pending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+            {pending ? <Spinner /> : <Save className="size-4" />}
             {locale === "sr" ? "Sačuvaj skicu" : "Save draft"}
           </button>
           <button
@@ -968,11 +968,11 @@ export function CommunityPostEditor({
             disabled={pending || uploadingImage}
             className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black text-ink shadow-[3px_3px_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:translate-y-0.5 disabled:opacity-50"
           >
-            {pending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+            {pending ? <Spinner /> : <Send className="size-4" />}
             {isStaff
               ? locale === "sr"
-                ? "Objavi tred"
-                : "Publish thread"
+                ? "Objavi temu"
+                : "Publish topic"
               : currentStatus === "changes_requested"
                 ? locale === "sr"
                   ? "Ponovo pošalji"
@@ -984,15 +984,15 @@ export function CommunityPostEditor({
         </div>
       </div>
 
-      <CommunityThreadConfirmDialog
+      <ConfirmDialog
         open={deleteOpen}
-        title={locale === "sr" ? "Obrisati tred?" : "Delete thread?"}
+        title={locale === "sr" ? "Obrisati temu?" : "Delete topic?"}
         description={
           locale === "sr"
-            ? "Tred i svi komentari biće trajno uklonjeni. Ova radnja ne može da se poništi."
-            : "The thread and all comments will be permanently removed. This action cannot be undone."
+            ? "Tema i svi komentari biće trajno obrisani. Ovo ne može da se vrati."
+            : "The topic and all its comments will be permanently deleted. This cannot be undone."
         }
-        confirmLabel={locale === "sr" ? "Obriši tred" : "Delete thread"}
+        confirmLabel={locale === "sr" ? "Obriši temu" : "Delete topic"}
         cancelLabel={locale === "sr" ? "Odustani" : "Cancel"}
         closeLabel={locale === "sr" ? "Zatvori dijalog" : "Close dialog"}
         busy={pending}
@@ -1024,11 +1024,11 @@ function SaveIndicator({ locale, state, lastSavedAt }: { locale: Locale; state: 
               : "Saved on this device"
             : state === "error"
               ? locale === "sr"
-                ? "Autosave nije uspeo"
-                : "Autosave failed"
+                ? "Nije sačuvano automatski"
+                : "Automatic saving failed"
               : locale === "sr"
-                ? "Autosave je uključen"
-                : "Autosave is on";
+                ? "Čuva se automatski"
+                : "Saved automatically";
 
   return (
     <p
@@ -1039,7 +1039,7 @@ function SaveIndicator({ locale, state, lastSavedAt }: { locale: Locale; state: 
       )}
       title={lastSavedAt ? new Date(lastSavedAt).toLocaleTimeString(locale === "sr" ? "sr-RS" : "en-US") : undefined}
     >
-      {state === "saving" ? <Loader2 className="size-3.5 animate-spin" /> : state === "saved_local" || state === "saved_server" ? <CloudCheck className="size-3.5" /> : <Cloud className="size-3.5" />}
+      {state === "saving" ? <Spinner size="xs" /> : state === "saved_local" || state === "saved_server" ? <CloudCheck className="size-3.5" /> : <Cloud className="size-3.5" />}
       {label}
     </p>
   );

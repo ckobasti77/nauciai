@@ -13,13 +13,21 @@ function makeT() {
 }
 type TestConvex = ReturnType<typeof makeT>;
 
-async function seedUser(t: TestConvex, email = "user@example.com", name = "Test User") {
+async function seedUser(
+  t: TestConvex,
+  email = "user@example.com",
+  name = "Test User",
+  // `moderator` iz istog razloga kao `seedWorld` u studio.test.ts (X8 ODLUKA
+  // 4): `createProject` od F2.8 traži pristup Studiju, a ovi testovi mere
+  // projekte, ne kapiju. Test kapije ispod eksplicitno traži `student`.
+  role: "student" | "moderator" = "moderator",
+) {
   const userId = await t.run(async (ctx) => {
     return await ctx.db.insert("users", {
       email,
       name,
       language: "sr" as const,
-      role: "student" as const,
+      role,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
@@ -202,5 +210,37 @@ describe("convex/studioProjects", () => {
     await expect(
       alice.mutation(api.studioProjects.renameProject, { projectId: p1, name: "Novo Ime" }),
     ).rejects.toThrow("NEMA_PRISTUPA");
+  });
+});
+
+// ── studio-public F2.8: kapija na createProject ────────────────────────────
+
+describe("convex/studioProjects: kapija", () => {
+  test("createProject bez pristupa Studiju pada na NEMA_PRISTUPA; sa javnim flegom i potvrđenim emailom prolazi", async () => {
+    const t = makeT();
+    const { userId, asUser } = await seedUser(t, "obican@example.com", "Bez Pristupa", "student");
+
+    await expect(
+      asUser.mutation(api.studioProjects.createProject, { name: "Ne sme" }),
+    ).rejects.toThrow(/NEMA_PRISTUPA/);
+
+    // Javni fleg + potvrđen email otvaraju i projekte.
+    await t.run(async (ctx) => {
+      await ctx.db.insert("platformFlags", { key: "studio_public", enabled: true });
+      await ctx.db.patch(userId, { emailVerificationTime: 1 });
+    });
+    const projectId = await asUser.mutation(api.studioProjects.createProject, { name: "Sada sme" });
+    expect(projectId).toBeDefined();
+
+    // Čitanje i arhiviranje SVOJIH projekata ostaju otvoreni i kad se fleg ugasi.
+    await t.run(async (ctx) => {
+      const flag = await ctx.db
+        .query("platformFlags")
+        .withIndex("by_key", (q) => q.eq("key", "studio_public"))
+        .unique();
+      if (flag) await ctx.db.patch(flag._id, { enabled: false });
+    });
+    expect(await asUser.query(api.studioProjects.listMyProjects, {})).toHaveLength(1);
+    await asUser.mutation(api.studioProjects.archiveProject, { projectId });
   });
 });

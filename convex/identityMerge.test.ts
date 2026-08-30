@@ -231,3 +231,293 @@ test("admin dry-run chooses complete profile before older incomplete duplicate",
   expect(preview.groups).toHaveLength(1);
   expect(preview.groups[0].canonicalUserId).toBe(ids.completeUserId);
 });
+
+// ── studio-public F2.10: krediti i brave prate čoveka (nalaz R4) ───────────
+
+test("merge prenosi lotove, dispute bravu, dug, projekte i pečat uslova - SPOR_U_TOKU grize i posle spajanja", async () => {
+  const t = createTest();
+  const ids = await t.run(async (ctx) => {
+    const canonicalUserId = await ctx.db.insert("users", {
+      email: "kupac@example.com",
+      appEmailVerificationTime: 10,
+      name: "Kupac",
+      username: "kupac",
+      // Moderator: end-to-end dokaz ispod ide kroz createJob bez javnog flega
+      // i bez provider ključa (DEMO guard preskače osoblje).
+      role: "moderator",
+      language: "sr",
+      createdAt: 1,
+      updatedAt: 10,
+    });
+    const duplicateUserId = await ctx.db.insert("users", { email: "kupac@example.com" });
+    await ctx.db.insert("authAccounts", {
+      userId: canonicalUserId,
+      provider: "google",
+      providerAccountId: "google-kupac",
+    });
+    await ctx.db.insert("authAccounts", {
+      userId: duplicateUserId,
+      provider: "password",
+      providerAccountId: "kupac@example.com",
+      secret: "hashed",
+    });
+    // Duplikat: prihvatio uslove, kupio kredite, dobio chargeback bravu, ima
+    // neporavnat dug, projekat, upload i današnju potrošnju.
+    await ctx.db.patch(duplicateUserId, { acceptedStudioTermsAt: 5 });
+    await ctx.db.insert("creditLots", {
+      userId: duplicateUserId,
+      source: "purchase",
+      granted: 500,
+      remaining: 100,
+      expiresAt: Date.now() + 1000 * 60 * 60 * 24 * 365,
+      grantedAt: 1,
+      stripeSessionId: "cs_merge_1",
+    });
+    await ctx.db.insert("creditTransactions", {
+      userId: duplicateUserId,
+      amount: 500,
+      type: "purchase",
+      balanceAfter: 500,
+      createdAt: 1,
+    });
+    await ctx.db.insert("creditReversals", {
+      userId: duplicateUserId,
+      kind: "dispute",
+      eventId: "evt_dispute_1",
+      revokedCredits: 500,
+      createdAt: 2,
+    });
+    await ctx.db.insert("generationJobs", {
+      userId: duplicateUserId,
+      modelSlug: "flux-2-flash",
+      kind: "image",
+      params: "{}",
+      promptHash: "0000000000000000",
+      status: "done",
+      creditCost: 20,
+      unsettledCredits: 5,
+      createdAt: 3,
+    });
+    await ctx.db.insert("studioProjects", {
+      userId: duplicateUserId,
+      name: "Prenet projekat",
+      createdAt: 4,
+      updatedAt: 4,
+    });
+    const storageId = await ctx.storage.store(new Blob(["x"], { type: "image/png" }));
+    await ctx.db.insert("studioUploads", {
+      userId: duplicateUserId,
+      storageId,
+      slot: "image",
+      bytes: 1,
+      createdAt: 5,
+    });
+    // Balans: kanonski +100, duplikat -30 (posle povlačenja) - zbir sme u minus.
+    await ctx.db.insert("creditBalances", {
+      userId: canonicalUserId,
+      balance: 100,
+      lifetimePurchased: 100,
+      lifetimeSpent: 0,
+      updatedAt: 1,
+    });
+    await ctx.db.insert("creditBalances", {
+      userId: duplicateUserId,
+      balance: -30,
+      lifetimePurchased: 500,
+      lifetimeSpent: 400,
+      updatedAt: 2,
+    });
+    const day = new Date().toISOString().slice(0, 10);
+    await ctx.db.insert("studioUsageDaily", {
+      userId: canonicalUserId,
+      day,
+      generations: 2,
+      creditsSpent: 40,
+      costUsd: 0.2,
+    });
+    await ctx.db.insert("studioUsageDaily", {
+      userId: duplicateUserId,
+      day,
+      generations: 3,
+      creditsSpent: 60,
+      costUsd: 0.3,
+    });
+    await ctx.db.insert("modelCatalog", {
+      slug: "flux-2-flash",
+      kind: "image",
+      labelSr: "F",
+      labelEn: "F",
+      descriptionSr: "o",
+      descriptionEn: "d",
+      provider: "fal",
+      falEndpoint: "fal-ai/flux-2/flash",
+      defaultParams: "{}",
+      paramSchema: "[]",
+      creditCost: 20,
+      estimatedCostUsd: 0.005,
+      isEnabled: true,
+      sortOrder: 1,
+      updatedAt: 1,
+    });
+    return { canonicalUserId, duplicateUserId, day };
+  });
+
+  await expect(
+    t.mutation(internal.identityMerge.mergeVerifiedUsers, {
+      canonicalUserId: ids.canonicalUserId,
+      duplicateUserId: ids.duplicateUserId,
+    }),
+  ).resolves.toMatchObject({ merged: true });
+
+  const state = await t.run(async (ctx) => ({
+    lots: await ctx.db
+      .query("creditLots")
+      .withIndex("by_user_expiry", (q) => q.eq("userId", ids.canonicalUserId))
+      .collect(),
+    reversals: await ctx.db
+      .query("creditReversals")
+      .withIndex("by_userId_and_kind", (q) => q.eq("userId", ids.canonicalUserId))
+      .collect(),
+    debt: await ctx.db
+      .query("generationJobs")
+      .withIndex("by_user_unsettled", (q) =>
+        q.eq("userId", ids.canonicalUserId).gt("unsettledCredits", 0),
+      )
+      .collect(),
+    projects: await ctx.db
+      .query("studioProjects")
+      .withIndex("by_user", (q) => q.eq("userId", ids.canonicalUserId))
+      .collect(),
+    uploads: await ctx.db
+      .query("studioUploads")
+      .withIndex("by_user", (q) => q.eq("userId", ids.canonicalUserId))
+      .collect(),
+    balanceCanonical: await ctx.db
+      .query("creditBalances")
+      .withIndex("by_user", (q) => q.eq("userId", ids.canonicalUserId))
+      .unique(),
+    balanceDuplicate: await ctx.db
+      .query("creditBalances")
+      .withIndex("by_user", (q) => q.eq("userId", ids.duplicateUserId))
+      .unique(),
+    usage: await ctx.db
+      .query("studioUsageDaily")
+      .withIndex("by_user_day", (q) => q.eq("userId", ids.canonicalUserId).eq("day", ids.day))
+      .collect(),
+    usageDuplicate: await ctx.db
+      .query("studioUsageDaily")
+      .withIndex("by_user_day", (q) => q.eq("userId", ids.duplicateUserId).eq("day", ids.day))
+      .collect(),
+    canonical: await ctx.db.get(ids.canonicalUserId),
+    husk: await ctx.db.get(ids.duplicateUserId),
+  }));
+
+  expect(state.lots).toHaveLength(1);
+  expect(state.reversals).toHaveLength(1);
+  expect(state.debt).toHaveLength(1);
+  expect(state.projects.map((p) => p.name)).toEqual(["Prenet projekat"]);
+  expect(state.uploads).toHaveLength(1);
+  // Zbir balansa sme u ukupan iznos sa minusom duplikata: 100 + (-30) = 70.
+  expect(state.balanceCanonical).toMatchObject({
+    balance: 70,
+    lifetimePurchased: 600,
+    lifetimeSpent: 400,
+  });
+  expect(state.balanceDuplicate).toBeNull();
+  // Dnevna potrošnja se SABIRA, ne resetuje: kvote ostaju poštene.
+  expect(state.usage).toHaveLength(1);
+  expect(state.usage[0]).toMatchObject({ generations: 5, creditsSpent: 100 });
+  expect(state.usage[0].costUsd).toBeCloseTo(0.5, 6);
+  expect(state.usageDuplicate).toHaveLength(0);
+  // Pečat uslova prati čoveka; husk ostaje bez svega.
+  expect(state.canonical?.acceptedStudioTermsAt).toBe(5);
+  expect(state.husk?.acceptedStudioTermsAt).toBeUndefined();
+
+  // END-TO-END: brava GRIZE na kanonskom nalogu - to je zatvaranje bega od
+  // chargeback-a. (Uslovi su preneti, pa pada baš na SPOR_U_TOKU.)
+  await expect(
+    t
+      .withIdentity({ subject: ids.canonicalUserId, tokenIdentifier: `test|${ids.canonicalUserId}` })
+      .mutation(api.studio.createJob, {
+        modelSlug: "flux-2-flash",
+        params: JSON.stringify({ prompt: "lisica" }),
+      }),
+  ).rejects.toThrow(/SPOR_U_TOKU/);
+});
+
+test("posle merge-a signup bonus ostaje JEDAN preko celog para naloga", async () => {
+  const t = createTest();
+  const ids = await t.run(async (ctx) => {
+    await ctx.db.insert("platformFlags", { key: "studio_public", enabled: true });
+    const canonicalUserId = await ctx.db.insert("users", {
+      email: "bonus@example.com",
+      appEmailVerificationTime: 10,
+      emailVerificationTime: 10,
+      name: "Bonus",
+      username: "bonus_user",
+      role: "student",
+      language: "sr",
+      createdAt: 1,
+      updatedAt: 10,
+    });
+    const duplicateUserId = await ctx.db.insert("users", { email: "bonus@example.com" });
+    await ctx.db.insert("authAccounts", {
+      userId: canonicalUserId,
+      provider: "google",
+      providerAccountId: "google-bonus",
+    });
+    await ctx.db.insert("authAccounts", {
+      userId: duplicateUserId,
+      provider: "password",
+      providerAccountId: "bonus@example.com",
+      secret: "hashed",
+    });
+    // Duplikat je VEĆ uzeo signup bonus pre spajanja.
+    await ctx.db.insert("creditLots", {
+      userId: duplicateUserId,
+      source: "signup_bonus",
+      granted: 25,
+      remaining: 25,
+      expiresAt: Date.now() + 1000 * 60 * 60 * 24 * 365,
+      grantedAt: 1,
+      stripeInvoiceId: `signup:${duplicateUserId}`,
+    });
+    await ctx.db.insert("creditBalances", {
+      userId: duplicateUserId,
+      balance: 25,
+      lifetimePurchased: 0,
+      lifetimeSpent: 0,
+      updatedAt: 1,
+    });
+    return { canonicalUserId, duplicateUserId };
+  });
+
+  await expect(
+    t.mutation(internal.identityMerge.mergeVerifiedUsers, {
+      canonicalUserId: ids.canonicalUserId,
+      duplicateUserId: ids.duplicateUserId,
+    }),
+  ).resolves.toMatchObject({ merged: true });
+
+  // Kanonski "claim" posle spajanja: drugi sloj (`by_user_source` nad
+  // prenesenim lotom) vraća POSTOJEĆI lot - ne kuje se nov.
+  const claim = await t
+    .withIdentity({ subject: ids.canonicalUserId, tokenIdentifier: `test|${ids.canonicalUserId}` })
+    .mutation(api.studio.claimSignupBonus, {});
+  expect(claim).toEqual({ granted: true, amount: 25 });
+
+  const state = await t.run(async (ctx) => ({
+    signupLots: (
+      await ctx.db
+        .query("creditLots")
+        .withIndex("by_user_expiry", (q) => q.eq("userId", ids.canonicalUserId))
+        .collect()
+    ).filter((lot) => lot.source === "signup_bonus"),
+    balance: await ctx.db
+      .query("creditBalances")
+      .withIndex("by_user", (q) => q.eq("userId", ids.canonicalUserId))
+      .unique(),
+  }));
+  expect(state.signupLots).toHaveLength(1);
+  expect(state.balance?.balance).toBe(25);
+});

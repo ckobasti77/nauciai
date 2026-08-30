@@ -36,7 +36,7 @@ export default function RichTextEditor({ value, fallback = "", onChange, minHeig
     },
     editorProps: {
       attributes: {
-        class: "rich-editor-content min-h-[var(--editor-min-height)] px-4 py-4 text-base font-semibold leading-7 text-ink outline-none",
+        class: "rich-editor-content min-h-[var(--editor-min-height)] px-4 py-4 type-body font-semibold text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
       },
     },
   });

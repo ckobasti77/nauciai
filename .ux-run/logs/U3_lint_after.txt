@@ -1,0 +1,255 @@
+
+> nauciai@0.1.0 lint
+> eslint
+
+
+C:\Users\admin\Desktop\Web Dev Projects\nauciai\.claude\skills\impeccable\scripts\concept-seed.mjs
+  99:3  warning  'WELL_TIERS' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\admin\Desktop\Web Dev Projects\nauciai\.claude\skills\impeccable\scripts\detect-csp.mjs
+  74:7  warning  'NUXT_ROUTE_RULES_SIGNALS' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\admin\Desktop\Web Dev Projects\nauciai\.claude\skills\impeccable\scripts\detector\browser\injected\index.mjs
+  263:11  warning  'hasSlop' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\admin\Desktop\Web Dev Projects\nauciai\.claude\skills\impeccable\scripts\detector\detect-antipatterns-browser.js
+  1601:9   warning  'rgbM' is assigned a value but never used                      @typescript-eslint/no-unused-vars
+  3222:52  warning  'win' is defined but never used                                @typescript-eslint/no-unused-vars
+  3526:10  warning  'buildCustomPropMap' is defined but never used                 @typescript-eslint/no-unused-vars
+  3862:10  warning  'checkNumberedSectionLabelsFromDoc' is defined but never used  @typescript-eslint/no-unused-vars
+  4140:10  warning  'checkElementRadialSpotlight' is defined but never used        @typescript-eslint/no-unused-vars
+  4140:49  warning  'tag' is defined but never used                                @typescript-eslint/no-unused-vars
+  4140:54  warning  'window' is defined but never used                             @typescript-eslint/no-unused-vars
+  4750:10  warning  'checkElementQuality' is defined but never used                @typescript-eslint/no-unused-vars
+  4759:10  warning  'checkElementBorders' is defined but never used                @typescript-eslint/no-unused-vars
+  4794:10  warning  'checkElementColors' is defined but never used                 @typescript-eslint/no-unused-vars
+  4884:10  warning  'checkElementHoverContrast' is defined but never used          @typescript-eslint/no-unused-vars
+  4924:10  warning  'checkElementIconTile' is defined but never used               @typescript-eslint/no-unused-vars
+  4961:10  warning  'checkElementItalicSerif' is defined but never used            @typescript-eslint/no-unused-vars
+  4972:10  warning  'checkElementHeroEyebrow' is defined but never used            @typescript-eslint/no-unused-vars
+  5009:10  warning  'checkKickerAboveHeadingFromDoc' is defined but never used     @typescript-eslint/no-unused-vars
+  5018:10  warning  'checkElementMotion' is defined but never used                 @typescript-eslint/no-unused-vars
+  5028:10  warning  'checkElementGlow' is defined but never used                   @typescript-eslint/no-unused-vars
+  5289:10  warning  'checkPageTypography' is defined but never used                @typescript-eslint/no-unused-vars
+  5374:10  warning  'checkPageLayout' is defined but never used                    @typescript-eslint/no-unused-vars
+  5534:10  warning  'checkRepeatedContainerTextFromDoc' is defined but never used  @typescript-eslint/no-unused-vars
+  5644:10  warning  'checkElementOversizedH1' is defined but never used            @typescript-eslint/no-unused-vars
+  5728:10  warning  'checkElementGptBorderShadow' is defined but never used        @typescript-eslint/no-unused-vars
+  5878:10  warning  'checkElementClippedOverflow' is defined but never used        @typescript-eslint/no-unused-vars
+  6209:10  warning  'checkContentHiddenAtRest' is defined but never used           @typescript-eslint/no-unused-vars
+  6918:11  warning  'hasSlop' is assigned a value but never used                   @typescript-eslint/no-unused-vars
+
+C:\Users\admin\Desktop\Web Dev Projects\nauciai\.claude\skills\impeccable\scripts\detector\engines\regex\detect-text.mjs
+  1:10  warning  'GENERIC_FONTS' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\admin\Desktop\Web Dev Projects\nauciai\.claude\skills\impeccable\scripts\detector\engines\static-html\detect-html.mjs
+   94:70  warning  'customPropMap' is defined but never used  @typescript-eslint/no-unused-vars
+  142:12  warning  'err' is defined but never used            @typescript-eslint/no-unused-vars
+
+C:\Users\admin\Desktop\Web Dev Projects\nauciai\.claude\skills\impeccable\scripts\detector\rules\checks.mjs
+   367:9   warning  'rgbM' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  1988:52  warning  'win' is defined but never used            @typescript-eslint/no-unused-vars
+  2906:49  warning  'tag' is defined but never used            @typescript-eslint/no-unused-vars
+  2906:54  warning  'window' is defined but never used         @typescript-eslint/no-unused-vars
+
+C:\Users\admin\Desktop\Web Dev Projects\nauciai\.claude\skills\impeccable\scripts\hook-admin.mjs
+  750:15  warning  'hook' is assigned a value but never used      @typescript-eslint/no-unused-vars
+  750:21  warning  'detector' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\admin\Desktop\Web Dev Projects\nauciai\.claude\skills\impeccable\scripts\hook-before-edit.mjs
+  296:11  warning  'prefix' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\admin\Desktop\Web Dev Projects\nauciai\.claude\skills\impeccable\scripts\lib\design-parser.mjs
+  199:7   warning  'RGBA_RE' is assigned a value but never used         @typescript-eslint/no-unused-vars
+  200:7   warning  'BOX_SHADOW_RE' is assigned a value but never used   @typescript-eslint/no-unused-vars
+  201:7   warning  'NAMED_RULE_RE' is assigned a value but never used   @typescript-eslint/no-unused-vars
+  553:10  warning  'scanInlineColors' is defined but never used         @typescript-eslint/no-unused-vars
+  564:10  warning  'parseStitchInlineGroups' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\admin\Desktop\Web Dev Projects\nauciai\.claude\skills\impeccable\scripts\lib\is-generated.mjs
+  52:12  warning  'err' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\admin\Desktop\Web Dev Projects\nauciai\.claude\skills\impeccable\scripts\lib\staleness.mjs
+  497:9  warning  'absProductPath' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\admin\Desktop\Web Dev Projects\nauciai\.claude\skills\impeccable\scripts\live-browser.js
+    274:5   warning  'cssId' is assigned a value but never used                  @typescript-eslint/no-unused-vars
+   1325:12  warning  'configureModifierPillStyle' is defined but never used      @typescript-eslint/no-unused-vars
+   1372:12  warning  'bindConfigureModifierPillHover' is defined but never used  @typescript-eslint/no-unused-vars
+   3060:7   warning  'paramsPanelInner' is assigned a value but never used       @typescript-eslint/no-unused-vars
+   5305:12  warning  'scopeCssBlock' is defined but never used                   @typescript-eslint/no-unused-vars
+   6654:22  warning  'why' is defined but never used                             @typescript-eslint/no-unused-vars
+   6708:23  warning  'why' is defined but never used                             @typescript-eslint/no-unused-vars
+   6710:13  warning  'prevTarget' is assigned a value but never used             @typescript-eslint/no-unused-vars
+   8664:12  warning  'commitAcceptedVariantToDom' is defined but never used      @typescript-eslint/no-unused-vars
+   9298:12  warning  'loadPickPref' is defined but never used                    @typescript-eslint/no-unused-vars
+   9302:12  warning  'savePickPref' is defined but never used                    @typescript-eslint/no-unused-vars
+   9422:31  warning  '_theme' is defined but never used                          @typescript-eslint/no-unused-vars
+   9907:31  warning  'reason' is defined but never used                          @typescript-eslint/no-unused-vars
+  12213:31  warning  'count' is defined but never used                           @typescript-eslint/no-unused-vars
+  12445:12  warning  'highlightBold' is defined but never used                   @typescript-eslint/no-unused-vars
+
+C:\Users\admin\Desktop\Web Dev Projects\nauciai\.claude\skills\impeccable\scripts\live-wrap.mjs
+  136:5   warning  'matchedQuery' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  343:7   warning  'outputLines' is defined but never used            @typescript-eslint/no-unused-vars
+  648:10  warning  'attrEscapeDouble' is defined but never used       @typescript-eslint/no-unused-vars
+
+C:\Users\admin\Desktop\Web Dev Projects\nauciai\.claude\skills\impeccable\scripts\live\frameworks\index.mjs
+  110:13  warning  'extensions' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\admin\Desktop\Web Dev Projects\nauciai\.claude\skills\impeccable\scripts\live\frameworks\tag-strategy.mjs
+  99:36  warning  '_syntax' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\admin\Desktop\Web Dev Projects\nauciai\.claude\skills\impeccable\scripts\live\instructions.mjs
+  88:55  warning  'scriptsPath' is defined but never used  @typescript-eslint/no-unused-vars
+  94:55  warning  'scriptsPath' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\admin\Desktop\Web Dev Projects\nauciai\.claude\skills\impeccable\scripts\live\manual-apply.mjs
+  849:3  warning  '_reason' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\admin\Desktop\Web Dev Projects\nauciai\.claude\skills\impeccable\scripts\live\svelte-component.mjs
+  172:10  warning  'buildVariantStub' is defined but never used        @typescript-eslint/no-unused-vars
+  463:10  warning  'appendCssToSvelteStyle' is defined but never used  @typescript-eslint/no-unused-vars
+  483:10  warning  'bakeParamValuesInCss' is defined but never used    @typescript-eslint/no-unused-vars
+
+C:\Users\admin\Desktop\Web Dev Projects\nauciai\.claude\skills\impeccable\scripts\modern-screenshot.umd.js
+   1:16    warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   1:597   warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   1:647   warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   1:744   warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   1:818   warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   1:1355  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   1:1612  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   1:1910  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   1:4308  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   1:4705  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   1:5212  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   1:5403  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   1:5458  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   1:5465  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   1:5781  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   1:5882  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   1:5977  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   1:5984  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   1:6180  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   1:8171  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   1:8396  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   1:8941  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   6:124   warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   6:490   warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   6:677   warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   6:912   warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   6:2200  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   6:2422  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   6:2549  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   6:2626  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   6:2943  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   6:3694  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   6:4000  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   6:4263  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   6:4459  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   6:4500  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   6:4711  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   6:4770  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   6:5678  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   6:6185  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   6:6269  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   6:6351  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   7:21    warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   7:65    warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   7:234   warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   7:376   warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   7:517   warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   7:967   warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   7:1731  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   7:1804  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   7:2191  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   7:2344  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   7:2833  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   7:3614  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   7:3677  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   7:3813  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   7:3855  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   7:4009  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   7:4211  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   7:5344  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   7:5567  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   7:5623  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   7:5792  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   7:6335  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   7:6426  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   8:291   warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   8:781   warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   8:1010  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   9:85    warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  10:890   warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  10:1436  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  14:40    warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  14:355   warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  14:376   warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  14:1075  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  14:2002  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  14:2052  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+  14:3467  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+
+C:\Users\admin\Desktop\Web Dev Projects\nauciai\.claude\skills\impeccable\scripts\palette.mjs
+  499:8   warning  'L' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  499:11  warning  'C' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\admin\Desktop\Web Dev Projects\nauciai\.claude\skills\impeccable\scripts\pin.mjs
+  16:70  warning  'readdirSync' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\admin\Desktop\Web Dev Projects\nauciai\components\app\admin-inline-actions.tsx
+   613:6   warning  'PlaybackTokenState' is defined but never used                                                                                                                                                                                                                                           @typescript-eslint/no-unused-vars
+   626:3   warning  'title' is defined but never used                                                                                                                                                                                                                                                        @typescript-eslint/no-unused-vars
+  2045:23  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Users\admin\Desktop\Web Dev Projects\nauciai\components\app\chat\chat-dock.tsx
+   6:8   warning  'Link' is defined but never used        @typescript-eslint/no-unused-vars
+  15:13  warning  'withLocale' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\admin\Desktop\Web Dev Projects\nauciai\components\app\dashboard-content.tsx
+  309:6   warning  'PlaybackTokenPayload' is defined but never used  @typescript-eslint/no-unused-vars
+  311:43  warning  'title' is defined but never used                 @typescript-eslint/no-unused-vars
+
+C:\Users\admin\Desktop\Web Dev Projects\nauciai\components\marketing\public-course-intro-video.tsx
+   6:10  warning  'cn' is defined but never used     @typescript-eslint/no-unused-vars
+  11:3   warning  'title' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\admin\Desktop\Web Dev Projects\nauciai\components\studio\model-picker.tsx
+   3:10  warning  'ArrowLeft' is defined but never used            @typescript-eslint/no-unused-vars
+   3:34  warning  'Lightbulb' is defined but never used            @typescript-eslint/no-unused-vars
+  13:3   warning  'filterModels' is defined but never used         @typescript-eslint/no-unused-vars
+  14:3   warning  'groupByFamily' is defined but never used        @typescript-eslint/no-unused-vars
+  32:3   warning  'recommendationLabel' is defined but never used  @typescript-eslint/no-unused-vars
+  33:3   warning  'recommendationsFor' is defined but never used   @typescript-eslint/no-unused-vars
+  34:8   warning  'Recommendation' is defined but never used       @typescript-eslint/no-unused-vars
+
+C:\Users\admin\Desktop\Web Dev Projects\nauciai\components\studio\studio-composer.tsx
+    41:49  warning  'modelRestrictions' is defined but never used                                                                                                            @typescript-eslint/no-unused-vars
+   570:12  warning  'switchMode' is defined but never used                                                                                                                   @typescript-eslint/no-unused-vars
+  1112:18  error    `routeDroppedFiles` is a function created with React Hook "useEffectEvent", and can only be called from Effects and Effect Events in the same component  react-hooks/rules-of-hooks
+
+C:\Users\admin\Desktop\Web Dev Projects\nauciai\convex\credits.test.ts
+  37:10  warning  'makeT' is defined but only used as a type  @typescript-eslint/no-unused-vars
+
+C:\Users\admin\Desktop\Web Dev Projects\nauciai\convex\crons.test.ts
+  14:10  warning  'makeT' is defined but only used as a type  @typescript-eslint/no-unused-vars
+
+C:\Users\admin\Desktop\Web Dev Projects\nauciai\convex\studio.test.ts
+  41:10  warning  'makeT' is defined but only used as a type  @typescript-eslint/no-unused-vars
+
+C:\Users\admin\Desktop\Web Dev Projects\nauciai\convex\studioActions.test.ts
+  13:10  warning  'makeT' is defined but only used as a type  @typescript-eslint/no-unused-vars
+
+C:\Users\admin\Desktop\Web Dev Projects\nauciai\convex\studioCatalogJob.test.ts
+  21:10  warning  'makeT' is defined but only used as a type  @typescript-eslint/no-unused-vars
+
+C:\Users\admin\Desktop\Web Dev Projects\nauciai\convex\studioSettlement.test.ts
+  21:10  warning  'makeT' is defined but only used as a type  @typescript-eslint/no-unused-vars
+
+C:\Users\admin\Desktop\Web Dev Projects\nauciai\get_google_creds.js
+  17:7  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+
+✖ 178 problems (1 error, 177 warnings)
+

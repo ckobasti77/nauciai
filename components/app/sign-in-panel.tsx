@@ -2,10 +2,12 @@
 
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useQuery } from "convex/react";
-import { ArrowLeft, CheckCircle2, KeyRound, Loader2, Mail } from "lucide-react";
+import { ArrowLeft, CheckCircle2, KeyRound, Mail } from "lucide-react";
 import { FormEvent, useState } from "react";
 
+import { Field, Input } from "@/components/ui/field";
 import { Panel, cn } from "@/components/ui/primitives";
+import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import { t, type Locale } from "@/lib/i18n";
 import { passwordRequirements, passwordValidationErrors } from "@/lib/password-policy";
@@ -277,78 +279,80 @@ function ConvexSignInForm({
             <ArrowLeft className="size-4" />
             {t(locale, "Nazad na prijavu", "Back to sign in")}
           </button>
-          <h2 className="mt-4 text-3xl font-black text-ink">{title}</h2>
+          <h2 className="mt-4 type-h1 text-ink">{title}</h2>
         </div>
       )}
 
       <form onSubmit={handlePassword} className="space-y-4">
-        <div>
-          <label htmlFor="email" className="text-sm font-black text-ink">
-            {flow === "signIn" ? t(locale, "Korisničko ime ili email", "Username or email") : "Email"}
-          </label>
-          <input
-            id="email"
-            name="email"
-            type={flow === "signIn" ? "text" : "email"}
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            required
-            autoComplete={flow === "signIn" ? "username" : "email"}
-            placeholder={flow === "signIn" ? t(locale, "@username ili ime@email.com", "@username or name@email.com") : undefined}
-            className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-4 text-base font-bold text-ink outline-none focus:border-yellow"
-          />
-        </div>
+        <Field
+          id="email"
+          label={flow === "signIn" ? t(locale, "Korisničko ime ili email", "Username or email") : "Email"}
+        >
+          {(field) => (
+            <Input
+              {...field}
+              name="email"
+              type={flow === "signIn" ? "text" : "email"}
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              required
+              autoComplete={flow === "signIn" ? "username" : "email"}
+              placeholder={flow === "signIn" ? t(locale, "@username ili ime@email.com", "@username or name@email.com") : undefined}
+            />
+          )}
+        </Field>
 
         {flow === "signUp" ? (
-          <div>
-            <label htmlFor="username" className="text-sm font-black text-ink">
-              {t(locale, "Korisničko ime", "Username")}
-            </label>
-            <div className="relative mt-2">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-base font-black text-ink/45">@</span>
-              <input
-                id="username"
-                name="username"
-                value={username}
-                onChange={(event) => setUsername(event.target.value)}
-                required
-                minLength={3}
-                maxLength={20}
-                pattern="[A-Za-zČĆŠĐŽčćšđž0-9._]{3,20}"
-                autoComplete="username"
-                className="h-12 w-full rounded-[8px] border-2 border-ink bg-paper-strong pl-8 pr-4 text-base font-extrabold text-ink outline-none focus:border-yellow"
-                placeholder="npr. čika_fox.123"
-              />
-            </div>
-            <p className={cn("mt-1.5 text-xs font-bold", usernameAvailable === false ? "text-red-700" : "text-muted")}>
-              {!normalizedUsername
+          <Field
+            id="username"
+            label={t(locale, "Korisničko ime", "Username")}
+            error={usernameAvailable === false ? t(locale, "Korisničko ime je već zauzeto.", "That username is already taken.") : undefined}
+            hint={
+              !normalizedUsername
                 ? t(locale, "Username se koristi za @pominjanja u Zajednici.", "Your username is used for @mentions in Community.")
                 : !usernameFormatValid
                   ? t(locale, USERNAME_VALIDATION_MESSAGE_SR, USERNAME_VALIDATION_MESSAGE_EN)
-                : usernameAvailable === undefined
-                  ? t(locale, "Provera dostupnosti…", "Checking availability…")
-                  : usernameAvailable
-                    ? t(locale, "Username je slobodan.", "Username is available.")
-                    : t(locale, "Korisničko ime je već zauzeto.", "That username is already taken.")}
-            </p>
-          </div>
+                  : usernameAvailable === undefined
+                    ? t(locale, "Provera dostupnosti…", "Checking availability…")
+                    : t(locale, "Username je slobodan.", "Username is available.")
+            }
+          >
+            {(field) => (
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-base font-black text-ink/45">@</span>
+                <Input
+                  {...field}
+                  name="username"
+                  value={username}
+                  onChange={(event) => setUsername(event.target.value)}
+                  required
+                  minLength={3}
+                  maxLength={20}
+                  pattern="[A-Za-zČĆŠĐŽčćšđž0-9._]{3,20}"
+                  autoComplete="username"
+                  className="pl-8 pr-4"
+                  placeholder="npr. čika_fox.123"
+                />
+              </div>
+            )}
+          </Field>
         ) : null}
 
         {flow === "signIn" || flow === "signUp" ? (
           <div>
-            <label htmlFor="password" className="text-sm font-black text-ink">
-              Password
-            </label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              required
-              minLength={8}
-              className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-4 text-base font-bold text-ink outline-none focus:border-yellow"
-            />
+            <Field id="password" label="Password">
+              {(field) => (
+                <Input
+                  {...field}
+                  name="password"
+                  type="password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  required
+                  minLength={8}
+                />
+              )}
+            </Field>
             {flow === "signUp" ? (
               <div className="mt-2 grid gap-1 text-xs font-bold text-muted sm:grid-cols-2">
                 {passwordRequirements.map((requirement) => (
@@ -369,63 +373,62 @@ function ConvexSignInForm({
         ) : null}
 
         {flow === "signUp" ? (
-          <div>
-            <label htmlFor="signupConfirmPassword" className="text-sm font-black text-ink">
-              {t(locale, "Potvrdi lozinku", "Confirm password")}
-            </label>
-            <input
-              id="signupConfirmPassword"
-              type="password"
-              value={signupConfirmPassword}
-              onChange={(event) => setSignupConfirmPassword(event.target.value)}
-              required
-              minLength={8}
-              autoComplete="new-password"
-              className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-4 text-base font-bold text-ink outline-none focus:border-yellow"
-            />
-            {signupConfirmPassword && password !== signupConfirmPassword ? (
-              <p className="mt-1.5 text-xs font-black text-red-700">
-                {t(locale, "Lozinke se ne poklapaju.", "Passwords do not match.")}
-              </p>
-            ) : null}
-          </div>
+          <Field
+            id="signupConfirmPassword"
+            label={t(locale, "Potvrdi lozinku", "Confirm password")}
+            error={
+              signupConfirmPassword && password !== signupConfirmPassword
+                ? t(locale, "Lozinke se ne poklapaju.", "Passwords do not match.")
+                : undefined
+            }
+          >
+            {(field) => (
+              <Input
+                {...field}
+                type="password"
+                value={signupConfirmPassword}
+                onChange={(event) => setSignupConfirmPassword(event.target.value)}
+                required
+                minLength={8}
+                autoComplete="new-password"
+              />
+            )}
+          </Field>
         ) : null}
 
         {flow === "resetVerification" ? (
           <>
             <div>
-              <label htmlFor="newPassword" className="text-sm font-black text-ink">
-                {t(locale, "Nova lozinka", "New password")}
-              </label>
-              <input
-                id="newPassword"
-                type="password"
-                value={newPassword}
-                onChange={(event) => setNewPassword(event.target.value)}
-                required
-                minLength={8}
-                className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-4 text-base font-bold text-ink outline-none focus:border-yellow"
-              />
+              <Field id="newPassword" label={t(locale, "Nova lozinka", "New password")}>
+                {(field) => (
+                  <Input
+                    {...field}
+                    type="password"
+                    value={newPassword}
+                    onChange={(event) => setNewPassword(event.target.value)}
+                    required
+                    minLength={8}
+                  />
+                )}
+              </Field>
               <div className="mt-2 grid gap-1 text-xs font-bold text-muted sm:grid-cols-2">
                 {passwordRequirements.map((requirement) => (
                   <span key={requirement.id}>• {t(locale, requirement.labelSr, requirement.labelEn)}</span>
                 ))}
               </div>
             </div>
-            <div>
-              <label htmlFor="confirmPassword" className="text-sm font-black text-ink">
-                {t(locale, "Ponovi lozinku", "Repeat password")}
-              </label>
-              <input
-                id="confirmPassword"
-                type="password"
-                value={confirmPassword}
-                onChange={(event) => setConfirmPassword(event.target.value)}
-                required
-                minLength={8}
-                className="mt-2 h-12 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-4 text-base font-bold text-ink outline-none focus:border-yellow"
-              />
-            </div>
+            <Field id="confirmPassword" label={t(locale, "Ponovi lozinku", "Repeat password")}>
+              {(field) => (
+                <Input
+                  {...field}
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(event) => setConfirmPassword(event.target.value)}
+                  required
+                  minLength={8}
+                />
+              )}
+            </Field>
           </>
         ) : null}
 
@@ -438,7 +441,7 @@ function ConvexSignInForm({
           )}
         >
           {isPasswordPending ? (
-            <Loader2 className="size-4 animate-spin" />
+            <Spinner />
           ) : flow === "reset" || flow === "resetVerification" ? (
             <KeyRound className="size-4" />
           ) : (
@@ -464,7 +467,7 @@ function ConvexSignInForm({
             disabled={Boolean(pendingProvider)}
             className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-paper-strong px-5 py-2.5 text-sm font-extrabold text-ink transition-all duration-200 hover:bg-yellow/25 disabled:opacity-70"
           >
-            {pendingProvider === "google" ? <Loader2 className="size-4 animate-spin" /> : <span className="text-lg">G</span>}
+            {pendingProvider === "google" ? <Spinner /> : <span className="text-lg">G</span>}
             {t(locale, "Prijavi se preko Google-a", "Sign in with Google")}
           </button>
         </>
@@ -503,10 +506,10 @@ export function SignInPanel({
   if (!hasConvex) {
     return (
       <Panel className="p-6 md:p-8">
-        <h2 className="text-2xl font-black text-ink">
+        <h2 className="type-h2 text-ink">
           {t(locale, "Prijava je spremna za Convex", "Sign-in is ready for Convex")}
         </h2>
-        <p className="mt-3 text-base leading-7 text-muted">
+        <p className="mt-3 type-body type-measure text-muted">
           {t(
             locale,
             "Dodaj NEXT_PUBLIC_CONVEX_URL i Convex Auth tajne da aktiviras email i Google prijavu.",

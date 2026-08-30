@@ -1,0 +1,147 @@
+"use client";
+
+import { X } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion, type Easing } from "motion/react";
+import { useSyncExternalStore } from "react";
+import type { ReactNode } from "react";
+
+import { Button } from "@/components/ui/button";
+import { cn } from "@/components/ui/primitives";
+import type { IntroPanelId } from "@/lib/app-intro-panels";
+import { readDismissedIntroPanels, writeDismissedIntroPanel } from "@/lib/app-intro-panels";
+import type { Locale } from "@/lib/i18n";
+import { t } from "@/lib/i18n";
+import { getStudioMotion } from "@/lib/studio-motion";
+
+/**
+ * `localStorage` nema sopstvenu pretplatu unutar istog taba, pa je ovo
+ * najmanji mogući izvor promene za `useSyncExternalStore`: jedno zatvaranje
+ * panela obavesti sve panele na ekranu.
+ */
+const dismissalListeners = new Set<() => void>();
+
+function subscribeToDismissals(listener: () => void) {
+  dismissalListeners.add(listener);
+  return () => {
+    dismissalListeners.delete(listener);
+  };
+}
+
+function notifyDismissalChanged() {
+  for (const listener of dismissalListeners) listener();
+}
+
+/**
+ * Kratak uvod u jedan deo aplikacije: šta je ovo, čemu služi i koji je prvi
+ * korak. Stoji na vrhu ekrana dok ga korisnik ne zatvori; zatvaranje se pamti u
+ * `localStorage` (`lib/app-intro-panels.ts`), bez ijedne izmene na backendu.
+ *
+ * Panel se renderuje tek posle montiranja, jer odgovor na pitanje "da li je
+ * zatvoren" na serveru ne postoji. Zato bi svaki drugi izbor bio ili
+ * neusklađen HTML pri hidraciji, ili panel koji na trenutak zasvetli i onda
+ * nestane pred nekim ko ga je odavno zatvorio.
+ */
+export function AppIntroPanel({
+  id,
+  locale,
+  icon: Icon,
+  title,
+  body,
+  steps,
+  action,
+  className,
+}: {
+  id: IntroPanelId;
+  locale: Locale;
+  icon: LucideIcon;
+  title: string;
+  body: string;
+  /** Tri kratka koraka, redom. Prvi je onaj koji korisnik treba da uradi odmah. */
+  steps: readonly string[];
+  action?: ReactNode;
+  className?: string;
+}) {
+  const dismissed = useSyncExternalStore(
+    subscribeToDismissals,
+    () => readDismissedIntroPanels().includes(id),
+    // Na serveru odgovor ne postoji, pa je "zatvoren" jedini bezbedan izbor:
+    // panel se pojavi tek posle hidracije, umesto da bljesne pa nestane.
+    () => true,
+  );
+  const anim = getStudioMotion(useReducedMotion() === true);
+
+  return (
+    <AnimatePresence>
+      {dismissed ? null : (
+        <motion.section
+          key="intro"
+          // Panel se po definiciji pojavljuje TEK posle hidracije (odgovor „da li je
+          // zatvoren" na serveru ne postoji), pa je bez ulaska to bio nagli iskok na vrhu
+          // ekrana. Ulazak je `element` tier, izlazak kraći od njega — odlazak ne traži
+          // pažnju. Pod `prefers-reduced-motion` oba trajanja padaju na nulu.
+          initial={{ opacity: 0, y: anim.isReduced ? 0 : -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{
+            opacity: 0,
+            y: anim.isReduced ? 0 : -6,
+            transition: {
+              duration: anim.element.exit.duration,
+              ease: anim.element.exit.ease as Easing,
+            },
+          }}
+          transition={{
+            duration: anim.element.enter.duration,
+            ease: anim.element.enter.ease as Easing,
+          }}
+          className={cn(
+            "relative overflow-hidden surface-card border-2 border-ink bg-paper-strong p-4 shadow-[4px_4px_0_0_var(--shadow-hard)] sm:p-6",
+            className,
+          )}
+        >
+          {/* Ista skolska podloga kao na herou zone: uvod time izgleda kao list iz
+              sveske, a ne kao sistemska traka sa obavestenjem. */}
+          <div aria-hidden="true" className="pointer-events-none absolute inset-0 sketch-grid" />
+          <div className="relative flex items-start gap-3 pr-10">
+            <span className="grid size-10 shrink-0 place-items-center rounded-full border-2 border-ink bg-yellow text-ink">
+              <Icon aria-hidden="true" className="size-5" />
+            </span>
+            <div className="min-w-0">
+              <h2 className="type-h3 text-ink">{title}</h2>
+              <p className="mt-1 type-body-sm font-semibold text-muted">{body}</p>
+            </div>
+          </div>
+
+          <ol className="relative mt-4 grid gap-3 sm:grid-cols-3">
+            {steps.map((step, index) => (
+              <li
+                key={step}
+                className="flex items-start gap-2 surface-inset border-2 border-line bg-paper px-3 py-3 type-body-sm font-bold text-ink"
+              >
+                <span className="grid size-6 shrink-0 place-items-center rounded-full border-2 border-ink bg-paper-strong text-xs font-black">
+                  {index + 1}
+                </span>
+                <span className="min-w-0">{step}</span>
+              </li>
+            ))}
+          </ol>
+
+          {action ? <div className="relative mt-4 flex flex-wrap gap-2">{action}</div> : null}
+
+          <Button
+            variant="ghost"
+            size="sm"
+            className="absolute right-2 top-2 size-9 border-2 border-line p-0"
+            onClick={() => {
+              writeDismissedIntroPanel(id);
+              notifyDismissalChanged();
+            }}
+            aria-label={t(locale, "Zatvori uvod i ne prikazuj ga ponovo", "Close this intro and do not show it again")}
+          >
+            <X aria-hidden="true" className="size-4" />
+          </Button>
+        </motion.section>
+      )}
+    </AnimatePresence>
+  );
+}

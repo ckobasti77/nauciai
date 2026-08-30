@@ -1,0 +1,13 @@
+
+> nauciai@0.1.0 test
+> vitest run
+
+
+ RUN  v4.1.10 C:/Users/admin/Desktop/Web Dev Projects/nauciai
+
+
+ Test Files  80 passed (80)
+      Tests  1082 passed (1082)
+   Start at  01:46:42
+   Duration  6.19s (transform 13.28s, setup 0ms, import 24.62s, tests 17.86s, environment 6.11s)
+

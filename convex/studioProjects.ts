@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireUserId } from "./helpers";
+import { requireStudioAccess } from "./studio";
 import { canCreateStudioProject, validateProjectName } from "../lib/studio-projects";
 
 /**
@@ -65,7 +66,11 @@ export const createProject = mutation({
     name: v.string(),
   },
   handler: async (ctx, args) => {
-    const userId = await requireUserId(ctx);
+    // Gejt (studio-public F2.8, nalaz R1): pravljenje redova traži pravo na
+    // Studio, isto kao upload. Čitanje, preimenovanje i arhiviranje SVOJIH
+    // projekata namerno ostaju na `requireUserId` - gašenje flega ne sme
+    // korisniku da zaključa ono što već ima.
+    const { userId } = await requireStudioAccess(ctx);
 
     const userProjects = await ctx.db
       .query("studioProjects")

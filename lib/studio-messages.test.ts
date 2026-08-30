@@ -55,6 +55,9 @@ describe("studioErrorMessage", () => {
     "PREVISE_POSLOVA",
     "DNEVNI_LIMIT",
     "DNEVNI_LIMIT_TROSKA",
+    "DNEVNI_LIMIT_KREDITA",
+    "MINUTNI_LIMIT",
+    "EMAIL_NIJE_POTVRDJEN",
     "NEDOVOLJNO_KREDITA",
     "TUDJI_FAJL",
     "MERENJE_NIJE_DOSTUPNO",
@@ -85,6 +88,12 @@ describe("studioErrorMessage", () => {
   test("DNEVNI_LIMIT_TROSKA se ne čita kao DNEVNI_LIMIT", () => {
     expect(studioErrorMessage(wrap("DNEVNI_LIMIT_TROSKA"), "sr")).toContain("potrošnje");
     expect(studioErrorMessage(wrap("DNEVNI_LIMIT"), "sr")).not.toContain("potrošnje");
+  });
+
+  test("DNEVNI_LIMIT_KREDITA se ne čita ni kao DNEVNI_LIMIT ni kao TROSKA (studio-public F2)", () => {
+    expect(studioErrorMessage(wrap("DNEVNI_LIMIT_KREDITA"), "sr")).toContain("kredita");
+    expect(studioErrorMessage(wrap("DNEVNI_LIMIT_TROSKA"), "sr")).not.toContain("kredita");
+    expect(studioErrorMessage(wrap("DNEVNI_LIMIT"), "sr")).not.toContain("kredita");
   });
 
   test("razlozi prompta se razlikuju međusobno i od opšte poruke", () => {

@@ -1,13 +1,14 @@
 "use client";
 
 import { useMutation } from "convex/react";
-import { AlertTriangle, Check, Loader2, Pencil, X } from "lucide-react";
+import { AlertTriangle, Check, Pencil, X } from "lucide-react";
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { cn } from "@/components/ui/primitives";
 import { useToast } from "@/components/ui/toast-provider";
+import { Spinner } from "@/components/ui/spinner";
 import type { Locale } from "@/lib/i18n";
 
 export type InlineEntityKind = "track" | "course" | "lesson" | "part" | "step" | "task";
@@ -160,7 +161,7 @@ export function InlineContentText({
           : "Double-click — add content";
     return (
       <Shell
-        className={cn("group/inline relative inline-block min-h-[1em] min-w-[6rem] cursor-text rounded-[4px] outline-none transition hover:bg-yellow/20 focus-visible:bg-yellow/20", !sr.trim() && !en.trim() && "border border-dashed border-amber-600/70 bg-amber-50/70 px-2 py-1 text-amber-900", className)}
+        className={cn("group/inline relative inline-block min-h-[1em] min-w-[6rem] cursor-text rounded-[8px] transition hover:bg-yellow/20 focus-visible:bg-yellow/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink", !sr.trim() && !en.trim() && "border border-dashed border-amber-600/70 bg-amber-50/70 px-2 py-1 text-amber-900", className)}
         tabIndex={0}
         onDoubleClick={begin}
         onKeyDown={(event) => {
@@ -188,7 +189,7 @@ export function InlineContentText({
                 type="button"
                 onClick={() => setEditingLocale(item)}
                 className={cn(
-                  "inline-flex min-h-7 items-center gap-1 rounded-full border px-2.5 text-[11px] font-black uppercase transition",
+                  "inline-flex min-h-7 items-center gap-1 rounded-full border px-2.5 type-eyebrow transition",
                   editingLocale === item ? "border-ink bg-ink text-paper-strong" : "border-transparent text-muted",
                   warning && "border-amber-600 bg-amber-100 text-amber-950 ring-2 ring-amber-400/45",
                 )}
@@ -201,19 +202,19 @@ export function InlineContentText({
         </span>
         <span className="flex shrink-0 gap-1">
           <button type="button" onClick={() => void save()} disabled={saving} aria-label="Sačuvaj" className="grid size-7 place-items-center rounded-full border-2 border-ink bg-yellow disabled:cursor-not-allowed disabled:opacity-40">
-            {saving ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}
+            {saving ? <Spinner size="xs" /> : <Check className="size-3.5" />}
           </button>
           <button type="button" onClick={cancel} disabled={saving} aria-label="Otkaži" className="grid size-7 place-items-center rounded-full border-2 border-ink bg-paper-strong disabled:opacity-40"><X className="size-3.5" /></button>
         </span>
       </span>
       {multiline ? (
-        <textarea ref={inputRef as React.RefObject<HTMLTextAreaElement>} value={visible} onChange={(event) => setVisible(event.target.value)} onKeyDown={handleKeyDown} rows={3} className="min-h-[5rem] w-full resize-y rounded-[6px] bg-paper/60 px-3 py-2 text-inherit outline-none focus:ring-2 focus:ring-yellow" />
+        <textarea ref={inputRef as React.RefObject<HTMLTextAreaElement>} value={visible} onChange={(event) => setVisible(event.target.value)} onKeyDown={handleKeyDown} rows={3} className="min-h-[5rem] w-full resize-y rounded-[8px] bg-paper/60 px-3 py-2 text-inherit focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink" />
       ) : (
-        <input ref={inputRef as React.RefObject<HTMLInputElement>} value={visible} onChange={(event) => setVisible(event.target.value)} onKeyDown={handleKeyDown} className="min-h-[2.5rem] w-full rounded-[6px] bg-paper/60 px-3 text-inherit outline-none focus:ring-2 focus:ring-yellow" />
+        <input ref={inputRef as React.RefObject<HTMLInputElement>} value={visible} onChange={(event) => setVisible(event.target.value)} onKeyDown={handleKeyDown} className="min-h-[2.5rem] w-full rounded-[8px] bg-paper/60 px-3 text-inherit focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink" />
       )}
-      {missingEn ? <span className="mt-2 inline-flex items-center gap-1 rounded-[6px] border-2 border-amber-700 bg-amber-50 px-2 py-1 text-[10px] font-black text-amber-900"><AlertTriangle className="size-3" /> EN nedostaje, ali ne blokira čuvanje.</span> : null}
-      {missingSr ? <span className="mt-2 inline-flex items-center gap-1 rounded-[6px] border-2 border-red-700 bg-red-50 px-2 py-1 text-[10px] font-black text-red-800"><AlertTriangle className="size-3" /> SR je obavezan pre objave.</span> : null}
-      {error ? <span role="alert" className="absolute left-1 top-full z-30 mt-1 rounded-[6px] border-2 border-red-700 bg-red-50 px-2 py-1 text-[10px] font-black text-red-800">{error}</span> : null}
+      {missingEn ? <span className="mt-2 inline-flex items-center gap-1 rounded-[8px] border-2 border-amber-700 bg-amber-50 px-2 py-1 type-caption font-black text-amber-900"><AlertTriangle className="size-3" /> EN nedostaje, ali ne blokira čuvanje.</span> : null}
+      {missingSr ? <span className="mt-2 inline-flex items-center gap-1 rounded-[8px] border-2 border-red-700 bg-red-50 px-2 py-1 type-caption font-black text-red-800"><AlertTriangle className="size-3" /> SR je obavezan pre objave.</span> : null}
+      {error ? <span role="alert" className="absolute left-1 top-full z-30 mt-1 rounded-[8px] border-2 border-red-700 bg-red-50 px-2 py-1 type-caption font-black text-red-800">{error}</span> : null}
     </Shell>
   );
 }

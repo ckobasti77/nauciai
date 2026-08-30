@@ -35,6 +35,8 @@ export type LiveNavigationResult = {
     descriptionRichEn?: string;
     status: "draft" | "published" | "archived";
     hasAccess?: boolean;
+    /** Vlasnistvo za prikaz (aktivan upis ili staff rola). Vidi lib/course-catalog.ts. */
+    owned?: boolean;
     stripePriceId?: string;
     videoUrl?: string | null;
     coverUrl?: string | null;
@@ -168,6 +170,10 @@ function courseFromLiveCourse(
     descriptionRich: liveCourse.descriptionRichSr || liveCourse.descriptionRichEn ? { sr: liveCourse.descriptionRichSr ?? "", en: liveCourse.descriptionRichEn ?? "" } : undefined,
     status: liveCourse.status,
     hasAccess: Boolean(liveCourse.hasAccess),
+    // Namerno bez `Boolean(...)`: `undefined` znaci "payload nema to polje" i
+    // `isCourseOwned` ga tada vraca na `hasAccess`. `Boolean(undefined)` bi to
+    // pretvorio u tvrdo "nema kurs".
+    owned: liveCourse.owned,
     stripePriceId: liveCourse.stripePriceId,
     videoUrl: liveCourse.videoUrl,
     videoFileName: liveCourse.videoFileName,
@@ -285,10 +291,10 @@ function DashboardCourseNotFound({ locale }: { locale: Locale }) {
       className="grid min-h-80 place-items-center rounded-[16px] border-2 border-ink bg-paper-strong p-6 text-center shadow-[6px_6px_0_var(--shadow-hard-12)]"
     >
       <div className="max-w-md">
-        <h2 className="text-2xl font-black text-ink">
+        <h2 className="type-h2 text-ink">
           {locale === "sr" ? "Ovaj kurs ne postoji" : "That course does not exist"}
         </h2>
-        <p className="mt-3 text-sm font-semibold leading-6 text-muted">
+        <p className="mt-3 type-body-sm font-semibold text-muted">
           {locale === "sr"
             ? "Link je možda zastareo. Vrati se na pregled i izaberi kurs sa liste."
             : "The link may be out of date. Go back to the overview and pick a course from the list."}

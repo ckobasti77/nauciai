@@ -11,7 +11,6 @@ import {
   Download,
   Heart,
   History,
-  Loader2,
   Music,
   Pause,
   Play,
@@ -29,7 +28,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { StudioTileJob } from "@/components/app/studio-media-tile";
 import { CreditIcon } from "@/components/studio/credit-icon";
 import { StudioComposer, type JobPayload, type RegenerateSeed } from "@/components/studio/studio-composer";
+import { ConfirmDialog, useModalFocus } from "@/components/ui/dialog";
 import { cn } from "@/components/ui/primitives";
+import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { Locale } from "@/lib/i18n";
@@ -51,20 +52,21 @@ const T = {
     copied: "Link je kopiran!",
     download: "Preuzmi",
     delete: "Obriši",
-    confirmDeleteTitle: "Brisanje generacije",
-    confirmDeleteBody: "Da li ste sigurni da želite da obrišete ovaj rad? Ova akcija je nepovratna.",
+    close: "Zatvori",
+    confirmDeleteTitle: "Obrisati ovaj rad?",
+    confirmDeleteBody: "Fajl se trajno briše i ne može da se vrati. Krediti koje si potrošio/la na njega se ne vraćaju. Ako ti fajl još treba, prvo ga preuzmi.",
     deleteConfirm: "Obriši",
     cancel: "Otkaži",
     hideHistory: "Sakrij istoriju",
     showHistory: "Prikaži istoriju",
     history: "Istorija",
-    model: "Model",
+    model: "Alat",
     mode: "Režim",
-    parameters: "Parametri",
-    inputs: "Ulazni fajlovi",
-    prompt: "Prompt",
+    parameters: "Podešavanja",
+    inputs: "Fajlovi koje si dao/la",
+    prompt: "Tvoj opis",
     reuseAsInput: "Upotrebi kao ulaz",
-    generateAgain: "Generiši ponovo",
+    generateAgain: "Napravi ponovo",
     fileExpired: "Fajl je istekao",
     zoomIn: "Uvećaj",
     zoomOut: "Umanji",
@@ -76,6 +78,7 @@ const T = {
     prev: "Prethodni rad",
     next: "Sledeći rad",
     noMedia: "Nema medija za prikaz",
+    untitledWork: "Rad napravljen u Studiju",
     audioTrack: "Audio zapis",
   },
   en: {
@@ -86,20 +89,21 @@ const T = {
     copied: "Link copied!",
     download: "Download",
     delete: "Delete",
-    confirmDeleteTitle: "Delete generation",
-    confirmDeleteBody: "Are you sure you want to delete this work? This action cannot be undone.",
+    close: "Close",
+    confirmDeleteTitle: "Delete this work?",
+    confirmDeleteBody: "The file is deleted for good and cannot be brought back. The credits you spent on it are not returned. If you still need the file, download it first.",
     deleteConfirm: "Delete",
     cancel: "Cancel",
     hideHistory: "Hide history",
     showHistory: "Show history",
     history: "History",
-    model: "Model",
+    model: "Tool",
     mode: "Mode",
-    parameters: "Parameters",
-    inputs: "Input files",
-    prompt: "Prompt",
+    parameters: "Settings",
+    inputs: "Files you gave it",
+    prompt: "Your description",
     reuseAsInput: "Use as input",
-    generateAgain: "Generate again",
+    generateAgain: "Make it again",
     fileExpired: "File expired",
     zoomIn: "Zoom in",
     zoomOut: "Zoom out",
@@ -111,6 +115,7 @@ const T = {
     prev: "Previous work",
     next: "Next work",
     noMedia: "No media to display",
+    untitledWork: "Work made in the Studio",
     audioTrack: "Audio track",
   },
 } as const;
@@ -194,13 +199,15 @@ export function StudioMediaDetail({
   const prevJob = currentIndex > 0 ? jobs[currentIndex - 1] : null;
   const nextJob = currentIndex >= 0 && currentIndex < jobs.length - 1 ? jobs[currentIndex + 1] : null;
 
-  // Tastaturna navigacija (Esc, ArrowLeft, ArrowRight)
+  // Pun ekran je pravi modal (`aria-modal` ispod), pa mu treba i pocetni fokus,
+  // Tab zamka, zakljucan skrol strane i vracanje fokusa - sve to daje
+  // `useModalFocus`, koji preuzima i Escape. Ovde ostaju samo strelice.
+  const dialogRef = useModalFocus<HTMLDivElement>(true, onClose);
+
+  // Tastaturna navigacija (ArrowLeft, ArrowRight)
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        onClose();
-      } else if (event.key === "ArrowLeft" && prevJob) {
+      if (event.key === "ArrowLeft" && prevJob) {
         // Samo ako fokus nije u inputu ili textareji
         const target = event.target as HTMLElement | null;
         if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")) return;
@@ -216,7 +223,7 @@ export function StudioMediaDetail({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose, onSelectJob, prevJob, nextJob]);
+  }, [onSelectJob, prevJob, nextJob]);
 
   const handleTogglePlay = useCallback(() => {
     if (job.kind === "video" && videoRef.current) {
@@ -333,6 +340,11 @@ export function StudioMediaDetail({
 
   return (
     <motion.div
+      ref={dialogRef}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="studio-media-detail-title"
+      tabIndex={-1}
       initial={reduceMotion ? false : { opacity: 0, scale: 0.985 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={reduceMotion ? undefined : { opacity: 0, scale: 0.985 }}
@@ -360,7 +372,7 @@ export function StudioMediaDetail({
 
           {/* Prompt kao naslov */}
           <div className="min-w-0">
-            <h2 className="truncate text-base font-black text-ink sm:text-lg">
+            <h2 id="studio-media-detail-title" className="truncate text-base font-black text-ink sm:text-lg">
               {prompt || (jobModel ? modelLabel(jobModel, locale) : locale === "sr" ? "Detalj medija" : "Media detail")}
             </h2>
             <div className="flex items-center gap-2 font-mono text-xs font-bold text-muted">
@@ -452,38 +464,20 @@ export function StudioMediaDetail({
       {/* ========================================================================= */}
       {/* DIJALOG ZA POTVRDU BRISANJA                                               */}
       {/* ========================================================================= */}
-      {confirmDeleteOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-scrim/50 p-4 backdrop-blur-xs">
-          <div className="surface-card w-full max-w-md border-2 border-ink bg-paper-strong p-6 shadow-[6px_6px_0_0_var(--shadow-hard-20)]">
-            <h3 className="text-lg font-black text-ink">{t.confirmDeleteTitle}</h3>
-            <p className="mt-2 text-sm font-bold text-muted">{t.confirmDeleteBody}</p>
-
-            {deleteError ? (
-              <p className="mt-3 text-xs font-black text-red-700">{deleteError}</p>
-            ) : null}
-
-            <div className="mt-6 flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setConfirmDeleteOpen(false)}
-                disabled={isDeleting}
-                className="rounded-full border-2 border-ink bg-paper-strong px-4 py-2 text-xs font-extrabold text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5"
-              >
-                {t.cancel}
-              </button>
-              <button
-                type="button"
-                onClick={handleDelete}
-                disabled={isDeleting}
-                className="inline-flex items-center gap-2 rounded-full border-2 border-ink bg-red-600 px-4 py-2 text-xs font-black text-white shadow-[3px_3px_0_0_var(--ink)] transition hover:-translate-y-0.5"
-              >
-                {isDeleting ? <Loader2 className="size-3.5 animate-spin" /> : null}
-                <span>{t.deleteConfirm}</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        onClose={() => setConfirmDeleteOpen(false)}
+        onConfirm={handleDelete}
+        busy={isDeleting}
+        destructive
+        title={t.confirmDeleteTitle}
+        description={t.confirmDeleteBody}
+        confirmLabel={t.deleteConfirm}
+        cancelLabel={t.cancel}
+        closeLabel={t.close}
+      >
+        {deleteError ? <p role="alert" className="text-xs font-black text-red-700">{deleteError}</p> : null}
+      </ConfirmDialog>
 
       {/* ========================================================================= */}
       {/* SREDINA: MEDIJ + TIMELINE + ISTORIJA                                      */}
@@ -517,7 +511,7 @@ export function StudioMediaDetail({
               {isWorking ? (
                 <div className="flex flex-col items-center gap-3 p-8 text-center">
                   <div className="relative flex size-12 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white">
-                    <Loader2 className="size-6 animate-spin" />
+                    <Spinner size="lg" />
                   </div>
                   <p className="max-w-[320px] text-base font-black text-white/90">{statusMessage}</p>
                   {prompt ? (
@@ -587,7 +581,7 @@ export function StudioMediaDetail({
                     >
                       <img
                         src={job.outputUrl as string}
-                        alt={prompt || "Studio generacija"}
+                        alt={prompt || t.untitledWork}
                         className={cn(
                           "transition-transform duration-200",
                           isZoomed

@@ -331,7 +331,26 @@ async function studySlice(ctx: QueryCtx, userId: Id<"users">) {
   return { pendingInvites: summary.pendingPartnerInviteCount, partners: summary.activePartnershipCount };
 }
 
-// ── admin (spremnost + na čekanju) — samo za administratora ──────────────────
+// ── first run (checklist prvih koraka) ──────────────────────────────────────
+// Dva podatka bez kojih se pozdravni hero na `/app` ne može štiklirati iz
+// stvarnih podataka, a agregat ih do sada nije nosio. Oba su indeksirana čitanja
+// sa `take()`; treći korak čeka `progress.completedLessons`, koji već postoji.
+// `hasUnlockedCourse` je isti pojam vlasništva kao `courses.getAppNavigation`
+// (`owned`): aktivan upis ili staff rola. To je PRIKAZ, ne provera pristupa —
+// pravila pristupa ostaju u `helpers.requireCourseAccess`.
+async function firstRunSlice(ctx: QueryCtx, userId: Id<"users">, role: string | undefined) {
+  const isStaff = role === "admin" || role === "moderator" || role === "pro_student";
+  const [enrollments, ownPosts] = await Promise.all([
+    ctx.db.query("enrollments").withIndex("by_user", (q) => q.eq("userId", userId)).take(200),
+    ctx.db.query("communityPosts").withIndex("by_author", (q) => q.eq("authorId", userId)).take(1),
+  ]);
+  return {
+    hasUnlockedCourse: isStaff || enrollments.some((row) => row.status === "active"),
+    hasCommunityPost: ownPosts.length > 0,
+  };
+}
+
+// ── admin (spremnost + nacrti + na čekanju + novi članovi) — samo za admina ───
 async function adminSlice(ctx: QueryCtx, pendingApprovals: number) {
   const courses = await ctx.db
     .query("courses")
@@ -342,7 +361,54 @@ async function adminSlice(ctx: QueryCtx, pendingApprovals: number) {
     const readiness = await courseReadiness(ctx, course);
     blocking += readiness.items.filter((entry) => entry.blocking && !entry.ok).length;
   }
-  return { pendingApprovals, readiness: { ready: blocking === 0, blocking } };
+
+  // Nacrti: oba čitanja idu kroz status indeks, pa je cena konstantna. Lekcije
+  // NISU ovde — `lessons.isPublished` nema indeks, pa bi „koliko lekcija je u
+  // nacrtu" značilo skeniranje lekcija svakog kursa na svakom učitavanju table.
+  const [draftTracks, draftCourses] = await Promise.all([
+    ctx.db
+      .query("courseTracks")
+      .withIndex("by_status_and_sortOrder", (q) => q.eq("status", "draft"))
+      .take(20),
+    ctx.db
+      .query("courses")
+      .withIndex("by_status", (q) => q.eq("status", "draft"))
+      .take(20),
+  ]);
+  const draftItems = [
+    ...draftTracks.map((track) => ({
+      kind: "track" as const,
+      title: { sr: track.titleSr, en: track.titleEn },
+      trackId: track._id,
+      courseId: null,
+    })),
+    ...draftCourses.map((course) => ({
+      kind: "course" as const,
+      title: { sr: course.titleSr, en: course.titleEn },
+      trackId: course.trackId ?? null,
+      courseId: course._id,
+    })),
+  ];
+
+  // Poslednji registrovani: `order("desc")` čita po `_creationTime`, pa se dodiruje
+  // samo nekoliko dokumenata. Spojeni i anonimizovani nalozi ispadaju — oni nisu
+  // „novi član", nego trag migracije.
+  const recentUserRows = await ctx.db.query("users").order("desc").take(12);
+  const recentUsers = recentUserRows
+    .filter((user) => !user.mergedInto && !user.anonymizedAt && !user.isAnonymous)
+    .slice(0, 3)
+    .map((user) => ({
+      name: user.name ?? user.username ?? "—",
+      username: user.username ?? null,
+      at: user.createdAt ?? user._creationTime,
+    }));
+
+  return {
+    pendingApprovals,
+    readiness: { ready: blocking === 0, blocking },
+    drafts: { total: draftItems.length, items: draftItems.slice(0, 3) },
+    recentUsers,
+  };
 }
 
 export const getDashboardOverview = query({
@@ -426,11 +492,35 @@ export const getDashboardOverview = query({
       }),
       study: v.object({ pendingInvites: v.number(), partners: v.number() }),
       leaderboard: v.union(v.null(), v.object({ rank: v.number(), points: v.number() })),
+      // Signali za checklist prvih koraka (pozdravni hero). `completedLessons`
+      // za drugi korak već stoji u `progress`, pa se ovde ne ponavlja.
+      firstRun: v.object({
+        hasUnlockedCourse: v.boolean(),
+        hasCommunityPost: v.boolean(),
+      }),
       admin: v.union(
         v.null(),
         v.object({
           pendingApprovals: v.number(),
           readiness: v.object({ ready: v.boolean(), blocking: v.number() }),
+          drafts: v.object({
+            total: v.number(),
+            items: v.array(
+              v.object({
+                kind: v.union(v.literal("track"), v.literal("course")),
+                title: localizedText,
+                trackId: v.union(v.id("courseTracks"), v.null()),
+                courseId: v.union(v.id("courses"), v.null()),
+              }),
+            ),
+          }),
+          recentUsers: v.array(
+            v.object({
+              name: v.string(),
+              username: v.union(v.string(), v.null()),
+              at: v.number(),
+            }),
+          ),
         }),
       ),
     }),
@@ -446,7 +536,7 @@ export const getDashboardOverview = query({
     // i pendingApprovals) — ne dupliramo skeniranje nepročitanih.
     const counts = await getCommunityNotificationCountsHelper(ctx, userId);
 
-    const [courses, messages, community, notifications, studio, study, leaderboard, admin] =
+    const [courses, messages, community, notifications, studio, study, leaderboard, firstRun, admin] =
       await Promise.all([
         studentCoursesSlice(ctx, userId),
         messagesSlice(ctx, userId),
@@ -459,6 +549,7 @@ export const getDashboardOverview = query({
           period: "week",
           role,
         }),
+        firstRunSlice(ctx, userId, role),
         isAdmin ? adminSlice(ctx, counts.pendingApprovals) : Promise.resolve(null),
       ]);
 
@@ -473,6 +564,7 @@ export const getDashboardOverview = query({
       studio,
       study,
       leaderboard: leaderboard.row ? { rank: leaderboard.row.rank, points: leaderboard.row.xp } : null,
+      firstRun,
       admin,
     };
   },

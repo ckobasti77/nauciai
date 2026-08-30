@@ -5,6 +5,7 @@ import { ArrowBigDown, ArrowBigUp, Bookmark, ChevronDown, MessageCircle, Message
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/components/ui/primitives";
 import { CommentsSection } from "@/components/app/community-comments";
 import { api } from "@/convex/_generated/api";
@@ -99,7 +100,7 @@ function ShareThreadButton({ locale, post }: { locale: Locale; post: CommunityPo
       }
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
-      toast.error(locale === "sr" ? "Deljenje nije uspelo." : "Sharing failed.");
+      toast.error(locale === "sr" ? "Link nije podeljen. Kopiraj adresu iz vrha pregledača i pošalji je ručno." : "The link was not shared. Copy the address from the top of the browser and send it yourself.");
     } finally {
       setBusy(false);
     }
@@ -253,7 +254,7 @@ function DiscussionsView({
       const message = String(error);
       if (message.includes("PROFILE_INCOMPLETE")) {
         toast.warning(
-          locale === "sr" ? "Podesi username da bi reagovao/la." : "Set a username to react.",
+          locale === "sr" ? "Izaberi korisničko ime da bi mogao/la da reaguješ." : "Set a username to react.",
           undefined,
           { label: locale === "sr" ? "Otvori Profil" : "Open Profile", onClick: () => (window.location.href = withLocale(locale, "/app/profile")) },
         );
@@ -268,7 +269,7 @@ function DiscussionsView({
     try {
       await onToggleFavorite(postId);
     } catch {
-      toast.error(locale === "sr" ? "Čuvanje diskusije nije uspelo." : "Saving the discussion failed.");
+      toast.error(locale === "sr" ? "Diskusija nije sačuvana. Proveri internet i pokušaj ponovo." : "The discussion was not saved. Check your connection and try again.");
     }
   }
   const pinnedIds = new Set(pinnedPosts.map((post) => post._id));
@@ -285,7 +286,7 @@ function DiscussionsView({
         highlighted={highlighted}
         leadingAction={
           <>
-            <div className="flex items-center gap-0.5 text-ink">
+            <div className="flex items-center gap-0.5 rounded-full border border-line bg-paper text-ink">
               <button
                 type="button"
                 disabled={!canInteract || !onReactPost}
@@ -299,7 +300,7 @@ function DiscussionsView({
               >
                 <ArrowBigUp className={cn("size-[18px] fill-transparent", post.userVote === "upvote" && "fill-emerald-500 text-emerald-600")} />
               </button>
-              <span className={cn("min-w-8 text-center text-xs font-black", (post.voteScore ?? 0) < 0 && "text-red-700")}>
+              <span className={cn("min-w-8 text-center type-caption font-black", (post.voteScore ?? 0) < 0 && "text-red-700")}>
                 {post.voteScore ?? 0}
                 <span className="sr-only"> {locale === "sr" ? "neto glasova" : "net votes"}</span>
               </span>
@@ -330,10 +331,10 @@ function DiscussionsView({
                 }
               }}
               aria-expanded={expandedPostId === post._id}
-              aria-label={`${expandedPostId === post._id ? (locale === "sr" ? "Sakrij komentare treda" : "Hide thread comments") : locale === "sr" ? "Prikaži komentare treda" : "Show thread comments"} (${post.commentsCount ?? 0})`}
+              aria-label={`${expandedPostId === post._id ? (locale === "sr" ? "Sakrij komentare teme" : "Hide comments on this topic") : locale === "sr" ? "Prikaži komentare teme" : "Show comments on this topic"} (${post.commentsCount ?? 0})`}
               className={cn(
-                "inline-flex min-h-11 items-center gap-1 rounded-full px-2.5 text-xs font-black text-muted transition hover:bg-ink/5 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink sm:min-h-8",
-                expandedPostId === post._id && "bg-ink/5 text-ink",
+                "inline-flex min-h-11 items-center gap-1 rounded-full border border-line bg-paper px-3 type-caption font-black text-muted transition hover:bg-ink/5 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink sm:min-h-8",
+                expandedPostId === post._id && "border-ink bg-ink/5 text-ink",
               )}
             >
               <MessageCircle className="size-[18px]" aria-hidden="true" />
@@ -342,7 +343,7 @@ function DiscussionsView({
           </>
         }
         action={
-          <div className="flex items-center gap-0.5">
+          <div className="flex items-center gap-1">
             <ShareThreadButton locale={locale} post={post} />
             <button
               type="button"
@@ -382,11 +383,11 @@ function DiscussionsView({
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
 
       <CommunityStickyToolbar>
-      <section className="rounded-[16px] border border-line bg-paper-strong p-3 sm:p-4" aria-label={locale === "sr" ? "Filteri diskusija" : "Discussion filters"}>
-        <div className="space-y-3">
+      <section className="surface-card border border-line bg-paper-strong p-4" aria-label={locale === "sr" ? "Filteri diskusija" : "Discussion filters"}>
+        <div className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <CommunityScopeControls
               locale={locale}
@@ -410,7 +411,7 @@ function DiscussionsView({
               <select
                 value={controls.sort}
                 onChange={(event) => controls.setSort(event.target.value as DiscussionSort)}
-                className="min-h-10 w-full appearance-none rounded-full border border-line bg-paper-strong py-2 pl-4 pr-10 text-sm font-black text-ink outline-none transition hover:border-ink/55 focus:border-ink focus:ring-4 focus:ring-yellow/25 sm:w-auto"
+                className="min-h-10 w-full appearance-none rounded-full border border-line bg-paper-strong py-2 pl-4 pr-10 text-sm font-black text-ink transition hover:border-ink/55 focus:border-ink focus:ring-4 focus:ring-yellow/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:w-auto"
               >
                 <option value="hot">{locale === "sr" ? "U trendu" : "Hot"}</option>
                 <option value="top">{locale === "sr" ? "Popularno" : "Top voted"}</option>
@@ -423,13 +424,13 @@ function DiscussionsView({
             {canInteract ? (
               <Link
                 href={withLocale(locale, "/app/community/new")}
-                className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-sm font-black text-ink shadow-[2px_2px_0_var(--shadow-hard-16)] transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink w-full sm:w-auto"
+                className="inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-sm font-black text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:w-auto"
               >
                 <PenLine className="size-4" aria-hidden="true" />
                 {locale === "sr" ? "Nova diskusija" : "New discussion"}
               </Link>
             ) : (
-              <span className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-full border border-line bg-paper px-4 text-sm font-black text-muted w-full sm:w-auto">
+              <span className="inline-flex min-h-11 w-full shrink-0 items-center justify-center rounded-full border border-line bg-paper px-4 text-sm font-black text-muted sm:w-auto">
                 {locale === "sr" ? "Podesi username" : "Set username"}
               </span>
             )}
@@ -452,28 +453,28 @@ function DiscussionsView({
       ) : (
         <div className="space-y-6">
           {pinnedPosts.length ? (
-            <section className="space-y-3" aria-label={locale === "sr" ? "Zakačeni threadovi" : "Pinned threads"}>
+            <section className="space-y-4" aria-label={locale === "sr" ? "Zakačene teme" : "Pinned topics"}>
               <div className="flex items-center gap-2 px-1">
                 <Pin className="size-4 text-yellow-600" aria-hidden="true" />
-                <h2 className="text-sm font-black uppercase tracking-[0.1em] text-ink/70">
-                  {locale === "sr" ? "Zakačeni threadovi" : "Pinned threads"}
+                <h2 className="type-eyebrow text-ink/70">
+                  {locale === "sr" ? "Zakačene teme" : "Pinned topics"}
                 </h2>
-                <span className="rounded-full bg-yellow/20 px-2 py-1 text-[10px] font-black uppercase tracking-[0.08em] text-ink/65">
+                <Badge tone="muted" size="sm">
                   {locale === "sr" ? "Admin izbor" : "Admin picks"}
-                </span>
+                </Badge>
               </div>
-              <div className="space-y-3">{pinnedPosts.map((post) => renderThread(post, true))}</div>
+              <div className="space-y-4">{pinnedPosts.map((post) => renderThread(post, true))}</div>
             </section>
           ) : null}
-          <section className="min-w-0 space-y-3" aria-live="polite" aria-label={locale === "sr" ? "Lista diskusija" : "Discussion list"}>
+          <section className="min-w-0 space-y-4" aria-live="polite" aria-label={locale === "sr" ? "Lista diskusija" : "Discussion list"}>
             <div className="flex items-center justify-between gap-3 px-1">
               <div className="flex items-center gap-2">
                 <MessageSquareText className="size-4 text-ink/60" aria-hidden="true" />
-                <h2 className="text-sm font-black uppercase tracking-[0.1em] text-ink/65">
+                <h2 className="type-eyebrow text-ink/65">
                   {locale === "sr" ? "Razgovori" : "Conversations"}
                 </h2>
               </div>
-              <span className="font-mono text-xs font-black text-muted">
+              <span className="type-caption font-black text-muted">
                 {feedPosts.length} {locale === "sr" ? "učitano" : "loaded"}
               </span>
             </div>
@@ -481,8 +482,8 @@ function DiscussionsView({
               <EmptyCommunityState
                 locale={locale}
                 icon={MessageSquareText}
-                title={locale === "sr" ? "Nema drugih diskusija za ovaj izbor" : "No other discussions match this view"}
-                body={locale === "sr" ? "Promeni opseg ili pretragu, ili pokreni prvu diskusiju za ovaj kurs." : "Change the scope or search, or start the first discussion for this course."}
+                title={locale === "sr" ? "Nema nijedne teme za ovaj izbor" : "No topics match this selection"}
+                body={locale === "sr" ? "Obriši reč iz pretrage ili izaberi drugi kurs iznad. Ako je ovo baš tvoj kurs, ti otvori prvu temu." : "Clear the search word or pick a different course above. If this is your course, be the one to open the first topic."}
               />
             )}
             {canLoadMore && onLoadMore ? (

@@ -24,6 +24,8 @@ export default async function CreditsRoute({
     return (
       <div className="space-y-6">
         <SectionHeader
+          variant="app"
+          underline
           title={locale === "sr" ? "Krediti" : "Credits"}
           body={
             locale === "sr"
@@ -32,7 +34,7 @@ export default async function CreditsRoute({
           }
         />
         <Panel className="p-6">
-          <p className="text-base font-bold text-muted">
+          <p className="type-body type-measure font-bold text-muted">
             {locale === "sr"
               ? "Backend nije povezan na ovoj instalaciji, pa balans i paketi nisu dostupni."
               : "The backend is not connected on this installation, so the balance and packs are unavailable."}
