@@ -25,6 +25,23 @@ export function welcomeBonusKey(userId: string): string {
   return `welcome:${userId}`;
 }
 
+/**
+ * Bonus dobrodošlice JAVNOG Studija (studio-public F2): dodeljuje se kroz
+ * `studio.claimSignupBonus` TEK posle potvrde emaila, tačno jednom po
+ * korisniku. ODLUKA o iznosu: 25 kredita = 2-3 najjeftinije slike iz v4
+ * kataloga (BytePlus ~5 kr, Seedream ~8-9 kr po `creditsFromUsd` nad seed
+ * `baseUsd`), a NIJEDAN video (najjeftiniji je ~55 kr) - dovoljno da se
+ * proizvod oseti, premalo da se farmuje. Odvojen izvor od `welcome_bonus`
+ * (150, prva plaćena pretplata): korisnik koji je uzeo signup bonus i dalje
+ * dobija subscription bonus kad plati - dva različita obećanja, dva ključa.
+ */
+export const SIGNUP_BONUS_CREDITS = 25;
+
+/** Isti obrazac kao `welcomeBonusKey` - idempotencija visi na korisniku. */
+export function signupBonusKey(userId: string): string {
+  return `signup:${userId}`;
+}
+
 /** STUDIO-PLAN 4.4 - gornja granica dužine prompta. */
 export const MAX_PROMPT_LENGTH = 2000;
 

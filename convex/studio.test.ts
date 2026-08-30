@@ -1372,6 +1372,7 @@ test("getStudioState: upaljen Studio, osoblje bez posla u letu", async () => {
     isStudioAdmin: false,
     activeJobs: 0,
     maxActiveJobs: 3,
+    signupBonus: { claimable: false },
     providerStatus: providerStatus(process.env),
   });
 });
@@ -1717,6 +1718,120 @@ test("config override iz platformFlags: maxJobsPerDay=1 obara drugi posao, enabl
   // `enabled: false` na redu = override ne važi, podrazumevanih 200 se vraća.
   await t.run((ctx) => ctx.db.patch(rowId, { enabled: false }));
   await asUser.mutation(api.studio.createJob, { modelSlug: MODEL_SLUG, params: promptParams("drugi") });
+});
+
+// ── claimSignupBonus (studio-public F2.3) ──────────────────────────────────
+
+test("claimSignupBonus dvaput ostavlja tačno jedan lot, jednu bonus transakciju i balans 25", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedUser(t, { enrolled: false, emailVerified: true });
+  await setPublicFlag(t, true);
+
+  const state = await asUser.query(api.studio.getStudioState, {});
+  expect(state.signupBonus).toEqual({ claimable: true });
+
+  const first = await asUser.mutation(api.studio.claimSignupBonus, {});
+  expect(first).toEqual({ granted: true, amount: 25 });
+  const second = await asUser.mutation(api.studio.claimSignupBonus, {});
+  expect(second).toEqual({ granted: true, amount: 25 });
+
+  const { balance, transactions } = await ledger(t, userId);
+  expect(balance).toBe(25);
+  expect(transactions.filter((row) => row.type === "bonus")).toHaveLength(1);
+  const lots = await t.run(async (ctx) =>
+    ctx.db
+      .query("creditLots")
+      .withIndex("by_user_source", (q) =>
+        q.eq("userId", userId).eq("source", "signup_bonus" as const),
+      )
+      .collect(),
+  );
+  expect(lots).toHaveLength(1);
+  // Posle dodele state više ne nudi claim.
+  expect((await asUser.query(api.studio.getStudioState, {})).signupBonus).toEqual({
+    claimable: false,
+  });
+});
+
+test("claimSignupBonus odbija ugašen fleg, nepotvrđen email i dupliran email - nula lotova", async () => {
+  const t = convexTest(schema, modules);
+
+  // 1) Fleg ugašen.
+  const off = await seedUser(t, { enrolled: false, emailVerified: true });
+  expect(await off.asUser.mutation(api.studio.claimSignupBonus, {})).toEqual({
+    granted: false,
+    reason: "STUDIO_NIJE_JAVAN",
+  });
+
+  await setPublicFlag(t, true);
+
+  // 2) Email nepotvrđen.
+  const unverified = await seedUser(t, {
+    enrolled: false,
+    email: "neverif@example.com",
+    username: "neverif",
+  });
+  expect(await unverified.asUser.mutation(api.studio.claimSignupBonus, {})).toEqual({
+    granted: false,
+    reason: "EMAIL_NIJE_POTVRDJEN",
+  });
+
+  // 3) Dupliran email: DRUGI živ nalog sa istim emailom (anti-farm).
+  const duplicate = await seedUser(t, {
+    enrolled: false,
+    emailVerified: true,
+    email: "isti@example.com",
+    username: "prvi_nalog",
+  });
+  await seedUser(t, {
+    enrolled: false,
+    email: "isti@example.com",
+    username: "drugi_nalog",
+  });
+  expect(await duplicate.asUser.mutation(api.studio.claimSignupBonus, {})).toEqual({
+    granted: false,
+    reason: "DUPLIRAN_EMAIL",
+  });
+
+  // Nijedan od tri odbijena pokušaja nije ostavio lot.
+  for (const { userId } of [off, unverified, duplicate]) {
+    const lots = await t.run(async (ctx) =>
+      ctx.db
+        .query("creditLots")
+        .withIndex("by_user_source", (q) =>
+          q.eq("userId", userId).eq("source", "signup_bonus" as const),
+        )
+        .collect(),
+    );
+    expect(lots).toHaveLength(0);
+  }
+
+  // 1b) Fleg upaljen naknadno: prvi korisnik sada dobija bonus (odbijanje nije trajno).
+  expect(await off.asUser.mutation(api.studio.claimSignupBonus, {})).toEqual({
+    granted: true,
+    amount: 25,
+  });
+});
+
+test("claimSignupBonus: husk posle merge-a (mergedInto, bez emaila) ne blokira kanonski nalog", async () => {
+  const t = convexTest(schema, modules);
+  await setPublicFlag(t, true);
+  const { userId, asUser } = await seedUser(t, { enrolled: false, emailVerified: true });
+  // Ostatak starog naloga posle identity merge-a: email obrisan, mergedInto pokazuje na kanonski.
+  await t.run(async (ctx) => {
+    const huskId = await ctx.db.insert("users", {
+      role: "student",
+      language: "sr" as const,
+      createdAt: 1,
+      updatedAt: 1,
+    });
+    await ctx.db.patch(huskId, { mergedInto: userId });
+  });
+
+  expect(await asUser.mutation(api.studio.claimSignupBonus, {})).toEqual({
+    granted: true,
+    amount: 25,
+  });
 });
 
 test("javni fleg: kill switch i uslovi važe i za javne korisnike, istim redosledom", async () => {

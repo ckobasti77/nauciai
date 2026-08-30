@@ -11,8 +11,13 @@ import {
   query,
   type QueryCtx,
 } from "./_generated/server";
-import { applySettlement, applySpend } from "./credits";
-import { MAX_PROMPT_LENGTH, validatePrompt } from "./creditsCore";
+import { applyGrant, applySettlement, applySpend } from "./credits";
+import {
+  MAX_PROMPT_LENGTH,
+  SIGNUP_BONUS_CREDITS,
+  signupBonusKey,
+  validatePrompt,
+} from "./creditsCore";
 import { getCurrentProfile, requireUserId } from "./helpers";
 import { applyTaskCompletion, assertLessonAccess } from "./lab";
 import { parseJobInputs } from "./providers/jobInputs";
@@ -1770,6 +1775,57 @@ export const acceptStudioTerms = mutation({
   },
 });
 
+/**
+ * Bonus dobrodošlice javnog Studija (studio-public F2, brif F2.3). Eksplicitna
+ * claim mutacija koju shell sam okine kad `getStudioState.signupBonus.claimable`
+ * - pokriva i password-verify i Google i korisnike verifikovane PRE lansiranja
+ * (hook u samoj verifikaciji bi ove poslednje zauvek preskočio). Sve provere su
+ * server-side; "spoofable" ne postoji jer je direktan poziv legitiman put.
+ *
+ * Vraća diskriminisan rezultat umesto da baca: shell ovo zove oportunistički i
+ * odbijanje nije greška (fleg ugašen, email nepotvrđen, duplikat) - a granted
+ * ishod je idempotentan (`signup:<userId>` ključ + `by_user_source` drugi sloj
+ * u `applyGrant`).
+ */
+export const claimSignupBonus = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const { userId, existing, email } = await getCurrentProfile(ctx);
+
+    const { publicEnabled } = await loadStudioPublicState(ctx);
+    if (!publicEnabled) return { granted: false as const, reason: "STUDIO_NIJE_JAVAN" as const };
+    if (!isEmailVerifiedForStudio(existing)) {
+      return { granted: false as const, reason: "EMAIL_NIJE_POTVRDJEN" as const };
+    }
+
+    // Anti-farm (brif F2.3): bonus se NE dodeljuje ako postoji DRUGI živ nalog
+    // sa istim emailom. Isti upit kao `identityMerge.findPasswordDuplicate` -
+    // merge takve parove spaja sam od sebe pri OAuth prijavi, pa je legitiman
+    // put "prvo se prijavi Google-om (merge), pa uzmi bonus". Husk redovi
+    // (`mergedInto`) su nevidljivi za `email` indeks jer im je email obrisan.
+    const normalizedEmail = String(email ?? "").trim().toLowerCase();
+    if (!normalizedEmail) return { granted: false as const, reason: "DUPLIRAN_EMAIL" as const };
+    const sameEmail = await ctx.db
+      .query("users")
+      .withIndex("email", (q) => q.eq("email", normalizedEmail))
+      .take(5);
+    const duplicate = sameEmail.some((row) => row._id !== userId && !row.mergedInto);
+    if (duplicate) return { granted: false as const, reason: "DUPLIRAN_EMAIL" as const };
+
+    // Ista transakcija kao i sve ostalo u ovoj mutaciji; dodela se sama upiše
+    // u `creditTransactions` (type "bonus") - to je i traženi log dodela.
+    await applyGrant(ctx, {
+      userId,
+      amount: SIGNUP_BONUS_CREDITS,
+      source: "signup_bonus",
+      idempotencyKey: { field: "stripeInvoiceId", value: signupBonusKey(userId) },
+      meta: { note: "signup bonus (studio-public)" },
+    });
+
+    return { granted: true as const, amount: SIGNUP_BONUS_CREDITS };
+  },
+});
+
 export const getStudioState = query({
   args: {},
   handler: async (ctx) => {
@@ -1786,6 +1842,16 @@ export const getStudioState = query({
     // Ista granica po kojoj bi `createJob` odbio sledeći posao - dugme i
     // server ne smeju da tvrde suprotno (studio-public F2.4: osoblje 3, javni 2).
     const limits = resolveStudioLimits(publicState.config, isStudioStaff(role));
+
+    // Sme li shell da okine `claimSignupBonus`: fleg ON + potvrđen email + lot
+    // još ne postoji. Anti-farm proveru radi sama mutacija (ovo je samo prikaz).
+    const signupBonusLot =
+      publicState.publicEnabled && emailVerified
+        ? await ctx.db
+            .query("creditLots")
+            .withIndex("by_user_source", (q) => q.eq("userId", userId).eq("source", "signup_bonus"))
+            .first()
+        : null;
 
     const reserved = await ctx.db
       .query("generationJobs")
@@ -1825,6 +1891,11 @@ export const getStudioState = query({
       isStudioAdmin: role === "admin",
       activeJobs: reserved.length + running.length,
       maxActiveJobs: limits.maxConcurrentJobs,
+      // Bonus dobrodošlice javnog Studija (F2.3): shell na `claimable` okine
+      // `claimSignupBonus` (jednom - mutacija je idempotentna po korisniku).
+      signupBonus: {
+        claimable: publicState.publicEnabled && emailVerified && signupBonusLot === null,
+      },
       // SP2: koji provajder ima ključ - samo boolean-i, da birač označi DEMO
       // modele PRE klika. Ista funkcija koju `submitJob` koristi za mock kapiju,
       // pa UI i server nikad ne tvrde suprotno.

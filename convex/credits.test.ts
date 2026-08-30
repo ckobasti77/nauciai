@@ -182,9 +182,12 @@ test("validatePrompt hvata prazan, predugačak i zabranjen prompt", () => {
 test("invarijanta: posle 200 nasumičnih operacija balans === zbir lotova === zbir transakcija", async () => {
   const t = convexTest(schema, modules);
   const userId = await seedUser(t);
-  const random = seededRandom(20260819);
+  // Nov seed (20260819 → 20260830) uz dodatu signup-bonus granu (studio-public
+  // F2): test tvrdi invarijante i brojače > 0, ne tačne zbirove, pa je promena
+  // seed-a bezbedna po konstrukciji.
+  const random = seededRandom(20260830);
   const spentJobs: Id<"generationJobs">[] = [];
-  const counts = { grant: 0, spend: 0, rejected: 0, refund: 0 };
+  const counts = { grant: 0, bonus: 0, spend: 0, rejected: 0, refund: 0 };
 
   for (let step = 0; step < 200; step += 1) {
     const roll = random();
@@ -196,6 +199,20 @@ test("invarijanta: posle 200 nasumičnih operacija balans === zbir lotova === zb
         amount: 1 + Math.floor(random() * 400),
         source: "purchase",
         idempotencyKey: { field: "stripeSessionId", value: `cs_test_${counts.grant}` },
+      });
+      continue;
+    }
+
+    if (roll < 0.45) {
+      // Signup bonus (studio-public F2) sa NAMERNO istim ključem svaki put -
+      // oba sloja idempotencije (`signup:<userId>` + `by_user_source`) se
+      // provlače kroz nasumičnu putanju; sme da ostane najviše JEDAN lot.
+      counts.bonus += 1;
+      await t.mutation(internal.credits.grantCredits, {
+        userId,
+        amount: 25,
+        source: "signup_bonus",
+        idempotencyKey: { field: "stripeInvoiceId", value: `signup:${userId}` },
       });
       continue;
     }
@@ -232,9 +249,14 @@ test("invarijanta: posle 200 nasumičnih operacija balans === zbir lotova === zb
 
   // Bez ovoga bi test mogao da prođe na praznom ledgeru.
   expect(counts.grant).toBeGreaterThan(0);
+  expect(counts.bonus).toBeGreaterThan(1);
   expect(counts.spend).toBeGreaterThan(0);
   expect(counts.rejected).toBeGreaterThan(0);
   expect(counts.refund).toBeGreaterThan(0);
+
+  // Više pokušaja bonusa, tačno jedan lot i tačno jedna bonus transakcija.
+  expect(lots.filter((row) => row.source === "signup_bonus")).toHaveLength(1);
+  expect(transactions.filter((row) => row.type === "bonus")).toHaveLength(1);
 
   expect(balance?.balance).toBe(lotSum);
   expect(balance?.balance).toBe(transactionSum);

@@ -12,6 +12,9 @@ const creditLotSource = v.union(
   v.literal("purchase"),
   v.literal("plan_grant"),
   v.literal("welcome_bonus"),
+  // Bonus javnog Studija (studio-public F2) - dodeljuje ga isključivo
+  // `studio.claimSignupBonus`, nikad Stripe webhook (nije u `stripeGrantSource`).
+  v.literal("signup_bonus"),
   v.literal("admin_grant"),
   v.literal("refund"),
 );
@@ -46,6 +49,7 @@ const TRANSACTION_TYPE_BY_SOURCE = {
   purchase: "purchase",
   plan_grant: "purchase",
   welcome_bonus: "bonus",
+  signup_bonus: "bonus",
   admin_grant: "admin_adjust",
   refund: "refund",
 } as const;
@@ -162,7 +166,78 @@ export const getTransactions = query({
 /**
  * Otvara nov lot i upisuje transakciju i balans u istoj mutaciji. Ako lot sa
  * istim `idempotencyKey` već postoji, vraća njegov ID i ne upisuje ništa.
+ *
+ * Obična funkcija iz istog razloga kao `applySpend` (vidi komentar tamo):
+ * `studio.claimSignupBonus` je zove direktno, u SVOJOJ transakciji - ugnježden
+ * `ctx.runMutation` bi bio podtransakcija koju pozivalac može da proguta.
  */
+export async function applyGrant(
+  ctx: MutationCtx,
+  args: {
+    userId: Id<"users">;
+    amount: number;
+    source: LotSource;
+    idempotencyKey: IdempotencyKey;
+    meta?: { packId?: Id<"creditPacks">; note?: string };
+  },
+): Promise<Id<"creditLots">> {
+  if (!isValidCreditAmount(args.amount)) throw new Error("NEVALIDAN_IZNOS");
+
+  const existing = await findLotByKey(ctx, args.idempotencyKey);
+  if (existing) return existing._id;
+
+  // Bonusi su jednom po KORISNIKU (STUDIO-PLAN D.1 za welcome; studio-public
+  // F2 za signup), a ne po fakturi/pozivu: otkazivanje pa ponovna pretplata
+  // pravi novu `invoice.id`, a uz kupon od 100% i besplatnu petlju. Ključevi
+  // `welcome:<userId>` / `signup:<userId>` to sami po sebi rešavaju; ova
+  // provera je drugi sloj, po izvoru, za lotove otvorene pre te promene.
+  if (args.source === "welcome_bonus" || args.source === "signup_bonus") {
+    const existingBonus = await ctx.db
+      .query("creditLots")
+      .withIndex("by_user_source", (q) => q.eq("userId", args.userId).eq("source", args.source))
+      .first();
+    if (existingBonus) return existingBonus._id;
+  }
+
+  const now = Date.now();
+  const expiresAt = computeExpiry(now);
+  const stripeInvoiceId =
+    args.idempotencyKey.field === "stripeInvoiceId" ? args.idempotencyKey.value : undefined;
+  const stripeSessionId =
+    args.idempotencyKey.field === "stripeSessionId" ? args.idempotencyKey.value : undefined;
+
+  const lotId = await ctx.db.insert("creditLots", {
+    userId: args.userId,
+    source: args.source,
+    granted: args.amount,
+    remaining: args.amount,
+    expiresAt,
+    grantedAt: now,
+    stripeInvoiceId,
+    stripeSessionId,
+    packId: args.meta?.packId,
+  });
+  const balanceAfter = await applyBalanceDelta(ctx, args.userId, now, {
+    balance: args.amount,
+    purchased: PAID_SOURCES.has(args.source) ? args.amount : 0,
+    spent: 0,
+  });
+  await ctx.db.insert("creditTransactions", {
+    userId: args.userId,
+    amount: args.amount,
+    type: TRANSACTION_TYPE_BY_SOURCE[args.source],
+    balanceAfter,
+    lotId,
+    stripeSessionId,
+    packId: args.meta?.packId,
+    note: args.meta?.note,
+    expiresAt,
+    createdAt: now,
+  });
+
+  return lotId;
+}
+
 export const grantCredits = internalMutation({
   args: {
     userId: v.id("users"),
@@ -171,64 +246,7 @@ export const grantCredits = internalMutation({
     idempotencyKey,
     meta: v.optional(grantMeta),
   },
-  handler: async (ctx, args) => {
-    if (!isValidCreditAmount(args.amount)) throw new Error("NEVALIDAN_IZNOS");
-
-    const existing = await findLotByKey(ctx, args.idempotencyKey);
-    if (existing) return existing._id;
-
-    // Bonus dobrodošlice je jednom po KORISNIKU (STUDIO-PLAN D.1), a ne po
-    // pretplati: otkazivanje pa ponovna pretplata pravi novu `invoice.id`, a uz
-    // kupon od 100% i besplatnu petlju. Ključ `welcome:<userId>` to sam po sebi
-    // rešava; ova provera je drugi sloj, za lotove otvorene pre te promene.
-    if (args.source === "welcome_bonus") {
-      const existingBonus = await ctx.db
-        .query("creditLots")
-        .withIndex("by_user_source", (q) =>
-          q.eq("userId", args.userId).eq("source", "welcome_bonus"),
-        )
-        .first();
-      if (existingBonus) return existingBonus._id;
-    }
-
-    const now = Date.now();
-    const expiresAt = computeExpiry(now);
-    const stripeInvoiceId =
-      args.idempotencyKey.field === "stripeInvoiceId" ? args.idempotencyKey.value : undefined;
-    const stripeSessionId =
-      args.idempotencyKey.field === "stripeSessionId" ? args.idempotencyKey.value : undefined;
-
-    const lotId = await ctx.db.insert("creditLots", {
-      userId: args.userId,
-      source: args.source,
-      granted: args.amount,
-      remaining: args.amount,
-      expiresAt,
-      grantedAt: now,
-      stripeInvoiceId,
-      stripeSessionId,
-      packId: args.meta?.packId,
-    });
-    const balanceAfter = await applyBalanceDelta(ctx, args.userId, now, {
-      balance: args.amount,
-      purchased: PAID_SOURCES.has(args.source) ? args.amount : 0,
-      spent: 0,
-    });
-    await ctx.db.insert("creditTransactions", {
-      userId: args.userId,
-      amount: args.amount,
-      type: TRANSACTION_TYPE_BY_SOURCE[args.source],
-      balanceAfter,
-      lotId,
-      stripeSessionId,
-      packId: args.meta?.packId,
-      note: args.meta?.note,
-      expiresAt,
-      createdAt: now,
-    });
-
-    return lotId;
-  },
+  handler: async (ctx, args) => applyGrant(ctx, args),
 });
 
 /**

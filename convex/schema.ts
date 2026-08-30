@@ -65,6 +65,9 @@ const creditLotSource = v.union(
   v.literal("purchase"),
   v.literal("plan_grant"),
   v.literal("welcome_bonus"),
+  // Bonus javnog Studija posle potvrde emaila (studio-public F2) - odvojen od
+  // `welcome_bonus` (prva plaćena pretplata) da jedno ne guta drugo.
+  v.literal("signup_bonus"),
   v.literal("admin_grant"),
   // Refund neuspelog posla otvara nov lot umesto da vraća kredite u originalni.
   v.literal("refund"),
