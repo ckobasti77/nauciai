@@ -45,13 +45,11 @@ export function LanguageToggle({ locale, className }: { locale: Locale; classNam
       aria-label={m.footer.langLabel}
       title={m.footer.switchTo}
       className={cn(
-        "inline-flex size-11 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-paper-strong transition hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+        "inline-flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-ink transition hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
         className,
       )}
     >
-      <span className="block size-6 overflow-hidden rounded-full border border-ink/25">
-        {locale === "sr" ? <SerbianFlag /> : <BritishFlag />}
-      </span>
+      {locale === "sr" ? <SerbianFlag /> : <BritishFlag />}
     </Link>
   );
 }
