@@ -260,12 +260,13 @@ export default async function StudioLandingPage({
               </div>
             </div>
             {/* Ceo studio video/slika. Mobilni/tablet: ISPOD teksta (bez preklapanja
-                sa mašinom). Od lg: full-bleed pozadina cele sekcije, poravnata desno —
-                leva trećina prazna za tekst. Prazan prostor je ista krem bg, bešavno. */}
+                sa mašinom). Od lg: video pune visine sekcije (100svh), centriran;
+                prazan prostor levo/desno je ista krem bg — bešavno, bez ijedne linije. */}
             <div className="relative z-0 aspect-video w-full lg:absolute lg:inset-0 lg:aspect-auto">
               <HeroLoop
                 label={STUDIO_LANDING.heroVideoAlt[locale]}
                 variant="cover"
+                fill
                 bg="#FAECDA"
                 webmSrc="/images/landing/studio-hero-loop.webm"
                 mp4Src="/images/landing/studio-hero-loop.mp4"
