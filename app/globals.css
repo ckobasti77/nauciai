@@ -619,3 +619,42 @@ details[open] > summary .faq-icon-open {
     animation-iteration-count: 1 !important;
   }
 }
+
+/* Hero „cover" vizual (HeroLoop): ceo video/poster UVEK vidljiv po visini, bez
+   kropa i bez distorzije, a element == sadržaj (pa se `mask` fade poklapa sa
+   pravim ivicama videa u OBA režima → bešavan spoj sa bg bojom sekcije).
+   - Uzak ekran (aspect < video 1928:1076): puna širina, auto visina → contain,
+     letterbox gore/dole u bg boji (tek tada „skaliraj da stane po širini").
+   - Širok ekran (aspect ≥ videa): PUNA visina (100vh), auto širina → prazan
+     prostor levo/desno je bg boja; od `lg` poravnat DESNO (leva strana za tekst).
+   Centriranje ide preko translate (ne inset-0/bottom-0) da `height:auto` ne bi
+   razvuklo visinu i pokvarilo odnos. */
+/* Hero visina: tačno 100vh (100svh sa 100vh fallback-om). Navbar NIJE oduzet — on
+   lebdi (fixed) preko heroa, koji počinje od vrha ekrana. */
+.hero-100 {
+  height: 100vh;
+  height: 100svh;
+}
+
+.hero-cover-media {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
+  height: auto;
+  max-width: none;
+}
+@media (min-aspect-ratio: 1928 / 1076) {
+  .hero-cover-media {
+    width: auto;
+    height: 100%;
+  }
+}
+@media (min-aspect-ratio: 1928 / 1076) and (min-width: 1024px) {
+  .hero-cover-media {
+    left: auto;
+    right: 0;
+    transform: translateY(-50%);
+  }
+}

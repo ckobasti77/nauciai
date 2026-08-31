@@ -62,18 +62,23 @@ function useSmartSticky<T extends HTMLElement>() {
   return { elementRef, hidden, show: () => updateHidden(false) };
 }
 
-function stickyClassName(className?: string) {
+function stickyClassName(className?: string, overlay = false) {
   return cn(
-    "sticky z-30 transform-gpu transition-transform duration-200 ease-out data-[hidden=true]:pointer-events-none data-[hidden=true]:-translate-y-full motion-reduce:transition-none",
+    // `cn` je obično spajanje (ne tailwind-merge), pa se pozicija bira ovde a ne
+    // preko className-a. `overlay` = navbar lebdi PREKO heroa (fixed), pa hero
+    // počinje od vrha ekrana ispod njega; podrazumevano ostaje `sticky` u toku.
+    overlay ? "fixed inset-x-0" : "sticky",
+    "z-30 transform-gpu transition-transform duration-200 ease-out data-[hidden=true]:pointer-events-none data-[hidden=true]:-translate-y-full motion-reduce:transition-none",
     className,
   );
 }
 
 export function SmartStickyHeader({
   className,
+  overlay = false,
   onFocusCapture,
   ...props
-}: HTMLAttributes<HTMLElement>) {
+}: HTMLAttributes<HTMLElement> & { overlay?: boolean }) {
   const { elementRef, hidden, show } = useSmartSticky<HTMLElement>();
   const handleFocusCapture: FocusEventHandler<HTMLElement> = (event) => {
     show();
@@ -84,7 +89,7 @@ export function SmartStickyHeader({
     <header
       ref={elementRef}
       data-hidden={hidden ? "true" : "false"}
-      className={stickyClassName(className)}
+      className={stickyClassName(className, overlay)}
       onFocusCapture={handleFocusCapture}
       {...props}
     />
