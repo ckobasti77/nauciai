@@ -79,7 +79,7 @@ export function MarketingPage({
             {viewerProfile ? (
               <Link
                 href={withLocale(locale, "/app")}
-                className="inline-flex min-h-11 items-center justify-center rounded-full border-2 border-ink bg-ink px-3 py-2 text-[11px] font-black uppercase text-paper-strong shadow-[3px_3px_0_0_var(--yellow)] transition hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--yellow)] active:translate-y-0 active:shadow-[3px_3px_0_0_var(--yellow)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink max-[380px]:hidden sm:px-4 sm:text-xs"
+                className="inline-flex min-h-9 items-center justify-center rounded-full border-2 border-ink bg-ink px-2.5 py-1.5 text-[11px] font-black uppercase text-paper-strong shadow-[3px_3px_0_0_var(--yellow)] transition hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--yellow)] active:translate-y-0 active:shadow-[3px_3px_0_0_var(--yellow)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink max-[380px]:hidden sm:px-3 sm:text-xs"
               >
                 {t.navDashboard}
               </Link>

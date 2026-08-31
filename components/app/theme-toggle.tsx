@@ -48,14 +48,14 @@ export function ThemeToggle({ locale, className }: { locale: Locale; className?:
       aria-label={label}
       title={label}
       className={cn(
-        "inline-flex size-11 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink transition hover:-translate-y-0.5 hover:bg-yellow/25 active:translate-y-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+        "inline-flex size-9 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink transition hover:-translate-y-0.5 hover:bg-yellow/25 active:translate-y-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
         className,
       )}
     >
       {isDark ? (
-        <Moon className="size-5 shrink-0" aria-hidden="true" />
+        <Moon className="size-4 shrink-0" aria-hidden="true" />
       ) : (
-        <Sun className="size-5 shrink-0" aria-hidden="true" />
+        <Sun className="size-4 shrink-0" aria-hidden="true" />
       )}
     </button>
   );
