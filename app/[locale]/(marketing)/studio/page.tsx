@@ -242,10 +242,14 @@ export default async function StudioLandingPage({
                 fallbackSrc="/images/landing/studio-hero.png"
               />
             </div>
-            {/* Scrim za čitljivost: papir sleva → providno desno (~42% pun papir). */}
+            {/* Scrim za čitljivost: papir sleva → providno desno. Tekst je fiksne
+                širine (max-w-md), pa procenat pokrivenosti mora rasti na užim
+                ekranima da ostane iza kolone teksta - suzi se tek od `lg` (kad
+                je 1280px+ kolona teksta stvarno u levoj trećini kadra), da ne
+                bledi mašinu na desktopu. */}
             <div
               aria-hidden
-              className="pointer-events-none absolute inset-0 z-10 [background:linear-gradient(to_right,var(--paper)_0%,var(--paper)_42%,transparent_78%)]"
+              className="pointer-events-none absolute inset-0 z-10 [background:linear-gradient(to_right,var(--paper)_0%,var(--paper)_90%,transparent_100%)] md:[background:linear-gradient(to_right,var(--paper)_0%,var(--paper)_64%,transparent_84%)] lg:[background:linear-gradient(to_right,var(--paper)_0%,var(--paper)_36%,transparent_62%)]"
             />
             {/* Mobilni dodatak: blagi vertikalni scrim odozdo (video je desno-dole). */}
             <div
@@ -253,7 +257,10 @@ export default async function StudioLandingPage({
               className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-1/2 [background:linear-gradient(to_top,var(--paper)_0%,var(--paper)_12%,transparent_60%)] md:hidden"
             />
             <div className="relative z-20 mx-auto flex w-full max-w-7xl flex-1 items-center px-4 py-16 sm:px-6 lg:px-8">
-              <div className="max-w-xl" data-motion="copy">
+              {/* Uzano i uz levu ivicu (ne max-w-xl kao na home heroju) - nova
+                  kompozicija drži mašinu u desnoj polovini kadra, pa tekst mora
+                  da ostane u levoj trećini da je ne prekrije na 1280px+. */}
+              <div className="max-w-md" data-motion="copy">
                 <h1 className="text-balance text-4xl font-black leading-[0.95] text-ink sm:text-5xl lg:text-6xl">
                   {STUDIO_LANDING.heroTitle[locale]}
                 </h1>
