@@ -91,7 +91,7 @@ export function SiteFooter({ locale }: { locale: Locale }) {
           {/* Kolona 3 — Platforma */}
           <nav aria-label={f.platformHeading} className="flex flex-col gap-2">
             <p className="font-display text-xl text-ink">{f.platformHeading}</p>
-            <FooterLink href={withLocale(locale, "/app/community")}>{f.community}</FooterLink>
+            <FooterLink href={withLocale(locale, "/community")}>{f.community}</FooterLink>
             <FooterLink href={withLocale(locale, "/sign-in")}>{f.signIn}</FooterLink>
             <FooterLink href={withLocale(locale, "/app")}>{f.openApp}</FooterLink>
           </nav>

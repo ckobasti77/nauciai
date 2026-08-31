@@ -73,26 +73,22 @@ const loadInitialComments = cache(async (postId: string) => {
 const loadInitialReplies = cache(async (postId: string, comments: PublicComment[]) => {
   const convex = getConvexHttpClient();
   if (!convex) return {};
-  const repliesMap: Record<string, PublicComment[]> = {};
+  const parentIds = comments
+    .filter((c) => (c.directReplyCount ?? 0) > 0)
+    .map((c) => c._id);
 
-  await Promise.all(
-    comments.map(async (comment) => {
-      if ((comment.directReplyCount ?? 0) > 0) {
-        try {
-          const result = await convex.query(convexQueries.listPublicRepliesPage, {
-            postId,
-            parentId: comment._id,
-            paginationOpts: { numItems: 3, cursor: null },
-          });
-          repliesMap[comment._id] = (result.page ?? []) as PublicComment[];
-        } catch {
-          repliesMap[comment._id] = [];
-        }
-      }
-    }),
-  );
+  if (parentIds.length === 0) return {};
 
-  return repliesMap;
+  try {
+    const result = await convex.query(convexQueries.listPublicInitialRepliesForPost, {
+      postId,
+      parentIds,
+      limitPerParent: 3,
+    });
+    return (result ?? {}) as Record<string, PublicComment[]>;
+  } catch {
+    return {};
+  }
 });
 
 const loadOtherRecentPosts = cache(async (currentPostId: string): Promise<PublicPost[]> => {
@@ -120,10 +116,16 @@ export async function generateMetadata({
 }: {
   params: Promise<{ locale: string; slug: string }>;
 }): Promise<Metadata> {
-  const { slug: slugParam } = await params;
+  const { locale: localeParam, slug: slugParam } = await params;
+  const locale = normalizeLocale(localeParam);
   const postId = extractPostIdFromSlug(slugParam);
   const post = await loadPost(postId);
   if (!post) return { robots: { index: false, follow: false } };
+
+  const canonicalSlug = getCommunityPostSlug(post.title, post._id);
+  if (slugParam !== canonicalSlug) {
+    permanentRedirect(withLocale(locale, `/community/${canonicalSlug}`));
+  }
 
   // Task 3: Canonical ALWAYS points to the locale matching post.language
   const canonicalLocale: Locale = post.language === "en" ? "en" : "sr";
@@ -175,9 +177,9 @@ export default async function PublicCommunityThreadPage({
     permanentRedirect(withLocale(locale, `/community/${canonicalSlug}`));
   }
 
-  const [comments, replies, otherPosts] = await Promise.all([
-    loadInitialComments(post._id),
-    loadInitialComments(post._id).then((rootComments) => loadInitialReplies(post._id, rootComments)),
+  const comments = await loadInitialComments(post._id);
+  const [replies, otherPosts] = await Promise.all([
+    loadInitialReplies(post._id, comments),
     loadOtherRecentPosts(post._id),
   ]);
 
@@ -305,6 +307,8 @@ export default async function PublicCommunityThreadPage({
                   <img
                     src={post.authorAvatarUrl}
                     alt=""
+                    width={24}
+                    height={24}
                     className="size-6 rounded-full border border-ink object-cover"
                     loading="lazy"
                   />

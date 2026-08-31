@@ -159,6 +159,7 @@ export const marketingContent = {
         "Obaveštenja o novim lekcijama",
       ],
       imageAlt: "Ilustracija zajednice studenata",
+      cta: "Poseti zajednicu",
     },
     pricing: {
       title: "Jedna cena, sve u kursu",
@@ -272,6 +273,7 @@ export const marketingContent = {
         "Get notified about new lessons",
       ],
       imageAlt: "Illustration of the student community",
+      cta: "Visit the community",
     },
     pricing: {
       title: "One price, everything in the course",

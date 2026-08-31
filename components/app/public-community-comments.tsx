@@ -150,6 +150,8 @@ function PublicCommentNode({
             <img
               src={comment.authorAvatarUrl}
               alt=""
+              width={20}
+              height={20}
               className="size-5 rounded-full border border-ink object-cover"
               loading="lazy"
             />

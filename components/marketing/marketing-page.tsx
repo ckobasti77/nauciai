@@ -309,6 +309,12 @@ export function MarketingPage({
                   </li>
                 ))}
               </ul>
+              <div className="mt-8">
+                <LinkButton href={withLocale(locale, "/community")} tone="paper" size="md">
+                  <Sparkles className="size-4" />
+                  {m.community.cta}
+                </LinkButton>
+              </div>
             </div>
             <Panel className="p-3">
               <div className="relative aspect-[16/9] overflow-hidden rounded-[8px] border-2 border-ink bg-paper">

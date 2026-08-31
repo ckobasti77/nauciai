@@ -308,6 +308,8 @@ export default async function PublicCommunityListingPage({
                           <img
                             src={post.authorAvatarUrl}
                             alt=""
+                            width={20}
+                            height={20}
                             className="size-5 rounded-full border border-ink object-cover"
                             loading="lazy"
                           />

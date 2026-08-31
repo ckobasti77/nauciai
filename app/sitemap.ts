@@ -47,25 +47,30 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const convex = getConvexHttpClient();
   if (!convex) return urls;
-  let cursor: string | null = null;
-  let isDone = false;
-  let pages = 0;
-  while (!isDone && pages < 10) {
-    const result: SitemapPage = await convex.query(convexQueries.listPublicPostRefsForSitemap, {
-      paginationOpts: { numItems: 500, cursor },
-    });
-    for (const thread of result.page ?? []) {
-      const locale = (thread.language === "en" ? "en" : "sr") as Locale;
-      urls.push({
-        url: `${origin}${getCommunityPostPath(locale, thread)}`,
-        lastModified: new Date(thread.lastActivityAt),
-        changeFrequency: "weekly",
-        priority: 0.7,
+  try {
+    let cursor: string | null = null;
+    let isDone = false;
+    let pages = 0;
+    while (!isDone && pages < 10) {
+      const result: SitemapPage = await convex.query(convexQueries.listPublicPostRefsForSitemap, {
+        paginationOpts: { numItems: 500, cursor },
       });
+      for (const thread of result.page ?? []) {
+        const locale = (thread.language === "en" ? "en" : "sr") as Locale;
+        urls.push({
+          url: `${origin}${getCommunityPostPath(locale, thread)}`,
+          lastModified: new Date(thread.lastActivityAt),
+          changeFrequency: "weekly",
+          priority: 0.7,
+        });
+      }
+      isDone = Boolean(result.isDone);
+      cursor = result.continueCursor ?? null;
+      pages += 1;
     }
-    isDone = Boolean(result.isDone);
-    cursor = result.continueCursor ?? null;
-    pages += 1;
+  } catch {
+    // Return static URLs if backend query fails
+    return urls;
   }
   return urls;
 }

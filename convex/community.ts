@@ -479,6 +479,38 @@ export const listPublicRepliesPage = query({
   },
 });
 
+export const listPublicInitialRepliesForPost = query({
+  args: {
+    postId: v.id("communityPosts"),
+    parentIds: v.array(v.id("comments")),
+    limitPerParent: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const post = await ctx.db.get(args.postId);
+    if (!post || effectivePostStatus(post) !== "published") {
+      return {};
+    }
+    const limit = Math.max(1, Math.min(10, args.limitPerParent ?? 3));
+    const repliesMap: Record<string, Awaited<ReturnType<typeof publicCommentForSeo>>[]> = {};
+
+    await Promise.all(
+      args.parentIds.map(async (parentId) => {
+        const comments = await ctx.db
+          .query("comments")
+          .withIndex("by_postId_and_parentId_and_hotScore_and_createdAt", (q) =>
+            q.eq("postId", args.postId).eq("parentId", parentId),
+          )
+          .order("desc")
+          .take(limit);
+        const detailed = await commentsWithDetails(ctx, comments, null);
+        repliesMap[parentId] = await Promise.all(detailed.map(publicCommentForSeo));
+      }),
+    );
+
+    return repliesMap;
+  },
+});
+
 export const listPublicPostRefsForSitemap = query({
   args: { paginationOpts: paginationOptsValidator },
   handler: async (ctx, args) => {
