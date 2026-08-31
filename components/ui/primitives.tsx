@@ -16,7 +16,10 @@ export function LinkButton({ className, tone = "ink", size = "md", ...props }: B
     <Link
       data-motion="interactive"
       className={cn(
-        "group inline-flex items-center justify-center gap-2 rounded-full border-2 font-extrabold transition-[transform,translate,box-shadow] duration-200 ease-[var(--ease-studio-out)] active:translate-y-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2",
+        // `link-button` (globals.css, @layer components) supplies the default
+        // `display: inline-flex` so a caller's `hidden`/`sm:inline-flex` utilities can win;
+        // the `inline-flex` utility would beat `hidden` (emitted later in @layer utilities).
+        "group link-button items-center justify-center gap-2 rounded-full border-2 font-extrabold transition-[transform,translate,box-shadow] duration-200 ease-[var(--ease-studio-out)] active:translate-y-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2",
         // `cn` is a plain join, not tailwind-merge, so a caller's `className` cannot reliably
         // beat these — sizing is selected here instead. "md" matches the previous hardcoded base.
         size === "md" && "min-h-11 px-5 py-2.5 text-sm",

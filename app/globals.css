@@ -197,6 +197,18 @@ body {
   }
 }
 
+/* Podrazumevani display za LinkButton (components/ui/primitives.tsx). MORA u sloj
+   koji gubi od utility-ja: Tailwind sortira utility-je po imenu, pa `.inline-flex`
+   u emitovanom CSS-u dolazi POSLE `.hidden` -- `inline-flex` kao utility na samom
+   elementu bi zato pojeo pozivaocevo `hidden` (isti tip greske kao radius bag
+   iznad). `@layer components` gubi od `@layer utilities`, pa `hidden` i
+   `sm:inline-flex` na pozivaocu normalno pobedjuju. */
+@layer components {
+  .link-button {
+    display: inline-flex;
+  }
+}
+
 /* The sanctioned radius scale. These are the only values a new surface should
    use; `rounded-full` covers the pill tier. See AGENTS.md. */
 @utility surface-card {
