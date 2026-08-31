@@ -19,12 +19,19 @@ import {
   runGoogleInteraction,
 } from "../../lib/google-image";
 import {
+  canMeasure,
+  MEDIA_HEAD_BYTES,
+  MEDIA_TAIL_BYTES,
+  readMediaDuration,
+} from "../../lib/media-duration";
+import {
   bareInteractionId,
   buildGoogleImageRequest,
   buildOmniRequest,
   buildVeoRequest,
   type GoogleInputFile,
   type GoogleInputs,
+  googleDownloadHeaders,
   omniInputRestriction,
   toBase64,
 } from "./googleCore";
@@ -107,6 +114,7 @@ export async function submitGoogleJob(ctx: ActionCtx, jobId: Id<"generationJobs"
         inputs,
         inputMode,
         kind: model.kind,
+        capabilities,
       });
 
       return;
@@ -148,9 +156,10 @@ async function runGoogleSyncJob(
     inputs: GoogleInputs;
     inputMode: string;
     kind: string;
+    capabilities: Record<string, unknown>;
   },
 ): Promise<void> {
-  const { config, providerModel, params, inputs, inputMode, kind } = args;
+  const { config, providerModel, params, inputs, inputMode, kind, capabilities } = args;
   const isVideo = kind === "video";
 
   if (isVideo) {
@@ -183,21 +192,113 @@ async function runGoogleSyncJob(
     );
   }
 
-  const bytes = fromBase64(result.media.data);
-  const storageId = await ctx.storage.store(
-    new Blob([bytes as BlobPart], { type: result.media.mimeType }),
-  );
+  // Dva oblika izlaza, jedan fajl: slika stize inline (base64), a video je
+  // trazen sa `delivery: "uri"` pa stize kao URL koji se skida ODMAH - polje
+  // `uri` je garantovano samo u ovom, prvom odgovoru.
+  const blob = result.media.data
+    ? new Blob([fromBase64(result.media.data) as BlobPart], { type: result.media.mimeType })
+    : await downloadInteractionMedia(config, result.media.uri as string, result.media.mimeType);
+
+  const storageId = await ctx.storage.store(blob);
+
+  // Omni NEMA parametar za trajanje - Interactions API ga ne prima, pa duzina
+  // klipa nije ono sto je korisnik naruco nego ono sto je model isporucio.
+  // Zato se meri iz zaglavlja gotovog fajla i salje u `recordProviderCost`,
+  // koji po njoj racuna STVARAN trosak; `settleJobCredits` posle toga ispravi
+  // rezervaciju naviše ili naniže. Bez ovoga korisnik placa naruceno, a dobija
+  // isporuceno - a to su dva razlicita broja.
+  const reportedSeconds = isVideo ? await measureOutputSeconds(blob, capabilities) : undefined;
 
   const stored = await ctx.runMutation(internal.providers.google.completeGoogleImageJob, {
     jobId,
     storageId,
     mimeType: result.media.mimeType,
-    byteSize: bytes.byteLength,
+    byteSize: blob.size,
+    ...(reportedSeconds !== undefined ? { reportedSeconds } : {}),
     ...(result.interactionId ? { providerRequestId: `interactions/${result.interactionId}` } : {}),
     ...(result.usage ? { usage: result.usage } : {}),
     ...(result.sample !== null ? { sample: result.sample } : {}),
   });
   if (!stored) await ctx.storage.delete(storageId);
+}
+
+/**
+ * Trajanje gotovog izlaza iz zaglavlja fajla, u sekundama.
+ *
+ * Cita se isti parser koji meri i OKACENE fajlove (`lib/media-duration.ts`), pa
+ * merenje izlaza i merenje ulaza nisu dve racunice. `moov` kutija MP4 fajla
+ * stoji ili na pocetku (faststart) ili na kraju, pa se probaju oba kraja.
+ *
+ * `undefined` znaci "nije izmereno" i NIJE greska: posao se tada zatvara sa
+ * rezervisanom cenom, isto kao i pre, umesto da padne zbog merenja.
+ */
+async function measureOutputSeconds(
+  blob: Blob,
+  capabilities: Record<string, unknown>,
+): Promise<number | undefined> {
+  if (!canMeasure(blob.type)) return undefined;
+
+  const total = blob.size;
+  const head = new Uint8Array(await blob.slice(0, Math.min(MEDIA_HEAD_BYTES, total)).arrayBuffer());
+  let read = readMediaDuration(head, total);
+
+  if (!read.ok && total > MEDIA_HEAD_BYTES) {
+    const tail = new Uint8Array(
+      await blob.slice(Math.max(0, total - MEDIA_TAIL_BYTES)).arrayBuffer(),
+    );
+    read = readMediaDuration(tail, total);
+  }
+
+  if (!read.ok || !(read.seconds > 0)) return undefined;
+
+  return clampToCatalogDuration(read.seconds, capabilities);
+}
+
+/**
+ * Izmereno trajanje se odseca na granice iz KATALOGA (`minDurationS` /
+ * `maxDurationS`), isto kao sto `resolveMeasuredQuantity` odseca izmereno
+ * trajanje okacenog fajla.
+ *
+ * To odsecanje je zastita u oba smera: pogresno procitano zaglavlje ne moze da
+ * naplati preko onoga sto katalog za taj model uopste dozvoljava, ni da spusti
+ * cenu ispod njegovog minimuma.
+ */
+function clampToCatalogDuration(seconds: number, capabilities: Record<string, unknown>): number {
+  const min = capabilities.minDurationS;
+  const max = capabilities.maxDurationS;
+  let bounded = seconds;
+  if (typeof min === "number" && Number.isFinite(min)) bounded = Math.max(bounded, min);
+  if (typeof max === "number" && Number.isFinite(max)) bounded = Math.min(bounded, max);
+
+  return bounded;
+}
+
+/**
+ * Preuzimanje izlaza koji je stigao kao URL (`delivery: "uri"`).
+ *
+ * Fajl stoji na `generativelanguage.googleapis.com` i TRAZI kljuc -
+ * `googleDownloadHeaders` ga dodaje samo za taj host, pa potpisani fal/BytePlus
+ * URL-ovi nikad ne vide nas kljuc. Bez kljuca je 403, posao bi ostao `done` bez
+ * fajla, a korisnik je platio.
+ */
+async function downloadInteractionMedia(
+  config: GoogleConfig,
+  uri: string,
+  mimeType: string,
+): Promise<Blob> {
+  const response = await fetch(uri, { headers: googleDownloadHeaders(uri, config.apiKey) });
+  if (!response.ok) {
+    throw new Error(
+      `Google nije dao izlazni fajl (HTTP ${response.status}). Krediti su ti vraceni.`,
+    );
+  }
+
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  if (bytes.byteLength === 0) {
+    throw new Error("Google je vratio prazan fajl. Krediti su ti vraceni.");
+  }
+
+  return new Blob([bytes as BlobPart], { type: mimeType });
 }
 
 /**
@@ -216,6 +317,8 @@ export const completeGoogleImageJob = internalMutation({
     byteSize: v.number(),
     providerRequestId: v.optional(v.string()),
     usage: v.optional(tokenUsageValidator),
+    /** Izmereno trajanje izlaza - ulaz u stvaran trosak kod modela po sekundi. */
+    reportedSeconds: v.optional(v.number()),
     sample: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<boolean> => {
@@ -233,6 +336,7 @@ export const completeGoogleImageJob = internalMutation({
     // vise niko ne ispituje, pa kasnije nema ko da ga izmeri.
     await recordProviderCost(ctx, job, {
       ...(args.usage !== undefined ? { usage: args.usage } : {}),
+      ...(args.reportedSeconds !== undefined ? { reportedSeconds: args.reportedSeconds } : {}),
       ...(args.sample !== undefined ? { sample: args.sample } : {}),
     });
 

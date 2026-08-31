@@ -44,6 +44,8 @@ export type CourseModule = {
 
 export type CourseImage = {
   src: string;
+  /** Opciona tamna varijanta ilustracije; kad postoji, slika prati temu. */
+  darkSrc?: string;
   alt: LocalizedText;
 };
 
@@ -134,6 +136,7 @@ export const courses: Course[] = [
     },
     image: {
       src: "/images/landing/course-video-audio.png",
+      darkSrc: "/images/landing/course-video-audio-dark.png",
       alt: {
         sr: "Ilustracija AI video i audio produkcije",
         en: "AI video and audio production illustration",

@@ -322,7 +322,13 @@ test("buildOmniRequest: Interactions oblik, isti kao Nano Banana samo type video
   expect(request.model).toBe("gemini-omni-flash-preview");
   // `input` + `response_format`, ne `inputs` + `config`: to je oblik koji
   // Interactions API stvarno prima (isti kao kod slike).
-  expect(request.response_format).toEqual({ type: "video", aspect_ratio: "9:16" });
+  // `delivery: "uri"` je obavezan deo: video preko 4 MB ne staje u inline
+  // `data`, a 720p klip to gotovo uvek prelazi.
+  expect(request.response_format).toEqual({
+    type: "video",
+    delivery: "uri",
+    aspect_ratio: "9:16",
+  });
   expect(request.input).toEqual([
     { type: "text", text: "reklama" },
     { type: "image", mime_type: "image/png", data: "slika" },
@@ -997,6 +1003,33 @@ test("readInteractionMedia: podržan je i skraćeni output_image oblik", () => {
     mimeType: "image/png",
   });
   expect(readInteractionMedia({ steps: [{ type: "model_output", content: [] }] })).toBeNull();
+});
+
+test("readInteractionMedia: `delivery: \"uri\"` vraca URL umesto bajtova", () => {
+  // Video preko 4 MB Google ne salje inline - isti blok nosi `uri` umesto
+  // `data`. Citac koji bi trazio samo `data` ovde vrati `null`, posao se
+  // refundira, a generacija je vec placena kod Google-a.
+  expect(
+    readInteractionMedia({
+      steps: [
+        {
+          type: "model_output",
+          content: [{ type: "video", mime_type: "video/mp4", uri: "https://x/y.mp4" }],
+        },
+      ],
+    }),
+  ).toEqual({ uri: "https://x/y.mp4", mimeType: "video/mp4" });
+
+  expect(readInteractionMedia({ output_video: { uri: "https://x/z.mp4" } })).toEqual({
+    uri: "https://x/z.mp4",
+    mimeType: "video/mp4",
+  });
+});
+
+test("readInteractionMedia: kad su tu i `data` i `uri`, bajtovi imaju prednost", () => {
+  expect(
+    readInteractionMedia({ output_video: { data: "AAAA", uri: "https://x/y.mp4" } }),
+  ).toEqual({ data: "AAAA", mimeType: "video/mp4" });
 });
 
 test("parseInteraction: odgovor bez slike sa status:failed je GREŠKA, ne uspeh", () => {

@@ -190,7 +190,16 @@ export function buildOmniRequest(
     }
   }
 
-  const responseFormat: Record<string, unknown> = { type: "video" };
+  // `delivery: "uri"` je OBAVEZAN za video. Dokumentacija Omnija ("Best
+  // Practices") kaze da video preko 4 MB ne staje u inline `data` polje, a klip
+  // od 720p to prelazi gotovo uvek - bez ovoga se udara u limit velicine
+  // odgovora, posao ostane bez fajla, a korisnik je vec platio.
+  //
+  // Zamka koja ide uz to: naknadni `GET /v1beta/interactions/{id}` vraca video
+  // kao inline base64 CAK I kad je interakcija napravljena sa `delivery: "uri"`.
+  // Polje `uri` je garantovano samo u PRVOM odgovoru, pa se fajl preuzima odmah,
+  // u istom pozivu (`runGoogleSyncJob`), nikad kasnije.
+  const responseFormat: Record<string, unknown> = { type: "video", delivery: "uri" };
   if (typeof params.aspect_ratio === "string") {
     responseFormat.aspect_ratio = params.aspect_ratio;
   }

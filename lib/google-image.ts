@@ -22,10 +22,18 @@ import { googleHttpErrorMessage, type GoogleConfig } from "./google-video";
  */
 export const GOOGLE_API_REVISION = "2026-05-20";
 
-/** Sta je procitano iz jednog gotovog `interaction` odgovora. */
+/**
+ * Sta je procitano iz jednog gotovog `interaction` odgovora.
+ *
+ * Tacno JEDNO od `data` / `uri` je popunjeno:
+ * - `data` - bajtovi inline, base64, tacno kako ih je Google poslao;
+ * - `uri`  - URL fajla, kad je zahtev trazio `delivery: "uri"`. Video preko
+ *   4 MB Google ne salje inline (dokumentacija Omnija, "Best Practices"), pa
+ *   klip od 720p prakticno uvek stigne kao URL.
+ */
 export type GoogleInteractionMedia = {
-  /** Bajtovi izlaza, base64, tacno kako ih je Google poslao. */
-  data: string;
+  data?: string;
+  uri?: string;
   mimeType: string;
 };
 
@@ -88,10 +96,12 @@ export function readInteractionMedia(payload: unknown): GoogleInteractionMedia |
     ["output_audio", "audio"],
   ] as const) {
     const block = asRecord(root[key]);
-    const data = block ? stringField(block, "data") : null;
-    if (data) {
-      return { data, mimeType: (block && stringField(block, "mime_type")) ?? DEFAULT_MIME[kind] };
-    }
+    if (!block) continue;
+    const mimeType = stringField(block, "mime_type") ?? DEFAULT_MIME[kind];
+    const data = stringField(block, "data");
+    if (data) return { data, mimeType };
+    const uri = stringField(block, "uri");
+    if (uri) return { uri, mimeType };
   }
 
   return null;
@@ -106,10 +116,12 @@ function readFromSteps(steps: unknown[]): GoogleInteractionMedia | null {
       if (!blockRecord) continue;
       const type = stringField(blockRecord, "type");
       if (!type || !MEDIA_TYPES.has(type)) continue;
+      const mimeType = stringField(blockRecord, "mime_type") ?? DEFAULT_MIME[type];
       const data = stringField(blockRecord, "data");
-      if (!data) continue;
-
-      return { data, mimeType: stringField(blockRecord, "mime_type") ?? DEFAULT_MIME[type] };
+      if (data) return { data, mimeType };
+      // `delivery: "uri"`: isti blok, samo umesto bajtova nosi URL fajla.
+      const uri = stringField(blockRecord, "uri");
+      if (uri) return { uri, mimeType };
     }
   }
 
