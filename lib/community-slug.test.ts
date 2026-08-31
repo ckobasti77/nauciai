@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   extractPostIdFromSlug,
+  formatRelativeDate,
   getCommunityPostPath,
   getCommunityPostSlug,
   slugifyCommunityTitle,
@@ -59,5 +60,17 @@ describe("community-slug", () => {
     expect(getCommunityPostPath("en", { title: "My video", _id: "abc12345" })).toBe(
       "/en/community/my-video-abc12345",
     );
+  });
+
+  it("formats relative dates correctly in sr and en", () => {
+    const now = Date.now();
+    expect(formatRelativeDate(now - 1000 * 10, "sr")).toBe("upravo");
+    expect(formatRelativeDate(now - 1000 * 10, "en")).toBe("just now");
+    expect(formatRelativeDate(now - 1000 * 60 * 5, "sr")).toBe("pre 5 min");
+    expect(formatRelativeDate(now - 1000 * 60 * 5, "en")).toBe("5m ago");
+    expect(formatRelativeDate(now - 1000 * 3600 * 3, "sr")).toBe("pre 3 h");
+    expect(formatRelativeDate(now - 1000 * 3600 * 3, "en")).toBe("3h ago");
+    expect(formatRelativeDate(now - 1000 * 86400, "sr")).toBe("juče");
+    expect(formatRelativeDate(now - 1000 * 86400, "en")).toBe("yesterday");
   });
 });

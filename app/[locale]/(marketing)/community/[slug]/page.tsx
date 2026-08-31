@@ -1,13 +1,18 @@
+/* eslint-disable @next/next/no-img-element */
+import { ArrowLeft, ArrowUp, MessageSquare } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
 import { cache } from "react";
 
+import { initialsFromName } from "@/components/app/community-identity";
 import { PublicCommunityComments, type PublicComment } from "@/components/app/public-community-comments";
 import { ThemeToggle } from "@/components/app/theme-toggle";
-import { BrandMark, Panel } from "@/components/ui/primitives";
+import { BrandMark, LinkButton, Panel } from "@/components/ui/primitives";
 import {
   extractPostIdFromSlug,
+  formatRelativeDate,
+  getCommunityPostPath,
   getCommunityPostSlug,
 } from "@/lib/community-slug";
 import { convexQueries, getConvexHttpClient } from "@/lib/convex-http";
@@ -90,6 +95,20 @@ const loadInitialReplies = cache(async (postId: string, comments: PublicComment[
   return repliesMap;
 });
 
+const loadOtherRecentPosts = cache(async (currentPostId: string): Promise<PublicPost[]> => {
+  const convex = getConvexHttpClient();
+  if (!convex) return [];
+  try {
+    const result = await convex.query(convexQueries.listPublicPostsPage, {
+      paginationOpts: { numItems: 6, cursor: null },
+    });
+    const items = (result.page ?? []) as PublicPost[];
+    return items.filter((p) => p._id !== currentPostId).slice(0, 5);
+  } catch {
+    return [];
+  }
+});
+
 function canonicalThreadUrl(locale: Locale, post: { title: string; _id: string }) {
   const origin = (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/$/, "");
   const slug = getCommunityPostSlug(post.title, post._id);
@@ -156,9 +175,10 @@ export default async function PublicCommunityThreadPage({
     permanentRedirect(withLocale(locale, `/community/${canonicalSlug}`));
   }
 
-  const [comments, replies] = await Promise.all([
+  const [comments, replies, otherPosts] = await Promise.all([
     loadInitialComments(post._id),
     loadInitialComments(post._id).then((rootComments) => loadInitialReplies(post._id, rootComments)),
+    loadOtherRecentPosts(post._id),
   ]);
 
   const origin = (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/$/, "");
@@ -232,59 +252,103 @@ export default async function PublicCommunityThreadPage({
           </div>
         </div>
 
-        {/* Back navigation */}
-        <div>
+        {/* Breadcrumb & Back navigation */}
+        <div className="flex flex-wrap items-center justify-between gap-3 text-xs font-black text-muted">
+          <nav aria-label="Breadcrumb" className="flex items-center gap-2">
+            <Link
+              href={withLocale(locale)}
+              className="rounded-[4px] underline transition hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            >
+              {ct.breadcrumbHome}
+            </Link>
+            <span aria-hidden="true">/</span>
+            <Link
+              href={withLocale(locale, "/community")}
+              className="rounded-[4px] underline transition hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            >
+              {ct.breadcrumbCommunity}
+            </Link>
+            <span aria-hidden="true">/</span>
+            <span className="line-clamp-1 max-w-[160px] text-ink sm:max-w-xs">{post.title}</span>
+          </nav>
+
           <Link
             href={withLocale(locale, "/community")}
-            className="inline-flex min-h-11 items-center text-sm font-black text-ink underline transition hover:text-blue-mid focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-[8px] px-2 text-xs font-black text-ink underline transition hover:text-blue-mid focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
-            ← {ct.back}
+            <ArrowLeft className="size-3.5" aria-hidden="true" />
+            <span>{ct.back}</span>
           </Link>
         </div>
 
         {/* Thread article */}
         <Panel as="article" className="overflow-hidden">
-          <header className="border-b border-line bg-paper/55 px-5 py-7 md:px-8">
+          <header className="border-b-2 border-line bg-paper/60 p-6 sm:p-8 md:p-10">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-black uppercase tracking-[0.12em] text-muted">
+              <span className="text-xs font-black uppercase tracking-[0.14em] text-muted">
                 {ct.kicker}
               </span>
               {courseTitle ? (
-                <span className="rounded-full border border-line bg-paper px-2.5 py-0.5 text-xs font-bold text-ink">
+                <span className="rounded-full border-2 border-ink bg-paper-strong px-2.5 py-0.5 text-xs font-black text-ink">
                   {courseTitle}
                 </span>
               ) : null}
             </div>
-            <h1 className="mt-3 text-3xl font-black leading-tight text-ink md:text-5xl">
+
+            <h1 className="mt-3 font-display text-2xl font-black leading-tight text-ink sm:text-3xl md:text-4xl lg:text-5xl">
               {post.title}
             </h1>
-            <p className="mt-4 text-sm font-bold text-muted">
-              {post.authorUsername ? `@${post.authorUsername}` : post.authorName} · {formattedDate}
-            </p>
+
+            <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs font-bold text-muted sm:text-sm">
+              <div className="flex items-center gap-2">
+                {post.authorAvatarUrl ? (
+                  <img
+                    src={post.authorAvatarUrl}
+                    alt=""
+                    className="size-6 rounded-full border border-ink object-cover"
+                    loading="lazy"
+                  />
+                ) : (
+                  <span
+                    aria-hidden="true"
+                    className="flex size-6 items-center justify-center rounded-full border border-ink bg-yellow text-xs font-black text-ink"
+                  >
+                    {initialsFromName(post.authorName)}
+                  </span>
+                )}
+                <span className="font-black text-ink">
+                  {post.authorUsername ? `@${post.authorUsername}` : post.authorName}
+                </span>
+              </div>
+              <span>·</span>
+              <time dateTime={new Date(post.createdAt).toISOString()}>{formattedDate}</time>
+            </div>
           </header>
 
-          <div className="max-w-none whitespace-pre-wrap px-5 py-7 text-base font-medium leading-8 text-ink md:px-8">
+          <div className="max-w-prose whitespace-pre-wrap p-6 text-base font-medium leading-relaxed text-ink sm:p-8 md:text-lg md:leading-8">
             {post.body}
           </div>
 
-          <footer className="flex flex-wrap items-center gap-3 border-t border-line px-5 py-4 md:px-8">
-            <span className="rounded-full border border-line bg-paper px-3 py-1 text-xs font-black text-ink">
+          <footer className="flex flex-wrap items-center gap-3 border-t-2 border-line bg-paper/40 p-4 sm:p-6">
+            <span className="rounded-full border-2 border-ink bg-paper-strong px-3.5 py-1 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--shadow-hard-10)]">
               {post.voteScore} {ct.netVotes}
             </span>
-            <span className="rounded-full border border-line bg-paper px-3 py-1 text-xs font-black text-ink">
-              {post.commentsCount} {ct.comments}
+            <span className="inline-flex items-center gap-1.5 rounded-full border-2 border-ink bg-paper-strong px-3.5 py-1 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--shadow-hard-10)]">
+              <MessageSquare className="size-3.5" aria-hidden="true" />
+              <span>{post.commentsCount} {ct.comments}</span>
             </span>
-            <Link
+            <LinkButton
               href={signInUrl}
-              className="ml-auto inline-flex min-h-11 items-center rounded-full border-2 border-ink bg-yellow px-4 py-2 text-xs font-black text-ink shadow-[3px_3px_0_var(--shadow-hard-14)] transition hover:bg-yellow-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              tone="yellow"
+              className="ml-auto min-h-11"
             >
               {ct.signInToReply}
-            </Link>
+            </LinkButton>
           </footer>
         </Panel>
 
         {/* Comments section */}
-        <Panel id="comments" className="p-5 md:p-8">
+        <Panel id="comments" className="p-6 sm:p-8 md:p-10">
           <PublicCommunityComments
             postId={post._id}
             locale={locale}
@@ -293,6 +357,70 @@ export default async function PublicCommunityThreadPage({
             signInUrl={signInUrl}
           />
         </Panel>
+
+        {/* More community questions (Internal linking) */}
+        {otherPosts.length > 0 ? (
+          <section aria-labelledby="more-questions-heading" className="space-y-4 pt-6">
+            <div className="space-y-1">
+              <h2 id="more-questions-heading" className="font-display text-2xl font-black text-ink sm:text-3xl">
+                {ct.moreThreadsTitle}
+              </h2>
+              <p className="text-sm font-medium text-muted">
+                {ct.moreThreadsSubtitle}
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              {otherPosts.map((otherPost) => {
+                const otherPath = getCommunityPostPath(locale, otherPost);
+                const otherCourseTitle = locale === "sr" ? otherPost.courseTitleSr : otherPost.courseTitleEn;
+                const otherRelativeDate = formatRelativeDate(otherPost.createdAt, locale);
+
+                return (
+                  <Panel
+                    key={otherPost._id}
+                    as="article"
+                    className="group flex items-stretch gap-4 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[8px_8px_0_0_var(--shadow-hard-18)] sm:p-5"
+                  >
+                    <div className="flex shrink-0 flex-col items-center justify-center rounded-[12px] border-2 border-ink bg-paper px-2.5 py-2 text-ink shadow-[2px_2px_0_0_var(--shadow-hard-10)] sm:min-w-12">
+                      <ArrowUp className="size-4 stroke-[3] text-ink" aria-hidden="true" />
+                      <span className="text-xs font-black">{otherPost.voteScore}</span>
+                    </div>
+
+                    <div className="flex min-w-0 flex-1 flex-col justify-between gap-2">
+                      <h3 className="text-base font-black text-ink transition hover:underline sm:text-lg">
+                        <Link
+                          href={otherPath}
+                          className="rounded-[4px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                        >
+                          {otherPost.title}
+                        </Link>
+                      </h3>
+
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-black text-muted">
+                        <span className="font-bold text-ink">
+                          {otherPost.authorUsername ? `@${otherPost.authorUsername}` : otherPost.authorName}
+                        </span>
+                        <span>·</span>
+                        <time dateTime={new Date(otherPost.createdAt).toISOString()}>{otherRelativeDate}</time>
+                        <span>·</span>
+                        <span className="inline-flex items-center gap-1 font-bold text-ink">
+                          <MessageSquare className="size-3.5" aria-hidden="true" />
+                          <span>{otherPost.commentsCount}</span>
+                        </span>
+                        {otherCourseTitle ? (
+                          <span className="rounded-full border-2 border-ink bg-paper-strong px-2 py-0.5 text-[11px] font-black text-ink">
+                            {otherCourseTitle}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                  </Panel>
+                );
+              })}
+            </div>
+          </section>
+        ) : null}
       </div>
 
       <script

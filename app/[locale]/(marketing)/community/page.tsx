@@ -1,11 +1,15 @@
-import { ChevronLeft, ChevronRight, MessageSquare, PlusCircle } from "lucide-react";
+/* eslint-disable @next/next/no-img-element */
+import { ArrowUp, ChevronLeft, ChevronRight, MessageSquare, PlusCircle } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { initialsFromName } from "@/components/app/community-identity";
 import { ThemeToggle } from "@/components/app/theme-toggle";
-import { BrandMark, Panel } from "@/components/ui/primitives";
-import { getCommunityPostPath } from "@/lib/community-slug";
+import { MarkerHighlight } from "@/components/marketing/marker-highlight";
+import { BrandMark, LinkButton, Panel, SketchIcon } from "@/components/ui/primitives";
+import { formatRelativeDate, getCommunityPostPath } from "@/lib/community-slug";
 import { convexQueries, getConvexHttpClient } from "@/lib/convex-http";
+import { getCurrentViewerProfile } from "@/lib/current-viewer";
 import {
   communityListingContent,
   dictionary,
@@ -140,7 +144,10 @@ export default async function PublicCommunityListingPage({
   const locale = normalizeLocale(localeParam);
   const requestedPage = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
 
-  const { posts, isDone, page: actualPage } = await loadPublicPosts(requestedPage);
+  const [{ posts, isDone, page: actualPage }, viewerProfile] = await Promise.all([
+    loadPublicPosts(requestedPage),
+    getCurrentViewerProfile(),
+  ]);
 
   const origin = (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/$/, "");
   const currentPath = withLocale(
@@ -150,7 +157,9 @@ export default async function PublicCommunityListingPage({
   const currentUrl = `${origin}${currentPath}`;
   const nextLocale = otherLocale(locale);
   const t = communityListingContent[locale];
-  const createThreadSignInUrl = `${withLocale(locale, "/sign-in")}?next=${encodeURIComponent(withLocale(locale, "/app/community/new"))}`;
+  const createThreadUrl = viewerProfile
+    ? withLocale(locale, "/app/community/new")
+    : `${withLocale(locale, "/sign-in")}?next=${encodeURIComponent(withLocale(locale, "/app/community/new"))}`;
 
   const prevPageUrl =
     actualPage > 1
@@ -200,93 +209,150 @@ export default async function PublicCommunityListingPage({
           </div>
         </div>
 
+        {/* Breadcrumb navigation */}
+        <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-xs font-black text-muted">
+          <Link
+            href={withLocale(locale)}
+            className="rounded-[4px] underline transition hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          >
+            {t.breadcrumbHome}
+          </Link>
+          <span aria-hidden="true">/</span>
+          <span className="text-ink">{t.breadcrumbCommunity}</span>
+        </nav>
+
         {/* Hero title panel */}
-        <Panel className="overflow-hidden p-6 md:p-8">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="space-y-2">
-              <p className="text-xs font-black uppercase tracking-[0.12em] text-muted">
+        <Panel className="overflow-hidden p-6 sm:p-8 md:p-10">
+          <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+            <div className="space-y-3">
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-muted">
                 {t.kicker}
               </p>
-              <h1 className="text-3xl font-black leading-tight text-ink md:text-4xl">
-                {t.title}
+              <h1 className="font-display text-3xl font-black leading-tight text-ink sm:text-4xl md:text-5xl">
+                {t.heroTitleLead}
+                <MarkerHighlight>{t.heroTitleHighlight}</MarkerHighlight>
               </h1>
-              <p className="max-w-2xl text-sm font-medium text-muted md:text-base">
+              <p className="max-w-2xl text-sm font-medium leading-relaxed text-muted sm:text-base">
                 {t.subtitle}
               </p>
             </div>
             <div className="shrink-0">
-              <Link
-                href={createThreadSignInUrl}
-                className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 py-2.5 text-sm font-black text-ink shadow-[3px_3px_0_var(--shadow-hard-14)] transition hover:bg-yellow-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              <LinkButton
+                href={createThreadUrl}
+                tone="yellow"
               >
-                <PlusCircle className="size-4" aria-hidden="true" />
-                {t.askQuestion}
-              </Link>
+                <PlusCircle className="size-4 shrink-0" aria-hidden="true" />
+                <span>{t.askQuestion}</span>
+              </LinkButton>
             </div>
           </div>
         </Panel>
 
         {/* Threads list */}
         {posts.length === 0 ? (
-          <Panel className="p-8 text-center text-sm font-bold text-muted">
-            {t.noPosts}
+          <Panel className="flex flex-col items-center justify-center p-8 text-center sm:p-12">
+            <SketchIcon className="size-14 text-ink">
+              <MessageSquare className="size-7" aria-hidden="true" />
+            </SketchIcon>
+            <h2 className="mt-4 text-xl font-black text-ink">{t.noPosts}</h2>
+            <p className="mt-2 max-w-md text-sm font-medium leading-relaxed text-muted">
+              {t.emptyStateSubtext}
+            </p>
+            <div className="mt-6">
+              <LinkButton href={createThreadUrl} tone="yellow">
+                <PlusCircle className="size-4" aria-hidden="true" />
+                <span>{t.askQuestion}</span>
+              </LinkButton>
+            </div>
           </Panel>
         ) : (
           <div className="space-y-4">
             {posts.map((post) => {
               const threadPath = getCommunityPostPath(locale, post);
               const courseTitle = locale === "sr" ? post.courseTitleSr : post.courseTitleEn;
-              const formattedDate = new Date(post.createdAt).toLocaleDateString(
-                locale === "sr" ? "sr-Latn-RS" : "en-US",
-                { month: "short", day: "numeric", year: "numeric" },
-              );
+              const relativeDate = formatRelativeDate(post.createdAt, locale);
 
               return (
                 <Panel
                   key={post._id}
                   as="article"
-                  className="p-5 transition hover:bg-paper-strong md:p-6"
+                  className="group flex items-stretch gap-4 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[8px_8px_0_0_var(--shadow-hard-18)] sm:gap-5 sm:p-6"
                 >
-                  <div className="space-y-3">
-                    <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-muted">
-                      <span className="font-black text-ink">
-                        {post.authorUsername ? `@${post.authorUsername}` : post.authorName}
-                      </span>
-                      <span>·</span>
-                      <time dateTime={new Date(post.createdAt).toISOString()}>{formattedDate}</time>
-                      {courseTitle ? (
-                        <>
-                          <span>·</span>
-                          <span className="rounded-full border border-line bg-paper px-2.5 py-0.5 text-xs font-bold text-ink">
-                            {courseTitle}
-                          </span>
-                        </>
-                      ) : null}
+                  {/* Left vote badge */}
+                  <div className="flex shrink-0 flex-col items-center justify-start rounded-[12px] border-2 border-ink bg-paper px-2.5 py-3 text-ink shadow-[2px_2px_0_0_var(--shadow-hard-10)] sm:min-w-14">
+                    <ArrowUp className="size-4 sm:size-5 stroke-[3] text-ink" aria-hidden="true" />
+                    <span className="mt-1 text-xs font-black sm:text-sm">{post.voteScore}</span>
+                  </div>
+
+                  {/* Right content */}
+                  <div className="flex min-w-0 flex-1 flex-col justify-between gap-3">
+                    <div className="space-y-1.5">
+                      <h2 className="text-lg font-black leading-snug text-ink transition hover:underline sm:text-xl md:text-2xl">
+                        <Link
+                          href={threadPath}
+                          className="rounded-[4px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                        >
+                          {post.title}
+                        </Link>
+                      </h2>
+                      <p className="line-clamp-2 text-sm font-medium leading-relaxed text-muted">
+                        {post.body}
+                      </p>
                     </div>
 
-                    <h2 className="text-xl font-black text-ink transition hover:underline md:text-2xl">
-                      <Link href={threadPath} className="focus-visible:outline-none">
-                        {post.title}
-                      </Link>
-                    </h2>
+                    {/* Meta row */}
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 pt-1 text-xs font-black text-muted">
+                      {/* Author */}
+                      <div className="flex items-center gap-1.5">
+                        {post.authorAvatarUrl ? (
+                          <img
+                            src={post.authorAvatarUrl}
+                            alt=""
+                            className="size-5 rounded-full border border-ink object-cover"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <span
+                            aria-hidden="true"
+                            className="flex size-5 items-center justify-center rounded-full border border-ink bg-yellow text-[10px] font-black text-ink"
+                          >
+                            {initialsFromName(post.authorName)}
+                          </span>
+                        )}
+                        <span className="font-black text-ink">
+                          {post.authorUsername ? `@${post.authorUsername}` : post.authorName}
+                        </span>
+                      </div>
 
-                    <p className="line-clamp-2 text-sm font-medium leading-relaxed text-muted">
-                      {post.body}
-                    </p>
+                      <span>·</span>
 
-                    <div className="flex flex-wrap items-center gap-3 pt-2 text-xs font-black text-muted">
-                      <span className="rounded-full border border-line bg-paper px-3 py-1 text-ink">
-                        {post.voteScore} {t.netVotes}
-                      </span>
-                      <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-paper px-3 py-1 text-ink">
+                      {/* Relative date */}
+                      <time dateTime={new Date(post.createdAt).toISOString()} className="font-bold">
+                        {relativeDate}
+                      </time>
+
+                      <span>·</span>
+
+                      {/* Comments count */}
+                      <span className="inline-flex items-center gap-1 font-bold text-ink">
                         <MessageSquare className="size-3.5" aria-hidden="true" />
-                        {post.commentsCount} {t.comments}
+                        <span>{post.commentsCount}</span>
+                        <span className="font-bold text-muted">{t.comments}</span>
                       </span>
+
+                      {/* Course pill if exists */}
+                      {courseTitle ? (
+                        <span className="rounded-full border-2 border-ink bg-paper-strong px-2.5 py-0.5 text-xs font-black text-ink">
+                          {courseTitle}
+                        </span>
+                      ) : null}
+
+                      {/* Open discussion link */}
                       <Link
                         href={threadPath}
-                        className="ml-auto inline-flex items-center gap-1 text-xs font-black text-ink underline transition hover:text-blue-mid focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                        className="ml-auto inline-flex min-h-11 items-center gap-1 rounded-[8px] px-2 text-xs font-black text-ink underline transition hover:text-blue-mid focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                       >
-                        {locale === "sr" ? "Otvori diskusiju →" : "View discussion →"}
+                        {t.openDiscussion}
                       </Link>
                     </div>
                   </div>
@@ -300,18 +366,18 @@ export default async function PublicCommunityListingPage({
         {(prevPageUrl || nextPageUrl) && (
           <nav
             aria-label="Pagination"
-            className="flex items-center justify-between gap-4 pt-4"
+            className="flex items-center justify-between gap-4 pt-6"
           >
             {prevPageUrl ? (
-              <Link
+              <LinkButton
                 href={prevPageUrl}
-                className="inline-flex min-h-11 items-center gap-1.5 rounded-full border-2 border-ink bg-paper-strong px-4 py-2 text-xs font-black text-ink shadow-[2px_2px_0_var(--shadow-hard-10)] transition hover:bg-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                tone="paper"
               >
                 <ChevronLeft className="size-4" aria-hidden="true" />
                 {t.prevPage}
-              </Link>
+              </LinkButton>
             ) : (
-              <span />
+              <div />
             )}
 
             <span className="text-xs font-black text-muted">
@@ -319,15 +385,15 @@ export default async function PublicCommunityListingPage({
             </span>
 
             {nextPageUrl ? (
-              <Link
+              <LinkButton
                 href={nextPageUrl}
-                className="inline-flex min-h-11 items-center gap-1.5 rounded-full border-2 border-ink bg-paper-strong px-4 py-2 text-xs font-black text-ink shadow-[2px_2px_0_var(--shadow-hard-10)] transition hover:bg-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                tone="paper"
               >
                 {t.nextPage}
                 <ChevronRight className="size-4" aria-hidden="true" />
-              </Link>
+              </LinkButton>
             ) : (
-              <span />
+              <div />
             )}
           </nav>
         )}

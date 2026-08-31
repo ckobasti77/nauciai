@@ -139,3 +139,43 @@ export function getCommunityPostPath(
   const slug = getCommunityPostSlug(post.title, post._id);
   return withLocale(locale, `/community/${slug}`);
 }
+
+/**
+ * Formats a timestamp into a human-friendly relative date (e.g. "pre 2h", "yesterday", etc.)
+ */
+export function formatRelativeDate(timestamp: number, locale: Locale): string {
+  const now = Date.now();
+  const diffMs = now - timestamp;
+  const diffSec = Math.max(0, Math.floor(diffMs / 1000));
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHours = Math.floor(diffMin / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffMin < 1) {
+    return locale === "sr" ? "upravo" : "just now";
+  }
+  if (diffMin < 60) {
+    return locale === "sr" ? `pre ${diffMin} min` : `${diffMin}m ago`;
+  }
+  if (diffHours < 24) {
+    return locale === "sr" ? `pre ${diffHours} h` : `${diffHours}h ago`;
+  }
+  if (diffDays === 1) {
+    return locale === "sr" ? "juče" : "yesterday";
+  }
+  if (diffDays < 7) {
+    return locale === "sr" ? `pre ${diffDays} d` : `${diffDays}d ago`;
+  }
+  if (diffDays < 30) {
+    const weeks = Math.floor(diffDays / 7);
+    return locale === "sr" ? `pre ${weeks} ned.` : `${weeks}w ago`;
+  }
+  if (diffDays < 365) {
+    const months = Math.floor(diffDays / 30);
+    return locale === "sr" ? `pre ${months} mes.` : `${months}mo ago`;
+  }
+  return new Date(timestamp).toLocaleDateString(
+    locale === "sr" ? "sr-Latn-RS" : "en-US",
+    { month: "short", day: "numeric", year: "numeric" },
+  );
+}

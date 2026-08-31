@@ -552,6 +552,8 @@ export const communityListingContent = {
   sr: {
     kicker: "Javna zajednica",
     title: "Zajednica i diskusije",
+    heroTitleLead: "Zajednica i ",
+    heroTitleHighlight: "diskusije",
     subtitle:
       "Pitanja, radovi i iskustva polaznika — sve o AI videu, sajtovima i zvuku na jednom mestu.",
     metaTitle: "Zajednica — Fakultet za AI",
@@ -561,16 +563,23 @@ export const communityListingContent = {
     signInToAsk: "Prijavi se i postavi pitanje",
     signInToParticipate: "Prijavi se za učešće",
     noPosts: "Trenutno nema objavljenih diskusija.",
+    emptyStateSubtext:
+      "Budi prvi koji će pokrenuti temu ili postaviti pitanje zajednici.",
     comments: "odgovora",
     netVotes: "neto glasova",
     prevPage: "Prethodna",
     nextPage: "Sledeća",
     page: "Strana",
     courseLabel: "Kurs",
+    breadcrumbHome: "Početna",
+    breadcrumbCommunity: "Zajednica",
+    openDiscussion: "Otvori diskusiju →",
   },
   en: {
     kicker: "Public community",
     title: "Community & Discussions",
+    heroTitleLead: "Community & ",
+    heroTitleHighlight: "discussions",
     subtitle:
       "Questions, projects, and student experiences — everything about AI video, websites, and sound in one place.",
     metaTitle: "Community — Faculty for AI",
@@ -580,12 +589,17 @@ export const communityListingContent = {
     signInToAsk: "Sign in to ask a question",
     signInToParticipate: "Sign in to participate",
     noPosts: "No public discussions found.",
+    emptyStateSubtext:
+      "Be the first to start a thread or ask a question to the community.",
     comments: "replies",
     netVotes: "net votes",
     prevPage: "Previous",
     nextPage: "Next",
     page: "Page",
     courseLabel: "Course",
+    breadcrumbHome: "Home",
+    breadcrumbCommunity: "Community",
+    openDiscussion: "View discussion →",
   },
 } as const;
 
@@ -609,6 +623,12 @@ export const communityThreadContent = {
     loading: "Učitavanje…",
     collapse: "Sažmi",
     showReplies: "Prikaži",
+    breadcrumbHome: "Početna",
+    breadcrumbCommunity: "Zajednica",
+    moreThreadsTitle: "Još pitanja iz zajednice",
+    moreThreadsSubtitle:
+      "Pogledaj šta ostali polaznici i članovi pitaju, istražuju i prave.",
+    viewDiscussion: "Otvori diskusiju →",
   },
   en: {
     back: "Back to all discussions",
@@ -625,5 +645,11 @@ export const communityThreadContent = {
     loading: "Loading…",
     collapse: "Collapse",
     showReplies: "Show",
+    breadcrumbHome: "Home",
+    breadcrumbCommunity: "Community",
+    moreThreadsTitle: "More community questions",
+    moreThreadsSubtitle:
+      "See what other students and members are asking, discovering, and building.",
+    viewDiscussion: "View discussion →",
   },
 } as const;
