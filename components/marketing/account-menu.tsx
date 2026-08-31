@@ -2,7 +2,7 @@
 
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useQuery } from "convex/react";
-import { ChevronDown, CreditCard, LogOut, UserRound, MessageCircle, MessagesSquare } from "lucide-react";
+import { CreditCard, LogOut, UserRound, MessageCircle, MessagesSquare } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
@@ -146,9 +146,9 @@ export function AccountMenu({ locale, profile }: { locale: Locale; profile: Acco
         aria-expanded={isOpen}
         aria-controls={isOpen ? menuId : undefined}
         onClick={() => setIsOpen((value) => !value)}
-        className="group relative inline-flex h-11 items-center gap-1 rounded-full border-2 border-ink bg-paper-strong p-1 pr-2 text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] transition hover:bg-yellow/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+        className="group relative inline-flex size-11 shrink-0 items-center justify-center rounded-full text-ink transition hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
       >
-        <span className="inline-flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-ink bg-yellow text-xs font-black">
+        <span className="flex size-11 items-center justify-center overflow-hidden rounded-full bg-yellow text-sm font-black">
           {profile.avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={profile.avatarUrl} alt="" className="h-full w-full object-cover" />
@@ -156,12 +156,8 @@ export function AccountMenu({ locale, profile }: { locale: Locale; profile: Acco
             <span>{initials}</span>
           )}
         </span>
-          <ChevronDown
-          className={`size-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
-          aria-hidden="true"
-        />
         {overallCount > 0 ? (
-          <span className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-black text-white border-2 border-ink shrink-0">
+          <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-black text-white border-2 border-ink shrink-0">
             {overallCount}
           </span>
         ) : null}

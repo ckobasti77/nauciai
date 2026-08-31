@@ -74,7 +74,7 @@ export function MarketingPage({
             </a>
           </nav>
           <div className="flex items-center gap-2">
-            <ThemeToggle locale={locale} className="min-h-11 px-1" />
+            <ThemeToggle locale={locale} />
             <Link
               href={withLocale(nextLocale)}
               aria-label={m.footer.langLabel}

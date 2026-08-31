@@ -1,55 +1,62 @@
 "use client";
 
-import { Monitor, Moon, Sun, type LucideIcon } from "lucide-react";
+import { Moon, Sun } from "lucide-react";
+import { useSyncExternalStore } from "react";
 
 import { useTheme } from "@/components/providers/theme-provider";
 import { cn } from "@/components/ui/primitives";
 import type { Locale } from "@/lib/i18n";
-import type { ThemePreference } from "@/lib/theme";
+import { THEME_ATTRIBUTE, type ResolvedTheme } from "@/lib/theme";
 
-const OPTIONS: Array<{ value: ThemePreference; icon: LucideIcon; sr: string; en: string }> = [
-  { value: "light", icon: Sun, sr: "Svetla", en: "Light" },
-  { value: "dark", icon: Moon, sr: "Tamna", en: "Dark" },
-  { value: "system", icon: Monitor, sr: "Sistem", en: "System" },
-];
+// Jedno dugme: sunce u svetloj, mesec u tamnoj temi; klik prebacuje svetlo↔tamno.
+// Čita razrešenu temu direktno sa `data-theme` na <html> (koji već postavi inline
+// skripta pre prve boje), pa se poklapa i kad je izbor "sistem".
+function subscribeResolvedTheme(onChange: () => void) {
+  const observer = new MutationObserver(onChange);
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: [THEME_ATTRIBUTE],
+  });
+  return () => observer.disconnect();
+}
 
-// Tri stanja kao segmentirana kontrola u jeziku sidebara (isti obrazac kao
-// kursevi/lekcije tabovi): pilula sa okvirom, izabrano polje zuto sa mastilom.
-// Uvek samo ikone (bez teksta pored njih) da kontrola ostane kompaktna svuda
-// gde se koristi; labela ostaje za čitače ekrana preko aria-label na dugmetu.
+function getResolvedTheme(): ResolvedTheme {
+  return document.documentElement.getAttribute(THEME_ATTRIBUTE) === "dark" ? "dark" : "light";
+}
+
+function getServerResolvedTheme(): ResolvedTheme {
+  return "light";
+}
+
 export function ThemeToggle({ locale, className }: { locale: Locale; className?: string }) {
-  const { preference, setPreference } = useTheme();
+  const { setPreference } = useTheme();
+  const resolved = useSyncExternalStore(subscribeResolvedTheme, getResolvedTheme, getServerResolvedTheme);
+  const isDark = resolved === "dark";
+  const label =
+    locale === "sr"
+      ? isDark
+        ? "Prebaci na svetlu temu"
+        : "Prebaci na tamnu temu"
+      : isDark
+        ? "Switch to light theme"
+        : "Switch to dark theme";
 
   return (
-    <div
-      role="radiogroup"
-      aria-label={locale === "sr" ? "Tema" : "Theme"}
+    <button
+      type="button"
+      onClick={() => setPreference(isDark ? "light" : "dark")}
+      aria-label={label}
+      title={label}
       className={cn(
-        "inline-flex w-fit shrink-0 self-start items-center gap-0.5 rounded-full border-2 border-line bg-paper p-0.5",
+        "inline-flex size-11 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink transition hover:-translate-y-0.5 hover:bg-yellow/25 active:translate-y-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
         className,
       )}
     >
-      {OPTIONS.map(({ value, icon: Icon, sr, en }) => {
-        const selected = preference === value;
-        const label = locale === "sr" ? sr : en;
-        return (
-          <button
-            key={value}
-            type="button"
-            role="radio"
-            aria-checked={selected}
-            aria-label={label}
-            title={label}
-            onClick={() => setPreference(value)}
-            className={cn(
-              "flex size-7 items-center justify-center rounded-full transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
-              selected ? "bg-yellow text-ink" : "text-muted hover:text-ink",
-            )}
-          >
-            <Icon className="size-3.5 shrink-0" aria-hidden="true" />
-          </button>
-        );
-      })}
-    </div>
+      {isDark ? (
+        <Moon className="size-5 shrink-0" aria-hidden="true" />
+      ) : (
+        <Sun className="size-5 shrink-0" aria-hidden="true" />
+      )}
+    </button>
   );
 }

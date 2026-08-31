@@ -99,7 +99,7 @@ export default async function PublicCoursesListingPage({
         <div className="flex items-center justify-between gap-4">
           <BrandMark href={withLocale(locale)} label={dictionary[locale].appName} />
           <div className="flex items-center gap-2">
-            <ThemeToggle locale={locale} className="min-h-11 px-1" />
+            <ThemeToggle locale={locale} />
             <Link
               href={withLocale(nextLocale, "/courses")}
               className="inline-flex min-h-11 items-center rounded-[8px] border-2 border-ink bg-paper-strong px-3 py-2 text-sm font-black transition hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
