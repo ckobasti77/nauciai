@@ -34,7 +34,9 @@ export const dictionary = {
     appName: "Fakultet za AI",
     navCourses: "Kursevi",
     navCommunity: "Zajednica",
+    navStudio: "Studio",
     navPricing: "Pretplata",
+    navDashboard: "Dashboard",
     signIn: "Prijava",
     startLearning: "Počni učenje",
     openApp: "Otvori platformu",
@@ -59,7 +61,9 @@ export const dictionary = {
     appName: "Faculty for AI",
     navCourses: "Courses",
     navCommunity: "Community",
+    navStudio: "Studio",
     navPricing: "Subscription",
+    navDashboard: "Dashboard",
     signIn: "Sign in",
     startLearning: "Start learning",
     openApp: "Open platform",
@@ -544,6 +548,40 @@ export const publicMeta = {
       sr: "Potvrdi email adresu da aktiviraš nalog na Fakultetu za AI.",
       en: "Verify your email to activate your Faculty for AI account.",
     },
+  },
+  coursesListing: {
+    title: { sr: "Kursevi — Fakultet za AI", en: "Courses — Faculty for AI" },
+    description: {
+      sr: "Praktični AI kursevi na srpskom — montiran video, sopstveni sajt i naracija sa AI glasom. Kroz kratke lekcije, materijale i zajednicu dolaziš do gotovog rada.",
+      en: "Practical AI courses in Serbian — edited video, your own website, and AI-voice narration. Through short lessons, materials, and a community you reach a finished project.",
+    },
+  },
+} as const;
+
+/**
+ * Vidljivi tekst javne listing strane kurseva (/courses). Isti obrazac kao
+ * `communityListingContent` — nijedan hardkodovan string na javnoj strani.
+ */
+export const coursesListingContent = {
+  sr: {
+    kicker: "Svi kursevi",
+    heroTitleLead: "Kursevi koji vode do ",
+    heroTitleHighlight: "gotovog rada",
+    subtitle:
+      "Praktični AI kursevi na srpskom — kroz kratke lekcije, materijale i zajednicu dolaziš do pravog rada, ne samo teorije.",
+    breadcrumbHome: "Početna",
+    breadcrumbCourses: "Kursevi",
+    viewAll: "Svi kursevi →",
+  },
+  en: {
+    kicker: "All courses",
+    heroTitleLead: "Courses that lead to a ",
+    heroTitleHighlight: "finished project",
+    subtitle:
+      "Practical AI courses in Serbian — through short lessons, materials, and a community you reach a real project, not just theory.",
+    breadcrumbHome: "Home",
+    breadcrumbCourses: "Courses",
+    viewAll: "All courses →",
   },
 } as const;
 
