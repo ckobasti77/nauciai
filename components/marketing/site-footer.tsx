@@ -6,9 +6,8 @@ import { BrandMark } from "@/components/ui/primitives";
 import { courses, primaryCourseSlug, websitesCourseSlug } from "@/lib/content";
 import { dictionary, localized, marketingContent, otherLocale, withLocale, type Locale } from "@/lib/i18n";
 
-// TODO(lansiranje): zameni pravim kontaktom i mrežama pre objave.
-// `SOCIALS` je namerno prazan — red "Mreže" se ne renderuje dok se ne popuni.
-const CONTACT_EMAIL = "kontakt@nauciai.com"; // placeholder
+const CONTACT_EMAIL = "kontakt@nauciai.com";
+// Mreže: dodaj { label, href } parove kad budu spremni — red se sam pojavi.
 const SOCIALS: ReadonlyArray<{ label: string; href: string }> = [];
 
 function FooterLink({ href, children }: { href: string; children: React.ReactNode }) {

@@ -186,6 +186,7 @@ export function BrandMark({ href = "/sr" }: { href?: string; label?: string }) {
         alt="Nauči AI"
         width={1338}
         height={460}
+        sizes="(min-width: 1024px) 198px, (min-width: 640px) 176px, 142px"
         className="h-auto w-[142px] max-w-[45vw] object-contain sm:w-[176px] lg:w-[198px] dark:hidden"
         priority
       />
@@ -196,6 +197,7 @@ export function BrandMark({ href = "/sr" }: { href?: string; label?: string }) {
         alt="Nauči AI"
         width={1338}
         height={460}
+        sizes="(min-width: 1024px) 198px, (min-width: 640px) 176px, 142px"
         className="hidden h-auto w-[142px] max-w-[45vw] object-contain sm:w-[176px] lg:w-[198px] dark:block"
         // Eager (not lazy): this one is display:none until a theme switch, and a lazy
         // image that only becomes visible later can leave the header without a logo.

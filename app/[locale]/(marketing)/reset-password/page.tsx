@@ -1,12 +1,27 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 
 import { SignInPanel } from "@/components/app/sign-in-panel";
 import { SectionMarginalia } from "@/components/marketing/section-marginalia";
 import { BrandMark, HandUnderline } from "@/components/ui/primitives";
-import { dictionary, locales, normalizeLocale, withLocale } from "@/lib/i18n";
+import { dictionary, locales, normalizeLocale, publicMeta, withLocale } from "@/lib/i18n";
 
 export function generateStaticParams() {
   return locales.map((locale) => ({ locale }));
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const locale = normalizeLocale((await params).locale);
+  // Token-gated utility strana — van indeksa, ali sa smislenim naslovom/opisom.
+  return {
+    title: publicMeta.resetPassword.title[locale],
+    description: publicMeta.resetPassword.description[locale],
+    robots: { index: false, follow: false },
+  };
 }
 
 export default async function ResetPasswordPage({

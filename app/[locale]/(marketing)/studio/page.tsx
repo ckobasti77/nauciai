@@ -52,7 +52,6 @@ import {
 import { getCurrentViewerProfile } from "@/lib/current-viewer";
 import { locales, localized, normalizeLocale, otherLocale, withLocale, type Locale } from "@/lib/i18n";
 import { STUDIO_EXAMPLES, STUDIO_LANDING } from "@/lib/studio-landing";
-import { PRIVACY_POLICY_PATH, STUDIO_TERMS_PATH } from "@/lib/studio-messages";
 
 export const dynamic = "force-dynamic";
 
@@ -205,7 +204,7 @@ export default async function StudioLandingPage({
             <ThemeToggle locale={locale} />
             <Link
               href={withLocale(nextLocale, "/studio")}
-              className="rounded-[8px] border-2 border-ink bg-paper-strong px-3 py-2 text-sm font-black"
+              className="inline-flex min-h-11 items-center rounded-[8px] border-2 border-ink bg-paper-strong px-3 py-2 text-sm font-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
               {nextLocale.toUpperCase()}
             </Link>
@@ -342,6 +341,7 @@ export default async function StudioLandingPage({
                       alt={localized(example.alt, locale)}
                       width={800}
                       height={600}
+                      sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
                       className="surface-media h-auto w-full border-2 border-ink object-cover"
                     />
                     <p className="mt-2 px-1 text-sm font-bold text-muted">{localized(example.alt, locale)}</p>
@@ -407,28 +407,19 @@ export default async function StudioLandingPage({
           </div>
         </section>
 
-        {/* Tihi cross-sell (F5) + pravni podnožni red. */}
-        <footer className="px-4 py-12 sm:px-6 lg:px-8">
-          <div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-6 sm:flex-row sm:items-center">
+        {/* Tihi cross-sell (F5). Pravni red + puna navigacija žive u deljenom
+            SiteFooter-u ispod (marketing layout), pa ovde stoji SAMO cross-sell —
+            bez drugog <footer>-a i bez dvostrukog pravnog reda. */}
+        <section className="px-4 py-12 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-7xl">
             <Link
               href={`${withLocale(locale)}#courses`}
-              className="font-display text-2xl text-ink underline decoration-[var(--yellow)] decoration-4 underline-offset-8 hover:decoration-ink"
+              className="inline-flex font-display text-2xl text-ink underline decoration-[var(--yellow)] decoration-4 underline-offset-8 hover:decoration-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
               {STUDIO_LANDING.crossSell[locale]}
             </Link>
-            <nav className="flex flex-wrap gap-x-6 gap-y-2 text-sm font-extrabold text-muted">
-              <Link href={withLocale(locale, STUDIO_TERMS_PATH)} className="hover:text-ink hover:underline">
-                {STUDIO_LANDING.legalTerms[locale]}
-              </Link>
-              <Link href={withLocale(locale, PRIVACY_POLICY_PATH)} className="hover:text-ink hover:underline">
-                {STUDIO_LANDING.legalPrivacy[locale]}
-              </Link>
-              <Link href={withLocale(locale)} className="hover:text-ink hover:underline">
-                {STUDIO_LANDING.legalHome[locale]}
-              </Link>
-            </nav>
           </div>
-        </footer>
+        </section>
       </div>
     </main>
   );

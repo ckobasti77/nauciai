@@ -1,4 +1,4 @@
-import type { Locale, LocalizedText } from "./i18n";
+import type { LocalizedText } from "./i18n";
 
 /**
  * Primer za galeriju na javnom landingu Studija (studio-public F3).
@@ -98,14 +98,4 @@ export const STUDIO_LANDING = {
     sr: "Nauči kako ovo da radiš → kursevi",
     en: "Learn how to make this → courses",
   },
-  legalTerms: { sr: "Uslovi korišćenja Studija", en: "Studio terms of use" },
-  legalPrivacy: { sr: "Politika privatnosti", en: "Privacy policy" },
-  legalHome: { sr: "Nauči AI — početna", en: "Nauči AI — home" },
 } as const;
-
-export function studioLandingText(
-  entry: { sr: string; en: string },
-  locale: Locale,
-): string {
-  return entry[locale];
-}

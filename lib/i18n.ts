@@ -130,6 +130,7 @@ export const marketingContent = {
       title: "Kursevi koji vode do gotovog rada",
       intro: "Dva kursa, isti cilj: da na kraju imaš pravi rad — ne samo teoriju.",
       outcomesLabel: "Šta ćeš znati",
+      buyNow: "Kupi sada",
     },
     steps: {
       title: "Kako izgleda učenje",
@@ -242,6 +243,7 @@ export const marketingContent = {
       title: "Courses that lead to finished work",
       intro: "Two courses, one goal: you finish with real work in hand — not just theory.",
       outcomesLabel: "What you'll be able to do",
+      buyNow: "Buy now",
     },
     steps: {
       title: "How the learning works",
@@ -501,5 +503,65 @@ export const coursePageContent = {
         ],
       },
     },
+  },
+} as const;
+
+/**
+ * Meta naslovi/opisi za javne stranice koje NEMAJU sopstveni dinamički izvor mete
+ * (početna + auth-utility strane). Kurs/Studio/community/pravne strane nose svoj
+ * tekst; ove statične žive ovde da nijedan meta string ne bude hardkodovan u ruti.
+ */
+export const publicMeta = {
+  home: {
+    title: {
+      sr: "Fakultet za AI — nauči AI video, sajtove i glas",
+      en: "Faculty for AI — learn AI video, websites, and voice",
+    },
+    description: {
+      sr: "Praktični AI kursevi na srpskom — kroz kratke lekcije, materijale i zajednicu praviš montiran video, sopstveni sajt i naraciju sa AI glasom. Bez predznanja.",
+      en: "Practical AI courses in Serbian — through short lessons, materials, and a community you build edited video, your own website, and AI-voice narration. No experience needed.",
+    },
+  },
+  signIn: {
+    title: { sr: "Prijava — Fakultet za AI", en: "Sign in — Faculty for AI" },
+    description: {
+      sr: "Prijavi se i nastavi tamo gde si stao — kursevi, napredak i zajednica te čekaju.",
+      en: "Sign in and pick up right where you left off — your courses, progress, and community are waiting.",
+    },
+  },
+  resetPassword: {
+    title: { sr: "Postavi novu lozinku — Fakultet za AI", en: "Set a new password — Faculty for AI" },
+    description: {
+      sr: "Postavi novu lozinku za svoj nalog na Fakultetu za AI.",
+      en: "Set a new password for your Faculty for AI account.",
+    },
+  },
+  verifyEmail: {
+    title: { sr: "Potvrda email adrese — Fakultet za AI", en: "Verify your email — Faculty for AI" },
+    description: {
+      sr: "Potvrdi email adresu da aktiviraš nalog na Fakultetu za AI.",
+      en: "Verify your email to activate your Faculty for AI account.",
+    },
+  },
+} as const;
+
+/**
+ * Vidljivi tekst javne strane teme (community detalj). Izdvojeno iz komponente da
+ * ne ostane hardkodovanog stringa na javnoj strani (pravilo iz `marketingContent`).
+ */
+export const communityThreadContent = {
+  sr: {
+    back: "Nazad na zajednicu",
+    kicker: "Javna diskusija",
+    netVotes: "neto glasova",
+    comments: "komentara",
+    signInToAct: "Prijavi se za akcije",
+  },
+  en: {
+    back: "Back to community",
+    kicker: "Public discussion",
+    netVotes: "net votes",
+    comments: "comments",
+    signInToAct: "Sign in to interact",
   },
 } as const;

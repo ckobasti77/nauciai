@@ -48,9 +48,24 @@ export function MarketingPage({
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
           <BrandMark href={withLocale(locale)} label={t.appName} />
           <nav className="hidden items-center gap-6 text-sm font-extrabold md:flex">
-            <a href="#courses">{t.navCourses}</a>
-            <a href="#community">{t.navCommunity}</a>
-            <a href="#pricing">{t.navPricing}</a>
+            <a
+              href="#courses"
+              className="rounded-[8px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            >
+              {t.navCourses}
+            </a>
+            <a
+              href="#community"
+              className="rounded-[8px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            >
+              {t.navCommunity}
+            </a>
+            <a
+              href="#pricing"
+              className="rounded-[8px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            >
+              {t.navPricing}
+            </a>
           </nav>
           <div className="flex items-center gap-2">
             <ThemeToggle locale={locale} />
@@ -230,7 +245,7 @@ export function MarketingPage({
                         <CheckoutButton
                           courseSlug={course.slug}
                           locale={locale}
-                          label={locale === "sr" ? "Kupi sada" : "Buy now"}
+                          label={m.courses.buyNow}
                           tone="ink"
                           fullWidth
                           className="lg:flex-1"
