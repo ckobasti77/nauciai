@@ -98,15 +98,25 @@ export async function generateMetadata({
   const t = communityListingContent[locale];
 
   const origin = (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/$/, "");
-  const canonicalPath = withLocale(locale, page > 1 ? `/community?page=${page}` : "/community");
+  const pageSuffix = page > 1 ? `/community?page=${page}` : "/community";
+  const canonicalPath = withLocale(locale, pageSuffix);
   const canonicalUrl = `${origin}${canonicalPath}`;
+  const srUrl = `${origin}${withLocale("sr", pageSuffix)}`;
+  const enUrl = `${origin}${withLocale("en", pageSuffix)}`;
 
   const title = page > 1 ? `${t.metaTitle} — ${t.page} ${page}` : t.metaTitle;
 
   return {
     title,
     description: t.metaDescription,
-    alternates: { canonical: canonicalUrl },
+    alternates: {
+      canonical: canonicalUrl,
+      languages: {
+        sr: srUrl,
+        en: enUrl,
+        "x-default": srUrl,
+      },
+    },
     robots: { index: true, follow: true },
     openGraph: {
       type: "website",
@@ -167,6 +177,8 @@ export default async function PublicCommunityListingPage({
       })),
     },
   };
+
+  const safeJsonLd = JSON.stringify(jsonLd).replace(/</g, "\\u003c");
 
   return (
     <main className="sketch-grid min-h-screen bg-paper px-4 py-8 sm:px-6 lg:px-8">
@@ -323,7 +335,7 @@ export default async function PublicCommunityListingPage({
 
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd }}
       />
     </main>
   );

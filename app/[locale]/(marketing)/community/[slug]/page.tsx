@@ -27,6 +27,7 @@ type PublicPost = {
   language: "sr" | "en";
   createdAt: number;
   updatedAt: number;
+  lastActivityAt?: number;
   authorName: string;
   authorUsername?: string;
   authorAvatarUrl?: string;
@@ -100,27 +101,33 @@ export async function generateMetadata({
 }: {
   params: Promise<{ locale: string; slug: string }>;
 }): Promise<Metadata> {
-  const { locale: localeParam, slug: slugParam } = await params;
-  const locale = normalizeLocale(localeParam);
+  const { slug: slugParam } = await params;
   const postId = extractPostIdFromSlug(slugParam);
   const post = await loadPost(postId);
-  if (!post) return {};
+  if (!post) return { robots: { index: false, follow: false } };
 
-  const url = canonicalThreadUrl(locale, post);
+  // Task 3: Canonical ALWAYS points to the locale matching post.language
+  const canonicalLocale: Locale = post.language === "en" ? "en" : "sr";
+  const canonicalUrl = canonicalThreadUrl(canonicalLocale, post);
   const description = post.body.replace(/\s+/g, " ").trim().slice(0, 160);
+
+  // Task 4: Thin content (0 comments and < 200 chars body) gets noindex, follow
+  const isThinContent = post.commentsCount === 0 && post.body.trim().length < 200;
 
   return {
     title: `${post.title} | Nauči AI`,
     description,
-    alternates: { canonical: url },
-    robots: { index: true, follow: true },
+    alternates: { canonical: canonicalUrl },
+    robots: isThinContent
+      ? { index: false, follow: true }
+      : { index: true, follow: true },
     openGraph: {
       type: "article",
-      url,
+      url: canonicalUrl,
       title: post.title,
       description,
       publishedTime: new Date(post.createdAt).toISOString(),
-      modifiedTime: new Date(post.updatedAt).toISOString(),
+      modifiedTime: new Date(post.lastActivityAt ?? post.updatedAt ?? post.createdAt).toISOString(),
       authors: [post.authorName],
       ...(post.imageUrl ? { images: [{ url: post.imageUrl }] } : {}),
     },
@@ -167,32 +174,46 @@ export default async function PublicCommunityThreadPage({
     { year: "numeric", month: "long", day: "numeric" },
   );
 
+  const canonicalLocale: Locale = post.language === "en" ? "en" : "sr";
+  const canonicalUrl = canonicalThreadUrl(canonicalLocale, post);
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "DiscussionForumPosting",
     headline: post.title,
     text: post.body,
     datePublished: new Date(post.createdAt).toISOString(),
-    dateModified: new Date(post.updatedAt).toISOString(),
-    url: currentUrl,
+    dateModified: new Date(post.lastActivityAt ?? post.updatedAt ?? post.createdAt).toISOString(),
+    url: canonicalUrl,
     author: {
       "@type": "Person",
       name: post.authorName,
-      ...(post.authorUsername ? { identifier: post.authorUsername } : {}),
     },
     interactionStatistic: [
       {
         "@type": "InteractionCounter",
         interactionType: "https://schema.org/LikeAction",
-        userInteractionCount: post.upvoteCount,
+        userInteractionCount: post.upvoteCount ?? 0,
       },
       {
         "@type": "InteractionCounter",
         interactionType: "https://schema.org/CommentAction",
-        userInteractionCount: post.commentsCount,
+        userInteractionCount: post.commentsCount ?? 0,
       },
     ],
+    comment: comments.map((comment) => ({
+      "@type": "Comment",
+      text: comment.body,
+      author: {
+        "@type": "Person",
+        name: comment.authorName,
+      },
+      dateCreated: new Date(comment.createdAt).toISOString(),
+      upvoteCount: comment.upvoteCount ?? 0,
+    })),
   };
+
+  const safeJsonLd = JSON.stringify(jsonLd).replace(/</g, "\\u003c");
 
   return (
     <main className="sketch-grid min-h-screen bg-paper px-4 py-8 sm:px-6 lg:px-8">
@@ -276,7 +297,7 @@ export default async function PublicCommunityThreadPage({
 
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd }}
       />
     </main>
   );

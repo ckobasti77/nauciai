@@ -19,6 +19,9 @@ export type PublicComment = {
   authorAvatarUrl?: string;
   directReplyCount?: number;
   voteScore: number;
+  upvoteCount?: number;
+  downvoteCount?: number;
+  reactionsCount?: number;
 };
 
 export function PublicCommunityComments({

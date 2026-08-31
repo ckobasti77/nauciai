@@ -8,8 +8,15 @@ import { PRIVACY_POLICY_PATH, STUDIO_TERMS_PATH } from "@/lib/studio-messages";
 
 export const dynamic = "force-dynamic";
 
+type SitemapPostRef = {
+  _id: string;
+  title: string;
+  language: "sr" | "en";
+  lastActivityAt: number;
+};
+
 type SitemapPage = {
-  page: Array<{ _id: string; title: string; language: "sr" | "en"; createdAt: number; updatedAt: number }>;
+  page: SitemapPostRef[];
   isDone: boolean;
   continueCursor: string;
 };
@@ -43,15 +50,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let cursor: string | null = null;
   let isDone = false;
   let pages = 0;
-  while (!isDone && pages < 100) {
-    const result: SitemapPage = await convex.query(convexQueries.listPublishedThreadsForSitemap, {
+  while (!isDone && pages < 10) {
+    const result: SitemapPage = await convex.query(convexQueries.listPublicPostRefsForSitemap, {
       paginationOpts: { numItems: 500, cursor },
     });
     for (const thread of result.page ?? []) {
       const locale = (thread.language === "en" ? "en" : "sr") as Locale;
       urls.push({
         url: `${origin}${getCommunityPostPath(locale, thread)}`,
-        lastModified: new Date(thread.updatedAt ?? thread.createdAt),
+        lastModified: new Date(thread.lastActivityAt),
         changeFrequency: "weekly",
         priority: 0.7,
       });

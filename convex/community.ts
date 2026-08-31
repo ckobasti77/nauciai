@@ -368,6 +368,7 @@ function projectPublicPostDetail(detail: Awaited<ReturnType<typeof postsWithDeta
     language: detail.language,
     createdAt: detail.createdAt,
     updatedAt: detail.updatedAt,
+    lastActivityAt: detail.lastActivityAt ?? detail.updatedAt ?? detail.createdAt,
     authorName: detail.authorName,
     authorUsername: detail.authorUsername,
     authorAvatarUrl: detail.authorAvatarUrl,
@@ -475,6 +476,26 @@ export const listPublicRepliesPage = query({
       .paginate(args.paginationOpts);
     const comments = await commentsWithDetails(ctx, result.page, null);
     return { ...result, page: await Promise.all(comments.map(publicCommentForSeo)) };
+  },
+});
+
+export const listPublicPostRefsForSitemap = query({
+  args: { paginationOpts: paginationOptsValidator },
+  handler: async (ctx, args) => {
+    const result = await ctx.db
+      .query("communityPosts")
+      .withIndex("by_status_and_lastActivityAt", (q) => q.eq("status", "published"))
+      .order("desc")
+      .paginate(args.paginationOpts);
+    return {
+      ...result,
+      page: result.page.map((post) => ({
+        _id: post._id,
+        title: post.title,
+        language: post.language,
+        lastActivityAt: post.lastActivityAt ?? post.updatedAt ?? post.createdAt,
+      })),
+    };
   },
 });
 

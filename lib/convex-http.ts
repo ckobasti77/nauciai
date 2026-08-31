@@ -42,6 +42,7 @@ export const convexQueries = {
   listPublicPostsPage: makeFunctionReference<"query">("community:listPublicPostsPage"),
   listPublicRootCommentsPage: makeFunctionReference<"query">("community:listPublicRootCommentsPage"),
   listPublicRepliesPage: makeFunctionReference<"query">("community:listPublicRepliesPage"),
+  listPublicPostRefsForSitemap: makeFunctionReference<"query">("community:listPublicPostRefsForSitemap"),
   listPublishedThreadsForSitemap: makeFunctionReference<"query">("community:listPublishedThreadsForSitemap"),
   getLessonLab: makeFunctionReference<"query">("lab:getLessonLab"),
   getBillingSummary: makeFunctionReference<"query">("billing:getBillingSummary"),
