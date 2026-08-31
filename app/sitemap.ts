@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 
 import { courses } from "@/lib/content";
+import { getCommunityPostPath } from "@/lib/community-slug";
 import { getConvexHttpClient, convexQueries } from "@/lib/convex-http";
 import { withLocale, type Locale } from "@/lib/i18n";
 import { PRIVACY_POLICY_PATH, STUDIO_TERMS_PATH } from "@/lib/studio-messages";
@@ -8,7 +9,7 @@ import { PRIVACY_POLICY_PATH, STUDIO_TERMS_PATH } from "@/lib/studio-messages";
 export const dynamic = "force-dynamic";
 
 type SitemapPage = {
-  page: Array<{ _id: string; language: "sr" | "en"; createdAt: number; updatedAt: number }>;
+  page: Array<{ _id: string; title: string; language: "sr" | "en"; createdAt: number; updatedAt: number }>;
   isDone: boolean;
   continueCursor: string;
 };
@@ -17,13 +18,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const origin = (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/$/, "");
 
   // Statične javne stranice idu i BEZ Convex-a: sve indeksibilne javne rute
-  // (početna, oba kursa, Studio landing, obe pravne strane) u obe locale
+  // (početna, oba kursa, Studio landing, javna zajednica, obe pravne strane) u obe locale
   // varijante ostaju u mapi i kad backend env fali. Auth-utility rute
   // (sign-in / reset-password / verify-email) su namerno izostavljene — one su
   // noindex i ne pripadaju sitemap-u.
   const staticPaths: Array<{ path: string; priority: number }> = [
     { path: "/", priority: 1 },
     { path: "/studio", priority: 0.8 },
+    { path: "/community", priority: 0.8 },
     ...courses.map((course) => ({ path: `/courses/${course.slug}`, priority: 0.9 })),
     { path: PRIVACY_POLICY_PATH, priority: 0.3 },
     { path: STUDIO_TERMS_PATH, priority: 0.3 },
@@ -48,7 +50,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     for (const thread of result.page ?? []) {
       const locale = (thread.language === "en" ? "en" : "sr") as Locale;
       urls.push({
-        url: `${origin}${withLocale(locale, `/community/${thread._id}`)}`,
+        url: `${origin}${getCommunityPostPath(locale, thread)}`,
         lastModified: new Date(thread.updatedAt ?? thread.createdAt),
         changeFrequency: "weekly",
         priority: 0.7,

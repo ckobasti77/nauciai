@@ -546,22 +546,84 @@ export const publicMeta = {
 } as const;
 
 /**
+ * Vidljivi tekst javne listing strane zajednice (/community).
+ */
+export const communityListingContent = {
+  sr: {
+    kicker: "Javna zajednica",
+    title: "Zajednica i diskusije",
+    subtitle:
+      "Pitanja, radovi i iskustva polaznika — sve o AI videu, sajtovima i zvuku na jednom mestu.",
+    metaTitle: "Zajednica — Fakultet za AI",
+    metaDescription:
+      "Javne diskusije, pitanja i iskustva polaznika Fakulteta za AI. Pridruži se razgovoru o praktičnoj primeni AI alata.",
+    askQuestion: "Postavi pitanje",
+    signInToAsk: "Prijavi se i postavi pitanje",
+    signInToParticipate: "Prijavi se za učešće",
+    noPosts: "Trenutno nema objavljenih diskusija.",
+    comments: "odgovora",
+    netVotes: "neto glasova",
+    prevPage: "Prethodna",
+    nextPage: "Sledeća",
+    page: "Strana",
+    courseLabel: "Kurs",
+  },
+  en: {
+    kicker: "Public community",
+    title: "Community & Discussions",
+    subtitle:
+      "Questions, projects, and student experiences — everything about AI video, websites, and sound in one place.",
+    metaTitle: "Community — Faculty for AI",
+    metaDescription:
+      "Public discussions, questions, and experiences from Faculty for AI students. Join the conversation on practical AI tools.",
+    askQuestion: "Ask a question",
+    signInToAsk: "Sign in to ask a question",
+    signInToParticipate: "Sign in to participate",
+    noPosts: "No public discussions found.",
+    comments: "replies",
+    netVotes: "net votes",
+    prevPage: "Previous",
+    nextPage: "Next",
+    page: "Page",
+    courseLabel: "Course",
+  },
+} as const;
+
+/**
  * Vidljivi tekst javne strane teme (community detalj). Izdvojeno iz komponente da
  * ne ostane hardkodovanog stringa na javnoj strani (pravilo iz `marketingContent`).
  */
 export const communityThreadContent = {
   sr: {
-    back: "Nazad na zajednicu",
+    back: "Nazad na sve diskusije",
     kicker: "Javna diskusija",
     netVotes: "neto glasova",
     comments: "komentara",
     signInToAct: "Prijavi se za akcije",
+    signInToReply: "Prijavi se da odgovoriš",
+    signInBannerText: "Želiš da postaviš pitanje ili ostaviš odgovor?",
+    commentsHeading: "Komentari i odgovori",
+    noComments: "Još nema komentara na ovu temu.",
+    replies: "odgovora",
+    showMore: "Prikaži još",
+    loading: "Učitavanje…",
+    collapse: "Sažmi",
+    showReplies: "Prikaži",
   },
   en: {
-    back: "Back to community",
+    back: "Back to all discussions",
     kicker: "Public discussion",
     netVotes: "net votes",
     comments: "comments",
     signInToAct: "Sign in to interact",
+    signInToReply: "Sign in to reply",
+    signInBannerText: "Want to ask a question or leave a reply?",
+    commentsHeading: "Comments & replies",
+    noComments: "No comments on this thread yet.",
+    replies: "replies",
+    showMore: "Show more",
+    loading: "Loading…",
+    collapse: "Collapse",
+    showReplies: "Show",
   },
 } as const;

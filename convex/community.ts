@@ -359,9 +359,7 @@ export const getPostDetail = query({
   },
 });
 
-async function publicPostForSeo(ctx: QueryCtx, post: Doc<"communityPosts">) {
-  const [detail] = await postsWithDetails(ctx, [post], null);
-  if (!detail) return null;
+function projectPublicPostDetail(detail: Awaited<ReturnType<typeof postsWithDetails>>[number]) {
   return {
     _id: detail._id,
     _creationTime: detail._creationTime,
@@ -383,6 +381,12 @@ async function publicPostForSeo(ctx: QueryCtx, post: Doc<"communityPosts">) {
     voteScore: detail.voteScore,
     imageUrl: detail.imageUrl,
   };
+}
+
+async function publicPostForSeo(ctx: QueryCtx, post: Doc<"communityPosts">) {
+  const [detail] = await postsWithDetails(ctx, [post], null);
+  if (!detail) return null;
+  return projectPublicPostDetail(detail);
 }
 
 async function publicCommentForSeo(comment: Awaited<ReturnType<typeof commentsWithDetails>>[number]) {
@@ -411,6 +415,23 @@ export const getPublicPostForSeo = query({
     const post = await ctx.db.get(args.postId);
     if (!post || effectivePostStatus(post) !== "published") return null;
     return publicPostForSeo(ctx, post);
+  },
+});
+
+export const listPublicPostsPage = query({
+  args: { paginationOpts: paginationOptsValidator },
+  handler: async (ctx, args) => {
+    const result = await ctx.db
+      .query("communityPosts")
+      .withIndex("by_status_and_lastActivityAt", (q) => q.eq("status", "published"))
+      .order("desc")
+      .paginate(args.paginationOpts);
+
+    const detailedPosts = await postsWithDetails(ctx, result.page, null);
+    return {
+      ...result,
+      page: detailedPosts.map(projectPublicPostDetail),
+    };
   },
 });
 
@@ -469,6 +490,7 @@ export const listPublishedThreadsForSitemap = query({
       ...result,
       page: result.page.map((post) => ({
         _id: post._id,
+        title: post.title,
         language: post.language,
         createdAt: post.createdAt,
         updatedAt: post.updatedAt,

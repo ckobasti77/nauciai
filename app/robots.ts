@@ -6,7 +6,14 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: "*",
-        allow: ["/sr/community/", "/en/community/", "/sr/courses/", "/en/courses/", "/sr/studio", "/en/studio"],
+        allow: [
+          "/sr/community",
+          "/en/community",
+          "/sr/courses/",
+          "/en/courses/",
+          "/sr/studio",
+          "/en/studio",
+        ],
         // Duži prefiks pobeđuje: landing /studio je dozvoljen, a radni prostor
         // i kupovina (studio-public F3) ostaju van indeksa kao i /app/.
         disallow: [
