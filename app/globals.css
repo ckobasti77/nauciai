@@ -240,6 +240,7 @@ body {
   line-height: 1;
   font-weight: 400;
   letter-spacing: 0;
+  text-wrap: balance;
 }
 
 @utility type-display-sm {
@@ -247,6 +248,7 @@ body {
   line-height: 1.1;
   font-weight: 400;
   letter-spacing: 0;
+  text-wrap: balance;
 }
 
 @utility type-hero {
@@ -254,6 +256,7 @@ body {
   line-height: 1.08;
   font-weight: 900;
   letter-spacing: -0.03em;
+  text-wrap: balance;
 }
 
 @utility type-h1 {
@@ -261,6 +264,7 @@ body {
   line-height: 1.15;
   font-weight: 900;
   letter-spacing: -0.025em;
+  text-wrap: balance;
 }
 
 @utility type-h2 {
@@ -268,6 +272,7 @@ body {
   line-height: 1.2;
   font-weight: 900;
   letter-spacing: -0.02em;
+  text-wrap: balance;
 }
 
 @utility type-h3 {
@@ -306,18 +311,21 @@ body {
   font-size: 1.0625rem;
   line-height: 1.85;
   letter-spacing: 0;
+  text-wrap: pretty;
 }
 
 @utility type-body {
   font-size: 1rem;
   line-height: 1.7;
   letter-spacing: 0;
+  text-wrap: pretty;
 }
 
 @utility type-body-sm {
   font-size: 0.875rem;
   line-height: 1.7;
   letter-spacing: 0;
+  text-wrap: pretty;
 }
 
 @utility type-caption {
@@ -334,6 +342,80 @@ body {
 ::selection {
   background: var(--yellow);
   color: var(--ink);
+}
+
+/* ── Identitet u detaljima (micro-polish) ─────────────────────────────────────
+   Sitnice koje niko ne stilizuje, a nose brend. Sve iz tokena — nijedna nova boja.
+
+   Nativni check/radio/range dobijaju brend žutu. Tri postojeća `accent-ink` poziva
+   (klizači gde mastilo čita bolje) ostaju svesni izuzeci: utility na elementu ima
+   veću specifičnost od ovog `:root` podrazumevanog, pa lokalno pobeđuje. */
+:root {
+  accent-color: var(--yellow);
+}
+
+/* Nema plavog "tap flash"-a na dodir — sopstveni active/press stepen (dugmad,
+   kartice) preuzima povratnu spregu. Nasleđuje se, pa stoji na <html>. */
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Tanak skrolbar u jeziku papira: palac je mastilo/40 na providnoj (papir) traci,
+   u obe teme jer --ink i papir zamene mesta. Firefox preko `scrollbar-*` (nasleđuje
+   se sa <html>), Chromium/WebKit preko `::-webkit-scrollbar-*`. */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--ink) 40%, transparent) transparent;
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background-color: color-mix(in srgb, var(--ink) 40%, transparent);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in srgb, var(--ink) 55%, transparent);
+  background-clip: padding-box;
+}
+
+/* Placeholder u muted tonu. `opacity: 1` jer Firefox inače spusti prozirnost, pa
+   bi token izgledao svetlije nego što jeste. */
+::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+
+/* Autofill ne sme da razbije paletu: browser inače nabaci svoj žuto/plavi sloj.
+   Inset senka u boji jakog papira "prefarba" pozadinu, tekst ostaje mastilo, a
+   duga `transition` drži browser da je ne pregazi natrag pri fokusu. Okvir polja
+   ostaje kako ga komponenta već crta (field.tsx `focus:border-yellow`). */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+select:-webkit-autofill {
+  -webkit-text-fill-color: var(--ink);
+  -webkit-box-shadow: 0 0 0 1000px var(--paper-strong) inset;
+  caret-color: var(--ink);
+  transition: background-color 9999s ease-out 0s;
+}
+
+/* Sidreni skok (hash link, "kopiraj link na komentar", skip-link) ne sme da
+   završi ispod sticky zaglavlja. Podrazumevano za svaki `#id`; `:where()` drži
+   specifičnost na nuli, a sloj je base, pa per-stranica `scroll-mt-*` utility
+   uvek pobedi. ~5rem = najviše sticky zaglavlje (poklapa se sa `scroll-mt-20`
+   koji kurs stranica već koristi). */
+@layer base {
+  :where([id]) {
+    scroll-margin-top: 5rem;
+  }
 }
 
 .sketch-grid {

@@ -147,7 +147,7 @@ export function ParamControl({
         {label}
       </label>
       {control.type === "slider" ? (
-        <span className="text-xs font-black text-ink">
+        <span className="text-xs font-black tabular-nums text-ink">
           {typeof value === "number" ? value : control.default}
           {unit ? ` ${unit}` : ""}
         </span>
@@ -398,7 +398,7 @@ export function ParamControl({
         {max !== undefined ? (
           <p
             className={cn(
-              "mt-1 text-xs font-black",
+              "mt-1 text-xs font-black tabular-nums",
               max - text.length < 100 ? "text-amber-900" : "text-muted",
             )}
           >

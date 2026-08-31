@@ -238,14 +238,14 @@ export function Dialog({
                   type="button"
                   onClick={onClose}
                   aria-label={closeLabel}
-                  className="grid size-10 shrink-0 place-items-center rounded-full border-2 border-ink bg-paper-strong text-ink transition hover:bg-paper focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                  className="grid size-11 shrink-0 place-items-center rounded-full border-2 border-ink bg-paper-strong text-ink transition hover:bg-paper active:translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                 >
                   <X className="size-4" />
                 </button>
               ) : null}
             </div>
             {children ? (
-              <div className={cn("min-h-0 flex-1 overflow-y-auto px-5 py-5", contentClassName)}>{children}</div>
+              <div className={cn("min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5", contentClassName)}>{children}</div>
             ) : null}
             {footer ? <div className="shrink-0 border-t-2 border-ink px-5 py-4">{footer}</div> : null}
           </motion.div>

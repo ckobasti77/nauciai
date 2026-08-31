@@ -250,7 +250,7 @@ function ConvexSignInForm({
             onClick={() => switchFlow("signIn")}
             disabled={Boolean(pendingProvider)}
             className={cn(
-              "flex min-h-11 flex-1 items-center justify-center py-2.5 text-center text-sm font-black transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+              "flex min-h-11 flex-1 items-center justify-center py-2.5 text-center text-sm font-black transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
               flow === "signIn" ? "bg-ink text-paper-strong" : "bg-paper-strong text-ink hover:bg-yellow/25",
             )}
           >
@@ -262,7 +262,7 @@ function ConvexSignInForm({
             onClick={() => switchFlow("signUp")}
             disabled={Boolean(pendingProvider)}
             className={cn(
-              "flex min-h-11 flex-1 items-center justify-center py-2.5 text-center text-sm font-black transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+              "flex min-h-11 flex-1 items-center justify-center py-2.5 text-center text-sm font-black transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
               flow === "signUp" ? "bg-ink text-paper-strong" : "bg-paper-strong text-ink hover:bg-yellow/25",
             )}
           >
@@ -350,6 +350,7 @@ function ConvexSignInForm({
                   onChange={(event) => setPassword(event.target.value)}
                   required
                   minLength={8}
+                  autoComplete={flow === "signIn" ? "current-password" : "new-password"}
                 />
               )}
             </Field>
@@ -364,7 +365,7 @@ function ConvexSignInForm({
               <button
                 type="button"
                 onClick={() => switchFlow("reset")}
-                className="mt-2 text-sm font-black text-blue-700 underline"
+                className="mt-2 inline-flex min-h-11 items-center text-sm font-black text-blue-700 underline underline-offset-4 hover:decoration-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
               >
                 {t(locale, "Zaboravili ste lozinku?", "Forgot password?")}
               </button>
@@ -436,7 +437,7 @@ function ConvexSignInForm({
           type="submit"
           disabled={Boolean(pendingProvider)}
           className={cn(
-            "inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-[8px] border-2 border-ink px-5 py-2.5 text-sm font-extrabold shadow-[4px_4px_0_0_var(--yellow)] transition-all duration-200 hover:-translate-y-0.5 disabled:opacity-70",
+            "inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-[8px] border-2 border-ink px-5 py-2.5 text-sm font-extrabold shadow-[4px_4px_0_0_var(--yellow)] transition-[transform,translate,box-shadow] duration-200 hover:-translate-y-0.5 active:translate-y-0 active:shadow-[2px_2px_0_0_var(--yellow)] disabled:cursor-not-allowed disabled:opacity-70",
             flow === "signUp" ? "bg-yellow text-ink shadow-[4px_4px_0_0_var(--ink)]" : "bg-ink text-paper-strong",
           )}
         >
@@ -465,7 +466,7 @@ function ConvexSignInForm({
             type="button"
             onClick={() => handleOAuth("google")}
             disabled={Boolean(pendingProvider)}
-            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-paper-strong px-5 py-2.5 text-sm font-extrabold text-ink transition-all duration-200 hover:bg-yellow/25 disabled:opacity-70"
+            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-paper-strong px-5 py-2.5 text-sm font-extrabold text-ink transition-colors duration-200 hover:bg-yellow/25 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-70"
           >
             {pendingProvider === "google" ? <Spinner /> : <span className="text-lg">G</span>}
             {t(locale, "Prijavi se preko Google-a", "Sign in with Google")}
@@ -475,6 +476,8 @@ function ConvexSignInForm({
 
       {message ? (
         <p
+          role={message.tone === "success" ? "status" : "alert"}
+          aria-live={message.tone === "success" ? "polite" : "assertive"}
           className={cn(
             "mt-4 rounded-[8px] border-2 px-3 py-2 text-sm font-black",
             message.tone === "success" ? "border-ink bg-yellow/25 text-ink" : "border-red-700 bg-red-50 text-red-700",

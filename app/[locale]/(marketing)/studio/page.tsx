@@ -254,7 +254,7 @@ export default async function StudioLandingPage({
             />
             <div className="relative z-20 mx-auto flex w-full max-w-7xl flex-1 items-center px-4 py-16 sm:px-6 lg:px-8">
               <div className="max-w-xl" data-motion="copy">
-                <h1 className="text-4xl font-black leading-[0.95] text-ink sm:text-5xl lg:text-6xl">
+                <h1 className="text-balance text-4xl font-black leading-[0.95] text-ink sm:text-5xl lg:text-6xl">
                   {STUDIO_LANDING.heroTitle[locale]}
                 </h1>
                 <HandUnderline className="mt-4" />
@@ -308,7 +308,7 @@ export default async function StudioLandingPage({
                         </p>
                       </div>
                       {price !== null ? (
-                        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border-2 border-ink bg-yellow px-3 py-1.5 text-sm font-black text-ink">
+                        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border-2 border-ink bg-yellow px-3 py-1.5 text-sm font-black tabular-nums text-ink">
                           {STUDIO_LANDING.priceFrom[locale]} {price} {STUDIO_LANDING.credits[locale]}
                         </span>
                       ) : null}
@@ -357,8 +357,11 @@ export default async function StudioLandingPage({
           <div className="mx-auto max-w-7xl">
             <SectionHeader title={STUDIO_LANDING.packsTitle[locale]} body={STUDIO_LANDING.packsBody[locale]} />
             {packs.length === 0 ? (
-              <Panel className="mt-10 max-w-xl p-6">
-                <p className="type-body font-bold text-muted">{STUDIO_LANDING.packsEmpty[locale]}</p>
+              <Panel className="mt-10 max-w-xl p-6 text-center">
+                <SketchIcon className="mx-auto size-12">
+                  <Coins className="size-5" />
+                </SketchIcon>
+                <p className="mt-4 type-body font-bold text-muted">{STUDIO_LANDING.packsEmpty[locale]}</p>
               </Panel>
             ) : (
               <div className="mt-10 grid items-start gap-6 md:grid-cols-3">
@@ -378,13 +381,13 @@ export default async function StudioLandingPage({
                           {locale === "sr" ? pack.titleSr : pack.titleEn}
                         </p>
                         {pack.bonusPercent > 0 ? (
-                          <span className="rounded-full border-2 border-ink bg-yellow px-2.5 py-0.5 text-xs font-black text-ink">
+                          <span className="rounded-full border-2 border-ink bg-yellow px-2.5 py-0.5 text-xs font-black tabular-nums text-ink">
                             +{pack.bonusPercent}%
                           </span>
                         ) : null}
                       </div>
-                      <p className="mt-4 text-4xl font-black text-ink">{formatEur(pack.priceEurCents, locale)}</p>
-                      <p className="mt-1 text-base font-extrabold text-muted">
+                      <p className="mt-4 text-4xl font-black tabular-nums text-ink">{formatEur(pack.priceEurCents, locale)}</p>
+                      <p className="mt-1 text-base font-extrabold tabular-nums text-muted">
                         {pack.credits.toLocaleString(locale === "sr" ? "sr-RS" : "en-GB")}{" "}
                         {STUDIO_LANDING.credits[locale]}
                       </p>
@@ -396,7 +399,7 @@ export default async function StudioLandingPage({
                           className="w-full justify-center"
                         >
                           {viewerProfile ? STUDIO_LANDING.packsBuy[locale] : STUDIO_LANDING.packsSignIn[locale]}
-                          <ArrowRight className="size-4" />
+                          <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
                         </LinkButton>
                       </div>
                     </Panel>

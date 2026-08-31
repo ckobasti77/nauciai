@@ -221,7 +221,7 @@ export function ThreadCard({
     <article
       data-motion="card"
       className={cn(
-        "group relative isolate overflow-hidden surface-card border-2 border-ink bg-paper-strong transition duration-200 hover:-translate-y-0.5 focus-within:border-ink hover:border-ink",
+        "group relative isolate overflow-hidden surface-card border-2 border-ink bg-paper-strong transition duration-200 hover:-translate-y-0.5 active:translate-y-0 focus-within:border-ink hover:border-ink",
         // Zuta tvrda senka = "ova je istaknuta"; mastilo = obicna kartica u feedu.
         // Ranije je razliku nosio goli heks okvira (#d7a91b) i pozadine (#fffaf0),
         // koji u tamnoj temi nisu imali parnjaka.
@@ -329,7 +329,7 @@ export function LoadMoreButton({
       type="button"
       onClick={onClick}
       disabled={loading}
-      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-ink bg-paper-strong px-5 text-sm font-black text-ink transition hover:bg-yellow/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-wait disabled:opacity-60"
+      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-ink bg-paper-strong px-5 text-sm font-black text-ink transition hover:bg-yellow/20 active:translate-y-px focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-wait disabled:opacity-60"
     >
       {loading ? <Spinner /> : <ArrowRight className="size-4" aria-hidden="true" />}
       {loading

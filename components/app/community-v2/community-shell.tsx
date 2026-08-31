@@ -223,7 +223,7 @@ function CommunityShellView({
       {filters.counts?.profileIncomplete ? (
         <Link
           href={`${withLocale(locale, "/app/profile")}?returnTo=${encodeURIComponent(withLocale(locale, "/app/community/discussions"))}`}
-          className="flex flex-wrap items-center justify-between gap-3 surface-card border-2 border-ink bg-yellow/25 px-4 py-3 text-sm font-black text-ink shadow-[4px_4px_0_0_var(--yellow)]"
+          className="flex flex-wrap items-center justify-between gap-3 surface-card border-2 border-ink bg-yellow/25 px-4 py-3 text-sm font-black text-ink shadow-[4px_4px_0_0_var(--yellow)] transition hover:bg-yellow/30 active:translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         >
           <span className="flex items-start gap-2">
             <CircleAlert className="mt-0.5 size-5 shrink-0" aria-hidden="true" />

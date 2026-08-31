@@ -90,7 +90,7 @@ function PodiumCard({ locale, row }: { locale: Locale; row: LeaderboardRow }) {
       href={row.username ? withLocale(locale, `/app/members/${row.username}`) : "#"}
       aria-disabled={!row.username}
       className={cn(
-        "relative overflow-hidden rounded-[16px] border bg-paper-strong p-4 text-center",
+        "relative overflow-hidden rounded-[16px] border bg-paper-strong p-4 text-center transition-colors hover:border-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
         row.rank === 1
           ? "border-2 border-ink shadow-[5px_5px_0_var(--yellow)] md:-translate-y-3"
           : "border-line",

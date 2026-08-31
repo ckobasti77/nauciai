@@ -516,7 +516,7 @@ export function StudioPage({
             className="shrink-0"
           >
             <CreditIcon className="size-4" />
-            <span>
+            <span className="tabular-nums">
               {balance === undefined
                 ? "—"
                 : balance.balance.toLocaleString(locale === "sr" ? "sr-RS" : "en-US")}

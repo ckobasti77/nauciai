@@ -316,7 +316,7 @@ function DiscussionsView({
               >
                 <ArrowBigUp className={cn("size-[18px] fill-transparent", post.userVote === "upvote" && "fill-emerald-500 text-emerald-600")} />
               </button>
-              <span className={cn("min-w-8 text-center type-caption font-black", (post.voteScore ?? 0) < 0 && "text-red-700")}>
+              <span className={cn("min-w-8 text-center type-caption font-black tabular-nums", (post.voteScore ?? 0) < 0 && "text-red-700")}>
                 {post.voteScore ?? 0}
                 <span className="sr-only"> {locale === "sr" ? "neto glasova" : "net votes"}</span>
               </span>
@@ -354,7 +354,7 @@ function DiscussionsView({
               )}
             >
               <MessageCircle className="size-[18px]" aria-hidden="true" />
-              {post.commentsCount ?? 0}
+              <span className="tabular-nums">{post.commentsCount ?? 0}</span>
             </button>
           </>
         }
@@ -440,7 +440,7 @@ function DiscussionsView({
             {canInteract ? (
               <Link
                 href={withLocale(locale, "/app/community/new")}
-                className="inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-sm font-black text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:w-auto"
+                className="inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-sm font-black text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:w-auto"
               >
                 <PenLine className="size-4" aria-hidden="true" />
                 {locale === "sr" ? "Nova diskusija" : "New discussion"}
@@ -490,7 +490,7 @@ function DiscussionsView({
                   {locale === "sr" ? "Razgovori" : "Conversations"}
                 </h2>
               </div>
-              <span className="type-caption font-black text-muted">
+              <span className="type-caption font-black tabular-nums text-muted">
                 {feedPosts.length} {locale === "sr" ? "učitano" : "loaded"}
               </span>
             </div>

@@ -509,7 +509,7 @@ function ModelRow({
           ? "border-ink bg-ink text-paper-strong shadow-[2px_2px_0_0_var(--shadow-hard)]"
           : isHighlighted
             ? "border-ink bg-yellow/20 text-ink"
-            : "border-ink/15 bg-paper text-ink hover:border-ink hover:bg-[#fff7e6] dark:hover:bg-yellow/10",
+            : "border-ink/15 bg-paper text-ink hover:border-ink hover:bg-yellow/10",
       )}
     >
       <ModelMark model={model} size={22} className="shrink-0" />

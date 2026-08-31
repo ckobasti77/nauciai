@@ -82,7 +82,7 @@ export function CommunityThreadActions({
     <div>
       <div className="flex flex-wrap items-center gap-2">
         <ActionButton icon={<ArrowUp className="size-4" />} label="Upvote" active={userVote === "upvote"} disabled={busy !== null} onClick={() => run("upvote", async () => { await votePost({ targetType: "post", targetId: postId, vote: "upvote" }); })} />
-        <span className={cn("inline-flex min-h-11 sm:min-h-10 min-w-12 items-center justify-center rounded-full border border-line bg-paper px-3 text-xs font-black", (voteScore ?? 0) < 0 && "text-red-700")} aria-label={locale === "sr" ? `${voteScore ?? 0} neto glasova` : `${voteScore ?? 0} net votes`}>{voteScore ?? 0}</span>
+        <span className={cn("inline-flex min-h-11 sm:min-h-10 min-w-12 items-center justify-center rounded-full border border-line bg-paper px-3 text-xs font-black tabular-nums", (voteScore ?? 0) < 0 && "text-red-700")} aria-label={locale === "sr" ? `${voteScore ?? 0} neto glasova` : `${voteScore ?? 0} net votes`}>{voteScore ?? 0}</span>
         <ActionButton icon={<ArrowDown className="size-4" />} label="Downvote" active={userVote === "downvote"} disabled={busy !== null} onClick={() => run("downvote", async () => { await votePost({ targetType: "post", targetId: postId, vote: "downvote" }); })} />
         <a href="#comments" className="inline-flex min-h-11 sm:min-h-10 items-center justify-center gap-2 rounded-full border border-line bg-paper-strong px-3 text-xs font-black text-ink transition hover:-translate-y-0.5 hover:border-ink hover:bg-paper focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"><MessageCircle className="size-4" />{locale === "sr" ? "Komentari" : "Comments"} ({commentsCount})</a>
         {canPin ? (
