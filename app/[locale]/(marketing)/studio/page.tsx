@@ -197,7 +197,7 @@ export default async function StudioLandingPage({
 
   return (
     <main className="bg-paper text-ink">
-      <SmartStickyHeader className="top-0 z-40 border-b-2 border-ink bg-paper/95 shadow-[0_8px_18px_-16px_var(--shadow-hard-55)] backdrop-blur">
+      <SmartStickyHeader overlay className="top-0 z-40 border-b-2 border-ink bg-paper/95 shadow-[0_8px_18px_-16px_var(--shadow-hard-55)] backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
           <BrandMark href={withLocale(locale)} />
           <div className="flex items-center gap-2">
@@ -230,11 +230,25 @@ export default async function StudioLandingPage({
           <section
             data-motion="hero"
             style={{ backgroundColor: "#FAECDA" }}
-            className="hero-paper-island relative flex min-h-[85svh] flex-col overflow-hidden border-b-2 border-ink sm:min-h-[100svh]"
+            className="hero-paper-island hero-100 relative overflow-hidden border-b-2 border-ink"
           >
-            <div className="relative z-20 mx-auto flex w-full max-w-7xl flex-col justify-center px-4 pb-10 pt-16 sm:px-6 lg:flex-1 lg:px-8 lg:py-16">
-              {/* Uzano i uz levu ivicu - kompozicija drži mašinu u desnoj polovini
-                  kadra, pa tekst ostaje u levoj trećini da je ne prekrije. */}
+            {/* Video: puna visina sekcije (100vh), poravnat desno; prazan prostor
+                levo/desno je ista krem bg, ivice maskirane → bešavno, bez linija. */}
+            <div className="absolute inset-0 z-0">
+              <HeroLoop
+                label={STUDIO_LANDING.heroVideoAlt[locale]}
+                variant="cover"
+                bg="#FAECDA"
+                webmSrc="/images/landing/studio-hero-loop.webm"
+                mp4Src="/images/landing/studio-hero-loop.mp4"
+                posterSrc="/images/landing/studio-hero-poster.png"
+                fallbackSrc="/images/landing/studio-hero.png"
+              />
+            </div>
+            {/* Tekst: levo, vertikalno centriran unutar 100vh; `pt` ga drži ispod
+                lebdećeg (fixed) navbara. Kompozicija drži mašinu desno, pa je tekst
+                levo ne prekriva. */}
+            <div className="relative z-20 mx-auto flex h-full w-full max-w-7xl items-center px-4 pb-16 pt-20 sm:px-6 lg:px-8">
               <div className="relative z-10 max-w-md xl:max-w-lg" data-motion="copy">
                 <h1 className="text-balance text-4xl font-black leading-[0.95] text-ink sm:text-5xl lg:text-6xl">
                   {STUDIO_LANDING.heroTitle[locale]}
@@ -258,21 +272,6 @@ export default async function StudioLandingPage({
                   {STUDIO_LANDING.bonusNote[locale]}
                 </p>
               </div>
-            </div>
-            {/* Ceo studio video/slika. Mobilni/tablet: ISPOD teksta (bez preklapanja
-                sa mašinom). Od lg: video pune visine sekcije (100svh), centriran;
-                prazan prostor levo/desno je ista krem bg — bešavno, bez ijedne linije. */}
-            <div className="relative z-0 aspect-video w-full lg:absolute lg:inset-0 lg:aspect-auto">
-              <HeroLoop
-                label={STUDIO_LANDING.heroVideoAlt[locale]}
-                variant="cover"
-                fill
-                bg="#FAECDA"
-                webmSrc="/images/landing/studio-hero-loop.webm"
-                mp4Src="/images/landing/studio-hero-loop.mp4"
-                posterSrc="/images/landing/studio-hero-poster.png"
-                fallbackSrc="/images/landing/studio-hero.png"
-              />
             </div>
           </section>
         </HeroMotion>

@@ -77,7 +77,6 @@ export function HeroLoop({
   fallbackSrc = "/images/landing/hero.png",
   variant = "panel",
   bg = "#F8EDD8",
-  fill = false,
 }: {
   label: string;
   webmSrc?: string;
@@ -88,42 +87,29 @@ export function HeroLoop({
   /** Hex pozadine (izmerena prosečna boja ivičnih piksela videa) — puni prazan
    *  prostor sa strana i backuje mask fade, pa je spoj bešavan. Samo `cover`. */
   bg?: string;
-  /** `cover` na desktopu: `false` (podrazumevano) = fit-by-height uz contain,
-   *  poravnat desno. `true` = video puni PUNU visinu sekcije (100svh) i centriran
-   *  je; prazan prostor levo/desno je `bg` boja. Roditelj mora biti `overflow-hidden`. */
-  fill?: boolean;
 }) {
   const stillOnly = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
   if (variant === "cover") {
-    // Mobilni (u aspect-boxu): `h-full w-auto max-w-full` = ceo video, sitan
-    // letterbox u bg boji. Desktop (lg):
-    //   - fill: `lg:max-w-none` skida cap → video je PUNE visine (100svh), centriran;
-    //     višak po širini nevidljivo klipuje `overflow-hidden` roditelj, prazne
-    //     strane su `bg` boja. Mask fade-uje ivice → bešavno.
-    //   - default: `lg:right-0` poravna desno (leva trećina prazna za tekst),
-    //     `max-w-full` čuva contain (NIKAD krop).
-    const boxClass = fill
-      ? // `lg:left-1/2 -translate-x-1/2` centrira i kad je širi od ekrana (m-auto
-        // ne centrira preširok element) — `overflow-hidden` roditelj klipuje višak.
-        "absolute inset-0 m-auto h-full w-auto max-w-full lg:right-auto lg:left-1/2 lg:m-0 lg:max-w-none lg:-translate-x-1/2"
-      : "absolute inset-0 m-auto h-full w-auto max-w-full lg:left-auto lg:right-0";
+    // `.hero-cover-media` (globals.css): ceo vizual pune visine (100vh) desno na
+    // desktopu, a na uskim ekranima contain (letterbox u bg boji) — NIKAD krop ni
+    // distorzija; element == sadržaj pa se `edgeMaskStyle` fade poklapa sa ivicama.
     return (
       <div className="absolute inset-0" style={{ backgroundColor: bg }}>
         {stillOnly ? (
           <Image
             src={fallbackSrc}
             alt={label}
-            width={1600}
-            height={900}
+            width={1928}
+            height={1076}
             sizes="100vw"
-            className={boxClass}
+            className="hero-cover-media"
             style={edgeMaskStyle}
             priority
           />
         ) : (
           <video
-            className={boxClass}
+            className="hero-cover-media"
             style={edgeMaskStyle}
             autoPlay
             muted
