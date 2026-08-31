@@ -1001,6 +1001,11 @@ function AppSidebarContent({
   const hasAccountAdvisory = profileIncomplete || emailVerificationRequired || passwordRecommended;
   const profileLabel = locale === "sr" ? "Profil" : "Profile";
   const profilePath = publicProfilePath(profileData?.username);
+  const mobileProfileHref = isAdmin
+    ? withLocale(locale, "/app/admin")
+    : currentCourse
+      ? navHref(locale, profilePath, currentCourse.slug)
+      : withLocale(locale, profilePath);
   const dashboardActive = pathname === withLocale(locale, "/app") && !searchParams.get("course");
   const communityActive = pathname === withLocale(locale, "/app/community") || pathname.includes("/app/community/");
   const messagesActive = pathname === withLocale(locale, "/app/messages") || pathname.includes("/app/messages/");
@@ -1222,7 +1227,7 @@ function AppSidebarContent({
       {profileData && (
         <div className="mt-4 grid grid-cols-3 gap-2 border-t-2 border-ink pt-4 lg:hidden">
           <Link
-            href={currentCourse ? navHref(locale, profilePath, currentCourse.slug) : withLocale(locale, profilePath)}
+            href={mobileProfileHref}
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-white px-3 py-2 text-xs font-black text-ink"
           >
             {hasAccountAdvisory ? <CircleAlert className={cn("size-4", profileIncomplete ? "text-red-700" : emailVerificationRequired ? "text-amber-700" : "text-indigo-700")} /> : <User className="size-4" />}
