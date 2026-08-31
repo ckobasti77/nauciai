@@ -6,6 +6,7 @@ import { CheckoutButton } from "@/components/app/checkout-button";
 import { AccountMenu } from "@/components/marketing/account-menu";
 import { ThemeToggle } from "@/components/app/theme-toggle";
 import { CourseCard } from "@/components/marketing/course-card";
+import { LanguageToggle } from "@/components/marketing/language-toggle";
 import { HeroLoop } from "@/components/marketing/hero-loop";
 import { HeroMotion } from "@/components/marketing/hero-motion";
 import { MarkerHighlight } from "@/components/marketing/marker-highlight";
@@ -15,7 +16,7 @@ import { BrandMark, LinkButton, Panel, SectionHeader, SketchIcon } from "@/compo
 import { SmartStickyHeader } from "@/components/ui/smart-sticky";
 import { courses, totalLessons } from "@/lib/content";
 import type { ViewerProfile } from "@/lib/current-viewer";
-import { coursesListingContent, dictionary, localized, marketingContent, otherLocale, type Locale, withLocale } from "@/lib/i18n";
+import { coursesListingContent, dictionary, localized, marketingContent, type Locale, withLocale } from "@/lib/i18n";
 
 const STEP_IMAGES = [
   "/images/landing/step-1-watch.png",
@@ -33,7 +34,6 @@ export function MarketingPage({
   const t = dictionary[locale];
   const m = marketingContent[locale];
   const primaryCourse = courses[0];
-  const nextLocale = otherLocale(locale);
   const startLearningHref = withLocale(locale, viewerProfile ? "/app" : "/sign-in");
   const hasConvex = Boolean(process.env.NEXT_PUBLIC_CONVEX_URL);
   const lessonCount = courses.reduce((count, course) => count + totalLessons(course), 0);
@@ -74,15 +74,8 @@ export function MarketingPage({
             </a>
           </nav>
           <div className="flex items-center gap-2">
+            <LanguageToggle locale={locale} />
             <ThemeToggle locale={locale} />
-            <Link
-              href={withLocale(nextLocale)}
-              aria-label={m.footer.langLabel}
-              title={m.footer.switchTo}
-              className="inline-flex min-h-11 items-center rounded-[8px] border-2 border-ink bg-paper-strong px-3 py-2 text-sm font-black transition hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-            >
-              {nextLocale.toUpperCase()}
-            </Link>
             {viewerProfile ? (
               <Link
                 href={withLocale(locale, "/app")}

@@ -146,7 +146,7 @@ export function AccountMenu({ locale, profile }: { locale: Locale; profile: Acco
         aria-expanded={isOpen}
         aria-controls={isOpen ? menuId : undefined}
         onClick={() => setIsOpen((value) => !value)}
-        className="group relative inline-flex size-11 shrink-0 items-center justify-center rounded-full text-ink transition hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+        className="group relative inline-flex size-11 shrink-0 items-center justify-center rounded-full text-ink shadow-[3px_3px_0_0_var(--yellow)] transition hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--yellow)] active:translate-y-0 active:shadow-[3px_3px_0_0_var(--yellow)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
       >
         <span className="flex size-11 items-center justify-center overflow-hidden rounded-full bg-yellow text-sm font-black">
           {profile.avatarUrl ? (
