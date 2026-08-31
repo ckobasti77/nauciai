@@ -7,7 +7,7 @@ import { useState } from "react";
 
 import { initialsFromName } from "@/components/app/community-identity";
 import { SectionMarginalia } from "@/components/marketing/section-marginalia";
-import { LinkButton, Panel } from "@/components/ui/primitives";
+import { LinkButton, Panel, SketchIcon } from "@/components/ui/primitives";
 import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -58,7 +58,7 @@ export function PublicCommunityComments({
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-line pb-5">
         <div className="flex items-center gap-3">
-          <h2 className="font-display text-xl font-black text-ink sm:text-2xl md:text-3xl">
+          <h2 className="text-balance font-display text-xl font-black text-ink sm:text-2xl md:text-3xl">
             {t.commentsHeading}
           </h2>
           <SectionMarginalia variant="spark" className="size-6 text-yellow" />
@@ -91,7 +91,12 @@ export function PublicCommunityComments({
           ))}
         </ol>
       ) : (
-        <p className="mt-6 text-sm font-bold text-muted">{t.noComments}</p>
+        <div className="mt-6 text-center">
+          <SketchIcon className="mx-auto size-12">
+            <MessageSquare className="size-5" />
+          </SketchIcon>
+          <p className="mt-3 text-sm font-bold text-muted">{t.noComments}</p>
+        </div>
       )}
 
       {query.status === "CanLoadMore" || query.status === "LoadingMore" ? (
@@ -99,7 +104,7 @@ export function PublicCommunityComments({
           type="button"
           onClick={() => query.loadMore(10)}
           disabled={query.status === "LoadingMore"}
-          className="mt-6 inline-flex min-h-11 items-center justify-center rounded-full border-2 border-ink bg-paper-strong px-5 text-xs font-black text-ink shadow-[2px_2px_0_var(--shadow-hard-10)] transition hover:-translate-y-0.5 hover:bg-paper disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          className="mt-6 inline-flex min-h-11 items-center justify-center rounded-full border-2 border-ink bg-paper-strong px-5 text-xs font-black text-ink shadow-[2px_2px_0_var(--shadow-hard-10)] transition hover:-translate-y-0.5 hover:bg-paper active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         >
           {query.status === "LoadingMore" ? t.loading : t.showMore}
         </button>
@@ -143,7 +148,7 @@ function PublicCommentNode({
   );
 
   return (
-    <li className="rounded-[16px] border-2 border-ink bg-paper-strong p-5 shadow-[4px_4px_0_0_var(--shadow-hard-10)] transition-all">
+    <li className="rounded-[16px] border-2 border-ink bg-paper-strong p-5 shadow-[4px_4px_0_0_var(--shadow-hard-10)]">
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-black text-muted">
         <div className="flex items-center gap-2">
           {comment.authorAvatarUrl ? (
@@ -152,7 +157,7 @@ function PublicCommentNode({
               alt=""
               width={20}
               height={20}
-              className="size-5 rounded-full border border-ink object-cover"
+              className="size-5 rounded-full border border-ink bg-paper-strong object-cover"
               loading="lazy"
             />
           ) : (
@@ -177,7 +182,7 @@ function PublicCommentNode({
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-2 text-xs font-black text-muted">
-        <span className="rounded-full border-2 border-ink bg-paper px-3 py-1 text-ink">
+        <span className="rounded-full border-2 border-ink bg-paper px-3 py-1 tabular-nums text-ink">
           {comment.voteScore} {t.netVotes}
         </span>
         {hasReplies ? (
@@ -190,7 +195,7 @@ function PublicCommentNode({
               className={`size-3.5 transition-transform ${open ? "rotate-90" : ""}`}
               aria-hidden="true"
             />
-            <span>
+            <span className="tabular-nums">
               {open
                 ? t.collapse
                 : `${t.showReplies} ${comment.directReplyCount} ${t.replies}`}
@@ -253,7 +258,7 @@ function PublicReplies({
           type="button"
           onClick={() => query.loadMore(5)}
           disabled={query.status === "LoadingMore"}
-          className="inline-flex min-h-11 items-center justify-center rounded-full border-2 border-ink bg-paper-strong px-4 text-xs font-black text-ink shadow-[2px_2px_0_var(--shadow-hard-10)] transition hover:-translate-y-0.5 hover:bg-paper disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          className="inline-flex min-h-11 items-center justify-center rounded-full border-2 border-ink bg-paper-strong px-4 text-xs font-black text-ink shadow-[2px_2px_0_var(--shadow-hard-10)] transition hover:-translate-y-0.5 hover:bg-paper active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         >
           {query.status === "LoadingMore" ? t.loading : t.showMore}
         </button>

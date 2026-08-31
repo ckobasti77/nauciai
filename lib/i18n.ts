@@ -655,3 +655,27 @@ export const communityThreadContent = {
     viewDiscussion: "View discussion →",
   },
 } as const;
+
+/**
+ * Stranica 404. `not-found.tsx` u App Router-u ne dobija route params, pa se jezik
+ * izvlači iz `usePathname()` na klijentu; ton je topao i školski kao ostatak sajta,
+ * a ne suvo „stranica ne postoji".
+ */
+export const notFoundContent = {
+  sr: {
+    eyebrow: "Greška 404",
+    title: "Ova stranica je zalutala",
+    body: "Link koji si otvorio/la ne postoji ili je u međuvremenu premešten. Vrati se na sigurno tlo:",
+    home: "Početna",
+    courses: "Kursevi",
+    community: "Zajednica",
+  },
+  en: {
+    eyebrow: "Error 404",
+    title: "This page wandered off",
+    body: "The link you opened doesn't exist, or it moved somewhere else. Head back to solid ground:",
+    home: "Home",
+    courses: "Courses",
+    community: "Community",
+  },
+} as const;

@@ -50,19 +50,19 @@ export function MarketingPage({
           <nav className="hidden items-center gap-6 text-sm font-extrabold md:flex">
             <a
               href="#courses"
-              className="rounded-[8px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              className="rounded-[8px] underline-offset-4 transition-colors hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
               {t.navCourses}
             </a>
             <a
               href="#community"
-              className="rounded-[8px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              className="rounded-[8px] underline-offset-4 transition-colors hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
               {t.navCommunity}
             </a>
             <a
               href="#pricing"
-              className="rounded-[8px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              className="rounded-[8px] underline-offset-4 transition-colors hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
               {t.navPricing}
             </a>
@@ -72,7 +72,7 @@ export function MarketingPage({
             {viewerProfile ? (
               <Link
                 href={withLocale(locale, "/app")}
-                className="inline-flex min-h-11 items-center justify-center rounded-full border-2 border-ink bg-ink px-3 py-2 text-[11px] font-black uppercase text-paper-strong shadow-[3px_3px_0_0_var(--yellow)] transition hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--yellow)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink max-[380px]:hidden sm:px-4 sm:text-xs"
+                className="inline-flex min-h-11 items-center justify-center rounded-full border-2 border-ink bg-ink px-3 py-2 text-[11px] font-black uppercase text-paper-strong shadow-[3px_3px_0_0_var(--yellow)] transition hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--yellow)] active:translate-y-0 active:shadow-[3px_3px_0_0_var(--yellow)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink max-[380px]:hidden sm:px-4 sm:text-xs"
               >
                 {t.dashboard}
               </Link>
@@ -81,7 +81,7 @@ export function MarketingPage({
               href={withLocale(nextLocale)}
               aria-label={m.footer.langLabel}
               title={m.footer.switchTo}
-              className="inline-flex min-h-11 items-center rounded-[8px] border-2 border-ink bg-paper-strong px-3 py-2 text-sm font-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              className="inline-flex min-h-11 items-center rounded-[8px] border-2 border-ink bg-paper-strong px-3 py-2 text-sm font-black transition hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
               {nextLocale.toUpperCase()}
             </Link>
@@ -119,7 +119,7 @@ export function MarketingPage({
             />
             <div className="relative z-20 mx-auto flex w-full max-w-7xl flex-1 items-center px-4 py-16 sm:px-6 lg:px-8">
               <div className="max-w-xl" data-motion="copy">
-                <h1 className="text-4xl font-black leading-[1.03] text-ink sm:text-5xl lg:text-6xl">
+                <h1 className="text-balance text-4xl font-black leading-[1.03] text-ink sm:text-5xl lg:text-6xl">
                   {m.hero.titleLead}
                   <MarkerHighlight>{m.hero.titleHighlight}</MarkerHighlight>
                 </h1>
@@ -180,7 +180,7 @@ export function MarketingPage({
                   <article
                     key={course.slug}
                     data-motion="card"
-                    className="group relative flex min-h-full flex-col overflow-hidden rounded-[16px] border-2 border-ink bg-paper-strong shadow-[6px_6px_0_0_var(--shadow-hard-16)] transition hover:-translate-y-1 hover:shadow-[9px_9px_0_0_var(--shadow-hard-20)]"
+                    className="group relative flex min-h-full flex-col overflow-hidden rounded-[16px] border-2 border-ink bg-paper-strong shadow-[6px_6px_0_0_var(--shadow-hard-16)] transition hover:-translate-y-1 hover:shadow-[9px_9px_0_0_var(--shadow-hard-20)] has-[>a:focus-visible]:outline has-[>a:focus-visible]:outline-2 has-[>a:focus-visible]:outline-offset-2 has-[>a:focus-visible]:outline-ink"
                   >
                     <Link
                       href={courseHref}
@@ -197,7 +197,7 @@ export function MarketingPage({
                           sizes="(min-width: 1024px) 50vw, 100vw"
                           className="object-cover"
                         />
-                        <span className="absolute left-3 top-3 rounded-full border-2 border-ink bg-yellow px-4 py-2 text-sm font-black leading-none text-ink shadow-[3px_3px_0_0_var(--shadow-hard-22)]">
+                        <span className="absolute left-3 top-3 rounded-full border-2 border-ink bg-yellow px-4 py-2 text-sm font-black leading-none tabular-nums text-ink shadow-[3px_3px_0_0_var(--shadow-hard-22)]">
                           {localized(course.priceLabel, locale)}
                         </span>
                         <div className="pointer-events-auto absolute right-3 top-3">
@@ -212,7 +212,7 @@ export function MarketingPage({
                               href={signInHref}
                               aria-label={favoriteLabel}
                               title={favoriteLabel}
-                              className="relative z-10 inline-flex size-11 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink shadow-[3px_3px_0_0_var(--shadow-hard-24)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                              className="relative z-10 inline-flex size-11 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink shadow-[3px_3px_0_0_var(--shadow-hard-24)] transition hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                             >
                               <Heart className="size-5" />
                             </Link>
@@ -237,7 +237,7 @@ export function MarketingPage({
                       <div className="pointer-events-auto relative z-20 mt-auto flex flex-col gap-3 pt-7 lg:flex-row">
                         <Link
                           href={freeVideoHref}
-                          className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-yellow px-5 py-2.5 text-sm font-extrabold text-ink shadow-[4px_4px_0_0_var(--ink)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink lg:flex-1"
+                          className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-yellow px-5 py-2.5 text-sm font-extrabold text-ink shadow-[4px_4px_0_0_var(--ink)] transition hover:-translate-y-0.5 active:translate-y-0 active:shadow-[2px_2px_0_0_var(--ink)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink lg:flex-1"
                         >
                           <PlayCircle className="size-4" />
                           {m.hero.ctaSecondary}
@@ -349,7 +349,7 @@ export function MarketingPage({
                     <ShieldCheck className="size-8 shrink-0 text-ink" />
                   </div>
                   <div className="mt-6 flex items-end gap-2">
-                    <span className="text-5xl font-black text-ink">9,99</span>
+                    <span className="text-5xl font-black tabular-nums text-ink">9,99</span>
                     <span className="pb-2 text-base font-extrabold text-muted">
                       EUR / {m.pricing.perMonth}
                     </span>

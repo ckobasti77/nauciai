@@ -247,7 +247,7 @@ export default async function PublicCommunityThreadPage({
             <ThemeToggle locale={locale} />
             <Link
               href={withLocale(nextLocale, `/community/${canonicalSlug}`)}
-              className="inline-flex min-h-11 items-center rounded-[8px] border-2 border-ink bg-paper-strong px-3 py-2 text-sm font-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              className="inline-flex min-h-11 items-center rounded-[8px] border-2 border-ink bg-paper-strong px-3 py-2 text-sm font-black transition hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
               {nextLocale.toUpperCase()}
             </Link>
@@ -297,7 +297,7 @@ export default async function PublicCommunityThreadPage({
               ) : null}
             </div>
 
-            <h1 className="mt-3 font-display text-2xl font-black leading-tight text-ink sm:text-3xl md:text-4xl lg:text-5xl">
+            <h1 className="mt-3 text-balance font-display text-2xl font-black leading-tight text-ink sm:text-3xl md:text-4xl lg:text-5xl">
               {post.title}
             </h1>
 
@@ -309,7 +309,7 @@ export default async function PublicCommunityThreadPage({
                     alt=""
                     width={24}
                     height={24}
-                    className="size-6 rounded-full border border-ink object-cover"
+                    className="size-6 rounded-full border border-ink bg-paper-strong object-cover"
                     loading="lazy"
                   />
                 ) : (
@@ -334,12 +334,12 @@ export default async function PublicCommunityThreadPage({
           </div>
 
           <footer className="flex flex-wrap items-center gap-3 border-t-2 border-line bg-paper/40 p-4 sm:p-6">
-            <span className="rounded-full border-2 border-ink bg-paper-strong px-3.5 py-1 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--shadow-hard-10)]">
+            <span className="rounded-full border-2 border-ink bg-paper-strong px-3.5 py-1 text-xs font-black tabular-nums text-ink shadow-[2px_2px_0_0_var(--shadow-hard-10)]">
               {post.voteScore} {ct.netVotes}
             </span>
             <span className="inline-flex items-center gap-1.5 rounded-full border-2 border-ink bg-paper-strong px-3.5 py-1 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--shadow-hard-10)]">
               <MessageSquare className="size-3.5" aria-hidden="true" />
-              <span>{post.commentsCount} {ct.comments}</span>
+              <span className="tabular-nums">{post.commentsCount} {ct.comments}</span>
             </span>
             <LinkButton
               href={signInUrl}
@@ -366,7 +366,7 @@ export default async function PublicCommunityThreadPage({
         {otherPosts.length > 0 ? (
           <section aria-labelledby="more-questions-heading" className="space-y-4 pt-6">
             <div className="space-y-1">
-              <h2 id="more-questions-heading" className="font-display text-2xl font-black text-ink sm:text-3xl">
+              <h2 id="more-questions-heading" className="text-balance font-display text-2xl font-black text-ink sm:text-3xl">
                 {ct.moreThreadsTitle}
               </h2>
               <p className="text-sm font-medium text-muted">
@@ -384,15 +384,15 @@ export default async function PublicCommunityThreadPage({
                   <Panel
                     key={otherPost._id}
                     as="article"
-                    className="group flex items-stretch gap-4 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[8px_8px_0_0_var(--shadow-hard-18)] sm:p-5"
+                    className="group flex items-stretch gap-4 p-4 transition-[transform,translate,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[8px_8px_0_0_var(--shadow-hard-18)] active:translate-y-0 sm:p-5"
                   >
                     <div className="flex shrink-0 flex-col items-center justify-center rounded-[12px] border-2 border-ink bg-paper px-2.5 py-2 text-ink shadow-[2px_2px_0_0_var(--shadow-hard-10)] sm:min-w-12">
                       <ArrowUp className="size-4 stroke-[3] text-ink" aria-hidden="true" />
-                      <span className="text-xs font-black">{otherPost.voteScore}</span>
+                      <span className="text-xs font-black tabular-nums">{otherPost.voteScore}</span>
                     </div>
 
                     <div className="flex min-w-0 flex-1 flex-col justify-between gap-2">
-                      <h3 className="text-base font-black text-ink transition hover:underline sm:text-lg">
+                      <h3 className="text-balance text-base font-black text-ink transition hover:underline sm:text-lg">
                         <Link
                           href={otherPath}
                           className="rounded-[4px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
@@ -410,7 +410,7 @@ export default async function PublicCommunityThreadPage({
                         <span>·</span>
                         <span className="inline-flex items-center gap-1 font-bold text-ink">
                           <MessageSquare className="size-3.5" aria-hidden="true" />
-                          <span>{otherPost.commentsCount}</span>
+                          <span className="tabular-nums">{otherPost.commentsCount}</span>
                         </span>
                         {otherCourseTitle ? (
                           <span className="rounded-full border-2 border-ink bg-paper-strong px-2 py-0.5 text-[11px] font-black text-ink">

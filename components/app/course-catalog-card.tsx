@@ -58,7 +58,7 @@ export function CourseCatalogCard({ locale, course }: { locale: Locale; course: 
       // Senka raste na hover, a `whileHover` u istom trenutku podiže karticu za 3px:
       // zajedno to čita kao „papir se odvojio od stola". Transform vodi Framer, senku CSS
       // (`card-anim-elevate`), pa se dve animacije ne otimaju o istu osobinu.
-      className="card-anim-elevate flex flex-col overflow-hidden surface-card border-2 border-ink bg-paper-strong shadow-[6px_6px_0_0_var(--shadow-hard-12)] hover:shadow-[9px_9px_0_0_var(--shadow-hard-20)]"
+      className="group card-anim-elevate flex flex-col overflow-hidden surface-card border-2 border-ink bg-paper-strong shadow-[6px_6px_0_0_var(--shadow-hard-12)] hover:shadow-[9px_9px_0_0_var(--shadow-hard-20)]"
     >
       <div className="p-3">
         <div className="relative aspect-[16/9] overflow-hidden surface-media border-2 border-ink bg-paper">
@@ -131,7 +131,7 @@ export function CourseCatalogCard({ locale, course }: { locale: Locale; course: 
             className="inline-flex items-center gap-1 text-xs font-black text-ink underline decoration-2 underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
             {tr(locale, "Detalji", "Details")}
-            <ArrowRight className="size-3.5" />
+            <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
           </Link>
         </div>
       </div>
@@ -186,7 +186,7 @@ export function CourseCatalogRow({
     <li>
       <Link
         href={coursePath(locale, course.slug)}
-        className="flex items-center gap-3 px-5 py-4 transition-colors hover:bg-paper focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ink sm:gap-4 sm:px-6"
+        className="group flex items-center gap-3 px-5 py-4 transition-colors hover:bg-paper focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ink sm:gap-4 sm:px-6"
       >
         {/* <div>, ne <span>: CourseCover u fallback grani renderuje <div>. */}
         <div className="relative aspect-[16/9] w-16 shrink-0 overflow-hidden surface-media border-2 border-ink bg-paper sm:w-24">
@@ -209,7 +209,7 @@ export function CourseCatalogRow({
             )}
           </span>
         </span>
-        <ArrowRight className="size-4 shrink-0 text-ink" />
+        <ArrowRight className="size-4 shrink-0 text-ink transition-transform group-hover:translate-x-0.5" />
       </Link>
     </li>
   );

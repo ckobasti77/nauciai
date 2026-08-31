@@ -9,7 +9,7 @@ import { MarkerHighlight } from "@/components/marketing/marker-highlight";
 import { PublicCourseIntroVideo } from "@/components/marketing/public-course-intro-video";
 import { SectionMarginalia } from "@/components/marketing/section-marginalia";
 import { ThemeToggle } from "@/components/app/theme-toggle";
-import { BrandMark, HandUnderline, LinkButton, Panel, SectionHeader } from "@/components/ui/primitives";
+import { BrandMark, HandUnderline, LinkButton, Panel, SectionHeader, SketchIcon } from "@/components/ui/primitives";
 import { courses } from "@/lib/content";
 import { convexQueries, getConvexHttpClient } from "@/lib/convex-http";
 import { getCurrentViewerProfile } from "@/lib/current-viewer";
@@ -286,7 +286,7 @@ export default async function CourseInfoPage({
             <div className="max-w-3xl" data-motion="copy">
               <Link
                 href={withLocale(locale, "/#courses")}
-                className="inline-flex min-h-11 items-center gap-2 text-sm font-black text-ink underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                className="inline-flex min-h-11 items-center gap-2 text-sm font-black text-ink underline decoration-2 underline-offset-4 transition-colors hover:decoration-[var(--yellow)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
               >
                 <ArrowLeft className="size-4" />
                 {cp.allCourses}
@@ -294,7 +294,7 @@ export default async function CourseInfoPage({
               <p className="mt-6 font-display text-2xl text-ink">
                 {localized(fallbackCourse.detail.kicker, locale)}
               </p>
-              <h1 className="mt-3 text-4xl font-black leading-[1.03] text-ink sm:text-5xl lg:text-6xl">
+              <h1 className="mt-3 text-balance text-4xl font-black leading-[1.03] text-ink sm:text-5xl lg:text-6xl">
                 {perCourse.titleLead}
                 <MarkerHighlight>{perCourse.titleHighlight}</MarkerHighlight>
                 {perCourse.titleTail}
@@ -305,7 +305,7 @@ export default async function CourseInfoPage({
               </p>
 
               <p className="mt-8 flex items-end gap-2">
-                <span className="text-5xl font-black text-ink">{cp.priceAmount}</span>
+                <span className="text-5xl font-black tabular-nums text-ink">{cp.priceAmount}</span>
                 <span className="pb-1.5 text-base font-extrabold text-muted">{cp.priceUnit}</span>
               </p>
 
@@ -360,7 +360,7 @@ export default async function CourseInfoPage({
         </section>
 
         {/* ── BESPLATAN VIDEO ──────────────────────────────────────────────── */}
-        <section id="besplatan-video" className="scroll-mt-20 border-b-2 border-ink bg-paper-strong px-4 py-14 sm:px-6 lg:px-8">
+        <section id="besplatan-video" className="scroll-mt-20 border-b-2 border-ink bg-paper-strong px-4 py-16 sm:px-6 lg:px-8">
           <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
             <div data-motion="card" className="overflow-hidden rounded-[16px] border-2 border-ink bg-ink p-3 text-paper-strong shadow-[8px_8px_0_0_var(--yellow)]">
               <PublicCourseIntroVideo
@@ -389,7 +389,7 @@ export default async function CourseInfoPage({
         </section>
 
         {/* ── ŠTA ĆEŠ UMETI ────────────────────────────────────────────────── */}
-        <section className="border-b-2 border-ink bg-paper px-4 py-14 sm:px-6 lg:px-8">
+        <section className="border-b-2 border-ink bg-paper px-4 py-16 sm:px-6 lg:px-8">
           <div className="relative mx-auto max-w-7xl">
             <SectionMarginalia
               variant="star"
@@ -497,7 +497,9 @@ export default async function CourseInfoPage({
               </>
             ) : (
               <div data-motion="card" className="mt-8 rounded-[16px] border-2 border-dashed border-ink bg-paper p-8 text-center">
-                <Clock3 className="mx-auto size-10 text-ink" />
+                <SketchIcon className="mx-auto size-12">
+                  <Clock3 className="size-5" />
+                </SketchIcon>
                 <p className="mt-4 text-2xl font-black text-ink">{cp.program.emptyTitle}</p>
                 <p className="mx-auto mt-2 max-w-xl text-sm font-bold leading-6 text-muted">{cp.program.emptyBody}</p>
                 <div className="mt-6 flex justify-center">

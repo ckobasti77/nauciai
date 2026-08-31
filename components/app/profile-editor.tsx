@@ -766,7 +766,7 @@ export function ProfileEditor({
                 label={
                   <span className="flex items-center justify-between gap-3">
                     <span>{t(locale, "Javna biografija", "Public bio")}</span>
-                    <span className="font-mono text-xs text-muted">{bio.length}/280</span>
+                    <span className={cn("font-mono text-xs", bio.length >= 280 ? "text-red-700" : "text-muted")}>{bio.length}/280</span>
                   </span>
                 }
               >
@@ -948,7 +948,7 @@ export function ProfileEditor({
                   type="button"
                   onClick={() => selectPreset(preset.id)}
                   className={cn(
-                    "group min-h-36 rounded-[8px] border-2 bg-paper-strong p-3 text-left transition hover:-translate-y-0.5",
+                    "group min-h-36 rounded-[8px] border-2 bg-paper-strong p-3 text-left transition hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
                     selected
                       ? "border-ink shadow-[5px_5px_0_0_var(--yellow)]"
                       : "border-line shadow-[3px_3px_0_0_var(--shadow-hard-08)] hover:border-ink",
@@ -974,7 +974,7 @@ export function ProfileEditor({
               onDragOver={handleDragOver}
               onDrop={handleDrop}
               className={cn(
-                "flex min-h-36 flex-col items-center justify-center rounded-[8px] border-2 border-dashed bg-paper p-3 text-center transition hover:-translate-y-0.5 hover:border-ink",
+                "flex min-h-36 flex-col items-center justify-center rounded-[8px] border-2 border-dashed bg-paper p-3 text-center transition hover:-translate-y-0.5 hover:border-ink active:translate-y-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
                 selectedFile ? "border-ink shadow-[5px_5px_0_0_var(--yellow)]" : "border-line",
                 dragging && "border-yellow bg-yellow/25",
               )}
@@ -992,7 +992,7 @@ export function ProfileEditor({
             <button
               type="submit"
               disabled={pending || isLoading || !isAuthenticated || profileStatus === undefined}
-              className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-ink px-5 py-2.5 text-sm font-extrabold text-paper-strong shadow-[4px_4px_0_0_var(--yellow)] transition hover:-translate-y-0.5 disabled:opacity-60"
+              className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-ink px-5 py-2.5 text-sm font-extrabold text-paper-strong shadow-[4px_4px_0_0_var(--yellow)] transition hover:-translate-y-0.5 active:translate-y-0 active:shadow-[2px_2px_0_0_var(--yellow)] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {pending ? <Spinner /> : <CheckCircle2 className="size-4" />}
               {t(locale, "Sacuvaj izmene", "Save changes")}

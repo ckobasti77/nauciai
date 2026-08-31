@@ -660,7 +660,7 @@ export function CommunityPostEditor({
           </span>
           <Link
             href={profileResumeHref}
-            className="inline-flex min-h-11 items-center justify-center rounded-full border-2 border-ink bg-yellow px-4 text-sm font-black text-ink shadow-[3px_3px_0_var(--shadow-hard)]"
+            className="inline-flex min-h-11 items-center justify-center rounded-full border-2 border-ink bg-yellow px-4 text-sm font-black text-ink shadow-[3px_3px_0_var(--shadow-hard)] transition hover:-translate-y-0.5 active:translate-y-0 active:shadow-[1px_1px_0_var(--shadow-hard)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
             {locale === "sr" ? "Podesi profil" : "Complete profile"}
           </Link>
@@ -700,9 +700,12 @@ export function CommunityPostEditor({
 
             <div className="space-y-6 p-6">
               <div>
-                <label htmlFor="community-title" className="block type-eyebrow text-ink/55">
-                  {locale === "sr" ? "Naslov teme" : "Topic title"}
-                </label>
+                <div className="flex items-baseline justify-between gap-2">
+                  <label htmlFor="community-title" className="block type-eyebrow text-ink/55">
+                    {locale === "sr" ? "Naslov teme" : "Topic title"}
+                  </label>
+                  <span className="type-caption font-bold tabular-nums text-ink/40">{title.length}/160</span>
+                </div>
                 <input
                   id="community-title"
                   type="text"
@@ -973,7 +976,7 @@ export function CommunityPostEditor({
               onClick={() => setDeleteOpen(true)}
               disabled={pending}
               aria-label={locale === "sr" ? "Obriši temu" : "Delete topic"}
-              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-red-200 bg-paper-strong px-3 text-red-600 transition hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 disabled:opacity-50"
+              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-red-200 bg-paper-strong px-3 text-red-600 transition hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Trash2 className="size-4" />
             </button>
@@ -982,7 +985,7 @@ export function CommunityPostEditor({
             type="button"
             onClick={() => handleSubmit("draft")}
             disabled={pending || uploadingImage}
-            className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 text-sm font-black text-ink transition hover:bg-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
+            className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 text-sm font-black text-ink transition hover:bg-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50"
           >
             {pending ? <Spinner /> : <Save className="size-4" />}
             {locale === "sr" ? "Sačuvaj skicu" : "Save draft"}
@@ -991,7 +994,7 @@ export function CommunityPostEditor({
             type="button"
             onClick={() => handleSubmit(isStaff ? "published" : "pending")}
             disabled={pending || uploadingImage}
-            className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black text-ink shadow-[3px_3px_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:translate-y-0.5 disabled:opacity-50"
+            className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black text-ink shadow-[3px_3px_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {pending ? <Spinner /> : <Send className="size-4" />}
             {isStaff

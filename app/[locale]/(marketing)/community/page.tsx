@@ -202,7 +202,7 @@ export default async function PublicCommunityListingPage({
                 nextLocale,
                 actualPage > 1 ? `/community?page=${actualPage}` : "/community",
               )}
-              className="inline-flex min-h-11 items-center rounded-[8px] border-2 border-ink bg-paper-strong px-3 py-2 text-sm font-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              className="inline-flex min-h-11 items-center rounded-[8px] border-2 border-ink bg-paper-strong px-3 py-2 text-sm font-black transition hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
               {nextLocale.toUpperCase()}
             </Link>
@@ -228,7 +228,7 @@ export default async function PublicCommunityListingPage({
               <p className="text-xs font-black uppercase tracking-[0.14em] text-muted">
                 {t.kicker}
               </p>
-              <h1 className="font-display text-3xl font-black leading-tight text-ink sm:text-4xl md:text-5xl">
+              <h1 className="text-balance font-display text-3xl font-black leading-tight text-ink sm:text-4xl md:text-5xl">
                 {t.heroTitleLead}
                 <MarkerHighlight>{t.heroTitleHighlight}</MarkerHighlight>
               </h1>
@@ -276,18 +276,18 @@ export default async function PublicCommunityListingPage({
                 <Panel
                   key={post._id}
                   as="article"
-                  className="group flex items-stretch gap-4 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[8px_8px_0_0_var(--shadow-hard-18)] sm:gap-5 sm:p-6"
+                  className="group flex items-stretch gap-4 p-4 transition-[transform,translate,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[8px_8px_0_0_var(--shadow-hard-18)] active:translate-y-0 sm:gap-5 sm:p-6"
                 >
                   {/* Left vote badge */}
                   <div className="flex shrink-0 flex-col items-center justify-start rounded-[12px] border-2 border-ink bg-paper px-2.5 py-3 text-ink shadow-[2px_2px_0_0_var(--shadow-hard-10)] sm:min-w-14">
                     <ArrowUp className="size-4 sm:size-5 stroke-[3] text-ink" aria-hidden="true" />
-                    <span className="mt-1 text-xs font-black sm:text-sm">{post.voteScore}</span>
+                    <span className="mt-1 text-xs font-black tabular-nums sm:text-sm">{post.voteScore}</span>
                   </div>
 
                   {/* Right content */}
                   <div className="flex min-w-0 flex-1 flex-col justify-between gap-3">
                     <div className="space-y-1.5">
-                      <h2 className="text-lg font-black leading-snug text-ink transition hover:underline sm:text-xl md:text-2xl">
+                      <h2 className="text-balance text-lg font-black leading-snug text-ink transition hover:underline sm:text-xl md:text-2xl">
                         <Link
                           href={threadPath}
                           className="rounded-[4px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
@@ -310,7 +310,7 @@ export default async function PublicCommunityListingPage({
                             alt=""
                             width={20}
                             height={20}
-                            className="size-5 rounded-full border border-ink object-cover"
+                            className="size-5 rounded-full border border-ink bg-paper-strong object-cover"
                             loading="lazy"
                           />
                         ) : (
@@ -338,7 +338,7 @@ export default async function PublicCommunityListingPage({
                       {/* Comments count */}
                       <span className="inline-flex items-center gap-1 font-bold text-ink">
                         <MessageSquare className="size-3.5" aria-hidden="true" />
-                        <span>{post.commentsCount}</span>
+                        <span className="tabular-nums">{post.commentsCount}</span>
                         <span className="font-bold text-muted">{t.comments}</span>
                       </span>
 
