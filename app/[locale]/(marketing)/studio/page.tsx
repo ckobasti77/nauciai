@@ -229,38 +229,13 @@ export default async function StudioLandingPage({
         <HeroMotion>
           <section
             data-motion="hero"
+            style={{ backgroundColor: "#FAECDA" }}
             className="hero-paper-island relative flex min-h-[85svh] flex-col overflow-hidden border-b-2 border-ink sm:min-h-[100svh]"
           >
-            {/* Pozadina: full-bleed studio video/slika (krem, prazna leva strana). */}
-            <div className="absolute inset-0 z-0">
-              <HeroLoop
-                label={STUDIO_LANDING.heroVideoAlt[locale]}
-                variant="cover"
-                webmSrc="/images/landing/studio-hero-loop.webm"
-                mp4Src="/images/landing/studio-hero-loop.mp4"
-                posterSrc="/images/landing/studio-hero-poster.png"
-                fallbackSrc="/images/landing/studio-hero.png"
-              />
-            </div>
-            {/* Scrim za čitljivost: papir sleva → providno desno. Tekst je fiksne
-                širine (max-w-md), pa procenat pokrivenosti mora rasti na užim
-                ekranima da ostane iza kolone teksta - suzi se tek od `lg` (kad
-                je 1280px+ kolona teksta stvarno u levoj trećini kadra), da ne
-                bledi mašinu na desktopu. */}
-            <div
-              aria-hidden
-              className="pointer-events-none absolute inset-0 z-10 [background:linear-gradient(to_right,var(--paper)_0%,var(--paper)_90%,transparent_100%)] md:[background:linear-gradient(to_right,var(--paper)_0%,var(--paper)_64%,transparent_84%)] lg:[background:linear-gradient(to_right,var(--paper)_0%,var(--paper)_36%,transparent_62%)]"
-            />
-            {/* Mobilni dodatak: blagi vertikalni scrim odozdo (video je desno-dole). */}
-            <div
-              aria-hidden
-              className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-1/2 [background:linear-gradient(to_top,var(--paper)_0%,var(--paper)_12%,transparent_60%)] md:hidden"
-            />
-            <div className="relative z-20 mx-auto flex w-full max-w-7xl flex-1 items-center px-4 py-16 sm:px-6 lg:px-8">
-              {/* Uzano i uz levu ivicu (ne max-w-xl kao na home heroju) - nova
-                  kompozicija drži mašinu u desnoj polovini kadra, pa tekst mora
-                  da ostane u levoj trećini da je ne prekrije na 1280px+. */}
-              <div className="max-w-md" data-motion="copy">
+            <div className="relative z-20 mx-auto flex w-full max-w-7xl flex-col justify-center px-4 pb-10 pt-16 sm:px-6 lg:flex-1 lg:px-8 lg:py-16">
+              {/* Uzano i uz levu ivicu - kompozicija drži mašinu u desnoj polovini
+                  kadra, pa tekst ostaje u levoj trećini da je ne prekrije. */}
+              <div className="relative z-10 max-w-md xl:max-w-lg" data-motion="copy">
                 <h1 className="text-balance text-4xl font-black leading-[0.95] text-ink sm:text-5xl lg:text-6xl">
                   {STUDIO_LANDING.heroTitle[locale]}
                 </h1>
@@ -283,6 +258,20 @@ export default async function StudioLandingPage({
                   {STUDIO_LANDING.bonusNote[locale]}
                 </p>
               </div>
+            </div>
+            {/* Ceo studio video/slika. Mobilni/tablet: ISPOD teksta (bez preklapanja
+                sa mašinom). Od lg: full-bleed pozadina cele sekcije, poravnata desno —
+                leva trećina prazna za tekst. Prazan prostor je ista krem bg, bešavno. */}
+            <div className="relative z-0 aspect-video w-full lg:absolute lg:inset-0 lg:aspect-auto">
+              <HeroLoop
+                label={STUDIO_LANDING.heroVideoAlt[locale]}
+                variant="cover"
+                bg="#FAECDA"
+                webmSrc="/images/landing/studio-hero-loop.webm"
+                mp4Src="/images/landing/studio-hero-loop.mp4"
+                posterSrc="/images/landing/studio-hero-poster.png"
+                fallbackSrc="/images/landing/studio-hero.png"
+              />
             </div>
           </section>
         </HeroMotion>

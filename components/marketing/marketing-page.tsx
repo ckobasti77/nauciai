@@ -100,24 +100,11 @@ export function MarketingPage({
         <HeroMotion>
           <section
             data-motion="hero"
+            style={{ backgroundColor: "#F8EDD8" }}
             className="hero-paper-island relative flex min-h-[85svh] flex-col overflow-hidden border-b-2 border-ink sm:min-h-[100svh]"
           >
-            {/* Pozadina: full-bleed video/slika (krem, prazna leva strana za tekst). */}
-            <div className="absolute inset-0 z-0">
-              <HeroLoop label={m.hero.videoAlt} variant="cover" />
-            </div>
-            {/* Scrim za čitljivost: papir sleva → providno desno (~42% pun papir). */}
-            <div
-              aria-hidden
-              className="pointer-events-none absolute inset-0 z-10 [background:linear-gradient(to_right,var(--paper)_0%,var(--paper)_42%,transparent_78%)]"
-            />
-            {/* Mobilni dodatak: blagi vertikalni scrim odozdo (video je desno-dole). */}
-            <div
-              aria-hidden
-              className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-1/2 [background:linear-gradient(to_top,var(--paper)_0%,var(--paper)_12%,transparent_60%)] md:hidden"
-            />
-            <div className="relative z-20 mx-auto flex w-full max-w-7xl flex-1 items-center px-4 py-16 sm:px-6 lg:px-8">
-              <div className="max-w-xl" data-motion="copy">
+            <div className="relative z-20 mx-auto flex w-full max-w-7xl flex-col justify-center px-4 pb-10 pt-16 sm:px-6 lg:flex-1 lg:px-8 lg:py-16">
+              <div className="relative z-10 max-w-md xl:max-w-lg" data-motion="copy">
                 <h1 className="text-balance text-4xl font-black leading-[1.03] text-ink sm:text-5xl lg:text-6xl">
                   {m.hero.titleLead}
                   <MarkerHighlight>{m.hero.titleHighlight}</MarkerHighlight>
@@ -150,6 +137,12 @@ export function MarketingPage({
                   </li>
                 </ul>
               </div>
+            </div>
+            {/* Ceo video/slika. Mobilni/tablet: ISPOD teksta (bez preklapanja sa
+                mašinom). Od lg: full-bleed pozadina cele sekcije, poravnata desno —
+                leva trećina prazna za tekst. Prazan prostor je ista krem bg, bešavno. */}
+            <div className="relative z-0 aspect-video w-full lg:absolute lg:inset-0 lg:aspect-auto">
+              <HeroLoop label={m.hero.videoAlt} variant="cover" bg="#F8EDD8" />
             </div>
           </section>
         </HeroMotion>
