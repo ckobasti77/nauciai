@@ -9,6 +9,10 @@ vi.mock("next/image", () => ({ default: () => null }));
 // poziva komponente kao obicne funkcije van React rendera. Nema pravni tekst, pa
 // prazna zamena ne skriva nista sto se proverava.
 vi.mock("@/components/app/theme-toggle", () => ({ ThemeToggle: () => null }));
+// Marginalija je klijentska komponenta sa hook-om (`useRef`), a `textOf` ispod
+// poziva komponente kao obicne funkcije van React rendera. Cisto dekorativna
+// (aria-hidden), pa prazna zamena ne skriva nista sto se proverava.
+vi.mock("@/components/marketing/section-marginalia", () => ({ SectionMarginalia: () => null }));
 
 import PrivacyPolicyRoute, {
   generateMetadata as privacyMetadata,

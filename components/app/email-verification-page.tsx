@@ -5,6 +5,7 @@ import { MailCheck } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+import { SectionMarginalia } from "@/components/marketing/section-marginalia";
 import { BrandMark, LinkButton, Panel } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
 import { t, type Locale, withLocale } from "@/lib/i18n";
@@ -58,7 +59,15 @@ export function EmailVerificationPage({ locale, token }: { locale: Locale; token
   return (
     <main className="sketch-grid min-h-screen bg-paper px-4 py-8 sm:px-6 lg:px-8">
       <div className="mx-auto flex min-h-[calc(100vh-64px)] max-w-2xl items-center justify-center">
-        <Panel className="w-full p-6 text-center sm:p-8">
+        <Panel className="relative w-full p-6 text-center sm:p-8">
+          <SectionMarginalia
+            variant={isSuccess ? "star" : "spark"}
+            className={
+              isSuccess
+                ? "pointer-events-none absolute right-4 top-4 hidden h-11 w-11 text-yellow sm:block"
+                : "pointer-events-none absolute right-4 top-4 hidden h-9 w-9 text-ink sm:block"
+            }
+          />
           <BrandMark href={homeHref} label="Nauči AI" />
           <p className="mt-6 type-eyebrow text-muted">
             <MailCheck className="mr-2 inline size-4" />
@@ -75,7 +84,10 @@ export function EmailVerificationPage({ locale, token }: { locale: Locale; token
             </LinkButton>
           </div>
           {!isSuccess && !isLoading ? (
-            <Link href={dashboardHref} className="mt-6 inline-flex text-sm font-black text-ink underline">
+            <Link
+              href={dashboardHref}
+              className="mt-6 inline-flex min-h-11 items-center text-sm font-black text-ink underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            >
               {t(locale, "Otvori Profil i pošalji novi link", "Open Profile and send a new link")}
             </Link>
           ) : null}
