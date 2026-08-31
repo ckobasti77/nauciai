@@ -215,13 +215,13 @@ export function LiveCommunityThreadPage({
                     </div>
                   </div>
                 </div>
-                <h1 className="mt-6 type-hero text-ink">{post.title}</h1>
+                <h1 className="mt-6 type-hero text-ink break-words">{post.title}</h1>
               </div>
             </header>
 
             <div className="px-5 py-7 md:px-8 md:py-9">
               <div className="mx-auto max-w-[720px]">
-                <p className="whitespace-pre-wrap type-reading type-measure font-semibold text-ink/82">{post.body}</p>
+                <p className="whitespace-pre-wrap type-reading type-measure font-semibold text-ink/82 break-words">{post.body}</p>
                 {post.imageUrl ? (
                   <div className="mt-8 overflow-hidden rounded-[8px] border border-line bg-paper p-1.5">
                     <Image
@@ -366,15 +366,42 @@ export function LiveCommunityThreadEditorPage({ locale, postId }: { locale: Loca
 
 function ThreadLoading({ locale }: { locale: Locale }) {
   return (
-    <div className="grid min-h-96 place-items-center" aria-busy="true" aria-label={locale === "sr" ? "Učitavanje teme" : "Loading topic"}>
-      <Spinner size="xl" className="text-yellow" />
+    <div className="space-y-6" aria-busy="true" aria-label={locale === "sr" ? "Učitavanje teme" : "Loading topic"}>
+      <div className="flex items-center justify-between">
+        <div className="h-11 w-44 animate-pulse rounded-full border border-line bg-paper-strong" />
+      </div>
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="min-w-0 space-y-6">
+          <div className="overflow-hidden surface-card border-2 border-ink bg-paper-strong shadow-[6px_6px_0_var(--shadow-hard-13)]">
+            <div className="border-b border-line bg-paper/55 p-6 md:p-8">
+              <div className="flex items-center gap-3">
+                <div className="size-12 animate-pulse rounded-full bg-ink/10" />
+                <div className="space-y-2">
+                  <div className="h-4 w-36 animate-pulse rounded-[8px] bg-ink/10" />
+                  <div className="h-3 w-24 animate-pulse rounded-[8px] bg-ink/10" />
+                </div>
+              </div>
+              <div className="mt-6 h-8 w-3/4 animate-pulse rounded-[8px] bg-ink/10" />
+            </div>
+            <div className="space-y-3 p-6 md:p-8">
+              <div className="h-4 w-full animate-pulse rounded-[8px] bg-ink/10" />
+              <div className="h-4 w-5/6 animate-pulse rounded-[8px] bg-ink/10" />
+              <div className="h-4 w-2/3 animate-pulse rounded-[8px] bg-ink/10" />
+            </div>
+          </div>
+          <div className="surface-card border border-line bg-paper-strong p-6">
+            <div className="h-28 animate-pulse rounded-[12px] bg-ink/5" />
+          </div>
+        </div>
+        <div className="hidden h-64 animate-pulse surface-card border border-line bg-paper-strong xl:block" />
+      </div>
     </div>
   );
 }
 
 function ThreadUnavailable({ locale }: { locale: Locale }) {
   return (
-    <Panel className="mx-auto max-w-xl rounded-[16px] border border-line bg-paper-strong p-6 text-center shadow-none">
+    <Panel className="mx-auto max-w-xl surface-card border-2 border-ink bg-paper-strong p-6 text-center shadow-[6px_6px_0_var(--shadow-hard-13)]">
       <CircleAlert className="mx-auto size-9 text-amber-600" />
       <h1 className="mt-4 type-h1 text-ink">{locale === "sr" ? "Tema nije dostupna" : "Topic unavailable"}</h1>
       <p className="mt-2 type-body-sm font-semibold text-muted">
@@ -384,7 +411,7 @@ function ThreadUnavailable({ locale }: { locale: Locale }) {
       </p>
       <Link
         href={withLocale(locale, "/app/community/discussions")}
-        className="mt-5 inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black text-ink"
+        className="mt-5 inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black text-ink shadow-[3px_3px_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:translate-y-0"
       >
         <ArrowLeft className="size-4" />
         {locale === "sr" ? "Nazad na diskusije" : "Back to discussions"}

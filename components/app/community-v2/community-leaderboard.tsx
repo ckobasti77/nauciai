@@ -136,7 +136,7 @@ function LeaderboardRowItem({ locale, row }: { locale: Locale; row: LeaderboardR
       )}
     >
       <span className="font-mono text-sm font-black text-ink">#{row.rank}</span>
-      <Link href={row.username ? withLocale(locale, `/app/members/${row.username}`) : "#"} aria-disabled={!row.username} className="flex min-w-0 items-center gap-3 rounded-[8px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
+      <Link href={row.username ? withLocale(locale, `/app/members/${row.username}`) : "#"} aria-disabled={!row.username} className="flex min-w-0 items-center gap-3 rounded-[12px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
         <CommunityAvatar
           name={row.name}
           avatarUrl={row.avatarUrl}
@@ -207,7 +207,7 @@ function LeaderboardView({
           layout="inline"
           showLearningDepth={false}
           inlineMiddle={
-            <div className="flex shrink-0 gap-1 rounded-full border border-line bg-[#eef3f7] dark:bg-ink/10 p-1" role="group" aria-label={locale === "sr" ? "Period rangiranja" : "Ranking period"}>
+            <div className="flex shrink-0 gap-1 rounded-full border border-line bg-ink/5 dark:bg-ink/10 p-1" role="group" aria-label={locale === "sr" ? "Period rangiranja" : "Ranking period"}>
               {(["week", "all_time"] as const).map((period) => {
                 const active = periodState.period === period;
                 return (
@@ -217,7 +217,7 @@ function LeaderboardView({
                     onClick={() => periodState.setPeriod(period)}
                     aria-pressed={active}
                     className={cn(
-                      "min-h-9 flex-1 rounded-full px-4 text-xs font-black transition focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink",
+                      "min-h-10 sm:min-h-9 flex-1 rounded-full px-4 text-xs font-black transition focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink",
                       active ? "bg-ink text-paper-strong" : "text-ink/65 hover:bg-paper-strong hover:text-ink",
                     )}
                   >
@@ -251,7 +251,7 @@ function LeaderboardView({
 
             {rows.length ? (
               <div className="overflow-hidden rounded-[16px] border border-ink bg-paper-strong">
-                <div className="hidden grid-cols-[52px_minmax(0,1fr)_100px_100px] gap-3 border-b border-ink bg-[#eef3f7] dark:bg-ink/10 px-3 py-2 type-eyebrow-sm text-muted sm:grid">
+                <div className="hidden grid-cols-[52px_minmax(0,1fr)_100px_100px] gap-3 border-b border-ink bg-ink/5 dark:bg-ink/10 px-3 py-2 type-eyebrow-sm text-muted sm:grid">
                   <span>{locale === "sr" ? "Rang" : "Rank"}</span>
                   <span>{locale === "sr" ? "Član" : "Member"}</span>
                   <span className="text-right">{locale === "sr" ? "Lekcije" : "Lessons"}</span>
@@ -269,6 +269,15 @@ function LeaderboardView({
                     ? "Bodovi (XP) se dobijaju za završene lekcije i urađene zadatke. Završi jednu lekciju na ovom kursu i lista počinje da se puni."
                     : "Points (XP) come from finished lessons and completed tasks. Finish one lesson in this course and the list starts filling up."
                 }
+                action={
+                  <Link
+                    href={withLocale(locale, "/app/courses")}
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black text-ink shadow-[3px_3px_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:translate-y-0"
+                  >
+                    <BookOpenCheck className="size-4" />
+                    {locale === "sr" ? "Otvori kurseve" : "Browse courses"}
+                  </Link>
+                }
               />
             )}
 
@@ -282,7 +291,7 @@ function LeaderboardView({
             ) : null}
 
             {viewer && !viewer.eligible ? (
-              <section className="rounded-[16px] border border-line bg-[#eef3f7] dark:bg-ink/10 p-4 type-body-sm font-bold text-muted">
+              <section className="rounded-[16px] border border-line bg-ink/5 dark:bg-ink/10 p-4 type-body-sm font-bold text-muted">
                 {locale === "sr"
                   ? "Predavači i moderatori se vide u Zajednici, ali se ne rangiraju - lista je samo za studente."
                   : "Teachers and moderators show up in the Community but are not ranked - the list is for students only."}
@@ -321,12 +330,12 @@ function LeaderboardView({
                     const label = locale === "sr" ? item.sr : item.en;
                     return (
                       <li key={item.value} className="flex items-center gap-3">
-                        <span className="grid size-8 place-items-center rounded-full bg-[#eef3f7] dark:bg-ink/10 text-ink"><Icon className="size-4" aria-hidden="true" /></span>
+                        <span className="grid size-8 place-items-center rounded-full bg-ink/5 dark:bg-ink/10 text-ink"><Icon className="size-4" aria-hidden="true" /></span>
                         <span className="min-w-0 flex-1 text-sm font-bold text-ink">
                           {item.href ? (
                             <Link
                               href={item.href}
-                              className="inline-flex min-h-11 items-center underline decoration-yellow decoration-2 underline-offset-4 transition hover:text-[#164d7d] dark:hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                              className="inline-flex min-h-11 items-center underline decoration-yellow decoration-2 underline-offset-4 transition hover:text-blue-mid dark:hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                             >
                               {label}
                             </Link>

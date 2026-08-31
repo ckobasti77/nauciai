@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 
 import { CommunityAvatar, RoleBadge, roleLabel } from "@/components/app/community-identity";
 import { cn } from "@/components/ui/primitives";
+import { useToast } from "@/components/ui/toast-provider";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { Locale } from "@/lib/i18n";
@@ -111,19 +112,24 @@ function LiveMembersPage({ locale }: { locale: Locale }) {
   );
 }
 
-function MemberCard({
-  locale,
-  member,
-}: {
-  locale: Locale;
-  member: CommunityMemberRow;
-}) {
+function MemberCard({ locale, member }: { locale: Locale; member: CommunityMemberRow }) {
   const toggleFollow = useMutation(api.publicProfiles.toggleFollow);
-  const sourceFollowState = `${Boolean(member.isFollowing)}:${Boolean(member.isMutual)}`;
-  const [optimisticFollow, setOptimisticFollow] = useState<{ source: string; following: boolean; mutual: boolean } | null>(null);
-  const following = optimisticFollow?.source === sourceFollowState ? optimisticFollow.following : Boolean(member.isFollowing);
-  const mutual = optimisticFollow?.source === sourceFollowState ? optimisticFollow.mutual : Boolean(member.isMutual);
+  const toast = useToast();
   const [pending, setPending] = useState(false);
+  const [optimisticFollow, setOptimisticFollow] = useState<{
+    source: string;
+    following: boolean;
+    mutual: boolean;
+  } | null>(null);
+
+  const sourceFollowState = `${Boolean(member.isFollowing)}:${Boolean(member.isMutual)}`;
+  const activeFollowState =
+    optimisticFollow && optimisticFollow.source === sourceFollowState
+      ? { following: optimisticFollow.following, mutual: optimisticFollow.mutual }
+      : { following: Boolean(member.isFollowing), mutual: Boolean(member.isMutual) };
+
+  const following = activeFollowState.following;
+  const mutual = activeFollowState.mutual;
 
   async function follow() {
     if (!member.userId || pending) return;
@@ -131,6 +137,22 @@ function MemberCard({
     try {
       const result = await toggleFollow({ userId: member.userId as Id<"users"> });
       setOptimisticFollow({ source: sourceFollowState, following: result.following, mutual: result.isMutual });
+      toast.success(
+        result.following
+          ? locale === "sr"
+            ? `Zapratiio/la si ${member.name}.`
+            : `You are now following ${member.name}.`
+          : locale === "sr"
+            ? `Više ne pratiš ${member.name}.`
+            : `You unfollowed ${member.name}.`,
+      );
+    } catch (caughtError) {
+      console.error(caughtError);
+      toast.error(
+        locale === "sr"
+          ? "Akcija praćenja nije uspela. Proveri internet i pokušaj ponovo."
+          : "Follow action failed. Check your connection and try again.",
+      );
     } finally {
       setPending(false);
     }
@@ -147,7 +169,7 @@ function MemberCard({
         showRank={false}
       />
       <span className="min-w-0 flex-1">
-        {member.username ? <Link href={withLocale(locale, `/app/members/${member.username}`)} className="flex min-w-0 items-center gap-2 rounded-[8px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
+        {member.username ? <Link href={withLocale(locale, `/app/members/${member.username}`)} className="flex min-w-0 items-center gap-2 rounded-[12px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
           <span className="truncate type-h4 text-ink">{member.name}</span>
           <ChevronRight className="size-4 shrink-0 text-line transition group-hover:translate-x-0.5 group-hover:text-ink" aria-hidden="true" />
         </Link> : <span className="flex min-w-0 items-center gap-2"><span className="truncate type-h4 text-ink">{member.name}</span></span>}
@@ -164,7 +186,7 @@ function MemberCard({
           <span className="font-mono text-xs font-black text-ink">{member.contributionCount ?? 0} {locale === "sr" ? "doprinosa" : "contributions"}</span>
           <RoleBadge role={member.role} locale={locale} compact />
         </span>
-        {member.canFollow && member.userId ? <button type="button" onClick={() => void follow()} disabled={pending} className={cn("mt-3 inline-flex min-h-9 items-center gap-2 rounded-full border-2 border-ink px-3 type-caption font-black", following ? "bg-paper-strong" : "bg-yellow")}><UserPlus className="size-3.5" />{mutual ? (locale === "sr" ? "Pratite se" : "Mutual") : following ? (locale === "sr" ? "Pratiš" : "Following") : (locale === "sr" ? "Zaprati" : "Follow")}</button> : null}
+        {member.canFollow && member.userId ? <button type="button" onClick={() => void follow()} disabled={pending} className={cn("mt-3 inline-flex min-h-11 sm:min-h-9 items-center gap-2 rounded-full border-2 border-ink px-3 type-caption font-black transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:translate-y-0 disabled:opacity-50", following ? "bg-paper-strong" : "bg-yellow")}><UserPlus className="size-3.5" />{mutual ? (locale === "sr" ? "Pratite se" : "Mutual") : following ? (locale === "sr" ? "Pratiš" : "Following") : (locale === "sr" ? "Zaprati" : "Follow")}</button> : null}
       </span>
     </article>
   );
@@ -212,7 +234,7 @@ function MembersView({
             ["all", locale === "sr" ? "Svi" : "All"],
             ["following", locale === "sr" ? "Pratim" : "Following"],
             ["followers", locale === "sr" ? "Pratioci" : "Followers"],
-          ] as Array<[MemberConnectionFilter, string]>).map(([value, text]) => <button key={value} type="button" role="tab" aria-selected={controls.connection === value} onClick={() => controls.setConnection(value)} className={cn("shrink-0 rounded-full border-2 border-ink px-4 py-2 text-xs font-black", controls.connection === value ? "bg-ink text-paper-strong" : "bg-paper-strong text-ink")}>{text}</button>)}
+          ] as Array<[MemberConnectionFilter, string]>).map(([value, text]) => <button key={value} type="button" role="tab" aria-selected={controls.connection === value} onClick={() => controls.setConnection(value)} className={cn("inline-flex min-h-11 items-center shrink-0 rounded-full border-2 border-ink px-4 py-2 text-xs font-black transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink", controls.connection === value ? "bg-ink text-paper-strong" : "bg-paper-strong text-ink hover:bg-yellow/20")}>{text}</button>)}
         </div>
         <div className="grid gap-2 xl:grid-cols-[minmax(220px,0.72fr)_minmax(0,1fr)]">
           <CommunityScopeControls locale={locale} filters={filters} scopeState={scopeState} compact />
@@ -228,7 +250,7 @@ function MembersView({
               <select
                 value={controls.role}
                 onChange={(event) => controls.setRole(event.target.value as MemberRoleFilter)}
-                className="min-h-10 w-full rounded-full border border-line bg-paper-strong px-4 text-sm font-black text-ink hover:border-ink/55 focus:border-ink focus:ring-4 focus:ring-yellow/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:w-auto"
+                className="min-h-11 w-full rounded-full border border-line bg-paper-strong px-4 text-sm font-black text-ink hover:border-ink/55 focus:border-ink focus:ring-4 focus:ring-yellow/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:w-auto"
               >
                 {ROLE_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>{locale === "sr" ? option.sr : option.en}</option>
@@ -289,6 +311,21 @@ function MembersView({
             locale === "sr"
               ? "Obriši reč iz pretrage ili izaberi drugi kurs i ulogu iznad. Ovde se nikad ne vide tuđi lični podaci ni podaci o plaćanju."
               : "Clear the search word, or pick a different course and role above. Other people's personal and payment details are never shown here."
+          }
+          action={
+            controls.search || controls.role !== "all" || controls.connection !== "all" ? (
+              <button
+                type="button"
+                onClick={() => {
+                  controls.setSearch("");
+                  controls.setRole("all");
+                  controls.setConnection("all");
+                }}
+                className="inline-flex min-h-11 items-center justify-center rounded-full border border-line bg-paper-strong px-5 text-xs font-black text-ink transition hover:border-ink hover:bg-paper focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              >
+                {locale === "sr" ? "Poništi filtere" : "Reset filters"}
+              </button>
+            ) : null
           }
         />
       )}

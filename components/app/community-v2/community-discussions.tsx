@@ -245,9 +245,12 @@ function DiscussionsView({
   const toast = useToast();
   const [expandedPostId, setExpandedPostId] = useState<string | null>(null);
   const [manualOpen, setManualOpen] = useState(false);
+  const [busyReactions, setBusyReactions] = useState<Set<string>>(new Set());
+  const [busyFavorites, setBusyFavorites] = useState<Set<string>>(new Set());
 
   async function handlePostReaction(postId: string, vote: "upvote" | "downvote") {
-    if (!onReactPost) return;
+    if (!onReactPost || busyReactions.has(postId)) return;
+    setBusyReactions((prev) => new Set(prev).add(postId));
     try {
       await onReactPost(postId, vote);
     } catch (error) {
@@ -261,15 +264,28 @@ function DiscussionsView({
       } else {
         toast.error(locale === "sr" ? "Reakcija nije sačuvana." : "Reaction could not be saved.");
       }
+    } finally {
+      setBusyReactions((prev) => {
+        const next = new Set(prev);
+        next.delete(postId);
+        return next;
+      });
     }
   }
 
   async function handleFavorite(postId: string) {
-    if (!onToggleFavorite) return;
+    if (!onToggleFavorite || busyFavorites.has(postId)) return;
+    setBusyFavorites((prev) => new Set(prev).add(postId));
     try {
       await onToggleFavorite(postId);
     } catch {
       toast.error(locale === "sr" ? "Diskusija nije sačuvana. Proveri internet i pokušaj ponovo." : "The discussion was not saved. Check your connection and try again.");
+    } finally {
+      setBusyFavorites((prev) => {
+        const next = new Set(prev);
+        next.delete(postId);
+        return next;
+      });
     }
   }
   const pinnedIds = new Set(pinnedPosts.map((post) => post._id));
@@ -484,6 +500,28 @@ function DiscussionsView({
                 icon={MessageSquareText}
                 title={locale === "sr" ? "Nema nijedne teme za ovaj izbor" : "No topics match this selection"}
                 body={locale === "sr" ? "Obriši reč iz pretrage ili izaberi drugi kurs iznad. Ako je ovo baš tvoj kurs, ti otvori prvu temu." : "Clear the search word or pick a different course above. If this is your course, be the one to open the first topic."}
+                action={
+                  <div className="flex flex-wrap items-center justify-center gap-3">
+                    {controls.query ? (
+                      <button
+                        type="button"
+                        onClick={() => controls.setSearch("")}
+                        className="inline-flex min-h-11 items-center justify-center rounded-full border border-line bg-paper-strong px-4 text-xs font-black text-ink transition hover:border-ink hover:bg-paper focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                      >
+                        {locale === "sr" ? "Obriši pretragu" : "Clear search"}
+                      </button>
+                    ) : null}
+                    {canInteract ? (
+                      <Link
+                        href={withLocale(locale, "/app/community/new")}
+                        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black text-ink shadow-[3px_3px_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:translate-y-0"
+                      >
+                        <PenLine className="size-4" />
+                        {locale === "sr" ? "Nova diskusija" : "New discussion"}
+                      </Link>
+                    ) : null}
+                  </div>
+                }
               />
             )}
             {canLoadMore && onLoadMore ? (

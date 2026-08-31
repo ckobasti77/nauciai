@@ -253,7 +253,7 @@ export function CommunityScopeControls({
           value={scopeState.selectedCycle?._id ?? ""}
           onChange={(event) => scopeState.setCycle(event.target.value)}
           disabled={!selectedCourseValue || scopeState.availableCycles.length === 0}
-          className="min-h-11 w-full rounded-[12px] border border-line bg-paper-strong px-3 text-sm font-black text-ink transition hover:border-ink/55 focus:border-ink focus:ring-4 focus:ring-yellow/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:bg-[#eef3f7] dark:disabled:bg-ink/10 disabled:text-muted"
+          className="min-h-11 w-full rounded-[12px] border border-line bg-paper-strong px-3 text-sm font-black text-ink transition hover:border-ink/55 focus:border-ink focus:ring-4 focus:ring-yellow/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:bg-ink/5 dark:disabled:bg-ink/10 disabled:text-muted"
         >
           <option value="">{locale === "sr" ? "Svi ciklusi" : "All cycles"}</option>
           {scopeState.availableCycles.map((cycle) => (
@@ -269,7 +269,7 @@ export function CommunityScopeControls({
           value={scopeState.selectedLesson?._id ?? ""}
           onChange={(event) => scopeState.setLesson(event.target.value)}
           disabled={!scopeState.selectedCycle || scopeState.availableLessons.length === 0}
-          className="min-h-11 w-full rounded-[12px] border border-line bg-paper-strong px-3 text-sm font-black text-ink transition hover:border-ink/55 focus:border-ink focus:ring-4 focus:ring-yellow/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:bg-[#eef3f7] dark:disabled:bg-ink/10 disabled:text-muted"
+          className="min-h-11 w-full rounded-[12px] border border-line bg-paper-strong px-3 text-sm font-black text-ink transition hover:border-ink/55 focus:border-ink focus:ring-4 focus:ring-yellow/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:bg-ink/5 dark:disabled:bg-ink/10 disabled:text-muted"
         >
           <option value="">{locale === "sr" ? "Sve lekcije" : "All lessons"}</option>
           {scopeState.availableLessons.map((lesson) => (
@@ -290,7 +290,7 @@ export function CommunityScopeControls({
     <div className={cn(inline ? "flex min-w-max items-center gap-2" : "space-y-3", compact && !inline && "space-y-2")}>
       {isToggle && (
         <div
-          className={cn("relative grid shrink-0 grid-cols-2 gap-1 rounded-full border border-line bg-[#eef3f7] dark:bg-ink/10 p-1", compact && "w-[280px] max-w-full")}
+          className={cn("relative grid shrink-0 grid-cols-2 gap-1 rounded-full border border-line bg-ink/5 dark:bg-ink/10 p-1", compact && "w-[280px] max-w-full")}
           role="group"
           aria-label={locale === "sr" ? "Prikaz zajednice" : "Community view"}
         >

@@ -401,20 +401,45 @@ export function CommunityPostEditor({
     };
   }, [isAuthor, uploadFile]);
 
-  function validate() {
-    const errors: { title?: string; body?: string } = {};
-    if (!title.trim()) {
-      errors.title = locale === "sr" ? "Dodaj naslov koji jasno opisuje temu." : "Add a title that clearly describes the topic.";
+  useEffect(() => {
+    function handleBeforeUnload(event: BeforeUnloadEvent) {
+      if (dirtyRef.current || saveState === "dirty") {
+        event.preventDefault();
+        event.returnValue = "";
+      }
     }
-    if (!body.trim()) {
-      errors.body = locale === "sr" ? "Dodaj pitanje, kontekst ili koristan sadržaj." : "Add a question, context, or useful content.";
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [saveState]);
+
+  function validate(status: "draft" | "pending" | "published") {
+    const errors: { title?: string; body?: string } = {};
+    if (status === "draft") {
+      if (!title.trim() && !body.trim()) {
+        errors.title = locale === "sr" ? "Upiši bar naslov ili sadržaj skice pre čuvanja." : "Enter at least a title or content before saving a draft.";
+      }
+    } else {
+      if (!title.trim()) {
+        errors.title = locale === "sr" ? "Dodaj naslov koji jasno opisuje temu." : "Add a title that clearly describes the topic.";
+      }
+      if (!body.trim()) {
+        errors.body = locale === "sr" ? "Dodaj pitanje, kontekst ili koristan sadržaj." : "Add a question, context, or useful content.";
+      }
     }
     setFieldErrors((current) => ({ ...current, ...errors }));
-    return Object.keys(errors).length === 0;
+    const isValid = Object.keys(errors).length === 0;
+    if (!isValid) {
+      if (errors.title) {
+        document.getElementById("community-title")?.focus();
+      } else if (errors.body) {
+        document.getElementById("community-body")?.focus();
+      }
+    }
+    return isValid;
   }
 
   async function handleSubmit(status: "draft" | "pending" | "published") {
-    if (!validate() || pending || uploadingImage) return;
+    if (!validate(status) || pending || uploadingImage) return;
 
     setPending(true);
     setFormError(null);
@@ -775,7 +800,7 @@ export function CommunityPostEditor({
                           markDirty();
                         }}
                         disabled={!selectedModuleId || availableLessons.length === 0}
-                        className="min-h-11 w-full rounded-[12px] border border-line bg-paper-strong px-3 text-sm font-black text-ink transition focus:border-ink focus:ring-4 focus:ring-yellow/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:bg-[#eef3f7] dark:disabled:bg-ink/10 disabled:text-muted"
+                        className="min-h-11 w-full rounded-[12px] border border-line bg-paper-strong px-3 text-sm font-black text-ink transition focus:border-ink focus:ring-4 focus:ring-yellow/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:bg-ink/5 dark:disabled:bg-ink/10 disabled:text-muted"
                       >
                         <option value="">{locale === "sr" ? "Izaberi lekciju" : "Choose a lesson"}</option>
                         {availableLessons.map((lesson) => (

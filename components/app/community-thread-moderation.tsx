@@ -18,6 +18,8 @@ import { useState } from "react";
 import { CommunityAvatar, formatCommunityTime, type CommunityRank, type CommunityRole } from "@/components/app/community-identity";
 import { Dialog } from "@/components/ui/dialog";
 import { CommunityStickyToolbar } from "@/components/app/community-v2/community-sticky-toolbar";
+import { EmptyState } from "@/components/ui/empty-state";
+import { CommunityRouteSkeleton } from "@/components/app/community-v2/community-shared";
 import { Panel } from "@/components/ui/primitives";
 import { useToast } from "@/components/ui/toast-provider";
 import { Spinner } from "@/components/ui/spinner";
@@ -132,16 +134,12 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
   }
 
   if (authLoading || (isAuthenticated && viewerData === undefined)) {
-    return (
-      <div className="grid min-h-80 place-items-center" aria-busy="true">
-        <Spinner size="xl" className="text-yellow" />
-      </div>
-    );
+    return <CommunityRouteSkeleton />;
   }
 
   if (!isStaff) {
     return (
-      <Panel className="mx-auto max-w-xl rounded-[16px] border border-line bg-paper-strong p-6 text-center shadow-none">
+      <Panel className="mx-auto max-w-xl surface-card border-2 border-ink bg-paper-strong p-6 text-center shadow-[6px_6px_0_var(--shadow-hard-13)]">
         <ShieldCheck className="mx-auto size-9 text-ink/45" />
         <h1 className="mt-4 type-h1 text-ink">{locale === "sr" ? "Staff prostor" : "Staff area"}</h1>
         <p className="mt-2 type-body-sm font-semibold text-muted">
@@ -149,7 +147,7 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
         </p>
         <Link
           href={withLocale(locale, "/app/community/discussions")}
-          className="mt-5 inline-flex min-h-11 items-center justify-center rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black text-ink"
+          className="mt-5 inline-flex min-h-11 items-center justify-center rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black text-ink shadow-[3px_3px_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:translate-y-0"
         >
           {locale === "sr" ? "Otvori diskusije" : "Open discussions"}
         </Link>
@@ -181,17 +179,25 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
       ) : null}
 
       {queue.status === "LoadingFirstPage" ? (
-        <div className="grid min-h-64 place-items-center" aria-busy="true">
-          <Spinner size="xl" className="text-yellow" />
-        </div>
+        <CommunityRouteSkeleton />
       ) : queue.results.length === 0 ? (
-        <Panel className="rounded-[16px] border border-dashed border-ink/20 bg-paper-strong p-8 text-center shadow-none">
-          <ShieldCheck className="mx-auto size-9 text-emerald-600" />
-          <h2 className="mt-4 type-h2 text-ink">{locale === "sr" ? "Red je čist" : "The queue is clear"}</h2>
-          <p className="mt-2 text-sm font-semibold text-muted">
-            {locale === "sr" ? "Nema tema koje čekaju proveru." : "No topics are waiting for review."}
-          </p>
-        </Panel>
+        <EmptyState
+          icon={ShieldCheck}
+          title={locale === "sr" ? "Red je čist" : "The queue is clear"}
+          body={
+            locale === "sr"
+              ? "Nema tema koje čekaju proveru. Sve nove teme koje zahtevaju moderaciju pojaviće se ovde čim ih studenti pošalju."
+              : "No topics are waiting for review. All new topics requiring moderation will appear here as soon as students submit them."
+          }
+          action={
+            <Link
+              href={withLocale(locale, "/app/community/discussions")}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black text-ink shadow-[3px_3px_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:translate-y-0"
+            >
+              {locale === "sr" ? "Pregledaj diskusije" : "Browse discussions"}
+            </Link>
+          }
+        />
       ) : (
         <div className="space-y-3">
           {(queue.results as ModerationPost[]).map((post) => {

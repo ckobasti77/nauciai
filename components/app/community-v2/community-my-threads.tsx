@@ -107,12 +107,12 @@ function statusBadge(post: CommunityPostRow, locale: Locale) {
       className={cn(
         "rounded-full border px-2 py-0.5 type-eyebrow-sm",
         status === "changes_requested"
-          ? "border-[#b42318]/30 bg-[#fff1f0] text-[#8f1f17]"
+          ? "border-red-500/30 bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800"
           : status === "pending"
             ? "border-yellow bg-yellow/25 text-ink"
             : status === "published"
-              ? "border-[#3d7d5a]/25 bg-[#edf8f1] text-[#285d40]"
-              : "border-line bg-[#eef3f7] dark:bg-ink/10 text-ink/70",
+              ? "border-emerald-600/30 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800"
+              : "border-line bg-ink/5 dark:bg-ink/10 text-ink/70",
       )}
     >
       {label}
@@ -215,7 +215,7 @@ function MyThreadsView({
                 aria-current={active ? "page" : undefined}
                 className={cn(
                   "relative z-10 flex min-h-10 items-center gap-3 rounded-[12px] border border-transparent px-3 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
-                  active ? "text-paper-strong" : "text-ink hover:bg-[#eef3f7] dark:hover:bg-ink/10",
+                  active ? "text-paper-strong" : "text-ink hover:bg-ink/5 dark:hover:bg-ink/10",
                 )}
               >
                 <span className="flex min-w-0 items-center gap-2">
@@ -267,8 +267,8 @@ function MyThreadsView({
                         </div>
                       ) : null}
                       {post.status === "changes_requested" ? (
-                        <div className="mt-2 rounded-[12px] border border-[#b42318]/25 bg-[#fff7f6] p-3 type-body-sm font-bold text-[#712018]">
-                          <span className="block type-eyebrow-sm text-[#9a2a20]">
+                        <div className="mt-2 rounded-[12px] border border-red-500/30 bg-red-50 p-3 type-body-sm font-bold text-red-900 dark:bg-red-950/40 dark:border-red-800 dark:text-red-200">
+                          <span className="block type-eyebrow-sm text-red-700 dark:text-red-300">
                             {locale === "sr" ? "Napomena moderatora" : "Moderator note"}
                           </span>
                           <span className="mt-1 block">
@@ -304,6 +304,15 @@ function MyThreadsView({
                     : locale === "sr"
                       ? "Kada neka tvoja tema dođe u ovo stanje, pojaviće se ovde sa jasnim sledećim korakom."
                       : "When one of your topics reaches this state, it will appear here with a clear next step."
+                }
+                action={
+                  <Link
+                    href={withLocale(locale, "/app/community/new")}
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black text-ink shadow-[3px_3px_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:translate-y-0"
+                  >
+                    <FilePenLine className="size-4" />
+                    {locale === "sr" ? "Započni temu" : "Start a topic"}
+                  </Link>
                 }
               />
             )}

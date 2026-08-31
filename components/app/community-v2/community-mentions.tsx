@@ -6,6 +6,7 @@ import { useState } from "react";
 
 import { CommunityAvatar, formatCommunityTime } from "@/components/app/community-identity";
 import { cn } from "@/components/ui/primitives";
+import { useToast } from "@/components/ui/toast-provider";
 import type { Locale } from "@/lib/i18n";
 import { withLocale } from "@/lib/i18n";
 
@@ -44,13 +45,31 @@ function StaticNotificationsPage({ locale }: { locale: Locale }) {
 
 function LiveNotificationsPage({ locale }: { locale: Locale }) {
   const viewState = useNotificationView();
+  const toast = useToast();
   const { filters, isLoading: filtersLoading } = useCommunityFilters(true);
   const query = useCommunityMentions({ unreadOnly: viewState.unreadOnly, category: viewState.category });
   const [markingAll, setMarkingAll] = useState(false);
 
   async function markAll() {
     setMarkingAll(true);
-    try { await query.markAll({}); } finally { setMarkingAll(false); }
+    try {
+      await query.markAll({});
+      toast.success(locale === "sr" ? "Sva obaveštenja su označena kao pročitana." : "All notifications marked as read.");
+    } catch (caughtError) {
+      console.error(caughtError);
+      toast.error(locale === "sr" ? "Označavanje nije uspelo. Pokušaj ponovo." : "Marking as read failed. Try again.");
+    } finally {
+      setMarkingAll(false);
+    }
+  }
+
+  async function markOne(id: string) {
+    try {
+      await query.markOne({ notificationId: id });
+    } catch (caughtError) {
+      console.error(caughtError);
+      toast.error(locale === "sr" ? "Označavanje nije uspelo." : "Marking as read failed.");
+    }
   }
 
   return (
@@ -63,7 +82,7 @@ function LiveNotificationsPage({ locale }: { locale: Locale }) {
       loadingMore={query.status === "LoadingMore"}
       unreadCount={filters.counts?.community ?? 0}
       onLoadMore={() => query.loadMore(20)}
-      onMarkOne={(id) => query.markOne({ notificationId: id })}
+      onMarkOne={markOne}
       onMarkAll={markAll}
       markingAll={markingAll}
     />
@@ -105,12 +124,12 @@ function NotificationCard({ locale, notification, onMarkRead: onMarkReadProp }: 
             </span>
             <span className="text-xs font-bold text-muted/75">· {formatCommunityTime(notification.createdAt, locale)}</span>
           </div>
-          {unread ? <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-yellow/30 px-2 py-1 type-eyebrow-sm text-ink"><span className="size-1.5 rounded-full bg-[#b42318]" aria-hidden="true" />{locale === "sr" ? "Nepročitano" : "Unread"}</span> : null}
-          {excerpt ? <blockquote className="relative mt-3 rounded-[12px] border-l-4 border-yellow bg-[#eef3f7] dark:bg-ink/10 py-3 pl-4 pr-3 type-body-sm font-bold text-ink/80"><Quote className="absolute right-3 top-3 size-4 text-ink/20" aria-hidden="true" /><span className="line-clamp-3">{excerpt}</span></blockquote> : null}
+          {unread ? <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-yellow/30 px-2 py-1 type-eyebrow-sm text-ink"><span className="size-1.5 rounded-full bg-red-600" aria-hidden="true" />{locale === "sr" ? "Nepročitano" : "Unread"}</span> : null}
+          {excerpt ? <blockquote className="relative mt-3 rounded-[12px] border-l-4 border-yellow bg-ink/5 dark:bg-ink/10 py-3 pl-4 pr-3 type-body-sm font-bold text-ink/80"><Quote className="absolute right-3 top-3 size-4 text-ink/20" aria-hidden="true" /><span className="line-clamp-3">{excerpt}</span></blockquote> : null}
           <div className="mt-3"><ScopeTrail locale={locale} track={locale === "sr" ? notification.trackTitleSr : notification.trackTitleEn} course={locale === "sr" ? notification.courseTitleSr : notification.courseTitleEn} compact /></div>
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
             {notification.postId ? <Link href={`${withLocale(locale, `/app/community/${notification.postId}`)}${notification.commentId ? `#comment-${notification.commentId}` : ""}`} onClick={() => { if (unread && onMarkRead) void onMarkRead(notification._id); }} className="inline-flex min-h-11 min-w-0 items-center gap-2 rounded-full border border-line bg-paper-strong px-3 text-sm font-black text-ink transition hover:border-ink hover:bg-yellow/15"><MessageCircle className="size-4 shrink-0" /><span className="max-w-[16rem] truncate">{notification.postTitle ?? (locale === "sr" ? "Otvori razgovor" : "Open conversation")}</span><ChevronRight className="size-3.5 shrink-0" /></Link> : notification.senderUsername ? <Link href={withLocale(locale, `/app/members/${notification.senderUsername}`)} onClick={() => { if (unread && onMarkRead) void onMarkRead(notification._id); }} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line bg-paper-strong px-3 text-sm font-black text-ink transition hover:border-ink hover:bg-yellow/15"><Users className="size-4" />{locale === "sr" ? "Otvori profil" : "Open profile"}<ChevronRight className="size-3.5" /></Link> : <span />}
-            {unread && onMarkRead ? <button type="button" onClick={() => void onMarkRead(notification._id)} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-ink bg-paper-strong px-3 text-xs font-black text-ink transition hover:bg-[#eef3f7] dark:hover:bg-ink/10"><Check className="size-3.5" />{locale === "sr" ? "Označi pročitano" : "Mark as read"}</button> : null}
+            {unread && onMarkRead ? <button type="button" onClick={() => void onMarkRead(notification._id)} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-ink bg-paper-strong px-3 text-xs font-black text-ink transition hover:bg-ink/5 dark:hover:bg-ink/10"><Check className="size-3.5" />{locale === "sr" ? "Označi pročitano" : "Mark as read"}</button> : null}
           </div>
         </div>
       </div>
@@ -124,13 +143,13 @@ function NotificationsView({ locale, viewState, notifications, loading, canLoadM
     <div className="space-y-6">
       <CommunityStickyToolbar>
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-[16px] border border-line bg-paper-strong p-2">
-        <div className="flex flex-wrap gap-1" role="group" aria-label={locale === "sr" ? "Filter obaveštenja" : "Notification filter"}>{(Object.keys(categoryLabels) as NotificationCategory[]).map((category) => <button key={category} type="button" onClick={() => viewState.setCategory(category)} aria-pressed={viewState.category === category} className={cn("inline-flex min-h-10 items-center rounded-full px-3 text-xs font-black transition", viewState.category === category ? "bg-ink text-paper-strong" : "text-ink/65 hover:bg-[#eef3f7] dark:hover:bg-ink/10 hover:text-ink")}>{categoryLabels[category]}</button>)}<button type="button" onClick={() => viewState.setUnreadOnly(!viewState.unreadOnly)} aria-pressed={viewState.unreadOnly} className={cn("inline-flex min-h-10 items-center gap-2 rounded-full px-3 text-xs font-black transition", viewState.unreadOnly ? "bg-ink text-paper-strong" : "text-ink/65 hover:bg-[#eef3f7] dark:hover:bg-ink/10 hover:text-ink")}><Bell className="size-3.5" />{locale === "sr" ? "Nepročitano" : "Unread"}{unreadCount > 0 ? <span className="rounded-full border border-ink bg-yellow px-1.5 font-mono type-caption text-ink">{unreadCount}</span> : null}</button></div>
+        <div className="flex flex-wrap gap-1" role="group" aria-label={locale === "sr" ? "Filter obaveštenja" : "Notification filter"}>{(Object.keys(categoryLabels) as NotificationCategory[]).map((category) => <button key={category} type="button" onClick={() => viewState.setCategory(category)} aria-pressed={viewState.category === category} className={cn("inline-flex min-h-11 sm:min-h-10 items-center rounded-full px-3 text-xs font-black transition", viewState.category === category ? "bg-ink text-paper-strong" : "text-ink/65 hover:bg-ink/5 dark:hover:bg-ink/10 hover:text-ink")}>{categoryLabels[category]}</button>)}<button type="button" onClick={() => viewState.setUnreadOnly(!viewState.unreadOnly)} aria-pressed={viewState.unreadOnly} className={cn("inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-full px-3 text-xs font-black transition", viewState.unreadOnly ? "bg-ink text-paper-strong" : "text-ink/65 hover:bg-ink/5 dark:hover:bg-ink/10 hover:text-ink")}><Bell className="size-3.5" />{locale === "sr" ? "Nepročitano" : "Unread"}{unreadCount > 0 ? <span className="rounded-full border border-ink bg-yellow px-1.5 font-mono type-caption text-ink">{unreadCount}</span> : null}</button></div>
         {unreadCount > 0 && onMarkAll ? (
           <button
             type="button"
             onClick={() => void onMarkAll()}
             disabled={markingAll}
-            className="inline-flex min-h-9 items-center gap-2 rounded-full border border-line bg-paper-strong px-3 text-xs font-black text-ink transition hover:border-ink disabled:opacity-60"
+            className="inline-flex min-h-11 sm:min-h-9 items-center gap-2 rounded-full border border-line bg-paper-strong px-3 text-xs font-black text-ink transition hover:border-ink disabled:opacity-60"
           >
             <CheckCheck className="size-3.5" />
             {locale === "sr" ? "Označi sve pročitano" : "Mark all as read"}
