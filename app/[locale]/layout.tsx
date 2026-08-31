@@ -27,7 +27,11 @@ const patrickHand = Patrick_Hand({
   display: "swap",
 });
 
+// metadataBase lets relative OpenGraph images (course covers) and hreflang
+// alternates resolve to absolute URLs; without it Next warns and falls back to
+// localhost, giving crawlers unusable og:image / alternate URLs.
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
   title: "Fakultet za AI",
   description: "Bilingual AI learning and community platform for practical video, audio, and website courses.",
 };

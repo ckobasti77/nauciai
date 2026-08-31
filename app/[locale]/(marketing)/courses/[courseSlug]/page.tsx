@@ -1,17 +1,30 @@
-import { ArrowLeft, BookOpen, CheckCircle2, ChevronDown, Clock3, Layers, LogIn, PlayCircle, Sparkles } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Clock3, Lock, Minus, PlayCircle, Plus, Sparkles } from "lucide-react";
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { CheckoutButton } from "@/components/app/checkout-button";
+import { MarkerHighlight } from "@/components/marketing/marker-highlight";
 import { PublicCourseIntroVideo } from "@/components/marketing/public-course-intro-video";
+import { SectionMarginalia } from "@/components/marketing/section-marginalia";
 import { ThemeToggle } from "@/components/app/theme-toggle";
-import { BrandMark, HandUnderline, LinkButton } from "@/components/ui/primitives";
+import { BrandMark, HandUnderline, LinkButton, Panel, SectionHeader } from "@/components/ui/primitives";
 import { courses } from "@/lib/content";
 import { convexQueries, getConvexHttpClient } from "@/lib/convex-http";
 import { getCurrentViewerProfile } from "@/lib/current-viewer";
-import { lessonPath } from "@/lib/app-routes";
-import { dictionary, locales, localized, normalizeLocale, otherLocale, type Locale, type LocalizedText, withLocale } from "@/lib/i18n";
+import {
+  coursePageContent,
+  dictionary,
+  locales,
+  localized,
+  normalizeLocale,
+  otherLocale,
+  pluralize,
+  type Locale,
+  type LocalizedText,
+  withLocale,
+} from "@/lib/i18n";
 
 type StaticCourse = (typeof courses)[number];
 
@@ -22,6 +35,7 @@ type CourseOutlineLesson = {
   summary: LocalizedText;
   durationSeconds: number;
   sortOrder: number;
+  isPublished: boolean;
 };
 
 type CourseOutlineModule = {
@@ -79,6 +93,30 @@ export function generateStaticParams() {
   return locales.flatMap((locale) => courses.map((course) => ({ locale, courseSlug: course.slug })));
 }
 
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string; courseSlug: string }>;
+}): Promise<Metadata> {
+  const { locale: localeParam, courseSlug } = await params;
+  const locale = normalizeLocale(localeParam);
+  const course = courses.find((item) => item.slug === courseSlug);
+  if (!course) return {};
+
+  const title = localized(course.title, locale);
+  const description = localized(course.description, locale);
+
+  return {
+    title: `${title} — ${dictionary[locale].appName}`,
+    description,
+    openGraph: {
+      title,
+      description,
+      images: [{ url: course.image.src }],
+    },
+  };
+}
+
 function formatDuration(durationSeconds: number, locale: Locale) {
   const minutes = Math.max(0, Math.round(durationSeconds / 60));
   if (minutes === 0) return "0 min";
@@ -115,6 +153,7 @@ function staticOutline(course: StaticCourse): CourseOutline {
         summary: lesson.summary,
         durationSeconds: lessonDurationSeconds(lesson),
         sortOrder: lessonIndex * 10,
+        isPublished: lesson.isPublished ?? true,
       })),
     })),
   };
@@ -167,6 +206,8 @@ function outlineFromLive(liveOutline: LiveCourseOutline, fallbackCourse: StaticC
         },
         durationSeconds: lesson.durationSeconds,
         sortOrder: lesson.sortOrder,
+        // Živi outline vraća samo objavljene lekcije.
+        isPublished: true,
       })),
     })),
   };
@@ -181,101 +222,10 @@ async function getLiveOutline(courseSlug: string): Promise<LiveCourseOutline> {
 function outlineTotals(outline: CourseOutline) {
   const lessons = outline.modules.flatMap((module) => module.lessons);
   return {
+    modules: outline.modules.length,
     lessons: lessons.length,
     durationSeconds: lessons.reduce((total, lesson) => total + lesson.durationSeconds, 0),
   };
-}
-
-function lessonHref(locale: Locale, courseSlug: string, lessonSlug: string, signedIn: boolean) {
-  const dashboardHref = lessonPath(locale, courseSlug, lessonSlug);
-  if (signedIn) return dashboardHref;
-  return `${withLocale(locale, "/sign-in")}?next=${encodeURIComponent(dashboardHref)}`;
-}
-
-function CurriculumSection({
-  locale,
-  outline,
-  signedIn,
-}: {
-  locale: Locale;
-  outline: CourseOutline;
-  signedIn: boolean;
-}) {
-  const totals = outlineTotals(outline);
-  const directLessons = outline.modules.flatMap((module) => module.lessons);
-
-  return (
-    <section id="program" className="border-t-2 border-ink bg-paper-strong px-4 py-14 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-7xl">
-        <div className="grid gap-8 lg:grid-cols-[0.72fr_1.28fr] lg:items-start">
-          <div>
-            <p className="font-display text-2xl text-ink">{locale === "sr" ? "Sta je u kursu" : "What is inside"}</p>
-            <h2 className="mt-2 text-4xl font-black leading-tight text-ink">
-              {locale === "sr" ? "Sve lekcije, direktno i pregledno." : "Every lesson, directly and clearly."}
-            </h2>
-            <p className="mt-4 text-base font-bold leading-7 text-muted">
-              {locale === "sr"
-                ? "Pregledaj program, trajanje svake lekcije i redosled rada. Kada otvoris lekciju, prijava ili kreiranje profila te vodi tacno na sledecu stranicu."
-                : "Review the program, each lesson duration, and the work order. Opening a lesson sends sign-in or account creation back to the exact next page."}
-            </p>
-            <div className="mt-6 grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-              <div className="rounded-[16px] border-2 border-ink bg-paper p-4">
-                <p className="flex items-center gap-2 text-xs font-black uppercase text-muted">
-                  <Layers className="size-4 text-ink" />
-                  {locale === "sr" ? "Struktura" : "Structure"}
-                </p>
-                <p className="mt-2 text-xl font-black text-ink">{locale === "sr" ? "Kurs → lekcije" : "Course → lessons"}</p>
-              </div>
-              <div className="rounded-[16px] border-2 border-ink bg-paper p-4">
-                <p className="flex items-center gap-2 text-xs font-black uppercase text-muted">
-                  <BookOpen className="size-4 text-ink" />
-                  {locale === "sr" ? "Lekcije" : "Lessons"}
-                </p>
-                <p className="mt-2 text-3xl font-black text-ink">{totals.lessons}</p>
-              </div>
-              <div className="rounded-[16px] border-2 border-ink bg-paper p-4">
-                <p className="flex items-center gap-2 text-xs font-black uppercase text-muted">
-                  <Clock3 className="size-4 text-ink" />
-                  {locale === "sr" ? "Trajanje" : "Duration"}
-                </p>
-                <p className="mt-2 text-3xl font-black text-ink">{formatDuration(totals.durationSeconds, locale)}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            {directLessons.length ? (
-              directLessons.map((lesson, lessonIndex) => {
-                const href = lessonHref(locale, outline.course.slug, lesson.slug, signedIn);
-                return (
-                  <details key={lesson.id ?? lesson.slug} open={lessonIndex === 0} className="group overflow-hidden rounded-[16px] border-2 border-ink bg-paper shadow-[6px_6px_0_0_var(--shadow-hard-12)]">
-                    <summary className="flex min-h-16 cursor-pointer list-none items-center gap-4 bg-paper-strong px-5 py-4 marker:hidden focus-visible:outline focus-visible:outline-4 focus-visible:outline-yellow">
-                      <span className="grid size-9 shrink-0 place-items-center rounded-full border-2 border-ink bg-yellow text-xs font-black">{lessonIndex + 1}</span>
-                      <div className="min-w-0 flex-1"><h3 className="text-lg font-black leading-tight text-ink">{localized(lesson.title, locale)}</h3><p className="mt-1 text-xs font-bold text-muted">{formatDuration(lesson.durationSeconds, locale)}</p></div>
-                      <ChevronDown className="size-5 text-ink transition group-open:rotate-180" />
-                    </summary>
-                    <div className="grid gap-4 border-t-2 border-ink p-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center"><p className="text-sm font-bold leading-6 text-muted">{localized(lesson.summary, locale)}</p><Link href={href} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border-2 border-ink bg-ink px-4 text-xs font-black text-paper-strong shadow-[3px_3px_0_0_var(--yellow)] transition hover:-translate-y-0.5 hover:bg-yellow hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">{signedIn ? <PlayCircle className="size-4" /> : <LogIn className="size-4" />}{signedIn ? (locale === "sr" ? "Otvori u dashboardu" : "Open in dashboard") : (locale === "sr" ? "Prijavi se / napravi profil" : "Sign in / create profile")}</Link></div>
-                  </details>
-                );
-              })
-            ) : (
-              <div className="rounded-[16px] border-2 border-dashed border-ink bg-paper p-8 text-center">
-                <BookOpen className="mx-auto size-10 text-ink" />
-                <p className="mt-4 text-2xl font-black text-ink">
-                  {locale === "sr" ? "Program je u pripremi" : "The program is being prepared"}
-                </p>
-                <p className="mt-2 text-sm font-bold leading-6 text-muted">
-                  {locale === "sr"
-                    ? "Objavljene lekcije ce se pojaviti ovde cim budu spremne."
-                    : "Published lessons will appear here as soon as they are ready."}
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    </section>
-  );
 }
 
 export default async function CourseInfoPage({
@@ -296,11 +246,14 @@ export default async function CourseInfoPage({
     getCurrentViewerProfile(),
   ]);
   const outline = outlineFromLive(liveOutline, fallbackCourse);
+  const totals = outlineTotals(outline);
   const t = dictionary[locale];
+  const cp = coursePageContent[locale];
+  const perCourse =
+    cp.perCourse[courseSlug as keyof typeof cp.perCourse] ?? cp.perCourse["video-audio-ai"];
   const nextLocale = otherLocale(locale);
-  const freeVideoLabel = locale === "sr" ? "Odgledaj besplatan video" : "Watch free video";
-  const buyLabel = locale === "sr" ? "Kupi sada" : "Buy now";
   const signedIn = Boolean(viewerProfile);
+  const otherCourse = courses.find((item) => item.slug !== courseSlug) ?? courses[0];
 
   return (
     <main className="bg-paper text-ink">
@@ -311,7 +264,7 @@ export default async function CourseInfoPage({
             <ThemeToggle locale={locale} />
             <Link
               href={withLocale(nextLocale, `/courses/${outline.course.slug}`)}
-              className="rounded-[8px] border-2 border-ink bg-paper-strong px-3 py-2 text-sm font-black"
+              className="inline-flex min-h-11 items-center rounded-[8px] border-2 border-ink bg-paper-strong px-3 py-2 text-sm font-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
               {nextLocale.toUpperCase()}
             </Link>
@@ -320,102 +273,305 @@ export default async function CourseInfoPage({
               tone="paper"
               className="hidden sm:inline-flex"
             >
-              {signedIn ? "Dashboard" : t.signIn}
+              {signedIn ? t.dashboard : t.signIn}
             </LinkButton>
           </div>
         </div>
       </header>
 
       <div data-motion="page">
-      <section data-motion="hero" className="sketch-grid border-b-2 border-ink px-4 py-12 sm:px-6 lg:px-8">
-        <div className="mx-auto grid max-w-7xl items-center gap-10 lg:grid-cols-[0.95fr_1.05fr]">
-          <div data-motion="copy">
-            <Link href={withLocale(locale, "/#courses")} className="inline-flex items-center gap-2 text-sm font-black text-ink underline">
-              <ArrowLeft className="size-4" />
-              {locale === "sr" ? "Svi kursevi" : "All courses"}
-            </Link>
-            <p className="mt-8 font-display text-2xl text-ink">{localized(fallbackCourse.detail.kicker, locale)}</p>
-            <h1 className="mt-3 text-5xl font-black leading-[0.95] text-ink sm:text-6xl lg:text-7xl">
-              {localized(outline.course.title, locale)}
-            </h1>
-            <HandUnderline className="mt-5" />
-            <p className="mt-6 max-w-2xl text-lg font-bold leading-8 text-muted">
-              {localized(fallbackCourse.detail.longDescription, locale)}
-            </p>
-            <div className="mt-8 flex flex-col gap-3 sm:max-w-sm">
-              <LinkButton href="#besplatan-video" tone="yellow">
-                <PlayCircle className="size-4" />
-                {freeVideoLabel}
-              </LinkButton>
-              <LinkButton href="#program" tone="paper">
-                <BookOpen className="size-4" />
-                {locale === "sr" ? "Pogledaj program" : "View curriculum"}
-              </LinkButton>
-              <CheckoutButton courseSlug={outline.course.slug} locale={locale} label={buyLabel} tone="ink" fullWidth />
-            </div>
-          </div>
+        {/* ── HERO ─────────────────────────────────────────────────────────── */}
+        <section data-motion="hero" className="sketch-grid overflow-hidden border-b-2 border-ink">
+          <div className="mx-auto grid max-w-7xl items-center gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[1.02fr_0.98fr] lg:px-8 lg:py-16">
+            <div className="max-w-3xl" data-motion="copy">
+              <Link
+                href={withLocale(locale, "/#courses")}
+                className="inline-flex min-h-11 items-center gap-2 text-sm font-black text-ink underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              >
+                <ArrowLeft className="size-4" />
+                {cp.allCourses}
+              </Link>
+              <p className="mt-6 font-display text-2xl text-ink">
+                {localized(fallbackCourse.detail.kicker, locale)}
+              </p>
+              <h1 className="mt-3 text-4xl font-black leading-[1.03] text-ink sm:text-5xl lg:text-6xl">
+                {perCourse.titleLead}
+                <MarkerHighlight>{perCourse.titleHighlight}</MarkerHighlight>
+                {perCourse.titleTail}
+              </h1>
+              <HandUnderline className="mt-4" />
+              <p className="mt-6 max-w-2xl text-lg font-bold leading-8 text-muted">
+                {localized(fallbackCourse.detail.longDescription, locale)}
+              </p>
 
-          <div data-motion="card" className="overflow-hidden rounded-[16px] border-[2px] border-ink bg-paper-strong p-3 shadow-[8px_8px_0_0_var(--shadow-hard-16)]">
-            <Image
-              src={fallbackCourse.image.src}
-              alt={localized(fallbackCourse.image.alt, locale)}
-              width={1200}
-              height={720}
-              priority
-              className="h-auto w-full rounded-[8px] object-cover"
-            />
-          </div>
-        </div>
-      </section>
+              <p className="mt-8 flex items-end gap-2">
+                <span className="text-5xl font-black text-ink">{cp.priceAmount}</span>
+                <span className="pb-1.5 text-base font-extrabold text-muted">{cp.priceUnit}</span>
+              </p>
 
-      <section className="border-b-2 border-ink bg-paper-strong px-4 py-14 sm:px-6 lg:px-8">
-        <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[0.8fr_1.2fr]">
-          <div>
-            <p className="font-display text-2xl text-ink">{locale === "sr" ? "Sta dobijas" : "What you get"}</p>
-            <h2 className="mt-2 text-4xl font-black leading-tight text-ink">
-              {locale === "sr" ? "Konkretan kurs, spreman za rad." : "A concrete course, ready to use."}
-            </h2>
-          </div>
-          <div className="grid gap-4">
-            {fallbackCourse.detail.outcomes.map((outcome) => (
-              <div key={localized(outcome, locale)} data-motion="card" className="flex items-start gap-3 rounded-[16px] border-[2px] border-ink bg-paper px-5 py-4">
-                <CheckCircle2 className="mt-1 size-5 shrink-0 text-ink" />
-                <p className="text-base font-extrabold leading-7 text-ink">{localized(outcome, locale)}</p>
+              <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+                <CheckoutButton
+                  courseSlug={outline.course.slug}
+                  locale={locale}
+                  label={cp.buyNow}
+                  tone="yellow"
+                  fullWidth
+                  className="sm:w-auto sm:min-w-52"
+                />
+                <LinkButton href="#besplatan-video" tone="paper" className="w-full sm:w-auto">
+                  <PlayCircle className="size-4" />
+                  {cp.watchFree}
+                </LinkButton>
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
 
-      <section id="besplatan-video" className="bg-paper px-4 py-14 sm:px-6 lg:px-8">
-        <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[1.1fr_0.9fr]">
-          <div data-motion="card" className="overflow-hidden rounded-[16px] border-[2px] border-ink bg-ink p-3 text-paper-strong shadow-[8px_8px_0_0_var(--yellow)]">
-            <PublicCourseIntroVideo
-              videoUrl={outline.course.videoUrl}
-              posterSrc={fallbackCourse.image.src}
-              title={localized(outline.course.title, locale)}
-              locale={locale}
-            />
+              <ul className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm font-extrabold text-muted">
+                {totals.lessons > 0 ? (
+                  <>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="size-4 text-ink" />
+                      {totals.modules} {pluralize(locale, totals.modules, cp.moduleForms)}
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="size-4 text-ink" />
+                      {totals.lessons} {pluralize(locale, totals.lessons, cp.lessonForms)}
+                    </li>
+                  </>
+                ) : null}
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="size-4 text-ink" />
+                  {cp.cancelAnytime}
+                </li>
+              </ul>
+            </div>
+
+            <Panel as="div" className="p-3">
+              <div className="relative aspect-[16/9] overflow-hidden rounded-[8px] border-2 border-ink bg-paper">
+                <Image
+                  src={fallbackCourse.image.src}
+                  alt={localized(fallbackCourse.image.alt, locale)}
+                  fill
+                  sizes="(min-width: 1024px) 48vw, 100vw"
+                  priority
+                  className="object-cover"
+                />
+              </div>
+            </Panel>
           </div>
-          <div className="flex flex-col justify-center">
-            <p className="inline-flex w-fit items-center gap-2 rounded-full border-[2px] border-ink bg-yellow px-3 py-1 text-sm font-black text-ink">
-              <Sparkles className="size-4" />
-              {localized(fallbackCourse.priceLabel, locale)}
-            </p>
-            <h2 className="mt-5 text-4xl font-black leading-tight text-ink">
-              {localized(fallbackCourse.detail.freeVideoTitle, locale)}
-            </h2>
-            <p className="mt-4 text-lg font-bold leading-8 text-muted">
-              {localized(fallbackCourse.detail.freeVideoDescription, locale)}
-            </p>
-            <div className="mt-7 max-w-sm">
-              <CheckoutButton courseSlug={outline.course.slug} locale={locale} label={buyLabel} tone="yellow" fullWidth />
+        </section>
+
+        {/* ── BESPLATAN VIDEO ──────────────────────────────────────────────── */}
+        <section id="besplatan-video" className="scroll-mt-20 border-b-2 border-ink bg-paper-strong px-4 py-14 sm:px-6 lg:px-8">
+          <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+            <div data-motion="card" className="overflow-hidden rounded-[16px] border-2 border-ink bg-ink p-3 text-paper-strong shadow-[8px_8px_0_0_var(--yellow)]">
+              <PublicCourseIntroVideo
+                videoUrl={outline.course.videoUrl}
+                posterSrc={fallbackCourse.image.src}
+                title={localized(outline.course.title, locale)}
+                locale={locale}
+              />
+            </div>
+            <div className="flex flex-col justify-center" data-motion="copy">
+              <p className="inline-flex w-fit items-center gap-2 rounded-full border-2 border-ink bg-yellow px-3 py-1 text-sm font-black text-ink">
+                <Sparkles className="size-4" />
+                {cp.program.freeBadge}
+              </p>
+              <h2 className="mt-5 text-3xl font-black leading-tight text-ink md:text-4xl">
+                {localized(fallbackCourse.detail.freeVideoTitle, locale)}
+              </h2>
+              <p className="mt-4 text-lg font-bold leading-8 text-muted">
+                {localized(fallbackCourse.detail.freeVideoDescription, locale)}
+              </p>
+              <div className="mt-7 max-w-sm">
+                <CheckoutButton courseSlug={outline.course.slug} locale={locale} label={cp.buyNow} tone="yellow" fullWidth />
+              </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <CurriculumSection locale={locale} outline={outline} signedIn={signedIn} />
+        {/* ── ŠTA ĆEŠ UMETI ────────────────────────────────────────────────── */}
+        <section className="border-b-2 border-ink bg-paper px-4 py-14 sm:px-6 lg:px-8">
+          <div className="relative mx-auto max-w-7xl">
+            <SectionMarginalia
+              variant="star"
+              className="absolute right-1 top-0 hidden h-12 w-12 text-yellow sm:block"
+            />
+            <div className="grid gap-8 lg:grid-cols-[0.8fr_1.2fr]">
+              <SectionHeader kicker={cp.outcomes.kicker} title={cp.outcomes.title} underline />
+              <div className="grid gap-4">
+                {fallbackCourse.detail.outcomes.map((outcome) => (
+                  <div
+                    key={localized(outcome, locale)}
+                    data-motion="card"
+                    className="flex items-start gap-3 rounded-[16px] border-2 border-ink bg-paper-strong px-5 py-4 shadow-[4px_4px_0_0_var(--shadow-hard-13)]"
+                  >
+                    <CheckCircle2 className="mt-1 size-5 shrink-0 text-ink" />
+                    <p className="text-base font-extrabold leading-7 text-ink">{localized(outcome, locale)}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ── PROGRAM KURSA ────────────────────────────────────────────────── */}
+        <section id="program" className="scroll-mt-20 border-b-2 border-ink bg-paper-strong px-4 py-16 sm:px-6 lg:px-8">
+          <div className="relative mx-auto max-w-7xl">
+            <SectionMarginalia
+              variant="arrow"
+              className="absolute right-1 top-0 hidden h-12 w-16 text-ink sm:block"
+            />
+            <SectionHeader kicker={cp.program.kicker} title={cp.program.title} body={cp.program.intro} underline />
+
+            {totals.lessons > 0 ? (
+              <>
+                <ul className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm font-extrabold text-muted" data-motion="copy">
+                  <li>{totals.modules} {pluralize(locale, totals.modules, cp.moduleForms)}</li>
+                  <li>{totals.lessons} {pluralize(locale, totals.lessons, cp.lessonForms)}</li>
+                  <li className="flex items-center gap-2">
+                    <Clock3 className="size-4 text-ink" />
+                    {formatDuration(totals.durationSeconds, locale)}
+                  </li>
+                </ul>
+
+                <div className="mt-8 grid gap-6">
+                  {outline.modules.map((module, moduleIndex) => (
+                    <Panel key={module.id ?? moduleIndex} as="article" className="overflow-hidden">
+                      <div className="border-b-2 border-ink bg-paper px-5 py-5 sm:px-6">
+                        <p className="text-xs font-black uppercase tracking-[0.12em] text-muted">
+                          {cp.program.moduleLabel} {moduleIndex + 1}
+                        </p>
+                        <h3 className="mt-1 text-2xl font-black leading-tight text-ink">
+                          {localized(module.title, locale)}
+                        </h3>
+                        {module.description ? (
+                          <p className="mt-2 text-sm font-bold leading-6 text-muted">
+                            {localized(module.description, locale)}
+                          </p>
+                        ) : null}
+                      </div>
+                      <ul>
+                        {module.lessons.map((lesson, lessonIndex) => {
+                          const isFree = moduleIndex === 0 && lessonIndex === 0;
+                          const isComingSoon = !lesson.isPublished;
+                          return (
+                            <li
+                              key={lesson.id ?? lesson.slug}
+                              className={`flex items-center gap-3 px-4 py-4 sm:gap-4 sm:px-6 ${lessonIndex > 0 ? "border-t-2 border-ink" : ""} ${isComingSoon ? "opacity-60" : ""}`}
+                            >
+                              <span className="grid size-9 shrink-0 place-items-center rounded-full border-2 border-ink bg-paper text-xs font-black text-ink">
+                                {lessonIndex + 1}
+                              </span>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-base font-extrabold leading-snug text-ink sm:text-lg">
+                                  {localized(lesson.title, locale)}
+                                </p>
+                                <p className="mt-1 flex items-center gap-1.5 text-xs font-bold text-muted">
+                                  <Clock3 className="size-3.5" />
+                                  {isComingSoon ? cp.program.comingSoon : formatDuration(lesson.durationSeconds, locale)}
+                                </p>
+                              </div>
+                              {isFree ? (
+                                <span className="shrink-0 rounded-full border-2 border-ink bg-yellow px-3 py-1 text-[11px] font-black text-ink">
+                                  {cp.program.freeBadge}
+                                </span>
+                              ) : isComingSoon ? (
+                                <span className="shrink-0 rounded-full border-2 border-ink bg-paper px-3 py-1 text-[11px] font-black text-muted">
+                                  {cp.program.comingSoon}
+                                </span>
+                              ) : (
+                                <span
+                                  className="grid size-9 shrink-0 place-items-center rounded-full border-2 border-ink bg-paper text-ink"
+                                  title={cp.program.lockedLabel}
+                                >
+                                  <Lock className="size-4" aria-hidden="true" />
+                                  <span className="sr-only">{cp.program.lockedLabel}</span>
+                                </span>
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </Panel>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div data-motion="card" className="mt-8 rounded-[16px] border-2 border-dashed border-ink bg-paper p-8 text-center">
+                <Clock3 className="mx-auto size-10 text-ink" />
+                <p className="mt-4 text-2xl font-black text-ink">{cp.program.emptyTitle}</p>
+                <p className="mx-auto mt-2 max-w-xl text-sm font-bold leading-6 text-muted">{cp.program.emptyBody}</p>
+                <div className="mt-6 flex justify-center">
+                  <LinkButton href="#besplatan-video" tone="yellow">
+                    <PlayCircle className="size-4" />
+                    {cp.watchFree}
+                  </LinkButton>
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* ── FAQ PO KURSU ─────────────────────────────────────────────────── */}
+        <section className="border-b-2 border-ink bg-paper px-4 py-16 sm:px-6 lg:px-8">
+          <div className="relative mx-auto max-w-3xl">
+            <SectionMarginalia
+              variant="spark"
+              className="absolute right-1 top-0 hidden h-11 w-11 text-yellow sm:block"
+            />
+            <SectionHeader title={cp.faq.title} underline />
+            <div className="mt-10 flex flex-col gap-3">
+              {perCourse.faq.map((item) => (
+                <details
+                  key={item.q}
+                  className="group rounded-[16px] border-2 border-ink bg-paper-strong shadow-[4px_4px_0_0_var(--shadow-hard-13)]"
+                >
+                  <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-lg font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink [&::-webkit-details-marker]:hidden">
+                    <span>{item.q}</span>
+                    <span className="inline-flex shrink-0 text-ink" aria-hidden="true">
+                      <Plus className="faq-icon-closed size-5" />
+                      <Minus className="faq-icon-open size-5" />
+                    </span>
+                  </summary>
+                  <p className="px-5 pb-5 text-base font-bold leading-7 text-muted">{item.a}</p>
+                </details>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ── ZAVRŠNI CTA ──────────────────────────────────────────────────── */}
+        <section className="bg-paper-strong px-4 py-20 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-5xl">
+            <div
+              data-motion="card"
+              className="ink-dots relative overflow-hidden rounded-[16px] border-2 border-ink bg-ink px-6 py-14 text-center shadow-[8px_8px_0_0_var(--shadow-hard-16)] sm:px-10"
+            >
+              <p className="font-display text-4xl leading-tight text-paper-strong sm:text-5xl">
+                {cp.finalCta.title}
+              </p>
+              <p className="mx-auto mt-4 max-w-xl text-lg font-bold text-paper-strong/80">
+                {cp.finalCta.body}
+              </p>
+              <div className="mx-auto mt-8 flex max-w-md flex-col items-stretch justify-center gap-3 sm:max-w-none sm:flex-row sm:items-center">
+                <CheckoutButton
+                  courseSlug={outline.course.slug}
+                  locale={locale}
+                  label={cp.buyNow}
+                  tone="yellow"
+                  fullWidth
+                  className="sm:w-auto sm:min-w-52"
+                />
+                <LinkButton
+                  href={withLocale(locale, `/courses/${otherCourse.slug}`)}
+                  tone="paper"
+                  className="w-full sm:w-auto"
+                >
+                  {cp.finalCta.crossSell}
+                </LinkButton>
+              </div>
+            </div>
+          </div>
+        </section>
       </div>
     </main>
   );

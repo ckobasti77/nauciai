@@ -15,7 +15,13 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale: localeParam } = await params;
   const locale = normalizeLocale(localeParam);
-  return { title: STUDIO_TERMS.title[locale], description: STUDIO_TERMS.intro[locale] };
+  const title = STUDIO_TERMS.title[locale];
+  const description = STUDIO_TERMS.intro[locale];
+  return {
+    title,
+    description,
+    openGraph: { title, description, type: "website" },
+  };
 }
 
 export default async function StudioTermsRoute({

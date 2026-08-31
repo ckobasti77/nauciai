@@ -1,12 +1,29 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 
 import { ThemeToggle } from "@/components/app/theme-toggle";
 import { SignInPanel } from "@/components/app/sign-in-panel";
+import { SectionMarginalia } from "@/components/marketing/section-marginalia";
 import { BrandMark, HandUnderline } from "@/components/ui/primitives";
-import { dictionary, locales, normalizeLocale, type Locale, withLocale } from "@/lib/i18n";
+import { dictionary, locales, normalizeLocale, publicMeta, type Locale, withLocale } from "@/lib/i18n";
 
 export function generateStaticParams() {
   return locales.map((locale) => ({ locale }));
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const locale = normalizeLocale((await params).locale);
+  // Auth-utility strana: smislen naslov/opis za oba jezika, ali van indeksa
+  // (već je i u robots.ts disallow).
+  return {
+    title: publicMeta.signIn.title[locale],
+    description: publicMeta.signIn.description[locale],
+    robots: { index: false, follow: false },
+  };
 }
 
 function SignInCopy({ locale }: { locale: Locale }) {
@@ -16,16 +33,25 @@ function SignInCopy({ locale }: { locale: Locale }) {
         <BrandMark href={withLocale(locale)} label={dictionary[locale].appName} />
         <ThemeToggle locale={locale} />
       </div>
-      <h1 className="mt-10 text-5xl font-black leading-tight text-ink md:text-6xl">
-        {locale === "sr" ? "Uđi u svoj AI kurs" : "Enter your AI course"}
-      </h1>
+      <div className="relative mt-10 max-w-xl">
+        <SectionMarginalia
+          variant="spark"
+          className="pointer-events-none absolute -right-4 -top-8 hidden h-10 w-10 text-yellow sm:block"
+        />
+        <h1 className="text-5xl font-black leading-tight text-ink md:text-6xl">
+          {locale === "sr" ? "Dobrodošao nazad" : "Welcome back"}
+        </h1>
+      </div>
       <HandUnderline className="mt-5" />
       <p className="mt-6 max-w-xl text-lg font-bold leading-8 text-muted">
         {locale === "sr"
-          ? "Email i Google prijava koriste Convex Auth i čuvaju pristup kursevima na serveru."
-          : "Email and Google sign-in use Convex Auth and keep course access checked on the server."}
+          ? "Prijavi se i nastavi tamo gde si stao — kursevi, napredak i zajednica te čekaju."
+          : "Sign in and pick up right where you left off — your courses, progress, and community are waiting."}
       </p>
-      <Link href={withLocale(locale)} className="mt-8 inline-flex text-sm font-extrabold text-ink underline">
+      <Link
+        href={withLocale(locale)}
+        className="mt-8 inline-flex min-h-11 items-center text-sm font-extrabold text-ink underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+      >
         {locale === "sr" ? "Nazad na početnu" : "Back home"}
       </Link>
     </div>

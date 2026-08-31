@@ -15,7 +15,13 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale: localeParam } = await params;
   const locale = normalizeLocale(localeParam);
-  return { title: PRIVACY_POLICY.title[locale], description: PRIVACY_POLICY.intro[locale] };
+  const title = PRIVACY_POLICY.title[locale];
+  const description = PRIVACY_POLICY.intro[locale];
+  return {
+    title,
+    description,
+    openGraph: { title, description, type: "website" },
+  };
 }
 
 export default async function PrivacyPolicyRoute({

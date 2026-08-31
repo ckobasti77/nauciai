@@ -1,7 +1,9 @@
 import type { MetadataRoute } from "next";
 
+import { courses } from "@/lib/content";
 import { getConvexHttpClient, convexQueries } from "@/lib/convex-http";
 import { withLocale, type Locale } from "@/lib/i18n";
+import { PRIVACY_POLICY_PATH, STUDIO_TERMS_PATH } from "@/lib/studio-messages";
 
 export const dynamic = "force-dynamic";
 
@@ -14,14 +16,25 @@ type SitemapPage = {
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const origin = (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/$/, "");
 
-  // Statične javne stranice idu i BEZ Convex-a (studio-public F3): landing
-  // Studija je akviziciona stranica i ne sme da ispadne iz mape kad backend
-  // env fali.
-  const urls: MetadataRoute.Sitemap = (["sr", "en"] as const).map((locale) => ({
-    url: `${origin}${withLocale(locale, "/studio")}`,
-    changeFrequency: "weekly",
-    priority: 0.8,
-  }));
+  // Statične javne stranice idu i BEZ Convex-a: sve indeksibilne javne rute
+  // (početna, oba kursa, Studio landing, obe pravne strane) u obe locale
+  // varijante ostaju u mapi i kad backend env fali. Auth-utility rute
+  // (sign-in / reset-password / verify-email) su namerno izostavljene — one su
+  // noindex i ne pripadaju sitemap-u.
+  const staticPaths: Array<{ path: string; priority: number }> = [
+    { path: "/", priority: 1 },
+    { path: "/studio", priority: 0.8 },
+    ...courses.map((course) => ({ path: `/courses/${course.slug}`, priority: 0.9 })),
+    { path: PRIVACY_POLICY_PATH, priority: 0.3 },
+    { path: STUDIO_TERMS_PATH, priority: 0.3 },
+  ];
+  const urls: MetadataRoute.Sitemap = (["sr", "en"] as const).flatMap((locale) =>
+    staticPaths.map(({ path, priority }) => ({
+      url: `${origin}${withLocale(locale, path)}`,
+      changeFrequency: "weekly" as const,
+      priority,
+    })),
+  );
 
   const convex = getConvexHttpClient();
   if (!convex) return urls;

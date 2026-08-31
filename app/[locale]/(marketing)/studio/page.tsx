@@ -10,10 +10,13 @@
  *   akciju i cenu, Patrick Hand za rukopis, Nunito za tekst.
  * STORY: posetilac shvati šta Studio pravi i koliko košta, poveruje jer su
  *   cene žive iz baze (ne obećanja), i klikne „Probaj besplatno" (25 kr poklon).
- * FIRST VIEWPORT: levo naslov + rukopisno podvlačenje + CTA red + bonus red;
- *   desno autorska SVG skica mehanizma u dva plutajuća panela.
- * FORM: nasleđena hero gramatika sa marketing home-a (split 1.02/0.98,
- *   sketch-float paneli) — incumbent kompozicija, svesno.
+ * FIRST VIEWPORT: full-bleed hero — HeroLoop video petlja (autoplay/muted/loop,
+ *   reduced-motion → mirna slika) je POZADINA cele sekcije (krem, prazna leva
+ *   strana), a naslov + rukopisno podvlačenje + CTA red + bonus red stoje preko
+ *   papirnog scrima levo; autorska SVG skica mehanizma je u sekciji „Šta Studio
+ *   pravi" kao ilustracija „kako radi".
+ * FORM: full-bleed hero deljen sa marketing home-om (isti `hero-paper-island`
+ *   scrim + „cover" HeroLoop), papir/mastilo svet nepromenjen.
  * FINISH: unreviewed and undocumented is unfinished; this build ends with the
  *   finish review, the verdict, and every shipping raster carrying its
  *   provenance.
@@ -25,6 +28,7 @@ import Link from "next/link";
 
 import { ThemeToggle } from "@/components/app/theme-toggle";
 import { AccountMenu } from "@/components/marketing/account-menu";
+import { HeroLoop } from "@/components/marketing/hero-loop";
 import { HeroMotion } from "@/components/marketing/hero-motion";
 import {
   BrandMark,
@@ -48,7 +52,6 @@ import {
 import { getCurrentViewerProfile } from "@/lib/current-viewer";
 import { locales, localized, normalizeLocale, otherLocale, withLocale, type Locale } from "@/lib/i18n";
 import { STUDIO_EXAMPLES, STUDIO_LANDING } from "@/lib/studio-landing";
-import { PRIVACY_POLICY_PATH, STUDIO_TERMS_PATH } from "@/lib/studio-messages";
 
 export const dynamic = "force-dynamic";
 
@@ -201,7 +204,7 @@ export default async function StudioLandingPage({
             <ThemeToggle locale={locale} />
             <Link
               href={withLocale(nextLocale, "/studio")}
-              className="rounded-[8px] border-2 border-ink bg-paper-strong px-3 py-2 text-sm font-black"
+              className="inline-flex min-h-11 items-center rounded-[8px] border-2 border-ink bg-paper-strong px-3 py-2 text-sm font-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
               {nextLocale.toUpperCase()}
             </Link>
@@ -224,28 +227,46 @@ export default async function StudioLandingPage({
 
       <div data-motion="page">
         <HeroMotion>
-          <section data-motion="hero" className="sketch-grid overflow-hidden border-b-2 border-ink">
-            {/* Bez forsiranog 100dvh (za razliku od home heroja): CTA mora u
-                prvi viewport i na 720p laptopu - viša kolona bi ga gurnula u
-                deferred scroll-reveal (page-motion 92% prag). */}
-            <div className="mx-auto grid max-w-7xl items-center gap-10 px-4 py-14 sm:px-6 lg:grid-cols-[1.02fr_0.98fr] lg:px-8 lg:py-20">
-              {/* Kompaktnije od home heroja (4xl/5xl/6xl, uže margine): CTA
-                  mora iznad 92% praga i na 1366×744 laptopu, inače upada u
-                  deferred scroll-reveal i prvi viewport ostaje bez akcije. */}
-              <div className="max-w-3xl" data-motion="copy">
+          <section
+            data-motion="hero"
+            className="hero-paper-island relative flex min-h-[85svh] flex-col overflow-hidden border-b-2 border-ink sm:min-h-[100svh]"
+          >
+            {/* Pozadina: full-bleed studio video/slika (krem, prazna leva strana). */}
+            <div className="absolute inset-0 z-0">
+              <HeroLoop
+                label={STUDIO_LANDING.heroVideoAlt[locale]}
+                variant="cover"
+                webmSrc="/images/landing/studio-hero-loop.webm"
+                mp4Src="/images/landing/studio-hero-loop.mp4"
+                posterSrc="/images/landing/studio-hero-poster.png"
+                fallbackSrc="/images/landing/studio-hero.png"
+              />
+            </div>
+            {/* Scrim za čitljivost: papir sleva → providno desno (~42% pun papir). */}
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-0 z-10 [background:linear-gradient(to_right,var(--paper)_0%,var(--paper)_42%,transparent_78%)]"
+            />
+            {/* Mobilni dodatak: blagi vertikalni scrim odozdo (video je desno-dole). */}
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-1/2 [background:linear-gradient(to_top,var(--paper)_0%,var(--paper)_12%,transparent_60%)] md:hidden"
+            />
+            <div className="relative z-20 mx-auto flex w-full max-w-7xl flex-1 items-center px-4 py-16 sm:px-6 lg:px-8">
+              <div className="max-w-xl" data-motion="copy">
                 <h1 className="text-4xl font-black leading-[0.95] text-ink sm:text-5xl lg:text-6xl">
                   {STUDIO_LANDING.heroTitle[locale]}
                 </h1>
                 <HandUnderline className="mt-4" />
-                <p className="mt-5 max-w-2xl text-lg font-bold leading-8 text-muted">
+                <p className="mt-5 text-lg font-bold leading-8 text-muted">
                   {STUDIO_LANDING.heroBody[locale]}
                 </p>
                 <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-                  <LinkButton href={primaryHref} tone="yellow">
+                  <LinkButton href={primaryHref} tone="yellow" className="w-full sm:w-auto">
                     <Sparkles className="size-4" />
                     {primaryLabel}
                   </LinkButton>
-                  <LinkButton href="#paketi" tone="paper">
+                  <LinkButton href="#paketi" tone="paper" className="w-full sm:w-auto">
                     <Coins className="size-4" />
                     {STUDIO_LANDING.ctaPacks[locale]}
                   </LinkButton>
@@ -255,29 +276,6 @@ export default async function StudioLandingPage({
                   {STUDIO_LANDING.bonusNote[locale]}
                 </p>
               </div>
-
-              <div className="relative min-h-[420px]" aria-hidden={false}>
-                <Panel className="sketch-float absolute right-0 top-0 w-[88%] p-4">
-                  <MechanismSketch locale={locale} />
-                </Panel>
-                <Panel className="sketch-float absolute bottom-0 left-0 w-[58%] bg-paper-strong p-5">
-                  <div className="flex items-start gap-4">
-                    <SketchIcon>
-                      <Coins className="size-5" />
-                    </SketchIcon>
-                    <div>
-                      <p className="font-display text-2xl text-ink">
-                        {locale === "sr" ? "Bez pretplate" : "No subscription"}
-                      </p>
-                      <p className="mt-1 text-sm font-bold leading-6 text-muted">
-                        {locale === "sr"
-                          ? "Cena stoji na dugmetu pre svake generacije."
-                          : "The price sits on the button before every generation."}
-                      </p>
-                    </div>
-                  </div>
-                </Panel>
-              </div>
             </div>
           </section>
         </HeroMotion>
@@ -286,36 +284,46 @@ export default async function StudioLandingPage({
         <section className="border-b-2 border-ink bg-paper-strong px-4 py-16 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-7xl">
             <SectionHeader title={STUDIO_LANDING.kindsTitle[locale]} />
-            <div className="mt-10 space-y-6">
-              {kinds.map(({ key, icon: Icon, price }, index) => (
-                <div
-                  key={key}
-                  className={cn(
-                    "max-w-3xl",
-                    index === 1 && "lg:ml-24",
-                    index === 2 && "lg:ml-48",
-                  )}
-                >
-                  <Panel className="flex flex-wrap items-start gap-4 p-5 sm:flex-nowrap sm:p-6">
-                    <SketchIcon>
-                      <Icon className="size-5" />
-                    </SketchIcon>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-display text-3xl text-ink">
-                        {STUDIO_LANDING.kinds[key].title[locale]}
-                      </p>
-                      <p className="mt-1.5 text-base font-bold leading-7 text-muted">
-                        {STUDIO_LANDING.kinds[key].body[locale]}
-                      </p>
-                    </div>
-                    {price !== null ? (
-                      <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border-2 border-ink bg-yellow px-3 py-1.5 text-sm font-black text-ink">
-                        {STUDIO_LANDING.priceFrom[locale]} {price} {STUDIO_LANDING.credits[locale]}
-                      </span>
-                    ) : null}
-                  </Panel>
+            <div className="mt-10 grid gap-10 lg:grid-cols-[1fr_300px] lg:items-start">
+              <div className="space-y-6">
+                {kinds.map(({ key, icon: Icon, price }, index) => (
+                  <div
+                    key={key}
+                    className={cn(
+                      "max-w-3xl",
+                      index === 1 && "lg:ml-24",
+                      index === 2 && "lg:ml-48",
+                    )}
+                  >
+                    <Panel className="flex flex-wrap items-start gap-4 p-5 sm:flex-nowrap sm:p-6">
+                      <SketchIcon>
+                        <Icon className="size-5" />
+                      </SketchIcon>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-display text-3xl text-ink">
+                          {STUDIO_LANDING.kinds[key].title[locale]}
+                        </p>
+                        <p className="mt-1.5 text-base font-bold leading-7 text-muted">
+                          {STUDIO_LANDING.kinds[key].body[locale]}
+                        </p>
+                      </div>
+                      {price !== null ? (
+                        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border-2 border-ink bg-yellow px-3 py-1.5 text-sm font-black text-ink">
+                          {STUDIO_LANDING.priceFrom[locale]} {price} {STUDIO_LANDING.credits[locale]}
+                        </span>
+                      ) : null}
+                    </Panel>
+                  </div>
+                ))}
+              </div>
+              <Panel className="sketch-float p-5">
+                <p className="font-display text-xl text-ink">
+                  {locale === "sr" ? "Kako radi" : "How it works"}
+                </p>
+                <div className="mt-4">
+                  <MechanismSketch locale={locale} />
                 </div>
-              ))}
+              </Panel>
             </div>
           </div>
         </section>
@@ -333,6 +341,7 @@ export default async function StudioLandingPage({
                       alt={localized(example.alt, locale)}
                       width={800}
                       height={600}
+                      sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
                       className="surface-media h-auto w-full border-2 border-ink object-cover"
                     />
                     <p className="mt-2 px-1 text-sm font-bold text-muted">{localized(example.alt, locale)}</p>
@@ -398,28 +407,19 @@ export default async function StudioLandingPage({
           </div>
         </section>
 
-        {/* Tihi cross-sell (F5) + pravni podnožni red. */}
-        <footer className="px-4 py-12 sm:px-6 lg:px-8">
-          <div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-6 sm:flex-row sm:items-center">
+        {/* Tihi cross-sell (F5). Pravni red + puna navigacija žive u deljenom
+            SiteFooter-u ispod (marketing layout), pa ovde stoji SAMO cross-sell —
+            bez drugog <footer>-a i bez dvostrukog pravnog reda. */}
+        <section className="px-4 py-12 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-7xl">
             <Link
               href={`${withLocale(locale)}#courses`}
-              className="font-display text-2xl text-ink underline decoration-[var(--yellow)] decoration-4 underline-offset-8 hover:decoration-ink"
+              className="inline-flex font-display text-2xl text-ink underline decoration-[var(--yellow)] decoration-4 underline-offset-8 hover:decoration-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
               {STUDIO_LANDING.crossSell[locale]}
             </Link>
-            <nav className="flex flex-wrap gap-x-6 gap-y-2 text-sm font-extrabold text-muted">
-              <Link href={withLocale(locale, STUDIO_TERMS_PATH)} className="hover:text-ink hover:underline">
-                {STUDIO_LANDING.legalTerms[locale]}
-              </Link>
-              <Link href={withLocale(locale, PRIVACY_POLICY_PATH)} className="hover:text-ink hover:underline">
-                {STUDIO_LANDING.legalPrivacy[locale]}
-              </Link>
-              <Link href={withLocale(locale)} className="hover:text-ink hover:underline">
-                {STUDIO_LANDING.legalHome[locale]}
-              </Link>
-            </nav>
           </div>
-        </footer>
+        </section>
       </div>
     </main>
   );

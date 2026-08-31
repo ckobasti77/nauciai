@@ -184,10 +184,10 @@ function ConvexSignInForm({
           flow === "signUp"
             ? t(
                 locale,
-                "Proveri email i potvrdi nalog. Ako profil vec postoji, nastavices bez dupliranja.",
-                "Check your email and confirm the account. If the profile already exists, it will continue without duplicating.",
+                "Proveri email i potvrdi nalog da bi počeo/počela sa učenjem. Ako profil već postoji, samo nastavljamo odatle.",
+                "Check your email to confirm your account and start learning. If you already have a profile, we'll just pick up from there.",
               )
-            : t(locale, "Proveri email za nastavak prijave.", "Check your email to continue signing in."),
+            : t(locale, "Proveri email i nastavi prijavu odatle.", "Check your email to continue signing in."),
       });
     } catch (error) {
       if (flow === "reset") {
@@ -250,7 +250,7 @@ function ConvexSignInForm({
             onClick={() => switchFlow("signIn")}
             disabled={Boolean(pendingProvider)}
             className={cn(
-              "flex-1 py-2.5 text-center text-sm font-black transition-all",
+              "flex min-h-11 flex-1 items-center justify-center py-2.5 text-center text-sm font-black transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
               flow === "signIn" ? "bg-ink text-paper-strong" : "bg-paper-strong text-ink hover:bg-yellow/25",
             )}
           >
@@ -262,7 +262,7 @@ function ConvexSignInForm({
             onClick={() => switchFlow("signUp")}
             disabled={Boolean(pendingProvider)}
             className={cn(
-              "flex-1 py-2.5 text-center text-sm font-black transition-all",
+              "flex min-h-11 flex-1 items-center justify-center py-2.5 text-center text-sm font-black transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
               flow === "signUp" ? "bg-ink text-paper-strong" : "bg-paper-strong text-ink hover:bg-yellow/25",
             )}
           >
@@ -274,7 +274,7 @@ function ConvexSignInForm({
           <button
             type="button"
             onClick={() => switchFlow("signIn")}
-            className="inline-flex items-center gap-2 text-sm font-black text-ink underline"
+            className="inline-flex min-h-11 items-center gap-2 text-sm font-black text-ink underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
             <ArrowLeft className="size-4" />
             {t(locale, "Nazad na prijavu", "Back to sign in")}
@@ -340,7 +340,7 @@ function ConvexSignInForm({
 
         {flow === "signIn" || flow === "signUp" ? (
           <div>
-            <Field id="password" label="Password">
+            <Field id="password" label={t(locale, "Lozinka", "Password")}>
               {(field) => (
                 <Input
                   {...field}
@@ -507,13 +507,13 @@ export function SignInPanel({
     return (
       <Panel className="p-6 md:p-8">
         <h2 className="type-h2 text-ink">
-          {t(locale, "Prijava je spremna za Convex", "Sign-in is ready for Convex")}
+          {t(locale, "Prijava još nije spremna", "Sign-in isn't ready yet")}
         </h2>
         <p className="mt-3 type-body type-measure text-muted">
           {t(
             locale,
-            "Dodaj NEXT_PUBLIC_CONVEX_URL i Convex Auth tajne da aktiviras email i Google prijavu.",
-            "Add NEXT_PUBLIC_CONVEX_URL and Convex Auth secrets to activate email and Google sign-in.",
+            "Trenutno ne možemo da te prijavimo. Probaj ponovo malo kasnije.",
+            "We can't sign you in right now. Please try again in a little while.",
           )}
         </p>
       </Panel>

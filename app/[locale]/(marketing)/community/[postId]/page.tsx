@@ -5,7 +5,9 @@ import { cache } from "react";
 
 import { getConvexHttpClient, convexQueries } from "@/lib/convex-http";
 import { PublicCommunityComments } from "@/components/app/public-community-comments";
-import { normalizeLocale, withLocale, type Locale } from "@/lib/i18n";
+import { ThemeToggle } from "@/components/app/theme-toggle";
+import { BrandMark, Panel } from "@/components/ui/primitives";
+import { communityThreadContent, dictionary, normalizeLocale, otherLocale, withLocale, type Locale } from "@/lib/i18n";
 
 type PublicPost = {
   _id: string;
@@ -107,6 +109,8 @@ export default async function PublicCommunityThreadPage({
   const comments = await loadInitialComments(postId);
   const url = publicUrl(locale, postId);
   const signInUrl = `${withLocale(locale, "/sign-in")}?next=${encodeURIComponent(url)}`;
+  const nextLocale = otherLocale(locale);
+  const ct = communityThreadContent[locale];
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "DiscussionForumPosting",
@@ -127,38 +131,56 @@ export default async function PublicCommunityThreadPage({
   };
 
   return (
-    <main className="min-h-screen bg-paper px-4 py-8 sm:px-6 lg:px-8">
+    <main className="sketch-grid min-h-screen bg-paper px-4 py-8 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-4xl space-y-6">
-        <Link href={withLocale(locale, "/app/community/discussions")} className="inline-flex text-sm font-black text-ink underline">
-          {locale === "sr" ? "Nazad na zajednicu" : "Back to community"}
+        <div className="flex items-center justify-between gap-4">
+          <BrandMark href={withLocale(locale)} label={dictionary[locale].appName} />
+          <div className="flex items-center gap-2">
+            <ThemeToggle locale={locale} />
+            <Link
+              href={withLocale(nextLocale, `/community/${postId}`)}
+              className="inline-flex min-h-11 items-center rounded-[8px] border-2 border-ink bg-paper-strong px-3 py-2 text-sm font-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            >
+              {nextLocale.toUpperCase()}
+            </Link>
+          </div>
+        </div>
+        <Link
+          href={withLocale(locale, "/app/community/discussions")}
+          className="inline-flex min-h-11 items-center text-sm font-black text-ink underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+        >
+          {ct.back}
         </Link>
-        <article className="overflow-hidden rounded-[16px] border-2 border-ink bg-paper-strong shadow-[6px_6px_0_var(--shadow-hard-13)]">
+        <Panel as="article" className="overflow-hidden">
           <header className="border-b border-line bg-paper/55 px-5 py-7 md:px-8">
             <p className="text-xs font-black uppercase tracking-[0.12em] text-muted">
-              {locale === "sr" ? "Javna diskusija" : "Public discussion"}
+              {ct.kicker}
             </p>
             <h1 className="mt-3 text-3xl font-black leading-tight text-ink md:text-5xl">{post.title}</h1>
             <p className="mt-4 text-sm font-bold text-muted">
               {post.authorUsername ? `@${post.authorUsername}` : post.authorName} · {new Date(post.createdAt).toLocaleDateString(locale === "sr" ? "sr-Latn-RS" : "en-US")}
             </p>
           </header>
-          <div className="prose prose-slate max-w-none whitespace-pre-wrap px-5 py-7 text-base leading-8 md:px-8">{post.body}</div>
+          <div className="max-w-none whitespace-pre-wrap px-5 py-7 text-base font-medium leading-8 text-ink md:px-8">{post.body}</div>
           <footer className="flex flex-wrap items-center gap-3 border-t border-line px-5 py-4 md:px-8">
             <span className="rounded-full border border-line bg-paper px-3 py-1 text-xs font-black">
-              {post.voteScore} {locale === "sr" ? "neto glasova" : "net votes"}
+              {post.voteScore} {ct.netVotes}
             </span>
             <span className="rounded-full border border-line bg-paper px-3 py-1 text-xs font-black">
-              {post.commentsCount} {locale === "sr" ? "komentara" : "comments"}
+              {post.commentsCount} {ct.comments}
             </span>
-            <Link href={signInUrl} className="ml-auto rounded-full border-2 border-ink bg-yellow px-4 py-2 text-xs font-black text-ink shadow-[3px_3px_0_var(--shadow-hard-14)]">
-              {locale === "sr" ? "Prijavi se za akcije" : "Sign in to interact"}
+            <Link
+              href={signInUrl}
+              className="ml-auto inline-flex min-h-11 items-center rounded-full border-2 border-ink bg-yellow px-4 py-2 text-xs font-black text-ink shadow-[3px_3px_0_var(--shadow-hard-14)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            >
+              {ct.signInToAct}
             </Link>
           </footer>
-        </article>
+        </Panel>
 
-        <section id="comments" className="rounded-[16px] border border-line bg-paper-strong p-5 md:p-8">
+        <Panel id="comments" className="p-5 md:p-8">
           <PublicCommunityComments postId={postId} locale={locale} initialComments={comments} />
-        </section>
+        </Panel>
       </div>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
     </main>

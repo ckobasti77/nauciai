@@ -246,7 +246,7 @@ export function AccountMenu({ locale, profile }: { locale: Locale; profile: Acco
               role="menuitem"
               onClick={handleSignOut}
               disabled={isPending}
-              className="flex min-h-10 w-full items-center justify-between gap-3 rounded-[10px] bg-ink px-3 py-2 text-left text-[13px] font-black uppercase text-paper-strong transition hover:bg-[#16446f] dark:hover:bg-ink/85 disabled:cursor-wait disabled:opacity-70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              className="flex min-h-10 w-full items-center justify-between gap-3 rounded-[12px] bg-ink px-3 py-2 text-left text-[13px] font-black uppercase text-paper-strong transition hover:bg-ink/90 dark:hover:bg-ink/85 disabled:cursor-wait disabled:opacity-70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
               <span className="flex min-w-0 items-center gap-3">
                 <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-paper-strong text-ink">
