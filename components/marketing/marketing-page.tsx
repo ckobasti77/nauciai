@@ -45,7 +45,7 @@ export function MarketingPage({
         data-marketing-auth={viewerProfile ? "authenticated" : "anonymous"}
         className="top-0 z-40 border-b-2 border-ink bg-paper/95 shadow-[0_8px_18px_-16px_var(--shadow-hard-55)] backdrop-blur"
       >
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-2 sm:px-6 lg:px-8">
           <BrandMark href={withLocale(locale)} label={t.appName} />
           <nav className="hidden items-center gap-6 text-sm font-extrabold md:flex">
             <Link

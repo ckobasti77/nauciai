@@ -184,10 +184,10 @@ export function BrandMark({ href = "/sr" }: { href?: string; label?: string }) {
       <Image
         src="/images/logos/logo.png"
         alt="Nauči AI"
-        width={1338}
-        height={460}
-        sizes="(min-width: 1024px) 198px, (min-width: 640px) 176px, 142px"
-        className="h-auto w-[142px] max-w-[45vw] object-contain sm:w-[176px] lg:w-[198px] dark:hidden"
+        width={2048}
+        height={1143}
+        sizes="(min-width: 1024px) 84px, (min-width: 640px) 72px, 64px"
+        className="h-9 w-auto max-w-[45vw] object-contain sm:h-10 lg:h-11 dark:hidden"
         priority
       />
       {/* Ink in the logo is baked into the PNG, so dark gets its own file (generated
@@ -195,10 +195,10 @@ export function BrandMark({ href = "/sr" }: { href?: string; label?: string }) {
       <Image
         src="/images/logos/logo-dark.png"
         alt="Nauči AI"
-        width={1338}
-        height={460}
-        sizes="(min-width: 1024px) 198px, (min-width: 640px) 176px, 142px"
-        className="hidden h-auto w-[142px] max-w-[45vw] object-contain sm:w-[176px] lg:w-[198px] dark:block"
+        width={2048}
+        height={1143}
+        sizes="(min-width: 1024px) 84px, (min-width: 640px) 72px, 64px"
+        className="hidden h-9 w-auto max-w-[45vw] object-contain sm:h-10 lg:h-11 dark:block"
         // Eager (not lazy): this one is display:none until a theme switch, and a lazy
         // image that only becomes visible later can leave the header without a logo.
         loading="eager"

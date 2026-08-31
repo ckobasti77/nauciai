@@ -171,7 +171,7 @@ export function AccountMenu({ locale, profile }: { locale: Locale; profile: Acco
         >
           <span
             aria-hidden="true"
-            className="absolute -top-2 right-6 size-4 rotate-45 border-l-2 border-t-2 border-ink bg-paper-strong"
+            className="absolute -top-2 right-3.5 size-4 rotate-45 border-l-2 border-t-2 border-ink bg-paper-strong"
           />
 
           <div className="rounded-[8px] border-2 border-dashed border-ink bg-paper p-3 text-center">
