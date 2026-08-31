@@ -138,7 +138,7 @@ export function AccountMenu({ locale, profile }: { locale: Locale; profile: Acco
   }
 
   return (
-    <div ref={rootRef} className="relative">
+    <div ref={rootRef} className="relative flex items-center">
       <button
         type="button"
         aria-label={avatarLabel}

@@ -182,22 +182,24 @@ export function BrandMark({ href = "/sr" }: { href?: string; label?: string }) {
       className="inline-flex min-w-0 items-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
     >
       <Image
-        src="/images/logos/logo.png"
+        src="/images/logos/logo-trimmed.png"
         alt="Nauči AI"
-        width={2048}
-        height={1143}
-        sizes="(min-width: 1024px) 84px, (min-width: 640px) 72px, 64px"
+        width={1676}
+        height={505}
+        sizes="(min-width: 1024px) 150px, (min-width: 640px) 132px, 116px"
         className="h-9 w-auto max-w-[45vw] object-contain sm:h-10 lg:h-11 dark:hidden"
         priority
       />
       {/* Ink in the logo is baked into the PNG, so dark gets its own file (generated
-          from logo.png with ink recoloured to the dark --ink; yellow untouched). */}
+          from logo.png with ink recoloured to the dark --ink; yellow untouched).
+          Both are trimmed of the exported PNG's transparent padding so the mark fills
+          the header height instead of floating in whitespace. */}
       <Image
-        src="/images/logos/logo-dark.png"
+        src="/images/logos/logo-trimmed-dark.png"
         alt="Nauči AI"
-        width={2048}
-        height={1143}
-        sizes="(min-width: 1024px) 84px, (min-width: 640px) 72px, 64px"
+        width={1643}
+        height={549}
+        sizes="(min-width: 1024px) 150px, (min-width: 640px) 132px, 116px"
         className="hidden h-9 w-auto max-w-[45vw] object-contain sm:h-10 lg:h-11 dark:block"
         // Eager (not lazy): this one is display:none until a theme switch, and a lazy
         // image that only becomes visible later can leave the header without a logo.
