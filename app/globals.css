@@ -71,6 +71,10 @@
   --paper: #fffdf8;
   --paper-strong: #ffffff;
   --yellow: #f4be30;
+  /* Krem podloga heroa — PROSEČNA boja gornjeg levog ugla (24×24 px) iz
+     `hero-poster.png`, izmerena skriptom (sharp). Ista je u obe teme (to je ton videa,
+     ne tokeni palete), pa je hero spoj bešavan i u tamnoj temi. */
+  --hero-paper: #fcf2dc;
   --muted: #536273;
   --line: #c9d4df;
   /* Retyped 22x kao goli #2e6f9f (uppercase eyebrow labele, XP, avatar shade) -
@@ -623,10 +627,11 @@ details[open] > summary .faq-icon-open {
   display: block;
 }
 
-/* Marquee ishoda na početnoj (Faza 2). Čist CSS: traka nosi DVE identične kopije liste,
-   pa pomeraj za -50% vrati na isti kadar — bešavna petlja bez skoka. Pauza na hover;
-   potpuno ugašena uz reduced-motion (traka ostaje na početku, ne zamrznuta u sredini).
-   Animira se samo `transform`, bez layout shift-a. */
+/* ── Traka ishoda u dnu heroa (L1) ─────────────────────────────────────────────
+   Bešavna petlja kroz DVE identične kopije liste (pomeraj -50% vrati na isti kadar).
+   Brzina je KONSTANTNA (~80px/s): `--marquee-duration` postavlja komponenta iz izmerene
+   širine jedne kopije; 32s je samo fallback pre prvog merenja. Pauza na hover/focus.
+   Animira se samo `transform` — bez layout shift-a (traka ima fiksnu `min-height`). */
 @keyframes marquee-scroll {
   from {
     transform: translateX(0);
@@ -636,8 +641,25 @@ details[open] > summary .faq-icon-open {
   }
 }
 
+/* Visina trake usidrene uz dno heroa. Traka nosi `min-height: var(--marquee-h)`, a hero
+   kopija donji padding = `calc(var(--marquee-h) + 24px)` — jedan izvor istine, bez layout
+   shift-a. Namerno u čistom `:root` (ne u light-island bloku): dimenzija, ne boja, pa je
+   ista u obe teme i medijski override na desktopu ne zaseni hero-ostrvo. */
+:root {
+  --marquee-h: 52px;
+}
+@media (min-width: 640px) {
+  :root {
+    --marquee-h: 64px;
+  }
+}
+
+.marquee-viewport {
+  min-height: var(--marquee-h);
+}
+
 .marquee-track {
-  animation: marquee-scroll 32s linear infinite;
+  animation: marquee-scroll var(--marquee-duration, 32s) linear infinite;
   will-change: transform;
 }
 
@@ -646,10 +668,108 @@ details[open] > summary .faq-icon-open {
   animation-play-state: paused;
 }
 
+/* Pojam je ceo klik-meta (Link, min-h 44px). Hover/focus: blago podizanje + marker
+   podvlačenje u boji MASTILA (žuti hero na žutoj traci se ne bi video) + strelica koja
+   se pojavi desno. Strelici je mesto rezervisano (uvek u toku, `opacity:0`) pa nema
+   layout shift-a na hover; animiramo samo transform/opacity. */
+.marquee-link {
+  transition: transform 160ms var(--ease-studio-out);
+}
+.marquee-arrow {
+  opacity: 0;
+  transform: translateX(-4px);
+  transition:
+    opacity 160ms var(--ease-studio-out),
+    transform 160ms var(--ease-studio-out);
+}
+.marquee-link:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+.marquee-link:focus-visible,
+.marquee-link:focus-visible .marquee-arrow {
+  transform: translateY(-2px);
+}
+.marquee-link:focus-visible .marquee-arrow {
+  opacity: 1;
+  transform: translateX(0);
+}
+.marquee-link:focus-visible .marquee-label {
+  text-decoration: underline;
+  text-decoration-color: var(--ink);
+  text-decoration-thickness: 3px;
+  text-underline-offset: 4px;
+}
+@media (hover: hover) {
+  .marquee-link:hover {
+    transform: translateY(-2px);
+  }
+  .marquee-link:hover .marquee-arrow {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  .marquee-link:hover .marquee-label {
+    text-decoration: underline;
+    text-decoration-color: var(--ink);
+    text-decoration-thickness: 3px;
+    text-underline-offset: 4px;
+  }
+}
+
+/* „Generating" ulazak (naš Studio brend): svaki pojam, na svaki ulazak s desne ivice,
+   pulsira Sparkles ispred teksta POSTOJEĆOM `studio-breathe` animacijom, a tekst se
+   otkriva s leva na desno (clip-path) uz blur→oštro i opacity .4→1. Klasu `is-generating`
+   dodaje IntersectionObserver, skida je na kraju reveal-a. Animiraju se samo
+   transform/opacity/filter/clip-path. Sparkles kad miruje = separator (ink/40). */
+@keyframes marquee-generate-reveal {
+  from {
+    opacity: 0.4;
+    filter: blur(6px);
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    clip-path: inset(0 0 0 0);
+  }
+}
+.marquee-item.is-generating .marquee-label {
+  animation: marquee-generate-reveal 520ms var(--ease-studio-out) both;
+}
+.marquee-item.is-generating .marquee-spark {
+  color: var(--ink);
+  animation: studio-breathe var(--motion-spor) ease-in-out infinite;
+}
+
+/* prefers-reduced-motion: traka stoji, nema generating efekta; pojmovi se lome u redove
+   (flex-wrap) i viewport raste da SVI ostanu dostupni; druga (aria-hidden) kopija se skida
+   da se linkovi ne dupliraju. */
 @media (prefers-reduced-motion: reduce) {
   .marquee-track {
     animation: none;
     transform: none;
+    flex-wrap: wrap;
+    width: 100%;
+  }
+  .marquee-viewport {
+    overflow: visible;
+  }
+  .marquee-copy {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.25rem 0;
+    width: 100%;
+  }
+  .marquee-copy[aria-hidden="true"] {
+    display: none;
+  }
+  .marquee-item.is-generating .marquee-label,
+  .marquee-item.is-generating .marquee-spark {
+    animation: none;
+  }
+  .marquee-arrow {
+    display: none;
   }
 }
 

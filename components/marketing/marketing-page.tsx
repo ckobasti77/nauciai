@@ -101,17 +101,21 @@ export function MarketingPage({
         <HeroMotion>
           <section
             data-motion="hero"
-            style={{ backgroundColor: "#F8EDD8" }}
+            style={{ backgroundColor: "var(--hero-paper)" }}
             className="hero-paper-island hero-100 relative overflow-hidden border-b-2 border-ink"
           >
             {/* Video: puna visina sekcije (100vh), poravnat desno; prazan prostor
-                levo/desno je ista krem bg, ivice maskirane → bešavno, bez linija. */}
+                levo/desno je ista krem bg (izmerena iz postera → `--hero-paper`),
+                ivice maskirane → bešavno, bez linija. */}
             <div className="absolute inset-0 z-0">
-              <HeroLoop label={m.hero.videoAlt} variant="cover" bg="#F8EDD8" />
+              <HeroLoop label={m.hero.videoAlt} variant="cover" bg="var(--hero-paper)" />
             </div>
-            {/* Tekst: levo, vertikalno centriran unutar 100vh; `pt` ga drži ispod
-                lebdećeg (fixed) navbara. */}
-            <div className="relative z-20 mx-auto flex h-full w-full max-w-7xl items-center px-4 pb-16 pt-20 sm:px-6 lg:px-8">
+            {/* Tekst: levo, vertikalno centriran u prostoru IZNAD trake; `pt` ga drži
+                ispod lebdećeg (fixed) navbara, donji padding = visina trake + 24px. */}
+            <div
+              className="relative z-20 mx-auto flex h-full w-full max-w-7xl items-center px-4 pt-20 sm:px-6 lg:px-8"
+              style={{ paddingBottom: "calc(var(--marquee-h) + 24px)" }}
+            >
               <div className="relative z-10 max-w-md xl:max-w-lg" data-motion="copy">
                 <h1 className="text-balance text-4xl font-black leading-[1.03] text-ink sm:text-5xl lg:text-6xl">
                   {m.hero.titleLead}
@@ -146,11 +150,16 @@ export function MarketingPage({
                 </ul>
               </div>
             </div>
+            {/* Traka ishoda: usidrena uz donju ivicu heroa, puna širina, deo 100svh
+                viewporta (ne dodaje visinu). Donju ivicu daje `border-b-2` sekcije. */}
+            <OutcomeMarquee
+              items={m.marquee.items}
+              label={m.marquee.label}
+              hint={m.marquee.hint}
+              locale={locale}
+            />
           </section>
         </HeroMotion>
-
-        {/* ── MARQUEE ──────────────────────────────────────────────────────── */}
-        <OutcomeMarquee items={m.marquee.items} label={m.marquee.label} />
 
         {/* ── KURSEVI ──────────────────────────────────────────────────────── */}
         <section id="courses" className="border-b-2 border-ink bg-paper-strong px-4 py-16 sm:px-6 lg:px-8">

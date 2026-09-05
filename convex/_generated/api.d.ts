@@ -70,6 +70,7 @@ import type * as providers_modelControls from "../providers/modelControls.js";
 import type * as providers_modelSeed from "../providers/modelSeed.js";
 import type * as publicProfiles from "../publicProfiles.js";
 import type * as seed from "../seed.js";
+import type * as seedData from "../seedData.js";
 import type * as studio from "../studio.js";
 import type * as studioActions from "../studioActions.js";
 import type * as studioActualCost from "../studioActualCost.js";
@@ -155,6 +156,7 @@ declare const fullApi: ApiFromModules<{
   "providers/modelSeed": typeof providers_modelSeed;
   publicProfiles: typeof publicProfiles;
   seed: typeof seed;
+  seedData: typeof seedData;
   studio: typeof studio;
   studioActions: typeof studioActions;
   studioActualCost: typeof studioActualCost;

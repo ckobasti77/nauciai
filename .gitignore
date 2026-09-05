@@ -48,3 +48,6 @@ next-env.d.ts
 
 # Privremeni folder za fajlove koje treba obrisati rucno (device bridge ne brise)
 _to_delete/
+
+# Privremeni kontakt-šitovi iz asistenta — ne pripadaju repou
+Claude outputs/
