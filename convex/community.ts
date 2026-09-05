@@ -23,6 +23,7 @@ import {
   requireCourseAccess,
   requireUserId,
 } from "./helpers";
+import { COMMUNITY_RICH_TEXT, collectImageStorageIds, parseRichText, richTextToPlainText } from "../lib/rich-text";
 import { syncLeaderboardSourceEvent } from "./leaderboardCore";
 import { getCommunityNotificationCountsHelper } from "./notifications";
 import {
@@ -240,6 +241,47 @@ function postSearchText(title: string, body: string) {
   return `${title.trim()}\n${body.trim()}`.trim();
 }
 
+/**
+ * Validira community rich-text telo (whitelist + limit slika), potvrđuje da svaki
+ * inline `storageId` zaista postoji u skladištu, i vraća izvedeni plain tekst
+ * (sa spoilerom maskiranim `▮▮▮`) koji ide u `body`/`searchText`/mentions.
+ */
+async function processCommunityBodyRich(ctx: MutationCtx, bodyRich: string) {
+  parseRichText(bodyRich, COMMUNITY_RICH_TEXT);
+  const storageIds = collectImageStorageIds(bodyRich);
+  for (const rawId of storageIds) {
+    let exists = false;
+    try {
+      exists = Boolean(await ctx.db.system.get("_storage", rawId as Id<"_storage">));
+    } catch {
+      exists = false;
+    }
+    if (!exists) throw new Error("Slika u tekstu ne postoji u skladištu.");
+  }
+  return { bodyRich, plain: richTextToPlainText(bodyRich, COMMUNITY_RICH_TEXT), imageCount: storageIds.length };
+}
+
+/** Mapa { storageId → potpisani URL } za inline slike u prikazu detalja teme. */
+async function resolveBodyRichImageUrls(ctx: QueryCtx, bodyRich: string | undefined) {
+  const urls: Record<string, string> = {};
+  if (!bodyRich) return urls;
+  let storageIds: string[];
+  try {
+    storageIds = collectImageStorageIds(bodyRich);
+  } catch {
+    return urls;
+  }
+  for (const rawId of storageIds) {
+    try {
+      const url = await ctx.storage.getUrl(rawId as Id<"_storage">);
+      if (url) urls[rawId] = url;
+    } catch {
+      // Nevažeći/nepostojeći storageId — preskoči.
+    }
+  }
+  return urls;
+}
+
 async function resolvedScopeForPost(
   ctx: QueryCtx | MutationCtx,
   post: Doc<"communityPosts">,
@@ -363,8 +405,11 @@ export const getPostDetail = query({
       .withIndex("by_userId", (q) => q.eq("userId", post.authorId))
       .unique();
 
+    const bodyRichImageUrls = await resolveBodyRichImageUrls(ctx, post.bodyRich);
+
     return {
       ...detail,
+      bodyRichImageUrls,
       viewerRole: profile.role,
       authorBio: authorUser?.bio,
       authorJoinedAt: authorUser?.createdAt ?? authorUser?._creationTime,
@@ -373,12 +418,17 @@ export const getPostDetail = query({
   },
 });
 
-function projectPublicPostDetail(detail: Awaited<ReturnType<typeof postsWithDetails>>[number]) {
+function projectPublicPostDetail(
+  detail: Awaited<ReturnType<typeof postsWithDetails>>[number],
+  bodyRichImageUrls: Record<string, string> = {},
+) {
   return {
     _id: detail._id,
     _creationTime: detail._creationTime,
     title: detail.title,
     body: detail.body,
+    bodyRich: detail.bodyRich,
+    bodyRichImageUrls,
     language: detail.language,
     createdAt: detail.createdAt,
     updatedAt: detail.updatedAt,
@@ -401,7 +451,8 @@ function projectPublicPostDetail(detail: Awaited<ReturnType<typeof postsWithDeta
 async function publicPostForSeo(ctx: QueryCtx, post: Doc<"communityPosts">) {
   const [detail] = await postsWithDetails(ctx, [post], null);
   if (!detail) return null;
-  return projectPublicPostDetail(detail);
+  const bodyRichImageUrls = await resolveBodyRichImageUrls(ctx, post.bodyRich);
+  return projectPublicPostDetail(detail, bodyRichImageUrls);
 }
 
 async function publicCommentForSeo(comment: Awaited<ReturnType<typeof commentsWithDetails>>[number]) {
@@ -445,7 +496,7 @@ export const listPublicPostsPage = query({
     const detailedPosts = await postsWithDetails(ctx, result.page, null);
     return {
       ...result,
-      page: detailedPosts.map(projectPublicPostDetail),
+      page: detailedPosts.map((detail) => projectPublicPostDetail(detail)),
     };
   },
 });
@@ -649,6 +700,7 @@ export const createPost = mutation({
     language: v.union(v.literal("sr"), v.literal("en")),
     title: v.string(),
     body: v.string(),
+    bodyRich: v.optional(v.string()),
     status: v.optional(v.union(v.literal("draft"), v.literal("pending"), v.literal("published"))),
     imageStorageId: v.optional(v.id("_storage")),
     imageMimeType: v.optional(v.string()),
@@ -672,8 +724,17 @@ export const createPost = mutation({
       args.lessonId,
     );
     const title = args.title.trim();
-    const body = args.body.trim();
-    if (args.status !== "draft" && (!title || !body)) {
+    let body = args.body.trim();
+    let bodyRich: string | undefined;
+    let imageCount = 0;
+    if (args.bodyRich !== undefined) {
+      const processed = await processCommunityBodyRich(ctx, args.bodyRich);
+      bodyRich = processed.bodyRich;
+      body = processed.plain;
+      imageCount = processed.imageCount;
+    }
+    const hasContent = body.length > 0 || imageCount > 0;
+    if (args.status !== "draft" && (!title || !hasContent)) {
       throw new Error("Naslov i sadržaj su obavezni.");
     }
     if (title.length > 160) throw new Error("Naslov može imati najviše 160 karaktera.");
@@ -695,6 +756,7 @@ export const createPost = mutation({
       language: args.language,
       title,
       body,
+      bodyRich,
       searchText: postSearchText(title, body),
       authorId: userId,
       visibility: "members",
@@ -735,6 +797,7 @@ export const updatePost = mutation({
     postId: v.id("communityPosts"),
     title: v.string(),
     body: v.string(),
+    bodyRich: v.optional(v.string()),
     courseId: v.optional(v.id("courses")),
     moduleId: v.optional(v.id("modules")),
     lessonId: v.optional(v.id("lessons")),
@@ -766,12 +829,21 @@ export const updatePost = mutation({
       args.lessonId,
     );
     const title = args.title.trim();
-    const body = args.body.trim();
+    let body = args.body.trim();
+    let bodyRich: string | undefined;
+    let imageCount = 0;
+    if (args.bodyRich !== undefined) {
+      const processed = await processCommunityBodyRich(ctx, args.bodyRich);
+      bodyRich = processed.bodyRich;
+      body = processed.plain;
+      imageCount = processed.imageCount;
+    }
+    const hasContent = body.length > 0 || imageCount > 0;
     const currentStatus = effectivePostStatus(post);
     const canBeIncomplete =
       args.status === "draft" ||
       (args.status === undefined && (currentStatus === "draft" || currentStatus === "changes_requested"));
-    if (!canBeIncomplete && (!title || !body)) {
+    if (!canBeIncomplete && (!title || !hasContent)) {
       throw new Error("Naslov i sadržaj su obavezni.");
     }
     if (title.length > 160) throw new Error("Naslov može imati najviše 160 karaktera.");
@@ -787,6 +859,7 @@ export const updatePost = mutation({
       ...learningContext,
       updatedAt: Date.now(),
     };
+    if (args.bodyRich !== undefined) patch.bodyRich = bodyRich;
 
     if (args.status !== undefined) {
       if (args.status === "draft" || !profile.username) {

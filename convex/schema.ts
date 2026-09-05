@@ -1117,6 +1117,8 @@ export default defineSchema({
     language,
     title: v.string(),
     body: v.string(),
+    /** Rich-text JSON (community preset). `body` ostaje izvedeni plain tekst (spoiler maskiran). */
+    bodyRich: v.optional(v.string()),
     searchText: v.optional(v.string()),
     visibility: v.union(v.literal("members"), v.literal("public")),
     isFeaturedGlobal: v.optional(v.boolean()),

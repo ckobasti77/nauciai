@@ -14,6 +14,38 @@
 .rich-editor-content li + li,
 .rich-text-content li + li { margin-top: 0.35em; }
 
+/* Spoiler u EDITORU: zuti koso-srafirani marker da autor vidi sta je sakrio. */
+.rich-editor-content [data-spoiler] {
+  background-color: var(--yellow);
+  background-image: repeating-linear-gradient(45deg, transparent, transparent 4px, color-mix(in srgb, var(--ink) 22%, transparent) 4px, color-mix(in srgb, var(--ink) 22%, transparent) 6px);
+  border-radius: 4px;
+  padding: 0 0.15em;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+/* Spoiler u PRIKAZU: tekst prekriven markerom boje mastila; klik otkriva. */
+.rich-text-content .rich-spoiler {
+  background-color: var(--ink);
+  color: transparent;
+  border-radius: 4px;
+  padding: 0 0.15em;
+  cursor: pointer;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  transition: color var(--motion-mikro) var(--ease-studio-out), background-color var(--motion-mikro) var(--ease-studio-out);
+}
+.rich-text-content .rich-spoiler:focus-visible {
+  outline: 2px solid var(--yellow);
+  outline-offset: 2px;
+}
+.rich-text-content .rich-spoiler.is-revealed {
+  background-color: transparent;
+  color: inherit;
+  cursor: text;
+}
+.rich-text-content .rich-spoiler.is-revealed * { color: inherit; }
+
 /* Pravilo 1: zuto tema ne dira. Zuta povrsina je OSTRVO svetle palete - svaki token
    unutar nje (tekst, okvir, ugnjezdeni paneli, senka) razresi se na svetlu vrednost,
    pa zuto dugme sa tamnoplavim tekstom izgleda identicno u obe teme (7,66:1).

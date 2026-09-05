@@ -15,6 +15,7 @@ import {
   Trash2,
   UploadCloud,
 } from "lucide-react";
+import dynamic from "next/dynamic";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -27,8 +28,14 @@ import { useToast } from "@/components/ui/toast-provider";
 import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { collectImageStorageIds, plainTextToRichText } from "@/lib/rich-text";
 import type { Locale } from "@/lib/i18n";
 import { withLocale } from "@/lib/i18n";
+
+const RichTextEditor = dynamic(() => import("@/components/app/rich-text-editor"), {
+  ssr: false,
+  loading: () => <div className="mt-2 min-h-[320px] animate-pulse rounded-[16px] border-2 border-line bg-paper" />,
+});
 
 type EditorMode = "create" | "edit";
 type EditorStatus = "draft" | "pending" | "published" | "changes_requested";
@@ -45,6 +52,7 @@ export type CommunityEditorPost = {
   isFeaturedGlobal?: boolean;
   title: string;
   body: string;
+  bodyRich?: string;
   createdAt: number;
   updatedAt: number;
   authorId: string;
@@ -67,6 +75,7 @@ export type CommunityEditorPost = {
 type DraftSnapshot = {
   title: string;
   body: string;
+  bodyRich?: string;
   selectedScope?: string;
   selectedCourseId?: string;
   selectedModuleId?: string;
@@ -121,6 +130,8 @@ export function CommunityPostEditor({
 
   const [title, setTitle] = useState(initialPost?.title ?? "");
   const [body, setBody] = useState(initialPost?.body ?? "");
+  const [bodyRich, setBodyRich] = useState(initialPost?.bodyRich ?? plainTextToRichText(initialPost?.body ?? ""));
+  const [inlineUploading, setInlineUploading] = useState(0);
   const [selectedScope, setSelectedScope] = useState(
     initialPost?.scopeKind === "track" && initialPost.trackId
       ? `track:${initialPost.trackId}`
@@ -167,6 +178,14 @@ export function CommunityPostEditor({
     () => `nauciai:community-draft:${postId ?? "new"}:${locale}`,
     [locale, postId],
   );
+  const bodyImageCount = useMemo(() => {
+    try {
+      return collectImageStorageIds(bodyRich).length;
+    } catch {
+      return 0;
+    }
+  }, [bodyRich]);
+  const hasBodyContent = body.trim().length > 0 || bodyImageCount > 0;
 
   const markDirty = useCallback(() => {
     dirtyRef.current = true;
@@ -191,6 +210,7 @@ export function CommunityPostEditor({
           if (snapshot.savedAt > (initialPost?.updatedAt ?? 0)) {
             setTitle(snapshot.title);
             setBody(snapshot.body);
+            setBodyRich(snapshot.bodyRich ?? plainTextToRichText(snapshot.body));
             setSelectedScope(
               snapshot.selectedScope ??
                 (snapshot.selectedCourseId ? `course:${snapshot.selectedCourseId}` : "global"),
@@ -216,11 +236,11 @@ export function CommunityPostEditor({
   }, [initialPost?.updatedAt, storageKey]);
 
   useEffect(() => {
-    if (!draftHydrated || !dirtyRef.current || pending) return;
+    if (!draftHydrated || !dirtyRef.current || pending || inlineUploading > 0) return;
 
     const timer = window.setTimeout(async () => {
       const savedAt = Date.now();
-      const snapshot: DraftSnapshot = { title, body, selectedScope, selectedModuleId, selectedLessonId, savedAt };
+      const snapshot: DraftSnapshot = { title, body, bodyRich, selectedScope, selectedModuleId, selectedLessonId, savedAt };
       try {
         window.localStorage.setItem(storageKey, JSON.stringify(snapshot));
         setLastSavedAt(savedAt);
@@ -229,7 +249,7 @@ export function CommunityPostEditor({
           mode === "edit" &&
           postId &&
           title.trim() &&
-          body.trim() &&
+          hasBodyContent &&
           (currentStatus === "draft" || currentStatus === "changes_requested")
         ) {
           setSaveState("saving");
@@ -237,6 +257,7 @@ export function CommunityPostEditor({
             postId: postId as Id<"communityPosts">,
             title: title.trim(),
             body: body.trim(),
+            bodyRich,
             scope: selectedTrackId
               ? { kind: "track", trackId: selectedTrackId as Id<"courseTracks"> }
               : selectedCourseId
@@ -267,11 +288,14 @@ export function CommunityPostEditor({
     return () => window.clearTimeout(timer);
   }, [
     body,
+    bodyRich,
     currentStatus,
     draftHydrated,
+    hasBodyContent,
     imageFileName,
     imageMimeType,
     imageStorageId,
+    inlineUploading,
     mode,
     pending,
     postId,
@@ -415,14 +439,14 @@ export function CommunityPostEditor({
   function validate(status: "draft" | "pending" | "published") {
     const errors: { title?: string; body?: string } = {};
     if (status === "draft") {
-      if (!title.trim() && !body.trim()) {
+      if (!title.trim() && !hasBodyContent) {
         errors.title = locale === "sr" ? "Upiši bar naslov ili sadržaj skice pre čuvanja." : "Enter at least a title or content before saving a draft.";
       }
     } else {
       if (!title.trim()) {
         errors.title = locale === "sr" ? "Dodaj naslov koji jasno opisuje temu." : "Add a title that clearly describes the topic.";
       }
-      if (!body.trim()) {
+      if (!hasBodyContent) {
         errors.body = locale === "sr" ? "Dodaj pitanje, kontekst ili koristan sadržaj." : "Add a question, context, or useful content.";
       }
     }
@@ -439,7 +463,7 @@ export function CommunityPostEditor({
   }
 
   async function handleSubmit(status: "draft" | "pending" | "published") {
-    if (!validate(status) || pending || uploadingImage) return;
+    if (!validate(status) || pending || uploadingImage || inlineUploading > 0) return;
 
     setPending(true);
     setFormError(null);
@@ -450,6 +474,7 @@ export function CommunityPostEditor({
       const payload = {
         title: title.trim(),
         body: body.trim(),
+        bodyRich,
         scope: selectedTrackId
           ? ({ kind: "track", trackId: selectedTrackId as Id<"courseTracks"> } as const)
           : selectedCourseId
@@ -822,30 +847,26 @@ export function CommunityPostEditor({
 
               <div>
                 <div className="flex items-end justify-between gap-3">
-                  <label htmlFor="community-body" className="block type-eyebrow text-ink/55">
+                  <span className="block type-eyebrow text-ink/55">
                     {locale === "sr" ? "Sadržaj" : "Content"}
-                  </label>
+                  </span>
                   <span className="type-caption font-bold tabular-nums text-ink/40">{body.length}</span>
                 </div>
-                <textarea
-                  id="community-body"
-                  value={body}
-                  onChange={(event) => {
-                    setBody(event.target.value);
-                    setFieldErrors((current) => ({ ...current, body: undefined }));
-                    markDirty();
-                  }}
-                  aria-invalid={Boolean(fieldErrors.body)}
-                  aria-describedby={fieldErrors.body ? "community-body-error" : "community-body-help"}
-                  placeholder={
-                    locale === "sr"
-                      ? "Dodaj kontekst, šta si već probao i kakav odgovor bi ti najviše pomogao…"
-                      : "Add context, what you already tried, and what kind of answer would help most…"
-                  }
-                  rows={13}
-                  maxLength={20_000}
-                  className="mt-2 min-h-[320px] w-full resize-y rounded-[12px] border border-line bg-paper-strong px-4 py-3 type-body font-semibold text-ink/85 transition placeholder:text-ink/30 focus:border-ink focus:ring-4 focus:ring-yellow/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-                />
+                <div className="mt-2">
+                  <RichTextEditor
+                    preset="community"
+                    locale={locale}
+                    value={bodyRich}
+                    minHeight={320}
+                    onChange={(json, plain) => {
+                      setBodyRich(json);
+                      setBody(plain);
+                      setFieldErrors((current) => ({ ...current, body: undefined }));
+                      markDirty();
+                    }}
+                    onUploadingChange={setInlineUploading}
+                  />
+                </div>
                 {fieldErrors.body ? (
                   <p id="community-body-error" className="mt-2 text-xs font-bold text-red-700">{fieldErrors.body}</p>
                 ) : (
@@ -984,7 +1005,7 @@ export function CommunityPostEditor({
           <button
             type="button"
             onClick={() => handleSubmit("draft")}
-            disabled={pending || uploadingImage}
+            disabled={pending || uploadingImage || inlineUploading > 0}
             className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 text-sm font-black text-ink transition hover:bg-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50"
           >
             {pending ? <Spinner /> : <Save className="size-4" />}
@@ -993,7 +1014,7 @@ export function CommunityPostEditor({
           <button
             type="button"
             onClick={() => handleSubmit(isStaff ? "published" : "pending")}
-            disabled={pending || uploadingImage}
+            disabled={pending || uploadingImage || inlineUploading > 0}
             className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black text-ink shadow-[3px_3px_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {pending ? <Spinner /> : <Send className="size-4" />}

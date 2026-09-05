@@ -695,6 +695,54 @@ export const communityThreadContent = {
 } as const;
 
 /**
+ * Rich-text editor + prikaz za diskusije u Zajednici (preset "community").
+ * Editor i renderer su locale-svesni, pa svi labeli/aria idu odavde, bez
+ * hardkodovanih stringova u komponentama.
+ */
+export const communityRichText = {
+  sr: {
+    bold: "Podebljano",
+    italic: "Kurziv",
+    strike: "Precrtano",
+    underline: "Podvučeno",
+    spoiler: "Spojler",
+    image: "Ubaci sliku",
+    undo: "Poništi",
+    redo: "Ponovi",
+    altPlaceholder: "Opis slike (opciono)",
+    removeImage: "Ukloni sliku",
+    uploading: "Slanje slike…",
+    revealSpoiler: "Prikaži spojler",
+    hideSpoiler: "Sakrij spojler",
+    errorType: "Dozvoljene su samo JPG, PNG, WEBP ili GIF slike.",
+    errorSize: "Slika mora biti manja od 5 MB.",
+    errorCount: "Najviše 6 slika po diskusiji.",
+    errorUpload: "Slanje slike nije uspelo. Pokušaj ponovo.",
+    uploadErrorTitle: "Slika nije poslata",
+  },
+  en: {
+    bold: "Bold",
+    italic: "Italic",
+    strike: "Strikethrough",
+    underline: "Underline",
+    spoiler: "Spoiler",
+    image: "Insert image",
+    undo: "Undo",
+    redo: "Redo",
+    altPlaceholder: "Image description (optional)",
+    removeImage: "Remove image",
+    uploading: "Uploading image…",
+    revealSpoiler: "Reveal spoiler",
+    hideSpoiler: "Hide spoiler",
+    errorType: "Only JPG, PNG, WEBP or GIF images are allowed.",
+    errorSize: "The image must be smaller than 5 MB.",
+    errorCount: "At most 6 images per discussion.",
+    errorUpload: "Uploading the image failed. Try again.",
+    uploadErrorTitle: "Image not uploaded",
+  },
+} as const;
+
+/**
  * Stranica 404. `not-found.tsx` u App Router-u ne dobija route params, pa se jezik
  * izvlači iz `usePathname()` na klijentu; ton je topao i školski kao ostatak sajta,
  * a ne suvo „stranica ne postoji".

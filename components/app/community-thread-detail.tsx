@@ -23,7 +23,9 @@ import { CommentsSection } from "@/components/app/community-comments";
 import { CommunityAvatar, formatCommunityTime } from "@/components/app/community-identity";
 import { CommunityPostEditor, type CommunityEditorPost } from "@/components/app/community-post-editor";
 import { CommunityThreadActions } from "@/components/app/community-thread-actions";
+import { RichTextContent } from "@/components/app/rich-text";
 import { ShareThreadButton } from "@/components/app/community-v2/community-share";
+import { COMMUNITY_RICH_TEXT } from "@/lib/rich-text";
 import { Panel, cn } from "@/components/ui/primitives";
 import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
@@ -224,7 +226,14 @@ export function LiveCommunityThreadPage({
 
             <div className="px-5 py-7 md:px-8 md:py-9">
               <div className="mx-auto max-w-[720px]">
-                <p className="whitespace-pre-wrap type-reading type-measure font-semibold text-ink/82 break-words">{post.body}</p>
+                <RichTextContent
+                  value={post.bodyRich}
+                  fallback={post.body}
+                  config={COMMUNITY_RICH_TEXT}
+                  images={post.bodyRichImageUrls}
+                  locale={locale}
+                  className="type-reading type-measure font-semibold text-ink/82"
+                />
                 {post.imageUrl ? (
                   <div className="mt-8 overflow-hidden rounded-[8px] border border-line bg-paper p-1.5">
                     <Image

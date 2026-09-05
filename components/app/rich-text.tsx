@@ -1,27 +1,28 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { type CSSProperties, type ReactNode } from "react";
+import NextImage from "next/image";
+import { type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
 import { useState } from "react";
 import { useMutation } from "convex/react";
 
 import { cn } from "@/components/ui/primitives";
-import { parseRichText, plainTextToRichText, richTextToPlainText, type RichTextMark, type RichTextNode } from "@/lib/rich-text";
+import { parseRichText, plainTextToRichText, richTextToPlainText, type RichTextConfig, type RichTextMark, type RichTextNode } from "@/lib/rich-text";
 import { AppComposerSheet } from "@/components/app/app-composer-sheet";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import type { Locale } from "@/lib/i18n";
+import { communityRichText, type Locale } from "@/lib/i18n";
 
 const RichTextEditor = dynamic(() => import("@/components/app/rich-text-editor"), {
   ssr: false,
   loading: () => <div className="min-h-60 animate-pulse rounded-[16px] border-2 border-line bg-paper" />,
 });
 
-function safeDocument(value: string | undefined, fallback: string): RichTextNode {
+function safeDocument(value: string | undefined, fallback: string, config?: RichTextConfig): RichTextNode {
   try {
-    return parseRichText(value) ?? parseRichText(plainTextToRichText(fallback))!;
+    return parseRichText(value, config) ?? parseRichText(plainTextToRichText(fallback), config)!;
   } catch {
-    return parseRichText(plainTextToRichText(fallback))!;
+    return parseRichText(plainTextToRichText(fallback), config)!;
   }
 }
 
@@ -30,18 +31,59 @@ function markStyle(marks?: RichTextMark[]): CSSProperties {
   return { color: style?.color, fontSize: style?.fontSize };
 }
 
-function renderNode(node: RichTextNode, key: string): ReactNode {
+/** Spoiler u prikazu: tekst prekriven markerom boje mastila; klik/tap/Enter/Space otkriva. */
+function SpoilerText({ children, locale }: { children: ReactNode; locale: Locale }) {
+  const [revealed, setRevealed] = useState(false);
+  const t = communityRichText[locale];
+  const toggle = () => setRevealed((value) => !value);
+  const onKeyDown = (event: KeyboardEvent<HTMLSpanElement>) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      toggle();
+    }
+  };
+  return (
+    <span role="button" tabIndex={0} aria-pressed={revealed} aria-label={revealed ? t.hideSpoiler : t.revealSpoiler} onClick={toggle} onKeyDown={onKeyDown} className={cn("rich-spoiler", revealed && "is-revealed")}>
+      {children}
+    </span>
+  );
+}
+
+type RenderContext = { images?: Record<string, string>; locale: Locale };
+
+function renderNode(node: RichTextNode, key: string, ctx: RenderContext): ReactNode {
   if (node.type === "text") {
     let content: ReactNode = node.text ?? "";
+    let spoiler = false;
     for (const mark of node.marks ?? []) {
       if (mark.type === "bold") content = <strong>{content}</strong>;
       if (mark.type === "italic") content = <em>{content}</em>;
       if (mark.type === "underline") content = <u>{content}</u>;
+      if (mark.type === "strike") content = <s>{content}</s>;
+      if (mark.type === "spoiler") spoiler = true;
     }
-    return <span key={key} style={markStyle(node.marks)}>{content}</span>;
+    const span = <span key={key} style={markStyle(node.marks)}>{content}</span>;
+    return spoiler ? <SpoilerText key={key} locale={ctx.locale}>{span}</SpoilerText> : span;
   }
   if (node.type === "hardBreak") return <br key={key} />;
-  const children = (node.content ?? []).map((child, index) => renderNode(child, `${key}-${index}`));
+  if (node.type === "image") {
+    const storageId = node.attrs?.storageId;
+    const url = storageId ? ctx.images?.[storageId] : undefined;
+    if (!url) return null;
+    const label = node.attrs?.alt?.trim() || "Slika u diskusiji";
+    const { width, height } = node.attrs ?? {};
+    return (
+      <a key={key} href={url} target="_blank" rel="noopener noreferrer" className="my-3 block w-fit surface-media border-2 border-line bg-paper">
+        {width && height ? (
+          <NextImage src={url} alt={label} width={width} height={height} className="h-auto max-h-[560px] w-auto max-w-full surface-media object-contain" unoptimized />
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element -- legacy slike bez izmerenih dimenzija
+          <img src={url} alt={label} className="max-h-[560px] max-w-full surface-media object-contain" />
+        )}
+      </a>
+    );
+  }
+  const children = (node.content ?? []).map((child, index) => renderNode(child, `${key}-${index}`, ctx));
   if (node.type === "paragraph") return <p key={key}>{children}</p>;
   if (node.type === "bulletList") return <ul key={key}>{children}</ul>;
   if (node.type === "orderedList") return <ol key={key}>{children}</ol>;
@@ -49,9 +91,9 @@ function renderNode(node: RichTextNode, key: string): ReactNode {
   return <>{children}</>;
 }
 
-export function RichTextContent({ value, fallback = "", className }: { value?: string; fallback?: string; className?: string }) {
-  const document = safeDocument(value, fallback);
-  return <div className={cn("rich-text-content", className)}>{(document.content ?? []).map((node, index) => renderNode(node, String(index)))}</div>;
+export function RichTextContent({ value, fallback = "", className, config, images, locale = "sr" }: { value?: string; fallback?: string; className?: string; config?: RichTextConfig; images?: Record<string, string>; locale?: Locale }) {
+  const document = safeDocument(value, fallback, config);
+  return <div className={cn("rich-text-content", className)}>{(document.content ?? []).map((node, index) => renderNode(node, String(index), { images, locale }))}</div>;
 }
 
 export function InlineRichText({
