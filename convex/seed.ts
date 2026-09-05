@@ -6,7 +6,7 @@ import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { mutation } from "./_generated/server";
 import { requireSyncSecret } from "./helpers";
-import { courseSeeds, trackSeeds } from "./seed-data";
+import { courseSeeds, trackSeeds } from "./seedData";
 
 export const seedInitialContent = mutationGeneric({
   args: {

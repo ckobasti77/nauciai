@@ -2,7 +2,7 @@
  * Seed pocetnog sadrzaja (smerovi + kursevi) u Convex.
  *
  * Idempotentno je (patch postojecih po slug-u), pa se moze pokrenuti vise puta.
- * Podaci su `convex/seed-data.ts` - isti izvor koji koristi i `seed:seedInitialContent`
+ * Podaci su `convex/seedData.ts` - isti izvor koji koristi i `seed:seedInitialContent`
  * mutacija, pa je --dry-run sazetak uvek tacan.
  *
  * Ova skripta NE koristi Stripe. Projekat planira domaci paywall; cene se ne
@@ -26,7 +26,7 @@ import { spawnSync } from "node:child_process";
 import { ConvexHttpClient } from "convex/browser";
 import { makeFunctionReference } from "convex/server";
 
-import { courseSeeds, trackSeeds } from "../convex/seed-data.ts";
+import { courseSeeds, trackSeeds } from "../convex/seedData.ts";
 
 // Podrazumevani prod deployment (vidi README: `CONVEX_DEPLOYMENT=prod:quick-yak-270`).
 // Nadjacaj sa `--url` ako treba drugi.
