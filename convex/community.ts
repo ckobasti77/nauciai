@@ -352,9 +352,23 @@ export const getPostDetail = query({
 
     const [detail] = await postsWithDetails(ctx, [post], userId);
 
+    // Kartica autora na detalju trazi jos par polja koja lista ne nosi (bio,
+    // datum uclanjenja, poslednja aktivnost). Citaju se samo ovde, u upitu za
+    // jednu temu - ne u `postsWithDetails`, da lista ne bi platila po jedan
+    // dodatni read presence-a po kartici. `activeNow` racuna klijent iz
+    // `authorLastSeenAt`, pa upit ne cita zidni sat (vidi guidelines).
+    const authorUser = await ctx.db.get(post.authorId);
+    const authorPresence = await ctx.db
+      .query("userPresence")
+      .withIndex("by_userId", (q) => q.eq("userId", post.authorId))
+      .unique();
+
     return {
       ...detail,
       viewerRole: profile.role,
+      authorBio: authorUser?.bio,
+      authorJoinedAt: authorUser?.createdAt ?? authorUser?._creationTime,
+      authorLastSeenAt: authorPresence?.lastSeenAt,
     };
   },
 });

@@ -5,7 +5,9 @@ import {
   ArrowLeft,
   Bookmark,
   BookmarkCheck,
+  CalendarDays,
   CircleAlert,
+  ExternalLink,
   GraduationCap,
   Globe2,
   MessageCircle,
@@ -21,12 +23,13 @@ import { CommentsSection } from "@/components/app/community-comments";
 import { CommunityAvatar, formatCommunityTime } from "@/components/app/community-identity";
 import { CommunityPostEditor, type CommunityEditorPost } from "@/components/app/community-post-editor";
 import { CommunityThreadActions } from "@/components/app/community-thread-actions";
+import { ShareThreadButton } from "@/components/app/community-v2/community-share";
 import { Panel, cn } from "@/components/ui/primitives";
 import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { Locale } from "@/lib/i18n";
-import { withLocale } from "@/lib/i18n";
+import { t, withLocale } from "@/lib/i18n";
 
 type ScopePost = {
   courseId?: string;
@@ -276,6 +279,13 @@ export function LiveCommunityThreadPage({
                       ? "Sačuvaj"
                       : "Save"}
                 </button>
+                <ShareThreadButton
+                  locale={locale}
+                  title={post.title}
+                  body={post.body}
+                  threadHref={withLocale(locale, `/app/community/${post._id}`)}
+                  variant="labeled"
+                />
               </div>
               {favoriteError ? (
                 <p role="alert" className="mx-auto mt-3 max-w-[720px] rounded-[12px] border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-800">
@@ -309,8 +319,18 @@ export function LiveCommunityThreadPage({
         </section>
 
         <aside className="space-y-4 xl:sticky xl:top-6 xl:self-start">
+          <ThreadAuthorCard
+            locale={locale}
+            name={post.authorName}
+            username={post.authorUsername}
+            avatarUrl={post.authorAvatarUrl}
+            role={post.authorRole}
+            bio={post.authorBio}
+            joinedAt={post.authorJoinedAt}
+            lastSeenAt={post.authorLastSeenAt}
+          />
           <Panel as="aside" className="rounded-[16px] border border-line bg-paper-strong p-4 shadow-none">
-            <p className="type-eyebrow text-ink">{locale === "sr" ? "Learning spine" : "Learning spine"}</p>
+            <p className="type-eyebrow text-ink">{locale === "sr" ? "Gde se uči" : "Where you learn"}</p>
             <dl className="mt-3 space-y-2 text-sm">
               <MetaRow label={locale === "sr" ? "Gde pripada" : "Belongs to"} value={scope} icon={scopeIcon(post)} />
               <MetaRow label={locale === "sr" ? "Status" : "Status"} value={statusLabel(post.status, locale)} />
@@ -416,6 +436,97 @@ function ThreadUnavailable({ locale }: { locale: Locale }) {
         <ArrowLeft className="size-4" />
         {locale === "sr" ? "Nazad na diskusije" : "Back to discussions"}
       </Link>
+    </Panel>
+  );
+}
+
+const ACTIVE_NOW_MS = 5 * 60 * 1000;
+
+function presenceLabel(locale: Locale, lastSeenAt: number | undefined, activeNow: boolean, now: number) {
+  if (activeNow) return t(locale, "Aktivan sada", "Active now");
+  if (!lastSeenAt) return t(locale, "Aktivnost nije zabeležena", "No activity recorded");
+  const minutes = Math.max(1, Math.floor((now - lastSeenAt) / 60_000));
+  if (minutes < 60) return t(locale, `Poslednji put pre ${minutes} min`, `Last seen ${minutes}m ago`);
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return t(locale, `Poslednji put pre ${hours} h`, `Last seen ${hours}h ago`);
+  const days = Math.floor(hours / 24);
+  return t(locale, `Poslednji put pre ${days} dana`, `Last seen ${days}d ago`);
+}
+
+/**
+ * Kartica autora na detalju teme. Prati profil-karticu iz naloga (avatar, ime,
+ * @korisnicko ime, prisustvo, kratka biografija, "Član od"), ali nosi TACNO
+ * jedno dugme - "Poseti javni profil" - bez owner akcija (Uredi/Podesavanja),
+ * jer ovo gleda posetilac tudje teme, ne vlasnik profila. `activeNow` se racuna
+ * ovde iz `lastSeenAt` (klijent), pa Convex upit ne cita zidni sat.
+ */
+function ThreadAuthorCard({
+  locale,
+  name,
+  username,
+  avatarUrl,
+  role,
+  bio,
+  joinedAt,
+  lastSeenAt,
+}: {
+  locale: Locale;
+  name: string;
+  username?: string;
+  avatarUrl?: string | null;
+  role?: string;
+  bio?: string;
+  joinedAt?: number;
+  lastSeenAt?: number;
+}) {
+  // Zidni sat uzimamo jednom, u inicijalizatoru stanja (isti obrazac kao
+  // `ActivityHeatmap` u member-profile), da render ostane cist - direktan
+  // `Date.now()` u telu komponente rusi react-compiler lint pravilo.
+  const [now] = useState(() => Date.now());
+  const activeNow = typeof lastSeenAt === "number" && now - lastSeenAt <= ACTIVE_NOW_MS;
+  const profileHref = username ? withLocale(locale, `/app/members/${username}`) : null;
+
+  return (
+    <Panel as="aside" className="rounded-[16px] border border-line bg-paper-strong p-4 shadow-none">
+      <p className="type-eyebrow text-ink/60">{t(locale, "Autor teme", "Topic author")}</p>
+      <div className="mt-3 flex items-start gap-3">
+        {profileHref ? (
+          <Link href={profileHref} className="shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
+            <CommunityAvatar name={name} avatarUrl={avatarUrl} role={role} locale={locale} size="md" showRank={false} />
+          </Link>
+        ) : (
+          <CommunityAvatar name={name} avatarUrl={avatarUrl} role={role} locale={locale} size="md" showRank={false} />
+        )}
+        <div className="min-w-0 flex-1">
+          {profileHref ? (
+            <Link href={profileHref} className="block truncate text-sm font-black text-ink hover:underline">{name}</Link>
+          ) : (
+            <p className="truncate text-sm font-black text-ink">{name}</p>
+          )}
+          {username ? <p className="truncate font-mono type-caption font-bold text-muted">@{username}</p> : null}
+          <p className="mt-1.5 flex items-center gap-2 type-caption font-bold text-ink/70">
+            <span className={cn("size-2 shrink-0 rounded-full", activeNow ? "bg-emerald-500" : "bg-line")} aria-hidden="true" />
+            {presenceLabel(locale, lastSeenAt, activeNow, now)}
+          </p>
+        </div>
+      </div>
+      {bio ? <p className="mt-3 whitespace-pre-wrap type-body-sm font-semibold text-ink/80">{bio}</p> : null}
+      {joinedAt ? (
+        <p className="mt-3 flex items-center gap-2 type-caption font-bold text-muted">
+          <CalendarDays className="size-4 shrink-0" aria-hidden="true" />
+          {t(locale, "Član od", "Member since")}{" "}
+          {new Intl.DateTimeFormat(locale === "sr" ? "sr-Latn" : "en", { month: "long", year: "numeric" }).format(new Date(joinedAt))}
+        </p>
+      ) : null}
+      {profileHref ? (
+        <Link
+          href={profileHref}
+          className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-sm font-black text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:translate-y-0"
+        >
+          <ExternalLink className="size-4" aria-hidden="true" />
+          {t(locale, "Poseti javni profil", "Visit public profile")}
+        </Link>
+      ) : null}
     </Panel>
   );
 }

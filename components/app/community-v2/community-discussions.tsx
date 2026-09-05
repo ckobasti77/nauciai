@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation } from "convex/react";
-import { ArrowBigDown, ArrowBigUp, Bookmark, ChevronDown, MessageCircle, MessageSquareText, PenLine, Pin, Share2 } from "lucide-react";
+import { ArrowBigDown, ArrowBigUp, Bookmark, ChevronDown, MessageCircle, MessageSquareText, PenLine, Pin } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -22,6 +22,7 @@ import {
   useToggleCommunityFavorite,
 } from "./community-data";
 import { CommunityScopeControls, useCommunityQueryParams, useResolvedCommunityScope } from "./community-filters";
+import { ShareThreadButton } from "./community-share";
 import { CommunityStickyToolbar } from "./community-sticky-toolbar";
 import {
   CommunityRouteSkeleton,
@@ -67,56 +68,6 @@ function useDiscussionControls() {
     sort,
     setSort: (next: DiscussionSort) => update({ sort: next === "hot" ? undefined : next }),
   };
-}
-
-function ShareThreadButton({ locale, post }: { locale: Locale; post: CommunityPostRow }) {
-  const toast = useToast();
-  const [busy, setBusy] = useState(false);
-  const threadHref = post._id.startsWith("preview-")
-    ? withLocale(locale, "/app/community/discussions")
-    : withLocale(locale, "/app/community/" + post._id);
-
-  async function shareThread() {
-    if (busy) return;
-    setBusy(true);
-    const url = window.location.origin + threadHref;
-    try {
-      if (typeof navigator.share === "function") {
-        await navigator.share({ title: post.title, text: post.body, url });
-      } else if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(url);
-        toast.success(locale === "sr" ? "Link je kopiran." : "Link copied.");
-      } else {
-        const input = document.createElement("textarea");
-        input.value = url;
-        input.setAttribute("readonly", "true");
-        input.style.position = "fixed";
-        input.style.opacity = "0";
-        document.body.appendChild(input);
-        input.select();
-        document.execCommand("copy");
-        input.remove();
-        toast.success(locale === "sr" ? "Link je kopiran." : "Link copied.");
-      }
-    } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") return;
-      toast.error(locale === "sr" ? "Link nije podeljen. Kopiraj adresu iz vrha pregledača i pošalji je ručno." : "The link was not shared. Copy the address from the top of the browser and send it yourself.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={() => void shareThread()}
-      disabled={busy}
-      aria-label={locale === "sr" ? "Podeli diskusiju" : "Share discussion"}
-      className="grid size-11 place-items-center rounded-full text-muted transition hover:bg-ink/5 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50 sm:size-8"
-    >
-      <Share2 className="size-4" aria-hidden="true" />
-    </button>
-  );
 }
 
 export function CommunityDiscussionsPage({ locale }: { locale: Locale }) {
@@ -360,7 +311,16 @@ function DiscussionsView({
         }
         action={
           <div className="flex items-center gap-1">
-            <ShareThreadButton locale={locale} post={post} />
+            <ShareThreadButton
+              locale={locale}
+              title={post.title}
+              body={post.body}
+              threadHref={
+                post._id.startsWith("preview-")
+                  ? withLocale(locale, "/app/community/discussions")
+                  : withLocale(locale, `/app/community/${post._id}`)
+              }
+            />
             <button
               type="button"
               disabled={!canInteract || !onToggleFavorite}

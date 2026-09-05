@@ -154,7 +154,7 @@ export function LearningSpine({
     <aside className="surface-card border border-ink/15 bg-ink/5 p-4 dark:bg-ink/10" aria-label={locale === "sr" ? "Putanja učenja" : "Learning path"}>
       <div className="flex items-center justify-between gap-3">
         <p className="type-eyebrow text-ink/60">
-          {locale === "sr" ? "Learning spine" : "Learning spine"}
+          {locale === "sr" ? "Gde se uči" : "Where you learn"}
         </p>
         {typeof xp === "number" ? (
           <span className="rounded-full border border-ink bg-yellow px-2.5 py-1 font-mono type-caption font-black text-ink">
@@ -230,7 +230,12 @@ export function ThreadCard({
           : "shadow-[6px_6px_0_0_var(--shadow-hard-13)] hover:shadow-[8px_8px_0_0_var(--shadow-hard-13)]",
       )}
     >
-      <div className="flex min-w-0 gap-3 p-4">
+      {/* `relative` ovde je nosilac: pseudo-element linka na naslov (`after:inset-0`
+          nize) se prostire preko OVOG bloka, pa je cela kartica jedan klik-region.
+          Bez toga bi overlay pokrio samo red sa naslovom, kao ranije. Blok se
+          zaustavlja pre `below` (komentari), da prazan prostor u komentarima ne
+          bi vodio na detalj. */}
+      <div className="relative flex min-w-0 gap-3 p-4">
         <Link
           href={post.authorUsername ? withLocale(locale, `/app/members/${post.authorUsername}`) : threadHref}
           className="relative z-10 shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
@@ -261,7 +266,10 @@ export function ThreadCard({
             ) : null}
           </div>
           <ScopeTrail locale={locale} track={track} course={course} compact />
-          <div className="relative z-10 mt-2 flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+          {/* Namerno BEZ `relative` na ovom redu: da bi `after:inset-0` naslova
+              racunao od `.relative` bloka iznad (cela kartica), a ne od ovog reda.
+              Akcije ispod nose svoj `z-10`, pa ostaju iznad overlay-a. */}
+          <div className="mt-2 flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
             <Link
               href={threadHref}
               className="min-w-0 flex-1 surface-media after:absolute after:inset-0 after:z-0 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink"
