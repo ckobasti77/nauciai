@@ -31,7 +31,7 @@ npm run dev
 `npm run convex:auth` generates the Convex Auth RS256 key material and sets `SITE_URL`, `JWT_PRIVATE_KEY`, and `JWKS` in the active Convex deployment.
 `npm run convex:admin-env` copies `INITIAL_ADMIN_EMAILS` from `.env.local` into the active Convex deployment. Editing `.env.local` alone does not update Convex backend authorization.
 `npm run convex:oauth` sets OAuth provider credentials on the active Convex deployment. Use the production variants below for the production deployment.
-`npm run convex:seed` creates the initial video/audio and websites course records in Convex. It also passes Stripe price IDs from `.env.local` when they exist.
+`npm run convex:seed` creates the initial video/audio and websites course records in Convex (idempotent; safe to re-run). It does not use Stripe. Add `-- --dry-run` to print the plan without writing. For production it is guarded: `npm run convex:seed -- --prod` prints the plan and stops; `npm run convex:seed -- --prod --yes` actually writes (it reads `WEBHOOK_SYNC_SECRET` from the prod Convex env and targets the prod deployment, overridable with `-- --prod --url https://<deployment>.convex.cloud --yes`).
 
 ## Required services
 

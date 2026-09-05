@@ -2,7 +2,7 @@
 
 import { useConvexAuth } from "@convex-dev/auth/react";
 import { useQuery } from "convex/react";
-import { ArrowRight, BookOpen, Clock3, Compass, PlayCircle } from "lucide-react";
+import { ArrowRight, BookOpen, Clock3, Compass, Database, PlayCircle } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -16,7 +16,8 @@ import {
   getProgressSummary,
   type DashboardCourse,
 } from "@/components/app/dashboard-content";
-import { coursesFromLive, type LiveNavigationResult } from "@/components/app/dashboard-live";
+import { coursesFromLive, isLiveCatalogEmpty, type LiveNavigationResult } from "@/components/app/dashboard-live";
+import { Callout } from "@/components/ui/callout";
 import { EmptyState } from "@/components/ui/empty-state";
 import { HandUnderline, LinkButton, Panel } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
@@ -67,6 +68,9 @@ export function LiveClassroomHub({
   }
 
   const courses = coursesFromLive(live, fallbackCourses);
+  // Admin-only obavestenje: baza je prazna, pa student vidi staticni katalog.
+  // Student ne vidi nikakvu poruku - samo katalog.
+  const showFallbackNotice = isAdmin && isLiveCatalogEmpty(live);
 
   const trackMeta: TrackMeta = {};
   for (const course of live?.courses ?? []) {
@@ -84,6 +88,7 @@ export function LiveClassroomHub({
       profileName={profile?.name ?? "Student"}
       courses={courses}
       trackMeta={trackMeta}
+      showFallbackNotice={showFallbackNotice}
     />
   );
 }
@@ -120,12 +125,15 @@ export function ClassroomHubView({
   profileName,
   courses,
   trackMeta,
+  showFallbackNotice = false,
 }: {
   locale: Locale;
   isAdmin: boolean;
   profileName: string;
   courses: DashboardCourse[];
   trackMeta: TrackMeta;
+  /** Admin-only banner: baza je prazna, prikazuje se staticni katalog. */
+  showFallbackNotice?: boolean;
 }) {
   const searchParams = useSearchParams();
   const view = searchParams.get("view");
@@ -207,6 +215,20 @@ export function ClassroomHubView({
 
   return (
     <div className="space-y-6">
+      {showFallbackNotice ? (
+        <Callout icon={Database} title={tr(locale, "Baza nema kurseva", "The database has no courses")}>
+          {tr(
+            locale,
+            "Prikazuje se statični sadržaj. Pokreni ",
+            "Static content is being shown. Run ",
+          )}
+          <code className="surface-media border border-line bg-paper px-1.5 py-0.5 font-mono text-xs">
+            npm run convex:seed -- --prod
+          </code>
+          {tr(locale, ".", ".")}
+        </Callout>
+      ) : null}
+
       {/* Zone 1 — Continue where you left off.
           Student bez ijednog otključanog kursa ovde dobija first-run blok, ali on
           više NE zamenjuje celu stranicu: katalog ispod je jedini razlog zbog kog

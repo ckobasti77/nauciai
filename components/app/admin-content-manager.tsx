@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery } from "convex/react";
-import { AlertTriangle, ArrowLeft, BarChart3, BookOpen, CheckCircle2, CirclePlus, FileText, GraduationCap, Layers, ListTree, Megaphone, Save, Settings2, Shield, Users, Wand2, XCircle } from "lucide-react";
+import { AlertTriangle, ArrowLeft, BarChart3, BookOpen, CheckCircle2, CirclePlus, Database, FileText, GraduationCap, Layers, ListTree, Megaphone, Save, Settings2, Shield, Users, Wand2, XCircle } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -12,6 +12,7 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { HandUnderline, cn } from "@/components/ui/primitives";
 import { Badge, type BadgeTone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Callout } from "@/components/ui/callout";
 import { EmptyState } from "@/components/ui/empty-state";
 import { t, withLocale, type Locale } from "@/lib/i18n";
 import { changeContentSelection } from "@/lib/content-selection";
@@ -794,6 +795,22 @@ export function AdminContentPanel({ locale }: { locale: Locale }) {
 
   return (
     <AdminPageFrame locale={locale} title={t(locale, "Sadržaj", "Content")}>
+      {/* Baza nema kurseva -> student u Ucionici vidi staticni katalog iz lib/content.ts.
+          Ovaj banner vidi samo admin, sa tacnom komandom za seed. */}
+      {overview && overview.courses.total === 0 ? (
+        <Callout icon={Database} title={t(locale, "Baza nema kurseva", "The database has no courses")}>
+          {t(
+            locale,
+            "Studentima se prikazuje statični sadržaj. Pokreni ",
+            "Students are shown static content. Run ",
+          )}
+          <code className="surface-media border border-line bg-paper px-1.5 py-0.5 font-mono text-xs">
+            npm run convex:seed -- --prod
+          </code>
+          {t(locale, ".", ".")}
+        </Callout>
+      ) : null}
+
       <section aria-labelledby="admin-platform-state" className="space-y-3">
         <h2 id="admin-platform-state" className="type-eyebrow text-muted">
           {t(locale, "Stanje platforme", "Platform state")}

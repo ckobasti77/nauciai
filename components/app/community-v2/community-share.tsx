@@ -34,10 +34,16 @@ async function copyToClipboard(url: string) {
 }
 
 /**
- * Deljenje teme. Na telefonu (kad `navigator.share` postoji i `canShare` prizna
- * podatke) koristi nativni share list; svuda drugde otvara Dialog primitiv sa
- * poljem za link i mrezama kao obicnim `<a target=_blank>` - nikad `window.open`
- * popup, jer je taj popup i bio uzrok "otvori se pa se ugasi" na desktopu.
+ * Deljenje teme. Nativni share list koristi SAMO na dodirnim uredjajima
+ * (`pointer: coarse`) kad `navigator.share` postoji i `canShare` prizna podatke;
+ * na desktopu (fine pointer) UVEK otvara nas Dialog. Bez provere pokazivaca,
+ * `canShare` na Windows Chrome-u vrati `true`, `navigator.share` otvori sistemski
+ * share flyout koji se odmah zatvori, pa korisnik nikad ne vidi nas Dialog.
+ *
+ * Dialog nema outside-click slusaca na `document`: zatvara se preko scrim
+ * `onMouseDown` handlera koji se montira tek kad je `open === true` (vidi
+ * `components/ui/dialog.tsx`), pa klik koji ga otvara ne moze da ga zatvori.
+ * Mreze idu kao obicni `<a target=_blank>` - nikad `window.open` popup.
  */
 export function ShareThreadButton({
   locale,
@@ -60,13 +66,15 @@ export function ShareThreadButton({
   async function handleShare() {
     const url = window.location.origin + threadHref;
     const payload: ShareData = { title, text: body, url };
-    if (typeof navigator.share === "function" && navigator.canShare?.(payload)) {
+    // Nativni share samo na dodirnim uredjajima. Na desktopu (fine pointer) uvek Dialog.
+    const isTouch = window.matchMedia("(pointer: coarse)").matches;
+    if (isTouch && typeof navigator.share === "function" && navigator.canShare?.(payload)) {
       try {
         await navigator.share(payload);
         return;
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") return;
-        // Nativni share je pukao (cesto na desktopu) - padamo na Dialog ispod.
+        // Nativni share je pukao - padamo na Dialog ispod.
       }
     }
     setShareUrl(url);
