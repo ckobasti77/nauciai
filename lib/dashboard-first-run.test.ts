@@ -5,6 +5,7 @@ import {
   celebratedStepId,
   firstRunDoneCount,
   firstRunDoneIds,
+  firstRunZoneView,
   shouldShowResumeHero,
   type FirstRunSignals,
 } from "./dashboard-first-run";
@@ -114,6 +115,56 @@ describe("shouldShowResumeHero", () => {
 
   it("admin na praznoj bazi dobija pozdravni hero, ne 'Sve lekcije su zavrsene'", () => {
     expect(shouldShowResumeHero({ hasUnlockedCourse: true, hasResume: false, totalLessons: 0 })).toBe(false);
+  });
+});
+
+describe("firstRunZoneView", () => {
+  const base = {
+    hasUnlockedCourse: false,
+    hasResume: false,
+    totalLessons: 0,
+    doneCount: 0,
+    stepCount: 3,
+    compactDismissed: false,
+  };
+
+  it("ima kurs koji se nastavlja → hero, ne dira ostalo", () => {
+    expect(
+      firstRunZoneView({ ...base, hasUnlockedCourse: true, hasResume: true, totalLessons: 10 }),
+    ).toBe("resume");
+  });
+
+  it("nema kursa, nijedan korak → checklista", () => {
+    expect(firstRunZoneView({ ...base, doneCount: 0 })).toBe("checklist");
+  });
+
+  it("nema kursa, 2 od 3 koraka → i dalje checklista (nije sve odrađeno)", () => {
+    expect(firstRunZoneView({ ...base, doneCount: 2 })).toBe("checklist");
+  });
+
+  it("3 od 3 koraka bez `resume` → kompaktna traka umesto pune checkliste", () => {
+    // Bez ovoga je student koji je sve odradio gledao punu checklistu zauvek.
+    expect(firstRunZoneView({ ...base, doneCount: 3 })).toBe("compact");
+  });
+
+  it("zatvorena kompaktna traka → zona nestaje (mreža se podiže)", () => {
+    expect(firstRunZoneView({ ...base, doneCount: 3, compactDismissed: true })).toBe("hidden");
+  });
+
+  it("zatvaranje ne utiče dok checklista još nije sve odradila", () => {
+    // `compactDismissed` sme da sakrije samo kompaktnu traku, ne i checklistu.
+    expect(firstRunZoneView({ ...base, doneCount: 1, compactDismissed: true })).toBe("checklist");
+  });
+
+  it("hero pobeđuje čak i kad su svi koraci odrađeni", () => {
+    expect(
+      firstRunZoneView({
+        ...base,
+        hasUnlockedCourse: true,
+        totalLessons: 4,
+        doneCount: 3,
+      }),
+    ).toBe("resume");
   });
 });
 

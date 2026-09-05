@@ -22,6 +22,25 @@ import { getStudyHubAggregateSummary } from "./studyHubSummaryCore";
 const SNIPPET_MAX = 120;
 const localizedText = v.object({ sr: v.string(), en: v.string() });
 
+// Vlasništvo kursa za PRIKAZ ("da li je student otključao kurs"), NE provera
+// pristupa — pravila pristupa ostaju u `helpers.requireCourseAccess`. Isti pojam
+// kao `courses.getAppNavigation` (`owned`): aktivan upis ili staff rola. Čita se
+// jednom pa deli između `studentCoursesSlice` (filter resume/nextLessons) i
+// `firstRunSlice` (štikliranje prvog koraka), da se nikad ne raziđu.
+type Ownership = { isStaff: boolean; ownedCourseIds: Set<Id<"courses">> };
+
+async function computeOwnership(ctx: QueryCtx, userId: Id<"users">, role: string | undefined): Promise<Ownership> {
+  const isStaff = role === "admin" || role === "moderator" || role === "pro_student";
+  const enrollments = await ctx.db
+    .query("enrollments")
+    .withIndex("by_user", (q) => q.eq("userId", userId))
+    .take(200);
+  return {
+    isStaff,
+    ownedCourseIds: new Set(enrollments.filter((row) => row.status === "active").map((row) => row.courseId)),
+  };
+}
+
 function truncateSnippet(body: string): string {
   const trimmed = body.trim();
   return trimmed.length > SNIPPET_MAX ? `${trimmed.slice(0, SNIPPET_MAX).trimEnd()}…` : trimmed;
@@ -42,11 +61,19 @@ function truncateSnippet(body: string): string {
 // sada broje i progres na lekciji koja je naknadno sakrivena (isPublished=false),
 // dok ju je ranija petlja preskakala. U uobičajenom slučaju (bez sakrivanja
 // završenih lekcija) vrednosti su identične.
-async function studentCoursesSlice(ctx: QueryCtx, userId: Id<"users">) {
-  const courses = await ctx.db
+async function studentCoursesSlice(ctx: QueryCtx, userId: Id<"users">, ownership: Ownership) {
+  const published = await ctx.db
     .query("courses")
     .withIndex("by_status", (q) => q.eq("status", "published"))
     .take(50);
+  // Resume / nextLessons / progress SME da bira samo iz kurseva koje je student
+  // otključao (isti pojam `owned` kao `courses.getAppNavigation`: aktivan upis ili
+  // staff rola). Ranije je birao iz SVIH objavljenih kurseva, pa je „Nastavi lekciju"
+  // i prozor „Sledeće lekcije" nudio lekcije zaključanih kurseva (UX-BOOST §1B dug).
+  // Staff (kome je sve otključano) vidi sve, kao i u katalogu.
+  const courses = ownership.isStaff
+    ? published
+    : published.filter((course) => ownership.ownedCourseIds.has(course._id));
   if (courses.length === 0) {
     return {
       resume: null,
@@ -338,14 +365,15 @@ async function studySlice(ctx: QueryCtx, userId: Id<"users">) {
 // `hasUnlockedCourse` je isti pojam vlasništva kao `courses.getAppNavigation`
 // (`owned`): aktivan upis ili staff rola. To je PRIKAZ, ne provera pristupa —
 // pravila pristupa ostaju u `helpers.requireCourseAccess`.
-async function firstRunSlice(ctx: QueryCtx, userId: Id<"users">, role: string | undefined) {
-  const isStaff = role === "admin" || role === "moderator" || role === "pro_student";
-  const [enrollments, ownPosts] = await Promise.all([
-    ctx.db.query("enrollments").withIndex("by_user", (q) => q.eq("userId", userId)).take(200),
-    ctx.db.query("communityPosts").withIndex("by_author", (q) => q.eq("authorId", userId)).take(1),
-  ]);
+async function firstRunSlice(ctx: QueryCtx, userId: Id<"users">, ownership: Ownership) {
+  const ownPosts = await ctx.db
+    .query("communityPosts")
+    .withIndex("by_author", (q) => q.eq("authorId", userId))
+    .take(1);
   return {
-    hasUnlockedCourse: isStaff || enrollments.some((row) => row.status === "active"),
+    // Isti pojam vlasništva kao filter u `studentCoursesSlice` — čita se jednom
+    // (`computeOwnership`) pa deli, da se ova dva izlaza nikad ne raziđu.
+    hasUnlockedCourse: ownership.isStaff || ownership.ownedCourseIds.size > 0,
     hasCommunityPost: ownPosts.length > 0,
   };
 }
@@ -532,13 +560,17 @@ export const getDashboardOverview = query({
     const { role } = await getCurrentProfile(ctx);
     const isAdmin = role === "admin";
 
+    // Vlasništvo se čita jednom pa deli — `studentCoursesSlice` i `firstRunSlice`
+    // moraju da vide isti skup otključanih kurseva.
+    const ownership = await computeOwnership(ctx, userId, role);
+
     // Jedan poziv notifikacionih brojača (nosi i community i notifications count
     // i pendingApprovals) — ne dupliramo skeniranje nepročitanih.
     const counts = await getCommunityNotificationCountsHelper(ctx, userId);
 
     const [courses, messages, community, notifications, studio, study, leaderboard, firstRun, admin] =
       await Promise.all([
-        studentCoursesSlice(ctx, userId),
+        studentCoursesSlice(ctx, userId, ownership),
         messagesSlice(ctx, userId),
         communityItems(ctx),
         notificationItems(ctx, userId),
@@ -549,7 +581,7 @@ export const getDashboardOverview = query({
           period: "week",
           role,
         }),
-        firstRunSlice(ctx, userId, role),
+        firstRunSlice(ctx, userId, ownership),
         isAdmin ? adminSlice(ctx, counts.pendingApprovals) : Promise.resolve(null),
       ]);
 

@@ -22,6 +22,7 @@ import {
   Sparkles,
   Trash2,
   UploadCloud,
+  X,
 } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import Image from "next/image";
@@ -33,6 +34,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type ChangeEvent,
   type DragEvent,
   type MouseEvent,
@@ -54,10 +56,14 @@ import {
   celebratedStepId,
   firstRunDoneCount,
   firstRunDoneIds,
-  shouldShowResumeHero,
+  firstRunZoneView,
   type FirstRunSignals,
   type FirstRunStepId,
 } from "@/lib/dashboard-first-run";
+import {
+  readFirstRunReadyDismissed,
+  writeFirstRunReadyDismissed,
+} from "@/lib/dashboard-first-run-preference";
 import { ConfirmDialog } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { HandUnderline, LinkButton, Panel, cn } from "@/components/ui/primitives";
@@ -818,7 +824,21 @@ function ActivityPanel({ locale, activity }: { locale: Locale; activity: Array<{
   );
 }
 
-export function CourseCover({ course, locale }: { course: DashboardCourse; locale: Locale }) {
+export function CourseCover({
+  course,
+  locale,
+  compact = false,
+}: {
+  course: DashboardCourse;
+  locale: Locale;
+  /**
+   * Sitni kvadratić (npr. red u listi smerova, ~36px visine). Bez ovoga je isti
+   * krug od 56px sa 24px razmaka koji stoji na velikoj kartici bio veći od
+   * kutije i `overflow-hidden` ga je odsecao u ništa — placeholder je izgledao
+   * prazan iako je tu (velike kartice ispod imaju mesta, pa su radile).
+   */
+  compact?: boolean;
+}) {
   const imageSrc = course.coverUrl || course.image?.src;
   if (imageSrc) {
     return (
@@ -836,9 +856,14 @@ export function CourseCover({ course, locale }: { course: DashboardCourse; local
   return (
     <div className="relative h-full overflow-hidden surface-media bg-paper">
       <div className="absolute inset-0 ink-hatch" />
-      <div className="relative flex h-full items-center justify-center p-6 text-center">
-        <span className="inline-flex size-14 items-center justify-center rounded-full border-2 border-ink bg-yellow text-ink shadow-[4px_4px_0_0_var(--shadow-hard-15)]">
-          <BookOpen className="size-7" />
+      <div className={cn("relative flex h-full items-center justify-center text-center", compact ? "p-1" : "p-6")}>
+        <span
+          className={cn(
+            "inline-flex items-center justify-center rounded-full border-2 border-ink bg-yellow text-ink",
+            compact ? "size-7" : "size-14 shadow-[4px_4px_0_0_var(--shadow-hard-15)]",
+          )}
+        >
+          <BookOpen className={compact ? "size-3.5" : "size-7"} />
         </span>
       </div>
     </div>
@@ -1230,6 +1255,62 @@ export function DashboardFirstRun({
   );
 }
 
+// `localStorage` nema sopstvenu pretplatu unutar istog taba, pa je ovo najmanji
+// mogući izvor promene za `useSyncExternalStore`: kad korisnik zatvori „sve spremno"
+// traku, `notifyReadyBarChanged` obavesti render da je pročita ponovo. Isti obrazac
+// kao `dismissalListeners` u `intro-panel.tsx`.
+const readyBarListeners = new Set<() => void>();
+
+function subscribeReadyBar(listener: () => void) {
+  readyBarListeners.add(listener);
+  return () => {
+    readyBarListeners.delete(listener);
+  };
+}
+
+function notifyReadyBarChanged() {
+  for (const listener of readyBarListeners) listener();
+}
+
+// Jednoredna „sve spremno" traka: zamenjuje punu checklistu kad je student sve već
+// odradio, da lista prvih koraka ne stoji zauvek kao prekor. Zatvara se na X i to
+// se pamti po korisniku (`lib/dashboard-first-run-preference.ts`). Kad je zatvorena,
+// zona A se uopšte ne renderuje (vidi `DashboardHome`) i mreža prozora se podiže.
+function FirstRunReadyBar({ locale, onDismiss }: { locale: Locale; onDismiss?: () => void }) {
+  return (
+    <Panel className="relative overflow-hidden">
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 sketch-grid" />
+      <div className="relative flex items-center gap-3 p-3 sm:p-4">
+        <span className="grid size-9 shrink-0 place-items-center surface-media border-2 border-ink bg-ink text-paper-strong">
+          <Check aria-hidden="true" className="size-5" />
+        </span>
+        <p className="min-w-0 flex-1 type-body-sm font-bold text-ink">
+          <span className="font-black">{tr(locale, "Sve spremno", "All set")}</span>
+          {" — "}
+          {tr(locale, "sledeći korak:", "next step:")}{" "}
+          <Link
+            href={courseCatalogPath(locale)}
+            className="inline-flex items-center gap-1 font-black text-ink underline decoration-2 underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          >
+            {tr(locale, "izaberi kurs", "choose a course")}
+            <ArrowRight aria-hidden="true" className="size-3.5" />
+          </Link>
+        </p>
+        {onDismiss ? (
+          <button
+            type="button"
+            onClick={onDismiss}
+            aria-label={tr(locale, "Zatvori i ne prikazuj ponovo", "Close and do not show again")}
+            className="grid size-9 shrink-0 place-items-center rounded-full border-2 border-line bg-paper text-ink transition hover:bg-yellow focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          >
+            <X aria-hidden="true" className="size-4" />
+          </button>
+        ) : null}
+      </div>
+    </Panel>
+  );
+}
+
 // Zajednički oblik „nastavi" hero-a — identičan payload-u agregata (`resume`),
 // da i live i statička (hasConvex === false) grana hrane isti ResumeHero.
 type ResumeData = NonNullable<DashboardOverview["resume"]>;
@@ -1462,6 +1543,7 @@ export function DashboardHome({
   staticCourses?: DashboardCourse[];
 }) {
   const profileName = profile?.name ?? "Student";
+  const username = profile?.username ?? null;
 
   const view: CommandTableView = overview
     ? {
@@ -1474,29 +1556,53 @@ export function DashboardHome({
       }
     : staticCommandTableView(staticCourses ?? [], locale);
 
+  const firstRunSignals: FirstRunSignals = {
+    hasUnlockedCourse: view.hasUnlockedCourse,
+    completedLessons: view.progress.completedLessons,
+    hasCommunityPost: view.hasCommunityPost,
+  };
+  const firstRunSteps = buildFirstRunChecklist(firstRunSignals);
+
+  // Da li je „sve spremno" traka zatvorena za ovaj nalog. Na serveru odgovor ne
+  // postoji, pa je „zatvoreno" jedini bezbedan izbor: traka se pojavi tek posle
+  // hidracije umesto da bljesne pa nestane pred onim ko ju je već zatvorio.
+  const readyDismissed = useSyncExternalStore(
+    subscribeReadyBar,
+    () => (username ? readFirstRunReadyDismissed().includes(username) : false),
+    () => true,
+  );
+
   // Zona A se MENJA, tabla se ne gasi. Ranije je ovde stajao `return
-  // <DashboardFirstRun/>` koji je gutao sve ostalo (§1B iz UX-BOOST-PLAN).
-  const showResume = shouldShowResumeHero({
+  // <DashboardFirstRun/>` koji je gutao sve ostalo (§1B iz UX-BOOST-PLAN); sada je
+  // to `firstRunZoneView` sa četiri lica (hero / checklista / kompaktna traka / skriveno).
+  const zone = firstRunZoneView({
     hasUnlockedCourse: view.hasUnlockedCourse,
     hasResume: view.resume != null,
     totalLessons: view.progress.totalLessons,
+    doneCount: firstRunDoneCount(firstRunSteps),
+    stepCount: firstRunSteps.length,
+    compactDismissed: readyDismissed,
   });
 
   return (
     <div className="space-y-6">
-      {showResume ? (
+      {zone === "resume" ? (
         <ResumeHero locale={locale} profileName={profileName} resume={view.resume} progress={view.progress} />
-      ) : (
-        <DashboardFirstRun
+      ) : zone === "checklist" ? (
+        <DashboardFirstRun locale={locale} profileName={profileName} signals={firstRunSignals} />
+      ) : zone === "compact" ? (
+        <FirstRunReadyBar
           locale={locale}
-          profileName={profileName}
-          signals={{
-            hasUnlockedCourse: view.hasUnlockedCourse,
-            completedLessons: view.progress.completedLessons,
-            hasCommunityPost: view.hasCommunityPost,
-          }}
+          onDismiss={
+            username
+              ? () => {
+                  writeFirstRunReadyDismissed(username);
+                  notifyReadyBarChanged();
+                }
+              : undefined
+          }
         />
-      )}
+      ) : null}
       <DashboardPulse
         locale={locale}
         creditsBalance={overview?.studio.creditsBalance ?? 0}

@@ -181,7 +181,8 @@ export function DashboardWindow({
         )}
       </div>
       <div className="border-t-2 border-line p-4 sm:p-6">
-        <LinkButton href={ctaHref} tone="smoke" className="w-full min-h-10 px-4 text-xs font-black">
+        {/* `quiet`, ne `smoke`: `smoke` je žut tekst na belom (~1,7:1) u svetloj temi. */}
+        <LinkButton href={ctaHref} tone="quiet" className="w-full min-h-10 px-4 text-xs font-black">
           <span>{ctaLabel}</span>
           <ArrowRight className="size-4 shrink-0 transition-transform duration-300 group-hover:translate-x-1" />
         </LinkButton>

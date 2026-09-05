@@ -90,3 +90,40 @@ export function shouldShowResumeHero(view: {
 }): boolean {
   return view.hasUnlockedCourse && (view.hasResume || view.totalLessons > 0);
 }
+
+/**
+ * Koje lice zona A ima. Do sada su bila samo dva — `ResumeHero` ili puna
+ * checklista — pa je student koji je već sve odradio (3/3) i dalje gledao listu
+ * prvih koraka kao prekor, jer `ResumeHero` traži i kurs koji ima šta da nastavi.
+ * Sada su četiri:
+ *   • `"resume"`    — ima kurs koji se nastavlja (postojeći hero, ne dira se);
+ *   • `"checklist"` — nema kurs, nije sve odrađeno (kao dosad);
+ *   • `"compact"`   — nema kurs, ali je sve odrađeno → jednoredna „sve spremno" traka;
+ *   • `"hidden"`    — ta traka je zatvorena (pamti se po korisniku) → zona nestaje,
+ *                     mreža prozora ispod se podiže.
+ *
+ * Čista odluka: `compactDismissed` ulazi kao gotov podatak, a čitanje
+ * `localStorage`-a živi u komponenti (`lib/dashboard-first-run-preference.ts`).
+ */
+export type FirstRunZone = "resume" | "checklist" | "compact" | "hidden";
+
+export function firstRunZoneView(input: {
+  hasUnlockedCourse: boolean;
+  hasResume: boolean;
+  totalLessons: number;
+  doneCount: number;
+  stepCount: number;
+  compactDismissed: boolean;
+}): FirstRunZone {
+  if (
+    shouldShowResumeHero({
+      hasUnlockedCourse: input.hasUnlockedCourse,
+      hasResume: input.hasResume,
+      totalLessons: input.totalLessons,
+    })
+  ) {
+    return "resume";
+  }
+  if (input.doneCount < input.stepCount) return "checklist";
+  return input.compactDismissed ? "hidden" : "compact";
+}

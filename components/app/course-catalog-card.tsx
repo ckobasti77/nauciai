@@ -188,9 +188,11 @@ export function CourseCatalogRow({
         href={coursePath(locale, course.slug)}
         className="group flex items-center gap-3 px-5 py-4 transition-colors hover:bg-paper focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ink sm:gap-4 sm:px-6"
       >
-        {/* <div>, ne <span>: CourseCover u fallback grani renderuje <div>. */}
+        {/* <div>, ne <span>: CourseCover u fallback grani renderuje <div>.
+            `compact`: kutija je ~36px visoka, pa placeholder ide na sitni krug —
+            veliki (56px) se u ovoj kutiji odsecao u prazno. */}
         <div className="relative aspect-[16/9] w-16 shrink-0 overflow-hidden surface-media border-2 border-ink bg-paper sm:w-24">
-          <CourseCover course={course} locale={locale} />
+          <CourseCover course={course} locale={locale} compact />
         </div>
         <span className="min-w-0 flex-1">
           <span className="block truncate type-h4 text-ink">{localized(course.title, locale)}</span>

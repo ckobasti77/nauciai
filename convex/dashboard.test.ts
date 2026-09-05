@@ -294,6 +294,70 @@ test("firstRun: tuđa objava NE štiklira korak zajednice", async () => {
   expect(result?.firstRun.hasCommunityPost).toBe(false);
 });
 
+// ── owned filter: resume/nextLessons biraju samo iz otključanih kurseva ──────
+// „Nastavi lekciju" i prozor „Sledeće lekcije" su ranije nudili lekcije SVIH
+// objavljenih kurseva, pa i onih koje student nije otključao (UX-BOOST §1B dug).
+
+async function seedLesson(
+  t: TestConvexWithSchema,
+  courseId: Id<"courses">,
+  opts: { slug: string; sortOrder: number },
+) {
+  return t.run((ctx) =>
+    ctx.db.insert("lessons", {
+      courseId,
+      slug: opts.slug,
+      titleSr: `Lekcija ${opts.slug}`,
+      titleEn: `Lesson ${opts.slug}`,
+      summarySr: "Sažetak",
+      summaryEn: "Summary",
+      durationSeconds: 300,
+      isPublished: true,
+      sortOrder: opts.sortOrder,
+      updatedAt: 1,
+    }),
+  );
+}
+
+test("owned filter: bez upisa → resume i nextLessons prazni iako kurs ima lekcije", async () => {
+  const t = createTest();
+  const userId = await seedUser(t);
+  const courseId = await seedCourse(t, "js");
+  await seedLesson(t, courseId, { slug: "l1", sortOrder: 0 });
+
+  const result = await asUser(t, userId).query(api.dashboard.getDashboardOverview, {});
+  expect(result?.resume).toBeNull();
+  expect(result?.nextLessons).toEqual([]);
+  expect(result?.progress.totalLessons).toBe(0);
+});
+
+test("owned filter: aktivan upis → resume i nextLessons samo iz tog kursa", async () => {
+  const t = createTest();
+  const userId = await seedUser(t);
+  const ownedId = await seedCourse(t, "owned");
+  const lockedId = await seedCourse(t, "locked");
+  await seedLesson(t, ownedId, { slug: "owned-l1", sortOrder: 0 });
+  await seedLesson(t, lockedId, { slug: "locked-l1", sortOrder: 0 });
+  await t.run((ctx) =>
+    ctx.db.insert("enrollments", { userId, courseId: ownedId, status: "active", startedAt: 1, updatedAt: 1 }),
+  );
+
+  const result = await asUser(t, userId).query(api.dashboard.getDashboardOverview, {});
+  expect(result?.resume?.courseSlug).toBe("owned");
+  expect(result?.nextLessons.map((lesson) => lesson.courseSlug)).toEqual(["owned"]);
+  expect(result?.progress.totalLessons).toBe(1);
+});
+
+test("owned filter: staff bez upisa i dalje vidi lekcije objavljenih kurseva", async () => {
+  const t = createTest();
+  const userId = await seedUser(t, { email: "pro@example.com", role: "pro_student" });
+  const courseId = await seedCourse(t, "js");
+  await seedLesson(t, courseId, { slug: "l1", sortOrder: 0 });
+
+  const result = await asUser(t, userId).query(api.dashboard.getDashboardOverview, {});
+  expect(result?.nextLessons.map((lesson) => lesson.courseSlug)).toEqual(["js"]);
+});
+
 // ── admin prozori: nacrti + poslednji registrovani (U4) ──────────────────────
 
 test("admin: nacrti smera i kursa stižu sa id-jevima za deep link", async () => {

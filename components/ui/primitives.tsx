@@ -7,7 +7,7 @@ export function cn(...classes: Array<string | false | null | undefined>): string
 }
 
 type ButtonProps = ComponentProps<typeof Link> & {
-  tone?: "ink" | "paper" | "yellow" | "smoke";
+  tone?: "ink" | "paper" | "yellow" | "smoke" | "quiet";
   size?: "md" | "lg";
 };
 
@@ -32,6 +32,12 @@ export function LinkButton({ className, tone = "ink", size = "md", ...props }: B
           "border-ink bg-paper-strong text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] hover:-translate-y-0.5 active:shadow-[1px_1px_0_0_var(--shadow-hard)] focus-visible:outline-ink",
         tone === "smoke" &&
           "border-yellow bg-paper text-yellow shadow-[3px_3px_0_0_rgba(244,190,48,0.25)] hover:-translate-y-0.5 hover:border-yellow hover:bg-yellow hover:text-white hover:shadow-[4px_4px_0_0_var(--shadow-hard)] active:shadow-[2px_2px_0_0_var(--shadow-hard)] focus-visible:outline-yellow dark:bg-paper-strong/90 dark:shadow-[3px_3px_0_0_rgba(244,190,48,0.2)]",
+        // `quiet`: tiha sekundarna akcija sa ČITLJIVIM tekstom u obe teme. `smoke` je
+        // žut tekst na papiru (~1,7:1) — dobar na marketingu, pao je na komandnoj tabli.
+        // Ovde: mastilo na papiru u svetloj (12,9:1), žuto na tamnom papiru u tamnoj
+        // (7,66:1); na hover se popuni žutom sa mastilom. Sve kroz tokene, bez heksa.
+        tone === "quiet" &&
+          "border-ink bg-paper text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] hover:-translate-y-0.5 hover:bg-yellow hover:text-ink active:shadow-[1px_1px_0_0_var(--shadow-hard)] focus-visible:outline-ink dark:text-yellow dark:hover:text-ink",
         className,
       )}
       {...props}
@@ -40,7 +46,7 @@ export function LinkButton({ className, tone = "ink", size = "md", ...props }: B
 }
 
 type PlainButtonProps = ComponentProps<"button"> & {
-  tone?: "ink" | "paper" | "yellow" | "smoke";
+  tone?: "ink" | "paper" | "yellow" | "smoke" | "quiet";
   size?: "md" | "lg";
 };
 
@@ -61,6 +67,9 @@ export function Button({ className, tone = "ink", size = "md", type = "button", 
           "border-ink bg-paper-strong text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] hover:-translate-y-0.5 active:shadow-[1px_1px_0_0_var(--shadow-hard)] focus-visible:outline-ink",
         tone === "smoke" &&
           "border-yellow bg-paper text-yellow shadow-[3px_3px_0_0_rgba(244,190,48,0.25)] hover:-translate-y-0.5 hover:border-yellow hover:bg-yellow hover:text-white hover:shadow-[4px_4px_0_0_var(--shadow-hard)] active:shadow-[2px_2px_0_0_var(--shadow-hard)] focus-visible:outline-yellow dark:bg-paper-strong/90 dark:shadow-[3px_3px_0_0_rgba(244,190,48,0.2)]",
+        // Vidi `LinkButton` iznad — čitljiva sekundarna akcija u obe teme, kroz tokene.
+        tone === "quiet" &&
+          "border-ink bg-paper text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] hover:-translate-y-0.5 hover:bg-yellow hover:text-ink active:shadow-[1px_1px_0_0_var(--shadow-hard)] focus-visible:outline-ink dark:text-yellow dark:hover:text-ink",
         className,
       )}
       {...props}
