@@ -2,29 +2,31 @@
 
 import { ArrowRight, Sparkles } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 
 import { withLocale, type Locale, type MarqueeItem, type MarqueeTarget } from "@/lib/i18n";
 
 /**
- * Traka ishoda usidrena uz dno heroa (L1). 40 pojmova, svaki je <Link> na svoju sekciju.
+ * Traka ishoda usidrena uz dno heroa (L1.1). 40 pojmova, svaki je <Link> na svoju sekciju.
  *
  * Petlja: DVE identične kopije liste u `.marquee-track`; CSS pomera za -50% pa se vrati na
- * isti kadar → bešavno. Brzina je KONSTANTNA (~80px/s) nezavisno od broja/širine pojmova:
- * trajanje računamo iz izmerene širine jedne kopije (`--marquee-duration`), a ne fiksno.
- * Inicijalna procena po broju stavki drži razuman tempo do prvog merenja (bez skoka).
+ * isti kadar → bešavno. Brzina KONSTANTNA (~80px/s): trajanje = širina jedne kopije / 80,
+ * izmereno u `useLayoutEffect` (+ ResizeObserver), a ne fiksno.
  *
- * „Generating" ulazak (naš Studio brend): svaki pojam, svaki put kad uđe s desne ivice,
- * odigra kratko stanje — Sparkles ispred teksta pulsira postojećom `studio-breathe`
- * animacijom, a tekst se otkriva s leva na desno (clip-path) uz blur→oštro. IntersectionObserver
- * (root = viewport) samo dodaje/skida klasu preko `classList` (bez setState po frejmu); klasu
- * skidamo na `animationend` reveal-a pa se efekat ponovi u svakom krugu. Sparkles je i separator
- * između pojmova (ink/40 kad miruje).
+ * TERMINAL „generisanje" (L1.1): pojam van ekrana / u ulasku je `is-pending` — tekst je širine
+ * 0 uz `overflow: hidden` pa se NE vidi NIJEDNO slovo; svetluca samo Sparkles (twinkle) +
+ * trepćući blok-kursor (border-right, ne propušta tekst). Kad pojam CEO uđe u kadar trake
+ * (IntersectionObserver threshold 1.0) → `is-typing`: širina 0→100% u `steps(N)` (N = broj
+ * karaktera; trajanje+koraci postavljeni inline iz JS-a) uz kursor, pa na kraju kucanja →
+ * resolved (kursor nestaje, Sparkles se stiša na ink/40, tekst pun). Kad pojam potpuno izađe
+ * levo → opet `is-pending`, pa se u sledećem krugu ponovo „kuca". Širinu reda drži nevidljivi
+ * duplikat (`.marquee-ghost`) pa traka ne skače dok se tekst ispisuje. Samo classList +
+ * inline `animation` u IO callback-u (bez setState po frejmu); animiraju se width/opacity/boja.
  *
  * `bg-yellow` čini traku žutim OSTRVOM svetle palete (globals.css) → `text-ink` je uvek
- * tamnoplavo mastilo u obe teme. Druga kopija je `aria-hidden` + `tabIndex -1` (čitač/tab je
- * ne diraju). Uz `prefers-reduced-motion`: traka stoji, nema generating efekta, pojmovi se
- * lome u redove (flex-wrap) da svi ostanu dostupni — sve u globals.css.
+ * tamnoplavo mastilo u obe teme. Druga kopija je `aria-hidden` + `tabIndex -1`. Uz
+ * `prefers-reduced-motion`: traka stoji, nema pending/typing, sve je statično resolved i
+ * pojmovi se lome u redove (flex-wrap) — sve u globals.css.
  */
 
 const HREF_BY_TARGET: Record<MarqueeTarget, string> = {
@@ -35,6 +37,9 @@ const HREF_BY_TARGET: Record<MarqueeTarget, string> = {
 };
 
 const PIXELS_PER_SECOND = 80;
+const MS_PER_CHAR = 45;
+const TYPE_MIN_S = 0.5;
+const TYPE_MAX_S = 1.4;
 
 export function OutcomeMarquee({
   items,
@@ -72,38 +77,71 @@ export function OutcomeMarquee({
     return () => observer.disconnect();
   }, [items]);
 
-  // „Generating" na svaki ulazak s desne ivice. IO okida samo classList; klasu skidamo kad
-  // se reveal animacija završi (delegirani `animationend`) pa se ponovi u sledećem krugu.
-  useEffect(() => {
+  // Terminal state-machine: pending → typing → resolved → (izlaz levo) → pending.
+  useLayoutEffect(() => {
     const viewport = viewportRef.current;
     if (!viewport) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
-    // Generating okidamo samo na PRAVI ulazak s desne ivice (prelaz van->u kadar), nikad
-    // na pojmove koji su već u kadru pri učitavanju — inače bi blesnuli iz punog u skriveno.
-    const offscreen = new WeakSet<Element>();
+    const nodes = Array.from(viewport.querySelectorAll<HTMLLIElement>(".marquee-item"));
+
+    // Treperenje kursora (border-right ink↔providno). Animaciju width-a (kucanje) i kursor
+    // vodimo INLINE kroz `animation` shorthand: `steps(N)` mora biti literalan (var() u
+    // steps() nije svuda podržan), a inline kontrola izbegava sudar tajminga sa CSS-om.
+    const CARET = "marquee-caret 1s linear infinite";
+
+    const setPending = (li: HTMLLIElement) => {
+      const type = li.querySelector<HTMLElement>(".marquee-type");
+      li.classList.remove("is-typing");
+      li.classList.add("is-pending");
+      if (type) type.style.animation = CARET; // tekst širine 0 (CSS) → NIŠTA se ne vidi, samo kursor
+    };
+
+    const startTyping = (li: HTMLLIElement) => {
+      const type = li.querySelector<HTMLElement>(".marquee-type");
+      if (!type) return;
+      const chars = Math.max(1, Number(li.dataset.len) || 1);
+      const dur = Math.min(TYPE_MAX_S, Math.max(TYPE_MIN_S, (chars * MS_PER_CHAR) / 1000));
+      li.classList.remove("is-pending");
+      li.classList.add("is-typing");
+      type.style.animation = `marquee-type ${dur}s steps(${chars}, end) forwards, ${CARET}`;
+    };
+
+    const resolve = (li: HTMLLIElement) => {
+      const type = li.querySelector<HTMLElement>(".marquee-type");
+      li.classList.remove("is-pending", "is-typing");
+      if (type) type.style.animation = "none"; // pun tekst (CSS width:100%), bez kursora
+    };
+
+    // Inicijalno: što je već u kadru = resolved (bez animacije); što je desno van = pending.
+    const rootRight = viewport.getBoundingClientRect().right;
+    for (const li of nodes) {
+      if (li.getBoundingClientRect().left >= rootRight) setPending(li);
+    }
+
     const observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
-          if (entry.isIntersecting) {
-            if (offscreen.has(entry.target)) {
-              offscreen.delete(entry.target);
-              entry.target.classList.add("is-generating");
-            }
-          } else {
-            offscreen.add(entry.target);
+          const li = entry.target as HTMLLIElement;
+          if (entry.intersectionRatio >= 0.99) {
+            // Pojam je CEO u kadru → počni kucanje (samo ako je čekao kao pending).
+            if (li.classList.contains("is-pending")) startTyping(li);
+          } else if (!entry.isIntersecting) {
+            // Potpuno van kadra. Reset u pending SAMO kad je izašao levo (desni ulaz ne dira).
+            const root = entry.rootBounds;
+            if (root && entry.boundingClientRect.right <= root.left + 1) setPending(li);
           }
         }
       },
-      { root: viewport, threshold: 0 },
+      { root: viewport, threshold: [0, 1] },
     );
-
-    const nodes = viewport.querySelectorAll<HTMLLIElement>(".marquee-item");
     nodes.forEach((node) => observer.observe(node));
 
+    // Kraj kucanja → resolved (pun tekst, kursor nestaje).
     const handleAnimationEnd = (event: AnimationEvent) => {
-      if (event.animationName !== "marquee-generate-reveal") return;
-      (event.target as HTMLElement).closest(".marquee-item")?.classList.remove("is-generating");
+      if (event.animationName !== "marquee-type") return;
+      const li = (event.target as HTMLElement).closest<HTMLLIElement>(".marquee-item");
+      if (li) resolve(li);
     };
     viewport.addEventListener("animationend", handleAnimationEnd);
 
@@ -121,12 +159,12 @@ export function OutcomeMarquee({
       ref={viewportRef}
       role="region"
       aria-label={label}
-      className="marquee-viewport absolute inset-x-0 bottom-0 z-30 overflow-hidden border-t-2 border-ink bg-yellow"
+      className="marquee-viewport absolute inset-x-0 bottom-0 z-30 overflow-hidden bg-yellow"
     >
       <p className="sr-only">{hint}</p>
       <div
         ref={trackRef}
-        className="marquee-track flex w-max items-center"
+        className="marquee-track flex w-max items-stretch"
         style={{ ["--marquee-duration" as string]: initialDuration }}
       >
         {[0, 1].map((copy) => (
@@ -134,18 +172,27 @@ export function OutcomeMarquee({
             key={copy}
             ref={copy === 0 ? copyRef : undefined}
             aria-hidden={copy === 1 ? true : undefined}
-            className="marquee-copy flex w-max shrink-0 items-center"
+            className="marquee-copy flex w-max shrink-0 items-stretch"
           >
             {items.map((item, index) => (
-              <li key={`${copy}-${index}`} className="marquee-item flex shrink-0 items-center">
+              <li
+                key={`${copy}-${index}`}
+                data-len={item.label.length}
+                className="marquee-item flex shrink-0 items-stretch"
+              >
                 <Link
                   href={withLocale(locale, HREF_BY_TARGET[item.target])}
                   tabIndex={copy === 1 ? -1 : undefined}
                   aria-hidden={copy === 1 ? true : undefined}
-                  className="marquee-link group/marquee relative flex min-h-11 items-center gap-2 whitespace-nowrap px-5 font-display text-xl text-ink sm:px-7 sm:text-2xl lg:text-3xl"
+                  className="marquee-link relative flex items-center gap-2 whitespace-nowrap px-5 font-display text-xl text-ink sm:px-7 sm:text-2xl"
                 >
                   <Sparkles aria-hidden="true" className="marquee-spark size-4 shrink-0 text-ink/40" />
-                  <span className="marquee-label">{item.label}</span>
+                  <span className="marquee-term">
+                    <span className="marquee-ghost" aria-hidden="true">
+                      {item.label}
+                    </span>
+                    <span className="marquee-type">{item.label}</span>
+                  </span>
                   <ArrowRight aria-hidden="true" className="marquee-arrow size-4 shrink-0" />
                 </Link>
               </li>

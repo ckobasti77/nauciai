@@ -40,7 +40,7 @@ export function MarketingPage({
   const heroFreeVideoHref = `${withLocale(locale, `/courses/${primaryCourse.slug}`)}#besplatan-video`;
 
   return (
-    <main className="bg-paper text-ink">
+    <main className="overflow-x-clip bg-paper text-ink">
       <SmartStickyHeader
         overlay
         data-marketing-auth={viewerProfile ? "authenticated" : "anonymous"}
