@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
 
-import { applyHomography, homographyToMatrix3d, solveHomography, type Quad } from "./homography";
+import {
+  applyHomography,
+  decomposeHomography,
+  homographyToMatrix3d,
+  planePoint,
+  projectPoint,
+  solveHomography,
+  type Homography,
+  type Quad,
+  type Vec3,
+} from "./homography";
 
 const rect: Quad = [
   [0, 0],
@@ -84,5 +94,76 @@ describe("homographyToMatrix3d", () => {
     expect(values[0]).toBeCloseTo(h[0], 9);
     expect(values[1]).toBeCloseTo(h[3], 9);
     expect(values[3]).toBeCloseTo(h[6], 9);
+  });
+});
+
+describe("decomposeHomography", () => {
+  // Sintetička kamera i ravan: R = Rz(15°)·Rx(55°), t = (0.2, 0.1, 3), f = 1000, glavna tačka (640, 360).
+  const camera = { focal: 1000, principal: [640, 360] as const };
+  const rx = (55 * Math.PI) / 180;
+  const rz = (15 * Math.PI) / 180;
+  const Rx = [
+    [1, 0, 0],
+    [0, Math.cos(rx), -Math.sin(rx)],
+    [0, Math.sin(rx), Math.cos(rx)],
+  ];
+  const Rz = [
+    [Math.cos(rz), -Math.sin(rz), 0],
+    [Math.sin(rz), Math.cos(rz), 0],
+    [0, 0, 1],
+  ];
+  const R = Rz.map((row) => Rx[0].map((_, j) => row[0] * Rx[0][j] + row[1] * Rx[1][j] + row[2] * Rx[2][j]));
+  const t = [0.2, 0.1, 3];
+  const width = 1.6; // fizička širina ravni (u-osa), visina 1.0 → axisU se normalizuje na 1
+  const to3d = (u: number, v: number, lift = 0): Vec3 => [
+    R[0][0] * u * width + R[0][1] * v + R[0][2] * lift + t[0],
+    R[1][0] * u * width + R[1][1] * v + R[1][2] * lift + t[1],
+    R[2][0] * u * width + R[2][1] * v + R[2][2] * lift + t[2],
+  ];
+  const unit: Quad = [
+    [0, 0],
+    [1, 0],
+    [1, 1],
+    [0, 1],
+  ];
+  const projected = unit.map(([u, v]) => projectPoint(to3d(u, v), camera)) as unknown as Quad;
+  const h = solveHomography(unit, projected);
+  const pose = decomposeHomography(h, camera);
+
+  it("recovers the plane axes (scaled so |axisU| = 1) and the normal within 1e-6", () => {
+    const expectVec = (got: Vec3, want: Vec3) => got.forEach((v, i) => expect(Math.abs(v - want[i])).toBeLessThan(1e-6));
+    expectVec(pose.axisU, [R[0][0], R[1][0], R[2][0]]);
+    expectVec(pose.axisV, [R[0][1] / width, R[1][1] / width, R[2][1] / width]);
+    expectVec(pose.origin, [t[0] / width, t[1] / width, t[2] / width]);
+    // Normala R·e3 gleda OD kamere (z > 0 za ovaj R) → vraća se okrenuta ka kameri.
+    const n: Vec3 = [R[0][2], R[1][2], R[2][2]];
+    const sign = n[2] > 0 ? -1 : 1;
+    expectVec(pose.normal, [n[0] * sign, n[1] * sign, n[2] * sign]);
+    expect(pose.normal[2]).toBeLessThan(0);
+    expect(pose.origin[2]).toBeGreaterThan(0);
+  });
+
+  it("projects a point lifted along the normal exactly like the direct 3D construction (< 1e-6 px)", () => {
+    const lift = 0.06; // u jedinicama širine ravni
+    for (const [u, v] of [
+      [0.3, 0.3],
+      [0.7, 0.3],
+      [0.7, 0.7],
+      [0.3, 0.7],
+    ] as const) {
+      const viaPose = projectPoint(planePoint(pose, [u, v], lift), camera);
+      // Direktno: R·(u·width, v, ∓lift·width) + t — normala je okrenuta ka kameri, pa je znak isti kao u pozi.
+      const towardCamera = R[2][2] > 0 ? -1 : 1;
+      const direct = projectPoint(to3d(u, v, towardCamera * lift * width), camera);
+      expect(Math.abs(viaPose[0] - direct[0])).toBeLessThan(1e-6);
+      expect(Math.abs(viaPose[1] - direct[1])).toBeLessThan(1e-6);
+    }
+  });
+
+  it("is invariant to the sign of the homography (H and −H describe the same plane)", () => {
+    const negated = h.map((v) => -v) as unknown as Homography;
+    const other = decomposeHomography(negated, camera);
+    other.normal.forEach((v, i) => expect(Math.abs(v - pose.normal[i])).toBeLessThan(1e-9));
+    other.origin.forEach((v, i) => expect(Math.abs(v - pose.origin[i])).toBeLessThan(1e-9));
   });
 });

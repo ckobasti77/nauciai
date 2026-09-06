@@ -62,3 +62,17 @@ export function pageMotionVariantForPath(pathname: string): PageMotionVariant {
 export function pageMotionSceneKey(pathname: string): string {
   return pathname;
 }
+
+/**
+ * Hero kartica (L3.1): podizanje po normali lista na hover/focus. JS interpoliše uglove
+ * ploče (0 → podignut quad) i rešava homografiju po frejmu, GSAP vodi tajming (rAF samo dok
+ * traje prelaz — 200 ms ≈ 12 frejmova). `ease` je GSAP parnjak CSS `--ease-studio-out`.
+ * `heightRatio` = visina podizanja kao deo ŠIRINE lista (6 %). `activeDuration` = povratak
+ * na list pri pritisku.
+ */
+export const heroCardLift = {
+  duration: 0.2,
+  activeDuration: 0.12,
+  ease: "power3.out",
+  heightRatio: 0.06,
+} as const;

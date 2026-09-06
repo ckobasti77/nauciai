@@ -118,7 +118,10 @@ export const marketingContent = {
       titleHighlight: "gotovog rada",
       subhead:
         "Kroz kratke lekcije, materijale i zajednicu praviš prave radove: montiran video, sopstveni sajt i naraciju sa AI glasom. Bez predznanja.",
+      // L3.1: portret hero (telefon/tablet) — kratka kopija u 2 reda i kratka CTA labela.
+      subheadCompact: "Kratke lekcije i zajednica: praviš video, sajt i AI naraciju bez predznanja.",
       ctaSecondary: "Odgledaj besplatan video",
+      ctaSecondaryShort: "Odgledaj video",
       videoAlt: "Isečci iz AI video, audio i web lekcija",
       trustCohort: "Prva generacija upisana",
       trustSerbian: "Kursevi na srpskom",
@@ -282,7 +285,9 @@ export const marketingContent = {
       titleHighlight: "finished work",
       subhead:
         "Through short lessons, materials, and a community you build real work: an edited video, your own website, and narration with an AI voice. No experience needed.",
+      subheadCompact: "Short lessons and a community: make video, sites and AI voice — no experience needed.",
       ctaSecondary: "Watch the free video",
+      ctaSecondaryShort: "Watch video",
       videoAlt: "Clips from the AI video, audio and web lessons",
       trustCohort: "First cohort enrolled",
       trustSerbian: "Courses in Serbian",

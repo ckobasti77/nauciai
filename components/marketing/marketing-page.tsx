@@ -109,7 +109,19 @@ export function MarketingPage({
                 levo/desno je ista krem bg (izmerena iz postera → `--hero-paper`),
                 ivice maskirane → bešavno, bez linija. */}
             <div className="absolute inset-0 z-0">
-              <HeroLoop label={m.hero.videoAlt} variant="cover" bg="var(--hero-paper)" />
+              <HeroLoop
+                label={m.hero.videoAlt}
+                variant="cover"
+                bg="var(--hero-paper)"
+                portrait={{
+                  webmSrc: "/images/landing/hero-v2-portrait-loop.webm",
+                  mp4Src: "/images/landing/hero-v2-portrait-loop.mp4",
+                  posterSrc: "/images/landing/hero-v2-portrait-poster.webp",
+                  fallbackSrc: "/images/landing/hero-v2-portrait.png",
+                  width: 1064,
+                  height: 1920,
+                }}
+              />
               {/* L3: 3D kartice na listu sveske — isti roditelj i ista geometrija kao video
                   (`.hero-cover-media`); vidljive samo iznad praga (CSS). */}
               <HeroCards3d locale={locale} signedIn={Boolean(viewerProfile)} />
@@ -117,27 +129,32 @@ export function MarketingPage({
             {/* Tekst: levo, vertikalno centriran u prostoru IZNAD trake; `pt` ga drži
                 ispod lebdećeg (fixed) navbara, donji padding = visina trake + 24px (+ visina
                 snap reda kartica ispod praga). Kontejner propušta klik (kartice na svesci su
-                ispod njega u z-redu), a sam tekst-blok ga vraća. */}
+                ispod njega u z-redu), a sam tekst-blok ga vraća. U PORTRETU (L3.1) CSS
+                (`.hero-copy*`, globals.css) ga diže u gornju praznu zonu portret videa:
+                kompaktan h1, kratka kopija podnaslova (`hero-subhead-compact`), CTA u
+                jednom redu sa kratkom labelom (`hero-cta-short`); trust lista se ne prikazuje. */}
             <div
-              className="pointer-events-none relative z-20 mx-auto flex h-full w-full max-w-7xl items-center px-4 pt-20 sm:px-6 lg:px-8"
+              className="hero-copy-wrap pointer-events-none relative z-20 mx-auto flex h-full w-full max-w-7xl items-center px-4 pt-20 sm:px-6 lg:px-8"
               style={{ paddingBottom: "calc(var(--marquee-h) + 24px + var(--hero-cards-row-h))" }}
             >
-              <div className="pointer-events-auto relative z-10 max-w-md xl:max-w-lg" data-motion="copy">
+              <div className="hero-copy pointer-events-auto relative z-10 max-w-md xl:max-w-lg" data-motion="copy">
                 <h1 className="text-balance text-4xl font-black leading-[1.03] text-ink sm:text-5xl lg:text-6xl">
                   {m.hero.titleLead}
                   <MarkerHighlight>{m.hero.titleHighlight}</MarkerHighlight>
                 </h1>
-                <p className="mt-6 text-lg font-bold leading-8 text-muted sm:text-xl">
-                  {m.hero.subhead}
+                <p className="hero-subhead mt-6 text-lg font-bold leading-8 text-muted sm:text-xl">
+                  <span className="hero-subhead-full">{m.hero.subhead}</span>
+                  <span className="hero-subhead-compact">{m.hero.subheadCompact}</span>
                 </p>
-                <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                <div className="hero-cta mt-8 flex flex-col gap-3 sm:flex-row">
                   <LinkButton href={startLearningHref} tone="yellow" size="lg" className="w-full sm:w-auto">
                     <Sparkles className="size-4" />
                     {t.startLearning}
                   </LinkButton>
                   <LinkButton href={heroFreeVideoHref} tone="paper" size="lg" className="w-full sm:w-auto">
                     <PlayCircle className="size-4" />
-                    {m.hero.ctaSecondary}
+                    <span className="hero-cta-long">{m.hero.ctaSecondary}</span>
+                    <span className="hero-cta-short">{m.hero.ctaSecondaryShort}</span>
                   </LinkButton>
                 </div>
                 <ul className="hero-trust mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm font-extrabold text-muted">

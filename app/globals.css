@@ -72,8 +72,10 @@
   --paper-strong: #ffffff;
   --yellow: #f4be30;
   /* Krem podloga heroa — PROSEČNA boja gornjeg levog ugla (24×24 px) iz
-     `hero-v2-poster.png` (1920×1072), izmerena skriptom (sharp). Ista je u obe teme (to je
-     ton videa, ne tokeni palete), pa je hero spoj bešavan i u tamnoj temi. */
+     `hero-v2-poster.png` (1920×1072), izmerena skriptom (sharp). L3.1: portret poster
+     (`hero-v2-portrait-poster.png`, 1064×1920) meri IDENTIČNO rgb(253, 238, 216) = #fdeed8,
+     pa jedan token pokriva obe orijentacije (bez duplikata). Ista je u obe teme (to je ton
+     videa, ne tokeni palete), pa je hero spoj bešavan i u tamnoj temi. */
   --hero-paper: #fdeed8;
   --muted: #536273;
   --line: #c9d4df;
@@ -664,8 +666,12 @@ details[open] > summary .faq-icon-open {
   will-change: transform;
 }
 
+/* `is-paused` (L3.1): komponenta pauzira traku dok je tab/prozor sakriven ili bez fokusa, pa po
+   povratku RE-SYNC-uje stanja bez kucanja (inače bi sve što je „ušlo" u međuvremenu kucalo
+   odjednom). */
 .marquee-viewport:hover .marquee-track,
-.marquee-viewport:focus-within .marquee-track {
+.marquee-viewport:focus-within .marquee-track,
+.marquee-track.is-paused {
   animation-play-state: paused;
 }
 
@@ -726,7 +732,10 @@ details[open] > summary .faq-icon-open {
    animira 0→100% u `steps(N)` (trajanje + N postavlja JS inline, kao i blink kursora).
    Blok-kursor je `border-right` (nije sadržaj → overflow ga ne seče, ne propušta tekst) na
    desnoj ivici ispisanog dela; treperi kroz `marquee-caret` (boja ivice ink↔providno).
-   `box-sizing: content-box` drži kursor VAN otkrivene širine (ne jede prostor teksta). */
+   `box-sizing: content-box` drži kursor VAN otkrivene širine (ne jede prostor teksta).
+   L3.1: kursor postoji SAMO dok pojam kuca (`is-typing`); u `is-pending` nema kursora — vidi
+   se samo Sparkles koji „diše" (`studio-breathe`), a kuca uvek najviše JEDAN pojam (FIFO red
+   u komponenti), pa na traci nikad nema dva kursora. */
 .marquee-term {
   position: relative;
   display: inline-block;
@@ -779,7 +788,6 @@ details[open] > summary .faq-icon-open {
 .marquee-item.is-pending .marquee-type {
   width: 0;
 }
-.marquee-item.is-pending .marquee-type,
 .marquee-item.is-typing .marquee-type {
   border-right: 0.5em solid transparent;
 }
@@ -787,6 +795,11 @@ details[open] > summary .faq-icon-open {
 .marquee-item.is-typing .marquee-spark {
   color: var(--ink);
   transform-origin: center;
+}
+.marquee-item.is-pending .marquee-spark {
+  animation: studio-breathe var(--motion-spor) ease-in-out infinite;
+}
+.marquee-item.is-typing .marquee-spark {
   animation: marquee-twinkle 1.1s ease-in-out infinite;
 }
 
@@ -882,6 +895,61 @@ details[open] > summary .faq-icon-open {
     transform: translateY(-50%);
   }
 }
+/* L3.1 — DVA videa po orijentaciji (`data-dual`, samo home hero koji ima portret assete):
+   u PORTRETU (visina ≥ širina) medij je portret video 1064×1920, height-fit (visina = 100svh),
+   horizontalno centriran; višak širine seče `overflow-hidden` sekcije (na 390×844 ≈ 39 px sa
+   svake strane — ivice su prazne). Isti box dobija i sloj 3D kartica, pa JS iz odnosa
+   visina > širina zna da računa portret geometriju. Studio hero (bez `data-dual`) ostaje na
+   landscape pravilima iznad u svakoj orijentaciji. */
+@media (orientation: portrait) {
+  .hero-cover-media[data-dual] {
+    left: 50%;
+    right: auto;
+    width: auto;
+    height: 100%;
+    transform: translate(-50%, -50%);
+    aspect-ratio: 1064 / 1920;
+  }
+}
+/* Poster kao CSS pozadina videa (a ne `poster` atribut, koji ne ume da bira po orijentaciji):
+   pre prvog frejma video je providan pa se poster vidi; box = video, pa `100% 100%` nije
+   distorzija. Na landscape telefonu (< 1024) video nema NIJEDAN izvor (media na <source>),
+   pa poster ostaje jedina slika. */
+.hero-cover-video[data-dual] {
+  background: var(--hero-poster-landscape) center / 100% 100% no-repeat;
+}
+@media (orientation: portrait) {
+  .hero-cover-video[data-dual] {
+    background-image: var(--hero-poster-portrait);
+  }
+}
+/* Mask koji fade-uje sve 4 ivice vizuala u transparentno (→ ista `--hero-paper` boja iza),
+   pa se ton videa stapa u pozadinu čak i ako se po frejmu minimalno razlikuje. `intersect`
+   (WebKit: `source-in`) ukršta horizontalni i vertikalni gradijent. Portret: uži fade (4 % /
+   5 %) jer spirala počinje na x = 7 % (75 px), a uvijeni ugao lista završava na y = 93.75 %
+   (1800 px) — 7 % bi ih sekao. */
+.hero-cover-mask {
+  -webkit-mask-image:
+    linear-gradient(to right, transparent 0%, black 7%, black 93%, transparent 100%),
+    linear-gradient(to bottom, transparent 0%, black 7%, black 93%, transparent 100%);
+  mask-image:
+    linear-gradient(to right, transparent 0%, black 7%, black 93%, transparent 100%),
+    linear-gradient(to bottom, transparent 0%, black 7%, black 93%, transparent 100%);
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+@media (orientation: portrait) {
+  .hero-cover-mask[data-dual] {
+    -webkit-mask-image:
+      linear-gradient(to right, transparent 0%, black 4%, black 96%, transparent 100%),
+      linear-gradient(to bottom, transparent 0%, black 5%, black 96%, transparent 100%);
+    mask-image:
+      linear-gradient(to right, transparent 0%, black 4%, black 96%, transparent 100%),
+      linear-gradient(to bottom, transparent 0%, black 5%, black 96%, transparent 100%);
+  }
+}
 
 /* ── Hero kartice (L3) ─────────────────────────────────────────────────────────────
    4 klikabilne kartice „leže" na listu sveske u hero videu. Geometrija (uglovi ploča,
@@ -889,20 +957,35 @@ details[open] > summary .faq-icon-open {
    `components/marketing/hero-cards.tsx`.
 
    Dva sloja, oba u DOM-u (SSR, bez JS odluke), CSS bira:
-   - `.hero-cards-3d`: sloj sa ISTOM klasom `.hero-cover-media` kao video (isti box). Svaka
-     kartica ima layout box = veličina SVOJE ploče u CSS px (bliža ploča je veća, dalja
-     manja — kartice su namerno različitih veličina) i `matrix3d` homografiju koja taj box
-     položi tačno na ploču; oba računa `plateLayout()` na svaki resize (ResizeObserver piše
-     width/height/transform inline). Prikazuje se SAMO kad je najmanja ploča ≥ 110 CSS px:
-     video je contain, renderovana širina = min(vw, 100svh·1920/1072), najmanja ploča je
-     165.6 px videa ⇒ vw ≥ 1276 px I visina ≥ 713 px. Literal ispod je izveden u
-     `heroCardsBreakpoint()` — `lib/hero-cards.test.ts` čuva da su jednaki.
+   - `.hero-cards-3d`: sloj sa ISTOM klasom `.hero-cover-media` kao video (isti box, u obe
+     orijentacije). Svaka kartica ima layout box = veličina SVOJE ploče u CSS px (bliža
+     ploča je veća, dalja manja — kartice su namerno različitih veličina) i `matrix3d`
+     homografiju koja taj box položi tačno na ploču; oba računa `plateLayout()` na svaki
+     resize (ResizeObserver piše width/height/transform inline). Prikazuje se kad je
+     najmanja ploča ≥ 80 CSS px (L3.1):
+       · landscape: video je contain, renderovana širina = min(vw, 100svh·1920/1072),
+         najmanja ploča 165.7 px videa ⇒ visina ≥ 519 px; širina ≥ 1024 je dizajn prag (lg);
+       · portret: video je height-fit (100svh·1064/1920), najmanja ploča 202.1 px videa ⇒
+         visina ≥ 761 px (širina samo kropuje).
+     Oba literala su izvedena u `heroCardsMediaQuery()` — `lib/hero-cards.test.ts` čuva da
+     su jednaki.
    - `.hero-cards-row`: ispod praga, iste 4 kartice kao horizontalni snap red iznad trake
-     (`--hero-cards-row-h` ulazi u donji padding hero kopije da se ne preklope).
-   Sadržaj kartice raste sa prostorom (container query na box-u kartice): osnovni nivo je
-   ikona + naslov + strelica; od 150 px dolazi i kratka linija; od 200/240 px veći naslov i
-   ikona. Sve boje kroz tokene; sekcija je `.hero-paper-island`, pa je kartica svetla u OBE
-   teme (leži na svetlom listu — namerno). */
+     (`--hero-cards-row-h` ulazi u donji padding hero kopije da se ne preklope). Na
+     landscape telefonu (< 1024) i na niskom portretu (375×667) ovo je jedini prikaz.
+   Sadržaj kartice raste sa prostorom (container query na box-u kartice, ŠIRINA ploče):
+   80–109 px „mala" (ikona 18 + naslov 13 px u 2 reda, bez strelice — sudarila bi se sa
+   naslovom u 86×90); od 110 px „srednja" (ikona 20, naslov 17 px, strelica); od 150 px
+   „puna" (+ kratka linija, ako ima i ≥ 96 px visine); od 200/240 px veći naslov i ikona.
+   Sve boje kroz tokene; sekcija je `.hero-paper-island`, pa je kartica svetla u OBE teme
+   (leži na svetlom listu — namerno).
+
+   HOVER (L3.1): kartica se podiže PO NORMALI LISTA („kako gleda, u tom pravcu"), ne
+   `translateZ` — u homografski položenom elementu translateZ ne ide po normali i vuče
+   karticu u stranu. JS (`hero-cards.tsx`) interpoliše uglove ploče ka podignutom quadu
+   (`plateLiftedQuadVideoPx`: dekompozicija homografije lista → normala, h = 6 % širine
+   lista) i piše `matrix3d` po frejmu kroz GSAP (200 ms, samo dok traje). Senka ostaje „na
+   papiru": pomera se SUPROTNO od podizanja kroz `--hero-lift-sx/sy` (JS, lokalni px). CSS
+   ovde drži samo boje/senku/zatamnjenje ostalih. */
 :root {
   --hero-cards-row-h: 76px; /* 64px kartica + 12px razmak do trake */
 }
@@ -942,26 +1025,27 @@ details[open] > summary .faq-icon-open {
   width: 100%;
   height: 100%;
   flex-direction: column;
-  padding: 10px 12px;
+  padding: 8px 10px;
   border: 2px solid var(--ink);
-  border-radius: 16px;
+  border-radius: 12px;
   background: var(--paper-strong);
   color: var(--ink);
-  box-shadow: 5px 5px 0 0 var(--shadow-hard-16);
-  transform: translateZ(0) scale(1);
-  transition:
-    transform 180ms var(--ease-studio-out),
-    box-shadow 180ms var(--ease-studio-out);
+  /* Osnovna tvrda senka (`--hero-shadow`, 6px od 200 px) + pomeraj suprotan od podizanja
+     (JS piše `--hero-lift-*` na kartici). */
+  --hero-shadow: 5px;
+  box-shadow: calc(var(--hero-shadow) + var(--hero-lift-sx, 0px))
+    calc(var(--hero-shadow) + var(--hero-lift-sy, 0px)) 0 0 var(--shadow-hard-16);
 }
+/* Mala varijanta (80–109 px): ikona 18, naslov 13 px u najviše 2 reda, bez strelice. */
 .hero-card-icon {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   flex: none;
 }
 .hero-card-title {
-  margin-top: 6px;
-  font-size: 17px;
-  line-height: 1.05;
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 1.1;
   text-wrap: balance;
 }
 .hero-card-line {
@@ -972,6 +1056,7 @@ details[open] > summary .faq-icon-open {
   color: var(--muted);
 }
 .hero-card-arrow {
+  display: none;
   position: absolute;
   right: 12px;
   bottom: 10px;
@@ -980,22 +1065,44 @@ details[open] > summary .faq-icon-open {
   transform: translateX(0);
   transition: transform 180ms var(--ease-studio-out);
 }
+/* Srednja varijanta (110–149 px): ikona 20, naslov 17 px, strelica. */
+@container (min-width: 110px) {
+  .hero-card-face {
+    padding: 10px 12px;
+    border-radius: 16px;
+  }
+  .hero-card-icon {
+    width: 20px;
+    height: 20px;
+  }
+  .hero-card-title {
+    margin-top: 6px;
+    font-size: 17px;
+    line-height: 1.05;
+  }
+  .hero-card-arrow {
+    display: block;
+  }
+}
+/* Puna varijanta (≥ 150 px): + kratka linija (samo ako i visina to nosi), veća ikona. */
 @container (min-width: 150px) {
   .hero-card-title {
     font-size: 19px;
-  }
-  .hero-card-line {
-    display: block;
   }
   .hero-card-icon {
     width: 22px;
     height: 22px;
   }
 }
+@container (min-width: 150px) and (min-height: 96px) {
+  .hero-card-line {
+    display: block;
+  }
+}
 @container (min-width: 200px) {
   .hero-card-face {
     padding: 14px 16px;
-    box-shadow: 6px 6px 0 0 var(--shadow-hard-16);
+    --hero-shadow: 6px;
   }
   .hero-card-title {
     font-size: 23px;
@@ -1026,16 +1133,13 @@ details[open] > summary .faq-icon-open {
     height: 30px;
   }
 }
-/* Hover/focus: kartica se „odlepi" od lista — ka kameri (translateZ kroz perspective
-   sloja) + blago uvećanje + veća tvrda senka; active je vraća na list. */
+/* Hover/focus: podizanje po normali radi JS (transform + `--hero-lift-*`); ovde samo senka
+   postane malo tamnija dok je kartica u vazduhu (active je vraća na list — JS spušta lift
+   na 0, pa vars padnu na 0 i senka se vrati). */
 .hero-card:hover .hero-card-face,
 .hero-card:focus-visible .hero-card-face {
-  transform: translateZ(24px) scale(1.03);
-  box-shadow: 8px 8px 0 0 var(--shadow-hard-20);
-}
-.hero-card:active .hero-card-face {
-  transform: translateZ(0) scale(1);
-  box-shadow: 5px 5px 0 0 var(--shadow-hard-16);
+  box-shadow: calc(var(--hero-shadow) + var(--hero-lift-sx, 0px))
+    calc(var(--hero-shadow) + var(--hero-lift-sy, 0px)) 0 0 var(--shadow-hard-20);
 }
 /* Kad je jedna kartica živa, ostale blago potamne. */
 .hero-cards-3d:has(.hero-card:hover, .hero-card:focus-visible) .hero-card:not(:hover, :focus-visible) {
@@ -1056,7 +1160,18 @@ details[open] > summary .faq-icon-open {
   display: none;
 }
 
-@media (min-width: 1276px) and (min-height: 713px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 519px) {
+  .hero-cards-3d {
+    display: block;
+  }
+  .hero-cards-row {
+    display: none;
+  }
+  :root {
+    --hero-cards-row-h: 0px;
+  }
+}
+@media (orientation: portrait) and (min-height: 761px) {
   .hero-cards-3d {
     display: block;
   }
@@ -1068,13 +1183,144 @@ details[open] > summary .faq-icon-open {
   }
 }
 
-/* Nizak ekran sa snap redom: tekst + CTA + red + traka ne staju uz trust listu, pa se ona
-   sakriva. Red je aktivan kad NIJE (≥1276 × ≥713); izmereno: kopija je 534px visoka, a
-   prostor = visina − 80 (navbar) − 148 (traka + 24 + red) → ispod 766px visine trust (80px
-   sa marginom) mora da ode. Primeri: 1536×695 i 375×667 → sakrivena; 1280×720 i 390×844
-   → vidljiva (3D sloj / dovoljno visine). */
-@media (max-width: 1275px) and (max-height: 765px), (max-height: 712px) {
+/* Nizak landscape ekran sa snap redom: tekst + CTA + red + traka ne staju uz trust listu, pa
+   se ona sakriva. Red je aktivan ispod 1024 širine ili 519 visine; izmereno: kopija je 534px
+   visoka, a prostor = visina − 80 (navbar) − 148 (traka + 24 + red) → ispod 766px visine
+   trust (80px sa marginom) mora da ode. Na 3D laptopu (1536×695) trust ostaje jer nema reda,
+   ali ispod 720 visine ipak ne staje uz kopiju → skriva se. U PORTRETU trust nikad (L3.1:
+   kopija ide u gornju praznu zonu videa, 43.5 % visine). */
+@media (orientation: landscape) and (max-width: 1023px) and (max-height: 765px),
+  (orientation: landscape) and (max-height: 719px),
+  (orientation: portrait) {
   .hero-trust {
     display: none;
+  }
+}
+
+/* ── Hero kopija u PORTRETU (L3.1) ─────────────────────────────────────────────────
+   Portret video ima prazan papir u gornjih 43.5 % visine (prvo mastilo: antena robota na
+   y = 836/1920). Tekst ide gore-levo, kompaktno: h1 3xl (4xl od 380×800, 5xl od 768 širine),
+   kratka kopija podnaslova (≈ 76 znakova, 14 px/20 px → 2 reda i na 360 širine), CTA u
+   jednom redu (oba dugmeta `flex: 1`, 44 px).
+   Budžet 390×844: 64 + 148 (h1 4 reda) + 12 + 40 + 16 + 44 = 324 < 367 (43.5 % · 844).
+   Budžet 375×667 (snap red ispod): 56 + 126 (3xl, 4 reda) + 8 + 40 + 12 + 44 = 286 < 290. */
+/* Kompaktne verzije (kratka kopija, kratka CTA labela) postoje samo u portretu; osnovno pravilo
+   je ISPRED portret bloka da bi ga ono (ista specifičnost) moglo prebiti. */
+.hero-subhead-compact,
+.hero-cta-short {
+  display: none;
+}
+@media (orientation: portrait) {
+  .hero-copy-wrap {
+    align-items: flex-start;
+    padding-top: 4rem;
+    padding-bottom: 0;
+  }
+  .hero-copy {
+    max-width: 40rem;
+  }
+  .hero-copy h1 {
+    font-size: 1.875rem;
+    line-height: 1.05;
+  }
+  .hero-subhead {
+    margin-top: 0.75rem;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+  .hero-subhead-full {
+    display: none;
+  }
+  .hero-subhead-compact {
+    display: inline;
+  }
+  .hero-cta {
+    margin-top: 1rem;
+    flex-direction: row;
+    gap: 0.75rem;
+  }
+  .hero-cta > a {
+    flex: 1 1 0;
+    min-width: 0;
+    width: auto;
+    min-height: 2.75rem;
+    padding-inline: 0.75rem;
+    padding-block: 0.5rem;
+    font-size: 0.875rem;
+  }
+  .hero-cta-long {
+    display: none;
+  }
+  .hero-cta-short {
+    display: inline;
+  }
+}
+@media (orientation: portrait) and (min-width: 380px) and (min-height: 800px) {
+  .hero-copy h1 {
+    font-size: 2.25rem;
+    line-height: 1.03;
+  }
+}
+@media (orientation: portrait) and (min-width: 768px) {
+  .hero-copy h1 {
+    font-size: 3rem;
+  }
+  .hero-subhead {
+    margin-top: 1rem;
+    font-size: 1.125rem;
+    line-height: 1.75rem;
+  }
+  .hero-cta > a {
+    flex: 0 0 auto;
+    padding-inline: 1.5rem;
+    font-size: 1rem;
+  }
+}
+@media (orientation: portrait) and (max-height: 700px) {
+  .hero-copy-wrap {
+    padding-top: 3.5rem;
+  }
+  .hero-subhead {
+    margin-top: 0.5rem;
+  }
+  .hero-cta {
+    margin-top: 0.75rem;
+  }
+}
+/* Landscape telefon (fallback: landscape poster + snap red + traka): kopija gore-levo,
+   kompaktna, da h1 ne zađe pod navbar; kompaktne verzije podnaslova i CTA labele kao u portretu.
+   Budžet 844×390: 56 + h1 3 reda 95 + 8 + 40 + 12 + 44 = 255 < 270 (vrh snap reda). */
+@media (orientation: landscape) and (max-height: 500px) {
+  .hero-copy-wrap {
+    align-items: flex-start;
+    padding-top: 3.5rem;
+  }
+  .hero-copy h1 {
+    font-size: 1.875rem;
+    line-height: 1.05;
+  }
+  .hero-subhead {
+    margin-top: 0.5rem;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+  .hero-subhead-full,
+  .hero-cta-long {
+    display: none;
+  }
+  .hero-subhead-compact,
+  .hero-cta-short {
+    display: inline;
+  }
+  .hero-cta {
+    margin-top: 0.75rem;
+    flex-direction: row;
+    gap: 0.75rem;
+  }
+  .hero-cta > a {
+    width: auto;
+    min-height: 2.75rem;
+    padding-block: 0.5rem;
+    font-size: 0.875rem;
   }
 }

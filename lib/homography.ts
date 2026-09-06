@@ -72,3 +72,75 @@ export function homographyToMatrix3d(h: Homography): string {
   const values = [h[0], h[3], 0, h[6], h[1], h[4], 0, h[7], 0, 0, 1, 0, h[2], h[5], 0, h[8]];
   return `matrix3d(${values.map(f).join(", ")})`;
 }
+
+/* ── Poza ravni iz homografije (L3.1: hover po normali lista) ──────────────────────────
+   Kamera sa žižnom daljinom `f` (px slike) i glavnom tačkom `principal` (centar slike):
+     K = [ f 0 cx ; 0 f cy ; 0 0 1 ].
+   Ako `h` preslikava jedinični kvadrat ravni (u, v) u px slike, onda je K⁻¹·H = λ·[a b t]:
+   `a`, `b` su pravci u- i v-ose ravni u prostoru kamere (dužine = fizičke dužine ivica),
+   `t` je položaj ugla (0,0). Normala ravni je a × b — krst-proizvod NE traži da su ose
+   ortogonalne (crtež nije obavezno fizički konzistentan), pa se R ne ortonormalizuje.
+   Skala λ se fiksira tako da |a| = 1: jedinica prostora = ŠIRINA ravni (u-ivica). */
+
+export type Vec3 = readonly [number, number, number];
+
+export type PlanePose = {
+  /** Pravac u-ose ravni u prostoru kamere, |axisU| = 1 (jedinica = širina ravni). */
+  axisU: Vec3;
+  /** Pravac v-ose ravni (dužina = visina ravni u jedinicama širine). */
+  axisV: Vec3;
+  /** Položaj ugla (u, v) = (0, 0). */
+  origin: Vec3;
+  /** Jedinična normala ravni, okrenuta KA kameri (z < 0). */
+  normal: Vec3;
+};
+
+export type Camera = { focal: number; principal: Point };
+
+export function decomposeHomography(h: Homography, camera: Camera): PlanePose {
+  const { focal, principal } = camera;
+  const [cx, cy] = principal;
+  const column = (i: number): Vec3 => [(h[i] - cx * h[6 + i]) / focal, (h[3 + i] - cy * h[6 + i]) / focal, h[6 + i]];
+  let a = column(0);
+  let b = column(1);
+  let t = column(2);
+  // Homografija je do na znak: ravan mora biti ISPRED kamere (t.z > 0).
+  if (t[2] < 0) {
+    a = negate(a);
+    b = negate(b);
+    t = negate(t);
+  }
+  const scale = 1 / length(a);
+  a = times(a, scale);
+  b = times(b, scale);
+  t = times(t, scale);
+  let n = cross(a, b);
+  n = times(n, 1 / length(n));
+  if (n[2] > 0) n = negate(n);
+  return { axisU: a, axisV: b, origin: t, normal: n };
+}
+
+/** Tačka ravni (u, v), podignuta za `lift` (u jedinicama širine ravni) duž normale, u 3D. */
+export function planePoint(pose: PlanePose, [u, v]: Point, lift = 0): Vec3 {
+  const { axisU: a, axisV: b, origin: t, normal: n } = pose;
+  return [
+    a[0] * u + b[0] * v + t[0] + n[0] * lift,
+    a[1] * u + b[1] * v + t[1] + n[1] * lift,
+    a[2] * u + b[2] * v + t[2] + n[2] * lift,
+  ];
+}
+
+/** Perspektivna projekcija 3D tačke prostora kamere u px slike. */
+export function projectPoint(p: Vec3, camera: Camera): Point {
+  const [cx, cy] = camera.principal;
+  return [(camera.focal * p[0]) / p[2] + cx, (camera.focal * p[1]) / p[2] + cy];
+}
+
+const negate = (v: Vec3): Vec3 => [-v[0], -v[1], -v[2]];
+const times = (v: Vec3, k: number): Vec3 => [v[0] * k, v[1] * k, v[2] * k];
+const length = (v: Vec3) => Math.hypot(v[0], v[1], v[2]);
+const cross = (a: Vec3, b: Vec3): Vec3 => [
+  a[1] * b[2] - a[2] * b[1],
+  a[2] * b[0] - a[0] * b[2],
+  a[0] * b[1] - a[1] * b[0],
+];

@@ -14,14 +14,22 @@ import { withLocale, type Locale, type MarqueeItem, type MarqueeTarget } from "@
  * izmereno u `useLayoutEffect` (+ ResizeObserver), a ne fiksno.
  *
  * TERMINAL „generisanje" (L1.1): pojam van ekrana / u ulasku je `is-pending` — tekst je širine
- * 0 uz `overflow: hidden` pa se NE vidi NIJEDNO slovo; svetluca samo Sparkles (twinkle) +
- * trepćući blok-kursor (border-right, ne propušta tekst). Kad pojam CEO uđe u kadar trake
- * (IntersectionObserver threshold 1.0) → `is-typing`: širina 0→100% u `steps(N)` (N = broj
- * karaktera; trajanje+koraci postavljeni inline iz JS-a) uz kursor, pa na kraju kucanja →
- * resolved (kursor nestaje, Sparkles se stiša na ink/40, tekst pun). Kad pojam potpuno izađe
- * levo → opet `is-pending`, pa se u sledećem krugu ponovo „kuca". Širinu reda drži nevidljivi
- * duplikat (`.marquee-ghost`) pa traka ne skače dok se tekst ispisuje. Samo classList +
- * inline `animation` u IO callback-u (bez setState po frejmu); animiraju se width/opacity/boja.
+ * 0 uz `overflow: hidden` pa se NE vidi NIJEDNO slovo; vidi se samo Sparkles koji „diše"
+ * (studio-breathe), BEZ kursora. Kad pojam CEO uđe u kadar trake (IntersectionObserver
+ * threshold 1.0) ulazi u FIFO red kucanja (L3.1): kuca najviše JEDAN pojam u datom trenutku,
+ * sledeći kreće na `animationend` prethodnog; višak preko 2 u redu se rešava odmah bez kucanja.
+ * `is-typing`: širina 0→100% u `steps(N)` (N = broj karaktera; trajanje+koraci postavljeni
+ * inline iz JS-a) uz trepćući blok-kursor (border-right, ne propušta tekst; postoji SAMO dok
+ * kuca), pa na kraju kucanja → resolved (kursor nestaje, Sparkles se stiša na ink/40, tekst
+ * pun). Kad pojam potpuno izađe levo → opet `is-pending`, pa se u sledećem krugu ponovo
+ * „kuca". Širinu reda drži nevidljivi duplikat (`.marquee-ghost`) pa traka ne skače dok se
+ * tekst ispisuje. Samo classList + inline `animation` u IO callback-u (bez setState po
+ * frejmu); animiraju se width/opacity/boja.
+ *
+ * POVRATAK NA TAB (L3.1): na `visibilitychange: hidden` / `window blur` traka se pauzira
+ * (`is-paused`) i aktivno kucanje se završi; na `visible` / `focus` / `pageshow` (bfcache) se
+ * skine pauza i RE-SYNC bez animacija (u kadru = resolved, desno van = pending), pa kucaju
+ * tek pojmovi koji od tada uđu.
  *
  * `bg-yellow` čini traku žutim OSTRVOM svetle palete (globals.css) → `text-ink` je uvek
  * tamnoplavo mastilo u obe teme. Druga kopija je `aria-hidden` + `tabIndex -1`. Uz
@@ -77,24 +85,33 @@ export function OutcomeMarquee({
     return () => observer.disconnect();
   }, [items]);
 
-  // Terminal state-machine: pending → typing → resolved → (izlaz levo) → pending.
+  // Terminal state-machine: pending → (red) → typing → resolved → (izlaz levo) → pending.
   useLayoutEffect(() => {
     const viewport = viewportRef.current;
-    if (!viewport) return;
+    const track = trackRef.current;
+    if (!viewport || !track) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
     const nodes = Array.from(viewport.querySelectorAll<HTMLLIElement>(".marquee-item"));
 
-    // Treperenje kursora (border-right ink↔providno). Animaciju width-a (kucanje) i kursor
-    // vodimo INLINE kroz `animation` shorthand: `steps(N)` mora biti literalan (var() u
-    // steps() nije svuda podržan), a inline kontrola izbegava sudar tajminga sa CSS-om.
+    // Treperenje kursora (border-right ink↔providno) — SAMO dok pojam kuca. Animaciju width-a
+    // (kucanje) i kursor vodimo INLINE kroz `animation` shorthand: `steps(N)` mora biti
+    // literalan (var() u steps() nije svuda podržan), a inline kontrola izbegava sudar
+    // tajminga sa CSS-om.
     const CARET = "marquee-caret 1s linear infinite";
+
+    // Red kucanja (L3.1): kuca najviše JEDAN pojam; ostali koji su ceo ušli čekaju u FIFO redu
+    // (bez kursora, samo Sparkles diše). Ako red naraste preko 2 (brz resize), najstariji
+    // čekajući se rešava odmah bez kucanja.
+    const QUEUE_MAX = 2;
+    let queue: HTMLLIElement[] = [];
+    let active: HTMLLIElement | null = null;
 
     const setPending = (li: HTMLLIElement) => {
       const type = li.querySelector<HTMLElement>(".marquee-type");
       li.classList.remove("is-typing");
       li.classList.add("is-pending");
-      if (type) type.style.animation = CARET; // tekst širine 0 (CSS) → NIŠTA se ne vidi, samo kursor
+      if (type) type.style.animation = "none"; // tekst širine 0 (CSS) → NIŠTA se ne vidi, bez kursora
     };
 
     const startTyping = (li: HTMLLIElement) => {
@@ -113,23 +130,60 @@ export function OutcomeMarquee({
       if (type) type.style.animation = "none"; // pun tekst (CSS width:100%), bez kursora
     };
 
-    // Inicijalno: što je već u kadru = resolved (bez animacije); što je desno van = pending.
-    const rootRight = viewport.getBoundingClientRect().right;
-    for (const li of nodes) {
-      if (li.getBoundingClientRect().left >= rootRight) setPending(li);
-    }
+    const startNext = () => {
+      if (active) return;
+      const next = queue.shift();
+      if (!next) return;
+      active = next;
+      startTyping(next);
+    };
+
+    const enqueue = (li: HTMLLIElement) => {
+      if (queue.includes(li)) return;
+      queue.push(li);
+      while (queue.length > QUEUE_MAX) {
+        const oldest = queue.shift();
+        if (oldest) resolve(oldest);
+      }
+      startNext();
+    };
+
+    const drop = (li: HTMLLIElement) => {
+      queue = queue.filter((item) => item !== li);
+      if (active === li) {
+        active = null;
+        startNext();
+      }
+    };
+
+    // Re-sync bez animacija: sve što je u kadru (ili ulazi) = resolved, sve desno van = pending.
+    // Tek pojmovi koji od ovog trenutka ceo uđu kucaju.
+    const resync = () => {
+      queue = [];
+      active = null;
+      const rootRight = viewport.getBoundingClientRect().right;
+      for (const li of nodes) {
+        if (li.getBoundingClientRect().left >= rootRight) setPending(li);
+        else resolve(li);
+      }
+    };
+
+    resync();
 
     const observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
           const li = entry.target as HTMLLIElement;
           if (entry.intersectionRatio >= 0.99) {
-            // Pojam je CEO u kadru → počni kucanje (samo ako je čekao kao pending).
-            if (li.classList.contains("is-pending")) startTyping(li);
+            // Pojam je CEO u kadru → u red za kucanje (samo ako je čekao kao pending).
+            if (li.classList.contains("is-pending")) enqueue(li);
           } else if (!entry.isIntersecting) {
             // Potpuno van kadra. Reset u pending SAMO kad je izašao levo (desni ulaz ne dira).
             const root = entry.rootBounds;
-            if (root && entry.boundingClientRect.right <= root.left + 1) setPending(li);
+            if (root && entry.boundingClientRect.right <= root.left + 1) {
+              drop(li);
+              setPending(li);
+            }
           }
         }
       },
@@ -137,17 +191,66 @@ export function OutcomeMarquee({
     );
     nodes.forEach((node) => observer.observe(node));
 
-    // Kraj kucanja → resolved (pun tekst, kursor nestaje).
+    // Kraj kucanja → resolved (pun tekst, kursor nestaje) → sledeći iz reda.
     const handleAnimationEnd = (event: AnimationEvent) => {
       if (event.animationName !== "marquee-type") return;
       const li = (event.target as HTMLElement).closest<HTMLLIElement>(".marquee-item");
-      if (li) resolve(li);
+      if (!li) return;
+      resolve(li);
+      if (active === li) active = null;
+      startNext();
     };
     viewport.addEventListener("animationend", handleAnimationEnd);
 
+    // Pauza dok je tab/prozor sakriven ili bez fokusa (traka stoji, aktivno kucanje se
+    // završava odmah), pa po povratku re-sync bez kucanja — inače bi sve što je „ušlo" u
+    // međuvremenu (5+ pojmova) krenulo da kuca odjednom.
+    let paused = false;
+    const pause = () => {
+      if (paused) return;
+      paused = true;
+      track.classList.add("is-paused");
+      if (active) resolve(active);
+      active = null;
+      queue = [];
+    };
+    const resume = () => {
+      if (!paused) return;
+      paused = false;
+      track.classList.remove("is-paused");
+      resync();
+    };
+    const handleVisibility = () => (document.visibilityState === "hidden" ? pause() : resume());
+    const handlePageShow = () => {
+      // bfcache povratak: stanje je zamrznuto, samo re-sync.
+      paused = true;
+      resume();
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("blur", pause);
+    window.addEventListener("focus", resume);
+    window.addEventListener("pageshow", handlePageShow);
+
+    // Resize (rotacija, promena prozora) menja trajanje petlje pa traka „skoči": pojmovi koji
+    // odjednom osvanu u kadru NE kucaju — re-sync kao pri povratku na tab (odloženo na rAF).
+    let resizeFrame = 0;
+    const resizeObserver = new ResizeObserver(() => {
+      cancelAnimationFrame(resizeFrame);
+      resizeFrame = requestAnimationFrame(() => {
+        if (!paused) resync();
+      });
+    });
+    resizeObserver.observe(viewport);
+
     return () => {
       observer.disconnect();
+      resizeObserver.disconnect();
+      cancelAnimationFrame(resizeFrame);
       viewport.removeEventListener("animationend", handleAnimationEnd);
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("blur", pause);
+      window.removeEventListener("focus", resume);
+      window.removeEventListener("pageshow", handlePageShow);
     };
   }, [items, locale]);
 
