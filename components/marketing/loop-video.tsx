@@ -175,6 +175,26 @@ export function StepHoverVideo({
     phaseRef.current = phase;
   }, [phase]);
 
+  // Hover je brži za 33 %: oba videa (in i out) idu playbackRate 1.33. `playbackRate` se
+  // resetuje na 1 pri svakom (re)učitavanju izvora, pa ga vraćamo i na `loadedmetadata`.
+  // Logika brzog ulaza/izlaza (currentTime = trajanje − odgledano) radi u medijskom vremenu,
+  // ne u zidnom, pa ostaje ispravna sa novim tempom.
+  useEffect(() => {
+    if (stillOnly) return;
+    const videos = [inRef.current, outRef.current];
+    const RATE = 1.33;
+    const cleanups = videos.map((video) => {
+      if (!video) return undefined;
+      const apply = () => {
+        video.playbackRate = RATE;
+      };
+      apply();
+      video.addEventListener("loadedmetadata", apply);
+      return () => video.removeEventListener("loadedmetadata", apply);
+    });
+    return () => cleanups.forEach((cleanup) => cleanup?.());
+  }, [stillOnly]);
+
   useEffect(() => {
     if (stillOnly) return;
     const wrap = wrapRef.current;
@@ -271,7 +291,7 @@ export function StepHoverVideo({
         <>
           <video
             ref={inRef}
-            className={`pointer-events-none absolute inset-0 h-full w-full object-cover transition-opacity duration-150 ${
+            className={`pointer-events-none absolute inset-0 h-full w-full object-cover transition-opacity duration-100 ${
               phase === "in" ? "opacity-100" : "opacity-0"
             }`}
             muted

@@ -62,14 +62,15 @@
   .focus\:bg-yellow:focus,
   .group:hover .group-hover\:bg-yellow,
   .group:focus-visible .group-focus-visible\:bg-yellow,
-  .hero-paper-island
+  .hero-paper-island,
+  .marketing-header:not([data-scrolled="true"])
 ) {
   color-scheme: light;
   --background: #fffdf8;
   --foreground: #0e3158;
   --ink: #0e3158;
   --paper: #fffdf8;
-  --paper-strong: #ffffff;
+  --paper-strong: #FDEED8;
   --yellow: #f4be30;
   /* Krem podloga heroa — PROSEČNA boja gornjeg levog ugla (24×24 px) iz
      `hero-v2-poster.png` (1920×1072), izmerena skriptom (sharp). L3.1: portret poster
@@ -83,6 +84,14 @@
      promovisano u token U8 korakom. Isti odnos kao --muted/--line: tamni parnjak
      je posvetljen i blago desaturisan da čita na tamnoj podlozi. */
   --blue-mid: #2e6f9f;
+  /* Akcenti hero kartica na svesci (v2): svaka od 4 kartice svoj ton. Kartica je svetlo
+     OSTRVO u obe teme (leži na svetlom listu sveske), pa isti tonovi rade i u tamnoj temi;
+     tekst na kartici je uvek mastilo (≥ 12:1) — akcent nosi krug ikone, potez uz vrh i iskru,
+     ne tekst. Žuta i plava idu iz palete; žad i koral su topli parnjaci koji joj pristaju. */
+  --accent-courses: var(--yellow);
+  --accent-studio: var(--blue-mid);
+  --accent-community: #1f9e78;
+  --accent-account: #ea6a45;
   /* Studio-scoped, derived from the tokens above. `canvas` is one notch deeper
      than paper so bright media has an edge where grid density is highest; `well`
      is ink darkened toward near-black-blue (NEVER #000) for the per-tile media
@@ -614,19 +623,134 @@ select:-webkit-autofill {
   outline-offset: 2px;
 }
 
+/* ── Talasasti razdelnik između sekcija (v2) ────────────────────────────────────
+   `<SectionWave>` usidren uz DNO sekcije i pomeren translateY 50% da jaše na granici dve
+   sekcije. Visina je fiksna (24px = viewBox), ne dodaje layout (apsolutan, translate ga
+   spušta pola izvan), `pointer-events-none`, z-10 da bude iznad pozadine naredne sekcije.
+   Sekcija koja ga nosi mora biti `position: relative` i NE sme da klipuje (`overflow`). */
+.section-wave {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 24px;
+  transform: translateY(50%);
+  z-index: 10;
+}
+/* Prvi talas: uz VRH #courses (granica prema herou, ispod žute trake). */
+.section-wave-top {
+  top: 0;
+  bottom: auto;
+  transform: translateY(-50%);
+}
+
+/* ── Marketing navbar: providan na vrhu, pun posle skrola (v2) ──────────────────
+   Na scrollY === 0 header nema pozadinu/okvir/senku/blur — logo i linkovi lebde preko heroa.
+   Čim `data-scrolled="true"` (komponenta prati scrollY > 8, rAF-throttled) dobija bg-paper/95 +
+   ink okvir + senku + backdrop-blur. Okvir je UVEK 2px (transparent → ink) da visina ostane
+   ista → bez layout shift-a. Prelaz 220ms; transform ostaje u istoj listi da se smart-hide
+   (translateY) i dalje animira. Reduced-motion globalni blok gasi trajanje. */
+.marketing-header {
+  border-bottom: 2px solid transparent;
+  background-color: transparent;
+  box-shadow: none;
+  transition:
+    transform 200ms ease-out,
+    background-color var(--motion-element) var(--ease-studio-out),
+    border-color var(--motion-element) var(--ease-studio-out),
+    box-shadow var(--motion-element) var(--ease-studio-out),
+    backdrop-filter var(--motion-element) var(--ease-studio-out);
+}
+.marketing-header[data-scrolled="true"] {
+  background-color: color-mix(in srgb, var(--paper) 95%, transparent);
+  border-bottom-color: var(--ink);
+  box-shadow: 0 8px 18px -16px var(--shadow-hard-55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+/* Providan navbar lebdi preko SVETLOG heroa (hero je svetlo ostrvo u obe teme). Tokeni su
+   već prebačeni na svetle (island `:is()` lista iznad → mastilo tekst čita se na kremu). Logo
+   swap ide po `data-theme`, ne po tokenima, pa u tamnoj temi na vrhu ručno prikaži SVETLI logo
+   (tamno mastilo), a tamni (svetlo mastilo, za tamnu pozadinu) sakrij dok se ne skrola. */
+[data-theme="dark"] .marketing-header:not([data-scrolled="true"]) a img:first-of-type {
+  display: block;
+}
+[data-theme="dark"] .marketing-header:not([data-scrolled="true"]) a img:last-of-type {
+  display: none;
+}
+
 /* FAQ akordeon: indikator +/− prati stanje <details>-a. Zamena ikone kroz `display`
    (ne `transform`) je namerna — CSS transform se na ovom lucide <svg> u ovom okruženju
    ne primeni, dok display/opacity/boja rade pouzdano. */
-.faq-icon-open {
-  display: none;
+/* +/− indikator: dve prečke od 2px (currentColor = mastilo). Vertikalna se rotira 90° pri
+   otvaranju i poklopi horizontalnu → „plus" glatko postaje „minus" (260ms, ease iz rečnika).
+   Transform na <span>-u radi pouzdano (za razliku od transform-a na lucide <svg>). */
+.faq-icon {
+  position: relative;
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+}
+.faq-icon-bar {
+  position: absolute;
+  border-radius: 2px;
+  background: currentColor;
+}
+.faq-icon-bar-h {
+  top: 50%;
+  left: 2px;
+  right: 2px;
+  height: 2px;
+  transform: translateY(-50%);
+}
+.faq-icon-bar-v {
+  left: 50%;
+  top: 2px;
+  bottom: 2px;
+  width: 2px;
+  transform: translateX(-50%);
+  transition: transform var(--motion-prelaz) var(--ease-studio-out);
+}
+details[open] > summary .faq-icon-bar-v {
+  transform: translateX(-50%) rotate(90deg);
 }
 
-details[open] > summary .faq-icon-closed {
-  display: none;
+/* Otvaranje odgovora: `grid-template-rows: 0fr → 1fr` (visina se animira bez fiksnog px-a) +
+   fade i blag pomak naviše. `.faq-answer-inner` mora imati `overflow: hidden` i `min-height: 0`
+   da se sadržaj iseca dok red raste. 260ms, ease iz rečnika pokreta. */
+.faq-answer {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transform: translateY(4px);
+  transition:
+    grid-template-rows var(--motion-prelaz) var(--ease-studio-out),
+    opacity var(--motion-prelaz) var(--ease-studio-out),
+    transform var(--motion-prelaz) var(--ease-studio-out);
+}
+.faq-answer-inner {
+  overflow: hidden;
+  min-height: 0;
+}
+details[open] > .faq-answer {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transform: translateY(0);
+}
+/* Moderni browseri (Chromium 131+, Safari 18.4+) skrivaju zatvoreni sadržaj kroz
+   `::details-content` (content-visibility: hidden), pa ga grid animacija ne bi ni izmerila i
+   odgovor bi „iskočio". Držimo ga u layoutu (vidljiv), a vizuelno ga skuplja grid iznad. */
+details:has(> .faq-answer)::details-content {
+  content-visibility: visible;
 }
 
-details[open] > summary .faq-icon-open {
-  display: block;
+/* reduced-motion: bez animacije, trenutno otvaranje (grid odmah 1fr, bez fade/pomaka). */
+@media (prefers-reduced-motion: reduce) {
+  .faq-answer,
+  details[open] > .faq-answer {
+    transition: none;
+    opacity: 1;
+    transform: none;
+  }
 }
 
 /* ── Traka ishoda u dnu heroa (L1.1) ───────────────────────────────────────────
@@ -666,11 +790,15 @@ details[open] > summary .faq-icon-open {
   will-change: transform;
 }
 
-/* `is-paused` (L3.1): komponenta pauzira traku dok je tab/prozor sakriven ili bez fokusa, pa po
+/* Pauza SAMO na hover i na TASTATURNI fokus. `:has(a:focus-visible)` (a ne `:focus-within`)
+   je namerno: klik mišem ostavlja fokus na <a> pojma, ali BEZ `:focus-visible`, pa se traka
+   ne zamrzava zauvek posle klika (bug L4). Tastaturni tab do pojma daje `:focus-visible` →
+   traka staje dok je pojam u fokusu.
+   `is-paused` (L3.1): komponenta pauzira traku dok je tab/prozor sakriven ili bez fokusa, pa po
    povratku RE-SYNC-uje stanja bez kucanja (inače bi sve što je „ušlo" u međuvremenu kucalo
    odjednom). */
 .marquee-viewport:hover .marquee-track,
-.marquee-viewport:focus-within .marquee-track,
+.marquee-viewport:has(a:focus-visible) .marquee-track,
 .marquee-track.is-paused {
   animation-play-state: paused;
 }
@@ -1036,11 +1164,68 @@ details[open] > summary .faq-icon-open {
   box-shadow: calc(var(--hero-shadow) + var(--hero-lift-sx, 0px))
     calc(var(--hero-shadow) + var(--hero-lift-sy, 0px)) 0 0 var(--shadow-hard-16);
 }
-/* Mala varijanta (80–109 px): ikona 18, naslov 13 px u najviše 2 reda, bez strelice. */
-.hero-card-icon {
-  width: 18px;
-  height: 18px;
+/* Akcent po kartici (v2): ton se bira po `data-plate`, vrednost je token (bez hardkodovanih
+   boja po komponenti). Važi i za 3D sloj (`.hero-card`) i za snap red (`.hero-row-card`) —
+   `data-plate` koriste samo hero kartice. Kartica je svetlo ostrvo pa akcent nosi krug
+   ikone/potez/iskru. */
+[data-plate="courses"] {
+  --accent: var(--accent-courses);
+}
+[data-plate="studio"] {
+  --accent: var(--accent-studio);
+}
+[data-plate="community"] {
+  --accent: var(--accent-community);
+}
+[data-plate="account"] {
+  --accent: var(--accent-account);
+}
+
+/* Akcentni potez uz gornju ivicu: tanak (2px) i suptilan u mirovanju; na hover/focus se
+   iscrta preko cele širine (scaleX 0→1, origin left, 320ms). */
+.hero-card-accent {
+  position: absolute;
+  top: 0;
+  left: 8px;
+  right: 8px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent, var(--ink));
+  transform-origin: left center;
+  opacity: 0.5;
+}
+
+/* Ikona u krugu obojenom akcentom (tinta + akcentni prsten); ikona je mastilo radi kontrasta
+   (≥ 12:1 u obe teme). Iskra je iza ikone. */
+.hero-card-iconwrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
   flex: none;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--accent, var(--ink)) 16%, var(--paper-strong));
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent, var(--ink)) 55%, transparent);
+  color: var(--ink);
+}
+/* Mala varijanta (80–109 px): ikona 15, naslov 13 px u najviše 2 reda, bez strelice. */
+.hero-card-icon {
+  width: 15px;
+  height: 15px;
+  flex: none;
+}
+.hero-card-spark {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 70%;
+  height: 70%;
+  transform: translate(-50%, -50%) scale(0.6);
+  color: var(--accent, var(--ink));
+  opacity: 0;
+  pointer-events: none;
 }
 .hero-card-title {
   margin-top: 4px;
@@ -1065,15 +1250,19 @@ details[open] > summary .faq-icon-open {
   transform: translateX(0);
   transition: transform 180ms var(--ease-studio-out);
 }
-/* Srednja varijanta (110–149 px): ikona 20, naslov 17 px, strelica. */
+/* Srednja varijanta (110–149 px): krug 32 / ikona 18, naslov 17 px, strelica. */
 @container (min-width: 110px) {
   .hero-card-face {
     padding: 10px 12px;
     border-radius: 16px;
   }
+  .hero-card-iconwrap {
+    width: 32px;
+    height: 32px;
+  }
   .hero-card-icon {
-    width: 20px;
-    height: 20px;
+    width: 18px;
+    height: 18px;
   }
   .hero-card-title {
     margin-top: 6px;
@@ -1084,14 +1273,18 @@ details[open] > summary .faq-icon-open {
     display: block;
   }
 }
-/* Puna varijanta (≥ 150 px): + kratka linija (samo ako i visina to nosi), veća ikona. */
+/* Puna varijanta (≥ 150 px): + kratka linija (samo ako i visina to nosi), veći krug/ikona. */
 @container (min-width: 150px) {
   .hero-card-title {
     font-size: 19px;
   }
+  .hero-card-iconwrap {
+    width: 34px;
+    height: 34px;
+  }
   .hero-card-icon {
-    width: 22px;
-    height: 22px;
+    width: 19px;
+    height: 19px;
   }
 }
 @container (min-width: 150px) and (min-height: 96px) {
@@ -1110,9 +1303,17 @@ details[open] > summary .faq-icon-open {
   .hero-card-line {
     font-size: 14px;
   }
+  .hero-card-iconwrap {
+    width: 40px;
+    height: 40px;
+  }
   .hero-card-icon {
-    width: 26px;
-    height: 26px;
+    width: 22px;
+    height: 22px;
+  }
+  .hero-card-accent {
+    left: 12px;
+    right: 12px;
   }
   .hero-card-arrow {
     right: 16px;
@@ -1128,9 +1329,13 @@ details[open] > summary .faq-icon-open {
   .hero-card-line {
     font-size: 15px;
   }
+  .hero-card-iconwrap {
+    width: 44px;
+    height: 44px;
+  }
   .hero-card-icon {
-    width: 30px;
-    height: 30px;
+    width: 24px;
+    height: 24px;
   }
 }
 /* Hover/focus: podizanje po normali radi JS (transform + `--hero-lift-*`); ovde samo senka
@@ -1150,6 +1355,57 @@ details[open] > summary .faq-icon-open {
   transform: translateX(4px);
 }
 
+/* ── Mikroanimacija kartice na hover/focus (v2) ─────────────────────────────────────
+   Samo transform/opacity/stroke-dashoffset, bez novih biblioteka, bez animacije u mirovanju.
+   1) ikona se „iscrtava" (stroke-dasharray draw-in 320ms),
+   2) iza ikone jednom sevne iskra (scale 0.6→1, opacity 0→1→0, 420ms),
+   3) akcentni potez se razvuče preko cele širine (scaleX 0→1, origin left, 320ms).
+   `.hero-cards-3d` sve dele; snap red (`.is-drawn`) pušta istu koreografiju JEDNOM kad uđe u
+   kadar (hover ne postoji na dodiru). reduced-motion: statično (global blok gasi trajanja). */
+@keyframes hero-accent-draw {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+@keyframes hero-icon-draw {
+  from {
+    stroke-dashoffset: 100;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes hero-spark {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.6);
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+.hero-card:hover .hero-card-accent,
+.hero-card:focus-visible .hero-card-accent {
+  opacity: 1;
+  animation: hero-accent-draw 320ms var(--ease-studio-out) both;
+}
+.hero-card:hover .hero-card-icon > *,
+.hero-card:focus-visible .hero-card-icon > * {
+  stroke-dasharray: 100;
+  animation: hero-icon-draw 320ms var(--ease-studio-out) both;
+}
+.hero-card:hover .hero-card-spark,
+.hero-card:focus-visible .hero-card-spark {
+  animation: hero-spark 420ms var(--ease-studio-out) both;
+}
+
 /* Snap red: skrolbar sakriven (prst/točkić i dalje skroluju; na ≥ 740px sve 4 stanu bez
    skrola jer su `flex-1`). */
 .hero-cards-row {
@@ -1158,6 +1414,43 @@ details[open] > summary .faq-icon-open {
 }
 .hero-cards-row::-webkit-scrollbar {
   display: none;
+}
+
+/* Snap red — kompaktna varijanta kartice sa istim akcentom (v2): krug ikone + potez uz vrh.
+   Krug je fiksne veličine (red nije container). */
+.hero-row-iconwrap {
+  width: 36px;
+  height: 36px;
+}
+.hero-row-iconwrap .hero-card-icon {
+  width: 19px;
+  height: 19px;
+}
+.hero-row-accent {
+  position: absolute;
+  top: 0;
+  left: 12px;
+  right: 12px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent, var(--ink));
+  transform-origin: left center;
+  opacity: 0.5;
+}
+/* Jednokratna koreografija kad red uđe u kadar (`.is-drawn`, JS), + tastaturni fokus. */
+.hero-cards-row.is-drawn .hero-row-accent,
+.hero-row-card:focus-visible .hero-row-accent {
+  opacity: 1;
+  animation: hero-accent-draw 320ms var(--ease-studio-out) both;
+}
+.hero-cards-row.is-drawn .hero-card-icon > *,
+.hero-row-card:focus-visible .hero-card-icon > * {
+  stroke-dasharray: 100;
+  animation: hero-icon-draw 320ms var(--ease-studio-out) both;
+}
+.hero-cards-row.is-drawn .hero-card-spark,
+.hero-row-card:focus-visible .hero-card-spark {
+  animation: hero-spark 420ms var(--ease-studio-out) both;
 }
 
 @media (orientation: landscape) and (min-width: 1024px) and (min-height: 519px) {

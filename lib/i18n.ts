@@ -189,6 +189,8 @@ export const marketingContent = {
     },
     courses: {
       title: "Kursevi koji vode do gotovog rada",
+      titleLead: "Kursevi koji vode do ",
+      titleHighlight: "gotovog rada",
       intro: "Dva kursa, isti cilj: da na kraju imaš pravi rad — ne samo teoriju.",
       outcomesLabel: "Šta ćeš znati",
       buyNow: "Kupi sada",
@@ -196,6 +198,8 @@ export const marketingContent = {
     },
     steps: {
       title: "Kako izgleda učenje",
+      titleLead: "Kako izgleda ",
+      titleHighlight: "učenje",
       intro: "Tri koraka, uvek isti ritam.",
       items: [
         {
@@ -217,6 +221,8 @@ export const marketingContent = {
     },
     community: {
       title: "Uz tebe je cela zajednica",
+      titleLead: "Uz tebe je ",
+      titleHighlight: "cela zajednica",
       body: "Deliš svoje radove, gledaš šta drugi prave, tražiš savet i pratiš napredak. Kad izađe nova lekcija, prvi saznaš.",
       points: [
         "Podeli rad i dobij povratnu informaciju",
@@ -228,6 +234,8 @@ export const marketingContent = {
     },
     pricing: {
       title: "Dva plana, jedan cilj — gotov rad",
+      titleLead: "Dva plana, jedan cilj —",
+      titleHighlight: "gotov rad",
       intro: "Mesečno, bez skrivenih troškova. Otkaži kad hoćeš.",
       perMonth: "mesečno",
       popular: "Najpopularnije",
@@ -260,30 +268,32 @@ export const marketingContent = {
     },
     faq: {
       title: "Česta pitanja",
+      titleLead: "Česta ",
+      titleHighlight: "pitanja",
       items: [
         {
-          q: "Treba li mi predznanje?",
-          a: "Ne. Kursevi kreću od nule i vode te korak po korak, bez tehničkog žargona.",
+          q: "Treba li mi predznanje ili jak kompjuter?",
+          a: "Ne i ne. Krećemo od toga šta je uopšte prompt, a sve se radi u pregledaču — dovoljan je laptop star i pet godina i pristojan internet. Ako umeš da pošalješ mejl, umećeš i ovo.",
         },
         {
-          q: "Da li je sve na srpskom?",
-          a: "Da. Lekcije, materijali i zajednica su na srpskom.",
+          q: "Koliko vremena mi treba nedeljno?",
+          a: "Tri do četiri sata. Lekcije traju 5 do 12 minuta pa staju u pauzu ili vožnju autobusom, a zadatak posle svake radiš svojim tempom. Nema roka ni ispita.",
         },
         {
-          q: "Kako otkazujem?",
-          a: "Otkažeš kad hoćeš, u par klikova. Pristup ti ostaje do kraja plaćenog meseca.",
+          q: "Šta konkretno imam kad završim?",
+          a: "Gotov rad, ne sertifikat koji niko ne gleda: montiran video sa AI naracijom, sajt koji je živ na tvom domenu i set slika u tvom stilu. Sve to odmah ide u portfolio ili kod klijenta.",
         },
         {
-          q: "Koliko traje kurs?",
-          a: "Učiš svojim tempom. Lekcije su tu stalno, pa se vraćaš kad god želiš.",
+          q: "Moram li da plaćam ChatGPT, Midjourney i ostalo?",
+          a: "Ne. Studio je u platformi, u njemu generišeš slike, video i glas kroz svoj nalog. Kad ti zatreba alat sa strane, uvek pokažemo i besplatnu varijantu.",
         },
         {
-          q: "Da li dobijam materijale?",
-          a: "Da. Uz lekcije ideš i radne materijale, promptove i podsetnike koje možeš da preuzmeš.",
+          q: "Zapnem u pola lekcije — ko mi pomaže?",
+          a: "Zajednica. Postaviš pitanje uz sliku ekrana, odgovaraju ti drugi studenti i predavači, obično isti dan. Nema glupog pitanja, svi smo počeli od nule.",
         },
         {
-          q: "Mogu li oba kursa?",
-          a: "Možeš. Svaki kurs ima svoju pretplatu, pa uzimaš jedan ili oba.",
+          q: "Mogu li da otkažem?",
+          a: "Možeš, u dva klika, bez zvanja i objašnjavanja. Pretplata radi do kraja plaćenog meseca, a sve što si napravio ostaje tvoje.",
         },
       ],
     },
@@ -378,6 +388,8 @@ export const marketingContent = {
     },
     courses: {
       title: "Courses that lead to finished work",
+      titleLead: "Courses that lead to ",
+      titleHighlight: "finished work",
       intro: "Two courses, one goal: you finish with real work in hand — not just theory.",
       outcomesLabel: "What you'll be able to do",
       buyNow: "Buy now",
@@ -385,6 +397,8 @@ export const marketingContent = {
     },
     steps: {
       title: "How the learning works",
+      titleLead: "How the ",
+      titleHighlight: "learning works",
       intro: "Three steps, the same rhythm every time.",
       items: [
         {
@@ -405,7 +419,9 @@ export const marketingContent = {
       ],
     },
     community: {
-      title: "The whole community is with you",
+      title: "You have a whole community",
+      titleLead: "You have ",
+      titleHighlight: "a whole community",
       body: "Share your work, see what others are making, ask for advice, and track your progress. When a new lesson drops, you're the first to know.",
       points: [
         "Share work and get feedback",
@@ -417,6 +433,8 @@ export const marketingContent = {
     },
     pricing: {
       title: "Two plans, one goal — finished work",
+      titleLead: "Two plans, one goal —",
+      titleHighlight: "finished work",
       intro: "Monthly, no hidden costs. Cancel anytime.",
       perMonth: "month",
       popular: "Most popular",
@@ -448,31 +466,33 @@ export const marketingContent = {
       },
     },
     faq: {
-      title: "Frequently asked questions",
+      title: "Frequent questions",
+      titleLead: "Frequent ",
+      titleHighlight: "questions",
       items: [
         {
-          q: "Do I need any experience?",
-          a: "No. The courses start from zero and guide you step by step, without technical jargon.",
+          q: "Do I need experience or a powerful computer?",
+          a: "Neither. We start from what a prompt even is, and everything runs in your browser — a five-year-old laptop and a decent connection are enough. If you can send an email, you can do this.",
         },
         {
-          q: "Is everything in Serbian?",
-          a: "Yes. Lessons, materials, and the community are all in Serbian.",
+          q: "How much time do I need each week?",
+          a: "Three to four hours. Lessons run 5 to 12 minutes, so they fit into a break or a bus ride, and you do the task after each one at your own pace. No deadlines, no exams.",
         },
         {
-          q: "How do I cancel?",
-          a: "Cancel anytime in a couple of clicks. You keep access until the end of the paid month.",
+          q: "What exactly do I have when I finish?",
+          a: "Finished work, not a certificate nobody looks at: an edited video with AI narration, a site that's live on your own domain, and a set of images in your style. All of it goes straight into your portfolio or to a client.",
         },
         {
-          q: "How long does a course take?",
-          a: "You learn at your own pace. The lessons are always there, so you can come back whenever you want.",
+          q: "Do I have to pay for ChatGPT, Midjourney, and the rest?",
+          a: "No. The Studio is built into the platform — you generate images, video, and voice through your own account. When you do need an outside tool, we always show a free option too.",
         },
         {
-          q: "Do I get materials?",
-          a: "Yes. Lessons come with worksheets, prompts, and cheat-sheets you can download.",
+          q: "I get stuck halfway through a lesson — who helps me?",
+          a: "The community. Post your question with a screenshot and other students and instructors answer, usually the same day. There's no stupid question — we all started from zero.",
         },
         {
-          q: "Can I take both courses?",
-          a: "You can. Each course has its own subscription, so take one or both.",
+          q: "Can I cancel?",
+          a: "You can, in two clicks, with no phone calls or explanations. Your subscription runs to the end of the paid month, and everything you've made stays yours.",
         },
       ],
     },

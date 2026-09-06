@@ -226,10 +226,22 @@ export function OutcomeMarquee({
       paused = true;
       resume();
     };
+    // Osiguranje protiv zaglavljene pauze (L4): kad korisnik klikne pojam pa se vrati Back
+    // dugmetom, ili skloni kursor/tab, traka NE sme da ostane pauzirana. Ako tab nije skriven
+    // i nema ni hover-a ni tastaturnog fokusa unutar trake, skini pauzu.
+    const clearStrayPause = () => {
+      if (document.visibilityState === "hidden") return;
+      if (viewport.matches(":hover")) return;
+      if (viewport.querySelector("a:focus-visible")) return;
+      resume();
+    };
     document.addEventListener("visibilitychange", handleVisibility);
     window.addEventListener("blur", pause);
     window.addEventListener("focus", resume);
     window.addEventListener("pageshow", handlePageShow);
+    window.addEventListener("pagehide", clearStrayPause);
+    viewport.addEventListener("pointerleave", clearStrayPause);
+    viewport.addEventListener("focusout", clearStrayPause);
 
     // Resize (rotacija, promena prozora) menja trajanje petlje pa traka „skoči": pojmovi koji
     // odjednom osvanu u kadru NE kucaju — re-sync kao pri povratku na tab (odloženo na rAF).
@@ -251,6 +263,9 @@ export function OutcomeMarquee({
       window.removeEventListener("blur", pause);
       window.removeEventListener("focus", resume);
       window.removeEventListener("pageshow", handlePageShow);
+      window.removeEventListener("pagehide", clearStrayPause);
+      viewport.removeEventListener("pointerleave", clearStrayPause);
+      viewport.removeEventListener("focusout", clearStrayPause);
     };
   }, [items, locale]);
 

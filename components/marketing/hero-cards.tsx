@@ -258,7 +258,14 @@ export function HeroCards3d({ locale, signedIn }: { locale: Locale; signedIn: bo
           className="hero-card"
         >
           <span className="hero-card-face">
-            <Icon aria-hidden="true" className="hero-card-icon" />
+            {/* Akcentni potez uz gornju ivicu (v2): suptilan u mirovanju, iscrta se preko cele
+                širine na hover/focus (scaleX 0→1). */}
+            <span className="hero-card-accent" aria-hidden="true" />
+            <span className="hero-card-iconwrap">
+              {/* Iskra sevne jednom iza ikone na hover/focus. */}
+              <Sparkles aria-hidden="true" className="hero-card-spark" />
+              <Icon aria-hidden="true" className="hero-card-icon" />
+            </span>
             <span className="hero-card-title font-display">{title}</span>
             <span className="hero-card-line font-bold">{line}</span>
             <ArrowRight aria-hidden="true" className="hero-card-arrow" />
@@ -272,9 +279,36 @@ export function HeroCards3d({ locale, signedIn }: { locale: Locale; signedIn: bo
 export function HeroCardsRow({ locale, signedIn }: { locale: Locale; signedIn: boolean }) {
   const label = marketingContent[locale].hero.cards.label;
   const items = cardItems(locale, signedIn);
+  const navRef = useRef<HTMLElement>(null);
+
+  // Na dodiru nema hover-a: ista koreografija (potez/ikona/iskra) se odigra JEDNOM kad red uđe
+  // u kadar — `.is-drawn` na <nav> upali animacije (CSS), IntersectionObserver ga skine iz
+  // posmatranja. reduced-motion: global blok gasi trajanja, pa je efekat statičan.
+  useLayoutEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      nav.classList.add("is-drawn");
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            nav.classList.add("is-drawn");
+            io.disconnect();
+          }
+        }
+      },
+      { threshold: 0.4 },
+    );
+    io.observe(nav);
+    return () => io.disconnect();
+  }, []);
 
   return (
     <nav
+      ref={navRef}
       aria-label={label}
       className="hero-cards-row absolute inset-x-0 z-20 overflow-x-auto"
       style={{ bottom: "calc(var(--marquee-h) + 12px)" }}
@@ -284,10 +318,15 @@ export function HeroCardsRow({ locale, signedIn }: { locale: Locale; signedIn: b
           <li key={plate.key} className="flex min-w-[168px] flex-1 snap-start">
             <Link
               href={href}
+              data-plate={plate.key}
               aria-label={`${title} — ${line}`}
-              className="flex h-16 w-full items-center gap-3 rounded-[16px] border-2 border-ink bg-paper-strong px-4 font-display text-lg leading-none text-ink shadow-[3px_3px_0_0_var(--shadow-hard-16)] transition-transform duration-[180ms] ease-[var(--ease-studio-out)] hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              className="hero-row-card relative flex h-16 w-full items-center gap-3 rounded-[16px] border-2 border-ink bg-paper-strong px-4 font-display text-lg leading-none text-ink shadow-[3px_3px_0_0_var(--shadow-hard-16)] transition-transform duration-[180ms] ease-[var(--ease-studio-out)] hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
-              <Icon aria-hidden="true" className="size-5 shrink-0" />
+              <span className="hero-row-accent" aria-hidden="true" />
+              <span className="hero-card-iconwrap hero-row-iconwrap shrink-0">
+                <Sparkles aria-hidden="true" className="hero-card-spark" />
+                <Icon aria-hidden="true" className="hero-card-icon" />
+              </span>
               <span className="min-w-0 flex-1 truncate">{title}</span>
               <ArrowRight aria-hidden="true" className="size-4 shrink-0" />
             </Link>

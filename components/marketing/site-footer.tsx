@@ -2,6 +2,7 @@ import { Mail } from "lucide-react";
 import Link from "next/link";
 
 import { ThemeToggle } from "@/components/app/theme-toggle";
+import { SectionWave } from "@/components/marketing/section-wave";
 import { BrandMark } from "@/components/ui/primitives";
 import { courses, primaryCourseSlug, websitesCourseSlug } from "@/lib/content";
 import { dictionary, localized, marketingContent, otherLocale, withLocale, type Locale } from "@/lib/i18n";
@@ -31,32 +32,9 @@ export function SiteFooter({ locale }: { locale: Locale }) {
 
   return (
     <footer className="relative bg-paper text-ink">
-      {/* Pocepana ivica papira: neravna ručna linija u boji mastila, deli stranicu od podnožja.
-          preserveAspectRatio="none" rasteže je preko cele širine; non-scaling-stroke drži debljinu. */}
-      <svg
-        aria-hidden="true"
-        viewBox="0 0 1440 24"
-        preserveAspectRatio="none"
-        className="pointer-events-none absolute inset-x-0 top-0 h-4 w-full text-ink"
-        fill="none"
-      >
-        <path
-          d="M0 13C90 6 180 19 270 11S450 5 540 14 720 20 810 10 990 6 1080 15 1260 20 1350 11 1440 8 1440 8"
-          stroke="currentColor"
-          strokeWidth="3"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          vectorEffect="non-scaling-stroke"
-        />
-        <path
-          d="M0 18C120 12 210 22 330 16S540 12 660 19 870 22 990 15 1200 12 1320 18 1440 15 1440 15"
-          className="stroke-ink/40"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          vectorEffect="non-scaling-stroke"
-        />
-      </svg>
+      {/* Pocepana ivica papira: deli stranicu od podnožja. Ista putanja kao razdelnici
+          između sekcija — izdvojena u `<SectionWave />`. */}
+      <SectionWave className="absolute inset-x-0 top-0 h-4" />
 
       <div className="mx-auto max-w-7xl px-4 pb-10 pt-16 sm:px-6 lg:px-8">
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">

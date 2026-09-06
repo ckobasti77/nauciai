@@ -1,4 +1,4 @@
-import { ArrowRight, CheckCircle2, Minus, PlayCircle, Plus, Sparkles } from "lucide-react";
+import { ArrowRight, CheckCircle2, PlayCircle, Sparkles } from "lucide-react";
 import Link from "next/link";
 
 import { AccountMenu } from "@/components/marketing/account-menu";
@@ -12,6 +12,7 @@ import { HeroMotion } from "@/components/marketing/hero-motion";
 import { MarkerHighlight } from "@/components/marketing/marker-highlight";
 import { OutcomeMarquee } from "@/components/marketing/outcome-marquee";
 import { SectionMarginalia } from "@/components/marketing/section-marginalia";
+import { SectionWave } from "@/components/marketing/section-wave";
 import { Badge } from "@/components/ui/badge";
 import { BrandMark, LinkButton, Panel, SectionHeader, SketchIcon } from "@/components/ui/primitives";
 import { SmartStickyHeader } from "@/components/ui/smart-sticky";
@@ -77,8 +78,9 @@ export function MarketingPage({
     <main className="overflow-x-clip bg-paper text-ink">
       <SmartStickyHeader
         overlay
+        scrollBackground
         data-marketing-auth={viewerProfile ? "authenticated" : "anonymous"}
-        className="top-0 z-40 border-b-2 border-ink bg-paper/95 shadow-[0_8px_18px_-16px_var(--shadow-hard-55)] backdrop-blur"
+        className="marketing-header top-0 z-40"
       >
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-2 sm:px-6 lg:px-8">
           <BrandMark href={withLocale(locale)} label={t.appName} />
@@ -221,13 +223,20 @@ export function MarketingPage({
         </HeroMotion>
 
         {/* ── KURSEVI ──────────────────────────────────────────────────────── */}
-        <section id="courses" className="border-b-2 border-ink bg-paper-strong px-4 py-16 sm:px-6 lg:px-8">
+        <section id="courses" className="relative bg-paper-strong px-4 py-16 sm:px-6 lg:px-8">
+          {/* Prvi talas: granica prema herou, ispod žute trake. */}
+          <SectionWave className="section-wave section-wave-top" />
           <div className="relative mx-auto max-w-7xl">
             <SectionMarginalia
-              variant="sun"
+              variant="star"
               className="absolute right-1 top-0 hidden h-12 w-12 text-yellow sm:block"
             />
-            <SectionHeader title={m.courses.title} body={m.courses.intro} underline />
+            <SectionHeader
+              title={m.courses.title}
+              titleLead={m.courses.titleLead}
+              titleHighlight={m.courses.titleHighlight}
+              body={m.courses.intro}
+            />
             <div className="mt-10 grid gap-6 lg:grid-cols-2">
               {courses.map((course) => (
                 <CourseCard key={course.slug} course={course} locale={locale} hasConvex={hasConvex} />
@@ -239,26 +248,33 @@ export function MarketingPage({
               </LinkButton>
             </div>
           </div>
+          <SectionWave className="section-wave" />
         </section>
 
         {/* ── KAKO IZGLEDA UČENJE ──────────────────────────────────────────── */}
-        <section id="how" className="border-b-2 border-ink bg-paper px-4 py-16 sm:px-6 lg:px-8">
+        <section id="how" className="relative bg-paper px-4 py-16 sm:px-6 lg:px-8">
           <div className="relative mx-auto max-w-7xl">
             <SectionMarginalia
-              variant="sun"
+              variant="star"
               className="absolute right-1 top-0 hidden h-12 w-12 text-yellow sm:block"
             />
-            <SectionHeader title={m.steps.title} body={m.steps.intro} underline />
+            <SectionHeader
+              title={m.steps.title}
+              titleLead={m.steps.titleLead}
+              titleHighlight={m.steps.titleHighlight}
+              body={m.steps.intro}
+            />
             <div className="mt-10 grid gap-6 md:grid-cols-3">
               {m.steps.items.map((step, index) => (
                 // Cela kartica je klikabilna (C1 overlay obrazac): `<a>` preko cele
                 // površine, sadržaj `pointer-events-none` propušta klik do njega. CTA na
-                // dnu je vizuelni `<span>` (ne ugnježdeni link) koji na hover kartice dobija
-                // `bg-yellow`; sam klik vodi kroz overlay link.
+                // dnu je samo tekst + strelica (bez pozadine/bordera/senke), centriran; na
+                // hover kartice čita se kao anchor link (podvlačenje + strelica 4px udesno).
+                // Sve tranzicije kartice su na 67 % trajanja (v2, `duration-100`).
                 <article
                   key={step.title}
                   data-motion="card"
-                  className="group relative flex flex-col rounded-[16px] border-2 border-ink bg-paper-strong p-3 shadow-[6px_6px_0_0_var(--shadow-hard-13)] transition hover:-translate-y-0.5 hover:shadow-[9px_9px_0_0_var(--shadow-hard-20)] has-[>a:focus-visible]:outline has-[>a:focus-visible]:outline-2 has-[>a:focus-visible]:outline-offset-2 has-[>a:focus-visible]:outline-ink"
+                  className="group relative flex flex-col rounded-[16px] border-2 border-ink bg-paper-strong p-3 shadow-[6px_6px_0_0_var(--shadow-hard-13)] transition duration-100 hover:-translate-y-0.5 hover:shadow-[9px_9px_0_0_var(--shadow-hard-20)] has-[>a:focus-visible]:outline has-[>a:focus-visible]:outline-2 has-[>a:focus-visible]:outline-offset-2 has-[>a:focus-visible]:outline-ink"
                 >
                   <Link href={stepLinks[index]} aria-label={step.cta} className="absolute inset-0 z-0" />
                   <div className="pointer-events-none relative z-10 flex flex-1 flex-col">
@@ -276,10 +292,12 @@ export function MarketingPage({
                       <h3 className="text-xl font-black leading-tight text-ink">{step.title}</h3>
                     </div>
                     <p className="mt-3 px-2 text-base font-bold leading-7 text-muted">{step.body}</p>
-                    <div className="mt-auto px-2 pt-6">
-                      <span className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-5 py-2.5 text-sm font-extrabold text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] transition-colors group-hover:bg-yellow">
-                        {step.cta}
-                        <ArrowRight className="size-4" />
+                    <div className="mt-auto flex min-h-11 items-center justify-center px-2 pt-6">
+                      <span className="inline-flex items-center gap-1.5 text-sm font-extrabold text-ink">
+                        <span className="decoration-ink decoration-2 underline-offset-4 group-hover:underline">
+                          {step.cta}
+                        </span>
+                        <ArrowRight className="size-4 transition-transform duration-[160ms] ease-[var(--ease-studio-out)] group-hover:translate-x-1" />
                       </span>
                     </div>
                   </div>
@@ -287,13 +305,19 @@ export function MarketingPage({
               ))}
             </div>
           </div>
+          <SectionWave className="section-wave" />
         </section>
 
         {/* ── ZAJEDNICA ────────────────────────────────────────────────────── */}
-        <section id="community" className="border-b-2 border-ink bg-paper-strong px-4 py-16 sm:px-6 lg:px-8">
+        <section id="community" className="relative bg-paper-strong px-4 py-16 sm:px-6 lg:px-8">
           <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
             <div>
-              <SectionHeader title={m.community.title} body={m.community.body} underline />
+              <SectionHeader
+                title={m.community.title}
+                titleLead={m.community.titleLead}
+                titleHighlight={m.community.titleHighlight}
+                body={m.community.body}
+              />
               <ul className="mt-8 flex flex-col gap-3 text-base font-extrabold text-ink">
                 {m.community.points.map((point) => (
                   <li key={point} className="flex items-center gap-3">
@@ -320,16 +344,23 @@ export function MarketingPage({
               />
             </Panel>
           </div>
+          <SectionWave className="section-wave" />
         </section>
 
         {/* ── PRETPLATA ────────────────────────────────────────────────────── */}
-        <section id="pricing" className="border-b-2 border-ink bg-paper px-4 py-16 sm:px-6 lg:px-8">
+        <section id="pricing" className="relative bg-paper px-4 py-16 sm:px-6 lg:px-8">
           <div className="relative mx-auto max-w-7xl">
             <SectionMarginalia
-              variant="sun"
+              variant="star"
               className="absolute right-1 top-0 hidden h-12 w-12 text-yellow sm:block"
             />
-            <SectionHeader title={m.pricing.title} body={m.pricing.intro} underline />
+            <SectionHeader
+              title={m.pricing.title}
+              titleLead={m.pricing.titleLead}
+              titleHighlight={m.pricing.titleHighlight}
+              titleBreak
+              body={m.pricing.intro}
+            />
             <div className="mt-10 grid items-stretch gap-6 lg:grid-cols-2">
               {/* BASIC — standardni panel. CTA vodi na registraciju (ulogovan: /app). */}
               <Panel className="flex flex-col p-6 sm:p-8">
@@ -393,31 +424,46 @@ export function MarketingPage({
         </section>
 
         {/* ── FAQ ──────────────────────────────────────────────────────────── */}
-        <section id="faq" className="border-b-2 border-ink bg-paper-strong px-4 py-16 sm:px-6 lg:px-8">
+        <section id="faq" className="relative bg-paper-strong px-4 py-16 sm:px-6 lg:px-8">
           <div className="relative mx-auto max-w-3xl">
             <SectionMarginalia
-              variant="sun"
+              variant="star"
               className="absolute right-1 top-0 hidden h-12 w-12 text-yellow sm:block"
             />
-            <SectionHeader title={m.faq.title} underline />
+            <SectionHeader
+              title={m.faq.title}
+              titleLead={m.faq.titleLead}
+              titleHighlight={m.faq.titleHighlight}
+            />
             <div className="mt-10 flex flex-col gap-3">
               {m.faq.items.map((item) => (
+                // Nezavisni akordeoni (svaki svoj <details> → otvaranje jednog ne zatvara druge).
+                // <details>/<summary> ostaje zbog pristupačnosti; otvaranje se animira preko
+                // `.faq-answer` (grid-template-rows 0fr→1fr) — vidi globals.css. Kartica na hover
+                // dobija blagi lift kao ostale kartice.
                 <details
                   key={item.q}
-                  className="group rounded-[16px] border-2 border-ink bg-paper shadow-[4px_4px_0_0_var(--shadow-hard-13)]"
+                  className="group rounded-[16px] border-2 border-ink bg-paper shadow-[4px_4px_0_0_var(--shadow-hard-13)] transition-[transform,box-shadow] duration-[260ms] ease-[var(--ease-studio-out)] hover:-translate-y-0.5 hover:shadow-[6px_6px_0_0_var(--shadow-hard-20)]"
                 >
                   <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-lg font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink [&::-webkit-details-marker]:hidden">
                     <span>{item.q}</span>
-                    <span className="inline-flex shrink-0 text-ink" aria-hidden="true">
-                      <Plus className="faq-icon-closed size-5" />
-                      <Minus className="faq-icon-open size-5" />
+                    {/* +/− indikator: dve prečke; vertikalna se rotira 90° pri otvaranju i
+                        poklopi horizontalnu → „plus" glatko postaje „minus". */}
+                    <span className="faq-icon shrink-0 text-ink" aria-hidden="true">
+                      <span className="faq-icon-bar faq-icon-bar-h" />
+                      <span className="faq-icon-bar faq-icon-bar-v" />
                     </span>
                   </summary>
-                  <p className="px-5 pb-5 text-base font-bold leading-7 text-muted">{item.a}</p>
+                  <div className="faq-answer">
+                    <div className="faq-answer-inner">
+                      <p className="px-5 pb-5 text-base font-bold leading-7 text-muted">{item.a}</p>
+                    </div>
+                  </div>
                 </details>
               ))}
             </div>
           </div>
+          <SectionWave className="section-wave" />
         </section>
 
         {/* ── ZAVRŠNI CTA ──────────────────────────────────────────────────── */}

@@ -2,6 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 import type { ComponentProps, ReactNode } from "react";
 
+import { MarkerHighlight } from "@/components/marketing/marker-highlight";
+
 export function cn(...classes: Array<string | false | null | undefined>): string {
   return classes.filter(Boolean).join(" ");
 }
@@ -108,13 +110,26 @@ export function Panel({
 export function SectionHeader({
   kicker,
   title,
+  titleLead,
+  titleHighlight,
+  titleBreak = false,
   body,
   variant = "marketing",
   underline = false,
   className,
 }: {
   kicker?: string;
+  /** Ceo naslov (kompatibilnost). Ignoriše se ako su dati `titleLead` + `titleHighlight`. */
   title: string;
+  /**
+   * v2: naslov u dva dela — `titleLead` + marker preko `titleHighlight`. Kad su oba data,
+   * marker se iscrtava kad naslov uđe u kadar (`MarkerHighlight variant="view"`) i žuti potez
+   * ispod (`underline`) se NE crta (da se ne dupla sa markerom).
+   */
+  titleLead?: string;
+  titleHighlight?: string;
+  /** Namerni prelom reda pre highlight-a (npr. planovi: „… —" pa u drugom redu „gotov rad"). */
+  titleBreak?: boolean;
   body?: string;
   /**
    * `marketing` je zatečena marketinška skala i ostaje piksel-ista — marketing
@@ -127,6 +142,7 @@ export function SectionHeader({
   className?: string;
 }) {
   const isApp = variant === "app";
+  const hasMarker = Boolean(titleLead && titleHighlight);
 
   return (
     <div className={cn("max-w-3xl", className)} data-motion="copy">
@@ -138,9 +154,17 @@ export function SectionHeader({
           isApp ? "mt-2 type-h1 text-ink" : "mt-2 text-3xl font-black leading-tight text-ink md:text-5xl"
         }
       >
-        {title}
+        {hasMarker ? (
+          <>
+            {titleLead}
+            {titleBreak ? <br /> : null}
+            <MarkerHighlight variant="view">{titleHighlight}</MarkerHighlight>
+          </>
+        ) : (
+          title
+        )}
       </h2>
-      {underline ? <HandUnderline size={isApp ? "sm" : "md"} className="mt-1" /> : null}
+      {underline && !hasMarker ? <HandUnderline size={isApp ? "sm" : "md"} className="mt-1" /> : null}
       {body ? (
         <p className={isApp ? "mt-3 type-body type-measure text-muted" : "mt-4 text-base leading-7 text-muted md:text-lg"}>
           {body}

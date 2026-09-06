@@ -62,6 +62,38 @@ function useSmartSticky<T extends HTMLElement>() {
   return { elementRef, hidden, show: () => updateHidden(false) };
 }
 
+/**
+ * `true` čim je stranica skrolovana preko `threshold` px. Pasivni scroll listener,
+ * rAF-throttled; čita `scrollY` i na mount-u (poštuje učitavanje već skrolovane strane).
+ * Uključuje se samo kad `enabled` (opt-in), da deljeni header nema mrtav listener.
+ */
+function useScrolledPast(threshold: number, enabled: boolean) {
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    if (!enabled) return;
+    let frame = 0;
+    const read = () => {
+      frame = 0;
+      setScrolled(window.scrollY > threshold);
+    };
+    const onScroll = () => {
+      if (frame) return;
+      frame = window.requestAnimationFrame(read);
+    };
+    read();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      if (frame) window.cancelAnimationFrame(frame);
+    };
+  }, [threshold, enabled]);
+
+  return scrolled;
+}
+
 function stickyClassName(className?: string, overlay = false) {
   return cn(
     // `cn` je obično spajanje (ne tailwind-merge), pa se pozicija bira ovde a ne
@@ -76,10 +108,15 @@ function stickyClassName(className?: string, overlay = false) {
 export function SmartStickyHeader({
   className,
   overlay = false,
+  scrollBackground = false,
   onFocusCapture,
   ...props
-}: HTMLAttributes<HTMLElement> & { overlay?: boolean }) {
+}: HTMLAttributes<HTMLElement> & { overlay?: boolean; scrollBackground?: boolean }) {
   const { elementRef, hidden, show } = useSmartSticky<HTMLElement>();
+  // `scrollBackground` (opt-in): header lebdi providan preko heroa na vrhu, a čim se
+  // skrola preko 8px dobija pozadinu/okvir/senku/blur (stilovi u globals.css po
+  // `[data-scrolled]`). Prag 8px prati brief; prelaz je animiran u CSS-u bez layout shift-a.
+  const scrolled = useScrolledPast(8, scrollBackground);
   const handleFocusCapture: FocusEventHandler<HTMLElement> = (event) => {
     show();
     onFocusCapture?.(event);
@@ -89,6 +126,7 @@ export function SmartStickyHeader({
     <header
       ref={elementRef}
       data-hidden={hidden ? "true" : "false"}
+      data-scrolled={scrollBackground ? (scrolled ? "true" : "false") : undefined}
       className={stickyClassName(className, overlay)}
       onFocusCapture={handleFocusCapture}
       {...props}
