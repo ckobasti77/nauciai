@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 
 import { CheckoutButton } from "@/components/app/checkout-button";
 import { MarkerHighlight } from "@/components/marketing/marker-highlight";
+import { LoopVideo } from "@/components/marketing/loop-video";
 import { PublicCourseIntroVideo } from "@/components/marketing/public-course-intro-video";
 import { SectionMarginalia } from "@/components/marketing/section-marginalia";
 import { ThemeToggle } from "@/components/app/theme-toggle";
@@ -345,16 +346,27 @@ export default async function CourseInfoPage({
             </div>
 
             <Panel as="div" className="p-3">
-              <div className="relative aspect-[16/9] overflow-hidden rounded-[8px] border-2 border-ink bg-paper">
-                <Image
-                  src={fallbackCourse.image.src}
-                  alt={localized(fallbackCourse.image.alt, locale)}
-                  fill
+              {fallbackCourse.image.loop ? (
+                <LoopVideo
+                  webmSrc={fallbackCourse.image.loop.webm}
+                  mp4Src={fallbackCourse.image.loop.mp4}
+                  posterSrc={fallbackCourse.image.loop.poster}
+                  label={localized(fallbackCourse.image.alt, locale)}
+                  className="relative aspect-[16/9] overflow-hidden surface-media border-2 border-ink bg-paper"
                   sizes="(min-width: 1024px) 48vw, 100vw"
-                  priority
-                  className="object-cover"
                 />
-              </div>
+              ) : (
+                <div className="relative aspect-[16/9] overflow-hidden surface-media border-2 border-ink bg-paper">
+                  <Image
+                    src={fallbackCourse.image.src}
+                    alt={localized(fallbackCourse.image.alt, locale)}
+                    fill
+                    sizes="(min-width: 1024px) 48vw, 100vw"
+                    priority
+                    className="object-cover"
+                  />
+                </div>
+              )}
             </Panel>
           </div>
         </section>

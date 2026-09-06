@@ -1,5 +1,4 @@
 import { ArrowRight, CheckCircle2, Minus, PlayCircle, Plus, Sparkles } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 
 import { AccountMenu } from "@/components/marketing/account-menu";
@@ -8,6 +7,7 @@ import { CourseCard } from "@/components/marketing/course-card";
 import { LanguageToggle } from "@/components/marketing/language-toggle";
 import { HeroCards3d, HeroCardsRow } from "@/components/marketing/hero-cards";
 import { HeroLoop } from "@/components/marketing/hero-loop";
+import { LoopVideo, StepHoverVideo } from "@/components/marketing/loop-video";
 import { HeroMotion } from "@/components/marketing/hero-motion";
 import { MarkerHighlight } from "@/components/marketing/marker-highlight";
 import { OutcomeMarquee } from "@/components/marketing/outcome-marquee";
@@ -20,10 +20,23 @@ import type { ViewerProfile } from "@/lib/current-viewer";
 import { coursesListingContent, dictionary, marketingContent, type Locale, withLocale } from "@/lib/i18n";
 import { PRICING } from "@/lib/pricing";
 
-const STEP_IMAGES = [
-  "/images/landing/step-1-color.png",
-  "/images/landing/step-2-color.png",
-  "/images/landing/step-3-color.png",
+// Poster koraka (statično stanje) + hover-in/out video parovi (L4).
+const STEP_MEDIA = [
+  {
+    poster: "/images/landing/step-1-color.png",
+    hoverIn: { webm: "/images/landing/step-1-hover-in.webm", mp4: "/images/landing/step-1-hover-in.mp4" },
+    hoverOut: { webm: "/images/landing/step-1-hover-out.webm", mp4: "/images/landing/step-1-hover-out.mp4" },
+  },
+  {
+    poster: "/images/landing/step-2-color.png",
+    hoverIn: { webm: "/images/landing/step-2-hover-in.webm", mp4: "/images/landing/step-2-hover-in.mp4" },
+    hoverOut: { webm: "/images/landing/step-2-hover-out.webm", mp4: "/images/landing/step-2-hover-out.mp4" },
+  },
+  {
+    poster: "/images/landing/step-3-color.png",
+    hoverIn: { webm: "/images/landing/step-3-hover-in.webm", mp4: "/images/landing/step-3-hover-in.mp4" },
+    hoverOut: { webm: "/images/landing/step-3-hover-out.webm", mp4: "/images/landing/step-3-hover-out.mp4" },
+  },
 ];
 
 export function MarketingPage({
@@ -248,15 +261,13 @@ export function MarketingPage({
                 >
                   <Link href={stepLinks[index]} aria-label={step.cta} className="absolute inset-0 z-0" />
                   <div className="pointer-events-none relative z-10 flex flex-1 flex-col">
-                    <div className="relative aspect-[4/3] overflow-hidden rounded-[8px] border-2 border-ink bg-paper">
-                      <Image
-                        src={STEP_IMAGES[index]}
-                        alt={step.title}
-                        fill
-                        sizes="(min-width: 768px) 33vw, 100vw"
-                        className="object-cover"
-                      />
-                    </div>
+                    <StepHoverVideo
+                      posterSrc={STEP_MEDIA[index].poster}
+                      hoverIn={STEP_MEDIA[index].hoverIn}
+                      hoverOut={STEP_MEDIA[index].hoverOut}
+                      label={step.title}
+                      className="relative aspect-[4/3] overflow-hidden surface-media border-2 border-ink bg-paper"
+                    />
                     <div className="mt-5 flex items-center gap-3 px-2">
                       <SketchIcon>
                         <span className="text-base font-black">{index + 1}</span>
@@ -298,15 +309,14 @@ export function MarketingPage({
               </div>
             </div>
             <Panel className="p-3">
-              <div className="relative aspect-[16/9] overflow-hidden rounded-[8px] border-2 border-ink bg-paper">
-                <Image
-                  src="/images/landing/community-v2.png"
-                  alt={m.community.imageAlt}
-                  fill
-                  sizes="(min-width: 1024px) 55vw, 100vw"
-                  className="object-cover"
-                />
-              </div>
+              <LoopVideo
+                webmSrc="/images/landing/community-v2-loop.webm"
+                mp4Src="/images/landing/community-v2-loop.mp4"
+                posterSrc="/images/landing/community-v2-poster.webp"
+                label={m.community.imageAlt}
+                className="relative aspect-[16/9] overflow-hidden surface-media border-2 border-ink bg-paper"
+                sizes="(min-width: 1024px) 55vw, 100vw"
+              />
             </Panel>
           </div>
         </section>

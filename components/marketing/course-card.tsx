@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { CourseFavoriteButton } from "@/components/marketing/course-favorite-button";
+import { LoopVideo } from "@/components/marketing/loop-video";
 import type { Course } from "@/lib/content";
 import { localized, marketingContent, type Locale, withLocale } from "@/lib/i18n";
 
@@ -40,14 +41,25 @@ export function CourseCard({
       />
 
       <div className="pointer-events-none relative z-10 p-3">
-        <div className="relative aspect-[16/9] overflow-hidden rounded-[8px] border-2 border-ink bg-paper">
-          <Image
-            src={course.image.src}
-            alt={localized(course.image.alt, locale)}
-            fill
-            sizes="(min-width: 1024px) 50vw, 100vw"
-            className="object-cover"
-          />
+        <div className="relative aspect-[16/9] overflow-hidden surface-media border-2 border-ink bg-paper">
+          {course.image.loop ? (
+            <LoopVideo
+              webmSrc={course.image.loop.webm}
+              mp4Src={course.image.loop.mp4}
+              posterSrc={course.image.loop.poster}
+              label={localized(course.image.alt, locale)}
+              className="absolute inset-0"
+              sizes="(min-width: 1024px) 50vw, 100vw"
+            />
+          ) : (
+            <Image
+              src={course.image.src}
+              alt={localized(course.image.alt, locale)}
+              fill
+              sizes="(min-width: 1024px) 50vw, 100vw"
+              className="object-cover"
+            />
+          )}
           <span className="absolute left-3 top-3 rounded-full border-2 border-ink bg-yellow px-4 py-2 text-sm font-black leading-none tabular-nums text-ink shadow-[3px_3px_0_0_var(--shadow-hard-22)]">
             {localized(course.priceLabel, locale)}
           </span>

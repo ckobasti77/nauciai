@@ -42,10 +42,19 @@ export type CourseModule = {
   lessons: Lesson[];
 };
 
+/** Bešavna video petlja (kursevi na landingu, L4). Prvi = poslednji frejm. */
+export type CourseLoop = {
+  webm: string;
+  mp4: string;
+  poster: string;
+};
+
 /** Jedna ilustracija za obe teme — svetla slika ostaje i u tamnoj temi (namerno). */
 export type CourseImage = {
   src: string;
   alt: LocalizedText;
+  /** Opcioni loop video koji na kartici kursa zamenjuje statičnu sliku (L4). */
+  loop?: CourseLoop;
 };
 
 export type CourseDetail = {
@@ -138,6 +147,11 @@ export const courses: Course[] = [
       alt: {
         sr: "Ilustracija AI video i audio produkcije",
         en: "AI video and audio production illustration",
+      },
+      loop: {
+        webm: "/images/landing/course-video-audio-loop.webm",
+        mp4: "/images/landing/course-video-audio-loop.mp4",
+        poster: "/images/landing/course-video-audio-poster.webp",
       },
     },
     detail: {
@@ -377,6 +391,11 @@ export const courses: Course[] = [
       alt: {
         sr: "Ilustracija AI izrade web sajta",
         en: "AI website building illustration",
+      },
+      loop: {
+        webm: "/images/landing/course-vibe-coding-loop.webm",
+        mp4: "/images/landing/course-vibe-coding-loop.mp4",
+        poster: "/images/landing/course-vibe-coding-poster.webp",
       },
     },
     detail: {
