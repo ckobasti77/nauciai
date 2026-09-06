@@ -1324,3 +1324,31 @@ details[open] > summary .faq-icon-open {
     font-size: 0.875rem;
   }
 }
+/* ── Vrlo uski ekrani < 340px (L2) ─────────────────────────────────────────────────
+   Zaštita za telefone poput 320×568: h1 ostaje 3xl, podnaslov kompaktan (2 reda),
+   a CTA se slaže U KOLONU (dva dugmeta puna širine) da tekst heroa nikad ne pređe
+   preko lista sveske. Blok je NAMERNO iza portret/landscape pravila (ista
+   specifičnost) da ih prebije na tim širinama. Samo prezentacija — logika
+   hero-cards se ne dira. */
+@media (max-width: 339px) {
+  .hero-copy h1 {
+    font-size: 1.875rem;
+    line-height: 1.05;
+  }
+  .hero-subhead-full,
+  .hero-cta-long {
+    display: none;
+  }
+  .hero-subhead-compact,
+  .hero-cta-short {
+    display: inline;
+  }
+  .hero-cta {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .hero-cta > a {
+    width: 100%;
+    flex: 0 0 auto;
+  }
+}

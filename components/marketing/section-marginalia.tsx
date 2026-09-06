@@ -13,7 +13,7 @@ import { cn } from "@/components/ui/primitives";
  * `prefers-reduced-motion` ostavljaju ih pune (nema dash-a), pa nema layout shift-a; animira
  * se samo `stroke-dashoffset`. Dekorativne su: `aria-hidden`, `pointer-events-none`.
  */
-type MarginaliaVariant = "arrow" | "star" | "loop" | "spark";
+type MarginaliaVariant = "arrow" | "star" | "loop" | "spark" | "sun";
 
 const DOODLES: Record<MarginaliaVariant, { viewBox: string; paths: string[] }> = {
   arrow: {
@@ -32,6 +32,26 @@ const DOODLES: Record<MarginaliaVariant, { viewBox: string; paths: string[] }> =
     viewBox: "0 0 44 44",
     paths: ["M22 4C24 14 30 20 40 22 30 24 24 30 22 40 20 30 14 24 4 22 14 20 20 14 22 4Z"],
   },
+  // Ručno crtano sunce (L2): jedan potez za krug (blago nepravilan) + 10
+  // nepravilnih zraka. Isti jezik kao ostali doodle-ovi — stroke-only,
+  // currentColor, round join. STATIČNO: sunce se ne iscrtava na scroll (vidi
+  // useEffect), pa nema `strokeDasharray` postavke ni na SSR-u.
+  sun: {
+    viewBox: "0 0 48 48",
+    paths: [
+      "M24 15.5C29 15 32.9 19.3 33 24C33.1 29 28.7 33 24 32.5C19 33 15.1 28.7 15 24C14.9 19 19.3 15.5 24 15.5Z",
+      "M35 24 45 24",
+      "M33 30 39 35",
+      "M27 34 31 45",
+      "M21 34 18 41",
+      "M15 30 8 36",
+      "M13 24 3 24",
+      "M15 18 9 13",
+      "M21 14 17 3",
+      "M27 14 30 7",
+      "M33 18 40 12",
+    ],
+  },
 };
 
 export function SectionMarginalia({
@@ -46,7 +66,8 @@ export function SectionMarginalia({
 
   useEffect(() => {
     const svg = ref.current;
-    if (!svg || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    // Sunce je namerno STATIČNO — bez iscrtavanja na scroll (L2).
+    if (!svg || variant === "sun" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       return;
     }
 
@@ -69,7 +90,7 @@ export function SectionMarginalia({
     }, ref);
 
     return () => context.revert();
-  }, []);
+  }, [variant]);
 
   return (
     <svg

@@ -1,8 +1,7 @@
-import { CheckCircle2, Heart, PlayCircle } from "lucide-react";
+import { ArrowRight, CheckCircle2, Heart, PlayCircle } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
-import { CheckoutButton } from "@/components/app/checkout-button";
 import { CourseFavoriteButton } from "@/components/marketing/course-favorite-button";
 import type { Course } from "@/lib/content";
 import { localized, marketingContent, type Locale, withLocale } from "@/lib/i18n";
@@ -94,14 +93,13 @@ export function CourseCard({
             <PlayCircle className="size-4" />
             {m.hero.ctaSecondary}
           </Link>
-          <CheckoutButton
-            courseSlug={course.slug}
-            locale={locale}
-            label={m.courses.buyNow}
-            tone="ink"
-            fullWidth
-            className="lg:flex-1"
-          />
+          <Link
+            href={courseHref}
+            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-ink px-5 py-2.5 text-sm font-extrabold text-paper-strong shadow-[4px_4px_0_0_var(--ink)] transition hover:-translate-y-0.5 active:translate-y-0 active:shadow-[2px_2px_0_0_var(--ink)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink lg:flex-1"
+          >
+            {m.courses.viewCourse}
+            <ArrowRight className="size-4" />
+          </Link>
         </div>
       </div>
     </article>

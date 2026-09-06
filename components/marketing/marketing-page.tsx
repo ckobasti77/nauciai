@@ -1,8 +1,7 @@
-import { CheckCircle2, Minus, PlayCircle, Plus, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowRight, CheckCircle2, Minus, PlayCircle, Plus, Sparkles } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
-import { CheckoutButton } from "@/components/app/checkout-button";
 import { AccountMenu } from "@/components/marketing/account-menu";
 import { ThemeToggle } from "@/components/app/theme-toggle";
 import { CourseCard } from "@/components/marketing/course-card";
@@ -13,24 +12,29 @@ import { HeroMotion } from "@/components/marketing/hero-motion";
 import { MarkerHighlight } from "@/components/marketing/marker-highlight";
 import { OutcomeMarquee } from "@/components/marketing/outcome-marquee";
 import { SectionMarginalia } from "@/components/marketing/section-marginalia";
+import { Badge } from "@/components/ui/badge";
 import { BrandMark, LinkButton, Panel, SectionHeader, SketchIcon } from "@/components/ui/primitives";
 import { SmartStickyHeader } from "@/components/ui/smart-sticky";
 import { courses, totalLessons } from "@/lib/content";
 import type { ViewerProfile } from "@/lib/current-viewer";
-import { coursesListingContent, dictionary, localized, marketingContent, type Locale, withLocale } from "@/lib/i18n";
+import { coursesListingContent, dictionary, marketingContent, type Locale, withLocale } from "@/lib/i18n";
+import { PRICING } from "@/lib/pricing";
 
 const STEP_IMAGES = [
-  "/images/landing/step-1-watch.png",
-  "/images/landing/step-2-create.png",
-  "/images/landing/step-3-publish.png",
+  "/images/landing/step-1-color.png",
+  "/images/landing/step-2-color.png",
+  "/images/landing/step-3-color.png",
 ];
 
 export function MarketingPage({
   locale,
   viewerProfile,
+  premiumCredits,
 }: {
   locale: Locale;
   viewerProfile?: ViewerProfile;
+  /** Broj Studio kredita uz Premium plan, iz baze; `null` ako plan nije definisan. */
+  premiumCredits?: number | null;
 }) {
   const t = dictionary[locale];
   const m = marketingContent[locale];
@@ -39,6 +43,21 @@ export function MarketingPage({
   const hasConvex = Boolean(process.env.NEXT_PUBLIC_CONVEX_URL);
   const lessonCount = courses.reduce((count, course) => count + totalLessons(course), 0);
   const heroFreeVideoHref = `${withLocale(locale, `/courses/${primaryCourse.slug}`)}#besplatan-video`;
+
+  // CTA po koraku (#how): svaka kartica vodi na svoju stranicu.
+  const stepLinks = [heroFreeVideoHref, withLocale(locale, "/studio"), withLocale(locale, "/community")];
+
+  // Premium „Studio krediti" red: broj iz baze ako postoji, inače tekst bez broja.
+  const premiumCreditsLine =
+    premiumCredits != null
+      ? m.pricing.premium.creditsWithNumber.replace("{n}", String(premiumCredits))
+      : m.pricing.premium.creditsNoNumber;
+  const premiumFeatures = m.pricing.premium.features.map((item) =>
+    item === "%CREDITS%" ? premiumCreditsLine : item,
+  );
+  const premiumCtaHref = viewerProfile
+    ? `${withLocale(locale, "/app/billing")}?plan=premium`
+    : `${withLocale(locale, "/sign-in")}?plan=premium`;
 
   return (
     <main className="overflow-x-clip bg-paper text-ink">
@@ -191,7 +210,7 @@ export function MarketingPage({
         <section id="courses" className="border-b-2 border-ink bg-paper-strong px-4 py-16 sm:px-6 lg:px-8">
           <div className="relative mx-auto max-w-7xl">
             <SectionMarginalia
-              variant="star"
+              variant="sun"
               className="absolute right-1 top-0 hidden h-12 w-12 text-yellow sm:block"
             />
             <SectionHeader title={m.courses.title} body={m.courses.intro} underline />
@@ -212,33 +231,46 @@ export function MarketingPage({
         <section id="how" className="border-b-2 border-ink bg-paper px-4 py-16 sm:px-6 lg:px-8">
           <div className="relative mx-auto max-w-7xl">
             <SectionMarginalia
-              variant="arrow"
-              className="absolute right-1 top-0 hidden h-12 w-16 text-ink sm:block"
+              variant="sun"
+              className="absolute right-1 top-0 hidden h-12 w-12 text-yellow sm:block"
             />
             <SectionHeader title={m.steps.title} body={m.steps.intro} underline />
             <div className="mt-10 grid gap-6 md:grid-cols-3">
               {m.steps.items.map((step, index) => (
+                // Cela kartica je klikabilna (C1 overlay obrazac): `<a>` preko cele
+                // površine, sadržaj `pointer-events-none` propušta klik do njega. CTA na
+                // dnu je vizuelni `<span>` (ne ugnježdeni link) koji na hover kartice dobija
+                // `bg-yellow`; sam klik vodi kroz overlay link.
                 <article
                   key={step.title}
                   data-motion="card"
-                  className="flex flex-col rounded-[16px] border-2 border-ink bg-paper-strong p-3 shadow-[6px_6px_0_0_var(--shadow-hard-13)]"
+                  className="group relative flex flex-col rounded-[16px] border-2 border-ink bg-paper-strong p-3 shadow-[6px_6px_0_0_var(--shadow-hard-13)] transition hover:-translate-y-0.5 hover:shadow-[9px_9px_0_0_var(--shadow-hard-20)] has-[>a:focus-visible]:outline has-[>a:focus-visible]:outline-2 has-[>a:focus-visible]:outline-offset-2 has-[>a:focus-visible]:outline-ink"
                 >
-                  <div className="relative aspect-[4/3] overflow-hidden rounded-[8px] border-2 border-ink bg-paper">
-                    <Image
-                      src={STEP_IMAGES[index]}
-                      alt={step.title}
-                      fill
-                      sizes="(min-width: 768px) 33vw, 100vw"
-                      className="object-cover"
-                    />
+                  <Link href={stepLinks[index]} aria-label={step.cta} className="absolute inset-0 z-0" />
+                  <div className="pointer-events-none relative z-10 flex flex-1 flex-col">
+                    <div className="relative aspect-[4/3] overflow-hidden rounded-[8px] border-2 border-ink bg-paper">
+                      <Image
+                        src={STEP_IMAGES[index]}
+                        alt={step.title}
+                        fill
+                        sizes="(min-width: 768px) 33vw, 100vw"
+                        className="object-cover"
+                      />
+                    </div>
+                    <div className="mt-5 flex items-center gap-3 px-2">
+                      <SketchIcon>
+                        <span className="text-base font-black">{index + 1}</span>
+                      </SketchIcon>
+                      <h3 className="text-xl font-black leading-tight text-ink">{step.title}</h3>
+                    </div>
+                    <p className="mt-3 px-2 text-base font-bold leading-7 text-muted">{step.body}</p>
+                    <div className="mt-auto px-2 pt-6">
+                      <span className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-5 py-2.5 text-sm font-extrabold text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] transition-colors group-hover:bg-yellow">
+                        {step.cta}
+                        <ArrowRight className="size-4" />
+                      </span>
+                    </div>
                   </div>
-                  <div className="mt-5 flex items-center gap-3 px-2">
-                    <SketchIcon>
-                      <span className="text-base font-black">{index + 1}</span>
-                    </SketchIcon>
-                    <h3 className="text-xl font-black leading-tight text-ink">{step.title}</h3>
-                  </div>
-                  <p className="mt-3 px-2 pb-2 text-base font-bold leading-7 text-muted">{step.body}</p>
                 </article>
               ))}
             </div>
@@ -268,7 +300,7 @@ export function MarketingPage({
             <Panel className="p-3">
               <div className="relative aspect-[16/9] overflow-hidden rounded-[8px] border-2 border-ink bg-paper">
                 <Image
-                  src="/images/landing/community.png"
+                  src="/images/landing/community-v2.png"
                   alt={m.community.imageAlt}
                   fill
                   sizes="(min-width: 1024px) 55vw, 100vw"
@@ -283,53 +315,69 @@ export function MarketingPage({
         <section id="pricing" className="border-b-2 border-ink bg-paper px-4 py-16 sm:px-6 lg:px-8">
           <div className="relative mx-auto max-w-7xl">
             <SectionMarginalia
-              variant="spark"
-              className="absolute right-1 top-0 hidden h-11 w-11 text-ink sm:block"
+              variant="sun"
+              className="absolute right-1 top-0 hidden h-12 w-12 text-yellow sm:block"
             />
             <SectionHeader title={m.pricing.title} body={m.pricing.intro} underline />
-            <div className="mt-10 grid gap-6 lg:grid-cols-2">
-              {courses.map((course) => (
-                <Panel key={course.slug} className="flex flex-col p-6 sm:p-8">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <h3 className="text-2xl font-black leading-tight text-ink">{localized(course.title, locale)}</h3>
-                      <p className="mt-1 text-sm font-bold text-muted">{localized(course.subtitle, locale)}</p>
-                    </div>
-                    <ShieldCheck className="size-8 shrink-0 text-ink" />
-                  </div>
-                  <div className="mt-6 flex items-end gap-2">
-                    <span className="text-5xl font-black tabular-nums text-ink">9,99</span>
-                    <span className="pb-2 text-base font-extrabold text-muted">
-                      EUR / {m.pricing.perMonth}
-                    </span>
-                  </div>
-                  <p className="mt-7 text-xs font-black uppercase tracking-[0.12em] text-muted">
-                    {m.pricing.includedHeading}
-                  </p>
-                  <ul className="mt-3 flex flex-col gap-2 text-base font-bold leading-7 text-muted">
-                    {m.pricing.includes.map((item) => (
-                      <li key={item} className="flex items-start gap-2">
-                        <CheckCircle2 className="mt-1 size-5 shrink-0 text-ink" />
-                        <span>{item}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <div className="mt-auto pt-7">
-                    <p className="flex items-center gap-2 text-2xl font-black text-ink">
-                      <Sparkles className="size-6 text-ink" />
-                      {m.pricing.cancel}
-                    </p>
-                    <CheckoutButton
-                      courseSlug={course.slug}
-                      locale={locale}
-                      label={t.checkout}
-                      fullWidth
-                      className="mt-4"
-                    />
-                  </div>
-                </Panel>
-              ))}
+            <div className="mt-10 grid items-stretch gap-6 lg:grid-cols-2">
+              {/* BASIC — standardni panel. CTA vodi na registraciju (ulogovan: /app). */}
+              <Panel className="flex flex-col p-6 sm:p-8">
+                <h3 className="text-2xl font-black leading-tight text-ink">{m.pricing.basic.name}</h3>
+                <div className="mt-6 flex items-end gap-2">
+                  <span className="text-5xl font-black tabular-nums text-ink">{PRICING.basic.eur}</span>
+                  <span className="pb-2 text-base font-extrabold text-muted">EUR / {m.pricing.perMonth}</span>
+                </div>
+                <ul className="mt-7 flex flex-col gap-2 text-base font-bold leading-7 text-muted">
+                  {m.pricing.basic.features.map((item) => (
+                    <li key={item} className="flex items-start gap-2">
+                      <CheckCircle2 className="mt-1 size-5 shrink-0 text-ink" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+                <div className="mt-auto pt-7">
+                  <LinkButton href={startLearningHref} tone="paper" size="lg" className="w-full">
+                    {m.pricing.basic.cta}
+                    <ArrowRight className="size-4" />
+                  </LinkButton>
+                </div>
+              </Panel>
+
+              {/* PREMIUM — istaknut: „Najpopularnije" badge, žuto ostrvo za cenu, jača senka.
+                  Placeholder cena (PRICING.premium) i CTA na registraciju/billing sa ?plan=premium. */}
+              <Panel className="relative flex flex-col p-6 shadow-[8px_8px_0_0_var(--shadow-hard-20)] sm:p-8">
+                <Badge
+                  tone="yellow"
+                  icon={<Sparkles className="size-3.5" />}
+                  className="absolute -top-3 right-6 shadow-[2px_2px_0_0_var(--ink)]"
+                >
+                  {m.pricing.popular}
+                </Badge>
+                <h3 className="text-2xl font-black leading-tight text-ink">{m.pricing.premium.name}</h3>
+                <div className="mt-6 inline-flex w-fit items-end gap-2 rounded-[12px] border-2 border-ink bg-yellow px-4 py-2 shadow-[3px_3px_0_0_var(--ink)]">
+                  <span className="text-5xl font-black tabular-nums text-ink">{PRICING.premium.eur}</span>
+                  <span className="pb-1 text-base font-extrabold text-ink">EUR / {m.pricing.perMonth}</span>
+                </div>
+                <ul className="mt-7 flex flex-col gap-2 text-base font-bold leading-7 text-muted">
+                  {premiumFeatures.map((item) => (
+                    <li key={item} className="flex items-start gap-2">
+                      <CheckCircle2 className="mt-1 size-5 shrink-0 text-ink" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+                <div className="mt-auto pt-7">
+                  <LinkButton href={premiumCtaHref} tone="yellow" size="lg" className="w-full">
+                    {m.pricing.premium.cta}
+                    <ArrowRight className="size-4" />
+                  </LinkButton>
+                </div>
+              </Panel>
             </div>
+            {/* Sitan red: naplata još ne postoji — vlasnik menja ovaj tekst (i18n `pricing.soon`). */}
+            <p className="mx-auto mt-6 max-w-2xl text-center text-sm font-bold text-muted">
+              {m.pricing.soon}
+            </p>
           </div>
         </section>
 
@@ -337,8 +385,8 @@ export function MarketingPage({
         <section id="faq" className="border-b-2 border-ink bg-paper-strong px-4 py-16 sm:px-6 lg:px-8">
           <div className="relative mx-auto max-w-3xl">
             <SectionMarginalia
-              variant="star"
-              className="absolute right-1 top-0 hidden h-11 w-11 text-yellow sm:block"
+              variant="sun"
+              className="absolute right-1 top-0 hidden h-12 w-12 text-yellow sm:block"
             />
             <SectionHeader title={m.faq.title} underline />
             <div className="mt-10 flex flex-col gap-3">

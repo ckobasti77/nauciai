@@ -192,6 +192,7 @@ export const marketingContent = {
       intro: "Dva kursa, isti cilj: da na kraju imaš pravi rad — ne samo teoriju.",
       outcomesLabel: "Šta ćeš znati",
       buyNow: "Kupi sada",
+      viewCourse: "Pogledaj kurs",
     },
     steps: {
       title: "Kako izgleda učenje",
@@ -200,14 +201,17 @@ export const marketingContent = {
         {
           title: "Gledaš lekciju",
           body: "Kratke, jasne lekcije koje pratiš svojim tempom, kad god stigneš.",
+          cta: "Pogledaj besplatan video",
         },
         {
           title: "Radiš uz zajednicu i materijale",
           body: "Uz svaku lekciju ide materijal i prostor da pitaš, podeliš rad i dobiješ savet.",
+          cta: "Otvori Studio",
         },
         {
           title: "Objaviš gotov rad",
           body: "Na kraju svakog kursa imaš pravi rad koji možeš da pokažeš, objaviš ili predaš klijentu.",
+          cta: "Uđi u zajednicu",
         },
       ],
     },
@@ -220,15 +224,39 @@ export const marketingContent = {
         "Obaveštenja o novim lekcijama",
       ],
       imageAlt: "Ilustracija zajednice studenata",
-      cta: "Poseti zajednicu",
+      cta: "Uđi u zajednicu",
     },
     pricing: {
-      title: "Jedna cena, sve u kursu",
-      intro: "Mesečna pretplata po kursu. Bez skrivenih troškova.",
-      includedHeading: "Šta je uključeno",
-      includes: ["Sve lekcije i materijali", "Pristup zajednici", "Nove lekcije bez doplate"],
+      title: "Dva plana, jedan cilj — gotov rad",
+      intro: "Mesečno, bez skrivenih troškova. Otkaži kad hoćeš.",
       perMonth: "mesečno",
-      cancel: "Otkaži kad hoćeš",
+      popular: "Najpopularnije",
+      // Sitan red ispod kartica — vlasnik menja kad krene paywall.
+      soon: "Plaćanje se uvodi uskoro — do tada je sav objavljeni sadržaj besplatan uz registraciju.",
+      basic: {
+        name: "Basic",
+        features: [
+          "Sve lekcije i materijali",
+          "Pristup zajednici",
+          "Nove lekcije bez doplate",
+          "Kredite za Studio kupuješ posebno",
+        ],
+        cta: "Počni sa Basic",
+      },
+      premium: {
+        name: "Premium",
+        // "%CREDITS%" se u komponenti zamenjuje brojem kredita iz baze (ako
+        // postoji plan „premium"); u suprotnom stoji tekst bez broja.
+        features: [
+          "Sve iz Basic-a",
+          "Pro lekcije (napredni moduli)",
+          "%CREDITS%",
+          "Prioritetni odgovori u zajednici",
+        ],
+        creditsWithNumber: "{n} Studio kredita svakog meseca",
+        creditsNoNumber: "Studio krediti svakog meseca",
+        cta: "Izaberi Premium",
+      },
     },
     faq: {
       title: "Česta pitanja",
@@ -353,6 +381,7 @@ export const marketingContent = {
       intro: "Two courses, one goal: you finish with real work in hand — not just theory.",
       outcomesLabel: "What you'll be able to do",
       buyNow: "Buy now",
+      viewCourse: "View course",
     },
     steps: {
       title: "How the learning works",
@@ -361,14 +390,17 @@ export const marketingContent = {
         {
           title: "Watch the lesson",
           body: "Short, clear lessons you follow at your own pace, whenever it suits you.",
+          cta: "Watch the free video",
         },
         {
           title: "Build with community and materials",
           body: "Each lesson comes with materials and a space to ask, share your work, and get advice.",
+          cta: "Open Studio",
         },
         {
           title: "Publish finished work",
           body: "By the end of each course you have real work to show, publish, or deliver to a client.",
+          cta: "Enter the community",
         },
       ],
     },
@@ -381,15 +413,39 @@ export const marketingContent = {
         "Get notified about new lessons",
       ],
       imageAlt: "Illustration of the student community",
-      cta: "Visit the community",
+      cta: "Enter the community",
     },
     pricing: {
-      title: "One price, everything in the course",
-      intro: "A monthly subscription per course. No hidden costs.",
-      includedHeading: "What's included",
-      includes: ["All lessons and materials", "Community access", "New lessons at no extra cost"],
+      title: "Two plans, one goal — finished work",
+      intro: "Monthly, no hidden costs. Cancel anytime.",
       perMonth: "month",
-      cancel: "Cancel anytime",
+      popular: "Most popular",
+      // Small line below the cards — owner edits this when the paywall goes live.
+      soon: "Payments are coming soon — until then, all published content is free with sign-up.",
+      basic: {
+        name: "Basic",
+        features: [
+          "All lessons and materials",
+          "Community access",
+          "New lessons at no extra cost",
+          "Buy Studio credits separately",
+        ],
+        cta: "Start with Basic",
+      },
+      premium: {
+        name: "Premium",
+        // "%CREDITS%" is replaced in the component with the credit count from
+        // the database (if a "premium" plan exists); otherwise the no-number text stays.
+        features: [
+          "Everything in Basic",
+          "Pro lessons (advanced modules)",
+          "%CREDITS%",
+          "Priority answers in the community",
+        ],
+        creditsWithNumber: "{n} Studio credits every month",
+        creditsNoNumber: "Studio credits every month",
+        cta: "Choose Premium",
+      },
     },
     faq: {
       title: "Frequently asked questions",
