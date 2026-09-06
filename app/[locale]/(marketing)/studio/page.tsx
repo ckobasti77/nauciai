@@ -196,8 +196,8 @@ export default async function StudioLandingPage({
   ];
 
   return (
-    <main className="bg-paper text-ink">
-      <SmartStickyHeader overlay className="top-0 z-40 border-b-2 border-ink bg-paper/95 shadow-[0_8px_18px_-16px_var(--shadow-hard-55)] backdrop-blur">
+    <main className="bg-surface-a text-ink">
+      <SmartStickyHeader overlay className="top-0 z-40 border-b-2 border-ink bg-surface-a/95 shadow-[0_8px_18px_-16px_var(--shadow-hard-55)] backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
           <BrandMark href={withLocale(locale)} />
           <div className="flex items-center gap-2">
@@ -276,8 +276,8 @@ export default async function StudioLandingPage({
           </section>
         </HeroMotion>
 
-        {/* Šta Studio pravi — stepenaste vrste, ne tri jednake kartice. */}
-        <section className="border-b-2 border-ink bg-paper-strong px-4 py-16 sm:px-6 lg:px-8">
+        {/* Šta Studio pravi — stepenaste vrste, ne tri jednake kartice. (površina B) */}
+        <section className="border-b-2 border-ink bg-surface-b px-4 py-16 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-7xl">
             <SectionHeader title={STUDIO_LANDING.kindsTitle[locale]} />
             <div className="mt-10 grid gap-10 lg:grid-cols-[1fr_300px] lg:items-start">
@@ -291,7 +291,7 @@ export default async function StudioLandingPage({
                       index === 2 && "lg:ml-48",
                     )}
                   >
-                    <Panel className="flex flex-wrap items-start gap-4 p-5 sm:flex-nowrap sm:p-6">
+                    <Panel level={0} className="flex flex-wrap items-start gap-4 p-5 sm:flex-nowrap sm:p-6">
                       <SketchIcon>
                         <Icon className="size-5" />
                       </SketchIcon>
@@ -312,7 +312,7 @@ export default async function StudioLandingPage({
                   </div>
                 ))}
               </div>
-              <Panel className="sketch-float p-5">
+              <Panel level={0} className="sketch-float p-5">
                 <p className="font-display text-xl text-ink">
                   {locale === "sr" ? "Kako radi" : "How it works"}
                 </p>
@@ -326,12 +326,12 @@ export default async function StudioLandingPage({
 
         {/* Primeri — SAMO prave generacije; sekcije nema dok je manifest prazan. */}
         {STUDIO_EXAMPLES.length > 0 ? (
-          <section className="border-b-2 border-ink px-4 py-16 sm:px-6 lg:px-8">
+          <section className="border-b-2 border-ink bg-surface-a px-4 py-16 sm:px-6 lg:px-8">
             <div className="mx-auto max-w-7xl">
               <SectionHeader title={STUDIO_LANDING.examplesTitle[locale]} />
               <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {STUDIO_EXAMPLES.map((example) => (
-                  <Panel key={example.src} className="p-3">
+                  <Panel key={example.src} level={1} className="p-3">
                     <Image
                       src={example.src}
                       alt={localized(example.alt, locale)}
@@ -349,11 +349,11 @@ export default async function StudioLandingPage({
         ) : null}
 
         {/* Paketi — žive cene iz baze, nikad prepisane u kod. */}
-        <section id="paketi" className="sketch-grid border-b-2 border-ink px-4 py-16 sm:px-6 lg:px-8">
+        <section id="paketi" className="sketch-grid border-b-2 border-ink bg-surface-b px-4 py-16 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-7xl">
             <SectionHeader title={STUDIO_LANDING.packsTitle[locale]} body={STUDIO_LANDING.packsBody[locale]} />
             {packs.length === 0 ? (
-              <Panel className="mt-10 max-w-xl p-6 text-center">
+              <Panel level={0} className="mt-10 max-w-xl p-6 text-center">
                 <SketchIcon className="mx-auto size-12">
                   <Coins className="size-5" />
                 </SketchIcon>
@@ -367,9 +367,12 @@ export default async function StudioLandingPage({
                   return (
                     <Panel
                       key={pack.slug}
+                      level={0}
                       className={cn(
                         "flex h-full flex-col p-6",
-                        emphasized && "bg-paper-strong shadow-[8px_8px_0_0_var(--yellow)] md:-mt-4",
+                        // Naglašen paket se ističe žutom senkom + podizanjem, ne drugom bojom
+                        // (obe kartice su A na sekciji B; boja ostaje u sistemu površina).
+                        emphasized && "shadow-[8px_8px_0_0_var(--yellow)] md:-mt-4",
                       )}
                     >
                       <div className="flex items-baseline justify-between gap-3">
@@ -406,10 +409,10 @@ export default async function StudioLandingPage({
           </div>
         </section>
 
-        {/* Tihi cross-sell (F5). Pravni red + puna navigacija žive u deljenom
-            SiteFooter-u ispod (marketing layout), pa ovde stoji SAMO cross-sell —
-            bez drugog <footer>-a i bez dvostrukog pravnog reda. */}
-        <section className="px-4 py-12 sm:px-6 lg:px-8">
+        {/* Tihi cross-sell (F5, površina A → footer crta talas A→B). Pravni red + puna
+            navigacija žive u deljenom SiteFooter-u ispod (marketing layout), pa ovde stoji
+            SAMO cross-sell — bez drugog <footer>-a i bez dvostrukog pravnog reda. */}
+        <section className="bg-surface-a px-4 py-12 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-7xl">
             <Link
               href={`${withLocale(locale)}#courses`}

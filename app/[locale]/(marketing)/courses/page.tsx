@@ -93,7 +93,7 @@ export default async function PublicCoursesListingPage({
   const safeJsonLd = JSON.stringify(jsonLd).replace(/</g, "\\u003c");
 
   return (
-    <main className="sketch-grid min-h-screen bg-paper px-4 py-8 sm:px-6 lg:px-8">
+    <main className="sketch-grid min-h-screen bg-surface-a px-4 py-8 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl space-y-6">
         {/* Header bar */}
         <div className="flex items-center justify-between gap-4">
@@ -121,8 +121,8 @@ export default async function PublicCoursesListingPage({
           <span className="text-ink">{t.breadcrumbCourses}</span>
         </nav>
 
-        {/* Hero title panel */}
-        <Panel className="overflow-hidden p-6 sm:p-8 md:p-10">
+        {/* Hero title panel — na površini A (main), panel je B */}
+        <Panel level={1} className="overflow-hidden p-6 sm:p-8 md:p-10">
           <div className="space-y-3">
             <p className="text-xs font-black uppercase tracking-[0.14em] text-muted">{t.kicker}</p>
             <h1 className="text-balance font-display text-3xl font-black leading-tight text-ink sm:text-4xl md:text-5xl">
@@ -138,7 +138,7 @@ export default async function PublicCoursesListingPage({
         {/* Courses grid */}
         <div className="grid gap-6 lg:grid-cols-2">
           {courses.map((course) => (
-            <CourseCard key={course.slug} course={course} locale={locale} hasConvex={hasConvex} />
+            <CourseCard key={course.slug} course={course} locale={locale} hasConvex={hasConvex} level={0} />
           ))}
         </div>
       </div>

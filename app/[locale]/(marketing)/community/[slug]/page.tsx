@@ -238,7 +238,7 @@ export default async function PublicCommunityThreadPage({
   const safeJsonLd = JSON.stringify(jsonLd).replace(/</g, "\\u003c");
 
   return (
-    <main className="sketch-grid min-h-screen bg-paper px-4 py-8 sm:px-6 lg:px-8">
+    <main className="sketch-grid min-h-screen bg-surface-a px-4 py-8 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-4xl space-y-6">
         {/* Header bar */}
         <div className="flex items-center justify-between gap-4">
@@ -284,8 +284,8 @@ export default async function PublicCommunityThreadPage({
         </div>
 
         {/* Thread article */}
-        <Panel as="article" className="overflow-hidden">
-          <header className="border-b-2 border-line bg-paper/60 p-6 sm:p-8 md:p-10">
+        <Panel as="article" level={1} className="overflow-hidden">
+          <header className="border-b-2 border-line bg-surface-a/60 p-6 sm:p-8 md:p-10">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-black uppercase tracking-[0.14em] text-muted">
                 {ct.kicker}
@@ -333,7 +333,7 @@ export default async function PublicCommunityThreadPage({
             {post.body}
           </div>
 
-          <footer className="flex flex-wrap items-center gap-3 border-t-2 border-line bg-paper/40 p-4 sm:p-6">
+          <footer className="flex flex-wrap items-center gap-3 border-t-2 border-line bg-surface-a/40 p-4 sm:p-6">
             <span className="rounded-full border-2 border-ink bg-paper-strong px-3.5 py-1 text-xs font-black tabular-nums text-ink shadow-[2px_2px_0_0_var(--shadow-hard-10)]">
               {post.voteScore} {ct.netVotes}
             </span>
@@ -352,7 +352,7 @@ export default async function PublicCommunityThreadPage({
         </Panel>
 
         {/* Comments section */}
-        <Panel id="comments" className="p-6 sm:p-8 md:p-10">
+        <Panel id="comments" level={1} className="p-6 sm:p-8 md:p-10">
           <PublicCommunityComments
             postId={post._id}
             locale={locale}
@@ -384,9 +384,10 @@ export default async function PublicCommunityThreadPage({
                   <Panel
                     key={otherPost._id}
                     as="article"
+                    level={1}
                     className="group flex items-stretch gap-4 p-4 transition-[transform,translate,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[8px_8px_0_0_var(--shadow-hard-18)] active:translate-y-0 sm:p-5"
                   >
-                    <div className="flex shrink-0 flex-col items-center justify-center rounded-[12px] border-2 border-ink bg-paper px-2.5 py-2 text-ink shadow-[2px_2px_0_0_var(--shadow-hard-10)] sm:min-w-12">
+                    <div className="flex shrink-0 flex-col items-center justify-center rounded-[12px] border-2 border-ink bg-surface-a px-2.5 py-2 text-ink shadow-[2px_2px_0_0_var(--shadow-hard-10)] sm:min-w-12">
                       <ArrowUp className="size-4 stroke-[3] text-ink" aria-hidden="true" />
                       <span className="text-xs font-black tabular-nums">{otherPost.voteScore}</span>
                     </div>

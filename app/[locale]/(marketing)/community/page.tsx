@@ -190,7 +190,7 @@ export default async function PublicCommunityListingPage({
   const safeJsonLd = JSON.stringify(jsonLd).replace(/</g, "\\u003c");
 
   return (
-    <main className="sketch-grid min-h-screen bg-paper px-4 py-8 sm:px-6 lg:px-8">
+    <main className="sketch-grid min-h-screen bg-surface-a px-4 py-8 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-4xl space-y-6">
         {/* Header bar */}
         <div className="flex items-center justify-between gap-4">
@@ -221,8 +221,8 @@ export default async function PublicCommunityListingPage({
           <span className="text-ink">{t.breadcrumbCommunity}</span>
         </nav>
 
-        {/* Hero title panel */}
-        <Panel className="overflow-hidden p-6 sm:p-8 md:p-10">
+        {/* Hero title panel — na površini A (main), panel je B */}
+        <Panel level={1} className="overflow-hidden p-6 sm:p-8 md:p-10">
           <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
             <div className="space-y-3">
               <p className="text-xs font-black uppercase tracking-[0.14em] text-muted">
@@ -250,7 +250,7 @@ export default async function PublicCommunityListingPage({
 
         {/* Threads list */}
         {posts.length === 0 ? (
-          <Panel className="flex flex-col items-center justify-center p-8 text-center sm:p-12">
+          <Panel level={1} className="flex flex-col items-center justify-center p-8 text-center sm:p-12">
             <SketchIcon className="size-14 text-ink">
               <MessageSquare className="size-7" aria-hidden="true" />
             </SketchIcon>
@@ -276,10 +276,11 @@ export default async function PublicCommunityListingPage({
                 <Panel
                   key={post._id}
                   as="article"
+                  level={1}
                   className="group flex items-stretch gap-4 p-4 transition-[transform,translate,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[8px_8px_0_0_var(--shadow-hard-18)] active:translate-y-0 sm:gap-5 sm:p-6"
                 >
-                  {/* Left vote badge */}
-                  <div className="flex shrink-0 flex-col items-center justify-start rounded-[12px] border-2 border-ink bg-paper px-2.5 py-3 text-ink shadow-[2px_2px_0_0_var(--shadow-hard-10)] sm:min-w-14">
+                  {/* Left vote badge — u panelu B, pa je A (surface-a) */}
+                  <div className="flex shrink-0 flex-col items-center justify-start rounded-[12px] border-2 border-ink bg-surface-a px-2.5 py-3 text-ink shadow-[2px_2px_0_0_var(--shadow-hard-10)] sm:min-w-14">
                     <ArrowUp className="size-4 sm:size-5 stroke-[3] text-ink" aria-hidden="true" />
                     <span className="mt-1 text-xs font-black tabular-nums sm:text-sm">{post.voteScore}</span>
                   </div>

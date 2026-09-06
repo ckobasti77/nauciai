@@ -257,8 +257,8 @@ export default async function CourseInfoPage({
   const otherCourse = courses.find((item) => item.slug !== courseSlug) ?? courses[0];
 
   return (
-    <main className="bg-paper text-ink">
-      <header className="sticky top-0 z-20 border-b-2 border-ink bg-paper/95 backdrop-blur">
+    <main className="bg-surface-a text-ink">
+      <header className="sticky top-0 z-20 border-b-2 border-ink bg-surface-a/95 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
           <BrandMark href={withLocale(locale)} label={t.appName} />
           <div className="flex items-center gap-2">
@@ -345,18 +345,18 @@ export default async function CourseInfoPage({
               </ul>
             </div>
 
-            <Panel as="div" className="p-3">
+            <Panel as="div" level={1} className="p-3">
               {fallbackCourse.image.loop ? (
                 <LoopVideo
                   webmSrc={fallbackCourse.image.loop.webm}
                   mp4Src={fallbackCourse.image.loop.mp4}
                   posterSrc={fallbackCourse.image.loop.poster}
                   label={localized(fallbackCourse.image.alt, locale)}
-                  className="relative aspect-[16/9] overflow-hidden surface-media border-2 border-ink bg-paper"
+                  className="relative aspect-[16/9] overflow-hidden surface-media border-2 border-ink bg-surface-a"
                   sizes="(min-width: 1024px) 48vw, 100vw"
                 />
               ) : (
-                <div className="relative aspect-[16/9] overflow-hidden surface-media border-2 border-ink bg-paper">
+                <div className="relative aspect-[16/9] overflow-hidden surface-media border-2 border-ink bg-surface-a">
                   <Image
                     src={fallbackCourse.image.src}
                     alt={localized(fallbackCourse.image.alt, locale)}
@@ -372,7 +372,7 @@ export default async function CourseInfoPage({
         </section>
 
         {/* ── BESPLATAN VIDEO ──────────────────────────────────────────────── */}
-        <section id="besplatan-video" className="scroll-mt-20 border-b-2 border-ink bg-paper-strong px-4 py-16 sm:px-6 lg:px-8">
+        <section id="besplatan-video" className="scroll-mt-20 border-b-2 border-ink bg-surface-b px-4 py-16 sm:px-6 lg:px-8">
           <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
             <div data-motion="card" className="overflow-hidden rounded-[16px] border-2 border-ink bg-ink p-3 text-paper-strong shadow-[8px_8px_0_0_var(--yellow)]">
               <PublicCourseIntroVideo
@@ -400,8 +400,8 @@ export default async function CourseInfoPage({
           </div>
         </section>
 
-        {/* ── ŠTA ĆEŠ UMETI ────────────────────────────────────────────────── */}
-        <section className="border-b-2 border-ink bg-paper px-4 py-16 sm:px-6 lg:px-8">
+        {/* ── ŠTA ĆEŠ UMETI (površina A) ───────────────────────────────────── */}
+        <section className="border-b-2 border-ink bg-surface-a px-4 py-16 sm:px-6 lg:px-8">
           <div className="relative mx-auto max-w-7xl">
             <SectionMarginalia
               variant="star"
@@ -414,7 +414,7 @@ export default async function CourseInfoPage({
                   <div
                     key={localized(outcome, locale)}
                     data-motion="card"
-                    className="flex items-start gap-3 rounded-[16px] border-2 border-ink bg-paper-strong px-5 py-4 shadow-[4px_4px_0_0_var(--shadow-hard-13)]"
+                    className="flex items-start gap-3 rounded-[16px] border-2 border-ink bg-surface-b px-5 py-4 shadow-[4px_4px_0_0_var(--shadow-hard-13)]"
                   >
                     <CheckCircle2 className="mt-1 size-5 shrink-0 text-ink" />
                     <p className="text-base font-extrabold leading-7 text-ink">{localized(outcome, locale)}</p>
@@ -426,7 +426,7 @@ export default async function CourseInfoPage({
         </section>
 
         {/* ── PROGRAM KURSA ────────────────────────────────────────────────── */}
-        <section id="program" className="scroll-mt-20 border-b-2 border-ink bg-paper-strong px-4 py-16 sm:px-6 lg:px-8">
+        <section id="program" className="scroll-mt-20 border-b-2 border-ink bg-surface-b px-4 py-16 sm:px-6 lg:px-8">
           <div className="relative mx-auto max-w-7xl">
             <SectionMarginalia
               variant="arrow"
@@ -447,8 +447,8 @@ export default async function CourseInfoPage({
 
                 <div className="mt-8 grid gap-6">
                   {outline.modules.map((module, moduleIndex) => (
-                    <Panel key={module.id ?? moduleIndex} as="article" className="overflow-hidden">
-                      <div className="border-b-2 border-ink bg-paper px-5 py-5 sm:px-6">
+                    <Panel key={module.id ?? moduleIndex} as="article" level={0} className="overflow-hidden">
+                      <div className="border-b-2 border-ink bg-surface-b px-5 py-5 sm:px-6">
                         <p className="text-xs font-black uppercase tracking-[0.12em] text-muted">
                           {cp.program.moduleLabel} {moduleIndex + 1}
                         </p>
@@ -470,7 +470,7 @@ export default async function CourseInfoPage({
                               key={lesson.id ?? lesson.slug}
                               className={`flex items-center gap-3 px-4 py-4 sm:gap-4 sm:px-6 ${lessonIndex > 0 ? "border-t-2 border-ink" : ""} ${isComingSoon ? "opacity-60" : ""}`}
                             >
-                              <span className="grid size-9 shrink-0 place-items-center rounded-full border-2 border-ink bg-paper text-xs font-black text-ink">
+                              <span className="grid size-9 shrink-0 place-items-center rounded-full border-2 border-ink bg-surface-b text-xs font-black text-ink">
                                 {lessonIndex + 1}
                               </span>
                               <div className="min-w-0 flex-1">
@@ -487,12 +487,12 @@ export default async function CourseInfoPage({
                                   {cp.program.freeBadge}
                                 </span>
                               ) : isComingSoon ? (
-                                <span className="shrink-0 rounded-full border-2 border-ink bg-paper px-3 py-1 text-[11px] font-black text-muted">
+                                <span className="shrink-0 rounded-full border-2 border-ink bg-surface-b px-3 py-1 text-[11px] font-black text-muted">
                                   {cp.program.comingSoon}
                                 </span>
                               ) : (
                                 <span
-                                  className="grid size-9 shrink-0 place-items-center rounded-full border-2 border-ink bg-paper text-ink"
+                                  className="grid size-9 shrink-0 place-items-center rounded-full border-2 border-ink bg-surface-b text-ink"
                                   title={cp.program.lockedLabel}
                                 >
                                   <Lock className="size-4" aria-hidden="true" />
@@ -508,7 +508,7 @@ export default async function CourseInfoPage({
                 </div>
               </>
             ) : (
-              <div data-motion="card" className="mt-8 rounded-[16px] border-2 border-dashed border-ink bg-paper p-8 text-center">
+              <div data-motion="card" className="mt-8 rounded-[16px] border-2 border-dashed border-ink bg-surface-a p-8 text-center">
                 <SketchIcon className="mx-auto size-12">
                   <Clock3 className="size-5" />
                 </SketchIcon>
@@ -525,8 +525,8 @@ export default async function CourseInfoPage({
           </div>
         </section>
 
-        {/* ── FAQ PO KURSU ─────────────────────────────────────────────────── */}
-        <section className="border-b-2 border-ink bg-paper px-4 py-16 sm:px-6 lg:px-8">
+        {/* ── FAQ PO KURSU (površina A) ────────────────────────────────────── */}
+        <section className="border-b-2 border-ink bg-surface-a px-4 py-16 sm:px-6 lg:px-8">
           <div className="relative mx-auto max-w-3xl">
             <SectionMarginalia
               variant="spark"
@@ -537,7 +537,7 @@ export default async function CourseInfoPage({
               {perCourse.faq.map((item) => (
                 <details
                   key={item.q}
-                  className="group rounded-[16px] border-2 border-ink bg-paper-strong shadow-[4px_4px_0_0_var(--shadow-hard-13)]"
+                  className="group rounded-[16px] border-2 border-ink bg-surface-b shadow-[4px_4px_0_0_var(--shadow-hard-13)]"
                 >
                   <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-lg font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink [&::-webkit-details-marker]:hidden">
                     <span>{item.q}</span>
@@ -553,8 +553,8 @@ export default async function CourseInfoPage({
           </div>
         </section>
 
-        {/* ── ZAVRŠNI CTA ──────────────────────────────────────────────────── */}
-        <section className="bg-paper-strong px-4 py-20 sm:px-6 lg:px-8">
+        {/* ── ZAVRŠNI CTA (površina A → footer crta talas A→B) ─────────────── */}
+        <section className="bg-surface-a px-4 py-20 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-5xl">
             <div
               data-motion="card"

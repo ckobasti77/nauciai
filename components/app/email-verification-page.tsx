@@ -57,9 +57,9 @@ export function EmailVerificationPage({ locale, token }: { locale: Locale; token
             : t(locale, "Link je nevažeći ili je došlo do greške. Zatraži novi link sa stranice Profil.", "The link is invalid or an error occurred. Request a new link from your Profile page.");
 
   return (
-    <main className="sketch-grid min-h-screen bg-paper px-4 py-8 sm:px-6 lg:px-8">
+    <main className="sketch-grid min-h-screen bg-surface-a px-4 py-8 sm:px-6 lg:px-8">
       <div className="mx-auto flex min-h-[calc(100vh-64px)] max-w-2xl items-center justify-center">
-        <Panel className="relative w-full p-6 text-center sm:p-8">
+        <Panel level={1} className="relative w-full p-6 text-center sm:p-8">
           <SectionMarginalia
             variant={isSuccess ? "star" : "spark"}
             className={

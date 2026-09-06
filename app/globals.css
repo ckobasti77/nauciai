@@ -1,4 +1,11 @@
-@import "tailwindcss";
+/* `source(none)` gasi Tailwind auto-detekciju (koja skenira CEO repo osim .gitignore) i
+   sami nabrajamo izvore: aplikativni kod. Inače Tailwind vidi bele utility klase koje
+   docs/skills/CSV navode kao PRIMERE u tekstu i emituje ih kao mrtve klase u build izlaz
+   (bespotreban CSS + lažan check:white nalaz). Sve Tailwind klase žive u app/components/lib. */
+@import "tailwindcss" source(none);
+@source "../app";
+@source "../components";
+@source "../lib";
 
 /* Tamna tema. Inline skripta iz `lib/theme.ts` postavi `data-theme="light|dark"`
    na <html> pre prve boje (svetla/tamna/sistem se razresi tamo), pa Tailwind
@@ -63,6 +70,7 @@
   .group:hover .group-hover\:bg-yellow,
   .group:focus-visible .group-focus-visible\:bg-yellow,
   .hero-paper-island,
+  .paper-island,
   .marketing-header:not([data-scrolled="true"])
 ) {
   color-scheme: light;
@@ -71,6 +79,14 @@
   --ink: #0e3158;
   --paper: #fffdf8;
   --paper-strong: #FDEED8;
+  /* Naizmenične površine (v3). Dve boje se smenjuju po DUBINI (sekcija = nivo N,
+     element sa svojom pozadinom = N+1, suprotna boja) — nema treće boje i nema
+     čiste bele. `--surface-a` je krem heroja (isti ton kao `--hero-paper`), `-b`
+     nijansu hladniji papir. Parnost bira `lib/surface.ts`; klase `bg-surface-a/-b`
+     izlaze iz `@theme` ispod. U žutom/hero OSTRVU razrešavaju se na svetle vrednosti
+     (deo ove liste), pa su i tamne sekcije-ostrva svetle. */
+  --surface-a: #FDEED8;
+  --surface-b: #F4F0E8;
   --yellow: #f4be30;
   /* Krem podloga heroa — PROSEČNA boja gornjeg levog ugla (24×24 px) iz
      `hero-v2-poster.png` (1920×1072), izmerena skriptom (sharp). L3.1: portret poster
@@ -149,6 +165,10 @@
   --ink: #e9eef6;
   --paper: #0e1a2b;
   --paper-strong: #18293f;
+  /* Tamni parnjaci naizmeničnih površina: A = boja stranice (paper), B = nijansu
+     svetlija (paper-strong). Isti odnos „dublje = svetlije" kao papir/jaki-papir. */
+  --surface-a: #0e1a2b;
+  --surface-b: #18293f;
   --muted: #9fb2c8;
   --line: #2f4762;
   --blue-mid: #7fb0d6;
@@ -177,6 +197,8 @@
   --color-ink: var(--ink);
   --color-paper: var(--paper);
   --color-paper-strong: var(--paper-strong);
+  --color-surface-a: var(--surface-a);
+  --color-surface-b: var(--surface-b);
   --color-yellow: var(--yellow);
   --color-muted: var(--muted);
   --color-line: var(--line);
@@ -623,16 +645,18 @@ select:-webkit-autofill {
   outline-offset: 2px;
 }
 
-/* ── Talasasti razdelnik između sekcija (v2) ────────────────────────────────────
+/* ── Talasasti razdelnik između sekcija (v3) ────────────────────────────────────
    `<SectionWave>` usidren uz DNO sekcije i pomeren translateY 50% da jaše na granici dve
-   sekcije. Visina je fiksna (24px = viewBox), ne dodaje layout (apsolutan, translate ga
-   spušta pola izvan), `pointer-events-none`, z-10 da bude iznad pozadine naredne sekcije.
-   Sekcija koja ga nosi mora biti `position: relative` i NE sme da klipuje (`overflow`). */
+   sekcije. NEPROVIDNA traka (nosi obe boje, deli ih talas) — visina 40px = viewBox
+   (`preserveAspectRatio:none`, vertikalna skala 1). Ne dodaje layout (apsolutan, translate
+   je spušta pola izvan), `pointer-events-none`, z-10 da traka bude iznad pozadine obe
+   sekcije i prekrije ravnu boja-granicu. Sekcija koja ga nosi mora biti `position: relative`
+   i NE sme da klipuje (`overflow`). */
 .section-wave {
   position: absolute;
   inset-inline: 0;
   bottom: 0;
-  height: 24px;
+  height: 40px;
   transform: translateY(50%);
   z-index: 10;
 }

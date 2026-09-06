@@ -31,10 +31,11 @@ export function SiteFooter({ locale }: { locale: Locale }) {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="relative bg-paper text-ink">
-      {/* Pocepana ivica papira: deli stranicu od podnožja. Ista putanja kao razdelnici
-          između sekcija — izdvojena u `<SectionWave />`. */}
-      <SectionWave className="absolute inset-x-0 top-0 h-4" />
+    <footer className="relative bg-surface-b text-ink">
+      {/* Talas deli stranicu od podnožja (v3): footer je površina B, a poslednja sekcija
+          svake javne strane je A (level 0) → jedan talas A→B. Ista neprovidna traka kao
+          razdelnici između sekcija; jaše na granici (`section-wave-top`, translateY -50%). */}
+      <SectionWave from={0} to={1} className="section-wave section-wave-top" />
 
       <div className="mx-auto max-w-7xl px-4 pb-10 pt-16 sm:px-6 lg:px-8">
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">

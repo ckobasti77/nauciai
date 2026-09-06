@@ -30,7 +30,7 @@ export function LegalPage({ locale, document }: { locale: Locale; document: Lega
   const tocAriaLabel = locale === "sr" ? "Sadržaj dokumenta" : "Table of contents";
 
   return (
-    <main data-motion="page" className="sketch-grid min-h-screen bg-paper px-4 py-8 text-ink sm:px-6 lg:px-8">
+    <main data-motion="page" className="sketch-grid min-h-screen bg-surface-a px-4 py-8 text-ink sm:px-6 lg:px-8">
       <div className="mx-auto max-w-3xl lg:max-w-5xl">
         <div className="flex items-center justify-between gap-4">
           <BrandMark href={withLocale(locale)} label={dictionary[locale].appName} />
@@ -65,7 +65,7 @@ export function LegalPage({ locale, document }: { locale: Locale; document: Lega
         <div className="mt-10 grid gap-10 lg:grid-cols-[1fr_240px]">
           <div className="space-y-6">
             {document.sections.map((section) => (
-              <Panel key={section.id} as="article" className="p-6 sm:p-8">
+              <Panel key={section.id} as="article" level={1} className="p-6 sm:p-8">
                 <h2 id={section.id} className="scroll-mt-6 text-2xl font-black leading-tight text-ink">
                   {section.title[locale]}
                 </h2>

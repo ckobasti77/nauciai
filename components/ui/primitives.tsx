@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { ComponentProps, ReactNode } from "react";
 
 import { MarkerHighlight } from "@/components/marketing/marker-highlight";
+import { surfaceClass } from "@/lib/surface";
 
 export function cn(...classes: Array<string | false | null | undefined>): string {
   return classes.filter(Boolean).join(" ");
@@ -85,11 +86,19 @@ export function Panel({
   className,
   id,
   as = "section",
+  level,
 }: {
   children: ReactNode;
   className?: string;
   id?: string;
   as?: "section" | "article" | "div" | "aside";
+  /**
+   * Nivo naizmenične površine (v3, `lib/surface.ts`). Kad je dat, pozadina ide iz
+   * `surfaceClass(level)` umesto podrazumevanog `bg-paper-strong` — javne strane
+   * prosleđuju nivo svoje sekcije + 1 (panel crta sopstvenu pozadinu, pa je za jedan
+   * dublji). App ekrani ga izostave i zadrže zatečeni `bg-paper-strong`.
+   */
+  level?: number;
 }) {
   const Tag = as;
 
@@ -98,7 +107,8 @@ export function Panel({
       id={id}
       data-motion="card"
       className={cn(
-        "rounded-[16px] border-2 border-ink bg-paper-strong shadow-[6px_6px_0_0_var(--shadow-hard-13)]",
+        "rounded-[16px] border-2 border-ink shadow-[6px_6px_0_0_var(--shadow-hard-13)]",
+        level === undefined ? "bg-paper-strong" : surfaceClass(level),
         className,
       )}
     >

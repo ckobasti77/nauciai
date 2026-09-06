@@ -91,7 +91,7 @@ export default async function SignInPage({
     mode === "reset-confirm" ? "resetVerification" : mode === "reset" ? "reset" : undefined;
 
   return (
-    <main data-motion="page" className="sketch-grid min-h-screen bg-paper px-4 py-8 sm:px-6 lg:px-8">
+    <main data-motion="page" className="sketch-grid min-h-screen bg-surface-a px-4 py-8 sm:px-6 lg:px-8">
       <div className="mx-auto grid min-h-[calc(100vh-64px)] max-w-6xl items-center gap-10 lg:grid-cols-[0.9fr_1.1fr]">
         <SignInCopy locale={locale} />
         <SignInPanel

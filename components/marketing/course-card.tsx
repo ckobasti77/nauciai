@@ -6,6 +6,7 @@ import { CourseFavoriteButton } from "@/components/marketing/course-favorite-but
 import { LoopVideo } from "@/components/marketing/loop-video";
 import type { Course } from "@/lib/content";
 import { localized, marketingContent, type Locale, withLocale } from "@/lib/i18n";
+import { nextLevel, surfaceClass } from "@/lib/surface";
 
 /**
  * Kartica kursa — deljena između home „KURSEVI" sekcije i javne liste kurseva
@@ -15,12 +16,18 @@ export function CourseCard({
   course,
   locale,
   hasConvex,
+  level = 1,
 }: {
   course: Course;
   locale: Locale;
   hasConvex: boolean;
+  /** Nivo površine SEKCIJE u kojoj kartica stoji (v3). Kartica crta svoju pozadinu →
+      za jedan dublje (suprotna boja); medijski bunar u njoj → još jedan dublje. */
+  level?: number;
 }) {
   const m = marketingContent[locale];
+  const cardLevel = nextLevel(level);
+  const mediaLevel = nextLevel(cardLevel);
   const courseHref = withLocale(locale, `/courses/${course.slug}`);
   const freeVideoHref = `${courseHref}#besplatan-video`;
   const signInHref = `${withLocale(locale, "/sign-in")}?next=${encodeURIComponent(courseHref)}`;
@@ -32,7 +39,7 @@ export function CourseCard({
   return (
     <article
       data-motion="card"
-      className="group relative flex min-h-full flex-col overflow-hidden rounded-[16px] border-2 border-ink bg-paper-strong shadow-[6px_6px_0_0_var(--shadow-hard-16)] transition hover:-translate-y-1 hover:shadow-[9px_9px_0_0_var(--shadow-hard-20)] has-[>a:focus-visible]:outline has-[>a:focus-visible]:outline-2 has-[>a:focus-visible]:outline-offset-2 has-[>a:focus-visible]:outline-ink"
+      className={`group relative flex min-h-full flex-col overflow-hidden rounded-[16px] border-2 border-ink ${surfaceClass(cardLevel)} shadow-[6px_6px_0_0_var(--shadow-hard-16)] transition hover:-translate-y-1 hover:shadow-[9px_9px_0_0_var(--shadow-hard-20)] has-[>a:focus-visible]:outline has-[>a:focus-visible]:outline-2 has-[>a:focus-visible]:outline-offset-2 has-[>a:focus-visible]:outline-ink`}
     >
       <Link
         href={courseHref}
@@ -41,7 +48,7 @@ export function CourseCard({
       />
 
       <div className="pointer-events-none relative z-10 p-3">
-        <div className="relative aspect-[16/9] overflow-hidden surface-media border-2 border-ink bg-paper">
+        <div className={`relative aspect-[16/9] overflow-hidden surface-media border-2 border-ink ${surfaceClass(mediaLevel)}`}>
           {course.image.loop ? (
             <LoopVideo
               webmSrc={course.image.loop.webm}

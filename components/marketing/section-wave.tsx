@@ -1,42 +1,62 @@
 import { cn } from "@/components/ui/primitives";
+import { surfaceVar, type SurfaceLevel } from "@/lib/surface";
 
 /**
- * Talasasta „pocepana ivica papira" (v2) — razdelnik između sekcija landinga i vrha
- * podnožja. Ista ručno crtana putanja koja je ranije živela inline u `site-footer.tsx`.
+ * Talasasti razdelnik — JEDINA granica između dve sekcije (v3).
  *
- * Dve putanje kao na sajtu: glavna u boji mastila i tanja, svetlija linija (`--line`)
- * pomerena par px naniže, pa izgleda kao ručno precrtana ivica. `preserveAspectRatio="none"`
- * rasteže je preko cele širine; `vector-effect: non-scaling-stroke` drži debljinu poteza
- * konstantnom bez obzira na razvlačenje. Dekorativna je: `aria-hidden`, `pointer-events-none`.
+ * Ranije su se videle tri linije: tamna talasasta, svetlija talasasta i ravna
+ * horizontalna gde se menja boja pozadine. Sada je razdelnik NEPROVIDNA traka koja
+ * sama nosi obe boje, pa se boja menja PO talasu, ne po pravoj liniji:
+ *   · pozadina `<svg>`-a = boja GORNJE sekcije (`from`) → sve iznad talasa;
+ *   · prva `<path>` prati talas pa se zatvara do dna viewBox-a, `fill` = boja DONJE
+ *     sekcije (`to`) → sve ispod talasa;
+ *   · druga `<path>` je samo linija talasa (`--ink`, 2px, `non-scaling-stroke`) → jedina
+ *     vidljiva linija granice.
+ * Rezultat: iznad talasa tačno jedna boja, ispod druga, između njih jedan tamni potez i
+ * nijedna prava linija. Boje bira `lib/surface.ts` iz nivoa površina, pa se poklapaju sa
+ * sekcijama u obe teme.
  *
- * Pozicioniranje bira pozivalac kroz `className`:
- *   · između sekcija: `section-wave` (usidren uz dno sekcije, translateY 50%, z-10) —
- *     radi i na granici dve različite pozadine (bg-paper ↔ bg-paper-strong) jer je SVG
- *     providan pa se sa svake strane vidi bg svoje sekcije;
- *   · prvi talas ispod trake heroa: `section-wave section-wave-top` (uz vrh #courses);
- *   · podnožje: `absolute inset-x-0 top-0 h-4 w-full`.
+ * Pozicioniranje bira pozivalac klasom (`section-wave` uz dno, `section-wave` +
+ * `section-wave-top` uz vrh, ili footer). Traka jaše na granici (translateY ±50%), pa
+ * pola prekriva donju ivicu gornje sekcije (bg = `from`, nevidljivo) a pola gornju ivicu
+ * donje (bg = `to`, nevidljivo) — ostaje samo talasasti potez. Dekorativna:
+ * `aria-hidden`, `pointer-events-none`.
+ *
+ * IZUZETAK: ispod heroa NEMA talasa (talas bi sekao logo i traku ishoda) — pozivalac ga
+ * tamo prosto ne renderuje.
  */
-export function SectionWave({ className }: { className?: string }) {
+export function SectionWave({
+  from,
+  to,
+  className,
+}: {
+  /** Nivo površine GORNJE sekcije (iznad talasa). */
+  from: SurfaceLevel;
+  /** Nivo površine DONJE sekcije (ispod talasa). */
+  to: SurfaceLevel;
+  className?: string;
+}) {
+  // Identičan talas za ispunu i za potez: crest/trough oko sredine viewBox-a (y=20),
+  // amplituda ~12 → ostaje u okviru 0..40 sa marginom.
+  const wave =
+    "M0 20 C 90 8 270 8 360 20 C 450 32 630 32 720 20 C 810 8 990 8 1080 20 C 1170 32 1350 32 1440 20";
+
   return (
     <svg
       aria-hidden="true"
-      viewBox="0 0 1440 24"
+      viewBox="0 0 1440 40"
       preserveAspectRatio="none"
-      className={cn("pointer-events-none w-full text-ink", className)}
+      className={cn("pointer-events-none w-full", className)}
+      style={{ background: surfaceVar(from) }}
       fill="none"
     >
+      {/* Ispuna ISPOD talasa = boja donje sekcije. */}
+      <path d={`${wave} L1440 40 L0 40 Z`} style={{ fill: surfaceVar(to) }} />
+      {/* Jedina linija granice: tamni potez po talasu. */}
       <path
-        d="M0 13C90 6 180 19 270 11S450 5 540 14 720 20 810 10 990 6 1080 15 1260 20 1350 11 1440 8 1440 8"
-        stroke="currentColor"
+        d={wave}
+        stroke="var(--ink)"
         strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        vectorEffect="non-scaling-stroke"
-      />
-      <path
-        d="M0 18C120 12 210 22 330 16S540 12 660 19 870 22 990 15 1200 12 1320 18 1440 15 1440 15"
-        className="stroke-line"
-        strokeWidth="1.5"
         strokeLinecap="round"
         strokeLinejoin="round"
         vectorEffect="non-scaling-stroke"

@@ -242,7 +242,7 @@ function ConvexSignInForm({
         : null;
 
   return (
-    <Panel className="p-6 md:p-8">
+    <Panel level={1} className="p-6 md:p-8">
       {showPrimaryTabs ? (
         <div className="mb-6 flex overflow-hidden rounded-[8px] border-2 border-ink bg-paper-strong">
           <button

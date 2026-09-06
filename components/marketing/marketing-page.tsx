@@ -11,6 +11,7 @@ import { LoopVideo, StepHoverVideo } from "@/components/marketing/loop-video";
 import { HeroMotion } from "@/components/marketing/hero-motion";
 import { MarkerHighlight } from "@/components/marketing/marker-highlight";
 import { OutcomeMarquee } from "@/components/marketing/outcome-marquee";
+import { PlanRobot } from "@/components/marketing/plan-robot";
 import { SectionMarginalia } from "@/components/marketing/section-marginalia";
 import { SectionWave } from "@/components/marketing/section-wave";
 import { Badge } from "@/components/ui/badge";
@@ -75,7 +76,7 @@ export function MarketingPage({
     : `${withLocale(locale, "/sign-in")}?plan=premium`;
 
   return (
-    <main className="overflow-x-clip bg-paper text-ink">
+    <main className="overflow-x-clip bg-surface-a text-ink">
       <SmartStickyHeader
         overlay
         scrollBackground
@@ -222,10 +223,10 @@ export function MarketingPage({
           </section>
         </HeroMotion>
 
-        {/* ── KURSEVI ──────────────────────────────────────────────────────── */}
-        <section id="courses" className="relative bg-paper-strong px-4 py-16 sm:px-6 lg:px-8">
-          {/* Prvi talas: granica prema herou, ispod žute trake. */}
-          <SectionWave className="section-wave section-wave-top" />
+        {/* ── KURSEVI (površina B) ─────────────────────────────────────────── */}
+        {/* IZUZETAK v3: ispod heroa NEMA talasa (sekao bi logo i traku ishoda). Hero →
+            žuta traka → #courses bez razdelnika; traka zadržava svoje ivice. */}
+        <section id="courses" className="relative bg-surface-b px-4 py-16 sm:px-6 lg:px-8">
           <div className="relative mx-auto max-w-7xl">
             <SectionMarginalia
               variant="star"
@@ -239,7 +240,7 @@ export function MarketingPage({
             />
             <div className="mt-10 grid gap-6 lg:grid-cols-2">
               {courses.map((course) => (
-                <CourseCard key={course.slug} course={course} locale={locale} hasConvex={hasConvex} />
+                <CourseCard key={course.slug} course={course} locale={locale} hasConvex={hasConvex} level={1} />
               ))}
             </div>
             <div className="mt-8 flex justify-center">
@@ -248,11 +249,11 @@ export function MarketingPage({
               </LinkButton>
             </div>
           </div>
-          <SectionWave className="section-wave" />
+          <SectionWave from={1} to={0} className="section-wave" />
         </section>
 
-        {/* ── KAKO IZGLEDA UČENJE ──────────────────────────────────────────── */}
-        <section id="how" className="relative bg-paper px-4 py-16 sm:px-6 lg:px-8">
+        {/* ── KAKO IZGLEDA UČENJE (površina A) ─────────────────────────────── */}
+        <section id="how" className="relative bg-surface-a px-4 py-16 sm:px-6 lg:px-8">
           <div className="relative mx-auto max-w-7xl">
             <SectionMarginalia
               variant="star"
@@ -274,7 +275,7 @@ export function MarketingPage({
                 <article
                   key={step.title}
                   data-motion="card"
-                  className="group relative flex flex-col rounded-[16px] border-2 border-ink bg-paper-strong p-3 shadow-[6px_6px_0_0_var(--shadow-hard-13)] transition duration-100 hover:-translate-y-0.5 hover:shadow-[9px_9px_0_0_var(--shadow-hard-20)] has-[>a:focus-visible]:outline has-[>a:focus-visible]:outline-2 has-[>a:focus-visible]:outline-offset-2 has-[>a:focus-visible]:outline-ink"
+                  className="group relative flex flex-col rounded-[16px] border-2 border-ink bg-surface-b p-3 shadow-[6px_6px_0_0_var(--shadow-hard-13)] transition duration-100 hover:-translate-y-0.5 hover:shadow-[9px_9px_0_0_var(--shadow-hard-20)] has-[>a:focus-visible]:outline has-[>a:focus-visible]:outline-2 has-[>a:focus-visible]:outline-offset-2 has-[>a:focus-visible]:outline-ink"
                 >
                   <Link href={stepLinks[index]} aria-label={step.cta} className="absolute inset-0 z-0" />
                   <div className="pointer-events-none relative z-10 flex flex-1 flex-col">
@@ -283,7 +284,7 @@ export function MarketingPage({
                       hoverIn={STEP_MEDIA[index].hoverIn}
                       hoverOut={STEP_MEDIA[index].hoverOut}
                       label={step.title}
-                      className="relative aspect-[4/3] overflow-hidden surface-media border-2 border-ink bg-paper"
+                      className="relative aspect-[4/3] overflow-hidden surface-media border-2 border-ink bg-surface-a"
                     />
                     <div className="mt-5 flex items-center gap-3 px-2">
                       <SketchIcon>
@@ -305,11 +306,11 @@ export function MarketingPage({
               ))}
             </div>
           </div>
-          <SectionWave className="section-wave" />
+          <SectionWave from={0} to={1} className="section-wave" />
         </section>
 
-        {/* ── ZAJEDNICA ────────────────────────────────────────────────────── */}
-        <section id="community" className="relative bg-paper-strong px-4 py-16 sm:px-6 lg:px-8">
+        {/* ── ZAJEDNICA (površina B) ───────────────────────────────────────── */}
+        <section id="community" className="relative bg-surface-b px-4 py-16 sm:px-6 lg:px-8">
           <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
             <div>
               <SectionHeader
@@ -333,22 +334,22 @@ export function MarketingPage({
                 </LinkButton>
               </div>
             </div>
-            <Panel className="p-3">
+            <Panel level={0} className="p-3">
               <LoopVideo
                 webmSrc="/images/landing/community-v2-loop.webm"
                 mp4Src="/images/landing/community-v2-loop.mp4"
                 posterSrc="/images/landing/community-v2-poster.webp"
                 label={m.community.imageAlt}
-                className="relative aspect-[16/9] overflow-hidden surface-media border-2 border-ink bg-paper"
+                className="relative aspect-[16/9] overflow-hidden surface-media border-2 border-ink bg-surface-b"
                 sizes="(min-width: 1024px) 55vw, 100vw"
               />
             </Panel>
           </div>
-          <SectionWave className="section-wave" />
+          <SectionWave from={1} to={0} className="section-wave" />
         </section>
 
-        {/* ── PRETPLATA ────────────────────────────────────────────────────── */}
-        <section id="pricing" className="relative bg-paper px-4 py-16 sm:px-6 lg:px-8">
+        {/* ── PRETPLATA (površina A; kartice planova su B → robot #F4F0E8) ──── */}
+        <section id="pricing" className="relative bg-surface-a px-4 py-16 sm:px-6 lg:px-8">
           <div className="relative mx-auto max-w-7xl">
             <SectionMarginalia
               variant="star"
@@ -362,14 +363,25 @@ export function MarketingPage({
               body={m.pricing.intro}
             />
             <div className="mt-10 grid items-stretch gap-6 lg:grid-cols-2">
-              {/* BASIC — standardni panel. CTA vodi na registraciju (ulogovan: /app). */}
-              <Panel className="flex flex-col p-6 sm:p-8">
-                <h3 className="text-2xl font-black leading-tight text-ink">{m.pricing.basic.name}</h3>
-                <div className="mt-6 flex items-end gap-2">
+              {/* BASIC — standardni panel (površina B → robot #F4F0E8 bešavno). CTA vodi na
+                  registraciju (ulogovan: /app). Robot lebdi u desnoj trećini; tekst se sklanja
+                  levo (`lg:pr-[38%]`), donjih 16% je dugme (van robota). */}
+              {/* `paper-island`: kartica ostaje krem (#F4F0E8 = surface-b svetli) i u TAMNOJ temi,
+                  jer robot ima UPEČENU #F4F0E8 pozadinu — da ne ostane svetao pravougaonik oko
+                  robota na tamnoj kartici. Tekst/tokeni se razrešavaju na svetle (čitljivi). */}
+              <Panel level={1} className="paper-island relative flex flex-col p-6 sm:p-8">
+                <PlanRobot
+                  mp4Src="/images/landing/plan-basic-loop.mp4"
+                  posterSrc="/images/landing/plan-basic-poster.webp"
+                  phase={0}
+                  className="right-[1cm] top-3 h-[132px] w-[100px] lg:right-[1cm] lg:top-0 lg:bottom-[16%] lg:h-auto lg:w-[36%]"
+                />
+                <h3 className="pr-24 text-2xl font-black leading-tight text-ink lg:pr-[calc(38%_+_1cm)]">{m.pricing.basic.name}</h3>
+                <div className="mt-6 flex items-end gap-2 pr-24 lg:pr-[calc(38%_+_1cm)]">
                   <span className="text-5xl font-black tabular-nums text-ink">{PRICING.basic.eur}</span>
                   <span className="pb-2 text-base font-extrabold text-muted">EUR / {m.pricing.perMonth}</span>
                 </div>
-                <ul className="mt-7 flex flex-col gap-2 text-base font-bold leading-7 text-muted">
+                <ul className="mt-7 flex flex-col gap-2 text-base font-bold leading-7 text-muted lg:pr-[calc(38%_+_1cm)]">
                   {m.pricing.basic.features.map((item) => (
                     <li key={item} className="flex items-start gap-2">
                       <CheckCircle2 className="mt-1 size-5 shrink-0 text-ink" />
@@ -387,20 +399,28 @@ export function MarketingPage({
 
               {/* PREMIUM — istaknut: „Najpopularnije" badge, žuto ostrvo za cenu, jača senka.
                   Placeholder cena (PRICING.premium) i CTA na registraciju/billing sa ?plan=premium. */}
-              <Panel className="relative flex flex-col p-6 shadow-[8px_8px_0_0_var(--shadow-hard-20)] sm:p-8">
+              <Panel level={1} className="paper-island relative flex flex-col p-6 shadow-[8px_8px_0_0_var(--shadow-hard-20)] sm:p-8">
+                {/* Robot pre bedža u DOM-u → bedž se crta IZNAD njega. Pomeren malo naviše
+                    (−0.5cm) i vraćen udesno (net 1.2cm od desne ivice) po dopuni. */}
+                <PlanRobot
+                  mp4Src="/images/landing/plan-premium-loop.mp4"
+                  posterSrc="/images/landing/plan-premium-poster.webp"
+                  phase={0.7}
+                  className="right-[1.2cm] top-[calc(2rem_-_0.5cm)] h-[132px] w-[100px] lg:right-[1.2cm] lg:top-[calc(2.5rem_-_0.5cm)] lg:bottom-[16%] lg:h-auto lg:w-[36%]"
+                />
                 <Badge
                   tone="yellow"
                   icon={<Sparkles className="size-3.5" />}
-                  className="absolute -top-3 right-6 shadow-[2px_2px_0_0_var(--ink)]"
+                  className="absolute -top-3 right-6 z-10 shadow-[2px_2px_0_0_var(--ink)]"
                 >
                   {m.pricing.popular}
                 </Badge>
-                <h3 className="text-2xl font-black leading-tight text-ink">{m.pricing.premium.name}</h3>
+                <h3 className="pr-24 text-2xl font-black leading-tight text-ink lg:pr-[calc(38%_+_1.2cm)]">{m.pricing.premium.name}</h3>
                 <div className="mt-6 inline-flex w-fit items-end gap-2 rounded-[12px] border-2 border-ink bg-yellow px-4 py-2 shadow-[3px_3px_0_0_var(--ink)]">
                   <span className="text-5xl font-black tabular-nums text-ink">{PRICING.premium.eur}</span>
                   <span className="pb-1 text-base font-extrabold text-ink">EUR / {m.pricing.perMonth}</span>
                 </div>
-                <ul className="mt-7 flex flex-col gap-2 text-base font-bold leading-7 text-muted">
+                <ul className="mt-7 flex flex-col gap-2 text-base font-bold leading-7 text-muted lg:pr-[calc(38%_+_1.2cm)]">
                   {premiumFeatures.map((item) => (
                     <li key={item} className="flex items-start gap-2">
                       <CheckCircle2 className="mt-1 size-5 shrink-0 text-ink" />
@@ -421,10 +441,11 @@ export function MarketingPage({
               {m.pricing.soon}
             </p>
           </div>
+          <SectionWave from={0} to={1} className="section-wave" />
         </section>
 
-        {/* ── FAQ ──────────────────────────────────────────────────────────── */}
-        <section id="faq" className="relative bg-paper-strong px-4 py-16 sm:px-6 lg:px-8">
+        {/* ── FAQ (površina B) ─────────────────────────────────────────────── */}
+        <section id="faq" className="relative bg-surface-b px-4 py-16 sm:px-6 lg:px-8">
           <div className="relative mx-auto max-w-3xl">
             <SectionMarginalia
               variant="star"
@@ -443,7 +464,10 @@ export function MarketingPage({
                 // dobija blagi lift kao ostale kartice.
                 <details
                   key={item.q}
-                  className="group rounded-[16px] border-2 border-ink bg-paper shadow-[4px_4px_0_0_var(--shadow-hard-13)] transition-[transform,box-shadow] duration-[260ms] ease-[var(--ease-studio-out)] hover:-translate-y-0.5 hover:shadow-[6px_6px_0_0_var(--shadow-hard-20)]"
+                  // Ekskluzivni akordeon: isti `name` → otvaranje jednog browser sam zatvori
+                  // prethodni (nikad više od 1 otvoren). Native, bez JS-a.
+                  name="nauci-faq"
+                  className="group rounded-[16px] border-2 border-ink bg-surface-a shadow-[4px_4px_0_0_var(--shadow-hard-13)] transition-[transform,box-shadow] duration-[260ms] ease-[var(--ease-studio-out)] hover:-translate-y-0.5 hover:shadow-[6px_6px_0_0_var(--shadow-hard-20)]"
                 >
                   <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-lg font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink [&::-webkit-details-marker]:hidden">
                     <span>{item.q}</span>
@@ -463,11 +487,11 @@ export function MarketingPage({
               ))}
             </div>
           </div>
-          <SectionWave className="section-wave" />
+          <SectionWave from={1} to={0} className="section-wave" />
         </section>
 
-        {/* ── ZAVRŠNI CTA ──────────────────────────────────────────────────── */}
-        <section className="bg-paper px-4 py-20 sm:px-6 lg:px-8">
+        {/* ── ZAVRŠNI CTA (površina A; footer crta talas A→B) ──────────────── */}
+        <section className="bg-surface-a px-4 py-20 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-5xl">
             <div
               data-motion="card"
