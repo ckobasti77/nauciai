@@ -136,9 +136,10 @@ export function LoopVideo({
 // StepHoverVideo — hover-in / hover-out na koracima (#how).
 // ──────────────────────────────────────────────────────────────────────────
 //
-// Default: statični poster (`step-N-color.png`). Na hover/focus kartice pušta se
-// `hover-in` jednom (poslednji frejm = „živo"); na leave/blur `hover-out` jednom
-// (poslednji frejm = statična slika = poster). Brzi ulaz/izlaz: out je vremenski
+// Default: statični mono poster (`step-N-mono-poster.webp`, svetla žuto-bela
+// ilustracija = prvi frejm hover-in). Na hover/focus kartice pušta se `hover-in`
+// jednom (poslednji frejm = obojeno, „živo"); na leave/blur `hover-out` jednom
+// (poslednji frejm = mono ilustracija = poster). Brzi ulaz/izlaz: out je vremenski
 // obrnuti in, pa se `out.currentTime` postavi na `trajanje − in.currentTime` da
 // prelaz bude vizuelno kontinuiran. Touch (pointer: coarse): bez hover-a — kad
 // kartica uđe u kadar (≥60%) pušta se in jednom i ostaje „živo".
@@ -276,6 +277,7 @@ export function StepHoverVideo({
             muted
             playsInline
             preload={ready ? "auto" : "none"}
+            poster={posterSrc}
             aria-hidden="true"
           >
             <source src={hoverIn.webm} type="video/webm" />

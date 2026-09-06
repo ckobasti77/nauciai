@@ -20,20 +20,21 @@ import type { ViewerProfile } from "@/lib/current-viewer";
 import { coursesListingContent, dictionary, marketingContent, type Locale, withLocale } from "@/lib/i18n";
 import { PRICING } from "@/lib/pricing";
 
-// Poster koraka (statično stanje) + hover-in/out video parovi (L4).
+// Poster koraka (statično stanje = svetla žuto-bela ilustracija, prvi frejm
+// hover-in = poslednji frejm hover-out) + hover-in/out video parovi (L4.1).
 const STEP_MEDIA = [
   {
-    poster: "/images/landing/step-1-color.png",
+    poster: "/images/landing/step-1-mono-poster.webp",
     hoverIn: { webm: "/images/landing/step-1-hover-in.webm", mp4: "/images/landing/step-1-hover-in.mp4" },
     hoverOut: { webm: "/images/landing/step-1-hover-out.webm", mp4: "/images/landing/step-1-hover-out.mp4" },
   },
   {
-    poster: "/images/landing/step-2-color.png",
+    poster: "/images/landing/step-2-mono-poster.webp",
     hoverIn: { webm: "/images/landing/step-2-hover-in.webm", mp4: "/images/landing/step-2-hover-in.mp4" },
     hoverOut: { webm: "/images/landing/step-2-hover-out.webm", mp4: "/images/landing/step-2-hover-out.mp4" },
   },
   {
-    poster: "/images/landing/step-3-color.png",
+    poster: "/images/landing/step-3-mono-poster.webp",
     hoverIn: { webm: "/images/landing/step-3-hover-in.webm", mp4: "/images/landing/step-3-hover-in.mp4" },
     hoverOut: { webm: "/images/landing/step-3-hover-out.webm", mp4: "/images/landing/step-3-hover-out.mp4" },
   },
