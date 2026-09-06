@@ -142,6 +142,7 @@ describe("sidebar contexts — admin sections", () => {
       "analytics",
       "chat",
       "studio",
+      "settings",
     ]);
     expect(sectionsFor(admin, moderatorOpts).map((s) => s.id)).toEqual(["chat"]);
     expect(sectionsFor(admin, studentOpts)).toHaveLength(0);
@@ -161,6 +162,7 @@ describe("sidebar contexts — admin sections", () => {
     expect(byId.content.href("sr", {})).toBe("/sr/app/admin/content");
     expect(byId.chat.href("en", {})).toBe("/en/app/admin/chat");
     expect(byId.studio.href("sr", {})).toBe("/sr/app/admin/studio");
+    expect(byId.settings.href("en", {})).toBe("/en/app/admin/settings");
   });
 });
 

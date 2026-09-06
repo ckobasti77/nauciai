@@ -1724,6 +1724,41 @@ export default defineSchema({
     value: v.optional(v.number()),
   }).index("by_key", ["key"]),
 
+  // Opšte informacije platforme (N1) — JEDAN red, `key: "default"`. Kontakt,
+  // mreže, cene i pravni podaci koje vlasnik menja sa admin ekrana umesto kroz
+  // deploy; `platformSettings.get` je javan i čita ga i landing.
+  //
+  // Singleton, a ne četiri odvojene tabele: sve četiri grupe se uređuju na
+  // istom ekranu i čitaju u istom dahu, pa je jedan dokument jedno čitanje.
+  // Sva polja osim cena su opciona — prazno polje znači „ne prikazuj to nigde“.
+  platformSettings: defineTable({
+    key: v.string(),
+    contact: v.object({
+      phone: v.optional(v.string()),
+      email: v.optional(v.string()),
+      address: v.optional(v.string()),
+    }),
+    socials: v.object({
+      instagram: v.optional(v.string()),
+      facebook: v.optional(v.string()),
+      tiktok: v.optional(v.string()),
+      youtube: v.optional(v.string()),
+      threads: v.optional(v.string()),
+    }),
+    pricing: v.object({
+      basicEur: v.string(),
+      premiumEur: v.string(),
+      currencyNote: v.optional(v.string()),
+    }),
+    brand: v.object({
+      supportHours: v.optional(v.string()),
+      legalName: v.optional(v.string()),
+      pib: v.optional(v.string()),
+    }),
+    updatedAt: v.number(),
+    updatedBy: v.optional(v.id("users")),
+  }).index("by_key", ["key"]),
+
   // Zapamćeno stanje globalnog dnevnog alarma (STUDIO-PLAN 4.4). Jedan red po
   // UTC danu za koji je alarm od 50 $ već poslat - cron se vrti na 15 min, a
   // bez ovog reda bi isti mejl stizao svakih 15 minuta do ponoći. Namerno

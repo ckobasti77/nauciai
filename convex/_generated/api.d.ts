@@ -50,6 +50,7 @@ import type * as leaderboardReadCore from "../leaderboardReadCore.js";
 import type * as migrations from "../migrations.js";
 import type * as modelCatalog from "../modelCatalog.js";
 import type * as notifications from "../notifications.js";
+import type * as platformSettings from "../platformSettings.js";
 import type * as profileActivityCore from "../profileActivityCore.js";
 import type * as profiles from "../profiles.js";
 import type * as providers_bytePlusCore from "../providers/bytePlusCore.js";
@@ -136,6 +137,7 @@ declare const fullApi: ApiFromModules<{
   migrations: typeof migrations;
   modelCatalog: typeof modelCatalog;
   notifications: typeof notifications;
+  platformSettings: typeof platformSettings;
   profileActivityCore: typeof profileActivityCore;
   profiles: typeof profiles;
   "providers/bytePlusCore": typeof providers_bytePlusCore;

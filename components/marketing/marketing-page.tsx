@@ -20,7 +20,7 @@ import { SmartStickyHeader } from "@/components/ui/smart-sticky";
 import { courses, totalLessons } from "@/lib/content";
 import type { ViewerProfile } from "@/lib/current-viewer";
 import { coursesListingContent, dictionary, marketingContent, type Locale, withLocale } from "@/lib/i18n";
-import { PRICING } from "@/lib/pricing";
+import { STATIC_FALLBACK, type PlatformPricing } from "@/lib/platform-settings";
 
 // Poster koraka (statično stanje = svetla žuto-bela ilustracija, prvi frejm
 // hover-in = poslednji frejm hover-out) + hover-in/out video parovi (L4.1).
@@ -46,11 +46,17 @@ export function MarketingPage({
   locale,
   viewerProfile,
   premiumCredits,
+  pricing = STATIC_FALLBACK.pricing,
 }: {
   locale: Locale;
   viewerProfile?: ViewerProfile;
   /** Broj Studio kredita uz Premium plan, iz baze; `null` ako plan nije definisan. */
   premiumCredits?: number | null;
+  /**
+   * Cene iz `platformSettings` (N1), već razrešene kroz `resolveSettings`. Kad
+   * ruta ne prosledi ništa (test, Storybook), pada na istu statičku rezervu.
+   */
+  pricing?: PlatformPricing;
 }) {
   const t = dictionary[locale];
   const m = marketingContent[locale];
@@ -378,7 +384,7 @@ export function MarketingPage({
                 />
                 <h3 className="pr-24 text-2xl font-black leading-tight text-ink lg:pr-[calc(38%_+_1cm)]">{m.pricing.basic.name}</h3>
                 <div className="mt-6 flex items-end gap-2 pr-24 lg:pr-[calc(38%_+_1cm)]">
-                  <span className="text-5xl font-black tabular-nums text-ink">{PRICING.basic.eur}</span>
+                  <span className="text-5xl font-black tabular-nums text-ink">{pricing.basicEur}</span>
                   <span className="pb-2 text-base font-extrabold text-muted">EUR / {m.pricing.perMonth}</span>
                 </div>
                 <ul className="mt-7 flex flex-col gap-2 text-base font-bold leading-7 text-muted lg:pr-[calc(38%_+_1cm)]">
@@ -417,7 +423,7 @@ export function MarketingPage({
                 </Badge>
                 <h3 className="pr-24 text-2xl font-black leading-tight text-ink lg:pr-[calc(38%_+_1.2cm)]">{m.pricing.premium.name}</h3>
                 <div className="mt-6 inline-flex w-fit items-end gap-2 rounded-[12px] border-2 border-ink bg-yellow px-4 py-2 shadow-[3px_3px_0_0_var(--ink)]">
-                  <span className="text-5xl font-black tabular-nums text-ink">{PRICING.premium.eur}</span>
+                  <span className="text-5xl font-black tabular-nums text-ink">{pricing.premiumEur}</span>
                   <span className="pb-1 text-base font-extrabold text-ink">EUR / {m.pricing.perMonth}</span>
                 </div>
                 <ul className="mt-7 flex flex-col gap-2 text-base font-bold leading-7 text-muted lg:pr-[calc(38%_+_1.2cm)]">
@@ -436,6 +442,12 @@ export function MarketingPage({
                 </div>
               </Panel>
             </div>
+            {/* Napomena uz cenu iz admin ekrana (N1); prazno polje ne prikazuje red. */}
+            {pricing.currencyNote ? (
+              <p className="mx-auto mt-6 max-w-2xl text-center text-sm font-bold text-muted">
+                {pricing.currencyNote}
+              </p>
+            ) : null}
             {/* Sitan red: naplata još ne postoji — vlasnik menja ovaj tekst (i18n `pricing.soon`). */}
             <p className="mx-auto mt-6 max-w-2xl text-center text-sm font-bold text-muted">
               {m.pricing.soon}

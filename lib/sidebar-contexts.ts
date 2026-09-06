@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   Megaphone,
   MessageCircle,
+  Settings2,
   Shield,
   ShieldCheck,
   Users,
@@ -213,6 +214,7 @@ const adminContext: SidebarContext = {
     adminSection({ id: "analytics", labelSr: "Analitika", labelEn: "Analytics", icon: BarChart3, path: "/app/admin/analytics", adminOnly: true }),
     adminSection({ id: "chat", labelSr: "Chat sigurnost", labelEn: "Chat safety", icon: Shield, path: "/app/admin/chat", staffOnly: true }),
     adminSection({ id: "studio", labelSr: "Studio admin", labelEn: "Studio admin", icon: Wand2, path: "/app/admin/studio", adminOnly: true }),
+    adminSection({ id: "settings", labelSr: "Opšte informacije", labelEn: "General info", icon: Settings2, path: "/app/admin/settings", adminOnly: true }),
   ],
 };
 

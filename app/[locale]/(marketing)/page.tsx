@@ -4,6 +4,11 @@ import { MarketingPage } from "@/components/marketing/marketing-page";
 import { convexQueries, getConvexHttpClient } from "@/lib/convex-http";
 import { getCurrentViewerProfile } from "@/lib/current-viewer";
 import { locales, normalizeLocale, publicMeta, withLocale } from "@/lib/i18n";
+import {
+  resolveSettings,
+  type PlatformSettingsInput,
+  type PlatformPricing,
+} from "@/lib/platform-settings";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +27,20 @@ async function getPremiumCredits(): Promise<number | null> {
     return premium?.credits ?? null;
   } catch {
     return null;
+  }
+}
+
+// Cene za „#pricing" — od N1 ih drži admin u `platformSettings`, a
+// `lib/pricing.ts` je samo rezerva kad reda nema, kad je polje prazno ili kad
+// Convex nije dostupan. `resolveSettings` spaja to dvoje na jednom mestu.
+async function getPricing(): Promise<PlatformPricing> {
+  const convex = getConvexHttpClient();
+  if (!convex) return resolveSettings(null).pricing;
+  try {
+    const live = (await convex.query(convexQueries.getPlatformSettings, {})) as PlatformSettingsInput;
+    return resolveSettings(live).pricing;
+  } catch {
+    return resolveSettings(null).pricing;
   }
 }
 
@@ -52,10 +71,18 @@ export default async function LocaleHome({
 }) {
   const { locale: localeParam } = await params;
   const locale = normalizeLocale(localeParam);
-  const [viewerProfile, premiumCredits] = await Promise.all([
+  const [viewerProfile, premiumCredits, pricing] = await Promise.all([
     getCurrentViewerProfile(),
     getPremiumCredits(),
+    getPricing(),
   ]);
 
-  return <MarketingPage locale={locale} viewerProfile={viewerProfile} premiumCredits={premiumCredits} />;
+  return (
+    <MarketingPage
+      locale={locale}
+      viewerProfile={viewerProfile}
+      premiumCredits={premiumCredits}
+      pricing={pricing}
+    />
+  );
 }
