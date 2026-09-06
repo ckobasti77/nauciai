@@ -108,3 +108,26 @@ npm run convex:seed
 ```
 
 `npx convex codegen` requires a configured `CONVEX_DEPLOYMENT`; it will fail in a fresh checkout until `npx convex dev` has linked the project.
+
+## Hosting: LiteSpeed
+
+Behind a LiteSpeed server that serves `public/` files directly, `.webm` is served as
+`text/plain` + `Content-Encoding: br`, which Safari/iOS/Firefox reject — the landing
+loops then fall back to their posters. Two safeguards keep video working:
+
+- Landing `<video>` sources list **MP4 first** (`type="video/mp4"`), WebM second, so any
+  host that mishandles WebM still plays MP4.
+- `public/.htaccess` forces the correct MIME types and disables compression for video.
+  It must reach the hosting **doc root** — verify it was deployed:
+
+  ```bash
+  curl -sI https://nauciai.com/images/landing/hero-v2-loop.webm | grep -i content-type
+  ```
+
+  It should print `content-type: video/webm` (not `text/plain`) and no
+  `content-encoding`. When Next serves the file itself (Vercel/local), the
+  `headers()` rule in `next.config.ts` does the same.
+
+Run `npm run check:media` (optionally with an origin, default `https://nauciai.com`) to
+HEAD every landing video and print a content-type / content-encoding table; it exits
+non-zero if any video is served as `text/plain` or with a `content-encoding`.

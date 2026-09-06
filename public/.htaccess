@@ -1,0 +1,16 @@
+# LiteSpeed / Apache: služi video i moderne slike sa ispravnim MIME tipom i bez
+# kompresije. Bez ovoga LiteSpeed .webm služi kao text/plain + Content-Encoding: br,
+# pa ga Safari/iOS/Firefox odbiju i landing ostaje na posteru. Ovaj fajl mora da
+# stigne u doc root hostinga; na Vercel/Next je bezopasan dotfile (ne služi se).
+AddType video/webm .webm
+AddType video/mp4 .mp4
+AddType image/webp .webp
+AddType image/avif .avif
+
+<FilesMatch "\.(webm|mp4)$">
+  SetEnv no-gzip 1
+  SetEnv no-brotli 1
+  <IfModule mod_headers.c>
+    Header unset Content-Encoding
+  </IfModule>
+</FilesMatch>

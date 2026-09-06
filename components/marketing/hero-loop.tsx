@@ -174,15 +174,15 @@ export function HeroLoop({
           >
             {portrait ? (
               <>
-                <source src={portrait.webmSrc} type="video/webm" media={PORTRAIT_MEDIA} />
                 <source src={portrait.mp4Src} type="video/mp4" media={PORTRAIT_MEDIA} />
-                <source src={webmSrc} type="video/webm" media={LANDSCAPE_MEDIA} />
+                <source src={portrait.webmSrc} type="video/webm" media={PORTRAIT_MEDIA} />
                 <source src={mp4Src} type="video/mp4" media={LANDSCAPE_MEDIA} />
+                <source src={webmSrc} type="video/webm" media={LANDSCAPE_MEDIA} />
               </>
             ) : (
               <>
-                <source src={webmSrc} type="video/webm" />
                 <source src={mp4Src} type="video/mp4" />
+                <source src={webmSrc} type="video/webm" />
               </>
             )}
           </video>
@@ -213,8 +213,8 @@ export function HeroLoop({
           poster={posterSrc}
           aria-label={label}
         >
-          <source src={webmSrc} type="video/webm" />
           <source src={mp4Src} type="video/mp4" />
+          <source src={webmSrc} type="video/webm" />
         </video>
       )}
     </div>

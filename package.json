@@ -11,6 +11,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:convex": "vitest run --config vitest.config.ts",
+    "check:media": "node scripts/check-media-headers.mjs",
     "convex:dev": "convex dev",
     "convex:auth": "node scripts/configure-convex-auth.mjs",
     "convex:auth:prod": "node scripts/configure-convex-auth.mjs --prod --site-url https://nauciai.com",

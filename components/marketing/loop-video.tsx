@@ -124,8 +124,8 @@ export function LoopVideo({
           aria-hidden="true"
           onError={() => setFailed(true)}
         >
-          <source src={webmSrc} type="video/webm" />
           <source src={mp4Src} type="video/mp4" />
+          <source src={webmSrc} type="video/webm" />
         </video>
       )}
     </div>
@@ -280,8 +280,8 @@ export function StepHoverVideo({
             poster={posterSrc}
             aria-hidden="true"
           >
-            <source src={hoverIn.webm} type="video/webm" />
             <source src={hoverIn.mp4} type="video/mp4" />
+            <source src={hoverIn.webm} type="video/webm" />
           </video>
           <video
             ref={outRef}
@@ -294,8 +294,8 @@ export function StepHoverVideo({
             aria-hidden="true"
             onEnded={onOutEnded}
           >
-            <source src={hoverOut.webm} type="video/webm" />
             <source src={hoverOut.mp4} type="video/mp4" />
+            <source src={hoverOut.webm} type="video/webm" />
           </video>
         </>
       )}
