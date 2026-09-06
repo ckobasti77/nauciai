@@ -123,6 +123,16 @@ export const marketingContent = {
       trustCohort: "Prva generacija upisana",
       trustSerbian: "Kursevi na srpskom",
       trustLessons: "lekcije spremne",
+      // L3: 4 kartice na listu sveske u hero videu (3D sloj) / snap red ispod praga.
+      // `account` ploča: `signIn` za anonimnog, `dashboard` za ulogovanog (server zna).
+      cards: {
+        label: "Prečice na svesci",
+        courses: { title: "Kursevi", line: "Video, zvuk, sajtovi" },
+        studio: { title: "Studio", line: "Generiši slike i video" },
+        community: { title: "Zajednica", line: "Pitaj kad zapneš" },
+        signIn: { title: "Registracija", line: "Kreni besplatno" },
+        dashboard: { title: "Kontrolna tabla", line: "Nastavi gde si stao" },
+      },
     },
     marquee: {
       label: "Šta ćeš umeti",
@@ -277,6 +287,14 @@ export const marketingContent = {
       trustCohort: "First cohort enrolled",
       trustSerbian: "Courses in Serbian",
       trustLessons: "lessons ready",
+      cards: {
+        label: "Notebook shortcuts",
+        courses: { title: "Courses", line: "Video, sound, websites" },
+        studio: { title: "Studio", line: "Generate images and video" },
+        community: { title: "Community", line: "Ask when you get stuck" },
+        signIn: { title: "Sign up", line: "Start for free" },
+        dashboard: { title: "Dashboard", line: "Pick up where you left off" },
+      },
     },
     marquee: {
       label: "What you'll be able to do",

@@ -7,6 +7,7 @@ import { AccountMenu } from "@/components/marketing/account-menu";
 import { ThemeToggle } from "@/components/app/theme-toggle";
 import { CourseCard } from "@/components/marketing/course-card";
 import { LanguageToggle } from "@/components/marketing/language-toggle";
+import { HeroCards3d, HeroCardsRow } from "@/components/marketing/hero-cards";
 import { HeroLoop } from "@/components/marketing/hero-loop";
 import { HeroMotion } from "@/components/marketing/hero-motion";
 import { MarkerHighlight } from "@/components/marketing/marker-highlight";
@@ -109,14 +110,19 @@ export function MarketingPage({
                 ivice maskirane → bešavno, bez linija. */}
             <div className="absolute inset-0 z-0">
               <HeroLoop label={m.hero.videoAlt} variant="cover" bg="var(--hero-paper)" />
+              {/* L3: 3D kartice na listu sveske — isti roditelj i ista geometrija kao video
+                  (`.hero-cover-media`); vidljive samo iznad praga (CSS). */}
+              <HeroCards3d locale={locale} signedIn={Boolean(viewerProfile)} />
             </div>
             {/* Tekst: levo, vertikalno centriran u prostoru IZNAD trake; `pt` ga drži
-                ispod lebdećeg (fixed) navbara, donji padding = visina trake + 24px. */}
+                ispod lebdećeg (fixed) navbara, donji padding = visina trake + 24px (+ visina
+                snap reda kartica ispod praga). Kontejner propušta klik (kartice na svesci su
+                ispod njega u z-redu), a sam tekst-blok ga vraća. */}
             <div
-              className="relative z-20 mx-auto flex h-full w-full max-w-7xl items-center px-4 pt-20 sm:px-6 lg:px-8"
-              style={{ paddingBottom: "calc(var(--marquee-h) + 24px)" }}
+              className="pointer-events-none relative z-20 mx-auto flex h-full w-full max-w-7xl items-center px-4 pt-20 sm:px-6 lg:px-8"
+              style={{ paddingBottom: "calc(var(--marquee-h) + 24px + var(--hero-cards-row-h))" }}
             >
-              <div className="relative z-10 max-w-md xl:max-w-lg" data-motion="copy">
+              <div className="pointer-events-auto relative z-10 max-w-md xl:max-w-lg" data-motion="copy">
                 <h1 className="text-balance text-4xl font-black leading-[1.03] text-ink sm:text-5xl lg:text-6xl">
                   {m.hero.titleLead}
                   <MarkerHighlight>{m.hero.titleHighlight}</MarkerHighlight>
@@ -134,7 +140,7 @@ export function MarketingPage({
                     {m.hero.ctaSecondary}
                   </LinkButton>
                 </div>
-                <ul className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm font-extrabold text-muted">
+                <ul className="hero-trust mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm font-extrabold text-muted">
                   <li className="flex items-center gap-2">
                     <CheckCircle2 className="size-4 text-ink" />
                     {lessonCount} {m.hero.trustLessons}
@@ -150,6 +156,9 @@ export function MarketingPage({
                 </ul>
               </div>
             </div>
+            {/* L3: ispod praga iste 4 kartice kao snap red tik iznad trake (CSS ga gasi
+                iznad praga). */}
+            <HeroCardsRow locale={locale} signedIn={Boolean(viewerProfile)} />
             {/* Traka ishoda: usidrena uz donju ivicu heroa, puna širina, deo 100svh
                 viewporta (ne dodaje visinu). Donju ivicu daje `border-b-2` sekcije. */}
             <OutcomeMarquee

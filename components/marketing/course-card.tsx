@@ -47,17 +47,8 @@ export function CourseCard({
             alt={localized(course.image.alt, locale)}
             fill
             sizes="(min-width: 1024px) 50vw, 100vw"
-            className={course.image.darkSrc ? "object-cover dark:hidden" : "object-cover"}
+            className="object-cover"
           />
-          {course.image.darkSrc ? (
-            <Image
-              src={course.image.darkSrc}
-              alt={localized(course.image.alt, locale)}
-              fill
-              sizes="(min-width: 1024px) 50vw, 100vw"
-              className="hidden object-cover dark:block"
-            />
-          ) : null}
           <span className="absolute left-3 top-3 rounded-full border-2 border-ink bg-yellow px-4 py-2 text-sm font-black leading-none tabular-nums text-ink shadow-[3px_3px_0_0_var(--shadow-hard-22)]">
             {localized(course.priceLabel, locale)}
           </span>

@@ -71,10 +71,13 @@ function getServerSnapshot(): boolean {
 
 export function HeroLoop({
   label,
-  webmSrc = "/images/landing/hero-loop.webm",
-  mp4Src = "/images/landing/hero-loop.mp4",
-  posterSrc = "/images/landing/hero-poster.png",
-  fallbackSrc = "/images/landing/hero.png",
+  // Hero v2 (L3): video + poster su 1920×1072 (24 fps, prvi = poslednji frejm, sveska
+  // statična); poster je webp i ide direktno u `<video poster>` (ne kroz next/image).
+  // Fallback `hero-v2.png` je 2752×1536 — ista kompozicija, odnos 1.7917 ≈ 1.7910.
+  webmSrc = "/images/landing/hero-v2-loop.webm",
+  mp4Src = "/images/landing/hero-v2-loop.mp4",
+  posterSrc = "/images/landing/hero-v2-poster.webp",
+  fallbackSrc = "/images/landing/hero-v2.png",
   variant = "panel",
   bg = "#F8EDD8",
 }: {
@@ -94,14 +97,16 @@ export function HeroLoop({
     // `.hero-cover-media` (globals.css): ceo vizual pune visine (100vh) desno na
     // desktopu, a na uskim ekranima contain (letterbox u bg boji) — NIKAD krop ni
     // distorzija; element == sadržaj pa se `edgeMaskStyle` fade poklapa sa ivicama.
+    // Sloj 3D kartica (`HeroCards3d`) nosi ISTU klasu u ISTOM roditelju, pa se
+    // normalizovane koordinate ploča poklapaju sa pikselima videa na svakoj rezoluciji.
     return (
       <div className="absolute inset-0" style={{ backgroundColor: bg }}>
         {stillOnly ? (
           <Image
             src={fallbackSrc}
             alt={label}
-            width={1928}
-            height={1076}
+            width={2752}
+            height={1536}
             sizes="100vw"
             className="hero-cover-media"
             style={edgeMaskStyle}

@@ -352,18 +352,8 @@ export default async function CourseInfoPage({
                   fill
                   sizes="(min-width: 1024px) 48vw, 100vw"
                   priority
-                  className={fallbackCourse.image.darkSrc ? "object-cover dark:hidden" : "object-cover"}
+                  className="object-cover"
                 />
-                {fallbackCourse.image.darkSrc ? (
-                  <Image
-                    src={fallbackCourse.image.darkSrc}
-                    alt={localized(fallbackCourse.image.alt, locale)}
-                    fill
-                    sizes="(min-width: 1024px) 48vw, 100vw"
-                    priority
-                    className="hidden object-cover dark:block"
-                  />
-                ) : null}
               </div>
             </Panel>
           </div>
