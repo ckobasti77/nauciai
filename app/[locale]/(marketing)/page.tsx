@@ -44,6 +44,18 @@ async function getPricing(): Promise<PlatformPricing> {
   }
 }
 
+/** Javni fleg Studija (N3) — bira metu hero CTA „Otvori Studio" za goste. Bez
+ *  Convex-a (ili na grešci) pada na OFF, isti podrazumevani smer kao na serveru. */
+async function getStudioPublic(): Promise<boolean> {
+  const convex = getConvexHttpClient();
+  if (!convex) return false;
+  try {
+    return Boolean(await convex.query(convexQueries.isStudioPublicEnabled, {}));
+  } catch {
+    return false;
+  }
+}
+
 export function generateStaticParams() {
   return locales.map((locale) => ({ locale }));
 }
@@ -71,10 +83,11 @@ export default async function LocaleHome({
 }) {
   const { locale: localeParam } = await params;
   const locale = normalizeLocale(localeParam);
-  const [viewerProfile, premiumCredits, pricing] = await Promise.all([
+  const [viewerProfile, premiumCredits, pricing, studioPublic] = await Promise.all([
     getCurrentViewerProfile(),
     getPremiumCredits(),
     getPricing(),
+    getStudioPublic(),
   ]);
 
   return (
@@ -83,6 +96,7 @@ export default async function LocaleHome({
       viewerProfile={viewerProfile}
       premiumCredits={premiumCredits}
       pricing={pricing}
+      studioPublic={studioPublic}
     />
   );
 }

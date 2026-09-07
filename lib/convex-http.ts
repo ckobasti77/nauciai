@@ -56,4 +56,6 @@ export const convexQueries = {
   // queries, pa cene stižu u SSR HTML koji Google čita.
   listPacks: makeFunctionReference<"query">("creditPacks:listPacks"),
   listCatalogModels: makeFunctionReference<"query">("modelCatalog:listModels"),
+  // Javni fleg Studija (N3): landing iz njega bira metu „Otvori Studio" CTA-a.
+  isStudioPublicEnabled: makeFunctionReference<"query">("studio:isPublicEnabled"),
 };

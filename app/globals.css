@@ -1060,10 +1060,21 @@ details:has(> .faq-answer)::details-content {
     height: 100%;
   }
 }
+/* N3 — kad je ekran ŠIRI od odnosa videa, vizual je fit-po-visini i uži od ekrana, pa
+   mora da se veže za ISTI centrirani kontejner u kom je i tekst (max-w-7xl = 80rem), a ne
+   za desnu ivicu viewport-a (ranije `right: 0`, zbog čega je sav krem višak ostajao levo).
+   `100%` je širina hero sekcije; širina vizuala se izvodi iz visine (`height: 100%` +
+   `aspect-ratio` 1920/1072) preko `100svh`, jer je sekcija `.hero-100` — 2px donje ivice
+   koje `svh` ne oduzima pomere vizual za ~1.8px, ispod praga vidljivosti.
+     · vizual uži od kontejnera → desna ivica mu sedne na desnu ivicu kontejnera, pa je
+       krem višak IZVAN kontejnera jednak levo i desno;
+     · vizual širi od kontejnera → centrira se, pa je višak opet jednak sa obe strane.
+   Kartice na svesci se ne diraju: sloj `.hero-cards-3d` nosi ISTU klasu, pomera se zajedno
+   sa videom, a geometriju računa iz sopstvene širine (`lib/hero-cards.ts`). */
 @media (min-aspect-ratio: 1920 / 1072) and (min-width: 1024px) {
   .hero-cover-media {
     left: auto;
-    right: 0;
+    right: max(0px, min((100% - 80rem) / 2, (100% - 100svh * 1920 / 1072) / 2));
     transform: translateY(-50%);
   }
 }
@@ -1541,10 +1552,9 @@ details:has(> .faq-answer)::details-content {
    jednom redu (oba dugmeta `flex: 1`, 44 px).
    Budžet 390×844: 64 + 148 (h1 4 reda) + 12 + 40 + 16 + 44 = 324 < 367 (43.5 % · 844).
    Budžet 375×667 (snap red ispod): 56 + 126 (3xl, 4 reda) + 8 + 40 + 12 + 44 = 286 < 290. */
-/* Kompaktne verzije (kratka kopija, kratka CTA labela) postoje samo u portretu; osnovno pravilo
-   je ISPRED portret bloka da bi ga ono (ista specifičnost) moglo prebiti. */
-.hero-subhead-compact,
-.hero-cta-short {
+/* Kompaktna kopija postoji samo u portretu; osnovno pravilo je ISPRED portret bloka da bi
+   ga ono (ista specifičnost) moglo prebiti. */
+.hero-subhead-compact {
   display: none;
 }
 @media (orientation: portrait) {
@@ -1584,12 +1594,6 @@ details:has(> .faq-answer)::details-content {
     padding-inline: 0.75rem;
     padding-block: 0.5rem;
     font-size: 0.875rem;
-  }
-  .hero-cta-long {
-    display: none;
-  }
-  .hero-cta-short {
-    display: inline;
   }
 }
 @media (orientation: portrait) and (min-width: 380px) and (min-height: 800px) {
@@ -1641,12 +1645,10 @@ details:has(> .faq-answer)::details-content {
     font-size: 0.875rem;
     line-height: 1.25rem;
   }
-  .hero-subhead-full,
-  .hero-cta-long {
+  .hero-subhead-full {
     display: none;
   }
-  .hero-subhead-compact,
-  .hero-cta-short {
+  .hero-subhead-compact {
     display: inline;
   }
   .hero-cta {
@@ -1672,12 +1674,10 @@ details:has(> .faq-answer)::details-content {
     font-size: 1.875rem;
     line-height: 1.05;
   }
-  .hero-subhead-full,
-  .hero-cta-long {
+  .hero-subhead-full {
     display: none;
   }
-  .hero-subhead-compact,
-  .hero-cta-short {
+  .hero-subhead-compact {
     display: inline;
   }
   .hero-cta {

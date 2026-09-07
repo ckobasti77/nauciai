@@ -442,6 +442,19 @@ export async function loadStudioPublicState(
 }
 
 /**
+ * Da li je javni Studio upaljen — bez auth-a, da javni landing u SSR-u zna kuda
+ * vodi „Otvori Studio" (gost: `/studio` kad je javan, inače prijava sa `next`).
+ * Ne vraća limite: oni su interna operativa i gostu ne znače ništa.
+ */
+export const isPublicEnabled = query({
+  args: {},
+  handler: async (ctx) => {
+    const { publicEnabled } = await loadStudioPublicState(ctx);
+    return publicEnabled;
+  },
+});
+
+/**
  * Ista odluka za `createJob`, `getStudioState` i gejtovane pomoćne mutacije -
  * `decideStudioAccess` je jedina tačka odluke (vidi komentar u `studioCore.ts`).
  * Profil stiže već učitan da `createJob` ne bi čitao korisnika dvaput.

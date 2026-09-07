@@ -43,6 +43,7 @@ export function MarketingPage({
   viewerProfile,
   premiumCredits,
   pricing = STATIC_FALLBACK.pricing,
+  studioPublic = false,
 }: {
   locale: Locale;
   viewerProfile?: ViewerProfile;
@@ -53,6 +54,8 @@ export function MarketingPage({
    * ruta ne prosledi ništa (test, Storybook), pada na istu statičku rezervu.
    */
   pricing?: PlatformPricing;
+  /** Je li javni Studio upaljen — bira metu hero CTA „Otvori Studio" za goste. */
+  studioPublic?: boolean;
 }) {
   const t = dictionary[locale];
   const m = marketingContent[locale];
@@ -61,6 +64,15 @@ export function MarketingPage({
   const hasConvex = Boolean(process.env.NEXT_PUBLIC_CONVEX_URL);
   const lessonCount = courses.reduce((count, course) => count + totalLessons(course), 0);
   const heroFreeVideoHref = `${withLocale(locale, `/courses/${primaryCourse.slug}`)}#besplatan-video`;
+  // „Otvori Studio" vodi PRAVO u alat, ne na marketing stranu: prijavljen ide u
+  // aplikaciju, gost u javni Studio dok je fleg upaljen, a inače na prijavu koja
+  // ga posle vraća tačno tu.
+  const studioAppHref = withLocale(locale, "/app/studio");
+  const heroStudioHref = viewerProfile
+    ? studioAppHref
+    : studioPublic
+      ? withLocale(locale, "/studio")
+      : `${withLocale(locale, "/sign-in")}?next=${encodeURIComponent(studioAppHref)}`;
 
   // CTA po koraku (#how): svaka kartica vodi na svoju stranicu.
   const stepLinks = [heroFreeVideoHref, withLocale(locale, "/studio"), withLocale(locale, "/community")];
@@ -113,8 +125,8 @@ export function MarketingPage({
                 snap reda kartica ispod praga). Kontejner propušta klik (kartice na svesci su
                 ispod njega u z-redu), a sam tekst-blok ga vraća. U PORTRETU (L3.1) CSS
                 (`.hero-copy*`, globals.css) ga diže u gornju praznu zonu portret videa:
-                kompaktan h1, kratka kopija podnaslova (`hero-subhead-compact`), CTA u
-                jednom redu sa kratkom labelom (`hero-cta-short`); trust lista se ne prikazuje. */}
+                kompaktan h1, kratka kopija podnaslova (`hero-subhead-compact`), obe CTA u
+                jednom redu; trust lista se ne prikazuje. */}
             <div
               className="hero-copy-wrap pointer-events-none relative z-20 mx-auto flex h-full w-full max-w-7xl items-center px-4 pt-20 sm:px-6 lg:px-8"
               style={{ paddingBottom: "calc(var(--marquee-h) + 24px + var(--hero-cards-row-h))" }}
@@ -129,14 +141,13 @@ export function MarketingPage({
                   <span className="hero-subhead-compact">{m.hero.subheadCompact}</span>
                 </p>
                 <div className="hero-cta mt-8 flex flex-col gap-3 sm:flex-row">
-                  <LinkButton href={startLearningHref} tone="yellow" size="lg" className="w-full sm:w-auto">
-                    <Sparkles className="size-4" />
-                    {t.startLearning}
-                  </LinkButton>
-                  <LinkButton href={heroFreeVideoHref} tone="paper" size="lg" className="w-full sm:w-auto">
+                  <LinkButton href={heroFreeVideoHref} tone="yellow" size="lg" className="w-full sm:w-auto">
                     <PlayCircle className="size-4" />
-                    <span className="hero-cta-long">{m.hero.ctaSecondary}</span>
-                    <span className="hero-cta-short">{m.hero.ctaSecondaryShort}</span>
+                    {m.hero.ctaFreeVideo}
+                  </LinkButton>
+                  <LinkButton href={heroStudioHref} tone="paper" size="lg" className="w-full sm:w-auto">
+                    <Sparkles className="size-4" />
+                    {m.hero.ctaStudio}
                   </LinkButton>
                 </div>
                 <ul className="hero-trust mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm font-extrabold text-muted">
