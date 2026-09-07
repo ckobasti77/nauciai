@@ -33,6 +33,17 @@ export function withLocale(locale: Locale, path = ""): string {
   return `/${locale}${normalizedPath === "/" ? "" : normalizedPath}`;
 }
 
+/**
+ * Segment strane pretplate — jedini javni segment koji se PREVODI (`/pretplata`
+ * na srpskom, `/pricing` na engleskom). Jedna tačka istine: svaki link ide kroz
+ * `withLocale(locale, pricingPath(locale))`, pa se sam segment menja samo ovde.
+ * Obe rute postoje u `app/[locale]/(marketing)/`, a ona koja ne pripada locale-u
+ * preusmerava na ovu vrednost (nema dva URL-a za isti sadržaj).
+ */
+export function pricingPath(locale: Locale): "/pretplata" | "/pricing" {
+  return locale === "sr" ? "/pretplata" : "/pricing";
+}
+
 export const dictionary = {
   sr: {
     appName: "Fakultet za AI",
@@ -248,6 +259,8 @@ export const marketingContent = {
       intro: "Mesečno, bez skrivenih troškova. Otkaži kad hoćeš.",
       perMonth: "mesečno",
       popular: "Najpopularnije",
+      // N6: vodi na posebnu stranu pretplate (tabela razlika, pojedinačni kursevi, naplata).
+      compareCta: "Uporedi planove detaljno",
       // Sitan red ispod kartica — vlasnik menja kad krene paywall.
       soon: "Plaćanje se uvodi uskoro — do tada je sav objavljeni sadržaj besplatan uz registraciju.",
       basic: {
@@ -454,6 +467,8 @@ export const marketingContent = {
       intro: "Monthly, no hidden costs. Cancel anytime.",
       perMonth: "month",
       popular: "Most popular",
+      // N6: leads to the dedicated subscription page (difference table, single courses, billing).
+      compareCta: "Compare plans in detail",
       // Small line below the cards — owner edits this when the paywall goes live.
       soon: "Payments are coming soon — until then, all published content is free with sign-up.",
       basic: {
@@ -745,6 +760,13 @@ export const publicMeta = {
       en: "Verify your email to activate your Faculty for AI account.",
     },
   },
+  pricing: {
+    title: { sr: "Pretplata i cene — Fakultet za AI", en: "Pricing and plans — Faculty for AI" },
+    description: {
+      sr: "Uporedi Basic i Premium plan, vidi šta tačno ulazi u koji, uzmi pojedinačan kurs po jednokratnoj ceni i pročitaj odgovore na česta pitanja o naplati.",
+      en: "Compare the Basic and Premium plans, see exactly what each one includes, buy a single course for a one-time price, and read the answers to common billing questions.",
+    },
+  },
   coursesListing: {
     title: { sr: "Kursevi — Fakultet za AI", en: "Courses — Faculty for AI" },
     description: {
@@ -778,6 +800,179 @@ export const coursesListingContent = {
     breadcrumbHome: "Home",
     breadcrumbCourses: "Courses",
     viewAll: "All courses →",
+  },
+} as const;
+
+/**
+ * Vidljivi tekst javne strane pretplate (`/pretplata`, en `/pricing`) — N6.
+ *
+ * Strana je detaljnija verzija sekcije „#pricing" sa landinga, pa NAMERNO ne
+ * prepisuje ono što tamo već postoji: imena planova, „mesečno", bedž
+ * „Najpopularnije" i CTA dugmad i dalje dolaze iz `marketingContent.pricing`.
+ * Ovde živi samo ono što je novo: duži spiskovi stavki na karticama, tabela
+ * razlika, blok pojedinačnih kurseva, pitanja o naplati i završni CTA.
+ *
+ * `sr` i `en` moraju držati istu strukturu (isti broj stavki i redova) — čuva je
+ * `lib/pricing-page.test.ts`.
+ */
+export const pricingPageContent = {
+  sr: {
+    hero: {
+      titleLead: "Izaberi kako ",
+      titleHighlight: "učiš",
+      subtitle:
+        "Uporedi šta tačno dobijaš uz Basic i Premium, ili uzmi samo onaj kurs koji ti sada treba.",
+    },
+    plans: {
+      // Duži spisak nego na landingu — ista imena, cene i dugmad, više redova.
+      basicFeatures: [
+        "Sve lekcije i materijali",
+        "Pristup zajednici",
+        "Nove lekcije bez doplate",
+        "Napredak ti se pamti na svim uređajima",
+        "Kredite za Studio kupuješ posebno",
+        "Otkazuješ kad hoćeš",
+      ],
+      // "%CREDITS%" zamenjuje broj kredita iz baze — isti obrazac kao na landingu.
+      premiumFeatures: [
+        "Sve iz Basic-a",
+        "Pro lekcije (napredni moduli)",
+        "%CREDITS%",
+        "Prioritetni odgovori u zajednici",
+        "Rani pristup novim kursevima",
+        "Otkazuješ kad hoćeš",
+      ],
+    },
+    compare: {
+      titleLead: "Šta ulazi u ",
+      titleHighlight: "koji plan",
+      intro: "Isti sadržaj, dva nivoa pristupa. Red po red.",
+      featureHeading: "Mogućnost",
+      included: "uključeno",
+      excluded: "nije uključeno",
+      rows: [
+        { label: "Sve lekcije", basic: true, premium: true },
+        { label: "Zajednica", basic: true, premium: true },
+        { label: "Pro lekcije", basic: false, premium: true },
+        { label: "Studio krediti mesečno", basic: false, premium: true },
+        { label: "Prioritetni odgovori", basic: false, premium: true },
+        { label: "Rani pristup novim kursevima", basic: false, premium: true },
+      ],
+    },
+    courses: {
+      titleLead: "Ili uzmi samo ",
+      titleHighlight: "jedan kurs",
+      intro: "Platiš jednom, bez mesečne pretplate.",
+      oneTime: "jednokratno",
+    },
+    faq: {
+      titleLead: "Česta pitanja o ",
+      titleHighlight: "naplati",
+      items: [
+        {
+          q: "Kada počinje naplata?",
+          a: "Trenutno je sav objavljeni sadržaj besplatan uz registraciju; kad naplata krene, javljamo ti mejlom najmanje sedam dana ranije i ništa ti se ne skida bez tvoje potvrde.",
+        },
+        {
+          q: "Kako se plaća?",
+          a: "Karticom, preko domaćeg platnog operatera. Račun stiže na mejl odmah posle uplate.",
+        },
+        {
+          q: "Mogu li da promenim plan?",
+          a: "Možeš u svakom trenutku. Prelazak na Premium važi odmah, a razlika se obračuna srazmerno danima do kraja meseca.",
+        },
+        {
+          q: "Šta se dešava kad otkažem?",
+          a: "Pretplata radi do kraja plaćenog meseca. Sve što si napravio u Studiju i sve tvoje teme u zajednici ostaju tvoji.",
+        },
+        {
+          q: "Da li izdajete račun za firmu?",
+          a: "Da. U podešavanjima naloga upišeš podatke firme i račun stiže sa njima.",
+        },
+      ],
+    },
+    finalCta: {
+      title: "Kreni od prve lekcije",
+      body: "Napravi nalog i vidi platformu iznutra — plan biraš kad ti zatreba.",
+    },
+  },
+  en: {
+    hero: {
+      titleLead: "Choose how you ",
+      titleHighlight: "learn",
+      subtitle:
+        "Compare exactly what Basic and Premium give you, or just take the one course you need right now.",
+    },
+    plans: {
+      basicFeatures: [
+        "All lessons and materials",
+        "Community access",
+        "New lessons at no extra cost",
+        "Your progress is saved across devices",
+        "Buy Studio credits separately",
+        "Cancel whenever you want",
+      ],
+      premiumFeatures: [
+        "Everything in Basic",
+        "Pro lessons (advanced modules)",
+        "%CREDITS%",
+        "Priority answers in the community",
+        "Early access to new courses",
+        "Cancel whenever you want",
+      ],
+    },
+    compare: {
+      titleLead: "What's in ",
+      titleHighlight: "which plan",
+      intro: "Same content, two levels of access. Row by row.",
+      featureHeading: "Feature",
+      included: "included",
+      excluded: "not included",
+      rows: [
+        { label: "All lessons", basic: true, premium: true },
+        { label: "Community", basic: true, premium: true },
+        { label: "Pro lessons", basic: false, premium: true },
+        { label: "Monthly Studio credits", basic: false, premium: true },
+        { label: "Priority answers", basic: false, premium: true },
+        { label: "Early access to new courses", basic: false, premium: true },
+      ],
+    },
+    courses: {
+      titleLead: "Or take just ",
+      titleHighlight: "one course",
+      intro: "Pay once, no monthly subscription.",
+      oneTime: "one-time",
+    },
+    faq: {
+      titleLead: "Common questions about ",
+      titleHighlight: "billing",
+      items: [
+        {
+          q: "When does billing start?",
+          a: "Right now everything published is free once you sign up; when billing does start, we email you at least seven days ahead and nothing is charged without your confirmation.",
+        },
+        {
+          q: "How do I pay?",
+          a: "By card, through a local payment provider. The receipt lands in your inbox right after the payment.",
+        },
+        {
+          q: "Can I change my plan?",
+          a: "Any time. Premium starts the moment you switch, and the difference is worked out pro rata for the days left in the month.",
+        },
+        {
+          q: "What happens when I cancel?",
+          a: "Your subscription runs to the end of the month you paid for. Everything you made in the Studio and every thread of yours in the community stays yours.",
+        },
+        {
+          q: "Do you invoice companies?",
+          a: "Yes. Enter your company details in account settings and the invoice comes out with them on it.",
+        },
+      ],
+    },
+    finalCta: {
+      title: "Start with the first lesson",
+      body: "Create an account and see the platform from the inside — pick a plan when you actually need one.",
+    },
   },
 } as const;
 

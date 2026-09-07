@@ -9,7 +9,7 @@ import { LanguageToggle } from "@/components/marketing/language-toggle";
 import { BrandMark, LinkButton } from "@/components/ui/primitives";
 import { SmartStickyHeader } from "@/components/ui/smart-sticky";
 import type { ViewerProfile } from "@/lib/current-viewer";
-import { dictionary, otherLocale, withLocale, type Locale } from "@/lib/i18n";
+import { dictionary, otherLocale, pricingPath, withLocale, type Locale } from "@/lib/i18n";
 
 const NAV_LINK_CLASS =
   "rounded-[8px] underline-offset-4 transition-colors hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
@@ -44,10 +44,18 @@ export function PublicHeader({
   const overLight = lightHeroPaths(locale).includes(pathname);
 
   const localePrefix = `/${locale}`;
-  const languageHref =
+  const rest =
     pathname === localePrefix || pathname.startsWith(`${localePrefix}/`)
-      ? withLocale(otherLocale(locale), pathname.slice(localePrefix.length))
-      : withLocale(otherLocale(locale));
+      ? pathname.slice(localePrefix.length)
+      : null;
+  // Pretplata je jedina strana kojoj se segment prevodi, pa prekidač jezika mora sam
+  // da pređe na drugi segment — inače bi vodio na `/sr/pricing` i tek odatle skakao.
+  const languageHref =
+    rest === pricingPath(locale)
+      ? withLocale(otherLocale(locale), pricingPath(otherLocale(locale)))
+      : rest !== null
+        ? withLocale(otherLocale(locale), rest)
+        : withLocale(otherLocale(locale));
 
   return (
     <SmartStickyHeader
@@ -75,8 +83,9 @@ export function PublicHeader({
           <Link href={withLocale(locale, "/studio")} className={NAV_LINK_CLASS}>
             {t.navStudio}
           </Link>
-          {/* Cenovnik živi na landingu, pa je link apsolutan — radi i sa ostalih javnih strana. */}
-          <Link href={`${withLocale(locale)}#pricing`} className={NAV_LINK_CLASS}>
+          {/* N6: pretplata ima svoju stranu (segment se prevodi kroz `pricingPath`), pa
+              link više ne vodi na sidro „#pricing" na landingu. */}
+          <Link href={withLocale(locale, pricingPath(locale))} className={NAV_LINK_CLASS}>
             {t.navPricing}
           </Link>
         </nav>

@@ -10,4 +10,11 @@
 export const PRICING = {
   basic: { eur: "9,99" },
   premium: { eur: "19,99" }, // placeholder — vlasnik menja
+  /**
+   * Jednokratna cena JEDNOG kursa — strana „/pretplata" (N6). `platformSettings`
+   * (N1) nema polje za cenu kursa, pa se do njegovog uvođenja čita odavde. Ista
+   * vrednost stoji u `priceLabel` svakog kursa u `lib/content.ts` (bedž na kartici);
+   * kad se cene razdvoje po kursu, mesto za to je ovde, ne u komponenti.
+   */
+  course: { eur: "9,99" },
 } as const;

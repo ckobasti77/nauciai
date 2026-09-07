@@ -4,45 +4,9 @@ import { MarketingPage } from "@/components/marketing/marketing-page";
 import { convexQueries, getConvexHttpClient } from "@/lib/convex-http";
 import { getCurrentViewerProfile } from "@/lib/current-viewer";
 import { locales, normalizeLocale, publicMeta, withLocale } from "@/lib/i18n";
-import {
-  resolveSettings,
-  type PlatformSettingsInput,
-  type PlatformPricing,
-} from "@/lib/platform-settings";
+import { getPlanPricing, getPremiumCredits } from "@/lib/pricing-data";
 
 export const dynamic = "force-dynamic";
-
-// Broj Studio kredita uz Premium plan za „#pricing" — čita se iz istog javnog
-// upita kao Studio landing. Ako plan „premium" nije definisan (ili Convex nije
-// dostupan), vraća `null` i kartica prikazuje tekst bez broja.
-async function getPremiumCredits(): Promise<number | null> {
-  const convex = getConvexHttpClient();
-  if (!convex) return null;
-  try {
-    const packs = (await convex.query(convexQueries.listPacks, { kind: "plan" })) as Array<{
-      planTier?: string;
-      credits?: number;
-    }>;
-    const premium = packs.find((pack) => pack.planTier === "premium");
-    return premium?.credits ?? null;
-  } catch {
-    return null;
-  }
-}
-
-// Cene za „#pricing" — od N1 ih drži admin u `platformSettings`, a
-// `lib/pricing.ts` je samo rezerva kad reda nema, kad je polje prazno ili kad
-// Convex nije dostupan. `resolveSettings` spaja to dvoje na jednom mestu.
-async function getPricing(): Promise<PlatformPricing> {
-  const convex = getConvexHttpClient();
-  if (!convex) return resolveSettings(null).pricing;
-  try {
-    const live = (await convex.query(convexQueries.getPlatformSettings, {})) as PlatformSettingsInput;
-    return resolveSettings(live).pricing;
-  } catch {
-    return resolveSettings(null).pricing;
-  }
-}
 
 /** Javni fleg Studija (N3) — bira metu hero CTA „Otvori Studio" za goste. Bez
  *  Convex-a (ili na grešci) pada na OFF, isti podrazumevani smer kao na serveru. */
@@ -86,7 +50,7 @@ export default async function LocaleHome({
   const [viewerProfile, premiumCredits, pricing, studioPublic] = await Promise.all([
     getCurrentViewerProfile(),
     getPremiumCredits(),
-    getPricing(),
+    getPlanPricing(),
     getStudioPublic(),
   ]);
 

@@ -3,7 +3,7 @@ import type { MetadataRoute } from "next";
 import { courses } from "@/lib/content";
 import { getCommunityPostPath } from "@/lib/community-slug";
 import { getConvexHttpClient, convexQueries } from "@/lib/convex-http";
-import { withLocale, type Locale } from "@/lib/i18n";
+import { pricingPath, withLocale, type Locale } from "@/lib/i18n";
 import { PRIVACY_POLICY_PATH, STUDIO_TERMS_PATH } from "@/lib/studio-messages";
 
 export const dynamic = "force-dynamic";
@@ -38,7 +38,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { path: STUDIO_TERMS_PATH, priority: 0.3 },
   ];
   const urls: MetadataRoute.Sitemap = (["sr", "en"] as const).flatMap((locale) =>
-    staticPaths.map(({ path, priority }) => ({
+    // Strana pretplate (N6) je jedina sa PREVEDENIM segmentom, pa se dodaje po
+    // locale-u kroz `pricingPath` — druga varijanta segmenta samo preusmerava i
+    // nema šta da traži u mapi.
+    [...staticPaths, { path: pricingPath(locale), priority: 0.8 }].map(({ path, priority }) => ({
       url: `${origin}${withLocale(locale, path)}`,
       changeFrequency: "weekly" as const,
       priority,

@@ -8,14 +8,20 @@ import { LoopVideo, StepHoverVideo } from "@/components/marketing/loop-video";
 import { HeroMotion } from "@/components/marketing/hero-motion";
 import { MarkerHighlight } from "@/components/marketing/marker-highlight";
 import { OutcomeMarquee } from "@/components/marketing/outcome-marquee";
-import { PlanRobot } from "@/components/marketing/plan-robot";
+import { PlanCards } from "@/components/marketing/plan-cards";
 import { SectionMarginalia } from "@/components/marketing/section-marginalia";
 import { SectionWave } from "@/components/marketing/section-wave";
-import { Badge } from "@/components/ui/badge";
 import { LinkButton, Panel, SectionHeader, SketchIcon } from "@/components/ui/primitives";
 import { courses, totalLessons } from "@/lib/content";
 import type { ViewerProfile } from "@/lib/current-viewer";
-import { coursesListingContent, dictionary, marketingContent, type Locale, withLocale } from "@/lib/i18n";
+import {
+  coursesListingContent,
+  dictionary,
+  marketingContent,
+  pricingPath,
+  type Locale,
+  withLocale,
+} from "@/lib/i18n";
 import { STATIC_FALLBACK, type PlatformPricing } from "@/lib/platform-settings";
 
 // Poster koraka (statično stanje = svetla žuto-bela ilustracija, prvi frejm
@@ -319,79 +325,24 @@ export function MarketingPage({
               titleBreak
               body={m.pricing.intro}
             />
-            <div className="mt-10 grid items-stretch gap-6 lg:grid-cols-2">
-              {/* BASIC — standardni panel (površina B → robot #F4F0E8 bešavno). CTA vodi na
-                  registraciju (ulogovan: /app). Robot lebdi u desnoj trećini; tekst se sklanja
-                  levo (`lg:pr-[38%]`), donjih 16% je dugme (van robota). */}
-              {/* `paper-island`: kartica ostaje krem (#F4F0E8 = surface-b svetli) i u TAMNOJ temi,
-                  jer robot ima UPEČENU #F4F0E8 pozadinu — da ne ostane svetao pravougaonik oko
-                  robota na tamnoj kartici. Tekst/tokeni se razrešavaju na svetle (čitljivi). */}
-              <Panel level={1} className="paper-island relative flex flex-col p-6 sm:p-8">
-                <PlanRobot
-                  mp4Src="/images/landing/plan-basic-loop.mp4"
-                  posterSrc="/images/landing/plan-basic-poster.webp"
-                  phase={0}
-                  className="right-[1cm] top-3 h-[132px] w-[100px] lg:right-[1cm] lg:top-0 lg:bottom-[16%] lg:h-auto lg:w-[36%]"
-                />
-                <h3 className="pr-24 text-2xl font-black leading-tight text-ink lg:pr-[calc(38%_+_1cm)]">{m.pricing.basic.name}</h3>
-                <div className="mt-6 flex items-end gap-2 pr-24 lg:pr-[calc(38%_+_1cm)]">
-                  <span className="text-5xl font-black tabular-nums text-ink">{pricing.basicEur}</span>
-                  <span className="pb-2 text-base font-extrabold text-muted">EUR / {m.pricing.perMonth}</span>
-                </div>
-                <ul className="mt-7 flex flex-col gap-2 text-base font-bold leading-7 text-muted lg:pr-[calc(38%_+_1cm)]">
-                  {m.pricing.basic.features.map((item) => (
-                    <li key={item} className="flex items-start gap-2">
-                      <CheckCircle2 className="mt-1 size-5 shrink-0 text-ink" />
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-                <div className="mt-auto pt-7">
-                  <LinkButton href={startLearningHref} tone="paper" size="lg" className="w-full">
-                    {m.pricing.basic.cta}
-                    <ArrowRight className="size-4" />
-                  </LinkButton>
-                </div>
-              </Panel>
-
-              {/* PREMIUM — istaknut: „Najpopularnije" badge, žuto ostrvo za cenu, jača senka.
-                  Placeholder cena (PRICING.premium) i CTA na registraciju/billing sa ?plan=premium. */}
-              <Panel level={1} className="paper-island relative flex flex-col p-6 shadow-[8px_8px_0_0_var(--shadow-hard-20)] sm:p-8">
-                {/* Robot pre bedža u DOM-u → bedž se crta IZNAD njega. Pomeren malo naviše
-                    (−0.5cm) i vraćen udesno (net 1.2cm od desne ivice) po dopuni. */}
-                <PlanRobot
-                  mp4Src="/images/landing/plan-premium-loop.mp4"
-                  posterSrc="/images/landing/plan-premium-poster.webp"
-                  phase={0.7}
-                  className="right-[1.2cm] top-[calc(2rem_-_0.5cm)] h-[132px] w-[100px] lg:right-[1.2cm] lg:top-[calc(2.5rem_-_0.5cm)] lg:bottom-[16%] lg:h-auto lg:w-[36%]"
-                />
-                <Badge
-                  tone="yellow"
-                  icon={<Sparkles className="size-3.5" />}
-                  className="absolute -top-3 right-6 z-10 shadow-[2px_2px_0_0_var(--ink)]"
-                >
-                  {m.pricing.popular}
-                </Badge>
-                <h3 className="pr-24 text-2xl font-black leading-tight text-ink lg:pr-[calc(38%_+_1.2cm)]">{m.pricing.premium.name}</h3>
-                <div className="mt-6 inline-flex w-fit items-end gap-2 rounded-[12px] border-2 border-ink bg-yellow px-4 py-2 shadow-[3px_3px_0_0_var(--ink)]">
-                  <span className="text-5xl font-black tabular-nums text-ink">{pricing.premiumEur}</span>
-                  <span className="pb-1 text-base font-extrabold text-ink">EUR / {m.pricing.perMonth}</span>
-                </div>
-                <ul className="mt-7 flex flex-col gap-2 text-base font-bold leading-7 text-muted lg:pr-[calc(38%_+_1.2cm)]">
-                  {premiumFeatures.map((item) => (
-                    <li key={item} className="flex items-start gap-2">
-                      <CheckCircle2 className="mt-1 size-5 shrink-0 text-ink" />
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-                <div className="mt-auto pt-7">
-                  <LinkButton href={premiumCtaHref} tone="yellow" size="lg" className="w-full">
-                    {m.pricing.premium.cta}
-                    <ArrowRight className="size-4" />
-                  </LinkButton>
-                </div>
-              </Panel>
+            <div className="mt-10">
+              <PlanCards
+                locale={locale}
+                pricing={pricing}
+                premiumCredits={premiumCredits ?? null}
+                basicFeatures={m.pricing.basic.features}
+                premiumFeatures={m.pricing.premium.features}
+                basicHref={startLearningHref}
+                premiumHref={premiumCtaHref}
+              />
+            </div>
+            {/* N6: detaljno poređenje (tabela razlika, pojedinačni kursevi, pitanja o
+                naplati) živi na posebnoj strani; sekcija ostaje kratka odluka. */}
+            <div className="mt-8 flex justify-center">
+              <LinkButton href={withLocale(locale, pricingPath(locale))} tone="paper" size="md">
+                {m.pricing.compareCta}
+                <ArrowRight className="size-4" />
+              </LinkButton>
             </div>
             {/* Napomena uz cenu iz admin ekrana (N1); prazno polje ne prikazuje red. */}
             {pricing.currencyNote ? (

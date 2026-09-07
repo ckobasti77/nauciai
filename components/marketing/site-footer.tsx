@@ -6,7 +6,7 @@ import { LanguageToggle } from "@/components/marketing/language-toggle";
 import { SectionWave } from "@/components/marketing/section-wave";
 import { BrandMark } from "@/components/ui/primitives";
 import { courses, primaryCourseSlug, websitesCourseSlug } from "@/lib/content";
-import { dictionary, localized, marketingContent, withLocale, type Locale } from "@/lib/i18n";
+import { dictionary, localized, marketingContent, pricingPath, withLocale, type Locale } from "@/lib/i18n";
 
 const CONTACT_EMAIL = "kontakt@nauciai.com";
 // Mreže: dodaj { label, href } parove kad budu spremni — red se sam pojavi.
@@ -61,6 +61,8 @@ export function SiteFooter({ locale }: { locale: Locale }) {
           {/* Kolona 3 — Platforma */}
           <nav aria-label={f.platformHeading} className="flex flex-col gap-1">
             <p className="type-eyebrow text-muted">{f.platformHeading}</p>
+            {/* N6: pretplata ima svoju stranu; segment se prevodi kroz `pricingPath`. */}
+            <FooterLink href={withLocale(locale, pricingPath(locale))}>{t.navPricing}</FooterLink>
             <FooterLink href={withLocale(locale, "/community")}>{f.community}</FooterLink>
             <FooterLink href={withLocale(locale, "/sign-in")}>{f.signIn}</FooterLink>
             <FooterLink href={withLocale(locale, "/app")}>{f.openApp}</FooterLink>
