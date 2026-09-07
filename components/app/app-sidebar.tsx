@@ -15,7 +15,6 @@ import {
   MessageCircle,
   MessagesSquare,
   PanelLeftClose,
-  PanelLeftOpen,
   PlayCircle,
   Settings,
   Shield,
@@ -30,7 +29,6 @@ import { useConvexAuth, useAuthActions } from "@convex-dev/auth/react";
 import { useQuery } from "convex/react";
 import { gsap } from "gsap";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import Image from "next/image";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -41,8 +39,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type CSSProperties,
-  type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
@@ -55,12 +51,7 @@ import { BrandMark, cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
 import {
   APP_SIDEBAR_COOKIE,
-  APP_SIDEBAR_KEYBOARD_STEP,
-  APP_SIDEBAR_MAX_WIDTH,
-  APP_SIDEBAR_MIN_WIDTH,
-  APP_SIDEBAR_RAIL_WIDTH,
   type AppSidebarPreferences,
-  clampAppSidebarWidth,
   serializeAppSidebarPreferences,
 } from "@/lib/app-sidebar-preferences";
 import { classroomPath, courseCatalogPath, coursePath, lessonPath } from "@/lib/app-routes";
@@ -76,7 +67,16 @@ import {
   type SidebarHrefParams,
 } from "@/lib/sidebar-contexts";
 import { formatCreditsLong } from "@/lib/studio-params";
-import { SidebarNavSwap, ContextSidebarNav, ContextSidebarRail } from "@/components/app/app-sidebar-context";
+import {
+  SidebarNavSwap,
+  ContextSidebarNav,
+  ContextSidebarRail,
+  SIDEBAR_ROW,
+  SIDEBAR_ROW_ACTIVE,
+  SIDEBAR_ROW_ICON,
+  SIDEBAR_ROW_IDLE,
+  SIDEBAR_ROW_LABEL,
+} from "@/components/app/app-sidebar-context";
 
 const AddCourseAction = dynamic(() => import("@/components/app/admin-inline-actions").then((m) => m.AddCourseAction), { ssr: false });
 const EditCourseAction = dynamic(() => import("@/components/app/admin-inline-actions").then((m) => m.EditCourseAction), { ssr: false });
@@ -87,6 +87,33 @@ const EditCourseAction = dynamic(() => import("@/components/app/admin-inline-act
  * deliberately NOT the same threshold as the pointer-resize handle, which stays at 1024px.
  */
 const DESKTOP_SIDEBAR_MEDIA_QUERY = "(min-width: 768px)";
+/** Isto trajanje kao `--motion-prelaz` u globals.css — vidi `setCollapsed` ispod. */
+const SIDEBAR_COLLAPSE_MS = 260;
+/** Koliko prevlacenje mora da predje da bi sarka preskocila u drugo stanje. */
+const SIDEBAR_HINGE_TRAVEL = 24;
+
+/**
+ * Dugme za sklapanje (N8): samo ikonica u boji mastila, bez okvira, pozadine i senke;
+ * hover daje isključivo podlogu na 6% mastila. Isto dugme stoji na istom mestu i kad je
+ * sidebar zatvoren — jedina razlika je ikonica okrenuta za 180 stepeni. Širina mu je
+ * kolona ikonice, pa na skupljenoj širini padne tačno na x rail dugmeta.
+ */
+const SIDEBAR_TOGGLE =
+  "hidden shrink-0 items-center justify-center rounded-full text-ink transition-colors hover:bg-ink/6 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink md:inline-flex md:size-[var(--sidebar-icon-col)]";
+
+/** Rotira omotac, ne <svg>: transform na korenu lucide ikonice ume da ne uhvati. */
+function SidebarToggleIcon({ collapsed }: { collapsed: boolean }) {
+  return (
+    <span
+      className={cn(
+        "block transition-transform duration-200 ease-[var(--ease-studio-out)] motion-reduce:transition-none",
+        collapsed && "rotate-180",
+      )}
+    >
+      <PanelLeftClose className="size-5" />
+    </span>
+  );
+}
 
 function dashboardHref(locale: Locale) {
   return withLocale(locale, "/app");
@@ -746,21 +773,21 @@ function NavLink({
         className={cn(
           // Ternary, not base+append: cn() is a plain join, so both branches would otherwise
           // be emitted and the winner decided by generated-CSS order.
-          "inline-flex min-h-11 min-w-0 items-center justify-between rounded-full border-2 px-3 py-2 text-sm font-extrabold text-ink transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:justify-start md:w-full",
-          active
-            ? "border-ink bg-yellow shadow-[3px_3px_0_0_var(--shadow-hard-14)]"
-            : "border-transparent bg-transparent hover:border-ink hover:bg-yellow/25",
+          SIDEBAR_ROW,
+          active ? SIDEBAR_ROW_ACTIVE : SIDEBAR_ROW_IDLE,
         )}
       >
-        <span className="flex items-center gap-3 min-w-0">
-          <Icon className="size-4 shrink-0" />
-          <span className="truncate">{label}</span>
+        <span className={SIDEBAR_ROW_ICON}>
+          <Icon className="size-5" />
         </span>
-        {badge && badge > 0 ? (
-          <span className="ml-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-black text-white border border-ink shrink-0">
-            {badge > 99 ? "99+" : badge}
-          </span>
-        ) : null}
+        <span className={SIDEBAR_ROW_LABEL}>
+          <span className="truncate">{label}</span>
+          {badge && badge > 0 ? (
+            <span className="ml-auto flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full border border-ink bg-red-600 px-1 text-[10px] font-black text-white">
+              {badge > 99 ? "99+" : badge}
+            </span>
+          ) : null}
+        </span>
       </Link>
     </motion.div>
   );
@@ -1132,16 +1159,16 @@ function AppSidebarContent({
   const isAdmin = navigation.role === "admin";
   const isStaff = isAdmin || navigation.role === "moderator";
   const rootRef = useRef<HTMLElement>(null);
-  const expandedWrapperRef = useRef<HTMLDivElement>(null);
-  const brandMarkRef = useRef<HTMLDivElement>(null);
-  const collapseButtonRef = useRef<HTMLButtonElement>(null);
-  const signOutButtonRef = useRef<HTMLButtonElement>(null);
-  const hingeWidthRef = useRef<number>(APP_SIDEBAR_MIN_WIDTH + 6);
   const shouldReduceMotion = useReducedMotion();
 
   const [sidebarPreferences, setSidebarPreferences] = useState(initialPreferences);
   const sidebarPreferencesRef = useRef(sidebarPreferences);
-  const [isResizing, setIsResizing] = useState(false);
+  // Rail se pokazuje TEK kad se sirina skupi, a sklanja se odmah pri otvaranju. Zato
+  // tekst linkova ima gde da izbledi (prosireni sloj ostaje u kadru dok traje suzavanje)
+  // i nikad se ne vidi prelomljen na pola animacije.
+  const [showRail, setShowRail] = useState(initialPreferences.collapsed);
+  const railTimerRef = useRef<number | null>(null);
+  const openFrameRef = useRef<number | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
   // Defaults to true (fail-open) on purpose: a false default would ship `inert` on the
@@ -1172,53 +1199,66 @@ function AppSidebarContent({
     [persistSidebarPreferences],
   );
 
-  const checkOverflow = useCallback(() => {
-    // 3a: omotac prosirenog sadrzaja ili unutrasnji scroll container
-    if (expandedWrapperRef.current) {
-      const el = expandedWrapperRef.current;
-      if (el.scrollWidth > el.clientWidth + 0.5) return true;
-      const scrollContainer = el.querySelector<HTMLElement>(".overflow-y-auto");
-      if (scrollContainer && scrollContainer.scrollWidth > scrollContainer.clientWidth + 0.5) {
-        return true;
+  /**
+   * Sidebar ima tacno dva stanja i jedan prelaz izmedju njih. `applySidebarPreferences`
+   * odmah prebacuje `data-collapsed` (sirina i tekst krecu istog frejma), a rail se
+   * pojavljuje tek kad se sirina skupi — pri otvaranju obrnuto, odmah se sklanja.
+   */
+  const setCollapsed = useCallback(
+    (collapsed: boolean) => {
+      if (railTimerRef.current !== null) {
+        window.clearTimeout(railTimerRef.current);
+        railTimerRef.current = null;
       }
-    }
-
-    // 3b: dugme „Odjavi se" prelazi desnu ivicu svog omotaca
-    if (signOutButtonRef.current) {
-      const parent = signOutButtonRef.current.parentElement;
-      if (parent) {
-        const btnRect = signOutButtonRef.current.getBoundingClientRect();
-        const parentRect = parent.getBoundingClientRect();
-        if (btnRect.right > parentRect.right + 0.5) return true;
+      if (openFrameRef.current !== null) {
+        window.cancelAnimationFrame(openFrameRef.current);
+        openFrameRef.current = null;
       }
-    }
+      setRailFlyout(null);
+      setProfileMenuOpen(false);
 
-    // 3c: dugme za sklapanje pocinje da preklapa logotip u „sidebar-reveal" redu
-    if (collapseButtonRef.current && brandMarkRef.current) {
-      const btnRect = collapseButtonRef.current.getBoundingClientRect();
-      const brandRect = brandMarkRef.current.getBoundingClientRect();
-      if (btnRect.left <= brandRect.right + 0.5) return true;
-    }
+      if (collapsed) {
+        applySidebarPreferences({ collapsed: true });
+        if (shouldReduceMotion) {
+          setShowRail(true);
+          return;
+        }
+        railTimerRef.current = window.setTimeout(() => {
+          railTimerRef.current = null;
+          setShowRail(true);
+        }, SIDEBAR_COLLAPSE_MS);
+        return;
+      }
 
-    return false;
-  }, []);
+      setShowRail(false);
+      if (shouldReduceMotion) {
+        applySidebarPreferences({ collapsed: false });
+        return;
+      }
+      // Prosireni sloj je do sad bio `display: none`, pa tekst nema odakle da krene:
+      // bez jednog frejma u zatvorenom stanju banuo bi odjednom, umesto da izbledi
+      // unutra tek kad se sirina otvori. Zato se `collapsed` skida frejm kasnije.
+      openFrameRef.current = window.requestAnimationFrame(() => {
+        openFrameRef.current = window.requestAnimationFrame(() => {
+          openFrameRef.current = null;
+          applySidebarPreferences({ collapsed: false });
+        });
+      });
+    },
+    [applySidebarPreferences, shouldReduceMotion],
+  );
 
   const toggleSidebar = useCallback(() => {
-    const current = sidebarPreferencesRef.current;
-    const next = current.collapsed
-      ? {
-          collapsed: false,
-          width: Math.max(APP_SIDEBAR_MIN_WIDTH, current.lastExpandedWidth),
-          lastExpandedWidth: Math.max(APP_SIDEBAR_MIN_WIDTH, current.lastExpandedWidth),
-        }
-      : {
-          collapsed: true,
-          width: APP_SIDEBAR_RAIL_WIDTH,
-          lastExpandedWidth: Math.max(APP_SIDEBAR_MIN_WIDTH, current.width),
-        };
-    setRailFlyout(null);
-    applySidebarPreferences(next);
-  }, [applySidebarPreferences]);
+    setCollapsed(!sidebarPreferencesRef.current.collapsed);
+  }, [setCollapsed]);
+
+  useEffect(
+    () => () => {
+      if (railTimerRef.current !== null) window.clearTimeout(railTimerRef.current);
+      if (openFrameRef.current !== null) window.cancelAnimationFrame(openFrameRef.current);
+    },
+    [],
+  );
 
   const goBackFromContext = useCallback(() => {
     // "Nazad" znaci IZLAZ IZ ALATA -> uvek dashboard, nikad router.back().
@@ -1229,197 +1269,40 @@ function AppSidebarContent({
     router.push(withLocale(locale, "/app"));
   }, [locale, router]);
 
-  const startSidebarResize = useCallback(
+  /**
+   * Ivica sidebara je SARKA, ne klizac: prevlacenje ne pravi proizvoljne sirine nego
+   * preskace izmedju ista dva stanja kao i klik na dugme, pa je i prelaz identican.
+   * Nije u tab redosledu — dugme za kolaps je pristupacna kontrola za isti ishod.
+   */
+  const startSidebarHinge = useCallback(
     (startEvent: ReactPointerEvent<HTMLDivElement>) => {
-      if (window.innerWidth < 1024) return;
+      if (!window.matchMedia(DESKTOP_SIDEBAR_MEDIA_QUERY).matches) return;
       startEvent.preventDefault();
       startEvent.currentTarget.setPointerCapture?.(startEvent.pointerId);
       const startX = startEvent.clientX;
-      const current = sidebarPreferencesRef.current;
-      const startWidth = current.collapsed ? APP_SIDEBAR_RAIL_WIDTH : current.width;
-      const HINGE_MARGIN = 6;
-      setIsResizing(true);
-      setRailFlyout(null);
       document.body.style.cursor = "col-resize";
       document.body.style.userSelect = "none";
 
-      let rafId: number | null = null;
-      let latestDraggedWidth = startWidth;
-
-      const performResizeStep = () => {
-        rafId = null;
-        const currentPrefs = sidebarPreferencesRef.current;
-        const rawWidth = latestDraggedWidth;
-
-        if (currentPrefs.collapsed) {
-          const threshold = hingeWidthRef.current || (APP_SIDEBAR_MIN_WIDTH + HINGE_MARGIN);
-          if (rawWidth >= threshold) {
-            const expandedWidth = clampAppSidebarWidth(rawWidth);
-            applySidebarPreferences(
-              {
-                collapsed: false,
-                width: expandedWidth,
-                lastExpandedWidth: expandedWidth,
-              },
-              false,
-            );
-          }
-        } else {
-          if (rawWidth < APP_SIDEBAR_MIN_WIDTH) {
-            hingeWidthRef.current = APP_SIDEBAR_MIN_WIDTH + HINGE_MARGIN;
-            applySidebarPreferences(
-              {
-                collapsed: true,
-                width: APP_SIDEBAR_RAIL_WIDTH,
-                lastExpandedWidth: currentPrefs.width,
-              },
-              false,
-            );
-            return;
-          }
-
-          const targetWidth = clampAppSidebarWidth(rawWidth);
-          if (rootRef.current) {
-            rootRef.current.style.setProperty("--app-sidebar-width", `${targetWidth}px`);
-          }
-
-          if (checkOverflow()) {
-            hingeWidthRef.current = targetWidth + HINGE_MARGIN;
-            applySidebarPreferences(
-              {
-                collapsed: true,
-                width: APP_SIDEBAR_RAIL_WIDTH,
-                lastExpandedWidth: Math.max(APP_SIDEBAR_MIN_WIDTH, targetWidth),
-              },
-              false,
-            );
-          } else {
-            applySidebarPreferences(
-              {
-                collapsed: false,
-                width: targetWidth,
-                lastExpandedWidth: targetWidth,
-              },
-              false,
-            );
-          }
-        }
-      };
-
       const handlePointerMove = (moveEvent: PointerEvent) => {
-        latestDraggedWidth = startWidth + moveEvent.clientX - startX;
-        if (rafId === null) {
-          rafId = requestAnimationFrame(performResizeStep);
-        }
+        const travel = moveEvent.clientX - startX;
+        const { collapsed } = sidebarPreferencesRef.current;
+        if (travel <= -SIDEBAR_HINGE_TRAVEL && !collapsed) setCollapsed(true);
+        else if (travel >= SIDEBAR_HINGE_TRAVEL && collapsed) setCollapsed(false);
       };
 
-      const finishResize = () => {
-        if (rafId !== null) {
-          cancelAnimationFrame(rafId);
-          rafId = null;
-        }
+      const finishHinge = () => {
         window.removeEventListener("pointermove", handlePointerMove);
-        window.removeEventListener("pointerup", finishResize);
-        window.removeEventListener("pointercancel", finishResize);
+        window.removeEventListener("pointerup", finishHinge);
+        window.removeEventListener("pointercancel", finishHinge);
         document.body.style.cursor = "";
         document.body.style.userSelect = "";
-        if (rootRef.current) {
-          rootRef.current.style.removeProperty("--app-sidebar-width");
-        }
-        setIsResizing(false);
-        persistSidebarPreferences(sidebarPreferencesRef.current);
       };
 
       window.addEventListener("pointermove", handlePointerMove);
-      window.addEventListener("pointerup", finishResize, { once: true });
-      window.addEventListener("pointercancel", finishResize, { once: true });
+      window.addEventListener("pointerup", finishHinge, { once: true });
+      window.addEventListener("pointercancel", finishHinge, { once: true });
     },
-    [applySidebarPreferences, checkOverflow, persistSidebarPreferences],
-  );
-
-  const handleResizeKeyDown = useCallback(
-    (event: ReactKeyboardEvent<HTMLDivElement>) => {
-      const current = sidebarPreferencesRef.current;
-      const HINGE_MARGIN = 6;
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        toggleSidebar();
-        return;
-      }
-      if (event.key === "Home") {
-        event.preventDefault();
-        applySidebarPreferences({
-          collapsed: true,
-          width: APP_SIDEBAR_RAIL_WIDTH,
-          lastExpandedWidth: Math.max(APP_SIDEBAR_MIN_WIDTH, current.collapsed ? current.lastExpandedWidth : current.width),
-        });
-        return;
-      }
-      if (event.key === "End") {
-        event.preventDefault();
-        applySidebarPreferences({
-          collapsed: false,
-          width: APP_SIDEBAR_MAX_WIDTH,
-          lastExpandedWidth: APP_SIDEBAR_MAX_WIDTH,
-        });
-        return;
-      }
-      if (event.key === "ArrowLeft") {
-        event.preventDefault();
-        if (current.collapsed) return;
-        const targetWidth = current.width - APP_SIDEBAR_KEYBOARD_STEP;
-        if (targetWidth < APP_SIDEBAR_MIN_WIDTH) {
-          hingeWidthRef.current = APP_SIDEBAR_MIN_WIDTH + HINGE_MARGIN;
-          applySidebarPreferences({
-            collapsed: true,
-            width: APP_SIDEBAR_RAIL_WIDTH,
-            lastExpandedWidth: current.width,
-          });
-          return;
-        }
-        if (rootRef.current) {
-          rootRef.current.style.setProperty("--app-sidebar-width", `${targetWidth}px`);
-        }
-        if (checkOverflow()) {
-          hingeWidthRef.current = targetWidth + HINGE_MARGIN;
-          applySidebarPreferences({
-            collapsed: true,
-            width: APP_SIDEBAR_RAIL_WIDTH,
-            lastExpandedWidth: Math.max(APP_SIDEBAR_MIN_WIDTH, current.width),
-          });
-        } else {
-          applySidebarPreferences({
-            collapsed: false,
-            width: targetWidth,
-            lastExpandedWidth: targetWidth,
-          });
-        }
-        if (rootRef.current) {
-          rootRef.current.style.removeProperty("--app-sidebar-width");
-        }
-        return;
-      }
-      if (event.key === "ArrowRight") {
-        event.preventDefault();
-        if (current.collapsed) {
-          const targetWidth = Math.max(APP_SIDEBAR_MIN_WIDTH, current.lastExpandedWidth);
-          applySidebarPreferences({
-            collapsed: false,
-            width: targetWidth,
-            lastExpandedWidth: targetWidth,
-          });
-        } else {
-          const targetWidth = Math.min(APP_SIDEBAR_MAX_WIDTH, current.width + APP_SIDEBAR_KEYBOARD_STEP);
-          applySidebarPreferences({
-            collapsed: false,
-            width: targetWidth,
-            lastExpandedWidth: targetWidth,
-          });
-        }
-        return;
-      }
-    },
-    [applySidebarPreferences, checkOverflow, toggleSidebar],
+    [setCollapsed],
   );
 
   useEffect(() => {
@@ -1578,8 +1461,6 @@ function AppSidebarContent({
   const communityLandingHref = currentCourse
     ? communityHref(locale, currentCourse.slug)
     : withLocale(locale, "/app/community/discussions");
-  const sidebarWidth = sidebarPreferences.collapsed ? APP_SIDEBAR_RAIL_WIDTH : sidebarPreferences.width;
-  const sidebarStyle = { "--app-sidebar-width": `${sidebarWidth}px` } as CSSProperties;
   // Below the desktop breakpoint the same <aside> behaves as a modal drawer.
   const drawerIsModal = !isDesktopSidebar;
   const navLabel = locale === "sr" ? "Glavna navigacija" : "Main navigation";
@@ -1626,35 +1507,38 @@ function AppSidebarContent({
       data-sidebar-role={navigation.role ?? "none"}
       data-sidebar-admin={isAdmin ? "true" : "false"}
       data-collapsed={sidebarPreferences.collapsed ? "true" : "false"}
-      data-resizing={isResizing ? "true" : "false"}
-      style={sidebarStyle}
       onClickCapture={(event) => {
         if ((event.target as Element).closest("a")) {
           setMobileOpen(false);
           setRailFlyout(null);
         }
       }}
+      // Sirina je u `.app-sidebar` (globals.css) da bi oba stanja bila jedan token, a
+      // prelaz je utility ovde, jer bi `transition-transform` fioke inace pojeo sloj sa
+      // sirinom. Glavni sadrzaj desno je flex-sused, pa prati istu krivu bez svog prelaza.
       className={cn(
-        "fixed inset-y-0 left-0 z-50 flex h-dvh w-[min(336px,calc(100vw_-_32px))] min-w-0 -translate-x-full flex-col border-r-2 border-ink bg-paper-strong px-4 py-4 shadow-[18px_0_45px_var(--shadow-hard)] transition-transform duration-200",
+        "app-sidebar fixed inset-y-0 left-0 z-50 flex h-dvh min-w-0 -translate-x-full flex-col border-r-2 border-ink bg-paper-strong px-4 py-4 shadow-[18px_0_45px_var(--shadow-hard)] transition-transform duration-200 motion-reduce:transition-none",
         mobileOpen && "translate-x-0",
-        "md:sticky md:top-0 md:z-30 md:h-screen md:w-[var(--app-sidebar-width)] md:shrink-0 md:translate-x-0 md:overflow-visible md:px-5 md:py-7 md:shadow-none",
-        !isResizing && "md:transition-[width] md:duration-200",
+        "md:sticky md:top-0 md:z-30 md:h-screen md:shrink-0 md:translate-x-0 md:overflow-visible md:py-7 md:shadow-none",
+        "md:transition-[width] md:duration-[260ms] md:ease-[var(--ease-studio-out)]",
       )}
     >
-      <div ref={expandedWrapperRef} className={cn("flex h-full min-w-0 flex-col", sidebarPreferences.collapsed && "md:hidden")}>
-      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden pr-1">
-        <div className="sidebar-reveal flex items-center justify-between gap-4">
-          <div ref={brandMarkRef} className="min-w-0">
+      <div className={cn("flex h-full min-w-0 flex-col", showRail && "md:hidden")}>
+      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
+        <div className="sidebar-reveal flex items-center justify-between gap-4 md:h-12">
+          {/* `flex`, ne `block`: inline line-box oko logotipa bi dodao ~3px visine i
+              gurnuo nav nize nego u rail-u — pri sklapanju se nista ne sme pomeriti. */}
+          <div className="app-sidebar-label flex min-w-0">
             <BrandMark href={withLocale(locale)} label={t.appName} />
           </div>
           <button
-            ref={collapseButtonRef}
             type="button"
-            aria-label={locale === "sr" ? "Kolapsiraj sidebar" : "Collapse sidebar"}
+            aria-label={locale === "sr" ? "Skupi sidebar" : "Collapse sidebar"}
+            aria-expanded={!sidebarPreferences.collapsed}
             onClick={toggleSidebar}
-            className="hidden size-11 shrink-0 items-center justify-center border-2 border-ink bg-paper-strong text-ink transition hover:bg-yellow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink md:inline-flex"
+            className={SIDEBAR_TOGGLE}
           >
-            <PanelLeftClose className="size-5" />
+            <SidebarToggleIcon collapsed={sidebarPreferences.collapsed} />
           </button>
           <button
             type="button"
@@ -1762,7 +1646,7 @@ function AppSidebarContent({
 
       {/* Bottom Profile Card */}
       {profileData && (
-        <div className="relative mt-auto hidden md:block -mx-5 -mb-7 border-t-2 border-ink bg-paper-strong" ref={profileMenuRef}>
+        <div className="relative mt-auto hidden md:block -mx-4 -mb-7 border-t-2 border-ink bg-paper-strong" ref={profileMenuRef}>
           {profileMenuOpen ? (
             <div className="absolute bottom-[calc(100%+0.65rem)] left-3 right-3 z-50 rounded-[16px] border-2 border-ink bg-paper-strong p-2.5 text-ink shadow-[8px_8px_0_0_var(--shadow-hard-14)]">
               <span
@@ -1846,7 +1730,6 @@ function AppSidebarContent({
                 <div className="flex items-center justify-between gap-2">
                   <SoundToggle locale={locale} />
                   <button
-                    ref={signOutButtonRef}
                     type="button"
                     onClick={async () => {
                       await signOut();
@@ -1868,9 +1751,10 @@ function AppSidebarContent({
             onClick={() => setProfileMenuOpen((value) => !value)}
             aria-expanded={profileMenuOpen}
             aria-haspopup="menu"
-            className="relative flex w-full items-center gap-3 rounded-none bg-paper-strong px-5 py-4 text-left text-ink transition hover:bg-yellow/15"
+            className="relative flex w-full items-center overflow-hidden rounded-none bg-paper-strong px-4 py-4 text-left text-ink transition hover:bg-yellow/15"
           >
-            <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-ink bg-yellow text-xs font-black">
+            {/* Avatar je isti krug i na istom x-u kao ikonice nav-a i kao avatar u rail-u. */}
+            <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-ink bg-yellow text-xs font-black">
               {profileAvatar ? (
                 /* Avatar URLs are user-provided at runtime and intentionally avoid Next image host restrictions. */
                 // eslint-disable-next-line @next/next/no-img-element
@@ -1879,12 +1763,18 @@ function AppSidebarContent({
                 <span>{profileInitials}</span>
               )}
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-black leading-tight text-ink">{profileName}</p>
-              <p className="mt-0.5 truncate type-caption font-semibold text-muted/80">{profileUsername}</p>
-            </div>
-            <SidebarRoleBadge role={navigation.role} plan={navigation.plan} locale={locale} />
-            <ChevronDown className={cn("size-4 shrink-0 transition-transform text-muted", profileMenuOpen && "rotate-180")} />
+            <span className="app-sidebar-label flex w-[var(--sidebar-label-w)] shrink-0 items-center gap-2 pr-3">
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-xs font-black leading-tight text-ink">{profileName}</span>
+                {/* Uloga stoji uz @username, ne u prvom redu: na izmerenoj sirini bi inace
+                    ime ostalo na dva-tri slova. */}
+                <span className="mt-0.5 flex min-w-0 items-center gap-1.5">
+                  <span className="truncate type-caption font-semibold text-muted/80">{profileUsername}</span>
+                  <SidebarRoleBadge role={navigation.role} plan={navigation.plan} locale={locale} />
+                </span>
+              </span>
+              <ChevronDown className={cn("size-4 shrink-0 transition-transform text-muted", profileMenuOpen && "rotate-180")} />
+            </span>
             {accountBadge > 0 ? <span className="absolute right-3 top-3 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-ink bg-red-600 px-1 text-[10px] font-black text-white">{accountBadge > 99 ? "99+" : accountBadge}</span> : null}
           </button>
         </div>
@@ -1950,28 +1840,27 @@ function AppSidebarContent({
       <ThemeToggle locale={locale} className="mt-3 md:hidden" />
       </div>
 
-      <div ref={railLayerRef} className={cn("relative hidden h-full w-full flex-col items-center", sidebarPreferences.collapsed && "md:flex")}>
+      {/* Rail nosi TACNO iste elemente na istim mestima kao prosireni sloj: dugme na vrhu,
+          pa nav na +20px, pa profil pri dnu. Emblem i crta koje je rail ranije imao izmedju
+          dugmeta i nav-a su uklonjeni — gurali su ikonice nize nego u prosirenom stanju, a
+          nista se pri sklapanju ne sme pomeriti vertikalno. */}
+      <div ref={railLayerRef} className={cn("relative hidden h-full w-full flex-col items-center", showRail && "md:flex")}>
         <button
           type="button"
           aria-label={locale === "sr" ? "Proširi sidebar" : "Expand sidebar"}
+          aria-expanded={!sidebarPreferences.collapsed}
           onClick={toggleSidebar}
-          className="inline-flex size-11 items-center justify-center border-2 border-ink bg-yellow text-ink shadow-[3px_3px_0_var(--shadow-hard-16)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          className={SIDEBAR_TOGGLE}
         >
-          <PanelLeftOpen className="size-5" />
+          <SidebarToggleIcon collapsed={sidebarPreferences.collapsed} />
         </button>
-        <Link href={withLocale(locale)} aria-label={t.appName} className="mt-4 inline-flex size-11 items-center justify-center rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
-          <Image src="/images/logos/logo-emblem.png" alt="" width={160} height={160} className="size-10 object-contain dark:hidden" priority />
-          <Image src="/images/logos/logo-emblem-dark.png" alt="" width={160} height={160} className="hidden size-10 object-contain dark:block" loading="eager" />
-        </Link>
-
-        <div className="my-4 h-px w-8 bg-line" />
         {/* Rail (skupljeno): isti swap, ali `compact` - opacity crossfade bez klizanja
             (80px je preusko za horizontalni pomeraj); „Nazad" ikona nosi značenje. */}
         <SidebarNavSwap
           compact
           active={contextActive}
           reduce={shouldReduceMotion ?? false}
-          className="w-full"
+          className="mt-5 w-full"
           classic={
             <nav className="flex flex-col items-center gap-2" aria-label={locale === "sr" ? "Glavna navigacija" : "Main navigation"}>
           <RailAction href={dashboardHref(locale)} label="Dashboard" icon={<LayoutDashboard className="size-5" />} active={dashboardActive} />
@@ -2038,7 +1927,9 @@ function AppSidebarContent({
         ) : null}
 
         {profileData ? (
-          <div className="relative mt-auto flex flex-col items-center gap-2">
+          // `-mb-7 pb-4` ponistava donji padding sidebara: avatar tako pada na isti y kao
+          // avatar u prosirenoj kartici profila (koja je `-mb-7` + `py-4`).
+          <div className="relative mt-auto -mb-7 flex flex-col items-center gap-2 pb-4">
             {railFlyout === "profile" ? (
               <div className="absolute bottom-0 left-[calc(100%_+_36px)] z-[70] w-72 rounded-[16px] border-2 border-ink bg-paper-strong p-3 text-ink shadow-[10px_10px_0_var(--shadow-hard-16)]">
                 <div className="mb-3 min-w-0 border-b border-line pb-3">
@@ -2084,16 +1975,9 @@ function AppSidebarContent({
       </div>
 
       <div
-        role="separator"
-        aria-label={locale === "sr" ? "Promeni širinu sidebar-a" : "Resize sidebar"}
-        aria-orientation="vertical"
-        aria-valuemin={APP_SIDEBAR_RAIL_WIDTH}
-        aria-valuemax={APP_SIDEBAR_MAX_WIDTH}
-        aria-valuenow={sidebarWidth}
-        tabIndex={0}
-        onPointerDown={startSidebarResize}
-        onKeyDown={handleResizeKeyDown}
-        className="group absolute -right-2 top-0 z-[75] hidden h-full w-4 cursor-col-resize items-center justify-center bg-transparent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink lg:flex"
+        aria-hidden="true"
+        onPointerDown={startSidebarHinge}
+        className="absolute -right-2 top-0 z-[75] hidden h-full w-4 cursor-col-resize bg-transparent lg:block"
       />
     </aside>
       <AppBottomNav

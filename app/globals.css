@@ -153,6 +153,30 @@
   --motion-prelaz: 260ms;
   --motion-spor: 2000ms;
   --ease-studio-out: cubic-bezier(0.05, 0.7, 0.1, 1);
+
+  /* Sidebar aplikacije ima TACNO dve sirine — nema medjustanja i nema druge
+     prelomne tacke (N8). Obe su izmerene, ne birane:
+
+     --sidebar-w = 2 (desni okvir sidebara) + 16 (levi padding) + 147 (logotip:
+       h-11 = 44px x 1676/505) + 16 (razmak do dugmeta) + 48 (dugme za kolaps)
+       + 16 (desni padding) = 245 -> 246px. To je najuza sirina na kojoj dugme za
+       kolaps ne prelazi preko logotipa u gornjem levom uglu.
+     Nav linkovi na njoj staju u jedan red bez preloma i bez tri tackice: kolona za
+       tekst je --sidebar-label-w - 12 (desni predah) = 152px, a najduzi label je
+       "Notifications" 85px + 8 + 28 (badge "99+") = 121px; u srpskom je najduzi
+       "Opste informacije" 118px, pa "Chat sigurnost" 98px (oba bez badge-a).
+       Mereno u Nunito 800 / 14px, isti stil koji red i koristi.
+     --sidebar-icon-col = krug ikonice (rail: size-12). Kolona ikonice u prosirenom
+       redu je za 4px uza, jer je red border-box sa okvirom od 2px sa obe strane —
+       tako ikonica sedi na ISTOM x-u u oba stanja.
+     --sidebar-w-collapsed = krug + 2 x 16 (padding) + 2 (desni okvir) = 82px, tj.
+       tacno sirina na kojoj se red svede na taj krug.
+     --sidebar-label-w = sve sto ostane kad se od otvorene oduzme skupljena sirina;
+       fiksna je da se tekst NIKAD ne skuplja dok traje prelaz. */
+  --sidebar-w: 246px;
+  --sidebar-icon-col: 48px;
+  --sidebar-w-collapsed: calc(var(--sidebar-icon-col) + 2 * 16px + 2px);
+  --sidebar-label-w: calc(var(--sidebar-w) - var(--sidebar-w-collapsed));
 }
 
 /* Tamni parnjak. Zuta se NE menja (isti kontrast 7,66:1 na mastilu u obe teme);
@@ -275,6 +299,55 @@ body {
 @layer components {
   .link-button {
     display: inline-flex;
+  }
+}
+
+/* Koreografija sklapanja sidebara (N8). Sve je u `@layer components` iz istog
+   razloga kao `.link-button`: utility na elementu mora da moze da pobedi.
+
+   Sirina je jedina stvar koja se animira (260ms = --motion-prelaz; sam prelaz stoji
+   kao utility na <aside>, jer utility sloj pobedjuje ovaj), tekst linkova se samo
+   pojavljuje i nestaje. Kasnjenje je NESIMETRICNO i to je cela poenta: pri OTVARANJU
+   tekst ceka 80ms da se sirina otvori, pri ZATVARANJU krece odmah, pa se skupljanje
+   nikad ne desava dok tekst jos stoji u redu.
+
+   Ispod md sidebar je fioka (uvek „prosirena"), zato je celo skupljanje u
+   `@media (min-width: 768px)` — `data-collapsed` na telefonu ne sme nista da radi. */
+@layer components {
+  .app-sidebar {
+    width: min(336px, calc(100vw - 32px));
+  }
+
+  .app-sidebar-label {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  @media (min-width: 768px) {
+    .app-sidebar {
+      width: var(--sidebar-w);
+    }
+
+    .app-sidebar[data-collapsed="true"] {
+      width: var(--sidebar-w-collapsed);
+    }
+
+    .app-sidebar[data-collapsed="true"] .app-sidebar-label {
+      opacity: 0;
+      transform: translateX(-4px);
+    }
+  }
+
+  @media (min-width: 768px) and (prefers-reduced-motion: no-preference) {
+    .app-sidebar-label {
+      transition:
+        opacity 160ms var(--ease-studio-out) 80ms,
+        transform 160ms var(--ease-studio-out) 80ms;
+    }
+
+    .app-sidebar[data-collapsed="true"] .app-sidebar-label {
+      transition-delay: 0ms;
+    }
   }
 }
 

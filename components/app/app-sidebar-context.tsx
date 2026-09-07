@@ -127,13 +127,32 @@ export function SidebarNavSwap({
   );
 }
 
-const ROW_BASE =
-  "inline-flex min-h-11 w-full min-w-0 items-center gap-3 rounded-full border-2 px-3 py-2 text-sm font-extrabold text-ink transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
-const ROW_ACTIVE = "border-ink bg-yellow shadow-[3px_3px_0_0_var(--shadow-hard-14)]";
-const ROW_IDLE = "border-transparent bg-transparent hover:border-ink hover:bg-yellow/25";
+/**
+ * Geometrija reda navigacije, deljena sa `app-sidebar.tsx` (N8). Ikonica NE učestvuje u
+ * animaciji širine: sedi u koloni od tačno `--sidebar-icon-col` (= širina kruga u
+ * skupljenom stanju), pa joj je x isti i otvoreno i zatvoreno. Tekst je zaseban element
+ * DESNO od nje, FIKSNE širine (`--sidebar-label-w`) koji se nikad ne skuplja — samo se
+ * pojavljuje i nestaje preko `app-sidebar-label`. Zato nema ni preloma ni tri tačke na
+ * pola prelaza: višak odseca `overflow-hidden` reda. Ispod md (fioka na telefonu, gde je
+ * classic nav mreža) red ostaje elastičan pill.
+ */
+export const SIDEBAR_ROW =
+  "inline-flex min-h-11 min-w-0 items-center overflow-hidden rounded-full border-2 px-3 py-2 text-sm font-extrabold text-ink transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink md:min-h-12 md:w-full md:px-0 md:py-0";
+export const SIDEBAR_ROW_ACTIVE = "border-ink bg-yellow shadow-[3px_3px_0_0_var(--shadow-hard-14)]";
+export const SIDEBAR_ROW_IDLE = "border-transparent bg-transparent hover:border-ink hover:bg-yellow/25";
+export const SIDEBAR_ROW_ICON =
+  "grid shrink-0 place-items-center md:w-[calc(var(--sidebar-icon-col)_-_4px)]";
+export const SIDEBAR_ROW_LABEL =
+  "app-sidebar-label flex min-w-0 flex-1 items-center gap-2 pl-3 md:w-[var(--sidebar-label-w)] md:flex-none md:pl-0 md:pr-3";
+
+const ROW_BASE = cn(SIDEBAR_ROW, "w-full");
+const ROW_ACTIVE = SIDEBAR_ROW_ACTIVE;
+const ROW_IDLE = SIDEBAR_ROW_IDLE;
 // „Nazad" je akcija (izlaz iz alata), ne odredište - zato okvir + senka i strelica.
-const BACK_ROW =
-  "inline-flex min-h-11 w-full min-w-0 items-center gap-3 rounded-full border-2 border-ink bg-paper-strong px-3 py-2 text-sm font-extrabold text-ink shadow-[3px_3px_0_0_var(--shadow-hard-14)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
+const BACK_ROW = cn(
+  SIDEBAR_ROW,
+  "w-full border-ink bg-paper-strong shadow-[3px_3px_0_0_var(--shadow-hard-14)] hover:-translate-y-0.5",
+);
 
 function Item({ reduce, children }: { reduce: boolean; children: ReactNode }) {
   if (reduce) return <div className="min-w-0">{children}</div>;
@@ -183,13 +202,21 @@ export function ContextSidebarNav({
     <>
       <Item reduce={reduce}>
         <button type="button" onClick={onBack} className={BACK_ROW}>
-          <ChevronLeft className="size-4 shrink-0" />
-          <span className="truncate">{backLabel}</span>
+          <span className={SIDEBAR_ROW_ICON}>
+            <ChevronLeft className="size-5" />
+          </span>
+          <span className={SIDEBAR_ROW_LABEL}>
+            <span className="truncate">{backLabel}</span>
+          </span>
         </button>
       </Item>
-      {leading ? <Item reduce={reduce}>{leading}</Item> : null}
+      {leading ? (
+        <Item reduce={reduce}>
+          <div className="app-sidebar-label">{leading}</div>
+        </Item>
+      ) : null}
       {groupLabel ? (
-        <p className="px-3 pb-1 pt-3 type-eyebrow text-muted">
+        <p className="app-sidebar-label px-3 pb-1 pt-3 type-eyebrow text-muted">
           {groupLabel}
         </p>
       ) : null}
@@ -209,13 +236,17 @@ export function ContextSidebarNav({
               aria-current={active ? "page" : undefined}
               className={cn(ROW_BASE, active ? ROW_ACTIVE : ROW_IDLE)}
             >
-              <Icon className="size-4 shrink-0" />
-              <span className="truncate">{label}</span>
-              {badge > 0 ? (
-                <span className="ml-auto flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full border border-ink bg-red-600 px-1 text-[10px] font-black text-white">
-                  {badge > 99 ? "99+" : badge}
-                </span>
-              ) : null}
+              <span className={SIDEBAR_ROW_ICON}>
+                <Icon className="size-5" />
+              </span>
+              <span className={SIDEBAR_ROW_LABEL}>
+                <span className="truncate">{label}</span>
+                {badge > 0 ? (
+                  <span className="ml-auto flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full border border-ink bg-red-600 px-1 text-[10px] font-black text-white">
+                    {badge > 99 ? "99+" : badge}
+                  </span>
+                ) : null}
+              </span>
             </Link>
           </Item>
         );
@@ -244,7 +275,11 @@ export function ContextSidebarNav({
 const RAIL_BASE =
   "group relative flex size-12 items-center justify-center rounded-full border-2 text-ink transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
 const RAIL_ACTIVE = "border-ink bg-yellow shadow-[3px_3px_0_var(--shadow-hard-16)]";
-const RAIL_IDLE = "border-transparent bg-paper-strong hover:border-ink hover:bg-yellow/25";
+// `bg-transparent`, ne `bg-paper-strong`: isto se iscrtava na papiru sidebara, ali je
+// piksel-isto sa proširenim redom na skupljenoj širini, pa zamena slojeva ne treperi.
+const RAIL_IDLE = "border-transparent bg-transparent hover:border-ink hover:bg-yellow/25";
+// Isti okvir i senka kao BACK_ROW iz istog razloga.
+const RAIL_BACK = "border-ink bg-paper-strong shadow-[3px_3px_0_0_var(--shadow-hard-14)]";
 const RAIL_TOOLTIP =
   "pointer-events-none absolute left-[calc(100%+12px)] z-[80] whitespace-nowrap rounded-full border-2 border-ink bg-paper-strong px-3 py-1.5 text-xs font-black text-ink opacity-0 shadow-[4px_4px_0_var(--shadow-hard-14)] transition group-hover:opacity-100 group-focus-visible:opacity-100";
 
@@ -285,7 +320,7 @@ export function ContextSidebarRail({
 
   return (
     <nav aria-label={navLabel} className="flex flex-col items-center gap-2">
-      <button type="button" aria-label={backLabel} onClick={onBack} className={cn(RAIL_BASE, RAIL_IDLE)}>
+      <button type="button" aria-label={backLabel} onClick={onBack} className={cn(RAIL_BASE, RAIL_BACK)}>
         <ChevronLeft className="size-5" />
         <RailTooltip label={backLabel} />
       </button>
