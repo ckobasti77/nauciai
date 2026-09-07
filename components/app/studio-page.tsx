@@ -25,6 +25,11 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { clampBoundsToViewport } from "@/lib/floating-bounds";
 import { t, withLocale, type Locale } from "@/lib/i18n";
+import {
+  readComposerCollapsed,
+  writeComposerCollapsed,
+  type ComposerBreakpoint,
+} from "@/lib/studio-composer-collapse";
 import { jobPrompt } from "@/lib/studio-form";
 import { type GalleryScope } from "@/lib/studio-gallery";
 import { parseStudioModel, type StudioModel, type StudioModelRow } from "@/lib/studio-models";
@@ -249,7 +254,23 @@ export function StudioPage({
   // Dinamičko merenje stvarne visine lebdećeg composera/panela preko ResizeObserver-a (popravka 1.2)
   const floatingContainerRef = useRef<HTMLDivElement | null>(null);
   const [floatingHeight, setFloatingHeight] = useState<number>(140);
-  const [isComposerCollapsed, setIsComposerCollapsed] = useState(false);
+
+  // Sklopljeno/rasklopljeno stanje polja za unos - pamti se odvojeno za mobilni i desktop (N11)
+  const [composerBreakpoint, setComposerBreakpoint] = useState<ComposerBreakpoint>(() =>
+    typeof window !== "undefined" && window.matchMedia("(max-width: 639px)").matches ? "mobile" : "desktop",
+  );
+  const [isComposerCollapsed, setIsComposerCollapsed] = useState(() => readComposerCollapsed(composerBreakpoint));
+
+  useEffect(() => {
+    const mql = window.matchMedia("(max-width: 639px)");
+    function syncBreakpoint() {
+      const next: ComposerBreakpoint = mql.matches ? "mobile" : "desktop";
+      setComposerBreakpoint(next);
+      setIsComposerCollapsed(readComposerCollapsed(next));
+    }
+    mql.addEventListener("change", syncBreakpoint);
+    return () => mql.removeEventListener("change", syncBreakpoint);
+  }, []);
 
   useEffect(() => {
     const el = floatingContainerRef.current;
@@ -652,7 +673,13 @@ export function StudioPage({
         variant="create"
         onGenerate={generate}
         isCollapsed={isComposerCollapsed}
-        onToggleCollapse={() => setIsComposerCollapsed((prev) => !prev)}
+        onToggleCollapse={() =>
+          setIsComposerCollapsed((prev) => {
+            const next = !prev;
+            writeComposerCollapsed(composerBreakpoint, next);
+            return next;
+          })
+        }
       />
     );
   };

@@ -352,7 +352,7 @@ function PromotedChipItem({
   );
 
   return (
-    <div ref={onRegisterContainer} className="relative inline-flex">
+    <div ref={onRegisterContainer} className="relative inline-flex shrink-0">
       <button
         ref={setButtonRef}
         type="button"
@@ -361,13 +361,13 @@ function PromotedChipItem({
         aria-expanded={isOpen}
         aria-label={chip.label}
         className={cn(
-          "inline-flex min-h-11 items-center gap-1.5 rounded-full border-2 border-ink px-3 py-1.5 text-xs font-black transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+          "inline-flex min-h-11 items-center gap-1.5 rounded-full border-2 border-ink px-2.5 py-1.5 text-xs font-black transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:px-3",
           isOpen
             ? "bg-ink text-paper-strong shadow-[2px_2px_0_0_var(--shadow-hard)]"
             : "bg-paper-strong text-ink shadow-[2px_2px_0_0_var(--shadow-hard)]",
         )}
       >
-        <span>{chip.valueText}</span>
+        <span className="max-w-[84px] truncate sm:max-w-none">{chip.valueText}</span>
       </button>
 
       <AnimatePresence>
@@ -1101,6 +1101,18 @@ export function StudioComposer({
   const errorMessage = error ? studioErrorMessage(error, locale) : null;
   const blockMessage = block ? generateBlockMessage(block, locale) : null;
 
+  const collapseLabel = locale === "sr"
+    ? isCollapsed
+      ? "Prikaži polje za unos"
+      : "Sakrij polje za unos"
+    : isCollapsed
+      ? "Show input"
+      : "Hide input";
+
+  // Kad je otvoren "+" ili čip pop-up, red komandi ne sme da seče sadržaj po Y osi
+  // (mobilni `overflow-x-auto` inače kliperuje pop-up koji "izlazi" iznad reda).
+  const rowOverflowOpen = attachPopupOpen || openChipKey !== null;
+
   return (
     <div ref={composerRef} className="relative w-full max-w-[720px]">
       {/* Skriveni input za izbor datoteka */}
@@ -1174,9 +1186,42 @@ export function StudioComposer({
       ) : null}
 
       {/* ========================================================================= */}
-      {/* COMPOSER BAR                                                             */}
+      {/* COMPOSER BAR + SAKRIVANJE POLJA                                          */}
       {/* ========================================================================= */}
-      <motion.div
+      <div className="group/composer relative">
+        {onToggleCollapse ? (
+          <div className="mb-2 flex justify-center">
+            {/* Desktop: tekstualno dugme, vidljivo samo na hover/focus polja (ili bilo čega u njemu) */}
+            <button
+              type="button"
+              onClick={handleToggleCollapse}
+              aria-expanded={!isCollapsed}
+              aria-label={collapseLabel}
+              className="hidden min-h-8 items-center justify-center gap-1.5 rounded-full border-2 border-ink bg-paper-strong px-3 py-1 text-xs font-black text-ink opacity-0 shadow-[2px_2px_0_0_var(--shadow-hard)] transition-opacity duration-[140ms] hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none group-hover/composer:opacity-100 group-focus-within/composer:opacity-100 sm:inline-flex"
+            >
+              {isCollapsed ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
+              <span>{collapseLabel}</span>
+            </button>
+
+            {/* Mobilni: suptilan caret, uvek vidljiv, rotira se 180° pri kolapsu */}
+            <button
+              type="button"
+              onClick={handleToggleCollapse}
+              aria-expanded={!isCollapsed}
+              aria-label={collapseLabel}
+              className="inline-flex size-11 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:hidden"
+            >
+              <ChevronDown
+                className={cn(
+                  "size-4 transition-transform duration-200 motion-reduce:transition-none",
+                  isCollapsed ? "rotate-180" : "rotate-0",
+                )}
+              />
+            </button>
+          </div>
+        ) : null}
+
+        <motion.div
         inert={isCollapsed ? true : undefined}
         aria-hidden={isCollapsed ? true : undefined}
         animate={{
@@ -1272,10 +1317,15 @@ export function StudioComposer({
           </div>
         ) : null}
 
-        {/* Donji red čipova */}
-        <div className="mt-2.5 flex flex-wrap items-center gap-2">
+        {/* Donji red čipova: na mobilnom JEDAN red, bez prelamanja - skrol samo ako baš ne staje */}
+        <div
+          className={cn(
+            "mt-2.5 flex flex-nowrap items-center gap-1.5 sm:flex-wrap sm:gap-2 sm:overflow-visible",
+            rowOverflowOpen ? "overflow-visible" : "studio-command-row overflow-x-auto",
+          )}
+        >
           {/* Upload dugme (+) sa AttachFilePopup */}
-          <div ref={attachContainerRef} className="relative inline-flex">
+          <div ref={attachContainerRef} className="relative inline-flex shrink-0">
             <button
               type="button"
               disabled={!modelAcceptsFiles || isPending}
@@ -1332,10 +1382,10 @@ export function StudioComposer({
             }}
             aria-haspopup="dialog"
             aria-expanded={modelPickerOpen}
-            className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-3.5 py-1.5 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-2.5 py-1.5 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:px-3.5"
           >
             <ModelMark model={activeModel} size={16} className="shrink-0 text-ink" />
-            <span>{modelLabel(activeModel, locale)}</span>
+            <span className="max-w-[92px] truncate sm:max-w-none">{modelLabel(activeModel, locale)}</span>
           </button>
 
           {/* Promovisani čipovi (Rezolucija, Odnos stranica, Trajanje, Broj slika...) */}
@@ -1379,7 +1429,7 @@ export function StudioComposer({
                     ? "Nedovoljno kredita. Klikni za dopunu."
                     : "Insufficient credits. Click to top up."
               }
-              className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 py-2 text-xs font-black text-ink shadow-[3px_3px_0_0_var(--ink)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-3 py-2 text-xs font-black text-ink shadow-[3px_3px_0_0_var(--ink)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:px-4"
             >
               <Coins className="size-4 text-ink" />
               <span className="hidden sm:inline">{locale === "sr" ? "Dopuni" : "Top up"}</span>
@@ -1415,7 +1465,7 @@ export function StudioComposer({
                       : "Generate"
               }
               className={cn(
-                "inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full border-2 border-ink px-4 py-2 text-xs font-black transition duration-200 hover:-translate-y-0.5 active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+                "inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full border-2 border-ink px-3 py-2 text-xs font-black transition duration-200 hover:-translate-y-0.5 active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:px-4",
                 isPriceFlashing
                   ? "bg-yellow text-ink shadow-[3px_3px_0_0_var(--ink)]"
                   : "bg-ink text-paper-strong shadow-[3px_3px_0_0_var(--yellow)] active:shadow-[1px_1px_0_0_var(--yellow)]",
@@ -1448,41 +1498,8 @@ export function StudioComposer({
             </button>
           )}
         </div>
-      </motion.div>
-
-      {/* ========================================================================= */}
-      {/* RUČICA ZA SKLAPANJE / RASKLAPANJE INPUTA                                  */}
-      {/* ========================================================================= */}
-      {onToggleCollapse ? (
-        <div className="mt-2 flex justify-center">
-          <button
-            type="button"
-            onClick={handleToggleCollapse}
-            aria-expanded={!isCollapsed}
-            aria-label={
-              locale === "sr"
-                ? isCollapsed
-                  ? "Prikaži polje za unos"
-                  : "Sakrij polje za unos"
-                : isCollapsed
-                  ? "Show input"
-                  : "Hide input"
-            }
-            className="inline-flex min-h-8 items-center justify-center gap-1.5 rounded-full border-2 border-ink bg-paper-strong px-3 py-1 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-          >
-            {isCollapsed ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
-            <span>
-              {locale === "sr"
-                ? isCollapsed
-                  ? "Prikaži polje za unos"
-                  : "Sakrij polje za unos"
-                : isCollapsed
-                  ? "Show input"
-                  : "Hide input"}
-            </span>
-          </button>
-        </div>
-      ) : null}
+        </motion.div>
+      </div>
 
       {/* Prekrivač prijema fajla preko celog ekrana */}
       {dropActive && modelAcceptsFiles ? (

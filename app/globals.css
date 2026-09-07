@@ -718,6 +718,14 @@ select:-webkit-autofill {
   outline-offset: 2px;
 }
 
+/* Red komandi composera na mobilnom (N11): skrolbar sakriven, prst i dalje skroluje. */
+.studio-command-row {
+  scrollbar-width: none;
+}
+.studio-command-row::-webkit-scrollbar {
+  display: none;
+}
+
 /* ── Talasasti razdelnik između sekcija (v3) ────────────────────────────────────
    `<SectionWave>` usidren uz DNO sekcije i pomeren translateY 50% da jaše na granici dve
    sekcije. NEPROVIDNA traka (nosi obe boje, deli ih talas) — visina 40px = viewBox
