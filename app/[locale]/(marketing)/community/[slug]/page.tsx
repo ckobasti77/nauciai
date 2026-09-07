@@ -127,10 +127,19 @@ export async function generateMetadata({
   // Task 4: Thin content (0 comments and < 200 chars body) gets noindex, follow
   const isThinContent = post.commentsCount === 0 && post.body.trim().length < 200;
 
+  // J2 hreflang: kanonik ostaje na jeziku posta (gore), a parovi vode na obe jezičke
+  // varijante iste teme; x-default -> srpska (neprefiksirana) varijanta.
   return {
     title: `${post.title} | Nauči AI`,
     description,
-    alternates: { canonical: canonicalUrl },
+    alternates: {
+      canonical: canonicalUrl,
+      languages: {
+        sr: canonicalThreadUrl("sr", post),
+        en: canonicalThreadUrl("en", post),
+        "x-default": canonicalThreadUrl("sr", post),
+      },
+    },
     robots: isThinContent
       ? { index: false, follow: true }
       : { index: true, follow: true },

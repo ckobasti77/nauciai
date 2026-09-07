@@ -1,7 +1,17 @@
+"use client";
+
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 import { cn } from "@/components/ui/primitives";
 import { marketingContent, otherLocale, withLocale, type Locale } from "@/lib/i18n";
+
+/**
+ * Kolačić jezika. Piše ga ISKLJUČIVO ovaj prekidač (klijent), zato NIJE HttpOnly.
+ * Middleware (`proxy.ts`) ga samo ČITA za meko 307 na "/". Ime mora da bude identično
+ * literalu u `proxy.ts`.
+ */
+export const LOCALE_COOKIE = "nauciai_locale";
 
 // Zastavica trenutnog jezika; klik vodi na drugi jezik (kao theme toggle: prikazuje
 // tekuce stanje, klik prebacuje). Srbija = crveno/plavo/belo tricolor, UK = Union Jack.
@@ -48,10 +58,26 @@ export function LanguageToggle({
 }) {
   const nextLocale = otherLocale(locale);
   const m = marketingContent[locale];
+  const searchParams = useSearchParams();
+
+  // href nosi i POSTOJEĆE query parametre (ne samo putanju): /kursevi?tag=x -> /en/courses?tag=x.
+  const base = href ?? withLocale(nextLocale);
+  const query = searchParams.toString();
+  const finalHref = query ? `${base}${base.includes("?") ? "&" : "?"}${query}` : base;
+
+  // Klik SINHRONO upiše kolačić PRE nego što meka navigacija krene (isti obrazac kao
+  // APP_SIDEBAR_COOKIE u components/app/app-sidebar.tsx): vrednost = ciljni jezik,
+  // Max-Age 1 god., Path=/, SameSite=Lax, Secure na https, bez HttpOnly.
+  const writeLocaleCookie = () => {
+    const secure = window.location.protocol === "https:" ? "; Secure" : "";
+    document.cookie = `${LOCALE_COOKIE}=${nextLocale}; Max-Age=31536000; Path=/; SameSite=Lax${secure}`;
+  };
 
   return (
     <Link
-      href={href ?? withLocale(nextLocale)}
+      href={finalHref}
+      scroll={false}
+      onClick={writeLocaleCookie}
       aria-label={m.footer.langLabel}
       title={m.footer.switchTo}
       className={cn(

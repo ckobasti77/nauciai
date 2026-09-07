@@ -73,6 +73,41 @@ export default async function proxy(request: NextRequest, event: NextFetchEvent)
     return NextResponse.redirect(url, 308);
   }
 
+  // Na "/" oba odgovora (307 i običan prolaz) nose `Vary: Cookie` da deljeni keš
+  // (LiteSpeed/CDN) ne servira pogrešnu jezičku varijantu iste putanje. `append` (a ne `set`)
+  // jer renderovani odgovor već ima Next-ov RSC `Vary` — dodajemo `Cookie` na njega.
+  const withRootVary = (response: NextResponse): NextResponse => {
+    if (pathname === "/") response.headers.append("Vary", "Cookie");
+    return response;
+  };
+
+  // 1b. Meko preusmerenje po kolačiću: SAMO na "/", SAMO za `nauciai_locale=en` -> 307 (nikad
+  //     308/trajno) na "/en". Tri obavezne zaštite protiv zamke „ne mogu nazad na srpski":
+  //       a) samo "/" (nikad duboke putanje — podeljen sr link ne sme da puca EN korisniku);
+  //       b) preskoči kad Referer ima isti host (in-app navigacija, npr. klik zastavice na /en);
+  //       c) preskoči RSC/prefetch (meka navigacija ne sme da naleti na dokument-redirect).
+  //          Next STRIP-uje `RSC`/`Next-Router-Prefetch` iz zaglavlja vidljivih middleware-u
+  //          (provereno), pa se meka navigacija prepoznaje preko `Sec-Fetch-Dest`: prava
+  //          navigacija najvišeg nivoa je `document`; RSC/prefetch/fetch je `empty`/`cors`.
+  if (pathname === "/" && request.cookies.get("nauciai_locale")?.value === "en") {
+    const referer = request.headers.get("referer");
+    let sameHostReferer = false;
+    if (referer) {
+      try {
+        sameHostReferer = new URL(referer).host === request.nextUrl.host;
+      } catch {
+        sameHostReferer = false;
+      }
+    }
+    const secFetchDest = request.headers.get("sec-fetch-dest");
+    const isRscOrPrefetch = secFetchDest !== null && secFetchDest !== "document";
+    if (!sameHostReferer && !isRscOrPrefetch) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/en";
+      return withRootVary(NextResponse.redirect(url, 307));
+    }
+  }
+
   // Rewrite javne putanje u internu (/sr + canonicalPath) da bi Next razrešio rutu.
   // `en` je već prava interna putanja. Kolačići (osveženi tokeni) se ručno prenose:
   // vraćanje rewrite-a IZ Convex handlera bi ga tiho pojeo na osvežavanju tokena
@@ -87,15 +122,15 @@ export default async function proxy(request: NextRequest, event: NextFetchEvent)
   };
 
   // 2. Bez backend-a: preskoči auth, ali i dalje rewrite (sr strane moraju da se renderuju).
-  if (!process.env.NEXT_PUBLIC_CONVEX_URL) return rewriteToInternal(null);
+  if (!process.env.NEXT_PUBLIC_CONVEX_URL) return withRootVary(rewriteToInternal(null));
 
   // 3. Auth (nad canonicalPath), pa rewrite uz prenos kolačića.
   const res = await authProxy(request, event);
   if (res instanceof NextResponse) {
     if (res.headers.get("Location")) return res; // auth redirect — ne diramo
-    return rewriteToInternal(res);
+    return withRootVary(rewriteToInternal(res));
   }
-  return rewriteToInternal(null);
+  return withRootVary(rewriteToInternal(null));
 }
 
 export const config = {

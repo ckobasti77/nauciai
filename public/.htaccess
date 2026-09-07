@@ -14,3 +14,19 @@ AddType image/avif .avif
     Header unset Content-Encoding
   </IfModule>
 </FilesMatch>
+
+# Kada je jezički kolačić postavljen, "/" ima dve varijante (sr / 307 na /en) — LiteSpeed
+# keš ne sme da servira jednu drugoj. Zahtevi BEZ kolačića se i dalje kesiraju normalno i
+# uvek dobijaju srpsku verziju (upravo ono što Googlebot treba da vidi).
+<IfModule LiteSpeed>
+  RewriteEngine On
+  RewriteCond %{HTTP_COOKIE} nauciai_locale=
+  RewriteRule .* - [E=Cache-Control:no-cache]
+</IfModule>
+
+# `Vary: Cookie` na "/" i na rubu (Next App Router pregazi Vary na renderovanom RSC odgovoru,
+# pa ga ovde dodajemo za "/"): deljeni keš vari po jezičkom kolačiću. Samo za tačan koren.
+<IfModule mod_headers.c>
+  SetEnvIf Request_URI "^/$" NAUCIAI_ROOT=1
+  Header append Vary "Cookie" env=NAUCIAI_ROOT
+</IfModule>

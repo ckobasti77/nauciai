@@ -13,6 +13,7 @@ import { HandUnderline, LinkButton, Panel, SectionHeader, SketchIcon } from "@/c
 import { courses } from "@/lib/content";
 import { convexQueries, getConvexHttpClient } from "@/lib/convex-http";
 import { dictionary, coursePageContent, locales, localized, normalizeLocale, pluralize, type Locale, type LocalizedText, withLocale } from "@/lib/i18n";
+import { alternatesFor } from "@/lib/routes";
 
 type StaticCourse = (typeof courses)[number];
 
@@ -91,12 +92,14 @@ export async function generateMetadata({
   const course = courses.find((item) => item.slug === courseSlug);
   if (!course) return {};
 
+  const origin = (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/$/, "");
   const title = localized(course.title, locale);
   const description = localized(course.description, locale);
 
   return {
     title: `${title} — ${dictionary[locale].appName}`,
     description,
+    alternates: alternatesFor(origin, `/courses/${course.slug}`, locale),
     openGraph: {
       title,
       description,

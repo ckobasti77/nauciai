@@ -22,6 +22,7 @@ import {
 } from "@/lib/i18n";
 import { PRICING } from "@/lib/pricing";
 import { getPlanPricing, getPremiumCredits } from "@/lib/pricing-data";
+import { alternatesFor } from "@/lib/routes";
 import { nextLevel, surfaceClass } from "@/lib/surface";
 
 // `as const` u `pricingPageContent` daje literalne tipove po jeziku (sr i en labele su
@@ -35,19 +36,15 @@ type CompareRow = { readonly label: string; readonly basic: boolean; readonly pr
  */
 export function buildPricingMetadata(locale: Locale): Metadata {
   const origin = (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/$/, "");
-  const canonicalUrl = `${origin}${withLocale(locale, "/pricing")}`;
-  const srUrl = `${origin}${withLocale("sr", "/pricing")}`;
-  const enUrl = `${origin}${withLocale("en", "/pricing")}`;
+  const alternates = alternatesFor(origin, "/pricing", locale);
+  const canonicalUrl = alternates.canonical;
   const title = localized(publicMeta.pricing.title, locale);
   const description = localized(publicMeta.pricing.description, locale);
 
   return {
     title,
     description,
-    alternates: {
-      canonical: canonicalUrl,
-      languages: { sr: srUrl, en: enUrl, "x-default": srUrl },
-    },
+    alternates,
     robots: { index: true, follow: true },
     openGraph: { type: "website", url: canonicalUrl, title, description },
     twitter: { card: "summary" },

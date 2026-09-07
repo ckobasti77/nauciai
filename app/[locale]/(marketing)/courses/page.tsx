@@ -14,6 +14,7 @@ import {
   withLocale,
 } from "@/lib/i18n";
 import { existingPublicPath } from "@/lib/public-media";
+import { alternatesFor } from "@/lib/routes";
 
 /** Sidro liste kurseva — meta hero CTA „Pogledaj kurseve". */
 const COURSES_LIST_ID = "kursevi";
@@ -31,9 +32,8 @@ export async function generateMetadata({
   const locale = normalizeLocale(localeParam);
 
   const origin = (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/$/, "");
-  const canonicalUrl = `${origin}${withLocale(locale, "/courses")}`;
-  const srUrl = `${origin}${withLocale("sr", "/courses")}`;
-  const enUrl = `${origin}${withLocale("en", "/courses")}`;
+  const alternates = alternatesFor(origin, "/courses", locale);
+  const canonicalUrl = alternates.canonical;
 
   const title = localized(publicMeta.coursesListing.title, locale);
   const description = localized(publicMeta.coursesListing.description, locale);
@@ -41,14 +41,7 @@ export async function generateMetadata({
   return {
     title,
     description,
-    alternates: {
-      canonical: canonicalUrl,
-      languages: {
-        sr: srUrl,
-        en: enUrl,
-        "x-default": srUrl,
-      },
-    },
+    alternates,
     robots: { index: true, follow: true },
     openGraph: {
       type: "website",

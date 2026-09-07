@@ -17,6 +17,16 @@ const nextConfig: NextConfig = {
         source: "/images/:path*.webm",
         headers: [{ key: "Content-Type", value: "video/webm" }],
       },
+      // "/" ima dve jezičke varijante po kolačiću (sr / 307 na /en), pa deljeni keš mora da vari
+      // po kolačiću. Deklaracija stoji ovde, ali Next App Router PREGAZI `Vary` na renderovanom
+      // RSC odgovoru (drugi headeri prolaze — proveren X-Probe — samo Vary ne). Zato je stvarni
+      // efekat na "/" prolazu obezbeđen na LiteSpeed rubu (public/.htaccess: `Header append Vary`),
+      // a keš trovanje je već sprečeno B4 pravilom (no-cache kad kolačić postoji). 307 iz proxy.ts
+      // svoj `Vary: Cookie` zadrži (terminalni odgovor, nema RSC rendera).
+      {
+        source: "/",
+        headers: [{ key: "Vary", value: "Cookie" }],
+      },
     ];
   },
 };

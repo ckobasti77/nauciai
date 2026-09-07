@@ -5,6 +5,7 @@ import { convexQueries, getConvexHttpClient } from "@/lib/convex-http";
 import { getCurrentViewerProfile } from "@/lib/current-viewer";
 import { locales, normalizeLocale, publicMeta, withLocale } from "@/lib/i18n";
 import { getPlanPricing, getPremiumCredits } from "@/lib/pricing-data";
+import { alternatesFor } from "@/lib/routes";
 
 export const dynamic = "force-dynamic";
 
@@ -30,12 +31,13 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const locale = normalizeLocale((await params).locale);
+  const origin = (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/$/, "");
   const title = publicMeta.home.title[locale];
   const description = publicMeta.home.description[locale];
   return {
     title,
     description,
-    alternates: { canonical: withLocale(locale) },
+    alternates: alternatesFor(origin, "/", locale),
     openGraph: { title, description, type: "website", url: withLocale(locale) },
   };
 }

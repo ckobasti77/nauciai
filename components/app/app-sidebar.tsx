@@ -1349,11 +1349,14 @@ function AppSidebarContent({
   // Only a second row when the first one has gone somewhere else; without a username
   // profilePath already *is* /app/profile and two identical rows would be noise.
   const hasAccountSettingsRow = profilePath !== "/app/profile";
+  // Aktivno stanje se računa nad KANONSKOM putanjom (bez /en ili /sr prefiksa), da isti
+  // ekran u oba jezika (npr. /app/community i /en/app/community) pogodi isti aktivan link.
+  const canonicalPath = parsePath(pathname).canonicalPath;
   // /app is now only ever the course grid — course detail has its own route — so this is
   // an exclusive match and "Dashboard" means exactly one screen.
-  const dashboardActive = pathname === withLocale(locale, "/app");
-  const communityActive = pathname === withLocale(locale, "/app/community") || pathname.includes("/app/community/");
-  const messagesActive = pathname === withLocale(locale, "/app/messages") || pathname.includes("/app/messages/");
+  const dashboardActive = canonicalPath === "/app";
+  const communityActive = canonicalPath === "/app/community" || canonicalPath.startsWith("/app/community/");
+  const messagesActive = canonicalPath === "/app/messages" || canonicalPath.startsWith("/app/messages/");
   // Registry vozi swap: kontekst iz pathname-a umesto boolean-a. `studioActive` ostaje samo
   // za highlight postojećih NavLink-ova u `home` (classic) grani.
   const sidebarContext = resolveSidebarContext(pathname);
@@ -1385,13 +1388,13 @@ function AppSidebarContent({
     pendingApprovals: pendingApprovalsBadge,
     messages: messagesBadge,
   };
-  const creditsActive = pathname === withLocale(locale, "/app/credits");
-  const adminActive = pathname === withLocale(locale, "/app/admin/content");
-  const chatSafetyActive = pathname === withLocale(locale, "/app/admin/chat");
+  const creditsActive = canonicalPath === "/app/credits";
+  const adminActive = canonicalPath === "/app/admin/content";
+  const chatSafetyActive = canonicalPath === "/app/admin/chat";
   const showUpgrade = planOffersUpgrade(resolvePlan(navigation.role, navigation.plan));
   // Prekidac jezika u meniju naloga vodi na ISTU stranu na drugom jeziku, kao u
   // javnom navbaru — kanonska putanja se samo prevede u drugi jezik.
-  const languageHref = withLocale(otherLocale(locale), parsePath(pathname).canonicalPath);
+  const languageHref = withLocale(otherLocale(locale), canonicalPath);
   const upgradeLabel = locale === "sr" ? "Unapredi plan" : "Upgrade plan";
   // Community is a destination in its own right, not a property of the selected course.
   // Scope it to the course when there is one, but never withhold the link when there is not.
@@ -1539,7 +1542,7 @@ function AppSidebarContent({
               {isAdmin ? (
                 <NavLink
                   href={withLocale(locale, "/app/admin/content")}
-                  active={pathname === withLocale(locale, "/app/admin/content")}
+                  active={adminActive}
                   icon={ShieldCheck}
                   label={locale === "sr" ? "Admin panel" : "Admin panel"}
                 />
@@ -1547,7 +1550,7 @@ function AppSidebarContent({
               {isStaff ? (
                 <NavLink
                   href={withLocale(locale, "/app/admin/chat")}
-                  active={pathname === withLocale(locale, "/app/admin/chat")}
+                  active={chatSafetyActive}
                   icon={Shield}
                   label={locale === "sr" ? "Chat sigurnost" : "Chat safety"}
                 />

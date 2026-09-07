@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { LegalPage } from "@/components/marketing/legal-page";
 import { locales, normalizeLocale, type Locale } from "@/lib/i18n";
 import { PRIVACY_POLICY } from "@/lib/legal-copy";
+import { alternatesFor } from "@/lib/routes";
 
 export function generateStaticParams() {
   return locales.map((locale) => ({ locale }));
@@ -15,11 +16,13 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale: localeParam } = await params;
   const locale = normalizeLocale(localeParam);
+  const origin = (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/$/, "");
   const title = PRIVACY_POLICY.title[locale];
   const description = PRIVACY_POLICY.intro[locale];
   return {
     title,
     description,
+    alternates: alternatesFor(origin, "/privacy-policy", locale),
     openGraph: { title, description, type: "website" },
   };
 }

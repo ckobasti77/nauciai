@@ -11,6 +11,7 @@ import { convexQueries, getConvexHttpClient } from "@/lib/convex-http";
 import { getCurrentViewerProfile } from "@/lib/current-viewer";
 import { communityListingContent, normalizeLocale, withLocale } from "@/lib/i18n";
 import { existingPublicPath } from "@/lib/public-media";
+import { alternatesFor } from "@/lib/routes";
 
 /** Sidro liste tema — meta hero CTA „Pogledaj diskusije". */
 const THREADS_LIST_ID = "diskusije";
@@ -100,24 +101,15 @@ export async function generateMetadata({
 
   const origin = (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/$/, "");
   const pageSuffix = page > 1 ? `/community?page=${page}` : "/community";
-  const canonicalPath = withLocale(locale, pageSuffix);
-  const canonicalUrl = `${origin}${canonicalPath}`;
-  const srUrl = `${origin}${withLocale("sr", pageSuffix)}`;
-  const enUrl = `${origin}${withLocale("en", pageSuffix)}`;
+  const alternates = alternatesFor(origin, pageSuffix, locale);
+  const canonicalUrl = alternates.canonical;
 
   const title = page > 1 ? `${t.metaTitle} — ${t.page} ${page}` : t.metaTitle;
 
   return {
     title,
     description: t.metaDescription,
-    alternates: {
-      canonical: canonicalUrl,
-      languages: {
-        sr: srUrl,
-        en: enUrl,
-        "x-default": srUrl,
-      },
-    },
+    alternates,
     robots: { index: true, follow: true },
     openGraph: {
       type: "website",
