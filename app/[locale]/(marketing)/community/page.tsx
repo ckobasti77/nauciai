@@ -1,15 +1,19 @@
 /* eslint-disable @next/next/no-img-element */
-import { ArrowUp, ChevronLeft, ChevronRight, MessageSquare, PlusCircle } from "lucide-react";
+import { ArrowUp, ChevronLeft, ChevronRight, MessageSquare, PlusCircle, Sparkles } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
 import { initialsFromName } from "@/components/app/community-identity";
-import { MarkerHighlight } from "@/components/marketing/marker-highlight";
+import { PageHero } from "@/components/marketing/page-hero";
 import { LinkButton, Panel, SketchIcon } from "@/components/ui/primitives";
 import { formatRelativeDate, getCommunityPostPath } from "@/lib/community-slug";
 import { convexQueries, getConvexHttpClient } from "@/lib/convex-http";
 import { getCurrentViewerProfile } from "@/lib/current-viewer";
 import { communityListingContent, normalizeLocale, withLocale } from "@/lib/i18n";
+import { existingPublicPath } from "@/lib/public-media";
+
+/** Sidro liste tema — meta hero CTA „Pogledaj diskusije". */
+const THREADS_LIST_ID = "diskusije";
 
 type PublicPost = {
   _id: string;
@@ -152,6 +156,12 @@ export default async function PublicCommunityListingPage({
   const createThreadUrl = viewerProfile
     ? withLocale(locale, "/app/community/new")
     : `${withLocale(locale, "/sign-in")}?next=${encodeURIComponent(withLocale(locale, "/app/community/new"))}`;
+  // Hero CTA „Uđi u zajednicu" vodi u zajednicu UNUTAR platforme; gosta prvo na
+  // prijavu koja ga posle vraća tačno tu (isti obrazac kao „Postavi pitanje").
+  const communityAppUrl = withLocale(locale, "/app/community");
+  const enterCommunityUrl = viewerProfile
+    ? communityAppUrl
+    : `${withLocale(locale, "/sign-in")}?next=${encodeURIComponent(communityAppUrl)}`;
 
   const prevPageUrl =
     actualPage > 1
@@ -182,8 +192,24 @@ export default async function PublicCommunityListingPage({
   const safeJsonLd = JSON.stringify(jsonLd).replace(/</g, "\\u003c");
 
   return (
-    <main className="sketch-grid min-h-screen bg-surface-a px-4 py-8 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-4xl space-y-6">
+    <main className="bg-surface-a text-ink">
+      <div data-motion="page">
+      {/* Hero (N7): full-bleed krem, isti jezik kao landing, bez talasa ispod. */}
+      <PageHero
+        titleLead={t.heroTitleLead}
+        titleHighlight={t.heroTitleHighlight}
+        subtitle={t.subtitle}
+        ctas={[
+          { label: t.heroCtaEnter, href: enterCommunityUrl, icon: <Sparkles className="size-4" /> },
+          { label: t.heroCtaDiscussions, href: `#${THREADS_LIST_ID}` },
+        ]}
+        mediaLabel={t.heroMediaAlt}
+        posterSrc={existingPublicPath("/images/landing/community-hero-poster.webp")}
+        mp4Src={existingPublicPath("/images/landing/community-hero-loop.mp4")}
+      />
+
+      <section className="sketch-grid bg-surface-a px-4 py-12 sm:px-6 lg:px-8">
+      <div id={THREADS_LIST_ID} className="mx-auto max-w-7xl space-y-6">
         {/* Breadcrumb navigation */}
         <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-xs font-black text-muted">
           <Link
@@ -196,32 +222,14 @@ export default async function PublicCommunityListingPage({
           <span className="text-ink">{t.breadcrumbCommunity}</span>
         </nav>
 
-        {/* Hero title panel — na površini A (main), panel je B */}
-        <Panel level={1} className="overflow-hidden p-6 sm:p-8 md:p-10">
-          <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-            <div className="space-y-3">
-              <p className="text-xs font-black uppercase tracking-[0.14em] text-muted">
-                {t.kicker}
-              </p>
-              <h1 className="text-balance font-display text-3xl font-black leading-tight text-ink sm:text-4xl md:text-5xl">
-                {t.heroTitleLead}
-                <MarkerHighlight>{t.heroTitleHighlight}</MarkerHighlight>
-              </h1>
-              <p className="max-w-2xl text-sm font-medium leading-relaxed text-muted sm:text-base">
-                {t.subtitle}
-              </p>
-            </div>
-            <div className="shrink-0">
-              <LinkButton
-                href={createThreadUrl}
-                tone="yellow"
-              >
-                <PlusCircle className="size-4 shrink-0" aria-hidden="true" />
-                <span>{t.askQuestion}</span>
-              </LinkButton>
-            </div>
-          </div>
-        </Panel>
+        {/* „Postavi pitanje" je ostalo primarna akcija strane — samo je izašlo iz
+            starog panela naslova (koji je zamenio hero) i stoji iznad liste. */}
+        <div className="flex justify-end">
+          <LinkButton href={createThreadUrl} tone="yellow">
+            <PlusCircle className="size-4 shrink-0" aria-hidden="true" />
+            <span>{t.askQuestion}</span>
+          </LinkButton>
+        </div>
 
         {/* Threads list */}
         {posts.length === 0 ? (
@@ -375,6 +383,8 @@ export default async function PublicCommunityListingPage({
             )}
           </nav>
         )}
+      </div>
+      </section>
       </div>
 
       <script

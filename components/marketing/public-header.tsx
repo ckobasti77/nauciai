@@ -23,7 +23,14 @@ const NAV_LINK_CLASS =
  * Rute idu kroz `withLocale`, pa promena strukture ruta ovde ne traži ništa.
  */
 function lightHeroPaths(locale: Locale) {
-  return [withLocale(locale), withLocale(locale, "/studio")];
+  // N7: /courses i /community su dobile isti full-bleed krem hero (`PageHero`), pa
+  // navbar i preko njih lebdi u mastilu i ne rezerviše visinu.
+  return [
+    withLocale(locale),
+    withLocale(locale, "/studio"),
+    withLocale(locale, "/courses"),
+    withLocale(locale, "/community"),
+  ];
 }
 
 /**

@@ -10,13 +10,13 @@
  *   akciju i cenu, Patrick Hand za rukopis, Nunito za tekst.
  * STORY: posetilac shvati šta Studio pravi i koliko košta, poveruje jer su
  *   cene žive iz baze (ne obećanja), i klikne „Probaj besplatno" (25 kr poklon).
- * FIRST VIEWPORT: full-bleed hero — HeroLoop video petlja (autoplay/muted/loop,
+ * FIRST VIEWPORT: full-bleed hero — video petlja (autoplay/muted/loop,
  *   reduced-motion → mirna slika) je POZADINA cele sekcije (krem, prazna leva
  *   strana), a naslov + rukopisno podvlačenje + CTA red + bonus red stoje preko
  *   papirnog scrima levo; autorska SVG skica mehanizma je u sekciji „Šta Studio
  *   pravi" kao ilustracija „kako radi".
- * FORM: full-bleed hero deljen sa marketing home-om (isti `hero-paper-island`
- *   scrim + „cover" HeroLoop), papir/mastilo svet nepromenjen.
+ * FORM: full-bleed hero deljen sa ostalim javnim stranama (`PageHero`, N7 — isti
+ *   `hero-paper-island` scrim i centriranje kao landing), papir/mastilo svet nepromenjen.
  * FINISH: unreviewed and undocumented is unfinished; this build ends with the
  *   finish review, the verdict, and every shipping raster carrying its
  *   provenance.
@@ -26,10 +26,9 @@ import { ArrowRight, AudioLines, Coins, Image as ImageIcon, Sparkles, Video } fr
 import Image from "next/image";
 import Link from "next/link";
 
-import { HeroLoop } from "@/components/marketing/hero-loop";
 import { HeroMotion } from "@/components/marketing/hero-motion";
+import { PageHero } from "@/components/marketing/page-hero";
 import {
-  HandUnderline,
   LinkButton,
   Panel,
   SectionHeader,
@@ -47,6 +46,7 @@ import {
 } from "@/lib/credits-value";
 import { getCurrentViewerProfile } from "@/lib/current-viewer";
 import { locales, localized, normalizeLocale, withLocale, type Locale } from "@/lib/i18n";
+import { existingPublicPath } from "@/lib/public-media";
 import { STUDIO_EXAMPLES, STUDIO_LANDING } from "@/lib/studio-landing";
 
 export const dynamic = "force-dynamic";
@@ -194,53 +194,29 @@ export default async function StudioLandingPage({
     <main className="bg-surface-a text-ink">
       <div data-motion="page">
         <HeroMotion>
-          <section
-            data-motion="hero"
-            style={{ backgroundColor: "#FAECDA" }}
-            className="hero-paper-island hero-100 relative overflow-hidden border-b-2 border-ink"
+          {/* N7: hero je prešao na deljenu `PageHero` komponentu i time dobio isto
+              centriranje kao landing (višak krem podloge jednak levo i desno). Tekst,
+              CTA i bonus red su isti; `bg` ostaje izmerena boja ivica OVOG videa. */}
+          <PageHero
+            titleLead={STUDIO_LANDING.heroTitle[locale]}
+            underline
+            subtitle={STUDIO_LANDING.heroBody[locale]}
+            ctas={[
+              { label: primaryLabel, href: primaryHref, icon: <Sparkles className="size-4" /> },
+              { label: STUDIO_LANDING.ctaPacks[locale], href: "#paketi", icon: <Coins className="size-4" /> },
+            ]}
+            mediaLabel={STUDIO_LANDING.heroVideoAlt[locale]}
+            posterSrc={existingPublicPath("/images/landing/studio-hero-poster.png")}
+            mp4Src={existingPublicPath("/images/landing/studio-hero-loop.mp4")}
+            mediaWidth={1284}
+            mediaHeight={716}
+            bg="#FAECDA"
           >
-            {/* Video: puna visina sekcije (100vh), poravnat desno; prazan prostor
-                levo/desno je ista krem bg, ivice maskirane → bešavno, bez linija. */}
-            <div className="absolute inset-0 z-0">
-              <HeroLoop
-                label={STUDIO_LANDING.heroVideoAlt[locale]}
-                variant="cover"
-                bg="#FAECDA"
-                webmSrc="/images/landing/studio-hero-loop.webm"
-                mp4Src="/images/landing/studio-hero-loop.mp4"
-                posterSrc="/images/landing/studio-hero-poster.png"
-                fallbackSrc="/images/landing/studio-hero.png"
-              />
-            </div>
-            {/* Tekst: levo, vertikalno centriran unutar 100vh; `pt` ga drži ispod
-                lebdećeg (fixed) navbara. Kompozicija drži mašinu desno, pa je tekst
-                levo ne prekriva. */}
-            <div className="relative z-20 mx-auto flex h-full w-full max-w-7xl items-center px-4 pb-16 pt-20 sm:px-6 lg:px-8">
-              <div className="relative z-10 max-w-md xl:max-w-lg" data-motion="copy">
-                <h1 className="text-balance text-4xl font-black leading-[0.95] text-ink sm:text-5xl lg:text-6xl">
-                  {STUDIO_LANDING.heroTitle[locale]}
-                </h1>
-                <HandUnderline className="mt-4" />
-                <p className="mt-5 text-lg font-bold leading-8 text-muted">
-                  {STUDIO_LANDING.heroBody[locale]}
-                </p>
-                <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-                  <LinkButton href={primaryHref} tone="yellow" className="w-full sm:w-auto">
-                    <Sparkles className="size-4" />
-                    {primaryLabel}
-                  </LinkButton>
-                  <LinkButton href="#paketi" tone="paper" className="w-full sm:w-auto">
-                    <Coins className="size-4" />
-                    {STUDIO_LANDING.ctaPacks[locale]}
-                  </LinkButton>
-                </div>
-                <p className="mt-4 inline-flex items-center gap-2 text-sm font-extrabold text-muted">
-                  <span aria-hidden className="inline-block h-2.5 w-2.5 rounded-full border-2 border-ink bg-yellow" />
-                  {STUDIO_LANDING.bonusNote[locale]}
-                </p>
-              </div>
-            </div>
-          </section>
+            <p className="mt-4 inline-flex items-center gap-2 text-sm font-extrabold text-muted">
+              <span aria-hidden className="inline-block h-2.5 w-2.5 rounded-full border-2 border-ink bg-yellow" />
+              {STUDIO_LANDING.bonusNote[locale]}
+            </p>
+          </PageHero>
         </HeroMotion>
 
         {/* Šta Studio pravi — stepenaste vrste, ne tri jednake kartice. (površina B) */}

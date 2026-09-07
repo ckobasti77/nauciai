@@ -783,20 +783,27 @@ export const publicMeta = {
 export const coursesListingContent = {
   sr: {
     kicker: "Svi kursevi",
-    heroTitleLead: "Kursevi koji vode do ",
-    heroTitleHighlight: "gotovog rada",
+    // N7: naslov, podnaslov i CTA heroja strane; `subtitle` je i opis strane u JSON-LD.
+    heroTitleLead: "Dva kursa, jedan ",
+    heroTitleHighlight: "gotov rad",
     subtitle:
-      "Praktični AI kursevi na srpskom — kroz kratke lekcije, materijale i zajednicu dolaziš do pravog rada, ne samo teorije.",
+      "Svaki kurs se završava pravim radom — montiranim videom ili sajtom koji je živ, ne spiskom odgledanih lekcija.",
+    heroCtaCourses: "Pogledaj kurseve",
+    heroCtaPlans: "Uporedi planove",
+    heroMediaAlt: "Isečci iz lekcija o AI videu i pravljenju sajtova",
     breadcrumbHome: "Početna",
     breadcrumbCourses: "Kursevi",
     viewAll: "Svi kursevi →",
   },
   en: {
     kicker: "All courses",
-    heroTitleLead: "Courses that lead to a ",
+    heroTitleLead: "Two courses, one ",
     heroTitleHighlight: "finished project",
     subtitle:
-      "Practical AI courses in Serbian — through short lessons, materials, and a community you reach a real project, not just theory.",
+      "Every course ends with real work — an edited video or a site that's actually live, not a list of watched lessons.",
+    heroCtaCourses: "View courses",
+    heroCtaPlans: "Compare plans",
+    heroMediaAlt: "Clips from the AI video and website-building lessons",
     breadcrumbHome: "Home",
     breadcrumbCourses: "Courses",
     viewAll: "All courses →",
@@ -983,10 +990,14 @@ export const communityListingContent = {
   sr: {
     kicker: "Javna zajednica",
     title: "Zajednica i diskusije",
-    heroTitleLead: "Zajednica i ",
-    heroTitleHighlight: "diskusije",
+    // N7: naslov, podnaslov i CTA heroja strane; `subtitle` je i opis strane u JSON-LD.
+    heroTitleLead: "Uči javno, ",
+    heroTitleHighlight: "napreduj brže",
     subtitle:
-      "Pitanja, radovi i iskustva polaznika — sve o AI videu, sajtovima i zvuku na jednom mestu.",
+      "Pitaš kad zapneš, pokazuješ šta si napravio i gledaš radove drugih — sve na jednom mestu, na srpskom.",
+    heroCtaEnter: "Uđi u zajednicu",
+    heroCtaDiscussions: "Pogledaj diskusije",
+    heroMediaAlt: "Ilustracija zajednice polaznika",
     metaTitle: "Zajednica — Fakultet za AI",
     metaDescription:
       "Javne diskusije, pitanja i iskustva polaznika Fakulteta za AI. Pridruži se razgovoru o praktičnoj primeni AI alata.",
@@ -1009,10 +1020,13 @@ export const communityListingContent = {
   en: {
     kicker: "Public community",
     title: "Community & Discussions",
-    heroTitleLead: "Community & ",
-    heroTitleHighlight: "discussions",
+    heroTitleLead: "Learn in the open, ",
+    heroTitleHighlight: "get better faster",
     subtitle:
-      "Questions, projects, and student experiences — everything about AI video, websites, and sound in one place.",
+      "Ask when you're stuck, show what you made, and watch what everyone else is building — all in one place.",
+    heroCtaEnter: "Enter the community",
+    heroCtaDiscussions: "Browse discussions",
+    heroMediaAlt: "Illustration of the student community",
     metaTitle: "Community — Faculty for AI",
     metaDescription:
       "Public discussions, questions, and experiences from Faculty for AI students. Join the conversation on practical AI tools.",

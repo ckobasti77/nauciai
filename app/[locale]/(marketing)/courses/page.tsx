@@ -1,11 +1,23 @@
+import { PlayCircle } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
 import { CourseCard } from "@/components/marketing/course-card";
-import { MarkerHighlight } from "@/components/marketing/marker-highlight";
-import { Panel } from "@/components/ui/primitives";
+import { PageHero } from "@/components/marketing/page-hero";
 import { courses } from "@/lib/content";
-import { coursesListingContent, localized, locales, normalizeLocale, publicMeta, withLocale } from "@/lib/i18n";
+import {
+  coursesListingContent,
+  localized,
+  locales,
+  normalizeLocale,
+  pricingPath,
+  publicMeta,
+  withLocale,
+} from "@/lib/i18n";
+import { existingPublicPath } from "@/lib/public-media";
+
+/** Sidro liste kurseva — meta hero CTA „Pogledaj kurseve". */
+const COURSES_LIST_ID = "kursevi";
 
 export function generateStaticParams() {
   return locales.map((locale) => ({ locale }));
@@ -82,40 +94,44 @@ export default async function PublicCoursesListingPage({
   const safeJsonLd = JSON.stringify(jsonLd).replace(/</g, "\\u003c");
 
   return (
-    <main className="sketch-grid min-h-screen bg-surface-a px-4 py-8 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-7xl space-y-6">
-        {/* Breadcrumb navigation */}
-        <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-xs font-black text-muted">
-          <Link
-            href={withLocale(locale)}
-            className="rounded-[4px] underline transition hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-          >
-            {t.breadcrumbHome}
-          </Link>
-          <span aria-hidden="true">/</span>
-          <span className="text-ink">{t.breadcrumbCourses}</span>
-        </nav>
+    <main className="bg-surface-a text-ink">
+      <div data-motion="page">
+        {/* Hero (N7): full-bleed krem, isti jezik kao landing, bez talasa ispod. */}
+        <PageHero
+          titleLead={t.heroTitleLead}
+          titleHighlight={t.heroTitleHighlight}
+          subtitle={t.subtitle}
+          ctas={[
+            { label: t.heroCtaCourses, href: `#${COURSES_LIST_ID}`, icon: <PlayCircle className="size-4" /> },
+            { label: t.heroCtaPlans, href: withLocale(locale, pricingPath(locale)) },
+          ]}
+          mediaLabel={t.heroMediaAlt}
+          posterSrc={existingPublicPath("/images/landing/courses-hero-poster.webp")}
+          mp4Src={existingPublicPath("/images/landing/courses-hero-loop.mp4")}
+        />
 
-        {/* Hero title panel — na površini A (main), panel je B */}
-        <Panel level={1} className="overflow-hidden p-6 sm:p-8 md:p-10">
-          <div className="space-y-3">
-            <p className="text-xs font-black uppercase tracking-[0.14em] text-muted">{t.kicker}</p>
-            <h1 className="text-balance font-display text-3xl font-black leading-tight text-ink sm:text-4xl md:text-5xl">
-              {t.heroTitleLead}
-              <MarkerHighlight>{t.heroTitleHighlight}</MarkerHighlight>
-            </h1>
-            <p className="max-w-2xl text-sm font-medium leading-relaxed text-muted sm:text-base">
-              {t.subtitle}
-            </p>
+        <section className="sketch-grid bg-surface-a px-4 py-12 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-7xl space-y-6">
+            {/* Breadcrumb navigation */}
+            <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-xs font-black text-muted">
+              <Link
+                href={withLocale(locale)}
+                className="rounded-[4px] underline transition hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              >
+                {t.breadcrumbHome}
+              </Link>
+              <span aria-hidden="true">/</span>
+              <span className="text-ink">{t.breadcrumbCourses}</span>
+            </nav>
+
+            {/* Courses grid — meta hero CTA „Pogledaj kurseve". */}
+            <div id={COURSES_LIST_ID} className="grid gap-6 lg:grid-cols-2">
+              {courses.map((course) => (
+                <CourseCard key={course.slug} course={course} locale={locale} hasConvex={hasConvex} level={0} />
+              ))}
+            </div>
           </div>
-        </Panel>
-
-        {/* Courses grid */}
-        <div className="grid gap-6 lg:grid-cols-2">
-          {courses.map((course) => (
-            <CourseCard key={course.slug} course={course} locale={locale} hasConvex={hasConvex} level={0} />
-          ))}
-        </div>
+        </section>
       </div>
 
       <script

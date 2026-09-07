@@ -1041,6 +1041,18 @@ details:has(> .faq-answer)::details-content {
   height: 100svh;
 }
 
+/* Hero javnih PODstrana (N7: /courses, /community, /studio) — isti jezik kao landing
+   hero, ali NIŽI, jer odmah ispod njega počinje sadržaj strane. `min-height` (a ne
+   `height`) da sekcija poraste kad je kopija viša od 62svh — tekst se nikad ne seče.
+   `vh` red je fallback za pregledače bez `svh`.
+   Medij se NE veže za ovu visinu (nema računa kao `.hero-cover-media`): sam se skuplja
+   unutar kutije preko `max-w-full max-h-full` (obična „contain" pravila za zamenjene
+   elemente), pa isto pravilo važi za bilo koju visinu heroja. */
+.page-hero {
+  min-height: 62vh;
+  min-height: 62svh;
+}
+
 /* `aspect-ratio` je eksplicitan da bi i NE-zamenjeni element (div sloj 3D kartica) dobio
    identičan box kao video/slika — `height: auto` bez njega ne bi imao odakle da izvede
    visinu. Vrednost = pravi odnos hero-v2 videa (1920×1072). */
