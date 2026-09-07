@@ -7,8 +7,7 @@ import { cache } from "react";
 
 import { initialsFromName } from "@/components/app/community-identity";
 import { PublicCommunityComments, type PublicComment } from "@/components/app/public-community-comments";
-import { ThemeToggle } from "@/components/app/theme-toggle";
-import { BrandMark, LinkButton, Panel } from "@/components/ui/primitives";
+import { LinkButton, Panel } from "@/components/ui/primitives";
 import {
   extractPostIdFromSlug,
   formatRelativeDate,
@@ -16,14 +15,7 @@ import {
   getCommunityPostSlug,
 } from "@/lib/community-slug";
 import { convexQueries, getConvexHttpClient } from "@/lib/convex-http";
-import {
-  communityThreadContent,
-  dictionary,
-  normalizeLocale,
-  otherLocale,
-  withLocale,
-  type Locale,
-} from "@/lib/i18n";
+import { communityThreadContent, normalizeLocale, withLocale, type Locale } from "@/lib/i18n";
 
 type PublicPost = {
   _id: string;
@@ -187,7 +179,6 @@ export default async function PublicCommunityThreadPage({
   const currentPath = withLocale(locale, `/community/${canonicalSlug}`);
   const currentUrl = `${origin}${currentPath}`;
   const signInUrl = `${withLocale(locale, "/sign-in")}?next=${encodeURIComponent(currentUrl)}`;
-  const nextLocale = otherLocale(locale);
   const ct = communityThreadContent[locale];
   const courseTitle = locale === "sr" ? post.courseTitleSr : post.courseTitleEn;
 
@@ -240,20 +231,6 @@ export default async function PublicCommunityThreadPage({
   return (
     <main className="sketch-grid min-h-screen bg-surface-a px-4 py-8 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-4xl space-y-6">
-        {/* Header bar */}
-        <div className="flex items-center justify-between gap-4">
-          <BrandMark href={withLocale(locale)} label={dictionary[locale].appName} />
-          <div className="flex items-center gap-2">
-            <ThemeToggle locale={locale} />
-            <Link
-              href={withLocale(nextLocale, `/community/${canonicalSlug}`)}
-              className="inline-flex min-h-11 items-center rounded-[8px] border-2 border-ink bg-paper-strong px-3 py-2 text-sm font-black transition hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-            >
-              {nextLocale.toUpperCase()}
-            </Link>
-          </div>
-        </div>
-
         {/* Breadcrumb & Back navigation */}
         <div className="flex flex-wrap items-center justify-between gap-3 text-xs font-black text-muted">
           <nav aria-label="Breadcrumb" className="flex items-center gap-2">

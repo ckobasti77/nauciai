@@ -26,12 +26,9 @@ import { ArrowRight, AudioLines, Coins, Image as ImageIcon, Sparkles, Video } fr
 import Image from "next/image";
 import Link from "next/link";
 
-import { ThemeToggle } from "@/components/app/theme-toggle";
-import { AccountMenu } from "@/components/marketing/account-menu";
 import { HeroLoop } from "@/components/marketing/hero-loop";
 import { HeroMotion } from "@/components/marketing/hero-motion";
 import {
-  BrandMark,
   HandUnderline,
   LinkButton,
   Panel,
@@ -39,7 +36,6 @@ import {
   SketchIcon,
   cn,
 } from "@/components/ui/primitives";
-import { SmartStickyHeader } from "@/components/ui/smart-sticky";
 import { getConvexHttpClient, convexQueries } from "@/lib/convex-http";
 import {
   formatEur,
@@ -50,7 +46,7 @@ import {
   type ReferenceCosts,
 } from "@/lib/credits-value";
 import { getCurrentViewerProfile } from "@/lib/current-viewer";
-import { locales, localized, normalizeLocale, otherLocale, withLocale, type Locale } from "@/lib/i18n";
+import { locales, localized, normalizeLocale, withLocale, type Locale } from "@/lib/i18n";
 import { STUDIO_EXAMPLES, STUDIO_LANDING } from "@/lib/studio-landing";
 
 export const dynamic = "force-dynamic";
@@ -181,7 +177,6 @@ export default async function StudioLandingPage({
     loadLandingData(),
   ]);
 
-  const nextLocale = otherLocale(locale);
   const studioAppHref = withLocale(locale, "/studio/app");
   const creditsHref = withLocale(locale, "/studio/krediti");
   const trySignInHref = `${withLocale(locale, "/sign-in")}?next=${encodeURIComponent(studioAppHref)}`;
@@ -197,34 +192,6 @@ export default async function StudioLandingPage({
 
   return (
     <main className="bg-surface-a text-ink">
-      <SmartStickyHeader overlay className="top-0 z-40 border-b-2 border-ink bg-surface-a/95 shadow-[0_8px_18px_-16px_var(--shadow-hard-55)] backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
-          <BrandMark href={withLocale(locale)} />
-          <div className="flex items-center gap-2">
-            <ThemeToggle locale={locale} />
-            <Link
-              href={withLocale(nextLocale, "/studio")}
-              className="inline-flex min-h-11 items-center rounded-[8px] border-2 border-ink bg-paper-strong px-3 py-2 text-sm font-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-            >
-              {nextLocale.toUpperCase()}
-            </Link>
-            {viewerProfile ? (
-              <AccountMenu locale={locale} profile={viewerProfile} />
-            ) : (
-              // `hidden` direktno na LinkButton-u gubi od nečeg što anchor-u
-              // nameće display:flex (PRE-POSTOJEĆI site-wide bag - i home
-              // "Prijava" je vidljiva na 375; prijavljeno kao zaseban task).
-              // Span je van tog pravila, pa sakrivanje pouzdano radi.
-              <span className="hidden sm:block">
-                <LinkButton href={trySignInHref} tone="paper">
-                  {locale === "sr" ? "Prijavi se" : "Sign in"}
-                </LinkButton>
-              </span>
-            )}
-          </div>
-        </div>
-      </SmartStickyHeader>
-
       <div data-motion="page">
         <HeroMotion>
           <section

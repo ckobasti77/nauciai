@@ -71,7 +71,7 @@
   .group:focus-visible .group-focus-visible\:bg-yellow,
   .hero-paper-island,
   .paper-island,
-  .marketing-header:not([data-scrolled="true"])
+  .marketing-header[data-over-light="true"]:not([data-scrolled="true"])
 ) {
   color-scheme: light;
   --background: #fffdf8;
@@ -673,7 +673,27 @@ select:-webkit-autofill {
    ink okvir + senku + backdrop-blur. Okvir je UVEK 2px (transparent → ink) da visina ostane
    ista → bez layout shift-a. Prelaz 220ms; transform ostaje u istoj listi da se smart-hide
    (translateY) i dalje animira. Reduced-motion globalni blok gasi trajanje. */
+/* Javni navbar je wrapper za sve javne strane (N2) i lebdi `fixed`, pa sadrzaj
+   ispod njega rezervise njegovu visinu. Visina je konstantna: `py-2` (16px) oko
+   najviseg elementa u redu (avatar / dugme / logo, 44px) + 2px donje ivice = 62px.
+   Izmereno u pregledacu, isto za prijavljenog i neprijavljenog. Strane sa full-bleed
+   svetlim herojem (`data-over-light`) je ponistavaju — heroj namerno pocinje od
+   vrha ekrana, ispod providnog navbara. */
+:root {
+  --public-header-h: 62px;
+}
+.public-shell {
+  padding-top: var(--public-header-h);
+}
+.marketing-header[data-over-light="true"] + .public-shell {
+  padding-top: 0;
+}
+
 .marketing-header {
+  /* Navbar je wrapper (van `main`), pa boju teksta uzima odavde. Bitno je da ide
+     kroz `var(--ink)`: dok lebdi iznad svetlog heroja (`data-over-light`) tokeni
+     se razresavaju na svetlo ostrvo, pa linkovi ostaju mastilo i u tamnoj temi. */
+  color: var(--ink);
   border-bottom: 2px solid transparent;
   background-color: transparent;
   box-shadow: none;
@@ -695,10 +715,10 @@ select:-webkit-autofill {
    već prebačeni na svetle (island `:is()` lista iznad → mastilo tekst čita se na kremu). Logo
    swap ide po `data-theme`, ne po tokenima, pa u tamnoj temi na vrhu ručno prikaži SVETLI logo
    (tamno mastilo), a tamni (svetlo mastilo, za tamnu pozadinu) sakrij dok se ne skrola. */
-[data-theme="dark"] .marketing-header:not([data-scrolled="true"]) a img:first-of-type {
+[data-theme="dark"] .marketing-header[data-over-light="true"]:not([data-scrolled="true"]) a img:first-of-type {
   display: block;
 }
-[data-theme="dark"] .marketing-header:not([data-scrolled="true"]) a img:last-of-type {
+[data-theme="dark"] .marketing-header[data-over-light="true"]:not([data-scrolled="true"]) a img:last-of-type {
   display: none;
 }
 

@@ -1,10 +1,7 @@
 import { ArrowRight, CheckCircle2, PlayCircle, Sparkles } from "lucide-react";
 import Link from "next/link";
 
-import { AccountMenu } from "@/components/marketing/account-menu";
-import { ThemeToggle } from "@/components/app/theme-toggle";
 import { CourseCard } from "@/components/marketing/course-card";
-import { LanguageToggle } from "@/components/marketing/language-toggle";
 import { HeroCards3d, HeroCardsRow } from "@/components/marketing/hero-cards";
 import { HeroLoop } from "@/components/marketing/hero-loop";
 import { LoopVideo, StepHoverVideo } from "@/components/marketing/loop-video";
@@ -15,8 +12,7 @@ import { PlanRobot } from "@/components/marketing/plan-robot";
 import { SectionMarginalia } from "@/components/marketing/section-marginalia";
 import { SectionWave } from "@/components/marketing/section-wave";
 import { Badge } from "@/components/ui/badge";
-import { BrandMark, LinkButton, Panel, SectionHeader, SketchIcon } from "@/components/ui/primitives";
-import { SmartStickyHeader } from "@/components/ui/smart-sticky";
+import { LinkButton, Panel, SectionHeader, SketchIcon } from "@/components/ui/primitives";
 import { courses, totalLessons } from "@/lib/content";
 import type { ViewerProfile } from "@/lib/current-viewer";
 import { coursesListingContent, dictionary, marketingContent, type Locale, withLocale } from "@/lib/i18n";
@@ -83,62 +79,6 @@ export function MarketingPage({
 
   return (
     <main className="overflow-x-clip bg-surface-a text-ink">
-      <SmartStickyHeader
-        overlay
-        scrollBackground
-        data-marketing-auth={viewerProfile ? "authenticated" : "anonymous"}
-        className="marketing-header top-0 z-40"
-      >
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-2 sm:px-6 lg:px-8">
-          <BrandMark href={withLocale(locale)} label={t.appName} />
-          <nav className="hidden items-center gap-6 text-sm font-extrabold md:flex">
-            <Link
-              href={withLocale(locale, "/courses")}
-              className="rounded-[8px] underline-offset-4 transition-colors hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-            >
-              {t.navCourses}
-            </Link>
-            <Link
-              href={withLocale(locale, "/community")}
-              className="rounded-[8px] underline-offset-4 transition-colors hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-            >
-              {t.navCommunity}
-            </Link>
-            <Link
-              href={withLocale(locale, "/studio")}
-              className="rounded-[8px] underline-offset-4 transition-colors hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-            >
-              {t.navStudio}
-            </Link>
-            <a
-              href="#pricing"
-              className="rounded-[8px] underline-offset-4 transition-colors hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-            >
-              {t.navPricing}
-            </a>
-          </nav>
-          <div className="flex items-center gap-2">
-            <LanguageToggle locale={locale} />
-            <ThemeToggle locale={locale} />
-            {viewerProfile ? (
-              <Link
-                href={withLocale(locale, "/app")}
-                className="inline-flex min-h-9 items-center justify-center rounded-full border-2 border-ink bg-ink px-2.5 py-1.5 text-[11px] font-black uppercase text-paper-strong shadow-[3px_3px_0_0_var(--yellow)] transition hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--yellow)] active:translate-y-0 active:shadow-[3px_3px_0_0_var(--yellow)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink max-[380px]:hidden sm:px-3 sm:text-xs"
-              >
-                {t.navDashboard}
-              </Link>
-            ) : null}
-            {viewerProfile ? (
-              <AccountMenu locale={locale} profile={viewerProfile} />
-            ) : (
-              <LinkButton href={withLocale(locale, "/sign-in")} tone="paper" className="hidden sm:inline-flex">
-                {t.signIn}
-              </LinkButton>
-            )}
-          </div>
-        </div>
-      </SmartStickyHeader>
-
       <div data-motion="page">
         {/* ── HERO ─────────────────────────────────────────────────────────── */}
         <HeroMotion>

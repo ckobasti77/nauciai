@@ -1,11 +1,10 @@
 import Link from "next/link";
 
-import { ThemeToggle } from "@/components/app/theme-toggle";
 import { SectionMarginalia } from "@/components/marketing/section-marginalia";
-import { BrandMark, HandUnderline, Panel } from "@/components/ui/primitives";
+import { HandUnderline, Panel } from "@/components/ui/primitives";
 import type { LegalDocument } from "@/lib/legal-copy";
 import { PRIVACY_POLICY, STUDIO_TERMS } from "@/lib/legal-copy";
-import { dictionary, otherLocale, type Locale, withLocale } from "@/lib/i18n";
+import { type Locale, withLocale } from "@/lib/i18n";
 
 /**
  * Jedan izgled za oba pravna dokumenta (X7). Dva `page.tsx`-a samo biraju koji
@@ -22,7 +21,6 @@ import { dictionary, otherLocale, type Locale, withLocale } from "@/lib/i18n";
  * (68ch) - isti par koji već nosi telo lekcije u `course-player.tsx`.
  */
 export function LegalPage({ locale, document }: { locale: Locale; document: LegalDocument }) {
-  const nextLocale = otherLocale(locale);
   // Uslovi i privatnost su jedan drugom jedina prava unakrsna referenca, pa
   // svaki od dva dokumenta u podnožju vodi na onaj drugi.
   const sibling = document.path === STUDIO_TERMS.path ? PRIVACY_POLICY : STUDIO_TERMS;
@@ -32,20 +30,7 @@ export function LegalPage({ locale, document }: { locale: Locale; document: Lega
   return (
     <main data-motion="page" className="sketch-grid min-h-screen bg-surface-a px-4 py-8 text-ink sm:px-6 lg:px-8">
       <div className="mx-auto max-w-3xl lg:max-w-5xl">
-        <div className="flex items-center justify-between gap-4">
-          <BrandMark href={withLocale(locale)} label={dictionary[locale].appName} />
-          <div className="flex items-center gap-2">
-            <ThemeToggle locale={locale} />
-            <Link
-              href={withLocale(nextLocale, document.path)}
-              className="inline-flex min-h-11 items-center rounded-[8px] border-2 border-ink bg-paper-strong px-3 py-2 text-sm font-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-            >
-              {nextLocale.toUpperCase()}
-            </Link>
-          </div>
-        </div>
-
-        <div className="mt-10 max-w-3xl">
+        <div className="max-w-3xl">
           <h1 className="text-4xl font-black leading-tight text-ink md:text-5xl" data-motion="copy">
             {document.title[locale]}
           </h1>

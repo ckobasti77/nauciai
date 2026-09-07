@@ -9,23 +9,10 @@ import { MarkerHighlight } from "@/components/marketing/marker-highlight";
 import { LoopVideo } from "@/components/marketing/loop-video";
 import { PublicCourseIntroVideo } from "@/components/marketing/public-course-intro-video";
 import { SectionMarginalia } from "@/components/marketing/section-marginalia";
-import { ThemeToggle } from "@/components/app/theme-toggle";
-import { BrandMark, HandUnderline, LinkButton, Panel, SectionHeader, SketchIcon } from "@/components/ui/primitives";
+import { HandUnderline, LinkButton, Panel, SectionHeader, SketchIcon } from "@/components/ui/primitives";
 import { courses } from "@/lib/content";
 import { convexQueries, getConvexHttpClient } from "@/lib/convex-http";
-import { getCurrentViewerProfile } from "@/lib/current-viewer";
-import {
-  coursePageContent,
-  dictionary,
-  locales,
-  localized,
-  normalizeLocale,
-  otherLocale,
-  pluralize,
-  type Locale,
-  type LocalizedText,
-  withLocale,
-} from "@/lib/i18n";
+import { dictionary, coursePageContent, locales, localized, normalizeLocale, pluralize, type Locale, type LocalizedText, withLocale } from "@/lib/i18n";
 
 type StaticCourse = (typeof courses)[number];
 
@@ -242,44 +229,16 @@ export default async function CourseInfoPage({
     notFound();
   }
 
-  const [liveOutline, viewerProfile] = await Promise.all([
-    getLiveOutline(courseSlug),
-    getCurrentViewerProfile(),
-  ]);
+  const liveOutline = await getLiveOutline(courseSlug);
   const outline = outlineFromLive(liveOutline, fallbackCourse);
   const totals = outlineTotals(outline);
-  const t = dictionary[locale];
   const cp = coursePageContent[locale];
   const perCourse =
     cp.perCourse[courseSlug as keyof typeof cp.perCourse] ?? cp.perCourse["video-audio-ai"];
-  const nextLocale = otherLocale(locale);
-  const signedIn = Boolean(viewerProfile);
   const otherCourse = courses.find((item) => item.slug !== courseSlug) ?? courses[0];
 
   return (
     <main className="bg-surface-a text-ink">
-      <header className="sticky top-0 z-20 border-b-2 border-ink bg-surface-a/95 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
-          <BrandMark href={withLocale(locale)} label={t.appName} />
-          <div className="flex items-center gap-2">
-            <ThemeToggle locale={locale} />
-            <Link
-              href={withLocale(nextLocale, `/courses/${outline.course.slug}`)}
-              className="inline-flex min-h-11 items-center rounded-[8px] border-2 border-ink bg-paper-strong px-3 py-2 text-sm font-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-            >
-              {nextLocale.toUpperCase()}
-            </Link>
-            <LinkButton
-              href={withLocale(locale, signedIn ? "/app" : "/sign-in")}
-              tone="paper"
-              className="hidden sm:inline-flex"
-            >
-              {signedIn ? t.dashboard : t.signIn}
-            </LinkButton>
-          </div>
-        </div>
-      </header>
-
       <div data-motion="page">
         {/* ── HERO ─────────────────────────────────────────────────────────── */}
         <section data-motion="hero" className="sketch-grid overflow-hidden border-b-2 border-ink">

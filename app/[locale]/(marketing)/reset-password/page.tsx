@@ -3,8 +3,8 @@ import Link from "next/link";
 
 import { SignInPanel } from "@/components/app/sign-in-panel";
 import { SectionMarginalia } from "@/components/marketing/section-marginalia";
-import { BrandMark, HandUnderline } from "@/components/ui/primitives";
-import { dictionary, locales, normalizeLocale, publicMeta, withLocale } from "@/lib/i18n";
+import { HandUnderline } from "@/components/ui/primitives";
+import { locales, normalizeLocale, publicMeta, withLocale } from "@/lib/i18n";
 
 export function generateStaticParams() {
   return locales.map((locale) => ({ locale }));
@@ -43,8 +43,7 @@ export default async function ResetPasswordPage({
     <main className="sketch-grid min-h-screen bg-surface-a px-4 py-8 sm:px-6 lg:px-8">
       <div className="mx-auto grid min-h-[calc(100vh-64px)] max-w-6xl items-center gap-10 lg:grid-cols-[0.9fr_1.1fr]">
         <div>
-          <BrandMark href={withLocale(locale)} label={dictionary[locale].appName} />
-          <div className="relative mt-10 max-w-xl">
+          <div className="relative max-w-xl">
             <SectionMarginalia
               variant="loop"
               className="pointer-events-none absolute -right-6 -top-8 hidden h-10 w-14 text-ink sm:block"

@@ -35,13 +35,23 @@ function BritishFlag() {
   );
 }
 
-export function LanguageToggle({ locale, className }: { locale: Locale; className?: string }) {
+// `href`: kad prekidac stoji u navbaru koji je wrapper za sve javne strane, on
+// vodi na ISTU stranu na drugom jeziku; bez njega ostaje stara meta (pocetna).
+export function LanguageToggle({
+  locale,
+  className,
+  href,
+}: {
+  locale: Locale;
+  className?: string;
+  href?: string;
+}) {
   const nextLocale = otherLocale(locale);
   const m = marketingContent[locale];
 
   return (
     <Link
-      href={withLocale(nextLocale)}
+      href={href ?? withLocale(nextLocale)}
       aria-label={m.footer.langLabel}
       title={m.footer.switchTo}
       className={cn(

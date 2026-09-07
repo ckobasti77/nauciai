@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { ThemeToggle } from "@/components/app/theme-toggle";
 import { SignInPanel } from "@/components/app/sign-in-panel";
 import { SectionMarginalia } from "@/components/marketing/section-marginalia";
-import { BrandMark, HandUnderline } from "@/components/ui/primitives";
-import { dictionary, locales, normalizeLocale, publicMeta, type Locale, withLocale } from "@/lib/i18n";
+import { HandUnderline } from "@/components/ui/primitives";
+import { locales, normalizeLocale, publicMeta, type Locale, withLocale } from "@/lib/i18n";
 
 export function generateStaticParams() {
   return locales.map((locale) => ({ locale }));
@@ -29,11 +28,7 @@ export async function generateMetadata({
 function SignInCopy({ locale }: { locale: Locale }) {
   return (
     <div data-motion="copy">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <BrandMark href={withLocale(locale)} label={dictionary[locale].appName} />
-        <ThemeToggle locale={locale} />
-      </div>
-      <div className="relative mt-10 max-w-xl">
+      <div className="relative max-w-xl">
         <SectionMarginalia
           variant="spark"
           className="pointer-events-none absolute -right-4 -top-8 hidden h-10 w-10 text-yellow sm:block"

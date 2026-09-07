@@ -2,14 +2,14 @@
 
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useQuery } from "convex/react";
-import { CreditCard, LogOut, UserRound, MessageCircle, MessagesSquare } from "lucide-react";
+import { CreditCard, LogOut, MessageCircle, MessagesSquare } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 
+import { Badge } from "@/components/ui/badge";
 import { api } from "@/convex/_generated/api";
 import type { ViewerProfile } from "@/lib/current-viewer";
-import { publicProfilePath } from "@/lib/profile-links";
 import { dictionary, type Locale, withLocale } from "@/lib/i18n";
 
 type AccountProfile = NonNullable<ViewerProfile>;
@@ -49,7 +49,6 @@ export function AccountMenu({ locale, profile }: { locale: Locale; profile: Acco
   const rootRef = useRef<HTMLDivElement>(null);
   const menuId = useId();
   const name = displayName(profile, locale);
-  const email = profile.email ?? (locale === "sr" ? "Nalog bez emaila" : "Account without email");
   const initials = profileInitials(profile);
   const roleLabel =
     profile.role === "admin"
@@ -84,12 +83,6 @@ export function AccountMenu({ locale, profile }: { locale: Locale; profile: Acco
       label: locale === "sr" ? "Poruke" : "Messages",
       icon: MessagesSquare,
       badge: chatSummary?.totalUnread ?? 0,
-    },
-    {
-      href: withLocale(locale, publicProfilePath(profile.username)),
-      label: t.profile,
-      icon: UserRound,
-      badge: accountWarnings,
     },
     {
       href: withLocale(locale, "/app/billing"),
@@ -167,48 +160,54 @@ export function AccountMenu({ locale, profile }: { locale: Locale; profile: Acco
         <div
           id={menuId}
           role="menu"
-          className="absolute right-0 top-[calc(100%+0.65rem)] z-50 w-[calc(100vw-1.5rem)] max-w-[19.5rem] rounded-[16px] border-2 border-ink bg-paper-strong p-2.5 text-ink shadow-[8px_8px_0_0_var(--shadow-hard-14)] sm:w-[19.5rem]"
+          className="absolute right-0 top-[calc(100%+0.65rem)] z-50 w-[calc(100vw-1.5rem)] max-w-[19.5rem] rounded-[16px] border-2 border-ink bg-paper-strong p-2 text-ink shadow-[8px_8px_0_0_var(--shadow-hard-14)] sm:w-[19.5rem]"
         >
           <span
             aria-hidden="true"
             className="absolute -top-2 right-3.5 size-4 rotate-45 border-l-2 border-t-2 border-ink bg-paper-strong"
           />
 
-          <div className="rounded-[8px] border-2 border-dashed border-ink bg-paper p-3 text-center">
-            <div className="mx-auto inline-flex size-16 items-center justify-center overflow-hidden rounded-full border-2 border-ink bg-yellow text-xl font-black shadow-[3px_3px_0_0_var(--shadow-hard-16)]">
-              {profile.avatarUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={profile.avatarUrl} alt="" className="h-full w-full object-cover" />
-              ) : (
-                <span>{initials}</span>
-              )}
-            </div>
-            <p className="mt-2 font-display text-3xl leading-none text-ink">{name}</p>
-            {profile.username ? (
-              <p className="mt-0.5 font-mono text-[11px] font-bold text-muted/80">@{profile.username}</p>
-            ) : null}
-            <p className="mt-1 break-all font-mono text-[11px] font-bold uppercase text-muted">{email}</p>
-            {profileIncomplete ? (
-              <p className="mt-2 rounded-full border border-red-500 bg-red-50 px-2 py-1 text-[10px] font-black text-red-900">
-                {locale === "sr" ? "Dodaj username" : "Add username"}
-              </p>
-            ) : null}
-            {emailVerificationRequired ? (
-              <p className="mt-2 rounded-full border border-amber-500 bg-amber-50 px-2 py-1 text-[10px] font-black text-amber-900">
-                {locale === "sr" ? "Potvrdi email za kurseve" : "Confirm email for courses"}
-              </p>
-            ) : null}
-            {passwordRecommended ? (
-              <p className="mt-2 rounded-full border border-indigo-500 bg-indigo-50 px-2 py-1 text-[10px] font-black text-indigo-900">
-                {locale === "sr" ? "Dodaj opcionu lozinku" : "Add an optional password"}
-              </p>
-            ) : null}
-            <span className="mt-2 inline-flex rounded-full border-2 border-ink bg-paper-strong px-3 py-1 text-[10px] font-black uppercase leading-none text-ink">
-              {roleLabel}
-            </span>
-          </div>
+          {/* Prvi red liste JE profil: avatar u krugu iste veličine kao ikonice
+              ostalih redova, ime + @korisničko ime u dva reda, uloga kao Badge
+              desno. Odvojeni zaglavni blok (veliki avatar, mejl, pilule) je time
+              nestao i meni je osetno niži. Upozorenja o nalogu ostaju kao tačka
+              na avataru — jedini preostali nosilac tog signala. */}
+          <div className="overflow-hidden rounded-[12px] divide-y divide-line/80">
+            <Link
+              href={withLocale(locale, "/app/profile")}
+              role="menuitem"
+              onClick={() => setIsOpen(false)}
+              className="flex min-h-11 items-center justify-between gap-3 bg-paper-strong px-3 py-2 text-ink transition hover:bg-yellow/35 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ink"
+            >
+              <span className="flex min-w-0 items-center gap-3">
+                <span className="relative inline-flex size-7 shrink-0 items-center justify-center">
+                  <span className="flex size-7 items-center justify-center overflow-hidden rounded-full bg-yellow text-[10px] font-black text-ink">
+                    {profile.avatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={profile.avatarUrl} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <span>{initials}</span>
+                    )}
+                  </span>
+                  {accountWarnings > 0 ? (
+                    <span
+                      aria-label={locale === "sr" ? "Nalog traži pažnju" : "Account needs attention"}
+                      className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full border border-ink bg-amber-400"
+                    />
+                  ) : null}
+                </span>
+                <span className="flex min-w-0 flex-col text-left leading-tight">
+                  <span className="truncate text-[13px] font-black uppercase">{name}</span>
+                  {profile.username ? (
+                    <span className="truncate font-mono text-[11px] font-bold text-muted">@{profile.username}</span>
+                  ) : null}
+                </span>
+              </span>
+              <Badge tone="muted" size="sm">
+                {roleLabel}
+              </Badge>
+            </Link>
 
-          <div className="mt-2 overflow-hidden rounded-[12px] divide-y divide-line/80">
             {menuLinks.map((item) => {
               const Icon = item.icon;
 
@@ -218,7 +217,7 @@ export function AccountMenu({ locale, profile }: { locale: Locale; profile: Acco
                   href={item.href}
                   role="menuitem"
                   onClick={() => setIsOpen(false)}
-                  className="group/link flex min-h-10 items-center justify-between gap-3 bg-paper-strong px-3 py-2 text-[13px] font-black uppercase text-ink transition hover:bg-yellow/35 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ink"
+                  className="group/link flex min-h-11 items-center justify-between gap-3 bg-paper-strong px-3 py-2 text-[13px] font-black uppercase text-ink transition hover:bg-yellow/35 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ink"
                 >
                   <span className="flex min-w-0 items-center gap-3">
                     <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-paper text-ink">
@@ -227,7 +226,7 @@ export function AccountMenu({ locale, profile }: { locale: Locale; profile: Acco
                     <span className="truncate">{item.label}</span>
                   </span>
                   {item.badge && item.badge > 0 ? (
-                    <span className={item.href === withLocale(locale, publicProfilePath(profile.username)) ? "flex h-5 min-w-5 items-center justify-center rounded-full border border-amber-500 bg-amber-100 px-1 text-[10px] font-black text-amber-900" : "flex h-5 min-w-5 items-center justify-center rounded-full border border-ink bg-red-600 px-1 text-[10px] font-black text-white"}>
+                    <span className="flex h-5 min-w-5 items-center justify-center rounded-full border border-ink bg-red-600 px-1 text-[10px] font-black text-white">
                       {item.badge}
                     </span>
                   ) : null}
@@ -236,13 +235,13 @@ export function AccountMenu({ locale, profile }: { locale: Locale; profile: Acco
             })}
           </div>
 
-          <div className="mt-2 border-t border-line/90 pt-2">
+          <div className="mt-1.5 border-t border-line/90 pt-1.5">
             <button
               type="button"
               role="menuitem"
               onClick={handleSignOut}
               disabled={isPending}
-              className="flex min-h-10 w-full items-center justify-between gap-3 rounded-[12px] bg-ink px-3 py-2 text-left text-[13px] font-black uppercase text-paper-strong transition hover:bg-ink/90 dark:hover:bg-ink/85 disabled:cursor-wait disabled:opacity-70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              className="flex min-h-11 w-full items-center justify-between gap-3 rounded-[12px] bg-ink px-3 py-2 text-left text-[13px] font-black uppercase text-paper-strong transition hover:bg-ink/90 dark:hover:bg-ink/85 disabled:cursor-wait disabled:opacity-70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
               <span className="flex min-w-0 items-center gap-3">
                 <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-paper-strong text-ink">

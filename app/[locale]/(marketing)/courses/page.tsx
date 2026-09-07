@@ -1,21 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { ThemeToggle } from "@/components/app/theme-toggle";
 import { CourseCard } from "@/components/marketing/course-card";
 import { MarkerHighlight } from "@/components/marketing/marker-highlight";
-import { BrandMark, Panel } from "@/components/ui/primitives";
+import { Panel } from "@/components/ui/primitives";
 import { courses } from "@/lib/content";
-import {
-  coursesListingContent,
-  dictionary,
-  localized,
-  locales,
-  normalizeLocale,
-  otherLocale,
-  publicMeta,
-  withLocale,
-} from "@/lib/i18n";
+import { coursesListingContent, localized, locales, normalizeLocale, publicMeta, withLocale } from "@/lib/i18n";
 
 export function generateStaticParams() {
   return locales.map((locale) => ({ locale }));
@@ -66,7 +56,6 @@ export default async function PublicCoursesListingPage({
 }) {
   const { locale: localeParam } = await params;
   const locale = normalizeLocale(localeParam);
-  const nextLocale = otherLocale(locale);
   const t = coursesListingContent[locale];
   const hasConvex = Boolean(process.env.NEXT_PUBLIC_CONVEX_URL);
 
@@ -95,20 +84,6 @@ export default async function PublicCoursesListingPage({
   return (
     <main className="sketch-grid min-h-screen bg-surface-a px-4 py-8 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl space-y-6">
-        {/* Header bar */}
-        <div className="flex items-center justify-between gap-4">
-          <BrandMark href={withLocale(locale)} label={dictionary[locale].appName} />
-          <div className="flex items-center gap-2">
-            <ThemeToggle locale={locale} />
-            <Link
-              href={withLocale(nextLocale, "/courses")}
-              className="inline-flex min-h-11 items-center rounded-[8px] border-2 border-ink bg-paper-strong px-3 py-2 text-sm font-black transition hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-            >
-              {nextLocale.toUpperCase()}
-            </Link>
-          </div>
-        </div>
-
         {/* Breadcrumb navigation */}
         <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-xs font-black text-muted">
           <Link
