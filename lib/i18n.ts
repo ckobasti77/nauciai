@@ -113,6 +113,12 @@ export const marketingContent = {
       switchTo: "English",
       rights: "Sva prava zadržana.",
     },
+    contactRail: {
+      phoneLabel: "Pozovi telefonom",
+      emailLabel: "Pošalji email",
+      socialsLabel: "Društvene mreže",
+      socialsCloseLabel: "Zatvori društvene mreže",
+    },
     hero: {
       titleLead: "Nauči da praviš AI video, sajtove i zvuk — od nule do ",
       titleHighlight: "gotovog rada",
@@ -320,6 +326,12 @@ export const marketingContent = {
       langLabel: "Change language",
       switchTo: "Srpski",
       rights: "All rights reserved.",
+    },
+    contactRail: {
+      phoneLabel: "Call by phone",
+      emailLabel: "Send an email",
+      socialsLabel: "Social media",
+      socialsCloseLabel: "Close social media",
     },
     hero: {
       titleLead: "Learn to make AI video, websites, and sound — from zero to ",
