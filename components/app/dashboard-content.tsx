@@ -50,7 +50,9 @@ import {
   type DashboardOverview,
   type NextLesson,
 } from "@/components/app/dashboard-windows";
+import { LoopVideo } from "@/components/marketing/loop-video";
 import { classroomPath, courseCatalogPath, coursePath, lessonPath } from "@/lib/app-routes";
+import { catalogCourseLoop } from "@/lib/course-catalog";
 import {
   buildFirstRunChecklist,
   celebratedStepId,
@@ -73,6 +75,7 @@ import type { Id } from "@/convex/_generated/dataModel";
 import type { ViewerProfile } from "@/lib/current-viewer";
 import { dictionary, localized, t as tr, type Locale, type LocalizedText, withLocale } from "@/lib/i18n";
 import { progressEncouragement } from "@/lib/progress-encouragement";
+import { nextLevel, surfaceClass, type SurfaceLevel } from "@/lib/surface";
 
 const EditCourseAction = dynamic(() => import("@/components/app/admin-inline-actions").then((m) => m.EditCourseAction), { ssr: false });
 
@@ -828,6 +831,7 @@ export function CourseCover({
   course,
   locale,
   compact = false,
+  loop = false,
 }: {
   course: DashboardCourse;
   locale: Locale;
@@ -838,7 +842,28 @@ export function CourseCover({
    * prazan iako je tu (velike kartice ispod imaju mesta, pa su radile).
    */
   compact?: boolean;
+  /**
+   * Pusti bešavnu petlju kursa umesto mirne slike (N10, zona A i zona C Učionice).
+   * Namerno OPT-IN: minijature u zoni „Smerovi" i sitni kvadratići u listama ostaju
+   * mirni, jer red od pet videa koji se sami vrte nije ritam nego buka. Kurs bez
+   * petlje u `lib/content.ts` pada nazad na naslovnu sliku.
+   */
+  loop?: boolean;
 }) {
+  const courseLoop = loop ? catalogCourseLoop(course.slug) : null;
+  if (courseLoop) {
+    return (
+      <LoopVideo
+        webmSrc={courseLoop.webm}
+        mp4Src={courseLoop.mp4}
+        posterSrc={courseLoop.poster}
+        label={course.image ? localized(course.image.alt, locale) : localized(course.title, locale)}
+        className="absolute inset-0"
+        sizes="(min-width: 1024px) 50vw, 100vw"
+      />
+    );
+  }
+
   const imageSrc = course.coverUrl || course.image?.src;
   if (imageSrc) {
     return (
@@ -921,16 +946,28 @@ export function DashboardCourseCard({
   course,
   isAdmin,
   summary = getProgressSummary(course, locale),
+  loop = false,
+  level,
 }: {
   locale: Locale;
   course: DashboardCourse;
   isAdmin: boolean;
   summary?: ReturnType<typeof getProgressSummary>;
+  /** Naslovna vitrina pušta petlju kursa (N10, zona „Kursevi" u Učionici). */
+  loop?: boolean;
+  /**
+   * Nivo površine SEKCIJE u kojoj kartica stoji (v3, `lib/surface.ts`). Kartica crta svoju
+   * pozadinu → uzima suprotnu boju, a medijski bunar u njoj još jednu dublje. Bez `level`
+   * ostaje zatečeni `paper-strong` (stranica smera), pa se ništa van Učionice ne pomera.
+   */
+  level?: SurfaceLevel;
 }) {
   // Isti ugovor kao na `CourseCatalogCard`: `layout`, podizanje i pritisak staju kada
   // korisnik traži manje pokreta. Bez ovoga je otključana kartica jedina u mreži koja se
   // i dalje pomera pod `prefers-reduced-motion`.
   const reduceMotion = useReducedMotion();
+  const cardBg = level === undefined ? "bg-paper-strong" : surfaceClass(nextLevel(level));
+  const mediaBg = level === undefined ? "bg-paper" : surfaceClass(nextLevel(nextLevel(level)));
   const canOpen = isAdmin || course.hasAccess;
   const primaryLabel =
     summary.completedLessons > 0
@@ -946,21 +983,36 @@ export function DashboardCourseCard({
       // Ista mikro-interakcija kao na kartici zaključanog kursa: `whileHover` diže, CSS
       // produbljuje tvrdu senku. Otključan i zaključan kurs u istoj mreži moraju da se
       // ponašaju isto, inače mreža izgleda kao dva različita sistema.
-      className="card-anim-elevate dashboard-reveal overflow-hidden surface-card border-2 border-ink bg-paper-strong shadow-[6px_6px_0_0_var(--shadow-hard-12)] hover:shadow-[9px_9px_0_0_var(--shadow-hard-20)]"
+      className={cn(
+        "card-anim-elevate dashboard-reveal group relative overflow-hidden surface-card border-2 border-ink shadow-[6px_6px_0_0_var(--shadow-hard-12)] hover:shadow-[9px_9px_0_0_var(--shadow-hard-20)] has-[a:focus-visible]:outline has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-2 has-[a:focus-visible]:outline-ink",
+        cardBg,
+      )}
     >
+      {/* CELA kartica je klik meta ka kursu (N10): sloj linka je ispod sadržaja, sadržaj
+          ne prima klik, a dugmad na dnu ga vraćaju sebi (`pointer-events-auto`, z-20) —
+          isti obrazac kao kartica kursa na javnim stranama. */}
+      <Link
+        href={courseDetailHref(locale, course.slug)}
+        aria-label={tr(
+          locale,
+          `Otvori kurs ${localized(course.title, locale)}`,
+          `Open ${localized(course.title, locale)}`,
+        )}
+        className="absolute inset-0 z-0"
+      />
       {/* Naslovna slika je uokvirena mastilom kao i sve ostalo na papiru, ima
           media radius (8px) i isti odnos 16/9 kao na zakljucanoj kartici — otkljucan
           i zakljucan kurs u istoj mrezi moraju da izgledaju kao jedan sistem. */}
-      <div className="p-3">
-        <div className="relative aspect-[16/9] overflow-hidden surface-media border-2 border-ink bg-paper">
-          <CourseCover course={course} locale={locale} />
+      <div className="pointer-events-none relative z-10 p-3">
+        <div className={cn("relative aspect-[16/9] overflow-hidden surface-media border-2 border-ink", mediaBg)}>
+          <CourseCover course={course} locale={locale} loop={loop} />
           <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full border-2 border-ink bg-paper-strong px-3 py-1 type-eyebrow text-ink">
             <ShieldCheck className="size-3.5" />
             {statusCopy(locale, course, isAdmin)}
           </span>
         </div>
       </div>
-      <div className="space-y-4 px-5 pb-5 pt-2">
+      <div className="pointer-events-none relative z-10 space-y-4 px-5 pb-5 pt-2">
         <div>
           <h3 className="type-h2 text-ink">{localized(course.title, locale)}</h3>
           <p className="mt-2 line-clamp-2 type-body-sm font-bold text-muted">{localized(course.subtitle, locale)}</p>
@@ -1014,7 +1066,9 @@ export function DashboardCourseCard({
           </p>
         ) : null}
 
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
+        {/* „Detalji" je otišao: sloj linka preko cele kartice vodi na isto mesto, pa je
+            zaseban link bio drugi put ista destinacija u istom redu. */}
+        <div className="pointer-events-auto relative z-20 flex flex-wrap items-center gap-x-5 gap-y-3">
           {canOpen ? (
             <LinkButton href={courseContinueHref(locale, course, summary.nextLesson)} tone="smoke" className="min-h-10 px-4 text-xs font-black">
               <PlayCircle className="size-4" />
@@ -1026,13 +1080,6 @@ export function DashboardCourseCard({
               {tr(locale, "U pripremi", "In preparation")}
             </span>
           )}
-          <Link
-            href={courseDetailHref(locale, course.slug)}
-            className="inline-flex items-center gap-1 text-xs font-black text-ink underline decoration-2 underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-          >
-            {tr(locale, "Detalji", "Details")}
-            <ArrowRight className="size-3.5" />
-          </Link>
           <Link
             href={courseCommunityHref(locale, course.slug)}
             className="inline-flex items-center gap-1 text-xs font-black text-ink underline decoration-2 underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"

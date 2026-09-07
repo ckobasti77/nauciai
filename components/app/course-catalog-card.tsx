@@ -10,6 +10,7 @@ import { CourseCover, type DashboardCourse } from "@/components/app/dashboard-co
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
+import { cn } from "@/components/ui/primitives";
 import { coursePath } from "@/lib/app-routes";
 import {
   catalogPriceLabel,
@@ -17,6 +18,7 @@ import {
   totalDurationSeconds,
 } from "@/lib/course-catalog";
 import { localized, t as tr, type Locale } from "@/lib/i18n";
+import { nextLevel, surfaceClass, type SurfaceLevel } from "@/lib/surface";
 
 /** Koliko naslova lekcija stane u „Šta se uči" pre nego što kartica postane spisak. */
 const PREVIEW_TOPICS = 3;
@@ -37,11 +39,25 @@ function publishedLessons(course: DashboardCourse) {
  * otključan i zaključan kurs u istoj mreži izgledali kao jedan sistem; razlikuju ih
  * značka „Zaključano", cena i dugmad.
  */
-export function CourseCatalogCard({ locale, course }: { locale: Locale; course: DashboardCourse }) {
+export function CourseCatalogCard({
+  locale,
+  course,
+  loop = false,
+  level,
+}: {
+  locale: Locale;
+  course: DashboardCourse;
+  /** Naslovna vitrina pušta petlju kursa (N10, zona „Kursevi" u Učionici). */
+  loop?: boolean;
+  /** Nivo površine sekcije (v3); bez njega kartica ostaje na zatečenom `paper-strong`. */
+  level?: SurfaceLevel;
+}) {
   const [previewOpen, setPreviewOpen] = useState(false);
   // Kartica se pojavljuje i prerađuje kroz filter, pa `layout` i podizanje na hover
   // moraju da stanu kad korisnik traži manje pokreta (`prefers-reduced-motion`).
   const reduceMotion = useReducedMotion();
+  const cardBg = level === undefined ? "bg-paper-strong" : surfaceClass(nextLevel(level));
+  const mediaBg = level === undefined ? "bg-paper" : surfaceClass(nextLevel(nextLevel(level)));
 
   const lessons = publishedLessons(course);
   const price = catalogPriceLabel(course.slug);
@@ -58,11 +74,21 @@ export function CourseCatalogCard({ locale, course }: { locale: Locale; course: 
       // Senka raste na hover, a `whileHover` u istom trenutku podiže karticu za 3px:
       // zajedno to čita kao „papir se odvojio od stola". Transform vodi Framer, senku CSS
       // (`card-anim-elevate`), pa se dve animacije ne otimaju o istu osobinu.
-      className="group card-anim-elevate flex flex-col overflow-hidden surface-card border-2 border-ink bg-paper-strong shadow-[6px_6px_0_0_var(--shadow-hard-12)] hover:shadow-[9px_9px_0_0_var(--shadow-hard-20)]"
+      className={cn(
+        "group card-anim-elevate relative flex flex-col overflow-hidden surface-card border-2 border-ink shadow-[6px_6px_0_0_var(--shadow-hard-12)] hover:shadow-[9px_9px_0_0_var(--shadow-hard-20)] has-[a:focus-visible]:outline has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-2 has-[a:focus-visible]:outline-ink",
+        cardBg,
+      )}
     >
-      <div className="p-3">
-        <div className="relative aspect-[16/9] overflow-hidden surface-media border-2 border-ink bg-paper">
-          <CourseCover course={course} locale={locale} />
+      {/* CELA kartica vodi na stranicu kursa (N10); dugmad na dnu su iznad tog sloja i
+          zadržavaju svoju akciju (kupovina, uvodni video). */}
+      <Link
+        href={coursePath(locale, course.slug)}
+        aria-label={tr(locale, `Otvori kurs ${title}`, `Open ${title}`)}
+        className="absolute inset-0 z-0"
+      />
+      <div className="pointer-events-none relative z-10 p-3">
+        <div className={cn("relative aspect-[16/9] overflow-hidden surface-media border-2 border-ink", mediaBg)}>
+          <CourseCover course={course} locale={locale} loop={loop} />
           {/* Zaključan kurs se ne sivi i ne zatamnjuje — na naslovnu sliku ide postojeća
               školska šrafura (`ink-hatch`, mastilo na 8%). Slika ostaje u boji i ostaje
               poželjna, ali se vidi da preko nje još stoji olovka: „ovo još nije tvoje". */}
@@ -78,7 +104,7 @@ export function CourseCatalogCard({ locale, course }: { locale: Locale; course: 
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col gap-4 px-5 pb-5 pt-2">
+      <div className="pointer-events-none relative z-10 flex flex-1 flex-col gap-4 px-5 pb-5 pt-2">
         <div>
           <h3 className="type-h2 text-ink">{title}</h3>
           <p className="mt-2 line-clamp-2 type-body-sm font-bold text-muted">
@@ -110,7 +136,8 @@ export function CourseCatalogCard({ locale, course }: { locale: Locale; course: 
           </div>
         ) : null}
 
-        <div className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-3 pt-1">
+        {/* „Detalji" je otišao: sloj linka preko cele kartice vodi na isto mesto. */}
+        <div className="pointer-events-auto relative z-20 mt-auto flex flex-wrap items-center gap-x-4 gap-y-3 pt-1">
           <CheckoutButton
             courseSlug={course.slug}
             locale={locale}
@@ -126,13 +153,6 @@ export function CourseCatalogCard({ locale, course }: { locale: Locale; course: 
               {tr(locale, "Pogledaj uvod", "Watch the intro")}
             </Button>
           ) : null}
-          <Link
-            href={coursePath(locale, course.slug)}
-            className="inline-flex items-center gap-1 text-xs font-black text-ink underline decoration-2 underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-          >
-            {tr(locale, "Detalji", "Details")}
-            <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
-          </Link>
         </div>
       </div>
 

@@ -1,4 +1,4 @@
-import { courses as staticCourses } from "@/lib/content";
+import { courses as staticCourses, type CourseLoop } from "@/lib/content";
 import { t, type Locale, type LocalizedText } from "@/lib/i18n";
 
 /**
@@ -156,4 +156,14 @@ export function courseLengthLabel(locale: Locale, lessonCount: number, seconds: 
  */
 export function catalogPriceLabel(courseSlug: string): LocalizedText | null {
   return staticCourses.find((course) => course.slug === courseSlug)?.priceLabel ?? null;
+}
+
+/**
+ * Bešavna petlja kursa (`public/images/landing/course-*-loop.mp4` + poster). Isti izvor
+ * kao `catalogPriceLabel` — `lib/content.ts` po slug-u — pa Učionica pušta tačno one
+ * snimke koje javne strane već koriste. Kurs koji postoji samo u Convexu petlju nema;
+ * tada se vraća `null` i pozivalac ostaje na naslovnoj slici.
+ */
+export function catalogCourseLoop(courseSlug: string): CourseLoop | null {
+  return staticCourses.find((course) => course.slug === courseSlug)?.image.loop ?? null;
 }

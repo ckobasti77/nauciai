@@ -5,6 +5,7 @@ import {
   ChevronRight,
   CircleAlert,
   Coins,
+  Compass,
   CreditCard,
   GraduationCap,
   LayoutDashboard,
@@ -57,12 +58,13 @@ import {
   type AppSidebarPreferences,
   serializeAppSidebarPreferences,
 } from "@/lib/app-sidebar-preferences";
-import { classroomPath, courseCatalogPath, coursePath, lessonPath } from "@/lib/app-routes";
+import { classroomPath, courseCatalogPath, coursePath, lessonPath, trackPath } from "@/lib/app-routes";
 import { lessonPosition, lessonPositionLabel } from "@/lib/lesson-position";
 import { publicProfilePath } from "@/lib/profile-links";
 import type { AppCourseNav, AppNavigationData } from "@/lib/app-navigation";
 import { primaryCourseSlug } from "@/lib/content";
-import { dictionary, localized, otherLocale, type Locale, withLocale } from "@/lib/i18n";
+import { formatCourseCount } from "@/lib/course-catalog";
+import { dictionary, localized, otherLocale, t as tr, type Locale, withLocale } from "@/lib/i18n";
 import {
   COMMUNITY_PRESERVED_KEYS,
   activeSectionId,
@@ -351,48 +353,120 @@ function switcherLessonIcon(active: boolean) {
 }
 
 /**
- * One control for the two halves of the same choice: which course, and which lesson
- * inside it. These used to be a card at the top of the sidebar and a NavDisclosure
- * further down the nav, which meant the current lesson was invisible until you opened
- * an accordion, and one decision was spread across three different row shapes.
+ * Putanja konteksta Učionice: SMER > KURS > LEKCIJA (N10).
+ *
+ * Ranije je ovde stajala jedna kartica aktivnog kursa sa strelicom nadole — oblik negde
+ * između dugmeta i dropdown-a, koji nigde nije rekao da smer stoji IZNAD kursa, a kurs
+ * iznad lekcije. Sada su to tri nivoa jedan ispod drugog, svaki uvučen za korak dublje i
+ * povezan tankom vertikalnom linijom u boji `--line`; nivo LEKCIJA postoji samo dok je
+ * lekcija stvarno otvorena.
+ *
+ * Klik na nivo otvara listu stavki TOG nivoa (smerovi / kursevi u tom smeru / lekcije u
+ * tom kursu) i prebacuje kontekst. Lista je U TOKU ispod bloka, ne apsolutni sloj: isti
+ * blok se renderuje i u rail flyout-u, koji sam skroluje, pa bi apsolutni sloj tamo bio
+ * odsečen.
  */
-function LearningSwitcher({
+type LearningLevel = "track" | "course" | "lesson";
+
+/** Uvlačenje reda po nivou + širina crtice od vertikalne linije do reda. */
+const LEVEL_INDENT: Record<LearningLevel, { row: string; tick: string }> = {
+  track: { row: "pl-4", tick: "w-[9px]" },
+  course: { row: "pl-8", tick: "w-[25px]" },
+  lesson: { row: "pl-12", tick: "w-[41px]" },
+};
+
+function LearningPathRow({
+  level,
+  label,
+  value,
+  badge,
+  open,
+  panelId,
+  onToggle,
+  action,
+}: {
+  level: LearningLevel;
+  label: string;
+  value: string;
+  badge?: string;
+  open: boolean;
+  panelId: string;
+  onToggle: () => void;
+  /** Admin „+" uz nivo KURS; stoji pored dugmeta, ne u njemu. */
+  action?: ReactNode;
+}) {
+  const indent = LEVEL_INDENT[level];
+  return (
+    <div className={cn("relative flex items-center gap-1", indent.row)}>
+      {/* Crtica od vertikalne linije do reda — jedini razlog zašto se tri nivoa čitaju
+          kao jedno stablo, a ne kao tri nezavisna dugmeta. */}
+      <span aria-hidden="true" className={cn("absolute left-[7px] top-1/2 h-0.5 bg-line", indent.tick)} />
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        aria-controls={panelId}
+        className="flex min-h-11 min-w-0 flex-1 items-center gap-2 surface-inset px-2 py-1.5 text-left transition-colors hover:bg-ink/6 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+      >
+        {/* Oznaka stanja stoji uz NADNASLOV, ne uz naziv: u koloni od ~150px je „AKTIVAN"
+            pored naziva jeo dve trećine reda i kurs je ostajao „Video a…". Nadnaslov je
+            kratak i fiksan, pa im dvoma zajedno mesta ima, a naziv dobija ceo sledeći red. */}
+        <span className="min-w-0 flex-1">
+          {/* `flex-wrap`: kad admin „+" suzi red, oznaka pada u sledeći red umesto da se
+              seče u „AC…" — skraćena oznaka stanja ne znači ništa. */}
+          <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1">
+            <span className="type-eyebrow-sm text-muted">{label}</span>
+            {badge ? (
+              <span className="rounded-full bg-ink px-2 py-0.5 type-eyebrow-sm text-paper-strong">{badge}</span>
+            ) : null}
+          </span>
+          <span className="mt-0.5 block truncate text-sm font-black text-ink">{value}</span>
+        </span>
+        <ChevronDown className={cn("size-4 shrink-0 text-muted transition-transform", open && "rotate-180")} />
+      </button>
+      {action}
+    </div>
+  );
+}
+
+function LearningPath({
   locale,
   courses,
   currentCourse,
   currentLessonSlug,
   isAdmin,
-  initiallyOpen = false,
+  initialLevel = null,
 }: {
   locale: Locale;
   courses: AppCourseNav[];
   currentCourse: AppCourseNav;
   currentLessonSlug?: string;
   isAdmin: boolean;
-  initiallyOpen?: boolean;
+  /** Rail flyout otvara blok već raširen na nivou koji je u tom trenutku u fokusu. */
+  initialLevel?: LearningLevel | null;
 }) {
-  const [open, setOpen] = useState(initiallyOpen);
-  const [tab, setTab] = useState<"courses" | "lessons">(currentLessonSlug ? "lessons" : "courses");
-  // The expanded sidebar and the rail flyout can both be mounted at once (the expanded
-  // column is only `md:hidden` while collapsed), so tab/panel ids have to be per-instance.
-  const tabsId = useId();
-  // Both surfaces are handed the same full list, so the switcher is also the only place
-  // that can show a course outside the current track. Grouping keeps smer -> kurs legible
-  // rather than presenting one flat list of everything.
-  const trackGroups = useMemo(() => {
-    const groups = new Map<string, { key: string; title: string | null; courses: AppCourseNav[] }>();
+  const [open, setOpen] = useState<LearningLevel | null>(initialLevel);
+  // Prošireni sidebar i rail flyout umeju da budu montirani istovremeno, pa id panela
+  // mora da bude po instanci (isti razlog kao raniji `tabsId`).
+  const panelId = `${useId()}-panel`;
+
+  const tracks = useMemo(() => {
+    const groups = new Map<string, { slug: string; title: string; count: number }>();
     for (const course of courses) {
-      const key = course.trackSlug ?? "";
-      let group = groups.get(key);
-      if (!group) {
-        group = { key, title: course.trackTitle ? localized(course.trackTitle, locale) : null, courses: [] };
-        groups.set(key, group);
-      }
-      group.courses.push(course);
+      if (!course.trackSlug || !course.trackTitle) continue;
+      const existing = groups.get(course.trackSlug);
+      if (existing) existing.count += 1;
+      else groups.set(course.trackSlug, { slug: course.trackSlug, title: localized(course.trackTitle, locale), count: 1 });
     }
-    // A single unnamed group is the static no-Convex fallback: no tracks, so no headers.
     return Array.from(groups.values());
   }, [courses, locale]);
+
+  // Kursevi TOG smera; kurs bez smera nema šta da filtrira, pa tada lista ostaje puna.
+  const trackCourses = useMemo(
+    () => (currentCourse.trackSlug ? courses.filter((course) => course.trackSlug === currentCourse.trackSlug) : courses),
+    [courses, currentCourse.trackSlug],
+  );
+
   const currentComingSoon = isCourseComingSoon(currentCourse, isAdmin);
   const currentLocked = isCourseLocked(currentCourse, isAdmin);
   const directLessons = currentCourse.modules
@@ -404,318 +478,301 @@ function LearningSwitcher({
   // „Gde sam" nije samo „koja je lekcija otvorena" nego i „koja je po redu": za
   // pocetnika je bas taj drugi podatak ono sto smiruje. `null` kad pozicije nema.
   const currentPosition = lessonPosition(directLessons, currentLessonSlug);
-  const currentStatus =
+  const courseBadge =
     currentCourse.status !== "published"
-      ? locale === "sr"
-        ? "Skica"
-        : "Draft"
+      ? tr(locale, "Skica", "Draft")
       : currentCourse.hasAccess || isAdmin
-        ? locale === "sr"
-          ? "Aktivan kurs"
-          : "Active course"
-        : locale === "sr"
-          ? "Zaključan"
-          : "Locked";
+        ? tr(locale, "Aktivan", "Active")
+        : tr(locale, "Zaključan", "Locked");
 
-  // Re-evaluated on every open rather than once at mount: the sidebar survives every
-  // navigation, so a mount-time default would strand you on the wrong half of the panel.
-  const toggle = () => {
-    if (!open) setTab(currentLessonSlug ? "lessons" : "courses");
-    setOpen((value) => !value);
-  };
+  const toggle = (level: LearningLevel) => setOpen((value) => (value === level ? null : level));
+
+  const panelTitle =
+    open === "track"
+      ? tr(locale, "Smerovi", "Tracks")
+      : open === "course"
+        ? tr(locale, "Kursevi u smeru", "Courses in this track")
+        : dictionary[locale].lessons;
 
   return (
     <div className="sidebar-reveal relative mt-5 md:mt-8">
-      <div className="flex items-start gap-2">
-        <motion.button
-          type="button"
-          onClick={toggle}
-          whileHover={{ y: -1 }}
-          whileTap={{ scale: 0.98 }}
-          aria-expanded={open}
-          className="flex min-h-[4.5rem] min-w-0 flex-1 items-center gap-3 rounded-[16px] border-2 border-ink bg-paper-strong p-2 text-left text-sm font-black text-ink shadow-[4px_4px_0_0_var(--shadow-hard)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-        >
-          <span className="min-w-0 flex-1">
-            <span className="flex min-w-0 items-center gap-3">
-              <span className="grid size-11 shrink-0 place-items-center rounded-[12px] border-2 border-ink bg-yellow shadow-[2px_2px_0_0_var(--shadow-hard-12)]">
-                <GraduationCap className="size-5" />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block type-eyebrow-sm text-muted">
-                  {locale === "sr" ? "Kurs" : "Course"}
-                </span>
-                <span className="block truncate">{localized(currentCourse.title, locale)}</span>
-                <span className="mt-1 inline-flex items-center rounded-full bg-ink px-2 py-0.5 type-eyebrow-sm text-paper-strong">
-                  {currentStatus}
-                </span>
-              </span>
-            </span>
-            {currentLesson ? (
-              <span className="mt-2 flex min-w-0 items-center gap-3 border-t border-ink/10 pt-2">
-                <span className="grid size-9 shrink-0 place-items-center rounded-[12px] border-2 border-ink bg-paper">
-                  <PlayCircle className="size-4" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block type-eyebrow-sm text-muted">
-                    {currentPosition
-                      ? lessonPositionLabel(locale, currentPosition)
-                      : locale === "sr"
-                        ? "Lekcija"
-                        : "Lesson"}
-                  </span>
-                  <span className="block truncate">{localized(currentLesson.title, locale)}</span>
-                </span>
-              </span>
-            ) : null}
-          </span>
-          <ChevronDown className={cn("size-5 shrink-0 transition", open && "rotate-180")} />
-        </motion.button>
-        {isAdmin ? (
-          <SidebarAdminActions className="sidebar-action-cluster-static">
-            <AddCourseAction locale={locale} nextSortOrder={nextSortOrder(courses)} iconOnly />
-          </SidebarAdminActions>
-        ) : null}
+      <div className="relative">
+        {/* Vertikalna linija koja povezuje nivoe; dekorativna, pa `aria-hidden`. */}
+        <span aria-hidden="true" className="absolute bottom-3 left-[7px] top-3 w-0.5 rounded-full bg-line" />
+        <div className="flex flex-col gap-0.5">
+          <LearningPathRow
+            level="track"
+            label={tr(locale, "Smer", "Track")}
+            value={
+              currentCourse.trackTitle
+                ? localized(currentCourse.trackTitle, locale)
+                : tr(locale, "Bez smera", "No track")
+            }
+            open={open === "track"}
+            panelId={panelId}
+            onToggle={() => toggle("track")}
+          />
+          <LearningPathRow
+            level="course"
+            label={tr(locale, "Kurs", "Course")}
+            value={localized(currentCourse.title, locale)}
+            badge={courseBadge}
+            open={open === "course"}
+            panelId={panelId}
+            onToggle={() => toggle("course")}
+            action={
+              isAdmin ? (
+                <SidebarAdminActions className="sidebar-action-cluster-static">
+                  <AddCourseAction locale={locale} nextSortOrder={nextSortOrder(courses)} iconOnly />
+                </SidebarAdminActions>
+              ) : undefined
+            }
+          />
+          {currentLesson ? (
+            <LearningPathRow
+              level="lesson"
+              label={
+                currentPosition ? lessonPositionLabel(locale, currentPosition) : tr(locale, "Lekcija", "Lesson")
+              }
+              value={localized(currentLesson.title, locale)}
+              open={open === "lesson"}
+              panelId={panelId}
+              onToggle={() => toggle("lesson")}
+            />
+          ) : null}
+        </div>
       </div>
+
       <AnimatePresence>
         {open ? (
           <motion.div
+            key={open}
+            id={panelId}
             initial={{ opacity: 0, y: -8, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -6, scale: 0.98 }}
             transition={{ duration: 0.18, ease: "easeOut" }}
-            className="relative z-20 mt-3 rounded-[16px] border-2 border-ink bg-paper-strong p-3 shadow-[6px_6px_0_0_var(--shadow-hard)]"
+            className="relative z-20 mt-3 surface-card border-2 border-ink bg-paper-strong p-3 shadow-[6px_6px_0_0_var(--shadow-hard)]"
           >
-            <p className="px-1 type-eyebrow-sm text-muted">
-              {locale === "sr" ? "Tvoje učenje" : "Your learning"}
-            </p>
-            <div
-              role="tablist"
-              aria-label={locale === "sr" ? "Kurs i lekcije" : "Course and lessons"}
-              className="mt-2 flex items-center gap-1 rounded-full border-2 border-line bg-paper p-1"
-            >
-              {(["courses", "lessons"] as const).map((key) => {
-                const selected = tab === key;
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    role="tab"
-                    id={`${tabsId}-tab-${key}`}
-                    aria-selected={selected}
-                    aria-controls={`${tabsId}-panel-${key}`}
-                    onClick={() => setTab(key)}
-                    className={cn(
-                      "flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-full px-3 type-eyebrow transition",
-                      selected ? "bg-ink text-paper-strong" : "text-muted hover:text-ink",
-                    )}
-                  >
-                    {key === "courses"
-                      ? locale === "sr"
-                        ? "Kursevi"
-                        : "Courses"
-                      : dictionary[locale].lessons}
-                    <span
-                      className={cn(
-                        "rounded-full px-1.5 py-0.5 type-caption",
-                        selected ? "bg-paper-strong/25 text-paper-strong" : "bg-paper-strong text-muted",
-                      )}
-                    >
-                      {key === "courses" ? courses.length : directLessons.length}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-            <div
-              role="tabpanel"
-              id={`${tabsId}-panel-${tab}`}
-              aria-labelledby={`${tabsId}-tab-${tab}`}
-              className="mt-3 max-h-[60vh] space-y-2 overflow-y-auto pr-1"
-            >
-              {tab === "courses"
-                ? trackGroups.map((group) => (
-                    <div key={group.key} className="space-y-2">
-                      {group.title ? (
-                        <p className="px-1 pt-1 type-eyebrow-sm text-muted">
-                          {group.title}
-                        </p>
-                      ) : null}
-                      {group.courses.map((course) => {
-                        const comingSoon = isCourseComingSoon(course, isAdmin);
-                        const locked = isCourseLocked(course, isAdmin);
-                        const canEditCourse = Boolean(course.id && course.id !== course.slug);
-                        const active = course.slug === currentCourse.slug;
-                        const statusLabel = comingSoon
-                          ? locale === "sr"
-                            ? "Uskoro"
-                            : "Coming soon"
-                          : locked
-                            ? locale === "sr"
-                              ? "Zakljucano"
-                              : "Locked"
-                            : locale === "sr"
-                              ? "Aktivno"
-                              : "Active";
+            <p className="px-1 type-eyebrow-sm text-muted">{panelTitle}</p>
+            <div className="mt-2 max-h-[60vh] space-y-2 overflow-y-auto pr-1">
+              {open === "track" ? (
+                tracks.length ? (
+                  tracks.map((track) => {
+                    const active = track.slug === currentCourse.trackSlug;
+                    return (
+                      <motion.div key={track.slug} layout className={switcherRowShell(active)}>
+                        <Link
+                          href={trackPath(locale, track.slug)}
+                          onClick={() => setOpen(null)}
+                          aria-current={active ? "page" : undefined}
+                          className={switcherRowLink}
+                        >
+                          <span className={switcherRowIcon}>
+                            <Compass className="size-4" />
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate">{track.title}</span>
+                            <span className="mt-1 block type-eyebrow-sm text-muted">
+                              {formatCourseCount(locale, track.count)}
+                            </span>
+                          </span>
+                          <ChevronRight className="size-4 shrink-0" />
+                        </Link>
+                      </motion.div>
+                    );
+                  })
+                ) : (
+                  <p className="surface-inset border-2 border-dashed border-line bg-paper p-3 text-xs font-black text-muted">
+                    {tr(locale, "Smerovi još nisu napravljeni.", "Tracks are not set up yet.")}
+                  </p>
+                )
+              ) : open === "course" ? (
+                trackCourses.map((course) => {
+                  const comingSoon = isCourseComingSoon(course, isAdmin);
+                  const locked = isCourseLocked(course, isAdmin);
+                  const canEditCourse = Boolean(course.id && course.id !== course.slug);
+                  const active = course.slug === currentCourse.slug;
+                  const statusLabel = comingSoon
+                    ? tr(locale, "Uskoro", "Coming soon")
+                    : locked
+                      ? tr(locale, "Zaključano", "Locked")
+                      : tr(locale, "Aktivno", "Active");
 
-                        return (
-                          <motion.div
-                            key={course.slug}
-                            layout
-                            whileHover={{ x: 2 }}
-                            className={cn(
-                              switcherRowShell(active),
-                              locked && "pb-3",
-                              isAdmin && canEditCourse && "pr-9",
-                            )}
-                          >
-                            <div className="sidebar-action-row flex items-center gap-1">
-                              {comingSoon ? (
-                                <div className={cn(switcherRowLink, "text-muted")}>
-                                  <span className={switcherRowIcon}>
-                                    <GraduationCap className="size-4" />
-                                  </span>
-                                  <span className="min-w-0 flex-1">
-                                    <span className="block truncate text-ink">{localized(course.title, locale)}</span>
-                                    <span className="mt-1 inline-flex rounded-full border border-line bg-paper-strong px-2 py-0.5 type-eyebrow-sm text-muted">
-                                      {statusLabel}
-                                    </span>
-                                  </span>
-                                </div>
-                              ) : (
-                                <Link
-                                  href={coursePath(locale, course.slug)}
-                                  onClick={() => setOpen(false)}
-                                  aria-current={active ? "page" : undefined}
-                                  className={switcherRowLink}
-                                >
-                                  <span className={switcherRowIcon}>
-                                    {locked ? <Lock className="size-4" /> : <GraduationCap className="size-4" />}
-                                  </span>
-                                  <span className="min-w-0 flex-1">
-                                    <span className="block truncate">{localized(course.title, locale)}</span>
-                                    <span className="mt-1 inline-flex items-center gap-1 rounded-full border border-line bg-paper-strong px-2 py-0.5 type-eyebrow-sm text-muted">
-                                      {locked ? <Lock className="size-3" /> : <ShieldCheck className="size-3" />}
-                                      {statusLabel}
-                                    </span>
-                                  </span>
-                                  {locked ? <Lock className="size-4 shrink-0" /> : <ChevronRight className="size-4 shrink-0" />}
-                                </Link>
-                              )}
-                              {isAdmin && canEditCourse ? (
-                                <SidebarAdminActions className="absolute right-2 top-2">
-                                  <EditCourseAction
-                                    locale={locale}
-                                    courseId={course.id}
-                                    initial={{
-                                      slug: course.slug,
-                                      title: course.title,
-                                      subtitle: course.subtitle,
-                                      description: course.description,
-                                      status: course.status,
-                                      sortOrder: course.sortOrder,
-                                    }}
-                                    nextSortOrder={course.sortOrder}
-                                    iconOnly
-                                  />
-                                </SidebarAdminActions>
-                              ) : null}
-                            </div>
-                            {locked ? (
-                              <div className="mx-3 mt-2 border-t border-ink/10 pt-3">
-                                <CheckoutButton
-                                  courseSlug={course.slug}
-                                  locale={locale}
-                                  label={locale === "sr" ? "Plati" : "Pay"}
-                                  size="compact"
-                                />
-                              </div>
-                            ) : null}
-                          </motion.div>
-                        );
-                      })}
-                    </div>
-                  ))
-                : currentComingSoon ? (
-                    <div className="rounded-[12px] border-2 border-dashed border-line bg-paper p-3">
-                      <p className="text-sm font-black text-muted">
-                        {locale === "sr" ? "Lekcije za ovaj smer stizu uskoro." : "Lessons for this track are coming soon."}
-                      </p>
-                      {isAdmin ? (
-                        <p className="mt-1 text-xs font-bold text-muted">
-                          {locale === "sr" ? "Admin može odmah da doda lekcije." : "Admins can add lessons now."}
-                        </p>
-                      ) : null}
-                    </div>
-                  ) : currentLocked ? (
-                    <div className="rounded-[12px] border-2 border-line bg-paper p-3">
-                      <p className="text-sm font-black text-muted">
-                        {locale === "sr" ? "Smer je zakljucan dok ne platis pristup." : "This track is locked until payment."}
-                      </p>
-                      <div className="mt-3">
-                        <CheckoutButton
-                          courseSlug={currentCourse.slug}
-                          locale={locale}
-                          label={locale === "sr" ? "Plati" : "Pay"}
-                          size="compact"
-                        />
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      {directLessons.length ? null : (
-                        <p className="rounded-[12px] border-2 border-dashed border-line bg-paper p-3 text-xs font-black text-muted">
-                          {locale === "sr" ? "Kurs još nema lekcije." : "This course has no lessons yet."}
-                        </p>
-                      )}
-                      {directLessons.map((lesson, lessonIndex) => {
-                        const active = currentLessonSlug === lesson.slug;
-                        return (
-                          <motion.div key={lesson.id ?? lesson.slug} layout className={switcherRowShell(active)}>
-                            <Link
-                              href={lessonPath(locale, currentCourse.slug, lesson.slug)}
-                              onClick={() => setOpen(false)}
-                              aria-current={active ? "page" : undefined}
-                              className={switcherRowLink}
-                            >
-                              <span className={switcherLessonIcon(active)}>
-                                {active ? (
-                                  <PlayCircle aria-hidden="true" className="size-4" />
-                                ) : (
-                                  <span className="type-eyebrow-sm">{lessonIndex + 1}</span>
-                                )}
+                  return (
+                    <motion.div
+                      key={course.slug}
+                      layout
+                      whileHover={{ x: 2 }}
+                      className={cn(switcherRowShell(active), locked && "pb-3", isAdmin && canEditCourse && "pr-9")}
+                    >
+                      <div className="sidebar-action-row flex items-center gap-1">
+                        {comingSoon ? (
+                          <div className={cn(switcherRowLink, "text-muted")}>
+                            <span className={switcherRowIcon}>
+                              <GraduationCap className="size-4" />
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-ink">{localized(course.title, locale)}</span>
+                              <span className="mt-1 inline-flex rounded-full border border-line bg-paper-strong px-2 py-0.5 type-eyebrow-sm text-muted">
+                                {statusLabel}
                               </span>
-                              <span className="min-w-0 flex-1 truncate">{localized(lesson.title, locale)}</span>
-                              {active ? (
-                                <span className="shrink-0 rounded-full border-2 border-ink bg-paper-strong px-2 py-0.5 type-eyebrow-sm text-ink">
-                                  {locale === "sr" ? "Ovde si" : "You are here"}
-                                </span>
-                              ) : null}
-                              {isAdmin && !lesson.isPublished ? (
-                                <span className="shrink-0 rounded-full border border-ink bg-paper px-2 py-0.5 type-eyebrow-sm">
-                                  Nacrt
-                                </span>
-                              ) : null}
-                            </Link>
-                          </motion.div>
-                        );
-                      })}
-                      {isAdmin && currentCourse.id ? (
-                        <div className="border-t-2 border-line pt-2">
+                            </span>
+                          </div>
+                        ) : (
                           <Link
-                            href={withLocale(locale, "/app/admin")}
-                            className="inline-flex min-h-9 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-3 text-xs font-black"
+                            href={coursePath(locale, course.slug)}
+                            onClick={() => setOpen(null)}
+                            aria-current={active ? "page" : undefined}
+                            className={switcherRowLink}
                           >
-                            <CircleAlert className="size-3.5" />
-                            {locale === "sr" ? "Upravljaj lekcijama" : "Manage lessons"}
+                            <span className={switcherRowIcon}>
+                              {locked ? <Lock className="size-4" /> : <GraduationCap className="size-4" />}
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate">{localized(course.title, locale)}</span>
+                              <span className="mt-1 inline-flex items-center gap-1 rounded-full border border-line bg-paper-strong px-2 py-0.5 type-eyebrow-sm text-muted">
+                                {locked ? <Lock className="size-3" /> : <ShieldCheck className="size-3" />}
+                                {statusLabel}
+                              </span>
+                            </span>
+                            {locked ? <Lock className="size-4 shrink-0" /> : <ChevronRight className="size-4 shrink-0" />}
                           </Link>
+                        )}
+                        {isAdmin && canEditCourse ? (
+                          <SidebarAdminActions className="absolute right-2 top-2">
+                            <EditCourseAction
+                              locale={locale}
+                              courseId={course.id}
+                              initial={{
+                                slug: course.slug,
+                                title: course.title,
+                                subtitle: course.subtitle,
+                                description: course.description,
+                                status: course.status,
+                                sortOrder: course.sortOrder,
+                              }}
+                              nextSortOrder={course.sortOrder}
+                              iconOnly
+                            />
+                          </SidebarAdminActions>
+                        ) : null}
+                      </div>
+                      {locked ? (
+                        <div className="mx-3 mt-2 border-t border-ink/10 pt-3">
+                          <CheckoutButton
+                            courseSlug={course.slug}
+                            locale={locale}
+                            label={tr(locale, "Plati", "Pay")}
+                            size="compact"
+                          />
                         </div>
                       ) : null}
-                    </>
+                    </motion.div>
+                  );
+                })
+              ) : currentComingSoon ? (
+                <div className="surface-inset border-2 border-dashed border-line bg-paper p-3">
+                  <p className="text-sm font-black text-muted">
+                    {tr(locale, "Lekcije za ovaj kurs stižu uskoro.", "Lessons for this course are coming soon.")}
+                  </p>
+                  {isAdmin ? (
+                    <p className="mt-1 text-xs font-bold text-muted">
+                      {tr(locale, "Admin može odmah da doda lekcije.", "Admins can add lessons now.")}
+                    </p>
+                  ) : null}
+                </div>
+              ) : currentLocked ? (
+                <div className="surface-inset border-2 border-line bg-paper p-3">
+                  <p className="text-sm font-black text-muted">
+                    {tr(locale, "Kurs je zaključan dok ne platiš pristup.", "This course is locked until payment.")}
+                  </p>
+                  <div className="mt-3">
+                    <CheckoutButton
+                      courseSlug={currentCourse.slug}
+                      locale={locale}
+                      label={tr(locale, "Plati", "Pay")}
+                      size="compact"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {directLessons.length ? null : (
+                    <p className="surface-inset border-2 border-dashed border-line bg-paper p-3 text-xs font-black text-muted">
+                      {tr(locale, "Kurs još nema lekcije.", "This course has no lessons yet.")}
+                    </p>
                   )}
+                  {directLessons.map((lesson, lessonIndex) => {
+                    const active = currentLessonSlug === lesson.slug;
+                    return (
+                      <motion.div key={lesson.id ?? lesson.slug} layout className={switcherRowShell(active)}>
+                        <Link
+                          href={lessonPath(locale, currentCourse.slug, lesson.slug)}
+                          onClick={() => setOpen(null)}
+                          aria-current={active ? "page" : undefined}
+                          className={switcherRowLink}
+                        >
+                          <span className={switcherLessonIcon(active)}>
+                            {active ? (
+                              <PlayCircle aria-hidden="true" className="size-4" />
+                            ) : (
+                              <span className="type-eyebrow-sm">{lessonIndex + 1}</span>
+                            )}
+                          </span>
+                          <span className="min-w-0 flex-1 truncate">{localized(lesson.title, locale)}</span>
+                          {active ? (
+                            <span className="shrink-0 rounded-full border-2 border-ink bg-paper-strong px-2 py-0.5 type-eyebrow-sm text-ink">
+                              {tr(locale, "Ovde si", "You are here")}
+                            </span>
+                          ) : null}
+                          {isAdmin && !lesson.isPublished ? (
+                            <span className="shrink-0 rounded-full border border-ink bg-paper px-2 py-0.5 type-eyebrow-sm">
+                              {tr(locale, "Nacrt", "Draft")}
+                            </span>
+                          ) : null}
+                        </Link>
+                      </motion.div>
+                    );
+                  })}
+                  {isAdmin && currentCourse.id ? (
+                    <div className="border-t-2 border-line pt-2">
+                      <Link
+                        href={withLocale(locale, "/app/admin")}
+                        className="inline-flex min-h-9 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-3 text-xs font-black"
+                      >
+                        <CircleAlert className="size-3.5" />
+                        {tr(locale, "Upravljaj lekcijama", "Manage lessons")}
+                      </Link>
+                    </div>
+                  ) : null}
+                </>
+              )}
             </div>
           </motion.div>
         ) : null}
       </AnimatePresence>
+    </div>
+  );
+}
+
+/**
+ * Student bez ijednog upisanog kursa nema šta da bira u putanji — dobija jedan red koji
+ * vodi u Učionicu, gde smerovi i kursevi i stoje.
+ */
+function ChooseTrackRow({ locale }: { locale: Locale }) {
+  return (
+    <div className="sidebar-reveal mt-5 md:mt-8">
+      <Link
+        href={classroomPath(locale)}
+        className="flex min-h-11 items-center gap-3 surface-inset border-2 border-line bg-paper-strong px-3 py-2 text-sm font-black text-ink transition hover:border-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+      >
+        <span className={switcherRowIcon}>
+          <Compass className="size-4" />
+        </span>
+        <span className="min-w-0 flex-1 truncate">{tr(locale, "Izaberi smer", "Choose a track")}</span>
+        <ChevronRight className="size-4 shrink-0" />
+      </Link>
     </div>
   );
 }
@@ -1020,6 +1077,13 @@ function AppSidebarContent({
   );
   const isAdmin = navigation.role === "admin";
   const isStaff = isAdmin || navigation.role === "moderator";
+  // Putanja SMER > KURS > LEKCIJA ima smisla samo kad postoji kurs koji je STVARNO tvoj.
+  // `currentCourse` pada na `courses[0]` i kad student nema nijedan upis, pa bi bez ove
+  // provere neupisan student u sidebaru gledao hijerarhiju tuđeg kursa; on umesto toga
+  // dobija jedan red „Izaberi smer". Ruta u konkretnom kursu uvek pobeđuje.
+  const showLearningPath =
+    Boolean(currentCourse) &&
+    (isAdmin || Boolean(params.courseSlug) || courses.some((course) => course.hasAccess));
   const rootRef = useRef<HTMLElement>(null);
   const shouldReduceMotion = useReducedMotion();
 
@@ -1505,15 +1569,17 @@ function AppSidebarContent({
               params={contextParams}
               badges={contextBadges}
               leading={
-                sidebarContext.id === "classroom" && currentCourse ? (
-                  <LearningSwitcher
+                sidebarContext.id !== "classroom" ? undefined : showLearningPath && currentCourse ? (
+                  <LearningPath
                     locale={locale}
                     courses={courses}
                     currentCourse={currentCourse}
                     currentLessonSlug={params.lessonSlug}
                     isAdmin={isAdmin}
                   />
-                ) : undefined
+                ) : (
+                  <ChooseTrackRow locale={locale} />
+                )
               }
             />
           }
@@ -1692,32 +1758,41 @@ function AppSidebarContent({
               params={contextParams}
               badges={contextBadges}
               leading={
-                sidebarContext.id === "classroom" && currentCourse ? (
+                // Skupljeno stanje: ceo blok se svodi na JEDNU ikonicu koja otvara isti
+                // popover. Bez upisanog kursa ta ikonica vodi pravo u Učionicu — isti
+                // ishod kao red „Izaberi smer" u proširenom stanju.
+                sidebarContext.id !== "classroom" ? undefined : showLearningPath && currentCourse ? (
                   <RailAction
-                    label={`${localized(currentCourse.title, locale)} · ${t.lessons}`}
+                    label={tr(locale, "Smer, kurs i lekcija", "Track, course and lesson")}
                     icon={<GraduationCap className="size-5" />}
                     expanded={railFlyout === "learning"}
                     onClick={() => setRailFlyout((value) => (value === "learning" ? null : "learning"))}
                   />
-                ) : undefined
+                ) : (
+                  <RailAction
+                    href={classroomPath(locale)}
+                    label={tr(locale, "Izaberi smer", "Choose a track")}
+                    icon={<Compass className="size-5" />}
+                  />
+                )
               }
             />
           }
         />
 
-        {railFlyout === "learning" && currentCourse ? (
+        {railFlyout === "learning" && showLearningPath && currentCourse ? (
           <div className="absolute left-[calc(100%_+_32px)] top-20 z-[70] max-h-[calc(100vh_-_140px)] w-[380px] max-w-[calc(100vw_-_112px)] overflow-y-auto overflow-x-hidden rounded-[16px] border-2 border-ink bg-paper-strong p-4 text-ink shadow-[10px_10px_0_var(--shadow-hard-16)]">
             <div className="flex items-center justify-between gap-3 border-b border-line pb-3">
-              <p className="text-sm font-black">{locale === "sr" ? "Kurs i lekcije" : "Course and lessons"}</p>
+              <p className="text-sm font-black">{tr(locale, "Smer, kurs i lekcija", "Track, course and lesson")}</p>
               <button type="button" aria-label={locale === "sr" ? "Zatvori" : "Close"} onClick={() => setRailFlyout(null)} className="inline-flex size-9 items-center justify-center border border-line bg-paper text-ink"><X className="size-4" /></button>
             </div>
-            <LearningSwitcher
+            <LearningPath
               locale={locale}
               courses={courses}
               currentCourse={currentCourse}
               currentLessonSlug={params.lessonSlug}
               isAdmin={isAdmin}
-              initiallyOpen
+              initialLevel={params.lessonSlug ? "lesson" : "course"}
             />
           </div>
         ) : null}

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { courses as staticCourses } from "@/lib/content";
 import {
+  catalogCourseLoop,
   catalogPriceLabel,
   courseLengthLabel,
   formatCourseCount,
@@ -224,5 +225,17 @@ describe("catalogPriceLabel", () => {
 
   it("returns null for a course that exists only in Convex", () => {
     expect(catalogPriceLabel("kurs-koji-ne-postoji-u-content-ts")).toBeNull();
+  });
+});
+
+describe("catalogCourseLoop", () => {
+  it("reads the same loop the public course card plays", () => {
+    const withLoop = staticCourses.find((course) => course.image.loop);
+    expect(withLoop).toBeDefined();
+    expect(catalogCourseLoop(withLoop!.slug)).toEqual(withLoop!.image.loop);
+  });
+
+  it("returns null for a course that exists only in Convex", () => {
+    expect(catalogCourseLoop("kurs-koji-ne-postoji-u-content-ts")).toBeNull();
   });
 });
