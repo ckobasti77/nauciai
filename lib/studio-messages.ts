@@ -471,7 +471,6 @@ export const STUDIO_SHELL = {
   signIn: { sr: "Prijavi se", en: "Sign in" },
   backToStudio: { sr: "Nazad u Studio", en: "Back to the Studio" },
   crossSell: { sr: "Nauči kako ovo da radiš → kursevi", en: "Learn how to make this → courses" },
-  localeSwitch: { sr: "Switch to English", en: "Prebaci na srpski" },
 } satisfies Record<string, Record<Locale, string>>;
 
 /**

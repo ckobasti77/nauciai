@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { SuspensionGate } from "@/components/app/suspension-gate";
 import { ThemeToggle } from "@/components/app/theme-toggle";
 import { AccountMenu } from "@/components/marketing/account-menu";
+import { LanguageToggle } from "@/components/marketing/language-toggle";
 import { BrandMark, LinkButton } from "@/components/ui/primitives";
 import { getAppGateState } from "@/lib/app-gates";
 import { getCurrentViewerProfile } from "@/lib/current-viewer";
@@ -47,13 +48,7 @@ export async function StudioShell({ locale, children }: { locale: Locale; childr
               {STUDIO_SHELL.crossSell[locale]}
             </Link>
             <ThemeToggle locale={locale} />
-            <Link
-              href={withLocale(otherLocale(locale), "/studio/app")}
-              aria-label={STUDIO_SHELL.localeSwitch[locale]}
-              className="rounded-full type-body-sm font-black uppercase text-muted hover:text-ink focus-visible:outline-2 outline-offset-2 outline-ink"
-            >
-              {otherLocale(locale)}
-            </Link>
+            <LanguageToggle locale={locale} href={withLocale(otherLocale(locale), "/studio/app")} />
             {viewerProfile ? (
               <AccountMenu locale={locale} profile={viewerProfile} />
             ) : (
