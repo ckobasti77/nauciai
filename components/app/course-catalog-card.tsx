@@ -87,7 +87,7 @@ export function CourseCatalogCard({
         className="absolute inset-0 z-0"
       />
       <div className="pointer-events-none relative z-10 p-3">
-        <div className={cn("relative aspect-[16/9] overflow-hidden surface-media border-2 border-ink", mediaBg)}>
+        <div className={cn("relative aspect-[16/9] overflow-hidden surface-media shadow-[inset_0_0_0_1px_var(--shadow-hard-14)]", mediaBg)}>
           <CourseCover course={course} locale={locale} loop={loop} />
           {/* Zaključan kurs se ne sivi i ne zatamnjuje — na naslovnu sliku ide postojeća
               školska šrafura (`ink-hatch`, mastilo na 8%). Slika ostaje u boji i ostaje
@@ -118,7 +118,7 @@ export function CourseCatalogCard({
         </p>
 
         {topics.length ? (
-          <div className="surface-inset border-2 border-line bg-paper px-3 py-3">
+          <div className="surface-inset border border-line bg-paper px-3 py-3">
             <p className="type-eyebrow text-muted">{tr(locale, "Šta se uči", "What you learn")}</p>
             <ul className="mt-2 space-y-1.5">
               {topics.map((lesson) => (
@@ -211,7 +211,7 @@ export function CourseCatalogRow({
         {/* <div>, ne <span>: CourseCover u fallback grani renderuje <div>.
             `compact`: kutija je ~36px visoka, pa placeholder ide na sitni krug —
             veliki (56px) se u ovoj kutiji odsecao u prazno. */}
-        <div className="relative aspect-[16/9] w-16 shrink-0 overflow-hidden surface-media border-2 border-ink bg-paper sm:w-24">
+        <div className="relative aspect-[16/9] w-16 shrink-0 overflow-hidden surface-media border border-line bg-paper sm:w-24">
           <CourseCover course={course} locale={locale} compact />
         </div>
         <span className="min-w-0 flex-1">

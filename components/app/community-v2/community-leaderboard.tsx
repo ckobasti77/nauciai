@@ -2,9 +2,12 @@
 
 import { Award, BookOpenCheck, CheckCircle2, ChevronDown, Crown, HelpCircle, Medal, Sparkles, Trophy } from "lucide-react";
 import Link from "next/link";
+import type { CSSProperties } from "react";
 
+import { useEnterOnView } from "@/components/app/community-gamification";
 import { CommunityAvatar } from "@/components/app/community-identity";
 import { cn } from "@/components/ui/primitives";
+import { podiumAccentVar } from "@/lib/community-gamification";
 import type { Locale } from "@/lib/i18n";
 import { withLocale } from "@/lib/i18n";
 
@@ -85,12 +88,22 @@ function RankIcon({ rank }: { rank: number }) {
 }
 
 function PodiumCard({ locale, row }: { locale: Locale; row: LeaderboardRow }) {
+  // N12: prva tri mesta nose BLAG gradijent svog akcenta — jedan potez odozgo, koji
+  // se gubi pre polovine kartice, pa tekst i dalje leži na papiru (kontrast se ne
+  // menja ni u jednoj temi). Van prva tri mesta gradijenta nema.
+  const accent = podiumAccentVar(row.rank);
+
   return (
     <Link
       href={row.username ? withLocale(locale, `/app/members/${row.username}`) : "#"}
       aria-disabled={!row.username}
+      style={
+        accent
+          ? { backgroundImage: `linear-gradient(160deg, color-mix(in srgb, ${accent} 26%, transparent), transparent 58%)` }
+          : undefined
+      }
       className={cn(
-        "relative overflow-hidden rounded-[16px] border bg-paper-strong p-4 text-center transition-colors hover:border-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+        "relative overflow-hidden surface-card border bg-paper-strong p-4 text-center transition-colors hover:border-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
         row.rank === 1
           ? "border-2 border-ink shadow-[5px_5px_0_var(--yellow)] md:-translate-y-3"
           : "border-line",
@@ -127,11 +140,16 @@ function PodiumCard({ locale, row }: { locale: Locale; row: LeaderboardRow }) {
   );
 }
 
-function LeaderboardRowItem({ locale, row }: { locale: Locale; row: LeaderboardRow }) {
+function LeaderboardRowItem({ locale, row, index, entered }: { locale: Locale; row: LeaderboardRow; index?: number; entered?: boolean }) {
   return (
     <li
+      // Ulaz reda: kašnjenje nosi `--row-index` (30 ms po redu), a klasa se pojavi
+      // tek kad lista uđe u kadar. Pod `prefers-reduced-motion` CSS pravila nema,
+      // pa red stoji odmah na svom mestu (N12).
+      style={entered ? ({ "--row-index": index ?? 0 } as CSSProperties) : undefined}
       className={cn(
         "grid min-h-16 grid-cols-[42px_minmax(0,1fr)_auto] items-center gap-3 border-b border-line px-3 py-3 last:border-b-0 sm:grid-cols-[52px_minmax(0,1fr)_100px_100px]",
+        entered && "community-rank-row",
         row.isViewer && "bg-yellow/18",
       )}
     >
@@ -190,6 +208,9 @@ function LeaderboardView({
   loadingMore: boolean;
   onLoadMore?: () => void;
 }) {
+  // Jedan `IntersectionObserver` po LISTI (ne po redu) — feed ne sme da nosi
+  // observer po kartici, a bez njega bi se ulaz odigrao van kadra.
+  const { containerRef: rankListRef, entered: rankRowsEntered } = useEnterOnView<HTMLDivElement>();
   const podiumRows = rows.filter((row) => row.rank <= 3).slice(0, 3);
   const remainingRows = rows.filter((row) => !podiumRows.some((podium) => podium.userId === row.userId));
   const viewerOutsidePage = viewer?.row && !rows.some((row) => row.userId === viewer.row?.userId) ? viewer.row : null;
@@ -250,14 +271,14 @@ function LeaderboardView({
             ) : null}
 
             {rows.length ? (
-              <div className="overflow-hidden rounded-[16px] border border-ink bg-paper-strong">
+              <div ref={rankListRef} className="overflow-hidden surface-card border border-ink bg-paper-strong">
                 <div className="hidden grid-cols-[52px_minmax(0,1fr)_100px_100px] gap-3 border-b border-ink bg-ink/5 dark:bg-ink/10 px-3 py-2 type-eyebrow-sm text-muted sm:grid">
                   <span>{locale === "sr" ? "Rang" : "Rank"}</span>
                   <span>{locale === "sr" ? "Član" : "Member"}</span>
                   <span className="text-right">{locale === "sr" ? "Lekcije" : "Lessons"}</span>
                   <span className="text-right">XP</span>
                 </div>
-                <ol>{remainingRows.map((row) => <LeaderboardRowItem key={row.userId} locale={locale} row={row} />)}</ol>
+                <ol>{remainingRows.map((row, index) => <LeaderboardRowItem key={row.userId} locale={locale} row={row} index={index} entered={rankRowsEntered} />)}</ol>
               </div>
             ) : (
               <EmptyCommunityState

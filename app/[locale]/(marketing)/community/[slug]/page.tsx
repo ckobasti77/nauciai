@@ -364,7 +364,9 @@ export default async function PublicCommunityThreadPage({
                     level={1}
                     className="group flex items-stretch gap-4 p-4 transition-[transform,translate,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[8px_8px_0_0_var(--shadow-hard-18)] active:translate-y-0 sm:p-5"
                   >
-                    <div className="flex shrink-0 flex-col items-center justify-center rounded-[12px] border-2 border-ink bg-surface-a px-2.5 py-2 text-ink shadow-[2px_2px_0_0_var(--shadow-hard-10)] sm:min-w-12">
+                    {/* Panel nosi pun okvir grupe; brojac glasova se odvaja pozadinom
+                        i tankom linijom (N12). */}
+                    <div className="surface-inset flex shrink-0 flex-col items-center justify-center border border-line bg-surface-a px-2.5 py-2 text-ink sm:min-w-12">
                       <ArrowUp className="size-4 stroke-[3] text-ink" aria-hidden="true" />
                       <span className="text-xs font-black tabular-nums">{otherPost.voteScore}</span>
                     </div>

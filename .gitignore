@@ -51,3 +51,6 @@ _to_delete/
 
 # Privremeni kontakt-šitovi iz asistenta — ne pripadaju repou
 Claude outputs/
+
+# Snimci i logovi Playwright MCP pregledaca (verifikacija u browseru) — ne u repo
+.playwright-mcp/

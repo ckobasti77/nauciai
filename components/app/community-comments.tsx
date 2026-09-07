@@ -18,6 +18,7 @@ import type { CSSProperties, FormEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
+import { VoteScore } from "@/components/app/community-gamification";
 import { CommunityAvatar, formatCommunityTime, type CommunityRank, type CommunityRole } from "@/components/app/community-identity";
 import { ConfirmDialog } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -197,7 +198,9 @@ export function CommentsSection({
           }
         />
       ) : (
-        <div className="space-y-4" aria-live="polite">
+        /* N12: lista komentara se odvaja tankom linijom `--line`, ne okvirom po
+           komentaru — panel oko liste vec nosi pun okvir grupe. */
+        <div aria-live="polite">
           {comments.map((comment) => (
             <CommentItem
               key={comment._id}
@@ -353,12 +356,20 @@ function CommentItem({
   }
 
   return (
-    <div className="space-y-3">
+    // Razdelnik nosi SAM red, ne `divide-y` na listi: pored redova u listi stoji i
+    // dugme „Prikaži još", a `divide-y` bi mu nacrtalo liniju iznad (siroku koliko
+    // dugme), ne razdelnik liste.
+    <div className="space-y-3 border-t border-line py-4 first:border-t-0 first:pt-0 last:pb-0">
       <article
         ref={cardRef}
         id={`comment-${node._id}`}
         data-comment-card
-        className={cn("group rounded-[16px] border bg-paper-strong p-4 transition", node.isHelpful ? "border-ink shadow-[4px_4px_0_0_var(--yellow)]" : "border-line hover:border-ink/30", highlighted && "ring-4 ring-yellow/70 ring-offset-2")}
+        // N12: komentar vise ne nosi svoj okvir (lista je bila rešetka). „Koristan
+        // odgovor" se i dalje razlikuje — sada POVRŠINOM (žuto ostrvo sa tankom
+        // linijom) umesto punog okvira sa tvrdom senkom.
+        // `ring-offset-*` je namerno OTIŠAO uz okvir: podrazumevana boja odstojanja
+        // je bela, a kartica više ne crta svoju pozadinu preko koje bi je pokrila.
+        className={cn("group transition", node.isHelpful && "surface-inset border border-line bg-yellow/15 p-3 dark:bg-yellow/10", highlighted && "surface-inset bg-yellow/20 p-3 ring-2 ring-yellow")}
       >
         <div className="flex items-start gap-3">
           <Link href={node.authorUsername ? withLocale(locale, `/app/members/${node.authorUsername}`) : "#"} aria-disabled={!node.authorUsername} className="shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
@@ -383,7 +394,10 @@ function CommentItem({
             <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-black text-ink">
               <div className="inline-flex items-center gap-0.5 rounded-full border border-line bg-paper-strong p-0.5">
                 <button type="button" onClick={() => void run("upvote", () => onReact(node._id, "upvote"))} disabled={!isAuthenticated || !canInteract || busy !== null} aria-label={locale === "sr" ? "Upvote komentara" : "Upvote comment"} aria-pressed={node.userVote === "upvote"} className={cn("grid size-11 place-items-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-40 sm:size-8", node.userVote === "upvote" ? "bg-yellow text-ink" : "text-muted hover:bg-yellow/20 hover:text-ink")}><ArrowUp className="size-3.5" /></button>
-                <span className={cn("min-w-7 text-center text-xs font-black tabular-nums", (node.voteScore ?? 0) < 0 && "text-red-700")} aria-label={locale === "sr" ? `${node.voteScore ?? 0} neto glasova` : `${node.voteScore ?? 0} net votes`}>{node.voteScore ?? 0}</span>
+                {/* N12: glas na TVOJ komentar prebroji broj nagore i sevne iskrom. */}
+                <VoteScore locale={locale} value={node.voteScore ?? 0} celebrate={Boolean(viewerUserId) && node.authorId === viewerUserId} className={cn("min-w-7 text-center text-xs font-black", (node.voteScore ?? 0) < 0 && "text-red-700")}>
+                  <span className="sr-only"> {locale === "sr" ? "neto glasova" : "net votes"}</span>
+                </VoteScore>
                 <button type="button" onClick={() => void run("downvote", () => onReact(node._id, "downvote"))} disabled={!isAuthenticated || !canInteract || busy !== null} aria-label={locale === "sr" ? "Downvote komentara" : "Downvote comment"} aria-pressed={node.userVote === "downvote"} className={cn("grid size-11 place-items-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-40 sm:size-8", node.userVote === "downvote" ? "bg-red-100 text-red-700" : "text-muted hover:bg-red-50 hover:text-red-700")}><ArrowDown className="size-3.5" /></button>
               </div>
               {isAuthenticated && canInteract ? <button type="button" onClick={() => setShowReplyForm((value) => !value)} aria-expanded={showReplyForm} className={cn("inline-flex min-h-11 sm:min-h-9 items-center rounded-full px-3 text-ink/60 transition hover:bg-ink/5 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink", showReplyForm && "bg-yellow/20 text-ink")}>{locale === "sr" ? "Odgovori" : "Reply"}</button> : null}
@@ -404,5 +418,5 @@ function CommentItem({
 function CommentReplies({ id, postId, parentId, locale, isAuthenticated, canModerate, canMarkHelpful, canInteract, viewerUserId, depth, collapseSignal, expandLoadedSignal, isExpanded, onReact, onSetHelpful, onDelete, onReply, onError }: { id: string; postId: string; parentId: string; locale: Locale; isAuthenticated: boolean; canModerate: boolean; canMarkHelpful: boolean; canInteract: boolean; viewerUserId?: string; depth: number; collapseSignal: number; expandLoadedSignal: number; isExpanded: boolean; onReact: (commentId: string, vote: "upvote" | "downvote") => Promise<unknown>; onSetHelpful: (commentId: string, helpful: boolean) => Promise<unknown>; onDelete: (commentId: string) => void; onReply: (commentId: string, text: string) => Promise<unknown>; onError: () => void }) {
   const repliesQuery = usePaginatedQuery(api.community.listRepliesPage, isAuthenticated ? { postId: postId as Id<"communityPosts">, parentId: parentId as Id<"comments"> } : "skip", { initialNumItems: 3 });
   const replies = repliesQuery.results as FlatComment[];
-  return <div id={id} hidden={!isExpanded} className={cn("mt-3 space-y-3", depth <= 4 && "border-l-2 border-ink/20 pl-3 md:pl-4 ms-[calc(var(--comment-depth)*10px)] md:ms-[calc(var(--comment-depth)*12px)]")} style={{ "--comment-depth": depth } as CSSProperties}>{repliesQuery.status === "LoadingFirstPage" ? <div className="flex items-center gap-2 py-3 text-xs font-bold text-muted"><Spinner />{locale === "sr" ? "Učitavanje odgovora…" : "Loading replies…"}</div> : replies.map((reply) => <CommentItem key={reply._id} node={reply} depth={depth} locale={locale} isAuthenticated={isAuthenticated} canModerate={canModerate} canMarkHelpful={canMarkHelpful} canInteract={canInteract} viewerUserId={viewerUserId} postId={postId} collapseSignal={collapseSignal} expandLoadedSignal={expandLoadedSignal} isExpanded={false} onReact={onReact} onSetHelpful={onSetHelpful} onDelete={onDelete} onReply={onReply} onError={onError} />)}{repliesQuery.status === "CanLoadMore" || repliesQuery.status === "LoadingMore" ? <button type="button" onClick={() => repliesQuery.loadMore(5)} disabled={repliesQuery.status === "LoadingMore"} className="inline-flex min-h-11 items-center justify-center rounded-full border border-line bg-paper-strong px-3 text-xs font-black text-ink transition hover:border-ink active:translate-y-px focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-60">{repliesQuery.status === "LoadingMore" ? locale === "sr" ? "Učitavanje…" : "Loading…" : locale === "sr" ? "Prikaži još" : "Show more"}</button> : null}</div>;
+  return <div id={id} hidden={!isExpanded} className={cn("mt-3", depth <= 4 && "border-l-2 border-line pl-3 md:pl-4 ms-[calc(var(--comment-depth)*10px)] md:ms-[calc(var(--comment-depth)*12px)]")} style={{ "--comment-depth": depth } as CSSProperties}>{repliesQuery.status === "LoadingFirstPage" ? <div className="flex items-center gap-2 py-3 text-xs font-bold text-muted"><Spinner />{locale === "sr" ? "Učitavanje odgovora…" : "Loading replies…"}</div> : replies.map((reply) => <CommentItem key={reply._id} node={reply} depth={depth} locale={locale} isAuthenticated={isAuthenticated} canModerate={canModerate} canMarkHelpful={canMarkHelpful} canInteract={canInteract} viewerUserId={viewerUserId} postId={postId} collapseSignal={collapseSignal} expandLoadedSignal={expandLoadedSignal} isExpanded={false} onReact={onReact} onSetHelpful={onSetHelpful} onDelete={onDelete} onReply={onReply} onError={onError} />)}{repliesQuery.status === "CanLoadMore" || repliesQuery.status === "LoadingMore" ? <button type="button" onClick={() => repliesQuery.loadMore(5)} disabled={repliesQuery.status === "LoadingMore"} className="inline-flex min-h-11 items-center justify-center rounded-full border border-line bg-paper-strong px-3 text-xs font-black text-ink transition hover:border-ink active:translate-y-px focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-60">{repliesQuery.status === "LoadingMore" ? locale === "sr" ? "Učitavanje…" : "Loading…" : locale === "sr" ? "Prikaži još" : "Show more"}</button> : null}</div>;
 }

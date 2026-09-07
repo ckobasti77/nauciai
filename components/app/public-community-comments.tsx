@@ -7,7 +7,7 @@ import { useState } from "react";
 
 import { initialsFromName } from "@/components/app/community-identity";
 import { SectionMarginalia } from "@/components/marketing/section-marginalia";
-import { LinkButton, Panel, SketchIcon } from "@/components/ui/primitives";
+import { LinkButton, SketchIcon } from "@/components/ui/primitives";
 import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -79,7 +79,10 @@ export function PublicCommunityComments({
           <span>{t.loading}</span>
         </div>
       ) : comments.length ? (
-        <ol className="mt-6 space-y-5">
+        /* N12: lista komentara vise nije mreza kartica. Panel oko nje vec nosi pun
+           okvir grupe, pa se komentari odvajaju tankom linijom `--line` — bez
+           sopstvenog okvira i bez sopstvene senke. */
+        <ol className="mt-6 divide-y divide-line">
           {comments.map((comment) => (
             <PublicCommentNode
               key={comment._id}
@@ -110,7 +113,9 @@ export function PublicCommunityComments({
         </button>
       ) : null}
 
-      <Panel className="mt-8 border-2 border-ink bg-paper p-6 text-center shadow-[4px_4px_0_0_var(--shadow-hard-13)] sm:p-8">
+      {/* Poziv na prijavu sedi UNUTAR panela komentara, pa se odvaja pozadinom i
+          tankom linijom umesto drugim punim okvirom (N12). */}
+      <div className="surface-inset mt-8 border border-line bg-surface-a p-6 text-center sm:p-8">
         <p className="text-base font-black text-ink sm:text-lg">{t.signInBannerText}</p>
         <div className="mt-4">
           <LinkButton
@@ -122,7 +127,7 @@ export function PublicCommunityComments({
             <span>{t.signInToReply}</span>
           </LinkButton>
         </div>
-      </Panel>
+      </div>
     </div>
   );
 }
@@ -148,7 +153,7 @@ function PublicCommentNode({
   );
 
   return (
-    <li className="rounded-[16px] border-2 border-ink bg-paper-strong p-5 shadow-[4px_4px_0_0_var(--shadow-hard-10)]">
+    <li className="py-5 first:pt-0 last:pb-0">
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-black text-muted">
         <div className="flex items-center gap-2">
           {comment.authorAvatarUrl ? (
@@ -237,20 +242,22 @@ function PublicReplies({
   const replies = query.results.length ? (query.results as PublicComment[]) : initialReplies;
 
   return (
-    <div className="mt-4 space-y-4 border-l-2 border-line pl-4 sm:pl-6">
+    <div className="mt-4 border-l-2 border-line pl-4 sm:pl-6">
       {query.status === "LoadingFirstPage" && replies.length === 0 ? (
         <div className="py-2">
           <Spinner className="text-yellow" />
         </div>
       ) : (
-        replies.map((reply) => (
-          <PublicCommentNode
-            key={reply._id}
-            postId={postId}
-            comment={reply}
-            locale={locale}
-          />
-        ))
+        <ol className="divide-y divide-line">
+          {replies.map((reply) => (
+            <PublicCommentNode
+              key={reply._id}
+              postId={postId}
+              comment={reply}
+              locale={locale}
+            />
+          ))}
+        </ol>
       )}
 
       {query.status === "CanLoadMore" || query.status === "LoadingMore" ? (

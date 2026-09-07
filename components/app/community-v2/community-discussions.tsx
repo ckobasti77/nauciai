@@ -8,6 +8,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/components/ui/primitives";
 import { CommentsSection } from "@/components/app/community-comments";
+import { VoteScore } from "@/components/app/community-gamification";
 import { api } from "@/convex/_generated/api";
 import { useToast } from "@/components/ui/toast-provider";
 import type { Locale } from "@/lib/i18n";
@@ -267,10 +268,16 @@ function DiscussionsView({
               >
                 <ArrowBigUp className={cn("size-[18px] fill-transparent", post.userVote === "upvote" && "fill-emerald-500 text-emerald-600")} />
               </button>
-              <span className={cn("min-w-8 text-center type-caption font-black tabular-nums", (post.voteScore ?? 0) < 0 && "text-red-700")}>
-                {post.voteScore ?? 0}
+              {/* N12: kad tvoja tema dobije glas dok si na strani, broj se prebroji
+                  nagore i jednom sevne iskra. Tuđi brojač se menja bez animacije. */}
+              <VoteScore
+                locale={locale}
+                value={post.voteScore ?? 0}
+                celebrate={Boolean(post.authorId) && post.authorId === filters.viewer.userId}
+                className={cn("min-w-8 text-center type-caption font-black", (post.voteScore ?? 0) < 0 && "text-red-700")}
+              >
                 <span className="sr-only"> {locale === "sr" ? "neto glasova" : "net votes"}</span>
-              </span>
+              </VoteScore>
               <button
                 type="button"
                 disabled={!canInteract || !onReactPost}

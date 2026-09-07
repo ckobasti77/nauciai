@@ -1441,7 +1441,7 @@ export function AddCourseAction({
                                       );
                                     })
                                   ) : (
-                                    <p className="rounded-[8px] border-2 border-dashed border-line bg-paper p-3 text-xs font-black text-muted">
+                                    <p className="surface-media border border-dashed border-line bg-paper p-3 text-xs font-black text-muted">
                                       {t(locale, "Nema lekcija u ovom ciklusu.", "No lessons in this cycle.")}
                                     </p>
                                   )}
@@ -2137,7 +2137,7 @@ export function AddModuleAction({
                                       )}
                                     </div>
                                   ) : (
-                                    <p className="rounded-[8px] border-2 border-dashed border-line bg-paper p-3 text-xs font-black text-muted">
+                                    <p className="surface-media border border-dashed border-line bg-paper p-3 text-xs font-black text-muted">
                                       {t(locale, "Nema dodatnih delova u ovoj lekciji.", "No extra items in this lesson.")}
                                     </p>
                                   )}

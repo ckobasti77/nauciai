@@ -21,6 +21,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
 import { openChatDock } from "@/components/app/chat/chat-dock";
+import { CommunityBadgeRow, LevelMeter } from "@/components/app/community-gamification";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Field, Textarea } from "@/components/ui/field";
 import { cn } from "@/components/ui/primitives";
 import { Spinner } from "@/components/ui/spinner";
+import { activityStreakDays, activityTotal, communityBadges } from "@/lib/community-gamification";
 import type { Locale } from "@/lib/i18n";
 import { t, withLocale } from "@/lib/i18n";
 
@@ -79,7 +81,7 @@ function ActivityHeatmap({ activity, locale }: { activity: { days: Array<{ dayKe
   const shades = ["bg-[#edf3f8] dark:bg-ink/10", "bg-[#b9d3e8] dark:bg-ink/30", "bg-[#70a7cf] dark:bg-ink/55", "bg-blue-mid dark:bg-ink/80", "bg-ink"];
 
   return (
-    <section className="rounded-[16px] border-2 border-line bg-paper-strong p-4 shadow-[4px_4px_0_0_var(--shadow-hard-08)] sm:p-6">
+    <section className="surface-card border-2 border-line bg-paper-strong p-4 shadow-[4px_4px_0_0_var(--shadow-hard-08)] sm:p-6">
       <div className="flex items-center justify-between gap-4">
         <div>
           <p className="font-display type-display-sm text-ink">{t(locale, "Aktivnost", "Activity")}</p>
@@ -116,7 +118,7 @@ function FollowDialogShell({ title, username, rows, status, loadMore, locale, on
   return (
     <Dialog open onClose={onClose} align="sheet" title={title} description={`@${username}`} closeLabel={t(locale, "Zatvori", "Close")} contentClassName="space-y-2">
       {rows.map((row) => row.username ? (
-        <Link key={row.userId} href={withLocale(locale, `/app/members/${row.username}`)} onClick={onClose} className="flex items-center gap-3 rounded-[16px] border-2 border-line bg-paper-strong p-3 transition hover:border-ink">
+        <Link key={row.userId} href={withLocale(locale, `/app/members/${row.username}`)} onClick={onClose} className="surface-inset flex items-center gap-3 border border-line bg-paper-strong p-3 transition hover:border-ink">
           <img src={row.avatarUrl || "/images/avatars/mythic-mentor.png"} alt="" className="size-11 rounded-full border-2 border-ink object-cover" />
           <span className="min-w-0 flex-1"><span className="block truncate font-black text-ink">{row.name}</span><span className="block truncate text-xs font-bold text-muted">@{row.username}</span></span>
           <span className="rounded-full bg-yellow px-2.5 py-1 type-eyebrow-sm text-ink">{roleLabel(locale, row.role)}</span>
@@ -147,6 +149,10 @@ export function MemberProfile({ locale, username }: { locale: Locale; username: 
   const reportContent = useMutation(api.chatModeration.reportContent);
   const setProfileRole = useMutation(api.profiles.setProfileRole);
   const ownerStatus = useQuery(api.profiles.getViewerProfileStatus, profile?.viewer.isOwner ? {} : "skip");
+  // „Danas" se uzima JEDNOM po montiranju (isti obrazac kao `ActivityHeatmap`) — bez
+  // toga bi `Date.now()` u renderu bio necista funkcija i niz dana bi mogao da se
+  // promeni usred jednog prolaza.
+  const [nowTimestamp] = useState(() => Date.now());
   const [followPending, setFollowPending] = useState(false);
   const [messagePending, setMessagePending] = useState(false);
   const [profileActionNotice, setProfileActionNotice] = useState<string>();
@@ -174,7 +180,7 @@ export function MemberProfile({ locale, username }: { locale: Locale; username: 
 
   if (profile === undefined) return <div className="grid min-h-[60vh] place-items-center"><Spinner size="xl" className="text-ink" label={t(locale, "Učitavanje", "Loading")} /></div>;
   if (profile === null) return (
-    <div className="mx-auto max-w-2xl rounded-[16px] border-2 border-ink bg-paper-strong p-8 text-center shadow-[6px_6px_0_0_var(--yellow)]">
+    <div className="surface-card mx-auto max-w-2xl border-2 border-ink bg-paper-strong p-8 text-center shadow-[6px_6px_0_0_var(--yellow)]">
       <Users className="mx-auto size-10 text-ink" />
       <h1 className="mt-4 type-h1 text-ink">{t(locale, "Profil nije pronađen", "Profile not found")}</h1>
       <p className="mt-2 font-bold text-muted">{t(locale, "Korisnik je uklonjen, spojen ili još nema korisničko ime.", "This member was removed, merged, or does not have a username yet.")}</p>
@@ -183,6 +189,15 @@ export function MemberProfile({ locale, username }: { locale: Locale; username: 
   );
 
   const { identity } = profile;
+  // Znacke se racunaju iz podataka koje profil VEC cita (N12): dnevna aktivnost nosi
+  // broj tema, broj komentara i niz dana zaredom, a `helpfulAnswers` stize iz istog
+  // leaderboard reda. Nijedan nov upit.
+  const badges = communityBadges({
+    threads: activityTotal(profile.activity.days, "threads"),
+    comments: activityTotal(profile.activity.days, "comments"),
+    helpfulAnswers: profile.stats.helpfulAnswers,
+    streakDays: activityStreakDays(profile.activity.days, dayKey(nowTimestamp)),
+  });
   const links = [
     { key: "website", href: identity.links.website, icon: Link2, label: "Website" },
     { key: "instagram", href: identity.links.instagram, icon: AtSign, label: "Instagram" },
@@ -242,7 +257,7 @@ export function MemberProfile({ locale, username }: { locale: Locale; username: 
   }
 
   const profileCard = (
-    <aside className="rounded-[16px] border-2 border-ink bg-paper-strong p-6 shadow-[6px_6px_0_0_var(--yellow)] xl:sticky xl:top-8">
+    <aside className="surface-card border-2 border-ink bg-paper-strong p-6 shadow-[6px_6px_0_0_var(--yellow)] xl:sticky xl:top-8">
       <div className="mx-auto w-fit">
         <div className="relative rounded-full border-[3px] border-ink p-1.5 ring-[7px] ring-yellow/70">
           <img src={identity.avatarUrl || "/images/avatars/mythic-mentor.png"} alt={identity.name} className="size-28 rounded-full object-cover sm:size-32" />
@@ -252,11 +267,15 @@ export function MemberProfile({ locale, username }: { locale: Locale; username: 
       <div className="mt-6 text-center">
         <span className="inline-flex rounded-full border-2 border-ink bg-yellow px-3 py-1 type-eyebrow">{roleLabel(locale, identity.role)}</span>
         <h1 className="mt-3 type-h1 text-ink">{identity.name}</h1>
-        <p className="mt-1 font-mono text-sm font-bold text-muted">@{identity.username}</p>
+        <p className="mt-1 flex flex-wrap items-center justify-center gap-2 font-mono text-sm font-bold text-muted">
+          <span>@{identity.username}</span>
+          <CommunityBadgeRow locale={locale} badges={badges} />
+        </p>
         {profile.progress ? <p className="mt-2 text-xs font-black text-blue-mid dark:text-muted">{profile.progress.xp.toLocaleString()} XP · {t(locale, `Nivo ${profile.progress.level}`, `Level ${profile.progress.level}`)}</p> : null}
+        {profile.progress ? <LevelMeter locale={locale} xp={profile.progress.xp} className="mt-3 text-left" /> : null}
         {identity.bio ? <p className="mt-4 whitespace-pre-wrap type-body-sm font-bold text-ink/80">{identity.bio}</p> : <p className="mt-4 text-sm font-bold text-muted">{t(locale, "Biografija još nije dodata.", "No bio yet.")}</p>}
         {links.length ? <div className="mt-4 flex justify-center gap-2">{links.map(({ key, href, icon: Icon, label }) => <a key={key} href={href} target="_blank" rel="noreferrer" aria-label={label} className="grid size-10 place-items-center rounded-full border-2 border-ink bg-paper-strong transition hover:bg-yellow"><Icon className="size-5" /></a>)}</div> : null}
-        {profile.help?.status ? <div className="mt-4 rounded-[16px] border-2 border-line bg-paper p-3 text-left"><p className="type-eyebrow-sm text-blue-mid dark:text-muted">{profile.help.status === "seeking" ? t(locale, "Tražim pomoć", "Looking for help") : profile.help.status === "offering" ? t(locale, "Mogu da pomognem", "I can help") : t(locale, "Tražim i nudim pomoć", "Looking for and offering help")}</p>{profile.help.topics.length ? <div className="mt-2 flex flex-wrap gap-1.5">{profile.help.topics.map((topic) => <span key={topic.topicId} className="rounded-full border border-ink bg-paper-strong px-2.5 py-1 type-caption font-black">{topic.name}</span>)}</div> : null}</div> : null}
+        {profile.help?.status ? <div className="surface-inset mt-4 border border-line bg-paper p-3 text-left"><p className="type-eyebrow-sm text-blue-mid dark:text-muted">{profile.help.status === "seeking" ? t(locale, "Tražim pomoć", "Looking for help") : profile.help.status === "offering" ? t(locale, "Mogu da pomognem", "I can help") : t(locale, "Tražim i nudim pomoć", "Looking for and offering help")}</p>{profile.help.topics.length ? <div className="mt-2 flex flex-wrap gap-1.5">{profile.help.topics.map((topic) => <span key={topic.topicId} className="rounded-full border border-ink bg-paper-strong px-2.5 py-1 type-caption font-black">{topic.name}</span>)}</div> : null}</div> : null}
       </div>
       <div className="mt-5 space-y-2 border-y-2 border-line py-4 text-sm font-bold text-ink/80">
         <p className="flex items-center gap-2"><span className={cn("size-2.5 rounded-full", profile.presence?.activeNow ? "bg-emerald-500" : "bg-line")} />{relativeTime(locale, profile.presence?.lastSeenAt, profile.presence?.activeNow)}</p>
@@ -267,11 +286,11 @@ export function MemberProfile({ locale, username }: { locale: Locale; username: 
         {profile.viewer.canViewFullConnections ? <button type="button" onClick={() => setFollowList("followers")} className="px-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"><p className="type-h2">{profile.stats.followers}</p><p className="type-caption font-black text-muted">{t(locale, "Pratioci", "Followers")}</p></button> : <div className="px-1"><p className="type-h2">{profile.stats.followers}</p><p className="type-caption font-black text-muted">{t(locale, "Pratioci", "Followers")}</p></div>}
         {profile.viewer.canViewFullConnections ? <button type="button" onClick={() => setFollowList("following")} className="px-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"><p className="type-h2">{profile.stats.following}</p><p className="type-caption font-black text-muted">{t(locale, "Pratim", "Following")}</p></button> : <div className="px-1"><p className="type-h2">{profile.stats.following}</p><p className="type-caption font-black text-muted">{t(locale, "Pratim", "Following")}</p></div>}
       </div>
-      {profile.viewer.isOwner && (profile.connections.followersPreview.length || profile.connections.followingPreview.length) ? <div className="mb-4 space-y-3 rounded-[16px] border-2 border-line bg-paper p-3">
+      {profile.viewer.isOwner && (profile.connections.followersPreview.length || profile.connections.followingPreview.length) ? <div className="surface-inset mb-4 space-y-3 border border-line bg-paper p-3">
         {profile.connections.followersPreview.length ? <div><p className="type-eyebrow-sm text-muted">{t(locale, "Novi pratioci", "Recent followers")}</p><div className="mt-2 flex -space-x-2">{profile.connections.followersPreview.map((person) => person.username ? <Link key={person.userId} href={withLocale(locale, `/app/members/${person.username}`)} title={person.name} className="rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"><img src={person.avatarUrl || "/images/avatars/mythic-mentor.png"} alt={person.name} className="size-9 rounded-full border-2 border-paper-strong object-cover" /></Link> : null)}</div></div> : null}
         {profile.connections.followingPreview.length ? <div><p className="type-eyebrow-sm text-muted">{t(locale, "Nedavno pratiš", "Recently following")}</p><div className="mt-2 flex -space-x-2">{profile.connections.followingPreview.map((person) => person.username ? <Link key={person.userId} href={withLocale(locale, `/app/members/${person.username}`)} title={person.name} className="rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"><img src={person.avatarUrl || "/images/avatars/mythic-mentor.png"} alt={person.name} className="size-9 rounded-full border-2 border-paper-strong object-cover" /></Link> : null)}</div></div> : null}
       </div> : null}
-      {!profile.viewer.isOwner && profile.connections.commonPeople.length ? <div className="mb-4 rounded-[16px] border-2 border-line bg-paper p-3">
+      {!profile.viewer.isOwner && profile.connections.commonPeople.length ? <div className="surface-inset mb-4 border border-line bg-paper p-3">
         <p className="type-eyebrow-sm text-muted">{t(locale, "Zajednički ljudi", "People in common")}</p>
         <div className="mt-2 space-y-2">{profile.connections.commonPeople.map((person) => person.username ? <Link key={person.userId} href={withLocale(locale, `/app/members/${person.username}`)} className="flex items-center gap-2 rounded-[12px] bg-paper-strong p-2"><img src={person.avatarUrl || "/images/avatars/mythic-mentor.png"} alt="" className="size-8 rounded-full border border-ink object-cover" /><span className="min-w-0 flex-1 truncate text-xs font-black">{person.name}</span><span className="rounded-full border border-line px-2 py-0.5 type-eyebrow-sm text-muted">{person.connectionKinds.includes("followed_by_both") ? t(locale, "Prati vas oboje", "Follows you both") : t(locale, "Oboje pratite", "Followed by both")}</span></Link> : null)}</div>
       </div> : null}
@@ -287,7 +306,7 @@ export function MemberProfile({ locale, username }: { locale: Locale; username: 
           <button type="button" onClick={() => { setReportOpen(true); setReportSent(false); }} className="w-full rounded-full px-4 py-2 text-xs font-black text-red-700 underline-offset-2 hover:underline">{t(locale, "Prijavi profil", "Report profile")}</button>
         </div>
       )}
-      {profile.viewer.canManageRole ? <div className="mt-5 space-y-3 rounded-[16px] border-2 border-line bg-paper p-3"><label className="type-eyebrow text-muted">{t(locale, "Admin · uloga", "Admin · role")}<select value={identity.role === "admin" ? "student" : identity.role} disabled={rolePending} onChange={async (event) => { setRolePending(true); try { await setProfileRole({ profileId: identity.userId, role: event.target.value as "student" | "pro_student" | "moderator" }); } finally { setRolePending(false); } }} className="mt-2 h-10 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-3 font-bold normal-case text-ink"><option value="student">Lite</option><option value="pro_student">Pro</option><option value="moderator">Moderator</option></select></label><button type="button" onClick={() => void message(true)} disabled={messagePending} className="flex min-h-10 w-full items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-3 text-xs font-black disabled:opacity-50">{messagePending ? <Spinner /> : <MessageCircle className="size-4" />}{t(locale, "Pokreni support razgovor", "Start support chat")}</button><Link href={`${withLocale(locale, "/app/admin/chat")}?userId=${identity.userId}`} className="flex min-h-10 items-center justify-center rounded-full border-2 border-red-800 bg-paper-strong px-3 text-center type-eyebrow-sm text-red-800">{t(locale, "Pogledaj sve korisnikove chatove", "Inspect all member chats")}</Link></div> : null}
+      {profile.viewer.canManageRole ? <div className="surface-inset mt-5 space-y-3 border border-line bg-paper p-3"><label className="type-eyebrow text-muted">{t(locale, "Admin · uloga", "Admin · role")}<select value={identity.role === "admin" ? "student" : identity.role} disabled={rolePending} onChange={async (event) => { setRolePending(true); try { await setProfileRole({ profileId: identity.userId, role: event.target.value as "student" | "pro_student" | "moderator" }); } finally { setRolePending(false); } }} className="mt-2 h-10 w-full rounded-[8px] border-2 border-ink bg-paper-strong px-3 font-bold normal-case text-ink"><option value="student">Lite</option><option value="pro_student">Pro</option><option value="moderator">Moderator</option></select></label><button type="button" onClick={() => void message(true)} disabled={messagePending} className="flex min-h-10 w-full items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-3 text-xs font-black disabled:opacity-50">{messagePending ? <Spinner /> : <MessageCircle className="size-4" />}{t(locale, "Pokreni support razgovor", "Start support chat")}</button><Link href={`${withLocale(locale, "/app/admin/chat")}?userId=${identity.userId}`} className="flex min-h-10 items-center justify-center rounded-full border-2 border-red-800 bg-paper-strong px-3 text-center type-eyebrow-sm text-red-800">{t(locale, "Pogledaj sve korisnikove chatove", "Inspect all member chats")}</Link></div> : null}
     </aside>
   );
 
@@ -296,14 +315,14 @@ export function MemberProfile({ locale, username }: { locale: Locale; username: 
       <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_370px]">
         <div className="order-2 min-w-0 space-y-6 xl:order-1">
           <ActivityHeatmap activity={profile.activity} locale={locale} />
-          <section className="rounded-[16px] border-2 border-line bg-paper-strong p-4 sm:p-6">
+          <section className="surface-card border-2 border-line bg-paper-strong p-4 sm:p-6">
             <div className="flex items-center gap-2"><BookOpen className="size-5" /><h2 className="font-display type-display-sm">{t(locale, "Kursevi koje pohađa", "Courses")}</h2></div>
-            {profile.courses.length ? <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">{profile.courses.map((course) => <article key={course.courseId} className="rounded-[16px] border-2 border-line bg-paper p-3"><div className="aspect-[16/9] overflow-hidden rounded-[8px] border-2 border-ink bg-[#e8f0f6] dark:bg-ink/10">{course.coverUrl ? <img src={course.coverUrl} alt="" className="h-full w-full object-cover" /> : <div className="grid h-full place-items-center"><BookOpen className="size-8 text-muted" /></div>}</div><p className="mt-3 type-eyebrow text-blue-mid dark:text-muted">{locale === "sr" ? course.trackTitleSr : course.trackTitleEn}</p><h3 className="mt-1 type-h4 text-ink">{locale === "sr" ? course.titleSr : course.titleEn}</h3><div className="mt-3 h-2 overflow-hidden rounded-full bg-line"><span className="block h-full rounded-full bg-yellow" style={{ width: `${course.percent}%` }} /></div><div className="mt-2 flex justify-between text-xs font-black text-muted"><span>{course.completedLessons}/{course.totalLessons} {t(locale, "lekcija", "lessons")}</span><span>{course.percent}%</span></div></article>)}</div> : <p className="mt-4 rounded-[16px] border-2 border-dashed border-line p-6 text-center text-sm font-bold text-muted">{t(locale, "Još nema aktivnih kurseva ni zabeleženog napretka.", "No active courses or progress yet.")}</p>}
+            {profile.courses.length ? <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">{profile.courses.map((course) => <article key={course.courseId} className="surface-inset border border-line bg-paper p-3"><div className="surface-media aspect-[16/9] overflow-hidden bg-ink/5 dark:bg-ink/10">{course.coverUrl ? <img src={course.coverUrl} alt="" className="h-full w-full object-cover" /> : <div className="grid h-full place-items-center"><BookOpen className="size-8 text-muted" /></div>}</div><p className="mt-3 type-eyebrow text-blue-mid dark:text-muted">{locale === "sr" ? course.trackTitleSr : course.trackTitleEn}</p><h3 className="mt-1 type-h4 text-ink">{locale === "sr" ? course.titleSr : course.titleEn}</h3><div className="mt-3 h-2 overflow-hidden rounded-full bg-line"><span className="block h-full rounded-full bg-yellow" style={{ width: `${course.percent}%` }} /></div><div className="mt-2 flex justify-between text-xs font-black text-muted"><span>{course.completedLessons}/{course.totalLessons} {t(locale, "lekcija", "lessons")}</span><span>{course.percent}%</span></div></article>)}</div> : <p className="surface-card mt-4 border border-dashed border-line p-6 text-center text-sm font-bold text-muted">{t(locale, "Još nema aktivnih kurseva ni zabeleženog napretka.", "No active courses or progress yet.")}</p>}
           </section>
-          <section className="rounded-[16px] border-2 border-line bg-paper-strong p-4 sm:p-6">
+          <section className="surface-card border-2 border-line bg-paper-strong p-4 sm:p-6">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><h2 className="font-display type-display-sm">{t(locale, "Doprinosi", "Contributions")}</h2><div className="flex flex-wrap gap-2">{(["all", "threads", "comments"] as ContributionFilter[]).map((value) => <button key={value} type="button" onClick={() => resetPagination(value, courseId)} className={cn("rounded-full border-2 border-ink px-4 py-2 text-xs font-black", filter === value ? "bg-ink text-paper-strong" : "bg-paper-strong text-ink")}>{value === "all" ? t(locale, "Sve", "All") : value === "threads" ? t(locale, "Threadovi", "Threads") : t(locale, "Komentari", "Comments")}</button>)}</div></div>
             {profile.courses.length > 1 ? <select value={courseId} onChange={(event) => resetPagination(filter, event.target.value)} className="mt-4 h-11 rounded-full border-2 border-ink bg-paper-strong px-4 text-sm font-black"><option value="">{t(locale, "Svi kursevi", "All courses")}</option>{profile.courses.map((course) => <option key={course.courseId} value={course.courseId}>{locale === "sr" ? course.titleSr : course.titleEn}</option>)}</select> : null}
-            <div className="mt-4 space-y-3">{contributions.status === "LoadingFirstPage" ? <div className="grid py-10 place-items-center"><Spinner size="lg" /></div> : contributions.results.length ? contributions.results.map((group) => <article key={group.post.id} className="rounded-[16px] border-2 border-line bg-paper p-4"><div className="flex items-start justify-between gap-4"><div><p className="type-eyebrow-sm text-blue-mid dark:text-muted">{group.hasThread ? t(locale, "Thread", "Thread") : t(locale, "Komentar", "Comment")}{group.post.course ? ` · ${locale === "sr" ? group.post.course.titleSr : group.post.course.titleEn}` : ""}</p><Link href={withLocale(locale, `/app/community/${group.post.id}`)} className="mt-1 block type-h3 text-ink hover:underline">{group.post.title}</Link><p className="mt-2 line-clamp-2 type-body-sm font-bold text-muted">{group.post.body}</p></div><ExternalLink className="size-4 shrink-0 text-muted" /></div>{group.comments.length ? <div className="mt-4 space-y-2 border-t-2 border-line pt-3">{group.comments.map((comment) => <div key={comment.id} className="rounded-[12px] border border-line bg-paper-strong p-3"><p className="type-body-sm font-bold text-ink/85">{comment.body}</p><p className="mt-1 type-caption font-black text-muted">{relativeTime(locale, comment.createdAt)}</p></div>)}{group.moreComments ? <p className="text-xs font-black text-blue-mid dark:text-muted">+{group.moreComments} {t(locale, "još", "more")}</p> : null}</div> : null}</article>) : <p className="rounded-[16px] border-2 border-dashed border-line p-8 text-center text-sm font-bold text-muted">{t(locale, "Nema doprinosa za ovaj filter.", "No contributions for this filter.")}</p>}</div>
+            <div className="mt-4 space-y-3">{contributions.status === "LoadingFirstPage" ? <div className="grid py-10 place-items-center"><Spinner size="lg" /></div> : contributions.results.length ? contributions.results.map((group) => <article key={group.post.id} className="surface-card border border-line bg-paper p-4"><div className="flex items-start justify-between gap-4"><div><p className="type-eyebrow-sm text-blue-mid dark:text-muted">{group.hasThread ? t(locale, "Thread", "Thread") : t(locale, "Komentar", "Comment")}{group.post.course ? ` · ${locale === "sr" ? group.post.course.titleSr : group.post.course.titleEn}` : ""}</p><Link href={withLocale(locale, `/app/community/${group.post.id}`)} className="mt-1 block type-h3 text-ink hover:underline">{group.post.title}</Link><p className="mt-2 line-clamp-2 type-body-sm font-bold text-muted">{group.post.body}</p></div><ExternalLink className="size-4 shrink-0 text-muted" /></div>{group.comments.length ? <div className="mt-4 space-y-2 border-t-2 border-line pt-3">{group.comments.map((comment) => <div key={comment.id} className="surface-inset bg-paper-strong p-3"><p className="type-body-sm font-bold text-ink/85">{comment.body}</p><p className="mt-1 type-caption font-black text-muted">{relativeTime(locale, comment.createdAt)}</p></div>)}{group.moreComments ? <p className="text-xs font-black text-blue-mid dark:text-muted">+{group.moreComments} {t(locale, "još", "more")}</p> : null}</div> : null}</article>) : <p className="surface-card border border-dashed border-line p-8 text-center text-sm font-bold text-muted">{t(locale, "Nema doprinosa za ovaj filter.", "No contributions for this filter.")}</p>}</div>
             {contributions.status === "CanLoadMore" ? <button type="button" onClick={() => contributions.loadMore(10)} className="mt-4 w-full rounded-full border-2 border-ink bg-yellow px-4 py-2.5 text-xs font-black">{t(locale, "Učitaj još", "Load more")}</button> : null}
           </section>
         </div>
@@ -322,7 +341,7 @@ export function MemberProfile({ locale, username }: { locale: Locale; username: 
         {studyNotice ? <p role="alert" className="rounded-[8px] border border-red-300 bg-red-50 p-3 text-xs font-black text-red-800">{studyNotice}</p> : null}
         {commonStudyCourses.status === "LoadingFirstPage" ? <div className="grid min-h-36 place-items-center"><Spinner size="lg" label={t(locale, "Učitavanje…", "Loading…")} /></div> : null}
         {commonStudyCourses.results.map((course) => (
-          <article key={course.courseId} className="rounded-[16px] border-2 border-line bg-paper p-3">
+          <article key={course.courseId} className="surface-inset border border-line bg-paper p-3">
             <div className="flex items-center gap-3"><span className="grid size-11 place-items-center rounded-full border-2 border-ink bg-[#d7e9f5] dark:bg-ink/15"><BookOpen className="size-5" /></span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-black">{locale === "sr" ? course.titleSr : course.titleEn}</span><span className="block type-caption font-bold text-muted">{course.matchingAvailable ? t(locale, "Ista zona napretka · spremno za poziv", "Same progress zone · ready to invite") : t(locale, "Prvo uskladi dostupnost", "Set matching availability first")}</span></span></div>
             {course.matchingAvailable
               ? <Button size="sm" loading={studyPendingCourseId === course.courseId} disabled={Boolean(studyPendingCourseId)} icon={<GraduationCap className="size-4" />} onClick={() => void inviteToStudy(course)} className="mt-3 w-full">{t(locale, "Pošalji poziv", "Send invite")}</Button>
@@ -340,7 +359,7 @@ export function MemberProfile({ locale, username }: { locale: Locale; username: 
         title={identity.name}
         closeLabel={t(locale, "Zatvori", "Close")}
       >
-        {reportSent ? <p role="status" className="rounded-[16px] border-2 border-line bg-paper p-4 text-sm font-black">{t(locale, "Prijava je poslata timu za sigurnost.", "The report was sent to the safety team.")}</p> : (
+        {reportSent ? <p role="status" className="surface-inset border border-line bg-paper p-4 text-sm font-black">{t(locale, "Prijava je poslata timu za sigurnost.", "The report was sent to the safety team.")}</p> : (
           <>
             <Field label={t(locale, "Razlog", "Reason")}>
               {(field) => <Textarea {...field} value={reportReason} onChange={(event) => setReportReason(event.target.value)} rows={4} maxLength={1_000} />}

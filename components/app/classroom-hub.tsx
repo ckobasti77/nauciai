@@ -570,7 +570,9 @@ function ResumePanel({
       <div className="p-3">
         <div
           className={cn(
-            "relative aspect-[16/9] overflow-hidden surface-media border-2 border-ink",
+            // N12: kartica već nosi pun okvir grupe, pa medij ima SAMO tanku unutrašnju
+            // ivicu (da bled kadar ne iscuri u papir), ne i drugi pun okvir.
+            "relative aspect-[16/9] overflow-hidden surface-media shadow-[inset_0_0_0_1px_var(--shadow-hard-14)]",
             surfaceClass(nextLevel(cardLevel)),
           )}
         >
@@ -688,7 +690,9 @@ function TrackStrip({ locale, group }: { locale: Locale; group: CatalogTrackGrou
               <div className="p-2">
                 <div
                   className={cn(
-                    "relative aspect-[16/9] overflow-hidden surface-media border-2 border-ink",
+                    // Ista pločica kao u zoni A: jedan okvir na kartici, tanka
+                    // unutrašnja ivica na mediju (N12).
+                    "relative aspect-[16/9] overflow-hidden surface-media shadow-[inset_0_0_0_1px_var(--shadow-hard-14)]",
                     surfaceClass(nextLevel(tileLevel)),
                   )}
                 >

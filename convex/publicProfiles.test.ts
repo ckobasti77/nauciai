@@ -69,6 +69,21 @@ test("public profile is auth protected, whitelisted, and reads aggregate project
       comments: 4,
       updatedAt: 10,
     });
+    // Globalni all-time red je izvor XP-a i broja korisnih odgovora koje profil
+    // vraca (N12: znacka „koristan odgovor" cita `stats.helpfulAnswers`).
+    await ctx.db.insert("leaderboardStats", {
+      userId: ids.targetId,
+      scopeKind: "global",
+      scopeKey: "global",
+      period: "all_time",
+      periodKey: "all",
+      xp: 1250,
+      completedLessons: 4,
+      completedTasks: 2,
+      helpfulAnswers: 6,
+      eligible: true,
+      updatedAt: 10,
+    });
     for (let index = 0; index < 6; index += 1) {
       const topicId = await ctx.db.insert("helpTopics", {
         name: `Tema ${index + 1}`,
@@ -91,7 +106,8 @@ test("public profile is auth protected, whitelisted, and reads aggregate project
   await expect(t.query(api.publicProfiles.getPublicProfile, { username: "jovan_m" })).rejects.toThrow();
   const profile = await asUser(t, ids.viewerId).query(api.publicProfiles.getPublicProfile, { username: "jovan_m" });
   expect(profile?.identity).toMatchObject({ name: "Jovan Milojević", username: "jovan_m", role: "pro_student" });
-  expect(profile?.stats).toEqual({ contributions: 17, followers: 23, following: 9 });
+  expect(profile?.stats).toEqual({ contributions: 17, followers: 23, following: 9, helpfulAnswers: 6 });
+  expect(profile?.progress).toEqual({ xp: 1250, level: 3, nextLevelXp: 1500 });
   expect(profile?.activity.days).toContainEqual({ dayKey, lessons: 1, tasks: 2, threads: 3, comments: 4, total: 10 });
   expect(profile?.help.status).toBe("both");
   expect(profile?.help.topics).toHaveLength(5);

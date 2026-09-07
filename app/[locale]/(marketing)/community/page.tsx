@@ -262,8 +262,10 @@ export default async function PublicCommunityListingPage({
                   level={1}
                   className="group flex items-stretch gap-4 p-4 transition-[transform,translate,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[8px_8px_0_0_var(--shadow-hard-18)] active:translate-y-0 sm:gap-5 sm:p-6"
                 >
-                  {/* Left vote badge — u panelu B, pa je A (surface-a) */}
-                  <div className="flex shrink-0 flex-col items-center justify-start rounded-[12px] border-2 border-ink bg-surface-a px-2.5 py-3 text-ink shadow-[2px_2px_0_0_var(--shadow-hard-10)] sm:min-w-14">
+                  {/* Left vote badge — u panelu B, pa je A (surface-a). Panel vec nosi
+                      pun okvir grupe, pa se ovaj blok odvaja POZADINOM i tankom linijom
+                      (N12), ne drugim `border-2 border-ink`. */}
+                  <div className="surface-inset flex shrink-0 flex-col items-center justify-start border border-line bg-surface-a px-2.5 py-3 text-ink sm:min-w-14">
                     <ArrowUp className="size-4 sm:size-5 stroke-[3] text-ink" aria-hidden="true" />
                     <span className="mt-1 text-xs font-black tabular-nums sm:text-sm">{post.voteScore}</span>
                   </div>

@@ -415,7 +415,7 @@ function ModerationTile({
             <div className="flex flex-wrap gap-1.5">
               {revealed.inputThumbs.items.map((thumb) =>
                 thumb.url ? (
-                  <span key={thumb.storageId} className="surface-media relative size-12 overflow-hidden border-2 border-ink bg-studio-well">
+                  <span key={thumb.storageId} className="surface-media relative size-12 overflow-hidden border border-line bg-studio-well">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={thumb.url} alt={thumb.slot} className="size-full object-cover" />
                   </span>

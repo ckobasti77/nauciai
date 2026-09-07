@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { useState } from "react";
 
+import { VoteScore } from "@/components/app/community-gamification";
 import { ConfirmDialog } from "@/components/ui/dialog";
 import type { CommunityRole } from "@/components/app/community-identity";
 import { cn } from "@/components/ui/primitives";
@@ -22,6 +23,7 @@ export function CommunityThreadActions({
   isFeaturedGlobal,
   featuredTrackId,
   featuredCourseId,
+  isAuthor,
   voteScore,
   commentsCount,
   userVote,
@@ -34,6 +36,8 @@ export function CommunityThreadActions({
   isFeaturedGlobal?: boolean;
   featuredTrackId?: string;
   featuredCourseId?: string;
+  /** Viewer je autor teme — samo tada glas okida iskru i prebrojavanje (N12). */
+  isAuthor?: boolean;
   reactionsCount: number;
   voteScore?: number;
   commentsCount: number;
@@ -82,7 +86,10 @@ export function CommunityThreadActions({
     <div>
       <div className="flex flex-wrap items-center gap-2">
         <ActionButton icon={<ArrowUp className="size-4" />} label="Upvote" active={userVote === "upvote"} disabled={busy !== null} onClick={() => run("upvote", async () => { await votePost({ targetType: "post", targetId: postId, vote: "upvote" }); })} />
-        <span className={cn("inline-flex min-h-11 sm:min-h-10 min-w-12 items-center justify-center rounded-full border border-line bg-paper px-3 text-xs font-black tabular-nums", (voteScore ?? 0) < 0 && "text-red-700")} aria-label={locale === "sr" ? `${voteScore ?? 0} neto glasova` : `${voteScore ?? 0} net votes`}>{voteScore ?? 0}</span>
+        {/* N12: glas na TVOJU temu prebroji broj nagore i sevne iskrom iznad njega. */}
+        <VoteScore locale={locale} value={voteScore ?? 0} celebrate={Boolean(isAuthor)} className={cn("inline-flex min-h-11 sm:min-h-10 min-w-12 items-center justify-center rounded-full border border-line bg-paper px-3 text-xs font-black", (voteScore ?? 0) < 0 && "text-red-700")}>
+          <span className="sr-only"> {locale === "sr" ? "neto glasova" : "net votes"}</span>
+        </VoteScore>
         <ActionButton icon={<ArrowDown className="size-4" />} label="Downvote" active={userVote === "downvote"} disabled={busy !== null} onClick={() => run("downvote", async () => { await votePost({ targetType: "post", targetId: postId, vote: "downvote" }); })} />
         <a href="#comments" className="inline-flex min-h-11 sm:min-h-10 items-center justify-center gap-2 rounded-full border border-line bg-paper-strong px-3 text-xs font-black text-ink transition hover:-translate-y-0.5 hover:border-ink hover:bg-paper focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"><MessageCircle className="size-4" />{locale === "sr" ? "Komentari" : "Comments"} ({commentsCount})</a>
         {canPin ? (

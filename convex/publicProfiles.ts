@@ -297,6 +297,9 @@ export const getPublicProfile = query({
       progress: isStaffRole(role) ? null : { xp, level: levelForXp(xp), nextLevelXp: levelForXp(xp) * 500 },
       stats: {
         contributions: stats?.contributionCount ?? 0,
+        // N12: značka „koristan odgovor". Broj već stoji u `leaderboard` redu koji je
+        // pročitan iznad, pa ovo ne dodaje nijedan novi upit.
+        helpfulAnswers: leaderboard?.helpfulAnswers ?? 0,
         followers: stats?.followerCount ?? 0,
         following: stats?.followingCount ?? 0,
       },

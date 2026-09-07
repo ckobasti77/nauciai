@@ -744,7 +744,7 @@ export function StudioMediaDetail({
               {/* Model */}
               <div>
                 <span className="block text-[11px] font-black uppercase tracking-wide text-muted">{t.model}</span>
-                <div className="mt-1.5 flex items-center gap-2.5 surface-inset border-2 border-ink bg-paper p-2.5">
+                <div className="mt-1.5 flex items-center gap-2.5 surface-inset border border-line bg-paper p-2.5">
                   {jobModel ? (
                     <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-ink font-mono text-xs font-black text-paper-strong">
                       {familyMark(jobModel)}
@@ -767,7 +767,7 @@ export function StudioMediaDetail({
               {prompt ? (
                 <div>
                   <span className="block text-[11px] font-black uppercase tracking-wide text-muted">{t.prompt}</span>
-                  <div className="surface-inset mt-1.5 border-2 border-ink bg-paper p-3 text-xs font-bold leading-relaxed text-ink">
+                  <div className="surface-inset mt-1.5 border border-line bg-paper p-3 text-xs font-bold leading-relaxed text-ink">
                     {prompt}
                   </div>
                 </div>
@@ -804,7 +804,7 @@ export function StudioMediaDetail({
                     {jobDetail.inputs.map((inp, idx) => (
                       <div
                         key={idx}
-                        className="surface-media aspect-square overflow-hidden border-2 border-ink bg-paper"
+                        className="surface-media aspect-square overflow-hidden border border-line bg-paper"
                       >
                         {inp.mime.startsWith("image/") && inp.url ? (
                           <img src={inp.url} alt="" className="size-full object-cover" />

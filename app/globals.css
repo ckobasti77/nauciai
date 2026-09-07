@@ -108,6 +108,16 @@
   --accent-studio: var(--blue-mid);
   --accent-community: #1f9e78;
   --accent-account: #ea6a45;
+  /* Akcenti NIVOA zajednice (N12). Mali zatvoren set od četiri tona koji se vrti po
+     nivou (`levelAccentVar` u `lib/community-gamification.ts`) — isti jezik boja kao
+     obojene ilustracije na landingu, samo kao ispuna tanke trake napretka i kao
+     tinta ispod znački. Nikad kao boja teksta: tekst uz traku ostaje mastilo/muted,
+     pa se kontrast ne oslanja na akcent. Tamni parnjaci su posvetljeni istim odnosom
+     kao --blue-mid, da traka čita i na tamnom papiru; žuta se ne menja. */
+  --level-accent-1: #2e6f9f;
+  --level-accent-2: #1f9e78;
+  --level-accent-3: #f4be30;
+  --level-accent-4: #ea6a45;
   /* Studio-scoped, derived from the tokens above. `canvas` is one notch deeper
      than paper so bright media has an edge where grid density is highest; `well`
      is ink darkened toward near-black-blue (NEVER #000) for the per-tile media
@@ -196,6 +206,10 @@
   --muted: #9fb2c8;
   --line: #2f4762;
   --blue-mid: #7fb0d6;
+  --level-accent-1: #7fb0d6;
+  --level-accent-2: #3ec79b;
+  --level-accent-3: #f4be30;
+  --level-accent-4: #f4906f;
   --studio-canvas: #0e1a2b;
   --studio-well: #070f1b;
   --studio-well-edge: rgba(233, 238, 246, 0.16);
@@ -1781,4 +1795,38 @@ details:has(> .faq-answer)::details-content {
     width: 100%;
     flex: 0 0 auto;
   }
+}
+
+/* ── Blaga gamifikacija zajednice (N12) ────────────────────────────────────────────
+   Tri sitna pokreta, svi CSS (nema nove biblioteke) i svi u jednom bloku iza
+   `prefers-reduced-motion: no-preference` — pod „manje pokreta" ne postoje uopšte,
+   pa se stanje vidi bez ijedne animacije (iskra se ni ne montira, red rang liste
+   stoji u finalnom položaju).
+
+   1. `.community-spark`  — iskra iznad brojača kad tvoja tema/komentar dobije glas.
+   2. `.community-rank-row` — ulaz redova rang liste; kašnjenje nosi `--row-index`
+      (30 ms po redu). Klasa se dodaje TEK kad sekcija uđe u kadar, pa se ne troši
+      ni jedan frejm van ekrana.
+   Obe animiraju samo `opacity` i `transform`. */
+@media (prefers-reduced-motion: no-preference) {
+  .community-spark {
+    animation: community-spark 700ms var(--ease-studio-out) forwards;
+  }
+
+  .community-rank-row {
+    opacity: 0;
+    animation: community-rank-row 320ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation-delay: calc(var(--row-index, 0) * 30ms);
+  }
+}
+
+@keyframes community-spark {
+  0% { opacity: 0; transform: translate(-50%, 2px) scale(0.6); }
+  35% { opacity: 1; transform: translate(-50%, -8px) scale(1.06); }
+  100% { opacity: 0; transform: translate(-50%, -16px) scale(0.9); }
+}
+
+@keyframes community-rank-row {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
 }

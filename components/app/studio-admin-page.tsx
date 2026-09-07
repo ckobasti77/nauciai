@@ -422,7 +422,7 @@ function CatalogRow({
 
   return (
     <>
-      <tr className="surface-inset border-2 border-ink bg-paper align-top text-sm">
+      <tr className="surface-inset border border-line bg-paper align-top text-sm">
         <td className="px-3 py-3 font-black text-ink">
           {label}
           <p className="text-xs font-bold text-muted">{row.slug}</p>
@@ -524,7 +524,7 @@ function CatalogSection({ locale }: { locale: Locale }) {
           <Spinner size="md" className="text-muted" />
         </div>
       ) : models.length === 0 ? (
-        <p className="surface-inset mt-5 border-2 border-ink bg-paper p-4 text-sm font-bold text-muted">
+        <p className="surface-inset mt-5 border border-line bg-paper p-4 text-sm font-bold text-muted">
           {locale === "sr"
             ? "Katalog je prazan. Pusti `npm run convex:seed`."
             : "Catalog is empty. Run `npm run convex:seed`."}
@@ -585,7 +585,7 @@ function ModelsSection({ locale }: { locale: Locale }) {
           <Spinner size="md" className="text-muted" />
         </div>
       ) : models.length === 0 ? (
-        <p className="surface-inset mt-5 border-2 border-ink bg-paper p-4 text-sm font-bold text-muted">
+        <p className="surface-inset mt-5 border border-line bg-paper p-4 text-sm font-bold text-muted">
           {locale === "sr"
             ? "Katalog je prazan. Pusti `seedModelCatalog`."
             : "Catalog is empty. Run `seedModelCatalog`."}
@@ -608,7 +608,7 @@ function ModelsSection({ locale }: { locale: Locale }) {
                 const margin = computeMargin(model.creditCost, model.estimatedCostUsd);
                 const tone = marginTone(margin);
                 return (
-                  <tr key={model._id} className="surface-inset border-2 border-ink bg-paper align-top text-sm">
+                  <tr key={model._id} className="surface-inset border border-line bg-paper align-top text-sm">
                     <td className="px-3 py-3 font-black text-ink">
                       {model.labelSr}
                       <p className="text-xs font-bold text-muted">{model.slug}</p>
@@ -703,7 +703,7 @@ function PacksSection({ locale }: { locale: Locale }) {
           <Spinner size="md" className="text-muted" />
         </div>
       ) : packs.length === 0 ? (
-        <p className="surface-inset mt-5 border-2 border-ink bg-paper p-4 text-sm font-bold text-muted">
+        <p className="surface-inset mt-5 border border-line bg-paper p-4 text-sm font-bold text-muted">
           {locale === "sr"
             ? "Katalog je prazan. Pusti `seedCreditPacks`."
             : "Catalog is empty. Run `seedCreditPacks`."}
@@ -733,7 +733,7 @@ function PacksSection({ locale }: { locale: Locale }) {
                       ? "subscription"
                       : "one-time";
                 return (
-                  <tr key={pack._id} className="surface-inset border-2 border-ink bg-paper align-top text-sm">
+                  <tr key={pack._id} className="surface-inset border border-line bg-paper align-top text-sm">
                     <td className="px-3 py-3 font-black text-ink">
                       {title}
                       <p className="text-xs font-bold text-muted">
@@ -1049,7 +1049,7 @@ function UsageSection({
         </div>
       ) : (
         <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_1fr]">
-          <div className="surface-inset border-2 border-ink bg-paper p-4">
+          <div className="surface-inset border border-line bg-paper p-4">
             <p className="type-eyebrow text-muted">
               {locale === "sr" ? "Ukupan trošak danas" : "Total cost today"}
             </p>
@@ -1071,7 +1071,7 @@ function UsageSection({
                 : `alarm at $${summary.alarmUsd} · kills at $${summary.killUsd}`}
             </p>
             <div
-              className="surface-media mt-2 h-2.5 w-full overflow-hidden border-2 border-ink bg-paper-strong"
+              className="surface-media mt-2 h-2.5 w-full overflow-hidden border border-line bg-paper-strong"
               role="img"
               aria-label={`Potrošeno ${summary.totalCostUsd.toFixed(2)} od ${summary.killUsd} dolara`}
             >
@@ -1117,7 +1117,7 @@ function UsageSection({
             ) : null}
           </div>
 
-          <div className="surface-inset border-2 border-ink bg-paper p-4">
+          <div className="surface-inset border border-line bg-paper p-4">
             <p className="type-eyebrow text-muted">
               {locale === "sr" ? "Top 10 korisnika po trošku" : "Top 10 users by spend"}
             </p>

@@ -101,6 +101,36 @@ Roughly 38 call sites still use `6px`, `10px`, `18px`, `28px`, `7px`, `5px`, `4p
 `3px`. They are legacy, not sanctioned; migrate them to the nearest tier when you are
 already editing the file. Do not add new ones.
 
+## One frame per group
+
+**A full `border-2 border-ink` belongs to the OUTERMOST element of a group and to
+nothing inside it.** Children separate themselves by *surface* (the alternating
+`bg-surface-a` / `bg-surface-b` pair, or `bg-paper` against `bg-paper-strong`) or by a
+thin `--line` rule — `border border-line`, `border-t border-line`, `divide-y divide-line`
+— never by a second `border-2`.
+
+- **Media gets exactly one frame, on the wrapper.** A cover, thumbnail, or attachment
+  inside an already-framed card carries no border of its own. When a pale image needs an
+  edge so it does not bleed into the paper, use the inset hairline
+  `shadow-[inset_0_0_0_1px_var(--shadow-hard-14)]`, not a border.
+- **Lists are not grids.** A list of comments, discussions, or rows separates its items
+  with one `--line` rule between them. Giving every item a full frame turns the list into
+  a lattice — that is the exact regression this rule exists to prevent.
+- **Style carriers keep their borders.** Buttons and anything button-shaped, pills,
+  chips, badges, avatar rings, inputs, selects, textareas, and modals wear the border as
+  an affordance, not as decoration. Never strip those.
+- **Floating layers start a new group.** A dropdown, popover, or dock sits *above* the
+  panel rather than inside it, so it is its own outermost element and may carry a full
+  frame.
+- Status colours (`border-amber-*`, `border-red-*`) carry meaning, not shape, and are
+  outside this rule.
+
+`npm run check:frames` (`scripts/check-frames.mjs`) walks the JSX tree and fails on a
+full frame nested inside another one. It is **scoped** to the surfaces already migrated
+(community, comments, member profile, classroom, Studio gallery, admin lists) — the rest
+of the tree still carries the same debt. Widen the gate by adding a path to `ROOTS` in
+that script when you migrate a surface; do not invent a second rule.
+
 ## Full-screen single-target drop convention
 
 When a page, modal, or editor has exactly one meaningful drop target for the

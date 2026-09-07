@@ -259,6 +259,7 @@ export function LiveCommunityThreadPage({
                   isFeaturedGlobal={post.isFeaturedGlobal}
                   featuredTrackId={post.featuredTrackId}
                   featuredCourseId={post.featuredCourseId}
+                  isAuthor={isAuthor}
                   reactionsCount={post.reactionsCount}
                   voteScore={post.voteScore}
                   commentsCount={post.commentsCount}
