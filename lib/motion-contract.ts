@@ -1,3 +1,5 @@
+import { parsePath } from "./routes";
+
 export type PageMotionVariant = "showcase" | "standard" | "focus";
 
 export const pageMotionContract = {
@@ -30,24 +32,28 @@ export const pageMotionContract = {
   },
 } as const;
 
-const localeRootPattern = /^\/(?:sr|en)\/?$/;
-const appRootPattern = /^\/(?:sr|en)\/app\/?$/;
+// Patterni rade nad KANONSKOM putanjom (bez locale prefiksa): `sr` je sada
+// jezik-bez-prefiksa, pa bi obavezan /sr|/en tiho promašio početnu i /app i vratio
+// showcase strane na standard.
+const rootPattern = /^\/$/;
+const appRootPattern = /^\/app\/?$/;
 // Course detail, not a lesson beneath it.
-const courseDetailPattern = /^\/(?:sr|en)\/app\/classroom\/courses\/[^/]+\/?$/;
+const courseDetailPattern = /^\/app\/classroom\/courses\/[^/]+\/?$/;
 
 export function pageMotionVariantForPath(pathname: string): PageMotionVariant {
+  const { canonicalPath } = parsePath(pathname);
   if (
-    localeRootPattern.test(pathname) ||
-    appRootPattern.test(pathname) ||
+    rootPattern.test(canonicalPath) ||
+    appRootPattern.test(canonicalPath) ||
     // Course detail used to live at /app?course=… and so inherited the app root's
     // showcase treatment. Moving it to its own path must not quietly demote it.
-    courseDetailPattern.test(pathname) ||
-    pathname.includes("/app/community")
+    courseDetailPattern.test(canonicalPath) ||
+    canonicalPath.includes("/app/community")
   ) {
     return "showcase";
   }
 
-  if (/\/app\/classroom\/courses\/[^/]+\/lessons\/[^/]+(?:\/edit)?\/?$/.test(pathname)) {
+  if (/\/app\/classroom\/courses\/[^/]+\/lessons\/[^/]+(?:\/edit)?\/?$/.test(canonicalPath)) {
     return "focus";
   }
 

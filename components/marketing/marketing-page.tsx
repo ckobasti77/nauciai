@@ -18,7 +18,6 @@ import {
   coursesListingContent,
   dictionary,
   marketingContent,
-  pricingPath,
   type Locale,
   withLocale,
 } from "@/lib/i18n";
@@ -355,7 +354,7 @@ export function MarketingPage({
             {/* N6: detaljno poređenje (tabela razlika, pojedinačni kursevi, pitanja o
                 naplati) živi na posebnoj strani; sekcija ostaje kratka odluka. */}
             <div className="mt-8 flex justify-center">
-              <LinkButton href={withLocale(locale, pricingPath(locale))} tone="paper" size="md">
+              <LinkButton href={withLocale(locale, "/pricing")} tone="paper" size="md">
                 {m.pricing.compareCta}
                 <ArrowRight className="size-4" />
               </LinkButton>

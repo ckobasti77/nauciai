@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { locales, pricingPageContent, pricingPath, withLocale } from "@/lib/i18n";
+import { locales, pricingPageContent, withLocale } from "@/lib/i18n";
 import { PRICING } from "@/lib/pricing";
 
 /**
@@ -8,12 +8,11 @@ import { PRICING } from "@/lib/pricing";
  * dolazi iz jednog objekta sa dva jezika. Oba su tiha da se pokvare: engleski red
  * može da nestane iz tabele razlika a da ništa ne pukne. Ovaj test čuva to dvoje.
  */
-describe("pricingPath", () => {
-  test("segment se prevodi i uvek ide kroz withLocale", () => {
-    expect(pricingPath("sr")).toBe("/pretplata");
-    expect(pricingPath("en")).toBe("/pricing");
-    expect(withLocale("sr", pricingPath("sr"))).toBe("/sr/pretplata");
-    expect(withLocale("en", pricingPath("en"))).toBe("/en/pricing");
+describe("prevedeni segment pretplate", () => {
+  test("kanonski /pricing ide kroz withLocale u javni segment", () => {
+    // sr je jezik-bez-prefiksa sa prevedenim segmentom; en nosi /en.
+    expect(withLocale("sr", "/pricing")).toBe("/pretplata");
+    expect(withLocale("en", "/pricing")).toBe("/en/pricing");
   });
 });
 

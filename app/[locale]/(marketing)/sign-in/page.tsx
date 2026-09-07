@@ -5,6 +5,7 @@ import { SignInPanel } from "@/components/app/sign-in-panel";
 import { SectionMarginalia } from "@/components/marketing/section-marginalia";
 import { HandUnderline } from "@/components/ui/primitives";
 import { locales, normalizeLocale, publicMeta, type Locale, withLocale } from "@/lib/i18n";
+import { parsePath } from "@/lib/routes";
 
 export function generateStaticParams() {
   return locales.map((locale) => ({ locale }));
@@ -57,15 +58,13 @@ function safeRedirectTo(locale: Locale, value: string | string[] | undefined) {
   const candidate = Array.isArray(value) ? value[0] : value;
   const fallback = withLocale(locale, "/app");
 
-  if (!candidate || candidate.startsWith("//")) {
+  // Interni, isto-locale path (bez `//`/`/\` open-redirecta). `sr` je bez prefiksa,
+  // pa se pripadnost jeziku proverava kroz `parsePath`, ne kroz `/sr` prefiks.
+  if (!candidate || !/^\/(?![/\\])/.test(candidate)) {
     return fallback;
   }
 
-  if (candidate === withLocale(locale) || candidate.startsWith(`${withLocale(locale)}/`)) {
-    return candidate;
-  }
-
-  return fallback;
+  return parsePath(candidate).locale === locale ? candidate : fallback;
 }
 
 export default async function SignInPage({

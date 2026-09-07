@@ -9,29 +9,23 @@ import { LanguageToggle } from "@/components/marketing/language-toggle";
 import { BrandMark, LinkButton } from "@/components/ui/primitives";
 import { SmartStickyHeader } from "@/components/ui/smart-sticky";
 import type { ViewerProfile } from "@/lib/current-viewer";
-import { dictionary, otherLocale, pricingPath, withLocale, type Locale } from "@/lib/i18n";
+import { dictionary, otherLocale, withLocale, type Locale } from "@/lib/i18n";
+import { parsePath } from "@/lib/routes";
 
 const NAV_LINK_CLASS =
   "rounded-[8px] underline-offset-4 transition-colors hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
 
 /**
- * Strane koje pod providnim navbarom imaju SVETAO full-bleed heroj (krem ostrvo
- * u obe teme). Dve posledice, obe kroz `data-over-light` na headeru:
+ * Kanonske putanje čije strane pod providnim navbarom imaju SVETAO full-bleed heroj
+ * (krem ostrvo u obe teme). Dve posledice, obe kroz `data-over-light` na headeru:
  *  1. tokeni u navbaru se drže svetle palete dok se ne skrola (globals.css),
  *     jer bi mastilo tamne teme nestalo na kremu;
  *  2. `.public-shell` ne rezerviše visinu navbara — heroj namerno ide POD njega.
- * Rute idu kroz `withLocale`, pa promena strukture ruta ovde ne traži ništa.
+ * Poredi se sa `parsePath(pathname).canonicalPath`, pa važi u oba jezika i bez obzira
+ * na to da li rewrite otkrije javnu ili internu formu putanje.
+ * N7: /courses i /community dele isti full-bleed krem hero (`PageHero`).
  */
-function lightHeroPaths(locale: Locale) {
-  // N7: /courses i /community su dobile isti full-bleed krem hero (`PageHero`), pa
-  // navbar i preko njih lebdi u mastilu i ne rezerviše visinu.
-  return [
-    withLocale(locale),
-    withLocale(locale, "/studio"),
-    withLocale(locale, "/courses"),
-    withLocale(locale, "/community"),
-  ];
-}
+const LIGHT_HERO_PATHS = ["/", "/studio", "/courses", "/community"];
 
 /**
  * Gornja navigacija SVIH javnih strana — renderuje je `(marketing)/layout.tsx`,
@@ -48,21 +42,12 @@ export function PublicHeader({
 }) {
   const t = dictionary[locale];
   const pathname = usePathname();
-  const overLight = lightHeroPaths(locale).includes(pathname);
+  const { canonicalPath } = parsePath(pathname);
+  const overLight = LIGHT_HERO_PATHS.includes(canonicalPath);
 
-  const localePrefix = `/${locale}`;
-  const rest =
-    pathname === localePrefix || pathname.startsWith(`${localePrefix}/`)
-      ? pathname.slice(localePrefix.length)
-      : null;
-  // Pretplata je jedina strana kojoj se segment prevodi, pa prekidač jezika mora sam
-  // da pređe na drugi segment — inače bi vodio na `/sr/pricing` i tek odatle skakao.
-  const languageHref =
-    rest === pricingPath(locale)
-      ? withLocale(otherLocale(locale), pricingPath(otherLocale(locale)))
-      : rest !== null
-        ? withLocale(otherLocale(locale), rest)
-        : withLocale(otherLocale(locale));
+  // Prekidač jezika ostaje na istoj strani: kanonska putanja se samo prevede u drugi
+  // jezik (prevedeni segment, npr. /pretplata <-> /en/pricing, pređe sam).
+  const languageHref = withLocale(otherLocale(locale), canonicalPath);
 
   return (
     <SmartStickyHeader
@@ -90,9 +75,9 @@ export function PublicHeader({
           <Link href={withLocale(locale, "/studio")} className={NAV_LINK_CLASS}>
             {t.navStudio}
           </Link>
-          {/* N6: pretplata ima svoju stranu (segment se prevodi kroz `pricingPath`), pa
+          {/* N6: pretplata ima svoju stranu (segment se prevodi kroz `withLocale`), pa
               link više ne vodi na sidro „#pricing" na landingu. */}
-          <Link href={withLocale(locale, pricingPath(locale))} className={NAV_LINK_CLASS}>
+          <Link href={withLocale(locale, "/pricing")} className={NAV_LINK_CLASS}>
             {t.navPricing}
           </Link>
         </nav>

@@ -438,7 +438,7 @@ export function deleteJobErrorMessage(raw: string, locale: Locale): string {
  * Link vodi na `/uslovi-studio` - stranicu pravi korak X7, ruta je do tada
  * prazna. Namerno: rečenica bez linka ne bi bila obaveštenje nego napomena.
  */
-export const STUDIO_TERMS_PATH = "/uslovi-studio";
+export const STUDIO_TERMS_PATH = "/studio-terms";
 
 export const STUDIO_CONTENT_NOTICE: Record<Locale, string> = {
   sr: "Ono što generišeš ostaje sačuvano na tvom nalogu, a osoblje platforme može da ga pregleda zbog moderacije; važi politika privatnosti.",
@@ -451,7 +451,7 @@ export const STUDIO_CONTENT_NOTICE_LINK: Record<Locale, string> = {
 };
 
 /** Politika privatnosti - stranicu pravi korak X7, uz uslove korišćenja. */
-export const PRIVACY_POLICY_PATH = "/politika-privatnosti";
+export const PRIVACY_POLICY_PATH = "/privacy-policy";
 
 /**
  * Ekran koji stoji UMESTO forme dok pečat iz `studio.acceptStudioTerms` ne

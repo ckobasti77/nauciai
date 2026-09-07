@@ -101,9 +101,9 @@ describe("isDownloadable", () => {
 // ── "Generisi ponovo" i opis kartice (S7) ──────────────────────────────────
 
 test("regenerateHref vodi u playground sa ID-jem posla, ne sa promptom u URL-u", () => {
-  expect(regenerateHref("/sr/app/studio", "job_123")).toBe("/sr/app/studio?regenerate=job_123");
+  expect(regenerateHref("/app/studio", "job_123")).toBe("/app/studio?regenerate=job_123");
   // ID se enkoduje - link ne sme da se raspadne na neocekivanom znaku.
-  expect(regenerateHref("/sr/app/studio", "a b")).toBe("/sr/app/studio?regenerate=a%20b");
+  expect(regenerateHref("/app/studio", "a b")).toBe("/app/studio?regenerate=a%20b");
 });
 
 test("naslov ulaza broji tek kad ih ima vise nego sto je prikazano", () => {
@@ -176,7 +176,7 @@ test("labele prekidaca, statusa i provajdera postoje za svaku vrednost", () => {
 });
 
 test("studioMediaDetailHref gradi ispravnu deljivu putanju", () => {
-  expect(studioMediaDetailHref("sr", "job123")).toBe("/sr/app/studio/m/job123");
+  expect(studioMediaDetailHref("sr", "job123")).toBe("/app/studio/m/job123");
   expect(studioMediaDetailHref("en", "job456")).toBe("/en/app/studio/m/job456");
 });
 

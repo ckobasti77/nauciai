@@ -55,7 +55,7 @@ describe("community-slug", () => {
 
   it("generates localized URL paths", () => {
     expect(getCommunityPostPath("sr", { title: "Moj video", _id: "abc12345" })).toBe(
-      "/sr/community/moj-video-abc12345",
+      "/zajednica/moj-video-abc12345",
     );
     expect(getCommunityPostPath("en", { title: "My video", _id: "abc12345" })).toBe(
       "/en/community/my-video-abc12345",

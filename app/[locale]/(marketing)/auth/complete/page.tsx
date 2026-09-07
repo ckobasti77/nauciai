@@ -3,14 +3,17 @@ import { redirect } from "next/navigation";
 
 import { getConvexHttpClient, convexQueries } from "@/lib/convex-http";
 import { normalizeLocale, withLocale, type Locale } from "@/lib/i18n";
+import { parsePath } from "@/lib/routes";
 
 export const dynamic = "force-dynamic";
 
 function safeNext(locale: Locale, value: string | string[] | undefined) {
   const candidate = Array.isArray(value) ? value[0] : value;
   const fallback = withLocale(locale, "/app");
-  if (!candidate || candidate.startsWith("//")) return fallback;
-  return candidate === withLocale(locale) || candidate.startsWith(`${withLocale(locale)}/`) ? candidate : fallback;
+  // Interni, isto-locale path (bez `//`/`/\` open-redirecta). `sr` je bez prefiksa,
+  // pa se pripadnost jeziku proverava kroz `parsePath`, ne kroz `/sr` prefiks.
+  if (!candidate || !/^\/(?![/\\])/.test(candidate)) return fallback;
+  return parsePath(candidate).locale === locale ? candidate : fallback;
 }
 
 export default async function AuthCompletePage({

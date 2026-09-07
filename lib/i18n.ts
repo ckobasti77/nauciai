@@ -1,3 +1,5 @@
+import { toPublicPath } from "./routes";
+
 export const locales = ["sr", "en"] as const;
 
 export type Locale = (typeof locales)[number];
@@ -28,20 +30,14 @@ export function t(locale: Locale, sr: string, en: string): string {
   return locale === "sr" ? sr : en;
 }
 
-export function withLocale(locale: Locale, path = ""): string {
-  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-  return `/${locale}${normalizedPath === "/" ? "" : normalizedPath}`;
-}
-
 /**
- * Segment strane pretplate — jedini javni segment koji se PREVODI (`/pretplata`
- * na srpskom, `/pricing` na engleskom). Jedna tačka istine: svaki link ide kroz
- * `withLocale(locale, pricingPath(locale))`, pa se sam segment menja samo ovde.
- * Obe rute postoje u `app/[locale]/(marketing)/`, a ona koja ne pripada locale-u
- * preusmerava na ovu vrednost (nema dva URL-a za isti sadržaj).
+ * Gradi javni URL za dati jezik. Tanak omotač nad `toPublicPath` (jedina tačka
+ * istine u `lib/routes.ts`): `path` je KANONSKA putanja (`/courses`, `/pricing`,
+ * `/app/...`), a izlaz je javni URL — `sr` bez prefiksa i sa prevedenim prvim
+ * segmentom (`/kursevi`), `en` sa `/en` (`/en/courses`).
  */
-export function pricingPath(locale: Locale): "/pretplata" | "/pricing" {
-  return locale === "sr" ? "/pretplata" : "/pricing";
+export function withLocale(locale: Locale, path = ""): string {
+  return toPublicPath(locale, path);
 }
 
 export const dictionary = {

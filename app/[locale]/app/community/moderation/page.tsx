@@ -26,7 +26,7 @@ export default async function CommunityModerationPage({
 
   const token = await convexAuthNextjsToken();
   if (!token) {
-    redirect(withLocale(locale, `/sign-in?next=/${locale}/app/community/moderation`));
+    redirect(withLocale(locale, `/sign-in?next=${withLocale(locale, "/app/community/moderation")}`));
   }
 
   return <CommunityModerationQueue locale={locale} />;

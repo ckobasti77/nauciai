@@ -70,7 +70,7 @@ const UPDATED: LocalizedText = {
 };
 
 export const STUDIO_TERMS: LegalDocument = {
-  path: "/uslovi-studio",
+  path: "/studio-terms",
   title: { sr: "Uslovi korišćenja Studija", en: "Studio terms of use" },
   updated: UPDATED,
   intro: {
@@ -275,7 +275,7 @@ export const STUDIO_TERMS: LegalDocument = {
 };
 
 export const PRIVACY_POLICY: LegalDocument = {
-  path: "/politika-privatnosti",
+  path: "/privacy-policy",
   title: { sr: "Politika privatnosti", en: "Privacy policy" },
   updated: UPDATED,
   intro: {

@@ -10,7 +10,6 @@ import {
   localized,
   locales,
   normalizeLocale,
-  pricingPath,
   publicMeta,
   withLocale,
 } from "@/lib/i18n";
@@ -103,7 +102,7 @@ export default async function PublicCoursesListingPage({
           subtitle={t.subtitle}
           ctas={[
             { label: t.heroCtaCourses, href: `#${COURSES_LIST_ID}`, icon: <PlayCircle className="size-4" /> },
-            { label: t.heroCtaPlans, href: withLocale(locale, pricingPath(locale)) },
+            { label: t.heroCtaPlans, href: withLocale(locale, "/pricing") },
           ]}
           mediaLabel={t.heroMediaAlt}
           posterSrc={existingPublicPath("/images/landing/courses-hero-poster.webp")}

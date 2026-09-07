@@ -28,7 +28,7 @@ export default async function CommunityThreadPage({
 
   const token = await convexAuthNextjsToken();
   if (!token) {
-    redirect(withLocale(locale, `/sign-in?next=/${locale}/app/community/${postId}`));
+    redirect(withLocale(locale, `/sign-in?next=${withLocale(locale, `/app/community/${postId}`)}`));
   }
 
   return <LiveCommunityThreadPage locale={locale} postId={postId} />;

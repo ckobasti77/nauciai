@@ -47,10 +47,10 @@ describe("sidebar contexts — studio sections", () => {
 
   it("builds each section href as a ?kind= filter over the studio route", () => {
     const byId = Object.fromEntries(studio.sections.map((section) => [section.id, section]));
-    expect(byId.all.href("sr", {})).toBe("/sr/app/studio");
-    expect(byId.images.href("sr", {})).toBe("/sr/app/studio?kind=image");
+    expect(byId.all.href("sr", {})).toBe("/app/studio");
+    expect(byId.images.href("sr", {})).toBe("/app/studio?kind=image");
     expect(byId.videos.href("en", {})).toBe("/en/app/studio?kind=video");
-    expect(byId.audio.href("sr", {})).toBe("/sr/app/studio?kind=audio");
+    expect(byId.audio.href("sr", {})).toBe("/app/studio?kind=audio");
   });
 
   it("resolves the active section from the ?kind= filter, falling back to all", () => {
@@ -108,7 +108,7 @@ describe("sidebar contexts — community sections", () => {
     const notifications = community.sections.find((s) => s.id === "notifications")!;
     const href = notifications.href("sr", { preserved });
 
-    expect(href.startsWith("/sr/app/community/notifications?")).toBe(true);
+    expect(href.startsWith("/app/community/notifications?")).toBe(true);
     const carried = new URLSearchParams(href.split("?")[1]);
     expect(carried.get("scope")).toBe("course");
     expect(carried.get("track")).toBe("x");
@@ -159,9 +159,9 @@ describe("sidebar contexts — admin sections", () => {
 
   it("builds each section href as a full locale-prefixed route", () => {
     const byId = Object.fromEntries(admin.sections.map((s) => [s.id, s]));
-    expect(byId.content.href("sr", {})).toBe("/sr/app/admin/content");
+    expect(byId.content.href("sr", {})).toBe("/app/admin/content");
     expect(byId.chat.href("en", {})).toBe("/en/app/admin/chat");
-    expect(byId.studio.href("sr", {})).toBe("/sr/app/admin/studio");
+    expect(byId.studio.href("sr", {})).toBe("/app/admin/studio");
     expect(byId.settings.href("en", {})).toBe("/en/app/admin/settings");
   });
 });
@@ -202,10 +202,10 @@ describe("sidebar contexts — classroom sections", () => {
 
   it("builds hub hrefs with ?view and detail hrefs through the route builders", () => {
     const byId = Object.fromEntries(classroom.sections.map((s) => [s.id, s]));
-    expect(byId.overview.href("sr", {})).toBe("/sr/app/classroom");
-    expect(byId.tracks.href("sr", {})).toBe("/sr/app/classroom?view=tracks");
+    expect(byId.overview.href("sr", {})).toBe("/app/classroom");
+    expect(byId.tracks.href("sr", {})).toBe("/app/classroom?view=tracks");
     expect(byId.courses.href("en", {})).toBe("/en/app/classroom?view=courses");
-    expect(byId.track.href("sr", { trackSlug: "video-audio" })).toBe("/sr/app/classroom/tracks/video-audio");
+    expect(byId.track.href("sr", { trackSlug: "video-audio" })).toBe("/app/classroom/tracks/video-audio");
     expect(byId.course.href("en", { courseSlug: "websites" })).toBe("/en/app/classroom/courses/websites");
   });
 

@@ -9,7 +9,7 @@ import { Field, Input } from "@/components/ui/field";
 import { Panel, cn } from "@/components/ui/primitives";
 import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
-import { t, type Locale } from "@/lib/i18n";
+import { t, withLocale, type Locale } from "@/lib/i18n";
 import { passwordRequirements, passwordValidationErrors } from "@/lib/password-policy";
 import {
   isValidUsername,
@@ -70,7 +70,7 @@ function ConvexSignInForm({
   async function handlePassword(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const normalizedEmail = email.trim().toLowerCase();
-    const resetRedirectTo = `/${locale}/reset-password?email=${encodeURIComponent(normalizedEmail)}&next=${encodeURIComponent(redirectTo)}`;
+    const resetRedirectTo = `${withLocale(locale, "/reset-password")}?email=${encodeURIComponent(normalizedEmail)}&next=${encodeURIComponent(redirectTo)}`;
 
     setPendingProvider("password");
     setMessage(null);
@@ -145,7 +145,7 @@ function ConvexSignInForm({
         }
       }
 
-      const completionRedirect = `/${locale}/auth/complete?next=${encodeURIComponent(redirectTo)}`;
+      const completionRedirect = `${withLocale(locale, "/auth/complete")}?next=${encodeURIComponent(redirectTo)}`;
       if (flow === "signIn") {
         const result = await signIn("password-login", {
           identifier: email.trim(),
@@ -218,7 +218,7 @@ function ConvexSignInForm({
     setPendingProvider(provider);
     setMessage(null);
     try {
-      const onboardingRedirect = `/${locale}/auth/complete?next=${encodeURIComponent(redirectTo)}`;
+      const onboardingRedirect = `${withLocale(locale, "/auth/complete")}?next=${encodeURIComponent(redirectTo)}`;
       const result = await signIn(provider, { redirectTo: onboardingRedirect });
       if (result.redirect) {
         window.location.href = result.redirect.toString();

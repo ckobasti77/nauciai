@@ -130,7 +130,7 @@ export function extractPostIdFromSlug(slug: string): string {
 }
 
 /**
- * Generates full localized path for a community thread, e.g. "/sr/community/kako-napraviti-ai-video-kd78xyz".
+ * Generates full localized path for a community thread, e.g. "/zajednica/kako-napraviti-ai-video-kd78xyz" (sr) or "/en/community/…" (en).
  */
 export function getCommunityPostPath(
   locale: Locale,

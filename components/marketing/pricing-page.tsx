@@ -16,7 +16,6 @@ import {
   localized,
   marketingContent,
   pricingPageContent,
-  pricingPath,
   publicMeta,
   withLocale,
   type Locale,
@@ -36,9 +35,9 @@ type CompareRow = { readonly label: string; readonly basic: boolean; readonly pr
  */
 export function buildPricingMetadata(locale: Locale): Metadata {
   const origin = (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/$/, "");
-  const canonicalUrl = `${origin}${withLocale(locale, pricingPath(locale))}`;
-  const srUrl = `${origin}${withLocale("sr", pricingPath("sr"))}`;
-  const enUrl = `${origin}${withLocale("en", pricingPath("en"))}`;
+  const canonicalUrl = `${origin}${withLocale(locale, "/pricing")}`;
+  const srUrl = `${origin}${withLocale("sr", "/pricing")}`;
+  const enUrl = `${origin}${withLocale("en", "/pricing")}`;
   const title = localized(publicMeta.pricing.title, locale);
   const description = localized(publicMeta.pricing.description, locale);
 

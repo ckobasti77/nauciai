@@ -47,6 +47,7 @@ import {
 import { getCurrentViewerProfile } from "@/lib/current-viewer";
 import { locales, localized, normalizeLocale, withLocale, type Locale } from "@/lib/i18n";
 import { existingPublicPath } from "@/lib/public-media";
+import { alternatesFor } from "@/lib/routes";
 import { STUDIO_EXAMPLES, STUDIO_LANDING } from "@/lib/studio-landing";
 
 export const dynamic = "force-dynamic";
@@ -61,10 +62,11 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const locale = normalizeLocale((await params).locale);
+  const origin = (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/$/, "");
   return {
     title: STUDIO_LANDING.metaTitle[locale],
     description: STUDIO_LANDING.metaDescription[locale],
-    alternates: { languages: { sr: "/sr/studio", en: "/en/studio" } },
+    alternates: alternatesFor(origin, "/studio", locale),
     openGraph: {
       title: STUDIO_LANDING.metaTitle[locale],
       description: STUDIO_LANDING.metaDescription[locale],

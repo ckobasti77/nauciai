@@ -1,6 +1,6 @@
 import type { ParamControl } from "@/convex/studioParamSpec";
 
-import type { Locale } from "./i18n";
+import { withLocale, type Locale } from "./i18n";
 import { controlLabel, controlUnit, formatCreditsLong, optionLabel } from "./studio-params";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -227,7 +227,7 @@ export function filterJobOwners<T extends { label: string }>(owners: T[], search
 
 /** Deljivi link do detalja / editora medija. */
 export function studioMediaDetailHref(locale: Locale, jobId: string): string {
-  return `/${locale}/app/studio/m/${jobId}`;
+  return withLocale(locale, `/app/studio/m/${jobId}`);
 }
 
 export type DownloadItem = {

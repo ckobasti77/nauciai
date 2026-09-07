@@ -103,7 +103,7 @@ describe("community-seo", () => {
         upvoteCount: 3,
       },
     ];
-    const canonicalUrl = "https://nauciai.com/sr/community/kako-napraviti-video-123";
+    const canonicalUrl = "https://nauciai.com/zajednica/kako-napraviti-video-123";
 
     const { safeJsonLd } = buildThreadJsonLd({ post, comments, canonicalUrl });
 
@@ -138,7 +138,7 @@ describe("community-seo", () => {
     const enPost = { _id: "post456", title: "Learn AI Tutorial", language: "en" as const };
 
     const srCanonical = computeCanonicalUrl(origin, srPost);
-    expect(srCanonical).toBe("https://nauciai.com/sr/community/nauci-ai-tutorijal-post123");
+    expect(srCanonical).toBe("https://nauciai.com/zajednica/nauci-ai-tutorijal-post123");
 
     const enCanonical = computeCanonicalUrl(origin, enPost);
     expect(enCanonical).toBe("https://nauciai.com/en/community/learn-ai-tutorial-post456");
@@ -183,7 +183,7 @@ describe("community-seo", () => {
       priority: 0.7,
     };
 
-    expect(sitemapItem.url).toBe("https://nauciai.com/sr/community/srpska-tema-th1");
+    expect(sitemapItem.url).toBe("https://nauciai.com/zajednica/srpska-tema-th1");
     expect(sitemapItem.lastModified.getTime()).toBe(1725000000000);
   });
 });

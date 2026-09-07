@@ -65,6 +65,7 @@ import type { AppCourseNav, AppNavigationData } from "@/lib/app-navigation";
 import { primaryCourseSlug } from "@/lib/content";
 import { formatCourseCount } from "@/lib/course-catalog";
 import { dictionary, localized, otherLocale, t as tr, type Locale, withLocale } from "@/lib/i18n";
+import { parsePath } from "@/lib/routes";
 import {
   COMMUNITY_PRESERVED_KEYS,
   activeSectionId,
@@ -1389,12 +1390,8 @@ function AppSidebarContent({
   const chatSafetyActive = pathname === withLocale(locale, "/app/admin/chat");
   const showUpgrade = planOffersUpgrade(resolvePlan(navigation.role, navigation.plan));
   // Prekidac jezika u meniju naloga vodi na ISTU stranu na drugom jeziku, kao u
-  // javnom navbaru — bez ovoga bi svaka promena jezika vracala na pocetnu.
-  const localePrefix = `/${locale}`;
-  const pathWithoutLocale =
-    pathname === localePrefix || pathname.startsWith(`${localePrefix}/`) ? pathname.slice(localePrefix.length) : null;
-  const languageHref =
-    pathWithoutLocale !== null ? withLocale(otherLocale(locale), pathWithoutLocale) : withLocale(otherLocale(locale));
+  // javnom navbaru — kanonska putanja se samo prevede u drugi jezik.
+  const languageHref = withLocale(otherLocale(locale), parsePath(pathname).canonicalPath);
   const upgradeLabel = locale === "sr" ? "Unapredi plan" : "Upgrade plan";
   // Community is a destination in its own right, not a property of the selected course.
   // Scope it to the course when there is one, but never withhold the link when there is not.

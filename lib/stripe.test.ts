@@ -88,8 +88,8 @@ describe("createCreditPackCheckoutSession", () => {
     });
 
     const params = lastParams();
-    expect(params.success_url).toBe("https://nauciai.test/sr/studio/krediti?checkout=success");
-    expect(params.cancel_url).toBe("https://nauciai.test/sr/studio/krediti?checkout=cancelled");
+    expect(params.success_url).toBe("https://nauciai.test/studio/krediti?checkout=success");
+    expect(params.cancel_url).toBe("https://nauciai.test/studio/krediti?checkout=cancelled");
     // Metapodaci za webhook su NEZAVISNI od povratne putanje - grant ide isto.
     expect(params.metadata).toMatchObject({ kind: "credit_pack", packSlug: "creator" });
   });
@@ -120,7 +120,7 @@ describe("createPlanCheckoutSession", () => {
       courseId: "course_1",
       userId: "user_3",
     });
-    expect(params.success_url).toBe("https://nauciai.test/sr/app/classroom/courses/ai-osnove?checkout=success");
+    expect(params.success_url).toBe("https://nauciai.test/app/classroom/courses/ai-osnove?checkout=success");
   });
 
   it("takes no promotion codes: a 100% forever coupon would renew for free every month", async () => {

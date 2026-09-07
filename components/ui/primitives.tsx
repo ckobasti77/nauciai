@@ -220,7 +220,7 @@ export function HandUnderline({
   );
 }
 
-export function BrandMark({ href = "/sr" }: { href?: string; label?: string }) {
+export function BrandMark({ href = "/" }: { href?: string; label?: string }) {
   return (
     <Link
       href={href}

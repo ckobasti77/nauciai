@@ -5,6 +5,7 @@ import { SignInPanel } from "@/components/app/sign-in-panel";
 import { SectionMarginalia } from "@/components/marketing/section-marginalia";
 import { HandUnderline } from "@/components/ui/primitives";
 import { locales, normalizeLocale, publicMeta, withLocale } from "@/lib/i18n";
+import { parsePath } from "@/lib/routes";
 
 export function generateStaticParams() {
   return locales.map((locale) => ({ locale }));
@@ -37,7 +38,8 @@ export default async function ResetPasswordPage({
   const code = Array.isArray(query.code) ? query.code[0] : query.code;
   const next = Array.isArray(query.next) ? query.next[0] : query.next;
   const fallback = withLocale(locale, "/app");
-  const redirectTo = next && !next.startsWith("//") && (next === withLocale(locale) || next.startsWith(`${withLocale(locale)}/`)) ? next : fallback;
+  // Interni, isto-locale path (bez `//`/`/\` open-redirecta); pripadnost jeziku kroz `parsePath`.
+  const redirectTo = next && /^\/(?![/\\])/.test(next) && parsePath(next).locale === locale ? next : fallback;
 
   return (
     <main className="sketch-grid min-h-screen bg-surface-a px-4 py-8 sm:px-6 lg:px-8">

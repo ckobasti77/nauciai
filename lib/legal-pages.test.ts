@@ -17,11 +17,11 @@ vi.mock("@/components/marketing/section-marginalia", () => ({ SectionMarginalia:
 import PrivacyPolicyRoute, {
   generateMetadata as privacyMetadata,
   generateStaticParams as privacyParams,
-} from "@/app/[locale]/(marketing)/politika-privatnosti/page";
+} from "@/app/[locale]/(marketing)/privacy-policy/page";
 import StudioTermsRoute, {
   generateMetadata as termsMetadata,
   generateStaticParams as termsParams,
-} from "@/app/[locale]/(marketing)/uslovi-studio/page";
+} from "@/app/[locale]/(marketing)/studio-terms/page";
 import { locales } from "@/lib/i18n";
 import { PRIVACY_POLICY, STUDIO_TERMS, type LegalDocument } from "@/lib/legal-copy";
 
@@ -50,8 +50,8 @@ function textOf(node: ReactNode): string {
 type LegalRoute = (args: { params: Promise<{ locale: string }> }) => Promise<ReactNode>;
 
 const ROUTES: Array<[string, LegalRoute, LegalDocument]> = [
-  ["uslovi-studio", StudioTermsRoute, STUDIO_TERMS],
-  ["politika-privatnosti", PrivacyPolicyRoute, PRIVACY_POLICY],
+  ["studio-terms", StudioTermsRoute, STUDIO_TERMS],
+  ["privacy-policy", PrivacyPolicyRoute, PRIVACY_POLICY],
 ];
 
 describe("pravne stranice", () => {

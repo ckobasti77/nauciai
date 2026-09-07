@@ -23,7 +23,7 @@ export default async function NewThreadPage({
   const locale = normalizeLocale(localeParam);
   const token = await convexAuthNextjsToken();
   if (!token) {
-    redirect(withLocale(locale, `/sign-in?next=/${locale}/app/community/new`));
+    redirect(withLocale(locale, `/sign-in?next=${withLocale(locale, "/app/community/new")}`));
   }
 
   return <CommunityPostEditor locale={locale} mode="create" />;

@@ -4,7 +4,7 @@ import Stripe from "stripe";
 
 import { coursePath } from "./app-routes";
 import { getSiteUrl, requireServerEnv } from "./env";
-import { normalizeLocale } from "./i18n";
+import { normalizeLocale, withLocale } from "./i18n";
 
 let stripeClient: Stripe | null = null;
 
@@ -65,7 +65,7 @@ export async function createCourseCheckoutSession(params: {
     mode: "subscription",
     line_items: [{ price: params.priceId, quantity: 1 }],
     success_url: `${siteUrl}${coursePath(normalizeLocale(params.locale), params.courseSlug)}?checkout=success`,
-    cancel_url: `${siteUrl}/${params.locale}?checkout=cancelled&course=${params.courseSlug}`,
+    cancel_url: `${siteUrl}${withLocale(normalizeLocale(params.locale))}?checkout=cancelled&course=${params.courseSlug}`,
     customer_email: params.customerEmail,
     ...checkoutTaxParams(),
     allow_promotion_codes: true,
@@ -94,7 +94,7 @@ export async function createCustomerPortalSession(params: {
 
   return stripe.billingPortal.sessions.create({
     customer: params.customerId,
-    return_url: `${siteUrl}/${params.locale}/app/billing`,
+    return_url: `${siteUrl}${withLocale(normalizeLocale(params.locale), "/app/billing")}`,
   });
 }
 
@@ -115,7 +115,7 @@ export async function createCreditPackCheckoutSession(params: {
 }) {
   const stripe = getStripe();
   const siteUrl = getSiteUrl();
-  const returnBase = `${siteUrl}/${params.locale}${params.returnPath ?? "/app/credits"}`;
+  const returnBase = `${siteUrl}${withLocale(normalizeLocale(params.locale), params.returnPath ?? "/app/credits")}`;
 
   return stripe.checkout.sessions.create({
     mode: "payment",
