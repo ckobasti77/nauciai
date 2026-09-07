@@ -1208,9 +1208,25 @@ details:has(> .faq-answer)::details-content {
 .hero-cover-video[data-dual] {
   background: var(--hero-poster-landscape) center / 100% 100% no-repeat;
 }
+/* L3.1 → landing hero: PORTRET je statična slika (`.hero-cover-portrait`), LANDSCAPE je
+   video/mirna slika (`.hero-cover-landscape`). U portretu je slika height-fit i centrirana
+   (isti box kao stari portret video, 1080×1948 ≈ isti odnos), a landscape sloj se skriva —
+   njegov `<source media>` se u portretu ionako ne pogađa, pa telefon ne otvara video konekciju. */
+.hero-cover-portrait {
+  display: none;
+}
 @media (orientation: portrait) {
-  .hero-cover-video[data-dual] {
-    background-image: var(--hero-poster-portrait);
+  .hero-cover-portrait {
+    left: 50%;
+    right: auto;
+    width: auto;
+    height: 100%;
+    transform: translate(-50%, -50%);
+    aspect-ratio: 1080 / 1948;
+    display: block;
+  }
+  .hero-cover-landscape {
+    display: none;
   }
 }
 /* Sloj praznog lista (`hero-page-blank.webp`, providan svuda osim lista): stari loop ima 4
@@ -1246,7 +1262,8 @@ details:has(> .faq-answer)::details-content {
   mask-repeat: no-repeat;
 }
 @media (orientation: portrait) {
-  .hero-cover-mask[data-dual] {
+  .hero-cover-mask[data-dual],
+  .hero-cover-mask.hero-cover-portrait {
     -webkit-mask-image:
       linear-gradient(to right, transparent 0%, black 4%, black 96%, transparent 100%),
       linear-gradient(to bottom, transparent 0%, black 5%, black 96%, transparent 100%);
@@ -1630,7 +1647,7 @@ details:has(> .faq-answer)::details-content {
   animation: hero-spark 420ms var(--ease-studio-out) both;
 }
 
-@media (orientation: landscape) and (min-width: 1024px) and (min-height: 518px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 520px) {
   .hero-cards-3d {
     display: block;
   }

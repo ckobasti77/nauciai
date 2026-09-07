@@ -65,7 +65,7 @@ describe("HERO_PLATES (landscape)", () => {
         const [u, v] = applyHomography(toUv, p);
         expect(u).toBeGreaterThanOrEqual(0.075); // spirala je uz u = 0
         expect(u).toBeLessThanOrEqual(0.965);
-        expect(v).toBeGreaterThanOrEqual(0.045);
+        expect(v).toBeGreaterThanOrEqual(0.015); // gornji red podignut na v0 = 0.02 (list nema smetnju uz gornju ivicu u landscape-u)
         expect(v).toBeLessThanOrEqual(0.855);
         // uvijeni ugao: v ≥ 0.865 za u > 0.9 (vrh na (0.928, 0.897))
         expect(u > 0.88 && v > 0.85).toBe(false);
@@ -121,9 +121,9 @@ describe.each(["landscape", "portrait"] as const)("uv grid (%s)", (geometry) => 
 });
 
 describe("heroCardsBreakpoint", () => {
-  it("landscape: smallest plate 166.2 video px → 80 CSS px at ≥ 518 px tall; width is the lg design threshold", () => {
-    expect(minPlateWidthVideoPx()).toBeCloseTo(166.2, 0);
-    expect(heroCardsBreakpoint("landscape")).toEqual({ minWidth: 1024, minHeight: 518 });
+  it("landscape: smallest plate 165.8 video px → 80 CSS px at ≥ 520 px tall; width is the lg design threshold", () => {
+    expect(minPlateWidthVideoPx()).toBeCloseTo(165.8, 0);
+    expect(heroCardsBreakpoint("landscape")).toEqual({ minWidth: 1024, minHeight: 520 });
     expect(heroCardsBreakpoint()).toEqual(heroCardsBreakpoint("landscape"));
   });
 
@@ -134,7 +134,7 @@ describe("heroCardsBreakpoint", () => {
   it("emits the literal media queries that app/globals.css uses to show the 3D layer", () => {
     const css = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8");
     expect(heroCardsMediaQuery("landscape")).toBe(
-      "@media (orientation: landscape) and (min-width: 1024px) and (min-height: 518px)",
+      "@media (orientation: landscape) and (min-width: 1024px) and (min-height: 520px)",
     );
     expect(heroCardsMediaQuery("portrait")).toBe("@media (orientation: portrait) and (min-height: 761px)");
     expect(css).toContain(heroCardsMediaQuery("landscape"));
@@ -174,7 +174,7 @@ describe.each([
     const far = plateLayout(plates[0], 1);
     const near = plateLayout(plates[3], 1);
     expect(near.width).toBeGreaterThan(far.width);
-    expect(far.width).toBeGreaterThanOrEqual(HERO_GEOMETRY[geometry].video.width === 1928 ? 166 : 202);
+    expect(far.width).toBeGreaterThanOrEqual(HERO_GEOMETRY[geometry].video.width === 1928 ? 165 : 202);
   });
 });
 

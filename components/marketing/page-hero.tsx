@@ -65,18 +65,27 @@ export type PageHeroCta = {
 
 const MEDIA_CLASS = "hero-cover-mask h-auto max-h-full w-auto max-w-full";
 
+/** Prag desktop videa (= lg): ispod njega telefon vidi statičnu portret sliku i NIJEDAN
+ *  `<source>` ne pogađa, pa se video konekcija nikad ne otvori (Network: samo .avif). */
+const DESKTOP_MEDIA = "(min-width: 1024px)";
+
 function PageHeroMedia({
   posterSrc,
+  webmSrc,
   mp4Src,
   label,
   width,
   height,
+  /** Kad je zadato, `<source>`-ovi nose ovaj media upit — telefon ne skida video. */
+  sourceMedia,
 }: {
   posterSrc?: string;
+  webmSrc?: string;
   mp4Src?: string;
   label: string;
   width: number;
   height: number;
+  sourceMedia?: string;
 }) {
   const stillOnly = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
@@ -94,7 +103,8 @@ function PageHeroMedia({
         poster={posterSrc}
         aria-label={label}
       >
-        <source src={mp4Src} type="video/mp4" />
+        {webmSrc ? <source src={webmSrc} type="video/webm" media={sourceMedia} /> : null}
+        <source src={mp4Src} type="video/mp4" media={sourceMedia} />
       </video>
     );
   }
@@ -122,9 +132,11 @@ export function PageHero({
   ctas = [],
   mediaLabel,
   posterSrc,
+  webmSrc,
   mp4Src,
   mediaWidth = 1920,
   mediaHeight = 1072,
+  portraitSrc,
   bg = "var(--hero-paper)",
   children,
 }: {
@@ -140,10 +152,16 @@ export function PageHero({
   /** Opis vizuala za čitač ekrana; obavezan samo kad medij postoji. */
   mediaLabel?: string;
   posterSrc?: string;
+  /** WebM izvor (ide PRE mp4). Zajedno sa `portraitSrc` uključuje N-hero obrazac:
+   *  desktop video sa `<source media>` gejtom, telefon statična portret slika. */
+  webmSrc?: string;
   mp4Src?: string;
   /** Prirodne dimenzije medija — drže odnos pre učitavanja (bez CLS-a). */
   mediaWidth?: number;
   mediaHeight?: number;
+  /** Statična portret slika za telefon (< lg). Kad postoji, desktop video se skida samo
+   *  od lg naviše (`<source media>`), pa telefon u mreži vidi samo .avif — nikad .mp4/.webm. */
+  portraitSrc?: string;
   /** Krem ton podloge; podrazumevano token heroja. Prosleđuje se kad je izmerena
    *  boja ivica konkretnog videa drugačija, da spoj ostane bešavan. */
   bg?: string;
@@ -159,20 +177,41 @@ export function PageHero({
       className="page-hero hero-paper-island relative flex items-center overflow-hidden border-b-2 border-ink"
     >
       {hasMedia ? (
-        // Kutija vizuala: isti centrirani `max-w-7xl` kontejner kao tekst, vizual uz
-        // njenu desnu ivicu. SAMO od `lg` — vizuali su crtani sa praznom levom trećinom
-        // za tekst, a na užem ekranu se skupe u nisku traku preko koje bi tekst pao na
-        // ilustrovani deo (kontrast ispod 4.5:1). Dok ne postoji portret verzija medija,
-        // hero je na telefonu čist krem — čitljivost pre ukrasa.
-        <div className="absolute inset-0 z-0 hidden items-center justify-end lg:left-1/2 lg:right-auto lg:flex lg:w-full lg:max-w-7xl lg:-translate-x-1/2">
-          <PageHeroMedia
-            posterSrc={posterSrc}
-            mp4Src={mp4Src}
-            label={mediaLabel ?? ""}
-            width={mediaWidth}
-            height={mediaHeight}
-          />
-        </div>
+        <>
+          {/* Telefon (< lg): statična portret slika kao pozadina heroja. Postoji SAMO kad je
+              `portraitSrc` zadat; video ispod je gejtovan `<source media>`-om na lg naviše, pa
+              telefon nikad ne otvori video konekciju (Network: samo .avif). Krem scrim s leve/donje
+              strane drži kontrast teksta preko ilustracije. */}
+          {portraitSrc ? (
+            <div className="absolute inset-0 z-0 lg:hidden" aria-hidden="true">
+              <Image src={portraitSrc} alt="" fill sizes="100vw" className="object-cover" priority />
+              {/* Blag krem sloj odozgo — drži kontrast naslova/podnaslova (dark ink) preko
+                  gornjeg dela ilustracije; ilustracija ispod ostaje čista. */}
+              <div
+                className="absolute inset-0"
+                style={{
+                  background:
+                    "linear-gradient(to bottom, var(--hero-paper) 10%, color-mix(in srgb, var(--hero-paper) 55%, transparent) 34%, transparent 52%)",
+                }}
+              />
+            </div>
+          ) : null}
+          {/* Kutija vizuala: isti centrirani `max-w-7xl` kontejner kao tekst, vizual uz
+              njenu desnu ivicu. SAMO od `lg` — vizuali su crtani sa praznom levom trećinom
+              za tekst, a na užem ekranu se skupe u nisku traku preko koje bi tekst pao na
+              ilustrovani deo (kontrast ispod 4.5:1). */}
+          <div className="absolute inset-0 z-0 hidden items-center justify-end lg:left-1/2 lg:right-auto lg:flex lg:w-full lg:max-w-7xl lg:-translate-x-1/2">
+            <PageHeroMedia
+              posterSrc={posterSrc}
+              webmSrc={webmSrc}
+              mp4Src={mp4Src}
+              label={mediaLabel ?? ""}
+              width={mediaWidth}
+              height={mediaHeight}
+              sourceMedia={portraitSrc ? DESKTOP_MEDIA : undefined}
+            />
+          </div>
+        </>
       ) : null}
 
       <div className="relative z-20 mx-auto w-full max-w-7xl px-4 pb-12 pt-20 sm:px-6 lg:px-8">

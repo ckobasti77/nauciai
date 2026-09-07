@@ -22,7 +22,8 @@ import { heroCardLift } from "@/lib/motion-contract";
  *   (×1928/1920, ×1076/1072): TL (1305, 399) · TR (1745, 549) · BR (1436, 973) · BL (1008, 620)
  *   spirala je uz ivicu BL–TL (prstenovi su celi VAN lista, u ≈ −0.01…−0.04)
  *   uvijeni ugao lista: vrh u uv (0.928, 0.897), počinje od v ≥ 0.865 za u > 0.9
- *   Ploče: kolone u ∈ [0.08, 0.50] i [0.54, 0.96]; redovi v ∈ [0.05, 0.43] i [0.47, 0.85].
+ *   Ploče: kolone u ∈ [0.08, 0.50] i [0.54, 0.96]; redovi v ∈ [0.02, 0.38] i [0.44, 0.80]
+ *   (redovi podignuti sa [0.05,0.43]/[0.47,0.85] da 4. kartica ne prekrije uvijeni ugao lista).
  *
  * PORTRET — `hero-v2-portrait-poster.png` (1064×1920), ista metoda (RMS 0.9–1.8 px):
  *   uglovi lista TL (472, 1100) · TR (912, 1232) · BR (620, 1768) · BL (127, 1589)
@@ -80,8 +81,8 @@ export const HERO_GEOMETRY: Record<HeroGeometry, HeroGeometrySpec> = {
         [0.54, 0.96],
       ],
       rows: [
-        [0.05, 0.43],
-        [0.47, 0.85],
+        [0.02, 0.38],
+        [0.44, 0.8],
       ],
     },
     focalPx: 1200,
@@ -127,10 +128,10 @@ export type HeroPlate = {
 /**
  * Redosled = redosled kartica: 1 Kursevi, 2 Studio, 3 Zajednica, 4 Registracija (ili
  * Kontrolna tabla za ulogovanog). Px u 1920×1072 (za proveru):
- *   courses   (1313, 415) (1466, 470) (1364, 565) (1212, 492)
- *   studio    (1483, 476) (1701, 554) (1604, 682) (1381, 574)
- *   community (1201, 501) (1352, 577) (1224, 696) (1080, 594)
- *   account   (1369, 585) (1592, 697) (1464, 866) (1241, 708)
+ *   courses   (1320, 409) (1473, 463) (1378, 552) (1227, 481)
+ *   studio    (1491, 469) (1708, 545) (1618, 663) (1396, 560)
+ *   community (1210, 494) (1361, 568) (1243, 679) (1097, 580)
+ *   account   (1378, 577) (1601, 686) (1483, 841) (1259, 690)
  */
 export const HERO_PLATES: readonly HeroPlate[] = [
   {
@@ -139,10 +140,10 @@ export const HERO_PLATES: readonly HeroPlate[] = [
     column: 0,
     row: 0,
     quad: [
-      [0.6837, 0.387],
-      [0.7636, 0.4381],
-      [0.7103, 0.5274],
-      [0.6315, 0.4588],
+      [0.6874, 0.3818],
+      [0.7674, 0.4318],
+      [0.7179, 0.5147],
+      [0.6388, 0.4487],
     ],
   },
   {
@@ -151,10 +152,10 @@ export const HERO_PLATES: readonly HeroPlate[] = [
     column: 1,
     row: 0,
     quad: [
-      [0.7726, 0.4439],
-      [0.886, 0.5164],
-      [0.8353, 0.6361],
-      [0.7193, 0.5352],
+      [0.7764, 0.4374],
+      [0.8896, 0.508],
+      [0.8427, 0.6187],
+      [0.7269, 0.5221],
     ],
   },
   {
@@ -163,10 +164,10 @@ export const HERO_PLATES: readonly HeroPlate[] = [
     column: 0,
     row: 1,
     quad: [
-      [0.6254, 0.4671],
-      [0.7041, 0.5379],
-      [0.6376, 0.6493],
-      [0.5624, 0.5538],
+      [0.63, 0.4609],
+      [0.7088, 0.53],
+      [0.6472, 0.6332],
+      [0.5713, 0.5415],
     ],
   },
   {
@@ -175,10 +176,10 @@ export const HERO_PLATES: readonly HeroPlate[] = [
     column: 1,
     row: 1,
     quad: [
-      [0.713, 0.5459],
-      [0.8293, 0.6505],
-      [0.7625, 0.808],
-      [0.6463, 0.6604],
+      [0.7177, 0.5379],
+      [0.8338, 0.6397],
+      [0.7724, 0.7848],
+      [0.6559, 0.6439],
     ],
   },
 ];

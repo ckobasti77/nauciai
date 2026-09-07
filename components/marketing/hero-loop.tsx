@@ -1,6 +1,6 @@
 "use client";
 
-import Image, { getImageProps } from "next/image";
+import Image from "next/image";
 import { useEffect, useRef, useSyncExternalStore, type CSSProperties } from "react";
 
 /**
@@ -61,11 +61,10 @@ function getServerSnapshot(): boolean {
   return false;
 }
 
+/** L3.1 → portret landinga je STATIČNA slika (nema videa u portretu: telefon ne otvara
+ *  nijednu video konekciju). Landscape ostaje video + 3D kartice. */
 export type HeroPortraitSources = {
-  webmSrc: string;
-  mp4Src: string;
-  posterSrc: string;
-  fallbackSrc: string;
+  src: string;
   width: number;
   height: number;
 };
@@ -122,46 +121,45 @@ export function HeroLoop({
     // distorzija; element == sadržaj pa se `.hero-cover-mask` fade poklapa sa ivicama.
     // Sloj 3D kartica (`HeroCards3d`) nosi ISTU klasu u ISTOM roditelju, pa se
     // normalizovane koordinate ploča poklapaju sa pikselima videa na svakoj rezoluciji.
+    // L3.1: PORTRET je statična slika (`.hero-cover-portrait`, vidljiva samo u portretu),
+    // a LANDSCAPE video/mirna slika (`.hero-cover-landscape`, skrivena u portretu) nosi
+    // `<source media>` gejt — na telefonu u portretu se nijedan video izvor ne pogađa.
     const dual = portrait ? "" : undefined;
     const posterVars: CSSProperties | undefined = portrait
-      ? ({
-          "--hero-poster-landscape": `url("${posterSrc}")`,
-          "--hero-poster-portrait": `url("${portrait.posterSrc}")`,
-        } as CSSProperties)
+      ? ({ "--hero-poster-landscape": `url("${posterSrc}")` } as CSSProperties)
       : undefined;
 
     return (
       <div className="absolute inset-0" style={{ backgroundColor: bg }}>
         {portrait ? (
           <>
-            <link rel="preload" as="image" href={portrait.posterSrc} media={PORTRAIT_MEDIA} fetchPriority="high" />
+            <link rel="preload" as="image" href={portrait.src} media={PORTRAIT_MEDIA} fetchPriority="high" />
             <link rel="preload" as="image" href={posterSrc} media={LANDSCAPE_MEDIA} fetchPriority="high" />
+            {/* Portret: statična slika, jedini LCP element na telefonu. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={portrait.src}
+              alt={label}
+              width={portrait.width}
+              height={portrait.height}
+              className="hero-cover-media hero-cover-mask hero-cover-portrait"
+            />
           </>
         ) : null}
         {stillOnly ? (
-          portrait ? (
-            <CoverStill
-              label={label}
-              landscapeSrc={fallbackSrc}
-              portraitSrc={portrait.fallbackSrc}
-              portraitWidth={portrait.width}
-              portraitHeight={portrait.height}
-            />
-          ) : (
-            <Image
-              src={fallbackSrc}
-              alt={label}
-              width={2752}
-              height={1536}
-              sizes="100vw"
-              className="hero-cover-media hero-cover-mask"
-              priority
-            />
-          )
+          <Image
+            src={fallbackSrc}
+            alt={label}
+            width={2752}
+            height={1536}
+            sizes="100vw"
+            className={`hero-cover-media hero-cover-mask${portrait ? " hero-cover-landscape" : ""}`}
+            priority
+          />
         ) : (
           <video
             ref={videoRef}
-            className="hero-cover-media hero-cover-mask hero-cover-video"
+            className={`hero-cover-media hero-cover-mask hero-cover-video${portrait ? " hero-cover-landscape" : ""}`}
             data-dual={dual}
             style={posterVars}
             autoPlay
@@ -174,8 +172,6 @@ export function HeroLoop({
           >
             {portrait ? (
               <>
-                <source src={portrait.mp4Src} type="video/mp4" media={PORTRAIT_MEDIA} />
-                <source src={portrait.webmSrc} type="video/webm" media={PORTRAIT_MEDIA} />
                 <source src={mp4Src} type="video/mp4" media={LANDSCAPE_MEDIA} />
                 <source src={webmSrc} type="video/webm" media={LANDSCAPE_MEDIA} />
               </>
@@ -218,35 +214,5 @@ export function HeroLoop({
         </video>
       )}
     </div>
-  );
-}
-
-/** Mirna slika (reduced-motion / data-saver) sa art-direction po orijentaciji. */
-function CoverStill({
-  label,
-  landscapeSrc,
-  portraitSrc,
-  portraitWidth,
-  portraitHeight,
-}: {
-  label: string;
-  landscapeSrc: string;
-  portraitSrc: string;
-  portraitWidth: number;
-  portraitHeight: number;
-}) {
-  const common = { alt: label, sizes: "100vw", priority: true };
-  const {
-    props: { srcSet: portraitSrcSet },
-  } = getImageProps({ ...common, src: portraitSrc, width: portraitWidth, height: portraitHeight });
-  const {
-    props: { srcSet: landscapeSrcSet, ...rest },
-  } = getImageProps({ ...common, src: landscapeSrc, width: 2752, height: 1536 });
-  return (
-    <picture>
-      <source media={PORTRAIT_MEDIA} srcSet={portraitSrcSet} />
-      <source srcSet={landscapeSrcSet} />
-      <img {...rest} alt={label} className="hero-cover-media hero-cover-mask" data-dual="" />
-    </picture>
   );
 }

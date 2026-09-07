@@ -113,12 +113,9 @@ export function MarketingPage({
                 variant="cover"
                 bg="var(--hero-paper)"
                 portrait={{
-                  webmSrc: "/images/landing/hero-v2-portrait-loop.webm",
-                  mp4Src: "/images/landing/hero-v2-portrait-loop.mp4",
-                  posterSrc: "/images/landing/hero-v2-portrait-poster.webp",
-                  fallbackSrc: "/images/landing/hero-v2-portrait.png",
-                  width: 1064,
-                  height: 1920,
+                  src: "/images/landing/hero-portrait.avif",
+                  width: 1080,
+                  height: 1948,
                 }}
               />
               {/* Sloj praznog lista: stari loop ima 4 nacrtane table na svesci — preko njih ide

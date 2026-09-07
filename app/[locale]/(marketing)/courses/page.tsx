@@ -105,8 +105,10 @@ export default async function PublicCoursesListingPage({
             { label: t.heroCtaPlans, href: withLocale(locale, "/pricing") },
           ]}
           mediaLabel={t.heroMediaAlt}
-          posterSrc={existingPublicPath("/images/landing/courses-hero-poster.webp")}
+          posterSrc={existingPublicPath("/images/landing/courses-hero-poster.avif")}
+          webmSrc={existingPublicPath("/images/landing/courses-hero-loop.webm")}
           mp4Src={existingPublicPath("/images/landing/courses-hero-loop.mp4")}
+          portraitSrc={existingPublicPath("/images/landing/courses-hero-portrait.avif")}
         />
 
         <section className="sketch-grid bg-surface-a px-4 py-12 sm:px-6 lg:px-8">

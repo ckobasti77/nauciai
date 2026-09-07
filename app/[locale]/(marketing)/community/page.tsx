@@ -204,8 +204,10 @@ export default async function PublicCommunityListingPage({
           { label: t.heroCtaDiscussions, href: `#${THREADS_LIST_ID}` },
         ]}
         mediaLabel={t.heroMediaAlt}
-        posterSrc={existingPublicPath("/images/landing/community-hero-poster.webp")}
+        posterSrc={existingPublicPath("/images/landing/community-hero-poster.avif")}
+        webmSrc={existingPublicPath("/images/landing/community-hero-loop.webm")}
         mp4Src={existingPublicPath("/images/landing/community-hero-loop.mp4")}
+        portraitSrc={existingPublicPath("/images/landing/community-hero-portrait.avif")}
       />
 
       <section className="sketch-grid bg-surface-a px-4 py-12 sm:px-6 lg:px-8">
