@@ -1133,13 +1133,13 @@ export function StudioComposer({
             role="dialog"
             aria-label={locale === "sr" ? "Izaberi model" : "Choose a model"}
             className={cn(
-              "surface-card border-2 border-ink bg-paper-strong shadow-[6px_6px_0_0_var(--shadow-hard-16)] flex flex-col z-40",
+              "surface-card overflow-hidden border-2 border-ink bg-paper-strong shadow-[6px_6px_0_0_var(--shadow-hard-16)] flex flex-col z-40",
               "sm:absolute sm:bottom-[calc(100%+12px)] sm:left-0 sm:right-0 sm:max-h-[min(78vh,600px)]",
               "fixed inset-x-0 bottom-0 max-h-[85vh] rounded-t-[16px] border-b-0 sm:rounded-[16px] sm:border-b-2",
             )}
           >
             {/* Header: IZABERI MODEL + X */}
-            <div className="flex items-center justify-between rounded-t-[inherit] border-b-2 border-ink bg-paper px-4 py-3 sm:px-5">
+            <div className="flex items-center justify-between border-b-2 border-ink bg-paper px-4 py-3 sm:px-5">
               <span className="type-eyebrow text-ink">
                 {locale === "sr" ? "Izaberi model" : "Choose a model"}
               </span>

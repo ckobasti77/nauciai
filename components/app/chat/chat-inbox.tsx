@@ -1,6 +1,6 @@
 "use client";
 
-import { BellOff, Inbox, MessageCircle, Pin, Search, Settings2, Users, X } from "lucide-react";
+import { Bell, BellOff, Inbox, MessageCircle, Pin, Search, Settings2, Users, X } from "lucide-react";
 import { useMutation, usePaginatedQuery, useQuery } from "convex/react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -27,6 +27,16 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { Locale } from "@/lib/i18n";
 import { withLocale } from "@/lib/i18n";
+import {
+  NOTIFICATION_CHANNELS,
+  type NotificationChannel,
+  type NotificationSnapshot,
+  notificationMasterState,
+  preferenceSnapshot,
+  restoredPreferences,
+  silencedPreferences,
+  toggledChannel,
+} from "@/lib/notification-preferences";
 
 type InboxRowItem = {
   conversationId: Id<"chatConversations">;
@@ -100,6 +110,22 @@ function notificationCategoryLabel(locale: Locale, category: NotificationPrefere
   return labels[category][locale === "sr" ? 0 : 1];
 }
 
+/**
+ * Snimak stanja pre gasenja zvona. Shema nema polje za njega, a i ne treba joj:
+ * ovo je udobnost jednog uredjaja (isti obrazac kao `SoundToggle`). Kad snimka nema
+ * — drugi browser, ocisceno skladiste — paljenje pali sve, sto je bezbedan ishod.
+ */
+const NOTIFICATION_SNAPSHOT_KEY = "nauciai-notifications-snapshot";
+
+function readNotificationSnapshot(): NotificationSnapshot | null {
+  try {
+    const raw = window.localStorage.getItem(NOTIFICATION_SNAPSHOT_KEY);
+    return raw ? (JSON.parse(raw) as NotificationSnapshot) : null;
+  } catch {
+    return null;
+  }
+}
+
 function NotificationPreferencesPopover({ locale }: { locale: Locale }) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -128,30 +154,76 @@ function NotificationPreferencesPopover({ locale }: { locale: Locale }) {
     };
   }, [open]);
 
-  async function togglePreference(preference: NotificationPreference, key: "inApp" | "push" | "sound") {
-    await updatePreference({
-      category: preference.category,
-      inApp: key === "inApp" ? !preference.inApp : preference.inApp,
-      push: key === "push" ? !preference.push : preference.push,
-      sound: key === "sound" ? !preference.sound : preference.sound,
-    });
+  const master = notificationMasterState(preferences ?? []);
+
+  async function togglePreference(preference: NotificationPreference, key: NotificationChannel) {
+    const next = toggledChannel(preference, key);
+    await updatePreference({ category: next.category, inApp: next.inApp, push: next.push, sound: next.sound });
+  }
+
+  // Zvono NIJE zaseban prekidac nego pogled na iste redove: gasenje ih sve gasi (uz
+  // snimak), paljenje vraca zapamceno stanje. Zato se ne mogu razici.
+  async function toggleMaster() {
+    if (!preferences) return;
+    const next =
+      notificationMasterState(preferences) === "none"
+        ? restoredPreferences(preferences, readNotificationSnapshot())
+        : silencedPreferences(preferences);
+    if (notificationMasterState(preferences) !== "none") {
+      try {
+        window.localStorage.setItem(NOTIFICATION_SNAPSHOT_KEY, JSON.stringify(preferenceSnapshot(preferences)));
+      } catch {
+        // Privatni rezim bez skladista — gasenje i dalje radi, samo se ne pamti.
+      }
+    }
+    await Promise.all(
+      next.map((row) =>
+        updatePreference({ category: row.category, inApp: row.inApp, push: row.push, sound: row.sound }),
+      ),
+    );
   }
 
   return (
     <div ref={containerRef} className="relative">
       <button ref={triggerRef} type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open} aria-haspopup="dialog" className="grid size-11 place-items-center rounded-full border-2 border-ink bg-paper-strong" aria-label={label(locale, "Podešavanja obaveštenja", "Notification settings")}><Settings2 className="size-4" /></button>
       {open ? (
-        <div role="dialog" aria-label={label(locale, "Podešavanja obaveštenja", "Notification settings")} className="absolute right-0 top-13 z-40 w-[min(22rem,calc(100vw-2rem))] rounded-[16px] border-2 border-ink bg-paper-strong p-3 shadow-xl">
-          <div className="mb-2 flex items-center justify-between gap-3"><p className="text-sm font-black">{label(locale, "Obaveštenja", "Notifications")}</p><button type="button" onClick={() => { setOpen(false); requestAnimationFrame(() => triggerRef.current?.focus()); }} className="grid size-8 place-items-center rounded-full border border-line" aria-label={label(locale, "Zatvori", "Close")}><X className="size-4" /></button></div>
+        // Sirina je IZMERENA iz sadrzaja, ne birana: tri kanala stoje u mrezi od tri
+        // jednake kolone i popunjavaju red do kraja. Najduzi kanal je „U aplikaciji"
+        // (63,9px u Nunito 900/12px) + 13,6 padding/okvir = 78px po koloni; 3 x 78
+        // + 8 razmaka + 17,6 (kartica) + 23,2 (panel) = 283px -> 18rem sa predahom.
+        // Staro 22rem je ostavljalo ~70px praznine desno.
+        <div role="dialog" aria-label={label(locale, "Podešavanja obaveštenja", "Notification settings")} className="absolute right-0 top-13 z-40 w-[min(18rem,calc(100vw-2rem))] rounded-[16px] border-2 border-ink bg-paper-strong p-2.5 shadow-[8px_8px_0_0_var(--shadow-hard-14)]">
+          <div className="mb-2 flex items-center justify-between gap-2"><p className="text-sm font-black">{label(locale, "Obaveštenja", "Notifications")}</p><button type="button" onClick={() => { setOpen(false); requestAnimationFrame(() => triggerRef.current?.focus()); }} className="grid size-8 shrink-0 place-items-center rounded-full border border-line" aria-label={label(locale, "Zatvori", "Close")}><X className="size-4" /></button></div>
           {preferences === undefined ? <div className="grid min-h-24 place-items-center"><Spinner size="md" /></div> : (
-            <div className="space-y-2">
+            <div className="space-y-1.5">
+              {/* Glavno zvono: izvedeno iz redova ispod, nikad zaseban prekidac.
+                  `aria-pressed="mixed"` nosi „delimicno" i za citace ekrana. */}
+              <button
+                type="button"
+                aria-pressed={master === "none" ? false : master === "all" ? true : "mixed"}
+                onClick={() => void toggleMaster()}
+                className={cn(
+                  "flex min-h-11 w-full items-center gap-2 rounded-[12px] border-2 border-ink px-2 text-left transition",
+                  master === "all" ? "bg-ink text-paper-strong" : master === "partial" ? "bg-yellow text-ink" : "bg-paper text-ink",
+                )}
+              >
+                <span className={cn("grid size-7 shrink-0 place-items-center rounded-full border border-ink", master === "all" ? "bg-paper-strong text-ink" : "bg-paper-strong text-ink")}>
+                  {master === "none" ? <BellOff className="size-3.5" /> : <Bell className={cn("size-3.5", master === "all" && "fill-current")} />}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-xs font-black">{label(locale, "Sva obaveštenja", "All notifications")}</span>
+                  <span className={cn("block truncate type-caption font-bold", master === "all" ? "text-paper-strong/80" : "text-muted")}>
+                    {master === "all" ? label(locale, "Sve uključeno", "All on") : master === "partial" ? label(locale, "Delimično uključeno", "Partly on") : label(locale, "Sve isključeno", "All off")}
+                  </span>
+                </span>
+              </button>
               {preferences.map((preference) => (
-                <div key={preference.category} className="rounded-[12px] border border-line bg-paper p-2.5">
+                <div key={preference.category} className="rounded-[12px] border border-line bg-paper p-2">
                   <p className="text-xs font-black">{notificationCategoryLabel(locale, preference.category)}</p>
-                  <div className="mt-2 flex flex-wrap gap-1.5">{(["inApp", "push", "sound"] as const).map((key) => {
+                  <div className="mt-1.5 grid grid-cols-3 gap-1">{NOTIFICATION_CHANNELS.map((key) => {
                     const active = preference[key];
                     const text = key === "inApp" ? label(locale, "U aplikaciji", "In app") : key === "push" ? "Push" : label(locale, "Zvuk", "Sound");
-                    return <button key={key} type="button" aria-pressed={active} onClick={() => void togglePreference(preference, key)} className={cn("rounded-full border border-ink px-2.5 py-1 type-caption font-black", active ? "bg-ink text-paper-strong" : "bg-paper-strong text-ink")}>{text}</button>;
+                    return <button key={key} type="button" aria-pressed={active} onClick={() => void togglePreference(preference, key)} className={cn("min-w-0 truncate rounded-full border border-ink px-1.5 py-1 text-center type-caption font-black", active ? "bg-ink text-paper-strong" : "bg-paper-strong text-ink")}>{text}</button>;
                   })}</div>
                 </div>
               ))}
@@ -301,7 +373,7 @@ export function InboxPane({
   }
 
   return (
-    <section data-chat-motion-surface="inbox" className="flex min-h-0 min-w-0 flex-1 flex-col rounded-[16px] border-2 border-ink bg-paper shadow-[5px_5px_0_0_var(--shadow-hard-12)]">
+    <section data-chat-motion-surface="inbox" className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[16px] border-2 border-ink bg-paper shadow-[5px_5px_0_0_var(--shadow-hard-12)]">
       <div className="border-b-2 border-ink bg-paper-strong p-4">
         <div className="flex items-center justify-between gap-3">
           <div><p className="type-eyebrow-sm text-blue-mid dark:text-muted">{label(locale, "Poruke", "Messages")}</p><h2 className="type-h3 text-ink">{label(locale, "Razgovori", "Conversations")}</h2></div>

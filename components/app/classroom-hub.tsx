@@ -104,7 +104,7 @@ export function ClassroomHubSkeleton() {
     <div className="space-y-6" aria-busy="true" aria-label="Učitavanje / Loading">
       <div className="h-[19rem] animate-pulse rounded-[16px] border-2 border-line bg-paper-strong sm:h-56" />
       <div className="h-56 animate-pulse rounded-[16px] border-2 border-line bg-paper-strong" />
-      <div className="rounded-[16px] border-2 border-line bg-paper-strong">
+      <div className="overflow-hidden rounded-[16px] border-2 border-line bg-paper-strong">
         <div className="border-b-2 border-line p-6">
           <div className="h-4 w-24 animate-pulse rounded-full bg-line" />
           <div className="mt-3 h-7 w-64 max-w-full animate-pulse rounded-full bg-line" />

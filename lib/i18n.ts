@@ -71,6 +71,11 @@ export const dictionary = {
     save: "Sačuvaj",
     draft: "Nacrt",
     published: "Objavljeno",
+    // Meni naloga (N9) — isti redovi na javnim stranama i u dashboardu.
+    accountMenu: "Meni naloga",
+    accountSettings: "Podešavanja",
+    upgradePlan: "Unapredi plan",
+    signOut: "Odjavi se",
   },
   en: {
     appName: "Faculty for AI",
@@ -98,6 +103,10 @@ export const dictionary = {
     save: "Save",
     draft: "Draft",
     published: "Published",
+    accountMenu: "Account menu",
+    accountSettings: "Settings",
+    upgradePlan: "Upgrade plan",
+    signOut: "Sign out",
   },
 } as const satisfies Record<Locale, Record<string, string>>;
 

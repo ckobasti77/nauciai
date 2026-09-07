@@ -1,13 +1,11 @@
 "use client";
 
 import {
-  BookOpen,
   ChevronDown,
   ChevronRight,
   CircleAlert,
   Coins,
   CreditCard,
-  Crown,
   GraduationCap,
   LayoutDashboard,
   Lock,
@@ -43,10 +41,15 @@ import {
   type ReactNode,
 } from "react";
 
+import {
+  AppAccountMenu,
+  CreditsBalancePill,
+  SidebarRoleBadge,
+  planOffersUpgrade,
+  resolvePlan,
+} from "@/components/app/app-account-menu";
 import { CheckoutButton } from "@/components/app/checkout-button";
-import { SoundToggle } from "@/components/app/sound-toggle";
 import { ThemeToggle } from "@/components/app/theme-toggle";
-import { CreditIcon } from "@/components/studio/credit-icon";
 import { BrandMark, cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
 import {
@@ -59,14 +62,13 @@ import { lessonPosition, lessonPositionLabel } from "@/lib/lesson-position";
 import { publicProfilePath } from "@/lib/profile-links";
 import type { AppCourseNav, AppNavigationData } from "@/lib/app-navigation";
 import { primaryCourseSlug } from "@/lib/content";
-import { dictionary, localized, type Locale, withLocale } from "@/lib/i18n";
+import { dictionary, localized, otherLocale, type Locale, withLocale } from "@/lib/i18n";
 import {
   COMMUNITY_PRESERVED_KEYS,
   activeSectionId,
   resolveSidebarContext,
   type SidebarHrefParams,
 } from "@/lib/sidebar-contexts";
-import { formatCreditsLong } from "@/lib/studio-params";
 import {
   SidebarNavSwap,
   ContextSidebarNav,
@@ -724,34 +726,6 @@ function LearningSwitcher({
  * ne dominira. `undefined` znači "još se učitava" (prikazuje "—"); `null` znači
  * "neprijavljen", pa se pločica uopšte ne renderuje.
  */
-function CreditsBalancePill({ locale, balance }: { locale: Locale; balance: number | null | undefined }) {
-  if (balance === null) return null;
-
-  return (
-    <Link
-      href={withLocale(locale, "/app/credits")}
-      aria-label={
-        balance === undefined
-          ? locale === "sr"
-            ? "Stanje kredita"
-            : "Credits balance"
-          : locale === "sr"
-            ? `Stanje: ${formatCreditsLong(balance, locale)}`
-            : `Balance: ${formatCreditsLong(balance, locale)}`
-      }
-      className={cn(
-        "inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-full border-2 border-ink px-2.5 py-1 text-xs font-black transition hover:-translate-y-0.5",
-        balance === 0 ? "bg-amber-100 text-amber-900" : "bg-paper-strong text-ink",
-      )}
-    >
-      <CreditIcon className="size-3.5" />
-      <span>
-        {balance === undefined ? "—" : balance.toLocaleString(locale === "sr" ? "sr-RS" : "en-US")}
-      </span>
-    </Link>
-  );
-}
-
 function NavLink({
   href,
   active,
@@ -847,118 +821,6 @@ function RailAction({
     <button type="button" aria-label={label} aria-expanded={expanded} onClick={onClick} className={className}>
       {content}
     </button>
-  );
-}
-
-/** Shared so the rail can decide whether to offer Upgrade without re-deriving the plan. */
-function resolvePlan(role?: string, plan?: string) {
-  const normalizedRole = role ?? "student";
-  return plan ?? (
-    normalizedRole === "admin"
-      ? "admin"
-      : normalizedRole === "moderator"
-        ? "moderator"
-        : normalizedRole === "pro_student"
-          ? "pro"
-          : "free"
-  );
-}
-
-function planOffersUpgrade(plan: string) {
-  return plan === "free" || plan === "lite";
-}
-
-/**
- * `inline` is a plain <span>, never a <Link>: it renders inside the profile trigger
- * <button>, and an anchor there would be an interactive element nested in another one.
- * The Upgrade call to action that used to sit beside this badge is a row in the profile
- * menu instead, which is the one place it can still be a real link.
- */
-function SidebarRoleBadge({
-  role,
-  plan,
-  locale,
-  variant = "inline",
-}: {
-  role?: string;
-  plan?: string;
-  locale: Locale;
-  variant?: "inline" | "collapsed";
-}) {
-  const resolvedPlan = resolvePlan(role, plan);
-
-  const label =
-    resolvedPlan === "admin"
-      ? "Administrator"
-      : resolvedPlan === "moderator"
-        ? "Moderator"
-        : resolvedPlan === "pro"
-          ? (locale === "sr" ? "Pro plan" : "Pro plan")
-          : resolvedPlan === "lite"
-            ? (locale === "sr" ? "Lite plan" : "Lite plan")
-            : (locale === "sr" ? "Free plan" : "Free plan");
-
-  // The profile card is the narrowest place this badge has ever lived; the full label
-  // would push the name into a two-character truncation.
-  const shortLabel =
-    resolvedPlan === "admin"
-      ? "Admin"
-      : resolvedPlan === "moderator"
-        ? "Mod"
-        : resolvedPlan === "pro"
-          ? "Pro"
-          : resolvedPlan === "lite"
-            ? "Lite"
-            : "Free";
-
-  const RoleIcon =
-    resolvedPlan === "admin"
-      ? ShieldCheck
-      : resolvedPlan === "moderator"
-        ? Shield
-        : resolvedPlan === "pro"
-          ? Crown
-          : resolvedPlan === "lite"
-            ? GraduationCap
-            : BookOpen;
-
-  const tone = cn(
-    resolvedPlan === "admin" && "bg-yellow",
-    resolvedPlan === "moderator" && "bg-ink text-paper-strong",
-    resolvedPlan === "pro" && "bg-[#dfc4ff] dark:text-paper",
-    resolvedPlan === "lite" && "bg-[#d1e5ff] dark:text-paper",
-    resolvedPlan === "free" && "bg-[#ffeed1] dark:text-paper",
-  );
-
-  if (variant === "collapsed") {
-    return (
-      <span
-        role="status"
-        aria-label={`${locale === "sr" ? "Uloga" : "Role"}: ${label}`}
-        title={label}
-        className={cn(
-          "flex size-9 items-center justify-center rounded-full border-2 border-ink text-ink shadow-[2px_2px_0_0_var(--shadow-hard-12)]",
-          tone,
-        )}
-      >
-        <RoleIcon className="size-4" />
-      </span>
-    );
-  }
-
-  return (
-    <span
-      role="status"
-      aria-label={`${locale === "sr" ? "Uloga" : "Role"}: ${label}`}
-      title={label}
-      className={cn(
-        "flex shrink-0 items-center gap-1 rounded-full border-2 border-ink px-2 py-1 type-eyebrow-sm text-ink shadow-[2px_2px_0_0_var(--shadow-hard-12)]",
-        tone,
-      )}
-    >
-      <RoleIcon className="size-3" />
-      <span>{shortLabel}</span>
-    </span>
   );
 }
 
@@ -1260,6 +1122,13 @@ function AppSidebarContent({
     [],
   );
 
+  const handleSignOut = useCallback(async () => {
+    await signOut();
+    setProfileMenuOpen(false);
+    setRailFlyout(null);
+    router.push(withLocale(locale, "/sign-in"));
+  }, [locale, router, signOut]);
+
   const goBackFromContext = useCallback(() => {
     // "Nazad" znaci IZLAZ IZ ALATA -> uvek dashboard, nikad router.back().
     // router.back() je vracao poslednji unos u istoriji, a otvaranje i zatvaranje
@@ -1455,6 +1324,13 @@ function AppSidebarContent({
   const adminActive = pathname === withLocale(locale, "/app/admin/content");
   const chatSafetyActive = pathname === withLocale(locale, "/app/admin/chat");
   const showUpgrade = planOffersUpgrade(resolvePlan(navigation.role, navigation.plan));
+  // Prekidac jezika u meniju naloga vodi na ISTU stranu na drugom jeziku, kao u
+  // javnom navbaru — bez ovoga bi svaka promena jezika vracala na pocetnu.
+  const localePrefix = `/${locale}`;
+  const pathWithoutLocale =
+    pathname === localePrefix || pathname.startsWith(`${localePrefix}/`) ? pathname.slice(localePrefix.length) : null;
+  const languageHref =
+    pathWithoutLocale !== null ? withLocale(otherLocale(locale), pathWithoutLocale) : withLocale(otherLocale(locale));
   const upgradeLabel = locale === "sr" ? "Unapredi plan" : "Upgrade plan";
   // Community is a destination in its own right, not a property of the selected course.
   // Scope it to the course when there is one, but never withhold the link when there is not.
@@ -1648,102 +1524,22 @@ function AppSidebarContent({
       {profileData && (
         <div className="relative mt-auto hidden md:block -mx-4 -mb-7 border-t-2 border-ink bg-paper-strong" ref={profileMenuRef}>
           {profileMenuOpen ? (
-            <div className="absolute bottom-[calc(100%+0.65rem)] left-3 right-3 z-50 rounded-[16px] border-2 border-ink bg-paper-strong p-2.5 text-ink shadow-[8px_8px_0_0_var(--shadow-hard-14)]">
-              <span
-                aria-hidden="true"
-                className="absolute -bottom-2 left-6 size-4 rotate-45 border-r-2 border-b-2 border-ink bg-paper-strong"
-              />
-              
-              <div className="overflow-hidden rounded-[12px] divide-y divide-line/80">
-                <Link
-                  href={withLocale(locale, profilePath)}
-                  onClick={() => setProfileMenuOpen(false)}
-                  className={cn(
-                    "flex min-h-11 items-center gap-3 px-3 py-2 type-eyebrow text-ink transition",
-                    profileIncomplete
-                      ? "bg-red-50 hover:bg-red-100"
-                      : emailVerificationRequired
-                        ? "bg-amber-50 hover:bg-amber-100"
-                        : passwordRecommended
-                          ? "bg-indigo-50 hover:bg-indigo-100"
-                          : "bg-paper-strong hover:bg-yellow/35",
-                  )}
-                >
-                  {hasAccountAdvisory ? (
-                    <CircleAlert className={cn("size-4 shrink-0", profileIncomplete ? "text-red-700" : emailVerificationRequired ? "text-amber-700" : "text-indigo-700")} />
-                  ) : (
-                    <User className="size-4 shrink-0" />
-                  )}
-                  <span>{profileLabel}</span>
-                  {accountBadge > 0 ? <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full border border-ink bg-red-600 px-1 text-[10px] font-black text-white">{accountBadge > 99 ? "99+" : accountBadge}</span> : null}
-                </Link>
-                {hasAccountAdvisory ? (
-                  <div className="space-y-1.5 bg-paper-strong px-2 py-2">
-                    {profileIncomplete ? <p className="rounded-full border border-red-400 bg-red-50 px-2.5 py-1 type-caption font-black text-red-900">{locale === "sr" ? "Dodaj korisničko ime" : "Add a username"}</p> : null}
-                    {emailVerificationRequired ? <p className="rounded-full border border-amber-400 bg-amber-50 px-2.5 py-1 type-caption font-black text-amber-900">{locale === "sr" ? "Verifikuj email za kurseve" : "Verify email for courses"}</p> : null}
-                    {passwordRecommended ? <p className="rounded-full border border-indigo-400 bg-indigo-50 px-2.5 py-1 type-caption font-black text-indigo-900">{locale === "sr" ? "Dodaj opcionu lozinku" : "Add an optional password"}</p> : null}
-                  </div>
-                ) : null}
-                {/* publicProfilePath resolves the row above to the *public* member page as
-                    soon as a username exists, which left /app/profile — where the account
-                    advisories above are actually resolved — with no nav entry at all. */}
-                {hasAccountSettingsRow ? (
-                  <Link
-                    href={withLocale(locale, "/app/profile")}
-                    onClick={() => setProfileMenuOpen(false)}
-                    className="flex min-h-11 items-center gap-3 bg-paper-strong px-3 py-2 type-eyebrow text-ink transition hover:bg-yellow/35"
-                  >
-                    <Settings className="size-4 shrink-0" />
-                    <span>{accountSettingsLabel}</span>
-                  </Link>
-                ) : null}
-                <Link
-                  href={withLocale(locale, "/app/billing")}
-                  onClick={() => setProfileMenuOpen(false)}
-                  className="flex min-h-11 items-center gap-3 bg-paper-strong px-3 py-2 type-eyebrow text-ink transition hover:bg-yellow/35"
-                >
-                  <CreditCard className="size-4 shrink-0" />
-                  <span>{t.billing}</span>
-                </Link>
-                {/* The badge this menu hangs off is now a plain <span> inside the trigger
-                    <button>, so this is the only place the upgrade path can still be a link. */}
-                {showUpgrade ? (
-                  <Link
-                    href={courseCatalogPath(locale)}
-                    onClick={() => setProfileMenuOpen(false)}
-                    className="flex min-h-11 items-center gap-3 bg-[#10b981] px-3 py-2 type-eyebrow text-white transition hover:bg-[#0ea472]"
-                  >
-                    <ArrowUpRight className="size-4 shrink-0" />
-                    <span>{upgradeLabel}</span>
-                  </Link>
-                ) : null}
-              </div>
-
-              <div className="mt-2 space-y-2 border-t border-line/90 pt-2">
-                {/* Gornji red: Krediti (levo) + Tema (desno) */}
-                <div className="flex items-center justify-between gap-2">
-                  <CreditsBalancePill locale={locale} balance={creditsBalance} />
-                  <ThemeToggle locale={locale} className="self-center" />
-                </div>
-
-                {/* Donji red: Zvuk (levo, ispod kredita) + Odjavi se (desno, ispod teme) */}
-                <div className="flex items-center justify-between gap-2">
-                  <SoundToggle locale={locale} />
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      await signOut();
-                      setProfileMenuOpen(false);
-                      router.push(withLocale(locale, "/sign-in"));
-                    }}
-                    className="inline-flex min-h-8 shrink-0 items-center justify-center gap-1.5 rounded-full border-2 border-ink bg-ink px-3 py-1 type-eyebrow text-paper-strong transition hover:bg-[#16446f] dark:hover:bg-ink/85 hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-                  >
-                    <LogOut className="size-3.5 shrink-0" />
-                    <span>{locale === "sr" ? "Odjavi se" : "Sign out"}</span>
-                  </button>
-                </div>
-              </div>
-            </div>
+            <AppAccountMenu
+              locale={locale}
+              placement="above"
+              name={profileName}
+              username={profileData?.username}
+              initials={profileInitials}
+              avatarUrl={profileAvatar}
+              role={navigation.role}
+              plan={navigation.plan}
+              needsAttention={hasAccountAdvisory}
+              creditsBalance={creditsBalance}
+              languageHref={languageHref}
+              upgradeHref={showUpgrade ? courseCatalogPath(locale) : undefined}
+              onNavigate={() => setProfileMenuOpen(false)}
+              onSignOut={handleSignOut}
+            />
           ) : null}
 
           <button
@@ -1931,31 +1727,22 @@ function AppSidebarContent({
           // avatar u prosirenoj kartici profila (koja je `-mb-7` + `py-4`).
           <div className="relative mt-auto -mb-7 flex flex-col items-center gap-2 pb-4">
             {railFlyout === "profile" ? (
-              <div className="absolute bottom-0 left-[calc(100%_+_36px)] z-[70] w-72 rounded-[16px] border-2 border-ink bg-paper-strong p-3 text-ink shadow-[10px_10px_0_var(--shadow-hard-16)]">
-                <div className="mb-3 min-w-0 border-b border-line pb-3">
-                  <p className="truncate text-sm font-black">{profileName}</p>
-                  <p className="truncate text-xs font-bold text-muted">{profileUsername}</p>
-                </div>
-                <Link href={withLocale(locale, profilePath)} className={cn("flex min-h-11 items-center gap-3 rounded-full px-3 text-sm font-black", profileIncomplete ? "bg-red-50 text-red-900" : emailVerificationRequired ? "bg-amber-50 text-amber-900" : passwordRecommended ? "bg-indigo-50 text-indigo-900" : "hover:bg-yellow/25")}>
-                  {hasAccountAdvisory ? <CircleAlert className="size-4" /> : <User className="size-4" />} {profileLabel}
-                </Link>
-                {hasAccountAdvisory ? (
-                  <div className="mt-2 space-y-1.5">
-                    {profileIncomplete ? <p className="rounded-full border border-red-400 bg-red-50 px-2.5 py-1 type-caption font-black text-red-900">{locale === "sr" ? "Dodaj korisničko ime" : "Add a username"}</p> : null}
-                    {emailVerificationRequired ? <p className="rounded-full border border-amber-400 bg-amber-50 px-2.5 py-1 type-caption font-black text-amber-900">{locale === "sr" ? "Verifikuj email za kurseve" : "Verify email for courses"}</p> : null}
-                    {passwordRecommended ? <p className="rounded-full border border-indigo-400 bg-indigo-50 px-2.5 py-1 type-caption font-black text-indigo-900">{locale === "sr" ? "Dodaj opcionu lozinku" : "Add an optional password"}</p> : null}
-                  </div>
-                ) : null}
-                {hasAccountSettingsRow ? (
-                  <Link href={withLocale(locale, "/app/profile")} className="flex min-h-11 items-center gap-3 rounded-full px-3 text-sm font-black hover:bg-yellow/25"><Settings className="size-4" /> {accountSettingsLabel}</Link>
-                ) : null}
-                <Link href={withLocale(locale, "/app/billing")} className="flex min-h-11 items-center gap-3 rounded-full px-3 text-sm font-black hover:bg-yellow/25"><CreditCard className="size-4" /> {t.billing}</Link>
-                <ThemeToggle locale={locale} className="mt-2" />
-                {showUpgrade ? (
-                  <Link href={courseCatalogPath(locale)} className="mt-2 flex min-h-11 items-center gap-3 rounded-full bg-[#10b981] px-3 text-sm font-black text-white transition hover:bg-[#0ea472]"><ArrowUpRight className="size-4" /> {upgradeLabel}</Link>
-                ) : null}
-                <button type="button" onClick={async () => { await signOut(); router.push(withLocale(locale, "/sign-in")); }} className="mt-2 flex min-h-11 w-full items-center gap-3 bg-ink px-3 text-sm font-black text-paper-strong"><LogOut className="size-4" /> {locale === "sr" ? "Odjavi se" : "Sign out"}</button>
-              </div>
+              <AppAccountMenu
+                locale={locale}
+                placement="right"
+                name={profileName}
+                username={profileData?.username}
+                initials={profileInitials}
+                avatarUrl={profileAvatar}
+                role={navigation.role}
+                plan={navigation.plan}
+                needsAttention={hasAccountAdvisory}
+                creditsBalance={creditsBalance}
+                languageHref={languageHref}
+                upgradeHref={showUpgrade ? courseCatalogPath(locale) : undefined}
+                onNavigate={() => setRailFlyout(null)}
+                onSignOut={handleSignOut}
+              />
             ) : null}
             {/* Mirrors the expanded sidebar, where the badge sits inside the profile card:
                 the role belongs to the identity, not to the top of the navigation. */}
