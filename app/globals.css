@@ -1123,7 +1123,7 @@ details:has(> .faq-answer)::details-content {
 /* Hero „cover" vizual (HeroLoop): ceo video/poster UVEK vidljiv po visini, bez
    kropa i bez distorzije, a element == sadržaj (pa se `mask` fade poklapa sa
    pravim ivicama videa u OBA režima → bešavan spoj sa bg bojom sekcije).
-   - Uzak ekran (aspect < video 1920:1072): puna širina, auto visina → contain,
+   - Uzak ekran (aspect < video 1928:1076): puna širina, auto visina → contain,
      letterbox gore/dole u bg boji (tek tada „skaliraj da stane po širini").
    - Širok ekran (aspect ≥ videa): PUNA visina (100vh), auto širina → prazan
      prostor levo/desno je bg boja; od `lg` poravnat DESNO (leva strana za tekst).
@@ -1148,9 +1148,9 @@ details:has(> .faq-answer)::details-content {
   min-height: 62svh;
 }
 
-/* `aspect-ratio` je eksplicitan da bi i NE-zamenjeni element (div sloj 3D kartica) dobio
-   identičan box kao video/slika — `height: auto` bez njega ne bi imao odakle da izvede
-   visinu. Vrednost = pravi odnos hero-v2 videa (1920×1072). */
+/* `aspect-ratio` je eksplicitan da bi i NE-zamenjeni element (div sloj 3D kartica, sloj praznog
+   lista) dobio identičan box kao video/slika — `height: auto` bez njega ne bi imao odakle da
+   izvede visinu. Vrednost = pravi odnos hero videa (stari loop, 1928×1076). */
 .hero-cover-media {
   position: absolute;
   top: 50%;
@@ -1159,9 +1159,9 @@ details:has(> .faq-answer)::details-content {
   width: 100%;
   height: auto;
   max-width: none;
-  aspect-ratio: 1920 / 1072;
+  aspect-ratio: 1928 / 1076;
 }
-@media (min-aspect-ratio: 1920 / 1072) {
+@media (min-aspect-ratio: 1928 / 1076) {
   .hero-cover-media {
     width: auto;
     height: 100%;
@@ -1171,17 +1171,17 @@ details:has(> .faq-answer)::details-content {
    mora da se veže za ISTI centrirani kontejner u kom je i tekst (max-w-7xl = 80rem), a ne
    za desnu ivicu viewport-a (ranije `right: 0`, zbog čega je sav krem višak ostajao levo).
    `100%` je širina hero sekcije; širina vizuala se izvodi iz visine (`height: 100%` +
-   `aspect-ratio` 1920/1072) preko `100svh`, jer je sekcija `.hero-100` — 2px donje ivice
+   `aspect-ratio` 1928/1076) preko `100svh`, jer je sekcija `.hero-100` — 2px donje ivice
    koje `svh` ne oduzima pomere vizual za ~1.8px, ispod praga vidljivosti.
      · vizual uži od kontejnera → desna ivica mu sedne na desnu ivicu kontejnera, pa je
        krem višak IZVAN kontejnera jednak levo i desno;
      · vizual širi od kontejnera → centrira se, pa je višak opet jednak sa obe strane.
    Kartice na svesci se ne diraju: sloj `.hero-cards-3d` nosi ISTU klasu, pomera se zajedno
    sa videom, a geometriju računa iz sopstvene širine (`lib/hero-cards.ts`). */
-@media (min-aspect-ratio: 1920 / 1072) and (min-width: 1024px) {
+@media (min-aspect-ratio: 1928 / 1076) and (min-width: 1024px) {
   .hero-cover-media {
     left: auto;
-    right: max(0px, min((100% - 80rem) / 2, (100% - 100svh * 1920 / 1072) / 2));
+    right: max(0px, min((100% - 80rem) / 2, (100% - 100svh * 1928 / 1076) / 2));
     transform: translateY(-50%);
   }
 }
@@ -1211,6 +1211,21 @@ details:has(> .faq-answer)::details-content {
 @media (orientation: portrait) {
   .hero-cover-video[data-dual] {
     background-image: var(--hero-poster-portrait);
+  }
+}
+/* Sloj praznog lista (`hero-page-blank.webp`, providan svuda osim lista): stari loop ima 4
+   nacrtane table na svesci — ovaj sloj ih pokrije praznim papirom, pa se ispod podignute 3D
+   kartice vidi prazan list. Deli `.hero-cover-media` box sa videom (ista geometrija, pomera se
+   ZAJEDNO), leži IZMEĐU videa (z-0) i sloja kartica (z-20). Prikazuje se samo tamo gde i landscape
+   video — landscape ≥ 1024px; u portretu se NE renderuje. Nezavisno od `prefers-reduced-motion`
+   (kad video stoji, poster + ovaj sloj se i dalje vide, da kartice ne leže preko crteža). */
+.hero-page-blank {
+  display: none;
+  pointer-events: none;
+}
+@media (orientation: landscape) and (min-width: 1024px) {
+  .hero-page-blank {
+    display: block;
   }
 }
 /* Mask koji fade-uje sve 4 ivice vizuala u transparentno (→ ista `--hero-paper` boja iza),
@@ -1253,8 +1268,8 @@ details:has(> .faq-answer)::details-content {
      homografiju koja taj box položi tačno na ploču; oba računa `plateLayout()` na svaki
      resize (ResizeObserver piše width/height/transform inline). Prikazuje se kad je
      najmanja ploča ≥ 80 CSS px (L3.1):
-       · landscape: video je contain, renderovana širina = min(vw, 100svh·1920/1072),
-         najmanja ploča 165.7 px videa ⇒ visina ≥ 519 px; širina ≥ 1024 je dizajn prag (lg);
+       · landscape: video je contain, renderovana širina = min(vw, 100svh·1928/1076),
+         najmanja ploča 166.2 px videa ⇒ visina ≥ 518 px; širina ≥ 1024 je dizajn prag (lg);
        · portret: video je height-fit (100svh·1064/1920), najmanja ploča 202.1 px videa ⇒
          visina ≥ 761 px (širina samo kropuje).
      Oba literala su izvedena u `heroCardsMediaQuery()` — `lib/hero-cards.test.ts` čuva da
@@ -1615,7 +1630,7 @@ details:has(> .faq-answer)::details-content {
   animation: hero-spark 420ms var(--ease-studio-out) both;
 }
 
-@media (orientation: landscape) and (min-width: 1024px) and (min-height: 519px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 518px) {
   .hero-cards-3d {
     display: block;
   }
@@ -1639,7 +1654,7 @@ details:has(> .faq-answer)::details-content {
 }
 
 /* Nizak landscape ekran sa snap redom: tekst + CTA + red + traka ne staju uz trust listu, pa
-   se ona sakriva. Red je aktivan ispod 1024 širine ili 519 visine; izmereno: kopija je 534px
+   se ona sakriva. Red je aktivan ispod 1024 širine ili 518 visine; izmereno: kopija je 534px
    visoka, a prostor = visina − 80 (navbar) − 148 (traka + 24 + red) → ispod 766px visine
    trust (80px sa marginom) mora da ode. Na 3D laptopu (1536×695) trust ostaje jer nema reda,
    ali ispod 720 visine ipak ne staje uz kopiju → skriva se. U PORTRETU trust nikad (L3.1:

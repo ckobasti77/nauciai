@@ -16,9 +16,10 @@ import { heroCardLift } from "@/lib/motion-contract";
  * Geometrija hero kartica (L3 / L3.1): 4 klikabilne kartice „leže" na listu sveske u hero
  * videu. Dve geometrije, po orijentaciji ekrana (isti prag kao za izbor videa):
  *
- * LANDSCAPE — `hero-v2-poster.png` (1920×1072, prvi = poslednji frejm, sveska statična).
- *   Merenje (sharp, ray-cast iz centra lista + TLS fit svake ivice, RMS ≈ 1 px):
- *   uglovi lista TL (1300, 397) · TR (1737, 547) · BR (1430, 969) · BL (1004, 618)
+ * LANDSCAPE — stari hero loop `hero-poster.png` (1928×1076). Normalizovane koordinate ploča su
+ *   IDENTIČNE staroj svesci (provereno: preklopljene preko 4 nacrtane table lista). Uglovi lista su
+ *   izmereni na v2 posteru (1920×1072, sharp, ray-cast + TLS fit ivica) pa skalirani u ovaj kadar
+ *   (×1928/1920, ×1076/1072): TL (1305, 399) · TR (1745, 549) · BR (1436, 973) · BL (1008, 620)
  *   spirala je uz ivicu BL–TL (prstenovi su celi VAN lista, u ≈ −0.01…−0.04)
  *   uvijeni ugao lista: vrh u uv (0.928, 0.897), počinje od v ≥ 0.865 za u > 0.9
  *   Ploče: kolone u ∈ [0.08, 0.50] i [0.54, 0.96]; redovi v ∈ [0.05, 0.43] i [0.47, 0.85].
@@ -31,16 +32,17 @@ import { heroCardLift } from "@/lib/motion-contract";
  *   uvijeni ugao: mastilo od v ≥ 0.87 za u ≥ 0.85 → red 2 do v = 0.85
  *   Ploče: kolone u ∈ [0.07, 0.505] i [0.535, 0.97]; redovi v ∈ [0.06, 0.44] i [0.47, 0.85].
  *
- * List je PRAZAN (nema nacrtanih ploča), pa su ploče definisane u prostoru samog lista: 2×2,
- * sve četiri iste u uv koordinatama — perspektiva ih na ekranu skraćuje, pa su KARTICE
- * RAZLIČITIH veličina (bliža veća, dalja manja) i svaka puni svoju ploču na pravoj CSS veličini.
+ * Ploče su definisane u prostoru samog lista: 2×2, sve četiri iste u uv koordinatama —
+ * perspektiva ih na ekranu skraćuje, pa su KARTICE RAZLIČITIH veličina (bliža veća, dalja manja)
+ * i svaka puni svoju ploču na pravoj CSS veličini. Stari list ima 4 nacrtane table TAČNO ispod
+ * ploča; 3D kartice ih pokrivaju, a `hero-page-blank` sloj ih zameni praznim papirom pri podizanju.
  *
  * `HERO_PLATES` / `HERO_PLATES_PORTRAIT` su ISPISANE konstante (normalizovano 0–1 u odnosu
  * na video), a `derivePlateQuad` ih ponovo izvodi iz lista + uv — test čuva da se ne raziđu.
  *
  * ŽIŽNA DALJINA (`focalPx`, za hover po normali — vidi `pagePose`): crtež je ilustracija,
  * ne fizički konzistentna kamera, pa je f izbor koji daje podizanje PRAVO NAGORE po ekranu
- * uz ~0 promene veličine. Landscape 1200 (= CSS perspective 1200 na 1920 širine: normala
+ * uz ~0 promene veličine. Landscape 1200 (= CSS perspective 1200 na 1928 širine: normala
  * (−0.22, −0.86, −0.45), Δ centra (−3, −31) px za h = 6 %, širina ×1.002). Portret 3600
  * (samokalibracija r1·r2 = 0 daje 3604; sa 665 bi kartica „padala" 13 px NADOLE i rasla 4 %):
  * normala (−0.02, −0.77, −0.64), Δ (−0.5, −21) px, širina ×1.005.
@@ -65,12 +67,12 @@ export type HeroGeometrySpec = {
 
 export const HERO_GEOMETRY: Record<HeroGeometry, HeroGeometrySpec> = {
   landscape: {
-    video: { width: 1920, height: 1072 },
+    video: { width: 1928, height: 1076 },
     pageQuad: [
-      [1300.0, 397.2],
-      [1737.4, 547.3],
-      [1430.1, 969.4],
-      [1004.0, 617.6],
+      [1305.4167, 398.6821],
+      [1744.6392, 549.3422],
+      [1436.0588, 973.0172],
+      [1008.1833, 619.9045],
     ],
     plateUv: {
       columns: [

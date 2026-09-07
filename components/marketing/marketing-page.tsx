@@ -122,6 +122,22 @@ export function MarketingPage({
                   height: 1920,
                 }}
               />
+              {/* Sloj praznog lista: stari loop ima 4 nacrtane table na svesci — preko njih ide
+                  prazan papir, pa se ispod podignute kartice vidi prazna sveska (bez linija stare
+                  table). Ista `.hero-cover-media` geometrija kao video (pomera se ZAJEDNO s njim),
+                  IZMEĐU videa (z-0) i 3D kartica (z-20). Samo landscape ≥ 1024px (CSS); u portretu se
+                  NE renderuje. Ostaje i uz `prefers-reduced-motion` (video stoji, poster + ovaj sloj
+                  se i dalje vide). Običan <img> sa width/height (ne next/image) da optimizacija ne
+                  pomeri piksele. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/images/landing/hero-page-blank.webp"
+                alt=""
+                width={1928}
+                height={1076}
+                aria-hidden="true"
+                className="hero-cover-media hero-page-blank z-10"
+              />
               {/* L3: 3D kartice na listu sveske — isti roditelj i ista geometrija kao video
                   (`.hero-cover-media`); vidljive samo iznad praga (CSS). */}
               <HeroCards3d locale={locale} signedIn={Boolean(viewerProfile)} />

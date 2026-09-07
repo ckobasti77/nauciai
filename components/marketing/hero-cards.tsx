@@ -248,7 +248,7 @@ export function HeroCards3d({ locale, signedIn }: { locale: Locale; signedIn: bo
   }, []);
 
   return (
-    <nav ref={layerRef} aria-label={label} className="hero-cover-media hero-cards-3d" data-dual="">
+    <nav ref={layerRef} aria-label={label} className="hero-cover-media hero-cards-3d z-20" data-dual="">
       {items.map(({ plate, title, line, href, Icon }) => (
         <Link
           key={plate.key}

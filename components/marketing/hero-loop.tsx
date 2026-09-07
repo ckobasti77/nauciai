@@ -75,13 +75,13 @@ const LANDSCAPE_MEDIA = "(orientation: landscape) and (min-width: 1024px)";
 
 export function HeroLoop({
   label,
-  // Hero v2 (L3): video + poster su 1920×1072 (24 fps, prvi = poslednji frejm, sveska
-  // statična); poster je webp i ide direktno u `<video poster>` (ne kroz next/image).
-  // Fallback `hero-v2.png` je 2752×1536 — ista kompozicija, odnos 1.7917 ≈ 1.7910.
-  webmSrc = "/images/landing/hero-v2-loop.webm",
-  mp4Src = "/images/landing/hero-v2-loop.mp4",
-  posterSrc = "/images/landing/hero-v2-poster.webp",
-  fallbackSrc = "/images/landing/hero-v2.png",
+  // Hero (L3, stari loop — življa petlja): video + poster su 1928×1076; poster je webp i ide
+  // direktno u `<video poster>` (ne kroz next/image). Fallback `hero.png` je 2752×1536 — ista
+  // kompozicija, odnos 1.7917 ≈ 1.7918.
+  webmSrc = "/images/landing/hero-loop.webm",
+  mp4Src = "/images/landing/hero-loop.mp4",
+  posterSrc = "/images/landing/hero-poster.webp",
+  fallbackSrc = "/images/landing/hero.png",
   portrait,
   variant = "panel",
   bg = "#F8EDD8",

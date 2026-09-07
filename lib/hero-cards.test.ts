@@ -121,9 +121,9 @@ describe.each(["landscape", "portrait"] as const)("uv grid (%s)", (geometry) => 
 });
 
 describe("heroCardsBreakpoint", () => {
-  it("landscape: smallest plate 165.7 video px → 80 CSS px at ≥ 519 px tall; width is the lg design threshold", () => {
-    expect(minPlateWidthVideoPx()).toBeCloseTo(165.7, 0);
-    expect(heroCardsBreakpoint("landscape")).toEqual({ minWidth: 1024, minHeight: 519 });
+  it("landscape: smallest plate 166.2 video px → 80 CSS px at ≥ 518 px tall; width is the lg design threshold", () => {
+    expect(minPlateWidthVideoPx()).toBeCloseTo(166.2, 0);
+    expect(heroCardsBreakpoint("landscape")).toEqual({ minWidth: 1024, minHeight: 518 });
     expect(heroCardsBreakpoint()).toEqual(heroCardsBreakpoint("landscape"));
   });
 
@@ -134,7 +134,7 @@ describe("heroCardsBreakpoint", () => {
   it("emits the literal media queries that app/globals.css uses to show the 3D layer", () => {
     const css = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8");
     expect(heroCardsMediaQuery("landscape")).toBe(
-      "@media (orientation: landscape) and (min-width: 1024px) and (min-height: 519px)",
+      "@media (orientation: landscape) and (min-width: 1024px) and (min-height: 518px)",
     );
     expect(heroCardsMediaQuery("portrait")).toBe("@media (orientation: portrait) and (min-height: 761px)");
     expect(css).toContain(heroCardsMediaQuery("landscape"));
@@ -174,7 +174,7 @@ describe.each([
     const far = plateLayout(plates[0], 1);
     const near = plateLayout(plates[3], 1);
     expect(near.width).toBeGreaterThan(far.width);
-    expect(far.width).toBeGreaterThanOrEqual(HERO_GEOMETRY[geometry].video.width === 1920 ? 165 : 202);
+    expect(far.width).toBeGreaterThanOrEqual(HERO_GEOMETRY[geometry].video.width === 1928 ? 166 : 202);
   });
 });
 
