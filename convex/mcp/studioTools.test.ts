@@ -10,9 +10,12 @@
 import { convexTest, type TestConvex } from "convex-test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
-import { api } from "../_generated/api";
+import { api, internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
+import { MIN_PLAUSIBLE_BITRATE_BPS } from "../../lib/media-duration";
+import { studioModelBySlug } from "../providers/catalogModels";
 import schema from "../schema";
+import { MAX_ACTIVE_JOBS } from "../studioCore";
 import { MCP_WRITE_RATE_LIMIT } from "./rateLimit";
 import { STUDIO_TOOL_NAMES } from "./studioTools";
 
@@ -68,16 +71,22 @@ function textOf(response: ToolCall): string {
  * `decideStudioAccess` - a ovi testovi mere alate, ne kapiju. Uslovi su
  * prihvaćeni da `createJob` stigne do provere modela.
  */
-async function setup() {
+async function setup(ownerOverrides: Record<string, unknown> = {}) {
   const t = convexTest(schema, modules);
-  const { ownerId, otherId } = await t.run(async (ctx) => ({
-    ownerId: await ctx.db.insert("users", {
+  // `undefined` u override-u BRIŠE podrazumevano polje (nepotvrđen email, bez
+  // pečata uslova) - Convex red ne sme da nosi ključ sa `undefined`.
+  const ownerRow = Object.fromEntries(
+    Object.entries({
       email: "owner@example.com",
       name: "Owner",
       role: "moderator",
       acceptedStudioTermsAt: 1,
       emailVerificationTime: 1,
-    }),
+      ...ownerOverrides,
+    }).filter(([, value]) => value !== undefined),
+  );
+  const { ownerId, otherId } = await t.run(async (ctx) => ({
+    ownerId: await ctx.db.insert("users", ownerRow as { email: string; name: string }),
     otherId: await ctx.db.insert("users", { email: "other@example.com", name: "Other" }),
   }));
   const owner = asUser(t, ownerId);
@@ -107,9 +116,120 @@ function seedJob(t: TestConvexWithSchema, userId: Id<"users">, createdAt: number
   );
 }
 
+/** Red v4 kataloga u bazi - ista polja koja upisuje `seedStudioModels` (kao u `studioCatalogJob.test.ts`). */
+async function seedCatalogModel(t: TestConvexWithSchema, slug: string) {
+  const seed = studioModelBySlug(slug);
+  if (!seed) throw new Error(`Nema modela ${slug} u katalogu`);
+
+  return t.run((ctx) =>
+    ctx.db.insert("models", {
+      slug: seed.slug,
+      provider: seed.provider,
+      kind: seed.kind,
+      family: seed.family,
+      labelSr: seed.labelSr,
+      labelEn: seed.labelEn,
+      taglineSr: seed.taglineSr,
+      taglineEn: seed.taglineEn,
+      descriptionSr: seed.descriptionSr,
+      descriptionEn: seed.descriptionEn,
+      endpoints: JSON.stringify(seed.endpoints),
+      inputModes: JSON.stringify(seed.inputModes),
+      inputSpec: JSON.stringify(seed.inputSpec),
+      paramSpec: JSON.stringify(seed.paramSpec),
+      priceRule: JSON.stringify(seed.priceRule),
+      capabilities: JSON.stringify(seed.capabilities),
+      isEnabled: true,
+      sortOrder: seed.sortOrder,
+      updatedAt: 1,
+    }),
+  );
+}
+
+function grantCredits(t: TestConvexWithSchema, userId: Id<"users">, amount: number) {
+  return t.mutation(internal.credits.grantCredits, {
+    userId,
+    amount,
+    source: "admin_grant",
+    idempotencyKey: { field: "stripeSessionId", value: `seed-${userId}` },
+  });
+}
+
+async function balanceOf(t: TestConvexWithSchema, userId: Id<"users">) {
+  const row = await t.run((ctx) =>
+    ctx.db
+      .query("creditBalances")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .unique(),
+  );
+
+  return row?.balance ?? 0;
+}
+
+function jobsOf(t: TestConvexWithSchema, userId: Id<"users">) {
+  return t.run((ctx) =>
+    ctx.db
+      .query("generationJobs")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect(),
+  );
+}
+
+/**
+ * Lažan red `studioUploads` bez merenja: fajl okačen i prijavljen mimo MCP-a,
+ * kome server (još) nije pročitao trajanje. `mimeType` se upisuje ručno jer
+ * `convex-test` ne prenosi `contentType` u `_storage` metapodatke.
+ */
+async function seedUpload(t: TestConvexWithSchema, userId: Id<"users">, mimeType: string, slot: string, bytes = 64) {
+  return t.run(async (ctx) => {
+    const storageId = await ctx.storage.store(new Blob(["x".repeat(bytes)], { type: mimeType }));
+    await ctx.db.insert("studioUploads", {
+      userId,
+      storageId,
+      slot,
+      bytes,
+      mimeType,
+      createdAt: Date.now(),
+      expiresAt: Date.now() + 1,
+    });
+
+    return storageId;
+  });
+}
+
+/**
+ * MP4 čiji `mvhd` atom tvrdi zadato trajanje, dopunjen nulama do veličine koju
+ * donja granica bitrate-a čini mogućom (kopija fixture-a iz `studioCatalogJob.test.ts`).
+ */
+function mp4Bytes(seconds: number, type: string): Uint8Array<ArrayBuffer> {
+  const u32 = (value: number) => [(value >>> 24) & 0xff, (value >>> 16) & 0xff, (value >>> 8) & 0xff, value & 0xff];
+  const chars = (text: string) => [...text].map((letter) => letter.charCodeAt(0));
+  const mvhd = [...u32(108), ...chars("mvhd"), 0, 0, 0, 0, ...u32(0), ...u32(0), ...u32(1000), ...u32(Math.round(seconds * 1000)), ...new Array(80).fill(0)];
+  const header = Uint8Array.from([...u32(16), ...chars("ftyp"), ...chars("isom"), ...u32(512), ...u32(mvhd.length + 8), ...chars("moov"), ...mvhd]);
+  const minBytes = Math.ceil((seconds * (MIN_PLAUSIBLE_BITRATE_BPS[type] ?? 0)) / 8) + 1;
+  const padded = new Uint8Array(Math.max(minBytes, header.length));
+  padded.set(header, 0);
+
+  return padded;
+}
+
+/** `fetch` koji poštuje `Range` zaglavlje i vraća 206, kao Convex storage. */
+function rangeServer(data: Uint8Array) {
+  return (_url: string, init?: { headers?: Record<string, string> }) => {
+    const range = /bytes=(\d+)-(\d+)/.exec(init?.headers?.Range ?? "");
+    if (!range) return Promise.resolve(new Response(null, { status: 400 }));
+
+    return Promise.resolve(new Response(data.slice(Number(range[1]), Number(range[2]) + 1), { status: 206 }));
+  };
+}
+
+function storeBlob(t: TestConvexWithSchema, bytes: Uint8Array<ArrayBuffer> | string, type: string) {
+  return t.run((ctx) => ctx.storage.store(new Blob([bytes], { type })));
+}
+
 // ── tools/list ─────────────────────────────────────────────────────────────
 
-test("tools/list vraća svih šest studio alata, svaki sa strogom JSON Schemom", async () => {
+test("tools/list vraća svih deset studio alata, svaki sa strogom JSON Schemom", async () => {
   const { t, rw } = await setup();
 
   const { result } = await post(t, rw, rpc("tools/list"));
@@ -119,8 +239,12 @@ test("tools/list vraća svih šest studio alata, svaki sa strogom JSON Schemom",
     "list_models",
     "get_studio_state",
     "list_projects",
+    "create_upload_url",
+    "register_upload",
     "create_generation",
     "get_job",
+    "wait_for_job",
+    "get_output_url",
     "list_my_jobs",
   ]);
   expect(tools.map((tool) => tool.name)).toEqual(["whoami", ...STUDIO_TOOL_NAMES]);
@@ -255,6 +379,15 @@ test("neispravan ulaz -> -32602 pre ijednog poziva u Convex", async () => {
     ["get_job", { jobId: 42 }],
     ["create_generation", { modelSlug: "flux-2-flash" }],
     ["create_generation", { modelSlug: "flux-2-flash", params: "prompt" }],
+    // Oblik `inputs` van šeme je protokolska greška, ne domenska.
+    ["create_generation", { modelSlug: "kling-3", params: {}, inputs: { image: "x" } }],
+    ["create_generation", { modelSlug: "kling-3", params: {}, inputs: { image: [1] } }],
+    ["create_generation", { modelSlug: "kling-3", params: {}, inputs: "x" }],
+    ["wait_for_job", { jobId: "x", timeoutSeconds: 61 }],
+    ["wait_for_job", { jobId: "x", timeoutSeconds: 0 }],
+    ["register_upload", { storageId: "x", grantId: "y" }],
+    ["create_upload_url", {}],
+    ["get_output_url", { jobId: 1 }],
     ["list_models", { bilo: "šta" }],
   ];
 
@@ -327,4 +460,282 @@ test("get_studio_state spaja stanje pristupa i saldo kredita; list_projects skri
 
   const { projects } = JSON.parse(textOf(await call(t, rw, "list_projects")));
   expect(projects).toEqual([{ id: expect.any(String), name: "Aktivan", createdAt: 1 }]);
+});
+
+// ── kapije koje P2 nije pokrio: interna putanja PROLAZI kroz iste provere ──
+
+test("običan korisnik bez potvrđenog emaila -> create_generation daje EMAIL_NIJE_POTVRDJEN, bez posla", async () => {
+  const { t, rw, ownerId } = await setup({ role: "student", emailVerificationTime: undefined });
+  await seedCatalogModel(t, "seedream-45");
+  await grantCredits(t, ownerId, 1000);
+  // Javni fleg: bez njega bi student pao na NEMA_PRISTUPA pre provere emaila.
+  await t.run((ctx) => ctx.db.insert("platformFlags", { key: "studio_public", enabled: true }));
+
+  const response = await call(t, rw, "create_generation", { modelSlug: "seedream-45", params: { prompt: "lisica" } });
+  expect(response.error).toBeUndefined();
+  expect(response.result?.isError).toBe(true);
+  expect(textOf(response)).toContain("EMAIL_NIJE_POTVRDJEN");
+
+  expect(await jobsOf(t, ownerId)).toEqual([]);
+  expect(await balanceOf(t, ownerId)).toBe(1000);
+});
+
+test("korisnik bez prihvaćenih uslova -> USLOVI_NEPRIHVACENI, bez posla", async () => {
+  const { t, rw, ownerId } = await setup({ acceptedStudioTermsAt: undefined });
+  await seedCatalogModel(t, "seedream-45");
+  await grantCredits(t, ownerId, 1000);
+
+  const response = await call(t, rw, "create_generation", { modelSlug: "seedream-45", params: { prompt: "lisica" } });
+  expect(response.result?.isError).toBe(true);
+  expect(textOf(response)).toContain("USLOVI_NEPRIHVACENI");
+
+  expect(await jobsOf(t, ownerId)).toEqual([]);
+  expect(await balanceOf(t, ownerId)).toBe(1000);
+});
+
+test("uspešan create_generation STVARNO skida creditCost sa creditBalances", async () => {
+  const { t, rw, ownerId } = await setup();
+  await seedCatalogModel(t, "seedream-45");
+  await grantCredits(t, ownerId, 1000);
+
+  const created = JSON.parse(textOf(await call(t, rw, "create_generation", { modelSlug: "seedream-45", params: { prompt: "lisica u snegu" } })));
+  expect(created).toMatchObject({ status: "reserved", modelSlug: "seedream-45" });
+  expect(created.creditCost).toBeGreaterThan(0);
+
+  const [job] = await jobsOf(t, ownerId);
+  expect(job._id).toBe(created.jobId);
+  expect(job.creditCost).toBe(created.creditCost);
+  expect(await balanceOf(t, ownerId)).toBe(1000 - created.creditCost);
+});
+
+test(`korisnik sa ${MAX_ACTIVE_JOBS} aktivna posla -> PREVISE_POSLOVA, krediti netaknuti`, async () => {
+  const { t, rw, ownerId } = await setup();
+  await seedCatalogModel(t, "seedream-45");
+  await grantCredits(t, ownerId, 1000);
+  for (let index = 0; index < MAX_ACTIVE_JOBS; index += 1) {
+    await seedJob(t, ownerId, index + 1, { status: "running", completedAt: undefined });
+  }
+
+  const response = await call(t, rw, "create_generation", { modelSlug: "seedream-45", params: { prompt: "lisica" } });
+  expect(response.result?.isError).toBe(true);
+  expect(textOf(response)).toContain("PREVISE_POSLOVA");
+
+  expect(await jobsOf(t, ownerId)).toHaveLength(MAX_ACTIVE_JOBS);
+  expect(await balanceOf(t, ownerId)).toBe(1000);
+});
+
+// ── P3: okačivanje fajlova ─────────────────────────────────────────────────
+
+test("create_upload_url i register_upload kraj-do-kraja: video se izmeri, slika ne, dozvola se troši", async () => {
+  const { t, rw, ownerId } = await setup();
+
+  const grant = JSON.parse(textOf(await call(t, rw, "create_upload_url", { slot: "video" })));
+  expect(grant).toMatchObject({ slot: "video", grantExpiresInSeconds: 3600 });
+  expect(grant.uploadUrl).toMatch(/^https?:\/\//);
+  expect(grant.instructions).toContain("POST");
+
+  const video = mp4Bytes(4.2, "video/mp4");
+  const storageId = await storeBlob(t, video, "video/mp4");
+  vi.stubGlobal("fetch", rangeServer(video));
+  let registered: Record<string, unknown>;
+  try {
+    registered = JSON.parse(textOf(await call(t, rw, "register_upload", { storageId, grantId: grant.grantId, slot: "video" })));
+  } finally {
+    vi.unstubAllGlobals();
+  }
+  expect(registered).toMatchObject({ storageId, slot: "video", bytes: video.length, durationS: 4.2, measured: true });
+  expect(registered).not.toHaveProperty("measureError");
+
+  const [upload] = await t.run((ctx) => ctx.db.query("studioUploads").collect());
+  expect(upload).toMatchObject({ userId: ownerId, storageId, slot: "video", durationS: 4.2 });
+  const [usedGrant] = await t.run((ctx) => ctx.db.query("studioUploadGrants").collect());
+  expect(typeof usedGrant.usedAt).toBe("number");
+
+  // Ista dozvola drugi put je potrošena - novi fajl ne prolazi.
+  const again = await call(t, rw, "register_upload", { storageId: await storeBlob(t, "x", "video/mp4"), grantId: grant.grantId, slot: "video" });
+  expect(again.result?.isError).toBe(true);
+  expect(textOf(again)).toContain("NEDOZVOLJEN_UPLOAD");
+
+  // Slika: prijava bez merenja, `durationS` je null a ne greška.
+  const imageGrant = JSON.parse(textOf(await call(t, rw, "create_upload_url", { slot: "image" })));
+  const imageId = await storeBlob(t, "slika", "image/png");
+  const image = JSON.parse(textOf(await call(t, rw, "register_upload", { storageId: imageId, grantId: imageGrant.grantId, slot: "image" })));
+  expect(image).toMatchObject({ storageId: imageId, slot: "image", bytes: 5, durationS: null, measured: false });
+});
+
+test("register_upload sa pogrešnim slotom se odbija PRE nego što potroši dozvolu", async () => {
+  const { t, rw } = await setup();
+  const grant = JSON.parse(textOf(await call(t, rw, "create_upload_url", { slot: "image" })));
+  const storageId = await storeBlob(t, "slika", "image/png");
+
+  const response = await call(t, rw, "register_upload", { storageId, grantId: grant.grantId, slot: "video" });
+  expect(response.result?.isError).toBe(true);
+  expect(textOf(response)).toContain("NEISPRAVAN_SLOT");
+
+  expect(await t.run((ctx) => ctx.db.query("studioUploads").collect())).toEqual([]);
+  const [row] = await t.run((ctx) => ctx.db.query("studioUploadGrants").collect());
+  expect(row.usedAt).toBeUndefined();
+
+  // Sa pravim slotom ista dozvola i dalje radi.
+  const ok = JSON.parse(textOf(await call(t, rw, "register_upload", { storageId, grantId: grant.grantId, slot: "image" })));
+  expect(ok.slot).toBe("image");
+});
+
+test("register_upload sa tuđim storageId -> TUDJI_FAJL; tuđa dozvola i nepostojeći fajl -> odbijeni", async () => {
+  const { t, rw, ownerId, otherId } = await setup();
+  const foreign = await seedUpload(t, otherId, "image/png", "image");
+  const grant = JSON.parse(textOf(await call(t, rw, "create_upload_url", { slot: "image" })));
+
+  const stolen = await call(t, rw, "register_upload", { storageId: foreign, grantId: grant.grantId, slot: "image" });
+  expect(stolen.error).toBeUndefined();
+  expect(stolen.result?.isError).toBe(true);
+  expect(textOf(stolen)).toContain("TUDJI_FAJL");
+  const [row] = await t.run((ctx) => ctx.db.query("studioUploads").collect());
+  expect(row.userId).toBe(otherId);
+
+  const bogus = await call(t, rw, "register_upload", { storageId: await storeBlob(t, "x", "image/png"), grantId: "nije-dozvola", slot: "image" });
+  expect(bogus.result?.isError).toBe(true);
+  expect(textOf(bogus)).toContain("NEDOZVOLJEN_UPLOAD");
+
+  const missing = await call(t, rw, "register_upload", { storageId: "nije-fajl", grantId: grant.grantId, slot: "image" });
+  expect(missing.result?.isError).toBe(true);
+  expect(textOf(missing)).toContain("FAJL_NE_POSTOJI");
+
+  // Dozvola je i dalje neiskorišćena - nijedan odbijen pokušaj je nije potrošio.
+  const [ownGrant] = await t.run((ctx) => ctx.db.query("studioUploadGrants").collect());
+  expect(ownGrant.usedAt).toBeUndefined();
+  expect(await jobsOf(t, ownerId)).toEqual([]);
+});
+
+test("ključ sa samo mcp:read ne može create_upload_url ni register_upload", async () => {
+  const { t, ro } = await setup();
+
+  for (const [name, args] of [
+    ["create_upload_url", { slot: "image" }],
+    ["register_upload", { storageId: "x", grantId: "y", slot: "image" }],
+  ] as const) {
+    const response = await call(t, ro, name, args);
+    expect(response.result?.isError, name).toBe(true);
+    expect(textOf(response), name).toContain('"mcp:write"');
+  }
+});
+
+// ── P3: create_generation sa ulazom ────────────────────────────────────────
+
+test("create_generation sa inputs bez izmerenog durationS na modelu po trajanju -> errorResult, posao NIJE kreiran", async () => {
+  const { t, rw, ownerId } = await setup();
+  await seedCatalogModel(t, "stt");
+  await grantCredits(t, ownerId, 1000);
+  const audio = await seedUpload(t, ownerId, "audio/mpeg", "audio");
+
+  const response = await call(t, rw, "create_generation", {
+    modelSlug: "stt",
+    params: {},
+    inputMode: "audio",
+    inputs: { audio: [audio] },
+  });
+  expect(response.error).toBeUndefined();
+  expect(response.result?.isError).toBe(true);
+  expect(textOf(response)).toContain("MERENJE_NIJE_DOSTUPNO");
+  expect(textOf(response)).toContain("register_upload");
+
+  expect(await jobsOf(t, ownerId)).toEqual([]);
+  expect(await balanceOf(t, ownerId)).toBe(1000);
+});
+
+test("create_generation sa izmerenim ulazom prolazi i pamti inputMode i inputs uz posao", async () => {
+  const { t, rw, ownerId } = await setup();
+  await seedCatalogModel(t, "stt");
+  await grantCredits(t, ownerId, 1000);
+  // 40 kB je dovoljno da 30 s zvuka bude fizički moguće (granica iz X1).
+  const audio = await seedUpload(t, ownerId, "audio/mpeg", "audio", 40_000);
+  await t.run(async (ctx) => {
+    const [upload] = await ctx.db.query("studioUploads").collect();
+    await ctx.db.patch(upload._id, { durationS: 30 });
+  });
+
+  const created = JSON.parse(textOf(await call(t, rw, "create_generation", { modelSlug: "stt", params: {}, inputMode: "audio", inputs: { audio: [audio] } })));
+  expect(created.status).toBe("reserved");
+  const [job] = await jobsOf(t, ownerId);
+  expect(job).toMatchObject({ modelSlug: "stt", inputMode: "audio", inputs: JSON.stringify({ audio: [audio] }) });
+  expect(await balanceOf(t, ownerId)).toBe(1000 - created.creditCost);
+});
+
+test("neispravan ulaz za model se prevodi u čitljivu poruku PRE poziva u Convex", async () => {
+  const { t, rw, ownerId } = await setup();
+  await seedCatalogModel(t, "kling-3");
+  await grantCredits(t, ownerId, 1000);
+  const image = await seedUpload(t, ownerId, "image/png", "image");
+
+  const cases: Array<[Record<string, unknown>, string]> = [
+    [{ modelSlug: "kling-3", params: { prompt: "x" }, inputMode: "audio" }, "NEISPRAVAN_REZIM"],
+    [{ modelSlug: "kling-3", params: { prompt: "x" }, inputMode: "image" }, 'traži ulaz tipa image u slotu "image"'],
+    [{ modelSlug: "kling-3", params: { prompt: "x" }, inputMode: "image", inputs: { video: [image] } }, "NEISPRAVNI_ULAZI"],
+    [{ modelSlug: "kling-3", params: { prompt: "x" }, inputMode: "image", inputs: { image: [image, image] } }, "najviše 1"],
+    [{ modelSlug: "kling-3", params: { prompt: "x", nepoznat: 1 }, inputMode: "image", inputs: { image: [image] } }, 'nema parametar "nepoznat"'],
+    [{ modelSlug: "kling-3", params: { prompt: "x", resolution: "8K" }, inputMode: "image", inputs: { image: [image] } }, 'prima samo: 720p, 1080p, 4K'],
+    [{ modelSlug: "kling-3", params: { prompt: "x" }, inputMode: "image", inputs: { image: [image] }, sourceJobId: "x" }, "IZVOR_NIJE_PODRZAN"],
+    [{ modelSlug: "flux-2-flash", params: { prompt: "x" }, inputMode: "image" }, "MODEL_NEDOSTUPAN"],
+  ];
+  for (const [args, expected] of cases) {
+    const response = await call(t, rw, "create_generation", args);
+    expect(response.error, JSON.stringify(args)).toBeUndefined();
+    expect(response.result?.isError, JSON.stringify(args)).toBe(true);
+    expect(textOf(response), JSON.stringify(args)).toContain(expected);
+  }
+  expect(await jobsOf(t, ownerId)).toEqual([]);
+});
+
+// ── P3: čekanje i izlaz ────────────────────────────────────────────────────
+
+test("wait_for_job na poslu koji ostane running -> timedOut: true, bez izuzetka; gotov posao vraća izlaz", async () => {
+  const { t, rw, ownerId } = await setup();
+  const running = await seedJob(t, ownerId, 10, { status: "running", completedAt: undefined });
+
+  const waited = JSON.parse(textOf(await call(t, rw, "wait_for_job", { jobId: running, timeoutSeconds: 1 })));
+  expect(waited).toMatchObject({ jobId: running, status: "running", creditCost: 20, timedOut: true });
+  expect(waited.message).toContain("wait_for_job");
+  expect(waited).not.toHaveProperty("outputs");
+
+  // Gotov posao SA sačuvanim izlazom je završno stanje: potpisan URL odmah.
+  const output = await storeBlob(t, "slika", "image/png");
+  const done = await seedJob(t, ownerId, 20, { outputStorageId: output, expiresAt: 999 });
+  const finished = JSON.parse(textOf(await call(t, rw, "wait_for_job", { jobId: done })));
+  expect(finished).toMatchObject({ jobId: done, status: "done", creditCost: 20, timedOut: false });
+  expect(finished.outputs.outputUrl).toMatch(/^https?:\/\//);
+  expect(finished.outputs).toMatchObject({ posterUrl: null, expiresAt: 999 });
+
+  // Neuspeo posao je završno stanje sa greškom, bez izlaza.
+  const failed = await seedJob(t, ownerId, 30, { status: "refunded", error: "MOCK_NEUSPEH" });
+  const refunded = JSON.parse(textOf(await call(t, rw, "wait_for_job", { jobId: failed })));
+  expect(refunded).toMatchObject({ status: "refunded", error: "MOCK_NEUSPEH", timedOut: false });
+
+  const unknown = await call(t, rw, "wait_for_job", { jobId: "nije-id" });
+  expect(unknown.result?.isError).toBe(true);
+  expect(textOf(unknown)).toBe("Posao nije pronađen.");
+});
+
+test("get_output_url za tuđi posao -> 'Posao nije pronađen.'; sopstveni gotov posao daje potpisan URL", async () => {
+  const { t, rw, ownerId, otherId } = await setup();
+  const output = await storeBlob(t, "slika", "image/png");
+  const foreign = await seedJob(t, otherId, 10, { outputStorageId: output });
+
+  const denied = await call(t, rw, "get_output_url", { jobId: foreign });
+  expect(denied.error).toBeUndefined();
+  expect(denied.result?.isError).toBe(true);
+  expect(textOf(denied)).toBe("Posao nije pronađen.");
+
+  const own = await seedJob(t, ownerId, 20, { outputStorageId: output, expiresAt: 999 });
+  const links = JSON.parse(textOf(await call(t, rw, "get_output_url", { jobId: own })));
+  expect(links).toMatchObject({ jobId: own, kind: "image", posterUrl: null, expiresAt: 999 });
+  expect(links.outputUrl).toMatch(/^https?:\/\//);
+
+  // Gotov, ali izlaz još nije preuzet od provajdera - čitljiv razlog, ne 500.
+  const pending = await seedJob(t, ownerId, 30);
+  const early = await call(t, rw, "get_output_url", { jobId: pending });
+  expect(early.result?.isError).toBe(true);
+  expect(textOf(early)).toContain("IZLAZ_U_PRIPREMI");
+
+  const running = await seedJob(t, ownerId, 40, { status: "running", completedAt: undefined });
+  expect(textOf(await call(t, rw, "get_output_url", { jobId: running }))).toContain("POSAO_NIJE_GOTOV");
 });

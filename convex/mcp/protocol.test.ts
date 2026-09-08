@@ -89,14 +89,19 @@ test("tools/list vraća whoami i studio alate sa validnom JSON Schema", async ()
     tools: Array<{ name: string; description: string; inputSchema: Record<string, unknown> }>;
   };
 
-  // P1 je imao samo `whoami`; P2 (MCP-P2-STUDIO) dodaje šest studio alata.
+  // P1 je imao samo `whoami`; P2 (MCP-P2-STUDIO) dodaje šest studio alata,
+  // P3 (MCP-P3-ULAZI) još četiri: upload lanac, čekanje i URL izlaza.
   expect(tools.map((tool) => tool.name)).toEqual([
     "whoami",
     "list_models",
     "get_studio_state",
     "list_projects",
+    "create_upload_url",
+    "register_upload",
     "create_generation",
     "get_job",
+    "wait_for_job",
+    "get_output_url",
     "list_my_jobs",
   ]);
   for (const tool of tools) {

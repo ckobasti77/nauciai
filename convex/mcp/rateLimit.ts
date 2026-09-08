@@ -6,11 +6,15 @@
  *   `handler.ts`, pre protokolskog sloja (`mcpRateLimiter`).
  * - `mcp:write`: 10 poziva/min po ključu - broji svaki `tools/call` alata sa
  *   tim opsegom, u `tools.ts` (`mcpWriteRateLimiter`). `create_generation`
- *   troši prave kredite; to nije ista klasa saobraćaja kao čitanje, a jedan
- *   batch može da nosi više poziva, pa se broji po pozivu, ne po zahtevu.
+ *   troši prave kredite, `create_upload_url` i `register_upload` (MCP-P3-ULAZI)
+ *   pune skladište; to nije ista klasa saobraćaja kao čitanje, a jedan batch
+ *   može da nosi više poziva, pa se broji po pozivu, ne po zahtevu.
  *
  * Brojači žive u memoriji izolata - to je NAMERNO labavo: Convex sme da
- * podigne više izolata, pa je stvarna granica višekratnik. Interfejs
+ * podigne više izolata, pa je stvarna granica višekratnik ovih brojeva PO
+ * IZOLATU, ne tačan broj po ključu. Ovo je prigušivač, ne brava: prave brave
+ * su u bazi, u `studio.createJobForUser` (MINUTNI_LIMIT, PREVISE_POSLOVA,
+ * dnevni kapovi) i u `studio.getOwnedUpload` (30 merenja na sat). Interfejs
  * `RateLimiter` je ono što handler vidi; tabela (ili
  * `@convex-dev/rate-limiter`) menja implementaciju bez dodira u `handler.ts`.
  */

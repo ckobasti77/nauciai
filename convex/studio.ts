@@ -508,10 +508,28 @@ async function studioActorForUser(ctx: QueryCtx | MutationCtx, userId: Id<"users
  */
 export async function requireStudioAccess(ctx: MutationCtx | QueryCtx) {
   const profile = await getCurrentProfile(ctx);
+  return { ...profile, ...(await assertStudioAccess(ctx, profile)) };
+}
+
+/**
+ * Isti gejt po EKSPLICITNOM `userId`-ju (MCP-P3-ULAZI, tačka 2): MCP pozivalac
+ * nema sesiju, identitet mu daje API ključ. Glumac se izvodi kroz
+ * `studioActorForUser` - isti red i ista efektivna uloga kao iz sesije - pa
+ * javna i interna grana upload lanca dele JEDNU odluku o pristupu.
+ */
+async function requireStudioAccessForUser(ctx: MutationCtx | QueryCtx, userId: Id<"users">) {
+  const actor = await studioActorForUser(ctx, userId);
+  return { ...actor, ...(await assertStudioAccess(ctx, actor)) };
+}
+
+async function assertStudioAccess(
+  ctx: MutationCtx | QueryCtx,
+  actor: { userId: Id<"users">; role: unknown; existing: Record<string, unknown> },
+) {
   const { publicEnabled, config } = await loadStudioPublicState(ctx);
-  const decision = await evaluateStudioAccess(ctx, profile, publicEnabled);
+  const decision = await evaluateStudioAccess(ctx, actor, publicEnabled);
   if (!decision.allowed) throw new Error(decision.reason);
-  return { ...profile, publicEnabled, config };
+  return { publicEnabled, config };
 }
 
 /** Ulaz `createJob`-a - jedan validator za javnu mutaciju i tip deljenog tela. */
@@ -854,25 +872,38 @@ export const createJob = mutation({
  * Ista rezervacija za pozivaoca čiji identitet NE dolazi iz sesije nego iz
  * MCP API ključa (`convex/mcp/studioTools.ts`). Samo `internal` - nikad kroz
  * `api`, jer prima `userId` kao argument. Prima ono što MCP alat
- * `create_generation` šalje: model, parametre i (opciono) projekat.
+ * `create_generation` šalje: model, parametre, (opciono) projekat i - od
+ * MCP-P3-ULAZI - ulazni režim, okačene fajlove i izvor za nastavak.
  *
- * `projectId` stiže kao sirov string iz ulaza alata, a `ActionCtx` nema
- * `normalizeId`, pa se ovde normalizuje: id koji se ne parsira ponaša se kao
- * projekat koji ne postoji (NEMA_PRISTUPA), ne kao greška validacije (500).
+ * `projectId` i `sourceJobId` stižu kao sirovi stringovi iz ulaza alata, a
+ * `ActionCtx` nema `normalizeId`, pa se ovde normalizuju: id koji se ne
+ * parsira ponaša se kao red koji ne postoji (NEMA_PRISTUPA, odnosno
+ * IZVOR_NIJE_DOSTUPAN - ista rečenica koju bi dao i tuđi red), ne kao greška
+ * validacije (500).
  */
 export const createJobInternal = internalMutation({
   args: {
     userId: v.id("users"),
     modelSlug: v.string(),
     params: v.string(),
+    inputMode: v.optional(v.string()),
+    inputs: v.optional(v.string()),
+    sourceJobId: v.optional(v.string()),
     projectId: v.optional(v.string()),
   },
-  handler: async (ctx, { userId, projectId: rawProjectId, ...rest }) => {
+  handler: async (ctx, { userId, projectId: rawProjectId, sourceJobId: rawSourceJobId, ...rest }) => {
     const projectId =
       rawProjectId === undefined ? undefined : ctx.db.normalizeId("studioProjects", rawProjectId);
     if (projectId === null) throw new Error("NEMA_PRISTUPA");
+    const sourceJobId =
+      rawSourceJobId === undefined ? undefined : ctx.db.normalizeId("generationJobs", rawSourceJobId);
+    if (sourceJobId === null) throw new Error("IZVOR_NIJE_DOSTUPAN");
 
-    return createJobForUser(ctx, userId, { ...rest, ...(projectId ? { projectId } : {}) });
+    return createJobForUser(ctx, userId, {
+      ...rest,
+      ...(projectId ? { projectId } : {}),
+      ...(sourceJobId ? { sourceJobId } : {}),
+    });
   },
 });
 
@@ -1809,25 +1840,36 @@ export const deleteJob = mutation({
  *
  * Slot, tip i veličinu proverava `<DropSlot>` PRE poziva; slot ipak ide i ovde,
  * jer ga od sada `registerInputUpload` čita iz dozvole umesto sa klijenta.
+ *
+ * Telo je deljeno (MCP-P3-ULAZI, tačka 2) između javne mutacije (identitet iz
+ * sesije) i interne `createInputUploadUrlInternal` (identitet iz API ključa) -
+ * gejt je deo tela, pa važi za oba puta.
  */
+async function createInputUploadUrlForUser(ctx: MutationCtx, userId: Id<"users">, slot: string) {
+  // Gejt, ne samo prijava (studio-public F2.8, nalaz R1): svako izdavanje
+  // pravog upload URL-a puni `_storage` - nalog kojem `createJob` ne bi dao
+  // ništa nema šta ni da kači.
+  await requireStudioAccessForUser(ctx, userId);
+
+  const now = Date.now();
+  const grantId = await ctx.db.insert("studioUploadGrants", {
+    userId,
+    slot,
+    createdAt: now,
+    expiresAt: now + UPLOAD_GRANT_TTL_MS,
+  });
+
+  return { uploadUrl: await ctx.storage.generateUploadUrl(), grantId };
+}
+
 export const createInputUploadUrl = mutation({
   args: { slot: v.string() },
-  handler: async (ctx, args) => {
-    // Gejt, ne samo prijava (studio-public F2.8, nalaz R1): svako izdavanje
-    // pravog upload URL-a puni `_storage` - nalog kojem `createJob` ne bi dao
-    // ništa nema šta ni da kači.
-    const { userId } = await requireStudioAccess(ctx);
+  handler: async (ctx, args) => createInputUploadUrlForUser(ctx, await requireUserId(ctx), args.slot),
+});
 
-    const now = Date.now();
-    const grantId = await ctx.db.insert("studioUploadGrants", {
-      userId,
-      slot: args.slot,
-      createdAt: now,
-      expiresAt: now + UPLOAD_GRANT_TTL_MS,
-    });
-
-    return { uploadUrl: await ctx.storage.generateUploadUrl(), grantId };
-  },
+export const createInputUploadUrlInternal = internalMutation({
+  args: { userId: v.id("users"), slot: v.string() },
+  handler: async (ctx, args) => createInputUploadUrlForUser(ctx, args.userId, args.slot),
 });
 
 /**
@@ -1847,56 +1889,100 @@ export const createInputUploadUrl = mutation({
  *
  * Rok od 24 h nose samo uploadi koje niko nije upotrebio; `createJob` ga
  * sklanja, a `crons.expireGenerationFiles` briše ono što ostane.
+ *
+ * Deljeno telo (MCP-P3-ULAZI, tačka 2) vraća ono što MCP alat `register_upload`
+ * prijavljuje modelu - red uploada, veličinu i tip iz `_storage`, i trajanje
+ * ako je već izmereno (ponovljena prijava istog fajla). Javna mutacija taj
+ * povratak ne izlaže: klijent ga nikad nije čitao, pa i dalje vraća `null`.
  */
+async function registerInputUploadForUser(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  args: { storageId: Id<"_storage">; grantId: Id<"studioUploadGrants">; slot?: string },
+) {
+  // Isti gejt kao `createInputUploadUrl` (F2.8): red u `studioUploads` je
+  // ulaznica za naplatu, ne pravi se bez prava na Studio.
+  await requireStudioAccessForUser(ctx, userId);
+
+  const meta = await ctx.db.system.get("_storage", args.storageId);
+  if (!meta) throw new Error("FAJL_NE_POSTOJI");
+
+  const existing = await ctx.db
+    .query("studioUploads")
+    .withIndex("by_storage", (q) => q.eq("storageId", args.storageId))
+    .first();
+  if (existing) {
+    // Ponovljena prijava istog fajla (mrežni pokušaj iz drugog pokušaja) nije
+    // greška; prijava tudjeg fajla jeste - ona je jedini način da se
+    // vlasništvo prepiše. Dozvola se ovde namerno ne traži: ponovljeni poziv
+    // nosi istu, već potrošenu dozvolu, a red je ionako već napravljen.
+    if (existing.userId !== userId) throw new Error("TUDJI_FAJL");
+    if (args.slot !== undefined && existing.slot !== args.slot) throw new Error("NEISPRAVAN_SLOT");
+
+    return {
+      uploadId: existing._id,
+      slot: existing.slot,
+      bytes: existing.bytes,
+      mimeType: existing.mimeType ?? null,
+      durationS: existing.durationS ?? null,
+    };
+  }
+
+  const now = Date.now();
+  const grant = await ctx.db.get(args.grantId);
+  if (!grant || grant.userId !== userId || grant.usedAt !== undefined || grant.expiresAt <= now) {
+    throw new Error("NEDOZVOLJEN_UPLOAD");
+  }
+  // Dozvola ne zna svoj `storageId` - Convex ga ne daje pre uploada - pa se
+  // veza pravi preko vremena: fajl koji je postojao pre nego što je dozvola
+  // izdata nije nastao iz nje. Bez ovoga bi jedna sveže izdata dozvola i
+  // dalje mogla da prisvoji bilo koji zatečen `_storage` ID.
+  if (meta._creationTime < grant.createdAt - UPLOAD_GRANT_CLOCK_SLACK_MS) {
+    throw new Error("NEDOZVOLJEN_UPLOAD");
+  }
+  // MCP alat slot navodi i pri prijavi (redundantno, ali hvata zamenjene
+  // dozvole); neslaganje se odbija PRE nego što se dozvola potroši, pa ništa
+  // ne ostaje upisano. Forma slot ne šalje - ona ga ni ne zna van dozvole.
+  if (args.slot !== undefined && grant.slot !== args.slot) throw new Error("NEISPRAVAN_SLOT");
+  await ctx.db.patch(grant._id, { usedAt: now });
+
+  const uploadId = await ctx.db.insert("studioUploads", {
+    userId,
+    storageId: args.storageId,
+    slot: grant.slot,
+    bytes: meta.size,
+    ...(meta.contentType ? { mimeType: meta.contentType } : {}),
+    createdAt: now,
+    expiresAt: now + INPUT_UPLOAD_TTL_MS,
+  });
+
+  return { uploadId, slot: grant.slot, bytes: meta.size, mimeType: meta.contentType ?? null, durationS: null };
+}
+
 export const registerInputUpload = mutation({
   args: { storageId: v.id("_storage"), grantId: v.id("studioUploadGrants") },
   handler: async (ctx, args) => {
-    // Isti gejt kao `createInputUploadUrl` (F2.8): red u `studioUploads` je
-    // ulaznica za naplatu, ne pravi se bez prava na Studio.
-    const { userId } = await requireStudioAccess(ctx);
-
-    const meta = await ctx.db.system.get("_storage", args.storageId);
-    if (!meta) throw new Error("FAJL_NE_POSTOJI");
-
-    const existing = await ctx.db
-      .query("studioUploads")
-      .withIndex("by_storage", (q) => q.eq("storageId", args.storageId))
-      .first();
-    if (existing) {
-      // Ponovljena prijava istog fajla (mrežni pokušaj iz drugog pokušaja) nije
-      // greška; prijava tudjeg fajla jeste - ona je jedini način da se
-      // vlasništvo prepiše. Dozvola se ovde namerno ne traži: ponovljeni poziv
-      // nosi istu, već potrošenu dozvolu, a red je ionako već napravljen.
-      if (existing.userId !== userId) throw new Error("TUDJI_FAJL");
-
-      return null;
-    }
-
-    const now = Date.now();
-    const grant = await ctx.db.get(args.grantId);
-    if (!grant || grant.userId !== userId || grant.usedAt !== undefined || grant.expiresAt <= now) {
-      throw new Error("NEDOZVOLJEN_UPLOAD");
-    }
-    // Dozvola ne zna svoj `storageId` - Convex ga ne daje pre uploada - pa se
-    // veza pravi preko vremena: fajl koji je postojao pre nego što je dozvola
-    // izdata nije nastao iz nje. Bez ovoga bi jedna sveže izdata dozvola i
-    // dalje mogla da prisvoji bilo koji zatečen `_storage` ID.
-    if (meta._creationTime < grant.createdAt - UPLOAD_GRANT_CLOCK_SLACK_MS) {
-      throw new Error("NEDOZVOLJEN_UPLOAD");
-    }
-    await ctx.db.patch(grant._id, { usedAt: now });
-
-    await ctx.db.insert("studioUploads", {
-      userId,
-      storageId: args.storageId,
-      slot: grant.slot,
-      bytes: meta.size,
-      ...(meta.contentType ? { mimeType: meta.contentType } : {}),
-      createdAt: now,
-      expiresAt: now + INPUT_UPLOAD_TTL_MS,
-    });
+    await registerInputUploadForUser(ctx, await requireUserId(ctx), args);
 
     return null;
+  },
+});
+
+/**
+ * Ista prijava za MCP pozivaoca. Oba id-ja su sirovi stringovi iz ulaza alata:
+ * `storageId` koji se ne parsira je fajl koji ne postoji, dozvola koja se ne
+ * parsira je nedozvoljen upload - iste rečenice koje bi dao i nepostojeći red,
+ * pa se ne otkriva ni da li je oblik id-ja bio dobar.
+ */
+export const registerInputUploadInternal = internalMutation({
+  args: { userId: v.id("users"), storageId: v.string(), grantId: v.string(), slot: v.string() },
+  handler: async (ctx, args) => {
+    const storageId = ctx.db.system.normalizeId("_storage", args.storageId);
+    if (!storageId) throw new Error("FAJL_NE_POSTOJI");
+    const grantId = ctx.db.normalizeId("studioUploadGrants", args.grantId);
+    if (!grantId) throw new Error("NEDOZVOLJEN_UPLOAD");
+
+    return registerInputUploadForUser(ctx, args.userId, { storageId, grantId, slot: args.slot });
   },
 });
 
@@ -1905,17 +1991,23 @@ export const registerInputUpload = mutation({
  *
  * Interno, a ipak proverava korisnika: `studioActions.measureInputUpload` je
  * javna akcija, pa bi bez ove provere tuđi `storageId` mogao da se pošalje na
- * merenje - a odgovor (trajanje) je podatak o tuđem fajlu.
+ * merenje - a odgovor (trajanje) je podatak o tuđem fajlu. `userId` daje
+ * akcija - iz sesije (javna) ili iz API ključa (`measureInputUploadInternal`,
+ * MCP-P3-ULAZI) - a vlasništvo se proverava ovde, za oba puta.
  */
 export const getOwnedUpload = internalQuery({
   // `now` dolazi iz akcije: prozor rate limita je vreme, a query se ne pokreće
   // ponovo samo zato što je sat odmakao (Convex guidelines).
-  args: { storageId: v.id("_storage"), now: v.number() },
+  // `storageId` je sirov string: javna akcija ga je već proverila kroz `v.id`,
+  // a MCP put ga prosleđuje kakav je stigao - neparsiv je `null`, kao tuđi.
+  args: { userId: v.id("users"), storageId: v.string(), now: v.number() },
   handler: async (ctx, args) => {
-    const userId = await requireUserId(ctx);
+    const userId = args.userId;
+    const storageId = ctx.db.system.normalizeId("_storage", args.storageId);
+    if (!storageId) return null;
     const upload = await ctx.db
       .query("studioUploads")
-      .withIndex("by_storage", (q) => q.eq("storageId", args.storageId))
+      .withIndex("by_storage", (q) => q.eq("storageId", storageId))
       .first();
     if (!upload || upload.userId !== userId) return null;
 
@@ -1930,10 +2022,48 @@ export const getOwnedUpload = internalQuery({
 
     return {
       uploadId: upload._id,
+      storageId,
       bytes: upload.bytes,
       durationS: upload.durationS,
       measureBlocked: isMeasureBlocked(upload.measureFailures, recent.length),
     };
+  },
+});
+
+/**
+ * Stanje okačenih fajlova jednog posla PRE nego što MCP alat `create_generation`
+ * pozove `createJobInternal` (MCP-P3-ULAZI, tačka 3): tip, trajanje i broj
+ * palih merenja po `storageId`-ju. Alat po ovome sastavlja čitljivu poruku
+ * ("fajl još nije izmeren, ponovi za koji sekund") umesto sirovog
+ * `MERENJE_NIJE_DOSTUPNO`, i to bez ijednog upisa. Tuđ, nepostojeći i
+ * neparsiv id su `null` - ista rečenica koju bi dao i `createJob` (TUDJI_FAJL).
+ */
+export const getUploadsForInputsInternal = internalQuery({
+  args: { userId: v.id("users"), storageIds: v.array(v.string()) },
+  handler: async (ctx, args) => {
+    const uploads: Record<
+      string,
+      { mimeType: string | null; durationS: number | null; measureFailures: number } | null
+    > = {};
+    for (const rawId of args.storageIds) {
+      const storageId = ctx.db.system.normalizeId("_storage", rawId);
+      const upload = storageId
+        ? await ctx.db
+            .query("studioUploads")
+            .withIndex("by_storage", (q) => q.eq("storageId", storageId))
+            .first()
+        : null;
+      uploads[rawId] =
+        upload && upload.userId === args.userId
+          ? {
+              mimeType: upload.mimeType ?? null,
+              durationS: upload.durationS ?? null,
+              measureFailures: upload.measureFailures ?? 0,
+            }
+          : null;
+    }
+
+    return uploads;
   },
 });
 

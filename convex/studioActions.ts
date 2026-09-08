@@ -1,3 +1,4 @@
+import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 
 import { internal } from "./_generated/api";
@@ -316,40 +317,71 @@ export const persistOutput = internalAction({
  * puta. Od sada tri neuspeha gase merenje tog fajla, a broj uploada u
  * poslednjem satu gasi merenje uopšte; oba javljaju `MERENJE_ODBIJENO` PRE
  * ijednog `fetch`-a.
+ *
+ * Telo je deljeno (MCP-P3-ULAZI, tačka 2) između javne akcije (identitet iz
+ * sesije) i interne `measureInputUploadInternal` (identitet iz API ključa);
+ * vlasništvo, kratko spajanje i obe brave žive ovde, pa važe za oba puta.
  */
+type MeasureResult = { ok: true; seconds: number } | { ok: false; reason: string };
+
+async function measureInputUploadForUser(
+  ctx: ActionCtx,
+  userId: Id<"users">,
+  storageId: string,
+): Promise<MeasureResult> {
+  // `storageId` ide kao sirov string: javna akcija ga je već proverila kroz
+  // `v.id`, a MCP alat ga prosleđuje kakav je stigao - query ga normalizuje i
+  // za neparsiv vraća `null`, istu rečenicu kao za tuđi fajl.
+  const upload = await ctx.runQuery(internal.studio.getOwnedUpload, {
+    userId,
+    storageId,
+    now: Date.now(),
+  });
+  if (!upload) return { ok: false, reason: "TUDJI_FAJL" };
+  // Fajl u storage-u je nepromenljiv: jednom izmeren, uvek isti broj. Drugi
+  // poziv (mreža, isti fajl u dva slota) ne čita bajtove ponovo.
+  if (upload.durationS !== undefined) return { ok: true, seconds: upload.durationS };
+  if (upload.measureBlocked) return { ok: false, reason: "MERENJE_ODBIJENO" };
+
+  const url = await ctx.storage.getUrl(upload.storageId);
+  if (!url) return { ok: false, reason: "FAJL_NE_POSTOJI" };
+
+  const read = await readDurationOverRange(url, upload.bytes);
+  if (!read.ok) {
+    await ctx.runMutation(internal.studio.recordMeasureFailure, { uploadId: upload.uploadId });
+
+    return { ok: false, reason: read.reason };
+  }
+
+  await ctx.runMutation(internal.studio.setUploadDuration, {
+    uploadId: upload.uploadId,
+    seconds: read.seconds,
+  });
+
+  return { ok: true, seconds: read.seconds };
+}
+
 export const measureInputUpload = action({
   args: { storageId: v.id("_storage") },
-  handler: async (
-    ctx,
-    args,
-  ): Promise<{ ok: true; seconds: number } | { ok: false; reason: string }> => {
-    const upload = await ctx.runQuery(internal.studio.getOwnedUpload, {
-      storageId: args.storageId,
-      now: Date.now(),
-    });
-    if (!upload) return { ok: false, reason: "TUDJI_FAJL" };
-    // Fajl u storage-u je nepromenljiv: jednom izmeren, uvek isti broj. Drugi
-    // poziv (mreža, isti fajl u dva slota) ne čita bajtove ponovo.
-    if (upload.durationS !== undefined) return { ok: true, seconds: upload.durationS };
-    if (upload.measureBlocked) return { ok: false, reason: "MERENJE_ODBIJENO" };
+  handler: async (ctx, args): Promise<MeasureResult> => {
+    // Isti obrazac kao `chatMedia.ts`: akcija nema `db`, pa identitet čita
+    // direktno; bez sesije greši isto kao što je do sada grešio query ispod.
+    const userId = (await getAuthUserId(ctx)) as Id<"users"> | null;
+    if (!userId) throw new Error("Unauthorized");
 
-    const url = await ctx.storage.getUrl(args.storageId);
-    if (!url) return { ok: false, reason: "FAJL_NE_POSTOJI" };
-
-    const read = await readDurationOverRange(url, upload.bytes);
-    if (!read.ok) {
-      await ctx.runMutation(internal.studio.recordMeasureFailure, { uploadId: upload.uploadId });
-
-      return { ok: false, reason: read.reason };
-    }
-
-    await ctx.runMutation(internal.studio.setUploadDuration, {
-      uploadId: upload.uploadId,
-      seconds: read.seconds,
-    });
-
-    return { ok: true, seconds: read.seconds };
+    return measureInputUploadForUser(ctx, userId, args.storageId);
   },
+});
+
+/**
+ * Isto merenje za MCP pozivaoca (`register_upload`). `storageId` je sirov
+ * string iz ulaza alata: id koji se ne parsira daje istu rečenicu kao tuđi
+ * fajl, pa se ne otkriva ni da li je oblik bio dobar.
+ */
+export const measureInputUploadInternal = internalAction({
+  args: { userId: v.id("users"), storageId: v.string() },
+  handler: async (ctx, args): Promise<MeasureResult> =>
+    measureInputUploadForUser(ctx, args.userId, args.storageId),
 });
 
 /**
