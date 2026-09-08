@@ -2,6 +2,7 @@ import { httpRouter } from "convex/server";
 
 import { auth } from "./auth";
 import { handleFalWebhook } from "./falWebhook";
+import { mcpHandler, mcpNoEventStream, mcpPreflight } from "./mcp/handler";
 import { handleBytePlusWebhook } from "./providers/byteplus";
 
 const http = httpRouter();
@@ -24,6 +25,27 @@ http.route({
   path: "/byteplus/webhook",
   method: "POST",
   handler: handleBytePlusWebhook,
+});
+
+// MCP server (MCP-P1-SKELET): Streamable HTTP transport, JSON-RPC 2.0, Bearer
+// API ključ. Sve živi u `convex/mcp/`; ovde su samo rute. OPTIONS je CORS
+// preflight, a GET vraća 405 jer server nema server-stranu SSE struju.
+http.route({
+  path: "/mcp",
+  method: "POST",
+  handler: mcpHandler,
+});
+
+http.route({
+  path: "/mcp",
+  method: "OPTIONS",
+  handler: mcpPreflight,
+});
+
+http.route({
+  path: "/mcp",
+  method: "GET",
+  handler: mcpNoEventStream,
 });
 
 export default http;

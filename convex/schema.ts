@@ -1854,4 +1854,23 @@ export default defineSchema({
   })
     .index("by_actor", ["actorId"])
     .index("by_job", ["jobId"]),
+
+  // API ključevi za MCP server (MCP-P1-SKELET). Pun ključ se NIKAD ne upisuje:
+  // `keyHash` je sha256 heks, `prefix` je prvih 12 znakova za prikaz u UI.
+  // Revokacija upisuje `revokedAt`, red se ne briše - `resolveKey` vraća
+  // `null` i za revokovan i za nepostojeći ključ.
+  mcpApiKeys: defineTable({
+    userId: v.id("users"),
+    /** Ljudsko ime ključa ("Claude Desktop"). */
+    name: v.string(),
+    keyHash: v.string(),
+    prefix: v.string(),
+    /** P1: ["mcp:read"]. */
+    scopes: v.array(v.string()),
+    createdAt: v.number(),
+    lastUsedAt: v.optional(v.number()),
+    revokedAt: v.optional(v.number()),
+  })
+    .index("by_user", ["userId", "createdAt"])
+    .index("by_hash", ["keyHash"]),
 });
