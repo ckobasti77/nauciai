@@ -18,6 +18,7 @@ export default function robots(): MetadataRoute.Robots {
       withLocale(locale, "/studio/app"),
       withLocale(locale, "/studio/krediti"),
       withLocale(locale, "/sign-in"),
+      withLocale(locale, "/oauth/"),
     ]),
     "/api/",
   ];

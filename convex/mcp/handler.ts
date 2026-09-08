@@ -1,17 +1,25 @@
 /**
  * MCP transport (MCP-P1-SKELET, tačka 5): Streamable HTTP na `POST /mcp`.
  *
- * Redosled u handleru: Bearer format -> veličina tela -> hash i `resolveKey`
- * -> rate limit -> `lastUsedAt` (best-effort) -> protokolski sloj -> JSON ili
- * SSE okvir, prema `Accept` zaglavlju. Server je bez stanja: ne izdaje
+ * Redosled u handleru: Bearer format -> veličina tela -> hash i razrešavanje
+ * pozivaoca -> rate limit -> `lastUsedAt` (best-effort) -> protokolski sloj ->
+ * JSON ili SSE okvir, prema `Accept` zaglavlju. Server je bez stanja: ne izdaje
  * `Mcp-Session-Id`, a `GET /mcp` je 405 jer nema server-strane SSE struje.
+ *
+ * Dva kredencijala na istom zaglavlju (MCP-P4-OAUTH): `nai_live_` API ključ
+ * (`mcpKeys.resolveKey`, nepromenjen) i `nai_oat_` OAuth access token
+ * (`oauth.server.resolveAccessToken`). Oba daju ISTI `principal`, pa ostatak
+ * lanca (bindTools, opsezi, rate limit) ne zna kojim putem je pozivalac došao.
  */
 
 import { internal } from "../_generated/api";
-import { httpAction } from "../_generated/server";
-import { parseBearerKey, sha256Hex } from "./apiKey";
+import { httpAction, type ActionCtx } from "../_generated/server";
+import { parseBearerCredential, type BearerCredential } from "../oauth/core";
+import { protectedResourceMetadataUrl } from "../oauth/urls";
+import { MCP_SCOPES, sha256Hex } from "./apiKey";
 import { handleMcpRequest, httpStatusFor, type McpDispatchResult } from "./protocol";
 import { mcpRateLimiter } from "./rateLimit";
+import type { McpPrincipal } from "./toolDefinition";
 import { bindTools } from "./tools";
 
 export const MAX_BODY_BYTES = 1_048_576;
@@ -42,11 +50,51 @@ function transportError(status: number, code: number, message: string, headers: 
   });
 }
 
-/** Jedan te isti odgovor za odsutno, neispravno, nepostojeće i revokovano - bez razloga (tačka 6). */
-function unauthorized() {
+/**
+ * Jedan te isti odgovor za odsutno, neispravno, nepostojeće i revokovano - bez
+ * razloga (tačka 6). `resource_metadata` (RFC 9728) kaže klijentu gde je
+ * autorizacioni server, a `scope` koje opsege da traži (MCP-P4-OAUTH).
+ */
+function unauthorized(request: Request) {
   return transportError(401, TRANSPORT_ERROR.UNAUTHORIZED, "Unauthorized", {
-    "WWW-Authenticate": 'Bearer realm="nauciai-mcp"',
+    "WWW-Authenticate": `Bearer realm="nauciai-mcp", resource_metadata="${protectedResourceMetadataUrl(request)}", scope="${MCP_SCOPES.join(" ")}"`,
   });
+}
+
+type ResolvedPrincipal = {
+  principal: McpPrincipal;
+  lastUsedAt: number | null;
+  touchLastUsed: () => Promise<null>;
+};
+
+/**
+ * Kredencijal -> pozivalac. Ključ i OAuth token daju isti oblik; razlikuju se
+ * samo tabela u kojoj žive i koji `lastUsedAt` se osvežava. Tajna se hešuje
+ * ovde, pa upit dobija samo heš.
+ */
+async function resolvePrincipal(ctx: ActionCtx, credential: BearerCredential, now: number): Promise<ResolvedPrincipal | null> {
+  const hash = await sha256Hex(credential.secret);
+  if (credential.kind === "apiKey") {
+    const row = await ctx.runQuery(internal.mcpKeys.resolveKey, { keyHash: hash });
+    if (!row) return null;
+    const { lastUsedAt, ...principal } = row;
+
+    return {
+      principal,
+      lastUsedAt,
+      touchLastUsed: () => ctx.runMutation(internal.mcpKeys.touchLastUsed, { keyId: row.keyId, now }),
+    };
+  }
+
+  const row = await ctx.runQuery(internal.oauth.server.resolveAccessToken, { tokenHash: hash, now });
+  if (!row) return null;
+  const { lastUsedAt, ...principal } = row;
+
+  return {
+    principal,
+    lastUsedAt,
+    touchLastUsed: () => ctx.runMutation(internal.oauth.server.touchLastUsed, { tokenId: row.keyId, now }),
+  };
 }
 
 function respond(result: McpDispatchResult, wantsEventStream: boolean) {
@@ -87,8 +135,8 @@ export const mcpNoEventStream = httpAction(
 
 export const mcpHandler = httpAction(async (ctx, request) => {
   try {
-    const key = parseBearerKey(request.headers.get("authorization"));
-    if (!key) return unauthorized();
+    const credential = parseBearerCredential(request.headers.get("authorization"));
+    if (!credential) return unauthorized(request);
 
     const declaredLength = Number(request.headers.get("content-length") ?? "0");
     if (declaredLength > MAX_BODY_BYTES) {
@@ -99,10 +147,11 @@ export const mcpHandler = httpAction(async (ctx, request) => {
       return transportError(413, TRANSPORT_ERROR.PAYLOAD_TOO_LARGE, "Payload too large");
     }
 
-    const principal = await ctx.runQuery(internal.mcpKeys.resolveKey, { keyHash: await sha256Hex(key) });
-    if (!principal) return unauthorized();
-
     const now = Date.now();
+    const resolved = await resolvePrincipal(ctx, credential, now);
+    if (!resolved) return unauthorized(request);
+    const { principal, lastUsedAt, touchLastUsed } = resolved;
+
     const decision = mcpRateLimiter.check(principal.keyId, now);
     if (!decision.allowed) {
       return transportError(429, TRANSPORT_ERROR.RATE_LIMITED, "Rate limit exceeded", {
@@ -110,9 +159,9 @@ export const mcpHandler = httpAction(async (ctx, request) => {
       });
     }
 
-    if (principal.lastUsedAt === null || now - principal.lastUsedAt >= LAST_USED_THROTTLE_MS) {
+    if (lastUsedAt === null || now - lastUsedAt >= LAST_USED_THROTTLE_MS) {
       try {
-        await ctx.runMutation(internal.mcpKeys.touchLastUsed, { keyId: principal.keyId, now });
+        await touchLastUsed();
       } catch (error) {
         // Best-effort: statistika upotrebe ne sme da obori zahtev.
         logInternal("lastUsedAt", error);

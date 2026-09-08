@@ -3,6 +3,13 @@ import { httpRouter } from "convex/server";
 import { auth } from "./auth";
 import { handleFalWebhook } from "./falWebhook";
 import { mcpHandler, mcpNoEventStream, mcpPreflight } from "./mcp/handler";
+import {
+  authorizationServerMetadata,
+  oauthPreflight,
+  protectedResourceMetadata,
+  registerEndpoint,
+  tokenEndpoint,
+} from "./oauth/http";
 import { handleBytePlusWebhook } from "./providers/byteplus";
 
 const http = httpRouter();
@@ -47,5 +54,23 @@ http.route({
   method: "GET",
   handler: mcpNoEventStream,
 });
+
+// OAuth 2.1 za MCP (MCP-P4-OAUTH): otkrivanje (RFC 9728 na korenu I na `/mcp`
+// putanji, RFC 8414), dinamička registracija (RFC 7591) i token endpoint. Ekran
+// pristanka (`/oauth/authorize`) je Next stranica na `SITE_URL`, ne ruta ovde.
+// Convex Auth već drži `/.well-known/openid-configuration` i `jwks.json` - te
+// putanje se ne diraju; MCP klijent prvo traži `oauth-authorization-server`.
+const oauthRoutes = [
+  { path: "/.well-known/oauth-protected-resource", handler: protectedResourceMetadata, method: "GET" as const },
+  { path: "/.well-known/oauth-protected-resource/mcp", handler: protectedResourceMetadata, method: "GET" as const },
+  { path: "/.well-known/oauth-authorization-server", handler: authorizationServerMetadata, method: "GET" as const },
+  { path: "/oauth/register", handler: registerEndpoint, method: "POST" as const },
+  { path: "/oauth/token", handler: tokenEndpoint, method: "POST" as const },
+];
+
+for (const route of oauthRoutes) {
+  http.route(route);
+  http.route({ path: route.path, method: "OPTIONS", handler: oauthPreflight });
+}
 
 export default http;

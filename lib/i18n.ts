@@ -1262,6 +1262,19 @@ export const apiKeysContent = {
     signIn: "Prijavi se da bi upravljao/la API ključevima.",
     signInCta: "Prijavi se",
     noConvex: "Ključevi žive u Convex bazi; bez NEXT_PUBLIC_CONVEX_URL strana nema šta da prikaže.",
+    // Povezane aplikacije (MCP-P4-OAUTH): pristup dobijen preko OAuth-a, bez ručnog ključa.
+    connectionsTitle: "Povezane aplikacije",
+    connectionsBody:
+      "Aplikacije koje su dobile pristup preko „Connect” dugmeta (OAuth), bez lepljenja ključa. Opoziv odmah gasi pristup.",
+    connectionsEmptyTitle: "Još nema povezanih aplikacija",
+    connectionsEmptyBody:
+      "Kad u Claude Desktop ili claude.ai dodaš server samo URL-om i odobriš pristup, aplikacija se pojavljuje ovde.",
+    connectedAt: "Povezano",
+    disconnect: "Opozovi pristup",
+    disconnectTitle: "Opozvati pristup aplikaciji?",
+    disconnectBody: (name: string) =>
+      `Aplikacija „${name}“ odmah gubi pristup. Da bi ponovo radila, moraćeš ponovo da je povežeš i odobriš.`,
+    disconnectConfirm: "Opozovi pristup",
   },
   en: {
     title: "API keys",
@@ -1309,5 +1322,81 @@ export const apiKeysContent = {
     signIn: "Sign in to manage API keys.",
     signInCta: "Sign in",
     noConvex: "Keys live in the Convex database; without NEXT_PUBLIC_CONVEX_URL this page has nothing to show.",
+    connectionsTitle: "Connected apps",
+    connectionsBody:
+      "Apps that got access through a “Connect” button (OAuth), without pasting a key. Revoking cuts access immediately.",
+    connectionsEmptyTitle: "No connected apps yet",
+    connectionsEmptyBody:
+      "When you add the server in Claude Desktop or claude.ai by URL alone and approve access, the app shows up here.",
+    connectedAt: "Connected",
+    disconnect: "Revoke access",
+    disconnectTitle: "Revoke this app's access?",
+    disconnectBody: (name: string) =>
+      `The app "${name}" loses access immediately. To use it again you will need to connect and approve it again.`,
+    disconnectConfirm: "Revoke access",
+  },
+} as const;
+
+/** Ekran pristanka `/oauth/authorize` (MCP-P4-OAUTH): ko traži pristup, šta traži, dozvoli/odbij. */
+export const oauthConsentContent = {
+  sr: {
+    metaTitle: "Odobri pristup",
+    eyebrow: "Zahtev za pristup (MCP)",
+    title: (client: string) => `${client} traži pristup tvom Studiju`,
+    body: "Aplikacija bi radila u tvoje ime kroz MCP server - isto što i API ključ, samo bez ručnog lepljenja.",
+    signedInAs: "Prijavljen/a kao",
+    redirectsTo: "Posle odluke vraćaš se na",
+    scopesLabel: "Šta aplikacija traži",
+    scopeReadTitle: "Čitanje",
+    scopeReadBody: "Katalog modela, stanje Studija, projekti, poslovi i galerija.",
+    scopeWriteTitle: "Pisanje",
+    scopeWriteBody: "Pokretanje generisanja (create_generation) i okačivanje fajlova.",
+    writeWarning:
+      "Pisanje TROŠI TVOJE KREDITE: svaku generaciju koju aplikacija pokrene plaćaš sa svog salda, isto kao da si je pokrenuo/la iz Studija.",
+    approve: "Dozvoli pristup",
+    deny: "Odbij",
+    revokeHint: "Pristup možeš da opozoveš kad god hoćeš, u profilu pod „API ključevi” → „Povezane aplikacije”.",
+    loading: "Proveravamo zahtev…",
+    redirecting: "Vraćamo te u aplikaciju…",
+    errorTitle: "Zahtev nije ispravan",
+    errorUnknownClient:
+      "Aplikacija nije registrovana na ovom serveru, pa te ne šaljemo nikud. Poveži je ponovo iz klijenta - registracija ide automatski.",
+    errorRedirect:
+      "Adresa povratka nije registrovana za ovu aplikaciju, pa te ne šaljemo nikud. Poveži aplikaciju ponovo iz klijenta.",
+    errorInvalidRequest:
+      "Zahtev ne ispunjava OAuth 2.1 (PKCE S256, opsezi, resource). Vraćamo te u aplikaciju sa opisom greške.",
+    genericError: "Nešto nije prošlo. Pokušaj ponovo.",
+    noConvex: "Ekran pristanka radi nad Convex bazom; bez NEXT_PUBLIC_CONVEX_URL nema šta da prikaže.",
+    backHome: "Nazad na početnu",
+  },
+  en: {
+    metaTitle: "Approve access",
+    eyebrow: "Access request (MCP)",
+    title: (client: string) => `${client} wants to access your Studio`,
+    body: "The app would act on your behalf through the MCP server - the same as an API key, just without pasting one.",
+    signedInAs: "Signed in as",
+    redirectsTo: "After you decide, you return to",
+    scopesLabel: "What the app is asking for",
+    scopeReadTitle: "Read",
+    scopeReadBody: "Model catalog, Studio state, projects, jobs and gallery.",
+    scopeWriteTitle: "Write",
+    scopeWriteBody: "Starting generations (create_generation) and uploading files.",
+    writeWarning:
+      "Write SPENDS YOUR CREDITS: every generation the app starts is paid from your balance, exactly as if you started it in the Studio.",
+    approve: "Allow access",
+    deny: "Deny",
+    revokeHint: "You can revoke access at any time in your profile under “API keys” → “Connected apps”.",
+    loading: "Checking the request…",
+    redirecting: "Taking you back to the app…",
+    errorTitle: "The request is not valid",
+    errorUnknownClient:
+      "This app is not registered with this server, so we are not sending you anywhere. Connect it again from the client - registration is automatic.",
+    errorRedirect:
+      "The return address is not registered for this app, so we are not sending you anywhere. Connect the app again from the client.",
+    errorInvalidRequest:
+      "The request does not meet OAuth 2.1 (PKCE S256, scopes, resource). We are taking you back to the app with the error.",
+    genericError: "Something went wrong. Try again.",
+    noConvex: "The consent screen runs on the Convex database; without NEXT_PUBLIC_CONVEX_URL there is nothing to show.",
+    backHome: "Back home",
   },
 } as const;

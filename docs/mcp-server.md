@@ -1,13 +1,18 @@
-# Nauci AI MCP server (P3 - ulazi, čekanje, izlaz)
+# Nauci AI MCP server (P4 - OAuth 2.1, instalacija bez ručnog ključa)
 
 MCP (Model Context Protocol) server platforme živi na Convex HTTP ruteru, po
 istoj arhitekturi kao Higgsfield MCP: **Streamable HTTP** transport na putanji
-`/mcp`, **JSON-RPC 2.0**, **Bearer** autentikacija API ključem. P1 je dokazao
-transport jednim trivijalnim alatom (`whoami`); P2 (MCP-P2-STUDIO) je dodao
-šest studio alata, opseg `mcp:write` i UI stranu za ključeve; P3 (MCP-P3-ULAZI)
-dodaje okačivanje fajlova (`create_upload_url`, `register_upload`), poslove sa
-ulazom (`create_generation` sa `inputMode`/`inputs`/`sourceJobId`), čekanje na
-rezultat (`wait_for_job`) i potpisan URL izlaza (`get_output_url`).
+`/mcp`, **JSON-RPC 2.0**, **Bearer** autentikacija - API ključem **ili OAuth
+access tokenom**. P1 je dokazao transport jednim trivijalnim alatom (`whoami`);
+P2 (MCP-P2-STUDIO) je dodao šest studio alata, opseg `mcp:write` i UI stranu za
+ključeve; P3 (MCP-P3-ULAZI) okačivanje fajlova (`create_upload_url`,
+`register_upload`), poslove sa ulazom (`create_generation` sa
+`inputMode`/`inputs`/`sourceJobId`), čekanje na rezultat (`wait_for_job`) i
+potpisan URL izlaza (`get_output_url`); P4 (MCP-P4-OAUTH) dodaje **OAuth 2.1 sa
+PKCE i dinamičkom registracijom klijenta**, pa se server u Claude Desktop /
+claude.ai / Claude Code dodaje samo URL-om - klijent klikne „Connect", korisnik
+se prijavi, odobri pristup, i klijent dobije token (sekcija 6). Bearer put sa
+`nai_live_` ključem ostaje nepromenjen.
 
 > **`mcp:write` TROŠI KREDITE.** Alat `create_generation` rezerviše posao i
 > skida kredite sa salda vlasnika ključa, isto kao klik na „Generiši" u
@@ -20,9 +25,14 @@ rezultat (`wait_for_job`) i potpisan URL izlaza (`get_output_url`).
 | dev | `https://wandering-fox-41.eu-west-1.convex.site/mcp` |
 
 Kod: `convex/mcp/` (transport, protokol, registar alata, studio alati, rate
-limit, ključ), `convex/mcpKeys.ts` (Convex funkcije za ključeve), rute u
-`convex/http.ts`, tabela `mcpApiKeys` u `convex/schema.ts`, UI u
-`components/app/api-keys-page.tsx` (ruta `/app/profile/api-keys`).
+limit, ključ), `convex/mcpKeys.ts` (Convex funkcije za ključeve), `convex/oauth/`
+(OAuth 2.1: `core.ts` čisto jezgro, `authorizeRequest.ts` parametri
+autorizacije, `server.ts` Convex funkcije, `http.ts` endpointi, `urls.ts`
+origini), rute u `convex/http.ts`, tabele `mcpApiKeys`, `oauthClients`,
+`oauthAuthCodes`, `oauthTokens` u `convex/schema.ts`, UI u
+`components/app/api-keys-page.tsx` (ruta `/app/profile/api-keys`, ključevi +
+povezane aplikacije) i `components/app/oauth-consent-page.tsx` (ekran pristanka,
+ruta `/oauth/authorize`).
 
 ---
 
@@ -100,7 +110,15 @@ Ostale funkcije (iste `--identity` zastavice):
 
 ### Claude Code
 
-Jedna komanda (Streamable HTTP transport sa Bearer zaglavljem):
+Od P4 dovoljan je URL - Claude Code sam prođe OAuth tok (otvori browser na
+ekran pristanka, sekcija 6):
+
+```
+claude mcp add --transport http nauciai https://quick-yak-270.eu-west-1.convex.site/mcp
+```
+
+pa u razgovoru `/mcp` -> `nauciai` -> „Authenticate". Ključ i dalje radi kao i
+pre, kad se ne želi browser (CI, agenti):
 
 ```
 claude mcp add --transport http nauciai https://quick-yak-270.eu-west-1.convex.site/mcp --header "Authorization: Bearer nai_live_..."
@@ -123,13 +141,20 @@ Ili u `.mcp.json` (u korenu projekta) - ključ ostaje u okruženju, ne u fajlu:
 Provera: `claude mcp list` treba da pokaže `nauciai` kao povezan, a u
 razgovoru alat `whoami` vraća id i email korisnika, a `list_models` katalog.
 
-### Claude Desktop
+### Claude Desktop / claude.ai
 
-Claude Desktop u konektorima traži OAuth, koji P1 nema (samo Bearer). Zato se
-ide preko `mcp-remote` mosta u `claude_desktop_config.json`
-(Settings -> Developer -> Edit Config). Zaglavlje se prosleđuje iz env
-promenljive - na Windowsu `mcp-remote` ne podnosi razmak u argumentu, pa je
-ceo `Bearer ...` u promenljivoj:
+Od P4 ide kao konektor, bez ključa: Settings -> Connectors -> „Add custom
+connector" -> ime `Nauci AI`, URL `https://quick-yak-270.eu-west-1.convex.site/mcp`
+-> „Add" -> „Connect". Otvara se browser na `nauciai.com/oauth/authorize`:
+prijava (ako već nije), pa ekran pristanka sa imenom klijenta i opsezima
+(`mcp:write` nosi upozorenje da troši kredite), „Dozvoli pristup" -> klijent
+dobija token, alati se pojavljuju. Pristup se gasi u Profil -> „API ključevi"
+-> „Povezane aplikacije" -> „Opozovi pristup".
+
+Stari put preko `mcp-remote` mosta sa ključem i dalje radi (Bearer put je
+nepromenjen), u `claude_desktop_config.json` (Settings -> Developer -> Edit
+Config). Zaglavlje se prosleđuje iz env promenljive - na Windowsu `mcp-remote`
+ne podnosi razmak u argumentu, pa je ceo `Bearer ...` u promenljivoj:
 
 ```json
 {
@@ -236,7 +261,12 @@ Transport:
 
 - `POST /mcp` - JSON-RPC telo; odgovor je `application/json`, a ako klijent
   pošalje `Accept: text/event-stream`, jedan SSE okvir (`event: message`) po
-  odgovoru.
+  odgovoru. `Authorization: Bearer` nosi `nai_live_` ključ ILI `nai_oat_` OAuth
+  access token (P4) - razlikuju se po prefiksu, oba daju isti `principal`.
+- `401` nosi `WWW-Authenticate: Bearer realm="nauciai-mcp",
+  resource_metadata="<site>/.well-known/oauth-protected-resource",
+  scope="mcp:read mcp:write"` - po tome MCP klijent nalazi autorizacioni server
+  (RFC 9728) i zna koje opsege da traži.
 - `OPTIONS /mcp` - CORS preflight (`*`; `Authorization`, `Content-Type`,
   `Mcp-Session-Id`, `Mcp-Protocol-Version`).
 - `GET /mcp` - 405 (nema server-strane SSE struje).
@@ -245,7 +275,7 @@ Greške:
 
 | Situacija | HTTP | JSON-RPC kod |
 | --- | --- | --- |
-| bez/neispravno/nepostojeće/revokovano Bearer zaglavlje | 401 | -32001 (uvek ista poruka, bez razloga) |
+| bez/neispravno/nepostojeće/revokovano/isteklo Bearer zaglavlje (ključ ili OAuth token) | 401 + `WWW-Authenticate` | -32001 (uvek ista poruka, bez razloga) |
 | više od 60 zahteva u minutu po ključu (po izolatu) | 429 + `Retry-After` | -32002 |
 | više od 10 `mcp:write` poziva u minutu po ključu (po izolatu) | 200 | -32002 sa `data.retryAfterSeconds` |
 | telo veće od 1 MB | 413 | -32003 |
@@ -399,7 +429,7 @@ izlaz po retenciji vrste; do tada URL radi bez dodatnog potpisa.
 
 ---
 
-## 5. Šta je P3 doneo i šta ostaje
+## 5. Šta su P3 i P4 doneli i šta ostaje
 
 P3 (MCP-P3-ULAZI): `...ForUser` refaktor upload lanca
 (`createInputUploadUrl`, `registerInputUpload`, `measureInputUpload`) sa
@@ -416,6 +446,160 @@ fajla pri prijavi - ista logika kao `validateSlotFile` u formi, preseljena u
 metapodacima iz `_storage`; MCP put strog na `Content-Type`, odbijen fajl se
 briše iz skladišta; `create_upload_url` vraća `accept` i `maxBytes`.
 
+P4 (MCP-P4-OAUTH): OAuth 2.1 sa PKCE S256 i dinamičkom registracijom klijenta
+kao DRUGI način autentikacije na isti `/mcp` (sekcija 6): dva `.well-known`
+dokumenta, `/oauth/register`, `/oauth/token`, ekran pristanka
+`/oauth/authorize` na Next aplikaciji, tri tabele (`oauthClients`,
+`oauthAuthCodes`, `oauthTokens`), druga grana u `handler.ts` koja pravi isti
+`principal`, i „Povezane aplikacije" na strani ključeva.
+
 Ostaje za kasnije: rate limit u tabeli (ili `@convex-dev/rate-limiter`) ako
-tačan broj po ključu ikad postane važan (danas nije - vidi sekciju 3). Nije
-planirano: OAuth (ostaje Bearer), `resources/` i `prompts/` MCP primitivi.
+tačan broj po ključu ikad postane važan (danas nije - vidi sekciju 3); cron
+koji briše istekle/opozvane redove `oauthTokens` i `oauthAuthCodes` (rotacija
+refresh tokena ostavlja po jedan opozvan red na sat po klijentu - danas se ne
+čiste); izbor manjeg opsega na ekranu pristanka (danas je „sve ili ništa"
+prema onome što klijent traži); Client ID Metadata Documents (MCP spec ih
+preporučuje, Claude klijenti danas koriste dinamičku registraciju). Nije
+planirano: `resources/` i `prompts/` MCP primitivi, javna registracija servera.
+
+---
+
+## 6. OAuth 2.1: pristup bez ručnog ključa (P4)
+
+Tok po MCP specifikaciji (2025-11-25, sekcija Authorization): OAuth 2.1 sa
+PKCE, RFC 9728 (Protected Resource Metadata), RFC 8414 (Authorization Server
+Metadata), RFC 7591 (Dynamic Client Registration), RFC 8707 (`resource`).
+Autorizacioni server I zaštićeni resurs su Convex site (`CONVEX_SITE_URL`);
+**ekran pristanka je Next stranica** na `SITE_URL` (`/oauth/authorize`), jer
+tamo živi Convex Auth sesija - convex.site nema kolačić. RFC 8414 dozvoljava da
+`authorization_endpoint` bude na drugom hostu od `issuer`-a.
+
+### Endpointi
+
+| Šta | Gde | Metoda |
+| --- | --- | --- |
+| metapodaci zaštićenog resursa (RFC 9728) | `<site>/.well-known/oauth-protected-resource` i `<site>/.well-known/oauth-protected-resource/mcp` (isti dokument, klijent proba oba) | GET |
+| metapodaci autorizacionog servera (RFC 8414) | `<site>/.well-known/oauth-authorization-server` | GET |
+| registracija klijenta (RFC 7591) | `<site>/oauth/register` | POST JSON |
+| ekran pristanka | `<app>/oauth/authorize` (sr) / `<app>/en/oauth/authorize` | GET (browser) |
+| token | `<site>/oauth/token` | POST form (JSON se toleriše) |
+
+`<site>` = `https://quick-yak-270.eu-west-1.convex.site` (prod) /
+`https://wandering-fox-41.eu-west-1.convex.site` (dev); `<app>` = `SITE_URL`
+Convex env promenljive (`https://nauciai.com` / `http://localhost:3000`).
+Svi endpointi nose CORS `*` i OPTIONS preflight. Convex Auth već drži
+`/.well-known/openid-configuration` (za sopstvene JWT-ove) - ne dira se; MCP
+klijent prvo traži `oauth-authorization-server` i tu staje.
+
+### Tok
+
+1. Klijent pošalje `POST /mcp` bez tokena -> **401** sa `WWW-Authenticate:
+   Bearer resource_metadata="<site>/.well-known/oauth-protected-resource",
+   scope="mcp:read mcp:write"`.
+2. Klijent skine metapodatke resursa (`authorization_servers: ["<site>"]`), pa
+   AS metapodatke (`authorization_endpoint`, `token_endpoint`,
+   `registration_endpoint`, `code_challenge_methods_supported: ["S256"]`).
+3. `POST /oauth/register` sa `client_name` i `redirect_uris` -> `client_id`
+   (= `_id` reda u `oauthClients`; javni klijent, bez tajne). Bez ručnog
+   unosa client_id-ja.
+4. Browser na `<app>/oauth/authorize?response_type=code&client_id=...&redirect_uri=...&scope=mcp:read%20mcp:write&state=...&code_challenge=...&code_challenge_method=S256&resource=<site>/mcp`.
+   Neprijavljen korisnik ide na `/sign-in?next=<isti URL sa svim parametrima>`
+   i posle prijave se vraća na isti zahtev (`/auth/complete` ne šalje OAuth
+   povratak u onboarding korisničkog imena). Prijavljen vidi ime klijenta,
+   host na koji se vraća, ko je prijavljen, i tačno tražene opsege; `mcp:write`
+   nosi upozorenje da troši kredite. „Dozvoli pristup" -> server izdaje kod i
+   preusmerava na `redirect_uri?code=...&state=...`; „Odbij" ->
+   `redirect_uri?error=access_denied&state=...`.
+5. `POST /oauth/token` (`grant_type=authorization_code`, `code`,
+   `redirect_uri`, `client_id`, `code_verifier`, `resource`) ->
+   `{access_token, token_type: "Bearer", expires_in: 3600, refresh_token, scope}`.
+6. `POST /mcp` sa `Authorization: Bearer nai_oat_...` - isti alati, isti
+   opsezi, isti rate limit kao ključ. `whoami` vraća `keyName` = ime klijenta.
+7. Posle sat vremena access token ističe (401) i klijent zove
+   `grant_type=refresh_token` -> nov par (stari refresh token se rotira).
+
+### Pravila (tačka 3 brifa)
+
+- PKCE **S256 obavezan**; `plain` ili odsutan `code_challenge_method` ->
+  `invalid_request`. `code_verifier` obavezan na token endpointu; pogrešan ->
+  `invalid_grant`.
+- `redirect_uri` mora da se poklopi **znak-za-znak** sa registrovanim; bez
+  wildcard-a. Pri registraciji sme `https://` bilo gde ili `http://` samo na
+  `localhost` / `127.0.0.1` / `[::1]` (Claude Code, mcp-remote), bez fragmenta.
+  Nepoznat klijent ili neregistrovan URI -> ekran pristanka pokazuje grešku i
+  **ne preusmerava nikud**; ostale greške (PKCE, opseg, `resource`) idu nazad na
+  registrovani URI sa `error` i nepromenjenim `state`.
+- Authorization code: `nai_oac_` + 43 base62, važi **60 s**, koristi se
+  **tačno jednom**, vezan za `client_id`, `redirect_uri` i `code_challenge`.
+  Ponovna upotreba -> `invalid_grant` **i odmah se opozivaju svi tokeni tog
+  koda** (`oauthTokens.by_code`).
+- Access token `nai_oat_` + 43 base62, **1 h**; refresh token `nai_ort_` + 43
+  base62, **30 dana** (klizno - svaka rotacija daje novih 30). Rotacija: stari
+  red se opoziva, nov nasleđuje `codeId`; replay već rotiranog refresh tokena
+  gasi celu porodicu. Opoziv iz UI-ja gasi sve redove korisnika za taj klijent.
+- `state` se vraća nepromenjen (`URLSearchParams`, bez tumačenja).
+- `resource` (RFC 8707), ako je poslat, mora da bude `<site>/mcp` (shema i host
+  bez obzira na velika slova, završna kosa crta tolerisana) - inače
+  `invalid_target`. Bez `CONVEX_SITE_URL`-a odbija se, ne preskače.
+- `scope` bez parametra = samo `mcp:read`; nepoznat opseg -> `invalid_scope`.
+  Klijent koji prati spec traži `scopes_supported` iz metapodataka (oba), pa
+  ekran pristanka upozorava na kredite.
+- Tokeni, kodovi i `code_verifier` se **nikad ne loguju**: HTTP sloj ih hešuje
+  (`sha256`; verifier -> S256 izazov) i Convex funkcije primaju samo heš, kao i
+  `mcpKeys.resolveKey`. Baza čuva samo heševe. Poređenje heševa je
+  `timingSafeEqual` iz `mcp/apiKey.ts`.
+- Registracija je javna: `client_name` obavezan (1-128 znakova, kontrolni
+  znakovi se čiste - ime ide na ekran), 1-10 URI-ja, samo
+  `token_endpoint_auth_method: none`; prigušivač 30 registracija/min po
+  izolatu (ista priroda kao MCP rate limit).
+
+### Greške token endpointa
+
+| Situacija | HTTP | `error` |
+| --- | --- | --- |
+| telo nije form/JSON, nema `client_id`, nema/loš `code_verifier`, nema `redirect_uri` | 400 | `invalid_request` |
+| nepoznat `client_id` | 401 | `invalid_client` |
+| kod nepostojeći/istekao/iskorišćen/tuđ, `redirect_uri` ne poklapa, PKCE ne poklapa, refresh nepostojeći/istekao/opozvan | 400 | `invalid_grant` (uvek ista poruka) |
+| `resource` nije ovaj server | 400 | `invalid_target` |
+| drugi `grant_type` | 400 | `unsupported_grant_type` |
+
+### Provera na dev deploymentu (2026-09-09, `npx convex dev --once`)
+
+`GET /.well-known/oauth-protected-resource` (isti odgovor i na `/mcp` sufiksu):
+
+```json
+{"resource":"https://wandering-fox-41.eu-west-1.convex.site/mcp","authorization_servers":["https://wandering-fox-41.eu-west-1.convex.site"],"scopes_supported":["mcp:read","mcp:write"],"bearer_methods_supported":["header"],"resource_name":"Nauci AI MCP"}
+```
+
+`GET /.well-known/oauth-authorization-server` (dev `SITE_URL` je
+`http://localhost:3000`, na produ `https://nauciai.com`):
+
+```json
+{"issuer":"https://wandering-fox-41.eu-west-1.convex.site","authorization_endpoint":"http://localhost:3000/oauth/authorize","token_endpoint":"https://wandering-fox-41.eu-west-1.convex.site/oauth/token","registration_endpoint":"https://wandering-fox-41.eu-west-1.convex.site/oauth/register","response_types_supported":["code"],"grant_types_supported":["authorization_code","refresh_token"],"code_challenge_methods_supported":["S256"],"token_endpoint_auth_methods_supported":["none"],"scopes_supported":["mcp:read","mcp:write"]}
+```
+
+`POST /oauth/register` -> `201 Created`, `Cache-Control: no-store`:
+
+```json
+{"client_id":"yn7cag8r6mrxh468tj14yyj1s98e0m8g","client_name":"Claude Desktop (curl proba)","redirect_uris":["https://claude.ai/api/mcp/auth_callback","http://localhost:6274/callback"],"grant_types":["authorization_code","refresh_token"],"response_types":["code"],"token_endpoint_auth_method":"none","client_id_issued_at":1788908023}
+```
+
+`POST /mcp` bez tokena -> `401`:
+
+```
+www-authenticate: Bearer realm="nauciai-mcp", resource_metadata="https://wandering-fox-41.eu-west-1.convex.site/.well-known/oauth-protected-resource", scope="mcp:read mcp:write"
+
+{"jsonrpc":"2.0","id":null,"error":{"code":-32001,"message":"Unauthorized"}}
+```
+
+Ručna razmena (posle odobrenja u browseru, `code` iz URL-a povratka):
+
+```
+curl -s https://wandering-fox-41.eu-west-1.convex.site/oauth/token -d "grant_type=authorization_code&client_id=<client_id>&code=<code>&redirect_uri=<redirect_uri>&code_verifier=<verifier>&resource=https://wandering-fox-41.eu-west-1.convex.site/mcp"
+```
+
+Testovi: `convex/oauth/core.test.ts` (čisto jezgro, PKCE vektor iz RFC 7636,
+povratak na prijavu sa istim parametrima) i `convex/oauth/flow.test.ts` (ceo
+tok kroz `t.fetch`: metapodaci, registracija, pristanak, razmena, jednokratnost
+koda sa opozivom, istek 61 s, refresh rotacija i replay, opoziv iz UI-ja, isti
+`principal` kao ključ, regresija Bearer puta).

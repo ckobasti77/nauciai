@@ -1873,4 +1873,49 @@ export default defineSchema({
   })
     .index("by_user", ["userId", "createdAt"])
     .index("by_hash", ["keyHash"]),
+
+  // OAuth 2.1 za MCP (MCP-P4-OAUTH): klijent se registruje sam (RFC 7591),
+  // `client_id` je `_id` ovog reda. Javni klijent - bez tajne.
+  oauthClients: defineTable({
+    clientName: v.string(),
+    /** Tačan spisak; `redirect_uri` u zahtevu mora da se poklopi znak-za-znak. */
+    redirectUris: v.array(v.string()),
+    createdAt: v.number(),
+  }),
+
+  // Authorization code: važi 60 s, koristi se TAČNO JEDNOM (`usedAt`); ponovna
+  // upotreba opoziva sve tokene izdate za taj kod. Čuva se samo sha256 heš.
+  oauthAuthCodes: defineTable({
+    codeHash: v.string(),
+    clientId: v.id("oauthClients"),
+    userId: v.id("users"),
+    scopes: v.array(v.string()),
+    /** PKCE S256 izazov; `code_verifier` se proverava pri razmeni. */
+    codeChallenge: v.string(),
+    redirectUri: v.string(),
+    expiresAt: v.number(),
+    usedAt: v.optional(v.number()),
+  }).index("by_hash", ["codeHash"]),
+
+  // Access (1 h) + refresh (30 dana) token, oba samo kao sha256 heš. Rotacija
+  // refresh tokena opoziva stari red i upisuje nov sa istim `codeId`, pa
+  // `by_code` nalazi celu porodicu kad treba da se ugasi.
+  oauthTokens: defineTable({
+    tokenHash: v.string(),
+    refreshHash: v.string(),
+    codeId: v.id("oauthAuthCodes"),
+    clientId: v.id("oauthClients"),
+    userId: v.id("users"),
+    scopes: v.array(v.string()),
+    expiresAt: v.number(),
+    refreshExpiresAt: v.number(),
+    createdAt: v.number(),
+    lastUsedAt: v.optional(v.number()),
+    revokedAt: v.optional(v.number()),
+  })
+    .index("by_hash", ["tokenHash"])
+    .index("by_refresh_hash", ["refreshHash"])
+    .index("by_code", ["codeId"])
+    .index("by_user", ["userId", "createdAt"])
+    .index("by_user_and_client", ["userId", "clientId"]),
 });

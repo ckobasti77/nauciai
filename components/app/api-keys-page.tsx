@@ -2,7 +2,7 @@
 
 import { useConvexAuth } from "@convex-dev/auth/react";
 import { useMutation, useQuery } from "convex/react";
-import { ArrowLeft, Check, Copy, KeyRound, Plus, Trash2, TriangleAlert } from "lucide-react";
+import { ArrowLeft, Check, Copy, KeyRound, Plug, Plus, Trash2, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { type FormEvent, useState } from "react";
 
@@ -26,6 +26,15 @@ type KeyRow = {
   createdAt: number;
   lastUsedAt: number | null;
   revokedAt: number | null;
+};
+
+/** Aplikacija povezana kroz OAuth (MCP-P4-OAUTH) - `oauth.server.listMyConnections`. */
+type ConnectionRow = {
+  clientId: Id<"oauthClients">;
+  clientName: string;
+  scopes: string[];
+  connectedAt: number;
+  lastUsedAt: number | null;
 };
 
 /** Dve ponude u UI-ju, ne slobodan izbor opsega: write uvek nosi i read. */
@@ -90,6 +99,28 @@ function KeyRowItem({ row, locale, onRevoke }: { row: KeyRow; locale: Locale; on
           {t.revoke}
         </Button>
       )}
+    </li>
+  );
+}
+
+function ConnectionRowItem({ row, locale, onRevoke }: { row: ConnectionRow; locale: Locale; onRevoke: () => void }) {
+  const t = apiKeysContent[locale];
+
+  return (
+    <li className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0 space-y-1.5">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="type-h4 text-ink">{row.clientName}</span>
+          <ScopeBadges scopes={row.scopes} locale={locale} />
+        </div>
+        <p className="type-caption font-semibold text-muted">
+          {t.connectedAt} {formatDate(row.connectedAt, locale)} · {t.lastUsed}:{" "}
+          {row.lastUsedAt === null ? t.neverUsed : formatDate(row.lastUsedAt, locale)}
+        </p>
+      </div>
+      <Button variant="secondary" size="sm" icon={<Trash2 className="size-3.5" />} onClick={onRevoke} className="shrink-0 self-start sm:self-center">
+        {t.disconnect}
+      </Button>
     </li>
   );
 }
@@ -317,11 +348,19 @@ export function ApiKeysPage({ locale }: { locale: Locale }) {
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
   const keys = useQuery(api.mcpKeys.listMyKeys, isAuthenticated ? {} : "skip");
   const revokeKey = useMutation(api.mcpKeys.revokeKey);
+  // `now` jednom po otvaranju strane: upit ne čita sat (istekle veze filtrira po
+  // ovom trenutku), a pretplata ne treba da se ponovo otvara na svaki otkucaj.
+  const [now] = useState(() => Date.now());
+  const connections = useQuery(api.oauth.server.listMyConnections, isAuthenticated ? { now } : "skip");
+  const revokeConnection = useMutation(api.oauth.server.revokeConnection);
   const [createOpen, setCreateOpen] = useState(false);
   const [revealed, setRevealed] = useState<{ key: string; name: string } | null>(null);
   const [revoking, setRevoking] = useState<KeyRow | null>(null);
   const [revokeBusy, setRevokeBusy] = useState(false);
   const [revokeError, setRevokeError] = useState<string | null>(null);
+  const [disconnecting, setDisconnecting] = useState<ConnectionRow | null>(null);
+  const [disconnectBusy, setDisconnectBusy] = useState(false);
+  const [disconnectError, setDisconnectError] = useState<string | null>(null);
 
   async function confirmRevoke() {
     if (!revoking) return;
@@ -334,6 +373,20 @@ export function ApiKeysPage({ locale }: { locale: Locale }) {
       setRevokeError(t.genericError);
     } finally {
       setRevokeBusy(false);
+    }
+  }
+
+  async function confirmDisconnect() {
+    if (!disconnecting) return;
+    setDisconnectBusy(true);
+    setDisconnectError(null);
+    try {
+      await revokeConnection({ clientId: disconnecting.clientId });
+      setDisconnecting(null);
+    } catch {
+      setDisconnectError(t.genericError);
+    } finally {
+      setDisconnectBusy(false);
     }
   }
 
@@ -350,7 +403,7 @@ export function ApiKeysPage({ locale }: { locale: Locale }) {
     </div>
   );
 
-  if (authLoading || (isAuthenticated && keys === undefined)) {
+  if (authLoading || (isAuthenticated && (keys === undefined || connections === undefined))) {
     return (
       <div className="space-y-6">
         {header}
@@ -379,6 +432,7 @@ export function ApiKeysPage({ locale }: { locale: Locale }) {
   }
 
   const rows = keys ?? [];
+  const apps = connections ?? [];
 
   return (
     <div className="space-y-6">
@@ -418,6 +472,29 @@ export function ApiKeysPage({ locale }: { locale: Locale }) {
         )}
       </Panel>
 
+      {/* Povezane aplikacije (MCP-P4-OAUTH): pristup dobijen preko OAuth-a, bez ključa. */}
+      <Panel className="overflow-hidden">
+        <div className="border-b-2 border-ink px-5 py-4">
+          <span className="inline-flex items-center gap-2 type-h3 text-ink">
+            <Plug className="size-5" aria-hidden="true" />
+            {t.connectionsTitle}
+          </span>
+          <p className="mt-1 type-caption font-semibold text-muted">{t.connectionsBody}</p>
+        </div>
+
+        {apps.length === 0 ? (
+          <div className="p-5">
+            <EmptyState icon={Plug} title={t.connectionsEmptyTitle} body={t.connectionsEmptyBody} />
+          </div>
+        ) : (
+          <ul className="divide-y divide-line">
+            {apps.map((row) => (
+              <ConnectionRowItem key={row.clientId} row={row} locale={locale} onRevoke={() => setDisconnecting(row)} />
+            ))}
+          </ul>
+        )}
+      </Panel>
+
       <CreateKeyDialog
         locale={locale}
         open={createOpen}
@@ -446,6 +523,24 @@ export function ApiKeysPage({ locale }: { locale: Locale }) {
         closeLabel={t.close}
       >
         {revokeError ? <p role="alert" className="type-caption font-black text-red-700">{revokeError}</p> : null}
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={disconnecting !== null}
+        onClose={() => {
+          setDisconnecting(null);
+          setDisconnectError(null);
+        }}
+        onConfirm={confirmDisconnect}
+        busy={disconnectBusy}
+        destructive
+        title={t.disconnectTitle}
+        description={disconnecting ? t.disconnectBody(disconnecting.clientName) : ""}
+        confirmLabel={t.disconnectConfirm}
+        cancelLabel={t.cancel}
+        closeLabel={t.close}
+      >
+        {disconnectError ? <p role="alert" className="type-caption font-black text-red-700">{disconnectError}</p> : null}
       </ConfirmDialog>
     </div>
   );

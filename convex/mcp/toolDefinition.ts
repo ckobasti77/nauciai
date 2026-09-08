@@ -11,7 +11,11 @@ import type { ActionCtx } from "../_generated/server";
 import type { ToolResult } from "./protocol";
 
 export type McpPrincipal = {
-  keyId: Id<"mcpApiKeys">;
+  /**
+   * Id reda kredencijala: API ključ (`mcpApiKeys`) ili OAuth access token
+   * (`oauthTokens`, MCP-P4-OAUTH). Subjekt rate limita; ne tumači se dalje.
+   */
+  keyId: Id<"mcpApiKeys"> | Id<"oauthTokens">;
   userId: Id<"users">;
   email: string | null;
   keyName: string;

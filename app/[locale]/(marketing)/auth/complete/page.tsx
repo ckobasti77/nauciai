@@ -38,11 +38,15 @@ export default async function AuthCompletePage({
   // postavi kasnije, iz profila.
   const goesToStudio =
     next === withLocale(locale, "/studio") || next.startsWith(`${withLocale(locale, "/studio")}/`);
+  // MCP ekran pristanka (MCP-P4-OAUTH) takođe ne traži username: klijent
+  // (Claude Desktop) čeka kod, pa korisnik mora nazad na isti zahtev, ne u
+  // onboarding.
+  const goesToOAuth = next.startsWith(withLocale(locale, "/oauth/authorize"));
 
   const status = (await convex.query(convexQueries.getViewerProfileStatus, {}).catch(() => null)) as
     | { username?: string }
     | null;
-  if (!status?.username && !goesToStudio) {
+  if (!status?.username && !goesToStudio && !goesToOAuth) {
     redirect(`${withLocale(locale, "/app/profile")}?onboarding=1&focus=username&returnTo=${encodeURIComponent(next)}`);
   }
 
