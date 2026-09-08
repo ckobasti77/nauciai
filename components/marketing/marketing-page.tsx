@@ -224,7 +224,7 @@ export function MarketingPage({
               </LinkButton>
             </div>
           </div>
-          <SectionWave from={1} to={0} className="section-wave" />
+          <SectionWave to={0} className="section-wave" />
         </section>
 
         {/* ── KAKO IZGLEDA UČENJE (površina A) ─────────────────────────────── */}
@@ -281,7 +281,7 @@ export function MarketingPage({
               ))}
             </div>
           </div>
-          <SectionWave from={0} to={1} className="section-wave" />
+          <SectionWave to={1} className="section-wave" />
         </section>
 
         {/* ── ZAJEDNICA (površina B) ───────────────────────────────────────── */}
@@ -320,7 +320,7 @@ export function MarketingPage({
               />
             </Panel>
           </div>
-          <SectionWave from={1} to={0} className="section-wave" />
+          <SectionWave to={0} className="section-wave" />
         </section>
 
         {/* ── PRETPLATA (površina A; kartice planova su B → robot #F4F0E8) ──── */}
@@ -367,7 +367,7 @@ export function MarketingPage({
               {m.pricing.soon}
             </p>
           </div>
-          <SectionWave from={0} to={1} className="section-wave" />
+          <SectionWave to={1} className="section-wave" />
         </section>
 
         {/* ── FAQ (površina B) ─────────────────────────────────────────────── */}
@@ -413,7 +413,7 @@ export function MarketingPage({
               ))}
             </div>
           </div>
-          <SectionWave from={1} to={0} className="section-wave" />
+          <SectionWave to={0} className="section-wave" />
         </section>
 
         {/* ── ZAVRŠNI CTA (površina A; footer crta talas A→B) ──────────────── */}

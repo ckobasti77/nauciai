@@ -4,34 +4,31 @@ import { surfaceVar, type SurfaceLevel } from "@/lib/surface";
 /**
  * Talasasti razdelnik — JEDINA granica između dve sekcije (v3).
  *
- * Ranije su se videle tri linije: tamna talasasta, svetlija talasasta i ravna
- * horizontalna gde se menja boja pozadine. Sada je razdelnik NEPROVIDNA traka koja
- * sama nosi obe boje, pa se boja menja PO talasu, ne po pravoj liniji:
- *   · pozadina `<svg>`-a = boja GORNJE sekcije (`from`) → sve iznad talasa;
+ * Iznad krive `<svg>` je PROVIDAN, pa se vidi prava pozadina gornje sekcije (uključujući
+ * `sketch-grid` mrežu, koja tako ide neprekinuto do samog poteza talasa). Boja se i dalje
+ * menja PO talasu, ne po pravoj liniji:
+ *   · `<svg>` nema pozadinu → sve iznad krive je pozadina gornje sekcije, kakva god bila;
  *   · prva `<path>` prati talas pa se zatvara do dna viewBox-a, `fill` = boja DONJE
- *     sekcije (`to`) → sve ispod talasa;
+ *     sekcije (`to`) → sve ispod talasa dobija novu boju;
  *   · druga `<path>` je samo linija talasa (`--ink`, 2px, `non-scaling-stroke`) → jedina
  *     vidljiva linija granice.
- * Rezultat: iznad talasa tačno jedna boja, ispod druga, između njih jedan tamni potez i
- * nijedna prava linija. Boje bira `lib/surface.ts` iz nivoa površina, pa se poklapaju sa
- * sekcijama u obe teme.
+ * Rezultat: iznad talasa prava boja gornje sekcije (sa mrežom), ispod druga boja, između
+ * njih jedan tamni potez i nijedna prava linija. Donju boju bira `lib/surface.ts` iz nivoa
+ * površine, pa se poklapa sa sekcijom u obe teme.
  *
  * Pozicioniranje bira pozivalac klasom (`section-wave` uz dno, `section-wave` +
- * `section-wave-top` uz vrh, ili footer). Traka jaše na granici (translateY ±50%), pa
- * pola prekriva donju ivicu gornje sekcije (bg = `from`, nevidljivo) a pola gornju ivicu
- * donje (bg = `to`, nevidljivo) — ostaje samo talasasti potez. Dekorativna:
+ * `section-wave-top` uz vrh, ili footer). Traka jaše na granici (translateY ±50%): gornja
+ * polovina je providna (vidi se sekcija iznad), donja polovina prekriva gornju ivicu donje
+ * sekcije bojom `to` (nevidljivo, ista boja) — ostaje samo talasasti potez. Dekorativna:
  * `aria-hidden`, `pointer-events-none`.
  *
  * IZUZETAK: ispod heroa NEMA talasa (talas bi sekao logo i traku ishoda) — pozivalac ga
  * tamo prosto ne renderuje.
  */
 export function SectionWave({
-  from,
   to,
   className,
 }: {
-  /** Nivo površine GORNJE sekcije (iznad talasa). */
-  from: SurfaceLevel;
   /** Nivo površine DONJE sekcije (ispod talasa). */
   to: SurfaceLevel;
   className?: string;
@@ -47,7 +44,6 @@ export function SectionWave({
       viewBox="0 0 1440 40"
       preserveAspectRatio="none"
       className={cn("pointer-events-none w-full", className)}
-      style={{ background: surfaceVar(from) }}
       fill="none"
     >
       {/* Ispuna ISPOD talasa = boja donje sekcije. */}

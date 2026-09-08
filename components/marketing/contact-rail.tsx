@@ -1,7 +1,7 @@
 "use client";
 
 import { gsap } from "gsap";
-import { Mail, Phone, Share2, X } from "lucide-react";
+import { Mail, Phone, Share2 } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { cn } from "@/components/ui/primitives";
@@ -219,7 +219,7 @@ export function ContactRail({
             onClick={() => setOpen((value) => !value)}
             className={cn(RAIL_BUTTON_CLASS, open && "bg-yellow")}
           >
-            {open ? <X className="size-5" aria-hidden="true" /> : <Share2 className="size-5" aria-hidden="true" />}
+            <Share2 className="size-5" aria-hidden="true" />
           </button>
         </div>
       ) : null}

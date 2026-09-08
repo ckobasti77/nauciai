@@ -742,11 +742,11 @@ select:-webkit-autofill {
 
 /* ── Talasasti razdelnik između sekcija (v3) ────────────────────────────────────
    `<SectionWave>` usidren uz DNO sekcije i pomeren translateY 50% da jaše na granici dve
-   sekcije. NEPROVIDNA traka (nosi obe boje, deli ih talas) — visina 40px = viewBox
-   (`preserveAspectRatio:none`, vertikalna skala 1). Ne dodaje layout (apsolutan, translate
-   je spušta pola izvan), `pointer-events-none`, z-10 da traka bude iznad pozadine obe
-   sekcije i prekrije ravnu boja-granicu. Sekcija koja ga nosi mora biti `position: relative`
-   i NE sme da klipuje (`overflow`). */
+   sekcije. Iznad krive je PROVIDAN (vidi se pozadina gornje sekcije, sa mrežom), ispod krive
+   nosi boju donje sekcije — talas ih deli — visina 40px = viewBox (`preserveAspectRatio:none`,
+   vertikalna skala 1). Ne dodaje layout (apsolutan, translate je spušta pola izvan),
+   `pointer-events-none`, z-10 da ispuna ispod talasa bude iznad pozadine donje sekcije.
+   Sekcija koja ga nosi mora biti `position: relative` i NE sme da klipuje (`overflow`). */
 .section-wave {
   position: absolute;
   inset-inline: 0;
@@ -1134,10 +1134,22 @@ details:has(> .faq-answer)::details-content {
 .hero-100 {
   height: 100vh;
   height: 100svh;
-  /* Leva ivica hero kopije (landscape ≥ 1024). Deljena promenljiva: koristi je i
-     `.hero-copy-wrap` kao `padding-left` i `.hero-cover-media` u računu cap-a vizuala
-     (`--hero-art-max`), pa se leva kolona teksta i desni vizual ne mogu razići. */
-  --hero-copy-left: min(max(2rem, (100vw - 80rem) / 2 + 2rem), clamp(24px, 4vw, 96px));
+  /* Kopija + razmak + crtež su JEDAN blok, centriran u viewportu (landscape ≥ 1024).
+     Promenljive žive ovde da ih čitaju oba pravila iz ISTIH vrednosti: `.hero-copy-wrap`
+     (leva margina bloka) i `.hero-cover-media` (leva ivica kutije videa) — tekst i vizual
+     se ne mogu razići. Izmereno na izvornom videu (1928×1076): crtež zauzima 32.1%→97.5%
+     širine kadra, pa je 0.321 prazno levo, 0.025 desno, 0.654 sam crtež. Ne dirati te
+     konstante. */
+  --hero-copy-w: 32rem; /* = `.hero-copy` max-width na ≥ 1280 (xl:max-w-lg) */
+  --hero-gap: 3.5rem; /* mali fiksan razmak tekst↔crtež */
+  --hero-side-min: 2.5rem; /* najmanja bočna margina */
+  --hero-art-box: min(
+    100svh * 1928 / 1076,
+    (100vw - 2 * var(--hero-side-min) - var(--hero-copy-w) - var(--hero-gap)) / 0.654
+  );
+  --hero-ink-w: calc(var(--hero-art-box) * 0.654);
+  --hero-block-w: calc(var(--hero-copy-w) + var(--hero-gap) + var(--hero-ink-w));
+  --hero-left: calc((100vw - var(--hero-block-w)) / 2);
 }
 
 /* Hero javnih PODstrana (N7: /courses, /community, /studio) — isti jezik kao landing
@@ -1171,48 +1183,44 @@ details:has(> .faq-answer)::details-content {
     height: 100%;
   }
 }
-/* HERO-FIX — kad je ekran u landscape-u (≥ 1024), vizual je prilepljen uz DESNU ivicu
-   viewport-a (`right: 0`), a crtež (koji zauzima 32.1%→97.5% širine kadra) sedne tik uz nju.
-   Levu, praznu krem trećinu kadra zauzima kopija.
+/* HERO-CENTER — kad je ekran u landscape-u (≥ 1024), kopija + razmak + crtež su JEDAN blok
+   centriran u viewportu (`--hero-left`, računat na `.hero-100`). Vizual više nije prilepljen
+   uz desnu ivicu; razmak crtež↔tekst je FIKSAN `--hero-gap` (3.5rem).
 
-   Širina vizuala je manja od dve:
+   Širina kutije videa (`--hero-art-box`) je manja od dve (računato na `.hero-100`):
      · visinska logika — `100svh * 1928/1076` (fit-po-visini, aspect 1928/1076); i
-     · `--hero-art-max` — CAP izveden iz kolone teksta, ne iz magičnog vw broja:
-       koliko prostora ostane desno od kopije (uz `--hero-gutter` vazduha) podeljeno udelom
-       koji crtež zauzima u kadru. Kad ovaj cap veže, razmak crtež↔tekst je TAČNO
-       `--hero-gutter` (4rem); kad veže visina (nizak+širok ekran), razmak je veći.
+     · širinska — koliko prostora ostane blokovima uz `--hero-side-min` margine, podeljeno
+       udelom koji crtež zauzima u kadru (0.654). Kad veže širina, blok tačno staje uz
+       minimalne bočne margine; kad veže visina (nizak+širok ekran), margine su veće ali
+       jednake, jer se blok i dalje centrira.
 
-   0.679 = udeo širine kutije koji zauzima crtež PLUS njegova desna margina (1 − 0.321) —
-   nije proizvoljno, ne dirati. `height: auto` (aspect daje visinu) → vizual je niži od
-   sekcije i vertikalno centriran; iznad/ispod je krem (`--hero-paper`, maskirano). Kartice
-   na svesci se ne diraju: `.hero-cards-3d` nosi ISTU klasu, pomera se zajedno sa vizualom, a
-   geometriju računa iz sopstvene širine (`lib/hero-cards.ts`) — prate automatski. */
+   `left`: crtež počinje desno od kopije + razmaka; ali kutija VIDEA počinje 32.1% svoje
+   širine LEVO od crteža — taj deo kadra je prazan krem (nevidljiv, maskiran), pa mora da se
+   oduzme da bi se CRTEŽ poklopio sa blokom. `height: auto` (aspect daje visinu) → vizual je
+   niži od sekcije i vertikalno centriran; iznad/ispod je krem (`--hero-paper`, maskirano).
+   Kartice na svesci se ne diraju: `.hero-cards-3d` nosi ISTU klasu, pomera se zajedno sa
+   vizualom, a geometriju računa iz sopstvene širine (`lib/hero-cards.ts`) — prate automatski. */
 @media (orientation: landscape) and (min-width: 1024px) {
   .hero-cover-media {
-    /* širina kopije = ista kao `.hero-copy` na ≥ 1280 (xl:max-w-lg = 32rem) */
-    --hero-copy-w: 32rem;
-    --hero-gutter: 4rem;
-    --hero-art-max: calc(
-      (100vw - var(--hero-copy-left) - var(--hero-copy-w) - var(--hero-gutter)) / 0.679
+    left: calc(
+      var(--hero-left) + var(--hero-copy-w) + var(--hero-gap) - var(--hero-art-box) * 0.321
     );
-    left: auto;
-    right: 0;
-    width: min(100svh * 1928 / 1076, var(--hero-art-max));
+    right: auto;
+    width: var(--hero-art-box);
     height: auto;
     transform: translateY(-50%);
   }
 }
 
-/* M1 (centriranje) — kopija se ODVEZUJE od centriranog max-w-7xl kontejnera i vezuje za
-   viewport (isto kao vizual): leva ivica teksta = `min(rub kontejnera, clamp(24px, 4vw, 96px))`.
-   Na širokom ekranu tekst se pomeri ulevo (1912: 348→76, 1440: 112→58) i dobije vazduh do
-   crteža; na ≤1280 ostaje na rubu kontejnera (32). `max-width:none` proširi wrap na pun
-   viewport da `padding-left` može levo od ruba kontejnera; `mx-auto` tad daje 0 margine.
-   Samo landscape ≥ 1024 — u portretu i dalje vlada `.hero-copy*` (niže). */
+/* HERO-CENTER — kopija se ODVEZUJE od centriranog max-w-7xl kontejnera i vezuje za levu
+   ivicu bloka: `padding-left: --hero-left` (ista margina koju blok ima i desno, pa je blok
+   centriran). `max-width:none` proširi wrap na pun viewport da `padding-left` može levo od
+   ruba kontejnera; `mx-auto` tad daje 0 margine. Samo landscape ≥ 1024 — u portretu i dalje
+   vlada `.hero-copy*` (niže). */
 @media (orientation: landscape) and (min-width: 1024px) {
   .hero-copy-wrap {
     max-width: none;
-    padding-left: var(--hero-copy-left);
+    padding-left: var(--hero-left);
   }
 }
 /* L3.1 — DVA videa po orijentaciji (`data-dual`, samo home hero koji ima portret assete):

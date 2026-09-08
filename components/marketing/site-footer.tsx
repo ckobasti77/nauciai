@@ -37,7 +37,7 @@ export function SiteFooter({ locale }: { locale: Locale }) {
       {/* Talas deli stranicu od podnožja (v3): footer je površina B, a poslednja sekcija
           svake javne strane je A (level 0) → jedan talas A→B. Ista neprovidna traka kao
           razdelnici između sekcija; jaše na granici (`section-wave-top`, translateY -50%). */}
-      <SectionWave from={0} to={1} className="section-wave section-wave-top" />
+      <SectionWave to={1} className="section-wave section-wave-top" />
 
       <div className="mx-auto max-w-7xl px-4 pb-5 pt-8 sm:px-6 lg:px-8">
         <div className="grid items-start gap-6 sm:grid-cols-2 lg:grid-cols-4">

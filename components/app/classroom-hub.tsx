@@ -335,7 +335,7 @@ export function ClassroomHubView({
             </div>
           )}
         </div>
-        <SectionWave from={ZONE_RESUME} to={ZONE_TRACKS} className="section-wave" />
+        <SectionWave to={ZONE_TRACKS} className="section-wave" />
       </section>
 
       {/* ── ZONA B · Smerovi kao horizontalne trake ──────────────────────────── */}
@@ -367,7 +367,7 @@ export function ClassroomHubView({
             </div>
           )}
         </div>
-        <SectionWave from={ZONE_TRACKS} to={ZONE_COURSES} className="section-wave" />
+        <SectionWave to={ZONE_COURSES} className="section-wave" />
       </section>
 
       {/* ── ZONA C · Katalog: mreža od dve kolone, svaka kartica sa svojom petljom ── */}
@@ -483,7 +483,7 @@ export function ClassroomHubView({
             </div>
           )}
         </div>
-        {hasUpNext ? <SectionWave from={ZONE_COURSES} to={ZONE_UP_NEXT} className="section-wave" /> : null}
+        {hasUpNext ? <SectionWave to={ZONE_UP_NEXT} className="section-wave" /> : null}
       </section>
 
       {/* ── ZONA D · Sledeće lekcije ─────────────────────────────────────────── */}

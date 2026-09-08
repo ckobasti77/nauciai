@@ -191,7 +191,7 @@ export async function PricingPage({ locale }: { locale: Locale }) {
               {m.pricing.soon}
             </p>
           </div>
-          <SectionWave from={0} to={1} className="section-wave" />
+          <SectionWave to={1} className="section-wave" />
         </section>
 
         {/* ── TABELA RAZLIKA (površina B) ──────────────────────────────────── */}
@@ -266,7 +266,7 @@ export async function PricingPage({ locale }: { locale: Locale }) {
               />
             </div>
           </div>
-          <SectionWave from={1} to={0} className="section-wave" />
+          <SectionWave to={0} className="section-wave" />
         </section>
 
         {/* ── POJEDINAČNI KURSEVI (površina A) ─────────────────────────────── */}
@@ -347,7 +347,7 @@ export async function PricingPage({ locale }: { locale: Locale }) {
               })}
             </div>
           </div>
-          <SectionWave from={0} to={1} className="section-wave" />
+          <SectionWave to={1} className="section-wave" />
         </section>
 
         {/* ── PITANJA O NAPLATI (površina B) ───────────────────────────────── */}
@@ -388,7 +388,7 @@ export async function PricingPage({ locale }: { locale: Locale }) {
               ))}
             </div>
           </div>
-          <SectionWave from={1} to={0} className="section-wave" />
+          <SectionWave to={0} className="section-wave" />
         </section>
 
         {/* ── ZAVRŠNI CTA (površina A; footer crta talas A→B) ──────────────── */}
