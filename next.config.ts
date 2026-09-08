@@ -1,5 +1,7 @@
 import type { NextConfig } from "next";
 
+import { frameDenyHeaderEntries } from "./lib/security-headers";
+
 const nextConfig: NextConfig = {
   // Kanonizacija javnih URL-ova (prevedeni segmenti, /sr -> /, stari legal URL-ovi)
   // sada živi u `proxy.ts` kroz jedan 308 nad `lib/routes.ts`. `redirects()` je
@@ -27,6 +29,11 @@ const nextConfig: NextConfig = {
         source: "/",
         headers: [{ key: "Vary", value: "Cookie" }],
       },
+      // Clickjacking (MCP-P4b): ekran pristanka `/oauth/authorize`, app, studio
+      // radni prostor i prijava ne smeju u tuđi <iframe>. Spisak putanja i
+      // obrazloženje su u `lib/security-headers.ts`; test u
+      // `lib/security-headers.test.ts` proverava da pravila pogađaju te putanje.
+      ...frameDenyHeaderEntries(),
     ];
   },
 };

@@ -16,6 +16,7 @@ import {
   REFRESH_TOKEN_PREFIX,
   resourceMatches,
   s256Challenge,
+  sanitizeClientName,
 } from "./core";
 
 // RFC 7636, dodatak B.
@@ -100,6 +101,30 @@ test("parseClientRegistration: ime obavezno, redirect po politici, samo javni kl
     error: "invalid_client_metadata",
   });
   expect(parseClientRegistration("nope")).toMatchObject({ ok: false, error: "invalid_client_metadata" });
+});
+
+test("sanitizeClientName: bidi, nevidljivi, kontrolni i Zalgo znakovi odlaze; legitimno ime i NFC ostaju", () => {
+  const rlo = String.fromCodePoint(0x202e);
+  const zwsp = String.fromCodePoint(0x200b);
+  const bom = String.fromCodePoint(0xfeff);
+  const tag = String.fromCodePoint(0xe0041);
+  const strike = String.fromCodePoint(0x336);
+  const acute = String.fromCodePoint(0x301);
+  const tab = String.fromCodePoint(9);
+
+  expect(sanitizeClientName(`Claude${rlo} Desktop`)).toBe("Claude Desktop");
+  expect(sanitizeClientName(`${bom}Cla${zwsp}ude${tag}`)).toBe("Claude");
+  expect(sanitizeClientName(`C${strike}${strike}l${strike}aude`)).toBe("Claude");
+  expect(sanitizeClientName(`  Nauči${tab}AI   desktop `)).toBe("Nauči AI desktop");
+  // Dekomponovan „é" posle NFC postaje jedan znak i ne strada.
+  expect(sanitizeClientName(`caf${"e"}${acute}`)).toBe("café");
+  expect(sanitizeClientName("Клод Десктоп / クロード")).toBe("Клод Десктоп / クロード");
+
+  // Ime koje se sastoji samo od nevidljivih znakova pada na obaveznost imena.
+  expect(parseClientRegistration({ client_name: `${zwsp}${rlo}`, redirect_uris: ["https://a.example/cb"] })).toMatchObject({
+    ok: false,
+    error: "invalid_client_metadata",
+  });
 });
 
 test("parseScopeParam: bez parametra samo čitanje, nepoznat opseg null, duplikati sažeti", () => {

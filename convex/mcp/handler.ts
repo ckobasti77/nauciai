@@ -88,12 +88,14 @@ async function resolvePrincipal(ctx: ActionCtx, credential: BearerCredential, no
 
   const row = await ctx.runQuery(internal.oauth.server.resolveAccessToken, { tokenHash: hash, now });
   if (!row) return null;
-  const { lastUsedAt, ...principal } = row;
+  // `keyId` je id odobrenja (subjekt prigušivača, preživljava rotaciju);
+  // `lastUsedAt` se upisuje na konkretan red tokena.
+  const { lastUsedAt, tokenId, ...principal } = row;
 
   return {
     principal,
     lastUsedAt,
-    touchLastUsed: () => ctx.runMutation(internal.oauth.server.touchLastUsed, { tokenId: row.keyId, now }),
+    touchLastUsed: () => ctx.runMutation(internal.oauth.server.touchLastUsed, { tokenId, now }),
   };
 }
 

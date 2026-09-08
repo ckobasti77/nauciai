@@ -304,6 +304,19 @@ promenilo nijednu od ovih bravi - zato ostaje kao jeftin prigušivač, a
 dokumentacija kaže šta on jeste. `lastUsedAt` se osvežava najviše jednom u
 minutu po ključu i nikad ne obara zahtev.
 
+**Izmereno na dev deploymentu (2026-09-09, P4b):** 90 sekvencijalnih `ping`
+zahteva istim ključem u ~30 s dalo je 88×200 (2 mrežne greške) i **nijedan
+429**; 120 zahteva na `/oauth/token` istim `client_id`-jem takođe nijedan.
+Modulsko stanje se između uzastopnih `httpAction` poziva na pravom Convex-u
+ne zadržava (ili je razvučeno preko toliko izolata da prozor od 60 s ne
+napuni nijedan), pa memorijski prigušivači - i ovaj iz P1 i oni iz P4/P4b -
+**van testova praktično ne opale**. Testovi (`convex-test`, jedan proces) ih
+dokazuju kao logiku; u produkciji pravu granicu drže samo bravi u bazi iz
+prethodnog pasusa plus dnevni kap registracija (`oauthClients.by_createdAt`,
+koji jeste u bazi). Stvarna zamena je `@convex-dev/rate-limiter` (tabela,
+atomično, po ključu/odobrenju) - zahteva novu zavisnost u `package.json`, pa
+je odluka za posebnu grupu.
+
 ---
 
 ## 4. Ceo tok: image-to-video preko MCP-a
@@ -453,14 +466,22 @@ dokumenta, `/oauth/register`, `/oauth/token`, ekran pristanka
 `oauthAuthCodes`, `oauthTokens`), druga grana u `handler.ts` koja pravi isti
 `principal`, i „Povezane aplikacije" na strani ključeva.
 
+P4b (MCP-P4b-ZATVARANJE-RUPA), posle review-a: zaštita ekrana pristanka od
+uokviravanja (clickjacking) kroz `X-Frame-Options`/`frame-ancestors` u
+`next.config.ts` (`lib/security-headers.ts`), stabilan subjekt prigušivača za
+OAuth (id odobrenja umesto id-ja reda tokena, koji rotacija menja),
+prigušivač na `/oauth/token` po `client_id`, prigušivač registracije po IP-u
+plus dnevni kap na nove klijente, čitanje tela po `content-length` pre
+parsiranja, čišćenje bidi/nevidljivih/kombinujućih znakova iz imena
+klijenta, pun `redirect_uri` na ekranu pristanka, i cron koji briše istekle
+kodove i tokene. Detalji u sekciji 6, „Pravila".
+
 Ostaje za kasnije: rate limit u tabeli (ili `@convex-dev/rate-limiter`) ako
-tačan broj po ključu ikad postane važan (danas nije - vidi sekciju 3); cron
-koji briše istekle/opozvane redove `oauthTokens` i `oauthAuthCodes` (rotacija
-refresh tokena ostavlja po jedan opozvan red na sat po klijentu - danas se ne
-čiste); izbor manjeg opsega na ekranu pristanka (danas je „sve ili ništa"
-prema onome što klijent traži); Client ID Metadata Documents (MCP spec ih
-preporučuje, Claude klijenti danas koriste dinamičku registraciju). Nije
-planirano: `resources/` i `prompts/` MCP primitivi, javna registracija servera.
+tačan broj po ključu ikad postane važan (danas nije - vidi sekciju 3); izbor
+manjeg opsega na ekranu pristanka (danas je „sve ili ništa" prema onome što
+klijent traži); Client ID Metadata Documents (MCP spec ih preporučuje, Claude
+klijenti danas koriste dinamičku registraciju). Nije planirano: `resources/` i
+`prompts/` MCP primitivi, javna registracija servera.
 
 ---
 
@@ -548,10 +569,45 @@ klijent prvo traži `oauth-authorization-server` i tu staje.
   (`sha256`; verifier -> S256 izazov) i Convex funkcije primaju samo heš, kao i
   `mcpKeys.resolveKey`. Baza čuva samo heševe. Poređenje heševa je
   `timingSafeEqual` iz `mcp/apiKey.ts`.
-- Registracija je javna: `client_name` obavezan (1-128 znakova, kontrolni
-  znakovi se čiste - ime ide na ekran), 1-10 URI-ja, samo
-  `token_endpoint_auth_method: none`; prigušivač 30 registracija/min po
-  izolatu (ista priroda kao MCP rate limit).
+- Registracija je javna: `client_name` obavezan (1-128 znakova), 1-10 URI-ja,
+  samo `token_endpoint_auth_method: none`. Ime ide u `<h1>` ekrana pristanka i
+  glavni je anti-phishing signal, pa se (P4b) posle NFC normalizacije čiste
+  kontrolni znakovi, bidi kontrole (npr. U+202E koji okreće tekst), nevidljivi
+  i zero-width znakovi, tag znakovi i „generički" kombinujući dijakritici
+  (Zalgo); ime od samih nevidljivih znakova pada kao prazno
+  (`sanitizeClientName` u `core.ts`).
+- Prigušivači (P4b) - svi u memoriji izolata, kao MCP rate limit (i sa istim
+  ograničenjem: na pravom deploymentu se ne opale, vidi sekciju 3 „Rate
+  limit"; jedina brana u bazi je dnevni kap ispod): registracija **20/min po
+  IP-u** (`cf-connecting-ip`, pa poslednji unos `x-forwarded-for`; Convex
+  prosleđuje oba - provereno na dev-u) plus **globalni kap 500 novih
+  klijenata dnevno** (`oauthClients.by_createdAt`, 429 `too_many_requests` sa
+  `Retry-After: 3600`); token endpoint **30/min po `client_id`**. Na `/mcp`
+  OAuth token deli iste prigušivače kao ključ, a
+  **subjekt je id ODOBRENJA** (`oauthAuthCodes._id`, u principalu i dalje
+  polje `keyId`), ne id reda tokena: rotacija refresh tokena upisuje nov red
+  i sa njegovim `_id`-jem bi svaka rotacija donosila prazne brojače. Odobrenje
+  preživljava rotaciju, a nov subjekt traži nov pristanak u browseru - ista
+  klasa troška kao pravljenje novog API ključa (`flow.test.ts`: „rotacija
+  refresh tokena NE resetuje rate limit").
+- Telo `/oauth/register` i `/oauth/token` je ograničeno na 16 KB: prvo se
+  gleda `content-length`, pa stvarna veličina, tek onda parsiranje (413) -
+  isti obrazac kao `/mcp` handler (P4b).
+- Ekran pristanka ne sme u tuđi `<iframe>` (P4b, clickjacking): `next.config.ts`
+  daje `X-Frame-Options: DENY` i `Content-Security-Policy: frame-ancestors
+  'none'` za `/oauth/*`, `/app/*` (i strana ključeva), `/studio/app`,
+  `/studio/krediti`, `/sign-in`, `/auth/*`, `/reset-password`,
+  `/verify-email`, u sve tri jezičke forme (javna, `/en`, interna `/sr`).
+  Spisak i obrazloženje su u `lib/security-headers.ts`;
+  `lib/security-headers.test.ts` proverava pravila istim matcher-om koji Next
+  koristi za `headers()`. Ekran uz to prikazuje PUN `redirect_uri`, ne samo
+  host - korisnik vidi tačno kuda ga vraćaju.
+- Čišćenje (P4b): cron `oauth: ciscenje isteklih tokena` (04:20 UTC,
+  `oauth/server.ts` -> `cleanupExpired`) briše redove `oauthTokens` čiji je
+  refresh istekao ili su opozvani (rotacija, opoziv, gašenje porodice) pre
+  više od 24 h, kod čim ode poslednji red njegove porodice, i nikad razmenjene
+  kodove dan posle isteka; 200 po prolazu, pun prolaz se odmah zakazuje
+  ponovo. Razmenjen kod sa živom porodicom ostaje (nosi `connectedAt` u UI-ju).
 
 ### Greške token endpointa
 
@@ -562,6 +618,8 @@ klijent prvo traži `oauth-authorization-server` i tu staje.
 | kod nepostojeći/istekao/iskorišćen/tuđ, `redirect_uri` ne poklapa, PKCE ne poklapa, refresh nepostojeći/istekao/opozvan | 400 | `invalid_grant` (uvek ista poruka) |
 | `resource` nije ovaj server | 400 | `invalid_target` |
 | drugi `grant_type` | 400 | `unsupported_grant_type` |
+| telo veće od 16 KB (po `content-length` ili stvarno) | 413 | `invalid_request` (`invalid_client_metadata` na registraciji) |
+| više od 30 zahteva/min za isti `client_id` (registracija: 20/min po IP-u, ili dnevni kap) | 429 + `Retry-After` | `too_many_requests` |
 
 ### Provera na dev deploymentu (2026-09-09, `npx convex dev --once`)
 
@@ -591,6 +649,14 @@ www-authenticate: Bearer realm="nauciai-mcp", resource_metadata="https://wanderi
 
 {"jsonrpc":"2.0","id":null,"error":{"code":-32001,"message":"Unauthorized"}}
 ```
+
+Frame zaglavlja na Next dev serveru (P4b, `curl -sI`): `/oauth/authorize`,
+`/en/oauth/authorize`, `/sign-in`, `/studio/app` (200) i `/app/profile/api-keys`
+(307 na prijavu) nose `X-Frame-Options: DENY` i
+`Content-Security-Policy: frame-ancestors 'none'`; `/` i `/kursevi` ih nemaju.
+
+Registracija sa U+202E (RLO) i U+200B (ZWSP) u imenu na dev-u (P4b) vraća
+`"client_name":"Claude Desktop (P4b proba 2)"` - oba znaka su izbačena.
 
 Ručna razmena (posle odobrenja u browseru, `code` iz URL-a povratka):
 

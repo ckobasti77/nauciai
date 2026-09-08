@@ -12,10 +12,12 @@ import type { ToolResult } from "./protocol";
 
 export type McpPrincipal = {
   /**
-   * Id reda kredencijala: API ključ (`mcpApiKeys`) ili OAuth access token
-   * (`oauthTokens`, MCP-P4-OAUTH). Subjekt rate limita; ne tumači se dalje.
+   * Subjekt prigušivača (rate limit): id API ključa (`mcpApiKeys`) ili, za
+   * OAuth, id ODOBRENJA (`oauthAuthCodes`) - ne reda tokena, jer rotacija
+   * refresh tokena upisuje nov red u `oauthTokens` i resetovala bi brojače
+   * (MCP-P4b, BLOKER 2). Ne tumači se dalje.
    */
-  keyId: Id<"mcpApiKeys"> | Id<"oauthTokens">;
+  keyId: Id<"mcpApiKeys"> | Id<"oauthAuthCodes">;
   userId: Id<"users">;
   email: string | null;
   keyName: string;

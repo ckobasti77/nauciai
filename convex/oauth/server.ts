@@ -13,6 +13,7 @@
 
 import { v } from "convex/values";
 
+import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import {
   internalMutation,
@@ -121,16 +122,39 @@ async function revokeTokensForCode(ctx: MutationCtx, codeId: Id<"oauthAuthCodes"
 
 // ── registracija (RFC 7591) ───────────────────────────────────────────────
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Globalni dnevni kap na nove redove u `oauthClients` (P4b, nalaz 1). Prigušivač
+ * po IP-u u HTTP sloju štiti od jednog izvora; ovo je brana protiv mnogo
+ * izvora - registracija je javna i bez ovoga bi tabela mogla da raste bez
+ * kraja. Stvaran saobraćaj je red veličine jedna registracija po instalaciji
+ * klijenta, pa je 500 dnevno višestruko iznad potrebe.
+ */
+export const MAX_NEW_CLIENTS_PER_DAY = 500;
+
+/** `null` kad je dnevni kap dostignut - HTTP sloj vraća 429. */
 export const registerClient = internalMutation({
   args: { clientName: v.string(), redirectUris: v.array(v.string()), now: v.number() },
-  returns: v.id("oauthClients"),
-  handler: async (ctx, args) =>
-    ctx.db.insert("oauthClients", { clientName: args.clientName, redirectUris: args.redirectUris, createdAt: args.now }),
+  returns: v.union(v.id("oauthClients"), v.null()),
+  handler: async (ctx, args) => {
+    const recent = await ctx.db
+      .query("oauthClients")
+      .withIndex("by_createdAt", (q) => q.gte("createdAt", args.now - DAY_MS))
+      .take(MAX_NEW_CLIENTS_PER_DAY);
+    if (recent.length >= MAX_NEW_CLIENTS_PER_DAY) return null;
+
+    return ctx.db.insert("oauthClients", { clientName: args.clientName, redirectUris: args.redirectUris, createdAt: args.now });
+  },
 });
 
 // ── ekran pristanka ───────────────────────────────────────────────────────
 
-/** Šta ekran pristanka prikazuje: ime klijenta, opsezi, host povratka, ko je prijavljen. */
+/**
+ * Šta ekran pristanka prikazuje: ime klijenta, opsezi, PUN `redirect_uri`
+ * (P4b, nalaz 4 - korisnik mora da vidi kuda tačno ide, ne samo host), ko je
+ * prijavljen.
+ */
 export const describeAuthorizeRequest = query({
   args: { params: authorizeParamsValidator },
   handler: async (ctx, args) => {
@@ -143,7 +167,7 @@ export const describeAuthorizeRequest = query({
       ok: true as const,
       clientName: validated.client.clientName,
       scopes: validated.request.scopes,
-      redirectHost: new URL(validated.request.redirectUri).host,
+      redirectUri: validated.request.redirectUri,
       email: user?.email ?? null,
       denyRedirect: appendRedirectParams(validated.request.redirectUri, {
         error: "access_denied",
@@ -293,10 +317,15 @@ export const refreshTokens = internalMutation({
 // ── /mcp: druga grana autentikacije ───────────────────────────────────────
 
 /**
- * Hash access tokena -> ISTI oblik pozivaoca kao `mcpKeys.resolveKey`:
- * `keyId` je id reda tokena (subjekt rate limita), `keyName` je ime klijenta.
- * `null` za nepostojeći, opozvan i istekao token - transport sva tri pretvara
- * u isti 401. `now` dolazi spolja: upit ne sme da čita sat.
+ * Hash access tokena -> ISTI oblik pozivaoca kao `mcpKeys.resolveKey`, plus
+ * `tokenId` za `lastUsedAt`. `keyId` (subjekt prigušivača) je id ODOBRENJA
+ * (`codeId`), ne reda tokena: rotacija refresh tokena pravi nov red i sa
+ * `_id`-jem reda bi svaka rotacija donosila prazne brojače (P4b, BLOKER 2).
+ * Odobrenje preživljava rotaciju, a nov subjekt zahteva nov pristanak u
+ * browseru - ista klasa troška kao pravljenje novog API ključa, gde je
+ * subjekt id ključa. `keyName` je ime klijenta. `null` za nepostojeći,
+ * opozvan i istekao token - transport sva tri pretvara u isti 401. `now`
+ * dolazi spolja: upit ne sme da čita sat.
  */
 export const resolveAccessToken = internalQuery({
   args: { tokenHash: v.string(), now: v.number() },
@@ -312,7 +341,8 @@ export const resolveAccessToken = internalQuery({
     if (!user || !client) return null;
 
     return {
-      keyId: row._id,
+      keyId: row.codeId,
+      tokenId: row._id,
       userId: row.userId,
       email: user.email ?? null,
       keyName: client.clientName,
@@ -382,6 +412,81 @@ export const listMyConnections = query({
     }
 
     return connections.sort((a, b) => b.connectedAt - a.connectedAt);
+  },
+});
+
+// ── čišćenje (cron) ───────────────────────────────────────────────────────
+
+/**
+ * Koliko red preživi posle isteka/opozivа pre brisanja: dan je dovoljan za
+ * forenziku i za detekciju ponovne upotrebe koda (ona radi nad porodicom
+ * tokena, koja se čuva dok je živa).
+ */
+export const CLEANUP_GRACE_MS = DAY_MS;
+/** Gornja granica brisanja po prolazu - isti razlog kao `REAP_BATCH_LIMIT` u `crons.ts`. */
+export const CLEANUP_BATCH_LIMIT = 200;
+
+/**
+ * Briše (P4b, nalaz 5): redove `oauthTokens` čiji je refresh istekao ili su
+ * opozvani (rotacija, opoziv iz UI-ja, gašenje porodice) pre više od
+ * `CLEANUP_GRACE_MS`; kod čim ode poslednji red njegove porodice; i nikad
+ * razmenjene kodove dan posle isteka. Razmenjen kod sa živom porodicom ostaje
+ * (nosi `connectedAt` za UI i vezuje porodicu). Pun batch znači da posla ima
+ * još, pa se prolaz odmah zakazuje ponovo u novoj transakciji.
+ */
+export const cleanupExpired = internalMutation({
+  args: {},
+  returns: v.object({ tokens: v.number(), codes: v.number(), rescheduled: v.boolean() }),
+  handler: async (ctx) => {
+    const now = Date.now();
+    const cutoff = now - CLEANUP_GRACE_MS;
+
+    const expired = await ctx.db
+      .query("oauthTokens")
+      .withIndex("by_refreshExpiresAt", (q) => q.lt("refreshExpiresAt", cutoff))
+      .take(CLEANUP_BATCH_LIMIT);
+    // `gt(0)` isključuje redove bez `revokedAt` (isti obrazac kao `by_expiry` u crons.ts).
+    const revoked = await ctx.db
+      .query("oauthTokens")
+      .withIndex("by_revokedAt", (q) => q.gt("revokedAt", 0).lt("revokedAt", cutoff))
+      .take(CLEANUP_BATCH_LIMIT);
+
+    let tokens = 0;
+    let codes = 0;
+    const deleted = new Set<Id<"oauthTokens">>();
+    for (const row of [...expired, ...revoked]) {
+      if (deleted.has(row._id)) continue;
+      await ctx.db.delete(row._id);
+      deleted.add(row._id);
+      tokens += 1;
+
+      const remaining = await ctx.db
+        .query("oauthTokens")
+        .withIndex("by_code", (q) => q.eq("codeId", row.codeId))
+        .take(1);
+      if (remaining.length === 0) {
+        const code = await ctx.db.get(row.codeId);
+        if (code) {
+          await ctx.db.delete(code._id);
+          codes += 1;
+        }
+      }
+    }
+
+    const unused = await ctx.db
+      .query("oauthAuthCodes")
+      .withIndex("by_usedAt_expiresAt", (q) => q.eq("usedAt", undefined).lt("expiresAt", cutoff))
+      .take(CLEANUP_BATCH_LIMIT);
+    for (const code of unused) {
+      await ctx.db.delete(code._id);
+      codes += 1;
+    }
+
+    const rescheduled =
+      expired.length === CLEANUP_BATCH_LIMIT || revoked.length === CLEANUP_BATCH_LIMIT || unused.length === CLEANUP_BATCH_LIMIT;
+    if (rescheduled) await ctx.scheduler.runAfter(0, internal.oauth.server.cleanupExpired, {});
+
+    return { tokens, codes, rescheduled };
   },
 });
 

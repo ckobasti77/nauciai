@@ -12,16 +12,20 @@
 import { convexTest, type TestConvex } from "convex-test";
 import { afterAll, afterEach, beforeAll, beforeEach, expect, test, vi } from "vitest";
 
-import { api } from "../_generated/api";
+import { api, internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
+import { MCP_RATE_LIMIT } from "../mcp/rateLimit";
 import schema from "../schema";
 import {
   ACCESS_TOKEN_PREFIX,
   ACCESS_TOKEN_TTL_MS,
+  AUTH_CODE_PREFIX,
   AUTH_CODE_TTL_MS,
   REFRESH_TOKEN_PREFIX,
   REFRESH_TOKEN_TTL_MS,
 } from "./core";
+import { REGISTER_RATE_LIMIT, TOKEN_RATE_LIMIT } from "./http";
+import { CLEANUP_GRACE_MS, MAX_NEW_CLIENTS_PER_DAY } from "./server";
 
 // Glob od korena projekta, ne `../**/*.ts`: Vite ključeve fajlova iz ISTOG
 // foldera kao test skraćuje na `./server.ts`, pa convex-test (prefiks iz
@@ -73,11 +77,20 @@ async function setup() {
   return { t, userId };
 }
 
-function register(t: TestConvexWithSchema, body: unknown) {
+function register(t: TestConvexWithSchema, body: unknown, headers: Record<string, string> = {}) {
   return t.fetch("/oauth/register", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...headers },
     body: JSON.stringify(body),
+  });
+}
+
+/** Najjeftiniji autentifikovan MCP zahtev - broji se u prigušivač isto kao svaki drugi. */
+function ping(t: TestConvexWithSchema, bearer: string) {
+  return t.fetch("/mcp", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${bearer}` },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "ping" }),
   });
 }
 
@@ -283,7 +296,8 @@ test("describe: ime klijenta, opsezi, host povratka, odbijanje sa access_denied 
   expect(described).toMatchObject({
     clientName: "Claude Desktop",
     scopes: ["mcp:read", "mcp:write"],
-    redirectHost: "localhost:6274",
+    // Pun URI, ne samo host (P4b, nalaz 4).
+    redirectUri: REDIRECT,
     email: "owner@example.com",
   });
   const deny = new URL(described.denyRedirect);
@@ -515,6 +529,139 @@ test("povezane aplikacije: lista pokazuje klijenta; opoziv -> lista prazna, OAut
   expect(await user.query(api.oauth.server.listMyConnections, { now: clock })).toEqual([]);
   expect((await whoami(t, tokens.access_token)).status).toBe(401);
   expect((await tokenRequest(t, { grant_type: "refresh_token", refresh_token: tokens.refresh_token, client_id: clientId })).status).toBe(400);
+});
+
+// ── P4b: prigušivači ───────────────────────────────────────────────────────
+
+test("BLOKER 2: rotacija refresh tokena NE resetuje rate limit - subjekt je odobrenje, ne red tokena", async () => {
+  const { t, clientId, tokens } = await connect();
+
+  for (let index = 0; index < MCP_RATE_LIMIT.limit; index += 1) {
+    expect((await ping(t, tokens.access_token)).status).toBe(200);
+  }
+  expect((await ping(t, tokens.access_token)).status).toBe(429);
+
+  const refreshed = await tokenRequest(t, { grant_type: "refresh_token", refresh_token: tokens.refresh_token, client_id: clientId });
+  expect(refreshed.status).toBe(200);
+  const next: Tokens = await refreshed.json();
+  expect(next.access_token).not.toBe(tokens.access_token);
+
+  // Nov red tokena, ista kofa: i dalje 429.
+  expect((await ping(t, next.access_token)).status).toBe(429);
+  const again = await tokenRequest(t, { grant_type: "refresh_token", refresh_token: next.refresh_token, client_id: clientId });
+  expect(again.status).toBe(200);
+  expect((await ping(t, ((await again.json()) as Tokens).access_token)).status).toBe(429);
+
+  // Subjekt u bazi: id odobrenja, ne id reda tokena.
+  const principal = await t.run(async (ctx) => {
+    const live = (await ctx.db.query("oauthTokens").filter((q) => q.eq(q.field("revokedAt"), undefined)).take(10))[0];
+
+    return live ? { codeId: live.codeId, tokenId: live._id } : null;
+  });
+  expect(principal).not.toBeNull();
+  expect(principal?.codeId).not.toBe(principal?.tokenId);
+});
+
+test("/oauth/token ima prigušivač po client_id; drugi klijent nije pogođen", async () => {
+  const { t } = await setup();
+  const clientId = await registerClaude(t);
+  const bogus = `${AUTH_CODE_PREFIX}${"A".repeat(43)}`;
+
+  for (let index = 0; index < TOKEN_RATE_LIMIT.limit; index += 1) {
+    expect((await exchange(t, clientId, bogus)).status).toBe(400);
+  }
+  const limited = await exchange(t, clientId, bogus);
+  expect(limited.status).toBe(429);
+  expect(limited.headers.get("retry-after")).not.toBeNull();
+  expect(await limited.json()).toMatchObject({ error: "too_many_requests" });
+
+  const other = (await (await register(t, { client_name: "Drugi", redirect_uris: [REDIRECT] })).json()).client_id as string;
+  expect((await exchange(t, other, bogus)).status).toBe(400);
+});
+
+test("registracija: prigušivač po IP-u - jedan izvor ne obara ostale; XFF se čita s kraja", async () => {
+  const { t } = await setup();
+  const body = { client_name: "Claude Desktop", redirect_uris: [REDIRECT] };
+
+  for (let index = 0; index < REGISTER_RATE_LIMIT.limit; index += 1) {
+    expect((await register(t, body, { "cf-connecting-ip": "203.0.113.1" })).status).toBe(201);
+  }
+  expect((await register(t, body, { "cf-connecting-ip": "203.0.113.1" })).status).toBe(429);
+  expect((await register(t, body, { "cf-connecting-ip": "203.0.113.2" })).status).toBe(201);
+  // Bez CF zaglavlja: poslednji unos XFF-a (onaj koji je dodao proxy), ne prvi (koji klijent može da podmetne).
+  expect((await register(t, body, { "x-forwarded-for": "203.0.113.1, 203.0.113.3" })).status).toBe(201);
+  expect((await register(t, body, { "x-forwarded-for": "198.51.100.9, 203.0.113.1" })).status).toBe(429);
+});
+
+test("registracija: globalni dnevni kap na nove klijente; redovi stariji od 24 h se ne broje", async () => {
+  const { t } = await setup();
+  const body = { client_name: "Claude Desktop", redirect_uris: [REDIRECT] };
+  await t.run(async (ctx) => {
+    for (let index = 0; index < MAX_NEW_CLIENTS_PER_DAY; index += 1) {
+      await ctx.db.insert("oauthClients", { clientName: `k${index}`, redirectUris: [REDIRECT], createdAt: clock - 1000 });
+    }
+  });
+
+  const capped = await register(t, body, { "cf-connecting-ip": "203.0.113.4" });
+  expect(capped.status).toBe(429);
+  expect(await capped.json()).toMatchObject({ error: "too_many_requests" });
+
+  clock += 24 * 60 * 60 * 1000;
+  expect((await register(t, body, { "cf-connecting-ip": "203.0.113.4" })).status).toBe(201);
+});
+
+test("telo veće od 16 KB: registracija i token endpoint odbijaju sa 413 pre parsiranja", async () => {
+  const { t } = await setup();
+  const big = "x".repeat(20_000);
+
+  const registration = await register(t, { client_name: big, redirect_uris: [REDIRECT] }, { "cf-connecting-ip": "203.0.113.5" });
+  expect(registration.status).toBe(413);
+
+  const token = await t.fetch("/oauth/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: `grant_type=authorization_code&client_id=${big}`,
+  });
+  expect(token.status).toBe(413);
+
+  const declared = await t.fetch("/oauth/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Content-Length": "999999", "cf-connecting-ip": "203.0.113.5" },
+    body: JSON.stringify({ client_name: "X", redirect_uris: [REDIRECT] }),
+  });
+  expect(declared.status).toBe(413);
+});
+
+// ── P4b: čišćenje ──────────────────────────────────────────────────────────
+
+test("cleanupExpired: rotirani/istekli tokeni dan posle; kod tek kad porodica nestane; neiskorišćen kod dan posle isteka", async () => {
+  const { t, userId, clientId, tokens } = await connect();
+  // Odobrenje koje nikad nije razmenjeno.
+  await approve(t, userId, clientId);
+  // Rotacija: stari red opozvan, nov red živ, ista porodica (kod).
+  const refreshed = await tokenRequest(t, { grant_type: "refresh_token", refresh_token: tokens.refresh_token, client_id: clientId });
+  expect(refreshed.status).toBe(200);
+
+  const count = () =>
+    t.run(async (ctx) => ({
+      tokens: (await ctx.db.query("oauthTokens").take(100)).length,
+      codes: (await ctx.db.query("oauthAuthCodes").take(100)).length,
+    }));
+  expect(await count()).toEqual({ tokens: 2, codes: 2 });
+
+  // Unutar grace perioda ništa se ne briše.
+  expect(await t.mutation(internal.oauth.server.cleanupExpired, {})).toEqual({ tokens: 0, codes: 0, rescheduled: false });
+  expect(await count()).toEqual({ tokens: 2, codes: 2 });
+
+  clock += CLEANUP_GRACE_MS + AUTH_CODE_TTL_MS + 1;
+  expect(await t.mutation(internal.oauth.server.cleanupExpired, {})).toEqual({ tokens: 1, codes: 1, rescheduled: false });
+  // Ostaju živ red i njegov (razmenjen) kod.
+  expect(await count()).toEqual({ tokens: 1, codes: 1 });
+  expect((await ping(t, ((await refreshed.json()) as Tokens).access_token)).status).toBe(401); // access istekao (1 h), ali red i dalje postoji
+
+  clock += REFRESH_TOKEN_TTL_MS + 1;
+  expect(await t.mutation(internal.oauth.server.cleanupExpired, {})).toEqual({ tokens: 1, codes: 1, rescheduled: false });
+  expect(await count()).toEqual({ tokens: 0, codes: 0 });
 });
 
 test("tuđ korisnik ne vidi vezu i ne može da je opozove", async () => {

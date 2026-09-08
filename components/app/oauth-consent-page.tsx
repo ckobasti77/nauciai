@@ -127,7 +127,8 @@ export function OAuthConsentPage({ locale }: { locale: Locale }) {
           ) : null}
           <div className="flex flex-wrap gap-x-2">
             <dt className="font-bold text-muted">{t.redirectsTo}</dt>
-            <dd className="font-mono font-bold text-ink">{request.redirectHost}</dd>
+            {/* Pun URI, ne samo host: korisnik vidi tačno kuda ide (P4b). */}
+            <dd className="min-w-0 break-all font-mono font-bold text-ink">{request.redirectUri}</dd>
           </div>
         </dl>
       </div>

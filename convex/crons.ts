@@ -452,5 +452,10 @@ crons.cron(
   internal.studioActualCost.reconcileFalCosts,
   {},
 );
+// OAuth za MCP (MCP-P4b): rotacija refresh tokena ostavlja po jedan opozvan red
+// na sat po vezi, a svaki pokušaj odobrenja jedan kod - bez čišćenja tabele
+// rastu bez kraja. Dan posle isteka/opoziva redovi se brišu; prolaz se sam
+// zakazuje ponovo dok ima posla (`oauth/server.ts`, `cleanupExpired`).
+crons.cron("oauth: ciscenje isteklih tokena", "20 4 * * *", internal.oauth.server.cleanupExpired, {});
 
 export default crons;

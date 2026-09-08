@@ -37,11 +37,57 @@ import { authorizeUrl, issuerOrigin } from "./urls";
 const MAX_BODY_BYTES = 16_384;
 
 /**
- * Registracija je javna i bez autentikacije - prigušivač po izolatu, iste
- * prirode kao MCP rate limit (vidi `mcp/rateLimit.ts`): brana protiv
- * bezumnog punjenja tabele, ne tačna brojka.
+ * Registracija je javna i bez autentikacije - prigušivač PO IP-u (P4b, nalaz
+ * 1: deljen ključ bi jednom napadaču dao da obori registraciju svima), po
+ * izolatu, iste prirode kao MCP rate limit (vidi `mcp/rateLimit.ts`): brana
+ * protiv bezumnog punjenja tabele, ne tačna brojka. Druga brana je globalni
+ * dnevni kap u `server.registerClient`.
  */
-const registerRateLimiter = createMemoryRateLimiter({ limit: 30, windowMs: 60_000 });
+export const REGISTER_RATE_LIMIT = { limit: 20, windowMs: 60_000 } as const;
+const registerRateLimiter = createMemoryRateLimiter(REGISTER_RATE_LIMIT);
+
+/**
+ * Token endpoint po `client_id` (P4b, BLOKER 2): pravi klijent razmeni jedan
+ * kod i osveži jednom na sat, pa je 30/min daleko iznad potrebe, a petlja
+ * refresh zahteva (ili pogađanje kodova) staje ovde. Nov `client_id` traži
+ * novu registraciju, koja ima svoj prigušivač iznad.
+ */
+export const TOKEN_RATE_LIMIT = { limit: 30, windowMs: 60_000 } as const;
+const tokenRateLimiter = createMemoryRateLimiter(TOKEN_RATE_LIMIT);
+
+/**
+ * IP pozivaoca za prigušivač. Convex prosleđuje `cf-connecting-ip` (Cloudflare
+ * ga postavlja iz stvarne veze - klijent ne može da ga podmetne) i
+ * `x-forwarded-for` (klijent MOŽE da doda svoju vrednost na početak, pa se
+ * uzima POSLEDNJI unos, onaj koji je dodao proxy). Provereno na dev
+ * deploymentu 2026-09-09: oba stižu, XFF ima jedan unos jednak CF-u. Bez
+ * oba: "unknown", jedna deljena kofa - kao pre P4b, ali samo za taj slučaj.
+ */
+export function clientIp(request: Request): string {
+  const cf = request.headers.get("cf-connecting-ip")?.trim();
+  if (cf) return cf;
+  const forwarded = (request.headers.get("x-forwarded-for") ?? "")
+    .split(",")
+    .map((part) => part.trim())
+    .filter((part) => part !== "");
+  if (forwarded.length > 0) return forwarded[forwarded.length - 1];
+
+  return "unknown";
+}
+
+/**
+ * Telo do `maxBytes`: prvo deklarisani `content-length` (bez čitanja), pa
+ * stvarna veličina - isti obrazac kao `/mcp` handler (P4b, nalaz 2). `null`
+ * znači preveliko.
+ */
+async function readBodyText(request: Request, maxBytes: number): Promise<string | null> {
+  const declaredLength = Number(request.headers.get("content-length") ?? "0");
+  if (declaredLength > maxBytes) return null;
+  const body = await request.arrayBuffer();
+  if (body.byteLength > maxBytes) return null;
+
+  return new TextDecoder().decode(body);
+}
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -123,13 +169,13 @@ export const authorizationServerMetadata = httpAction(async (_ctx, request) => {
 export const registerEndpoint = httpAction(async (ctx, request) => {
   try {
     const now = Date.now();
-    const decision = registerRateLimiter.check("register", now);
+    const decision = registerRateLimiter.check(clientIp(request), now);
     if (!decision.allowed) {
       return oauthError(429, "too_many_requests", "Rate limit exceeded", { "Retry-After": String(decision.retryAfterSeconds) });
     }
 
-    const text = await request.text();
-    if (text.length > MAX_BODY_BYTES) return oauthError(413, "invalid_client_metadata", "Payload too large");
+    const text = await readBodyText(request, MAX_BODY_BYTES);
+    if (text === null) return oauthError(413, "invalid_client_metadata", "Payload too large");
     let body: unknown;
     try {
       body = JSON.parse(text);
@@ -140,6 +186,9 @@ export const registerEndpoint = httpAction(async (ctx, request) => {
     if (!parsed.ok) return oauthError(400, parsed.error, parsed.description);
 
     const clientId = await ctx.runMutation(internal.oauth.server.registerClient, { ...parsed.registration, now });
+    if (clientId === null) {
+      return oauthError(429, "too_many_requests", "Daily limit for new client registrations reached", { "Retry-After": "3600" });
+    }
 
     return json(
       201,
@@ -163,11 +212,14 @@ export const registerEndpoint = httpAction(async (ctx, request) => {
 
 // ── token endpoint ────────────────────────────────────────────────────────
 
-/** Telo je `application/x-www-form-urlencoded` (OAuth), a JSON se prihvata radi klijenata koji ga šalju. */
-async function parseTokenBody(request: Request): Promise<URLSearchParams | null> {
+/**
+ * Telo je `application/x-www-form-urlencoded` (OAuth), a JSON se prihvata radi
+ * klijenata koji ga šalju. `"too_large"` -> 413, `null` -> 400.
+ */
+async function parseTokenBody(request: Request): Promise<URLSearchParams | "too_large" | null> {
   const contentType = (request.headers.get("content-type") ?? "").toLowerCase();
-  const text = await request.text();
-  if (text.length > MAX_BODY_BYTES) return null;
+  const text = await readBodyText(request, MAX_BODY_BYTES);
+  if (text === null) return "too_large";
   if (contentType.includes("application/x-www-form-urlencoded")) return new URLSearchParams(text);
   if (contentType.includes("application/json")) {
     let body: unknown;
@@ -223,10 +275,15 @@ function grantError(error: "invalid_grant" | "invalid_client") {
 export const tokenEndpoint = httpAction(async (ctx, request) => {
   try {
     const params = await parseTokenBody(request);
+    if (params === "too_large") return oauthError(413, "invalid_request", "Payload too large");
     if (!params) return oauthError(400, "invalid_request", "body must be application/x-www-form-urlencoded or JSON");
 
     const clientId = params.get("client_id")?.trim() ?? "";
     if (clientId === "") return oauthError(400, "invalid_request", "client_id is required");
+    const decision = tokenRateLimiter.check(clientId, Date.now());
+    if (!decision.allowed) {
+      return oauthError(429, "too_many_requests", "Rate limit exceeded", { "Retry-After": String(decision.retryAfterSeconds) });
+    }
     const resource = params.get("resource");
     if (resource !== null && !resourceMatches(resource, issuerOrigin(request))) {
       return oauthError(400, "invalid_target", "resource does not identify this MCP server");

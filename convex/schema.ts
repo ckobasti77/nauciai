@@ -1881,7 +1881,9 @@ export default defineSchema({
     /** Tačan spisak; `redirect_uri` u zahtevu mora da se poklopi znak-za-znak. */
     redirectUris: v.array(v.string()),
     createdAt: v.number(),
-  }),
+  })
+    // Dnevni kap novih registracija (P4b): koliko je redova nastalo u zadnja 24 h.
+    .index("by_createdAt", ["createdAt"]),
 
   // Authorization code: važi 60 s, koristi se TAČNO JEDNOM (`usedAt`); ponovna
   // upotreba opoziva sve tokene izdate za taj kod. Čuva se samo sha256 heš.
@@ -1895,7 +1897,11 @@ export default defineSchema({
     redirectUri: v.string(),
     expiresAt: v.number(),
     usedAt: v.optional(v.number()),
-  }).index("by_hash", ["codeHash"]),
+  })
+    .index("by_hash", ["codeHash"])
+    // Čišćenje (P4b): nikad razmenjeni kodovi (`usedAt` prazan) po isteku.
+    // Razmenjeni kod živi dok živi porodica njegovih tokena (`oauthTokens.by_code`).
+    .index("by_usedAt_expiresAt", ["usedAt", "expiresAt"]),
 
   // Access (1 h) + refresh (30 dana) token, oba samo kao sha256 heš. Rotacija
   // refresh tokena opoziva stari red i upisuje nov sa istim `codeId`, pa
@@ -1917,5 +1923,8 @@ export default defineSchema({
     .index("by_refresh_hash", ["refreshHash"])
     .index("by_code", ["codeId"])
     .index("by_user", ["userId", "createdAt"])
-    .index("by_user_and_client", ["userId", "clientId"]),
+    .index("by_user_and_client", ["userId", "clientId"])
+    // Čišćenje (P4b): istekli refresh tokeni i rotacijom/opozivom ugašeni redovi.
+    .index("by_refreshExpiresAt", ["refreshExpiresAt"])
+    .index("by_revokedAt", ["revokedAt"]),
 });

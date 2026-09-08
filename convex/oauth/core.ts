@@ -141,15 +141,67 @@ export type RegistrationParseResult =
   | { ok: true; registration: ClientRegistration }
   | { ok: false; error: "invalid_client_metadata" | "invalid_redirect_uri"; description: string };
 
-/** Kontrolni znakovi (ASCII < 32 i 127) postaju razmak - ime ide na ekran pristanka. */
-function stripControlChars(value: string): string {
+/**
+ * Znakovi koji u imenu klijenta nemaju šta da traže (P4b, nalaz 3). Ime ide u
+ * `<h1>` ekrana pristanka i glavni je anti-phishing signal, a bira ga
+ * NEAUTENTIFIKOVAN pozivalac registracije. Kod-tačke, ne regex sa `\p{..}`:
+ * `tsconfig` cilja ES2017, gde Unicode property escape ne prolazi.
+ */
+function isDisallowedInClientName(code: number): boolean {
+  return (
+    // C0 kontrolni, DEL, C1 kontrolni.
+    code < 0x20 ||
+    (code >= 0x7f && code <= 0x9f) ||
+    // Soft hyphen, arabic letter mark, mongolian vowel separator.
+    code === 0xad ||
+    code === 0x61c ||
+    code === 0x180e ||
+    // Hangul/halfwidth fileri koji se crtaju kao prazno.
+    code === 0x115f ||
+    code === 0x1160 ||
+    code === 0x3164 ||
+    code === 0xffa0 ||
+    // Zero-width space/joiner/non-joiner, LRM, RLM.
+    (code >= 0x200b && code <= 0x200f) ||
+    // Line/paragraph separator i bidi embeddings/overrides (uključujući U+202E RLO).
+    (code >= 0x2028 && code <= 0x202e) ||
+    // Word joiner, nevidljivi operatori, bidi isolates, deprecated format znakovi.
+    (code >= 0x2060 && code <= 0x206f) ||
+    // BOM / zero-width no-break space, interlinear annotation, tag znakovi.
+    code === 0xfeff ||
+    (code >= 0xfff9 && code <= 0xfffb) ||
+    (code >= 0xe0000 && code <= 0xe007f) ||
+    // „Generički" kombinujući dijakritici (Zalgo). Posle NFC normalizacije
+    // legitiman „é" je jedan precomposed znak, pa ovde ne strada; ostaju samo
+    // nagomilani/nespojivi znakovi. Skriptama specifični znakovi (devanagari,
+    // arapske harakate...) nisu u ovim blokovima i prolaze.
+    (code >= 0x300 && code <= 0x36f) ||
+    (code >= 0x1ab0 && code <= 0x1aff) ||
+    (code >= 0x1dc0 && code <= 0x1dff) ||
+    (code >= 0x20d0 && code <= 0x20ff) ||
+    (code >= 0xfe20 && code <= 0xfe2f)
+  );
+}
+
+function isControlChar(code: number): boolean {
+  return code < 0x20 || (code >= 0x7f && code <= 0x9f);
+}
+
+/**
+ * NFC, pa: kontrolni znakovi (tab, novi red...) postaju razmak, ostale
+ * nedozvoljene kod-tačke (bidi, nevidljivi, kombinujući) nestaju bez traga -
+ * „Cla<ZWSP>ude" mora da ostane „Claude", ne „Cla ude". Na kraju sažimanje
+ * razmaka.
+ */
+export function sanitizeClientName(value: string): string {
   let out = "";
-  for (const ch of value) {
-    const code = ch.charCodeAt(0);
-    out += code < 32 || code === 127 ? " " : ch;
+  for (const ch of value.normalize("NFC")) {
+    const code = ch.codePointAt(0) ?? 0;
+    if (isControlChar(code)) out += " ";
+    else if (!isDisallowedInClientName(code)) out += ch;
   }
 
-  return out;
+  return out.replace(/\s+/g, " ").trim();
 }
 
 function metadataError(description: string): RegistrationParseResult {
@@ -169,7 +221,7 @@ export function parseClientRegistration(body: unknown): RegistrationParseResult 
   const record = body as Record<string, unknown>;
 
   const rawName = record.client_name;
-  const clientName = typeof rawName === "string" ? stripControlChars(rawName).trim() : "";
+  const clientName = typeof rawName === "string" ? sanitizeClientName(rawName) : "";
   if (clientName === "" || clientName.length > MAX_CLIENT_NAME_LENGTH) {
     return metadataError(`client_name is required (1-${MAX_CLIENT_NAME_LENGTH} characters)`);
   }
