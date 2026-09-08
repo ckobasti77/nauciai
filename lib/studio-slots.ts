@@ -9,7 +9,7 @@
  * `inputModes`-a reda kataloga.
  */
 
-import type { InputSpec, SlotSpec } from "@/convex/studioJobCore";
+import { type InputSpec, slotFileProblem, type SlotSpec } from "@/convex/studioJobCore";
 import type { PriceRule } from "@/convex/studioPricing";
 
 import type { Locale } from "./i18n";
@@ -49,35 +49,18 @@ export type SlotFile = {
 export type SlotFiles = Record<string, SlotFile[]>;
 
 /**
- * Gornja granica po vrsti fajla. Slika je ista kao avatar (5 MB je premalo za
- * referencu iz fotoaparata, pa je duplo), video prati Convex storage a ne
- * strpljenje mreže, zvuk je izmedju. Provera je PRE uploada - poruka o
- * prevelikom fajlu posle dva minuta čekanja je gora nego nikakva.
+ * Granice i vrsta fajla žive u `convex/studioJobCore.ts` iz istog razloga kao
+ * parseri iznad: server pri prijavi fajla proverava ISTI tip i ISTU veličinu
+ * koje forma proverava pre uploada (MCP-P3b), pa pravilo stoji na strani koja
+ * naplaćuje, a ovde se samo uvozi.
  */
-export const MAX_SLOT_BYTES: Record<SlotKind, number> = {
-  image: 10 * 1024 * 1024,
-  video: 200 * 1024 * 1024,
-  audio: 50 * 1024 * 1024,
-  file: 25 * 1024 * 1024,
-};
-
-export type SlotKind = "image" | "video" | "audio" | "file";
-
-export { parseInputSpec, parseInputModes } from "@/convex/studioJobCore";
+export { MAX_SLOT_BYTES, parseInputSpec, parseInputModes, slotKind, type SlotKind } from "@/convex/studioJobCore";
 
 export function slotsForMode(spec: InputSpec, mode: string): Array<{ slot: string } & SlotSpec> {
   const modeSpec = Object.hasOwn(spec, mode) ? spec[mode] : undefined;
   if (!modeSpec) return [];
 
   return Object.entries(modeSpec).map(([slot, entry]) => ({ slot, ...entry }));
-}
-
-export function slotKind(accept: string[]): SlotKind {
-  if (accept.some((mime) => mime.startsWith("image/"))) return "image";
-  if (accept.some((mime) => mime.startsWith("video/"))) return "video";
-  if (accept.some((mime) => mime.startsWith("audio/"))) return "audio";
-
-  return "file";
 }
 
 /**
@@ -138,37 +121,38 @@ export function formatBytes(bytes: number, locale: Locale): string {
   return `${text} MB`;
 }
 
+/** `image/png` -> `PNG`: spisak onoga što slot prima, kako ga korisnik čita. */
+export function acceptExtensions(accept: string[]): string {
+  return accept.map((mime) => mime.split("/")[1].toUpperCase()).join(", ");
+}
+
 /**
  * Validacija PRE uploada: pogrešan tip i prevelik fajl dobijaju svoju rečenicu
- * sa spiskom onoga što slot prima. `null` znači da fajl može da krene.
+ * sa spiskom onoga što slot prima. `null` znači da fajl može da krene. Samu
+ * proveru radi `slotFileProblem` - ista koju server ponavlja pri prijavi.
  */
 export function validateSlotFile(
   file: { type: string; size: number },
   slot: SlotSpec,
   locale: Locale,
 ): string | null {
-  const kind = slotKind(slot.accept);
+  const problem = slotFileProblem(file, slot.accept);
+  if (!problem) return null;
 
-  if (slot.accept.length > 0 && !slot.accept.includes(file.type)) {
-    const extensions = slot.accept.map((mime) => mime.split("/")[1].toUpperCase()).join(", ");
+  if (problem.code === "NEISPRAVAN_TIP_FAJLA") {
+    const extensions = acceptExtensions(problem.accept);
 
     return locale === "sr"
       ? `Ovaj slot prima ${extensions}. Izaberi drugi fajl.`
       : `This slot accepts ${extensions}. Pick another file.`;
   }
-
-  const limit = MAX_SLOT_BYTES[kind];
-  if (file.size > limit) {
+  if (problem.code === "FAJL_PREVELIK") {
     return locale === "sr"
-      ? `Fajl je veći od ${formatBytes(limit, locale)}. Smanji ga pa pokušaj ponovo.`
-      : `The file is larger than ${formatBytes(limit, locale)}. Shrink it and try again.`;
+      ? `Fajl je veći od ${formatBytes(problem.limit, locale)}. Smanji ga pa pokušaj ponovo.`
+      : `The file is larger than ${formatBytes(problem.limit, locale)}. Shrink it and try again.`;
   }
 
-  if (file.size === 0) {
-    return locale === "sr" ? "Fajl je prazan." : "The file is empty.";
-  }
-
-  return null;
+  return locale === "sr" ? "Fajl je prazan." : "The file is empty.";
 }
 
 export function canAcceptMore(files: SlotFile[] | undefined, slot: SlotSpec): boolean {

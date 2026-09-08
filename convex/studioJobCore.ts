@@ -10,6 +10,7 @@
  */
 
 import { lowerBoundSeconds, upperBoundSeconds } from "../lib/media-duration";
+import { AUDIO_ACCEPT, IMAGE_ACCEPT, VIDEO_ACCEPT } from "./providers/modelControls";
 import { isControlVisible, type ParamControl } from "./studioParamSpec";
 import type { PriceRule } from "./studioPricing";
 
@@ -129,6 +130,75 @@ export function jobInputStorageIds(inputs: JobInputs): string[] {
  */
 const VIDEO_SLOT = "video";
 const AUDIO_SLOT = "audio";
+
+export type SlotKind = "image" | "video" | "audio" | "file";
+
+/**
+ * Gornja granica po vrsti fajla. Slika je ista kao avatar (5 MB je premalo za
+ * referencu iz fotoaparata, pa je duplo), video prati Convex storage a ne
+ * strpljenje mreže, zvuk je izmedju. Forma proverava PRE uploada - poruka o
+ * prevelikom fajlu posle dva minuta čekanja je gora nego nikakva - a server
+ * ISTU granicu proverava pri prijavi fajla (`studio.registerInputUpload`,
+ * MCP-P3b), jer MCP ključ nije browser i formu nikad ne prođe.
+ */
+export const MAX_SLOT_BYTES: Record<SlotKind, number> = {
+  image: 10 * 1024 * 1024,
+  video: 200 * 1024 * 1024,
+  audio: 50 * 1024 * 1024,
+  file: 25 * 1024 * 1024,
+};
+
+export function slotKind(accept: string[]): SlotKind {
+  if (accept.some((mime) => mime.startsWith("image/"))) return "image";
+  if (accept.some((mime) => mime.startsWith("video/"))) return "video";
+  if (accept.some((mime) => mime.startsWith("audio/"))) return "audio";
+
+  return "file";
+}
+
+/**
+ * Šta slot prima kad se zna samo njegovo IME - jedino što dozvola za upload
+ * nosi (`studioUploadGrants.slot`), jer se fajl kači pre nego što je model
+ * izabran. Ista konvencija kao `hasVideoInput`/`countInputImages` iznad:
+ * `video` je video, `audio` zvuk, sve ostalo (`image`, `person`, `garment`)
+ * slika. Liste su one iz kojih katalog gradi svaki `inputSpec`, a
+ * `studioJobCore.test.ts` tvrdi da nijedan red kataloga ne prima ništa van
+ * njih - inače bi server odbio fajl koji forma propušta.
+ */
+export function acceptForSlot(slot: string): string[] {
+  if (slot === VIDEO_SLOT) return VIDEO_ACCEPT;
+  if (slot === AUDIO_SLOT) return AUDIO_ACCEPT;
+
+  return IMAGE_ACCEPT;
+}
+
+export type SlotFileProblem =
+  | { code: "NEISPRAVAN_TIP_FAJLA"; accept: string[] }
+  | { code: "FAJL_PREVELIK"; limit: number }
+  | { code: "PRAZAN_FAJL" };
+
+/**
+ * Jedina provera tipa i veličine ulaznog fajla - forma je zove pre uploada
+ * (`validateSlotFile` u `lib/studio-slots.ts` je prevodi u rečenicu), server
+ * pri prijavi. `type: undefined` znači da skladište tip nije ni zabeležilo
+ * (upload bez `Content-Type` zaglavlja) i tada se tip NE proverava - ko to
+ * sme da propusti odlučuje pozivalac; prazan string je zabeležen tip i
+ * odbija se kao i svaki drugi van liste. Prazna `accept` lista prima sve.
+ */
+export function slotFileProblem(
+  file: { type: string | undefined; size: number },
+  accept: string[],
+): SlotFileProblem | null {
+  if (file.type !== undefined && accept.length > 0 && !accept.includes(file.type)) {
+    return { code: "NEISPRAVAN_TIP_FAJLA", accept };
+  }
+
+  const limit = MAX_SLOT_BYTES[slotKind(accept)];
+  if (file.size > limit) return { code: "FAJL_PREVELIK", limit };
+  if (file.size === 0) return { code: "PRAZAN_FAJL" };
+
+  return null;
+}
 
 /**
  * Ima li posao video medju ulazima. Seedance u `reference` režimu sa video

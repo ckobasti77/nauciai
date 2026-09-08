@@ -27,16 +27,18 @@
 import type { FunctionReturnType } from "convex/server";
 
 import { internal } from "../_generated/api";
-import type { Doc } from "../_generated/dataModel";
+import type { Doc, Id } from "../_generated/dataModel";
 import { canMeasure } from "../../lib/media-duration";
 import { measureFailureMessage, studioErrorCode, studioErrorMessage } from "../../lib/studio-messages";
 import { visibleControls, type ParamValues } from "../../lib/studio-params";
 import { optionalSlots } from "../../lib/studio-playground";
-import { missingInput, slotKind, slotsForMode, type SlotFiles } from "../../lib/studio-slots";
+import { acceptExtensions, missingInput, slotKind, slotsForMode, type SlotFiles } from "../../lib/studio-slots";
 import { UPLOAD_GRANT_TTL_MS } from "../studioCore";
 import {
+  acceptForSlot,
   type JobInputs,
   jobInputStorageIds,
+  MAX_SLOT_BYTES,
   measuredSlotsFor,
   parseContinuationSource,
   parseInputModes,
@@ -246,6 +248,28 @@ function uploadErrorResult(error: unknown): ToolResult | null {
   }
 
   return studioErrorResult(error);
+}
+
+/**
+ * Odbijanje fajla po tipu/veličini pri prijavi (MCP-P3b). Server baca
+ * `KOD:detalj` (lista tipova, odnosno granica u bajtima); odavde ide rečenica
+ * koja kaže šta slot prima i šta je urađeno sa fajlom. `null` za sve ostalo.
+ */
+function rejectedFileMessage(error: unknown, slot: string): string | null {
+  const raw = error instanceof Error ? error.message : String(error);
+  const match = /(NEISPRAVAN_TIP_FAJLA|FAJL_PREVELIK|PRAZAN_FAJL)(?::([^\s"']*))?/.exec(raw);
+  if (!match) return null;
+  const [, code, detail = ""] = match;
+  const cleanup = "Fajl je obrisan iz skladišta; pozovi create_upload_url ponovo i okači ispravan fajl.";
+
+  if (code === "NEISPRAVAN_TIP_FAJLA") {
+    return `Slot "${slot}" prima ${acceptExtensions(detail.split(",").filter(Boolean))}, a okačen fajl ima drugi tip ili je poslat bez Content-Type zaglavlja. ${cleanup} (${code})`;
+  }
+  if (code === "FAJL_PREVELIK") {
+    return `Fajl je veći od ${Math.round(Number(detail) / (1024 * 1024))} MB koliko slot "${slot}" prima. ${cleanup} (${code})`;
+  }
+
+  return `Okačen fajl je prazan. ${cleanup} (${code})`;
 }
 
 function sleep(ms: number): Promise<void> {
@@ -484,7 +508,7 @@ const STUDIO_TOOLS: Record<string, ToolDefinition> = {
 
   create_upload_url: {
     description:
-      "Korak 1 okačivanja ulaznog fajla (slika, video, zvuk) za create_generation. Vraća uploadUrl na koji se fajl šalje HTTP POST-om (telo = sirovi bajtovi, Content-Type = MIME tip) i grantId koji se vraća u register_upload. Dozvola važi jednom i sat vremena.",
+      "Korak 1 okačivanja ulaznog fajla (slika, video, zvuk) za create_generation. Vraća uploadUrl na koji se fajl šalje HTTP POST-om (telo = sirovi bajtovi, Content-Type = MIME tip, OBAVEZNO), grantId koji se vraća u register_upload, i šta slot prima (accept, maxBytes) - fajl van toga register_upload odbija i briše. Dozvola važi jednom i sat vremena.",
     inputSchema: {
       type: "object",
       properties: {
@@ -513,20 +537,23 @@ const STUDIO_TOOLS: Record<string, ToolDefinition> = {
         throw error;
       }
 
+      const accept = acceptForSlot(slot);
+
       return jsonResult({
         uploadUrl: grant.uploadUrl,
         grantId: grant.grantId,
         slot,
+        accept,
+        maxBytes: MAX_SLOT_BYTES[slotKind(accept)],
         grantExpiresInSeconds: UPLOAD_GRANT_TTL_MS / 1000,
-        instructions:
-          'Pošalji sadržaj fajla HTTP POST zahtevom na uploadUrl: telo su sirovi bajtovi fajla, zaglavlje Content-Type je MIME tip fajla (npr. image/png, video/mp4, audio/mpeg). Odgovor je JSON {"storageId": "..."}. Zatim pozovi register_upload sa tim storageId-jem, ovim grantId-jem i istim slotom.',
+        instructions: `Pošalji sadržaj fajla HTTP POST zahtevom na uploadUrl: telo su sirovi bajtovi fajla, zaglavlje Content-Type je MIME tip fajla i OBAVEZNO je (slot "${slot}" prima: ${accept.join(", ")}; najviše ${Math.round(MAX_SLOT_BYTES[slotKind(accept)] / (1024 * 1024))} MB). Odgovor je JSON {"storageId": "..."}. Zatim pozovi register_upload sa tim storageId-jem, ovim grantId-jem i istim slotom; fajl pogrešnog tipa ili veličine register_upload odbija i briše.`,
       });
     },
   },
 
   register_upload: {
     description:
-      "Korak 2 okačivanja: prijavljuje fajl okačen na uploadUrl iz create_upload_url. Za video i zvuk odmah meri trajanje iz zaglavlja fajla (durationS) - bez njega modeli koji se naplaćuju po trajanju ne primaju posao. Vraća uploadId, storageId, slot, bytes, mimeType i durationS (null kad merenje nije primenjivo ili nije uspelo; tada i measureError).",
+      "Korak 2 okačivanja: prijavljuje fajl okačen na uploadUrl iz create_upload_url. Server proverava tip (Content-Type iz skladišta mora da bude u accept listi slota) i veličinu (maxBytes); fajl koji ne prođe se odbija I BRIŠE iz skladišta (NEISPRAVAN_TIP_FAJLA, FAJL_PREVELIK, PRAZAN_FAJL). Za video i zvuk odmah meri trajanje iz zaglavlja fajla (durationS) - bez njega modeli koji se naplaćuju po trajanju ne primaju posao. Vraća uploadId, storageId, slot, bytes, mimeType i durationS (null kad merenje nije primenjivo ili nije uspelo; tada i measureError).",
     inputSchema: {
       type: "object",
       properties: {
@@ -551,6 +578,17 @@ const STUDIO_TOOLS: Record<string, ToolDefinition> = {
           slot,
         });
       } catch (error) {
+        // Fajl pogrešnog tipa ili veličine (MCP-P3b): mutacija ga je odbila
+        // POSLE vezivanja dozvole, pa je dokazano svež upload ovog ključa - i
+        // briše se ODAVDE, iz akcije, jer bi brisanje u mutaciji otišlo sa
+        // rollback-om. Bez ovoga bi 300 MB bez ijednog reda ostalo u skladištu
+        // zauvek: `crons.expireGenerationFiles` briše samo prijavljene fajlove.
+        const rejected = rejectedFileMessage(error, slot);
+        if (rejected) {
+          await ctx.convex.storage.delete(storageId as Id<"_storage">);
+
+          return errorResult(rejected);
+        }
         const domain = uploadErrorResult(error);
         if (domain) return domain;
         throw error;

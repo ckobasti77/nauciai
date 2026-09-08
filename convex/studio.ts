@@ -24,6 +24,7 @@ import { effectiveRoleForProfile, getCurrentProfile, requireUserId } from "./hel
 import { applyTaskCompletion, assertLessonAccess } from "./lab";
 import { parseJobInputs } from "./providers/jobInputs";
 import {
+  acceptForSlot,
   boundedInputSeconds,
   type DurationSource,
   extraCounts,
@@ -41,6 +42,7 @@ import {
   promptFromParams,
   resolveMeasuredQuantity,
   sanitizeJobInputs,
+  slotFileProblem,
 } from "./studioJobCore";
 import { parseParamSpec, sanitizeSpecParams } from "./studioParamSpec";
 import { computeCostUsd, computeCredits, parsePriceRule, pricingModeFor } from "./studioPricing";
@@ -1899,6 +1901,15 @@ async function registerInputUploadForUser(
   ctx: MutationCtx,
   userId: Id<"users">,
   args: { storageId: Id<"_storage">; grantId: Id<"studioUploadGrants">; slot?: string },
+  options: {
+    /**
+     * Odbij fajl kojem skladište nije zabeležilo tip (upload bez `Content-Type`
+     * zaglavlja). Browser tip šalje uvek, pa javna mutacija ovo ne traži;
+     * MCP put ga traži (MCP-P3b) - dozvoljeno je da interna varijanta bude
+     * STROŽA od javne, nikad obrnuto.
+     */
+    requireMimeType?: boolean;
+  } = {},
 ) {
   // Isti gejt kao `createInputUploadUrl` (F2.8): red u `studioUploads` je
   // ulaznica za naplatu, ne pravi se bez prava na Studio.
@@ -1944,6 +1955,23 @@ async function registerInputUploadForUser(
   // dozvole); neslaganje se odbija PRE nego što se dozvola potroši, pa ništa
   // ne ostaje upisano. Forma slot ne šalje - ona ga ni ne zna van dozvole.
   if (args.slot !== undefined && grant.slot !== args.slot) throw new Error("NEISPRAVAN_SLOT");
+
+  // Tip i veličina (MCP-P3b): ISTA provera koju forma radi pre uploada
+  // (`validateSlotFile`), nad brojevima iz `_storage` a ne od klijenta. Do
+  // MCP-a je forma bila jedini ulaz, pa je 300 MB zvuka u slotu za sliku
+  // stizalo do provajdera i refunda. Stoji POSLE vezivanja dozvole - tek tada
+  // je fajl dokazano svež upload ovog korisnika, pa ga MCP alat sme i da
+  // obriše - a PRE trošenja dozvole i upisa, pa odbijen fajl ne ostavlja red.
+  const accept = acceptForSlot(grant.slot);
+  if (options.requireMimeType && meta.contentType === undefined) {
+    throw new Error(`NEISPRAVAN_TIP_FAJLA:${accept.join(",")}`);
+  }
+  const problem = slotFileProblem({ type: meta.contentType, size: meta.size }, accept);
+  if (problem) {
+    if (problem.code === "NEISPRAVAN_TIP_FAJLA") throw new Error(`${problem.code}:${problem.accept.join(",")}`);
+    if (problem.code === "FAJL_PREVELIK") throw new Error(`${problem.code}:${problem.limit}`);
+    throw new Error(problem.code);
+  }
   await ctx.db.patch(grant._id, { usedAt: now });
 
   const uploadId = await ctx.db.insert("studioUploads", {
@@ -1982,7 +2010,9 @@ export const registerInputUploadInternal = internalMutation({
     const grantId = ctx.db.normalizeId("studioUploadGrants", args.grantId);
     if (!grantId) throw new Error("NEDOZVOLJEN_UPLOAD");
 
-    return registerInputUploadForUser(ctx, args.userId, { storageId, grantId, slot: args.slot });
+    // Strogo po tipu: uputstvo alata traži `Content-Type`, a upload bez njega
+    // Convex zabeleži bez tipa - to bi bio jedini način da se provera zaobiđe.
+    return registerInputUploadForUser(ctx, args.userId, { storageId, grantId, slot: args.slot }, { requireMimeType: true });
   },
 });
 

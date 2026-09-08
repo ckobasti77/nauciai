@@ -192,8 +192,8 @@ proverava PRE poziva u Convex; odstupanje je JSON-RPC `-32602`. Rezultat je
 | `list_models` | `mcp:read` | nema | niz uključenih modela: `{slug, kind, provider, family, labelSr, labelEn, taglineSr, inputModes, inputSpec, paramSpec, priceRule, capabilities}` (JSON polja parsirana). `inputSpec` je `{ režim: { slot: { max, accept } } }` |
 | `get_studio_state` | `mcp:read` | nema | `studio.getStudioState` polja (`enabled`, `hasStudioAccess`, `accessReason`, `hasAcceptedTerms`, `activeJobs`, `maxActiveJobs`, `providerStatus`, ...) + `credits: {balance, lifetimePurchased, lifetimeSpent, updatedAt}` |
 | `list_projects` | `mcp:read` | nema | `{projects: [{id, name, createdAt}]}` - samo nearhivirani |
-| `create_upload_url` | **`mcp:write`** | `slot` (string, iz `inputSpec`-a modela za izabrani režim) | `{uploadUrl, grantId, slot, grantExpiresInSeconds: 3600, instructions}`; fajl se šalje **HTTP POST**-om na `uploadUrl` (Convex upload URL ne prima PUT - vraća 405), telo su sirovi bajtovi, `Content-Type` je MIME tip; odgovor je `{"storageId": "..."}` |
-| `register_upload` | **`mcp:write`** | `storageId` (iz odgovora na upload), `grantId` (iz `create_upload_url`), `slot` (isti kao u `create_upload_url`) | `{uploadId, storageId, slot, bytes, mimeType, durationS, measured, measureError?}`; za video i zvuk odmah meri trajanje iz zaglavlja fajla (do 3 pokušaja kad `Range` čitanje padne); `durationS` je `null` za sliku (`measured: false`) ili kad merenje nije uspelo (tada `measureError` kaže šta dalje) |
+| `create_upload_url` | **`mcp:write`** | `slot` (string, iz `inputSpec`-a modela za izabrani režim) | `{uploadUrl, grantId, slot, accept, maxBytes, grantExpiresInSeconds: 3600, instructions}`; fajl se šalje **HTTP POST**-om na `uploadUrl` (Convex upload URL ne prima PUT - vraća 405), telo su sirovi bajtovi, `Content-Type` je MIME tip i **obavezan je** (bez njega Convex fajl zabeleži bez tipa, a `register_upload` ga onda odbija); odgovor je `{"storageId": "..."}`; `accept` i `maxBytes` su ono što slot prima |
+| `register_upload` | **`mcp:write`** | `storageId` (iz odgovora na upload), `grantId` (iz `create_upload_url`), `slot` (isti kao u `create_upload_url`) | `{uploadId, storageId, slot, bytes, mimeType, durationS, measured, measureError?}`; **ulazna kapija (P3b)**: tip iz `_storage` mora da bude u `accept` listi slota, a veličina ispod `maxBytes` (slika 10 MB, video 200 MB, zvuk 50 MB) - fajl koji ne prođe se odbija **i briše iz skladišta** (`NEISPRAVAN_TIP_FAJLA`, `FAJL_PREVELIK`, `PRAZAN_FAJL`; dozvola ostaje nepotrošena, ali upload URL je jednokratan pa se traži nov); za video i zvuk odmah meri trajanje iz zaglavlja fajla (do 3 pokušaja kad `Range` čitanje padne); `durationS` je `null` za sliku (`measured: false`) ili kad merenje nije uspelo (tada `measureError` kaže šta dalje) |
 | `create_generation` | **`mcp:write`** | `modelSlug` (string), `params` (objekat po `paramSpec`-u modela), `inputMode?` (iz `inputModes`), `inputs?` (`{ slot: [storageId, ...] }`), `sourceJobId?` (za režim iz `capabilities.continuation`), `projectId?` | `{jobId, status, creditCost, modelSlug}`; neispravan ulaz za model -> `isError` sa uputstvom (`NEISPRAVAN_REZIM`, `NEISPRAVNI_ULAZI`, `NEPOTPUN_ULAZ`, `NEISPRAVNI_PARAMETRI`, `IZVOR_NIJE_IZABRAN`, `IZVOR_NIJE_PODRZAN`, `MERENJE_NIJE_DOSTUPNO`); domenska greška servera -> `isError` (npr. `STUDIO_PAUZIRAN`, `NEDOVOLJNO_KREDITA`, `MODEL_NEDOSTUPAN`, `DNEVNI_LIMIT`, `PREVISE_POSLOVA`, `TUDJI_FAJL`); pogodak blok liste -> `ZABRANJEN_POJAM` |
 | `get_job` | `mcp:read` | `jobId` (string) | `{jobId, status, modelSlug, kind, creditCost, createdAt, completedAt, params, outputUrl, expiresAt, error, isMock}`; `outputUrl` je potpisan URL SAMO kad je `status: "done"`; tuđ, nepostojeći ili neparsiv id -> `isError` „Posao nije pronađen." |
 | `wait_for_job` | `mcp:read` | `jobId` (string), `timeoutSeconds?` (1-60, podrazumevano 30) | `{status, jobId, creditCost, outputs?, error?, timedOut}`; anketira svake 2 s dok posao ne stigne u završno stanje (`failed`, `refunded`, ili `done` sa SAČUVANIM izlazom / greškom čuvanja) ili dok budžet ne istekne; istek daje `timedOut: true` + `message` i NIJE greška - poziv se prosto ponovi; `outputs` je `{outputUrl, posterUrl, expiresAt}` |
@@ -209,6 +209,19 @@ po istim pravilima koja zaključavaju dugme u formi, parametre protiv
 protiv `capabilities.continuation`, i izmereno trajanje kad model po
 `priceRule` naplaćuje po trajanju - i vraća rečenicu koja kaže šta da se
 ispravi. Server posle toga radi sve svoje provere iznova: prevod nije zamena.
+
+Ulazna kapija fajla (MCP-P3b) živi u `studio.registerInputUploadForUser`, dakle
+važi i za formu i za MCP: ISTA provera koju forma radi pre uploada
+(`validateSlotFile` -> `slotFileProblem` u `convex/studioJobCore.ts`), nad
+`contentType` i `size` koje je zabeležio `_storage`, ne nad onim što je
+klijent rekao. Lista tipova se bira po IMENU slota (`video`, `audio`, sve
+ostalo slika - `acceptForSlot`), a `studioJobCore.test.ts` tvrdi da svaka
+`accept` lista u katalogu stane u nju. Razlika između dva puta: browser
+`Content-Type` šalje uvek, pa javna mutacija fajl bez zabeleženog tipa
+proverava samo po veličini; MCP put (`registerInputUploadInternal`) fajl bez
+tipa odbija, jer je izostavljanje zaglavlja jedini način da se provera tipa
+zaobiđe. Odbijen fajl kroz MCP alat se briše iz skladišta odmah (cron briše
+samo prijavljene fajlove, pa bi inače ostao zauvek).
 
 Identitet: MCP pozivalac nema Convex Auth sesiju, pa alati zovu INTERNE
 varijante studio funkcija (`createJobInternal`, `createInputUploadUrlInternal`,
@@ -286,11 +299,11 @@ npx convex run mcpKeys:createKey '{"name":"Agent","scopes":["mcp:read","mcp:writ
 ```
 
 ```json
-{"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"{\"uploadUrl\":\"https://wandering-fox-41.eu-west-1.convex.cloud/api/storage/upload?token=0182...\",\"grantId\":\"xd7fe4g9bgg61tnwem1bx8gsrs8e1ct6\",\"slot\":\"image\",\"grantExpiresInSeconds\":3600,\"instructions\":\"Pošalji sadržaj fajla HTTP POST zahtevom na uploadUrl: telo su sirovi bajtovi fajla, zaglavlje Content-Type je MIME tip fajla (npr. image/png, video/mp4, audio/mpeg). Odgovor je JSON {\\\"storageId\\\": \\\"...\\\"}. Zatim pozovi register_upload sa tim storageId-jem, ovim grantId-jem i istim slotom.\"}"}]}}
+{"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"{\"uploadUrl\":\"https://wandering-fox-41.eu-west-1.convex.cloud/api/storage/upload?token=0182...\",\"grantId\":\"xd7fe4g9bgg61tnwem1bx8gsrs8e1ct6\",\"slot\":\"image\",\"accept\":[\"image/png\",\"image/jpeg\",\"image/webp\"],\"maxBytes\":10485760,\"grantExpiresInSeconds\":3600,\"instructions\":\"Pošalji sadržaj fajla HTTP POST zahtevom na uploadUrl: telo su sirovi bajtovi fajla, zaglavlje Content-Type je MIME tip fajla i OBAVEZNO je (slot \\\"image\\\" prima: image/png, image/jpeg, image/webp; najviše 10 MB). Odgovor je JSON {\\\"storageId\\\": \\\"...\\\"}. Zatim pozovi register_upload sa tim storageId-jem, ovim grantId-jem i istim slotom; fajl pogrešnog tipa ili veličine register_upload odbija i briše.\"}"}]}}
 ```
 
 **3. Sam upload** - fajl ide POST-om na `uploadUrl` (ne na `/mcp`; PUT vraća
-405):
+405). `Content-Type` je obavezan - `image/png` u ovom primeru:
 
 ```
 curl -s -X POST "<uploadUrl>" -H "Content-Type: image/png" --data-binary @slika.png
@@ -315,6 +328,13 @@ Za video ili zvuk isti poziv vraća i `durationS` (npr. `4.2`) i
 `measured: true`; ako merenje ne uspe, `durationS` je `null` a `measureError`
 kaže da li da se ponovi (`ZAGLAVLJE_NIJE_PROCITANO`) ili da se fajl izveze
 drugačije (`NEPOZNAT_FORMAT`, `VBR_NEPOUZDAN`, `MERENJE_ODBIJENO`).
+
+Fajl koji slot ne prima ne stiže ni do prijave - odbija se i briše (dev,
+`audio/mpeg` okačen u slot `image`):
+
+```json
+{"jsonrpc":"2.0","id":4,"result":{"content":[{"type":"text","text":"Slot \"image\" prima PNG, JPEG, WEBP, a okačen fajl ima drugi tip ili je poslat bez Content-Type zaglavlja. Fajl je obrisan iz skladišta; pozovi create_upload_url ponovo i okači ispravan fajl. (NEISPRAVAN_TIP_FAJLA)"}],"isError":true}}
+```
 
 **5. Posao sa ulazom** - TROŠI KREDITE:
 
@@ -388,6 +408,13 @@ internim varijantama po `userId`, četiri nova alata (`create_upload_url`,
 `inputMode`/`inputs`/`sourceJobId` i prevodom neispravne narudžbine u
 uputstvo pre poziva u Convex, i testovi kapija koje P2 nije pokrio (email,
 uslovi, stvarno skidanje kredita, `PREVISE_POSLOVA`).
+
+P3b (MCP-P3b-ULAZNA-KAPIJA): serverska provera tipa i veličine okačenog
+fajla pri prijavi - ista logika kao `validateSlotFile` u formi, preseljena u
+`convex/studioJobCore.ts` (`slotFileProblem`, `acceptForSlot`,
+`MAX_SLOT_BYTES`) i primenjena u `registerInputUploadForUser` nad
+metapodacima iz `_storage`; MCP put strog na `Content-Type`, odbijen fajl se
+briše iz skladišta; `create_upload_url` vraća `accept` i `maxBytes`.
 
 Ostaje za kasnije: rate limit u tabeli (ili `@convex-dev/rate-limiter`) ako
 tačan broj po ključu ikad postane važan (danas nije - vidi sekciju 3). Nije

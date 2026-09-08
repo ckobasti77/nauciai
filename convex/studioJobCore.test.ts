@@ -3,11 +3,13 @@ import { expect, test } from "vitest";
 import { KLING_LIPSYNC, KLING_TRYON } from "./providers/falToolModels";
 import { STUDIO_MODELS } from "./providers/catalogModels";
 import {
+  acceptForSlot,
   boundedInputSeconds,
   countInputImages,
   extraCounts,
   hasVideoInput,
   jobInputStorageIds,
+  MAX_SLOT_BYTES,
   type MeasuredUpload,
   measuredQuantityFromSeconds,
   measuredSlotsFor,
@@ -20,6 +22,8 @@ import {
   promptFromParams,
   resolveMeasuredQuantity,
   sanitizeJobInputs,
+  slotFileProblem,
+  slotKind,
 } from "./studioJobCore";
 import type { PriceRule } from "./studioPricing";
 
@@ -363,4 +367,48 @@ test("svaki red kataloga prolazi kroz parsere reda bez gubitka režima", () => {
     expect(modes, seed.slug).toEqual(seed.inputModes);
     expect(Object.keys(spec).sort(), seed.slug).toEqual(Object.keys(seed.inputSpec).sort());
   }
+});
+
+// ── ulazna kapija po tipu i veličini (MCP-P3b) ─────────────────────────────
+
+test("acceptForSlot pokriva svaku accept listu iz kataloga - server ne odbija ono što forma propušta", () => {
+  for (const seed of STUDIO_MODELS) {
+    for (const [mode, slots] of Object.entries(seed.inputSpec)) {
+      for (const [slot, entry] of Object.entries(slots)) {
+        const serverAccept = acceptForSlot(slot);
+        for (const mime of entry.accept) {
+          expect(serverAccept, `${seed.slug}/${mode}/${slot}`).toContain(mime);
+        }
+        // Ista vrsta -> ista granica veličine na obe strane.
+        expect(slotKind(serverAccept), `${seed.slug}/${mode}/${slot}`).toBe(slotKind(entry.accept));
+      }
+    }
+  }
+});
+
+test("slotFileProblem: tip van liste, prevelik i prazan fajl; tip koji skladište nije zabeležilo se ne proverava", () => {
+  const image = acceptForSlot("image");
+
+  expect(slotFileProblem({ type: "audio/mpeg", size: 10 }, image)).toEqual({ code: "NEISPRAVAN_TIP_FAJLA", accept: image });
+  // Prazan string je ZABELEŽEN tip (browser ga šalje za nepoznatu ekstenziju) - odbija se.
+  expect(slotFileProblem({ type: "", size: 10 }, image)?.code).toBe("NEISPRAVAN_TIP_FAJLA");
+  // `undefined` je upload bez zaglavlja - ko to sme da propusti odlučuje pozivalac.
+  expect(slotFileProblem({ type: undefined, size: 10 }, image)).toBeNull();
+  expect(slotFileProblem({ type: "image/png", size: MAX_SLOT_BYTES.image + 1 }, image)).toEqual({
+    code: "FAJL_PREVELIK",
+    limit: MAX_SLOT_BYTES.image,
+  });
+  expect(slotFileProblem({ type: "image/png", size: MAX_SLOT_BYTES.image }, image)).toBeNull();
+  expect(slotFileProblem({ type: "image/png", size: 0 }, image)).toEqual({ code: "PRAZAN_FAJL" });
+  // Tip ide pre veličine: zvuk od 300 MB u slotu za sliku pada na tipu, ne na veličini.
+  expect(slotFileProblem({ type: "audio/mpeg", size: 300 * 1024 * 1024 }, image)?.code).toBe("NEISPRAVAN_TIP_FAJLA");
+  // Prazna lista prima sve, sa granicom za "file".
+  expect(slotFileProblem({ type: "application/pdf", size: 10 }, [])).toBeNull();
+  expect(slotFileProblem({ type: "application/pdf", size: MAX_SLOT_BYTES.file + 1 }, [])?.code).toBe("FAJL_PREVELIK");
+
+  // Ime slota bira listu: video i zvuk svoje, sve ostalo (image, person, garment) sliku.
+  expect(slotKind(acceptForSlot("video"))).toBe("video");
+  expect(slotKind(acceptForSlot("audio"))).toBe("audio");
+  expect(acceptForSlot("person")).toEqual(image);
+  expect(acceptForSlot("garment")).toEqual(image);
 });

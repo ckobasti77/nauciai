@@ -2991,6 +2991,41 @@ test("createInputUploadUrl i registerInputUpload traže pristup Studiju (R1)", a
   expect(uploads[0].userId).toBe(userId);
 });
 
+test("registerInputUpload proverava tip i veličinu iz `_storage`, ne od klijenta (MCP-P3b)", async () => {
+  const t = convexTest(schema, modules);
+  const { asUser } = await seedUser(t, { role: "moderator" });
+  // Tip zabeležen u skladištu, kako ga Convex upiše iz `Content-Type` zaglavlja;
+  // `convex-test` ga iz `Blob`-a ne prenosi, pa se `_storage` red dopunjuje.
+  const stored = async (bytes: string, meta: Record<string, unknown>) =>
+    t.run(async (ctx) => {
+      const id = await ctx.storage.store(new Blob([bytes], { type: "image/png" }));
+      await ctx.db.patch(id as unknown as Id<"studioUploads">, meta);
+      return id;
+    });
+
+  const cases: Array<[Id<"_storage">, string, RegExp]> = [
+    [await stored("zvuk", { contentType: "audio/mpeg" }), "image", /NEISPRAVAN_TIP_FAJLA:image\/png,image\/jpeg,image\/webp/],
+    [await stored("png", { contentType: "image/png", size: 10 * 1024 * 1024 + 1 }), "image", /FAJL_PREVELIK:10485760/],
+    [await stored("", { contentType: "image/png" }), "image", /PRAZAN_FAJL/],
+  ];
+  for (const [storageId, slot, expected] of cases) {
+    const { grantId } = await asUser.mutation(api.studio.createInputUploadUrl, { slot });
+    await expect(asUser.mutation(api.studio.registerInputUpload, { storageId, grantId })).rejects.toThrow(expected);
+    // Odbijen fajl ne troši dozvolu i ne ostavlja red.
+    const grant = await t.run((ctx) => ctx.db.get(grantId));
+    expect(grant?.usedAt, String(expected)).toBeUndefined();
+  }
+  expect(await t.run((ctx) => ctx.db.query("studioUploads").collect())).toEqual([]);
+
+  // Javna mutacija NE traži zabeležen tip: browser ga uvek šalje, a fajl bez
+  // njega proverava se samo po veličini (MCP put je stroži - vidi
+  // `registerInputUploadInternal`).
+  const untyped = await t.run((ctx) => ctx.storage.store(new Blob(["x"], { type: "image/png" })));
+  const { grantId } = await asUser.mutation(api.studio.createInputUploadUrl, { slot: "image" });
+  await asUser.mutation(api.studio.registerInputUpload, { storageId: untyped, grantId });
+  expect(await t.run((ctx) => ctx.db.query("studioUploads").collect())).toHaveLength(1);
+});
+
 test("DEMO guard (R10): javni korisnik ne može da plati mock job bez provider ključa, osoblje može", async () => {
   const t = convexTest(schema, modules);
   // Testno okruženje nema FAL_KEY - fal model je u DEMO režimu.

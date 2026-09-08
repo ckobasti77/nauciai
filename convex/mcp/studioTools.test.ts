@@ -16,6 +16,7 @@ import { MIN_PLAUSIBLE_BITRATE_BPS } from "../../lib/media-duration";
 import { studioModelBySlug } from "../providers/catalogModels";
 import schema from "../schema";
 import { MAX_ACTIVE_JOBS } from "../studioCore";
+import { MAX_SLOT_BYTES } from "../studioJobCore";
 import { MCP_WRITE_RATE_LIMIT } from "./rateLimit";
 import { STUDIO_TOOL_NAMES } from "./studioTools";
 
@@ -223,8 +224,35 @@ function rangeServer(data: Uint8Array) {
   };
 }
 
-function storeBlob(t: TestConvexWithSchema, bytes: Uint8Array<ArrayBuffer> | string, type: string) {
-  return t.run((ctx) => ctx.storage.store(new Blob([bytes], { type })));
+/**
+ * Fajl u skladištu SA zabeleženim tipom, kako ga Convex upiše kad klijent
+ * pošalje `Content-Type` (dev provera: bez zaglavlja ostaje bez tipa).
+ * `convex-test` tip ne prenosi iz `Blob`-a, pa se `_storage` red dopunjuje
+ * ručno - isti razlog iz kog `studioCatalogJob.test.ts` dopunjuje `mimeType`.
+ * `type: null` je upload bez zaglavlja; `size` prepisuje veličinu bez
+ * pravljenja fajla od 10 MB.
+ */
+function storeBlob(
+  t: TestConvexWithSchema,
+  bytes: Uint8Array<ArrayBuffer> | string,
+  type: string | null,
+  size?: number,
+) {
+  return t.run(async (ctx) => {
+    const storageId = await ctx.storage.store(new Blob([bytes], { type: type ?? "" }));
+    const meta: Record<string, unknown> = {};
+    if (type !== null) meta.contentType = type;
+    if (size !== undefined) meta.size = size;
+    // `_storage` je sistemska tabela; u produkciji je nepromenljiva, u
+    // `convex-test`-u je obična mapa pa `patch` prolazi.
+    if (Object.keys(meta).length > 0) await ctx.db.patch(storageId as unknown as Id<"studioUploads">, meta);
+
+    return storageId;
+  });
+}
+
+async function storageHas(t: TestConvexWithSchema, storageId: Id<"_storage">) {
+  return (await t.run((ctx) => ctx.db.system.get("_storage", storageId))) !== null;
 }
 
 // ── tools/list ─────────────────────────────────────────────────────────────
@@ -605,6 +633,68 @@ test("register_upload sa tuđim storageId -> TUDJI_FAJL; tuđa dozvola i neposto
   const [ownGrant] = await t.run((ctx) => ctx.db.query("studioUploadGrants").collect());
   expect(ownGrant.usedAt).toBeUndefined();
   expect(await jobsOf(t, ownerId)).toEqual([]);
+});
+
+// ── P3b: ulazna kapija po tipu i veličini ──────────────────────────────────
+
+test("register_upload odbija i BRIŠE fajl pogrešnog tipa - scenario 'zvuk u slotu za sliku'", async () => {
+  const { t, rw, ownerId } = await setup();
+  await seedCatalogModel(t, "kling-3");
+  await grantCredits(t, ownerId, 1000);
+  const grant = JSON.parse(textOf(await call(t, rw, "create_upload_url", { slot: "image" })));
+  expect(grant).toMatchObject({ accept: ["image/png", "image/jpeg", "image/webp"], maxBytes: MAX_SLOT_BYTES.image });
+  expect(grant.instructions).toContain("OBAVEZNO");
+
+  const audio = await storeBlob(t, "ID3 nije slika", "audio/mpeg");
+  const response = await call(t, rw, "register_upload", { storageId: audio, grantId: grant.grantId, slot: "image" });
+  expect(response.error).toBeUndefined();
+  expect(response.result?.isError).toBe(true);
+  expect(textOf(response)).toContain("NEISPRAVAN_TIP_FAJLA");
+  expect(textOf(response)).toContain("PNG, JPEG, WEBP");
+
+  // Ništa nije ostalo: ni red, ni fajl u skladištu, ni potrošena dozvola.
+  expect(await t.run((ctx) => ctx.db.query("studioUploads").collect())).toEqual([]);
+  expect(await storageHas(t, audio)).toBe(false);
+  const [row] = await t.run((ctx) => ctx.db.query("studioUploadGrants").collect());
+  expect(row.usedAt).toBeUndefined();
+
+  // Posao sa tim id-jem ne može da krene - fajl nikad nije prijavljen.
+  const job = await call(t, rw, "create_generation", { modelSlug: "kling-3", params: { prompt: "x" }, inputMode: "image", inputs: { image: [audio] } });
+  expect(job.result?.isError).toBe(true);
+  expect(textOf(job)).toContain("TUDJI_FAJL");
+  expect(await jobsOf(t, ownerId)).toEqual([]);
+  expect(await balanceOf(t, ownerId)).toBe(1000);
+});
+
+test("register_upload odbija upload bez Content-Type zaglavlja, prevelik fajl i prazan fajl", async () => {
+  const { t, rw } = await setup();
+
+  const cases: Array<[Id<"_storage">, string, string]> = [
+    [await storeBlob(t, "bez tipa", null), "image", "NEISPRAVAN_TIP_FAJLA"],
+    [await storeBlob(t, "png", "image/png", MAX_SLOT_BYTES.image + 1), "image", "FAJL_PREVELIK"],
+    [await storeBlob(t, "mp4", "video/mp4", MAX_SLOT_BYTES.video + 1), "video", "FAJL_PREVELIK"],
+    [await storeBlob(t, "", "image/png"), "image", "PRAZAN_FAJL"],
+  ];
+  for (const [storageId, slot, expected] of cases) {
+    const grant = JSON.parse(textOf(await call(t, rw, "create_upload_url", { slot })));
+    const response = await call(t, rw, "register_upload", { storageId, grantId: grant.grantId, slot });
+    expect(response.result?.isError, expected).toBe(true);
+    expect(textOf(response), expected).toContain(expected);
+    expect(textOf(response), expected).toContain("obrisan");
+    expect(await storageHas(t, storageId), expected).toBe(false);
+  }
+  expect(await t.run((ctx) => ctx.db.query("studioUploads").collect())).toEqual([]);
+
+  // Video do granice prolazi: veličina se meri po vrsti slota, ne po slici.
+  const grant = JSON.parse(textOf(await call(t, rw, "create_upload_url", { slot: "video" })));
+  const big = await storeBlob(t, mp4Bytes(4.2, "video/mp4"), "video/mp4", MAX_SLOT_BYTES.video);
+  vi.stubGlobal("fetch", rangeServer(mp4Bytes(4.2, "video/mp4")));
+  try {
+    const ok = JSON.parse(textOf(await call(t, rw, "register_upload", { storageId: big, grantId: grant.grantId, slot: "video" })));
+    expect(ok).toMatchObject({ slot: "video", bytes: MAX_SLOT_BYTES.video, mimeType: "video/mp4" });
+  } finally {
+    vi.unstubAllGlobals();
+  }
 });
 
 test("ključ sa samo mcp:read ne može create_upload_url ni register_upload", async () => {
