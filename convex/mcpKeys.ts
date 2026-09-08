@@ -13,6 +13,7 @@ import { requireUserId } from "./helpers";
 import {
   DEFAULT_KEY_SCOPES,
   generateApiKey,
+  isKnownScope,
   keyDisplayPrefix,
   sha256Hex,
   timingSafeEqual,
@@ -20,13 +21,29 @@ import {
 
 export const MAX_KEY_NAME_LENGTH = 64;
 
+/**
+ * Opsezi ključa (MCP-P2-STUDIO, tačka 2). Bez `scopes` ključ je samo za
+ * čitanje - `mcp:write` (troši kredite) mora da se zatraži izričito. Nepoznat
+ * opseg se odbija, ne preskače: ključ sa opsegom koji niko ne proverava bio bi
+ * lažna sigurnost. Duplikati se sažimaju.
+ */
+function resolveScopes(requested: string[] | undefined): string[] {
+  if (requested === undefined) return [...DEFAULT_KEY_SCOPES];
+  const scopes = Array.from(new Set(requested));
+  if (scopes.length === 0) throw new Error("NEISPRAVNI_OPSEZI");
+  if (scopes.some((scope) => !isKnownScope(scope))) throw new Error("NEPOZNAT_OPSEG");
+
+  return scopes;
+}
+
 export const createKey = mutation({
-  args: { name: v.string() },
+  args: { name: v.string(), scopes: v.optional(v.array(v.string())) },
   returns: v.object({ keyId: v.id("mcpApiKeys"), key: v.string(), prefix: v.string() }),
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx);
     const name = args.name.trim();
     if (name.length === 0 || name.length > MAX_KEY_NAME_LENGTH) throw new Error("NEISPRAVNO_IME");
+    const scopes = resolveScopes(args.scopes);
 
     const key = generateApiKey();
     const prefix = keyDisplayPrefix(key);
@@ -35,7 +52,7 @@ export const createKey = mutation({
       name,
       keyHash: await sha256Hex(key),
       prefix,
-      scopes: [...DEFAULT_KEY_SCOPES],
+      scopes,
       createdAt: Date.now(),
     });
 

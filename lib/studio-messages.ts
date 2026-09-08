@@ -334,6 +334,20 @@ const CREATE_JOB_ERROR_MESSAGES: Array<[string, { sr: string; en: string }]> = [
   ],
 ];
 
+/**
+ * Koji poznati kod `createJob`-a stoji u sirovoj poruci, ili `null` kad
+ * nijedan - MCP alat po tome razlikuje domensku grešku (vraća je modelu kao
+ * čitljiv tekst) od neočekivane (koja ostaje interna). Isti spisak i isti
+ * redosled kao `studioErrorMessage`, pa se dve funkcije ne mogu razići.
+ */
+export function studioErrorCode(raw: string): string | null {
+  for (const [code] of CREATE_JOB_ERROR_MESSAGES) {
+    if (raw.includes(code)) return code;
+  }
+
+  return null;
+}
+
 export function studioErrorMessage(raw: string, locale: Locale): string {
   for (const [code, message] of CREATE_JOB_ERROR_MESSAGES) {
     if (raw.includes(code)) return message[locale];

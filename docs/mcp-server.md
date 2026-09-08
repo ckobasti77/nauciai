@@ -1,19 +1,25 @@
-# Nauci AI MCP server (P1 - skelet)
+# Nauci AI MCP server (P2 - studio alati)
 
 MCP (Model Context Protocol) server platforme živi na Convex HTTP ruteru, po
 istoj arhitekturi kao Higgsfield MCP: **Streamable HTTP** transport na putanji
-`/mcp`, **JSON-RPC 2.0**, **Bearer** autentikacija API ključem. P1 ne izlaže
-nijedan studio alat - izlaže tačno jedan trivijalan alat (`whoami`) da se
-transport dokaže kraj-do-kraja.
+`/mcp`, **JSON-RPC 2.0**, **Bearer** autentikacija API ključem. P1 je dokazao
+transport jednim trivijalnim alatom (`whoami`); P2 (MCP-P2-STUDIO) dodaje šest
+studio alata, opseg `mcp:write` i UI stranu za ključeve.
+
+> **`mcp:write` TROŠI KREDITE.** Alat `create_generation` rezerviše posao i
+> skida kredite sa salda vlasnika ključa, isto kao klik na „Generiši" u
+> Studiju. Ključ sa tim opsegom se pravi svesno, izborom „Čitanje i pisanje"
+> na strani ključeva; podrazumevani ključ je samo za čitanje.
 
 | Okruženje | URL servera |
 | --- | --- |
 | prod | `https://quick-yak-270.eu-west-1.convex.site/mcp` |
 | dev | `https://wandering-fox-41.eu-west-1.convex.site/mcp` |
 
-Kod: `convex/mcp/` (transport, protokol, registar alata, rate limit, ključ),
-`convex/mcpKeys.ts` (Convex funkcije za ključeve), rute u `convex/http.ts`,
-tabela `mcpApiKeys` u `convex/schema.ts`.
+Kod: `convex/mcp/` (transport, protokol, registar alata, studio alati, rate
+limit, ključ), `convex/mcpKeys.ts` (Convex funkcije za ključeve), rute u
+`convex/http.ts`, tabela `mcpApiKeys` u `convex/schema.ts`, UI u
+`components/app/api-keys-page.tsx` (ruta `/app/profile/api-keys`).
 
 ---
 
@@ -23,10 +29,20 @@ Ključ ima oblik `nai_live_` + 43 base62 znaka (32 nasumična bajta). U bazi
 stoji **samo sha256 heš** i prvih 12 znakova za prikaz; pun ključ se vraća
 **tačno jednom**, pri kreiranju. Ako se izgubi, pravi se nov.
 
-P1 nema UI stranicu za ključeve (to je P2), pa se ključ pravi preko Convex
-CLI-ja **kao prijavljeni korisnik**. Potreban je `_id` korisnika iz tabele
-`users` (Convex dashboard -> Data -> users). Convex Auth čita korisnika iz
-`subject` polja identiteta (deo pre `|`), pa se on prosleđuje `--identity`
+### Kroz UI (od P2)
+
+Prijavljen korisnik -> Profil -> „API ključevi (MCP)" (`/app/profile/api-keys`).
+Strana lista ključeve (ime, prefiks, opsezi, kreiran, poslednja upotreba),
+pravi nov ključ sa izborom opsega („Samo čitanje" ili „Čitanje i pisanje" -
+uz upozorenje da pisanje troši kredite), pokazuje pun ključ **tačno jednom**
+sa dugmetom za kopiranje, i opoziva ključ uz potvrdu. Svaki korisnik vidi
+samo svoje ključeve; strana nije admin funkcija.
+
+### Kroz CLI
+
+I dalje radi, **kao prijavljeni korisnik**. Potreban je `_id` korisnika iz
+tabele `users` (Convex dashboard -> Data -> users). Convex Auth čita korisnika
+iz `subject` polja identiteta (deo pre `|`), pa se on prosleđuje `--identity`
 zastavicom.
 
 PowerShell, dev deployment:
@@ -34,6 +50,10 @@ PowerShell, dev deployment:
 ```
 npx convex run mcpKeys:createKey '{"name":"Claude Desktop"}' --identity '{"subject":"<USERS_ID>|cli","tokenIdentifier":"cli|<USERS_ID>"}'
 ```
+
+Sa opsegom za pisanje: `'{"name":"Claude Code","scopes":["mcp:read","mcp:write"]}'`.
+Nepoznat opseg se odbija (`NEPOZNAT_OPSEG`), prazan spisak takođe
+(`NEISPRAVNI_OPSEZI`).
 
 Za prod dodati `--prod`. Odgovor sadrži `key` - to je jedini trenutak u kom
 se pun ključ vidi:
@@ -49,7 +69,24 @@ Ostale funkcije (iste `--identity` zastavice):
 - `mcpKeys:revokeKey` - `{"keyId":"..."}` - upisuje `revokedAt`, red se ne
   briše. Tuđi ključ daje `NEMA_PRISTUPA`, isto kao nepostojeći.
 
-Opsezi: P1 daje svakom ključu `["mcp:read"]`.
+### Opsezi
+
+| Opseg | Šta otključava | Troši kredite | Rate limit |
+| --- | --- | --- | --- |
+| `mcp:read` | `whoami`, `list_models`, `get_studio_state`, `list_projects`, `get_job`, `list_my_jobs` | ne | 60 zahteva/min po ključu (svaki HTTP zahtev) |
+| `mcp:write` | `create_generation` | **da** | dodatnih 10 poziva/min po ključu |
+
+- Bez `scopes` ključ dobija tačno `["mcp:read"]`. Ključevi napravljeni u P1
+  ostaju samo na `mcp:read` - write im se ne dodaje retroaktivno.
+- `mcp:write` se dodaje SAMO uz `mcp:read` (UI nudi „Čitanje i pisanje"); sam
+  po sebi ne otključava alate za čitanje.
+- Alat kojem ključ nema opseg vraća `isError: true` sa porukom
+  `Key is missing scope "mcp:write" required by tool "create_generation".` -
+  rezultat alata, ne JSON-RPC greška, da model vidi zašto.
+- Sve provere Studija važe i kroz MCP: kill switch (`STUDIO_PAUZIRAN`),
+  pristup (`NEMA_PRISTUPA`, `EMAIL_NIJE_POTVRDJEN`), prihvaćeni uslovi, limiti
+  poslova i dnevni limiti, saldo. Ključ ne može ništa što vlasnik ne može iz
+  Studija.
 
 ---
 
@@ -78,7 +115,7 @@ Ili u `.mcp.json` (u korenu projekta) - ključ ostaje u okruženju, ne u fajlu:
 ```
 
 Provera: `claude mcp list` treba da pokaže `nauciai` kao povezan, a u
-razgovoru alat `whoami` vraća id i email korisnika.
+razgovoru alat `whoami` vraća id i email korisnika, a `list_models` katalog.
 
 ### Claude Desktop
 
@@ -118,7 +155,7 @@ Očekivano: `{"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":
 
 ---
 
-## 3. Šta P1 podržava
+## 3. Šta server podržava
 
 JSON-RPC metode:
 
@@ -134,11 +171,34 @@ Verzija protokola: server vraća verziju koju klijent traži ako je među
 `2025-11-25`, `2025-06-18`, `2025-03-26`, `2024-11-05`; inače `2025-06-18`.
 Batch zahtevi (niz) rade; server je bez stanja i ne izdaje `Mcp-Session-Id`.
 
-Alati:
+### Alati
 
-| Alat | Ulaz | Izlaz | Opseg |
+Svaki alat ima JSON Schemu ulaza (`type: "object"`, eksplicitna `properties`,
+`required`, `additionalProperties: false`). Ulaz se proverava PRE poziva u
+Convex; odstupanje je JSON-RPC `-32602`. Rezultat je `content[0].text` sa JSON
+tekstom; `isError: true` znači domensku grešku sa čitljivom porukom na srpskom
+i kodom u zagradi.
+
+| Alat | Opseg | Ulaz | Izlaz |
 | --- | --- | --- | --- |
-| `whoami` | nema | `{userId, email, keyName, scopes}` | `mcp:read` |
+| `whoami` | `mcp:read` | nema | `{userId, email, keyName, scopes}` |
+| `list_models` | `mcp:read` | nema | niz uključenih modela: `{slug, kind, provider, family, labelSr, labelEn, taglineSr, inputModes, paramSpec, priceRule, capabilities}` (JSON polja parsirana) |
+| `get_studio_state` | `mcp:read` | nema | `studio.getStudioState` polja (`enabled`, `hasStudioAccess`, `accessReason`, `hasAcceptedTerms`, `activeJobs`, `maxActiveJobs`, `providerStatus`, ...) + `credits: {balance, lifetimePurchased, lifetimeSpent, updatedAt}` |
+| `list_projects` | `mcp:read` | nema | `{projects: [{id, name, createdAt}]}` - samo nearhivirani |
+| `create_generation` | **`mcp:write`** | `modelSlug` (string), `params` (objekat po `paramSpec`-u modela, npr. `{"prompt": "..."}`), `projectId?` (string) | `{jobId, status, creditCost, modelSlug}`; domenska greška -> `isError` (npr. `... (STUDIO_PAUZIRAN)`, `... (NEDOVOLJNO_KREDITA)`, `... (MODEL_NEDOSTUPAN)`, `... (DNEVNI_LIMIT)`, `... (PREVISE_POSLOVA)`); pogodak blok liste -> `isError` sa `ZABRANJEN_POJAM` |
+| `get_job` | `mcp:read` | `jobId` (string) | `{jobId, status, modelSlug, kind, creditCost, createdAt, completedAt, params, outputUrl, expiresAt, error, isMock}`; `outputUrl` je potpisan URL SAMO kad je `status: "done"`; tuđ, nepostojeći ili neparsiv id -> `isError` „Posao nije pronađen." |
+| `list_my_jobs` | `mcp:read` | `limit?` (1-50, podrazumevano 20), `kind?` (`image`/`video`/`audio`), `modelSlug?`, `projectId?`, `cursor?` | `{jobs: [...isti oblik kao get_job], nextCursor, isDone}`; `nextCursor` ide u `cursor` sledećeg poziva, `null` kad je kraj |
+
+`create_generation` prima `params` kao objekat i sam ga serijalizuje u JSON
+string koji `studio.createJob` očekuje. Status posla se prati kroz `get_job`
+(`reserved` -> `running` -> `done`/`failed`/`refunded`).
+
+Identitet: MCP pozivalac nema Convex Auth sesiju, pa alati zovu INTERNE
+varijante studio funkcija (`createJobInternal`, `listMyJobsInternal`,
+`getJobForDetailInternal`, `getStudioStateInternal`, `listModelsInternal`,
+`listActiveProjectsInternal`, `getBalanceInternal`) koje primaju `userId` iz
+ključa i dele telo (`...ForUser`) sa javnim funkcijama - jedna odluka o
+pristupu i limitima za oba puta. Interne varijante nisu u `api`.
 
 Transport:
 
@@ -155,6 +215,7 @@ Greške:
 | --- | --- | --- |
 | bez/neispravno/nepostojeće/revokovano Bearer zaglavlje | 401 | -32001 (uvek ista poruka, bez razloga) |
 | više od 60 zahteva u minutu po ključu | 429 + `Retry-After` | -32002 |
+| više od 10 `mcp:write` poziva u minutu po ključu | 200 | -32002 sa `data.retryAfterSeconds` |
 | telo veće od 1 MB | 413 | -32003 |
 | loš JSON | 400 | -32700 |
 | neispravan JSON-RPC zahtev | 400 | -32600 |
@@ -162,22 +223,20 @@ Greške:
 | neispravni parametri | 200 | -32602 |
 | neočekivana greška (nikad stack trace) | 200 / 500 | -32603 |
 
-Rate limit u P1 je u memoriji izolata (`convex/mcp/rateLimit.ts`), pa je
-stvarna granica labava kad Convex podigne više izolata; interfejs je
-zamenljiv i P2 ga vodi u tabelu. `lastUsedAt` se osvežava najviše jednom u
-minutu po ključu i nikad ne obara zahtev.
+Rate limit je u memoriji izolata (`convex/mcp/rateLimit.ts`), razdvojen po
+opsegu: čitanje 60 zahteva/min (transport, svaki zahtev), pisanje dodatnih 10
+poziva/min (registar alata, po `tools/call`). Granica je labava kad Convex
+podigne više izolata; interfejs je zamenljiv tabelom. `lastUsedAt` se osvežava
+najviše jednom u minutu po ključu i nikad ne obara zahtev.
 
 ---
 
-## 4. Šta dolazi u P2
+## 4. Šta je P2 doneo i šta ostaje
 
-- Studio alati: pokretanje generisanja (`generationJobs`), status posla,
-  projekti (`studioProjects`), krediti - svaki sa svojim opsegom
-  (`studio:read`, `studio:write`), registrovan kao nov unos u
-  `convex/mcp/tools.ts`.
-- UI stranica za ključeve (kreiranje, prikaz prefiksa, revokacija) umesto
-  CLI-ja.
-- Rate limit u tabeli (ili `@convex-dev/rate-limiter`) umesto memorije.
+P2 (MCP-P2-STUDIO): šest studio alata (`convex/mcp/studioTools.ts`), opseg
+`mcp:write`, `createKey` sa `scopes`, rate limit po opsegu, UI strana za
+ključeve pod profilom, interne `*Internal` varijante studio funkcija.
 
-Nije planirano ni u P2: OAuth (ostaje Bearer), `resources/` i `prompts/` MCP
+Ostaje za kasnije: rate limit u tabeli (ili `@convex-dev/rate-limiter`) umesto
+memorije. Nije planirano: OAuth (ostaje Bearer), `resources/` i `prompts/` MCP
 primitivi.

@@ -15,7 +15,15 @@ export const KEY_RANDOM_BYTES = 32;
 export const KEY_BASE62_LENGTH = 43;
 
 export const MCP_SCOPE_READ = "mcp:read";
+/** Alati koji TROŠE KREDITE (`create_generation`). Ključ ga dobija samo svesnim izborom pri kreiranju. */
+export const MCP_SCOPE_WRITE = "mcp:write";
+export const MCP_SCOPES: readonly string[] = [MCP_SCOPE_READ, MCP_SCOPE_WRITE];
+/** Podrazumevano samo čitanje - i za ključeve iz P1, kojima se write ne dodaje retroaktivno. */
 export const DEFAULT_KEY_SCOPES: readonly string[] = [MCP_SCOPE_READ];
+
+export function isKnownScope(scope: string): boolean {
+  return MCP_SCOPES.includes(scope);
+}
 
 const BASE62 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 

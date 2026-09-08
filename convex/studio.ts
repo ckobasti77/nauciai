@@ -1,5 +1,5 @@
 import { paginationOptsValidator } from "convex/server";
-import { v } from "convex/values";
+import { type ObjectType, v } from "convex/values";
 
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
@@ -20,7 +20,7 @@ import {
   signupBonusKey,
   validatePrompt,
 } from "./creditsCore";
-import { getCurrentProfile, requireUserId } from "./helpers";
+import { effectiveRoleForProfile, getCurrentProfile, requireUserId } from "./helpers";
 import { applyTaskCompletion, assertLessonAccess } from "./lab";
 import { parseJobInputs } from "./providers/jobInputs";
 import {
@@ -481,6 +481,25 @@ async function evaluateStudioAccess(
 }
 
 /**
+ * Nalogodavac po EKSPLICITNOM `userId`-ju (MCP-P2-STUDIO, tačka 1): MCP
+ * pozivalac nema Convex Auth sesiju, identitet mu daje API ključ. Izvodi isto
+ * što `getCurrentProfile` izvede iz sesije - red korisnika i efektivnu ulogu
+ * (`INITIAL_ADMIN_EMAILS` nadjačava kolonu) - pa javna i interna grana
+ * `createJob`/`getStudioState` dele JEDNU odluku o pristupu. Nepostojeći
+ * korisnik greši isto kao tamo (`Unauthorized`).
+ */
+async function studioActorForUser(ctx: QueryCtx | MutationCtx, userId: Id<"users">) {
+  const user = await ctx.db.get(userId);
+  if (!user) throw new Error("Unauthorized");
+  const email = String(user.email ?? "").toLowerCase();
+  return {
+    userId,
+    role: effectiveRoleForProfile(email, user.role),
+    existing: user as Record<string, unknown>,
+  };
+}
+
+/**
  * Gejt po uzoru na `requireUserId` (brif F1): svaka Studio mutacija koja PRAVI
  * resurse (upload grant, registracija fajla, projekat) zove ovo pre ijednog
  * upisa, pa korisnik kojeg `createJob` ne bi pustio ne može ni da puni storage.
@@ -495,328 +514,365 @@ export async function requireStudioAccess(ctx: MutationCtx | QueryCtx) {
   return { ...profile, publicEnabled, config };
 }
 
+/** Ulaz `createJob`-a - jedan validator za javnu mutaciju i tip deljenog tela. */
+const createJobArgs = {
+  modelSlug: v.string(),
+  params: v.string(),
+  // Ulazni režim i okačeni fajlovi (STUDIO-CATALOG-V4 sekcija 5). Postoje
+  // samo za v4 katalog; stari `modelCatalog` ih nema i ignoriše ih.
+  inputMode: v.optional(v.string()),
+  inputs: v.optional(v.string()),
+  // ID prethodne generacije OVOG modela iz `generationJobs`, izabran u galeriji
+  // - jedini ulaz koji rezimi sa `capabilities.continuation` primaju (nalaz S3,
+  // Gemini Omni "video"). Nije upload, pa ne ide kroz `inputs`.
+  sourceJobId: v.optional(v.id("generationJobs")),
+  // Trajanje okačenog snimka se OVDE VIŠE NE PRIMA (W5, nalaz R3). Meri ga
+  // `studioActions.measureInputUpload` iz zaglavlja fajla i upisuje uz sam
+  // upload; ono što je klijent pročitao iz `<video>` metapodataka služi samo
+  // da cena na dugmetu stoji dok merenje ne stigne.
+  // Kontekst lekcije (STUDIO-PLAN 1.1): kad Studio widget stoji u output
+  // pane-u lekcije, izlaz treba da postane `labOutputs` red i dokaz da je
+  // zadatak uradjen. Bez ovih polja ta veza se kasnije ne može rekonstruisati.
+  lessonId: v.optional(v.id("lessons")),
+  taskId: v.optional(v.id("lessonTasks")),
+  // Projekat kojem generacija pripada (SP2). Polje je opciono namerno:
+  // generacije bez projekta su podrazumevano stanje ("Sve generacije").
+  projectId: v.optional(v.id("studioProjects")),
+};
+type CreateJobArgs = ObjectType<typeof createJobArgs>;
+
 /**
  * Rezervacija posla iz koraka 1 sekcije 4.2 STUDIO-PLAN-a. Sve provere idu
  * PRE prvog upisa, a rezervacija posla i skidanje kredita su u istoj
  * transakciji - ne sme da ostane ni skinut kredit bez posla, ni posao bez
  * skinutog kredita.
+ *
+ * Telo je deljeno (MCP-P2-STUDIO, tačka 1) između javne mutacije `createJob`
+ * (identitet iz sesije) i interne `createJobInternal` (identitet iz API
+ * ključa). SVE provere - kill switch, `decideStudioAccess`, limiti, uslovi,
+ * rezervacija kredita, projekat - žive ovde, pa važe za oba puta.
  */
+async function createJobForUser(ctx: MutationCtx, userId: Id<"users">, args: CreateJobArgs) {
+  // Uloga se čita zajedno sa korisnikom jer o pristupu odlučuje
+  // `decideStudioAccess` niže - sam ID ne bi bio dovoljan, pa bi
+  // enrollment ostao jedini kriterijum.
+  const { role, existing } = await studioActorForUser(ctx, userId);
+
+  // Provera projekta (SP2): ide PRE rezervacije kredita. Tuđ ili arhiviran
+  // projekat se odbija sa NEMA_PRISTUPA.
+  if (args.projectId) {
+    const project = await ctx.db.get(args.projectId);
+    if (!project || project.userId !== userId || project.archivedAt !== undefined) {
+      throw new Error("NEMA_PRISTUPA");
+    }
+  }
+
+  // Kill switch se čita prvi, pre svega ostalog. Red koji ne postoji znači
+  // "nikad nije ni gašen" - podrazumevana vrednost seed-a je `true`.
+  const flag = await ctx.db
+    .query("platformFlags")
+    .withIndex("by_key", (q) => q.eq("key", STUDIO_FLAG_KEY))
+    .unique();
+  if (flag && !flag.enabled) throw new Error("STUDIO_PAUZIRAN");
+
+  // Pristup (STUDIO-PLAN 4.4 + studio-public F1): odluku donosi
+  // `decideStudioAccess` kroz `evaluateStudioAccess` - ugašen javni fleg
+  // reprodukuje `STUDIO_STAFF_ONLY` ponašanje u potpunosti (osoblje, uspavana
+  // formula upisa), upaljen pušta i svakog prijavljenog sa POTVRĐENIM emailom.
+  // Ista funkcija odlučuje gde se gasi dugme u UI-ju (`getStudioState`);
+  // naplata ispod ostaje ista za sve.
+  const publicState = await loadStudioPublicState(ctx);
+  const access = await evaluateStudioAccess(ctx, { userId, role, existing }, publicState.publicEnabled);
+  if (!access.allowed) throw new Error(access.reason);
+
+  // Granice za OVOG korisnika (studio-public F2.4): osoblje zadržava
+  // današnje (3 posla, 50/dan, bez minutnog i kreditnog kapa), javni
+  // korisnici dobijaju {2, 6/min, 200/dan, 500 kr/dan} sa config
+  // override-om iz `platformFlags`.
+  const limits = resolveStudioLimits(publicState.config, isStudioStaff(role));
+
+  // Uslovi Studija (X7). Bez pečata nema prvog posla, i tu izuzetka nema:
+  // admin i moderator generišu istim modelima, sa istim zabranama i istim
+  // prosleđivanjem podataka provajderima, pa pristanak daju kao i svi.
+  if (typeof existing.acceptedStudioTermsAt !== "number") {
+    throw new Error("USLOVI_NEPRIHVACENI");
+  }
+
+  // Kontekst lekcije se proverava istim putem kao i u `lab.saveLabOutput`:
+  // upis u Studio ne daje pristup tudjem kursu, pa izlaz ne sme da sleti u
+  // lekciju koju korisnik ne sme ni da otvori. Zadatak bez lekcije se odbija
+  // jer `labOutputs` bez `lessonId` ne postoji.
+  if (args.taskId && !args.lessonId) throw new Error("ZADATAK_BEZ_LEKCIJE");
+  if (args.lessonId) {
+    await assertLessonAccess(ctx, args.lessonId);
+    if (args.taskId) {
+      const task = await ctx.db.get(args.taskId);
+      if (!task || task.lessonId !== args.lessonId) throw new Error("ZADATAK_NIJE_U_LEKCIJI");
+    }
+  }
+
+  const params = parseParams(args.params);
+  if (!params) throw new Error("NEISPRAVNI_PARAMETRI");
+
+  // Katalog v4 ima prednost nad starim `modelCatalog`-om: isti slug u obe
+  // tabele znači model koji je PRESELJEN, a ne dva modela. Model kojeg u
+  // `models` nema ide starim putem nepromenjen.
+  const v4Model = await ctx.db
+    .query("models")
+    .withIndex("by_slug", (q) => q.eq("slug", args.modelSlug))
+    .unique();
+
+  const order = v4Model
+    ? await buildCatalogOrder(ctx, userId, v4Model, params, args)
+    : await buildLegacyOrder(ctx, args.modelSlug, params);
+
+  // Pogodak blok liste (F2.5): jedini upis ove transakcije je log red -
+  // sve pre ovoga su čitanja, pa COMMIT ne ostavlja ni posao, ni potrošnju,
+  // ni zakazano slanje. Vraća se vrednost umesto greške da log preživi
+  // (throw bi ga rollback-ovao); klijent na `moderationBlocked` prikazuje
+  // istu poruku kao za NEISPRAVAN_PROMPT:ZABRANJEN_POJAM.
+  if ("moderation" in order) {
+    await ctx.db.insert("studioModerationLog", {
+      userId,
+      category: order.moderation.category,
+      reason: order.moderation.reason,
+      promptHash: promptHash(order.moderation.prompt),
+      promptLength: order.moderation.prompt.length,
+      modelSlug: order.moderation.modelSlug,
+      createdAt: Date.now(),
+    });
+    return {
+      moderationBlocked: {
+        reason: order.moderation.reason,
+        category: order.moderation.category,
+      },
+    };
+  }
+
+  // Trag propuštenog prompta (nalaz V8): otisak SVAKOG prompta koji je prošao
+  // keyword-filter, bez teksta - da bypass filtera (leet/homoglif/spajanje
+  // koji ipak provuče zabranjen sadržaj) NE bude nem. Piše se u ISTOJ
+  // transakciji kao rezervacija posla, pa persistira tačno kad posao zaista
+  // nastane (throw dole - DEMO/spor/limit - rollback-uje i posao i ovaj red,
+  // a takav posao ionako ne stiže do provajdera). Prazan prompt (samo-slot
+  // režim) se ne loguje: nema šta da se sondira.
+  if (order.prompt.trim().length > 0) {
+    await ctx.db.insert("studioPromptLog", {
+      userId,
+      promptHash: promptHash(order.prompt),
+      promptLength: order.prompt.length,
+      modelSlug: order.slug,
+      createdAt: Date.now(),
+    });
+  }
+
+  // DEMO zaštita (studio-public F2.9, nalaz R10): bez ključa provajdera
+  // posao ide u mock, a krediti se REALNO troše ("demo provajdera, ne
+  // ledgera"). Osoblju je to alat za testiranje; javni korisnik ne sme da
+  // plati SVG mock - model bez ključa je za njega nedostupan, isto kao
+  // isključen model. `providerKeyPresent` je ista (jedina) mock kapija koju
+  // čita i `submitJob`, pa server i DEMO pilula u biraču ne mogu da se raziđu.
+  if (
+    publicState.publicEnabled &&
+    !isStudioStaff(role) &&
+    !providerKeyPresent(order.provider, process.env)
+  ) {
+    throw new Error("MODEL_NEDOSTUPAN");
+  }
+
+  const cleanParams = order.params;
+  const estimatedCostUsd = order.estimatedCostUsd;
+
+  // Osporena uplata (X7): chargeback traje nedeljama, i sve to vreme se ne
+  // sme generisati na račun novca koji će verovatno otići nazad. Brava visi
+  // na redu u `creditReversals`, ne na balansu - dopuna kredita je ne skida,
+  // skida je tek uklanjanje reda kad se spor reši.
+  const dispute = await ctx.db
+    .query("creditReversals")
+    .withIndex("by_userId_and_kind", (q) => q.eq("userId", userId).eq("kind", "dispute"))
+    .first();
+  if (dispute) throw new Error("SPOR_U_TOKU");
+
+  // Negativan saldo (X7): refundirana uplata je oduzela kredite koji su već
+  // bili potrošeni. Razlika stoji kao minus i Studio je zatvoren dok se ne
+  // poravna - dopunom ili ručnom ispravkom. `applySpend` ovo ne bi uhvatio:
+  // on gleda lotove, a minus može da stoji uz sasvim upotrebljive lotove iz
+  // druge uplate.
+  const balanceRow = await ctx.db
+    .query("creditBalances")
+    .withIndex("by_user", (q) => q.eq("userId", userId))
+    .unique();
+  if ((balanceRow?.balance ?? 0) < 0) throw new Error("SALDO_U_MINUSU");
+
+  // Dug iz poravnanja (X2, nalaz N2): posao čiji je stvaran trošak premašio
+  // ono što je korisnik imao ostavlja `unsettledCredits` na svom redu. Dok dug
+  // stoji, novih poslova nema - bez ove brave bi nalog sa 6,50 € kredita mogao
+  // ceo dan da radi na dug.
+  const debt = await ctx.db
+    .query("generationJobs")
+    .withIndex("by_user_unsettled", (q) => q.eq("userId", userId).gt("unsettledCredits", 0))
+    .first();
+  if (debt) throw new Error("NEPORAVNAT_DUG");
+
+  const reserved = await ctx.db
+    .query("generationJobs")
+    .withIndex("by_user_status", (q) => q.eq("userId", userId).eq("status", "reserved"))
+    .take(limits.maxConcurrentJobs);
+  const running = await ctx.db
+    .query("generationJobs")
+    .withIndex("by_user_status", (q) => q.eq("userId", userId).eq("status", "running"))
+    .take(limits.maxConcurrentJobs);
+  if (reserved.length + running.length >= limits.maxConcurrentJobs) {
+    throw new Error("PREVISE_POSLOVA");
+  }
+
+  // Prozor između rezervacije i poravnanja (X2). Poslovi u letu su jedini o
+  // kojima se još ništa ne zna osim procene, pa se njihov zbir drži nisko:
+  // tri paralelna posla od po 72 $ su isti napad kao pedeset uzastopnih, a
+  // poravnanje ih ispravlja tek kad se završe. `take` iznad je vratio SVE
+  // takve poslove (inače bi provera reda gore već bacila), pa je zbir tačan.
+  const inFlightCostUsd = [...reserved, ...running].reduce(
+    (sum, job) => sum + (job.estimatedCostUsd ?? 0),
+    0,
+  );
+  if (exceedsUnsettledCostLimit(inFlightCostUsd)) throw new Error("PREVISE_NEPORAVNATOG");
+
+  const now = Date.now();
+
+  // Minutni limit (studio-public F2.4): brojanje kroz `by_user` indeks po
+  // `createdAt` opsegu. Convex OCC ovo čini bezbednim pod konkurentnošću -
+  // dva istovremena `createJob`-a čitaju isti opseg, pa insert pobednika
+  // preseca read-set gubitnika i on se ponavlja sa svežim brojem. `deleteJob`
+  // može da izbriše SAMO završen posao (in-flight odbija), pa rupa u prozoru
+  // znači završenu generaciju, ne prevaru.
+  if (limits.maxJobsPerMinute !== null) {
+    const lastMinute = await ctx.db
+      .query("generationJobs")
+      .withIndex("by_user", (q) => q.eq("userId", userId).gte("createdAt", now - 60_000))
+      .take(limits.maxJobsPerMinute);
+    if (lastMinute.length >= limits.maxJobsPerMinute) throw new Error("MINUTNI_LIMIT");
+  }
+
+  const day = dayKey(now);
+  const usage = await ctx.db
+    .query("studioUsageDaily")
+    .withIndex("by_user_day", (q) => q.eq("userId", userId).eq("day", day))
+    .unique();
+  if ((usage?.generations ?? 0) >= limits.maxJobsPerDay) throw new Error("DNEVNI_LIMIT");
+  // Dnevni kap POTROŠNJE KREDITA (studio-public F2.4) - soft cap sa jasnom
+  // porukom: ništa se ne upisuje, krediti ostaju, sutra se nastavlja. Meri se
+  // ono što bi OVAJ posao doneo preko već potrošenog danas.
+  if (
+    limits.maxDailyCredits !== null &&
+    (usage?.creditsSpent ?? 0) + order.creditCost > limits.maxDailyCredits
+  ) {
+    throw new Error("DNEVNI_LIMIT_KREDITA");
+  }
+  // Treći plafon je u dolarima, ne u komadima: broj generacija ne kaže ništa
+  // dok korisnik bira između modela od 0,005 $ i modela od 2 $.
+  if (exceedsDailyCostLimit(usage?.costUsd ?? 0, estimatedCostUsd)) {
+    throw new Error("DNEVNI_LIMIT_TROSKA");
+  }
+
+  const creditCost = order.creditCost;
+
+  // Upis posla ide PRE potrošnje jer `credits.applySpend` (A2) traži `jobId`
+  // - to je ključ pod kojim se refund kasnije prepoznaje. Sve je i dalje
+  // jedna transakcija: ako potrošnja pukne (NEDOVOLJNO_KREDITA), ovaj insert
+  // se poništava sam, bez ručnog rollback-a.
+  const jobId = await ctx.db.insert("generationJobs", {
+    userId,
+    modelSlug: order.slug,
+    kind: order.kind,
+    provider: order.provider,
+    params: JSON.stringify(cleanParams),
+    promptHash: promptHash(order.prompt),
+    status: "reserved",
+    creditCost,
+    // Procena iz kataloga se pamti UZ POSAO, ne samo u dnevnom zbiru: bez nje
+    // se stvaran trošak (`actualCostUsd`, W6) nema sa čim porediti, jer
+    // `studioUsageDaily.costUsd` je već sabran po korisniku i danu.
+    estimatedCostUsd,
+    ...(order.inputMode ? { inputMode: order.inputMode } : {}),
+    ...(order.inputs ? { inputs: order.inputs } : {}),
+    // Po čemu je naplaćeno trajanje ispalo onakvo kakvo jeste (X1). Kad je
+    // donja granica iz bajtova nadjačala zaglavlje, uz posao stoje i oba
+    // broja - to je jedini trag o tome ko je zaglavlje prepravljao.
+    ...(order.durationSource ? { durationSource: order.durationSource } : {}),
+    ...(order.headerDurationS !== undefined
+      ? { headerDurationS: order.headerDurationS }
+      : {}),
+    ...(order.billedDurationS !== undefined
+      ? { billedDurationS: order.billedDurationS }
+      : {}),
+    ...(args.lessonId ? { lessonId: args.lessonId } : {}),
+    ...(args.taskId ? { taskId: args.taskId } : {}),
+    ...(args.projectId ? { projectId: args.projectId } : {}),
+    createdAt: now,
+  });
+
+  // Fajl koji je ušao u posao više ne ističe: rok od 24 h postoji samo za
+  // uploade koje niko nije upotrebio, a ulaz posla mora da preživi koliko i
+  // posao - galerija i "Generiši ponovo" ga potpisuju i mnogo kasnije.
+  for (const uploadId of order.uploadIds) {
+    await ctx.db.patch(uploadId, { expiresAt: undefined });
+  }
+
+  // Obična funkcija, a ne `ctx.runMutation`: ugnježdena mutacija je
+  // podtransakcija koju pozivalac SME da uhvati i nastavi, pa bi jedan
+  // `try/catch` dodat zbog lepše poruke tiho razvalio atomičnost. Ovako
+  // potrošnja pada zajedno sa poslom, strukturno.
+  await applySpend(ctx, { userId, amount: creditCost, jobId });
+
+  if (usage) {
+    await ctx.db.patch(usage._id, {
+      generations: usage.generations + 1,
+      creditsSpent: usage.creditsSpent + creditCost,
+      costUsd: usage.costUsd + estimatedCostUsd,
+    });
+  } else {
+    await ctx.db.insert("studioUsageDaily", {
+      userId,
+      day,
+      generations: 1,
+      creditsSpent: creditCost,
+      costUsd: estimatedCostUsd,
+    });
+  }
+
+  await ctx.scheduler.runAfter(0, internal.studioActions.submitJob, { jobId });
+
+  return jobId;
+}
+
 export const createJob = mutation({
+  args: createJobArgs,
+  handler: async (ctx, args) => createJobForUser(ctx, await requireUserId(ctx), args),
+});
+
+/**
+ * Ista rezervacija za pozivaoca čiji identitet NE dolazi iz sesije nego iz
+ * MCP API ključa (`convex/mcp/studioTools.ts`). Samo `internal` - nikad kroz
+ * `api`, jer prima `userId` kao argument. Prima ono što MCP alat
+ * `create_generation` šalje: model, parametre i (opciono) projekat.
+ *
+ * `projectId` stiže kao sirov string iz ulaza alata, a `ActionCtx` nema
+ * `normalizeId`, pa se ovde normalizuje: id koji se ne parsira ponaša se kao
+ * projekat koji ne postoji (NEMA_PRISTUPA), ne kao greška validacije (500).
+ */
+export const createJobInternal = internalMutation({
   args: {
+    userId: v.id("users"),
     modelSlug: v.string(),
     params: v.string(),
-    // Ulazni režim i okačeni fajlovi (STUDIO-CATALOG-V4 sekcija 5). Postoje
-    // samo za v4 katalog; stari `modelCatalog` ih nema i ignoriše ih.
-    inputMode: v.optional(v.string()),
-    inputs: v.optional(v.string()),
-    // ID prethodne generacije OVOG modela iz `generationJobs`, izabran u galeriji
-    // - jedini ulaz koji rezimi sa `capabilities.continuation` primaju (nalaz S3,
-    // Gemini Omni "video"). Nije upload, pa ne ide kroz `inputs`.
-    sourceJobId: v.optional(v.id("generationJobs")),
-    // Trajanje okačenog snimka se OVDE VIŠE NE PRIMA (W5, nalaz R3). Meri ga
-    // `studioActions.measureInputUpload` iz zaglavlja fajla i upisuje uz sam
-    // upload; ono što je klijent pročitao iz `<video>` metapodataka služi samo
-    // da cena na dugmetu stoji dok merenje ne stigne.
-    // Kontekst lekcije (STUDIO-PLAN 1.1): kad Studio widget stoji u output
-    // pane-u lekcije, izlaz treba da postane `labOutputs` red i dokaz da je
-    // zadatak uradjen. Bez ovih polja ta veza se kasnije ne može rekonstruisati.
-    lessonId: v.optional(v.id("lessons")),
-    taskId: v.optional(v.id("lessonTasks")),
-    // Projekat kojem generacija pripada (SP2). Polje je opciono namerno:
-    // generacije bez projekta su podrazumevano stanje ("Sve generacije").
-    projectId: v.optional(v.id("studioProjects")),
+    projectId: v.optional(v.string()),
   },
-  handler: async (ctx, args) => {
-    // Uloga se čita zajedno sa korisnikom jer o pristupu odlučuje
-    // `decideStudioAccess` niže - `requireUserId` bi vratio samo ID, pa bi
-    // enrollment ostao jedini kriterijum.
-    const { userId, role, existing } = await getCurrentProfile(ctx);
+  handler: async (ctx, { userId, projectId: rawProjectId, ...rest }) => {
+    const projectId =
+      rawProjectId === undefined ? undefined : ctx.db.normalizeId("studioProjects", rawProjectId);
+    if (projectId === null) throw new Error("NEMA_PRISTUPA");
 
-    // Provera projekta (SP2): ide PRE rezervacije kredita. Tuđ ili arhiviran
-    // projekat se odbija sa NEMA_PRISTUPA.
-    if (args.projectId) {
-      const project = await ctx.db.get(args.projectId);
-      if (!project || project.userId !== userId || project.archivedAt !== undefined) {
-        throw new Error("NEMA_PRISTUPA");
-      }
-    }
-
-    // Kill switch se čita prvi, pre svega ostalog. Red koji ne postoji znači
-    // "nikad nije ni gašen" - podrazumevana vrednost seed-a je `true`.
-    const flag = await ctx.db
-      .query("platformFlags")
-      .withIndex("by_key", (q) => q.eq("key", STUDIO_FLAG_KEY))
-      .unique();
-    if (flag && !flag.enabled) throw new Error("STUDIO_PAUZIRAN");
-
-    // Pristup (STUDIO-PLAN 4.4 + studio-public F1): odluku donosi
-    // `decideStudioAccess` kroz `evaluateStudioAccess` - ugašen javni fleg
-    // reprodukuje `STUDIO_STAFF_ONLY` ponašanje u potpunosti (osoblje, uspavana
-    // formula upisa), upaljen pušta i svakog prijavljenog sa POTVRĐENIM emailom.
-    // Ista funkcija odlučuje gde se gasi dugme u UI-ju (`getStudioState`);
-    // naplata ispod ostaje ista za sve.
-    const publicState = await loadStudioPublicState(ctx);
-    const access = await evaluateStudioAccess(ctx, { userId, role, existing }, publicState.publicEnabled);
-    if (!access.allowed) throw new Error(access.reason);
-
-    // Granice za OVOG korisnika (studio-public F2.4): osoblje zadržava
-    // današnje (3 posla, 50/dan, bez minutnog i kreditnog kapa), javni
-    // korisnici dobijaju {2, 6/min, 200/dan, 500 kr/dan} sa config
-    // override-om iz `platformFlags`.
-    const limits = resolveStudioLimits(publicState.config, isStudioStaff(role));
-
-    // Uslovi Studija (X7). Bez pečata nema prvog posla, i tu izuzetka nema:
-    // admin i moderator generišu istim modelima, sa istim zabranama i istim
-    // prosleđivanjem podataka provajderima, pa pristanak daju kao i svi.
-    if (typeof existing.acceptedStudioTermsAt !== "number") {
-      throw new Error("USLOVI_NEPRIHVACENI");
-    }
-
-    // Kontekst lekcije se proverava istim putem kao i u `lab.saveLabOutput`:
-    // upis u Studio ne daje pristup tudjem kursu, pa izlaz ne sme da sleti u
-    // lekciju koju korisnik ne sme ni da otvori. Zadatak bez lekcije se odbija
-    // jer `labOutputs` bez `lessonId` ne postoji.
-    if (args.taskId && !args.lessonId) throw new Error("ZADATAK_BEZ_LEKCIJE");
-    if (args.lessonId) {
-      await assertLessonAccess(ctx, args.lessonId);
-      if (args.taskId) {
-        const task = await ctx.db.get(args.taskId);
-        if (!task || task.lessonId !== args.lessonId) throw new Error("ZADATAK_NIJE_U_LEKCIJI");
-      }
-    }
-
-    const params = parseParams(args.params);
-    if (!params) throw new Error("NEISPRAVNI_PARAMETRI");
-
-    // Katalog v4 ima prednost nad starim `modelCatalog`-om: isti slug u obe
-    // tabele znači model koji je PRESELJEN, a ne dva modela. Model kojeg u
-    // `models` nema ide starim putem nepromenjen.
-    const v4Model = await ctx.db
-      .query("models")
-      .withIndex("by_slug", (q) => q.eq("slug", args.modelSlug))
-      .unique();
-
-    const order = v4Model
-      ? await buildCatalogOrder(ctx, userId, v4Model, params, args)
-      : await buildLegacyOrder(ctx, args.modelSlug, params);
-
-    // Pogodak blok liste (F2.5): jedini upis ove transakcije je log red -
-    // sve pre ovoga su čitanja, pa COMMIT ne ostavlja ni posao, ni potrošnju,
-    // ni zakazano slanje. Vraća se vrednost umesto greške da log preživi
-    // (throw bi ga rollback-ovao); klijent na `moderationBlocked` prikazuje
-    // istu poruku kao za NEISPRAVAN_PROMPT:ZABRANJEN_POJAM.
-    if ("moderation" in order) {
-      await ctx.db.insert("studioModerationLog", {
-        userId,
-        category: order.moderation.category,
-        reason: order.moderation.reason,
-        promptHash: promptHash(order.moderation.prompt),
-        promptLength: order.moderation.prompt.length,
-        modelSlug: order.moderation.modelSlug,
-        createdAt: Date.now(),
-      });
-      return {
-        moderationBlocked: {
-          reason: order.moderation.reason,
-          category: order.moderation.category,
-        },
-      };
-    }
-
-    // Trag propuštenog prompta (nalaz V8): otisak SVAKOG prompta koji je prošao
-    // keyword-filter, bez teksta - da bypass filtera (leet/homoglif/spajanje
-    // koji ipak provuče zabranjen sadržaj) NE bude nem. Piše se u ISTOJ
-    // transakciji kao rezervacija posla, pa persistira tačno kad posao zaista
-    // nastane (throw dole - DEMO/spor/limit - rollback-uje i posao i ovaj red,
-    // a takav posao ionako ne stiže do provajdera). Prazan prompt (samo-slot
-    // režim) se ne loguje: nema šta da se sondira.
-    if (order.prompt.trim().length > 0) {
-      await ctx.db.insert("studioPromptLog", {
-        userId,
-        promptHash: promptHash(order.prompt),
-        promptLength: order.prompt.length,
-        modelSlug: order.slug,
-        createdAt: Date.now(),
-      });
-    }
-
-    // DEMO zaštita (studio-public F2.9, nalaz R10): bez ključa provajdera
-    // posao ide u mock, a krediti se REALNO troše ("demo provajdera, ne
-    // ledgera"). Osoblju je to alat za testiranje; javni korisnik ne sme da
-    // plati SVG mock - model bez ključa je za njega nedostupan, isto kao
-    // isključen model. `providerKeyPresent` je ista (jedina) mock kapija koju
-    // čita i `submitJob`, pa server i DEMO pilula u biraču ne mogu da se raziđu.
-    if (
-      publicState.publicEnabled &&
-      !isStudioStaff(role) &&
-      !providerKeyPresent(order.provider, process.env)
-    ) {
-      throw new Error("MODEL_NEDOSTUPAN");
-    }
-
-    const cleanParams = order.params;
-    const estimatedCostUsd = order.estimatedCostUsd;
-
-    // Osporena uplata (X7): chargeback traje nedeljama, i sve to vreme se ne
-    // sme generisati na račun novca koji će verovatno otići nazad. Brava visi
-    // na redu u `creditReversals`, ne na balansu - dopuna kredita je ne skida,
-    // skida je tek uklanjanje reda kad se spor reši.
-    const dispute = await ctx.db
-      .query("creditReversals")
-      .withIndex("by_userId_and_kind", (q) => q.eq("userId", userId).eq("kind", "dispute"))
-      .first();
-    if (dispute) throw new Error("SPOR_U_TOKU");
-
-    // Negativan saldo (X7): refundirana uplata je oduzela kredite koji su već
-    // bili potrošeni. Razlika stoji kao minus i Studio je zatvoren dok se ne
-    // poravna - dopunom ili ručnom ispravkom. `applySpend` ovo ne bi uhvatio:
-    // on gleda lotove, a minus može da stoji uz sasvim upotrebljive lotove iz
-    // druge uplate.
-    const balanceRow = await ctx.db
-      .query("creditBalances")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .unique();
-    if ((balanceRow?.balance ?? 0) < 0) throw new Error("SALDO_U_MINUSU");
-
-    // Dug iz poravnanja (X2, nalaz N2): posao čiji je stvaran trošak premašio
-    // ono što je korisnik imao ostavlja `unsettledCredits` na svom redu. Dok dug
-    // stoji, novih poslova nema - bez ove brave bi nalog sa 6,50 € kredita mogao
-    // ceo dan da radi na dug.
-    const debt = await ctx.db
-      .query("generationJobs")
-      .withIndex("by_user_unsettled", (q) => q.eq("userId", userId).gt("unsettledCredits", 0))
-      .first();
-    if (debt) throw new Error("NEPORAVNAT_DUG");
-
-    const reserved = await ctx.db
-      .query("generationJobs")
-      .withIndex("by_user_status", (q) => q.eq("userId", userId).eq("status", "reserved"))
-      .take(limits.maxConcurrentJobs);
-    const running = await ctx.db
-      .query("generationJobs")
-      .withIndex("by_user_status", (q) => q.eq("userId", userId).eq("status", "running"))
-      .take(limits.maxConcurrentJobs);
-    if (reserved.length + running.length >= limits.maxConcurrentJobs) {
-      throw new Error("PREVISE_POSLOVA");
-    }
-
-    // Prozor između rezervacije i poravnanja (X2). Poslovi u letu su jedini o
-    // kojima se još ništa ne zna osim procene, pa se njihov zbir drži nisko:
-    // tri paralelna posla od po 72 $ su isti napad kao pedeset uzastopnih, a
-    // poravnanje ih ispravlja tek kad se završe. `take` iznad je vratio SVE
-    // takve poslove (inače bi provera reda gore već bacila), pa je zbir tačan.
-    const inFlightCostUsd = [...reserved, ...running].reduce(
-      (sum, job) => sum + (job.estimatedCostUsd ?? 0),
-      0,
-    );
-    if (exceedsUnsettledCostLimit(inFlightCostUsd)) throw new Error("PREVISE_NEPORAVNATOG");
-
-    const now = Date.now();
-
-    // Minutni limit (studio-public F2.4): brojanje kroz `by_user` indeks po
-    // `createdAt` opsegu. Convex OCC ovo čini bezbednim pod konkurentnošću -
-    // dva istovremena `createJob`-a čitaju isti opseg, pa insert pobednika
-    // preseca read-set gubitnika i on se ponavlja sa svežim brojem. `deleteJob`
-    // može da izbriše SAMO završen posao (in-flight odbija), pa rupa u prozoru
-    // znači završenu generaciju, ne prevaru.
-    if (limits.maxJobsPerMinute !== null) {
-      const lastMinute = await ctx.db
-        .query("generationJobs")
-        .withIndex("by_user", (q) => q.eq("userId", userId).gte("createdAt", now - 60_000))
-        .take(limits.maxJobsPerMinute);
-      if (lastMinute.length >= limits.maxJobsPerMinute) throw new Error("MINUTNI_LIMIT");
-    }
-
-    const day = dayKey(now);
-    const usage = await ctx.db
-      .query("studioUsageDaily")
-      .withIndex("by_user_day", (q) => q.eq("userId", userId).eq("day", day))
-      .unique();
-    if ((usage?.generations ?? 0) >= limits.maxJobsPerDay) throw new Error("DNEVNI_LIMIT");
-    // Dnevni kap POTROŠNJE KREDITA (studio-public F2.4) - soft cap sa jasnom
-    // porukom: ništa se ne upisuje, krediti ostaju, sutra se nastavlja. Meri se
-    // ono što bi OVAJ posao doneo preko već potrošenog danas.
-    if (
-      limits.maxDailyCredits !== null &&
-      (usage?.creditsSpent ?? 0) + order.creditCost > limits.maxDailyCredits
-    ) {
-      throw new Error("DNEVNI_LIMIT_KREDITA");
-    }
-    // Treći plafon je u dolarima, ne u komadima: broj generacija ne kaže ništa
-    // dok korisnik bira između modela od 0,005 $ i modela od 2 $.
-    if (exceedsDailyCostLimit(usage?.costUsd ?? 0, estimatedCostUsd)) {
-      throw new Error("DNEVNI_LIMIT_TROSKA");
-    }
-
-    const creditCost = order.creditCost;
-
-    // Upis posla ide PRE potrošnje jer `credits.applySpend` (A2) traži `jobId`
-    // - to je ključ pod kojim se refund kasnije prepoznaje. Sve je i dalje
-    // jedna transakcija: ako potrošnja pukne (NEDOVOLJNO_KREDITA), ovaj insert
-    // se poništava sam, bez ručnog rollback-a.
-    const jobId = await ctx.db.insert("generationJobs", {
-      userId,
-      modelSlug: order.slug,
-      kind: order.kind,
-      provider: order.provider,
-      params: JSON.stringify(cleanParams),
-      promptHash: promptHash(order.prompt),
-      status: "reserved",
-      creditCost,
-      // Procena iz kataloga se pamti UZ POSAO, ne samo u dnevnom zbiru: bez nje
-      // se stvaran trošak (`actualCostUsd`, W6) nema sa čim porediti, jer
-      // `studioUsageDaily.costUsd` je već sabran po korisniku i danu.
-      estimatedCostUsd,
-      ...(order.inputMode ? { inputMode: order.inputMode } : {}),
-      ...(order.inputs ? { inputs: order.inputs } : {}),
-      // Po čemu je naplaćeno trajanje ispalo onakvo kakvo jeste (X1). Kad je
-      // donja granica iz bajtova nadjačala zaglavlje, uz posao stoje i oba
-      // broja - to je jedini trag o tome ko je zaglavlje prepravljao.
-      ...(order.durationSource ? { durationSource: order.durationSource } : {}),
-      ...(order.headerDurationS !== undefined
-        ? { headerDurationS: order.headerDurationS }
-        : {}),
-      ...(order.billedDurationS !== undefined
-        ? { billedDurationS: order.billedDurationS }
-        : {}),
-      ...(args.lessonId ? { lessonId: args.lessonId } : {}),
-      ...(args.taskId ? { taskId: args.taskId } : {}),
-      ...(args.projectId ? { projectId: args.projectId } : {}),
-      createdAt: now,
-    });
-
-    // Fajl koji je ušao u posao više ne ističe: rok od 24 h postoji samo za
-    // uploade koje niko nije upotrebio, a ulaz posla mora da preživi koliko i
-    // posao - galerija i "Generiši ponovo" ga potpisuju i mnogo kasnije.
-    for (const uploadId of order.uploadIds) {
-      await ctx.db.patch(uploadId, { expiresAt: undefined });
-    }
-
-    // Obična funkcija, a ne `ctx.runMutation`: ugnježdena mutacija je
-    // podtransakcija koju pozivalac SME da uhvati i nastavi, pa bi jedan
-    // `try/catch` dodat zbog lepše poruke tiho razvalio atomičnost. Ovako
-    // potrošnja pada zajedno sa poslom, strukturno.
-    await applySpend(ctx, { userId, amount: creditCost, jobId });
-
-    if (usage) {
-      await ctx.db.patch(usage._id, {
-        generations: usage.generations + 1,
-        creditsSpent: usage.creditsSpent + creditCost,
-        costUsd: usage.costUsd + estimatedCostUsd,
-      });
-    } else {
-      await ctx.db.insert("studioUsageDaily", {
-        userId,
-        day,
-        generations: 1,
-        creditsSpent: creditCost,
-        costUsd: estimatedCostUsd,
-      });
-    }
-
-    await ctx.scheduler.runAfter(0, internal.studioActions.submitJob, { jobId });
-
-    return jobId;
+    return createJobForUser(ctx, userId, { ...rest, ...(projectId ? { projectId } : {}) });
   },
 });
 
@@ -1166,48 +1222,75 @@ export const markOutputFailed = internalMutation({
  * dolazi kao argument sa klijenta (zamrznut `Date.now()`), nikad se ne čita sat
  * unutar samog query-ja.
  */
+const listMyJobsArgs = {
+  paginationOpts: paginationOptsValidator,
+  kind: v.optional(studioModelKind),
+  modelSlug: v.optional(v.string()),
+  createdAfter: v.optional(v.number()),
+  projectId: v.optional(v.id("studioProjects")),
+};
+type ListMyJobsArgs = ObjectType<typeof listMyJobsArgs>;
+
+/** Galerija jednog korisnika - deljeno telo `listMyJobs` i `listMyJobsInternal` (MCP-P2-STUDIO). */
+async function listMyJobsForUser(ctx: QueryCtx, userId: Id<"users">, args: ListMyJobsArgs) {
+  let ordered =
+    args.projectId !== undefined
+      ? ctx.db
+          .query("generationJobs")
+          .withIndex("by_user_project", (q) =>
+            q.eq("userId", userId).eq("projectId", args.projectId),
+          )
+          .order("desc")
+      : ctx.db
+          .query("generationJobs")
+          .withIndex("by_user", (q) => q.eq("userId", userId))
+          .order("desc");
+
+  if (args.kind !== undefined) {
+    const kind = args.kind;
+    ordered = ordered.filter((q) => q.eq(q.field("kind"), kind));
+  }
+  if (args.modelSlug !== undefined) {
+    const modelSlug = args.modelSlug;
+    ordered = ordered.filter((q) => q.eq(q.field("modelSlug"), modelSlug));
+  }
+  if (args.createdAfter !== undefined) {
+    const createdAfter = args.createdAfter;
+    ordered = ordered.filter((q) => q.gte(q.field("createdAt"), createdAfter));
+  }
+
+  const result = await ordered.paginate(args.paginationOpts);
+
+  return {
+    ...result,
+    page: await Promise.all(result.page.map((job) => toGalleryJob(ctx, job))),
+  };
+}
+
 export const listMyJobs = query({
+  args: listMyJobsArgs,
+  handler: async (ctx, args) => listMyJobsForUser(ctx, await requireUserId(ctx), args),
+});
+
+/**
+ * Ista galerija za MCP pozivaoca (identitet iz API ključa). `projectId` je
+ * sirov string iz ulaza alata (vidi `createJobInternal`): id koji se ne
+ * parsira daje praznu stranu, isto kao projekat koji ne postoji.
+ */
+export const listMyJobsInternal = internalQuery({
   args: {
+    userId: v.id("users"),
     paginationOpts: paginationOptsValidator,
     kind: v.optional(studioModelKind),
     modelSlug: v.optional(v.string()),
-    createdAfter: v.optional(v.number()),
-    projectId: v.optional(v.id("studioProjects")),
+    projectId: v.optional(v.string()),
   },
-  handler: async (ctx, args) => {
-    const userId = await requireUserId(ctx);
-    let ordered =
-      args.projectId !== undefined
-        ? ctx.db
-            .query("generationJobs")
-            .withIndex("by_user_project", (q) =>
-              q.eq("userId", userId).eq("projectId", args.projectId),
-            )
-            .order("desc")
-        : ctx.db
-            .query("generationJobs")
-            .withIndex("by_user", (q) => q.eq("userId", userId))
-            .order("desc");
+  handler: async (ctx, { userId, projectId: rawProjectId, ...rest }) => {
+    const projectId =
+      rawProjectId === undefined ? undefined : ctx.db.normalizeId("studioProjects", rawProjectId);
+    if (projectId === null) return { page: [], isDone: true, continueCursor: "" };
 
-    if (args.kind !== undefined) {
-      const kind = args.kind;
-      ordered = ordered.filter((q) => q.eq(q.field("kind"), kind));
-    }
-    if (args.modelSlug !== undefined) {
-      const modelSlug = args.modelSlug;
-      ordered = ordered.filter((q) => q.eq(q.field("modelSlug"), modelSlug));
-    }
-    if (args.createdAfter !== undefined) {
-      const createdAfter = args.createdAfter;
-      ordered = ordered.filter((q) => q.gte(q.field("createdAt"), createdAfter));
-    }
-
-    const result = await ordered.paginate(args.paginationOpts);
-
-    return {
-      ...result,
-      page: await Promise.all(result.page.map((job) => toGalleryJob(ctx, job))),
-    };
+    return listMyJobsForUser(ctx, userId, { ...rest, ...(projectId ? { projectId } : {}) });
   },
 });
 
@@ -1614,13 +1697,27 @@ export const getJobForRegenerate = query({
  * obrazac kao `getJobForRegenerate`). Ulazne sličice se ne potpisuju ovde -
  * provenijencija ide kroz `getJobForRegenerate`, pa se `getUrl` ne troši dvaput.
  */
+async function getJobForDetailForUser(ctx: QueryCtx, userId: Id<"users">, jobId: Id<"generationJobs">) {
+  const job = await ctx.db.get(jobId);
+  if (!job || job.userId !== userId) return null;
+  return { ...(await toModerationJob(ctx, job)), params: job.params };
+}
+
 export const getJobForDetail = query({
   args: { jobId: v.id("generationJobs") },
+  handler: async (ctx, args) => getJobForDetailForUser(ctx, await requireUserId(ctx), args.jobId),
+});
+
+/**
+ * Isti detalj za MCP pozivaoca. `jobId` je sirov string iz ulaza alata: id
+ * koji se ne parsira je `null`, isto kao tuđi ili nepostojeći posao - alat
+ * sva tri prevodi u istu poruku, pa se ne otkriva ni da red postoji.
+ */
+export const getJobForDetailInternal = internalQuery({
+  args: { userId: v.id("users"), jobId: v.string() },
   handler: async (ctx, args) => {
-    const userId = await requireUserId(ctx);
-    const job = await ctx.db.get(args.jobId);
-    if (!job || job.userId !== userId) return null;
-    return { ...(await toModerationJob(ctx, job)), params: job.params };
+    const jobId = ctx.db.normalizeId("generationJobs", args.jobId);
+    return jobId ? getJobForDetailForUser(ctx, args.userId, jobId) : null;
   },
 });
 
@@ -1981,80 +2078,92 @@ export const claimSignupBonus = mutation({
   },
 });
 
+/**
+ * Stanje Studija za jednog korisnika - deljeno telo `getStudioState` (sesija) i
+ * `getStudioStateInternal` (MCP API ključ). Ista odluka o pristupu kao u
+ * `createJobForUser`, kroz isti `studioActorForUser`.
+ */
+async function getStudioStateForUser(ctx: QueryCtx, userId: Id<"users">) {
+  const { role, existing } = await studioActorForUser(ctx, userId);
+
+  const flag = await ctx.db
+    .query("platformFlags")
+    .withIndex("by_key", (q) => q.eq("key", STUDIO_FLAG_KEY))
+    .unique();
+
+  const publicState = await loadStudioPublicState(ctx);
+  const access = await evaluateStudioAccess(ctx, { userId, role, existing }, publicState.publicEnabled);
+  const emailVerified = isEmailVerifiedForStudio(existing);
+  // Ista granica po kojoj bi `createJob` odbio sledeći posao - dugme i
+  // server ne smeju da tvrde suprotno (studio-public F2.4: osoblje 3, javni 2).
+  const limits = resolveStudioLimits(publicState.config, isStudioStaff(role));
+
+  // Sme li shell da okine `claimSignupBonus`: fleg ON + potvrđen email + lot
+  // još ne postoji. Anti-farm proveru radi sama mutacija (ovo je samo prikaz).
+  const signupBonusLot =
+    publicState.publicEnabled && emailVerified
+      ? await ctx.db
+          .query("creditLots")
+          .withIndex("by_user_source", (q) => q.eq("userId", userId).eq("source", "signup_bonus"))
+          .first()
+      : null;
+
+  const reserved = await ctx.db
+    .query("generationJobs")
+    .withIndex("by_user_status", (q) => q.eq("userId", userId).eq("status", "reserved"))
+    .take(limits.maxConcurrentJobs);
+  const running = await ctx.db
+    .query("generationJobs")
+    .withIndex("by_user_status", (q) => q.eq("userId", userId).eq("status", "running"))
+    .take(limits.maxConcurrentJobs);
+
+  return {
+    // Red koji ne postoji znači "nikad nije ni gašen" - isto čitanje kao u
+    // `createJob`, da UI i server nikad ne tvrde suprotno.
+    enabled: flag ? flag.enabled : true,
+    // Ne "je li upisan" nego "sme li u Studio" - ista odluka koju donosi i
+    // `createJob` (`decideStudioAccess`), pa dugme ne može biti sivo
+    // korisniku kojeg bi server pustio (ni obrnuto).
+    hasStudioAccess: access.allowed,
+    // ZAŠTO nema pristupa - shell po ovome bira panel: EMAIL_NIJE_POTVRDJEN
+    // dobija "potvrdi email" sa resend dugmetom, NEMA_PRISTUPA postojeću
+    // poruku o zatvorenom testiranju.
+    accessReason: access.allowed ? null : access.reason,
+    // Da li je Studio otvoren javnosti (F1 fleg) i da li je email potvrđen
+    // po STUDIO predikatu (Google OAuth se računa - vidi
+    // `isEmailVerifiedForStudio`).
+    publicEnabled: publicState.publicEnabled,
+    emailVerified,
+    // Da li je pečat iz `acceptStudioTerms` upisan (X7). Isti uslov koji
+    // `createJob` proverava na serveru, pa forma ne može da stoji otvorena
+    // korisniku kojem bi prvi klik svakako pao na `USLOVI_NEPRIHVACENI`.
+    hasAcceptedTerms: typeof existing.acceptedStudioTermsAt === "number",
+    // Prekidač "Samo moji / Svi korisnici" u galeriji. Ovo je samo prikaz -
+    // `listAllJobs` istu ulogu proverava ponovo, na serveru.
+    isStaff: isStudioStaff(role),
+    // Dugme "Prikaži detalje" na tuđoj kartici (X4). Isto samo prikaz -
+    // `revealJobDetail` traži strogo `admin`, na serveru.
+    isStudioAdmin: role === "admin",
+    activeJobs: reserved.length + running.length,
+    maxActiveJobs: limits.maxConcurrentJobs,
+    // Bonus dobrodošlice javnog Studija (F2.3): shell na `claimable` okine
+    // `claimSignupBonus` (jednom - mutacija je idempotentna po korisniku).
+    signupBonus: {
+      claimable: publicState.publicEnabled && emailVerified && signupBonusLot === null,
+    },
+    // SP2: koji provajder ima ključ - samo boolean-i, da birač označi DEMO
+    // modele PRE klika. Ista funkcija koju `submitJob` koristi za mock kapiju,
+    // pa UI i server nikad ne tvrde suprotno.
+    providerStatus: providerStatus(process.env),
+  };
+}
+
 export const getStudioState = query({
   args: {},
-  handler: async (ctx) => {
-    const { userId, role, existing } = await getCurrentProfile(ctx);
+  handler: async (ctx) => getStudioStateForUser(ctx, await requireUserId(ctx)),
+});
 
-    const flag = await ctx.db
-      .query("platformFlags")
-      .withIndex("by_key", (q) => q.eq("key", STUDIO_FLAG_KEY))
-      .unique();
-
-    const publicState = await loadStudioPublicState(ctx);
-    const access = await evaluateStudioAccess(ctx, { userId, role, existing }, publicState.publicEnabled);
-    const emailVerified = isEmailVerifiedForStudio(existing);
-    // Ista granica po kojoj bi `createJob` odbio sledeći posao - dugme i
-    // server ne smeju da tvrde suprotno (studio-public F2.4: osoblje 3, javni 2).
-    const limits = resolveStudioLimits(publicState.config, isStudioStaff(role));
-
-    // Sme li shell da okine `claimSignupBonus`: fleg ON + potvrđen email + lot
-    // još ne postoji. Anti-farm proveru radi sama mutacija (ovo je samo prikaz).
-    const signupBonusLot =
-      publicState.publicEnabled && emailVerified
-        ? await ctx.db
-            .query("creditLots")
-            .withIndex("by_user_source", (q) => q.eq("userId", userId).eq("source", "signup_bonus"))
-            .first()
-        : null;
-
-    const reserved = await ctx.db
-      .query("generationJobs")
-      .withIndex("by_user_status", (q) => q.eq("userId", userId).eq("status", "reserved"))
-      .take(limits.maxConcurrentJobs);
-    const running = await ctx.db
-      .query("generationJobs")
-      .withIndex("by_user_status", (q) => q.eq("userId", userId).eq("status", "running"))
-      .take(limits.maxConcurrentJobs);
-
-    return {
-      // Red koji ne postoji znači "nikad nije ni gašen" - isto čitanje kao u
-      // `createJob`, da UI i server nikad ne tvrde suprotno.
-      enabled: flag ? flag.enabled : true,
-      // Ne "je li upisan" nego "sme li u Studio" - ista odluka koju donosi i
-      // `createJob` (`decideStudioAccess`), pa dugme ne može biti sivo
-      // korisniku kojeg bi server pustio (ni obrnuto).
-      hasStudioAccess: access.allowed,
-      // ZAŠTO nema pristupa - shell po ovome bira panel: EMAIL_NIJE_POTVRDJEN
-      // dobija "potvrdi email" sa resend dugmetom, NEMA_PRISTUPA postojeću
-      // poruku o zatvorenom testiranju.
-      accessReason: access.allowed ? null : access.reason,
-      // Da li je Studio otvoren javnosti (F1 fleg) i da li je email potvrđen
-      // po STUDIO predikatu (Google OAuth se računa - vidi
-      // `isEmailVerifiedForStudio`).
-      publicEnabled: publicState.publicEnabled,
-      emailVerified,
-      // Da li je pečat iz `acceptStudioTerms` upisan (X7). Isti uslov koji
-      // `createJob` proverava na serveru, pa forma ne može da stoji otvorena
-      // korisniku kojem bi prvi klik svakako pao na `USLOVI_NEPRIHVACENI`.
-      hasAcceptedTerms: typeof existing.acceptedStudioTermsAt === "number",
-      // Prekidač "Samo moji / Svi korisnici" u galeriji. Ovo je samo prikaz -
-      // `listAllJobs` istu ulogu proverava ponovo, na serveru.
-      isStaff: isStudioStaff(role),
-      // Dugme "Prikaži detalje" na tuđoj kartici (X4). Isto samo prikaz -
-      // `revealJobDetail` traži strogo `admin`, na serveru.
-      isStudioAdmin: role === "admin",
-      activeJobs: reserved.length + running.length,
-      maxActiveJobs: limits.maxConcurrentJobs,
-      // Bonus dobrodošlice javnog Studija (F2.3): shell na `claimable` okine
-      // `claimSignupBonus` (jednom - mutacija je idempotentna po korisniku).
-      signupBonus: {
-        claimable: publicState.publicEnabled && emailVerified && signupBonusLot === null,
-      },
-      // SP2: koji provajder ima ključ - samo boolean-i, da birač označi DEMO
-      // modele PRE klika. Ista funkcija koju `submitJob` koristi za mock kapiju,
-      // pa UI i server nikad ne tvrde suprotno.
-      providerStatus: providerStatus(process.env),
-    };
-  },
+export const getStudioStateInternal = internalQuery({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => getStudioStateForUser(ctx, args.userId),
 });

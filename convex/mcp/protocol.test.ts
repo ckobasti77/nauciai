@@ -84,12 +84,21 @@ test("ping vraća prazan objekat", async () => {
 
 // ── tools/list ─────────────────────────────────────────────────────────────
 
-test("tools/list vraća whoami sa validnom JSON Schema", async () => {
+test("tools/list vraća whoami i studio alate sa validnom JSON Schema", async () => {
   const { tools } = resultOf(await single(request("tools/list"))) as {
     tools: Array<{ name: string; description: string; inputSchema: Record<string, unknown> }>;
   };
 
-  expect(tools.map((tool) => tool.name)).toEqual(["whoami"]);
+  // P1 je imao samo `whoami`; P2 (MCP-P2-STUDIO) dodaje šest studio alata.
+  expect(tools.map((tool) => tool.name)).toEqual([
+    "whoami",
+    "list_models",
+    "get_studio_state",
+    "list_projects",
+    "create_generation",
+    "get_job",
+    "list_my_jobs",
+  ]);
   for (const tool of tools) {
     expect(typeof tool.name).toBe("string");
     expect(tool.description.length).toBeGreaterThan(0);

@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 
 import type { Doc } from "./_generated/dataModel";
-import { internalQuery, mutation, query } from "./_generated/server";
+import { internalQuery, mutation, type QueryCtx, query } from "./_generated/server";
 import { getCurrentProfile, requireAdmin, requireSyncSecret, requireUserId } from "./helpers";
 import { STUDIO_MODELS } from "./providers/catalogModels";
 import type { StudioModelSeed } from "./providers/modelSeed";
@@ -108,17 +108,32 @@ export const seedStudioModels = mutation({
  * `endpoints` ne izlazi - to je jedino polje reda koje klijentu ne treba ni za
  * šta, a napolju je spisak ruta kod provajdera.
  */
+async function listModelsForUser(ctx: QueryCtx) {
+  const rows = await ctx.db.query("models").take(MAX_MODELS);
+
+  return rows
+    .filter((model) => model.isEnabled)
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map(toClientRow);
+}
+
 export const listModels = query({
   args: {},
   handler: async (ctx) => {
     await requireUserId(ctx);
-    const rows = await ctx.db.query("models").take(MAX_MODELS);
-
-    return rows
-      .filter((model) => model.isEnabled)
-      .sort((a, b) => a.sortOrder - b.sortOrder)
-      .map(toClientRow);
+    return listModelsForUser(ctx);
   },
+});
+
+/**
+ * Isti katalog za MCP pozivaoca (MCP-P2-STUDIO, tačka 1), čiji identitet daje
+ * API ključ umesto sesije. Katalog nije po korisniku - `userId` ovde samo
+ * potpisuje u čije ime se čita, kao i kod ostalih internih varijanti; kapija
+ * "iza prijave" je već prošla kroz ključ. Samo `internal`, nikad kroz `api`.
+ */
+export const listModelsInternal = internalQuery({
+  args: { userId: v.id("users") },
+  handler: async (ctx) => listModelsForUser(ctx),
 });
 
 function toClientRow(model: Doc<"models">) {

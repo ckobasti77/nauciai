@@ -51,6 +51,8 @@ import type * as mcp_apiKey from "../mcp/apiKey.js";
 import type * as mcp_handler from "../mcp/handler.js";
 import type * as mcp_protocol from "../mcp/protocol.js";
 import type * as mcp_rateLimit from "../mcp/rateLimit.js";
+import type * as mcp_studioTools from "../mcp/studioTools.js";
+import type * as mcp_toolDefinition from "../mcp/toolDefinition.js";
 import type * as mcp_tools from "../mcp/tools.js";
 import type * as mcpKeys from "../mcpKeys.js";
 import type * as migrations from "../migrations.js";
@@ -144,6 +146,8 @@ declare const fullApi: ApiFromModules<{
   "mcp/handler": typeof mcp_handler;
   "mcp/protocol": typeof mcp_protocol;
   "mcp/rateLimit": typeof mcp_rateLimit;
+  "mcp/studioTools": typeof mcp_studioTools;
+  "mcp/toolDefinition": typeof mcp_toolDefinition;
   "mcp/tools": typeof mcp_tools;
   mcpKeys: typeof mcpKeys;
   migrations: typeof migrations;

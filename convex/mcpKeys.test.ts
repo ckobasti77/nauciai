@@ -85,6 +85,40 @@ test("korisnik ne može da revokuje tuđi ključ, a tuđi ključ mu ni ne vidi",
   expect(row?.keyHash).toBeDefined();
 });
 
+// ── opsezi (MCP-P2-STUDIO, tačka 2) ────────────────────────────────────────
+
+test("createKey bez `scopes` daje tačno [\"mcp:read\"]", async () => {
+  const t = convexTest(schema, modules);
+  const { ownerId } = await seedUsers(t);
+
+  const created = await asUser(t, ownerId).mutation(api.mcpKeys.createKey, { name: "Bez opsega" });
+  expect((await t.run((ctx) => ctx.db.get(created.keyId)))?.scopes).toEqual(["mcp:read"]);
+});
+
+test("createKey sa nepoznatim ili praznim opsegom se odbija; poznati se upisuju bez duplikata", async () => {
+  const t = convexTest(schema, modules);
+  const { ownerId } = await seedUsers(t);
+  const owner = asUser(t, ownerId);
+
+  await expect(owner.mutation(api.mcpKeys.createKey, { name: "x", scopes: ["mcp:read", "mcp:admin"] })).rejects.toThrow(
+    "NEPOZNAT_OPSEG",
+  );
+  await expect(owner.mutation(api.mcpKeys.createKey, { name: "x", scopes: [] })).rejects.toThrow("NEISPRAVNI_OPSEZI");
+  expect(await t.run((ctx) => ctx.db.query("mcpApiKeys").collect())).toEqual([]);
+
+  const created = await owner.mutation(api.mcpKeys.createKey, {
+    name: "Pisanje",
+    scopes: ["mcp:read", "mcp:write", "mcp:read"],
+  });
+  expect((await t.run((ctx) => ctx.db.get(created.keyId)))?.scopes).toEqual(["mcp:read", "mcp:write"]);
+
+  // Opsezi putuju do pozivaoca: `whoami` ih vraća onakve kakvi su upisani.
+  const whoami = await post(t, rpc("tools/call", { name: "whoami", arguments: {} }), {
+    Authorization: `Bearer ${created.key}`,
+  });
+  expect(JSON.parse((await whoami.json()).result.content[0].text).scopes).toEqual(["mcp:read", "mcp:write"]);
+});
+
 // ── transport: autentikacija ───────────────────────────────────────────────
 
 test("zahtev bez Bearer zaglavlja -> 401 sa JSON-RPC greškom bez razloga", async () => {

@@ -29,7 +29,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
-import { Panel, SectionHeader, cn } from "@/components/ui/primitives";
+import { LinkButton, Panel, SectionHeader, cn } from "@/components/ui/primitives";
 import { HelpSettings } from "@/components/app/help-settings";
 import { useToast } from "@/components/ui/toast-provider";
 import { Spinner } from "@/components/ui/spinner";
@@ -40,7 +40,7 @@ import {
   USERNAME_VALIDATION_MESSAGE_EN,
   USERNAME_VALIDATION_MESSAGE_SR,
 } from "@/lib/username-policy";
-import { t, type Locale, withLocale } from "@/lib/i18n";
+import { apiKeysContent, t, type Locale, withLocale } from "@/lib/i18n";
 import { passwordRequirements, passwordValidationErrors } from "@/lib/password-policy";
 import {
   type ProfileAvatarPresetId,
@@ -916,6 +916,16 @@ export function ProfileEditor({
                   </Select>
                 )}
               </Field>
+              {/* API ključevi za MCP (MCP-P2-STUDIO, tačka 5): svoja strana, jer
+                  pun ključ ima svoj tok (vidi se jednom) koji ne pripada formi profila. */}
+              <div className="sm:col-span-2">
+                <span className="text-sm font-black text-ink">{apiKeysContent[locale].profileLinkTitle}</span>
+                <p className="mt-1 type-body-sm font-bold text-muted">{apiKeysContent[locale].profileLinkBody}</p>
+                <LinkButton href={withLocale(locale, "/app/profile/api-keys")} tone="paper" className="mt-3">
+                  <KeyRound className="size-4" />
+                  {apiKeysContent[locale].profileLinkCta}
+                </LinkButton>
+              </div>
             </div>
           </div>
         </Panel>

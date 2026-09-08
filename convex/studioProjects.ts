@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { internalQuery, mutation, query } from "./_generated/server";
 import { requireUserId } from "./helpers";
 import { requireStudioAccess } from "./studio";
 import { canCreateStudioProject, validateProjectName } from "../lib/studio-projects";
@@ -53,6 +53,27 @@ export const listMyProjects = query({
     );
 
     return results;
+  },
+});
+
+/**
+ * Nearhivirani projekti jednog korisnika za MCP alat `list_projects`
+ * (MCP-P2-STUDIO): identitet dolazi iz API ključa, pa je funkcija interna i
+ * prima `userId`. Bez brojanja generacija - alat vraća samo id, ime i datum.
+ */
+export const listActiveProjectsInternal = internalQuery({
+  args: { userId: v.id("users") },
+  returns: v.array(v.object({ id: v.id("studioProjects"), name: v.string(), createdAt: v.number() })),
+  handler: async (ctx, args) => {
+    const projects = await ctx.db
+      .query("studioProjects")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .order("desc")
+      .collect();
+
+    return projects
+      .filter((project) => project.archivedAt === undefined)
+      .map((project) => ({ id: project._id, name: project.name, createdAt: project.createdAt }));
   },
 });
 

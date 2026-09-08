@@ -4,7 +4,7 @@ import { v, type Infer } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
-import { internalMutation, mutation, query } from "./_generated/server";
+import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { computeExpiry, isValidCreditAmount, planSpend, usableBalance } from "./creditsCore";
 import { requireSyncSecret, requireUserId } from "./helpers";
 
@@ -98,22 +98,32 @@ async function applyBalanceDelta(
   return next.balance;
 }
 
+async function getBalanceForUser(ctx: QueryCtx, userId: Id<"users">) {
+  const row = await ctx.db
+    .query("creditBalances")
+    .withIndex("by_user", (q) => q.eq("userId", userId))
+    .unique();
+
+  return {
+    balance: row?.balance ?? 0,
+    lifetimePurchased: row?.lifetimePurchased ?? 0,
+    lifetimeSpent: row?.lifetimeSpent ?? 0,
+    updatedAt: row?.updatedAt ?? null,
+  };
+}
+
 export const getBalance = query({
   args: {},
-  handler: async (ctx) => {
-    const userId = await requireUserId(ctx);
-    const row = await ctx.db
-      .query("creditBalances")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .unique();
+  handler: async (ctx) => getBalanceForUser(ctx, await requireUserId(ctx)),
+});
 
-    return {
-      balance: row?.balance ?? 0,
-      lifetimePurchased: row?.lifetimePurchased ?? 0,
-      lifetimeSpent: row?.lifetimeSpent ?? 0,
-      updatedAt: row?.updatedAt ?? null,
-    };
-  },
+/**
+ * Isti saldo za MCP alat `get_studio_state` (MCP-P2-STUDIO): identitet daje
+ * API ključ, pa je funkcija interna i prima `userId`. Nikad kroz `api`.
+ */
+export const getBalanceInternal = internalQuery({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => getBalanceForUser(ctx, args.userId),
 });
 
 export const getLots = query({
