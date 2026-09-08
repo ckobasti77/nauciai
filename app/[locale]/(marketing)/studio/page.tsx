@@ -208,11 +208,12 @@ export default async function StudioLandingPage({
               { label: STUDIO_LANDING.ctaPacks[locale], href: "#paketi", icon: <Coins className="size-4" /> },
             ]}
             mediaLabel={STUDIO_LANDING.heroVideoAlt[locale]}
-            posterSrc={existingPublicPath("/images/landing/studio-hero-poster.png")}
+            posterSrc={existingPublicPath("/images/landing/studio-hero-poster.avif")}
+            webmSrc={existingPublicPath("/images/landing/studio-hero-loop.webm")}
             mp4Src={existingPublicPath("/images/landing/studio-hero-loop.mp4")}
-            mediaWidth={1284}
-            mediaHeight={716}
-            bg="#FAECDA"
+            mediaWidth={1928}
+            mediaHeight={1076}
+            bg="#FDEAD9"
           >
             <p className="mt-4 inline-flex items-center gap-2 text-sm font-extrabold text-muted">
               <span aria-hidden className="inline-block h-2.5 w-2.5 rounded-full border-2 border-ink bg-yellow" />
