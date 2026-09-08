@@ -1178,11 +1178,36 @@ details:has(> .faq-answer)::details-content {
      · vizual širi od kontejnera → centrira se, pa je višak opet jednak sa obe strane.
    Kartice na svesci se ne diraju: sloj `.hero-cards-3d` nosi ISTU klasu, pomera se zajedno
    sa videom, a geometriju računa iz sopstvene širine (`lib/hero-cards.ts`). */
-@media (min-aspect-ratio: 1928 / 1076) and (min-width: 1024px) {
+/* M1 (centriranje) — širina vizuala je CAP-ovana na `min(<visinska logika>, 62vw)`.
+   Bez capa je vezana samo za visinu (`height:100%` + aspect), pa na niskom+širokom ekranu
+   (npr. 1912×906) naraste preko 1600px i crtež pod mikrofonom uđe u kopiju; 62vw ga drži
+   desno od teksta na svakoj rezoluciji. `height:auto` (aspect daje visinu) → vizual je niži
+   od sekcije i vertikalno centriran; iznad/ispod je krem (`--hero-paper`, maskirano) pa se
+   traka ne vidi. `right` je NEPROMENJEN (N3 anchor): desna ivica ostaje gde je bila, skuplja
+   se samo LEVA. Uslov je sad `orientation: landscape` (a ne samo široki odnos) — i na
+   1920×1080 / 1440×900 (odnos < 1928:1076) treba cap, inače je vizual pune širine.
+   `.hero-cards-3d` deli klasu i računa geometriju iz sopstvene (sad uže) širine
+   (`lib/hero-cards.ts`) — kartice prate automatski. */
+@media (orientation: landscape) and (min-width: 1024px) {
   .hero-cover-media {
     left: auto;
     right: max(0px, min((100% - 80rem) / 2, (100% - 100svh * 1928 / 1076) / 2));
+    width: min(100svh * 1928 / 1076, 62vw);
+    height: auto;
     transform: translateY(-50%);
+  }
+}
+
+/* M1 (centriranje) — kopija se ODVEZUJE od centriranog max-w-7xl kontejnera i vezuje za
+   viewport (isto kao vizual): leva ivica teksta = `min(rub kontejnera, clamp(24px, 4vw, 96px))`.
+   Na širokom ekranu tekst se pomeri ulevo (1912: 348→76, 1440: 112→58) i dobije vazduh do
+   crteža; na ≤1280 ostaje na rubu kontejnera (32). `max-width:none` proširi wrap na pun
+   viewport da `padding-left` može levo od ruba kontejnera; `mx-auto` tad daje 0 margine.
+   Samo landscape ≥ 1024 — u portretu i dalje vlada `.hero-copy*` (niže). */
+@media (orientation: landscape) and (min-width: 1024px) {
+  .hero-copy-wrap {
+    max-width: none;
+    padding-left: min(max(2rem, (100vw - 80rem) / 2 + 2rem), clamp(24px, 4vw, 96px));
   }
 }
 /* L3.1 — DVA videa po orijentaciji (`data-dual`, samo home hero koji ima portret assete):
