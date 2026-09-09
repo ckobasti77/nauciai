@@ -1481,3 +1481,152 @@ export const mascotPageContent = {
     orbitHint: "Drag to rotate, scroll or pinch to zoom.",
   },
 } as const;
+
+/**
+ * Javna strana MCP servera (MCP-P6-JAVNA-STRANA): kako se Nauči AI dodaje u
+ * Claude Desktop/Code/claude.ai. Sav tekst OKO kataloga (hero, koraci, opsezi)
+ * ima sr/en; imena i opisi alata/resursa/promptova dolaze iz Convex registra i
+ * NAMERNO su samo na srpskom (isti tekst koji `tools/list` vraća modelu) — vidi
+ * `convex/mcp/catalog.ts`. Strana je uvod za čoveka koji prvi put čuje za MCP,
+ * ne referenca — puna referenca je `docs/mcp-server.md`.
+ */
+export const mcpPageContent = {
+  sr: {
+    metaTitle: "MCP server — poveži Nauči AI sa Claude-om",
+    metaDescription:
+      "Poveži Nauči AI sa Claude Desktop, Claude Code ili claude.ai preko MCP servera i iz razgovora generiši slike i video, pratiš poslove i kredite.",
+    hero: {
+      kicker: "MCP server",
+      titleLead: "Poveži Nauči AI sa ",
+      titleHighlight: "Claude-om",
+      body:
+        "Povežeš Nauči AI sa Claude-om i onda pravo iz razgovora praviš slike i video, gledaš svoje poslove i koliko ti je ostalo kredita. Ne treba ti ništa sem naloga na Nauči AI i Claude klijenta.",
+    },
+    connect: {
+      title: "Kako se dodaje",
+      serverLabel: "Adresa servera",
+      recommendedBadge: "Preporučeno",
+      copyLabel: "Kopiraj",
+      copiedLabel: "Kopirano",
+      oauth: {
+        title: "Preko URL-a (OAuth)",
+        body: "Nalepiš adresu servera, klikneš „Connect”, prijaviš se i odobriš pristup. Nema kucanja ključa.",
+        steps: [
+          "U Claude klijentu otvori podešavanja konektora/MCP servera i izaberi „Add custom connector” (ili ekvivalentnu opciju za dodavanje MCP servera preko URL-a).",
+          "Nalepi adresu servera ispod i sačuvaj.",
+          "Klikni „Connect” — otvara se prijava na Nauči AI (ako već nisi prijavljen/a) i ekran pristanka sa traženim opsezima.",
+          "Odobri pristup. Alati se pojavljuju u razgovoru odmah.",
+        ],
+      },
+      apiKey: {
+        title: "Preko API ključa (Bearer)",
+        body: "Za skripte, agente i alate koji ne prolaze kroz browser — ključ se stavlja u Authorization zaglavlje.",
+        steps: [
+          "Napravi ključ na strani za API ključeve (link ispod). Izaberi „Samo čitanje” ili „Čitanje i pisanje” — pisanje troši kredite.",
+          "Kopiraj ključ — prikazuje se tačno jednom.",
+          "U podešavanjima klijenta dodaj MCP server sa istom adresom i zaglavljem Authorization: Bearer <ključ>.",
+        ],
+        keysLinkLabel: "Otvori stranu za API ključeve",
+      },
+    },
+    scopes: {
+      title: "Opsezi pristupa",
+      read: {
+        title: "mcp:read — čitanje",
+        body: "Katalog modela, stanje Studija, poslovi i krediti. Ne troši kredite. Podrazumevan opseg svakog novog ključa.",
+      },
+      write: {
+        title: "mcp:write — pisanje i generisanje",
+        body: "Pokreće generisanje i troši kredite sa naloga vlasnika ključa, isto kao klik na „Generiši” u Studiju. Bira se svesno pri pravljenju ključa ili u ekranu pristanka OAuth-a.",
+      },
+    },
+    catalog: {
+      title: "Šta server ume",
+      intro:
+        "Spisak ispod se učitava direktno iz servera — kad se dodaju novi alati, resursi ili promptovi, pojaviće se ovde sami.",
+      toolsTitle: "Alati",
+      toolsBody: "Radnje koje model poziva (npr. napravi sliku, sačekaj rezultat).",
+      resourcesTitle: "Resursi",
+      resourcesBody: "Sadržaj koji se prikači kao kontekst, bez poziva alata (npr. ceo katalog modela).",
+      promptsTitle: "Promptovi",
+      promptsBody: "Gotovi šabloni iz menija klijenta (npr. „Napravi sliku”).",
+      scopeRead: "čitanje",
+      scopeWrite: "pisanje",
+      argumentsLabel: "Argumenti",
+      requiredLabel: "obavezan",
+      optionalLabel: "opcion",
+      loading: "Učitavanje kataloga…",
+      empty: "Katalog trenutno nije dostupan.",
+    },
+    crossSell: "Probaj generisanje direktno u Studiju →",
+  },
+  en: {
+    metaTitle: "MCP server — connect Nauči AI to Claude",
+    metaDescription:
+      "Connect Nauči AI to Claude Desktop, Claude Code, or claude.ai through the MCP server and generate images and video, check your jobs and credits, right from the conversation.",
+    hero: {
+      kicker: "MCP server",
+      titleLead: "Connect Nauči AI to ",
+      titleHighlight: "Claude",
+      body:
+        "Connect Nauči AI to Claude and then generate images and video straight from the conversation, and check your jobs and how many credits you have left. All you need is a Nauči AI account and a Claude client.",
+    },
+    connect: {
+      title: "How to add it",
+      serverLabel: "Server address",
+      recommendedBadge: "Recommended",
+      copyLabel: "Copy",
+      copiedLabel: "Copied",
+      oauth: {
+        title: "By URL (OAuth)",
+        body: "Paste the server address, click “Connect”, sign in, and approve access. No key to type.",
+        steps: [
+          "In your Claude client, open connector/MCP server settings and choose “Add custom connector” (or the equivalent option for adding an MCP server by URL).",
+          "Paste the server address below and save.",
+          "Click “Connect” — this opens sign-in to Nauči AI (if you aren't already signed in) and a consent screen with the requested scopes.",
+          "Approve access. The tools appear in the conversation right away.",
+        ],
+      },
+      apiKey: {
+        title: "By API key (Bearer)",
+        body: "For scripts, agents, and tools that don't go through a browser — the key goes in the Authorization header.",
+        steps: [
+          "Create a key on the API keys page (link below). Choose “Read only” or “Read and write” — write spends credits.",
+          "Copy the key — it's shown exactly once.",
+          "In your client's settings, add the MCP server with the same address and an Authorization: Bearer <key> header.",
+        ],
+        keysLinkLabel: "Open the API keys page",
+      },
+    },
+    scopes: {
+      title: "Access scopes",
+      read: {
+        title: "mcp:read — read",
+        body: "Model catalog, Studio state, jobs, and credits. Doesn't spend credits. The default scope on every new key.",
+      },
+      write: {
+        title: "mcp:write — write and generate",
+        body: "Starts a generation and spends credits from the key owner's account, just like clicking “Generate” in the Studio. Chosen deliberately when creating a key, or on the OAuth consent screen.",
+      },
+    },
+    catalog: {
+      title: "What the server can do",
+      intro:
+        "The list below loads straight from the server — when new tools, resources, or prompts are added, they'll show up here on their own.",
+      toolsTitle: "Tools",
+      toolsBody: "Actions the model calls (e.g. make an image, wait for the result).",
+      resourcesTitle: "Resources",
+      resourcesBody: "Content attached as context without calling a tool (e.g. the whole model catalog).",
+      promptsTitle: "Prompts",
+      promptsBody: "Ready-made templates from the client's menu (e.g. “Make an image”).",
+      scopeRead: "read",
+      scopeWrite: "write",
+      argumentsLabel: "Arguments",
+      requiredLabel: "required",
+      optionalLabel: "optional",
+      loading: "Loading the catalog…",
+      empty: "The catalog isn't available right now.",
+    },
+    crossSell: "Try generating straight in the Studio →",
+  },
+} as const;

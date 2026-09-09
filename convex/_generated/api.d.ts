@@ -48,6 +48,7 @@ import type * as leaderboard from "../leaderboard.js";
 import type * as leaderboardCore from "../leaderboardCore.js";
 import type * as leaderboardReadCore from "../leaderboardReadCore.js";
 import type * as mcp_apiKey from "../mcp/apiKey.js";
+import type * as mcp_catalog from "../mcp/catalog.js";
 import type * as mcp_handler from "../mcp/handler.js";
 import type * as mcp_prompts from "../mcp/prompts.js";
 import type * as mcp_protocol from "../mcp/protocol.js";
@@ -150,6 +151,7 @@ declare const fullApi: ApiFromModules<{
   leaderboardCore: typeof leaderboardCore;
   leaderboardReadCore: typeof leaderboardReadCore;
   "mcp/apiKey": typeof mcp_apiKey;
+  "mcp/catalog": typeof mcp_catalog;
   "mcp/handler": typeof mcp_handler;
   "mcp/prompts": typeof mcp_prompts;
   "mcp/protocol": typeof mcp_protocol;

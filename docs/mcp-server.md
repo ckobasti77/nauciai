@@ -15,7 +15,11 @@ se prijavi, odobri pristup, i klijent dobije token (sekcija 6). Bearer put sa
 `nai_live_` ključem ostaje nepromenjen. P5 (MCP-P5-PRIMITIVI) dodaje druga dva
 MCP primitiva pored alata: **resurse** (`nauciai://models`, `nauciai://credits`,
 `nauciai://models/{slug}`, `nauciai://jobs/{jobId}`) i **promptove** (tri
-šablona na srpskom) - sekcija 7.
+šablona na srpskom) - sekcija 7. P6 (MCP-P6-JAVNA-STRANA) dodaje javnu stranu
+`/mcp` (`en/mcp`) - kratko uputstvo za povezivanje za nekog ko prvi put čuje za
+ovaj server, sa katalogom alata/resursa/promptova IZVEDENIM iz istog registra
+(javna Convex query `convex/mcp/catalog.ts:publicCatalog`), ne prekucanim u
+JSX. Ovaj dokument ostaje puna referenca za developere.
 
 > **`mcp:write` TROŠI KREDITE.** Alat `create_generation` rezerviše posao i
 > skida kredite sa salda vlasnika ključa, isto kao klik na „Generiši" u

@@ -12,6 +12,19 @@ export function getSiteUrl(): string {
   return "http://localhost:3000";
 }
 
+/**
+ * Adresa MCP servera (`<site>/mcp`, MCP-P6-JAVNA-STRANA): `NEXT_PUBLIC_CONVEX_URL`
+ * je `.convex.cloud` origin koji klijent koristi za React hookove; Convex HTTP
+ * ruter (gde živi `/mcp`) je ISTI deployment na `.convex.site`. Izvedeno umesto
+ * prepisanog u kod, da se prod/dev URL sam prati kad se deployment promeni.
+ */
+export function getConvexSiteUrl(): string | null {
+  const cloudUrl = readEnv("NEXT_PUBLIC_CONVEX_URL");
+  if (!cloudUrl) return null;
+
+  return cloudUrl.replace(/\.convex\.cloud\/?$/, ".convex.site");
+}
+
 export function readEnv(name: string): string | undefined {
   const value = process.env[name];
   return value && value.trim().length > 0 ? value.trim() : undefined;

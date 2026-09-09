@@ -58,4 +58,7 @@ export const convexQueries = {
   listCatalogModels: makeFunctionReference<"query">("modelCatalog:listModels"),
   // Javni fleg Studija (N3): landing iz njega bira metu „Otvori Studio" CTA-a.
   isStudioPublicEnabled: makeFunctionReference<"query">("studio:isPublicEnabled"),
+  // Javna strana MCP servera (MCP-P6-JAVNA-STRANA): katalog alata/resursa/promptova
+  // bez autentikacije, iz istog registra koji `/mcp` koristi.
+  mcpPublicCatalog: makeFunctionReference<"query">("mcp/catalog:publicCatalog"),
 };
