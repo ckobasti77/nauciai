@@ -211,6 +211,7 @@ export default async function StudioLandingPage({
             posterSrc={existingPublicPath("/images/landing/studio-hero-poster.avif")}
             webmSrc={existingPublicPath("/images/landing/studio-hero-loop.webm")}
             mp4Src={existingPublicPath("/images/landing/studio-hero-loop.mp4")}
+            portraitSrc={existingPublicPath("/images/landing/studio-hero-portrait.avif")}
             mediaWidth={1928}
             mediaHeight={1076}
             bg="#FDEAD9"
