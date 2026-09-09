@@ -5,7 +5,9 @@
  * izolovano (`protocol.test.ts`), a transport (`handler.ts`) je tanak omotač.
  *
  * Podržane metode: `initialize`, `notifications/initialized`, `ping`,
- * `tools/list`, `tools/call`. Batch (niz zahteva) radi po JSON-RPC 2.0 spec-u.
+ * `tools/list`, `tools/call`, i - kad su provajderi dati (MCP-P5-PRIMITIVI) -
+ * `resources/list`, `resources/templates/list`, `resources/read`,
+ * `prompts/list`, `prompts/get`. Batch (niz zahteva) radi po JSON-RPC 2.0 spec-u.
  */
 
 export const JSON_RPC_ERROR = {
@@ -70,9 +72,62 @@ export type ToolProvider = {
   call(name: string, args: Record<string, unknown>): Promise<ToolResult>;
 };
 
+/** Oblici iz MCP spec-a (server/resources, 2025-06-18) - polja se zovu kao u spec-u. */
+export type ResourceDescriptor = {
+  uri: string;
+  name: string;
+  title?: string;
+  description?: string;
+  mimeType?: string;
+};
+
+export type ResourceTemplateDescriptor = {
+  uriTemplate: string;
+  name: string;
+  title?: string;
+  description?: string;
+  mimeType?: string;
+};
+
+export type ResourceContents = { uri: string; mimeType?: string; text: string };
+export type ResourceReadResult = { contents: ResourceContents[] };
+
+/** `read` baca `McpError` (-32602) za nepoznat ili nedostupan URI. */
+export type ResourceProvider = {
+  list(): ResourceDescriptor[];
+  templates(): ResourceTemplateDescriptor[];
+  read(uri: string): Promise<ResourceReadResult>;
+};
+
+/** Oblici iz MCP spec-a (server/prompts, 2025-06-18). */
+export type PromptArgumentDescriptor = { name: string; description?: string; required?: boolean };
+
+export type PromptDescriptor = {
+  name: string;
+  title?: string;
+  description?: string;
+  arguments?: PromptArgumentDescriptor[];
+};
+
+export type PromptMessage = { role: "user" | "assistant"; content: { type: "text"; text: string } };
+export type PromptGetResult = { description?: string; messages: PromptMessage[] };
+
+/** `get` baca `McpError` (-32602) za nepoznato ime ili nedostajući obavezan argument. */
+export type PromptProvider = {
+  list(): PromptDescriptor[];
+  get(name: string, args: Record<string, string>): Promise<PromptGetResult>;
+};
+
 export type McpServerOptions = {
   serverInfo: { name: string; version: string };
   tools: ToolProvider;
+  /**
+   * Bez provajdera server ne prijavljuje primitiv u `capabilities`, a njegove
+   * metode su -32601 - kao da ne postoje. Tako P1 testovi protokola i dalje
+   * važe doslovno, a transport (`handler.ts`) daje oba.
+   */
+  resources?: ResourceProvider;
+  prompts?: PromptProvider;
   /** Interni log za neočekivane greške; klijent dobija samo -32603. */
   onError?: (error: unknown) => void;
 };
@@ -113,9 +168,15 @@ async function callMethod(
     case "initialize": {
       const requested = isPlainObject(params) ? params.protocolVersion : undefined;
 
+      // `resources: {}` / `prompts: {}` = bez `subscribe` i `listChanged`:
+      // server je bez stanja i ne šalje notifikacije.
       return {
         protocolVersion: negotiateProtocolVersion(requested),
-        capabilities: { tools: {} },
+        capabilities: {
+          tools: {},
+          ...(options.resources ? { resources: {} } : {}),
+          ...(options.prompts ? { prompts: {} } : {}),
+        },
         serverInfo: options.serverInfo,
       };
     }
@@ -134,9 +195,41 @@ async function callMethod(
 
       return options.tools.call(params.name, args);
     }
+    case "resources/list":
+      if (!options.resources) break;
+      return { resources: options.resources.list() };
+    case "resources/templates/list":
+      if (!options.resources) break;
+      return { resourceTemplates: options.resources.templates() };
+    case "resources/read": {
+      if (!options.resources) break;
+      if (!isPlainObject(params) || typeof params.uri !== "string" || params.uri.length === 0) {
+        throw new McpError(JSON_RPC_ERROR.INVALID_PARAMS, "Invalid params: `uri` is required");
+      }
+
+      return options.resources.read(params.uri);
+    }
+    case "prompts/list":
+      if (!options.prompts) break;
+      return { prompts: options.prompts.list() };
+    case "prompts/get": {
+      if (!options.prompts) break;
+      if (!isPlainObject(params) || typeof params.name !== "string" || params.name.length === 0) {
+        throw new McpError(JSON_RPC_ERROR.INVALID_PARAMS, "Invalid params: `name` is required");
+      }
+      const args = params.arguments === undefined ? {} : params.arguments;
+      // Spec: vrednosti argumenata su stringovi (klijent ih kuca u meniju).
+      if (!isPlainObject(args) || Object.values(args).some((value) => typeof value !== "string")) {
+        throw new McpError(JSON_RPC_ERROR.INVALID_PARAMS, "Invalid params: `arguments` must be an object of strings");
+      }
+
+      return options.prompts.get(params.name, args as Record<string, string>);
+    }
     default:
-      throw new McpError(JSON_RPC_ERROR.METHOD_NOT_FOUND, `Method not found: ${method}`);
+      break;
   }
+
+  throw new McpError(JSON_RPC_ERROR.METHOD_NOT_FOUND, `Method not found: ${method}`);
 }
 
 /** Jedna JSON-RPC poruka -> odgovor, ili `null` za notifikaciju. */

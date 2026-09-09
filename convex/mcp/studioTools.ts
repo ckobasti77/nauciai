@@ -150,6 +150,8 @@ const RETRYABLE_MEASURE_REASON = "ZAGLAVLJE_NIJE_PROCITANO";
 
 type JobDetail = NonNullable<FunctionReturnType<typeof internal.studio.getJobForDetailInternal>>;
 
+type ModelRow = FunctionReturnType<typeof internal.studioModels.listModelsInternal>[number];
+
 /** `params` je JSON string u bazi; modelu ide kao objekat. Sirov tekst ostaje ako nije JSON. */
 function parseJson(raw: string): unknown {
   try {
@@ -160,11 +162,12 @@ function parseJson(raw: string): unknown {
 }
 
 /**
- * Jedan posao kako ga vide `get_job` i `list_my_jobs`: status, cena, vreme,
- * parametri i potpisan URL izlaza SAMO kad je posao gotov. Interna polja
- * (`outputStorageId`, `posterStorageId`) ne izlaze - modelu ne znače ništa.
+ * Jedan posao kako ga vide `get_job`, `list_my_jobs` i resurs
+ * `nauciai://jobs/{jobId}`: status, cena, vreme, parametri i potpisan URL
+ * izlaza SAMO kad je posao gotov. Interna polja (`outputStorageId`,
+ * `posterStorageId`) ne izlaze - modelu ne znače ništa.
  */
-function toMcpJob(job: JobDetail) {
+export function toMcpJob(job: JobDetail) {
   return {
     jobId: job._id,
     status: job.status,
@@ -178,6 +181,27 @@ function toMcpJob(job: JobDetail) {
     expiresAt: job.expiresAt ?? null,
     error: job.error ?? null,
     isMock: job.isMock,
+  };
+}
+
+/**
+ * Jedan model kako ga vide `list_models` i resursi `nauciai://models`: JSON
+ * polja parsirana, bez `endpoints` (putanje kod provajdera modelu ne trebaju).
+ */
+export function toMcpModel(model: ModelRow) {
+  return {
+    slug: model.slug,
+    kind: model.kind,
+    provider: model.provider,
+    family: model.family,
+    labelSr: model.labelSr,
+    labelEn: model.labelEn,
+    taglineSr: model.taglineSr,
+    inputModes: parseJson(model.inputModes),
+    inputSpec: parseJson(model.inputSpec),
+    paramSpec: parseJson(model.paramSpec),
+    priceRule: parseJson(model.priceRule),
+    capabilities: parseJson(model.capabilities),
   };
 }
 
@@ -458,22 +482,7 @@ const STUDIO_TOOLS: Record<string, ToolDefinition> = {
         userId: ctx.principal.userId,
       });
 
-      return jsonResult(
-        models.map((model) => ({
-          slug: model.slug,
-          kind: model.kind,
-          provider: model.provider,
-          family: model.family,
-          labelSr: model.labelSr,
-          labelEn: model.labelEn,
-          taglineSr: model.taglineSr,
-          inputModes: parseJson(model.inputModes),
-          inputSpec: parseJson(model.inputSpec),
-          paramSpec: parseJson(model.paramSpec),
-          priceRule: parseJson(model.priceRule),
-          capabilities: parseJson(model.capabilities),
-        })),
-      );
+      return jsonResult(models.map(toMcpModel));
     },
   },
 

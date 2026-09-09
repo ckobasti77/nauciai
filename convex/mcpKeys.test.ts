@@ -210,7 +210,8 @@ test("notifikacija -> 202 bez tela; loš JSON -> 400 sa -32700; nepoznata metoda
   expect(parse.status).toBe(400);
   expect((await parse.json()).error.code).toBe(-32700);
 
-  const unknown = await post(t, rpc("resources/list"), bearer);
+  // `resources/list` je od P5 prava metoda; primer nepoznate mora da bude nepostojeća.
+  const unknown = await post(t, rpc("nema/takve"), bearer);
   expect(unknown.status).toBe(200);
   expect((await unknown.json()).error.code).toBe(-32601);
 });

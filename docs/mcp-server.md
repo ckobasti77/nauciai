@@ -12,7 +12,10 @@ potpisan URL izlaza (`get_output_url`); P4 (MCP-P4-OAUTH) dodaje **OAuth 2.1 sa
 PKCE i dinamičkom registracijom klijenta**, pa se server u Claude Desktop /
 claude.ai / Claude Code dodaje samo URL-om - klijent klikne „Connect", korisnik
 se prijavi, odobri pristup, i klijent dobije token (sekcija 6). Bearer put sa
-`nai_live_` ključem ostaje nepromenjen.
+`nai_live_` ključem ostaje nepromenjen. P5 (MCP-P5-PRIMITIVI) dodaje druga dva
+MCP primitiva pored alata: **resurse** (`nauciai://models`, `nauciai://credits`,
+`nauciai://models/{slug}`, `nauciai://jobs/{jobId}`) i **promptove** (tri
+šablona na srpskom) - sekcija 7.
 
 > **`mcp:write` TROŠI KREDITE.** Alat `create_generation` rezerviše posao i
 > skida kredite sa salda vlasnika ključa, isto kao klik na „Generiši" u
@@ -192,11 +195,16 @@ JSON-RPC metode:
 
 | Metoda | Odgovor |
 | --- | --- |
-| `initialize` | `{protocolVersion, capabilities:{tools:{}}, serverInfo:{name:"nauciai", version}}` |
+| `initialize` | `{protocolVersion, capabilities:{tools:{}, resources:{}, prompts:{}}, serverInfo:{name:"nauciai", version}}` |
 | `notifications/initialized` | bez odgovora (HTTP 202) |
 | `ping` | `{}` |
 | `tools/list` | `{tools:[{name, description, inputSchema}]}` |
 | `tools/call` | `{content:[{type:"text", text}], isError?}` |
+| `resources/list` | `{resources:[{uri, name, title, description, mimeType}]}` (P5, sekcija 7) |
+| `resources/templates/list` | `{resourceTemplates:[{uriTemplate, name, title, description, mimeType}]}` |
+| `resources/read` | `{contents:[{uri, mimeType:"application/json", text}]}`; `params.uri` obavezan |
+| `prompts/list` | `{prompts:[{name, title, description, arguments:[{name, description, required}]}]}` |
+| `prompts/get` | `{description, messages:[{role:"user", content:{type:"text", text}}]}`; `params.name` obavezan, `arguments` mapa string -> string |
 
 Verzija protokola: server vraća verziju koju klijent traži ako je među
 `2025-11-25`, `2025-06-18`, `2025-03-26`, `2024-11-05`; inače `2025-06-18`.
@@ -282,7 +290,8 @@ Greške:
 | loš JSON | 400 | -32700 |
 | neispravan JSON-RPC zahtev | 400 | -32600 |
 | nepoznata metoda ili nepoznat alat | 200 | -32601 |
-| neispravni parametri | 200 | -32602 |
+| neispravni parametri; nepoznat resurs, ugašen model, tuđ/nepostojeći posao u `resources/read`; nepoznat prompt ili nedostajući obavezan argument u `prompts/get` | 200 | -32602 |
+| ključ bez `mcp:read` čita resurs | 200 | -32001 (isti kod kao 401; nema `isError` kanala za resurse) |
 | neočekivana greška (nikad stack trace) | 200 / 500 | -32603 |
 
 ### Rate limit - šta je granica, a šta brava
@@ -480,8 +489,8 @@ Ostaje za kasnije: rate limit u tabeli (ili `@convex-dev/rate-limiter`) ako
 tačan broj po ključu ikad postane važan (danas nije - vidi sekciju 3); izbor
 manjeg opsega na ekranu pristanka (danas je „sve ili ništa" prema onome što
 klijent traži); Client ID Metadata Documents (MCP spec ih preporučuje, Claude
-klijenti danas koriste dinamičku registraciju). Nije planirano: `resources/` i
-`prompts/` MCP primitivi, javna registracija servera.
+klijenti danas koriste dinamičku registraciju). P5 je doneo `resources/` i
+`prompts/` primitive (sekcija 7). Nije planirano: javna registracija servera.
 
 ---
 
@@ -669,3 +678,146 @@ povratak na prijavu sa istim parametrima) i `convex/oauth/flow.test.ts` (ceo
 tok kroz `t.fetch`: metapodaci, registracija, pristanak, razmena, jednokratnost
 koda sa opozivom, istek 61 s, refresh rotacija i replay, opoziv iz UI-ja, isti
 `principal` kao ključ, regresija Bearer puta).
+
+---
+
+## 7. Resursi i promptovi (P5)
+
+**Alati** su radnje koje model POZIVA; **resursi** su sadržaj koji korisnik ili
+model PRIKAČI kao kontekst, bez poziva alata (npr. ceo katalog modela dok
+model razmišlja šta da generiše); **promptovi** su gotovi šabloni koje
+korisnik bira iz menija klijenta (Claude Desktop ih nudi kao komande). Oblici
+poruka su iz MCP spec-a 2025-06-18 (`server/resources`, `server/prompts`);
+`initialize` prijavljuje `resources: {}` i `prompts: {}` (bez `subscribe` i
+`listChanged` - server je bez stanja i ne šalje notifikacije). Kod:
+`convex/mcp/resources.ts`, `convex/mcp/prompts.ts`; protokolski sloj
+(`protocol.ts`) prima oba provajdera kao OPCIONE - bez njih metode su -32601 i
+`capabilities` ostaje `{tools:{}}`, pa P1 testovi protokola važe doslovno.
+
+### Resursi
+
+Svi su `application/json` (uvučen tekst, čitljiv i čoveku u biraču konteksta),
+vezani za pozivaoca (`principal.userId`), traže **`mcp:read`** (proverava se
+PRE ijednog poziva u Convex; bez opsega -32001) i idu kroz ISTE interne
+funkcije koje alati koriste - nema nove logike pristupa. Rate limit je
+transportni (60/min po ključu, svaki zahtev). Nepoznat URI je -32602 sa
+`data.uri`, nikad -32603.
+
+| URI | Sadržaj | Ista funkcija kao |
+| --- | --- | --- |
+| `nauciai://models` | niz uključenih modela: `{slug, kind, provider, family, labelSr, labelEn, taglineSr, inputModes, inputSpec, paramSpec, priceRule, capabilities}` (isti oblik kao `list_models`) | `studioModels.listModelsInternal` |
+| `nauciai://models/{slug}` (šablon) | jedan model, ista polja + `example: {inputMode, params}` - prvi ulazni režim i podrazumevane vrednosti kontrola vidljivih u njemu (`prompt` dobija primer teksta jer je prazan po katalogu); `params` prolazi `sanitizeSpecParams` (test to tvrdi); nepostojeći ILI ugašen slug -> -32602 | `studioModels.getModelBySlug` |
+| `nauciai://credits` | `{credits:{balance, lifetimePurchased, lifetimeSpent, updatedAt}, limits:{activeJobs, maxActiveJobs}, studio:{enabled, hasStudioAccess, accessReason, hasAcceptedTerms}}` | `credits.getBalanceInternal` + `studio.getStudioStateInternal` |
+| `nauciai://jobs/{jobId}` (šablon) | detalj jednog posla, isti oblik kao `get_job`; tuđ, nepostojeći ili neparsiv id -> -32602 sa porukom **„Posao nije pronađen."** (ista rečenica kao alat, ne otkriva se ni da red postoji) | `studio.getJobForDetailInternal` |
+
+`resources/list` vraća dva statička unosa (`models`, `credits`),
+`resources/templates/list` dva šablona (`models/{slug}`, `jobs/{jobId}`).
+Spisak je metapodatak kao `tools/list` i ne traži opseg; čitanje traži.
+Dnevni i minutni limiti (`maxJobsPerDay`, `maxJobsPerMinute`,
+`maxDailyCredits`) NISU u `nauciai://credits`, jer ih `getStudioStateInternal`
+ne vraća - resurs izlaže samo ono što interna funkcija daje.
+
+### Promptovi
+
+Tačno tri, tekst na srpskom (vidi ih vlasnik ključa, ne posetilac). Ne čitaju
+bazu i ne traže opseg - upućuju model na resurse i alate, koji tek onda
+proveravaju opseg i vlasništvo. `prompts/get` sa nepoznatim imenom ili bez
+obaveznog argumenta (odsutan ili prazan string) je -32602; vrednosti
+argumenata moraju da budu stringovi (spec).
+
+| Ime | Argumenti | Šta uputi model da uradi |
+| --- | --- | --- |
+| `napravi-sliku` | `opis` (obavezan), `stil` (opciono) | pročita `nauciai://models`, izabere `image` model (primer `params` iz `nauciai://models/{slug}`), proveri `nauciai://credits`, pozove `create_generation` tačno jednom, pa `wait_for_job` |
+| `slika-u-video` | `opis pokreta` (obavezan) | ceo tok: `nauciai://models` (video model sa režimom `image`), `nauciai://credits`, `create_upload_url`, HTTP POST fajla sa `Content-Type`, `register_upload`, `create_generation` sa `inputMode`/`inputs`, `wait_for_job` dok `timedOut` ne bude `false`, `get_output_url` |
+| `pregled-poslova` | `koliko` (opciono, podrazumevano 10, 1-50; prazan string = podrazumevano; nije ceo broj -> -32602) | `list_my_jobs` sa `limit`, pa sažetak stanja, modela i potrošenih kredita |
+
+Testovi: `convex/mcp/resources.test.ts` (ceo put kroz `/mcp`: capabilities,
+četiri unosa, katalog bez ugašenih, primer `params` kroz `sanitizeSpecParams`,
+krediti, sopstveni/tuđi posao, nepoznat URI, ključ bez `mcp:read`) i
+`convex/mcp/prompts.test.ts` (protokolski sloj: tačno tri, nepoznato ime,
+obavezan argument, sadržaj svakog šablona).
+
+### Provera na dev deploymentu (2026-09-09, `npx convex dev --once`, ključ samo za čitanje)
+
+`initialize`:
+
+```json
+{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-06-18","capabilities":{"tools":{},"resources":{},"prompts":{}},"serverInfo":{"name":"nauciai","version":"0.1.0"}}}
+```
+
+`resources/list` (skraćeni opisi) i `resources/templates/list`:
+
+```json
+{"jsonrpc":"2.0","id":2,"result":{"resources":[{"uri":"nauciai://models","name":"models","title":"Katalog modela","description":"Svi uključeni Studio modeli: ...","mimeType":"application/json"},{"uri":"nauciai://credits","name":"credits","title":"Krediti i limiti","description":"Saldo kredita pozivaoca ...","mimeType":"application/json"}]}}
+{"jsonrpc":"2.0","id":3,"result":{"resourceTemplates":[{"uriTemplate":"nauciai://models/{slug}","name":"model","title":"Jedan model","description":"...","mimeType":"application/json"},{"uriTemplate":"nauciai://jobs/{jobId}","name":"job","title":"Jedan posao","description":"...","mimeType":"application/json"}]}}
+```
+
+`resources/read` `nauciai://models` - 28 uključenih modela, 74 KB uvučenog
+JSON-a u `contents[0].text` (početak):
+
+```json
+{"jsonrpc":"2.0","id":10,"result":{"contents":[{"uri":"nauciai://models","mimeType":"application/json","text":"[
+  {
+    \"slug\": \"nano-banana-2\",
+    \"kind\": \"image\",
+    \"provider\": \"google\",
+    \"family\": \"nano-banana\", ..."}]}}
+```
+
+`resources/read` `nauciai://models/kling-3` - `example` iz odgovora:
+
+```json
+{"inputMode":"text","params":{"prompt":"Lisica trči kroz snežnu šumu u zlatni sat, filmski kadar","resolution":"720p","audio":true,"voice_control":false,"duration":5}}
+```
+
+`resources/read` `nauciai://credits`:
+
+```json
+{"jsonrpc":"2.0","id":6,"result":{"contents":[{"uri":"nauciai://credits","mimeType":"application/json","text":"{
+  \"credits\": {
+    \"balance\": 4528,
+    \"lifetimePurchased\": 0,
+    \"lifetimeSpent\": 472,
+    \"updatedAt\": 1788201209659
+  },
+  \"limits\": {
+    \"activeJobs\": 0,
+    \"maxActiveJobs\": 3
+  },
+  \"studio\": {
+    \"enabled\": true,
+    \"hasStudioAccess\": true,
+    \"accessReason\": null,
+    \"hasAcceptedTerms\": true
+  }
+}"}]}}
+```
+
+`resources/read` tuđeg/nepostojećeg posla i nepoznatog URI-ja:
+
+```json
+{"jsonrpc":"2.0","id":7,"error":{"code":-32602,"message":"Posao nije pronađen.","data":{"uri":"nauciai://jobs/<id>"}}}
+{"jsonrpc":"2.0","id":8,"error":{"code":-32602,"message":"Resource not found","data":{"uri":"nauciai://nema"}}}
+```
+
+`prompts/list` (skraćeno):
+
+```json
+{"jsonrpc":"2.0","id":4,"result":{"prompts":[{"name":"napravi-sliku","title":"Napravi sliku","description":"Od opisa do gotove slike: ...","arguments":[{"name":"opis","description":"Šta treba da bude na slici.","required":true},{"name":"stil","description":"Željeni stil (npr. fotorealistično, akvarel, 3D render). Opciono.","required":false}]},{"name":"slika-u-video","title":"Slika u video","description":"Ceo tok image-to-video: ...","arguments":[{"name":"opis pokreta","description":"Šta se dešava u videu: kako se scena i kamera pokreću.","required":true}]},{"name":"pregled-poslova","title":"Pregled poslova","description":"Sažetak poslednjih generacija: ...","arguments":[{"name":"koliko","description":"Koliko poslednjih poslova da se pregleda (1-50, podrazumevano 10).","required":false}]}]}}
+```
+
+`prompts/get` `napravi-sliku` sa `{"opis":"lisica u snegu","stil":"akvarel"}`:
+
+```json
+{"jsonrpc":"2.0","id":5,"result":{"description":"Generisanje slike u Nauči AI Studiju","messages":[{"role":"user","content":{"type":"text","text":"Napravi sliku po ovom opisu: lisica u snegu
+Željeni stil: akvarel
+
+Uradi redom:
+1. Pročitaj resurs nauciai://models i izaberi model sa kind \"image\" ... 4. Pozovi wait_for_job dok status ne bude završan, pa mi daj outputUrl i koliko je kredita potrošeno."}}]}}
+```
+
+isti prompt bez `opis`:
+
+```json
+{"jsonrpc":"2.0","id":9,"error":{"code":-32602,"message":"Invalid params: argument `opis` is required"}}
+```

@@ -17,8 +17,10 @@ import { httpAction, type ActionCtx } from "../_generated/server";
 import { parseBearerCredential, type BearerCredential } from "../oauth/core";
 import { protectedResourceMetadataUrl } from "../oauth/urls";
 import { MCP_SCOPES, sha256Hex } from "./apiKey";
+import { promptProvider } from "./prompts";
 import { handleMcpRequest, httpStatusFor, type McpDispatchResult } from "./protocol";
 import { mcpRateLimiter } from "./rateLimit";
+import { bindResources } from "./resources";
 import type { McpPrincipal } from "./toolDefinition";
 import { bindTools } from "./tools";
 
@@ -170,10 +172,15 @@ export const mcpHandler = httpAction(async (ctx, request) => {
       }
     }
 
+    // Resursi i promptovi (MCP-P5-PRIMITIVI) dele isti `principal` i isti
+    // Convex ctx kao alati - nijedan ne zna kojim putem je pozivalac došao.
+    const bound = { principal, convex: ctx };
     const result = await handleMcpRequest(new TextDecoder().decode(body), {
       serverInfo: SERVER_INFO,
-      tools: bindTools({ principal, convex: ctx }),
-      onError: (error) => logInternal("tools/call", error),
+      tools: bindTools(bound),
+      resources: bindResources(bound),
+      prompts: promptProvider,
+      onError: (error) => logInternal("dispatch", error),
     });
 
     return respond(result, (request.headers.get("accept") ?? "").includes("text/event-stream"));
