@@ -42,7 +42,7 @@ export function withLocale(locale: Locale, path = ""): string {
 
 export const dictionary = {
   sr: {
-    appName: "Fakultet za AI",
+    appName: "Nauči AI",
     navCourses: "Kursevi",
     navCommunity: "Zajednica",
     navStudio: "Studio",
@@ -74,7 +74,7 @@ export const dictionary = {
     signOut: "Odjavi se",
   },
   en: {
-    appName: "Faculty for AI",
+    appName: "Nauči AI",
     navCourses: "Courses",
     navCommunity: "Community",
     navStudio: "Studio",
@@ -736,8 +736,8 @@ export const coursePageContent = {
 export const publicMeta = {
   home: {
     title: {
-      sr: "Fakultet za AI — nauči AI video, sajtove i glas",
-      en: "Faculty for AI — learn AI video, websites, and voice",
+      sr: "Nauči AI — video, sajtovi i glas uz pomoć AI-ja",
+      en: "Nauči AI — learn AI video, websites, and voice",
     },
     description: {
       sr: "Praktični AI kursevi na srpskom — kroz kratke lekcije, materijale i zajednicu praviš montiran video, sopstveni sajt i naraciju sa AI glasom. Bez predznanja.",
@@ -745,35 +745,35 @@ export const publicMeta = {
     },
   },
   signIn: {
-    title: { sr: "Prijava — Fakultet za AI", en: "Sign in — Faculty for AI" },
+    title: { sr: "Prijava — Nauči AI", en: "Sign in — Nauči AI" },
     description: {
       sr: "Prijavi se i nastavi tamo gde si stao — kursevi, napredak i zajednica te čekaju.",
       en: "Sign in and pick up right where you left off — your courses, progress, and community are waiting.",
     },
   },
   resetPassword: {
-    title: { sr: "Postavi novu lozinku — Fakultet za AI", en: "Set a new password — Faculty for AI" },
+    title: { sr: "Postavi novu lozinku — Nauči AI", en: "Set a new password — Nauči AI" },
     description: {
-      sr: "Postavi novu lozinku za svoj nalog na Fakultetu za AI.",
-      en: "Set a new password for your Faculty for AI account.",
+      sr: "Postavi novu lozinku za svoj nalog na Nauči AI.",
+      en: "Set a new password for your Nauči AI account.",
     },
   },
   verifyEmail: {
-    title: { sr: "Potvrda email adrese — Fakultet za AI", en: "Verify your email — Faculty for AI" },
+    title: { sr: "Potvrda email adrese — Nauči AI", en: "Verify your email — Nauči AI" },
     description: {
-      sr: "Potvrdi email adresu da aktiviraš nalog na Fakultetu za AI.",
-      en: "Verify your email to activate your Faculty for AI account.",
+      sr: "Potvrdi email adresu da aktiviraš nalog na Nauči AI.",
+      en: "Verify your email to activate your Nauči AI account.",
     },
   },
   pricing: {
-    title: { sr: "Pretplata i cene — Fakultet za AI", en: "Pricing and plans — Faculty for AI" },
+    title: { sr: "Pretplata i cene — Nauči AI", en: "Pricing and plans — Nauči AI" },
     description: {
       sr: "Uporedi Basic i Premium plan, vidi šta tačno ulazi u koji, uzmi pojedinačan kurs po jednokratnoj ceni i pročitaj odgovore na česta pitanja o naplati.",
       en: "Compare the Basic and Premium plans, see exactly what each one includes, buy a single course for a one-time price, and read the answers to common billing questions.",
     },
   },
   coursesListing: {
-    title: { sr: "Kursevi — Fakultet za AI", en: "Courses — Faculty for AI" },
+    title: { sr: "Kursevi — Nauči AI", en: "Courses — Nauči AI" },
     description: {
       sr: "Praktični AI kursevi na srpskom — montiran video, sopstveni sajt i naracija sa AI glasom. Kroz kratke lekcije, materijale i zajednicu dolaziš do gotovog rada.",
       en: "Practical AI courses in Serbian — edited video, your own website, and AI-voice narration. Through short lessons, materials, and a community you reach a finished project.",
@@ -1003,9 +1003,9 @@ export const communityListingContent = {
     heroCtaEnter: "Uđi u zajednicu",
     heroCtaDiscussions: "Pogledaj diskusije",
     heroMediaAlt: "Ilustracija zajednice polaznika",
-    metaTitle: "Zajednica — Fakultet za AI",
+    metaTitle: "Zajednica — Nauči AI",
     metaDescription:
-      "Javne diskusije, pitanja i iskustva polaznika Fakulteta za AI. Pridruži se razgovoru o praktičnoj primeni AI alata.",
+      "Javne diskusije, pitanja i iskustva naših polaznika. Pridruži se razgovoru o praktičnoj primeni AI alata.",
     askQuestion: "Postavi pitanje",
     signInToAsk: "Prijavi se i postavi pitanje",
     signInToParticipate: "Prijavi se za učešće",
@@ -1032,9 +1032,9 @@ export const communityListingContent = {
     heroCtaEnter: "Enter the community",
     heroCtaDiscussions: "Browse discussions",
     heroMediaAlt: "Illustration of the student community",
-    metaTitle: "Community — Faculty for AI",
+    metaTitle: "Community — Nauči AI",
     metaDescription:
-      "Public discussions, questions, and experiences from Faculty for AI students. Join the conversation on practical AI tools.",
+      "Public discussions, questions, and experiences from Nauči AI students. Join the conversation on practical AI tools.",
     askQuestion: "Ask a question",
     signInToAsk: "Sign in to ask a question",
     signInToParticipate: "Sign in to participate",
@@ -1409,9 +1409,9 @@ export const oauthConsentContent = {
  */
 export const mascotPageContent = {
   sr: {
-    metaTitle: "3D maskota — Fakultet za AI",
+    metaTitle: "3D maskota — Nauči AI",
     metaDescription:
-      "Pregled 3D maskote Fakulteta za AI u pregledaču: basic i premium varijanta, idle animacija i klizači koji pokreću pojedinačne zglobove.",
+      "Pregled naše 3D maskote u pregledaču: basic i premium varijanta, idle animacija i klizači koji pokreću pojedinačne zglobove.",
     hero: {
       titleLead: "Upoznaj našu ",
       titleHighlight: "3D maskotu",
@@ -1445,9 +1445,9 @@ export const mascotPageContent = {
     orbitHint: "Prevuci da okreneš, skroluj/uštini da zumiraš.",
   },
   en: {
-    metaTitle: "3D mascot — Faculty for AI",
+    metaTitle: "3D mascot — Nauči AI",
     metaDescription:
-      "A browser preview of the Faculty for AI 3D mascot: basic and premium variants, an idle animation, and sliders that drive individual joints.",
+      "A browser preview of the Nauči AI 3D mascot: basic and premium variants, an idle animation, and sliders that drive individual joints.",
     hero: {
       titleLead: "Meet our ",
       titleHighlight: "3D mascot",

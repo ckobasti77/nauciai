@@ -32,7 +32,7 @@ const patrickHand = Patrick_Hand({
 // localhost, giving crawlers unusable og:image / alternate URLs.
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
-  title: "Fakultet za AI",
+  title: "Nauči AI",
   description: "Bilingual AI learning and community platform for practical video, audio, and website courses.",
 };
 

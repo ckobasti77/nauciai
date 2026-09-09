@@ -12,7 +12,7 @@ export function getStripe(): Stripe {
   if (!stripeClient) {
     stripeClient = new Stripe(requireServerEnv("STRIPE_SECRET_KEY"), {
       appInfo: {
-        name: "Fakultet za AI",
+        name: "Nauči AI",
         version: "0.1.0",
       },
     });
