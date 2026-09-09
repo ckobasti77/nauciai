@@ -59,6 +59,17 @@ const authProxy = convexAuthNextjsMiddleware(async (request, { convexAuth }) => 
 
 export default async function proxy(request: NextRequest, event: NextFetchEvent) {
   const { pathname } = request.nextUrl;
+
+  // Convex Auth's client provider POSTs sign-in/sign-out actions to `/api/auth` and expects
+  // `convexAuthNextjsMiddleware` (via `authProxy` below) to proxy them to the Convex backend —
+  // there is no `app/api/auth/route.ts`, the middleware IS the route. The `NO_LOCALE` bypass
+  // right below this would otherwise `NextResponse.next()` straight past that proxying for every
+  // `/api/*` path, so the POST fell through to Next's router, 404'd, and the client tried to
+  // parse the HTML 404 page as JSON.
+  if (pathname === "/api/auth" || pathname === "/api/auth/") {
+    return authProxy(request, event);
+  }
+
   if (NO_LOCALE.test(pathname)) return NextResponse.next();
 
   const { locale, canonicalPath } = parsePath(pathname);

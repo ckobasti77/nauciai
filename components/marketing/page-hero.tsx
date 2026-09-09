@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useRef, useSyncExternalStore, type ReactNode } from "react";
 
 import { MarkerHighlight } from "@/components/marketing/marker-highlight";
 import { HandUnderline, LinkButton } from "@/components/ui/primitives";
@@ -88,10 +88,28 @@ function PageHeroMedia({
   sourceMedia?: string;
 }) {
   const stillOnly = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  // Kad je `sourceMedia` zadat (portret za telefon + video od `lg` naviše), `poster` ne sme
+  // da bude statičan atribut: za razliku od `<source media>`, `poster` nema media uslov, pa bi
+  // ga telefon uvek skinuo iako je roditelj videa `hidden lg:flex` (video nikad nije vidljiv
+  // ispod `lg`). Postavlja se imperativno tek kad `matchMedia` potvrdi desktop.
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !sourceMedia) return;
+    const query = window.matchMedia(sourceMedia);
+    const apply = () => {
+      video.poster = query.matches ? (posterSrc ?? "") : "";
+    };
+    apply();
+    query.addEventListener("change", apply);
+    return () => query.removeEventListener("change", apply);
+  }, [posterSrc, sourceMedia]);
 
   if (mp4Src && !stillOnly) {
     return (
       <video
+        ref={videoRef}
         className={MEDIA_CLASS}
         width={width}
         height={height}
@@ -100,7 +118,7 @@ function PageHeroMedia({
         loop
         playsInline
         preload="none"
-        poster={posterSrc}
+        poster={sourceMedia ? undefined : posterSrc}
         aria-label={label}
       >
         {webmSrc ? <source src={webmSrc} type="video/webm" media={sourceMedia} /> : null}

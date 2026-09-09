@@ -26,16 +26,14 @@ const nextConfig: NextConfig = {
         source: "/models/:path*.glb",
         headers: [{ key: "Content-Type", value: "model/gltf-binary" }],
       },
-      // "/" ima dve jezičke varijante po kolačiću (sr / 307 na /en), pa deljeni keš mora da vari
-      // po kolačiću. Deklaracija stoji ovde, ali Next App Router PREGAZI `Vary` na renderovanom
-      // RSC odgovoru (drugi headeri prolaze — proveren X-Probe — samo Vary ne). Zato je stvarni
-      // efekat na "/" prolazu obezbeđen na LiteSpeed rubu (public/.htaccess: `Header append Vary`),
-      // a keš trovanje je već sprečeno B4 pravilom (no-cache kad kolačić postoji). 307 iz proxy.ts
-      // svoj `Vary: Cookie` zadrži (terminalni odgovor, nema RSC rendera).
-      {
-        source: "/",
-        headers: [{ key: "Vary", value: "Cookie" }],
-      },
+      // NAPOMENA: `Vary: Cookie` na "/" NIJE ovde jer Next App Router pregazi `Vary` na
+      // renderovanom RSC odgovoru (potvrđeno na produkciji: `curl -I` ne vraća `Cookie` u
+      // Vary-ju bez obzira na ovo pravilo) — deklaracija bi bila mrtvo slovo na papiru. Nije
+      // ni potrebna: "/" već nosi `Cache-Control: private, no-cache, no-store` (uvek
+      // revalidacija, nikad deljeni keš), pa nema šta da se keš-truje po jeziku; a stvarni
+      // `Vary: Cookie` za edge keš (LiteSpeed) je dodat na rubu u `public/.htaccess`. 307 iz
+      // proxy.ts (soft redirect na /en) svoj `Vary: Cookie` zadrži nezavisno (terminalni
+      // odgovor, nema RSC rendera).
       // Clickjacking (MCP-P4b): ekran pristanka `/oauth/authorize`, app, studio
       // radni prostor i prijava ne smeju u tuđi <iframe>. Spisak putanja i
       // obrazloženje su u `lib/security-headers.ts`; test u

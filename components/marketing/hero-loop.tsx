@@ -135,13 +135,20 @@ export function HeroLoop({
           <>
             <link rel="preload" as="image" href={portrait.src} media={PORTRAIT_MEDIA} fetchPriority="high" />
             <link rel="preload" as="image" href={posterSrc} media={LANDSCAPE_MEDIA} fetchPriority="high" />
-            {/* Portret: statična slika, jedini LCP element na telefonu. */}
+            {/* Portret: statična slika, jedini LCP element na telefonu. `loading="lazy"` ovde NE
+                kasni mobilni LCP (pravi fetch već vuče `<link preload fetchPriority="high">`
+                iznad) — služi da spreči DVOJE na landscape ≥ 1024, gde je `.hero-cover-portrait`
+                `display: none` (globals.css): (1) React inače SAM ubacuje bezuslovni preload za
+                svaki `<img>` u SSR-u (react-dom, `renderState.preloads.images`) osim uz
+                `loading="lazy"`; (2) nativni "lazy" loader ne učitava `display:none` element dok
+                se ne prikaže, pa desktop nikad ne skine ovih 60 kB. */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={portrait.src}
               alt={label}
               width={portrait.width}
               height={portrait.height}
+              loading="lazy"
               className="hero-cover-media hero-cover-mask hero-cover-portrait"
             />
           </>
@@ -172,8 +179,8 @@ export function HeroLoop({
           >
             {portrait ? (
               <>
-                <source src={mp4Src} type="video/mp4" media={LANDSCAPE_MEDIA} />
                 <source src={webmSrc} type="video/webm" media={LANDSCAPE_MEDIA} />
+                <source src={mp4Src} type="video/mp4" media={LANDSCAPE_MEDIA} />
               </>
             ) : (
               <>
