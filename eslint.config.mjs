@@ -15,6 +15,8 @@ const eslintConfig = defineConfig([
     ".ux-run/**",
     "convex/_generated/**",
     "next-env.d.ts",
+    // Vendorovani Emscripten Draco dekoder — minifikovan tudji kod, ne nas.
+    "public/draco/**",
   ]),
 ]);
 
