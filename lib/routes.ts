@@ -19,6 +19,7 @@ const SEGMENTS: Record<string, Record<Locale, string>> = {
   pricing: { sr: "pretplata", en: "pricing" },
   "privacy-policy": { sr: "politika-privatnosti", en: "privacy-policy" },
   "studio-terms": { sr: "uslovi-studio", en: "studio-terms" },
+  "3d": { sr: "3d", en: "3d" },
 };
 
 // Obrnuta mapa (bilo koji jezički slug -> kanonski segment) gradi se jednom, na

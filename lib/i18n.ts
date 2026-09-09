@@ -1400,3 +1400,84 @@ export const oauthConsentContent = {
     backHome: "Back home",
   },
 } as const;
+
+/**
+ * Javna strana `/3d` (3D-FAZA5): pregled maskote (basic/premium) sa R3F canvas-om,
+ * idle animacijom i klizačima koji voze pojedinačne zglobove iz `RIG.md` — dokaz da
+ * rig radi. Nijedan hardkodovan string u komponentama, isti obrazac kao
+ * `marketingContent`. `sr` i `en` drže istu strukturu.
+ */
+export const mascotPageContent = {
+  sr: {
+    metaTitle: "3D maskota — Fakultet za AI",
+    metaDescription:
+      "Pregled 3D maskote Fakulteta za AI u pregledaču: basic i premium varijanta, idle animacija i klizači koji pokreću pojedinačne zglobove.",
+    hero: {
+      titleLead: "Upoznaj našu ",
+      titleHighlight: "3D maskotu",
+      subtitle: "Basic i premium varijanta, prava idle animacija i klizači koji pokreću svaki zglob posebno.",
+    },
+    variant: {
+      label: "Varijanta",
+      basic: "Basic",
+      premium: "Premium",
+    },
+    playback: {
+      play: "Pusti animaciju",
+      pause: "Pauziraj animaciju",
+      reset: "Vrati u početni položaj",
+    },
+    joints: {
+      groupLabel: "Zglobovi",
+      neck: "Vrat",
+      head: "Glava",
+      shoulders: "Ramena",
+      elbows: "Laktovi",
+      antenna: "Antena",
+    },
+    canvasLabel: "3D prikaz maskote — okreni i zumiraj mišem ili dodirom",
+    loading: "Učitavanje 3D modela…",
+    reducedMotionNote: "Pokret je isključen u podešavanjima sistema — model stoji u mirnoj pozi; klizači i dalje rade.",
+    stats: {
+      triangles: "trouglova",
+      fileSize: "veličina fajla",
+    },
+    orbitHint: "Prevuci da okreneš, skroluj/uštini da zumiraš.",
+  },
+  en: {
+    metaTitle: "3D mascot — Faculty for AI",
+    metaDescription:
+      "A browser preview of the Faculty for AI 3D mascot: basic and premium variants, an idle animation, and sliders that drive individual joints.",
+    hero: {
+      titleLead: "Meet our ",
+      titleHighlight: "3D mascot",
+      subtitle: "Basic and premium variants, a real idle animation, and sliders that drive every joint on its own.",
+    },
+    variant: {
+      label: "Variant",
+      basic: "Basic",
+      premium: "Premium",
+    },
+    playback: {
+      play: "Play animation",
+      pause: "Pause animation",
+      reset: "Reset to starting pose",
+    },
+    joints: {
+      groupLabel: "Joints",
+      neck: "Neck",
+      head: "Head",
+      shoulders: "Shoulders",
+      elbows: "Elbows",
+      antenna: "Antenna",
+    },
+    canvasLabel: "3D mascot preview — drag or touch to orbit, scroll or pinch to zoom",
+    loading: "Loading the 3D model…",
+    reducedMotionNote: "Motion is turned off in your system settings — the model holds a still pose; the sliders still work.",
+    stats: {
+      triangles: "triangles",
+      fileSize: "file size",
+    },
+    orbitHint: "Drag to rotate, scroll or pinch to zoom.",
+  },
+} as const;

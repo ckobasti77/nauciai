@@ -6,6 +6,20 @@ AddType video/webm .webm
 AddType video/mp4 .mp4
 AddType image/webp .webp
 AddType image/avif .avif
+AddType model/gltf-binary .glb
+
+# public/models/*.glb: dugotrajan keš, jer se maskote retko menjaju. NAMERNO bez
+# hash-a u imenu fajla (`mascot-basic.glb` / `mascot-premium.glb` ostaju isti kroz
+# verzije — 3D-FAZA5 brif eksplicitno traži da se putanja ne menja kad se model
+# ažurira). To je tenzija sa `immutable`: pravi cache-busting bi tražio hash u imenu
+# na svaku izmenu. Kompromis: `immutable` + dug max-age, uz svest da naredna izmena
+# GLB-a na istom imenu zahteva ručno čišćenje CDN/LiteSpeed keša (ili, ako se to
+# pokaže bolnim, uvođenje hash-a u ime tek tada — vidi napomenu u PR opisu).
+<FilesMatch "\.glb$">
+  <IfModule mod_headers.c>
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </IfModule>
+</FilesMatch>
 
 <FilesMatch "\.(webm|mp4)$">
   SetEnv no-gzip 1

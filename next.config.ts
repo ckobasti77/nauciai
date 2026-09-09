@@ -19,6 +19,13 @@ const nextConfig: NextConfig = {
         source: "/images/:path*.webm",
         headers: [{ key: "Content-Type", value: "video/webm" }],
       },
+      // 3D-FAZA5: isti razlog kao .webm iznad — kad Next sam služi /models/*.glb
+      // (Vercel/lokal), prisili ispravan MIME tip. LiteSpeed produkcija ima svoje
+      // pravilo u public/.htaccess.
+      {
+        source: "/models/:path*.glb",
+        headers: [{ key: "Content-Type", value: "model/gltf-binary" }],
+      },
       // "/" ima dve jezičke varijante po kolačiću (sr / 307 na /en), pa deljeni keš mora da vari
       // po kolačiću. Deklaracija stoji ovde, ali Next App Router PREGAZI `Vary` na renderovanom
       // RSC odgovoru (drugi headeri prolaze — proveren X-Probe — samo Vary ne). Zato je stvarni
