@@ -99,14 +99,17 @@ export function mascotJointNodes(variant: MascotVariant, key: MascotJointKey): M
             { name: "arm_cap_R_premium", axis: "by", sign: -1 },
           ];
     case "elbows":
+      // RIG/REPORT „Elbow convention": savijanje ka grudima je NEGATIVAN Blender X
+      // (opseg +10…−110). Klizač ide 0→max, pa sa `sign:-1` rastući klizač daje
+      // Blender X = −vrednost → ruke se savijaju NAPRED (pesnica ka −Y, ispred torza).
       return v === "basic"
         ? [
-            { name: "forearm_L_basic", axis: "bx", sign: 1 },
-            { name: "forearm_R_basic", axis: "bx", sign: 1 },
+            { name: "forearm_L_basic", axis: "bx", sign: -1 },
+            { name: "forearm_R_basic", axis: "bx", sign: -1 },
           ]
         : [
-            { name: "arm_lo_L_premium", axis: "bx", sign: 1 },
-            { name: "arm_lo_R_premium", axis: "bx", sign: 1 },
+            { name: "arm_lo_L_premium", axis: "bx", sign: -1 },
+            { name: "arm_lo_R_premium", axis: "bx", sign: -1 },
           ];
   }
 }
@@ -114,4 +117,47 @@ export function mascotJointNodes(variant: MascotVariant, key: MascotJointKey): M
 /** Svi čvorovi koje bar jedan klizač pokreće za datu varijantu — za keširanje refova. */
 export function mascotAllJointNodeNames(variant: MascotVariant): string[] {
   return MASCOT_JOINT_KEYS.flatMap((key) => mascotJointNodes(variant, key).map((node) => node.name));
+}
+
+/**
+ * Morph targeti lica, po REPORT-u prisutni na `eye_L_<v>`, `eye_R_<v>`, `mouth_<v>`
+ * (isti u obe varijante). „rest" nije morph — svi na 0. Redosled = redosled dugmadi.
+ */
+export const MASCOT_MORPHS = ["blink", "wink_L", "smile_wide", "surprised", "happy_closed"] as const;
+export type MascotMorph = (typeof MASCOT_MORPHS)[number];
+/** Izbor u UI-u: mirno lice (svi morfovi 0) ili jedan aktivan morph. */
+export type MascotExpression = "rest" | MascotMorph;
+export const MASCOT_EXPRESSIONS: MascotExpression[] = ["rest", ...MASCOT_MORPHS];
+
+/** Imena facijalnih mesh-eva koji nose morph ključeve, po varijanti. */
+export function mascotFaceMeshNames(variant: MascotVariant): string[] {
+  return [`eye_L_${variant}`, `eye_R_${variant}`, `mouth_${variant}`];
+}
+
+/**
+ * Struktura three `Mesh`-a sa morph ključevima — bez `three` uvoza (rig ostaje
+ * testljiv bez WebGL-a). `morphTargetDictionary` mapira ime morpha u indeks u
+ * `morphTargetInfluences`.
+ */
+export type MascotMorphMesh = {
+  morphTargetDictionary?: Record<string, number> | null;
+  morphTargetInfluences?: number[] | null;
+};
+
+/** Postavi uticaj jednog morpha po IMENU (preko `morphTargetDictionary`). No-op ako mesh nema taj morph. */
+export function setMorphInfluence(mesh: MascotMorphMesh, morph: MascotMorph, value: number): void {
+  const index = mesh.morphTargetDictionary?.[morph];
+  if (index === undefined || !mesh.morphTargetInfluences) return;
+  mesh.morphTargetInfluences[index] = value;
+}
+
+/**
+ * Čvorovi DESNE ruke za „pozdrav" u karticama planova (KORAK 2): podlaktica se diže,
+ * šaka (rukavica/pesnica) maše. Imena se razlikuju po varijanti (basic: forearm/mitt,
+ * premium: arm_lo/fist) — jedini izvor imena za `plan-mascot-canvas`.
+ */
+export function mascotWaveNodes(variant: MascotVariant): { forearm: string; hand: string } {
+  return variant === "basic"
+    ? { forearm: "forearm_R_basic", hand: "mitt_R_basic" }
+    : { forearm: "arm_lo_R_premium", hand: "fist_R_premium" };
 }

@@ -167,8 +167,8 @@ export async function PricingPage({ locale }: { locale: Locale }) {
               </h1>
               <p className="mt-6 max-w-2xl text-lg font-bold leading-8 text-muted">{p.hero.subtitle}</p>
             </div>
-            {/* `id="pricing"` nije ukras: preko njega `PlanRobot` sinhronizuje početak
-                petlje oba robota (isti prag, sačuvan fazni pomak) — isti ugovor kao u
+            {/* `id="pricing"` nije ukras: preko njega `PlanMascot` sinhronizuje montiranje i
+                idle oba robota (isti prag, sačuvan fazni pomak) — isti ugovor kao u
                 sekciji cena na landingu. */}
             <div id="pricing" className="mt-12">
               <PlanCards

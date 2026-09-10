@@ -1,6 +1,6 @@
 import { ArrowRight, CheckCircle2, Sparkles } from "lucide-react";
 
-import { PlanRobot } from "@/components/marketing/plan-robot";
+import { PlanMascot } from "@/components/marketing/plan-mascot";
 import { Badge } from "@/components/ui/badge";
 import { LinkButton, Panel } from "@/components/ui/primitives";
 import { marketingContent, type Locale } from "@/lib/i18n";
@@ -12,11 +12,11 @@ import type { PlatformPricing } from "@/lib/platform-settings";
  * (geometrija robota, žuto ostrvo cene, bedž, dugmad) bez dupliranja markupa.
  *
  * Dve stvari koje pozivalac mora da obezbedi:
- *   · kartice stoje na površini A (sekcija nivo 0) — paneli su nivo 1, jer robot ima
- *     UPEČENU #F4F0E8 (surface-b) pozadinu, pa `paper-island` drži karticu krem i u
- *     tamnoj temi;
- *   · pretka sa `id="pricing"` — `PlanRobot` preko njega sinhronizuje početak petlje
- *     oba robota (jedan IntersectionObserver za obe kartice, da fazni pomak ostane).
+ *   · kartice stoje na površini A (sekcija nivo 0) — paneli su nivo 1; `PlanMascot` je
+ *     PROVIDAN canvas, pa `paper-island` drži karticu krem (#F4F0E8) i u tamnoj temi da
+ *     maskota sedi na istoj podlozi u obe teme;
+ *   · pretka sa `id="pricing"` — `PlanMascot` preko njega sinhronizuje montiranje i idle
+ *     oba robota (isti prag i fazni pomak za obe kartice).
  *
  * Spisak stavki NIJE ovde: landing šalje kratak (`marketingContent.pricing`), strana
  * pretplate duži (`pricingPageContent.plans`). „%CREDITS%" u Premium spisku se ovde
@@ -58,10 +58,10 @@ export function PlanCards({
           jer robot ima UPEČENU #F4F0E8 pozadinu — da ne ostane svetao pravougaonik oko
           robota na tamnoj kartici. Tekst/tokeni se razrešavaju na svetle (čitljivi). */}
       <Panel level={1} className="paper-island relative flex flex-col p-6 sm:p-8">
-        <PlanRobot
-          mp4Src="/images/landing/plan-basic-loop.mp4"
+        <PlanMascot
+          variant="basic"
           posterSrc="/images/landing/plan-basic-poster.webp"
-          phase={0}
+          phaseSeconds={0}
           className="right-[1cm] top-3 h-[132px] w-[100px] lg:right-[1cm] lg:top-0 lg:bottom-[16%] lg:h-auto lg:w-[36%]"
         />
         <h3 className="pr-24 text-2xl font-black leading-tight text-ink lg:pr-[calc(38%_+_1cm)]">
@@ -94,10 +94,10 @@ export function PlanCards({
       >
         {/* Robot pre bedža u DOM-u → bedž se crta IZNAD njega. Pomeren malo naviše
             (−0.5cm) i vraćen udesno (net 1.2cm od desne ivice) po dopuni. */}
-        <PlanRobot
-          mp4Src="/images/landing/plan-premium-loop.mp4"
+        <PlanMascot
+          variant="premium"
           posterSrc="/images/landing/plan-premium-poster.webp"
-          phase={0.7}
+          phaseSeconds={2.1}
           className="right-[1.2cm] top-[calc(2rem_-_0.5cm)] h-[132px] w-[100px] lg:right-[1.2cm] lg:top-[calc(2.5rem_-_0.5cm)] lg:bottom-[16%] lg:h-auto lg:w-[36%]"
         />
         <Badge

@@ -2,16 +2,18 @@
 
 import { Loader2, Pause, Play, RotateCcw } from "lucide-react";
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
+import { Component, useCallback, useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 
 import { Button, cn } from "@/components/ui/primitives";
 import { mascotPageContent } from "@/lib/i18n";
 import type { Locale } from "@/lib/i18n";
 import {
+  MASCOT_EXPRESSIONS,
   MASCOT_JOINT_KEYS,
   MASCOT_MODEL_URL,
   mascotDefaultJointValues,
   mascotJointRange,
+  type MascotExpression,
   type MascotJointKey,
   type MascotVariant,
 } from "@/lib/mascot-rig";
@@ -25,6 +27,24 @@ import {
 const MascotCanvas = dynamic(() => import("@/components/marketing/mascot-canvas").then((m) => m.MascotCanvas), {
   ssr: false,
 });
+
+/**
+ * Ograda oko canvas-a: ako R3F padne pri montiranju (WebGL, dekoder, model), greška se
+ * NE penje do rute i ne odnosi kontrole sa sobom (raniji bag: dugmad iz SSR-a nestanu
+ * kad se canvas montira). Fallback ide na mesto canvas-a; klizači i dugmad ostaju.
+ */
+class CanvasBoundary extends Component<{ fallback: ReactNode; onError: () => void; children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  componentDidCatch() {
+    this.props.onError();
+  }
+  render() {
+    return this.state.failed ? this.props.fallback : this.props.children;
+  }
+}
 
 function useReducedMotion(): boolean {
   return useSyncExternalStore(
@@ -78,9 +98,11 @@ export function MascotViewer({ locale }: { locale: Locale }) {
 
   const [variant, setVariant] = useState<MascotVariant>("basic");
   const [playing, setPlaying] = useState(true);
+  const [expression, setExpression] = useState<MascotExpression>("rest");
   const [jointValues, setJointValues] = useState<Record<MascotJointKey, number>>(() => mascotDefaultJointValues("basic"));
   const [triangleCount, setTriangleCount] = useState<number | null>(null);
   const [fileSize, setFileSize] = useState<number | null>(null);
+  const [canvasFailed, setCanvasFailed] = useState(false);
 
   const selectVariant = useCallback((next: MascotVariant) => {
     setVariant(next);
@@ -100,6 +122,7 @@ export function MascotViewer({ locale }: { locale: Locale }) {
 
   const resetPose = useCallback(() => {
     setJointValues(mascotDefaultJointValues(variant));
+    setExpression("rest");
   }, [variant]);
 
   // Veličina fajla se čita sa samog GLB-a, ne iz izveštaja o gradnji — tek kad kutija
@@ -158,16 +181,23 @@ export function MascotViewer({ locale }: { locale: Locale }) {
           aria-label={t.canvasLabel}
           className="surface-card relative aspect-square w-full overflow-hidden border-2 border-ink bg-surface-b sm:aspect-video"
         >
-          {inView ? (
-            <MascotCanvas
-              variant={variant}
-              jointValues={jointValues}
-              playing={playing}
-              reducedMotion={reducedMotion}
-              onReady={onReady}
-            />
+          {inView && !canvasFailed ? (
+            <CanvasBoundary onError={() => setCanvasFailed(true)} fallback={null}>
+              <MascotCanvas
+                variant={variant}
+                jointValues={jointValues}
+                expression={expression}
+                playing={playing}
+                reducedMotion={reducedMotion}
+                onReady={onReady}
+              />
+            </CanvasBoundary>
           ) : null}
-          {!modelReady ? (
+          {canvasFailed ? (
+            <div className="absolute inset-0 flex items-center justify-center bg-surface-b px-6 text-center text-ink">
+              <p className="text-sm font-extrabold text-muted">{t.canvasError}</p>
+            </div>
+          ) : !modelReady ? (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-surface-b text-ink">
               <Loader2 className="size-8 animate-spin" aria-hidden="true" />
               <p className="text-sm font-extrabold">{t.loading}</p>
@@ -196,6 +226,26 @@ export function MascotViewer({ locale }: { locale: Locale }) {
             <RotateCcw className="size-4" />
             {t.playback.reset}
           </Button>
+        </div>
+
+        <div className="mt-4">
+          <p className="text-xs font-black uppercase tracking-wide text-muted">{t.expression.groupLabel}</p>
+          <div role="group" aria-label={t.expression.groupLabel} className="mt-2 flex flex-wrap gap-2">
+            {MASCOT_EXPRESSIONS.map((exp) => (
+              <button
+                key={exp}
+                type="button"
+                aria-pressed={expression === exp}
+                onClick={() => setExpression(exp)}
+                className={cn(
+                  "rounded-full border-2 border-ink px-3.5 py-1.5 text-xs font-black transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+                  expression === exp ? "bg-ink text-paper-strong" : "bg-paper-strong text-ink hover:-translate-y-0.5",
+                )}
+              >
+                {t.expression[exp]}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

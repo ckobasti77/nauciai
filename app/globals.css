@@ -667,6 +667,25 @@ select:-webkit-autofill {
   animation: studio-breathe var(--motion-spor) ease-in-out infinite;
 }
 
+/* Senka ispod žive 3D maskote u karticama planova (KORAK 2). Skalira 1→0.92→1 u ritmu
+   lebdenja (idle root ±0.012 po Y). Trajanje je 3 s — TAČNO dužina idle klipa — pa fazni
+   pomak preko negativnog `animation-delay` (basic 0 s, premium −2,1 s) drži senku poklopljenu
+   s modelom. Pauzira se s idle-om preko `animation-play-state`. `translateX(-50%)` je u kadru
+   jer transform inače pregazi centriranje. Renderuje se samo uz canvas (dozvoljen pokret). */
+@keyframes plan-mascot-shadow {
+  0%,
+  100% {
+    transform: translateX(-50%) scale(1);
+  }
+  50% {
+    transform: translateX(-50%) scale(0.92);
+  }
+}
+
+.plan-mascot-shadow {
+  animation: plan-mascot-shadow 3s ease-in-out infinite;
+}
+
 /* Ulazak tosta (element tier). Ranije je tu stajala klasa `motion-safe:animate-in`, koju
    ništa ne definiše — `tailwindcss-animate` nije u `package.json`, pa je poruka iskakala
    bez ijednog kadra. Ulazi odozgo jer je traka usidrena uz gornju ivicu. */

@@ -3,12 +3,16 @@ import { describe, expect, it } from "vitest";
 import {
   blenderAxisToThree,
   blenderDegreesToThreeRadians,
+  MASCOT_EXPRESSIONS,
   MASCOT_JOINT_KEYS,
+  MASCOT_MORPHS,
   mascotAllJointNodeNames,
   mascotDefaultJointValues,
+  mascotFaceMeshNames,
   mascotJointNodes,
   mascotJointRange,
   MASCOT_MODEL_URL,
+  setMorphInfluence,
 } from "@/lib/mascot-rig";
 
 describe("blenderAxisToThree", () => {
@@ -70,9 +74,21 @@ describe("mascotJointNodes", () => {
   it("keeps the same sign for L/R elbows (Blender X bend)", () => {
     const nodes = mascotJointNodes("premium", "elbows");
     expect(nodes).toEqual([
-      { name: "arm_lo_L_premium", axis: "bx", sign: 1 },
-      { name: "arm_lo_R_premium", axis: "bx", sign: 1 },
+      { name: "arm_lo_L_premium", axis: "bx", sign: -1 },
+      { name: "arm_lo_R_premium", axis: "bx", sign: -1 },
     ]);
+  });
+
+  it("folds elbows FORWARD as the slider rises (REPORT: forward = negative Blender X)", () => {
+    for (const variant of ["basic", "premium"] as const) {
+      for (const joint of mascotJointNodes(variant, "elbows")) {
+        // useFrame prosleđuje `value * sign` u konverziju; rastuća vrednost mora dati
+        // NEGATIVAN Blender X (rotacija.x) = savijanje ka grudima.
+        const { threeAxis, radians } = blenderDegreesToThreeRadians(joint.axis, 90 * joint.sign);
+        expect(threeAxis).toBe("x");
+        expect(radians).toBeLessThan(0);
+      }
+    }
   });
 });
 
@@ -92,6 +108,29 @@ describe("mascotAllJointNodeNames / mascotDefaultJointValues", () => {
         expect(defaults[key]).toBeLessThanOrEqual(range.max);
       }
     }
+  });
+});
+
+describe("morph targets", () => {
+  it("lists the five facial morphs, rest first in the UI order", () => {
+    expect(MASCOT_MORPHS).toEqual(["blink", "wink_L", "smile_wide", "surprised", "happy_closed"]);
+    expect(MASCOT_EXPRESSIONS).toEqual(["rest", ...MASCOT_MORPHS]);
+  });
+
+  it("names the three facial meshes per variant", () => {
+    expect(mascotFaceMeshNames("premium")).toEqual(["eye_L_premium", "eye_R_premium", "mouth_premium"]);
+  });
+
+  it("sets influence by name through morphTargetDictionary", () => {
+    const mesh = { morphTargetDictionary: { blink: 0, smile_wide: 2 }, morphTargetInfluences: [0, 0, 0] };
+    setMorphInfluence(mesh, "smile_wide", 1);
+    expect(mesh.morphTargetInfluences).toEqual([0, 0, 1]);
+  });
+
+  it("is a no-op when the mesh lacks that morph", () => {
+    const mesh = { morphTargetDictionary: { blink: 0 }, morphTargetInfluences: [0] };
+    setMorphInfluence(mesh, "surprised", 1);
+    expect(mesh.morphTargetInfluences).toEqual([0]);
   });
 });
 
