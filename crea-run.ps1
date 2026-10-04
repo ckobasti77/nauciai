@@ -433,7 +433,7 @@ function Wait-ForLimit([string]$text) {
 # Jedan poziv sa ponovnim pokusajima (limit, mreza, nepoznat flag). Vraca rezultat i najnoviji session id.
 function Invoke-WithRetry {
   param([string]$TagBase, [string]$PromptText, [string]$Effort, [string]$Mode, [string]$ResumeId, [int]$TimeoutMin, [string]$ContinueText, [string]$UseModel = "")
-  $sid = $ResumeId; $text = $PromptText; $net = 0; $lim = 0; $n = 0; $total = 0.0; $flagFix = 0
+  $sid = $ResumeId; $text = $PromptText; $net = 0; $lim = 0; $n = 0; $total = 0.0; $flagFix = 0; $authWait = 0
   $netWaits = @(2, 5, 10, 20, 30, 30, 30, 30, 60, 60, 60, 60)
   while ($true) {
     $n++
@@ -441,9 +441,16 @@ function Invoke-WithRetry {
     $total += $r.cost; Add-Cost $r.cost
     if ($r.sessionId) { $sid = $r.sessionId }
     if ($r.auth) {
-      Write-Log "STOP: Claude nije prijavljen. Pokreni 'claude', uradi /login, pa ponovo pokreni run (nastavlja gde je stao)." Red
-      Save-State; exit 2
+      # Ne gasi se: ceka da Jovan uradi /login, pa sam nastavlja isti poziv.
+      $authWait++
+      if ($authWait -eq 1 -or ($authWait % 12) -eq 0) {
+        Write-Log "LOGIN: claude CLI nije prijavljen (OAuth istekao). U terminalu pokreni 'claude' i uradi /login - run sam nastavlja (proveravam na 5 min)." Red
+      }
+      if ($authWait -gt 864) { Write-Log "STOP: 72 h bez prijave - stajem. Posle /login ponovo pokreni .crea-run\pokreni.cmd" Red; Save-State; exit 2 }
+      Start-Sleep -Seconds 300
+      continue
     }
+    if ($authWait -gt 0) { Write-Log "LOGIN: prijava radi - nastavljam" Green; $authWait = 0 }
     if ($r.badFlag -and $flagFix -lt 8) {
       $flagFix++
       if ($r.badFlag -match "(?i)permission.mode") {

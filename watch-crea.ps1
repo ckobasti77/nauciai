@@ -102,6 +102,8 @@ while ($true) {
     if ($l -match 'LIMIT: cekam (\d+) min \(do (\d\d:\d\d)\)') { $waitMsg = "LIMIT potrosen - ceka reset do $($Matches[2]), pa nastavlja istu sesiju"; continue }
     if ($l -match 'MREZA pala \(pokusaj (\d+)/(\d+)\)')        { $waitMsg = "mreza pala, pokusaj $($Matches[1])/$($Matches[2]) - ceka"; continue }
     if ($l -match '(LIMIT|MREZA): nastavljam')                  { $waitMsg = ""; continue }
+    if ($l -match 'LOGIN: claude CLI nije prijavljen')          { $waitMsg = "ceka prijavu: u terminalu pokreni 'claude' pa /login"; continue }
+    if ($l -match 'LOGIN: prijava radi')                        { $waitMsg = ""; continue }
     if ($l -match 'SELFTEST:')                                  { $phase = "selftest (provera claude CLI-ja)"; continue }
     if ($l -match 'BASELINE: pustam')                           { $phase = "baseline (pocetne provere: typecheck, lint, test, build)"; continue }
     if ($l -match 'BASELINE: typecheck')                        { $phase = ""; continue }

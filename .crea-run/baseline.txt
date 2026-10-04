@@ -1,0 +1,8 @@
+Baseline (pre koraka K01, 2026-10-05 00:38)
+codegen: ok
+typecheck: ok
+lint: PADA
+build: ok
+testovi koji su padali i pre runa:
+  - chat.test.ts :: inbox summary stays exact beyond one thousand memberships
+  - chatAvatar.test.ts :: group avatar intent sanitizes WebP, consumes once, and deletes only its raw upload
