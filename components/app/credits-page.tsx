@@ -168,8 +168,8 @@ export function CreditsPage({
       title={locale === "sr" ? "Krediti" : "Credits"}
       body={
         locale === "sr"
-          ? "Kredit je bod kojim se plaća svaka slika, video ili zvuk koji napraviš u Studiju. Kupuju se jednom, važe 12 meseci i ne propadaju na kraju meseca."
-          : "A credit is a point that pays for every image, video or sound you make in the Studio. Bought once, valid for 12 months, and they never expire at the end of a month."
+          ? "Kredit je bod kojim se plaća svaka slika, video ili zvuk koji napraviš u Crei. Kupuju se jednom, važe 12 meseci i ne propadaju na kraju meseca."
+          : "A credit is a point that pays for every image, video or sound you make in Crea. Bought once, valid for 12 months, and they never expire at the end of a month."
       }
       />
     </div>
@@ -425,7 +425,7 @@ export function CreditsPage({
                           namerno tekst - link bi vodio na 404. */}
                       {transaction.jobId ? (
                         <span className="ml-2 text-xs font-bold text-muted">
-                          {locale === "sr" ? "potrošeno u Studiju" : "spent in the Studio"}
+                          {locale === "sr" ? "potrošeno u Crei" : "spent in Crea"}
                         </span>
                       ) : null}
                     </p>

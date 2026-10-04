@@ -699,7 +699,7 @@ export function CourseLab({
                         className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-sm font-black text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5"
                       >
                         <Wand2 className="size-4" />
-                        {t(locale, "Otvori u Studiju", "Open in the Studio")}
+                        {t(locale, "Otvori u Crei", "Open in Crea")}
                       </Link>
                     ) : null}
                     {latestOutput ? (

@@ -282,8 +282,8 @@ function WorkingModuleLinks({ locale }: { locale: Locale }) {
     {
       href: withLocale(locale, "/app/admin/studio"),
       icon: Wand2,
-      label: t(locale, "Studio admin", "Studio admin"),
-      body: t(locale, "Modeli, cene i paketi kredita u Studiju.", "Studio models, prices and credit packs."),
+      label: t(locale, "Crea admin", "Crea admin"),
+      body: t(locale, "Modeli, cene i paketi kredita u Crei.", "Crea models, prices and credit packs."),
     },
   ];
 

@@ -24,6 +24,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { clampBoundsToViewport } from "@/lib/floating-bounds";
+import { parsePath } from "@/lib/routes";
 import { t, withLocale, type Locale } from "@/lib/i18n";
 import {
   readComposerCollapsed,
@@ -85,7 +86,7 @@ function StudioTermsGate({ locale }: { locale: Locale }) {
 
       <div className="mt-4 flex flex-wrap gap-4 type-body-sm font-extrabold">
         <Link href={withLocale(locale, STUDIO_TERMS_PATH)} className="text-ink underline">
-          {locale === "sr" ? "Uslovi korišćenja Studija" : "Studio terms of use"}
+          {locale === "sr" ? "Uslovi korišćenja Cree" : "Crea terms of use"}
         </Link>
         <Link href={withLocale(locale, PRIVACY_POLICY_PATH)} className="text-ink underline">
           {locale === "sr" ? "Politika privatnosti" : "Privacy policy"}
@@ -219,7 +220,9 @@ export function StudioPage({
   }
 
   // Detalj medija i navigacija (sinhronizovano preko Next.js App Router-a)
-  const routeDetailMatch = pathname.match(new RegExp(`${basePath}/m/([^/]+)`));
+  // `basePath` je KANONSKI (`/studio/app`), a adresa javna (`/crea/app`, `/en/crea/app`) - poredi se
+  // kanonski oblik adrese, pa preimenovanje javnog sluga ne lomi otvaranje detalja (K02).
+  const routeDetailMatch = parsePath(pathname).canonicalPath.match(new RegExp(`^${basePath}/m/([^/]+)`));
   const activeJobId = routeDetailMatch ? routeDetailMatch[1] : (initialJobId ?? null);
   const [loadedJobs, setLoadedJobs] = useState<StudioTileJob[]>([]);
 
@@ -500,7 +503,7 @@ export function StudioPage({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         {/* Naslov + Traka filtera u istoj ravni */}
         <div className="flex min-w-0 flex-1 items-center gap-3 md:gap-4">
-          <h2 className="shrink-0 type-h1 text-ink">Studio</h2>
+          <h2 className="shrink-0 type-h1 text-ink">Crea</h2>
           {/* `min-w-0`: bez njega ova kolona ne sme da se skupi ispod min-content trake
               filtera, pa traka gura ceo studio preko desne ivice (UX-BOOST-PLAN §5C). */}
           <div className="hidden min-w-0 sm:flex items-center">
@@ -588,8 +591,8 @@ export function StudioPage({
         <Panel className="p-4 sm:p-6">
           <p className="type-body type-measure font-bold text-muted">
             {locale === "sr"
-              ? "Prijavi se da bi generisao u Studiju."
-              : "Sign in to generate in the Studio."}
+              ? "Prijavi se da bi generisao u Crei."
+              : "Sign in to generate in Crea."}
           </p>
           <LinkButton href={signInHrefProp ?? withLocale(locale, "/sign-in")} tone="ink" className="mt-4">
             {locale === "sr" ? "Prijavi se" : "Sign in"}
@@ -701,7 +704,7 @@ export function StudioPage({
             id="studio"
             locale={locale}
             icon={Wand2}
-            title={t(locale, "Ovo je Studio", "This is the Studio")}
+            title={t(locale, "Ovo je Crea", "This is Crea")}
             body={t(
               locale,
               "Ovde od opisa u rečenici dobijaš sliku, video ili zvuk. Svaki posao se plaća kreditima, a tačna cena piše na dugmetu pre nego što klikneš.",

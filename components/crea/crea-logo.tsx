@@ -3,7 +3,7 @@ import type { CSSProperties } from "react";
 /**
  * Crea logo (znak i wordmark). Geometrija je izvezena iz Nunito Black (OFL) i
  * zamrznuta ovde - ne crtati ponovo rukom. Boje idu kroz tokene, pa tamna tema
- * radi sama: mastilo = --color-ink, „riso" senka i zraci = --color-yellow.
+ * radi sama: mastilo = --ink, „riso" senka i zraci = --yellow.
  *
  * `animated`: tri zraka „pulsiraju" (Crea „viče" dok nešto pravi). Poštuje
  * prefers-reduced-motion kroz `motion-safe:` - bez pokreta kad korisnik to traži.
@@ -73,8 +73,11 @@ export function CreaLogo({
   className?: string;
   title?: string;
 }) {
-  const ink = "var(--color-ink)";
-  const riso = "var(--color-yellow)";
+  // Sirovi tokeni (`--ink`, `--yellow`), ne `--color-*`: `--color-ink` se razreši na
+  // korenu, pa bi u svetlom „ostrvu" (hero, `.bg-yellow`) tamne teme znak ostao svetao.
+  // Ostrva redeklarišu baš sirove tokene - isto kao Tailwind `text-ink` (@theme inline).
+  const ink = "var(--ink)";
+  const riso = "var(--yellow)";
 
   if (variant === "znak") {
     const [tx, ty] = MARK.cTranslate;

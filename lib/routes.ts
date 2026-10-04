@@ -15,13 +15,22 @@ import type { Locale } from "./i18n";
 const SEGMENTS: Record<string, Record<Locale, string>> = {
   courses: { sr: "kursevi", en: "courses" },
   community: { sr: "zajednica", en: "community" },
-  studio: { sr: "studio", en: "studio" },
+  // Crea (bivši Studio): kanonski segment i folder ostaju `studio`, menja se samo javni slug.
+  studio: { sr: "crea", en: "crea" },
   pricing: { sr: "pretplata", en: "pricing" },
   "privacy-policy": { sr: "politika-privatnosti", en: "privacy-policy" },
-  "studio-terms": { sr: "uslovi-studio", en: "studio-terms" },
+  "studio-terms": { sr: "uslovi-crea", en: "crea-terms" },
   "3d": { sr: "3d", en: "3d" },
   mcp: { sr: "mcp", en: "mcp" },
 };
+
+/**
+ * Stari javni slugovi koje i dalje PREPOZNAJEMO, da bi ih `proxy.ts` 308-ovao na
+ * nov oblik. Samo se parsiraju - `toPublicPath` ih nikad ne proizvodi. Kanonski
+ * ključevi (`studio`, `studio-terms`) već mapiraju sami na sebe, pa `/studio/*` i
+ * `/en/studio-terms` ovde ne treba navoditi (K01-1).
+ */
+const LEGACY_SLUGS: Record<string, string> = { "uslovi-studio": "studio-terms" };
 
 // Obrnuta mapa (bilo koji jezički slug -> kanonski segment) gradi se jednom, na
 // nivou modula. Kanonski segment mapira i sam na sebe (`courses` -> `courses`).
@@ -31,6 +40,9 @@ for (const [canonical, variants] of Object.entries(SEGMENTS)) {
   for (const slug of Object.values(variants)) {
     SLUG_TO_CANONICAL[slug] = canonical;
   }
+}
+for (const [slug, canonical] of Object.entries(LEGACY_SLUGS)) {
+  SLUG_TO_CANONICAL[slug] ??= canonical;
 }
 
 /** Prima slug bilo kog jezika, vraća kanonski; nepoznat vraća neizmenjen. */
@@ -106,9 +118,18 @@ export function internalPath(locale: Locale, canonicalPath: string): string {
 }
 
 /**
+ * Da li `proxy.ts` mora da rewrite-uje javnu putanju na internu. `sr` uvek (javni
+ * URL nema prefiks); `en` samo kad se javni slug razlikuje od foldera - od Cree
+ * je `/en/crea/app` javno, a folder je i dalje `/en/studio/app` (K01-2).
+ */
+export function needsInternalRewrite(locale: Locale, canonicalPath: string, pathname: string): boolean {
+  return internalPath(locale, canonicalPath) !== pathname;
+}
+
+/**
  * Metadata alternates za jednu kanonsku putanju: `canonical` za trenutni jezik +
  * `languages` (sr, en, x-default = sr varijanta) kao apsolutni URL-ovi.
- * U J1 se koristi samo na `/studio`; pun hreflang rollout ide u J2.
+ * Koristi se na `/studio` (javno `/crea`) i uslovima; pun hreflang rollout ide u J2.
  */
 export function alternatesFor(origin: string, canonicalPath: string, locale: Locale) {
   const sr = `${origin}${toPublicPath("sr", canonicalPath)}`;

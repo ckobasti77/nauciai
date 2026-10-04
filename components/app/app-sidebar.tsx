@@ -20,7 +20,6 @@ import {
   ShieldCheck,
   User,
   LogOut,
-  Wand2,
   X,
   ArrowUpRight,
 } from "lucide-react";
@@ -38,6 +37,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type ComponentType,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
@@ -50,6 +50,7 @@ import {
   resolvePlan,
 } from "@/components/app/app-account-menu";
 import { CheckoutButton } from "@/components/app/checkout-button";
+import { CreaMarkIcon } from "@/components/crea/crea-mark-icon";
 import { ThemeToggle } from "@/components/app/theme-toggle";
 import { BrandMark, cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
@@ -793,7 +794,7 @@ function NavLink({
 }: {
   href: string;
   active: boolean;
-  icon: typeof LayoutDashboard;
+  icon: ComponentType<{ className?: string }>;
   label: string;
   badge?: number;
 }) {
@@ -1514,8 +1515,8 @@ function AppSidebarContent({
               <NavLink
                 href={withLocale(locale, "/app/studio")}
                 active={studioActive}
-                icon={Wand2}
-                label="Studio"
+                icon={CreaMarkIcon}
+                label="Crea"
               />
               <NavLink
                 href={withLocale(locale, "/app/credits")}
@@ -1728,7 +1729,7 @@ function AppSidebarContent({
           <RailAction href={dashboardHref(locale)} label="Dashboard" icon={<LayoutDashboard className="size-5" />} active={dashboardActive} />
           {/* Učionica: smer/kurs/lekcija su njen kontekst; LearningSwitcher se otvara iz classroom raila. */}
           <RailAction href={classroomPath(locale)} label={locale === "sr" ? "Učionica" : "Classroom"} icon={<GraduationCap className="size-5" />} active={classroomActive} />
-          <RailAction href={withLocale(locale, "/app/studio")} label="Studio" icon={<Wand2 className="size-5" />} active={studioActive} />
+          <RailAction href={withLocale(locale, "/app/studio")} label="Crea" icon={<CreaMarkIcon className="size-5" />} active={studioActive} />
           <RailAction href={withLocale(locale, "/app/credits")} label={locale === "sr" ? "Krediti" : "Credits"} icon={<Coins className="size-5" />} active={creditsActive} />
           {/* Zajednica je odredište; njena sekcijska nav se prikazuje po dolasku, pa je svaka
               sekcija i dalje na dva klika odavde. */}

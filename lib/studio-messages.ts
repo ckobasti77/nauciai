@@ -32,8 +32,8 @@ const CREATE_JOB_ERROR_MESSAGES: Array<[string, { sr: string; en: string }]> = [
   [
     "NEISPRAVAN_PROMPT:ZABRANJEN_POJAM",
     {
-      sr: "Prompt sadrži pojam koji Studio ne generiše. Izmeni ga i pokušaj ponovo.",
-      en: "The prompt contains a term the Studio does not generate. Edit it and try again.",
+      sr: "Prompt sadrži pojam koji Crea ne generiše. Izmeni ga i pokušaj ponovo.",
+      en: "The prompt contains a term Crea does not generate. Edit it and try again.",
     },
   ],
   [
@@ -43,8 +43,8 @@ const CREATE_JOB_ERROR_MESSAGES: Array<[string, { sr: string; en: string }]> = [
   [
     "DNEVNI_LIMIT_TROSKA",
     {
-      sr: "Dostigao si dnevni limit potrošnje u Studiju. Krediti su ti ostali; nastavi sutra.",
-      en: "You have reached the Studio's daily spending limit. Your credits are untouched; continue tomorrow.",
+      sr: "Dostigao si dnevni limit potrošnje u Crei. Krediti su ti ostali; nastavi sutra.",
+      en: "You have reached Crea's daily spending limit. Your credits are untouched; continue tomorrow.",
     },
   ],
   [
@@ -52,8 +52,8 @@ const CREATE_JOB_ERROR_MESSAGES: Array<[string, { sr: string; en: string }]> = [
     // stoji PRE "DNEVNI_LIMIT" jer je matching substring, isto kao TROSKA.
     "DNEVNI_LIMIT_KREDITA",
     {
-      sr: "Dostigao si dnevni limit potrošnje kredita u Studiju. Krediti ti ostaju na nalogu - nastavi sutra.",
-      en: "You have reached the Studio's daily credit-spend limit. Your credits stay on the account - continue tomorrow.",
+      sr: "Dostigao si dnevni limit potrošnje kredita u Crei. Krediti ti ostaju na nalogu - nastavi sutra.",
+      en: "You have reached Crea's daily credit-spend limit. Your credits stay on the account - continue tomorrow.",
     },
   ],
   [
@@ -120,8 +120,8 @@ const CREATE_JOB_ERROR_MESSAGES: Array<[string, { sr: string; en: string }]> = [
     // poziv koji je zaobišao ekran.
     "USLOVI_NEPRIHVACENI",
     {
-      sr: "Pre prve generacije moraš da potvrdiš da imaš 18 godina i da prihvataš uslove Studija. Osveži stranicu, potvrda će te sačekati.",
-      en: "Before your first generation you must confirm that you are 18 and accept the Studio terms. Refresh the page and the confirmation will be waiting.",
+      sr: "Pre prve generacije moraš da potvrdiš da imaš 18 godina i da prihvataš uslove Cree. Osveži stranicu, potvrda će te sačekati.",
+      en: "Before your first generation you must confirm that you are 18 and accept the Crea terms. Refresh the page and the confirmation will be waiting.",
     },
   ],
   [
@@ -138,15 +138,15 @@ const CREATE_JOB_ERROR_MESSAGES: Array<[string, { sr: string; en: string }]> = [
     // rešava dopunom, pa poruka vodi na dugme "Dopuni".
     "SALDO_U_MINUSU",
     {
-      sr: "Uplata je vraćena, a krediti iz nje su već bili potrošeni - saldo ti je u minusu. Dopuni kredite da bi Studio ponovo radio.",
-      en: "A payment was refunded and its credits had already been spent, so your balance is negative. Top up your credits to reopen the Studio.",
+      sr: "Uplata je vraćena, a krediti iz nje su već bili potrošeni - saldo ti je u minusu. Dopuni kredite da bi Crea ponovo radila.",
+      en: "A payment was refunded and its credits had already been spent, so your balance is negative. Top up your credits to reopen Crea.",
     },
   ],
   [
     "STUDIO_PAUZIRAN",
     {
-      sr: "Studio je privremeno pauziran. Krediti ti ostaju na nalogu, probaj kasnije.",
-      en: "The Studio is paused for now. Your credits stay on the account; try again later.",
+      sr: "Crea je privremeno pauzirana. Krediti ti ostaju na nalogu, probaj kasnije.",
+      en: "Crea is paused for now. Your credits stay on the account; try again later.",
     },
   ],
   [
@@ -156,8 +156,8 @@ const CREATE_JOB_ERROR_MESSAGES: Array<[string, { sr: string; en: string }]> = [
     // tačan za većinu korisnika koji ovo dobiju - i sami su upisani.
     "NEMA_PRISTUPA",
     {
-      sr: "Studio je trenutno u zatvorenom testiranju, dostupan samo osoblju platforme. Otvoriće se polaznicima kasnije.",
-      en: "The Studio is currently in closed testing, available only to platform staff. It will open to students later.",
+      sr: "Crea je trenutno u zatvorenom testiranju, dostupna samo osoblju platforme. Otvoriće se polaznicima kasnije.",
+      en: "Crea is currently in closed testing, available only to platform staff. It will open to students later.",
     },
   ],
   [
@@ -166,8 +166,8 @@ const CREATE_JOB_ERROR_MESSAGES: Array<[string, { sr: string; en: string }]> = [
     // do ovoga uopšte dođe, ali server odbija i poziv koji je ekran zaobišao.
     "EMAIL_NIJE_POTVRDJEN",
     {
-      sr: "Potvrdi svoju email adresu da bi koristio Studio - link za potvrdu ti stiže na email. Krediti i nalog te čekaju.",
-      en: "Confirm your email address to use the Studio - the confirmation link arrives by email. Your credits and account are waiting.",
+      sr: "Potvrdi svoju email adresu da bi koristio Creu - link za potvrdu ti stiže na email. Krediti i nalog te čekaju.",
+      en: "Confirm your email address to use Crea - the confirmation link arrives by email. Your credits and account are waiting.",
     },
   ],
   [
@@ -175,15 +175,15 @@ const CREATE_JOB_ERROR_MESSAGES: Array<[string, { sr: string; en: string }]> = [
     // nedostižno kroz normalnu upotrebu - ali link se može ručno izmeniti.
     "ZADATAK_BEZ_LEKCIJE",
     {
-      sr: "Zadatak zahteva i lekciju. Otvori Studio direktno iz zadatka u lekciji i pokušaj ponovo.",
-      en: "The task needs its lesson context. Open the Studio from the task in the lesson and try again.",
+      sr: "Zadatak zahteva i lekciju. Otvori Creu direktno iz zadatka u lekciji i pokušaj ponovo.",
+      en: "The task needs its lesson context. Open Crea from the task in the lesson and try again.",
     },
   ],
   [
     "ZADATAK_NIJE_U_LEKCIJI",
     {
-      sr: "Ovaj zadatak ne pripada toj lekciji. Otvori Studio ponovo iz zadatka i pokušaj opet.",
-      en: "This task does not belong to that lesson. Open the Studio again from the task and try again.",
+      sr: "Ovaj zadatak ne pripada toj lekciji. Otvori Creu ponovo iz zadatka i pokušaj opet.",
+      en: "This task does not belong to that lesson. Open Crea again from the task and try again.",
     },
   ],
   [
@@ -460,8 +460,8 @@ export const STUDIO_CONTENT_NOTICE: Record<Locale, string> = {
 };
 
 export const STUDIO_CONTENT_NOTICE_LINK: Record<Locale, string> = {
-  sr: "Uslovi Studija i privatnost",
-  en: "Studio terms and privacy",
+  sr: "Uslovi Cree i privatnost",
+  en: "Crea terms and privacy",
 };
 
 /** Politika privatnosti - stranicu pravi korak X7, uz uslove korišćenja. */
@@ -483,7 +483,8 @@ export const PRIVACY_POLICY_PATH = "/privacy-policy";
  */
 export const STUDIO_SHELL = {
   signIn: { sr: "Prijavi se", en: "Sign in" },
-  backToStudio: { sr: "Nazad u Studio", en: "Back to the Studio" },
+  backToStudio: { sr: "Nazad u Creu", en: "Back to Crea" },
+  homeLabel: { sr: "Crea — početna", en: "Crea — home" },
   crossSell: { sr: "Nauči kako ovo da radiš → kursevi", en: "Learn how to make this → courses" },
 } satisfies Record<string, Record<Locale, string>>;
 
@@ -500,8 +501,8 @@ export const STUDIO_VERIFY_EMAIL: EmptyStateNoCta & {
 } = {
   title: { sr: "Potvrdi email da bi generisao", en: "Confirm your email to generate" },
   body: {
-    sr: "Poslaćemo ti link za potvrdu - jedan klik i Studio je otvoren. Krediti i nalog te čekaju.",
-    en: "We will send you a confirmation link - one click and the Studio opens. Your credits and account are waiting.",
+    sr: "Poslaćemo ti link za potvrdu - jedan klik i Crea je otvorena. Krediti i nalog te čekaju.",
+    en: "We will send you a confirmation link - one click and Crea opens. Your credits and account are waiting.",
   },
   cta: { sr: "Pošalji link za potvrdu", en: "Send the confirmation link" },
   sent: {
@@ -520,14 +521,14 @@ export const STUDIO_TERMS_GATE: EmptyState & {
 } = {
   title: { sr: "Još jedna stvar pre nego što počneš", en: "One more thing before you start" },
   body: {
-    sr: "Studio šalje tvoj opis i fajlove koje okačiš firmama koje prave ove alate, pravi sadržaj za koji odgovaraš ti, i naplaćuje se kreditima koji se ne vraćaju. Pročitaj uslove i potvrdi jednom - posle ovoga te više ne pitamo.",
-    en: "The Studio sends your description and the files you upload to the companies that make these tools, creates content you are responsible for, and is paid in credits that are not refundable. Read the terms and confirm once - we will not ask again.",
+    sr: "Crea šalje tvoj opis i fajlove koje okačiš firmama koje prave ove alate, pravi sadržaj za koji odgovaraš ti, i naplaćuje se kreditima koji se ne vraćaju. Pročitaj uslove i potvrdi jednom - posle ovoga te više ne pitamo.",
+    en: "Crea sends your description and the files you upload to the companies that make these tools, creates content you are responsible for, and is paid in credits that are not refundable. Read the terms and confirm once - we will not ask again.",
   },
   checkbox: {
-    sr: "Imam 18 godina i prihvatam uslove korišćenja Studija i politiku privatnosti.",
-    en: "I am 18 or older and I accept the Studio terms of use and the privacy policy.",
+    sr: "Imam 18 godina i prihvatam uslove korišćenja Cree i politiku privatnosti.",
+    en: "I am 18 or older and I accept the Crea terms of use and the privacy policy.",
   },
-  cta: { sr: "Prihvatam i otvaram Studio", en: "Accept and open the Studio" },
+  cta: { sr: "Prihvatam i otvaram Creu", en: "Accept and open Crea" },
   failed: {
     sr: "Potvrda nije sačuvana. Pokušaj ponovo za koji trenutak.",
     en: "The confirmation was not saved. Try again in a moment.",
@@ -553,10 +554,10 @@ export type EmptyStateNoCta = Pick<EmptyState, "title" | "body">;
  * ne staje na praznom ekranu bez predloga šta dalje.
  */
 export const STUDIO_PAUSED: EmptyState = {
-  title: { sr: "Studio je pauziran", en: "The Studio is paused" },
+  title: { sr: "Crea je pauzirana", en: "Crea is paused" },
   body: {
-    sr: "Privremeno smo zaustavili pravljenje novih stvari. Krediti ti ostaju na nalogu i ništa se ne troši dok Studio ne proradi.",
-    en: "Generation is paused for now. Your credits stay on the account and nothing is spent until the Studio is back.",
+    sr: "Privremeno smo zaustavili pravljenje novih stvari. Krediti ti ostaju na nalogu i ništa se ne troši dok Crea ne proradi.",
+    en: "Generation is paused for now. Your credits stay on the account and nothing is spent until Crea is back.",
   },
   cta: { sr: "Pogledaj svoje kredite", en: "See your credits" },
 };
@@ -567,18 +568,18 @@ export const STUDIO_PAUSED: EmptyState = {
  * upis ne pomaže, a ovaj ekran ionako ne vidi polaznik.
  */
 export const STUDIO_NOT_ENROLLED: EmptyStateNoCta = {
-  title: { sr: "Studio je u zatvorenom testiranju", en: "The Studio is in closed testing" },
+  title: { sr: "Crea je u zatvorenom testiranju", en: "Crea is in closed testing" },
   body: {
-    sr: "Studio je trenutno dostupan samo osoblju platforme, dok se ne reši naplata. Otvoriće se polaznicima kasnije - krediti koje već imaš te čekaju.",
-    en: "The Studio is currently available only to platform staff, until billing is in place. It will open to students later - the credits you already have will be waiting.",
+    sr: "Crea je trenutno dostupna samo osoblju platforme, dok se ne reši naplata. Otvoriće se polaznicima kasnije - krediti koje već imaš te čekaju.",
+    en: "Crea is currently available only to platform staff, until billing is in place. It will open to students later - the credits you already have will be waiting.",
   },
 };
 
 export const STUDIO_NO_GENERATIONS: EmptyState = {
   title: { sr: "Još nisi napravio/la nijednu stvar", en: "You have not made anything yet" },
   body: {
-    sr: "Studio pravi slike, video i zvuk: izabereš alat, opišeš mu šta želiš i dodaš ono što treba da vidi ili čuje. Cena u kreditima piše na dugmetu pre nego što klikneš, a gotov fajl ostaje ovde.",
-    en: "The Studio makes images, video and sound: pick a tool, describe what you want and add anything it needs to see or hear. The price in credits is on the button before you click, and the finished file stays here.",
+    sr: "Crea pravi slike, video i zvuk: izabereš alat, opišeš mu šta želiš i dodaš ono što treba da vidi ili čuje. Cena u kreditima piše na dugmetu pre nego što klikneš, a gotov fajl ostaje ovde.",
+    en: "Crea makes images, video and sound: pick a tool, describe what you want and add anything it needs to see or hear. The price in credits is on the button before you click, and the finished file stays here.",
   },
   cta: { sr: "Počni od gotovog primera", en: "Start from a ready example" },
 };
@@ -586,8 +587,8 @@ export const STUDIO_NO_GENERATIONS: EmptyState = {
 export const CREDITS_NO_BALANCE: EmptyState = {
   title: { sr: "Nemaš kredite", en: "You have no credits" },
   body: {
-    sr: "Krediti su bodovi kojima se plaća svaka slika, video ili zvuk u Studiju. Bez njih Studio ne može ništa da napravi. Paketi su odmah ispod.",
-    en: "Credits are the points that pay for every image, video or sound in the Studio. Without them the Studio cannot make anything. The packs are right below.",
+    sr: "Krediti su bodovi kojima se plaća svaka slika, video ili zvuk u Crei. Bez njih Crea ne može ništa da napravi. Paketi su odmah ispod.",
+    en: "Credits are the points that pay for every image, video or sound in Crea. Without them Crea cannot make anything. The packs are right below.",
   },
   cta: { sr: "Izaberi paket", en: "Pick a pack" },
 };
@@ -613,10 +614,10 @@ export const CREDITS_NO_HISTORY: EmptyState = {
 export const GALLERY_NO_GENERATIONS: EmptyState = {
   title: { sr: "Ovde stoji sve što napraviš", en: "Everything you make is kept here" },
   body: {
-    sr: "Svaka slika, video i zvuk iz Studija sleti ovde - zajedno sa opisom koji si napisao/la, alatom i cenom. Još nema nijedne stvari.",
-    en: "Every image, video and sound from the Studio lands here - together with the description you wrote, the tool and the price. There is nothing here yet.",
+    sr: "Svaka slika, video i zvuk iz Cree sleti ovde - zajedno sa opisom koji si napisao/la, alatom i cenom. Još nema nijedne stvari.",
+    en: "Every image, video and sound from Crea lands here - together with the description you wrote, the tool and the price. There is nothing here yet.",
   },
-  cta: { sr: "Otvori Studio", en: "Open the Studio" },
+  cta: { sr: "Otvori Creu", en: "Open Crea" },
 };
 
 export const PROJECT_NO_GENERATIONS: EmptyState = {

@@ -5,7 +5,7 @@ import {
 import type { NextFetchEvent, NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
-import { internalPath, parsePath, toPublicPath } from "./lib/routes";
+import { internalPath, needsInternalRewrite, parsePath, toPublicPath } from "./lib/routes";
 
 const AUTH_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 
@@ -120,11 +120,12 @@ export default async function proxy(request: NextRequest, event: NextFetchEvent)
   }
 
   // Rewrite javne putanje u internu (/sr + canonicalPath) da bi Next razrešio rutu.
-  // `en` je već prava interna putanja. Kolačići (osveženi tokeni) se ručno prenose:
+  // `en` je prava interna putanja SAMO kad mu je slug isti kao folder; Crea ima javni
+  // `/en/crea`, a folder `/en/studio`, pa se i takav `en` prepisuje. Kolačići (osveženi tokeni) se ručno prenose:
   // vraćanje rewrite-a IZ Convex handlera bi ga tiho pojeo na osvežavanju tokena
   // (NextResponse.next(response) re-wrap u @convex-dev/auth).
   const rewriteToInternal = (base: NextResponse | null): NextResponse => {
-    if (locale === "en") return base ?? NextResponse.next();
+    if (!needsInternalRewrite(locale, canonicalPath, pathname)) return base ?? NextResponse.next();
     const url = request.nextUrl.clone();
     url.pathname = internalPath(locale, canonicalPath);
     const rewritten = NextResponse.rewrite(url, { request: { headers: request.headers } });

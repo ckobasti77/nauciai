@@ -45,7 +45,7 @@ export const dictionary = {
     appName: "Nauči AI",
     navCourses: "Kursevi",
     navCommunity: "Zajednica",
-    navStudio: "Studio",
+    navStudio: "Crea",
     navPricing: "Pretplata",
     navDashboard: "Dashboard",
     signIn: "Prijava",
@@ -88,7 +88,7 @@ export const dictionary = {
     appName: "Nauči AI",
     navCourses: "Courses",
     navCommunity: "Community",
-    navStudio: "Studio",
+    navStudio: "Crea",
     navPricing: "Subscription",
     navDashboard: "Dashboard",
     signIn: "Sign in",
@@ -163,9 +163,9 @@ export const marketingContent = {
         "Kroz kratke lekcije, materijale i zajednicu praviš prave radove: montiran video, sopstveni sajt i naraciju sa AI glasom. Bez predznanja.",
       // L3.1: portret hero (telefon/tablet) — kratka kopija u 2 reda i kratka CTA labela.
       subheadCompact: "Kratke lekcije i zajednica: praviš video, sajt i AI naraciju bez predznanja.",
-      // N3: leva CTA vodi na besplatan video kursa, desna pravo u Studio.
+      // N3: leva CTA vodi na besplatan video kursa, desna pravo u Creu.
       ctaFreeVideo: "Besplatan video",
-      ctaStudio: "Otvori Studio",
+      ctaStudio: "Otvori Creu",
       // Duža forma iste ponude — koristi je kartica kursa (`course-card.tsx`).
       ctaSecondary: "Odgledaj besplatan video",
       videoAlt: "Isečci iz AI video, audio i web lekcija",
@@ -177,7 +177,7 @@ export const marketingContent = {
       cards: {
         label: "Prečice na svesci",
         courses: { title: "Kursevi", line: "Video, zvuk, sajtovi" },
-        studio: { title: "Studio", line: "Generiši slike i video" },
+        studio: { title: "Crea", line: "Generiši slike i video" },
         community: { title: "Zajednica", line: "Pitaj kad zapneš" },
         signIn: { title: "Registracija", line: "Kreni besplatno" },
         dashboard: { title: "Kontrolna tabla", line: "Nastavi gde si stao" },
@@ -256,7 +256,7 @@ export const marketingContent = {
         {
           title: "Radiš uz zajednicu i materijale",
           body: "Uz svaku lekciju ide materijal i prostor da pitaš, podeliš rad i dobiješ savet.",
-          cta: "Otvori Studio",
+          cta: "Otvori Creu",
         },
         {
           title: "Objaviš gotov rad",
@@ -295,7 +295,7 @@ export const marketingContent = {
           "Sve lekcije i materijali",
           "Pristup zajednici",
           "Nove lekcije bez doplate",
-          "Kredite za Studio kupuješ posebno",
+          "Kredite za Creu kupuješ posebno",
         ],
         cta: "Počni sa Basic",
       },
@@ -309,8 +309,8 @@ export const marketingContent = {
           "%CREDITS%",
           "Prioritetni odgovori u zajednici",
         ],
-        creditsWithNumber: "{n} Studio kredita svakog meseca",
-        creditsNoNumber: "Studio krediti svakog meseca",
+        creditsWithNumber: "{n} Crea kredita svakog meseca",
+        creditsNoNumber: "Crea krediti svakog meseca",
         cta: "Izaberi Premium",
       },
     },
@@ -333,7 +333,7 @@ export const marketingContent = {
         },
         {
           q: "Moram li da plaćam ChatGPT, Midjourney i ostalo?",
-          a: "Ne. Studio je u platformi, u njemu generišeš slike, video i glas kroz svoj nalog. Kad ti zatreba alat sa strane, uvek pokažemo i besplatnu varijantu.",
+          a: "Ne. Crea je u platformi, u njoj generišeš slike, video i glas kroz svoj nalog. Kad ti zatreba alat sa strane, uvek pokažemo i besplatnu varijantu.",
         },
         {
           q: "Zapnem u pola lekcije — ko mi pomaže?",
@@ -379,7 +379,7 @@ export const marketingContent = {
         "Through short lessons, materials, and a community you build real work: an edited video, your own website, and narration with an AI voice. No experience needed.",
       subheadCompact: "Short lessons and a community: make video, sites and AI voice — no experience needed.",
       ctaFreeVideo: "Free lesson",
-      ctaStudio: "Open Studio",
+      ctaStudio: "Open Crea",
       ctaSecondary: "Watch the free video",
       videoAlt: "Clips from the AI video, audio and web lessons",
       trustCohort: "First cohort enrolled",
@@ -388,7 +388,7 @@ export const marketingContent = {
       cards: {
         label: "Notebook shortcuts",
         courses: { title: "Courses", line: "Video, sound, websites" },
-        studio: { title: "Studio", line: "Generate images and video" },
+        studio: { title: "Crea", line: "Generate images and video" },
         community: { title: "Community", line: "Ask when you get stuck" },
         signIn: { title: "Sign up", line: "Start for free" },
         dashboard: { title: "Dashboard", line: "Pick up where you left off" },
@@ -464,7 +464,7 @@ export const marketingContent = {
         {
           title: "Build with community and materials",
           body: "Each lesson comes with materials and a space to ask, share your work, and get advice.",
-          cta: "Open Studio",
+          cta: "Open Crea",
         },
         {
           title: "Publish finished work",
@@ -503,7 +503,7 @@ export const marketingContent = {
           "All lessons and materials",
           "Community access",
           "New lessons at no extra cost",
-          "Buy Studio credits separately",
+          "Buy Crea credits separately",
         ],
         cta: "Start with Basic",
       },
@@ -517,8 +517,8 @@ export const marketingContent = {
           "%CREDITS%",
           "Priority answers in the community",
         ],
-        creditsWithNumber: "{n} Studio credits every month",
-        creditsNoNumber: "Studio credits every month",
+        creditsWithNumber: "{n} Crea credits every month",
+        creditsNoNumber: "Crea credits every month",
         cta: "Choose Premium",
       },
     },
@@ -541,7 +541,7 @@ export const marketingContent = {
         },
         {
           q: "Do I have to pay for ChatGPT, Midjourney, and the rest?",
-          a: "No. The Studio is built into the platform — you generate images, video, and voice through your own account. When you do need an outside tool, we always show a free option too.",
+          a: "No. Crea is built into the platform — you generate images, video, and voice through your own account. When you do need an outside tool, we always show a free option too.",
         },
         {
           q: "I get stuck halfway through a lesson — who helps me?",
@@ -863,7 +863,7 @@ export const pricingPageContent = {
         "Pristup zajednici",
         "Nove lekcije bez doplate",
         "Napredak ti se pamti na svim uređajima",
-        "Kredite za Studio kupuješ posebno",
+        "Kredite za Creu kupuješ posebno",
         "Otkazuješ kad hoćeš",
       ],
       // "%CREDITS%" zamenjuje broj kredita iz baze — isti obrazac kao na landingu.
@@ -887,7 +887,7 @@ export const pricingPageContent = {
         { label: "Sve lekcije", basic: true, premium: true },
         { label: "Zajednica", basic: true, premium: true },
         { label: "Pro lekcije", basic: false, premium: true },
-        { label: "Studio krediti mesečno", basic: false, premium: true },
+        { label: "Crea krediti mesečno", basic: false, premium: true },
         { label: "Prioritetni odgovori", basic: false, premium: true },
         { label: "Rani pristup novim kursevima", basic: false, premium: true },
       ],
@@ -916,7 +916,7 @@ export const pricingPageContent = {
         },
         {
           q: "Šta se dešava kad otkažem?",
-          a: "Pretplata radi do kraja plaćenog meseca. Sve što si napravio u Studiju i sve tvoje teme u zajednici ostaju tvoji.",
+          a: "Pretplata radi do kraja plaćenog meseca. Sve što si napravio u Crei i sve tvoje teme u zajednici ostaju tvoji.",
         },
         {
           q: "Da li izdajete račun za firmu?",
@@ -942,7 +942,7 @@ export const pricingPageContent = {
         "Community access",
         "New lessons at no extra cost",
         "Your progress is saved across devices",
-        "Buy Studio credits separately",
+        "Buy Crea credits separately",
         "Cancel whenever you want",
       ],
       premiumFeatures: [
@@ -965,7 +965,7 @@ export const pricingPageContent = {
         { label: "All lessons", basic: true, premium: true },
         { label: "Community", basic: true, premium: true },
         { label: "Pro lessons", basic: false, premium: true },
-        { label: "Monthly Studio credits", basic: false, premium: true },
+        { label: "Monthly Crea credits", basic: false, premium: true },
         { label: "Priority answers", basic: false, premium: true },
         { label: "Early access to new courses", basic: false, premium: true },
       ],
@@ -994,7 +994,7 @@ export const pricingPageContent = {
         },
         {
           q: "What happens when I cancel?",
-          a: "Your subscription runs to the end of the month you paid for. Everything you made in the Studio and every thread of yours in the community stays yours.",
+          a: "Your subscription runs to the end of the month you paid for. Everything you made in Crea and every thread of yours in the community stays yours.",
         },
         {
           q: "Do you invoice companies?",
@@ -1239,14 +1239,14 @@ export const communityGamificationContent = {
 export const apiKeysContent = {
   sr: {
     title: "API ključevi",
-    body: "Ključevima Claude Code, Claude Desktop ili drugi MCP klijent pristupa tvom Studiju u tvoje ime. Pun ključ se prikazuje samo jednom, pri kreiranju.",
+    body: "Ključevima Claude Code, Claude Desktop ili drugi MCP klijent pristupa tvojoj Crei u tvoje ime. Pun ključ se prikazuje samo jednom, pri kreiranju.",
     backToProfile: "Nazad na profil",
     profileLinkTitle: "API ključevi (MCP)",
-    profileLinkBody: "Ključevi kojima MCP klijenti (Claude Code, Claude Desktop) čitaju tvoj Studio ili pokreću generisanje u tvoje ime.",
+    profileLinkBody: "Ključevi kojima MCP klijenti (Claude Code, Claude Desktop) čitaju tvoju Creu ili pokreću generisanje u tvoje ime.",
     profileLinkCta: "Upravljaj ključevima",
     newKey: "Novi ključ",
     emptyTitle: "Još nemaš nijedan ključ",
-    emptyBody: "Napravi ključ, nalepi ga u MCP klijent i alati Studija se pojavljuju u razgovoru.",
+    emptyBody: "Napravi ključ, nalepi ga u MCP klijent i alati Cree se pojavljuju u razgovoru.",
     prefixHint: "prefiks",
     created: "Kreiran",
     lastUsed: "Poslednja upotreba",
@@ -1266,11 +1266,11 @@ export const apiKeysContent = {
     namePlaceholder: "npr. Claude Code na laptopu",
     scopeLabel: "Šta ključ sme",
     readOnlyTitle: "Samo čitanje",
-    readOnlyBody: "Katalog modela, stanje Studija, projekti i galerija. Ne može da pokrene generisanje.",
+    readOnlyBody: "Katalog modela, stanje Cree, projekti i galerija. Ne može da pokrene generisanje.",
     readWriteTitle: "Čitanje i pisanje",
     readWriteBody: "Sve iz čitanja, plus pokretanje generisanja (create_generation).",
     writeWarning:
-      "Pisanje TROŠI TVOJE KREDITE: svaku generaciju koju klijent pokrene plaćaš sa svog salda, isto kao da si je pokrenuo/la iz Studija.",
+      "Pisanje TROŠI TVOJE KREDITE: svaku generaciju koju klijent pokrene plaćaš sa svog salda, isto kao da si je pokrenuo/la iz Cree.",
     create: "Napravi ključ",
     createdTitle: "Ključ je napravljen",
     createdBody: "Kopiraj ga odmah. Ključ se više neće prikazati - ako ga izgubiš, napravi nov.",
@@ -1299,14 +1299,14 @@ export const apiKeysContent = {
   },
   en: {
     title: "API keys",
-    body: "Keys let Claude Code, Claude Desktop or another MCP client access your Studio on your behalf. The full key is shown only once, when it is created.",
+    body: "Keys let Claude Code, Claude Desktop or another MCP client access your Crea on your behalf. The full key is shown only once, when it is created.",
     backToProfile: "Back to profile",
     profileLinkTitle: "API keys (MCP)",
-    profileLinkBody: "Keys that let MCP clients (Claude Code, Claude Desktop) read your Studio or start generations on your behalf.",
+    profileLinkBody: "Keys that let MCP clients (Claude Code, Claude Desktop) read your Crea or start generations on your behalf.",
     profileLinkCta: "Manage keys",
     newKey: "New key",
     emptyTitle: "You have no keys yet",
-    emptyBody: "Create a key, paste it into your MCP client, and the Studio tools appear in the conversation.",
+    emptyBody: "Create a key, paste it into your MCP client, and the Crea tools appear in the conversation.",
     prefixHint: "prefix",
     created: "Created",
     lastUsed: "Last used",
@@ -1326,11 +1326,11 @@ export const apiKeysContent = {
     namePlaceholder: "e.g. Claude Code on my laptop",
     scopeLabel: "What the key may do",
     readOnlyTitle: "Read only",
-    readOnlyBody: "Model catalog, Studio state, projects and gallery. Cannot start a generation.",
+    readOnlyBody: "Model catalog, Crea state, projects and gallery. Cannot start a generation.",
     readWriteTitle: "Read and write",
     readWriteBody: "Everything in read, plus starting generations (create_generation).",
     writeWarning:
-      "Write SPENDS YOUR CREDITS: every generation the client starts is paid from your balance, exactly as if you started it in the Studio.",
+      "Write SPENDS YOUR CREDITS: every generation the client starts is paid from your balance, exactly as if you started it in Crea.",
     create: "Create key",
     createdTitle: "Key created",
     createdBody: "Copy it now. The key will not be shown again - if you lose it, create a new one.",
@@ -1363,17 +1363,17 @@ export const oauthConsentContent = {
   sr: {
     metaTitle: "Odobri pristup",
     eyebrow: "Zahtev za pristup (MCP)",
-    title: (client: string) => `${client} traži pristup tvom Studiju`,
+    title: (client: string) => `${client} traži pristup tvojoj Crei`,
     body: "Aplikacija bi radila u tvoje ime kroz MCP server - isto što i API ključ, samo bez ručnog lepljenja.",
     signedInAs: "Prijavljen/a kao",
     redirectsTo: "Posle odluke vraćaš se na",
     scopesLabel: "Šta aplikacija traži",
     scopeReadTitle: "Čitanje",
-    scopeReadBody: "Katalog modela, stanje Studija, projekti, poslovi i galerija.",
+    scopeReadBody: "Katalog modela, stanje Cree, projekti, poslovi i galerija.",
     scopeWriteTitle: "Pisanje",
     scopeWriteBody: "Pokretanje generisanja (create_generation) i okačivanje fajlova.",
     writeWarning:
-      "Pisanje TROŠI TVOJE KREDITE: svaku generaciju koju aplikacija pokrene plaćaš sa svog salda, isto kao da si je pokrenuo/la iz Studija.",
+      "Pisanje TROŠI TVOJE KREDITE: svaku generaciju koju aplikacija pokrene plaćaš sa svog salda, isto kao da si je pokrenuo/la iz Cree.",
     approve: "Dozvoli pristup",
     deny: "Odbij",
     revokeHint: "Pristup možeš da opozoveš kad god hoćeš, u profilu pod „API ključevi” → „Povezane aplikacije”.",
@@ -1393,17 +1393,17 @@ export const oauthConsentContent = {
   en: {
     metaTitle: "Approve access",
     eyebrow: "Access request (MCP)",
-    title: (client: string) => `${client} wants to access your Studio`,
+    title: (client: string) => `${client} wants to access your Crea`,
     body: "The app would act on your behalf through the MCP server - the same as an API key, just without pasting one.",
     signedInAs: "Signed in as",
     redirectsTo: "After you decide, you return to",
     scopesLabel: "What the app is asking for",
     scopeReadTitle: "Read",
-    scopeReadBody: "Model catalog, Studio state, projects, jobs and gallery.",
+    scopeReadBody: "Model catalog, Crea state, projects, jobs and gallery.",
     scopeWriteTitle: "Write",
     scopeWriteBody: "Starting generations (create_generation) and uploading files.",
     writeWarning:
-      "Write SPENDS YOUR CREDITS: every generation the app starts is paid from your balance, exactly as if you started it in the Studio.",
+      "Write SPENDS YOUR CREDITS: every generation the app starts is paid from your balance, exactly as if you started it in Crea.",
     approve: "Allow access",
     deny: "Deny",
     revokeHint: "You can revoke access at any time in your profile under “API keys” → “Connected apps”.",
@@ -1574,11 +1574,11 @@ export const mcpPageContent = {
       title: "Opsezi pristupa",
       read: {
         title: "mcp:read — čitanje",
-        body: "Katalog modela, stanje Studija, poslovi i krediti. Ne troši kredite. Podrazumevan opseg svakog novog ključa.",
+        body: "Katalog modela, stanje Cree, poslovi i krediti. Ne troši kredite. Podrazumevan opseg svakog novog ključa.",
       },
       write: {
         title: "mcp:write — pisanje i generisanje",
-        body: "Pokreće generisanje i troši kredite sa naloga vlasnika ključa, isto kao klik na „Generiši” u Studiju. Bira se svesno pri pravljenju ključa ili u ekranu pristanka OAuth-a.",
+        body: "Pokreće generisanje i troši kredite sa naloga vlasnika ključa, isto kao klik na „Generiši” u Crei. Bira se svesno pri pravljenju ključa ili u ekranu pristanka OAuth-a.",
       },
     },
     catalog: {
@@ -1599,7 +1599,7 @@ export const mcpPageContent = {
       loading: "Učitavanje kataloga…",
       empty: "Katalog trenutno nije dostupan.",
     },
-    crossSell: "Probaj generisanje direktno u Studiju →",
+    crossSell: "Probaj generisanje direktno u Crei →",
   },
   en: {
     metaTitle: "MCP server — connect Nauči AI to Claude",
@@ -1643,11 +1643,11 @@ export const mcpPageContent = {
       title: "Access scopes",
       read: {
         title: "mcp:read — read",
-        body: "Model catalog, Studio state, jobs, and credits. Doesn't spend credits. The default scope on every new key.",
+        body: "Model catalog, Crea state, jobs, and credits. Doesn't spend credits. The default scope on every new key.",
       },
       write: {
         title: "mcp:write — write and generate",
-        body: "Starts a generation and spends credits from the key owner's account, just like clicking “Generate” in the Studio. Chosen deliberately when creating a key, or on the OAuth consent screen.",
+        body: "Starts a generation and spends credits from the key owner's account, just like clicking “Generate” in Crea. Chosen deliberately when creating a key, or on the OAuth consent screen.",
       },
     },
     catalog: {
@@ -1668,6 +1668,6 @@ export const mcpPageContent = {
       loading: "Loading the catalog…",
       empty: "The catalog isn't available right now.",
     },
-    crossSell: "Try generating straight in the Studio →",
+    crossSell: "Try generating straight in Crea →",
   },
 } as const;

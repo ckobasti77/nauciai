@@ -17,11 +17,12 @@
  *   koje su jedan-dva klika i deluju u ime korisnika (opoziv ključa, opoziv
  *   povezane aplikacije, admin radnje). Sam ključ napadač kroz okvir ne može
  *   da PROČITA (cross-origin), ali može da natera klik.
- * - `/studio/app`, `/studio/krediti`: dugme koje troši kredite, odnosno kupuje.
+ * - Crea radni prostor i krediti (javno `/crea/app`, `/crea/krediti`; interno i
+ *   pre 308 `/studio/app`, `/studio/krediti`): dugme koje troši kredite, odnosno kupuje.
  * - `/sign-in`, `/auth/*`, `/reset-password`, `/verify-email`: forme za
  *   prijavu i tokovi sa jednokratnim linkovima ne smeju u tuđi okvir (UI
  *   redressing preko dugmeta „Prijavi se preko Google-a", i sl.).
- * - Marketinške strane (`/`, `/kursevi`, `/studio` landing...) nemaju radnju
+ * - Marketinške strane (`/`, `/kursevi`, `/crea` landing...) nemaju radnju
  *   koja klikom nešto radi u ime korisnika i ostaju bez zaglavlja - ako ikad
  *   zatreba, jedno pravilo `/:path*` ovde pokriva sve. Nijedna strana
  *   aplikacije ne uokviruje sopstvene strane (`git grep "<iframe"` je prazan),
@@ -38,12 +39,18 @@ export const FRAME_DENY_HEADERS = [
   { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
 ] as const;
 
-/** Kanonske putanje bez jezičkog prefiksa, u Next `headers()` `source` sintaksi. */
+/**
+ * Kanonske I javne putanje bez jezičkog prefiksa, u Next `headers()` `source`
+ * sintaksi. Crea ima javni slug `crea` a interni folder `studio` (K02), pa stoje
+ * obe forme: javna je ono što browser traži, interna ono na šta proxy rewrite-uje.
+ */
 export const FRAME_DENY_CANONICAL_SOURCES = [
   "/oauth/:path*",
   "/app/:path*",
   "/studio/app/:path*",
   "/studio/krediti/:path*",
+  "/crea/app/:path*",
+  "/crea/krediti/:path*",
   "/sign-in",
   "/auth/:path*",
   "/reset-password",

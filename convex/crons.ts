@@ -283,22 +283,22 @@ function alertBody(action: Exclude<GlobalCostAction, "none">, day: string, total
   const spent = `${totalCostUsd.toFixed(2)} $`;
   if (action === "alarm") {
     return {
-      subject: `Studio: dnevni trošak ${spent} (alarm na ${GLOBAL_DAILY_ALARM_USD} $)`,
+      subject: `Crea: dnevni trošak ${spent} (alarm na ${GLOBAL_DAILY_ALARM_USD} $)`,
       text: [
-        `Studio je na dan ${day} (UTC) potrošio ${spent} kod provajdera.`,
-        `Alarm je na ${GLOBAL_DAILY_ALARM_USD} $, a na ${GLOBAL_DAILY_KILL_USD} $ se Studio gasi sam.`,
+        `Crea je na dan ${day} (UTC) potrošila ${spent} kod provajdera.`,
+        `Alarm je na ${GLOBAL_DAILY_ALARM_USD} $, a na ${GLOBAL_DAILY_KILL_USD} $ se Crea gasi sama.`,
         "Ovaj mejl stiže najviše jednom dnevno, iako se provera vrti na 15 minuta.",
         `Potrošnja: ${adminStudioLink()}`,
       ].join("\n\n"),
     };
   }
   return {
-    subject: `Studio je AUTOMATSKI UGAŠEN (dnevni trošak ${spent})`,
+    subject: `Crea je AUTOMATSKI UGAŠENA (dnevni trošak ${spent})`,
     text: [
-      `Studio je ugašen: na dan ${day} (UTC) je potrošeno ${spent}, preko plafona od ${GLOBAL_DAILY_KILL_USD} $.`,
+      `Crea je ugašena: na dan ${day} (UTC) je potrošeno ${spent}, preko plafona od ${GLOBAL_DAILY_KILL_USD} $.`,
       "Nove generacije od sada odbija `createJob` sa greškom STUDIO_PAUZIRAN. Poslovi koji su već krenuli idu do kraja.",
-      `Studio se vraća ručno: ${adminStudioLink()} -> prekidač za Studio.`,
-      "Dok traje isti UTC dan zbir se ne resetuje, pa se ručno upaljen Studio posle najviše 15 minuta gasi ponovo.",
+      `Crea se vraća ručno: ${adminStudioLink()} -> prekidač za Creu.`,
+      "Dok traje isti UTC dan zbir se ne resetuje, pa se ručno upaljena Crea posle najviše 15 minuta gasi ponovo.",
     ].join("\n\n"),
   };
 }
@@ -310,7 +310,7 @@ function alertBody(action: Exclude<GlobalCostAction, "none">, day: string, total
  */
 function cronFailureBody(day: string, message: string) {
   return {
-    subject: `Studio: plafon troška NIJE proveren (${day})`,
+    subject: `Crea: plafon troška NIJE proveren (${day})`,
     text: [
       `Provera globalnog dnevnog plafona za ${day} (UTC) je pukla i nije izvršena.`,
       `Greška: ${message}`,

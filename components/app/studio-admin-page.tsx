@@ -827,8 +827,8 @@ function KillSwitchCard({ locale }: { locale: Locale }) {
             />
             <p className="type-h4 text-ink">
               {locale === "sr"
-                ? `Studio zaštita: Studio je ${state.enabled ? "UKLJUČEN" : "UGAŠEN"}`
-                : `Studio Protection: Studio is ${state.enabled ? "ENABLED" : "SHUT DOWN"}`}
+                ? `Crea zaštita: Crea je ${state.enabled ? "UKLJUČENA" : "UGAŠENA"}`
+                : `Crea Protection: Crea is ${state.enabled ? "ENABLED" : "SHUT DOWN"}`}
             </p>
           </div>
           <p className="mt-1 text-xs font-bold text-muted">
@@ -849,7 +849,7 @@ function KillSwitchCard({ locale }: { locale: Locale }) {
             className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-red-800 bg-paper-strong px-4 text-xs font-black text-red-800 transition hover:bg-red-50 focus-visible:outline-red-800"
           >
             <Power className="size-3.5" />
-            {locale === "sr" ? "Ugasi Studio" : "Shut down Studio"}
+            {locale === "sr" ? "Ugasi Creu" : "Shut down Crea"}
           </button>
         ) : null}
 
@@ -861,7 +861,7 @@ function KillSwitchCard({ locale }: { locale: Locale }) {
             className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--ink)] transition hover:-translate-y-0.5 disabled:opacity-60"
           >
             {pending ? <Spinner /> : <Power className="size-3.5" />}
-            {locale === "sr" ? "Ponovo uključi Studio" : "Re-enable Studio"}
+            {locale === "sr" ? "Ponovo uključi Creu" : "Re-enable Crea"}
           </button>
         ) : null}
       </div>
@@ -1171,7 +1171,7 @@ export function StudioAdminPage({ locale = "sr" }: { locale?: Locale }) {
             <p className="type-eyebrow text-muted">
               {locale === "sr" ? "Administracija" : "Administration"}
             </p>
-            <h1 className="mt-2 font-display type-display text-ink">Studio</h1>
+            <h1 className="mt-2 font-display type-display text-ink">Crea</h1>
           </div>
         </header>
 

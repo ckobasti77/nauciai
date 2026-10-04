@@ -71,20 +71,20 @@ const UPDATED: LocalizedText = {
 
 export const STUDIO_TERMS: LegalDocument = {
   path: "/studio-terms",
-  title: { sr: "Uslovi korišćenja Studija", en: "Studio terms of use" },
+  title: { sr: "Uslovi korišćenja Cree", en: "Crea terms of use" },
   updated: UPDATED,
   intro: {
-    sr: "Studio je deo platforme na kojem generišeš slike, video i zvuk pomoću modela veštačke inteligencije i plaćaš ih kreditima. Ovi uslovi važe za svaku generaciju koju pokreneš i za svaki kredit koji kupiš. Ako se sa njima ne slažeš, nemoj koristiti Studio.",
-    en: "The Studio is the part of the platform where you generate images, video and audio with artificial-intelligence models and pay for them in credits. These terms apply to every generation you start and every credit you buy. If you do not agree with them, do not use the Studio.",
+    sr: "Crea je deo platforme na kojem generišeš slike, video i zvuk pomoću modela veštačke inteligencije i plaćaš ih kreditima. Ovi uslovi važe za svaku generaciju koju pokreneš i za svaki kredit koji kupiš. Ako se sa njima ne slažeš, nemoj koristiti Creu.",
+    en: "Crea is the part of the platform where you generate images, video and audio with artificial-intelligence models and pay for them in credits. These terms apply to every generation you start and every credit you buy. If you do not agree with them, do not use Crea.",
   },
   sections: [
     {
       id: "operator",
-      title: { sr: "1. Ko drži Studio", en: "1. Who operates the Studio" },
+      title: { sr: "1. Ko drži Creu", en: "1. Who operates Crea" },
       body: [
         {
-          sr: `Studio drži ${OPERATOR}, sa sedištem na adresi ${ADDRESS}, matični broj ${COMPANY_NUMBER}, PIB ${TAX_NUMBER}, PDV broj ${VAT_NUMBER}. U tekstu ispod „mi“ znači to pravno lice, a „ti“ korisnika naloga.`,
-          en: `The Studio is operated by ${OPERATOR}, registered at ${ADDRESS}, company number ${COMPANY_NUMBER}, tax number ${TAX_NUMBER}, VAT number ${VAT_NUMBER}. Below, “we” means that legal entity and “you” means the account holder.`,
+          sr: `Creu drži ${OPERATOR}, sa sedištem na adresi ${ADDRESS}, matični broj ${COMPANY_NUMBER}, PIB ${TAX_NUMBER}, PDV broj ${VAT_NUMBER}. U tekstu ispod „mi“ znači to pravno lice, a „ti“ korisnika naloga.`,
+          en: `Crea is operated by ${OPERATOR}, registered at ${ADDRESS}, company number ${COMPANY_NUMBER}, tax number ${TAX_NUMBER}, VAT number ${VAT_NUMBER}. Below, “we” means that legal entity and “you” means the account holder.`,
         },
         {
           sr: `Za sva pitanja o ovim uslovima piši na ${SUPPORT_EMAIL}.`,
@@ -97,8 +97,8 @@ export const STUDIO_TERMS: LegalDocument = {
       title: { sr: "2. Uzrast: 18 godina", en: "2. Age: 18 and over" },
       body: [
         {
-          sr: "Studio smeju da koriste samo osobe od 18 godina i starije. Generativni modeli proizvode sadržaj koji niko unapred ne vidi - ni ti ni mi - i taj sadržaj može da bude netačan, uvredljiv ili neprikladan. Zato Studio nije otvoren maloletnicima, ni uz saglasnost roditelja.",
-          en: "The Studio may be used only by people aged 18 and over. Generative models produce content that nobody sees in advance - neither you nor we - and that content can be inaccurate, offensive or inappropriate. The Studio is therefore not open to minors, not even with a parent's consent.",
+          sr: "Creu smeju da koriste samo osobe od 18 godina i starije. Generativni modeli proizvode sadržaj koji niko unapred ne vidi - ni ti ni mi - i taj sadržaj može da bude netačan, uvredljiv ili neprikladan. Zato Crea nije otvorena maloletnicima, ni uz saglasnost roditelja.",
+          en: "Crea may be used only by people aged 18 and over. Generative models produce content that nobody sees in advance - neither you nor we - and that content can be inaccurate, offensive or inappropriate. Crea is therefore not open to minors, not even with a parent's consent.",
         },
         {
           sr: "Pre prve generacije potvrđuješ da imaš 18 godina i da prihvataš ove uslove. Ta potvrda se beleži jednom, sa datumom i vremenom, i važi za sve buduće generacije dok se uslovi ne promene.",
@@ -161,16 +161,16 @@ export const STUDIO_TERMS: LegalDocument = {
           en: "You choose the prompt, the input files and the model. You are responsible for having the right to use everything you send and to use the result the way you intend. We do not check in advance whether you have that right.",
         },
         {
-          sr: "Zabranjeno je da u Studiju generišeš ili u njega šalješ: lik, glas ili telo stvarne osobe bez njenog pristanka, uključujući javne ličnosti; bilo kakav seksualizovan ili zlostavljački sadržaj sa maloletnicima; sadržaj koji podstiče nasilje, mržnju ili krivično delo; tuđe autorsko delo ili zaštićen znak koji nemaš pravo da koristiš; sadržaj koji krši uslove korišćenja dobavljača modela.",
-          en: "It is forbidden to generate in the Studio, or to send into it: the likeness, voice or body of a real person without that person's consent, public figures included; any sexualised or abusive content involving minors; content that incites violence, hatred or a criminal offence; someone else's copyrighted work or protected mark that you have no right to use; content that breaches the terms of the model providers.",
+          sr: "Zabranjeno je da u Crei generišeš ili u njega šalješ: lik, glas ili telo stvarne osobe bez njenog pristanka, uključujući javne ličnosti; bilo kakav seksualizovan ili zlostavljački sadržaj sa maloletnicima; sadržaj koji podstiče nasilje, mržnju ili krivično delo; tuđe autorsko delo ili zaštićen znak koji nemaš pravo da koristiš; sadržaj koji krši uslove korišćenja dobavljača modela.",
+          en: "It is forbidden to generate in Crea, or to send into it: the likeness, voice or body of a real person without that person's consent, public figures included; any sexualised or abusive content involving minors; content that incites violence, hatred or a criminal offence; someone else's copyrighted work or protected mark that you have no right to use; content that breaches the terms of the model providers.",
         },
         {
           sr: "Dobavljači modela su fal.ai, Google i BytePlus, a preko fal.ai i ElevenLabs. Tvoj prompt i tvoji ulazni fajlovi se prosleđuju njima da bi generacija uopšte nastala, pa njihovi uslovi korišćenja i pravila o prihvatljivoj upotrebi važe za tvoj sadržaj isto koliko i ovi. Kršenje njihovih pravila je kršenje ovih uslova.",
           en: "The model providers are fal.ai, Google and BytePlus, and through fal.ai also ElevenLabs. Your prompt and your input files are forwarded to them so that the generation can exist at all, so their terms of use and acceptable-use policies apply to your content just as these do. Breaking their rules breaks these terms.",
         },
         {
-          sr: "Imena i znakovi modela i njihovih proizvođača pripadaju svojim vlasnicima i u Studiju se prikazuju isključivo radi prepoznavanja modela; to ne znači nikakvu podrazumevanu povezanost, sponzorstvo ni partnerstvo sa tim proizvođačima.",
-          en: "The names and marks of the models and their makers belong to their respective owners and are shown in the Studio solely to identify the models; this implies no affiliation, sponsorship or partnership with those makers.",
+          sr: "Imena i znakovi modela i njihovih proizvođača pripadaju svojim vlasnicima i u Crei se prikazuju isključivo radi prepoznavanja modela; to ne znači nikakvu podrazumevanu povezanost, sponzorstvo ni partnerstvo sa tim proizvođačima.",
+          en: "The names and marks of the models and their makers belong to their respective owners and are shown in Crea solely to identify the models; this implies no affiliation, sponsorship or partnership with those makers.",
         },
         {
           sr: "Prompt prolazi kroz automatsku proveru pre slanja i može da bude odbijen. Ta provera je gruba prva linija, a ne dozvola: odbijen prompt sigurno nije prošao, ali prihvaćen prompt ne znači da je sadržaj dozvoljen.",
@@ -226,8 +226,8 @@ export const STUDIO_TERMS: LegalDocument = {
           en: "Credits and subscriptions are charged through Stripe. Prices are stated in euros. VAT is applied at the rate of your country of residence, in line with the rules on digital services; if you are buying as a business, you enter your tax number during checkout.",
         },
         {
-          sr: "Ako uplata bude refundirana, krediti koje je ta uplata dodelila se oduzimaju. Ako su u međuvremenu potrošeni, saldo naloga ide u minus i Studio ostaje zatvoren dok se minus ne poravna.",
-          en: "If a payment is refunded, the credits that payment granted are taken back. If they have already been spent, the account balance goes negative and the Studio stays closed until that negative balance is settled.",
+          sr: "Ako uplata bude refundirana, krediti koje je ta uplata dodelila se oduzimaju. Ako su u međuvremenu potrošeni, saldo naloga ide u minus i Crea ostaje zatvorena dok se minus ne poravna.",
+          en: "If a payment is refunded, the credits that payment granted are taken back. If they have already been spent, the account balance goes negative and Crea stays closed until that negative balance is settled.",
         },
         {
           sr: "Ako prijaviš spor po kartici (chargeback), krediti iz te uplate se odmah zamrzavaju i nove generacije se zaustavljaju dok se spor ne završi. Spor traje nedeljama i za to vreme se ne generiše. Ako smatraš da je uplata pogrešna, javi se prvo nama - to se rešava brže.",
@@ -241,19 +241,19 @@ export const STUDIO_TERMS: LegalDocument = {
     },
     {
       id: "dostupnost",
-      title: { sr: "9. Dostupnost Studija", en: "9. Availability of the Studio" },
+      title: { sr: "9. Dostupnost Cree", en: "9. Availability of Crea" },
       body: [
         {
-          sr: "Studio možemo da ugasimo ili pauziramo u svakom trenutku, bez prethodne najave - zbog kvara, zloupotrebe, prekoračenja troška prema dobavljačima, izmene ponude modela ili obaveze po propisu. Dok je Studio pauziran, krediti ostaju na nalogu i ništa se ne troši.",
-          en: "We may switch the Studio off or pause it at any moment, without prior notice - because of a fault, abuse, a spending overrun towards providers, a change in the model line-up, or a legal obligation. While the Studio is paused, credits stay on the account and nothing is spent.",
+          sr: "Creu možemo da ugasimo ili pauziramo u svakom trenutku, bez prethodne najave - zbog kvara, zloupotrebe, prekoračenja troška prema dobavljačima, izmene ponude modela ili obaveze po propisu. Dok je Crea pauzirana, krediti ostaju na nalogu i ništa se ne troši.",
+          en: "We may switch Crea off or pause it at any moment, without prior notice - because of a fault, abuse, a spending overrun towards providers, a change in the model line-up, or a legal obligation. While Crea is paused, credits stay on the account and nothing is spent.",
         },
         {
           sr: "Pojedinačan model može da nestane iz ponude bez najave, jer i sami dobavljači gase i menjaju modele. Ne garantujemo da će bilo koji model biti dostupan u budućnosti, niti da će rezultat biti isti pri ponovljenom pokretanju.",
           en: "An individual model may disappear from the line-up without notice, because the providers themselves retire and change models. We do not guarantee that any model will remain available, nor that a repeated run will produce the same result.",
         },
         {
-          sr: "Studio je otvoren polaznicima kurseva. Prestanak upisa zatvara Studio, ali ne gasi kredite - oni ostaju na nalogu do isteka roka iz tačke 3.",
-          en: "The Studio is open to enrolled course students. The end of an enrolment closes the Studio but does not cancel credits - they stay on the account until the deadline in section 3.",
+          sr: "Crea je otvorena polaznicima kurseva. Prestanak upisa zatvara Creu, ali ne gasi kredite - oni ostaju na nalogu do isteka roka iz tačke 3.",
+          en: "Crea is open to enrolled course students. The end of an enrolment closes Crea but does not cancel credits - they stay on the account until the deadline in section 3.",
         },
       ],
     },
@@ -262,8 +262,8 @@ export const STUDIO_TERMS: LegalDocument = {
       title: { sr: "10. Izmene uslova i merodavno pravo", en: "10. Changes and governing law" },
       body: [
         {
-          sr: "Ove uslove možemo da izmenimo. Bitnu izmenu objavljujemo na ovoj stranici i tražimo novu potvrdu pre sledeće generacije. Nastavak korišćenja Studija posle objave znači prihvatanje izmenjenih uslova.",
-          en: "We may change these terms. A material change is published on this page and requires a fresh confirmation before your next generation. Continuing to use the Studio after publication means you accept the changed terms.",
+          sr: "Ove uslove možemo da izmenimo. Bitnu izmenu objavljujemo na ovoj stranici i tražimo novu potvrdu pre sledeće generacije. Nastavak korišćenja Cree posle objave znači prihvatanje izmenjenih uslova.",
+          en: "We may change these terms. A material change is published on this page and requires a fresh confirmation before your next generation. Continuing to use Crea after publication means you accept the changed terms.",
         },
         {
           sr: `Na ove uslove i na svaki spor iz njih primenjuje se ${JURISDICTION}.`,
@@ -279,8 +279,8 @@ export const PRIVACY_POLICY: LegalDocument = {
   title: { sr: "Politika privatnosti", en: "Privacy policy" },
   updated: UPDATED,
   intro: {
-    sr: "Ovde piše koje podatke o tebi obrađujemo, kome ih prosleđujemo, gde se čuvaju, koliko dugo i kako da tražiš brisanje. Politika važi za celu platformu, a poseban naglasak je na Studiju, jer se odatle podaci prosleđuju dobavljačima modela van naše kontrole.",
-    en: "This page says which of your data we process, whom we forward it to, where it is stored, for how long, and how to ask for deletion. The policy covers the whole platform, with particular attention to the Studio, because that is where data is forwarded to model providers outside our control.",
+    sr: "Ovde piše koje podatke o tebi obrađujemo, kome ih prosleđujemo, gde se čuvaju, koliko dugo i kako da tražiš brisanje. Politika važi za celu platformu, a poseban naglasak je na Crei, jer se odatle podaci prosleđuju dobavljačima modela van naše kontrole.",
+    en: "This page says which of your data we process, whom we forward it to, where it is stored, for how long, and how to ask for deletion. The policy covers the whole platform, with particular attention to Crea, because that is where data is forwarded to model providers outside our control.",
   },
   sections: [
     {
@@ -306,8 +306,8 @@ export const PRIVACY_POLICY: LegalDocument = {
           en: "Learning and community: lesson progress, work submitted with tasks, posts, comments and the messages you write yourself.",
         },
         {
-          sr: "Studio: prompt, parametri modela, fajlovi koje okačiš kao ulaz, generisani fajlovi, cena u kreditima, vreme, status posla i otisak prompta.",
-          en: "Studio: the prompt, model parameters, the files you upload as input, the generated files, the price in credits, the time, the job status and a fingerprint of the prompt.",
+          sr: "Crea: prompt, parametri modela, fajlovi koje okačiš kao ulaz, generisani fajlovi, cena u kreditima, vreme, status posla i otisak prompta.",
+          en: "Crea: the prompt, model parameters, the files you upload as input, the generated files, the price in credits, the time, the job status and a fingerprint of the prompt.",
         },
         {
           sr: "Naplata: istorija kredita i transakcija, identifikatori Stripe kupca, pretplate, sesije i fakture. Broj kartice ne vidimo i ne čuvamo - njega obrađuje isključivo Stripe.",
@@ -350,16 +350,16 @@ export const PRIVACY_POLICY: LegalDocument = {
       title: { sr: "4. Pravni osnov i svrha obrade", en: "4. Legal basis and purpose" },
       body: [
         {
-          sr: "Izvršenje ugovora: nalog, pristup kursevima, generacije u Studiju i naplata. Bez ovih podataka usluga ne može da se pruži.",
-          en: "Performance of a contract: the account, course access, Studio generations and billing. Without this data the service cannot be provided.",
+          sr: "Izvršenje ugovora: nalog, pristup kursevima, generacije u Crei i naplata. Bez ovih podataka usluga ne može da se pruži.",
+          en: "Performance of a contract: the account, course access, Crea generations and billing. Without this data the service cannot be provided.",
         },
         {
           sr: "Zakonska obaveza: knjigovodstvena i poreska dokumentacija o naplaćenim uslugama.",
           en: "Legal obligation: accounting and tax records of the services charged.",
         },
         {
-          sr: "Legitiman interes: moderacija sadržaja, sprečavanje zloupotrebe i prevare, i bezbednost platforme. Na tom osnovu ovlašćeno osoblje može da pregleda generisan sadržaj, kako piše u uslovima korišćenja Studija; svaki pun uvid u pojedinačan posao se beleži.",
-          en: "Legitimate interest: content moderation, prevention of abuse and fraud, and platform security. On that basis authorised staff may review generated content, as stated in the Studio terms of use; every full access to an individual job is logged.",
+          sr: "Legitiman interes: moderacija sadržaja, sprečavanje zloupotrebe i prevare, i bezbednost platforme. Na tom osnovu ovlašćeno osoblje može da pregleda generisan sadržaj, kako piše u uslovima korišćenja Cree; svaki pun uvid u pojedinačan posao se beleži.",
+          en: "Legitimate interest: content moderation, prevention of abuse and fraud, and platform security. On that basis authorised staff may review generated content, as stated in the Crea terms of use; every full access to an individual job is logged.",
         },
       ],
     },
@@ -389,8 +389,8 @@ export const PRIVACY_POLICY: LegalDocument = {
           en: "You have the right to access your data, to correct it, to have it deleted, to restrict processing, to data portability, and to object to processing based on legitimate interest.",
         },
         {
-          sr: `Zahtev šalješ sa email adrese naloga na ${PRIVACY_EMAIL}, sa naznakom šta tražiš. Odgovaramo najkasnije u roku od 30 dana. Pojedinačnu generaciju možeš i sam da obrišeš iz galerije Studija.`,
-          en: `Send the request from the account's email address to ${PRIVACY_EMAIL}, saying what you are asking for. We answer within 30 days at the latest. You can also delete an individual generation yourself from the Studio gallery.`,
+          sr: `Zahtev šalješ sa email adrese naloga na ${PRIVACY_EMAIL}, sa naznakom šta tražiš. Odgovaramo najkasnije u roku od 30 dana. Pojedinačnu generaciju možeš i sam da obrišeš iz galerije Cree.`,
+          en: `Send the request from the account's email address to ${PRIVACY_EMAIL}, saying what you are asking for. We answer within 30 days at the latest. You can also delete an individual generation yourself from the Crea gallery.`,
         },
         {
           sr: "Brisanje naloga ne briše ono što propis nalaže da se sačuva - knjigovodstvenu dokumentaciju i zapis o naplaćenim uslugama - niti sadržaj koji je predmet prijave dok se prijava ne reši. Brisanjem naloga nepotrošeni krediti propadaju i ne isplaćuju se.",

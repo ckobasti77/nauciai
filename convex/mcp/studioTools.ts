@@ -474,7 +474,7 @@ type StudioToolInput = {
 const STUDIO_TOOLS: Record<string, ToolDefinition> = {
   list_models: {
     description:
-      "Uključeni Studio modeli: slug, vrsta (image/video/audio), provajder, porodica, nazivi, ulazni režimi (inputModes), slotovi po režimu (inputSpec), specifikacija parametara (paramSpec), cenovno pravilo i mogućnosti.",
+      "Uključeni Crea modeli: slug, vrsta (image/video/audio), provajder, porodica, nazivi, ulazni režimi (inputModes), slotovi po režimu (inputSpec), specifikacija parametara (paramSpec), cenovno pravilo i mogućnosti.",
     inputSchema: NO_INPUT,
     scope: MCP_SCOPE_READ,
     handler: async (_input, ctx) => {
@@ -488,7 +488,7 @@ const STUDIO_TOOLS: Record<string, ToolDefinition> = {
 
   get_studio_state: {
     description:
-      "Stanje Studija za pozivaoca: da li je uključen, da li korisnik ima pristup i zašto ne, aktivni poslovi i limit, prihvaćeni uslovi, i saldo kredita.",
+      "Stanje Cree za pozivaoca: da li je uključena, da li korisnik ima pristup i zašto ne, aktivni poslovi i limit, prihvaćeni uslovi, i saldo kredita.",
     inputSchema: NO_INPUT,
     scope: MCP_SCOPE_READ,
     handler: async (_input, ctx) => {
@@ -503,7 +503,7 @@ const STUDIO_TOOLS: Record<string, ToolDefinition> = {
   },
 
   list_projects: {
-    description: "Nearhivirani Studio projekti pozivaoca: id, ime i datum nastanka.",
+    description: "Nearhivirani Crea projekti pozivaoca: id, ime i datum nastanka.",
     inputSchema: NO_INPUT,
     scope: MCP_SCOPE_READ,
     handler: async (_input, ctx) => {
@@ -651,7 +651,7 @@ const STUDIO_TOOLS: Record<string, ToolDefinition> = {
 
   create_generation: {
     description:
-      "Pokreće generisanje u Studiju i TROŠI KREDITE pozivaoca. `params` su parametri modela po njegovom paramSpec-u (prompt i ostalo). Za image-to-video i slične režime prosledi `inputMode` (iz inputModes modela) i `inputs` ({ slot: [storageId] } iz register_upload); za režime sa capabilities.continuation prosledi `sourceJobId`. Vraća jobId, status, cenu u kreditima i slug modela; rezultat se čeka kroz wait_for_job.",
+      "Pokreće generisanje u Crei i TROŠI KREDITE pozivaoca. `params` su parametri modela po njegovom paramSpec-u (prompt i ostalo). Za image-to-video i slične režime prosledi `inputMode` (iz inputModes modela) i `inputs` ({ slot: [storageId] } iz register_upload); za režime sa capabilities.continuation prosledi `sourceJobId`. Vraća jobId, status, cenu u kreditima i slug modela; rezultat se čeka kroz wait_for_job.",
     inputSchema: {
       type: "object",
       properties: {

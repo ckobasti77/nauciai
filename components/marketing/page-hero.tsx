@@ -156,13 +156,14 @@ export function PageHero({
   mediaHeight = 1072,
   portraitSrc,
   bg = "var(--hero-paper)",
+  brand,
   children,
 }: {
   /** Ceo naslov kad nema markera; inače deo pre markera. */
   titleLead: string;
   /** Ključna fraza pod marker potezom (isti obrazac kao naslovi sekcija). */
   titleHighlight?: string;
-  /** Školski žuti potez ispod naslova — alternativa markeru (Studio hero). */
+  /** Školski žuti potez ispod naslova — alternativa markeru (Crea hero). */
   underline?: boolean;
   subtitle?: string;
   /** Do dva CTA; prvi je primarni (žut), drugi sekundarni (papir). */
@@ -183,7 +184,9 @@ export function PageHero({
   /** Krem ton podloge; podrazumevano token heroja. Prosleđuje se kad je izmerena
    *  boja ivica konkretnog videa drugačija, da spoj ostane bešavan. */
   bg?: string;
-  /** Dodatni red ispod CTA (npr. bonus napomena na Studiju). */
+  /** Znak proizvoda iznad naslova (npr. Crea wordmark sa potpisom). */
+  brand?: ReactNode;
+  /** Dodatni red ispod CTA (npr. bonus napomena na Crei). */
   children?: ReactNode;
 }) {
   const hasMedia = Boolean(posterSrc || mp4Src);
@@ -234,6 +237,7 @@ export function PageHero({
 
       <div className="relative z-20 mx-auto w-full max-w-7xl px-4 pb-12 pt-20 sm:px-6 lg:px-8">
         <div className="max-w-md xl:max-w-lg" data-motion="copy">
+          {brand}
           <h1 className="text-balance text-4xl font-black leading-[1.03] text-ink sm:text-5xl lg:text-6xl">
             {titleLead}
             {titleHighlight ? <MarkerHighlight>{titleHighlight}</MarkerHighlight> : null}

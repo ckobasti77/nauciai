@@ -26,6 +26,7 @@ import { ArrowRight, AudioLines, Coins, Image as ImageIcon, Sparkles, Video } fr
 import Image from "next/image";
 import Link from "next/link";
 
+import { CreaLogo } from "@/components/crea/crea-logo";
 import { HeroMotion } from "@/components/marketing/hero-motion";
 import { PageHero } from "@/components/marketing/page-hero";
 import {
@@ -36,6 +37,7 @@ import {
   cn,
 } from "@/components/ui/primitives";
 import { getConvexHttpClient, convexQueries } from "@/lib/convex-http";
+import { CREA_ICONS, CREA_OG_IMAGE } from "@/lib/crea-brand";
 import {
   formatEur,
   packValueLine,
@@ -67,10 +69,19 @@ export async function generateMetadata({
     title: STUDIO_LANDING.metaTitle[locale],
     description: STUDIO_LANDING.metaDescription[locale],
     alternates: alternatesFor(origin, "/studio", locale),
+    icons: CREA_ICONS,
     openGraph: {
       title: STUDIO_LANDING.metaTitle[locale],
       description: STUDIO_LANDING.metaDescription[locale],
       type: "website",
+      url: alternatesFor(origin, "/studio", locale).canonical,
+      images: [CREA_OG_IMAGE],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: STUDIO_LANDING.metaTitle[locale],
+      description: STUDIO_LANDING.metaDescription[locale],
+      images: [CREA_OG_IMAGE.url],
     },
   };
 }
@@ -200,6 +211,14 @@ export default async function StudioLandingPage({
               centriranje kao landing (višak krem podloge jednak levo i desno). Tekst,
               CTA i bonus red su isti; `bg` ostaje izmerena boja ivica OVOG videa. */}
           <PageHero
+            brand={
+              <div className="mb-3 flex items-end gap-2 sm:mb-5 sm:gap-3">
+                <CreaLogo variant="wordmark" className="h-10 w-auto sm:h-14 lg:h-16" />
+                <span className="font-display type-display-sm -translate-y-0.5 text-ink sm:-translate-y-1">
+                  {STUDIO_LANDING.signature[locale]}
+                </span>
+              </div>
+            }
             titleLead={STUDIO_LANDING.heroTitle[locale]}
             underline
             subtitle={STUDIO_LANDING.heroBody[locale]}
@@ -223,7 +242,7 @@ export default async function StudioLandingPage({
           </PageHero>
         </HeroMotion>
 
-        {/* Šta Studio pravi — stepenaste vrste, ne tri jednake kartice. (površina B) */}
+        {/* Šta Crea pravi — stepenaste vrste, ne tri jednake kartice. (površina B) */}
         <section className="border-b-2 border-ink bg-surface-b px-4 py-16 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-7xl">
             <SectionHeader title={STUDIO_LANDING.kindsTitle[locale]} />

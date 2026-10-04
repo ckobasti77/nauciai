@@ -667,6 +667,21 @@ select:-webkit-autofill {
   animation: studio-breathe var(--motion-spor) ease-in-out infinite;
 }
 
+/* Crea „viče" (CREA-PLAN §1): tri zraka znaka pulsiraju dok Crea nešto pravi. Pali se
+   SAMO kroz motion-safe varijantu u `components/crea/crea-logo.tsx`, pa pod
+   prefers-reduced-motion zraci stoje. `transform-box: fill-box` + centar zadaje komponenta. */
+@keyframes crea-ray {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.25);
+    opacity: 0.6;
+  }
+}
+
 /* Senka ispod žive 3D maskote u karticama planova (KORAK 2). Skalira 1→0.92→1 u ritmu
    lebdenja (idle root ±0.012 po Y). Trajanje je 3 s — TAČNO dužina idle klipa — pa fazni
    pomak preko negativnog `animation-delay` (basic 0 s, premium −2,1 s) drži senku poklopljenu

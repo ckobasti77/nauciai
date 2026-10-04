@@ -39,14 +39,14 @@ const PROMPTS: PromptDefinition[] = [
     ],
     build: ({ opis, stil }) =>
       userMessage(
-        "Generisanje slike u Nauči AI Studiju",
+        "Generisanje slike u Crei (Nauči AI)",
         [
           `Napravi sliku po ovom opisu: ${opis}`,
           stil ? `Željeni stil: ${stil}` : null,
           "",
           "Uradi redom:",
           "1. Pročitaj resurs nauciai://models i izaberi model sa kind \"image\" koji najbolje odgovara opisu i stilu. Iz njegovog paramSpec-a vidi koje parametre prima i koje vrednosti su dozvoljene; resurs nauciai://models/{slug} daje primer params objekta koji prolazi validaciju.",
-          "2. Pročitaj resurs nauciai://credits i proveri da saldo pokriva cenu po priceRule-u modela i da je Studio dostupan (hasStudioAccess). Ako nešto ne prolazi, reci mi to i stani - ne pozivaj alat.",
+          "2. Pročitaj resurs nauciai://credits i proveri da saldo pokriva cenu po priceRule-u modela i da je Crea dostupna (hasStudioAccess). Ako nešto ne prolazi, reci mi to i stani - ne pozivaj alat.",
           "3. Pozovi create_generation sa modelSlug i params (prompt na engleskom, precizan, sa stilom; ostali parametri po paramSpec-u). Alat troši kredite, pa ga pozovi tačno jednom.",
           "4. Pozovi wait_for_job dok status ne bude završan, pa mi daj outputUrl i koliko je kredita potrošeno.",
         ]
@@ -62,7 +62,7 @@ const PROMPTS: PromptDefinition[] = [
     arguments: [{ name: "opis pokreta", description: "Šta se dešava u videu: kako se scena i kamera pokreću.", required: true }],
     build: (args) =>
       userMessage(
-        "Video iz slike u Nauči AI Studiju",
+        "Video iz slike u Crei (Nauči AI)",
         [
           `Napravi video iz slike koju ću ti dati. Opis pokreta: ${args["opis pokreta"]}`,
           "",
@@ -99,7 +99,7 @@ const PROMPTS: PromptDefinition[] = [
       }
 
       return userMessage(
-        "Pregled poslednjih poslova u Nauči AI Studiju",
+        "Pregled poslednjih poslova u Crei (Nauči AI)",
         [
           `Pozovi list_my_jobs sa limit ${count} i napravi mi sažetak:`,
           "- koliko poslova je u kom stanju (done, running, reserved, failed, refunded),",

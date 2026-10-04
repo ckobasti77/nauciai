@@ -386,7 +386,7 @@ export const sendCostDeviationAlarm = internalAction({
   handler: async (ctx, args) => {
     const over = args.estimatedCostUsd > 0 ? args.actualCostUsd / args.estimatedCostUsd : 0;
     await sendAdminAlertEmail({
-      subject: `Studio: ${args.modelSlug} košta više nego što katalog kaže`,
+      subject: `Crea: ${args.modelSlug} košta više nego što katalog kaže`,
       text: [
         `Model \`${args.modelSlug}\` je ${COST_DEVIATION_STREAK} posla zaredom premašio procenu iz kataloga za više od ${Math.round((COST_DEVIATION_RATIO - 1) * 100)}%.`,
         `Poslednji posao: procena ${args.estimatedCostUsd.toFixed(4)} $, stvarno ${args.actualCostUsd.toFixed(4)} $ (${over.toFixed(2)}x).`,

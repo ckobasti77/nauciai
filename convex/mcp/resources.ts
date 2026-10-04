@@ -46,7 +46,7 @@ export const RESOURCES: ResourceDescriptor[] = [
     name: "models",
     title: "Katalog modela",
     description:
-      "Svi uključeni Studio modeli: slug, vrsta (image/video/audio), provajder, nazivi, ulazni režimi (inputModes), slotovi (inputSpec), parametri (paramSpec), cenovno pravilo (priceRule) i mogućnosti (capabilities).",
+      "Svi uključeni Crea modeli: slug, vrsta (image/video/audio), provajder, nazivi, ulazni režimi (inputModes), slotovi (inputSpec), parametri (paramSpec), cenovno pravilo (priceRule) i mogućnosti (capabilities).",
     mimeType: JSON_MIME,
   },
   {
@@ -54,7 +54,7 @@ export const RESOURCES: ResourceDescriptor[] = [
     name: "credits",
     title: "Krediti i limiti",
     description:
-      "Saldo kredita pozivaoca (balance, lifetimePurchased, lifetimeSpent), aktivni poslovi i limit istovremenih poslova, i da li Studio sme da se koristi (enabled, hasStudioAccess, accessReason, hasAcceptedTerms).",
+      "Saldo kredita pozivaoca (balance, lifetimePurchased, lifetimeSpent), aktivni poslovi i limit istovremenih poslova, i da li Crea sme da se koristi (enabled, hasStudioAccess, accessReason, hasAcceptedTerms).",
     mimeType: JSON_MIME,
   },
 ];

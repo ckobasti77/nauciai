@@ -2,17 +2,18 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { SuspensionGate } from "@/components/app/suspension-gate";
+import { CreaLogo } from "@/components/crea/crea-logo";
 import { ThemeToggle } from "@/components/app/theme-toggle";
 import { AccountMenu } from "@/components/marketing/account-menu";
 import { LanguageToggle } from "@/components/marketing/language-toggle";
-import { BrandMark, LinkButton } from "@/components/ui/primitives";
+import { LinkButton } from "@/components/ui/primitives";
 import { getAppGateState } from "@/lib/app-gates";
 import { getCurrentViewerProfile } from "@/lib/current-viewer";
 import { otherLocale, withLocale, type Locale } from "@/lib/i18n";
 import { STUDIO_SHELL } from "@/lib/studio-messages";
 
 /**
- * Tanki omotač samostalnog Studija (studio-public F3): logo, tema, nalog i
+ * Tanki omotač samostalne Cree (bivši Studio, studio-public F3): logo, tema, nalog i
  * JEDAN tih cross-sell red - bez školskog sidebara, dock-a i onboarding
  * kapija. `<main>` NAMERNO ponavlja padding kontrakt `AppShell`-a
  * (components/app/app-shell.tsx L39: px-4 pt-5 sm:px-6 md:px-8 md:pt-8) -
@@ -38,7 +39,14 @@ export async function StudioShell({ locale, children }: { locale: Locale; childr
     <div className="min-h-screen bg-paper text-ink">
       <div className="shell-container mx-auto flex min-h-screen min-w-0 w-full flex-col min-[1600px]:w-[calc(100%-48px)] min-[1600px]:max-w-[1760px]">
         <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b-2 border-ink/15 px-4 py-3 sm:px-6 md:px-8">
-          <BrandMark href={withLocale(locale, "/studio")} />
+          {/* Crea wordmark (K02): boje idu kroz tokene, pa tamna tema radi sama. */}
+          <Link
+            href={withLocale(locale, "/studio")}
+            aria-label={STUDIO_SHELL.homeLabel[locale]}
+            className="inline-flex min-w-0 items-center py-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          >
+            <CreaLogo variant="wordmark" title="Crea" className="h-8 w-auto sm:h-9" />
+          </Link>
           <div className="flex min-w-0 items-center gap-3 sm:gap-4">
             {/* F5: jedan tih red, ništa više. */}
             <Link

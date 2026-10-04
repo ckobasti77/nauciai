@@ -7,7 +7,7 @@ import { normalizeLocale } from "@/lib/i18n";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
-  return appPageMetadata(locale, { sr: "Studio", en: "Studio" });
+  return appPageMetadata(locale, { sr: "Crea", en: "Crea" });
 }
 
 export default async function StudioRoute({
@@ -27,7 +27,7 @@ export default async function StudioRoute({
         <SectionHeader
           variant="app"
           underline
-          title={locale === "sr" ? "Studio" : "Studio"}
+          title="Crea"
           body={
             locale === "sr"
               ? "Opiši šta hoćeš, izaberi model i generiši. Svaka generacija se plaća kreditima."
@@ -37,8 +37,8 @@ export default async function StudioRoute({
         <Panel className="p-6">
           <p className="type-body type-measure font-bold text-muted">
             {locale === "sr"
-              ? "Backend nije povezan na ovoj instalaciji, pa Studio ne može da generiše."
-              : "The backend is not connected on this installation, so the Studio cannot generate."}
+              ? "Backend nije povezan na ovoj instalaciji, pa Crea ne može da generiše."
+              : "The backend is not connected on this installation, so Crea cannot generate."}
           </p>
         </Panel>
       </div>

@@ -837,7 +837,7 @@ test("inbox summary stays exact beyond one thousand memberships", async () => {
     pendingRequests: expectedRequests,
     pendingGroupInvites: expectedGroupInvites,
   });
-});
+}, 30_000); // Seed od 1 105 članstava traje ~3 s sam, a pod paralelnim `npm run test` premaši podrazumevanih 5 s (baseline flake, K02).
 
 test("inbox summary keeps the manual projection until aggregate cutover", async () => {
   const t = createTest();

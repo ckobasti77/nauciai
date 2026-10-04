@@ -11,7 +11,7 @@ export async function generateMetadata({
   params: Promise<{ locale: string; jobId: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
-  return appPageMetadata(locale, { sr: "Studio · Rad", en: "Studio · Work" });
+  return appPageMetadata(locale, { sr: "Crea · Rad", en: "Crea · Work" });
 }
 
 export default async function StudioJobDetailRoute({
@@ -28,7 +28,7 @@ export default async function StudioJobDetailRoute({
         <SectionHeader
           variant="app"
           underline
-          title={locale === "sr" ? "Studio" : "Studio"}
+          title="Crea"
           body={
             locale === "sr"
               ? "Opiši šta hoćeš, izaberi model i generiši. Svaka generacija se plaća kreditima."
@@ -38,8 +38,8 @@ export default async function StudioJobDetailRoute({
         <Panel className="p-6">
           <p className="type-body type-measure font-bold text-muted">
             {locale === "sr"
-              ? "Backend nije povezan na ovoj instalaciji, pa Studio ne može da generiše."
-              : "The backend is not connected on this installation, so the Studio cannot generate."}
+              ? "Backend nije povezan na ovoj instalaciji, pa Crea ne može da generiše."
+              : "The backend is not connected on this installation, so Crea cannot generate."}
           </p>
         </Panel>
       </div>

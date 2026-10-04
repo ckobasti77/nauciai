@@ -72,7 +72,7 @@ export function SiteFooter({ locale }: { locale: Locale }) {
           <nav aria-label={f.legalHeading} className="flex flex-col gap-1">
             <p className="type-eyebrow text-muted">{f.legalHeading}</p>
             <FooterLink href={withLocale(locale, "/politika-privatnosti")}>{f.privacy}</FooterLink>
-            <FooterLink href={withLocale(locale, "/uslovi-studio")}>{f.terms}</FooterLink>
+            <FooterLink href={withLocale(locale, "/studio-terms")}>{f.terms}</FooterLink>
             <a
               href={`mailto:${CONTACT_EMAIL}`}
               className="inline-flex items-center gap-2 py-0.5 text-sm font-bold text-muted transition-colors hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink pointer-coarse:min-h-11"

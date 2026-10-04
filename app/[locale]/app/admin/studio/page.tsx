@@ -8,7 +8,7 @@ import { appPageMetadata } from "@/lib/app-metadata";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
-  return appPageMetadata(locale, { sr: "Studio admin", en: "Studio admin" });
+  return appPageMetadata(locale, { sr: "Crea admin", en: "Crea admin" });
 }
 
 export default async function AdminStudioPage({ params }: { params: Promise<{ locale: string }> }) {

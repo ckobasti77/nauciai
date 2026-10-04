@@ -93,7 +93,7 @@ describe("uslovi pokrivaju ono bez čega Stripe ne sme da se upali", () => {
 
   test("18+ stoji i kao granica uzrasta i kao odgovornost za generativni sadržaj", () => {
     expect(sr).toContain("18 godina");
-    expect(sr).toMatch(/nije otvoren maloletnicima/);
+    expect(sr).toMatch(/nije otvorena maloletnicima/);
     expect(en).toContain("18 and over");
     expect(en).toMatch(/not open to minors/);
   });
@@ -183,9 +183,9 @@ describe("Studio linkuje tačno ove dve stranice", () => {
       expect(checkbox, locale).toContain("18");
       expect(checkbox.length, locale).toBeGreaterThan(20);
     }
-    expect(STUDIO_TERMS_GATE.checkbox.sr).toMatch(/uslove korišćenja Studija/);
+    expect(STUDIO_TERMS_GATE.checkbox.sr).toMatch(/uslove korišćenja Cree/);
     expect(STUDIO_TERMS_GATE.checkbox.sr).toMatch(/politiku privatnosti/);
-    expect(STUDIO_TERMS_GATE.checkbox.en).toMatch(/Studio terms of use/);
+    expect(STUDIO_TERMS_GATE.checkbox.en).toMatch(/Crea terms of use/);
     expect(STUDIO_TERMS_GATE.checkbox.en).toMatch(/privacy policy/);
   });
 });

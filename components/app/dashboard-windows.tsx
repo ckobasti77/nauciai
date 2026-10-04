@@ -496,17 +496,17 @@ export function DashboardWindowsGrid({
       />
       <DashboardWindow
         zone="studio"
-        eyebrow={tr(locale, "Studio", "Studio")}
+        eyebrow={tr(locale, "Crea", "Crea")}
         title={tr(locale, "Poslednje što si napravio/la", "The last things you made")}
         icon={Sparkles}
         items={studioRows}
         emptyTitle={tr(locale, "Još nisi ništa napravio/la", "You have not made anything yet")}
         emptyBody={tr(
           locale,
-          "Otvori Studio i napravi prvu sliku — kredite za to već imaš.",
-          "Open the Studio and make your first image — you already have the credits for it.",
+          "Otvori Creu i napravi prvu sliku — kredite za to već imaš.",
+          "Open Crea and make your first image — you already have the credits for it.",
         )}
-        ctaLabel={tr(locale, "Otvori Studio", "Open Studio")}
+        ctaLabel={tr(locale, "Otvori Creu", "Open Crea")}
         ctaHref={withLocale(locale, "/app/studio")}
       />
       <DashboardWindow

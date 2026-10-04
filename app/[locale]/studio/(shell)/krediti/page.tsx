@@ -36,8 +36,8 @@ export default async function StandaloneCreditsRoute({
           title={t(locale, "Krediti", "Credits")}
           body={t(
             locale,
-            "Kredit je bod kojim se plaća svaka generacija u Studiju.",
-            "A credit is a point that pays for every generation in the Studio.",
+            "Kredit je bod kojim se plaća svaka generacija u Crei.",
+            "A credit is a point that pays for every generation in Crea.",
           )}
         />
         <Panel className="p-6">

@@ -31,8 +31,8 @@ export default async function StandaloneStudioDetailRoute({
         <p className="type-body type-measure font-bold text-muted">
           {t(
             locale,
-            "Backend nije povezan na ovoj instalaciji, pa Studio ne može da prikaže generaciju.",
-            "The backend is not connected on this installation, so the Studio cannot show the generation.",
+            "Backend nije povezan na ovoj instalaciji, pa Crea ne može da prikaže generaciju.",
+            "The backend is not connected on this installation, so Crea cannot show the generation.",
           )}
         </p>
       </Panel>

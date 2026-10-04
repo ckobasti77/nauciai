@@ -78,7 +78,7 @@ const T = {
     prev: "Prethodni rad",
     next: "Sledeći rad",
     noMedia: "Nema medija za prikaz",
-    untitledWork: "Rad napravljen u Studiju",
+    untitledWork: "Rad napravljen u Crei",
     audioTrack: "Audio zapis",
   },
   en: {
@@ -115,7 +115,7 @@ const T = {
     prev: "Previous work",
     next: "Next work",
     noMedia: "No media to display",
-    untitledWork: "Work made in the Studio",
+    untitledWork: "Work made in Crea",
     audioTrack: "Audio track",
   },
 } as const;

@@ -88,8 +88,8 @@ describe("createCreditPackCheckoutSession", () => {
     });
 
     const params = lastParams();
-    expect(params.success_url).toBe("https://nauciai.test/studio/krediti?checkout=success");
-    expect(params.cancel_url).toBe("https://nauciai.test/studio/krediti?checkout=cancelled");
+    expect(params.success_url).toBe("https://nauciai.test/crea/krediti?checkout=success");
+    expect(params.cancel_url).toBe("https://nauciai.test/crea/krediti?checkout=cancelled");
     // Metapodaci za webhook su NEZAVISNI od povratne putanje - grant ide isto.
     expect(params.metadata).toMatchObject({ kind: "credit_pack", packSlug: "creator" });
   });

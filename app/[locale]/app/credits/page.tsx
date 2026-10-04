@@ -29,8 +29,8 @@ export default async function CreditsRoute({
           title={locale === "sr" ? "Krediti" : "Credits"}
           body={
             locale === "sr"
-              ? "Krediti pokreću Studio. Kupuju se jednom i važe 12 meseci."
-              : "Credits power the Studio. Bought once, valid for 12 months."
+              ? "Krediti pokreću Creu. Kupuju se jednom i važe 12 meseci."
+              : "Credits power Crea. Bought once, valid for 12 months."
           }
         />
         <Panel className="p-6">

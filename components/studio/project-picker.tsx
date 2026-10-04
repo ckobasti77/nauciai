@@ -1,5 +1,6 @@
 "use client";
 
+import { useConvexAuth } from "@convex-dev/auth/react";
 import { useMutation, useQuery } from "convex/react";
 import {
   Archive,
@@ -41,7 +42,10 @@ export function ProjectPicker({
   activeProjectId: Id<"studioProjects"> | null;
   onSelectProject: (projectId: Id<"studioProjects"> | null) => void;
 }) {
-  const projects = useQuery(api.studioProjects.listMyProjects, {});
+  // Bez prijave upit baca `Unauthorized` (requireUserId) i obara celu radionicu za gosta
+  // na `/crea/app` - zato "skip" dok sesija ne postoji (K02, nalaz 0.2-10 iz plana K01).
+  const { isAuthenticated } = useConvexAuth();
+  const projects = useQuery(api.studioProjects.listMyProjects, isAuthenticated ? {} : "skip");
   const createProject = useMutation(api.studioProjects.createProject);
   const renameProject = useMutation(api.studioProjects.renameProject);
   const archiveProject = useMutation(api.studioProjects.archiveProject);

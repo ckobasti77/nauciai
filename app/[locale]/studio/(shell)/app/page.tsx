@@ -32,7 +32,7 @@ export default async function StandaloneStudioRoute({
         <SectionHeader
           variant="app"
           underline
-          title="Studio"
+          title="Crea"
           body={t(
             locale,
             "Opiši šta hoćeš, izaberi model i generiši. Svaka generacija se plaća kreditima.",
@@ -43,8 +43,8 @@ export default async function StandaloneStudioRoute({
           <p className="type-body type-measure font-bold text-muted">
             {t(
               locale,
-              "Backend nije povezan na ovoj instalaciji, pa Studio ne može da generiše.",
-              "The backend is not connected on this installation, so the Studio cannot generate.",
+              "Backend nije povezan na ovoj instalaciji, pa Crea ne može da generiše.",
+              "The backend is not connected on this installation, so Crea cannot generate.",
             )}
           </p>
         </Panel>

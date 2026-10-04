@@ -2,6 +2,7 @@ import { getPathMatch } from "next/dist/shared/lib/router/utils/path-match";
 import { expect, test } from "vitest";
 
 import nextConfig from "../next.config";
+import { toPublicPath } from "./routes";
 import { FRAME_DENY_HEADERS, frameDenyHeaderEntries } from "./security-headers";
 
 /**
@@ -16,7 +17,7 @@ function sourcesMatching(pathname: string): string[] {
     .map((entry) => entry.source);
 }
 
-test("ekran pristanka, app, studio radni prostor i prijava dobijaju DENY u sve tri jezičke forme", () => {
+test("ekran pristanka, app, Crea radni prostor i prijava dobijaju DENY u sve tri jezičke forme", () => {
   const protectedPaths = [
     "/oauth/authorize",
     "/sr/oauth/authorize",
@@ -28,6 +29,13 @@ test("ekran pristanka, app, studio radni prostor i prijava dobijaju DENY u sve t
     "/studio/app",
     "/en/studio/app/projekat",
     "/studio/krediti",
+    "/sr/studio/app",
+    "/crea/app",
+    "/crea/app/m/abc",
+    "/en/crea/app",
+    "/en/crea/app/m/abc",
+    "/crea/krediti",
+    "/en/crea/krediti",
     "/sign-in",
     "/sr/sign-in",
     "/en/sign-in",
@@ -41,7 +49,20 @@ test("ekran pristanka, app, studio radni prostor i prijava dobijaju DENY u sve t
   }
 
   // Marketing ostaje bez zaglavlja - i putanje koje samo LIČE na zaštićene.
-  for (const path of ["/", "/kursevi", "/en/courses", "/studio", "/en/studio", "/oauthx", "/application", "/sign-in-help"]) {
+  for (const path of [
+    "/",
+    "/kursevi",
+    "/en/courses",
+    "/studio",
+    "/en/studio",
+    "/crea",
+    "/en/crea",
+    "/uslovi-crea",
+    "/en/crea-terms",
+    "/oauthx",
+    "/application",
+    "/sign-in-help",
+  ]) {
     expect(sourcesMatching(path), path).toEqual([]);
   }
 });
@@ -56,5 +77,14 @@ test("svako pravilo nosi oba zaglavlja i next.config.ts ih zaista vraća iz head
   const configured = await nextConfig.headers();
   for (const entry of frameDenyHeaderEntries()) {
     expect(configured).toContainEqual(entry);
+  }
+});
+
+test("javne putanje Cree (iz lib/routes.ts) uvek pogađa DENY, i kad se slug promeni", () => {
+  for (const locale of ["sr", "en"] as const) {
+    for (const canonical of ["/studio/app", "/studio/app/m/abc", "/studio/krediti"]) {
+      const publicPath = toPublicPath(locale, canonical);
+      expect(sourcesMatching(publicPath), publicPath).not.toEqual([]);
+    }
   }
 });
