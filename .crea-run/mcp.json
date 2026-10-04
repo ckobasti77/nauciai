@@ -1,0 +1,1 @@
+{ "mcpServers": { "playwright": { "type": "stdio", "command": "cmd", "args": ["/c", "npx", "-y", "@playwright/mcp@latest", "--headless", "--isolated", "--output-dir", "docs/crea/snimci"] } } }
