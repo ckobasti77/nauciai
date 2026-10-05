@@ -1598,6 +1598,13 @@ export default defineSchema({
     // samo lokalni rezultati (K04): od nje živi dnevni limit prostora po korisniku.
     outputBytes: v.optional(v.number()),
     posterStorageId: v.optional(v.id("_storage")),
+    // Stablo verzija (Crea K05, plan K01 §5): rad iz kojeg je ovaj nastao i koren
+    // celog stabla. Koren NEMA `rootJobId` (sam je koren). Roditelj uvek pripada
+    // istom korisniku (`creaVersions.ensureOwnedParent`), pa je i celo stablo njegovo.
+    // `derivation` je jedna od `CREA_DERIVATIONS` (`creaVersionsCore.ts`).
+    parentJobId: v.optional(v.id("generationJobs")),
+    rootJobId: v.optional(v.id("generationJobs")),
+    derivation: v.optional(v.string()),
     labOutputId: v.optional(v.id("labOutputs")),
     lessonId: v.optional(v.id("lessons")),
     taskId: v.optional(v.id("lessonTasks")),
@@ -1617,6 +1624,8 @@ export default defineSchema({
     // Limiti lokalnih rezultata (K04, K01-18): koliko je korisnik sačuvao u
     // poslednjem minutu i danas - brojanje kroz indeks u istoj mutaciji koja upisuje.
     .index("by_user_provider_created", ["userId", "provider", "createdAt"])
+    // Svi radovi jednog stabla verzija (K05), od najstarijeg.
+    .index("by_root_created", ["rootJobId", "createdAt"])
     // Ima li korisnik neplaćen dug iz poravnanja (X2). `createJob` ga pita pre
     // svakog novog posla, pa mora da bude jedno čitanje po indeksu, a ne
     // skeniranje istorije.
@@ -1647,6 +1656,10 @@ export default defineSchema({
     // saobraćaj. Posle tri neuspeha akcija odbija bez ijednog `fetch`-a; uspešno
     // merenje polje briše, jer od tada `durationS` ionako kratko spaja poziv.
     measureFailures: v.optional(v.number()),
+    // Alias (Crea K05, K01-10): ovaj red je ulaz NAD izlazom tog posla - isti blob,
+    // bez kopije. Blob pripada poslu, pa ga brisanje ulaza i rokovi nikad ne diraju
+    // (`studio.deleteJob`, `studio.finalizeOutput`, `crons.expireGenerationFiles`).
+    sourceJobId: v.optional(v.id("generationJobs")),
     createdAt: v.number(),
     // Postoji samo dok upload nije ušao ni u jedan posao: nevezan fajl briše
     // `crons.expireGenerationFiles` posle 24 h. `createJob` polje sklanja, pa

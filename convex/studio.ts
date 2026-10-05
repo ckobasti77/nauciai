@@ -11,6 +11,8 @@ import {
   query,
   type QueryCtx,
 } from "./_generated/server";
+import { resolveJobLineage } from "./creaVersions";
+import { creaDerivationValidator } from "./creaVersionsCore";
 import { applyGrant, applySettlement, applySpend } from "./credits";
 import {
   canonicalizeEmailForAntiFarm,
@@ -558,6 +560,10 @@ const createJobArgs = {
   // Projekat kojem generacija pripada (SP2). Polje je opciono namerno:
   // generacije bez projekta su podrazumevano stanje ("Sve generacije").
   projectId: v.optional(v.id("studioProjects")),
+  // Stablo verzija (Crea K05): rad iz kojeg ovaj nastaje i kako. Bez njih roditelja
+  // i dalje daju `sourceJobId` ili ulaz koji je izlaz nekog rada (`resolveJobLineage`).
+  parentJobId: v.optional(v.id("generationJobs")),
+  derivation: v.optional(creaDerivationValidator),
 };
 type CreateJobArgs = ObjectType<typeof createJobArgs>;
 
@@ -668,6 +674,15 @@ async function createJobForUser(ctx: MutationCtx, userId: Id<"users">, args: Cre
       },
     };
   }
+
+  // Roditelj u stablu verzija (K05). Tuđ roditelj baca pre ijednog upisa posla.
+  const lineage = await resolveJobLineage(ctx, userId, {
+    ...(args.parentJobId ? { parentJobId: args.parentJobId } : {}),
+    ...(args.derivation ? { derivation: args.derivation } : {}),
+    ...(args.sourceJobId ? { sourceJobId: args.sourceJobId } : {}),
+    uploadIds: order.uploadIds,
+    kind: order.kind,
+  });
 
   // Trag propuštenog prompta (nalaz V8): otisak SVAKOG prompta koji je prošao
   // keyword-filter, bez teksta - da bypass filtera (leet/homoglif/spajanje
@@ -828,6 +843,7 @@ async function createJobForUser(ctx: MutationCtx, userId: Id<"users">, args: Cre
     ...(args.lessonId ? { lessonId: args.lessonId } : {}),
     ...(args.taskId ? { taskId: args.taskId } : {}),
     ...(args.projectId ? { projectId: args.projectId } : {}),
+    ...lineage,
     createdAt: now,
   });
 
@@ -892,19 +908,28 @@ export const createJobInternal = internalMutation({
     inputs: v.optional(v.string()),
     sourceJobId: v.optional(v.string()),
     projectId: v.optional(v.string()),
+    // Roditelj u stablu verzija (K05, C10); sirov string iz ulaza alata.
+    parentJobId: v.optional(v.string()),
   },
-  handler: async (ctx, { userId, projectId: rawProjectId, sourceJobId: rawSourceJobId, ...rest }) => {
+  handler: async (
+    ctx,
+    { userId, projectId: rawProjectId, sourceJobId: rawSourceJobId, parentJobId: rawParentJobId, ...rest },
+  ) => {
     const projectId =
       rawProjectId === undefined ? undefined : ctx.db.normalizeId("studioProjects", rawProjectId);
     if (projectId === null) throw new Error("NEMA_PRISTUPA");
     const sourceJobId =
       rawSourceJobId === undefined ? undefined : ctx.db.normalizeId("generationJobs", rawSourceJobId);
     if (sourceJobId === null) throw new Error("IZVOR_NIJE_DOSTUPAN");
+    const parentJobId =
+      rawParentJobId === undefined ? undefined : ctx.db.normalizeId("generationJobs", rawParentJobId);
+    if (parentJobId === null) throw new Error("IZVOR_NIJE_DOSTUPAN");
 
     return createJobForUser(ctx, userId, {
       ...rest,
       ...(projectId ? { projectId } : {}),
       ...(sourceJobId ? { sourceJobId } : {}),
+      ...(parentJobId ? { parentJobId } : {}),
     });
   },
 });
@@ -1204,7 +1229,8 @@ export const finalizeOutput = internalMutation({
         .query("studioUploads")
         .withIndex("by_storage", (q) => q.eq("storageId", storageId))
         .first();
-      if (!upload) continue;
+      // Alias (K05): blob je izlaz drugog rada i živi koliko i on - rok mu se ne postavlja.
+      if (!upload || upload.sourceJobId) continue;
       const next = upload.expiresAt === undefined ? expiresAt : Math.max(upload.expiresAt, expiresAt);
       await ctx.db.patch(upload._id, { expiresAt: next });
     }
@@ -1805,7 +1831,20 @@ export const deleteJob = mutation({
     if (job.status === "reserved" || job.status === "running") throw new Error("POSAO_U_TOKU");
     if (job.labOutputId) throw new Error("POSAO_POVEZAN_SA_LEKCIJOM");
 
-    if (job.outputStorageId) await ctx.storage.delete(job.outputStorageId);
+    if (job.outputStorageId) {
+      await ctx.storage.delete(job.outputStorageId);
+      // Alias redovi nad ovim izlazom (K05, „Koristi kao ulaz") bi posle brisanja
+      // pokazivali na blob kojeg nema. Dete koje ga je koristilo ostaje sa
+      // „nedostaje ulaz" (`getJobForRegenerate.missingSlots`).
+      const output = job.outputStorageId;
+      const aliases = await ctx.db
+        .query("studioUploads")
+        .withIndex("by_storage", (q) => q.eq("storageId", output))
+        .take(10);
+      for (const alias of aliases) {
+        if (alias.sourceJobId === job._id) await ctx.db.delete(alias._id);
+      }
+    }
     if (job.posterStorageId) await ctx.storage.delete(job.posterStorageId);
 
     const ownInputs = new Set(jobInputStorageIds(parseJobInputs(job.inputs)));
@@ -1820,7 +1859,8 @@ export const deleteJob = mutation({
           .withIndex("by_storage", (q) => q.eq("storageId", storageId))
           .first();
         if (!upload || upload.userId !== userId) continue;
-        await ctx.storage.delete(storageId);
+        // Alias (K05): blob je izlaz roditelja - briše se samo red, nikad fajl.
+        if (!upload.sourceJobId) await ctx.storage.delete(storageId);
         await ctx.db.delete(upload._id);
       }
     }

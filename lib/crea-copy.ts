@@ -197,6 +197,58 @@ export const CREA_TOOL_COPY = {
   openTool: { sr: "Otvori alat", en: "Open the tool" },
 } satisfies Record<string, LocalizedText | Record<string, LocalizedText>>;
 
+/** Stablo verzija, pre/posle i „Vrati" u detalju rada (K05, S25). */
+export const CREA_VERSION_COPY = {
+  title: { sr: "Verzije", en: "Versions" },
+  hint: {
+    sr: "Svaka izmena pravi novu verziju, a stara ostaje. Klikni sličicu da je otvoriš.",
+    en: "Every change makes a new version and the old one stays. Click a thumbnail to open it.",
+  },
+  current: { sr: "ovaj rad", en: "this work" },
+  truncated: {
+    sr: "Prikazano je prvih 100 verzija ovog stabla.",
+    en: "Showing the first 100 versions of this tree.",
+  },
+  derivations: {
+    original: { sr: "Original", en: "Original" },
+    izmena: { sr: "Izmena", en: "Edit" },
+    animacija: { sr: "Animacija", en: "Animation" },
+    ozvucenje: { sr: "Ozvučenje", en: "Sound" },
+    "lokalni-alat": { sr: "Besplatan alat", en: "Free tool" },
+    produzenje: { sr: "Produženje", en: "Extension" },
+    usavrsavanje: { sr: "Usavršeno", en: "Refined" },
+    varijacija: { sr: "Varijacija", en: "Variation" },
+    regeneracija: { sr: "Ponovo", en: "Again" },
+    montaza: { sr: "Montaža", en: "Edit cut" },
+  },
+  compare: { sr: "Uporedi pre i posle", en: "Compare before and after" },
+  compareOff: { sr: "Samo nova verzija", en: "New version only" },
+  before: { sr: "Pre", en: "Before" },
+  after: { sr: "Posle", en: "After" },
+  compareLabel: {
+    sr: "Pre i posle: povuci ručku ili koristi strelice.",
+    en: "Before and after: drag the handle or use the arrow keys.",
+  },
+  restore: { sr: "Vrati prethodnu", en: "Go back" },
+  restoreTitle: {
+    sr: "Otvori verziju iz koje je ova nastala",
+    en: "Open the version this one was made from",
+  },
+  restoredTitle: { sr: "Vratio/la si se na ovu verziju.", en: "You went back to this version." },
+  restoredBody: {
+    sr: "Nastavi od nje: upotrebi je kao ulaz za sledeću izmenu.",
+    en: "Carry on from here: use it as the input for your next change.",
+  },
+  useAsInput: { sr: "Koristi kao ulaz", en: "Use as input" },
+  animate: { sr: "Animiraj", en: "Animate" },
+  tools: { sr: "Besplatno sredi u alatu", en: "Touch it up for free" },
+  sourceLoading: { sr: "Učitavam rad iz galerije…", en: "Loading the work from your gallery…" },
+  sourceFailed: {
+    sr: "Rad iz galerije nije mogao da se učita. Izaberi fajl sa uređaja.",
+    en: "The work from your gallery could not be loaded. Choose a file from your device.",
+  },
+} satisfies Record<string, LocalizedText | Record<string, LocalizedText>>;
+
 /** Odbijeno čuvanje (razlozi iz `convex/creaLocalCore.ts` i greške dozvole). */
 export const CREA_SAVE_ERROR_COPY = {
   NEPOZNAT_ALAT: {
@@ -227,6 +279,10 @@ export const CREA_SAVE_ERROR_COPY = {
   PROJEKAT_NIJE_DOSTUPAN: {
     sr: "Izabrani projekat više nije dostupan. Izaberi drugi projekat i sačuvaj ponovo.",
     en: "The selected project is no longer available. Pick another project and save again.",
+  },
+  IZVOR_NIJE_DOSTUPAN: {
+    sr: "Rad iz kojeg si krenuo/la više nije u galeriji. Sačuvaćemo ovo kao nov rad - probaj ponovo.",
+    en: "The work you started from is no longer in your gallery. Try again to save this as a new work.",
   },
   NEMA_PRISTUPA: {
     sr: "Čuvanje u galeriju stiže kad dobiješ pristup Crei. Dotle rezultat preuzmi.",

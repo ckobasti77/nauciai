@@ -30,6 +30,7 @@ const MARKERS = [
   { pkg: "@mediapipe/tasks-vision", marker: "graph_runner" },
   { pkg: "@jsquash/webp", marker: "webp_enc" },
   { pkg: "exifr", marker: "makerNote" },
+  { pkg: "react-compare-slider", marker: "--rcs-current-position" },
   { pkg: "@huggingface/transformers", marker: "allowLocalModels" },
   { pkg: "onnxruntime-web", marker: "ort-wasm" },
   { pkg: "tesseract.js", marker: "tesseract-core" },

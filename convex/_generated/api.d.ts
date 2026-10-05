@@ -32,6 +32,8 @@ import type * as contentReadiness from "../contentReadiness.js";
 import type * as courses from "../courses.js";
 import type * as creaLocal from "../creaLocal.js";
 import type * as creaLocalCore from "../creaLocalCore.js";
+import type * as creaVersions from "../creaVersions.js";
+import type * as creaVersionsCore from "../creaVersionsCore.js";
 import type * as creditPacks from "../creditPacks.js";
 import type * as credits from "../credits.js";
 import type * as creditsCore from "../creditsCore.js";
@@ -137,6 +139,8 @@ declare const fullApi: ApiFromModules<{
   courses: typeof courses;
   creaLocal: typeof creaLocal;
   creaLocalCore: typeof creaLocalCore;
+  creaVersions: typeof creaVersions;
+  creaVersionsCore: typeof creaVersionsCore;
   creditPacks: typeof creditPacks;
   credits: typeof credits;
   creditsCore: typeof creditsCore;

@@ -66,6 +66,7 @@ export function ToolRunner<TExtra>({
   caps,
   canSave,
   projectId,
+  parentJobId = null,
   canRun,
   inputKey,
   run,
@@ -79,6 +80,8 @@ export function ToolRunner<TExtra>({
   /** Kapija za čuvanje (`hasStudioAccess`); bez nje ostaje „Preuzmi". */
   canSave: boolean;
   projectId: Id<"studioProjects"> | null;
+  /** Rad iz galerije koji je bio ulaz (K05): sačuvan rezultat postaje njegova verzija. */
+  parentJobId?: Id<"generationJobs"> | null;
   /** Ulaz je spreman (npr. izabrana slika). */
   canRun: boolean;
   /** Menja se sa ulazom; nova vrednost vraća runner na početak. */
@@ -186,6 +189,7 @@ export function ToolRunner<TExtra>({
         blob: output.blob,
         params: output.params,
         projectId,
+        parentJobId,
       });
       setSave(result.ok ? { status: "saved" } : { status: "error", message: creaSaveErrorMessage(result.reason, locale) });
     } catch (error) {

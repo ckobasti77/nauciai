@@ -5,6 +5,7 @@ import { useMutation, useQuery } from "convex/react";
 import {
   ArrowLeft,
   Check,
+  Clapperboard,
   ChevronLeft,
   ChevronRight,
   Copy,
@@ -16,16 +17,20 @@ import {
   Play,
   RefreshCw,
   Sparkles,
+  SplitSquareHorizontal,
   Trash2,
+  Undo2,
   Volume2,
   VolumeX,
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { StudioTileJob } from "@/components/app/studio-media-tile";
+import { VersionStrip } from "@/components/crea/version-strip";
 import { CreditIcon } from "@/components/studio/credit-icon";
 import { StudioComposer, type JobPayload, type RegenerateSeed } from "@/components/studio/studio-composer";
 import { ConfirmDialog, useModalFocus } from "@/components/ui/dialog";
@@ -33,8 +38,9 @@ import { cn } from "@/components/ui/primitives";
 import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { CREA_TOOL_COPY } from "@/lib/crea-copy";
+import { CREA_TOOL_COPY, CREA_VERSION_COPY } from "@/lib/crea-copy";
 import { toolOfJob } from "@/lib/crea-tools";
+import { toolsForWork, versionInputTarget, type VersionIntent } from "@/lib/crea-versions";
 import type { Locale } from "@/lib/i18n";
 import { isExpiredOutput, jobPrompt, jobStatusText } from "@/lib/studio-form";
 import { downloadSingleMedia, isDemoPoster } from "@/lib/studio-gallery";
@@ -67,7 +73,6 @@ const T = {
     parameters: "Podešavanja",
     inputs: "Fajlovi koje si dao/la",
     prompt: "Tvoj opis",
-    reuseAsInput: "Upotrebi kao ulaz",
     generateAgain: "Napravi ponovo",
     fileExpired: "Fajl je istekao",
     zoomIn: "Uvećaj",
@@ -104,7 +109,6 @@ const T = {
     parameters: "Settings",
     inputs: "Files you gave it",
     prompt: "Your description",
-    reuseAsInput: "Use as input",
     generateAgain: "Make it again",
     fileExpired: "File expired",
     zoomIn: "Zoom in",
@@ -121,6 +125,16 @@ const T = {
     audioTrack: "Audio track",
   },
 } as const;
+
+// Pre/posle (K05): `react-compare-slider` se učitava tek kad korisnik uključi poređenje.
+const BeforeAfter = dynamic(() => import("@/components/crea/before-after"), {
+  ssr: false,
+  loading: () => (
+    <div className="grid min-h-[320px] w-full place-items-center">
+      <Spinner size="lg" />
+    </div>
+  ),
+});
 
 function formatTime(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) return "00:00";
@@ -141,6 +155,10 @@ export function StudioMediaDetail({
   topUpHref,
   onClose,
   onSelectJob,
+  onOpenVersion,
+  onUseAsInput,
+  onOpenTool,
+  restored,
   onGenerate,
   isPending,
   error,
@@ -156,6 +174,12 @@ export function StudioMediaDetail({
   topUpHref: string;
   onClose: () => void;
   onSelectJob: (job: StudioTileJob) => void;
+  /** Druga verzija iz stabla (K05); `restored` = otvorena kroz „Vrati". */
+  onOpenVersion: (jobId: string, restored: boolean) => void;
+  onUseAsInput: (job: StudioTileJob, intent: VersionIntent) => void;
+  onOpenTool: (job: StudioTileJob, toolId: string) => void;
+  /** Korisnik se „Vrati"-o na ovaj rad: nudi se da nastavi od njega. */
+  restored: boolean;
   onGenerate: (payload: JobPayload, model: StudioModel) => void;
   isPending: boolean;
   error: string | null;
@@ -169,6 +193,13 @@ export function StudioMediaDetail({
   });
 
   const deleteJobMutation = useMutation(api.studio.deleteJob);
+
+  // Stablo verzija (K05, S25): roditelj ovog rada je meta „Vrati" i strana „pre" u poređenju.
+  const versionTree = useQuery(api.creaVersions.getVersionTree, { jobId: job._id as Id<"generationJobs"> });
+  const versionNodes = versionTree?.nodes ?? [];
+  const parentId = versionNodes.find((node) => node._id === job._id)?.parentJobId ?? null;
+  const parentNode = parentId ? (versionNodes.find((node) => node._id === parentId) ?? null) : null;
+  const [comparing, setComparing] = useState(false);
 
   // Stanja interfejsa
   const [isFavorited, setIsFavorited] = useState(false);
@@ -195,6 +226,14 @@ export function StudioMediaDetail({
   // DEMO video/zvuk nema fajl koji plejer može da pusti - prikazuje se SVG poster.
   const showAsImage = job.kind === "image" || isDemoPoster(job);
   const statusMessage = jobStatusText(job, locale);
+  const vc = CREA_VERSION_COPY;
+  // DEMO (mock) izlaz je SVG, koji nijedan ulazni slot ne prima - za njega se ulaz ne nudi.
+  const isDone = job.status === "done" && hasOutput && !isExpired && !isDemoPoster(job);
+  const canCompare =
+    isDone && job.kind === "image" && parentNode?.kind === "image" && Boolean(parentNode.thumbUrl);
+  const inputTarget = isDone ? versionInputTarget(catalog, job.kind, "input") : null;
+  const animateTarget = isDone && job.kind === "image" ? versionInputTarget(catalog, job.kind, "animate") : null;
+  const workTools = isDone ? toolsForWork(job.kind) : [];
 
   // Indeks u listi za levo/desno navigaciju
   const currentIndex = jobs.findIndex((j) => j._id === job._id);
@@ -549,6 +588,8 @@ export function StudioMediaDetail({
                               params: parsedParams,
                               inputMode: jobDetail.inputMode ?? "text",
                               inputs: {},
+                              parentJobId: job._id as Id<"generationJobs">,
+                              derivation: "regeneracija",
                             },
                             jobModel,
                           );
@@ -586,7 +627,17 @@ export function StudioMediaDetail({
               {/* Stanje: Gotov medij */}
               {!isWorking && !isExpired && !isFailed && hasOutput ? (
                 <>
-                  {showAsImage ? (
+                  {canCompare && comparing && parentNode?.thumbUrl ? (
+                    <BeforeAfter
+                      beforeUrl={parentNode.thumbUrl}
+                      afterUrl={job.outputUrl as string}
+                      beforeLabel={vc.before[locale]}
+                      afterLabel={vc.after[locale]}
+                      label={vc.compareLabel[locale]}
+                    />
+                  ) : null}
+
+                  {showAsImage && !(canCompare && comparing) ? (
                     <div
                       className={cn(
                         "relative flex size-full items-center justify-center p-2",
@@ -692,6 +743,59 @@ export function StudioMediaDetail({
             ) : null}
           </div>
 
+          {/* VERZIJE (K05): pre/posle i „Vrati" odmah ispod medija */}
+          {canCompare || parentNode ? (
+            <div className="flex w-full max-w-[780px] flex-wrap items-center gap-2">
+              {canCompare ? (
+                <button
+                  type="button"
+                  onClick={() => setComparing((prev) => !prev)}
+                  aria-pressed={comparing}
+                  className={cn(
+                    "inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink px-4 text-sm font-black text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none motion-reduce:hover:translate-y-0",
+                    comparing ? "bg-yellow" : "bg-paper-strong",
+                  )}
+                >
+                  <SplitSquareHorizontal aria-hidden="true" className="size-4" />
+                  {comparing ? vc.compareOff[locale] : vc.compare[locale]}
+                </button>
+              ) : null}
+              {parentNode ? (
+                <button
+                  type="button"
+                  onClick={() => onOpenVersion(parentNode._id, true)}
+                  title={vc.restoreTitle[locale]}
+                  className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 text-sm font-black text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                >
+                  <Undo2 aria-hidden="true" className="size-4" />
+                  {vc.restore[locale]}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+
+          {/* „Vrati" je otvorio ovu verziju: nastavi od nje */}
+          {restored && inputTarget ? (
+            <div
+              role="status"
+              className="surface-card flex w-full max-w-[780px] flex-wrap items-center gap-3 border-2 border-ink bg-paper-strong p-4 shadow-[4px_4px_0_0_var(--shadow-hard-14)]"
+            >
+              <Undo2 aria-hidden="true" className="size-5 shrink-0 text-ink" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-black text-ink">{vc.restoredTitle[locale]}</p>
+                <p className="text-xs font-semibold text-muted">{vc.restoredBody[locale]}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => onUseAsInput(job, "input")}
+                className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-sm font-black text-ink shadow-[3px_3px_0_0_var(--ink)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+              >
+                <Sparkles aria-hidden="true" className="size-4" />
+                {vc.useAsInput[locale]}
+              </button>
+            </div>
+          ) : null}
+
           {/* TIMELINE (Ispod medija za video i audio) */}
           {(job.kind === "video" || job.kind === "audio") && hasOutput && !isWorking ? (
             <div className="surface-inset flex w-full max-w-[780px] items-center gap-3 border-2 border-ink bg-paper-strong px-4 py-2.5 shadow-[3px_3px_0_0_var(--shadow-hard-12)]">
@@ -756,6 +860,19 @@ export function StudioMediaDetail({
             </div>
 
             <div className="mt-4 flex-1 space-y-4 overflow-y-auto">
+              {/* Stablo verzija (K05) - samo kad rad ima bar jednu drugu verziju */}
+              {versionTree && versionNodes.length > 1 ? (
+                <VersionStrip
+                  locale={locale}
+                  nodes={versionNodes}
+                  currentId={job._id}
+                  truncated={versionTree.truncated}
+                  onOpen={(id) => {
+                    if (id !== job._id) onOpenVersion(id, false);
+                  }}
+                />
+              ) : null}
+
               {/* Model */}
               <div>
                 <span className="block text-[11px] font-black uppercase tracking-wide text-muted">{t.model}</span>
@@ -843,19 +960,48 @@ export function StudioMediaDetail({
               ) : null}
             </div>
 
-            {/* Dugme Upotrebi kao ulaz / ponovo */}
-            <div className="mt-4 border-t-2 border-ink/15 pt-3">
-              <button
-                type="button"
-                onClick={() => {
-                  if (jobModel) onSelectModel(jobModel);
-                }}
-                className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-full border-2 border-ink bg-paper py-2 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5"
-              >
-                <Sparkles className="size-3.5" />
-                <span>{t.reuseAsInput}</span>
-              </button>
-            </div>
+            {/* Izlaz kao ulaz (K05): u composer, u video ili u besplatan alat */}
+            {inputTarget || animateTarget || workTools.length > 0 ? (
+              <div className="mt-4 space-y-2 border-t-2 border-ink/15 pt-3">
+                {inputTarget ? (
+                  <button
+                    type="button"
+                    onClick={() => onUseAsInput(job, "input")}
+                    className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border-2 border-ink bg-paper py-2 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                  >
+                    <Sparkles aria-hidden="true" className="size-3.5" />
+                    <span>{vc.useAsInput[locale]}</span>
+                  </button>
+                ) : null}
+                {animateTarget ? (
+                  <button
+                    type="button"
+                    onClick={() => onUseAsInput(job, "animate")}
+                    className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border-2 border-ink bg-paper py-2 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                  >
+                    <Clapperboard aria-hidden="true" className="size-3.5" />
+                    <span>{vc.animate[locale]}</span>
+                  </button>
+                ) : null}
+                {workTools.length > 0 ? (
+                  <div>
+                    <span className="block text-[11px] font-black uppercase tracking-wide text-muted">{vc.tools[locale]}</span>
+                    <div className="mt-1.5 flex flex-wrap gap-2">
+                      {workTools.map((tool) => (
+                        <button
+                          key={tool.id}
+                          type="button"
+                          onClick={() => onOpenTool(job, tool.id)}
+                          className="inline-flex min-h-11 items-center rounded-full border border-line bg-paper px-3 text-xs font-black text-ink transition-colors hover:border-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none"
+                        >
+                          {tool.title[locale]}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </aside>
         ) : null}
       </div>
@@ -877,7 +1023,13 @@ export function StudioMediaDetail({
             isPending={isPending}
             error={error}
             variant="edit"
-            onGenerate={onGenerate}
+            // Nov rad iz detalja je verzija OVOG rada (K05): „Napravi ponovo" sa izmenama.
+            onGenerate={(payload, model) =>
+              onGenerate(
+                { ...payload, parentJobId: job._id as Id<"generationJobs">, ...(localTool ? {} : { derivation: "regeneracija" }) },
+                model,
+              )
+            }
           />
         </div>
       </footer>

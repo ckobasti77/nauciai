@@ -2,25 +2,32 @@
 "use client";
 
 import { ImageUp, RefreshCw } from "lucide-react";
-import { useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 
+import type { ToolSource } from "@/components/crea/tools/types";
 import { FullScreenDropOverlay, useFullScreenDrop } from "@/components/studio/drop-slot";
-import { CREA_TOOL_COPY } from "@/lib/crea-copy";
+import type { Id } from "@/convex/_generated/dataModel";
+import { CREA_TOOL_COPY, CREA_VERSION_COPY } from "@/lib/crea-copy";
 import { FORMAT_INPUT_MAX_BYTES } from "@/lib/crea-image-format";
 import { formatBytes } from "@/lib/crea-local-ai/progress";
 import type { Locale } from "@/lib/i18n";
 
-export type PickedImage = { file: File; url: string; key: string };
+/** `sourceJobId`: slika je izlaz rada iz galerije (K05), pa rezultat alata postaje njegova verzija. */
+export type PickedImage = { file: File; url: string; key: string; sourceJobId?: Id<"generationJobs"> };
 
 /**
  * Jedan ulaz slike za lokalne alate. Alat ima tačno jednu metu za sliku, pa
  * ceo ekran prima prevučen fajl (konvencija iz AGENTS.md, isti obrazac kao
  * avatar i composer); tek posle provere da je to slika do 50 MB fajl ulazi u alat.
  * Ništa se ne šalje - pregled je lokalni `blob:` URL.
+ *
+ * `source` (K05, „Besplatno sredi u alatu" iz detalja rada): slika se jednom preuzme
+ * iz galerije (Convex storage šalje CORS, vidi K04) i ulazi kao da je izabrana.
  */
-export function useImageInput() {
+export function useImageInput(source?: ToolSource | null) {
   const [picked, setPicked] = useState<PickedImage | null>(null);
   const [problem, setProblem] = useState<"notImage" | "tooBig" | null>(null);
+  const [failedSourceId, setFailedSourceId] = useState<string | null>(null);
 
   useEffect(
     () => () => {
@@ -29,7 +36,7 @@ export function useImageInput() {
     [picked],
   );
 
-  function choose(file: File | undefined) {
+  const choose = useCallback((file: File | undefined, sourceJobId?: Id<"generationJobs">) => {
     if (!file) return;
     if (!file.type.startsWith("image/")) {
       setProblem("notImage");
@@ -40,10 +47,40 @@ export function useImageInput() {
       return;
     }
     setProblem(null);
-    setPicked({ file, url: URL.createObjectURL(file), key: `${file.name}:${file.size}:${file.lastModified}:${Date.now()}` });
-  }
+    setPicked({
+      file,
+      url: URL.createObjectURL(file),
+      key: `${file.name}:${file.size}:${file.lastModified}:${Date.now()}`,
+      ...(sourceJobId ? { sourceJobId } : {}),
+    });
+  }, []);
 
-  return { picked, problem, choose };
+  const sourceJobId = source?.jobId ?? null;
+  const sourceUrl = source?.url ?? null;
+  const [loadedSourceId, setLoadedSourceId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!sourceJobId || !sourceUrl) return;
+    let alive = true;
+    void fetch(sourceUrl)
+      .then((response) => (response.ok ? response.blob() : Promise.reject(new Error(String(response.status)))))
+      .then((blob) => {
+        if (!alive) return;
+        const extension = blob.type.split("/")[1]?.replace("jpeg", "jpg") ?? "png";
+        choose(new File([blob], `crea-${sourceJobId.slice(-6)}.${extension}`, { type: blob.type }), sourceJobId);
+        setLoadedSourceId(sourceJobId);
+      })
+      .catch(() => {
+        if (alive) setFailedSourceId(sourceJobId);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [sourceJobId, sourceUrl, choose]);
+
+  const sourceStatus: "loading" | "failed" | null =
+    sourceJobId === null || loadedSourceId === sourceJobId ? null : failedSourceId === sourceJobId ? "failed" : "loading";
+
+  return { picked, problem, choose, sourceStatus };
 }
 
 export function ImageInput({
@@ -58,7 +95,7 @@ export function ImageInput({
   const inputId = useId();
   const fileRef = useRef<HTMLInputElement | null>(null);
   const dragging = useFullScreenDrop(!disabled, (files) => input.choose(files[0]));
-  const { picked, problem } = input;
+  const { picked, problem, sourceStatus } = input;
 
   return (
     <div>
@@ -110,6 +147,12 @@ export function ImageInput({
           <span className="type-body-sm font-semibold text-muted">{CREA_TOOL_COPY.dropHint[locale]}</span>
         </button>
       )}
+
+      {sourceStatus ? (
+        <p role="status" className="mt-2 type-body-sm font-bold text-muted">
+          {CREA_VERSION_COPY[sourceStatus === "loading" ? "sourceLoading" : "sourceFailed"][locale]}
+        </p>
+      ) : null}
 
       {problem ? (
         <p role="alert" className="mt-2 type-body-sm font-black text-red-700 dark:text-red-300">

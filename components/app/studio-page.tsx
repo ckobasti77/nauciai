@@ -1,7 +1,7 @@
 "use client";
 
 import { useConvexAuth } from "@convex-dev/auth/react";
-import { useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { Coins, Wand2 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -43,7 +43,14 @@ import {
   parseCreaShellState,
   type CreaShellState,
 } from "@/lib/crea-shell";
-import { toolOfJob } from "@/lib/crea-tools";
+import { toolById, toolOfJob } from "@/lib/crea-tools";
+import {
+  CREA_INPUT_PARAM,
+  CREA_RESTORED_PARAM,
+  inputModeWithSlot,
+  versionInputTarget,
+  type VersionIntent,
+} from "@/lib/crea-versions";
 import { clampBoundsToViewport } from "@/lib/floating-bounds";
 import { parsePath } from "@/lib/routes";
 import { t, withLocale, type Locale } from "@/lib/i18n";
@@ -53,7 +60,7 @@ import {
   type ComposerBreakpoint,
 } from "@/lib/studio-composer-collapse";
 import { jobPrompt } from "@/lib/studio-form";
-import { type GalleryScope } from "@/lib/studio-gallery";
+import { isDemoPoster, type GalleryScope } from "@/lib/studio-gallery";
 import { parseStudioModel, type StudioModel, type StudioModelRow } from "@/lib/studio-models";
 import {
   PRIVACY_POLICY_PATH,
@@ -62,7 +69,7 @@ import {
   STUDIO_TERMS_GATE,
   STUDIO_TERMS_PATH,
 } from "@/lib/studio-messages";
-import type { SlotFiles } from "@/lib/studio-slots";
+import type { SlotFile, SlotFiles } from "@/lib/studio-slots";
 import { formatCreditsLong, type ParamValues } from "@/lib/studio-params";
 
 /**
@@ -175,6 +182,8 @@ export function StudioPage({
   const models = useQuery(api.studioModels.listModels, isAuthenticated ? {} : "skip");
   const createJob = useMutation(api.studio.createJob);
   const claimSignupBonus = useMutation(api.studio.claimSignupBonus);
+  const adoptOutputAsInput = useMutation(api.creaVersions.adoptOutputAsInput);
+  const measureInputUpload = useAction(api.studioActions.measureInputUpload);
 
   // Bonus dobrodošlice (studio-public F2.3): server kaže kad ima šta da se
   // uzme; mutacija je idempotentna po korisniku, ref samo štedi ponovljene
@@ -441,10 +450,60 @@ export function StudioPage({
   const goalSeed: RegenerateSeed | null =
     goal?.params && goal.modelSlug === activeModel?.slug ? { id: `cilj:${goal.id}`, params: goal.params } : null;
   const goalInputMode = goal?.inputMode && goal.modelSlug === activeModel?.slug ? goal.inputMode : undefined;
-  // Composer se montira iznova kad stigne seme ponavljanja (forma ga čita samo pri prvom
-  // renderu, K01 0.2-8) - ali NE kad korisnik promeni model, da opis i podešavanja ostanu.
+  // „Koristi kao ulaz" / „Animiraj" / „Vrati" (K05): izlaz rada iz `?ulaz=<id>` postaje ulaz
+  // composera. Alias red pravi server (isti blob, bez kopije); video i zvuk se zatim mere kao
+  // svaki upload. Roditelja novom poslu upisuje server, jer prepozna alias među ulazima.
+  const inputJobId = searchParams.get(CREA_INPUT_PARAM);
+  const [adopted, setAdopted] = useState<{ jobId: string; slot: string; file: SlotFile } | null>(null);
+  const wantsAdoption = Boolean(inputJobId) && isAuthenticated && shell.tool === null && activeJobId === null;
+  useEffect(() => {
+    if (!wantsAdoption || !inputJobId) return;
+    let alive = true;
+    void (async () => {
+      try {
+        const result = await adoptOutputAsInput({ jobId: inputJobId as Id<"generationJobs"> });
+        let measuredSeconds = result.durationS ?? undefined;
+        if (result.slot !== "image" && measuredSeconds === undefined) {
+          const measured = await measureInputUpload({ storageId: result.storageId }).catch(() => null);
+          if (measured?.ok) measuredSeconds = measured.seconds;
+        }
+        if (!alive) return;
+        setAdopted({
+          jobId: inputJobId,
+          slot: result.slot,
+          file: {
+            storageId: result.storageId,
+            name: result.slot,
+            mime: result.mime,
+            size: result.size,
+            url: result.url,
+            ...(measuredSeconds !== undefined ? { measuredSeconds } : {}),
+          },
+        });
+      } catch (thrown) {
+        if (alive) setError(thrown instanceof Error ? thrown.message : String(thrown));
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [wantsAdoption, inputJobId, adoptOutputAsInput, measureInputUpload]);
+  const inputSeed: RegenerateSeed | null =
+    adopted && adopted.jobId === inputJobId
+      ? {
+          id: `${CREA_INPUT_PARAM}:${adopted.jobId}`,
+          ...(activeModel && area && modeDef
+            ? { inputMode: inputModeWithSlot(activeModel, area, modeDef.id, adopted.slot) }
+            : {}),
+          files: { [adopted.slot]: [adopted.file] },
+        }
+      : null;
+
+  // Composer se montira iznova kad stigne seme ponavljanja ili ulaza (forma ga čita samo pri
+  // prvom renderu, K01 0.2-8) - ali NE kad korisnik promeni model, da opis i podešavanja ostanu.
+  const composerSeed = inputSeed ?? regenerateSeed;
   const [seedEpoch, setSeedEpoch] = useState<string | null>(null);
-  if (regenerateSeed && regenerateSeed.id !== seedEpoch) setSeedEpoch(regenerateSeed.id);
+  if (composerSeed && composerSeed.id !== seedEpoch) setSeedEpoch(composerSeed.id);
 
   // H2: detalj otvoren direktnim linkom (posao nije u učitanoj mreži) čita PRAVI
   // izlaz i status kroz `getJobForDetail` - ne fabrikuje izlaz iz prvog ulaza.
@@ -512,6 +571,13 @@ export function StudioPage({
 
   // Model stiže od composera koji je poslao formu: detalj gradi formu za model POSLA (K01 0.2-7).
   async function generate(payload: JobPayload, model: StudioModel) {
+    // Stablo verzija (K05): detalj šalje svog roditelja; „Generiši ponovo" (`?regenerate=`) je
+    // verzija originala. Izlaz kao ulaz roditelja dobija na serveru (alias među ulazima).
+    const lineage = payload.parentJobId
+      ? { parentJobId: payload.parentJobId, ...(payload.derivation ? { derivation: payload.derivation } : {}) }
+      : regenerateSeed && regenerateId && model.slug === regenerated?.modelSlug
+        ? { parentJobId: regenerateId as Id<"generationJobs">, derivation: "regeneracija" as const }
+        : {};
     setIsPending(true);
     setError(null);
     try {
@@ -523,6 +589,7 @@ export function StudioPage({
           ? { inputs: JSON.stringify(payload.inputs) }
           : {}),
         ...(payload.sourceJobId ? { sourceJobId: payload.sourceJobId } : {}),
+        ...lineage,
         ...(lessonId ? { lessonId } : {}),
         ...(lessonId && taskId ? { taskId } : {}),
         ...(activeProjectId ? { projectId: activeProjectId } : {}),
@@ -559,8 +626,42 @@ export function StudioPage({
     }
   }
 
+  // Izlaz rada kao ulaz (K05): radionica u režimu koji prima tu vrstu fajla, sa radom u `?ulaz=`.
+  function openWithInput(job: StudioTileJob, next: Partial<CreaShellState> & { model?: string | null }) {
+    const params = new URLSearchParams(creaShellQuery(next, searchParams));
+    params.delete("regenerate");
+    params.set(CREA_INPUT_PARAM, job._id);
+    if (next.model) setSelectedSlug(next.model);
+    setPushedDetailId(null);
+    router.push(`${withLocale(locale, basePath)}?${params.toString()}`, { scroll: false });
+  }
+
+  function handleUseAsInput(job: StudioTileJob, intent: VersionIntent) {
+    const target = versionInputTarget(catalog, job.kind, intent);
+    if (target) openWithInput(job, { area: target.area, mode: target.mode, model: target.modelSlug });
+  }
+
+  function handleOpenTool(job: StudioTileJob, toolId: string) {
+    const tool = toolById(toolId);
+    if (tool) openWithInput(job, { area: tool.area, mode: tool.mode, tool: tool.id });
+  }
+
+  // „Produži ili animiraj" sa kartice: izlaz ide kao ulaz u video; gde to ne ide, ostaje „Upotrebi ponovo".
   function handleExtend(job: StudioTileJob) {
+    if (job.status === "done" && job.outputUrl && !isDemoPoster(job) && versionInputTarget(catalog, job.kind, "animate")) {
+      handleUseAsInput(job, "animate");
+      return;
+    }
     handleReuse(job);
+  }
+
+  // Druga verzija iz stabla; „Vrati" otvara roditelja i nudi ga kao ulaz (`?vraceno=`).
+  function handleOpenVersion(jobId: string, restored: boolean) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (restored) params.set(CREA_RESTORED_PARAM, jobId);
+    else params.delete(CREA_RESTORED_PARAM);
+    const query = params.toString();
+    router.replace(withLocale(locale, `${basePath}/m/${jobId}`) + (query ? `?${query}` : ""), { scroll: false });
   }
 
   function handleUseStarterPrompt(prompt: string) {
@@ -750,7 +851,7 @@ export function StudioPage({
         studioState={state}
         balance={balance?.balance}
         topUpHref={creditsHref}
-        seed={regenerateSeed ?? goalSeed}
+        seed={composerSeed ?? goalSeed}
         starterPrompt={starterPrompt}
         isPending={isPending}
         error={error}
@@ -833,6 +934,7 @@ export function StudioPage({
         signInHref={signInHrefProp ?? withLocale(locale, "/sign-in")}
         canSave={state?.hasStudioAccess === true}
         projectId={activeProjectId}
+        sourceJobId={inputJobId as Id<"generationJobs"> | null}
         list={composerPlacement === "floating" ? toolList : null}
       />
     ) : (
@@ -949,6 +1051,10 @@ export function StudioPage({
             topUpHref={creditsHref}
             onClose={handleCloseDetail}
             onSelectJob={handleSelectDetailJob}
+            onOpenVersion={handleOpenVersion}
+            onUseAsInput={handleUseAsInput}
+            onOpenTool={handleOpenTool}
+            restored={searchParams.get(CREA_RESTORED_PARAM) === activeJob._id}
             onGenerate={generate}
             isPending={isPending}
             error={error}

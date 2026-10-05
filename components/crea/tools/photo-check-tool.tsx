@@ -143,8 +143,8 @@ async function checkPhoto(file: File, locale: Locale, context: ToolRunContext): 
   }
 }
 
-export default function PhotoCheckTool({ tool, locale, caps, canSave, projectId }: CreaToolProps) {
-  const image = useImageInput();
+export default function PhotoCheckTool({ tool, locale, caps, canSave, projectId, source }: CreaToolProps) {
+  const image = useImageInput(source);
 
   return (
     <ToolRunner
@@ -153,6 +153,7 @@ export default function PhotoCheckTool({ tool, locale, caps, canSave, projectId 
       caps={caps}
       canSave={canSave}
       projectId={projectId}
+      parentJobId={image.picked?.sourceJobId ?? null}
       canRun={image.picked !== null}
       inputKey={image.picked?.key ?? null}
       icon={<ScanFace aria-hidden="true" className="size-5" />}

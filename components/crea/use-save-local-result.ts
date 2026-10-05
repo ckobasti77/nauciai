@@ -23,6 +23,7 @@ export function useSaveLocalResult() {
       blob: Blob;
       params?: Record<string, string | number | boolean>;
       projectId: Id<"studioProjects"> | null;
+      parentJobId?: Id<"generationJobs"> | null;
     }) => {
       const { uploadUrl, grantId } = await createUploadUrl({ kind: input.kind });
       let storageId: Id<"_storage">;
@@ -44,6 +45,7 @@ export function useSaveLocalResult() {
         kind: input.kind,
         ...(input.params ? { params: JSON.stringify(input.params) } : {}),
         ...(input.projectId ? { projectId: input.projectId } : {}),
+        ...(input.parentJobId ? { parentJobId: input.parentJobId } : {}),
       });
     },
     [createUploadUrl, saveLocalResult],

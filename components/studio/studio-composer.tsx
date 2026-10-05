@@ -34,6 +34,7 @@ import { useSlotUpload } from "@/components/studio/use-slot-upload";
 import { cn } from "@/components/ui/primitives";
 import { Spinner } from "@/components/ui/spinner";
 import type { Id } from "@/convex/_generated/dataModel";
+import type { CreaDerivation } from "@/convex/creaVersionsCore";
 import { parseContinuationSource, parseQuantitySource, promptControlOf } from "@/convex/studioJobCore";
 import type { ParamControl as ParamControlSpec } from "@/convex/studioParamSpec";
 import type { PriceRule } from "@/convex/studioPricing";
@@ -105,6 +106,9 @@ export type JobPayload = {
   inputMode: string;
   inputs: Record<string, string[]>;
   sourceJobId?: Id<"generationJobs">;
+  /** Stablo verzija (K05): rad iz kojeg ovaj nastaje; dodaje ga detalj rada, ne forma. */
+  parentJobId?: Id<"generationJobs">;
+  derivation?: CreaDerivation;
 };
 
 /**

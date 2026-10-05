@@ -463,6 +463,7 @@ type StudioToolInput = {
     inputMode?: string;
     inputs?: Record<string, string[]>;
     sourceJobId?: string;
+    parentJobId?: string;
   };
   create_upload_url: { slot: string };
   register_upload: { storageId: string; grantId: string; slot: string };
@@ -673,6 +674,12 @@ const STUDIO_TOOLS: Record<string, ToolDefinition> = {
           minLength: 1,
           description: "Id ranije gotove generacije ISTOG modela - samo za režim iz capabilities.continuation.",
         },
+        parentJobId: {
+          type: "string",
+          minLength: 1,
+          description:
+            "Id SVOG ranijeg posla iz kojeg ovaj nastaje (opciono) - nova generacija postaje njegova verzija u stablu verzija Cree.",
+        },
         projectId: { type: "string", minLength: 1, description: "Id projekta iz list_projects (opciono)." },
       },
       required: ["modelSlug", "params"],
@@ -680,7 +687,8 @@ const STUDIO_TOOLS: Record<string, ToolDefinition> = {
     },
     scope: MCP_SCOPE_WRITE,
     handler: async (input, ctx) => {
-      const { modelSlug, params, projectId, inputMode, sourceJobId } = input as StudioToolInput["create_generation"];
+      const { modelSlug, params, projectId, inputMode, sourceJobId, parentJobId } =
+        input as StudioToolInput["create_generation"];
       const rawInputs = (input as StudioToolInput["create_generation"]).inputs;
       const inputs = rawInputs === undefined ? undefined : nonEmptyInputs(rawInputs);
       const userId = ctx.principal.userId;
@@ -710,6 +718,7 @@ const STUDIO_TOOLS: Record<string, ToolDefinition> = {
           ...(inputMode !== undefined ? { inputMode } : {}),
           ...(inputs !== undefined ? { inputs: JSON.stringify(inputs) } : {}),
           ...(sourceJobId !== undefined ? { sourceJobId } : {}),
+          ...(parentJobId !== undefined ? { parentJobId } : {}),
           ...(projectId !== undefined ? { projectId } : {}),
         });
       } catch (error) {

@@ -12,6 +12,7 @@ import {
   sanitizeLocalParams,
   type LocalRejectReason,
 } from "./creaLocalCore";
+import { lineageFrom } from "./creaVersionsCore";
 import { requireStudioAccess } from "./studio";
 import { dayStart, outputExpiresAt, promptHash, UPLOAD_GRANT_CLOCK_SLACK_MS, UPLOAD_GRANT_TTL_MS } from "./studioCore";
 
@@ -96,6 +97,8 @@ export const saveLocalResult = mutation({
     kind: localResultKind,
     params: v.optional(v.string()),
     projectId: v.optional(v.id("studioProjects")),
+    // Rad iz galerije koji je bio ulaz alata (K05): rezultat postaje njegova nova verzija.
+    parentJobId: v.optional(v.id("generationJobs")),
   },
   handler: async (
     ctx,
@@ -138,6 +141,12 @@ export const saveLocalResult = mutation({
         return reject("PROJEKAT_NIJE_DOSTUPAN");
       }
     }
+    let lineage: { parentJobId: Id<"generationJobs">; rootJobId: Id<"generationJobs"> } | null = null;
+    if (args.parentJobId) {
+      const parent = await ctx.db.get("generationJobs", args.parentJobId);
+      if (!parent || parent.userId !== userId) return reject("IZVOR_NIJE_DOSTUPAN");
+      lineage = lineageFrom(parent);
+    }
 
     await ctx.db.patch(grant._id, { usedAt: now });
     const jobId = await ctx.db.insert("generationJobs", {
@@ -156,6 +165,7 @@ export const saveLocalResult = mutation({
       outputBytes: meta.size,
       // Isti rok kao za plaćene radove: `crons.expireGenerationFiles` briše fajl, red ostaje.
       expiresAt: outputExpiresAt(args.kind, now),
+      ...(lineage ? { ...lineage, derivation: "lokalni-alat" } : {}),
       createdAt: now,
       completedAt: now,
     });

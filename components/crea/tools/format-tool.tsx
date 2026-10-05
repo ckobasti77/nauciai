@@ -124,8 +124,8 @@ async function convertImage(
   };
 }
 
-export default function FormatTool({ tool, locale, caps, canSave, projectId }: CreaToolProps) {
-  const image = useImageInput();
+export default function FormatTool({ tool, locale, caps, canSave, projectId, source }: CreaToolProps) {
+  const image = useImageInput(source);
   const [format, setFormat] = useState<CreaImageFormat>("webp");
   const [quality, setQuality] = useState(QUALITY_DEFAULT);
   const lossy = CREA_IMAGE_FORMATS[format].lossy;
@@ -137,6 +137,7 @@ export default function FormatTool({ tool, locale, caps, canSave, projectId }: C
       caps={caps}
       canSave={canSave}
       projectId={projectId}
+      parentJobId={image.picked?.sourceJobId ?? null}
       canRun={image.picked !== null}
       inputKey={image.picked ? `${image.picked.key}:${format}:${quality}` : null}
       icon={<FileImage aria-hidden="true" className="size-5" />}

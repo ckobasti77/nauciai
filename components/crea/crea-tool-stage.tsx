@@ -1,12 +1,15 @@
 "use client";
 
+import { useQuery } from "convex/react";
 import type { ReactNode } from "react";
 
 import { CreaLogo } from "@/components/crea/crea-logo";
 import { ToolBadges } from "@/components/crea/tool-badges";
 import { CREA_TOOL_COMPONENTS } from "@/components/crea/tools";
+import type { ToolSource } from "@/components/crea/tools/types";
 import { useCreaDeviceCaps } from "@/components/crea/use-crea-device";
 import { LinkButton } from "@/components/ui/primitives";
+import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { CREA_DEVICE_COPY, CREA_TOOL_COPY } from "@/lib/crea-copy";
 import { toolById } from "@/lib/crea-tools";
@@ -31,6 +34,7 @@ export function CreaToolStage({
   signInHref,
   canSave,
   projectId,
+  sourceJobId,
   list,
 }: {
   locale: Locale;
@@ -39,12 +43,17 @@ export function CreaToolStage({
   signInHref: string;
   canSave: boolean;
   projectId: Id<"studioProjects"> | null;
+  /** Rad iz galerije koji ulazi u alat (`?ulaz=`, K05). */
+  sourceJobId: Id<"generationJobs"> | null;
   /** Spisak alata kad nema levog panela (telefon, uska radionica). */
   list: ReactNode | null;
 }) {
   const caps = useCreaDeviceCaps();
   const tool = toolById(toolId);
   const Component = tool ? CREA_TOOL_COMPONENTS[tool.id] : undefined;
+  const sourceJob = useQuery(api.studio.getJobForDetail, sourceJobId && !guest && tool ? { jobId: sourceJobId } : "skip");
+  const source: ToolSource | null =
+    sourceJob?.outputUrl && tool?.inputs.includes(sourceJob.kind) ? { jobId: sourceJob._id, url: sourceJob.outputUrl } : null;
 
   let body: ReactNode;
   if (guest) {
@@ -76,7 +85,7 @@ export function CreaToolStage({
       </StageNote>
     );
   } else {
-    body = <Component key={tool.id} tool={tool} locale={locale} caps={caps} canSave={canSave} projectId={projectId} />;
+    body = <Component key={tool.id} tool={tool} locale={locale} caps={caps} canSave={canSave} projectId={projectId} source={source} />;
   }
 
   return (

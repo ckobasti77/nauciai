@@ -160,7 +160,9 @@ export const expireGenerationFiles = internalMutation({
       .take(EXPIRY_BATCH_LIMIT);
 
     for (const upload of orphans) {
-      await ctx.storage.delete(upload.storageId);
+      // Alias (Crea K05) je ulaz nad izlazom drugog rada: blob pripada tom radu i
+      // ističe sa njim (prolaz iznad). Alias ionako nikad ne dobija rok - ovo je odbrana.
+      if (!upload.sourceJobId) await ctx.storage.delete(upload.storageId);
       await ctx.db.delete(upload._id);
     }
 

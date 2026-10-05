@@ -39,7 +39,8 @@ export type LocalRejectReason =
   | "MINUTNI_LIMIT"
   | "DNEVNI_LIMIT"
   | "DNEVNI_LIMIT_PROSTORA"
-  | "PROJEKAT_NIJE_DOSTUPAN";
+  | "PROJEKAT_NIJE_DOSTUPAN"
+  | "IZVOR_NIJE_DOSTUPAN";
 
 /** Alat postoji, gotov je, radi lokalno, čuva u galeriju i pravi baš ovu vrstu medija. */
 export function localToolProblem(toolId: string, kind: LocalResultKind): "NEPOZNAT_ALAT" | null {
