@@ -36,6 +36,8 @@ import type * as creaCacheCore from "../creaCacheCore.js";
 import type * as creaDraftCore from "../creaDraftCore.js";
 import type * as creaElements from "../creaElements.js";
 import type * as creaElementsCore from "../creaElementsCore.js";
+import type * as creaFaceJobs from "../creaFaceJobs.js";
+import type * as creaFaceJobsCore from "../creaFaceJobsCore.js";
 import type * as creaFallbackCore from "../creaFallbackCore.js";
 import type * as creaFlags from "../creaFlags.js";
 import type * as creaLayers from "../creaLayers.js";
@@ -165,6 +167,8 @@ declare const fullApi: ApiFromModules<{
   creaDraftCore: typeof creaDraftCore;
   creaElements: typeof creaElements;
   creaElementsCore: typeof creaElementsCore;
+  creaFaceJobs: typeof creaFaceJobs;
+  creaFaceJobsCore: typeof creaFaceJobsCore;
   creaFallbackCore: typeof creaFallbackCore;
   creaFlags: typeof creaFlags;
   creaLayers: typeof creaLayers;

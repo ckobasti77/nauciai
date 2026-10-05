@@ -119,7 +119,8 @@ export const CREA_LOCAL_MODELS = {
       host: "google-cdn",
       url: "https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/1/selfie_segmenter.tflite",
     },
-    bytes: Math.round(0.3 * MB),
+    // Izmereno (K20): `Content-Length` sa Google CDN-a. Ulaz modela je 256 × 256, režim VIDEO.
+    bytes: 249_537,
     license: "Apache-2.0",
     minClass: "phone",
     featureIds: ["V18"],

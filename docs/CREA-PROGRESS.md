@@ -994,3 +994,126 @@ Nijedan dev server nije upaljen (portovi 3000 i 3100 slobodni).
   - da li u K20 treba nivo B (WebM preko `MediaRecorder`) za Firefox Android.
 - Produkcija: nova tabela `creaMontages` i novi argumenti `saveLocalResult` traže `npx convex deploy` pre puštanja Next-a sa K19 (inače čuvanje montaže na produkciji pada).
 - Brza akcija „U montažu" na kartici rada nije dodata; za sada `?ulaz=` i izbor iz galerije u samoj montaži.
+
+## K20 — Video: dorada, pokret i govor   (2026-10-05 19:10)
+**Fajlovi:**
+- novi: `lib/crea-video-reframe.ts`, `lib/crea-deflicker.ts`, `lib/crea-slowmo.ts`, `lib/crea-talking.ts`, `lib/crea-act.ts`, `lib/crea-video-edit.ts`, `lib/crea-video-matte.ts` (svaki sa `.test.ts`), `lib/crea-job-price.ts`, `lib/crea-video-tools-copy.ts`, `components/crea/video/engine/{transform,recorder}.ts`, `components/crea/tools/{video-edit-tool,video-reframe-tool,video-color-tool,video-background-tool,video-upscale-tool,video-slowmo-tool,video-deflicker-tool,act-tool,talking-tool,face-picker,paid-video,video-tool-kit}.tsx`, `convex/creaFaceJobs.ts`, `convex/creaFaceJobsCore.ts`, `convex/creaFaceJobs.test.ts`, snimci `docs/crea/snimci/K20-*.png` (9);
+- izmenjeni: `convex/providers/falVideoModels.ts` (nov red `kling-o3-edit`), `convex/providers/falToolModels.ts` (nov red `video-upscaler`), `convex/creaVersions.ts` (telo `adoptOutputAsInput` izdvojeno u `adoptJobOutput`, isti ishod), `convex/_generated/api.d.ts`, `lib/crea-tools.ts` (6 alata `soon` → `ready` i 4 nova gotova: `video.izmeni-recima`, `video.zameni`, `video.bez-treperenja`, `video.lik-govori`; `video.svetlo` nov kao „uskoro”), `lib/crea-shell.ts` (Video · Pokret i Govor dobili alate), `lib/crea-local-ai/{runtime,models}.ts` (selfie segmenter u režimu VIDEO, izmerena veličina), `lib/studio-models.ts` (znak firme za porodicu `bytedance`), `components/crea/tools/color-render.ts` (`setFrame` + `render(…, deltaTime)`), `components/crea/tools/color-tool.tsx` (izvoz `Slider`, `AdjustSlider`, `ColorPreview`, `gradeFor`), `components/crea/tools/index.tsx`; testovi `convex/providers/{catalogModels,creaCatalogModels}.test.ts`, `lib/crea-{tools,shell,device}.test.ts`.
+
+**Šta je urađeno:** Video · Izmeni, Pokret i Govor sada imaju alate pored modela. Pet alata radi **na uređaju, 0 kredita**, kroz nov motor `transform.ts` (mediabunny `Conversion`, kadar po kadar, zvuk se prenosi bez ponovnog kodiranja), i svaki rezultat se čuva u galeriju kao verzija izvora (`saveLocalResult` sa roditeljem, isti tok kao ostali lokalni alati):
+- **Prekroji kadar (V15):** 9:16 · 1:1 · 16:9 · 4:5. MediaPipe nađe lice ~5 puta u sekundi (ceo kadar, a kad tu nema lica i kvadratni isečci duž duže stranice), `lib/crea-video-reframe.ts` napravi putanju isečka (glavni lik, mrtva zona, kritično prigušena opruga, najveća brzina kamere, lice uvek celo u kadru, isečak uvek u kadru), pa se svaki kadar iseče i kodira.
+- **Boje videa (V16):** istih 10 izgleda i 10 klizača kao S17; pregled je izabran kadar videa, izvoz ide kroz isti `ColorRenderer` sa JEDNOM teksturom (bez nove teksture po kadru) i zrnom po kadru (vreme 1/fps → isti šum pri svakom izvozu).
+- **Ukloni pozadinu (V18, ljudi):** selfie segmenter u režimu VIDEO (rastuća vremena kroz ceo život segmentera), maska izglađena kroz vreme i meka ivica (`lib/crea-video-matte.ts`), pozadina boja (i „zeleno platno” za montažu) / zamućenje / tvoja slika.
+- **Usporeni snimak (V17):** 2× ili 4×, do 10 s izvora, meko stopljeni kadrovi između pravih (`lib/crea-slowmo.ts`), bez zvuka.
+- **Ukloni treperenje (V17):** svetlina svakog kadra → pojačanje prema kliznom proseku unutar scene (`lib/crea-deflicker.ts`), primena GPU kompozicijom.
+
+Plaćeni deo ide kroz POSTOJEĆI `createJob` (cena na dugmetu istom računicom kao server, `lib/crea-job-price.ts`): **Izmeni video rečima (V13)** sa 8 primera rečenica (Dodaj kišu, Skloni auto, Pretvori u noć…) i dve rute (Kling O3 izmena - zvuk ostaje; Seedance 2.5 - bez zvuka, do 10 s), **Zameni predmet ili lik (V14)** (predmet slikom, ili glavna osoba → tvoj Lik preko servera), **Uvećaj video (V17)** (ByteDance 1080p/2K/4K). **Odglumi (V20):** kamera u browseru, odbrojavanje 3-2-1, snimak 3-10 s (pregled u ogledalu, snimak nije), prepakovanje u MP4 sa trajanjem, pa Kling prenos pokreta. **Lik koji govori (V21-V23):** Slika progovori (Lik ili rad iz Cree, po želji scena Selfi · Podkast · Vesti · Predavanje · Auto kroz Nano Bananu 2 sa tvojim Likom) ili Video progovori (lipsync tvog Crea videa); glas iz teksta (srpski `tts`), mikrofona (WAV) ili fajla; ukupna cena unapred po koracima, i nova potvrda ako glas ispadne primetno duži od procene. Lanac je mali automat stanja (`talkingNext`) nad statusima poslova.
+
+**Lice bira server** (`convex/creaFaceJobs.ts`, K17-15/O5): klijent šalje samo „koji Lik” ili „koji rad”. Prolazi samo tvoj Lik sa pristankom, ili tvoj gotov, pravi (ne DEMO) rad čiji je svaki ulaz koji nosi lice slika tvog Lika sa pristankom ili izlaz drugog takvog rada (proverava se do 4 koraka unazad; rad samo iz opisa prolazi; lokalni alat samo kao verzija takvog rada). Avatar, lipsync, prenos pokreta i zamena lika u videu idu kroz četiri mutacije koje posle te provere zovu `createJobForUser`.
+
+Provereno u browseru (Playwright, Chromium; privremena strana `app/[locale]/k20-harness` i sintetički klipovi napravljeni ffmpeg-om u `.crea-run/tmp-k20`; sve obrisano):
+- **Prekroji kadar:** klip 1280×720, 6 s, lice prelazi ceo kadar → MP4 **404×720, 6 s, H.264 + AAC**, za ~3 s; „Lice u 100 % videa” (pre isečaka za malo lice: 0 %); kadrovi na 0,4 / 3 / 5,6 s pokazuju lice u sredini isečka.
+- **Boje** („Topli film”): 1280×720, 6 s, 150 kadrova, zvuk sačuvan. **Pozadina:** osoba čisto isečena na zeleno platno (sitni ostaci uz ivicu predmeta iza nje). **Usporeno 4×:** 4 s → **16 s, 400 kadrova**. **Treperenje:** prosečno odstupanje svetline od kliznog proseka (ffmpeg `signalstats`) **21,6 → 2,6**, prosečna svetlina 122,7 → 122,1.
+- **Odglumi:** kamera, odbrojavanje i snimanje rade; snimak 3 s → **MP4 (`ftyp isom`) 1280×720, 2,93 s**; cena na dugmetu 82 kr za 3 s (720p).
+- **Mikrofon → WAV** (1,5 s) i cena avatara po sekundi (25 kr za 2 s).
+- Serverski merač trajanja (`readMediaDuration`) čita izlaze motora (6 / 16 / 4 s) i DEMO WAV (7 s).
+- Ekrani svih 10 alata na 390 × 844 i 1440 × 900, svetla i tamna tema: bez vodoravnog skrola, mete ≥ 44 px (izuzetak je izvorni `<input type=color>` unutar labele od 44 px, kao u K11).
+
+Snimci kamere i mikrofona su ostali samo u memoriji browsera (nisu čuvani), a test-fotka sa licem nije ušla ni u jedan snimak ekrana u repou.
+
+**Feature ID-jevi:**
+- V13 — gotovo: alat sa primerima rečenica + Kling O3 izmena (novi red, pojavljuje se i u Video · Izmeni composeru) + Seedance 2.5 (izvor ≤ 10 s, nije proveren živim pozivom).
+- V14 — gotovo: predmet referentnom slikom (Kling ili Seedance) i lik (samo tvoj Lik sa pristankom, Kling O3, opis i slike Lika dodaje server).
+- V15 — gotovo (lokalno, provereno).
+- V16 — gotovo (lokalno, provereno). LUT po klipu u montaži i dalje nije dodat (K19 napomena).
+- V17 — uvećanje gotovo (ByteDance, DEMO bez `FAL_KEY`); usporeno gotovo kao 🟢 stapanje kadrova (AI RIFE „uskoro”, vidi ODLUKE); bez treperenja gotovo 🟢.
+- V18 — ljudi gotovo (lokalno, provereno); predmeti „uskoro” (nema reda u katalogu).
+- V19 — „uskoro” (alat u registru, nema endpointa - dozvoljeno §7.2).
+- V20 — gotovo: Odglumi (kamera → MP4 → postojeći Kling prenos), prenos pokreta i sa fajlom/radom iz galerije.
+- V21 — gotovo (5 scena + „bez scene”).
+- V22 — gotovo kroz alat (tvoj Crea video + srpski glas → postojeći Kling lipsync) i dalje u composeru; „kvalitetniji” lipsync model nije dodat (bez proverenog izvora, K17-12).
+- V23 — gotovo za avatar: tekst → srpski glas (`tts`, jer Gemini TTS još ne postoji - K22) → avatar, DEMO do kraja. **3D maskota koja govori nije urađena** (piše „uskoro”): obim koraka; logika usta (`lib/crea-mouth.ts`) nije pravljena.
+
+**ODLUKE:**
+- **Nov red `kling-o3-edit` umesto `video` režima `kling-omni`-ja.** fal nema rutu `fal-ai/kling-video/o3/text-to-video` (404); prave O3 rute nose tarifu (`…/o3/standard/video-to-video/edit`, `…/o3/pro/…`). Izmena se kod fal-a naplaćuje po sekundi NAPRAVLJENOG videa, koji traje koliko i ulaz (3-15 s, samo .mp4/.mov, do 4 slike), a `kling-omni` naplaćuje po klizaču 5-10 s - 15 s ulaza bi se naplatilo 5. Nov red meri trajanje na serveru (`quantity.from: "input_video_seconds"`, 3-15), cena 720p $0,126 / 1080p $0,168 po sekundi (https://fal.ai/models/fal-ai/kling-video/o3/standard/video-to-video/edit/llms.txt i …/pro/…, 2026-10-05), slike kao `image_urls`, `keep_audio: true`. `kling-omni` nije diran (vidi „Za Jovana”).
+- **Seedance 2.5 izmena preko postojećeg `reference` režima** (izvorni video = referenca 1, izmena u opisu, kao K18 „Produži”); izlaz traje koliko i izvor (4-30 s). Katalog kaže da Seedance uz izlaz naplaćuje i ulazni video, a server ga ne meri - zato ruta prima samo izvor do 10 s (nabavna najviše ~2× izlaza, i dalje ispod v1 cene). Nije provereno živim pozivom (nema `BYTEPLUS_API_KEY`).
+- **Nov red `video-upscaler`** (ByteDance, fal): $0,0072 / $0,0144 / $0,0288 po sekundi za 1080p / 2K / 4K na 30 fps (https://fal.ai/models/fal-ai/bytedance-upscaler/upscale/video/llms.txt, 2026-10-05). `target_fps: 30` i `enhancement_tier: "standard"` su zakucani (60 fps je 2×, `pro` 10× skuplje). Strana ne navodi najduži video, pa je gornja granica količine 3 600 s - granica SEČE naplatu, a niska granica bi značila gubitak.
+- **Lice samo preko servera** (K17-15): pravila u `creaFaceJobsCore.ts`. Rad od okačene tuđe fotke ili tuđeg videa, DEMO plakat, tuđ rad i lokalni rad bez roditelja se odbijaju sa `LICE_NIJE_DOZVOLJENO`; tuđ Lik / Lik bez pristanka sa `LIK_NIJE_DOSTUPAN`. Pristanak (`consent: true`) se traži pri svakom poslu; „Na snimku sam ja” za kameru je čekboks na klijentu. Postojeći composer (Video · Pokret/Govor) i dalje prima bilo koju sliku, kao i pre - nije menjan.
+- **DEMO bez ključa (O3):** DEMO govor je plakat, ne zvuk, a avatar traži izmeren snimak - uređaj zato napravi PROBNI zvuk procenjene dužine (WAV, „mrmljanje” sa ritmom slogova), jasno označen kao DEMO, i lanac ide do kraja. DEMO scena (plakat) se preskače i govori fotka Lika. Server se ne menja.
+- **Cena unapred u lancu:** video se plaća po sekundi glasa, a pre glasa je procena iz teksta (14 znakova/s). Ako je pravi glas skuplji od procene za više od 10 % + 1 kr, lanac staje i pita ponovo (K17-18).
+- **Snimci sa trajanjem:** mikrofon → WAV (dekodiranje u browseru), kamera → MP4/H.264 bez zvuka (mediabunny), a bez kodera WebM kopija - `MediaRecorder` WebM nema trajanje u zaglavlju, a server po trajanju naplaćuje.
+- **Usporeno bez RIFE:** u registru modela `rife` nema zakucanu reviziju sa MIT licencom, a K11 je pokazao granice ORT WebGPU-a. Alat je zato 🟢 (`local-code`, stapanje kadrova, uz rečenicu da AI usporavanje stiže); model `rife` ostaje u registru, nekorišćen.
+- **Pozadina bez providnog izlaza:** MP4 nema alfu, a WebM VP9 sa alfom kroz WebCodecs nije pouzdan - umesto toga je „zeleno platno” za montažu. Segmenter dobija kadar sa sačuvanim odnosom stranica (duža stranica 512); spljošten kvadrat je kvario masku (provereno).
+- **Reframe i malo lice:** BlazeFace kratkog dometa gleda 128 × 128 i ne vidi lice koje zauzima mali deo širokog kadra (provereno: 0 % lica). Kad u celom kadru nema lica, detektor gleda i kvadratne isečke duž duže stranice, a ista lica iz susednih isečaka se spajaju (`detectionTiles`, `mergeFaces`, testirani).
+- **Uređaji:** pet lokalnih video alata traže računar + WebCodecs (kao u registru); Odglumi radi od telefona (`media-recorder`); plaćeni alati na svakom uređaju. Izvoz poštuje K17-4 granice (trajanje po klasi uređaja, ≤ 190 MB), inače poruka da se video skrati u Montaži.
+- **Bundle:** motor `transform.ts` deli mediabunny jezgro sa montažom (~124 KB gzip) + ~8,6 KB za `Conversion` - ukupno ~133 KB, preko okvirnih 120 KB (K18 je imao ~121 KB). Prihvaćeno: učitava se tek kad alat radi, `check:bundle` prolazi.
+- `ColorRenderer`: `setFrame` (ista tekstura, `needsUpdate`) i `render(…, deltaTime)`; `setSize` samo kad se veličina promeni - za sliku isto ponašanje. Iz `color-tool.tsx` su izvezeni postojeći `Slider`, `AdjustSlider`, `ColorPreview` i `gradeFor` (deli ih video boje).
+- **Namerno promenjene asercije:** `catalogModels.test.ts` (49 redova, 21 video, 39 fal, dva nova merena modela), `crea-tools.test.ts` (+10 gotovih alata, oznake: reframe više nije „uskoro”, retro i novo svetlo jesu), `crea-shell.test.ts` (Pokret i Govor imaju i modele i alate), `crea-device.test.ts` (primer „uskoro” je sada `video.retro`).
+- Brze akcije na video kartici (npr. „Uvećaj”, „Prekroji”) nisu dodate; alati primaju rad iz galerije kroz izbor i `?ulaz=`.
+- Za proveru je korišćen dev server koji je već radio na :3000 (PID 25476). Pokrenut je u 18:39 iz integrisanog terminala VS Code-a (roditelj je bash sa VS Code `--init-file`; u isto vreme je pokrenut i `npx convex dev`), dakle Jovanova sesija editora, ne ovaj korak - logovi koraka (`.crea-run/logs/K20_*.jsonl`) nemaju nijedno pokretanje `npm run dev`. Drugi `next dev` u istom folderu ne može da se pokrene. Server i `convex dev` nisu gašeni jer nisu pokrenuti ovde (stalno uputstvo: korisnikov dev server se ne gasi).
+- DEV: `npx convex codegen` + `npx convex dev --once` (`wandering-fox-41`; `creaFaceJobs.*` potvrđeni kroz `convex function-spec`) + `node scripts/seed-studio-models.mjs` (2 nova reda, 47 ažurirano). Produkcija nije dirana.
+
+**Novi paketi:** nema (mediabunny, MediaPipe, three.js/postprocessing već postoje).
+
+**Testovi:** 8 novih fajlova (lib + convex), 59 testova; izmene u 5 postojećih.
+- `lib/crea-video-reframe.test.ts` (13): **lice ostaje celo u isečku** na putanji sa skokom, šumom i nestankom lica, za sva četiri odnosa; **brzina kamere ograničena**; **šum u mrtvoj zoni ne trese kadar**; glatko pomeranje; nestanak lica drži položaj; bez lica sredina; isti odnos = ceo kadar; lice na ivici; interpolacija; isečci za malo lice i spajanje istih lica.
+- `lib/crea-deflicker.test.ts` (7): stalna svetlina se ne menja, treperenje (naizmenično i 50 Hz) se smanjuje, spora promena ostaje, rez nije treperenje, granice pojačanja.
+- `lib/crea-slowmo.test.ts` (3): tajming stopljenih kadrova, ceo klip bez rupa i trajanje × factor, granica ulaza.
+- `lib/crea-talking.test.ts` (13): scene i opis scene, koraci lanca, **cena lanca = zbir `computeCredits`**, trajanje 1-60 s, lipsync zaokružen na 5 s, procena govora, DEMO WAV, automat lanca (uporedo, DEMO, padovi), nova potvrda cene, WAV od uzoraka.
+- `lib/crea-video-edit.test.ts` (6), `lib/crea-act.test.ts` (4), `lib/crea-video-matte.test.ts` (3).
+- `convex/creaFaceJobs.test.ts` (10, convex-test): avatar sa Likom i cena po sekundi glasa; neizmeren glas se ne naplaćuje; tuđ Lik, Lik bez pristanka, `consent` ≠ `true`, tuđ glas; scena od Lika i rad iz opisa smeju, rad od okačene fotke / DEMO / tuđ / lokalni bez roditelja ne; lipsync kroz lanac izlaza; Odglumi (`video_image`, tuđ snimak, tuđ Lik); zamena lika u videu (slike i opis sa servera, naplata po sekundi); spisak lica; **DEMO lanac do kraja: tekst → govor (plakat) → probni WAV → avatar (DEMO)**.
+- `convex/providers/creaCatalogModels.test.ts` (+2): oba nova reda (ruta po tarifi, cena, telo fal zahteva).
+
+**Rezultat provere:**
+
+| Provera | Ishod |
+|---|---|
+| codegen (+ `convex dev --once` i seed na DEV) | prošao |
+| typecheck | prošao |
+| lint | 0 grešaka, 26 zatečenih upozorenja |
+| test | 2559/2559 (219 fajlova) |
+| build | prošao |
+| `check:bundle` | 168 početnih chunk-ova bez mediabunny-ja, MediaPipe-a, postprocessing-a i ostalih teških paketa |
+| `check:frames`, `check:corners`, `check:white` | prošli |
+
+Ovaj korak nije pokrenuo nijedan dev server (vidi ODLUKE za server na :3000).
+
+**Za Jovana ujutru:**
+- `/crea/app?oblast=video&rezim=izmeni` (prijavljen): sa svojim videom probaj „Prekroji kadar” (9:16), „Boje videa”, „Ukloni pozadinu”, „Usporeni snimak” i „Ukloni treperenje” → „Sačuvaj u galeriju”: rad treba da bude verzija izvora u stablu, 0 kredita.
+- Sačuvaj sebe kao Lika (Slika · Likovi, uz pristanak), pa Video · Govor → „Lik koji govori”: napiši tekst → Napravi. Bez `FAL_KEY` ide DEMO lanac do kraja (probni zvuk, DEMO video); sa scenom NB2 radi pravi Google posao (~16 kr).
+- Posle `FAL_KEY`: jedna izmena „Dodaj kišu” (Kling O3, 5 s), jedno uvećanje (1080p, 5 s), avatar iz teksta, lipsync, „Odglumi” od 5 s - uporedi račun sa cenom na dugmetu.
+- **`kling-omni` (Kling O3 Omni) ima rute bez tarife za SVA četiri režima** (`fal-ai/kling-video/o3/<režim>`), a fal ih ima samo sa `standard`/`pro` - verovatno svaki posao pada i vraća kredite. Nije ispravljano ovde (van zadatka); popravka je `{tier}` u rute + `tierByResolution`, a `video` režim tada treba ukloniti ili meriti trajanje (sada ga pokriva `kling-o3-edit`).
+- Posle `BYTEPLUS_API_KEY`: Seedance 2.5 izmena (izvor ≤ 10 s) - da li model razume „Edit video 1…”.
+- Na telefonu: „Odglumi” na iPhone Safari i Android Chrome (dozvola kamere, MP4 snimak), mikrofon u „Lik koji govori”.
+- Produkcija: dva nova reda kataloga (`kling-o3-edit`, `video-upscaler`) i modul `creaFaceJobs` traže `npx convex deploy` + `seed-studio-models` pre puštanja Next-a sa K20.
+- Odluči: da li 3D maskota koja govori (V23) ide u K25 (maskota) ili ostaje „uskoro”.
+
+### K20 — popravka posle provere runnera (2026-10-05 19:30)
+**Problem:** `npm run build` je kod runnera pao sa 15 grešaka `next/font/google queries have exactly one entry` za Montserrat (`components/crea/editor/fonts.ts`, fontovi editora iz K10/K15). Isti build je u K20 ranije prošao; prvi ponovni build je pao, drugi prošao - greška je nasumična.
+
+**Uzrok (dokazan):** Google Fonts za isti zahtev (`css2?family=Montserrat:wght@400;700;900`) povremeno vrati adrese u obliku `https://fonts.gstatic.com/l/font?kit=…&skey=7bc19f711c0de8f&v=v31` umesto uobičajenih `…/s/montserrat/v31/….woff2` - uhvaćeno curl-om, 1 od 20 i 1 od 87 pokušaja, tačno 15 takvih adresa (3 debljine × 5 podskupova = 15 grešaka). Turbopack (`NextFontGoogleFontFileReplacer`) adresu fonta prenosi kao jedan unos upita, a `&` u adresi ga razbije na više unosa, pa build pada. Build je zavisio od odgovora Google-a u trenutku builda.
+
+**Popravka (bez hakova):** fontovi editora više ne idu kroz `next/font/google`. Isti podskupovi koje Google sada služi (Montserrat i Lora: latin, latin-ext, cyrillic; Pangolin: cyrillic) su u repou, `components/crea/editor/font-files/*.woff2` (7 fajlova, ~229 KB, bajt-za-bajt Google-ovi fajlovi), uz OFL licence (`OFL-montserrat.txt`, `OFL-lora.txt`, `OFL-pangolin.txt` iz `google/fonts`). `fonts.ts` ih učitava kroz `next/font/local`: svaki podskup je svoj `@font-face` sa istim `unicode-range` kao kod Google-a (browser preuzima samo podskup koji tekst traži), `preload: false` kao i do sada, a porodica je niz podskupova (`'montserratLatin', 'montserratLatinExt', 'montserratCyrillic'`). Javni API modula (`fontFamilyFor`, `canvasFont`, `loadCanvasFonts`, `measurerFor`) je isti.
+
+**Fajlovi:** `components/crea/editor/fonts.ts`, novi `components/crea/editor/font-files/` (7 × `.woff2` + 3 × `OFL-*.txt`).
+
+**Provereno:** generisan CSS ima 7 `@font-face` sa `unicode-range` i promenljivom debljinom (`400 900` / `400 700`); na privremenoj strani (obrisana) `loadCanvasFonts()` učitava svih 7 podskupova, `document.fonts.check` je tačno za „Ђурђевдан Čačak" u sva tri fonta, a širine teksta se razlikuju od zamenskog fonta (Montserrat 460, Lora 414, rukopis 347, sans-serif 424 px).
+
+**ODLUKE:**
+- Promenjen je samo modul fontova editora (Montserrat je pao; Lora i Pangolin idu istim putem i ista greška im preti). Fontovi sajta u `app/[locale]/layout.tsx` (Nunito, Geist Mono, Patrick Hand) su i dalje na `next/font/google` - nisu dirani (van zadatka, do sada nisu padali). Ako Google takve adrese počne da vraća i za njih, ista popravka važi i tamo.
+- Fajlovi fontova nisu paket iz §5: to su fontovi koje sajt već koristi, pod OFL 1.1 (dozvoljena redistribucija, licenca je uz fajlove).
+
+**Rezultat provere (posle popravke):**
+
+| Provera | Ishod |
+|---|---|
+| codegen | prošao |
+| typecheck | prošao |
+| lint | 0 grešaka, 26 zatečenih upozorenja |
+| test | 2559/2559 (219 fajlova) |
+| build | prošao (dva uzastopna builda posle popravke) |
+| `check:bundle`, `check:frames`, `check:corners`, `check:white` | prošli |
+
+Dev server nije pokretan; za proveru je korišćen već upaljen server sa :3000 (Jovanov VS Code, vidi gore) i nije gašen.
+
+**Za Jovana:** odluči da li i fontove sajta (`layout.tsx`) prebaciti na lokalne fajlove - ista nasumična greška builda im preti dok idu preko Google-a.

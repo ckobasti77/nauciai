@@ -65,6 +65,20 @@ export class ColorRenderer {
     this.material.needsUpdate = true;
   }
 
+  /**
+   * Video (K20, V16): sledeći kadar u ISTU teksturu (`needsUpdate`), bez nove
+   * teksture po kadru - nova bi po kadru curila GPU memoriju. Prvi kadar ili
+   * kadar druge veličine pravi teksturu kao `setImage`.
+   */
+  setFrame(source: HTMLCanvasElement) {
+    const image = this.texture?.image as HTMLCanvasElement | undefined;
+    if (!this.texture || image !== source) {
+      this.setImage(source);
+      return;
+    }
+    this.texture.needsUpdate = true;
+  }
+
   setGrade(grade: ColorGrade) {
     const next = new LookupTexture(grade.lut, LUT_SIZE);
     this.lutEffect.lut = next;
@@ -74,11 +88,18 @@ export class ColorRenderer {
     this.noise.blendMode.opacity.value = grade.grain * 0.35;
   }
 
-  render(width: number, height: number) {
+  /**
+   * `deltaTime` (video, K20): zrno filma zavisi od proteklog vremena; izvoz ga
+   * zadaje kao 1/fps, pa je šum po kadru isti pri svakom izvozu (seme = broj kadra).
+   * Bez njega (slika) važi sat kao do sada.
+   */
+  render(width: number, height: number, deltaTime?: number) {
     this.renderer.setPixelRatio(1);
-    this.renderer.setSize(width, height, false);
-    this.composer.setSize(width, height, false);
-    this.composer.render();
+    if (this.canvas.width !== width || this.canvas.height !== height) {
+      this.renderer.setSize(width, height, false);
+      this.composer.setSize(width, height, false);
+    }
+    this.composer.render(deltaTime);
   }
 
   async toBlob(width: number, height: number, type: string, quality: number): Promise<Blob> {

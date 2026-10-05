@@ -125,8 +125,8 @@ describe("dostupnost alata", () => {
   });
 
   test("status ima prednost nad uređajem; plaćeni alat ne zavisi od uređaja", () => {
-    // K16: `slika.opis` je gotov, pa je primer „uskoro" alat iz videa.
-    expect(toolAvailability(toolById("video.reframe")!, DESKTOP_GPU)).toEqual({ ok: false, reason: "soon" });
+    // K16: `slika.opis` je gotov, pa je primer „uskoro" alat iz videa (K20: reframe je gotov, retro čeka K21).
+    expect(toolAvailability(toolById("video.retro")!, DESKTOP_GPU)).toEqual({ ok: false, reason: "soon" });
     expect(toolAvailability(soonAsReady("slika.prosiri"), WEAK)).toEqual({ ok: true, variant: "full" });
     expect(toolAvailability({ ...toolById("slika.format")!, tier: "server" }, DESKTOP_GPU)).toEqual({
       ok: false,

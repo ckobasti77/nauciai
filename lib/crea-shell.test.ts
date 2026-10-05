@@ -53,8 +53,13 @@ describe("CREA_MODES", () => {
         if (mode.status === "soon") expect(mode.models).toBeUndefined();
         // Režim koji radi nudi modele ili alate (K04: Slika · Alati); oba samo Napravi i Izmeni:
         // Slika (K11: alati za izmenu, K13: probni list, Ko · Gde · Kako, crtež) i Video (K18:
-        // poslednji kadar, više scena, crtaj pokret; produži klip).
-        else if (mode.tools && !((area === "slika" || area === "video") && (mode.id === "izmeni" || mode.id === "napravi"))) {
+        // poslednji kadar, više scena, crtaj pokret; produži klip), plus Video · Pokret i Govor
+        // (K20: „Odglumi" i „Lik koji govori" pored Kling modela).
+        else if (
+          mode.tools &&
+          !((area === "slika" || area === "video") && (mode.id === "izmeni" || mode.id === "napravi")) &&
+          !(area === "video" && (mode.id === "pokret" || mode.id === "govor"))
+        ) {
           expect(mode.models, `${area}/${mode.id}`).toBeUndefined();
         } else expect(mode.models).toBeDefined();
       }

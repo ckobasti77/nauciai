@@ -155,42 +155,54 @@ export const adoptOutputAsInput = mutation({
     if (!job || job.userId !== userId || job.status !== "done" || !job.outputStorageId) {
       throw new Error("IZVOR_NIJE_DOSTUPAN");
     }
-    const storageId = job.outputStorageId;
-    const meta = await ctx.db.system.get("_storage", storageId);
-    if (!meta) throw new Error("IZVOR_NIJE_DOSTUPAN");
-
-    const slot = job.kind;
-    const problem = slotFileProblem({ type: meta.contentType, size: meta.size }, acceptForSlot(slot));
-    if (problem) {
-      if (problem.code === "NEISPRAVAN_TIP_FAJLA") throw new Error(`${problem.code}:${problem.accept.join(",")}`);
-      if (problem.code === "FAJL_PREVELIK") throw new Error(`${problem.code}:${problem.limit}`);
-      throw new Error(problem.code);
-    }
-
-    const existing = await ctx.db
-      .query("studioUploads")
-      .withIndex("by_storage", (q) => q.eq("storageId", storageId))
-      .first();
-    if (existing && existing.userId !== userId) throw new Error("TUDJI_FAJL");
-    if (!existing) {
-      await ctx.db.insert("studioUploads", {
-        userId,
-        storageId,
-        slot,
-        bytes: meta.size,
-        ...(meta.contentType ? { mimeType: meta.contentType } : {}),
-        sourceJobId: job._id,
-        createdAt: Date.now(),
-      });
-    }
-
-    return {
-      storageId,
-      slot,
-      mime: meta.contentType ?? "",
-      size: meta.size,
-      url: await ctx.storage.getUrl(storageId),
-      durationS: existing?.durationS ?? null,
-    };
+    const adopted = await adoptJobOutput(ctx, userId, job, job.outputStorageId);
+    return { ...adopted, url: await ctx.storage.getUrl(adopted.storageId) };
   },
 });
+
+/**
+ * Telo „izlaz kao ulaz" (deli ga i K20 `creaFaceJobs`): alias red za izlaz
+ * gotovog rada OVOG korisnika, uz istu proveru tipa i veličine kao upload.
+ */
+export async function adoptJobOutput(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  job: Doc<"generationJobs">,
+  storageId: Id<"_storage">,
+) {
+  const meta = await ctx.db.system.get("_storage", storageId);
+  if (!meta) throw new Error("IZVOR_NIJE_DOSTUPAN");
+
+  const slot = job.kind;
+  const problem = slotFileProblem({ type: meta.contentType, size: meta.size }, acceptForSlot(slot));
+  if (problem) {
+    if (problem.code === "NEISPRAVAN_TIP_FAJLA") throw new Error(`${problem.code}:${problem.accept.join(",")}`);
+    if (problem.code === "FAJL_PREVELIK") throw new Error(`${problem.code}:${problem.limit}`);
+    throw new Error(problem.code);
+  }
+
+  const existing = await ctx.db
+    .query("studioUploads")
+    .withIndex("by_storage", (q) => q.eq("storageId", storageId))
+    .first();
+  if (existing && existing.userId !== userId) throw new Error("TUDJI_FAJL");
+  if (!existing) {
+    await ctx.db.insert("studioUploads", {
+      userId,
+      storageId,
+      slot,
+      bytes: meta.size,
+      ...(meta.contentType ? { mimeType: meta.contentType } : {}),
+      sourceJobId: job._id,
+      createdAt: Date.now(),
+    });
+  }
+
+  return {
+    storageId,
+    slot,
+    mime: meta.contentType ?? "",
+    size: meta.size,
+    durationS: existing?.durationS ?? null,
+  };
+}

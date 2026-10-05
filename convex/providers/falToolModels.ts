@@ -196,6 +196,64 @@ export const KLING_MOTION: StudioModelSeed = {
 };
 
 /**
+ * `video-upscaler` - ByteDance uvećanje videa (Crea K20, V17; plan K17-12).
+ * fal: `fal-ai/bytedance-upscaler/upscale/video`, po sekundi okačenog videa na
+ * 30 fps: 1080p $0,0072, 2K $0,0144, 4K $0,0288; 60 fps duplira cenu, a `pro`
+ * tarifa je 10× - zato su `target_fps: 30` i `enhancement_tier: "standard"`
+ * zakucani (`fal.fixed`), a ne kontrole
+ * (https://fal.ai/models/fal-ai/bytedance-upscaler/upscale/video/llms.txt,
+ * pročitano 2026-10-05).
+ *
+ * Strana ne navodi najduži video. Trajanje meri server; gornja granica količine
+ * je sat vremena, da duži snimak nikad ne bude naplaćen kraće nego što ga fal
+ * obradi (granica količine SEČE naplatu, ne odbija posao).
+ */
+export const VIDEO_UPSCALER: StudioModelSeed = {
+  slug: "video-upscaler",
+  provider: "fal",
+  kind: "video",
+  family: "bytedance",
+  labelSr: "Uvećaj video (ByteDance)",
+  labelEn: "Upscale video (ByteDance)",
+  taglineSr: "Oštriji i veći video - do 4K.",
+  taglineEn: "A sharper, bigger video - up to 4K.",
+  descriptionSr:
+    "Okačiš video i izabereš veličinu: 1080p, 2K ili 4K. Model doda detalje i ukloni šum; pokret i zvuk ostaju. Naplaćuje se po sekundi okačenog videa.",
+  descriptionEn:
+    "Upload a video and pick a size: 1080p, 2K or 4K. The model adds detail and removes noise; motion and sound stay. Charged per second of the uploaded video.",
+  endpoints: { video: "fal-ai/bytedance-upscaler/upscale/video" },
+  inputModes: ["video"],
+  inputSpec: { video: { video: { max: 1, accept: VIDEO_ACCEPT } } },
+  paramSpec: [
+    {
+      key: "target_resolution",
+      type: "segmented",
+      labelSr: "Veličina",
+      labelEn: "Size",
+      default: "1080p",
+      options: [
+        { value: "1080p", labelSr: "1080p", labelEn: "1080p" },
+        { value: "2k", labelSr: "2K", labelEn: "2K" },
+        { value: "4k", labelSr: "4K", labelEn: "4K" },
+      ],
+      affectsPrice: true,
+    },
+  ],
+  priceRule: {
+    unit: "second",
+    quantityParam: "duration",
+    lookup: { params: ["target_resolution"], map: { "1080p": 0.0072, "2k": 0.0144, "4k": 0.0288 } },
+  },
+  capabilities: {
+    mode: "async_webhook",
+    quantity: { param: "duration", from: "input_video_seconds", min: 1, max: 3600 },
+    fal: { fixed: { target_fps: 30, enhancement_tier: "standard" } },
+    tags: ["upscale"],
+  },
+  sortOrder: 396,
+};
+
+/**
  * `kling-tryon` - proba odeće (katalog 3.9). Dva imenovana slota, jer redosled
  * nije svejedno: prvo osoba, pa odevni predmet.
  */
@@ -256,6 +314,7 @@ export const FAL_TOOL_MODELS: StudioModelSeed[] = [
   KLING_AVATAR,
   KLING_LIPSYNC,
   KLING_MOTION,
+  VIDEO_UPSCALER,
   KLING_TRYON,
   KLING_V2A,
 ];

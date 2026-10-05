@@ -134,8 +134,8 @@ export const CREA_MODES: Record<CreaArea, readonly CreaModeDef[]> = {
       tools: true,
       status: "ready",
       blurb: {
-        sr: "Okači svoj video i napiši šta da se promeni - ili uzmi alat i produži ga napred ili nazad.",
-        en: "Upload your video and write what should change - or pick a tool and extend it forward or backward.",
+        sr: "Okači svoj video i napiši šta da se promeni - ili uzmi alat: produži, zameni predmet, prekroji kadar, boje, pozadina, usporeno.",
+        en: "Upload your video and write what should change - or pick a tool: extend, swap an object, reframe, colour, background, slow motion.",
       },
     },
     {
@@ -143,10 +143,11 @@ export const CREA_MODES: Record<CreaArea, readonly CreaModeDef[]> = {
       label: { sr: "Pokret", en: "Motion" },
       icon: "PersonStanding",
       models: { slugs: ["kling-motion"] },
+      tools: true,
       status: "ready",
       blurb: {
-        sr: "Prenesi pokret iz jednog videa na lik sa tvoje slike.",
-        en: "Move the character from your picture the way someone moves in a video.",
+        sr: "Prenesi pokret iz jednog videa na lik sa tvoje slike - ili uzmi alat „Odglumi\" i snimi pokret kamerom.",
+        en: "Move the character from your picture the way someone moves in a video - or pick \"Act it out\" and record the move with your camera.",
       },
     },
     {
@@ -154,10 +155,11 @@ export const CREA_MODES: Record<CreaArea, readonly CreaModeDef[]> = {
       label: { sr: "Govor", en: "Talking" },
       icon: "Speech",
       models: { slugs: ["kling-avatar", "kling-lipsync"] },
+      tools: true,
       status: "ready",
       blurb: {
-        sr: "Slika ili video uz snimak glasa: lik progovori, a usne prate reči.",
-        en: "A picture or a video plus a voice recording: the character speaks and the lips follow.",
+        sr: "Slika ili video uz snimak glasa: lik progovori, a usne prate reči - ili uzmi alat „Lik koji govori\" i samo napiši tekst.",
+        en: "A picture or a video plus a voice recording: the character speaks and the lips follow - or pick \"A talking character\" and just write the text.",
       },
     },
     {

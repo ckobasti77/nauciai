@@ -61,6 +61,16 @@ const LastFrameTool = dynamic(() => import("./last-frame-tool"), { ssr: false, l
 const ScenesTool = dynamic(() => import("./scenes-tool"), { ssr: false, loading: ToolLoading });
 const DrawMotionTool = dynamic(() => import("./draw-motion-tool"), { ssr: false, loading: ToolLoading });
 const ExtendTool = dynamic(() => import("./extend-tool"), { ssr: false, loading: ToolLoading });
+// K20: dorada, pokret i govor - mediabunny, MediaPipe i three.js tek unutar alata.
+const VideoEditTool = dynamic(() => import("./video-edit-tool"), { ssr: false, loading: ToolLoading });
+const VideoReframeTool = dynamic(() => import("./video-reframe-tool"), { ssr: false, loading: ToolLoading });
+const VideoColorTool = dynamic(() => import("./video-color-tool"), { ssr: false, loading: ToolLoading });
+const VideoBackgroundTool = dynamic(() => import("./video-background-tool"), { ssr: false, loading: ToolLoading });
+const VideoUpscaleTool = dynamic(() => import("./video-upscale-tool"), { ssr: false, loading: ToolLoading });
+const VideoSlowmoTool = dynamic(() => import("./video-slowmo-tool"), { ssr: false, loading: ToolLoading });
+const VideoDeflickerTool = dynamic(() => import("./video-deflicker-tool"), { ssr: false, loading: ToolLoading });
+const ActTool = dynamic(() => import("./act-tool"), { ssr: false, loading: ToolLoading });
+const TalkingTool = dynamic(() => import("./talking-tool"), { ssr: false, loading: ToolLoading });
 // K19: montaža, „Ubaci i gotovo" i izvoz za mreže - svaki svoj chunk; mediabunny i detektor ritma tek unutar njih.
 const MontageTool = dynamic(() => import("../montaza/montage-tool"), { ssr: false, loading: ToolLoading });
 const BeatTool = dynamic(() => import("../montaza/beat-tool"), { ssr: false, loading: ToolLoading });
@@ -110,4 +120,14 @@ export const CREA_TOOL_COMPONENTS: Readonly<Record<string, ComponentType<CreaToo
   "video.montaza": MontageTool,
   "video.ritam-sabloni": BeatTool,
   "video.izvoz": ExportTool,
+  "video.izmeni-recima": VideoEditTool,
+  "video.zameni": VideoEditTool,
+  "video.reframe": VideoReframeTool,
+  "video.boje": VideoColorTool,
+  "video.pozadina": VideoBackgroundTool,
+  "video.uvecaj": VideoUpscaleTool,
+  "video.slowmo": VideoSlowmoTool,
+  "video.bez-treperenja": VideoDeflickerTool,
+  "video.odglumi": ActTool,
+  "video.lik-govori": TalkingTool,
 };

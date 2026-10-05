@@ -285,6 +285,67 @@ export const KLING_OMNI: StudioModelSeed = {
 };
 
 /**
+ * `kling-o3-edit` - Kling O3 izmena postojećeg videa rečima (Crea K20, V13/V14;
+ * plan K17-12). fal: `fal-ai/kling-video/o3/{standard|pro}/video-to-video/edit`,
+ * $0,126 (standard) i $0,168 (pro) po sekundi NAPRAVLJENOG videa, a napravljen
+ * video traje koliko i ulaz: 3-15 s, samo .mp4/.mov, do 4 referentne slike
+ * (`image_urls`, u opisu `@Image1`), zvuk ulaza ostaje (`keep_audio`)
+ * (https://fal.ai/models/fal-ai/kling-video/o3/standard/video-to-video/edit/llms.txt
+ * i …/pro/…, pročitano 2026-10-05).
+ *
+ * Zaseban red, a ne `video` režim `kling-omni`-ja: tamošnja ruta bez tarife
+ * (`…/o3/video-to-video`) na fal-u ne postoji (404), a trajanje se naplaćuje po
+ * klizaču 5-10 s umesto po okačenom videu - 15 s ulaza bi se naplatilo 5 s.
+ * Ovde trajanje meri SERVER (`quantity`), pa je naplata ono što fal naplati.
+ */
+export const KLING_O3_EDIT: StudioModelSeed = {
+  slug: "kling-o3-edit",
+  provider: "fal",
+  kind: "video",
+  family: "kling",
+  labelSr: "Kling O3 izmena videa",
+  labelEn: "Kling O3 video edit",
+  taglineSr: "Napiši šta da se promeni u tvom videu - kiša, noć, drugi predmet.",
+  taglineEn: "Write what should change in your video - rain, night, a different object.",
+  descriptionSr:
+    "Okačiš video od 3 do 15 sekundi i napišeš izmenu; model menja samo to, a pokret, kamera i zvuk ostaju. Uz video možeš dodati do 4 slike predmeta ili stila. Naplaćuje se po sekundi okačenog videa.",
+  descriptionEn:
+    "Upload a 3 to 15 second video and write the change; the model changes only that, while the motion, camera and sound stay. You can add up to 4 pictures of an object or style. Charged per second of the uploaded video.",
+  endpoints: { video: "fal-ai/kling-video/o3/{tier}/video-to-video/edit" },
+  inputModes: ["video"],
+  inputSpec: {
+    video: {
+      video: { max: 1, accept: ["video/mp4", "video/quicktime"] },
+      image: { max: 4, accept: IMAGE_ACCEPT },
+    },
+  },
+  paramSpec: [
+    promptControl(),
+    resolutionControl({
+      values: ["720p", "1080p"],
+      default: "720p",
+      helpSr: "720p je Kling standard, 1080p Kling pro.",
+      helpEn: "720p is Kling standard, 1080p is Kling pro.",
+    }),
+  ],
+  priceRule: {
+    unit: "second",
+    quantityParam: "duration",
+    lookup: { params: ["resolution"], map: { "720p": 0.126, "1080p": 0.168 } },
+  },
+  capabilities: {
+    mode: "async_webhook",
+    audio: true,
+    tierByResolution: { "720p": "standard", "1080p": "pro" },
+    quantity: { param: "duration", from: "input_video_seconds", min: 3, max: 15 },
+    maxRefImages: 4,
+    fal: { fields: { image: "image_urls" }, fixed: { keep_audio: true } },
+    tags: ["edit"],
+  },
+  sortOrder: 322,
+};
+
+/**
  * `minimax-h3` - MiniMax H3 (katalog 3.6). Endpoint ide **bez `fal-ai/`
  * prefiksa** (`minimax/h3/*`), i to nije previd nego kako fal ruta izgleda.
  *
@@ -726,6 +787,7 @@ export const FAL_VIDEO_MODELS: StudioModelSeed[] = [
   KLING_3,
   KLING_3_TURBO,
   KLING_OMNI,
+  KLING_O3_EDIT,
   MINIMAX_H3,
   GROK_VIDEO_15_LITE,
   WAN_30,

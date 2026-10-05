@@ -28,13 +28,13 @@ import {
 } from "@/lib/crea-lut";
 import type { Locale } from "@/lib/i18n";
 
-type Grade = { adjust: CreaColorAdjust; lookId: string; intensity: number };
+export type Grade = { adjust: CreaColorAdjust; lookId: string; intensity: number };
 type ColorExtra = { width: number; height: number };
 
 /** Pregled: dovoljno oštar za oko, dovoljno mali da klizač radi glatko. */
 const PREVIEW_MAX_SIDE = 1024;
 
-function gradeFor(grade: Grade, neutral = false) {
+export function gradeFor(grade: Grade, neutral = false) {
   const look = lookById(neutral ? "original" : grade.lookId);
   const adjust = neutral ? NEUTRAL_ADJUST : grade.adjust;
   const intensity = neutral ? 1 : grade.intensity / 100;
@@ -151,7 +151,7 @@ export default function ColorTool({ tool, locale, caps, canSave, projectId, sour
   );
 }
 
-function Slider({
+export function Slider({
   label,
   value,
   min,
@@ -184,7 +184,7 @@ function Slider({
   );
 }
 
-function AdjustSlider({
+export function AdjustSlider({
   locale,
   sliderKey,
   grade,
@@ -211,7 +211,7 @@ function AdjustSlider({
 }
 
 /** Živ pregled na GPU-u; „Drži za original" privremeno pokazuje fotku bez izmena. */
-function ColorPreview({ locale, file, grade }: { locale: Locale; file: File; grade: Grade }) {
+export function ColorPreview({ locale, file, grade }: { locale: Locale; file: File; grade: Grade }) {
   const host = useRef<HTMLDivElement | null>(null);
   const [renderer, setRenderer] = useState<{ instance: ColorRenderer; width: number; height: number } | null>(null);
   const [failed, setFailed] = useState(false);

@@ -26,10 +26,12 @@ import {
   SEEDREAM_5_FLASH,
   Z_IMAGE_TURBO,
 } from "./falImageModels";
-import { falInputFields, falMapOf, falParams } from "./falInputs";
+import { falInputFields, falMapOf, falParams, resolveEndpointTier } from "./falInputs";
+import { VIDEO_UPSCALER } from "./falToolModels";
 import {
   GROK_VIDEO_15_LITE,
   HAILUO_23_FAST,
+  KLING_O3_EDIT,
   LTX_23_FAST,
   MINIMAX_H3_MAX_TURBO,
   PIXVERSE_V6,
@@ -258,4 +260,48 @@ test("Nano Banana 2 ima rezervnu rutu samo iz opisa, i noćnu turu kao podatak z
   for (const slug of ["nano-banana-2", "nano-banana-2-lite", "nano-banana-pro"]) {
     expect(studioModelBySlug(slug)?.capabilities.batch, slug).toMatchObject({ provider: "google", discount: 0.5 });
   }
+});
+
+// ── K20: izmena i uvećanje videa (plan K17-12) ──────────────────────────────
+
+test("K20 Kling O3 izmena videa: tarifa u ruti, cena po sekundi ULAZA, slike kao `image_urls`", () => {
+  expect(resolveEndpointTier(KLING_O3_EDIT.endpoints.video!, { resolution: "720p" }, KLING_O3_EDIT.capabilities)).toBe(
+    "fal-ai/kling-video/o3/standard/video-to-video/edit",
+  );
+  expect(resolveEndpointTier(KLING_O3_EDIT.endpoints.video!, { resolution: "1080p" }, KLING_O3_EDIT.capabilities)).toBe(
+    "fal-ai/kling-video/o3/pro/video-to-video/edit",
+  );
+  // fal: $0,126 / $0,168 po sekundi napravljenog videa, koji traje koliko i ulaz.
+  expect(usd(KLING_O3_EDIT, { resolution: "720p", duration: 5 })).toBeCloseTo(0.63, 10);
+  expect(usd(KLING_O3_EDIT, { resolution: "1080p", duration: 15 })).toBeCloseTo(2.52, 10);
+  expect(quantitySourceOf(KLING_O3_EDIT)).toMatchObject({ from: "input_video_seconds", min: 3, max: 15 });
+  // Trajanje nije kontrola - klijent ga ne bira.
+  expect(KLING_O3_EDIT.paramSpec.some((control) => control.key === "duration")).toBe(false);
+  expect(falBody(KLING_O3_EDIT, "video", { prompt: "Add rain @Image1", resolution: "720p", duration: 5 }, { video: ["v"], image: ["i"] })).toEqual({
+    prompt: "Add rain @Image1",
+    resolution: "720p",
+    duration: 5,
+    keep_audio: true,
+    video_url: "v",
+    image_urls: ["i"],
+  });
+  expect(KLING_O3_EDIT.inputSpec.video?.image?.max).toBe(4);
+  expect(KLING_O3_EDIT.inputSpec.video?.video?.accept).toEqual(["video/mp4", "video/quicktime"]);
+});
+
+test("K20 ByteDance uvećanje videa: po sekundi i veličini, 30 fps i standard tarifa zakucani", () => {
+  expect(usd(VIDEO_UPSCALER, { target_resolution: "1080p", duration: 10 })).toBeCloseTo(0.072, 10);
+  expect(usd(VIDEO_UPSCALER, { target_resolution: "2k", duration: 10 })).toBeCloseTo(0.144, 10);
+  expect(usd(VIDEO_UPSCALER, { target_resolution: "4k", duration: 10 })).toBeCloseTo(0.288, 10);
+  expect(kr(VIDEO_UPSCALER, { target_resolution: "1080p", duration: 5 })).toBe(8);
+  expect(quantitySourceOf(VIDEO_UPSCALER)).toMatchObject({ from: "input_video_seconds", min: 1, max: 3600 });
+  expect(falBody(VIDEO_UPSCALER, "video", { target_resolution: "4k", duration: 5 }, { video: ["v"] })).toEqual({
+    target_resolution: "4k",
+    duration: 5,
+    target_fps: 30,
+    enhancement_tier: "standard",
+    video_url: "v",
+  });
+  const sanitized = sanitizeSpecParams(VIDEO_UPSCALER.paramSpec, VIDEO_UPSCALER.priceRule, { target_resolution: "8k" }, "video");
+  expect(sanitized.ok).toBe(false);
 });

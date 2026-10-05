@@ -363,18 +363,19 @@ test("endpoint sa {tier} placeholderom ima mapu tarifa za svaku rezoluciju", () 
 
 // ── katalog: koliko ih ima i ko su ─────────────────────────────────────────
 
-test("katalog ima 47 redova, jedinstvene slugove i jedinstven redosled", () => {
-  // 30 iz kataloga v4 + 17 iz Cree K07 (11 za slike, 6 za video).
-  expect(STUDIO_MODELS).toHaveLength(47);
-  expect(new Set(STUDIO_MODELS.map((model) => model.slug)).size).toBe(47);
-  expect(new Set(STUDIO_MODELS.map((model) => model.sortOrder)).size).toBe(47);
+test("katalog ima 49 redova, jedinstvene slugove i jedinstven redosled", () => {
+  // 30 iz kataloga v4 + 17 iz Cree K07 (11 za slike, 6 za video) + 2 iz K20
+  // (Kling O3 izmena videa, ByteDance uvećanje videa).
+  expect(STUDIO_MODELS).toHaveLength(49);
+  expect(new Set(STUDIO_MODELS.map((model) => model.slug)).size).toBe(49);
+  expect(new Set(STUDIO_MODELS.map((model) => model.sortOrder)).size).toBe(49);
 
   const byKind = { image: 0, video: 0, audio: 0 };
   for (const model of STUDIO_MODELS) byKind[model.kind] += 1;
   // 7 modela za slike + Kling proba odeće (izlaz je slika) = 8, plus 11 iz K07.
   expect(byKind.image).toBe(19);
-  // 10 video modela + tri Kling alata koji vraćaju video = 13, plus 6 iz K07.
-  expect(byKind.video).toBe(19);
+  // 10 video modela + tri Kling alata koji vraćaju video = 13, plus 6 iz K07 i 2 iz K20.
+  expect(byKind.video).toBe(21);
   // 8 ElevenLabs alata + Kling zvuk za video = 9.
   expect(byKind.audio).toBe(9);
 
@@ -385,13 +386,14 @@ test("katalog ima 47 redova, jedinstvene slugove i jedinstven redosled", () => {
   // K07: + Nano Banana 2 Lite.
   expect(byProvider.google).toBe(7);
   expect(byProvider.byteplus).toBe(3);
-  expect(byProvider.fal).toBe(37);
+  // K20: + Kling O3 izmena videa i ByteDance uvećanje (oba fal).
+  expect(byProvider.fal).toBe(39);
 
   expect(studioModelBySlug("nano-banana-pro")).toBe(NANO_BANANA_PRO);
   expect(studioModelBySlug("nema-me")).toBeUndefined();
 });
 
-test("sedam modela koji se naplaćuju po dužini OKAČENOG fajla je vraćeno u ponudu", () => {
+test("modeli koji se naplaćuju po dužini OKAČENOG fajla su u ponudi (7 vraćenih + 2 iz K20)", () => {
   const fromFile = STUDIO_MODELS.filter((seed) => {
     const quantity = seed.capabilities.quantity as { from?: string } | undefined;
 
@@ -404,7 +406,9 @@ test("sedam modela koji se naplaćuju po dužini OKAČENOG fajla je vraćeno u p
     "kling-avatar",
     "kling-lipsync",
     "kling-motion",
+    "kling-o3-edit",
     "stt",
+    "video-upscaler",
     "voice-changer",
   ]);
   // Vraćeni su zato što trajanje sada meri SERVER iz zaglavlja fajla (W5), a ne

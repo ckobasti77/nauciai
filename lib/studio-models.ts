@@ -208,6 +208,8 @@ const FAMILY_TO_BRAND: Record<string, ProviderBrand> = {
   "grok-imagine": "xai",
   ltx: "lightricks",
   pixverse: "pixverse",
+  // Crea K20 (V17): ByteDance uvećanje videa.
+  bytedance: "bytedance",
 };
 
 /** Ime firme za `aria-label` znaka. Proper nouns - isto u oba jezika. */

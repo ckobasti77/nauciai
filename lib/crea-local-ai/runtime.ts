@@ -1,4 +1,4 @@
-import type { BrushMode, FaceDetector, InteractiveSegmenter } from "@mediapipe/tasks-vision";
+import type { BrushMode, FaceDetector, ImageSegmenter, InteractiveSegmenter } from "@mediapipe/tasks-vision";
 import type { Worker as TesseractWorker } from "tesseract.js";
 
 import { fetchModelFile } from "./cache";
@@ -317,6 +317,82 @@ export async function loadClickSegmenter(options: LocalLoadOptions = {}): Promis
     visionFileset = null;
     throw toLocalAiError(error, "MODEL_LOAD_FAILED");
   }
+}
+
+// ── Pozadina videa: osoba (V18, K20) ─────────────────────────────────────────
+
+/** Maska poverenja OSOBE 0..1 (veličina izlaza modela, 256 × 256). */
+export type PersonMask = { confidence: Float32Array; width: number; height: number };
+export type VideoPersonSegmenter = { segment: (image: HTMLCanvasElement | OffscreenCanvas) => PersonMask | null };
+
+let selfieSegmenter: Promise<ImageSegmenter> | null = null;
+/**
+ * MediaPipe u režimu VIDEO traži vremena koja RASTU kroz ceo život segmentera
+ * (plan K17 §7 K20 zamke) - i preko više pokretanja alata. Zato jedan brojač po
+ * strani, korak ~33 ms (vremensko izglađivanje maske računa sa ~30 kadrova/s).
+ */
+let selfieTimestampMs = 0;
+
+/**
+ * Selfie segmenter (~0,25 MB, svaki uređaj): osoba naspram pozadine, kadar po
+ * kadar. Pravi se jednom po strani i deli WASM sa ostalim MediaPipe modelima.
+ */
+export async function loadVideoPersonSegmenter(options: LocalLoadOptions = {}): Promise<VideoPersonSegmenter> {
+  if (!selfieSegmenter) {
+    const track = progressTracker(options.onProgress);
+    const spec = CREA_LOCAL_MODELS["mp-selfie-segmenter"];
+    const modelUrl = modelFileUrl("mp-selfie-segmenter");
+    if (!modelUrl) throw new CreaLocalAiError("MODEL_LOAD_FAILED");
+    const attempt = (async () => {
+      const vision = await importVision();
+      visionFileset ??= loadVisionFileset(options, track);
+      const [fileset, model] = await Promise.all([
+        visionFileset,
+        fetchModelFile(modelUrl, {
+          signal: options.signal,
+          expectedBytes: spec.bytes,
+          onProgress: track("model", { loaded: 0, total: spec.bytes }),
+        }),
+      ]);
+      if (options.signal?.aborted) throw new CreaLocalAiError("ABORTED");
+      try {
+        return await vision.ImageSegmenter.createFromOptions(fileset, {
+          baseOptions: { modelAssetBuffer: new Uint8Array(await model.arrayBuffer()), delegate: "CPU" },
+          runningMode: "VIDEO",
+          outputConfidenceMasks: true,
+          outputCategoryMask: false,
+        });
+      } catch (error) {
+        throw new CreaLocalAiError("MODEL_LOAD_FAILED", error);
+      }
+    })();
+    selfieSegmenter = attempt;
+    try {
+      await attempt;
+    } catch (error) {
+      selfieSegmenter = null;
+      visionFileset = null;
+      throw toLocalAiError(error, "MODEL_LOAD_FAILED");
+    }
+  }
+  const segmenter = await selfieSegmenter;
+  return {
+    segment: (image) => {
+      selfieTimestampMs += 33;
+      const result = segmenter.segmentForVideo(image, selfieTimestampMs);
+      try {
+        const masks = result.confidenceMasks ?? [];
+        // Jedna maska = osoba; više maski (višeklasni model) = prva je pozadina.
+        const mask = masks[0];
+        if (!mask) return null;
+        const values = new Float32Array(mask.getAsFloat32Array());
+        if (masks.length > 1) for (let index = 0; index < values.length; index++) values[index] = 1 - values[index]!;
+        return { confidence: values, width: mask.width, height: mask.height };
+      } finally {
+        result.close();
+      }
+    },
+  };
 }
 
 // ── ONNX modeli za izmene (K11: MI-GAN, MODNet, Swin2SR) ─────────────────────

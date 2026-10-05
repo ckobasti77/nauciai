@@ -115,7 +115,7 @@ describe("registar alata", () => {
     for (const tool of CREA_TOOLS) if (tool.tier === "server") expect(tool.status).toBe("soon");
   });
 
-  test("K04 pušta format i proveru fotke, K09 sedam besplatnih alata za sliku, K10 editor, šablone i 3D foto, K11 i K12 izmene, K13 pravljenje, K14 likovi, K18 video, K19 montaža", () => {
+  test("K04 pušta format i proveru fotke, K09 sedam besplatnih alata za sliku, K10 editor, šablone i 3D foto, K11 i K12 izmene, K13 pravljenje, K14 likovi, K18 video, K19 montaža, K20 dorada, pokret i govor", () => {
     const ready = CREA_TOOLS.filter((tool) => tool.status === "ready").map((tool) => tool.id);
     expect(ready).toEqual([
       "slika.format",
@@ -167,6 +167,17 @@ describe("registar alata", () => {
       "video.montaza",
       "video.ritam-sabloni",
       "video.izvoz",
+      // K20: Video · Izmeni (V13-V18), Pokret (V20) i Govor (V21-V23); novo svetlo (V19) čeka endpoint
+      "video.izmeni-recima",
+      "video.zameni",
+      "video.reframe",
+      "video.boje",
+      "video.pozadina",
+      "video.uvecaj",
+      "video.slowmo",
+      "video.bez-treperenja",
+      "video.odglumi",
+      "video.lik-govori",
     ]);
     expect(toolById("slika.format")).toMatchObject({ tier: "local-code", featureIds: ["S27"], output: "image" });
     expect(toolById("slika.provera")).toMatchObject({
@@ -289,12 +300,13 @@ describe("pomoćne funkcije", () => {
     expect(toolBadges(toolById("slika.format")!)).toEqual(["besplatno", "na-uredjaju"]);
     expect(toolBadges(toolById("slika.pozadina")!)).toEqual(["besplatno", "na-uredjaju"]);
     expect(toolBadges(toolById("slika.retus")!)).toEqual(["besplatno", "na-uredjaju"]);
-    expect(toolBadges(toolById("video.reframe")!)).toEqual(["besplatno", "na-uredjaju", "uskoro"]);
+    expect(toolBadges(toolById("video.reframe")!)).toEqual(["besplatno", "na-uredjaju"]);
+    expect(toolBadges(toolById("video.retro")!)).toEqual(["besplatno", "na-uredjaju", "uskoro"]);
     // K12: plaćen alat sa besplatnim korakom na uređaju nosi obe oznake.
     expect(toolBadges(toolById("slika.prosiri")!)).toEqual(["krediti", "na-uredjaju"]);
     expect(toolBadges(toolById("slika.svetlo")!)).toEqual(["krediti"]);
     expect(toolBadges(toolById("slika.zameni-lik")!)).toEqual(["krediti"]);
-    expect(toolBadges(toolById("video.reframe")!)).toContain("uskoro");
+    expect(toolBadges(toolById("video.svetlo")!)).toEqual(["krediti", "uskoro"]);
   });
 
   test("modelSlug lokalnog posla ide u oba smera", () => {
