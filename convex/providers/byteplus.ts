@@ -95,6 +95,8 @@ export async function submitBytePlusJob(ctx: ActionCtx, jobId: Id<"generationJob
       await ctx.runMutation(internal.studio.markJobDone, {
         jobId,
         outputUrl: result.url,
+        // Slojevi „layerize" posle prvog (K12) - svaki postaje zaseban rad.
+        ...(result.extraUrls.length > 0 ? { extraOutputUrls: result.extraUrls } : {}),
       });
       // Trošak je zaseban upis, a ne argument `markJobDone`-a: `markJobDone`
       // sme da izađe bez dejstva (druga predaja istog posla), a upis stvarnog

@@ -16,6 +16,7 @@ import {
   CREA_TOOLS,
   isLocalTier,
   localModelSlug,
+  savesLocalResults,
   toolBadges,
   toolById,
   toolIdFromModelSlug,
@@ -114,7 +115,7 @@ describe("registar alata", () => {
     for (const tool of CREA_TOOLS) if (tool.tier === "server") expect(tool.status).toBe("soon");
   });
 
-  test("K04 pušta format i proveru fotke, K09 sedam besplatnih alata za sliku, K10 editor, šablone i 3D foto, K11 izmene", () => {
+  test("K04 pušta format i proveru fotke, K09 sedam besplatnih alata za sliku, K10 editor, šablone i 3D foto, K11 i K12 izmene", () => {
     const ready = CREA_TOOLS.filter((tool) => tool.status === "ready").map((tool) => tool.id);
     expect(ready).toEqual([
       "slika.format",
@@ -135,6 +136,13 @@ describe("registar alata", () => {
       "slika.pozadina",
       "slika.uvecaj",
       "slika.boje",
+      "slika.prosiri",
+      "slika.svetlo",
+      "slika.uglovi",
+      "slika.slojevi",
+      "slika.tekst",
+      "slika.retus",
+      "slika.odeca",
     ]);
     expect(toolById("slika.format")).toMatchObject({ tier: "local-code", featureIds: ["S27"], output: "image" });
     expect(toolById("slika.provera")).toMatchObject({
@@ -197,6 +205,40 @@ describe("registar alata", () => {
     expect(toolById("slika.boje")?.device.requires).toEqual(["webgl2"]);
   });
 
+  test("K12 izmene: plaćeni delovi idu kroz katalog, besplatni koraci čuvaju u galeriju", () => {
+    // Plaćeni alati sa besplatnim korakom na uređaju (isecanje, 9 uglova, izvoz slojeva, isečak proizvoda).
+    for (const id of ["slika.prosiri", "slika.uglovi", "slika.slojevi", "slika.odeca"]) {
+      const tool = toolById(id)!;
+      expect(tool, id).toMatchObject({ tier: "paid", mode: "izmeni", status: "ready", localSave: true, savesToGallery: true });
+      expect(savesLocalResults(tool), id).toBe(true);
+    }
+    // Novo svetlo je samo plaćeno: nema lokalnog rezultata.
+    expect(toolById("slika.svetlo")).toMatchObject({
+      tier: "paid",
+      price: { kind: "credits", modelSlug: "nano-banana-pro", inputMode: "image_multi" },
+      paidFallback: { modelSlug: "nano-banana-2", inputMode: "image_multi" },
+    });
+    expect(savesLocalResults(toolById("slika.svetlo")!)).toBe(false);
+    expect(savesLocalResults(toolById("slika.cetkica")!)).toBe(false);
+    expect(toolById("slika.slojevi")?.price).toEqual({ kind: "credits", modelSlug: "seedream-5-pro", inputMode: "layerize" });
+    expect(toolById("slika.odeca")?.price).toEqual({ kind: "credits", modelSlug: "kling-tryon", inputMode: "image_multi" });
+    // Tekst kao sloj i retuš su besplatni (lokalno), sa plaćenim rezervnim putem.
+    expect(toolById("slika.tekst")).toMatchObject({
+      tier: "local-ai",
+      price: { kind: "free" },
+      localModels: ["tess-srp", "tess-srp-latn", "migan"],
+      paidFallback: { modelSlug: "ideogram-45", inputMode: "mask" },
+    });
+    expect(toolById("slika.retus")).toMatchObject({
+      tier: "local-code",
+      price: { kind: "free" },
+      device: { minClass: "phone" },
+      paidFallback: { modelSlug: "nano-banana-pro", inputMode: "image_multi" },
+    });
+    // Zameni lik (S24) čeka Likove (K14).
+    expect(toolById("slika.zameni-lik")?.status).toBe("soon");
+  });
+
   test("svaki alat sa kartice „Šta praviš danas?\" postoji u registru", () => {
     for (const goal of CREA_GOALS) {
       if (goal.toolId) expect(toolById(goal.toolId), goal.id).toBeDefined();
@@ -220,8 +262,12 @@ describe("pomoćne funkcije", () => {
   test("oznake: besplatno i na uređaju za lokalne, krediti za plaćene, uskoro za nespremne", () => {
     expect(toolBadges(toolById("slika.format")!)).toEqual(["besplatno", "na-uredjaju"]);
     expect(toolBadges(toolById("slika.pozadina")!)).toEqual(["besplatno", "na-uredjaju"]);
-    expect(toolBadges(toolById("slika.retus")!)).toEqual(["besplatno", "na-uredjaju", "uskoro"]);
-    expect(toolBadges(toolById("slika.prosiri")!)).toEqual(["krediti", "uskoro"]);
+    expect(toolBadges(toolById("slika.retus")!)).toEqual(["besplatno", "na-uredjaju"]);
+    expect(toolBadges(toolById("video.reframe")!)).toEqual(["besplatno", "na-uredjaju", "uskoro"]);
+    // K12: plaćen alat sa besplatnim korakom na uređaju nosi obe oznake.
+    expect(toolBadges(toolById("slika.prosiri")!)).toEqual(["krediti", "na-uredjaju"]);
+    expect(toolBadges(toolById("slika.svetlo")!)).toEqual(["krediti"]);
+    expect(toolBadges(toolById("slika.zameni-lik")!)).toEqual(["krediti", "uskoro"]);
   });
 
   test("modelSlug lokalnog posla ide u oba smera", () => {

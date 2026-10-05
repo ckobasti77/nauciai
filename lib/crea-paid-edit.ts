@@ -1,4 +1,4 @@
-import type { Locale } from "./i18n";
+import type { Locale, LocalizedText } from "./i18n";
 
 /**
  * Plaćene izmene iz alata „Izmeni" (K11): četkica i opis (S11), brisanje
@@ -17,7 +17,8 @@ import type { Locale } from "./i18n";
  */
 export type CreaPaidRouteKind = "mask" | "zone" | "photo";
 
-export type CreaPaidRoute = { modelSlug: string; inputMode: string; kind: CreaPaidRouteKind };
+/** `label`: natpis izbora kad dve rute imaju istu vrstu (K12: Nano Banana Pro ili 2). */
+export type CreaPaidRoute = { modelSlug: string; inputMode: string; kind: CreaPaidRouteKind; label?: LocalizedText };
 
 /** Redosled = prednost: prava maska pre obojene zone (K06 Auto pravilo S-1). */
 export const BRUSH_ROUTES: readonly CreaPaidRoute[] = [
@@ -100,4 +101,57 @@ export function paidEditSlots(route: CreaPaidRoute): Record<string, number> {
   if (route.kind === "mask") return { image: 1, mask: 1 };
   if (route.kind === "zone") return { image: 2 };
   return { image: 1 };
+}
+
+// ── K12: izmene II (S15, S18-S23) ────────────────────────────────────────────
+// Svaki alat sam sastavlja opis i parametre (`PaidEditPanel.request`); ovde su
+// samo rute - koji model, kojim režimom - da test proveri da postoje u katalogu.
+
+/** S15 proširi kadar: fotka na sivom platnu ciljnog odnosa. */
+export const EXPAND_ROUTES: readonly CreaPaidRoute[] = [{ modelSlug: "nano-banana-2", inputMode: "image_multi", kind: "photo" }];
+
+/** S18 novo svetlo: Pro najbolje čuva lice; 2 je jeftinija proba. */
+export const RELIGHT_ROUTES: readonly CreaPaidRoute[] = [
+  { modelSlug: "nano-banana-pro", inputMode: "image_multi", kind: "photo", label: { sr: "Nano Banana Pro · najvernije", en: "Nano Banana Pro · most faithful" } },
+  { modelSlug: "nano-banana-2", inputMode: "image_multi", kind: "photo", label: { sr: "Nano Banana 2 · jeftinije", en: "Nano Banana 2 · cheaper" } },
+];
+
+/** S19 uglovi kamere: jedna mreža 3×3 u 4K. */
+export const ANGLES_ROUTES: readonly CreaPaidRoute[] = [{ modelSlug: "nano-banana-2", inputMode: "image_multi", kind: "photo" }];
+
+/** S20 slojevi: razlaganje Seedream-a 5 Pro (cena po sloju). */
+export const LAYERIZE_ROUTES: readonly CreaPaidRoute[] = [
+  { modelSlug: "seedream-5-pro", inputMode: "layerize", kind: "photo", label: { sr: "Seedream 5 Pro", en: "Seedream 5 Pro" } },
+];
+
+/** S22 vrati staru fotku: opšti model za izmene sa opisom restauracije (namenski modeli su zabranjeni, §6). */
+export const RESTORE_ROUTES: readonly CreaPaidRoute[] = [
+  { modelSlug: "nano-banana-pro", inputMode: "image_multi", kind: "photo", label: { sr: "Nano Banana Pro · najvernije", en: "Nano Banana Pro · most faithful" } },
+  { modelSlug: "nano-banana-2", inputMode: "image_multi", kind: "photo", label: { sr: "Nano Banana 2 · jeftinije", en: "Nano Banana 2 · cheaper" } },
+];
+
+/** S23 proba odeće: postojeći Kling try-on (slotovi `person`, `garment`). */
+export const TRYON_ROUTES: readonly CreaPaidRoute[] = [
+  { modelSlug: "kling-tryon", inputMode: "image_multi", kind: "photo", label: { sr: "Kling proba odeće", en: "Kling virtual try-on" } },
+];
+
+/** S23 proizvod u scenu: isečak proizvoda (+ fotka scene) kao više referenci. */
+export const PRODUCT_ROUTES: readonly CreaPaidRoute[] = [{ modelSlug: "nano-banana-2", inputMode: "image_multi", kind: "photo" }];
+
+/**
+ * Opis za „postavi proizvod u scenu": prva slika je isečen proizvod, druga
+ * (ako postoji) scena. Proizvod - oblik, boje, etiketa, logo, tekst - ostaje isti.
+ */
+export function productScenePrompt(hasScene: boolean, text: string, locale: Locale): string {
+  const said = text.trim();
+  if (locale === "sr") {
+    const scene = hasScene
+      ? `Prva slika je proizvod (isečen, bez pozadine). Druga slika je scena. Postavi proizvod sa prve slike u scenu sa druge${said ? `: ${said}` : ""}.`
+      : `Ovo je proizvod (isečen, bez pozadine). Postavi ga u novu scenu: ${said}.`;
+    return `${scene} Proizvod ostaje potpuno isti - oblik, boje, materijal, etiketa, logo i tekst na njemu se ne menjaju. Uskladi samo svetlo, senke, odsjaje i perspektivu da izgleda kao prava fotografija.`;
+  }
+  const scene = hasScene
+    ? `The first image is the product (cut out, no background). The second image is the scene. Place the product from the first image into the scene from the second${said ? `: ${said}` : ""}.`
+    : `This is a product (cut out, no background). Place it in a new scene: ${said}.`;
+  return `${scene} The product stays exactly the same - its shape, colours, material, label, logo and text do not change. Only match the light, shadows, reflections and perspective so it looks like a real photo.`;
 }

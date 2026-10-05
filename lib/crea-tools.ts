@@ -59,6 +59,12 @@ export type CreaTool = {
   savesToGallery: boolean;
   /** Plaćeni put kad lokalni nije dovoljan (npr. veliki predmet za brisanje). */
   paidFallback?: { modelSlug: string; inputMode?: string };
+  /**
+   * Plaćen alat sa besplatnim korakom na uređaju (K12: isecanje kadra, 9 uglova iz
+   * mreže, izvoz slojeva, isečak proizvoda) - taj korak čuva rezultat u galeriju
+   * kao lokalni rad (0 kr), kao i lokalni alati.
+   */
+  localSave?: true;
 };
 
 const FREE = { kind: "free" } as const;
@@ -432,17 +438,20 @@ export const CREA_TOOLS: readonly CreaTool[] = [
     area: "slika",
     mode: "izmeni",
     tier: "paid",
-    status: "soon",
-    title: { sr: "Proširi kadar", en: "Expand the frame" },
+    status: "ready",
+    title: { sr: "Proširi ili iseci kadar", en: "Expand or crop the frame" },
     summary: {
-      sr: "Dugme „za Instagram, TikTok, YouTube\" i AI doslika ono što fali sa strane.",
-      en: "A button for Instagram, TikTok or YouTube, and AI paints in what is missing at the sides.",
+      sr: "Dugme „za Instagram, TikTok, YouTube\": iseci besplatno ili neka AI doslika ono što fali sa strane.",
+      en: "A button for Instagram, TikTok or YouTube: crop for free, or let AI paint in what is missing at the sides.",
     },
     inputs: ["image"],
     output: "image",
     device: ANY_DEVICE,
+    // Nano Banana 2 dobija fotku na „platnu" ciljnog odnosa (cena po slici); FLUX.2 Pro outpaint
+    // čeka serversko merenje dimenzija (K06-9, N7) - vidi `lib/crea-reframe.ts`.
     price: { kind: "credits", modelSlug: "nano-banana-2", inputMode: "image_multi" },
     savesToGallery: true,
+    localSave: true,
   },
   {
     id: "slika.svetlo",
@@ -450,7 +459,7 @@ export const CREA_TOOLS: readonly CreaTool[] = [
     area: "slika",
     mode: "izmeni",
     tier: "paid",
-    status: "soon",
+    status: "ready",
     title: { sr: "Novo svetlo", en: "New lighting" },
     summary: {
       sr: "Pomeri „sunce\" oko lika i AI ga osvetli sa te strane.",
@@ -461,6 +470,7 @@ export const CREA_TOOLS: readonly CreaTool[] = [
     device: ANY_DEVICE,
     price: { kind: "credits", modelSlug: "nano-banana-pro", inputMode: "image_multi" },
     savesToGallery: true,
+    paidFallback: { modelSlug: "nano-banana-2", inputMode: "image_multi" },
   },
   {
     id: "slika.uglovi",
@@ -468,17 +478,18 @@ export const CREA_TOOLS: readonly CreaTool[] = [
     area: "slika",
     mode: "izmeni",
     tier: "paid",
-    status: "soon",
+    status: "ready",
     title: { sr: "Uglovi kamere", en: "Camera angles" },
     summary: {
-      sr: "Devet uglova istog prizora iz jedne generacije.",
-      en: "Nine angles of the same scene from a single generation.",
+      sr: "Devet uglova istog prizora iz jedne generacije - mreža 3×3 se na uređaju iseče u 9 radova.",
+      en: "Nine angles of the same scene from a single generation - the 3×3 grid is cut into 9 works on your device.",
     },
     inputs: ["image"],
     output: "images",
     device: ANY_DEVICE,
     price: { kind: "credits", modelSlug: "nano-banana-2", inputMode: "image_multi" },
     savesToGallery: true,
+    localSave: true,
   },
   {
     id: "slika.slojevi",
@@ -486,17 +497,18 @@ export const CREA_TOOLS: readonly CreaTool[] = [
     area: "slika",
     mode: "izmeni",
     tier: "paid",
-    status: "soon",
+    status: "ready",
     title: { sr: "Slojevi", en: "Layers" },
     summary: {
-      sr: "Rastavi sliku na slojeve, pa ih pomeraj, sakrij ili prefarbaj.",
-      en: "Split an image into layers, then move, hide or recolour them.",
+      sr: "Rastavi sliku na slojeve, pa ih pomeraj, sakrij, prefarbaj i spoji - i izvezi novu sliku.",
+      en: "Split an image into layers, then move, hide, recolour and merge them - and export a new image.",
     },
     inputs: ["image"],
     output: "images",
     device: { minClass: "phone" },
     price: { kind: "credits", modelSlug: "seedream-5-pro", inputMode: "layerize" },
     savesToGallery: true,
+    localSave: true,
   },
   {
     id: "slika.tekst",
@@ -504,7 +516,7 @@ export const CREA_TOOLS: readonly CreaTool[] = [
     area: "slika",
     mode: "izmeni",
     tier: "local-ai",
-    status: "soon",
+    status: "ready",
     title: { sr: "Tekst kao sloj", en: "Text as a layer" },
     summary: {
       sr: "Tekst bez grešaka, sa č, ć, š, ž, đ i ćirilicom; stari tekst se prepozna i obriše.",
@@ -514,8 +526,10 @@ export const CREA_TOOLS: readonly CreaTool[] = [
     output: "image",
     device: { minClass: "phone" },
     price: FREE,
-    localModels: ["tess-srp", "tess-srp-latn"],
+    // Prepoznavanje (Tesseract) + brisanje starog teksta na uređaju (MI-GAN, kao „Obriši predmet").
+    localModels: ["tess-srp", "tess-srp-latn", "migan"],
     savesToGallery: true,
+    paidFallback: { modelSlug: "ideogram-45", inputMode: "mask" },
   },
   {
     id: "slika.retus",
@@ -523,15 +537,16 @@ export const CREA_TOOLS: readonly CreaTool[] = [
     area: "slika",
     mode: "izmeni",
     tier: "local-code",
-    status: "soon",
+    status: "ready",
     title: { sr: "Retuš i stare fotke", en: "Retouch and old photos" },
     summary: {
-      sr: "Blag retuš besplatno; vraćanje oštećenih starih fotki uz kredite.",
-      en: "Gentle retouching for free; restoring damaged old photos costs credits.",
+      sr: "Blag retuš kože besplatno; vraćanje oštećenih starih fotki uz kredite.",
+      en: "Gentle skin retouching for free; restoring damaged old photos costs credits.",
     },
     inputs: ["image"],
     output: "image",
-    device: { minClass: "phone", requires: ["webgl2"] },
+    // Filter na platnu (CPU), bez WebGL-a - radi svuda od telefona naviše.
+    device: { minClass: "phone" },
     price: FREE,
     savesToGallery: true,
     paidFallback: { modelSlug: "nano-banana-pro", inputMode: "image_multi" },
@@ -542,7 +557,7 @@ export const CREA_TOOLS: readonly CreaTool[] = [
     area: "slika",
     mode: "izmeni",
     tier: "paid",
-    status: "soon",
+    status: "ready",
     title: { sr: "Odeća i proizvodi", en: "Clothes and products" },
     summary: {
       sr: "Probaj odeću na liku, ili iseci proizvod i postavi ga u scenu.",
@@ -550,9 +565,13 @@ export const CREA_TOOLS: readonly CreaTool[] = [
     },
     inputs: ["image", "image"],
     output: "image",
-    device: ANY_DEVICE,
+    // Isečak proizvoda je klik (MagicTouch) na uređaju, kao „Klikni i izaberi".
+    device: { minClass: "phone" },
     price: { kind: "credits", modelSlug: "kling-tryon", inputMode: "image_multi" },
+    localModels: ["mp-interactive-segmenter"],
     savesToGallery: true,
+    paidFallback: { modelSlug: "nano-banana-2", inputMode: "image_multi" },
+    localSave: true,
   },
   {
     id: "slika.zameni-lik",
@@ -1041,9 +1060,21 @@ export function isLocalTier(tier: CreaToolTier): boolean {
 export type CreaToolBadge = "besplatno" | "na-uredjaju" | "krediti" | "uskoro";
 
 export function toolBadges(tool: CreaTool): CreaToolBadge[] {
-  const badges: CreaToolBadge[] = isLocalTier(tool.tier) ? ["besplatno", "na-uredjaju"] : ["krediti"];
+  const badges: CreaToolBadge[] = isLocalTier(tool.tier)
+    ? ["besplatno", "na-uredjaju"]
+    : tool.localSave
+      ? ["krediti", "na-uredjaju"]
+      : ["krediti"];
   if (tool.status === "soon" || tool.tier === "server") badges.push("uskoro");
   return badges;
+}
+
+/**
+ * Sme li alat da sačuva rezultat kao lokalni rad (`creaLocal.saveLocalResult`):
+ * lokalni alat, ili plaćen alat sa besplatnim korakom na uređaju (`localSave`).
+ */
+export function savesLocalResults(tool: CreaTool): boolean {
+  return isLocalTier(tool.tier) || tool.localSave === true;
 }
 
 /** `modelSlug` posla koji je napravio lokalni alat. */

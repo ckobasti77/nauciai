@@ -37,9 +37,9 @@ const MIGAN_MAX_SIDE = 1024;
 /**
  * MI-GAN na uređaju: isečak oko predmeta (sa okolinom) ide u model, a zakrpa
  * se lepi nazad kroz proširenu masku sa mekom ivicom. Ostatak fotke ostaje
- * netaknut, u punoj veličini.
+ * netaknut, u punoj veličini. Koristi ga i „Tekst kao sloj" (K12) za stari tekst.
  */
-async function erase(
+export async function erase(
   work: WorkImage,
   file: File,
   maskCanvas: HTMLCanvasElement,

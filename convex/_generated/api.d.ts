@@ -35,6 +35,8 @@ import type * as creaCacheCore from "../creaCacheCore.js";
 import type * as creaDraftCore from "../creaDraftCore.js";
 import type * as creaFallbackCore from "../creaFallbackCore.js";
 import type * as creaFlags from "../creaFlags.js";
+import type * as creaLayers from "../creaLayers.js";
+import type * as creaLayersCore from "../creaLayersCore.js";
 import type * as creaLocal from "../creaLocal.js";
 import type * as creaLocalCore from "../creaLocalCore.js";
 import type * as creaNight from "../creaNight.js";
@@ -151,6 +153,8 @@ declare const fullApi: ApiFromModules<{
   creaDraftCore: typeof creaDraftCore;
   creaFallbackCore: typeof creaFallbackCore;
   creaFlags: typeof creaFlags;
+  creaLayers: typeof creaLayers;
+  creaLayersCore: typeof creaLayersCore;
   creaLocal: typeof creaLocal;
   creaLocalCore: typeof creaLocalCore;
   creaNight: typeof creaNight;

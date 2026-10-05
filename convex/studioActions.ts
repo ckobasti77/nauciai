@@ -11,6 +11,7 @@ import {
   MEDIA_TAIL_BYTES,
   readMediaDuration,
 } from "../lib/media-duration";
+import { isLayerizeJob, mockLayerDataUrls } from "./creaLayersCore";
 import { submitBytePlusJob } from "./providers/byteplus";
 import { falInputFields, falMapOf, falParams, resolveEndpointTier } from "./providers/falInputs";
 import { parseDataUrl } from "../lib/data-url";
@@ -218,10 +219,16 @@ export const completeMockJob = internalAction({
     if (!job || job.status !== "running" || !job.falRequestId?.startsWith(MOCK_REQUEST_PREFIX)) return null;
 
     if (mockJobSucceeds(args.jobId)) {
+      const params = parseParams(job.params) ?? {};
+      // DEMO razlaganje (K12): providni slojevi umesto jednog plakata, da editor slojeva radi i bez ključa.
+      const layers = isLayerizeJob(job)
+        ? mockLayerDataUrls(extractPrompt(params), job.promptHash, typeof params.layers === "number" ? params.layers : 2)
+        : null;
       await ctx.runMutation(internal.falWebhook.applyWebhookResult, {
         falRequestId: job.falRequestId,
         status: "OK",
-        outputUrl: mockOutputDataUrl(extractPrompt(parseParams(job.params) ?? {}), job.promptHash, job.kind),
+        outputUrl: layers ? layers[0]! : mockOutputDataUrl(extractPrompt(params), job.promptHash, job.kind),
+        ...(layers ? { extraOutputUrls: layers.slice(1) } : {}),
       });
     } else {
       await ctx.runMutation(internal.falWebhook.applyWebhookResult, {
@@ -287,6 +294,11 @@ export const persistOutput = internalAction({
         byteSize: blob.size,
       });
       if (!stored) await ctx.storage.delete(storageId);
+      // Ostali izlazi istog poziva (K12, slojevi): zasebna akcija posle glavnog, i samo
+      // prvi put - ponovljen `persistOutput` izlazi gore jer glavni već ima fajl.
+      if (stored && (job.extraOutputUrls?.length ?? 0) > 0) {
+        await ctx.scheduler.runAfter(0, internal.studioActions.persistExtraOutputs, { jobId: args.jobId });
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       await ctx.runMutation(internal.studio.markOutputFailed, {
@@ -298,6 +310,48 @@ export const persistOutput = internalAction({
     return null;
   },
 });
+
+/**
+ * Dodatni izlazi (K12, plan K01 §6.8): svaki se preuzme i upiše kao zaseban rad,
+ * dete glavnog posla (`creaLayers.insertExtraOutput`, idempotentno po broju sloja).
+ * Zasebna akcija, zakazana tek kad je glavni izlaz sačuvan: glavni rad se isporučuje
+ * bez čekanja na slojeve, a izlaz koji ne stigne se preskače i ne obara ostale.
+ */
+export const persistExtraOutputs = internalAction({
+  args: { jobId: v.id("generationJobs") },
+  handler: async (ctx, args) => {
+    const job = await ctx.runQuery(internal.studioActions.getJobForSubmit, { jobId: args.jobId });
+    if (!job || job.status !== "done" || !job.outputStorageId) return null;
+    await persistExtraOutputUrls(ctx, args.jobId, job.extraOutputUrls ?? []);
+    return null;
+  },
+});
+
+async function persistExtraOutputUrls(ctx: ActionCtx, jobId: Id<"generationJobs">, urls: readonly string[]): Promise<void> {
+  for (const [index, url] of urls.entries()) {
+    try {
+      const inline = parseDataUrl(url);
+      const blob = inline
+        ? new Blob([inline.bytes as BlobPart], { type: inline.mimeType })
+        : await (async () => {
+            const response = await fetch(url, { headers: googleDownloadHeaders(url, process.env.GOOGLE_AI_API_KEY) });
+            if (!response.ok) throw new Error(`Provajder je vratio ${response.status} pri preuzimanju sloja.`);
+            return response.blob();
+          })();
+      const storageId = await ctx.storage.store(blob);
+      const inserted = await ctx.runMutation(internal.creaLayers.insertExtraOutput, {
+        parentJobId: jobId,
+        layerNumber: index + 2,
+        storageId,
+        ...(blob.type ? { mimeType: blob.type } : {}),
+        byteSize: blob.size,
+      });
+      if (!inserted) await ctx.storage.delete(storageId);
+    } catch (error) {
+      console.warn(`Sloj ${index + 2} posla ${jobId} nije sačuvan: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+}
 
 /**
  * Trajanje okačenog snimka, izmereno na SERVERU (W5, nalaz R3).

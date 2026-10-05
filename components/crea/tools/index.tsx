@@ -39,6 +39,13 @@ const EraseTool = dynamic(() => import("./erase-tool"), { ssr: false, loading: T
 const BackgroundTool = dynamic(() => import("./background-tool"), { ssr: false, loading: ToolLoading });
 const UpscaleTool = dynamic(() => import("./upscale-tool"), { ssr: false, loading: ToolLoading });
 const ColorTool = dynamic(() => import("./color-tool"), { ssr: false, loading: ToolLoading });
+const ReframeTool = dynamic(() => import("./reframe-tool"), { ssr: false, loading: ToolLoading });
+const RelightTool = dynamic(() => import("./relight-tool"), { ssr: false, loading: ToolLoading });
+const AnglesTool = dynamic(() => import("./angles-tool"), { ssr: false, loading: ToolLoading });
+const LayersTool = dynamic(() => import("./layers-tool"), { ssr: false, loading: ToolLoading });
+const TextLayerTool = dynamic(() => import("./text-layer-tool"), { ssr: false, loading: ToolLoading });
+const RetouchTool = dynamic(() => import("./retouch-tool"), { ssr: false, loading: ToolLoading });
+const ProductTool = dynamic(() => import("./product-tool"), { ssr: false, loading: ToolLoading });
 
 export const CREA_TOOL_COMPONENTS: Readonly<Record<string, ComponentType<CreaToolProps>>> = {
   "slika.format": FormatTool,
@@ -59,4 +66,11 @@ export const CREA_TOOL_COMPONENTS: Readonly<Record<string, ComponentType<CreaToo
   "slika.pozadina": BackgroundTool,
   "slika.uvecaj": UpscaleTool,
   "slika.boje": ColorTool,
+  "slika.prosiri": ReframeTool,
+  "slika.svetlo": RelightTool,
+  "slika.uglovi": AnglesTool,
+  "slika.slojevi": LayersTool,
+  "slika.tekst": TextLayerTool,
+  "slika.retus": RetouchTool,
+  "slika.odeca": ProductTool,
 };

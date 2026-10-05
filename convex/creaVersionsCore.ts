@@ -16,6 +16,8 @@ export const CREA_DERIVATIONS = [
   "varijacija",
   "regeneracija",
   "montaza",
+  // K12: sloj iz razlaganja (Seedream 5 Pro „layerize") - dete glavnog izlaza.
+  "sloj",
 ] as const;
 export type CreaDerivation = (typeof CREA_DERIVATIONS)[number];
 

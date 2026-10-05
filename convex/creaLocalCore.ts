@@ -4,7 +4,7 @@
  * nad brojevima iz `_storage` i baze - nikad nad onim što je klijent rekao.
  */
 
-import { isLocalTier, toolById, type CreaMediaKind } from "../lib/crea-tools";
+import { savesLocalResults, toolById, type CreaMediaKind } from "../lib/crea-tools";
 
 export type LocalResultKind = CreaMediaKind;
 
@@ -42,10 +42,15 @@ export type LocalRejectReason =
   | "PROJEKAT_NIJE_DOSTUPAN"
   | "IZVOR_NIJE_DOSTUPAN";
 
-/** Alat postoji, gotov je, radi lokalno, čuva u galeriju i pravi baš ovu vrstu medija. */
+/**
+ * Alat postoji, gotov je, radi lokalno (ili ima besplatan korak na uređaju,
+ * `localSave`, K12), čuva u galeriju i pravi baš ovu vrstu medija. Alat sa
+ * izlazom „images" (9 uglova, slojevi) čuva sliku po sliku.
+ */
 export function localToolProblem(toolId: string, kind: LocalResultKind): "NEPOZNAT_ALAT" | null {
   const tool = toolById(toolId);
-  if (!tool || tool.status !== "ready" || !isLocalTier(tool.tier) || !tool.savesToGallery || tool.output !== kind) {
+  const output = tool?.output === "images" ? "image" : tool?.output;
+  if (!tool || tool.status !== "ready" || !savesLocalResults(tool) || !tool.savesToGallery || output !== kind) {
     return "NEPOZNAT_ALAT";
   }
   return null;

@@ -11,8 +11,10 @@ import {
   Copy,
   Download,
   FlaskConical,
+  Grid3x3,
   Heart,
   History,
+  Layers,
   Music,
   Pause,
   Play,
@@ -42,6 +44,7 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { CREA_PICK_COPY, CREA_TOOL_COPY, CREA_VERSION_COPY, fillCopy } from "@/lib/crea-copy";
 import { buildRefineOrder, orderCredits, refinePairForJob, type RefineOrder } from "@/lib/crea-draft";
 import { toolOfJob } from "@/lib/crea-tools";
+import { isAnglesGridPrompt } from "@/lib/crea-grid-crop";
 import { toolsForWork, versionInputTarget, type VersionIntent } from "@/lib/crea-versions";
 import type { Locale } from "@/lib/i18n";
 import { isExpiredOutput, jobPrompt, jobStatusText } from "@/lib/studio-form";
@@ -239,6 +242,15 @@ export function StudioMediaDetail({
   const inputTarget = isDone ? versionInputTarget(catalog, job.kind, "input") : null;
   const animateTarget = isDone && job.kind === "image" ? versionInputTarget(catalog, job.kind, "animate") : null;
   const workTools = isDone ? toolsForWork(job.kind) : [];
+  // K12: razlaganje se otvara u editoru slojeva, mreža 3×3 se seče u 9 uglova - i DEMO rad, da se vidi tok.
+  const followUpTool =
+    job.status === "done" && hasOutput && !isExpired && job.kind === "image"
+      ? job.inputMode === "layerize"
+        ? "slika.slojevi"
+        : isAnglesGridPrompt(jobPrompt(job.params))
+          ? "slika.uglovi"
+          : null
+      : null;
 
   // Indeks u listi za levo/desno navigaciju
   const currentIndex = jobs.findIndex((j) => j._id === job._id);
@@ -1001,8 +1013,22 @@ export function StudioMediaDetail({
             </div>
 
             {/* Izlaz kao ulaz (K05): u composer, u video ili u besplatan alat; „Usavrši" probu (K07) */}
-            {inputTarget || animateTarget || workTools.length > 0 || (canRefine && refineCredits !== null) ? (
+            {inputTarget || animateTarget || workTools.length > 0 || followUpTool || (canRefine && refineCredits !== null) ? (
               <div className="mt-4 space-y-2 border-t-2 border-ink/15 pt-3">
+                {followUpTool ? (
+                  <button
+                    type="button"
+                    onClick={() => onOpenTool(job, followUpTool)}
+                    className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow py-2 text-xs font-black text-ink shadow-[3px_3px_0_0_var(--ink)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                  >
+                    {followUpTool === "slika.slojevi" ? (
+                      <Layers aria-hidden="true" className="size-3.5" />
+                    ) : (
+                      <Grid3x3 aria-hidden="true" className="size-3.5" />
+                    )}
+                    <span>{followUpTool === "slika.slojevi" ? vc.openLayers[locale] : vc.cutAngles[locale]}</span>
+                  </button>
+                ) : null}
                 {canRefine && refineOrder && refineModel && refineCredits !== null ? (
                   <button
                     type="button"

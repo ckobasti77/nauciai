@@ -20,6 +20,16 @@ import { buildParams, creditsFor, formatCredits, paramValuesForMode } from "@/li
 /** Fajlovi koje ruta šalje (redosled je bitan) i veličina slike, za odnos stranica. */
 export type PaidEditFiles = { files: Record<string, Blob[]>; width: number; height: number };
 
+/**
+ * K12: alat sam sastavlja parametre posla (opis svetla, mreža uglova, proširenje…).
+ * `text` je ono što je korisnik dopisao u polje (može biti prazno), `size` veličina
+ * pripremljene slike; cena na dugmetu zove istu funkciju sa `size` 1 × 1.
+ */
+export type PaidEditRequest = (route: CreaPaidRoute, text: string, size: { width: number; height: number }) => Record<string, string | number>;
+
+/** Polje za opis u plaćenoj izmeni: natpis, primer i da li bez njega dugme ostaje zaključano. */
+export type PaidEditTextField = { label: string; placeholder: string; required: boolean };
+
 type Status = { name: "idle" } | { name: "working"; step: "preparing" | "uploading" } | { name: "sent" } | { name: "error"; message: string };
 
 const MASK_QUALITIES = ["very_low", "low", "medium", "high"] as const;
@@ -42,6 +52,11 @@ export function PaidEditPanel({
   projectId,
   canSubmit,
   paid,
+  request,
+  textField,
+  label: labelOverride,
+  unavailableText,
+  onSent,
 }: {
   locale: Locale;
   routes: readonly CreaPaidRoute[];
@@ -55,6 +70,16 @@ export function PaidEditPanel({
   /** `hasStudioAccess`; bez njega se plaćena izmena ne nudi. */
   canSubmit: boolean;
   paid: CreaPaidContext | null;
+  /** K12: parametri posla iz alata umesto `paidEditPrompt`/`paidEditParams`. */
+  request?: PaidEditRequest;
+  /** Polje za opis; podrazumevano po `purpose`. `null` = bez polja. */
+  textField?: PaidEditTextField | null;
+  /** Natpis dugmeta; podrazumevano po `purpose`. */
+  label?: string;
+  /** Rečenica kad nijedna ruta nije dostupna (npr. „stiže uskoro"). */
+  unavailableText?: string;
+  /** Posao je napravljen - alat može da prati njegov status (npr. mreža uglova, slojevi). */
+  onSent?: (jobId: Id<"generationJobs">) => void;
 }) {
   const createJob = useMutation(api.studio.createJob);
   const upload = useSlotUpload();
@@ -77,10 +102,19 @@ export function PaidEditPanel({
 
   const [routeSlug, setRouteSlug] = useState<string | null>(null);
   const picked = available.find((entry) => entry.route.modelSlug === routeSlug) ?? available[0] ?? null;
-  const needsText = purpose !== "erase";
+  const field: PaidEditTextField | null =
+    textField !== undefined
+      ? textField
+      : purpose === "erase"
+        ? null
+        : purpose === "scene"
+          ? { label: T.scenePromptLabel[locale], placeholder: T.scenePromptPlaceholder[locale], required: true }
+          : { label: T.promptLabel[locale], placeholder: T.promptPlaceholder[locale], required: true };
 
   function priceOf(entry: { route: CreaPaidRoute; model: StudioModel }, withQuality = quality): number | null {
-    const raw = paidEditParams(entry.route, { prompt: "x", quality: withQuality, width: 1, height: 1 });
+    const raw = request
+      ? request(entry.route, "x", { width: 1, height: 1 })
+      : paidEditParams(entry.route, { prompt: "x", quality: withQuality, width: 1, height: 1 });
     const params = buildParams(
       entry.model.paramSpec,
       { ...paramValuesForMode(entry.model.paramSpec, entry.route.inputMode), ...raw },
@@ -92,8 +126,10 @@ export function PaidEditPanel({
   const credits = picked ? priceOf(picked) : null;
   const blocker = !ready
     ? notReadyReason
-    : needsText && text.trim().length === 0
-      ? (purpose === "scene" ? T.needScene : T.needPrompt)[locale]
+    : field?.required && text.trim().length === 0
+      ? textField
+        ? T.needText[locale]
+        : (purpose === "scene" ? T.needScene : T.needPrompt)[locale]
       : null;
   const busy = status.name === "working";
 
@@ -115,8 +151,14 @@ export function PaidEditPanel({
           inputs[slot].push(uploaded.storageId);
         }
       }
-      const prompt = paidEditPrompt(picked.route, purpose, text, locale);
-      const params = paidEditParams(picked.route, { prompt, quality, width: prepared.width, height: prepared.height });
+      const params = request
+        ? request(picked.route, text, { width: prepared.width, height: prepared.height })
+        : paidEditParams(picked.route, {
+            prompt: paidEditPrompt(picked.route, purpose, text, locale),
+            quality,
+            width: prepared.width,
+            height: prepared.height,
+          });
       const result = await createJob({
         modelSlug: picked.route.modelSlug,
         params: JSON.stringify(params),
@@ -130,6 +172,7 @@ export function PaidEditPanel({
         return;
       }
       setStatus({ name: "sent" });
+      if (typeof result === "string") onSent?.(result);
     } catch (error) {
       setStatus({ name: "error", message: studioErrorMessage(error instanceof Error ? error.message : String(error), locale) });
     }
@@ -137,10 +180,10 @@ export function PaidEditPanel({
 
   if (!canSubmit) return <p className="type-body-sm font-semibold text-muted">{T.noAccess[locale]}</p>;
   if (paid !== null && available.length === 0) {
-    return <p className="type-body-sm font-semibold text-muted">{T.unavailable[locale]}</p>;
+    return <p className="type-body-sm font-semibold text-muted">{unavailableText ?? T.unavailable[locale]}</p>;
   }
 
-  const label = purpose === "erase" ? T.erase[locale] : purpose === "scene" ? T.scene[locale] : T.edit[locale];
+  const label = labelOverride ?? (purpose === "erase" ? T.erase[locale] : purpose === "scene" ? T.scene[locale] : T.edit[locale]);
 
   return (
     <div className="space-y-4">
@@ -152,7 +195,7 @@ export function PaidEditPanel({
             const price = priceOf(entry);
             return {
               id: entry.route.modelSlug,
-              label: T.routes[entry.route.kind][locale],
+              label: entry.route.label?.[locale] ?? T.routes[entry.route.kind][locale],
               ...(price !== null ? { hint: formatCredits(price, locale) } : {}),
             };
           })}
@@ -176,18 +219,16 @@ export function PaidEditPanel({
         />
       ) : null}
 
-      {needsText ? (
+      {field ? (
         <label className="block">
-          <span className="type-body-sm font-black text-ink">
-            {purpose === "scene" ? T.scenePromptLabel[locale] : T.promptLabel[locale]}
-          </span>
+          <span className="type-body-sm font-black text-ink">{field.label}</span>
           <textarea
             value={text}
             onChange={(event) => setText(event.target.value)}
             rows={2}
             maxLength={1500}
             disabled={busy}
-            placeholder={purpose === "scene" ? T.scenePromptPlaceholder[locale] : T.promptPlaceholder[locale]}
+            placeholder={field.placeholder}
             className="surface-inset mt-2 block w-full resize-y border-2 border-ink bg-paper px-3 py-2 type-body font-semibold text-ink placeholder:text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-60"
           />
         </label>

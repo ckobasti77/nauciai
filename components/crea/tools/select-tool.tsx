@@ -21,9 +21,10 @@ type SelectExtra = { width: number; height: number; transparent: boolean };
 
 /**
  * Izabran predmet u punoj veličini: „izdvoji" = samo predmet na providnom,
- * isečen oko predmeta; „boja" = predmet u boji, ostatak crno-beo.
+ * isečen oko predmeta; „boja" = predmet u boji, ostatak crno-beo. Koristi ga i
+ * „Odeća i proizvodi" (K12) za isečak proizvoda.
  */
-async function makeSelection(
+export async function makeSelection(
   work: WorkImage,
   file: File,
   maskCanvas: HTMLCanvasElement,

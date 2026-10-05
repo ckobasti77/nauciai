@@ -1602,6 +1602,10 @@ export default defineSchema({
     // fal URL iz webhook-a; kratko živi kod fal-a, pa ga `persistOutput`
     // preuzima u Convex storage (`outputStorageId`) čim posao stigne.
     falOutputUrl: v.optional(v.string()),
+    // Ostali izlazi istog poziva (Crea K12, plan K01 §6.8): slojevi Seedream-a 5
+    // Pro („layerize") posle prvog. `persistOutput` svaki upiše kao zaseban rad
+    // sa ovim poslom kao roditeljem (`creaLayers.insertExtraOutput`).
+    extraOutputUrls: v.optional(v.array(v.string())),
     outputStorageId: v.optional(v.id("_storage")),
     // Veličina izlaza u bajtovima, iz `_storage` u trenutku upisa. Za sada je pišu
     // samo lokalni rezultati (K04): od nje živi dnevni limit prostora po korisniku.

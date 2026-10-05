@@ -75,6 +75,11 @@ function readString(source: unknown, key: string): string | null {
  */
 export type BytePlusImageResult = {
   url: string;
+  /**
+   * Ostali izlazi istog odgovora (Crea K12): slojevi „layerize" posle prvog.
+   * `persistOutput` ih čuva kao zasebne radove (dete prvog izlaza).
+   */
+  extraUrls: string[];
   usage: TokenUsage | null;
   /**
    * Sirov odgovor, i to SAMO kad potrosnja iz njega nije procitana (X3, tacka 4).
@@ -86,9 +91,9 @@ export type BytePlusImageResult = {
 
 /**
  * Slike: `POST /images/generations`, OpenAI-kompatibilan oblik, odgovor je
- * `{ data: [{ url }] }`. Uzima se PRVI izlaz - `persistOutput` u ovoj fazi
- * čuva jedan fajl po poslu, pa bi ostali URL-ovi bili obećanje koje galerija
- * ne ume da ispuni.
+ * `{ data: [{ url }] }`. PRVI izlaz je izlaz posla; ostali (slojevi
+ * „layerize", K12) idu u `extraUrls` - oblik sa više slojeva nije potvrđen
+ * protiv živog API-ja (strana se ne čita bez JS-a), pa se čita isto kao `n` slika.
  */
 export async function generateBytePlusImage(params: {
   config: BytePlusConfig;
@@ -101,12 +106,13 @@ export async function generateBytePlusImage(params: {
   });
 
   const list = (data as { data?: unknown })?.data;
-  const url = Array.isArray(list) ? readString(list[0], "url") : null;
+  const urls = Array.isArray(list) ? list.map((entry) => readString(entry, "url")).filter((entry): entry is string => entry !== null) : [];
+  const [url, ...extraUrls] = urls;
   if (!url) throw new Error("BytePlus je vratio odgovor bez URL-a slike.");
 
   const usage = readTokenUsage(data);
 
-  return { url, usage, sample: usage === null ? sampleJson(data) : null };
+  return { url, extraUrls, usage, sample: usage === null ? sampleJson(data) : null };
 }
 
 export type BytePlusTaskStatus = "queued" | "running" | "succeeded" | "failed" | "cancelled";

@@ -12,6 +12,7 @@ import {
   type QueryCtx,
 } from "./_generated/server";
 import { requestHash } from "./creaCacheCore";
+import { capExtraOutputUrls } from "./creaLayersCore";
 import { inheritedSeed, seedFromUnit, seedParamOf } from "./creaDraftCore";
 import { CREA_FLAG_KEYS, readCreaFlag } from "./creaFlags";
 import {
@@ -1124,16 +1125,20 @@ export const markJobDone = internalMutation({
     jobId: v.id("generationJobs"),
     outputUrl: v.string(),
     providerRequestId: v.optional(v.string()),
+    // Ostali izlazi istog poziva (K12: slojevi „layerize"); `persistOutput` ih čuva kao decu.
+    extraOutputUrls: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
     const job = await ctx.db.get(args.jobId);
     if (!job || job.status !== "reserved") return false;
 
+    const extraOutputUrls = capExtraOutputUrls(args.extraOutputUrls);
     await ctx.db.patch(args.jobId, {
       status: "done",
       falOutputUrl: args.outputUrl,
       completedAt: Date.now(),
       ...(args.providerRequestId ? { providerRequestId: args.providerRequestId } : {}),
+      ...(extraOutputUrls.length > 0 ? { extraOutputUrls } : {}),
     });
     // Skidanje fajla ide u zakazanu akciju, kao i kod webhook puta - akcija
     // koja je upravo pričala sa provajderom ne sme da čeka i na preuzimanje.

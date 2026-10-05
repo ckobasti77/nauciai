@@ -2,6 +2,7 @@ import { v } from "convex/values";
 
 import { internal } from "./_generated/api";
 import { httpAction, internalMutation } from "./_generated/server";
+import { capExtraOutputUrls } from "./creaLayersCore";
 import {
   base64UrlToBytes,
   bytesToHex,
@@ -154,6 +155,8 @@ export const applyWebhookResult = internalMutation({
     error: v.optional(v.string()),
     // Trajanje izlaza koje je fal prijavio (X2) - ulaz u poravnanje.
     reportedSeconds: v.optional(v.number()),
+    // Ostali izlazi (K12): za sada ih šalje samo DEMO „layerize" (`completeMockJob`).
+    extraOutputUrls: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
     const job = await ctx.db
@@ -174,10 +177,12 @@ export const applyWebhookResult = internalMutation({
       return null;
     }
 
+    const extraOutputUrls = capExtraOutputUrls(args.extraOutputUrls);
     await ctx.db.patch(job._id, {
       status: "done",
       falOutputUrl: args.outputUrl,
       completedAt: Date.now(),
+      ...(extraOutputUrls.length > 0 ? { extraOutputUrls } : {}),
     });
     // fal u odgovoru NEMA cenu - donosi je noćna rekonsilijacija. Do tada posao
     // nosi razlog umesto praznog polja (X3, tačka 3): "još nije stiglo" i "ovaj

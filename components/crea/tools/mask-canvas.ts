@@ -125,6 +125,18 @@ export async function prepareMaskEdit(work: WorkImage, maskCanvas: HTMLCanvasEle
   return { files: { image: [image, await zoneBlob(canvas, mask)] }, width: canvas.width, height: canvas.height };
 }
 
+/**
+ * Fotka kakva ide provajderu bez maske (K12: svetlo, uglovi, restauracija, proba
+ * odeće): ≤ 2048 px, JPG (PNG kad može da bude providna).
+ */
+export async function providerPhoto(file: Blob): Promise<{ blob: Blob; width: number; height: number }> {
+  const bitmap = await decodeImage(file);
+  const { canvas } = renderSized(bitmap, PROVIDER_MAX_SIDE);
+  bitmap.close();
+  const type = outputTypeFor(file);
+  return { blob: await canvasToBlob(canvas, type, 0.92), width: canvas.width, height: canvas.height };
+}
+
 /** Radna slika (puna + ≤ 1536 px) za izabran fajl; stara se zatvara. */
 export function useWorkImage(file: File | null) {
   const [work, setWork] = useState<WorkImage | null>(null);
