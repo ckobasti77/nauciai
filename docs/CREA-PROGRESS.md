@@ -196,3 +196,6 @@ U detalju rada: panel „Istorija" dobija „Verzije" (sličice od korena kroz s
 - „Produži ili animiraj" (zvezdica na kartici) za sliku sada vodi u Video · Napravi sa slikom kao ulazom.
 - Na DEMO (mock) radovima (modeli bez ključa) „Koristi kao ulaz“ i pre/posle se ne nude — mock izlaz je SVG. Za probu uzmi rad Google modela (ključ postoji) ili rezultat besplatnog alata.
 - Dev deployment već ima nova polja, indeks i modul `creaVersions` (codegen).
+
+## K06 - Plan: katalog, Auto, cene v2, noćna tura   (2026-10-05 04:06)
+**Plan korak.** Plan je upisan u `docs/crea/planovi/K06.md`. Nije menjan kod.
