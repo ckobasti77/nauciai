@@ -9,7 +9,7 @@ import { Spinner } from "@/components/ui/spinner";
 /**
  * Granica bundle-a za alate Cree (plan K01 §9): svaki alat je svoj async chunk,
  * a teške biblioteke (MediaPipe, jSquash, exifr, pica, tesseract.js, vectortracer,
- * heic-to...) se uvoze tek unutar njega -
+ * heic-to, Konva, ONNX Runtime, three.js, mediabunny...) se uvoze tek unutar njega -
  * ništa od toga ne ulazi u radionicu ni u zajednički bundle. Next traži da
  * putanja u `import()` bude doslovna, pa po jedan `dynamic` za svaki alat.
  */
@@ -30,6 +30,9 @@ const QrTool = dynamic(() => import("./qr-tool"), { ssr: false, loading: ToolLoa
 const VectorTool = dynamic(() => import("./vector-tool"), { ssr: false, loading: ToolLoading });
 const GifTool = dynamic(() => import("./gif-tool"), { ssr: false, loading: ToolLoading });
 const OcrTool = dynamic(() => import("./ocr-tool"), { ssr: false, loading: ToolLoading });
+const EditorTool = dynamic(() => import("./editor-tool"), { ssr: false, loading: ToolLoading });
+const TemplatesTool = dynamic(() => import("./templates-tool"), { ssr: false, loading: ToolLoading });
+const Photo3dTool = dynamic(() => import("./photo-3d-tool"), { ssr: false, loading: ToolLoading });
 
 export const CREA_TOOL_COMPONENTS: Readonly<Record<string, ComponentType<CreaToolProps>>> = {
   "slika.format": FormatTool,
@@ -41,4 +44,7 @@ export const CREA_TOOL_COMPONENTS: Readonly<Record<string, ComponentType<CreaToo
   "slika.vektor": VectorTool,
   "slika.gif": GifTool,
   "slika.ocr": OcrTool,
+  "slika.editor": EditorTool,
+  "slika.sabloni": TemplatesTool,
+  "slika.3d-foto": Photo3dTool,
 };

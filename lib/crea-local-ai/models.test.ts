@@ -18,6 +18,8 @@ import {
   MEDIAPIPE_VISION_VERSION,
   MEDIAPIPE_WASM_BASE,
   modelFileUrl,
+  ONNX_RUNTIME_WEB_VERSION,
+  ORT_WASM_URL,
   modelWeightBytes,
   type CreaLocalModelId,
 } from "./models";
@@ -90,6 +92,13 @@ describe("registar lokalnih modela", () => {
     expect(MEDIAPIPE_WASM_BASE).toBe(`https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${pkg.version}/wasm`);
   });
 
+  test("ONNX Runtime WASM sa CDN-a je ista verzija kao instaliran paket (K10)", () => {
+    const pkg = JSON.parse(readFileSync("node_modules/onnxruntime-web/package.json", "utf8")) as { version: string };
+    expect(pkg.version).toBe(ONNX_RUNTIME_WEB_VERSION);
+    expect(ORT_WASM_URL).toBe(`https://cdn.jsdelivr.net/npm/onnxruntime-web@${pkg.version}/dist/ort-wasm-simd-threaded.wasm`);
+    expect(Object.keys(CREA_LOCAL_RUNTIMES.onnx.files ?? {})).toEqual([ORT_WASM_URL]);
+  });
+
   test("veličina preuzimanja = težine + svaki runtime jednom", () => {
     const face = CREA_LOCAL_MODELS["mp-face-detector"].bytes;
     const runtime = CREA_LOCAL_RUNTIMES["mediapipe-vision"].bytes;
@@ -106,5 +115,9 @@ describe("registar lokalnih modela", () => {
   test("URL fajla postoji za CDN izvore", () => {
     expect(modelFileUrl("mp-face-detector")).toMatch(/blaze_face_short_range\.tflite$/);
     expect(modelFileUrl("birefnet-lite")).toBeNull();
+    // HF samo sa zakucanom revizijom (K10, 3D foto).
+    expect(modelFileUrl("depth-anything-v2-small")).toBe(
+      "https://huggingface.co/onnx-community/depth-anything-v2-small/resolve/4472b7362082ad9968fee890ca0f1e5aca36b93d/onnx/model_quantized.onnx",
+    );
   });
 });

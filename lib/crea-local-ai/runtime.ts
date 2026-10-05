@@ -3,7 +3,7 @@ import type { Worker as TesseractWorker } from "tesseract.js";
 
 import { fetchModelFile } from "./cache";
 import { CreaLocalAiError, toLocalAiError } from "./errors";
-import { CREA_LOCAL_MODELS, CREA_LOCAL_RUNTIMES, MEDIAPIPE_WASM_BASE, modelFileUrl } from "./models";
+import { CREA_LOCAL_MODELS, CREA_LOCAL_RUNTIMES, MEDIAPIPE_WASM_BASE, modelFileUrl, ORT_WASM_URL } from "./models";
 import { aggregateProgress, type AggregateProgress, type FileProgress } from "./progress";
 
 /**
@@ -179,5 +179,65 @@ export async function loadOcrWorker(languages: readonly OcrLanguage[], options: 
     throw toLocalAiError(error, options.signal?.aborted ? "ABORTED" : "MODEL_LOAD_FAILED");
   } finally {
     options.signal?.removeEventListener("abort", onAbort);
+  }
+}
+
+// ── Dubina fotke (S33, K10) ─────────────────────────────────────────────────
+
+type OrtModule = typeof import("onnxruntime-web/wasm");
+export type DepthSession = { ort: OrtModule; session: import("onnxruntime-web/wasm").InferenceSession };
+
+let depthSession: Promise<DepthSession> | null = null;
+
+/**
+ * Depth Anything V2 Small (Apache-2.0, ~27 MB, kvantizovan) na ONNX Runtime
+ * WASM-u, jedna nit (bez COOP/COEP, K01-5). I WASM runtime-a i model idu kroz
+ * naš keš (napredak, odustajanje, drugi put bez interneta), pa se ORT-u daje
+ * gotov bajt-niz (`wasmBinary`) - ne vuče ništa sam. Sesija se pravi jednom po strani.
+ */
+export async function loadDepthSession(options: LocalLoadOptions = {}): Promise<DepthSession> {
+  if (depthSession) return depthSession;
+  const track = progressTracker(options.onProgress);
+  const spec = CREA_LOCAL_MODELS["depth-anything-v2-small"];
+  const modelUrl = modelFileUrl("depth-anything-v2-small");
+  if (!modelUrl) throw new CreaLocalAiError("MODEL_LOAD_FAILED");
+
+  const attempt = (async () => {
+    const [ort, wasm, model] = await Promise.all([
+      import("onnxruntime-web/wasm").catch((error: unknown) => {
+        throw toLocalAiError(error, "MODEL_LOAD_FAILED");
+      }),
+      fetchModelFile(ORT_WASM_URL, {
+        signal: options.signal,
+        expectedBytes: CREA_LOCAL_RUNTIMES.onnx.bytes,
+        onProgress: track("wasm", { loaded: 0, total: CREA_LOCAL_RUNTIMES.onnx.bytes }),
+      }),
+      fetchModelFile(modelUrl, {
+        signal: options.signal,
+        expectedBytes: spec.bytes,
+        onProgress: track("model", { loaded: 0, total: spec.bytes }),
+      }),
+    ]);
+    if (options.signal?.aborted) throw new CreaLocalAiError("ABORTED");
+    ort.env.wasm.wasmBinary = await wasm.arrayBuffer();
+    ort.env.wasm.numThreads = 1;
+    ort.env.wasm.proxy = false;
+    try {
+      const session = await ort.InferenceSession.create(new Uint8Array(await model.arrayBuffer()), {
+        executionProviders: ["wasm"],
+        graphOptimizationLevel: "all",
+      });
+      return { ort, session };
+    } catch (error) {
+      throw new CreaLocalAiError("MODEL_LOAD_FAILED", error);
+    }
+  })();
+
+  depthSession = attempt;
+  try {
+    return await attempt;
+  } catch (error) {
+    depthSession = null;
+    throw toLocalAiError(error, "MODEL_LOAD_FAILED");
   }
 }

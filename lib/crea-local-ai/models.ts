@@ -50,6 +50,15 @@ export const MEDIAPIPE_VISION_VERSION = "1.0.1";
 export const MEDIAPIPE_WASM_BASE = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MEDIAPIPE_VISION_VERSION}/wasm`;
 
 /**
+ * Verzija `onnxruntime-web` iz `package.json` (K10, 3D foto). JS (`onnxruntime-web/wasm`,
+ * sa ugrađenim Emscripten omotačem) je u našem async chunk-u, a WASM ide sa jsdelivr-a
+ * kroz naš keš - zato verzije moraju da se poklope (proverava `models.test.ts`).
+ * Samo WASM (jedna nit, bez COOP/COEP, K01-5); WebGPU izdanje se ne vuče.
+ */
+export const ONNX_RUNTIME_WEB_VERSION = "1.30.0";
+export const ORT_WASM_URL = `https://cdn.jsdelivr.net/npm/onnxruntime-web@${ONNX_RUNTIME_WEB_VERSION}/dist/ort-wasm-simd-threaded.wasm`;
+
+/**
  * Runtime-i koji se preuzimaju jednom i dele između modela. Ulaze u veličinu
  * preuzimanja (potvrda pre preuzimanja, traka napretka), ali NE u budžet modela
  * po klasi uređaja - budžet meri težine, a runtime je isti za mali i veliki model.
@@ -68,7 +77,8 @@ export const CREA_LOCAL_RUNTIMES: Record<
     },
   },
   transformers: { bytes: 21 * MB, license: "Apache-2.0" },
-  onnx: { bytes: 10 * MB, license: "MIT" },
+  // Izmereno (K10): `ort-wasm-simd-threaded.wasm` iz onnxruntime-web 1.30.0.
+  onnx: { bytes: 14_239_897, license: "MIT", files: { [ORT_WASM_URL]: 14_239_897 } },
   // tesseract.js sam vuče worker (111 307 B) i jezgro sa SIMD-om (3 899 472 B) sa jsdelivr-a,
   // zakucano na verziju paketa (`tesseract.js@v7.0.0`, `tesseract.js-core@v7.0.0`).
   tesseract: { bytes: 4_010_779, license: "Apache-2.0" },
@@ -142,9 +152,15 @@ export const CREA_LOCAL_MODELS = {
     featureIds: ["S16"],
   },
   "depth-anything-v2-small": {
-    runtime: "transformers",
-    source: { host: "huggingface", repo: "onnx-community/depth-anything-v2-small", files: ["onnx/model_quantized.onnx"] },
-    bytes: 27 * MB,
+    // K10: kroz `onnxruntime-web` direktno (pretprocesiranje je u `lib/crea-photo3d.ts`), ne kroz transformers.js.
+    runtime: "onnx",
+    source: {
+      host: "huggingface",
+      repo: "onnx-community/depth-anything-v2-small",
+      revision: "4472b7362082ad9968fee890ca0f1e5aca36b93d",
+      files: ["onnx/model_quantized.onnx"],
+    },
+    bytes: 27_258_801,
     license: "Apache-2.0",
     minClass: "desktop",
     featureIds: ["S33"],
@@ -242,8 +258,13 @@ export function downloadBytes(ids: readonly CreaLocalModelId[]): number {
   return total;
 }
 
-/** URL fajla modela koji se preuzima (samo za izvore sa jednim fajlom). */
+/**
+ * URL fajla modela koji se preuzima - samo za izvore sa jednim fajlom. Hugging
+ * Face model mora da ima zakucanu reviziju (`resolve/<commit>`), inače `null`.
+ */
 export function modelFileUrl(id: CreaLocalModelId): string | null {
   const source: CreaModelSource = CREA_LOCAL_MODELS[id].source;
-  return source.host === "huggingface" ? null : source.url;
+  if (source.host !== "huggingface") return source.url;
+  if (!source.revision || source.files.length !== 1) return null;
+  return `https://huggingface.co/${source.repo}/resolve/${source.revision}/${source.files[0]}`;
 }

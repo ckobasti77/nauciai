@@ -32,7 +32,8 @@ const MARKERS = [
   { pkg: "exifr", marker: "makerNote" },
   { pkg: "react-compare-slider", marker: "--rcs-current-position" },
   { pkg: "@huggingface/transformers", marker: "allowLocalModels" },
-  { pkg: "onnxruntime-web", marker: "ort-wasm" },
+  // Ne „ort-wasm": adresa WASM-a je u registru modela (početni chunk radionice), a ne u kodu ORT-a.
+  { pkg: "onnxruntime-web", marker: "OrtCreateSession" },
   // tesseract.js vuče worker i jezgro sa CDN-a; u našem chunk-u ostaje adresa workera.
   { pkg: "tesseract.js", marker: "tesseract.js@v" },
   { pkg: "@jsquash/avif", marker: "avif_enc" },
@@ -45,7 +46,7 @@ const MARKERS = [
   { pkg: "gifenc", marker: "NETSCAPE2.0" },
   { pkg: "vectortracer", marker: "binaryimageconverter" },
   { pkg: "konva", marker: "Konva" },
-  { pkg: "mediabunny", marker: "mediabunny" },
+  { pkg: "mediabunny", marker: "Cannot add track after output has been started" },
   { pkg: "wavesurfer.js", marker: "wavesurfer" },
   { pkg: "@xzdarcy/react-timeline-editor", marker: "timeline-editor" },
 ];

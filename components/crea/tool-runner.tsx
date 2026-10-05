@@ -40,13 +40,15 @@ export type ToolRunContext = {
   reportDownload: (progress: AggregateProgress) => void;
   /** Preuzimanje gotovo, alat računa. */
   reportRunning: () => void;
+  /** Dug rad (npr. snimanje videa, K10): procenat 0-100 uz poruku „Radim…". */
+  reportProgress: (percent: number) => void;
 };
 
 type Phase<TExtra> =
   | { name: "idle" }
   | { name: "confirm"; bytes: number }
   | { name: "downloading"; progress: AggregateProgress | null; startedAt: number; elapsedMs: number }
-  | { name: "running" }
+  | { name: "running"; percent?: number }
   | { name: "done"; output: CreaToolOutput<TExtra> }
   | { name: "error"; code: LocalAiErrorCode };
 
@@ -70,6 +72,7 @@ export function ToolRunner<TExtra>({
   parentJobId = null,
   canRun,
   inputKey,
+  runLabel,
   run,
   renderResult,
   icon,
@@ -87,6 +90,8 @@ export function ToolRunner<TExtra>({
   canRun: boolean;
   /** Menja se sa ulazom; nova vrednost vraća runner na početak. */
   inputKey: string | null;
+  /** Natpis glavnog dugmeta kad „Pokreni" ne opisuje radnju (editor: „Napravi sliku"). */
+  runLabel?: string;
   run: (context: ToolRunContext) => Promise<CreaToolOutput<TExtra>>;
   renderResult: (output: CreaToolOutput<TExtra>) => ReactNode;
   icon?: ReactNode;
@@ -162,6 +167,9 @@ export function ToolRunner<TExtra>({
         },
         reportRunning: () => {
           if (!controller.signal.aborted) setPhase({ name: "running" });
+        },
+        reportProgress: (percent) => {
+          if (!controller.signal.aborted) setPhase({ name: "running", percent: Math.max(0, Math.min(100, Math.round(percent))) });
         },
       });
       if (controller.signal.aborted) {
@@ -264,7 +272,7 @@ export function ToolRunner<TExtra>({
                 icon={<Play aria-hidden="true" className="size-4" />}
                 className={phase.name === "done" ? undefined : "shadow-[4px_4px_0_0_var(--ink)]"}
               >
-                {phase.name === "done" || phase.name === "error" ? CREA_TOOL_COPY.again[locale] : CREA_TOOL_COPY.run[locale]}
+                {runLabel ?? (phase.name === "done" || phase.name === "error" ? CREA_TOOL_COPY.again[locale] : CREA_TOOL_COPY.run[locale])}
               </Button>
             )}
             {downloadSize && !busy && phase.name !== "confirm" ? (
@@ -306,6 +314,7 @@ export function ToolRunner<TExtra>({
               <p className="mt-4 inline-flex items-center gap-2 type-body-sm font-black text-ink">
                 <Spinner size="sm" />
                 {CREA_TOOL_COPY.running[locale]}
+                {phase.percent !== undefined ? ` ${phase.percent} %` : ""}
               </p>
             ) : null}
 

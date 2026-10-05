@@ -114,7 +114,7 @@ describe("registar alata", () => {
     for (const tool of CREA_TOOLS) if (tool.tier === "server") expect(tool.status).toBe("soon");
   });
 
-  test("K04 pušta format i proveru fotke, K09 sedam besplatnih alata za sliku", () => {
+  test("K04 pušta format i proveru fotke, K09 sedam besplatnih alata za sliku, K10 editor, šablone i 3D foto", () => {
     const ready = CREA_TOOLS.filter((tool) => tool.status === "ready").map((tool) => tool.id);
     expect(ready).toEqual([
       "slika.format",
@@ -126,6 +126,9 @@ describe("registar alata", () => {
       "slika.vektor",
       "slika.gif",
       "slika.ocr",
+      "slika.editor",
+      "slika.sabloni",
+      "slika.3d-foto",
     ]);
     expect(toolById("slika.format")).toMatchObject({ tier: "local-code", featureIds: ["S27"], output: "image" });
     expect(toolById("slika.provera")).toMatchObject({
@@ -145,6 +148,23 @@ describe("registar alata", () => {
     expect(toolById("slika.pametni-isecak")?.localModels).toEqual(["mp-face-detector"]);
     expect(toolById("slika.ocr")?.localModels).toEqual(["tess-srp", "tess-srp-latn"]);
     expect(toolById("slika.gif")?.inputs).toEqual(["images"]);
+  });
+
+  test("K10 alati: 0 kredita, slika/video u galeriju; 3D foto samo na računaru sa WebGL2 i WebCodecs", () => {
+    for (const id of ["slika.editor", "slika.sabloni", "slika.3d-foto"]) {
+      const tool = toolById(id)!;
+      expect(tool.price, id).toEqual({ kind: "free" });
+      expect(tool.savesToGallery, id).toBe(true);
+    }
+    expect(toolById("slika.editor")).toMatchObject({ tier: "local-code", output: "image", featureIds: ["S28"] });
+    expect(toolById("slika.sabloni")).toMatchObject({ tier: "local-code", output: "image", featureIds: ["S29"] });
+    expect(toolById("slika.3d-foto")).toMatchObject({
+      tier: "local-ai",
+      output: "video",
+      featureIds: ["S33"],
+      localModels: ["depth-anything-v2-small"],
+      device: { minClass: "desktop", requires: ["webgl2", "webcodecs-video"] },
+    });
   });
 
   test("svaki alat sa kartice „Šta praviš danas?\" postoji u registru", () => {
