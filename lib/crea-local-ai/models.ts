@@ -21,7 +21,7 @@ import type { CreaDeviceClass } from "../crea-device";
 export const CREA_ALLOWED_MODEL_LICENSES = ["Apache-2.0", "MIT"] as const;
 export type CreaModelLicense = (typeof CREA_ALLOWED_MODEL_LICENSES)[number];
 
-export type CreaLocalRuntimeId = "mediapipe-vision" | "transformers" | "onnx" | "tesseract" | "vad";
+export type CreaLocalRuntimeId = "mediapipe-vision" | "transformers" | "onnx" | "onnx-webgpu" | "tesseract" | "vad";
 
 export type CreaModelSource =
   | { host: "google-cdn"; url: string }
@@ -57,6 +57,11 @@ export const MEDIAPIPE_WASM_BASE = `https://cdn.jsdelivr.net/npm/@mediapipe/task
  */
 export const ONNX_RUNTIME_WEB_VERSION = "1.30.0";
 export const ORT_WASM_URL = `https://cdn.jsdelivr.net/npm/onnxruntime-web@${ONNX_RUNTIME_WEB_VERSION}/dist/ort-wasm-simd-threaded.wasm`;
+/**
+ * WebGPU izdanje istog paketa (K11: Swin2SR na računaru sa WebGPU-om):
+ * `onnxruntime-web/webgpu` traži „asyncify" WASM, ne običan. Jedna nit, bez COOP/COEP.
+ */
+export const ORT_WEBGPU_WASM_URL = `https://cdn.jsdelivr.net/npm/onnxruntime-web@${ONNX_RUNTIME_WEB_VERSION}/dist/ort-wasm-simd-threaded.asyncify.wasm`;
 
 /**
  * Runtime-i koji se preuzimaju jednom i dele između modela. Ulaze u veličinu
@@ -79,6 +84,8 @@ export const CREA_LOCAL_RUNTIMES: Record<
   transformers: { bytes: 21 * MB, license: "Apache-2.0" },
   // Izmereno (K10): `ort-wasm-simd-threaded.wasm` iz onnxruntime-web 1.30.0.
   onnx: { bytes: 14_239_897, license: "MIT", files: { [ORT_WASM_URL]: 14_239_897 } },
+  // Izmereno (K11): `ort-wasm-simd-threaded.asyncify.wasm` iz onnxruntime-web 1.30.0.
+  "onnx-webgpu": { bytes: 26_781_914, license: "MIT", files: { [ORT_WEBGPU_WASM_URL]: 26_781_914 } },
   // tesseract.js sam vuče worker (111 307 B) i jezgro sa SIMD-om (3 899 472 B) sa jsdelivr-a,
   // zakucano na verziju paketa (`tesseract.js@v7.0.0`, `tesseract.js-core@v7.0.0`).
   tesseract: { bytes: 4_010_779, license: "Apache-2.0" },
@@ -112,41 +119,72 @@ export const CREA_LOCAL_MODELS = {
     runtime: "mediapipe-vision",
     source: {
       host: "google-cdn",
-      url: "https://storage.googleapis.com/mediapipe-models/interactive_segmenter/magic_touch/float32/1/magic_touch.tflite",
+      // K11: MagicTouch v2 (podeljen model: enkoder jednom po slici, dekoder po kliku) - jedini koji
+      // `InteractiveSegmenter` iz tasks-vision 1.0.1 prima; stari `magic_touch.tflite` kroz „Legacy"
+      // klasu pada pri pokretanju grafa (provereno u browseru).
+      url: "https://storage.googleapis.com/mediapipe-models/interactive_segmenter_v2/magic_touch/int8/1/interactive_segmentation.task",
     },
-    bytes: 6 * MB,
+    // Izmereno (K11): `Content-Length` sa Google CDN-a; staje u budžet telefona (30 MB).
+    bytes: 30_525_312,
     license: "Apache-2.0",
     minClass: "phone",
     featureIds: ["S12"],
   },
   modnet: {
-    runtime: "transformers",
-    source: { host: "huggingface", repo: "Xenova/modnet", files: ["onnx/model_quantized.onnx"] },
-    bytes: 7 * MB,
+    // K11: kroz `onnxruntime-web` direktno (pretprocesiranje u `lib/crea-matting.ts`), kao Depth Anything.
+    runtime: "onnx",
+    source: {
+      host: "huggingface",
+      repo: "Xenova/modnet",
+      revision: "fa2fa546052fba4c08921230a26cc69a333fca12",
+      files: ["onnx/model_quantized.onnx"],
+    },
+    bytes: 6_632_188,
     license: "Apache-2.0",
     minClass: "phone",
     featureIds: ["S14"],
   },
   "birefnet-lite": {
-    runtime: "transformers",
-    source: { host: "huggingface", repo: "onnx-community/BiRefNet_lite", files: ["onnx/model_fp16.onnx"] },
-    bytes: 115 * MB,
+    // K11: proveren i NE koristi se. Na onnxruntime-web 1.30 WebGPU izvršilac traži 17 storage bafera po
+    // šejderu (i RTX 40 daje 16), JSEP pada na `bad_alloc`, a CPU nema fp16 kernele. „Ukloni pozadinu" zato
+    // radi sa MODNet-om (osoba) i klikom (predmet) na svakom uređaju. Revizija ostaje zakucana za sledeći ORT.
+    runtime: "onnx-webgpu",
+    source: {
+      host: "huggingface",
+      repo: "onnx-community/BiRefNet_lite-ONNX",
+      revision: "de15b22ba131738a16dff04aab8bdf8dc32e3ac1",
+      files: ["onnx/model_fp16.onnx"],
+    },
+    bytes: 114_538_221,
     license: "MIT",
     minClass: "desktop-gpu",
     featureIds: ["S14"],
   },
   migan: {
+    // K11: „pipeline" izdanje - slika i maska (uint8; 255 = ostaje, 0 = briše se) ulaze, gotova slika izlazi.
     runtime: "onnx",
-    source: { host: "huggingface", repo: "andraniksargsyan/migan", files: ["migan_pipeline_v2.onnx"] },
-    bytes: 30 * MB,
+    source: {
+      host: "huggingface",
+      repo: "andraniksargsyan/migan",
+      revision: "406830d0fa60666da0071c342ad2fbc8f30c5c64",
+      files: ["migan_pipeline_v2.onnx"],
+    },
+    bytes: 28_079_181,
     license: "MIT",
-    minClass: "desktop",
+    minClass: "phone",
     featureIds: ["S13"],
   },
   "swin2sr-x2": {
-    runtime: "transformers",
-    source: { host: "huggingface", repo: "Xenova/swin2SR-lightweight-x2-64", files: ["onnx/model_quantized.onnx"] },
-    bytes: 5 * MB,
+    // K11: fp32 (8 MB) - kvantizovan je na WASM-u samo ~15 % brži (izmereno), a uvećanje treba detalje.
+    // Licenca je Apache-2.0 originala (caidas/swin2SR-lightweight-x2-64); ONNX izvoz nema svoju karticu.
+    runtime: "onnx",
+    source: {
+      host: "huggingface",
+      repo: "Xenova/swin2SR-lightweight-x2-64",
+      revision: "92a21aca5713f20faf9a87590cdfbdce2e34112c",
+      files: ["onnx/model.onnx"],
+    },
+    bytes: 8_078_888,
     license: "Apache-2.0",
     minClass: "phone",
     featureIds: ["S16"],
@@ -250,9 +288,18 @@ export function modelWeightBytes(ids: readonly CreaLocalModelId[]): number {
   return ids.reduce((sum, id) => sum + CREA_LOCAL_MODELS[id].bytes, 0);
 }
 
+/** Opcije pokretanja: `webgpu` - običan ONNX model ide kroz WebGPU izdanje ORT-a (K11, Swin2SR). */
+export type CreaRuntimeOptions = { webgpu?: boolean };
+
+/** Runtime kojim se model stvarno pokreće. */
+export function modelRuntime(id: CreaLocalModelId, options: CreaRuntimeOptions = {}): CreaLocalRuntimeId {
+  const runtime: CreaLocalRuntimeId = CREA_LOCAL_MODELS[id].runtime;
+  return runtime === "onnx" && options.webgpu ? "onnx-webgpu" : runtime;
+}
+
 /** Sve što alat preuzima pri prvom pokretanju: težine plus svaki runtime jednom. */
-export function downloadBytes(ids: readonly CreaLocalModelId[]): number {
-  const runtimes = new Set(ids.map((id) => CREA_LOCAL_MODELS[id].runtime));
+export function downloadBytes(ids: readonly CreaLocalModelId[], options: CreaRuntimeOptions = {}): number {
+  const runtimes = new Set(ids.map((id) => modelRuntime(id, options)));
   let total = modelWeightBytes(ids);
   for (const runtime of runtimes) total += CREA_LOCAL_RUNTIMES[runtime].bytes;
   return total;

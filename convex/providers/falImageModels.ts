@@ -582,9 +582,14 @@ export const RECRAFT_41_VECTOR: StudioModelSeed = {
 
 /**
  * `ideogram-45` - Ideogram 4.5, najbolji tekst u slici; cena po kvalitetu
- * $0,03 / $0,06 / $0,22 (https://fal.ai/models/ideogram/v4.5). Izmena sa
- * maskom (`ideogram/v4.5/edit`) stiže u K11 sa četkicom - bez nje bi korisnik
- * morao sam da napravi crno-belu masku.
+ * $0,03 / $0,06 / $0,22 (https://fal.ai/models/ideogram/v4.5).
+ *
+ * Izmena sa maskom (Crea K11, S11): režim `mask` ide na `ideogram/v4.5/edit`
+ * (https://fal.ai/models/ideogram/v4.5/edit/llms.txt) - `image_url` + `mask_url`
+ * iste veličine, CRNO menja, BELO čuva; $0,008 / $0,03 / $0,06 / $0,22 po kvalitetu,
+ * veličina ne menja cenu. Masku crta četkica (`slika.cetkica`), pa režim NIJE u
+ * composeru „Izmeni" - početnik ne pravi crno-belu masku ručno. Sa maskom fal
+ * prima samo `image_size: auto`, zato je veličina vidljiva samo u `text` režimu.
  */
 export const IDEOGRAM_45: StudioModelSeed = {
   slug: "ideogram-45",
@@ -597,9 +602,12 @@ export const IDEOGRAM_45: StudioModelSeed = {
   taglineEn: "The best at text in images - invitations, posters, menus.",
   descriptionSr: "Kad slika mora da ima tačan natpis, ovo je model. Tri nivoa kvaliteta menjaju cenu.",
   descriptionEn: "When the image needs exact lettering, this is the model. Three quality levels change the price.",
-  endpoints: { text: "ideogram/v4.5" },
-  inputModes: ["text"],
-  inputSpec: { text: {} },
+  endpoints: { text: "ideogram/v4.5", mask: "ideogram/v4.5/edit" },
+  inputModes: ["text", "mask"],
+  inputSpec: {
+    text: {},
+    mask: { image: { max: 1, accept: IMAGE_ACCEPT }, mask: { max: 1, accept: ["image/png"] } },
+  },
   paramSpec: [
     promptControl(),
     {
@@ -615,18 +623,42 @@ export const IDEOGRAM_45: StudioModelSeed = {
         { value: "medium", labelSr: "Srednji", labelEn: "Medium" },
         { value: "high", labelSr: "Visok", labelEn: "High" },
       ],
+      showInModes: ["text"],
       affectsPrice: true,
     },
-    imageSizeControl(FAL_IMAGE_SIZES, "square_hd", { affectsPrice: false }),
+    {
+      key: "quality",
+      type: "segmented",
+      labelSr: "Kvalitet",
+      labelEn: "Quality",
+      helpSr: "Menja cenu. Za mali deo slike je nizak obično dovoljan.",
+      helpEn: "Changes the price. Low is usually enough for a small part of the image.",
+      default: "low",
+      options: [
+        { value: "very_low", labelSr: "Brzo", labelEn: "Quick" },
+        { value: "low", labelSr: "Nizak", labelEn: "Low" },
+        { value: "medium", labelSr: "Srednji", labelEn: "Medium" },
+        { value: "high", labelSr: "Visok", labelEn: "High" },
+      ],
+      showInModes: ["mask"],
+      affectsPrice: true,
+    },
+    imageSizeControl(FAL_IMAGE_SIZES, "square_hd", { affectsPrice: false, showInModes: ["text"] }),
   ],
-  priceRule: { unit: "image", lookup: { params: ["quality"], map: { low: 0.03, medium: 0.06, high: 0.22 } } },
+  priceRule: {
+    unit: "image",
+    lookup: { params: ["quality"], map: { low: 0.03, medium: 0.06, high: 0.22 } },
+    modeRules: {
+      mask: { unit: "image", lookup: { params: ["quality"], map: { very_low: 0.008, low: 0.03, medium: 0.06, high: 0.22 } } },
+    },
+  },
   capabilities: {
     mode: "async_webhook",
     maxImagesPerRun: 1,
     seedParam: "seed",
     // fal podrazumevano „proširuje" opis; gasi se da tekst ostane korisnikov.
     fal: { fixed: { enable_prompt_expansion: false } },
-    tags: ["text", "design"],
+    tags: ["text", "design", "mask"],
   },
   sortOrder: 86,
 };

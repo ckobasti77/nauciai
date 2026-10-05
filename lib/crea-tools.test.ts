@@ -114,7 +114,7 @@ describe("registar alata", () => {
     for (const tool of CREA_TOOLS) if (tool.tier === "server") expect(tool.status).toBe("soon");
   });
 
-  test("K04 pušta format i proveru fotke, K09 sedam besplatnih alata za sliku, K10 editor, šablone i 3D foto", () => {
+  test("K04 pušta format i proveru fotke, K09 sedam besplatnih alata za sliku, K10 editor, šablone i 3D foto, K11 izmene", () => {
     const ready = CREA_TOOLS.filter((tool) => tool.status === "ready").map((tool) => tool.id);
     expect(ready).toEqual([
       "slika.format",
@@ -129,6 +129,12 @@ describe("registar alata", () => {
       "slika.editor",
       "slika.sabloni",
       "slika.3d-foto",
+      "slika.cetkica",
+      "slika.klik",
+      "slika.obrisi",
+      "slika.pozadina",
+      "slika.uvecaj",
+      "slika.boje",
     ]);
     expect(toolById("slika.format")).toMatchObject({ tier: "local-code", featureIds: ["S27"], output: "image" });
     expect(toolById("slika.provera")).toMatchObject({
@@ -167,6 +173,30 @@ describe("registar alata", () => {
     });
   });
 
+  test("K11 izmene: lokalne su besplatne i čuvaju sliku; četkica je plaćena maskom kroz katalog", () => {
+    for (const id of ["slika.klik", "slika.obrisi", "slika.pozadina", "slika.uvecaj", "slika.boje"]) {
+      const tool = toolById(id)!;
+      expect(tool.mode, id).toBe("izmeni");
+      expect(tool.price, id).toEqual({ kind: "free" });
+      expect(tool.savesToGallery, id).toBe(true);
+      expect(tool.output, id).toBe("image");
+    }
+    expect(toolById("slika.cetkica")).toMatchObject({
+      tier: "paid",
+      price: { kind: "credits", modelSlug: "ideogram-45", inputMode: "mask" },
+      paidFallback: { modelSlug: "nano-banana-2", inputMode: "image_multi" },
+    });
+    // Brisanje: mali predmet na uređaju, veliki kroz isti put maske.
+    expect(toolById("slika.obrisi")).toMatchObject({ localModels: ["migan"], paidFallback: { modelSlug: "ideogram-45", inputMode: "mask" } });
+    // Pozadina: MODNet (osoba) i klik (predmet) na svakom uređaju od telefona naviše; BiRefNet ne (ORT 1.30).
+    expect(toolById("slika.pozadina")).toMatchObject({
+      localModels: ["modnet", "mp-interactive-segmenter"],
+      device: { minClass: "phone" },
+    });
+    expect(toolById("slika.uvecaj")?.localModels).toEqual(["swin2sr-x2"]);
+    expect(toolById("slika.boje")?.device.requires).toEqual(["webgl2"]);
+  });
+
   test("svaki alat sa kartice „Šta praviš danas?\" postoji u registru", () => {
     for (const goal of CREA_GOALS) {
       if (goal.toolId) expect(toolById(goal.toolId), goal.id).toBeDefined();
@@ -189,7 +219,8 @@ describe("pomoćne funkcije", () => {
 
   test("oznake: besplatno i na uređaju za lokalne, krediti za plaćene, uskoro za nespremne", () => {
     expect(toolBadges(toolById("slika.format")!)).toEqual(["besplatno", "na-uredjaju"]);
-    expect(toolBadges(toolById("slika.pozadina")!)).toEqual(["besplatno", "na-uredjaju", "uskoro"]);
+    expect(toolBadges(toolById("slika.pozadina")!)).toEqual(["besplatno", "na-uredjaju"]);
+    expect(toolBadges(toolById("slika.retus")!)).toEqual(["besplatno", "na-uredjaju", "uskoro"]);
     expect(toolBadges(toolById("slika.prosiri")!)).toEqual(["krediti", "uskoro"]);
   });
 

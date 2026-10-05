@@ -88,8 +88,16 @@ describe("dostupnost alata", () => {
   });
 
   test("telefon dobija malu varijantu ili jasan razlog", () => {
-    expect(deviceProblem(soonAsReady("slika.pozadina"), PHONE)).toEqual({ ok: true, variant: "small" });
-    expect(deviceProblem(soonAsReady("slika.obrisi"), PHONE)).toEqual({ ok: false, reason: "too-heavy-for-phone" });
+    // Mala varijanta (`smallVariantFrom`): alat koji je samo za računar sa WebGPU-om, ali ima lakši model.
+    expect(deviceProblem({ ...soonAsReady("slika.opis"), device: { minClass: "desktop-gpu", smallVariantFrom: "phone" } }, PHONE)).toEqual({
+      ok: true,
+      variant: "small",
+    });
+    expect(deviceProblem(soonAsReady("slika.pozadina"), PHONE)).toEqual({ ok: true, variant: "full" });
+    // K11: MI-GAN (28 MB) staje u budžet telefona; slab uređaj dobija razlog.
+    expect(deviceProblem(soonAsReady("slika.obrisi"), PHONE)).toEqual({ ok: true, variant: "full" });
+    expect(deviceProblem(soonAsReady("slika.obrisi"), WEAK)).toEqual({ ok: false, reason: "weak-device" });
+    expect(deviceProblem(soonAsReady("slika.3d-foto"), PHONE)).toEqual({ ok: false, reason: "too-heavy-for-phone" });
     expect(deviceProblem(soonAsReady("slika.uvecaj"), PHONE)).toEqual({ ok: true, variant: "full" });
     expect(deviceProblem(soonAsReady("slika.uvecaj"), WEAK)).toEqual({ ok: false, reason: "weak-device" });
   });
@@ -110,7 +118,7 @@ describe("dostupnost alata", () => {
   });
 
   test("status ima prednost nad uređajem; plaćeni alat ne zavisi od uređaja", () => {
-    expect(toolAvailability(toolById("slika.pozadina")!, DESKTOP_GPU)).toEqual({ ok: false, reason: "soon" });
+    expect(toolAvailability(toolById("slika.opis")!, DESKTOP_GPU)).toEqual({ ok: false, reason: "soon" });
     expect(toolAvailability(soonAsReady("slika.prosiri"), WEAK)).toEqual({ ok: true, variant: "full" });
     expect(toolAvailability({ ...toolById("slika.format")!, tier: "server" }, DESKTOP_GPU)).toEqual({
       ok: false,

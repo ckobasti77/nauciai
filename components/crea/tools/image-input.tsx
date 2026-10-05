@@ -125,16 +125,21 @@ export function ImageInput({
   locale,
   input,
   disabled,
+  fullScreenDrop = true,
+  chooseLabel,
 }: {
   locale: Locale;
   input: ReturnType<typeof useImageInput>;
   disabled: boolean;
+  /** Druga slika u istom alatu (npr. pozadina, K11) ne prima prevlačenje preko celog ekrana - meta je samo jedna. */
+  fullScreenDrop?: boolean;
+  chooseLabel?: string;
 }) {
   const inputId = useId();
   const fileRef = useRef<HTMLInputElement | null>(null);
   const { picked, problem, sourceStatus, converting } = input;
   const locked = disabled || converting;
-  const dragging = useFullScreenDrop(!locked, (files) => input.choose(files[0]));
+  const dragging = useFullScreenDrop(!locked && fullScreenDrop, (files) => input.choose(files[0]));
 
   return (
     <div>
@@ -182,8 +187,8 @@ export function ImageInput({
           <span className="grid size-12 place-items-center rounded-full border-2 border-ink bg-paper-strong">
             <ImageUp aria-hidden="true" className="size-6" />
           </span>
-          <span className="type-body font-black">{CREA_TOOL_COPY.chooseFile[locale]}</span>
-          <span className="type-body-sm font-semibold text-muted">{CREA_TOOL_COPY.dropHint[locale]}</span>
+          <span className="type-body font-black">{chooseLabel ?? CREA_TOOL_COPY.chooseFile[locale]}</span>
+          {fullScreenDrop ? <span className="type-body-sm font-semibold text-muted">{CREA_TOOL_COPY.dropHint[locale]}</span> : null}
         </button>
       )}
 

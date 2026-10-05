@@ -1,5 +1,5 @@
 import { CreaLocalAiError, toLocalAiError } from "./errors";
-import { CREA_LOCAL_MODELS, CREA_LOCAL_RUNTIMES, modelFileUrl, type CreaLocalModelId } from "./models";
+import { CREA_LOCAL_RUNTIMES, modelFileUrl, modelRuntime, type CreaLocalModelId, type CreaRuntimeOptions } from "./models";
 import type { FileProgress } from "./progress";
 
 /**
@@ -76,7 +76,7 @@ export async function fetchModelFile(
 }
 
 /** Da li je SVE što alat preuzima već na uređaju (potvrda pre preuzimanja tada ne treba). */
-export async function modelsCached(ids: readonly CreaLocalModelId[]): Promise<boolean> {
+export async function modelsCached(ids: readonly CreaLocalModelId[], options: CreaRuntimeOptions = {}): Promise<boolean> {
   if (ids.length === 0) return true;
   const cache = await openCache();
   if (!cache) return false;
@@ -86,7 +86,7 @@ export async function modelsCached(ids: readonly CreaLocalModelId[]): Promise<bo
     const url = modelFileUrl(id);
     if (!url || !(await has(url))) return false;
   }
-  for (const runtime of new Set(ids.map((id) => CREA_LOCAL_MODELS[id].runtime))) {
+  for (const runtime of new Set(ids.map((id) => modelRuntime(id, options)))) {
     const files = Object.keys(CREA_LOCAL_RUNTIMES[runtime].files ?? {});
     if (files.length === 0) return false;
     let any = false;

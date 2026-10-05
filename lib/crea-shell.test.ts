@@ -51,9 +51,11 @@ describe("CREA_MODES", () => {
         expect(mode.blurb.sr.trim()).not.toBe("");
         expect(mode.blurb.en.trim()).not.toBe("");
         if (mode.status === "soon") expect(mode.models).toBeUndefined();
-        // Režim koji radi nudi modele ili lokalne alate (K04: Slika · Alati) - nikad oba.
-        else if (mode.tools) expect(mode.models, `${area}/${mode.id}`).toBeUndefined();
-        else expect(mode.models).toBeDefined();
+        // Režim koji radi nudi modele ili alate (K04: Slika · Alati); oba samo Slika · Izmeni
+        // (K11: composer „opiši izmenu" + alati za izmenu).
+        else if (mode.tools && !(area === "slika" && mode.id === "izmeni")) {
+          expect(mode.models, `${area}/${mode.id}`).toBeUndefined();
+        } else expect(mode.models).toBeDefined();
       }
     }
   });
@@ -67,6 +69,8 @@ describe("CREA_MODES", () => {
       }
     }
     expect(creaModeDef("slika", "alati")).toMatchObject({ status: "ready", tools: true });
+    expect(creaModeDef("slika", "izmeni")).toMatchObject({ status: "ready", tools: true });
+    expect(creaModeDef("slika", "izmeni").models).toBeDefined();
   });
 
   test("prvi režim svake oblasti radi (podrazumevani ekran nije prazan)", () => {

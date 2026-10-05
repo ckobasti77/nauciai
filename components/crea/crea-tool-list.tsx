@@ -1,6 +1,6 @@
 "use client";
 
-import { CircleAlert } from "lucide-react";
+import { CircleAlert, MessageSquareText } from "lucide-react";
 
 import { ToolBadges } from "@/components/crea/tool-badges";
 import { useCreaDeviceCaps } from "@/components/crea/use-crea-device";
@@ -15,6 +15,9 @@ import type { Locale } from "@/lib/i18n";
  * Spisak alata jednog režima (K04): gotovi alati kao izbor, a oni koji stižu kao
  * tiha lista imena. Alat koji ovaj uređaj ne može da pokrene se ne nudi - red je
  * ugašen i kaže zašto (U15).
+ *
+ * `onDescribe` (Slika · Izmeni, K11): prvi red vraća na composer („opiši izmenu
+ * rečima"), jer u tom režimu alati stoje pored njega.
  */
 export function CreaToolList({
   locale,
@@ -22,12 +25,14 @@ export function CreaToolList({
   mode,
   activeToolId,
   onSelect,
+  onDescribe,
 }: {
   locale: Locale;
   area: CreaArea;
   mode: CreaModeId;
   activeToolId: string | null;
   onSelect: (toolId: string) => void;
+  onDescribe?: () => void;
 }) {
   const caps = useCreaDeviceCaps();
   const tools = toolsFor(area, mode);
@@ -35,8 +40,26 @@ export function CreaToolList({
   const soon = tools.filter((tool) => tool.status === "soon");
 
   return (
-    <nav aria-label={CREA_TOOL_COPY.listTitle[locale]} className="space-y-4">
+    <nav aria-label={(onDescribe ? CREA_TOOL_COPY.editListTitle : CREA_TOOL_COPY.listTitle)[locale]} className="space-y-4">
       <ul className="surface-card space-y-1 border-2 border-ink bg-paper-strong p-2 shadow-[6px_6px_0_0_var(--shadow-hard-16)]">
+        {onDescribe ? (
+          <li className="border-b border-line pb-1">
+            <button
+              type="button"
+              onClick={onDescribe}
+              className="surface-inset flex w-full gap-3 p-3 text-left text-ink transition-colors duration-150 hover:bg-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none"
+            >
+              <MessageSquareText aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
+              <span className="min-w-0">
+                <span className="block type-body font-black">{CREA_TOOL_COPY.describeTitle[locale]}</span>
+                <span className="mt-0.5 block type-body-sm font-semibold text-muted">{CREA_TOOL_COPY.describeBody[locale]}</span>
+                <span className="mt-2 inline-block rounded-full border border-ink/30 bg-paper px-2 py-0.5 text-xs font-black text-ink">
+                  {CREA_TOOL_COPY.badges.krediti[locale]}
+                </span>
+              </span>
+            </button>
+          </li>
+        ) : null}
         {ready.map((tool) => {
           const active = tool.id === activeToolId;
           const problem = caps ? deviceProblem(tool, caps) : null;

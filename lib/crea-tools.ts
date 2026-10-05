@@ -313,17 +313,19 @@ export const CREA_TOOLS: readonly CreaTool[] = [
     area: "slika",
     mode: "izmeni",
     tier: "paid",
-    status: "soon",
+    status: "ready",
     title: { sr: "Četkica i opis", en: "Brush and describe" },
     summary: {
-      sr: "Ofarbaj deo slike i napiši šta tu treba da bude.",
-      en: "Paint over part of the image and write what should go there.",
+      sr: "Ofarbaj deo slike i napiši šta tu treba da bude - AI menja samo taj deo.",
+      en: "Paint over part of the image and write what should go there - AI changes only that part.",
     },
     inputs: ["image"],
     output: "image",
     device: ANY_DEVICE,
-    price: { kind: "credits", modelSlug: "nano-banana-2", inputMode: "image_multi" },
+    // Prava maska (K06 §4.1, Auto S-1); bez fal ključa DEMO za osoblje (O3). Nano Banana 2 dobija obojenu zonu.
+    price: { kind: "credits", modelSlug: "ideogram-45", inputMode: "mask" },
     savesToGallery: true,
+    paidFallback: { modelSlug: "nano-banana-2", inputMode: "image_multi" },
   },
   {
     id: "slika.klik",
@@ -331,11 +333,11 @@ export const CREA_TOOLS: readonly CreaTool[] = [
     area: "slika",
     mode: "izmeni",
     tier: "local-ai",
-    status: "soon",
+    status: "ready",
     title: { sr: "Klikni i izaberi", en: "Click to select" },
     summary: {
-      sr: "Klikni na predmet i on se sâm označi.",
-      en: "Click on an object and it selects itself.",
+      sr: "Klikni na predmet i on se sâm označi - izdvoji ga bez pozadine ili ga ostavi u boji, a ostatak crno-beo.",
+      en: "Click on an object and it selects itself - cut it out or keep it in colour with the rest in black and white.",
     },
     inputs: ["image"],
     output: "image",
@@ -350,7 +352,7 @@ export const CREA_TOOLS: readonly CreaTool[] = [
     area: "slika",
     mode: "izmeni",
     tier: "local-ai",
-    status: "soon",
+    status: "ready",
     title: { sr: "Obriši predmet", en: "Erase an object" },
     summary: {
       sr: "Prevuci preko predmeta i nestane. Mali predmeti besplatno, veliki uz kredite.",
@@ -358,11 +360,12 @@ export const CREA_TOOLS: readonly CreaTool[] = [
     },
     inputs: ["image"],
     output: "image",
-    device: { minClass: "desktop" },
+    // MI-GAN (28 MB) staje u budžet telefona; slika se krpi u isečku oko predmeta, ne cela (memorija).
+    device: { minClass: "phone" },
     price: FREE,
     localModels: ["migan"],
     savesToGallery: true,
-    paidFallback: { modelSlug: "nano-banana-2", inputMode: "image_multi" },
+    paidFallback: { modelSlug: "ideogram-45", inputMode: "mask" },
   },
   {
     id: "slika.pozadina",
@@ -370,7 +373,7 @@ export const CREA_TOOLS: readonly CreaTool[] = [
     area: "slika",
     mode: "izmeni",
     tier: "local-ai",
-    status: "soon",
+    status: "ready",
     title: { sr: "Ukloni pozadinu", en: "Remove the background" },
     summary: {
       sr: "Iseci osobu ili predmet, pa stavi novu pozadinu: boju, zamućenje ili sliku.",
@@ -378,9 +381,11 @@ export const CREA_TOOLS: readonly CreaTool[] = [
     },
     inputs: ["image"],
     output: "image",
-    device: { minClass: "desktop-gpu", smallVariantFrom: "phone" },
+    // K11: osoba - MODNet (6,6 MB), predmet - klik (MagicTouch); oba na svakom uređaju od telefona naviše.
+    // BiRefNet lite (plan) ne radi na onnxruntime-web 1.30 (vidi `lib/crea-local-ai/models.ts`).
+    device: { minClass: "phone" },
     price: FREE,
-    localModels: ["birefnet-lite", "modnet"],
+    localModels: ["modnet", "mp-interactive-segmenter"],
     savesToGallery: true,
     paidFallback: { modelSlug: "nano-banana-2", inputMode: "image_multi" },
   },
@@ -390,7 +395,7 @@ export const CREA_TOOLS: readonly CreaTool[] = [
     area: "slika",
     mode: "izmeni",
     tier: "local-ai",
-    status: "soon",
+    status: "ready",
     title: { sr: "Uvećaj 2×", en: "Upscale 2×" },
     summary: {
       sr: "Udvostruči veličinu slike a da ne postane mutna.",
@@ -409,7 +414,7 @@ export const CREA_TOOLS: readonly CreaTool[] = [
     area: "slika",
     mode: "izmeni",
     tier: "local-code",
-    status: "soon",
+    status: "ready",
     title: { sr: "Boje i svetlo", en: "Colour and light" },
     summary: {
       sr: "Klizači za svetlo i boje, i filmski izgledi jednim klikom.",

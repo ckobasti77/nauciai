@@ -9,7 +9,7 @@ import { Spinner } from "@/components/ui/spinner";
 /**
  * Granica bundle-a za alate Cree (plan K01 §9): svaki alat je svoj async chunk,
  * a teške biblioteke (MediaPipe, jSquash, exifr, pica, tesseract.js, vectortracer,
- * heic-to, Konva, ONNX Runtime, three.js, mediabunny...) se uvoze tek unutar njega -
+ * heic-to, Konva, ONNX Runtime, three.js, mediabunny, perfect-freehand, postprocessing...) se uvoze tek unutar njega -
  * ništa od toga ne ulazi u radionicu ni u zajednički bundle. Next traži da
  * putanja u `import()` bude doslovna, pa po jedan `dynamic` za svaki alat.
  */
@@ -33,6 +33,12 @@ const OcrTool = dynamic(() => import("./ocr-tool"), { ssr: false, loading: ToolL
 const EditorTool = dynamic(() => import("./editor-tool"), { ssr: false, loading: ToolLoading });
 const TemplatesTool = dynamic(() => import("./templates-tool"), { ssr: false, loading: ToolLoading });
 const Photo3dTool = dynamic(() => import("./photo-3d-tool"), { ssr: false, loading: ToolLoading });
+const BrushTool = dynamic(() => import("./brush-tool"), { ssr: false, loading: ToolLoading });
+const SelectTool = dynamic(() => import("./select-tool"), { ssr: false, loading: ToolLoading });
+const EraseTool = dynamic(() => import("./erase-tool"), { ssr: false, loading: ToolLoading });
+const BackgroundTool = dynamic(() => import("./background-tool"), { ssr: false, loading: ToolLoading });
+const UpscaleTool = dynamic(() => import("./upscale-tool"), { ssr: false, loading: ToolLoading });
+const ColorTool = dynamic(() => import("./color-tool"), { ssr: false, loading: ToolLoading });
 
 export const CREA_TOOL_COMPONENTS: Readonly<Record<string, ComponentType<CreaToolProps>>> = {
   "slika.format": FormatTool,
@@ -47,4 +53,10 @@ export const CREA_TOOL_COMPONENTS: Readonly<Record<string, ComponentType<CreaToo
   "slika.editor": EditorTool,
   "slika.sabloni": TemplatesTool,
   "slika.3d-foto": Photo3dTool,
+  "slika.cetkica": BrushTool,
+  "slika.klik": SelectTool,
+  "slika.obrisi": EraseTool,
+  "slika.pozadina": BackgroundTool,
+  "slika.uvecaj": UpscaleTool,
+  "slika.boje": ColorTool,
 };

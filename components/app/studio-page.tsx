@@ -19,6 +19,7 @@ import { CreaHistory, CreaHistoryEmpty } from "@/components/crea/crea-history";
 import { CreaStage } from "@/components/crea/crea-stage";
 import { CreaStartScreen } from "@/components/crea/crea-start-screen";
 import { CreaToolList } from "@/components/crea/crea-tool-list";
+import { CreaToolShortcuts } from "@/components/crea/crea-tool-shortcuts";
 import { CreaToolPanel } from "@/components/crea/crea-tool-panel";
 import { CreaToolStage } from "@/components/crea/crea-tool-stage";
 import { CREA_DOCK_MIN_PX, CreaWorkshop } from "@/components/crea/crea-workshop";
@@ -685,9 +686,10 @@ export function StudioPage({
   }
 
   // „Upotrebi ponovo": model posla i njegov opis, u režimu ljuske u kojem taj model radi.
-  // Rad lokalnog alata (K04) nema model ni opis - vraća u sam alat.
+  // Rad lokalnog alata (K04) nema model ni opis - vraća u sam alat; izmena maskom (K11)
+  // vraća u četkicu, jer masku crta samo ona.
   function handleReuse(job: StudioTileJob) {
-    const tool = toolOfJob(job);
+    const tool = toolOfJob(job) ?? (job.inputMode === "mask" ? toolById("slika.cetkica") : undefined);
     if (tool) {
       navigateShell({ area: tool.area, mode: tool.mode, tool: tool.id });
       return;
@@ -979,7 +981,9 @@ export function StudioPage({
   };
 
   // Režim sa lokalnim alatima (K04) nema composer: levo je spisak alata, u sredini alat.
-  const isToolsMode = area !== null && modeDef?.status === "ready" && modeDef.tools === true;
+  // Slika · Izmeni (K11) ima i modele i alate: composer dok alat nije izabran (`?alat=`).
+  const hasTools = area !== null && modeDef?.status === "ready" && modeDef.tools === true;
+  const isToolsMode = hasTools && (modeDef?.models === undefined || shell.tool !== null);
   const hasComposer = area !== null && modeDef?.status === "ready" && !isToolsMode;
   const showFloating = hasComposer && composerPlacement === "floating";
   const gridBottomPadding = showFloating ? (isComposerCollapsed ? 60 : floatingHeight + 28) : 0;
@@ -1015,6 +1019,7 @@ export function StudioPage({
         mode={modeDef.id}
         activeToolId={shell.tool}
         onSelect={(tool) => navigateShell({ tool })}
+        {...(modeDef.models ? { onDescribe: () => navigateShell({ tool: null }) } : {})}
       />
     ) : null;
 
@@ -1037,20 +1042,40 @@ export function StudioPage({
         canSave={state?.hasStudioAccess === true}
         projectId={activeProjectId}
         sourceJobId={inputJobId as Id<"generationJobs"> | null}
+        paid={
+          models !== undefined && state
+            ? { catalog, providerStatus: state.providerStatus, publicEnabled: state.publicEnabled === true, isStaff: state.isStaff === true }
+            : null
+        }
         list={composerPlacement === "floating" ? toolList : null}
       />
     ) : (
-      <CreaStage
-        locale={locale}
-        mode={modeDef}
-        job={stageJob}
-        isLoading={isAuthenticated && jobsLoadingFirst}
-        composerDocked={composerPlacement === "docked"}
-        guest={!isAuthenticated}
-        onOpenDetail={handleOpenDetail}
-        onReuse={handleReuse}
-        onExtend={handleExtend}
-      />
+      <div className="min-w-0 space-y-5">
+        {hasTools && area ? (
+          <CreaToolShortcuts
+            locale={locale}
+            area={area}
+            mode={modeDef.id}
+            onSelect={(tool) => {
+              // Slika koja je stigla kao ulaz (`?ulaz=`, K05) ide i u izabran alat.
+              const query = new URLSearchParams(creaShellQuery({ tool }, searchParams));
+              if (inputJobId) query.set(CREA_INPUT_PARAM, inputJobId);
+              router.push(`${pathname}?${query.toString()}`, { scroll: false });
+            }}
+          />
+        ) : null}
+        <CreaStage
+          locale={locale}
+          mode={modeDef}
+          job={stageJob}
+          isLoading={isAuthenticated && jobsLoadingFirst}
+          composerDocked={composerPlacement === "docked"}
+          guest={!isAuthenticated}
+          onOpenDetail={handleOpenDetail}
+          onReuse={handleReuse}
+          onExtend={handleExtend}
+        />
+      </div>
     );
 
   return (

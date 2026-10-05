@@ -15,7 +15,7 @@ import { CREA_DEVICE_COPY, CREA_TOOL_COPY, creaSaveErrorMessage, fillCopy } from
 import { needsDownloadConfirm, toolAvailability, type CreaDeviceCaps } from "@/lib/crea-device";
 import { modelsCached } from "@/lib/crea-local-ai/cache";
 import { localAiErrorMessage, toLocalAiError, type LocalAiErrorCode } from "@/lib/crea-local-ai/errors";
-import { downloadBytes } from "@/lib/crea-local-ai/models";
+import { downloadBytes, type CreaLocalModelId } from "@/lib/crea-local-ai/models";
 import { estimateSecondsLeft, formatBytes, type AggregateProgress } from "@/lib/crea-local-ai/progress";
 import type { CreaMediaKind, CreaTool } from "@/lib/crea-tools";
 import type { Locale } from "@/lib/i18n";
@@ -54,6 +54,24 @@ type Phase<TExtra> =
 
 type SaveState = { status: "idle" | "saving" | "saved" } | { status: "error"; message: string };
 
+/** Zaglavlje kartice alata: ikonica, naziv, rečenica i oznake (deli ga i plaćena četkica, K11). */
+export function ToolHeader({ tool, locale, icon }: { tool: CreaTool; locale: Locale; icon?: ReactNode }) {
+  return (
+    <header className="flex flex-wrap items-start gap-3">
+      <span className="paper-island grid size-11 shrink-0 place-items-center rounded-full border-2 border-ink bg-yellow text-ink">
+        {icon ?? <Wrench aria-hidden="true" className="size-5" />}
+      </span>
+      <div className="min-w-0 flex-1">
+        <h2 id="crea-tool-title" className="type-h3 text-ink">
+          {tool.title[locale]}
+        </h2>
+        <p className="mt-1 type-body-sm font-semibold text-muted">{tool.summary[locale]}</p>
+        <ToolBadges tool={tool} locale={locale} className="mt-3" />
+      </div>
+    </header>
+  );
+}
+
 /**
  * Generički okvir lokalnog alata (K04, plan K01 §3.5): ulaz → „Pokreni" → (prvo
  * preuzimanje uz potvrdu i traku napretka) → rad na uređaju → pregled → „Sačuvaj
@@ -70,6 +88,8 @@ export function ToolRunner<TExtra>({
   canSave,
   projectId,
   parentJobId = null,
+  models: modelsOverride,
+  webgpu = false,
   canRun,
   inputKey,
   runLabel,
@@ -86,6 +106,13 @@ export function ToolRunner<TExtra>({
   projectId: Id<"studioProjects"> | null;
   /** Rad iz galerije koji je bio ulaz (K05): sačuvan rezultat postaje njegova verzija. */
   parentJobId?: Id<"generationJobs"> | null;
+  /**
+   * Modeli koje ovaj uređaj stvarno preuzima (K11: BiRefNet ILI MODNet) - za
+   * veličinu preuzimanja, potvrdu i „već je na uređaju". Podrazumevano svi iz registra.
+   */
+  models?: readonly CreaLocalModelId[];
+  /** ONNX modeli idu kroz WebGPU izdanje ORT-a (drugi WASM; K11). */
+  webgpu?: boolean;
   /** Ulaz je spreman (npr. izabrana slika). */
   canRun: boolean;
   /** Menja se sa ulazom; nova vrednost vraća runner na početak. */
@@ -105,7 +132,8 @@ export function ToolRunner<TExtra>({
   const [cached, setCached] = useState<boolean | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  const models = tool.localModels ?? [];
+  const models = modelsOverride ?? tool.localModels ?? [];
+  const modelsKey = models.join("|");
   const availability = caps ? toolAvailability(tool, caps) : null;
   const busy = phase.name === "downloading" || phase.name === "running";
 
@@ -119,16 +147,16 @@ export function ToolRunner<TExtra>({
 
   useEffect(() => {
     let alive = true;
-    const ids = tool.localModels ?? [];
+    const ids = modelsKey ? (modelsKey.split("|") as CreaLocalModelId[]) : [];
     if (ids.length > 0) {
-      void modelsCached(ids).then((value) => {
+      void modelsCached(ids, { webgpu }).then((value) => {
         if (alive) setCached(value);
       });
     }
     return () => {
       alive = false;
     };
-  }, [tool]);
+  }, [modelsKey, webgpu]);
 
   // Pregled rezultata (`blob:` URL) se oslobađa čim rezultat ode sa ekrana ili se alat zatvori.
   const previewUrl = phase.name === "done" ? phase.output.previewUrl : undefined;
@@ -144,8 +172,8 @@ export function ToolRunner<TExtra>({
   async function start(confirmed: boolean) {
     if (!canRun || busy) return;
     if (!confirmed && models.length > 0 && caps) {
-      const bytes = downloadBytes(models);
-      if (needsDownloadConfirm(bytes, caps) && !(await modelsCached(models))) {
+      const bytes = downloadBytes(models, { webgpu });
+      if (needsDownloadConfirm(bytes, caps) && !(await modelsCached(models, { webgpu }))) {
         setPhase({ name: "confirm", bytes });
         return;
       }
@@ -229,25 +257,14 @@ export function ToolRunner<TExtra>({
     },
   };
 
-  const downloadSize = models.length > 0 ? formatBytes(downloadBytes(models), locale) : null;
+  const downloadSize = models.length > 0 ? formatBytes(downloadBytes(models, { webgpu }), locale) : null;
 
   return (
     <section
       aria-labelledby="crea-tool-title"
       className="surface-card border-2 border-ink bg-paper-strong p-4 shadow-[6px_6px_0_0_var(--shadow-hard)] sm:p-6"
     >
-      <header className="flex flex-wrap items-start gap-3">
-        <span className="paper-island grid size-11 shrink-0 place-items-center rounded-full border-2 border-ink bg-yellow text-ink">
-          {icon ?? <Wrench aria-hidden="true" className="size-5" />}
-        </span>
-        <div className="min-w-0 flex-1">
-          <h2 id="crea-tool-title" className="type-h3 text-ink">
-            {tool.title[locale]}
-          </h2>
-          <p className="mt-1 type-body-sm font-semibold text-muted">{tool.summary[locale]}</p>
-          <ToolBadges tool={tool} locale={locale} className="mt-3" />
-        </div>
-      </header>
+      <ToolHeader tool={tool} locale={locale} icon={icon} />
 
       {availability && !availability.ok ? (
         <p role="status" className="surface-inset mt-5 flex gap-2 bg-paper p-3 type-body-sm font-bold text-ink">

@@ -1,9 +1,17 @@
-import type { FaceDetector } from "@mediapipe/tasks-vision";
+import type { BrushMode, FaceDetector, InteractiveSegmenter } from "@mediapipe/tasks-vision";
 import type { Worker as TesseractWorker } from "tesseract.js";
 
 import { fetchModelFile } from "./cache";
 import { CreaLocalAiError, toLocalAiError } from "./errors";
-import { CREA_LOCAL_MODELS, CREA_LOCAL_RUNTIMES, MEDIAPIPE_WASM_BASE, modelFileUrl, ORT_WASM_URL } from "./models";
+import {
+  CREA_LOCAL_MODELS,
+  CREA_LOCAL_RUNTIMES,
+  MEDIAPIPE_WASM_BASE,
+  modelFileUrl,
+  ORT_WASM_URL,
+  ORT_WEBGPU_WASM_URL,
+  type CreaLocalModelId,
+} from "./models";
 import { aggregateProgress, type AggregateProgress, type FileProgress } from "./progress";
 
 /**
@@ -238,6 +246,150 @@ export async function loadDepthSession(options: LocalLoadOptions = {}): Promise<
     return await attempt;
   } catch (error) {
     depthSession = null;
+    throw toLocalAiError(error, "MODEL_LOAD_FAILED");
+  }
+}
+
+// ── Klikni i izaberi (S12, K11) ──────────────────────────────────────────────
+
+/** Klik na predmet → maska poverenja 0..1 (veličine slike koja je data u `setImage`). */
+export type ClickSegmenter = {
+  setImage: (image: HTMLCanvasElement) => void;
+  segmentAt: (x: number, y: number) => { confidence: Float32Array; width: number; height: number };
+};
+
+let clickSegmenter: Promise<ClickSegmenter> | null = null;
+const BRUSH_POSITIVE = 1 as BrushMode;
+
+/**
+ * MediaPipe MagicTouch v2 (~30 MB): `setImage` jednom pokrene teški enkoder,
+ * a svaki klik samo laki dekoder. Prima normalizovanu tačku (0..1). Pravi se
+ * jednom po strani i deli WASM sa detektorom lica.
+ */
+export async function loadClickSegmenter(options: LocalLoadOptions = {}): Promise<ClickSegmenter> {
+  if (clickSegmenter) return clickSegmenter;
+  const track = progressTracker(options.onProgress);
+  const spec = CREA_LOCAL_MODELS["mp-interactive-segmenter"];
+  const modelUrl = modelFileUrl("mp-interactive-segmenter");
+  if (!modelUrl) throw new CreaLocalAiError("MODEL_LOAD_FAILED");
+
+  const attempt = (async (): Promise<ClickSegmenter> => {
+    const vision = await importVision();
+    visionFileset ??= loadVisionFileset(options, track);
+    const [fileset, model] = await Promise.all([
+      visionFileset,
+      fetchModelFile(modelUrl, {
+        signal: options.signal,
+        expectedBytes: spec.bytes,
+        onProgress: track("model", { loaded: 0, total: spec.bytes }),
+      }),
+    ]);
+    if (options.signal?.aborted) throw new CreaLocalAiError("ABORTED");
+    let segmenter: InteractiveSegmenter;
+    try {
+      segmenter = await vision.InteractiveSegmenter.createFromOptions(fileset, {
+        baseOptions: { modelAssetBuffer: new Uint8Array(await model.arrayBuffer()), delegate: "CPU" },
+      });
+    } catch (error) {
+      throw new CreaLocalAiError("MODEL_LOAD_FAILED", error);
+    }
+    return {
+      setImage: (image) => segmenter.setImage(image),
+      segmentAt: (x, y) => {
+        // `BrushMode` postoji samo kao tip (paket ga ne izvozi u JS-u); 1 = POSITIVE.
+        const mask = segmenter.segment([{ brushMode: BRUSH_POSITIVE, point: [{ x, y }], isCompleted: true }]);
+        try {
+          return { confidence: new Float32Array(mask.getAsFloat32Array()), width: mask.width, height: mask.height };
+        } finally {
+          mask.close();
+        }
+      },
+    };
+  })();
+
+  clickSegmenter = attempt;
+  try {
+    return await attempt;
+  } catch (error) {
+    clickSegmenter = null;
+    visionFileset = null;
+    throw toLocalAiError(error, "MODEL_LOAD_FAILED");
+  }
+}
+
+// ── ONNX modeli za izmene (K11: MI-GAN, MODNet, Swin2SR) ─────────────────────
+
+type OrtWebgpuModule = typeof import("onnxruntime-web/webgpu");
+export type OnnxBackend = "wasm" | "webgpu";
+export type OnnxModel = {
+  ort: OrtModule | OrtWebgpuModule;
+  session: import("onnxruntime-web/wasm").InferenceSession;
+  backend: OnnxBackend;
+};
+
+const onnxModels = new Map<string, Promise<OnnxModel>>();
+
+/**
+ * Jedan ONNX model na ONNX Runtime-u, jednom po strani i po pozadini. WASM i
+ * model idu kroz naš keš (napredak, odustajanje, drugi put bez interneta), pa se
+ * ORT-u daje gotov bajt-niz (`wasmBinary`) - ne vuče ništa sam. Jedna nit, bez
+ * COOP/COEP (K01-5).
+ *
+ * `webgpu`: `onnxruntime-web/webgpu` sa „asyncify" WASM-om i WebGPU izvršiocem
+ * (Swin2SR na računaru sa WebGPU-om). Depth Anything (K10) ostaje na
+ * svom `loadDepthSession`.
+ */
+export async function loadOnnxModel(
+  id: CreaLocalModelId,
+  backend: OnnxBackend,
+  options: LocalLoadOptions = {},
+): Promise<OnnxModel> {
+  const key = `${id}:${backend}`;
+  const existing = onnxModels.get(key);
+  if (existing) return existing;
+  const track = progressTracker(options.onProgress);
+  const spec = CREA_LOCAL_MODELS[id];
+  const modelUrl = modelFileUrl(id);
+  if (!modelUrl) throw new CreaLocalAiError("MODEL_LOAD_FAILED");
+  const runtime = backend === "webgpu" ? CREA_LOCAL_RUNTIMES["onnx-webgpu"] : CREA_LOCAL_RUNTIMES.onnx;
+  const wasmUrl = backend === "webgpu" ? ORT_WEBGPU_WASM_URL : ORT_WASM_URL;
+
+  const attempt = (async (): Promise<OnnxModel> => {
+    const [ort, wasm, model] = await Promise.all([
+      (backend === "webgpu" ? import("onnxruntime-web/webgpu") : import("onnxruntime-web/wasm")).catch((error: unknown) => {
+        throw toLocalAiError(error, "MODEL_LOAD_FAILED");
+      }),
+      fetchModelFile(wasmUrl, {
+        signal: options.signal,
+        expectedBytes: runtime.bytes,
+        onProgress: track("wasm", { loaded: 0, total: runtime.bytes }),
+      }),
+      fetchModelFile(modelUrl, {
+        signal: options.signal,
+        expectedBytes: spec.bytes,
+        onProgress: track("model", { loaded: 0, total: spec.bytes }),
+      }),
+    ]);
+    if (options.signal?.aborted) throw new CreaLocalAiError("ABORTED");
+    ort.env.wasm.wasmBinary = await wasm.arrayBuffer();
+    ort.env.wasm.numThreads = 1;
+    ort.env.wasm.proxy = false;
+    try {
+      const session = await ort.InferenceSession.create(new Uint8Array(await model.arrayBuffer()), {
+        executionProviders: [backend],
+        graphOptimizationLevel: "all",
+      });
+      return { ort, session, backend };
+    } catch (error) {
+      throw new CreaLocalAiError(backend === "webgpu" ? "UNSUPPORTED" : "MODEL_LOAD_FAILED", error);
+    }
+  })();
+
+  onnxModels.set(key, attempt);
+  try {
+    return await attempt;
+  } catch (error) {
+    onnxModels.delete(key);
     throw toLocalAiError(error, "MODEL_LOAD_FAILED");
   }
 }

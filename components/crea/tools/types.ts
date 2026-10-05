@@ -2,9 +2,21 @@ import type { Id } from "@/convex/_generated/dataModel";
 import type { CreaDeviceCaps } from "@/lib/crea-device";
 import type { CreaTool } from "@/lib/crea-tools";
 import type { Locale } from "@/lib/i18n";
+import type { StudioModel } from "@/lib/studio-models";
 
 /** Rad iz galerije koji ulazi u alat (`?ulaz=<jobId>`, K05); rezultat postaje njegova verzija. */
 export type ToolSource = { jobId: Id<"generationJobs">; url: string };
+
+/**
+ * Za plaćene izmene iz alata (K11): katalog radionice (sa faktorima cena v2) i
+ * stanje ključeva provajdera - ista odluka o dostupnosti kao u composeru.
+ */
+export type CreaPaidContext = {
+  catalog: readonly StudioModel[];
+  providerStatus: Partial<Record<StudioModel["provider"], boolean>> | undefined;
+  publicEnabled: boolean;
+  isStaff: boolean;
+};
 
 /** Ono što svaka komponenta alata dobija od radionice. */
 export type CreaToolProps = {
@@ -15,4 +27,6 @@ export type CreaToolProps = {
   canSave: boolean;
   projectId: Id<"studioProjects"> | null;
   source: ToolSource | null;
+  /** `null` dok se katalog učitava. */
+  paid: CreaPaidContext | null;
 };

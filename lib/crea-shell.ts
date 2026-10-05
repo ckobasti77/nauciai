@@ -44,7 +44,11 @@ export type CreaModeDef = {
   label: LocalizedText;
   icon: CreaIconName;
   models?: CreaModelRule;
-  /** Režim nudi lokalne alate iz `lib/crea-tools.ts` umesto composera (K04). */
+  /**
+   * Režim nudi alate iz `lib/crea-tools.ts` (K04). Bez `models` alati su ceo režim;
+   * uz `models` (Slika · Izmeni, K11) composer ostaje podrazumevan, a alat se bira
+   * pored njega (`?alat=`).
+   */
   tools?: boolean;
   status: "ready" | "soon";
   /** Jedna rečenica: šta režim radi (i za „Stiže uskoro"). */
@@ -75,10 +79,11 @@ export const CREA_MODES: Record<CreaArea, readonly CreaModeDef[]> = {
       label: { sr: "Izmeni", en: "Edit" },
       icon: "Brush",
       models: { inputModes: ["image_multi", "layerize"] },
+      tools: true,
       status: "ready",
       blurb: {
-        sr: "Okači svoju sliku i napiši šta da se promeni: pozadina, svetlo, odeća ili stil.",
-        en: "Upload your image and write what should change: background, light, clothes or style.",
+        sr: "Okači svoju sliku i napiši šta da se promeni - ili uzmi alat: četkica, brisanje, pozadina, uvećanje, boje.",
+        en: "Upload your image and write what should change - or pick a tool: brush, erase, background, upscale, colour.",
       },
     },
     {

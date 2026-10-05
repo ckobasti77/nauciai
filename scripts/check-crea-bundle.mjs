@@ -46,6 +46,9 @@ const MARKERS = [
   { pkg: "gifenc", marker: "NETSCAPE2.0" },
   { pkg: "vectortracer", marker: "binaryimageconverter" },
   { pkg: "konva", marker: "Konva" },
+  // K11: imena svojstava ostaju posle minifikacije; tekst šejdera LUT-a takođe.
+  { pkg: "perfect-freehand", marker: "runningLength" },
+  { pkg: "postprocessing", marker: "CUSTOM_INPUT_DOMAIN" },
   { pkg: "mediabunny", marker: "Cannot add track after output has been started" },
   { pkg: "wavesurfer.js", marker: "wavesurfer" },
   { pkg: "@xzdarcy/react-timeline-editor", marker: "timeline-editor" },

@@ -203,6 +203,14 @@ export const CREA_TOOL_COPY = {
   },
   galleryLabel: { sr: "Besplatno · na tvom uređaju", en: "Free · on your device" },
   openTool: { sr: "Otvori alat", en: "Open the tool" },
+  // Slika · Izmeni (K11): alati stoje pored composera.
+  editListTitle: { sr: "Alati za izmenu", en: "Editing tools" },
+  describeTitle: { sr: "Opiši izmenu rečima", en: "Describe the edit in words" },
+  describeBody: {
+    sr: "AI menja sliku po tvom opisu: pozadinu, svetlo, odeću ili stil.",
+    en: "AI changes the image from your description: background, light, clothes or style.",
+  },
+  shortcutsTitle: { sr: "Ili uzmi alat", en: "Or pick a tool" },
 } satisfies Record<string, LocalizedText | Record<string, LocalizedText>>;
 
 /** Stablo verzija, pre/posle i „Vrati" u detalju rada (K05, S25). */

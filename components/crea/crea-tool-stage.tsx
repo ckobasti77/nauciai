@@ -6,7 +6,7 @@ import type { ReactNode } from "react";
 import { CreaLogo } from "@/components/crea/crea-logo";
 import { ToolBadges } from "@/components/crea/tool-badges";
 import { CREA_TOOL_COMPONENTS } from "@/components/crea/tools";
-import type { ToolSource } from "@/components/crea/tools/types";
+import type { CreaPaidContext, ToolSource } from "@/components/crea/tools/types";
 import { useCreaDeviceCaps } from "@/components/crea/use-crea-device";
 import { LinkButton } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
@@ -35,6 +35,7 @@ export function CreaToolStage({
   canSave,
   projectId,
   sourceJobId,
+  paid,
   list,
 }: {
   locale: Locale;
@@ -45,6 +46,8 @@ export function CreaToolStage({
   projectId: Id<"studioProjects"> | null;
   /** Rad iz galerije koji ulazi u alat (`?ulaz=`, K05). */
   sourceJobId: Id<"generationJobs"> | null;
+  /** Katalog i ključevi za plaćene izmene iz alata (K11). */
+  paid: CreaPaidContext | null;
   /** Spisak alata kad nema levog panela (telefon, uska radionica). */
   list: ReactNode | null;
 }) {
@@ -85,7 +88,18 @@ export function CreaToolStage({
       </StageNote>
     );
   } else {
-    body = <Component key={tool.id} tool={tool} locale={locale} caps={caps} canSave={canSave} projectId={projectId} source={source} />;
+    body = (
+      <Component
+        key={tool.id}
+        tool={tool}
+        locale={locale}
+        caps={caps}
+        canSave={canSave}
+        projectId={projectId}
+        source={source}
+        paid={paid}
+      />
+    );
   }
 
   return (

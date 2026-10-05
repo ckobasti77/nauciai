@@ -181,7 +181,7 @@ export const CREA_GOALS: readonly CreaGoal[] = [
   {
     id: "ukloni-pozadinu",
     area: "slika",
-    mode: "alati",
+    mode: "izmeni",
     icon: "Eraser",
     title: { sr: "Ukloni pozadinu", en: "Remove the background" },
     hint: { sr: "Besplatno, na tvom uređaju", en: "Free, on your own device" },

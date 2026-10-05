@@ -8,6 +8,7 @@ import { describe, expect, test } from "vitest";
 import { STUDIO_MODELS } from "@/convex/providers/catalogModels";
 import { CREA_GOALS, creaGoalById, goalHref } from "@/lib/crea-goals";
 import { CREA_MODES, creaModeDef, modelsForMode, parseCreaShellState, usableInputModes } from "@/lib/crea-shell";
+import { toolById } from "@/lib/crea-tools";
 
 describe("CREA_GOALS", () => {
   test("ima 8-12 kartica sa jedinstvenim id-jevima", () => {
@@ -51,6 +52,8 @@ describe("CREA_GOALS", () => {
     for (const goal of CREA_GOALS) {
       if (goal.prompt) expect(goal.modelSlug, goal.id).toBeDefined();
       if (!goal.modelSlug) expect(goal.toolId ?? goal.recipeId, goal.id).toBeDefined();
+      // Kartica alata vodi u režim u kojem alat stoji (K11: „Ukloni pozadinu" je u Izmeni).
+      if (goal.toolId) expect(toolById(goal.toolId)?.mode, goal.id).toBe(goal.mode);
     }
   });
 
@@ -94,7 +97,7 @@ describe("goalHref", () => {
 
   test("kartica alata vodi u alat", () => {
     expect(goalHref(creaGoalById("ukloni-pozadinu")!)).toBe(
-      "?oblast=slika&rezim=alati&alat=slika.pozadina&cilj=ukloni-pozadinu",
+      "?oblast=slika&rezim=izmeni&alat=slika.pozadina&cilj=ukloni-pozadinu",
     );
   });
 

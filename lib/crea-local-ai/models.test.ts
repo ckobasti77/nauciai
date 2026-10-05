@@ -18,8 +18,10 @@ import {
   MEDIAPIPE_VISION_VERSION,
   MEDIAPIPE_WASM_BASE,
   modelFileUrl,
+  modelRuntime,
   ONNX_RUNTIME_WEB_VERSION,
   ORT_WASM_URL,
+  ORT_WEBGPU_WASM_URL,
   modelWeightBytes,
   type CreaLocalModelId,
 } from "./models";
@@ -99,6 +101,19 @@ describe("registar lokalnih modela", () => {
     expect(Object.keys(CREA_LOCAL_RUNTIMES.onnx.files ?? {})).toEqual([ORT_WASM_URL]);
   });
 
+  test("ONNX model na WebGPU-u preuzima „asyncify\" WASM umesto običnog (K11)", () => {
+    expect(ORT_WEBGPU_WASM_URL).toBe(`https://cdn.jsdelivr.net/npm/onnxruntime-web@${ONNX_RUNTIME_WEB_VERSION}/dist/ort-wasm-simd-threaded.asyncify.wasm`);
+    expect(Object.keys(CREA_LOCAL_RUNTIMES["onnx-webgpu"].files ?? {})).toEqual([ORT_WEBGPU_WASM_URL]);
+    expect(modelRuntime("swin2sr-x2")).toBe("onnx");
+    expect(modelRuntime("swin2sr-x2", { webgpu: true })).toBe("onnx-webgpu");
+    expect(modelRuntime("mp-face-detector", { webgpu: true })).toBe("mediapipe-vision");
+    const swin = CREA_LOCAL_MODELS["swin2sr-x2"].bytes;
+    expect(downloadBytes(["swin2sr-x2"])).toBe(swin + CREA_LOCAL_RUNTIMES.onnx.bytes);
+    expect(downloadBytes(["swin2sr-x2"], { webgpu: true })).toBe(swin + CREA_LOCAL_RUNTIMES["onnx-webgpu"].bytes);
+    // BiRefNet (fp16) postoji samo na WebGPU-u.
+    expect(downloadBytes(["birefnet-lite"])).toBe(CREA_LOCAL_MODELS["birefnet-lite"].bytes + CREA_LOCAL_RUNTIMES["onnx-webgpu"].bytes);
+  });
+
   test("veličina preuzimanja = težine + svaki runtime jednom", () => {
     const face = CREA_LOCAL_MODELS["mp-face-detector"].bytes;
     const runtime = CREA_LOCAL_RUNTIMES["mediapipe-vision"].bytes;
@@ -114,7 +129,8 @@ describe("registar lokalnih modela", () => {
 
   test("URL fajla postoji za CDN izvore", () => {
     expect(modelFileUrl("mp-face-detector")).toMatch(/blaze_face_short_range\.tflite$/);
-    expect(modelFileUrl("birefnet-lite")).toBeNull();
+    // HF bez zakucane revizije (model alata koji još ne radi) nema adresu.
+    expect(modelFileUrl("florence-2-base")).toBeNull();
     // HF samo sa zakucanom revizijom (K10, 3D foto).
     expect(modelFileUrl("depth-anything-v2-small")).toBe(
       "https://huggingface.co/onnx-community/depth-anything-v2-small/resolve/4472b7362082ad9968fee890ca0f1e5aca36b93d/onnx/model_quantized.onnx",

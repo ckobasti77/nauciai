@@ -206,7 +206,8 @@ describe("tip, veličina i alat", () => {
   test("nepoznat, nespreman ili plaćen alat, i alat koji ne pravi ovu vrstu: NEPOZNAT_ALAT", async () => {
     const t = makeT();
     const { asUser } = await seedUser(t);
-    for (const toolId of ["slika.nepostoji", "slika.pozadina", "slika.prosiri", "slika.paleta"]) {
+    // K11: „Ukloni pozadinu" je gotova, pa je nespreman primer „Retuš"; četkica je gotova, ali plaćena.
+    for (const toolId of ["slika.nepostoji", "slika.retus", "slika.prosiri", "slika.cetkica", "slika.paleta"]) {
       const { storageId, result } = await saveImage(t, asUser, { toolId });
       expect(result, toolId).toEqual({ ok: false, reason: "NEPOZNAT_ALAT" });
       expect(await fileExists(t, storageId), toolId).toBe(false);
