@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type RefObject } from "react";
 
 /**
  * Raspodeljuje stavke round-robin po kolonama (0 -> kolona 0, 1 -> kolona 1,
@@ -19,15 +19,37 @@ export function distributeGridColumns<T>(items: T[], columnCount: number): T[][]
 }
 
 /**
+ * Broj kolona za mrežu koja NE zauzima ceo prozor (desna kolona istorije u Crei,
+ * K03): kartica ispod ~220 px ne može da nosi svoja dugmad, pa uska kolona dobija
+ * jednu kolonu, a tek široka tri.
+ */
+export function columnsForContainerWidth(width: number): number {
+  if (width < 440) return 1;
+  if (width < 880) return 2;
+  return 3;
+}
+
+/**
  * Prati broj kolona na osnovu širine prozora:
  * - < 640px (mobilni): 1 kolona
  * - 640px - 1535px (tablet / manji desktop): 2 kolone
  * - >= 1536px (široki desktop - 2xl breakpoint): 3 kolone
+ *
+ * Uz `containerRef` meri se širina tog elementa (`columnsForContainerWidth`), ne prozora.
  */
-export function useGridColumnCount(): number {
+export function useGridColumnCount(containerRef?: RefObject<HTMLElement | null>): number {
   const [columnCount, setColumnCount] = useState<number>(3);
 
   useEffect(() => {
+    const container = containerRef?.current;
+    if (container) {
+      const observer = new ResizeObserver(([entry]) => {
+        if (entry && entry.contentRect.width > 0) setColumnCount(columnsForContainerWidth(entry.contentRect.width));
+      });
+      observer.observe(container);
+      return () => observer.disconnect();
+    }
+
     function update() {
       const width = window.innerWidth;
       if (width < 640) {
@@ -42,7 +64,7 @@ export function useGridColumnCount(): number {
     update();
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
-  }, []);
+  }, [containerRef]);
 
   return columnCount;
 }

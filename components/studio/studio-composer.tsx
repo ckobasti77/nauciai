@@ -146,11 +146,14 @@ function AttachFilePopup({
   onSelectType,
   locale,
   disabled,
+  opensDown = false,
 }: {
   model: StudioModel;
   onSelectType: (type: "image" | "video" | "audio" | "file") => void;
   locale: Locale;
   disabled?: boolean;
+  /** Usidren composer (Crea, levi panel): ispod njega ima mesta, iznad nema. */
+  opensDown?: boolean;
 }) {
   const caps = modelInputCapabilities(model);
   const acceptsImage = caps.image !== null || caps.firstLast || (caps.reference?.images ?? 0) > 0;
@@ -197,7 +200,10 @@ function AttachFilePopup({
       initial={{ opacity: 0, y: 6, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 4, scale: 0.98 }}
-      className="surface-card absolute bottom-[calc(100%+12px)] left-0 z-50 w-44 border-2 border-ink bg-paper-strong p-1.5 shadow-[6px_6px_0_0_var(--shadow-hard-16)]"
+      className={cn(
+        "surface-card absolute left-0 z-50 w-44 border-2 border-ink bg-paper-strong p-1.5 shadow-[6px_6px_0_0_var(--shadow-hard-16)]",
+        opensDown ? "top-[calc(100%+12px)]" : "bottom-[calc(100%+12px)]",
+      )}
     >
       <div className="flex flex-col gap-1">
         {options.map((opt) => {
@@ -238,6 +244,7 @@ function ChipControlPopup({
   inputMode,
   disabled,
   triggerRef,
+  opensDown = false,
 }: {
   control: ParamControlSpec;
   value: ParamValue;
@@ -248,6 +255,7 @@ function ChipControlPopup({
   inputMode?: string;
   disabled?: boolean;
   triggerRef?: React.RefObject<HTMLButtonElement | null>;
+  opensDown?: boolean;
 }) {
   const shouldReduceMotion = useReducedMotion();
   const motionParams = getStudioMotion(Boolean(shouldReduceMotion));
@@ -294,7 +302,10 @@ function ChipControlPopup({
         duration: motionParams.element.enter.duration,
         ease: motionParams.element.enter.ease as Easing,
       }}
-      className="surface-card absolute bottom-[calc(100%+12px)] left-0 z-50 w-[280px] max-w-[calc(100vw-24px)] border-2 border-ink bg-paper-strong p-3.5 shadow-[6px_6px_0_0_var(--shadow-hard-16)]"
+      className={cn(
+        "surface-card absolute left-0 z-50 w-[280px] max-w-[calc(100vw-24px)] border-2 border-ink bg-paper-strong p-3.5 shadow-[6px_6px_0_0_var(--shadow-hard-16)]",
+        opensDown ? "top-[calc(100%+12px)]" : "bottom-[calc(100%+12px)]",
+      )}
     >
       <ParamControl
         control={control}
@@ -324,6 +335,7 @@ function PromotedChipItem({
   inputMode,
   locale,
   disabled,
+  opensDown,
 }: {
   chip: {
     key: string;
@@ -340,6 +352,7 @@ function PromotedChipItem({
   inputMode: string;
   locale: Locale;
   disabled: boolean;
+  opensDown: boolean;
 }) {
   const buttonRef = useRef<HTMLButtonElement | null>(null);
 
@@ -382,6 +395,7 @@ function PromotedChipItem({
             inputMode={inputMode}
             disabled={disabled}
             triggerRef={buttonRef}
+            opensDown={opensDown}
           />
         ) : null}
       </AnimatePresence>
@@ -408,6 +422,10 @@ export function StudioComposer({
   onGenerate,
   isCollapsed = false,
   onToggleCollapse,
+  placement = "floating",
+  initialInputMode,
+  lockModelKind = false,
+  dropDisabled = false,
 }: {
   models: StudioModel[];
   activeModel: StudioModel;
@@ -421,10 +439,24 @@ export function StudioComposer({
   isPending: boolean;
   error: string | null;
   variant?: "create" | "edit";
-  onGenerate: (payload: JobPayload) => void;
+  /** Model ide uz payload: detalj gradi formu za model POSLA, ne za model strane (K01 0.2-7). */
+  onGenerate: (payload: JobPayload, model: StudioModel) => void;
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
+  /**
+   * `floating` (podrazumevano): lebdi na dnu ekrana, pop-upovi idu nagore.
+   * `docked`: stoji u levom panelu radionice Cree (K03), statičan; čipovi se otvaraju nadole,
+   * a izbor modela desno od polja (preko scene), da ceo stane u ekran.
+   */
+  placement?: "floating" | "docked";
+  /** Ulazni režim kojim se forma otvara (režim ljuske Cree); važi samo ako ga model ima. */
+  initialInputMode?: string;
+  /** Izbor modela ne nudi promenu vrste - radionica je već izabrala sliku, video ili zvuk. */
+  lockModelKind?: boolean;
+  /** Gasi prijem fajla preko celog ekrana (npr. dok je otvoren detalj sa svojim composerom). */
+  dropDisabled?: boolean;
 }) {
+  const isDocked = placement === "docked";
   const [modelPickerOpen, setModelPickerOpen] = useState(false);
   const [attachPopupOpen, setAttachPopupOpen] = useState(false);
   const [openChipKey, setOpenChipKey] = useState<string | null>(null);
@@ -483,7 +515,13 @@ export function StudioComposer({
   const chipContainerRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   // Stanje ulaznog režima i fajlova
-  const [inputMode, setInputMode] = useState<string>(() => seed?.inputMode ?? activeModel.inputModes[0] ?? "text");
+  const [inputMode, setInputMode] = useState<string>(
+    () =>
+      seed?.inputMode ??
+      (initialInputMode && activeModel.inputModes.includes(initialInputMode) ? initialInputMode : undefined) ??
+      activeModel.inputModes[0] ??
+      "text",
+  );
   const [files, setFiles] = useState<SlotFiles>(() => seed?.files ?? {});
   const [frames, setFrames] = useState<FramePair>(() => ({
     first: seed?.files?.image?.[0] ?? null,
@@ -689,6 +727,15 @@ export function StudioComposer({
     el.style.height = "auto";
     el.style.height = `${Math.min(el.scrollHeight, 180)}px`;
   }
+
+  // Opis koji stigne spolja (cilj sa početnog ekrana, „Upotrebi ponovo") mora da se vidi
+  // ceo, ne samo prvi red - visina se ne menja samo kad korisnik kuca (K03).
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 180)}px`;
+  }, [prompt]);
 
   function handlePromptChange(value: string) {
     setPrompt(value);
@@ -931,7 +978,7 @@ export function StudioComposer({
     fileInputRef.current.click();
   }
 
-  const dropEnabled = variant === "create" && !isCollapsed;
+  const dropEnabled = variant === "create" && !isCollapsed && !dropDisabled;
 
   useEffect(() => {
     if (!dropEnabled) return;
@@ -979,12 +1026,15 @@ export function StudioComposer({
   function submit() {
     if (block !== null || isPending || isUploading) return;
 
-    onGenerate({
-      params: form.params,
-      inputMode,
-      inputs: inputsPayload(payloadFiles),
-      ...(sourceRequired && sourceJobId ? { sourceJobId } : {}),
-    });
+    onGenerate(
+      {
+        params: form.params,
+        inputMode,
+        inputs: inputsPayload(payloadFiles),
+        ...(sourceRequired && sourceJobId ? { sourceJobId } : {}),
+      },
+      activeModel,
+    );
   }
 
   // Određivanje promovisanih inline čipova na traci:
@@ -1146,7 +1196,9 @@ export function StudioComposer({
             aria-label={locale === "sr" ? "Izaberi model" : "Choose a model"}
             className={cn(
               "surface-card overflow-hidden border-2 border-ink bg-paper-strong shadow-[6px_6px_0_0_var(--shadow-hard-16)] flex flex-col z-40",
-              "sm:absolute sm:bottom-[calc(100%+12px)] sm:left-0 sm:right-0 sm:max-h-[min(78vh,600px)]",
+              isDocked
+                ? "sm:absolute sm:bottom-auto sm:left-[calc(100%+16px)] sm:top-0 sm:w-[min(36rem,calc(100vw-26rem))] sm:max-h-[min(calc(100vh-6rem),600px)]"
+                : "sm:absolute sm:bottom-[calc(100%+12px)] sm:left-0 sm:right-0 sm:max-h-[min(78vh,600px)]",
               "fixed inset-x-0 bottom-0 max-h-[85vh] rounded-t-[16px] border-b-0 sm:rounded-[16px] sm:border-b-2",
             )}
           >
@@ -1172,6 +1224,7 @@ export function StudioComposer({
                 models={models}
                 selectedSlug={activeModel.slug}
                 activeKind={activeModel.kind}
+                {...(lockModelKind ? { lockedKind: activeModel.kind } : {})}
                 providerStatus={studioState?.providerStatus}
                 onSelect={(m) => {
                   handleSelectNewModel(m);
@@ -1282,7 +1335,7 @@ export function StudioComposer({
         {/* Prompt Textarea */}
         <textarea
           ref={textareaRef}
-          rows={1}
+          rows={isDocked ? 3 : 1}
           value={prompt}
           onChange={(event) => handlePromptChange(event.target.value)}
           placeholder={
@@ -1366,6 +1419,7 @@ export function StudioComposer({
                   locale={locale}
                   disabled={isPending}
                   onSelectType={handleSelectFileType}
+                  opensDown={isDocked}
                 />
               ) : null}
             </AnimatePresence>
@@ -1410,6 +1464,7 @@ export function StudioComposer({
               inputMode={inputMode}
               locale={locale}
               disabled={isPending}
+              opensDown={isDocked}
             />
           ))}
 

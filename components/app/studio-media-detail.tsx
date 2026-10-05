@@ -154,7 +154,7 @@ export function StudioMediaDetail({
   topUpHref: string;
   onClose: () => void;
   onSelectJob: (job: StudioTileJob) => void;
-  onGenerate: (payload: JobPayload) => void;
+  onGenerate: (payload: JobPayload, model: StudioModel) => void;
   isPending: boolean;
   error: string | null;
 }) {
@@ -532,12 +532,15 @@ export function StudioMediaDetail({
                   <button
                     type="button"
                     onClick={() => {
-                      if (jobDetail) {
-                        onGenerate({
-                          params: parsedParams,
-                          inputMode: jobDetail.inputMode ?? "text",
-                          inputs: {},
-                        });
+                      if (jobDetail && jobModel) {
+                        onGenerate(
+                          {
+                            params: parsedParams,
+                            inputMode: jobDetail.inputMode ?? "text",
+                            inputs: {},
+                          },
+                          jobModel,
+                        );
                       }
                     }}
                     className="mt-2 inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 py-1.5 text-xs font-black text-ink shadow-[3px_3px_0_0_var(--ink)] transition hover:-translate-y-0.5"

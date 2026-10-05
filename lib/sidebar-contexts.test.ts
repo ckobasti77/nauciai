@@ -45,20 +45,28 @@ describe("sidebar contexts — studio sections", () => {
     expect(studio.groupLabelEn).toBe("Library");
   });
 
-  it("builds each section href as a ?kind= filter over the studio route", () => {
+  it("builds each section href as a Crea workshop (?oblast=) over the studio route", () => {
     const byId = Object.fromEntries(studio.sections.map((section) => [section.id, section]));
     expect(byId.all.href("sr", {})).toBe("/app/studio");
-    expect(byId.images.href("sr", {})).toBe("/app/studio?kind=image");
-    expect(byId.videos.href("en", {})).toBe("/en/app/studio?kind=video");
-    expect(byId.audio.href("sr", {})).toBe("/app/studio?kind=audio");
+    expect(byId.images.href("sr", {})).toBe("/app/studio?oblast=slika");
+    expect(byId.videos.href("en", {})).toBe("/en/app/studio?oblast=video");
+    expect(byId.audio.href("sr", {})).toBe("/app/studio?oblast=zvuk");
   });
 
-  it("resolves the active section from the ?kind= filter, falling back to all", () => {
-    const sp = (kind?: string) => new URLSearchParams(kind ? `kind=${kind}` : "");
+  it("resolves the active section from ?oblast=, falling back to all", () => {
+    const sp = (query = "") => new URLSearchParams(query);
+    expect(activeSectionId(studio, "/sr/app/studio", sp("oblast=slika"), {})).toBe("images");
+    expect(activeSectionId(studio, "/sr/app/studio", sp("oblast=video&rezim=pokret"), {})).toBe("videos");
+    expect(activeSectionId(studio, "/sr/app/studio", sp("oblast=zvuk"), {})).toBe("audio");
+    expect(activeSectionId(studio, "/sr/app/studio", sp(), {})).toBe("all");
+    expect(activeSectionId(studio, "/sr/app/studio", sp("oblast=bogus"), {})).toBe("all");
+  });
+
+  it("still reads the old ?kind= links", () => {
+    const sp = (kind: string) => new URLSearchParams(`kind=${kind}`);
     expect(activeSectionId(studio, "/sr/app/studio", sp("image"), {})).toBe("images");
     expect(activeSectionId(studio, "/sr/app/studio", sp("video"), {})).toBe("videos");
     expect(activeSectionId(studio, "/sr/app/studio", sp("audio"), {})).toBe("audio");
-    expect(activeSectionId(studio, "/sr/app/studio", sp(), {})).toBe("all");
     expect(activeSectionId(studio, "/sr/app/studio", sp("bogus"), {})).toBe("all");
   });
 

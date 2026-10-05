@@ -6,13 +6,19 @@ import { Coins, Wand2 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence } from "motion/react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { AppIntroPanel } from "@/components/app/intro-panel";
 import { StudioMediaDetail } from "@/components/app/studio-media-detail";
 import { StudioMediaGrid } from "@/components/app/studio-media-grid";
 import type { StudioTileJob } from "@/components/app/studio-media-tile";
 import { StudioModerationGrid } from "@/components/app/studio-moderation-grid";
+import { CreaComingSoon } from "@/components/crea/crea-coming-soon";
+import { CreaHistory, CreaHistoryEmpty } from "@/components/crea/crea-history";
+import { CreaStage } from "@/components/crea/crea-stage";
+import { CreaStartScreen } from "@/components/crea/crea-start-screen";
+import { CreaToolPanel } from "@/components/crea/crea-tool-panel";
+import { CREA_DOCK_MIN_PX, CreaWorkshop } from "@/components/crea/crea-workshop";
 import { CreditIcon } from "@/components/studio/credit-icon";
 import { StudioComposer, type JobPayload, type RegenerateSeed } from "@/components/studio/studio-composer";
 import { StudioVerifyEmailPanel } from "@/components/studio/verify-email-panel";
@@ -23,6 +29,18 @@ import { LinkButton, Panel } from "@/components/ui/primitives";
 import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { CREA_STAGE_COPY } from "@/lib/crea-copy";
+import { creaGoalById } from "@/lib/crea-goals";
+import {
+  CREA_AREA_KIND,
+  creaModeDef,
+  creaShellQuery,
+  inputModeForMode,
+  modelsForMode,
+  modeOfModel,
+  parseCreaShellState,
+  type CreaShellState,
+} from "@/lib/crea-shell";
 import { clampBoundsToViewport } from "@/lib/floating-bounds";
 import { parsePath } from "@/lib/routes";
 import { t, withLocale, type Locale } from "@/lib/i18n";
@@ -41,7 +59,6 @@ import {
   STUDIO_TERMS_GATE,
   STUDIO_TERMS_PATH,
 } from "@/lib/studio-messages";
-import type { StudioSectionKind } from "@/lib/studio-sections";
 import type { SlotFiles } from "@/lib/studio-slots";
 import { formatCreditsLong, type ParamValues } from "@/lib/studio-params";
 
@@ -225,37 +242,50 @@ export function StudioPage({
   const routeDetailMatch = parsePath(pathname).canonicalPath.match(new RegExp(`^${basePath}/m/([^/]+)`));
   const activeJobId = routeDetailMatch ? routeDetailMatch[1] : (initialJobId ?? null);
   const [loadedJobs, setLoadedJobs] = useState<StudioTileJob[]>([]);
+  const [jobsLoadingFirst, setJobsLoadingFirst] = useState(true);
+  const handleLoadedJobsChange = useCallback((jobs: StudioTileJob[], isLoadingFirst: boolean) => {
+    setLoadedJobs(jobs);
+    setJobsLoadingFirst(isLoadingFirst);
+  }, []);
 
-  // Taksonomija biblioteke iz URL query parametra (?kind=)
-  const kindParam = searchParams.get("kind");
-  const activeKind: StudioSectionKind | null =
-    kindParam === "image" || kindParam === "video" || kindParam === "audio"
-      ? (kindParam as StudioSectionKind)
-      : null;
+  // Ljuska Cree (K03): oblast i režim žive u URL-u (`?oblast=&rezim=`, stari `?kind=`
+  // znači oblast). Query se nosi i kroz detalj (`/m/<id>`), pa zatvaranje vraća isti ekran.
+  const shell = useMemo(() => parseCreaShellState(searchParams), [searchParams]);
+  const queryString = searchParams.toString();
+  const withQuery = (path: string) => (queryString ? `${path}?${queryString}` : path);
 
-  function handleSelectKind(kind: StudioSectionKind | null) {
-    const params = new URLSearchParams(searchParams.toString());
-    if (kind) {
-      params.set("kind", kind);
-    } else {
-      params.delete("kind");
-    }
-    const query = params.toString();
-    const target = query ? `${pathname}?${query}` : pathname;
-    router.push(target, { scroll: false });
+  function navigateShell(next: Partial<CreaShellState>) {
+    const query = creaShellQuery(next, searchParams);
+    router.push(query ? `${pathname}?${query}` : pathname, { scroll: false });
   }
 
   const [selectedSlug, setSelectedSlug] = useState<string | null>(() => searchParams.get("model"));
+  // `?model=` (kartica „Šta praviš danas?") važi i posle prvog rendera, ne samo na ulazu.
+  const modelParam = searchParams.get("model");
+  const [prevModelParam, setPrevModelParam] = useState(modelParam);
+  if (modelParam !== prevModelParam) {
+    setPrevModelParam(modelParam);
+    if (modelParam) setSelectedSlug(modelParam);
+  }
   // Moderatorski pregled (H3): "Samo moji" / "Svi korisnici", samo za osoblje.
   const [scope, setScope] = useState<GalleryScope>("mine");
-  const [starterPrompt, setStarterPrompt] = useState<string | null>(null);
+  // Cilj sa početnog ekrana popunjava opis; promena cilja (ili izlazak iz njega) ga menja.
+  const goal = creaGoalById(shell.goal);
+  const [starterPrompt, setStarterPrompt] = useState<string | null>(() => goal?.prompt?.[locale] ?? null);
+  const [prevGoalId, setPrevGoalId] = useState(shell.goal);
+  if (shell.goal !== prevGoalId) {
+    setPrevGoalId(shell.goal);
+    setStarterPrompt(goal?.prompt?.[locale] ?? null);
+  }
   const [error, setError] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
 
   const creditsHref = creditsHrefProp ?? withLocale(locale, "/app/credits");
 
-  // Dinamičko merenje stvarne visine lebdećeg composera/panela preko ResizeObserver-a (popravka 1.2)
-  const floatingContainerRef = useRef<HTMLDivElement | null>(null);
+  // Dinamičko merenje stvarne visine lebdećeg composera/panela preko ResizeObserver-a (popravka 1.2).
+  // Elementi se mere kroz callback ref (stanje), ne `useRef` + efekat na mount-u: na
+  // prvom renderu prijava još traje, pa ti elementi tada ne postoje (K03).
+  const [floatingContainerEl, setFloatingContainerEl] = useState<HTMLDivElement | null>(null);
   const [floatingHeight, setFloatingHeight] = useState<number>(140);
 
   // Sklopljeno/rasklopljeno stanje polja za unos - pamti se odvojeno za mobilni i desktop (N11)
@@ -276,7 +306,7 @@ export function StudioPage({
   }, []);
 
   useEffect(() => {
-    const el = floatingContainerRef.current;
+    const el = floatingContainerEl;
     if (!el) return;
 
     const observer = new ResizeObserver((entries) => {
@@ -290,18 +320,18 @@ export function StudioPage({
 
     observer.observe(el);
     return () => observer.disconnect();
-  }, []);
+  }, [floatingContainerEl]);
 
   // Merenje prostora bez sidebara (Deo A) kako bi lebdeći composer bio tačno centriran
-  const studioRootRef = useRef<HTMLDivElement | null>(null);
+  const [studioRootEl, setStudioRootEl] = useState<HTMLDivElement | null>(null);
   const [contentBounds, setContentBounds] = useState<{ left: number; width: number } | null>(null);
 
   useEffect(() => {
-    const el = studioRootRef.current;
+    const el = studioRootEl;
     if (!el) return;
 
     function updateBounds() {
-      const target = studioRootRef.current;
+      const target = el;
       if (!target) return;
       const rect = target.getBoundingClientRect();
       // `clientWidth` (a ne `innerWidth`) je širina BEZ vertikalnog scrollbara — mera koja
@@ -323,7 +353,22 @@ export function StudioPage({
       window.removeEventListener("resize", updateBounds);
       window.removeEventListener("scroll", updateBounds);
     };
-  }, []);
+  }, [studioRootEl]);
+
+  // Širina radionice odlučuje gde stoji composer: u levom panelu (široko) ili kao donja
+  // fioka (usko). Do prvog merenja composer se ne crta, da ne bi skočio sa dna u panel.
+  const [workshopEl, setWorkshopEl] = useState<HTMLDivElement | null>(null);
+  const [workshopWidth, setWorkshopWidth] = useState<number | null>(null);
+  useEffect(() => {
+    if (!workshopEl) return;
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry && entry.contentRect.width > 0) setWorkshopWidth(entry.contentRect.width);
+    });
+    observer.observe(workshopEl);
+    return () => observer.disconnect();
+  }, [workshopEl]);
+  const composerPlacement: "docked" | "floating" | null =
+    workshopWidth === null ? null : workshopWidth >= CREA_DOCK_MIN_PX ? "docked" : "floating";
 
   // Redovi se parsiraju jednom po promeni `models` liste
   const catalog = useMemo(
@@ -370,12 +415,33 @@ export function StudioPage({
     };
   }, [regenerateId, regenerated]);
 
-  const recommended = catalog.find((model) => model.badge === "preporuceno");
-  const activeModel =
-    catalog.find((model) => model.slug === selectedSlug) ??
-    (regenerated ? catalog.find((model) => model.slug === regenerated.modelSlug) : undefined) ??
-    recommended ??
-    catalog[0];
+  // Oblast i režim. Stari link `?regenerate=<id>` bez oblasti vodi tamo gde je model posla.
+  const regeneratedModel = regenerated ? catalog.find((model) => model.slug === regenerated.modelSlug) : undefined;
+  const implied = shell.area === null && regeneratedModel ? modeOfModel(regeneratedModel, regenerated?.inputMode) : null;
+  const area = shell.area ?? implied?.area ?? null;
+  const modeDef = area ? creaModeDef(area, shell.area ? shell.mode : (implied?.mode ?? null)) : null;
+  const activeKind = area ? CREA_AREA_KIND[area] : null;
+
+  // Izbor modela nudi samo modele ovog režima (K03); bez oblasti ili u režimu „uskoro" nema composera.
+  const modeModels = useMemo(
+    () => (area && modeDef?.status === "ready" ? modelsForMode(catalog, area, modeDef.id) : []),
+    [catalog, area, modeDef],
+  );
+  const activeModel: StudioModel | undefined =
+    modeModels.find((model) => model.slug === selectedSlug) ??
+    (regenerated ? modeModels.find((model) => model.slug === regenerated.modelSlug) : undefined) ??
+    modeModels.find((model) => model.badge === "preporuceno") ??
+    modeModels[0];
+
+  // Seme forme: „Generiši ponovo" ima prednost, pa parametri cilja (npr. TikTok = 9:16).
+  const regenerateSeed = seed && regenerated?.modelSlug === activeModel?.slug ? seed : null;
+  const goalSeed: RegenerateSeed | null =
+    goal?.params && goal.modelSlug === activeModel?.slug ? { id: `cilj:${goal.id}`, params: goal.params } : null;
+  const goalInputMode = goal?.inputMode && goal.modelSlug === activeModel?.slug ? goal.inputMode : undefined;
+  // Composer se montira iznova kad stigne seme ponavljanja (forma ga čita samo pri prvom
+  // renderu, K01 0.2-8) - ali NE kad korisnik promeni model, da opis i podešavanja ostanu.
+  const [seedEpoch, setSeedEpoch] = useState<string | null>(null);
+  if (regenerateSeed && regenerateSeed.id !== seedEpoch) setSeedEpoch(regenerateSeed.id);
 
   // H2: detalj otvoren direktnim linkom (posao nije u učitanoj mreži) čita PRAVI
   // izlaz i status kroz `getJobForDetail` - ne fabrikuje izlaz iz prvog ulaza.
@@ -417,7 +483,7 @@ export function StudioPage({
     // `sessionStorage`, ne `useRef`: /app/studio i /app/studio/m/[jobId] su dve
     // odvojene rute, pa se komponenta remount-uje i ref bi se resetovao.
     setPushedDetailId(job._id);
-    router.push(withLocale(locale, `${basePath}/m/${job._id}`), { scroll: false });
+    router.push(withQuery(withLocale(locale, `${basePath}/m/${job._id}`)), { scroll: false });
   }
 
   function handleCloseDetail() {
@@ -428,27 +494,26 @@ export function StudioPage({
       router.back();
     } else {
       // Direktan link ili refresh na /app/studio/m/<id>: nema cemu da se vracamo.
-      const target = kindParam ? `${basePath}?kind=${kindParam}` : basePath;
-      router.push(withLocale(locale, target), { scroll: false });
+      router.push(withQuery(withLocale(locale, basePath)), { scroll: false });
     }
     setTimeout(() => {
       if (prevId) {
-        document.getElementById(`tile-${prevId}`)?.focus();
+        (document.getElementById(`tile-${prevId}`) ?? document.getElementById(`stage-${prevId}`))?.focus();
       }
     }, 60);
   }
 
   function handleSelectDetailJob(nextJob: StudioTileJob) {
-    router.replace(withLocale(locale, `${basePath}/m/${nextJob._id}`), { scroll: false });
+    router.replace(withQuery(withLocale(locale, `${basePath}/m/${nextJob._id}`)), { scroll: false });
   }
 
-  async function generate(payload: JobPayload) {
-    if (!activeModel) return;
+  // Model stiže od composera koji je poslao formu: detalj gradi formu za model POSLA (K01 0.2-7).
+  async function generate(payload: JobPayload, model: StudioModel) {
     setIsPending(true);
     setError(null);
     try {
       const result = await createJob({
-        modelSlug: activeModel.slug,
+        modelSlug: model.slug,
         params: JSON.stringify(payload.params),
         inputMode: payload.inputMode,
         ...(Object.keys(payload.inputs).length > 0
@@ -473,24 +538,24 @@ export function StudioPage({
     }
   }
 
+  // „Upotrebi ponovo": model posla i njegov opis, u režimu ljuske u kojem taj model radi.
   function handleReuse(job: StudioTileJob) {
     setSelectedSlug(job.modelSlug);
     const p = jobPrompt(job.params);
     if (p) setStarterPrompt(p);
+    const model = catalog.find((entry) => entry.slug === job.modelSlug);
+    const target = model ? modeOfModel(model, job.inputMode) : null;
+    if (target && (target.area !== area || target.mode !== modeDef?.id)) {
+      navigateShell({ area: target.area, mode: target.mode });
+    }
   }
 
   function handleExtend(job: StudioTileJob) {
-    setSelectedSlug(job.modelSlug);
-    const p = jobPrompt(job.params);
-    if (p) setStarterPrompt(p);
+    handleReuse(job);
   }
 
   function handleUseStarterPrompt(prompt: string) {
     setStarterPrompt(prompt);
-  }
-
-  function handleResetKind() {
-    handleSelectKind(null);
   }
 
   // Zaglavlje (SP2):
@@ -513,7 +578,6 @@ export function StudioPage({
               scope={scope}
               onSelectScope={setScope}
               activeKind={activeKind}
-              onSelectKind={handleSelectKind}
               catalog={catalog}
             />
           </div>
@@ -557,7 +621,6 @@ export function StudioPage({
           scope={scope}
           onSelectScope={setScope}
           activeKind={activeKind}
-          onSelectKind={handleSelectKind}
           catalog={catalog}
         />
       </div>
@@ -584,10 +647,12 @@ export function StudioPage({
     );
   }
 
-  if (!isAuthenticated) {
-    return (
-      <div className="space-y-6">
-        {topbar}
+  // Composer ili kapija ispred njega (prijava, pauza, pristup, uslovi). Isti sadržaj stoji u
+  // levom panelu radionice (široko) ili u donjoj fioci (usko) - nikad na oba mesta. Gost vidi
+  // celu ljusku (ciljeve, radionice, režime), a prijavu tamo gde bi bio composer (K03).
+  const composerContent = (placement: "docked" | "floating") => {
+    if (!isAuthenticated) {
+      return (
         <Panel className="p-4 sm:p-6">
           <p className="type-body type-measure font-bold text-muted">
             {locale === "sr"
@@ -598,11 +663,9 @@ export function StudioPage({
             {locale === "sr" ? "Prijavi se" : "Sign in"}
           </LinkButton>
         </Panel>
-      </div>
-    );
-  }
+      );
+    }
 
-  const floatingContent = () => {
     if (state !== undefined && !state.enabled) {
       return (
         <div className="surface-card border-2 border-ink bg-paper-strong p-4 shadow-[6px_6px_0_0_var(--shadow-hard-16)] sm:p-6">
@@ -655,11 +718,20 @@ export function StudioPage({
       );
     }
 
-    if (!activeModel) return null;
+    if (!area || !modeDef) return null;
+
+    if (!activeModel) {
+      return (
+        <p className="surface-card border-2 border-ink bg-paper p-4 type-body-sm font-bold text-muted shadow-[6px_6px_0_0_var(--shadow-hard-16)]">
+          {CREA_STAGE_COPY.noModels[locale]}
+        </p>
+      );
+    }
 
     return (
       <StudioComposer
-        models={catalog}
+        key={`${area}:${modeDef.id}:${shell.goal ?? ""}:${seedEpoch ?? ""}`}
+        models={modeModels}
         activeModel={activeModel}
         onSelectModel={(model) => {
           setSelectedSlug(model.slug);
@@ -669,29 +741,85 @@ export function StudioPage({
         studioState={state}
         balance={balance?.balance}
         topUpHref={creditsHref}
-        seed={seed && regenerated?.modelSlug === activeModel.slug ? seed : null}
+        seed={regenerateSeed ?? goalSeed}
         starterPrompt={starterPrompt}
         isPending={isPending}
         error={error}
         variant="create"
         onGenerate={generate}
-        isCollapsed={isComposerCollapsed}
-        onToggleCollapse={() =>
-          setIsComposerCollapsed((prev) => {
-            const next = !prev;
-            writeComposerCollapsed(composerBreakpoint, next);
-            return next;
-          })
-        }
+        placement={placement}
+        initialInputMode={goalInputMode ?? inputModeForMode(activeModel, area, modeDef.id)}
+        lockModelKind
+        dropDisabled={activeJobId !== null}
+        {...(placement === "floating"
+          ? {
+              isCollapsed: isComposerCollapsed,
+              onToggleCollapse: () =>
+                setIsComposerCollapsed((prev) => {
+                  const next = !prev;
+                  writeComposerCollapsed(composerBreakpoint, next);
+                  return next;
+                }),
+            }
+          : {})}
       />
     );
   };
 
-  const gridBottomPadding = isComposerCollapsed ? 60 : floatingHeight + 28;
+  const hasComposer = area !== null && modeDef?.status === "ready";
+  const showFloating = hasComposer && composerPlacement === "floating";
+  const gridBottomPadding = showFloating ? (isComposerCollapsed ? 60 : floatingHeight + 28) : 0;
+  const stageJob = loadedJobs.find((job) => job.kind === activeKind) ?? null;
+
+  const history = (
+    <CreaHistory locale={locale} area={area}>
+      {!isAuthenticated ? (
+        <CreaHistoryEmpty locale={locale} area={area} guest />
+      ) : (
+        <StudioMediaGrid
+          locale={locale}
+          kind={activeKind}
+          projectId={activeProjectId}
+          catalog={catalog}
+          onReuse={handleReuse}
+          onExtend={handleExtend}
+          onOpenDetail={handleOpenDetail}
+          onLoadedJobsChange={handleLoadedJobsChange}
+          onUseStarterPrompt={handleUseStarterPrompt}
+          fitToContainer
+          emptyState={<CreaHistoryEmpty locale={locale} area={area} />}
+        />
+      )}
+    </CreaHistory>
+  );
+
+  const stage =
+    area === null || modeDef === null ? (
+      <CreaStartScreen locale={locale} pathname={pathname} searchParams={searchParams} />
+    ) : modeDef.status === "soon" ? (
+      <CreaComingSoon
+        locale={locale}
+        area={area}
+        mode={modeDef}
+        onSelectMode={(mode) => navigateShell({ mode })}
+      />
+    ) : (
+      <CreaStage
+        locale={locale}
+        mode={modeDef}
+        job={stageJob}
+        isLoading={isAuthenticated && jobsLoadingFirst}
+        composerDocked={composerPlacement === "docked"}
+        guest={!isAuthenticated}
+        onOpenDetail={handleOpenDetail}
+        onReuse={handleReuse}
+        onExtend={handleExtend}
+      />
+    );
 
   return (
     <div
-      ref={studioRootRef}
+      ref={setStudioRootEl}
       className="relative -mx-4 -mt-5 min-h-[calc(100vh-5rem)] bg-studio-canvas px-4 pt-4 text-ink sm:-mx-6 sm:px-6 md:-mx-8 md:-mt-8 md:px-8 md:pt-6"
     >
       <div className="space-y-4">
@@ -724,7 +852,7 @@ export function StudioPage({
           />
         ) : null}
 
-        {/* Mreža generisanih medija sa dinamičkim donjim paddingom prema izmerenoj visini composera / sklopljene ručice */}
+        {/* Radionica sa dinamičkim donjim paddingom prema izmerenoj visini donje fioke / sklopljene ručice */}
         <div style={{ paddingBottom: `${gridBottomPadding}px` }}>
           {scope === "all" && state?.isStaff ? (
             <StudioModerationGrid
@@ -733,36 +861,42 @@ export function StudioPage({
               catalog={catalog}
             />
           ) : (
-            <StudioMediaGrid
+            <CreaWorkshop
               locale={locale}
-              kind={activeKind}
-              projectId={activeProjectId}
-              catalog={catalog}
-              onReuse={handleReuse}
-              onExtend={handleExtend}
-              onOpenDetail={handleOpenDetail}
-              onLoadedJobsChange={setLoadedJobs}
-              onUseStarterPrompt={handleUseStarterPrompt}
-              onResetKind={handleResetKind}
+              area={area}
+              mode={modeDef?.id ?? null}
+              onNavigate={navigateShell}
+              containerRef={setWorkshopEl}
+              panel={
+                hasComposer && composerPlacement === "docked" && modeDef ? (
+                  <CreaToolPanel locale={locale} mode={modeDef}>
+                    {composerContent("docked")}
+                  </CreaToolPanel>
+                ) : null
+              }
+              stage={stage}
+              history={history}
             />
           )}
         </div>
       </div>
 
-      {/* Lebdeći kontejner composera (usidren dole po sredini, iznad mreže, centriran u prostoru BEZ sidebara) */}
-      <div
-        ref={floatingContainerRef}
-        className="pointer-events-none fixed bottom-4 z-30 flex justify-center px-4"
-        style={
-          contentBounds
-            ? { left: `${contentBounds.left}px`, width: `${contentBounds.width}px` }
-            : { left: 0, width: "100%" }
-        }
-      >
-        <div className="pointer-events-auto w-full max-w-[720px]">
-          {floatingContent()}
+      {/* Donja fioka composera na uskom ekranu (usidrena dole po sredini, centrirana u prostoru BEZ sidebara) */}
+      {showFloating ? (
+        <div
+          ref={setFloatingContainerEl}
+          className="pointer-events-none fixed bottom-4 z-30 flex justify-center px-4"
+          style={
+            contentBounds
+              ? { left: `${contentBounds.left}px`, width: `${contentBounds.width}px` }
+              : { left: 0, width: "100%" }
+          }
+        >
+          <div className="pointer-events-auto w-full max-w-[720px]">
+            {composerContent("floating")}
+          </div>
         </div>
-      </div>
+      ) : null}
 
       {/* Puni detalj medija / editor */}
       <AnimatePresence>

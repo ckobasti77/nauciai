@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { usePaginatedQuery } from "convex/react";
 import { Download, SlidersHorizontal, Sparkles, Wand2 } from "lucide-react";
 
@@ -37,6 +37,8 @@ export function StudioMediaGrid({
   onLoadedJobsChange,
   onUseStarterPrompt,
   onResetKind,
+  fitToContainer = false,
+  emptyState,
 }: {
   locale: Locale;
   kind: StudioSectionKind | null;
@@ -45,9 +47,17 @@ export function StudioMediaGrid({
   onReuse: (job: StudioTileJob) => void;
   onExtend: (job: StudioTileJob) => void;
   onOpenDetail: (job: StudioTileJob) => void;
-  onLoadedJobsChange?: (jobs: StudioTileJob[]) => void;
+  /** Drugi argument: prva stranica još stiže (prazan niz tada ne znači „nema radova"). */
+  onLoadedJobsChange?: (jobs: StudioTileJob[], isLoadingFirst: boolean) => void;
   onUseStarterPrompt: (prompt: string) => void;
-  onResetKind: () => void;
+  onResetKind?: () => void;
+  /** Broj kolona po širini OVOG elementa, ne prozora (uska kolona istorije u Crei). */
+  fitToContainer?: boolean;
+  /**
+   * Prazno stanje kad korisnik nije sam suzio prikaz (model, period, pretraga). Vrsta
+   * tada nije „filter" nego radionica u kojoj je (Crea, K03), pa ne nudi reset vrste.
+   */
+  emptyState?: ReactNode;
 }) {
   // Prozor za zamrznut timestamp (Date.now() unutar state-a na mount-u)
   const [now] = useState(() => Date.now());
@@ -132,7 +142,10 @@ export function StudioMediaGrid({
     }
   }
 
-  const columnCount = useGridColumnCount();
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const columnCount = useGridColumnCount(fitToContainer ? rootRef : undefined);
+  const gridClass = fitToContainer ? "grid gap-4" : "grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-3";
+  const gridStyle = fitToContainer ? { gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))` } : undefined;
   const rawJobRows = jobResults as unknown as StudioTileJob[];
 
   // Klijentska pretraga po promptu / nazivu modela
@@ -156,15 +169,12 @@ export function StudioMediaGrid({
     [columnCount],
   );
 
-  useEffect(() => {
-    onLoadedJobsChange?.(rawJobRows);
-  }, [rawJobRows, onLoadedJobsChange]);
 
-  const filtersActive =
-    kind !== null || modelFilter !== null || dateFilter !== "all" || searchQuery.trim() !== "";
+  const userFiltersActive = modelFilter !== null || dateFilter !== "all" || searchQuery.trim() !== "";
+  const filtersActive = userFiltersActive || (kind !== null && emptyState === undefined);
 
   function resetAllFilters() {
-    onResetKind();
+    onResetKind?.();
     resetStudioFilters();
   }
 
@@ -246,8 +256,12 @@ export function StudioMediaGrid({
     jobStatus === "LoadingFirstPage" ||
     (rawJobRows.length === 0 && (jobStatus === "CanLoadMore" || jobStatus === "LoadingMore"));
 
+  useEffect(() => {
+    onLoadedJobsChange?.(rawJobRows, isLoadingFirst);
+  }, [rawJobRows, isLoadingFirst, onLoadedJobsChange]);
+
   return (
-    <div className="space-y-4">
+    <div ref={rootRef} className="space-y-4">
       {/* ── Traka za grupne akcije (C7 + C13) ─────────────────────────────────── */}
       {selectedJobs.size > 0 ? (
         <div className="surface-card flex flex-wrap items-center justify-between gap-3 border-2 border-ink bg-paper p-3 shadow-[3px_3px_0_0_var(--shadow-hard-12)]">
@@ -308,7 +322,7 @@ export function StudioMediaGrid({
 
       {/* ── Stanja mreže: Učitavanje / Prazno / Rezultati ─────────────────────── */}
       {isLoadingFirst ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-3">
+        <div className={gridClass} style={gridStyle}>
           {distributeGridColumns(Array.from({ length: 6 }, (_, i) => i), columnCount).map(
             (col, colIndex) => (
               <div key={colIndex} className="flex flex-col gap-4">
@@ -319,6 +333,8 @@ export function StudioMediaGrid({
             ),
           )}
         </div>
+      ) : filteredJobs.length === 0 && emptyState !== undefined && !userFiltersActive ? (
+        emptyState
       ) : filteredJobs.length === 0 ? (
         // Sva tri prazna stanja Studija idu kroz isti `EmptyState` primitiv kao
         // ostatak aplikacije (ikona u zutom krugu, naslov, recenica sa sledecim
@@ -369,7 +385,7 @@ export function StudioMediaGrid({
         </div>
       ) : (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-3">
+          <div className={gridClass} style={gridStyle}>
             {columns.map((col, colIndex) => (
               <div key={colIndex} className="flex flex-col gap-4">
                 {col.map((job, itemIndex) => (

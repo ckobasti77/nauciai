@@ -21,6 +21,7 @@ import {
   activeCommunitySection,
   type CommunitySection,
 } from "@/lib/community-sections";
+import { CREA_AREA_KIND, CREA_KIND_AREA, parseCreaShellState } from "@/lib/crea-shell";
 import { locales, withLocale, type Locale } from "@/lib/i18n";
 import {
   STUDIO_SECTIONS,
@@ -105,7 +106,11 @@ function stripLocale(pathname: string): string {
 
 // --- studio ------------------------------------------------------------------
 
-/** Adapts one declarative `StudioSection` (a `?kind=` filter) into the shared shape. */
+/**
+ * Adapts one declarative `StudioSection` into the shared shape. Crea (K03) turned the
+ * `?kind=` filter into workshops: a section links to `?oblast=` (image → slika…), "all"
+ * links to the start screen, and the old `?kind=` still resolves through the shell parser.
+ */
 function fromStudioSection(section: StudioSection): SidebarSection {
   return {
     id: section.id,
@@ -115,9 +120,12 @@ function fromStudioSection(section: StudioSection): SidebarSection {
     staffOnly: section.staffOnly,
     href: (locale) => {
       const base = withLocale(locale, "/app/studio");
-      return section.kind ? `${base}?kind=${section.kind}` : base;
+      return section.kind ? `${base}?oblast=${CREA_KIND_AREA[section.kind]}` : base;
     },
-    isActive: (_pathname, searchParams) => activeStudioSection(searchParams.get("kind")) === section.id,
+    isActive: (_pathname, searchParams) => {
+      const { area } = parseCreaShellState(searchParams);
+      return activeStudioSection(area ? CREA_AREA_KIND[area] : null) === section.id;
+    },
   };
 }
 

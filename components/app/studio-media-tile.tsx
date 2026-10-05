@@ -40,6 +40,7 @@ export function StudioMediaTile({
   isSelectMode = false,
   animateEntrance = true,
   index = 0,
+  domId,
 }: {
   job: StudioTileJob;
   locale: Locale;
@@ -51,6 +52,8 @@ export function StudioMediaTile({
   isSelectMode?: boolean;
   animateEntrance?: boolean;
   index?: number;
+  /** DOM id kartice; podrazumevano `tile-<id>` (fokus posle zatvaranja detalja). Druga kopija istog posla mora da ima svoj. */
+  domId?: string;
 }) {
   const [isFavorited, setIsFavorited] = useState(false);
   const [now, setNow] = useState(() => Date.now());
@@ -80,7 +83,7 @@ export function StudioMediaTile({
 
   const tileContent = (
     <div
-      id={`tile-${job._id}`}
+      id={domId ?? `tile-${job._id}`}
       tabIndex={0}
       role="button"
       aria-label={prompt ? `Rad: ${prompt}` : `Rad: ${job.modelSlug}`}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { distributeGridColumns } from "./studio-grid";
+import { columnsForContainerWidth, distributeGridColumns } from "./studio-grid";
 
 describe("distributeGridColumns", () => {
   it("returns empty array when columnCount is 0 or negative", () => {
@@ -54,5 +54,16 @@ describe("distributeGridColumns", () => {
     }
 
     expect(reconstructed).toEqual(items);
+  });
+});
+
+describe("columnsForContainerWidth", () => {
+  it("gives a narrow history column a single column and widens with the container", () => {
+    expect(columnsForContainerWidth(300)).toBe(1);
+    expect(columnsForContainerWidth(439)).toBe(1);
+    expect(columnsForContainerWidth(440)).toBe(2);
+    expect(columnsForContainerWidth(879)).toBe(2);
+    expect(columnsForContainerWidth(880)).toBe(3);
+    expect(columnsForContainerWidth(1600)).toBe(3);
   });
 });

@@ -238,6 +238,7 @@ export function ModelPickerPanel({
   models,
   selectedSlug,
   activeKind,
+  lockedKind,
   providerStatus,
   onSelect,
   locale,
@@ -246,6 +247,8 @@ export function ModelPickerPanel({
   models: StudioModel[];
   selectedSlug: string | null;
   activeKind: StudioSectionKind;
+  /** Vrsta je zaključana (radionica Cree, K03): padajući izbor vrste se ne prikazuje. */
+  lockedKind?: StudioSectionKind;
   recentSlugs?: string[];
   lastByKind?: Partial<Record<StudioSectionKind, string>>;
   providerStatus?: Partial<Record<StudioModel["provider"], boolean>>;
@@ -254,7 +257,7 @@ export function ModelPickerPanel({
   locale: Locale;
   className?: string;
 }) {
-  const [kind, setKind] = useState<KindFilter>(activeKind);
+  const [kind, setKind] = useState<KindFilter>(lockedKind ?? activeKind);
   const [providerFilter, setProviderFilter] = useState<string>("all");
   const [query, setQuery] = useState("");
   const [kbdIndex, setKbdIndex] = useState<number>(-1);
@@ -388,18 +391,20 @@ export function ModelPickerPanel({
 
         {/* 2 Select komponente u jednom redu: Tip (Slika/Video/Audio/Sve) i Provajder */}
         <div className="flex items-center gap-2">
-          <FilterDropdown
-            label={locale === "sr" ? "Tip modela" : "Model type"}
-            value={kind}
-            options={KIND_OPTIONS.map((opt) => ({
-              value: opt.value,
-              label: opt.label[locale],
-            }))}
-            onChange={(val) => {
-              setKind(val);
-              setKbdIndex(-1);
-            }}
-          />
+          {lockedKind ? null : (
+            <FilterDropdown
+              label={locale === "sr" ? "Tip modela" : "Model type"}
+              value={kind}
+              options={KIND_OPTIONS.map((opt) => ({
+                value: opt.value,
+                label: opt.label[locale],
+              }))}
+              onChange={(val) => {
+                setKind(val);
+                setKbdIndex(-1);
+              }}
+            />
+          )}
 
           <FilterDropdown
             label={locale === "sr" ? "Provajder" : "Provider"}
