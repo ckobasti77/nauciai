@@ -250,6 +250,38 @@ export const CREA_VERSION_COPY = {
 } satisfies Record<string, LocalizedText | Record<string, LocalizedText>>;
 
 /** Odbijeno čuvanje (razlozi iz `convex/creaLocalCore.ts` i greške dozvole). */
+/** Auto izbor modela, „Probaj jeftino" / „Usavrši" i keš istih zahteva (K07). */
+export const CREA_PICK_COPY = {
+  auto: { sr: "Auto", en: "Auto" },
+  autoTitle: {
+    sr: "Neka Crea izabere najjeftiniji model koji ume ovaj posao",
+    en: "Let Crea pick the cheapest model that can do this job",
+  },
+  autoPicked: { sr: "Auto je izabrao {model}:", en: "Auto picked {model}:" },
+  autoDemo: { sr: "(DEMO - izlaz je probni.)", en: "(DEMO - the output is a sample.)" },
+  autoNone: {
+    sr: "Za ovaj posao Auto nema predlog - izaberi model ručno.",
+    en: "Auto has no suggestion for this job - pick a model yourself.",
+  },
+  tryCheap: { sr: "Probaj jeftino", en: "Try it cheap" },
+  tryCheapTitle: {
+    sr: "Brza proba jeftinijim modelom ({model}); kad ti se svidi, klikni „Usavrši“ na rezultatu.",
+    en: "A quick test with a cheaper model ({model}); when you like it, click “Refine” on the result.",
+  },
+  refine: { sr: "Usavrši", en: "Refine" },
+  refineTitle: {
+    sr: "Napravi konačnu verziju ove probe modelom {model}.",
+    en: "Make the final version of this test with {model}.",
+  },
+  cacheTitle: { sr: "Već imaš isti rad", en: "You already have this exact work" },
+  cacheBody: {
+    sr: "Isti opis, podešavanja i fajlovi. Otvori ga besplatno ili napravi novu varijantu.",
+    en: "Same description, settings and files. Open it for free or make a new variation.",
+  },
+  cacheOpen: { sr: "Otvori (0 kr)", en: "Open (0 cr)" },
+  cacheNew: { sr: "Nova varijanta", en: "New variation" },
+} satisfies Record<string, LocalizedText>;
+
 export const CREA_SAVE_ERROR_COPY = {
   NEPOZNAT_ALAT: {
     sr: "Ovaj alat još ne čuva rezultate u galeriju. Preuzmi rezultat.",

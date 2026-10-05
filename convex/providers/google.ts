@@ -36,8 +36,12 @@ import {
   toBase64,
 } from "./googleCore";
 import { parseJobInputs } from "./jobInputs";
+import { submitToFal } from "../../lib/fal";
+import { fallbackAllowed, isRetriableProviderError, parseFallback } from "../creaFallbackCore";
+import { falInputFields, falParams } from "./falInputs";
 import { recordProviderCost, tokenUsageValidator } from "../studioActualCost";
 import { parseParams } from "../studioCore";
+import { computeCostUsd } from "../studioPricing";
 
 /**
  * Google video provajder (STUDIO-CATALOG-V4 3.7 i 3.8): Veo 3.1 **Fast** i
@@ -128,7 +132,67 @@ export async function submitGoogleJob(ctx: ActionCtx, jobId: Id<"generationJobs"
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    // Rezervna ruta (Crea C3): prolazna greška Google-a sme na fal, ako red to
+    // dozvoljava i marža ostaje. Inače refund, kao i do sada.
+    if (await tryFalFallback(ctx, jobId, message)) return;
     await ctx.runMutation(internal.studio.failJob, { jobId, error: message });
+  }
+}
+
+/**
+ * Predaja istog posla fal-u kad je Google pao prolaznom greškom (Crea C3,
+ * `creaFallbackCore.ts`). Vraća `true` samo kad je posao STVARNO predat - tada
+ * je `running` kod fal-a, a fal webhook ga zatvara kao i svaki fal posao.
+ *
+ * Bez `FAL_KEY` (danas na dev-u) rezerve nema - nikad se ne pada na mock. Cena
+ * se ne menja: posao ostaje na kreditima koje je korisnik video na dugmetu.
+ * Svaka greška ovde je „nema rezerve", nikad nov izuzetak preko starog.
+ */
+async function tryFalFallback(ctx: ActionCtx, jobId: Id<"generationJobs">, message: string): Promise<boolean> {
+  if (!isRetriableProviderError(message)) return false;
+  const apiKey = process.env.FAL_KEY;
+  const siteUrl = process.env.CONVEX_SITE_URL;
+  if (!apiKey || !siteUrl) return false;
+
+  try {
+    const job = await ctx.runQuery(internal.studioActions.getJobForSubmit, { jobId });
+    if (!job || job.status !== "reserved") return false;
+    const model = await ctx.runQuery(internal.studioModels.getModelBySlug, { slug: job.modelSlug });
+    const fallback = model ? parseFallback(parseParams(model.capabilities) ?? {}) : null;
+    if (!fallback) return false;
+
+    const inputMode = job.inputMode ?? "text";
+    const endpoint = fallback.endpoints[inputMode];
+    if (typeof endpoint !== "string") return false;
+    const params = parseParams(job.params) ?? {};
+    const fallbackUsd = computeCostUsd(fallback.priceRule, params, inputMode);
+    if (!fallbackAllowed({ reservedCredits: job.creditCost, fallbackUsd })) return false;
+
+    const urls: Record<string, string[]> = {};
+    for (const [slot, ids] of Object.entries(parseJobInputs(job.inputs))) {
+      const list: string[] = [];
+      for (const id of ids) {
+        const url = await ctx.storage.getUrl(id as Id<"_storage">);
+        if (url) list.push(url);
+      }
+      if (list.length > 0) urls[slot] = list;
+    }
+
+    const result = await submitToFal({
+      endpoint,
+      input: { ...falParams(params, fallback.fal), ...falInputFields(inputMode, urls, fallback.fal) },
+      webhookUrl: `${siteUrl}/fal/webhook`,
+      apiKey,
+    });
+    await ctx.runMutation(internal.studio.markJobRunning, {
+      jobId,
+      providerRequestId: result.requestId,
+      provider: "fal",
+    });
+
+    return true;
+  } catch {
+    return false;
   }
 }
 

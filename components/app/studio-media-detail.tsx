@@ -10,6 +10,7 @@ import {
   ChevronRight,
   Copy,
   Download,
+  FlaskConical,
   Heart,
   History,
   Music,
@@ -38,7 +39,8 @@ import { cn } from "@/components/ui/primitives";
 import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { CREA_TOOL_COPY, CREA_VERSION_COPY } from "@/lib/crea-copy";
+import { CREA_PICK_COPY, CREA_TOOL_COPY, CREA_VERSION_COPY, fillCopy } from "@/lib/crea-copy";
+import { buildRefineOrder, orderCredits, refinePairForJob, type RefineOrder } from "@/lib/crea-draft";
 import { toolOfJob } from "@/lib/crea-tools";
 import { toolsForWork, versionInputTarget, type VersionIntent } from "@/lib/crea-versions";
 import type { Locale } from "@/lib/i18n";
@@ -158,6 +160,7 @@ export function StudioMediaDetail({
   onOpenVersion,
   onUseAsInput,
   onOpenTool,
+  onRefine,
   restored,
   onGenerate,
   isPending,
@@ -178,6 +181,8 @@ export function StudioMediaDetail({
   onOpenVersion: (jobId: string, restored: boolean) => void;
   onUseAsInput: (job: StudioTileJob, intent: VersionIntent) => void;
   onOpenTool: (job: StudioTileJob, toolId: string) => void;
+  /** „Usavrši" probu (K07): konačna verzija skupljim modelom; `carried` su ulazi probe po slotu. */
+  onRefine: (job: StudioTileJob, order: RefineOrder, model: StudioModel, carried: Record<string, string[]>) => void;
   /** Korisnik se „Vrati"-o na ovaj rad: nudi se da nastavi od njega. */
   restored: boolean;
   onGenerate: (payload: JobPayload, model: StudioModel) => void;
@@ -382,6 +387,41 @@ export function StudioMediaDetail({
   }, [job._id, jobDetail, prompt, parsedParams]);
 
   const resolvedActiveModel = jobModel ?? catalog[0];
+
+  // „Usavrši" (K07, S4/V3): rad je proba jeftinog modela -> konačna verzija skupljim.
+  // Proba kao referenca traži pravu sliku (DEMO SVG je ne može biti); isti model
+  // ponavlja ulaze, pa radi i nad probnim izlazom.
+  const refinePair =
+    !localTool && job.status === "done" && hasOutput && !isExpired
+      ? refinePairForJob({ modelSlug: job.modelSlug, params: parsedParams, ...(jobDetail?.inputMode ? { inputMode: jobDetail.inputMode } : {}) })
+      : null;
+  const refineModel = refinePair ? catalog.find((model) => model.slug === refinePair.refine.modelSlug) : undefined;
+  const refineOrder =
+    refinePair && refineModel
+      ? buildRefineOrder(
+          { modelSlug: job.modelSlug, params: parsedParams, ...(jobDetail?.inputMode ? { inputMode: jobDetail.inputMode } : {}) },
+          refinePair,
+          refineModel,
+        )
+      : null;
+  const carriedInputs = useMemo(() => {
+    const carried: Record<string, string[]> = {};
+    for (const input of jobDetail?.inputs ?? []) carried[input.slot] = [...(carried[input.slot] ?? []), input.storageId];
+    return carried;
+  }, [jobDetail]);
+  const canRefine =
+    refineOrder !== null &&
+    refineModel !== undefined &&
+    (refineOrder.inputs !== "reference" || !isDemoPoster(job)) &&
+    (refineOrder.inputs !== "carry" || jobDetail !== undefined);
+  const refineCredits =
+    canRefine && refineOrder && refineModel
+      ? orderCredits(
+          refineModel,
+          refineOrder,
+          refineOrder.inputs === "reference" ? 1 : refineOrder.inputs === "carry" ? (carriedInputs.image?.length ?? 0) : 0,
+        )
+      : null;
 
   return (
     <motion.div
@@ -960,9 +1000,26 @@ export function StudioMediaDetail({
               ) : null}
             </div>
 
-            {/* Izlaz kao ulaz (K05): u composer, u video ili u besplatan alat */}
-            {inputTarget || animateTarget || workTools.length > 0 ? (
+            {/* Izlaz kao ulaz (K05): u composer, u video ili u besplatan alat; „Usavrši" probu (K07) */}
+            {inputTarget || animateTarget || workTools.length > 0 || (canRefine && refineCredits !== null) ? (
               <div className="mt-4 space-y-2 border-t-2 border-ink/15 pt-3">
+                {canRefine && refineOrder && refineModel && refineCredits !== null ? (
+                  <button
+                    type="button"
+                    disabled={isPending}
+                    onClick={() => onRefine(job, refineOrder, refineModel, carriedInputs)}
+                    title={fillCopy(CREA_PICK_COPY.refineTitle[locale], { model: modelLabel(refineModel, locale) })}
+                    aria-label={`${CREA_PICK_COPY.refine[locale]}: ${modelLabel(refineModel, locale)}, ${formatCreditsLong(refineCredits, locale)}`}
+                    className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow py-2 text-xs font-black text-ink shadow-[3px_3px_0_0_var(--ink)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-40 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                  >
+                    <FlaskConical aria-hidden="true" className="size-3.5" />
+                    <span>{`${CREA_PICK_COPY.refine[locale]} · ${modelLabel(refineModel, locale)}`}</span>
+                    <span className="inline-flex items-center gap-1 font-mono tabular-nums">
+                      <span>{refineCredits}</span>
+                      <CreditIcon className="size-3.5" />
+                    </span>
+                  </button>
+                ) : null}
                 {inputTarget ? (
                   <button
                     type="button"

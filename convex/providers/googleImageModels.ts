@@ -87,6 +87,21 @@ export const NANO_BANANA_2: StudioModelSeed = {
     // izlaz 60 $/M tokena, ulaz 0,50 $/M. Sa oba broja posao upisuje STVARAN
     // trosak iz `usageMetadata`, umesto da ostane na proceni.
     tokenRatesUsdPerMillion: { output: 60, prompt: 0.5 },
+    tags: ["text", "edit", "refs"],
+    batch: { provider: "google", model: "gemini-3.1-flash-image", discount: 0.5 },
+    // Rezervna ruta (Crea C3): kad Google padne prolaznom greškom (429/5xx), isti
+    // model preko fal-a - samo iz opisa (edit ruta fal-a nije potvrđena) i samo
+    // kad marža ostaje ≥ ×1,2 (`creaFallbackCore.fallbackAllowed`). Cene i
+    // vrednosti `resolution`: https://fal.ai/models/fal-ai/nano-banana-2/llms.txt
+    // (1K $0,08; 0,5K/2K/4K iz K06 §11). Bez `FAL_KEY` rezerve nema.
+    fallback: {
+      provider: "fal",
+      endpoints: { text: "fal-ai/nano-banana-2" },
+      priceRule: {
+        unit: "image",
+        lookup: { params: ["resolution"], map: { "0.5K": 0.06, "1K": 0.08, "2K": 0.12, "4K": 0.16 } },
+      },
+    },
   },
   sortOrder: 10,
 };
@@ -156,8 +171,54 @@ export const NANO_BANANA_PRO: StudioModelSeed = {
     // sliku na ulazu. Time `tokenCostOutcome` više ne odbija zbir i model
     // UPISUJE stvaran trošak umesto razloga `nema tarife za kategoriju prompt`.
     tokenRatesUsdPerMillion: { output: 119.64, prompt: 2, thinking: 12 },
+    tags: ["text", "edit", "refs", "quality"],
+    batch: { provider: "google", model: "gemini-3-pro-image", discount: 0.5 },
   },
   sortOrder: 20,
 };
 
-export const GOOGLE_IMAGE_MODELS: StudioModelSeed[] = [NANO_BANANA_2, NANO_BANANA_PRO];
+/**
+ * `nano-banana-2-lite` - Gemini 3.1 Flash Lite Image (Crea K07, S2), direktno na
+ * Google kao i NB2: ključ postoji i cena je niža nego preko fal-a.
+ *
+ * Samo 1K, po $0,0336 po slici; izlaz 30 $/M, ulaz 0,25 $/M tokena
+ * (https://ai.google.dev/gemini-api/docs/pricing, pročitano 2026-10-05). Google
+ * prima do 14 referenci, ovde je 10 - isto kao NB2. Seme Google ne dokumentuje.
+ */
+export const NANO_BANANA_2_LITE: StudioModelSeed = {
+  slug: "nano-banana-2-lite",
+  provider: "google",
+  kind: "image",
+  family: "nano-banana",
+  labelSr: "Nano Banana 2 Lite",
+  labelEn: "Nano Banana 2 Lite",
+  taglineSr: "Najjeftinija Nano Banana - za izmene i brze probe.",
+  taglineEn: "The cheapest Nano Banana - for edits and quick tests.",
+  descriptionSr:
+    "Laka verzija Nano Banane 2. Slika iz teksta ili izmena do deset okačenih slika, uvek u 1K, za upola manje kredita.",
+  descriptionEn:
+    "The light version of Nano Banana 2. Text-to-image or editing up to ten uploaded images, always at 1K, for half the credits.",
+  endpoints: {
+    text: "gemini-3.1-flash-lite-image",
+    image_multi: "gemini-3.1-flash-lite-image",
+  },
+  inputModes: ["text", "image_multi"],
+  inputSpec: {
+    text: {},
+    image_multi: { image: { max: 10, accept: IMAGE_ACCEPT } },
+  },
+  paramSpec: [promptControl(), aspectRatioControl(NANO_BANANA_RATIOS)],
+  priceRule: { unit: "image", baseUsd: 0.0336 },
+  capabilities: {
+    api: "interactions",
+    mode: "sync",
+    maxInputImages: 10,
+    maxImagesPerRun: 1,
+    tokenRatesUsdPerMillion: { output: 30, prompt: 0.25 },
+    tags: ["cheap", "edit", "refs", "draft"],
+    batch: { provider: "google", model: "gemini-3.1-flash-lite-image", discount: 0.5 },
+  },
+  sortOrder: 15,
+};
+
+export const GOOGLE_IMAGE_MODELS: StudioModelSeed[] = [NANO_BANANA_2, NANO_BANANA_2_LITE, NANO_BANANA_PRO];

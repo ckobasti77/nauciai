@@ -150,9 +150,11 @@ export function creditsFor(
   rule: PriceRule,
   params: Record<string, unknown>,
   inputMode?: string,
+  /** Faktor kredita (Crea C1, `convex/creaPricingCore.ts`); bez njega važi današnji. */
+  factor?: number,
 ): number | null {
   try {
-    const credits = computeCredits(rule, params, inputMode);
+    const credits = computeCredits(rule, params, inputMode, factor);
 
     return Number.isFinite(credits) ? credits : null;
   } catch {
@@ -274,12 +276,13 @@ export function creditsPerUnit(
   rule: PriceRule,
   params: Record<string, unknown>,
   inputMode?: string,
+  factor?: number,
 ): number | null {
   if (rule.quantityParam === undefined) return null;
   const quantity = params[rule.quantityParam];
   if (typeof quantity !== "number" || !Number.isFinite(quantity) || quantity <= 0) return null;
 
-  const total = creditsFor(rule, params, inputMode);
+  const total = creditsFor(rule, params, inputMode, factor);
 
   return total === null ? null : total / quantity;
 }

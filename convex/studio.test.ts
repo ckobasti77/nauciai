@@ -1436,6 +1436,8 @@ test("getStudioState: upaljen Studio, osoblje bez posla u letu", async () => {
     maxActiveJobs: 3,
     signupBonus: { claimable: false },
     providerStatus: providerStatus(process.env),
+    // Cene v2 (Crea K07): odsutan fleg = isključen.
+    pricingV2: false,
   });
 });
 

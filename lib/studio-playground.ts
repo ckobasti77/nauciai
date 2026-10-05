@@ -143,6 +143,11 @@ export type PlaygroundState = {
   maxActiveJobs: number;
   /** SP2: koji provajder ima ključ; `false` = model radi u DEMO režimu. */
   providerStatus?: Partial<Record<"fal" | "google" | "byteplus", boolean>>;
+  /** Crea C1: upaljen fleg cena v2 (`crea_pricing_v2`). */
+  pricingV2?: boolean;
+  /** Javni Studio i uloga - Auto (K07) ne nudi javnom korisniku model bez ključa. */
+  publicEnabled?: boolean;
+  isStaff?: boolean;
 };
 
 /**

@@ -1605,6 +1605,14 @@ export default defineSchema({
     parentJobId: v.optional(v.id("generationJobs")),
     rootJobId: v.optional(v.id("generationJobs")),
     derivation: v.optional(v.string()),
+    // Cene v2 (Crea K07, C1): faktor kredita po kojem je posao naplaćen, SAMO kad
+    // odstupa od današnjeg (216,25). Poravnanje ga čita, pa v2 posao nikad ne
+    // preračuna po v1 faktoru (K01-11).
+    creditFactor: v.optional(v.number()),
+    // Keš istih zahteva (Crea K07, C4): otisak modela, režima, očišćenih
+    // parametara i sadržaja ulaza (`creaCacheCore.requestHash`). Nema ga posao
+    // koji se ne kešira (nastavak, stari katalog).
+    requestHash: v.optional(v.string()),
     labOutputId: v.optional(v.id("labOutputs")),
     lessonId: v.optional(v.id("lessons")),
     taskId: v.optional(v.id("lessonTasks")),
@@ -1626,6 +1634,8 @@ export default defineSchema({
     .index("by_user_provider_created", ["userId", "provider", "createdAt"])
     // Svi radovi jednog stabla verzija (K05), od najstarijeg.
     .index("by_root_created", ["rootJobId", "createdAt"])
+    // Isti zahtev istog korisnika (C4) - nikad između korisnika (K01-13).
+    .index("by_user_requestHash", ["userId", "requestHash"])
     // Ima li korisnik neplaćen dug iz poravnanja (X2). `createJob` ga pita pre
     // svakog novog posla, pa mora da bude jedno čitanje po indeksu, a ne
     // skeniranje istorije.

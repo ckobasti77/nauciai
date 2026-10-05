@@ -241,11 +241,29 @@ export const SFX: StudioModelSeed = {
     }),
   ],
   priceRule: { unit: "second", baseUsd: 0.002, quantityParam: "duration" },
-  capabilities: { mode: "async_webhook", minDurationS: 5, maxDurationS: 22 },
+  capabilities: {
+    mode: "async_webhook",
+    minDurationS: 5,
+    maxDurationS: 22,
+    // C0 (Crea K07): fal trajanje čita iz `duration_seconds` (0,5-22 s). Bez njega
+    // model sam bira dužinu - i do 22 s, a mi smo naplatili izabranu.
+    // https://fal.ai/models/fal-ai/elevenlabs/sound-effects/v2/llms.txt
+    fal: { params: { duration: { to: "duration_seconds" } } },
+  },
   sortOrder: 420,
 };
 
-/** `music` - ElevenLabs Music, naplata po minutu (katalog 4.2). */
+/**
+ * `music` - ElevenLabs Music, naplata po minutu (katalog 4.2).
+ *
+ * **C0 (Crea K07): fal naplaćuje SVAKI ZAPOČETI minut** - „$0.6 per output audio
+ * minute. The audio will be rounded up to the closest minute"
+ * (https://fal.ai/models/fal-ai/elevenlabs/music/llms.txt, pročitano 2026-10-05).
+ * Pola minuta je zato koštalo nas kao ceo, a klizač je nudio 0,5. Sada se bira
+ * u celim minutima (`roundUpTo: 1` čuva pravilo i ako neko pošalje razlomak),
+ * a dužina stvarno stiže do fal-a kao `music_length_ms` - ranije je išla kao
+ * `minutes`, koje fal ne čita, pa je model sam birao koliko će trajati.
+ */
 export const MUSIC: StudioModelSeed = {
   slug: "music",
   provider: "fal",
@@ -268,16 +286,23 @@ export const MUSIC: StudioModelSeed = {
       key: "minutes",
       labelSr: "Trajanje",
       labelEn: "Duration",
-      min: 0.5,
+      min: 1,
       max: 5,
-      step: 0.5,
+      step: 1,
       default: 1,
       unitSr: "min",
       unitEn: "min",
+      helpSr: "Naplaćuje se svaki započeti minut.",
+      helpEn: "Every started minute is billed.",
     }),
   ],
-  priceRule: { unit: "minute", baseUsd: 0.6, quantityParam: "minutes" },
-  capabilities: { mode: "async_webhook", minMinutes: 0.5, maxMinutes: 5 },
+  priceRule: { unit: "minute", baseUsd: 0.6, quantityParam: "minutes", roundUpTo: 1 },
+  capabilities: {
+    mode: "async_webhook",
+    minMinutes: 1,
+    maxMinutes: 5,
+    fal: { params: { minutes: { to: "music_length_ms", scale: 60_000 } } },
+  },
   sortOrder: 430,
 };
 
@@ -359,7 +384,17 @@ export const AUDIO_ISOLATION: StudioModelSeed = {
   sortOrder: 460,
 };
 
-/** `dubbing` - snimak prebačen na drugi jezik, uz zadržan glas (katalog 4.2). */
+/**
+ * `dubbing` - snimak prebačen na drugi jezik, uz zadržan glas (katalog 4.2).
+ *
+ * **C0 (Crea K07): fal naplaćuje po CELOM minutu** - „The calculation will be
+ * based on the closest minute after rounding upwards"
+ * (https://fal.ai/models/fal-ai/elevenlabs/dubbing/llms.txt, pročitano
+ * 2026-10-05). Sinhronizacija od 6 s je kod nas koštala 13 kr (0,1 min), a fal
+ * je uzimao 0,60 $ - zato je najmanja količina 1 minut i svaki započeti se
+ * naplaćuje ceo. Jezik ide kao `target_lang` (obavezno polje u fal šemi), ne
+ * kao `target_language` koje fal ne prepoznaje.
+ */
 export const DUBBING: StudioModelSeed = {
   slug: "dubbing",
   provider: "fal",
@@ -401,8 +436,12 @@ export const DUBBING: StudioModelSeed = {
       affectsPrice: false,
     },
   ],
-  priceRule: { unit: "minute", baseUsd: 0.6, quantityParam: "minutes" },
-  capabilities: { mode: "async_webhook", quantity: MINUTE_QUANTITY },
+  priceRule: { unit: "minute", baseUsd: 0.6, quantityParam: "minutes", roundUpTo: 1 },
+  capabilities: {
+    mode: "async_webhook",
+    quantity: { ...MINUTE_QUANTITY, min: 1 },
+    fal: { params: { target_language: { to: "target_lang" } } },
+  },
   sortOrder: 470,
 };
 

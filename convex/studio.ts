@@ -11,6 +11,10 @@ import {
   query,
   type QueryCtx,
 } from "./_generated/server";
+import { requestHash } from "./creaCacheCore";
+import { inheritedSeed, seedFromUnit, seedParamOf } from "./creaDraftCore";
+import { CREA_FLAG_KEYS, readCreaFlag } from "./creaFlags";
+import { isDefaultCreditFactor, priceCategoryOf, resolveCreditFactor } from "./creaPricingCore";
 import { resolveJobLineage } from "./creaVersions";
 import { creaDerivationValidator } from "./creaVersionsCore";
 import { applyGrant, applySettlement, applySpend } from "./credits";
@@ -47,7 +51,7 @@ import {
   slotFileProblem,
 } from "./studioJobCore";
 import { parseParamSpec, sanitizeSpecParams } from "./studioParamSpec";
-import { computeCostUsd, computeCredits, parsePriceRule, pricingModeFor } from "./studioPricing";
+import { computeCostUsd, computeCredits, CREDIT_FACTOR, parsePriceRule, pricingModeFor } from "./studioPricing";
 import { planSettlement } from "./studioSettlementCore";
 import {
   computeCreditCost,
@@ -110,6 +114,10 @@ type PricedOrder = {
   durationSource?: DurationSource;
   headerDurationS?: number;
   billedDurationS?: number;
+  /** Faktor kredita (Crea C1); pamti se na poslu samo kad odstupa od današnjeg. */
+  creditFactor: number;
+  /** Otisak zahteva za keš (Crea C4); nema ga posao koji se ne kešira. */
+  requestHash?: string;
 };
 
 /**
@@ -203,7 +211,14 @@ async function buildCatalogOrder(
   userId: Id<"users">,
   model: Doc<"models">,
   raw: Record<string, unknown>,
-  args: { inputMode?: string; inputs?: string; sourceJobId?: Id<"generationJobs"> },
+  args: {
+    inputMode?: string;
+    inputs?: string;
+    sourceJobId?: Id<"generationJobs">;
+    parentJobId?: Id<"generationJobs">;
+    derivation?: string;
+  },
+  factor: number,
 ): Promise<PricedOrder | ModerationRejection> {
   if (!model.isEnabled) throw new Error("MODEL_NEDOSTUPAN");
 
@@ -228,6 +243,9 @@ async function buildCatalogOrder(
   const sanitized = sanitizeSpecParams(spec, rule, raw, inputMode);
   if (!sanitized.ok) throw new Error(`NEISPRAVNI_PARAMETRI:${sanitized.reason}`);
   const params = sanitized.params;
+  // Otisak za keš (C4) se uzima nad onim što je KORISNIK izabrao, pre nego što
+  // server dopiše merene količine, brojače ulaza i seme.
+  const requestParams = { ...params };
 
   // Merena količina i broj dodatnih ulaza NISU kontrole - klijent ih ne bira,
   // pa se dopisuju ovde, posle kapije. Ono što forma pošalje pod tim ključevima
@@ -314,11 +332,33 @@ async function buildCatalogOrder(
     }
   }
 
+  // Seme (Crea K06-6): upisuje ga server, posle kapije. „Usavrši" iste porodice
+  // nasleđuje seme probe; sve ostalo dobija novo, pa i „Napravi ponovo".
+  const seedParam = seedParamOf(parseParams(model.capabilities) ?? {});
+  if (seedParam) {
+    const parent = args.parentJobId ? await ctx.db.get(args.parentJobId) : null;
+    const ownParent = parent && parent.userId === userId ? parent : null;
+    const parentModel = ownParent
+      ? await ctx.db
+          .query("models")
+          .withIndex("by_slug", (q) => q.eq("slug", ownParent.modelSlug))
+          .unique()
+      : null;
+    params[seedParam] =
+      inheritedSeed({
+        derivation: args.derivation,
+        family: model.family,
+        parentFamily: parentModel?.family ?? null,
+        parentParams: ownParent ? parseParams(ownParent.params) : null,
+        seedParam,
+      }) ?? seedFromUnit(Math.random());
+  }
+
   const pricingMode = pricingModeFor(inputMode, hasVideoInput(inputs.inputs));
   let creditCost: number;
   let estimatedCostUsd: number;
   try {
-    creditCost = computeCredits(rule, params, pricingMode);
+    creditCost = computeCredits(rule, params, pricingMode, factor);
     estimatedCostUsd = computeCostUsd(rule, params, pricingMode);
   } catch (error) {
     // Cena koja ne može da se izračuna je odbijen posao, nikad nula.
@@ -328,6 +368,18 @@ async function buildCatalogOrder(
 
   const storageIds = jobInputStorageIds(inputs.inputs);
 
+  // Keš (C4): nastavak generacije se ne kešira - ishod zavisi od stanja kod
+  // provajdera, ne samo od zahteva.
+  const cacheable = !(continuation && inputMode === continuation.mode);
+  const hash = cacheable
+    ? requestHash({
+        modelSlug: model.slug,
+        inputMode,
+        params: requestParams,
+        inputShas: await inputShasOf(ctx, inputs.inputs),
+      })
+    : undefined;
+
   return {
     slug: model.slug,
     kind: model.kind,
@@ -336,6 +388,8 @@ async function buildCatalogOrder(
     prompt,
     creditCost,
     estimatedCostUsd,
+    creditFactor: factor,
+    ...(hash ? { requestHash: hash } : {}),
     inputMode,
     uploadIds: uploads.uploadIds,
     ...(storageIds.length > 0 ? { inputs: JSON.stringify(inputs.inputs) } : {}),
@@ -412,7 +466,31 @@ async function buildLegacyOrder(
     estimatedCostUsd: computeEstimatedCostUsd(model, cleanParams),
     // Stari katalog nema ulazne slotove, pa nema ni šta da veže za sebe.
     uploadIds: [],
+    // Stari `modelCatalog` ostaje na v1 ceni i pod v2 (K01 §6.3).
+    creditFactor: CREDIT_FACTOR,
   };
+}
+
+/**
+ * sha256 svakog ulaza po slotu, iz `_storage` (Crea C4). Fajl koji više ne
+ * postoji daje prazan otisak - takav posao ionako pada na predaji.
+ */
+export async function inputShasOf(
+  ctx: QueryCtx | MutationCtx,
+  inputs: JobInputs,
+): Promise<Record<string, string[]>> {
+  const shas: Record<string, string[]> = {};
+  for (const [slot, ids] of Object.entries(inputs)) {
+    const list: string[] = [];
+    for (const rawId of ids) {
+      const storageId = ctx.db.system.normalizeId("_storage", rawId);
+      const file = storageId ? await ctx.db.system.get(storageId) : null;
+      list.push(file?.sha256 ?? "");
+    }
+    if (list.length > 0) shas[slot] = list;
+  }
+
+  return shas;
 }
 
 /**
@@ -648,8 +726,17 @@ async function createJobForUser(ctx: MutationCtx, userId: Id<"users">, args: Cre
     .withIndex("by_slug", (q) => q.eq("slug", args.modelSlug))
     .unique();
 
+  // Cene v2 (Crea C1): fleg isključen = današnji faktor za svaki model (O1).
+  const pricingV2 = v4Model ? await readCreaFlag(ctx, CREA_FLAG_KEYS.pricingV2) : false;
   const order = v4Model
-    ? await buildCatalogOrder(ctx, userId, v4Model, params, args)
+    ? await buildCatalogOrder(
+        ctx,
+        userId,
+        v4Model,
+        params,
+        args,
+        resolveCreditFactor({ pricingV2, category: priceCategoryOf(v4Model.kind, { night: false }) }),
+      )
     : await buildLegacyOrder(ctx, args.modelSlug, params);
 
   // Pogodak blok liste (F2.5): jedini upis ove transakcije je log red -
@@ -828,6 +915,8 @@ async function createJobForUser(ctx: MutationCtx, userId: Id<"users">, args: Cre
     // se stvaran trošak (`actualCostUsd`, W6) nema sa čim porediti, jer
     // `studioUsageDaily.costUsd` je već sabran po korisniku i danu.
     estimatedCostUsd,
+    ...(isDefaultCreditFactor(order.creditFactor) ? {} : { creditFactor: order.creditFactor }),
+    ...(order.requestHash ? { requestHash: order.requestHash } : {}),
     ...(order.inputMode ? { inputMode: order.inputMode } : {}),
     ...(order.inputs ? { inputs: order.inputs } : {}),
     // Po čemu je naplaćeno trajanje ispalo onakvo kakvo jeste (X1). Kad je
@@ -946,7 +1035,13 @@ export const createJobInternal = internalMutation({
  * `by_provider_request`.
  */
 export const markJobRunning = internalMutation({
-  args: { jobId: v.id("generationJobs"), providerRequestId: v.string() },
+  args: {
+    jobId: v.id("generationJobs"),
+    providerRequestId: v.string(),
+    // Rezervna ruta (Crea C3): posao je predat DRUGOM provajderu nego što je
+    // naručen, pa `job.provider` prati stvarnog izvršioca.
+    provider: v.optional(v.literal("fal")),
+  },
   handler: async (ctx, args) => {
     const job = await ctx.db.get(args.jobId);
     if (!job) throw new Error("Posao nije pronađen.");
@@ -955,6 +1050,7 @@ export const markJobRunning = internalMutation({
       status: "running",
       falRequestId: args.providerRequestId,
       providerRequestId: args.providerRequestId,
+      ...(args.provider ? { provider: args.provider } : {}),
     });
     return null;
   },
@@ -1083,6 +1179,8 @@ export const settleJobCredits = internalMutation({
       reportedCostUsd: job.actualCostUsd ?? null,
       reservedCredits: job.creditCost,
       reservedCostUsd: job.estimatedCostUsd ?? 0,
+      // v2 posao se poravnava po SVOM faktoru, nikad po v1 (K01-11).
+      creditFactor: job.creditFactor ?? CREDIT_FACTOR,
     });
 
     if (!plan.settled) {
@@ -2355,6 +2453,9 @@ async function getStudioStateForUser(ctx: QueryCtx, userId: Id<"users">) {
     // modele PRE klika. Ista funkcija koju `submitJob` koristi za mock kapiju,
     // pa UI i server nikad ne tvrde suprotno.
     providerStatus: providerStatus(process.env),
+    // Cene v2 (Crea C1): UI računa cenu ISTOM funkcijom (`resolveCreditFactor`),
+    // pa dugme i naplata ne mogu da se raziđu.
+    pricingV2: await readCreaFlag(ctx, CREA_FLAG_KEYS.pricingV2),
   };
 }
 

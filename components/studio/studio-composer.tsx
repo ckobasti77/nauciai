@@ -5,10 +5,12 @@ import {
   ChevronUp,
   Coins,
   FileText,
+  FlaskConical,
   Image as ImageIcon,
   ImagePlus,
   Music,
   Plus,
+  Sparkles,
   Video,
   Wand2,
   X,
@@ -38,6 +40,9 @@ import type { CreaDerivation } from "@/convex/creaVersionsCore";
 import { parseContinuationSource, parseQuantitySource, promptControlOf } from "@/convex/studioJobCore";
 import type { ParamControl as ParamControlSpec } from "@/convex/studioParamSpec";
 import type { PriceRule } from "@/convex/studioPricing";
+import { autoSentence, pickAuto } from "@/lib/crea-auto";
+import { CREA_PICK_COPY, fillCopy } from "@/lib/crea-copy";
+import { buildDraftOrder, draftPairFor, orderCredits } from "@/lib/crea-draft";
 import type { Locale } from "@/lib/i18n";
 import { firstFileMode, modelInputCapabilities, modelRestrictions } from "@/lib/studio-capabilities";
 import { readLastModelByKind, writeLastModel } from "@/lib/studio-last-model";
@@ -430,6 +435,7 @@ export function StudioComposer({
   initialInputMode,
   lockModelKind = false,
   dropDisabled = false,
+  shellMode,
 }: {
   models: StudioModel[];
   activeModel: StudioModel;
@@ -459,6 +465,8 @@ export function StudioComposer({
   lockModelKind?: boolean;
   /** Gasi prijem fajla preko celog ekrana (npr. dok je otvoren detalj sa svojim composerom). */
   dropDisabled?: boolean;
+  /** Režim ljuske Cree (npr. `muzika`) - Auto iz njega zna koji je posao (K07). */
+  shellMode?: string;
 }) {
   const isDocked = placement === "docked";
   const [modelPickerOpen, setModelPickerOpen] = useState(false);
@@ -699,9 +707,80 @@ export function StudioComposer({
   );
 
   const credits = useMemo(
-    () => creditsFor(activeModel.priceRule, form.params, inputMode),
-    [activeModel.priceRule, form.params, inputMode],
+    () => creditsFor(activeModel.priceRule, form.params, inputMode, activeModel.creditFactor),
+    [activeModel.priceRule, activeModel.creditFactor, form.params, inputMode],
   );
+
+  // ── Auto izbor (Crea S3) i „Probaj jeftino" (S4/V3) ──
+  // Javni korisnik ne sme da dobije model bez ključa (server bi ga odbio) - ista
+  // odluka kao `createJob`; osoblje vidi DEMO.
+  const isModelAvailable = useCallback(
+    (model: StudioModel) =>
+      !(studioState?.publicEnabled && !studioState?.isStaff && studioState?.providerStatus?.[model.provider] === false),
+    [studioState?.publicEnabled, studioState?.isStaff, studioState?.providerStatus],
+  );
+  const [autoNote, setAutoNote] = useState<string | null>(null);
+  const [pendingAuto, setPendingAuto] = useState<{ slug: string; mode: string; overrides: ParamValues } | null>(null);
+  // Auto je promenio model: kad stigne novi model, postavi režim i ono što pravilo menja.
+  if (pendingAuto && pendingAuto.slug === activeModel.slug) {
+    setPendingAuto(null);
+    if (pendingAuto.mode !== inputMode && activeModel.inputModes.includes(pendingAuto.mode)) setInputMode(pendingAuto.mode);
+    for (const [key, value] of Object.entries(pendingAuto.overrides)) form.setValue(key, value);
+  }
+
+  function handleAuto() {
+    setOpenChipKey(null);
+    setModelPickerOpen(false);
+    setAttachPopupOpen(false);
+    const area = activeModel.kind === "image" ? "slika" : activeModel.kind === "video" ? "video" : "zvuk";
+    const pick = pickAuto(
+      {
+        area,
+        prompt,
+        inputs: {
+          images: effectiveFiles.image?.length ?? 0,
+          videos: effectiveFiles.video?.length ?? 0,
+          audio: effectiveFiles.audio?.length ?? 0,
+          mask: false,
+        },
+        ...(shellMode ? { shellMode } : {}),
+      },
+      models,
+      { available: isModelAvailable },
+    );
+    if (!pick) {
+      setAutoNote(CREA_PICK_COPY.autoNone[locale]);
+      return;
+    }
+    const demo = studioState?.providerStatus?.[pick.model.provider] === false ? ` ${CREA_PICK_COPY.autoDemo[locale]}` : "";
+    setAutoNote(
+      `${fillCopy(CREA_PICK_COPY.autoPicked[locale], { model: modelLabel(pick.model, locale) })} ${autoSentence(pick, locale)}${demo}`,
+    );
+    if (pick.model.slug !== activeModel.slug) {
+      handleSelectNewModel(pick.model, { keepAutoNote: true });
+      setPendingAuto({ slug: pick.model.slug, mode: pick.inputMode, overrides: pick.overrides });
+      return;
+    }
+    if (pick.inputMode !== inputMode) setInputMode(pick.inputMode);
+    for (const [key, value] of Object.entries(pick.overrides)) form.setValue(key, value);
+  }
+
+  const draftPair = useMemo(() => draftPairFor(activeModel.slug, inputMode), [activeModel.slug, inputMode]);
+  const draftModel = draftPair ? models.find((model) => model.slug === draftPair.draft.modelSlug) : undefined;
+  const sameModelDraft = draftPair !== null && draftPair.draft.modelSlug === draftPair.refine.modelSlug;
+  const draftOrder = useMemo(
+    () =>
+      draftPair && draftModel && isModelAvailable(draftModel)
+        ? buildDraftOrder(draftPair, { params: form.params, inputMode, model: activeModel }, draftModel)
+        : null,
+    [draftPair, draftModel, isModelAvailable, form.params, inputMode, activeModel],
+  );
+  const draftCredits =
+    draftOrder && draftModel
+      ? orderCredits(draftModel, draftOrder, sameModelDraft ? (effectiveFiles.image?.length ?? 0) : 0)
+      : null;
+  const showDraft =
+    variant === "create" && draftCredits !== null && credits !== null && draftCredits < credits;
 
   const continuation = useMemo(() => parseContinuationSource(JSON.stringify(activeModel.capabilities)), [activeModel]);
   const sourceRequired = continuation !== null && continuation.mode === inputMode;
@@ -764,7 +843,8 @@ export function StudioComposer({
   }, [credits]);
 
   // Carry-Forward: promena modela
-  function handleSelectNewModel(newModel: StudioModel) {
+  function handleSelectNewModel(newModel: StudioModel, opts: { keepAutoNote?: boolean } = {}) {
+    if (!opts.keepAutoNote) setAutoNote(null);
     writeLastModel(newModel.kind, newModel.slug);
     setLastByKind((prev) => ({ ...prev, [newModel.kind]: newModel.slug }));
     setModelPickerOpen(false);
@@ -791,6 +871,8 @@ export function StudioComposer({
       }
     }
 
+    // Auto sam objašnjava izbor (`autoNote`), pa se poruka o prilagođavanju ne ponavlja.
+    if (opts.keepAutoNote) return;
     if (hadAdjustment) {
       setStatusMessage(
         locale === "sr"
@@ -1026,6 +1108,20 @@ export function StudioComposer({
       window.removeEventListener("drop", drop);
     };
   }, [dropEnabled]);
+
+  // Proba jeftinijim modelom (K07): isti opis; kod istog modela i isti ulazi.
+  function submitDraft() {
+    if (block !== null || isPending || isUploading || !draftOrder || !draftModel) return;
+
+    onGenerate(
+      {
+        params: draftOrder.params,
+        inputMode: draftOrder.inputMode,
+        inputs: sameModelDraft ? inputsPayload(payloadFiles) : {},
+      },
+      draftModel,
+    );
+  }
 
   function submit() {
     if (block !== null || isPending || isUploading) return;
@@ -1372,6 +1468,46 @@ export function StudioComposer({
           <div role="status" className="truncate pt-1 text-xs font-bold text-amber-900">
             {blockMessage}
           </div>
+        ) : autoNote ? (
+          <div role="status" className="pt-1 text-xs font-bold text-muted">
+            <Sparkles aria-hidden="true" className="mr-1 inline size-3 text-ink" />
+            {autoNote}
+          </div>
+        ) : null}
+
+        {/* Auto i proba (K07): svoj red, da „Generiši" na telefonu ostane u vidnom polju */}
+        {variant === "create" ? (
+          <div className="mt-2.5 flex flex-wrap items-center gap-2">
+            {/* Auto izbor: najjeftiniji model koji ume posao, sa rečenicom „zašto" */}
+            <button
+              type="button"
+              onClick={handleAuto}
+              disabled={isPending}
+              title={CREA_PICK_COPY.autoTitle[locale]}
+              className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border-2 border-ink bg-yellow px-3 py-1.5 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-40 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+            >
+              <Sparkles aria-hidden="true" className="size-3.5" />
+              <span>{CREA_PICK_COPY.auto[locale]}</span>
+            </button>
+            {/* Proba jeftinijim modelom (K07); pun probni list (4-16 skica) je K13 */}
+            {showDraft && draftModel && block?.kind !== "credits" ? (
+              <button
+                type="button"
+                disabled={isPending || block !== null}
+                onClick={submitDraft}
+                title={fillCopy(CREA_PICK_COPY.tryCheapTitle[locale], { model: modelLabel(draftModel, locale) })}
+                aria-label={`${CREA_PICK_COPY.tryCheap[locale]}: ${formatCreditsLong(draftCredits ?? 0, locale)}`}
+                className="inline-flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-full border-2 border-ink bg-paper-strong px-3 py-2 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+              >
+                <FlaskConical aria-hidden="true" className="size-4" />
+                <span>{CREA_PICK_COPY.tryCheap[locale]}</span>
+                <span className="inline-flex items-center gap-1 font-mono text-sm font-black tabular-nums">
+                  <span>{draftCredits}</span>
+                  <CreditIcon className="size-3.5" />
+                </span>
+              </button>
+            ) : null}
+          </div>
         ) : null}
 
         {/* Donji red čipova: na mobilnom JEDAN red, bez prelamanja - skrol samo ako baš ne staje */}
@@ -1446,6 +1582,7 @@ export function StudioComposer({
             <span className="max-w-[92px] truncate sm:max-w-none">{modelLabel(activeModel, locale)}</span>
           </button>
 
+
           {/* Promovisani čipovi (Rezolucija, Odnos stranica, Trajanje, Broj slika...) */}
           {promotedChips.map((chip) => (
             <PromotedChipItem
@@ -1473,6 +1610,7 @@ export function StudioComposer({
           ))}
 
           <span className="flex-1" />
+
 
           {/* Kombinovano dugme: akcija + cena u jednom */}
           {block?.kind === "credits" ? (

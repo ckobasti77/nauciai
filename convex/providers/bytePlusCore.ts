@@ -107,10 +107,36 @@ export type BytePlusVideoInputs = { images: string[]; videos: string[] };
 
 /**
  * Tarifa koju BytePlus koristi kad zahtev ne kaže ništa, i ujedno NAJSKUPLJA od
- * tri (STUDIO-CATALOG-V4 3.4). Vidi `buildVideoContent` za to zašto je bitno
- * koja je od tri podrazumevana.
+ * tri (STUDIO-CATALOG-V4 3.4).
  */
 export const DEFAULT_SEEDANCE_TIER = "standard";
+
+/**
+ * Model ID za izabranu tarifu (Crea K07, nalaz N1 u `docs/crea/planovi/K06.md`).
+ *
+ * Fast i Mini su kod BytePlus-a ZASEBNI modeli (`dreamina-seedance-2-0-fast-…`,
+ * `…-mini-…`), a ne tekstualna komanda `--tier` uz prompt: komandu koju Ark ne
+ * poznaje mogao bi da prećuti i odradi Standard (0,151 $/s na 720p), dok bi mi
+ * naplatili Mini (0,077). Pogrešan model ID je, naprotiv, greška i refund - tihog
+ * gubitka nema ni u jednom ishodu.
+ *
+ * Red bez `capabilities.modelByTier` ide na svoj endpoint kao do sada; red SA
+ * mapom a bez tarife za izabranu vrednost je greška, nikad Standard.
+ */
+export function resolveBytePlusModel(
+  endpoint: string,
+  params: Record<string, unknown>,
+  capabilities: Record<string, unknown>,
+): string {
+  const map = capabilities.modelByTier;
+  if (!map || typeof map !== "object" || Array.isArray(map)) return endpoint;
+
+  const tier = typeof params.tier === "string" ? params.tier : DEFAULT_SEEDANCE_TIER;
+  const model = Object.hasOwn(map, tier) ? (map as Record<string, unknown>)[tier] : undefined;
+  if (typeof model !== "string" || model.length === 0) throw new Error(`NEPOZNATA_TARIFA:${tier}`);
+
+  return model;
+}
 
 /**
  * `content` niz za `/contents/generations/tasks` (Seedance). Parametri se kod
@@ -118,14 +144,7 @@ export const DEFAULT_SEEDANCE_TIER = "standard";
  * (`--resolution 720p --duration 5`), pa je gradnja tog stringa ovde, u čistoj
  * funkciji koju test može da pročita.
  *
- * `tier` se šalje SAMO kad nije `standard`, i to je odluka o novcu, ne o stilu:
- * Fast i Mini se naplaćuju JEFTINIJE od Standarda (0,121 vs 0,151 $/s na 720p,
- * 0,077 na Mini). Ako komanda ne stigne do BytePlus-a, on odradi Standard a mi
- * smo naplatili Mini - razliku plaćamo mi. Zato:
- * - `standard` ne šalje ništa, pa podrazumevan put ne može da pukne na
- *   nepoznatu komandu;
- * - `fast`/`mini` šalju komandu, pa je ishod ili tačna tarifa ili greška koja
- *   posao refundira. Tihog gubitka nema ni u jednom slučaju.
+ * Tarifa NIJE komanda nego model (`resolveBytePlusModel`).
  *
  * Video reference idu kao `video_url`, ne `image_url`: u `reference` režimu sa
  * videom se naplaćuje i ULAZNI video (množilac 0,6, katalog 3.4), pa poslati ga
@@ -138,9 +157,6 @@ export function buildVideoContent(
   const commands: string[] = [];
   if (typeof params.resolution === "string") commands.push(`--resolution ${params.resolution}`);
   if (typeof params.duration === "number") commands.push(`--duration ${params.duration}`);
-  if (typeof params.tier === "string" && params.tier !== DEFAULT_SEEDANCE_TIER) {
-    commands.push(`--tier ${params.tier}`);
-  }
 
   const prompt = typeof params.prompt === "string" ? params.prompt.trim() : "";
   const text = [prompt, ...commands].filter((part) => part.length > 0).join(" ");

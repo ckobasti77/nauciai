@@ -12,7 +12,7 @@ import {
   readMediaDuration,
 } from "../lib/media-duration";
 import { submitBytePlusJob } from "./providers/byteplus";
-import { falInputFields, resolveEndpointTier } from "./providers/falInputs";
+import { falInputFields, falMapOf, falParams, resolveEndpointTier } from "./providers/falInputs";
 import { parseDataUrl } from "../lib/data-url";
 import { parseJobInputs } from "./providers/jobInputs";
 import { submitGoogleJob } from "./providers/google";
@@ -163,10 +163,12 @@ async function submitFalCatalogJob(
   const params = parseParams(job.params) ?? {};
   const capabilities = parseParams(model.capabilities) ?? {};
   const urls = await resolveFalInputUrls(ctx, job.inputs);
+  // Imena polja koja odstupaju od fal konvencije stoje u REDU (`capabilities.fal`, K07).
+  const falMap = falMapOf(capabilities);
 
   const result = await submitToFal({
     endpoint: resolveEndpointTier(endpoint, params, capabilities),
-    input: { ...params, ...falInputFields(inputMode ?? "", urls) },
+    input: { ...falParams(params, falMap), ...falInputFields(inputMode ?? "", urls, falMap) },
     webhookUrl: `${siteUrl}/fal/webhook`,
     apiKey,
   });

@@ -7,6 +7,7 @@
  * mogli tvrditi testom - i nijedna ne pominje nijedan slug.
  */
 
+import { priceCategoryOf, resolveCreditFactor } from "@/convex/creaPricingCore";
 import { parseParamSpec, type ParamControl } from "@/convex/studioParamSpec";
 import { parsePriceRule, type PriceRule } from "@/convex/studioPricing";
 
@@ -55,7 +56,26 @@ export type StudioModel = {
   capabilities: Record<string, unknown>;
   badge?: StudioModelBadge;
   sortOrder: number;
+  /**
+   * Faktor kredita po kojem server naplaćuje ovaj model (Crea C1). Postoji samo
+   * kad je upaljen fleg cena v2 (`withCreditFactors`); bez njega važi današnji.
+   */
+  creditFactor?: number;
 };
+
+/**
+ * Modelima dopisuje faktor kredita kad je upaljen fleg cena v2 - istom funkcijom
+ * kojom server računa naplatu (`resolveCreditFactor`). Sa ugašenim flegom vraća
+ * ISTI niz, pa se ništa u UI-ju ne menja (O1).
+ */
+export function withCreditFactors(models: StudioModel[], pricingV2: boolean): StudioModel[] {
+  if (!pricingV2) return models;
+
+  return models.map((model) => ({
+    ...model,
+    creditFactor: resolveCreditFactor({ pricingV2, category: priceCategoryOf(model.kind, { night: false }) }),
+  }));
+}
 
 /**
  * `null` kad red nema upotrebljivo cenovno pravilo ili spisak kontrola - model
@@ -137,7 +157,14 @@ export type ProviderBrand =
   | "bytedance"
   | "kling"
   | "minimax"
-  | "elevenlabs";
+  | "elevenlabs"
+  | "alibaba"
+  | "bfl"
+  | "recraft"
+  | "ideogram"
+  | "xai"
+  | "lightricks"
+  | "pixverse";
 
 export const PROVIDER_BRANDS: readonly ProviderBrand[] = [
   "google",
@@ -146,6 +173,13 @@ export const PROVIDER_BRANDS: readonly ProviderBrand[] = [
   "kling",
   "minimax",
   "elevenlabs",
+  "alibaba",
+  "bfl",
+  "recraft",
+  "ideogram",
+  "xai",
+  "lightricks",
+  "pixverse",
 ] as const;
 
 /**
@@ -163,6 +197,17 @@ const FAMILY_TO_BRAND: Record<string, ProviderBrand> = {
   kling: "kling",
   minimax: "minimax",
   elevenlabs: "elevenlabs",
+  // Crea K07 (S2, V2).
+  "z-image": "alibaba",
+  "qwen-image": "alibaba",
+  wan: "alibaba",
+  "flux-2": "bfl",
+  "flux-kontext": "bfl",
+  recraft: "recraft",
+  ideogram: "ideogram",
+  "grok-imagine": "xai",
+  ltx: "lightricks",
+  pixverse: "pixverse",
 };
 
 /** Ime firme za `aria-label` znaka. Proper nouns - isto u oba jezika. */
@@ -173,6 +218,13 @@ export const PROVIDER_BRAND_NAME: Record<ProviderBrand, string> = {
   kling: "Kling",
   minimax: "MiniMax",
   elevenlabs: "ElevenLabs",
+  alibaba: "Alibaba",
+  bfl: "Black Forest Labs",
+  recraft: "Recraft",
+  ideogram: "Ideogram",
+  xai: "xAI",
+  lightricks: "Lightricks",
+  pixverse: "PixVerse",
 };
 
 /**
@@ -211,7 +263,7 @@ export function defaultCredits(model: StudioModel, override: Record<string, numb
   const values = paramValuesForMode(model.paramSpec, mode);
   const params = buildParams(model.paramSpec, values, mode, override);
 
-  return creditsFor(model.priceRule, params, mode);
+  return creditsFor(model.priceRule, params, mode, model.creditFactor);
 }
 
 export type ModelFilter = {

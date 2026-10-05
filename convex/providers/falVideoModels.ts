@@ -341,9 +341,373 @@ export const MINIMAX_H3: StudioModelSeed = {
   sortOrder: 330,
 };
 
+// ── Crea K07 (V2): novi video modeli ───────────────────────────────────────
+// Rute, polja i cene: `docs/crea/planovi/K06.md` §3 (izvori pročitani
+// 2026-10-05). Svaki je fal (BytePlus i Google ih nemaju).
+
+/**
+ * `grok-video-15-lite` - xAI Grok Imagine Video 1.5 Lite: $0,02 / $0,03 / $0,14
+ * po sekundi za 480p / 720p / 1080p, a slika na ulazu dodaje $0,01
+ * (https://fal.ai/models/xai/grok-imagine-video/v1.5/lite/text-to-video/llms.txt).
+ * Najjeftinija proba pokreta (V3). Šema nema seme ni prekidač zvuka; da li klip
+ * ima zvuk nije potvrđeno, pa se ne tvrdi.
+ */
+export const GROK_VIDEO_15_LITE: StudioModelSeed = {
+  slug: "grok-video-15-lite",
+  provider: "fal",
+  kind: "video",
+  family: "grok-imagine",
+  labelSr: "Grok Imagine Video Lite",
+  labelEn: "Grok Imagine Video Lite",
+  taglineSr: "Najjeftinija proba pokreta - par kredita po sekundi.",
+  taglineEn: "The cheapest motion test - a few credits per second.",
+  descriptionSr:
+    "Brz video iz opisa ili iz slike, do 15 sekundi. Dobar za probu ideje pre skupljeg modela.",
+  descriptionEn:
+    "A fast video from a prompt or an image, up to 15 seconds. Good for testing an idea before a pricier model.",
+  endpoints: {
+    text: "xai/grok-imagine-video/v1.5/lite/text-to-video",
+    image: "xai/grok-imagine-video/v1.5/lite/image-to-video",
+  },
+  inputModes: ["text", "image"],
+  inputSpec: {
+    text: {},
+    image: { image: { max: 1, accept: IMAGE_ACCEPT } },
+  },
+  paramSpec: [
+    promptControl(),
+    resolutionControl({ values: ["480p", "720p", "1080p"], default: "480p" }),
+    durationControl({ min: 1, max: 15, default: 6 }),
+    {
+      ...aspectRatioControl(["16:9", "9:16", "1:1", "4:3", "3:4", "3:2", "2:3"], "16:9"),
+      showInModes: ["text"],
+    },
+  ],
+  priceRule: {
+    unit: "second",
+    quantityParam: "duration",
+    lookup: { params: ["resolution"], map: { "480p": 0.02, "720p": 0.03, "1080p": 0.14 } },
+    extras: [{ param: "input_images", freeCount: 0, usdEach: 0.01 }],
+  },
+  capabilities: {
+    mode: "async_webhook",
+    minDurationS: 1,
+    maxDurationS: 15,
+    tags: ["cheap", "draft", "animate"],
+  },
+  sortOrder: 332,
+};
+
+/**
+ * `wan-30` - Alibaba Wan 3.0: $0,05 / $0,10 / $0,20 po sekundi za 480p / 720p /
+ * 1080p, zvuk u ceni, do 30 s (https://fal.ai/models/alibaba/wan-3.0/
+ * text-to-video/llms.txt). Prvi i poslednji kadar su ista ruta kao slika
+ * (`start_image_url` + `end_image_url`).
+ *
+ * Reference primaju samo SLIKE: da li fal u `reference` režimu naplaćuje i ulazni
+ * video nije potvrđeno - isti princip kao kod Seedance-a (`referenceVideoBillableSeconds`).
+ */
+export const WAN_30: StudioModelSeed = {
+  slug: "wan-30",
+  provider: "fal",
+  kind: "video",
+  family: "wan",
+  labelSr: "Wan 3.0",
+  labelEn: "Wan 3.0",
+  taglineSr: "Dug kadar do 30 sekundi, sa zvukom u ceni.",
+  taglineEn: "A long shot up to 30 seconds, with audio included.",
+  descriptionSr:
+    "Video iz opisa, iz slike, iz prvog i poslednjeg kadra ili iz referenci. Zvuk je uključen u cenu, a klip traje do pola minuta.",
+  descriptionEn:
+    "Video from a prompt, an image, a first/last frame pair or references. Audio is included in the price, and a clip runs up to half a minute.",
+  endpoints: {
+    text: "alibaba/wan-3.0/text-to-video",
+    image: "alibaba/wan-3.0/image-to-video",
+    first_last: "alibaba/wan-3.0/image-to-video",
+    reference: "alibaba/wan-3.0/reference-to-video",
+  },
+  inputModes: ["text", "image", "first_last", "reference"],
+  inputSpec: {
+    text: {},
+    image: { image: { max: 1, accept: IMAGE_ACCEPT } },
+    first_last: { image: { max: 2, accept: IMAGE_ACCEPT } },
+    reference: { image: { max: 10, accept: IMAGE_ACCEPT } },
+  },
+  paramSpec: [
+    promptControl(),
+    resolutionControl({ values: ["480p", "720p", "1080p"], default: "720p" }),
+    durationControl({ min: 2, max: 30, default: 5 }),
+    aspectRatioControl(["16:9", "9:16", "1:1", "4:3", "3:4"], "16:9"),
+  ],
+  priceRule: {
+    unit: "second",
+    quantityParam: "duration",
+    lookup: { params: ["resolution"], map: { "480p": 0.05, "720p": 0.1, "1080p": 0.2 } },
+  },
+  capabilities: {
+    mode: "async_webhook",
+    audio: true,
+    audioIncluded: true,
+    minDurationS: 2,
+    maxDurationS: 30,
+    maxRefImages: 10,
+    seedParam: "seed",
+    fal: {
+      fields: { image: "start_image_url", first: "start_image_url", last: "end_image_url" },
+      fixed: { enable_prompt_expansion: false },
+    },
+    tags: ["audio", "long", "firstLast", "refs", "draft"],
+  },
+  sortOrder: 334,
+};
+
+/**
+ * `ltx-23-fast` - Lightricks LTX-2.3 Fast: $0,06 / $0,12 / $0,24 po sekundi za
+ * 1080p / 1440p / 2160p, zvuk u ceni (https://fal.ai/models/fal-ai/ltx-2.3/
+ * text-to-video/fast/llms.txt). Trajanje 6-10 s: 12-20 s ide samo na 1080p i
+ * 25 fps, a to bi bilo pravilo van cenovnika - ne nudi se.
+ */
+export const LTX_23_FAST: StudioModelSeed = {
+  slug: "ltx-23-fast",
+  provider: "fal",
+  kind: "video",
+  family: "ltx",
+  labelSr: "LTX-2.3 Fast",
+  labelEn: "LTX-2.3 Fast",
+  taglineSr: "Oštar video od 1080p naviše, sa zvukom.",
+  taglineEn: "A sharp video from 1080p up, with audio.",
+  descriptionSr:
+    "Video iz opisa, iz slike ili iz prvog i poslednjeg kadra, uvek najmanje 1080p i sa zvukom u ceni.",
+  descriptionEn:
+    "Video from a prompt, an image or a first/last frame pair, always at least 1080p and with audio included.",
+  endpoints: {
+    text: "fal-ai/ltx-2.3/text-to-video/fast",
+    image: "fal-ai/ltx-2.3/image-to-video/fast",
+    first_last: "fal-ai/ltx-2.3/image-to-video/fast",
+  },
+  inputModes: ["text", "image", "first_last"],
+  inputSpec: {
+    text: {},
+    image: { image: { max: 1, accept: IMAGE_ACCEPT } },
+    first_last: { image: { max: 2, accept: IMAGE_ACCEPT } },
+  },
+  paramSpec: [
+    promptControl(),
+    resolutionControl({ values: ["1080p", "1440p", "2160p"], default: "1080p", labels: { "2160p": "4K" } }),
+    durationControl({ min: 6, max: 10, step: 2, default: 6 }),
+    aspectRatioControl(["16:9", "9:16"], "16:9"),
+  ],
+  priceRule: {
+    unit: "second",
+    quantityParam: "duration",
+    lookup: { params: ["resolution"], map: { "1080p": 0.06, "1440p": 0.12, "2160p": 0.24 } },
+  },
+  capabilities: {
+    mode: "async_webhook",
+    audio: true,
+    audioIncluded: true,
+    minDurationS: 6,
+    maxDurationS: 10,
+    fal: { fields: { image: "image_url", first: "image_url", last: "end_image_url" } },
+    tags: ["audio", "quality", "firstLast"],
+  },
+  sortOrder: 336,
+};
+
+/**
+ * `hailuo-23-fast` - MiniMax Hailuo 2.3 Fast, samo iz slike. Cena po KLIPU:
+ * 768p 6 s $0,19, 10 s $0,32; 1080p 6 s $0,33
+ * (https://fal.ai/models/fal-ai/minimax/hailuo-2.3-fast/standard/image-to-video/llms.txt
+ * i …/pro/…). 1080p od 10 s ne postoji: kombinacije nema u mapi, pa je i forma
+ * i server odbijaju iz istog izvora. Tarifa u ruti je rezolucija, kao kod Klinga.
+ */
+export const HAILUO_23_FAST: StudioModelSeed = {
+  slug: "hailuo-23-fast",
+  provider: "fal",
+  kind: "video",
+  family: "minimax",
+  labelSr: "Hailuo 2.3 Fast",
+  labelEn: "Hailuo 2.3 Fast",
+  taglineSr: "Oživi fotku najjeftinije - fiksna cena po klipu.",
+  taglineEn: "Bring a photo to life for the least - a fixed price per clip.",
+  descriptionSr:
+    "Okačiš jednu sliku i opišeš pokret. Klip traje 6 ili 10 sekundi i ima fiksnu cenu.",
+  descriptionEn:
+    "Upload one picture and describe the motion. The clip runs 6 or 10 seconds and has a fixed price.",
+  endpoints: { image: "fal-ai/minimax/hailuo-2.3-fast/{tier}/image-to-video" },
+  inputModes: ["image"],
+  inputSpec: { image: { image: { max: 1, accept: IMAGE_ACCEPT } } },
+  paramSpec: [
+    promptControl(),
+    resolutionControl({ values: ["768p", "1080p"], default: "768p", labels: { "768p": "768P" } }),
+    {
+      // fal prima trajanje kao TEKST ("6" | "10"), pa je ovo segmentirani izbor, ne klizač.
+      key: "duration",
+      type: "segmented",
+      labelSr: "Trajanje",
+      labelEn: "Duration",
+      helpSr: "1080p ide samo uz 6 sekundi.",
+      helpEn: "1080p comes with 6 seconds only.",
+      default: "6",
+      options: [
+        { value: "6", labelSr: "6 s", labelEn: "6 s" },
+        { value: "10", labelSr: "10 s", labelEn: "10 s" },
+      ],
+      affectsPrice: true,
+    },
+  ],
+  priceRule: {
+    unit: "generation",
+    lookup: {
+      params: ["resolution", "duration"],
+      map: { "768p|6": 0.19, "768p|10": 0.32, "1080p|6": 0.33 },
+    },
+  },
+  capabilities: {
+    mode: "async_webhook",
+    tierByResolution: { "768p": "standard", "1080p": "pro" },
+    tags: ["cheap", "animate"],
+  },
+  sortOrder: 338,
+};
+
+/**
+ * `minimax-h3-max-turbo` - MiniMax H3 Max Turbo. **Cena POSLE promocije**: fal do
+ * 2026-10-15 daje 40% popusta, a posle toga je $0,025 / $0,04 / $0,08 po sekundi
+ * za 480P / 768P / 1080P (https://fal.ai/models/minimax/h3-max-turbo/
+ * text-to-video/llms.txt). Katalog piše punu cenu (K06-10) - inače bismo od
+ * 16. oktobra prodavali ispod nabavne. Rezolucije fal piše velikim slovom.
+ */
+export const MINIMAX_H3_MAX_TURBO: StudioModelSeed = {
+  slug: "minimax-h3-max-turbo",
+  provider: "fal",
+  kind: "video",
+  family: "minimax",
+  labelSr: "MiniMax H3 Max Turbo",
+  labelEn: "MiniMax H3 Max Turbo",
+  taglineSr: "Brz i jeftin video, iz opisa, slike ili dva kadra.",
+  taglineEn: "Fast, cheap video from a prompt, an image or two frames.",
+  descriptionSr:
+    "Brza tarifa MiniMax H3 Max. Video iz opisa, iz slike ili iz prvog i poslednjeg kadra, do 15 sekundi.",
+  descriptionEn:
+    "The fast tier of MiniMax H3 Max. Video from a prompt, an image or a first/last frame pair, up to 15 seconds.",
+  endpoints: {
+    text: "minimax/h3-max-turbo/text-to-video",
+    image: "minimax/h3-max-turbo/image-to-video",
+    first_last: "minimax/h3-max-turbo/image-to-video",
+  },
+  inputModes: ["text", "image", "first_last"],
+  inputSpec: {
+    text: {},
+    image: { image: { max: 1, accept: IMAGE_ACCEPT } },
+    first_last: { image: { max: 2, accept: IMAGE_ACCEPT } },
+  },
+  paramSpec: [
+    promptControl(),
+    resolutionControl({ values: ["480P", "768P", "1080P"], default: "768P" }),
+    durationControl({ min: 1, max: 15, default: 5 }),
+    {
+      ...aspectRatioControl(["16:9", "9:16", "1:1", "4:3", "3:4", "21:9"], "16:9"),
+      showInModes: ["text"],
+    },
+  ],
+  priceRule: {
+    unit: "second",
+    quantityParam: "duration",
+    lookup: { params: ["resolution"], map: { "480P": 0.025, "768P": 0.04, "1080P": 0.08 } },
+  },
+  capabilities: {
+    mode: "async_webhook",
+    minDurationS: 1,
+    maxDurationS: 15,
+    seedParam: "seed",
+    fal: {
+      fields: { image: "image_url", first: "image_url", last: "end_image_url" },
+      fixed: { prompt_expansion_mode: "disabled" },
+    },
+    tags: ["cheap", "draft", "firstLast"],
+  },
+  sortOrder: 339,
+};
+
+/**
+ * `pixverse-v6` - PixVerse V6: po sekundi bez / sa zvukom 360p $0,025/$0,035,
+ * 540p $0,035/$0,045, 720p $0,045/$0,06, 1080p $0,09/$0,115
+ * (https://fal.ai/models/fal-ai/pixverse/v6/text-to-video/llms.txt). Prvi i
+ * poslednji kadar idu na rutu `transition`. Zvuk je kod fal-a
+ * `generate_audio_switch`, a forma ga zove `audio` kao i ostali modeli.
+ */
+export const PIXVERSE_V6: StudioModelSeed = {
+  slug: "pixverse-v6",
+  provider: "fal",
+  kind: "video",
+  family: "pixverse",
+  labelSr: "PixVerse V6",
+  labelEn: "PixVerse V6",
+  taglineSr: "Jeftin video sa zvukom na prekidač, od 360p do 1080p.",
+  taglineEn: "Cheap video with switchable audio, from 360p to 1080p.",
+  descriptionSr:
+    "Video iz opisa, iz slike ili prelaz između dva kadra. Zvuk se uključuje po želji i malo poskupljuje.",
+  descriptionEn:
+    "Video from a prompt, an image or a transition between two frames. Audio is optional and costs a little more.",
+  endpoints: {
+    text: "fal-ai/pixverse/v6/text-to-video",
+    image: "fal-ai/pixverse/v6/image-to-video",
+    first_last: "fal-ai/pixverse/v6/transition",
+  },
+  inputModes: ["text", "image", "first_last"],
+  inputSpec: {
+    text: {},
+    image: { image: { max: 1, accept: IMAGE_ACCEPT } },
+    first_last: { image: { max: 2, accept: IMAGE_ACCEPT } },
+  },
+  paramSpec: [
+    promptControl(),
+    resolutionControl({ values: ["360p", "540p", "720p", "1080p"], default: "720p" }),
+    audioControl(),
+    durationControl({ min: 1, max: 15, default: 5 }),
+  ],
+  priceRule: {
+    unit: "second",
+    quantityParam: "duration",
+    lookup: {
+      params: ["resolution", "audio"],
+      map: {
+        "360p|off": 0.025,
+        "360p|on": 0.035,
+        "540p|off": 0.035,
+        "540p|on": 0.045,
+        "720p|off": 0.045,
+        "720p|on": 0.06,
+        "1080p|off": 0.09,
+        "1080p|on": 0.115,
+      },
+    },
+  },
+  capabilities: {
+    mode: "async_webhook",
+    audio: true,
+    minDurationS: 1,
+    maxDurationS: 15,
+    seedParam: "seed",
+    fal: {
+      fields: { image: "image_url", first: "first_image_url", last: "end_image_url" },
+      params: { audio: { to: "generate_audio_switch" } },
+    },
+    tags: ["cheap", "draft", "audio", "firstLast"],
+  },
+  sortOrder: 341,
+};
+
 export const FAL_VIDEO_MODELS: StudioModelSeed[] = [
   KLING_3,
   KLING_3_TURBO,
   KLING_OMNI,
   MINIMAX_H3,
+  GROK_VIDEO_15_LITE,
+  WAN_30,
+  LTX_23_FAST,
+  HAILUO_23_FAST,
+  MINIMAX_H3_MAX_TURBO,
+  PIXVERSE_V6,
 ];

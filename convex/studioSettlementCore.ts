@@ -135,6 +135,11 @@ export type SettlementInput = {
   reportedCostUsd: number | null;
   reservedCredits: number;
   reservedCostUsd: number;
+  /**
+   * Faktor kredita po kojem je posao REZERVISAN (Crea C1). Nema ga posao iz
+   * vremena pre cena v2 - tada je današnji `CREDIT_FACTOR`.
+   */
+  creditFactor?: number;
 };
 
 export type SettlementPlan =
@@ -178,7 +183,7 @@ function fromQuantity(input: SettlementInput): SettlementTarget | null {
     return {
       reason: SETTLEMENT_REASON.quantity,
       costUsd: computeCostUsd(rule, params, input.pricingMode),
-      credits: computeCredits(rule, params, input.pricingMode),
+      credits: computeCredits(rule, params, input.pricingMode, input.creditFactor),
     };
   } catch {
     // Pravilo koje za prijavljenu količinu ne ume da izračuna cenu ne sme da
@@ -196,7 +201,7 @@ function fromCost(input: SettlementInput): SettlementTarget | null {
   const usd = input.reportedCostUsd;
   if (usd === null || !Number.isFinite(usd) || usd <= 0) return null;
 
-  return { reason: SETTLEMENT_REASON.cost, costUsd: usd, credits: creditsFromUsd(usd) };
+  return { reason: SETTLEMENT_REASON.cost, costUsd: usd, credits: creditsFromUsd(usd, input.creditFactor) };
 }
 
 /**

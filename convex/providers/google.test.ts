@@ -1095,3 +1095,75 @@ test("Google slike: odnosi stranica su samo oni koje API dokumentuje", () => {
     }
   }
 });
+
+// ── Crea K07 (C3): rezervna ruta Google → fal ──────────────────────────────
+
+async function withFalEnv(run: () => Promise<void>) {
+  const previous = { key: process.env.FAL_KEY, site: process.env.CONVEX_SITE_URL };
+  process.env.FAL_KEY = "test-fal-key";
+  process.env.CONVEX_SITE_URL = "https://site.test";
+  try {
+    await run();
+  } finally {
+    if (previous.key === undefined) delete process.env.FAL_KEY;
+    else process.env.FAL_KEY = previous.key;
+    if (previous.site === undefined) delete process.env.CONVEX_SITE_URL;
+    else process.env.CONVEX_SITE_URL = previous.site;
+  }
+}
+
+test("C3: Google 503 + FAL_KEY - Nano Banana 2 ide na fal, cena se ne menja, nema refunda", async () => {
+  await withFalEnv(async () => {
+    const t = convexTest(schema, modules);
+    const userId = await seedUser(t);
+    await seedModel(t, NANO_BANANA_2);
+    const jobId = await seedReservedJob(t, userId, {
+      seed: NANO_BANANA_2,
+      params: { prompt: "mačka", resolution: "1K", aspect_ratio: "1:1" },
+    });
+    const calls = stubFetch((url) => {
+      if (url.endsWith("/interactions")) return new Response("overloaded", { status: 503 });
+      if (url.startsWith("https://queue.fal.run/")) return json({ request_id: "fal-req-1" });
+      return undefined;
+    });
+
+    await t.action(internal.studioActions.submitJob, { jobId });
+
+    const job = await jobOf(t, jobId);
+    expect(job?.status).toBe("running");
+    expect(job?.provider).toBe("fal");
+    expect(job?.falRequestId).toBe("fal-req-1");
+    expect(job?.creditCost).toBe(JOB_COST);
+    expect(await balanceOf(t, userId)).toBe(GRANTED - JOB_COST);
+    const fal = calls.find((call) => call.url.startsWith("https://queue.fal.run/"));
+    expect(fal?.url).toContain("queue.fal.run/fal-ai/nano-banana-2?");
+    expect(fal?.body).toMatchObject({ prompt: "mačka", resolution: "1K", aspect_ratio: "1:1" });
+  });
+});
+
+test("C3: bez FAL_KEY, ili za grešku zahteva (400), rezerve nema - posao se refundira", async () => {
+  for (const [status, withKey] of [
+    [503, false],
+    [400, true],
+  ] as const) {
+    const run = async () => {
+      const t = convexTest(schema, modules);
+      const userId = await seedUser(t);
+      await seedModel(t, NANO_BANANA_2);
+      const jobId = await seedReservedJob(t, userId, {
+        seed: NANO_BANANA_2,
+        params: { prompt: "mačka", resolution: "1K", aspect_ratio: "1:1" },
+      });
+      const calls = stubFetch((url) =>
+        url.endsWith("/interactions") ? new Response("nope", { status }) : json({ request_id: "x" }),
+      );
+
+      await t.action(internal.studioActions.submitJob, { jobId });
+
+      expect((await jobOf(t, jobId))?.status, `${status}/${withKey}`).toBe("refunded");
+      expect(calls.some((call) => call.url.startsWith("https://queue.fal.run/"))).toBe(false);
+    };
+    if (withKey) await withFalEnv(run);
+    else await run();
+  }
+});

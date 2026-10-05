@@ -22,6 +22,7 @@ import {
   bytePlusErrorMessage,
   challengeResponseBody,
   parseCallbackBody,
+  resolveBytePlusModel,
 } from "./bytePlusCore";
 import { parseJobInputs } from "./jobInputs";
 import { recordProviderCost, tokenUsageValidator } from "../studioActualCost";
@@ -113,7 +114,8 @@ export async function submitBytePlusJob(ctx: ActionCtx, jobId: Id<"generationJob
 
     const task = await createBytePlusVideoTask({
       config,
-      model: providerModel,
+      // Fast i Mini su zasebni BytePlus modeli, ne komanda u promptu (K07, nalaz N1).
+      model: resolveBytePlusModel(providerModel, params, parseParams(model.capabilities) ?? {}),
       content: buildVideoContent(params, inputs),
       callbackUrl: `${siteUrl}/byteplus/webhook`,
     });

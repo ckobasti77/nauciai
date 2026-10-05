@@ -113,10 +113,14 @@ test("sedam modela sa merenom dužinom seed upisuje UKLJUČENE", async () => {
   // Google-a NE POSTOJI (izlazu se samo `veo-3.1-generate-preview` i
   // `veo-3.1-lite-generate-preview`). Spisak je izričit, a ne samo broj: model
   // koji neko usput povuče mora ovde da se vidi, jer povučen red ne izlazi.
+  //
+  // Crea K07 dodaje drugi: `recraft-41-vector` (SVG izlaz) čeka da K15 proveri
+  // SVG put kroz čuvanje i galeriju.
   expect(STUDIO_MODELS.filter((seed) => seed.isEnabled === false).map((seed) => seed.slug)).toEqual([
+    "recraft-41-vector",
     "veo-31-fast",
   ]);
-  expect(RETIRED).toBe(1);
+  expect(RETIRED).toBe(2);
 });
 
 test("seed bez tačnog sync secreta ne upisuje ništa", async () => {

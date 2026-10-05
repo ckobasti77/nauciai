@@ -73,6 +73,15 @@ export const PROVIDER_MARKS: Record<ProviderBrand, ReactNode> = {
   kling: <Monogram letter="K" />,
   // MiniMax: čist inicijal.
   minimax: <Monogram letter="M" />,
+  // Crea K07: nove firme dobijaju čist inicijal, isto pravilo kao ByteDance -
+  // nijedan od ovih logotipa se ne svodi pošteno na jednu siluetu.
+  alibaba: <Monogram letter="A" />,
+  bfl: <Monogram letter="F" />,
+  recraft: <Monogram letter="R" />,
+  ideogram: <Monogram letter="I" />,
+  xai: <Monogram letter="X" />,
+  lightricks: <Monogram letter="L" />,
+  pixverse: <Monogram letter="P" />,
   // ElevenLabs: dve uspravne grede - njihov stvaran znak, verna silueta.
   elevenlabs: (
     <g fill="currentColor">

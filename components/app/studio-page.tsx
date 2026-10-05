@@ -1,7 +1,7 @@
 "use client";
 
 import { useConvexAuth } from "@convex-dev/auth/react";
-import { useAction, useMutation, useQuery } from "convex/react";
+import { useAction, useConvex, useMutation, useQuery } from "convex/react";
 import { Coins, Wand2 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -13,6 +13,7 @@ import { StudioMediaDetail } from "@/components/app/studio-media-detail";
 import { StudioMediaGrid } from "@/components/app/studio-media-grid";
 import type { StudioTileJob } from "@/components/app/studio-media-tile";
 import { StudioModerationGrid } from "@/components/app/studio-moderation-grid";
+import { CreaCacheOffer } from "@/components/crea/crea-cache-offer";
 import { CreaComingSoon } from "@/components/crea/crea-coming-soon";
 import { CreaHistory, CreaHistoryEmpty } from "@/components/crea/crea-history";
 import { CreaStage } from "@/components/crea/crea-stage";
@@ -32,6 +33,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { CREA_STAGE_COPY } from "@/lib/crea-copy";
+import type { RefineOrder } from "@/lib/crea-draft";
 import { creaGoalById } from "@/lib/crea-goals";
 import {
   CREA_AREA_KIND,
@@ -61,7 +63,7 @@ import {
 } from "@/lib/studio-composer-collapse";
 import { jobPrompt } from "@/lib/studio-form";
 import { isDemoPoster, type GalleryScope } from "@/lib/studio-gallery";
-import { parseStudioModel, type StudioModel, type StudioModelRow } from "@/lib/studio-models";
+import { parseStudioModel, type StudioModel, type StudioModelRow, withCreditFactors } from "@/lib/studio-models";
 import {
   PRIVACY_POLICY_PATH,
   STUDIO_NOT_ENROLLED,
@@ -70,7 +72,7 @@ import {
   STUDIO_TERMS_PATH,
 } from "@/lib/studio-messages";
 import type { SlotFile, SlotFiles } from "@/lib/studio-slots";
-import { formatCreditsLong, type ParamValues } from "@/lib/studio-params";
+import { creditsFor, formatCreditsLong, type ParamValues } from "@/lib/studio-params";
 
 /**
  * Kapija pred prvom generacijom: jedna kvačica i jedno dugme.
@@ -136,6 +138,11 @@ function StudioTermsGate({ locale }: { locale: Locale }) {
 const PUSHED_DETAIL_KEY = "studio:pushed-detail";
 const STUDIO_PROJECT_STORAGE_KEY = "nauciai_studio_project_id";
 
+/** Sat za keš upit (C4): upit ne čita sat sam, pa ga šalje klijent u trenutku klika. */
+function clickTime(): number {
+  return Date.now();
+}
+
 function readPushedDetailId(): string | null {
   try {
     return window.sessionStorage.getItem(PUSHED_DETAIL_KEY);
@@ -181,6 +188,13 @@ export function StudioPage({
   const balance = useQuery(api.credits.getBalance, isAuthenticated ? {} : "skip");
   const models = useQuery(api.studioModels.listModels, isAuthenticated ? {} : "skip");
   const createJob = useMutation(api.studio.createJob);
+  const convex = useConvex();
+  // Keš istih zahteva (C4): ponuda „otvori postojeći / nova varijanta" pre plaćanja.
+  const [cacheOffer, setCacheOffer] = useState<{
+    jobId: string;
+    payload: JobPayload;
+    model: StudioModel;
+  } | null>(null);
   const claimSignupBonus = useMutation(api.studio.claimSignupBonus);
   const adoptOutputAsInput = useMutation(api.creaVersions.adoptOutputAsInput);
   const measureInputUpload = useAction(api.studioActions.measureInputUpload);
@@ -383,12 +397,18 @@ export function StudioPage({
     workshopWidth === null ? null : workshopWidth >= CREA_DOCK_MIN_PX ? "docked" : "floating";
 
   // Redovi se parsiraju jednom po promeni `models` liste
+  // Cene v2 (Crea C1): sa upaljenim flegom svaki model nosi faktor po kojem ga
+  // server naplaćuje; sa ugašenim je niz isti kao do sada.
+  const pricingV2 = state?.pricingV2 === true;
   const catalog = useMemo(
     () =>
-      ((models ?? []) as StudioModelRow[])
-        .map((row) => parseStudioModel(row))
-        .filter((model): model is StudioModel => model !== null),
-    [models],
+      withCreditFactors(
+        ((models ?? []) as StudioModelRow[])
+          .map((row) => parseStudioModel(row))
+          .filter((model): model is StudioModel => model !== null),
+        pricingV2,
+      ),
+    [models, pricingV2],
   );
 
   const seed: RegenerateSeed | null = useMemo(() => {
@@ -570,7 +590,7 @@ export function StudioPage({
   }
 
   // Model stiže od composera koji je poslao formu: detalj gradi formu za model POSLA (K01 0.2-7).
-  async function generate(payload: JobPayload, model: StudioModel) {
+  async function generate(payload: JobPayload, model: StudioModel, opts: { skipCache?: boolean } = {}) {
     // Stablo verzija (K05): detalj šalje svog roditelja; „Generiši ponovo" (`?regenerate=`) je
     // verzija originala. Izlaz kao ulaz roditelja dobija na serveru (alias među ulazima).
     const lineage = payload.parentJobId
@@ -580,7 +600,25 @@ export function StudioPage({
         : {};
     setIsPending(true);
     setError(null);
+    setCacheOffer(null);
     try {
+      // Keš (C4): samo za nov rad iz composera - „Napravi ponovo", izmena i
+      // „Usavrši" su svesno nova verzija, pa tu pitanje nema smisla.
+      if (!opts.skipCache && !("parentJobId" in lineage)) {
+        const hit = await convex
+          .query(api.creaCache.findIdenticalJob, {
+            modelSlug: model.slug,
+            params: JSON.stringify(payload.params),
+            inputMode: payload.inputMode,
+            ...(Object.keys(payload.inputs).length > 0 ? { inputs: JSON.stringify(payload.inputs) } : {}),
+            now: clickTime(),
+          })
+          .catch(() => null);
+        if (hit) {
+          setCacheOffer({ jobId: hit.jobId, payload, model });
+          return;
+        }
+      }
       const result = await createJob({
         modelSlug: model.slug,
         params: JSON.stringify(payload.params),
@@ -605,6 +643,37 @@ export function StudioPage({
       setError(thrown instanceof Error ? thrown.message : String(thrown));
     } finally {
       setIsPending(false);
+    }
+  }
+
+  // „Usavrši" probu (K07): proba ide kao referenca (alias izlaza, bez kopije) ili se njeni
+  // ulazi ponavljaju; seme iste porodice prepisuje server.
+  async function handleRefine(
+    job: StudioTileJob,
+    order: RefineOrder,
+    model: StudioModel,
+    carried: Record<string, string[]>,
+  ) {
+    try {
+      let inputs: Record<string, string[]> = {};
+      if (order.inputs === "reference") {
+        const adoptedOutput = await adoptOutputAsInput({ jobId: job._id as Id<"generationJobs"> });
+        inputs = { [adoptedOutput.slot]: [adoptedOutput.storageId] };
+      } else if (order.inputs === "carry") {
+        inputs = carried;
+      }
+      await generate(
+        {
+          params: order.params,
+          inputMode: order.inputMode,
+          inputs,
+          parentJobId: job._id as Id<"generationJobs">,
+          derivation: order.derivation,
+        },
+        model,
+      );
+    } catch (thrown) {
+      setError(thrown instanceof Error ? thrown.message : String(thrown));
     }
   }
 
@@ -839,40 +908,66 @@ export function StudioPage({
     }
 
     return (
-      <StudioComposer
-        key={`${area}:${modeDef.id}:${shell.goal ?? ""}:${seedEpoch ?? ""}`}
-        models={modeModels}
-        activeModel={activeModel}
-        onSelectModel={(model) => {
-          setSelectedSlug(model.slug);
-          setStarterPrompt(null);
-        }}
-        locale={locale}
-        studioState={state}
-        balance={balance?.balance}
-        topUpHref={creditsHref}
-        seed={composerSeed ?? goalSeed}
-        starterPrompt={starterPrompt}
-        isPending={isPending}
-        error={error}
-        variant="create"
-        onGenerate={generate}
-        placement={placement}
-        initialInputMode={goalInputMode ?? inputModeForMode(activeModel, area, modeDef.id)}
-        lockModelKind
-        dropDisabled={activeJobId !== null}
-        {...(placement === "floating"
-          ? {
-              isCollapsed: isComposerCollapsed,
-              onToggleCollapse: () =>
-                setIsComposerCollapsed((prev) => {
-                  const next = !prev;
-                  writeComposerCollapsed(composerBreakpoint, next);
-                  return next;
-                }),
-            }
-          : {})}
-      />
+      <>
+        {cacheOffer ? (
+          <CreaCacheOffer
+            locale={locale}
+            newCredits={creditsFor(
+              cacheOffer.model.priceRule,
+              cacheOffer.payload.params,
+              cacheOffer.payload.inputMode,
+              cacheOffer.model.creditFactor,
+            )}
+            onOpen={() => {
+              const target = cacheOffer.jobId;
+              setCacheOffer(null);
+              setPushedDetailId(target);
+              router.push(withQuery(withLocale(locale, `${basePath}/m/${target}`)), { scroll: false });
+            }}
+            onNew={() => {
+              const offer = cacheOffer;
+              setCacheOffer(null);
+              void generate(offer.payload, offer.model, { skipCache: true });
+            }}
+            onDismiss={() => setCacheOffer(null)}
+          />
+        ) : null}
+        <StudioComposer
+          key={`${area}:${modeDef.id}:${shell.goal ?? ""}:${seedEpoch ?? ""}`}
+          models={modeModels}
+          activeModel={activeModel}
+          onSelectModel={(model) => {
+            setSelectedSlug(model.slug);
+            setStarterPrompt(null);
+          }}
+          locale={locale}
+          studioState={state}
+          balance={balance?.balance}
+          topUpHref={creditsHref}
+          seed={composerSeed ?? goalSeed}
+          starterPrompt={starterPrompt}
+          isPending={isPending}
+          error={error}
+          variant="create"
+          onGenerate={generate}
+          placement={placement}
+          initialInputMode={goalInputMode ?? inputModeForMode(activeModel, area, modeDef.id)}
+          lockModelKind
+          shellMode={modeDef.id}
+          dropDisabled={activeJobId !== null}
+          {...(placement === "floating"
+            ? {
+                isCollapsed: isComposerCollapsed,
+                onToggleCollapse: () =>
+                  setIsComposerCollapsed((prev) => {
+                    const next = !prev;
+                    writeComposerCollapsed(composerBreakpoint, next);
+                    return next;
+                  }),
+              }
+            : {})}
+        />
+      </>
     );
   };
 
@@ -1054,6 +1149,7 @@ export function StudioPage({
             onOpenVersion={handleOpenVersion}
             onUseAsInput={handleUseAsInput}
             onOpenTool={handleOpenTool}
+            onRefine={(job, order, model, carried) => void handleRefine(job, order, model, carried)}
             restored={searchParams.get(CREA_RESTORED_PARAM) === activeJob._id}
             onGenerate={generate}
             isPending={isPending}

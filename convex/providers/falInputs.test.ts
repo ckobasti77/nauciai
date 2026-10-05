@@ -1,7 +1,7 @@
 import { expect, test } from "vitest";
 
 import { STUDIO_MODELS } from "./catalogModels";
-import { falInputFields, resolveEndpointTier } from "./falInputs";
+import { falInputFields, falMapOf, falParams, resolveEndpointTier } from "./falInputs";
 
 test("jedan fajl ide kao `_url`, više njih kao `_urls`", () => {
   expect(falInputFields("image", { image: ["a"] })).toEqual({ image_url: "a" });
@@ -75,4 +75,35 @@ test("svaka fal ruta iz kataloga sa `{tier}` ima tarifu za svaku rezoluciju", ()
       }
     }
   }
+});
+
+// ── Crea K07: mapa imena po modelu (`capabilities.fal`) ────────────────────
+
+test("mapa polja: ime na `_urls` je uvek niz, ostala nose jedan fajl", () => {
+  expect(falInputFields("image_multi", { image: ["a"] }, { fields: { image: "image_urls" } })).toEqual({
+    image_urls: ["a"],
+  });
+  expect(falInputFields("image", { image: ["a"] }, { fields: { image: "start_image_url" } })).toEqual({
+    start_image_url: "a",
+  });
+  expect(
+    falInputFields("first_last", { image: ["p", "k"] }, { fields: { first: "image_url", last: "end_image_url" } }),
+  ).toEqual({ image_url: "p", end_image_url: "k" });
+  // Maska bez mape ide na fal konvenciju `mask_url`.
+  expect(falInputFields("mask", { mask: ["m"] })).toEqual({ mask_url: "m" });
+});
+
+test("mapa parametara: preimenuje, skalira i dodaje stalna polja; bez mape je isto", () => {
+  const params = { prompt: "p", minutes: 2, audio: true };
+  expect(falParams(params)).toEqual(params);
+  expect(
+    falParams(params, {
+      params: { minutes: { to: "music_length_ms", scale: 60_000 }, audio: { to: "generate_audio_switch" } },
+      fixed: { enable_prompt_expansion: false },
+    }),
+  ).toEqual({ prompt: "p", music_length_ms: 120_000, generate_audio_switch: true, enable_prompt_expansion: false });
+  // Ključ koji posao nema se ne izmišlja.
+  expect(falParams({ prompt: "p" }, { params: { minutes: { to: "music_length_ms" } } })).toEqual({ prompt: "p" });
+  expect(falMapOf({})).toBeUndefined();
+  expect(falMapOf({ fal: { fields: { image: "image_urls" } } })).toEqual({ fields: { image: "image_urls" } });
 });

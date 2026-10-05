@@ -125,10 +125,12 @@ describe("filteri pickera", () => {
     // Ime se piše sa razmakom, slug sa crticom - pretraga pogadja oba.
     expect(filterModels(models, { query: "nano banana" }, "sr").map((model) => model.slug)).toEqual([
       "nano-banana-2",
+      "nano-banana-2-lite",
       "nano-banana-pro",
     ]);
     expect(filterModels(models, { query: "nano-banana" }, "sr").map((model) => model.slug)).toEqual([
       "nano-banana-2",
+      "nano-banana-2-lite",
       "nano-banana-pro",
     ]);
     expect(filterModels(models, { query: "ne postoji" }, "sr")).toEqual([]);

@@ -234,7 +234,25 @@ export const SEEDANCE_20: BytePlusModelSeed = {
       },
     },
   },
-  capabilities: { audio: false, minDurationS: 4, maxDurationS: 12, maxRefImages: 9, maxRefVideos: 3 },
+  capabilities: {
+    audio: false,
+    minDurationS: 4,
+    maxDurationS: 12,
+    maxRefImages: 9,
+    maxRefVideos: 3,
+    // Fast i Mini su ZASEBNI BytePlus modeli (Crea K07, nalaz N1): komanda
+    // `--tier` uz prompt je mogla tiho da padne na Standard. ID-jevi su iz
+    // Comfy router dokumentacije BytePlus modela (zvanična strana se ne čita
+    // bez JS-a): https://docs.comfy.org/development/comfy-router/models/byteplus/
+    // dreamina-seedance-2-0-fast-260128/code.md i …/dreamina-seedance-2-0-mini/code.md.
+    // Pogrešan ID je greška i refund, nikad tih gubitak.
+    modelByTier: {
+      standard: "dreamina-seedance-2-0-260128",
+      fast: "dreamina-seedance-2-0-fast-260128",
+      mini: "dreamina-seedance-2-0-mini-260615",
+    },
+    tags: ["refs", "draft"],
+  },
   sortOrder: 340,
 };
 

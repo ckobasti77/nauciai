@@ -1452,7 +1452,9 @@ test("napad iz N2 zavrsava naplacenih 120 minuta, nikad 0,1", async () => {
   const { userId, asUser } = await seedUser(t);
   await seedCatalogModel(t, "dubbing");
   // Zaglavlje kaze sest sekundi i fajl je toliko velik da granica iz X1 nema
-  // sta da podigne - dakle rezervacija JESTE 0,1 minut, kao u izvestaju.
+  // sta da podigne. Od C0 (Crea K07) je rezervacija CEO minut: fal sinhronizaciju
+  // naplacuje po zapocetom minutu (https://fal.ai/models/fal-ai/elevenlabs/dubbing/llms.txt),
+  // pa je 0,1 minuta bila rezervacija ispod nabavne.
   const { storageId: audio } = await storeMeasured(asUser, "audio/mp4", 6);
 
   const created = await asUser.mutation(api.studio.createJob, {
@@ -1466,9 +1468,9 @@ test("napad iz N2 zavrsava naplacenih 120 minuta, nikad 0,1", async () => {
   const jobId = created;
 
   const reserved = await jobsOf(t, userId);
-  expect((JSON.parse(reserved[0].params) as Record<string, unknown>).minutes).toBe(0.1);
-  expect(reserved[0].creditCost).toBe(13);
-  expect(reserved[0].estimatedCostUsd).toBeCloseTo(0.06, 6);
+  expect((JSON.parse(reserved[0].params) as Record<string, unknown>).minutes).toBe(1);
+  expect(reserved[0].creditCost).toBe(130);
+  expect(reserved[0].estimatedCostUsd).toBeCloseTo(0.6, 6);
 
   // fal je obradio dva sata i toliko ce i naplatiti.
   await t.mutation(internal.studio.settleJobCredits, { jobId, reportedSeconds: 7200 });

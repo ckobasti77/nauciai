@@ -9,6 +9,7 @@ import schema from "../schema";
 import {
   buildImageRequestBody,
   buildVideoContent,
+  resolveBytePlusModel,
   challengeResponseBody,
   parseCallbackBody,
 } from "./bytePlusCore";
@@ -525,24 +526,38 @@ test("Seedance ide ASINHRONO: running sa task ID-jem i callback_url-om na našoj
 });
 
 // ── 7. Tarifa (`tier`) mora da stigne do BytePlus-a ────────────────────────
+// Crea K07 (nalaz N1): Fast i Mini su ZASEBNI BytePlus modeli, ne tekstualna
+// komanda. Nepoznata komanda bi mogla tiho da padne na Standard (plaćamo više
+// nego što smo naplatili); pogrešan model ID je greška i refund.
 
-test("Standard ne šalje `--tier`, Fast i Mini ga šalju - inače plaćamo skuplju tarifu", () => {
+test("tarifa se ne šalje kao komanda u promptu - ni za jednu od tri", () => {
   const empty = { images: [], videos: [] };
   const textOf = (params: Record<string, unknown>) =>
     (buildVideoContent(params, empty)[0] as { text: string }).text;
 
-  expect(textOf({ prompt: "p", resolution: "720p", duration: 5, tier: "standard" })).toBe(
-    "p --resolution 720p --duration 5",
-  );
-  expect(textOf({ prompt: "p", resolution: "720p", duration: 5, tier: "fast" })).toBe(
-    "p --resolution 720p --duration 5 --tier fast",
-  );
-  expect(textOf({ prompt: "p", resolution: "480p", duration: 4, tier: "mini" })).toBe(
-    "p --resolution 480p --duration 4 --tier mini",
+  for (const tier of ["standard", "fast", "mini"]) {
+    expect(textOf({ prompt: "p", resolution: "720p", duration: 5, tier })).toBe(
+      "p --resolution 720p --duration 5",
+    );
+  }
+});
+
+test("tarifa bira model ID; bez mape ostaje endpoint, nepoznata tarifa je greška", () => {
+  const capabilities = SEEDANCE_20.capabilities;
+  const endpoint = SEEDANCE_20.endpoints.text;
+
+  expect(resolveBytePlusModel(endpoint, { tier: "standard" }, capabilities)).toBe("dreamina-seedance-2-0-260128");
+  expect(resolveBytePlusModel(endpoint, { tier: "fast" }, capabilities)).toBe("dreamina-seedance-2-0-fast-260128");
+  expect(resolveBytePlusModel(endpoint, { tier: "mini" }, capabilities)).toBe("dreamina-seedance-2-0-mini-260615");
+  // Bez izabrane tarife važi podrazumevana (Standard) - isto kao forma.
+  expect(resolveBytePlusModel(endpoint, {}, capabilities)).toBe("dreamina-seedance-2-0-260128");
+  expect(() => resolveBytePlusModel(endpoint, { tier: "turbo" }, capabilities)).toThrow("NEPOZNATA_TARIFA:turbo");
+  expect(resolveBytePlusModel("dreamina-seedance-2-5-260628", { tier: "mini" }, {})).toBe(
+    "dreamina-seedance-2-5-260628",
   );
 });
 
-test("Mini posao stvarno nosi `--tier mini` u zahtevu koji ide BytePlus-u", async () => {
+test("Mini posao stvarno ide na Mini model, bez `--tier` u zahtevu", async () => {
   const t = convexTest(schema, modules);
   const userId = await seedUser(t);
   await seedModel(t, SEEDANCE_20);
@@ -554,8 +569,9 @@ test("Mini posao stvarno nosi `--tier mini` u zahtevu koji ide BytePlus-u", asyn
 
   await t.action(internal.studioActions.submitJob, { jobId });
 
-  const content = (bytePlusCalls(calls)[0]?.body as { content: Array<{ text: string }> }).content;
-  expect(content[0]?.text).toContain("--tier mini");
+  const body = bytePlusCalls(calls)[0]?.body as { model: string; content: Array<{ text: string }> };
+  expect(body.model).toBe("dreamina-seedance-2-0-mini-260615");
+  expect(body.content[0]?.text).not.toContain("--tier");
 });
 
 // ── 8. Video referenca ide kao video, ne kao slika ─────────────────────────

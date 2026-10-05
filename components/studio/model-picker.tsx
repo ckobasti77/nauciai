@@ -70,7 +70,7 @@ export function modelPriceSummary(model: StudioModel, locale: Locale, duration?:
   const mode = model.inputModes[0];
   const values = paramValuesForMode(model.paramSpec, mode);
   const params = buildParams(model.paramSpec, values, mode, override);
-  const perSecond = creditsPerUnit(model.priceRule, params, mode);
+  const perSecond = creditsPerUnit(model.priceRule, params, mode, model.creditFactor);
 
   return perSecond === null
     ? formatCredits(credits, locale)
@@ -126,7 +126,7 @@ export function ModelPriceDisplay({
   const mode = model.inputModes[0];
   const values = paramValuesForMode(model.paramSpec, mode);
   const params = buildParams(model.paramSpec, values, mode, override);
-  const perSecond = creditsPerUnit(model.priceRule, params, mode);
+  const perSecond = creditsPerUnit(model.priceRule, params, mode, model.creditFactor);
 
   if (perSecond === null) {
     return (

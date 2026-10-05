@@ -117,6 +117,67 @@ export function numImagesControl(opts?: { max?: number; showInModes?: string[] }
   };
 }
 
+/**
+ * fal-ovi preseti veličine slike (Crea K07). Svaki je ≤ 1 MP osim `square_hd`
+ * (1024×1024 = 1,05 MP), pa modeli koji se naplaćuju po megapikselu imaju DVE
+ * cene: kad fal broji MP naviše, `square_hd` su dva (konzervativno - da li je
+ * MP 10^6 ili 2^20 piksela nije potvrđeno, `docs/crea/planovi/K06.md` §1).
+ */
+export const FAL_IMAGE_SIZES = [
+  "landscape_4_3",
+  "landscape_16_9",
+  "square_hd",
+  "square",
+  "portrait_4_3",
+  "portrait_16_9",
+] as const;
+
+const FAL_IMAGE_SIZE_LABELS: Record<string, { sr: string; en: string }> = {
+  // Kratko, kao čip odnosa stranica kod ostalih modela - čip mora da stane u red na telefonu.
+  landscape_4_3: { sr: "4:3", en: "4:3" },
+  landscape_16_9: { sr: "16:9", en: "16:9" },
+  square_hd: { sr: "1:1", en: "1:1" },
+  square: { sr: "1:1 mala", en: "1:1 small" },
+  portrait_4_3: { sr: "3:4", en: "3:4" },
+  portrait_16_9: { sr: "9:16", en: "9:16" },
+  auto_2K: { sr: "Auto 2K", en: "Auto 2K" },
+};
+
+/** `image_size` kontrola za fal modele; `affectsPrice` kad cena čita veličinu. */
+export function imageSizeControl(
+  values: readonly string[],
+  defaultValue: string,
+  opts: { affectsPrice: boolean; showInModes?: string[] },
+): ParamControl {
+  return {
+    key: "image_size",
+    type: "select",
+    labelSr: "Veličina",
+    labelEn: "Size",
+    default: defaultValue,
+    options: values.map((value) => ({
+      value,
+      labelSr: FAL_IMAGE_SIZE_LABELS[value]?.sr ?? value,
+      labelEn: FAL_IMAGE_SIZE_LABELS[value]?.en ?? value,
+    })),
+    ...(opts.showInModes ? { showInModes: opts.showInModes } : {}),
+    affectsPrice: opts.affectsPrice,
+  };
+}
+
+/**
+ * Cena po fal presetu kad se model naplaćuje po megapikselu: `square_hd` je
+ * dva MP, ostali jedan (vidi `FAL_IMAGE_SIZES`).
+ */
+export function perMegapixelSizeMap(usdPerMegapixel: number): Record<string, number> {
+  const map: Record<string, number> = {};
+  for (const size of FAL_IMAGE_SIZES) {
+    map[size] = Number((usdPerMegapixel * (size === "square_hd" ? 2 : 1)).toFixed(6));
+  }
+
+  return map;
+}
+
 /** Odnos stranica ne ulazi ni u jedno cenovno pravilo - zato `affectsPrice: false`. */
 export function aspectRatioControl(values: string[], defaultValue?: string): ParamControl {
   return {

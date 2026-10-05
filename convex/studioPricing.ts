@@ -256,6 +256,9 @@ export function computeCostUsd(
  * po sekundi pa množenje trajanjem bi naplatilo do sekunde više nego što
  * pravilo kaže.
  *
+ * `factor` je podrazumevano današnji `CREDIT_FACTOR`; drugi broj stiže samo kad
+ * je upaljen fleg cena v2 (`convex/creaPricingCore.ts`, Crea C1).
+ *
  * Proizvod se pre `ceil`-a seče na šest decimala: `0,05 × 3 × 216,25` u
  * binarnom zapisu ume da ispadne `32,437500000000004`, a onda bi `ceil` dao
  * 33 umesto 33... i, gore, tamo gde proizvod treba da bude ceo broj, ceo
@@ -266,8 +269,9 @@ export function computeCredits(
   rule: PriceRule,
   params: Record<string, unknown>,
   inputMode?: string,
+  factor: number = CREDIT_FACTOR,
 ): number {
-  return creditsFromUsd(computeCostUsd(rule, params, inputMode));
+  return creditsFromUsd(computeCostUsd(rule, params, inputMode), factor);
 }
 
 /**
@@ -277,8 +281,8 @@ export function computeCredits(
  * `ceil(C × 216,25)` postojao na dva mesta, a marža od 2,5× visi baš o tome da
  * postoji na jednom.
  */
-export function creditsFromUsd(costUsd: number): number {
-  return Math.ceil(Math.round(costUsd * CREDIT_FACTOR * 1e6) / 1e6);
+export function creditsFromUsd(costUsd: number, factor: number = CREDIT_FACTOR): number {
+  return Math.ceil(Math.round(costUsd * factor * 1e6) / 1e6);
 }
 
 /**
