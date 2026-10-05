@@ -53,6 +53,8 @@ const MARKERS = [
   // K18: čitanje videa (poslednji kadar) koristi mediabunny `Input`, bez izlaza - drugi marker.
   { pkg: "mediabunny", marker: "Input has been disposed" },
   { pkg: "wavesurfer.js", marker: "wavesurfer" },
+  // K19: detektor ritma („Ubaci i gotovo"); poruka je u nizu koda njegovog Worker-a.
+  { pkg: "web-audio-beat-detector", marker: "does not contain any detectable beats" },
   { pkg: "@xzdarcy/react-timeline-editor", marker: "timeline-editor" },
 ];
 

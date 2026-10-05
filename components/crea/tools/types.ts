@@ -6,7 +6,7 @@ import type { Locale } from "@/lib/i18n";
 import type { StudioModel } from "@/lib/studio-models";
 
 /** Rad iz galerije koji ulazi u alat (`?ulaz=<jobId>`, K05); rezultat postaje njegova verzija. */
-export type ToolSource = { jobId: Id<"generationJobs">; url: string };
+export type ToolSource = { jobId: Id<"generationJobs">; url: string; kind?: "image" | "video" | "audio" };
 
 /**
  * Za plaćene izmene iz alata (K11): katalog radionice (sa faktorima cena v2) i

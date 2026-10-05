@@ -50,10 +50,22 @@ export type LocalRejectReason =
 export function localToolProblem(toolId: string, kind: LocalResultKind): "NEPOZNAT_ALAT" | null {
   const tool = toolById(toolId);
   const output = tool?.output === "images" ? "image" : tool?.output;
-  if (!tool || tool.status !== "ready" || !savesLocalResults(tool) || !tool.savesToGallery || output !== kind) {
+  // Montaža (K19) čuva i GIF kao sliku (`alsoSaves`).
+  const saves = output === kind || (tool?.alsoSaves ?? []).includes(kind);
+  if (!tool || tool.status !== "ready" || !savesLocalResults(tool) || !tool.savesToGallery || !saves) {
     return "NEPOZNAT_ALAT";
   }
   return null;
+}
+
+/** Najviše izvora (radova iz galerije) uz jedan lokalni rezultat (K19: izvezena montaža). */
+export const LOCAL_RESULT_MAX_SOURCES = 40;
+
+/** Parametri rada uz broj izvora iz galerije (`izvori`), koji upisuje server. */
+export function withSourceCount(params: string, sources: number): string {
+  if (sources <= 0) return params;
+  const parsed = JSON.parse(params) as Record<string, string | number | boolean>;
+  return JSON.stringify({ ...parsed, izvori: sources });
 }
 
 /** Tip i veličina iz `_storage`. Fajl bez zabeleženog tipa se odbija - browser ga uvek šalje. */

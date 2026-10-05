@@ -5,11 +5,13 @@ import { mutation, type MutationCtx } from "./_generated/server";
 import { localModelSlug } from "../lib/crea-tools";
 import {
   LOCAL_RESULT_LIMITS,
+  LOCAL_RESULT_MAX_SOURCES,
   localLimitProblem,
   localResultProblem,
   localToolProblem,
   MINUTE_MS,
   sanitizeLocalParams,
+  withSourceCount,
   type LocalRejectReason,
 } from "./creaLocalCore";
 import { lineageFrom } from "./creaVersionsCore";
@@ -100,6 +102,11 @@ export const saveLocalResult = mutation({
     projectId: v.optional(v.id("studioProjects")),
     // Rad iz galerije koji je bio ulaz alata (K05): rezultat postaje njegova nova verzija.
     parentJobId: v.optional(v.id("generationJobs")),
+    // Kako je rezultat nastao iz roditelja (K19, plan K17 §2.3); bez roditelja se ne upisuje.
+    derivation: v.optional(v.union(v.literal("lokalni-alat"), v.literal("montaza"), v.literal("produzenje"))),
+    // Svi radovi iz galerije od kojih je rezultat sklopljen (K19: izvezena montaža).
+    // Svaki mora biti ovog korisnika; u rad se upisuje njihov broj (`params.izvori`).
+    sourceJobIds: v.optional(v.array(v.id("generationJobs"))),
   },
   handler: async (
     ctx,
@@ -148,6 +155,12 @@ export const saveLocalResult = mutation({
       if (!parent || parent.userId !== userId) return reject("IZVOR_NIJE_DOSTUPAN");
       lineage = lineageFrom(parent);
     }
+    const sources = [...new Set(args.sourceJobIds ?? [])];
+    if (sources.length > LOCAL_RESULT_MAX_SOURCES) return reject("IZVOR_NIJE_DOSTUPAN");
+    for (const sourceId of sources) {
+      const source = await ctx.db.get("generationJobs", sourceId);
+      if (!source || source.userId !== userId) return reject("IZVOR_NIJE_DOSTUPAN");
+    }
 
     await ctx.db.patch(grant._id, { usedAt: now });
     const jobId = await ctx.db.insert("generationJobs", {
@@ -156,7 +169,7 @@ export const saveLocalResult = mutation({
       modelSlug: localModelSlug(args.toolId),
       kind: args.kind,
       provider: "local",
-      params: sanitizeLocalParams(args.params),
+      params: withSourceCount(sanitizeLocalParams(args.params), sources.length),
       searchText: searchTextForJob({ params: "{}", modelSlug: localModelSlug(args.toolId), kind: args.kind }),
       promptHash: promptHash(""),
       status: "done",
@@ -167,7 +180,7 @@ export const saveLocalResult = mutation({
       outputBytes: meta.size,
       // Isti rok kao za plaćene radove: `crons.expireGenerationFiles` briše fajl, red ostaje.
       expiresAt: outputExpiresAt(args.kind, now),
-      ...(lineage ? { ...lineage, derivation: "lokalni-alat" } : {}),
+      ...(lineage ? { ...lineage, derivation: args.derivation ?? "lokalni-alat" } : {}),
       createdAt: now,
       completedAt: now,
     });

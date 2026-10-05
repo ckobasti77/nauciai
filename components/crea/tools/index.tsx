@@ -61,6 +61,10 @@ const LastFrameTool = dynamic(() => import("./last-frame-tool"), { ssr: false, l
 const ScenesTool = dynamic(() => import("./scenes-tool"), { ssr: false, loading: ToolLoading });
 const DrawMotionTool = dynamic(() => import("./draw-motion-tool"), { ssr: false, loading: ToolLoading });
 const ExtendTool = dynamic(() => import("./extend-tool"), { ssr: false, loading: ToolLoading });
+// K19: montaža, „Ubaci i gotovo" i izvoz za mreže - svaki svoj chunk; mediabunny i detektor ritma tek unutar njih.
+const MontageTool = dynamic(() => import("../montaza/montage-tool"), { ssr: false, loading: ToolLoading });
+const BeatTool = dynamic(() => import("../montaza/beat-tool"), { ssr: false, loading: ToolLoading });
+const ExportTool = dynamic(() => import("../montaza/export-tool"), { ssr: false, loading: ToolLoading });
 
 export const CREA_TOOL_COMPONENTS: Readonly<Record<string, ComponentType<CreaToolProps>>> = {
   "slika.format": FormatTool,
@@ -103,4 +107,7 @@ export const CREA_TOOL_COMPONENTS: Readonly<Record<string, ComponentType<CreaToo
   "video.vise-scena": ScenesTool,
   "video.crtaj-pokret": DrawMotionTool,
   "video.produzi": ExtendTool,
+  "video.montaza": MontageTool,
+  "video.ritam-sabloni": BeatTool,
+  "video.izvoz": ExportTool,
 };

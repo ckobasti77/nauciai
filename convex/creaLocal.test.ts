@@ -392,3 +392,100 @@ describe("vlasništvo i upis", () => {
     expect(await t.run((ctx) => ctx.db.get(result.jobId))).toBeNull();
   });
 });
+
+describe("montaža (K19): izvođenje i izvori", () => {
+  async function seedVideoJob(t: TestConvex, userId: Id<"users">) {
+    return t.run(async (ctx) =>
+      ctx.db.insert("generationJobs", {
+        userId,
+        modelSlug: "veo-31-lite",
+        kind: "video",
+        params: "{}",
+        promptHash: "0",
+        status: "done",
+        creditCost: 44,
+        outputStorageId: await ctx.storage.store(new Blob(["mp4"])),
+        createdAt: 1,
+        completedAt: 2,
+      }),
+    );
+  }
+
+  async function saveExport(
+    t: TestConvex,
+    asUser: AsUser,
+    opts: { kind: "video" | "image"; contentType: string; parentJobId?: Id<"generationJobs">; sourceJobIds?: Id<"generationJobs">[] },
+  ) {
+    const { grantId } = await asUser.mutation(api.creaLocal.createLocalResultUploadUrl, { kind: opts.kind });
+    const storageId = await storeFile(t, { contentType: opts.contentType });
+    const result = await asUser.mutation(api.creaLocal.saveLocalResult, {
+      grantId,
+      storageId,
+      toolId: "video.montaza",
+      kind: opts.kind,
+      params: JSON.stringify({ preset: "reels", trajanje: 12 }),
+      ...(opts.parentJobId ? { parentJobId: opts.parentJobId, derivation: "montaza" as const } : {}),
+      ...(opts.sourceJobIds ? { sourceJobIds: opts.sourceJobIds } : {}),
+    });
+    return { storageId, result };
+  }
+
+  test("izvoz montaže je verzija prvog klipa („montaza\"), a broj izvora ide u parametre", async () => {
+    const t = makeT();
+    const { userId, asUser } = await seedUser(t);
+    const first = await seedVideoJob(t, userId);
+    const second = await seedVideoJob(t, userId);
+    const { result } = await saveExport(t, asUser, { kind: "video", contentType: "video/mp4", parentJobId: first, sourceJobIds: [first, second, second] });
+    if (!result.ok) throw new Error(result.reason);
+    const job = await t.run((ctx) => ctx.db.get(result.jobId));
+    expect(job).toMatchObject({
+      modelSlug: "local:video.montaza",
+      kind: "video",
+      parentJobId: first,
+      rootJobId: first,
+      derivation: "montaza",
+      creditCost: 0,
+      params: JSON.stringify({ preset: "reels", trajanje: 12, izvori: 2 }),
+    });
+  });
+
+  test("GIF iz montaže se čuva kao slika; drugi alat ne sme da sačuva video", async () => {
+    const t = makeT();
+    const { asUser } = await seedUser(t);
+    const { result } = await saveExport(t, asUser, { kind: "image", contentType: "image/gif" });
+    if (!result.ok) throw new Error(result.reason);
+    const job = await t.run((ctx) => ctx.db.get(result.jobId));
+    expect(job).toMatchObject({ modelSlug: "local:video.montaza", kind: "image", params: JSON.stringify({ preset: "reels", trajanje: 12 }) });
+    const { grantId } = await asUser.mutation(api.creaLocal.createLocalResultUploadUrl, { kind: "video" });
+    const storageId = await storeFile(t, { contentType: "video/mp4" });
+    expect(await asUser.mutation(api.creaLocal.saveLocalResult, { grantId, storageId, toolId: "slika.format", kind: "video" })).toEqual({
+      ok: false,
+      reason: "NEPOZNAT_ALAT",
+    });
+  });
+
+  test("tuđ izvor odbija čuvanje i briše fajl; nepoznato izvođenje odbija validator", async () => {
+    const t = makeT();
+    const { userId, asUser } = await seedUser(t);
+    const other = await seedUser(t, { email: "nikola@example.com" });
+    const mine = await seedVideoJob(t, userId);
+    const foreign = await seedVideoJob(t, other.userId);
+    const { storageId, result } = await saveExport(t, asUser, { kind: "video", contentType: "video/mp4", parentJobId: mine, sourceJobIds: [mine, foreign] });
+    expect(result).toEqual({ ok: false, reason: "IZVOR_NIJE_DOSTUPAN" });
+    expect(await fileExists(t, storageId)).toBe(false);
+
+    const { grantId } = await asUser.mutation(api.creaLocal.createLocalResultUploadUrl, { kind: "video" });
+    const another = await storeFile(t, { contentType: "video/mp4" });
+    await expect(
+      asUser.mutation(api.creaLocal.saveLocalResult, {
+        grantId,
+        storageId: another,
+        toolId: "video.montaza",
+        kind: "video",
+        parentJobId: mine,
+        derivation: "izmisljeno" as "montaza",
+      }),
+    ).rejects.toThrow();
+    expect(await fileExists(t, another)).toBe(true);
+  });
+});

@@ -24,6 +24,9 @@ export function useSaveLocalResult() {
       params?: Record<string, string | number | boolean>;
       projectId: Id<"studioProjects"> | null;
       parentJobId?: Id<"generationJobs"> | null;
+      /** K19: izvezena montaža je „montaza" verzija roditelja i navodi sve izvore iz galerije. */
+      derivation?: "lokalni-alat" | "montaza" | "produzenje";
+      sourceJobIds?: Id<"generationJobs">[];
     }) => {
       const { uploadUrl, grantId } = await createUploadUrl({ kind: input.kind });
       let storageId: Id<"_storage">;
@@ -46,6 +49,8 @@ export function useSaveLocalResult() {
         ...(input.params ? { params: JSON.stringify(input.params) } : {}),
         ...(input.projectId ? { projectId: input.projectId } : {}),
         ...(input.parentJobId ? { parentJobId: input.parentJobId } : {}),
+        ...(input.parentJobId && input.derivation ? { derivation: input.derivation } : {}),
+        ...(input.sourceJobIds && input.sourceJobIds.length > 0 ? { sourceJobIds: input.sourceJobIds } : {}),
       });
     },
     [createUploadUrl, saveLocalResult],

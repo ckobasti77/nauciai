@@ -56,7 +56,7 @@ export function CreaToolStage({
   const Component = tool ? CREA_TOOL_COMPONENTS[tool.id] : undefined;
   const sourceJob = useQuery(api.studio.getJobForDetail, sourceJobId && !guest && tool ? { jobId: sourceJobId } : "skip");
   const source: ToolSource | null =
-    sourceJob?.outputUrl && tool?.inputs.includes(sourceJob.kind) ? { jobId: sourceJob._id, url: sourceJob.outputUrl } : null;
+    sourceJob?.outputUrl && tool?.inputs.includes(sourceJob.kind) ? { jobId: sourceJob._id, url: sourceJob.outputUrl, kind: sourceJob.kind } : null;
 
   let body: ReactNode;
   if (guest) {

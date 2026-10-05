@@ -106,9 +106,11 @@ describe("dostupnost alata", () => {
   });
 
   test("nedostaje sposobnost browsera", () => {
-    // K18: „poslednji kadar" radi i bez WebCodecs-a (kroz `<video>`), pa je primer montaža.
+    // K18: „poslednji kadar" radi i bez WebCodecs-a (kroz `<video>`); K19: montaža takođe
+    // (pregled i GIF, a za MP4 poruka u samom alatu), pa je primer prekrajanje videa.
     expect(deviceProblem(soonAsReady("video.poslednji-kadar"), OLD_SAFARI)).toEqual({ ok: true, variant: "full" });
-    expect(deviceProblem(soonAsReady("video.montaza"), { ...OLD_SAFARI, mobile: false })).toEqual({
+    expect(deviceProblem(soonAsReady("video.montaza"), OLD_SAFARI)).toEqual({ ok: true, variant: "full" });
+    expect(deviceProblem(soonAsReady("video.reframe"), { ...OLD_SAFARI, mobile: false })).toEqual({
       ok: false,
       reason: "needs-webcodecs",
     });

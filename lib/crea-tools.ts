@@ -70,6 +70,11 @@ export type CreaTool = {
    * (`creaLlm`). Uređaj tada ne blokira alat, a oznaka ne tvrdi „Na tvom uređaju".
    */
   cloudFallback?: true;
+  /**
+   * Vrste koje alat čuva pored `output` (K19: montaža izvozi MP4 ili GIF, a GIF je u
+   * galeriji slika). `creaLocal.saveLocalResult` ih prima kao i `output`.
+   */
+  alsoSaves?: readonly CreaMediaKind[];
 };
 
 const FREE = { kind: "free" } as const;
@@ -873,17 +878,20 @@ export const CREA_TOOLS: readonly CreaTool[] = [
     area: "video",
     mode: "montaza",
     tier: "local-code",
-    status: "soon",
+    status: "ready",
     title: { sr: "Montaža", en: "Editing" },
     summary: {
-      sr: "Seci, spajaj, dodaj prelaze, naslove i muziku, pa izvezi MP4.",
-      en: "Cut, join, add transitions, titles and music, then export an MP4.",
+      sr: "Seci, spajaj, dodaj prelaze, naslove, nalepnice i muziku, pa izvezi MP4 ili GIF.",
+      en: "Cut, join, add transitions, titles, stickers and music, then export an MP4 or a GIF.",
     },
     inputs: ["video", "audio", "image"],
     output: "video",
-    device: { minClass: "desktop", requires: ["webcodecs-video"] },
+    // K17-5: radi i na telefonu (uz granice dužine i rezolucije); bez WebCodecs-a
+    // ostaju pregled i GIF, uz poruku (K17-3) - zato alat ne traži `webcodecs-video`.
+    device: ANY_DEVICE,
     price: FREE,
     savesToGallery: true,
+    alsoSaves: ["image"],
   },
   {
     id: "video.ritam-sabloni",
@@ -891,7 +899,7 @@ export const CREA_TOOLS: readonly CreaTool[] = [
     area: "video",
     mode: "montaza",
     tier: "local-code",
-    status: "soon",
+    status: "ready",
     title: { sr: "Ubaci i gotovo", en: "Drop in and done" },
     summary: {
       sr: "Tvoje slike se same slože po ritmu pesme.",
@@ -899,9 +907,10 @@ export const CREA_TOOLS: readonly CreaTool[] = [
     },
     inputs: ["images", "audio"],
     output: "video",
-    device: { minClass: "phone", requires: ["webcodecs-video"] },
+    device: ANY_DEVICE,
     price: FREE,
     savesToGallery: true,
+    alsoSaves: ["image"],
   },
   {
     id: "video.izvoz",
@@ -909,7 +918,7 @@ export const CREA_TOOLS: readonly CreaTool[] = [
     area: "video",
     mode: "montaza",
     tier: "local-code",
-    status: "soon",
+    status: "ready",
     title: { sr: "Izvoz za mreže", en: "Export for social media" },
     summary: {
       sr: "Pravi format i sigurne zone za Instagram, TikTok i YouTube, uz proveru pre objave.",
@@ -917,9 +926,10 @@ export const CREA_TOOLS: readonly CreaTool[] = [
     },
     inputs: ["video"],
     output: "video",
-    device: { minClass: "phone", requires: ["webcodecs-video"] },
+    device: ANY_DEVICE,
     price: FREE,
     savesToGallery: true,
+    alsoSaves: ["image"],
   },
   {
     id: "video.reframe",

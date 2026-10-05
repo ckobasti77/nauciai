@@ -881,3 +881,116 @@ Nijedan dev server nije upaljen (portovi 3000 i 3100 slobodni).
 - `voice_control` (Kontrola glasa) nije u fal v3 šemi, a u ceni jeste (+$0,028/s). Odluči da li prekidač treba ugasiti u katalogu.
 - Posle `BYTEPLUS_API_KEY`: probaj „Produži klip" sa Seedance 2.5 nazad - da li model razume smer iz opisa. Ako ne razume, ruta se gasi jednom linijom (`EXTEND_ROUTES`).
 - Na telefonu (Firefox Android, bez WebCodecs-a) proveri da „Nastavi od poslednjeg kadra" radi kroz `<video>`.
+
+## K19 — Montaža u browseru   (2026-10-05 17:55)
+**Fajlovi:**
+- novi: `lib/crea-timeline.ts`, `lib/crea-audio-plan.ts`, `lib/crea-export-presets.ts`, `lib/crea-ken-burns.ts`, `lib/crea-beat.ts`, `lib/crea-preflight.ts` (svaki sa `.test.ts`), `lib/crea-video-caps.ts` (testiran u `crea-export-presets.test.ts`), `lib/crea-montage-copy.ts`, `components/crea/video/engine/{compositor,player,export,reverse,audio-decode,audio-mix,beat-detect,media}.ts`, `components/crea/montaza/{montage-tool,beat-tool,export-tool,preview,timeline,media-picker,clip-inspector,titles-panel,audio-panel,export-panel,projects-panel}.tsx`, `components/crea/montaza/{draft-store,media-library,use-mix,use-montage-player,use-montage-media,use-sticker-images,format}.ts`, `convex/creaMontages.ts`, `convex/creaMontagesCore.ts` (oba sa `.test.ts`), snimci `docs/crea/snimci/K19-*.png` (8);
+- izmenjeni: `convex/schema.ts` (tabela `creaMontages`), `convex/creaLocal.ts` i `convex/creaLocalCore.ts` (`derivation`, `sourceJobIds`, `alsoSaves`), `convex/_generated/api.d.ts`, `lib/crea-tools.ts` (3 alata `soon` → `ready`, polje `alsoSaves`), `lib/crea-shell.ts` (Montaža `ready`, `tools: true`, `defaultTool`), `components/crea/tools/index.tsx` (3 lenja alata), `components/crea/tools/types.ts` i `components/crea/crea-tool-stage.tsx` (`ToolSource.kind`), `components/crea/use-save-local-result.ts`, `scripts/check-crea-bundle.mjs` (marker beat detektora), `package.json`, `package-lock.json`; testovi `lib/crea-tools.test.ts`, `lib/crea-device.test.ts`, `convex/creaLocal.test.ts`.
+
+**Šta je urađeno:** Video · Montaža je gotov režim sa tri besplatna alata koja rade na uređaju, za 0 kredita: **Montaža**, **Ubaci i gotovo** i **Izvoz za mreže**. Montaža ima sopstvenu traku (magnetna glavna traka + redovi za sliku u slici, natpise, nalepnice i zvuk), a klipovi i fotke stižu iz galerije (višestruki izbor) i sa uređaja (dugme ili prevlačenje bilo gde na ekran) i seku se („Podeli"), skraćuju ručkama, premeštaju, udvostručuju i brišu, uz poništi/ponovi (60 koraka) i prečice (razmak, strelice, Delete, Ctrl+Z/Y). Po klipu postoje 8 prelaza (pretapanje, kroz crno, kroz belo, klizanje levo i desno, zavesa, zum, list sveske), brzina 0,25-4× sa 5 gotovih rampi, unazad i bumerang, slika u slici, Ken Burns za fotke (6 pokreta) i jačina. Natpisi imaju 5 stilova, 4 animacije i 4 fonta sa č ć š ž đ i ćirilicom, a nalepnice su komplet iz K10. Muzika, glas i efekti imaju jačinu i fade, a muzika se SAMA utišava dok traje glas (kriva iz RMS-a glasa: −12 dB, napad 80 ms, otpuštanje 400 ms). Pregled i izvoz crtaju isti `frameAt` (K17-2) i puštaju isti miks; izvoz je MP4 (H.264 + AAC kroz mediabunny/WebCodecs) ili GIF (≤ 10 s, 480 px, 12 kadrova u sekundi), sa napretkom, „Odustani", preuzimanjem i „Sačuvaj u galeriju" (verzija prvog klipa iz galerije, `derivation: "montaza"`). Nacrt se sam čuva u IndexedDB-u, a „Sačuvaj projekat" ide u Convex (`creaMontages`, samo reference na radove). „Ubaci i gotovo" sluša pesmu na uređaju i slaže 5-30 fotki po jednom od 8 šablona sa rezom na udarcu, a „Izvoz za mreže" ima 7 preseta (TikTok, Reels, Shorts, YouTube, Instagram objava, status, GIF), sloj sigurne zone i proveru pre objave (11 stavki sa srpskim savetima i „Popravi"); pregledač bez WebCodecs-a dobija jasnu poruku, GIF i čuvanje projekta.
+
+Provereno u browseru (Playwright, Chromium; privremena strana `app/[locale]/k19-harness` bez prijave; probni klipovi 720×1280 sa tonom, fotke, muzika i glas napravljeni ffmpeg-om u `.crea-run/tmp`; sve je obrisano):
+- **Prihvatanje - 3 klipa sa uređaja (po 4 s) + pretapanje + list sveske + natpis „Ćao, Beograde! Šta ima, đače?" + muzika → Reels:** provera pre objave 6 × „u redu"; MP4 1080×1920, 30 fps, H.264 + AAC 48 kHz stereo, **11,0 s** (= 3 × 4 − 2 × 0,5), 9,9 MB, gotov za 2,5 s, vrh zvuka −1,5 dBFS. Nijedan poziv servera, 0 kredita.
+- Isto kao GIF: 270×480, 120 kadrova, 2,7 MB, za 8,8 s.
+- Unazad: brojač kadrova u izvozu ide unazad. Bumerang + rampa „Heroj": traka 16,2 s → MP4 16,23 s.
+- Utišavanje (muzika + glas + slika u slici): muzika, izdvojena niskopropusnim filterom, ima RMS −20 i −18 dB bez glasa, a −30,5 i −30,7 dB dok glas traje (≈ −12 dB, kako je podešeno). Slika u slici se vidi u kadru.
+- „Odustani" usred izvoza → „Prekinuto. Možeš da pokreneš ponovo kad hoćeš."
+- **Ubaci i gotovo:** 6 fotki + sintetički ritam 128 BPM → „Ritam: 128 udaraca u minuti", „Složeno: 6 slika za 5,6 s, rez na udarcu." → MP4 1080×1920, 5,63 s. Detektor je ritam od 120 BPM prepoznao kao 120.
+- **Izvoz za mreže:** klip od 4 s bez natpisa za TikTok → „pazi: U prve 2 sekunde nema ni natpisa ni promene kadra…" sa „Popravi"; MP4 1080×1920, 4,01 s.
+- **Bez WebCodecs-a** (uklonjeni `VideoEncoder`, `VideoDecoder`, `AudioEncoder`, `AudioDecoder`): poruka „Ovaj pregledač ne pravi MP4 na uređaju", MP4 dugme zaključano, GIF radi kroz `<video>` (2,7 MB, 18,9 s).
+- Poslednja provera posle svih izmena: 3 klipa + muzika („Dodato: 4") + zum + ćirilični natpis „Ђурђевдан у Чачку" u rukopisu → MP4 1080×1920, 11,52 s, H.264 + AAC.
+
+Ekrani su provereni na 1440 × 900 i 390 × 844, u svetloj i tamnoj temi: nigde nema vodoravnog skrola, a sve mete u novim ekranima imaju bar 44 px.
+
+**Feature ID-jevi:**
+- V24 — gotovo: traka, seci/spoji/redosled, prelazi (traženi pretapanje, zavesa i zum + još 5), natpisi sa srpskim fontima, nalepnice, muzika i glas sa automatskim utišavanjem, brzina + rampa, unazad/bumerang sa granicom na telefonu, PiP, Ken Burns, pregled, MP4/GIF sa napretkom i otkazivanjem, galerija sa roditeljem (0 kredita). Nisu urađeni: LUT po klipu i WebM izvoz preko `MediaRecorder`-a (vidi ODLUKE).
+- V29 — gotovo: 8 šablona, ritam se sluša na uređaju; bez detektora ili kad ritam nije jasan 120 BPM uz poruku, a BPM i pomak se podešavaju ručno.
+- V30 — gotovo: 7 preseta, sloj sigurne zone, provera pre objave sa srpskim savetima i „Popravi".
+
+**ODLUKE:**
+- **Sopstvena traka umesto `@xzdarcy/react-timeline-editor` (K17-7).** Paket se instalirao bez `--legacy-peer-deps`, pa uslov iz K17-7 formalno nije ispunjen. Ipak je odbačen:
+  - sam paket je ~71 KB gzip (izmereno esbuild-om), uz to `react-virtualized` i `interactjs`, a budžet UI-ja montaže je 80 KB (plan §8);
+  - nema magnetnu traku ni prelaze koji preklapaju susede;
+  - CSS mu je vezan za jednu (tamnu) temu, a na telefonu nema mete od 44 px.
+
+  Traka je napravljena na pointer događajima (`components/crea/montaza/timeline.tsx`). Paket je deinstaliran, bez ostataka u `package-lock.json`.
+- **`web-audio-beat-detector` radi sa podrazumevanim opsegom tempa (90-180).** Širi opseg (60-200) je čist ritam od 128 i 120 BPM prepoznao kao 64 i 60. Sintetički ton sa udarcima između taktova dao je 102 umesto 128, pa „Ubaci i gotovo" ima ručni klizač za BPM i pomak. Bez detektora ili bez jasnog ritma: 120 BPM uz poruku.
+- **Nivo B (WebM preko `MediaRecorder`, K17-3) nije urađen.** Bez WebCodecs-a korisnik dobija pregled, GIF, čuvanje projekta i poruku da izvoz završi u Chrome-u ili na računaru. Razlog je obim koraka: izvoz u realnom vremenu traži poseban put zvuka (`captureStream` + miks) i remux, koji K20 ionako uvodi za kameru.
+- **Samo 2D platno, bez WebGL prolaza (`gl-pass.ts`).** Svih 8 prelaza, PiP, Ken Burns i natpisi rade u 2D. **LUT po klipu** (plan K19, „K11 izgledi"; nije bio u zadatku koraka) nije urađen: video LUT stiže sa V16 „Boje" (K20, `ColorRenderer`), pa se tada dodaje i u montažu.
+- **Montaža radi i na slabom uređaju** (odstupanje od K17-5, `minClass: "phone"`): sva tri alata su `ANY_DEVICE`, a važe granice iz K17-4 - slab 480p / 30 s bez obrtanja, telefon 720p / 60 s, računar 1080p / 4 min (720p / 8 min). Izvoz je uvek ≤ 190 MB.
+- **Unazad/bumerang: telefon do 10 s, računar do 30 s, slab uređaj ne** (odstupanje od K17-9, „≤ 10 s" svuda). Obrnut snimak se dekodira u komadima od 0,5 s od kraja, pa je u memoriji najviše ~15 kadrova; granica čuva vreme, ne memoriju. Na 10 s svuda se vraća izmenom `reverseMaxS` u `EXPORT_LIMITS`.
+- **Rampa brzine je `SpeedKey { u, v }`** po napretku klipa (0..1), a ne `{ t }` u sekundama izlaza (plan §2.1). Ključevi tako ostaju ispravni kad se klip skrati ili podeli, a integral i inverz su zatvorene formule. Zvuk klipa sa rampom, unazad ili brzinom van 0,5-2× je utišan (K17-8).
+- **Zvuk pregleda je isti miks kao u izvozu** (`OfflineAudioContext`, 400 ms posle izmene), pa se utišavanje čuje i u pregledu.
+  - Prelaz pretapa i zvuk klipova; rez dobija pretapanje od 10 ms (bez pucketanja).
+  - Bez kodera zvuka (`AudioEncoder`) MP4 ide bez zvuka, uz poruku.
+- **GIF iz montaže se čuva kao slika** (novo polje registra `alsoSaves`, server ga proverava). `params.izvori` je broj radova iz galerije u montaži (parametri su samo prosti tipovi). Roditelj izvoza je prvi glavni klip iz galerije; montaža samo od fajlova sa uređaja nema roditelja.
+- **Nalepnice su posebna lista** (komplet iz K10), a ne preklopni klipovi. Izabran natpis ili nalepnica se odmah vidi (glava ide malo posle ulaska).
+- **Brojke platformi su okvirne, sa datumom „2026-10"** (`PLATFORM_FACTS_CHECKED`); u ovom koraku nisu proveravane na mreži. Podrazumevani položaji natpisa su unutar sigurne zone TikToka, Reels-a i Shorts-a istovremeno. „Zavesa" u interfejsu je prelaz `brisanje`.
+- **Telefon:** premeštanje ide preko „Pomeri levo/desno" i „Na glavu" u inspektoru (vučenje po traci je samo mišem), a zum trake su dugmad ±, bez pinch-a. Inspektor je u stranici, ne fioka. Stavke koje se preklapaju idu u zasebne redove (`assignLanes`).
+- **Nacrti i projekti:**
+  - poslednji nacrt se sam otvara; najviše 20 nacrta u IndexedDB-u (`crea-montaza-v1`, fajlovi sa uređaja kao `Blob`);
+  - Convex projekat se pravi samo na klik (≤ 50 po korisniku) i ima reference na radove, nikad medij (K17-6);
+  - `?ulaz=` dodaje rad u otvorenu montažu;
+  - upiti montaže čekaju prijavu (`useConvexAuth`), gost vidi samo uređaj.
+- `ToolSource` je dobio `kind` (alat zna da li je ulaz video, slika ili zvuk). COOP/COEP nisu potrebni (nema `SharedArrayBuffer`).
+- **Namerno promenjene asercije:** `crea-tools.test.ts` (+3 gotova alata, nov K19 blok), `crea-device.test.ts` (primer „nedostaje WebCodecs" je sada `video.reframe`; montaža radi i na starom Safariju).
+- DEV: `npx convex codegen` + `npx convex dev --once` (`wandering-fox-41`; `creaMontages.*` i nov `saveLocalResult` potvrđeni kroz `convex function-spec`). Katalog nije menjan, pa seed nije pokretan. Produkcija nije dirana.
+
+**Novi paketi:**
+- `web-audio-beat-detector@8.2.39` - MIT, samo kroz `import()` na `/crea` (~34 KB gzip, izmereno esbuild-om). Povlači `web-audio-beat-detector-broker@5.0.16`, `web-audio-beat-detector-worker@6.0.14`, `standardized-audio-context@25.3.77`, `broker-factory@3.1.15`, `worker-factory@7.0.50`, `fast-unique-numbers@9.0.27` i `automation-events@7.1.19` - svi MIT.
+- `@xzdarcy/react-timeline-editor` je proban i uklonjen (vidi ODLUKE).
+
+**Testovi:** 8 novih fajlova, 73 testa.
+- `lib/crea-timeline.test.ts` (29):
+  - JSON tamo-nazad za **3 izvora + prelaz + natpis + nalepnicu + muziku + PiP**;
+  - granice (verzija, previše, predugo, NaN, dupli id-jevi, loši izvori, 120 znakova i ćirilica);
+  - **prelaz skraćuje traku** (3 × 3 s + pretapanje 0,5 s = 8,5 s) i nije duži od pola kraćeg suseda;
+  - premeštanje, ripple brisanje, udvostručavanje;
+  - stalna brzina i **rampa (integral i tačan inverz)**, unazad i bumerang;
+  - **podela čuva trajanje** (ivice, bumerang, slika, rampa, klip unazad), skraćivanje, „Skrati na N s";
+  - `frameAt`: pretapanje na 50 %, kroz crno, zavesa, list sveske, PiP, natpis, nalepnica, posle kraja, kucanje;
+  - sigurna zona i „Popravi", redovi za preklopljene stavke, roditelj izvoza, poništi/ponovi.
+- `lib/crea-audio-plan.test.ts` (7): segmenti i pretapanje zvuka, brzina → `rate` i kad je klip tih, muzika se seče na kraju, zvuk PiP-a, spajanje opsega za dekodiranje, **utišavanje sintetičkim RMS-om (govor → muzika −12 dB sa napadom i otpuštanjem)**, ravna kriva bez govora, RMS/vrh/tišina/popravka jačine.
+- `lib/crea-export-presets.test.ts` (8): **najduži izvoz u najvećoj rezoluciji ispod 190 MB**, granice po klasi uređaja, bitrate i parne stranice, nivo bez WebCodecs-a, preseti i sigurne zone, dimenzije izvoza, GIF granice, ime fajla.
+- `lib/crea-ken-burns.test.ts` (4): **ivica slike se nikad ne vidi** (svi pokreti, odnosi, jačine i trenuci), cover bez zuma, smer vožnje, granice.
+- `lib/crea-beat.test.ts` (5): **rezovi na udarcima** (120 BPM → 0,5 s), BPM van opsega i bez detektora, 8 šablona, **svaki šablon pravi ispravnu montažu sa promenom kadra na udarcu**, početak pesme i broj slika.
+- `lib/crea-preflight.test.ts` (9): svaka stavka, na oba jezika (dužina, odnos, rezolucija, kuka, natpisi, sigurna zona, zvuk, veličina).
+- `convex/creaMontagesCore.test.ts` (4) i `convex/creaMontages.test.ts` (7, convex-test):
+  - sačuvaj → spisak → otvori;
+  - tuđ, DEMO, nezavršen i rad pogrešne vrste se odbijaju bez upisa;
+  - dokument preko granice → `{ ok:false }`; limit 50;
+  - tuđ projekat je `null`, izmena i brisanje ne prolaze, gost ne vidi ništa;
+  - istekao rad je `expired`, **brisanje projekta ne briše radove**; poslednji izvoz.
+- `convex/creaLocal.test.ts` (+3): **izvoz montaže je verzija prvog klipa („montaza") sa brojem izvora**; GIF iz montaže je slika (drugi alat ne sme video); tuđ izvor odbijen i fajl obrisan; nepoznato izvođenje odbija validator.
+- `lib/crea-tools.test.ts` (K19 blok) i `lib/crea-device.test.ts`: namerne izmene iz ODLUKA.
+
+**Rezultat provere:**
+
+| Provera | Ishod |
+|---|---|
+| codegen (+ `convex dev --once` na DEV) | prošao |
+| typecheck | prošao |
+| lint | 0 grešaka, 26 zatečenih upozorenja |
+| test | 2498/2498 (211 fajlova) |
+| build | prošao (ponovljen posle poslednjih izmena) |
+| `check:bundle` | 168 početnih chunk-ova bez mediabunny-ja, gifenc-a, beat detektora i ostalih teških paketa |
+| `check:frames`, `check:corners`, `check:white` | prošli |
+
+Nijedan dev server nije upaljen (portovi 3000 i 3100 slobodni).
+
+**Za Jovana ujutru:**
+- `/crea/app?oblast=video&rezim=montaza` (prijavljen), na DEV-u:
+  - dodaj 2-3 rada iz galerije + muziku, pa „Izvezi MP4" → „Sačuvaj u galeriju". Rad treba da bude u stablu verzija prvog klipa kao „Montaža", sa brojem izvora u parametrima.
+  - „Sačuvaj projekat" → otvori ga iz „Projekti" u drugom browseru (radovi iz galerije se vide, fajl sa uređaja piše da je samo na tom uređaju).
+
+  Oba puta su provereni samo convex-test-om; strana za proveru u browseru nije imala prijavu.
+- Na pravom telefonu:
+  - iPhone Safari: izvoz 60 s u 720p (memorija), unazad za klip od 10 s;
+  - Android Chrome: isto;
+  - Firefox Android: poruka bez WebCodecs-a + GIF.
+- „Ubaci i gotovo" sa 2-3 prave pesme: ako je BPM pogrešan (često duplo ili upola), klizač ga popravlja. Javi ako se to dešava često.
+- Odluči:
+  - da li unazad na računaru ostaje 30 s ili ide na 10 s kao u planu;
+  - da li u K20 treba nivo B (WebM preko `MediaRecorder`) za Firefox Android.
+- Produkcija: nova tabela `creaMontages` i novi argumenti `saveLocalResult` traže `npx convex deploy` pre puštanja Next-a sa K19 (inače čuvanje montaže na produkciji pada).
+- Brza akcija „U montažu" na kartici rada nije dodata; za sada `?ulaz=` i izbor iz galerije u samoj montaži.

@@ -115,7 +115,7 @@ describe("registar alata", () => {
     for (const tool of CREA_TOOLS) if (tool.tier === "server") expect(tool.status).toBe("soon");
   });
 
-  test("K04 pušta format i proveru fotke, K09 sedam besplatnih alata za sliku, K10 editor, šablone i 3D foto, K11 i K12 izmene, K13 pravljenje, K14 likovi, K18 video", () => {
+  test("K04 pušta format i proveru fotke, K09 sedam besplatnih alata za sliku, K10 editor, šablone i 3D foto, K11 i K12 izmene, K13 pravljenje, K14 likovi, K18 video, K19 montaža", () => {
     const ready = CREA_TOOLS.filter((tool) => tool.status === "ready").map((tool) => tool.id);
     expect(ready).toEqual([
       "slika.format",
@@ -163,6 +163,10 @@ describe("registar alata", () => {
       "video.vise-scena",
       "video.crtaj-pokret",
       "video.produzi",
+      // K19: Video · Montaža (V24, V29, V30)
+      "video.montaza",
+      "video.ritam-sabloni",
+      "video.izvoz",
     ]);
     expect(toolById("slika.format")).toMatchObject({ tier: "local-code", featureIds: ["S27"], output: "image" });
     expect(toolById("slika.provera")).toMatchObject({
@@ -378,5 +382,34 @@ describe("K18: Video · Napravi i Izmeni", () => {
       expect(model.inputModes, id).toContain(price.inputMode);
       expect(toolBadges(tool)).toEqual(["krediti"]);
     }
+  });
+});
+
+describe("K19: Video · Montaža", () => {
+  test("montaža, ritam i izvoz: besplatni, na svakom uređaju (bez WebCodecs-a pregled i GIF), čuvaju i GIF", () => {
+    for (const id of ["video.montaza", "video.ritam-sabloni", "video.izvoz"]) {
+      const tool = toolById(id)!;
+      expect(tool, id).toMatchObject({
+        area: "video",
+        mode: "montaza",
+        tier: "local-code",
+        status: "ready",
+        output: "video",
+        savesToGallery: true,
+        alsoSaves: ["image"],
+        device: { minClass: "weak" },
+        price: { kind: "free" },
+      });
+      expect(tool.device.requires, id).toBeUndefined();
+      expect(toolBadges(tool), id).toEqual(["besplatno", "na-uredjaju"]);
+    }
+    // Gotovi alati montaže stoje pre titlova i shorts-a (K21, „uskoro").
+    expect(toolsFor("video", "montaza").map((tool) => tool.id)).toEqual([
+      "video.montaza",
+      "video.ritam-sabloni",
+      "video.izvoz",
+      "video.titlovi",
+      "video.shorts",
+    ]);
   });
 });

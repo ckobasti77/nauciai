@@ -1906,6 +1906,31 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_user", ["userId"]),
 
+  // Sačuvan projekat montaže (Crea K19, V24; plan K17-6). Nacrt živi u IndexedDB-u
+  // na uređaju; ovde ide tek „Sačuvaj projekat" - da se nastavi na drugom uređaju i
+  // da ga prave strip, objašnjenje i reklama (K21). `doc` je `CreaTimelineV1` kao
+  // JSON (≤ 200 000 znakova) sa SAMO referencama na radove ({jobId}) i fajlove sa
+  // uređaja ({localFileId}) - nikad sam medij. `jobIds` server izvodi iz `doc`-a.
+  creaMontages: defineTable({
+    userId: v.id("users"),
+    projectId: v.optional(v.id("studioProjects")),
+    title: v.string(),
+    doc: v.string(),
+    jobIds: v.array(v.id("generationJobs")),
+    durationS: v.number(),
+    origin: v.union(
+      v.literal("rucno"),
+      v.literal("strip"),
+      v.literal("objasnjenje"),
+      v.literal("reklama"),
+      v.literal("ritam"),
+      v.literal("shorts"),
+    ),
+    lastExportJobId: v.optional(v.id("generationJobs")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_user_updated", ["userId", "updatedAt"]),
+
   // Opšte informacije platforme (N1) — JEDAN red, `key: "default"`. Kontakt,
   // mreže, cene i pravni podaci koje vlasnik menja sa admin ekrana umesto kroz
   // deploy; `platformSettings.get` je javan i čita ga i landing.
