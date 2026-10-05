@@ -25,7 +25,7 @@ export type PaidEditFiles = { files: Record<string, Blob[]>; width: number; heig
  * `text` je ono što je korisnik dopisao u polje (može biti prazno), `size` veličina
  * pripremljene slike; cena na dugmetu zove istu funkciju sa `size` 1 × 1.
  */
-export type PaidEditRequest = (route: CreaPaidRoute, text: string, size: { width: number; height: number }) => Record<string, string | number>;
+export type PaidEditRequest = (route: CreaPaidRoute, text: string, size: { width: number; height: number }) => Record<string, string | number | boolean>;
 
 /** Polje za opis u plaćenoj izmeni: natpis, primer i da li bez njega dugme ostaje zaključano. */
 export type PaidEditTextField = { label: string; placeholder: string; required: boolean };
@@ -74,6 +74,7 @@ export function PaidEditPanel({
   errorMessage = studioErrorMessage,
   extraBlocker = null,
   privacyNote,
+  derivation = "izmena",
 }: {
   locale: Locale;
   routes: readonly CreaPaidRoute[];
@@ -113,6 +114,8 @@ export function PaidEditPanel({
   extraBlocker?: string | null;
   /** Napomena o privatnosti ispod dugmeta; `null` = bez nje (posao bez slika, npr. kreator lika). */
   privacyNote?: string | null;
+  /** Vrsta verzije kad posao ima roditelja (K18: slika → video je „animacija"). */
+  derivation?: "izmena" | "animacija";
 }) {
   const createJob = useMutation(api.studio.createJob);
   const upload = useSlotUpload();
@@ -209,7 +212,7 @@ export function PaidEditPanel({
             params: JSON.stringify(params),
             inputMode: picked.route.inputMode,
             inputs: JSON.stringify(inputs),
-            ...(parentJobId ? { parentJobId, derivation: "izmena" as const } : {}),
+            ...(parentJobId ? { parentJobId, derivation } : {}),
             ...(projectId ? { projectId } : {}),
           });
       if (result && typeof result === "object" && "moderationBlocked" in result) {

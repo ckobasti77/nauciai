@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Clapperboard, Copy, Eraser, ImagePlus, Maximize2, PenLine, Volume2, Zap, type LucideIcon } from "lucide-react";
+import { Clapperboard, Copy, Eraser, FastForward, Film, ImagePlus, Maximize2, PenLine, Volume2, Zap, type LucideIcon } from "lucide-react";
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -15,6 +15,8 @@ export type QuickActionLink = { id: QuickActionId; label: string; href: string }
 
 export const QUICK_ACTION_ICONS: Record<QuickActionId, LucideIcon> = {
   animiraj: Clapperboard,
+  nastavi: Film,
+  produzi: FastForward,
   ozvuci: Volume2,
   izmeni: PenLine,
   uvecaj: Maximize2,

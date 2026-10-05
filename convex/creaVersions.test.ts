@@ -525,3 +525,45 @@ describe("lokalni alat (saveLocalResult)", () => {
     expect(job?.derivation).toBeUndefined();
   });
 });
+
+describe("K18: nastavak videa od poslednjeg kadra (V4)", () => {
+  const VIDEO_MODEL = "hailuo-23-fast";
+
+  test("kadar sačuvan iz videa je njegova verzija, a nov klip od tog kadra je „produženje” videa", async () => {
+    const t = makeT();
+    const { userId, asUser } = await seedUser(t);
+    await seedCatalogModel(t, VIDEO_MODEL);
+    const video = await insertDone(t, userId, { kind: "video", contentType: "video/mp4" });
+
+    // 1) Alat „Nastavi od poslednjeg kadra": kadar izvučen na uređaju ide u galeriju kao verzija videa.
+    const { grantId } = await asUser.mutation(api.creaLocal.createLocalResultUploadUrl, { kind: "image" });
+    const frameStorage = await storeFile(t, "image/png");
+    const saved = await asUser.mutation(api.creaLocal.saveLocalResult, {
+      grantId,
+      storageId: frameStorage,
+      toolId: "video.poslednji-kadar",
+      kind: "image",
+      parentJobId: video._id,
+    });
+    expect(saved.ok).toBe(true);
+    if (!saved.ok) return;
+    const frameJob = await jobOf(t, saved.jobId);
+    expect(frameJob).toMatchObject({ provider: "local", creditCost: 0, kind: "image", parentJobId: video._id, rootJobId: video._id });
+
+    // 2) Composer: isti kadar okačen kao ulaz `image`, posao nosi video kao roditelja („produzenje").
+    const inputStorage = await asUser.run((ctx) => ctx.storage.store(new Blob(["kadar"], { type: "image/png" })));
+    const { grantId: inputGrant } = await asUser.mutation(api.studio.createInputUploadUrl, { slot: "image" });
+    await asUser.mutation(api.studio.registerInputUpload, { storageId: inputStorage, grantId: inputGrant });
+    const jobId = (await asUser.mutation(api.studio.createJob, {
+      modelSlug: VIDEO_MODEL,
+      params: JSON.stringify({ prompt: "mačka nastavlja da trči" }),
+      inputMode: "image",
+      inputs: JSON.stringify({ image: [inputStorage] }),
+      parentJobId: video._id,
+      derivation: "produzenje",
+    })) as Id<"generationJobs">;
+    const next = await jobOf(t, jobId);
+    expect(next).toMatchObject({ kind: "video", parentJobId: video._id, rootJobId: video._id, derivation: "produzenje" });
+    expect(JSON.parse(next!.inputs!)).toEqual({ image: [inputStorage] });
+  });
+});

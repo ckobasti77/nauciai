@@ -106,7 +106,9 @@ describe("dostupnost alata", () => {
   });
 
   test("nedostaje sposobnost browsera", () => {
-    expect(deviceProblem(soonAsReady("video.poslednji-kadar"), OLD_SAFARI)).toEqual({
+    // K18: „poslednji kadar" radi i bez WebCodecs-a (kroz `<video>`), pa je primer montaža.
+    expect(deviceProblem(soonAsReady("video.poslednji-kadar"), OLD_SAFARI)).toEqual({ ok: true, variant: "full" });
+    expect(deviceProblem(soonAsReady("video.montaza"), { ...OLD_SAFARI, mobile: false })).toEqual({
       ok: false,
       reason: "needs-webcodecs",
     });

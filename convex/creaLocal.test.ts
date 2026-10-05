@@ -206,9 +206,9 @@ describe("tip, veličina i alat", () => {
   test("nepoznat, nespreman ili plaćen alat, i alat koji ne pravi ovu vrstu: NEPOZNAT_ALAT", async () => {
     const t = makeT();
     const { asUser } = await seedUser(t);
-    // K12: „Retuš" je gotov, pa je nespreman primer „Nastavi od poslednjeg kadra"; „Zameni lik" je plaćen i
-    // nespreman; četkica je gotova, ali plaćena (bez besplatnog koraka); paleta pravi tekst.
-    for (const toolId of ["slika.nepostoji", "video.poslednji-kadar", "slika.zameni-lik", "slika.cetkica", "slika.paleta"]) {
+    // K12: „Retuš" je gotov; K18: i „Nastavi od poslednjeg kadra", pa je nespreman primer „Prekroji kadar
+    // videa"; „Zameni lik" je plaćen; četkica je gotova, ali plaćena (bez besplatnog koraka); paleta pravi tekst.
+    for (const toolId of ["slika.nepostoji", "video.reframe", "slika.zameni-lik", "slika.cetkica", "slika.paleta"]) {
       const { storageId, result } = await saveImage(t, asUser, { toolId });
       expect(result, toolId).toEqual({ ok: false, reason: "NEPOZNAT_ALAT" });
       expect(await fileExists(t, storageId), toolId).toBe(false);

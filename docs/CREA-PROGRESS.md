@@ -751,3 +751,133 @@ Provereno u browseru (Playwright, privremena strana, obrisana): editor Lika sa 5
 
 ## K17 - Plan videa   (2026-10-05 15:08)
 **Plan korak.** Plan je upisan u `docs/crea/planovi/K17.md`. Nije menjan kod.
+
+## K18 — Video: pravljenje i režija   (2026-10-05 16:00)
+**Fajlovi:**
+- novi: `lib/crea-camera-moves.ts`, `lib/crea-video-effects.ts`, `lib/crea-director.ts`, `lib/crea-scenes.ts`, `lib/crea-motion-arrows.ts`, `lib/crea-video-extend.ts`, `lib/crea-video-frames.ts` (svaki sa `.test.ts`), `lib/crea-video-copy.ts`, `components/crea/video/{camera-move-sketch,director-panel,last-frame-picker,video-job-grid}.tsx`, `components/crea/video/director-state.ts`, `components/crea/video/engine/{frames,video-element}.ts`, `components/crea/tools/{last-frame-tool,scenes-tool,draw-motion-tool,extend-tool,video-input}.tsx`, `convex/creaVideoScenes.test.ts`, snimci `docs/crea/snimci/K18-*.png` (23);
+- izmenjeni: `components/studio/studio-composer.tsx` (režija, izbor ulaznog režima, prazni kadrovi „prvi i poslednji", poslednji kadar, izbor ranije generacije za nastavak, 15 MB provera za Google, `text` kontrole bez čipa, meta 44 px na krstiću čipa), `components/studio/mode-switcher.tsx` (`framed`, `min-h-11`), `components/app/studio-page.tsx` (`videoExtras`, `allowedInputModes`), `components/crea/tool-runner.tsx` (`onSaved`), `components/crea/tools/paid-edit.tsx` (`derivation`, `request` prima i boolean), `components/crea/tools/index.tsx`, `components/crea/quick-actions-menu.tsx`, `convex/providers/falInputs.ts` (`multiPrompt`, `parseMultiShot`), `convex/providers/falVideoModels.ts` (Kling 3.0: kontrola `scenes` i `capabilities.fal`), `lib/crea-tools.ts`, `lib/crea-shell.ts`, `lib/crea-quick-actions.ts`, `scripts/check-crea-bundle.mjs` (marker za čitanje videa); testovi `lib/crea-{tools,shell,device,quick-actions}.test.ts`, `convex/{creaLocal,creaVersions}.test.ts`.
+
+**Šta je urađeno:** Video · Napravi je sada composer sa **režijom** i četiri alata pored njega. Ispod opisa su dugmad „Režija", „+ Pokret", „+ Zvuk" (V6: klik umesto sintakse) i „Poslednji kadar iz videa". Lenjo učitan panel „Režija" ima tri taba:
+- **Pokret kamere (V7):** 44 pokreta u 7 grupa. Svaki ima animiranu SVG skicu (okvir kadra, kuća, drvo, lik od crtica; Web Animations API, vrti se samo na prelaz mišem, fokus ili izbor, mirna uz smanjen pokret), mini-lekciju na srpskom i engleskom i jačinu „blago/jako".
+- **Efekti (V8):** 31 efekat kao recept (šablon opisa + modeli + trajanje), od toga 10 naših (Beograd noću, slava, kafana, splav, Kalemegdan, Zlatibor, Exit, truba i kolo, Nova godina, vašar). „Spoji dva efekta" pravi jedan klip u kojem prvi efekat prelazi u drugi. Izbor efekta prebacuje na najjeftiniji model koji ga dobro radi i na njegov režim (slika ili opis) i upisuje trajanje u parametre posla.
+- **Režiserski pult (V9):** 6 kartica sa primerima (noar detektiv, bajka, reklama za kafić, spot iz 80-ih, horor hodnik, dokumentarac o prirodi) i izbori žanr, era, tempo, objektiv i žižna, blenda, svetlo, paleta, emocija lika i zvuk.
+
+Izbor se ne upisuje u opis: `composeVideoPrompt` ga sklapa pri slanju, PO MODELU (zvuk samo modelima koji prave zvuk, granica dužine modela, trajanje efekta svedeno na vrednosti koje model prima). „Modelu ide:" pokazuje tačan tekst. Iznad opisa je vidljiv izbor ulaznog režima (Samo opis · Iz slike · Prvi i poslednji kadar · Sa referencama). U „prvi i poslednji" prazni kadrovi su pločice koje biraju fajl baš za taj kadar. Gemini Omni nastavak sada ima izbor ranije generacije (`SourceJobPicker`, do sada nekorišćen) i vratio se u Video · Izmeni.
+
+**V4:** poslednji kadar se izvlači NA UREĐAJU. Mediabunny `CanvasSink` je tačan po kadru; bez WebCodecs-a radi rezervni `<video>`, uz odbacivanje crnog kadra.
+- **U composeru:** izabereš svoj video ili fajl sa uređaja, kadar se okači kao običan ulaz `image` i postaje prvi kadar posla. Nov posao je verzija videa (`parentJobId` = video, `derivation: "produzenje"`).
+- **Kao alat** „Nastavi od poslednjeg kadra": bira se bilo koji kadar klizačem, čuva se u galeriju kao verzija videa, a „Nastavi odavde" otvara Napravi sa njim (`?ulaz=`).
+
+**Alati:**
+- **Više scena (V11):** do 6 kartica (opis, pokret, sekunde) postaje JEDAN Kling 3.0 posao sa `multi_prompt`. Plaća se ukupno trajanje, kao jedan klip; početna slika je opciona.
+- **Crtaj pokret (V12):** do 5 strelica preko slike (miš i prst) postaje rečenica „ko, kuda, koliko". Bira se jedan od 5 modela koji oživljavaju sliku, sa cenom na dugmetu.
+- **Produži klip (V5, Video · Izmeni):** Seedance 2.5 napred ili nazad, Veo 3.1 napred (samo Veo klip do 15 MB). Izvor iz galerije ide bez kopije (`adoptOutputAsInput`), a za ostale modele vodi ka „Nastavi od poslednjeg kadra".
+
+Brze akcije na video kartici sada imaju i „Nastavi od poslednjeg kadra" i „Produži klip".
+
+Provereno u browseru (Playwright, Chromium, privremena strana, obrisana):
+- izvlačenje poslednjeg kadra iz probnog MP4 (3 s, 25 fps) daje **tačno 75. kadar** (vreme 2,96 s, brojač na slici „00:00:02.960 74"), za 129 ms;
+- sa uklonjenim `VideoDecoder`-om radi rezervni put (1,50 s na 50 %, 2,95 s za poslednji);
+- „Modelu ide:" za pult „Noar detektiv" i opis;
+- strelice crtane mišem pretvorene u opis;
+- cene na dugmadi: crtaj pokret 42 kr (Hailuo 6 s), više scena 218 kr (Kling 8 s, 720p, zvuk), produži 250 kr (Seedance 5 s, 720p).
+
+Ekrani su provereni na 1440 × 900 i 390 × 844, u svetloj i tamnoj temi. Nigde nema vodoravnog skrola, a sve kontrole u novim ekranima imaju bar 44 px.
+
+**Feature ID-jevi:**
+- V1 — gotovo za „Napravi": režija, izbor režima i alati pored composera. „Napravi ovako" je postojeće „Upotrebi ponovo"; ono vraća model i opis i radi i za video, nije menjano.
+- V2 — gotovo u K07 (6 modela), ovde nije dirano.
+- V3 — gotovo u K07. „Probaj jeftino" u composeru važi i za video, za 5 parova iz `lib/crea-draft.ts`; „Usavrši" je u detalju. Nije menjano.
+- V4 — gotovo (lokalno izvlačenje + početak sledećeg posla, alat i composer). Prvi + poslednji kadar se nudi svuda gde model ima `first_last` (vidljiv izbor režima + pločice).
+- V5 — gotovo: Veo 3.1 (napred) i Seedance 2.5 (napred/nazad), uz lanac poslednji kadar → nov klip za ostale modele. Seedance smer ide kroz opis (vidi ODLUKE).
+- V6 — gotovo: @Lik/@Mesto/@Predmet iz K14; @Pokret i @Zvuk su dugmad i čipovi.
+- V7 — gotovo (44 pokreta, skice, lekcije).
+- V8 — gotovo (31 efekat, spajanje dva).
+- V9 — gotovo (pult + 6 kartica sa primerima).
+- V11 — gotovo (Kling 3.0 `multi_prompt`, potvrđen na fal OpenAPI šemi).
+- V12 — gotovo.
+
+**ODLUKE:**
+- **Kling 3.0 više scena potvrđeno** (K17-10): fal OpenAPI šema `fal-ai/kling-video/v3/{standard,pro}/{text,image}-to-video` (pročitano 2026-10-05) ima `multi_prompt: [{prompt, duration "1"-"15"}]` i `shot_type`. Polje „ili prompt ili multi_prompt" zato briše opis kad su scene ispravne.
+  - Server (`parseMultiShot`) prima 2-6 scena, cele sekunde, i to samo ako je ZBIR tačno ukupno trajanje posla (po njemu se naplaćuje). Neispravne scene se tiho odbacuju i ide običan opis.
+  - Kontrola `scenes` je tipa `text` (ne `textarea`), da opis ostane prva tekstualna kontrola. Composer `text` kontrolama ne pravi čip.
+  - Ukupno trajanje ostaje u katalogu 5-10 s, iako fal sada prima 3-15 s (katalog se ne širi bez provere cene).
+- **Ispravka zatečenog kvara Kling 3.0 (isti red, isti izvor):** `image` režim je slao `image_url`, a fal traži obavezno `start_image_url`; zvuk je slat kao `audio`, a fal čita `generate_audio`, koji je podrazumevano uključen. Posledice:
+  - posao „iz slike" je verovatno padao (refund);
+  - „bez zvuka" je naplaćen jeftinije, a fal je pravio i naplaćivao zvuk (gubitak);
+  - obe stvari su rešene kroz `capabilities.fal` (polja + preimenovanje) i pokrivene testom tela zahteva.
+
+  `voice_control` NIJE u v3 šemi (postoji u ceni). Nije dirano - vidi „Za Jovana".
+- **Seedance 2.5 produženje bez nove rute:** zvanična BytePlus strana se ne čita bez JS-a. Vodiči za Seedance 2.5 (EvoLink, ComfyUI) opisuju produženje kao izvorni video kao referencu + smer u opisu („Extend @video1 backward…"), pa „Produži" koristi POSTOJEĆI red `seedance-25`, režim `reference` (video kao referenca 1, cena po trajanju kao i do sada). Nije provereno živim pozivom (nema `BYTEPLUS_API_KEY`); korisnik vidi rečenicu da za loš nastavak napravi novu verziju.
+- **Veo produženje samo za Veo klip do 15 MB:** Google prima ulaz ugrađen u zahtev do 15 MB, a produžava svoje klipove. Composer za Google model sa videom većim od 15 MB zaključava dugme sa razlogom (ranije bi posao bio rezervisan pa refundiran).
+- **Poslednji kadar ne traži WebCodecs** (registar: bez `requires`): rezervni `<video>` radi i na Firefox-u za Android (K17-3). Izvlačenje je u modulu sa imenovanim uvozima i samo video kontejnerima (MP4/MOV/WebM/MKV).
+  - Chunk čitanja je **~121 KB gzip**, 1-2 KB preko okvirnog budžeta od 120 KB (K01 §9).
+  - Prihvaćeno, jer se učitava tek na „Izvuci kadar". `check:bundle` dobio je drugi marker (`Input has been disposed`), pa i ovaj chunk proverava.
+- **V4 u composeru ne pravi rad u galeriji:** kadar ide kao običan ulaz (24 h, `registerInputUpload`), bez kopije i bez novog reda u istoriji. Tu je samo veza u stablu (`produzenje`), i to kad je kadar iz rada iz galerije i još uvek u slotu.
+- **@Pokret i @Zvuk su dugmad i čipovi, ne `@` sintaksa.** Feature tabela kaže „klik umesto sintakse"; `@` meni ostaje samo za Likove (K14).
+- **Prirodan engleski za sve porodice modela** (K17-17). MiniMax komande u uglastim zagradama nisu dokumentovane ni na jednoj fal strani modela iz kataloga (proverena Hailuo 2.3 Fast), pa se ne koriste. Dijalekt po modelu je: granica dužine, zvuk samo za modele sa zvukom i trajanje po vrednostima modela.
+- **Efekti bez stvarnih ljudi u intimnim ili nasilnim scenama** (K17-16): nema poljupca, zagrljaja ni eksplozije lika (test zabranjenih reči). „Raspad u prah" je opisan kao efekat za predmet ili pejzaž.
+- **Skice:** Web Animations API, a ne GSAP (pravilo §6 i jednostavnost). Mirna skica je početni položaj.
+- **Gemini Omni `video` je ponovo u Izmeni** (`usableInputModes` više ne krije nastavak). Testovi K03 (`crea-shell.test.ts`) namerno su promenjeni.
+- **Namerno promenjene asercije:**
+  - `crea-tools.test.ts`: +4 gotova alata;
+  - `crea-shell.test.ts`: Video · Napravi i Izmeni imaju i modele i alate; Omni u Izmeni;
+  - `crea-device.test.ts`: primer „nedostaje WebCodecs" je sada montaža;
+  - `creaLocal.test.ts`: nespreman primer je „Prekroji kadar videa";
+  - `crea-quick-actions.test.ts`: slika i dalje 7 akcija, video +2.
+- `ModeSwitcher` dobio `framed={false}` (tanka linija umesto drugog punog okvira u composeru, „jedan okvir po grupi") i `min-h-11`. Krstić na čipovima (`LookChip`, i K13) dobio nevidljivo proširenje do 44 px, bez promene izgleda.
+- `VideoJobGrid` preskače upit galerije bez prijave (`"skip"`); gost vidi samo izbor sa uređaja.
+- Vizuelna provera je rađena na privremenoj strani `app/[locale]/k18-harness` (pravi composer nad katalogom iz `STUDIO_MODELS`, pravi panel i alati, probni MP4 i PNG napravljeni ffmpeg-om u `.crea-run/tmp`). Strana, fajlovi i Playwright logovi su obrisani, a dev server i zaostali `start-server.js` (port 3100) ugašeni.
+  - Strana je bez prijave, pa slanje kadra kao ulaza u composeru tu ne može (`Unauthorized`). Taj put je proveren convex-test-om (vidi Testovi); u browseru je provereno izvlačenje.
+- DEV: `npx convex codegen` + `npx convex dev --once` + `node scripts/seed-studio-models.mjs` (47 redova ažurirano; Kling 3.0 ima `scenes` i fal mapu na DEV-u). Produkcija nije dirana.
+
+**Novi paketi:** nema (mediabunny i perfect-freehand već postoje; skice su SVG + Web Animations API).
+
+**Testovi:**
+- `lib/crea-camera-moves.test.ts` (6): 36-48 pokreta, grupe, lekcije sr/en ≤ 220, engleska fraza bez tačke, ključevi skice 0..1 rastući i u granicama, svaki pokret se vidi, jačina.
+- `lib/crea-video-effects.test.ts` (7): broj i grupe, tačno jedno `{subject}`, zabranjene scene, svaki model postoji i ima režim, **parametri efekta prolaze serversku proveru za svaki model**, predmet, spajanje (zajednički modeli, ≥ 8 s, drugi bez predmeta), kada se ne spaja.
+- `lib/crea-director.test.ts` (10):
+  - opcije pulta i kartice sa primerima;
+  - prazan pult;
+  - **tačan redosled i tekst opisa**;
+  - **zvuk samo za model sa zvukom** (Veo da, Grok ne);
+  - efekat nosi opis;
+  - granica dužine;
+  - **trajanje po modelu** (Hailuo izbor „6"/„10", Kling klizač, Veo do 8);
+  - efekat menja parametre posla i server ih prihvata.
+- `lib/crea-scenes.test.ts` (6): trajanje i podela, provera kartica, parametri, **ista cena kao jedan klip**, telo fal zahteva (`multi_prompt`, `generate_audio`, `start_image_url`), odbacivanje neispravnih scena (zbir ≠ trajanje, 1 scena, 7 scena, prazno, decimalno, ne-JSON).
+- `lib/crea-motion-arrows.test.ts` (6): oblast 3×3, 8 smerova, kratke strelice, rečenice, opis, modeli primaju opis.
+- `lib/crea-video-extend.test.ts` (3): rute su postojeći modeli i parametri prolaze za oba smera, opis po smeru, Veo samo za Veo ≤ 15 MB.
+- `lib/crea-video-frames.test.ts` (4): kandidati za poslednji kadar, kadar unutar klipa, PNG/JPG, crn kadar.
+- `convex/creaVideoScenes.test.ts` (3, convex-test, lažan `fetch`):
+  - scene → jedan posao, naplata po 8 s, fal ruta `v3/standard/text-to-video` sa `multi_prompt`, bez `prompt`/`scenes`/`audio`;
+  - slika → `start_image_url`;
+  - običan Kling posao šalje opis.
+- `convex/creaVersions.test.ts` (+1): **kadar iz videa sačuvan alatom je verzija videa, a nov posao sa tim kadrom kao `image` ulazom nosi video kao roditelja („produzenje")**.
+- `lib/crea-tools.test.ts` (+2, K18 blok), `lib/crea-quick-actions.test.ts` (Nastavi/Produži) i namerne izmene navedene gore.
+
+**Rezultat provere:**
+
+| Provera | Ishod |
+|---|---|
+| codegen (+ DEV push i seed) | prošao |
+| typecheck | prošao |
+| lint | 0 grešaka, 26 zatečenih upozorenja |
+| test | 2421/2421 (203 fajla) |
+| build | prošao (prvi pokušaj je pao na Windows grešci build workera 0xC0000142, ponovljen bez izmena - prošao) |
+| `check:bundle` | 168 početnih chunk-ova bez mediabunny-ja i ostalih teških paketa |
+| `check:frames`, `check:corners`, `check:white` | prošli |
+
+Nijedan dev server nije upaljen (portovi 3000 i 3100 slobodni).
+
+**Za Jovana ujutru:**
+- `/crea/app?oblast=video` (prijavljen):
+  - otkucaj opis → „Režija" → npr. „Noar detektiv" ili pokret „Dron uspon" → otvori „Modelu ide:" → generiši Veo 3.1 Lite (Google ključ radi, ~44 kr za 4 s).
+  - „Poslednji kadar iz videa" → izaberi gotov video: kadar treba da se pojavi kao slika u composeru, a nov rad u stablu verzija kao „Produženje" videa.
+- Brza akcija na video kartici „Nastavi od poslednjeg kadra" → „Izvuci kadar" → „Sačuvaj u galeriju" → „Nastavi odavde".
+- Posle `FAL_KEY`:
+  - jedna proba „Više scena" (Kling 3.0, 2-3 scene) - da li fal prihvata `multi_prompt` i da li račun odgovara ukupnom trajanju;
+  - jedna proba Kling 3.0 „iz slike" (sada ide kao `start_image_url`) i „bez zvuka" (sada `generate_audio: false`).
+- `voice_control` (Kontrola glasa) nije u fal v3 šemi, a u ceni jeste (+$0,028/s). Odluči da li prekidač treba ugasiti u katalogu.
+- Posle `BYTEPLUS_API_KEY`: probaj „Produži klip" sa Seedance 2.5 nazad - da li model razume smer iz opisa. Ako ne razume, ruta se gasi jednom linijom (`EXTEND_ROUTES`).
+- Na telefonu (Firefox Android, bez WebCodecs-a) proveri da „Nastavi od poslednjeg kadra" radi kroz `<video>`.

@@ -57,6 +57,10 @@ const StickersTool = dynamic(() => import("./stickers-tool"), { ssr: false, load
 const LogoTool = dynamic(() => import("./logo-tool"), { ssr: false, loading: ToolLoading });
 const BrandKitTool = dynamic(() => import("./brand-kit-tool"), { ssr: false, loading: ToolLoading });
 const DescribeTool = dynamic(() => import("./describe-tool"), { ssr: false, loading: ToolLoading });
+const LastFrameTool = dynamic(() => import("./last-frame-tool"), { ssr: false, loading: ToolLoading });
+const ScenesTool = dynamic(() => import("./scenes-tool"), { ssr: false, loading: ToolLoading });
+const DrawMotionTool = dynamic(() => import("./draw-motion-tool"), { ssr: false, loading: ToolLoading });
+const ExtendTool = dynamic(() => import("./extend-tool"), { ssr: false, loading: ToolLoading });
 
 export const CREA_TOOL_COMPONENTS: Readonly<Record<string, ComponentType<CreaToolProps>>> = {
   "slika.format": FormatTool,
@@ -95,4 +99,8 @@ export const CREA_TOOL_COMPONENTS: Readonly<Record<string, ComponentType<CreaToo
   "slika.nalepnice": StickersTool,
   "slika.logo": LogoTool,
   "slika.brend-kit": BrandKitTool,
+  "video.poslednji-kadar": LastFrameTool,
+  "video.vise-scena": ScenesTool,
+  "video.crtaj-pokret": DrawMotionTool,
+  "video.produzi": ExtendTool,
 };

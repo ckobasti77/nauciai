@@ -15,17 +15,19 @@ import { jobPrompt } from "@/lib/studio-form";
 import type { InputSpec } from "@/lib/studio-slots";
 
 /**
- * Brze akcije na svakom radu (K16, S44): kuda vodi „Animiraj", „Ozvuči", „Izmeni",
+ * Brze akcije na svakom radu (K16, S44; K18: „Nastavi" i „Produži" za video): kuda vodi „Animiraj", „Ozvuči", „Izmeni",
  * „Uvećaj", „Ukloni pozadinu", „Napravi sličnu" i „Koristi kao referencu" - tačan
  * alat ili režim sa već popunjenim ulazom (`?ulaz=<rad>`, alias izlaza iz K05) ili
  * opisom (`?opis=`). Čista funkcija nad katalogom; UI je samo pretvara u link.
  */
 
-export const QUICK_ACTION_IDS = ["animiraj", "ozvuci", "izmeni", "uvecaj", "pozadina", "slicna", "referenca"] as const;
+export const QUICK_ACTION_IDS = ["animiraj", "nastavi", "produzi", "ozvuci", "izmeni", "uvecaj", "pozadina", "slicna", "referenca"] as const;
 export type QuickActionId = (typeof QUICK_ACTION_IDS)[number];
 
 export const QUICK_ACTION_LABELS: Record<QuickActionId, LocalizedText> = {
   animiraj: { sr: "Animiraj", en: "Animate" },
+  nastavi: { sr: "Nastavi od poslednjeg kadra", en: "Continue from the last frame" },
+  produzi: { sr: "Produži klip", en: "Extend the clip" },
   ozvuci: { sr: "Ozvuči", en: "Add sound" },
   izmeni: { sr: "Izmeni", en: "Edit" },
   uvecaj: { sr: "Uvećaj", en: "Upscale" },
@@ -94,6 +96,9 @@ export function quickActionsFor(job: QuickJob, catalog: readonly QuickModel[]): 
       add("animiraj", animate && { area: animate.area, mode: animate.mode, model: animate.modelSlug, input: job._id });
     }
     if (job.kind === "video") {
+      // K18: poslednji kadar (V4, besplatno, na uređaju) i produženje (V5, Seedance / Veo).
+      add("nastavi", toolTarget("video.poslednji-kadar", job._id));
+      add("produzi", toolTarget("video.produzi", job._id));
       const sound = versionInputTarget(catalog, "video", "sound");
       add("ozvuci", sound && { area: sound.area, mode: sound.mode, model: sound.modelSlug, input: job._id });
     }

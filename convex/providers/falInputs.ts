@@ -49,7 +49,48 @@ export type FalMap = {
   fields?: Partial<Record<FalSlotField, string>>;
   params?: Record<string, { to: string; scale?: number }>;
   fixed?: Record<string, unknown>;
+  /**
+   * Više scena u jednom klipu (Crea K18, V11): tekstualni parametar forme `from`
+   * nosi JSON `[{prompt, duration}]`, a fal ga prima kao niz `to` (Kling 3.0
+   * `multi_prompt`, fal OpenAPI šema 2026-10-05). Ispravan spisak zamenjuje
+   * pojedinačan opis; neispravan se tiho odbacuje i ide običan opis.
+   */
+  multiPrompt?: { from: string; to: string; maxShots: number };
 };
+
+/** Jedna scena za fal: opis i trajanje kao string („1"…„15", fal enum). */
+export type FalShot = { prompt: string; duration: string };
+
+const SHOT_PROMPT_MAX = 2500;
+const SHOT_SECONDS_MAX = 15;
+
+/**
+ * Spisak scena iz parametra forme, ili `null` kad nije ispravan: 2..`maxShots`
+ * scena, svaka sa opisom i celim brojem sekundi 1-15, a zbir je TAČNO ukupno
+ * trajanje posla (po njemu se naplaćuje - drugačiji zbir bi bio drugačiji račun).
+ */
+export function parseMultiShot(raw: unknown, maxShots: number, totalSeconds: number): FalShot[] | null {
+  if (typeof raw !== "string" || raw.trim() === "") return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(parsed) || parsed.length < 2 || parsed.length > maxShots) return null;
+  const shots: FalShot[] = [];
+  let sum = 0;
+  for (const entry of parsed) {
+    if (!entry || typeof entry !== "object") return null;
+    const { prompt, duration } = entry as { prompt?: unknown; duration?: unknown };
+    const seconds = typeof duration === "string" ? Number(duration) : duration;
+    if (typeof prompt !== "string" || prompt.trim() === "" || prompt.length > SHOT_PROMPT_MAX) return null;
+    if (typeof seconds !== "number" || !Number.isInteger(seconds) || seconds < 1 || seconds > SHOT_SECONDS_MAX) return null;
+    sum += seconds;
+    shots.push({ prompt: prompt.trim(), duration: String(seconds) });
+  }
+  return sum === totalSeconds ? shots : null;
+}
 
 /** `capabilities.fal` reda kataloga, ili `undefined` kad ga red nema (današnje ponašanje). */
 export function falMapOf(capabilities: Record<string, unknown>): FalMap | undefined {
@@ -117,6 +158,17 @@ export function falInputFields(
  */
 export function falParams(params: Record<string, unknown>, map?: FalMap): Record<string, unknown> {
   const out: Record<string, unknown> = { ...params };
+  const multi = map?.multiPrompt;
+  if (multi && typeof multi.from === "string" && Object.hasOwn(out, multi.from)) {
+    const shots = parseMultiShot(out[multi.from], multi.maxShots, Number(out.duration));
+    delete out[multi.from];
+    // fal: „Either prompt or multi_prompt must be provided, but not both."
+    if (shots) {
+      delete out.prompt;
+      out[multi.to] = shots;
+      out.shot_type = "customize";
+    }
+  }
   for (const [key, rule] of Object.entries(map?.params ?? {})) {
     if (!Object.hasOwn(out, key) || !rule || typeof rule.to !== "string") continue;
     const value = out[key];

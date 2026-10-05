@@ -89,6 +89,19 @@ export const KLING_3: StudioModelSeed = {
       affectsPrice: true,
     },
     klingDuration(),
+    {
+      // Više scena u jednom klipu (Crea K18, V11): puni ga alat „Više scena", ne forma.
+      // `text` (ne `textarea`), da opis modela ostane prva tekstualna kontrola.
+      key: "scenes",
+      type: "text",
+      labelSr: "Scene",
+      labelEn: "Scenes",
+      helpSr: "Spisak scena koji pravi alat „Više scena”.",
+      helpEn: "The list of scenes made by the “Several scenes” tool.",
+      default: "",
+      max: 6000,
+      affectsPrice: false,
+    },
   ],
   priceRule: {
     unit: "second",
@@ -115,6 +128,16 @@ export const KLING_3: StudioModelSeed = {
     minDurationS: 5,
     maxDurationS: 10,
     tierByResolution: KLING_TIER_BY_RESOLUTION,
+    // fal OpenAPI šema `fal-ai/kling-video/v3/{standard,pro}/{text,image}-to-video`
+    // (pročitano 2026-10-05, Crea K18): prva slika je `start_image_url` (obavezno
+    // polje), zvuk je `generate_audio` (podrazumevano UKLJUČEN - bez preimenovanja
+    // „bez zvuka" bi se naplatio jeftinije, a fal napravio i naplatio zvuk), a više
+    // scena ide kao `multi_prompt` [{prompt, duration}].
+    fal: {
+      fields: { image: "start_image_url" },
+      params: { audio: { to: "generate_audio" } },
+      multiPrompt: { from: "scenes", to: "multi_prompt", maxShots: 6 },
+    },
   },
   sortOrder: 300,
 };

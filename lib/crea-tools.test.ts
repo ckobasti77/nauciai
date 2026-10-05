@@ -115,7 +115,7 @@ describe("registar alata", () => {
     for (const tool of CREA_TOOLS) if (tool.tier === "server") expect(tool.status).toBe("soon");
   });
 
-  test("K04 pušta format i proveru fotke, K09 sedam besplatnih alata za sliku, K10 editor, šablone i 3D foto, K11 i K12 izmene, K13 pravljenje, K14 likovi", () => {
+  test("K04 pušta format i proveru fotke, K09 sedam besplatnih alata za sliku, K10 editor, šablone i 3D foto, K11 i K12 izmene, K13 pravljenje, K14 likovi, K18 video", () => {
     const ready = CREA_TOOLS.filter((tool) => tool.status === "ready").map((tool) => tool.id);
     expect(ready).toEqual([
       "slika.format",
@@ -158,6 +158,11 @@ describe("registar alata", () => {
       "slika.nalepnice",
       "slika.logo",
       "slika.brend-kit",
+      // K18: Video · Napravi (V4, V11, V12) i Video · Izmeni (V5)
+      "video.poslednji-kadar",
+      "video.vise-scena",
+      "video.crtaj-pokret",
+      "video.produzi",
     ]);
     expect(toolById("slika.format")).toMatchObject({ tier: "local-code", featureIds: ["S27"], output: "image" });
     expect(toolById("slika.provera")).toMatchObject({
@@ -347,5 +352,31 @@ describe("K13: Slika · Napravi", () => {
     }
     expect(toolById("slika.probni-list")?.featureIds).toEqual(["S4", "S5"]);
     expect(toolById("slika.crtaj")?.featureIds).toEqual(["S9"]);
+  });
+});
+
+describe("K18: Video · Napravi i Izmeni", () => {
+  test("poslednji kadar je besplatan, radi od telefona i bez WebCodecs-a, čuva sliku", () => {
+    expect(toolById("video.poslednji-kadar")).toMatchObject({
+      tier: "local-code",
+      status: "ready",
+      mode: "napravi",
+      output: "image",
+      savesToGallery: true,
+      device: { minClass: "phone" },
+    });
+    expect(toolById("video.poslednji-kadar")?.device.requires).toBeUndefined();
+  });
+
+  test("više scena, crtaj pokret i produži: plaćeni, model i režim postoje u katalogu", () => {
+    for (const [id, mode] of [["video.vise-scena", "napravi"], ["video.crtaj-pokret", "napravi"], ["video.produzi", "izmeni"]] as const) {
+      const tool = toolById(id)!;
+      expect(tool, id).toMatchObject({ area: "video", mode, tier: "paid", status: "ready", output: "video" });
+      const price = tool.price;
+      if (price.kind !== "credits") throw new Error(id);
+      const model = STUDIO_MODELS.find((entry) => entry.slug === price.modelSlug)!;
+      expect(model.inputModes, id).toContain(price.inputMode);
+      expect(toolBadges(tool)).toEqual(["krediti"]);
+    }
   });
 });

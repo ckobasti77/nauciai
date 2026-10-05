@@ -1055,6 +1055,9 @@ export function StudioPage({
           shellMode={modeDef.id}
           dropDisabled={activeJobId !== null}
           createExtras={area === "slika" && modeDef.id === "napravi"}
+          videoExtras={area === "video" && modeDef.id === "napravi"}
+          // Video (K18): vidljiv izbor ulaznog režima među onima koje ovaj režim ljuske nudi.
+          {...(area === "video" && modeDef.models?.inputModes ? { allowedInputModes: modeDef.models.inputModes } : {})}
           canSaveStyles={state?.hasStudioAccess === true}
           onOpenSheet={(prompt, modelSlug) => {
             // Probni list (S4) je alat Napravi: dobija opis i model iz composera.

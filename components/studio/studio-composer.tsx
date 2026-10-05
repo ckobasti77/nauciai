@@ -3,8 +3,10 @@
 import {
   ChevronDown,
   ChevronUp,
+  Clapperboard,
   Coins,
   FileText,
+  Film,
   FlaskConical,
   Grid3x3,
   Image as ImageIcon,
@@ -42,12 +44,17 @@ import {
 import { MicButton } from "@/components/crea/create/mic-button";
 import { PromptHelper } from "@/components/crea/create/prompt-helper";
 import { NightToggle } from "@/components/crea/night-toggle";
+import { deskCount, directorIsEmpty, EMPTY_DIRECTOR, type DirectorState } from "@/components/crea/video/director-state";
+import type { DirectorTab } from "@/components/crea/video/director-panel";
+import type { PickedFrame } from "@/components/crea/video/last-frame-picker";
 import { CreditIcon } from "@/components/studio/credit-icon";
 import { FullScreenDropOverlay, Preview } from "@/components/studio/drop-slot";
 import { ModelPickerPanel } from "@/components/studio/model-picker";
+import { ModeSwitcher } from "@/components/studio/mode-switcher";
 import { ParamControl } from "@/components/studio/param-control";
 import { useParamValues, type ParamFormState } from "@/components/studio/param-form";
 import { ModelMark } from "@/components/studio/provider-mark";
+import { SourceJobPicker } from "@/components/studio/source-job-picker";
 import { useSlotUpload } from "@/components/studio/use-slot-upload";
 import { cn } from "@/components/ui/primitives";
 import { Spinner } from "@/components/ui/spinner";
@@ -61,11 +68,15 @@ import type { PriceRule } from "@/convex/studioPricing";
 import { autoSentence, pickAuto } from "@/lib/crea-auto";
 import { CREA_CREATE_COPY } from "@/lib/crea-create-copy";
 import { CREA_NIGHT_COPY, CREA_PICK_COPY, fillCopy } from "@/lib/crea-copy";
+import { composeVideoPrompt, effectInputMode, effectParamsFor, modelMakesSound } from "@/lib/crea-director";
 import { buildDraftOrder, draftPairFor, orderCredits } from "@/lib/crea-draft";
 import { CREA_MENTION_COPY } from "@/lib/crea-elements-copy";
 import { COMPOSED_PROMPT_MAX, composeCreatePrompt } from "@/lib/crea-prompt-compose";
 import { styleById } from "@/lib/crea-styles";
 import { VARIATION_COUNTS, variationPlan, variationsCredits } from "@/lib/crea-variations";
+import { CREA_VIDEO_COPY } from "@/lib/crea-video-copy";
+import { VEO_INLINE_MAX_BYTES } from "@/lib/crea-video-extend";
+import type { VideoEffect } from "@/lib/crea-video-effects";
 import type { Locale } from "@/lib/i18n";
 import { firstFileMode, modelInputCapabilities, modelRestrictions } from "@/lib/studio-capabilities";
 import { readLastModelByKind, writeLastModel } from "@/lib/studio-last-model";
@@ -122,6 +133,9 @@ import {
 
 /** Panel „Izgled" (K13, S8) se učitava tek kad ga korisnik otvori - 40 stilova ne ulazi u početni JS. */
 const LookPanel = dynamic(() => import("@/components/crea/create/look-panel"), { ssr: false });
+/** Panel „Režija" (K18, V6-V9) i izbor poslednjeg kadra (V4) - isto lenjo, samo za Video · Napravi. */
+const DirectorPanel = dynamic(() => import("@/components/crea/video/director-panel"), { ssr: false });
+const LastFramePicker = dynamic(() => import("@/components/crea/video/last-frame-picker"), { ssr: false });
 
 export type RegenerateSeed = {
   id: string;
@@ -446,6 +460,40 @@ function PromotedChipItem({
 }
 
 /** Izabran deo izgleda (stil, kamera, paleta) kao pilula sa „x" (K13, S8). */
+/** Dugme dodatka ispod opisa (Režija, Pokret, Zvuk, Poslednji kadar - K18), isti oblik kao „Izgled". */
+function ExtraButton({
+  icon: Icon,
+  label,
+  title,
+  open,
+  disabled,
+  onClick,
+}: {
+  icon: React.ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
+  label: string;
+  title?: string;
+  open: boolean;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-expanded={open}
+      title={title}
+      disabled={disabled}
+      className={cn(
+        "inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border-2 border-ink px-3 py-1.5 text-xs font-black shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-40 motion-reduce:transition-none motion-reduce:hover:translate-y-0",
+        open ? "bg-ink text-paper-strong" : "bg-paper-strong text-ink",
+      )}
+    >
+      <Icon aria-hidden className="size-3.5" />
+      <span>{label}</span>
+    </button>
+  );
+}
+
 function LookChip({ label, removeLabel, onRemove }: { label: string; removeLabel: string; onRemove: () => void }) {
   return (
     <span className="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-full border border-ink/30 bg-yellow/30 py-0.5 pl-3 pr-0.5 text-xs font-black text-ink">
@@ -454,7 +502,8 @@ function LookChip({ label, removeLabel, onRemove }: { label: string; removeLabel
         type="button"
         onClick={onRemove}
         aria-label={removeLabel}
-        className="inline-flex size-8 items-center justify-center rounded-full text-ink hover:bg-paper-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink"
+        // Meta na dodir 44 px (K18): nevidljivo proširenje oko krstića, izgled čipa ostaje isti.
+        className="relative inline-flex size-8 items-center justify-center rounded-full text-ink after:absolute after:-inset-1.5 after:content-[''] hover:bg-paper-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink"
       >
         <X aria-hidden="true" className="size-3.5" />
       </button>
@@ -492,6 +541,8 @@ export function StudioComposer({
   queueNotice = null,
   elements,
   elementsHref = null,
+  videoExtras = false,
+  allowedInputModes,
 }: {
   models: StudioModel[];
   activeModel: StudioModel;
@@ -541,6 +592,16 @@ export function StudioComposer({
   elements?: readonly MentionElement[];
   /** Ekran „Likovi" - za „Napravi prvi" kad korisnik još nema elemenata. */
   elementsHref?: string | null;
+  /**
+   * Video · Napravi (K18): režija (pokret kamere, efekti, pult; V6-V9) i „Poslednji
+   * kadar iz videa" (V4) - kadar se izvuče na uređaju i postane prvi kadar posla.
+   */
+  videoExtras?: boolean;
+  /**
+   * Ulazni režimi koje režim ljuske nudi (npr. Video · Napravi: opis, slika, prvi i
+   * poslednji kadar, reference). Uz dva ili više, iznad polja stoji vidljiv izbor (K18).
+   */
+  allowedInputModes?: readonly string[];
 }) {
   const isDocked = placement === "docked";
   const createMode = variant === "create" && createExtras;
@@ -619,7 +680,15 @@ export function StudioComposer({
     first: seed?.files?.image?.[0] ?? null,
     last: seed?.files?.image?.[1] ?? null,
   }));
-  const [sourceJobId] = useState<Id<"generationJobs"> | null>(null);
+  // Nastavak (Gemini Omni `video`): izbor ranije generacije istog modela (K18, SourceJobPicker).
+  const [sourceJobId, setSourceJobId] = useState<Id<"generationJobs"> | null>(null);
+  // Video (K18): režija, otvoren panel, izbor poslednjeg kadra i video iz kojeg je kadar.
+  const [director, setDirector] = useState<DirectorState>(EMPTY_DIRECTOR);
+  const [directorTab, setDirectorTab] = useState<DirectorTab | null>(null);
+  const [framePickerOpen, setFramePickerOpen] = useState(false);
+  const [continuedFrom, setContinuedFrom] = useState<{ jobId: Id<"generationJobs">; storageId: string } | null>(null);
+  // Prazan kadar u „prvi i poslednji" koji je korisnik kliknuo - sledeći fajl ide baš u njega.
+  const [frameTarget, setFrameTarget] = useState<"first" | "last" | null>(null);
 
   // @pominjanje (K14): pomenuti elementi i njihove slike kao reference. Iz „samo opis" se
   // prelazi u režim sa referencama (`image_multi` / `reference`), a nazad kad nestanu.
@@ -738,6 +807,12 @@ export function StudioComposer({
   const modelAcceptsFiles = useMemo(
     () => activeModel.inputModes.some((mode) => slotsForMode(activeModel.inputSpec, mode).length > 0),
     [activeModel.inputModes, activeModel.inputSpec],
+  );
+
+  // Režimi koje režim ljuske nudi, redom modela; izbor se vidi tek kad ih ima bar dva (K18).
+  const switchableModes = useMemo(
+    () => (allowedInputModes ? activeModel.inputModes.filter((mode) => allowedInputModes.includes(mode)) : []),
+    [allowedInputModes, activeModel.inputModes],
   );
 
   function switchMode(mode: string) {
@@ -880,12 +955,27 @@ export function StudioComposer({
 
   // Izgled (S8): dodaje se opisu tek pri slanju; „Modelu ide:" pokazuje tačan tekst.
   const composed = createMode && promptControl && !lookIsEmpty(look) ? composeCreatePrompt(prompt, look) : null;
+  // Režija videa (K18, V6-V9): pokret, efekat i pult se dodaju opisu tek pri slanju, po modelu.
+  const videoComposed =
+    videoExtras && promptControl && !directorIsEmpty(director)
+      ? composeVideoPrompt({
+          prompt,
+          move: director.move,
+          moveIntensity: director.moveIntensity,
+          effect: director.effect,
+          desk: director.desk,
+          model: activeModel,
+        })
+      : null;
+  const directedText = composed?.text ?? videoComposed?.text ?? null;
+  const effectNeedsPhoto = director.effect?.needs === "foto" && (files.image?.length ?? 0) === 0 && inputMode === "image";
   // @pominjanje: `@maja` postaje ime, a na kraj ide rečenica koja slika je ko (K14).
   const withElements = (text: string) =>
     elementMapping?.ok ? promptWithElements(text, elements ?? [], elementMapping.refs) : text;
-  const elementText = elementMapping?.ok ? withElements(composed?.text ?? prompt) : null;
+  const elementText = elementMapping?.ok ? withElements(directedText ?? prompt) : null;
   const elementsOverBy = elementText !== null ? Math.max(0, elementText.length - COMPOSED_PROMPT_MAX) : 0;
-  const lookTooLong = (composed !== null && composed.overBy > 0) || elementsOverBy > 0;
+  const lookTooLong =
+    (composed !== null && composed.overBy > 0) || (videoComposed !== null && videoComposed.overBy > 0) || elementsOverBy > 0;
   const generateLabel = night ? CREA_NIGHT_COPY.generate[locale] : locale === "sr" ? "Generiši" : "Generate";
 
   // ── Auto izbor (Crea S3) i „Probaj jeftino" (S4/V3) ──
@@ -943,6 +1033,57 @@ export function StudioComposer({
     for (const [key, value] of Object.entries(pick.overrides)) form.setValue(key, value);
   }
 
+  // Efekat (K18, V8) traži svoj model i režim: ako ih trenutni model nema, prelazi se na
+  // najjeftiniji model efekta (isti put kao Auto), a trajanje efekta ide u parametre posla.
+  function handleEffectPicked(effect: VideoEffect) {
+    const mode = effectInputMode(effect);
+    if (effect.models.includes(activeModel.slug) && activeModel.inputModes.includes(mode)) {
+      if (mode !== inputMode) switchMode(mode);
+      for (const [key, value] of Object.entries(effectParamsFor(effect, activeModel, mode))) form.setValue(key, value);
+      return;
+    }
+    const next = effect.models
+      .map((slug) => models.find((model) => model.slug === slug))
+      .find((model): model is StudioModel => model !== undefined && model.inputModes.includes(mode) && isModelAvailable(model));
+    if (!next) {
+      setAutoNote(CREA_VIDEO_COPY.effectNoModel[locale]);
+      return;
+    }
+    setAutoNote(fillCopy(CREA_VIDEO_COPY.effectModel[locale], { model: modelLabel(next, locale) }));
+    handleSelectNewModel(next, { keepAutoNote: true });
+    setPendingAuto({ slug: next.slug, mode, overrides: effectParamsFor(effect, next, mode) });
+  }
+
+  // Poslednji kadar (K18, V4): izvučen na uređaju, šalje se kao običan ulaz i postaje prvi kadar.
+  const imageMode = activeModel.inputModes.includes("first_last") && inputMode === "first_last"
+    ? "first_last"
+    : activeModel.inputModes.includes("image")
+      ? "image"
+      : activeModel.inputModes.includes("first_last")
+        ? "first_last"
+        : null;
+  async function handleFramePicked(picked: PickedFrame) {
+    if (!imageMode) {
+      setStatusMessage(CREA_VIDEO_COPY.frameNoImageMode[locale]);
+      return;
+    }
+    handleUploadingChange("kadar", true);
+    try {
+      const uploaded = await uploadFile(picked.file, "image", () => {});
+      if (imageMode !== inputMode) switchMode(imageMode);
+      if (imageMode === "first_last") setFrames((prev) => ({ ...prev, first: uploaded }));
+      else setFiles((prev) => ({ ...prev, image: [uploaded] }));
+      setContinuedFrom(picked.sourceJobId && uploaded.storageId ? { jobId: picked.sourceJobId, storageId: uploaded.storageId } : null);
+      setFramePickerOpen(false);
+      setStatusMessage(CREA_VIDEO_COPY.frameReady[locale]);
+      setTimeout(() => setStatusMessage(null), 4000);
+    } catch (thrown) {
+      setStatusMessage(uploadErrorMessage(thrown instanceof Error ? thrown.message : String(thrown), locale));
+    } finally {
+      handleUploadingChange("kadar", false);
+    }
+  }
+
   const draftPair = useMemo(() => draftPairFor(activeModel.slug, inputMode), [activeModel.slug, inputMode]);
   const draftModel = draftPair ? models.find((model) => model.slug === draftPair.draft.modelSlug) : undefined;
   const sameModelDraft = draftPair !== null && draftPair.draft.modelSlug === draftPair.refine.modelSlug;
@@ -966,19 +1107,25 @@ export function StudioComposer({
   const isPromptNeeded = promptRequired(activeModel.inputSpec, inputMode);
   const promptMissing = isPromptNeeded && prompt.trim().length === 0;
 
+  // Google prima video ugrađen u zahtev do 15 MB (Veo produženje) - kaže se pre slanja, ne posle rezervacije.
+  const inlineProblem =
+    activeModel.provider === "google" && (effectiveFiles.video ?? []).some((file) => file.size > VEO_INLINE_MAX_BYTES)
+      ? CREA_VIDEO_COPY.extendProblems.prevelik[locale]
+      : null;
+
   const block = useMemo(
     () =>
       generateBlock({
         state: studioState,
         balance,
         credits,
-        missingInputMessage: elementProblem ?? missingInputMessage(missing, locale),
+        missingInputMessage: elementProblem ?? inlineProblem ?? missingInputMessage(missing, locale),
         promptMissing,
         quantityMissing: quantitySource !== null && measured[quantitySource.param] === undefined,
         sourceMissing: sourceRequired && sourceJobId === null,
         uploading: isUploading,
       }),
-    [studioState, balance, credits, missing, locale, promptMissing, quantitySource, measured, sourceRequired, sourceJobId, isUploading, elementProblem],
+    [studioState, balance, credits, missing, locale, promptMissing, quantitySource, measured, sourceRequired, sourceJobId, isUploading, elementProblem, inlineProblem],
   );
 
   // Automatsko prilagođavanje visine textarea polja
@@ -1198,7 +1345,8 @@ export function StudioComposer({
       const slots = slotsForMode(activeModel.inputSpec, targetMode);
       if (targetMode === "first_last") {
         const accept = slots[0]?.accept ?? ["image/*"];
-        const which: "first" | "last" = frames.first ? "last" : "first";
+        const which: "first" | "last" = frameTarget ?? (frames.first ? "last" : "first");
+        setFrameTarget(null);
         await uploadInto("image", { max: 1, accept }, first, (uploaded) =>
           setFrames((prev) => ({ ...prev, [which]: uploaded })),
         );
@@ -1304,13 +1452,17 @@ export function StudioComposer({
   function submit() {
     if (block !== null || isPending || isUploading || lookTooLong) return;
 
-    const finalText = elementText ?? composed?.text ?? null;
+    const finalText = elementText ?? directedText;
+    // V4: prvi kadar je izvučen iz ranijeg videa - nov klip je njegov nastavak u stablu verzija.
+    const continuedImage = inputMode === "first_last" ? frames.first : inputMode === "image" ? (files.image?.[0] ?? null) : null;
+    const continues = continuedFrom !== null && continuedImage?.storageId === continuedFrom.storageId;
     onGenerate(
       {
         params: finalText !== null && promptControl ? { ...baseParams, [promptControl.key]: finalText } : baseParams,
         inputMode,
         inputs: inputsPayload(payloadFiles),
         ...(sourceRequired && sourceJobId ? { sourceJobId } : {}),
+        ...(continues && continuedFrom ? { parentJobId: continuedFrom.jobId, derivation: "produzenje" as const } : {}),
         ...(night ? { deliveryMode: "night" as const } : {}),
         ...(plan.kind === "parallel" ? { variations: plan.count } : {}),
       },
@@ -1324,7 +1476,8 @@ export function StudioComposer({
   // 3. Ostali parametri (trajanje, broj slika...)
   const promotedChips = useMemo(() => {
     const visible = visibleControls(activeModel.paramSpec, inputMode);
-    const nonPrompt = visible.filter((c) => c.type !== "textarea" && c.key !== "prompt");
+    // `text` kontrole (npr. scene za Kling, K18) puni alat, ne forma - nemaju čip.
+    const nonPrompt = visible.filter((c) => c.type !== "textarea" && c.type !== "text" && c.key !== "prompt");
 
     const resolutionControl = nonPrompt.find(
       (c) => c.key === "resolution" || c.key === "quality" || c.key === "resolution_mode",
@@ -1569,8 +1722,29 @@ export function StudioComposer({
           isCollapsed && "pointer-events-none",
         )}
       >
-        {/* Priloženi fajlovi na glavnom inputu (Slika 3) */}
-        {attachedInputs.length > 0 ? (
+        {/* Vidljiv izbor ulaznog režima (K18): opis, slika, prvi i poslednji kadar, reference… */}
+        {switchableModes.length > 1 ? (
+          <div className="mb-3">
+            <ModeSwitcher modes={switchableModes} value={inputMode} onChange={switchMode} locale={locale} disabled={isPending} framed={false} />
+          </div>
+        ) : null}
+
+        {/* Nastavak (Gemini Omni `video`, K18): izbor ranije generacije istog modela */}
+        {sourceRequired ? (
+          <div className="mb-3">
+            <SourceJobPicker
+              modelSlug={activeModel.slug}
+              kind={activeModel.kind}
+              value={sourceJobId}
+              onChange={setSourceJobId}
+              locale={locale}
+              disabled={isPending}
+            />
+          </div>
+        ) : null}
+
+        {/* Priloženi fajlovi na glavnom inputu (Slika 3); u „prvi i poslednji" i prazni kadrovi */}
+        {attachedInputs.length > 0 || inputMode === "first_last" ? (
           <div className="mb-3 flex flex-wrap items-center gap-2">
             {attachedInputs.map((att) => (
               <div
@@ -1594,8 +1768,32 @@ export function StudioComposer({
               </div>
             ))}
 
+            {/* Prazan početni/završni kadar (K18): klik bira fajl baš za taj kadar */}
+            {inputMode === "first_last"
+              ? (["first", "last"] as const)
+                  .filter((which) => frames[which] === null)
+                  .map((which) => (
+                    <button
+                      key={which}
+                      type="button"
+                      disabled={isPending}
+                      onClick={() => {
+                        setFrameTarget(which);
+                        if (fileInputRef.current) {
+                          fileInputRef.current.accept = "image/png,image/jpeg,image/webp";
+                          fileInputRef.current.click();
+                        }
+                      }}
+                      className="surface-media inline-flex size-16 shrink-0 flex-col items-center justify-center gap-0.5 border-2 border-dashed border-ink/40 bg-paper/50 px-1 text-center type-eyebrow-sm leading-tight text-ink/80 transition hover:border-ink hover:bg-paper hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-40"
+                    >
+                      <ImagePlus aria-hidden="true" className="size-4" />
+                      {FRAME_LABELS[which][locale]}
+                    </button>
+                  ))
+              : null}
+
             {/* Dugme za dodavanje novih fajlova (Slika 3) */}
-            {modelAcceptsFiles ? (
+            {modelAcceptsFiles && inputMode !== "first_last" ? (
               <button
                 type="button"
                 disabled={isPending}
@@ -1657,21 +1855,105 @@ export function StudioComposer({
           />
         ) : null}
 
-        {/* Van „Slika · Napravi" @pominjanje ima svoje dugme i pregled teksta za model. */}
-        {elements !== undefined && !createMode ? (
+        {/* Van „Slika · Napravi" @pominjanje ima svoje dugme i pregled teksta za model;
+            u Video · Napravi (K18) uz njega i režija i poslednji kadar. */}
+        {(elements !== undefined || videoExtras) && !createMode ? (
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <MentionButton locale={locale} onClick={mentions.openPicker} disabled={isPending} />
+            {elements !== undefined ? <MentionButton locale={locale} onClick={mentions.openPicker} disabled={isPending} /> : null}
+            {videoExtras ? (
+              <>
+                <ExtraButton
+                  icon={Clapperboard}
+                  label={CREA_VIDEO_COPY.direction[locale]}
+                  title={CREA_VIDEO_COPY.directionTitle[locale]}
+                  open={directorTab !== null}
+                  disabled={isPending}
+                  onClick={() => setDirectorTab((open) => (open === null ? "pokret" : null))}
+                />
+                <ExtraButton
+                  icon={Plus}
+                  label={CREA_VIDEO_COPY.addMove[locale]}
+                  open={directorTab === "pokret"}
+                  disabled={isPending}
+                  onClick={() => setDirectorTab("pokret")}
+                />
+                <ExtraButton
+                  icon={Music}
+                  label={CREA_VIDEO_COPY.addSound[locale]}
+                  open={false}
+                  disabled={isPending}
+                  onClick={() => setDirectorTab("pult")}
+                />
+                {imageMode ? (
+                  <ExtraButton
+                    icon={Film}
+                    label={CREA_VIDEO_COPY.lastFrame[locale]}
+                    title={CREA_VIDEO_COPY.lastFrameTitle[locale]}
+                    open={framePickerOpen}
+                    disabled={isPending}
+                    onClick={() => setFramePickerOpen((open) => !open)}
+                  />
+                ) : null}
+                {director.move ? (
+                  <LookChip
+                    label={`${director.move.label[locale]}${director.move.intensity ? ` · ${CREA_VIDEO_COPY.intensities[director.moveIntensity][locale]}` : ""}`}
+                    removeLabel={fillCopy(CREA_VIDEO_COPY.removeChip[locale], { what: director.move.label[locale] })}
+                    onRemove={() => setDirector({ ...director, move: null })}
+                  />
+                ) : null}
+                {director.effect ? (
+                  <LookChip
+                    label={director.effect.label[locale]}
+                    removeLabel={fillCopy(CREA_VIDEO_COPY.removeChip[locale], { what: director.effect.label[locale] })}
+                    onRemove={() => setDirector({ ...director, picked: [], effect: null })}
+                  />
+                ) : null}
+                {deskCount(director.desk) > 0 ? (
+                  <LookChip
+                    label={fillCopy(CREA_VIDEO_COPY.deskSummary[locale], { n: deskCount(director.desk) })}
+                    removeLabel={fillCopy(CREA_VIDEO_COPY.removeChip[locale], { what: CREA_VIDEO_COPY.tabs.pult[locale] })}
+                    onRemove={() => setDirector({ ...director, desk: {} })}
+                  />
+                ) : null}
+                {continuedFrom ? (
+                  <span className="inline-flex min-h-8 items-center gap-1 rounded-full border border-ink/30 bg-paper px-3 text-xs font-black text-ink">
+                    <Film aria-hidden="true" className="size-3.5" />
+                    {CREA_VIDEO_COPY.continueFrom[locale]}
+                  </span>
+                ) : null}
+              </>
+            ) : null}
           </div>
         ) : null}
-        {elementText !== null && !createMode ? (
+        {videoExtras && directorTab !== null ? (
+          <DirectorPanel
+            key={directorTab}
+            locale={locale}
+            state={director}
+            onChange={setDirector}
+            onEffectPicked={handleEffectPicked}
+            onClose={() => setDirectorTab(null)}
+            initialTab={directorTab}
+            modelMakesSound={modelMakesSound(activeModel)}
+          />
+        ) : null}
+        {videoExtras && framePickerOpen ? (
+          <LastFramePicker locale={locale} onPicked={handleFramePicked} onClose={() => setFramePickerOpen(false)} />
+        ) : null}
+        {videoExtras && effectNeedsPhoto ? (
+          <p role="note" className="pt-1 text-xs font-black text-ink">
+            {CREA_VIDEO_COPY.effectNeedsPhoto[locale]}
+          </p>
+        ) : null}
+        {(elementText ?? videoComposed?.text ?? null) !== null && !createMode ? (
           <details className="mt-2 text-xs font-bold text-muted">
             <summary className="cursor-pointer select-none py-1 text-ink">{CREA_CREATE_COPY.preview[locale]}</summary>
-            <p className="mt-1 whitespace-pre-line break-words font-semibold">{elementText}</p>
+            <p className="mt-1 whitespace-pre-line break-words font-semibold">{elementText ?? videoComposed?.text}</p>
           </details>
         ) : null}
-        {elementsOverBy > 0 && !createMode ? (
+        {(elementsOverBy > 0 || (videoComposed?.overBy ?? 0) > 0) && !createMode ? (
           <p role="alert" className="pt-1 text-xs font-black text-red-700 dark:text-red-300">
-            {fillCopy(CREA_CREATE_COPY.tooLong[locale], { n: elementsOverBy })}
+            {fillCopy(CREA_CREATE_COPY.tooLong[locale], { n: elementsOverBy || videoComposed?.overBy || 0 })}
           </p>
         ) : null}
 

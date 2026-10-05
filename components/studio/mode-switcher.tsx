@@ -21,12 +21,15 @@ export function ModeSwitcher({
   onChange,
   locale,
   disabled = false,
+  framed = true,
 }: {
   modes: string[];
   value: string;
   onChange: (mode: string) => void;
   locale: Locale;
   disabled?: boolean;
+  /** `false` unutar već uokvirenog composera (K18): tanka linija umesto drugog punog okvira. */
+  framed?: boolean;
 }) {
   if (modes.length < 2) return null;
 
@@ -40,7 +43,7 @@ export function ModeSwitcher({
       <div
         role="group"
         aria-label={locale === "sr" ? "Šta daješ modelu" : "What you give the model"}
-        className="surface-inset flex flex-wrap gap-1 border-2 border-ink bg-paper p-1"
+        className={cn("surface-inset flex flex-wrap gap-1 bg-paper p-1", framed ? "border-2 border-ink" : "border border-line")}
       >
         {modes.map((mode) => {
           const active = mode === value;
@@ -53,7 +56,7 @@ export function ModeSwitcher({
               disabled={disabled}
               onClick={() => select(mode)}
               className={cn(
-                "rounded-full border-2 border-ink px-3 py-1.5 text-sm font-black transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-60",
+                "min-h-11 rounded-full border-2 border-ink px-3 py-1.5 text-sm font-black transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-60",
                 active ? "bg-ink text-paper-strong" : "bg-paper-strong text-ink hover:-translate-y-0.5",
               )}
             >

@@ -96,6 +96,7 @@ export function ToolRunner<TExtra>({
   run,
   renderResult,
   icon,
+  onSaved,
   children,
 }: {
   tool: CreaTool;
@@ -122,6 +123,8 @@ export function ToolRunner<TExtra>({
   run: (context: ToolRunContext) => Promise<CreaToolOutput<TExtra>>;
   renderResult: (output: CreaToolOutput<TExtra>) => ReactNode;
   icon?: ReactNode;
+  /** Rezultat je sačuvan kao rad (K18: „Nastavi odavde" vodi dalje sa tim radom). */
+  onSaved?: (jobId: Id<"generationJobs">) => void;
   children: (state: { busy: boolean }) => ReactNode;
 }) {
   const reduceMotion = useReducedMotion();
@@ -231,6 +234,7 @@ export function ToolRunner<TExtra>({
         parentJobId,
       });
       setSave(result.ok ? { status: "saved" } : { status: "error", message: creaSaveErrorMessage(result.reason, locale) });
+      if (result.ok) onSaved?.(result.jobId);
     } catch (error) {
       setSave({
         status: "error",

@@ -51,10 +51,10 @@ describe("CREA_MODES", () => {
         expect(mode.blurb.sr.trim()).not.toBe("");
         expect(mode.blurb.en.trim()).not.toBe("");
         if (mode.status === "soon") expect(mode.models).toBeUndefined();
-        // Režim koji radi nudi modele ili alate (K04: Slika · Alati); oba samo Slika · Izmeni
-        // (K11: composer „opiši izmenu" + alati za izmenu) i Slika · Napravi (K13: probni
-        // list, Ko · Gde · Kako, crtež pored composera).
-        else if (mode.tools && !(area === "slika" && (mode.id === "izmeni" || mode.id === "napravi"))) {
+        // Režim koji radi nudi modele ili alate (K04: Slika · Alati); oba samo Napravi i Izmeni:
+        // Slika (K11: alati za izmenu, K13: probni list, Ko · Gde · Kako, crtež) i Video (K18:
+        // poslednji kadar, više scena, crtaj pokret; produži klip).
+        else if (mode.tools && !((area === "slika" || area === "video") && (mode.id === "izmeni" || mode.id === "napravi"))) {
           expect(mode.models, `${area}/${mode.id}`).toBeUndefined();
         } else expect(mode.models).toBeDefined();
       }
@@ -121,10 +121,10 @@ describe("modelsForMode", () => {
     expect(slugsOf("zvuk", "uredjivac").sort()).toEqual(["audio-isolation", "stt"]);
   });
 
-  test("režim-nastavak (Gemini Omni `video`) se ne nudi kao izmena: forma još nema izbor izvora", () => {
+  test("režim-nastavak (Gemini Omni `video`) je u Izmeni od K18: composer bira raniji rad (SourceJobPicker)", () => {
     const omni = STUDIO_MODELS.find((model) => model.slug === "gemini-omni")!;
-    expect(usableInputModes(omni)).not.toContain("video");
-    expect(slugsOf("video", "izmeni")).not.toContain("gemini-omni");
+    expect(usableInputModes(omni)).toContain("video");
+    expect(slugsOf("video", "izmeni")).toContain("gemini-omni");
     expect(slugsOf("video", "napravi")).toContain("gemini-omni");
   });
 
@@ -163,8 +163,9 @@ describe("modeOfModel", () => {
     expect(modeOfModel(model("music"))).toEqual({ area: "zvuk", mode: "muzika" });
   });
 
-  test("nepoznat ulazni režim ne obara izbor", () => {
-    expect(modeOfModel(model("gemini-omni"), "video")).toEqual({ area: "video", mode: "napravi" });
+  test("nepoznat ulazni režim ne obara izbor; nastavak (Omni `video`) vodi u Izmeni od K18", () => {
+    expect(modeOfModel(model("gemini-omni"), "video")).toEqual({ area: "video", mode: "izmeni" });
+    expect(modeOfModel(model("gemini-omni"), "nepostojeci")).toEqual({ area: "video", mode: "napravi" });
   });
 });
 

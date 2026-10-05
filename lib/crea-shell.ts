@@ -119,10 +119,11 @@ export const CREA_MODES: Record<CreaArea, readonly CreaModeDef[]> = {
       label: { sr: "Napravi", en: "Create" },
       icon: "WandSparkles",
       models: { inputModes: ["text", "image", "first_last", "reference"] },
+      tools: true,
       status: "ready",
       blurb: {
-        sr: "Od opisa ili od slike napravi kratak video, često i sa zvukom.",
-        en: "Turn a description or a picture into a short video, often with sound.",
+        sr: "Od opisa ili od slike napravi kratak video, uz režiju kamere i efekte - ili uzmi alat: nastavi od poslednjeg kadra, više scena, crtaj pokret.",
+        en: "Turn a description or a picture into a short video, with camera direction and effects - or pick a tool: continue from the last frame, several scenes, draw the motion.",
       },
     },
     {
@@ -130,10 +131,11 @@ export const CREA_MODES: Record<CreaArea, readonly CreaModeDef[]> = {
       label: { sr: "Izmeni", en: "Edit" },
       icon: "Brush",
       models: { inputModes: ["video"] },
+      tools: true,
       status: "ready",
       blurb: {
-        sr: "Okači svoj video i napiši šta da se promeni, ili ga produži.",
-        en: "Upload your video and write what should change, or make it longer.",
+        sr: "Okači svoj video i napiši šta da se promeni - ili uzmi alat i produži ga napred ili nazad.",
+        en: "Upload your video and write what should change - or pick a tool and extend it forward or backward.",
       },
     },
     {
@@ -402,17 +404,14 @@ export type CreaModelLike = {
 };
 
 /**
- * Ulazni režimi koje forma ume da pokrene. Režim-nastavak (`capabilities.continuation`,
- * npr. Gemini Omni `video`) traži izbor ranije generacije, a taj izbor forma još
- * nema (nalaz K01 0.2-13) - zato se ne računa.
+ * Ulazni režimi koje forma ume da pokrene. Do K18 se režim-nastavak
+ * (`capabilities.continuation`, npr. Gemini Omni `video`) izostavljao jer forma nije
+ * imala izbor ranije generacije (nalaz K01 0.2-13); K18 je uveo taj izbor
+ * (`SourceJobPicker` u composeru), pa su sada svi režimi modela upotrebljivi.
+ * Režim-nastavak nema slot za fajl, pa ga „izlaz kao ulaz" (`inputModeWithSlot`) ne bira.
  */
 export function usableInputModes(model: CreaModelLike): string[] {
-  const continuation = model.capabilities.continuation;
-  const blocked =
-    continuation && typeof continuation === "object" && "mode" in continuation
-      ? (continuation as { mode?: unknown }).mode
-      : undefined;
-  return model.inputModes.filter((mode) => mode !== blocked);
+  return [...model.inputModes];
 }
 
 function ruleInputMode(model: CreaModelLike, area: CreaArea, def: CreaModeDef): string | undefined {

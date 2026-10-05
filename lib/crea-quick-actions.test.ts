@@ -36,8 +36,9 @@ function byId(actions: ReturnType<typeof quickActionsFor>) {
 describe("brze akcije za sliku", () => {
   const actions = byId(quickActionsFor(job(), STUDIO_MODELS));
 
-  test("slika dobija svih sedam akcija, redom", () => {
-    expect(quickActionsFor(job(), STUDIO_MODELS).map((action) => action.id)).toEqual([...QUICK_ACTION_IDS]);
+  test("slika dobija svih sedam akcija za sliku, redom (K18: „Nastavi” i „Produži” su samo za video)", () => {
+    const imageActions = QUICK_ACTION_IDS.filter((id) => id !== "nastavi" && id !== "produzi");
+    expect(quickActionsFor(job(), STUDIO_MODELS).map((action) => action.id)).toEqual(imageActions);
     for (const id of QUICK_ACTION_IDS) expect(QUICK_ACTION_LABELS[id].sr.length).toBeGreaterThan(0);
   });
 
@@ -98,6 +99,9 @@ describe("kada se akcija NE nudi", () => {
     const model = STUDIO_MODELS.find((entry) => entry.slug === video.ozvuci.model)!;
     expect(Object.values(model.inputSpec).some((spec) => spec && "video" in spec)).toBe(true);
     expect(video.izmeni).toMatchObject({ area: "video", mode: "izmeni", input: "rad1" });
+    // K18: poslednji kadar (V4) i produženje (V5) vode u svoj alat sa videom kao ulazom.
+    expect(video.nastavi).toEqual({ area: "video", mode: "napravi", tool: "video.poslednji-kadar", input: "rad1" });
+    expect(video.produzi).toEqual({ area: "video", mode: "izmeni", tool: "video.produzi", input: "rad1" });
     expect(video.uvecaj).toBeUndefined();
     expect(video.animiraj).toBeUndefined();
     expect(video.referenca).toBeUndefined();

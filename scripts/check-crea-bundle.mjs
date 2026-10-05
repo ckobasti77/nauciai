@@ -50,6 +50,8 @@ const MARKERS = [
   { pkg: "perfect-freehand", marker: "runningLength" },
   { pkg: "postprocessing", marker: "CUSTOM_INPUT_DOMAIN" },
   { pkg: "mediabunny", marker: "Cannot add track after output has been started" },
+  // K18: čitanje videa (poslednji kadar) koristi mediabunny `Input`, bez izlaza - drugi marker.
+  { pkg: "mediabunny", marker: "Input has been disposed" },
   { pkg: "wavesurfer.js", marker: "wavesurfer" },
   { pkg: "@xzdarcy/react-timeline-editor", marker: "timeline-editor" },
 ];
