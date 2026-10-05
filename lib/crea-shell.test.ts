@@ -20,6 +20,7 @@ import {
   usableInputModes,
   type CreaArea,
 } from "@/lib/crea-shell";
+import { toolsFor } from "@/lib/crea-tools";
 
 const params = (query: string) => new URLSearchParams(query);
 const slugsOf = (area: CreaArea, mode: Parameters<typeof modelsForMode>[2]) =>
@@ -48,9 +49,22 @@ describe("CREA_MODES", () => {
         expect(mode.blurb.sr.trim()).not.toBe("");
         expect(mode.blurb.en.trim()).not.toBe("");
         if (mode.status === "soon") expect(mode.models).toBeUndefined();
+        // Režim koji radi nudi modele ili lokalne alate (K04: Slika · Alati) - nikad oba.
+        else if (mode.tools) expect(mode.models, `${area}/${mode.id}`).toBeUndefined();
         else expect(mode.models).toBeDefined();
       }
     }
+  });
+
+  test("režim sa alatima ima bar jedan gotov alat u registru (K04)", () => {
+    for (const area of CREA_AREAS) {
+      for (const mode of CREA_MODES[area]) {
+        if (!mode.tools) continue;
+        const ready = toolsFor(area, mode.id).filter((tool) => tool.status === "ready");
+        expect(ready.length, `${area}/${mode.id}`).toBeGreaterThan(0);
+      }
+    }
+    expect(creaModeDef("slika", "alati")).toMatchObject({ status: "ready", tools: true });
   });
 
   test("prvi režim svake oblasti radi (podrazumevani ekran nije prazan)", () => {

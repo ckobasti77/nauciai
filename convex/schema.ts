@@ -95,6 +95,15 @@ const creditTransactionType = v.union(
 const creditPackKind = v.union(v.literal("pack"), v.literal("plan"));
 const studioModelKind = v.union(v.literal("image"), v.literal("video"), v.literal("audio"));
 const studioModelProvider = v.union(v.literal("fal"), v.literal("google"), v.literal("byteplus"));
+// Ko je izvršio POSAO: tri provajdera iz kataloga, ili "local" - rezultat alata koji je
+// radio u browseru korisnika (Crea K04, `creaLocal.saveLocalResult`). `models.provider`
+// ostaje bez "local": lokalnih modela u katalogu nema.
+const generationJobProvider = v.union(
+  v.literal("fal"),
+  v.literal("google"),
+  v.literal("byteplus"),
+  v.literal("local"),
+);
 const modelCatalogBadge = v.union(
   v.literal("preporuceno"),
   v.literal("skupo"),
@@ -1517,7 +1526,7 @@ export default defineSchema({
     // posao iz prozora, pa bi ga reaper refundirao iako je uspeo i naplaćen.
     // Poslovi upisani pre ovog polja ga nemaju dok ih ne popuni
     // `migrations.backfillGenerationJobProvider`.
-    provider: v.optional(studioModelProvider),
+    provider: v.optional(generationJobProvider),
     falRequestId: v.optional(v.string()),
     // Isti podatak kao `falRequestId`, samo pod imenom koje važi za sva tri
     // provajdera (STUDIO-CATALOG-V4 sekcija 7). Faza je namerno "prošireno pa
@@ -1585,6 +1594,9 @@ export default defineSchema({
     // preuzima u Convex storage (`outputStorageId`) čim posao stigne.
     falOutputUrl: v.optional(v.string()),
     outputStorageId: v.optional(v.id("_storage")),
+    // Veličina izlaza u bajtovima, iz `_storage` u trenutku upisa. Za sada je pišu
+    // samo lokalni rezultati (K04): od nje živi dnevni limit prostora po korisniku.
+    outputBytes: v.optional(v.number()),
     posterStorageId: v.optional(v.id("_storage")),
     labOutputId: v.optional(v.id("labOutputs")),
     lessonId: v.optional(v.id("lessons")),
@@ -1602,6 +1614,9 @@ export default defineSchema({
     .index("by_expiry", ["expiresAt"])
     .index("by_status_created", ["status", "createdAt"])
     .index("by_provider_status", ["provider", "status", "createdAt"])
+    // Limiti lokalnih rezultata (K04, K01-18): koliko je korisnik sačuvao u
+    // poslednjem minutu i danas - brojanje kroz indeks u istoj mutaciji koja upisuje.
+    .index("by_user_provider_created", ["userId", "provider", "createdAt"])
     // Ima li korisnik neplaćen dug iz poravnanja (X2). `createJob` ga pita pre
     // svakog novog posla, pa mora da bude jedno čitanje po indeksu, a ne
     // skeniranje istorije.

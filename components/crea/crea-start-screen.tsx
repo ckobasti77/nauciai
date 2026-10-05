@@ -8,6 +8,7 @@ import { CREA_ICONS } from "@/components/crea/crea-icons";
 import { CREA_SHELL_COPY, CREA_START_COPY } from "@/lib/crea-copy";
 import { CREA_GOALS, goalHref } from "@/lib/crea-goals";
 import { CREA_AREA_META, creaModeDef } from "@/lib/crea-shell";
+import { toolById } from "@/lib/crea-tools";
 import type { Locale } from "@/lib/i18n";
 import { getStudioMotion } from "@/lib/studio-motion";
 
@@ -72,7 +73,7 @@ export function CreaStartScreen({
                   <span>
                     {CREA_AREA_META[goal.area].label[locale]} · {mode.label[locale]}
                   </span>
-                  {mode.status === "soon" ? (
+                  {mode.status === "soon" || toolById(goal.toolId)?.status === "soon" ? (
                     <span className="rounded-full border border-ink/30 px-1.5 py-px type-eyebrow-sm">
                       {CREA_SHELL_COPY.soonBadge[locale]}
                     </span>

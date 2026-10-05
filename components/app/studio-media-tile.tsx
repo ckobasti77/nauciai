@@ -8,6 +8,8 @@ import { motion, useReducedMotion } from "motion/react";
 import { CreditIcon } from "@/components/studio/credit-icon";
 import { cn } from "@/components/ui/primitives";
 import { Spinner } from "@/components/ui/spinner";
+import { CREA_TOOL_COPY } from "@/lib/crea-copy";
+import { toolOfJob } from "@/lib/crea-tools";
 import type { Locale } from "@/lib/i18n";
 import { isExpiredOutput, jobPrompt, jobStatusText } from "@/lib/studio-form";
 import { downloadSingleMedia, isDemoPoster } from "@/lib/studio-gallery";
@@ -60,6 +62,9 @@ export function StudioMediaTile({
   const reduceMotion = useReducedMotion();
 
   const prompt = jobPrompt(job.params);
+  // Rad lokalnog alata (K04) nema opis: naslov mu je ime alata, a oznaka kaže da je besplatan.
+  const localTool = toolOfJob(job);
+  const caption = prompt || localTool?.title[locale] || "";
   const isWorking = job.status === "reserved" || job.status === "running";
   const isExpired = isExpiredOutput(job);
   const isFailed = job.status === "failed" || job.status === "refunded";
@@ -86,7 +91,7 @@ export function StudioMediaTile({
       id={domId ?? `tile-${job._id}`}
       tabIndex={0}
       role="button"
-      aria-label={prompt ? `Rad: ${prompt}` : `Rad: ${job.modelSlug}`}
+      aria-label={`Rad: ${caption || job.modelSlug}`}
       onClick={(e) => {
         if ((e.target as HTMLElement).closest("button, a")) return;
         onOpenDetail?.(job);
@@ -144,7 +149,16 @@ export function StudioMediaTile({
                   &bdquo;{prompt}&ldquo;
                 </p>
               ) : null}
-              {onReuse ? (
+              {onReuse && localTool ? (
+                <button
+                  type="button"
+                  onClick={() => onReuse(job)}
+                  className="mt-1 inline-flex min-h-8 items-center gap-1.5 rounded-full border-2 border-ink bg-yellow px-3 py-1 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--ink)] transition hover:-translate-y-0.5"
+                >
+                  <RefreshCw className="size-3" />
+                  {CREA_TOOL_COPY.openTool[locale]}
+                </button>
+              ) : onReuse ? (
                 <button
                   type="button"
                   onClick={() => onReuse(job)}
@@ -206,7 +220,7 @@ export function StudioMediaTile({
                 <div className="relative w-full">
                   <Image
                     src={job.outputUrl as string}
-                    alt={prompt || job.modelSlug}
+                    alt={caption || job.modelSlug}
                     width={1200}
                     height={900}
                     unoptimized
@@ -308,6 +322,11 @@ export function StudioMediaTile({
               DEMO
             </span>
           ) : null}
+          {localTool ? (
+            <span className="rounded-full border border-white/20 bg-paper-strong/90 px-2 py-0.5 text-[10px] font-black text-ink">
+              {CREA_TOOL_COPY.galleryLabel[locale]}
+            </span>
+          ) : null}
         </div>
 
         {/* Hover pil gore desno sa tri akcije: Omiljeno, Upotrebi ponovo, Preuzmi */}
@@ -354,10 +373,10 @@ export function StudioMediaTile({
         ) : null}
 
         {/* Prompt kao naslov preko medija dole levo */}
-        {prompt && hasOutput && !isWorking ? (
+        {caption && hasOutput && !isWorking ? (
           <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-studio-well/95 via-studio-well/60 to-transparent p-3 pt-9">
             <p className="line-clamp-2 text-xs font-bold leading-snug text-white drop-shadow-sm sm:text-sm">
-              {prompt}
+              {caption}
             </p>
           </div>
         ) : null}

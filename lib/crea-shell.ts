@@ -44,6 +44,8 @@ export type CreaModeDef = {
   label: LocalizedText;
   icon: CreaIconName;
   models?: CreaModelRule;
+  /** Režim nudi lokalne alate iz `lib/crea-tools.ts` umesto composera (K04). */
+  tools?: boolean;
   status: "ready" | "soon";
   /** Jedna rečenica: šta režim radi (i za „Stiže uskoro"). */
   blurb: LocalizedText;
@@ -83,10 +85,11 @@ export const CREA_MODES: Record<CreaArea, readonly CreaModeDef[]> = {
       id: "alati",
       label: { sr: "Alati", en: "Tools" },
       icon: "Wrench",
-      status: "soon",
+      tools: true,
+      status: "ready",
       blurb: {
-        sr: "Besplatni alati koji rade na tvom uređaju: iseci, promeni format, ukloni pozadinu, napravi QR kod.",
-        en: "Free tools that run on your device: crop, change format, remove the background, make a QR code.",
+        sr: "Besplatni alati koji rade na tvom uređaju, bez kredita: promeni format slike i proveri fotku pre plaćanja.",
+        en: "Free tools that run on your device, with no credits: change an image's format and check a photo before you pay.",
       },
     },
     {

@@ -17,7 +17,9 @@ import { CreaComingSoon } from "@/components/crea/crea-coming-soon";
 import { CreaHistory, CreaHistoryEmpty } from "@/components/crea/crea-history";
 import { CreaStage } from "@/components/crea/crea-stage";
 import { CreaStartScreen } from "@/components/crea/crea-start-screen";
+import { CreaToolList } from "@/components/crea/crea-tool-list";
 import { CreaToolPanel } from "@/components/crea/crea-tool-panel";
+import { CreaToolStage } from "@/components/crea/crea-tool-stage";
 import { CREA_DOCK_MIN_PX, CreaWorkshop } from "@/components/crea/crea-workshop";
 import { CreditIcon } from "@/components/studio/credit-icon";
 import { StudioComposer, type JobPayload, type RegenerateSeed } from "@/components/studio/studio-composer";
@@ -41,6 +43,7 @@ import {
   parseCreaShellState,
   type CreaShellState,
 } from "@/lib/crea-shell";
+import { toolOfJob } from "@/lib/crea-tools";
 import { clampBoundsToViewport } from "@/lib/floating-bounds";
 import { parsePath } from "@/lib/routes";
 import { t, withLocale, type Locale } from "@/lib/i18n";
@@ -539,7 +542,13 @@ export function StudioPage({
   }
 
   // „Upotrebi ponovo": model posla i njegov opis, u režimu ljuske u kojem taj model radi.
+  // Rad lokalnog alata (K04) nema model ni opis - vraća u sam alat.
   function handleReuse(job: StudioTileJob) {
+    const tool = toolOfJob(job);
+    if (tool) {
+      navigateShell({ area: tool.area, mode: tool.mode, tool: tool.id });
+      return;
+    }
     setSelectedSlug(job.modelSlug);
     const p = jobPrompt(job.params);
     if (p) setStarterPrompt(p);
@@ -766,7 +775,9 @@ export function StudioPage({
     );
   };
 
-  const hasComposer = area !== null && modeDef?.status === "ready";
+  // Režim sa lokalnim alatima (K04) nema composer: levo je spisak alata, u sredini alat.
+  const isToolsMode = area !== null && modeDef?.status === "ready" && modeDef.tools === true;
+  const hasComposer = area !== null && modeDef?.status === "ready" && !isToolsMode;
   const showFloating = hasComposer && composerPlacement === "floating";
   const gridBottomPadding = showFloating ? (isComposerCollapsed ? 60 : floatingHeight + 28) : 0;
   const stageJob = loadedJobs.find((job) => job.kind === activeKind) ?? null;
@@ -793,6 +804,17 @@ export function StudioPage({
     </CreaHistory>
   );
 
+  const toolList =
+    isToolsMode && area && modeDef ? (
+      <CreaToolList
+        locale={locale}
+        area={area}
+        mode={modeDef.id}
+        activeToolId={shell.tool}
+        onSelect={(tool) => navigateShell({ tool })}
+      />
+    ) : null;
+
   const stage =
     area === null || modeDef === null ? (
       <CreaStartScreen locale={locale} pathname={pathname} searchParams={searchParams} />
@@ -802,6 +824,16 @@ export function StudioPage({
         area={area}
         mode={modeDef}
         onSelectMode={(mode) => navigateShell({ mode })}
+      />
+    ) : isToolsMode ? (
+      <CreaToolStage
+        locale={locale}
+        toolId={shell.tool}
+        guest={!isAuthenticated}
+        signInHref={signInHrefProp ?? withLocale(locale, "/sign-in")}
+        canSave={state?.hasStudioAccess === true}
+        projectId={activeProjectId}
+        list={composerPlacement === "floating" ? toolList : null}
       />
     ) : (
       <CreaStage
@@ -868,9 +900,9 @@ export function StudioPage({
               onNavigate={navigateShell}
               containerRef={setWorkshopEl}
               panel={
-                hasComposer && composerPlacement === "docked" && modeDef ? (
+                composerPlacement === "docked" && modeDef && (hasComposer || isToolsMode) ? (
                   <CreaToolPanel locale={locale} mode={modeDef}>
-                    {composerContent("docked")}
+                    {isToolsMode ? toolList : composerContent("docked")}
                   </CreaToolPanel>
                 ) : null
               }

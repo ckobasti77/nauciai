@@ -211,7 +211,7 @@ export function Preview({ file, className }: { file: SlotFile; className?: strin
  * smislen cilj (konvencija iz AGENTS.md). Prekrivač je isti obrazac kao kod
  * avatara: window-level čuvari, jasan prekrivač i tek onda prijem fajla.
  */
-function useFullScreenDrop(enabled: boolean, onFiles: (files: File[]) => void) {
+export function useFullScreenDrop(enabled: boolean, onFiles: (files: File[]) => void) {
   const [dragging, setDragging] = useState(false);
   const depth = useRef(0);
   // `useEffectEvent` drži poslednji `onFiles` bez upisa u ref tokom rendera i

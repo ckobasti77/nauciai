@@ -33,6 +33,8 @@ import { cn } from "@/components/ui/primitives";
 import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { CREA_TOOL_COPY } from "@/lib/crea-copy";
+import { toolOfJob } from "@/lib/crea-tools";
 import type { Locale } from "@/lib/i18n";
 import { isExpiredOutput, jobPrompt, jobStatusText } from "@/lib/studio-form";
 import { downloadSingleMedia, isDemoPoster } from "@/lib/studio-gallery";
@@ -282,6 +284,10 @@ export function StudioMediaDetail({
     }
   }, [deleteJobMutation, job._id, locale, onClose]);
 
+  // Rad lokalnog alata (K04): nema model iz kataloga, pa se ime i oznaka čitaju iz registra
+  // alata, a „Generiši ponovo" se ne nudi (išlo bi zamenskim modelom i trošilo kredite).
+  const localTool = toolOfJob(job);
+
   // Model korišćen za kreiranje ovog posla
   const jobModel = useMemo(
     () => catalog.find((m) => m.slug === job.modelSlug) ?? activeModel ?? catalog[0],
@@ -373,12 +379,16 @@ export function StudioMediaDetail({
           {/* Prompt kao naslov */}
           <div className="min-w-0">
             <h2 id="studio-media-detail-title" className="truncate text-base font-black text-ink sm:text-lg">
-              {prompt || (jobModel ? modelLabel(jobModel, locale) : locale === "sr" ? "Detalj medija" : "Media detail")}
+              {prompt ||
+                localTool?.title[locale] ||
+                (jobModel ? modelLabel(jobModel, locale) : locale === "sr" ? "Detalj medija" : "Media detail")}
             </h2>
             <div className="flex items-center gap-2 font-mono text-xs font-bold text-muted">
               <span>{job.kind}</span>
               <span>·</span>
-              <span>{jobModel ? modelLabel(jobModel, locale) : job.modelSlug}</span>
+              <span>
+                {localTool ? CREA_TOOL_COPY.galleryLabel[locale] : jobModel ? modelLabel(jobModel, locale) : job.modelSlug}
+              </span>
             </div>
           </div>
         </div>
@@ -529,33 +539,35 @@ export function StudioMediaDetail({
                   {prompt ? (
                     <p className="max-w-[340px] text-sm font-bold text-white">&bdquo;{prompt}&ldquo;</p>
                   ) : null}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (jobDetail && jobModel) {
-                        onGenerate(
-                          {
-                            params: parsedParams,
-                            inputMode: jobDetail.inputMode ?? "text",
-                            inputs: {},
-                          },
-                          jobModel,
-                        );
+                  {localTool ? null : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (jobDetail && jobModel) {
+                          onGenerate(
+                            {
+                              params: parsedParams,
+                              inputMode: jobDetail.inputMode ?? "text",
+                              inputs: {},
+                            },
+                            jobModel,
+                          );
+                        }
+                      }}
+                      className="mt-2 inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 py-1.5 text-xs font-black text-ink shadow-[3px_3px_0_0_var(--ink)] transition hover:-translate-y-0.5"
+                      aria-label={
+                        locale === "sr"
+                          ? `Generiši ponovo za ${formatCreditsLong(job.creditCost, locale)}`
+                          : `Generate again for ${formatCreditsLong(job.creditCost, locale)}`
                       }
-                    }}
-                    className="mt-2 inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 py-1.5 text-xs font-black text-ink shadow-[3px_3px_0_0_var(--ink)] transition hover:-translate-y-0.5"
-                    aria-label={
-                      locale === "sr"
-                        ? `Generiši ponovo za ${formatCreditsLong(job.creditCost, locale)}`
-                        : `Generate again for ${formatCreditsLong(job.creditCost, locale)}`
-                    }
-                  >
-                    <RefreshCw className="size-3.5" />
-                    <span className="inline-flex items-center gap-1">
-                      <span>{`${t.generateAgain} · ${job.creditCost}`}</span>
-                      <CreditIcon className="size-3.5" />
-                    </span>
-                  </button>
+                    >
+                      <RefreshCw className="size-3.5" />
+                      <span className="inline-flex items-center gap-1">
+                        <span>{`${t.generateAgain} · ${job.creditCost}`}</span>
+                        <CreditIcon className="size-3.5" />
+                      </span>
+                    </button>
+                  )}
                 </div>
               ) : null}
 
@@ -748,7 +760,13 @@ export function StudioMediaDetail({
               <div>
                 <span className="block text-[11px] font-black uppercase tracking-wide text-muted">{t.model}</span>
                 <div className="mt-1.5 flex items-center gap-2.5 surface-inset border border-line bg-paper p-2.5">
-                  {jobModel ? (
+                  {localTool ? (
+                    <div className="min-w-0 flex-1">
+                      <span className="block truncate text-xs font-black text-ink">{localTool.title[locale]}</span>
+                      <span className="block text-[11px] font-bold text-muted">{CREA_TOOL_COPY.galleryLabel[locale]}</span>
+                    </div>
+                  ) : null}
+                  {localTool ? null : jobModel ? (
                     <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-ink font-mono text-xs font-black text-paper-strong">
                       {familyMark(jobModel)}
                     </span>
