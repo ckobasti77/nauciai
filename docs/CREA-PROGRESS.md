@@ -748,3 +748,6 @@ Provereno u browseru (Playwright, privremena strana, obrisana): editor Lika sa 5
 - ⚡ na kartici: „Animiraj” → Video · Napravi sa slikom; „Uvećaj”/„Ukloni pozadinu” → tačan alat sa slikom; „Koristi kao referencu” → Napravi sa slikom kao referencom (proveri da NB2 zaista koristi referencu).
 - Rad besplatnog alata → detalj → „Opiši ovu sliku”: „Na ovom računaru” (Florence, ~276 MB jednom) ili „U oblaku” — **prvi pravi Gemini poziv sa slikom** (Google ključ, ~$0,001).
 - Search i vektorski indeks su na DEV-u; na prod idu sa `convex deploy` (indeks nad `generationJobs` se gradi pri deploy-u).
+
+## K17 - Plan videa   (2026-10-05 15:08)
+**Plan korak.** Plan je upisan u `docs/crea/planovi/K17.md`. Nije menjan kod.
