@@ -92,6 +92,13 @@ const MusicTool = dynamic(() => import("../zvuk/music-tool"), { ssr: false, load
 const ScoringTool = dynamic(() => import("../zvuk/scoring-tool"), { ssr: false, loading: ToolLoading });
 const SfxTool = dynamic(() => import("../zvuk/sfx-tool"), { ssr: false, loading: ToolLoading });
 const StemsTool = dynamic(() => import("../zvuk/stems-tool"), { ssr: false, loading: ToolLoading });
+// K24: Zvuk III - wavesurfer, meyda, mediabunny (+ MP3 koder) i modeli tek unutar alata.
+const EditorAudioTool = dynamic(() => import("../zvuk/editor-tool"), { ssr: false, loading: ToolLoading });
+const RecorderTool = dynamic(() => import("../zvuk/recorder-tool"), { ssr: false, loading: ToolLoading });
+const CleanTool = dynamic(() => import("../zvuk/clean-tool"), { ssr: false, loading: ToolLoading });
+const TranscriptTool = dynamic(() => import("../zvuk/transcript-tool"), { ssr: false, loading: ToolLoading });
+const RhythmTool = dynamic(() => import("../zvuk/rhythm-tool"), { ssr: false, loading: ToolLoading });
+const AudiogramTool = dynamic(() => import("../zvuk/audiogram-tool"), { ssr: false, loading: ToolLoading });
 // K19: montaža, „Ubaci i gotovo" i izvoz za mreže - svaki svoj chunk; mediabunny i detektor ritma tek unutar njih.
 const MontageTool = dynamic(() => import("../montaza/montage-tool"), { ssr: false, loading: ToolLoading });
 const BeatTool = dynamic(() => import("../montaza/beat-tool"), { ssr: false, loading: ToolLoading });
@@ -169,4 +176,10 @@ export const CREA_TOOL_COMPONENTS: Readonly<Record<string, ComponentType<CreaToo
   "zvuk.ozvuci": ScoringTool,
   "zvuk.efekti": SfxTool,
   "zvuk.trake": StemsTool,
+  "zvuk.uredjivac": EditorAudioTool,
+  "zvuk.snimac": RecorderTool,
+  "zvuk.ciscenje": CleanTool,
+  "zvuk.transkript": TranscriptTool,
+  "zvuk.ritam": RhythmTool,
+  "zvuk.audiogram": AudiogramTool,
 };

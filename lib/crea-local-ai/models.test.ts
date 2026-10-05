@@ -21,7 +21,10 @@ import {
   modelFileUrl,
   modelFileUrls,
   modelRuntime,
+  NOISE_SUPPRESSOR_BASE,
+  NOISE_SUPPRESSOR_VERSION,
   ONNX_RUNTIME_WEB_VERSION,
+  SIGNALSMITH_STRETCH,
   ORT_WASM_URL,
   ORT_WEBGPU_WASM_URL,
   modelWeightBytes,
@@ -101,6 +104,20 @@ describe("registar lokalnih modela", () => {
     expect(pkg.version).toBe(ONNX_RUNTIME_WEB_VERSION);
     expect(ORT_WASM_URL).toBe(`https://cdn.jsdelivr.net/npm/onnxruntime-web@${pkg.version}/dist/ort-wasm-simd-threaded.wasm`);
     expect(Object.keys(CREA_LOCAL_RUNTIMES.onnx.files ?? {})).toEqual([ORT_WASM_URL]);
+  });
+
+  test("K24: zvučni modeli i biblioteke sa CDN-a su zakucani na verziju", () => {
+    expect(NOISE_SUPPRESSOR_BASE).toBe(`https://cdn.jsdelivr.net/npm/@sapphi-red/web-noise-suppressor@${NOISE_SUPPRESSOR_VERSION}/dist`);
+    expect(CREA_LOCAL_MODELS.rnnoise.source.url).toBe(`${NOISE_SUPPRESSOR_BASE}/rnnoise_simd.wasm`);
+    expect(CREA_LOCAL_MODELS.gtcrn.source.url).toBe(`${NOISE_SUPPRESSOR_BASE}/gtcrn.wasm`);
+    expect(CREA_LOCAL_MODELS["silero-vad"].source.url).toMatch(/@ricky0123\/vad-web@\d+\.\d+\.\d+\/dist\/silero_vad_v5\.onnx$/);
+    // Silero radi na istom ONNX Runtime WASM-u kao ostali modeli.
+    expect(modelRuntime("silero-vad")).toBe("onnx");
+    expect(downloadBytes(["silero-vad"])).toBe(CREA_LOCAL_MODELS["silero-vad"].bytes + CREA_LOCAL_RUNTIMES.onnx.bytes);
+    // Čišćenje: samo WASM modela (stotine KB), bez teškog runtime-a.
+    expect(downloadBytes(["rnnoise", "gtcrn"])).toBeLessThan(500 * 1024);
+    expect(SIGNALSMITH_STRETCH.url).toBe(`https://cdn.jsdelivr.net/npm/signalsmith-stretch@${SIGNALSMITH_STRETCH.version}/SignalsmithStretch.mjs`);
+    expect(SIGNALSMITH_STRETCH.license).toBe("MIT");
   });
 
   test("ONNX model na WebGPU-u preuzima „asyncify\" WASM umesto običnog (K11)", () => {

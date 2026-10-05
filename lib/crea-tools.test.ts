@@ -116,7 +116,7 @@ describe("registar alata", () => {
     for (const tool of CREA_TOOLS) if (tool.tier === "server") expect(tool.status).toBe("soon");
   });
 
-  test("K04 pušta format i proveru fotke, K09 sedam besplatnih alata za sliku, K10 editor, šablone i 3D foto, K11 i K12 izmene, K13 pravljenje, K14 likovi, K18 video, K19 montaža, K20 dorada, pokret i govor, K21 strip, titlovi, shorts, retro, explainer i reklama, K22 glas, K23 muzika, efekti, prevod i trake", () => {
+  test("K04 pušta format i proveru fotke, K09 sedam besplatnih alata za sliku, K10 editor, šablone i 3D foto, K11 i K12 izmene, K13 pravljenje, K14 likovi, K18 video, K19 montaža, K20 dorada, pokret i govor, K21 strip, titlovi, shorts, retro, explainer i reklama, K22 glas, K23 muzika, efekti, prevod i trake, K24 uređivač i alati", () => {
     const ready = CREA_TOOLS.filter((tool) => tool.status === "ready").map((tool) => tool.id);
     expect(ready).toEqual([
       "slika.format",
@@ -201,6 +201,13 @@ describe("registar alata", () => {
       "zvuk.ozvuci",
       "zvuk.efekti",
       "zvuk.trake",
+      // K24: Zvuk · Uređivač (A14-A17, A19, A20)
+      "zvuk.snimac",
+      "zvuk.uredjivac",
+      "zvuk.ciscenje",
+      "zvuk.transkript",
+      "zvuk.ritam",
+      "zvuk.audiogram",
     ]);
     expect(toolById("slika.format")).toMatchObject({ tier: "local-code", featureIds: ["S27"], output: "image" });
     expect(toolById("slika.provera")).toMatchObject({
@@ -208,6 +215,25 @@ describe("registar alata", () => {
       featureIds: ["S35"],
       localModels: ["mp-face-detector"],
     });
+  });
+
+  test("K24 alati Zvuka: 0 kredita na uređaju, zvuk/video u galeriju, plaćen samo težak put", () => {
+    const k24 = ["zvuk.snimac", "zvuk.uredjivac", "zvuk.ciscenje", "zvuk.transkript", "zvuk.ritam", "zvuk.audiogram"];
+    for (const id of k24) {
+      const tool = toolById(id)!;
+      expect(tool.mode, id).toBe("uredjivac");
+      expect(tool.price, id).toEqual({ kind: "free" });
+      expect(isLocalTier(tool.tier), id).toBe(true);
+      expect(savesLocalResults(tool), id).toBe(true);
+    }
+    expect(toolById("zvuk.uredjivac")).toMatchObject({ featureIds: ["A14"], output: "audio", localModels: ["silero-vad"], savesToGallery: true });
+    expect(toolById("zvuk.ciscenje")).toMatchObject({ tier: "local-ai", localModels: ["rnnoise", "gtcrn"], paidFallback: { modelSlug: "audio-isolation" } });
+    // Transkript: tekst prepoznaje `stt` (plaćeno), uređivanje i sečenje su besplatni; čuva se isečen zvuk.
+    expect(toolById("zvuk.transkript")).toMatchObject({ tier: "local-code", output: "audio", savesToGallery: true, paidFallback: { modelSlug: "stt" } });
+    expect(toolById("zvuk.transkript")?.localModels).toBeUndefined();
+    expect(toolById("zvuk.ritam")).toMatchObject({ output: "text", savesToGallery: false });
+    expect(toolById("zvuk.audiogram")).toMatchObject({ output: "video", inputs: ["audio", "image"], device: { requires: ["webcodecs-video"] } });
+    expect(toolById("zvuk.snimac")).toMatchObject({ device: { requires: ["media-recorder"] }, savesToGallery: true });
   });
 
   test("K09 alati: 0 kredita, tekst i SVG se ne čuvaju u galeriju, medij se čuva", () => {
@@ -325,7 +351,8 @@ describe("pomoćne funkcije", () => {
     expect(toolBadges(toolById("slika.retus")!)).toEqual(["besplatno", "na-uredjaju"]);
     expect(toolBadges(toolById("video.reframe")!)).toEqual(["besplatno", "na-uredjaju"]);
     expect(toolBadges(toolById("video.retro")!)).toEqual(["besplatno", "na-uredjaju"]);
-    expect(toolBadges(toolById("zvuk.snimac")!)).toEqual(["besplatno", "na-uredjaju", "uskoro"]);
+    expect(toolBadges(toolById("zvuk.snimac")!)).toEqual(["besplatno", "na-uredjaju"]);
+    expect(toolBadges(toolById("video.svetlo")!)).toContain("uskoro");
     // K12: plaćen alat sa besplatnim korakom na uređaju nosi obe oznake.
     expect(toolBadges(toolById("slika.prosiri")!)).toEqual(["krediti", "na-uredjaju"]);
     expect(toolBadges(toolById("slika.svetlo")!)).toEqual(["krediti"]);

@@ -118,7 +118,9 @@ describe("dostupnost alata", () => {
       ok: false,
       reason: "missing-capability",
     });
-    expect(deviceProblem(soonAsReady("zvuk.transkript"), { ...DESKTOP_GPU, webgpu: false })).toEqual({
+    // K24: transkript više ne traži WebGPU (prepoznaje `stt`); jedini takav alat je opis slike
+    // (Florence-2), koji ima rezervu u oblaku - zato primer bez nje.
+    expect(deviceProblem({ ...soonAsReady("slika.opis"), cloudFallback: undefined }, { ...DESKTOP_GPU, webgpu: false })).toEqual({
       ok: false,
       reason: "needs-webgpu",
     });

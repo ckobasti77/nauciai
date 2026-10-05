@@ -55,6 +55,9 @@ const MARKERS = [
   { pkg: "wavesurfer.js", marker: "wavesurfer" },
   // K19: detektor ritma („Ubaci i gotovo"); poruka je u nizu koda njegovog Worker-a.
   { pkg: "web-audio-beat-detector", marker: "does not contain any detectable beats" },
+  // K24: tonalitet (hroma) i MP3 koder uređivača zvuka.
+  { pkg: "meyda", marker: "Valid chromaFilterBank is required to generate chroma" },
+  { pkg: "@mediabunny/mp3-encoder", marker: "MP3 encoder worker failed to load or crashed." },
   { pkg: "@xzdarcy/react-timeline-editor", marker: "timeline-editor" },
 ];
 

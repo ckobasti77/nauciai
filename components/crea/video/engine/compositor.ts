@@ -205,7 +205,7 @@ const CAPTION_SIZE: Record<FrameCaptions["style"], number> = {
  * videa (boje brenda svetle teme), ne interfejsa. Red širi od kadra smanjuje
  * slova za ceo titl, pa redovi ostaju iste veličine.
  */
-function drawCaptions(ctx: CanvasRenderingContext2D, captions: FrameCaptions, width: number, height: number) {
+export function drawCaptions(ctx: CanvasRenderingContext2D, captions: FrameCaptions, width: number, height: number) {
   const lines = captions.lines.filter((line) => line.length > 0);
   if (lines.length === 0) return;
   const style = captions.style;

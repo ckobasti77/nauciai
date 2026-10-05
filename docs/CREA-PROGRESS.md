@@ -1347,3 +1347,92 @@ Playwright: 1440 × 900 i 390 × 844, svetla i tamna tema (snimci `docs/crea/sni
 - Prevod, promena glasa po govorniku i trake su DEMO dok nema `FAL_KEY` (prepoznavanje govora, promena glasa i Demucs su na fal-u); prevod rečenica i Gemini govor rade pravo. Sa ključem probaj ceo prevod jednog kratkog videa (izmeni jednu rečenicu - dugme mora da kaže „Izgovori 1") i usne (Kling, video do 60 s).
 - Posle `FAL_KEY`: proveri stvaran račun za Demucs (po sekundi ulaza) i MMAudio, i da Demucs vraća sve 4 trake.
 - Produkcija: 4 nova reda kataloga (`seed-studio-models`), akcije `creaLlm.translateSegments`/`planScore`, upit `creaLayers.getStems` i `public/crea/sfx/` (44 MP3 + `IZVORI.txt`, LiteSpeed doc root) traže `npx convex deploy` + seed pre puštanja Next-a sa K23.
+
+## K24 — Zvuk III: uređivač i alati   (2026-10-06 00:55)
+**Fajlovi:**
+- novi (logika i testovi): `lib/crea-loudness.ts`, `lib/crea-audio-edit.ts`, `lib/crea-silence.ts`, `lib/crea-transcript-edit.ts`, `lib/crea-key.ts`, `lib/crea-audiogram.ts`, `lib/crea-audio-fx.ts` (svaki sa `.test.ts`), `lib/crea-recorder.ts` (testiran u `crea-audio-edit.test.ts`), `lib/crea-audio-tools-copy.ts`;
+- novi (UI): `components/crea/zvuk/{editor-tool,recorder-tool,clean-tool,transcript-tool,rhythm-tool,audiogram-tool}.tsx`;
+- novi (motor, `components/crea/zvuk/uredjivac/`): `waveform.tsx`, `fx-graph.ts`, `fx-panel.tsx`, `tracks-panel.tsx`, `use-live-fx.ts`, `render.ts`, `stretch.ts`, `denoise.ts`, `vad.ts`, `encode.ts`, `rhythm.ts`, `audiogram-render.ts`, `transcript-editor.tsx`, `result-panel.tsx`, `ui.tsx`, `use-decoded-sound.ts`, `use-recorder.ts`, `cdn-module.ts`;
+- snimci `docs/crea/snimci/K24-*.png` (14);
+- izmenjeni: `lib/crea-tools.ts` (6 alata `soon` → `ready`, transkript `local-code` sa `stt`, ulazi i opisi), `lib/crea-shell.ts` (opis režima Uređivač), `lib/crea-local-ai/models.ts` (Silero zakucan na verziju i na ONNX runtime, novi modeli `rnnoise`/`gtcrn`, runtime `web-audio`, konstante `NOISE_SUPPRESSOR_*` i `SIGNALSMITH_STRETCH`), `components/crea/tools/index.tsx` (6 lenjih alata), `components/crea/video/engine/compositor.ts` (samo `export` za `drawCaptions`), `scripts/check-crea-bundle.mjs` (markeri `meyda` i MP3 kodera), `package.json`, `package-lock.json`; namerno promenjene asercije u `lib/crea-tools.test.ts`, `lib/crea-device.test.ts`, `lib/crea-local-ai/models.test.ts`.
+
+**Šta je urađeno:** Zvuk · Uređivač ima šest novih alata koji rade **na uređaju, 0 kredita** (čuvanje u galeriju kroz postojeći `creaLocal.saveLocalResult`, kao verzija izvora kad je izvor iz galerije):
+- **Uređivač zvuka (A14):** talas sa izborom (`wavesurfer.js` v8 + regioni, lenjo, boje iz tokena teme), izbor i poljima „od/do", Obriši izabrano / Zadrži samo ovo, spajanje snimaka na kraj, pretapanje na početku i kraju, poništi/ponovi (60 koraka; prečice Delete, razmak, Ctrl+Z/Y), skraćivanje pauza (Silero VAD na uređaju ili po jačini; blago/srednje/jako - duga pauza se skrati, ne briše), boja zvuka (EQ sa 5 gotovih zvukova i 3 klizača), kompresor (blag/jak), odjek (soba/sala/katedrala/eho, proceduralni impulsni odziv), brzina 0,5-2× bez promene visine i visina ±12 polutonova (`signalsmith-stretch`), jačina; efekti se čuju ODMAH dok svira (isti Web Audio graf kao izvoz). Do 3 trake ispod (muzika, ambijent) sa početkom, jačinom, petljom i automatskim utišavanjem ispod govora (kriva kao u montaži K19). Glasnoća za mreže −14 LUFS / podkast −16 LUFS / bez promene, po BS.1770-4 (`lib/crea-loudness.ts`: K-filter, kapije, pravi vrh, limiter sa pogledom unapred ispod −1 dBTP). Izvoz MP3 (192 kb/s, mediabunny + `@mediabunny/mp3-encoder`) i WAV; u galeriju ide MP3.
+- **Očisti zvuk (A15):** RNNoise („brzo") ili GTCRN („jače") na uređaju, klizač „jačina čišćenja" (vraća deo originala), pre/posle; težak slučaj → postojeća plaćena izolacija glasa (`audio-isolation`, po minutu, cena na dugmetu).
+- **Transkript (A16):** postojeći `stt` (Scribe V2, govornici i vreme svake reči, ~2 kr/min; DEMO bez ključa) → pasusi po govorniku sa vremenom, latinica/ćirilica, reči kao dugmad (klik, Shift+klik, strelice, Delete) → obrisane reči su precrtane i crvene na talasu → „Iseci snimak" seče TAČNO te delove (`lib/crea-transcript-edit.ts`); SRT/VTT/TXT prate isečen snimak.
+- **Snimač (A17):** `MediaRecorder` (Opus/WebM; AAC/MP4 na iPhone-u), merač jačine sa „tiho / dobro / preglasno", do 5 pokušaja, „Snimi ponovo", izbor najboljeg, original + MP3/WAV, u galeriju pa „Otvori u uređivaču".
+- **Ritam i tonalitet (A19):** BPM (`web-audio-beat-detector`, prozor posle uvoda, Duplo/Upola, ručna ispravka), tonalitet iz `meyda` hrome (Krumhansl-Kessler) sa srpskim imenom („a-mol", „Fis-dur"), oznakom akorda i Camelot brojem, markeri udaraca na talasu (prvi udarac takta žut), klik metronoma preko pesme, preuzimanje markera (Audacity .txt) i tabele (.csv).
+- **Audiogram (A20):** zvuk + slika → MP4 (H.264 + AAC kroz mediabunny/WebCodecs): izbor dela na talasu, 9:16 / 1:1 / 16:9, talas kao stubići, talas ili prsten oko slike, boje Papir / Mastilo / Žuta, naslov, titlovi (napišeš sam za 0 kr ili `stt`) u 5 stilova montaže, latinica/ćirilica; pregled i izvoz crta isti crtač.
+
+Provereno u pravom Chromium-u (Playwright, privremene strane `app/[locale]/k24-harness` bez prijave; govor napravljen lokalnim Windows SAPI glasom, a ritam od 120 BPM u C-duru i šum skriptom; sve je obrisano):
+- **Uređivač:** snimak 18,3 s → Silero našao pauze i skratio ih za 4,4 s → rez 1,5 s → 12,5 s; EQ „Jasniji glas" + sala + brzina 1,25× + visina +2 → konačan 11,8 s (= 12,5 / 1,25 + rep odjeka). **ffmpeg `ebur128` meri izvezen fajl na −14,0 LUFS, pravi vrh −1,6 dBTP**; MP3 192 kb/s, 44,1 kHz stereo. Spajanje (7,9 + 7,9 = 15,8 s) i traka ispod rade; promena odjeka i visine dok svira ne prekida slušanje.
+- **Silero na pravom govoru:** pauza od 3,26 s skraćena na 0,35 s; rezervni detektor po jačini daje skoro iste delove.
+- **Rastezanje:** klik na 1,0 s ostaje na 1,0006 s (1×) i ide na 0,502 s (2×); +12 polutonova pretvara 440 Hz u 880 Hz.
+- **Čišćenje (GTCRN):** šum u pauzi −31,2 → −62,2 dB, govor −18,0 → −18,3 dB; kašnjenje oba modela izmereno korelacijom i nadoknađeno (ostatak −1 / −6 uzoraka).
+- **Transkript (DEMO reči):** obrisane 4 reči (klikom, Shift+klikom i tastaturom) → snimak 7,92 → 6,26 s, SRT u ćirilici bez obrisanih reči.
+- **Ritam:** 120 BPM, „C-dur (C) · Camelot 8B · sigurno", 32 markera; fajl markera počinje `0.000000 … 1.1`.
+- **Audiogram:** MP4 1080×1920, 30 fps, H.264 + AAC, 7,9 s; kadar sa naslovom, slikom, talasom i karaoke titlom.
+- **Snimač:** snimanje sa meračem, pokušaj 1,9 s, WebM original i MP3 iz njega.
+- Ekrani: 1440 × 900 (svetla; čišćenje i u tamnoj) i 390 × 844 tamna za svih šest alata - bez vodoravnog skrola, mete ≥ 44 px, bez grešaka u konzoli.
+
+**Feature ID-jevi:**
+- A14 — gotovo (sve iz zadatka; projekat uređivača se ne čuva između sesija - vidi ODLUKE).
+- A15 — gotovo (RNNoise/GTCRN lokalno, težak slučaj kroz postojeću izolaciju).
+- A16 — gotovo (govornici, vreme, SRT/VTT, lat↔ćir, uređivanje tekstom); prepoznavanje je plaćeni `stt` (DEMO bez `FAL_KEY`) - Whisper na uređaju nije uveden (K21).
+- A17 — gotovo.
+- A19 — gotovo; markeri su na talasu i kao fajl, montaža (K19) ih ne čita (vidi ODLUKE).
+- A20 — gotovo.
+
+**ODLUKE:**
+- **`signalsmith-stretch` i `@sapphi-red/web-noise-suppressor` se NE pakuju, nego se uvoze sa jsdelivr-a (zakucana verzija, kroz naš keš, kao `blob:` modul - `uredjivac/cdn-module.ts`), pa nisu u `package.json`.** Provereno u pregledaču: (1) signalsmith pretvara sopstvene funkcije u tekst za AudioWorklet, a Turbopack ih pri pakovanju menja - čvor se nikad ne javi „spreman" (uređivač je visio); original sa CDN-a radi i u `OfflineAudioContext`-u. (2) Procesor čistača ima `new URL("rnnoise.wasm", import.meta.url)` koji Turbopack ne može da razreši (greška pri pakovanju). Isti obrazac kao WASM MediaPipe-a i ORT-a sa jsdelivr-a; test proverava zakucane verzije. Licence: MIT (signalsmith, paket čistača, GTCRN), RNNoise WASM Apache-2.0.
+- **Čišćenje ne radi u AudioWorklet-u:** procesor paketa se inicijalizuje asinhrono i ne javlja kad je spreman, pa bi u `OfflineAudioContext`-u početak izašao prazan. Isti kod procesora se izvršava na glavnoj niti u blokovima od 128 uzoraka (privremeni `AudioWorkletProcessor`/`registerProcessor` se brišu odmah posle uvoza, jer `signalsmith-stretch` po njima prepoznaje worklet), sa napretkom i „Odustani". Kašnjenje izmereno: RNNoise 992, GTCRN 1 536 uzoraka na 48 kHz.
+- **Silero VAD bez paketa `@ricky0123/vad-web`:** paket vuče pun ONNX Runtime (sa WebGPU-om) kroz CommonJS. Silero v5 (MIT, fajl iz tog paketa na jsdelivr-u, verzija 0.0.31) radi na istom `onnxruntime-web/wasm` kao ostali modeli (`loadOnnxModel`), a segmentacija je naša čista logika (`lib/crea-silence.ts`, histereza kao Silero). Bez modela (mreža, star pregledač) radi detektor po jačini.
+- **Transkript je `local-code` + `paidFallback: stt`** (isto kao titlovi u K21): prepoznavanje se plaća po minutu, a uređivanje, pismo, SRT/VTT i sečenje su besplatni. Rezultat alata je ISEČEN ZVUK (`output: "audio"`), pa ide u galeriju; tekst se preuzima.
+- **Pravilo reza po rečima** (`deletionCuts`): briše se niz reči i pauza POSLE njih, do 20 ms pre sledeće zadržane reči (pauza ispred ostaje); niz na kraju briše pauzu ispred i reči; rez nikad ne ulazi u zadržanu reč (test).
+- **Glasnoća:** cilj −14 LUFS (mreže) ili −16 (podkast), plafon −1 dBTP (limiter seče uzorke 0,3 dB niže da i pravi vrh ostane ispod), pojačanje najviše +24 dB, do 3 kruga dopune posle limitera. Pravi vrh je 4× interpolacija samo oko uzoraka blizu najvišeg (brzo i za 15 minuta).
+- **Granice dužine po uređaju** (`EDITOR_MAX_SECONDS`): slab 3 min, telefon 5 min, računar 15 min (ceo zvuk je u memoriji na 44,1 kHz). Ritam radi na 44,1 kHz jer detektor na 22,05 kHz ne nalazi udarce (provereno).
+- **Brzina u pregledu uživo** je `playbackRate` pregledača sa očuvanom visinom, a visina je `signalsmith-stretch` uživo; izvoz radi oba kroz `signalsmith-stretch` offline. Talas se ponovo učitava samo kad se promene isečci ili pretapanje (efekti ne prekidaju slušanje); brze promene efekata u istoj sekundi su jedan korak „Poništi".
+- **Trake ispod** se čuju tek u konačnom zvuku (pregled uživo je glavna traka sa efektima); na traku ispod ne utiču efekti ni brzina glavne trake.
+- **Projekat uređivača se ne čuva** (plan K01 §8 je predlagao IndexedDB): nije deo prihvatanja, a gotov zvuk ide u galeriju ili na uređaj. Ostaje za kasnije.
+- **Markeri za montažu = fajl + talas:** dokument montaže (K19, Convex validator) nije proširivan markerima; Audacity „label track" i CSV otvaraju i drugi programi.
+- **Audiogram:** boje su deo videa (brend svetle teme zakucan u kadar, kao titlovi K21); titlovi koriste crtač montaže (`drawCaptions` je samo izvezen); najduži deo po granicama izvoza montaže (`maxDurationFor`). U galeriju ide kao video lokalnog alata.
+- **MP3 u galeriju, ne WAV:** galerija prima zvuk do 50 MB; MP3 192 kb/s je ~1,4 MB po minutu. Snimač čuva original (Opus/AAC). LAME (LGPL) je nepromenjen WASM u sopstvenom Worker-u, uz navod `lame.sourceforge.io` ispod dugmadi (to traže autori).
+- DEV: `npx convex dev --once` (`wandering-fox-41`) - `creaLocal.saveLocalResult` čita registar alata, pa K24 alati mogu da čuvaju na DEV-u. `convex/` nije menjan, katalog nije menjan (seed nije potreban). Produkcija nije dirana.
+
+**Novi paketi:**
+- `wavesurfer.js@8.0.1` — BSD-3-Clause (talas i regioni, samo kroz `import()`);
+- `meyda@5.6.3` — MIT (hroma za tonalitet; povlači `dct`, `fftjs` i alate komandne linije `wav`, `node-getopt`, `@rollup/plugin-node-resolve`… - svi MIT, u pregledač ide samo `dist/web`);
+- `@mediabunny/mp3-encoder@1.61.3` — MPL-2.0 (LAME 3.100 kao nepromenjen WASM, LGPL);
+- sa CDN-a (nisu u `package.json`, vidi ODLUKE): `signalsmith-stretch@1.3.2` — MIT; `@sapphi-red/web-noise-suppressor@0.4.1` — MIT; Silero VAD v5 iz `@ricky0123/vad-web@0.0.31` — MIT.
+
+**Testovi:** 73 nova testa (2784 → 2857), 7 novih fajlova.
+- `lib/crea-loudness.test.ts` (13): **K-filter na 48 kHz = koeficijenti iz tabele BS.1770-4**; EBU Tech 3341 slučajevi 1-4 (stereo sinus 1 kHz na −23/−33 dBFS = −23,0/−33,0 LUFS, relativna i apsolutna kapija); mono −3 dB, 44,1 kHz isto; tišina −∞; pravi vrh između uzoraka (fs/4, faza 45°); limiter (plafon, tihi delovi netaknuti); pojačanje do cilja i granice; **tih govor → −14 LUFS uz pravi vrh ≤ −1 dB**; glasan → −16.
+- `lib/crea-transcript-edit.test.ts` (15): **tačni vremenski opsezi reza** za jednu reč, niz, dva niza, poslednju reč i sve reči; rez nikad u zadržanoj reči; zadržani delovi; **isti rezovi u uređivaču daju snimak tačne dužine**; vremena reči posle reza i SRT; izbor/vraćanje; pasusi i govornici; **latinica ↔ ćirilica nad transkriptom (dvoslovi, velika slova, kvačice, strane reči; vremena ostaju)**.
+- `lib/crea-audio-edit.test.ts` (17): spajanje, brisanje sredine i više opsega preko dva snimka, sređivanje opsega, mrvice, zadrži samo, pretapanja, granice efekata, plan sa pretapanjem na rezovima, trake u petlji, poništi/ponovi, granice po uređaju, ime fajla; snimač (format po pregledaču, tip bez kodeka, merač).
+- `lib/crea-silence.test.ts` (8): histereza, rezerva, kratki udarci; skraćivanje pauza (tačni opsezi) i primena na uređivač; bez govora se ne briše ništa; detektor po jačini.
+- `lib/crea-key.test.ts` (9): svih 24 tonaliteta iz profila; **pravi `meyda` nad akordima C-F-G-C daje C-dur**; srpska imena (B/H), oznake, Camelot (svih 24 različito); markeri (takt 1 na prvom naglasku), Audacity i CSV.
+- `lib/crea-audiogram.test.ts` (5), `lib/crea-audio-fx.test.ts` (4): raspored (u kadru, bez preklapanja, kvadratna slika, prsten), nivoi talasa (normalizacija, opadanje); odjek (dužina, determinizam, opadanje, eho levo-desno, rep).
+- Namerno promenjene asercije: `crea-tools.test.ts` (+6 gotovih alata i K24 blok; snimač više nije „uskoro"), `crea-device.test.ts` (primer „treba WebGPU" je sada opis slike bez rezerve u oblaku - transkript više ne traži WebGPU), `models.test.ts` (+K24 zakucane verzije).
+
+**Rezultat provere:**
+
+| Provera | Ishod |
+|---|---|
+| codegen | nije potreban (`convex/` nije diran); `convex dev --once` na DEV prošao |
+| typecheck | prošao |
+| lint | 0 grešaka, 26 zatečenih upozorenja |
+| test | 2857/2857 (253 fajla) |
+| build | prošao |
+| `check:bundle` | 170 početnih chunk-ova bez teških paketa; wavesurfer, meyda i MP3 koder samo u async chunk-ovima |
+| `check:frames`, `check:corners`, `check:white` | prošli |
+
+Nijedan dev server ovog koraka nije ostao upaljen (:3100 slobodan; :3000 je drugi projekat, nije diran).
+
+**Za Jovana ujutru:**
+- Prijavljen: `/crea/app?oblast=zvuk&rezim=uredjivac&alat=zvuk.uredjivac` sa pravim govorom sa telefona → „Skrati pauze" (prvi put preuzme ~16 MB, jednom), EQ „Jasniji glas", „Za mreže" → „Napravi konačan zvuk" → „Sačuvaj u galeriju". Čuvanje je provereno samo kroz postojeće testove `creaLocal` (strana za proveru nije imala prijavu).
+- `alat=zvuk.snimac` na iPhone-u (Safari snima AAC/MP4) i Androidu; `alat=zvuk.ciscenje` sa snimkom iz kafića ili sa ulice (GTCRN) - javi ako glas zvuči „robotski".
+- `alat=zvuk.transkript`: bez `FAL_KEY` transkript je DEMO (probne reči); posle ključa probaj pravi govor - brisanje reči treba da iseče baš tu reč.
+- `alat=zvuk.ritam` sa 2-3 prave pesme (BPM i tonalitet), `alat=zvuk.audiogram` sa delom epizode podkasta.
+- Posle deploy-a proveri da produkcija sme da vuče sa `cdn.jsdelivr.net` (signalsmith, čistač, Silero) - isto kao MediaPipe i ORT.
+- Produkcija: novi alati čuvaju kroz `creaLocal.saveLocalResult`, koji čita registar alata - treba `npx convex deploy` pre puštanja Next-a sa K24.
+- Odluči: da li uređivač treba da pamti projekat (IndexedDB, kao nacrti montaže) i da li montaža treba da čita markere ritma.

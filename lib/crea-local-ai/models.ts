@@ -21,7 +21,7 @@ import type { CreaDeviceClass } from "../crea-device";
 export const CREA_ALLOWED_MODEL_LICENSES = ["Apache-2.0", "MIT"] as const;
 export type CreaModelLicense = (typeof CREA_ALLOWED_MODEL_LICENSES)[number];
 
-export type CreaLocalRuntimeId = "mediapipe-vision" | "transformers" | "onnx" | "onnx-webgpu" | "tesseract" | "vad";
+export type CreaLocalRuntimeId = "mediapipe-vision" | "transformers" | "onnx" | "onnx-webgpu" | "tesseract" | "vad" | "web-audio";
 
 export type CreaModelSource =
   | { host: "google-cdn"; url: string }
@@ -99,7 +99,28 @@ export const CREA_LOCAL_RUNTIMES: Record<
   // zakucano na verziju paketa (`tesseract.js@v7.0.0`, `tesseract.js-core@v7.0.0`).
   tesseract: { bytes: 4_010_779, license: "Apache-2.0" },
   vad: { bytes: 2 * MB, license: "MIT" },
+  // K24: čišćenje zvuka - kod procesora (64 KB RNNoise / 9 KB GTCRN) se broji uz model.
+  "web-audio": { bytes: 0, license: "MIT" },
 };
+
+/**
+ * `@sapphi-red/web-noise-suppressor` (MIT) za čišćenje zvuka (K24, A15): i kod
+ * procesora i WASM (RNNoise / GTCRN) idu sa jsdelivr-a za TAČNO ovu verziju
+ * (Turbopack ne ume da spakuje procesor iz paketa - vidi `uredjivac/denoise.ts`).
+ */
+export const NOISE_SUPPRESSOR_VERSION = "0.4.1";
+export const NOISE_SUPPRESSOR_BASE = `https://cdn.jsdelivr.net/npm/@sapphi-red/web-noise-suppressor@${NOISE_SUPPRESSOR_VERSION}/dist`;
+
+/**
+ * `signalsmith-stretch` (MIT) za brzinu i visinu u uređivaču zvuka (K24, A14): ES modul
+ * od 114 KB sa ugrađenim WASM-om, sa jsdelivr-a (izmerena veličina u verziji 1.3.2).
+ */
+export const SIGNALSMITH_STRETCH = {
+  version: "1.3.2",
+  url: "https://cdn.jsdelivr.net/npm/signalsmith-stretch@1.3.2/SignalsmithStretch.mjs",
+  bytes: 113_867,
+  license: "MIT",
+} as const;
 
 export const CREA_LOCAL_MODELS = {
   "mp-face-detector": {
@@ -267,12 +288,33 @@ export const CREA_LOCAL_MODELS = {
     featureIds: ["V25", "A16"],
   },
   "silero-vad": {
-    runtime: "vad",
-    source: { host: "jsdelivr", url: "https://cdn.jsdelivr.net/npm/@ricky0123/vad-web/dist/silero_vad_v5.onnx" },
-    bytes: 2 * MB,
+    // K24: Silero VAD v5 (MIT) na istom ONNX Runtime WASM-u kao ostali modeli; fajl je iz
+    // npm paketa `@ricky0123/vad-web` sa jsdelivr-a, zakucan na verziju (paket se ne instalira).
+    runtime: "onnx",
+    source: { host: "jsdelivr", url: "https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.31/dist/silero_vad_v5.onnx" },
+    // Izmereno (K24): veličina fajla u paketu 0.0.31.
+    bytes: 2_327_524,
     license: "MIT",
     minClass: "weak",
     featureIds: ["A7", "A14"],
+  },
+  rnnoise: {
+    // RNNoise (BSD-3) u WASM izdanju `@shiguredo/rnnoise-wasm` (Apache-2.0), sa SIMD-om.
+    runtime: "web-audio",
+    source: { host: "jsdelivr", url: `${NOISE_SUPPRESSOR_BASE}/rnnoise_simd.wasm` },
+    bytes: 157_234,
+    license: "Apache-2.0",
+    minClass: "weak",
+    featureIds: ["A15"],
+  },
+  gtcrn: {
+    // GTCRN (MIT, Rong Xiaobin 2024) - jače čišćenje govora, 48 kHz.
+    runtime: "web-audio",
+    source: { host: "jsdelivr", url: `${NOISE_SUPPRESSOR_BASE}/gtcrn.wasm` },
+    bytes: 196_884,
+    license: "MIT",
+    minClass: "phone",
+    featureIds: ["A15"],
   },
   rife: {
     runtime: "onnx",

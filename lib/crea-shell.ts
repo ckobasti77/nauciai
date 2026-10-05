@@ -256,8 +256,8 @@ export const CREA_MODES: Record<CreaArea, readonly CreaModeDef[]> = {
       tools: true,
       status: "ready",
       blurb: {
-        sr: "Pretvori snimak u tekst, očisti govor od buke ili razdvoji pesmu na trake.",
-        en: "Turn a recording into text, clean the noise out of speech or split a song into stems.",
+        sr: "Snimi i uredi zvuk, očisti govor od buke, seci snimak brisanjem reči iz teksta, izmeri ritam ili napravi audiogram - ili razdvoji pesmu na trake.",
+        en: "Record and edit audio, clean the noise out of speech, cut a recording by deleting words from its text, measure the tempo or make an audiogram - or split a song into stems.",
       },
     },
   ],
