@@ -344,6 +344,22 @@ export function buildGoogleSpeechRequest(model: string, params: Record<string, u
   };
 }
 
+// ── Muzika (Crea K23, A11): Lyria kroz isti Interactions API ────────────────
+
+/**
+ * Telo zahteva za Lyriu, doslovno po zvaničnom primeru
+ * (https://ai.google.dev/gemini-api/docs/music-generation, pročitano 2026-10-05):
+ * `model` + `input` kao tekst. Delovi i tekst pesme idu u sam opis (`[Verse]`,
+ * `[Chorus]`…), instrumental kao rečenica „Instrumental only, no vocals".
+ * `response_format` se NE šalje: bez njega izlaz je MP3 (sa njim WAV, ~10× veći).
+ */
+export function buildLyriaRequest(model: string, params: Record<string, unknown>): Record<string, unknown> {
+  const prompt = typeof params.prompt === "string" ? params.prompt.trim() : "";
+  if (prompt.length === 0) throw new Error("NEPOTPUN_ULAZ: Opiši muziku koju želiš.");
+
+  return { model, input: prompt };
+}
+
 /** WAV zaglavlje (44 B) nad 16-bitnim PCM bajtovima. */
 export function pcm16Wav(pcm: Uint8Array, sampleRate: number, channels = 1): Uint8Array {
   const out = new Uint8Array(44 + pcm.length);

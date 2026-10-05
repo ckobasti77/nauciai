@@ -38,6 +38,7 @@ import { TranscriptPanel } from "@/components/crea/transcript-panel";
 import { PromptSegmentsView } from "@/components/crea/prompt-parts";
 import { QUICK_ACTION_ICONS, type QuickActionLink } from "@/components/crea/quick-actions-menu";
 import { VersionStrip } from "@/components/crea/version-strip";
+import { LicenseBadge } from "@/components/crea/zvuk/license-badge";
 import { CreditIcon } from "@/components/studio/credit-icon";
 import { StudioComposer, type JobPayload, type RegenerateSeed } from "@/components/studio/studio-composer";
 import { ConfirmDialog, useModalFocus } from "@/components/ui/dialog";
@@ -47,6 +48,7 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { CREA_PICK_COPY, CREA_TOOL_COPY, CREA_VERSION_COPY, fillCopy } from "@/lib/crea-copy";
 import { buildRefineOrder, orderCredits, refinePairForJob, type RefineOrder } from "@/lib/crea-draft";
+import { licenseForJob } from "@/lib/crea-license-tags";
 import { toolOfJob } from "@/lib/crea-tools";
 import { isAnglesGridPrompt } from "@/lib/crea-grid-crop";
 import { CREA_LIBRARY_COPY } from "@/lib/crea-library-copy";
@@ -988,6 +990,8 @@ export function StudioMediaDetail({
                     ) : null}
                   </div>
                 </div>
+                {/* Crea K23 (A21): „Sigurno za objavu" za zvuk - odakle je i sme li na mrežu. */}
+                {job.kind === "audio" ? <LicenseBadge tag={licenseForJob(job)} locale={locale} detail className="mt-2" /> : null}
               </div>
 
               {/* Prompt, obojen po delovima (Ko · Šta · Stil · Svetlo · Kamera) */}

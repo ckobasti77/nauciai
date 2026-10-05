@@ -363,12 +363,13 @@ test("endpoint sa {tier} placeholderom ima mapu tarifa za svaku rezoluciju", () 
 
 // ── katalog: koliko ih ima i ko su ─────────────────────────────────────────
 
-test("katalog ima 50 redova, jedinstvene slugove i jedinstven redosled", () => {
+test("katalog ima 54 reda, jedinstvene slugove i jedinstven redosled", () => {
   // 30 iz kataloga v4 + 17 iz Cree K07 (11 za slike, 6 za video) + 2 iz K20
-  // (Kling O3 izmena videa, ByteDance uvećanje videa) + 1 iz K22 (Gemini govor).
-  expect(STUDIO_MODELS).toHaveLength(50);
-  expect(new Set(STUDIO_MODELS.map((model) => model.slug)).size).toBe(50);
-  expect(new Set(STUDIO_MODELS.map((model) => model.sortOrder)).size).toBe(50);
+  // (Kling O3 izmena videa, ByteDance uvećanje videa) + 1 iz K22 (Gemini govor)
+  // + 4 iz K23 (Lyria klip i pesma, MMAudio efekti, Demucs trake).
+  expect(STUDIO_MODELS).toHaveLength(54);
+  expect(new Set(STUDIO_MODELS.map((model) => model.slug)).size).toBe(54);
+  expect(new Set(STUDIO_MODELS.map((model) => model.sortOrder)).size).toBe(54);
 
   const byKind = { image: 0, video: 0, audio: 0 };
   for (const model of STUDIO_MODELS) byKind[model.kind] += 1;
@@ -376,24 +377,24 @@ test("katalog ima 50 redova, jedinstvene slugove i jedinstven redosled", () => {
   expect(byKind.image).toBe(19);
   // 10 video modela + tri Kling alata koji vraćaju video = 13, plus 6 iz K07 i 2 iz K20.
   expect(byKind.video).toBe(21);
-  // 8 ElevenLabs alata + Kling zvuk za video = 9, plus Gemini govor iz K22.
-  expect(byKind.audio).toBe(10);
+  // 8 ElevenLabs alata + Kling zvuk za video = 9, plus Gemini govor iz K22, plus 4 iz K23.
+  expect(byKind.audio).toBe(14);
 
   const byProvider = { fal: 0, google: 0, byteplus: 0 };
   for (const model of STUDIO_MODELS) byProvider[model.provider] += 1;
   // 6, ne 4: Veo Lite i Veo Standard su presli sa fal-a na Google. Bili su tamo
   // zbog "parity" cene, a Google je jedini provajder za koji postoji kljuc.
-  // K07: + Nano Banana 2 Lite. K22: + Gemini govor.
-  expect(byProvider.google).toBe(8);
+  // K07: + Nano Banana 2 Lite. K22: + Gemini govor. K23: + Lyria klip i pesma.
+  expect(byProvider.google).toBe(10);
   expect(byProvider.byteplus).toBe(3);
-  // K20: + Kling O3 izmena videa i ByteDance uvećanje (oba fal).
-  expect(byProvider.fal).toBe(39);
+  // K20: + Kling O3 izmena videa i ByteDance uvećanje (oba fal). K23: + MMAudio i Demucs.
+  expect(byProvider.fal).toBe(41);
 
   expect(studioModelBySlug("nano-banana-pro")).toBe(NANO_BANANA_PRO);
   expect(studioModelBySlug("nema-me")).toBeUndefined();
 });
 
-test("modeli koji se naplaćuju po dužini OKAČENOG fajla su u ponudi (7 vraćenih + 2 iz K20)", () => {
+test("modeli koji se naplaćuju po dužini OKAČENOG fajla su u ponudi (7 vraćenih + 2 iz K20 + trake iz K23)", () => {
   const fromFile = STUDIO_MODELS.filter((seed) => {
     const quantity = seed.capabilities.quantity as { from?: string } | undefined;
 
@@ -407,6 +408,7 @@ test("modeli koji se naplaćuju po dužini OKAČENOG fajla su u ponudi (7 vraće
     "kling-lipsync",
     "kling-motion",
     "kling-o3-edit",
+    "stems",
     "stt",
     "video-upscaler",
     "voice-changer",

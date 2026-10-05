@@ -18,6 +18,8 @@ export const CREA_DERIVATIONS = [
   "montaza",
   // K12: sloj iz razlaganja (Seedream 5 Pro „layerize") - dete glavnog izlaza.
   "sloj",
+  // K23 (A18): traka razdvajanja (Demucs) - bubanj, bas i ostalo su deca trake glasa.
+  "traka",
 ] as const;
 export type CreaDerivation = (typeof CREA_DERIVATIONS)[number];
 

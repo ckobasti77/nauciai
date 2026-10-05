@@ -1,0 +1,52 @@
+Zvučni efekti Cree (K23, A13) - izvor i licenca svakog fajla
+
+Svi fajlovi su iz paketa autora Kenney (https://kenney.nl), licenca: Creative Commons Zero (CC0 1.0),
+https://creativecommons.org/publicdomain/zero/1.0/ - slobodno za lične, obrazovne i komercijalne projekte,
+navođenje autora nije obavezno. Originali su OGG; ovde su pretvoreni u MP3 (96 kb/s, ffmpeg/LAME) bez drugih izmena.
+Preuzeto 2026-10-05.
+
+fajl | paket (izvor) | originalni fajl | licenca
+klik.mp3 | Kenney Interface Sounds - https://kenney.nl/assets/interface-sounds | click_001.ogg | CC0 1.0
+potvrda.mp3 | Kenney Interface Sounds - https://kenney.nl/assets/interface-sounds | confirmation_001.ogg | CC0 1.0
+greska.mp3 | Kenney Interface Sounds - https://kenney.nl/assets/interface-sounds | error_004.ogg | CC0 1.0
+pitanje.mp3 | Kenney Interface Sounds - https://kenney.nl/assets/interface-sounds | question_001.ogg | CC0 1.0
+stakleni-zvon.mp3 | Kenney Interface Sounds - https://kenney.nl/assets/interface-sounds | glass_001.ogg | CC0 1.0
+kap.mp3 | Kenney Interface Sounds - https://kenney.nl/assets/interface-sounds | drop_001.ogg | CC0 1.0
+grebanje.mp3 | Kenney Interface Sounds - https://kenney.nl/assets/interface-sounds | scratch_001.ogg | CC0 1.0
+prekidac.mp3 | Kenney Interface Sounds - https://kenney.nl/assets/interface-sounds | switch_001.ogg | CC0 1.0
+gong.mp3 | Kenney Interface Sounds - https://kenney.nl/assets/interface-sounds | bong_001.ogg | CC0 1.0
+trzaj-zice.mp3 | Kenney Interface Sounds - https://kenney.nl/assets/interface-sounds | pluck_001.ogg | CC0 1.0
+otvaranje-prozora.mp3 | Kenney Interface Sounds - https://kenney.nl/assets/interface-sounds | maximize_001.ogg | CC0 1.0
+tik.mp3 | Kenney Interface Sounds - https://kenney.nl/assets/interface-sounds | tick_001.ogg | CC0 1.0
+korak-drvo.mp3 | Kenney Impact Sounds - https://kenney.nl/assets/impact-sounds | footstep_wood_000.ogg | CC0 1.0
+korak-trava.mp3 | Kenney Impact Sounds - https://kenney.nl/assets/impact-sounds | footstep_grass_000.ogg | CC0 1.0
+korak-sneg.mp3 | Kenney Impact Sounds - https://kenney.nl/assets/impact-sounds | footstep_snow_000.ogg | CC0 1.0
+korak-beton.mp3 | Kenney Impact Sounds - https://kenney.nl/assets/impact-sounds | footstep_concrete_000.ogg | CC0 1.0
+udarac-pesnicom.mp3 | Kenney Impact Sounds - https://kenney.nl/assets/impact-sounds | impactPunch_heavy_000.ogg | CC0 1.0
+udarac-staklo.mp3 | Kenney Impact Sounds - https://kenney.nl/assets/impact-sounds | impactGlass_heavy_000.ogg | CC0 1.0
+udarac-metal.mp3 | Kenney Impact Sounds - https://kenney.nl/assets/impact-sounds | impactMetal_heavy_000.ogg | CC0 1.0
+zvono.mp3 | Kenney Impact Sounds - https://kenney.nl/assets/impact-sounds | impactBell_heavy_000.ogg | CC0 1.0
+udarac-daska.mp3 | Kenney Impact Sounds - https://kenney.nl/assets/impact-sounds | impactPlank_medium_000.ogg | CC0 1.0
+kramp.mp3 | Kenney Impact Sounds - https://kenney.nl/assets/impact-sounds | impactMining_000.ogg | CC0 1.0
+vrata-otvaranje.mp3 | Kenney RPG Audio - https://kenney.nl/assets/rpg-audio | doorOpen_1.ogg | CC0 1.0
+vrata-zatvaranje.mp3 | Kenney RPG Audio - https://kenney.nl/assets/rpg-audio | doorClose_1.ogg | CC0 1.0
+skripa.mp3 | Kenney RPG Audio - https://kenney.nl/assets/rpg-audio | creak1.ogg | CC0 1.0
+listanje.mp3 | Kenney RPG Audio - https://kenney.nl/assets/rpg-audio | bookFlip1.ogg | CC0 1.0
+novcici.mp3 | Kenney RPG Audio - https://kenney.nl/assets/rpg-audio | handleCoins.ogg | CC0 1.0
+noz.mp3 | Kenney RPG Audio - https://kenney.nl/assets/rpg-audio | knifeSlice.ogg | CC0 1.0
+tkanina.mp3 | Kenney RPG Audio - https://kenney.nl/assets/rpg-audio | cloth1.ogg | CC0 1.0
+reza.mp3 | Kenney RPG Audio - https://kenney.nl/assets/rpg-audio | metalLatch.ogg | CC0 1.0
+cepanje-drva.mp3 | Kenney RPG Audio - https://kenney.nl/assets/rpg-audio | chop.ogg | CC0 1.0
+pojacanje.mp3 | Kenney Digital Audio - https://kenney.nl/assets/digital-audio | powerUp1.ogg | CC0 1.0
+laser.mp3 | Kenney Digital Audio - https://kenney.nl/assets/digital-audio | laser1.ogg | CC0 1.0
+struja.mp3 | Kenney Digital Audio - https://kenney.nl/assets/digital-audio | zap1.ogg | CC0 1.0
+uzlazni-ton.mp3 | Kenney Digital Audio - https://kenney.nl/assets/digital-audio | phaserUp1.ogg | CC0 1.0
+tri-tona.mp3 | Kenney Digital Audio - https://kenney.nl/assets/digital-audio | threeTone1.ogg | CC0 1.0
+kocka.mp3 | Kenney Casino Audio - https://kenney.nl/assets/casino-audio | dice-throw-1.ogg | CC0 1.0
+mesanje-karata.mp3 | Kenney Casino Audio - https://kenney.nl/assets/casino-audio | card-shuffle.ogg | CC0 1.0
+zetoni.mp3 | Kenney Casino Audio - https://kenney.nl/assets/casino-audio | chips-stack-1.ogg | CC0 1.0
+dzingl-8bit.mp3 | Kenney Music Jingles - https://kenney.nl/assets/music-jingles | jingles_NES00.ogg | CC0 1.0
+dzingl-saksofon.mp3 | Kenney Music Jingles - https://kenney.nl/assets/music-jingles | jingles_SAX03.ogg | CC0 1.0
+dzingl-pizzicato.mp3 | Kenney Music Jingles - https://kenney.nl/assets/music-jingles | jingles_PIZZI03.ogg | CC0 1.0
+dzingl-steel-drum.mp3 | Kenney Music Jingles - https://kenney.nl/assets/music-jingles | jingles_STEEL01.ogg | CC0 1.0
+dzingl-udarac.mp3 | Kenney Music Jingles - https://kenney.nl/assets/music-jingles | jingles_HIT03.ogg | CC0 1.0

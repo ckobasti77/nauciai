@@ -45,6 +45,8 @@ describe("veze ka roditelju", () => {
       "regeneracija",
       "montaza",
       "sloj",
+      // K23 (A18): traka razdvajanja.
+      "traka",
     ]);
     for (const value of CREA_DERIVATIONS) expect(isCreaDerivation(value)).toBe(true);
     expect(isCreaDerivation("remiks")).toBe(false);

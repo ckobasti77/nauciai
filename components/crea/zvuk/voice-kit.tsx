@@ -320,16 +320,24 @@ export function PresetSaver({ locale, engine, voiceId, settings }: { locale: Loc
 
 export type JobState = { status: string; isMock: boolean; outputUrl: string | null };
 
-/** Stanja do 40 sopstvenih poslova (`creaMontages.jobStates` prima 20 po pozivu). */
+/**
+ * Stanja do 120 sopstvenih poslova (`creaMontages.jobStates` prima 20 po pozivu;
+ * K23: prevod ima do 120 rečenica). Broj upita je stalan (6), prazni se preskaču.
+ */
 export function useJobStates(ids: readonly Id<"generationJobs">[]): Record<string, JobState> | undefined {
   const unique = [...new Set(ids)];
-  const first = unique.slice(0, 20);
-  const second = unique.slice(20, 40);
-  const a = useQuery(api.creaMontages.jobStates, first.length > 0 ? { jobIds: first } : "skip");
-  const b = useQuery(api.creaMontages.jobStates, second.length > 0 ? { jobIds: second } : "skip");
-  if (first.length > 0 && a === undefined) return undefined;
-  if (second.length > 0 && b === undefined) return undefined;
-  return { ...(a ?? {}), ...(b ?? {}) };
+  const chunk = (index: number) => unique.slice(index * 20, index * 20 + 20);
+  const args = (index: number) => (chunk(index).length > 0 ? { jobIds: chunk(index) } : ("skip" as const));
+  const results = [
+    useQuery(api.creaMontages.jobStates, args(0)),
+    useQuery(api.creaMontages.jobStates, args(1)),
+    useQuery(api.creaMontages.jobStates, args(2)),
+    useQuery(api.creaMontages.jobStates, args(3)),
+    useQuery(api.creaMontages.jobStates, args(4)),
+    useQuery(api.creaMontages.jobStates, args(5)),
+  ];
+  if (results.some((result, index) => chunk(index).length > 0 && result === undefined)) return undefined;
+  return Object.assign({}, ...results.map((result) => result ?? {})) as Record<string, JobState>;
 }
 
 /** Jedna napravljena verzija: plejer, DEMO, greška ili „pravi se". */

@@ -5,6 +5,8 @@
  * može proveriti bez njih. Algoritam je iz STUDIO-PLAN 4.3.
  */
 
+import { STEM_KEYS } from "./providers/falAudioModels";
+
 /** STUDIO-PLAN 4.3 - potpis vredi +/-300 sekundi (zaštita od replay-a). */
 export const TIMESTAMP_TOLERANCE_SECONDS = 300;
 
@@ -143,6 +145,15 @@ const SINGLE_OUTPUT_KEYS = ["video", "image", "audio", "audio_file"] as const;
 /** Polja u payload-u koja nose listu izlaza; uzima se prvi. */
 const LIST_OUTPUT_KEYS = ["images", "videos", "audios", "audio_files"] as const;
 
+/**
+ * Trake razdvajanja (Crea K23, A18): Demucs vraća po jedan fajl pod imenom trake
+ * (`{ vocals: { url }, drums: { url }, … }`, https://fal.ai/models/fal-ai/demucs/llms.txt).
+ * Redosled je `STEM_KEYS`: prvi (glas) je izlaz posla, ostali su deca.
+ */
+function stemUrls(record: Record<string, unknown>): string[] {
+  return STEM_KEYS.map((key) => readUrl(record[key])).filter((url): url is string => url !== null);
+}
+
 function readUrl(value: unknown): string | null {
   if (!value || typeof value !== "object") return null;
   const url = (value as { url?: unknown }).url;
@@ -172,6 +183,9 @@ export function extractOutputUrl(payload: unknown): string | null {
     if (url) return url;
   }
 
+  const stems = stemUrls(record);
+  if (stems.length > 0) return stems[0]!;
+
   return readUrl(record);
 }
 
@@ -189,6 +203,8 @@ export function extractOutputUrls(payload: unknown): string[] {
     if (!Array.isArray(list) || readUrl(list[0]) !== first) continue;
     return list.map(readUrl).filter((url): url is string => url !== null);
   }
+  const stems = stemUrls(record);
+  if (stems[0] === first) return stems;
   return [first];
 }
 

@@ -28,6 +28,7 @@ import {
   bareInteractionId,
   buildGoogleImageRequest,
   buildGoogleSpeechRequest,
+  buildLyriaRequest,
   buildOmniRequest,
   buildVeoRequest,
   type GoogleInputFile,
@@ -250,7 +251,10 @@ async function runGoogleSyncJob(
     body: isVideo
       ? buildOmniRequest(providerModel, params, inputs, inputMode, previousInteractionId)
       : isAudio
-        ? buildGoogleSpeechRequest(providerModel, params, GEMINI_TTS_DEFAULT_VOICE)
+        ? // Muzika (Crea K23): Lyria je isti sinhroni poziv, samo drugo telo; izlaz je MP3.
+          capabilities.music === true
+          ? buildLyriaRequest(providerModel, params)
+          : buildGoogleSpeechRequest(providerModel, params, GEMINI_TTS_DEFAULT_VOICE)
         : buildGoogleImageRequest(providerModel, params, inputs, inputMode),
   });
 

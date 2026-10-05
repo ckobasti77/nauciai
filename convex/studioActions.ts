@@ -14,6 +14,7 @@ import {
 import { demoTranscript, isTranscriptModel, transcriptForStorage } from "./creaTranscriptsCore";
 import { isLayerizeJob, mockLayerDataUrls, mockVariationDataUrls } from "./creaLayersCore";
 import { submitBytePlusJob } from "./providers/byteplus";
+import { STEM_KEYS } from "./providers/falAudioModels";
 import { falInputFields, falMapOf, falParams, resolveEndpointTier } from "./providers/falInputs";
 import { parseDataUrl } from "../lib/data-url";
 import { parseJobInputs } from "./providers/jobInputs";
@@ -236,12 +237,14 @@ export const completeMockJob = internalAction({
       // DEMO razlaganje (K12): providni slojevi umesto jednog plakata, da editor slojeva radi i bez ključa.
       // DEMO više slika (K13, S5): `num_images` > 1 daje toliko plakata, kao pravi provajder.
       const prompt = extractPrompt(params);
+      // DEMO trake (K23, A18): četiri plakata, pa razdvajanje ima i decu bez ključa.
+      const stemCount = model && parseParams(model.capabilities)?.output === "stems" ? STEM_KEYS.length : null;
       const outputs = isLayerizeJob(job)
         ? mockLayerDataUrls(prompt, job.promptHash, typeof params.layers === "number" ? params.layers : 2)
         : mockVariationDataUrls(
             (hash) => mockOutputDataUrl(prompt, hash, job.kind),
             job.promptHash,
-            typeof params.num_images === "number" ? params.num_images : 1,
+            stemCount ?? (typeof params.num_images === "number" ? params.num_images : 1),
           );
       await ctx.runMutation(internal.falWebhook.applyWebhookResult, {
         falRequestId: job.falRequestId,

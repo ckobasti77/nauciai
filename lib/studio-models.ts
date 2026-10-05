@@ -164,7 +164,9 @@ export type ProviderBrand =
   | "ideogram"
   | "xai"
   | "lightricks"
-  | "pixverse";
+  | "pixverse"
+  | "sony"
+  | "meta";
 
 export const PROVIDER_BRANDS: readonly ProviderBrand[] = [
   "google",
@@ -180,6 +182,8 @@ export const PROVIDER_BRANDS: readonly ProviderBrand[] = [
   "xai",
   "lightricks",
   "pixverse",
+  "sony",
+  "meta",
 ] as const;
 
 /**
@@ -210,6 +214,10 @@ const FAMILY_TO_BRAND: Record<string, ProviderBrand> = {
   pixverse: "pixverse",
   // Crea K20 (V17): ByteDance uvećanje videa.
   bytedance: "bytedance",
+  // Crea K23 (A11, A13, A18): Lyria (Google), MMAudio (Sony AI i UIUC), Demucs (Meta).
+  lyria: "google",
+  mmaudio: "sony",
+  demucs: "meta",
 };
 
 /** Ime firme za `aria-label` znaka. Proper nouns - isto u oba jezika. */
@@ -227,6 +235,8 @@ export const PROVIDER_BRAND_NAME: Record<ProviderBrand, string> = {
   xai: "xAI",
   lightricks: "Lightricks",
   pixverse: "PixVerse",
+  sony: "Sony AI",
+  meta: "Meta",
 };
 
 /**

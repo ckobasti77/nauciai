@@ -30,9 +30,20 @@ export const LAYER_PARAM = "sloj";
  */
 export const VARIATION_PARAM = "varijacija";
 
-/** Kako se zove dete dodatnog izlaza: sloj razlaganja ili varijacija. */
-export function extraOutputKind(job: { inputMode?: string }): { derivation: "sloj" | "varijacija"; param: string } {
-  return isLayerizeJob(job) ? { derivation: "sloj", param: LAYER_PARAM } : { derivation: "varijacija", param: VARIATION_PARAM };
+/**
+ * Razdvajanje na trake (K23, A18): izlaz posla je glas, a bubanj, bas i ostalo
+ * su deca sa rednim brojem trake u `params.traka` (2, 3, 4 = redom `STEM_KEYS`).
+ */
+export const STEM_PARAM = "traka";
+export const STEMS_MODEL_SLUG = "stems";
+
+export type ExtraOutputDerivation = "sloj" | "varijacija" | "traka";
+
+/** Kako se zove dete dodatnog izlaza: sloj razlaganja, traka razdvajanja ili varijacija. */
+export function extraOutputKind(job: { inputMode?: string; modelSlug?: string }): { derivation: ExtraOutputDerivation; param: string } {
+  if (isLayerizeJob(job)) return { derivation: "sloj", param: LAYER_PARAM };
+  if (job.modelSlug === STEMS_MODEL_SLUG) return { derivation: "traka", param: STEM_PARAM };
+  return { derivation: "varijacija", param: VARIATION_PARAM };
 }
 
 /** Parametri deteta: parametri glavnog posla + redni broj sloja (2, 3, …). */

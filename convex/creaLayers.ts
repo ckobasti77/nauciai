@@ -2,7 +2,18 @@ import { v } from "convex/values";
 
 import type { Doc, Id } from "./_generated/dataModel";
 import { internalMutation, query, type QueryCtx } from "./_generated/server";
-import { extraOutputKind, isLayerizeJob, LAYER_COUNT_RANGE, layerChildParams, layerNumberOf, orderLayers } from "./creaLayersCore";
+import {
+  extraOutputKind,
+  isLayerizeJob,
+  LAYER_COUNT_RANGE,
+  layerChildParams,
+  layerNumberOf,
+  orderLayers,
+  STEM_PARAM,
+  STEMS_MODEL_SLUG,
+  type ExtraOutputDerivation,
+} from "./creaLayersCore";
+import { STEM_KEYS, type StemKey } from "./providers/falAudioModels";
 import { lineageFrom, VERSION_TREE_MAX_NODES } from "./creaVersionsCore";
 import { requireUserId } from "./helpers";
 import { isMockRequestId, MOCK_REQUEST_PREFIX, outputExpiresAt, parseParams } from "./studioCore";
@@ -21,7 +32,7 @@ import { isMockRequestId, MOCK_REQUEST_PREFIX, outputExpiresAt, parseParams } fr
 export async function extraOutputChildren(
   ctx: QueryCtx,
   main: Doc<"generationJobs">,
-  derivation: "sloj" | "varijacija" = "sloj",
+  derivation: ExtraOutputDerivation = "sloj",
 ): Promise<Doc<"generationJobs">[]> {
   const rootJobId = main.rootJobId ?? main._id;
   const tree = await ctx.db
@@ -116,6 +127,41 @@ export const getLayers = query({
       requested: typeof requested === "number" ? requested : null,
       isMock: isMockRequestId(main.falRequestId),
       layers: orderLayers(entries).filter((layer) => layer.url !== null),
+    };
+  },
+});
+
+/**
+ * Trake jednog razdvajanja (Crea K23, A18): glas je izlaz posla, a bubanj, bas i
+ * ostalo su njegova deca (`derivation: "traka"`, broj u `params.traka`). Prima
+ * glavni posao ili bilo koju njegovu traku. `null` za tuđ rad i za rad koji nije
+ * razdvajanje.
+ */
+export const getStems = query({
+  args: { jobId: v.id("generationJobs") },
+  handler: async (ctx, args) => {
+    const userId = await requireUserId(ctx);
+    const job = await ctx.db.get("generationJobs", args.jobId);
+    if (!job || job.userId !== userId || job.modelSlug !== STEMS_MODEL_SLUG) return null;
+    const main: Doc<"generationJobs"> | null =
+      job.derivation === "traka" && job.parentJobId ? await ctx.db.get("generationJobs", job.parentJobId) : job;
+    if (!main || main.userId !== userId || main.modelSlug !== STEMS_MODEL_SLUG) return null;
+
+    const children = main.status === "done" ? await extraOutputChildren(ctx, main, "traka") : [];
+    const tracks: Array<{ key: StemKey; jobId: Id<"generationJobs">; url: string }> = [];
+    for (const entry of [main, ...children]) {
+      const number = entry._id === main._id ? 1 : layerNumberOf(entry.params, STEM_PARAM);
+      const key = STEM_KEYS[number - 1];
+      const url = entry.outputStorageId ? await ctx.storage.getUrl(entry.outputStorageId) : null;
+      if (key && url && !tracks.some((track) => track.key === key)) tracks.push({ key, jobId: entry._id, url });
+    }
+    tracks.sort((a, b) => STEM_KEYS.indexOf(a.key) - STEM_KEYS.indexOf(b.key));
+    return {
+      mainJobId: main._id,
+      status: main.status,
+      error: main.error ?? null,
+      isMock: isMockRequestId(main.falRequestId),
+      tracks,
     };
   },
 });

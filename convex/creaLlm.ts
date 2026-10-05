@@ -39,6 +39,19 @@ import {
   type ExplainerPlan,
   type Moment,
 } from "./creaLlmVideoCore";
+import {
+  buildScoreRequest,
+  buildTranslateRequest,
+  demoScore,
+  demoTranslate,
+  DUB_LANGUAGES,
+  parseScoreResponse,
+  parseTranslateResponse,
+  SCORE_FRAME_TYPES,
+  SCORE_LIMITS,
+  translateSegmentsInput,
+  type ScorePlan,
+} from "./creaLlmSoundCore";
 import { buildPodcastRequest, demoPodcast, parsePodcastResponse, PODCAST_LIMITS, type PodcastScript } from "./creaLlmVoiceCore";
 import { STORYBOARD_LIMITS, type StoryShot } from "./creaStoryboardsCore";
 import { sentencesFromWords, transcriptDigest } from "./creaTranscriptsCore";
@@ -403,5 +416,70 @@ export const writePodcast = action({
     if (!apiKey) return { ok: true, demo: true, remaining: slot.remaining, ...demoPodcast(input) };
     const script = await callGemini(ctx, slot, apiKey, buildPodcastRequest(input), parsePodcastResponse, "Podkast");
     return script ? { ok: true, demo: false, remaining: slot.remaining, ...script } : { ok: false, reason: "GRESKA" };
+  },
+});
+
+// ── Zvuk II (K23): prevod uz pregled (A10) i „Ozvuči moj video" (A12) ─────────
+
+export type TranslateReply =
+  | { ok: true; demo: boolean; remaining: number; translations: Record<string, string> }
+  | { ok: false; reason: "PRAZNO" | "LIMIT" | "GRESKA" };
+
+/**
+ * A10: rečenice transkripta → prevod, istim id-jevima (0 kredita, dnevni limit).
+ * Prevod se NE izgovara ovde: korisnik ga pregleda i ispravi, pa tek onda plaća
+ * govor - i to samo za rečenice koje su nove ili izmenjene (`lib/crea-dub.ts`).
+ */
+export const translateSegments = action({
+  args: {
+    segments: v.array(v.object({ id: v.string(), text: v.string() })),
+    to: v.union(...DUB_LANGUAGES.map((language) => v.literal(language))),
+    from: v.optional(v.string()),
+  },
+  handler: async (ctx, args): Promise<TranslateReply> => {
+    const segments = translateSegmentsInput(args.segments);
+    if (segments.length === 0) return { ok: false, reason: "PRAZNO" };
+    const slot = await ctx.runMutation(internal.creaLlm.beginCall, {});
+    if (!slot.ok) return { ok: false, reason: "LIMIT" };
+    const input = { segments, to: args.to, from: args.from ?? null };
+    const apiKey = process.env.GOOGLE_AI_API_KEY;
+    if (!apiKey) return { ok: true, demo: true, remaining: slot.remaining, translations: demoTranslate(input) };
+    const ids = segments.map((segment) => segment.id);
+    const translations = await callGemini(ctx, slot, apiKey, buildTranslateRequest(input), (raw) => parseTranslateResponse(raw, ids), "Prevod");
+    return translations ? { ok: true, demo: false, remaining: slot.remaining, translations } : { ok: false, reason: "GRESKA" };
+  },
+});
+
+export type ScoreReply = ({ ok: true; demo: boolean; remaining: number } & ScorePlan) | { ok: false; reason: "PRAZNO" | "LIMIT" | "GRESKA" };
+
+/**
+ * A12: nekoliko kadrova klipa (klijent ih izvuče i smanji, ništa se ne čuva) →
+ * opis, raspoloženje, 4 predloga muzike i do 3 efekta. 0 kredita, dnevni limit.
+ */
+export const planScore = action({
+  args: { frames: v.array(v.bytes()), mimeType: v.string(), durationS: v.number(), locale: localeValidator },
+  handler: async (ctx, args): Promise<ScoreReply> => {
+    const frames = args.frames.slice(0, SCORE_LIMITS.frames);
+    if (frames.length === 0 || frames.some((frame) => frame.byteLength === 0)) return { ok: false, reason: "PRAZNO" };
+    if (frames.some((frame) => frame.byteLength > SCORE_LIMITS.frameBytes) || !(SCORE_FRAME_TYPES as readonly string[]).includes(args.mimeType)) {
+      return { ok: false, reason: "GRESKA" };
+    }
+    const slot = await ctx.runMutation(internal.creaLlm.beginCall, {});
+    if (!slot.ok) return { ok: false, reason: "LIMIT" };
+    const input = { durationS: Number.isFinite(args.durationS) ? Math.max(0, args.durationS) : 0, locale: args.locale };
+    const apiKey = process.env.GOOGLE_AI_API_KEY;
+    if (!apiKey) return { ok: true, demo: true, remaining: slot.remaining, ...demoScore(input) };
+    const plan = await callGemini(
+      ctx,
+      slot,
+      apiKey,
+      buildScoreRequest(
+        frames.map((frame) => ({ base64: bytesToBase64(new Uint8Array(frame)), mimeType: args.mimeType })),
+        input,
+      ),
+      parseScoreResponse,
+      "Ozvučenje",
+    );
+    return plan ? { ok: true, demo: false, remaining: slot.remaining, ...plan } : { ok: false, reason: "GRESKA" };
   },
 });

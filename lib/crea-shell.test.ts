@@ -59,8 +59,9 @@ describe("CREA_MODES", () => {
           mode.tools &&
           !((area === "slika" || area === "video") && (mode.id === "izmeni" || mode.id === "napravi")) &&
           !(area === "video" && (mode.id === "pokret" || mode.id === "govor")) &&
-          // K22: Zvuk · Govor - govor sa emocijama, dijalog i podkast pored modela govora.
-          !(area === "zvuk" && mode.id === "govor")
+          // K22: Zvuk · Govor - govor sa emocijama, dijalog i podkast pored modela govora;
+          // K23: i Promena glasa, Prevod, Muzika, Efekti i Uređivač - alati pored modela.
+          !(area === "zvuk" && mode.id !== "glasovi")
         ) {
           expect(mode.models, `${area}/${mode.id}`).toBeUndefined();
         } else expect(mode.models).toBeDefined();
@@ -123,9 +124,10 @@ describe("modelsForMode", () => {
     expect(slugsOf("zvuk", "govor").sort()).toEqual(["dialogue", "gemini-tts", "tts"]);
     expect(slugsOf("zvuk", "promena")).toEqual(["voice-changer"]);
     expect(slugsOf("zvuk", "prevod")).toEqual(["dubbing"]);
-    expect(slugsOf("zvuk", "muzika")).toEqual(["music"]);
-    expect(slugsOf("zvuk", "efekti").sort()).toEqual(["kling-v2a", "sfx"]);
-    expect(slugsOf("zvuk", "uredjivac").sort()).toEqual(["audio-isolation", "stt"]);
+    // K23: Lyria (A11), MMAudio (A13) i trake (A18).
+    expect(slugsOf("zvuk", "muzika").sort()).toEqual(["lyria-3-clip", "lyria-35", "music"]);
+    expect(slugsOf("zvuk", "efekti").sort()).toEqual(["kling-v2a", "mmaudio-sfx", "sfx"]);
+    expect(slugsOf("zvuk", "uredjivac").sort()).toEqual(["audio-isolation", "stems", "stt"]);
   });
 
   test("režim-nastavak (Gemini Omni `video`) je u Izmeni od K18: composer bira raniji rad (SourceJobPicker)", () => {

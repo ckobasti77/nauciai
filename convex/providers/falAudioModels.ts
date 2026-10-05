@@ -454,6 +454,86 @@ export const DUBBING: StudioModelSeed = {
   sortOrder: 470,
 };
 
+/**
+ * `mmaudio-sfx` - jeftiniji zvučni efekti (Crea K23, A13): MMAudio v2 preko fal-a,
+ * „$0.001 per seconds", 1-30 s (https://fal.ai/models/fal-ai/mmaudio-v2/text-to-audio/llms.txt,
+ * pročitano 2026-10-05) - upola ElevenLabs-a ($0,002/s), bez minimuma od 5 s.
+ * fal ga vodi kao „Commercial use". Trajanje ide pod istim imenom (`duration`).
+ */
+export const MMAUDIO_SFX: StudioModelSeed = {
+  slug: "mmaudio-sfx",
+  provider: "fal",
+  kind: "audio",
+  family: "mmaudio",
+  labelSr: "Brzi zvučni efekat",
+  labelEn: "Quick sound effect",
+  taglineSr: "Efekat iz opisa upola jeftinije, od 1 do 30 sekundi.",
+  taglineEn: "An effect from a description at half the price, 1 to 30 seconds.",
+  descriptionSr:
+    "MMAudio v2. Opišeš zvuk (na engleskom radi najbolje) i dobiješ efekat. Plaća se po sekundi, bez najkraćeg trajanja.",
+  descriptionEn:
+    "MMAudio v2. Describe a sound and get the effect. Charged per second, with no minimum length.",
+  endpoints: { text: "fal-ai/mmaudio-v2/text-to-audio" },
+  inputModes: ["text"],
+  inputSpec: { text: {} },
+  paramSpec: [
+    promptControl(),
+    unitSlider({
+      key: "duration",
+      labelSr: "Trajanje",
+      labelEn: "Duration",
+      min: 1,
+      max: 30,
+      step: 1,
+      default: 5,
+      unitSr: "s",
+      unitEn: "s",
+    }),
+  ],
+  priceRule: { unit: "second", baseUsd: 0.001, quantityParam: "duration" },
+  capabilities: { mode: "async_webhook", minDurationS: 1, maxDurationS: 30 },
+  sortOrder: 418,
+};
+
+/** Trake koje `stems` traži, ovim redom: prva je izlaz posla, ostale su njegova deca. */
+export const STEM_KEYS = ["vocals", "drums", "bass", "other"] as const;
+export type StemKey = (typeof STEM_KEYS)[number];
+
+/**
+ * `stems` - razdvajanje na trake (Crea K23, A18): Demucs preko fal-a, „$0.0007
+ * per seconds" (https://fal.ai/models/fal-ai/demucs/llms.txt, pročitano
+ * 2026-10-05) = $0,042 po minutu okačenog snimka; bez pravila o zaokruživanju.
+ * Model `htdemucs` daje četiri trake (glas, bubanj, bas, ostalo); izlaz su
+ * zasebni fajlovi pod imenom trake (`falWebhookCore.extractOutputUrls`). Demucs
+ * je MIT, a fal ga vodi kao „Commercial use".
+ */
+export const STEMS: StudioModelSeed = {
+  slug: "stems",
+  provider: "fal",
+  kind: "audio",
+  family: "demucs",
+  labelSr: "Razdvoji na trake",
+  labelEn: "Split into stems",
+  taglineSr: "Glas, bubanj, bas i ostalo kao četiri zasebne trake.",
+  taglineEn: "Vocals, drums, bass and the rest as four separate tracks.",
+  descriptionSr:
+    "Okačiš pesmu ili snimak i dobiješ četiri trake: glas, bubanj, bas i ostale instrumente. Naplaćuje se po minutu.",
+  descriptionEn:
+    "Upload a song or a recording and get four tracks: vocals, drums, bass and the other instruments. Charged per minute.",
+  endpoints: { audio: "fal-ai/demucs" },
+  inputModes: ["audio"],
+  inputSpec: { audio: { audio: { max: 1, accept: AUDIO_ACCEPT } } },
+  paramSpec: [],
+  priceRule: { unit: "minute", baseUsd: 0.042, quantityParam: "minutes" },
+  capabilities: {
+    mode: "async_webhook",
+    quantity: { ...MINUTE_QUANTITY, max: 10 },
+    output: "stems",
+    fal: { fixed: { model: "htdemucs", stems: [...STEM_KEYS], output_format: "mp3" } },
+  },
+  sortOrder: 465,
+};
+
 export const FAL_AUDIO_MODELS: StudioModelSeed[] = [
   TTS,
   DIALOGUE,
@@ -463,4 +543,6 @@ export const FAL_AUDIO_MODELS: StudioModelSeed[] = [
   VOICE_CHANGER,
   AUDIO_ISOLATION,
   DUBBING,
+  MMAUDIO_SFX,
+  STEMS,
 ];

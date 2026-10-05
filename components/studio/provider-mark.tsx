@@ -82,6 +82,16 @@ export const PROVIDER_MARKS: Record<ProviderBrand, ReactNode> = {
   xai: <Monogram letter="X" />,
   lightricks: <Monogram letter="L" />,
   pixverse: <Monogram letter="P" />,
+  // Crea K23: MMAudio (Sony AI) čist inicijal; Meta (Demucs) svoj znak beskonačnosti kao siluetu.
+  sony: <Monogram letter="S" />,
+  meta: (
+    <path
+      d="M5 12c0-2.4 1.4-4.3 3.2-4.3 3 0 4.6 8.6 7.6 8.6 1.8 0 3.2-1.9 3.2-4.3s-1.4-4.3-3.2-4.3c-3 0-4.6 8.6-7.6 8.6C6.4 16.3 5 14.4 5 12Z"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.4"
+    />
+  ),
   // ElevenLabs: dve uspravne grede - njihov stvaran znak, verna silueta.
   elevenlabs: (
     <g fill="currentColor">

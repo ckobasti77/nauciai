@@ -238,6 +238,7 @@ export const CREA_VERSION_COPY = {
     regeneracija: { sr: "Ponovo", en: "Again" },
     montaza: { sr: "Montaža", en: "Edit cut" },
     sloj: { sr: "Sloj", en: "Layer" },
+    traka: { sr: "Traka", en: "Stem" },
   },
   compare: { sr: "Uporedi pre i posle", en: "Compare before and after" },
   compareOff: { sr: "Samo nova verzija", en: "New version only" },

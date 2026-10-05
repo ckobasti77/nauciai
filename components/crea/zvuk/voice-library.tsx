@@ -9,10 +9,12 @@ import { useState } from "react";
 import { ToolHeader } from "@/components/crea/tool-runner";
 import { ChoiceChips } from "@/components/crea/tools/choice-chips";
 import type { CreaToolProps } from "@/components/crea/tools/types";
+import { LicenseBadge } from "@/components/crea/zvuk/license-badge";
 import { FIELD, PRESET_PARAM, SampleButton, useMyVoices, useSamplePlayer, VOICE_PARAM } from "@/components/crea/zvuk/voice-kit";
 import { cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
 import { fillCopy } from "@/lib/crea-copy";
+import { licenseForModel } from "@/lib/crea-license-tags";
 import { creaShellQuery } from "@/lib/crea-shell";
 import { CREA_VOICE_COPY as T } from "@/lib/crea-voice-copy";
 import { VOICE_MOOD_LABELS } from "@/lib/crea-voice-tags";
@@ -73,6 +75,8 @@ export default function VoiceLibrary({ tool, locale, canSave }: CreaToolProps) {
   return (
     <section aria-labelledby="crea-tool-title" className="surface-card border-2 border-ink bg-paper-strong p-4 shadow-[6px_6px_0_0_var(--shadow-hard)] sm:p-6">
       <ToolHeader tool={tool} locale={locale} icon={<Library aria-hidden="true" className="size-5" />} />
+      {/* Crea K23 (A21): ugrađeni glasovi oba motora smeju i u reklame. */}
+      <LicenseBadge tag={licenseForModel("gemini-tts")} locale={locale} detail className="mt-3" />
 
       <div className="mt-5 space-y-4 border-t border-line pt-5">
         <ChoiceChips<VoiceEngineId | Any>
