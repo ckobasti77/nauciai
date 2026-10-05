@@ -147,6 +147,12 @@ export const GPT_IMAGE_2: StudioModelSeed = {
     maxImagesPerRun: 4,
     fal: { fields: { image: "image_urls" } },
     tags: ["text", "edit", "refs", "quality"],
+    // Noćna tura (Crea K08, O7): OpenAI Batch, 50 % i `completion_window: "24h"`
+    // (https://developers.openai.com/api/docs/guides/batch). Radi SAMO uz
+    // `OPENAI_API_KEY`; bez njega opcija se ne vidi. Cena je pola fal tabele iznad
+    // (zvanična cena po slici nije nađena, K06 §12.3); tarife batch-a po tokenu su
+    // iz K06 (https://developers.openai.com/api/docs/pricing, nepotvrđeno uživo).
+    batch: { provider: "openai", model: "gpt-image-2", discount: 0.5, tokenRatesUsdPerMillion: { prompt: 2.5, output: 15 } },
   },
   sortOrder: 30,
 };

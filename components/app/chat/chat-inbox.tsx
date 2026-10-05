@@ -106,6 +106,7 @@ function notificationCategoryLabel(locale: Locale, category: NotificationPrefere
     groups: ["Grupe", "Groups"],
     mentions: ["Pominjanja", "Mentions"],
     study: ["Uči zajedno", "Study together"],
+    crea: ["Crea", "Crea"],
   };
   return labels[category][locale === "sr" ? 0 : 1];
 }

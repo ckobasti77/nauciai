@@ -14,6 +14,14 @@ import {
 import { requestHash } from "./creaCacheCore";
 import { inheritedSeed, seedFromUnit, seedParamOf } from "./creaDraftCore";
 import { CREA_FLAG_KEYS, readCreaFlag } from "./creaFlags";
+import {
+  NIGHT_MAX_QUEUED_PER_USER,
+  type NightBatchSpec,
+  nightOptionFor,
+  nightParams,
+  nightProviderStatus,
+  nightQuote,
+} from "./creaNightCore";
 import { isDefaultCreditFactor, priceCategoryOf, resolveCreditFactor } from "./creaPricingCore";
 import { resolveJobLineage } from "./creaVersions";
 import { creaDerivationValidator } from "./creaVersionsCore";
@@ -219,6 +227,8 @@ async function buildCatalogOrder(
     derivation?: string;
   },
   factor: number,
+  /** Noćna tura (Crea K08): cena po batch nabavnoj ceni; `factor` je tada `image_batch`. */
+  night: NightBatchSpec | null = null,
 ): Promise<PricedOrder | ModerationRejection> {
   if (!model.isEnabled) throw new Error("MODEL_NEDOSTUPAN");
 
@@ -358,8 +368,14 @@ async function buildCatalogOrder(
   let creditCost: number;
   let estimatedCostUsd: number;
   try {
-    creditCost = computeCredits(rule, params, pricingMode, factor);
-    estimatedCostUsd = computeCostUsd(rule, params, pricingMode);
+    if (night) {
+      const quote = nightQuote(rule, params, pricingMode, night.discount);
+      creditCost = quote.credits;
+      estimatedCostUsd = quote.costUsd;
+    } else {
+      creditCost = computeCredits(rule, params, pricingMode, factor);
+      estimatedCostUsd = computeCostUsd(rule, params, pricingMode);
+    }
   } catch (error) {
     // Cena koja ne može da se izračuna je odbijen posao, nikad nula.
     throw new Error(`NEISPRAVNI_PARAMETRI:${error instanceof Error ? error.message : "CENA"}`);
@@ -642,6 +658,8 @@ const createJobArgs = {
   // i dalje daju `sourceJobId` ili ulaz koji je izlaz nekog rada (`resolveJobLineage`).
   parentJobId: v.optional(v.id("generationJobs")),
   derivation: v.optional(creaDerivationValidator),
+  // Noćna tura (Crea K08, C2): posao ide u batch provajdera po noćnoj ceni i stiže do jutra.
+  deliveryMode: v.optional(v.literal("night")),
 };
 type CreateJobArgs = ObjectType<typeof createJobArgs>;
 
@@ -728,14 +746,29 @@ async function createJobForUser(ctx: MutationCtx, userId: Id<"users">, args: Cre
 
   // Cene v2 (Crea C1): fleg isključen = današnji faktor za svaki model (O1).
   const pricingV2 = v4Model ? await readCreaFlag(ctx, CREA_FLAG_KEYS.pricingV2) : false;
+
+  // Noćna tura (Crea K08): ista odluka kao prekidač u composeru - model je nudi
+  // u ovom režimu, cene v2 su upaljene i provajder batch-a ima ključ.
+  const night =
+    args.deliveryMode === "night" && v4Model
+      ? nightOptionFor({
+          pricingV2,
+          capabilities: parseParams(v4Model.capabilities),
+          inputMode: args.inputMode ?? parseInputModes(v4Model.inputModes)[0] ?? "",
+          providers: nightProviderStatus(process.env),
+        })
+      : null;
+  if (args.deliveryMode === "night" && !night) throw new Error("NOCNA_TURA_NEDOSTUPNA");
+
   const order = v4Model
     ? await buildCatalogOrder(
         ctx,
         userId,
         v4Model,
-        params,
+        night ? nightParams(params) : params,
         args,
-        resolveCreditFactor({ pricingV2, category: priceCategoryOf(v4Model.kind, { night: false }) }),
+        resolveCreditFactor({ pricingV2, category: priceCategoryOf(v4Model.kind, { night: night !== null }) }),
+        night,
       )
     : await buildLegacyOrder(ctx, args.modelSlug, params);
 
@@ -794,9 +827,12 @@ async function createJobForUser(ctx: MutationCtx, userId: Id<"users">, args: Cre
   // plati SVG mock - model bez ključa je za njega nedostupan, isto kao
   // isključen model. `providerKeyPresent` je ista (jedina) mock kapija koju
   // čita i `submitJob`, pa server i DEMO pilula u biraču ne mogu da se raziđu.
+  // Noćni posao ne ide kroz `order.provider` nego kroz batch, čiji je ključ
+  // `nightOptionFor` već proverio.
   if (
     publicState.publicEnabled &&
     !isStudioStaff(role) &&
+    !night &&
     !providerKeyPresent(order.provider, process.env)
   ) {
     throw new Error("MODEL_NEDOSTUPAN");
@@ -836,28 +872,38 @@ async function createJobForUser(ctx: MutationCtx, userId: Id<"users">, args: Cre
     .first();
   if (debt) throw new Error("NEPORAVNAT_DUG");
 
-  const reserved = await ctx.db
-    .query("generationJobs")
-    .withIndex("by_user_status", (q) => q.eq("userId", userId).eq("status", "reserved"))
-    .take(limits.maxConcurrentJobs);
-  const running = await ctx.db
-    .query("generationJobs")
-    .withIndex("by_user_status", (q) => q.eq("userId", userId).eq("status", "running"))
-    .take(limits.maxConcurrentJobs);
-  if (reserved.length + running.length >= limits.maxConcurrentJobs) {
-    throw new Error("PREVISE_POSLOVA");
-  }
+  if (night) {
+    // Noćni posao ne zauzima mesto u paralelnom limitu (čeka batch, ne provajdera
+    // uživo), nego ima svoj limit reda (K06 §12.3). Dnevni limiti ispod važe isto.
+    const queued = await ctx.db
+      .query("generationJobs")
+      .withIndex("by_user_status", (q) => q.eq("userId", userId).eq("status", "queued"))
+      .take(NIGHT_MAX_QUEUED_PER_USER);
+    if (queued.length >= NIGHT_MAX_QUEUED_PER_USER) throw new Error("PREVISE_NOCNIH");
+  } else {
+    const reserved = await ctx.db
+      .query("generationJobs")
+      .withIndex("by_user_status", (q) => q.eq("userId", userId).eq("status", "reserved"))
+      .take(limits.maxConcurrentJobs);
+    const running = await ctx.db
+      .query("generationJobs")
+      .withIndex("by_user_status", (q) => q.eq("userId", userId).eq("status", "running"))
+      .take(limits.maxConcurrentJobs);
+    if (reserved.length + running.length >= limits.maxConcurrentJobs) {
+      throw new Error("PREVISE_POSLOVA");
+    }
 
-  // Prozor između rezervacije i poravnanja (X2). Poslovi u letu su jedini o
-  // kojima se još ništa ne zna osim procene, pa se njihov zbir drži nisko:
-  // tri paralelna posla od po 72 $ su isti napad kao pedeset uzastopnih, a
-  // poravnanje ih ispravlja tek kad se završe. `take` iznad je vratio SVE
-  // takve poslove (inače bi provera reda gore već bacila), pa je zbir tačan.
-  const inFlightCostUsd = [...reserved, ...running].reduce(
-    (sum, job) => sum + (job.estimatedCostUsd ?? 0),
-    0,
-  );
-  if (exceedsUnsettledCostLimit(inFlightCostUsd)) throw new Error("PREVISE_NEPORAVNATOG");
+    // Prozor između rezervacije i poravnanja (X2). Poslovi u letu su jedini o
+    // kojima se još ništa ne zna osim procene, pa se njihov zbir drži nisko:
+    // tri paralelna posla od po 72 $ su isti napad kao pedeset uzastopnih, a
+    // poravnanje ih ispravlja tek kad se završe. `take` iznad je vratio SVE
+    // takve poslove (inače bi provera reda gore već bacila), pa je zbir tačan.
+    const inFlightCostUsd = [...reserved, ...running].reduce(
+      (sum, job) => sum + (job.estimatedCostUsd ?? 0),
+      0,
+    );
+    if (exceedsUnsettledCostLimit(inFlightCostUsd)) throw new Error("PREVISE_NEPORAVNATOG");
+  }
 
   const now = Date.now();
 
@@ -906,10 +952,11 @@ async function createJobForUser(ctx: MutationCtx, userId: Id<"users">, args: Cre
     userId,
     modelSlug: order.slug,
     kind: order.kind,
-    provider: order.provider,
+    // Noćni posao izvršava provajder batch-a (GPT Image 2 ide na OpenAI, ne na fal).
+    provider: night ? night.provider : order.provider,
     params: JSON.stringify(cleanParams),
     promptHash: promptHash(order.prompt),
-    status: "reserved",
+    status: night ? "queued" : "reserved",
     creditCost,
     // Procena iz kataloga se pamti UZ POSAO, ne samo u dnevnom zbiru: bez nje
     // se stvaran trošak (`actualCostUsd`, W6) nema sa čim porediti, jer
@@ -917,6 +964,7 @@ async function createJobForUser(ctx: MutationCtx, userId: Id<"users">, args: Cre
     estimatedCostUsd,
     ...(isDefaultCreditFactor(order.creditFactor) ? {} : { creditFactor: order.creditFactor }),
     ...(order.requestHash ? { requestHash: order.requestHash } : {}),
+    ...(night ? { deliveryMode: "night" as const } : {}),
     ...(order.inputMode ? { inputMode: order.inputMode } : {}),
     ...(order.inputs ? { inputs: order.inputs } : {}),
     // Po čemu je naplaćeno trajanje ispalo onakvo kakvo jeste (X1). Kad je
@@ -965,7 +1013,8 @@ async function createJobForUser(ctx: MutationCtx, userId: Id<"users">, args: Cre
     });
   }
 
-  await ctx.scheduler.runAfter(0, internal.studioActions.submitJob, { jobId });
+  // Noćni posao predaje cron noćne ture (`creaNightActions.submitNightBatches`).
+  if (!night) await ctx.scheduler.runAfter(0, internal.studioActions.submitJob, { jobId });
 
   return jobId;
 }
@@ -1518,6 +1567,7 @@ const generationJobStatus = v.union(
   v.literal("done"),
   v.literal("failed"),
   v.literal("refunded"),
+  v.literal("queued"),
 );
 
 /** Tri rute iz `models.provider` (STUDIO-CATALOG-V4 sekcija 7). */
@@ -1926,7 +1976,10 @@ export const deleteJob = mutation({
     const userId = await requireUserId(ctx);
     const job = await ctx.db.get(args.jobId);
     if (!job || job.userId !== userId) throw new Error("Posao nije pronađen.");
-    if (job.status === "reserved" || job.status === "running") throw new Error("POSAO_U_TOKU");
+    // Noćni posao u redu (K08) je takođe u toku: krediti su skinuti, a batch ga čeka.
+    if (job.status === "reserved" || job.status === "running" || job.status === "queued") {
+      throw new Error("POSAO_U_TOKU");
+    }
     if (job.labOutputId) throw new Error("POSAO_POVEZAN_SA_LEKCIJOM");
 
     if (job.outputStorageId) {
@@ -2456,6 +2509,9 @@ async function getStudioStateForUser(ctx: QueryCtx, userId: Id<"users">) {
     // Cene v2 (Crea C1): UI računa cenu ISTOM funkcijom (`resolveCreditFactor`),
     // pa dugme i naplata ne mogu da se raziđu.
     pricingV2: await readCreaFlag(ctx, CREA_FLAG_KEYS.pricingV2),
+    // Noćna tura (K08): koji batch provajder ima ključ - prekidač se bez njega ne
+    // vidi (O7: GPT Image 2 samo uz `OPENAI_API_KEY`). Samo boolean-i.
+    nightProviders: nightProviderStatus(process.env),
   };
 }
 

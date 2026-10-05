@@ -221,6 +221,10 @@ export function jobStatusText(
   if (job.status === "reserved") {
     return locale === "sr" ? "Posao je u redu za obradu…" : "The job is queued…";
   }
+  // Noćna tura (Crea K08): krediti su skinuti po noćnoj ceni, rad stiže do jutra.
+  if (job.status === "queued") {
+    return locale === "sr" ? "Noćna tura - stiže do jutra." : "Night run - arrives by morning.";
+  }
   if (job.status === "running") {
     // C6: video i zvuk se više ne opisuju kao „slika". Srpski traži padež po
     // rodu imenice (slici / videu / zvuku), pa je svaka rečenica cela.

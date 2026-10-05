@@ -22,6 +22,7 @@ import { CreaToolList } from "@/components/crea/crea-tool-list";
 import { CreaToolPanel } from "@/components/crea/crea-tool-panel";
 import { CreaToolStage } from "@/components/crea/crea-tool-stage";
 import { CREA_DOCK_MIN_PX, CreaWorkshop } from "@/components/crea/crea-workshop";
+import { NightArrivals } from "@/components/crea/night-arrivals";
 import { CreditIcon } from "@/components/studio/credit-icon";
 import { StudioComposer, type JobPayload, type RegenerateSeed } from "@/components/studio/studio-composer";
 import { StudioVerifyEmailPanel } from "@/components/studio/verify-email-panel";
@@ -627,6 +628,7 @@ export function StudioPage({
           ? { inputs: JSON.stringify(payload.inputs) }
           : {}),
         ...(payload.sourceJobId ? { sourceJobId: payload.sourceJobId } : {}),
+        ...(payload.deliveryMode ? { deliveryMode: payload.deliveryMode } : {}),
         ...lineage,
         ...(lessonId ? { lessonId } : {}),
         ...(lessonId && taskId ? { taskId } : {}),
@@ -1090,22 +1092,28 @@ export function StudioPage({
               catalog={catalog}
             />
           ) : (
-            <CreaWorkshop
-              locale={locale}
-              area={area}
-              mode={modeDef?.id ?? null}
-              onNavigate={navigateShell}
-              containerRef={setWorkshopEl}
-              panel={
-                composerPlacement === "docked" && modeDef && (hasComposer || isToolsMode) ? (
-                  <CreaToolPanel locale={locale} mode={modeDef}>
-                    {isToolsMode ? toolList : composerContent("docked")}
-                  </CreaToolPanel>
-                ) : null
-              }
-              stage={stage}
-              history={history}
-            />
+            <>
+              {/* Jutarnje iznenađenje (K08, G13): radovi iz noćne ture stižu u radionicu Slika. */}
+              {isAuthenticated ? (
+                <NightArrivals locale={locale} onOpen={() => navigateShell({ area: "slika", mode: null })} />
+              ) : null}
+              <CreaWorkshop
+                locale={locale}
+                area={area}
+                mode={modeDef?.id ?? null}
+                onNavigate={navigateShell}
+                containerRef={setWorkshopEl}
+                panel={
+                  composerPlacement === "docked" && modeDef && (hasComposer || isToolsMode) ? (
+                    <CreaToolPanel locale={locale} mode={modeDef}>
+                      {isToolsMode ? toolList : composerContent("docked")}
+                    </CreaToolPanel>
+                  ) : null
+                }
+                stage={stage}
+                history={history}
+              />
+            </>
           )}
         </div>
       </div>

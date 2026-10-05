@@ -306,7 +306,7 @@ function ModerationTile({
 
   const hasOutput = Boolean(job.outputUrl);
   const expired = isExpiredOutput(job);
-  const isWorking = job.status === "reserved" || job.status === "running";
+  const isWorking = job.status === "reserved" || job.status === "running" || job.status === "queued";
   const revealedPrompt = revealed ? jobPrompt(revealed.params) : "";
   const revealedSummary = revealed ? jobParamSummary(revealed.params, paramSpec, locale) : "";
 

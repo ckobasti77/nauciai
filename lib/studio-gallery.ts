@@ -171,7 +171,7 @@ export const GALLERY_SCOPE_LABELS: Record<GalleryScope, { sr: string; en: string
 };
 
 /** Statusi posla za red filter-čipova; isti spisak kao `generationJobs.status`. */
-export const JOB_STATUSES = ["reserved", "running", "done", "failed", "refunded"] as const;
+export const JOB_STATUSES = ["reserved", "running", "done", "failed", "refunded", "queued"] as const;
 export type JobStatus = (typeof JOB_STATUSES)[number];
 
 export const JOB_STATUS_LABELS: Record<JobStatus, { sr: string; en: string }> = {
@@ -180,6 +180,7 @@ export const JOB_STATUS_LABELS: Record<JobStatus, { sr: string; en: string }> = 
   done: { sr: "Gotov", en: "Done" },
   failed: { sr: "Pao", en: "Failed" },
   refunded: { sr: "Refundiran", en: "Refunded" },
+  queued: { sr: "Noćna tura", en: "Night run" },
 };
 
 /** Tri rute iz `models.provider`; filter po njima je koristan kad jedan provajder krene da pada. */

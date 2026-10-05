@@ -67,6 +67,9 @@ describe("studioErrorMessage", () => {
     "USLOVI_NEPRIHVACENI",
     "SPOR_U_TOKU",
     "SALDO_U_MINUSU",
+    // Noćna tura (Crea K08).
+    "NOCNA_TURA_NEDOSTUPNA",
+    "PREVISE_NOCNIH",
   ];
 
   test("nijedna poruka ne prikazuje sirov kod greške", () => {

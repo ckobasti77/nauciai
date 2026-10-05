@@ -40,7 +40,7 @@ const removeInvalidSubscriptionsRef = makeFunctionReference<
 const getActivityPushBatchDataRef = makeFunctionReference<
   "query",
   {
-    category: "requests" | "groups" | "study";
+    category: "requests" | "groups" | "study" | "crea";
     recipientIds: Id<"users">[];
     senderId?: Id<"users">;
     conversationId?: Id<"chatConversations">;
@@ -112,7 +112,7 @@ export const sendPushBatch = internalAction({
 
 export const sendActivityPushBatch = internalAction({
   args: {
-    category: v.union(v.literal("requests"), v.literal("groups"), v.literal("study")),
+    category: v.union(v.literal("requests"), v.literal("groups"), v.literal("study"), v.literal("crea")),
     recipientIds: v.array(v.id("users")),
     senderId: v.optional(v.id("users")),
     conversationId: v.optional(v.id("chatConversations")),

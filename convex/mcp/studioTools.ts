@@ -748,7 +748,7 @@ const STUDIO_TOOLS: Record<string, ToolDefinition> = {
 
   get_job: {
     description:
-      "Jedan posao pozivaoca po jobId-ju: status (reserved/running/done/failed/refunded), model, cena, vreme, parametri i URL izlaza kad je gotov.",
+      "Jedan posao pozivaoca po jobId-ju: status (reserved/running/done/failed/refunded, ili queued za noćnu turu), model, cena, vreme, parametri i URL izlaza kad je gotov.",
     inputSchema: {
       type: "object",
       properties: { jobId: { type: "string", minLength: 1, description: "Id posla iz create_generation ili list_my_jobs." } },

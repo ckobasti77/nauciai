@@ -5,6 +5,7 @@ import { afterAll, beforeAll, expect, test } from "vitest";
 
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
+import { nightProviderStatus } from "./creaNightCore";
 import schema from "./schema";
 import {
   computeCreditCost,
@@ -1438,6 +1439,8 @@ test("getStudioState: upaljen Studio, osoblje bez posla u letu", async () => {
     providerStatus: providerStatus(process.env),
     // Cene v2 (Crea K07): odsutan fleg = isključen.
     pricingV2: false,
+    // Noćna tura (Crea K08): koji batch provajder ima ključ.
+    nightProviders: nightProviderStatus(process.env),
   });
 });
 

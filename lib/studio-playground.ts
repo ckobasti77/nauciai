@@ -145,6 +145,8 @@ export type PlaygroundState = {
   providerStatus?: Partial<Record<"fal" | "google" | "byteplus", boolean>>;
   /** Crea C1: upaljen fleg cena v2 (`crea_pricing_v2`). */
   pricingV2?: boolean;
+  /** Crea K08: koji provajder noćne ture ima ključ (OpenAI samo uz `OPENAI_API_KEY`). */
+  nightProviders?: Partial<Record<"google" | "openai", boolean>>;
   /** Javni Studio i uloga - Auto (K07) ne nudi javnom korisniku model bez ključa. */
   publicEnabled?: boolean;
   isStaff?: boolean;

@@ -44,7 +44,8 @@ const inboxSectionValidator = v.union(
   v.literal("archive"),
 );
 
-const notificationCategories = ["chat", "requests", "groups", "mentions", "study"] as const;
+// "crea": jutarnje iznenađenje noćne ture (Crea K08, G13, K01-20) - može da se ugasi kao i ostale.
+const notificationCategories = ["chat", "requests", "groups", "mentions", "study", "crea"] as const;
 
 function cleanBody(body: string | undefined) {
   const value = body?.trim();

@@ -224,7 +224,7 @@ export function StudioMediaDetail({
   const [duration, setDuration] = useState(0);
 
   const prompt = jobPrompt(job.params);
-  const isWorking = job.status === "reserved" || job.status === "running";
+  const isWorking = job.status === "reserved" || job.status === "running" || job.status === "queued";
   const isExpired = isExpiredOutput(job);
   const isFailed = job.status === "failed" || job.status === "refunded";
   const hasOutput = Boolean(job.outputUrl);

@@ -441,6 +441,12 @@ crons.interval(
   internal.providers.google.pollGoogleVideoJobs,
   {},
 );
+// Noćna tura (Crea K08, C2): predaja na 30 minuta umesto jednom u 22 h (K06-5 -
+// Gemini Batch nema noćnu tarifu, a čekanje bi samo trošilo rok od 48 h), praćenje
+// na 10. Rok od 36 h po poslu i refundi su u `creaNight`; `reapStuckJobs` ove
+// poslove ne vidi (`queued`).
+crons.interval("crea: nocna tura predaja", { minutes: 30 }, internal.creaNightActions.submitNightBatches, {});
+crons.interval("crea: nocna tura pracenje", { minutes: 10 }, internal.creaNightActions.pollNightBatches, {});
 crons.cron("studio: istek kredita", "15 3 * * *", internal.crons.expireCredits, {});
 crons.cron("studio: istek fajlova", "45 3 * * *", internal.crons.expireGenerationFiles, {});
 // fal u odgovoru posla nema cenu (za razliku od Google-a i BytePlus-a, koji

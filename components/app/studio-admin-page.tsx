@@ -32,7 +32,7 @@ const inputClass =
 const KIND_LABELS_SR: Record<string, string> = { image: "Slika", video: "Video", audio: "Zvuk" };
 const KIND_LABELS_EN: Record<string, string> = { image: "Image", video: "Video", audio: "Audio" };
 
-const JOB_STATUSES = ["reserved", "running", "done", "failed", "refunded"] as const;
+const JOB_STATUSES = ["reserved", "running", "done", "failed", "refunded", "queued"] as const;
 const PROVIDER_LABELS: Record<string, string> = { fal: "fal", google: "Google", byteplus: "BytePlus" };
 
 function ErrorLine({ message }: { message: string | null }) {

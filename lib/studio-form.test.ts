@@ -211,6 +211,11 @@ describe("jobStatusText", () => {
     expect(jobStatusText({ status: "reserved" }, "sr")).not.toBe(jobStatusText({ status: "running" }, "sr"));
   });
 
+  test("noćni posao u redu kaže da stiže do jutra (Crea K08)", () => {
+    expect(jobStatusText({ status: "queued" }, "sr")).toBe("Noćna tura - stiže do jutra.");
+    expect(jobStatusText({ status: "queued" }, "en")).toBe("Night run - arrives by morning.");
+  });
+
   test("`done` bez fajla razlikuje preuzimanje od pada preuzimanja", () => {
     expect(jobStatusText({ status: "done", outputUrl: null }, "sr")).toContain("Preuzimamo");
     expect(

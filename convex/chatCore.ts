@@ -56,7 +56,7 @@ const pushBatchRef = makeFunctionReference<
 const activityPushBatchRef = makeFunctionReference<
   "action",
   {
-    category: "requests" | "groups" | "study";
+    category: "requests" | "groups" | "study" | "crea";
     recipientIds: Id<"users">[];
     senderId?: Id<"users">;
     conversationId?: Id<"chatConversations">;
@@ -504,7 +504,7 @@ export async function scheduleMessageDelivery(
 export async function schedulePersistentActivityPush(
   ctx: MutationCtx,
   args: {
-    category: "requests" | "groups" | "study";
+    category: "requests" | "groups" | "study" | "crea";
     recipientIds: Id<"users">[];
     senderId?: Id<"users">;
     conversationId?: Id<"chatConversations">;
@@ -808,7 +808,7 @@ export const getPushBatchData = internalQuery({
 
 export const getActivityPushBatchData = internalQuery({
   args: {
-    category: v.union(v.literal("requests"), v.literal("groups"), v.literal("study")),
+    category: v.union(v.literal("requests"), v.literal("groups"), v.literal("study"), v.literal("crea")),
     recipientIds: v.array(v.id("users")),
     senderId: v.optional(v.id("users")),
     conversationId: v.optional(v.id("chatConversations")),

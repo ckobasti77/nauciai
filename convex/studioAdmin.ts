@@ -27,7 +27,7 @@ async function requireAdminRead(ctx: Parameters<typeof getCurrentProfile>[0]) {
   if (profile.role !== "admin") throw new Error("Forbidden");
 }
 
-const STATUSES = ["reserved", "running", "done", "failed", "refunded"] as const;
+const STATUSES = ["reserved", "running", "done", "failed", "refunded", "queued"] as const;
 
 // Potrošnja se agregira "po danu" (P8.md) - obična kolekcija je dovoljna dok
 // je tabela ovako mala, bez uvođenja `@convex-dev/aggregate` za ovaj obim.
@@ -80,6 +80,8 @@ export const getUsageSummary = query({
       done: 0,
       failed: 0,
       refunded: 0,
+      // Noćna tura (Crea K08): poslovi koji čekaju batch.
+      queued: 0,
     };
     let jobCountsCapped = false;
     // Koliko je poslova danas pokupio reaper. To nije isto što i "refundirano":

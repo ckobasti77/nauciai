@@ -103,6 +103,9 @@ const generationJobProvider = v.union(
   v.literal("google"),
   v.literal("byteplus"),
   v.literal("local"),
+  // Noćna tura (Crea K08, O7): GPT Image 2 ide kroz OpenAI Batch, ne kroz fal
+  // iz kataloga - posao prati stvarnog izvršioca, isto kao rezervna ruta (C3).
+  v.literal("openai"),
 );
 const modelCatalogBadge = v.union(
   v.literal("preporuceno"),
@@ -115,6 +118,9 @@ const generationJobStatus = v.union(
   v.literal("done"),
   v.literal("failed"),
   v.literal("refunded"),
+  // Noćna tura (Crea K08, K01-12): krediti su skinuti, posao čeka batch. Reaper
+  // ga ne vidi (gleda samo `reserved`/`running`); rok od 36 h ima `creaNight`.
+  v.literal("queued"),
 );
 const localizedCopy = v.object({ sr: v.string(), en: v.string() });
 const pageCopy = v.object({
@@ -1260,6 +1266,9 @@ export default defineSchema({
     senderId: v.optional(v.id("users")),
     excerpt: v.optional(v.string()),
     eventKey: v.optional(v.string()),
+    // Koliko radova je stiglo (Crea K08, G13: „Stiglo je N radova") - samo uz
+    // `kind: "crea_nocna_tura"`; značka u radionici ih sabira.
+    count: v.optional(v.number()),
     createdAt: v.number(),
   })
     .index("by_user", ["userId", "createdAt"])
@@ -1613,6 +1622,10 @@ export default defineSchema({
     // parametara i sadržaja ulaza (`creaCacheCore.requestHash`). Nema ga posao
     // koji se ne kešira (nastavak, stari katalog).
     requestHash: v.optional(v.string()),
+    // Noćna tura (Crea K08, C2): posao ide preko batch-a provajdera po noćnoj
+    // ceni, a `batchId` je batch u koji je predat (nema ga dok čeka predaju).
+    deliveryMode: v.optional(v.literal("night")),
+    batchId: v.optional(v.id("creaBatches")),
     labOutputId: v.optional(v.id("labOutputs")),
     lessonId: v.optional(v.id("lessons")),
     taskId: v.optional(v.id("lessonTasks")),
@@ -1636,6 +1649,8 @@ export default defineSchema({
     .index("by_root_created", ["rootJobId", "createdAt"])
     // Isti zahtev istog korisnika (C4) - nikad između korisnika (K01-13).
     .index("by_user_requestHash", ["userId", "requestHash"])
+    // Noćna tura (K08): poslovi jednog batch-a, i (`batchId` prazan) oni koji čekaju predaju.
+    .index("by_batch_status_created", ["batchId", "status", "createdAt"])
     // Ima li korisnik neplaćen dug iz poravnanja (X2). `createJob` ga pita pre
     // svakog novog posla, pa mora da bude jedno čitanje po indeksu, a ne
     // skeniranje istorije.
@@ -1761,6 +1776,37 @@ export default defineSchema({
     enabled: v.boolean(),
     value: v.optional(v.number()),
   }).index("by_key", ["key"]),
+
+  // Noćna tura (Crea K08, C2, K01 §6.6): jedan red = jedan batch kod provajdera,
+  // poslovi jednog modela. Stanja idu samo napred (`creaNightCore.canAdvanceBatch`):
+  // preparing → submitted → succeeded → ingested, ili → failed/expired (refund).
+  // `preparing` je batch koji je preuzeo poslove a još nije predat - akcija koja
+  // pukne na pola ga ostavi tu, pa ga posle sat vremena prolaz praćenja refundira.
+  creaBatches: defineTable({
+    provider: v.union(v.literal("google"), v.literal("openai")),
+    modelSlug: v.string(),
+    // Ime modela kod provajdera (`capabilities.batch.model`).
+    providerModel: v.string(),
+    state: v.union(
+      v.literal("preparing"),
+      v.literal("submitted"),
+      v.literal("succeeded"),
+      v.literal("ingested"),
+      v.literal("failed"),
+      v.literal("expired"),
+    ),
+    providerBatchId: v.optional(v.string()),
+    inputFileName: v.optional(v.string()),
+    // JSON niz fajlova sa rezultatima (OpenAI ima i zaseban fajl grešaka).
+    resultFiles: v.optional(v.string()),
+    requestCount: v.number(),
+    createdAt: v.number(),
+    submittedAt: v.optional(v.number()),
+    // Rok najstarijeg posla u batch-u (36 h od narudžbine, K01-12): posle njega cancel + refund.
+    deadlineAt: v.number(),
+    lastPolledAt: v.optional(v.number()),
+    error: v.optional(v.string()),
+  }).index("by_state", ["state", "createdAt"]),
 
   // Opšte informacije platforme (N1) — JEDAN red, `key: "default"`. Kontakt,
   // mreže, cene i pravni podaci koje vlasnik menja sa admin ekrana umesto kroz

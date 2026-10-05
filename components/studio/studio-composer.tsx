@@ -8,6 +8,7 @@ import {
   FlaskConical,
   Image as ImageIcon,
   ImagePlus,
+  Moon,
   Music,
   Plus,
   Sparkles,
@@ -26,6 +27,7 @@ import {
   useState,
 } from "react";
 
+import { NightToggle } from "@/components/crea/night-toggle";
 import { CreditIcon } from "@/components/studio/credit-icon";
 import { FullScreenDropOverlay, Preview } from "@/components/studio/drop-slot";
 import { ModelPickerPanel } from "@/components/studio/model-picker";
@@ -36,12 +38,13 @@ import { useSlotUpload } from "@/components/studio/use-slot-upload";
 import { cn } from "@/components/ui/primitives";
 import { Spinner } from "@/components/ui/spinner";
 import type { Id } from "@/convex/_generated/dataModel";
+import { nightOptionFor, nightParams, nightQuote, nightSavingsPercent } from "@/convex/creaNightCore";
 import type { CreaDerivation } from "@/convex/creaVersionsCore";
 import { parseContinuationSource, parseQuantitySource, promptControlOf } from "@/convex/studioJobCore";
 import type { ParamControl as ParamControlSpec } from "@/convex/studioParamSpec";
 import type { PriceRule } from "@/convex/studioPricing";
 import { autoSentence, pickAuto } from "@/lib/crea-auto";
-import { CREA_PICK_COPY, fillCopy } from "@/lib/crea-copy";
+import { CREA_NIGHT_COPY, CREA_PICK_COPY, fillCopy } from "@/lib/crea-copy";
 import { buildDraftOrder, draftPairFor, orderCredits } from "@/lib/crea-draft";
 import type { Locale } from "@/lib/i18n";
 import { firstFileMode, modelInputCapabilities, modelRestrictions } from "@/lib/studio-capabilities";
@@ -114,6 +117,8 @@ export type JobPayload = {
   /** Stablo verzija (K05): rad iz kojeg ovaj nastaje; dodaje ga detalj rada, ne forma. */
   parentJobId?: Id<"generationJobs">;
   derivation?: CreaDerivation;
+  /** Noćna tura (Crea K08): rad ide u batch po noćnoj ceni i stiže do jutra. */
+  deliveryMode?: "night";
 };
 
 /**
@@ -706,10 +711,41 @@ export function StudioComposer({
     [activeModel.inputSpec, inputMode, effectiveFiles, optional, frames],
   );
 
-  const credits = useMemo(
+  const dayCredits = useMemo(
     () => creditsFor(activeModel.priceRule, form.params, inputMode, activeModel.creditFactor),
     [activeModel.priceRule, activeModel.creditFactor, form.params, inputMode],
   );
+
+  // Noćna tura (Crea K08, C2): ista odluka i ista cena kao `createJob` (`creaNightCore`).
+  const [nightOn, setNightOn] = useState(false);
+  const nightSpec = useMemo(
+    () =>
+      variant === "create"
+        ? nightOptionFor({
+            pricingV2: studioState?.pricingV2 === true,
+            capabilities: activeModel.capabilities,
+            inputMode,
+            providers: studioState?.nightProviders,
+          })
+        : null,
+    [variant, studioState?.pricingV2, studioState?.nightProviders, activeModel.capabilities, inputMode],
+  );
+  const nightOffer = useMemo(() => {
+    if (!nightSpec) return null;
+    const params = nightParams(form.params);
+    try {
+      const nightCredits = nightQuote(activeModel.priceRule, params, inputMode, nightSpec.discount).credits;
+      const sameDay = creditsFor(activeModel.priceRule, params, inputMode, activeModel.creditFactor);
+
+      return { credits: nightCredits, savings: sameDay === null ? 0 : nightSavingsPercent(sameDay, nightCredits) };
+    } catch {
+      return null;
+    }
+  }, [nightSpec, form.params, activeModel.priceRule, activeModel.creditFactor, inputMode]);
+  const night = nightOn && nightOffer !== null;
+  // Cena koju dugme pokazuje i naplaćuje: noćna kad je prekidač upaljen.
+  const credits = night && nightOffer ? nightOffer.credits : dayCredits;
+  const generateLabel = night ? CREA_NIGHT_COPY.generate[locale] : locale === "sr" ? "Generiši" : "Generate";
 
   // ── Auto izbor (Crea S3) i „Probaj jeftino" (S4/V3) ──
   // Javni korisnik ne sme da dobije model bez ključa (server bi ga odbio) - ista
@@ -1132,6 +1168,7 @@ export function StudioComposer({
         inputMode,
         inputs: inputsPayload(payloadFiles),
         ...(sourceRequired && sourceJobId ? { sourceJobId } : {}),
+        ...(night ? { deliveryMode: "night" as const } : {}),
       },
       activeModel,
     );
@@ -1507,6 +1544,15 @@ export function StudioComposer({
                 </span>
               </button>
             ) : null}
+            {nightOffer ? (
+              <NightToggle
+                locale={locale}
+                on={night}
+                onChange={setNightOn}
+                savingsPercent={nightOffer.savings}
+                disabled={isPending}
+              />
+            ) : null}
           </div>
         ) : null}
 
@@ -1644,22 +1690,18 @@ export function StudioComposer({
               aria-label={
                 credits !== null
                   ? locale === "sr"
-                    ? `Generiši za ${formatCreditsLong(credits, locale)}`
-                    : `Generate for ${formatCreditsLong(credits, locale)}`
-                  : locale === "sr"
-                    ? "Generiši"
-                    : "Generate"
+                    ? `${generateLabel} za ${formatCreditsLong(credits, locale)}`
+                    : `${generateLabel} for ${formatCreditsLong(credits, locale)}`
+                  : generateLabel
               }
               title={
                 block
                   ? blockMessage ?? undefined
                   : credits !== null
                     ? locale === "sr"
-                      ? `Generiši za ${formatCreditsLong(credits, locale)}`
-                      : `Generate for ${formatCreditsLong(credits, locale)}`
-                    : locale === "sr"
-                      ? "Generiši"
-                      : "Generate"
+                      ? `${generateLabel} za ${formatCreditsLong(credits, locale)}`
+                      : `${generateLabel} for ${formatCreditsLong(credits, locale)}`
+                    : generateLabel
               }
               className={cn(
                 "inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full border-2 border-ink px-3 py-2 text-xs font-black transition duration-200 hover:-translate-y-0.5 active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:px-4",
@@ -1670,12 +1712,12 @@ export function StudioComposer({
             >
               {isPending ? (
                 <Spinner />
+              ) : night ? (
+                <Moon className={cn("size-4", isPriceFlashing ? "text-ink" : "fill-yellow text-yellow")} />
               ) : (
                 <Wand2 className={cn("size-4", isPriceFlashing ? "text-ink" : "text-yellow")} />
               )}
-              <span className="hidden sm:inline">
-                {locale === "sr" ? "Generiši" : "Generate"}
-              </span>
+              <span className="hidden sm:inline">{generateLabel}</span>
               <span
                 className={cn(
                   "hidden h-3.5 w-px bg-current opacity-30 sm:inline-block",

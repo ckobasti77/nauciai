@@ -161,7 +161,7 @@ test("getUsageSummary: zbir troška, top 10 korisnika i broj poslova po statusu,
   expect(summary.topUsers.some((row) => row.userId === userIds[0])).toBe(false);
   expect(summary.topUsers.some((row) => row.userId === userIds[1])).toBe(false);
 
-  expect(summary.jobCounts).toEqual({ reserved: 1, running: 1, done: 1, failed: 1, refunded: 1 });
+  expect(summary.jobCounts).toEqual({ reserved: 1, running: 1, done: 1, failed: 1, refunded: 1, queued: 0 });
   expect(summary.usageRowsCapped).toBe(false);
   expect(summary.jobCountsCapped).toBe(false);
 });

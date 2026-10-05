@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { CheckSquare, Download, Heart, Play, RefreshCw, Sparkles, Square, Volume2 } from "lucide-react";
+import { CheckSquare, Download, Heart, Moon, Play, RefreshCw, Sparkles, Square, Volume2 } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 
 import { CreditIcon } from "@/components/studio/credit-icon";
 import { cn } from "@/components/ui/primitives";
 import { Spinner } from "@/components/ui/spinner";
-import { CREA_TOOL_COPY } from "@/lib/crea-copy";
+import { CREA_NIGHT_COPY, CREA_TOOL_COPY } from "@/lib/crea-copy";
 import { toolOfJob } from "@/lib/crea-tools";
 import type { Locale } from "@/lib/i18n";
 import { isExpiredOutput, jobPrompt, jobStatusText } from "@/lib/studio-form";
@@ -65,7 +65,9 @@ export function StudioMediaTile({
   // Rad lokalnog alata (K04) nema opis: naslov mu je ime alata, a oznaka kaže da je besplatan.
   const localTool = toolOfJob(job);
   const caption = prompt || localTool?.title[locale] || "";
-  const isWorking = job.status === "reserved" || job.status === "running";
+  // Noćna tura (Crea K08): posao čeka batch do jutra - u toku je, ali bez sata koji otkucava.
+  const isNight = job.status === "queued";
+  const isWorking = job.status === "reserved" || job.status === "running" || isNight;
   const isExpired = isExpiredOutput(job);
   const isFailed = job.status === "failed" || job.status === "refunded";
   const hasOutput = Boolean(job.outputUrl);
@@ -79,12 +81,12 @@ export function StudioMediaTile({
 
   // Živi merač proteklog vremena dok posao traje (mirno i pošteno izveštavanje)
   useEffect(() => {
-    if (!isWorking) return;
+    if (!isWorking || isNight) return;
     const interval = setInterval(() => {
       setNow(Date.now());
     }, 1000);
     return () => clearInterval(interval);
-  }, [isWorking]);
+  }, [isWorking, isNight]);
 
   const tileContent = (
     <div
@@ -117,16 +119,22 @@ export function StudioMediaTile({
           <div className="grid min-h-[220px] place-items-center p-6 text-center">
             <div className={cn("flex flex-col items-center gap-3", !reduceMotion && "studio-breathing")}>
               <div className="relative flex size-11 items-center justify-center rounded-full border-2 border-white/25 bg-white/10 text-white shadow-inner">
-                <Spinner size="md" className="text-white/90" />
+                {isNight ? (
+                  <Moon aria-hidden="true" className="size-5 fill-yellow text-yellow" />
+                ) : (
+                  <Spinner size="md" className="text-white/90" />
+                )}
               </div>
               <div>
                 <p className="max-w-[240px] text-sm font-extrabold leading-snug text-white/95">
                   {statusMessage}
                 </p>
-                <p className="mt-1 font-mono text-xs font-bold text-white/60">
-                  {locale === "sr" ? "Proteklo: " : "Elapsed: "}
-                  {formatElapsedTime(job.createdAt, now)}
-                </p>
+                {isNight ? null : (
+                  <p className="mt-1 font-mono text-xs font-bold text-white/60">
+                    {locale === "sr" ? "Proteklo: " : "Elapsed: "}
+                    {formatElapsedTime(job.createdAt, now)}
+                  </p>
+                )}
               </div>
               {prompt ? (
                 <p className="line-clamp-2 max-w-[260px] text-xs font-semibold text-white/50">
@@ -320,6 +328,12 @@ export function StudioMediaTile({
           {job.isMock ? (
             <span className="rounded-full border border-white/20 bg-paper-strong/90 px-2 py-0.5 text-[10px] font-black uppercase text-ink">
               DEMO
+            </span>
+          ) : null}
+          {isNight ? (
+            <span className="inline-flex items-center gap-1 rounded-full border border-white/20 bg-yellow px-2 py-0.5 text-[10px] font-black text-ink">
+              <Moon aria-hidden="true" className="size-2.5 fill-current" />
+              {CREA_NIGHT_COPY.badge[locale]}
             </span>
           ) : null}
           {localTool ? (

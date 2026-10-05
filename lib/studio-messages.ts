@@ -1,3 +1,4 @@
+import { NIGHT_MAX_QUEUED_PER_USER } from "../convex/creaNightCore";
 import type { Locale } from "./i18n";
 import { slotLabel } from "./studio-slots";
 
@@ -93,6 +94,22 @@ const CREATE_JOB_ERROR_MESSAGES: Array<[string, { sr: string; en: string }]> = [
     {
       sr: "Sačekaj da se završi generacija koja je u toku pre nego što pokreneš novu.",
       en: "Wait for the generation in progress to finish before starting a new one.",
+    },
+  ],
+  [
+    // Noćna tura (Crea K08): model je ne nudi u ovom režimu, cene v2 su ugašene
+    // ili provajder batch-a nema ključ - prekidač se tada ni ne vidi.
+    "NOCNA_TURA_NEDOSTUPNA",
+    {
+      sr: "Noćna tura trenutno nije dostupna za ovaj model. Pokreni rad odmah ili izaberi drugi model.",
+      en: "The night run is not available for this model right now. Run it now or pick another model.",
+    },
+  ],
+  [
+    "PREVISE_NOCNIH",
+    {
+      sr: `U noćnoj turi već čeka ${NIGHT_MAX_QUEUED_PER_USER} radova. Sačekaj jutro pa dodaj nove.`,
+      en: `${NIGHT_MAX_QUEUED_PER_USER} pieces are already waiting in the night run. Wait for the morning, then add more.`,
     },
   ],
   [

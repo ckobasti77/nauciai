@@ -282,6 +282,20 @@ export const CREA_PICK_COPY = {
   cacheNew: { sr: "Nova varijanta", en: "New variation" },
 } satisfies Record<string, LocalizedText>;
 
+/** Noćna tura (K08, C2) i jutarnje iznenađenje (G13). */
+export const CREA_NIGHT_COPY = {
+  toggle: { sr: "Noćna tura", en: "Night run" },
+  toggleHint: { sr: "stiže do jutra, −{percent} %", en: "arrives by morning, −{percent}%" },
+  toggleTitle: {
+    sr: "Rad ide u noćnu turu po nižoj ceni i stiže do jutra. Javićemo ti kad bude gotov.",
+    en: "The work goes into the night run at a lower price and arrives by morning. We will let you know when it is ready.",
+  },
+  generate: { sr: "Pošalji u noćnu turu", en: "Send to night run" },
+  badge: { sr: "Noćna tura", en: "Night run" },
+  arrivalsOpen: { sr: "Pogledaj", en: "Take a look" },
+  arrivalsFrom: { sr: "iz noćne ture", en: "from the night run" },
+} satisfies Record<string, LocalizedText>;
+
 export const CREA_SAVE_ERROR_COPY = {
   NEPOZNAT_ALAT: {
     sr: "Ovaj alat još ne čuva rezultate u galeriju. Preuzmi rezultat.",

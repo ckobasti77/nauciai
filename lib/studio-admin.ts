@@ -42,6 +42,7 @@ const JOB_STATUS_LABELS_SR: Record<string, string> = {
   done: "Završeno",
   failed: "Neuspešno",
   refunded: "Vraćeno",
+  queued: "Noćna tura",
 };
 
 const JOB_STATUS_LABELS_EN: Record<string, string> = {
@@ -50,6 +51,7 @@ const JOB_STATUS_LABELS_EN: Record<string, string> = {
   done: "Done",
   failed: "Failed",
   refunded: "Refunded",
+  queued: "Night run",
 };
 
 export function jobStatusLabel(status: string, locale: Locale = "sr"): string {
