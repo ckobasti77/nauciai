@@ -131,8 +131,8 @@ describe("svaki posao iz pravila ima svoj izbor", () => {
     expect(result.model.slug).toBe("minimax-h3-max-turbo");
   });
 
-  test("zvuk: govor i muzika (dok Gemini TTS i Lyria ne stignu, rezervni modeli)", () => {
-    expect(pick({ area: "zvuk", prompt: "Dobrodošli u našu radnju" }).model.slug).toBe("tts");
+  test("zvuk: govor (Gemini TTS od K22) i muzika (dok Lyria ne stigne, rezervni model)", () => {
+    expect(pick({ area: "zvuk", prompt: "Dobrodošli u našu radnju" }).model.slug).toBe("gemini-tts");
     const music = pick({ area: "zvuk", prompt: "vesela pesma za rođendan" });
     expect(music.reasonId).toBe("music_song");
     expect(music.model.slug).toBe("music");

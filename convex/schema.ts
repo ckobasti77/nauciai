@@ -1962,6 +1962,53 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_user_updated", ["userId", "updatedAt"]),
 
+  // Biblioteka glasova (Crea K22, A3): omiljeni glasovi korisnika. `engine` i
+  // `voiceId` su iz `lib/crea-voices.ts` (mutacija ih proverava).
+  creaVoiceFavorites: defineTable({
+    userId: v.id("users"),
+    engine: v.string(),
+    voiceId: v.string(),
+    createdAt: v.number(),
+  }).index("by_user_engine_voice", ["userId", "engine", "voiceId"]),
+
+  // „Sačuvaj podešavanje" (K22, A3/A4/A8): glas + raspoloženje, brzina, visina i
+  // opis zvuka. `settings` je JSON (≤ 1 KB, `creaVoicesCore.sanitizeVoiceSettings`).
+  creaVoicePresets: defineTable({
+    userId: v.id("users"),
+    name: v.string(),
+    engine: v.string(),
+    voiceId: v.string(),
+    settings: v.string(),
+    createdAt: v.number(),
+  }).index("by_user_created", ["userId", "createdAt"]),
+
+  // Keš uzoraka glasova (K22, A3): JEDAN uzorak po motoru, glasu i verziji teksta,
+  // zajednički za sve korisnike. Pravi se pri prvom slušanju (0 kr korisniku,
+  // trošak je naš i upisan je ovde); `pending` je brava protiv dvostrukog poziva.
+  creaVoiceSamples: defineTable({
+    engine: v.string(),
+    voiceId: v.string(),
+    version: v.number(),
+    status: v.union(v.literal("pending"), v.literal("ready"), v.literal("failed")),
+    storageId: v.optional(v.id("_storage")),
+    attemptedAt: v.number(),
+    costUsd: v.optional(v.number()),
+    error: v.optional(v.string()),
+  }).index("by_engine_voice_version", ["engine", "voiceId", "version"]),
+
+  // Izgovoreni pristanak za kloniranje SOPSTVENOG glasa (K22, A7, O5). Rečenicu
+  // (sa dve nasumične reči) bira server; snimak se ne čuva - samo transkript i
+  // ishod provere (`lib/crea-consent.ts`).
+  creaVoiceConsents: defineTable({
+    userId: v.id("users"),
+    phrase: v.string(),
+    status: v.union(v.literal("waiting"), v.literal("passed"), v.literal("failed")),
+    transcript: v.optional(v.string()),
+    score: v.optional(v.number()),
+    createdAt: v.number(),
+    checkedAt: v.optional(v.number()),
+  }).index("by_user_created", ["userId", "createdAt"]),
+
   // Opšte informacije platforme (N1) — JEDAN red, `key: "default"`. Kontakt,
   // mreže, cene i pravni podaci koje vlasnik menja sa admin ekrana umesto kroz
   // deploy; `platformSettings.get` je javan i čita ga i landing.

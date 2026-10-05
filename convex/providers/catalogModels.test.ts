@@ -363,12 +363,12 @@ test("endpoint sa {tier} placeholderom ima mapu tarifa za svaku rezoluciju", () 
 
 // ── katalog: koliko ih ima i ko su ─────────────────────────────────────────
 
-test("katalog ima 49 redova, jedinstvene slugove i jedinstven redosled", () => {
+test("katalog ima 50 redova, jedinstvene slugove i jedinstven redosled", () => {
   // 30 iz kataloga v4 + 17 iz Cree K07 (11 za slike, 6 za video) + 2 iz K20
-  // (Kling O3 izmena videa, ByteDance uvećanje videa).
-  expect(STUDIO_MODELS).toHaveLength(49);
-  expect(new Set(STUDIO_MODELS.map((model) => model.slug)).size).toBe(49);
-  expect(new Set(STUDIO_MODELS.map((model) => model.sortOrder)).size).toBe(49);
+  // (Kling O3 izmena videa, ByteDance uvećanje videa) + 1 iz K22 (Gemini govor).
+  expect(STUDIO_MODELS).toHaveLength(50);
+  expect(new Set(STUDIO_MODELS.map((model) => model.slug)).size).toBe(50);
+  expect(new Set(STUDIO_MODELS.map((model) => model.sortOrder)).size).toBe(50);
 
   const byKind = { image: 0, video: 0, audio: 0 };
   for (const model of STUDIO_MODELS) byKind[model.kind] += 1;
@@ -376,15 +376,15 @@ test("katalog ima 49 redova, jedinstvene slugove i jedinstven redosled", () => {
   expect(byKind.image).toBe(19);
   // 10 video modela + tri Kling alata koji vraćaju video = 13, plus 6 iz K07 i 2 iz K20.
   expect(byKind.video).toBe(21);
-  // 8 ElevenLabs alata + Kling zvuk za video = 9.
-  expect(byKind.audio).toBe(9);
+  // 8 ElevenLabs alata + Kling zvuk za video = 9, plus Gemini govor iz K22.
+  expect(byKind.audio).toBe(10);
 
   const byProvider = { fal: 0, google: 0, byteplus: 0 };
   for (const model of STUDIO_MODELS) byProvider[model.provider] += 1;
   // 6, ne 4: Veo Lite i Veo Standard su presli sa fal-a na Google. Bili su tamo
   // zbog "parity" cene, a Google je jedini provajder za koji postoji kljuc.
-  // K07: + Nano Banana 2 Lite.
-  expect(byProvider.google).toBe(7);
+  // K07: + Nano Banana 2 Lite. K22: + Gemini govor.
+  expect(byProvider.google).toBe(8);
   expect(byProvider.byteplus).toBe(3);
   // K20: + Kling O3 izmena videa i ByteDance uvećanje (oba fal).
   expect(byProvider.fal).toBe(39);

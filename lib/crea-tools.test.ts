@@ -116,7 +116,7 @@ describe("registar alata", () => {
     for (const tool of CREA_TOOLS) if (tool.tier === "server") expect(tool.status).toBe("soon");
   });
 
-  test("K04 pušta format i proveru fotke, K09 sedam besplatnih alata za sliku, K10 editor, šablone i 3D foto, K11 i K12 izmene, K13 pravljenje, K14 likovi, K18 video, K19 montaža, K20 dorada, pokret i govor, K21 strip, titlovi, shorts, retro, explainer i reklama", () => {
+  test("K04 pušta format i proveru fotke, K09 sedam besplatnih alata za sliku, K10 editor, šablone i 3D foto, K11 i K12 izmene, K13 pravljenje, K14 likovi, K18 video, K19 montaža, K20 dorada, pokret i govor, K21 strip, titlovi, shorts, retro, explainer i reklama, K22 glas", () => {
     const ready = CREA_TOOLS.filter((tool) => tool.status === "ready").map((tool) => tool.id);
     expect(ready).toEqual([
       "slika.format",
@@ -187,6 +187,13 @@ describe("registar alata", () => {
       "video.titlovi",
       "video.shorts",
       "video.retro",
+      // K22: Zvuk · Govor (A2, A4, A5, A6) i Glasovi (A3, A7, A8)
+      "zvuk.govor",
+      "zvuk.dijalog",
+      "zvuk.podkast",
+      "zvuk.glasovi",
+      "zvuk.dizajn",
+      "zvuk.kloniraj",
     ]);
     expect(toolById("slika.format")).toMatchObject({ tier: "local-code", featureIds: ["S27"], output: "image" });
     expect(toolById("slika.provera")).toMatchObject({

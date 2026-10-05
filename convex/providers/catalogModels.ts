@@ -14,6 +14,7 @@ import { FAL_AUDIO_MODELS } from "./falAudioModels";
 import { FAL_IMAGE_MODELS } from "./falImageModels";
 import { FAL_TOOL_MODELS } from "./falToolModels";
 import { FAL_VIDEO_MODELS } from "./falVideoModels";
+import { GOOGLE_AUDIO_MODELS } from "./googleAudioModels";
 import { GOOGLE_IMAGE_MODELS } from "./googleImageModels";
 import { GOOGLE_VIDEO_MODELS } from "./googleModels";
 import type { StudioModelSeed } from "./modelSeed";
@@ -26,6 +27,7 @@ export const STUDIO_MODELS: StudioModelSeed[] = [
   ...FAL_VIDEO_MODELS,
   ...GOOGLE_VIDEO_MODELS,
   ...FAL_TOOL_MODELS,
+  ...GOOGLE_AUDIO_MODELS,
   ...FAL_AUDIO_MODELS,
 ].sort((a, b) => a.sortOrder - b.sortOrder);
 

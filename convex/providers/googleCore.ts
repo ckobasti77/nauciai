@@ -316,3 +316,72 @@ export function buildGoogleImageRequest(
 
   return { model, input, response_format: responseFormat };
 }
+
+// ── Govor (Crea K22, A2): Gemini 3.8 Flash TTS kroz Interactions API ─────────
+
+/**
+ * Telo zahteva za jedan glas, doslovno po zvaničnom primeru
+ * (https://ai.google.dev/gemini-api/docs/speech-generation, 2026-10-05): tekst
+ * kao `user_input`, stil cele replike kao `speech_metadata` napomena, glas u
+ * `generation_config.speech_config` (niz za jednog govornika).
+ */
+export function buildGoogleSpeechRequest(model: string, params: Record<string, unknown>, defaultVoice: string): Record<string, unknown> {
+  const text = typeof params.text === "string" ? params.text.trim() : "";
+  if (text.length === 0) throw new Error("NEPOTPUN_ULAZ: Upiši tekst koji treba izgovoriti.");
+  const style = typeof params.style === "string" ? params.style.trim() : "";
+  const voice = typeof params.voice === "string" && params.voice.length > 0 ? params.voice : defaultVoice;
+
+  return {
+    model,
+    input: [
+      {
+        type: "user_input",
+        content: [{ type: "text", text, ...(style ? { annotations: [{ type: "speech_metadata", style }] } : {}) }],
+      },
+    ],
+    response_format: { type: "audio" },
+    generation_config: { speech_config: [{ voice }] },
+  };
+}
+
+/** WAV zaglavlje (44 B) nad 16-bitnim PCM bajtovima. */
+export function pcm16Wav(pcm: Uint8Array, sampleRate: number, channels = 1): Uint8Array {
+  const out = new Uint8Array(44 + pcm.length);
+  const view = new DataView(out.buffer);
+  const ascii = (offset: number, text: string) => {
+    for (let index = 0; index < text.length; index++) view.setUint8(offset + index, text.charCodeAt(index));
+  };
+  ascii(0, "RIFF");
+  view.setUint32(4, 36 + pcm.length, true);
+  ascii(8, "WAVE");
+  ascii(12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, channels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * channels * 2, true);
+  view.setUint16(32, channels * 2, true);
+  view.setUint16(34, 16, true);
+  ascii(36, "data");
+  view.setUint32(40, pcm.length, true);
+  out.set(pcm, 44);
+
+  return out;
+}
+
+/**
+ * Izlaz govora kao fajl koji svaki browser pušta. Jednokratan zahtev vraća WAV
+ * (RIFF), a strim „sirov" PCM (`audio/l16`, 24 kHz) - takav se umota u WAV
+ * zaglavlje. Sve ostalo (npr. MP3) ostaje kakvo jeste.
+ */
+export function speechOutput(bytes: Uint8Array, mimeType: string): { bytes: Uint8Array; mimeType: string } {
+  const isRiff = bytes.length >= 12 && String.fromCharCode(...bytes.subarray(0, 4)) === "RIFF";
+  if (isRiff) return { bytes, mimeType: "audio/wav" };
+  const mime = mimeType.toLowerCase();
+  if (mime.includes("l16") || mime.includes("pcm")) {
+    const rate = Number(/rate=(\d+)/.exec(mime)?.[1] ?? 24000);
+    return { bytes: pcm16Wav(bytes, Number.isFinite(rate) && rate > 0 ? rate : 24000), mimeType: "audio/wav" };
+  }
+
+  return { bytes, mimeType };
+}

@@ -78,6 +78,13 @@ const ShortsTool = dynamic(() => import("./shorts-tool"), { ssr: false, loading:
 const RetroTool = dynamic(() => import("./retro-tool"), { ssr: false, loading: ToolLoading });
 const ExplainerTool = dynamic(() => import("./explainer-tool"), { ssr: false, loading: ToolLoading });
 const AdTool = dynamic(() => import("./ad-tool"), { ssr: false, loading: ToolLoading });
+// K22: Zvuk · Govor i Glasovi - svaki alat svoj chunk.
+const SpeechTool = dynamic(() => import("../zvuk/speech-tool"), { ssr: false, loading: ToolLoading });
+const DialogueTool = dynamic(() => import("../zvuk/dialogue-tool"), { ssr: false, loading: ToolLoading });
+const PodcastTool = dynamic(() => import("../zvuk/podcast-tool"), { ssr: false, loading: ToolLoading });
+const VoiceLibrary = dynamic(() => import("../zvuk/voice-library"), { ssr: false, loading: ToolLoading });
+const DesignTool = dynamic(() => import("../zvuk/design-tool"), { ssr: false, loading: ToolLoading });
+const CloneTool = dynamic(() => import("../zvuk/clone-tool"), { ssr: false, loading: ToolLoading });
 // K19: montaža, „Ubaci i gotovo" i izvoz za mreže - svaki svoj chunk; mediabunny i detektor ritma tek unutar njih.
 const MontageTool = dynamic(() => import("../montaza/montage-tool"), { ssr: false, loading: ToolLoading });
 const BeatTool = dynamic(() => import("../montaza/beat-tool"), { ssr: false, loading: ToolLoading });
@@ -143,4 +150,10 @@ export const CREA_TOOL_COMPONENTS: Readonly<Record<string, ComponentType<CreaToo
   "video.retro": RetroTool,
   "video.objasnjenje": ExplainerTool,
   "video.reklama": AdTool,
+  "zvuk.govor": SpeechTool,
+  "zvuk.dijalog": DialogueTool,
+  "zvuk.podkast": PodcastTool,
+  "zvuk.glasovi": VoiceLibrary,
+  "zvuk.dizajn": DesignTool,
+  "zvuk.kloniraj": CloneTool,
 };

@@ -58,7 +58,9 @@ describe("CREA_MODES", () => {
         else if (
           mode.tools &&
           !((area === "slika" || area === "video") && (mode.id === "izmeni" || mode.id === "napravi")) &&
-          !(area === "video" && (mode.id === "pokret" || mode.id === "govor"))
+          !(area === "video" && (mode.id === "pokret" || mode.id === "govor")) &&
+          // K22: Zvuk · Govor - govor sa emocijama, dijalog i podkast pored modela govora.
+          !(area === "zvuk" && mode.id === "govor")
         ) {
           expect(mode.models, `${area}/${mode.id}`).toBeUndefined();
         } else expect(mode.models).toBeDefined();
@@ -118,7 +120,7 @@ describe("modelsForMode", () => {
     expect(slugsOf("video", "izmeni")).toEqual(expect.arrayContaining(["veo-31", "kling-omni"]));
     expect(slugsOf("video", "pokret")).toEqual(["kling-motion"]);
     expect(slugsOf("video", "govor").sort()).toEqual(["kling-avatar", "kling-lipsync"]);
-    expect(slugsOf("zvuk", "govor").sort()).toEqual(["dialogue", "tts"]);
+    expect(slugsOf("zvuk", "govor").sort()).toEqual(["dialogue", "gemini-tts", "tts"]);
     expect(slugsOf("zvuk", "promena")).toEqual(["voice-changer"]);
     expect(slugsOf("zvuk", "prevod")).toEqual(["dubbing"]);
     expect(slugsOf("zvuk", "muzika")).toEqual(["music"]);

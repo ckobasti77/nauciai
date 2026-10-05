@@ -181,7 +181,8 @@ export const CREA_GOALS: readonly CreaGoal[] = [
       sr: "Dobro došli u našu pekaru! Svakog jutra od šest sati čekaju vas topao hleb, kifle i burek.",
       en: "Dobro došli u našu pekaru! Svakog jutra od šest sati čekaju vas topao hleb, kifle i burek.",
     },
-    modelSlug: "tts",
+    // K22: Gemini govor je osnovni srpski glas (5 kr na 1 000 znakova; ElevenLabs 22 kr).
+    modelSlug: "gemini-tts",
   },
   {
     id: "ukloni-pozadinu",

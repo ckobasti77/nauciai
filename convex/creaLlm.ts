@@ -39,6 +39,7 @@ import {
   type ExplainerPlan,
   type Moment,
 } from "./creaLlmVideoCore";
+import { buildPodcastRequest, demoPodcast, parsePodcastResponse, PODCAST_LIMITS, type PodcastScript } from "./creaLlmVoiceCore";
 import { STORYBOARD_LIMITS, type StoryShot } from "./creaStoryboardsCore";
 import { sentencesFromWords, transcriptDigest } from "./creaTranscriptsCore";
 import { requireUserId } from "./helpers";
@@ -375,6 +376,32 @@ export const writeAdScript = action({
     const apiKey = process.env.GOOGLE_AI_API_KEY;
     if (!apiKey) return { ok: true, demo: true, remaining: slot.remaining, ...demoAd(input) };
     const script = await callGemini(ctx, slot, apiKey, buildAdRequest(input), parseAdResponse, "Reklama");
+    return script ? { ok: true, demo: false, remaining: slot.remaining, ...script } : { ok: false, reason: "GRESKA" };
+  },
+});
+
+// ── Podkast iz lekcije (K22, A6) ─────────────────────────────────────────────
+
+export type PodcastReply = ({ ok: true; demo: boolean; remaining: number } & PodcastScript) | { ok: false; reason: "PRAZNO" | "LIMIT" | "GRESKA" };
+
+/** A6: tekst lekcije → razgovor dva voditelja (0 kredita, dnevni limit). Glas ide posle, po replikama. */
+export const writePodcast = action({
+  args: {
+    text: v.string(),
+    minutes: v.union(v.literal(1), v.literal(2), v.literal(3)),
+    hosts: v.array(v.string()),
+    locale: localeValidator,
+  },
+  handler: async (ctx, args): Promise<PodcastReply> => {
+    const text = args.text.trim().slice(0, PODCAST_LIMITS.textChars);
+    if (text.length === 0) return { ok: false, reason: "PRAZNO" };
+    const slot = await ctx.runMutation(internal.creaLlm.beginCall, {});
+    if (!slot.ok) return { ok: false, reason: "LIMIT" };
+    const host = (index: number, fallback: string) => args.hosts[index]?.trim().slice(0, PODCAST_LIMITS.hostChars) || fallback;
+    const input = { text, minutes: args.minutes, hosts: [host(0, "Ana"), host(1, "Marko")] as const, locale: args.locale };
+    const apiKey = process.env.GOOGLE_AI_API_KEY;
+    if (!apiKey) return { ok: true, demo: true, remaining: slot.remaining, ...demoPodcast(input) };
+    const script = await callGemini(ctx, slot, apiKey, buildPodcastRequest(input), parsePodcastResponse, "Podkast");
     return script ? { ok: true, demo: false, remaining: slot.remaining, ...script } : { ok: false, reason: "GRESKA" };
   },
 });

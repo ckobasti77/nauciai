@@ -27,14 +27,17 @@ import {
 import {
   bareInteractionId,
   buildGoogleImageRequest,
+  buildGoogleSpeechRequest,
   buildOmniRequest,
   buildVeoRequest,
   type GoogleInputFile,
   type GoogleInputs,
   googleDownloadHeaders,
   omniInputRestriction,
+  speechOutput,
   toBase64,
 } from "./googleCore";
+import { GEMINI_TTS_DEFAULT_VOICE } from "./googleAudioModels";
 import { parseJobInputs } from "./jobInputs";
 import { submitToFal } from "../../lib/fal";
 import { fallbackAllowed, isRetriableProviderError, parseFallback } from "../creaFallbackCore";
@@ -225,6 +228,8 @@ async function runGoogleSyncJob(
 ): Promise<void> {
   const { config, providerModel, params, inputs, inputMode, kind, capabilities } = args;
   const isVideo = kind === "video";
+  // Govor (Crea K22): isti sinhroni poziv, izlaz je WAV.
+  const isAudio = kind === "audio";
 
   if (isVideo) {
     // Tri ogranicenja Omnija (katalog 3.8) su poruka, ne tiha greska - i
@@ -244,7 +249,9 @@ async function runGoogleSyncJob(
     config,
     body: isVideo
       ? buildOmniRequest(providerModel, params, inputs, inputMode, previousInteractionId)
-      : buildGoogleImageRequest(providerModel, params, inputs, inputMode),
+      : isAudio
+        ? buildGoogleSpeechRequest(providerModel, params, GEMINI_TTS_DEFAULT_VOICE)
+        : buildGoogleImageRequest(providerModel, params, inputs, inputMode),
   });
 
   // Interactions API ume da vrati gresku sa HTTP 200 (`status: "failed"`), pa
@@ -252,16 +259,20 @@ async function runGoogleSyncJob(
   if (!result.media) {
     throw new Error(
       result.error ??
-        `Google je vratio odgovor bez ${isVideo ? "videa" : "slike"}. Krediti su ti vraćeni.`,
+        `Google je vratio odgovor bez ${isVideo ? "videa" : isAudio ? "zvuka" : "slike"}. Krediti su ti vraćeni.`,
     );
   }
 
   // Dva oblika izlaza, jedan fajl: slika stize inline (base64), a video je
   // trazen sa `delivery: "uri"` pa stize kao URL koji se skida ODMAH - polje
   // `uri` je garantovano samo u ovom, prvom odgovoru.
-  const blob = result.media.data
+  let blob = result.media.data
     ? new Blob([fromBase64(result.media.data) as BlobPart], { type: result.media.mimeType })
     : await downloadInteractionMedia(config, result.media.uri as string, result.media.mimeType);
+  if (isAudio) {
+    const audio = speechOutput(new Uint8Array(await blob.arrayBuffer()), blob.type);
+    blob = new Blob([audio.bytes as BlobPart], { type: audio.mimeType });
+  }
 
   const storageId = await ctx.storage.store(blob);
 
@@ -276,7 +287,7 @@ async function runGoogleSyncJob(
   const stored = await ctx.runMutation(internal.providers.google.completeGoogleImageJob, {
     jobId,
     storageId,
-    mimeType: result.media.mimeType,
+    mimeType: blob.type || result.media.mimeType,
     byteSize: blob.size,
     ...(reportedSeconds !== undefined ? { reportedSeconds } : {}),
     ...(result.interactionId ? { providerRequestId: `interactions/${result.interactionId}` } : {}),
