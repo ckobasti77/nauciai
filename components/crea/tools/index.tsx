@@ -50,6 +50,9 @@ const DraftSheetTool = dynamic(() => import("./draft-sheet-tool"), { ssr: false,
 const SlotsTool = dynamic(() => import("./slots-tool"), { ssr: false, loading: ToolLoading });
 const LiveDrawTool = dynamic(() => import("./live-draw-tool"), { ssr: false, loading: ToolLoading });
 const SketchTool = dynamic(() => import("./sketch-tool"), { ssr: false, loading: ToolLoading });
+const SwapTool = dynamic(() => import("./swap-tool"), { ssr: false, loading: ToolLoading });
+const ElementsTool = dynamic(() => import("./elements-tool"), { ssr: false, loading: ToolLoading });
+const CharacterTool = dynamic(() => import("./character-tool"), { ssr: false, loading: ToolLoading });
 
 export const CREA_TOOL_COMPONENTS: Readonly<Record<string, ComponentType<CreaToolProps>>> = {
   "slika.format": FormatTool,
@@ -81,4 +84,7 @@ export const CREA_TOOL_COMPONENTS: Readonly<Record<string, ComponentType<CreaToo
   "slika.ko-gde-kako": SlotsTool,
   "slika.crtaj": LiveDrawTool,
   "slika.skica": SketchTool,
+  "slika.zameni-lik": SwapTool,
+  "slika.likovi": ElementsTool,
+  "slika.kreator-lika": CharacterTool,
 };

@@ -178,6 +178,18 @@ export const LIVE_ROUTES: readonly CreaPaidRoute[] = [
   { modelSlug: "nano-banana-2-lite", inputMode: "image_multi", kind: "photo", label: { sr: "Nano Banana 2 Lite", en: "Nano Banana 2 Lite" } },
 ];
 
+/** S36 kreator lika (K14): list lika iz opisa - Nano Banana Pro (detalji) ili jeftiniji NB2. */
+export const CHARACTER_ROUTES: readonly CreaPaidRoute[] = [
+  { modelSlug: "nano-banana-pro", inputMode: "text", kind: "photo", label: { sr: "Nano Banana Pro · najviše detalja", en: "Nano Banana Pro · most detail" } },
+  { modelSlug: "nano-banana-2", inputMode: "text", kind: "photo", label: { sr: "Nano Banana 2 · jeftinije", en: "Nano Banana 2 · cheaper" } },
+];
+
+/** S24 zameni lik (K14): isti modeli kao `creaElementsCore.SWAP_MODEL_SLUGS`, sa više slika. */
+export const SWAP_ROUTES: readonly CreaPaidRoute[] = [
+  { modelSlug: "nano-banana-pro", inputMode: "image_multi", kind: "photo", label: { sr: "Nano Banana Pro · najbolje čuva lice", en: "Nano Banana Pro · keeps the face best" } },
+  { modelSlug: "nano-banana-2", inputMode: "image_multi", kind: "photo", label: { sr: "Nano Banana 2 · jeftinije", en: "Nano Banana 2 · cheaper" } },
+];
+
 /** fal preseti veličine i njihov odnos stranica (`modelControls.FAL_IMAGE_SIZES`). */
 const FAL_SIZE_RATIOS: ReadonlyArray<{ size: string; ratio: string }> = [
   { size: "square", ratio: "1:1" },

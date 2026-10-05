@@ -50,6 +50,8 @@ export type CreaModeDef = {
    * pored njega (`?alat=`).
    */
   tools?: boolean;
+  /** Alat koji se otvara kad `?alat=` nije izabran (K14: „Likovi" otvara spisak likova). */
+  defaultTool?: string;
   status: "ready" | "soon";
   /** Jedna rečenica: šta režim radi (i za „Stiže uskoro"). */
   blurb: LocalizedText;
@@ -102,10 +104,12 @@ export const CREA_MODES: Record<CreaArea, readonly CreaModeDef[]> = {
       id: "likovi",
       label: { sr: "Likovi", en: "Characters" },
       icon: "UserRound",
-      status: "soon",
+      tools: true,
+      defaultTool: "slika.likovi",
+      status: "ready",
       blurb: {
-        sr: "Sačuvaj svoj lik jednom, pa ga koristi u svakoj slici i svakom videu.",
-        en: "Save your character once, then use it in every image and every video.",
+        sr: "Sačuvaj svoj lik, mesto ili predmet jednom, pa ga pozovi sa @ime u svakoj slici i svakom videu.",
+        en: "Save your character, place or object once, then call it with @name in every image and every video.",
       },
     },
   ],
@@ -365,9 +369,12 @@ export const CREA_PROMPT_PARAM = "opis";
 /** Isto kao `PROMPT_MAX_LENGTH` (`lib/studio-messages.ts`); duži opis se seče. */
 export const CREA_PROMPT_PARAM_MAX = 2000;
 
-/** Query za „Slika · Napravi" sa već upisanim opisom. */
-export function creaPromptQuery(prompt: string, current: URLSearchParams): string {
-  const query = new URLSearchParams(creaShellQuery({ area: "slika", mode: "napravi", tool: null }, current));
+/** `?lik=<id>` (K14): „Stavi u fotku" sa ekrana Likovi predaje Lik alatu „Zameni lik" (jednokratno). */
+export const CREA_ELEMENT_PARAM = "lik";
+
+/** Query za „Napravi" (podrazumevano slika; K14: i video, za `@lik`) sa već upisanim opisom. */
+export function creaPromptQuery(prompt: string, current: URLSearchParams, area: "slika" | "video" = "slika"): string {
+  const query = new URLSearchParams(creaShellQuery({ area, mode: "napravi", tool: null }, current));
   query.set(CREA_PROMPT_PARAM, prompt.slice(0, CREA_PROMPT_PARAM_MAX));
   return query.toString();
 }

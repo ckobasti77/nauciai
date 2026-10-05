@@ -3,21 +3,17 @@
 
 import { CircleAlert, CircleCheck, CircleX, ScanFace } from "lucide-react";
 
+import { analyzeFaces } from "@/components/crea/elements/face-check";
 import { ImageInput, useImageInput } from "@/components/crea/tools/image-input";
 import { ToolRunner, type CreaToolOutput, type ToolRunContext } from "@/components/crea/tool-runner";
 import type { CreaToolProps } from "@/components/crea/tools/types";
 import { cn } from "@/components/ui/primitives";
-import { CREA_PHOTO_CHECK_COPY, fillCopy } from "@/lib/crea-copy";
+import { CREA_PHOTO_CHECK_COPY, photoCheckItemText } from "@/lib/crea-copy";
 import { fitPixels } from "@/lib/crea-image-format";
-import { CreaLocalAiError, toLocalAiError } from "@/lib/crea-local-ai/errors";
+import { CreaLocalAiError } from "@/lib/crea-local-ai/errors";
 import { loadFaceDetector } from "@/lib/crea-local-ai/runtime";
 import {
-  assessPhoto,
-  laplacianVariance,
   photoCheckParams,
-  SHARPNESS_SAMPLE_PX,
-  sharpnessRegion,
-  toGrayscale,
   type FaceBox,
   type PhotoCheckResult,
   type PhotoCheckStatus,
@@ -29,22 +25,6 @@ import type { Locale } from "@/lib/i18n";
  * u obe teme - brend mastilo, žuta i papir (`app/globals.css`, svetla tema).
  */
 const STAMP = { ink: "#0e3158", yellow: "#f4be30", paper: "#fffdf8" } as const;
-
-function measureSharpness(bitmap: ImageBitmap, face: FaceBox | null): number {
-  const region = sharpnessRegion(face, bitmap.width, bitmap.height);
-  const scale = SHARPNESS_SAMPLE_PX / Math.max(region.width, region.height);
-  const width = Math.max(3, Math.round(region.width * scale));
-  const height = Math.max(3, Math.round(region.height * scale));
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext("2d", { willReadFrequently: true });
-  if (!ctx) throw new CreaLocalAiError("UNSUPPORTED");
-  ctx.imageSmoothingQuality = "high";
-  ctx.drawImage(bitmap, region.x, region.y, region.width, region.height, 0, 0, width, height);
-  const { data } = ctx.getImageData(0, 0, width, height);
-  return laplacianVariance(toGrayscale(data, width, height), width, height);
-}
 
 /** Fotka sa okvirom oko lica i pečatom ocene - to je rad koji ide u galeriju. */
 async function drawReport(bitmap: ImageBitmap, result: PhotoCheckResult, faces: FaceBox[], locale: Locale) {
@@ -103,29 +83,8 @@ async function checkPhoto(file: File, locale: Locale, context: ToolRunContext): 
   }
 
   try {
-    let faces: FaceBox[];
-    try {
-      faces = detector.detect(bitmap).detections.flatMap((detection) =>
-        detection.boundingBox
-          ? [
-              {
-                x: detection.boundingBox.originX,
-                y: detection.boundingBox.originY,
-                width: detection.boundingBox.width,
-                height: detection.boundingBox.height,
-                score: detection.categories[0]?.score ?? 0,
-              },
-            ]
-          : [],
-      );
-    } catch (error) {
-      throw toLocalAiError(error, "INFERENCE_FAILED");
-    }
+    const { result, faces } = analyzeFaces(detector, bitmap, "opsta");
     if (context.signal.aborted) throw new CreaLocalAiError("ABORTED");
-
-    const preliminary = assessPhoto({ width: bitmap.width, height: bitmap.height, faces, sharpness: 0 });
-    const sharpness = measureSharpness(bitmap, preliminary.mainFace);
-    const result = assessPhoto({ width: bitmap.width, height: bitmap.height, faces, sharpness });
     const blob = await drawReport(bitmap, result, faces, locale);
     if (!blob) throw new CreaLocalAiError("INFERENCE_FAILED");
 
@@ -200,7 +159,7 @@ function PhotoCheckReport({ locale, output }: { locale: Locale; output: CreaTool
             return (
               <li key={item.id} className="flex items-start gap-2 py-2.5 type-body-sm font-semibold text-ink">
                 <Icon aria-hidden="true" className={cn("mt-0.5 size-4 shrink-0", STATUS_TONE[item.status])} />
-                <span>{fillCopy(CREA_PHOTO_CHECK_COPY.items[item.id][item.status][locale], { n: item.value })}</span>
+                <span>{photoCheckItemText(item, locale)}</span>
               </li>
             );
           })}

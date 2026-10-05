@@ -1,10 +1,14 @@
 /**
- * „Proveri fotku" (S35, osnova za K14) - čista procena nad onim što su izmerili
- * detektor lica (MediaPipe BlazeFace) i platno: broj lica, veličina glavnog lica
- * i oštrina. Pragovi su namerno blagi: alat savetuje pre plaćanja, ne zabranjuje.
+ * „Proveri fotku" (S35, K04 + K14) - čista procena nad onim što su izmerili
+ * detektor lica (MediaPipe BlazeFace) i platno: broj lica, veličina glavnog lica,
+ * da li je lice celo u kadru, svetlo i oštrina. Pragovi su namerno blagi: alat
+ * savetuje pre plaćanja, ne zabranjuje - osim fotke za Lik (`purpose: "lik"`,
+ * K14), gde druga osoba na slici ruši proveru, jer model ne bi znao čije lice
+ * da pamti.
  *
  * Oštrina = varijansa Laplasijana (3×3) nad sivom slikom lica, smanjenom na
  * stalnu veličinu (`SHARPNESS_SAMPLE_PX`) da bi broj bio uporediv između fotki.
+ * Svetlo = prosečna svetlina (0-255) istog uzorka.
  */
 
 export type FaceBox = { x: number; y: number; width: number; height: number; score: number };
@@ -21,10 +25,21 @@ export const PHOTO_CHECK_THRESHOLDS = {
   /** Kraća stranica slike u pikselima. */
   tinySide: 256,
   smallSide: 512,
+  /** Koliko lica (deo njegove širine/visine) sme da viri van slike pre nego što je „odsečeno". */
+  faceCut: 0.08,
+  /** Sigurnost detektora ispod koje se lice „slabo vidi" (naočare za sunce, senka, profil). */
+  faceUnclear: 0.6,
+  /** Prosečna svetlina lica (0-255). */
+  dark: 45,
+  dim: 70,
+  bright: 230,
 } as const;
 
+/** `opsta`: savet pre plaćanja; `lik`: fotka koja se čuva kao Lik - mora biti jedna osoba. */
+export type PhotoCheckPurpose = "opsta" | "lik";
+
 export type PhotoCheckStatus = "ok" | "warn" | "fail";
-export type PhotoCheckItemId = "lica" | "velicina" | "ostrina" | "rezolucija";
+export type PhotoCheckItemId = "lica" | "velicina" | "vidljivost" | "svetlo" | "ostrina" | "rezolucija";
 export type PhotoCheckItem = { id: PhotoCheckItemId; status: PhotoCheckStatus; value: number };
 export type PhotoCheckResult = { verdict: PhotoCheckStatus; items: PhotoCheckItem[]; mainFace: FaceBox | null };
 
@@ -36,6 +51,14 @@ export function toGrayscale(rgba: ArrayLike<number>, width: number, height: numb
     gray[index] = 0.299 * rgba[offset] + 0.587 * rgba[offset + 1] + 0.114 * rgba[offset + 2];
   }
   return gray;
+}
+
+/** Prosečna svetlina sive slike (0-255); prazna slika je 0. */
+export function meanLuminance(gray: ArrayLike<number>): number {
+  if (gray.length === 0) return 0;
+  let sum = 0;
+  for (let index = 0; index < gray.length; index += 1) sum += gray[index];
+  return sum / gray.length;
 }
 
 /** Varijansa Laplasijana bez ivičnih piksela; mutna slika ima malo naglih prelaza, pa i malu varijansu. */
@@ -91,18 +114,31 @@ function worst(statuses: readonly PhotoCheckStatus[]): PhotoCheckStatus {
   return "ok";
 }
 
-export function assessPhoto(input: {
-  width: number;
-  height: number;
-  faces: readonly FaceBox[];
-  sharpness: number;
-}): PhotoCheckResult {
+/** Koliko glavnog lica viri van slike, kao deo njegove veličine (0 = celo u kadru). */
+export function faceCutShare(face: FaceBox, width: number, height: number): number {
+  const outX = Math.max(0, -face.x) + Math.max(0, face.x + face.width - width);
+  const outY = Math.max(0, -face.y) + Math.max(0, face.y + face.height - height);
+  return Math.max(face.width > 0 ? outX / face.width : 0, face.height > 0 ? outY / face.height : 0);
+}
+
+export function assessPhoto(
+  input: {
+    width: number;
+    height: number;
+    faces: readonly FaceBox[];
+    sharpness: number;
+    /** Prosečna svetlina lica (ili cele slike bez lica), 0-255; bez nje nema stavke o svetlu. */
+    brightness?: number;
+  },
+  purpose: PhotoCheckPurpose = "opsta",
+): PhotoCheckResult {
   const t = PHOTO_CHECK_THRESHOLDS;
   const mainFace = mainFaceOf(input.faces);
   const items: PhotoCheckItem[] = [];
 
   const count = input.faces.length;
-  items.push({ id: "lica", status: count === 1 ? "ok" : count === 0 ? "fail" : "warn", value: count });
+  const crowd: PhotoCheckStatus = purpose === "lik" ? "fail" : "warn";
+  items.push({ id: "lica", status: count === 1 ? "ok" : count === 0 ? "fail" : crowd, value: count });
 
   if (mainFace) {
     const share = input.height > 0 ? mainFace.height / input.height : 0;
@@ -110,6 +146,21 @@ export function assessPhoto(input: {
       id: "velicina",
       status: share < t.faceTooSmall ? "fail" : share < t.faceSmall ? "warn" : "ok",
       value: Math.round(share * 100),
+    });
+    const cut = faceCutShare(mainFace, input.width, input.height) > t.faceCut;
+    items.push({
+      id: "vidljivost",
+      status: cut ? "fail" : mainFace.score < t.faceUnclear ? "warn" : "ok",
+      value: Math.round(mainFace.score * 100),
+    });
+  }
+
+  if (input.brightness !== undefined) {
+    const light = input.brightness;
+    items.push({
+      id: "svetlo",
+      status: light < t.dark ? "fail" : light < t.dim || light > t.bright ? "warn" : "ok",
+      value: Math.round(light),
     });
   }
 
@@ -123,6 +174,46 @@ export function assessPhoto(input: {
   items.push({ id: "rezolucija", status: side < t.tinySide ? "fail" : side < t.smallSide ? "warn" : "ok", value: side });
 
   return { verdict: worst(items.map((item) => item.status)), items, mainFace };
+}
+
+/**
+ * Uzrok pre posledice: premala slika izgleda i mutno (lice se meri na uvećanom
+ * uzorku), pa se razlog o rezoluciji kaže pre oštrine i svetla.
+ */
+const PROBLEM_ORDER: readonly PhotoCheckItemId[] = ["lica", "rezolucija", "velicina", "vidljivost", "svetlo", "ostrina"];
+
+/** Stavka koja ruši proveru (pa ona koja upozorava), redom uzroka - njen razlog korisnik vidi uz fotku. */
+export function photoCheckProblem(result: PhotoCheckResult): PhotoCheckItem | null {
+  const ordered = [...result.items].sort((a, b) => PROBLEM_ORDER.indexOf(a.id) - PROBLEM_ORDER.indexOf(b.id));
+  return ordered.find((item) => item.status === "fail") ?? ordered.find((item) => item.status === "warn") ?? null;
+}
+
+/**
+ * Sažetak provere svih fotki jednog Lika (`creaElements.photoCheck`, K01 §7.1):
+ * najviše lica na nekoj fotki, najmanje lice (deo visine) i najmanja oštrina;
+ * `ok` = nijedna fotka nije pala (upozorenje je dozvoljeno).
+ */
+export function photoCheckSummary(results: readonly PhotoCheckResult[]): {
+  faces: number;
+  faceRatio: number;
+  sharpness: number;
+  ok: boolean;
+} {
+  let faces = 0;
+  let faceRatio = 1;
+  let sharpness = Infinity;
+  for (const result of results) {
+    const value = (id: PhotoCheckItemId) => result.items.find((item) => item.id === id)?.value ?? 0;
+    faces = Math.max(faces, value("lica"));
+    faceRatio = Math.min(faceRatio, value("velicina") / 100);
+    sharpness = Math.min(sharpness, value("ostrina"));
+  }
+  return {
+    faces,
+    faceRatio: results.length > 0 ? faceRatio : 0,
+    sharpness: Number.isFinite(sharpness) ? sharpness : 0,
+    ok: results.length > 0 && results.every((result) => result.verdict !== "fail"),
+  };
 }
 
 /** Parametri posla u galeriji (JSON primitive) - ono što se vidi u „Istoriji" rada. */

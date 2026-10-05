@@ -23,6 +23,7 @@ import { CreaToolList } from "@/components/crea/crea-tool-list";
 import { CreaToolShortcuts } from "@/components/crea/crea-tool-shortcuts";
 import { CreaToolPanel } from "@/components/crea/crea-tool-panel";
 import { CreaToolStage } from "@/components/crea/crea-tool-stage";
+import { useMyElements } from "@/components/crea/elements/shared";
 import { CREA_DOCK_MIN_PX, CreaWorkshop } from "@/components/crea/crea-workshop";
 import { NightArrivals } from "@/components/crea/night-arrivals";
 import { CreditIcon } from "@/components/studio/credit-icon";
@@ -193,6 +194,8 @@ export function StudioPage({
   const state = useQuery(api.studio.getStudioState, isAuthenticated ? {} : "skip");
   const balance = useQuery(api.credits.getBalance, isAuthenticated ? {} : "skip");
   const models = useQuery(api.studioModels.listModels, isAuthenticated ? {} : "skip");
+  // Likovi i elementi (K14) za @pominjanje u opisu; samo uz pristup Crei.
+  const myElements = useMyElements(isAuthenticated && state?.hasStudioAccess === true);
   const createJob = useMutation(api.studio.createJob);
   const convex = useConvex();
   // Keš istih zahteva (C4): ponuda „otvori postojeći / nova varijanta" pre plaćanja.
@@ -991,6 +994,14 @@ export function StudioPage({
           queueNotice={
             variationQueue.waiting > 0 ? fillCopy(CREA_CREATE_COPY.queueWaiting[locale], { n: variationQueue.waiting }) : null
           }
+          // @pominjanje (K14): slika (napravi, izmeni) i video (napravi) primaju likove kao reference.
+          {...((area === "slika" && (modeDef.id === "napravi" || modeDef.id === "izmeni")) ||
+          (area === "video" && modeDef.id === "napravi")
+            ? {
+                elements: myElements,
+                elementsHref: `${pathname}?${creaShellQuery({ area: "slika", mode: "likovi", tool: null }, searchParams)}`,
+              }
+            : {})}
           {...(placement === "floating"
             ? {
                 isCollapsed: isComposerCollapsed,
@@ -1044,7 +1055,7 @@ export function StudioPage({
         locale={locale}
         area={area}
         mode={modeDef.id}
-        activeToolId={shell.tool}
+        activeToolId={shell.tool ?? modeDef.defaultTool ?? null}
         onSelect={(tool) => navigateShell({ tool })}
         {...(modeDef.models ? { onDescribe: () => navigateShell({ tool: null }) } : {})}
       />
@@ -1063,7 +1074,7 @@ export function StudioPage({
     ) : isToolsMode ? (
       <CreaToolStage
         locale={locale}
-        toolId={shell.tool}
+        toolId={shell.tool ?? modeDef.defaultTool ?? null}
         guest={!isAuthenticated}
         signInHref={signInHrefProp ?? withLocale(locale, "/sign-in")}
         canSave={state?.hasStudioAccess === true}

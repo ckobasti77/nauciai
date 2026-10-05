@@ -11,8 +11,12 @@ import { computeCredits } from "@/convex/studioPricing";
 import { parseParamSpec } from "@/convex/studioParamSpec";
 import { buildParams, paramValuesForMode } from "./studio-params";
 
+import { SWAP_MODEL_SLUGS } from "@/convex/creaElementsCore";
+import { CHARACTER_SHEET_PARAMS, characterSheetPrompt, DEFAULT_CHARACTER } from "./crea-character";
 import {
   ANGLES_ROUTES,
+  CHARACTER_ROUTES,
+  SWAP_ROUTES,
   BRUSH_ROUTES,
   EXPAND_ROUTES,
   LAYERIZE_ROUTES,
@@ -230,5 +234,29 @@ describe("K13 rute (S7, S9, S10): slike kao referenca", () => {
     expect(nearestFalImageSize(900, 1200)).toBe("portrait_4_3");
     expect(referenceRouteParams(SKETCH_ROUTES[0]!, "p", 1000, 1500)).toEqual({ prompt: "p", aspect_ratio: "2:3" });
     expect(referenceRouteParams(LIVE_ROUTES[0]!, "p", 768, 768)).toEqual({ prompt: "p", image_size: "square" });
+  });
+});
+
+describe("K14 rute: kreator lika i zamena lika", () => {
+  test("kreator: opis bez slika, odnos 16:9 postoji na modelu, cena > 0", () => {
+    for (const route of CHARACTER_ROUTES) {
+      const model = STUDIO_MODELS.find((candidate) => candidate.slug === route.modelSlug)!;
+      expect(model.inputModes, route.modelSlug).toContain("text");
+      const spec = parseParamSpec(JSON.stringify(model.paramSpec)) ?? [];
+      const aspect = spec.find((control) => control.key === "aspect_ratio");
+      expect(aspect?.options?.map((option) => option.value), route.modelSlug).toContain(CHARACTER_SHEET_PARAMS.aspect_ratio);
+      const sent = { prompt: characterSheetPrompt(DEFAULT_CHARACTER), ...CHARACTER_SHEET_PARAMS };
+      const params = buildParams(spec, { ...paramValuesForMode(spec, "text"), ...sent }, "text");
+      expect(params.aspect_ratio, route.modelSlug).toBe("16:9");
+      expect(computeCredits(model.priceRule, params, "text"), route.modelSlug).toBeGreaterThan(0);
+    }
+  });
+
+  test("zamena: isti modeli koje server prima, sa mestom za fotku i bar jednu sliku lika", () => {
+    expect(SWAP_ROUTES.map((route) => route.modelSlug)).toEqual([...SWAP_MODEL_SLUGS]);
+    for (const route of SWAP_ROUTES) {
+      const model = STUDIO_MODELS.find((candidate) => candidate.slug === route.modelSlug)!;
+      expect(model.inputSpec.image_multi!.image!.max, route.modelSlug).toBeGreaterThanOrEqual(2);
+    }
   });
 });

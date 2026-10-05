@@ -32,6 +32,13 @@ import {
 } from "react";
 
 import { EMPTY_LOOK, lookIsEmpty, type LookState } from "@/components/crea/create/look-state";
+import {
+  MentionButton,
+  MentionChips,
+  MentionSuggestions,
+  useElementMentions,
+  type MentionElement,
+} from "@/components/crea/elements/mentions";
 import { MicButton } from "@/components/crea/create/mic-button";
 import { PromptHelper } from "@/components/crea/create/prompt-helper";
 import { NightToggle } from "@/components/crea/night-toggle";
@@ -45,6 +52,7 @@ import { useSlotUpload } from "@/components/studio/use-slot-upload";
 import { cn } from "@/components/ui/primitives";
 import { Spinner } from "@/components/ui/spinner";
 import type { Id } from "@/convex/_generated/dataModel";
+import { elementInputs, promptWithElements, referenceModeOf } from "@/convex/creaElementsCore";
 import { nightOptionFor, nightParams, nightQuote, nightSavingsPercent } from "@/convex/creaNightCore";
 import type { CreaDerivation } from "@/convex/creaVersionsCore";
 import { parseContinuationSource, parseQuantitySource, promptControlOf } from "@/convex/studioJobCore";
@@ -54,7 +62,8 @@ import { autoSentence, pickAuto } from "@/lib/crea-auto";
 import { CREA_CREATE_COPY } from "@/lib/crea-create-copy";
 import { CREA_NIGHT_COPY, CREA_PICK_COPY, fillCopy } from "@/lib/crea-copy";
 import { buildDraftOrder, draftPairFor, orderCredits } from "@/lib/crea-draft";
-import { composeCreatePrompt } from "@/lib/crea-prompt-compose";
+import { CREA_MENTION_COPY } from "@/lib/crea-elements-copy";
+import { COMPOSED_PROMPT_MAX, composeCreatePrompt } from "@/lib/crea-prompt-compose";
 import { styleById } from "@/lib/crea-styles";
 import { VARIATION_COUNTS, variationPlan, variationsCredits } from "@/lib/crea-variations";
 import type { Locale } from "@/lib/i18n";
@@ -481,6 +490,8 @@ export function StudioComposer({
   canSaveStyles = false,
   onOpenSheet,
   queueNotice = null,
+  elements,
+  elementsHref = null,
 }: {
   models: StudioModel[];
   activeModel: StudioModel;
@@ -523,6 +534,13 @@ export function StudioComposer({
   onOpenSheet?: (prompt: string, modelSlug: string) => void;
   /** Varijacije koje čekaju slobodno mesto (red radionice). */
   queueNotice?: string | null;
+  /**
+   * Likovi i elementi (K14, S34/V6): `@pominjanje` u opisu šalje slike elementa
+   * kao reference. Bez ovog propa (`undefined`) polje nema @pominjanje.
+   */
+  elements?: readonly MentionElement[];
+  /** Ekran „Likovi" - za „Napravi prvi" kad korisnik još nema elemenata. */
+  elementsHref?: string | null;
 }) {
   const isDocked = placement === "docked";
   const createMode = variant === "create" && createExtras;
@@ -603,11 +621,54 @@ export function StudioComposer({
   }));
   const [sourceJobId] = useState<Id<"generationJobs"> | null>(null);
 
-  // Spajanje first_last okvira u slot `image`
-  const effectiveFiles: SlotFiles = useMemo(
-    () => (inputMode === "first_last" ? { ...files, image: framePairFiles(frames) } : files),
-    [inputMode, files, frames],
+  // @pominjanje (K14): pomenuti elementi i njihove slike kao reference. Iz „samo opis" se
+  // prelazi u režim sa referencama (`image_multi` / `reference`), a nazad kad nestanu.
+  const mentions = useElementMentions({ elements, prompt, onChange: handlePromptChange, textareaRef });
+  const mentioned = mentions.mentioned;
+  const referenceMode = useMemo(() => referenceModeOf(activeModel), [activeModel]);
+  const [autoReferenceMode, setAutoReferenceMode] = useState<string | null>(null);
+  if (mentioned.length > 0 && inputMode === "text" && referenceMode) {
+    setInputMode(referenceMode.inputMode);
+    setAutoReferenceMode(referenceMode.inputMode);
+  } else if (
+    mentioned.length === 0 &&
+    autoReferenceMode !== null &&
+    inputMode === autoReferenceMode &&
+    Object.values(files).every((list) => (list?.length ?? 0) === 0) &&
+    activeModel.inputModes.includes("text")
+  ) {
+    setInputMode("text");
+    setAutoReferenceMode(null);
+  }
+  const elementMapping = useMemo(
+    () =>
+      mentioned.length > 0
+        ? elementInputs(mentioned, activeModel, { currentMode: inputMode, existingImages: files.image?.length ?? 0 })
+        : null,
+    [mentioned, activeModel, inputMode, files.image],
   );
+  const elementProblem =
+    elementMapping && !elementMapping.ok
+      ? fillCopy(CREA_MENTION_COPY.problems[elementMapping.reason][locale], { n: elementMapping.max })
+      : null;
+  const sentCounts = useMemo(
+    () => new Map(elementMapping?.ok ? elementMapping.refs.map((ref) => [ref.element.handle, ref.images.length]) : []),
+    [elementMapping],
+  );
+
+  // Spajanje first_last okvira u slot `image`; slike pomenutih elemenata idu iza vlastitih.
+  const effectiveFiles: SlotFiles = useMemo(() => {
+    const own = inputMode === "first_last" ? { ...files, image: framePairFiles(frames) } : files;
+    if (!elementMapping?.ok) return own;
+    const refs: SlotFile[] = elementMapping.images.map((image) => ({
+      storageId: image.storageId,
+      name: image.storageId,
+      mime: image.mime,
+      size: image.size,
+      url: image.url ?? null,
+    }));
+    return { ...own, image: [...(own.image ?? []), ...refs] };
+  }, [inputMode, files, frames, elementMapping]);
 
   // Praćenje merene količine i parametara
   const quantitySource = useMemo(() => parseQuantitySource(JSON.stringify(activeModel.capabilities)), [activeModel]);
@@ -819,7 +880,12 @@ export function StudioComposer({
 
   // Izgled (S8): dodaje se opisu tek pri slanju; „Modelu ide:" pokazuje tačan tekst.
   const composed = createMode && promptControl && !lookIsEmpty(look) ? composeCreatePrompt(prompt, look) : null;
-  const lookTooLong = composed !== null && composed.overBy > 0;
+  // @pominjanje: `@maja` postaje ime, a na kraj ide rečenica koja slika je ko (K14).
+  const withElements = (text: string) =>
+    elementMapping?.ok ? promptWithElements(text, elements ?? [], elementMapping.refs) : text;
+  const elementText = elementMapping?.ok ? withElements(composed?.text ?? prompt) : null;
+  const elementsOverBy = elementText !== null ? Math.max(0, elementText.length - COMPOSED_PROMPT_MAX) : 0;
+  const lookTooLong = (composed !== null && composed.overBy > 0) || elementsOverBy > 0;
   const generateLabel = night ? CREA_NIGHT_COPY.generate[locale] : locale === "sr" ? "Generiši" : "Generate";
 
   // ── Auto izbor (Crea S3) i „Probaj jeftino" (S4/V3) ──
@@ -892,7 +958,7 @@ export function StudioComposer({
       ? orderCredits(draftModel, draftOrder, sameModelDraft ? (effectiveFiles.image?.length ?? 0) : 0)
       : null;
   const showDraft =
-    variant === "create" && draftCredits !== null && credits !== null && draftCredits < credits;
+    variant === "create" && draftCredits !== null && credits !== null && draftCredits < credits && mentioned.length === 0;
 
   const continuation = useMemo(() => parseContinuationSource(JSON.stringify(activeModel.capabilities)), [activeModel]);
   const sourceRequired = continuation !== null && continuation.mode === inputMode;
@@ -906,13 +972,13 @@ export function StudioComposer({
         state: studioState,
         balance,
         credits,
-        missingInputMessage: missingInputMessage(missing, locale),
+        missingInputMessage: elementProblem ?? missingInputMessage(missing, locale),
         promptMissing,
         quantityMissing: quantitySource !== null && measured[quantitySource.param] === undefined,
         sourceMissing: sourceRequired && sourceJobId === null,
         uploading: isUploading,
       }),
-    [studioState, balance, credits, missing, locale, promptMissing, quantitySource, measured, sourceRequired, sourceJobId, isUploading],
+    [studioState, balance, credits, missing, locale, promptMissing, quantitySource, measured, sourceRequired, sourceJobId, isUploading, elementProblem],
   );
 
   // Automatsko prilagođavanje visine textarea polja
@@ -1238,9 +1304,10 @@ export function StudioComposer({
   function submit() {
     if (block !== null || isPending || isUploading || lookTooLong) return;
 
+    const finalText = elementText ?? composed?.text ?? null;
     onGenerate(
       {
-        params: composed && promptControl ? { ...baseParams, [promptControl.key]: composed.text } : baseParams,
+        params: finalText !== null && promptControl ? { ...baseParams, [promptControl.key]: finalText } : baseParams,
         inputMode,
         inputs: inputsPayload(payloadFiles),
         ...(sourceRequired && sourceJobId ? { sourceJobId } : {}),
@@ -1548,12 +1615,22 @@ export function StudioComposer({
           </div>
         ) : null}
 
+        {/* @pominjanje (K14): pomenuti likovi kao čipovi */}
+        <MentionChips
+          locale={locale}
+          elements={mentioned}
+          sentCounts={sentCounts}
+          onRemove={mentions.remove}
+          disabled={isPending}
+        />
+
         {/* Prompt Textarea */}
         <textarea
           ref={textareaRef}
           rows={isDocked ? 3 : 1}
           value={prompt}
           onChange={(event) => handlePromptChange(event.target.value)}
+          {...mentions.comboboxProps}
           placeholder={
             variant === "edit"
               ? locale === "sr"
@@ -1566,6 +1643,37 @@ export function StudioComposer({
           aria-label={locale === "sr" ? "Opis onoga što praviš" : "Description of what you are making"}
           className="w-full resize-none border-0 bg-transparent text-base font-bold text-ink placeholder:font-bold placeholder:text-muted studio-focus-ink"
         />
+
+        {mentions.open ? (
+          <MentionSuggestions
+            locale={locale}
+            listboxId={mentions.listboxId}
+            suggestions={mentions.suggestions}
+            activeIndex={mentions.activeIndex}
+            onHover={mentions.setActive}
+            onPick={mentions.pick}
+            hasElements={(elements?.length ?? 0) > 0}
+            createHref={elementsHref}
+          />
+        ) : null}
+
+        {/* Van „Slika · Napravi" @pominjanje ima svoje dugme i pregled teksta za model. */}
+        {elements !== undefined && !createMode ? (
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <MentionButton locale={locale} onClick={mentions.openPicker} disabled={isPending} />
+          </div>
+        ) : null}
+        {elementText !== null && !createMode ? (
+          <details className="mt-2 text-xs font-bold text-muted">
+            <summary className="cursor-pointer select-none py-1 text-ink">{CREA_CREATE_COPY.preview[locale]}</summary>
+            <p className="mt-1 whitespace-pre-line break-words font-semibold">{elementText}</p>
+          </details>
+        ) : null}
+        {elementsOverBy > 0 && !createMode ? (
+          <p role="alert" className="pt-1 text-xs font-black text-red-700 dark:text-red-300">
+            {fillCopy(CREA_CREATE_COPY.tooLong[locale], { n: elementsOverBy })}
+          </p>
+        ) : null}
 
         {/* Slika · Napravi (K13): pomoćnik za opis i mikrofon (S6), izgled (S8) */}
         {createMode ? (
@@ -1587,6 +1695,9 @@ export function StudioComposer({
                 disabled={isPending}
                 onText={(spoken) => handlePromptChange(prompt.trim() ? `${prompt.trim()} ${spoken}` : spoken)}
               />
+              {elements !== undefined ? (
+                <MentionButton locale={locale} onClick={mentions.openPicker} disabled={isPending} />
+              ) : null}
               <button
                 type="button"
                 onClick={() => setExtraPanel((open) => (open === "look" ? null : "look"))}
@@ -1633,15 +1744,15 @@ export function StudioComposer({
             {extraPanel === "look" ? (
               <LookPanel locale={locale} look={look} onChange={setLook} onClose={() => setExtraPanel(null)} canSaveStyles={canSaveStyles} />
             ) : null}
-            {composed ? (
+            {composed || elementText !== null ? (
               <details className="mt-2 text-xs font-bold text-muted">
                 <summary className="cursor-pointer select-none py-1 text-ink">{CREA_CREATE_COPY.preview[locale]}</summary>
-                <p className="mt-1 break-words font-semibold">{composed.text}</p>
+                <p className="mt-1 whitespace-pre-line break-words font-semibold">{elementText ?? composed?.text}</p>
               </details>
             ) : null}
-            {lookTooLong && composed ? (
+            {lookTooLong ? (
               <p role="alert" className="pt-1 text-xs font-black text-red-700 dark:text-red-300">
-                {fillCopy(CREA_CREATE_COPY.tooLong[locale], { n: composed.overBy })}
+                {fillCopy(CREA_CREATE_COPY.tooLong[locale], { n: elementsOverBy || composed?.overBy || 0 })}
               </p>
             ) : null}
           </>

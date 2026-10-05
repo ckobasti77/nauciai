@@ -575,41 +575,48 @@ export const CREA_TOOLS: readonly CreaTool[] = [
   },
   {
     id: "slika.zameni-lik",
-    featureIds: ["S24"],
+    featureIds: ["S24", "S35"],
     area: "slika",
     mode: "izmeni",
     tier: "paid",
-    status: "soon",
+    status: "ready",
     title: { sr: "Zameni lik", en: "Swap the character" },
     summary: {
-      sr: "Samo tvoj sačuvani lik, uz tvoj pristanak.",
-      en: "Only your own saved character, with your consent.",
+      sr: "Stavi svoj sačuvani lik u fotku - samo svoj, uz tvoj pristanak.",
+      en: "Put your own saved character into a photo - only your own, with your consent.",
     },
     inputs: ["image"],
     output: "image",
+    // Fotka koja se menja prvo prolazi proveru lica (BlazeFace) na uređaju.
     device: ANY_DEVICE,
     price: { kind: "credits", modelSlug: "nano-banana-pro", inputMode: "image_multi" },
+    localModels: ["mp-face-detector"],
     savesToGallery: true,
+    paidFallback: { modelSlug: "nano-banana-2", inputMode: "image_multi" },
   },
 
   // ── Slika · Likovi ────────────────────────────────────────────────────────
+  // K14: ekran „Likovi" je besplatan (čuvanje elementa, provera fotke na uređaju);
+  // krediti idu tek kad se element pozove u poslu (`@pominjanje`).
   {
     id: "slika.likovi",
-    featureIds: ["S34"],
+    featureIds: ["S34", "S35"],
     area: "slika",
     mode: "likovi",
-    tier: "paid",
-    status: "soon",
-    title: { sr: "Likovi i elementi", en: "Characters and elements" },
+    tier: "local-ai",
+    status: "ready",
+    title: { sr: "Moji likovi", en: "My characters" },
     summary: {
-      sr: "Sačuvaj lik, mesto ili predmet jednom i koristi ga u svakoj slici i videu.",
-      en: "Save a character, a place or an object once and use it in every image and video.",
+      sr: "Sačuvaj lik, mesto ili predmet jednom, pa ga pozovi sa @ime u svakoj slici i videu.",
+      en: "Save a character, a place or an object once, then call it with @name in every image and video.",
     },
     inputs: ["images"],
-    output: "image",
+    output: "images",
     device: ANY_DEVICE,
-    price: { kind: "credits", modelSlug: "nano-banana-pro", inputMode: "image_multi" },
-    savesToGallery: true,
+    price: FREE,
+    localModels: ["mp-face-detector"],
+    // Element nije rad u galeriji: slike čuva `creaElements`.
+    savesToGallery: false,
   },
   {
     id: "slika.kreator-lika",
@@ -617,7 +624,7 @@ export const CREA_TOOLS: readonly CreaTool[] = [
     area: "slika",
     mode: "likovi",
     tier: "paid",
-    status: "soon",
+    status: "ready",
     title: { sr: "Napravi lik kao u igrici", en: "Build a character like in a game" },
     summary: {
       sr: "Izaberi izgled iz menija i dobij list lika spreda, sa strane i otpozadi.",
@@ -628,6 +635,7 @@ export const CREA_TOOLS: readonly CreaTool[] = [
     device: ANY_DEVICE,
     price: { kind: "credits", modelSlug: "nano-banana-pro" },
     savesToGallery: true,
+    paidFallback: { modelSlug: "nano-banana-2" },
   },
 
   // ── Slika · Napravi ───────────────────────────────────────────────────────

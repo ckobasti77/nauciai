@@ -1,3 +1,4 @@
+import type { PhotoCheckItem } from "./crea-photo-check";
 import type { Locale, LocalizedText } from "./i18n";
 
 /**
@@ -448,6 +449,28 @@ export const CREA_PHOTO_CHECK_COPY = {
         en: "The face is too small ({n}% of the height). Move much closer.",
       },
     },
+    vidljivost: {
+      ok: { sr: "Lice se vidi celo.", en: "The whole face is visible." },
+      warn: {
+        sr: "Lice se slabo vidi. Skini naočare za sunce ili kapu i okreni se ka svetlu.",
+        en: "The face is hard to see. Take off sunglasses or a hat and face the light.",
+      },
+      fail: {
+        sr: "Lice je odsečeno ivicom slike. Neka celo lice bude u kadru.",
+        en: "The face is cut off by the edge of the image. Keep the whole face in the frame.",
+      },
+    },
+    svetlo: {
+      ok: { sr: "Svetla ima dovoljno.", en: "There is enough light." },
+      warn: {
+        sr: "Svetlo nije najbolje (lice je pretamno ili presvetlo). Stani bliže prozoru, ali ne na direktno sunce.",
+        en: "The light is not great (the face is too dark or too bright). Stand closer to a window, but not in direct sun.",
+      },
+      fail: {
+        sr: "Lice je u mraku. Slikaj se uz više svetla.",
+        en: "The face is in the dark. Take the photo with more light.",
+      },
+    },
     ostrina: {
       ok: { sr: "Oštro.", en: "Sharp." },
       warn: { sr: "Malo mutno. Umiri ruku ili dodaj svetla.", en: "A bit blurry. Hold steady or add more light." },
@@ -470,7 +493,21 @@ export const CREA_PHOTO_CHECK_COPY = {
     warn: { sr: "POPRAVI", en: "FIX IT" },
     fail: { sr: "NE VALJA", en: "NOT GOOD" },
   },
+  /** Fotka za Lik (K14): više lica ruši proveru, pa rečenica kaže šta da uradi. */
+  crowdForLik: {
+    sr: "Na slici je {n} lica. Za lik treba fotka na kojoj si samo ti - iseci sliku ili izaberi drugu.",
+    en: "There are {n} faces in the picture. A character needs a photo with only you - crop it or pick another one.",
+  },
 } as const;
+
+/** Rečenica za jednu stavku provere fotke (sa brojem u njoj). */
+export function photoCheckItemText(item: PhotoCheckItem, locale: Locale): string {
+  const text =
+    item.id === "lica" && item.status === "fail" && item.value > 1
+      ? CREA_PHOTO_CHECK_COPY.crowdForLik[locale]
+      : CREA_PHOTO_CHECK_COPY.items[item.id][item.status][locale];
+  return fillCopy(text, { n: item.value });
+}
 
 /**
  * Kod odbijanja (vraćen razlog ili poruka bačene greške, gde Convex dodaje svoj

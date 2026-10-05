@@ -160,6 +160,11 @@ export const expireGenerationFiles = internalMutation({
       .take(EXPIRY_BATCH_LIMIT);
 
     for (const upload of orphans) {
+      // Slika Lika (Crea K14) nema rok - briše je samo brisanje Lika. Ovo je odbrana.
+      if (upload.pinnedAt) {
+        await ctx.db.patch(upload._id, { expiresAt: undefined });
+        continue;
+      }
       // Alias (Crea K05) je ulaz nad izlazom drugog rada: blob pripada tom radu i
       // ističe sa njim (prolaz iznad). Alias ionako nikad ne dobija rok - ovo je odbrana.
       if (!upload.sourceJobId) await ctx.storage.delete(upload.storageId);

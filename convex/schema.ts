@@ -1689,6 +1689,10 @@ export default defineSchema({
     // bez kopije. Blob pripada poslu, pa ga brisanje ulaza i rokovi nikad ne diraju
     // (`studio.deleteJob`, `studio.finalizeOutput`, `crons.expireGenerationFiles`).
     sourceJobId: v.optional(v.id("generationJobs")),
+    // Slika Lika/elementa (Crea K14, K01 §7.1): fajl drži `creaElements` red, ne posao.
+    // Bez roka; `studio.deleteJob`, `studio.finalizeOutput` i `crons.expireGenerationFiles`
+    // ga ne diraju - briše ga samo brisanje elementa (`creaElements.deleteElement`).
+    pinnedAt: v.optional(v.number()),
     createdAt: v.number(),
     // Postoji samo dok upload nije ušao ni u jedan posao: nevezan fajl briše
     // `crons.expireGenerationFiles` posle 24 h. `createJob` polje sklanja, pa
@@ -1840,6 +1844,35 @@ export default defineSchema({
     isPublic: v.boolean(),
     createdAt: v.number(),
   }).index("by_user", ["userId", "createdAt"]),
+
+  // Likovi i elementi (Crea K14, S34; K01 §7.1): lik, mesto ili predmet koji se
+  // jednom sačuva pa poziva kao `@pominjanje` u opisu. Slike su `studioUploads`
+  // redovi sa `pinnedAt` (isti vlasnik). Lice je lični podatak: vidi ga samo
+  // vlasnik, a Lik se čuva tek uz pristanak (`consentAt`, O5) - samo takav Lik
+  // sme u „Zameni lik" (S24).
+  creaElements: defineTable({
+    userId: v.id("users"),
+    kind: v.union(v.literal("lik"), v.literal("mesto"), v.literal("predmet")),
+    name: v.string(),
+    // `@pominjanje` (latinica, bez kvačica), jedinstveno po korisniku.
+    handle: v.string(),
+    description: v.optional(v.string()),
+    imageStorageIds: v.array(v.id("_storage")),
+    coverStorageId: v.optional(v.id("_storage")),
+    // `kreator`: list izmišljenog lika iz kreatora (S36) - slike se ne menjaju.
+    origin: v.union(v.literal("foto"), v.literal("kreator")),
+    consentAt: v.optional(v.number()),
+    // Sažetak provere fotki (S35) koju je uređaj uradio pre čuvanja Lika.
+    photoCheck: v.optional(
+      v.object({ faces: v.number(), faceRatio: v.number(), sharpness: v.number(), ok: v.boolean() }),
+    ),
+    // Rad iz kreatora iz kojeg je list kopiran (samo trag; posao može da istekne).
+    sourceJobId: v.optional(v.id("generationJobs")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user_updated", ["userId", "updatedAt"])
+    .index("by_user_handle", ["userId", "handle"]),
 
   // Opšte informacije platforme (N1) — JEDAN red, `key: "default"`. Kontakt,
   // mreže, cene i pravni podaci koje vlasnik menja sa admin ekrana umesto kroz

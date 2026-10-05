@@ -115,7 +115,7 @@ describe("registar alata", () => {
     for (const tool of CREA_TOOLS) if (tool.tier === "server") expect(tool.status).toBe("soon");
   });
 
-  test("K04 pušta format i proveru fotke, K09 sedam besplatnih alata za sliku, K10 editor, šablone i 3D foto, K11 i K12 izmene, K13 pravljenje", () => {
+  test("K04 pušta format i proveru fotke, K09 sedam besplatnih alata za sliku, K10 editor, šablone i 3D foto, K11 i K12 izmene, K13 pravljenje, K14 likovi", () => {
     const ready = CREA_TOOLS.filter((tool) => tool.status === "ready").map((tool) => tool.id);
     expect(ready).toEqual([
       "slika.format",
@@ -143,6 +143,10 @@ describe("registar alata", () => {
       "slika.tekst",
       "slika.retus",
       "slika.odeca",
+      // K14: zamena lika (Izmeni) i Likovi
+      "slika.zameni-lik",
+      "slika.likovi",
+      "slika.kreator-lika",
       // K13: Slika · Napravi
       "slika.probni-list",
       "slika.ko-gde-kako",
@@ -240,8 +244,8 @@ describe("registar alata", () => {
       device: { minClass: "phone" },
       paidFallback: { modelSlug: "nano-banana-pro", inputMode: "image_multi" },
     });
-    // Zameni lik (S24) čeka Likove (K14).
-    expect(toolById("slika.zameni-lik")?.status).toBe("soon");
+    // Zameni lik (S24) je stigao sa Likovima u K14 (vidi test „K14").
+    expect(toolById("slika.zameni-lik")?.status).toBe("ready");
   });
 
   test("svaki alat sa kartice „Šta praviš danas?\" postoji u registru", () => {
@@ -272,7 +276,8 @@ describe("pomoćne funkcije", () => {
     // K12: plaćen alat sa besplatnim korakom na uređaju nosi obe oznake.
     expect(toolBadges(toolById("slika.prosiri")!)).toEqual(["krediti", "na-uredjaju"]);
     expect(toolBadges(toolById("slika.svetlo")!)).toEqual(["krediti"]);
-    expect(toolBadges(toolById("slika.zameni-lik")!)).toEqual(["krediti", "uskoro"]);
+    expect(toolBadges(toolById("slika.zameni-lik")!)).toEqual(["krediti"]);
+    expect(toolBadges(toolById("video.reframe")!)).toContain("uskoro");
   });
 
   test("modelSlug lokalnog posla ide u oba smera", () => {
@@ -281,6 +286,45 @@ describe("pomoćne funkcije", () => {
     expect(toolIdFromModelSlug("nano-banana-2")).toBeNull();
     expect(toolOfJob({ modelSlug: "local:slika.provera" })?.id).toBe("slika.provera");
     expect(toolOfJob({ modelSlug: "veo-31" })).toBeUndefined();
+  });
+});
+
+describe("K14: Likovi, provera fotke, kreator, zamena lika", () => {
+  test("ekran Likovi je besplatan, proverava lice na uređaju i ne pravi rad u galeriji", () => {
+    expect(toolById("slika.likovi")).toMatchObject({
+      mode: "likovi",
+      tier: "local-ai",
+      status: "ready",
+      price: { kind: "free" },
+      localModels: ["mp-face-detector"],
+      savesToGallery: false,
+    });
+    // Lokalni alat, ali bez rada u galeriji: `creaLocal.saveLocalResult` ga odbija (`savesToGallery: false`).
+    expect(toolBadges(toolById("slika.likovi")!)).toEqual(["besplatno", "na-uredjaju"]);
+  });
+
+  test("kreator i zamena idu kroz Nano Banana Pro (NB2 jeftinije), zamena proverava fotku", () => {
+    expect(toolById("slika.kreator-lika")).toMatchObject({
+      tier: "paid",
+      status: "ready",
+      price: { kind: "credits", modelSlug: "nano-banana-pro" },
+      paidFallback: { modelSlug: "nano-banana-2" },
+    });
+    expect(toolById("slika.zameni-lik")).toMatchObject({
+      tier: "paid",
+      mode: "izmeni",
+      price: { kind: "credits", modelSlug: "nano-banana-pro", inputMode: "image_multi" },
+      localModels: ["mp-face-detector"],
+    });
+    expect(savesLocalResults(toolById("slika.zameni-lik")!)).toBe(false);
+    expect(savesLocalResults(toolById("slika.kreator-lika")!)).toBe(false);
+  });
+
+  test("režim Likovi otvara spisak likova kad alat nije izabran", () => {
+    const likovi = CREA_MODES.slika.find((mode) => mode.id === "likovi")!;
+    expect(likovi).toMatchObject({ status: "ready", tools: true, defaultTool: "slika.likovi" });
+    expect(toolById(likovi.defaultTool)?.mode).toBe("likovi");
+    expect(toolsFor("slika", "likovi").map((tool) => tool.id)).toEqual(["slika.likovi", "slika.kreator-lika"]);
   });
 });
 

@@ -662,7 +662,7 @@ const createJobArgs = {
   // Noćna tura (Crea K08, C2): posao ide u batch provajdera po noćnoj ceni i stiže do jutra.
   deliveryMode: v.optional(v.literal("night")),
 };
-type CreateJobArgs = ObjectType<typeof createJobArgs>;
+export type CreateJobArgs = ObjectType<typeof createJobArgs>;
 
 /**
  * Rezervacija posla iz koraka 1 sekcije 4.2 STUDIO-PLAN-a. Sve provere idu
@@ -675,7 +675,7 @@ type CreateJobArgs = ObjectType<typeof createJobArgs>;
  * ključa). SVE provere - kill switch, `decideStudioAccess`, limiti, uslovi,
  * rezervacija kredita, projekat - žive ovde, pa važe za oba puta.
  */
-async function createJobForUser(ctx: MutationCtx, userId: Id<"users">, args: CreateJobArgs) {
+export async function createJobForUser(ctx: MutationCtx, userId: Id<"users">, args: CreateJobArgs) {
   // Uloga se čita zajedno sa korisnikom jer o pristupu odlučuje
   // `decideStudioAccess` niže - sam ID ne bi bio dovoljan, pa bi
   // enrollment ostao jedini kriterijum.
@@ -1382,7 +1382,8 @@ export const finalizeOutput = internalMutation({
         .withIndex("by_storage", (q) => q.eq("storageId", storageId))
         .first();
       // Alias (K05): blob je izlaz drugog rada i živi koliko i on - rok mu se ne postavlja.
-      if (!upload || upload.sourceJobId) continue;
+      // Slika Lika (K14) živi koliko i Lik.
+      if (!upload || upload.sourceJobId || upload.pinnedAt) continue;
       const next = upload.expiresAt === undefined ? expiresAt : Math.max(upload.expiresAt, expiresAt);
       await ctx.db.patch(upload._id, { expiresAt: next });
     }
@@ -1940,10 +1941,10 @@ export const getJobForDetailInternal = internalQuery({
  * uništava fajl koji drugi posao još pokazuje u galeriji, pa se pre brisanja
  * uvek proverava CEO spisak poslova ovog korisnika, ne uzorak.
  */
-async function storageIdsUsedByOtherJobs(
+export async function storageIdsUsedByOtherJobs(
   ctx: MutationCtx,
   userId: Id<"users">,
-  excludeJobId: Id<"generationJobs">,
+  excludeJobId?: Id<"generationJobs">,
 ): Promise<Set<string>> {
   const jobs = await ctx.db
     .query("generationJobs")
@@ -2014,7 +2015,8 @@ export const deleteJob = mutation({
           .query("studioUploads")
           .withIndex("by_storage", (q) => q.eq("storageId", storageId))
           .first();
-        if (!upload || upload.userId !== userId) continue;
+        // Slika Lika (K14): fajl i red pripadaju Liku, ne poslu.
+        if (!upload || upload.userId !== userId || upload.pinnedAt) continue;
         // Alias (K05): blob je izlaz roditelja - briše se samo red, nikad fajl.
         if (!upload.sourceJobId) await ctx.storage.delete(storageId);
         await ctx.db.delete(upload._id);

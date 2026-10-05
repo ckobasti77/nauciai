@@ -32,6 +32,18 @@ export type PaidEditTextField = { label: string; placeholder: string; required: 
 
 type Status = { name: "idle" } | { name: "working"; step: "preparing" | "uploading" } | { name: "sent" } | { name: "error"; message: string };
 
+/** Posao koji panel pravi (okačeni ulazi su već `storageId`-jevi). */
+export type PaidEditJob = {
+  modelSlug: string;
+  params: string;
+  inputMode: string;
+  inputs: Record<string, string[]>;
+  parentJobId: Id<"generationJobs"> | null;
+  projectId: Id<"studioProjects"> | null;
+};
+
+export type PaidEditJobResult = string | { moderationBlocked: { reason: string; category: string } } | null;
+
 const MASK_QUALITIES = ["very_low", "low", "medium", "high"] as const;
 
 /**
@@ -58,6 +70,10 @@ export function PaidEditPanel({
   unavailableText,
   onSent,
   measured,
+  create,
+  errorMessage = studioErrorMessage,
+  extraBlocker = null,
+  privacyNote,
 }: {
   locale: Locale;
   routes: readonly CreaPaidRoute[];
@@ -86,6 +102,17 @@ export function PaidEditPanel({
    * samo za cenu na dugmetu, da bude ista kao naplata.
    */
   measured?: (route: CreaPaidRoute) => Record<string, number>;
+  /**
+   * K14: drugi put do posla umesto `studio.createJob` - „Zameni lik" ide kroz
+   * `creaElements.startFaceSwap`, koji sam dodaje slike Lika i opis.
+   */
+  create?: (job: PaidEditJob) => Promise<PaidEditJobResult>;
+  /** Rečenica za grešku (podrazumevano kao `createJob`). */
+  errorMessage?: (raw: string, locale: Locale) => string;
+  /** Razlog iz alata zbog kojeg dugme stoji (npr. pristanak nije označen). */
+  extraBlocker?: string | null;
+  /** Napomena o privatnosti ispod dugmeta; `null` = bez nje (posao bez slika, npr. kreator lika). */
+  privacyNote?: string | null;
 }) {
   const createJob = useMutation(api.studio.createJob);
   const upload = useSlotUpload();
@@ -133,7 +160,9 @@ export function PaidEditPanel({
   const credits = picked ? priceOf(picked) : null;
   const blocker = !ready
     ? notReadyReason
-    : field?.required && text.trim().length === 0
+    : extraBlocker
+      ? extraBlocker
+      : field?.required && text.trim().length === 0
       ? textField
         ? T.needText[locale]
         : (purpose === "scene" ? T.needScene : T.needPrompt)[locale]
@@ -166,22 +195,31 @@ export function PaidEditPanel({
             width: prepared.width,
             height: prepared.height,
           });
-      const result = await createJob({
-        modelSlug: picked.route.modelSlug,
-        params: JSON.stringify(params),
-        inputMode: picked.route.inputMode,
-        inputs: JSON.stringify(inputs),
-        ...(parentJobId ? { parentJobId, derivation: "izmena" as const } : {}),
-        ...(projectId ? { projectId } : {}),
-      });
+      const result: PaidEditJobResult = create
+        ? await create({
+            modelSlug: picked.route.modelSlug,
+            params: JSON.stringify(params),
+            inputMode: picked.route.inputMode,
+            inputs,
+            parentJobId,
+            projectId,
+          })
+        : await createJob({
+            modelSlug: picked.route.modelSlug,
+            params: JSON.stringify(params),
+            inputMode: picked.route.inputMode,
+            inputs: JSON.stringify(inputs),
+            ...(parentJobId ? { parentJobId, derivation: "izmena" as const } : {}),
+            ...(projectId ? { projectId } : {}),
+          });
       if (result && typeof result === "object" && "moderationBlocked" in result) {
-        setStatus({ name: "error", message: studioErrorMessage(`NEISPRAVAN_PROMPT:${result.moderationBlocked.reason}`, locale) });
+        setStatus({ name: "error", message: errorMessage(`NEISPRAVAN_PROMPT:${result.moderationBlocked.reason}`, locale) });
         return;
       }
       setStatus({ name: "sent" });
-      if (typeof result === "string") onSent?.(result);
+      if (typeof result === "string") onSent?.(result as Id<"generationJobs">);
     } catch (error) {
-      setStatus({ name: "error", message: studioErrorMessage(error instanceof Error ? error.message : String(error), locale) });
+      setStatus({ name: "error", message: errorMessage(error instanceof Error ? error.message : String(error), locale) });
     }
   }
 
@@ -276,7 +314,7 @@ export function PaidEditPanel({
           </p>
         ) : null}
         {picked?.demo ? <p className="type-body-sm font-semibold text-muted">{T.demo[locale]}</p> : null}
-        <p className="type-body-sm font-semibold text-muted">{T.privacy[locale]}</p>
+        {privacyNote !== null ? <p className="type-body-sm font-semibold text-muted">{privacyNote ?? T.privacy[locale]}</p> : null}
       </div>
     </div>
   );
