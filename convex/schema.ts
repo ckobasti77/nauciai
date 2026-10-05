@@ -1931,6 +1931,37 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_user_updated", ["userId", "updatedAt"]),
 
+  // Transkript plaćenog `stt` posla (Crea K21, plan K17-13). Scribe ne vraća
+  // fajl nego tekst i reči sa vremenima - do sada se to bacalo (posao `done`
+  // bez ičega, a plaćen). Jedan red po poslu; briše se zajedno sa poslom.
+  // `words` je JSON `[{w, s, e, speaker?}]` (≤ 800 KB); duži transkript ostaje
+  // samo kao tekst. `demo` = DEMO transkript bez ključa provajdera (O3).
+  creaTranscripts: defineTable({
+    jobId: v.id("generationJobs"),
+    userId: v.id("users"),
+    language: v.optional(v.string()),
+    text: v.string(),
+    words: v.optional(v.string()),
+    demo: v.optional(v.boolean()),
+    createdAt: v.number(),
+  }).index("by_job", ["jobId"]),
+
+  // Strip → film (Crea K21, V10; plan K17 §4.2): priča, kadrovi i poslovi
+  // slika/videa, da tok od više minuta preživi zatvaranje strane. `shots` je
+  // JSON (≤ 8 kadrova, ≤ 32 KB) sa `imageJobId`/`videoJobId` po kadru;
+  // `settings` je JSON izbora (stil, odnos, kvalitet, Likovi).
+  creaStoryboards: defineTable({
+    userId: v.id("users"),
+    projectId: v.optional(v.id("studioProjects")),
+    title: v.string(),
+    story: v.string(),
+    settings: v.string(),
+    shots: v.string(),
+    montageId: v.optional(v.id("creaMontages")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_user_updated", ["userId", "updatedAt"]),
+
   // Opšte informacije platforme (N1) — JEDAN red, `key: "default"`. Kontakt,
   // mreže, cene i pravni podaci koje vlasnik menja sa admin ekrana umesto kroz
   // deploy; `platformSettings.get` je javan i čita ga i landing.

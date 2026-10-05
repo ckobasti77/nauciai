@@ -7,6 +7,7 @@
 import { describe, expect, test } from "vitest";
 
 import { EXPORT_PRESETS } from "./crea-export-presets";
+import { cuesFromText } from "./crea-subtitles";
 import { canExport, formatSeconds, runPreflight, type PreflightAudio, type PreflightInput } from "./crea-preflight";
 import { addMainClips, addTitle, emptyTimeline, type CreaTimelineV1, type NewMainClip } from "./crea-timeline";
 
@@ -81,6 +82,11 @@ describe("provera pre objave", () => {
     expect(find(runPreflight(input(timeline)), "natpisi")?.level).toBe("tip");
     const subtitled = addTitle(timeline, { text: "Zdravo svima", start: 0, end: 2, style: "titl" }).timeline;
     expect(find(runPreflight(input(subtitled, { audio: { ...GOOD_AUDIO, hasVoice: true } })), "natpisi")?.level).toBe("ok");
+    // K21: utisnuti titlovi (`captions`) su titl i udica u prve 2 s.
+    const slow = addMainClips(emptyTimeline(), [clip(6), clip(3)]);
+    const captioned: CreaTimelineV1 = { ...slow, captions: { cues: cuesFromText("Zdravo svima, danas učimo montažu.", 4), style: "karaoke", script: "lat" } };
+    expect(find(runPreflight(input(captioned, { audio: { ...GOOD_AUDIO, hasVoice: true } })), "natpisi")?.level).toBe("ok");
+    expect(find(runPreflight(input(captioned)), "kuka")?.level).toBe("ok");
   });
 
   test("sigurna zona: natpis pod dugmadima je upozorenje sa popravkom", () => {

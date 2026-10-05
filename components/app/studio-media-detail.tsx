@@ -34,6 +34,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { StudioTileJob } from "@/components/app/studio-media-tile";
+import { TranscriptPanel } from "@/components/crea/transcript-panel";
 import { PromptSegmentsView } from "@/components/crea/prompt-parts";
 import { QUICK_ACTION_ICONS, type QuickActionLink } from "@/components/crea/quick-actions-menu";
 import { VersionStrip } from "@/components/crea/version-strip";
@@ -54,7 +55,7 @@ import { isStickerSheetPrompt } from "@/lib/crea-sticker-pack";
 import { toolsForWork, versionInputTarget, type VersionIntent } from "@/lib/crea-versions";
 import type { Locale } from "@/lib/i18n";
 import { isExpiredOutput, jobPrompt, jobStatusText } from "@/lib/studio-form";
-import { downloadSingleMedia, isDemoPoster } from "@/lib/studio-gallery";
+import { downloadSingleMedia, isDemoPoster, isTranscriptJob } from "@/lib/studio-gallery";
 import { deleteJobErrorMessage, studioErrorMessage } from "@/lib/studio-messages";
 import { familyMark, modelLabel, MODEL_BADGE_LABELS, type StudioModel } from "@/lib/studio-models";
 import { studioMotionTokens } from "@/lib/studio-motion";
@@ -805,6 +806,13 @@ export function StudioMediaDetail({
                     </div>
                   ) : null}
                 </>
+              ) : null}
+
+              {/* Transkript (K21): `stt` rad nema fajl - tekst i SRT/VTT iz `creaTranscripts`. */}
+              {isTranscriptJob(job) ? (
+                <div className="flex size-full min-h-[240px] items-center justify-center p-4">
+                  <TranscriptPanel jobId={job._id as Id<"generationJobs">} locale={locale} />
+                </div>
               ) : null}
             </div>
 

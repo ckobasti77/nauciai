@@ -11,6 +11,7 @@ import {
   MEDIA_TAIL_BYTES,
   readMediaDuration,
 } from "../lib/media-duration";
+import { demoTranscript, isTranscriptModel, transcriptForStorage } from "./creaTranscriptsCore";
 import { isLayerizeJob, mockLayerDataUrls, mockVariationDataUrls } from "./creaLayersCore";
 import { submitBytePlusJob } from "./providers/byteplus";
 import { falInputFields, falMapOf, falParams, resolveEndpointTier } from "./providers/falInputs";
@@ -220,6 +221,18 @@ export const completeMockJob = internalAction({
 
     if (mockJobSucceeds(args.jobId)) {
       const params = parseParams(job.params) ?? {};
+      // DEMO transkript (K21, K17-13): `stt` bez ključa vraća tekst sa vremenima
+      // preko celog snimka, kao Scribe - bez plakata, isti put kao pravi webhook.
+      const model = await ctx.runQuery(internal.studioModels.getModelBySlug, { slug: job.modelSlug });
+      if (isTranscriptModel(model ? parseParams(model.capabilities) : null)) {
+        const seconds = typeof params.minutes === "number" && params.minutes > 0 ? params.minutes * 60 : 30;
+        await ctx.runMutation(internal.falWebhook.applyWebhookResult, {
+          falRequestId: job.falRequestId,
+          status: "OK",
+          transcript: { ...transcriptForStorage(demoTranscript(seconds)), demo: true },
+        });
+        return null;
+      }
       // DEMO razlaganje (K12): providni slojevi umesto jednog plakata, da editor slojeva radi i bez ključa.
       // DEMO više slika (K13, S5): `num_images` > 1 daje toliko plakata, kao pravi provajder.
       const prompt = extractPrompt(params);

@@ -82,6 +82,14 @@ export const DATE_RANGE_LABELS: Record<DateRangePreset, { sr: string; en: string
  * `isMock` je merodavan (izlaz posle `persistOutput` živi u storage-u, pa URL
  * više nije `data:`); `data:image/svg` je rezerva za izlaz koji još nije sačuvan.
  */
+/**
+ * Gotov rad transkripcije (`stt`, Crea K21): nema fajl nego tekst sa vremenima
+ * (`creaTranscripts`) - kartica pokazuje „Transkript", a detalj tekst i SRT/VTT.
+ */
+export function isTranscriptJob(job: { modelSlug: string; status: string; outputUrl?: string | null }): boolean {
+  return job.modelSlug === "stt" && job.status === "done" && !job.outputUrl;
+}
+
 export function isDemoPoster(job: { isMock?: boolean; outputUrl: string | null | undefined }): boolean {
   if (job.isMock) return true;
 

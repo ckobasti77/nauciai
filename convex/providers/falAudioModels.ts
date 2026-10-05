@@ -334,7 +334,16 @@ export const STT: StudioModelSeed = {
   },
   paramSpec: [],
   priceRule: { unit: "minute", baseUsd: 0.008, quantityParam: "minutes" },
-  capabilities: { mode: "async_webhook", quantity: MINUTE_QUANTITY },
+  // K21: izlaz je transkript (tekst + reči sa vremenima → `creaTranscripts`), ne fajl.
+  // Scribe prima samo `audio_url` (ElevenLabs čita i video fajl), pa video ide u to
+  // polje; zvučni događaji („smeh") ne idu u titlove
+  // (https://fal.ai/models/fal-ai/elevenlabs/speech-to-text/scribe-v2/llms.txt, 2026-10-05).
+  capabilities: {
+    mode: "async_webhook",
+    quantity: MINUTE_QUANTITY,
+    output: "transcript",
+    fal: { fields: { video: "audio_url" }, fixed: { tag_audio_events: false } },
+  },
   sortOrder: 440,
 };
 

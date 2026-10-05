@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { CheckSquare, Download, Heart, Moon, Play, RefreshCw, Sparkles, Square, Volume2 } from "lucide-react";
+import { CheckSquare, Download, FileText, Heart, Moon, Play, RefreshCw, Sparkles, Square, Volume2 } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 
 import { QuickActionsMenu, type QuickActionLink } from "@/components/crea/quick-actions-menu";
@@ -14,7 +14,7 @@ import { CREA_LIBRARY_COPY } from "@/lib/crea-library-copy";
 import { toolOfJob } from "@/lib/crea-tools";
 import type { Locale } from "@/lib/i18n";
 import { isExpiredOutput, jobPrompt, jobStatusText } from "@/lib/studio-form";
-import { downloadSingleMedia, isDemoPoster } from "@/lib/studio-gallery";
+import { downloadSingleMedia, isDemoPoster, isTranscriptJob } from "@/lib/studio-gallery";
 import { formatElapsedTime, studioMotionTokens } from "@/lib/studio-motion";
 import { formatCreditsLong } from "@/lib/studio-params";
 
@@ -298,6 +298,16 @@ export function StudioMediaTile({
               ) : null}
             </motion.div>
           </>
+        ) : null}
+
+        {/* Stanje: Transkript (K21) - `stt` rad nema fajl, nego tekst sa vremenima */}
+        {isTranscriptJob(job) ? (
+          <div className="flex min-h-[200px] flex-col items-center justify-center gap-3 p-4 text-white/80">
+            <span className="flex size-12 items-center justify-center rounded-full border-2 border-white/40 bg-white/10 text-white">
+              <FileText className="size-5" />
+            </span>
+            <span className="text-xs font-black uppercase tracking-wider">{locale === "sr" ? "Transkript" : "Transcript"}</span>
+          </div>
         ) : null}
 
         {/* Checkbox za višestruki izbor (grupno preuzimanje) */}

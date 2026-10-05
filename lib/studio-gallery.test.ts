@@ -11,6 +11,7 @@ import {
   GALLERY_SCOPES,
   inputsLabel,
   isDemoPoster,
+  isTranscriptJob,
   isDownloadable,
   JOB_STATUS_LABELS,
   JOB_STATUSES,
@@ -215,5 +216,14 @@ describe("isDemoPoster (SP2)", () => {
     expect(isDemoPoster({ outputUrl: "" })).toBe(false);
     expect(isDemoPoster({ outputUrl: null })).toBe(false);
     expect(isDemoPoster({ isMock: false, outputUrl: undefined })).toBe(false);
+  });
+});
+
+describe("isTranscriptJob (K21)", () => {
+  test("gotov `stt` rad bez fajla je transkript; drugi modeli i radovi u toku nisu", () => {
+    expect(isTranscriptJob({ modelSlug: "stt", status: "done", outputUrl: null })).toBe(true);
+    expect(isTranscriptJob({ modelSlug: "stt", status: "running", outputUrl: null })).toBe(false);
+    expect(isTranscriptJob({ modelSlug: "tts", status: "done", outputUrl: null })).toBe(false);
+    expect(isTranscriptJob({ modelSlug: "stt", status: "done", outputUrl: "https://x.convex.cloud/a" })).toBe(false);
   });
 });

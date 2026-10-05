@@ -13,6 +13,7 @@ import { fillCopy } from "@/lib/crea-copy";
 import { defaultPresetFor } from "@/lib/crea-export-presets";
 import { MONTAGE_COPY as T } from "@/lib/crea-montage-copy";
 import { CREA_STICKER_GROUPS, CREA_STICKERS, stickerUrl } from "@/lib/crea-stickers";
+import { CAPTION_STYLE_LABELS, CAPTION_STYLES, regroupCues, type CaptionScript, type CaptionStyle } from "@/lib/crea-subtitles";
 import {
   addSticker,
   addTitle,
@@ -33,6 +34,7 @@ import {
   type StickerItem,
   type TitleItem,
 } from "@/lib/crea-timeline";
+import { CREA_FLOWS_COPY as FLOWS } from "@/lib/crea-video-flows-copy";
 import type { Locale } from "@/lib/i18n";
 
 /**
@@ -402,6 +404,45 @@ export function TitlesPanel({
 
       {title ? <TitleEditor key={title.id} locale={locale} timeline={timeline} title={title} onChange={onChange} playheadTime={playheadTime} /> : null}
       {sticker ? <StickerEditor key={sticker.id} locale={locale} timeline={timeline} sticker={sticker} onChange={onChange} playheadTime={playheadTime} /> : null}
+      {timeline.captions ? <CaptionsEditor locale={locale} timeline={timeline} onChange={onChange} /> : null}
     </div>
+  );
+}
+
+/**
+ * Titlovi u montaži (K21, V25): stižu iz „Titlova na srpskom", stripa ili
+ * objašnjenja; ovde se menjaju stil i pismo (latinica ↔ ćirilica) ili se uklone.
+ */
+function CaptionsEditor({ locale, timeline, onChange }: { locale: Locale; timeline: CreaTimelineV1; onChange: Commit }) {
+  const captions = timeline.captions!;
+  return (
+    <Row>
+      <p className="type-body-sm font-black text-ink">{fillCopy(FLOWS.montageCaptions[locale], { n: captions.cues.length })}</p>
+      <ChoiceChips<CaptionStyle>
+        legend={FLOWS.styleLegend[locale]}
+        name="montaza-titl-stil"
+        options={CAPTION_STYLES.map((id) => ({ id, label: CAPTION_STYLE_LABELS[id].label[locale] }))}
+        value={captions.style}
+        onChange={(style) => onChange({ ...timeline, captions: { ...captions, style, cues: regroupCues(captions.cues, style) } })}
+      />
+      <ChoiceChips<CaptionScript>
+        legend={FLOWS.scriptLegend[locale]}
+        name="montaza-titl-pismo"
+        options={(["lat", "cyr"] as const).map((id) => ({ id, label: FLOWS.scripts[id][locale] }))}
+        value={captions.script}
+        onChange={(script) => onChange({ ...timeline, captions: { ...captions, script } })}
+      />
+      <Button
+        variant="ghost"
+        onClick={() => {
+          const next = { ...timeline };
+          delete next.captions;
+          onChange(next);
+        }}
+        icon={<Trash2 aria-hidden="true" className="size-4" />}
+      >
+        {FLOWS.montageCaptionsRemove[locale]}
+      </Button>
+    </Row>
   );
 }

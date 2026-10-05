@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { httpAction, internalMutation } from "./_generated/server";
 import { capExtraOutputUrls } from "./creaLayersCore";
+import { isTranscriptModel, transcriptForStorage } from "./creaTranscriptsCore";
 import {
   base64UrlToBytes,
   bytesToHex,
@@ -10,6 +11,7 @@ import {
   extractErrorMessage,
   extractJwkPublicKeys,
   extractOutputUrls,
+  extractTranscript,
   FAL_JWKS_URL,
   hexToBytes,
   isTimestampFresh,
@@ -19,6 +21,7 @@ import {
 } from "./falWebhookCore";
 import { recordActualCostReason } from "./studioActualCost";
 import { ACTUAL_COST_REASON } from "./studioActualCostCore";
+import { parseParams } from "./studioCore";
 import { readReportedSeconds } from "./studioSettlementCore";
 
 const ED25519 = { name: "Ed25519" } as const;
@@ -128,12 +131,16 @@ export const handleFalWebhook = httpAction(async (ctx, request) => {
 
   // Svi izlazi poziva (K13, S5): prvi je izlaz posla, ostali postaju varijacije.
   const outputUrls = body.status === "OK" ? extractOutputUrls(body.payload) : [];
+  // Transkript (K21, K17-13): Scribe vraća tekst i reči, ne fajl. Mutacija ga
+  // upisuje samo za red kataloga koji vraća transkript.
+  const transcript = body.status === "OK" && outputUrls.length === 0 ? extractTranscript(body.payload) : null;
 
   await ctx.runMutation(internal.falWebhook.applyWebhookResult, {
     falRequestId: headers.requestId,
     status: body.status,
     outputUrl: outputUrls[0],
     ...(outputUrls.length > 1 ? { extraOutputUrls: outputUrls.slice(1) } : {}),
+    ...(transcript ? { transcript: transcriptForStorage(transcript) } : {}),
     error: body.status === "ERROR" ? extractErrorMessage(body) : undefined,
     ...(reportedSeconds !== null ? { reportedSeconds } : {}),
   });
@@ -161,6 +168,10 @@ export const applyWebhookResult = internalMutation({
     reportedSeconds: v.optional(v.number()),
     // Ostali izlazi: slojevi (K12) i više slika jednog poziva (K13, `num_images`).
     extraOutputUrls: v.optional(v.array(v.string())),
+    // Transkript `stt` posla (K21): tekst + reči kao JSON (`transcriptForStorage`).
+    transcript: v.optional(
+      v.object({ text: v.string(), words: v.optional(v.string()), language: v.optional(v.string()), demo: v.optional(v.boolean()) }),
+    ),
   },
   handler: async (ctx, args) => {
     const job = await ctx.db
@@ -192,6 +203,19 @@ export const applyWebhookResult = internalMutation({
     // nosi razlog umesto praznog polja (X3, tačka 3): "još nije stiglo" i "ovaj
     // model se ne meri" su dva različita stanja i admin ekran mora da ih
     // razlikuje. `recordJobActualCost` razlog skida čim cena stigne.
+    if (args.transcript) {
+      const model = await ctx.db
+        .query("models")
+        .withIndex("by_slug", (q) => q.eq("slug", job.modelSlug))
+        .unique();
+      const existing = await ctx.db
+        .query("creaTranscripts")
+        .withIndex("by_job", (q) => q.eq("jobId", job._id))
+        .first();
+      if (!existing && isTranscriptModel(model ? parseParams(model.capabilities) : null)) {
+        await ctx.db.insert("creaTranscripts", { jobId: job._id, userId: job.userId, ...args.transcript, createdAt: Date.now() });
+      }
+    }
     await recordActualCostReason(ctx, job, ACTUAL_COST_REASON.falPending);
     // Skidanje fajla NE ide ovde - handler mora da vrati 200 u roku od 15 s.
     await ctx.scheduler.runAfter(0, internal.studioActions.persistOutput, { jobId: job._id });

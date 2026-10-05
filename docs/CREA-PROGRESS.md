@@ -1117,3 +1117,89 @@ Ovaj korak nije pokrenuo nijedan dev server (vidi ODLUKE za server na :3000).
 Dev server nije pokretan; za proveru je korišćen već upaljen server sa :3000 (Jovanov VS Code, vidi gore) i nije gašen.
 
 **Za Jovana:** odluči da li i fontove sajta (`layout.tsx`) prebaciti na lokalne fajlove - ista nasumična greška builda im preti dok idu preko Google-a.
+
+## K21 — Strip → film, titlovi, shorts, retro, explainer, reklama   (2026-10-05 20:45)
+**Fajlovi:**
+- novi (logika i testovi): `lib/crea-subtitles.ts`, `lib/crea-storyboard.ts`, `lib/crea-auto-montage.ts`, `lib/crea-explainer.ts`, `lib/crea-ad.ts`, `lib/crea-retro.ts`, `lib/crea-match-cut.ts` (+ `.test.ts` za subtitles, storyboard, explainer (pokriva i reklamu), retro, match-cut), `lib/crea-video-flows-copy.ts`, `lib/crea-retro-copy.ts`;
+- novi (Convex): `convex/creaTranscripts.ts`, `convex/creaTranscriptsCore.ts`, `convex/creaStoryboards.ts`, `convex/creaStoryboardsCore.ts`, `convex/creaLlmVideoCore.ts` (+ testovi `creaTranscriptsCore.test.ts`, `creaTranscripts.test.ts`, `creaStoryboards.test.ts`, `creaLlmVideoCore.test.ts`);
+- novi (UI i motor): `components/crea/tools/{storyboard-tool,subtitles-tool,shorts-tool,retro-tool,explainer-tool,ad-tool}.tsx`, `components/crea/video/strip/strip-panel.tsx`, `components/crea/video/{timeline-stage.tsx,picked-media.ts,use-transcript-job.ts}`, `components/crea/video/engine/{retro-shaders,match-cut-sampler,shorts-cut}.ts`, `components/crea/transcript-panel.tsx`, snimci `docs/crea/snimci/K21-*.png` (7);
+- izmenjeni: `convex/schema.ts` (tabele `creaTranscripts`, `creaStoryboards`), `convex/falWebhook.ts` + `falWebhookCore.ts` (`extractTranscript`, upis transkripta), `convex/studioActions.ts` (DEMO transkript za mock `stt`), `convex/studio.ts` (`deleteJob` briše i transkript), `convex/providers/falAudioModels.ts` (STT: `output: "transcript"`, video → `audio_url`), `convex/creaLlm.ts` (+4 akcije) i `creaLlmCore.ts` (izvezen `responseText`), `convex/creaMontages.ts` (`jobStates`), `convex/_generated/api.d.ts`, `lib/crea-timeline.ts` (titlovi u dokumentu i u `frameAt`), `components/crea/video/engine/compositor.ts` (crtanje titlova, 5 stilova), `components/crea/video/engine/media.ts` (SVG DEMO plakat kao slika), `components/crea/montaza/{media-library,export-panel,titles-panel,clip-inspector,montage-tool}`, `lib/crea-preflight.ts`, `lib/crea-tools.ts`, `lib/studio-gallery.ts`, `components/app/studio-media-{tile,detail}.tsx`, `components/crea/tools/index.tsx`; testovi `lib/crea-{timeline,tools,device,preflight}.test.ts`, `lib/studio-gallery.test.ts`.
+
+**Šta je urađeno:** Svih šest funkcija radi i završava na istom mestu - u montaži iz K19 (pregled = izvoz, MP4 na uređaju za 0 kr, „Doteraj u montaži" za muziku i nalepnice).
+- **Strip → film (V10):** priča (do 1 500 znakova), 3-8 kadrova, do 3 Lika, stil, oblik i kvalitet („Jeftino" = Nano Banana 2 Lite + Hailuo 2.3 Fast, „Lepše" = Nano Banana 2 + Veo 3.1 Lite). Besplatan plan (LLM, `creaLlm.planStoryboard`) pravi strip koji se odmah čuva u Crei (`creaStoryboards`, „Moji stripovi" posle zatvaranja strane). Kartice su stranice sveske: vrsta kadra (8 vrsta, svaka sa mini-lekcijom „Šta uči ova kartica"), slika ili skica pokreta kamere, potpis na srpskom, pokret, trajanje, redosled, brisanje, dodavanje i „Nacrtaj ponovo". „Nacrtaj kadrove" prvo crta kadar 1, pa ostale sa slikom kadra 1 kao referencom (isti lik, odeća i stil), uz slike Lika (`elementInputs`); „Oživi sve" pravi video iz svake slike (`derivation: "animacija"`); „Spoji u montažu" slaže kadrove sa pretapanjem 0,3 s, naslovom rukopisom i potpisima kao titlovima. Ukupna cena (slike + video) piše unapred, istom računicom kao server.
+- **Titlovi (V25):** zatečen kvar K17-13 je ispravljen - transkript `stt` posla se čuva (`creaTranscripts`, reči sa vremenima), DEMO bez ključa daje transkript preko celog snimka. Alat „Titlovi na srpskom": „Prepoznaj govor" (`stt`, cena po minutu na dugmetu) ili „Napiši sam" (besplatno, raspored po slogovima), titlovi po pravilima čitljivosti (42 znaka × 2 reda, bez „i/u/na…" na kraju), 5 stilova (Klasičan, Žuta traka, Karaoke, Veliki u sredini, Rukopis), latinica/ćirilica, izmena teksta titla, SRT/VTT, utiskivanje kroz izvoz montaže. U montaži su titlovi deo dokumenta (stil i pismo se menjaju u „Tekst", ili se uklone). Galerija prikazuje `stt` rad kao „Transkript", a detalj tekst, pismo i SRT/VTT.
+- **Kratki klipovi (V26):** dug snimak (do 30 min) → `stt` → `creaLlm.findMoments` (server čita samo SOPSTVENI transkript, 3-5 momenata od 15-60 s na granicama rečenica) → izabran moment se na uređaju iseče i prekroji na 9:16 sa licem u kadru (K20 motor, dekodira se samo taj deo) → krupni titlovi iz transkripta → izvoz; rad je verzija dugog videa.
+- **Retro i match-cut (V27):** alat „Retro efekti" sa 8 WebGL2 šejdera (VHS sa „PLAY ▶" i datumom, stari TV, glič, termo, noćni vid, Nokia 176 px / 12 fps / 4 096 boja, pisaća mašina sa naslovom koji se kuca, Super 8), šum po broju kadra (pregled = izvoz), zvuk se prenosi. Match-cut je dugme u montaži između dva klipa: uzorci kraja A i početka B (8 kadrova u s), MediaPipe lice + otisak slike, predlog „Rez na X s → Y s, lice poravnato / po sličnosti kadra", pa „Primeni" (rez + Ken Burns poravnanje lica + pretapanje 0,2 s).
+- **Objašnjavajući video (V28):** lekcija ili tekst (do 3 000) → stil (tabla, štapići, papir, glina, pikseli) i dužina (30/60/90 s) → besplatan plan scena (naracija + slika) → slike (Nano Banana 2 Lite) + JEDAN srpski glas za celu naraciju (`tts`) → montaža: slika se menja kad narator pređe na novu scenu (Ken Burns), titlovi iz naracije, „list sveske", naslov. Cena unapred i po minutu.
+- **Reklama (V31):** fotka proizvoda + dve rečenice + brend kit (K15) → besplatan scenario (3-4 kadra, poziv na akciju, opis pokreta) → govorni oglas (glas + fotka sa Ken Burnsom + natpisi u bojama i slovima kita + logo u uglu + poziv na akciju) ili animacija proizvoda (Hailuo 2.3 Fast po receptu „reklama", natpisi i logo preko).
+
+Provereno u browseru (Playwright, Chromium; privremena strana `app/[locale]/k21-harness` bez prijave, sintetički video napravljen ffmpeg-om u `.crea-run/tmp-k21`, slike nacrtane u browseru; sve obrisano, dev server na :3100 ugašen):
+- **Explainer (prihvatanje):** 3 scene + DEMO glas + karaoke titlovi na ćirilici → **MP4 1920×1080, 12,6 s, H.264 + AAC**, glas se čuje (srednja jačina −19 dB), titl „Што више добрих примера…" boji izgovorene reči, slika se menja tačno sa naracijom.
+- **Strip (prihvatanje, DEMO kadrovi):** 3 kadra (fotke sa Ken Burnsom, kao DEMO bez videa) + pretapanje + naslov + potpisi kao titlovi → **MP4 1080×1920, 11,4 s** (= 3 × 4 − 2 × 0,3).
+- **Titlovi (prihvatanje):** pravi alat sa video fajlom, „Napiši sam" → 3 titla, ćirilica, „Žuta traka" → **MP4 1920×1080, 8 s, originalni zvuk sačuvan**; SRT ima `00:00:01,143 --> 00:00:03,539` i lom u dva reda.
+- **Reklama:** DEMO glas + proizvod + logo + kit (crvena, Montserrat) → MP4 1080×1920, 11,5 s, sa glasom; „Svrati danas!" u boji kita, logo u uglu.
+- **Retro (VHS):** 1280×720, 8 s, 240 kadrova, zvuk sačuvan, „PLAY ▶ 05.10.2026 0:00:03" u uglu. **Shorts motor:** deo 2-6 s → 404×720 (9:16), 4,0 s, sa zvukom. **Match-cut** u pravoj montaži: uzorci, predlog i „Primeni" (pretapanje 0,2 s).
+- Ekrani (strip unos, kartice, objašnjenje, reklama, match-cut) na 1440 × 900 i 390 × 844, svetla i tamna tema: bez vodoravnog skrola, sve mete ≥ 44 px.
+
+**Feature ID-jevi:**
+- V10 — gotovo (plan, kartice sa lekcijama, slike sa Likom i prvim kadrom, animacija, automatska montaža; DEMO kadar postaje Ken Burns). Pravi lanac (Gemini + slike + video) nije pokrenut u browseru - strana za proveru nema prijavu; serverski deo je pokriven convex-test-om.
+- V25 — gotovo (`stt` + DEMO, „Napiši sam", 5 stilova, lat/ćir, SRT/VTT, utiskivanje, montaža, galerija). Whisper na uređaju nije uveden (vidi ODLUKE).
+- V26 — gotovo (transkript → momenti → 9:16 sa licem → titlovi → izvoz). Pravi LLM izbor momenata nije pokrenut (dev ima pravi Google ključ, provere ga ne troše).
+- V27 — gotovo (8 šejdera, match-cut po licu u montaži).
+- V28 — gotovo (MP4 sa glasom i titlovima provereno sa DEMO glasom). „Iz lekcije" (`?lessonId=`) nije urađeno - tekst se nalepi.
+- V31 — gotovo (govorni oglas provereno; animacija koristi isti `createJob` i montažu, DEMO → Ken Burns).
+
+**ODLUKE:**
+- **Whisper na uređaju nije uveden (K17-14):** `whisper-large-v3-turbo` i dalje nema zakucanu reviziju, a K11 je pokazao granice ORT WebGPU-a. Glavni put je `stt` (~2 kr po minutu), a besplatan put je „Napiši sam" (tekst raspoređen po slogovima). Zato je `video.titlovi` sada `local-code` (utiskivanje je na uređaju, 0 kr) sa `paidFallback: stt` i radi na svakom uređaju (bez WebCodecs-a: pregled, GIF, SRT/VTT).
+- **Ispravka zatečenog kvara STT iz videa (isti red, isti izvor):** `stt` u `video` režimu slao je `video_url`, a Scribe V2 prima samo `audio_url` (https://fal.ai/models/fal-ai/elevenlabs/speech-to-text/scribe-v2/llms.txt, 2026-10-05) - posao bi padao i vraćao kredite. Red sada ima `capabilities.fal.fields.video = "audio_url"` (ElevenLabs čita i video fajl) i `fixed.tag_audio_events = false` (smeh i aplauz ne ulaze u titlove).
+- **Transkript se upisuje samo za red sa `capabilities.output: "transcript"`** (čita se red kataloga u webhooku). Primer na fal strani pokazuje `words` kao objekat, šema kao niz - prihvataju se oba; razmaci i zvučni događaji se preskaču. Preko 800 KB reči ostaje samo tekst; tekst najviše 100 000 znakova. DEV katalog je ponovo upisan (seed), PRODUKCIJA traži isto.
+- **DEMO transkript (O3):** mock `stt` vraća deterministički srpski tekst preko celog izmerenog trajanja (bez plakata), jasno označen kao DEMO; momenti za DEMO transkript se biraju ravnomerno, bez LLM-a.
+- **Objašnjenje: jedna slika na ~20 s** (plan je rekao ~15 s) i **jedan glas za celu naraciju** - tako minut staje u cilj: 3 slike × 8 kr + glas ~19 kr ≈ **43 kr za 60 s**; 90 s ≈ 45 kr/min. 30 s košta 34 kr (najmanje 3 slike, pa je to 68 kr „po minutu"). TTS ne vraća vremena reči, pa se reči i titlovi raspoređuju po slogovima preko pravog trajanja glasa.
+- **Strip:** kadar ima i `shotType` (kartice uče vrste kadrova); LLM piše Likove kao `@handle` (postojeći `promptWithElements`). Prvi kadar ide kao referenca samo kad je pravi - DEMO plakat (SVG) server ne prima kao ulaz slike (`adoptOutputAsInput`), pa se DEMO kadar ni ne oživljava, nego u montaži postaje Ken Burns. Projekat montaže (`creaMontages`) se čuva samo kad su svi radovi pravi (server odbija DEMO radove), a nacrt na uređaju uvek. Najviše 30 stripova po korisniku - najstariji se briše (radovi ostaju u galeriji).
+- **`convex/creaStoryboardsCore.ts` umesto `lib/`:** pravila kadrova proverava i server, a `lib/crea-storyboard.ts` uvozi `crea-job-price` sa `@/` putanjama koje Convex bundle ne treba da vuče.
+- **Popravka u biblioteci medija montaže (nađena u browseru):** fajl koji alat preda uz blob (glas, slike, isečen klip) gubio je trku sa pretragom IndexedDB-a za isti id i ostajao „nema fajla" - izvoz je bio crn i nem. `prepare` sa blobom sada ne čeka tu pretragu.
+- **SVG u montaži:** DEMO plakati slika su SVG, koji `createImageBitmap` ne prima - crtaju se kroz `<img>` na platno (`media.ts`).
+- **Provera pre objave** računa utisnute titlove kao titl i kao udicu u prve 2 s (ranije je za explainer javljala „govor bez titla").
+- **Reklama:** logo je slika u slici (okvir i crna podloga za providan logo - postojeći PiP iz K19); natpisi kadrova su „donja traka", pa provera pre objave i dalje savetuje titl za govor (korisnik ga dodaje u alatu Titlovi ili montaži).
+- **Novi upit `creaMontages.jobStates`** (stanje do 20 SOPSTVENIH poslova) za objašnjenje i reklamu; ExportPanel dobio opcioni `parentJobId` (kratak klip je verzija dugog videa).
+- **Retro (podagent):** Nokia mreža piksela se crta posle uvećanja, zadržavanje kadrova po vremenu izvora (radi i za promenljiv fps), jačina menja količinu efekta u šejderu (ne meša se sa originalom, osim termo i noćni vid), pregled se crta u veličini izvoza.
+- **Match-cut (podagent):** parovi sa licem na obe strane imaju prednost (rastojanje lica na ekranu + veličina + 0,1 × razlika slike), inače Hamingovo rastojanje otiska; poravnanje lica je statičan Ken Burns (zum 1-2, isečak uvek u slici); klipovi sa brzinom ≠ 1, rampom, unazad ili slike se odbijaju sa razlogom. Bez modela lica (mreža) predlog ide „po sličnosti kadra".
+- Kartica „Transkript" u galeriji: gotov `stt` rad bez fajla (`isTranscriptJob`).
+- Za proveru nije korišćen server na :3000 - on pripada drugom projektu (`autodelovi`, nije diran). Ovaj korak je pokrenuo `next dev` na :3100 i ugasio ga (i njegov `start-server.js`).
+- DEV: `npx convex codegen` + `npx convex dev --once` (`wandering-fox-41`; `creaTranscripts.*`, `creaStoryboards.*`, nove `creaLlm` akcije i `creaMontages.jobStates` potvrđeni kroz `function-spec`) + `node scripts/seed-studio-models.mjs` (49 ažurirano). Produkcija nije dirana.
+
+**Novi paketi:** nema.
+
+**Testovi:** 115 novih testova (2559 → 2674), 9 novih fajlova.
+- `lib/crea-subtitles.test.ts` (19): lom na 42 znaka i 2 reda, bez „i/u/na/da/za/sa/je" na kraju titla i prvog reda, nov titl posle pauze/rečenice/govornika/6 s, najkraće trajanje, „veliki" stil, **SRT i VTT tačan format**, karaoke indeks, **latinica ↔ ćirilica sa Lj/Nj/Dž, velikim slovima i č ć š ž đ**, strane reči ostaju latinicom, slogovi, raspored teksta, izmena titla, isečak reči.
+- `lib/crea-timeline.test.ts` (+4): titlovi tamo-nazad kroz JSON, loši/preveliki titlovi, `frameAt` karaoke stanje i pismo, titl u sigurnoj zoni TikToka/Reels/Shorts/Instagrama/YouTube-a.
+- `lib/crea-storyboard.test.ts` (9): vrste kadrova, sređivanje kadrova, posao slike (Lik kao referenca, prvi kadar kao slika 1, samo opis), posao videa (trajanje po modelu, server prihvata parametre), **cena unapred = zbir serverskih cena**, automatska montaža (scena počinje tačno uz prelaz), strip → montaža sa DEMO kadrom.
+- `lib/crea-explainer.test.ts` (7): stilovi, poslovi (jedan glas), **cena i cena po minutu u cilju 20-50 kr**, montaža (slike prate naratora, titlovi, glas), reklama (poslovi, cena, montaža govora i animacije, logo kvadrat).
+- `lib/crea-retro.test.ts` (21) i `lib/crea-match-cut.test.ts` (20) - vidi podagent gore (preseti i granice, Nokia raspored 12 fps, VHS pečat, seme; nalaženje para po licu i otisku, poravnanje, odbijanja, ispravan dokument).
+- `convex/creaTranscriptsCore.test.ts` (7): **Scribe odgovor → reči** (razmaci i događaji ispadaju), oblik sa fal primera, čuvanje i granica 800 KB, DEMO transkript, rečenice i sažetak za LLM.
+- `convex/creaTranscripts.test.ts` (6, convex-test): **webhook → `creaTranscripts` + posao `done`, ponovljen webhook bez duplikata**, model bez transkripta ne dobija red, samo tekst preko granice, tuđ rad / „missing" / „waiting", **brisanje rada briše transkript**, **DEMO `stt` iz videa do kraja**, **momenti čitaju samo sopstveni transkript**.
+- `convex/creaLlmVideoCore.test.ts` (11): parseri za sva 4 oblika (dobar odgovor, ograde, višak kadrova, nepoznat pokret → `staticno`, trajanje van opsega, prazno → `null`), DEMO za sva 4.
+- `convex/creaStoryboards.test.ts` (8, convex-test): DEMO strip bez mreže i kredita (samo moj Lik), **lažan `fetch` sa ključem (trošak u `creaLlmUsage`, 0 kredita)**, loš odgovor ne čuva ništa, **`attachJob` vlasništvo (tuđ rad, pogrešna vrsta, nepostojeći kadar)**, izmena 3-8 kadrova i skidanje tuđeg posla, spisak/brisanje, granica 30, **zajednički dnevni limit** za objašnjenje i reklamu.
+- Namerno promenjene asercije: `lib/crea-tools.test.ts` (+6 gotovih alata, nov K21 blok, `video.retro` više nije „uskoro"), `lib/crea-device.test.ts` (primer „uskoro" je sada `video.svetlo`), `lib/crea-preflight.test.ts` (titlovi su titl i udica), `lib/studio-gallery.test.ts` (`isTranscriptJob`).
+
+**Rezultat provere:**
+
+| Provera | Ishod |
+|---|---|
+| codegen (+ `convex dev --once` i seed na DEV) | prošao |
+| typecheck | prošao |
+| lint | 0 grešaka, 26 zatečenih upozorenja |
+| test | 2674/2674 (228 fajlova) |
+| build | prošao (nijedan fajl noviji od `BUILD_ID`) |
+| `check:bundle` | 168 početnih chunk-ova bez mediabunny-ja i ostalih teških paketa |
+| `check:frames`, `check:corners`, `check:white` | prošli |
+
+Nijedan dev server ovog koraka nije ostao upaljen (:3100 slobodan).
+
+**Za Jovana ujutru:**
+- `/crea/app?oblast=video&rezim=napravi` (prijavljen) → „Strip → film": napiši priču, izaberi svog Lika, „Složi strip" (Gemini, 0 kr) → „Nacrtaj kadrove" (Nano Banana 2 Lite radi sa Google ključem, ~8 kr po kadru) → „Oživi sve" (bez `FAL_KEY` DEMO) → „Spoji u montažu". Pogledaj da li Lik ostaje isti kroz kadrove.
+- „Objašnjavajući video" sa tekstom jedne lekcije: slike su prave (Google), glas je DEMO dok nema `FAL_KEY`. Uporedi cenu na dugmetu sa računom.
+- „Titlovi na srpskom" i „Kratki klipovi" (Video · Montaža): bez `FAL_KEY` transkript je DEMO; posle ključa probaj jedan pravi `stt` posao - da li fal prima video kao `audio_url` i da li transkript stiže u galeriju kao „Transkript".
+- „Reklama za mali biznis" sa svojim brend kitom (logo, boje).
+- Produkcija: nove tabele (`creaTranscripts`, `creaStoryboards`), nove funkcije i promena STT reda traže `npx convex deploy` + `seed-studio-models` pre puštanja Next-a sa K21.
+- Odluči: da li objašnjenje treba „Iz lekcije" dugme (tekst trenutne lekcije) i da li reklama treba i titlove govora.

@@ -28,12 +28,34 @@ function audioDuration(source: Blob | string, signal?: AbortSignal): Promise<num
   });
 }
 
+/**
+ * Slika iz fajla. SVG (DEMO plakat bez ključa provajdera, K21) `createImageBitmap`
+ * ne prima, pa se prvo nacrta kroz `<img>` na platno - tako DEMO strip i reklama
+ * i dalje postaju film u montaži.
+ */
+async function decodeImage(blob: Blob): Promise<ImageBitmap> {
+  if (blob.type !== "image/svg+xml") return createImageBitmap(blob, { imageOrientation: "from-image" });
+  const url = URL.createObjectURL(blob);
+  try {
+    const image = new Image();
+    image.src = url;
+    await image.decode();
+    const canvas = document.createElement("canvas");
+    canvas.width = image.naturalWidth || 1024;
+    canvas.height = image.naturalHeight || 1024;
+    canvas.getContext("2d")?.drawImage(image, 0, 0, canvas.width, canvas.height);
+    return await createImageBitmap(canvas);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
 /** Trajanje (video, zvuk) i veličina (video, slika); `null` kad pregledač ne ume da otvori fajl. */
 export async function probeMedia(kind: MediaKind, source: Blob | string, signal?: AbortSignal): Promise<ProbedMedia | null> {
   try {
     if (kind === "image") {
       const blob = typeof source === "string" ? await (await fetch(source)).blob() : source;
-      const bitmap = await createImageBitmap(blob, { imageOrientation: "from-image" });
+      const bitmap = await decodeImage(blob);
       const probed = { durationS: null, width: bitmap.width, height: bitmap.height };
       bitmap.close();
       return probed;
@@ -60,7 +82,7 @@ export async function probeMedia(kind: MediaKind, source: Blob | string, signal?
 /** Slika za traku i spiskove (EXIF orijentacija, duža stranica ≤ `maxSide`). */
 export async function loadImageBitmap(source: Blob | string, maxSide: number): Promise<ImageBitmap> {
   const blob = typeof source === "string" ? await (await fetch(source)).blob() : source;
-  const full = await createImageBitmap(blob, { imageOrientation: "from-image" });
+  const full = await decodeImage(blob);
   const scale = Math.min(1, maxSide / Math.max(full.width, full.height));
   if (scale >= 1) return full;
   const resized = await createImageBitmap(full, {

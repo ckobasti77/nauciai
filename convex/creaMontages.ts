@@ -107,6 +107,29 @@ export const resolveMedia = query({
 });
 
 /**
+ * Stanje više poslova odjednom (K21: objašnjenje i reklama prate slike i glas
+ * pre automatske montaže). Samo moji poslovi; tuđ ili nepostojeći se izostavlja.
+ */
+export const jobStates = query({
+  args: { jobIds: v.array(v.id("generationJobs")) },
+  handler: async (ctx, args) => {
+    const userId = await requireUserId(ctx);
+    const states: Record<string, { status: Doc<"generationJobs">["status"]; kind: Doc<"generationJobs">["kind"]; isMock: boolean; outputUrl: string | null }> = {};
+    for (const jobId of [...new Set(args.jobIds)].slice(0, 20)) {
+      const job = await ctx.db.get("generationJobs", jobId);
+      if (!job || job.userId !== userId) continue;
+      states[jobId] = {
+        status: job.status,
+        kind: job.kind,
+        isMock: isMockRequestId(job.falRequestId),
+        outputUrl: job.outputStorageId ? await ctx.storage.getUrl(job.outputStorageId) : null,
+      };
+    }
+    return states;
+  },
+});
+
+/**
  * Sačuvaj nov projekat (`id` izostavljen) ili izmeni postojeći. Loš dokument,
  * tuđ / DEMO / nezavršen rad i limit od 50 projekata vraćaju `{ ok: false }`
  * (ništa nije upisano).

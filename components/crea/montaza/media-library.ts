@@ -111,7 +111,9 @@ export function useMediaLibrary(timeline: CreaTimelineV1, enabled: boolean) {
     (media: NewMedia): Promise<MediaEntry> => {
       const key = mediaKey(media.ref);
       const running = inflight.current.get(key);
-      if (running) return running;
+      // Fajl koji alat preda uz blob (K21: glas, slike, isečen klip) ne sme da sačeka
+      // pretragu IndexedDB-a koja je za isti id već krenula - ona bi ga proglasila „nema".
+      if (running && !media.blob) return running;
       const promise = probeEntry(baseEntry(media, "loading"), track).then((entry) => {
         remember(entry);
         return entry;

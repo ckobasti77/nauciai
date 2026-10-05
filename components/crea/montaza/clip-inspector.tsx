@@ -1,7 +1,7 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, Copy, Scissors, Trash2 } from "lucide-react";
-import type { ReactNode } from "react";
+import { ArrowLeft, ArrowRight, Copy, ScanFace, Scissors, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { RangeField } from "@/components/crea/editor/controls";
 import { formatShort } from "@/components/crea/montaza/format";
@@ -9,8 +9,19 @@ import type { MediaLibrary } from "@/components/crea/montaza/media-library";
 import { ChoiceChips } from "@/components/crea/tools/choice-chips";
 import { Button } from "@/components/ui/button";
 import { fillCopy } from "@/lib/crea-copy";
-import { KEN_BURNS_PRESETS, KEN_BURNS_PRESET_IDS, type KenBurnsPresetId } from "@/lib/crea-ken-burns";
+import { KEN_BURNS_PRESETS, KEN_BURNS_PRESET_IDS, type KenBurns, type KenBurnsPresetId } from "@/lib/crea-ken-burns";
+import {
+  applyMatchCut,
+  findMatchCut,
+  matchCutAlignment,
+  matchCutBlocker,
+  matchCutTimes,
+  matchCutView,
+  type MatchCut,
+  type MatchCutRefusal,
+} from "@/lib/crea-match-cut";
 import { MONTAGE_COPY as T } from "@/lib/crea-montage-copy";
+import { CREA_RETRO_COPY } from "@/lib/crea-retro-copy";
 import {
   aspectRatio,
   clipOutputLength,
@@ -255,7 +266,7 @@ export function ClipInspector({
 
       {after ? (
         <Section>
-          <TransitionControls locale={locale} timeline={timeline} afterId={clip.id} onChange={onChange} />
+          <TransitionControls locale={locale} timeline={timeline} afterId={clip.id} onChange={onChange} library={library} />
         </Section>
       ) : null}
 
@@ -302,11 +313,13 @@ export function TransitionControls({
   timeline,
   afterId,
   onChange,
+  library,
 }: {
   locale: Locale;
   timeline: CreaTimelineV1;
   afterId: string;
   onChange: Commit;
+  library: MediaLibrary;
 }) {
   const index = timeline.main.findIndex((clip) => clip.id === afterId);
   const current = timeline.transitions.find((transition) => transition.after === afterId) ?? null;
@@ -335,6 +348,135 @@ export function TransitionControls({
           display={formatShort(current.duration, locale)}
           onChange={(value) => onChange(setTransition(timeline, afterId, current.kind, value), `prelaz:${afterId}`)}
         />
+      ) : null}
+      <MatchCutControls key={`${a.id}:${b.id}`} locale={locale} timeline={timeline} a={a} b={b} library={library} onChange={onChange} />
+    </div>
+  );
+}
+
+type MatchState =
+  | { status: "idle" | "none" | "failed" }
+  | { status: "working"; percent: number }
+  | { status: "ready"; key: string; cut: MatchCut; alignment: KenBurns | null }
+  | { status: "refused"; reason: MatchCutRefusal };
+
+/**
+ * Match-cut po licu (K21, V27): uzorci kraja klipa A i početka klipa B (lice i
+ * otisak slike, lokalno), predlog „Rez na 3,4 s → 0,6 s" i tek na „Primeni"
+ * izmena montaže (`applyMatchCut`). Predlog važi dok se klipovi ne promene.
+ */
+function MatchCutControls({
+  locale,
+  timeline,
+  a,
+  b,
+  library,
+  onChange,
+}: {
+  locale: Locale;
+  timeline: CreaTimelineV1;
+  a: MainClip;
+  b: MainClip;
+  library: MediaLibrary;
+  onChange: Commit;
+}) {
+  const C = CREA_RETRO_COPY;
+  const [state, setState] = useState<MatchState>({ status: "idle" });
+  const abortRef = useRef<AbortController | null>(null);
+  useEffect(() => () => abortRef.current?.abort(), []);
+
+  const blocker = matchCutBlocker(timeline, a.id);
+  const aEntry = library.get(a.src);
+  const bEntry = library.get(b.src);
+  const aSource = library.sourceFor(a.src);
+  const bSource = library.sourceFor(b.src);
+  const aAspect = aEntry?.width && aEntry.height ? aEntry.width / aEntry.height : null;
+  const bAspect = bEntry?.width && bEntry.height ? bEntry.width / bEntry.height : null;
+  const ready = aSource !== null && bSource !== null && aAspect !== null && bAspect !== null;
+  const key = [a.id, a.in, a.out, b.id, b.in, b.out, b.fit, timeline.aspect].join(":");
+  const proposal = state.status === "ready" && state.key === key ? state : null;
+
+  async function find() {
+    if (!aSource || !bSource || !aAspect || !bAspect) return;
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setState({ status: "working", percent: 0 });
+    try {
+      const { sampleMatchCut } = await import("@/components/crea/video/engine/match-cut-sampler");
+      const samples = await sampleMatchCut(
+        { source: aSource, times: matchCutTimes(a, "end") },
+        { source: bSource, times: matchCutTimes(b, "start") },
+        { signal: controller.signal, onProgress: (fraction) => setState({ status: "working", percent: Math.round(fraction * 100) }) },
+      );
+      const view = matchCutView(a, b, aAspect, bAspect, aspectRatio(timeline.aspect));
+      const cut = findMatchCut(samples.a, samples.b, view);
+      setState(cut ? { status: "ready", key, cut, alignment: matchCutAlignment(cut, view) } : { status: "none" });
+    } catch {
+      if (!controller.signal.aborted) setState({ status: "failed" });
+    }
+  }
+
+  function apply(cut: MatchCut, alignment: KenBurns | null) {
+    const result = applyMatchCut(timeline, a.id, cut, alignment);
+    if (!result.ok) {
+      setState({ status: "refused", reason: result.reason });
+      return;
+    }
+    setState({ status: "idle" });
+    onChange(result.timeline);
+  }
+
+  const proposalText = proposal
+    ? fillCopy((proposal.cut.by === "slika" ? C.matchByPicture : proposal.alignment ? C.matchByFace : C.matchByFaceOnly)[locale], {
+        a: formatShort(proposal.cut.aTime, locale),
+        b: formatShort(proposal.cut.bTime, locale),
+      })
+    : null;
+
+  return (
+    <div className="space-y-2 border-t border-line pt-3">
+      <p className="type-body-sm font-black text-ink">{C.matchTitle[locale]}</p>
+      <p className="type-body-sm font-semibold text-muted">{C.matchHint[locale]}</p>
+      {proposal ? (
+        <div className="surface-inset space-y-2 bg-paper p-3">
+          <p role="status" className="type-body-sm font-black text-ink">
+            {proposalText}
+          </p>
+          <p className="type-body-sm font-semibold text-muted">{C.matchExplain[locale]}</p>
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={() => apply(proposal.cut, proposal.alignment)}>{C.matchApply[locale]}</Button>
+            <Button variant="ghost" onClick={() => setState({ status: "idle" })}>
+              {C.matchCancel[locale]}
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <Button
+          variant="secondary"
+          loading={state.status === "working"}
+          disabled={blocker !== null || !ready}
+          onClick={() => void find()}
+          icon={<ScanFace aria-hidden="true" className="size-4" />}
+        >
+          {C.matchFind[locale]}
+        </Button>
+      )}
+      {state.status === "working" ? (
+        <p role="status" className="type-body-sm font-black text-ink">
+          {fillCopy(C.matchWorking[locale], { p: state.percent })}
+        </p>
+      ) : null}
+      {blocker ? (
+        <p className="type-body-sm font-semibold text-muted">{C.matchRefusals[blocker][locale]}</p>
+      ) : !ready ? (
+        <p className="type-body-sm font-semibold text-muted">{C.matchWait[locale]}</p>
+      ) : null}
+      {state.status === "none" ? <p className="type-body-sm font-semibold text-muted">{C.matchNone[locale]}</p> : null}
+      {state.status === "failed" || state.status === "refused" ? (
+        <p role="alert" className="type-body-sm font-black text-red-700 dark:text-red-300">
+          {state.status === "refused" ? C.matchRefusals[state.reason][locale] : C.matchFailed[locale]}
+        </p>
       ) : null}
     </div>
   );

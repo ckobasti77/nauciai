@@ -192,6 +192,39 @@ export function extractOutputUrls(payload: unknown): string[] {
   return [first];
 }
 
+/** Reč transkripta kako je čuvamo: tekst, početak i kraj (s), govornik. */
+export type TranscriptWord = { w: string; s: number; e: number; speaker?: string };
+export type ExtractedTranscript = { text: string; language: string | null; words: TranscriptWord[] };
+
+/**
+ * Transkript iz odgovora ElevenLabs Scribe V2 preko fal-a (Crea K21, K17-13):
+ * `text`, `language_code` i `words[]` sa `{ text, start, end, type, speaker_id }`
+ * (https://fal.ai/models/fal-ai/elevenlabs/speech-to-text/scribe-v2/llms.txt,
+ * pročitano 2026-10-05). Razmaci (`type: "spacing"`) i zvučni događaji se
+ * preskaču - titlovi traže samo reči. `null` kad odgovor nije transkript.
+ */
+export function extractTranscript(payload: unknown): ExtractedTranscript | null {
+  if (!payload || typeof payload !== "object") return null;
+  const record = payload as Record<string, unknown>;
+  if (typeof record.text !== "string") return null;
+  // Primer na fal strani pokazuje `words` kao jedan objekat; šema kaže niz - primaju se oba.
+  const rawWords = Array.isArray(record.words) ? record.words : record.words && typeof record.words === "object" ? [record.words] : [];
+  const words: TranscriptWord[] = [];
+  for (const entry of rawWords) {
+    if (!entry || typeof entry !== "object") continue;
+    const word = entry as Record<string, unknown>;
+    if (word.type !== undefined && word.type !== "word") continue;
+    const text = typeof word.text === "string" ? word.text.trim() : "";
+    const start = typeof word.start === "number" && Number.isFinite(word.start) ? word.start : null;
+    const end = typeof word.end === "number" && Number.isFinite(word.end) ? word.end : null;
+    if (!text || start === null || end === null) continue;
+    words.push({ w: text, s: start, e: Math.max(start, end), ...(typeof word.speaker_id === "string" ? { speaker: word.speaker_id } : {}) });
+  }
+  const text = record.text.trim();
+  if (!text && words.length === 0) return null;
+  return { text, language: typeof record.language_code === "string" ? record.language_code : null, words };
+}
+
 /** Koliko teksta greške ide u `generationJobs.error` - dovoljno za dijagnozu. */
 const MAX_ERROR_LENGTH = 500;
 

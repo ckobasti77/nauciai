@@ -71,6 +71,13 @@ const VideoSlowmoTool = dynamic(() => import("./video-slowmo-tool"), { ssr: fals
 const VideoDeflickerTool = dynamic(() => import("./video-deflicker-tool"), { ssr: false, loading: ToolLoading });
 const ActTool = dynamic(() => import("./act-tool"), { ssr: false, loading: ToolLoading });
 const TalkingTool = dynamic(() => import("./talking-tool"), { ssr: false, loading: ToolLoading });
+// K21: strip → film, titlovi, kratki klipovi, retro, objašnjavajući video, reklama.
+const StoryboardTool = dynamic(() => import("./storyboard-tool"), { ssr: false, loading: ToolLoading });
+const SubtitlesTool = dynamic(() => import("./subtitles-tool"), { ssr: false, loading: ToolLoading });
+const ShortsTool = dynamic(() => import("./shorts-tool"), { ssr: false, loading: ToolLoading });
+const RetroTool = dynamic(() => import("./retro-tool"), { ssr: false, loading: ToolLoading });
+const ExplainerTool = dynamic(() => import("./explainer-tool"), { ssr: false, loading: ToolLoading });
+const AdTool = dynamic(() => import("./ad-tool"), { ssr: false, loading: ToolLoading });
 // K19: montaža, „Ubaci i gotovo" i izvoz za mreže - svaki svoj chunk; mediabunny i detektor ritma tek unutar njih.
 const MontageTool = dynamic(() => import("../montaza/montage-tool"), { ssr: false, loading: ToolLoading });
 const BeatTool = dynamic(() => import("../montaza/beat-tool"), { ssr: false, loading: ToolLoading });
@@ -130,4 +137,10 @@ export const CREA_TOOL_COMPONENTS: Readonly<Record<string, ComponentType<CreaToo
   "video.bez-treperenja": VideoDeflickerTool,
   "video.odglumi": ActTool,
   "video.lik-govori": TalkingTool,
+  "video.strip": StoryboardTool,
+  "video.titlovi": SubtitlesTool,
+  "video.shorts": ShortsTool,
+  "video.retro": RetroTool,
+  "video.objasnjenje": ExplainerTool,
+  "video.reklama": AdTool,
 };

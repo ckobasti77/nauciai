@@ -14,6 +14,7 @@ import {
   addSticker,
   addTitle,
   assignLanes,
+  captionRect,
   clipOutputLength,
   clipPassLength,
   defaultTitleRect,
@@ -51,6 +52,7 @@ import {
   type MainClip,
   type NewMainClip,
 } from "./crea-timeline";
+import { CAPTION_STYLES, cuesFromWords, type CaptionScript, type CaptionStyle } from "./crea-subtitles";
 
 const video = (jobId: string, length: number, extra: Partial<NewMainClip> = {}): NewMainClip => ({
   src: { jobId },
@@ -445,5 +447,55 @@ describe("izvori i istorija", () => {
     expect(history.present).toBe(start);
     history = redo(history);
     expect(history.present.main).toHaveLength(4);
+  });
+});
+
+describe("titlovi (K21, V25)", () => {
+  const cues = cuesFromWords([
+    { w: "Zdravo", s: 0.5, e: 0.9 },
+    { w: "đaci,", s: 1, e: 1.4 },
+    { w: "učimo", s: 1.5, e: 1.9 },
+    { w: "montažu!", s: 2, e: 2.6 },
+  ]);
+  const withCaptions = (style: CaptionStyle = "karaoke", script: CaptionScript = "lat"): CreaTimelineV1 => ({ ...threeClips(), captions: { cues, style, script } });
+
+  test("titlovi prolaze JSON tamo-nazad", () => {
+    const parsed = parseTimeline(serializeTimeline(withCaptions()));
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) expect(parsed.timeline.captions).toEqual({ cues, style: "karaoke", script: "lat" });
+    const none = parseTimeline(serializeTimeline(threeClips()));
+    expect(none.ok && none.timeline.captions).toBeFalsy();
+  });
+
+  test("loši titlovi odbijaju dokument, previše reči je „PREVISE”", () => {
+    const bad = (captions: unknown) => parseTimeline(JSON.stringify({ ...threeClips(), captions }));
+    expect(bad({ cues, style: "neon", script: "lat" })).toEqual({ ok: false, reason: "NEISPRAVNO" });
+    expect(bad({ cues, style: "karaoke", script: "glagoljica" })).toEqual({ ok: false, reason: "NEISPRAVNO" });
+    expect(bad({ cues: [{ start: 3, end: 4, words: [{ w: "a", s: 3, e: 4 }] }, { start: 1, end: 2, words: [{ w: "b", s: 1, e: 2 }] }], style: "karaoke", script: "lat" })).toEqual({
+      ok: false,
+      reason: "NEISPRAVNO",
+    });
+    const many = Array.from({ length: 60 }, (_, index) => ({ start: index, end: index + 0.9, words: Array.from({ length: 30 }, (__, w) => ({ w: "reč", s: index, e: index + 0.01 * w })) }));
+    expect(bad({ cues: many, style: "karaoke", script: "lat" })).toEqual({ ok: false, reason: "PREVISE" });
+  });
+
+  test("frameAt: karaoke zna koja reč se izgovara, pismo se menja pri crtanju", () => {
+    expect(frameAt(withCaptions(), 0.2).captions).toBeNull();
+    const plan = frameAt(withCaptions(), 1.6).captions!;
+    const words = plan.lines.flat();
+    expect(words.map((word) => word.text)).toEqual(["Zdravo", "đaci,", "učimo", "montažu!"]);
+    expect(words.map((word) => word.state)).toEqual(["past", "past", "active", "future"]);
+    const cyr = frameAt(withCaptions("veliki", "cyr"), 1.6).captions!;
+    expect(cyr.lines.flat().map((word) => word.text).join(" ")).toBe("Здраво ђаци, учимо монтажу!");
+    expect(cyr.style).toBe("veliki");
+  });
+
+  test("titl stoji u sigurnoj zoni TikToka, Reels-a, Shorts-a i YouTube-a", () => {
+    for (const style of CAPTION_STYLES) {
+      for (const preset of [EXPORT_PRESETS.tiktok, EXPORT_PRESETS.reels, EXPORT_PRESETS.shorts, EXPORT_PRESETS.instagram]) {
+        expect(rectInside(captionRect(style, preset.aspect), preset.safeZone), `${style} ${preset.id}`).toBe(true);
+      }
+      expect(rectInside(captionRect(style, "16:9"), EXPORT_PRESETS.youtube.safeZone), style).toBe(true);
+    }
   });
 });

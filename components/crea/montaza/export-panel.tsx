@@ -79,6 +79,8 @@ export type ExportPanelProps = {
   canSave: boolean;
   projectId: Id<"studioProjects"> | null;
   onSaved?: (jobId: Id<"generationJobs">) => void;
+  /** Roditelj u stablu verzija kad nije prvi klip iz galerije (K21: kratak klip je verzija dugog videa). */
+  parentJobId?: Id<"generationJobs"> | null;
 };
 
 export function ExportPanel(props: ExportPanelProps) {
@@ -186,7 +188,7 @@ export function ExportPanel(props: ExportPanelProps) {
   async function saveToGallery(result: ExportResult, format: "mp4" | "gif") {
     setSave({ status: "saving" });
     try {
-      const parent = exportParentJobId(effective) as Id<"generationJobs"> | null;
+      const parent = props.parentJobId !== undefined ? props.parentJobId : (exportParentJobId(effective) as Id<"generationJobs"> | null);
       const saved = await saveLocalResult({
         toolId: props.toolId,
         kind: format === "gif" ? "image" : "video",

@@ -7,6 +7,7 @@
 
 import { describe, expect, test } from "vitest";
 
+import { localToolProblem } from "@/convex/creaLocalCore";
 import { STUDIO_MODELS } from "@/convex/providers/catalogModels";
 import { deviceClassRank, MODEL_BUDGET_BYTES } from "./crea-device";
 import { CREA_GOALS } from "./crea-goals";
@@ -115,7 +116,7 @@ describe("registar alata", () => {
     for (const tool of CREA_TOOLS) if (tool.tier === "server") expect(tool.status).toBe("soon");
   });
 
-  test("K04 pušta format i proveru fotke, K09 sedam besplatnih alata za sliku, K10 editor, šablone i 3D foto, K11 i K12 izmene, K13 pravljenje, K14 likovi, K18 video, K19 montaža, K20 dorada, pokret i govor", () => {
+  test("K04 pušta format i proveru fotke, K09 sedam besplatnih alata za sliku, K10 editor, šablone i 3D foto, K11 i K12 izmene, K13 pravljenje, K14 likovi, K18 video, K19 montaža, K20 dorada, pokret i govor, K21 strip, titlovi, shorts, retro, explainer i reklama", () => {
     const ready = CREA_TOOLS.filter((tool) => tool.status === "ready").map((tool) => tool.id);
     expect(ready).toEqual([
       "slika.format",
@@ -162,6 +163,10 @@ describe("registar alata", () => {
       "video.poslednji-kadar",
       "video.vise-scena",
       "video.crtaj-pokret",
+      // K21: Video · Napravi (V10, V28, V31)
+      "video.strip",
+      "video.objasnjenje",
+      "video.reklama",
       "video.produzi",
       // K19: Video · Montaža (V24, V29, V30)
       "video.montaza",
@@ -178,6 +183,10 @@ describe("registar alata", () => {
       "video.bez-treperenja",
       "video.odglumi",
       "video.lik-govori",
+      // K21: titlovi i kratki klipovi (Montaža), retro (Izmeni)
+      "video.titlovi",
+      "video.shorts",
+      "video.retro",
     ]);
     expect(toolById("slika.format")).toMatchObject({ tier: "local-code", featureIds: ["S27"], output: "image" });
     expect(toolById("slika.provera")).toMatchObject({
@@ -301,7 +310,8 @@ describe("pomoćne funkcije", () => {
     expect(toolBadges(toolById("slika.pozadina")!)).toEqual(["besplatno", "na-uredjaju"]);
     expect(toolBadges(toolById("slika.retus")!)).toEqual(["besplatno", "na-uredjaju"]);
     expect(toolBadges(toolById("video.reframe")!)).toEqual(["besplatno", "na-uredjaju"]);
-    expect(toolBadges(toolById("video.retro")!)).toEqual(["besplatno", "na-uredjaju", "uskoro"]);
+    expect(toolBadges(toolById("video.retro")!)).toEqual(["besplatno", "na-uredjaju"]);
+    expect(toolBadges(toolById("zvuk.snimac")!)).toEqual(["besplatno", "na-uredjaju", "uskoro"]);
     // K12: plaćen alat sa besplatnim korakom na uređaju nosi obe oznake.
     expect(toolBadges(toolById("slika.prosiri")!)).toEqual(["krediti", "na-uredjaju"]);
     expect(toolBadges(toolById("slika.svetlo")!)).toEqual(["krediti"]);
@@ -423,5 +433,33 @@ describe("K19: Video · Montaža", () => {
       "video.titlovi",
       "video.shorts",
     ]);
+  });
+});
+
+describe("K21: strip, titlovi, kratki klipovi, retro, objašnjenje, reklama", () => {
+  test("strip, objašnjenje i reklama su u Video · Napravi; plaćeni, a model i režim postoje u katalogu", () => {
+    for (const id of ["video.strip", "video.objasnjenje", "video.reklama"]) {
+      const tool = toolById(id)!;
+      expect(tool, id).toMatchObject({ area: "video", mode: "napravi", tier: "paid", status: "ready", output: "video", device: { minClass: "weak" } });
+      const price = tool.price;
+      if (price.kind !== "credits") throw new Error(id);
+      expect(STUDIO_MODELS.find((entry) => entry.slug === price.modelSlug)?.inputModes, id).toContain(price.inputMode);
+    }
+    // Objašnjenje i reklama izvoze montažu na uređaju i čuvaju je kao lokalni rad (i GIF); strip otvara Montažu.
+    for (const id of ["video.objasnjenje", "video.reklama", "video.titlovi", "video.shorts", "video.retro"]) {
+      expect(localToolProblem(id, "video"), id).toBeNull();
+    }
+    expect(localToolProblem("video.objasnjenje", "image")).toBeNull();
+    expect(localToolProblem("video.titlovi", "image")).toBeNull();
+    expect(localToolProblem("video.strip", "video")).toBe("NEPOZNAT_ALAT");
+  });
+
+  test("titlovi rade svuda (besplatno, plaćeno prepoznavanje kao rezerva), shorts traži računar, retro WebGL2", () => {
+    expect(toolById("video.titlovi")).toMatchObject({ tier: "local-code", device: { minClass: "weak" }, paidFallback: { modelSlug: "stt", inputMode: "video" } });
+    expect(toolById("video.titlovi")?.localModels).toBeUndefined();
+    expect(toolById("video.shorts")).toMatchObject({ tier: "paid", localSave: true, device: { minClass: "desktop", requires: ["webcodecs-video"] }, price: { modelSlug: "stt", inputMode: "video" } });
+    expect(toolBadges(toolById("video.shorts")!)).toEqual(["krediti", "na-uredjaju"]);
+    expect(toolById("video.retro")).toMatchObject({ tier: "local-code", device: { minClass: "desktop", requires: ["webgl2", "webcodecs-video"] } });
+    expect(toolsFor("video", "montaza").map((tool) => tool.id)).toEqual(["video.montaza", "video.ritam-sabloni", "video.izvoz", "video.titlovi", "video.shorts"]);
   });
 });

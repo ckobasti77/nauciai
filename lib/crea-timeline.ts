@@ -7,6 +7,20 @@ import {
   type KenBurns,
 } from "./crea-ken-burns";
 import { stickerById } from "./crea-stickers";
+import {
+  CAPTION_SCRIPTS,
+  CAPTION_STYLES,
+  cleanWords,
+  cueIndexAt,
+  cueLines,
+  cueOptionsFor,
+  SUBTITLE_LIMITS,
+  transliterateText,
+  type CaptionCue,
+  type CaptionScript,
+  type CaptionStyle,
+  type CaptionWord,
+} from "./crea-subtitles";
 
 /**
  * Montaža u browseru (Crea K19, V24; plan K17 §2): model vremenske linije kao
@@ -190,6 +204,17 @@ export type TimelineMix = {
   fadeOut: number;
 };
 
+/**
+ * Titlovi (K21, V25): reči sa vremenima grupisane u titlove, na apsolutnom
+ * vremenu montaže. Tekst ostaje u izvornom pismu, a `script` se primeni pri
+ * crtanju (latinica ↔ ćirilica bez gubitka i bez ponovnog prepoznavanja).
+ */
+export type TimelineCaptions = {
+  cues: CaptionCue[];
+  style: CaptionStyle;
+  script: CaptionScript;
+};
+
 export type CreaTimelineV1 = {
   v: 1;
   aspect: TimelineAspect;
@@ -202,6 +227,7 @@ export type CreaTimelineV1 = {
   titles: TitleItem[];
   stickers: StickerItem[];
   mix: TimelineMix;
+  captions?: TimelineCaptions;
 };
 
 export const DEFAULT_MIX: TimelineMix = { duck: { on: true, amountDb: -12 }, masterDb: 0, fadeIn: 0, fadeOut: 0 };
@@ -444,6 +470,41 @@ function sanitizeMix(raw: unknown): TimelineMix | null {
   return { duck: { on: bool(raw.duck.on, true), amountDb }, masterDb, fadeIn, fadeOut };
 }
 
+/**
+ * Titlovi iz dokumenta: najviše 1 500 reči i 600 titlova, titlovi po vremenu
+ * bez preklapanja, reči unutar svog titla. `undefined` = montaža bez titlova.
+ */
+export function sanitizeCaptions(raw: unknown): TimelineCaptions | "previse" | null | undefined {
+  if (raw === undefined) return undefined;
+  if (!isRecord(raw) || !Array.isArray(raw.cues)) return null;
+  const style = oneOf(raw.style, CAPTION_STYLES);
+  const script = oneOf(raw.script, CAPTION_SCRIPTS);
+  if (!style || !script) return null;
+  if (raw.cues.length > SUBTITLE_LIMITS.cues) return "previse";
+  const cues: CaptionCue[] = [];
+  let words = 0;
+  let last = 0;
+  for (const entry of raw.cues) {
+    if (!isRecord(entry) || !Array.isArray(entry.words)) return null;
+    const start = num(entry.start, 0, TIMELINE_LIMITS.durationS);
+    const end = num(entry.end, 0, TIMELINE_LIMITS.durationS);
+    if (start === null || end === null || end - start < 0.05 || start < last - 1e-6) return null;
+    const parsed = entry.words.map((word) =>
+      isRecord(word) && typeof word.w === "string" && typeof word.s === "number" && typeof word.e === "number"
+        ? { w: word.w, s: clamp(word.s, start, end), e: clamp(word.e, start, end), ...(typeof word.speaker === "string" ? { speaker: word.speaker.slice(0, 20) } : {}) }
+        : null,
+    );
+    if (parsed.some((word) => word === null)) return null;
+    const clean = cleanWords(parsed as CaptionWord[]);
+    if (clean.length === 0) return null;
+    words += clean.length;
+    if (words > SUBTITLE_LIMITS.words) return "previse";
+    cues.push({ start, end, words: clean });
+    last = end;
+  }
+  return { cues, style, script };
+}
+
 function list<T>(value: unknown, max: number, parse: (raw: unknown) => T | null): T[] | "previse" | null {
   if (value === undefined) return [];
   if (!Array.isArray(value)) return null;
@@ -486,7 +547,8 @@ export function parseTimeline(input: unknown): { ok: true; timeline: CreaTimelin
   const titles = list(raw.titles, TIMELINE_LIMITS.titles, sanitizeTitle);
   const stickers = list(raw.stickers, TIMELINE_LIMITS.stickers, sanitizeSticker);
   const transitions = list(raw.transitions, TIMELINE_LIMITS.main, sanitizeTransition);
-  const parts = [main, overlay, audio, titles, stickers, transitions];
+  const captions = sanitizeCaptions(raw.captions);
+  const parts = [main, overlay, audio, titles, stickers, transitions, captions];
   if (parts.some((part) => part === "previse")) return { ok: false, reason: "PREVISE" };
   if (parts.some((part) => part === null)) return { ok: false, reason: "NEISPRAVNO" };
 
@@ -502,8 +564,9 @@ export function parseTimeline(input: unknown): { ok: true; timeline: CreaTimelin
     titles: titles as TitleItem[],
     stickers: stickers as StickerItem[],
     mix,
+    ...(captions ? { captions: captions as TimelineCaptions } : {}),
   });
-  const ids = [...timeline.main, ...timeline.overlay, ...timeline.audio, ...timeline.titles, ...timeline.stickers].map((item) => item.id);
+  const ids =[...timeline.main, ...timeline.overlay, ...timeline.audio, ...timeline.titles, ...timeline.stickers].map((item) => item.id);
   if (new Set(ids).size !== ids.length) return { ok: false, reason: "NEISPRAVNO" };
   if (timelineDuration(timeline) > TIMELINE_LIMITS.durationS + 1e-6) return { ok: false, reason: "PREDUGO" };
   return { ok: true, timeline };
@@ -958,6 +1021,10 @@ export type FrameTitle = {
 
 export type FrameSticker = { id: string; sticker: string; rect: Rect01; opacity: number; scale: number };
 
+/** Reč titla u kadru: već izgovorena, upravo se izgovara (karaoke) ili tek dolazi. */
+export type FrameCaptionWord = { text: string; state: "past" | "active" | "future"; /** 0..1 od početka reči (iskakanje). */ enter: number };
+export type FrameCaptions = { style: CaptionStyle; rect: Rect01; lines: FrameCaptionWord[][] };
+
 export type FramePlan = {
   t: number;
   background: string;
@@ -968,6 +1035,7 @@ export type FramePlan = {
   wipeEdge: number | null;
   stickers: FrameSticker[];
   titles: FrameTitle[];
+  captions: FrameCaptions | null;
 };
 
 function smooth(p: number): number {
@@ -1140,7 +1208,42 @@ export function frameAt(timeline: CreaTimelineV1, time: number): FramePlan {
       ...titleVisual(title, t),
     }));
 
-  return { t, background: timeline.background, layers, dip, wipeEdge, stickers, titles };
+  return { t, background: timeline.background, layers, dip, wipeEdge, stickers, titles, captions: captionsAt(timeline, t) };
+}
+
+/**
+ * Gde stoji titl. Uspravan kadar: iznad donjih ~35 % (dugmad i opis na TikToku,
+ * Reels-u i Shorts-u), „veliki" malo ispod sredine; položen kadar: dole.
+ */
+export function captionRect(style: CaptionStyle, aspect: TimelineAspect): Rect01 {
+  const tall = aspect === "9:16" || aspect === "4:5";
+  if (style === "veliki") return tall ? { x: 0.08, y: 0.5, w: 0.76, h: 0.1 } : { x: 0.08, y: 0.62, w: 0.84, h: 0.14 };
+  return tall ? { x: 0.08, y: 0.55, w: 0.76, h: 0.1 } : { x: 0.08, y: 0.76, w: 0.84, h: 0.16 };
+}
+
+/** Titl u trenutku `t`: redovi reči u izabranom pismu i stanje svake reči. */
+export function captionsAt(timeline: CreaTimelineV1, t: number): FrameCaptions | null {
+  const captions = timeline.captions;
+  if (!captions || captions.cues.length === 0) return null;
+  const index = cueIndexAt(captions.cues, t);
+  if (index < 0) return null;
+  const cue = captions.cues[index]!;
+  const options = cueOptionsFor(captions.style);
+  let active = -1;
+  cue.words.forEach((word, wordIndex) => {
+    if (word.s <= t) active = wordIndex;
+  });
+  const words = cue.words.map((word, wordIndex) => ({
+    w: transliterateText(word.w, captions.script),
+    text: transliterateText(word.w, captions.script),
+    state: (wordIndex < active ? "past" : wordIndex === active ? "active" : "future") as FrameCaptionWord["state"],
+    enter: clamp((t - word.s) / 0.18, 0, 1),
+  }));
+  return {
+    style: captions.style,
+    rect: captionRect(captions.style, timeline.aspect),
+    lines: cueLines(words, options.maxChars, options.maxLines).map((line) => line.map(({ text, state, enter }) => ({ text, state, enter }))),
+  };
 }
 
 /** Prozor izvora za sloj (Ken Burns ili običan „cover"), za izvor odnosa `sourceAspect`. */

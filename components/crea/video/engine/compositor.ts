@@ -1,6 +1,6 @@
 import { canvasFont, measurerFor } from "@/components/crea/editor/fonts";
 import { layoutText, type TextLayout } from "@/lib/crea-text-fit";
-import { layerWindow, type FrameLayer, type FramePlan, type FrameTitle, type TitleFont } from "@/lib/crea-timeline";
+import { layerWindow, type FrameCaptions, type FrameLayer, type FramePlan, type FrameTitle, type TitleFont } from "@/lib/crea-timeline";
 
 /**
  * Crtač kadra montaže (Crea K19, V24; plan K17-2): JEDNA funkcija za pregled i
@@ -191,6 +191,103 @@ function drawTitle(ctx: CanvasRenderingContext2D, title: FrameTitle, width: numb
   ctx.restore();
 }
 
+/** Veličina slova titla po stilu, u delovima kraće stranice kadra. */
+const CAPTION_SIZE: Record<FrameCaptions["style"], number> = {
+  klasican: 0.05,
+  "zuta-traka": 0.05,
+  karaoke: 0.056,
+  veliki: 0.088,
+  rukopis: 0.06,
+};
+
+/**
+ * Titlovi (K21, V25): redovi reči u pravougaoniku stila. Svaki stil je deo
+ * videa (boje brenda svetle teme), ne interfejsa. Red širi od kadra smanjuje
+ * slova za ceo titl, pa redovi ostaju iste veličine.
+ */
+function drawCaptions(ctx: CanvasRenderingContext2D, captions: FrameCaptions, width: number, height: number) {
+  const lines = captions.lines.filter((line) => line.length > 0);
+  if (lines.length === 0) return;
+  const style = captions.style;
+  const font: TitleFont = style === "rukopis" ? "rukopis" : "nunito";
+  const weight = style === "rukopis" ? 400 : style === "klasican" ? 700 : 900;
+  const box = { x: captions.rect.x * width, y: captions.rect.y * height, w: captions.rect.w * width, h: captions.rect.h * height };
+
+  let fontSize = Math.max(10, Math.min(width, height) * CAPTION_SIZE[style]);
+  ctx.save();
+  ctx.font = canvasFont(font, weight, fontSize);
+  const widest = Math.max(...lines.map((line) => ctx.measureText(line.map((word) => word.text).join(" ")).width), 1);
+  const padX = style === "klasican" || style === "zuta-traka" ? fontSize * 0.45 : fontSize * 0.2;
+  if (widest + padX * 2 > box.w) {
+    fontSize = Math.max(10, (fontSize * (box.w - padX * 2)) / widest);
+    ctx.font = canvasFont(font, weight, fontSize);
+  }
+  const lineHeight = fontSize * 1.28;
+  const blockHeight = lines.length * lineHeight;
+  // „Veliki" stoji u sredini svog pravougaonika, ostali rastu naviše od donje ivice.
+  const top = style === "veliki" ? box.y + (box.h - blockHeight) / 2 : box.y + box.h - blockHeight;
+  const centerX = box.x + box.w / 2;
+  ctx.textBaseline = "middle";
+  ctx.textAlign = "left";
+  ctx.lineJoin = "round";
+  const space = ctx.measureText(" ").width;
+
+  lines.forEach((line, lineIndex) => {
+    const widths = line.map((word) => ctx.measureText(word.text).width);
+    const lineWidth = widths.reduce((sum, value) => sum + value, 0) + space * (line.length - 1);
+    const y = top + lineHeight * (lineIndex + 0.5);
+    let x = centerX - lineWidth / 2;
+
+    if (style === "klasican" || style === "zuta-traka") {
+      const padY = fontSize * 0.14;
+      const rect = { x: x - padX, y: y - lineHeight / 2 - padY / 2, w: lineWidth + padX * 2, h: lineHeight + padY };
+      if (style === "zuta-traka") {
+        const shadow = Math.max(2, fontSize * 0.1);
+        ctx.fillStyle = INK;
+        ctx.fillRect(rect.x + shadow, rect.y + shadow, rect.w, rect.h);
+        ctx.fillStyle = YELLOW;
+        ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+        ctx.lineWidth = Math.max(1.5, fontSize * 0.06);
+        ctx.strokeStyle = INK;
+        ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
+      } else {
+        ctx.fillStyle = "rgba(14, 49, 88, 0.8)";
+        ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+      }
+    }
+
+    line.forEach((word, wordIndex) => {
+      const wordWidth = widths[wordIndex]!;
+      const spoken = word.state !== "future";
+      ctx.save();
+      if (style === "veliki" && word.state === "active") {
+        // Reč koja se izgovara malo iskoči (1,18 → 1 za ~0,2 s).
+        const scale = 1 + 0.18 * (1 - word.enter);
+        ctx.translate(x + wordWidth / 2, y);
+        ctx.scale(scale, scale);
+        ctx.translate(-(x + wordWidth / 2), -y);
+      }
+      if (style === "karaoke" || style === "veliki") {
+        ctx.lineWidth = fontSize * (style === "veliki" ? 0.2 : 0.16);
+        ctx.strokeStyle = INK;
+        ctx.strokeText(word.text, x, y);
+        ctx.fillStyle = style === "karaoke" ? (spoken ? YELLOW : "#ffffff") : word.state === "active" ? YELLOW : "#ffffff";
+      } else if (style === "rukopis") {
+        const offset = Math.max(1, fontSize * 0.06);
+        ctx.fillStyle = INK;
+        ctx.fillText(word.text, x + offset, y + offset);
+        ctx.fillStyle = "#ffffff";
+      } else {
+        ctx.fillStyle = style === "zuta-traka" ? INK : "#ffffff";
+      }
+      ctx.fillText(word.text, x, y);
+      ctx.restore();
+      x += wordWidth + space;
+    });
+  });
+  ctx.restore();
+}
+
 /**
  * Nacrtaj ceo kadar na platno `width × height`. `sourceFor` daje kadar sloja
  * (`<video>`, platno iz dekodera ili sliku); sloj bez izvora se preskače.
@@ -236,5 +333,6 @@ export function drawFrame(
     ctx.restore();
   }
   for (const title of plan.titles) drawTitle(ctx, title, width, height);
+  if (plan.captions) drawCaptions(ctx, plan.captions, width, height);
   ctx.restore();
 }

@@ -2066,6 +2066,13 @@ export async function deleteJobForUser(
     .unique();
   if (embedding) await ctx.db.delete(embedding._id);
 
+  // Transkript `stt` posla (K21) pripada radu.
+  const transcript = await ctx.db
+    .query("creaTranscripts")
+    .withIndex("by_job", (q) => q.eq("jobId", job._id))
+    .first();
+  if (transcript) await ctx.db.delete(transcript._id);
+
   await ctx.db.delete(job._id);
 }
 

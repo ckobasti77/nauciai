@@ -69,7 +69,7 @@ export function promptFromParts(parts: readonly PromptPart[]): string {
 }
 
 /** Tekst odgovora iz `candidates[0].content.parts`. */
-function responseText(raw: unknown): string | null {
+export function responseText(raw: unknown): string | null {
   if (!raw || typeof raw !== "object") return null;
   const candidates = (raw as { candidates?: unknown }).candidates;
   if (!Array.isArray(candidates) || candidates.length === 0) return null;

@@ -158,7 +158,9 @@ export function runPreflight(input: PreflightInput): PreflightItem[] {
   }
 
   // Kuka u prve 2 s: natpis koji se pojavi, ili promena kadra.
-  const earlyTitle = timeline.titles.some((title) => title.start < HOOK_S && title.text.trim().length > 0);
+  // Titlovi (K21) se računaju kao natpis: titl u prve 2 s je takođe udica.
+  const cues = timeline.captions?.cues ?? [];
+  const earlyTitle = timeline.titles.some((title) => title.start < HOOK_S && title.text.trim().length > 0) || cues.some((cue) => cue.start < HOOK_S);
   const firstClipEnd = timeline.main.length > 1 ? firstCutAt(timeline) : Infinity;
   if (duration >= 1) {
     items.push(
@@ -181,8 +183,8 @@ export function runPreflight(input: PreflightInput): PreflightItem[] {
   }
 
   // Natpisi i titlovi: mnogi gledaju bez zvuka.
-  const hasText = timeline.titles.some((title) => title.text.trim().length > 0);
-  const hasSubtitles = timeline.titles.some((title) => title.style === "titl" && title.text.trim().length > 0);
+  const hasText = timeline.titles.some((title) => title.text.trim().length > 0) || cues.length > 0;
+  const hasSubtitles = timeline.titles.some((title) => title.style === "titl" && title.text.trim().length > 0) || cues.length > 0;
   if (audio?.hasVoice && !hasSubtitles) {
     items.push({
       id: "natpisi",

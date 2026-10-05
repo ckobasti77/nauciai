@@ -532,7 +532,7 @@ export default function MontageTool({ tool, locale, caps, canSave, projectId, so
     ) : selectedOverlay ? (
       <OverlayInspector key={selectedOverlay.id} locale={locale} timeline={timeline} clip={selectedOverlay} onChange={commit} library={library} playheadTime={player.time} />
     ) : selection?.kind === "transition" ? (
-      <TransitionControls locale={locale} timeline={timeline} afterId={selection.id} onChange={commit} />
+      <TransitionControls locale={locale} timeline={timeline} afterId={selection.id} onChange={commit} library={library} />
     ) : (
       <p className="type-body-sm font-semibold text-muted">{T.pickSomething[locale]}</p>
     );
