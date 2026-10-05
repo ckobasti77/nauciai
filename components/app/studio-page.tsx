@@ -39,6 +39,7 @@ import { creaGoalById } from "@/lib/crea-goals";
 import {
   CREA_AREA_KIND,
   creaModeDef,
+  creaPromptFromParams,
   creaShellQuery,
   inputModeForMode,
   modelsForMode,
@@ -297,12 +298,16 @@ export function StudioPage({
   // Moderatorski pregled (H3): "Samo moji" / "Svi korisnici", samo za osoblje.
   const [scope, setScope] = useState<GalleryScope>("mine");
   // Cilj sa početnog ekrana popunjava opis; promena cilja (ili izlazak iz njega) ga menja.
+  // `?opis=` (K09, npr. paleta boja iz alata) popunjava opis kad nema cilja.
   const goal = creaGoalById(shell.goal);
-  const [starterPrompt, setStarterPrompt] = useState<string | null>(() => goal?.prompt?.[locale] ?? null);
+  const promptParam = creaPromptFromParams(searchParams);
+  const [starterPrompt, setStarterPrompt] = useState<string | null>(() => goal?.prompt?.[locale] ?? promptParam);
   const [prevGoalId, setPrevGoalId] = useState(shell.goal);
-  if (shell.goal !== prevGoalId) {
+  const [prevPromptParam, setPrevPromptParam] = useState(promptParam);
+  if (shell.goal !== prevGoalId || promptParam !== prevPromptParam) {
     setPrevGoalId(shell.goal);
-    setStarterPrompt(goal?.prompt?.[locale] ?? null);
+    setPrevPromptParam(promptParam);
+    setStarterPrompt(goal?.prompt?.[locale] ?? promptParam);
   }
   const [error, setError] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);

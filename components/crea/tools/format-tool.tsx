@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element -- rezultat je lokalni `blob:` URL, koji next/image ne obrađuje. */
 "use client";
 
-import { FileImage, ShieldCheck } from "lucide-react";
+import { FileImage, Info, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 
 import { ImageInput, useImageInput } from "@/components/crea/tools/image-input";
@@ -14,6 +14,7 @@ import {
   CREA_IMAGE_FORMATS,
   encoderQuality,
   fitPixels,
+  maxPixelsFor,
   needsWasmEncoder,
   outputFileName,
   QUALITY_DEFAULT,
@@ -42,21 +43,50 @@ async function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality: nu
   return new Promise((resolve) => canvas.toBlob(resolve, type, quality));
 }
 
+/** WASM koderi (jSquash) za formate koje platno ne ume; svaki se učitava tek kad zatreba. */
+async function encodeWithWasm(format: CreaImageFormat, pixels: ImageData, quality: number): Promise<ArrayBuffer> {
+  if (format === "webp") {
+    const { default: encodeWebp } = await import("@jsquash/webp/encode");
+    return encodeWebp(pixels, { quality });
+  }
+  if (format === "avif") {
+    // Jednonitni koder direktno: `@jsquash/avif/encode` statički uvozi i višenitni
+    // (worker koji pokreće sam sebe), na kome `next build` (Turbopack) zaglavi. Bez
+    // COOP/COEP (K01-5) višenitni ionako ne bi radio.
+    const [{ default: avifFactory }, { defaultOptions }] = await Promise.all([
+      import("@jsquash/avif/codec/enc/avif_enc.js"),
+      import("@jsquash/avif/meta.js"),
+    ]);
+    const codec = await avifFactory({ noInitialRun: true });
+    // `speed` 8: par puta brže od podrazumevanog uz jedva primetnu razliku u veličini.
+    const out = codec.encode(new Uint8Array(pixels.data.buffer), pixels.width, pixels.height, {
+      ...defaultOptions,
+      quality,
+      speed: 8,
+    });
+    if (!out) throw new CreaLocalAiError("INFERENCE_FAILED");
+    return out.slice().buffer;
+  }
+  throw new CreaLocalAiError("UNSUPPORTED");
+}
+
 /**
  * Konverzija u browseru. Sliku dekodira `createImageBitmap` (uz okretanje po
  * EXIF orijentaciji), platno je ponovo kodira - i time briše SVE skrivene
- * podatke, jer platno piše samo piksele. Safari ne ume WebP kroz platno, pa tada
- * kodira jSquash (WASM, učitava se tek tada).
+ * podatke, jer platno piše samo piksele. Safari ne ume WebP kroz platno, a AVIF
+ * skoro nijedan browser, pa tada kodira jSquash (WASM, učitava se tek tada).
+ * `original` je HEIC sa iPhone-a pre pretvaranja: skriveni podaci se čitaju iz njega.
  */
 async function convertImage(
   file: File,
+  original: File | undefined,
   format: CreaImageFormat,
   quality: number,
   context: ToolRunContext,
 ): Promise<CreaToolOutput<FormatExtra>> {
   context.reportRunning();
   const { default: exifr } = await import("exifr");
-  const before = await exifr.parse(file).catch(() => undefined);
+  const before = await exifr.parse(original ?? file).catch(() => undefined);
 
   let bitmap: ImageBitmap;
   try {
@@ -66,7 +96,7 @@ async function convertImage(
   }
   if (context.signal.aborted) throw new CreaLocalAiError("ABORTED");
 
-  const fit = fitPixels(bitmap.width, bitmap.height);
+  const fit = fitPixels(bitmap.width, bitmap.height, maxPixelsFor(format));
   const canvas = document.createElement("canvas");
   canvas.width = fit.width;
   canvas.height = fit.height;
@@ -84,11 +114,8 @@ async function convertImage(
   const spec = CREA_IMAGE_FORMATS[format];
   let blob = await canvasToBlob(canvas, spec.mime, encoderQuality(format, quality));
   if (needsWasmEncoder(format, blob?.type)) {
-    if (format !== "webp") throw new CreaLocalAiError("UNSUPPORTED");
     try {
-      const { default: encodeWebp } = await import("@jsquash/webp/encode");
-      const pixels = ctx.getImageData(0, 0, fit.width, fit.height);
-      const encoded = await encodeWebp(pixels, { quality });
+      const encoded = await encodeWithWasm(format, ctx.getImageData(0, 0, fit.width, fit.height), quality);
       blob = new Blob([encoded], { type: spec.mime });
     } catch (error) {
       throw toLocalAiError(error, "UNSUPPORTED");
@@ -114,7 +141,7 @@ async function convertImage(
       uklonjeno: removed.length > 0 ? removed.join(",") : "nista",
     },
     extra: {
-      beforeBytes: file.size,
+      beforeBytes: (original ?? file).size,
       removed,
       verifiedClean: sensitiveMetadata(after).length === 0,
       width: fit.width,
@@ -141,12 +168,15 @@ export default function FormatTool({ tool, locale, caps, canSave, projectId, sou
       canRun={image.picked !== null}
       inputKey={image.picked ? `${image.picked.key}:${format}:${quality}` : null}
       icon={<FileImage aria-hidden="true" className="size-5" />}
-      run={(context) => convertImage(image.picked!.file, format, quality, context)}
+      run={(context) => convertImage(image.picked!.file, image.picked!.original, format, quality, context)}
       renderResult={(output) => <FormatResult locale={locale} output={output} />}
     >
       {({ busy }) => (
         <div className="space-y-5">
           <ImageInput locale={locale} input={image} disabled={busy} />
+          {image.picked?.original ? (
+            <p className="type-body-sm font-bold text-ink">{CREA_FORMAT_COPY.heicNote[locale]}</p>
+          ) : null}
 
           <fieldset disabled={busy}>
             <legend className="type-body-sm font-black text-ink">{CREA_FORMAT_COPY.format[locale]}</legend>
@@ -190,11 +220,21 @@ export default function FormatTool({ tool, locale, caps, canSave, projectId, sou
                 onChange={(event) => setQuality(Number(event.target.value))}
                 className="mt-2 h-11 w-full cursor-pointer accent-ink"
               />
-              <p className="type-body-sm font-semibold text-muted">{CREA_FORMAT_COPY.qualityHint[locale]}</p>
+              <p className="type-body-sm font-semibold text-muted">
+                {CREA_FORMAT_COPY[format === "avif" ? "avifSlow" : "qualityHint"][locale]}
+              </p>
             </div>
           ) : (
             <p className="type-body-sm font-semibold text-muted">{CREA_FORMAT_COPY.pngNoQuality[locale]}</p>
           )}
+
+          <details className="surface-inset bg-paper p-3">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 type-body-sm font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink [&::-webkit-details-marker]:hidden">
+              <Info aria-hidden="true" className="size-4 shrink-0" />
+              {CREA_FORMAT_COPY.whyTitle[locale]}
+            </summary>
+            <p className="mt-1 type-body-sm font-semibold text-ink">{CREA_FORMAT_COPY.whyBody[locale]}</p>
+          </details>
         </div>
       )}
     </ToolRunner>

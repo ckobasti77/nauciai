@@ -12,6 +12,8 @@ import {
   CREA_AREAS,
   CREA_MODES,
   creaModeDef,
+  creaPromptFromParams,
+  creaPromptQuery,
   creaShellQuery,
   inputModeForMode,
   modelsForMode,
@@ -239,5 +241,21 @@ describe("creaShellQuery", () => {
         expect(creaModeDef(area, state.mode).id).toBe(mode.id);
       }
     }
+  });
+});
+
+describe("opis iz alata (?opis=)", () => {
+  test("vodi u Slika · Napravi sa opisom, čuva projekat, briše alat", () => {
+    const query = creaPromptQuery("Paleta boja: žuta (#f4be30).", params("oblast=slika&rezim=alati&alat=slika.paleta&project=p1"));
+    const parsed = params(query);
+    expect(parseCreaShellState(parsed)).toMatchObject({ area: "slika", mode: null, tool: null });
+    expect(parsed.get("project")).toBe("p1");
+    expect(creaPromptFromParams(parsed)).toBe("Paleta boja: žuta (#f4be30).");
+  });
+
+  test("predug opis se seče, prazan je null, i ne prenosi se dalje", () => {
+    expect(creaPromptFromParams(params(creaPromptQuery("a".repeat(5000), params(""))))).toHaveLength(2000);
+    expect(creaPromptFromParams(params("opis=%20%20"))).toBeNull();
+    expect(creaShellQuery({ mode: "izmeni" }, params("oblast=slika&opis=x"))).toBe("oblast=slika&rezim=izmeni");
   });
 });

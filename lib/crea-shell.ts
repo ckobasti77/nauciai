@@ -350,6 +350,28 @@ export function creaShellQuery(
   return out.toString();
 }
 
+/**
+ * `?opis=` (K09): jednokratno popunjen opis u „Napravi" - npr. paleta boja iz
+ * alata. Nije deo stanja ljuske: sledeća navigacija ga ne prenosi, pa se opis
+ * ne vraća kad korisnik krene dalje.
+ */
+export const CREA_PROMPT_PARAM = "opis";
+/** Isto kao `PROMPT_MAX_LENGTH` (`lib/studio-messages.ts`); duži opis se seče. */
+export const CREA_PROMPT_PARAM_MAX = 2000;
+
+/** Query za „Slika · Napravi" sa već upisanim opisom. */
+export function creaPromptQuery(prompt: string, current: URLSearchParams): string {
+  const query = new URLSearchParams(creaShellQuery({ area: "slika", mode: "napravi", tool: null }, current));
+  query.set(CREA_PROMPT_PARAM, prompt.slice(0, CREA_PROMPT_PARAM_MAX));
+  return query.toString();
+}
+
+/** Opis iz `?opis=`, očišćen; prazan = `null`. */
+export function creaPromptFromParams(params: { get(key: string): string | null }): string | null {
+  const value = params.get(CREA_PROMPT_PARAM)?.trim().slice(0, CREA_PROMPT_PARAM_MAX) ?? "";
+  return value || null;
+}
+
 /** Najmanji oblik modela koji ljuska čita - važi i za red kataloga i za seed. */
 export type CreaModelLike = {
   slug: string;

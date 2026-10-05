@@ -6,14 +6,27 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 
 import type { ToolSource } from "@/components/crea/tools/types";
 import { FullScreenDropOverlay, useFullScreenDrop } from "@/components/studio/drop-slot";
+import { Spinner } from "@/components/ui/spinner";
 import type { Id } from "@/convex/_generated/dataModel";
 import { CREA_TOOL_COPY, CREA_VERSION_COPY } from "@/lib/crea-copy";
-import { FORMAT_INPUT_MAX_BYTES } from "@/lib/crea-image-format";
+import { FORMAT_INPUT_MAX_BYTES, looksLikeHeic } from "@/lib/crea-image-format";
 import { formatBytes } from "@/lib/crea-local-ai/progress";
 import type { Locale } from "@/lib/i18n";
 
-/** `sourceJobId`: slika je izlaz rada iz galerije (K05), pa rezultat alata postaje njegova verzija. */
-export type PickedImage = { file: File; url: string; key: string; sourceJobId?: Id<"generationJobs"> };
+/**
+ * `sourceJobId`: slika je izlaz rada iz galerije (K05), pa rezultat alata postaje njegova verzija.
+ * `original`: HEIC sa iPhone-a pre pretvaranja u JPG (K09) - iz njega se čitaju skriveni podaci.
+ */
+export type PickedImage = {
+  file: File;
+  url: string;
+  key: string;
+  sourceJobId?: Id<"generationJobs">;
+  original?: File;
+};
+
+/** Izbor fajla prihvata i HEIC, koji neki sistemi ne prijavljuju kao `image/*`. */
+export const IMAGE_INPUT_ACCEPT = "image/*,.heic,.heif";
 
 /**
  * Jedan ulaz slike za lokalne alate. Alat ima tačno jednu metu za sliku, pa
@@ -26,8 +39,11 @@ export type PickedImage = { file: File; url: string; key: string; sourceJobId?: 
  */
 export function useImageInput(source?: ToolSource | null) {
   const [picked, setPicked] = useState<PickedImage | null>(null);
-  const [problem, setProblem] = useState<"notImage" | "tooBig" | null>(null);
+  const [problem, setProblem] = useState<"notImage" | "tooBig" | "heicFailed" | null>(null);
   const [failedSourceId, setFailedSourceId] = useState<string | null>(null);
+  const [converting, setConverting] = useState(false);
+  // Poslednji izbor pobeđuje: HEIC koji se još pretvara ne sme da pregazi noviji fajl.
+  const pickSeq = useRef(0);
 
   useEffect(
     () => () => {
@@ -38,7 +54,9 @@ export function useImageInput(source?: ToolSource | null) {
 
   const choose = useCallback((file: File | undefined, sourceJobId?: Id<"generationJobs">) => {
     if (!file) return;
-    if (!file.type.startsWith("image/")) {
+    const seq = ++pickSeq.current;
+    const heic = looksLikeHeic(file.name, file.type);
+    if (!heic && !file.type.startsWith("image/")) {
       setProblem("notImage");
       return;
     }
@@ -47,12 +65,32 @@ export function useImageInput(source?: ToolSource | null) {
       return;
     }
     setProblem(null);
-    setPicked({
-      file,
-      url: URL.createObjectURL(file),
-      key: `${file.name}:${file.size}:${file.lastModified}:${Date.now()}`,
-      ...(sourceJobId ? { sourceJobId } : {}),
-    });
+    const accept = (ready: File, original?: File) =>
+      setPicked({
+        file: ready,
+        url: URL.createObjectURL(ready),
+        key: `${file.name}:${file.size}:${file.lastModified}:${Date.now()}`,
+        ...(sourceJobId ? { sourceJobId } : {}),
+        ...(original ? { original } : {}),
+      });
+    if (!heic) {
+      setConverting(false);
+      accept(file);
+      return;
+    }
+    // HEIC sa iPhone-a: pretvori u JPG na uređaju (lenjo učitan dekoder), pa nastavi kao sa svakom slikom.
+    setConverting(true);
+    void import("@/components/crea/tools/heic")
+      .then(({ heicToJpeg }) => heicToJpeg(file))
+      .then((jpeg) => {
+        if (seq === pickSeq.current) accept(jpeg, file);
+      })
+      .catch(() => {
+        if (seq === pickSeq.current) setProblem("heicFailed");
+      })
+      .finally(() => {
+        if (seq === pickSeq.current) setConverting(false);
+      });
   }, []);
 
   const sourceJobId = source?.jobId ?? null;
@@ -80,7 +118,7 @@ export function useImageInput(source?: ToolSource | null) {
   const sourceStatus: "loading" | "failed" | null =
     sourceJobId === null || loadedSourceId === sourceJobId ? null : failedSourceId === sourceJobId ? "failed" : "loading";
 
-  return { picked, problem, choose, sourceStatus };
+  return { picked, problem, choose, sourceStatus, converting };
 }
 
 export function ImageInput({
@@ -94,8 +132,9 @@ export function ImageInput({
 }) {
   const inputId = useId();
   const fileRef = useRef<HTMLInputElement | null>(null);
-  const dragging = useFullScreenDrop(!disabled, (files) => input.choose(files[0]));
-  const { picked, problem, sourceStatus } = input;
+  const { picked, problem, sourceStatus, converting } = input;
+  const locked = disabled || converting;
+  const dragging = useFullScreenDrop(!locked, (files) => input.choose(files[0]));
 
   return (
     <div>
@@ -103,7 +142,7 @@ export function ImageInput({
         ref={fileRef}
         id={inputId}
         type="file"
-        accept="image/*"
+        accept={IMAGE_INPUT_ACCEPT}
         className="sr-only"
         tabIndex={-1}
         onChange={(event) => {
@@ -124,7 +163,7 @@ export function ImageInput({
             <p className="font-mono text-xs font-bold text-muted">{formatBytes(picked.file.size, locale)}</p>
             <button
               type="button"
-              disabled={disabled}
+              disabled={locked}
               onClick={() => fileRef.current?.click()}
               className="mt-2 inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-paper px-4 text-sm font-black text-ink transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none"
             >
@@ -136,7 +175,7 @@ export function ImageInput({
       ) : (
         <button
           type="button"
-          disabled={disabled}
+          disabled={locked}
           onClick={() => fileRef.current?.click()}
           className="surface-inset flex min-h-36 w-full flex-col items-center justify-center gap-2 border-2 border-dashed border-line bg-paper p-5 text-center text-ink transition-colors hover:border-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none"
         >
@@ -147,6 +186,13 @@ export function ImageInput({
           <span className="type-body-sm font-semibold text-muted">{CREA_TOOL_COPY.dropHint[locale]}</span>
         </button>
       )}
+
+      {converting ? (
+        <p role="status" className="mt-2 inline-flex items-center gap-2 type-body-sm font-bold text-muted">
+          <Spinner size="xs" />
+          {CREA_TOOL_COPY.heicConverting[locale]}
+        </p>
+      ) : null}
 
       {sourceStatus ? (
         <p role="status" className="mt-2 type-body-sm font-bold text-muted">

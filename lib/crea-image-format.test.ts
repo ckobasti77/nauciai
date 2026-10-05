@@ -6,6 +6,8 @@ import {
   CREA_IMAGE_FORMAT_IDS,
   encoderQuality,
   fitPixels,
+  looksLikeHeic,
+  maxPixelsFor,
   needsWasmEncoder,
   outputFileName,
   QUALITY_DEFAULT,
@@ -14,8 +16,9 @@ import {
 } from "./crea-image-format";
 
 describe("format i kvalitet", () => {
-  test("tri formata, PNG bez kvaliteta", () => {
-    expect(CREA_IMAGE_FORMAT_IDS).toEqual(["webp", "jpeg", "png"]);
+  test("četiri formata, PNG bez kvaliteta", () => {
+    expect(CREA_IMAGE_FORMAT_IDS).toEqual(["webp", "jpeg", "png", "avif"]);
+    expect(encoderQuality("avif", 60)).toBe(0.6);
     expect(encoderQuality("webp", 80)).toBe(0.8);
     expect(encoderQuality("jpeg", 120)).toBe(1);
     expect(encoderQuality("png", 80)).toBeUndefined();
@@ -31,6 +34,27 @@ describe("format i kvalitet", () => {
     expect(needsWasmEncoder("webp", "image/png")).toBe(true);
     expect(needsWasmEncoder("webp", "image/webp")).toBe(false);
     expect(needsWasmEncoder("jpeg", undefined)).toBe(true);
+  });
+
+  test("AVIF ide kroz jSquash kad platno vrati PNG, i ima manju granicu piksela", () => {
+    expect(needsWasmEncoder("avif", "image/png")).toBe(true);
+    expect(needsWasmEncoder("avif", "image/avif")).toBe(false);
+    expect(maxPixelsFor("avif")).toBeLessThan(maxPixelsFor("webp"));
+    expect(maxPixelsFor("png")).toBe(CANVAS_MAX_PIXELS);
+    const fit = fitPixels(8064, 6048, maxPixelsFor("avif"));
+    expect(fit.scaled).toBe(true);
+    expect(fit.width * fit.height).toBeLessThanOrEqual(maxPixelsFor("avif"));
+  });
+});
+
+describe("HEIC sa iPhone-a", () => {
+  test("prepoznaje se po MIME-u ili po imenu (Windows šalje prazan tip)", () => {
+    expect(looksLikeHeic("IMG_0042.HEIC", "")).toBe(true);
+    expect(looksLikeHeic("slika.heif", "")).toBe(true);
+    expect(looksLikeHeic("bez-imena", "image/heic")).toBe(true);
+    expect(looksLikeHeic("x", "image/heif-sequence")).toBe(true);
+    expect(looksLikeHeic("foto.jpg", "image/jpeg")).toBe(false);
+    expect(looksLikeHeic("heic.png", "image/png")).toBe(false);
   });
 });
 

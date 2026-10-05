@@ -24,7 +24,8 @@ import { getStudioMotion } from "@/lib/studio-motion";
 /** Ono što alat vrati: fajl za galeriju/preuzimanje i dodatak koji crta samo taj alat. */
 export type CreaToolOutput<TExtra = unknown> = {
   blob: Blob;
-  kind: CreaMediaKind;
+  /** `text` i `svg` (paleta, OCR, vektor) se samo preuzimaju ili kopiraju - nikad u galeriju. */
+  kind: CreaMediaKind | "text" | "svg";
   fileName: string;
   /** Opis rada u galeriji („Istorija"): samo JSON primitive. */
   params?: Record<string, string | number | boolean>;
@@ -181,11 +182,13 @@ export function ToolRunner<TExtra>({
   }
 
   async function saveToGallery(output: CreaToolOutput<TExtra>) {
+    const kind = output.kind;
+    if (kind === "text" || kind === "svg") return;
     setSave({ status: "saving" });
     try {
       const result = await saveLocalResult({
         toolId: tool.id,
-        kind: output.kind,
+        kind,
         blob: output.blob,
         params: output.params,
         projectId,
@@ -410,7 +413,7 @@ function ResultActions<TExtra>({
   onSave: () => void;
   onDownload: () => void;
 }) {
-  const maxBytes = LOCAL_RESULT_MAX_BYTES[output.kind];
+  const maxBytes = output.kind === "text" || output.kind === "svg" ? 0 : LOCAL_RESULT_MAX_BYTES[output.kind];
   const fitsGallery = output.blob.size <= maxBytes;
   const offerSave = tool.savesToGallery && canSave && fitsGallery;
 

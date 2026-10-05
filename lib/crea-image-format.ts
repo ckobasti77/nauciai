@@ -13,6 +13,7 @@ export const CREA_IMAGE_FORMATS = {
   webp: { mime: "image/webp", ext: "webp", lossy: true },
   jpeg: { mime: "image/jpeg", ext: "jpg", lossy: true },
   png: { mime: "image/png", ext: "png", lossy: false },
+  avif: { mime: "image/avif", ext: "avif", lossy: true },
 } as const;
 export type CreaImageFormat = keyof typeof CREA_IMAGE_FORMATS;
 export const CREA_IMAGE_FORMAT_IDS = Object.keys(CREA_IMAGE_FORMATS) as CreaImageFormat[];
@@ -31,6 +32,16 @@ export const FORMAT_INPUT_MAX_BYTES = 50 * 1024 * 1024;
  * se to kaže - inače bi iPhone vratio praznu sliku bez greške.
  */
 export const CANVAS_MAX_PIXELS = 16_777_216;
+
+/**
+ * AVIF kodira jSquash (WASM, jedna nit) - 16 MP na telefonu traje minutima.
+ * 4 MP (npr. 2560 × 1600) je i dalje oštro za web, a gotovo je za nekoliko sekundi.
+ */
+export const AVIF_MAX_PIXELS = 4_194_304;
+
+export function maxPixelsFor(format: CreaImageFormat): number {
+  return format === "avif" ? AVIF_MAX_PIXELS : CANVAS_MAX_PIXELS;
+}
 
 export function clampQuality(value: number): number {
   if (!Number.isFinite(value)) return QUALITY_DEFAULT;
@@ -58,7 +69,7 @@ export function fitPixels(
 
 /**
  * Safari ume da vrati PNG kad se traži WebP (`toBlob` tiho padne na podrazumevani
- * format). Tada se WebP pravi jSquash-om.
+ * format), a AVIF kroz platno ne ume skoro nijedan browser. Tada kodira jSquash.
  */
 export function needsWasmEncoder(format: CreaImageFormat, producedType: string | undefined): boolean {
   return producedType !== CREA_IMAGE_FORMATS[format].mime;
@@ -74,6 +85,14 @@ export function outputFileName(inputName: string, format: CreaImageFormat): stri
     .trim()
     .slice(0, 80);
   return `${base || "slika"}.${CREA_IMAGE_FORMATS[format].ext}`;
+}
+
+/**
+ * HEIC/HEIF (fotke sa iPhone-a). Windows i Android često ne znaju MIME, pa
+ * `file.type` bude prazan - zato i po nastavku imena.
+ */
+export function looksLikeHeic(name: string, type: string): boolean {
+  return /^image\/hei[cf](-sequence)?$/i.test(type) || /\.(heic|heif)$/i.test(name.trim());
 }
 
 /** Promena veličine fajla u procentima, zaokružena; negativno = manji fajl. */

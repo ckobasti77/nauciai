@@ -117,8 +117,8 @@ export const CREA_LOCAL_AI_ERROR_COPY = {
     en: "This is too heavy for this device. Try a smaller image or a stronger device.",
   },
   BAD_INPUT: {
-    sr: "Ovu sliku ne možemo da otvorimo. Probaj JPG, PNG ili WebP (HEIC sa iPhone-a stiže uskoro).",
-    en: "We cannot open this image. Try JPG, PNG or WebP (HEIC from iPhone is coming soon).",
+    sr: "Ovu sliku ne možemo da otvorimo. Probaj JPG, PNG, WebP ili HEIC sa iPhone-a.",
+    en: "We cannot open this image. Try JPG, PNG, WebP or HEIC from an iPhone.",
   },
   MODEL_LOAD_FAILED: {
     sr: "Alat nije uspeo da se pokrene. Osveži stranicu i pokušaj ponovo.",
@@ -158,7 +158,15 @@ export const CREA_TOOL_COPY = {
     sr: "Ceo ekran prima sliku. Ništa se ne šalje - alat radi na tvom uređaju.",
     en: "The whole screen takes the image. Nothing is uploaded - the tool runs on your device.",
   },
-  notImage: { sr: "To nije slika. Izaberi JPG, PNG ili WebP.", en: "That is not an image. Choose a JPG, PNG or WebP." },
+  notImage: {
+    sr: "To nije slika. Izaberi JPG, PNG, WebP ili HEIC.",
+    en: "That is not an image. Choose a JPG, PNG, WebP or HEIC.",
+  },
+  heicConverting: { sr: "Pretvaram fotku sa iPhone-a (HEIC) u JPG…", en: "Converting the iPhone photo (HEIC) to JPG…" },
+  heicFailed: {
+    sr: "Ovaj HEIC fajl nismo uspeli da otvorimo. Na iPhone-u ga podeli kao JPG pa probaj ponovo.",
+    en: "We could not open this HEIC file. Share it as a JPG from the iPhone and try again.",
+  },
   tooBig: { sr: "Slika je veća od 50 MB. Izaberi manju.", en: "The image is larger than 50 MB. Choose a smaller one." },
   otherFile: { sr: "Druga slika", en: "Another image" },
   run: { sr: "Pokreni", en: "Run" },
@@ -351,11 +359,25 @@ export const CREA_FORMAT_COPY = {
     webp: { sr: "WebP · najmanji za web", en: "WebP · smallest for the web" },
     jpeg: { sr: "JPG · radi svuda", en: "JPG · works everywhere" },
     png: { sr: "PNG · bez gubitka, providan", en: "PNG · lossless, transparent" },
+    avif: { sr: "AVIF · još manji, novi browseri", en: "AVIF · even smaller, new browsers" },
   },
   quality: { sr: "Kvalitet", en: "Quality" },
   qualityHint: {
     sr: "Manje = manji fajl. 80 je dobar izbor za fotke.",
     en: "Lower = smaller file. 80 is a good choice for photos.",
+  },
+  avifSlow: {
+    sr: "AVIF se pravi sporije (nekoliko sekundi) i veće slike smanjujemo na oko 4 MP.",
+    en: "AVIF takes longer (a few seconds) and we shrink bigger images to about 4 MP.",
+  },
+  heicNote: {
+    sr: "Fotka sa iPhone-a (HEIC) je pretvorena na tvom uređaju. Izaberi JPG da radi svuda.",
+    en: "The iPhone photo (HEIC) was converted on your device. Pick JPG so it works everywhere.",
+  },
+  whyTitle: { sr: "Zašto je bitno da obrišeš lokaciju?", en: "Why does removing the location matter?" },
+  whyBody: {
+    sr: "Fotka sa telefona često pamti tačno mesto gde je snimljena, model telefona i vreme. Kad je okačiš ili pošalješ, svako ko otvori fajl može da vidi gde živiš ili gde ti dete ide u školu. Ovaj alat pravi novu sliku samo od piksela, pa toga u njoj nema.",
+    en: "A phone photo often remembers the exact place it was taken, the phone model and the time. When you post or send it, anyone who opens the file can see where you live or where your child goes to school. This tool makes a new image out of the pixels only, so none of that is left.",
   },
   pngNoQuality: {
     sr: "PNG čuva svaki piksel, pa nema klizač kvaliteta.",
@@ -380,8 +402,8 @@ export const CREA_FORMAT_COPY = {
   bigger: { sr: "{n} % veće", en: "{n}% larger" },
   same: { sr: "iste veličine", en: "same size" },
   scaled: {
-    sr: "Slika je bila prevelika za obradu u browseru, pa je smanjena na {w} × {h} px.",
-    en: "The image was too large to process in the browser, so it was resized to {w} × {h} px.",
+    sr: "Slika je smanjena na {w} × {h} px, da bi brzo radilo i na telefonu.",
+    en: "The image was resized to {w} × {h} px so it works quickly on a phone too.",
   },
 } satisfies Record<string, LocalizedText | Record<string, LocalizedText>>;
 

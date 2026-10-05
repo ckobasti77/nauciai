@@ -114,15 +114,37 @@ describe("registar alata", () => {
     for (const tool of CREA_TOOLS) if (tool.tier === "server") expect(tool.status).toBe("soon");
   });
 
-  test("K04 pušta tačno dva alata: format i proveru fotke", () => {
+  test("K04 pušta format i proveru fotke, K09 sedam besplatnih alata za sliku", () => {
     const ready = CREA_TOOLS.filter((tool) => tool.status === "ready").map((tool) => tool.id);
-    expect(ready).toEqual(["slika.format", "slika.provera"]);
+    expect(ready).toEqual([
+      "slika.format",
+      "slika.provera",
+      "slika.iseci",
+      "slika.pametni-isecak",
+      "slika.paleta",
+      "slika.qr",
+      "slika.vektor",
+      "slika.gif",
+      "slika.ocr",
+    ]);
     expect(toolById("slika.format")).toMatchObject({ tier: "local-code", featureIds: ["S27"], output: "image" });
     expect(toolById("slika.provera")).toMatchObject({
       tier: "local-ai",
       featureIds: ["S35"],
       localModels: ["mp-face-detector"],
     });
+  });
+
+  test("K09 alati: 0 kredita, tekst i SVG se ne čuvaju u galeriju, medij se čuva", () => {
+    const k09 = ["slika.iseci", "slika.pametni-isecak", "slika.paleta", "slika.qr", "slika.vektor", "slika.gif", "slika.ocr"];
+    for (const id of k09) {
+      const tool = toolById(id)!;
+      expect(tool.price, id).toEqual({ kind: "free" });
+      expect(tool.savesToGallery, id).toBe(tool.output === "image");
+    }
+    expect(toolById("slika.pametni-isecak")?.localModels).toEqual(["mp-face-detector"]);
+    expect(toolById("slika.ocr")?.localModels).toEqual(["tess-srp", "tess-srp-latn"]);
+    expect(toolById("slika.gif")?.inputs).toEqual(["images"]);
   });
 
   test("svaki alat sa kartice „Šta praviš danas?\" postoji u registru", () => {

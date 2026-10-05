@@ -1,4 +1,5 @@
 import type { FaceDetector } from "@mediapipe/tasks-vision";
+import type { Worker as TesseractWorker } from "tesseract.js";
 
 import { fetchModelFile } from "./cache";
 import { CreaLocalAiError, toLocalAiError } from "./errors";
@@ -109,5 +110,74 @@ export async function loadFaceDetector(options: LocalLoadOptions = {}): Promise<
     faceDetector = null;
     visionFileset = null;
     throw toLocalAiError(error, "MODEL_LOAD_FAILED");
+  }
+}
+
+// ── Tekst sa slike (S32, K09) ────────────────────────────────────────────────
+
+/** Jezik Tesseract-a → model u registru (zbog veličine preuzimanja). */
+const OCR_LANGUAGE_MODELS = { srp: "tess-srp", srp_latn: "tess-srp-latn" } as const;
+export type OcrLanguage = keyof typeof OCR_LANGUAGE_MODELS;
+
+let ocr: { key: string; worker: Promise<TesseractWorker> } | null = null;
+/** Kome Tesseract javlja napredak (logger se zadaje jednom, pri pravljenju workera). */
+let ocrProgress: ((status: string, progress: number) => void) | null = null;
+
+/** Ugasi Tesseract worker - jedini način da se prekine prepoznavanje koje traje. */
+export function terminateOcrWorker() {
+  const current = ocr;
+  ocr = null;
+  void current?.worker.then((worker) => worker.terminate()).catch(() => undefined);
+}
+
+/**
+ * Tesseract worker za izabrana pisma (`srp` ćirilica, `srp_latn` latinica).
+ * tesseract.js sam preuzima worker, WASM jezgro i jezike sa jsdelivr-a i čuva
+ * jezike u IndexedDB-u, pa drugi put radi bez interneta. Worker se pravi jednom
+ * po kombinaciji jezika i ostaje za sledeću sliku.
+ */
+export async function loadOcrWorker(languages: readonly OcrLanguage[], options: LocalLoadOptions = {}): Promise<TesseractWorker> {
+  const key = languages.join("+");
+  const coreBytes = CREA_LOCAL_RUNTIMES.tesseract.bytes;
+  const langBytes = languages.reduce((sum, lang) => sum + CREA_LOCAL_MODELS[OCR_LANGUAGE_MODELS[lang]].bytes, 0);
+  let core = 0;
+  let langs = 0;
+  ocrProgress = (status, progress) => {
+    if (status === "loading tesseract core") core = progress;
+    else if (status === "loading language traineddata") langs = progress;
+    else return;
+    options.onProgress?.(
+      aggregateProgress([
+        { loaded: Math.round(core * coreBytes), total: coreBytes },
+        { loaded: Math.round(langs * langBytes), total: langBytes },
+      ]),
+    );
+  };
+
+  if (ocr?.key !== key) {
+    terminateOcrWorker();
+    // tesseract.js je CommonJS: imenovani izvozi su na `default` kad ih bundler ne razdvoji.
+    const worker = import("tesseract.js").then((module) => {
+      const { createWorker, OEM } = "createWorker" in module ? module : (module as { default: typeof module }).default;
+      return createWorker([...languages], OEM.LSTM_ONLY, {
+        logger: (message) => ocrProgress?.(message.status, message.progress),
+        errorHandler: () => undefined,
+      });
+    });
+    ocr = { key, worker };
+  }
+
+  const pending = ocr!;
+  const onAbort = () => terminateOcrWorker();
+  options.signal?.addEventListener("abort", onAbort, { once: true });
+  try {
+    const worker = await pending.worker;
+    if (options.signal?.aborted) throw new CreaLocalAiError("ABORTED");
+    return worker;
+  } catch (error) {
+    if (ocr === pending) ocr = null;
+    throw toLocalAiError(error, options.signal?.aborted ? "ABORTED" : "MODEL_LOAD_FAILED");
+  } finally {
+    options.signal?.removeEventListener("abort", onAbort);
   }
 }

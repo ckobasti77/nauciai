@@ -69,7 +69,9 @@ export const CREA_LOCAL_RUNTIMES: Record<
   },
   transformers: { bytes: 21 * MB, license: "Apache-2.0" },
   onnx: { bytes: 10 * MB, license: "MIT" },
-  tesseract: { bytes: 3 * MB, license: "Apache-2.0" },
+  // tesseract.js sam vuče worker (111 307 B) i jezgro sa SIMD-om (3 899 472 B) sa jsdelivr-a,
+  // zakucano na verziju paketa (`tesseract.js@v7.0.0`, `tesseract.js-core@v7.0.0`).
+  tesseract: { bytes: 4_010_779, license: "Apache-2.0" },
   vad: { bytes: 2 * MB, license: "MIT" },
 };
 
@@ -201,8 +203,9 @@ export const CREA_LOCAL_MODELS = {
   },
   "tess-srp": {
     runtime: "tesseract",
+    // Tačno putanja koju tesseract.js traži kad `langPath` nije zadat (K09: izmereno 1 537 929 B, gzip).
     source: { host: "jsdelivr", url: "https://cdn.jsdelivr.net/npm/@tesseract.js-data/srp/4.0.0_best_int/srp.traineddata.gz" },
-    bytes: 2 * MB,
+    bytes: 1_537_929,
     license: "Apache-2.0",
     minClass: "phone",
     featureIds: ["S21", "S32"],
@@ -213,7 +216,7 @@ export const CREA_LOCAL_MODELS = {
       host: "jsdelivr",
       url: "https://cdn.jsdelivr.net/npm/@tesseract.js-data/srp_latn/4.0.0_best_int/srp_latn.traineddata.gz",
     },
-    bytes: 2 * MB,
+    bytes: 1_774_421,
     license: "Apache-2.0",
     minClass: "phone",
     featureIds: ["S21", "S32"],
