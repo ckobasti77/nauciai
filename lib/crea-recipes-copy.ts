@@ -1,0 +1,266 @@
+import type { LocalizedText } from "./i18n";
+
+/**
+ * Tekstovi interfejsa za K15: recepti (S37), brend kit (S38), serije (S39),
+ * nalepnice i sprajt (S40), logo (S41). Sami recepti (polja, primeri) su u
+ * `lib/crea-recipes.ts`.
+ */
+
+export const CREA_RECIPE_COPY = {
+  sectionTitle: { sr: "Recepti", en: "Recipes" },
+  sectionBody: {
+    sr: "Gotovi poslovi na srpskom: popuniš 2-3 polja, vidiš cenu unapred i klikneš jedno dugme.",
+    en: "Ready-made jobs: fill in 2-3 fields, see the price up front and click one button.",
+  },
+  allRecipes: { sr: "Svi recepti", en: "All recipes" },
+  example: { sr: "Primer", en: "Example" },
+  fillExample: { sr: "Popuni primerom", en: "Fill in the example" },
+  fixedPrice: { sr: "Fiksna cena", en: "Fixed price" },
+  fixedPriceBody: {
+    sr: "Cena je ista šta god da upišeš ili izabereš: {price}.",
+    en: "The price is the same whatever you type or pick: {price}.",
+  },
+  fixedPriceLoading: { sr: "Cena se računa iz cenovnika…", en: "Working out the price…" },
+  format: { sr: "Format", en: "Format" },
+  formats: {
+    "1:1": { sr: "Kvadrat 1:1", en: "Square 1:1" },
+    "2:3": { sr: "Uspravno 2:3", en: "Portrait 2:3" },
+    "3:2": { sr: "Položeno 3:2", en: "Landscape 3:2" },
+    "16:9": { sr: "Široko 16:9", en: "Wide 16:9" },
+    "9:16": { sr: "Uspravno 9:16", en: "Upright 9:16" },
+    image: { sr: "Kao tvoja fotka", en: "Same as your photo" },
+  },
+  make: { sr: "Napravi", en: "Make it" },
+  missing: { sr: "Popuni još: {field}.", en: "Still to fill in: {field}." },
+  optional: { sr: "nije obavezno", en: "optional" },
+  chars: { sr: "{n}/{max}", en: "{n}/{max}" },
+  advanced: { sr: "Napredno: piši opis sam", en: "Advanced: write the description yourself" },
+  pickCharacter: { sr: "Izaberi lik", en: "Pick a character" },
+  noCharacters: {
+    sr: "Još nemaš sačuvan lik. Napravi ga za minut u „Likovima“ - posle ga koristiš svuda.",
+    en: "You have no saved character yet. Make one in a minute in “Characters” - then use it everywhere.",
+  },
+  openCharacters: { sr: "Otvori Likove", en: "Open Characters" },
+  brandTitle: { sr: "Brend kit", en: "Brand kit" },
+  brandOn: { sr: "Primeni moj brend", en: "Use my brand" },
+  brandOnHint: {
+    sr: "Ime, boje, slova i ton idu u opis; logo ide kao slika - cena ostaje ista.",
+    en: "Name, colours, fonts and tone go into the description; the logo goes in as an image - the price stays the same.",
+  },
+  brandStyleHint: {
+    sr: "Ime, boje, slova i ton idu u opis - cena ostaje ista.",
+    en: "Name, colours, fonts and tone go into the description - the price stays the same.",
+  },
+  brandNone: {
+    sr: "Recept zna da koristi tvoj brend. Podesi ga jednom - logo, boje, slova.",
+    en: "This recipe can use your brand. Set it up once - logo, colours, fonts.",
+  },
+  brandSetup: { sr: "Podesi brend kit", en: "Set up the brand kit" },
+  waiting: { sr: "Crea crta… slika stiže ovde i u istoriju.", en: "Crea is drawing… the picture lands here and in your history." },
+  failed: {
+    sr: "Ovaj put nije uspelo - krediti su ti vraćeni. Probaj ponovo.",
+    en: "It did not work this time - your credits are back. Try again.",
+  },
+  done: { sr: "Gotovo!", en: "Done!" },
+  demoNote: {
+    sr: "Ovo je DEMO plakat - provajder još nema ključ, pa slika nije prava.",
+    en: "This is a DEMO poster - the provider has no key yet, so the picture is not real.",
+  },
+  nextTitle: { sr: "Šta dalje?", en: "What next?" },
+  openWork: { sr: "Otvori rad", en: "Open the work" },
+  again: { sr: "Napravi još jednu", en: "Make another" },
+  stickersCard: { sr: "Viber nalepnice", en: "Sticker pack" },
+  stickersCardHint: {
+    sr: "Devet izraza tvog lika, isečeno, 512 × 512, spremno za paket.",
+    en: "Nine expressions of your character, cut out, 512 × 512, ready as a pack.",
+  },
+  seriesCard: { sr: "Serija oglasa", en: "Ad series" },
+  seriesCardHint: {
+    sr: "Jedan proizvod, više tekstova i formata - svi oglasi odjednom.",
+    en: "One product, several texts and formats - all the ads at once.",
+  },
+  brandCard: { sr: "Tvoj brend kit", en: "Your brand kit" },
+  brandCardHint: {
+    sr: "Logo, boje, slova i ton - recepti i editor ih sami koriste.",
+    en: "Logo, colours, fonts and tone - recipes and the editor use them on their own.",
+  },
+  logoCard: { sr: "Logo kao vektor", en: "Logo as a vector" },
+  logoCardHint: { sr: "SVG koji je oštar na svakoj veličini.", en: "An SVG that is sharp at any size." },
+} as const satisfies Record<string, LocalizedText | Record<string, LocalizedText>>;
+
+/** Natpis izbora modela u receptu (kad ih je više dostupno). */
+export const CREA_RECIPE_MODEL_LABELS: Record<string, LocalizedText> = {
+  "nano-banana-2": { sr: "Nano Banana 2", en: "Nano Banana 2" },
+  "nano-banana-pro": { sr: "Nano Banana Pro · najvernije", en: "Nano Banana Pro · most faithful" },
+  "recraft-41": { sr: "Recraft · najjeftinije", en: "Recraft · cheapest" },
+};
+
+export const CREA_SERIES_COPY = {
+  title: { sr: "Serija oglasa", en: "Ad series" },
+  summary: {
+    sr: "Jedan proizvod × više tekstova i formata. Svaki oglas je zaseban rad, a cena je unapred poznata.",
+    en: "One product × several texts and formats. Each ad is its own work, and the price is known up front.",
+  },
+  product: { sr: "Fotka proizvoda", en: "Product photo" },
+  texts: { sr: "Tekstovi (jedan po redu, do 6)", en: "Texts (one per line, up to 6)" },
+  textsPlaceholder: { sr: "−20 % ovog vikenda\nNovo u ponudi\nBesplatna dostava", en: "−20% this weekend\nNew in store\nFree delivery" },
+  formats: { sr: "Formati", en: "Formats" },
+  count: { sr: "{texts} × {formats} = {jobs} oglasa", en: "{texts} × {formats} = {jobs} ads" },
+  capped: { sr: "Najviše {max} oglasa odjednom - ostali ne ulaze.", en: "At most {max} ads at once - the rest are left out." },
+  total: { sr: "Ukupno {price} ({each} po oglasu)", en: "Total {price} ({each} per ad)" },
+  make: { sr: "Napravi seriju", en: "Make the series" },
+  night: { sr: "Noćna tura", en: "Night run" },
+  nightBody: {
+    sr: "Stiže do jutra, a svaki oglas je jeftiniji: {each} umesto {day}.",
+    en: "Arrives by morning, and each ad is cheaper: {each} instead of {day}.",
+  },
+  queued: { sr: "Poslato {done} od {total}. Ostali čekaju slobodno mesto…", en: "Sent {done} of {total}. The rest are waiting for a free slot…" },
+  sent: { sr: "Svih {total} oglasa je poslato - stižu u istoriju.", en: "All {total} ads are sent - they land in your history." },
+  sentNight: { sr: "Svih {total} oglasa ide u noćnu turu - stižu do jutra.", en: "All {total} ads go into the night run - they arrive by morning." },
+  needProduct: { sr: "Izaberi fotku proizvoda.", en: "Pick a product photo." },
+  needText: { sr: "Upiši bar jedan tekst.", en: "Type at least one text." },
+  needFormat: { sr: "Izaberi bar jedan format.", en: "Pick at least one format." },
+  uploading: { sr: "Kačim fotku…", en: "Uploading the photo…" },
+} as const satisfies Record<string, LocalizedText>;
+
+export const CREA_BRAND_KIT_COPY = {
+  intro: {
+    sr: "Podesi jednom. Recepti, tekst u editoru i vodeni žig posle sami koriste ime, boje, slova i logo.",
+    en: "Set it once. Recipes, editor text and the watermark then use the name, colours, fonts and logo on their own.",
+  },
+  name: { sr: "Ime firme ili brenda", en: "Business or brand name" },
+  namePlaceholder: { sr: "npr. Pekara Klas", en: "e.g. Klas Bakery" },
+  logo: { sr: "Logo", en: "Logo" },
+  logoHint: { sr: "PNG, JPG ili WebP. Iz logoa sami izvlačimo boje.", en: "PNG, JPG or WebP. We pull the colours from the logo." },
+  removeLogo: { sr: "Ukloni logo", en: "Remove the logo" },
+  colors: { sr: "Boje", en: "Colours" },
+  colorsFromLogo: { sr: "Izvuci iz logoa", en: "Pull from the logo" },
+  colorsReading: { sr: "Čitam boje…", en: "Reading colours…" },
+  colorsFailed: { sr: "Boje nisu pročitane - dodaj ih ručno.", en: "Could not read the colours - add them by hand." },
+  addColor: { sr: "Dodaj boju", en: "Add a colour" },
+  removeColor: { sr: "Ukloni {color}", en: "Remove {color}" },
+  colorsMax: { sr: "Najviše {max} boja.", en: "At most {max} colours." },
+  headingFont: { sr: "Slova za naslove", en: "Heading font" },
+  bodyFont: { sr: "Slova za tekst", en: "Body font" },
+  fontSample: { sr: "Čarobna pekara 1990", en: "Magic bakery 1990" },
+  tone: { sr: "Ton (kako firma „priča“)", en: "Tone (how the business “talks”)" },
+  tonePlaceholder: { sr: "npr. topao i prijateljski, kao komšija", en: "e.g. warm and friendly, like a neighbour" },
+  save: { sr: "Sačuvaj brend kit", en: "Save the brand kit" },
+  saved: { sr: "Sačuvano. Recepti i editor sada koriste tvoj brend.", en: "Saved. Recipes and the editor now use your brand." },
+  remove: { sr: "Obriši brend kit", en: "Delete the brand kit" },
+  removed: { sr: "Brend kit je obrisan.", en: "The brand kit is deleted." },
+  needName: { sr: "Upiši ime.", en: "Type a name." },
+  uploading: { sr: "Kačim logo…", en: "Uploading the logo…" },
+  noAccess: {
+    sr: "Brend kit čuvaš kad imaš pristup Crei.",
+    en: "You can save a brand kit once you have access to Crea.",
+  },
+  where: { sr: "Gde se koristi", en: "Where it is used" },
+  whereList: {
+    sr: "Recepti za firmu (jelovnik, plakat, objava, vizit karta…) · editor: tvoje boje, slova i vodeni žig · logo alat: tvoje boje",
+    en: "Business recipes (menu, poster, post, business card…) · editor: your colours, fonts and watermark · logo tool: your colours",
+  },
+  errors: {
+    NEISPRAVNO_IME_BRENDA: { sr: "Ime mora da ima 1-60 znakova.", en: "The name must have 1-60 characters." },
+    NEISPRAVNE_BOJE_BRENDA: { sr: "Neka boja nije ispravna.", en: "One of the colours is not valid." },
+    NEISPRAVAN_FONT_BRENDA: { sr: "Ta slova nisu na spisku.", en: "That font is not on the list." },
+    PREDUG_TON_BRENDA: { sr: "Ton je predug (najviše 300 znakova).", en: "The tone is too long (300 characters at most)." },
+    NEISPRAVAN_LOGO: { sr: "Logo mora da bude slika (PNG, JPG ili WebP).", en: "The logo must be an image (PNG, JPG or WebP)." },
+    other: { sr: "Čuvanje nije uspelo. Probaj ponovo.", en: "Saving did not work. Try again." },
+  },
+} as const satisfies Record<string, LocalizedText | Record<string, LocalizedText>>;
+
+export const CREA_STICKERS_COPY = {
+  mode: { sr: "Šta praviš", en: "What you make" },
+  modes: {
+    napravi: { sr: "Nalepnice od lika", en: "Stickers from a character" },
+    iseci: { sr: "Iseci gotovu mrežu", en: "Cut a ready grid" },
+    sprajt: { sr: "Sprajt iz videa", en: "Sprite from a video" },
+  },
+  source: { sr: "Ko je na nalepnicama", en: "Who is on the stickers" },
+  sources: {
+    lik: { sr: "Moj lik", en: "My character" },
+    foto: { sr: "Fotka", en: "A photo" },
+  },
+  style: { sr: "Stil", en: "Style" },
+  extraLabel: { sr: "Još nešto (nije obavezno)", en: "Anything else (optional)" },
+  extraPlaceholder: { sr: "npr. nosi crvenu kapu", en: "e.g. wears a red cap" },
+  expressions: { sr: "Devet izraza", en: "Nine expressions" },
+  howTitle: { sr: "Kako radi", en: "How it works" },
+  howBody: {
+    sr: "Plaćaš JEDNU sliku sa 9 izraza ({price}). Isecanje, uklanjanje pozadine i pakovanje rade na tvom uređaju, besplatno.",
+    en: "You pay for ONE picture with 9 expressions ({price}). Cutting, background removal and packing run on your device, for free.",
+  },
+  howFallback: {
+    sr: "Plaćaš JEDNU sliku sa 9 izraza. Isecanje, uklanjanje pozadine i pakovanje rade na tvom uređaju, besplatno.",
+    en: "You pay for ONE picture with 9 expressions. Cutting, background removal and packing run on your device, for free.",
+  },
+  cta: { sr: "Napravi 9 izraza", en: "Make 9 expressions" },
+  needSubject: { sr: "Izaberi lik ili fotku.", en: "Pick a character or a photo." },
+  waiting: { sr: "Crea crta mrežu… obično 20-60 s.", en: "Crea is drawing the grid… usually 20-60 s." },
+  arrived: { sr: "Mreža je stigla.", en: "The grid has arrived." },
+  failed: { sr: "Mreža nije uspela - krediti su vraćeni.", en: "The grid did not work - your credits are back." },
+  cut: { sr: "Iseci u 9 nalepnica", en: "Cut into 9 stickers" },
+  another: { sr: "Nova mreža", en: "A new grid" },
+  outline: { sr: "Beli obrub (kao prava nalepnica)", en: "White outline (like a real sticker)" },
+  resultTitle: { sr: "Tvoj paket: 9 nalepnica 512 × 512", en: "Your pack: 9 stickers 512 × 512" },
+  downloadPack: { sr: "Preuzmi paket (ZIP)", en: "Download the pack (ZIP)" },
+  downloadOne: { sr: "Preuzmi: {name}", en: "Download: {name}" },
+  packHint: {
+    sr: "U paketu je 9 WebP nalepnica bez pozadine i ikonica paketa (96 × 96). Za Viber i WhatsApp ih dodaješ kroz aplikaciju za pravljenje nalepnica.",
+    en: "The pack has 9 WebP stickers without background and a pack icon (96 × 96). Add them to Viber or WhatsApp with a sticker maker app.",
+  },
+  demoNote: {
+    sr: "DEMO mreža (bez ključa provajdera) nema zelenu pozadinu - nalepnice su samo za probu toka.",
+    en: "A DEMO grid (no provider key) has no green background - the stickers only show the flow.",
+  },
+  video: { sr: "Kratak video (do 15 s)", en: "A short video (up to 15 s)" },
+  chooseVideo: { sr: "Izaberi video", en: "Choose a video" },
+  notVideo: { sr: "To nije video koji browser ume da pusti.", en: "That is not a video the browser can play." },
+  frames: { sr: "Broj sličica", en: "Number of frames" },
+  frameSize: { sr: "Veličina sličice", en: "Frame size" },
+  removeBg: { sr: "Ukloni jednobojnu pozadinu", en: "Remove a flat background" },
+  removeBgHint: {
+    sr: "Radi kad je pozadina jedne boje (npr. zeleni zid). Ostalo ostaje kako jeste.",
+    en: "Works when the background is one colour (e.g. a green wall). Otherwise it stays as it is.",
+  },
+  makeSprite: { sr: "Napravi sprajt", en: "Make the sprite" },
+  spriteTitle: { sr: "Sprajt: {frames} sličica u {columns} kolone", en: "Sprite: {frames} frames in {columns} columns" },
+  downloadSprite: { sr: "Preuzmi sprajt (PNG)", en: "Download the sprite (PNG)" },
+  downloadMeta: { sr: "Preuzmi podatke (JSON)", en: "Download the data (JSON)" },
+  spriteHint: {
+    sr: "Svaka sličica je {size} × {size} px; JSON kaže igrici veličinu, broj sličica i brzinu.",
+    en: "Each frame is {size} × {size} px; the JSON tells the game the size, frame count and speed.",
+  },
+} as const satisfies Record<string, LocalizedText | Record<string, LocalizedText>>;
+
+export const CREA_LOGO_COPY = {
+  kind: { sr: "Šta praviš", en: "What you make" },
+  name: { sr: "Ime firme", en: "Business name" },
+  namePlaceholder: { sr: "npr. Pekara Zlatni klas", en: "e.g. Zlatni klas Bakery" },
+  about: { sr: "Čime se bavi (ili šta ikonica predstavlja)", en: "What it does (or what the icon shows)" },
+  aboutPlaceholder: { sr: "npr. pekara, domaći hleb i kifle", en: "e.g. bakery, homemade bread and rolls" },
+  style: { sr: "Stil", en: "Style" },
+  brand: { sr: "Moje boje iz brend kita", en: "My brand kit colours" },
+  needName: { sr: "Upiši ime firme.", en: "Type the business name." },
+  needAbout: { sr: "Napiši čime se firma bavi.", en: "Write what the business does." },
+  cta: { sr: "Napravi logo", en: "Make the logo" },
+  ctaIcon: { sr: "Napravi ikonicu", en: "Make the icon" },
+  waiting: { sr: "Crea crta znak…", en: "Crea is drawing the mark…" },
+  failed: { sr: "Nije uspelo - krediti su vraćeni.", en: "It did not work - your credits are back." },
+  vectorize: { sr: "Pretvori u vektor (SVG) · besplatno", en: "Turn into a vector (SVG) · free" },
+  vectorizing: { sr: "Pravim vektor na tvom uređaju…", en: "Making the vector on your device…" },
+  colors: { sr: "Boje u vektoru", en: "Colours in the vector" },
+  svgReady: { sr: "SVG je spreman: {paths} oblika, oštar na svakoj veličini.", en: "The SVG is ready: {paths} shapes, sharp at any size." },
+  svgDirect: { sr: "Model je odmah vratio vektor (SVG).", en: "The model returned a vector (SVG) right away." },
+  downloadSvg: { sr: "Preuzmi SVG", en: "Download the SVG" },
+  downloadPng: { sr: "Preuzmi PNG", en: "Download the PNG" },
+  useInKit: { sr: "Stavi u brend kit", en: "Put it in the brand kit" },
+  inKit: { sr: "Logo je u brend kitu.", en: "The logo is in the brand kit." },
+  kitNeedsName: { sr: "Brend kit dobija ime iz polja „Ime firme“.", en: "The brand kit takes its name from “Business name”." },
+  another: { sr: "Novi pokušaj", en: "Try again" },
+  vectorNote: {
+    sr: "Vektor se ne čuva u galeriji (to nije slika nego crtež od oblika) - preuzmi ga.",
+    en: "The vector is not saved in the gallery (it is a drawing made of shapes, not a picture) - download it.",
+  },
+} as const satisfies Record<string, LocalizedText>;

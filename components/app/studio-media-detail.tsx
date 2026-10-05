@@ -45,6 +45,8 @@ import { CREA_PICK_COPY, CREA_TOOL_COPY, CREA_VERSION_COPY, fillCopy } from "@/l
 import { buildRefineOrder, orderCredits, refinePairForJob, type RefineOrder } from "@/lib/crea-draft";
 import { toolOfJob } from "@/lib/crea-tools";
 import { isAnglesGridPrompt } from "@/lib/crea-grid-crop";
+import { CREA_STICKERS_COPY } from "@/lib/crea-recipes-copy";
+import { isStickerSheetPrompt } from "@/lib/crea-sticker-pack";
 import { toolsForWork, versionInputTarget, type VersionIntent } from "@/lib/crea-versions";
 import type { Locale } from "@/lib/i18n";
 import { isExpiredOutput, jobPrompt, jobStatusText } from "@/lib/studio-form";
@@ -249,7 +251,9 @@ export function StudioMediaDetail({
         ? "slika.slojevi"
         : isAnglesGridPrompt(jobPrompt(job.params))
           ? "slika.uglovi"
-          : null
+          : isStickerSheetPrompt(jobPrompt(job.params))
+            ? "slika.nalepnice"
+            : null
       : null;
 
   // Indeks u listi za levo/desno navigaciju
@@ -1026,7 +1030,13 @@ export function StudioMediaDetail({
                     ) : (
                       <Grid3x3 aria-hidden="true" className="size-3.5" />
                     )}
-                    <span>{followUpTool === "slika.slojevi" ? vc.openLayers[locale] : vc.cutAngles[locale]}</span>
+                    <span>
+                      {followUpTool === "slika.slojevi"
+                        ? vc.openLayers[locale]
+                        : followUpTool === "slika.nalepnice"
+                          ? CREA_STICKERS_COPY.cut[locale]
+                          : vc.cutAngles[locale]}
+                    </span>
                   </button>
                 ) : null}
                 {canRefine && refineOrder && refineModel && refineCredits !== null ? (

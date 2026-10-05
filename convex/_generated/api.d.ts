@@ -30,6 +30,7 @@ import type * as communityScope from "../communityScope.js";
 import type * as contentHierarchy from "../contentHierarchy.js";
 import type * as contentReadiness from "../contentReadiness.js";
 import type * as courses from "../courses.js";
+import type * as creaBrandKit from "../creaBrandKit.js";
 import type * as creaCache from "../creaCache.js";
 import type * as creaCacheCore from "../creaCacheCore.js";
 import type * as creaDraftCore from "../creaDraftCore.js";
@@ -154,6 +155,7 @@ declare const fullApi: ApiFromModules<{
   contentHierarchy: typeof contentHierarchy;
   contentReadiness: typeof contentReadiness;
   courses: typeof courses;
+  creaBrandKit: typeof creaBrandKit;
   creaCache: typeof creaCache;
   creaCacheCore: typeof creaCacheCore;
   creaDraftCore: typeof creaDraftCore;

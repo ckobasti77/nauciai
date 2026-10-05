@@ -45,6 +45,7 @@ export const CREA_GOALS: readonly CreaGoal[] = [
       en: "Make a professional profile picture from my photo: the same face, soft daylight, a calm light background, framed from the shoulders up.",
     },
     modelSlug: "nano-banana-pro",
+    recipeId: "profilna",
   },
   {
     id: "reklama-lokal",
@@ -58,6 +59,7 @@ export const CREA_GOALS: readonly CreaGoal[] = [
       en: "A poster for a small café: a cup of coffee on a wooden table, morning light through the window, a big headline “Morning coffee €1.50”, warm tones.",
     },
     modelSlug: "gpt-image-2",
+    recipeId: "instagram-objava",
   },
   {
     id: "tiktok",
@@ -98,6 +100,7 @@ export const CREA_GOALS: readonly CreaGoal[] = [
       en: "A simple logo for the “Golden Ear” bakery: an ear of wheat with the name below, flat colours, white background, clean lines.",
     },
     modelSlug: "nano-banana-2",
+    recipeId: "logo",
   },
   {
     id: "ozvuci-video",
@@ -124,6 +127,7 @@ export const CREA_GOALS: readonly CreaGoal[] = [
       en: "A birthday invitation: the headline “Maria turns 30!”, below it “Saturday, 8 pm”, confetti and balloons, cheerful pastel colours.",
     },
     modelSlug: "nano-banana-2",
+    recipeId: "pozivnica-rodjendan",
   },
   {
     id: "stara-fotka",
@@ -137,6 +141,7 @@ export const CREA_GOALS: readonly CreaGoal[] = [
       en: "Restore this old photograph: remove scratches and stains, sharpen the faces, keep natural colours and the feel of the era.",
     },
     modelSlug: "nano-banana-pro",
+    recipeId: "stara-fotka",
   },
   {
     id: "ozivi-fotku",

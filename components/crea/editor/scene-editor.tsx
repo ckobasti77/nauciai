@@ -31,6 +31,7 @@ import { useCallback, useId, useRef, useState, type KeyboardEvent, type ReactNod
 
 import type { EditorAsset } from "@/components/crea/editor/assets";
 import { ColorPicker, IconButton, PillButton, RangeField } from "@/components/crea/editor/controls";
+import { useBrandKit } from "@/components/crea/brand-kit/use-brand-kit";
 import { SceneCanvas, type SceneCanvasHandle } from "@/components/crea/editor/scene-canvas";
 import type { SceneHistory } from "@/components/crea/editor/use-scene-history";
 import { ChoiceChips } from "@/components/crea/tools/choice-chips";
@@ -63,6 +64,7 @@ import {
   type CreaShapeNode,
   type CreaTextNode,
 } from "@/lib/crea-editor-scene";
+import { brandWatermarkText, type CreaBrandKit } from "@/lib/crea-brand-kit";
 import { CREA_STICKER_GROUPS, CREA_STICKERS, stickerUrl } from "@/lib/crea-stickers";
 import type { Locale } from "@/lib/i18n";
 
@@ -116,7 +118,7 @@ function centered(scene: CreaScene, width: number, height: number) {
 
 const BASE = { rotation: 0, opacity: 1, visible: true, locked: false } as const;
 
-function newText(scene: CreaScene, kind: "heading" | "body" | "hand", locale: Locale): CreaTextNode {
+function newText(scene: CreaScene, kind: "heading" | "body" | "hand", locale: Locale, brand: CreaBrandKit | null): CreaTextNode {
   const unit = Math.min(scene.width, scene.height);
   const fontSize = Math.round(unit * (kind === "heading" ? 0.1 : kind === "hand" ? 0.07 : 0.05));
   const width = Math.round(scene.width * 0.8);
@@ -127,7 +129,8 @@ function newText(scene: CreaScene, kind: "heading" | "body" | "hand", locale: Lo
     id: nextNodeId(scene, "tekst"),
     kind: "text",
     text,
-    font: kind === "hand" ? "rukopis" : "nunito",
+    // Brend kit (S38): naslov i tekst dobijaju slova firme; rukopis ostaje rukopis.
+    font: kind === "hand" ? "rukopis" : (brand ? (kind === "heading" ? brand.fonts.heading : brand.fonts.body) : "nunito"),
     weight: kind === "heading" ? 900 : kind === "hand" ? 400 : 700,
     fontSize,
     fit: false,
@@ -210,6 +213,8 @@ export function SceneEditor({
   const canvasFocusRef = useRef<HTMLDivElement | null>(null);
   const hintId = useId();
   const selected = findNode(scene, selectedId);
+  // Brend kit (S38, K15): slova za nov tekst, ime i logo za žig (boje nudi `ColorPicker`).
+  const brand = useBrandKit() ?? null;
 
   const select = useCallback((nodeId: string | null) => {
     setSelectedId(nodeId);
@@ -363,13 +368,13 @@ export function SceneEditor({
         {panel === "tekst" ? (
           <div className="space-y-3">
             <div className="flex flex-wrap gap-2">
-              <PillButton onClick={() => add((current) => newText(current, "heading", locale))} icon={<Heading aria-hidden="true" className="size-4" />}>
+              <PillButton onClick={() => add((current) => newText(current, "heading", locale, brand))} icon={<Heading aria-hidden="true" className="size-4" />}>
                 {T.addText[locale]}
               </PillButton>
-              <PillButton onClick={() => add((current) => newText(current, "body", locale))} icon={<Type aria-hidden="true" className="size-4" />}>
+              <PillButton onClick={() => add((current) => newText(current, "body", locale, brand))} icon={<Type aria-hidden="true" className="size-4" />}>
                 {T.addTextBody[locale]}
               </PillButton>
-              <PillButton onClick={() => add((current) => newText(current, "hand", locale))} icon={<PenLine aria-hidden="true" className="size-4" />}>
+              <PillButton onClick={() => add((current) => newText(current, "hand", locale, brand))} icon={<PenLine aria-hidden="true" className="size-4" />}>
                 {T.addTextHand[locale]}
               </PillButton>
             </div>
@@ -429,7 +434,7 @@ export function SceneEditor({
           </div>
         ) : null}
         {panel === "kolaz" ? <CollagePanel locale={locale} scene={scene} addFiles={addFiles} onApply={apply} /> : null}
-        {panel === "zig" ? <WatermarkPanel locale={locale} addFiles={addFiles} onAdd={add} /> : null}
+        {panel === "zig" ? <WatermarkPanel locale={locale} brand={brand} addFiles={addFiles} onAdd={add} /> : null}
         {panel === "slojevi" ? (
           <LayersPanel locale={locale} scene={scene} selectedId={selectedId} onSelect={select} onApply={apply} />
         ) : null}
@@ -616,6 +621,8 @@ function TextControls({
           options={[
             { id: "nunito", label: T.fontNunito[locale] },
             { id: "rukopis", label: T.fontHand[locale] },
+            { id: "montserrat", label: T.fontMontserrat[locale] },
+            { id: "lora", label: T.fontLora[locale] },
           ]}
           value={node.font}
           onChange={(font) => {
@@ -757,14 +764,32 @@ function CollagePanel({
 
 function WatermarkPanel({
   locale,
+  brand,
   addFiles,
   onAdd,
 }: {
   locale: Locale;
+  brand: CreaBrandKit | null;
   addFiles: (files: readonly File[]) => Promise<EditorAsset[]>;
   onAdd: (make: (scene: CreaScene) => CreaSceneNode) => void;
 }) {
-  const [text, setText] = useState<string>(T.watermarkDefault[locale]);
+  // Brend kit (S38): ime firme je podrazumevan tekst žiga, logo je jedno dugme.
+  const [text, setText] = useState<string>(brand ? brandWatermarkText(brand) : T.watermarkDefault[locale]);
+  const [logoFailed, setLogoFailed] = useState(false);
+
+  async function addBrandLogo() {
+    if (!brand?.logoUrl) return;
+    try {
+      const response = await fetch(brand.logoUrl);
+      if (!response.ok) throw new Error(String(response.status));
+      const blob = await response.blob();
+      const [asset] = await addFiles([new File([blob], "logo.png", { type: blob.type || "image/png" })]);
+      if (asset) onAdd((scene) => watermarkImage(scene, asset.id, asset.width, asset.height));
+      setLogoFailed(false);
+    } catch {
+      setLogoFailed(true);
+    }
+  }
   const id = useId();
   return (
     <div className="space-y-3">
@@ -784,6 +809,11 @@ function WatermarkPanel({
         <PillButton disabled={!text.trim()} onClick={() => onAdd((scene) => watermarkText(scene, text.trim()))} icon={<Type aria-hidden="true" className="size-4" />}>
           {T.watermarkAddText[locale]}
         </PillButton>
+        {brand?.logoUrl ? (
+          <PillButton onClick={() => void addBrandLogo()} icon={<ImagePlus aria-hidden="true" className="size-4" />}>
+            {T.watermarkBrandLogo[locale]}
+          </PillButton>
+        ) : null}
         <FileButton
           label={T.watermarkAddLogo[locale]}
           onFiles={(files) =>
@@ -794,6 +824,7 @@ function WatermarkPanel({
         />
       </div>
       <Hint>{T.watermarkHint[locale]}</Hint>
+      {logoFailed ? <Hint>{T.watermarkBrandLogoFailed[locale]}</Hint> : null}
     </div>
   );
 }

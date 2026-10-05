@@ -78,6 +78,8 @@ export const CREA_EDITOR_COPY = {
   watermarkText: { sr: "Tekst žiga", en: "Watermark text" },
   watermarkDefault: { sr: "@tvoj.nalog", en: "@your.handle" },
   watermarkAddText: { sr: "Dodaj tekst kao žig", en: "Add text watermark" },
+  watermarkBrandLogo: { sr: "Logo iz brend kita", en: "Logo from the brand kit" },
+  watermarkBrandLogoFailed: { sr: "Logo iz brend kita nije učitan - okači ga ručno.", en: "Could not load the brand kit logo - upload it by hand." },
   watermarkAddLogo: { sr: "Dodaj logo kao žig", en: "Add logo watermark" },
   watermarkHint: {
     sr: "Žig ide u donji desni ugao, malo providan, da se zna čija je slika.",
@@ -94,6 +96,8 @@ export const CREA_EDITOR_COPY = {
   font: { sr: "Slova", en: "Font" },
   fontNunito: { sr: "Nunito", en: "Nunito" },
   fontHand: { sr: "Rukopis", en: "Handwriting" },
+  fontMontserrat: { sr: "Montserrat", en: "Montserrat" },
+  fontLora: { sr: "Lora", en: "Lora" },
   weight: { sr: "Debljina", en: "Weight" },
   weightRegular: { sr: "Obična", en: "Regular" },
   weightBold: { sr: "Podebljana", en: "Bold" },

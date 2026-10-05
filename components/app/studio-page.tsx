@@ -3,6 +3,7 @@
 import { useConvexAuth } from "@convex-dev/auth/react";
 import { useAction, useConvex, useMutation, useQuery } from "convex/react";
 import { Coins, Wand2 } from "lucide-react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence } from "motion/react";
@@ -19,6 +20,7 @@ import { useJobQueue } from "@/components/crea/create/use-job-queue";
 import { CreaHistory, CreaHistoryEmpty } from "@/components/crea/crea-history";
 import { CreaStage } from "@/components/crea/crea-stage";
 import { CreaStartScreen } from "@/components/crea/crea-start-screen";
+import type { RecipeHrefs } from "@/components/crea/recipes/recipe-stage";
 import { CreaToolList } from "@/components/crea/crea-tool-list";
 import { CreaToolShortcuts } from "@/components/crea/crea-tool-shortcuts";
 import { CreaToolPanel } from "@/components/crea/crea-tool-panel";
@@ -40,6 +42,7 @@ import { CREA_CREATE_COPY } from "@/lib/crea-create-copy";
 import { CREA_STAGE_COPY, fillCopy } from "@/lib/crea-copy";
 import type { RefineOrder } from "@/lib/crea-draft";
 import { creaGoalById } from "@/lib/crea-goals";
+import { recipeById, SERIES_RECIPE_ID } from "@/lib/crea-recipes";
 import {
   CREA_AREA_KIND,
   CREA_PROMPT_PARAM,
@@ -80,6 +83,17 @@ import {
 } from "@/lib/studio-messages";
 import type { SlotFile, SlotFiles } from "@/lib/studio-slots";
 import { creditsFor, formatCreditsLong, type ParamValues } from "@/lib/studio-params";
+
+// Recept i serija (K15) su svoj async chunk: forma vuče alate za sliku (priprema fotke, maske),
+// koji ne smeju u početni chunk radionice (`check:bundle`).
+const CreaRecipeStage = dynamic(() => import("@/components/crea/recipes/recipe-stage").then((mod) => mod.CreaRecipeStage), {
+  ssr: false,
+  loading: () => <Spinner size="md" className="text-muted" />,
+});
+const CreaSeriesStage = dynamic(() => import("@/components/crea/recipes/series-stage").then((mod) => mod.CreaSeriesStage), {
+  ssr: false,
+  loading: () => <Spinner size="md" className="text-muted" />,
+});
 
 /**
  * Kapija pred prvom generacijom: jedna kvačica i jedno dugme.
@@ -1022,7 +1036,11 @@ export function StudioPage({
   // Slika · Izmeni (K11) ima i modele i alate: composer dok alat nije izabran (`?alat=`).
   const hasTools = area !== null && modeDef?.status === "ready" && modeDef.tools === true;
   const isToolsMode = hasTools && (modeDef?.models === undefined || shell.tool !== null);
-  const hasComposer = area !== null && modeDef?.status === "ready" && !isToolsMode;
+  // Recept (K15, S37) ili serija (S39): scena je forma recepta, bez composera i levog panela.
+  const recipe = area === "slika" && shell.tool === null ? recipeById(shell.recipe) : undefined;
+  const isSeries = area === "slika" && shell.tool === null && shell.recipe === SERIES_RECIPE_ID;
+  const isRecipe = recipe !== undefined || isSeries;
+  const hasComposer = area !== null && modeDef?.status === "ready" && !isToolsMode && !isRecipe;
   const showFloating = hasComposer && composerPlacement === "floating";
   const gridBottomPadding = showFloating ? (isComposerCollapsed ? 60 : floatingHeight + 28) : 0;
   const stageJob = loadedJobs.find((job) => job.kind === activeKind) ?? null;
@@ -1049,6 +1067,43 @@ export function StudioPage({
     </CreaHistory>
   );
 
+  const paidContext =
+    models !== undefined && state
+      ? {
+          catalog,
+          providerStatus: state.providerStatus,
+          publicEnabled: state.publicEnabled === true,
+          isStaff: state.isStaff === true,
+          pricingV2: state.pricingV2 === true,
+          nightProviders: state.nightProviders,
+        }
+      : null;
+
+  const shellHref = (next: Partial<CreaShellState> & { model?: string | null }, input?: string) => {
+    const query = new URLSearchParams(creaShellQuery(next, searchParams));
+    if (input) query.set(CREA_INPUT_PARAM, input);
+    const text = query.toString();
+    return text ? `${pathname}?${text}` : pathname;
+  };
+  const recipeHrefs: RecipeHrefs = {
+    back: shellHref({ area: null, recipe: null, goal: null, tool: null }),
+    characters: shellHref({ area: "slika", mode: "likovi", tool: null, recipe: null, goal: null }),
+    brandKit: shellHref({ area: "slika", mode: "napravi", tool: "slika.brend-kit", recipe: null, goal: null }),
+    advanced: shellHref({ recipe: null }),
+    next: (step, jobId) => {
+      if (step.kind === "tool") {
+        const tool = toolById(step.toolId);
+        return tool ? shellHref({ area: tool.area, mode: tool.mode, tool: tool.id, recipe: null, goal: null }, jobId) : pathname;
+      }
+      const target = versionInputTarget(catalog, "image", "animate");
+      return shellHref(
+        { area: target?.area ?? "video", mode: target?.mode ?? "napravi", recipe: null, goal: null, tool: null, model: target?.modelSlug ?? null },
+        jobId,
+      );
+    },
+    detail: (jobId) => withQuery(withLocale(locale, `${basePath}/m/${jobId}`)),
+  };
+
   const toolList =
     isToolsMode && area && modeDef ? (
       <CreaToolList
@@ -1071,6 +1126,26 @@ export function StudioPage({
         mode={modeDef}
         onSelectMode={(mode) => navigateShell({ mode })}
       />
+    ) : recipe ? (
+      <CreaRecipeStage
+        key={recipe.id}
+        locale={locale}
+        recipe={recipe}
+        paid={paidContext}
+        canSave={state?.hasStudioAccess === true}
+        guest={!isAuthenticated}
+        signInHref={signInHrefProp ?? withLocale(locale, "/sign-in")}
+        projectId={activeProjectId}
+        hrefs={recipeHrefs}
+      />
+    ) : isSeries ? (
+      <CreaSeriesStage
+        locale={locale}
+        paid={paidContext}
+        canSave={state?.hasStudioAccess === true}
+        projectId={activeProjectId}
+        backHref={recipeHrefs.back}
+      />
     ) : isToolsMode ? (
       <CreaToolStage
         locale={locale}
@@ -1080,11 +1155,7 @@ export function StudioPage({
         canSave={state?.hasStudioAccess === true}
         projectId={activeProjectId}
         sourceJobId={inputJobId as Id<"generationJobs"> | null}
-        paid={
-          models !== undefined && state
-            ? { catalog, providerStatus: state.providerStatus, publicEnabled: state.publicEnabled === true, isStaff: state.isStaff === true }
-            : null
-        }
+        paid={paidContext}
         list={composerPlacement === "floating" ? toolList : null}
       />
     ) : (

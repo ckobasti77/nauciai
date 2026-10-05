@@ -718,12 +718,13 @@ export const CREA_TOOLS: readonly CreaTool[] = [
     area: "slika",
     mode: "napravi",
     tier: "paid",
-    status: "soon",
+    status: "ready",
     title: { sr: "Viber nalepnice", en: "Sticker pack" },
     summary: {
-      sr: "Devet izraza tvog lika iz jedne slike, isečeno i spremno za paket.",
-      en: "Nine expressions of your character from one picture, cut out and ready as a pack.",
+      sr: "Devet izraza tvog lika iz jedne slike, isečeno i spremno za paket; i sprajt za igricu iz kratkog videa.",
+      en: "Nine expressions of your character from one picture, cut out and ready as a pack; plus a game sprite from a short video.",
     },
+    // Sprajt iz kratkog videa bira fajl sam (sličice se vade na uređaju, 0 kredita).
     inputs: ["image"],
     output: "zip",
     device: { minClass: "phone" },
@@ -736,7 +737,7 @@ export const CREA_TOOLS: readonly CreaTool[] = [
     area: "slika",
     mode: "napravi",
     tier: "paid",
-    status: "soon",
+    status: "ready",
     title: { sr: "Logo i ikone", en: "Logo and icons" },
     summary: {
       sr: "Logo kao vektor (SVG) koji se ne mrvi ni na bilbordu.",
@@ -745,7 +746,26 @@ export const CREA_TOOLS: readonly CreaTool[] = [
     inputs: ["text"],
     output: "svg",
     device: ANY_DEVICE,
-    price: { kind: "credits" },
+    // Recraft V4.1 (najjeftiniji znak); pravi vektor (`recraft-41-vector`) kad se upali u katalogu.
+    price: { kind: "credits", modelSlug: "recraft-41", inputMode: "text" },
+    savesToGallery: false,
+  },
+  {
+    id: "slika.brend-kit",
+    featureIds: ["S38"],
+    area: "slika",
+    mode: "napravi",
+    tier: "local-code",
+    status: "ready",
+    title: { sr: "Brend kit", en: "Brand kit" },
+    summary: {
+      sr: "Logo, boje, slova i ton tvoje firme - jednom podesiš, recepti i editor ih sami koriste.",
+      en: "Your business logo, colours, fonts and tone - set once, recipes and the editor use them on their own.",
+    },
+    inputs: ["image"],
+    output: "text",
+    device: ANY_DEVICE,
+    price: FREE,
     savesToGallery: false,
   },
   {

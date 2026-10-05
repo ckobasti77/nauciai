@@ -30,8 +30,8 @@ import {
 } from "@/lib/crea-vector";
 import type { Locale } from "@/lib/i18n";
 
-type VectorMode = "crno" | "boje";
-type Corners = "spline" | "polygon";
+export type VectorMode = "crno" | "boje";
+export type Corners = "spline" | "polygon";
 type VectorExtra = { paths: number; inputUrl: string };
 
 const DEG = Math.PI / 180;
@@ -61,7 +61,7 @@ function trace(converter: BinaryImageConverter, signal: AbortSignal): Promise<st
   });
 }
 
-async function vectorize(
+export async function vectorize(
   file: File,
   inputUrl: string,
   mode: VectorMode,

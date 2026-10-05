@@ -117,7 +117,7 @@ async function claimableUpload(
  * rad (rok kao izlaz napravljen sada - `crons.expireGenerationFiles` ga posle
  * briše), a ostale se brišu odmah - i fajl i red.
  */
-async function releaseImages(ctx: MutationCtx, userId: Id<"users">, storageIds: readonly Id<"_storage">[]) {
+export async function releaseImages(ctx: MutationCtx, userId: Id<"users">, storageIds: readonly Id<"_storage">[]) {
   if (storageIds.length === 0) return;
   const usedByJobs = await storageIdsUsedByOtherJobs(ctx, userId);
   const now = Date.now();

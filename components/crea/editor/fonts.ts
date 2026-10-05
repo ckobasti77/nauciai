@@ -1,6 +1,6 @@
 "use client";
 
-import { Pangolin } from "next/font/google";
+import { Lora, Montserrat, Pangolin } from "next/font/google";
 
 import type { CreaFontId } from "@/lib/crea-editor-scene";
 import type { MeasureText } from "@/lib/crea-text-fit";
@@ -15,6 +15,14 @@ import type { MeasureText } from "@/lib/crea-text-fit";
  * u chunk-u editora, i samo kad se pojavi ćirilica (`unicode-range`).
  */
 const pangolin = Pangolin({ weight: "400", subsets: ["cyrillic"], display: "swap", preload: false });
+
+/**
+ * Fontovi brend kita (K15): Montserrat i Lora (oba OFL, latinica sa č ć š ž đ i
+ * ćirilica). Kao i Pangolin, učitavaju se samo u chunk-u editora i tek kad ih
+ * platno zatraži.
+ */
+const montserrat = Montserrat({ weight: ["400", "700", "900"], subsets: ["latin", "latin-ext", "cyrillic"], display: "swap", preload: false });
+const lora = Lora({ weight: ["400", "700"], subsets: ["latin", "latin-ext", "cyrillic"], display: "swap", preload: false });
 
 /** Uzorak koji tera browser da učita sve podskupove: latinicu, č ć š ž đ i ćirilicu. */
 const FONT_SAMPLE = "AaČčĆćŠšŽžĐđ Ђђ Ћћ Љљ Њњ Џџ Жж";
@@ -31,6 +39,8 @@ function firstFamily(stack: string, fallback: string): string {
 /** Porodica fonta za platno (isti niz koji Konva upisuje u `ctx.font`). */
 export function fontFamilyFor(font: CreaFontId): string {
   if (font === "nunito") return cssVar("--font-nunito") || "Nunito, sans-serif";
+  if (font === "montserrat") return montserrat.style.fontFamily;
+  if (font === "lora") return lora.style.fontFamily;
   const hand = firstFamily(cssVar("--font-patrick-hand"), "'Patrick Hand'");
   return `${hand}, ${pangolin.style.fontFamily}`;
 }
@@ -51,6 +61,8 @@ export function loadCanvasFonts(): Promise<void> {
   loading ??= Promise.all([
     ...[400, 700, 900].map((weight) => document.fonts.load(canvasFont("nunito", weight, 48), FONT_SAMPLE)),
     document.fonts.load(canvasFont("rukopis", 400, 48), FONT_SAMPLE),
+    ...[400, 700, 900].map((weight) => document.fonts.load(canvasFont("montserrat", weight, 48), FONT_SAMPLE)),
+    ...[400, 700].map((weight) => document.fonts.load(canvasFont("lora", weight, 48), FONT_SAMPLE)),
   ])
     .then(() => undefined)
     .catch(() => undefined);

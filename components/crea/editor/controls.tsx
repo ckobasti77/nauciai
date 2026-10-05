@@ -2,6 +2,7 @@
 
 import { useId, type ReactNode } from "react";
 
+import { useBrandKit } from "@/components/crea/brand-kit/use-brand-kit";
 import { cn } from "@/components/ui/primitives";
 import { CREA_SCENE_COLORS } from "@/lib/crea-editor-scene";
 import type { Locale, LocalizedText } from "@/lib/i18n";
@@ -105,12 +106,20 @@ export function ColorPicker({
   customLabel: string;
 }) {
   const customId = useId();
-  const known = SWATCHES.some((swatch) => swatch.value === value);
+  // Boje brend kita (S38, K15) stoje prve, uz paletu, u svakom izboru boje.
+  const brandColors = useBrandKit()?.colors ?? [];
+  const swatches = [
+    ...brandColors
+      .filter((hex) => !SWATCHES.some((swatch) => swatch.value === hex))
+      .map((hex) => ({ value: hex, label: { sr: `Brend ${hex}`, en: `Brand ${hex}` } })),
+    ...SWATCHES,
+  ];
+  const known = swatches.some((swatch) => swatch.value === value);
   return (
     <fieldset className="min-w-0">
       <legend className="type-body-sm font-black text-ink">{legend}</legend>
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        {SWATCHES.map((swatch) => (
+        {swatches.map((swatch) => (
           <button
             key={swatch.value}
             type="button"

@@ -42,13 +42,19 @@ export const CREA_SCENE_COLORS = {
   zelena: "#2f7d4f",
 } as const;
 
-export const CREA_SCENE_FONTS = ["nunito", "rukopis"] as const;
+/**
+ * Slova na platnu. Sva su OFL i imaju č ć š ž đ i ćirilicu (rukopis kroz Pangolin).
+ * Montserrat i Lora (K15) su za brend kit: ozbiljan geometrijski i elegantan serif.
+ */
+export const CREA_SCENE_FONTS = ["nunito", "rukopis", "montserrat", "lora"] as const;
 export type CreaFontId = (typeof CREA_SCENE_FONTS)[number];
 
-/** Debljine koje font stvarno ima (Patrick Hand postoji samo u 400). */
+/** Debljine koje font stvarno ima (Patrick Hand postoji samo u 400, Lora do 700). */
 export const CREA_FONT_WEIGHTS: Record<CreaFontId, readonly number[]> = {
   nunito: [400, 700, 900],
   rukopis: [400],
+  montserrat: [400, 700, 900],
+  lora: [400, 700],
 };
 
 export type CreaStroke = { color: string; width: number };

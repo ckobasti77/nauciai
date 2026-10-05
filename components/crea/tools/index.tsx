@@ -53,6 +53,9 @@ const SketchTool = dynamic(() => import("./sketch-tool"), { ssr: false, loading:
 const SwapTool = dynamic(() => import("./swap-tool"), { ssr: false, loading: ToolLoading });
 const ElementsTool = dynamic(() => import("./elements-tool"), { ssr: false, loading: ToolLoading });
 const CharacterTool = dynamic(() => import("./character-tool"), { ssr: false, loading: ToolLoading });
+const StickersTool = dynamic(() => import("./stickers-tool"), { ssr: false, loading: ToolLoading });
+const LogoTool = dynamic(() => import("./logo-tool"), { ssr: false, loading: ToolLoading });
+const BrandKitTool = dynamic(() => import("./brand-kit-tool"), { ssr: false, loading: ToolLoading });
 
 export const CREA_TOOL_COMPONENTS: Readonly<Record<string, ComponentType<CreaToolProps>>> = {
   "slika.format": FormatTool,
@@ -87,4 +90,7 @@ export const CREA_TOOL_COMPONENTS: Readonly<Record<string, ComponentType<CreaToo
   "slika.zameni-lik": SwapTool,
   "slika.likovi": ElementsTool,
   "slika.kreator-lika": CharacterTool,
+  "slika.nalepnice": StickersTool,
+  "slika.logo": LogoTool,
+  "slika.brend-kit": BrandKitTool,
 };

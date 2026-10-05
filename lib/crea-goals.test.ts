@@ -8,6 +8,7 @@ import { describe, expect, test } from "vitest";
 import { STUDIO_MODELS } from "@/convex/providers/catalogModels";
 import { CREA_GOALS, creaGoalById, goalHref } from "@/lib/crea-goals";
 import { CREA_MODES, creaModeDef, modelsForMode, parseCreaShellState, usableInputModes } from "@/lib/crea-shell";
+import { recipeById } from "@/lib/crea-recipes";
 import { toolById } from "@/lib/crea-tools";
 
 describe("CREA_GOALS", () => {
@@ -87,18 +88,28 @@ describe("goalHref", () => {
   });
 
   test("ne-podrazumevani režim se upisuje", () => {
-    expect(goalHref(creaGoalById("profilna")!)).toBe("?oblast=slika&rezim=izmeni&cilj=profilna&model=nano-banana-pro");
+    expect(goalHref(creaGoalById("profilna")!)).toBe("?oblast=slika&rezim=izmeni&cilj=profilna&recept=profilna&model=nano-banana-pro");
   });
 
   test("čuva projekat i lekciju iz trenutne adrese", () => {
     const href = goalHref(creaGoalById("logo")!, new URLSearchParams("project=p1&lessonId=l1&taskId=t1"));
-    expect(href).toBe("?oblast=slika&cilj=logo&project=p1&model=nano-banana-2&lessonId=l1&taskId=t1");
+    expect(href).toBe("?oblast=slika&cilj=logo&recept=logo&project=p1&model=nano-banana-2&lessonId=l1&taskId=t1");
   });
 
   test("kartica alata vodi u alat", () => {
     expect(goalHref(creaGoalById("ukloni-pozadinu")!)).toBe(
       "?oblast=slika&rezim=izmeni&alat=slika.pozadina&cilj=ukloni-pozadinu",
     );
+  });
+
+  test("kartice za sliku vode u recepte (K15) koji postoje", () => {
+    const withRecipe = CREA_GOALS.filter((goal) => goal.recipeId);
+    expect(withRecipe.map((goal) => goal.id)).toEqual(["profilna", "reklama-lokal", "logo", "pozivnica", "stara-fotka"]);
+    for (const goal of withRecipe) {
+      expect(recipeById(goal.recipeId), goal.id).toBeDefined();
+      expect(goal.area, goal.id).toBe("slika");
+      expect(goalHref(goal), goal.id).toContain(`recept=${goal.recipeId}`);
+    }
   });
 
   test("nepoznat cilj ne postoji", () => {

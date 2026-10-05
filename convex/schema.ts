@@ -1874,6 +1874,19 @@ export default defineSchema({
     .index("by_user_updated", ["userId", "updatedAt"])
     .index("by_user_handle", ["userId", "handle"]),
 
+  // Brend kit (Crea K15, S38; plan K01 §7.3): jedan po korisniku. Logo je pinovan
+  // `studioUploads` red (isto kao slike Lika); boje su HEX, fontovi iz allowlist-e
+  // editora (`lib/crea-brand-kit.ts`).
+  creaBrandKits: defineTable({
+    userId: v.id("users"),
+    name: v.string(),
+    logoStorageId: v.optional(v.id("_storage")),
+    colors: v.array(v.string()),
+    fonts: v.object({ heading: v.string(), body: v.string() }),
+    tone: v.optional(v.string()),
+    updatedAt: v.number(),
+  }).index("by_user", ["userId"]),
+
   // Opšte informacije platforme (N1) — JEDAN red, `key: "default"`. Kontakt,
   // mreže, cene i pravni podaci koje vlasnik menja sa admin ekrana umesto kroz
   // deploy; `platformSettings.get` je javan i čita ga i landing.

@@ -5,6 +5,7 @@ import { motion, useReducedMotion, type Easing } from "motion/react";
 import Link from "next/link";
 
 import { CREA_ICONS } from "@/components/crea/crea-icons";
+import { CreaRecipeCards } from "@/components/crea/recipes/recipe-cards";
 import { CREA_SHELL_COPY, CREA_START_COPY } from "@/lib/crea-copy";
 import { CREA_GOALS, goalHref } from "@/lib/crea-goals";
 import { CREA_AREA_META, creaModeDef } from "@/lib/crea-shell";
@@ -13,7 +14,8 @@ import type { Locale } from "@/lib/i18n";
 import { getStudioMotion } from "@/lib/studio-motion";
 
 /**
- * „Šta praviš danas?" (U2): kartice po cilju. Svaka je pravi link (deljiv, otvara
+ * „Šta praviš danas?" (U2): kartice po cilju (kartice za sliku vode u recepte, K15),
+ * pa svi recepti po grupama. Svaka je pravi link (deljiv, otvara
  * se i u novom tabu) koji vodi u oblast i režim sa popunjenim opisom i
  * preporučenim modelom. Na telefonu mreža 2 × N.
  */
@@ -84,6 +86,8 @@ export function CreaStartScreen({
           );
         })}
       </ul>
+
+      <CreaRecipeCards locale={locale} pathname={pathname} searchParams={searchParams} />
     </section>
   );
 }

@@ -152,6 +152,10 @@ describe("registar alata", () => {
       "slika.ko-gde-kako",
       "slika.crtaj",
       "slika.skica",
+      // K15: nalepnice, logo i brend kit (3D model ostaje „uskoro" - nema endpointa)
+      "slika.nalepnice",
+      "slika.logo",
+      "slika.brend-kit",
     ]);
     expect(toolById("slika.format")).toMatchObject({ tier: "local-code", featureIds: ["S27"], output: "image" });
     expect(toolById("slika.provera")).toMatchObject({
