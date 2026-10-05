@@ -30,6 +30,15 @@ export function columnsForContainerWidth(width: number): number {
 }
 
 /**
+ * Broj kolona biblioteke (K16, U9) za izabranu veličinu kartice: koliko kartica
+ * najmanje širine `tileWidth` staje u red sa razmakom `gap`, bar jedna, najviše 8.
+ */
+export function columnsForTileWidth(width: number, tileWidth: number, gap = 16): number {
+  if (width <= 0 || tileWidth <= 0) return 1;
+  return Math.max(1, Math.min(8, Math.floor((width + gap) / (tileWidth + gap))));
+}
+
+/**
  * Prati broj kolona na osnovu širine prozora:
  * - < 640px (mobilni): 1 kolona
  * - 640px - 1535px (tablet / manji desktop): 2 kolone

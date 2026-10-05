@@ -65,6 +65,11 @@ export type CreaTool = {
    * kao lokalni rad (0 kr), kao i lokalni alati.
    */
   localSave?: true;
+  /**
+   * Radi i kad uređaj ne može lokalni model (K16, S45): jeftin poziv u oblaku, 0 kredita
+   * (`creaLlm`). Uređaj tada ne blokira alat, a oznaka ne tvrdi „Na tvom uređaju".
+   */
+  cloudFallback?: true;
 };
 
 const FREE = { kind: "free" } as const;
@@ -298,7 +303,7 @@ export const CREA_TOOLS: readonly CreaTool[] = [
     area: "slika",
     mode: "alati",
     tier: "local-ai",
-    status: "soon",
+    status: "ready",
     title: { sr: "Kako je ovo napravljeno?", en: "How was this made?" },
     summary: {
       sr: "Opiši tuđu sliku rečima, pa po tom opisu napravi svoju.",
@@ -310,6 +315,7 @@ export const CREA_TOOLS: readonly CreaTool[] = [
     price: FREE,
     localModels: ["florence-2-base"],
     savesToGallery: false,
+    cloudFallback: true,
   },
 
   // ── Slika · Izmeni ────────────────────────────────────────────────────────
@@ -1161,7 +1167,9 @@ export function isLocalTier(tier: CreaToolTier): boolean {
 export type CreaToolBadge = "besplatno" | "na-uredjaju" | "krediti" | "uskoro";
 
 export function toolBadges(tool: CreaTool): CreaToolBadge[] {
-  const badges: CreaToolBadge[] = isLocalTier(tool.tier)
+  const badges: CreaToolBadge[] = tool.cloudFallback
+    ? ["besplatno"]
+    : isLocalTier(tool.tier)
     ? ["besplatno", "na-uredjaju"]
     : tool.localSave
       ? ["krediti", "na-uredjaju"]

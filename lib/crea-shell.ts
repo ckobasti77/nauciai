@@ -369,6 +369,14 @@ export const CREA_PROMPT_PARAM = "opis";
 /** Isto kao `PROMPT_MAX_LENGTH` (`lib/studio-messages.ts`); duži opis se seče. */
 export const CREA_PROMPT_PARAM_MAX = 2000;
 
+/**
+ * `?prikaz=biblioteka` (K16, U9): umesto radionice se crta Biblioteka (svi radovi preko
+ * cele širine). Nije u `PRESERVED_PARAMS`, pa svaki prelaz u radionicu (brza akcija,
+ * tab oblasti) sam izlazi iz biblioteke; detalj rada je nosi kroz ceo query.
+ */
+export const CREA_VIEW_PARAM = "prikaz";
+export const CREA_LIBRARY_VIEW = "biblioteka";
+
 /** `?lik=<id>` (K14): „Stavi u fotku" sa ekrana Likovi predaje Lik alatu „Zameni lik" (jednokratno). */
 export const CREA_ELEMENT_PARAM = "lik";
 

@@ -94,6 +94,7 @@ import {
   UPLOAD_GRANT_CLOCK_SLACK_MS,
   UPLOAD_GRANT_TTL_MS,
 } from "./studioCore";
+import { searchTextForJob } from "../lib/crea-search-text";
 
 /**
  * Lokalna kopija `generationJobs.kind` unije, po istoj konvenciji koju već
@@ -956,6 +957,7 @@ export async function createJobForUser(ctx: MutationCtx, userId: Id<"users">, ar
     // Noćni posao izvršava provajder batch-a (GPT Image 2 ide na OpenAI, ne na fal).
     provider: night ? night.provider : order.provider,
     params: JSON.stringify(cleanParams),
+    searchText: searchTextForJob({ params: JSON.stringify(cleanParams), modelSlug: order.slug, kind: order.kind }),
     promptHash: promptHash(order.prompt),
     status: night ? "queued" : "reserved",
     creditCost,
@@ -1440,6 +1442,9 @@ const listMyJobsArgs = {
   modelSlug: v.optional(v.string()),
   createdAfter: v.optional(v.number()),
   projectId: v.optional(v.id("studioProjects")),
+  // Galerija 2.0 (K16, U9): samo omiljeni; besplatni (0 kredita) ili plaćeni.
+  favorite: v.optional(v.boolean()),
+  cost: v.optional(v.union(v.literal("free"), v.literal("paid"))),
 };
 type ListMyJobsArgs = ObjectType<typeof listMyJobsArgs>;
 
@@ -1469,6 +1474,12 @@ async function listMyJobsForUser(ctx: QueryCtx, userId: Id<"users">, args: ListM
   if (args.createdAfter !== undefined) {
     const createdAfter = args.createdAfter;
     ordered = ordered.filter((q) => q.gte(q.field("createdAt"), createdAfter));
+  }
+  if (args.favorite === true) {
+    ordered = ordered.filter((q) => q.neq(q.field("favoriteAt"), undefined));
+  }
+  if (args.cost !== undefined) {
+    ordered = ordered.filter((q) => (args.cost === "free" ? q.eq(q.field("creditCost"), 0) : q.gt(q.field("creditCost"), 0)));
   }
 
   const result = await ordered.paginate(args.paginationOpts);
@@ -1515,10 +1526,12 @@ export const listMyJobsInternal = internalQuery({
  * Isti oblik dobijaju i `listMyJobs` i `listAllJobs` - admin gleda tačno ono
  * što gleda i korisnik, plus vlasnika i provajdera koje `listAllJobs` dopisuje.
  */
-async function toGalleryJob(ctx: QueryCtx, job: Doc<"generationJobs">) {
+export async function toGalleryJob(ctx: QueryCtx, job: Doc<"generationJobs">) {
   return {
     ...(await toModerationJob(ctx, job)),
     params: job.params,
+    // Omiljeno (K16): samo vlasnik vidi svoju galeriju, pa ovo ne ide u moderaciju.
+    ...(job.favoriteAt !== undefined ? { favoriteAt: job.favoriteAt } : {}),
     // Ulazi kao sličice na kartici: bez njih "Generiši ponovo" kod modela
     // sa slikama nema smisla, jer se ne vidi šta je uopšte bio ulaz.
     // Potpisuje se najviše `GALLERY_INPUT_THUMBS` po poslu - stranica od
@@ -1944,16 +1957,17 @@ export const getJobForDetailInternal = internalQuery({
 export async function storageIdsUsedByOtherJobs(
   ctx: MutationCtx,
   userId: Id<"users">,
-  excludeJobId?: Id<"generationJobs">,
+  exclude?: Id<"generationJobs"> | ReadonlySet<string>,
 ): Promise<Set<string>> {
   const jobs = await ctx.db
     .query("generationJobs")
     .withIndex("by_user", (q) => q.eq("userId", userId))
     .collect();
 
+  const excluded: ReadonlySet<string> = typeof exclude === "string" ? new Set([exclude]) : (exclude ?? new Set());
   const used = new Set<string>();
   for (const other of jobs) {
-    if (other._id === excludeJobId) continue;
+    if (excluded.has(other._id)) continue;
     for (const storageId of jobInputStorageIds(parseJobInputs(other.inputs))) used.add(storageId);
   }
 
@@ -1982,51 +1996,78 @@ export const deleteJob = mutation({
     const userId = await requireUserId(ctx);
     const job = await ctx.db.get(args.jobId);
     if (!job || job.userId !== userId) throw new Error("Posao nije pronađen.");
-    // Noćni posao u redu (K08) je takođe u toku: krediti su skinuti, a batch ga čeka.
-    if (job.status === "reserved" || job.status === "running" || job.status === "queued") {
-      throw new Error("POSAO_U_TOKU");
-    }
-    if (job.labOutputId) throw new Error("POSAO_POVEZAN_SA_LEKCIJOM");
-
-    if (job.outputStorageId) {
-      await ctx.storage.delete(job.outputStorageId);
-      // Alias redovi nad ovim izlazom (K05, „Koristi kao ulaz") bi posle brisanja
-      // pokazivali na blob kojeg nema. Dete koje ga je koristilo ostaje sa
-      // „nedostaje ulaz" (`getJobForRegenerate.missingSlots`).
-      const output = job.outputStorageId;
-      const aliases = await ctx.db
-        .query("studioUploads")
-        .withIndex("by_storage", (q) => q.eq("storageId", output))
-        .take(10);
-      for (const alias of aliases) {
-        if (alias.sourceJobId === job._id) await ctx.db.delete(alias._id);
-      }
-    }
-    if (job.posterStorageId) await ctx.storage.delete(job.posterStorageId);
-
-    const ownInputs = new Set(jobInputStorageIds(parseJobInputs(job.inputs)));
-    if (ownInputs.size > 0) {
-      const stillUsed = await storageIdsUsedByOtherJobs(ctx, userId, args.jobId);
-      for (const rawId of ownInputs) {
-        if (stillUsed.has(rawId)) continue;
-        const storageId = ctx.db.system.normalizeId("_storage", rawId);
-        if (!storageId) continue;
-        const upload = await ctx.db
-          .query("studioUploads")
-          .withIndex("by_storage", (q) => q.eq("storageId", storageId))
-          .first();
-        // Slika Lika (K14): fajl i red pripadaju Liku, ne poslu.
-        if (!upload || upload.userId !== userId || upload.pinnedAt) continue;
-        // Alias (K05): blob je izlaz roditelja - briše se samo red, nikad fajl.
-        if (!upload.sourceJobId) await ctx.storage.delete(storageId);
-        await ctx.db.delete(upload._id);
-      }
-    }
-
-    await ctx.db.delete(args.jobId);
+    const problem = jobDeleteProblem(job);
+    if (problem) throw new Error(problem);
+    await deleteJobForUser(ctx, userId, job);
     return null;
   },
 });
+
+/**
+ * Zašto se rad ne sme obrisati (`null` = sme). Noćni posao u redu (K08) je takođe
+ * u toku: krediti su skinuti, a batch ga čeka.
+ */
+export function jobDeleteProblem(job: Doc<"generationJobs">): "POSAO_U_TOKU" | "POSAO_POVEZAN_SA_LEKCIJOM" | null {
+  if (job.status === "reserved" || job.status === "running" || job.status === "queued") return "POSAO_U_TOKU";
+  if (job.labOutputId) return "POSAO_POVEZAN_SA_LEKCIJOM";
+  return null;
+}
+
+/**
+ * Telo brisanja jednog rada (deli ga i masovno brisanje, K16). `stillUsed` je
+ * skup ulaza koje drže DRUGI radovi; masovno brisanje ga računa jednom za ceo
+ * paket (jedno čitanje istorije umesto jednog po radu).
+ */
+export async function deleteJobForUser(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  job: Doc<"generationJobs">,
+  stillUsedInputs?: ReadonlySet<string>,
+) {
+  if (job.outputStorageId) {
+    await ctx.storage.delete(job.outputStorageId);
+    // Alias redovi nad ovim izlazom (K05, „Koristi kao ulaz") bi posle brisanja
+    // pokazivali na blob kojeg nema. Dete koje ga je koristilo ostaje sa
+    // „nedostaje ulaz" (`getJobForRegenerate.missingSlots`).
+    const output = job.outputStorageId;
+    const aliases = await ctx.db
+      .query("studioUploads")
+      .withIndex("by_storage", (q) => q.eq("storageId", output))
+      .take(10);
+    for (const alias of aliases) {
+      if (alias.sourceJobId === job._id) await ctx.db.delete(alias._id);
+    }
+  }
+  if (job.posterStorageId) await ctx.storage.delete(job.posterStorageId);
+
+  const ownInputs = new Set(jobInputStorageIds(parseJobInputs(job.inputs)));
+  if (ownInputs.size > 0) {
+    const stillUsed = stillUsedInputs ?? (await storageIdsUsedByOtherJobs(ctx, userId, job._id));
+    for (const rawId of ownInputs) {
+      if (stillUsed.has(rawId)) continue;
+      const storageId = ctx.db.system.normalizeId("_storage", rawId);
+      if (!storageId) continue;
+      const upload = await ctx.db
+        .query("studioUploads")
+        .withIndex("by_storage", (q) => q.eq("storageId", storageId))
+        .first();
+      // Slika Lika (K14): fajl i red pripadaju Liku, ne poslu.
+      if (!upload || upload.userId !== userId || upload.pinnedAt) continue;
+      // Alias (K05): blob je izlaz roditelja - briše se samo red, nikad fajl.
+      if (!upload.sourceJobId) await ctx.storage.delete(storageId);
+      await ctx.db.delete(upload._id);
+    }
+  }
+
+  // Vektor semantičke pretrage (K16) pripada radu.
+  const embedding = await ctx.db
+    .query("creaEmbeddings")
+    .withIndex("by_job", (q) => q.eq("jobId", job._id))
+    .unique();
+  if (embedding) await ctx.db.delete(embedding._id);
+
+  await ctx.db.delete(job._id);
+}
 
 /**
  * Adresa za upload jednog ulaznog fajla (STUDIO-CATALOG-V4 sekcija 5). Isti

@@ -2,7 +2,7 @@
 
 import { useConvexAuth } from "@convex-dev/auth/react";
 import { useAction, useConvex, useMutation, useQuery } from "convex/react";
-import { Coins, Wand2 } from "lucide-react";
+import { Coins, LibraryBig, Wand2 } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -28,6 +28,7 @@ import { CreaToolStage } from "@/components/crea/crea-tool-stage";
 import { useMyElements } from "@/components/crea/elements/shared";
 import { CREA_DOCK_MIN_PX, CreaWorkshop } from "@/components/crea/crea-workshop";
 import { NightArrivals } from "@/components/crea/night-arrivals";
+import type { QuickActionLink } from "@/components/crea/quick-actions-menu";
 import { CreditIcon } from "@/components/studio/credit-icon";
 import { StudioComposer, type JobPayload, type RegenerateSeed } from "@/components/studio/studio-composer";
 import { StudioVerifyEmailPanel } from "@/components/studio/verify-email-panel";
@@ -38,14 +39,19 @@ import { LinkButton, Panel } from "@/components/ui/primitives";
 import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { referenceModeOf } from "@/convex/creaElementsCore";
 import { CREA_CREATE_COPY } from "@/lib/crea-create-copy";
 import { CREA_STAGE_COPY, fillCopy } from "@/lib/crea-copy";
 import type { RefineOrder } from "@/lib/crea-draft";
 import { creaGoalById } from "@/lib/crea-goals";
+import { CREA_LIBRARY_COPY } from "@/lib/crea-library-copy";
+import { QUICK_ACTION_LABELS, quickActionQuery, quickActionsFor } from "@/lib/crea-quick-actions";
 import { recipeById, SERIES_RECIPE_ID } from "@/lib/crea-recipes";
 import {
   CREA_AREA_KIND,
+  CREA_LIBRARY_VIEW,
   CREA_PROMPT_PARAM,
+  CREA_VIEW_PARAM,
   creaModeDef,
   creaPromptFromParams,
   creaShellQuery,
@@ -91,6 +97,11 @@ const CreaRecipeStage = dynamic(() => import("@/components/crea/recipes/recipe-s
   loading: () => <Spinner size="md" className="text-muted" />,
 });
 const CreaSeriesStage = dynamic(() => import("@/components/crea/recipes/series-stage").then((mod) => mod.CreaSeriesStage), {
+  ssr: false,
+  loading: () => <Spinner size="md" className="text-muted" />,
+});
+// Biblioteka (K16) je svoj chunk: pametna pretraga, duplikati i poređenje trebaju tek kad se otvori.
+const CreaLibrary = dynamic(() => import("@/components/crea/crea-library").then((mod) => mod.CreaLibrary), {
   ssr: false,
   loading: () => <Spinner size="md" className="text-muted" />,
 });
@@ -220,6 +231,7 @@ export function StudioPage({
   } | null>(null);
   const claimSignupBonus = useMutation(api.studio.claimSignupBonus);
   const adoptOutputAsInput = useMutation(api.creaVersions.adoptOutputAsInput);
+  const toggleFavorite = useMutation(api.creaLibrary.toggleFavorite);
   const measureInputUpload = useAction(api.studioActions.measureInputUpload);
 
   // Bonus dobrodošlice (studio-public F2.3): server kaže kad ima šta da se
@@ -306,6 +318,20 @@ export function StudioPage({
   function navigateShell(next: Partial<CreaShellState>) {
     const query = creaShellQuery(next, searchParams);
     router.push(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  }
+
+  // Biblioteka (K16, U9): `?prikaz=biblioteka` umesto radionice; izlaz vraća isti ekran radionice.
+  const libraryOpen = searchParams.get(CREA_VIEW_PARAM) === CREA_LIBRARY_VIEW;
+  const libraryHref = useMemo(() => {
+    const query = new URLSearchParams(searchParams.toString());
+    query.set(CREA_VIEW_PARAM, CREA_LIBRARY_VIEW);
+    return `${withLocale(locale, basePath)}?${query.toString()}`;
+  }, [searchParams, locale, basePath]);
+  function closeLibrary() {
+    const query = new URLSearchParams(searchParams.toString());
+    query.delete(CREA_VIEW_PARAM);
+    const text = query.toString();
+    router.push(withLocale(locale, basePath) + (text ? `?${text}` : ""), { scroll: false });
   }
 
   const [selectedSlug, setSelectedSlug] = useState<string | null>(() => searchParams.get("model"));
@@ -537,13 +563,17 @@ export function StudioPage({
       alive = false;
     };
   }, [wantsAdoption, inputJobId, adoptOutputAsInput, measureInputUpload]);
+  // Slot režima, a za sliku u Napravi (K16 „Koristi kao referencu") režim sa referencama modela.
+  const adoptedInputMode =
+    adopted && activeModel && area && modeDef
+      ? (inputModeWithSlot(activeModel, area, modeDef.id, adopted.slot) ??
+        (adopted.slot === "image" ? referenceModeOf(activeModel)?.inputMode : undefined))
+      : undefined;
   const inputSeed: RegenerateSeed | null =
     adopted && adopted.jobId === inputJobId
       ? {
           id: `${CREA_INPUT_PARAM}:${adopted.jobId}`,
-          ...(activeModel && area && modeDef
-            ? { inputMode: inputModeWithSlot(activeModel, area, modeDef.id, adopted.slot) }
-            : {}),
+          ...(activeModel && area && modeDef ? { inputMode: adoptedInputMode } : {}),
           files: { [adopted.slot]: [adopted.file] },
         }
       : null;
@@ -778,6 +808,24 @@ export function StudioPage({
     setStarterPrompt(prompt);
   }
 
+  // Brze akcije (K16, S44): tačan alat ili režim sa popunjenim ulazom/opisom, kao link.
+  const workshopPath = withLocale(locale, basePath);
+  const quickActionLinks = useCallback(
+    (job: StudioTileJob): QuickActionLink[] =>
+      quickActionsFor(job, catalog).map((action) => ({
+        id: action.id,
+        label: QUICK_ACTION_LABELS[action.id][locale],
+        href: `${workshopPath}?${quickActionQuery(action.target, searchParams)}`,
+      })),
+    [catalog, locale, workshopPath, searchParams],
+  );
+  const handleToggleFavorite = useCallback(
+    (job: StudioTileJob) => {
+      void toggleFavorite({ jobId: job._id as Id<"generationJobs"> }).catch(() => {});
+    },
+    [toggleFavorite],
+  );
+
   // Zaglavlje (SP2):
   // ┌──────────────────────────────────────────────────────────────────────┐
   // │ Studio    [filteri ────────────────────────]   [Projekat ▾] [5.000 kr] │
@@ -791,7 +839,7 @@ export function StudioPage({
           <h2 className="shrink-0 type-h1 text-ink">Crea</h2>
           {/* `min-w-0`: bez njega ova kolona ne sme da se skupi ispod min-content trake
               filtera, pa traka gura ceo studio preko desne ivice (UX-BOOST-PLAN §5C). */}
-          <div className="hidden min-w-0 sm:flex items-center">
+          <div className="hidden min-w-0 sm:flex items-center gap-2">
             <StudioFilterBar
               locale={locale}
               isStaff={state?.isStaff === true}
@@ -800,6 +848,16 @@ export function StudioPage({
               activeKind={activeKind}
               catalog={catalog}
             />
+            {isAuthenticated && !libraryOpen ? (
+              <Link
+                href={libraryHref}
+                scroll={false}
+                className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border-2 border-ink bg-paper-strong px-3 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 studio-focus-ink motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+              >
+                <LibraryBig aria-hidden="true" className="size-3.5" />
+                {CREA_LIBRARY_COPY.open[locale]}
+              </Link>
+            ) : null}
           </div>
         </div>
 
@@ -1041,12 +1099,12 @@ export function StudioPage({
   const isSeries = area === "slika" && shell.tool === null && shell.recipe === SERIES_RECIPE_ID;
   const isRecipe = recipe !== undefined || isSeries;
   const hasComposer = area !== null && modeDef?.status === "ready" && !isToolsMode && !isRecipe;
-  const showFloating = hasComposer && composerPlacement === "floating";
+  const showFloating = hasComposer && composerPlacement === "floating" && !libraryOpen;
   const gridBottomPadding = showFloating ? (isComposerCollapsed ? 60 : floatingHeight + 28) : 0;
   const stageJob = loadedJobs.find((job) => job.kind === activeKind) ?? null;
 
   const history = (
-    <CreaHistory locale={locale} area={area}>
+    <CreaHistory locale={locale} area={area} {...(isAuthenticated ? { libraryHref } : {})}>
       {!isAuthenticated ? (
         <CreaHistoryEmpty locale={locale} area={area} guest />
       ) : (
@@ -1062,6 +1120,7 @@ export function StudioPage({
           onUseStarterPrompt={handleUseStarterPrompt}
           fitToContainer
           emptyState={<CreaHistoryEmpty locale={locale} area={area} />}
+          quickActionsFor={quickActionLinks}
         />
       )}
     </CreaHistory>
@@ -1183,6 +1242,7 @@ export function StudioPage({
           onOpenDetail={handleOpenDetail}
           onReuse={handleReuse}
           onExtend={handleExtend}
+          {...(isAuthenticated ? { onToggleFavorite: handleToggleFavorite, quickActionsFor: quickActionLinks } : {})}
         />
       </div>
     );
@@ -1229,6 +1289,18 @@ export function StudioPage({
               locale={locale}
               isStudioAdmin={state?.isStudioAdmin === true}
               catalog={catalog}
+            />
+          ) : libraryOpen && isAuthenticated ? (
+            <CreaLibrary
+              locale={locale}
+              catalog={catalog}
+              projectId={activeProjectId}
+              onBack={closeLibrary}
+              onOpenDetail={handleOpenDetail}
+              onReuse={handleReuse}
+              onExtend={handleExtend}
+              onLoadedJobsChange={handleLoadedJobsChange}
+              quickActionsFor={quickActionLinks}
             />
           ) : (
             <>
@@ -1296,6 +1368,7 @@ export function StudioPage({
             onOpenVersion={handleOpenVersion}
             onUseAsInput={handleUseAsInput}
             onOpenTool={handleOpenTool}
+            quickActions={quickActionLinks(activeJob)}
             onRefine={(job, order, model, carried) => void handleRefine(job, order, model, carried)}
             restored={searchParams.get(CREA_RESTORED_PARAM) === activeJob._id}
             onGenerate={generate}

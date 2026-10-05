@@ -69,3 +69,14 @@ describe("store", () => {
   });
 });
 
+
+describe("Galerija 2.0 (K16): omiljeno i cena", () => {
+  test("omiljeno i cena se broje kao filteri", () => {
+    expect(activeFilterCount({ ...DEFAULT_FILTERS, favorite: true })).toBe(1);
+    expect(activeFilterCount({ ...DEFAULT_FILTERS, favorite: true, cost: "free" })).toBe(2);
+    expect(activeFilterCount({ ...DEFAULT_FILTERS, cost: "all" })).toBe(0);
+    const changed = reduceFilters(DEFAULT_FILTERS, { favorite: true, cost: "paid" });
+    expect(changed).not.toBe(DEFAULT_FILTERS);
+    expect(reduceFilters(changed, { favorite: true })).toBe(changed);
+  });
+});

@@ -1,14 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { CheckSquare, Download, Heart, Moon, Play, RefreshCw, Sparkles, Square, Volume2 } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 
+import { QuickActionsMenu, type QuickActionLink } from "@/components/crea/quick-actions-menu";
 import { CreditIcon } from "@/components/studio/credit-icon";
 import { cn } from "@/components/ui/primitives";
 import { Spinner } from "@/components/ui/spinner";
 import { CREA_NIGHT_COPY, CREA_TOOL_COPY } from "@/lib/crea-copy";
+import { CREA_LIBRARY_COPY } from "@/lib/crea-library-copy";
 import { toolOfJob } from "@/lib/crea-tools";
 import type { Locale } from "@/lib/i18n";
 import { isExpiredOutput, jobPrompt, jobStatusText } from "@/lib/studio-form";
@@ -29,6 +31,8 @@ export type StudioTileJob = {
   expiresAt?: number;
   createdAt: number;
   inputMode?: string;
+  /** Omiljeno (K16): kad je rad označen; nema ga = nije omiljen. */
+  favoriteAt?: number;
 };
 
 export function StudioMediaTile({
@@ -43,6 +47,8 @@ export function StudioMediaTile({
   animateEntrance = true,
   index = 0,
   domId,
+  onToggleFavorite,
+  quickActions,
 }: {
   job: StudioTileJob;
   locale: Locale;
@@ -56,8 +62,13 @@ export function StudioMediaTile({
   index?: number;
   /** DOM id kartice; podrazumevano `tile-<id>` (fokus posle zatvaranja detalja). Druga kopija istog posla mora da ima svoj. */
   domId?: string;
+  /** Omiljeno (K16, U9) - bez ovoga kartica ne nudi srce (npr. tuđ rad u moderaciji). */
+  onToggleFavorite?: (job: StudioTileJob) => void;
+  /** Brze akcije (K16, S44); zamenjuju dugme „Produži ili animiraj" kad postoje. */
+  quickActions?: readonly QuickActionLink[];
 }) {
-  const [isFavorited, setIsFavorited] = useState(false);
+  const isFavorited = job.favoriteAt !== undefined;
+  const videoRef = useRef<HTMLVideoElement>(null);
   const [now, setNow] = useState(() => Date.now());
   const reduceMotion = useReducedMotion();
 
@@ -104,6 +115,16 @@ export function StudioMediaTile({
           e.preventDefault();
           onOpenDetail?.(job);
         }
+      }}
+      // Video se pušta dok je miš iznad kartice (U9); bez zvuka, a uz smanjen pokret ne kreće sam.
+      onMouseEnter={() => {
+        if (!reduceMotion) void videoRef.current?.play().catch(() => {});
+      }}
+      onMouseLeave={() => {
+        const video = videoRef.current;
+        if (!video) return;
+        video.pause();
+        video.currentTime = 0.1;
       }}
       className={cn(
         "surface-card group relative mb-4 break-inside-avoid text-ink cursor-pointer",
@@ -246,6 +267,7 @@ export function StudioMediaTile({
                       ima svoj plejer. Ranije `controls` + stopPropagation na celom
                       elementu gutali su SVAKI klik, pa se video detalj nije otvarao. */}
                   <video
+                    ref={videoRef}
                     src={`${job.outputUrl}#t=0.1`}
                     preload="metadata"
                     muted
@@ -257,7 +279,7 @@ export function StudioMediaTile({
                   />
                   <span
                     aria-hidden="true"
-                    className="pointer-events-none absolute inset-0 m-auto flex size-12 items-center justify-center rounded-full border-2 border-white/40 bg-[#0a0e14]/60 text-white backdrop-blur-xs"
+                    className="pointer-events-none absolute inset-0 m-auto flex size-12 items-center justify-center rounded-full border-2 border-white/40 bg-[#0a0e14]/60 text-white backdrop-blur-xs transition-opacity group-hover:opacity-0 motion-reduce:group-hover:opacity-100"
                   >
                     <Play className="ml-0.5 size-5 fill-current" />
                   </span>
@@ -299,12 +321,14 @@ export function StudioMediaTile({
                 : (locale === "sr" ? "Izaberi za preuzimanje" : "Select for download")
             }
             className={cn(
-              "absolute left-3 top-3 z-30 grid size-7 place-items-center rounded-full border-2 border-ink studio-anim-mikro cursor-pointer studio-focus-ink",
+              "absolute left-3 top-3 z-30 grid size-7 place-items-center rounded-full border-2 border-ink studio-anim-mikro cursor-pointer studio-focus-ink pointer-coarse:size-11",
               selected
                 ? "bg-yellow text-ink shadow-[2px_2px_0_0_var(--ink)] opacity-100"
                 : cn(
                     "bg-paper-strong/90 text-ink backdrop-blur-xs hover:scale-105",
-                    isSelectMode ? "opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100",
+                    isSelectMode
+                      ? "opacity-100"
+                      : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100",
                   ),
             )}
           >
@@ -316,7 +340,7 @@ export function StudioMediaTile({
         <div
           className={cn(
             "pointer-events-none absolute top-3 z-10 flex flex-wrap items-center gap-1.5",
-            !isWorking && hasOutput && onToggleSelect ? "left-12" : "left-3",
+            !isWorking && hasOutput && onToggleSelect ? "left-12 pointer-coarse:left-16" : "left-3",
           )}
         >
           {job.kind === "video" ? (
@@ -341,23 +365,31 @@ export function StudioMediaTile({
               {CREA_TOOL_COPY.galleryLabel[locale]}
             </span>
           ) : null}
+          {isFavorited && onToggleFavorite ? (
+            <span className="inline-flex items-center rounded-full border border-white/20 bg-yellow px-1.5 py-0.5 text-ink">
+              <Heart aria-label={CREA_LIBRARY_COPY.favorite[locale]} className="size-2.5 fill-current" />
+            </span>
+          ) : null}
         </div>
 
         {/* Hover pil gore desno sa tri akcije: Omiljeno, Upotrebi ponovo, Preuzmi */}
         {!isWorking && hasOutput ? (
-          <div className="absolute right-3 top-3 z-20 flex items-center gap-1 rounded-full border border-white/15 bg-[#0a0e14]/75 p-1 text-white opacity-0 shadow-md backdrop-blur-sm transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
-            <button
-              type="button"
-              onClick={() => setIsFavorited((prev) => !prev)}
-              aria-label={locale === "sr" ? "Omiljeno" : "Favorite"}
-              title={locale === "sr" ? "Omiljeno" : "Favorite"}
-              className={cn(
-                "inline-flex size-7 items-center justify-center rounded-full studio-anim-mikro hover:bg-white/20 studio-focus-ink",
-                isFavorited && "text-yellow",
-              )}
-            >
-              <Heart className={cn("size-3.5", isFavorited && "fill-current")} />
-            </button>
+          <div className="absolute right-3 top-3 z-20 flex items-center gap-1 rounded-full border border-white/15 bg-[#0a0e14]/75 p-1 text-white opacity-0 shadow-md backdrop-blur-sm transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100">
+            {onToggleFavorite ? (
+              <button
+                type="button"
+                onClick={() => onToggleFavorite(job)}
+                aria-pressed={isFavorited}
+                aria-label={isFavorited ? CREA_LIBRARY_COPY.favoriteRemove[locale] : CREA_LIBRARY_COPY.favoriteAdd[locale]}
+                title={isFavorited ? CREA_LIBRARY_COPY.favoriteRemove[locale] : CREA_LIBRARY_COPY.favoriteAdd[locale]}
+                className={cn(
+                  "inline-flex size-7 items-center justify-center rounded-full studio-anim-mikro hover:bg-white/20 studio-focus-ink pointer-coarse:size-11",
+                  isFavorited && "text-yellow",
+                )}
+              >
+                <Heart className={cn("size-3.5", isFavorited && "fill-current")} />
+              </button>
+            ) : null}
 
             {onReuse ? (
               <button
@@ -365,7 +397,7 @@ export function StudioMediaTile({
                 onClick={() => onReuse(job)}
                 aria-label={locale === "sr" ? "Upotrebi ponovo" : "Reuse"}
                 title={locale === "sr" ? "Upotrebi ponovo" : "Reuse"}
-                className="inline-flex size-7 items-center justify-center rounded-full studio-anim-mikro hover:bg-white/20 studio-focus-ink"
+                className="inline-flex size-7 items-center justify-center rounded-full studio-anim-mikro hover:bg-white/20 studio-focus-ink pointer-coarse:size-11"
               >
                 <RefreshCw className="size-3.5" />
               </button>
@@ -379,7 +411,7 @@ export function StudioMediaTile({
               }}
               aria-label={locale === "sr" ? "Preuzmi" : "Download"}
               title={locale === "sr" ? "Preuzmi" : "Download"}
-              className="inline-flex size-7 items-center justify-center rounded-full studio-anim-mikro hover:bg-white/20 studio-focus-ink"
+              className="inline-flex size-7 items-center justify-center rounded-full studio-anim-mikro hover:bg-white/20 studio-focus-ink pointer-coarse:size-11"
             >
               <Download className="size-3.5" />
             </button>
@@ -395,8 +427,12 @@ export function StudioMediaTile({
           </div>
         ) : null}
 
-        {/* Hover dugme zvezdica dole desno: Produži / Animiraj */}
-        {!isWorking && hasOutput && onExtend ? (
+        {/* Brze akcije (K16, S44) dole desno; bez njih staro dugme „Produži / Animiraj" */}
+        {!isWorking && quickActions && quickActions.length > 0 ? (
+          <div className="absolute bottom-3 right-3 z-20 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100 has-[[aria-expanded=true]]:opacity-100">
+            <QuickActionsMenu locale={locale} actions={quickActions} />
+          </div>
+        ) : !isWorking && hasOutput && onExtend ? (
           <button
             type="button"
             onClick={() => onExtend(job)}

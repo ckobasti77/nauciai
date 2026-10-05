@@ -41,6 +41,15 @@ export type CreaLocalModelSpec = {
 
 const MB = 1024 * 1024;
 
+/** Fajlovi Florence-2 (K16): grafovi i rečnik, izmerene veličine (revizija u registru ispod). */
+export const FLORENCE_FILES = [
+  { key: "vision", path: "onnx/vision_encoder_quantized.onnx", bytes: 93_746_540 },
+  { key: "embed", path: "onnx/embed_tokens_quantized.onnx", bytes: 39_390_433 },
+  { key: "encoder", path: "onnx/encoder_model_quantized.onnx", bytes: 43_651_493 },
+  { key: "decoder", path: "onnx/decoder_model_quantized.onnx", bytes: 97_760_937 },
+  { key: "vocab", path: "vocab.json", bytes: 1_099_884 },
+] as const;
+
 /**
  * Verzija `@mediapipe/tasks-vision` iz `package.json`. WASM se vuče sa jsdelivr-a
  * za TAČNO ovu verziju - JS iz paketa i WASM sa CDN-a moraju da se poklope.
@@ -204,29 +213,46 @@ export const CREA_LOCAL_MODELS = {
     featureIds: ["S33"],
   },
   "florence-2-base": {
-    runtime: "transformers",
-    source: { host: "huggingface", repo: "onnx-community/Florence-2-base", files: ["onnx/"] },
-    bytes: 270 * MB,
+    // K16 (S45): Florence-2-base-ft (MIT), kvantizovan, kroz `onnxruntime-web` direktno
+    // (`lib/crea-florence.ts`); četiri grafa + BPE rečnik, zbir izmerenih veličina.
+    runtime: "onnx",
+    source: {
+      host: "huggingface",
+      repo: "onnx-community/Florence-2-base-ft",
+      revision: "e88a44eaf3791a35eae0c5a47b3dbcd36e67eb6f",
+      files: [...FLORENCE_FILES.map((file) => file.path)],
+    },
+    bytes: FLORENCE_FILES.reduce((sum, file) => sum + file.bytes, 0),
     license: "MIT",
     minClass: "desktop-gpu",
     featureIds: ["S45"],
   },
   "clip-vit-b32": {
-    runtime: "transformers",
-    source: { host: "huggingface", repo: "Xenova/clip-vit-base-patch32", files: ["onnx/vision_model_quantized.onnx"] },
-    bytes: 90 * MB,
+    // K16 (S43): slika → vektor (512). Kroz `onnxruntime-web` direktno (kao K10/K11), WASM;
+    // ulaz `pixel_values`, izlaz `image_embeds`. Licenca MIT (openai/clip-vit-base-patch32).
+    runtime: "onnx",
+    source: {
+      host: "huggingface",
+      repo: "Xenova/clip-vit-base-patch32",
+      revision: "d15189d7028b43f1d3e65039190477f6af591c2a",
+      files: ["onnx/vision_model_quantized.onnx"],
+    },
+    bytes: 89_117_001,
     license: "MIT",
     minClass: "desktop-gpu",
     featureIds: ["S43"],
   },
   "mclip-text": {
-    runtime: "transformers",
+    // K16 (S43): srpski tekst → isti prostor kao slike. DistilBERT (kvantizovan, uint8) iz
+    // zvaničnog repoa; uz njega rečnik i projekcija 768 → 512 (`CLIP_TEXT_AUX_FILES`).
+    runtime: "onnx",
     source: {
       host: "huggingface",
       repo: "sentence-transformers/clip-ViT-B-32-multilingual-v1",
-      files: ["onnx/model_quantized.onnx"],
+      revision: "58edf8cada9e398793dca955574a48cbb7f18be2",
+      files: ["onnx/model_quint8_avx2.onnx"],
     },
-    bytes: 130 * MB,
+    bytes: 135_377_779,
     license: "Apache-2.0",
     minClass: "desktop-gpu",
     featureIds: ["S43"],
@@ -309,9 +335,28 @@ export function downloadBytes(ids: readonly CreaLocalModelId[], options: CreaRun
  * URL fajla modela koji se preuzima - samo za izvore sa jednim fajlom. Hugging
  * Face model mora da ima zakucanu reviziju (`resolve/<commit>`), inače `null`.
  */
+/** Svi fajlovi modela (K16: Florence-2 ima više grafova); HF bez zakucane revizije = prazno. */
+export function modelFileUrls(id: CreaLocalModelId): string[] {
+  const source: CreaModelSource = CREA_LOCAL_MODELS[id].source;
+  if (source.host !== "huggingface") return [source.url];
+  if (!source.revision) return [];
+  return source.files.map((file) => `https://huggingface.co/${source.repo}/resolve/${source.revision}/${file}`);
+}
+
 export function modelFileUrl(id: CreaLocalModelId): string | null {
   const source: CreaModelSource = CREA_LOCAL_MODELS[id].source;
   if (source.host !== "huggingface") return source.url;
   if (!source.revision || source.files.length !== 1) return null;
   return `https://huggingface.co/${source.repo}/resolve/${source.revision}/${source.files[0]}`;
 }
+
+/**
+ * Pomoćni fajlovi višejezičnog CLIP tekst enkodera (K16): WordPiece rečnik i težine
+ * projekcije 768 → 512 (`2_Dense`, safetensors, F32 `linear.weight`). Ista revizija
+ * kao model; veličine izmerene.
+ */
+const MCLIP_BASE = "https://huggingface.co/sentence-transformers/clip-ViT-B-32-multilingual-v1/resolve/58edf8cada9e398793dca955574a48cbb7f18be2";
+export const CLIP_TEXT_AUX_FILES = {
+  vocab: { url: `${MCLIP_BASE}/vocab.txt`, bytes: 995_526 },
+  dense: { url: `${MCLIP_BASE}/2_Dense/model.safetensors`, bytes: 1_572_984 },
+} as const;

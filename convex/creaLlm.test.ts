@@ -154,3 +154,56 @@ describe("pomoćnik za opis", () => {
     expect(await t.run((ctx) => ctx.db.query("studioUsageDaily").collect())).toHaveLength(0);
   });
 });
+
+describe("opis slike (K16, S45 „Kako je ovo napravljeno?“)", () => {
+  const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]).buffer;
+
+  test("bez ključa: DEMO opis po delovima, bez mreže", async () => {
+    const t = makeT();
+    const { asUser } = await seedUser(t);
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+    const reply = await asUser.action(api.creaLlm.describeImage, { image: JPEG, mimeType: "image/jpeg", locale: "sr" });
+    expect(reply).toMatchObject({ ok: true, demo: true });
+    if (!reply.ok) throw new Error("DEMO");
+    expect(reply.parts.length).toBeGreaterThan(0);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  test("sa ključem: slika ide inline (base64), opis se čita isto kao pomoćnik, trošak se upisuje, 0 kredita", async () => {
+    process.env.GOOGLE_AI_API_KEY = "test-kljuc";
+    const t = makeT();
+    const { asUser } = await seedUser(t);
+    const bodies: unknown[] = [];
+    vi.stubGlobal("fetch", (async (_url: string, init: RequestInit) => {
+      bodies.push(JSON.parse(String(init.body)));
+      return new Response(JSON.stringify(GEMINI_REPLY), { status: 200 });
+    }) as unknown as typeof fetch);
+
+    const reply = await asUser.action(api.creaLlm.describeImage, { image: JPEG, mimeType: "image/jpeg", locale: "sr" });
+    expect(reply).toMatchObject({ ok: true, demo: false, prompt: "a black cat, moonlight" });
+    const parts = (bodies[0] as { contents: Array<{ parts: Array<{ inlineData?: { mimeType: string; data: string } }> }> }).contents[0]!.parts;
+    expect(parts[0]!.inlineData).toEqual({ mimeType: "image/jpeg", data: btoa(String.fromCharCode(0xff, 0xd8, 0xff, 0xe0, 1, 2, 3)) });
+    expect((await t.run((ctx) => ctx.db.query("creaLlmUsage").collect()))[0]).toMatchObject({ calls: 1, inputTokens: 1000 });
+    expect(await t.run((ctx) => ctx.db.query("creditTransactions").collect())).toHaveLength(0);
+  });
+
+  test("prazna, prevelika ili ne-slika se odbija bez trošenja limita; isti dnevni limit kao pomoćnik", async () => {
+    process.env.GOOGLE_AI_API_KEY = "test-kljuc";
+    const t = makeT();
+    const { userId, asUser } = await seedUser(t);
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+    expect(await asUser.action(api.creaLlm.describeImage, { image: new ArrayBuffer(0), mimeType: "image/jpeg", locale: "sr" })).toEqual({ ok: false, reason: "PRAZNO" });
+    expect(await asUser.action(api.creaLlm.describeImage, { image: JPEG, mimeType: "image/svg+xml", locale: "sr" })).toEqual({ ok: false, reason: "GRESKA" });
+    expect(await asUser.action(api.creaLlm.describeImage, { image: new ArrayBuffer(1_600_000), mimeType: "image/png", locale: "sr" })).toEqual({ ok: false, reason: "GRESKA" });
+    expect((await asUser.query(api.creaLlm.getPromptHelperQuota, { now: Date.now() })).used).toBe(0);
+
+    await t.run((ctx) =>
+      ctx.db.insert("creaLlmUsage", { userId, day: dayKey(Date.now()), calls: CREA_LLM_DAILY_LIMIT, inputTokens: 0, outputTokens: 0, costUsd: 0 }),
+    );
+    expect(await asUser.action(api.creaLlm.describeImage, { image: JPEG, mimeType: "image/jpeg", locale: "sr" })).toEqual({ ok: false, reason: "LIMIT" });
+    expect(fetchSpy).not.toHaveBeenCalled();
+    await expect(t.action(api.creaLlm.describeImage, { image: JPEG, mimeType: "image/jpeg", locale: "sr" })).rejects.toThrow();
+  });
+});

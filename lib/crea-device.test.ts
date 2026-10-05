@@ -78,9 +78,12 @@ describe("dostupnost alata", () => {
       const ready = { ...tool, status: "ready" as const };
       expect(toolAvailability(ready, DESKTOP_GPU).ok, tool.id).toBe(true);
       const onDesktop = toolAvailability(ready, DESKTOP_NO_GPU);
-      // Jedini izuzetak je alat sa malom varijantom (MODNet umesto BiRefNet-a).
+      // Izuzeci: alat sa malom varijantom (MODNet umesto BiRefNet-a) i alat sa putem u
+      // oblaku (K16, „Kako je ovo napravljeno?" - opis za 0 kredita bez lokalnog modela).
       if (tool.device.smallVariantFrom) {
         expect(onDesktop, tool.id).toEqual({ ok: true, variant: "small" });
+      } else if (tool.cloudFallback) {
+        expect(onDesktop, tool.id).toEqual({ ok: true, variant: "cloud" });
       } else {
         expect(onDesktop, tool.id).toEqual({ ok: false, reason: "needs-webgpu" });
       }
@@ -118,7 +121,8 @@ describe("dostupnost alata", () => {
   });
 
   test("status ima prednost nad uređajem; plaćeni alat ne zavisi od uređaja", () => {
-    expect(toolAvailability(toolById("slika.opis")!, DESKTOP_GPU)).toEqual({ ok: false, reason: "soon" });
+    // K16: `slika.opis` je gotov, pa je primer „uskoro" alat iz videa.
+    expect(toolAvailability(toolById("video.reframe")!, DESKTOP_GPU)).toEqual({ ok: false, reason: "soon" });
     expect(toolAvailability(soonAsReady("slika.prosiri"), WEAK)).toEqual({ ok: true, variant: "full" });
     expect(toolAvailability({ ...toolById("slika.format")!, tier: "server" }, DESKTOP_GPU)).toEqual({
       ok: false,

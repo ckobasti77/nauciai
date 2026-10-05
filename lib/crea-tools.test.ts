@@ -130,6 +130,8 @@ describe("registar alata", () => {
       "slika.editor",
       "slika.sabloni",
       "slika.3d-foto",
+      // K16: „Kako je ovo napravljeno?" (Alati)
+      "slika.opis",
       "slika.cetkica",
       "slika.klik",
       "slika.obrisi",
@@ -267,8 +269,10 @@ describe("pomoćne funkcije", () => {
     expect(tools.slice(0, 2).map((tool) => tool.id)).toEqual(["slika.format", "slika.provera"]);
     expect(tools.every((tool) => tool.area === "slika" && tool.mode === "alati")).toBe(true);
     // Gotovi alati idu pre onih koji stižu.
+    // K16: u Slika · Alati više nema „uskoro" alata (`findIndex` = -1), pa se gleda ceo region.
     const firstSoon = tools.findIndex((tool) => tool.status === "soon");
-    expect(tools.slice(firstSoon).every((tool) => tool.status === "soon")).toBe(true);
+    expect(tools.slice(firstSoon === -1 ? tools.length : firstSoon).every((tool) => tool.status === "soon")).toBe(true);
+    expect(toolsFor("video").findIndex((tool) => tool.status === "soon")).toBeGreaterThanOrEqual(0);
     expect(toolsFor("zvuk").every((tool) => tool.area === "zvuk")).toBe(true);
   });
 

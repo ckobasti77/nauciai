@@ -3,8 +3,13 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { action, internalMutation, query } from "./_generated/server";
 import {
+  buildDescribeRequest,
   buildPromptHelperRequest,
+  bytesToBase64,
   CREA_LLM_DAILY_LIMIT,
+  DESCRIBE_IMAGE_MAX_BYTES,
+  DESCRIBE_IMAGE_TYPES,
+  demoDescribe,
   demoPromptHelper,
   geminiGenerateUrl,
   llmCostUsd,
@@ -108,6 +113,55 @@ export const improvePrompt = action({
     }
 
     // Trošak se upisuje i kad odgovor ne valja - Google ga je svejedno naplatio.
+    const usage = llmUsageFrom(raw);
+    await ctx.runMutation(internal.creaLlm.recordCall, {
+      userId: slot.userId,
+      day: slot.day,
+      ...usage,
+      costUsd: llmCostUsd(usage),
+    });
+    const result = parsePromptHelperResponse(raw);
+    if (!result) return { ok: false, reason: "GRESKA" };
+    return { ok: true, demo: false, remaining: slot.remaining, ...result };
+  },
+});
+
+/**
+ * S45 „Kako je ovo napravljeno?" za sliku bez opisa (okačena fotka, rad besplatnog
+ * alata): Gemini Flash-Lite pogleda sliku i vrati opis po delovima, isti oblik kao
+ * pomoćnik. Jeftino (~$0,001) - korisnik ne plaća kredite, broji se u isti dnevni
+ * limit kao pomoćnik. Slika stiže kao bajtovi (klijent je smanji), ne ostaje nigde.
+ */
+export const describeImage = action({
+  args: { image: v.bytes(), mimeType: v.string(), locale: localeValidator },
+  handler: async (ctx, args): Promise<PromptHelperReply> => {
+    if (args.image.byteLength === 0) return { ok: false, reason: "PRAZNO" };
+    if (args.image.byteLength > DESCRIBE_IMAGE_MAX_BYTES || !(DESCRIBE_IMAGE_TYPES as readonly string[]).includes(args.mimeType)) {
+      return { ok: false, reason: "GRESKA" };
+    }
+    const slot = await ctx.runMutation(internal.creaLlm.beginCall, {});
+    if (!slot.ok) return { ok: false, reason: "LIMIT" };
+
+    const apiKey = process.env.GOOGLE_AI_API_KEY;
+    if (!apiKey) return { ok: true, demo: true, remaining: slot.remaining, ...demoDescribe(args.locale) };
+
+    let raw: unknown;
+    try {
+      const response = await fetch(geminiGenerateUrl(), {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-goog-api-key": apiKey },
+        body: JSON.stringify(buildDescribeRequest(bytesToBase64(new Uint8Array(args.image)), args.mimeType, args.locale)),
+      });
+      if (!response.ok) {
+        console.warn(`Opis slike: Gemini je vratio ${response.status}.`);
+        return { ok: false, reason: "GRESKA" };
+      }
+      raw = await response.json();
+    } catch (error) {
+      console.warn(`Opis slike: mreža - ${error instanceof Error ? error.message : String(error)}`);
+      return { ok: false, reason: "GRESKA" };
+    }
+
     const usage = llmUsageFrom(raw);
     await ctx.runMutation(internal.creaLlm.recordCall, {
       userId: slot.userId,

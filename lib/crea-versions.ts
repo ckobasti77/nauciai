@@ -1,3 +1,4 @@
+import { referenceModeOf } from "@/convex/creaElementsCore";
 import { CREA_AREA_KIND, creaModeDef, modelsForMode, usableInputModes } from "@/lib/crea-shell";
 import type { CreaArea, CreaKind, CreaModeId, CreaModelLike } from "@/lib/crea-shell";
 import { CREA_TOOLS, isLocalTier, type CreaTool } from "@/lib/crea-tools";
@@ -14,7 +15,8 @@ export const CREA_INPUT_PARAM = "ulaz";
 /** Query ključ u detalju: korisnik se „Vrati"-o na ovaj rad (pokazuje se poziv da nastavi od njega). */
 export const CREA_RESTORED_PARAM = "vraceno";
 
-export type VersionIntent = "input" | "animate";
+/** `sound` (K16, „Ozvuči"): video dobija zvuk (Zvuk · Efekti, model koji prima video). */
+export type VersionIntent = "input" | "animate" | "sound";
 
 /** Režimi ljuske, redom prednosti, u koje izlaz date vrste ulazi. */
 const TARGETS: Record<VersionIntent, Record<CreaKind, ReadonlyArray<readonly [CreaArea, CreaModeId]>>> = {
@@ -40,6 +42,11 @@ const TARGETS: Record<VersionIntent, Record<CreaKind, ReadonlyArray<readonly [Cr
     ],
     video: [["video", "izmeni"]],
     audio: [["video", "govor"]],
+  },
+  sound: {
+    image: [],
+    video: [["zvuk", "efekti"]],
+    audio: [],
   },
 };
 
@@ -80,6 +87,17 @@ export function versionInputTarget<T extends VersionModel>(
     if (model) return { area, mode, modelSlug: model.slug, inputMode: inputModeWithSlot(model, area, mode, kind)! };
   }
   return null;
+}
+
+/**
+ * „Koristi kao referencu" (K16, S44): slika ide u Slika · Napravi kao referenca nove
+ * slike - model tog režima koji ima režim sa referencama (`image_multi`/`reference`,
+ * isti izbor kao @pominjanje Lika), preporučen ima prednost.
+ */
+export function referenceTarget<T extends VersionModel>(catalog: readonly T[]): VersionInputTarget | null {
+  const fitting = modelsForMode(catalog, "slika", "napravi").filter((model) => referenceModeOf(model) !== null);
+  const model = fitting.find((entry) => entry.badge === "preporuceno") ?? fitting[0];
+  return model ? { area: "slika", mode: "napravi", modelSlug: model.slug, inputMode: referenceModeOf(model)!.inputMode } : null;
 }
 
 /** Gotovi besplatni alati koji primaju izlaz ove vrste i čuvaju rezultat u galeriju. */

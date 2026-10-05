@@ -56,6 +56,7 @@ const CharacterTool = dynamic(() => import("./character-tool"), { ssr: false, lo
 const StickersTool = dynamic(() => import("./stickers-tool"), { ssr: false, loading: ToolLoading });
 const LogoTool = dynamic(() => import("./logo-tool"), { ssr: false, loading: ToolLoading });
 const BrandKitTool = dynamic(() => import("./brand-kit-tool"), { ssr: false, loading: ToolLoading });
+const DescribeTool = dynamic(() => import("./describe-tool"), { ssr: false, loading: ToolLoading });
 
 export const CREA_TOOL_COMPONENTS: Readonly<Record<string, ComponentType<CreaToolProps>>> = {
   "slika.format": FormatTool,
@@ -70,6 +71,7 @@ export const CREA_TOOL_COMPONENTS: Readonly<Record<string, ComponentType<CreaToo
   "slika.editor": EditorTool,
   "slika.sabloni": TemplatesTool,
   "slika.3d-foto": Photo3dTool,
+  "slika.opis": DescribeTool,
   "slika.cetkica": BrushTool,
   "slika.klik": SelectTool,
   "slika.obrisi": EraseTool,

@@ -17,7 +17,9 @@ import {
   downloadBytes,
   MEDIAPIPE_VISION_VERSION,
   MEDIAPIPE_WASM_BASE,
+  FLORENCE_FILES,
   modelFileUrl,
+  modelFileUrls,
   modelRuntime,
   ONNX_RUNTIME_WEB_VERSION,
   ORT_WASM_URL,
@@ -135,5 +137,15 @@ describe("registar lokalnih modela", () => {
     expect(modelFileUrl("depth-anything-v2-small")).toBe(
       "https://huggingface.co/onnx-community/depth-anything-v2-small/resolve/4472b7362082ad9968fee890ca0f1e5aca36b93d/onnx/model_quantized.onnx",
     );
+  });
+});
+
+describe("fajlovi modela (K16)", () => {
+  test("model od više fajlova (Florence-2) ima adresu svakog fajla na zakucanoj reviziji", () => {
+    const urls = modelFileUrls("florence-2-base");
+    expect(urls).toHaveLength(FLORENCE_FILES.length);
+    for (const url of urls) expect(url).toMatch(/^https:\/\/huggingface\.co\/onnx-community\/Florence-2-base-ft\/resolve\/[0-9a-f]{40}\//);
+    expect(CREA_LOCAL_MODELS["florence-2-base"].bytes).toBe(FLORENCE_FILES.reduce((sum, file) => sum + file.bytes, 0));
+    expect(modelFileUrls("clip-vit-b32")).toEqual([modelFileUrl("clip-vit-b32")]);
   });
 });

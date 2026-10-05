@@ -3,6 +3,7 @@
 import { Maximize2 } from "lucide-react";
 
 import { StudioMediaSkeletonTile, StudioMediaTile, type StudioTileJob } from "@/components/app/studio-media-tile";
+import type { QuickActionLink } from "@/components/crea/quick-actions-menu";
 import { CreaLogo } from "@/components/crea/crea-logo";
 import { CREA_STAGE_COPY } from "@/lib/crea-copy";
 import type { CreaModeDef } from "@/lib/crea-shell";
@@ -23,6 +24,8 @@ export function CreaStage({
   onOpenDetail,
   onReuse,
   onExtend,
+  onToggleFavorite,
+  quickActionsFor,
 }: {
   locale: Locale;
   mode: CreaModeDef;
@@ -33,6 +36,9 @@ export function CreaStage({
   onOpenDetail: (job: StudioTileJob) => void;
   onReuse: (job: StudioTileJob) => void;
   onExtend: (job: StudioTileJob) => void;
+  onToggleFavorite?: (job: StudioTileJob) => void;
+  /** Brze akcije (K16, S44) i na poslednjem radu. */
+  quickActionsFor?: (job: StudioTileJob) => QuickActionLink[];
 }) {
   return (
     <section aria-labelledby="crea-stage-title" className="min-w-0">
@@ -62,6 +68,8 @@ export function CreaStage({
             onOpenDetail={onOpenDetail}
             onReuse={onReuse}
             onExtend={onExtend}
+            {...(onToggleFavorite ? { onToggleFavorite } : {})}
+            {...(quickActionsFor ? { quickActions: quickActionsFor(job) } : {})}
           />
         </div>
       ) : isLoading ? (

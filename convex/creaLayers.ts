@@ -63,6 +63,7 @@ export const insertExtraOutput = internalMutation({
       modelSlug: parent.modelSlug,
       kind: parent.kind,
       params: layerChildParams(parent.params, args.layerNumber, kind.param),
+      ...(parent.searchText ? { searchText: parent.searchText } : {}),
       promptHash: parent.promptHash,
       status: "done",
       // Plaćen je glavni posao (cena po sloju / po slici); dete ne skida kredite i ne ulazi u dnevni zbir.

@@ -5,27 +5,15 @@ import { useAction, useQuery } from "convex/react";
 import { CircleCheck, RefreshCw, WandSparkles, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { PART_TONE } from "@/components/crea/prompt-parts";
 import { cn } from "@/components/ui/primitives";
 import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import type { PromptHelperReply } from "@/convex/creaLlm";
-import type { PromptHelperResult, PromptPartKind } from "@/convex/creaLlmCore";
+import type { PromptHelperResult } from "@/convex/creaLlmCore";
 import { CREA_CREATE_COPY as T } from "@/lib/crea-create-copy";
 import { fillCopy } from "@/lib/crea-copy";
 import type { Locale } from "@/lib/i18n";
-
-/**
- * Boja dela opisa (S6). Pet delova traži pet boja koje tema nema kao tokene, pa
- * se koristi Tailwind paleta sa svetlom i tamnom varijantom (kontrast ≥ 4.5:1 u
- * obe teme) - isto kao statusne boje (`amber`, `red`) u ostatku aplikacije.
- */
-const PART_TONE: Record<PromptPartKind, string> = {
-  ko: "bg-sky-100 text-sky-950 dark:bg-sky-950 dark:text-sky-100",
-  sta: "bg-emerald-100 text-emerald-950 dark:bg-emerald-950 dark:text-emerald-100",
-  stil: "bg-violet-100 text-violet-950 dark:bg-violet-950 dark:text-violet-100",
-  svetlo: "bg-amber-100 text-amber-950 dark:bg-amber-950 dark:text-amber-100",
-  kamera: "bg-rose-100 text-rose-950 dark:bg-rose-950 dark:text-rose-100",
-};
 
 type State = { name: "working" } | { name: "done"; reply: PromptHelperReply };
 

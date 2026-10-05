@@ -106,13 +106,18 @@ export type CreaUnavailableReason =
   | "weak-device";
 
 export type CreaToolAvailability =
-  | { ok: true; variant: "full" | "small" }
+  | { ok: true; variant: "full" | "small" | "cloud" }
   | { ok: false; reason: CreaUnavailableReason };
 
 /** Samo uređaj: da li bi alat radio ovde, nezavisno od toga da li je gotov. */
 export function deviceProblem(tool: CreaTool, caps: CreaDeviceCaps): CreaToolAvailability {
   // Plaćeni alat radi kod provajdera; uređaju treba samo browser.
   if (tool.tier === "paid" || tool.tier === "server") return { ok: true, variant: "full" };
+  // K16: uređaj koji ne može lokalni model koristi put u oblaku (0 kredita).
+  if (tool.cloudFallback) {
+    const local = deviceProblem({ ...tool, cloudFallback: undefined }, caps);
+    return local.ok ? local : { ok: true, variant: "cloud" };
+  }
 
   for (const capability of tool.device.requires ?? []) {
     if (hasCapability(caps, capability)) continue;

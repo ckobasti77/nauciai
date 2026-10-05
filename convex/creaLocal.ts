@@ -15,6 +15,7 @@ import {
 import { lineageFrom } from "./creaVersionsCore";
 import { requireStudioAccess } from "./studio";
 import { dayStart, outputExpiresAt, promptHash, UPLOAD_GRANT_CLOCK_SLACK_MS, UPLOAD_GRANT_TTL_MS } from "./studioCore";
+import { searchTextForJob } from "../lib/crea-search-text";
 
 /**
  * Rezultati lokalnih alata u galeriji (Crea K04, plan K01 §4.2-4.4).
@@ -156,6 +157,7 @@ export const saveLocalResult = mutation({
       kind: args.kind,
       provider: "local",
       params: sanitizeLocalParams(args.params),
+      searchText: searchTextForJob({ params: "{}", modelSlug: localModelSlug(args.toolId), kind: args.kind }),
       promptHash: promptHash(""),
       status: "done",
       creditCost: 0,

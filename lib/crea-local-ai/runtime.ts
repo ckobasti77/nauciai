@@ -4,7 +4,9 @@ import type { Worker as TesseractWorker } from "tesseract.js";
 import { fetchModelFile } from "./cache";
 import { CreaLocalAiError, toLocalAiError } from "./errors";
 import {
+  CLIP_TEXT_AUX_FILES,
   CREA_LOCAL_MODELS,
+  FLORENCE_FILES,
   CREA_LOCAL_RUNTIMES,
   MEDIAPIPE_WASM_BASE,
   modelFileUrl,
@@ -390,6 +392,194 @@ export async function loadOnnxModel(
     return await attempt;
   } catch (error) {
     onnxModels.delete(key);
+    throw toLocalAiError(error, "MODEL_LOAD_FAILED");
+  }
+}
+
+// ── Semantička pretraga (S43, K16): višejezični CLIP ─────────────────────────
+
+/** Slika (224 × 224 RGBA, `clipCropRect` + platno) ili tekst → normalizovan vektor (512). */
+export type ClipEncoder = {
+  embedImage: (rgba224: Uint8ClampedArray) => Promise<number[]>;
+  embedText: (text: string) => Promise<number[]>;
+};
+
+let clipEncoder: Promise<ClipEncoder> | null = null;
+
+/**
+ * Oba CLIP modela (slika ~89 MB, tekst ~135 MB) na ONNX Runtime WASM-u, plus rečnik
+ * i projekcija tekst enkodera - sve kroz naš keš, jedna traka napretka. Učitava se
+ * jednom po strani, tek kad korisnik uključi „Pametnu pretragu".
+ */
+export async function loadClip(options: LocalLoadOptions = {}): Promise<ClipEncoder> {
+  if (clipEncoder) return clipEncoder;
+  const track = progressTracker(options.onProgress);
+  const asFile = (key: string, total: number) => {
+    const report = track(key, { loaded: 0, total });
+    return (progress: AggregateProgress) => report({ loaded: progress.loaded, total: progress.total });
+  };
+  const clip = import("../crea-clip");
+
+  const attempt = (async (): Promise<ClipEncoder> => {
+    // Prvo slika (preuzme i ORT WASM), pa tekst - drugi model WASM čita iz keša, a ORT
+    // se ne inicijalizuje dvaput u isto vreme.
+    const reportText = asFile("text", CREA_LOCAL_MODELS["mclip-text"].bytes + CREA_LOCAL_RUNTIMES.onnx.bytes);
+    const vision = await loadOnnxModel("clip-vit-b32", "wasm", {
+      signal: options.signal,
+      onProgress: asFile("vision", CREA_LOCAL_MODELS["clip-vit-b32"].bytes + CREA_LOCAL_RUNTIMES.onnx.bytes),
+    });
+    const [text, vocabFile, denseFile, lib] = await Promise.all([
+      loadOnnxModel("mclip-text", "wasm", {
+        signal: options.signal,
+        onProgress: reportText,
+      }),
+      fetchModelFile(CLIP_TEXT_AUX_FILES.vocab.url, {
+        signal: options.signal,
+        expectedBytes: CLIP_TEXT_AUX_FILES.vocab.bytes,
+        onProgress: track("vocab", { loaded: 0, total: CLIP_TEXT_AUX_FILES.vocab.bytes }),
+      }),
+      fetchModelFile(CLIP_TEXT_AUX_FILES.dense.url, {
+        signal: options.signal,
+        expectedBytes: CLIP_TEXT_AUX_FILES.dense.bytes,
+        onProgress: track("dense", { loaded: 0, total: CLIP_TEXT_AUX_FILES.dense.bytes }),
+      }),
+      clip,
+    ]);
+    if (options.signal?.aborted) throw new CreaLocalAiError("ABORTED");
+    const vocab = lib.parseVocab(await vocabFile.text());
+    const dense = lib.readSafetensor(await denseFile.arrayBuffer(), "linear.weight").data;
+    const ort = vision.ort;
+    return {
+      async embedImage(rgba224) {
+        const pixels = lib.clipPixelValues(rgba224);
+        const out = await vision.session.run({
+          pixel_values: new ort.Tensor("float32", pixels, [1, 3, lib.CLIP_IMAGE_SIZE, lib.CLIP_IMAGE_SIZE]),
+        });
+        return lib.l2Normalize(out.image_embeds.data as Float32Array);
+      },
+      async embedText(query) {
+        const ids = lib.tokenizeForClip(query, vocab);
+        const shape = [1, ids.length];
+        const out = await text.session.run({
+          input_ids: new text.ort.Tensor("int64", BigInt64Array.from(ids, (id) => BigInt(id)), shape),
+          attention_mask: new text.ort.Tensor("int64", BigInt64Array.from(ids, () => BigInt(1)), shape),
+        });
+        const pooled = lib.meanPool(out.last_hidden_state.data as Float32Array, ids.map(() => 1));
+        return lib.l2Normalize(lib.denseProject(pooled, dense));
+      },
+    };
+  })();
+
+  clipEncoder = attempt;
+  try {
+    return await attempt;
+  } catch (error) {
+    clipEncoder = null;
+    throw toLocalAiError(error, "MODEL_LOAD_FAILED");
+  }
+}
+
+// ── „Kako je ovo napravljeno?" na uređaju (S45, K16): Florence-2 ─────────────
+
+/** Slika 768 × 768 RGBA → opis na engleskom (pohlepno dekodiranje, `lib/crea-florence.ts`). */
+export type FlorenceCaptioner = { describe: (rgba768: Uint8ClampedArray, signal?: AbortSignal) => Promise<string> };
+
+let florence: Promise<FlorenceCaptioner> | null = null;
+
+/**
+ * Florence-2-base-ft (~275 MB, četiri ONNX grafa + rečnik) na ONNX Runtime WASM-u,
+ * jedna nit - sve kroz naš keš i jednu traku napretka. Isti WASM kao ostali ONNX
+ * alati; sesije se prave jednom po strani.
+ */
+export async function loadFlorence(options: LocalLoadOptions = {}): Promise<FlorenceCaptioner> {
+  if (florence) return florence;
+  const track = progressTracker(options.onProgress);
+  const source = CREA_LOCAL_MODELS["florence-2-base"].source;
+  if (source.host !== "huggingface" || !source.revision) throw new CreaLocalAiError("MODEL_LOAD_FAILED");
+  const base = `https://huggingface.co/${source.repo}/resolve/${source.revision}`;
+
+  const attempt = (async (): Promise<FlorenceCaptioner> => {
+    const files = FLORENCE_FILES.map((file) =>
+      fetchModelFile(`${base}/${file.path}`, {
+        signal: options.signal,
+        expectedBytes: file.bytes,
+        onProgress: track(file.key, { loaded: 0, total: file.bytes }),
+      }),
+    );
+    const [ort, wasm, lib, ...blobs] = await Promise.all([
+      import("onnxruntime-web/wasm").catch((error: unknown) => {
+        throw toLocalAiError(error, "MODEL_LOAD_FAILED");
+      }),
+      fetchModelFile(ORT_WASM_URL, {
+        signal: options.signal,
+        expectedBytes: CREA_LOCAL_RUNTIMES.onnx.bytes,
+        onProgress: track("wasm", { loaded: 0, total: CREA_LOCAL_RUNTIMES.onnx.bytes }),
+      }),
+      import("../crea-florence"),
+      ...files,
+    ]);
+    if (options.signal?.aborted) throw new CreaLocalAiError("ABORTED");
+    ort.env.wasm.wasmBinary = await wasm.arrayBuffer();
+    ort.env.wasm.numThreads = 1;
+    ort.env.wasm.proxy = false;
+    const sessionOf = async (blob: Blob) => {
+      try {
+        return await ort.InferenceSession.create(new Uint8Array(await blob.arrayBuffer()), {
+          executionProviders: ["wasm"],
+          graphOptimizationLevel: "all",
+        });
+      } catch (error) {
+        throw new CreaLocalAiError("MODEL_LOAD_FAILED", error);
+      }
+    };
+    const [vision, embed, encoder, decoder] = [
+      await sessionOf(blobs[0]),
+      await sessionOf(blobs[1]),
+      await sessionOf(blobs[2]),
+      await sessionOf(blobs[3]),
+    ];
+    const idToToken = lib.invertVocab(JSON.parse(await blobs[4].text()) as Record<string, number>);
+    const ids = (values: readonly number[]) =>
+      new ort.Tensor("int64", BigInt64Array.from(values, (value) => BigInt(value)), [1, values.length]);
+
+    return {
+      async describe(rgba768, signal) {
+        const size = lib.FLORENCE_IMAGE_SIZE;
+        const { image_features: image } = await vision.run({
+          pixel_values: new ort.Tensor("float32", lib.florencePixelValues(rgba768), [1, 3, size, size]),
+        });
+        const { inputs_embeds: prompt } = await embed.run({ input_ids: ids(lib.FLORENCE_CAPTION_PROMPT_IDS) });
+        const hidden = image.dims[2];
+        const total = image.dims[1] + prompt.dims[1];
+        const joined = new Float32Array(total * hidden);
+        joined.set(image.data as Float32Array, 0);
+        joined.set(prompt.data as Float32Array, image.dims[1] * hidden);
+        const mask = ids(new Array<number>(total).fill(1));
+        const { last_hidden_state: encoded } = await encoder.run({
+          inputs_embeds: new ort.Tensor("float32", joined, [1, total, hidden]),
+          attention_mask: mask,
+        });
+        const generated = [lib.FLORENCE_DECODER_START_ID];
+        while (generated.length < lib.FLORENCE_MAX_TOKENS) {
+          if (signal?.aborted) throw new CreaLocalAiError("ABORTED");
+          const { inputs_embeds: tokens } = await embed.run({ input_ids: ids(generated) });
+          const { logits } = await decoder.run({ inputs_embeds: tokens, encoder_hidden_states: encoded, encoder_attention_mask: mask });
+          const vocab = logits.dims[2];
+          const last = (logits.data as Float32Array).subarray((generated.length - 1) * vocab, generated.length * vocab);
+          const token = lib.nextToken(last, generated);
+          generated.push(token);
+          if (token === lib.FLORENCE_EOS_ID) break;
+        }
+        return lib.decodeBpe(generated, idToToken);
+      },
+    };
+  })();
+
+  florence = attempt;
+  try {
+    return await attempt;
+  } catch (error) {
+    florence = null;
     throw toLocalAiError(error, "MODEL_LOAD_FAILED");
   }
 }

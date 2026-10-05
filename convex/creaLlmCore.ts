@@ -146,3 +146,61 @@ export function demoPromptHelper(text: string, locale: CreaLlmLocale): PromptHel
     prompt: promptFromParts(parts),
   };
 }
+
+// ── „Kako je ovo napravljeno?" (K16, S45): opis tuđe/okačene slike ─────────────
+
+/** Najveća slika koju opis prima (bajtova) - klijent je pre slanja smanji na ~768 px JPEG. */
+export const DESCRIBE_IMAGE_MAX_BYTES = 1_500_000;
+export const DESCRIBE_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
+
+const DESCRIBE_SYSTEM = `You look at one image and write the image-generation prompt that would recreate it.
+Reply with JSON only, no markdown:
+{"parts":[{"kind":"ko|sta|stil|svetlo|kamera","text":"...","gloss":"..."}],"explanation":"..."}
+Rules:
+- 3 to 6 parts, in this order of kinds when present: ko (main subject: who or what, with concrete details), sta (action, setting, mood), stil (art style or medium), svetlo (lighting), kamera (shot type, angle, lens).
+- "text" is a short English phrase for the image model (no full stops, max 25 words).
+- "gloss" is the same phrase in the user's language.
+- Describe only what is visible. Never name real people; describe them generically. Do not transcribe long text from the image.
+- "explanation" is 1-2 friendly sentences in the user's language for a beginner: what makes this image look the way it does.`;
+
+/** `generateContent` sa slikom (inline base64). */
+export function buildDescribeRequest(base64: string, mimeType: string, locale: CreaLlmLocale) {
+  const language = locale === "sr" ? "Serbian (Latin script)" : "English";
+  return {
+    systemInstruction: { parts: [{ text: DESCRIBE_SYSTEM }] },
+    contents: [
+      {
+        role: "user",
+        parts: [{ inlineData: { mimeType, data: base64 } }, { text: `User's language: ${language}.` }],
+      },
+    ],
+    generationConfig: { responseMimeType: "application/json", temperature: 0.3, maxOutputTokens: 800 },
+  };
+}
+
+/** Bajtovi → base64 (u delovima, da `String.fromCharCode` ne pređe granicu argumenata). */
+export function bytesToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(binary);
+}
+
+/** DEMO opis bez ključa: isti oblik kao pravi, da se ceo tok vidi i bez Google-a. */
+export function demoDescribe(locale: CreaLlmLocale): PromptHelperResult {
+  const sr = locale === "sr";
+  const parts: PromptPart[] = [
+    { kind: "ko", text: "the main subject of the uploaded picture", gloss: sr ? "glavni predmet okačene slike" : "the main subject of the uploaded picture" },
+    { kind: "stil", text: "natural photograph, true-to-life colors", gloss: sr ? "prirodna fotografija, verne boje" : "natural photograph, true-to-life colors" },
+    { kind: "svetlo", text: "soft daylight", gloss: sr ? "meko dnevno svetlo" : "soft daylight" },
+    { kind: "kamera", text: "eye-level medium shot", gloss: sr ? "srednji kadar u visini očiju" : "eye-level medium shot" },
+  ];
+  return {
+    parts,
+    explanation: sr
+      ? "DEMO (bez Google ključa): pravi opis stiže kad je ključ postavljen - ovo samo pokazuje kako izgleda."
+      : "DEMO (no Google key): the real description arrives once the key is set - this only shows what it looks like.",
+    prompt: promptFromParts(parts),
+  };
+}

@@ -1637,7 +1637,14 @@ export default defineSchema({
     expiresAt: v.optional(v.number()),
     createdAt: v.number(),
     completedAt: v.optional(v.number()),
+    // Pretraga na srpskom (Crea K16, S43): opis, model/alat i vrsta, normalizovano
+    // (latinica bez kvačica + koren reči, `lib/crea-search-text.ts`). Upisuje se pri
+    // nastanku rada; stari radovi ga dobijaju kroz `migrations.backfillCreaSearchText`.
+    searchText: v.optional(v.string()),
+    // Omiljeno (K16, U9): kad je korisnik označio rad. Nema ga = nije omiljen.
+    favoriteAt: v.optional(v.number()),
   })
+    .searchIndex("search_searchText", { searchField: "searchText", filterFields: ["userId", "kind"] })
     .index("by_user", ["userId", "createdAt"])
     .index("by_user_project", ["userId", "projectId", "createdAt"])
     .index("by_fal_request", ["falRequestId"])
@@ -1659,6 +1666,18 @@ export default defineSchema({
     // svakog novog posla, pa mora da bude jedno čitanje po indeksu, a ne
     // skeniranje istorije.
     .index("by_user_unsettled", ["userId", "unsettledCredits"]),
+
+  // Semantička pretraga (Crea K16, S43): CLIP vektor slike (512, normalizovan),
+  // izračunat na uređaju korisnika (desktop sa WebGPU-om). Jedan red po radu;
+  // briše se sa radom (`studio.deleteJobForUser`).
+  creaEmbeddings: defineTable({
+    userId: v.id("users"),
+    jobId: v.id("generationJobs"),
+    model: v.string(),
+    embedding: v.array(v.float64()),
+  })
+    .index("by_job", ["jobId"])
+    .vectorIndex("by_embedding", { vectorField: "embedding", dimensions: 512, filterFields: ["userId"] }),
 
   // Ko je koji ulazni fajl okačio. `createInputUploadUrl` vraća gol Convex
   // upload URL i ne zna ishod uploada, pa vezu `storageId` -> korisnik pravi

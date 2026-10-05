@@ -20,15 +20,23 @@ export type StudioFilters = {
   modelSlug: string | null;
   range: DateRangePreset;
   query: string;
+  /** Galerija 2.0 (Crea K16, U9): samo omiljeni radovi. */
+  favorite: boolean;
+  /** Galerija 2.0: besplatni (0 kredita) ili plaćeni radovi. */
+  cost: StudioCostFilter;
   /** „Izaberi više" - režim višestrukog izbora u mreži. */
   selectMode: boolean;
 };
+
+export type StudioCostFilter = "all" | "free" | "paid";
 
 export const DEFAULT_FILTERS: StudioFilters = {
   open: false,
   modelSlug: null,
   range: "all",
   query: "",
+  favorite: false,
+  cost: "all",
   selectMode: false,
 };
 
@@ -47,6 +55,8 @@ export function activeFilterCount(state: StudioFilters): number {
   if (state.modelSlug !== null) count += 1;
   if (state.range !== "all") count += 1;
   if (state.query.trim().length > 0) count += 1;
+  if (state.favorite) count += 1;
+  if (state.cost !== "all") count += 1;
 
   return count;
 }
@@ -75,7 +85,7 @@ export function closeStudioFilters() {
 
 /** Vraća filtere na podrazumevano; prozor i režim izbora ostaju kakvi jesu. */
 export function resetStudioFilters() {
-  setStudioFilters({ modelSlug: null, range: "all", query: "" });
+  setStudioFilters({ modelSlug: null, range: "all", query: "", favorite: false, cost: "all" });
 }
 
 function subscribe(listener: () => void) {

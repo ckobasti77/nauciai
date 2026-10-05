@@ -30,9 +30,12 @@ import {
 } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { StudioTileJob } from "@/components/app/studio-media-tile";
+import { PromptSegmentsView } from "@/components/crea/prompt-parts";
+import { QUICK_ACTION_ICONS, type QuickActionLink } from "@/components/crea/quick-actions-menu";
 import { VersionStrip } from "@/components/crea/version-strip";
 import { CreditIcon } from "@/components/studio/credit-icon";
 import { StudioComposer, type JobPayload, type RegenerateSeed } from "@/components/studio/studio-composer";
@@ -45,6 +48,7 @@ import { CREA_PICK_COPY, CREA_TOOL_COPY, CREA_VERSION_COPY, fillCopy } from "@/l
 import { buildRefineOrder, orderCredits, refinePairForJob, type RefineOrder } from "@/lib/crea-draft";
 import { toolOfJob } from "@/lib/crea-tools";
 import { isAnglesGridPrompt } from "@/lib/crea-grid-crop";
+import { CREA_LIBRARY_COPY } from "@/lib/crea-library-copy";
 import { CREA_STICKERS_COPY } from "@/lib/crea-recipes-copy";
 import { isStickerSheetPrompt } from "@/lib/crea-sticker-pack";
 import { toolsForWork, versionInputTarget, type VersionIntent } from "@/lib/crea-versions";
@@ -165,6 +169,7 @@ export function StudioMediaDetail({
   onOpenVersion,
   onUseAsInput,
   onOpenTool,
+  quickActions = [],
   onRefine,
   restored,
   onGenerate,
@@ -186,6 +191,8 @@ export function StudioMediaDetail({
   onOpenVersion: (jobId: string, restored: boolean) => void;
   onUseAsInput: (job: StudioTileJob, intent: VersionIntent) => void;
   onOpenTool: (job: StudioTileJob, toolId: string) => void;
+  /** Brze akcije (K16, S44) - isti spisak kao na kartici. */
+  quickActions?: readonly QuickActionLink[];
   /** „Usavrši" probu (K07): konačna verzija skupljim modelom; `carried` su ulazi probe po slotu. */
   onRefine: (job: StudioTileJob, order: RefineOrder, model: StudioModel, carried: Record<string, string[]>) => void;
   /** Korisnik se „Vrati"-o na ovaj rad: nudi se da nastavi od njega. */
@@ -203,6 +210,7 @@ export function StudioMediaDetail({
   });
 
   const deleteJobMutation = useMutation(api.studio.deleteJob);
+  const toggleFavorite = useMutation(api.creaLibrary.toggleFavorite);
 
   // Stablo verzija (K05, S25): roditelj ovog rada je meta „Vrati" i strana „pre" u poređenju.
   const versionTree = useQuery(api.creaVersions.getVersionTree, { jobId: job._id as Id<"generationJobs"> });
@@ -212,7 +220,9 @@ export function StudioMediaDetail({
   const [comparing, setComparing] = useState(false);
 
   // Stanja interfejsa
-  const [isFavorited, setIsFavorited] = useState(false);
+  // Omiljeno (K16): pravo polje rada; dok mutacija ne stigne, kartica pokazuje novo stanje.
+  const [favoriteOverride, setFavoriteOverride] = useState<boolean | null>(null);
+  const isFavorited = favoriteOverride ?? job.favoriteAt !== undefined;
   const [copiedLink, setCopiedLink] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(true);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
@@ -244,6 +254,12 @@ export function StudioMediaDetail({
   const inputTarget = isDone ? versionInputTarget(catalog, job.kind, "input") : null;
   const animateTarget = isDone && job.kind === "image" ? versionInputTarget(catalog, job.kind, "animate") : null;
   const workTools = isDone ? toolsForWork(job.kind) : [];
+  // Brze akcije (K16) bez onih koje detalj već ima kao veliko dugme („Koristi kao ulaz", „Animiraj").
+  const extraQuickActions = quickActions.filter(
+    (action) => !(action.id === "izmeni" && inputTarget) && !(action.id === "animiraj" && animateTarget),
+  );
+  // Slika bez opisa (S45): „Napravi sličnu" vodi u „Kako je ovo napravljeno?" sa ovom slikom.
+  const describeLink = prompt ? undefined : quickActions.find((action) => action.id === "slicna");
   // K12: razlaganje se otvara u editoru slojeva, mreža 3×3 se seče u 9 uglova - i DEMO rad, da se vidi tok.
   const followUpTool =
     job.status === "done" && hasOutput && !isExpired && job.kind === "image"
@@ -493,7 +509,13 @@ export function StudioMediaDetail({
           {/* Omiljeno */}
           <button
             type="button"
-            onClick={() => setIsFavorited((prev) => !prev)}
+            onClick={() => {
+              setFavoriteOverride(!isFavorited);
+              void toggleFavorite({ jobId: job._id as Id<"generationJobs"> })
+                .then((value) => setFavoriteOverride(value))
+                .catch(() => setFavoriteOverride(null));
+            }}
+            aria-pressed={isFavorited}
             aria-label={t.favorite}
             title={t.favorite}
             className={cn(
@@ -929,6 +951,9 @@ export function StudioMediaDetail({
                 />
               ) : null}
 
+              {/* „Kako je ovo napravljeno?" (K16, S45): model, opis po delovima, podešavanja, cena */}
+              <h4 className="border-t border-line pt-3 text-sm font-black text-ink">{CREA_LIBRARY_COPY.howTitle[locale]}</h4>
+
               {/* Model */}
               <div>
                 <span className="block text-[11px] font-black uppercase tracking-wide text-muted">{t.model}</span>
@@ -957,13 +982,25 @@ export function StudioMediaDetail({
                 </div>
               </div>
 
-              {/* Prompt */}
+              {/* Prompt, obojen po delovima (Ko · Šta · Stil · Svetlo · Kamera) */}
               {prompt ? (
                 <div>
                   <span className="block text-[11px] font-black uppercase tracking-wide text-muted">{t.prompt}</span>
-                  <div className="surface-inset mt-1.5 border border-line bg-paper p-3 text-xs font-bold leading-relaxed text-ink">
-                    {prompt}
+                  <div className="surface-inset mt-1.5 border border-line bg-paper p-3">
+                    <PromptSegmentsView locale={locale} prompt={prompt} legendLabel={CREA_LIBRARY_COPY.howLegend[locale]} />
                   </div>
+                </div>
+              ) : describeLink ? (
+                <div className="surface-inset border border-line bg-paper p-3">
+                  <p className="text-xs font-bold text-muted">{CREA_LIBRARY_COPY.howNoPrompt[locale]}</p>
+                  <Link
+                    href={describeLink.href}
+                    scroll={false}
+                    className="mt-2 inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--ink)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                  >
+                    <Sparkles aria-hidden="true" className="size-3.5" />
+                    {CREA_LIBRARY_COPY.howDescribe[locale]}
+                  </Link>
                 </div>
               ) : null}
 
@@ -987,6 +1024,18 @@ export function StudioMediaDetail({
                   </div>
                 </div>
               ) : null}
+
+              {/* Cena */}
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-[11px] font-black uppercase tracking-wide text-muted">{CREA_LIBRARY_COPY.howCost[locale]}</span>
+                <span className="font-mono text-xs font-black text-ink">
+                  {job.creditCost === 0
+                    ? localTool
+                      ? CREA_LIBRARY_COPY.howFreeLocal[locale]
+                      : CREA_LIBRARY_COPY.free[locale]
+                    : formatCreditsLong(job.creditCost, locale)}
+                </span>
+              </div>
 
               {/* Ulazne sličice / fajlovi */}
               {jobDetail?.inputs && jobDetail.inputs.length > 0 ? (
@@ -1017,7 +1066,7 @@ export function StudioMediaDetail({
             </div>
 
             {/* Izlaz kao ulaz (K05): u composer, u video ili u besplatan alat; „Usavrši" probu (K07) */}
-            {inputTarget || animateTarget || workTools.length > 0 || followUpTool || (canRefine && refineCredits !== null) ? (
+            {inputTarget || animateTarget || workTools.length > 0 || followUpTool || extraQuickActions.length > 0 || (canRefine && refineCredits !== null) ? (
               <div className="mt-4 space-y-2 border-t-2 border-ink/15 pt-3">
                 {followUpTool ? (
                   <button
@@ -1075,6 +1124,27 @@ export function StudioMediaDetail({
                     <Clapperboard aria-hidden="true" className="size-3.5" />
                     <span>{vc.animate[locale]}</span>
                   </button>
+                ) : null}
+                {extraQuickActions.length > 0 ? (
+                  <div>
+                    <span className="block text-[11px] font-black uppercase tracking-wide text-muted">{CREA_LIBRARY_COPY.quickMenu[locale]}</span>
+                    <div className="mt-1.5 flex flex-wrap gap-2">
+                      {extraQuickActions.map((action) => {
+                        const Icon = QUICK_ACTION_ICONS[action.id];
+                        return (
+                          <Link
+                            key={action.id}
+                            href={action.href}
+                            scroll={false}
+                            className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-line bg-paper px-3 text-xs font-black text-ink transition-colors hover:border-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none"
+                          >
+                            <Icon aria-hidden="true" className="size-3.5" />
+                            {action.label}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </div>
                 ) : null}
                 {workTools.length > 0 ? (
                   <div>

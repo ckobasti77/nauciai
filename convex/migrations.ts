@@ -23,6 +23,7 @@ import {
   syncStudyPartnerInviteSummary,
   syncStudyPartnershipSummary,
 } from "./studyHubSummaryCore";
+import { searchTextForJob } from "../lib/crea-search-text";
 
 type MigrationsComponent = ConstructorParameters<typeof Migrations<DataModel>>[0];
 const migrationsComponent = (components as unknown as { migrations: MigrationsComponent }).migrations;
@@ -650,6 +651,20 @@ export const backfillGenerationJobProvider = migrations.define({
       .withIndex("by_slug", (q) => q.eq("slug", job.modelSlug))
       .unique();
     return { provider: model?.provider ?? "fal" };
+  },
+});
+
+/**
+ * Pretraga na srpskom (Crea K16, S43): radovi nastali pre K16 nemaju
+ * `searchText`, pa ih search indeks ne vidi dok se ovo ne pusti (ručno, kao
+ * ostale migracije). Tekst je isti kao za nov rad (`searchTextForJob`).
+ */
+export const backfillCreaSearchText = migrations.define({
+  table: "generationJobs",
+  batchSize: 200,
+  migrateOne: async (_ctx, job) => {
+    if (job.searchText !== undefined) return;
+    return { searchText: searchTextForJob(job) };
   },
 });
 

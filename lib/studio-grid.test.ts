@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { columnsForContainerWidth, distributeGridColumns } from "./studio-grid";
+import { columnsForContainerWidth, columnsForTileWidth, distributeGridColumns } from "./studio-grid";
 
 describe("distributeGridColumns", () => {
   it("returns empty array when columnCount is 0 or negative", () => {
@@ -65,5 +65,15 @@ describe("columnsForContainerWidth", () => {
     expect(columnsForContainerWidth(879)).toBe(2);
     expect(columnsForContainerWidth(880)).toBe(3);
     expect(columnsForContainerWidth(1600)).toBe(3);
+  });
+});
+
+describe("columnsForTileWidth (biblioteka, K16)", () => {
+  it("fits as many tiles of the chosen size as the width allows, between 1 and 8", () => {
+    expect(columnsForTileWidth(1400, 250)).toBe(5);
+    expect(columnsForTileWidth(1400, 140)).toBe(8);
+    expect(columnsForTileWidth(358, 140)).toBe(2);
+    expect(columnsForTileWidth(358, 440)).toBe(1);
+    expect(columnsForTileWidth(0, 250)).toBe(1);
   });
 });

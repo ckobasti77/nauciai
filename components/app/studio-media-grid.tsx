@@ -1,19 +1,23 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { usePaginatedQuery } from "convex/react";
-import { Download, SlidersHorizontal, Sparkles, Wand2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useMutation, usePaginatedQuery, useQuery } from "convex/react";
+import { CopyCheck, Download, SlidersHorizontal, Sparkles, Wand2 } from "lucide-react";
 
 import { StudioMediaSkeletonTile, StudioMediaTile, type StudioTileJob } from "@/components/app/studio-media-tile";
+import { CreaCompare } from "@/components/crea/compare";
+import { LibraryBulkActions } from "@/components/crea/library-bulk-actions";
+import { LibraryDuplicates } from "@/components/crea/library-duplicates";
+import type { QuickActionLink } from "@/components/crea/quick-actions-menu";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import type { Locale } from "@/lib/i18n";
 import { resetStudioFilters, setStudioFilters, useStudioFilters } from "@/lib/studio-filters-store";
-import { jobPrompt } from "@/lib/studio-form";
 import { dateRangeCutoff, downloadMediaFiles } from "@/lib/studio-gallery";
-import { distributeGridColumns, useGridColumnCount } from "@/lib/studio-grid";
+import { CREA_LIBRARY_COPY } from "@/lib/crea-library-copy";
+import { columnsForTileWidth, distributeGridColumns, useGridColumnCount } from "@/lib/studio-grid";
 import { GALLERY_NO_MATCHES, PROJECT_NO_GENERATIONS, STUDIO_NO_GENERATIONS } from "@/lib/studio-messages";
 import type { StudioModel } from "@/lib/studio-models";
 import type { StudioSectionKind } from "@/lib/studio-sections";
@@ -39,6 +43,11 @@ export function StudioMediaGrid({
   onResetKind,
   fitToContainer = false,
   emptyState,
+  quickActionsFor,
+  library = false,
+  tileWidth,
+  semanticJobs = null,
+  modelName = (slug) => slug,
 }: {
   locale: Locale;
   kind: StudioSectionKind | null;
@@ -58,19 +67,41 @@ export function StudioMediaGrid({
    * tada nije „filter" nego radionica u kojoj je (Crea, K03), pa ne nudi reset vrste.
    */
   emptyState?: ReactNode;
+  /** Brze akcije za karticu (K16, S44). */
+  quickActionsFor?: (job: StudioTileJob) => QuickActionLink[];
+  /** Biblioteka (K16, U9): duplikati i kartice zadate širine (`tileWidth`). */
+  library?: boolean;
+  /** Najmanja širina kartice u biblioteci (klizač veličine); kolone se računaju po širini mreže. */
+  tileWidth?: number;
+  /** Pogoci pametne pretrage (CLIP, K16) - dodaju se posle pogodaka po opisu. */
+  semanticJobs?: StudioTileJob[] | null;
+  /** Ime modela za poređenje. */
+  modelName?: (slug: string) => string;
 }) {
   // Prozor za zamrznut timestamp (Date.now() unutar state-a na mount-u)
   const [now] = useState(() => Date.now());
 
   // Filteri (SP2): žive u deljenom store-u - prozor ih menja, sidebar-linija
   // broji, ovde se samo čitaju. Vrsta i dalje dolazi kroz `kind` (URL).
-  const { modelSlug: modelFilter, range: dateFilter, query: searchQuery, selectMode: isSelectMode } = useStudioFilters();
+  const {
+    modelSlug: modelFilter,
+    range: dateFilter,
+    query: searchQuery,
+    favorite: favoriteFilter,
+    cost: costFilter,
+    selectMode: isSelectMode,
+  } = useStudioFilters();
 
   // Višestruki izbor i grupno preuzimanje (C7 + C13)
   const [selectedJobs, setSelectedJobs] = useState<Map<string, StudioTileJob>>(new Map());
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState<{ current: number; total: number } | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+  // Poruka posle masovne akcije (K16): premešteno / obrisano / preskočeno.
+  const [actionNotice, setActionNotice] = useState<{ text: string; error: boolean } | null>(null);
+  const [comparing, setComparing] = useState<StudioTileJob[] | null>(null);
+  const [duplicateScan, setDuplicateScan] = useState<StudioTileJob[] | null>(null);
+  const toggleFavorite = useMutation(api.creaLibrary.toggleFavorite);
 
   const queryArgs = useMemo(() => {
     return {
@@ -78,8 +109,19 @@ export function StudioMediaGrid({
       ...(projectId ? { projectId } : {}),
       ...(modelFilter ? { modelSlug: modelFilter } : {}),
       ...(dateFilter !== "all" ? { createdAfter: dateRangeCutoff(dateFilter, now) } : {}),
+      ...(favoriteFilter ? { favorite: true } : {}),
+      ...(costFilter !== "all" ? { cost: costFilter } : {}),
     };
-  }, [kind, projectId, modelFilter, dateFilter, now]);
+  }, [kind, projectId, modelFilter, dateFilter, favoriteFilter, costFilter, now]);
+
+  // Pretraga na srpskom (K16, S43) ide na server (search indeks nad SVIM radovima), ne
+  // samo kroz učitane strane; isti filteri važe i za pogotke.
+  const trimmedQuery = searchQuery.trim();
+  const searchResults = useQuery(
+    api.creaSearch.searchMyJobs,
+    trimmedQuery ? { query: trimmedQuery, ...queryArgs } : "skip",
+  );
+  const isSearching = trimmedQuery !== "";
 
   const jobs = usePaginatedQuery(api.studio.listMyJobs, queryArgs, {
     initialNumItems: PAGE_SIZE,
@@ -143,21 +185,31 @@ export function StudioMediaGrid({
   }
 
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const columnCount = useGridColumnCount(fitToContainer ? rootRef : undefined);
-  const gridClass = fitToContainer ? "grid gap-4" : "grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-3";
-  const gridStyle = fitToContainer ? { gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))` } : undefined;
+  const fittedColumns = useGridColumnCount(fitToContainer ? rootRef : undefined);
+  const [rootWidth, setRootWidth] = useState<number | null>(null);
+  useEffect(() => {
+    const element = rootRef.current;
+    if (!element || tileWidth === undefined) return;
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry && entry.contentRect.width > 0) setRootWidth(entry.contentRect.width);
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [tileWidth]);
+  const columnCount =
+    tileWidth !== undefined && rootWidth !== null ? columnsForTileWidth(rootWidth, tileWidth) : fittedColumns;
+  const fixedColumns = fitToContainer || tileWidth !== undefined;
+  const gridClass = fixedColumns ? "grid gap-4" : "grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-3";
+  const gridStyle = fixedColumns ? { gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))` } : undefined;
   const rawJobRows = jobResults as unknown as StudioTileJob[];
 
-  // Klijentska pretraga po promptu / nazivu modela
+  // Pogoci pretrage (po opisu sa servera, pa „po slici" iz pametne pretrage) umesto strana mreže.
   const filteredJobs = useMemo(() => {
-    const needle = searchQuery.trim().toLowerCase();
-    if (!needle) return rawJobRows;
-    return rawJobRows.filter((job) => {
-      const prompt = jobPrompt(job.params).toLowerCase();
-      const model = job.modelSlug.toLowerCase();
-      return prompt.includes(needle) || model.includes(needle);
-    });
-  }, [rawJobRows, searchQuery]);
+    if (!isSearching) return rawJobRows;
+    const byText = (searchResults ?? []) as unknown as StudioTileJob[];
+    const seen = new Set(byText.map((job) => job._id));
+    return [...byText, ...(semanticJobs ?? []).filter((job) => !seen.has(job._id))];
+  }, [rawJobRows, isSearching, searchResults, semanticJobs]);
 
   const columns = useMemo(
     () => distributeGridColumns(filteredJobs, columnCount),
@@ -170,7 +222,8 @@ export function StudioMediaGrid({
   );
 
 
-  const userFiltersActive = modelFilter !== null || dateFilter !== "all" || searchQuery.trim() !== "";
+  const userFiltersActive =
+    modelFilter !== null || dateFilter !== "all" || searchQuery.trim() !== "" || favoriteFilter || costFilter !== "all";
   const filtersActive = userFiltersActive || (kind !== null && emptyState === undefined);
 
   function resetAllFilters() {
@@ -215,6 +268,25 @@ export function StudioMediaGrid({
   function handleClearSelection() {
     setSelectedJobs(new Map());
     setDownloadError(null);
+    setActionNotice(null);
+  }
+
+  // Omiljeno (K16): mutacija menja red, pretplata osveži karticu sama.
+  const handleToggleFavorite = useCallback(
+    (job: StudioTileJob) => {
+      void toggleFavorite({ jobId: job._id as Id<"generationJobs"> }).catch(() => {});
+    },
+    [toggleFavorite],
+  );
+
+  // Duplikati (K16): izbor dobija sve osim prvog u svakoj grupi.
+  function handleSelectDuplicates(duplicates: StudioTileJob[]) {
+    setSelectedJobs((prev) => {
+      const next = new Map(prev);
+      for (const job of duplicates) if (isJobDownloadable(job)) next.set(job._id, job);
+      return next;
+    });
+    setDuplicateScan(null);
   }
 
   // Popravka C7: Sekvencijalno grupno preuzimanje sa napretkom i očuvanjem selekcije
@@ -252,13 +324,14 @@ export function StudioMediaGrid({
     }
   }
 
-  const isLoadingFirst =
+  const pageLoadingFirst =
     jobStatus === "LoadingFirstPage" ||
     (rawJobRows.length === 0 && (jobStatus === "CanLoadMore" || jobStatus === "LoadingMore"));
+  const isLoadingFirst = isSearching ? searchResults === undefined : pageLoadingFirst;
 
   useEffect(() => {
-    onLoadedJobsChange?.(rawJobRows, isLoadingFirst);
-  }, [rawJobRows, isLoadingFirst, onLoadedJobsChange]);
+    onLoadedJobsChange?.(rawJobRows, pageLoadingFirst);
+  }, [rawJobRows, pageLoadingFirst, onLoadedJobsChange]);
 
   return (
     <div ref={rootRef} className="space-y-4">
@@ -290,10 +363,25 @@ export function StudioMediaGrid({
             </button>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             {downloadError ? (
               <span className="type-caption font-extrabold text-red-700">{downloadError}</span>
             ) : null}
+            <LibraryBulkActions
+              locale={locale}
+              selectedIds={[...selectedJobs.keys()]}
+              busy={isDownloading}
+              onCompare={() => setComparing([...selectedJobs.values()])}
+              onDone={({ removedIds, message, error }) => {
+                setActionNotice({ text: message, error: error === true });
+                if (removedIds.length === 0) return;
+                setSelectedJobs((prev) => {
+                  const next = new Map(prev);
+                  for (const id of removedIds) next.delete(id);
+                  return next;
+                });
+              }}
+            />
             <button
               type="button"
               onClick={handleDownloadSelected}
@@ -318,6 +406,46 @@ export function StudioMediaGrid({
             </button>
           </div>
         </div>
+      ) : null}
+
+      {actionNotice ? (
+        <p role="status" className={actionNotice.error ? "type-caption font-extrabold text-red-700" : "type-caption font-extrabold text-ink"}>
+          {actionNotice.text}
+        </p>
+      ) : null}
+
+      {/* Biblioteka (K16): duplikati među učitanim slikama */}
+      {library && !isLoadingFirst && filteredJobs.some((job) => job.kind === "image") ? (
+        duplicateScan ? (
+          <LibraryDuplicates
+            locale={locale}
+            jobs={duplicateScan}
+            onSelect={handleSelectDuplicates}
+            onClose={() => setDuplicateScan(null)}
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => setDuplicateScan(filteredJobs)}
+            className="inline-flex min-h-9 items-center gap-1.5 rounded-full border-2 border-ink bg-paper-strong px-3 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 pointer-coarse:min-h-11 studio-focus-ink motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+          >
+            <CopyCheck aria-hidden="true" className="size-3.5" />
+            {CREA_LIBRARY_COPY.duplicates[locale]}
+          </button>
+        )
+      ) : null}
+
+      {comparing ? (
+        <CreaCompare
+          locale={locale}
+          jobs={comparing}
+          modelName={modelName}
+          onClose={() => setComparing(null)}
+          onOpen={(job) => {
+            setComparing(null);
+            onOpenDetail(job);
+          }}
+        />
       ) : null}
 
       {/* ── Stanja mreže: Učitavanje / Prazno / Rezultati ─────────────────────── */}
@@ -401,9 +529,11 @@ export function StudioMediaGrid({
                     isSelectMode={isSelectMode || selectedJobs.size > 0}
                     animateEntrance
                     index={itemIndex}
+                    onToggleFavorite={handleToggleFavorite}
+                    {...(quickActionsFor ? { quickActions: quickActionsFor(job) } : {})}
                   />
                 ))}
-                {jobStatus === "LoadingMore" &&
+                {!isSearching && jobStatus === "LoadingMore" &&
                   loadingMoreSkeletons[colIndex]?.map((skeletonIndex) => (
                     <StudioMediaSkeletonTile key={`loading-more-${skeletonIndex}`} />
                   ))}
@@ -411,11 +541,11 @@ export function StudioMediaGrid({
             ))}
           </div>
 
-          {/* Sentinel za beskonačni skrol */}
-          <div ref={sentinelRef} aria-hidden="true" className="h-4" />
+          {/* Sentinel za beskonačni skrol (pretraga vraća jednu stranu pogodaka) */}
+          {isSearching ? null : <div ref={sentinelRef} aria-hidden="true" className="h-4" />}
 
           {/* Indikator / dugme za još stranica */}
-          {jobStatus === "LoadingMore" ? (
+          {isSearching ? null : jobStatus === "LoadingMore" ? (
             <div className="flex justify-center py-4">
               <div className="inline-flex items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 py-2 type-caption font-extrabold text-ink shadow-[2px_2px_0_0_var(--shadow-hard-14)]">
                 <Spinner className="text-muted" />

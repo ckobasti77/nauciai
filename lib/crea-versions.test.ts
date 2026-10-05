@@ -13,7 +13,7 @@ import { inputModeWithSlot, toolsForWork, versionInputTarget, type VersionIntent
 import { slotsForMode } from "@/lib/studio-slots";
 
 const KINDS: CreaKind[] = ["image", "video", "audio"];
-const INTENTS: VersionIntent[] = ["input", "animate"];
+const INTENTS: VersionIntent[] = ["input", "animate", "sound"];
 
 describe("versionInputTarget", () => {
   test("slika kao ulaz ide u Slika · Izmeni, a „Animiraj“ u Video · Napravi", () => {

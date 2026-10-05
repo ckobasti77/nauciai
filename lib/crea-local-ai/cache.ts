@@ -1,5 +1,5 @@
 import { CreaLocalAiError, toLocalAiError } from "./errors";
-import { CREA_LOCAL_RUNTIMES, modelFileUrl, modelRuntime, type CreaLocalModelId, type CreaRuntimeOptions } from "./models";
+import { CREA_LOCAL_RUNTIMES, modelFileUrls, modelRuntime, type CreaLocalModelId, type CreaRuntimeOptions } from "./models";
 import type { FileProgress } from "./progress";
 
 /**
@@ -83,8 +83,9 @@ export async function modelsCached(ids: readonly CreaLocalModelId[], options: Cr
   const has = async (url: string) => Boolean(await cache.match(url).catch(() => undefined));
 
   for (const id of ids) {
-    const url = modelFileUrl(id);
-    if (!url || !(await has(url))) return false;
+    const urls = modelFileUrls(id);
+    if (urls.length === 0) return false;
+    for (const url of urls) if (!(await has(url))) return false;
   }
   for (const runtime of new Set(ids.map((id) => modelRuntime(id, options)))) {
     const files = Object.keys(CREA_LOCAL_RUNTIMES[runtime].files ?? {});
