@@ -6,7 +6,9 @@ import {
   Coins,
   FileText,
   FlaskConical,
+  Grid3x3,
   Image as ImageIcon,
+  Palette,
   ImagePlus,
   Moon,
   Music,
@@ -14,9 +16,11 @@ import {
   Sparkles,
   Video,
   Wand2,
+  WandSparkles,
   X,
 } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion, type Easing } from "motion/react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
   useCallback,
@@ -27,6 +31,9 @@ import {
   useState,
 } from "react";
 
+import { EMPTY_LOOK, lookIsEmpty, type LookState } from "@/components/crea/create/look-state";
+import { MicButton } from "@/components/crea/create/mic-button";
+import { PromptHelper } from "@/components/crea/create/prompt-helper";
 import { NightToggle } from "@/components/crea/night-toggle";
 import { CreditIcon } from "@/components/studio/credit-icon";
 import { FullScreenDropOverlay, Preview } from "@/components/studio/drop-slot";
@@ -44,8 +51,12 @@ import { parseContinuationSource, parseQuantitySource, promptControlOf } from "@
 import type { ParamControl as ParamControlSpec } from "@/convex/studioParamSpec";
 import type { PriceRule } from "@/convex/studioPricing";
 import { autoSentence, pickAuto } from "@/lib/crea-auto";
+import { CREA_CREATE_COPY } from "@/lib/crea-create-copy";
 import { CREA_NIGHT_COPY, CREA_PICK_COPY, fillCopy } from "@/lib/crea-copy";
 import { buildDraftOrder, draftPairFor, orderCredits } from "@/lib/crea-draft";
+import { composeCreatePrompt } from "@/lib/crea-prompt-compose";
+import { styleById } from "@/lib/crea-styles";
+import { VARIATION_COUNTS, variationPlan, variationsCredits } from "@/lib/crea-variations";
 import type { Locale } from "@/lib/i18n";
 import { firstFileMode, modelInputCapabilities, modelRestrictions } from "@/lib/studio-capabilities";
 import { readLastModelByKind, writeLastModel } from "@/lib/studio-last-model";
@@ -100,6 +111,9 @@ import {
   type SlotSpec,
 } from "@/lib/studio-slots";
 
+/** Panel „Izgled" (K13, S8) se učitava tek kad ga korisnik otvori - 40 stilova ne ulazi u početni JS. */
+const LookPanel = dynamic(() => import("@/components/crea/create/look-panel"), { ssr: false });
+
 export type RegenerateSeed = {
   id: string;
   inputMode?: string;
@@ -119,6 +133,11 @@ export type JobPayload = {
   derivation?: CreaDerivation;
   /** Noćna tura (Crea K08): rad ide u batch po noćnoj ceni i stiže do jutra. */
   deliveryMode?: "night";
+  /**
+   * Varijacije (K13, S5) za model koji ne vraća više slika u jednom pozivu: ukupno
+   * toliko zasebnih poslova (prvi + ostali kao „varijacija" prvog).
+   */
+  variations?: number;
 };
 
 /**
@@ -417,6 +436,23 @@ function PromotedChipItem({
   );
 }
 
+/** Izabran deo izgleda (stil, kamera, paleta) kao pilula sa „x" (K13, S8). */
+function LookChip({ label, removeLabel, onRemove }: { label: string; removeLabel: string; onRemove: () => void }) {
+  return (
+    <span className="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-full border border-ink/30 bg-yellow/30 py-0.5 pl-3 pr-0.5 text-xs font-black text-ink">
+      {label}
+      <button
+        type="button"
+        onClick={onRemove}
+        aria-label={removeLabel}
+        className="inline-flex size-8 items-center justify-center rounded-full text-ink hover:bg-paper-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink"
+      >
+        <X aria-hidden="true" className="size-3.5" />
+      </button>
+    </span>
+  );
+}
+
 /**
  * Glavni dvoslojni composer sa zasebnim pop-upovima za upload, biranje modela i parametre.
  */
@@ -441,6 +477,10 @@ export function StudioComposer({
   lockModelKind = false,
   dropDisabled = false,
   shellMode,
+  createExtras = false,
+  canSaveStyles = false,
+  onOpenSheet,
+  queueNotice = null,
 }: {
   models: StudioModel[];
   activeModel: StudioModel;
@@ -472,8 +512,25 @@ export function StudioComposer({
   dropDisabled?: boolean;
   /** Režim ljuske Cree (npr. `muzika`) - Auto iz njega zna koji je posao (K07). */
   shellMode?: string;
+  /**
+   * Slika · Napravi (K13): pomoćnik za opis i mikrofon (S6), izgled - stil, kamera,
+   * paleta (S8), varijacije 1-4 (S5), limit cene za Auto (S3) i probni list (S4).
+   */
+  createExtras?: boolean;
+  /** „Moji stilovi" se čuvaju samo uz pristup Crei. */
+  canSaveStyles?: boolean;
+  /** Probni list (S4): otvara alat sa ovim opisom i modelom. */
+  onOpenSheet?: (prompt: string, modelSlug: string) => void;
+  /** Varijacije koje čekaju slobodno mesto (red radionice). */
+  queueNotice?: string | null;
 }) {
   const isDocked = placement === "docked";
+  const createMode = variant === "create" && createExtras;
+  const [extraPanel, setExtraPanel] = useState<"helper" | "look" | null>(null);
+  const [look, setLook] = useState<LookState>(EMPTY_LOOK);
+  const [variationCount, setVariationCount] = useState(1);
+  const [budget, setBudget] = useState<number | null>(null);
+  const [budgetOpen, setBudgetOpen] = useState(false);
   const [modelPickerOpen, setModelPickerOpen] = useState(false);
   const [attachPopupOpen, setAttachPopupOpen] = useState(false);
   const [openChipKey, setOpenChipKey] = useState<string | null>(null);
@@ -711,13 +768,24 @@ export function StudioComposer({
     [activeModel.inputSpec, inputMode, effectiveFiles, optional, frames],
   );
 
-  const dayCredits = useMemo(
-    () => creditsFor(activeModel.priceRule, form.params, inputMode, activeModel.creditFactor),
-    [activeModel.priceRule, activeModel.creditFactor, form.params, inputMode],
-  );
-
   // Noćna tura (Crea K08, C2): ista odluka i ista cena kao `createJob` (`creaNightCore`).
   const [nightOn, setNightOn] = useState(false);
+
+  // Varijacije (K13, S5): model sa `num_images` dobija jedan posao sa N slika, ostali N
+  // poslova. Noćna tura je uvek jedna slika (K08), pa tada varijacija nema.
+  const variationTarget = createMode && !nightOn ? variationCount : 1;
+  const plan = useMemo(
+    () => variationPlan(activeModel, inputMode, variationTarget),
+    [activeModel, inputMode, variationTarget],
+  );
+  const baseParams = useMemo(
+    () => (plan.kind === "num_images" ? { ...form.params, num_images: plan.count } : form.params),
+    [plan, form.params],
+  );
+  const dayCredits = useMemo(
+    () => creditsFor(activeModel.priceRule, baseParams, inputMode, activeModel.creditFactor),
+    [activeModel.priceRule, activeModel.creditFactor, baseParams, inputMode],
+  );
   const nightSpec = useMemo(
     () =>
       variant === "create"
@@ -743,8 +811,15 @@ export function StudioComposer({
     }
   }, [nightSpec, form.params, activeModel.priceRule, activeModel.creditFactor, inputMode]);
   const night = nightOn && nightOffer !== null;
-  // Cena koju dugme pokazuje i naplaćuje: noćna kad je prekidač upaljen.
-  const credits = night && nightOffer ? nightOffer.credits : dayCredits;
+  // Cena koju dugme pokazuje i naplaćuje: noćna kad je prekidač upaljen; paralelne varijacije × N.
+  const credits = useMemo(
+    () => variationsCredits(plan, night && nightOffer ? nightOffer.credits : dayCredits),
+    [plan, night, nightOffer, dayCredits],
+  );
+
+  // Izgled (S8): dodaje se opisu tek pri slanju; „Modelu ide:" pokazuje tačan tekst.
+  const composed = createMode && promptControl && !lookIsEmpty(look) ? composeCreatePrompt(prompt, look) : null;
+  const lookTooLong = composed !== null && composed.overBy > 0;
   const generateLabel = night ? CREA_NIGHT_COPY.generate[locale] : locale === "sr" ? "Generiši" : "Generate";
 
   // ── Auto izbor (Crea S3) i „Probaj jeftino" (S4/V3) ──
@@ -780,6 +855,7 @@ export function StudioComposer({
           mask: false,
         },
         ...(shellMode ? { shellMode } : {}),
+        ...(createMode && budget !== null ? { budgetCredits: budget } : {}),
       },
       models,
       { available: isModelAvailable },
@@ -790,7 +866,7 @@ export function StudioComposer({
     }
     const demo = studioState?.providerStatus?.[pick.model.provider] === false ? ` ${CREA_PICK_COPY.autoDemo[locale]}` : "";
     setAutoNote(
-      `${fillCopy(CREA_PICK_COPY.autoPicked[locale], { model: modelLabel(pick.model, locale) })} ${autoSentence(pick, locale)}${demo}`,
+      `${fillCopy(CREA_PICK_COPY.autoPicked[locale], { model: modelLabel(pick.model, locale) })} ${autoSentence(pick, locale, createMode && budget !== null ? budget : undefined)}${demo}`,
     );
     if (pick.model.slug !== activeModel.slug) {
       handleSelectNewModel(pick.model, { keepAutoNote: true });
@@ -1160,15 +1236,16 @@ export function StudioComposer({
   }
 
   function submit() {
-    if (block !== null || isPending || isUploading) return;
+    if (block !== null || isPending || isUploading || lookTooLong) return;
 
     onGenerate(
       {
-        params: form.params,
+        params: composed && promptControl ? { ...baseParams, [promptControl.key]: composed.text } : baseParams,
         inputMode,
         inputs: inputsPayload(payloadFiles),
         ...(sourceRequired && sourceJobId ? { sourceJobId } : {}),
         ...(night ? { deliveryMode: "night" as const } : {}),
+        ...(plan.kind === "parallel" ? { variations: plan.count } : {}),
       },
       activeModel,
     );
@@ -1235,8 +1312,9 @@ export function StudioComposer({
       });
     }
 
-    // 4. Broj slika / izlaza (ako postoji)
-    if (countControl && form.values[countControl.key] !== undefined && !selected.some((s) => s.key === countControl.key)) {
+    // 4. Broj slika / izlaza (ako postoji). U Slika · Napravi ga zamenjuju „Varijacije" (K13).
+    if (createMode && countControl) selected.push({ key: countControl.key, label: "", valueText: "", control: countControl });
+    else if (countControl && form.values[countControl.key] !== undefined && !selected.some((s) => s.key === countControl.key)) {
       selected.push({
         key: countControl.key,
         label: controlLabel(countControl, locale),
@@ -1266,8 +1344,9 @@ export function StudioComposer({
       }
     }
 
-    return selected;
-  }, [activeModel.paramSpec, inputMode, form.values, locale]);
+    // Mesto „broja slika" je zauzeto samo da ga korak 5 ne doda; čip se ne crta.
+    return selected.filter((chip) => !(createMode && chip.key === countControl?.key));
+  }, [activeModel.paramSpec, inputMode, form.values, locale, createMode]);
 
   const isEstimated =
     quantitySource !== null && quantitySource.from !== "text_length" && serverSeconds === null;
@@ -1488,6 +1567,86 @@ export function StudioComposer({
           className="w-full resize-none border-0 bg-transparent text-base font-bold text-ink placeholder:font-bold placeholder:text-muted studio-focus-ink"
         />
 
+        {/* Slika · Napravi (K13): pomoćnik za opis i mikrofon (S6), izgled (S8) */}
+        {createMode ? (
+          <>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setExtraPanel((open) => (open === "helper" ? null : "helper"))}
+                aria-expanded={extraPanel === "helper"}
+                title={CREA_CREATE_COPY.helperTitle[locale]}
+                disabled={isPending}
+                className={cn("inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border-2 border-ink px-3 py-1.5 text-xs font-black shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-40 motion-reduce:transition-none motion-reduce:hover:translate-y-0", extraPanel === "helper" ? "bg-ink text-paper-strong" : "bg-paper-strong text-ink")}
+              >
+                <WandSparkles aria-hidden="true" className="size-3.5" />
+                <span>{CREA_CREATE_COPY.helper[locale]}</span>
+              </button>
+              <MicButton
+                locale={locale}
+                disabled={isPending}
+                onText={(spoken) => handlePromptChange(prompt.trim() ? `${prompt.trim()} ${spoken}` : spoken)}
+              />
+              <button
+                type="button"
+                onClick={() => setExtraPanel((open) => (open === "look" ? null : "look"))}
+                aria-expanded={extraPanel === "look"}
+                disabled={isPending}
+                className={cn("inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border-2 border-ink px-3 py-1.5 text-xs font-black shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-40 motion-reduce:transition-none motion-reduce:hover:translate-y-0", extraPanel === "look" ? "bg-ink text-paper-strong" : "bg-paper-strong text-ink")}
+              >
+                <Palette aria-hidden="true" className="size-3.5" />
+                <span>{CREA_CREATE_COPY.look[locale]}</span>
+              </button>
+              {look.styleId ? (
+                <LookChip
+                  label={styleById(look.styleId)?.label[locale] ?? ""}
+                  removeLabel={fillCopy(CREA_CREATE_COPY.removeLook[locale], { what: styleById(look.styleId)?.label[locale] ?? "" })}
+                  onRemove={() => setLook({ ...look, styleId: null })}
+                />
+              ) : null}
+              {look.camera ? (
+                <LookChip
+                  label={fillCopy(CREA_CREATE_COPY.summaryCamera[locale], { focal: look.camera.focal, aperture: look.camera.aperture })}
+                  removeLabel={fillCopy(CREA_CREATE_COPY.removeLook[locale], { what: CREA_CREATE_COPY.tabs.kamera[locale] })}
+                  onRemove={() => setLook({ ...look, camera: null })}
+                />
+              ) : null}
+              {look.palette.length > 0 ? (
+                <LookChip
+                  label={fillCopy(CREA_CREATE_COPY.summaryPalette[locale], { n: look.palette.length })}
+                  removeLabel={fillCopy(CREA_CREATE_COPY.removeLook[locale], { what: CREA_CREATE_COPY.tabs.paleta[locale] })}
+                  onRemove={() => setLook({ ...look, palette: [] })}
+                />
+              ) : null}
+            </div>
+            {extraPanel === "helper" ? (
+              <PromptHelper
+                locale={locale}
+                text={prompt}
+                onUse={(next) => {
+                  handlePromptChange(next);
+                  setExtraPanel(null);
+                }}
+                onClose={() => setExtraPanel(null)}
+              />
+            ) : null}
+            {extraPanel === "look" ? (
+              <LookPanel locale={locale} look={look} onChange={setLook} onClose={() => setExtraPanel(null)} canSaveStyles={canSaveStyles} />
+            ) : null}
+            {composed ? (
+              <details className="mt-2 text-xs font-bold text-muted">
+                <summary className="cursor-pointer select-none py-1 text-ink">{CREA_CREATE_COPY.preview[locale]}</summary>
+                <p className="mt-1 break-words font-semibold">{composed.text}</p>
+              </details>
+            ) : null}
+            {lookTooLong && composed ? (
+              <p role="alert" className="pt-1 text-xs font-black text-red-700 dark:text-red-300">
+                {fillCopy(CREA_CREATE_COPY.tooLong[locale], { n: composed.overBy })}
+              </p>
+            ) : null}
+          </>
+        ) : null}
+
         {/* Statusna linija za obaveštenja */}
         {statusMessage ? (
           <div role="status" className="truncate pt-1 text-xs font-bold text-muted">
@@ -1504,6 +1663,10 @@ export function StudioComposer({
         ) : blockMessage && block?.kind !== "prompt" ? (
           <div role="status" className="truncate pt-1 text-xs font-bold text-amber-900">
             {blockMessage}
+          </div>
+        ) : queueNotice ? (
+          <div role="status" className="pt-1 text-xs font-bold text-muted">
+            {queueNotice}
           </div>
         ) : autoNote ? (
           <div role="status" className="pt-1 text-xs font-bold text-muted">
@@ -1526,6 +1689,77 @@ export function StudioComposer({
               <Sparkles aria-hidden="true" className="size-3.5" />
               <span>{CREA_PICK_COPY.auto[locale]}</span>
             </button>
+            {/* Limit cene za Auto (S3): Auto bira najbolji model koji staje u limit. */}
+            {createMode ? (
+              <div className="relative inline-flex shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setBudgetOpen((open) => !open)}
+                  aria-expanded={budgetOpen}
+                  className={cn("inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border-2 border-ink px-3 py-1.5 text-xs font-black shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-40 motion-reduce:transition-none motion-reduce:hover:translate-y-0", "bg-paper-strong text-ink")}
+                >
+                  <Coins aria-hidden="true" className="size-3.5" />
+                  <span>
+                    {CREA_CREATE_COPY.budget[locale]}: {budget === null ? CREA_CREATE_COPY.budgetNone[locale] : budget}
+                  </span>
+                </button>
+                {budgetOpen ? (
+                  <div
+                    role="dialog"
+                    aria-label={CREA_CREATE_COPY.budgetLabel[locale]}
+                    className={cn(
+                      "surface-card absolute left-0 z-50 w-64 border-2 border-ink bg-paper-strong p-3 shadow-[6px_6px_0_0_var(--shadow-hard-16)]",
+                      isDocked ? "top-[calc(100%+8px)]" : "bottom-[calc(100%+8px)]",
+                    )}
+                  >
+                    <label className="block type-body-sm font-black text-ink">
+                      {CREA_CREATE_COPY.budgetLabel[locale]}
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min={1}
+                        max={9999}
+                        value={budget ?? ""}
+                        onChange={(event) => {
+                          const value = Math.round(Number(event.target.value));
+                          setBudget(event.target.value === "" || !Number.isFinite(value) || value < 1 ? null : Math.min(9999, value));
+                        }}
+                        className="surface-inset mt-1.5 block min-h-11 w-full border-2 border-ink bg-paper px-3 font-mono text-sm font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                      />
+                    </label>
+                    <p className="mt-2 text-xs font-bold text-muted">{CREA_CREATE_COPY.budgetHelp[locale]}</p>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+            {/* Varijacije 1-4 (S5) */}
+            {createMode && !night ? (
+              <fieldset className="inline-flex shrink-0 items-center gap-1">
+                <legend className="sr-only">{CREA_CREATE_COPY.variations[locale]}</legend>
+                <span aria-hidden="true" className="pr-1 text-xs font-black text-ink">
+                  {CREA_CREATE_COPY.variations[locale]}
+                </span>
+                {VARIATION_COUNTS.map((count) => (
+                  <label
+                    key={count}
+                    className={cn(
+                      "inline-flex size-11 cursor-pointer items-center justify-center rounded-full border-2 text-xs font-black transition-colors has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ink",
+                      variationCount === count ? "border-ink bg-ink text-paper-strong" : "border-ink/25 bg-paper-strong text-ink hover:border-ink",
+                    )}
+                  >
+                    <input
+                      type="radio"
+                      name="crea-variations"
+                      value={count}
+                      checked={variationCount === count}
+                      onChange={() => setVariationCount(count)}
+                      className="sr-only"
+                    />
+                    ×{count}
+                  </label>
+                ))}
+              </fieldset>
+            ) : null}
             {/* Proba jeftinijim modelom (K07); pun probni list (4-16 skica) je K13 */}
             {showDraft && draftModel && block?.kind !== "credits" ? (
               <button
@@ -1542,6 +1776,19 @@ export function StudioComposer({
                   <span>{draftCredits}</span>
                   <CreditIcon className="size-3.5" />
                 </span>
+              </button>
+            ) : null}
+            {/* Probni list (S4): 4-16 skica jeftinim modelom, pa „Usavrši" */}
+            {createMode && onOpenSheet && draftPair && block?.kind !== "credits" ? (
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={() => onOpenSheet(composed?.text ?? prompt, activeModel.slug)}
+                title={CREA_CREATE_COPY.sheetTitle[locale]}
+                className={cn("inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border-2 border-ink px-3 py-1.5 text-xs font-black shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-40 motion-reduce:transition-none motion-reduce:hover:translate-y-0", "bg-paper-strong text-ink")}
+              >
+                <Grid3x3 aria-hidden="true" className="size-3.5" />
+                <span>{CREA_CREATE_COPY.sheet[locale]}</span>
               </button>
             ) : null}
             {nightOffer ? (
@@ -1685,7 +1932,7 @@ export function StudioComposer({
           ) : (
             <button
               type="button"
-              disabled={isPending || block !== null || credits === null}
+              disabled={isPending || block !== null || credits === null || lookTooLong}
               onClick={submit}
               aria-label={
                 credits !== null

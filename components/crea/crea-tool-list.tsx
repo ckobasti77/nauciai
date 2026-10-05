@@ -6,6 +6,7 @@ import { ToolBadges } from "@/components/crea/tool-badges";
 import { useCreaDeviceCaps } from "@/components/crea/use-crea-device";
 import { cn } from "@/components/ui/primitives";
 import { CREA_DEVICE_COPY, CREA_TOOL_COPY } from "@/lib/crea-copy";
+import { CREA_CREATE_COPY } from "@/lib/crea-create-copy";
 import { deviceProblem } from "@/lib/crea-device";
 import type { CreaArea, CreaModeId } from "@/lib/crea-shell";
 import { toolsFor } from "@/lib/crea-tools";
@@ -38,9 +39,14 @@ export function CreaToolList({
   const tools = toolsFor(area, mode);
   const ready = tools.filter((tool) => tool.status === "ready");
   const soon = tools.filter((tool) => tool.status === "soon");
+  // Slika · Napravi (K13): prvi red je „opiši sliku", ne „opiši izmenu".
+  const making = mode === "napravi";
+  const describe = making
+    ? { title: CREA_CREATE_COPY.describeTitle, body: CREA_CREATE_COPY.describeBody, list: CREA_CREATE_COPY.listTitle }
+    : { title: CREA_TOOL_COPY.describeTitle, body: CREA_TOOL_COPY.describeBody, list: CREA_TOOL_COPY.editListTitle };
 
   return (
-    <nav aria-label={(onDescribe ? CREA_TOOL_COPY.editListTitle : CREA_TOOL_COPY.listTitle)[locale]} className="space-y-4">
+    <nav aria-label={(onDescribe ? describe.list : CREA_TOOL_COPY.listTitle)[locale]} className="space-y-4">
       <ul className="surface-card space-y-1 border-2 border-ink bg-paper-strong p-2 shadow-[6px_6px_0_0_var(--shadow-hard-16)]">
         {onDescribe ? (
           <li className="border-b border-line pb-1">
@@ -51,8 +57,8 @@ export function CreaToolList({
             >
               <MessageSquareText aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
               <span className="min-w-0">
-                <span className="block type-body font-black">{CREA_TOOL_COPY.describeTitle[locale]}</span>
-                <span className="mt-0.5 block type-body-sm font-semibold text-muted">{CREA_TOOL_COPY.describeBody[locale]}</span>
+                <span className="block type-body font-black">{describe.title[locale]}</span>
+                <span className="mt-0.5 block type-body-sm font-semibold text-muted">{describe.body[locale]}</span>
                 <span className="mt-2 inline-block rounded-full border border-ink/30 bg-paper px-2 py-0.5 text-xs font-black text-ink">
                   {CREA_TOOL_COPY.badges.krediti[locale]}
                 </span>

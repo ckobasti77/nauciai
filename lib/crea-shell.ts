@@ -68,10 +68,11 @@ export const CREA_MODES: Record<CreaArea, readonly CreaModeDef[]> = {
       label: { sr: "Napravi", en: "Create" },
       icon: "WandSparkles",
       models: { inputModes: ["text"] },
+      tools: true,
       status: "ready",
       blurb: {
-        sr: "Opiši sliku rečima i dobij je za nekoliko sekundi.",
-        en: "Describe an image in words and get it in a few seconds.",
+        sr: "Opiši sliku rečima i dobij je za nekoliko sekundi - ili uzmi alat: probni list, tri slike, crtež.",
+        en: "Describe an image in words and get it in a few seconds - or pick a tool: a contact sheet, three pictures, a drawing.",
       },
     },
     {

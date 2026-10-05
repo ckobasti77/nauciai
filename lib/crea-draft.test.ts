@@ -86,7 +86,8 @@ describe("„Probaj jeftino“", () => {
     expect(order).toEqual({
       modelSlug: "z-image-turbo",
       inputMode: "text",
-      params: { prompt: "mačka u svemiru", image_size: "landscape_16_9" },
+      // K13: skica sada ima `num_images` (podrazumevano 1, jedna skica).
+      params: { prompt: "mačka u svemiru", image_size: "landscape_16_9", num_images: 1 },
     });
     // Rezolucija skupljeg modela ne prelazi na skicu.
     expect(order.params).not.toHaveProperty("resolution");

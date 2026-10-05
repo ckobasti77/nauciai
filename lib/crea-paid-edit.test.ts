@@ -16,6 +16,11 @@ import {
   BRUSH_ROUTES,
   EXPAND_ROUTES,
   LAYERIZE_ROUTES,
+  LIVE_ROUTES,
+  nearestFalImageSize,
+  referenceRouteParams,
+  SKETCH_ROUTES,
+  SLOTS_ROUTES,
   MASK_DEFAULT_QUALITY,
   nearestAspectRatio,
   paidEditParams,
@@ -175,5 +180,55 @@ describe("K12 rute (S15, S18-S23)", () => {
     const alone = productScenePrompt(false, "plaža", "en");
     expect(alone).toContain("Place it in a new scene: plaža.");
     expect(alone).not.toContain("second");
+  });
+});
+
+describe("K13 rute (S7, S9, S10): slike kao referenca", () => {
+  const K13 = [
+    { name: "ko-gde-kako", routes: SLOTS_ROUTES, images: 3 },
+    { name: "skica", routes: SKETCH_ROUTES, images: 1 },
+    { name: "crtaj i gledaj", routes: LIVE_ROUTES, images: 1 },
+  ];
+
+  test("svaka ruta je model sa `image_multi` koji prima toliko slika; parametri postoje i imaju cenu > 0", () => {
+    for (const entry of K13) {
+      for (const route of entry.routes) {
+        const model = STUDIO_MODELS.find((candidate) => candidate.slug === route.modelSlug);
+        expect(model, `${entry.name}: ${route.modelSlug}`).toBeDefined();
+        expect(model!.inputModes).toContain(route.inputMode);
+        expect(model!.inputSpec[route.inputMode]!.image!.max, route.modelSlug).toBeGreaterThanOrEqual(entry.images);
+        const spec = parseParamSpec(JSON.stringify(model!.paramSpec)) ?? [];
+        const sent = referenceRouteParams(route, "x", 768, 1024);
+        for (const [key, value] of Object.entries(sent)) {
+          const control = spec.find((candidate) => candidate.key === key);
+          expect(control, `${route.modelSlug}.${key}`).toBeDefined();
+          if (control && (control.type === "segmented" || control.type === "select")) {
+            expect(control.options?.map((option) => option.value), `${route.modelSlug}.${key}`).toContain(value);
+          }
+        }
+        const params = buildParams(spec, { ...paramValuesForMode(spec, route.inputMode), ...sent }, route.inputMode, { input_images: entry.images });
+        expect(computeCredits(model!.priceRule, params, route.inputMode), route.modelSlug).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  test("FLUX.2 klein izmena naplaćuje svaku ulaznu sliku (cena na dugmetu = naplata)", () => {
+    const klein = STUDIO_MODELS.find((model) => model.slug === "flux-2-klein")!;
+    const spec = parseParamSpec(JSON.stringify(klein.paramSpec)) ?? [];
+    const price = (images: number) =>
+      computeCredits(
+        klein.priceRule,
+        buildParams(spec, { ...paramValuesForMode(spec, "image_multi"), image_size: "square" }, "image_multi", { input_images: images }),
+        "image_multi",
+      );
+    expect(price(3)).toBeGreaterThan(price(1));
+  });
+
+  test("fal veličina i odnos stranica prate meru slike", () => {
+    expect(nearestFalImageSize(768, 768)).toBe("square");
+    expect(nearestFalImageSize(1600, 900)).toBe("landscape_16_9");
+    expect(nearestFalImageSize(900, 1200)).toBe("portrait_4_3");
+    expect(referenceRouteParams(SKETCH_ROUTES[0]!, "p", 1000, 1500)).toEqual({ prompt: "p", aspect_ratio: "2:3" });
+    expect(referenceRouteParams(LIVE_ROUTES[0]!, "p", 768, 768)).toEqual({ prompt: "p", image_size: "square" });
   });
 });

@@ -11,7 +11,7 @@ import {
   MEDIA_TAIL_BYTES,
   readMediaDuration,
 } from "../lib/media-duration";
-import { isLayerizeJob, mockLayerDataUrls } from "./creaLayersCore";
+import { isLayerizeJob, mockLayerDataUrls, mockVariationDataUrls } from "./creaLayersCore";
 import { submitBytePlusJob } from "./providers/byteplus";
 import { falInputFields, falMapOf, falParams, resolveEndpointTier } from "./providers/falInputs";
 import { parseDataUrl } from "../lib/data-url";
@@ -221,14 +221,20 @@ export const completeMockJob = internalAction({
     if (mockJobSucceeds(args.jobId)) {
       const params = parseParams(job.params) ?? {};
       // DEMO razlaganje (K12): providni slojevi umesto jednog plakata, da editor slojeva radi i bez ključa.
-      const layers = isLayerizeJob(job)
-        ? mockLayerDataUrls(extractPrompt(params), job.promptHash, typeof params.layers === "number" ? params.layers : 2)
-        : null;
+      // DEMO više slika (K13, S5): `num_images` > 1 daje toliko plakata, kao pravi provajder.
+      const prompt = extractPrompt(params);
+      const outputs = isLayerizeJob(job)
+        ? mockLayerDataUrls(prompt, job.promptHash, typeof params.layers === "number" ? params.layers : 2)
+        : mockVariationDataUrls(
+            (hash) => mockOutputDataUrl(prompt, hash, job.kind),
+            job.promptHash,
+            typeof params.num_images === "number" ? params.num_images : 1,
+          );
       await ctx.runMutation(internal.falWebhook.applyWebhookResult, {
         falRequestId: job.falRequestId,
         status: "OK",
-        outputUrl: layers ? layers[0]! : mockOutputDataUrl(extractPrompt(params), job.promptHash, job.kind),
-        ...(layers ? { extraOutputUrls: layers.slice(1) } : {}),
+        outputUrl: outputs[0]!,
+        ...(outputs.length > 1 ? { extraOutputUrls: outputs.slice(1) } : {}),
       });
     } else {
       await ctx.runMutation(internal.falWebhook.applyWebhookResult, {
@@ -312,8 +318,8 @@ export const persistOutput = internalAction({
 });
 
 /**
- * Dodatni izlazi (K12, plan K01 §6.8): svaki se preuzme i upiše kao zaseban rad,
- * dete glavnog posla (`creaLayers.insertExtraOutput`, idempotentno po broju sloja).
+ * Dodatni izlazi (K12 slojevi, K13 varijacije; plan K01 §6.8): svaki se preuzme i upiše
+ * kao zaseban rad, dete glavnog posla (`creaLayers.insertExtraOutput`, idempotentno po broju).
  * Zasebna akcija, zakazana tek kad je glavni izlaz sačuvan: glavni rad se isporučuje
  * bez čekanja na slojeve, a izlaz koji ne stigne se preskače i ne obara ostale.
  */

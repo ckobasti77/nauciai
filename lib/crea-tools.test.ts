@@ -115,7 +115,7 @@ describe("registar alata", () => {
     for (const tool of CREA_TOOLS) if (tool.tier === "server") expect(tool.status).toBe("soon");
   });
 
-  test("K04 pušta format i proveru fotke, K09 sedam besplatnih alata za sliku, K10 editor, šablone i 3D foto, K11 i K12 izmene", () => {
+  test("K04 pušta format i proveru fotke, K09 sedam besplatnih alata za sliku, K10 editor, šablone i 3D foto, K11 i K12 izmene, K13 pravljenje", () => {
     const ready = CREA_TOOLS.filter((tool) => tool.status === "ready").map((tool) => tool.id);
     expect(ready).toEqual([
       "slika.format",
@@ -143,6 +143,11 @@ describe("registar alata", () => {
       "slika.tekst",
       "slika.retus",
       "slika.odeca",
+      // K13: Slika · Napravi
+      "slika.probni-list",
+      "slika.ko-gde-kako",
+      "slika.crtaj",
+      "slika.skica",
     ]);
     expect(toolById("slika.format")).toMatchObject({ tier: "local-code", featureIds: ["S27"], output: "image" });
     expect(toolById("slika.provera")).toMatchObject({
@@ -276,5 +281,19 @@ describe("pomoćne funkcije", () => {
     expect(toolIdFromModelSlug("nano-banana-2")).toBeNull();
     expect(toolOfJob({ modelSlug: "local:slika.provera" })?.id).toBe("slika.provera");
     expect(toolOfJob({ modelSlug: "veo-31" })).toBeUndefined();
+  });
+});
+
+describe("K13: Slika · Napravi", () => {
+  test("četiri plaćena alata u Napravi, sa modelom iz kataloga; čuvaju preko plaćenog posla, ne lokalno", () => {
+    const ids = ["slika.probni-list", "slika.ko-gde-kako", "slika.crtaj", "slika.skica"];
+    for (const id of ids) {
+      const tool = toolById(id)!;
+      expect(tool, id).toMatchObject({ area: "slika", mode: "napravi", tier: "paid", status: "ready" });
+      expect(tool.price.kind, id).toBe("credits");
+      expect(tool.localSave, id).toBeUndefined();
+    }
+    expect(toolById("slika.probni-list")?.featureIds).toEqual(["S4", "S5"]);
+    expect(toolById("slika.crtaj")?.featureIds).toEqual(["S9"]);
   });
 });

@@ -57,6 +57,7 @@ export function PaidEditPanel({
   label: labelOverride,
   unavailableText,
   onSent,
+  measured,
 }: {
   locale: Locale;
   routes: readonly CreaPaidRoute[];
@@ -80,6 +81,11 @@ export function PaidEditPanel({
   unavailableText?: string;
   /** Posao je napravljen - alat može da prati njegov status (npr. mreža uglova, slojevi). */
   onSent?: (jobId: Id<"generationJobs">) => void;
+  /**
+   * K13: količine koje server sam meri (npr. `input_images` kod FLUX.2 klein izmene) -
+   * samo za cenu na dugmetu, da bude ista kao naplata.
+   */
+  measured?: (route: CreaPaidRoute) => Record<string, number>;
 }) {
   const createJob = useMutation(api.studio.createJob);
   const upload = useSlotUpload();
@@ -119,6 +125,7 @@ export function PaidEditPanel({
       entry.model.paramSpec,
       { ...paramValuesForMode(entry.model.paramSpec, entry.route.inputMode), ...raw },
       entry.route.inputMode,
+      measured?.(entry.route) ?? {},
     );
     return creditsFor(entry.model.priceRule, params, entry.route.inputMode, entry.model.creditFactor);
   }

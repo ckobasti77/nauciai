@@ -74,13 +74,14 @@ test("Seedream 5 Flash: ravnih $0,027, veličina ne dira cenu, izmena šalje niz
 });
 
 test("Z-Image Turbo i FLUX.2: po megapikselu, `square_hd` su dva MP", () => {
-  expect(usd(Z_IMAGE_TURBO, { image_size: "landscape_4_3" })).toBeCloseTo(0.005, 10);
-  expect(usd(Z_IMAGE_TURBO, { image_size: "square_hd" })).toBeCloseTo(0.01, 10);
-  expect(kr(Z_IMAGE_TURBO, { image_size: "landscape_4_3" })).toBe(2);
+  // K13: `num_images` je količina (1 = jedna slika, kao do sada).
+  expect(usd(Z_IMAGE_TURBO, { image_size: "landscape_4_3", num_images: 1 })).toBeCloseTo(0.005, 10);
+  expect(usd(Z_IMAGE_TURBO, { image_size: "square_hd", num_images: 1 })).toBeCloseTo(0.01, 10);
+  expect(kr(Z_IMAGE_TURBO, { image_size: "landscape_4_3", num_images: 1 })).toBe(2);
   // „Proširenje opisa" se gasi uvek (na fal-u košta dodatno).
   expect(falBody(Z_IMAGE_TURBO, "text", { prompt: "p" }, {})).toMatchObject({ enable_prompt_expansion: false });
 
-  expect(usd(FLUX_2_KLEIN, { image_size: "portrait_4_3" }, "text")).toBeCloseTo(0.006, 10);
+  expect(usd(FLUX_2_KLEIN, { image_size: "portrait_4_3", num_images: 1 }, "text")).toBeCloseTo(0.006, 10);
   // Izmena: izlaz $0,011/MP + svaki ulaz (fal ga svodi na 1 MP) $0,011.
   expect(usd(FLUX_2_KLEIN, { image_size: "square", input_images: 3 }, "image_multi")).toBeCloseTo(0.044, 10);
   expect(usd(FLUX_2_KLEIN, { image_size: "square_hd", input_images: 1 }, "image_multi")).toBeCloseTo(0.033, 10);
@@ -113,12 +114,24 @@ test("FLUX Kontext, Qwen Edit, Recraft, Ideogram i Grok: tabele iz plana", () =>
   expect(usd(GROK_IMAGINE_IMAGE, {}, "image_multi")).toBeCloseTo(0.022, 10);
 });
 
-test("nijedan nov red nema `num_images` - drugi izlaz se danas gubi (K01 0.2-5)", () => {
+// K13 (S4/S5): svi izlazi poziva se čuvaju, pa dve skice za probni list dobijaju
+// `num_images` (1-4); ostali K07 redovi i dalje prave jednu sliku po pozivu.
+test("K13: Z-Image Turbo i FLUX.2 klein (tekst) prave 1-4 slike, cena raste po slici", () => {
+  for (const seed of [Z_IMAGE_TURBO, FLUX_2_KLEIN]) {
+    expect(seed.priceRule.quantityParam, seed.slug).toBe("num_images");
+    expect(seed.capabilities.maxImagesPerRun, seed.slug).toBe(4);
+    expect(seed.paramSpec.find((control) => control.key === "num_images")).toMatchObject({ default: 1, min: 1, max: 4 });
+  }
+  expect(usd(Z_IMAGE_TURBO, { image_size: "landscape_4_3", num_images: 4 })).toBeCloseTo(0.02, 10);
+  expect(usd(FLUX_2_KLEIN, { image_size: "landscape_4_3", num_images: 4 }, "text")).toBeCloseTo(0.024, 10);
+  // Izmena ima svoje pravilo bez količine - `num_images` tamo ne postoji.
+  expect(FLUX_2_KLEIN.paramSpec.find((control) => control.key === "num_images")?.showInModes).toEqual(["text"]);
+});
+
+test("ostali novi redovi nemaju `num_images` (K01 0.2-5)", () => {
   for (const seed of [
     NANO_BANANA_2_LITE,
     SEEDREAM_5_FLASH,
-    Z_IMAGE_TURBO,
-    FLUX_2_KLEIN,
     FLUX_2_PRO,
     FLUX_KONTEXT,
     QWEN_IMAGE_EDIT,

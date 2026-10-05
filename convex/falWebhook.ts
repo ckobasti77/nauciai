@@ -9,7 +9,7 @@ import {
   buildSignedMessage,
   extractErrorMessage,
   extractJwkPublicKeys,
-  extractOutputUrl,
+  extractOutputUrls,
   FAL_JWKS_URL,
   hexToBytes,
   isTimestampFresh,
@@ -126,10 +126,14 @@ export const handleFalWebhook = httpAction(async (ctx, request) => {
   // njemu se posao poravnava odmah, umesto da čeka noćnu rekonsilijaciju.
   const reportedSeconds = body.status === "OK" ? readReportedSeconds(body.payload) : null;
 
+  // Svi izlazi poziva (K13, S5): prvi je izlaz posla, ostali postaju varijacije.
+  const outputUrls = body.status === "OK" ? extractOutputUrls(body.payload) : [];
+
   await ctx.runMutation(internal.falWebhook.applyWebhookResult, {
     falRequestId: headers.requestId,
     status: body.status,
-    outputUrl: body.status === "OK" ? (extractOutputUrl(body.payload) ?? undefined) : undefined,
+    outputUrl: outputUrls[0],
+    ...(outputUrls.length > 1 ? { extraOutputUrls: outputUrls.slice(1) } : {}),
     error: body.status === "ERROR" ? extractErrorMessage(body) : undefined,
     ...(reportedSeconds !== null ? { reportedSeconds } : {}),
   });
@@ -155,7 +159,7 @@ export const applyWebhookResult = internalMutation({
     error: v.optional(v.string()),
     // Trajanje izlaza koje je fal prijavio (X2) - ulaz u poravnanje.
     reportedSeconds: v.optional(v.number()),
-    // Ostali izlazi (K12): za sada ih šalje samo DEMO „layerize" (`completeMockJob`).
+    // Ostali izlazi: slojevi (K12) i više slika jednog poziva (K13, `num_images`).
     extraOutputUrls: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {

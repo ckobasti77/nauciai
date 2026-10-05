@@ -46,6 +46,10 @@ const LayersTool = dynamic(() => import("./layers-tool"), { ssr: false, loading:
 const TextLayerTool = dynamic(() => import("./text-layer-tool"), { ssr: false, loading: ToolLoading });
 const RetouchTool = dynamic(() => import("./retouch-tool"), { ssr: false, loading: ToolLoading });
 const ProductTool = dynamic(() => import("./product-tool"), { ssr: false, loading: ToolLoading });
+const DraftSheetTool = dynamic(() => import("./draft-sheet-tool"), { ssr: false, loading: ToolLoading });
+const SlotsTool = dynamic(() => import("./slots-tool"), { ssr: false, loading: ToolLoading });
+const LiveDrawTool = dynamic(() => import("./live-draw-tool"), { ssr: false, loading: ToolLoading });
+const SketchTool = dynamic(() => import("./sketch-tool"), { ssr: false, loading: ToolLoading });
 
 export const CREA_TOOL_COMPONENTS: Readonly<Record<string, ComponentType<CreaToolProps>>> = {
   "slika.format": FormatTool,
@@ -73,4 +77,8 @@ export const CREA_TOOL_COMPONENTS: Readonly<Record<string, ComponentType<CreaToo
   "slika.tekst": TextLayerTool,
   "slika.retus": RetouchTool,
   "slika.odeca": ProductTool,
+  "slika.probni-list": DraftSheetTool,
+  "slika.ko-gde-kako": SlotsTool,
+  "slika.crtaj": LiveDrawTool,
+  "slika.skica": SketchTool,
 };

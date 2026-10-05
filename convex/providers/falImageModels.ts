@@ -286,8 +286,8 @@ export const SEEDREAM_5_LITE: StudioModelSeed = {
 
 // ── Crea K07 (S2): novi modeli za slike ────────────────────────────────────
 // Rute, polja i cene: `docs/crea/planovi/K06.md` §2 (izvori pročitani
-// 2026-10-05). Nijedan nov red nema `num_images` (K01 0.2-5: drugi izlaz se
-// danas gubi), pa je količina uvek jedna slika.
+// 2026-10-05). Od K13 se svi izlazi poziva čuvaju (S5), pa `num_images` imaju
+// dve skice za probni list (S4): Z-Image Turbo i FLUX.2 klein (1-4 po pozivu).
 
 const FLAT_SIZE_VALUES = ["auto_2K", ...FAL_IMAGE_SIZES];
 
@@ -353,11 +353,12 @@ export const Z_IMAGE_TURBO: StudioModelSeed = {
   endpoints: { text: "fal-ai/z-image/turbo" },
   inputModes: ["text"],
   inputSpec: { text: {} },
-  paramSpec: [promptControl(), imageSizeControl(FAL_IMAGE_SIZES, "landscape_4_3", { affectsPrice: true })],
-  priceRule: { unit: "image", lookup: { params: ["image_size"], map: perMegapixelSizeMap(0.005) } },
+  // `num_images` 1-4 (https://fal.ai/models/fal-ai/z-image/turbo/llms.txt, pročitano 2026-10-05).
+  paramSpec: [promptControl(), imageSizeControl(FAL_IMAGE_SIZES, "landscape_4_3", { affectsPrice: true }), numImagesControl()],
+  priceRule: { unit: "image", lookup: { params: ["image_size"], map: perMegapixelSizeMap(0.005) }, quantityParam: "num_images" },
   capabilities: {
     mode: "async_webhook",
-    maxImagesPerRun: 1,
+    maxImagesPerRun: 4,
     seedParam: "seed",
     fal: { fixed: { enable_prompt_expansion: false } },
     tags: ["cheap", "draft", "photo"],
@@ -394,10 +395,16 @@ export const FLUX_2_KLEIN: StudioModelSeed = {
     image_multi: { image: { max: 4, accept: IMAGE_ACCEPT } },
   },
   // Veličina se šalje i u izmeni: bez nje fal uzima veličinu ulaza, a ta se ne zna.
-  paramSpec: [promptControl(), imageSizeControl(FAL_IMAGE_SIZES, "landscape_4_3", { affectsPrice: true })],
+  // `num_images` 1-4 samo u tekst režimu (https://fal.ai/models/fal-ai/flux-2/klein/9b/llms.txt, 2026-10-05).
+  paramSpec: [
+    promptControl(),
+    imageSizeControl(FAL_IMAGE_SIZES, "landscape_4_3", { affectsPrice: true }),
+    numImagesControl({ showInModes: ["text"] }),
+  ],
   priceRule: {
     unit: "image",
     lookup: { params: ["image_size"], map: perMegapixelSizeMap(0.006) },
+    quantityParam: "num_images",
     modeRules: {
       image_multi: {
         unit: "image",
@@ -409,7 +416,7 @@ export const FLUX_2_KLEIN: StudioModelSeed = {
   capabilities: {
     mode: "async_webhook",
     maxInputImages: 4,
-    maxImagesPerRun: 1,
+    maxImagesPerRun: 4,
     seedParam: "seed",
     fal: { fields: { image: "image_urls" } },
     tags: ["cheap", "draft", "edit"],

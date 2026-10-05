@@ -155,3 +155,50 @@ export function productScenePrompt(hasScene: boolean, text: string, locale: Loca
     : `This is a product (cut out, no background). Place it in a new scene: ${said}.`;
   return `${scene} The product stays exactly the same - its shape, colours, material, label, logo and text do not change. Only match the light, shadows, reflections and perspective so it looks like a real photo.`;
 }
+
+// ── K13: pravljenje (S7, S9, S10) ────────────────────────────────────────────
+
+/** S7 Ko · Gde · Kako: modeli koji primaju više referentnih slika. */
+export const SLOTS_ROUTES: readonly CreaPaidRoute[] = [
+  { modelSlug: "nano-banana-2", inputMode: "image_multi", kind: "photo", label: { sr: "Nano Banana 2", en: "Nano Banana 2" } },
+  { modelSlug: "nano-banana-pro", inputMode: "image_multi", kind: "photo", label: { sr: "Nano Banana Pro · najvernije", en: "Nano Banana Pro · most faithful" } },
+  { modelSlug: "seedream-5-flash", inputMode: "image_multi", kind: "photo", label: { sr: "Seedream 5 Flash · jeftino", en: "Seedream 5 Flash · cheap" } },
+  { modelSlug: "flux-2-klein", inputMode: "image_multi", kind: "photo", label: { sr: "FLUX.2 klein · najjeftinije", en: "FLUX.2 klein · cheapest" } },
+];
+
+/** S10 skica u sliku: Nano Banana 2 (Google ključ radi) ili jeftiniji FLUX.2 klein. */
+export const SKETCH_ROUTES: readonly CreaPaidRoute[] = [
+  { modelSlug: "nano-banana-2", inputMode: "image_multi", kind: "photo", label: { sr: "Nano Banana 2", en: "Nano Banana 2" } },
+  { modelSlug: "flux-2-klein", inputMode: "image_multi", kind: "photo", label: { sr: "FLUX.2 klein · jeftinije", en: "FLUX.2 klein · cheaper" } },
+];
+
+/** S9 crtaj i gledaj: brz i jeftin model za osvežavanje (plan §7.1: FLUX.2 klein). */
+export const LIVE_ROUTES: readonly CreaPaidRoute[] = [
+  { modelSlug: "flux-2-klein", inputMode: "image_multi", kind: "photo", label: { sr: "FLUX.2 klein · brzo", en: "FLUX.2 klein · fast" } },
+  { modelSlug: "nano-banana-2-lite", inputMode: "image_multi", kind: "photo", label: { sr: "Nano Banana 2 Lite", en: "Nano Banana 2 Lite" } },
+];
+
+/** fal preseti veličine i njihov odnos stranica (`modelControls.FAL_IMAGE_SIZES`). */
+const FAL_SIZE_RATIOS: ReadonlyArray<{ size: string; ratio: string }> = [
+  { size: "square", ratio: "1:1" },
+  { size: "landscape_4_3", ratio: "4:3" },
+  { size: "landscape_16_9", ratio: "16:9" },
+  { size: "portrait_4_3", ratio: "3:4" },
+  { size: "portrait_16_9", ratio: "9:16" },
+];
+
+/** Najbliži fal preset veličine (≤ 1 MP, najjeftiniji red cene) za date mere. */
+export function nearestFalImageSize(width: number, height: number): string {
+  const ratio = nearestAspectRatio(width, height, FAL_SIZE_RATIOS.map((entry) => entry.ratio));
+  return FAL_SIZE_RATIOS.find((entry) => entry.ratio === ratio)?.size ?? "square";
+}
+
+/**
+ * Parametri za rutu sa slikama kao referencom (S7/S9/S10): Nano Banana i Seedream
+ * primaju odnos stranica, FLUX.2 klein fal preset veličine. Ostalo popunjava server.
+ */
+export function referenceRouteParams(route: CreaPaidRoute, prompt: string, width: number, height: number): Record<string, string> {
+  if (route.modelSlug === "flux-2-klein") return { prompt, image_size: nearestFalImageSize(width, height) };
+  if (route.modelSlug === "seedream-5-flash") return { prompt };
+  return { prompt, aspect_ratio: nearestAspectRatio(width, height) };
+}

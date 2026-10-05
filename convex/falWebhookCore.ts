@@ -175,6 +175,23 @@ export function extractOutputUrl(payload: unknown): string | null {
   return readUrl(record);
 }
 
+/**
+ * Svi izlazi jednog poziva (Crea K13, S5; K01 0.2-5): `num_images` > 1 vraća
+ * listu, a do sada se čuvao samo prvi - korisnik je platio N slika i dobio jednu.
+ * Prvi u nizu je isti koji vraća `extractOutputUrl`; ostali postaju zasebni radovi.
+ */
+export function extractOutputUrls(payload: unknown): string[] {
+  const first = extractOutputUrl(payload);
+  if (!first || !payload || typeof payload !== "object") return first ? [first] : [];
+  const record = payload as Record<string, unknown>;
+  for (const key of LIST_OUTPUT_KEYS) {
+    const list = record[key];
+    if (!Array.isArray(list) || readUrl(list[0]) !== first) continue;
+    return list.map(readUrl).filter((url): url is string => url !== null);
+  }
+  return [first];
+}
+
 /** Koliko teksta greške ide u `generationJobs.error` - dovoljno za dijagnozu. */
 const MAX_ERROR_LENGTH = 500;
 

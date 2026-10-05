@@ -23,8 +23,20 @@ export function capExtraOutputUrls(urls: readonly string[] | undefined): string[
 /** Ključ u `params` deteta: redni broj sloja, od 1 (prvi je izlaz glavnog posla). */
 export const LAYER_PARAM = "sloj";
 
+/**
+ * Više slika jednog poziva (K13, S5; K01-17): `num_images` > 1 vraća N izlaza.
+ * Prvi je izlaz posla i nosi cenu; ostali su deca sa `derivation: "varijacija"`
+ * i rednim brojem u `params.varijacija` (isti mehanizam kao slojevi).
+ */
+export const VARIATION_PARAM = "varijacija";
+
+/** Kako se zove dete dodatnog izlaza: sloj razlaganja ili varijacija. */
+export function extraOutputKind(job: { inputMode?: string }): { derivation: "sloj" | "varijacija"; param: string } {
+  return isLayerizeJob(job) ? { derivation: "sloj", param: LAYER_PARAM } : { derivation: "varijacija", param: VARIATION_PARAM };
+}
+
 /** Parametri deteta: parametri glavnog posla + redni broj sloja (2, 3, …). */
-export function layerChildParams(parentParams: string, layerNumber: number): string {
+export function layerChildParams(parentParams: string, layerNumber: number, param: string = LAYER_PARAM): string {
   let parsed: Record<string, unknown> = {};
   try {
     const value: unknown = JSON.parse(parentParams);
@@ -32,15 +44,15 @@ export function layerChildParams(parentParams: string, layerNumber: number): str
   } catch {
     parsed = {};
   }
-  return JSON.stringify({ ...parsed, [LAYER_PARAM]: layerNumber });
+  return JSON.stringify({ ...parsed, [param]: layerNumber });
 }
 
-/** Redni broj sloja iz `params`; glavni posao (bez ključa) je sloj 1. */
-export function layerNumberOf(params: string): number {
+/** Redni broj sloja (ili varijacije, `param`) iz `params`; glavni posao (bez ključa) je 1. */
+export function layerNumberOf(params: string, param: string = LAYER_PARAM): number {
   try {
     const value: unknown = JSON.parse(params);
     if (value && typeof value === "object" && !Array.isArray(value)) {
-      const number = (value as Record<string, unknown>)[LAYER_PARAM];
+      const number = (value as Record<string, unknown>)[param];
       if (typeof number === "number" && Number.isInteger(number) && number >= 1) return number;
     }
   } catch {
@@ -99,4 +111,21 @@ export function mockLayerDataUrls(prompt: string, hash: string, count: number): 
     layers.push(`data:image/svg+xml;utf8,${encodeURIComponent(svg)}`);
   }
   return layers;
+}
+
+/**
+ * DEMO varijacije (mock bez ključa, O3): N plakata iste vrste, svaki svoje boje,
+ * da probni list i varijacije rade i bez pravog provajdera. `poster` je
+ * `studioCore.mockOutputDataUrl`, a menja se samo početak heša (boja).
+ */
+export function mockVariationDataUrls(
+  poster: (hash: string) => string,
+  hash: string,
+  count: number,
+): string[] {
+  const total = Math.max(1, Math.min(MAX_EXTRA_OUTPUTS + 1, Math.round(count) || 1));
+  const base = parseInt(hash.slice(0, 4) || "0", 16) || 0;
+  return Array.from({ length: total }, (_, index) =>
+    poster(index === 0 ? hash : `${((base + index * 9_973) % 65_536).toString(16).padStart(4, "0")}${hash.slice(4)}`),
+  );
 }

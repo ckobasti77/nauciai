@@ -1812,6 +1812,35 @@ export default defineSchema({
     error: v.optional(v.string()),
   }).index("by_state", ["state", "createdAt"]),
 
+  // Jeftin LLM Cree (K13, K01-19): jedan red po korisniku i UTC danu - broj poziva
+  // (dnevni limit) i trošak. Isti trošak se dopisuje u `studioUsageDaily.costUsd`,
+  // da ga vide plafoni, ali bez `generations` i bez kredita.
+  creaLlmUsage: defineTable({
+    userId: v.id("users"),
+    day: v.string(),
+    calls: v.number(),
+    inputTokens: v.number(),
+    outputTokens: v.number(),
+    costUsd: v.number(),
+  }).index("by_user_day", ["userId", "day"]),
+
+  // „Moji stilovi" (K13, S8; K01 §7.4): sačuvan izbor stila, kamere i palete.
+  // `isPublic` je uvek `false` dok K27 (G11) ne otvori deljenje.
+  creaUserStyles: defineTable({
+    userId: v.id("users"),
+    name: v.string(),
+    styleId: v.optional(v.string()),
+    camera: v.optional(
+      v.object({ body: v.string(), lens: v.string(), focal: v.number(), aperture: v.string() }),
+    ),
+    palette: v.optional(v.array(v.string())),
+    // Dodatak opisu koji je korisnik sam dopisao (≤ 300 znakova).
+    promptFragment: v.string(),
+    uses: v.number(),
+    isPublic: v.boolean(),
+    createdAt: v.number(),
+  }).index("by_user", ["userId", "createdAt"]),
+
   // Opšte informacije platforme (N1) — JEDAN red, `key: "default"`. Kontakt,
   // mreže, cene i pravni podaci koje vlasnik menja sa admin ekrana umesto kroz
   // deploy; `platformSettings.get` je javan i čita ga i landing.

@@ -2,7 +2,7 @@ import { v } from "convex/values";
 
 import type { Doc, Id } from "./_generated/dataModel";
 import { internalMutation, query, type QueryCtx } from "./_generated/server";
-import { isLayerizeJob, LAYER_COUNT_RANGE, layerChildParams, layerNumberOf, orderLayers } from "./creaLayersCore";
+import { extraOutputKind, isLayerizeJob, LAYER_COUNT_RANGE, layerChildParams, layerNumberOf, orderLayers } from "./creaLayersCore";
 import { lineageFrom, VERSION_TREE_MAX_NODES } from "./creaVersionsCore";
 import { requireUserId } from "./helpers";
 import { isMockRequestId, MOCK_REQUEST_PREFIX, outputExpiresAt, parseParams } from "./studioCore";
@@ -14,20 +14,30 @@ import { isMockRequestId, MOCK_REQUEST_PREFIX, outputExpiresAt, parseParams } fr
  * ih čita zajedno kroz `getLayers`.
  */
 
-/** Deca jednog razlaganja: isti koren, roditelj = glavni posao, izvođenje „sloj". */
-async function layerChildren(ctx: QueryCtx, main: Doc<"generationJobs">): Promise<Doc<"generationJobs">[]> {
+/**
+ * Deca jednog poziva: isti koren, roditelj = glavni posao, izvođenje „sloj"
+ * (razlaganje, K12) ili „varijacija" (više slika jednog poziva, K13).
+ */
+export async function extraOutputChildren(
+  ctx: QueryCtx,
+  main: Doc<"generationJobs">,
+  derivation: "sloj" | "varijacija" = "sloj",
+): Promise<Doc<"generationJobs">[]> {
   const rootJobId = main.rootJobId ?? main._id;
   const tree = await ctx.db
     .query("generationJobs")
     .withIndex("by_root_created", (q) => q.eq("rootJobId", rootJobId))
     .take(VERSION_TREE_MAX_NODES);
-  return tree.filter((job) => job.parentJobId === main._id && job.derivation === "sloj");
+  return tree.filter((job) => job.parentJobId === main._id && job.derivation === derivation);
 }
 
+const layerChildren = (ctx: QueryCtx, main: Doc<"generationJobs">) => extraOutputChildren(ctx, main, "sloj");
+
 /**
- * Upis jednog dodatnog izlaza (`studioActions.persistOutput`). Idempotentno po
- * rednom broju sloja: ponovljen upis istog sloja vraća `false`, pa akcija briše
- * suvišan fajl.
+ * Upis jednog dodatnog izlaza (`studioActions.persistOutput`): sloj razlaganja
+ * ili varijacija (K13, `num_images`), po ulaznom režimu glavnog posla.
+ * Idempotentno po rednom broju (`layerNumber` = redni broj izlaza, od 2):
+ * ponovljen upis istog broja vraća `false`, pa akcija briše suvišan fajl.
  */
 export const insertExtraOutput = internalMutation({
   args: {
@@ -41,8 +51,9 @@ export const insertExtraOutput = internalMutation({
     const parent = await ctx.db.get("generationJobs", args.parentJobId);
     if (!parent || parent.status !== "done" || !parent.outputStorageId) return false;
     if (!Number.isInteger(args.layerNumber) || args.layerNumber < 2 || args.layerNumber > LAYER_COUNT_RANGE.max) return false;
-    const existing = await layerChildren(ctx, parent);
-    if (existing.some((job) => layerNumberOf(job.params) === args.layerNumber)) return false;
+    const kind = extraOutputKind(parent);
+    const existing = await extraOutputChildren(ctx, parent, kind.derivation);
+    if (existing.some((job) => layerNumberOf(job.params, kind.param) === args.layerNumber)) return false;
 
     const now = Date.now();
     const mock = isMockRequestId(parent.falRequestId);
@@ -51,20 +62,20 @@ export const insertExtraOutput = internalMutation({
       ...(parent.projectId ? { projectId: parent.projectId } : {}),
       modelSlug: parent.modelSlug,
       kind: parent.kind,
-      params: layerChildParams(parent.params, args.layerNumber),
+      params: layerChildParams(parent.params, args.layerNumber, kind.param),
       promptHash: parent.promptHash,
       status: "done",
-      // Plaćen je glavni posao (cena po sloju); dete ne skida kredite i ne ulazi u dnevni zbir.
+      // Plaćen je glavni posao (cena po sloju / po slici); dete ne skida kredite i ne ulazi u dnevni zbir.
       creditCost: 0,
       estimatedCostUsd: 0,
       ...(parent.provider ? { provider: parent.provider } : {}),
       ...(parent.inputMode ? { inputMode: parent.inputMode } : {}),
       // DEMO dete nosi sopstvenu mock oznaku (galerija ga prepoznaje kao DEMO); stvarni
       // `falRequestId` roditelja se ne kopira jer ga webhook traži kao jedinstven.
-      ...(mock ? { falRequestId: `${MOCK_REQUEST_PREFIX}${parent._id}:sloj${args.layerNumber}` } : {}),
+      ...(mock ? { falRequestId: `${MOCK_REQUEST_PREFIX}${parent._id}:${kind.param}${args.layerNumber}` } : {}),
       outputStorageId: args.storageId,
       ...lineageFrom(parent),
-      derivation: "sloj",
+      derivation: kind.derivation,
       expiresAt: outputExpiresAt(parent.kind, now),
       createdAt: now,
       completedAt: now,

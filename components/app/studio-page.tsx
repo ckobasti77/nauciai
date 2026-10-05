@@ -15,6 +15,7 @@ import type { StudioTileJob } from "@/components/app/studio-media-tile";
 import { StudioModerationGrid } from "@/components/app/studio-moderation-grid";
 import { CreaCacheOffer } from "@/components/crea/crea-cache-offer";
 import { CreaComingSoon } from "@/components/crea/crea-coming-soon";
+import { useJobQueue } from "@/components/crea/create/use-job-queue";
 import { CreaHistory, CreaHistoryEmpty } from "@/components/crea/crea-history";
 import { CreaStage } from "@/components/crea/crea-stage";
 import { CreaStartScreen } from "@/components/crea/crea-start-screen";
@@ -34,11 +35,13 @@ import { LinkButton, Panel } from "@/components/ui/primitives";
 import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { CREA_STAGE_COPY } from "@/lib/crea-copy";
+import { CREA_CREATE_COPY } from "@/lib/crea-create-copy";
+import { CREA_STAGE_COPY, fillCopy } from "@/lib/crea-copy";
 import type { RefineOrder } from "@/lib/crea-draft";
 import { creaGoalById } from "@/lib/crea-goals";
 import {
   CREA_AREA_KIND,
+  CREA_PROMPT_PARAM,
   creaModeDef,
   creaPromptFromParams,
   creaShellQuery,
@@ -312,6 +315,8 @@ export function StudioPage({
   }
   const [error, setError] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
+  // Varijacije modela koji ne vraća više slika (K13, S5): ostatak čeka slobodno mesto.
+  const variationQueue = useJobQueue(setError);
 
   const creditsHref = creditsHrefProp ?? withLocale(locale, "/app/credits");
 
@@ -626,7 +631,7 @@ export function StudioPage({
           return;
         }
       }
-      const result = await createJob({
+      const base = {
         modelSlug: model.slug,
         params: JSON.stringify(payload.params),
         inputMode: payload.inputMode,
@@ -635,11 +640,21 @@ export function StudioPage({
           : {}),
         ...(payload.sourceJobId ? { sourceJobId: payload.sourceJobId } : {}),
         ...(payload.deliveryMode ? { deliveryMode: payload.deliveryMode } : {}),
-        ...lineage,
         ...(lessonId ? { lessonId } : {}),
         ...(lessonId && taskId ? { taskId } : {}),
         ...(activeProjectId ? { projectId: activeProjectId } : {}),
-      });
+      };
+      const result = await createJob({ ...base, ...lineage });
+      // Ostale varijacije (K13, S5) su zasebni poslovi, „varijacija" prvog; idu kroz red jer
+      // javni korisnik ima najviše 2 posla u toku.
+      if (typeof result === "string" && payload.variations && payload.variations > 1) {
+        const parentJobId = result as Id<"generationJobs">;
+        variationQueue.enqueue(
+          Array.from({ length: payload.variations - 1 }, () => ({
+            args: { ...base, parentJobId, derivation: "varijacija" as const },
+          })),
+        );
+      }
       // Pogodak blok liste (studio-public F2.5) stiže kao vrednost, ne kao
       // greška - server tako COMMIT-uje log o odbijanju. Poruka je ista kao
       // za bačeni NEISPRAVAN_PROMPT:ZABRANJEN_POJAM (substring mapiranje u
@@ -964,6 +979,18 @@ export function StudioPage({
           lockModelKind
           shellMode={modeDef.id}
           dropDisabled={activeJobId !== null}
+          createExtras={area === "slika" && modeDef.id === "napravi"}
+          canSaveStyles={state?.hasStudioAccess === true}
+          onOpenSheet={(prompt, modelSlug) => {
+            // Probni list (S4) je alat Napravi: dobija opis i model iz composera.
+            const query = new URLSearchParams(creaShellQuery({ tool: "slika.probni-list" }, searchParams));
+            if (prompt.trim()) query.set(CREA_PROMPT_PARAM, prompt.trim());
+            query.set("model", modelSlug);
+            router.push(`${pathname}?${query.toString()}`, { scroll: false });
+          }}
+          queueNotice={
+            variationQueue.waiting > 0 ? fillCopy(CREA_CREATE_COPY.queueWaiting[locale], { n: variationQueue.waiting }) : null
+          }
           {...(placement === "floating"
             ? {
                 isCollapsed: isComposerCollapsed,
