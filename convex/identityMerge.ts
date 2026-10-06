@@ -154,6 +154,10 @@ async function mergeActivityRows(
       tasks: dayRows.reduce((sum, row) => sum + Math.max(0, row.tasks), 0),
       threads: dayRows.reduce((sum, row) => sum + Math.max(0, row.threads), 0),
       comments: dayRows.reduce((sum, row) => sum + Math.max(0, row.comments), 0),
+      // Radovi u Crei (K26): niz dana ih broji kao i lekcije.
+      ...(dayRows.some((row) => row.creaWorks !== undefined)
+        ? { creaWorks: dayRows.reduce((sum, row) => sum + Math.max(0, row.creaWorks ?? 0), 0) }
+        : {}),
       updatedAt: Math.max(...dayRows.map((row) => row.updatedAt)),
     });
     for (const row of dayRows) if (row._id !== winner._id) await ctx.db.delete(row._id);

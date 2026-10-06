@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery } from "convex/react";
+import { useQuery } from "convex/react";
 import { useState } from "react";
 
 import { paidModel, type SendStatus } from "@/components/crea/tools/paid-video";
@@ -12,6 +12,7 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { jobCredits } from "@/lib/crea-job-price";
 import type { Locale } from "@/lib/i18n";
 import { studioErrorMessage } from "@/lib/studio-messages";
+import { useCreaCreateJob } from "@/components/crea/game/crea-tool-context";
 
 /** Najduži snimak za razdvajanje (isto kao `quantity.max` reda `stems`). */
 export const STEMS_MAX_S = 10 * 60;
@@ -23,7 +24,7 @@ export const STEMS_MAX_S = 10 * 60;
  * (muzika ostaje) i prevod (zadrži muziku).
  */
 export function useStemsJob(input: { picked: PickedSound | null; seconds: number | null; paid: CreaPaidContext | null; projectId: Id<"studioProjects"> | null; locale: Locale }) {
-  const createJob = useMutation(api.studio.createJob);
+  const createJob = useCreaCreateJob();
   const prepareSound = usePrepareSound();
   const [status, setStatus] = useState<SendStatus>({ name: "idle" });
   const [job, setJob] = useState<{ id: Id<"generationJobs">; forKey: string } | null>(null);

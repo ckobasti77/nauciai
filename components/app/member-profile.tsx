@@ -21,6 +21,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
 import { openChatDock } from "@/components/app/chat/chat-dock";
+import { CreaReportCardPanel } from "@/components/crea/game/crea-report-card-panel";
 import { CommunityBadgeRow, LevelMeter } from "@/components/app/community-gamification";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -315,6 +316,13 @@ export function MemberProfile({ locale, username }: { locale: Locale; username: 
       <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_370px]">
         <div className="order-2 min-w-0 space-y-6 xl:order-1">
           <ActivityHeatmap activity={profile.activity} locale={locale} />
+          {/* Đačka knjižica Cree (K26, G5): vlasniku uvek, drugima samo kad je javna. */}
+          <CreaReportCardPanel
+            locale={locale}
+            username={identity.username}
+            variant="profile"
+            notebookHref={`${withLocale(locale, "/app/studio/sveska")}?deo=knjizica`}
+          />
           <section className="surface-card border-2 border-line bg-paper-strong p-4 sm:p-6">
             <div className="flex items-center gap-2"><BookOpen className="size-5" /><h2 className="font-display type-display-sm">{t(locale, "Kursevi koje pohađa", "Courses")}</h2></div>
             {profile.courses.length ? <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">{profile.courses.map((course) => <article key={course.courseId} className="surface-inset border border-line bg-paper p-3"><div className="surface-media aspect-[16/9] overflow-hidden bg-ink/5 dark:bg-ink/10">{course.coverUrl ? <img src={course.coverUrl} alt="" className="h-full w-full object-cover" /> : <div className="grid h-full place-items-center"><BookOpen className="size-8 text-muted" /></div>}</div><p className="mt-3 type-eyebrow text-blue-mid dark:text-muted">{locale === "sr" ? course.trackTitleSr : course.trackTitleEn}</p><h3 className="mt-1 type-h4 text-ink">{locale === "sr" ? course.titleSr : course.titleEn}</h3><div className="mt-3 h-2 overflow-hidden rounded-full bg-line"><span className="block h-full rounded-full bg-yellow" style={{ width: `${course.percent}%` }} /></div><div className="mt-2 flex justify-between text-xs font-black text-muted"><span>{course.completedLessons}/{course.totalLessons} {t(locale, "lekcija", "lessons")}</span><span>{course.percent}%</span></div></article>)}</div> : <p className="surface-card mt-4 border border-dashed border-line p-6 text-center text-sm font-bold text-muted">{t(locale, "Još nema aktivnih kurseva ni zabeleženog napretka.", "No active courses or progress yet.")}</p>}

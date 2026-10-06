@@ -1,7 +1,14 @@
 "use client";
 
+import { LockKeyhole } from "lucide-react";
+import Link from "next/link";
+
+import { useCreaGame } from "@/components/crea/game/crea-game-context";
+import { useLessonHref } from "@/components/crea/game/crea-locked-tools";
 import { cn } from "@/components/ui/primitives";
-import { CREA_TOOL_COPY } from "@/lib/crea-copy";
+import { CREA_TOOL_COPY, fillCopy } from "@/lib/crea-copy";
+import { CREA_LOCKED_COPY } from "@/lib/crea-game-copy";
+import { splitToolsByUnlock } from "@/lib/crea-skills";
 import type { CreaArea, CreaModeId } from "@/lib/crea-shell";
 import { isLocalTier, toolsFor } from "@/lib/crea-tools";
 import type { Locale } from "@/lib/i18n";
@@ -22,8 +29,12 @@ export function CreaToolShortcuts({
   mode: CreaModeId;
   onSelect: (toolId: string) => void;
 }) {
-  const ready = toolsFor(area, mode).filter((tool) => tool.status === "ready");
-  if (ready.length === 0) return null;
+  const { unlock } = useCreaGame();
+  const lessonHref = useLessonHref(locale);
+  // Postepeno otkrivanje (K26, U10): zaključani alati su jedna pilula ka mini-lekciji.
+  const { visible, locked, lessons } = splitToolsByUnlock(toolsFor(area, mode), unlock);
+  const ready = visible.filter((tool) => tool.status === "ready");
+  if (ready.length === 0 && locked.length === 0) return null;
 
   return (
     <nav aria-label={CREA_TOOL_COPY.editListTitle[locale]}>
@@ -51,6 +62,17 @@ export function CreaToolShortcuts({
             </li>
           );
         })}
+        {locked.length > 0 && lessons[0] ? (
+          <li>
+            <Link
+              href={lessonHref(lessons[0].id)}
+              className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-dashed border-ink bg-paper px-4 text-sm font-black text-ink transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none"
+            >
+              <LockKeyhole aria-hidden="true" className="size-4" />
+              {fillCopy(CREA_LOCKED_COPY.title[locale], { n: locked.length })}
+            </Link>
+          </li>
+        ) : null}
       </ul>
     </nav>
   );

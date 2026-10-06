@@ -38,6 +38,15 @@ const leaderboardSourceType = v.union(
   v.literal("lesson"),
   v.literal("required_task"),
   v.literal("helpful_comment"),
+  // Crea XP (K26, G1): događaji, nikad potrošeni krediti (`leaderboardCore.LEADERBOARD_XP`).
+  v.literal("crea_first_work"),
+  v.literal("crea_daily_work"),
+  v.literal("crea_technique"),
+  v.literal("crea_recipe"),
+  v.literal("crea_challenge"),
+  v.literal("crea_remix_received"),
+  v.literal("crea_mini_lesson"),
+  v.literal("crea_album_page"),
 );
 const helpMode = v.union(v.literal("seeking"), v.literal("offering"), v.literal("both"));
 const dmPrivacy = v.union(v.literal("requests"), v.literal("following"), v.literal("nobody"));
@@ -71,6 +80,8 @@ const creditLotSource = v.union(
   v.literal("admin_grant"),
   // Refund neuspelog posla otvara nov lot umesto da vraća kredite u originalni.
   v.literal("refund"),
+  // Nagrada iz gejmifikacije Cree (K26): puna strana albuma. Nikad iz Stripe-a.
+  v.literal("reward"),
 );
 const creditTransactionType = v.union(
   v.literal("purchase"),
@@ -246,6 +257,8 @@ export default defineSchema({
     tasks: v.number(),
     threads: v.number(),
     comments: v.number(),
+    // Radovi u Crei tog dana (K26, G2 - niz dana broji lekciju ILI rad). Stari redovi ga nemaju.
+    creaWorks: v.optional(v.number()),
     updatedAt: v.number(),
   })
     .index("by_userId_and_dayKey", ["userId", "dayKey"]),
@@ -1643,6 +1656,13 @@ export default defineSchema({
     searchText: v.optional(v.string()),
     // Omiljeno (K16, U9): kad je korisnik označio rad. Nema ga = nije omiljen.
     favoriteAt: v.optional(v.number()),
+    // Gejmifikacija (K26, G4): tehnike koje je rad probao, kao id-jevi sličica
+    // (`lib/crea-album.ts`, npr. `kamera:fpv`, `alat:slika.cetkica`). Server ih
+    // filtrira po katalogu i vrsti rada; nepoznate tiho otpadaju.
+    creaTechniques: v.optional(v.array(v.string())),
+    // Besplatna proba iz mini-lekcije (K26, G6): posao je za 0 kredita, a neuspeh
+    // vraća probu umesto kredita. Vrednost je id mini-lekcije.
+    freeTryLessonId: v.optional(v.string()),
   })
     .searchIndex("search_searchText", { searchField: "searchText", filterFields: ["userId", "kind"] })
     .index("by_user", ["userId", "createdAt"])
@@ -2008,6 +2028,68 @@ export default defineSchema({
     createdAt: v.number(),
     checkedAt: v.optional(v.number()),
   }).index("by_user_created", ["userId", "createdAt"]),
+
+  // ── CREA: GEJMIFIKACIJA (K26) ─────────────────────────────────────────
+  // Sličica albuma (G4): jedna po korisniku i tehnici, zauvek. `pageId` je strana
+  // iz `lib/crea-album.ts` (da se puna strana prepozna jednim čitanjem po indeksu).
+  creaStickers: defineTable({
+    userId: v.id("users"),
+    stickerId: v.string(),
+    pageId: v.string(),
+    earnedAt: v.number(),
+    jobId: v.optional(v.id("generationJobs")),
+    // Kad je korisnik video pečat „Odličan 5" za ovu sličicu (G5); nema ga = još nije.
+    seenAt: v.optional(v.number()),
+  })
+    .index("by_userId_and_stickerId", ["userId", "stickerId"])
+    .index("by_userId_and_pageId", ["userId", "pageId"])
+    .index("by_userId_and_seenAt", ["userId", "seenAt"]),
+
+  // Popunjena strana albuma (G4): jednom po korisniku i strani. Nagradu (malu,
+  // jednokratnu) korisnik preuzima dugmetom (`creaGame.claimAlbumReward`); do tada je
+  // `rewardCredits` 0. `rewardDayKey` je beogradski dan preuzimanja - po njemu se
+  // broji dnevni plafon nagrada.
+  creaAlbumPages: defineTable({
+    userId: v.id("users"),
+    pageId: v.string(),
+    completedAt: v.number(),
+    rewardCredits: v.number(),
+    rewardLotId: v.optional(v.id("creditLots")),
+    rewardedAt: v.optional(v.number()),
+    rewardDayKey: v.optional(v.string()),
+    seenAt: v.optional(v.number()),
+  })
+    .index("by_userId_and_pageId", ["userId", "pageId"])
+    .index("by_userId_and_rewardDayKey", ["userId", "rewardDayKey"])
+    .index("by_userId_and_seenAt", ["userId", "seenAt"]),
+
+  // Položena mini-lekcija (G6) - lekcijom ili testom. Ujedno otključava alate (U10).
+  creaMiniLessonProgress: defineTable({
+    userId: v.id("users"),
+    lessonId: v.string(),
+    via: v.union(v.literal("lekcija"), v.literal("test")),
+    completedAt: v.number(),
+  }).index("by_userId_and_lessonId", ["userId", "lessonId"]),
+
+  // Besplatne probe tehnike iz mini-lekcije (G6). `createJob` skida `remaining`,
+  // neuspeo posao je vraća (`studio.failJob`).
+  creaFreeTries: defineTable({
+    userId: v.id("users"),
+    lessonId: v.string(),
+    granted: v.number(),
+    remaining: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_userId_and_lessonId", ["userId", "lessonId"]),
+
+  // Podešavanja gejmifikacije po korisniku: „otključaj sve" (U10) i da li je
+  // đačka knjižica javna (G5). Nema reda = podrazumevano.
+  creaProfiles: defineTable({
+    userId: v.id("users"),
+    unlockAll: v.optional(v.boolean()),
+    reportCardPublic: v.optional(v.boolean()),
+    updatedAt: v.number(),
+  }).index("by_userId", ["userId"]),
 
   // Opšte informacije platforme (N1) — JEDAN red, `key: "default"`. Kontakt,
   // mreže, cene i pravni podaci koje vlasnik menja sa admin ekrana umesto kroz

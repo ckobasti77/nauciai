@@ -1,16 +1,44 @@
 import type { Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
 
+/**
+ * XP po događaju. Crea vrste (K26, G1) nagrađuju DOGAĐAJ - prvi rad u oblasti,
+ * prvi rad dana, novu tehniku, recept, mini-lekciju, punu stranu albuma - i
+ * nikad potrošene kredite: plaćen i besplatan rad nose isti XP, a skuplji rad ne
+ * nosi više. Svaka vrsta je ili jednokratna po `sourceId` ili ima dnevni limit.
+ */
 export const LEADERBOARD_XP = {
   lesson: 100,
   required_task: 20,
   helpful_comment: 10,
+  crea_first_work: 30,
+  crea_daily_work: 10,
+  crea_technique: 5,
+  crea_recipe: 15,
+  crea_challenge: 25,
+  crea_remix_received: 5,
+  crea_mini_lesson: 20,
+  crea_album_page: 25,
 } as const;
 
 export type LeaderboardSourceType = keyof typeof LEADERBOARD_XP;
 
+/**
+ * Koliko događaja iste vrste NOSI XP u jednom beogradskom danu; preko toga se
+ * događaj upiše sa 0 XP. `crea_first_work` (`sourceId` = oblast) i
+ * `crea_daily_work` (`sourceId` = dan) su ograničeni samim ključem.
+ */
+export const LEADERBOARD_DAILY_XP_LIMIT: Partial<Record<LeaderboardSourceType, number>> = {
+  helpful_comment: 5,
+  crea_technique: 10,
+  crea_recipe: 3,
+  crea_challenge: 1,
+  crea_remix_received: 5,
+  crea_mini_lesson: 5,
+  crea_album_page: 3,
+};
+
 const BELGRADE_TIME_ZONE = "Europe/Belgrade";
-const HELPFUL_XP_DAILY_LIMIT = 5;
 const ALL_TIME_PERIOD_KEY = "all";
 
 const belgradeDateFormatter = new Intl.DateTimeFormat("en-CA", {
@@ -189,23 +217,27 @@ async function applyStatsDelta(
   }
 }
 
-async function rewardingHelpfulEventsForDay(
+/** Da li je vrsta tog dana već potrošila svoj limit XP-a (vrsta bez limita: nikad). */
+async function dailyXpLimitReached(
   ctx: MutationCtx,
   userId: Id<"users">,
+  sourceType: LeaderboardSourceType,
   dayKey: string,
 ) {
+  const limit = LEADERBOARD_DAILY_XP_LIMIT[sourceType];
+  if (limit === undefined) return false;
   const events = await ctx.db
     .query("leaderboardEvents")
     .withIndex("by_userId_and_sourceType_and_dayKey_and_active_and_points", (q) =>
       q
         .eq("userId", userId)
-        .eq("sourceType", "helpful_comment")
+        .eq("sourceType", sourceType)
         .eq("dayKey", dayKey)
-        .eq("active", true),
+        .eq("active", true)
+        .gt("points", 0),
     )
-    .order("desc")
-    .take(HELPFUL_XP_DAILY_LIMIT);
-  return events.filter((event) => event.points > 0).length;
+    .take(limit);
+  return events.length >= limit;
 }
 
 export async function syncLeaderboardSourceEvent(
@@ -226,11 +258,8 @@ export async function syncLeaderboardSourceEvent(
 
     if (args.active) {
       let reactivatedPoints = existing.points;
-      if (args.sourceType === "helpful_comment" && existing.points > 0) {
-        const rewardingCount = await rewardingHelpfulEventsForDay(ctx, args.userId, existing.dayKey);
-        if (rewardingCount >= HELPFUL_XP_DAILY_LIMIT) {
-          reactivatedPoints = 0;
-        }
+      if (existing.points > 0 && (await dailyXpLimitReached(ctx, args.userId, args.sourceType, existing.dayKey))) {
+        reactivatedPoints = 0;
       }
       await ctx.db.patch(existing._id, {
         active: true,
@@ -271,11 +300,8 @@ export async function syncLeaderboardSourceEvent(
   const weekKey = belgradeWeekKey(occurredAt);
   const { trackId } = await resolveScopeRefs(ctx, args.courseId, args.trackId);
   let points: number = LEADERBOARD_XP[args.sourceType];
-  if (args.sourceType === "helpful_comment") {
-    const rewardingCount = await rewardingHelpfulEventsForDay(ctx, args.userId, dayKey);
-    if (rewardingCount >= HELPFUL_XP_DAILY_LIMIT) {
-      points = 0;
-    }
+  if (await dailyXpLimitReached(ctx, args.userId, args.sourceType, dayKey)) {
+    points = 0;
   }
 
   const now = Date.now();

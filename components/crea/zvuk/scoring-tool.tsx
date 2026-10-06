@@ -1,6 +1,6 @@
 "use client";
 
-import { useAction, useMutation } from "convex/react";
+import { useAction } from "convex/react";
 import { Clapperboard, Eye, Music } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -27,6 +27,7 @@ import { musicEngine } from "@/lib/crea-music";
 import { CREA_SOUND_COPY as T } from "@/lib/crea-sound-copy";
 import type { CreaTimelineV1 } from "@/lib/crea-timeline";
 import { studioErrorMessage } from "@/lib/studio-messages";
+import { useCreaCreateJob } from "@/components/crea/game/crea-tool-context";
 
 /** Najduži klip za ozvučavanje (isto kao granica montaže je 8 min; numera Lyria ~2 min se ponavlja). */
 const SCORE_MAX_S = 3 * 60;
@@ -92,7 +93,7 @@ export default function ScoringTool({ tool, locale, caps, canSave, projectId, pa
   const [effectJob, setEffectJob] = useState<{ forKey: string; id: Id<"generationJobs"> } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { enqueue, waiting } = useJobQueue((message) => setError(studioErrorMessage(message, locale)));
-  const createJob = useMutation(api.studio.createJob);
+  const createJob = useCreaCreateJob();
   const prepareVideo = usePrepareVideo();
   const trackIds = picked && tracks.forKey === picked.key ? tracks.ids : [];
   const effectId = picked && effectJob?.forKey === picked.key ? effectJob.id : null;

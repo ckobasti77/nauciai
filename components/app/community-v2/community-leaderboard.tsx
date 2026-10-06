@@ -1,6 +1,6 @@
 "use client";
 
-import { Award, BookOpenCheck, CheckCircle2, ChevronDown, Crown, HelpCircle, Medal, Sparkles, Trophy } from "lucide-react";
+import { Award, BookOpenCheck, CheckCircle2, ChevronDown, Crown, HelpCircle, Medal, Palette, Sparkles, Trophy } from "lucide-react";
 import Link from "next/link";
 import type { CSSProperties } from "react";
 
@@ -346,6 +346,8 @@ function LeaderboardView({
                     { icon: BookOpenCheck, value: "+100", sr: "Završena lekcija", en: "Completed lesson" },
                     { icon: CheckCircle2, value: "+20", sr: "Obavezni zadatak", en: "Required task" },
                     { icon: HelpCircle, value: "+10", sr: "Koristan odgovor", en: "Helpful reply", href: `${withLocale(locale, "/app/community/discussions")}?sort=unanswered` },
+                    // Crea XP (K26, G1): prvi rad u oblasti 30, mini-lekcija 20, recept 15, rad dana 10, nova tehnika 5.
+                    { icon: Palette, value: "+5–30", sr: "Crea: prvi rad, nova tehnika, recept, mini-lekcija", en: "Crea: first work, new technique, recipe, mini-lesson", href: withLocale(locale, "/app/studio/sveska") },
                   ].map((item) => {
                     const Icon = item.icon;
                     const label = locale === "sr" ? item.sr : item.en;
@@ -371,8 +373,8 @@ function LeaderboardView({
                 </ul>
                 <p className="mt-4 border-t border-line pt-3 type-caption font-semibold text-muted">
                   {locale === "sr"
-                    ? "Bodovi su isti za Lite i Pro. Predavači i moderatori se ne rangiraju. Ko ima isto bodova, deli isto mesto."
-                    : "Points are the same for Lite and Pro. Teachers and moderators are not ranked. Equal points share the same place."}
+                    ? "Bodovi su isti za Lite i Pro. Predavači i moderatori se ne rangiraju. Ko ima isto bodova, deli isto mesto. XP u Crei se dobija za ono što uradiš prvi put, uz dnevni limit - nikad za potrošene kredite."
+                    : "Points are the same for Lite and Pro. Teachers and moderators are not ranked. Equal points share the same place. Crea XP comes from what you do for the first time, with a daily limit - never from credits spent."}
                 </p>
               </div>
             </details>

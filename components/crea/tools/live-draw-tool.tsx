@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element -- izlaz posla je potpisan Convex URL (ili DEMO SVG), next/image ga ne obrađuje. */
 "use client";
 
-import { useMutation, useQuery } from "convex/react";
+import { useQuery } from "convex/react";
 import { Coins, Radio, Square } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 
@@ -22,6 +22,7 @@ import { LIVE_ROUTES, referenceRouteParams, SKETCH_ROUTES, type CreaPaidRoute } 
 import { sketchToImagePrompt } from "@/lib/crea-prompt-compose";
 import { studioErrorMessage } from "@/lib/studio-messages";
 import { buildParams, creditsFor, formatCredits, paramValuesForMode } from "@/lib/studio-params";
+import { useCreaCreateJob } from "@/components/crea/game/crea-tool-context";
 
 const WAIT_CODES = ["PREVISE_POSLOVA", "MINUTNI_LIMIT"];
 const ACTIVE = new Set(["reserved", "running", "queued"]);
@@ -34,7 +35,7 @@ const ACTIVE = new Set(["reserved", "running", "queued"]);
  * nikad dok prethodno traje, najviše 10 po sesiji - i cena toga piše PRE uključivanja.
  */
 export default function LiveDrawTool({ tool, locale, canSave, projectId, paid }: CreaToolProps) {
-  const createJob = useMutation(api.studio.createJob);
+  const createJob = useCreaCreateJob();
   const upload = useSlotUpload();
   const canvas = useRef<SketchCanvasHandle | null>(null);
   const textId = useId();

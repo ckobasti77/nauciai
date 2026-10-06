@@ -44,6 +44,7 @@ import { CREA_VIDEO_TOOLS_COPY as T } from "@/lib/crea-video-tools-copy";
 import type { Locale } from "@/lib/i18n";
 import { studioErrorMessage } from "@/lib/studio-messages";
 import { formatCredits } from "@/lib/studio-params";
+import { useCreaCreateJob } from "@/components/crea/game/crea-tool-context";
 
 type Quality = "720p" | "1080p";
 type Audio = { file: File; url: string; seconds: number | null };
@@ -123,7 +124,7 @@ const PROBLEM_COPY = {
  * primetno duži od procene, pita se ponovo. Bez ključa provajdera ide DEMO do kraja.
  */
 export default function TalkingTool({ tool, locale, canSave, projectId, paid }: CreaToolProps) {
-  const createJob = useMutation(api.studio.createJob);
+  const createJob = useCreaCreateJob();
   const adopt = useMutation(api.creaVersions.adoptOutputAsInput);
   const measure = useAction(api.studioActions.measureInputUpload);
   const startTalking = useMutation(api.creaFaceJobs.startTalking);

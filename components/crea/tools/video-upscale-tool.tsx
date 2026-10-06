@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery } from "convex/react";
+import { useQuery } from "convex/react";
 import { Maximize2 } from "lucide-react";
 import { useState } from "react";
 
@@ -15,6 +15,7 @@ import { VIDEO_UPSCALE_MODEL } from "@/lib/crea-video-edit";
 import { CREA_VIDEO_TOOLS_COPY as T } from "@/lib/crea-video-tools-copy";
 import { studioErrorMessage } from "@/lib/studio-messages";
 import { optionLabel } from "@/lib/studio-params";
+import { useCreaCreateJob } from "@/components/crea/game/crea-tool-context";
 
 /**
  * Uvećaj video (Crea K20, V17): ByteDance uvećanje (red kataloga iz K20) na
@@ -25,7 +26,7 @@ export default function VideoUpscaleTool({ tool, locale, canSave, projectId, sou
   const video = useVideoInput(source);
   const picked = video.picked;
   const localSeconds = useLocalVideoSeconds(picked);
-  const createJob = useMutation(api.studio.createJob);
+  const createJob = useCreaCreateJob();
   const prepareVideo = usePrepareVideo();
   const sourceJob = useQuery(api.studio.getJobForDetail, picked?.sourceJobId ? { jobId: picked.sourceJobId } : "skip");
   const choice = paidModel(paid, VIDEO_UPSCALE_MODEL, "video");

@@ -3,7 +3,7 @@ import type { MutationCtx } from "./_generated/server";
 import { effectiveRoleForProfile } from "./helpers";
 import { belgradeDayKey } from "./leaderboardCore";
 
-type ActivityKind = "lessons" | "tasks" | "threads" | "comments";
+type ActivityKind = "lessons" | "tasks" | "threads" | "comments" | "creaWorks";
 
 export const MAX_SYNCHRONOUS_POST_CONTRIBUTIONS = 500;
 
@@ -17,8 +17,9 @@ export async function adjustProfileActivity(
     .query("profileActivityDays")
     .withIndex("by_userId_and_dayKey", (q) => q.eq("userId", args.userId).eq("dayKey", dayKey))
     .unique();
-  const base = row ?? { lessons: 0, tasks: 0, threads: 0, comments: 0 };
-  const current = base[args.kind];
+  const base: { lessons: number; tasks: number; threads: number; comments: number; creaWorks?: number } =
+    row ?? { lessons: 0, tasks: 0, threads: 0, comments: 0 };
+  const current = (args.kind === "creaWorks" ? base.creaWorks : base[args.kind]) ?? 0;
   const nextValue = Math.max(0, current + args.delta);
   const actualDelta = nextValue - current;
   if (!actualDelta) return 0;
@@ -28,6 +29,7 @@ export async function adjustProfileActivity(
     tasks: base.tasks,
     threads: base.threads,
     comments: base.comments,
+    ...(base.creaWorks !== undefined ? { creaWorks: base.creaWorks } : {}),
     [args.kind]: nextValue,
     updatedAt: Date.now(),
   };

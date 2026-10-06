@@ -31,6 +31,7 @@ import {
 } from "@/lib/crea-video-edit";
 import { CREA_VIDEO_TOOLS_COPY as T } from "@/lib/crea-video-tools-copy";
 import { studioErrorMessage } from "@/lib/studio-messages";
+import { useCreaCreateJob } from "@/components/crea/game/crea-tool-context";
 
 type SwapKind = "predmet" | "lik";
 type Resolution = "720p" | "1080p";
@@ -51,7 +52,7 @@ export default function VideoEditTool({ tool, locale, canSave, projectId, source
   const picked = video.picked;
   const localSeconds = useLocalVideoSeconds(picked);
   const refs = useImageInput();
-  const createJob = useMutation(api.studio.createJob);
+  const createJob = useCreaCreateJob();
   const startVideoSwap = useMutation(api.creaFaceJobs.startVideoSwap);
   const prepareVideo = usePrepareVideo();
   const uploadInput = useUploadInput();

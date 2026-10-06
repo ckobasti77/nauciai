@@ -1,6 +1,5 @@
 "use client";
 
-import { useMutation } from "convex/react";
 import { CircleCheck, Coins, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
 
@@ -10,7 +9,6 @@ import { usePromptParamState } from "@/components/crea/tools/use-prompt-param";
 import { ChoiceChips } from "@/components/crea/tools/choice-chips";
 import { useSlotUpload } from "@/components/studio/use-slot-upload";
 import { Button } from "@/components/ui/button";
-import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { CreaPaidContext } from "@/components/crea/tools/types";
 import { CREA_PAID_EDIT_COPY as T } from "@/lib/crea-edit-copy";
@@ -19,6 +17,7 @@ import type { Locale } from "@/lib/i18n";
 import { studioErrorMessage } from "@/lib/studio-messages";
 import type { StudioModel } from "@/lib/studio-models";
 import { buildParams, creditsFor, formatCredits, paramValuesForMode } from "@/lib/studio-params";
+import { useCreaCreateJob } from "@/components/crea/game/crea-tool-context";
 
 /** Fajlovi koje ruta šalje (redosled je bitan) i veličina slike, za odnos stranica. */
 export type PaidEditFiles = { files: Record<string, Blob[]>; width: number; height: number };
@@ -120,7 +119,7 @@ export function PaidEditPanel({
   /** Vrsta verzije kad posao ima roditelja (K18: slika → video je „animacija"). */
   derivation?: "izmena" | "animacija";
 }) {
-  const createJob = useMutation(api.studio.createJob);
+  const createJob = useCreaCreateJob();
   const upload = useSlotUpload();
   const [quality, setQuality] = useState<(typeof MASK_QUALITIES)[number]>("low");
   const [text, setText] = usePromptParamState();

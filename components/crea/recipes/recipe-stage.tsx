@@ -331,6 +331,8 @@ export function CreaRecipeStage({
                     inputMode: order.inputMode,
                     ...(image.length > 0 ? { inputs: JSON.stringify({ image }) } : {}),
                     ...(order.projectId ? { projectId: order.projectId } : {}),
+                    // Album (K26): recept je tehnika - sličica i XP jednom po receptu.
+                    creaTechniques: [`recept:${recipe.id}`],
                   });
                 }}
                 {...(imageField ? {} : { privacyNote: null })}

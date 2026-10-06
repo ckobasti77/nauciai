@@ -1,6 +1,5 @@
 "use client";
 
-import { useMutation } from "convex/react";
 import { Smile } from "lucide-react";
 import { useMemo, useState } from "react";
 
@@ -25,7 +24,6 @@ import {
 import type { PickedSound } from "@/components/crea/zvuk/sound-input";
 import { TakeAudio, useJobStates } from "@/components/crea/zvuk/voice-kit";
 import { Spinner } from "@/components/ui/spinner";
-import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { jobCredits } from "@/lib/crea-job-price";
 import { CREA_SOUND_COPY as T } from "@/lib/crea-sound-copy";
@@ -37,6 +35,7 @@ import {
 } from "@/lib/crea-timeline";
 import type { Locale } from "@/lib/i18n";
 import { studioErrorMessage } from "@/lib/studio-messages";
+import { useCreaCreateJob } from "@/components/crea/game/crea-tool-context";
 
 /** Kling lipsync prima video do 60 s. */
 const LIPSYNC_MAX_S = 60;
@@ -114,7 +113,7 @@ export function VideoWithSound({
   );
 
   // Usne prate novi glas (Kling lipsync, po sekundi videa).
-  const createJob = useMutation(api.studio.createJob);
+  const createJob = useCreaCreateJob();
   const prepareVideo = usePrepareVideo();
   const uploadInput = useUploadInput();
   const [lipStatus, setLipStatus] = useState<SendStatus>({ name: "idle" });

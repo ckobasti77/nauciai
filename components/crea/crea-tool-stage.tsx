@@ -7,6 +7,7 @@ import type { ReactNode } from "react";
 import { CreaInspiration } from "@/components/crea/inspiration/crea-inspiration";
 import { CreaLogo } from "@/components/crea/crea-logo";
 import { ToolBadges } from "@/components/crea/tool-badges";
+import { CreaToolIdContext } from "@/components/crea/game/crea-tool-context";
 import { CREA_TOOL_COMPONENTS } from "@/components/crea/tools";
 import type { CreaPaidContext, ToolSource } from "@/components/crea/tools/types";
 import { useCreaDeviceCaps } from "@/components/crea/use-crea-device";
@@ -93,16 +94,19 @@ export function CreaToolStage({
     );
   } else {
     body = (
-      <Component
-        key={tool.id}
-        tool={tool}
-        locale={locale}
-        caps={caps}
-        canSave={canSave}
-        projectId={projectId}
-        source={source}
-        paid={paid}
-      />
+      // Album (K26): posao poslat iz alata nosi njegov id (`useCreaCreateJob`).
+      <CreaToolIdContext.Provider value={tool.id}>
+        <Component
+          key={tool.id}
+          tool={tool}
+          locale={locale}
+          caps={caps}
+          canSave={canSave}
+          projectId={projectId}
+          source={source}
+          paid={paid}
+        />
+      </CreaToolIdContext.Provider>
     );
   }
 

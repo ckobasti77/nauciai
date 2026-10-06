@@ -73,6 +73,28 @@ const CREATE_JOB_ERROR_MESSAGES: Array<[string, { sr: string; en: string }]> = [
     },
   ],
   [
+    // Besplatna proba iz mini-lekcije (Crea K26, G6).
+    "PROBA_ISKORISCENA",
+    {
+      sr: "Ovu besplatnu probu si već iskoristio. Isključi „Besplatna proba“ i pokreni rad za kredite.",
+      en: "You have already used this free try. Turn off “Free try” and run it for credits.",
+    },
+  ],
+  [
+    "PROBA_NE_VAZI",
+    {
+      sr: "Besplatna proba važi samo za jeftin model iz lekcije i kratak rad. Promeni podešavanja ili isključi probu.",
+      en: "The free try only covers the lesson's cheap model and a short job. Change the settings or turn the try off.",
+    },
+  ],
+  [
+    "PROBA_NEDOSTUPNA",
+    {
+      sr: "Ova besplatna proba nije dostupna.",
+      en: "This free try is not available.",
+    },
+  ],
+  [
     "MODEL_NEDOSTUPAN",
     {
       sr: "Ovaj model trenutno nije dostupan. Izaberi drugi iz liste.",

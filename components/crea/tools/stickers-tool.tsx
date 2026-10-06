@@ -1,7 +1,6 @@
 /* eslint-disable @next/next/no-img-element -- nalepnice i sprajt su lokalni `blob:` URL-ovi, koje next/image ne obrađuje. */
 "use client";
 
-import { useMutation } from "convex/react";
 import { CircleCheck, Clapperboard, Download, Package, RefreshCw, Scissors, Sticker } from "lucide-react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
@@ -20,7 +19,6 @@ import type { MyElement } from "@/components/crea/elements/shared";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/components/ui/primitives";
 import { Spinner } from "@/components/ui/spinner";
-import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { fillCopy } from "@/lib/crea-copy";
 import { CREA_PAID_EDIT_COPY } from "@/lib/crea-edit-copy";
@@ -48,6 +46,7 @@ import {
 import { createZip } from "@/lib/crea-zip";
 import type { Locale } from "@/lib/i18n";
 import { buildParams, creditsFor, formatCredits, paramValuesForMode } from "@/lib/studio-params";
+import { useCreaCreateJob } from "@/components/crea/game/crea-tool-context";
 
 type Mode = "napravi" | "iseci" | "sprajt";
 type Subject = "lik" | "foto";
@@ -179,7 +178,7 @@ function MakeStickers({
   const [styleId, setStyleId] = useState(STICKER_STYLES[0]!.id);
   const [sheetJobId, setSheetJobId] = useState<Id<"generationJobs"> | null>(null);
   const sheetJob = useWatchedJob(sheetJobId);
-  const createJob = useMutation(api.studio.createJob);
+  const createJob = useCreaCreateJob();
   const price = useSheetPrice(paid);
 
   const refs = subject === "lik" && character ? characterImages(character) : [];

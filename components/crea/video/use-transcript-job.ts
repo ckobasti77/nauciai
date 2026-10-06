@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery } from "convex/react";
+import { useQuery } from "convex/react";
 import { useState } from "react";
 
 import { paidModel, usePrepareVideo, type SendStatus } from "@/components/crea/tools/paid-video";
@@ -11,6 +11,7 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { jobCredits } from "@/lib/crea-job-price";
 import type { Locale } from "@/lib/i18n";
 import { studioErrorMessage } from "@/lib/studio-messages";
+import { useCreaCreateJob } from "@/components/crea/game/crea-tool-context";
 
 /**
  * Prepoznavanje govora za titlove (V25) i kratke klipove (V26): video ide kao
@@ -19,7 +20,7 @@ import { studioErrorMessage } from "@/lib/studio-messages";
  * (K17-13). Cena na dugmetu je ista računica kao server.
  */
 export function useTranscriptJob(input: { picked: PickedVideo | null; durationS: number | null; paid: CreaPaidContext | null; projectId: Id<"studioProjects"> | null; locale: Locale }) {
-  const createJob = useMutation(api.studio.createJob);
+  const createJob = useCreaCreateJob();
   const prepareVideo = usePrepareVideo();
   const [status, setStatus] = useState<SendStatus>({ name: "idle" });
   const [job, setJob] = useState<{ id: Id<"generationJobs">; forKey: string } | null>(null);

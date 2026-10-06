@@ -26,6 +26,8 @@ import {
 import { isDefaultCreditFactor, priceCategoryOf, resolveCreditFactor } from "./creaPricingCore";
 import { resolveJobLineage } from "./creaVersions";
 import { creaDerivationValidator } from "./creaVersionsCore";
+import { claimFreeTry, onCreaWorkFinished, restoreFreeTry } from "./creaGameCore";
+import { jobTechniques } from "../lib/crea-album";
 import { applyGrant, applySettlement, applySpend } from "./credits";
 import {
   canonicalizeEmailForAntiFarm,
@@ -662,6 +664,14 @@ const createJobArgs = {
   derivation: v.optional(creaDerivationValidator),
   // Noćna tura (Crea K08, C2): posao ide u batch provajdera po noćnoj ceni i stiže do jutra.
   deliveryMode: v.optional(v.literal("night")),
+  // Album sličica (Crea K26, G4): alat iz kojeg je posao poslat i tehnike koje proba
+  // (pokret kamere, efekat, stil, recept). Server ih filtrira (`jobTechniques`); ne
+  // utiču ni na cenu ni na proveru - nepoznato tiho otpada.
+  creaTool: v.optional(v.string()),
+  creaTechniques: v.optional(v.array(v.string())),
+  // Besplatna proba iz mini-lekcije (K26, G6): posao je za 0 kredita ako proba važi
+  // za ovaj model i cenu; inače se ne pravi (PROBA_*), da korisnik ne plati nesvesno.
+  freeTryLessonId: v.optional(v.string()),
 };
 export type CreateJobArgs = ObjectType<typeof createJobArgs>;
 
@@ -843,6 +853,21 @@ export async function createJobForUser(ctx: MutationCtx, userId: Id<"users">, ar
   const cleanParams = order.params;
   const estimatedCostUsd = order.estimatedCostUsd;
 
+  // Besplatna proba (K26, G6): skida se ovde, u istoj transakciji - svaka kasnija
+  // odbijenica (limit, dug, spor) poništava i skidanje probe. Plafon TROŠKA u dolarima
+  // ispod važi i za probu; plafon kredita i potrošnja je ne broje (0 kr).
+  if (args.freeTryLessonId) {
+    await claimFreeTry(ctx, {
+      userId,
+      lessonId: args.freeTryLessonId,
+      modelSlug: order.slug,
+      creditCost: order.creditCost,
+      night: night !== null,
+    });
+  }
+  const freeTry = args.freeTryLessonId !== undefined;
+  const creaTechniques = jobTechniques({ tool: args.creaTool, techniques: args.creaTechniques, kind: order.kind });
+
   // Osporena uplata (X7): chargeback traje nedeljama, i sve to vreme se ne
   // sme generisati na račun novca koji će verovatno otići nazad. Brava visi
   // na redu u `creditReversals`, ne na balansu - dopuna kredita je ne skida,
@@ -934,7 +959,7 @@ export async function createJobForUser(ctx: MutationCtx, userId: Id<"users">, ar
   // ono što bi OVAJ posao doneo preko već potrošenog danas.
   if (
     limits.maxDailyCredits !== null &&
-    (usage?.creditsSpent ?? 0) + order.creditCost > limits.maxDailyCredits
+    (usage?.creditsSpent ?? 0) + (freeTry ? 0 : order.creditCost) > limits.maxDailyCredits
   ) {
     throw new Error("DNEVNI_LIMIT_KREDITA");
   }
@@ -944,7 +969,7 @@ export async function createJobForUser(ctx: MutationCtx, userId: Id<"users">, ar
     throw new Error("DNEVNI_LIMIT_TROSKA");
   }
 
-  const creditCost = order.creditCost;
+  const creditCost = freeTry ? 0 : order.creditCost;
 
   // Upis posla ide PRE potrošnje jer `credits.applySpend` (A2) traži `jobId`
   // - to je ključ pod kojim se refund kasnije prepoznaje. Sve je i dalje
@@ -984,6 +1009,8 @@ export async function createJobForUser(ctx: MutationCtx, userId: Id<"users">, ar
     ...(args.taskId ? { taskId: args.taskId } : {}),
     ...(args.projectId ? { projectId: args.projectId } : {}),
     ...lineage,
+    ...(creaTechniques.length > 0 ? { creaTechniques } : {}),
+    ...(freeTry ? { freeTryLessonId: args.freeTryLessonId } : {}),
     createdAt: now,
   });
 
@@ -998,7 +1025,8 @@ export async function createJobForUser(ctx: MutationCtx, userId: Id<"users">, ar
   // podtransakcija koju pozivalac SME da uhvati i nastavi, pa bi jedan
   // `try/catch` dodat zbog lepše poruke tiho razvalio atomičnost. Ovako
   // potrošnja pada zajedno sa poslom, strukturno.
-  await applySpend(ctx, { userId, amount: creditCost, jobId });
+  // Besplatna proba nema potrošnju (0 kr) - ni red u ledgeru, pa ni refund kasnije.
+  if (!freeTry) await applySpend(ctx, { userId, amount: creditCost, jobId });
 
   if (usage) {
     await ctx.db.patch(usage._id, {
@@ -1247,11 +1275,14 @@ export const settleJobCredits = internalMutation({
       return null;
     }
 
-    const { applied, unsettled } = await applySettlement(ctx, {
-      userId: job.userId,
-      jobId: args.jobId,
-      credits: plan.creditDelta,
-    });
+    // Besplatna proba (K26): stvaran trošak se upisuje, ali se korisniku ne naplaćuje razlika.
+    const { applied, unsettled } = job.freeTryLessonId
+      ? { applied: 0, unsettled: 0 }
+      : await applySettlement(ctx, {
+          userId: job.userId,
+          jobId: args.jobId,
+          credits: plan.creditDelta,
+        });
 
     await ctx.db.patch(args.jobId, {
       settledAt: Date.now(),
@@ -1297,6 +1328,16 @@ export const failJob = internalMutation({
     // proveravaju `running`).
     if (job.status === "failed" || job.status === "refunded") return null;
     await ctx.db.patch(args.jobId, { status: "failed", error: args.error, completedAt: Date.now() });
+    // Besplatna proba (K26): nije ništa skinula, pa se vraća proba, a ne krediti.
+    if (job.freeTryLessonId) {
+      await restoreFreeTry(ctx, job);
+      await ctx.db.patch(args.jobId, { status: "refunded" });
+      await applyDailyUsageDelta(ctx, job.userId, dayKey(job.createdAt), {
+        costUsd: -(job.settledCostUsd ?? job.estimatedCostUsd ?? 0),
+        creditsSpent: 0,
+      });
+      return null;
+    }
     const refund: { lotId: Id<"creditLots">; credits: number } | null = await ctx.runMutation(
       internal.credits.refundCredits,
       { jobId: args.jobId },
@@ -1404,6 +1445,9 @@ export const finalizeOutput = internalMutation({
         });
       }
     }
+
+    // Gejmifikacija (K26): niz dana, XP i sličice - isti put za plaćen i besplatan rad.
+    await onCreaWorkFinished(ctx, job);
 
     return true;
   },

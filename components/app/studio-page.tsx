@@ -11,6 +11,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { AppIntroPanel } from "@/components/app/intro-panel";
 import { StudioMediaDetail } from "@/components/app/studio-media-detail";
+import { CreaGameProvider, useCreaGameValue } from "@/components/crea/game/crea-game-context";
+import { CreaGameStrip } from "@/components/crea/game/crea-game-strip";
+import { CreaStampHost } from "@/components/crea/game/crea-stamp-host";
 import { StudioMediaGrid } from "@/components/app/studio-media-grid";
 import type { StudioTileJob } from "@/components/app/studio-media-tile";
 import { StudioModerationGrid } from "@/components/app/studio-moderation-grid";
@@ -223,6 +226,10 @@ export function StudioPage({
   const myElements = useMyElements(isAuthenticated && state?.hasStudioAccess === true);
   const createJob = useMutation(api.studio.createJob);
   const convex = useConvex();
+  // Gejmifikacija (K26): niz, XP, album, otključani alati i besplatne probe - jedan upit
+  // za celu radionicu. Sveska stoji uz radionicu: samostalna Crea `/crea/sveska`, školska
+  // `/app/studio/sveska`.
+  const game = useCreaGameValue(basePath === "/studio/app" ? "/studio/sveska" : "/app/studio/sveska");
   // Keš istih zahteva (C4): ponuda „otvori postojeći / nova varijanta" pre plaćanja.
   const [cacheOffer, setCacheOffer] = useState<{
     jobId: string;
@@ -690,8 +697,14 @@ export function StudioPage({
         ...(lessonId ? { lessonId } : {}),
         ...(lessonId && taskId ? { taskId } : {}),
         ...(activeProjectId ? { projectId: activeProjectId } : {}),
+        ...(payload.creaTechniques ? { creaTechniques: payload.creaTechniques } : {}),
       };
-      const result = await createJob({ ...base, ...lineage });
+      // Besplatna proba (K26) važi samo za prvi posao, nikad za varijacije iz reda.
+      const result = await createJob({
+        ...base,
+        ...lineage,
+        ...(payload.freeTryLessonId ? { freeTryLessonId: payload.freeTryLessonId } : {}),
+      });
       // Ostale varijacije (K13, S5) su zasebni poslovi, „varijacija" prvog; idu kroz red jer
       // javni korisnik ima najviše 2 posla u toku.
       if (typeof result === "string" && payload.variations && payload.variations > 1) {
@@ -863,6 +876,7 @@ export function StudioPage({
 
         {/* Prekidač projekta + Balans */}
         <div className="flex shrink-0 items-center gap-3">
+          <CreaGameStrip locale={locale} />
           <ProjectPicker
             locale={locale}
             activeProjectId={activeProjectId}
@@ -1049,6 +1063,7 @@ export function StudioPage({
           error={error}
           variant="create"
           onGenerate={generate}
+          freeTries={game.freeTries}
           placement={placement}
           initialInputMode={goalInputMode ?? inputModeForMode(activeModel, area, modeDef.id)}
           lockModelKind
@@ -1258,10 +1273,12 @@ export function StudioPage({
     );
 
   return (
+    <CreaGameProvider value={game}>
     <div
       ref={setStudioRootEl}
       className="relative -mx-4 -mt-5 min-h-[calc(100vh-5rem)] bg-studio-canvas px-4 pt-4 text-ink sm:-mx-6 sm:px-6 md:-mx-8 md:-mt-8 md:px-8 md:pt-6"
     >
+      <CreaStampHost locale={locale} />
       <div className="space-y-4">
         {topbar}
 
@@ -1388,5 +1405,6 @@ export function StudioPage({
         ) : null}
       </AnimatePresence>
     </div>
+    </CreaGameProvider>
   );
 }

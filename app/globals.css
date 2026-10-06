@@ -1982,3 +1982,72 @@ details:has(> .faq-answer)::details-content {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: none; }
 }
+
+/* ── Gejmifikacija Cree (K26) ──────────────────────────────────────────────────────
+   Pečat „Odličan 5" (G5) pada odozgo kao pravi udarac: krupan i nagnut iznad papira,
+   udari (blago se spljošti), odskoči i legne nakrivo. Mastilo oko njega se raširi i
+   nestane. Sličica (G4) se zalepi: podigne se, okrene i legne. Niz dana (G2) na 7/30/100
+   dobija broj koji „iskoči" sa zracima kao u stripu (isti zraci kao znak Cree).
+   Sve animira samo `transform` i `opacity`; pod „manje pokreta" klase ne postoje, pa
+   se vidi završno stanje. */
+@media (prefers-reduced-motion: no-preference) {
+  .crea-stamp-slam {
+    animation: crea-stamp-slam 620ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+  }
+
+  .crea-stamp-ink {
+    animation: crea-stamp-ink 700ms cubic-bezier(0.16, 1, 0.3, 1) 260ms both;
+  }
+
+  .crea-stamp-note {
+    animation: crea-stamp-note 360ms cubic-bezier(0.16, 1, 0.3, 1) 380ms both;
+  }
+
+  .crea-sticker-stick {
+    animation: crea-sticker-stick 520ms cubic-bezier(0.22, 1.2, 0.36, 1) both;
+  }
+
+  .crea-streak-pop {
+    animation: crea-streak-pop 680ms cubic-bezier(0.2, 0.9, 0.3, 1.25) both;
+  }
+
+  .crea-streak-rays {
+    animation: crea-streak-rays 900ms cubic-bezier(0.16, 1, 0.3, 1) 120ms both;
+  }
+}
+
+/* Nagib pečata nosi `rotate` (Tailwind) - ovde je samo pomeraj u odnosu na njega. */
+@keyframes crea-stamp-slam {
+  0% { opacity: 0; transform: translateY(-46px) scale(1.9) rotate(-14deg); }
+  55% { opacity: 1; transform: translateY(0) scale(0.9, 0.84) rotate(-1deg); }
+  75% { transform: translateY(-3px) scale(1.04) rotate(1deg); }
+  100% { opacity: 1; transform: none; }
+}
+
+@keyframes crea-stamp-ink {
+  from { opacity: 0.55; transform: scale(0.7); }
+  to { opacity: 0; transform: scale(1.45); }
+}
+
+@keyframes crea-stamp-note {
+  from { opacity: 0; transform: translateX(-10px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes crea-sticker-stick {
+  0% { opacity: 0; transform: translateY(-14px) scale(1.18) rotate(-6deg); }
+  60% { opacity: 1; transform: translateY(2px) scale(0.97); }
+  100% { opacity: 1; transform: none; }
+}
+
+@keyframes crea-streak-pop {
+  0% { opacity: 0; transform: scale(0.3) rotate(-14deg); }
+  60% { opacity: 1; transform: scale(1.12) rotate(4deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+
+@keyframes crea-streak-rays {
+  0% { opacity: 0; transform: scale(0.6); }
+  50% { opacity: 1; transform: scale(1.15); }
+  100% { opacity: 0.9; transform: scale(1); }
+}

@@ -25,6 +25,7 @@ import { imagesPerRun, SHEET_SIZES, sheetPlan, smallSketchParams, type SheetSize
 import { studioErrorMessage } from "@/lib/studio-messages";
 import { modelLabel, type StudioModel } from "@/lib/studio-models";
 import { creditsFor, formatCredits, paramValuesForMode } from "@/lib/studio-params";
+import { useCreaCreateJob } from "@/components/crea/game/crea-tool-context";
 
 const PAIR_IDS = ["slika-skica", "slika-flux"] as const;
 type PairId = (typeof PAIR_IDS)[number];
@@ -41,7 +42,7 @@ type Picked = { jobId: Id<"generationJobs">; number: number };
  */
 export default function DraftSheetTool({ tool, locale, canSave, projectId, paid }: CreaToolProps) {
   const searchParams = useSearchParams();
-  const createJob = useMutation(api.studio.createJob);
+  const createJob = useCreaCreateJob();
   const adoptOutputAsInput = useMutation(api.creaVersions.adoptOutputAsInput);
   const promptId = useId();
   const [prompt, setPrompt] = usePromptParamState();

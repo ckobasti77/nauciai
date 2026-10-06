@@ -1,11 +1,11 @@
 "use client";
 
-import { useMutation } from "convex/react";
 import type { FunctionArgs } from "convex/server";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { useCreaCreateJob } from "@/components/crea/game/crea-tool-context";
 
 export type CreateJobArgs = FunctionArgs<typeof api.studio.createJob>;
 
@@ -21,7 +21,7 @@ const RETRY_MS = 4000;
  * DEMO bez ključa) - red ne zaobilazi nijednu proveru.
  */
 export function useJobQueue(onError: (message: string) => void) {
-  const createJob = useMutation(api.studio.createJob);
+  const createJob = useCreaCreateJob();
   const queue = useRef<Array<{ args: CreateJobArgs; onCreated?: (jobId: Id<"generationJobs">) => void }>>([]);
   const busy = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);

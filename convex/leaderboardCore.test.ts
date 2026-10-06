@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { Id } from "./_generated/dataModel";
 import { globalCommunityScope, scopeFields } from "./communityScope";
 import {
+  LEADERBOARD_DAILY_XP_LIMIT,
   LEADERBOARD_XP,
   belgradeDayKey,
   belgradeWeekKey,
@@ -25,7 +26,31 @@ describe("leaderboard calendar keys", () => {
 
 describe("leaderboard policy", () => {
   it("keeps the approved XP weights", () => {
-    expect(LEADERBOARD_XP).toEqual({ lesson: 100, required_task: 20, helpful_comment: 10 });
+    expect(LEADERBOARD_XP).toMatchObject({ lesson: 100, required_task: 20, helpful_comment: 10 });
+  });
+
+  it("gives Crea XP for events, each one-off or capped per day (K26, G1)", () => {
+    const creaTypes = Object.keys(LEADERBOARD_XP).filter((type) => type.startsWith("crea_"));
+    expect(creaTypes.sort()).toEqual(
+      [
+        "crea_album_page",
+        "crea_challenge",
+        "crea_daily_work",
+        "crea_first_work",
+        "crea_mini_lesson",
+        "crea_recipe",
+        "crea_remix_received",
+        "crea_technique",
+      ].sort(),
+    );
+    // Jednokratni po ključu (oblast / dan); svi ostali imaju dnevni limit.
+    const keyLimited = new Set(["crea_first_work", "crea_daily_work"]);
+    for (const type of creaTypes) {
+      if (!keyLimited.has(type)) expect(LEADERBOARD_DAILY_XP_LIMIT[type as keyof typeof LEADERBOARD_XP], type).toBeGreaterThan(0);
+      // Nijedan Crea događaj ne vredi kao lekcija - učenje ostaje glavni put do XP-a.
+      expect(LEADERBOARD_XP[type as keyof typeof LEADERBOARD_XP]).toBeLessThan(LEADERBOARD_XP.lesson);
+    }
+    expect(LEADERBOARD_DAILY_XP_LIMIT.helpful_comment).toBe(5);
   });
 
   it("allows Lite and Pro students but excludes staff", () => {

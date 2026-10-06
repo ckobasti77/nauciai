@@ -277,6 +277,8 @@ export const startFaceSwap = mutation({
     params.prompt = swapPrompt(element, refCount);
 
     return createJobForUser(ctx, userId, {
+      // Album (K26): „Zameni lik" je alat Cree.
+      creaTool: "slika.zameni-lik",
       modelSlug: args.modelSlug,
       params: JSON.stringify(params),
       inputMode: "image_multi",

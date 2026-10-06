@@ -17,6 +17,9 @@ const creditLotSource = v.union(
   v.literal("signup_bonus"),
   v.literal("admin_grant"),
   v.literal("refund"),
+  // Nagrada gejmifikacije Cree (K26): puna strana albuma. Ključ `crea:album:<userId>:<strana>`
+  // je jedinstven po strani, pa `reward` NIJE jednokratan po korisniku kao bonusi ispod.
+  v.literal("reward"),
 );
 
 type LotSource = Infer<typeof creditLotSource>;
@@ -52,6 +55,7 @@ const TRANSACTION_TYPE_BY_SOURCE = {
   signup_bonus: "bonus",
   admin_grant: "admin_adjust",
   refund: "refund",
+  reward: "bonus",
 } as const;
 
 /** Samo izvori za koje je stvarno legao novac ulaze u `lifetimePurchased`. */

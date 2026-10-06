@@ -8,6 +8,7 @@ import {
   FileText,
   Film,
   FlaskConical,
+  Gift,
   Grid3x3,
   Image as ImageIcon,
   Palette,
@@ -59,6 +60,7 @@ import { SourceJobPicker } from "@/components/studio/source-job-picker";
 import { useSlotUpload } from "@/components/studio/use-slot-upload";
 import { cn } from "@/components/ui/primitives";
 import { Spinner } from "@/components/ui/spinner";
+import type { ComposerFreeTry } from "@/components/crea/game/crea-game-context";
 import type { Id } from "@/convex/_generated/dataModel";
 import { elementInputs, promptWithElements, referenceModeOf } from "@/convex/creaElementsCore";
 import { nightOptionFor, nightParams, nightQuote, nightSavingsPercent } from "@/convex/creaNightCore";
@@ -70,6 +72,7 @@ import { autoSentence, pickAuto } from "@/lib/crea-auto";
 import { CREA_CREATE_COPY } from "@/lib/crea-create-copy";
 import { appendSpoken } from "@/lib/crea-dictation";
 import { CREA_NIGHT_COPY, CREA_PICK_COPY, fillCopy } from "@/lib/crea-copy";
+import { CREA_FREE_TRY_COPY } from "@/lib/crea-game-copy";
 import { composeVideoPrompt, effectInputMode, effectParamsFor, modelMakesSound } from "@/lib/crea-director";
 import { buildDraftOrder, draftPairFor, orderCredits } from "@/lib/crea-draft";
 import { CREA_MENTION_COPY } from "@/lib/crea-elements-copy";
@@ -163,6 +166,10 @@ export type JobPayload = {
    * toliko zasebnih poslova (prvi + ostali kao „varijacija" prvog).
    */
   variations?: number;
+  /** Album (K26, G4): tehnike koje rad stvarno proba (pokret kamere, efekat, stil). */
+  creaTechniques?: string[];
+  /** Besplatna proba iz mini-lekcije (K26, G6): posao ide za 0 kredita. */
+  freeTryLessonId?: string;
 };
 
 /**
@@ -545,6 +552,7 @@ export function StudioComposer({
   elementsHref = null,
   videoExtras = false,
   allowedInputModes,
+  freeTries,
 }: {
   models: StudioModel[];
   activeModel: StudioModel;
@@ -604,6 +612,8 @@ export function StudioComposer({
    * poslednji kadar, reference). Uz dva ili više, iznad polja stoji vidljiv izbor (K18).
    */
   allowedInputModes?: readonly string[];
+  /** Besplatne probe korisnika (K26, G6): uz model sa spiska dugme generiše za 0 kredita. */
+  freeTries?: readonly ComposerFreeTry[];
 }) {
   const isDocked = placement === "docked";
   const createMode = variant === "create" && createExtras;
@@ -955,6 +965,13 @@ export function StudioComposer({
     () => variationsCredits(plan, night && nightOffer ? nightOffer.credits : dayCredits),
     [plan, night, nightOffer, dayCredits],
   );
+  // Besplatna proba (K26, G6): isti uslov kao na serveru (`freeTryFits`) - model sa spiska,
+  // cena do granice, bez noćne ture i bez paralelnih varijacija. Korisnik je može isključiti.
+  const [freeTryOff, setFreeTryOff] = useState(false);
+  const freeTry = freeTries?.find((offer) => offer.models.includes(activeModel.slug)) ?? null;
+  const freeTryFitsNow =
+    freeTry !== null && !night && plan.kind !== "parallel" && credits !== null && credits > 0 && credits <= freeTry.maxCredits;
+  const freeTryOn = freeTryFitsNow && !freeTryOff;
 
   // Izgled (S8): dodaje se opisu tek pri slanju; „Modelu ide:" pokazuje tačan tekst.
   const composed = createMode && promptControl && !lookIsEmpty(look) ? composeCreatePrompt(prompt, look) : null;
@@ -1121,14 +1138,14 @@ export function StudioComposer({
       generateBlock({
         state: studioState,
         balance,
-        credits,
+        credits: freeTryOn ? 0 : credits,
         missingInputMessage: elementProblem ?? inlineProblem ?? missingInputMessage(missing, locale),
         promptMissing,
         quantityMissing: quantitySource !== null && measured[quantitySource.param] === undefined,
         sourceMissing: sourceRequired && sourceJobId === null,
         uploading: isUploading,
       }),
-    [studioState, balance, credits, missing, locale, promptMissing, quantitySource, measured, sourceRequired, sourceJobId, isUploading, elementProblem, inlineProblem],
+    [studioState, balance, credits, freeTryOn, missing, locale, promptMissing, quantitySource, measured, sourceRequired, sourceJobId, isUploading, elementProblem, inlineProblem],
   );
 
   // Automatsko prilagođavanje visine textarea polja
@@ -1459,6 +1476,12 @@ export function StudioComposer({
     // V4: prvi kadar je izvučen iz ranijeg videa - nov klip je njegov nastavak u stablu verzija.
     const continuedImage = inputMode === "first_last" ? frames.first : inputMode === "image" ? (files.image?.[0] ?? null) : null;
     const continues = continuedFrom !== null && continuedImage?.storageId === continuedFrom.storageId;
+    // Album (K26): samo tehnike koje su stvarno ušle u opis koji ide modelu.
+    const techniques = [
+      ...(elementText === null && videoComposed && director.move ? [`kamera:${director.move.id}`] : []),
+      ...(elementText === null && videoComposed && director.effect ? [`efekat:${director.effect.id}`] : []),
+      ...(elementText === null && composed && look.styleId ? [`stil:${look.styleId}`] : []),
+    ];
     onGenerate(
       {
         params: finalText !== null && promptControl ? { ...baseParams, [promptControl.key]: finalText } : baseParams,
@@ -1468,6 +1491,8 @@ export function StudioComposer({
         ...(continues && continuedFrom ? { parentJobId: continuedFrom.jobId, derivation: "produzenje" as const } : {}),
         ...(night ? { deliveryMode: "night" as const } : {}),
         ...(plan.kind === "parallel" ? { variations: plan.count } : {}),
+        ...(techniques.length > 0 ? { creaTechniques: techniques } : {}),
+        ...(freeTryOn && freeTry ? { freeTryLessonId: freeTry.lessonId } : {}),
       },
       activeModel,
     );
@@ -1574,12 +1599,13 @@ export function StudioComposer({
   const isEstimated =
     quantitySource !== null && quantitySource.from !== "text_length" && serverSeconds === null;
   const priceDisplay = useMemo(() => {
+    if (freeTryOn) return "0";
     if (credits === null) {
       const def = defaultCredits(activeModel);
       return def !== null ? `~${def}` : "—";
     }
     return isEstimated ? `~${credits}` : `${credits}`;
-  }, [credits, activeModel, isEstimated]);
+  }, [credits, activeModel, isEstimated, freeTryOn]);
 
   const notice = seed?.missingSlots
     ? missingRegenerateInputsNotice(seed.missingSlots, locale)
@@ -2328,25 +2354,45 @@ export function StudioComposer({
               </span>
             </Link>
           ) : (
+            <>
+            {freeTryFitsNow ? (
+              <button
+                type="button"
+                aria-pressed={freeTryOn}
+                onClick={() => setFreeTryOff((off) => !off)}
+                title={CREA_FREE_TRY_COPY.hint[locale]}
+                className={cn(
+                  "inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border-2 border-ink px-3 text-xs font-black transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none",
+                  freeTryOn ? "bg-yellow text-ink" : "bg-paper-strong text-muted",
+                )}
+              >
+                <Gift aria-hidden="true" className="size-4" />
+                <span className="hidden sm:inline">{CREA_FREE_TRY_COPY.label[locale]}</span>
+              </button>
+            ) : null}
             <button
               type="button"
               disabled={isPending || block !== null || credits === null || lookTooLong}
               onClick={submit}
               aria-label={
-                credits !== null
-                  ? locale === "sr"
-                    ? `${generateLabel} za ${formatCreditsLong(credits, locale)}`
-                    : `${generateLabel} for ${formatCreditsLong(credits, locale)}`
-                  : generateLabel
-              }
-              title={
-                block
-                  ? blockMessage ?? undefined
+                freeTryOn
+                  ? `${generateLabel} - ${CREA_FREE_TRY_COPY.label[locale]}`
                   : credits !== null
                     ? locale === "sr"
                       ? `${generateLabel} za ${formatCreditsLong(credits, locale)}`
                       : `${generateLabel} for ${formatCreditsLong(credits, locale)}`
                     : generateLabel
+              }
+              title={
+                block
+                  ? blockMessage ?? undefined
+                  : freeTryOn
+                    ? `${generateLabel} - ${CREA_FREE_TRY_COPY.label[locale]}`
+                    : credits !== null
+                      ? locale === "sr"
+                        ? `${generateLabel} za ${formatCreditsLong(credits, locale)}`
+                        : `${generateLabel} for ${formatCreditsLong(credits, locale)}`
+                      : generateLabel
               }
               aria-busy={isPending}
               className={cn(
@@ -2387,6 +2433,7 @@ export function StudioComposer({
                 <CreditIcon className={cn("size-3.5", isPriceFlashing ? "text-ink" : "text-yellow")} />
               </span>
             </button>
+            </>
           )}
         </div>
         </motion.div>

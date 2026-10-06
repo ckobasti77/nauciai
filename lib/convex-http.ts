@@ -58,6 +58,9 @@ export const convexQueries = {
   listCatalogModels: makeFunctionReference<"query">("modelCatalog:listModels"),
   // Javni fleg Studija (N3): landing iz njega bira metu „Otvori Studio" CTA-a.
   isStudioPublicEnabled: makeFunctionReference<"query">("studio:isPublicEnabled"),
+  // Đačka knjižica Cree (K26, G5): javna samo kad ju je vlasnik uključio - stranica za
+  // deljenje i OG slika je čitaju bez prijave.
+  getPublicReportCard: makeFunctionReference<"query">("creaGame:publicReportCard"),
   // Javna strana MCP servera (MCP-P6-JAVNA-STRANA): katalog alata/resursa/promptova
   // bez autentikacije, iz istog registra koji `/mcp` koristi.
   mcpPublicCatalog: makeFunctionReference<"query">("mcp/catalog:publicCatalog"),

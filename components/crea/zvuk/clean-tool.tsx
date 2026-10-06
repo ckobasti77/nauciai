@@ -1,6 +1,5 @@
 "use client";
 
-import { useMutation } from "convex/react";
 import { Sparkles, Wand2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -15,7 +14,6 @@ import { AudioResultPanel, type AudioResult } from "@/components/crea/zvuk/uredj
 import { formatSeconds, RangeField, ToolSection, WorkStatus, type WorkState } from "@/components/crea/zvuk/uredjivac/ui";
 import { useDecodedSound } from "@/components/crea/zvuk/uredjivac/use-decoded-sound";
 import { Button } from "@/components/ui/button";
-import { api } from "@/convex/_generated/api";
 import { EDITOR_MAX_SECONDS } from "@/lib/crea-audio-edit";
 import { CREA_AUDIO_TOOLS_COPY as T } from "@/lib/crea-audio-tools-copy";
 import { fillCopy } from "@/lib/crea-copy";
@@ -23,6 +21,7 @@ import { classifyDevice } from "@/lib/crea-device";
 import { jobCredits } from "@/lib/crea-job-price";
 import { toLocalAiError } from "@/lib/crea-local-ai/errors";
 import { studioErrorMessage } from "@/lib/studio-messages";
+import { useCreaCreateJob } from "@/components/crea/game/crea-tool-context";
 
 type Cleaned = { key: string; engine: DenoiseEngine; cleaned: AudioBuffer; original: AudioBuffer };
 
@@ -169,7 +168,7 @@ function HardCase({
   projectId: CreaToolProps["projectId"];
   canSave: boolean;
 }) {
-  const createJob = useMutation(api.studio.createJob);
+  const createJob = useCreaCreateJob();
   const prepareSound = usePrepareSound();
   const [status, setStatus] = useState<{ key: string | null; status: SendStatus }>({ key: null, status: { name: "idle" } });
   const model = paidModel(paid, "audio-isolation", "audio");

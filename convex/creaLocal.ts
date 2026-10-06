@@ -14,6 +14,7 @@ import {
   withSourceCount,
   type LocalRejectReason,
 } from "./creaLocalCore";
+import { onCreaWorkFinished } from "./creaGameCore";
 import { lineageFrom } from "./creaVersionsCore";
 import { requireStudioAccess } from "./studio";
 import { dayStart, outputExpiresAt, promptHash, UPLOAD_GRANT_CLOCK_SLACK_MS, UPLOAD_GRANT_TTL_MS } from "./studioCore";
@@ -184,6 +185,9 @@ export const saveLocalResult = mutation({
       createdAt: now,
       completedAt: now,
     });
+    // Gejmifikacija (K26): rezultat besplatnog alata se broji kao i plaćen rad.
+    const job = await ctx.db.get("generationJobs", jobId);
+    if (job) await onCreaWorkFinished(ctx, job);
     return { ok: true as const, jobId };
   },
 });

@@ -30,6 +30,7 @@ import {
 import { studioErrorMessage } from "@/lib/studio-messages";
 import type { StudioModel } from "@/lib/studio-models";
 import { buildParams, creditsFor, formatCredits, paramValuesForMode } from "@/lib/studio-params";
+import { useCreaCreateJob } from "@/components/crea/game/crea-tool-context";
 
 type Status = { name: "idle" } | { name: "working" } | { name: "sent" } | { name: "error"; message: string };
 
@@ -48,7 +49,7 @@ function durationRange(model: StudioModel, inputMode: string): { min: number; ma
 export default function ExtendTool({ tool, locale, canSave, projectId, source, paid }: CreaToolProps) {
   const video = useVideoInput(source);
   const picked = video.picked;
-  const createJob = useMutation(api.studio.createJob);
+  const createJob = useCreaCreateJob();
   const adopt = useMutation(api.creaVersions.adoptOutputAsInput);
   const upload = useSlotUpload();
   const pathname = usePathname();

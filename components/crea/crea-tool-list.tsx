@@ -2,12 +2,15 @@
 
 import { CircleAlert, MessageSquareText } from "lucide-react";
 
+import { useCreaGame } from "@/components/crea/game/crea-game-context";
+import { CreaLockedTools } from "@/components/crea/game/crea-locked-tools";
 import { ToolBadges } from "@/components/crea/tool-badges";
 import { useCreaDeviceCaps } from "@/components/crea/use-crea-device";
 import { cn } from "@/components/ui/primitives";
 import { CREA_DEVICE_COPY, CREA_TOOL_COPY } from "@/lib/crea-copy";
 import { CREA_CREATE_COPY } from "@/lib/crea-create-copy";
 import { deviceProblem } from "@/lib/crea-device";
+import { splitToolsByUnlock } from "@/lib/crea-skills";
 import type { CreaArea, CreaModeId } from "@/lib/crea-shell";
 import { toolsFor } from "@/lib/crea-tools";
 import type { Locale } from "@/lib/i18n";
@@ -36,7 +39,12 @@ export function CreaToolList({
   onDescribe?: () => void;
 }) {
   const caps = useCreaDeviceCaps();
-  const tools = toolsFor(area, mode);
+  // Postepeno otkrivanje (K26, U10): zaključani alati ne stoje u spisku - jedna kartica kaže
+  // koliko ih čeka i koja mini-lekcija ih otvara. Aktivan alat (otvoren linkom) ostaje vidljiv.
+  const { unlock } = useCreaGame();
+  const { visible, locked, lessons } = splitToolsByUnlock(toolsFor(area, mode), unlock);
+  const shownLocked = locked.filter((tool) => tool.id !== activeToolId);
+  const tools = [...visible, ...locked.filter((tool) => tool.id === activeToolId)];
   const ready = tools.filter((tool) => tool.status === "ready");
   const soon = tools.filter((tool) => tool.status === "soon");
   // Slika · Napravi (K13): prvi red je „opiši sliku", ne „opiši izmenu".
@@ -98,6 +106,11 @@ export function CreaToolList({
             </li>
           );
         })}
+        {shownLocked.length > 0 ? (
+          <li className="border-t border-line pt-2">
+            <CreaLockedTools locale={locale} count={shownLocked.length} lessons={lessons} />
+          </li>
+        ) : null}
       </ul>
 
       {soon.length > 0 ? (

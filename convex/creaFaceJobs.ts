@@ -107,6 +107,14 @@ async function resolveFace(
   return { storageIds: [adopted.storageId], parentJobId: job._id };
 }
 
+/** Alat Cree po vrsti posla sa licem (sličica u albumu, K26). */
+const FACE_JOB_TOOL: Record<FaceJobKind, string> = {
+  avatar: "video.lik-govori",
+  pokret: "video.odglumi",
+  usne: "video.lik-govori",
+  zamena: "video.zameni",
+};
+
 async function startFaceJob(
   ctx: MutationCtx,
   userId: Id<"users">,
@@ -117,6 +125,8 @@ async function startFaceJob(
 ) {
   const model = FACE_JOB_MODELS[kind];
   return createJobForUser(ctx, userId, {
+    // Album (K26): alat Cree iz kojeg posao dolazi.
+    creaTool: FACE_JOB_TOOL[kind],
     modelSlug: model.slug,
     params: JSON.stringify(params),
     inputMode: model.inputMode,

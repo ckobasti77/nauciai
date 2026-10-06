@@ -1,6 +1,5 @@
 "use client";
 
-import { useMutation } from "convex/react";
 import { AudioWaveform, Combine, ScanText, Split } from "lucide-react";
 import { useMemo, useState } from "react";
 
@@ -18,7 +17,6 @@ import { FIELD, TakeAudio, useJobStates } from "@/components/crea/zvuk/voice-kit
 import { Button } from "@/components/ui/button";
 import { cn } from "@/components/ui/primitives";
 import { Spinner } from "@/components/ui/spinner";
-import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { creaSaveErrorMessage, fillCopy } from "@/lib/crea-copy";
 import { licenseForJob } from "@/lib/crea-license-tags";
@@ -27,6 +25,7 @@ import { compactPlan, segmentsFromWords, speakersOf, type SpeechSegment } from "
 import { localModelSlug } from "@/lib/crea-tools";
 import { changedSpeakers, stepCredits, swapSteps, swapVoices, type SwapStep } from "@/lib/crea-voice-swap";
 import { studioErrorMessage } from "@/lib/studio-messages";
+import { useCreaCreateJob } from "@/components/crea/game/crea-tool-context";
 
 /** Najduži snimak za promenu glasa po govorniku. */
 const SWAP_MAX_S = 5 * 60;
@@ -233,7 +232,7 @@ function SwapRun({
   voiceDemo: boolean;
   choicesMade: boolean;
 }) {
-  const createJob = useMutation(api.studio.createJob);
+  const createJob = useCreaCreateJob();
   const uploadInput = useUploadInput();
   const saveLocalResult = useSaveLocalResult();
   const [status, setStatus] = useState<SendStatus>({ name: "idle" });

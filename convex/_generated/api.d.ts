@@ -40,6 +40,8 @@ import type * as creaFaceJobs from "../creaFaceJobs.js";
 import type * as creaFaceJobsCore from "../creaFaceJobsCore.js";
 import type * as creaFallbackCore from "../creaFallbackCore.js";
 import type * as creaFlags from "../creaFlags.js";
+import type * as creaGame from "../creaGame.js";
+import type * as creaGameCore from "../creaGameCore.js";
 import type * as creaLayers from "../creaLayers.js";
 import type * as creaLayersCore from "../creaLayersCore.js";
 import type * as creaLibrary from "../creaLibrary.js";
@@ -183,6 +185,8 @@ declare const fullApi: ApiFromModules<{
   creaFaceJobsCore: typeof creaFaceJobsCore;
   creaFallbackCore: typeof creaFallbackCore;
   creaFlags: typeof creaFlags;
+  creaGame: typeof creaGame;
+  creaGameCore: typeof creaGameCore;
   creaLayers: typeof creaLayers;
   creaLayersCore: typeof creaLayersCore;
   creaLibrary: typeof creaLibrary;
