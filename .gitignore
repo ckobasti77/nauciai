@@ -54,3 +54,7 @@ Claude outputs/
 
 # Snimci i logovi Playwright MCP pregledaca (verifikacija u browseru) — ne u repo
 .playwright-mcp/
+
+# Crea run - lokalni logovi
+.crea-run/logs/
+.crea-run/state.json
