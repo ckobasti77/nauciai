@@ -1725,3 +1725,6 @@ U13: beskonačna tabla (`creaBoardItems`, po korisniku): radovi iz galerije, oka
 - Tabla: desna kolona radionice → tab „Tabla” (+ Rad, Beleška, Slika), prevuci karticu na composer; dugme za proširenje otvara preko celog ekrana.
 - „Neograničeno”: `npx convex run creaFlags:setCreaFlag '{"key":"crea_fair_unlimited","enabled":true}'` na DEV, nalog sa Premium upisom, model NB2 Lite → prekidač „Neograničeno · spori red”. Vrednosti (modeli, 200/30 dana, 45 s) su u `FAIR_UNLIMITED` - odluči pre paljenja na produkciji.
 - Kurs dinara je konstanta (`lib/crea-dinars.ts`, 117,4948 od 06.10.2026) - menja se ručno.
+
+## K29 - Nezavisna revizija   (2026-10-06 08:29)
+**Plan korak.** Plan je upisan u `docs/crea/planovi/K29.md`. Nije menjan kod.
