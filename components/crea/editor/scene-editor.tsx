@@ -32,6 +32,7 @@ import { useCallback, useId, useRef, useState, type KeyboardEvent, type ReactNod
 import type { EditorAsset } from "@/components/crea/editor/assets";
 import { ColorPicker, IconButton, PillButton, RangeField } from "@/components/crea/editor/controls";
 import { useBrandKit } from "@/components/crea/brand-kit/use-brand-kit";
+import { useSeasonStickerGroups } from "@/components/crea/community/use-season";
 import { SceneCanvas, type SceneCanvasHandle } from "@/components/crea/editor/scene-canvas";
 import type { SceneHistory } from "@/components/crea/editor/use-scene-history";
 import { ChoiceChips } from "@/components/crea/tools/choice-chips";
@@ -65,7 +66,7 @@ import {
   type CreaTextNode,
 } from "@/lib/crea-editor-scene";
 import { brandWatermarkText, type CreaBrandKit } from "@/lib/crea-brand-kit";
-import { CREA_STICKER_GROUPS, CREA_STICKERS, stickerUrl } from "@/lib/crea-stickers";
+import { stickerUrl } from "@/lib/crea-stickers";
 import type { Locale } from "@/lib/i18n";
 
 type PanelId = "tekst" | "nalepnice" | "oblici" | "fotke" | "kolaz" | "zig" | "slojevi";
@@ -215,6 +216,8 @@ export function SceneEditor({
   const selected = findNode(scene, selectedId);
   // Brend kit (S38, K15): slova za nov tekst, ime i logo za žig (boje nudi `ColorPicker`).
   const brand = useBrandKit() ?? null;
+  // Sezonske nalepnice (K27, G12) su prva grupa dok sezona traje.
+  const stickerGroups = useSeasonStickerGroups();
 
   const select = useCallback((nodeId: string | null) => {
     setSelectedId(nodeId);
@@ -383,11 +386,11 @@ export function SceneEditor({
         ) : null}
         {panel === "nalepnice" ? (
           <div className="space-y-3">
-            {CREA_STICKER_GROUPS.map((group) => (
+            {stickerGroups.map((group) => (
               <div key={group.id}>
                 <p className="type-body-sm font-black text-ink">{group.label[locale]}</p>
                 <div className="mt-2 flex flex-wrap gap-1.5">
-                  {CREA_STICKERS.filter((sticker) => sticker.group === group.id).map((sticker) => (
+                  {group.stickers.map((sticker) => (
                     <button
                       key={sticker.id}
                       type="button"

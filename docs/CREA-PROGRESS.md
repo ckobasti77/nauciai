@@ -1591,3 +1591,80 @@ Ekrani: 1440 × 900 i 390 × 844, svetla i tamna tema, bez vodoravnog skrola; no
 - Knjižica → „Učini javnom" → „Kopiraj link" i „Preuzmi sliku" (OG 1200×630); otvori link u privatnom prozoru. Profil člana pokazuje knjižicu vlasniku uvek, drugima tek kad je javna.
 - Odluči: iznos nagrade za stranu (5 kr, `ALBUM_PAGE_REWARD_CREDITS`) i dnevni plafon (2, `ALBUM_REWARDS_PER_DAY`), i da li su 4 besplatne probe po osobi u redu (`lib/crea-mini-lessons.ts` → `freeTry`).
 - Produkcija: `creaGame*` moduli i šema idu sa `npx convex deploy` (nova polja su opciona, bez migracije).
+
+
+## K27 — Gejmifikacija II i zajednica   (2026-10-06 06:45)
+**Fajlovi:**
+- novi (logika i testovi): `lib/crea-community.ts` (galerija, remiks/stil linkovi, nagrade autorima, par i pozivi), `lib/crea-challenges.ts` (42 teme, grupe, pobednik), `lib/crea-leagues.ts` (5 liga, nedelja, rang), `lib/crea-seasons.ts` (4 sezone, pravoslavni Uskrs), `lib/crea-community-copy.ts` (sr/en), `lib/crea-community-server.ts` (fleg u SSR-u), testovi `lib/crea-{community,challenges,leagues,seasons}.test.ts`;
+- novi Convex: `convex/creaCommunityCore.ts`, `convex/creaGallery.ts`, `convex/creaChallenges.ts`, `convex/creaLeagues.ts`, `convex/creaPairs.ts`, testovi `convex/creaCommunity.test.ts`, `convex/creaChallenges.test.ts`, `convex/creaLeaguesPairs.test.ts`;
+- novi UI i rute: `components/crea/community/{crea-community-ui,crea-gallery,crea-public-work,crea-challenge,crea-share-panel,crea-league-panel,crea-pair-panel,crea-invite-landing,crea-community-moderation,crea-ref-notice,crea-season-banner,use-season}.tsx|ts`, `app/[locale]/studio/(shell)/galerija/page.tsx` (javno `/crea/galerija`), `.../galerija/[workId]/page.tsx`, `.../izazov/page.tsx` (`/crea/izazov`), `.../poziv/[code]/page.tsx` (`/crea/poziv/<kod>`);
+- 19 sezonskih nalepnica `public/crea/stickers/*.svg` (Fluent Emoji Flat, MIT, isti commit; izvor upisan u `IZVOR.md`);
+- snimci `docs/crea/snimci/K27-*.png` (26);
+- izmenjeni: `convex/schema.ts` (8 tabela: `creaPublicWorks`, `creaLikes`, `creaChallengeVotes`, `creaChallengeResults`, `creaAuthorRewards`, `creaLeagueMembers`, `creaPairs`, `creaInvites`; `generationJobs.remixOfWorkId`/`creaStyleId`; `creaUserStyles.publicStatus` + 2 indeksa; `creaProfiles.inviteCode` + indeks), `convex/creaFlags.ts` (`crea_public_gallery`), `convex/studio.ts` (`createJobArgs` + zasluga, kuka u `finalizeOutput`, povlačenje javnog rada u `deleteJobForUser`), `convex/creaLocal.ts` (kuka), `convex/creaStyles.ts` (`listMyStyles` vraća stanje deljenja), `convex/crons.ts` (izazov svaki sat), `convex/_generated/api.d.ts` (codegen), `lib/crea-stickers.ts` (sezonske nalepnice + grupe birača), `lib/convex-http.ts`, `lib/security-headers.ts` (+test), `app/globals.css` (sezonski efekti, „iskakanje" glasa), `components/app/{studio-page,studio-media-detail,studio-moderation-grid}.tsx`, `components/studio/studio-composer.tsx` (deljen stil), `components/crea/create/look-panel.tsx` (deli stil), `components/crea/game/crea-notebook.tsx` (listovi Liga i Par), `components/crea/editor/scene-editor.tsx` i `components/crea/montaza/titles-panel.tsx` (sezonska grupa nalepnica).
+
+**Šta je urađeno:**
+- **G8 Javna galerija** iza flega `crea_public_gallery` (odsutan = isključen; nije seedovan): objava sopstvenog gotovog rada je opt-in iz detalja rada („Podeli sa zajednicom": naslov, „Podeli i opis"), uvek ide na proveru; drugi vide rad tek kad ga osoblje pusti. Moderacija je novi prekidač „Javni radovi / Deljeni stilovi" u postojećem moderation grid-u (pusti, odbij sa razlogom koji vidi samo autor, skini već pušten rad). Lajk (jedan po osobi, ne za svoj rad, bez nagrade). Strana rada `/crea/galerija/<id>`: medij, autor, model, opis samo ako je podeljen, „Napravi svoju verziju" i **stablo verzija** (od čega je nastao + puštene svoje verzije drugih). Remiks je zasluga, ne ulaz: radionica se otvori sa istim modelom (i opisom, ako je podeljen) i `?remiks=`, posao pamti `remixOfWorkId` (server ga čuva samo za pušten TUĐ rad dok je galerija upaljena), a tuđ fajl se nikad ne kopira. Objavljena svoja verzija sama dobija roditelja.
+- **G3 Dnevni izazov** (`/crea/izazov`): tema dana iz 42 srpske teme (ili sezonske), grupe „Početnici" (< 500 XP) i „Svi". Dan D prijava (samo rad napravljen tog dana, plaćen ili besplatan, jedan po osobi; prijava = objava sa oznakom izazova, ide kroz istu proveru), dan D+1 glasanje (jedan glas po osobi i grupi, ne za svoj rad, broj glasova skriven dok traje), dan D+2 cron zatvara grupu: pobednik (najviše glasova, nerešeno = ranija prijava; treba ≥ 3 prijave i ≥ 2 glasa) dobija bedž (red rezultata) i 10 kr, XP `crea_challenge` za puštenu prijavu.
+- **G9 Nedeljne lige**: Olovka → Bojica → Flomaster → Četkica → Pero po XP-u PROŠLE nedelje (0/50/150/350/700), grupe do 30 ljudi, rang po XP-u ove nedelje, prva tri na postolju, „sledeće nedelje ideš u ligu …", mesto prošle nedelje. U ligu se ulazi prvim radom u nedelji (kuka) ili dugmetom; osoblje nije u ligama. Krediti se nigde ne čitaju.
+- **G10 Kreativni par i pozivi**: lični link `/crea/poziv/<kod>`; prihvatanje beleži ko je koga pozvao (samo prvi poziv) i pravi par ako nijedno nema drugi par. Zajednički niz u svesci (dan važi kad su OBOJE uradili lekciju ili rad, od nastanka para; ista pravila zamrzavanja kao G2), „Ti danas / <ime> danas", raskid para. Nagrada pozivaocu 10 kr dugmetom kad NOV prijatelj (nalog ≤ 7 dana, bez lekcija i radova pri prihvatanju) završi prvu lekciju I prvi rad; kupovina se ne računa; najviše 3 mesečno.
+- **G11 Nagrade autorima**: „recept" = pušten rad sa podeljenim opisom koji neko remiksuje; „stil" = deljen „Moj stil" (deli se iz „Moji stilovi", ide na proveru, u galeriji je tab „Stilovi" sa „Koristi stil" → composer preuzme izgled i posao nosi `creaStyleId` samo ako izgled nije menjan). Kad je TUĐ plaćen rad gotov: autor dobija 2 kr, najviše 5 nagrada dnevno i 30 mesečno, jednom po (korisnik, recept/stil), jednom po poslu; oba naloga prolaze zaštitu od farmovanja. Remiks autoru daje i XP `crea_remix_received` (postojeći dnevni limit 5).
+- **G12 Sezone**: okvir `lib/crea-seasons.ts` - Slavska nedelja (13-19. decembar), Novogodišnje nedelje (26. decembar - 14. januar), Uskršnja nedelja (Cveti - Vaskršnji ponedeljak, pravoslavni Uskrs izračunat), Festivalska nedelja (6-13. jul). Svaka ima 7 tema izazova (zamenjuju obične), efekat (pahulje padaju, sveće trepere, jaja se klackaju, reflektori šetaju - CSS, samo `transform`/`opacity`, iza `prefers-reduced-motion`) i nalepnice koje se tada pojavljuju kao prva grupa u editoru i montaži. Traka sezone je na galeriji, izazovu i u svesci; `?sezona=<id>` pokazuje izgled druge sezone (samo ukras).
+- Ulazi: pilule „Galerija" i „Izazov" u zaglavlju radionice (od 640 px; na telefonu kroz svesku) i u svesci - samo dok je fleg upaljen. Sveska ima nove listove „Nedeljna liga" i „Kreativni par".
+
+**Feature ID-jevi:**
+- G8 - gotovo (iza flega).
+- G3 - gotovo (iza istog flega - ODLUKA ispod).
+- G9 - gotovo.
+- G10 - gotovo.
+- G11 - gotovo (recept = remiks rada sa podeljenim opisom; stil = deljen „Moj stil").
+- G12 - gotovo kao okvir (4 sezone, teme, efekti, nalepnice). Pravih „sezonskih" kredita/bedževa nema - nisu traženi.
+
+**ODLUKE:**
+- **Izazov je iza istog flega kao galerija** (od dve ponuđene opcije, konzervativnija): prijava pokazuje rad drugim ljudima, a O6 kaže da se tuđ sadržaj ne pokazuje dok Jovan ne upali fleg. Zato je prijava = objava u galeriju (opt-in) sa oznakom izazova, ide kroz ISTU moderaciju, a glasa se samo za puštene prijave. Bez flega `/crea/izazov` i `/crea/galerija` su 404 (i bez naslova strane), upiti vraćaju prazno, mutacije bacaju `GALERIJA_ISKLJUCENA`, cron izazova ne radi ništa.
+- **Ritam izazova: danas prijava, sutra glasanje, prekosutra rezultat** - da rano prijavljeni ne skupe prednost i da moderacija stigne da pusti prijave pre glasanja. „Jedan glas po izazovu" = jedan glas po grupi (svaka grupa je svoj izazov sa svojim pobednikom). Glas se ne menja.
+- **Zaštita glasanja i nagrada = isti pragovi kao K26** (`creaRewardProblem`: potvrđen email, nijedan drugi živ nalog iz istog sandučeta). Glasa samo takav nalog; pobednik bez potvrđenog emaila dobija bedž ali ne i kredite (`rewardSkipped`). Bez ≥ 3 prijave i ≥ 2 glasa pobednika nema - jedna prijava sa dva naloga ne „pobeđuje". Nagrada jednom: red rezultata po (dan, grupa) + ključ lota `crea:izazov:<korisnik>:<dan>:<grupa>`.
+- **Nagrada autoru nikad veća od plaćenog posla**: blokada ako je posao plaćen manje od 2 kr (besplatna proba, lokalni alat), pa farmovanje drugim nalogom troši više nego što donosi; uz to jednom po (korisnik, recept/stil) i plafoni 5/dan i 30/mesec. Ako jedan posao koristi i remiks i stil - jedna nagrada.
+- **Lige bez kredita**: liga je samo priznanje (postolje). Kredit za ligu bi bio novi način da se XP pretvara u novac; zadatak traži samo da se XP ne kupuje. Liga = XP prošle nedelje (bez posebnog „unapređenja" - ko skupi više, sam ide gore), pa nema crona ni preračunavanja.
+- **Kreativni par je nova tabela `creaPairs`**, ne `studyPartnerships` (K01 predlog): postojeći parovi su vezani za kurs (`courseId` obavezan), a par u Crei nije. Jedan aktivan par po osobi.
+- **Nagrada za poziv se preuzima dugmetom** (kao album u K26): stanje prijatelja se proverava pri preuzimanju (lekcija = aktivan `leaderboardEvents` tipa `lesson`; rad = gotov posao), pa nema nove kuke u lekcijama. „Nov prijatelj" = nalog star ≤ 7 dana i bez lekcija/radova pri prihvatanju; inače važi samo par.
+- **Javna imena** su „Ime I." (kao javna knjižica), nikad email. Strane galerije, rada, izazova i poziva su `noindex` (korisnički sadržaj; SEO kad se galerija proveri u praksi).
+- **Istek fajla**: javni rad ne produžava rok izlaza (30/90 dana) - kad fajl istekne ili se rad obriše, nestaje iz galerije (brisanje rada ga povlači, `withdrawn`). Redovi javnih radova se nikad ne brišu (stablo i glasovi pokazuju na njih).
+- **„Exit" je samo id sezone**; naziv je „Festivalska nedelja" jer je Exit tuđe ime festivala (i 2026. nije izvesno). Slava = nedelja do Svetog Nikole (najčešća slava).
+- **Obaveštenja nisu dodata**: postojeća tabela `notifications` nema opšti prikaz za ove vrste; autor stanje vidi u „Moje objave" i na panelu rada.
+- Zaštita od uokviravanja proširena na `/crea/galerija`, `/crea/izazov`, `/crea/poziv/*` (lajk, glas i prihvatanje poziva su jedan klik u ime korisnika).
+- Nove tabele se ne spajaju pri spajanju naloga (isto kao K26).
+- Vizuelna provera: privremena strana `app/[locale]/k27-harness` (prave komponente sa lažnim podacima - zato su izazov, rad, liga i par razdvojeni na prikaz bez upita + kontejner) - obrisana posle snimaka. Prave rute kao gost: fleg je u DEV-u (`wandering-fox-41`) **privremeno upaljen** za snimke, pa vraćen na `enabled: false` (red sada postoji sa `false`, što je isto kao odsutan). Hourly cron izazova je pre ispravke („ne radi ništa bez flega") u DEV-u upisao 6 praznih redova rezultata (2026-10-02..04, bez pobednika) - bezopasni, nisu brisani.
+- DEV: `npx convex dev --once` (dvaput) - šema i moduli K27 su na `wandering-fox-41` (`codegen` ih ne gura). Produkcija nije dirana.
+
+**Novi paketi:** nema (19 SVG nalepnica iz Microsoft Fluent Emoji, MIT - ista licenca i izvor kao K10).
+
+**Testovi:** 44 nova (2985 → 3029), 7 novih fajlova.
+- `convex/creaCommunity.test.ts` (9): **fleg isključen (odsutan i `false`) - lista, rad, moje objave, stilovi i izazov prazni; objava, lajk, deljenje stila, prijava i glas bacaju; uključen - pušten rad se vidi**; objava ide na proveru, opis samo uz deljenje, izmena vraća na proveru, samo osoblje moderira, odbijen rad i razlog samo autoru; samo svoj gotov rad, predug naslov, plafon 10 objava, brisanje rada ga povlači; lajk jednom, poništavanje, ne za svoj ni neodobren; `createJob` čuva zaslugu samo za pušten tuđ rad dok je galerija upaljena; gotov remiks: brojač, XP i nagrada autoru jednom po korisniku, autor sam sebi ništa, stablo roditelj/dete; **farmovanje autorskih nagrada: nepotvrđen i dupli nalog, besplatna proba, posao od 1 kr, rad bez podeljenog opisa, nepotvrđen autor**; dnevni i mesečni plafon; deljen stil: provera, upotreba = broj + nagrada `stil`, vraćanje u privatne.
+- `convex/creaChallenges.test.ts` (5): prijava samo od danas, jedna dnevno, grupa po XP-u, XP učešća jednom; **glasanje: dvostruki glas, glas za sebe, nepotvrđen i dupli nalog (farmanje), glas pre i posle dana glasanja, neodobrena prijava, broj glasova skriven**; rezultati: pobednik, nerešeno = ranija prijava, zatvaranje dvaput = jedan red i jedan lot, glasanje u toku ne može da se zatvori, malo prijava/glasova bez pobednika, nepotvrđen pobednik = bedž bez kredita; cron ne piše ništa bez flega.
+- `convex/creaLeaguesPairs.test.ts` (6): ulazak u ligu prvim radom, liga po XP-u prošle nedelje, osoblje van lige; grupa do 30 i rang; **kupovina kredita ne pomera ligu**; kod poziva, par, zajednički niz samo za zajedničke dane, drugi poziv ne pravi novi zapis, raskid; **nagrada tek posle lekcije I rada, kupovina se ne računa, jednom**; farmovanje: star nalog, nalog sa istorijom, nepotvrđen prijatelj, mesečni plafon.
+- `lib/crea-community.test.ts` (9), `lib/crea-challenges.test.ts` (5), `lib/crea-leagues.test.ts` (3: i ključ nedelje sa klijenta = sa servera preko ponoći i letnjeg vremena), `lib/crea-seasons.test.ts` (6: Uskrs 2024-2030, prozori preko nove godine, nema preklapanja 2025-2035, fajlovi i licenca nalepnica, birač).
+- `lib/security-headers.test.ts`: nov test za DENY na stranama zajednice (a ne na svesci i landing-u).
+
+**Rezultat provere:**
+
+| Provera | Ishod |
+|---|---|
+| codegen | prošao (novi moduli `creaCommunityCore`, `creaGallery`, `creaChallenges`, `creaLeagues`, `creaPairs`) |
+| typecheck | prošao |
+| lint | 0 grešaka, 26 zatečenih upozorenja |
+| test | 3029/3029 (273 fajla) |
+| build | prošao (4 nove dinamičke rute) |
+| `check:bundle`, `check:frames`, `check:corners`, `check:white` | prošli |
+
+**Smanjen pokret (dokaz):** `lib/crea-motion-css.test.ts` (nove `.crea-season-*` i `.crea-vote-pop` su u `no-preference` bloku) + Playwright: uz dozvoljen pokret `animation-name` = `crea-season-fall/flicker/bob/sweep`, uz `reducedMotion: "reduce"` sve `none` (snimci `K27-sezone-efekti-pokret.png`, `K27-sezone-smanjen-pokret.png`).
+
+Ekrani 1440 × 900 i 390 × 844, svetla i tamna tema, bez vodoravnog skrola, nijedna meta ispod 44 px. Dev server (`next dev -p 3100`) ugašen, port slobodan; :3000 je tuđ proces, nije diran. Turbopack keš (`.next/dev/cache`) je obrisan jer je dev server služio stari `globals.css` (nove animacije nisu ulazile); build ih ima.
+
+**Za Jovana ujutru:**
+- Galerija i izazov se vide tek kad upališ fleg (DEV): `npx convex run creaFlags:setCreaFlag '{"key":"crea_public_gallery","enabled":true}'` (produkcija tek posle deploy-a, po runbook-u).
+- Proba toka: otvori svoj rad u Crei → „Podeli sa zajednicom" (naslov, „Podeli i opis") → kao osoblje u radionici „Svi korisnici" → „Javni radovi" → „Pusti" → `/crea/galerija` → otvori rad drugim nalogom → lajk i „Napravi svoju verziju" (radionica sa istim modelom i opisom, traka „Praviš svoju verziju…") → kad posao stigne, autor dobija 2 kr (oba naloga sa potvrđenim emailom).
+- Izazov: rad od danas → „Prijavi na današnji izazov" → pusti ga u moderaciji → sutra glasaj drugim nalogom (`/crea/izazov`) → prekosutra cron (svaki sat) proglasi pobednika (treba ≥ 3 prijave i ≥ 2 glasa).
+- Sveska → „Nedeljna liga" i „Kreativni par" (napravi link, otvori ga drugim nalogom, „Prihvati poziv").
+- Sezonski izgled bez čekanja decembra: `/crea/galerija?sezona=nova-godina` (ili `slava`, `uskrs`, `exit`).
+- Odluči: iznosi (autor 2 kr, 5/dan, 30/mes - `lib/crea-community.ts`; pobednik 10 kr - `lib/crea-challenges.ts`; poziv 10 kr, 3/mes), pragovi lige (`lib/crea-leagues.ts`), da li izazov treba da radi i bez javne galerije (sada ne), i da li galerija ide u Google (sada `noindex`).
+- Produkcija: novi moduli, šema i cron „crea: izazov rezultati" idu sa `npx convex deploy` (nova polja opciona, bez migracije; novi indeksi na `creaUserStyles` i `creaProfiles` - male tabele).

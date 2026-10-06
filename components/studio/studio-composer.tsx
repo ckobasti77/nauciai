@@ -170,7 +170,21 @@ export type JobPayload = {
   creaTechniques?: string[];
   /** Besplatna proba iz mini-lekcije (K26, G6): posao ide za 0 kredita. */
   freeTryLessonId?: string;
+  /** Deljen stil drugog autora (K27, G11) - samo dok izgled nije menjan. */
+  creaStyleId?: Id<"creaUserStyles">;
 };
+
+/** Deljen stil iz galerije (K27, G11): izgled koji composer preuzme i id za zaslugu autoru. */
+export type SharedLook = { id: Id<"creaUserStyles">; look: LookState };
+
+function sameLook(a: LookState, b: LookState): boolean {
+  return (
+    a.styleId === b.styleId &&
+    a.extra.trim() === b.extra.trim() &&
+    a.palette.join(",") === b.palette.join(",") &&
+    JSON.stringify(a.camera) === JSON.stringify(b.camera)
+  );
+}
 
 /**
  * Pomoćna kuka za merenje trajanja okačenog medija u pregledaču radi poređenja sa serverom.
@@ -553,6 +567,7 @@ export function StudioComposer({
   videoExtras = false,
   allowedInputModes,
   freeTries,
+  sharedLook = null,
 }: {
   models: StudioModel[];
   activeModel: StudioModel;
@@ -614,12 +629,20 @@ export function StudioComposer({
   allowedInputModes?: readonly string[];
   /** Besplatne probe korisnika (K26, G6): uz model sa spiska dugme generiše za 0 kredita. */
   freeTries?: readonly ComposerFreeTry[];
+  /** „Koristi stil" iz galerije (K27): composer preuzme izgled, a posao nosi zaslugu autoru. */
+  sharedLook?: SharedLook | null;
 }) {
   const isDocked = placement === "docked";
   const createMode = variant === "create" && createExtras;
   const speechSupported = useSpeechSupported();
   const [extraPanel, setExtraPanel] = useState<"helper" | "look" | null>(null);
-  const [look, setLook] = useState<LookState>(EMPTY_LOOK);
+  const [look, setLook] = useState<LookState>(() => sharedLook?.look ?? EMPTY_LOOK);
+  // Deljen stil stiže (ili se menja) posle prvog rendera - izgled se preuzima tokom rendera.
+  const [prevSharedId, setPrevSharedId] = useState(sharedLook?.id ?? null);
+  if ((sharedLook?.id ?? null) !== prevSharedId) {
+    setPrevSharedId(sharedLook?.id ?? null);
+    if (sharedLook) setLook(sharedLook.look);
+  }
   const [variationCount, setVariationCount] = useState(1);
   const [budget, setBudget] = useState<number | null>(null);
   const [budgetOpen, setBudgetOpen] = useState(false);
@@ -1493,6 +1516,8 @@ export function StudioComposer({
         ...(plan.kind === "parallel" ? { variations: plan.count } : {}),
         ...(techniques.length > 0 ? { creaTechniques: techniques } : {}),
         ...(freeTryOn && freeTry ? { freeTryLessonId: freeTry.lessonId } : {}),
+        // Zasluga za deljen stil važi samo ako je stil zaista ušao u opis, nepromenjen.
+        ...(sharedLook && composed && elementText === null && sameLook(look, sharedLook.look) ? { creaStyleId: sharedLook.id } : {}),
       },
       activeModel,
     );

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery } from "convex/react";
-import { Check, ImageUp, Plus, Trash2, X } from "lucide-react";
+import { Check, ImageUp, Plus, Share2, Trash2, X } from "lucide-react";
 import { useId, useRef, useState } from "react";
 
 import type { LookState } from "@/components/crea/create/look-state";
@@ -19,6 +19,7 @@ import {
   normalizeCamera,
   type CreaCamera,
 } from "@/lib/crea-camera";
+import { CREA_STYLE_SHARE_COPY } from "@/lib/crea-community-copy";
 import { CREA_CREATE_COPY as T } from "@/lib/crea-create-copy";
 import { fillCopy } from "@/lib/crea-copy";
 import { colorName, hexToRgb, tidyPalette, type Rgb } from "@/lib/crea-palette";
@@ -338,6 +339,9 @@ function MyStylesTab({ locale, look, onChange }: { locale: Locale; look: LookSta
   const mine = useQuery(api.creaStyles.listMyStyles, {});
   const save = useMutation(api.creaStyles.saveMyStyle);
   const remove = useMutation(api.creaStyles.deleteMyStyle);
+  // Deljenje sa zajednicom (K27, G11) - samo dok je galerija upaljena.
+  const gallery = useQuery(api.creaGallery.galleryState, {});
+  const setShared = useMutation(api.creaGallery.setStyleShared);
   const [name, setName] = useState("");
   const [status, setStatus] = useState<"idle" | "busy" | "saved" | "error" | "full" | "nothing">("idle");
   const nameId = useId();
@@ -426,8 +430,24 @@ function MyStylesTab({ locale, look, onChange }: { locale: Locale; look: LookSta
                     {entry.camera ? `${entry.camera.focal} mm ${entry.camera.aperture}` : null}
                     {entry.palette.length > 0 ? <Swatches colors={entry.palette} locale={locale} /> : null}
                     {entry.promptFragment ? <span className="truncate">{entry.promptFragment}</span> : null}
+                    {entry.shared ? (
+                      <span className="rounded-full border border-ink px-2 py-0.5 text-ink">
+                        {CREA_STYLE_SHARE_COPY[entry.shared][locale]} · {fillCopy(CREA_STYLE_SHARE_COPY.uses[locale], { n: entry.uses })}
+                      </span>
+                    ) : null}
                   </span>
                 </span>
+                {gallery?.enabled ? (
+                  <button
+                    type="button"
+                    aria-pressed={entry.shared !== null}
+                    onClick={() => void setShared({ styleId: entry._id as Id<"creaUserStyles">, shared: entry.shared === null }).catch(() => undefined)}
+                    className="inline-flex min-h-11 items-center gap-1.5 rounded-full border-2 border-ink bg-paper-strong px-3 text-xs font-black text-ink transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none"
+                  >
+                    <Share2 aria-hidden="true" className="size-3.5" />
+                    {entry.shared === null ? CREA_STYLE_SHARE_COPY.share[locale] : CREA_STYLE_SHARE_COPY.unshare[locale]}
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   onClick={() =>

@@ -19,6 +19,9 @@
  *   da PROČITA (cross-origin), ali može da natera klik.
  * - Crea radni prostor i krediti (javno `/crea/app`, `/crea/krediti`; interno i
  *   pre 308 `/studio/app`, `/studio/krediti`): dugme koje troši kredite, odnosno kupuje.
+ * - Zajednica Cree (K27; javno `/crea/galerija`, `/crea/izazov`, `/crea/poziv/<kod>`):
+ *   lajk, glas na izazovu i prihvatanje poziva (kreativni par) su jedan klik u ime
+ *   prijavljenog korisnika.
  * - `/sign-in`, `/auth/*`, `/reset-password`, `/verify-email`: forme za
  *   prijavu i tokovi sa jednokratnim linkovima ne smeju u tuđi okvir (UI
  *   redressing preko dugmeta „Prijavi se preko Google-a", i sl.).
@@ -51,6 +54,12 @@ export const FRAME_DENY_CANONICAL_SOURCES = [
   "/studio/krediti/:path*",
   "/crea/app/:path*",
   "/crea/krediti/:path*",
+  "/studio/galerija/:path*",
+  "/studio/izazov",
+  "/studio/poziv/:path*",
+  "/crea/galerija/:path*",
+  "/crea/izazov",
+  "/crea/poziv/:path*",
   "/sign-in",
   "/auth/:path*",
   "/reset-password",

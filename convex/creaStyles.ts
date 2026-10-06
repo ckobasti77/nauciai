@@ -9,7 +9,7 @@ import { requireStudioAccess } from "./studio";
 /**
  * „Moji stilovi" (Crea K13, S8; K01 §7.4): sačuvan izbor stila, kamere, palete
  * i sopstvenog dodatka opisu, pod imenom koje korisnik bira. Samo vlasnik ih
- * vidi (`isPublic` je uvek `false` do G11).
+ * vidi, osim stila koji podeli sa zajednicom (K27, G11: `creaGallery.setStyleShared`).
  */
 
 export const MY_STYLES_MAX = 30;
@@ -35,6 +35,9 @@ export const listMyStyles = query({
       palette: row.palette ?? [],
       promptFragment: row.promptFragment,
       createdAt: row.createdAt,
+      // Deljenje sa zajednicom (K27, G11): `null` = privatan.
+      shared: row.isPublic ? (row.publicStatus ?? "pending") : null,
+      uses: row.uses,
     }));
   },
 });

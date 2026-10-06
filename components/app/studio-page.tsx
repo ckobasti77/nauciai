@@ -11,6 +11,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { AppIntroPanel } from "@/components/app/intro-panel";
 import { StudioMediaDetail } from "@/components/app/studio-media-detail";
+import { CreaCommunityLinks, CreaRefNotice } from "@/components/crea/community/crea-ref-notice";
 import { CreaGameProvider, useCreaGameValue } from "@/components/crea/game/crea-game-context";
 import { CreaGameStrip } from "@/components/crea/game/crea-game-strip";
 import { CreaStampHost } from "@/components/crea/game/crea-stamp-host";
@@ -43,6 +44,8 @@ import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { referenceModeOf } from "@/convex/creaElementsCore";
+import { normalizeCamera } from "@/lib/crea-camera";
+import { CREA_REMIX_PARAM, CREA_STYLE_PARAM } from "@/lib/crea-community";
 import { CREA_CREATE_COPY } from "@/lib/crea-create-copy";
 import { CREA_STAGE_COPY, fillCopy } from "@/lib/crea-copy";
 import type { RefineOrder } from "@/lib/crea-draft";
@@ -351,6 +354,36 @@ export function StudioPage({
   }
   // Moderatorski pregled (H3): "Samo moji" / "Svi korisnici", samo za osoblje.
   const [scope, setScope] = useState<GalleryScope>("mine");
+  // Zajednica (K27): „Napravi svoju verziju" (`?remiks=`) i deljen stil (`?stil=`) - zasluga
+  // autoru ide uz posao; server je proverava (odobren tuđ rad/stil, upaljena galerija).
+  const remixParam = searchParams.get(CREA_REMIX_PARAM);
+  const remixId = remixParam && /^[a-z0-9]{16,64}$/.test(remixParam) ? (remixParam as Id<"creaPublicWorks">) : null;
+  const remixWork = useQuery(api.creaGallery.getPublicWork, remixId ? { workId: remixId } : "skip");
+  const remixRef = remixId && remixWork && !remixWork.isMine ? remixWork : null;
+  const styleParam = searchParams.get(CREA_STYLE_PARAM);
+  const sharedStyleId = styleParam && /^[a-z0-9]{16,64}$/.test(styleParam) ? (styleParam as Id<"creaUserStyles">) : null;
+  const sharedStyle = useQuery(api.creaGallery.getSharedStyle, sharedStyleId ? { styleId: sharedStyleId } : "skip");
+  const sharedLook = useMemo(
+    () =>
+      sharedStyle
+        ? {
+            id: sharedStyle._id,
+            look: {
+              styleId: sharedStyle.styleId,
+              camera: sharedStyle.camera ? normalizeCamera(sharedStyle.camera) : null,
+              palette: sharedStyle.palette,
+              extra: sharedStyle.promptFragment,
+            },
+          }
+        : null,
+    [sharedStyle],
+  );
+  function dropQueryParam(key: string) {
+    const query = new URLSearchParams(searchParams.toString());
+    query.delete(key);
+    const text = query.toString();
+    router.replace(text ? `${pathname}?${text}` : pathname, { scroll: false });
+  }
   // Cilj sa početnog ekrana popunjava opis; promena cilja (ili izlazak iz njega) ga menja.
   // `?opis=` (K09, npr. paleta boja iz alata) popunjava opis kad nema cilja.
   const goal = creaGoalById(shell.goal);
@@ -704,6 +737,9 @@ export function StudioPage({
         ...base,
         ...lineage,
         ...(payload.freeTryLessonId ? { freeTryLessonId: payload.freeTryLessonId } : {}),
+        // Zasluga autoru (K27) ide samo uz prvi posao, ne uz varijacije iz reda.
+        ...(remixRef ? { remixOfWorkId: remixRef._id } : {}),
+        ...(payload.creaStyleId ? { creaStyleId: payload.creaStyleId } : {}),
       });
       // Ostale varijacije (K13, S5) su zasebni poslovi, „varijacija" prvog; idu kroz red jer
       // javni korisnik ima najviše 2 posla u toku.
@@ -876,6 +912,7 @@ export function StudioPage({
 
         {/* Prekidač projekta + Balans */}
         <div className="flex shrink-0 items-center gap-3">
+          <CreaCommunityLinks locale={locale} />
           <CreaGameStrip locale={locale} />
           <ProjectPicker
             locale={locale}
@@ -1045,6 +1082,13 @@ export function StudioPage({
             onDismiss={() => setCacheOffer(null)}
           />
         ) : null}
+        <CreaRefNotice
+          locale={locale}
+          remix={remixRef ? { title: remixRef.title, author: remixRef.author.name } : null}
+          style={sharedStyle ? { name: sharedStyle.name, author: sharedStyle.author.name } : null}
+          onRemoveRemix={() => dropQueryParam(CREA_REMIX_PARAM)}
+          onRemoveStyle={() => dropQueryParam(CREA_STYLE_PARAM)}
+        />
         <StudioComposer
           key={`${area}:${modeDef.id}:${shell.goal ?? ""}:${seedEpoch ?? ""}`}
           models={modeModels}
@@ -1064,6 +1108,7 @@ export function StudioPage({
           variant="create"
           onGenerate={generate}
           freeTries={game.freeTries}
+          sharedLook={area === "slika" && modeDef.id === "napravi" ? sharedLook : null}
           placement={placement}
           initialInputMode={goalInputMode ?? inputModeForMode(activeModel, area, modeDef.id)}
           lockModelKind

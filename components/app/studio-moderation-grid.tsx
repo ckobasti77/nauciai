@@ -5,6 +5,7 @@ import { usePaginatedQuery, useMutation, useQuery } from "convex/react";
 import Image from "next/image";
 import { Eye, Play, Search, Volume2, X } from "lucide-react";
 
+import { CreaCommunityModeration } from "@/components/crea/community/crea-community-moderation";
 import { CreditIcon } from "@/components/studio/credit-icon";
 import { cn } from "@/components/ui/primitives";
 import { Spinner } from "@/components/ui/spinner";
@@ -27,6 +28,7 @@ import {
   STUDIO_PROVIDERS,
   type StudioProvider,
 } from "@/lib/studio-gallery";
+import { CREA_MODERATION_COPY } from "@/lib/crea-community-copy";
 import { distributeGridColumns, useGridColumnCount } from "@/lib/studio-grid";
 import { modelLabel, type StudioModel } from "@/lib/studio-models";
 
@@ -74,6 +76,8 @@ export function StudioModerationGrid({
   const [ownerSearch, setOwnerSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<JobStatus | null>(null);
   const [providerFilter, setProviderFilter] = useState<StudioProvider | null>(null);
+  // Zajednica Cree (K27): javni radovi i deljeni stilovi se moderišu iz istog grid-a.
+  const [view, setView] = useState<"poslovi" | "radovi" | "stilovi">("poslovi");
 
   const queryArgs = useMemo(
     () => ({
@@ -84,7 +88,7 @@ export function StudioModerationGrid({
     [ownerId, statusFilter, providerFilter],
   );
 
-  const jobs = usePaginatedQuery(api.studio.listAllJobs, queryArgs, { initialNumItems: PAGE_SIZE });
+  const jobs = usePaginatedQuery(api.studio.listAllJobs, view === "poslovi" ? queryArgs : "skip", { initialNumItems: PAGE_SIZE });
   const owners = useQuery(api.studio.listJobOwners, {});
   const revealJobDetail = useMutation(api.studio.revealJobDetail);
 
@@ -138,8 +142,37 @@ export function StudioModerationGrid({
   const isLoadingFirst =
     jobStatus === "LoadingFirstPage" || (rawJobs.length === 0 && jobStatus === "LoadingMore");
 
+  const viewSwitch = (
+    <div role="group" aria-label={CREA_MODERATION_COPY.views[locale]} className="flex flex-wrap gap-1.5">
+      {(["poslovi", "radovi", "stilovi"] as const).map((id) => (
+        <button
+          key={id}
+          type="button"
+          aria-pressed={view === id}
+          onClick={() => setView(id)}
+          className={cn(
+            "inline-flex min-h-11 items-center rounded-full border-2 border-ink px-4 text-sm font-black studio-anim-mikro cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+            view === id ? "bg-ink text-paper-strong" : "bg-paper-strong text-ink hover:-translate-y-0.5",
+          )}
+        >
+          {id === "poslovi" ? CREA_MODERATION_COPY.jobs[locale] : id === "radovi" ? CREA_MODERATION_COPY.works[locale] : CREA_MODERATION_COPY.styles[locale]}
+        </button>
+      ))}
+    </div>
+  );
+
+  if (view !== "poslovi") {
+    return (
+      <div className="space-y-4">
+        {viewSwitch}
+        <CreaCommunityModeration locale={locale} kind={view} />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
+      {viewSwitch}
       {/* ── Filter bar (osoblje) ─────────────────────────────────────────────── */}
       <div className="surface-card flex flex-col gap-3 border-2 border-ink bg-paper-strong p-3 shadow-[3px_3px_0_0_var(--shadow-hard-12)]">
         <div className="flex flex-wrap items-center gap-2">

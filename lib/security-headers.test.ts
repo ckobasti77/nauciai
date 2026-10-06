@@ -67,6 +67,25 @@ test("ekran pristanka, app, Crea radni prostor i prijava dobijaju DENY u sve tri
   }
 });
 
+test("zajednica Cree (K27): galerija, izazov i poziv dobijaju DENY; sveska i landing ne", () => {
+  for (const path of [
+    "/crea/galerija",
+    "/crea/galerija/abc123",
+    "/en/crea/galerija/abc123",
+    "/sr/studio/galerija",
+    "/crea/izazov",
+    "/en/crea/izazov",
+    "/studio/izazov",
+    "/crea/poziv/abcd2345",
+    "/en/crea/poziv/abcd2345",
+  ]) {
+    expect(sourcesMatching(path), path).not.toEqual([]);
+  }
+  for (const path of ["/crea", "/crea/sveska", "/crea/izazovi-stari", "/crea/galerijaa"]) {
+    expect(sourcesMatching(path), path).toEqual([]);
+  }
+});
+
 test("svako pravilo nosi oba zaglavlja i next.config.ts ih zaista vraća iz headers()", async () => {
   expect(FRAME_DENY_HEADERS).toEqual([
     { key: "X-Frame-Options", value: "DENY" },

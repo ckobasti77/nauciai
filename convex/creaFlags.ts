@@ -12,11 +12,13 @@ import { internalMutation, type MutationCtx, type QueryCtx } from "./_generated/
 export const CREA_FLAG_KEYS = {
   /** Cene v2: marža po kategoriji (C1, O1). */
   pricingV2: "crea_pricing_v2",
+  /** Javna galerija, remiks, dnevni izazov i deljeni stilovi (G8, G3, G11; O6). */
+  publicGallery: "crea_public_gallery",
 } as const;
 
 export type CreaFlagKey = (typeof CREA_FLAG_KEYS)[keyof typeof CREA_FLAG_KEYS];
 
-const creaFlagKeyValidator = v.union(v.literal(CREA_FLAG_KEYS.pricingV2));
+const creaFlagKeyValidator = v.union(v.literal(CREA_FLAG_KEYS.pricingV2), v.literal(CREA_FLAG_KEYS.publicGallery));
 
 /** Jedno indeksno čitanje; red koji ne postoji ili nije `enabled: true` je isključen fleg. */
 export async function readCreaFlag(ctx: QueryCtx | MutationCtx, key: CreaFlagKey): Promise<boolean> {

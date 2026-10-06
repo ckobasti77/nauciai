@@ -27,6 +27,7 @@ import { isDefaultCreditFactor, priceCategoryOf, resolveCreditFactor } from "./c
 import { resolveJobLineage } from "./creaVersions";
 import { creaDerivationValidator } from "./creaVersionsCore";
 import { claimFreeTry, onCreaWorkFinished, restoreFreeTry } from "./creaGameCore";
+import { onCommunityWorkFinished, resolveCommunityRefs, withdrawPublicWorkOfJob } from "./creaCommunityCore";
 import { jobTechniques } from "../lib/crea-album";
 import { applyGrant, applySettlement, applySpend } from "./credits";
 import {
@@ -672,6 +673,11 @@ const createJobArgs = {
   // Besplatna proba iz mini-lekcije (K26, G6): posao je za 0 kredita ako proba važi
   // za ovaj model i cenu; inače se ne pravi (PROBA_*), da korisnik ne plati nesvesno.
   freeTryLessonId: v.optional(v.string()),
+  // Zajednica (K27, G8/G11): „Napravi svoju verziju" javnog rada i podeljen stil drugog
+  // autora. Zasluga autoru, ne ulaz: tuđ izlaz nikad ne ulazi u posao. Neodobren rad ili
+  // stil (ili isključena galerija) tiho otpada.
+  remixOfWorkId: v.optional(v.id("creaPublicWorks")),
+  creaStyleId: v.optional(v.id("creaUserStyles")),
 };
 export type CreateJobArgs = ObjectType<typeof createJobArgs>;
 
@@ -867,6 +873,10 @@ export async function createJobForUser(ctx: MutationCtx, userId: Id<"users">, ar
   }
   const freeTry = args.freeTryLessonId !== undefined;
   const creaTechniques = jobTechniques({ tool: args.creaTool, techniques: args.creaTechniques, kind: order.kind });
+  const communityRefs = await resolveCommunityRefs(ctx, userId, {
+    ...(args.remixOfWorkId ? { remixOfWorkId: args.remixOfWorkId } : {}),
+    ...(args.creaStyleId ? { creaStyleId: args.creaStyleId } : {}),
+  });
 
   // Osporena uplata (X7): chargeback traje nedeljama, i sve to vreme se ne
   // sme generisati na račun novca koji će verovatno otići nazad. Brava visi
@@ -1011,6 +1021,7 @@ export async function createJobForUser(ctx: MutationCtx, userId: Id<"users">, ar
     ...lineage,
     ...(creaTechniques.length > 0 ? { creaTechniques } : {}),
     ...(freeTry ? { freeTryLessonId: args.freeTryLessonId } : {}),
+    ...communityRefs,
     createdAt: now,
   });
 
@@ -1448,6 +1459,8 @@ export const finalizeOutput = internalMutation({
 
     // Gejmifikacija (K26): niz dana, XP i sličice - isti put za plaćen i besplatan rad.
     await onCreaWorkFinished(ctx, job);
+    // Zajednica (K27): liga nedelje, remiks i nagrada autoru.
+    await onCommunityWorkFinished(ctx, job);
 
     return true;
   },
@@ -2116,6 +2129,9 @@ export async function deleteJobForUser(
     .withIndex("by_job", (q) => q.eq("jobId", job._id))
     .first();
   if (transcript) await ctx.db.delete(transcript._id);
+
+  // Javna verzija rada (K27, G8) nestaje sa njim.
+  await withdrawPublicWorkOfJob(ctx, job._id);
 
   await ctx.db.delete(job._id);
 }

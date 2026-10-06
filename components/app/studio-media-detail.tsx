@@ -34,6 +34,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { StudioTileJob } from "@/components/app/studio-media-tile";
+import { CreaSharePanel } from "@/components/crea/community/crea-share-panel";
 import { TranscriptPanel } from "@/components/crea/transcript-panel";
 import { CreaReveal } from "@/components/crea/reveal/crea-reveal";
 import { LearnCard } from "@/components/crea/wait/learn-card";
@@ -890,6 +891,9 @@ export function StudioMediaDetail({
               ) : null}
             </div>
           ) : null}
+
+          {/* Zajednica (K27, G8/G3): objava u galeriju i prijava na izazov - samo dok je galerija upaljena */}
+          {isDone ? <CreaSharePanel locale={locale} jobId={job._id as Id<"generationJobs">} createdAt={job.createdAt} /> : null}
 
           {/* „Vrati" je otvorio ovu verziju: nastavi od nje */}
           {restored && inputTarget ? (

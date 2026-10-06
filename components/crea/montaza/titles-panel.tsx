@@ -4,6 +4,7 @@
 import { Copy, Shield, Smile, Trash2, Type } from "lucide-react";
 import { useId, useState, type ReactNode } from "react";
 
+import { useSeasonStickerGroups } from "@/components/crea/community/use-season";
 import { ColorPicker, RangeField } from "@/components/crea/editor/controls";
 import { formatShort, type MontageSelection } from "@/components/crea/montaza/format";
 import { ChoiceChips } from "@/components/crea/tools/choice-chips";
@@ -12,7 +13,7 @@ import { cn } from "@/components/ui/primitives";
 import { fillCopy } from "@/lib/crea-copy";
 import { defaultPresetFor } from "@/lib/crea-export-presets";
 import { MONTAGE_COPY as T } from "@/lib/crea-montage-copy";
-import { CREA_STICKER_GROUPS, CREA_STICKERS, stickerUrl } from "@/lib/crea-stickers";
+import { stickerUrl } from "@/lib/crea-stickers";
 import { CAPTION_STYLE_LABELS, CAPTION_STYLES, regroupCues, type CaptionScript, type CaptionStyle } from "@/lib/crea-subtitles";
 import {
   addSticker,
@@ -198,13 +199,14 @@ function TitleEditor({
 }
 
 function StickerGrid({ locale, value, onPick }: { locale: Locale; value: string | null; onPick: (id: string) => void }) {
+  const groups = useSeasonStickerGroups();
   return (
     <div className="space-y-3">
-      {CREA_STICKER_GROUPS.map((group) => (
+      {groups.map((group) => (
         <div key={group.id}>
           <p className="type-body-sm font-black text-muted">{group.label[locale]}</p>
           <div className="mt-1 flex flex-wrap gap-1">
-            {CREA_STICKERS.filter((sticker) => sticker.group === group.id).map((sticker) => (
+            {group.stickers.map((sticker) => (
               <button
                 key={sticker.id}
                 type="button"

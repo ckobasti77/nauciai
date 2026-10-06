@@ -61,6 +61,9 @@ export const convexQueries = {
   // Đačka knjižica Cree (K26, G5): javna samo kad ju je vlasnik uključio - stranica za
   // deljenje i OG slika je čitaju bez prijave.
   getPublicReportCard: makeFunctionReference<"query">("creaGame:publicReportCard"),
+  // Zajednica Cree (K27, O6): galerija i izazov postoje samo dok je fleg upaljen;
+  // stranice ga pitaju u SSR-u (isključen = 404).
+  creaGalleryState: makeFunctionReference<"query">("creaGallery:galleryState"),
   // Javna strana MCP servera (MCP-P6-JAVNA-STRANA): katalog alata/resursa/promptova
   // bez autentikacije, iz istog registra koji `/mcp` koristi.
   mcpPublicCatalog: makeFunctionReference<"query">("mcp/catalog:publicCatalog"),

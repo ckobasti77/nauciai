@@ -80,7 +80,8 @@ const creditLotSource = v.union(
   v.literal("admin_grant"),
   // Refund neuspelog posla otvara nov lot umesto da vraća kredite u originalni.
   v.literal("refund"),
-  // Nagrada iz gejmifikacije Cree (K26): puna strana albuma. Nikad iz Stripe-a.
+  // Nagrada iz gejmifikacije Cree (K26): puna strana albuma; K27: pobeda na
+  // izazovu, nagrada autoru i nagrada za poziv. Nikad iz Stripe-a.
   v.literal("reward"),
 );
 const creditTransactionType = v.union(
@@ -1663,6 +1664,11 @@ export default defineSchema({
     // Besplatna proba iz mini-lekcije (K26, G6): posao je za 0 kredita, a neuspeh
     // vraća probu umesto kredita. Vrednost je id mini-lekcije.
     freeTryLessonId: v.optional(v.string()),
+    // Zajednica (K27, K01-9): javni rad čiju je verziju korisnik napravio („Napravi
+    // svoju verziju", G8) i podeljen stil drugog autora koji je rad koristio (G11).
+    // Ni jedno ni drugo ne deli tuđ storage - samo zasluga autoru i stablo remiksa.
+    remixOfWorkId: v.optional(v.id("creaPublicWorks")),
+    creaStyleId: v.optional(v.id("creaUserStyles")),
   })
     .searchIndex("search_searchText", { searchField: "searchText", filterFields: ["userId", "kind"] })
     .index("by_user", ["userId", "createdAt"])
@@ -1868,7 +1874,8 @@ export default defineSchema({
   }).index("by_user_day", ["userId", "day"]),
 
   // „Moji stilovi" (K13, S8; K01 §7.4): sačuvan izbor stila, kamere i palete.
-  // `isPublic` je uvek `false` dok K27 (G11) ne otvori deljenje.
+  // Deljenje (K27, G11): `isPublic` = vlasnik ga je podelio, a drugi ga vide tek kad
+  // ga moderacija odobri (`publicStatus: "approved"`); `uses` broji nagrađene upotrebe.
   creaUserStyles: defineTable({
     userId: v.id("users"),
     name: v.string(),
@@ -1881,8 +1888,15 @@ export default defineSchema({
     promptFragment: v.string(),
     uses: v.number(),
     isPublic: v.boolean(),
+    publicStatus: v.optional(v.union(v.literal("pending"), v.literal("approved"), v.literal("rejected"))),
+    publishedAt: v.optional(v.number()),
+    moderatedBy: v.optional(v.id("users")),
+    moderatedAt: v.optional(v.number()),
     createdAt: v.number(),
-  }).index("by_user", ["userId", "createdAt"]),
+  })
+    .index("by_user", ["userId", "createdAt"])
+    .index("by_publicStatus_and_uses", ["publicStatus", "uses"])
+    .index("by_publicStatus_and_publishedAt", ["publicStatus", "publishedAt"]),
 
   // Likovi i elementi (Crea K14, S34; K01 §7.1): lik, mesto ili predmet koji se
   // jednom sačuva pa poziva kao `@pominjanje` u opisu. Slike su `studioUploads`
@@ -2088,8 +2102,147 @@ export default defineSchema({
     userId: v.id("users"),
     unlockAll: v.optional(v.boolean()),
     reportCardPublic: v.optional(v.boolean()),
+    // Lični kod poziva (K27, G10): link `/crea/poziv/<kod>`. Nastaje na prvi zahtev.
+    inviteCode: v.optional(v.string()),
     updatedAt: v.number(),
-  }).index("by_userId", ["userId"]),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_inviteCode", ["inviteCode"]),
+
+  // ── CREA: ZAJEDNICA (K27) ────────────────────────────────────────────
+  // Javni rad (G8, O6): rad koji je vlasnik SAM objavio. Drugi ga vide tek kad ga
+  // moderacija odobri i samo dok je fleg `crea_public_gallery` upaljen. Red se nikad ne
+  // briše (stablo remiksa i glasovi pokazuju na njega) - povlačenje je `withdrawn`.
+  // Opis rada se čuva (kopija) SAMO uz `sharePrompt`; izlaz se potpisuje iz posla.
+  creaPublicWorks: defineTable({
+    jobId: v.id("generationJobs"),
+    userId: v.id("users"),
+    kind: studioModelKind,
+    modelSlug: v.string(),
+    status: v.union(v.literal("pending"), v.literal("approved"), v.literal("rejected"), v.literal("withdrawn")),
+    title: v.optional(v.string()),
+    sharePrompt: v.boolean(),
+    prompt: v.optional(v.string()),
+    likes: v.number(),
+    // Koliko gotovih radova drugih ljudi je nastalo kao „svoja verzija" ovog rada.
+    remixes: v.number(),
+    remixOfWorkId: v.optional(v.id("creaPublicWorks")),
+    publishedAt: v.number(),
+    moderatedBy: v.optional(v.id("users")),
+    moderatedAt: v.optional(v.number()),
+    rejectReason: v.optional(v.string()),
+    // Dnevni izazov (G3): rad je prijavljen za dan `challengeDayKey` u grupi.
+    challengeDayKey: v.optional(v.string()),
+    challengeGroup: v.optional(v.union(v.literal("pocetnici"), v.literal("svi"))),
+    challengeEnteredAt: v.optional(v.number()),
+    votes: v.number(),
+  })
+    .index("by_jobId", ["jobId"])
+    .index("by_status_and_publishedAt", ["status", "publishedAt"])
+    .index("by_status_and_kind_and_publishedAt", ["status", "kind", "publishedAt"])
+    .index("by_status_and_likes", ["status", "likes"])
+    .index("by_userId_and_publishedAt", ["userId", "publishedAt"])
+    .index("by_userId_and_status", ["userId", "status"])
+    .index("by_remixOfWorkId_and_status", ["remixOfWorkId", "status"])
+    .index("by_challengeDayKey_and_challengeGroup_and_status", ["challengeDayKey", "challengeGroup", "status"])
+    .index("by_userId_and_challengeDayKey", ["userId", "challengeDayKey"]),
+
+  // Lajk javnog rada (G8): jedan po osobi i radu; broj stoji na radu (`likes`).
+  creaLikes: defineTable({
+    workId: v.id("creaPublicWorks"),
+    userId: v.id("users"),
+    createdAt: v.number(),
+  }).index("by_workId_and_userId", ["workId", "userId"]),
+
+  // Glas na dnevnom izazovu (G3): jedan po osobi, danu i grupi; nikad za svoj rad.
+  creaChallengeVotes: defineTable({
+    dayKey: v.string(),
+    group: v.union(v.literal("pocetnici"), v.literal("svi")),
+    voterId: v.id("users"),
+    workId: v.id("creaPublicWorks"),
+    createdAt: v.number(),
+  })
+    .index("by_dayKey_and_group_and_voterId", ["dayKey", "group", "voterId"])
+    .index("by_workId", ["workId"]),
+
+  // Zatvoren izazov jedne grupe (G3) - jednom po danu i grupi (cron). Red sa
+  // pobednikom je ujedno i njegov bedž; nagrada je lot `crea:izazov:<id>:<dan>:<grupa>`.
+  creaChallengeResults: defineTable({
+    dayKey: v.string(),
+    group: v.union(v.literal("pocetnici"), v.literal("svi")),
+    themeId: v.string(),
+    entries: v.number(),
+    votesTotal: v.number(),
+    winnerWorkId: v.optional(v.id("creaPublicWorks")),
+    winnerUserId: v.optional(v.id("users")),
+    winnerVotes: v.optional(v.number()),
+    noWinnerReason: v.optional(v.string()),
+    rewardCredits: v.number(),
+    rewardLotId: v.optional(v.id("creditLots")),
+    // Zašto pobednik nije dobio kredite (npr. nepotvrđen email) - bedž ostaje.
+    rewardSkipped: v.optional(v.string()),
+    closedAt: v.number(),
+  })
+    .index("by_dayKey_and_group", ["dayKey", "group"])
+    .index("by_winnerUserId_and_dayKey", ["winnerUserId", "dayKey"]),
+
+  // Nagrada autoru (G11): neko je napravio rad uz tvoj recept (remiks rada sa
+  // podeljenim opisom) ili podeljen stil. Red postoji samo za ISPLAĆENU nagradu.
+  creaAuthorRewards: defineTable({
+    authorId: v.id("users"),
+    userId: v.id("users"),
+    kind: v.union(v.literal("recept"), v.literal("stil")),
+    itemId: v.string(),
+    jobId: v.id("generationJobs"),
+    credits: v.number(),
+    dayKey: v.string(),
+    monthKey: v.string(),
+    lotId: v.id("creditLots"),
+    createdAt: v.number(),
+  })
+    .index("by_jobId", ["jobId"])
+    .index("by_authorId_and_dayKey", ["authorId", "dayKey"])
+    .index("by_authorId_and_monthKey", ["authorId", "monthKey"])
+    .index("by_authorId_and_userId_and_itemId", ["authorId", "userId", "itemId"]),
+
+  // Nedeljna liga (G9): član lige u nedelji `weekKey` (ponedeljak po Beogradu).
+  // `tier` je izveden iz XP-a prošle nedelje; `cohort` je grupa do 30 ljudi.
+  creaLeagueMembers: defineTable({
+    weekKey: v.string(),
+    userId: v.id("users"),
+    tier: v.number(),
+    cohort: v.number(),
+    joinedAt: v.number(),
+  })
+    .index("by_weekKey_and_userId", ["weekKey", "userId"])
+    .index("by_weekKey_and_tier_and_cohort", ["weekKey", "tier", "cohort"]),
+
+  // Kreativni par (G10): dvoje sa zajedničkim nizom. Najviše jedan aktivan par po
+  // osobi; raskinut par dobija `endedAt` (ostaje kao istorija).
+  creaPairs: defineTable({
+    userAId: v.id("users"),
+    userBId: v.id("users"),
+    createdAt: v.number(),
+    endedAt: v.optional(v.number()),
+  })
+    .index("by_userAId_and_endedAt", ["userAId", "endedAt"])
+    .index("by_userBId_and_endedAt", ["userBId", "endedAt"]),
+
+  // Prihvaćen poziv (G10): ko je koga pozvao. Jedna osoba može biti pozvana samo
+  // jednom. Nagrada (pozivaocu) važi samo za nalog koji je tada bio nov i bez
+  // lekcija i radova, a isplaćuje se kad prijatelj završi prvu lekciju I prvi rad.
+  creaInvites: defineTable({
+    inviterId: v.id("users"),
+    inviteeId: v.id("users"),
+    acceptedAt: v.number(),
+    rewardEligible: v.boolean(),
+    rewardCredits: v.number(),
+    rewardedAt: v.optional(v.number()),
+    rewardLotId: v.optional(v.id("creditLots")),
+  })
+    .index("by_inviteeId", ["inviteeId"])
+    .index("by_inviterId_and_acceptedAt", ["inviterId", "acceptedAt"])
+    .index("by_inviterId_and_rewardedAt", ["inviterId", "rewardedAt"]),
 
   // Opšte informacije platforme (N1) — JEDAN red, `key: "default"`. Kontakt,
   // mreže, cene i pravni podaci koje vlasnik menja sa admin ekrana umesto kroz

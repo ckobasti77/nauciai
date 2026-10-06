@@ -41,3 +41,27 @@ neizmenjene (samo preimenovane na srpski).
 | `kvacica.svg` | `assets/Check mark button/Flat/check_mark_button_flat.svg` |
 | `sijalica.svg` | `assets/Light bulb/Flat/light_bulb_flat.svg` |
 | `cioda.svg` | `assets/Round pushpin/Flat/round_pushpin_flat.svg` |
+
+Sezonske nalepnice (K27, G12) - isti repo i commit, preuzete 2026-10-06:
+
+| Fajl | Original u repou |
+|---|---|
+| `jelka.svg` | `assets/Christmas tree/Flat/christmas_tree_flat.svg` |
+| `pahulja.svg` | `assets/Snowflake/Flat/snowflake_flat.svg` |
+| `vatromet.svg` | `assets/Fireworks/Flat/fireworks_flat.svg` |
+| `deda-mraz.svg` | `assets/Santa claus/Default/Flat/santa_claus_flat_default.svg` |
+| `snesko.svg` | `assets/Snowman/Flat/snowman_flat.svg` |
+| `zito.svg` | `assets/Sheaf of rice/Flat/sheaf_of_rice_flat.svg` |
+| `bosiljak.svg` | `assets/Herb/Flat/herb_flat.svg` |
+| `rucak.svg` | `assets/Pot of food/Flat/pot_of_food_flat.svg` |
+| `zvono.svg` | `assets/Bell/Flat/bell_flat.svg` |
+| `jaje.svg` | `assets/Egg/Flat/egg_flat.svg` |
+| `pile.svg` | `assets/Hatching chick/Flat/hatching_chick_flat.svg` |
+| `zeka.svg` | `assets/Rabbit face/Flat/rabbit_face_flat.svg` |
+| `cvet-tresnje.svg` | `assets/Cherry blossom/Flat/cherry_blossom_flat.svg` |
+| `korpa.svg` | `assets/Basket/Flat/basket_flat.svg` |
+| `gitara.svg` | `assets/Guitar/Flat/guitar_flat.svg` |
+| `slusalice.svg` | `assets/Headphone/Flat/headphone_flat.svg` |
+| `mikrofon.svg` | `assets/Microphone/Flat/microphone_flat.svg` |
+| `sator.svg` | `assets/Tent/Flat/tent_flat.svg` |
+| `prskalica.svg` | `assets/Sparkler/Flat/sparkler_flat.svg` |

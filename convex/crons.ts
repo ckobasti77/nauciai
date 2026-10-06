@@ -452,6 +452,8 @@ crons.interval(
 // poslove ne vidi (`queued`).
 crons.interval("crea: nocna tura predaja", { minutes: 30 }, internal.creaNightActions.submitNightBatches, {});
 crons.interval("crea: nocna tura pracenje", { minutes: 10 }, internal.creaNightActions.pollNightBatches, {});
+// Dnevni izazov (K27, G3): zatvara izazove kojima je glasanje prošlo (idempotentno, nadoknađuje propušteno).
+crons.interval("crea: izazov rezultati", { hours: 1 }, internal.creaChallenges.closeDueChallenges, {});
 crons.cron("studio: istek kredita", "15 3 * * *", internal.crons.expireCredits, {});
 crons.cron("studio: istek fajlova", "45 3 * * *", internal.crons.expireGenerationFiles, {});
 // fal u odgovoru posla nema cenu (za razliku od Google-a i BytePlus-a, koji

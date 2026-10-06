@@ -1,9 +1,13 @@
 "use client";
 
-import { ArrowLeft } from "lucide-react";
+import { useQuery } from "convex/react";
+import { ArrowLeft, Images, Trophy } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
+import { CreaLeaguePanel } from "@/components/crea/community/crea-league-panel";
+import { CreaPairPanel } from "@/components/crea/community/crea-pair-panel";
+import { CreaSeasonBanner } from "@/components/crea/community/crea-season-banner";
 import { CreaAlbumView } from "@/components/crea/game/crea-album-view";
 import { CreaGameProvider, useCreaGame, useCreaGameValue } from "@/components/crea/game/crea-game-context";
 import { CreaLessonPlayer } from "@/components/crea/game/crea-lesson-player";
@@ -13,16 +17,20 @@ import { CreaStampHost } from "@/components/crea/game/crea-stamp-host";
 import { CreaStreakPanel } from "@/components/crea/game/crea-streak-panel";
 import { CreaLogo } from "@/components/crea/crea-logo";
 import { LinkButton, cn } from "@/components/ui/primitives";
+import { api } from "@/convex/_generated/api";
+import { CREA_COMMUNITY_NAV, CREA_LEAGUE_COPY, CREA_PAIR_COPY } from "@/lib/crea-community-copy";
 import { CREA_NOTEBOOK_COPY } from "@/lib/crea-game-copy";
 import { miniLessonById } from "@/lib/crea-mini-lessons";
 import { withLocale, type Locale } from "@/lib/i18n";
 
-type Section = "album" | "mapa" | "knjizica";
-const SECTIONS: readonly Section[] = ["album", "mapa", "knjizica"];
+// K27: nedeljna liga (G9) i kreativni par (G10) su novi listovi iste sveske.
+type Section = "album" | "mapa" | "knjizica" | "liga" | "par";
+const SECTIONS: readonly Section[] = ["album", "mapa", "knjizica", "liga", "par"];
 
 /**
- * Sveska Cree (K26): niz dana na vrhu, pa tri dela kao listovi sveske - album sličica
- * (G4), mapa veština sa mini-lekcijama (G6, G7, U10) i đačka knjižica (G5). Deo i
+ * Sveska Cree (K26): niz dana na vrhu, pa delovi kao listovi sveske - album sličica
+ * (G4), mapa veština sa mini-lekcijama (G6, G7, U10), đačka knjižica (G5), a od K27 i
+ * nedeljna liga (G9) i kreativni par (G10). Deo i
  * otvorena lekcija su u URL-u (`?deo=`, `?lekcija=`, `?test=1`), pa se link deli.
  */
 export function CreaNotebook({
@@ -61,7 +69,11 @@ export function CreaNotebook({
     album: CREA_NOTEBOOK_COPY.tabAlbum[locale],
     mapa: CREA_NOTEBOOK_COPY.tabMap[locale],
     knjizica: CREA_NOTEBOOK_COPY.tabCard[locale],
+    liga: CREA_LEAGUE_COPY.title[locale],
+    par: CREA_PAIR_COPY.title[locale],
   };
+  // Galerija i izazov postoje samo dok je fleg zajednice upaljen (K27, O6).
+  const community = useQuery(api.creaGallery.galleryState, {});
 
   const game = value.game;
 
@@ -77,6 +89,23 @@ export function CreaNotebook({
             <ArrowLeft aria-hidden="true" className="size-4" />
             {CREA_NOTEBOOK_COPY.back[locale]}
           </Link>
+          {community?.enabled ? (
+            <nav aria-label={CREA_COMMUNITY_NAV.community[locale]} className="flex flex-wrap gap-2">
+              {[
+                { href: "/studio/galerija", label: CREA_COMMUNITY_NAV.gallery[locale], icon: Images },
+                { href: "/studio/izazov", label: CREA_COMMUNITY_NAV.challenge[locale], icon: Trophy },
+              ].map((link) => (
+                <Link
+                  key={link.href}
+                  href={withLocale(locale, link.href)}
+                  className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 text-sm font-black text-ink transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none"
+                >
+                  <link.icon aria-hidden="true" className="size-4" />
+                  {link.label}
+                </Link>
+              ))}
+            </nav>
+          ) : null}
         </div>
         <header className="flex items-start gap-4">
           <CreaLogo variant="znak" className="size-12 shrink-0" />
@@ -101,6 +130,7 @@ export function CreaNotebook({
         ) : (
           <>
             <CreaStreakPanel locale={locale} streak={game.streak} />
+            <CreaSeasonBanner locale={locale} preview={searchParams.get("sezona")} />
             <nav aria-label={CREA_NOTEBOOK_COPY.tabs[locale]} className="flex flex-wrap gap-2">
               {SECTIONS.map((id) => (
                 <Link
@@ -134,6 +164,8 @@ export function CreaNotebook({
               )
             ) : null}
             {section === "knjizica" ? <MyReportCard locale={locale} /> : null}
+            {section === "liga" ? <CreaLeaguePanel locale={locale} /> : null}
+            {section === "par" ? <CreaPairPanel locale={locale} /> : null}
           </>
         )}
       </div>
