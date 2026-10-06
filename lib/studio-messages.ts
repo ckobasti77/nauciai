@@ -19,6 +19,99 @@ export const PROMPT_MAX_LENGTH = 2000;
  * opštijeg (`DNEVNI_LIMIT_TROSKA` pre `DNEVNI_LIMIT`).
  */
 const CREATE_JOB_ERROR_MESSAGES: Array<[string, { sr: string; en: string }]> = [
+  // Pošteni krediti (Crea K28). Na vrhu jer sadrže kraće kodove (`DNEVNI_LIMIT`).
+  [
+    "LICNI_DNEVNI_LIMIT",
+    {
+      sr: "Ovaj rad bi prešao dnevni limit potrošnje koji si sam postavio. Krediti ti ostaju - nastavi sutra ili promeni limit na strani Krediti.",
+      en: "This piece would go over the daily spending limit you set yourself. Your credits stay - continue tomorrow or change the limit on the Credits page.",
+    },
+  ],
+  [
+    "DNEVNI_LIMIT_PONAVLJANJA",
+    {
+      sr: "Danas si već dvaput ponovio rad besplatno. Sutra opet možeš.",
+      en: "You have already redone two pieces for free today. You can again tomorrow.",
+    },
+  ],
+  [
+    "MESECNI_LIMIT_PONAVLJANJA",
+    {
+      sr: "Iskoristio si besplatna ponavljanja za ovaj mesec. Ako je rad pokvaren, piši podršci.",
+      en: "You have used this month's free redos. If a piece is broken, write to support.",
+    },
+  ],
+  [
+    "VEC_PONOVLJENO",
+    { sr: "Ovaj rad je već ponovljen besplatno - jednom po radu.", en: "This piece has already been redone for free - once per piece." },
+  ],
+  [
+    "PRESTARO",
+    { sr: "Besplatno ponavljanje važi 48 sati od pravljenja rada.", en: "A free redo is available for 48 hours after the piece was made." },
+  ],
+  [
+    "PRESKUPO_ZA_PONAVLJANJE",
+    {
+      sr: "Ovaj rad je skuplji od 200 kredita - za njega piši podršci, pa ćemo proveriti ručno.",
+      en: "This piece cost more than 200 credits - write to support and we will check it by hand.",
+    },
+  ],
+  [
+    "BESPLATAN_RAD",
+    { sr: "Besplatan rad se ne ponavlja besplatno - napravi ga ponovo.", en: "A free piece is not redone for free - just make it again." },
+  ],
+  [
+    "NEPOZNAT_RAZLOG",
+    { sr: "Izaberi šta nije u redu sa radom.", en: "Pick what is wrong with the piece." },
+  ],
+  [
+    "CENA_PROMENJENA",
+    {
+      sr: "Cena ovog koraka je porasla od kad si ga potvrdio. Pomoćnik je stao - pogledaj novu cenu i potvrdi ponovo.",
+      en: "The price of this step went up since you confirmed it. The assistant stopped - check the new price and confirm again.",
+    },
+  ],
+  [
+    "POTVRDA_POTREBNA",
+    { sr: "Pomoćnik ništa ne pokreće bez tvog „da”.", en: "The assistant starts nothing without your “yes”." },
+  ],
+  [
+    "NEISPRAVAN_PLAN",
+    { sr: "Plan pomoćnika nije ispravan. Opiši šta želiš još jednom.", en: "The assistant's plan is not valid. Describe what you want once more." },
+  ],
+  [
+    "NEOGRANICENO_ISKLJUCENO",
+    { sr: "Neograničeno pravljenje trenutno nije uključeno.", en: "Unlimited making is not switched on right now." },
+  ],
+  [
+    "NEOGRANICENO_SAMO_PREMIUM",
+    { sr: "Neograničeno pravljenje ide uz Premium plan.", en: "Unlimited making comes with the Premium plan." },
+  ],
+  [
+    "NEOGRANICENO_MODEL",
+    {
+      sr: "Neograničeno važi samo za jeftine modele, bez drugih popusta. Izaberi jedan od njih ili plati kreditima.",
+      en: "Unlimited works only with the cheap models and no other discount. Pick one of them or pay with credits.",
+    },
+  ],
+  [
+    "NEOGRANICENO_JEDNA_SLIKA",
+    { sr: "Neograničeno pravi jednu sliku po poslu.", en: "Unlimited makes one image per job." },
+  ],
+  [
+    "NEOGRANICENO_JEDAN_POSAO",
+    {
+      sr: "U sporom redu već čeka tvoj rad. Sačekaj da stigne pa pošalji sledeći.",
+      en: "One of your pieces is already in the slow queue. Wait for it, then send the next.",
+    },
+  ],
+  [
+    "NEOGRANICENO_MESECNI_LIMIT",
+    {
+      sr: "Iskoristio si neograničeno za ovih 30 dana. Krediti i dalje rade.",
+      en: "You have used up unlimited for these 30 days. Credits still work.",
+    },
+  ],
   [
     "NEISPRAVAN_PROMPT:PRAZAN_PROMPT",
     { sr: "Napiši prompt pre nego što pokreneš generaciju.", en: "Write a prompt before generating." },

@@ -244,6 +244,10 @@ export function jobStatusText(
   if (job.status === "failed") {
     return locale === "sr" ? "Generacija nije uspela. Vraćamo kredite…" : "The generation failed. Refunding credits…";
   }
+  // Otkazano (Crea K28): korisnik je sam zaustavio posao pre nego što je provajder počeo.
+  if (job.status === "refunded" && job.error === "OTKAZAO_KORISNIK") {
+    return locale === "sr" ? "Otkazano - ništa nije naplaćeno." : "Cancelled - nothing was charged.";
+  }
   if (job.status === "refunded") {
     return locale === "sr"
       ? "Generacija nije uspela - krediti su ti vraćeni."

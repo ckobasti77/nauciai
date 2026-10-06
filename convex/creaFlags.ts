@@ -14,11 +14,17 @@ export const CREA_FLAG_KEYS = {
   pricingV2: "crea_pricing_v2",
   /** Javna galerija, remiks, dnevni izazov i deljeni stilovi (G8, G3, G11; O6). */
   publicGallery: "crea_public_gallery",
+  /** Pošteno „neograničeno" na jeftinim modelima za plan od €24,99 (C8, K28). */
+  fairUnlimited: "crea_fair_unlimited",
 } as const;
 
 export type CreaFlagKey = (typeof CREA_FLAG_KEYS)[keyof typeof CREA_FLAG_KEYS];
 
-const creaFlagKeyValidator = v.union(v.literal(CREA_FLAG_KEYS.pricingV2), v.literal(CREA_FLAG_KEYS.publicGallery));
+const creaFlagKeyValidator = v.union(
+  v.literal(CREA_FLAG_KEYS.pricingV2),
+  v.literal(CREA_FLAG_KEYS.publicGallery),
+  v.literal(CREA_FLAG_KEYS.fairUnlimited),
+);
 
 /** Jedno indeksno čitanje; red koji ne postoji ili nije `enabled: true` je isključen fleg. */
 export async function readCreaFlag(ctx: QueryCtx | MutationCtx, key: CreaFlagKey): Promise<boolean> {

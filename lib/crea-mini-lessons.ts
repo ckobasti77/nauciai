@@ -82,7 +82,7 @@ export const CREA_MINI_LESSONS: readonly CreaMiniLesson[] = [
       { question: T("Šta Crea briše kad promeniš format?", "What does Crea remove when you change the format?"), options: [T("Skrivene podatke, i lokaciju", "Hidden data, including location"), T("Boje", "Colours"), T("Ništa", "Nothing")], correct: 0, why: T("Nova slika nema EXIF ni GPS.", "The new image has no EXIF or GPS.") },
       { question: T("Zašto je logo bolji kao vektor (SVG)?", "Why is a logo better as a vector (SVG)?"), options: [T("Šareniji je", "It is more colourful"), T("Manje košta", "It costs less"), T("Oštar je u svakoj veličini", "It is sharp at any size")], correct: 2, why: T("Vektor su linije, ne pikseli.", "A vector is lines, not pixels.") },
     ],
-    unlocks: ["slika.format", "slika.paleta", "slika.qr", "slika.vektor", "slika.gif", "slika.sabloni", "slika.provera", "slika.ocr", "slika.3d-foto", "slika.opis"],
+    unlocks: ["slika.format", "slika.paleta", "slika.qr", "slika.vektor", "slika.gif", "slika.sabloni", "slika.provera", "slika.ocr", "slika.3d-foto", "slika.opis", "slika.tabla"],
     course: ALL_COURSES,
   },
   {
@@ -137,7 +137,7 @@ export const CREA_MINI_LESSONS: readonly CreaMiniLesson[] = [
       { question: T("Zašto je probni list jeftiniji put?", "Why is a contact sheet the cheaper path?"), options: [T("Slike su crno-bele", "The images are black and white"), T("Više skica za cenu jedne slike", "Several sketches for the price of one image"), T("Besplatan je uvek", "It is always free")], correct: 1, why: T("Usavršiš samo ono što ti se dopadne.", "You refine only what you like.") },
       { question: T("Šta pišeš u opis kad si izabrao stil?", "What do you write once you pick a style?"), options: [T("Ime stila", "The style name"), T("Ništa", "Nothing"), T("Šta je na slici", "What is in the picture")], correct: 2, why: T("Stil Crea doda sama.", "Crea adds the style itself.") },
     ],
-    unlocks: ["slika.probni-list", "slika.crtaj", "slika.skica"],
+    unlocks: ["slika.probni-list", "slika.crtaj", "slika.skica", "slika.pomocnik"],
     freeTry: { models: ["z-image-turbo", "nano-banana-2-lite"], maxCredits: 10, count: 1, where: T("Slika → Napravi, model Z-Image Turbo ili Nano Banana 2 Lite.", "Image → Create, the Z-Image Turbo or Nano Banana 2 Lite model.") },
     course: ALL_COURSES,
   },

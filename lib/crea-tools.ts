@@ -1600,6 +1600,44 @@ export const CREA_TOOLS: readonly CreaTool[] = [
     price: FREE,
     savesToGallery: true,
   },
+  // ── K28: pomoćnik (U12) i tabla (U13) ────────────────────────────────────
+  {
+    id: "slika.pomocnik",
+    featureIds: ["U12"],
+    area: "slika",
+    mode: "napravi",
+    tier: "paid",
+    status: "ready",
+    title: { sr: "Pomoćnik: od rečenice do kampanje", en: "Assistant: from a sentence to a campaign" },
+    summary: {
+      sr: "Napiši šta ti treba, a pomoćnik složi korake - slika, video, muzika, glas - pokaže ukupnu cenu i čeka tvoje „da”.",
+      en: "Write what you need and the assistant lines up the steps - image, video, music, voice - shows the total price and waits for your “yes”.",
+    },
+    inputs: ["text"],
+    output: "image",
+    device: ANY_DEVICE,
+    // Prvi korak je najčešće slika; cena celog plana stoji pre potvrde.
+    price: { kind: "credits", modelSlug: "nano-banana-2", inputMode: "text" },
+    savesToGallery: true,
+  },
+  {
+    id: "slika.tabla",
+    featureIds: ["U13"],
+    area: "slika",
+    mode: "alati",
+    tier: "local-code",
+    status: "ready",
+    title: { sr: "Tabla za ideje", en: "Idea board" },
+    summary: {
+      sr: "Beskonačna tabla za reference, radove i beleške. Prevuci karticu na polje za opis i postaje referenca.",
+      en: "An endless board for references, pieces and notes. Drag a card onto the description field and it becomes a reference.",
+    },
+    inputs: ["image"],
+    output: "image",
+    device: ANY_DEVICE,
+    price: FREE,
+    savesToGallery: true,
+  },
 ];
 
 export function toolById(id: string | null | undefined): CreaTool | undefined {

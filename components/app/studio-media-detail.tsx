@@ -51,6 +51,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { CREA_PICK_COPY, CREA_TOOL_COPY, CREA_VERSION_COPY, fillCopy } from "@/lib/crea-copy";
+import { RedoBroken } from "@/components/crea/fair/redo-broken";
 import { buildRefineOrder, orderCredits, refinePairForJob, type RefineOrder } from "@/lib/crea-draft";
 import { licenseForJob } from "@/lib/crea-license-tags";
 import { revealStyleFor } from "@/lib/crea-reveal";
@@ -1169,6 +1170,10 @@ export function StudioMediaDetail({
                     <Clapperboard aria-hidden="true" className="size-3.5" />
                     <span>{vc.animate[locale]}</span>
                   </button>
+                ) : null}
+                {/* Pošteni krediti (K28, U7): očigledno pokvaren rad se ponavlja besplatno (limit i zaštita na serveru). */}
+                {job.status === "done" && job.creditCost > 0 && !job.isMock ? (
+                  <RedoBroken jobId={job._id} kind={job.kind} locale={locale} />
                 ) : null}
                 {extraQuickActions.length > 0 ? (
                   <div>

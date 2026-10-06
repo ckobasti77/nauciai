@@ -70,6 +70,24 @@ describe("studioErrorMessage", () => {
     // Noćna tura (Crea K08).
     "NOCNA_TURA_NEDOSTUPNA",
     "PREVISE_NOCNIH",
+    // Pošteni krediti (Crea K28).
+    "LICNI_DNEVNI_LIMIT",
+    "DNEVNI_LIMIT_PONAVLJANJA",
+    "MESECNI_LIMIT_PONAVLJANJA",
+    "VEC_PONOVLJENO",
+    "PRESTARO",
+    "PRESKUPO_ZA_PONAVLJANJE",
+    "BESPLATAN_RAD",
+    "NEPOZNAT_RAZLOG",
+    "CENA_PROMENJENA",
+    "POTVRDA_POTREBNA",
+    "NEISPRAVAN_PLAN",
+    "NEOGRANICENO_ISKLJUCENO",
+    "NEOGRANICENO_SAMO_PREMIUM",
+    "NEOGRANICENO_MODEL",
+    "NEOGRANICENO_JEDNA_SLIKA",
+    "NEOGRANICENO_JEDAN_POSAO",
+    "NEOGRANICENO_MESECNI_LIMIT",
   ];
 
   test("nijedna poruka ne prikazuje sirov kod greške", () => {

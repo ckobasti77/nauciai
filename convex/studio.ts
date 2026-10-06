@@ -15,6 +15,8 @@ import { requestHash } from "./creaCacheCore";
 import { capExtraOutputUrls } from "./creaLayersCore";
 import { inheritedSeed, seedFromUnit, seedParamOf } from "./creaDraftCore";
 import { CREA_FLAG_KEYS, readCreaFlag } from "./creaFlags";
+import { cancelRouteOf, exceedsPersonalLimit, FAIR_UNLIMITED, isUnpaidJob } from "./creaFairCore";
+import { assertFairUnlimited, personalDailyLimit, releaseFreeJob } from "./creaFairDb";
 import {
   NIGHT_MAX_QUEUED_PER_USER,
   type NightBatchSpec,
@@ -678,8 +680,21 @@ const createJobArgs = {
   // stil (ili isključena galerija) tiho otpada.
   remixOfWorkId: v.optional(v.id("creaPublicWorks")),
   creaStyleId: v.optional(v.id("creaUserStyles")),
+  // Pošteno „neograničeno" (K28, C8): jeftin model na planu od €24,99, 0 kredita,
+  // spori red. Server proverava fleg, plan, model i limite (`assertFairUnlimited`).
+  fairUnlimited: v.optional(v.boolean()),
 };
 export type CreateJobArgs = ObjectType<typeof createJobArgs>;
+
+/**
+ * Ono što javni klijent ne sme da pošalje sam (K28): besplatno ponavljanje
+ * pokvarenog rada (`creaFair.redoBroken` ga odobrava) i gornja granica cene koju
+ * je korisnik video i potvrdio (pomoćnik, `creaAssistant`).
+ */
+export type CreateJobOptions = {
+  freeRedo?: { originalJobId: Id<"generationJobs">; reason: string };
+  maxCreditCost?: number;
+};
 
 /**
  * Rezervacija posla iz koraka 1 sekcije 4.2 STUDIO-PLAN-a. Sve provere idu
@@ -692,7 +707,12 @@ export type CreateJobArgs = ObjectType<typeof createJobArgs>;
  * ključa). SVE provere - kill switch, `decideStudioAccess`, limiti, uslovi,
  * rezervacija kredita, projekat - žive ovde, pa važe za oba puta.
  */
-export async function createJobForUser(ctx: MutationCtx, userId: Id<"users">, args: CreateJobArgs) {
+export async function createJobForUser(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  args: CreateJobArgs,
+  options: CreateJobOptions = {},
+) {
   // Uloga se čita zajedno sa korisnikom jer o pristupu odlučuje
   // `decideStudioAccess` niže - sam ID ne bi bio dovoljan, pa bi
   // enrollment ostao jedini kriterijum.
@@ -813,6 +833,12 @@ export async function createJobForUser(ctx: MutationCtx, userId: Id<"users">, ar
     };
   }
 
+  // Cena koju je korisnik potvrdio (pomoćnik, K28): posao koji bi sada koštao više
+  // se ne pravi - bez potvrde se nikad ne plaća više od viđenog.
+  if (options.maxCreditCost !== undefined && order.creditCost > options.maxCreditCost) {
+    throw new Error("CENA_PROMENJENA");
+  }
+
   // Roditelj u stablu verzija (K05). Tuđ roditelj baca pre ijednog upisa posla.
   const lineage = await resolveJobLineage(ctx, userId, {
     ...(args.parentJobId ? { parentJobId: args.parentJobId } : {}),
@@ -859,6 +885,21 @@ export async function createJobForUser(ctx: MutationCtx, userId: Id<"users">, ar
   const cleanParams = order.params;
   const estimatedCostUsd = order.estimatedCostUsd;
 
+  // Pošteno „neograničeno" (K28, C8) i besplatno ponavljanje (U7) se ne mešaju sa
+  // drugim popustima (proba iz lekcije, noćna tura) - jedan posao, jedan razlog za 0 kr.
+  const fair = args.fairUnlimited === true;
+  if (fair) {
+    await assertFairUnlimited(ctx, {
+      userId,
+      modelSlug: order.slug,
+      estimatedCostUsd,
+      params: cleanParams,
+      otherDiscount: night !== null || args.freeTryLessonId !== undefined || options.freeRedo !== undefined,
+      now: Date.now(),
+    });
+  }
+  if (options.freeRedo && (night || args.freeTryLessonId !== undefined)) throw new Error("NEISPRAVNI_PARAMETRI");
+
   // Besplatna proba (K26, G6): skida se ovde, u istoj transakciji - svaka kasnija
   // odbijenica (limit, dug, spor) poništava i skidanje probe. Plafon TROŠKA u dolarima
   // ispod važi i za probu; plafon kredita i potrošnja je ne broje (0 kr).
@@ -872,6 +913,7 @@ export async function createJobForUser(ctx: MutationCtx, userId: Id<"users">, ar
     });
   }
   const freeTry = args.freeTryLessonId !== undefined;
+  const unpaid = freeTry || fair || options.freeRedo !== undefined;
   const creaTechniques = jobTechniques({ tool: args.creaTool, techniques: args.creaTechniques, kind: order.kind });
   const communityRefs = await resolveCommunityRefs(ctx, userId, {
     ...(args.remixOfWorkId ? { remixOfWorkId: args.remixOfWorkId } : {}),
@@ -969,9 +1011,14 @@ export async function createJobForUser(ctx: MutationCtx, userId: Id<"users">, ar
   // ono što bi OVAJ posao doneo preko već potrošenog danas.
   if (
     limits.maxDailyCredits !== null &&
-    (usage?.creditsSpent ?? 0) + (freeTry ? 0 : order.creditCost) > limits.maxDailyCredits
+    (usage?.creditsSpent ?? 0) + (unpaid ? 0 : order.creditCost) > limits.maxDailyCredits
   ) {
     throw new Error("DNEVNI_LIMIT_KREDITA");
+  }
+  // Lični dnevni limit (K28, U7) koji je korisnik sam postavio - važi i za MCP i za
+  // pomoćnika, jer svi idu kroz ovu funkciju. Besplatan posao ga ne troši.
+  if (exceedsPersonalLimit(usage?.creditsSpent ?? 0, unpaid ? 0 : order.creditCost, await personalDailyLimit(ctx, userId))) {
+    throw new Error("LICNI_DNEVNI_LIMIT");
   }
   // Treći plafon je u dolarima, ne u komadima: broj generacija ne kaže ništa
   // dok korisnik bira između modela od 0,005 $ i modela od 2 $.
@@ -979,7 +1026,7 @@ export async function createJobForUser(ctx: MutationCtx, userId: Id<"users">, ar
     throw new Error("DNEVNI_LIMIT_TROSKA");
   }
 
-  const creditCost = freeTry ? 0 : order.creditCost;
+  const creditCost = unpaid ? 0 : order.creditCost;
 
   // Upis posla ide PRE potrošnje jer `credits.applySpend` (A2) traži `jobId`
   // - to je ključ pod kojim se refund kasnije prepoznaje. Sve je i dalje
@@ -1022,8 +1069,19 @@ export async function createJobForUser(ctx: MutationCtx, userId: Id<"users">, ar
     ...(creaTechniques.length > 0 ? { creaTechniques } : {}),
     ...(freeTry ? { freeTryLessonId: args.freeTryLessonId } : {}),
     ...communityRefs,
+    ...(options.freeRedo ? { freeRedoOfJobId: options.freeRedo.originalJobId } : {}),
+    ...(fair ? { fairUnlimited: true as const } : {}),
     createdAt: now,
   });
+  if (options.freeRedo || fair) {
+    await ctx.db.insert("creaFreeJobs", {
+      userId,
+      kind: fair ? "fair" : "redo",
+      jobId,
+      ...(options.freeRedo ? { originalJobId: options.freeRedo.originalJobId, reason: options.freeRedo.reason } : {}),
+      createdAt: now,
+    });
+  }
 
   // Fajl koji je ušao u posao više ne ističe: rok od 24 h postoji samo za
   // uploade koje niko nije upotrebio, a ulaz posla mora da preživi koliko i
@@ -1037,7 +1095,7 @@ export async function createJobForUser(ctx: MutationCtx, userId: Id<"users">, ar
   // `try/catch` dodat zbog lepše poruke tiho razvalio atomičnost. Ovako
   // potrošnja pada zajedno sa poslom, strukturno.
   // Besplatna proba nema potrošnju (0 kr) - ni red u ledgeru, pa ni refund kasnije.
-  if (!freeTry) await applySpend(ctx, { userId, amount: creditCost, jobId });
+  if (!unpaid) await applySpend(ctx, { userId, amount: creditCost, jobId });
 
   if (usage) {
     await ctx.db.patch(usage._id, {
@@ -1056,7 +1114,8 @@ export async function createJobForUser(ctx: MutationCtx, userId: Id<"users">, ar
   }
 
   // Noćni posao predaje cron noćne ture (`creaNightActions.submitNightBatches`).
-  if (!night) await ctx.scheduler.runAfter(0, internal.studioActions.submitJob, { jobId });
+  // „Neograničeno" (C8) čeka u sporom redu - dovoljno kratko da ga reaper (5 min) ne dira.
+  if (!night) await ctx.scheduler.runAfter(fair ? FAIR_UNLIMITED.queueDelayMs : 0, internal.studioActions.submitJob, { jobId });
 
   return jobId;
 }
@@ -1287,7 +1346,7 @@ export const settleJobCredits = internalMutation({
     }
 
     // Besplatna proba (K26): stvaran trošak se upisuje, ali se korisniku ne naplaćuje razlika.
-    const { applied, unsettled } = job.freeTryLessonId
+    const { applied, unsettled } = isUnpaidJob(job)
       ? { applied: 0, unsettled: 0 }
       : await applySettlement(ctx, {
           userId: job.userId,
@@ -1342,6 +1401,17 @@ export const failJob = internalMutation({
     // Besplatna proba (K26): nije ništa skinula, pa se vraća proba, a ne krediti.
     if (job.freeTryLessonId) {
       await restoreFreeTry(ctx, job);
+      await ctx.db.patch(args.jobId, { status: "refunded" });
+      await applyDailyUsageDelta(ctx, job.userId, dayKey(job.createdAt), {
+        costUsd: -(job.settledCostUsd ?? job.estimatedCostUsd ?? 0),
+        creditsSpent: 0,
+      });
+      return null;
+    }
+    // Ponavljanje i „neograničeno" (K28) nisu ništa skinuli: neuspeh samo oslobađa
+    // mesto u limitu (original sme ponovo), bez reda u ledgeru.
+    if (job.freeRedoOfJobId || job.fairUnlimited) {
+      await releaseFreeJob(ctx, job);
       await ctx.db.patch(args.jobId, { status: "refunded" });
       await applyDailyUsageDelta(ctx, job.userId, dayKey(job.createdAt), {
         costUsd: -(job.settledCostUsd ?? job.estimatedCostUsd ?? 0),
@@ -1595,6 +1665,8 @@ export async function toGalleryJob(ctx: QueryCtx, job: Doc<"generationJobs">) {
     // dvanaest kartica sa devet referenci je sto osam potpisa za mrežu
     // sličica; ceo spisak vraća `getJobForRegenerate`, jedan posao.
     inputThumbs: await resolveInputThumbs(ctx, job.inputs),
+    // Otkazivanje uz povraćaj (K28, U7): samo dok provajder posao nije počeo.
+    ...(cancelRouteOf(job) ? { cancelable: true as const } : {}),
   };
 }
 

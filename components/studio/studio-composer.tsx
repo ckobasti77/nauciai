@@ -46,6 +46,9 @@ import {
 import { MicButton, useSpeechSupported } from "@/components/crea/create/mic-button";
 import { PromptHelper } from "@/components/crea/create/prompt-helper";
 import { NightToggle } from "@/components/crea/night-toggle";
+import { FairToggle } from "@/components/crea/fair/fair-toggle";
+import { PriceDetails } from "@/components/crea/fair/price-details";
+import { blockedCategoryOf, PromptCheckCard } from "@/components/crea/fair/prompt-check-card";
 import { deskCount, directorIsEmpty, EMPTY_DIRECTOR, type DirectorState } from "@/components/crea/video/director-state";
 import type { DirectorTab } from "@/components/crea/video/director-panel";
 import type { PickedFrame } from "@/components/crea/video/last-frame-picker";
@@ -73,6 +76,8 @@ import { CREA_CREATE_COPY } from "@/lib/crea-create-copy";
 import { appendSpoken } from "@/lib/crea-dictation";
 import { CREA_NIGHT_COPY, CREA_PICK_COPY, fillCopy } from "@/lib/crea-copy";
 import { CREA_FREE_TRY_COPY } from "@/lib/crea-game-copy";
+import { CREA_FAIR_COPY } from "@/lib/crea-fair-copy";
+import { promptHints } from "@/lib/crea-prompt-check";
 import { composeVideoPrompt, effectInputMode, effectParamsFor, modelMakesSound } from "@/lib/crea-director";
 import { buildDraftOrder, draftPairFor, orderCredits } from "@/lib/crea-draft";
 import { CREA_MENTION_COPY } from "@/lib/crea-elements-copy";
@@ -172,6 +177,15 @@ export type JobPayload = {
   freeTryLessonId?: string;
   /** Deljen stil drugog autora (K27, G11) - samo dok izgled nije menjan. */
   creaStyleId?: Id<"creaUserStyles">;
+  /** Pošteno „neograničeno" (K28, C8): jeftin model na Premium planu, 0 kr, spori red. */
+  fairUnlimited?: true;
+};
+
+/** Pošteni krediti (K28): današnja potrošnja, lični limit i „neograničeno" (`creaFair.getFairState`). */
+export type ComposerFairState = {
+  spentToday: number;
+  dailyLimit: number | null;
+  fairUnlimited: { models: string[]; left: number; monthly: number } | null;
 };
 
 /** Deljen stil iz galerije (K27, G11): izgled koji composer preuzme i id za zaslugu autoru. */
@@ -568,6 +582,7 @@ export function StudioComposer({
   allowedInputModes,
   freeTries,
   sharedLook = null,
+  fairState = null,
 }: {
   models: StudioModel[];
   activeModel: StudioModel;
@@ -631,6 +646,8 @@ export function StudioComposer({
   freeTries?: readonly ComposerFreeTry[];
   /** „Koristi stil" iz galerije (K27): composer preuzme izgled, a posao nosi zaslugu autoru. */
   sharedLook?: SharedLook | null;
+  /** Pošteni krediti (K28): cena u dinarima, dnevni limit i „neograničeno". */
+  fairState?: ComposerFairState | null;
 }) {
   const isDocked = placement === "docked";
   const createMode = variant === "create" && createExtras;
@@ -995,6 +1012,20 @@ export function StudioComposer({
   const freeTryFitsNow =
     freeTry !== null && !night && plan.kind !== "parallel" && credits !== null && credits > 0 && credits <= freeTry.maxCredits;
   const freeTryOn = freeTryFitsNow && !freeTryOff;
+  // Pošteno „neograničeno" (K28, C8): isti uslovi kao server - model sa spiska, jedna slika,
+  // bez noćne ture, varijacija i probe iz lekcije. Korisnik ga sam pali.
+  const [fairOn, setFairOn] = useState(false);
+  const fairOffer = fairState?.fairUnlimited ?? null;
+  const fairFits =
+    variant === "create" &&
+    fairOffer !== null &&
+    fairOffer.left > 0 &&
+    fairOffer.models.includes(activeModel.slug) &&
+    !night &&
+    !freeTryOn &&
+    plan.kind !== "parallel" &&
+    !(typeof form.params.num_images === "number" && form.params.num_images > 1);
+  const fair = fairFits && fairOn;
 
   // Izgled (S8): dodaje se opisu tek pri slanju; „Modelu ide:" pokazuje tačan tekst.
   const composed = createMode && promptControl && !lookIsEmpty(look) ? composeCreatePrompt(prompt, look) : null;
@@ -1019,7 +1050,13 @@ export function StudioComposer({
   const elementsOverBy = elementText !== null ? Math.max(0, elementText.length - COMPOSED_PROMPT_MAX) : 0;
   const lookTooLong =
     (composed !== null && composed.overBy > 0) || (videoComposed !== null && videoComposed.overBy > 0) || elementsOverBy > 0;
-  const generateLabel = night ? CREA_NIGHT_COPY.generate[locale] : locale === "sr" ? "Generiši" : "Generate";
+  const generateLabel = night
+    ? CREA_NIGHT_COPY.generate[locale]
+    : fair
+      ? CREA_FAIR_COPY.generate[locale]
+      : locale === "sr"
+        ? "Generiši"
+        : "Generate";
 
   // ── Auto izbor (Crea S3) i „Probaj jeftino" (S4/V3) ──
   // Javni korisnik ne sme da dobije model bez ključa (server bi ga odbio) - ista
@@ -1161,14 +1198,14 @@ export function StudioComposer({
       generateBlock({
         state: studioState,
         balance,
-        credits: freeTryOn ? 0 : credits,
+        credits: freeTryOn || fair ? 0 : credits,
         missingInputMessage: elementProblem ?? inlineProblem ?? missingInputMessage(missing, locale),
         promptMissing,
         quantityMissing: quantitySource !== null && measured[quantitySource.param] === undefined,
         sourceMissing: sourceRequired && sourceJobId === null,
         uploading: isUploading,
       }),
-    [studioState, balance, credits, freeTryOn, missing, locale, promptMissing, quantitySource, measured, sourceRequired, sourceJobId, isUploading, elementProblem, inlineProblem],
+    [studioState, balance, credits, freeTryOn, fair, missing, locale, promptMissing, quantitySource, measured, sourceRequired, sourceJobId, isUploading, elementProblem, inlineProblem],
   );
 
   // Automatsko prilagođavanje visine textarea polja
@@ -1516,6 +1553,7 @@ export function StudioComposer({
         ...(plan.kind === "parallel" ? { variations: plan.count } : {}),
         ...(techniques.length > 0 ? { creaTechniques: techniques } : {}),
         ...(freeTryOn && freeTry ? { freeTryLessonId: freeTry.lessonId } : {}),
+        ...(fair ? { fairUnlimited: true as const } : {}),
         // Zasluga za deljen stil važi samo ako je stil zaista ušao u opis, nepromenjen.
         ...(sharedLook && composed && elementText === null && sameLook(look, sharedLook.look) ? { creaStyleId: sharedLook.id } : {}),
       },
@@ -1624,13 +1662,13 @@ export function StudioComposer({
   const isEstimated =
     quantitySource !== null && quantitySource.from !== "text_length" && serverSeconds === null;
   const priceDisplay = useMemo(() => {
-    if (freeTryOn) return "0";
+    if (freeTryOn || fair) return "0";
     if (credits === null) {
       const def = defaultCredits(activeModel);
       return def !== null ? `~${def}` : "—";
     }
     return isEstimated ? `~${credits}` : `${credits}`;
-  }, [credits, activeModel, isEstimated, freeTryOn]);
+  }, [credits, activeModel, isEstimated, freeTryOn, fair]);
 
   const notice = seed?.missingSlots
     ? missingRegenerateInputsNotice(seed.missingSlots, locale)
@@ -1639,6 +1677,8 @@ export function StudioComposer({
       : null;
 
   const errorMessage = error ? studioErrorMessage(error, locale) : null;
+  const blockedCategory = blockedCategoryOf(error);
+  const hints = variant === "create" ? promptHints(prompt, activeModel.kind) : [];
   const blockMessage = block ? generateBlockMessage(block, locale) : null;
 
   const collapseLabel = locale === "sr"
@@ -2097,7 +2137,10 @@ export function StudioComposer({
         ) : null}
 
         {/* Statusna linija za obaveštenja */}
-        {statusMessage ? (
+        {blockedCategory ? (
+          // Provera opisa (K28, C7): zašto je opis odbijen i kako da se ispravi - ništa nije naplaćeno.
+          <PromptCheckCard locale={locale} category={blockedCategory} />
+        ) : statusMessage ? (
           <div role="status" className="truncate pt-1 text-xs font-bold text-muted">
             <span className="font-mono text-ink">↺</span> {statusMessage}
           </div>
@@ -2121,6 +2164,11 @@ export function StudioComposer({
           <div role="status" className="pt-1 text-xs font-bold text-muted">
             <Sparkles aria-hidden="true" className="mr-1 inline size-3 text-ink" />
             {autoNote}
+          </div>
+        ) : hints.length > 0 ? (
+          // Meki saveti pre plaćanja (C7): ne blokiraju, samo štede ponovljen rad.
+          <div role="note" className="pt-1 text-xs font-bold text-muted">
+            {hints[0]!.text[locale]}
           </div>
         ) : null}
 
@@ -2249,6 +2297,26 @@ export function StudioComposer({
                 disabled={isPending}
               />
             ) : null}
+            {fairFits && fairOffer ? (
+              <FairToggle
+                locale={locale}
+                on={fair}
+                onChange={setFairOn}
+                left={fairOffer.left}
+                monthly={fairOffer.monthly}
+                disabled={isPending}
+              />
+            ) : null}
+            {/* Pošteni krediti (K28, U7): cena u dinarima, proba vs konačno i dnevni limit, na klik. */}
+            <PriceDetails
+              locale={locale}
+              credits={freeTryOn || fair ? 0 : credits}
+              draftCredits={showDraft ? draftCredits : null}
+              spentToday={fairState?.spentToday ?? null}
+              dailyLimit={fairState?.dailyLimit ?? null}
+              creditsHref={topUpHref}
+              opensDown={isDocked}
+            />
           </div>
         ) : null}
 

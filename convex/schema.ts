@@ -1669,6 +1669,11 @@ export default defineSchema({
     // Ni jedno ni drugo ne deli tuđ storage - samo zasluga autoru i stablo remiksa.
     remixOfWorkId: v.optional(v.id("creaPublicWorks")),
     creaStyleId: v.optional(v.id("creaUserStyles")),
+    // Pošteni krediti (K28): besplatno ponavljanje pokvarenog rada (U7) - posao je
+    // za 0 kredita i pokazuje na original; i pošteno „neograničeno" (C8) - jeftin
+    // model na planu, 0 kredita, spori red. Neuspeh takvog posla nema šta da vrati.
+    freeRedoOfJobId: v.optional(v.id("generationJobs")),
+    fairUnlimited: v.optional(v.literal(true)),
   })
     .searchIndex("search_searchText", { searchField: "searchText", filterFields: ["userId", "kind"] })
     .index("by_user", ["userId", "createdAt"])
@@ -1872,6 +1877,70 @@ export default defineSchema({
     outputTokens: v.number(),
     costUsd: v.number(),
   }).index("by_user_day", ["userId", "day"]),
+
+  // Pošteni krediti (K28, U7): dnevni limit potrošnje koji je korisnik SAM postavio.
+  // Jedan red po korisniku; nema reda (ili nema polja) = bez ličnog limita.
+  creaSpendLimits: defineTable({
+    userId: v.id("users"),
+    dailyCredits: v.number(),
+    updatedAt: v.number(),
+  }).index("by_userId", ["userId"]),
+
+  // Besplatni poslovi K28: ponavljanje pokvarenog rada (`redo`, U7) i pošteno
+  // „neograničeno" (`fair`, C8). Red broji limite (dan / 30 dana) i čuva vezu sa
+  // originalom (jedno ponavljanje po radu). Neuspeo besplatan posao briše svoj red,
+  // pa se ne broji i original sme ponovo.
+  creaFreeJobs: defineTable({
+    userId: v.id("users"),
+    kind: v.union(v.literal("redo"), v.literal("fair")),
+    jobId: v.id("generationJobs"),
+    originalJobId: v.optional(v.id("generationJobs")),
+    reason: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_userId_and_kind_and_createdAt", ["userId", "kind", "createdAt"])
+    .index("by_originalJobId", ["originalJobId"])
+    .index("by_jobId", ["jobId"]),
+
+  // Pomoćnik (K28, U12): plan od 1-4 koraka koji je korisnik POTVRDIO („da").
+  // Plan nastaje tek potvrdom - predlog pomoćnika se nigde ne čuva i ništa ne
+  // pokreće. Svaki korak ima gornju granicu cene koju je korisnik video.
+  creaAssistantPlans: defineTable({
+    userId: v.id("users"),
+    request: v.string(),
+    steps: v.array(
+      v.object({
+        kind: v.union(v.literal("image"), v.literal("video"), v.literal("audio")),
+        title: v.string(),
+        modelSlug: v.string(),
+        inputMode: v.string(),
+        params: v.string(),
+        maxCredits: v.number(),
+        fromStep: v.optional(v.number()),
+        jobId: v.optional(v.id("generationJobs")),
+      }),
+    ),
+    totalCredits: v.number(),
+    status: v.union(v.literal("running"), v.literal("done"), v.literal("stopped")),
+    error: v.optional(v.string()),
+    projectId: v.optional(v.id("studioProjects")),
+    createdAt: v.number(),
+  }).index("by_userId_and_createdAt", ["userId", "createdAt"]),
+
+  // Tabla (K28, U13): beskonačna tabla jednog korisnika - radovi iz galerije i
+  // beleške, sa položajem i širinom. Raspored je lični (`by_userId`).
+  creaBoardItems: defineTable({
+    userId: v.id("users"),
+    kind: v.union(v.literal("work"), v.literal("note")),
+    jobId: v.optional(v.id("generationJobs")),
+    text: v.optional(v.string()),
+    x: v.number(),
+    y: v.number(),
+    w: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_and_jobId", ["userId", "jobId"]),
 
   // „Moji stilovi" (K13, S8; K01 §7.4): sačuvan izbor stila, kamere i palete.
   // Deljenje (K27, G11): `isPublic` = vlasnik ga je podelio, a drugi ga vide tek kad

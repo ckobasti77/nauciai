@@ -6,6 +6,7 @@ import { ArrowLeft, ArrowUp, Coins, CreditCard, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 
+import { SpendLimitCard } from "@/components/crea/fair/spend-limit-card";
 import { Panel, SectionHeader, cn } from "@/components/ui/primitives";
 import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
@@ -267,6 +268,9 @@ export function CreditsPage({
           </p>
         ))}
       </Panel>
+
+      {/* Lični dnevni limit potrošnje (Crea K28, U7). */}
+      {isAuthenticated ? <SpendLimitCard locale={locale} /> : null}
 
       {/* Paketi kredita: jednokratna kupovina kroz /api/stripe/credits. */}
       <Panel id={PACKS_ANCHOR} className="p-6">

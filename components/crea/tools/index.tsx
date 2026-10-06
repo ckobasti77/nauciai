@@ -78,6 +78,9 @@ const ShortsTool = dynamic(() => import("./shorts-tool"), { ssr: false, loading:
 const RetroTool = dynamic(() => import("./retro-tool"), { ssr: false, loading: ToolLoading });
 const ExplainerTool = dynamic(() => import("./explainer-tool"), { ssr: false, loading: ToolLoading });
 const AdTool = dynamic(() => import("./ad-tool"), { ssr: false, loading: ToolLoading });
+// K28: pomoćnik (U12) i tabla (U13).
+const AssistantTool = dynamic(() => import("../assistant/assistant-tool"), { ssr: false, loading: ToolLoading });
+const BoardTool = dynamic(() => import("../board/board-tool"), { ssr: false, loading: ToolLoading });
 // K22: Zvuk · Govor i Glasovi - svaki alat svoj chunk.
 const SpeechTool = dynamic(() => import("../zvuk/speech-tool"), { ssr: false, loading: ToolLoading });
 const DialogueTool = dynamic(() => import("../zvuk/dialogue-tool"), { ssr: false, loading: ToolLoading });
@@ -182,4 +185,6 @@ export const CREA_TOOL_COMPONENTS: Readonly<Record<string, ComponentType<CreaToo
   "zvuk.transkript": TranscriptTool,
   "zvuk.ritam": RhythmTool,
   "zvuk.audiogram": AudiogramTool,
+  "slika.pomocnik": AssistantTool,
+  "slika.tabla": BoardTool,
 };

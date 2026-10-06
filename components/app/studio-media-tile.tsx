@@ -7,6 +7,7 @@ import { motion, useReducedMotion } from "motion/react";
 
 import { QuickActionsMenu, type QuickActionLink } from "@/components/crea/quick-actions-menu";
 import { CreaReveal } from "@/components/crea/reveal/crea-reveal";
+import { CancelJobButton } from "@/components/crea/fair/cancel-job-button";
 import { CreaWaitScreen } from "@/components/crea/wait/wait-screen";
 import { CreditIcon } from "@/components/studio/credit-icon";
 import { cn } from "@/components/ui/primitives";
@@ -39,6 +40,8 @@ export type StudioTileJob = {
   inputMode?: string;
   /** Omiljeno (K16): kad je rad označen; nema ga = nije omiljen. */
   favoriteAt?: number;
+  /** Otkazivanje uz povraćaj (K28): provajder posao još nije počeo. */
+  cancelable?: true;
 };
 
 export function StudioMediaTile({
@@ -183,6 +186,7 @@ export function StudioMediaTile({
               size={waitSize}
               animated={!crea.isReduced}
             />
+            {job.cancelable ? <CancelJobButton jobId={job._id} locale={locale} /> : null}
           </div>
         ) : null}
 

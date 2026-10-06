@@ -314,6 +314,12 @@ body {
   .link-button {
     display: inline-flex;
   }
+
+  /* Tabla Cree (K28, U13): dok se rad vuče sa table, composer pokazuje da ga prima kao referencu. */
+  body[data-crea-board-drag] [data-crea-drop="reference"] {
+    outline: 3px dashed var(--color-ink);
+    outline-offset: 4px;
+  }
 }
 
 /* Koreografija sklapanja sidebara (N8). Sve je u `@layer components` iz istog

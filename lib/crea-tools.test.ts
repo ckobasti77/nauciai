@@ -49,7 +49,8 @@ describe("registar alata", () => {
         expect(text.en.trim(), tool.id).not.toBe("");
       }
       expect(tool.featureIds.length, tool.id).toBeGreaterThan(0);
-      for (const feature of tool.featureIds) expect(feature).toMatch(/^[SVA]\d{1,2}$/);
+      // K28: pomoćnik (U12) i tabla (U13) su alati iz tabele UI/UX.
+      for (const feature of tool.featureIds) expect(feature).toMatch(/^[SVAU]\d{1,2}$/);
     }
   });
 
@@ -208,6 +209,9 @@ describe("registar alata", () => {
       "zvuk.transkript",
       "zvuk.ritam",
       "zvuk.audiogram",
+      // K28: pomoćnik (U12) i tabla (U13)
+      "slika.pomocnik",
+      "slika.tabla",
     ]);
     expect(toolById("slika.format")).toMatchObject({ tier: "local-code", featureIds: ["S27"], output: "image" });
     expect(toolById("slika.provera")).toMatchObject({

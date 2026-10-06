@@ -21,6 +21,7 @@ import { StudioModerationGrid } from "@/components/app/studio-moderation-grid";
 import { CreaCacheOffer } from "@/components/crea/crea-cache-offer";
 import { CreaComingSoon } from "@/components/crea/crea-coming-soon";
 import { useJobQueue } from "@/components/crea/create/use-job-queue";
+import { BOARD_DROP_ATTR, CreaBoard } from "@/components/crea/board/crea-board";
 import { CreaHistory, CreaHistoryEmpty } from "@/components/crea/crea-history";
 import { CreaStage } from "@/components/crea/crea-stage";
 import { CreaStartScreen } from "@/components/crea/crea-start-screen";
@@ -224,6 +225,11 @@ export function StudioPage({
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
   const state = useQuery(api.studio.getStudioState, isAuthenticated ? {} : "skip");
   const balance = useQuery(api.credits.getBalance, isAuthenticated ? {} : "skip");
+  // Pošteni krediti (K28): današnja potrošnja, lični limit i „neograničeno". Sat ide od otvaranja
+  // strane (upit ne čita sat), a broj potrošnje se osvežava sam sa svakim poslom.
+  const [fairClock] = useState(clickTime);
+  const [boardExpanded, setBoardExpanded] = useState(false);
+  const fairState = useQuery(api.creaFair.getFairState, isAuthenticated ? { now: fairClock } : "skip");
   const models = useQuery(api.studioModels.listModels, isAuthenticated ? {} : "skip");
   // Likovi i elementi (K14) za @pominjanje u opisu; samo uz pristup Crei.
   const myElements = useMyElements(isAuthenticated && state?.hasStudioAccess === true);
@@ -740,6 +746,7 @@ export function StudioPage({
         // Zasluga autoru (K27) ide samo uz prvi posao, ne uz varijacije iz reda.
         ...(remixRef ? { remixOfWorkId: remixRef._id } : {}),
         ...(payload.creaStyleId ? { creaStyleId: payload.creaStyleId } : {}),
+        ...(payload.fairUnlimited ? { fairUnlimited: true } : {}),
       });
       // Ostale varijacije (K13, S5) su zasebni poslovi, „varijacija" prvog; idu kroz red jer
       // javni korisnik ima najviše 2 posla u toku.
@@ -756,7 +763,8 @@ export function StudioPage({
       // za bačeni NEISPRAVAN_PROMPT:ZABRANJEN_POJAM (substring mapiranje u
       // `studioErrorMessage`), pa korisnik ne vidi razliku.
       if (result && typeof result === "object" && "moderationBlocked" in result) {
-        setError(`NEISPRAVAN_PROMPT:${result.moderationBlocked.reason}`);
+        // Kategorija ide uz kod: composer iz nje pokazuje razlog i predlog (K28, C7).
+        setError(`NEISPRAVAN_PROMPT:${result.moderationBlocked.reason}:${result.moderationBlocked.category}`);
       }
     } catch (thrown) {
       setError(thrown instanceof Error ? thrown.message : String(thrown));
@@ -1108,6 +1116,7 @@ export function StudioPage({
           variant="create"
           onGenerate={generate}
           freeTries={game.freeTries}
+          fairState={fairState ?? null}
           sharedLook={area === "slika" && modeDef.id === "napravi" ? sharedLook : null}
           placement={placement}
           initialInputMode={goalInputMode ?? inputModeForMode(activeModel, area, modeDef.id)}
@@ -1166,8 +1175,23 @@ export function StudioPage({
   const gridBottomPadding = showFloating ? (isComposerCollapsed ? 60 : floatingHeight + 28) : 0;
   const stageJob = loadedJobs.find((job) => job.kind === activeKind) ?? null;
 
+  // Tabla (K28, U13): rad sa table postaje referenca composera - isti put kao „Koristi kao
+  // referencu" (`?ulaz=`). Bez composera na ekranu (početak, alat) vodi u Slika · Napravi.
+  function handleBoardReference(jobId: Id<"generationJobs">) {
+    const query = new URLSearchParams(
+      hasComposer ? searchParams.toString() : creaShellQuery({ area: "slika", mode: "napravi", tool: null, recipe: null, goal: null }, searchParams),
+    );
+    query.delete("regenerate");
+    query.set(CREA_INPUT_PARAM, jobId);
+    setBoardExpanded(false);
+    router.push(`${pathname}?${query.toString()}`, { scroll: false });
+  }
+  const board = isAuthenticated ? (
+    <CreaBoard locale={locale} size="column" onUseAsReference={handleBoardReference} onExpand={() => setBoardExpanded(true)} />
+  ) : null;
+
   const history = (
-    <CreaHistory locale={locale} area={area} {...(isAuthenticated ? { libraryHref } : {})}>
+    <CreaHistory locale={locale} area={area} {...(isAuthenticated ? { libraryHref, board } : {})}>
       {!isAuthenticated ? (
         <CreaHistoryEmpty locale={locale} area={area} guest />
       ) : (
@@ -1389,7 +1413,8 @@ export function StudioPage({
                 panel={
                   composerPlacement === "docked" && modeDef && (hasComposer || isToolsMode) ? (
                     <CreaToolPanel locale={locale} mode={modeDef}>
-                      {isToolsMode ? toolList : composerContent("docked")}
+                      {/* Meta table (K28): kartica rada puštena ovde postaje referenca. */}
+                      {isToolsMode ? toolList : <div {...{ [BOARD_DROP_ATTR]: "reference" }}>{composerContent("docked")}</div>}
                     </CreaToolPanel>
                   ) : null
                 }
@@ -1412,8 +1437,25 @@ export function StudioPage({
               : { left: 0, width: "100%" }
           }
         >
-          <div className="pointer-events-auto w-full max-w-[720px]">
+          <div className="pointer-events-auto w-full max-w-[720px]" {...{ [BOARD_DROP_ATTR]: "reference" }}>
             {composerContent("floating")}
+          </div>
+        </div>
+      ) : null}
+
+      {/* Tabla preko celog ekrana (K28, U13) */}
+      {boardExpanded && isAuthenticated ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={locale === "sr" ? "Tabla" : "Board"}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-scrim/45 p-3 sm:p-6"
+          onKeyDown={(event) => {
+            if (event.key === "Escape") setBoardExpanded(false);
+          }}
+        >
+          <div className="w-full max-w-[1400px]">
+            <CreaBoard locale={locale} size="full" onUseAsReference={handleBoardReference} onClose={() => setBoardExpanded(false)} />
           </div>
         </div>
       ) : null}
