@@ -36,8 +36,9 @@ export default async function AuthCompletePage({
   // školskom profil-onboardingu - Studio ne traži username. Školska staza
   // (podrazumevani next=/app) ostaje netaknuta; username i dalje može da se
   // postavi kasnije, iz profila.
-  const goesToStudio =
-    next === withLocale(locale, "/studio") || next.startsWith(`${withLocale(locale, "/studio")}/`);
+  // Po kanonskoj putanji, da i stari link (`/studio/app`) i novi (`/crea/app`) vode u Creu (K29 S-03).
+  const nextPath = parsePath(next).canonicalPath;
+  const goesToStudio = nextPath === "/studio" || nextPath.startsWith("/studio/");
   // MCP ekran pristanka (MCP-P4-OAUTH) takođe ne traži username: klijent
   // (Claude Desktop) čeka kod, pa korisnik mora nazad na isti zahtev, ne u
   // onboarding.

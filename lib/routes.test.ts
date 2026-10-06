@@ -220,3 +220,27 @@ describe("alternatesFor", () => {
     expect(alternatesFor(origin, "/studio", "en").canonical).toBe("https://nauciai.com/en/crea");
   });
 });
+
+describe("javni folderi ne zaklanjaju rute (K30, nalaz K29-14)", () => {
+  it("nijedan folder u `public/` nema ime javnog segmenta rute", async () => {
+    // Na produkciji LiteSpeed služi `public/` kao doc root: folder `public/crea` bi
+    // pretvorio `/crea` u 301 na `/crea/` i listing umesto Next strane.
+    const { existsSync } = await import("node:fs");
+    for (const canonical of ["studio", "studio-terms", "courses", "community", "pricing", "privacy-policy", "mcp"]) {
+      for (const locale of ["sr", "en"] as const) {
+        const slug = publicSegment(canonical, locale);
+        expect(existsSync(`public/${slug}`), `public/${slug}`).toBe(false);
+      }
+    }
+  });
+});
+
+describe("povratak posle prijave u Creu (K30, K29 S-03)", () => {
+  it("stari i novi link vode na istu kanonsku putanju `/studio...`", () => {
+    for (const next of ["/studio/app?oblast=video", "/crea/app", "/en/crea", "/en/studio/app/m/abc"]) {
+      const { canonicalPath } = parsePath(next);
+      expect(canonicalPath === "/studio" || canonicalPath.startsWith("/studio/"), next).toBe(true);
+    }
+    expect(parsePath("/app/studio").canonicalPath.startsWith("/studio")).toBe(false);
+  });
+});

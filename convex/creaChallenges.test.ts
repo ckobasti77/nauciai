@@ -179,6 +179,10 @@ describe("Glasanje: zaštita", () => {
     const beginners = board.voting.groups.find((group) => group.group === "pocetnici")!;
     expect(beginners.entries.map((entry) => entry.votes)).toEqual([0, 0]);
     expect(beginners.myVote).toBe(workB);
+    // K29 S-08: ni galerija (rad po id-ju) ne otkriva broj glasova.
+    const shared = await voter.as.query(api.creaGallery.getPublicWork, { workId: workA });
+    expect(shared).not.toBeNull();
+    expect(shared).not.toHaveProperty("votes");
 
     // Dan posle glasanja: zatvoreno.
     vi.setSystemTime(D0_NOON + 48 * HOUR);

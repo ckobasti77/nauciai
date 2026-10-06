@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 
 import type { Doc, Id } from "./_generated/dataModel";
-import { mutation, query, type QueryCtx } from "./_generated/server";
+import { internalMutation, mutation, query, type QueryCtx } from "./_generated/server";
 import { CREA_ALBUM_STICKER_COUNT } from "../lib/crea-album";
 import { CREA_MINI_LESSONS, miniLessonById, quizPassed } from "../lib/crea-mini-lessons";
 import { buildReportCard, type ReportCard } from "../lib/crea-report-card";
@@ -13,10 +13,12 @@ import {
   creaProfileOf,
   creaRewardProblem,
   grantStickers,
+  onCreaWorkFinished,
   seesAllToolsByDefault,
   streakFor,
   upsertCreaProfile,
 } from "./creaGameCore";
+import { onCommunityWorkFinished } from "./creaCommunityCore";
 import { currentUserId, requireUserId } from "./helpers";
 import { levelForXp } from "./leaderboardReadCore";
 
@@ -57,6 +59,22 @@ async function allTimeXp(ctx: QueryCtx, userId: Id<"users">) {
 }
 
 /** Stanje igre za traku u radionici, svesku i otključavanje alata. Gost dobija `null`. */
+/**
+ * Kuke gotovog rada (K26 gejmifikacija + K27 zajednica). `studio.finalizeOutput`
+ * i `creaLocal.saveLocalResult` je zovu kao PODtransakciju (K30, nalaz K29-10):
+ * greška ovde vraća samo svoje upise, a isporuka rada ostaje.
+ */
+export const onWorkFinished = internalMutation({
+  args: { jobId: v.id("generationJobs") },
+  handler: async (ctx, args) => {
+    const job = await ctx.db.get("generationJobs", args.jobId);
+    if (!job) return null;
+    await onCreaWorkFinished(ctx, job);
+    await onCommunityWorkFinished(ctx, job);
+    return null;
+  },
+});
+
 export const myGame = query({
   args: { todayKey: todayKeyArg },
   handler: async (ctx, args) => {
@@ -88,7 +106,13 @@ export const myGame = query({
         chosen: profile?.unlockAll === true,
         lessons: lessons.map((row) => row.lessonId),
       },
-      freeTries: freeTries.filter((row) => row.remaining > 0).map((row) => ({ lessonId: row.lessonId, remaining: row.remaining })),
+      // Modeli i plafon probe idu sa servera, da radionica ne vuče ceo registar lekcija (K29-17).
+      freeTries: freeTries
+        .filter((row) => row.remaining > 0)
+        .flatMap((row) => {
+          const freeTry = miniLessonById(row.lessonId)?.freeTry;
+          return freeTry ? [{ lessonId: row.lessonId, remaining: row.remaining, models: [...freeTry.models], maxCredits: freeTry.maxCredits }] : [];
+        }),
       reportCardPublic: profile?.reportCardPublic === true,
       // Knjižica se traži po korisničkom imenu (profil, link za deljenje).
       username: user.username ?? null,

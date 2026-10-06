@@ -61,8 +61,8 @@ export function CreaLessonPlayer({
       const outcome = await complete({ lessonId: lesson.id, answers: answers as number[], via: viaTest ? "test" : "lekcija" });
       if (outcome.ok) setResult({ first: outcome.first, freeTry: outcome.freeTry });
       else setError(CREA_LESSON_COPY.failed[locale]);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+    } catch {
+      setError(CREA_LESSON_COPY.sendFailed[locale]);
     } finally {
       setSending(false);
     }

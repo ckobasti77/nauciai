@@ -27,6 +27,15 @@ function makeT() {
 }
 type TestConvex = ReturnType<typeof makeT>;
 
+/** Otisak koji klijent najavljuje uz dozvolu za lokalni rezultat (K29-01). */
+async function localDigest(t: TestConvex, storageId: Id<"_storage">) {
+  return t.run(async (ctx) => {
+    const meta = await ctx.db.system.get("_storage", storageId);
+    if (!meta) throw new Error("nema fajla");
+    return { sha256: meta.sha256, size: meta.size };
+  });
+}
+
 const BASE_URL = "https://ark.ap-southeast.bytepluses.com/api/v3";
 const LAYER_URLS = [1, 2, 3, 4].map((n) => `https://byteplus.example/sloj-${n}.png`);
 const JOB_COST = 7;
@@ -245,6 +254,26 @@ describe("slojevi (S20): više izlaza jednog razlaganja", () => {
     );
     expect(await asUser.query(api.creaLayers.getLayers, { jobId: plain })).toBeNull();
     await expect(t.query(api.creaLayers.getLayers, { jobId })).rejects.toThrow();
+
+    // K29-13: 120 starijih radova u istom stablu ne sakriva slojeve (traže se po roditelju).
+    await t.run(async (ctx) => {
+      for (let index = 0; index < 120; index += 1) {
+        await ctx.db.insert("generationJobs", {
+          userId,
+          modelSlug: "nano-banana-2",
+          kind: "image",
+          params: "{}",
+          promptHash: "0",
+          status: "done",
+          creditCost: 0,
+          rootJobId: jobId,
+          parentJobId: jobId,
+          derivation: "regeneracija",
+          createdAt: 1,
+        });
+      }
+    });
+    expect((await asUser.query(api.creaLayers.getLayers, { jobId }))!.layers).toHaveLength(4);
   });
 
   test("ponovljen upis istog sloja i ponovljen persistOutput ne prave duple radove", async () => {
@@ -361,8 +390,8 @@ describe("uglovi kamere (S19): mreža → 9 radova", () => {
     const cells = gridCells(4096, 4096);
     expect(cells).toHaveLength(9);
     for (const cell of cells) {
-      const { grantId } = await asUser.mutation(api.creaLocal.createLocalResultUploadUrl, { kind: "image" });
       const storageId = await storeJpeg(t);
+      const { grantId } = await asUser.mutation(api.creaLocal.createLocalResultUploadUrl, { kind: "image", ...(await localDigest(t, storageId)) });
       const result = await asUser.mutation(api.creaLocal.saveLocalResult, {
         grantId,
         storageId,
@@ -396,8 +425,8 @@ describe("uglovi kamere (S19): mreža → 9 radova", () => {
     const t = makeT();
     const { asUser } = await seedUser(t);
     for (const toolId of ["slika.svetlo", "slika.cetkica"]) {
-      const { grantId } = await asUser.mutation(api.creaLocal.createLocalResultUploadUrl, { kind: "image" });
       const storageId = await storeJpeg(t);
+      const { grantId } = await asUser.mutation(api.creaLocal.createLocalResultUploadUrl, { kind: "image", ...(await localDigest(t, storageId)) });
       const result = await asUser.mutation(api.creaLocal.saveLocalResult, { grantId, storageId, toolId, kind: "image" });
       expect(result, toolId).toEqual({ ok: false, reason: "NEPOZNAT_ALAT" });
     }

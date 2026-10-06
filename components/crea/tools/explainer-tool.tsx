@@ -36,6 +36,7 @@ import { CAPTION_STYLE_LABELS, CAPTION_STYLES, type CaptionScript, type CaptionS
 import { demoSpeechWav } from "@/lib/crea-talking";
 import type { CreaTimelineV1 } from "@/lib/crea-timeline";
 import { CREA_FLOWS_COPY as T } from "@/lib/crea-video-flows-copy";
+import { DEFAULT_VOICE, narrationEngine } from "@/lib/crea-voices";
 import { studioErrorMessage } from "@/lib/studio-messages";
 import { formatCredits } from "@/lib/studio-params";
 
@@ -78,17 +79,24 @@ export default function ExplainerTool({ tool, locale, caps, canSave, projectId, 
   const [assembled, setAssembled] = useState<Assembled | null>(null);
   const [edited, setEdited] = useState<{ base: CreaTimelineV1; next: CreaTimelineV1 } | null>(null);
 
-  const ttsChoice = paidModel(paid, EXPLAINER_MODELS.voice.slug, EXPLAINER_MODELS.voice.inputMode);
+  const narrationChars = plan ? narrationText(plan).length : 0;
+  // Gemini govor radi sa Google ključem; ElevenLabs je rezerva za dug tekst ili bez ključa (K29-20).
+  const engine = narrationEngine(narrationChars, (slug) => {
+    const choice = paidModel(paid, slug, EXPLAINER_MODELS.voice.inputMode);
+    return choice ? (choice.demo ? "demo" : "live") : null;
+  });
+  const ttsChoice = engine ? paidModel(paid, engine.modelSlug, EXPLAINER_MODELS.voice.inputMode) : null;
   const imageChoice = paidModel(paid, EXPLAINER_MODELS.image.slug, EXPLAINER_MODELS.image.inputMode);
   const voiceControl = ttsChoice?.model.paramSpec.find((control) => control.key === "voice");
   const voiceOptions = voiceControl?.type === "select" ? (voiceControl.options ?? []) : [];
-  const [voice, setVoice] = useState("Aria");
+  const [voicePick, setVoice] = useState<string | null>(null);
+  const voice = voicePick !== null && voiceOptions.some((option) => option.value === voicePick) ? voicePick : engine ? DEFAULT_VOICE[engine.id] : "";
+  const voiceSlug = engine?.modelSlug;
 
   const onQueueError = useCallback((message: string) => setError(studioErrorMessage(message, locale)), [locale]);
   const { enqueue, waiting } = useJobQueue(onQueueError);
 
-  const cost = plan && paid ? explainerCost(plan, { styleId, aspect, voice }, paid.catalog) : null;
-  const narrationChars = plan ? narrationText(plan).length : 0;
+  const cost = plan && paid ? explainerCost(plan, { styleId, aspect, voice, voiceSlug }, paid.catalog) : null;
 
   async function makePlan() {
     setPlanStatus({ name: "working" });
@@ -114,7 +122,7 @@ export default function ExplainerTool({ tool, locale, caps, canSave, projectId, 
     setAssembled(null);
     const frozen: Run = { plan: { title: plan.title, scenes: plan.scenes }, styleId, aspect, voiceJob: null, imageJobs: plan.scenes.map(() => null) };
     setRun(frozen);
-    const jobs = explainerJobs(frozen.plan, { styleId, aspect, voice });
+    const jobs = explainerJobs(frozen.plan, { styleId, aspect, voice, voiceSlug });
     const args = (job: (typeof jobs.images)[number]) => ({
       modelSlug: job.modelSlug,
       params: JSON.stringify(job.params),
@@ -194,10 +202,10 @@ export default function ExplainerTool({ tool, locale, caps, canSave, projectId, 
 
   const blocker = !canSave
     ? T.noAccess[locale]
-    : !ttsChoice || !imageChoice
-      ? T.sttUnavailable[locale]
-      : narrationChars > TEXT_MAX_LENGTH
-        ? T.expTooLong[locale]
+    : narrationChars > TEXT_MAX_LENGTH
+      ? T.expTooLong[locale]
+      : !ttsChoice || !imageChoice
+        ? T.modelUnavailable[locale]
         : making || waiting > 0
           ? T.working[locale]
           : null;

@@ -19,6 +19,63 @@ export const PROMPT_MAX_LENGTH = 2000;
  * opštijeg (`DNEVNI_LIMIT_TROSKA` pre `DNEVNI_LIMIT`).
  */
 const CREATE_JOB_ERROR_MESSAGES: Array<[string, { sr: string; en: string }]> = [
+  // K30 (revizija K29): lica samo kroz omotač, otisak uploada, granica dozvola.
+  [
+    "LICE_SAMO_KROZ_LIK",
+    {
+      sr: "Lice se u Crei pomera, ozvučava ili menja samo preko tvog Lika uz pristanak. Otvori alat „Lik koji govori\", „Odglumi\" ili „Zameni predmet ili lik\".",
+      en: "In Crea a face is moved, voiced or swapped only through your own Character with consent. Open \"A talking character\", \"Act it out\" or \"Swap an object or a person\".",
+    },
+  ],
+  [
+    "GLAS_TRAZI_PRISTANAK",
+    {
+      sr: "Sinhronizacija zadržava glas govornika, pa traži tvoj izgovoren pristanak. Otvori Zvuk · Glasovi → „Kloniraj svoj glas\", izgovori rečenicu pristanka, pa se vrati (važi 30 min).",
+      en: "Dubbing keeps the speaker's voice, so it needs your spoken consent. Open Sound · Voices → \"Clone your voice\", say the consent sentence, then come back (valid for 30 min).",
+    },
+  ],
+  [
+    "PREDMET_NIJE_DOSTUPAN",
+    {
+      sr: "Ovaj predmet nije dostupan za zamenu. Izaberi svoj sačuvan predmet ili mesto iz Likova.",
+      en: "This object is not available for swapping. Pick your own saved object or place from Characters.",
+    },
+  ],
+  [
+    "PREVISE_UPLOADA",
+    {
+      sr: "Previše slanja fajlova u kratkom roku. Sačekaj minut pa pokušaj ponovo.",
+      en: "Too many file uploads in a short time. Wait a minute and try again.",
+    },
+  ],
+  [
+    "NEISPRAVAN_OTISAK",
+    {
+      sr: "Fajl nije mogao da se pripremi za slanje. Izaberi ga ponovo.",
+      en: "The file could not be prepared for upload. Pick it again.",
+    },
+  ],
+  [
+    "PONAVLJANJE_NEDOSTUPNO",
+    {
+      sr: "Besplatno ponavljanje traži potvrđen email i jedan nalog po osobi.",
+      en: "A free redo needs a confirmed email and one account per person.",
+    },
+  ],
+  [
+    "NOCNI_RAD",
+    {
+      sr: "Rad iz noćne ture se ne ponavlja besplatno - pošalji ga ponovo u noćnu turu.",
+      en: "A night-batch piece is not redone for free - send it to the night batch again.",
+    },
+  ],
+  [
+    "PONAVLJANJE_ISKLJUCENO",
+    {
+      sr: "Besplatno ponavljanje trenutno nije uključeno. Ako je rad pokvaren, piši podršci.",
+      en: "Free redo is not switched on right now. If the piece is broken, write to support.",
+    },
+  ],
   // Pošteni krediti (Crea K28). Na vrhu jer sadrže kraće kodove (`DNEVNI_LIMIT`).
   [
     "LICNI_DNEVNI_LIMIT",
@@ -546,6 +603,11 @@ export function measureFailureMessage(reason: string, locale: Locale): string {
  * prvom. Sve ostalo (mreža, prekinut zahtev) deli opštu rečenicu.
  */
 export function uploadErrorMessage(raw: string, locale: Locale): string {
+  if (raw.includes("PREVISE_UPLOADA")) {
+    return locale === "sr"
+      ? "Previše slanja fajlova u kratkom roku. Sačekaj minut pa pokušaj ponovo."
+      : "Too many file uploads in a short time. Wait a minute and try again.";
+  }
   if (raw.includes("NEDOZVOLJEN_UPLOAD")) {
     return locale === "sr"
       ? "Dozvola za slanje ovog fajla je istekla. Okači ga ponovo."

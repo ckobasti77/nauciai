@@ -25,6 +25,7 @@ import { fillCopy } from "@/lib/crea-copy";
 import { demoSpeechWav, estimateSpeechSeconds } from "@/lib/crea-talking";
 import type { CreaTimelineV1, MediaRef, TimelineAspect } from "@/lib/crea-timeline";
 import { CREA_FLOWS_COPY as T } from "@/lib/crea-video-flows-copy";
+import { DEFAULT_VOICE, narrationEngine } from "@/lib/crea-voices";
 import { studioErrorMessage } from "@/lib/studio-messages";
 
 const FIELD =
@@ -61,15 +62,22 @@ export default function AdTool({ tool, locale, caps, canSave, projectId, source,
   const [assembled, setAssembled] = useState<Assembled | null>(null);
   const [edited, setEdited] = useState<{ base: CreaTimelineV1; next: CreaTimelineV1 } | null>(null);
 
-  const ttsChoice = paidModel(paid, AD_MODELS.voice.slug, AD_MODELS.voice.inputMode);
+  // Gemini govor radi sa Google ključem; ElevenLabs je rezerva (K29-20).
+  const engine = narrationEngine(script ? adNarration(script).length : 0, (slug) => {
+    const choice = paidModel(paid, slug, AD_MODELS.voice.inputMode);
+    return choice ? (choice.demo ? "demo" : "live") : null;
+  });
+  const ttsChoice = engine ? paidModel(paid, engine.modelSlug, AD_MODELS.voice.inputMode) : null;
   const animationChoice = paidModel(paid, AD_MODELS.animation.slug, AD_MODELS.animation.inputMode);
   const voiceControl = ttsChoice?.model.paramSpec.find((control) => control.key === "voice");
   const voiceOptions = voiceControl?.type === "select" ? (voiceControl.options ?? []) : [];
-  const [voice, setVoice] = useState("Aria");
+  const [voicePick, setVoice] = useState<string | null>(null);
+  const voice = voicePick !== null && voiceOptions.some((option) => option.value === voicePick) ? voicePick : engine ? DEFAULT_VOICE[engine.id] : "";
+  const voiceSlug = engine?.modelSlug;
   const onQueueError = useCallback((message: string) => setError(studioErrorMessage(message, locale)), [locale]);
   const { enqueue, waiting } = useJobQueue(onQueueError);
 
-  const cost = script && paid ? adCost(script, mode, voice, paid.catalog) : null;
+  const cost = script && paid ? adCost(script, mode, voice, paid.catalog, voiceSlug) : null;
   const choice = mode === "govor" ? ttsChoice : animationChoice;
 
   async function makeScript() {
@@ -97,7 +105,7 @@ export default function AdTool({ tool, locale, caps, canSave, projectId, source,
     setAssembled(null);
     const frozen: Run = { script, mode, aspect, product, jobId: null };
     setRun(frozen);
-    const job = adJobs(script, mode, voice)[0]!;
+    const job = adJobs(script, mode, voice, voiceSlug)[0]!;
     try {
       let inputs: Record<string, string[]> = {};
       if (mode === "animacija") {
@@ -179,7 +187,7 @@ export default function AdTool({ tool, locale, caps, canSave, projectId, source,
   const editShot = (index: number, patch: Partial<AdScript["shots"][number]>) =>
     setScript((current) => (current ? { ...current, shots: current.shots.map((shot, other) => (other === index ? { ...shot, ...patch } : shot)) } : current));
 
-  const blocker = !canSave ? T.noAccess[locale] : !image.picked ? T.adNeedPhoto[locale] : !choice ? T.sttUnavailable[locale] : making || waiting > 0 ? T.working[locale] : null;
+  const blocker = !canSave ? T.noAccess[locale] : !image.picked ? T.adNeedPhoto[locale] : !choice ? T.modelUnavailable[locale] : making || waiting > 0 ? T.working[locale] : null;
 
   return (
     <section aria-labelledby="crea-tool-title" className="surface-card border-2 border-ink bg-paper-strong p-4 shadow-[6px_6px_0_0_var(--shadow-hard)] sm:p-6">

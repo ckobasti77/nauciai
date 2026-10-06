@@ -1728,3 +1728,69 @@ U13: beskonačna tabla (`creaBoardItems`, po korisniku): radovi iz galerije, oka
 
 ## K29 - Nezavisna revizija   (2026-10-06 08:29)
 **Plan korak.** Plan je upisan u `docs/crea/planovi/K29.md`. Nije menjan kod.
+
+## K30 — Popravke i završni izveštaj   (2026-10-06 09:57)
+**Fajlovi:**
+- novi: `convex/creaMergeCore.ts`, `lib/crea-file-digest.ts`, `components/studio/studio-shell-links.tsx`, `public/licenses/THIRD-PARTY-NOTICES.txt`, `docs/CREA-REPORT.md`; testovi `convex/creaMerge.test.ts`, `lib/crea-file-digest.test.ts`, `lib/crea-local-ai/cache.test.ts`, `lib/crea-report-card-share.test.ts`, `app/robots.test.ts`.
+- premešteno: `public/crea/sfx` → `public/brand/crea/sfx`, `public/crea/stickers` → `public/brand/crea/stickers` (git mv).
+- izmenjeni (Convex): `schema.ts`, `studio.ts`, `studioCore.ts`, `studioActions.ts`, `creaLocal.ts`, `creaElements.ts`, `creaBrandKit.ts`, `creaFaceJobs.ts`, `creaFaceJobsCore.ts`, `creaFair.ts`, `creaFairCore.ts`, `creaFlags.ts`, `creaGame.ts`, `creaLayers.ts`, `creaLlm.ts`, `creaVoices.ts`, `creaNightActions.ts`, `creaNightCore.ts`, `creaCommunityCore.ts`, `creditsCore.ts`, `crons.ts`, `identityMerge.ts`, `_generated/api.d.ts`.
+- izmenjeni (Next/lib): `proxy.ts`, `app/robots.ts`, `app/[locale]/(marketing)/auth/complete/page.tsx`, `app/[locale]/studio/(shell)/{sveska,knjizica/[username]}/page.tsx`, `app/api/crea/knjizica/[username]/route.tsx`; `components/studio/{studio-composer,studio-shell,use-slot-upload}.tsx|ts`; `components/app/{studio-page,studio-media-tile,studio-media-grid}.tsx`; `components/crea/{use-save-local-result.ts, tools/{video-edit,explainer,ad,storyboard,logo,character,draw-motion}-tool.tsx, elements/{character-doll,element-editor}.tsx, game/{crea-game-context,crea-lesson-player}.tsx, zvuk/sfx-tool.tsx, zvuk/uredjivac/result-panel.tsx}`; `lib/{crea-ad,crea-explainer,crea-voices,crea-tools,crea-shell,crea-inspiration,crea-goals,crea-license-tags,crea-sfx-library,crea-stickers,crea-copy,crea-game-copy,crea-recipes-copy,crea-audio-tools-copy,crea-video-flows-copy,crea-video-tools-copy,legal-copy,security-headers,studio-messages,crea-report-card-share}.ts`; `lib/crea-local-ai/{cache,errors,models,runtime}.ts`; `scripts/check-crea-bundle.mjs`; `docs/studio-runbook.md`.
+- namerno ažurirani testovi: `convex/{creaLocal,creaElements,creaBrandKit,creaFaceJobs,creaFair,creaGame,creaLayers,creaVersions,creaRecipes,creaNight,creaLlm,creaChallenges,crons,studioCatalogJob}.test.ts`, `convex/providers/google.test.ts`, `lib/{crea-shell,crea-tools,crea-explainer,crea-voices,crea-sfx-library,crea-stickers,crea-seasons,legal-copy,routes,security-headers,studio-messages}.test.ts`, `lib/crea-local-ai/models.test.ts`.
+
+**Šta je urađeno:** Popravljeni su oba KRITIČNA nalaza revizije K29: dozvola za upload je sada vezana za sha256 i veličinu fajla (tuđ fajl ne može da se prisvoji ni obriše, brisanje ide samo za fajl iz takve dozvole, a dozvole imaju limit u bazi), a lice ide isključivo kroz sopstveni Lik (modeli lica traže serversku potvrdu `faceVerified`, V14 prima samo fiksne mete i sopstvene elemente, lokalni rad nikad nije izvor lica). Svih 19 VAŽNIH je popravljeno ili obrazloženo: besplatni AI pozivi traže uslove, kill switch i plafon troška; `dubbing` traži snimljen pristanak glasa; poravnanje ne dira neisporučen posao; noćna tura se ne zaglavljuje; C3 rezerva ne naplaćuje više; besplatno ponavljanje je iza novog flega `crea_free_redo`; kuke gejmifikacije ne mogu da obore isporuku; spajanje naloga prebacuje Crea podatke; cron isteka se sam nastavlja; nove indeksi za omiljene i slojeve; `public/crea` premešten; deljena knjižica radi i sa tačkom u imenu; obaveštenja o licencama; Crea deploy u runbook-u; objašnjenje i reklama na Gemini glasu; „Generiši" van skrola na telefonu; mete, kontrast i prevodi; provera otiska izvršnog koda sa CDN-a. Od SITNIH su urađeni S-01–S-08. Napisan je `docs/CREA-REPORT.md`.
+
+**Feature ID-jevi:**
+- V14 — gotovo, suženo: „Zameni predmet" prima samo metu sa fiksnog spiska i sopstvene elemente (predmet/mesto), bez slobodnog teksta i tuđih fotki (O5).
+- V13 — gotovo, bez referentnih slika u izmeni (O5).
+- V28, V31 — gotovo: glas je Gemini (Google ključ), ElevenLabs `tts` samo rezerva; V28 više ne traži `FAL_KEY`, V31 animacija i dalje traži fal.
+- A7 — uskoro (alat „Kloniraj svoj glas" je sada „uskoro"; nema provajdera, snimak pristanka se ne šalje uzalud).
+- U7/C7 besplatno ponavljanje — gotovo iza flega `crea_free_redo` (isključen).
+- Video · Pokret i Govor — režimi bez direktnih modela lica; vode u alate „Odglumi" i „Lik koji govori".
+- Ostali ID-jevi: stanje po ID-ju je u `docs/CREA-REPORT.md` §2.
+
+**ODLUKE:**
+- K29-01: veza dozvole i sadržaja je sha256 (base64, isto kao `_storage.sha256`) + veličina; limit dozvola 30/min i 300/h po korisniku (ulazne i lokalne dozvole zajedno), greška `PREVISE_UPLOADA`. MCP upload ostaje bez otiska: takav fajl ne može da postane element ni logo i nikad se ne briše kroz njih (brisanje prepušteno cronu). Mapa storage id-jeva u `community.getPostDetail` (odbrana u dubinu, tačka 4) nije menjana: prisvajanje i brisanje sada traže otisak.
+- K29-02: preostali rizik opšte izmene slike sa referencama (NB2/NB Pro `image_multi`) ostaje bez serverske detekcije lica (O2); pokriva ga filter opisa (dopunjen parafrazama „zameni lice", „stavi lice", „swap face"…). „replace the face" nije u filteru jer ga koristi serverski opis zamene predmeta.
+- K29-05: fal `dubbing` nema dokumentovano gašenje kloniranja → `createJob` za `dubbing` traži prolazan pristanak glasa (`creaVoiceConsents`, 30 min), greška `GLAS_TRAZI_PRISTANAK`.
+- K29-06: neisporučen posao dobija `settledAt` i razlog `nije_isporuceno`, bez reda u ledgeru; stvaran trošak se i dalje upisuje.
+- K29-07: rok + 6 h milosti za preuzimanje gotovog batch-a, zatim refund ostatka; status koji pada posle roka → otkaz + refund; obrisan ulaz → refund (`NIGHT_ERRORS.input`). Indeks `by_state_and_lastPolledAt` nije dodat: zaglavljen batch se sada sam zatvara, pa 20 najstarijih ne blokiraju zauvek.
+- K29-08: posao preko rezerve dobija `priceLocked: true`; poravnanje takvog posla samo vraća (`min(0, delta)`).
+- K29-09: novi fleg `crea_free_redo` (odsutan = isključen); noćni posao se ne nudi za ponavljanje (`NOCNI_RAD`); plafon 200 kr po NOVOJ ceni (`PRESKUPO_ZA_PONAVLJANJE`); važi i `creaRewardProblem` (farmovanje).
+- K29-10: kuke idu kao ugnežđena `runMutation` podtransakcija (`creaGame.onWorkFinished`), ne preko scheduler-a: greška kuke se vraća sama, isporuka ostaje, a redosled i idempotentnost su isti kao pre. Poseban test koji veštački obara kuku nije pisan (nema čistog šava); ponašanje pokrivaju postojeći testovi igre i zajednice. `persistOutput` briše fajl kad `finalizeOutput` baci.
+- K29-11: `creaLikes`, `creaChallengeVotes`, `creaLeagueMembers` se ne spajaju (nemaju indeks po korisniku za prebacivanje; istorija). Posle spajanja dva naloga sa aktivnim parom moguća su dva para - retko, ručno.
+- K29-13(a): `storageIdsUsedByOtherJobs` i dalje čita istoriju korisnika (`.collect()`); prava popravka je tabela referenci ulaza + migracija - ostavljeno za sledeći korak (nije mereno na velikom nalogu).
+- K29-14: folder je `public/brand/crea/{sfx,stickers}`; test u `lib/routes.test.ts` čuva da nijedan `public/<slug>` ne zaklanja javnu rutu.
+- K29-16: `THIRD-PARTY-NOTICES.txt` je izveden iz licenci u `node_modules` (pun tekst LGPL-3.0 i MPL-2.0); uslovi Cree dobili pasus sa putanjom - nije materijalna izmena, datum „Poslednja izmena" (deljen sa politikom privatnosti) nije pomeran.
+- K29-17: pečat je lenji chunk, modeli besplatne probe stižu sa servera (`myGame`), licenca zvukova je van biblioteke zvukova → radionica 482 → 465 KB gz, `/app/studio` 557 → 541. Cilj ~300 KB nije dostignut (traži da registri alata/inspiracije/recepata i detalj rada odu u async chunk-ove). Budžet u `check:bundle` = izmereno + 10 % (512/595/143/153). Sveska zadržava statički album - to je njen sadržaj.
+- K29-18: vizuelna provera na telefonu NIJE urađena: composer traži prijavu, Playwright sesija nije prijavljena, a `:3000` drži drugi projekat. Izmena je strukturna (dugme je `shrink-0` brat skrol reda).
+- K29-04: otisak (sha256) za 12 izvršnih fajlova sa CDN-a (MediaPipe WASM + loader, ORT WASM ×2, signalsmith, noise-suppressor ×5); MediaPipe loader sada ide kroz keš kao `blob:`. Tesseract worker/jezgro (tesseract.js ih sam vuče u svom Worker-u) i težine modela (podaci, zakucane revizije) nisu pod otiskom.
+- K29-20: motor naracije bira `narrationEngine` (Gemini pa ElevenLabs, uživo pre DEMO-a, po dužini teksta); pogrešna poruka „Prepoznavanje govora…" zamenjena sa `modelUnavailable` i u stripu.
+- SITNO: urađeni S-01 (sveska frame-DENY + `noindex`; test koji je tvrdio suprotno namerno izmenjen), S-02, S-03, S-04, S-05, S-06 (samo muzika → Lyria; TikTok/podkast/ozvuči nemaju Google zamenu), S-07, S-08. S-17 (Convex ograničava argumente, parametri prolaze `paramSpec`) i S-18 (opis je već prošao moderaciju na originalnom poslu) - svesno ostavljeni. S-09–S-16, S-19–S-28 nisu rađeni (spisak u `docs/CREA-REPORT.md` §7).
+
+**Novi paketi:** nema.
+
+**Testovi:**
+- `convex/creaLocal.test.ts` (K29-01): tuđ fajl uz moju dozvolu → greška, fajl ostaje; pogrešan otisak; red `studioUploads` za isti fajl; limit dozvola.
+- `convex/creaElements.test.ts`, `creaBrandKit` pomoćnici: element/logo samo iz fajla sa otiskom; tuđ fajl se ne briše.
+- `convex/creaFaceJobs.test.ts` (K29-02): `kling-avatar` preko `createJob` → `LICE_SAMO_KROZ_LIK`; preko `creaFaceJobs` prolazi; lokalni rad nije izvor lica; `startObjectSwap` samo sa sopstvenim predmetom.
+- `convex/studioCatalogJob.test.ts` (K29-05): `dubbing` bez pristanka → `GLAS_TRAZI_PRISTANAK`.
+- `convex/creaFair.test.ts`: K29-09 (fleg isključen → nema ponude ni ponavljanja; noćni posao; plafon po novoj ceni) i K29-06 (refundiran posao pa račun → nijedan nov `settlement` red, razlog `nije_isporuceno`).
+- `convex/providers/google.test.ts` (K29-08): rezerva → `priceLocked`, bez doplate.
+- `convex/creaNight.test.ts` (K29-07): provajder ćuti posle roka → refund; gotov batch bez rezultata posle roka + 6 h → refund; obrisan ulaz → refund.
+- `convex/creaLlm.test.ts` (K29-03): pauza, neprihvaćeni uslovi, dnevni plafon troška.
+- `convex/crons.test.ts` (K29-12): 250 isteklih stavki → sve obrađene.
+- `convex/creaLayers.test.ts` (K29-13c): stablo od 120 radova - slojevi vidljivi.
+- `convex/creaMerge.test.ts` (K29-11): elementi sa jedinstvenim `@`, album unija bez duple nagrade, stroži limit, noviji brend kit, stilovi.
+- `convex/creaChallenges.test.ts` (S-08): rad iz galerije ne nosi broj glasova.
+- `lib/crea-file-digest.test.ts`, `lib/crea-local-ai/cache.test.ts` (K29-04: izmenjen kod → `INTEGRITY`, otrovan keš se briše i preuzima ponovo), `lib/crea-local-ai/models.test.ts` (otisak = fajl u `node_modules`; svaki JS/WASM ima otisak).
+- `lib/crea-voices.test.ts`, `lib/crea-explainer.test.ts` (K29-20): Gemini podrazumevano, ElevenLabs po dužini/ključu, cene.
+- `lib/legal-copy.test.ts` (K29-16), `lib/routes.test.ts` (K29-14, S-03), `lib/security-headers.test.ts` (S-01), `lib/crea-report-card-share.test.ts` (S-05), `app/robots.test.ts` (S-04).
+
+**Rezultat provere:** codegen — prošao (`npx convex codegen`, DEV push); typecheck — prošao; lint — prošao (0 grešaka, 26 zatečenih upozorenja); test — prošao, 3101/3101 (286 fajlova); build — prošao; `check:frames`, `check:corners`, `check:bundle` (sa novim budžetom), `check:white` — prošli. Privremeni `next start -p 3123` ugašen; port 3000 drži drugi projekat (autodelovi), nije diran.
+
+**Za Jovana ujutru:**
+- Pročitaj `docs/CREA-REPORT.md` (stanje po ID-ju, cene, ručni koraci, ograničenja).
+- Deploy po `docs/studio-runbook.md` §G (redosled, flegovi, ključevi, `curl` provere posle deploy-a; zvuci su sada na `/brand/crea/sfx`).
+- Na telefonu (390 px, prijavljen) proveri da je „Generiši" ceo vidljiv u composeru sa svim čipovima (K29-18 nije vizuelno proveren).
+- `crea_free_redo` je nov fleg: besplatno ponavljanje je bilo živo bez flega pre K30, sada je isključeno dok ga ne upališ.
+- Smoke test pre puštanja: pomoćnik za opis, Gemini govor (objašnjenje/reklama sada idu preko njega), Lyria, jedna noćna tura, NB2 Lite.

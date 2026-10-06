@@ -12,10 +12,12 @@ import {
   type QueryCtx,
 } from "./_generated/server";
 import { requestHash } from "./creaCacheCore";
+import { needsVerifiedRefs } from "./creaFaceJobsCore";
+import { CONSENT_VALID_MS } from "../lib/crea-consent";
 import { capExtraOutputUrls } from "./creaLayersCore";
 import { inheritedSeed, seedFromUnit, seedParamOf } from "./creaDraftCore";
 import { CREA_FLAG_KEYS, readCreaFlag } from "./creaFlags";
-import { cancelRouteOf, exceedsPersonalLimit, FAIR_UNLIMITED, isUnpaidJob } from "./creaFairCore";
+import { cancelRouteOf, exceedsPersonalLimit, FAIR_UNLIMITED, FREE_REDO_LIMITS, isUnpaidJob } from "./creaFairCore";
 import { assertFairUnlimited, personalDailyLimit, releaseFreeJob } from "./creaFairDb";
 import {
   NIGHT_MAX_QUEUED_PER_USER,
@@ -28,8 +30,8 @@ import {
 import { isDefaultCreditFactor, priceCategoryOf, resolveCreditFactor } from "./creaPricingCore";
 import { resolveJobLineage } from "./creaVersions";
 import { creaDerivationValidator } from "./creaVersionsCore";
-import { claimFreeTry, onCreaWorkFinished, restoreFreeTry } from "./creaGameCore";
-import { onCommunityWorkFinished, resolveCommunityRefs, withdrawPublicWorkOfJob } from "./creaCommunityCore";
+import { claimFreeTry, restoreFreeTry } from "./creaGameCore";
+import { resolveCommunityRefs, withdrawPublicWorkOfJob } from "./creaCommunityCore";
 import { jobTechniques } from "../lib/crea-album";
 import { applyGrant, applySettlement, applySpend } from "./credits";
 import {
@@ -96,8 +98,10 @@ import {
   STUDIO_PUBLIC_FLAG_KEY,
   type StudioAccessDecision,
   type StudioPublicConfig,
-  UPLOAD_GRANT_CLOCK_SLACK_MS,
+  grantMatchesFile,
+  UPLOAD_GRANT_LIMITS,
   UPLOAD_GRANT_TTL_MS,
+  uploadDigestProblem,
 } from "./studioCore";
 import { searchTextForJob } from "../lib/crea-search-text";
 
@@ -627,6 +631,34 @@ async function requireStudioAccessForUser(ctx: MutationCtx | QueryCtx, userId: I
   return { ...actor, ...(await assertStudioAccess(ctx, actor)) };
 }
 
+/**
+ * Besplatni AI pozivi Cree (pomoćnik za opis, opis slike, plan stripa, prevod,
+ * provera izgovorenog pristanka, uzorci glasova): isti kill switch, uslovi Cree i
+ * dnevni plafon troška kao `createJobForUser` (K30, nalaz K29-03). Bez toga bi
+ * fotke, kadrovi i glas korisnika išli Google-u pre pristanka na uslove, i posle
+ * automatskog gašenja Cree. `requireTerms: false` je samo za deljene uzorke
+ * glasova iz biblioteke (fiksan tekst, bez korisnikovog sadržaja).
+ */
+export async function requireCreaAiCall(ctx: MutationCtx, options: { requireTerms: boolean } = { requireTerms: true }) {
+  const access = await requireStudioAccess(ctx);
+  const flag = await ctx.db
+    .query("platformFlags")
+    .withIndex("by_key", (q) => q.eq("key", STUDIO_FLAG_KEY))
+    .unique();
+  if (flag && !flag.enabled) throw new Error("STUDIO_PAUZIRAN");
+  if (options.requireTerms) {
+    const user = await ctx.db.get(access.userId as Id<"users">);
+    if (typeof user?.acceptedStudioTermsAt !== "number") throw new Error("USLOVI_NEPRIHVACENI");
+  }
+  const daily = await ctx.db
+    .query("studioUsageDaily")
+    .withIndex("by_user_day", (q) => q.eq("userId", access.userId as Id<"users">).eq("day", dayKey(Date.now())))
+    .unique();
+  // Jedan besplatan poziv košta ~$0,001-0,01; preko dnevnog plafona korisnika - ništa.
+  if (exceedsDailyCostLimit(daily?.costUsd ?? 0, 0.01)) throw new Error("DNEVNI_LIMIT_TROSKA");
+  return access;
+}
+
 async function assertStudioAccess(
   ctx: MutationCtx | QueryCtx,
   actor: { userId: Id<"users">; role: unknown; existing: Record<string, unknown> },
@@ -694,6 +726,12 @@ export type CreateJobArgs = ObjectType<typeof createJobArgs>;
 export type CreateJobOptions = {
   freeRedo?: { originalJobId: Id<"generationJobs">; reason: string };
   maxCreditCost?: number;
+  /**
+   * Lice i referentne slike je izabrao SERVER (`creaFaceJobs`: Lik sa
+   * pristankom, bezbedan rad, sopstveni predmet) - samo tada prolaze modeli lica
+   * i izmena videa referentnom slikom (O5, K30 nalaz K29-02).
+   */
+  faceVerified?: true;
 };
 
 /**
@@ -810,6 +848,25 @@ export async function createJobForUser(
       )
     : await buildLegacyOrder(ctx, args.modelSlug, params);
 
+  // O5 (K29-02): lice se pomera, ozvučava ili menja samo kroz `creaFaceJobs`,
+  // koji je proverio čije je. Opšti put (composer, MCP) ovo ne sme sam.
+  if (needsVerifiedRefs(args.modelSlug, parseJobInputs(args.inputs)) && options.faceVerified !== true) {
+    throw new Error("LICE_SAMO_KROZ_LIK");
+  }
+  // O5 za glas (K30, nalaz K29-05): `dubbing` zadržava glas govornika - to je
+  // kloniranje, a fal nema prekidač da ga isključi. Traži se svež izgovoren i
+  // proveren pristanak (isti tok kao „Kloniraj svoj glas", važi 30 min).
+  if (args.modelSlug === "dubbing") {
+    const now = Date.now();
+    const consents = await ctx.db
+      .query("creaVoiceConsents")
+      .withIndex("by_user_created", (q) => q.eq("userId", userId).gt("createdAt", now - 2 * CONSENT_VALID_MS))
+      .order("desc")
+      .take(20);
+    const fresh = consents.some((row) => row.status === "passed" && row.checkedAt !== undefined && now - row.checkedAt <= CONSENT_VALID_MS);
+    if (!fresh) throw new Error("GLAS_TRAZI_PRISTANAK");
+  }
+
   // Pogodak blok liste (F2.5): jedini upis ove transakcije je log red -
   // sve pre ovoga su čitanja, pa COMMIT ne ostavlja ni posao, ni potrošnju,
   // ni zakazano slanje. Vraća se vrednost umesto greške da log preživi
@@ -899,6 +956,9 @@ export async function createJobForUser(
     });
   }
   if (options.freeRedo && (night || args.freeTryLessonId !== undefined)) throw new Error("NEISPRAVNI_PARAMETRI");
+  // Plafon besplatnog ponavljanja važi i za NOVU cenu (K29-09): cena istog zahteva
+  // je mogla da poraste (npr. upaljene cene v2) od originala.
+  if (options.freeRedo && order.creditCost > FREE_REDO_LIMITS.maxCredits) throw new Error("PRESKUPO_ZA_PONAVLJANJE");
 
   // Besplatna proba (K26, G6): skida se ovde, u istoj transakciji - svaka kasnija
   // odbijenica (limit, dug, spor) poništava i skidanje probe. Plafon TROŠKA u dolarima
@@ -1070,6 +1130,7 @@ export async function createJobForUser(
     ...(freeTry ? { freeTryLessonId: args.freeTryLessonId } : {}),
     ...communityRefs,
     ...(options.freeRedo ? { freeRedoOfJobId: options.freeRedo.originalJobId } : {}),
+    ...(options.faceVerified ? { faceVerified: true as const } : {}),
     ...(fair ? { fairUnlimited: true as const } : {}),
     createdAt: now,
   });
@@ -1200,7 +1261,9 @@ export const markJobRunning = internalMutation({
       status: "running",
       falRequestId: args.providerRequestId,
       providerRequestId: args.providerRequestId,
-      ...(args.provider ? { provider: args.provider } : {}),
+      // Rezerva (C3) ne sme da podigne cenu sa dugmeta (K30, nalaz K29-08): poravnanje
+      // takvog posla samo vraća razliku, nikad ne naplaćuje više.
+      ...(args.provider ? { provider: args.provider, priceLocked: true as const } : {}),
     });
     return null;
   },
@@ -1311,6 +1374,14 @@ export const settleJobCredits = internalMutation({
   handler: async (ctx, args) => {
     const job = await ctx.db.get(args.jobId);
     if (!job || job.settledAt !== undefined) return null;
+    // Poravnava se samo ISPORUČEN posao (K30, nalaz K29-06). Oboren posao je već
+    // vraćen kroz `failJob`; zakasneo račun provajdera (otkaz koji je fal ipak
+    // završio, reaper) bi inače vratio kredite drugi put ili naplatio posle povraćaja.
+    if (job.status === "failed" || job.status === "refunded") {
+      await ctx.db.patch(args.jobId, { settledAt: Date.now(), settlementReason: "nije_isporuceno" });
+      return null;
+    }
+    if (job.status !== "done") return null;
 
     const model = await ctx.db
       .query("models")
@@ -1351,7 +1422,7 @@ export const settleJobCredits = internalMutation({
       : await applySettlement(ctx, {
           userId: job.userId,
           jobId: args.jobId,
-          credits: plan.creditDelta,
+          credits: job.priceLocked ? Math.min(0, plan.creditDelta) : plan.creditDelta,
         });
 
     await ctx.db.patch(args.jobId, {
@@ -1527,10 +1598,14 @@ export const finalizeOutput = internalMutation({
       }
     }
 
-    // Gejmifikacija (K26): niz dana, XP i sličice - isti put za plaćen i besplatan rad.
-    await onCreaWorkFinished(ctx, job);
-    // Zajednica (K27): liga nedelje, remiks i nagrada autoru.
-    await onCommunityWorkFinished(ctx, job);
+    // Gejmifikacija (K26: niz, XP, sličice) i zajednica (K27: liga, remiks, nagrada
+    // autoru) u PODtransakciji (K30, nalaz K29-10): njihova greška se vraća sama, a
+    // isporuka plaćenog rada ostaje upisana.
+    try {
+      await ctx.runMutation(internal.creaGame.onWorkFinished, { jobId: job._id });
+    } catch (error) {
+      console.error(`crea: kuke za rad ${job._id} nisu upisane`, error);
+    }
 
     return true;
   },
@@ -1577,6 +1652,9 @@ type ListMyJobsArgs = ObjectType<typeof listMyJobsArgs>;
 
 /** Galerija jednog korisnika - deljeno telo `listMyJobs` i `listMyJobsInternal` (MCP-P2-STUDIO). */
 async function listMyJobsForUser(ctx: QueryCtx, userId: Id<"users">, args: ListMyJobsArgs) {
+  // Samo omiljeni bez projekta idu kroz svoj indeks (K29-13), poređani po tome kad
+  // su označeni - filter nad celom istorijom bi kod velikih naloga pukao na limitu čitanja.
+  const favoritesOnly = args.favorite === true && args.projectId === undefined;
   let ordered =
     args.projectId !== undefined
       ? ctx.db
@@ -1585,10 +1663,15 @@ async function listMyJobsForUser(ctx: QueryCtx, userId: Id<"users">, args: ListM
             q.eq("userId", userId).eq("projectId", args.projectId),
           )
           .order("desc")
-      : ctx.db
-          .query("generationJobs")
-          .withIndex("by_user", (q) => q.eq("userId", userId))
-          .order("desc");
+      : favoritesOnly
+        ? ctx.db
+            .query("generationJobs")
+            .withIndex("by_user_favoriteAt", (q) => q.eq("userId", userId).gt("favoriteAt", 0))
+            .order("desc")
+        : ctx.db
+            .query("generationJobs")
+            .withIndex("by_user", (q) => q.eq("userId", userId))
+            .order("desc");
 
   if (args.kind !== undefined) {
     const kind = args.kind;
@@ -1602,7 +1685,7 @@ async function listMyJobsForUser(ctx: QueryCtx, userId: Id<"users">, args: ListM
     const createdAfter = args.createdAfter;
     ordered = ordered.filter((q) => q.gte(q.field("createdAt"), createdAfter));
   }
-  if (args.favorite === true) {
+  if (args.favorite === true && !favoritesOnly) {
     ordered = ordered.filter((q) => q.neq(q.field("favoriteAt"), undefined));
   }
   if (args.cost !== undefined) {
@@ -2225,31 +2308,61 @@ export async function deleteJobForUser(
  * sesije) i interne `createInputUploadUrlInternal` (identitet iz API ključa) -
  * gejt je deo tela, pa važi za oba puta.
  */
-async function createInputUploadUrlForUser(ctx: MutationCtx, userId: Id<"users">, slot: string) {
+/**
+ * Granica izdatih dozvola (K30, K29-01): dozvola je upload URL, a okačen fajl bez
+ * prijave niko ne briše. Broji se kroz indeks u istoj mutaciji koja izdaje novu.
+ */
+export async function assertUploadGrantRate(ctx: MutationCtx, userId: Id<"users">, now: number) {
+  const lastHour = await ctx.db
+    .query("studioUploadGrants")
+    .withIndex("by_userId_and_createdAt", (q) => q.eq("userId", userId).gt("createdAt", now - 60 * 60 * 1000))
+    .take(UPLOAD_GRANT_LIMITS.perHour);
+  if (lastHour.length >= UPLOAD_GRANT_LIMITS.perHour) throw new Error("PREVISE_UPLOADA");
+  const lastMinute = lastHour.filter((grant) => grant.createdAt > now - 60 * 1000).length;
+  if (lastMinute >= UPLOAD_GRANT_LIMITS.perMinute) throw new Error("PREVISE_UPLOADA");
+}
+
+async function createInputUploadUrlForUser(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  slot: string,
+  digest: { sha256?: string; size?: number } = {},
+) {
   // Gejt, ne samo prijava (studio-public F2.8, nalaz R1): svako izdavanje
   // pravog upload URL-a puni `_storage` - nalog kojem `createJob` ne bi dao
   // ništa nema šta ni da kači.
   await requireStudioAccessForUser(ctx, userId);
+  const digestProblem = uploadDigestProblem(digest);
+  if (digestProblem) throw new Error(digestProblem);
 
   const now = Date.now();
+  await assertUploadGrantRate(ctx, userId, now);
   const grantId = await ctx.db.insert("studioUploadGrants", {
     userId,
     slot,
     createdAt: now,
     expiresAt: now + UPLOAD_GRANT_TTL_MS,
+    ...(digest.sha256 !== undefined ? { sha256: digest.sha256, size: digest.size } : {}),
   });
 
   return { uploadUrl: await ctx.storage.generateUploadUrl(), grantId };
 }
 
+/**
+ * Web klijent najavljuje sadržaj (`sha256` + `size`, K29-01): samo tako okačen
+ * fajl postaje `contentBound` i sme u element ili brend kit. Bez otiska ostaje
+ * stari put (vremenska veza iz X5) - fajl i dalje sme kao ulaz posla.
+ */
 export const createInputUploadUrl = mutation({
-  args: { slot: v.string() },
-  handler: async (ctx, args) => createInputUploadUrlForUser(ctx, await requireUserId(ctx), args.slot),
+  args: { slot: v.string(), sha256: v.optional(v.string()), size: v.optional(v.number()) },
+  handler: async (ctx, args) =>
+    createInputUploadUrlForUser(ctx, await requireUserId(ctx), args.slot, { sha256: args.sha256, size: args.size }),
 });
 
 export const createInputUploadUrlInternal = internalMutation({
-  args: { userId: v.id("users"), slot: v.string() },
-  handler: async (ctx, args) => createInputUploadUrlForUser(ctx, args.userId, args.slot),
+  args: { userId: v.id("users"), slot: v.string(), sha256: v.optional(v.string()), size: v.optional(v.number()) },
+  handler: async (ctx, args) =>
+    createInputUploadUrlForUser(ctx, args.userId, args.slot, { sha256: args.sha256, size: args.size }),
 });
 
 /**
@@ -2324,9 +2437,9 @@ async function registerInputUploadForUser(
   }
   // Dozvola ne zna svoj `storageId` - Convex ga ne daje pre uploada - pa se
   // veza pravi preko vremena: fajl koji je postojao pre nego što je dozvola
-  // izdata nije nastao iz nje. Bez ovoga bi jedna sveže izdata dozvola i
-  // dalje mogla da prisvoji bilo koji zatečen `_storage` ID.
-  if (meta._creationTime < grant.createdAt - UPLOAD_GRANT_CLOCK_SLACK_MS) {
+  // izdata nije nastao iz nje. Dozvola sa najavljenim otiskom (K29-01) traži i
+  // isti sadržaj, pa ne može da prisvoji ni tuđ fajl okačen posle nje.
+  if (!grantMatchesFile(grant, meta)) {
     throw new Error("NEDOZVOLJEN_UPLOAD");
   }
   // MCP alat slot navodi i pri prijavi (redundantno, ali hvata zamenjene
@@ -2358,6 +2471,7 @@ async function registerInputUploadForUser(
     slot: grant.slot,
     bytes: meta.size,
     ...(meta.contentType ? { mimeType: meta.contentType } : {}),
+    ...(grant.sha256 !== undefined ? { contentBound: true as const } : {}),
     createdAt: now,
     expiresAt: now + INPUT_UPLOAD_TTL_MS,
   });

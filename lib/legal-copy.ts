@@ -64,6 +64,9 @@ const SUPPORT_EMAIL = LEGAL_PLACEHOLDERS[5];
 const PRIVACY_EMAIL = LEGAL_PLACEHOLDERS[6];
 const JURISDICTION = LEGAL_PLACEHOLDERS[7];
 
+/** Obaveštenja o licencama biblioteka koje Crea pokreće na uređaju (K29-16). */
+export const THIRD_PARTY_NOTICES_PATH = "/licenses/THIRD-PARTY-NOTICES.txt";
+
 const UPDATED: LocalizedText = {
   sr: "Poslednja izmena: 21. avgust 2026.",
   en: "Last updated: 21 August 2026.",
@@ -171,6 +174,10 @@ export const STUDIO_TERMS: LegalDocument = {
         {
           sr: "Imena i znakovi modela i njihovih proizvođača pripadaju svojim vlasnicima i u Crei se prikazuju isključivo radi prepoznavanja modela; to ne znači nikakvu podrazumevanu povezanost, sponzorstvo ni partnerstvo sa tim proizvođačima.",
           en: "The names and marks of the models and their makers belong to their respective owners and are shown in Crea solely to identify the models; this implies no affiliation, sponsorship or partnership with those makers.",
+        },
+        {
+          sr: `Alati Cree koji rade na tvom uređaju koriste biblioteke i modele otvorenog koda pod njihovim licencama, među njima LGPL (heic-to, LAME) i MPL (Mediabunny). Spisak sa verzijama, licencama i izvorima je na adresi ${THIRD_PARTY_NOTICES_PATH}.`,
+          en: `Crea tools that run on your device use open-source libraries and models under their own licences, including LGPL (heic-to, LAME) and MPL (Mediabunny). The list with versions, licences and sources is at ${THIRD_PARTY_NOTICES_PATH}.`,
         },
         {
           sr: "Prompt prolazi kroz automatsku proveru pre slanja i može da bude odbijen. Ta provera je gruba prva linija, a ne dozvola: odbijen prompt sigurno nije prošao, ali prihvaćen prompt ne znači da je sadržaj dozvoljen.",

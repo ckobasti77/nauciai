@@ -86,7 +86,7 @@ export function CharacterDoll({ choice, className }: { choice: CharacterChoice; 
       <path d="M52 76 Q60 82 68 76" fill="none" {...stroke} strokeWidth={2.5} />
       {choice.dodatak === "kapa" ? <path d="M34 46 Q36 22 60 22 Q84 22 86 46 Z M84 44 L100 46" fill="#d9493a" {...stroke} /> : null}
       {choice.dodatak === "sal" ? <path d="M42 100 Q60 112 78 100 L80 108 Q60 120 40 108 Z" fill="#f4be30" {...stroke} /> : null}
-      {choice.dodatak === "slusalice" ? <path d="M40 98 Q60 112 80 98" fill="none" stroke="#2f3a4a" strokeWidth={6} strokeLinecap="round" /> : null}
+      {choice.dodatak === "slusalice" ? <path d="M40 98 Q60 112 80 98" fill="none" stroke="currentColor" strokeWidth={6} strokeLinecap="round" /> : null}
     </svg>
   );
 }

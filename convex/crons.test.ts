@@ -339,6 +339,23 @@ test("istekao fajl se briše iz storage-a, red i metapodaci ostaju", async () =>
   expect(JSON.parse(job?.params ?? "{}")).toEqual({ prompt: "lisica u snegu" });
 });
 
+test("K29-12: pun paket zakazuje nastavak; obrađen rad izlazi iz opsega isteka", async () => {
+  const t = convexTest(schema, modules);
+  for (let index = 0; index < 101; index += 1) await seedJobWithFile(t, { expiresAt: Date.now() - DAY });
+
+  const first = await t.mutation(internal.crons.expireGenerationFiles, {});
+  expect(first.cleared).toBe(100);
+  const scheduled = await t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect());
+  expect(scheduled.some((row) => row.name.includes("expireGenerationFiles"))).toBe(true);
+
+  const second = await t.mutation(internal.crons.expireGenerationFiles, {});
+  expect(second.cleared).toBe(1);
+  const left = await t.run((ctx) =>
+    ctx.db.query("generationJobs").withIndex("by_expiry", (q) => q.gt("expiresAt", 0)).collect(),
+  );
+  expect(left).toEqual([]);
+});
+
 test("fajl kojem rok tek ističe se ne dira, a drugi prolaz nema šta da briše", async () => {
   const t = convexTest(schema, modules);
   const future = await seedJobWithFile(t, { expiresAt: Date.now() + DAY });

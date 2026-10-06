@@ -117,7 +117,7 @@ export default function CharacterTool({ tool, locale, canSave, projectId, paid }
                   ))}
                 </ul>
                 <details className="text-xs font-bold text-muted">
-                  <summary className="cursor-pointer select-none py-1 text-ink">{T.preview[locale]}</summary>
+                  <summary className="cursor-pointer select-none py-1 text-ink pointer-coarse:py-3">{T.preview[locale]}</summary>
                   <p className="mt-1 break-words font-semibold">{characterSheetPrompt(choice)}</p>
                 </details>
               </aside>

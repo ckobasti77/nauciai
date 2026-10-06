@@ -2,8 +2,8 @@ import type { LocalizedText } from "./i18n";
 
 /**
  * Nalepnice za editor i šablone (S28/S29, K10). Fajlovi su u
- * `public/crea/stickers/` - Microsoft Fluent Emoji, stil „Flat", MIT licenca
- * (`public/crea/stickers/LICENSE`, izvor i commit u `IZVOR.md`). Hostujemo ih
+ * `public/brand/crea/stickers/` - Microsoft Fluent Emoji, stil „Flat", MIT licenca
+ * (`public/brand/crea/stickers/LICENSE`, izvor i commit u `IZVOR.md`). Hostujemo ih
  * kod nas, pa platno ostaje „čisto" (isti origin) i izvoz radi.
  */
 
@@ -117,5 +117,5 @@ export function stickerPickerGroups(season: { label: LocalizedText; stickers: re
 }
 
 export function stickerUrl(id: string): string {
-  return `/crea/stickers/${id}.svg`;
+  return `/brand/crea/stickers/${id}.svg`;
 }

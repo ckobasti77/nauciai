@@ -168,7 +168,8 @@ export const CREA_GOALS: readonly CreaGoal[] = [
       sr: "Vedra akustična gitara za letnji video sa putovanja, lagan ritam, bez vokala.",
       en: "Bright acoustic guitar for a summer travel video, easy rhythm, no vocals.",
     },
-    modelSlug: "music",
+    // Lyria (Google ključ, radi i bez fal-a), a ne ElevenLabs `music` (K29 S-06).
+    modelSlug: "lyria-3-clip",
   },
   {
     id: "srpski-glas",

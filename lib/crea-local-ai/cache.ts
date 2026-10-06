@@ -1,5 +1,6 @@
+import { fileDigest } from "../crea-file-digest";
 import { CreaLocalAiError, toLocalAiError } from "./errors";
-import { CREA_LOCAL_RUNTIMES, modelFileUrls, modelRuntime, type CreaLocalModelId, type CreaRuntimeOptions } from "./models";
+import { CDN_CODE_SHA256, CREA_LOCAL_RUNTIMES, modelFileUrls, modelRuntime, type CreaLocalModelId, type CreaRuntimeOptions } from "./models";
 import type { FileProgress } from "./progress";
 
 /**
@@ -9,6 +10,9 @@ import type { FileProgress } from "./progress";
  *
  * Bez Cache Storage-a (stari browser, privatni režim u nekim browserima) sve
  * radi isto, samo se preuzima svaki put.
+ *
+ * Izvršni kod sa CDN-a (JS/WASM iz `CDN_CODE_SHA256`) se proverava po otisku i pre
+ * upisa u keš i pri svakom pogotku keša (K30, nalaz K29-04).
  */
 const CACHE_NAME = "crea-models-v1";
 
@@ -25,12 +29,18 @@ export async function fetchModelFile(
   options: { signal?: AbortSignal; expectedBytes?: number; onProgress?: (progress: FileProgress) => void } = {},
 ): Promise<Blob> {
   const { signal, expectedBytes, onProgress } = options;
+  const integrity = CDN_CODE_SHA256[url];
+  const matches = async (blob: Blob) => integrity === undefined || (await fileDigest(blob)).sha256 === integrity;
   const cache = await openCache();
   const hit = cache ? await cache.match(url).catch(() => undefined) : undefined;
   if (hit) {
     const blob = await hit.blob();
-    onProgress?.({ loaded: blob.size, total: blob.size });
-    return blob;
+    if (await matches(blob)) {
+      onProgress?.({ loaded: blob.size, total: blob.size });
+      return blob;
+    }
+    // Izmenjen unos u kešu se briše i fajl se preuzima ponovo.
+    await cache?.delete(url).catch(() => undefined);
   }
 
   let response: Response;
@@ -66,6 +76,7 @@ export async function fetchModelFile(
 
   const type = response.headers.get("content-type") ?? "application/octet-stream";
   const blob = new Blob(chunks, { type });
+  if (!(await matches(blob))) throw new CreaLocalAiError("INTEGRITY");
   if (cache) {
     // Pun disk nije razlog da alat ne radi: rezultat se koristi, samo se ne pamti.
     await cache

@@ -187,7 +187,7 @@ export const CREA_INSPIRATIONS: readonly CreaInspiration[] = [
   },
   {
     id: "ples-lik",
-    target: "video:pokret",
+    target: "video.odglumi",
     title: L("Tvoj Lik ponavlja tvoj ples", "Your Character repeats your dance"),
     steps: [
       L("Snimi sebe kako plešeš 5-10 sekundi, ceo u kadru.", "Film yourself dancing for 5-10 seconds, fully in frame."),
@@ -197,11 +197,11 @@ export const CREA_INSPIRATIONS: readonly CreaInspiration[] = [
   },
   {
     id: "lik-vesti",
-    target: "video:govor",
+    target: "video.lik-govori",
     title: L("Lik čita kratku vest", "A Character reads a short news item"),
     steps: [
       L("Napravi glas u Zvuk · Govor ili okači svoj snimak.", "Make the voice in Sound · Speech or upload your own recording."),
-      L("Izaberi fotku lika - lice spreda, dobro osvetljeno.", "Pick the character photo - face from the front, well lit."),
+      L("Izaberi svog Lika (sa pristankom) - lice spreda, dobro osvetljeno.", "Pick your Character (with consent) - face from the front, well lit."),
       L("Usne prate zvuk; kratke rečenice izgledaju najprirodnije.", "The lips follow the sound; short sentences look the most natural."),
     ],
   },
@@ -455,7 +455,6 @@ export const CREA_INSPIRATIONS: readonly CreaInspiration[] = [
   },
   { id: "glasovi-topao", target: "zvuk.glasovi", title: L("Topao muški glas za reklamu", "A warm male voice for an ad"), steps: [L("Filtriraj po polu, godinama i tonu.", "Filter by gender, age and tone."), L("Preslušaj besplatno.", "Listen for free."), L("Sačuvaj omiljene.", "Save your favourites.")] },
   { id: "dizajn-glas-narator", target: "zvuk.dizajn", title: L("Glas starog pripovedača", "The voice of an old storyteller"), steps: [L("Opiši glas: „dubok, spor, topao, malo promukao\".", "Describe the voice: \"deep, slow, warm, a little hoarse\"."), L("Crea predloži 3 glasa.", "Crea suggests 3 voices."), L("Sačuvaj onaj koji ti se dopadne.", "Save the one you like.")] },
-  { id: "kloniraj-svoj", target: "zvuk.kloniraj", title: L("Tvoj glas za tvoje snimke", "Your voice for your recordings"), steps: [L("Snimi se uz merač i proveru buke.", "Record yourself with the meter and noise check."), L("Izgovori rečenicu pristanka.", "Say the consent sentence."), L("Samo tvoj glas - Crea to proveri.", "Only your voice - Crea checks it.")] },
   { id: "promena-intervju", target: "zvuk.promena", title: L("Anoniman glas u intervjuu", "An anonymous voice in an interview"), steps: [L("Okači snimak intervjua.", "Upload the interview recording."), L("Sagovorniku daj drugi glas.", "Give the interviewee a different voice."), L("Tvoj glas i muzika ostaju.", "Your voice and the music stay.")] },
   { id: "prevod-recept", target: "zvuk.prevod", title: L("Video recept na nemačkom", "A recipe video in German"), steps: [L("Okači video.", "Upload the video."), L("Ispravi tekst i prevod pre izgovora.", "Fix the text and translation before voicing."), L("Po želji usne i titlovi (SRT besplatno).", "Optionally lips and subtitles (SRT free).")] },
   { id: "muzika-pesma", target: "zvuk.muzika", title: L("Pesma za rođendan sa refrenom", "A birthday song with a chorus"), steps: [L("Dodaj delove: uvod, strofa, refren.", "Add parts: intro, verse, chorus."), L("Svakom delu upiši tekst.", "Write the lyrics for each part."), L("Cena za celu pesmu piše na dugmetu.", "The price for the whole song is on the button.")] },

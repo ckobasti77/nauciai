@@ -45,20 +45,28 @@ describe("objašnjavajući video (V28)", () => {
     expect(jobs.images[0]!.params.aspect_ratio).toBe("16:9");
     expect(jobs.voice.params.text).toBe(narrationText(plan));
     expect(jobs.voice.measured.char_count).toBe(narrationText(plan).length);
+    // K29-20: podrazumevani glas je Gemini (Google ključ), ElevenLabs samo kad ga alat izabere.
+    expect(jobs.voice.modelSlug).toBe("gemini-tts");
+    expect(explainerJobs(plan, { styleId: "tabla", aspect: "16:9", voice: "Aria", voiceSlug: "tts" }).voice.modelSlug).toBe("tts");
   });
 
   test("cena unapred = slike + glas po znaku, kao server; cena po minutu u cilju 20-50 kr za minut", () => {
-    const cost = explainerCost(plan, { styleId: "glina", aspect: "16:9", voice: "Aria" }, STUDIO_MODELS);
+    const cost = explainerCost(plan, { styleId: "glina", aspect: "16:9", voice: "Sulafat" }, STUDIO_MODELS);
     const image = computeCredits(model("nano-banana-2-lite").priceRule, {}, "text");
-    const voice = computeCredits(model("tts").priceRule, { char_count: narrationText(plan).length }, "text");
+    const voice = computeCredits(model("gemini-tts").priceRule, { char_count: narrationText(plan).length }, "text");
     expect(cost).toMatchObject({ images: 3 * image, voice, total: 3 * image + voice });
+    const eleven = computeCredits(model("tts").priceRule, { char_count: narrationText(plan).length }, "text");
+    expect(explainerCost(plan, { styleId: "glina", aspect: "16:9", voice: "Aria", voiceSlug: "tts" }, STUDIO_MODELS)).toMatchObject({ voice: eleven, total: 3 * image + eleven });
     // Minut naracije (~840 znakova) sa 3 scene, kako ih plan pravi za 60 s (`explainerSceneCount`).
     const minute = { scenes: Array.from({ length: explainerSceneCount(60) }, () => ({ narration: "x".repeat(279), visual: "y", seconds: 20 })) };
-    const perMinute = explainerCost(minute, { styleId: "tabla", aspect: "16:9", voice: "Aria" }, STUDIO_MODELS);
+    const perMinute = explainerCost(minute, { styleId: "tabla", aspect: "16:9", voice: "Aria", voiceSlug: "tts" }, STUDIO_MODELS);
     expect(perMinute.seconds).toBe(60);
     expect(perMinute.perMinute).toBeGreaterThanOrEqual(20);
     expect(perMinute.perMinute).toBeLessThanOrEqual(50);
-    expect(explainerCost(plan, { styleId: "tabla", aspect: "16:9", voice: "Aria" }, STUDIO_MODELS.filter((entry) => entry.slug !== "tts")).total).toBeNull();
+    // Sa Gemini glasom je minut jeftiniji od rezerve (K29-20).
+    const geminiMinute = explainerCost(minute, { styleId: "tabla", aspect: "16:9", voice: "Sulafat" }, STUDIO_MODELS);
+    expect(geminiMinute.perMinute).toBeLessThan(perMinute.perMinute!);
+    expect(explainerCost(plan, { styleId: "tabla", aspect: "16:9", voice: "Aria" }, STUDIO_MODELS.filter((entry) => entry.slug !== "gemini-tts")).total).toBeNull();
   });
 
   test("montaža: slike prate naratora, titlovi su reči naracije, glas ceo video, „list sveske”", () => {
@@ -99,15 +107,17 @@ const script: AdScript = {
 
 describe("reklama (V31)", () => {
   test("govorni oglas: jedan glas; animacija: Hailuo iz slike po receptu, bez ljudi i teksta", () => {
-    expect(adJobs(script, "govor", "Aria")).toEqual([
-      { modelSlug: "tts", inputMode: "text", params: { text: adNarration(script), voice: "Aria" }, measured: { char_count: adNarration(script).length } },
+    expect(adJobs(script, "govor", "Sulafat")).toEqual([
+      { modelSlug: "gemini-tts", inputMode: "text", params: { text: adNarration(script), voice: "Sulafat" }, measured: { char_count: adNarration(script).length } },
     ]);
+    expect(adJobs(script, "govor", "Aria", "tts")[0]).toMatchObject({ modelSlug: "tts", params: { voice: "Aria" } });
     const animation = adJobs(script, "animacija", "Aria")[0]!;
     expect(animation).toMatchObject({ modelSlug: "hailuo-23-fast", inputMode: "image", params: { resolution: "768p", duration: "6" } });
     expect(animation.params.prompt).toContain("steam rising");
     expect(animation.params.prompt).toContain("no people");
     expect(adCost(script, "animacija", "Aria", STUDIO_MODELS)).toBe(computeCredits(model("hailuo-23-fast").priceRule, { resolution: "768p", duration: "6" }, "image"));
-    expect(adCost(script, "govor", "Aria", STUDIO_MODELS)).toBe(computeCredits(model("tts").priceRule, { char_count: adNarration(script).length }, "text"));
+    expect(adCost(script, "govor", "Sulafat", STUDIO_MODELS)).toBe(computeCredits(model("gemini-tts").priceRule, { char_count: adNarration(script).length }, "text"));
+    expect(adCost(script, "govor", "Aria", STUDIO_MODELS, "tts")).toBe(computeCredits(model("tts").priceRule, { char_count: adNarration(script).length }, "text"));
   });
 
   test("govorni oglas → montaža: kadrovi proizvoda, natpisi u bojama kita, poziv na akciju, logo, glas", () => {

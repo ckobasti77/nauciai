@@ -164,6 +164,7 @@ export const CREA_LESSON_COPY = {
   close: { sr: "Zatvori lekciju", en: "Close the lesson" },
   why: { sr: "Zašto", en: "Why" },
   failed: { sr: "Bar jedan odgovor nije tačan. Pogledaj označena pitanja.", en: "At least one answer is wrong. Look at the marked questions." },
+  sendFailed: { sr: "Odgovori nisu poslati. Pokušaj ponovo za koji trenutak.", en: "The answers weren't sent. Try again in a moment." },
 } satisfies Record<string, LocalizedText>;
 
 export const CREA_LOCKED_COPY = {

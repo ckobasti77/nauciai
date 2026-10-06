@@ -29,9 +29,12 @@ export const AD_MODE_INFO: Record<AdMode, { label: LocalizedText; hint: Localize
   },
 };
 
-/** Modeli: srpski glas (`tts`) i najjeftiniji model koji oživljava sliku (pravilo `animate`, `lib/crea-auto.ts`). */
+/**
+ * Modeli: srpski glas (Gemini govor; rezerva ElevenLabs `tts` kroz `narrationEngine`)
+ * i najjeftiniji model koji oživljava sliku (pravilo `animate`, `lib/crea-auto.ts`).
+ */
 export const AD_MODELS = {
-  voice: { slug: "tts", inputMode: "text" },
+  voice: { slug: "gemini-tts", inputMode: "text" },
   animation: { slug: "hailuo-23-fast", inputMode: "image", params: { resolution: "768p", duration: "6" } },
 } as const;
 
@@ -44,18 +47,18 @@ export function adNarration(script: Pick<AdScript, "shots">): string {
   return script.shots.map((shot) => shot.narration.trim()).filter(Boolean).join(" ");
 }
 
-export function adJobs(script: AdScript, mode: AdMode, voice: string): PricedJob[] {
+export function adJobs(script: AdScript, mode: AdMode, voice: string, voiceSlug: string = AD_MODELS.voice.slug): PricedJob[] {
   if (mode === "animacija") {
     return [{ modelSlug: AD_MODELS.animation.slug, inputMode: AD_MODELS.animation.inputMode, params: { prompt: adAnimationPrompt(script), ...AD_MODELS.animation.params }, measured: {} }];
   }
   const text = adNarration(script);
-  return [{ modelSlug: AD_MODELS.voice.slug, inputMode: AD_MODELS.voice.inputMode, params: { text, voice }, measured: { char_count: text.length } }];
+  return [{ modelSlug: voiceSlug, inputMode: AD_MODELS.voice.inputMode, params: { text, voice }, measured: { char_count: text.length } }];
 }
 
 /** Cena unapred (ista računica kao server); `null` kad model nije dostupan. */
-export function adCost(script: AdScript, mode: AdMode, voice: string, catalog: readonly PricedModel[]): number | null {
+export function adCost(script: AdScript, mode: AdMode, voice: string, catalog: readonly PricedModel[], voiceSlug: string = AD_MODELS.voice.slug): number | null {
   let total = 0;
-  for (const job of adJobs(script, mode, voice)) {
+  for (const job of adJobs(script, mode, voice, voiceSlug)) {
     const credits = jobCredits(job, catalog);
     if (credits === null) return null;
     total += credits;

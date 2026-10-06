@@ -12,6 +12,7 @@ import {
   createLineSplitter,
   geminiBatchUrls,
   NIGHT_ERRORS,
+  NIGHT_INGEST_GRACE_MS,
   type NightBatchStatus,
   type NightInputFile,
   type NightProvider,
@@ -82,12 +83,16 @@ function openAiId(payload: unknown): string {
 
 // ── Predaja ────────────────────────────────────────────────────────────────────
 
-/** Ulazne slike jednog posla iz Convex storage-a, ugrađene (base64). Istekao fajl tiho ispada. */
+/**
+ * Ulazne slike jednog posla iz Convex storage-a, ugrađene (base64). Nestao fajl
+ * (obrisan izvor, istekao rok) obara posao uz povraćaj (K30, nalaz K29-07) -
+ * inače bi se platila izmena koja je stigla do modela bez slike.
+ */
 async function loadImages(ctx: ActionCtx, rawInputs: string | null): Promise<NightInputFile[]> {
   const files: NightInputFile[] = [];
   for (const storageId of (parseJobInputs(rawInputs ?? undefined).image ?? []).slice(0, MAX_INPUT_FILES)) {
     const blob = await ctx.storage.get(storageId as Id<"_storage">);
-    if (!blob) continue;
+    if (!blob) throw new Error(NIGHT_ERRORS.input);
     if (blob.size > MAX_INLINE_BYTES) {
       throw new Error(`FAJL_JE_PREVELIK: Google prima ulaz do ${MAX_INLINE_BYTES / (1024 * 1024)} MB po fajlu.`);
     }
@@ -371,13 +376,35 @@ type PolledBatch = {
  */
 async function pollOne(ctx: ActionCtx, batch: PolledBatch, now: number): Promise<void> {
   if (batch.state === "succeeded") {
-    await ingest(ctx, batch.batchId, batch.provider, batch.resultFiles);
+    try {
+      await ingest(ctx, batch.batchId, batch.provider, batch.resultFiles);
+    } catch (error) {
+      // Gotov batch čiji se rezultat ni posle roka + 6 h ne može preuzeti: ostatak
+      // poslova na povraćaj, umesto da zauvek drže kredite i mesto u redu (K29-07).
+      if (now < batch.deadlineAt + NIGHT_INGEST_GRACE_MS) throw error;
+      await ctx.runMutation(internal.creaNight.finishBatchIngest, { batchId: batch.batchId });
+    }
 
     return;
   }
   if (!batch.providerBatchId) return;
 
-  const status = await fetchStatus(batch.provider, batch.providerBatchId);
+  let status: NightBatchStatus;
+  try {
+    status = await fetchStatus(batch.provider, batch.providerBatchId);
+  } catch (error) {
+    // Provajder ne odgovara (uklonjen ključ, nepoznato ime batch-a): rok i dalje
+    // važi - ranije se proveravao tek POSLE uspešnog odgovora (K29-07).
+    if (now < batch.deadlineAt) throw error;
+    await cancelAtProvider(batch.provider, batch.providerBatchId).catch(() => undefined);
+    await ctx.runMutation(internal.creaNight.failBatch, {
+      batchId: batch.batchId,
+      state: "expired",
+      error: NIGHT_ERRORS.deadline,
+    });
+
+    return;
+  }
   await ctx.runMutation(internal.creaNight.touchBatch, { batchId: batch.batchId });
 
   // OpenAI i kod isteka/otkazivanja daje delimičan izlaz - ono što je gotovo se isporučuje.

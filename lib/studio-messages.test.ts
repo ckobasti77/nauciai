@@ -70,6 +70,14 @@ describe("studioErrorMessage", () => {
     // Noćna tura (Crea K08).
     "NOCNA_TURA_NEDOSTUPNA",
     "PREVISE_NOCNIH",
+    "LICE_SAMO_KROZ_LIK",
+    "GLAS_TRAZI_PRISTANAK",
+    "PREDMET_NIJE_DOSTUPAN",
+    "PREVISE_UPLOADA",
+    "NEISPRAVAN_OTISAK",
+    "PONAVLJANJE_ISKLJUCENO",
+    "PONAVLJANJE_NEDOSTUPNO",
+    "NOCNI_RAD",
     // Pošteni krediti (Crea K28).
     "LICNI_DNEVNI_LIMIT",
     "DNEVNI_LIMIT_PONAVLJANJA",

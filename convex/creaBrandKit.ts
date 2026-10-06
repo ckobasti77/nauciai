@@ -79,7 +79,7 @@ export const saveMine = mutation({
         .withIndex("by_storage", (q) => q.eq("storageId", next))
         .first();
       // Samo svoj, prijavljen upload slike - ne alias nad izlazom rada (K05) i ne fajl drugog Lika.
-      if (!upload || upload.userId !== userId) throw new Error("TUDJI_FAJL");
+      if (!upload || upload.userId !== userId || upload.contentBound !== true) throw new Error("TUDJI_FAJL");
       if (upload.sourceJobId || !upload.mimeType || !IMAGE_ACCEPT.includes(upload.mimeType)) throw new Error("NEISPRAVAN_LOGO");
       if (upload.pinnedAt !== undefined) throw new Error("SLIKA_ZAUZETA");
       await ctx.db.patch("studioUploads", upload._id, { pinnedAt: now, expiresAt: undefined });

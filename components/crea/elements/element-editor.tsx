@@ -532,7 +532,7 @@ function DraftProblems({ drafts, locale }: { drafts: readonly Draft[]; locale: L
       {lines.map((line) => (
         <li key={line.key} className="py-2">
           <details>
-            <summary className="cursor-pointer type-body-sm font-bold text-ink">
+            <summary className="cursor-pointer py-1 type-body-sm font-bold text-ink pointer-coarse:py-3">
               {fillCopy(T.photoN[locale], { n: line.index + 1 })}: {line.text}
             </summary>
             {line.items ? <PhotoCheckItems items={line.items} locale={locale} className="mt-1" /> : null}

@@ -4,6 +4,7 @@
  * zakucana na paket koji je stvarno instaliran.
  */
 
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 
 import { describe, expect, test } from "vitest";
@@ -11,10 +12,12 @@ import { describe, expect, test } from "vitest";
 import { deviceClassRank, MODEL_BUDGET_BYTES } from "../crea-device";
 import { CREA_TOOLS } from "../crea-tools";
 import {
+  CDN_CODE_SHA256,
   CREA_ALLOWED_MODEL_LICENSES,
   CREA_LOCAL_MODELS,
   CREA_LOCAL_RUNTIMES,
   downloadBytes,
+  MEDIAPIPE_LOADER_BYTES,
   MEDIAPIPE_VISION_VERSION,
   MEDIAPIPE_WASM_BASE,
   FLORENCE_FILES,
@@ -164,5 +167,38 @@ describe("fajlovi modela (K16)", () => {
     for (const url of urls) expect(url).toMatch(/^https:\/\/huggingface\.co\/onnx-community\/Florence-2-base-ft\/resolve\/[0-9a-f]{40}\//);
     expect(CREA_LOCAL_MODELS["florence-2-base"].bytes).toBe(FLORENCE_FILES.reduce((sum, file) => sum + file.bytes, 0));
     expect(modelFileUrls("clip-vit-b32")).toEqual([modelFileUrl("clip-vit-b32")]);
+  });
+});
+
+describe("otisak izvršnog koda sa CDN-a (K30, nalaz K29-04)", () => {
+  const sha256 = (path: string) => createHash("sha256").update(readFileSync(path)).digest("base64");
+
+  test("WASM i loader instaliranih paketa imaju isti otisak kao fajl u `node_modules`", () => {
+    const local: Record<string, string> = {
+      [`${MEDIAPIPE_WASM_BASE}/vision_wasm_internal.wasm`]: "node_modules/@mediapipe/tasks-vision/wasm/vision_wasm_internal.wasm",
+      [`${MEDIAPIPE_WASM_BASE}/vision_wasm_nosimd_internal.wasm`]: "node_modules/@mediapipe/tasks-vision/wasm/vision_wasm_nosimd_internal.wasm",
+      [`${MEDIAPIPE_WASM_BASE}/vision_wasm_internal.js`]: "node_modules/@mediapipe/tasks-vision/wasm/vision_wasm_internal.js",
+      [`${MEDIAPIPE_WASM_BASE}/vision_wasm_nosimd_internal.js`]: "node_modules/@mediapipe/tasks-vision/wasm/vision_wasm_nosimd_internal.js",
+      [ORT_WASM_URL]: "node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.wasm",
+      [ORT_WEBGPU_WASM_URL]: "node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.asyncify.wasm",
+    };
+    for (const [url, path] of Object.entries(local)) expect(CDN_CODE_SHA256[url], url).toBe(sha256(path));
+    for (const [url, bytes] of Object.entries(MEDIAPIPE_LOADER_BYTES)) {
+      expect(readFileSync(local[url]!).byteLength, url).toBe(bytes);
+    }
+  });
+
+  test("svaki JS/WASM koji alati vuku sa CDN-a ima otisak", () => {
+    const code = [
+      ...Object.values(CREA_LOCAL_RUNTIMES).flatMap((runtime) => Object.keys(runtime.files ?? {})),
+      ...Object.keys(MEDIAPIPE_LOADER_BYTES),
+      SIGNALSMITH_STRETCH.url,
+      CREA_LOCAL_MODELS.rnnoise.source.url,
+      CREA_LOCAL_MODELS.gtcrn.source.url,
+      `${NOISE_SUPPRESSOR_BASE}/rnnoise.wasm`,
+      `${NOISE_SUPPRESSOR_BASE}/rnnoise/workletProcessor.js`,
+      `${NOISE_SUPPRESSOR_BASE}/gtcrn/workletProcessor.js`,
+    ];
+    for (const url of code) expect(CDN_CODE_SHA256[url], url).toMatch(/^[A-Za-z0-9+/]{43}=$/);
   });
 });

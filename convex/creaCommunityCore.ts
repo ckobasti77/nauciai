@@ -182,7 +182,8 @@ export async function publicWorkView(
     remixOfWorkId: work.remixOfWorkId ?? null,
     publishedAt: work.publishedAt,
     challenge: work.challengeDayKey && work.challengeGroup ? { dayKey: work.challengeDayKey, group: work.challengeGroup } : null,
-    votes: work.votes,
+    // Broj glasova se ne daje uz rad (galerija, deljen link): dok glasanje traje bio bi
+    // vidljiv mimo table izazova (K29 S-08). Tabla sama dodaje glasove posle zatvaranja.
     remix,
   };
 }

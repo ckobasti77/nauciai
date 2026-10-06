@@ -176,7 +176,15 @@ export const NIGHT_ERRORS = {
   missing: "NOCNA_TURA_BEZ_REZULTATA: Batch je završen, ali rezultat za ovaj rad nije stigao. Krediti su vraćeni.",
   stale: "NOCNA_TURA_NIJE_PREDATA: Slanje u noćnu turu nije završeno. Krediti su vraćeni.",
   empty: "NOCNA_TURA_PRAZNA: Nijedan rad iz ove grupe nije mogao da se pošalje. Krediti su vraćeni.",
+  input: "NOCNA_TURA_BEZ_ULAZA: Ulazna slika više ne postoji (obrisana ili istekla). Krediti su vraćeni.",
 } as const;
+
+/**
+ * Koliko posle roka se još čeka na preuzimanje GOTOVOG batch-a (K30, nalaz
+ * K29-07): ako se rezultat ni tada ne može preuzeti (fajl nestao, uporni 4xx,
+ * uklonjen ključ), ostatak poslova se refundira umesto da zauvek stoji `queued`.
+ */
+export const NIGHT_INGEST_GRACE_MS = 6 * HOUR_MS;
 
 /** Batch koji je preuzet a nikad predat (akcija pukla na pola) - posle ovoga refund. */
 export const NIGHT_PREPARING_STALE_MS = HOUR_MS;

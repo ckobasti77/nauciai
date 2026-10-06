@@ -14,7 +14,6 @@ import { StudioMediaDetail } from "@/components/app/studio-media-detail";
 import { CreaCommunityLinks, CreaRefNotice } from "@/components/crea/community/crea-ref-notice";
 import { CreaGameProvider, useCreaGameValue } from "@/components/crea/game/crea-game-context";
 import { CreaGameStrip } from "@/components/crea/game/crea-game-strip";
-import { CreaStampHost } from "@/components/crea/game/crea-stamp-host";
 import { StudioMediaGrid } from "@/components/app/studio-media-grid";
 import type { StudioTileJob } from "@/components/app/studio-media-tile";
 import { StudioModerationGrid } from "@/components/app/studio-moderation-grid";
@@ -107,6 +106,8 @@ const CreaSeriesStage = dynamic(() => import("@/components/crea/recipes/series-s
   ssr: false,
   loading: () => <Spinner size="md" className="text-muted" />,
 });
+// Pečat (K26) je svoj chunk: album sličica vuče registre tehnika, recepata, stilova i glasova (K29-17).
+const CreaStampHost = dynamic(() => import("@/components/crea/game/crea-stamp-host").then((mod) => mod.CreaStampHost), { ssr: false });
 // Biblioteka (K16) je svoj chunk: pametna pretraga, duplikati i poređenje trebaju tek kad se otvori.
 const CreaLibrary = dynamic(() => import("@/components/crea/crea-library").then((mod) => mod.CreaLibrary), {
   ssr: false,
@@ -909,7 +910,7 @@ export function StudioPage({
               <Link
                 href={libraryHref}
                 scroll={false}
-                className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border-2 border-ink bg-paper-strong px-3 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 studio-focus-ink motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border-2 border-ink bg-paper-strong px-3 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 pointer-coarse:min-h-11 studio-focus-ink motion-reduce:transition-none motion-reduce:hover:translate-y-0"
               >
                 <LibraryBig aria-hidden="true" className="size-3.5" />
                 {CREA_LIBRARY_COPY.open[locale]}

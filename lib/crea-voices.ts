@@ -61,6 +61,23 @@ export const VOICE_ENGINE_LIST: readonly VoiceEngine[] = [
 
 export const DEFAULT_VOICE_ENGINE: VoiceEngineId = "gemini";
 
+/** Stanje modela u katalogu za ovog korisnika: radi uživo, samo DEMO (osoblje bez ključa) ili nedostupan. */
+export type EngineAvailability = "live" | "demo" | null;
+
+/**
+ * Glas za naraciju alata (objašnjenje, govorni oglas; K30, nalaz K29-20): prvi
+ * motor po redu (Gemini, pa ElevenLabs) koji prima ceo tekst i radi uživo; ako
+ * nijedan ne radi uživo, prvi koji postoji kao DEMO. `null` = nema glasa.
+ */
+export function narrationEngine(chars: number, availability: (modelSlug: string) => EngineAvailability): VoiceEngine | null {
+  const fits = VOICE_ENGINE_LIST.filter((engine) => chars <= engine.maxChars);
+  return (
+    fits.find((engine) => availability(engine.modelSlug) === "live") ??
+    fits.find((engine) => availability(engine.modelSlug) === "demo") ??
+    null
+  );
+}
+
 export function voiceEngine(id: VoiceEngineId): VoiceEngine {
   return VOICE_ENGINE_LIST.find((engine) => engine.id === id) ?? VOICE_ENGINE_LIST[0]!;
 }

@@ -14,11 +14,10 @@ import {
   withSourceCount,
   type LocalRejectReason,
 } from "./creaLocalCore";
-import { onCommunityWorkFinished } from "./creaCommunityCore";
-import { onCreaWorkFinished } from "./creaGameCore";
+import { internal } from "./_generated/api";
 import { lineageFrom } from "./creaVersionsCore";
-import { requireStudioAccess } from "./studio";
-import { dayStart, outputExpiresAt, promptHash, UPLOAD_GRANT_CLOCK_SLACK_MS, UPLOAD_GRANT_TTL_MS } from "./studioCore";
+import { assertUploadGrantRate, requireStudioAccess } from "./studio";
+import { dayStart, grantMatchesFile, outputExpiresAt, promptHash, UPLOAD_GRANT_TTL_MS, uploadDigestProblem } from "./studioCore";
 import { searchTextForJob } from "../lib/crea-search-text";
 
 /**
@@ -69,26 +68,34 @@ async function localUsage(ctx: MutationCtx, userId: Id<"users">, now: number) {
  * `saveLocalResult`, u istoj transakciji koja upisuje.
  */
 export const createLocalResultUploadUrl = mutation({
-  args: { kind: localResultKind },
+  // `sha256` (base64, kao `_storage.sha256`) i `size` rezultata koji će se okačiti
+  // (K30, K29-01): bez njih dozvola ne bi znala KOJI fajl sme da upiše.
+  args: { kind: localResultKind, sha256: v.string(), size: v.number() },
   handler: async (ctx, args) => {
     const { userId } = await requireStudioAccess(ctx);
+    const digestProblem = uploadDigestProblem({ sha256: args.sha256, size: args.size });
+    if (digestProblem) throw new Error(digestProblem);
     const now = Date.now();
     const problem = localLimitProblem({ ...(await localUsage(ctx, userId, now)), addBytes: 0 });
     if (problem) throw new Error(problem);
+    await assertUploadGrantRate(ctx, userId, now);
 
     const grantId = await ctx.db.insert("studioUploadGrants", {
       userId,
       slot: localGrantSlot(args.kind),
       createdAt: now,
       expiresAt: now + UPLOAD_GRANT_TTL_MS,
+      sha256: args.sha256,
+      size: args.size,
     });
     return { uploadUrl: await ctx.storage.generateUploadUrl(), grantId };
   },
 });
 
 /**
- * Upis rezultata. Dok vlasništvo nad fajlom nije dokazano (dozvola + fajl
- * nastao posle nje), odbijanje BACA i ništa ne briše - tuđi `storageId` se ne
+ * Upis rezultata. Dok vlasništvo nad fajlom nije dokazano (dozvola + isti
+ * sadržaj koji je dozvola najavila + fajl nastao posle nje + niko ga drugi nije
+ * prijavio, K29-01), odbijanje BACA i ništa ne briše - tuđi `storageId` se ne
  * sme ni dirati. Posle toga je fajl dokazano ovog korisnika, pa se svako
  * odbijanje VRAĆA kao vrednost (union-return, kao `moderationBlocked`): blob se
  * briše, dozvola troši, i to se commit-uje - bačena greška bi ostavila siroče u
@@ -129,8 +136,14 @@ export const saveLocalResult = mutation({
     }
     const meta = await ctx.db.system.get("_storage", args.storageId);
     if (!meta) throw new Error("FAJL_NE_POSTOJI");
-    // Isto pravilo kao `registerInputUpload`: fajl stariji od dozvole nije nastao iz nje.
-    if (meta._creationTime < grant.createdAt - UPLOAD_GRANT_CLOCK_SLACK_MS) throw new Error("NEDOZVOLJEN_UPLOAD");
+    // Dozvola mora da je najavila TAČNO ovaj sadržaj (K29-01); stara dozvola bez
+    // otiska ne važi. Fajl koji je već nečiji ulaz se ne prisvaja.
+    if (grant.sha256 === undefined || !grantMatchesFile(grant, meta)) throw new Error("NEDOZVOLJEN_UPLOAD");
+    const registered = await ctx.db
+      .query("studioUploads")
+      .withIndex("by_storage", (q) => q.eq("storageId", args.storageId))
+      .first();
+    if (registered) throw new Error("NEDOZVOLJEN_UPLOAD");
 
     // ── Od ove tačke je blob dokazano ovog korisnika. ──
     const reject = async (reason: LocalRejectReason) => {
@@ -186,11 +199,12 @@ export const saveLocalResult = mutation({
       createdAt: now,
       completedAt: now,
     });
-    // Gejmifikacija (K26): rezultat besplatnog alata se broji kao i plaćen rad.
-    const job = await ctx.db.get("generationJobs", jobId);
-    if (job) {
-      await onCreaWorkFinished(ctx, job);
-      await onCommunityWorkFinished(ctx, job);
+    // Gejmifikacija (K26): rezultat besplatnog alata se broji kao i plaćen rad - u
+    // podtransakciji, da greška kuke ne obori čuvanje (K29-10).
+    try {
+      await ctx.runMutation(internal.creaGame.onWorkFinished, { jobId });
+    } catch (error) {
+      console.error(`crea: kuke za lokalni rad ${jobId} nisu upisane`, error);
     }
     return { ok: true as const, jobId };
   },

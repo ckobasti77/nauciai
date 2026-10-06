@@ -16,6 +16,7 @@ import {
 } from "./creaFairCore";
 import { countFreeJobs, hasPremiumPlan, personalDailyLimit } from "./creaFairDb";
 import { CREA_FLAG_KEYS, readCreaFlag } from "./creaFlags";
+import { creaRewardProblem } from "./creaGameCore";
 import { requireUserId } from "./helpers";
 import { resolveEndpointTier } from "./providers/falInputs";
 import { createJobForUser } from "./studio";
@@ -103,6 +104,8 @@ export const getRedoOffer = query({
   args: { jobId: v.id("generationJobs"), now: v.number() },
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx);
+    // Iza flega (K29-09): dok je isključen, dugme se ne prikazuje.
+    if (!(await readCreaFlag(ctx, CREA_FLAG_KEYS.freeRedo))) return null;
     const job = await ctx.db.get("generationJobs", args.jobId);
     if (!job || job.userId !== userId) return null;
     const counts = await redoCounts(ctx, userId, args.now);
@@ -126,8 +129,11 @@ export const redoBroken = mutation({
   args: { jobId: v.id("generationJobs"), reason: v.string() },
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx);
+    if (!(await readCreaFlag(ctx, CREA_FLAG_KEYS.freeRedo))) throw new Error("PONAVLJANJE_ISKLJUCENO");
     const job = await ctx.db.get("generationJobs", args.jobId);
     if (!job || job.userId !== userId) throw new Error("IZVOR_NIJE_DOSTUPAN");
+    // Ista zaštita od farmovanja kao ostale besplatne pogodnosti (K29-09).
+    if (await creaRewardProblem(ctx, userId)) throw new Error("PONAVLJANJE_NEDOSTUPNO");
     const now = Date.now();
     const block = freeRedoBlock({
       job,
@@ -150,7 +156,7 @@ export const redoBroken = mutation({
         parentJobId: job._id,
         derivation: "regeneracija",
       },
-      { freeRedo: { originalJobId: job._id, reason: args.reason } },
+      { freeRedo: { originalJobId: job._id, reason: args.reason }, ...(job.faceVerified ? { faceVerified: true as const } : {}) },
     );
     if (typeof result !== "string") throw new Error("NEISPRAVAN_PROMPT:ZABRANJEN_POJAM");
     return result;

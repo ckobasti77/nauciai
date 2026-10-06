@@ -4,7 +4,7 @@ Postupak koji pratim kad puštam Studio (šire nego samo osoblju). Pisano da se
 izvrši u 2 ujutru bez razmišljanja — svaka komanda je copy-paste, svaka
 provera kaže tačno šta da vidim.
 
-Sve reference su `fajl:linija` u ovom repou, na dan pisanja (2026-09-09).
+Sve reference su `fajl:linija` u ovom repou, na dan pisanja (2026-09-09; reference na `studio.ts` osvežene u K30, 2026-10-06).
 Kod se menja — ako neka linija ne odgovara, veruj kodu, ne ovom dokumentu.
 
 **Dva odvojena prekidača, ne jedan.** Ovaj runbook pretpostavlja da je Studio
@@ -26,7 +26,7 @@ flip javnog flega na već živom kodu.
 | Ključ u `platformFlags` | [studioCore.ts:17](../convex/studioCore.ts#L17) | [studioCore.ts:77](../convex/studioCore.ts#L77) |
 | Red koji NE POSTOJI znači | **UKLJUČEN** (fail-open — prazan seed ne sme da zaključa osoblje) | **ISKLJUČEN** (fail-closed — svet ne ulazi dok ga ručno ne pustiš) |
 | Ko ga menja | Admin ekran, `/app/admin/studio`, dugme "Ugasi Studio" → `studioAdmin.setStudioEnabled` (public `mutation`, `requireAdmin`) — [studioAdmin.ts:221](../convex/studioAdmin.ts#L221) | SAMO CLI: `npx convex run studioAdmin:setStudioPublicFlag` (`internalMutation`, **nema UI** ni za pregled ni za izmenu) — [studioAdmin.ts:264](../convex/studioAdmin.ts#L264) |
-| Ko ga čita | `createJobForUser`, prva provera, pre svega ostalog — [studio.ts:592-596](../convex/studio.ts#L592-L596) | `loadStudioPublicState`, čita se PRE `decideStudioAccess` — [studio.ts:422-444](../convex/studio.ts#L422-L444) |
+| Ko ga čita | `createJobForUser`, prva provera, pre svega ostalog — [studio.ts:770-774](../convex/studio.ts#L770-L774); od K30 i besplatni AI pozivi Cree (`creaLlm`, uzorak glasa) kroz `requireCreaAiCall` — [studio.ts:642](../convex/studio.ts#L642) | `loadStudioPublicState`, čita se PRE `decideStudioAccess` — [studio.ts:529-551](../convex/studio.ts#L529-L551) |
 
 ---
 
@@ -51,7 +51,7 @@ prisustvo):
 - [ ] `FAL_KEY` — **NIJE postavljen**. Svi fal modeli su u mock/DEMO režimu za
   osoblje ([studioCore.ts:666-674](../convex/studioCore.ts#L666-L674),
   `providerKeyPresent`), a za JAVNE korisnike su potpuno nedostupni
-  (`MODEL_NEDOSTUPAN`, [studio.ts:695-701](../convex/studio.ts#L695-L701) —
+  (`MODEL_NEDOSTUPAN`, [studio.ts:933-940](../convex/studio.ts#L933-L940) —
   DEMO zaštita, SP2: javni korisnik ne sme da plati SVG mock).
 - [ ] `BYTEPLUS_API_KEY` — **NIJE postavljen**. Isto ponašanje kao `FAL_KEY`.
 - [ ] `BYTEPLUS_BASE_URL` — **NIJE postavljen**. Oba BytePlus polja su
@@ -186,7 +186,7 @@ vidi staru UI poruku dok je pristup već otvoren.
    ```bash
    npx convex run studio:isPublicEnabled '{}' --prod
    ```
-   (`isPublicEnabled` je javan `query`, bez auth-a — [studio.ts:451-457](../convex/studio.ts#L451-L457) —
+   (`isPublicEnabled` je javan `query`, bez auth-a — [studio.ts:558-564](../convex/studio.ts#L558-L564) —
    siguran za proveru sa CLI-ja). Alternativa: Convex Dashboard → Data →
    `platformFlags` → red `studio_public` → `enabled: true`.
 
@@ -236,8 +236,9 @@ osvežava se na `useQuery`, ne treba ručni refresh.
 ## D) KAKO DA GASIM — tri nivoa
 
 Bitno za sva tri: **nijedan od njih ne dira poslove koji su VEĆ u letu.**
-Kill switch i javni fleg se čitaju SAMO u `createJobForUser`, na startu
-novog posla. Posao koji je već `reserved`/`running` nastavlja normalno —
+Kill switch i javni fleg se čitaju SAMO na startu novog posla
+(`createJobForUser`; kill switch od K30 i u `requireCreaAiCall` za besplatne
+AI pozive Cree). Posao koji je već `reserved`/`running` nastavlja normalno —
 webhook/poller ga i dalje obrađuje, reaper ga i dalje refundira posle
 timeout-a ako zaglavi, poravnanje i dalje ide. Već rezervisani krediti se
 NE vraćaju automatski gašenjem — vraćaju se samo ako taj konkretan posao
@@ -302,7 +303,7 @@ zaista u kodu, ne u trošku/zloupotrebi.
 | **Provajder vraća grešku** (status `failed`/`ERROR`) | Loš parametar koji je prošao sanitizaciju, iscrpljen kvota kod provajdera, pogrešan `BYTEPLUS_BASE_URL` region (vraća 404 koji liči na "model ne postoji") | `job.error` polje u `generationJobs` (Data tab); `studioAdmin.getProviderSamples` za sirov odgovor provajdera | Auto-refund je već izvršen (`failJob` → `refundCredits`), korisniku ne treba ništa ručno. Ako je sistemsko (svi poslovi JEDNOG modela padaju) — isključi taj model (`isEnabled: false` u `models`/`modelCatalog`) dok se ne reši. |
 | **Korisnik naplaćen, nema izlaz** | Generacija je uspela i naplaćena je, ali preuzimanje fajla (`persistOutput`) je palo POSLE `done` statusa | `job.error` na poslu koji je `status: "done"` ali nema `outputStorageId` | **Nema automatskog refunda — namerno** (fal JE naplatio; refund ovde bi bio poklon, ne popravka). `markOutputFailed` samo upisuje grešku, ne diraj kredit sistem. **[RUPA 2 / ODLUKA 6]** Nema ni koda ni gotove admin akcije za ručni refund ovog slučaja — treba odlučiti support politiku (koliko vratiti, gde upisati) pre nego što se prvi ovakav slučaj desi. |
 | **Dnevni globalni limit troška probijen** ($100, svi korisnici zajedno) | Nagao saobraćaj ili bug u ceni (potcenjena tarifa) | Admin ekran, `totalCostUsd`; `topUsers` da vidiš da li je jedan nalog ili šira navala | Studio se VEĆ sam ugasio (`platformFlags.studio_enabled = false`, automatski). To je očekivano ponašanje sistema koji se štiti, ne kvar. Istraži uzrok, PA ručno vrati fleg preko admin ekrana (Nivo 2, obrnuto) tek kad je uzrok rešen. Nema posebnog "kill" reda u bazi — samo fleg + mejl (RUPA 4). |
-| **MCP ključ troši previše** | MCP write-scope limiter (`create_generation`, 10 poziva/min) živi **u memoriji procesa, po Convex izolatu** — to je prigušivač, ne prava brava; stvarna granica može biti umnožak od 10/min ako Convex podigne više izolata ([mcp/rateLimit.ts:13-19](../convex/mcp/rateLimit.ts#L13-L19)) | Admin ekran, `topUsers` — traži nalog vezan za taj MCP ključ | Prave brave su iste kao za web: `MINUTNI_LIMIT`/`PREVISE_POSLOVA`/`DNEVNI_LIMIT`/`DNEVNI_LIMIT_KREDITA`/`DNEVNI_LIMIT_TROSKA` u `createJobForUser` važe IDENTIČNO za MCP pozive (isto telo funkcije, [studio.ts:886-910](../convex/studio.ts#L886-L910)) — jedini izuzetak je OSOBLJE, koje nema minutni ni kreditni kap. Ako je nalog vezan za MCP ključ osoblje, opozovi/rotiraj taj ključ. |
+| **MCP ključ troši previše** | MCP write-scope limiter (`create_generation`, 10 poziva/min) živi **u memoriji procesa, po Convex izolatu** — to je prigušivač, ne prava brava; stvarna granica može biti umnožak od 10/min ako Convex podigne više izolata ([mcp/rateLimit.ts:13-19](../convex/mcp/rateLimit.ts#L13-L19)) | Admin ekran, `topUsers` — traži nalog vezan za taj MCP ključ | Prave brave su iste kao za web: `MINUTNI_LIMIT`/`PREVISE_POSLOVA`/`DNEVNI_LIMIT`/`DNEVNI_LIMIT_KREDITA`/`DNEVNI_LIMIT_TROSKA` u `createJobForUser` važe IDENTIČNO za MCP pozive (isto telo funkcije, [studio.ts:1032-1086](../convex/studio.ts#L1032-L1086)) — jedini izuzetak je OSOBLJE, koje nema minutni ni kreditni kap. Ako je nalog vezan za MCP ključ osoblje, opozovi/rotiraj taj ključ. |
 
 ---
 
@@ -352,6 +353,104 @@ override-ljiv preko `setStudioPublicLimit`:**
 **Ostalo:**
 - Mock/DEMO uspešnost: **85%** (namerno <100%, da se vidi da refund radi).
 - Marža ispod koje admin ekran boji upozorenje: **2×** nabavne cene.
+
+---
+
+## G) CREA DEPLOY (K01–K30)
+
+Grana `crea-run` donosi novo ime (Crea), nove tabele i indekse, Crea
+flegove i alate na uređaju. Sve ispod je redosled za PRVI deploy te grane;
+sve komande su na produkciji samo kad ih ti pokreneš.
+
+> Pre ičega: u ovom folderu postoji zalutali `CONVEX_DEPLOY_KEY` koji
+> `npx convex deploy` / `--prod` šalje na DRUGI projekat. Ugasi ga u
+> terminalu (`unset CONVEX_DEPLOY_KEY`) i proveri da cilj jeste
+> `quick-yak-270`.
+
+### G1. Redosled
+
+1. **Convex:** `npx convex deploy`. Šema samo DODAJE (opciona polja i nove
+   tabele), pa stari redovi prolaze validaciju. Novi indeksi se grade pri
+   deploy-u — sačekaj da se završi pre sledećeg koraka:
+   `generationJobs.search_searchText`, `by_parentJobId_and_derivation`,
+   `by_user_favoriteAt`, `creaEmbeddings.by_embedding` (vektorski) i
+   `by_userId`, `studioUploadGrants.by_userId_and_createdAt`, plus svi
+   indeksi novih `crea*` tabela.
+2. **Katalog modela:** `node scripts/seed-studio-models.mjs` sa produkcijskim
+   promenljivim (vidi zaglavlje skripte). Upisuje nove modele (Gemini govor,
+   Lyria, NB2 Lite, Kling O3 izmena, Seedance 2.5…) i nove `capabilities`
+   (noćna tura, scene, maske). Bez ovoga Crea pokazuje stare redove.
+3. **Backfill pretrage:**
+   `npx convex run migrations:run '{"fn":"migrations:backfillCreaSearchText"}' --prod`
+   — stari radovi tek tada ulaze u pretragu biblioteke.
+4. **Next (hosting):** deploy sajta. Stari `/studio/*`, `/en/studio/*` i
+   `/uslovi-studio` daju 308 na `/crea/*` i `/uslovi-crea` — provera u G4.
+
+### G2. Flegovi (svi ISKLJUČENI dok ih ne upališ; odsutan red = isključen)
+
+```bash
+npx convex run creaFlags:setCreaFlag '{"key":"crea_pricing_v2","enabled":true}' --prod
+npx convex run creaFlags:setCreaFlag '{"key":"crea_public_gallery","enabled":true}' --prod
+npx convex run creaFlags:setCreaFlag '{"key":"crea_fair_unlimited","enabled":true}' --prod
+npx convex run creaFlags:setCreaFlag '{"key":"crea_free_redo","enabled":true}' --prod
+```
+
+- `crea_pricing_v2` — nove cene (C1–C10: noćna tura, „Probaj jeftino",
+  pakovanja). Bez njega važe današnje cene.
+- `crea_public_gallery` — javna galerija, izazovi i glasanje (prvo pogledaj
+  red za moderaciju na admin ekranu).
+- `crea_fair_unlimited` — „neograničeno" za lokalne alate na planu.
+- `crea_free_redo` — besplatno ponavljanje pokvarenog rada (6 mesečno,
+  najviše 200 kr po poslu). Novo u K30; pre K30 je bilo živo bez flega.
+- Gašenje: isti poziv sa `"enabled":false`. Kill switch `studio_enabled`
+  (nivo 2 iz D) gasi i Creu i njene besplatne AI pozive.
+
+### G3. Ključevi (Convex env, produkcija)
+
+- `GOOGLE_AI_API_KEY` — već postoji; od njega zavise pomoćnik za opis,
+  Gemini govor, Lyria, noćna tura i opis slike. Nijedan od tih poziva nije
+  pozvan uživo do K30 — prvo dimni test (G5).
+- `FAL_KEY` — otključava fal modele. Pre nego što ga postaviš, ugasi fal
+  redove koje nisi proverio, pa za svaki: jedna proba → uporedi fal račun sa
+  cenom na dugmetu → upali. Posebno: Qwen izmena (megapikseli ulaza),
+  Seedance Mini ID, GPT Image 2 izmena (+$0,03 po ulaznoj slici, izvor
+  nepotvrđen), Kling 3.0 `multi_prompt`, Kling O3 izmena, Demucs, MMAudio,
+  `dubbing` (Crea ga pušta samo uz snimljen pristanak glasa), GPT Image 1.5
+  ruta i `kling-omni` rute (zatečeni kvarovi, vidi K29 S-19).
+- `BYTEPLUS_API_KEY` (Seedream/Seedance) i po želji `OPENAI_API_KEY` (GPT
+  Image 2 noćna tura; posle ključa ponovo pusti seed iz G1.2).
+- `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (i po želji `VAPID_SUBJECT`) —
+  push obaveštenja četa (zatečeno, Crea ih ne koristi; gotov rad i noćna
+  tura se vide u Crei). Bez njih push ćuti, ostalo radi.
+
+### G4. Provere posle deploy-a
+
+```bash
+curl -sI https://nauciai.com/crea              # 200, NE 301 na /crea/ ni 403
+curl -sI https://nauciai.com/studio            # 308 → /crea
+curl -sI https://nauciai.com/brand/crea/sfx/IZVORI.txt   # 200
+curl -sI https://nauciai.com/licenses/THIRD-PARTY-NOTICES.txt   # 200
+curl -sI https://nauciai.com/crea/knjizica/neko.ime      # ne sme 404 zbog tačke
+```
+
+- LiteSpeed MIME: zvuci su sada pod `/brand/crea/sfx/*.mp3` (ranije
+  `/crea/sfx` — folder je premešten jer je zaklanjao rutu `/crea`). Proveri
+  `Content-Type: audio/mpeg` i za `.wasm` `application/wasm` (`check:media`).
+- CDN-ovi sa kojih alati na uređaju vuku kod i modele: `cdn.jsdelivr.net`,
+  `huggingface.co`, `storage.googleapis.com` (MediaPipe). Ako je neki
+  blokiran, alat pokaže grešku i nudi oblak gde postoji.
+- `/crea/sveska`, galerija, izazov, poziv i knjižica su `noindex`; u
+  sitemap-u su samo `/crea` i `/uslovi-crea`.
+
+### G5. Dimni test (nalog osoblja, pa jedan običan)
+
+1. Pomoćnik za opis (S6) i opis slike — jedan poziv svaki.
+2. Gemini govor (A2) i Lyria (A11) — po jedan kratak.
+3. Jedna noćna tura sa jednom slikom (tek uz `crea_pricing_v2`): ujutru
+   rad gotov, poravnanje upisano.
+4. NB2 Lite (proveri ID modela na Google-u).
+5. Na nalogu bez prihvaćenih uslova Cree pomoćnik mora da vrati
+   `USLOVI_NEPRIHVACENI` (K30).
 
 ---
 

@@ -89,7 +89,12 @@ async function storeBlob(t: TestConvex, contentType = "image/jpeg") {
 /** Fotka okačena kao iz alata: dozvola → upload → prijava. */
 async function uploadPhoto(t: TestConvex, as: TestUser, contentType = "image/jpeg") {
   const storageId = await storeBlob(t, contentType);
-  const { grantId } = await as.mutation(api.studio.createInputUploadUrl, { slot: "image" });
+  // Web klijent najavljuje sadržaj (K29-01) - samo takav upload sme u element.
+  const digest = await t.run(async (ctx) => {
+    const meta = await ctx.db.system.get("_storage", storageId);
+    return { sha256: meta!.sha256, size: meta!.size };
+  });
+  const { grantId } = await as.mutation(api.studio.createInputUploadUrl, { slot: "image", ...digest });
   await as.mutation(api.studio.registerInputUpload, { storageId, grantId });
   return storageId;
 }
@@ -313,6 +318,33 @@ describe("čuvanje elementa", () => {
       consent: true,
     });
     expect(renamed.handle).toBe("maja_djokic");
+  });
+});
+
+describe("K29-01: samo upload dokazan po sadržaju ulazi u element", () => {
+  test("upload bez otiska (stari put / MCP) se ne pinuje; pogrešan otisak se ne prijavljuje", async () => {
+    const t = makeT();
+    const { asUser: as } = await seedUser(t);
+    const storageId = await storeBlob(t);
+    const { grantId } = await as.mutation(api.studio.createInputUploadUrl, { slot: "image" });
+    await as.mutation(api.studio.registerInputUpload, { storageId, grantId });
+    expect((await uploadRow(t, storageId))?.contentBound).toBeUndefined();
+    await expect(
+      as.mutation(api.creaElements.saveElement, { kind: "mesto", name: "Kafana", imageStorageIds: [storageId] }),
+    ).rejects.toThrow("TUDJI_FAJL");
+    expect(await fileExists(t, storageId)).toBe(true);
+
+    // Dozvola sa otiskom ne prima fajl drugačijeg sadržaja (tuđ fajl okačen posle nje).
+    const other = await t.run((ctx) => ctx.storage.store(new Blob(["tudja-slika"])));
+    const { grantId: bound } = await as.mutation(api.studio.createInputUploadUrl, {
+      slot: "image",
+      sha256: `${"B".repeat(43)}=`,
+      size: 11,
+    });
+    await expect(as.mutation(api.studio.registerInputUpload, { storageId: other, grantId: bound })).rejects.toThrow(
+      "NEDOZVOLJEN_UPLOAD",
+    );
+    expect(await fileExists(t, other)).toBe(true);
   });
 });
 

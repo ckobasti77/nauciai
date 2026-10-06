@@ -14,7 +14,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-import { NIGHT_ERRORS, NIGHT_JOB_DEADLINE_MS, NIGHT_NOTIFICATION_KIND } from "./creaNightCore";
+import { NIGHT_ERRORS, NIGHT_INGEST_GRACE_MS, NIGHT_JOB_DEADLINE_MS, NIGHT_NOTIFICATION_KIND } from "./creaNightCore";
 import { STUDIO_MODELS } from "./providers/catalogModels";
 import schema from "./schema";
 
@@ -458,6 +458,59 @@ describe("refundi", () => {
     expect(calls.some((call) => call.url.endsWith("batches/b-1:cancel") && call.method === "POST")).toBe(true);
     expect((await job(t, sent)).status).toBe("refunded");
     expect((await batches(t)).find((row) => row.providerBatchId === "batches/b-1")?.state).toBe("expired");
+    expect(await balance(t, userId)).toBe(1000);
+  });
+
+  test("K29-07: provajder ne odgovara posle roka → otkaz i refund; gotov batch bez rezultata posle roka + 6 h → refund", async () => {
+    const { t, userId, asUser } = await world();
+    const stuck = await createNight(asUser);
+    gemini();
+    await submit(t);
+    // Uklonjen ključ / nepoznato ime batch-a: status stalno pada.
+    vi.setSystemTime(NOON + NIGHT_JOB_DEADLINE_MS + 1);
+    stubFetch((url, method) => (url.endsWith(":cancel") && method === "POST" ? json({}) : new Response("not found", { status: 404 })));
+    await poll(t);
+    expect((await job(t, stuck)).status).toBe("refunded");
+    expect((await job(t, stuck)).error).toBe(NIGHT_ERRORS.deadline);
+    vi.setSystemTime(NOON);
+
+    const ready = await createNight(asUser);
+    gemini();
+    await submit(t);
+    // Batch je gotov, ali preuzimanje rezultata uporno pada (403).
+    stubFetch((url) => {
+      if (url.endsWith("batches/b-1")) return json(SUCCEEDED);
+      if (url.includes(":download")) return new Response("forbidden", { status: 403 });
+      return undefined;
+    });
+    await poll(t);
+    expect((await job(t, ready)).status).toBe("queued");
+    vi.setSystemTime(NOON + NIGHT_JOB_DEADLINE_MS + NIGHT_INGEST_GRACE_MS + 1);
+    await poll(t);
+    expect((await job(t, ready)).status).toBe("refunded");
+    expect(await balance(t, userId)).toBe(1000);
+    vi.setSystemTime(NOON);
+  });
+
+  test("K29-07: obrisana ulazna slika obara noćni posao uz povraćaj (ne šalje se bez slike)", async () => {
+    const { t, userId, asUser } = await world();
+    const storageId = await t.run((ctx) => ctx.storage.store(new Blob([new Uint8Array([1, 2, 3])], { type: "image/png" })));
+    await t.run((ctx) =>
+      ctx.db.insert("studioUploads", { userId, storageId, slot: "image", bytes: 3, mimeType: "image/png", createdAt: NOON }),
+    );
+    const jobId = await asUser.mutation(api.studio.createJob, {
+      modelSlug: "nano-banana-2",
+      params: JSON.stringify({ prompt: "dodaj šešir", resolution: "1K", aspect_ratio: "1:1" }),
+      inputMode: "image_multi",
+      inputs: JSON.stringify({ image: [storageId] }),
+      deliveryMode: "night",
+    });
+    await t.run((ctx) => ctx.storage.delete(storageId));
+    gemini();
+    await submit(t);
+    const row = await job(t, jobId as Id<"generationJobs">);
+    expect(row.status).toBe("refunded");
+    expect(row.error).toBe(NIGHT_ERRORS.input);
     expect(await balance(t, userId)).toBe(1000);
   });
 

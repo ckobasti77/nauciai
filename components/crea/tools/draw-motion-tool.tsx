@@ -162,7 +162,7 @@ export default function DrawMotionTool({ tool, locale, canSave, projectId, sourc
         </div>
         {usable.length > 0 ? (
           <details className="text-xs font-bold text-muted">
-            <summary className="cursor-pointer select-none py-1 text-ink">{T.drawPreview[locale]}</summary>
+            <summary className="cursor-pointer select-none py-1 text-ink pointer-coarse:py-3">{T.drawPreview[locale]}</summary>
             <p className="mt-1 whitespace-pre-line break-words font-semibold">{prompt}</p>
           </details>
         ) : null}

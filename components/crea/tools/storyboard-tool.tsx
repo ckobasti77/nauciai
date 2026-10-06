@@ -379,7 +379,7 @@ export default function StoryboardTool({ tool, locale, canSave, projectId, paid 
     }
   }
 
-  const unavailable = !imageChoice ? T.sttUnavailable[locale] : null;
+  const unavailable = !imageChoice ? T.modelUnavailable[locale] : null;
   const shotsProblem = shots.length < STORYBOARD_LIMITS.shotsMin ? T.stripMinShots[locale] : null;
 
   return (
@@ -593,7 +593,7 @@ export default function StoryboardTool({ tool, locale, canSave, projectId, paid 
                 label={T.stripAnimate[locale]}
                 icon={<Sparkles aria-hidden="true" className="size-4" />}
                 credits={toAnimate.length > 0 ? animateCost : null}
-                blocker={!canSave ? T.noAccess[locale] : !videoChoice ? T.sttUnavailable[locale] : toAnimate.length === 0 ? (allDrawn ? T.done[locale] : T.stripNeedDrawings[locale]) : working ? T.working[locale] : null}
+                blocker={!canSave ? T.noAccess[locale] : !videoChoice ? T.modelUnavailable[locale] : toAnimate.length === 0 ? (allDrawn ? T.done[locale] : T.stripNeedDrawings[locale]) : working ? T.working[locale] : null}
                 status={{ name: "idle" }}
                 demo={videoChoice?.demo ?? false}
                 onSubmit={() => void animate()}

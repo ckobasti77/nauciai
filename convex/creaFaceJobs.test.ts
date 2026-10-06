@@ -14,7 +14,7 @@ import { describe, expect, test } from "vitest";
 import { demoSpeechWav, estimateSpeechSeconds, talkingNext } from "../lib/crea-talking";
 import { api, internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import { faceInputIds, jobMayCarryFace, videoSwapPrompt } from "./creaFaceJobsCore";
+import { faceInputIds, jobMayCarryFace, needsVerifiedRefs, videoSwapPrompt } from "./creaFaceJobsCore";
 import { STUDIO_MODELS } from "./providers/catalogModels";
 import schema from "./schema";
 import { mockJobSucceeds } from "./studioCore";
@@ -97,7 +97,12 @@ async function storeBlob(t: TestConvex, contentType: string) {
 async function upload(t: TestConvex, as: TestUser, slot: "image" | "audio" | "video", seconds?: number) {
   const type = slot === "image" ? "image/jpeg" : slot === "audio" ? "audio/mpeg" : "video/mp4";
   const storageId = await storeBlob(t, type);
-  const { grantId } = await as.mutation(api.studio.createInputUploadUrl, { slot });
+  // Web klijent najavljuje sadržaj (K29-01) - tek takav upload sme u Lika.
+  const digest = await t.run(async (ctx) => {
+    const meta = await ctx.db.system.get("_storage", storageId);
+    return { sha256: meta!.sha256, size: meta!.size };
+  });
+  const { grantId } = await as.mutation(api.studio.createInputUploadUrl, { slot, ...digest });
   await as.mutation(api.studio.registerInputUpload, { storageId, grantId });
   if (seconds !== undefined) {
     await t.run(async (ctx) => {
@@ -165,7 +170,8 @@ describe("pravila lica (čista)", () => {
     expect(jobMayCarryFace({ ...base, status: "running" }, "u", ["image"])).toBe(false);
     expect(jobMayCarryFace(base, "u", ["video"])).toBe(false);
     expect(jobMayCarryFace({ ...base, provider: "local" }, "u", ["image"])).toBe(false);
-    expect(jobMayCarryFace({ ...base, provider: "local", parentJobId: "p" }, "u", ["image"])).toBe(true);
+    // K30 (K29-02): rezultat lokalnog alata nije izvor lica ni kao verzija - roditelja bira klijent.
+    expect(jobMayCarryFace({ ...base, provider: "local", parentJobId: "p" }, "u", ["image"])).toBe(false);
     expect(videoSwapPrompt({ name: "Maja" }, 2)).toMatch(/^Replace the main person in the video with Maja, shown in @Image1 and @Image2\./);
   });
 });
@@ -275,11 +281,12 @@ describe("Lik koji govori (V21/V23)", () => {
     const foreign = await doneJob(t, other.userId);
     await expect(start(foreign._id)).rejects.toThrow("LICE_NIJE_DOZVOLJENO");
 
-    // Lokalni alat bez roditelja (fajl sa uređaja) ne; kao verzija bezbednog rada da.
+    // Lokalni alat nikad (K30, K29-02): ni bez roditelja, ni kao „verzija" bezbednog rada -
+    // fajl je sa uređaja, a roditelja bira klijent.
     const localNoParent = await doneJob(t, userId, { provider: "local" });
     await expect(start(localNoParent._id)).rejects.toThrow("LICE_NIJE_DOZVOLJENO");
     const localFromScene = await doneJob(t, userId, { provider: "local", parent: scene._id });
-    await expect(start(localFromScene._id)).resolves.toBeTruthy();
+    await expect(start(localFromScene._id)).rejects.toThrow("LICE_NIJE_DOZVOLJENO");
   });
 });
 
@@ -413,6 +420,98 @@ async function settle(t: TestConvex) {
     await t.finishInProgressScheduledFunctions();
   }
 }
+
+describe("K29-02: modeli lica samo kroz serverski omotač (O5)", () => {
+  test("pravilo: modeli lica uvek, izmena videa samo sa referentnom slikom", () => {
+    expect(needsVerifiedRefs("kling-avatar", {})).toBe(true);
+    expect(needsVerifiedRefs("kling-o3-edit", { video: ["v"] })).toBe(false);
+    expect(needsVerifiedRefs("kling-o3-edit", { video: ["v"], image: ["i"] })).toBe(true);
+    expect(needsVerifiedRefs("seedance-25", { image: ["i"] })).toBe(false);
+    expect(needsVerifiedRefs("seedance-25", { video: ["v"], image: ["i"] })).toBe(true);
+    expect(needsVerifiedRefs("nano-banana-2", { image: ["i"] })).toBe(false);
+  });
+
+  test("opšti createJob sa okačenom fotkom za avatar ili izmenu videa sa slikom → LICE_SAMO_KROZ_LIK, bez naplate", async () => {
+    const t = makeT();
+    const { userId, asUser } = await seedUser(t);
+    await seedModels(t);
+    const photo = await upload(t, asUser, "image");
+    const voice = await upload(t, asUser, "audio", 4);
+    const video = await upload(t, asUser, "video", 6);
+    await expect(
+      asUser.mutation(api.studio.createJob, {
+        modelSlug: "kling-avatar",
+        params: JSON.stringify({ quality: "720p" }),
+        inputMode: "image_audio",
+        inputs: JSON.stringify({ image: [photo], audio: [voice] }),
+      }),
+    ).rejects.toThrow("LICE_SAMO_KROZ_LIK");
+    await expect(
+      asUser.mutation(api.studio.createJob, {
+        modelSlug: "kling-o3-edit",
+        params: JSON.stringify({ prompt: "Replace the man with the person in @Image1", resolution: "720p" }),
+        inputMode: "video",
+        inputs: JSON.stringify({ video: [video], image: [photo] }),
+      }),
+    ).rejects.toThrow("LICE_SAMO_KROZ_LIK");
+    expect(await t.run((ctx) => ctx.db.query("generationJobs").withIndex("by_user", (q) => q.eq("userId", userId)).collect())).toEqual([]);
+  });
+
+  test("rezultat lokalnog alata (tuđ snimak sa lažnim roditeljem) nije izvor lica", async () => {
+    const t = makeT();
+    const { userId, asUser } = await seedUser(t);
+    await seedModels(t);
+    const textOnly = await doneJob(t, userId, { kind: "video" });
+    const relabeled = await doneJob(t, userId, { kind: "video", provider: "local", parent: textOnly._id });
+    const voice = await upload(t, asUser, "audio", 4);
+    await expect(
+      asUser.mutation(api.creaFaceJobs.startLipsync, { videoJobId: relabeled._id, audioStorageId: voice, consent: true }),
+    ).rejects.toThrow("LICE_NIJE_DOZVOLJENO");
+  });
+
+  test("zamena PREDMETA: samo sačuvan predmet/mesto, meta sa spiska, opis gradi server", async () => {
+    const t = makeT();
+    const { asUser } = await seedUser(t);
+    await seedModels(t);
+    const image = await upload(t, asUser, "image");
+    const saved = await asUser.mutation(api.creaElements.saveElement, { kind: "predmet", name: "Šolja", imageStorageIds: [image] });
+    const video = await upload(t, asUser, "video", 6);
+    const id = await asUser.mutation(api.creaFaceJobs.startObjectSwap, {
+      elementId: saved.elementId as Id<"creaElements">,
+      targetId: "na-stolu",
+      routeId: "kling",
+      videoStorageId: video,
+      seconds: 6,
+      resolution: "720p",
+    });
+    const row = await job(t, id);
+    expect(row).toMatchObject({ modelSlug: "kling-o3-edit", faceVerified: true });
+    expect(JSON.parse(row!.inputs!)).toEqual({ video: [video], image: [image] });
+    expect(JSON.parse(row!.params).prompt).toMatch(/^Replace the main object on the table in the video with the object shown in @Image1\./);
+
+    const lik = await saveLik(t, asUser);
+    await expect(
+      asUser.mutation(api.creaFaceJobs.startObjectSwap, {
+        elementId: lik.elementId,
+        targetId: "na-stolu",
+        routeId: "kling",
+        videoStorageId: video,
+        seconds: 6,
+        resolution: "720p",
+      }),
+    ).rejects.toThrow("PREDMET_NIJE_DOSTUPAN");
+    await expect(
+      asUser.mutation(api.creaFaceJobs.startObjectSwap, {
+        elementId: saved.elementId as Id<"creaElements">,
+        targetId: "the man in the red jacket",
+        routeId: "kling",
+        videoStorageId: video,
+        seconds: 6,
+        resolution: "720p",
+      }),
+    ).rejects.toThrow("NEISPRAVNI_PARAMETRI");
+  });
+});
 
 describe("DEMO bez ključa (O3): napiši → izgovori → oživi do kraja", () => {
   test("tekst → govor (DEMO plakat) → probni WAV procenjene dužine → avatar (DEMO)", async () => {

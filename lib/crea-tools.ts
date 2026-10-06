@@ -908,7 +908,7 @@ export const CREA_TOOLS: readonly CreaTool[] = [
     inputs: ["image", "text"],
     output: "video",
     device: ANY_DEVICE,
-    price: { kind: "credits", modelSlug: "tts", inputMode: "text" },
+    price: { kind: "credits", modelSlug: "gemini-tts", inputMode: "text" },
     savesToGallery: true,
     localSave: true,
     alsoSaves: ["image"],
@@ -1354,7 +1354,9 @@ export const CREA_TOOLS: readonly CreaTool[] = [
     area: "zvuk",
     mode: "glasovi",
     tier: "local-code",
-    status: "ready",
+    // „Uskoro" dok kloniranje nema provajdera (A7, BLOKADA K22): snimak pristanka ne
+    // ide Google-u za tok koji se završava porukom „uskoro" (K29 S-07).
+    status: "soon",
     title: { sr: "Kloniraj svoj glas", en: "Clone your voice" },
     summary: {
       sr: "Samo tvoj glas: snimiš se uz merač i proveru buke, izgovoriš pristanak, a Crea ga proveri.",

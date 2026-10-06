@@ -108,6 +108,9 @@ async function claimableUpload(
   if (!upload || upload.userId !== userId) throw new Error("TUDJI_FAJL");
   if (upload.sourceJobId) throw new Error("NEISPRAVNA_SLIKA_ELEMENTA");
   if (!upload.mimeType || !IMAGE_ACCEPT.includes(upload.mimeType)) throw new Error("NEISPRAVNA_SLIKA_ELEMENTA");
+  // K29-01: pinuje se samo fajl dokazan po sadržaju - inače bi tuđ fajl prijavljen
+  // vremenskom vezom (MCP, stari klijent) pri brisanju elementa bio obrisan.
+  if (upload.contentBound !== true) throw new Error("TUDJI_FAJL");
   if (upload.pinnedAt !== undefined && !current.has(storageId)) throw new Error("SLIKA_ZAUZETA");
   return upload;
 }
@@ -127,12 +130,15 @@ export async function releaseImages(ctx: MutationCtx, userId: Id<"users">, stora
       .withIndex("by_storage", (q) => q.eq("storageId", storageId))
       .first();
     const own = upload !== null && upload.userId === userId;
-    if (usedByJobs.has(storageId)) {
+    // Odmah se briše samo fajl ovog korisnika dokazan po sadržaju (K29-01); ostalo
+    // (fajl u nekom radu, stari red bez dokaza) dobija rok i čeka cron.
+    if (usedByJobs.has(storageId) || (own && upload.contentBound !== true)) {
       if (own) await ctx.db.patch("studioUploads", upload._id, { pinnedAt: undefined, expiresAt: outputExpiresAt("image", now) });
       continue;
     }
+    if (!own) continue;
     if (await ctx.db.system.get("_storage", storageId)) await ctx.storage.delete(storageId);
-    if (own) await ctx.db.delete("studioUploads", upload._id);
+    await ctx.db.delete("studioUploads", upload._id);
   }
 }
 
@@ -348,6 +354,8 @@ export const insertCreatorElement = internalMutation({
       bytes: args.bytes,
       mimeType: args.mimeType,
       pinnedAt: now,
+      // Kopiju je napravio server iz izlaza ovog korisnika - vlasništvo je dokazano.
+      contentBound: true,
       createdAt: now,
     });
     const handle = handleFor(name, "lik", all);

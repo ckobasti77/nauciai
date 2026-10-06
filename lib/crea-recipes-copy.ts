@@ -238,6 +238,7 @@ export const CREA_LOGO_COPY = {
   kind: { sr: "Šta praviš", en: "What you make" },
   name: { sr: "Ime firme", en: "Business name" },
   namePlaceholder: { sr: "npr. Pekara Zlatni klas", en: "e.g. Zlatni klas Bakery" },
+  defaultKitName: { sr: "Moj brend", en: "My brand" },
   about: { sr: "Čime se bavi (ili šta ikonica predstavlja)", en: "What it does (or what the icon shows)" },
   aboutPlaceholder: { sr: "npr. pekara, domaći hleb i kifle", en: "e.g. bakery, homemade bread and rolls" },
   style: { sr: "Stil", en: "Style" },

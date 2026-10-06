@@ -60,6 +60,9 @@ export const FRAME_DENY_CANONICAL_SOURCES = [
   "/crea/galerija/:path*",
   "/crea/izazov",
   "/crea/poziv/:path*",
+  // Sveska ima akcije jednim klikom (javna knjižica, nagrada, liga, „otključaj sve") - K29 S-01.
+  "/studio/sveska",
+  "/crea/sveska",
   "/sign-in",
   "/auth/:path*",
   "/reset-password",

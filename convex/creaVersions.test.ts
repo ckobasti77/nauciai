@@ -22,6 +22,15 @@ function makeT() {
 }
 type TestConvex = ReturnType<typeof makeT>;
 
+/** Otisak koji klijent najavljuje uz dozvolu za lokalni rezultat (K29-01). */
+async function localDigest(t: TestConvex, storageId: Id<"_storage">) {
+  return t.run(async (ctx) => {
+    const meta = await ctx.db.system.get("_storage", storageId);
+    if (!meta) throw new Error("nema fajla");
+    return { sha256: meta.sha256, size: meta.size };
+  });
+}
+
 const EDIT_MODEL = "nano-banana-2";
 
 /** Osoblje (prolazi `requireStudioAccess` dok je Crea zatvorena), uslovi prihvaćeni, krediti. */
@@ -475,8 +484,8 @@ describe("izlaz kao ulaz (adoptOutputAsInput)", () => {
 
 describe("lokalni alat (saveLocalResult)", () => {
   async function saveLocal(t: TestConvex, asUser: ReturnType<TestConvex["withIdentity"]>, parentJobId?: Id<"generationJobs">) {
-    const { grantId } = await asUser.mutation(api.creaLocal.createLocalResultUploadUrl, { kind: "image" });
     const storageId = await storeFile(t, "image/webp");
+    const { grantId } = await asUser.mutation(api.creaLocal.createLocalResultUploadUrl, { kind: "image", ...(await localDigest(t, storageId)) });
     const result = await asUser.mutation(api.creaLocal.saveLocalResult, {
       grantId,
       storageId,
@@ -536,8 +545,8 @@ describe("K18: nastavak videa od poslednjeg kadra (V4)", () => {
     const video = await insertDone(t, userId, { kind: "video", contentType: "video/mp4" });
 
     // 1) Alat „Nastavi od poslednjeg kadra": kadar izvučen na uređaju ide u galeriju kao verzija videa.
-    const { grantId } = await asUser.mutation(api.creaLocal.createLocalResultUploadUrl, { kind: "image" });
     const frameStorage = await storeFile(t, "image/png");
+    const { grantId } = await asUser.mutation(api.creaLocal.createLocalResultUploadUrl, { kind: "image", ...(await localDigest(t, frameStorage)) });
     const saved = await asUser.mutation(api.creaLocal.saveLocalResult, {
       grantId,
       storageId: frameStorage,

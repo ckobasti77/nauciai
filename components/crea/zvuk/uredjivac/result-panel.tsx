@@ -167,7 +167,12 @@ export function AudioResultPanel({
         ) : null}
       </div>
       {!canSave ? <p className="type-body-sm font-semibold text-muted">{T.result.noAccess[locale]}</p> : null}
-      <p className="type-body-sm font-semibold text-muted">{T.result.mp3Note[locale]}</p>
+      <p className="type-body-sm font-semibold text-muted">
+        {T.result.mp3Note[locale]}{" "}
+        <a href="/licenses/THIRD-PARTY-NOTICES.txt" target="_blank" rel="noopener" className={cn("underline underline-offset-2", FOCUS)}>
+          {T.result.licenses[locale]}
+        </a>
+      </p>
       {errorMessage ? (
         <p role="alert" className="type-body-sm font-black text-red-700 dark:text-red-300">
           {errorMessage}

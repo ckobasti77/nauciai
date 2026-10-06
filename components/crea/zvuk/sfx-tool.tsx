@@ -186,7 +186,7 @@ export default function SfxTool({ tool, locale, canSave, projectId, paid }: Crea
         )}
         <p className="type-body-sm font-semibold text-muted">
           {T.sfx.credit[locale]}{" "}
-          <a href="/crea/sfx/IZVORI.txt" target="_blank" rel="noreferrer" className={cn("font-black text-ink underline decoration-2 underline-offset-4", FOCUS)}>
+          <a href="/brand/crea/sfx/IZVORI.txt" target="_blank" rel="noreferrer" className={cn("font-black text-ink underline decoration-2 underline-offset-4", FOCUS)}>
             {T.sfx.sources[locale]}
           </a>
         </p>

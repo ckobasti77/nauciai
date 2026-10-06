@@ -4,6 +4,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 import { internalAction, internalMutation, internalQuery, mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
+import { mergeCreaRows } from "./creaMergeCore";
 import { removeChatInboxSummaryMember, syncChatInboxSummaryMember } from "./chatInboxSummaryCore";
 import { canonicalizeEmailForAntiFarm } from "./creditsCore";
 import { effectiveRoleForProfile } from "./helpers";
@@ -1484,6 +1485,8 @@ async function mergeVerifiedUsersInMutation(
     }
     await mergeChatRows(ctx, args.canonicalUserId, args.duplicateUserId);
     await mergeStudioAndCreditRows(ctx, args.canonicalUserId, args.duplicateUserId);
+    // Crea (K30, nalaz K29-11): Likovi, brend kit, stilovi, montaže, album, limit…
+    await mergeCreaRows(ctx, args.canonicalUserId, args.duplicateUserId);
     await rebuildCanonicalProfileStats(
       ctx,
       args.canonicalUserId,

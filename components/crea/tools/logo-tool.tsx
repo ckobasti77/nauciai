@@ -263,7 +263,7 @@ function LogoResult({
       if (uploaded.url) URL.revokeObjectURL(uploaded.url);
       const fromLogo = kit ? null : await colorsFromLogo(png).catch(() => []);
       await saveKit({
-        name: kit?.name ?? (kitName || "Moj brend"),
+        name: kit?.name ?? (kitName || T.defaultKitName[locale]),
         colors: kit ? [...kit.colors] : (fromLogo ?? []),
         fonts: kit?.fonts ?? DEFAULT_BRAND_FONTS,
         tone: kit?.tone ?? "",

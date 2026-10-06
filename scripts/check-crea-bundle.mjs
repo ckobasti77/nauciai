@@ -15,11 +15,14 @@
  * 3. Kontrola markera: za svaku biblioteku iz `package.json` marker mora da se
  *    nađe u BAR jednom chunk-u build-a. Inače je marker zastareo i provera bi
  *    lažno prolazila - korak koji uvodi biblioteku dopisuje i marker ovde.
+ * 4. Budžet početnog JS-a (K30, nalaz K29-17): zbir gzip veličina početnih
+ *    chunk-ova rute ne sme preko budžeta iz `INITIAL_GZ_BUDGET_KB`.
  */
 
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { runInNewContext } from "node:vm";
+import { gzipSync } from "node:zlib";
 
 const ROOT = process.cwd();
 const NEXT = join(ROOT, ".next");
@@ -62,6 +65,20 @@ const MARKERS = [
   // K25: konfete (lista emoji fontova je samo u kodu biblioteke).
   { pkg: "canvas-confetti", marker: "Twemoji Mozilla" },
 ];
+
+/**
+ * Početni JS po ruti, gzip KB (K30, nalaz K29-17). Izmereno posle popravke
+ * (2026-10-06: radionica 465, /app/studio 541, /crea 130, početna 139) + 10 %;
+ * ruta koja pređe budžet obara proveru. Novi teret ide u async chunk, ne ovde.
+ * Cilj K01 (~300 KB za radionicu) traži da i registri (alati, inspiracija, recepti)
+ * i delovi strane (detalj rada, početni ekran) odu u async chunk-ove - sledeći korak.
+ */
+const INITIAL_GZ_BUDGET_KB = {
+  "/[locale]/studio/(shell)/app/page": 512,
+  "/[locale]/app/studio/page": 595,
+  "/[locale]/(marketing)/studio/page": 143,
+  "/[locale]/(marketing)/page": 153,
+};
 
 function fail(message) {
   console.error(`check:bundle - ${message}`);
@@ -108,6 +125,13 @@ const problems = [];
 const manifests = findManifests(SERVER_APP);
 let routes = 0;
 const initialChunks = new Set();
+const gzCache = new Map();
+const routeGzKb = new Map();
+function gzKbOf(file) {
+  const path = chunkPath(file);
+  if (!gzCache.has(path)) gzCache.set(path, gzipSync(textOf(file)).length / 1024);
+  return gzCache.get(path);
+}
 
 for (const file of manifests) {
   for (const [route, manifest] of readManifest(file)) {
@@ -116,6 +140,9 @@ for (const file of manifests) {
     for (const mod of Object.values(manifest.clientModules ?? {})) {
       if (!mod.async) for (const chunk of mod.chunks ?? []) chunks.add(chunk);
     }
+    // Isti chunk se u manifestu javlja i kao `/_next/static/...` i kao `static/...` - broji se jednom.
+    const unique = new Map([...chunks].map((chunk) => [chunkPath(chunk), chunk]));
+    routeGzKb.set(route, [...unique.values()].reduce((sum, chunk) => sum + gzKbOf(chunk), 0));
     for (const chunk of chunks) {
       initialChunks.add(chunk);
       const text = textOf(chunk);
@@ -138,8 +165,18 @@ for (const { pkg: name, marker } of active) {
   }
 }
 
+for (const [route, budget] of Object.entries(INITIAL_GZ_BUDGET_KB)) {
+  const size = routeGzKb.get(route);
+  if (size === undefined) {
+    problems.push(`ruta ${route} iz budžeta ne postoji u build-u - ažuriraj INITIAL_GZ_BUDGET_KB`);
+    continue;
+  }
+  console.log(`  ${route}: početni JS ${size.toFixed(0)} KB gz (budžet ${budget} KB)`);
+  if (size > budget) problems.push(`${route}: početni JS ${size.toFixed(0)} KB gz je preko budžeta ${budget} KB`);
+}
+
 if (problems.length > 0) {
-  console.error("check:bundle - teške biblioteke van async chunk-ova:");
+  console.error("check:bundle - teške biblioteke van async chunk-ova ili početni JS preko budžeta:");
   for (const problem of problems) console.error(`  - ${problem}`);
   process.exit(1);
 }

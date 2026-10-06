@@ -4,6 +4,7 @@
  * generisanje slike, videa i zvuka mora da ostane dostupno kroz neki režim.
  */
 
+import { FACE_GATED_MODELS } from "@/convex/creaFaceJobsCore";
 import { describe, expect, test } from "vitest";
 
 import { STUDIO_MODELS } from "@/convex/providers/catalogModels";
@@ -53,12 +54,11 @@ describe("CREA_MODES", () => {
         if (mode.status === "soon") expect(mode.models).toBeUndefined();
         // Režim koji radi nudi modele ili alate (K04: Slika · Alati); oba samo Napravi i Izmeni:
         // Slika (K11: alati za izmenu, K13: probni list, Ko · Gde · Kako, crtež) i Video (K18:
-        // poslednji kadar, više scena, crtaj pokret; produži klip), plus Video · Pokret i Govor
-        // (K20: „Odglumi" i „Lik koji govori" pored Kling modela).
+        // poslednji kadar, više scena, crtaj pokret; produži klip). Video · Pokret i Govor su
+        // od K30 SAMO alati: modele lica pušta samo server kroz `creaFaceJobs` (O5, K29-02).
         else if (
           mode.tools &&
           !((area === "slika" || area === "video") && (mode.id === "izmeni" || mode.id === "napravi")) &&
-          !(area === "video" && (mode.id === "pokret" || mode.id === "govor")) &&
           // K22: Zvuk · Govor - govor sa emocijama, dijalog i podkast pored modela govora;
           // K23: i Promena glasa, Prevod, Muzika, Efekti i Uređivač - alati pored modela.
           !(area === "zvuk" && mode.id !== "glasovi")
@@ -93,6 +93,8 @@ describe("CREA_MODES", () => {
 describe("modelsForMode", () => {
   test("svaki model iz kataloga je dostupan u bar jednom režimu svoje oblasti", () => {
     for (const model of STUDIO_MODELS) {
+      // Modeli lica (O5, K29-02) nemaju režim u composeru: ide se kroz alate Pokret/Govor.
+      if (FACE_GATED_MODELS.has(model.slug)) continue;
       const area = (Object.keys(CREA_AREA_KIND) as CreaArea[]).find((key) => CREA_AREA_KIND[key] === model.kind)!;
       const homes = CREA_MODES[area].filter((mode) => slugsOf(area, mode.id).includes(model.slug));
       expect(homes.length, `${model.slug} nema režim`).toBeGreaterThan(0);
@@ -119,8 +121,9 @@ describe("modelsForMode", () => {
     expect(slugsOf("video", "napravi")).not.toContain("kling-motion");
     expect(slugsOf("video", "napravi")).toContain("veo-31-lite");
     expect(slugsOf("video", "izmeni")).toEqual(expect.arrayContaining(["veo-31", "kling-omni"]));
-    expect(slugsOf("video", "pokret")).toEqual(["kling-motion"]);
-    expect(slugsOf("video", "govor").sort()).toEqual(["kling-avatar", "kling-lipsync"]);
+    // K30 (K29-02): modeli lica samo kroz alate „Odglumi" i „Lik koji govori".
+    expect(slugsOf("video", "pokret")).toEqual([]);
+    expect(slugsOf("video", "govor")).toEqual([]);
     expect(slugsOf("zvuk", "govor").sort()).toEqual(["dialogue", "gemini-tts", "tts"]);
     expect(slugsOf("zvuk", "promena")).toEqual(["voice-changer"]);
     expect(slugsOf("zvuk", "prevod")).toEqual(["dubbing"]);
@@ -151,7 +154,8 @@ describe("inputModeForMode", () => {
     expect(inputModeForMode(model("nano-banana-2"), "slika", "izmeni")).toBe("image_multi");
     expect(inputModeForMode(model("veo-31"), "video", "napravi")).toBe("text");
     expect(inputModeForMode(model("veo-31"), "video", "izmeni")).toBe("video");
-    expect(inputModeForMode(model("kling-motion"), "video", "pokret")).toBe("video_image");
+    // K30 (K29-02): Pokret više nema composer, pa ni ulazni režim za model lica.
+    expect(inputModeForMode(model("kling-motion"), "video", "pokret")).toBeUndefined();
     expect(inputModeForMode(model("stt"), "zvuk", "uredjivac")).toBe("audio");
   });
 
@@ -168,7 +172,8 @@ describe("modeOfModel", () => {
     expect(modeOfModel(model("nano-banana-pro"))).toEqual({ area: "slika", mode: "napravi" });
     expect(modeOfModel(model("nano-banana-pro"), "image_multi")).toEqual({ area: "slika", mode: "izmeni" });
     expect(modeOfModel(model("veo-31"), "video")).toEqual({ area: "video", mode: "izmeni" });
-    expect(modeOfModel(model("kling-lipsync"))).toEqual({ area: "video", mode: "govor" });
+    // K30 (K29-02): model lica nema režim composera - „Upotrebi ponovo" ne vodi u njega.
+    expect(modeOfModel(model("kling-lipsync"))).toBeNull();
     expect(modeOfModel(model("music"))).toEqual({ area: "zvuk", mode: "muzika" });
   });
 

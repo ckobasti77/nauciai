@@ -2,6 +2,8 @@
 
 import { useMutation, useQuery } from "convex/react";
 import { Replace, WandSparkles } from "lucide-react";
+import Link from "next/link";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useId, useState } from "react";
 
 import { FieldMic } from "@/components/crea/create/mic-button";
@@ -10,12 +12,12 @@ import { usePromptParamState } from "@/components/crea/tools/use-prompt-param";
 import { ToolHeader } from "@/components/crea/tool-runner";
 import { ChoiceChips } from "@/components/crea/tools/choice-chips";
 import { FacePicker, type FaceChoice } from "@/components/crea/tools/face-picker";
-import { ImageInput, useImageInput } from "@/components/crea/tools/image-input";
-import { paidModel, PaidSubmit, useLocalVideoSeconds, usePrepareVideo, useUploadInput, type SendStatus } from "@/components/crea/tools/paid-video";
+import { paidModel, PaidSubmit, useLocalVideoSeconds, usePrepareVideo, type SendStatus } from "@/components/crea/tools/paid-video";
 import type { CreaToolProps } from "@/components/crea/tools/types";
 import { useVideoInput, VideoInput } from "@/components/crea/tools/video-input";
 import { api } from "@/convex/_generated/api";
 import { fillCopy } from "@/lib/crea-copy";
+import { creaShellQuery } from "@/lib/crea-shell";
 import { jobCredits } from "@/lib/crea-job-price";
 import {
   editInstruction,
@@ -23,7 +25,6 @@ import {
   editPrompt,
   editRouteProblem,
   swapPrompt,
-  swapTarget,
   VIDEO_EDIT_EXAMPLES,
   VIDEO_EDIT_ROUTES,
   VIDEO_SWAP_TARGETS,
@@ -51,11 +52,16 @@ export default function VideoEditTool({ tool, locale, canSave, projectId, source
   const video = useVideoInput(source);
   const picked = video.picked;
   const localSeconds = useLocalVideoSeconds(picked);
-  const refs = useImageInput();
   const createJob = useCreaCreateJob();
   const startVideoSwap = useMutation(api.creaFaceJobs.startVideoSwap);
+  const startObjectSwap = useMutation(api.creaFaceJobs.startObjectSwap);
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  // Predmet za zamenu je SAČUVAN predmet ili mesto iz „Likova" (O5, K29-02):
+  // proizvoljna fotka + slobodan opis bi bili zamena osobe tuđim licem.
+  const elements = useQuery(api.creaElements.listMine, isSwap && canSave ? {} : "skip");
+  const objects = (elements ?? []).filter((row) => row.kind !== "lik" && row.images.length > 0);
   const prepareVideo = usePrepareVideo();
-  const uploadInput = useUploadInput();
   const textId = useId();
   const sourceJob = useQuery(api.studio.getJobForDetail, picked?.sourceJobId ? { jobId: picked.sourceJobId } : "skip");
 
@@ -65,6 +71,7 @@ export default function VideoEditTool({ tool, locale, canSave, projectId, source
   const [swapKind, setSwapKind] = useState<SwapKind>("predmet");
   const [targetId, setTargetId] = useState<string | null>(VIDEO_SWAP_TARGETS[0]!.id);
   const [face, setFace] = useState<FaceChoice | null>(null);
+  const [objectId, setObjectId] = useState<string | null>(null);
   const [consent, setConsent] = useState(false);
   const [resolution, setResolution] = useState<Resolution>("720p");
   const [status, setStatus] = useState<SendStatus>({ name: "idle" });
@@ -75,9 +82,14 @@ export default function VideoEditTool({ tool, locale, canSave, projectId, source
     return choice ? [{ route, ...choice, problem: editRouteProblem(route, localSeconds) }] : [];
   });
   const chosen = routes.find((entry) => entry.route.id === routeId && entry.problem === null) ?? routes.find((entry) => entry.problem === null) ?? null;
-  const refCount = refs.picked ? 1 : 0;
-  const instruction = isSwap ? swapTarget(targetId, text) : editInstruction(example, text);
-  const prompt = chosen ? (isSwap ? swapPrompt(chosen.route, instruction, Math.max(1, refCount)) : editPrompt(chosen.route, instruction, refCount)) : "";
+  const object = objects.find((row) => row._id === objectId) ?? null;
+  const target = VIDEO_SWAP_TARGETS.find((entry) => entry.id === targetId) ?? null;
+  const instruction = isSwap ? (target?.phrase ?? "") : editInstruction(example, text);
+  const prompt = chosen
+    ? isSwap
+      ? swapPrompt(chosen.route, instruction, Math.max(1, Math.min(3, object?.images.length ?? 1)))
+      : editPrompt(chosen.route, instruction, 0)
+    : "";
   const seconds = localSeconds ?? chosen?.route.minS ?? 5;
   const params = chosen ? editParams(chosen.route, prompt, seconds, resolution) : null;
   const credits =
@@ -100,7 +112,7 @@ export default function VideoEditTool({ tool, locale, canSave, projectId, source
               ? T.needConsent[locale]
               : null
           : isSwap
-            ? !refs.picked || !instruction
+            ? !object || !target
               ? T.swapNeedObject[locale]
               : null
             : !instruction
@@ -121,14 +133,25 @@ export default function VideoEditTool({ tool, locale, canSave, projectId, source
           ...(projectId ? { projectId } : {}),
           ...(picked.sourceJobId ? { parentJobId: picked.sourceJobId } : {}),
         });
+      } else if (isSwap && object && target) {
+        // Opis i slike predmeta gradi server (K29-02).
+        await startObjectSwap({
+          elementId: object._id,
+          targetId: target.id,
+          routeId: chosen.route.id,
+          videoStorageId: videoInput.storageId,
+          seconds: videoInput.seconds ?? seconds,
+          resolution,
+          ...(projectId ? { projectId } : {}),
+          ...(picked.sourceJobId ? { parentJobId: picked.sourceJobId } : {}),
+        });
       } else {
-        const images = refs.picked ? [(await uploadInput(refs.picked.file, "image")).storageId] : [];
         const finalParams = editParams(chosen.route, prompt, videoInput.seconds ?? seconds, resolution);
         const result = await createJob({
           modelSlug: chosen.route.modelSlug,
           params: JSON.stringify(finalParams),
           inputMode: chosen.route.inputMode,
-          inputs: JSON.stringify({ video: [videoInput.storageId], ...(images.length > 0 ? { image: images } : {}) }),
+          inputs: JSON.stringify({ video: [videoInput.storageId] }),
           ...(picked.sourceJobId ? { parentJobId: picked.sourceJobId, derivation: "izmena" as const } : {}),
           ...(projectId ? { projectId } : {}),
         });
@@ -197,32 +220,29 @@ export default function VideoEditTool({ tool, locale, canSave, projectId, source
             <ChoiceChips<string>
               legend={T.swapWhat[locale]}
               name="crea-video-swap-target"
-              options={VIDEO_SWAP_TARGETS.map((target) => ({ id: target.id, label: target.label[locale] }))}
-              value={text.trim() ? "" : targetId ?? ""}
-              onChange={(id) => {
-                setTargetId(id);
-                setText("");
-              }}
+              options={VIDEO_SWAP_TARGETS.map((entry) => ({ id: entry.id, label: entry.label[locale] }))}
+              value={targetId ?? ""}
+              onChange={setTargetId}
               disabled={busy}
             />
-            <div>
-              <label htmlFor={textId} className="type-body-sm font-black text-ink">
-                {T.swapTargetText[locale]}
-              </label>
-              <input
-                id={textId}
-                value={text}
-                maxLength={200}
+            {objects.length > 0 ? (
+              <ChoiceChips<string>
+                legend={T.swapNewObject[locale]}
+                name="crea-video-swap-object"
+                options={objects.map((row) => ({ id: row._id, label: row.name }))}
+                value={objectId ?? ""}
+                onChange={setObjectId}
                 disabled={busy}
-                onChange={(event) => setText(event.target.value)}
-                placeholder={T.swapTargetPlaceholder[locale]}
-                className={`${textareaClass} min-h-11`}
               />
-            </div>
-            <div className="space-y-2">
-              <p className="type-body-sm font-black text-ink">{T.swapNewObject[locale]}</p>
-              <ImageInput locale={locale} input={refs} disabled={busy} fullScreenDrop={false} />
-            </div>
+            ) : (
+              <p className="type-body-sm font-semibold text-muted">{T.swapNoObjects[locale]}</p>
+            )}
+            <Link
+              href={`${pathname}?${creaShellQuery({ area: "slika", mode: "likovi", tool: null }, searchParams)}`}
+              className="inline-flex min-h-11 items-center type-body-sm font-black text-ink underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            >
+              {T.swapMakeObject[locale]}
+            </Link>
           </div>
         ) : (
           <div className="space-y-4">
@@ -261,10 +281,6 @@ export default function VideoEditTool({ tool, locale, canSave, projectId, source
                 className={textareaClass}
               />
               <FieldMic locale={locale} value={text} onChange={setText} disabled={busy} maxLength={600} />
-            </div>
-            <div className="space-y-2">
-              <p className="type-body-sm font-black text-ink">{fillCopy(T.editRefs[locale], { n: 1 })}</p>
-              <ImageInput locale={locale} input={refs} disabled={busy} fullScreenDrop={false} />
             </div>
           </div>
         )}

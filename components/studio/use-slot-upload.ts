@@ -5,6 +5,7 @@ import { useCallback } from "react";
 
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { fileDigest } from "@/lib/crea-file-digest";
 import { canMeasure } from "@/lib/media-duration";
 import type { SlotFile } from "@/lib/studio-slots";
 
@@ -36,7 +37,8 @@ export function useSlotUpload() {
 
   return useCallback(
     async (file: File, slot: string, onProgress: (fraction: number) => void): Promise<SlotFile> => {
-      const { uploadUrl, grantId } = await createUploadUrl({ slot });
+      // Otisak sadržaja ide uz dozvolu (K29-01): server tada zna KOJI fajl sme da prijavi.
+      const { uploadUrl, grantId } = await createUploadUrl({ slot, ...(await fileDigest(file)) });
       const storageId = await putWithProgress(uploadUrl, file, onProgress);
       await registerUpload({ storageId: storageId as Id<"_storage">, grantId });
 

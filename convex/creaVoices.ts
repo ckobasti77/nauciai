@@ -26,7 +26,7 @@ import {
 import { requireUserId } from "./helpers";
 import { buildGoogleSpeechRequest, speechOutput } from "./providers/googleCore";
 import { GEMINI_TTS, GEMINI_TTS_DEFAULT_VOICE } from "./providers/googleAudioModels";
-import { requireStudioAccess } from "./studio";
+import { requireCreaAiCall, requireStudioAccess } from "./studio";
 import { tokenCostUsd } from "./studioActualCostCore";
 import { providerKeyPresent } from "./studioCore";
 
@@ -148,7 +148,8 @@ export const voiceSamples = query({
 export const beginVoiceSample = internalMutation({
   args: { engine: v.string(), voiceId: v.string() },
   handler: async (ctx, args): Promise<{ state: "ready"; url: string } | { state: "pending" } | { state: "failed" } | { state: "go"; rowId: Id<"creaVoiceSamples"> }> => {
-    await requireStudioAccess(ctx);
+    // Uzorak je deljen i fiksnog teksta - uslovi nisu potrebni, ali kill switch i plafon jesu (K29-03).
+    await requireCreaAiCall(ctx, { requireTerms: false });
     const now = Date.now();
     const row = await ctx.db
       .query("creaVoiceSamples")

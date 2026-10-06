@@ -16,6 +16,12 @@ export const CREA_FLAG_KEYS = {
   publicGallery: "crea_public_gallery",
   /** Pošteno „neograničeno" na jeftinim modelima za plan od €24,99 (C8, K28). */
   fairUnlimited: "crea_fair_unlimited",
+  /**
+   * Besplatno ponavljanje pokvarenog rada (U7, K28). Iza flega od K30 (nalaz
+   * K29-09): to je nova politika novca (novo seme = besplatna varijacija), a
+   * pravilo runa traži da sve što menja cenu čeka Jovanovu odluku (O1).
+   */
+  freeRedo: "crea_free_redo",
 } as const;
 
 export type CreaFlagKey = (typeof CREA_FLAG_KEYS)[keyof typeof CREA_FLAG_KEYS];
@@ -24,6 +30,7 @@ const creaFlagKeyValidator = v.union(
   v.literal(CREA_FLAG_KEYS.pricingV2),
   v.literal(CREA_FLAG_KEYS.publicGallery),
   v.literal(CREA_FLAG_KEYS.fairUnlimited),
+  v.literal(CREA_FLAG_KEYS.freeRedo),
 );
 
 /** Jedno indeksno čitanje; red koji ne postoji ili nije `enabled: true` je isključen fleg. */

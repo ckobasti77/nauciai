@@ -38,6 +38,7 @@ export const CREA_AUDIO_TOOLS_COPY = {
     noAccess: t("Prijavi se i otvori Creu da bi čuvao u galeriju. Preuzimanje radi i ovako.", "Sign in and open Crea to save to the gallery. Downloading works anyway."),
     tooBigForGallery: t("Fajl je veći od 50 MB - preuzmi ga, a u galeriju sačuvaj kraći deo.", "The file is larger than 50 MB - download it, and save a shorter part to the gallery."),
     mp3Note: t("MP3 192 kb/s (LAME, lame.sourceforge.io) - pravi se na tvom uređaju.", "MP3 192 kb/s (LAME, lame.sourceforge.io) - made on your device."),
+    licenses: t("Licence biblioteka", "Library licences"),
   },
 
   recorder: {

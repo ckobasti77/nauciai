@@ -67,7 +67,7 @@ describe("sezonski događaji (G12)", () => {
   });
 
   test("sezonske nalepnice: fajl kod nas, birač ih nudi samo dok sezona traje", () => {
-    const source = readFileSync("public/crea/stickers/IZVOR.md", "utf8");
+    const source = readFileSync("public/brand/crea/stickers/IZVOR.md", "utf8");
     for (const sticker of CREA_SEASON_STICKERS) {
       const path = `public${stickerUrl(sticker.id)}`;
       expect(existsSync(path), sticker.id).toBe(true);

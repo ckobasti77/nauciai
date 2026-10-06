@@ -146,5 +146,17 @@ export default async function proxy(request: NextRequest, event: NextFetchEvent)
 }
 
 export const config = {
-  matcher: ["/((?!.*\\..*|_next).*)", "/", "/(api|trpc)(.*)"],
+  // Prvo pravilo preskače putanje sa tačkom (statički fajlovi), a korisničko ime
+  // sme da ima tačku (`lib/username-policy.ts`) - deljena knjižica Cree
+  // (`/crea/knjizica/jovan.m`) se zato hvata izričito (K30, nalaz K29-15).
+  matcher: [
+    "/((?!.*\\..*|_next).*)",
+    "/",
+    "/(api|trpc)(.*)",
+    "/crea/knjizica/:path*",
+    "/sr/crea/knjizica/:path*",
+    "/en/crea/knjizica/:path*",
+    "/studio/knjizica/:path*",
+    "/en/studio/knjizica/:path*",
+  ],
 };

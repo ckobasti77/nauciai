@@ -76,6 +76,7 @@ async function seedUser(t: TestConvex, email = "fer@example.com", plan?: "premiu
       role: "moderator",
       language: "sr" as const,
       acceptedStudioTermsAt: 1,
+      emailVerificationTime: 1,
       createdAt: 1,
       updatedAt: 1,
     });
@@ -183,9 +184,34 @@ test("limit drugog korisnika ne važi za mene", async () => {
 
 // ── Besplatno ponavljanje ────────────────────────────────────────────────────
 
+/** Besplatno ponavljanje je iza flega od K30 (nalaz K29-09). */
+async function freeRedoOn(t: TestConvex) {
+  await t.run((ctx) => ctx.db.insert("platformFlags", { key: "crea_free_redo", enabled: true }));
+}
+
+test("ponavljanje (K29-09): fleg isključen, nepotvrđen nalog i noćni rad - nema besplatnog posla", async () => {
+  const t = makeT();
+  await seedModel(t, "nano-banana-2");
+  const { userId, as } = await seedUser(t);
+  const original = await create(as);
+  await done(t, original);
+  expect(await as.query(api.creaFair.getRedoOffer, { jobId: original, now: NOW })).toBeNull();
+  await expect(as.mutation(api.creaFair.redoBroken, { jobId: original, reason: "prazno" })).rejects.toThrow("PONAVLJANJE_ISKLJUCENO");
+
+  await freeRedoOn(t);
+  await t.run((ctx) => ctx.db.patch(userId, { emailVerificationTime: undefined }));
+  await expect(as.mutation(api.creaFair.redoBroken, { jobId: original, reason: "prazno" })).rejects.toThrow("PONAVLJANJE_NEDOSTUPNO");
+
+  await t.run((ctx) => ctx.db.patch(userId, { emailVerificationTime: 1 }));
+  await t.run((ctx) => ctx.db.patch(original, { deliveryMode: "night" }));
+  await expect(as.mutation(api.creaFair.redoBroken, { jobId: original, reason: "prazno" })).rejects.toThrow("NOCNI_RAD");
+  expect((await job(t, original)).freeRedoOfJobId).toBeUndefined();
+});
+
 test("ponavljanje: isti zahtev za 0 kr, jednom po radu, uz roditelja", async () => {
   const t = makeT();
   await seedModel(t, "nano-banana-2");
+  await freeRedoOn(t);
   const { userId, as } = await seedUser(t);
   const original = await create(as);
   await done(t, original);
@@ -208,6 +234,7 @@ test("ponavljanje: isti zahtev za 0 kr, jednom po radu, uz roditelja", async () 
 test("ponavljanje: zaštita - tuđ, nedovršen, star, nepoznat razlog, dnevni limit", async () => {
   const t = makeT();
   await seedModel(t, "nano-banana-2");
+  await freeRedoOn(t);
   const { as } = await seedUser(t);
   const other = await seedUser(t, "drugi@example.com");
 
@@ -234,6 +261,7 @@ test("ponavljanje: zaštita - tuđ, nedovršen, star, nepoznat razlog, dnevni li
 test("ponavljanje koje padne ne vraća kredite (nije ih ni skinulo) i ne troši limit", async () => {
   const t = makeT();
   await seedModel(t, "nano-banana-2");
+  await freeRedoOn(t);
   const { userId, as } = await seedUser(t);
   const original = await create(as);
   await done(t, original);
@@ -248,6 +276,29 @@ test("ponavljanje koje padne ne vraća kredite (nije ih ni skinulo) i ne troši 
 });
 
 // ── Otkazivanje ──────────────────────────────────────────────────────────────
+
+test("K29-06: račun provajdera posle povraćaja ne vraća kredite drugi put i ne naplaćuje", async () => {
+  const t = makeT();
+  await seedModel(t, "nano-banana-2");
+  const { userId, as } = await seedUser(t);
+  const jobId = await create(as);
+  await t.run((ctx) => ctx.db.patch(jobId, { status: "running", falRequestId: `mock-${jobId}` }));
+  expect(await as.action(api.creaFair.cancelJob, { jobId })).toEqual({ ok: true });
+  expect(await balance(t, userId)).toBe(1000);
+
+  // Fal je ipak završio i naplatio - niže, pa više od procene.
+  for (const actualCostUsd of [0.01, 0.5]) {
+    await t.run((ctx) => ctx.db.patch(jobId, { actualCostUsd, settledAt: undefined }));
+    await t.mutation(internal.studio.settleJobCredits, { jobId });
+    expect(await balance(t, userId)).toBe(1000);
+    expect(await job(t, jobId)).toMatchObject({ settlementReason: "nije_isporuceno" });
+  }
+  const settlements = await t.run((ctx) =>
+    ctx.db.query("creditTransactions").filter((q) => q.eq(q.field("jobId"), jobId)).collect(),
+  );
+  expect(settlements.filter((row) => row.type === "settlement")).toEqual([]);
+});
+
 
 test("otkaz DEMO posla vraća kredite tačno jednom (drugi otkaz, zakasneli webhook i reaper ne vraćaju ponovo)", async () => {
   const t = makeT();

@@ -6,7 +6,6 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 import { api } from "@/convex/_generated/api";
 import { belgradeDayKey } from "@/convex/leaderboardCore";
-import { CREA_MINI_LESSONS } from "@/lib/crea-mini-lessons";
 import type { CreaUnlockState } from "@/lib/crea-skills";
 
 export type CreaGame = NonNullable<FunctionReturnType<typeof api.creaGame.myGame>>;
@@ -54,10 +53,8 @@ export function useCreaGameValue(notebookPath: string): CreaGameValue {
         : game.unlock.auto || game.unlock.chosen
           ? { all: true }
           : { all: false, lessons: game.unlock.lessons };
-    const freeTries: ComposerFreeTry[] = (game?.freeTries ?? []).flatMap((row) => {
-      const lesson = CREA_MINI_LESSONS.find((l) => l.id === row.lessonId);
-      return lesson?.freeTry ? [{ lessonId: lesson.id, models: lesson.freeTry.models, maxCredits: lesson.freeTry.maxCredits }] : [];
-    });
+    // Modeli i plafon stižu sa servera (`myGame`), bez registra lekcija u početnom chunk-u (K29-17).
+    const freeTries: ComposerFreeTry[] = (game?.freeTries ?? []).map((row) => ({ lessonId: row.lessonId, models: row.models, maxCredits: row.maxCredits }));
     return { game: isAuthenticated ? game : null, unlock, freeTries, notebookPath, todayKey };
   }, [game, isAuthenticated, isLoading, notebookPath, todayKey]);
 }

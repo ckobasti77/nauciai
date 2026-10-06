@@ -8,6 +8,7 @@ import {
   CREA_VOICES,
   DEFAULT_VOICE,
   filterVoices,
+  narrationEngine,
   parseVoiceKey,
   readVoiceWish,
   suggestVoices,
@@ -100,5 +101,22 @@ describe("dizajniraj glas (A8)", () => {
 
     expect(suggestVoices("bilo kakav glas").map((voice) => voice.id)).toEqual(["Zephyr", "Puck", "Charon"]);
     expect(suggestVoices("topao muški glas", "eleven")[0]?.id).toBe("George");
+  });
+});
+
+describe("glas za naraciju alata (K30, nalaz K29-20)", () => {
+  const live = (slugs: string[]) => (slug: string) => (slugs.includes(slug) ? ("live" as const) : null);
+
+  test("Gemini kad radi i tekst stane; ElevenLabs za dug tekst ili kad Gemini ne radi", () => {
+    expect(narrationEngine(1200, live(["gemini-tts", "tts"]))?.id).toBe("gemini");
+    expect(narrationEngine(2400, live(["gemini-tts", "tts"]))?.id).toBe("eleven");
+    expect(narrationEngine(1200, live(["tts"]))?.id).toBe("eleven");
+    expect(narrationEngine(2400, live(["gemini-tts"]))).toBeNull();
+    expect(narrationEngine(6000, live(["gemini-tts", "tts"]))).toBeNull();
+  });
+
+  test("uživo ima prednost pred DEMO-om; bez ičega uživo ostaje prvi DEMO", () => {
+    expect(narrationEngine(100, (slug) => (slug === "gemini-tts" ? "demo" : "live"))?.id).toBe("eleven");
+    expect(narrationEngine(100, () => "demo")?.id).toBe("gemini");
   });
 });

@@ -142,7 +142,7 @@ export function StudioMediaTile({
       id={domId ?? `tile-${job._id}`}
       tabIndex={0}
       role="button"
-      aria-label={`Rad: ${caption || job.modelSlug}`}
+      aria-label={`${CREA_TOOL_COPY.workLabel[locale]}: ${caption || job.modelSlug}`}
       onClick={(e) => {
         if ((e.target as HTMLElement).closest("button, a")) return;
         onOpenDetail?.(job);
@@ -206,7 +206,7 @@ export function StudioMediaTile({
                 <button
                   type="button"
                   onClick={() => onReuse(job)}
-                  className="mt-1 inline-flex min-h-8 items-center gap-1.5 rounded-full border-2 border-ink bg-yellow px-3 py-1 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--ink)] transition hover:-translate-y-0.5"
+                  className="mt-1 inline-flex min-h-8 items-center gap-1.5 rounded-full border-2 border-ink bg-yellow px-3 py-1 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--ink)] transition hover:-translate-y-0.5 pointer-coarse:min-h-11 studio-focus-ink motion-reduce:transition-none"
                 >
                   <RefreshCw className="size-3" />
                   {CREA_TOOL_COPY.openTool[locale]}
@@ -220,7 +220,7 @@ export function StudioMediaTile({
                       ? `Generiši ponovo za ${formatCreditsLong(job.creditCost, locale)}`
                       : `Generate again for ${formatCreditsLong(job.creditCost, locale)}`
                   }
-                  className="mt-1 inline-flex min-h-8 items-center gap-1.5 rounded-full border-2 border-ink bg-yellow px-3 py-1 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--ink)] transition hover:-translate-y-0.5"
+                  className="mt-1 inline-flex min-h-8 items-center gap-1.5 rounded-full border-2 border-ink bg-yellow px-3 py-1 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--ink)] transition hover:-translate-y-0.5 pointer-coarse:min-h-11 studio-focus-ink motion-reduce:transition-none"
                 >
                   <RefreshCw className="size-3" />
                   <span>{locale === "sr" ? "Generiši ponovo · " : "Generate again · "}</span>

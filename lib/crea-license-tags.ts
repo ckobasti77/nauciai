@@ -1,6 +1,13 @@
 import type { LocalizedText } from "./i18n";
-import { SFX_LICENSE } from "./crea-sfx-library";
 import { toolIdFromModelSlug } from "./crea-tools";
+
+/** Licenca biblioteke zvučnih efekata (Kenney, `public/brand/crea/sfx`). */
+export const SFX_LICENSE = {
+  id: "CC0-1.0",
+  name: "Creative Commons Zero (CC0 1.0)",
+  url: "https://creativecommons.org/publicdomain/zero/1.0/",
+  author: "Kenney (kenney.nl)",
+} as const;
 
 /**
  * Oznaka „Sigurno za objavu" (Crea K23, A21) na muzici, glasovima i efektima:

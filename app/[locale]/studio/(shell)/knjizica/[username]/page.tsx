@@ -4,7 +4,7 @@ import { CreaReportCardView } from "@/components/crea/game/crea-report-card";
 import { LinkButton } from "@/components/ui/primitives";
 import { fillCopy } from "@/lib/crea-copy";
 import { CREA_CARD_COPY } from "@/lib/crea-game-copy";
-import { loadSharedReportCard } from "@/lib/crea-report-card-share";
+import { loadSharedReportCard, usernameFromParam } from "@/lib/crea-report-card-share";
 import { normalizeLocale, withLocale } from "@/lib/i18n";
 
 type Params = Promise<{ locale: string; username: string }>;
@@ -17,7 +17,7 @@ type Params = Promise<{ locale: string; username: string }>;
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { locale: localeParam, username } = await params;
   const locale = normalizeLocale(localeParam);
-  const data = await loadSharedReportCard(decodeURIComponent(username));
+  const data = await loadSharedReportCard(usernameFromParam(username));
   const robots = { index: false, follow: false };
   if (!data) return { title: CREA_CARD_COPY.title[locale], robots };
   const title = fillCopy(CREA_CARD_COPY.sharedTitle[locale], { name: data.name });
@@ -33,7 +33,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 export default async function SharedReportCardRoute({ params }: { params: Params }) {
   const { locale: localeParam, username } = await params;
   const locale = normalizeLocale(localeParam);
-  const data = await loadSharedReportCard(decodeURIComponent(username));
+  const data = await loadSharedReportCard(usernameFromParam(username));
 
   return (
     <div className="mx-auto max-w-2xl space-y-5 py-4 text-ink">

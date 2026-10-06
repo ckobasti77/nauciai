@@ -76,6 +76,7 @@ export const CREA_FLOWS_COPY = {
   subNeedVideo: { sr: "Prvo izaberi video.", en: "Pick a video first." },
   subTooLong: { sr: "Video je duži od 8 minuta - skrati ga u Montaži.", en: "The video is longer than 8 minutes - trim it in the editor." },
   sttUnavailable: { sr: "Prepoznavanje govora trenutno nije dostupno - napiši tekst sam.", en: "Speech recognition isn't available right now - write the text yourself." },
+  modelUnavailable: { sr: "Model koji ovaj korak koristi trenutno nije dostupan.", en: "The model this step uses isn't available right now." },
   subPriceHint: { sr: "Naplaćuje se po minutu snimka; tačna cena piše na dugmetu.", en: "Charged per minute of the recording; the exact price is on the button." },
 
   // ── Kratki klipovi (V26) ──

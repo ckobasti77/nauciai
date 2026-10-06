@@ -56,7 +56,7 @@ import { buildPodcastRequest, demoPodcast, parsePodcastResponse, PODCAST_LIMITS,
 import { STORYBOARD_LIMITS, type StoryShot } from "./creaStoryboardsCore";
 import { sentencesFromWords, transcriptDigest } from "./creaTranscriptsCore";
 import { requireUserId } from "./helpers";
-import { requireStudioAccess } from "./studio";
+import { requireCreaAiCall } from "./studio";
 import { dayKey } from "./studioCore";
 
 /**
@@ -71,12 +71,12 @@ const localeValidator = v.union(v.literal("sr"), v.literal("en"));
 
 /**
  * Zauzme jedan poziv iz dnevnog limita PRE mreže (dva brza klika ne mogu da
- * pređu limit). Pristup Crei je ista kapija kao za upload (`requireStudioAccess`).
+ * pređu limit). Pristup: kapija Cree + uslovi, kill switch i dnevni plafon troška (`requireCreaAiCall`, K29-03).
  */
 export const beginCall = internalMutation({
   args: {},
   handler: async (ctx) => {
-    const { userId } = await requireStudioAccess(ctx);
+    const { userId } = await requireCreaAiCall(ctx);
     const day = dayKey(Date.now());
     const usage = await ctx.db
       .query("creaLlmUsage")

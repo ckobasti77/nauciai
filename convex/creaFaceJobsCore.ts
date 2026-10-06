@@ -41,15 +41,33 @@ export type FaceJobLike = {
 
 /**
  * Može li ovaj rad uopšte da nosi lice za video alat: moj, gotov, sa izlazom,
- * pravi (ne DEMO plakat) i tražene vrste. Lokalni alat (reframe, boje…) sme
- * samo kao verzija drugog rada (roditelj) - fajl sa uređaja bez roditelja ne.
+ * pravi (ne DEMO plakat) i tražene vrste. Rezultat lokalnog alata NIKAD
+ * (K30, K29-02): fajl je sa uređaja, a roditelja bira klijent - server ne može
+ * da dokaže da je to verzija bezbednog rada, a ne tuđ snimak.
  */
 export function jobMayCarryFace(job: FaceJobLike, userId: string, kinds: readonly string[]): boolean {
   if (job.userId !== userId || job.status !== "done" || !job.outputStorageId) return false;
   if (isMockRequestId(job.falRequestId)) return false;
   if (!kinds.includes(job.kind)) return false;
-  if (job.provider === "local" && !job.parentJobId) return false;
+  if (job.provider === "local") return false;
   return true;
+}
+
+/** Modeli koji pomeraju, ozvučavaju ili zamenjuju LICE (O5): samo kroz `creaFaceJobs`. */
+export const FACE_GATED_MODELS: ReadonlySet<string> = new Set(["kling-avatar", "kling-lipsync", "kling-motion"]);
+
+/**
+ * Da li posao sme samo kroz serverski omotač koji je proverio ko/šta je na
+ * referentnim slikama (K30, K29-02): modeli lica uvek, a izmena videa sa
+ * referentnom slikom (Kling O3 izmena, Seedance 2.5 sa videom) jer slobodan opis
+ * + tuđa fotka = zamena osobe u videu. Video iz opisa ili sa slikom Lika (V6)
+ * ostaje opšti put - nema izvornog videa u kojem bi se neko menjao.
+ */
+export function needsVerifiedRefs(modelSlug: string, inputs: Record<string, readonly string[]>): boolean {
+  if (FACE_GATED_MODELS.has(modelSlug)) return true;
+  const hasImage = (inputs.image?.length ?? 0) > 0;
+  const hasVideo = (inputs.video?.length ?? 0) > 0;
+  return hasImage && hasVideo && (modelSlug === "kling-o3-edit" || modelSlug === "seedance-25");
 }
 
 export type FaceJobKind = "avatar" | "pokret" | "usne" | "zamena";

@@ -81,7 +81,11 @@ test("zajednica Cree (K27): galerija, izazov i poziv dobijaju DENY; sveska i lan
   ]) {
     expect(sourcesMatching(path), path).not.toEqual([]);
   }
-  for (const path of ["/crea", "/crea/sveska", "/crea/izazovi-stari", "/crea/galerijaa"]) {
+  // K30 (K29 S-01): sveska je sada zaštićena - ima akcije jednim klikom.
+  for (const path of ["/crea/sveska", "/en/crea/sveska", "/studio/sveska"]) {
+    expect(sourcesMatching(path), path).not.toEqual([]);
+  }
+  for (const path of ["/crea", "/crea/sveskaa", "/crea/izazovi-stari", "/crea/galerijaa"]) {
     expect(sourcesMatching(path), path).toEqual([]);
   }
 });

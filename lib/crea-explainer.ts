@@ -13,7 +13,7 @@ import type { LocalizedText } from "./i18n";
 /**
  * Objašnjavajući video (Crea K21, V28; plan K17 §6.4): lekcija ili tekst → scene
  * u stilu (tabla, štapići, papir, glina, pikseli) → jeftine slike (Nano Banana 2
- * Lite) + srpski glas (`tts`, jedan posao za celu naraciju) → montaža na uređaju:
+ * Lite) + srpski glas (Gemini govor, rezerva ElevenLabs `tts`; jedan posao za celu naraciju) → montaža na uređaju:
  * Ken Burns po slici dok narator govori o njoj, titlovi iz teksta, prelaz „list
  * sveske" → MP4 (0 kr za montažu). Cena unapred i po minutu (cilj ~20-50 kr/min).
  */
@@ -31,10 +31,14 @@ export const EXPLAINER_STYLES: ReadonlyArray<{ id: ExplainerStyleId; label: Loca
 export const EXPLAINER_LENGTHS = [30, 60, 90] as const;
 export type ExplainerLength = (typeof EXPLAINER_LENGTHS)[number];
 
-/** Modeli: najjeftinija Nano Banana za slike i jedini srpski glas u katalogu (do K22). */
+/**
+ * Modeli: najjeftinija Nano Banana za slike i Gemini govor (radi sa Google
+ * ključem). Kad Gemini ne može (dug tekst, nema ključa), alat bira ElevenLabs
+ * `tts` kroz `narrationEngine` (`lib/crea-voices.ts`) i šalje ga kao `voiceSlug`.
+ */
 export const EXPLAINER_MODELS = {
   image: { slug: "nano-banana-2-lite", inputMode: "text" },
-  voice: { slug: "tts", inputMode: "text" },
+  voice: { slug: "gemini-tts", inputMode: "text" },
 } as const;
 
 /** Srpski govor: oko 14 znakova u sekundi (isto kao `lib/crea-talking.ts`). */
@@ -57,7 +61,7 @@ export function sceneImagePrompt(visual: string, styleId: ExplainerStyleId): str
 }
 
 /** Poslovi: po jedna slika na scenu i JEDAN glas za celu naraciju (isti glas, jedna cena po znaku). */
-export function explainerJobs(plan: Pick<ExplainerPlan, "scenes">, input: { styleId: ExplainerStyleId; aspect: TimelineAspect; voice: string }) {
+export function explainerJobs(plan: Pick<ExplainerPlan, "scenes">, input: { styleId: ExplainerStyleId; aspect: TimelineAspect; voice: string; voiceSlug?: string }) {
   const images: PricedJob[] = plan.scenes.map((scene) => ({
     modelSlug: EXPLAINER_MODELS.image.slug,
     inputMode: EXPLAINER_MODELS.image.inputMode,
@@ -66,7 +70,7 @@ export function explainerJobs(plan: Pick<ExplainerPlan, "scenes">, input: { styl
   }));
   const text = narrationText(plan);
   const voice: PricedJob = {
-    modelSlug: EXPLAINER_MODELS.voice.slug,
+    modelSlug: input.voiceSlug ?? EXPLAINER_MODELS.voice.slug,
     inputMode: EXPLAINER_MODELS.voice.inputMode,
     params: { text, voice: input.voice },
     measured: { char_count: text.length },
@@ -77,7 +81,7 @@ export function explainerJobs(plan: Pick<ExplainerPlan, "scenes">, input: { styl
 export type ExplainerCost = { images: number | null; voice: number | null; total: number | null; perMinute: number | null; seconds: number };
 
 /** Ukupna cena unapred (istom računicom kao server) i cena po minutu videa. */
-export function explainerCost(plan: Pick<ExplainerPlan, "scenes">, input: { styleId: ExplainerStyleId; aspect: TimelineAspect; voice: string }, catalog: readonly PricedModel[]): ExplainerCost {
+export function explainerCost(plan: Pick<ExplainerPlan, "scenes">, input: { styleId: ExplainerStyleId; aspect: TimelineAspect; voice: string; voiceSlug?: string }, catalog: readonly PricedModel[]): ExplainerCost {
   const jobs = explainerJobs(plan, input);
   const seconds = estimateNarrationSeconds(plan);
   let images = 0;

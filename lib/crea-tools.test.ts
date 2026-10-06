@@ -194,7 +194,7 @@ describe("registar alata", () => {
       "zvuk.podkast",
       "zvuk.glasovi",
       "zvuk.dizajn",
-      "zvuk.kloniraj",
+      // "zvuk.kloniraj" je od K30 „uskoro" (K29 S-07) - nema provajdera za kloniranje.
       // K23: Promena glasa (A9), Prevod (A10), Muzika (A11, A12), Efekti (A13), trake (A18)
       "zvuk.promena",
       "zvuk.prevod",

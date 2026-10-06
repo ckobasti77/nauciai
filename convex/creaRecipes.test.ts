@@ -133,7 +133,11 @@ async function uploadImage(as: TestUser) {
     await ctx.db.patch(id as unknown as Id<"studioUploads">, { contentType: "image/jpeg" } as never);
     return id;
   });
-  const { grantId } = await as.mutation(api.studio.createInputUploadUrl, { slot: "image" });
+  const digest = await as.run(async (ctx) => {
+    const meta = await ctx.db.system.get("_storage", storageId);
+    return { sha256: meta!.sha256, size: meta!.size };
+  });
+  const { grantId } = await as.mutation(api.studio.createInputUploadUrl, { slot: "image", ...digest });
   await as.mutation(api.studio.registerInputUpload, { storageId, grantId });
   return storageId;
 }

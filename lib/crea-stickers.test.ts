@@ -5,7 +5,7 @@ import { describe, expect, test } from "vitest";
 
 import { CREA_STICKER_GROUPS, CREA_STICKER_SOURCE, CREA_STICKERS, stickerById, stickerUrl } from "./crea-stickers";
 
-const DIR = "public/crea/stickers";
+const DIR = "public/brand/crea/stickers";
 
 describe("nalepnice", () => {
   test("jedinstveni id-jevi, grupa postoji, oba jezika", () => {
@@ -16,7 +16,7 @@ describe("nalepnice", () => {
       expect(sticker.label.sr && sticker.label.en, sticker.id).toBeTruthy();
     }
     expect(stickerById("srce")?.label.sr).toBe("Srce");
-    expect(stickerUrl("srce")).toBe("/crea/stickers/srce.svg");
+    expect(stickerUrl("srce")).toBe("/brand/crea/stickers/srce.svg");
   });
 
   test("svaki fajl je kod nas, bez skripti i spoljnih adresa", () => {

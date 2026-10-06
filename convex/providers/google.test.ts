@@ -1138,6 +1138,14 @@ test("C3: Google 503 + FAL_KEY - Nano Banana 2 ide na fal, cena se ne menja, nem
     const fal = calls.find((call) => call.url.startsWith("https://queue.fal.run/"));
     expect(fal?.url).toContain("queue.fal.run/fal-ai/nano-banana-2?");
     expect(fal?.body).toMatchObject({ prompt: "mačka", resolution: "1K", aspect_ratio: "1:1" });
+
+    // K29-08: fal račun skuplji od Google procene ne naplaćuje razliku (cena sa dugmeta je granica).
+    expect(job?.priceLocked).toBe(true);
+    await t.run((ctx) => ctx.db.patch(jobId, { status: "done", actualCostUsd: 5 }));
+    await t.mutation(internal.studio.settleJobCredits, { jobId });
+    expect(await balanceOf(t, userId)).toBe(GRANTED - JOB_COST);
+    expect(await jobOf(t, jobId)).toMatchObject({ settledAt: expect.any(Number) });
+    expect((await jobOf(t, jobId))?.unsettledCredits).toBeUndefined();
   });
 });
 

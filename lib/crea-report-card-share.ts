@@ -15,6 +15,15 @@ export type SharedReportCard = {
  * postoji, kad knjižica nije javna ili kad backend nije povezan - stranica tada kaže
  * da knjižica nije javna, a slika vraća 404.
  */
+/** Ime iz URL-a; loš `%` niz (`/crea/knjizica/%E0`) je prazno ime → 404, a ne 500 (K29 S-05). */
+export function usernameFromParam(raw: string): string {
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return "";
+  }
+}
+
 export async function loadSharedReportCard(username: string): Promise<SharedReportCard | null> {
   const client = getConvexHttpClient();
   if (!client || username.length === 0 || username.length > 64) return null;

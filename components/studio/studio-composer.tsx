@@ -2043,7 +2043,7 @@ export function StudioComposer({
         ) : null}
         {(elementText ?? videoComposed?.text ?? null) !== null && !createMode ? (
           <details className="mt-2 text-xs font-bold text-muted">
-            <summary className="cursor-pointer select-none py-1 text-ink">{CREA_CREATE_COPY.preview[locale]}</summary>
+            <summary className="cursor-pointer select-none py-1 text-ink pointer-coarse:py-3">{CREA_CREATE_COPY.preview[locale]}</summary>
             <p className="mt-1 whitespace-pre-line break-words font-semibold">{elementText ?? videoComposed?.text}</p>
           </details>
         ) : null}
@@ -2124,7 +2124,7 @@ export function StudioComposer({
             ) : null}
             {composed || elementText !== null ? (
               <details className="mt-2 text-xs font-bold text-muted">
-                <summary className="cursor-pointer select-none py-1 text-ink">{CREA_CREATE_COPY.preview[locale]}</summary>
+                <summary className="cursor-pointer select-none py-1 text-ink pointer-coarse:py-3">{CREA_CREATE_COPY.preview[locale]}</summary>
                 <p className="mt-1 whitespace-pre-line break-words font-semibold">{elementText ?? composed?.text}</p>
               </details>
             ) : null}
@@ -2320,10 +2320,12 @@ export function StudioComposer({
           </div>
         ) : null}
 
-        {/* Donji red čipova: na mobilnom JEDAN red, bez prelamanja - skrol samo ako baš ne staje */}
+        {/* Donji red: čipovi levo (na mobilnom JEDAN red, skrol samo ako baš ne staje), a
+            dugme za slanje desno, VAN skrola - na telefonu uvek ceo u vidnom polju (K29-18). */}
+        <div className="mt-2.5 flex items-center gap-1.5 sm:gap-2">
         <div
           className={cn(
-            "mt-2.5 flex flex-nowrap items-center gap-1.5 sm:flex-wrap sm:gap-2 sm:overflow-visible",
+            "flex min-w-0 flex-1 flex-nowrap items-center gap-1.5 sm:flex-wrap sm:gap-2 sm:overflow-visible",
             rowOverflowOpen ? "overflow-visible" : "studio-command-row overflow-x-auto",
           )}
         >
@@ -2418,10 +2420,9 @@ export function StudioComposer({
               opensDown={isDocked}
             />
           ))}
+        </div>
 
-          <span className="flex-1" />
-
-
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
           {/* Kombinovano dugme: akcija + cena u jednom */}
           {block?.kind === "credits" ? (
             <Link
@@ -2528,6 +2529,7 @@ export function StudioComposer({
             </button>
             </>
           )}
+        </div>
         </div>
         </motion.div>
       </div>

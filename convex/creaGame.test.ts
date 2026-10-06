@@ -29,6 +29,15 @@ function makeT() {
 }
 type TestConvex = ReturnType<typeof makeT>;
 
+/** Otisak koji klijent najavljuje uz dozvolu za lokalni rezultat (K29-01). */
+async function localDigest(t: TestConvex, storageId: Id<"_storage">) {
+  return t.run(async (ctx) => {
+    const meta = await ctx.db.system.get("_storage", storageId);
+    if (!meta) throw new Error("nema fajla");
+    return { sha256: meta.sha256, size: meta.size };
+  });
+}
+
 const SYNC_SECRET = "test-sync-secret";
 const previousSyncSecret = process.env.WEBHOOK_SYNC_SECRET;
 beforeEach(() => {
@@ -210,12 +219,12 @@ describe("XP za Creu (G1): događaji, nikad krediti", () => {
   test("rezultat besplatnog alata se broji kao rad: niz, XP, sličice", async () => {
     const t = makeT();
     const { userId, as } = await seedUser(t, { role: "moderator" });
-    const { grantId } = await as.mutation(api.creaLocal.createLocalResultUploadUrl, { kind: "image" });
     const storageId = await t.run(async (ctx) => {
       const id = await ctx.storage.store(new Blob(["webp"]));
       await ctx.db.patch(id as unknown as Id<"studioUploads">, { contentType: "image/webp" } as never);
       return id;
     });
+    const { grantId } = await as.mutation(api.creaLocal.createLocalResultUploadUrl, { kind: "image", ...(await localDigest(t, storageId)) });
     const result = await as.mutation(api.creaLocal.saveLocalResult, { grantId, storageId, toolId: "slika.format", kind: "image" });
     expect(result.ok).toBe(true);
     expect((await stickersOf(t, userId)).sort()).toEqual(["alat:slika.format", "prvi:besplatno", "prvi:slika"]);
@@ -377,7 +386,9 @@ describe("Mini-lekcije (G6), otključavanje (U10) i besplatna proba", () => {
     expect(ok).toMatchObject({ ok: true, freeTry: { granted: 1 } });
     const skipped = await unverified.as.mutation(api.creaGame.completeMiniLesson, { lessonId: "slika-ai", answers: answers("slika-ai"), via: "test" });
     expect(skipped).toMatchObject({ ok: true, freeTry: { skipped: "EMAIL_NIJE_POTVRDJEN" } });
-    expect((await verified.as.query(api.creaGame.myGame, { todayKey: TODAY() }))!.freeTries).toEqual([{ lessonId: "slika-ai", remaining: 1 }]);
+    expect((await verified.as.query(api.creaGame.myGame, { todayKey: TODAY() }))!.freeTries).toEqual([
+      { lessonId: "slika-ai", remaining: 1, models: ["nano-banana-2-lite"], maxCredits: 10 },
+    ]);
     expect((await unverified.as.query(api.creaGame.myGame, { todayKey: TODAY() }))!.freeTries).toEqual([]);
   });
 
@@ -443,7 +454,9 @@ describe("Besplatna proba kroz createJob", () => {
     expect((await as.query(api.creaGame.myGame, { todayKey: TODAY() }))!.freeTries).toEqual([]);
     // Neuspeh vraća PROBU, ne kredite.
     await t.mutation(internal.studio.failJob, { jobId, error: "test" });
-    expect((await as.query(api.creaGame.myGame, { todayKey: TODAY() }))!.freeTries).toEqual([{ lessonId: "slika-ai", remaining: 1 }]);
+    expect((await as.query(api.creaGame.myGame, { todayKey: TODAY() }))!.freeTries).toEqual([
+      { lessonId: "slika-ai", remaining: 1, models: ["nano-banana-2-lite"], maxCredits: 10 },
+    ]);
     const lots = await t.run((ctx) => ctx.db.query("creditLots").withIndex("by_user_source", (q) => q.eq("userId", userId).eq("source", "refund")).collect());
     expect(lots).toHaveLength(0);
   });

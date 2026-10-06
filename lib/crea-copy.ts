@@ -105,6 +105,10 @@ export const CREA_LOCAL_AI_ERROR_COPY = {
     sr: "Preuzimanje nije uspelo. Proveri internet i pokušaj ponovo.",
     en: "The download did not finish. Check your connection and try again.",
   },
+  INTEGRITY: {
+    sr: "Preuzeti fajl alata nije onaj koji očekujemo, pa ga ne pokrećemo. Pokušaj ponovo kasnije.",
+    en: "The downloaded tool file is not the one we expect, so we do not run it. Try again later.",
+  },
   QUOTA: {
     sr: "Na uređaju nema dovoljno mesta. Oslobodi malo prostora i pokušaj ponovo.",
     en: "There is not enough space on this device. Free up some space and try again.",
@@ -204,6 +208,7 @@ export const CREA_TOOL_COPY = {
   },
   galleryLabel: { sr: "Besplatno · na tvom uređaju", en: "Free · on your device" },
   openTool: { sr: "Otvori alat", en: "Open the tool" },
+  workLabel: { sr: "Rad", en: "Work" },
   // Slika · Izmeni (K11): alati stoje pored composera.
   editListTitle: { sr: "Alati za izmenu", en: "Editing tools" },
   describeTitle: { sr: "Opiši izmenu rečima", en: "Describe the edit in words" },

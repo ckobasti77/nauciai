@@ -13,6 +13,7 @@ import {
   LEGAL_PLACEHOLDERS,
   PRIVACY_POLICY,
   STUDIO_TERMS,
+  THIRD_PARTY_NOTICES_PATH,
   type LegalDocument,
 } from "@/lib/legal-copy";
 
@@ -223,5 +224,23 @@ describe("nijedan podatak o pravnom licu nije izmišljen", () => {
     ).join("\n");
 
     expect(everything).not.toMatch(/\d{8,}/);
+  });
+});
+
+describe("obaveštenja o licencama trećih strana (K30, nalaz K29-16)", () => {
+  test("fajl postoji, uslovi Cree ga pominju, a LGPL/MPL paketi stoje sa instaliranom verzijom", async () => {
+    const { existsSync, readFileSync } = await import("node:fs");
+    const file = `public${THIRD_PARTY_NOTICES_PATH}`;
+    expect(existsSync(file)).toBe(true);
+    for (const locale of locales) expect(flatten(STUDIO_TERMS, locale)).toContain(THIRD_PARTY_NOTICES_PATH);
+
+    const notices = readFileSync(file, "utf8");
+    for (const name of ["heic-to", "mediabunny", "@mediabunny/mp3-encoder"]) {
+      const { version } = JSON.parse(readFileSync(`node_modules/${name}/package.json`, "utf8")) as { version: string };
+      expect(notices, name).toContain(`${name} ${version}`);
+    }
+    expect(notices).toContain("GNU LESSER GENERAL PUBLIC LICENSE");
+    expect(notices).toContain("Mozilla Public License Version 2.0");
+    expect(notices).toContain("LAME");
   });
 });

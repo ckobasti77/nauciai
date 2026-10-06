@@ -142,24 +142,27 @@ export const CREA_MODES: Record<CreaArea, readonly CreaModeDef[]> = {
       id: "pokret",
       label: { sr: "Pokret", en: "Motion" },
       icon: "PersonStanding",
-      models: { slugs: ["kling-motion"] },
+      // Modeli lica (Kling prenos pokreta) idu SAMO kroz alate - lice bira server,
+      // tvoj Lik sa pristankom (O5, K30 nalaz K29-02). Composer ih ne nudi.
       tools: true,
+      defaultTool: "video.odglumi",
       status: "ready",
       blurb: {
-        sr: "Prenesi pokret iz jednog videa na lik sa tvoje slike - ili uzmi alat „Odglumi\" i snimi pokret kamerom.",
-        en: "Move the character from your picture the way someone moves in a video - or pick \"Act it out\" and record the move with your camera.",
+        sr: "Tvoj Lik ponovi pokret: snimi se kamerom (alat „Odglumi\") ili uzmi pokret iz svog videa.",
+        en: "Your character repeats a move: record yourself with the camera (\"Act it out\") or use a move from your own video.",
       },
     },
     {
       id: "govor",
       label: { sr: "Govor", en: "Talking" },
       icon: "Speech",
-      models: { slugs: ["kling-avatar", "kling-lipsync"] },
+      // Avatar i lipsync samo kroz alat „Lik koji govori" - lice bira server (O5, K29-02).
       tools: true,
+      defaultTool: "video.lik-govori",
       status: "ready",
       blurb: {
-        sr: "Slika ili video uz snimak glasa: lik progovori, a usne prate reči - ili uzmi alat „Lik koji govori\" i samo napiši tekst.",
-        en: "A picture or a video plus a voice recording: the character speaks and the lips follow - or pick \"A talking character\" and just write the text.",
+        sr: "Tvoj Lik progovori: napiši tekst ili snimi glas, a usne prate reči (alat „Lik koji govori\").",
+        en: "Your character speaks: write the text or record your voice, and the lips follow (\"A talking character\").",
       },
     },
     {

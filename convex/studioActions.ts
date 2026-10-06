@@ -307,14 +307,21 @@ export const persistOutput = internalAction({
             return response.blob();
           })();
       const storageId = await ctx.storage.store(blob);
-      const stored = await ctx.runMutation(internal.studio.finalizeOutput, {
-        jobId: args.jobId,
-        storageId,
-        // Prazan `type` je "ne znam", a ne "prazan MIME": polje je opciono, pa
-        // se ne upisuje umesto da se izmišlja.
-        mimeType: blob.type || undefined,
-        byteSize: blob.size,
-      });
+      let stored: boolean;
+      try {
+        stored = await ctx.runMutation(internal.studio.finalizeOutput, {
+          jobId: args.jobId,
+          storageId,
+          // Prazan `type` je "ne znam", a ne "prazan MIME": polje je opciono, pa
+          // se ne upisuje umesto da se izmišlja.
+          mimeType: blob.type || undefined,
+          byteSize: blob.size,
+        });
+      } catch (error) {
+        // Upis pao: fajl bez reda niko ne bi obrisao (K29-10).
+        await ctx.storage.delete(storageId);
+        throw error;
+      }
       if (!stored) await ctx.storage.delete(storageId);
       // Ostali izlazi istog poziva (K12, slojevi): zasebna akcija posle glavnog, i samo
       // prvi put - ponovljen `persistOutput` izlazi gore jer glavni već ima fajl.

@@ -52,6 +52,7 @@ export const FREE_REDO_LIMITS = { perDay: 2, per30Days: 6, maxAgeMs: 48 * HOUR_M
 export const FREE_REDO_WINDOW_MS = { day: DAY_MS, month: 30 * DAY_MS } as const;
 
 export type FreeRedoBlock =
+  | "NOCNI_RAD"
   | "NIJE_GOTOV"
   | "BESPLATAN_RAD"
   | "PRESTARO"
@@ -70,6 +71,7 @@ export function freeRedoBlock(input: {
     freeTryLessonId?: string;
     freeRedoOfJobId?: string;
     fairUnlimited?: true;
+    deliveryMode?: "night";
   };
   reason: string;
   now: number;
@@ -81,6 +83,8 @@ export function freeRedoBlock(input: {
   if (!(FREE_REDO_REASONS as readonly string[]).includes(input.reason)) return "NEPOZNAT_RAZLOG";
   if (job.status !== "done") return "NIJE_GOTOV";
   if (job.provider === "local" || job.creditCost <= 0 || isUnpaidJob(job)) return "BESPLATAN_RAD";
+  // Noćni rad bi se ponovio kao skuplji dnevni (K29-09) - ne nudi se.
+  if (job.deliveryMode === "night") return "NOCNI_RAD";
   if (input.now - job.createdAt > FREE_REDO_LIMITS.maxAgeMs) return "PRESTARO";
   if (input.alreadyRedone) return "VEC_PONOVLJENO";
   if (job.creditCost > FREE_REDO_LIMITS.maxCredits) return "PRESKUPO_ZA_PONAVLJANJE";

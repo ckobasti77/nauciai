@@ -16,6 +16,7 @@ import { adoptJobOutput } from "./creaVersions";
 import { requireUserId } from "./helpers";
 import { createJobForUser } from "./studio";
 import { parseJobInputs } from "./providers/jobInputs";
+import { editParams, swapPrompt, VIDEO_EDIT_ROUTES, VIDEO_SWAP_TARGETS } from "../lib/crea-video-edit";
 
 /**
  * Lice u video alatima Cree (K20; plan K17-15, O5): Lik koji govori (V21/V23),
@@ -58,12 +59,14 @@ async function isFaceSafeJob(
   depth = FACE_TRACE_DEPTH,
 ): Promise<boolean> {
   if (depth <= 0 || !jobMayCarryFace(job, userId, kinds)) return false;
-  if (job.provider === "local") {
-    // Lokalni alat ne pamti ulaze - nasleđuje poreklo roditelja (bilo koje vrste).
-    const parent = job.parentJobId ? await ctx.db.get("generationJobs", job.parentJobId) : null;
-    return parent !== null && isFaceSafeJob(ctx, userId, parent, ["image", "video"], likImages, depth - 1);
+  const faceIds = faceInputIds(parseJobInputs(job.inputs));
+  // Posao bez ulaza sa licem, a sa roditeljem (nastavak Omni videa, varijacija,
+  // regeneracija): lice je moglo da dođe od roditelja - i on mora da prođe (K29-02).
+  if (faceIds.length === 0 && job.parentJobId) {
+    const parent = await ctx.db.get("generationJobs", job.parentJobId);
+    if (!parent || !(await isFaceSafeJob(ctx, userId, parent, ["image", "video"], likImages, depth - 1))) return false;
   }
-  for (const id of faceInputIds(parseJobInputs(job.inputs))) {
+  for (const id of faceIds) {
     if (likImages.has(id)) continue;
     const storageId = ctx.db.system.normalizeId("_storage", id);
     const upload = storageId
@@ -124,16 +127,23 @@ async function startFaceJob(
   extra: { projectId?: Id<"studioProjects">; parentJobId?: Id<"generationJobs">; derivation: "animacija" | "izmena" },
 ) {
   const model = FACE_JOB_MODELS[kind];
-  return createJobForUser(ctx, userId, {
-    // Album (K26): alat Cree iz kojeg posao dolazi.
-    creaTool: FACE_JOB_TOOL[kind],
-    modelSlug: model.slug,
-    params: JSON.stringify(params),
-    inputMode: model.inputMode,
-    inputs: JSON.stringify(inputs),
-    ...(extra.projectId ? { projectId: extra.projectId } : {}),
-    ...(extra.parentJobId ? { parentJobId: extra.parentJobId, derivation: extra.derivation } : {}),
-  });
+  return createJobForUser(
+    ctx,
+    userId,
+    {
+      // Album (K26): alat Cree iz kojeg posao dolazi.
+      creaTool: FACE_JOB_TOOL[kind],
+      modelSlug: model.slug,
+      params: JSON.stringify(params),
+      inputMode: model.inputMode,
+      inputs: JSON.stringify(inputs),
+      ...(extra.projectId ? { projectId: extra.projectId } : {}),
+      ...(extra.parentJobId ? { parentJobId: extra.parentJobId, derivation: extra.derivation } : {}),
+    },
+    // Lice je izabrao server (Lik sa pristankom ili bezbedan rad) - tek ovaj put
+    // `createJobForUser` pušta modele lica (K29-02).
+    { faceVerified: true },
+  );
 }
 
 /**
@@ -241,6 +251,50 @@ export const startVideoSwap = mutation({
       { video: [args.videoStorageId], image: refs },
       { prompt: videoSwapPrompt(element, refs.length), resolution: args.resolution },
       { projectId: args.projectId, parentJobId: args.parentJobId, derivation: "izmena" },
+    );
+  },
+});
+
+/**
+ * Zameni PREDMET u videu (V14; K30 nalaz K29-02): referentna slika je tvoj
+ * sačuvan predmet ili mesto iz „Likova", meta je sa fiksnog spiska, a opis gradi
+ * server. Slobodan tekst + proizvoljna fotka bi bili zamena osobe tuđim licem (O5).
+ */
+export const startObjectSwap = mutation({
+  args: {
+    elementId: v.id("creaElements"),
+    targetId: v.string(),
+    routeId: v.union(v.literal("kling"), v.literal("seedance")),
+    videoStorageId: v.id("_storage"),
+    seconds: v.number(),
+    resolution: v.union(v.literal("720p"), v.literal("1080p")),
+    projectId: v.optional(v.id("studioProjects")),
+    parentJobId: v.optional(v.id("generationJobs")),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireUserId(ctx);
+    const element = await ctx.db.get("creaElements", args.elementId);
+    if (!element || element.userId !== userId || element.kind === "lik" || element.imageStorageIds.length === 0) {
+      throw new Error("PREDMET_NIJE_DOSTUPAN");
+    }
+    const target = VIDEO_SWAP_TARGETS.find((entry) => entry.id === args.targetId);
+    const route = VIDEO_EDIT_ROUTES.find((entry) => entry.id === args.routeId);
+    if (!target || !route || !Number.isFinite(args.seconds) || args.seconds <= 0) throw new Error("NEISPRAVNI_PARAMETRI");
+    const refs = element.imageStorageIds.slice(0, Math.min(route.maxRefs, VIDEO_SWAP_REFS));
+    const params = editParams(route, swapPrompt(route, target.phrase, refs.length), args.seconds, args.resolution);
+    return createJobForUser(
+      ctx,
+      userId,
+      {
+        creaTool: "video.zameni",
+        modelSlug: route.modelSlug,
+        params: JSON.stringify(params),
+        inputMode: route.inputMode,
+        inputs: JSON.stringify({ video: [args.videoStorageId], image: refs }),
+        ...(args.projectId ? { projectId: args.projectId } : {}),
+        ...(args.parentJobId ? { parentJobId: args.parentJobId, derivation: "izmena" as const } : {}),
+      },
+      { faceVerified: true },
     );
   },
 });

@@ -5,7 +5,8 @@ import { normalizeLocale, t, withLocale } from "@/lib/i18n";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
-  return { title: t(normalizeLocale(locale), "Sveska", "Notebook") };
+  // Lična strana (album, knjižica, liga) - ne ide u pretragu (K29 S-01).
+  return { title: t(normalizeLocale(locale), "Sveska", "Notebook"), robots: { index: false, follow: false } };
 }
 
 /**

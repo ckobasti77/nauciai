@@ -1673,6 +1673,10 @@ export default defineSchema({
     // za 0 kredita i pokazuje na original; i pošteno „neograničeno" (C8) - jeftin
     // model na planu, 0 kredita, spori red. Neuspeh takvog posla nema šta da vrati.
     freeRedoOfJobId: v.optional(v.id("generationJobs")),
+    // Lice/reference je proverio server (`creaFaceJobs`, O5, K29-02); ponavljanje ga nasleđuje.
+    faceVerified: v.optional(v.literal(true)),
+    // Posao je preuzela rezervna ruta (C3): cena sa dugmeta je gornja granica (K29-08).
+    priceLocked: v.optional(v.literal(true)),
     fairUnlimited: v.optional(v.literal(true)),
   })
     .searchIndex("search_searchText", { searchField: "searchText", filterFields: ["userId", "kind"] })
@@ -1689,6 +1693,10 @@ export default defineSchema({
     .index("by_user_provider_created", ["userId", "provider", "createdAt"])
     // Svi radovi jednog stabla verzija (K05), od najstarijeg.
     .index("by_root_created", ["rootJobId", "createdAt"])
+    // Deca jednog poziva (slojevi, varijacije, trake) bez obzira na veličinu stabla (K29-13).
+    .index("by_parentJobId_and_derivation", ["parentJobId", "derivation"])
+    // Biblioteka: samo omiljeni, bez skeniranja cele istorije (K29-13).
+    .index("by_user_favoriteAt", ["userId", "favoriteAt"])
     // Isti zahtev istog korisnika (C4) - nikad između korisnika (K01-13).
     .index("by_user_requestHash", ["userId", "requestHash"])
     // Noćna tura (K08): poslovi jednog batch-a, i (`batchId` prazan) oni koji čekaju predaju.
@@ -1708,6 +1716,8 @@ export default defineSchema({
     embedding: v.array(v.float64()),
   })
     .index("by_job", ["jobId"])
+    // Spajanje naloga (K29-11) prebacuje vektore po korisniku.
+    .index("by_userId", ["userId"])
     .vectorIndex("by_embedding", { vectorField: "embedding", dimensions: 512, filterFields: ["userId"] }),
 
   // Ko je koji ulazni fajl okačio. `createInputUploadUrl` vraća gol Convex
@@ -1743,6 +1753,10 @@ export default defineSchema({
     // Bez roka; `studio.deleteJob`, `studio.finalizeOutput` i `crons.expireGenerationFiles`
     // ga ne diraju - briše ga samo brisanje elementa (`creaElements.deleteElement`).
     pinnedAt: v.optional(v.number()),
+    // K30 (K29-01): fajl je dokazano ovog korisnika po SADRŽAJU - dozvola je
+    // nosila sha256 i veličinu, a `_storage` ih je potvrdio. Samo takav upload
+    // sme da se pinuje (element, brend kit) i posle obriše odmah.
+    contentBound: v.optional(v.literal(true)),
     createdAt: v.number(),
     // Postoji samo dok upload nije ušao ni u jedan posao: nevezan fajl briše
     // `crons.expireGenerationFiles` posle 24 h. `createJob` polje sklanja, pa
@@ -1779,7 +1793,14 @@ export default defineSchema({
     createdAt: v.number(),
     expiresAt: v.number(),
     usedAt: v.optional(v.number()),
-  }).index("by_expiry", ["expiresAt"]),
+    // K30 (K29-01): sadržaj koji klijent najavljuje PRE uploada (base64 sha256
+    // kao u `_storage`, i bajtovi). Prijava fajla sa drugim sadržajem se odbija,
+    // pa dozvola ne može da prisvoji tuđ sveže okačen fajl.
+    sha256: v.optional(v.string()),
+    size: v.optional(v.number()),
+  })
+    .index("by_expiry", ["expiresAt"])
+    .index("by_userId_and_createdAt", ["userId", "createdAt"]),
 
   studioUsageDaily: defineTable({
     userId: v.id("users"),

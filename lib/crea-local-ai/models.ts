@@ -122,6 +122,34 @@ export const SIGNALSMITH_STRETCH = {
   license: "MIT",
 } as const;
 
+/**
+ * Otisak (sha256, base64) svakog IZVRŠNOG fajla (JS/WASM) koji alati vuku sa CDN-a
+ * (K30, nalaz K29-04). `fetchModelFile` ga proverava pre upisa u keš i pri svakom
+ * pogotku keša: nepoklapanje = greška `INTEGRITY`, kod se ne izvršava i ne pamti.
+ * Fajlovi instaliranih paketa (MediaPipe, ORT) se u `models.test.ts` porede sa
+ * `node_modules`; ostali su izmereni sa jsdelivr-a 2026-10-06. Nova verzija = nov otisak.
+ */
+/** Loader MediaPipe-a uz svaki WASM (izmereno, 1.0.1) - za traku napretka; zbir ulazi u `bytes` runtime-a. */
+export const MEDIAPIPE_LOADER_BYTES: Readonly<Record<string, number>> = {
+  [`${MEDIAPIPE_WASM_BASE}/vision_wasm_internal.js`]: 323_377,
+  [`${MEDIAPIPE_WASM_BASE}/vision_wasm_nosimd_internal.js`]: 323_180,
+};
+
+export const CDN_CODE_SHA256: Readonly<Record<string, string>> = {
+  [`${MEDIAPIPE_WASM_BASE}/vision_wasm_internal.wasm`]: "jaJ3pzOSbqzQR0uHBLNnQtbsMjHFeoYMW4id/48d+IY=",
+  [`${MEDIAPIPE_WASM_BASE}/vision_wasm_nosimd_internal.wasm`]: "ooSDzULnToVb9evba0DZtmpbSeNelQILyXZp5oIqMZI=",
+  [`${MEDIAPIPE_WASM_BASE}/vision_wasm_internal.js`]: "4XDuZ91OFsGm/NiECiBmh+WlmyLCDkqQK8RFsJVFTXM=",
+  [`${MEDIAPIPE_WASM_BASE}/vision_wasm_nosimd_internal.js`]: "6B1xWj1CzDNzYC6y96/3ldFkk022gOMklrZdq1N/llg=",
+  [ORT_WASM_URL]: "M5jBDQfSKb2Rs2RUjhMODlGo5XBLiMfAg+u+t4hC3uI=",
+  [ORT_WEBGPU_WASM_URL]: "OfnwiU1HiABIftn32+kmGEmNsyDPVcjj2Jrf+NzmWNo=",
+  [SIGNALSMITH_STRETCH.url]: "l1MLEdW8AQFa9M3kDWqlX/EMQKoSlMpMjFdiAn1RekY=",
+  [`${NOISE_SUPPRESSOR_BASE}/rnnoise/workletProcessor.js`]: "Hgb6y7PXRZuJdpqkJHzUtxJj5mYuTaDFR2Pzvwb1iTs=",
+  [`${NOISE_SUPPRESSOR_BASE}/gtcrn/workletProcessor.js`]: "NDMiJX74KkIaud15W0r+GMGqW0ig/2W8BAowjHiJPag=",
+  [`${NOISE_SUPPRESSOR_BASE}/rnnoise.wasm`]: "i2Ciq4j9ri0an5QCSdDrBy8ouo55b3MENHtOB4OciFM=",
+  [`${NOISE_SUPPRESSOR_BASE}/rnnoise_simd.wasm`]: "N4/RfClNsV7k6Bi6XvByJCohyK10RbSD9/RtfcTywlM=",
+  [`${NOISE_SUPPRESSOR_BASE}/gtcrn.wasm`]: "AaUobdqhzm0N1VEL2SQfO/DMcnoF1XZ65ogdhdmYNxk=",
+};
+
 export const CREA_LOCAL_MODELS = {
   "mp-face-detector": {
     runtime: "mediapipe-vision",

@@ -64,6 +64,18 @@ async function storeFile(t: TestConvex, opts: { contentType?: string; size?: num
   });
 }
 
+/** Otisak koji klijent najavljuje uz dozvolu (K29-01): `_storage.sha256` i veličina. */
+async function digestOf(t: TestConvex, storageId: Id<"_storage">) {
+  return t.run(async (ctx) => {
+    const meta = await ctx.db.system.get("_storage", storageId);
+    if (!meta) throw new Error("nema fajla");
+    return { sha256: meta.sha256, size: meta.size };
+  });
+}
+
+/** Ispravan oblik otiska za pozive koji se odbijaju pre nego što fajl uopšte postoji. */
+const ANY_DIGEST = { sha256: `${"A".repeat(43)}=`, size: 10 };
+
 async function fileExists(t: TestConvex, storageId: Id<"_storage">) {
   return t.run(async (ctx) => (await ctx.db.system.get("_storage", storageId)) !== null);
 }
@@ -76,8 +88,11 @@ async function saveImage(
   asUser: AsUser,
   opts: { toolId?: string; contentType?: string; size?: number; params?: string; projectId?: Id<"studioProjects"> } = {},
 ) {
-  const { grantId } = await asUser.mutation(api.creaLocal.createLocalResultUploadUrl, { kind: "image" });
   const storageId = await storeFile(t, { contentType: opts.contentType ?? "image/webp", size: opts.size });
+  const { grantId } = await asUser.mutation(api.creaLocal.createLocalResultUploadUrl, {
+    kind: "image",
+    ...(await digestOf(t, storageId)),
+  });
   const result = await asUser.mutation(api.creaLocal.saveLocalResult, {
     grantId,
     storageId,
@@ -112,14 +127,14 @@ async function insertLocalJobs(t: TestConvex, userId: Id<"users">, count: number
 describe("kapija", () => {
   test("bez prijave nema ni dozvole ni upisa", async () => {
     const t = makeT();
-    await expect(t.mutation(api.creaLocal.createLocalResultUploadUrl, { kind: "image" })).rejects.toThrow();
+    await expect(t.mutation(api.creaLocal.createLocalResultUploadUrl, { kind: "image", ...ANY_DIGEST })).rejects.toThrow();
     expect(await t.run((ctx) => ctx.db.query("studioUploadGrants").collect())).toEqual([]);
   });
 
   test("student bez pristupa Crei (javni fleg ugašen) dobija NEMA_PRISTUPA", async () => {
     const t = makeT();
     const { asUser } = await seedUser(t, { role: "student" });
-    await expect(asUser.mutation(api.creaLocal.createLocalResultUploadUrl, { kind: "image" })).rejects.toThrow(
+    await expect(asUser.mutation(api.creaLocal.createLocalResultUploadUrl, { kind: "image", ...ANY_DIGEST })).rejects.toThrow(
       /NEMA_PRISTUPA/,
     );
     expect(await t.run((ctx) => ctx.db.query("studioUploadGrants").collect())).toEqual([]);
@@ -130,16 +145,20 @@ describe("kapija", () => {
     const { asUser } = await seedUser(t);
     const other = await seedUser(t, { email: "nikola@example.com" });
 
+    const storageId = await storeFile(t, { contentType: "image/webp" });
     const { grantId: foreignGrant } = await other.asUser.mutation(api.creaLocal.createLocalResultUploadUrl, {
       kind: "image",
+      ...(await digestOf(t, storageId)),
     });
-    const storageId = await storeFile(t, { contentType: "image/webp" });
     await expect(
       asUser.mutation(api.creaLocal.saveLocalResult, { grantId: foreignGrant, storageId, toolId: "slika.format", kind: "image" }),
     ).rejects.toThrow(/NEDOZVOLJEN_UPLOAD/);
 
     // Dozvola za sliku ne važi za video.
-    const { grantId: imageGrant } = await asUser.mutation(api.creaLocal.createLocalResultUploadUrl, { kind: "image" });
+    const { grantId: imageGrant } = await asUser.mutation(api.creaLocal.createLocalResultUploadUrl, {
+      kind: "image",
+      ...(await digestOf(t, storageId)),
+    });
     await expect(
       asUser.mutation(api.creaLocal.saveLocalResult, { grantId: imageGrant, storageId, toolId: "slika.format", kind: "video" }),
     ).rejects.toThrow(/NEDOZVOLJEN_UPLOAD/);
@@ -173,7 +192,10 @@ describe("kapija", () => {
     const oldFile = await storeFile(t, { contentType: "image/webp" });
     vi.setSystemTime(NOON + 5 * 60 * 1000);
     try {
-      const { grantId } = await asUser.mutation(api.creaLocal.createLocalResultUploadUrl, { kind: "image" });
+      const { grantId } = await asUser.mutation(api.creaLocal.createLocalResultUploadUrl, {
+        kind: "image",
+        ...(await digestOf(t, oldFile)),
+      });
       await expect(
         asUser.mutation(api.creaLocal.saveLocalResult, { grantId, storageId: oldFile, toolId: "slika.format", kind: "image" }),
       ).rejects.toThrow(/NEDOZVOLJEN_UPLOAD/);
@@ -181,6 +203,61 @@ describe("kapija", () => {
     } finally {
       vi.setSystemTime(NOON);
     }
+  });
+});
+
+describe("K29-01: dozvola je vezana za sadržaj", () => {
+  test("tuđ fajl koji nije najavljen se ne prisvaja i NE briše (ni sa nepoznatim alatom)", async () => {
+    const t = makeT();
+    const { asUser } = await seedUser(t);
+    const mine = await storeFile(t, { contentType: "image/webp", body: "moj-rezultat" });
+    const { grantId } = await asUser.mutation(api.creaLocal.createLocalResultUploadUrl, {
+      kind: "image",
+      ...(await digestOf(t, mine)),
+    });
+    // Tuđ fajl okačen POSLE moje dozvole (npr. slika iz nove objave u zajednici).
+    const victim = await storeFile(t, { contentType: "image/webp", body: "tudja-slika" });
+    await expect(
+      asUser.mutation(api.creaLocal.saveLocalResult, { grantId, storageId: victim, toolId: "x", kind: "image" }),
+    ).rejects.toThrow(/NEDOZVOLJEN_UPLOAD/);
+    await expect(
+      asUser.mutation(api.creaLocal.saveLocalResult, { grantId, storageId: victim, toolId: "slika.format", kind: "image" }),
+    ).rejects.toThrow(/NEDOZVOLJEN_UPLOAD/);
+    expect(await fileExists(t, victim)).toBe(true);
+    expect(await t.run((ctx) => ctx.db.query("generationJobs").collect())).toEqual([]);
+  });
+
+  test("fajl koji je već nečiji prijavljen ulaz se ne prisvaja ni sa tačnim otiskom", async () => {
+    const t = makeT();
+    const { asUser } = await seedUser(t);
+    const other = await seedUser(t, { email: "nikola@example.com" });
+    const storageId = await storeFile(t, { contentType: "image/webp", body: "nikolin-ulaz" });
+    await t.run((ctx) =>
+      ctx.db.insert("studioUploads", { userId: other.userId, storageId, slot: "image", bytes: 12, createdAt: NOON }),
+    );
+    const { grantId } = await asUser.mutation(api.creaLocal.createLocalResultUploadUrl, {
+      kind: "image",
+      ...(await digestOf(t, storageId)),
+    });
+    await expect(
+      asUser.mutation(api.creaLocal.saveLocalResult, { grantId, storageId, toolId: "x", kind: "image" }),
+    ).rejects.toThrow(/NEDOZVOLJEN_UPLOAD/);
+    expect(await fileExists(t, storageId)).toBe(true);
+  });
+
+  test("neispravan otisak se odbija; dozvole imaju granicu po minutu", async () => {
+    const t = makeT();
+    const { asUser } = await seedUser(t);
+    await expect(
+      asUser.mutation(api.creaLocal.createLocalResultUploadUrl, { kind: "image", sha256: "abc", size: 1 }),
+    ).rejects.toThrow(/NEISPRAVAN_OTISAK/);
+    for (let index = 0; index < 30; index += 1) {
+      await asUser.mutation(api.creaLocal.createLocalResultUploadUrl, { kind: "image", ...ANY_DIGEST });
+    }
+    await expect(asUser.mutation(api.creaLocal.createLocalResultUploadUrl, { kind: "image", ...ANY_DIGEST })).rejects.toThrow(
+      /PREVISE_UPLOADA/,
+    );
+    await expect(asUser.mutation(api.studio.createInputUploadUrl, { slot: "image" })).rejects.toThrow(/PREVISE_UPLOADA/);
   });
 });
 
@@ -242,14 +319,17 @@ describe("limiti", () => {
   test("minutni limit: i dozvola i upis se odbijaju", async () => {
     const t = makeT();
     const { userId, asUser } = await seedUser(t);
-    const { grantId } = await asUser.mutation(api.creaLocal.createLocalResultUploadUrl, { kind: "image" });
+    const storageId = await storeFile(t, { contentType: "image/webp" });
+    const { grantId } = await asUser.mutation(api.creaLocal.createLocalResultUploadUrl, {
+      kind: "image",
+      ...(await digestOf(t, storageId)),
+    });
     await insertLocalJobs(t, userId, LOCAL_RESULT_LIMITS.perMinute, NOON - 10_000);
 
-    await expect(asUser.mutation(api.creaLocal.createLocalResultUploadUrl, { kind: "image" })).rejects.toThrow(
+    await expect(asUser.mutation(api.creaLocal.createLocalResultUploadUrl, { kind: "image", ...ANY_DIGEST })).rejects.toThrow(
       /MINUTNI_LIMIT/,
     );
     // Dozvola izdata pre punjenja limita i dalje ne prolazi: konačna provera je u upisu.
-    const storageId = await storeFile(t, { contentType: "image/webp" });
     const result = await asUser.mutation(api.creaLocal.saveLocalResult, {
       grantId,
       storageId,
@@ -275,7 +355,7 @@ describe("limiti", () => {
     expect((await saveImage(t, asUser)).result.ok).toBe(true);
 
     await insertLocalJobs(t, userId, LOCAL_RESULT_LIMITS.perDay, NOON - 60 * 60 * 1000);
-    await expect(asUser.mutation(api.creaLocal.createLocalResultUploadUrl, { kind: "image" })).rejects.toThrow(
+    await expect(asUser.mutation(api.creaLocal.createLocalResultUploadUrl, { kind: "image", ...ANY_DIGEST })).rejects.toThrow(
       /DNEVNI_LIMIT/,
     );
   });
@@ -416,8 +496,11 @@ describe("montaža (K19): izvođenje i izvori", () => {
     asUser: AsUser,
     opts: { kind: "video" | "image"; contentType: string; parentJobId?: Id<"generationJobs">; sourceJobIds?: Id<"generationJobs">[] },
   ) {
-    const { grantId } = await asUser.mutation(api.creaLocal.createLocalResultUploadUrl, { kind: opts.kind });
     const storageId = await storeFile(t, { contentType: opts.contentType });
+    const { grantId } = await asUser.mutation(api.creaLocal.createLocalResultUploadUrl, {
+      kind: opts.kind,
+      ...(await digestOf(t, storageId)),
+    });
     const result = await asUser.mutation(api.creaLocal.saveLocalResult, {
       grantId,
       storageId,
@@ -456,8 +539,11 @@ describe("montaža (K19): izvođenje i izvori", () => {
     if (!result.ok) throw new Error(result.reason);
     const job = await t.run((ctx) => ctx.db.get(result.jobId));
     expect(job).toMatchObject({ modelSlug: "local:video.montaza", kind: "image", params: JSON.stringify({ preset: "reels", trajanje: 12 }) });
-    const { grantId } = await asUser.mutation(api.creaLocal.createLocalResultUploadUrl, { kind: "video" });
     const storageId = await storeFile(t, { contentType: "video/mp4" });
+    const { grantId } = await asUser.mutation(api.creaLocal.createLocalResultUploadUrl, {
+      kind: "video",
+      ...(await digestOf(t, storageId)),
+    });
     expect(await asUser.mutation(api.creaLocal.saveLocalResult, { grantId, storageId, toolId: "slika.format", kind: "video" })).toEqual({
       ok: false,
       reason: "NEPOZNAT_ALAT",
@@ -474,8 +560,11 @@ describe("montaža (K19): izvođenje i izvori", () => {
     expect(result).toEqual({ ok: false, reason: "IZVOR_NIJE_DOSTUPAN" });
     expect(await fileExists(t, storageId)).toBe(false);
 
-    const { grantId } = await asUser.mutation(api.creaLocal.createLocalResultUploadUrl, { kind: "video" });
-    const another = await storeFile(t, { contentType: "video/mp4" });
+    const another = await storeFile(t, { contentType: "video/mp4", body: "drugi-video" });
+    const { grantId } = await asUser.mutation(api.creaLocal.createLocalResultUploadUrl, {
+      kind: "video",
+      ...(await digestOf(t, another)),
+    });
     await expect(
       asUser.mutation(api.creaLocal.saveLocalResult, {
         grantId,

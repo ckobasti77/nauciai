@@ -5,7 +5,7 @@ import { describe, expect, test } from "vitest";
 
 import { SFX_CATEGORIES, SFX_CATEGORY_LABELS, SFX_LIBRARY, SFX_LICENSE, SFX_PACKS, searchSfx, sfxById, sfxSourceUrl, sfxUrl } from "./crea-sfx-library";
 
-const DIR = join(process.cwd(), "public", "crea", "sfx");
+const DIR = join(process.cwd(), "public", "brand", "crea", "sfx");
 
 describe("CC0 biblioteka efekata (A13)", () => {
   test("svaki fajl na disku je u spisku i obrnuto; samo MP3 + dokument izvora", () => {
@@ -37,7 +37,7 @@ describe("CC0 biblioteka efekata (A13)", () => {
     for (const file of SFX_LIBRARY) {
       expect(file.title.sr.trim() && file.title.en.trim(), file.id).toBeTruthy();
       expect(file.seconds, file.id).toBeGreaterThan(0.03);
-      expect(sfxUrl(file)).toBe(`/crea/sfx/${file.id}.mp3`);
+      expect(sfxUrl(file)).toBe(`/brand/crea/sfx/${file.id}.mp3`);
     }
     for (const category of SFX_CATEGORIES) {
       expect(SFX_CATEGORY_LABELS[category].sr).toBeTruthy();

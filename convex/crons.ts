@@ -140,10 +140,11 @@ export const expireGenerationFiles = internalMutation({
   args: {},
   handler: async (ctx) => {
     const now = Date.now();
+    // Obrađen posao gubi i `expiresAt` (K30, nalaz K29-12): inače ostaje u opsegu
+    // indeksa zauvek, pa bi svaki sledeći prolaz preskakao sve ranije istekle radove.
     const expired = await ctx.db
       .query("generationJobs")
       .withIndex("by_expiry", (q) => q.gt("expiresAt", 0).lte("expiresAt", now))
-      .filter((q) => q.neq(q.field("outputStorageId"), undefined))
       .take(EXPIRY_BATCH_LIMIT);
 
     for (const job of expired) {
@@ -151,7 +152,7 @@ export const expireGenerationFiles = internalMutation({
       // Poster ide zajedno sa fajlom: polje se ionako prazni, pa bi blob bez
       // ijedne reference u bazi ostao zauvek naplativ.
       if (job.posterStorageId) await ctx.storage.delete(job.posterStorageId);
-      await ctx.db.patch(job._id, { outputStorageId: undefined, posterStorageId: undefined });
+      await ctx.db.patch(job._id, { outputStorageId: undefined, posterStorageId: undefined, expiresAt: undefined });
     }
 
     const orphans = await ctx.db
@@ -183,6 +184,12 @@ export const expireGenerationFiles = internalMutation({
     for (const grant of grants) {
       await ctx.db.delete(grant._id);
     }
+
+    // Crea množi obim (lokalni radovi, slojevi, varijacije, dozvole): pun paket
+    // znači da posla ima još - nastavlja se odmah, u novoj transakciji (K29-12).
+    const more =
+      expired.length === EXPIRY_BATCH_LIMIT || orphans.length === EXPIRY_BATCH_LIMIT || grants.length === EXPIRY_BATCH_LIMIT;
+    if (more) await ctx.scheduler.runAfter(0, internal.crons.expireGenerationFiles, {});
 
     return { cleared: expired.length, uploads: orphans.length, grants: grants.length };
   },

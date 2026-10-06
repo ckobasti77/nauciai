@@ -9,6 +9,7 @@ import { MIN_PLAUSIBLE_BITRATE_BPS } from "../lib/media-duration";
 import { STUDIO_MODELS } from "./providers/catalogModels";
 import type { StudioModelSeed } from "./providers/modelSeed";
 import schema from "./schema";
+import { createJobForUser } from "./studio";
 import {
   dayKey,
   MEASURE_UPLOAD_HOURLY_LIMIT,
@@ -60,6 +61,15 @@ async function seedCatalogModel(t: TestConvex, slug: string, isEnabled = true) {
   );
 }
 
+/**
+ * Modeli lica (Kling avatar / prenos pokreta) od K30 idu SAMO kroz serverski
+ * omotač `creaFaceJobs` (O5, nalaz K29-02). Ovaj fajl meri naplatu po trajanju,
+ * pa zove isto telo `createJobForUser` sa `faceVerified` - ono što omotač radi.
+ */
+async function createFaceJob(t: TestConvex, userId: Id<"users">, args: Parameters<typeof createJobForUser>[2]) {
+  return t.run((ctx) => createJobForUser(ctx, userId, args, { faceVerified: true }));
+}
+
 async function seedUser(t: TestConvex) {
   const userId = await t.run(async (ctx) => {
     const userId = await ctx.db.insert("users", {
@@ -77,6 +87,15 @@ async function seedUser(t: TestConvex) {
       acceptedStudioTermsAt: 1,
       createdAt: 1,
       updatedAt: 1,
+    });
+    // `dubbing` (kloniranje glasa) od K30 traži svež izgovoren pristanak (O5, K29-05);
+    // ovaj fajl meri cenu, pa glumac ima proveren pristanak.
+    await ctx.db.insert("creaVoiceConsents", {
+      userId,
+      phrase: "pristajem",
+      status: "passed",
+      createdAt: Date.now(),
+      checkedAt: Date.now(),
     });
     const courseId = await ctx.db.insert("courses", {
       slug: "studio-course",
@@ -414,7 +433,7 @@ test("izmerena dužina se zaokružuje naviše pre naplate", async () => {
 
   expect(measured).toEqual({ ok: true, seconds: 4.2 });
 
-  await asUser.mutation(api.studio.createJob, {
+  await createFaceJob(t, userId, {
     modelSlug: "kling-motion",
     params: JSON.stringify({ resolution: "720p" }),
     inputMode: "video_image",
@@ -543,7 +562,7 @@ test("fajl veći nego što mu zaglavlje tvrdi se naplaćuje po donjoj granici", 
   // Merenje i dalje vraća ono što u zaglavlju piše - granica je stvar naplate.
   expect(measured).toEqual({ ok: true, seconds: 1 });
 
-  await asUser.mutation(api.studio.createJob, {
+  await createFaceJob(t, userId, {
     modelSlug: "kling-avatar",
     params: JSON.stringify({ quality: "720p" }),
     inputMode: "image_audio",
@@ -570,7 +589,7 @@ test("pošten fajl nosi `durationSource: header` i nijedan drugi broj", async ()
   const { storageId: video } = await storeMeasured(asUser, "video/mp4", 9);
   const image = await storeFile(asUser, "image/png");
 
-  await asUser.mutation(api.studio.createJob, {
+  await createFaceJob(t, userId, {
     modelSlug: "kling-motion",
     params: JSON.stringify({ resolution: "720p" }),
     inputMode: "video_image",
@@ -969,7 +988,7 @@ test("`Generiši ponovo` nosi i IZMERENO trajanje, da forma ne traži merenje op
   const { storageId: video } = await storeMeasured(asUser, "video/mp4", 9);
   const image = await storeFile(asUser, "image/png");
 
-  await asUser.mutation(api.studio.createJob, {
+  await createFaceJob(t, userId, {
     modelSlug: "kling-motion",
     params: JSON.stringify({ resolution: "720p" }),
     inputMode: "video_image",
@@ -1447,6 +1466,29 @@ test("preko 30 uploada na sat merenje se odbija bez citanja", async () => {
 
 // -- N2 od pocetka do kraja (X2) --------------------------------------------
 
+test("K29-05: sinhronizacija (kloniranje glasa) bez svežeg izgovorenog pristanka se odbija bez naplate", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, asUser } = await seedUser(t);
+  await seedCatalogModel(t, "dubbing");
+  const { storageId: audio } = await storeMeasured(asUser, "audio/mp4", 6);
+  const args = {
+    modelSlug: "dubbing",
+    params: JSON.stringify({ target_language: "en" }),
+    inputMode: "audio",
+    inputs: JSON.stringify({ audio: [audio] }),
+  };
+  // Pristanak star 31 minut više ne važi; pao pristanak nikad.
+  await t.run(async (ctx) => {
+    for (const row of await ctx.db.query("creaVoiceConsents").collect()) {
+      await ctx.db.patch(row._id, { checkedAt: Date.now() - 31 * 60 * 1000 });
+    }
+    await ctx.db.insert("creaVoiceConsents", { userId, phrase: "x", status: "failed", createdAt: Date.now(), checkedAt: Date.now() });
+  });
+  await expect(asUser.mutation(api.studio.createJob, args)).rejects.toThrow("GLAS_TRAZI_PRISTANAK");
+  expect(await jobsOf(t, userId)).toHaveLength(0);
+  expect(await balanceOf(t, userId)).toBe(100000);
+});
+
 test("napad iz N2 zavrsava naplacenih 120 minuta, nikad 0,1", async () => {
   const t = convexTest(schema, modules);
   const { userId, asUser } = await seedUser(t);
@@ -1472,7 +1514,9 @@ test("napad iz N2 zavrsava naplacenih 120 minuta, nikad 0,1", async () => {
   expect(reserved[0].creditCost).toBe(130);
   expect(reserved[0].estimatedCostUsd).toBeCloseTo(0.6, 6);
 
-  // fal je obradio dva sata i toliko ce i naplatiti.
+  // fal je obradio dva sata i toliko ce i naplatiti. Poravnava se samo isporucen
+  // posao (K30, nalaz K29-06), pa je posao prvo gotov.
+  await t.run((ctx) => ctx.db.patch(jobId, { status: "done" }));
   await t.mutation(internal.studio.settleJobCredits, { jobId, reportedSeconds: 7200 });
 
   // Skinuto je 120 minuta, a oba plafona od sada gledaju 72 $, a ne 0,06 $.

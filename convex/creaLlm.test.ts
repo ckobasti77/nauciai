@@ -147,6 +147,26 @@ describe("pomoćnik za opis", () => {
     await expect(t.action(api.creaLlm.improvePrompt, { text: "x", locale: "sr" })).rejects.toThrow();
   });
 
+  test("K29-03: bez prihvaćenih uslova, uz ugašenu Creu ili preko plafona troška - poziv pada pre mreže", async () => {
+    const t = makeT();
+    const { userId, asUser } = await seedUser(t);
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("mreža se ne sme zvati"); }));
+    try {
+      await t.run((ctx) => ctx.db.patch(userId, { acceptedStudioTermsAt: undefined }));
+      await expect(asUser.action(api.creaLlm.improvePrompt, { text: "mačka", locale: "sr" })).rejects.toThrow("USLOVI_NEPRIHVACENI");
+      await t.run((ctx) => ctx.db.patch(userId, { acceptedStudioTermsAt: 1 }));
+      const flagId = await t.run((ctx) => ctx.db.insert("platformFlags", { key: "studio_enabled", enabled: false }));
+      await expect(asUser.action(api.creaLlm.improvePrompt, { text: "mačka", locale: "sr" })).rejects.toThrow("STUDIO_PAUZIRAN");
+      await t.run((ctx) => ctx.db.delete(flagId));
+      await t.run((ctx) =>
+        ctx.db.insert("studioUsageDaily", { userId, day: new Date().toISOString().slice(0, 10), generations: 0, creditsSpent: 0, costUsd: 1000 }),
+      );
+      await expect(asUser.action(api.creaLlm.improvePrompt, { text: "mačka", locale: "sr" })).rejects.toThrow("DNEVNI_LIMIT_TROSKA");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   test("`recordCall` bez troška ne pravi red u `studioUsageDaily`", async () => {
     const t = makeT();
     const { userId } = await seedUser(t);

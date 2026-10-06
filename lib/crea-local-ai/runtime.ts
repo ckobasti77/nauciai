@@ -8,6 +8,7 @@ import {
   CREA_LOCAL_MODELS,
   FLORENCE_FILES,
   CREA_LOCAL_RUNTIMES,
+  MEDIAPIPE_LOADER_BYTES,
   MEDIAPIPE_WASM_BASE,
   modelFileUrl,
   ORT_WASM_URL,
@@ -60,20 +61,28 @@ function progressTracker(onProgress: LocalLoadOptions["onProgress"]) {
 }
 
 /**
- * WASM MediaPipe-a ide kroz naš keš (napredak, odustajanje, rad bez interneta
- * drugi put), pa se predaje kao `blob:` URL - loader ga traži preko `locateFile`.
+ * WASM i loader MediaPipe-a idu kroz naš keš (napredak, odustajanje, rad bez interneta
+ * drugi put, provera otiska - K29-04), pa se predaju kao `blob:` URL-ovi.
  */
 async function loadVisionFileset(options: LocalLoadOptions, track: ReturnType<typeof progressTracker>) {
   const vision = await importVision();
   const fileset = await vision.FilesetResolver.forVisionTasks(MEDIAPIPE_WASM_BASE);
   const expectedBytes = CREA_LOCAL_RUNTIMES["mediapipe-vision"].files?.[fileset.wasmBinaryPath];
-  const wasm = await fetchModelFile(fileset.wasmBinaryPath, {
-    signal: options.signal,
-    expectedBytes,
-    onProgress: track("wasm", { loaded: 0, total: expectedBytes ?? null }),
-  });
+  const [wasm, loader] = await Promise.all([
+    fetchModelFile(fileset.wasmBinaryPath, {
+      signal: options.signal,
+      expectedBytes,
+      onProgress: track("wasm", { loaded: 0, total: expectedBytes ?? null }),
+    }),
+    fetchModelFile(fileset.wasmLoaderPath, {
+      signal: options.signal,
+      expectedBytes: MEDIAPIPE_LOADER_BYTES[fileset.wasmLoaderPath],
+      onProgress: track("loader", { loaded: 0, total: MEDIAPIPE_LOADER_BYTES[fileset.wasmLoaderPath] ?? null }),
+    }),
+  ]);
   return {
     ...fileset,
+    wasmLoaderPath: URL.createObjectURL(new Blob([loader], { type: "text/javascript" })),
     wasmBinaryPath: URL.createObjectURL(new Blob([wasm], { type: "application/wasm" })),
   };
 }

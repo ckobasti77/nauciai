@@ -11,7 +11,11 @@ export default function robots(): MetadataRoute.Robots {
     withLocale(locale, "/community"),
     withLocale(locale, "/courses/"),
     withLocale(locale, "/studio"),
-  ]);
+  ]).concat(
+    // OG slika deljene knjižice: bez nje nema pregleda linka na mrežama (K29 S-04).
+    // Duži prefiks pobeđuje `Disallow: /api/`; sama strana knjižice je `noindex`.
+    "/api/crea/knjizica/",
+  );
   const disallow = [
     ...locales.flatMap((locale) => [
       withLocale(locale, "/app/"),

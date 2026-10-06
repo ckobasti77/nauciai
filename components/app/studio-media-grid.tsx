@@ -409,7 +409,7 @@ export function StudioMediaGrid({
       ) : null}
 
       {actionNotice ? (
-        <p role="status" className={actionNotice.error ? "type-caption font-extrabold text-red-700" : "type-caption font-extrabold text-ink"}>
+        <p role="status" className={actionNotice.error ? "type-caption font-extrabold text-red-700 dark:text-red-300" : "type-caption font-extrabold text-ink"}>
           {actionNotice.text}
         </p>
       ) : null}

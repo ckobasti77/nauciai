@@ -34,12 +34,12 @@ export async function extraOutputChildren(
   main: Doc<"generationJobs">,
   derivation: ExtraOutputDerivation = "sloj",
 ): Promise<Doc<"generationJobs">[]> {
-  const rootJobId = main.rootJobId ?? main._id;
-  const tree = await ctx.db
+  // Po roditelju, ne po stablu (K30, nalaz K29-13): stablo od 100+ radova je
+  // ranije sakrivalo slojeve i varijacije novijih poslova.
+  return ctx.db
     .query("generationJobs")
-    .withIndex("by_root_created", (q) => q.eq("rootJobId", rootJobId))
+    .withIndex("by_parentJobId_and_derivation", (q) => q.eq("parentJobId", main._id).eq("derivation", derivation))
     .take(VERSION_TREE_MAX_NODES);
-  return tree.filter((job) => job.parentJobId === main._id && job.derivation === derivation);
 }
 
 const layerChildren = (ctx: QueryCtx, main: Doc<"generationJobs">) => extraOutputChildren(ctx, main, "sloj");

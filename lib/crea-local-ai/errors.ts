@@ -8,6 +8,7 @@ import type { Locale } from "../i18n";
 export const LOCAL_AI_ERROR_CODES = [
   "ABORTED",
   "NETWORK",
+  "INTEGRITY",
   "QUOTA",
   "UNSUPPORTED",
   "TOO_HEAVY",

@@ -5,11 +5,10 @@ import { SuspensionGate } from "@/components/app/suspension-gate";
 import { CreaLogo } from "@/components/crea/crea-logo";
 import { ThemeToggle } from "@/components/app/theme-toggle";
 import { AccountMenu } from "@/components/marketing/account-menu";
-import { LanguageToggle } from "@/components/marketing/language-toggle";
-import { LinkButton } from "@/components/ui/primitives";
+import { StudioShellLanguageToggle, StudioShellSignIn } from "@/components/studio/studio-shell-links";
 import { getAppGateState } from "@/lib/app-gates";
 import { getCurrentViewerProfile } from "@/lib/current-viewer";
-import { otherLocale, withLocale, type Locale } from "@/lib/i18n";
+import { withLocale, type Locale } from "@/lib/i18n";
 import { STUDIO_SHELL } from "@/lib/studio-messages";
 
 /**
@@ -31,10 +30,6 @@ export async function StudioShell({ locale, children }: { locale: Locale; childr
     hasConvex ? getCurrentViewerProfile() : Promise.resolve(null),
     hasConvex ? getAppGateState() : Promise.resolve({ profileComplete: true, suspension: null }),
   ]);
-  const signInHref = `${withLocale(locale, "/sign-in")}?next=${encodeURIComponent(
-    withLocale(locale, "/studio/app"),
-  )}`;
-
   const shell = (
     <div className="min-h-screen bg-paper text-ink">
       <div className="shell-container mx-auto flex min-h-screen min-w-0 w-full flex-col min-[1600px]:w-[calc(100%-48px)] min-[1600px]:max-w-[1760px]">
@@ -56,13 +51,11 @@ export async function StudioShell({ locale, children }: { locale: Locale; childr
               {STUDIO_SHELL.crossSell[locale]}
             </Link>
             <ThemeToggle locale={locale} />
-            <LanguageToggle locale={locale} href={withLocale(otherLocale(locale), "/studio/app")} />
+            <StudioShellLanguageToggle locale={locale} />
             {viewerProfile ? (
               <AccountMenu locale={locale} profile={viewerProfile} />
             ) : (
-              <LinkButton href={signInHref} tone="paper">
-                {STUDIO_SHELL.signIn[locale]}
-              </LinkButton>
+              <StudioShellSignIn locale={locale} label={STUDIO_SHELL.signIn[locale]} />
             )}
           </div>
         </header>

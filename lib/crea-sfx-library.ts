@@ -3,25 +3,24 @@ import { normalizeSearchText, searchStem } from "./crea-search-text";
 
 /**
  * Besplatna biblioteka zvučnih efekata Cree (K23, A13): mala, ručno izabrana,
- * hostovana kod nas (`public/crea/sfx/<id>.mp3`). Samo **CC0** - plan §6 zabranjuje
+ * hostovana kod nas (`public/brand/crea/sfx/<id>.mp3`). Samo **CC0** - plan §6 zabranjuje
  * Freesound (nekomercijalan API), Pixabay, Mixkit i Sonniss (zabranjuju
  * redistribuciju kao biblioteku).
  *
  * Svaki fajl je iz paketa autora Kenney (https://kenney.nl, licenca CC0 1.0,
  * https://creativecommons.org/publicdomain/zero/1.0/); original je OGG, ovde je
  * pretvoren u MP3 (96 kb/s) bez drugih izmena, preuzeto 2026-10-05. Izvor i
- * licenca svakog fajla su i u `public/crea/sfx/IZVORI.txt`; test proverava da
+ * licenca svakog fajla su i u `public/brand/crea/sfx/IZVORI.txt`; test proverava da
  * se spisak, fajlovi na disku i taj dokument slažu.
  */
 
-export const SFX_LICENSE = {
-  id: "CC0-1.0",
-  name: "Creative Commons Zero (CC0 1.0)",
-  url: "https://creativecommons.org/publicdomain/zero/1.0/",
-  author: "Kenney (kenney.nl)",
-} as const;
+// Licenca živi uz oznake licenci (`crea-license-tags`), da detalj rada ne vuče ceo
+// spisak zvukova u početni chunk radionice (K29-17).
+export { SFX_LICENSE } from "./crea-license-tags";
 
-export const SFX_BASE_PATH = "/crea/sfx";
+// Ne pod `/crea/` (K30, nalaz K29-14): fizički folder `public/crea` bi na LiteSpeed-u
+// zaklonio javnu rutu `/crea` (doc root je `public/`).
+export const SFX_BASE_PATH = "/brand/crea/sfx";
 
 /** Paketi iz kojih su fajlovi uzeti - ime i strana paketa (izvor). */
 export const SFX_PACKS = {
@@ -47,7 +46,7 @@ export const SFX_CATEGORY_LABELS: Record<SfxCategory, LocalizedText> = {
 };
 
 export type SfxFile = {
-  /** Ime fajla bez nastavka: `public/crea/sfx/<id>.mp3`. */
+  /** Ime fajla bez nastavka: `public/brand/crea/sfx/<id>.mp3`. */
   id: string;
   category: SfxCategory;
   title: LocalizedText;

@@ -601,6 +601,49 @@ export const UPLOAD_GRANT_TTL_MS = 60 * 60 * 1000;
 export const UPLOAD_GRANT_CLOCK_SLACK_MS = 60 * 1000;
 
 /**
+ * K30 (K29-01): dozvola koja NAJAVLJUJE sadržaj (sha256 + bajtovi) vezuje se za
+ * fajl po sadržaju, pa joj treba samo mala tolerancija sata. Sa minutom bi
+ * napadač mogao da preuzme tuđ sveže okačen (javan) fajl, izračuna mu otisak i
+ * u istom minutu izvadi dozvolu za njega.
+ */
+export const UPLOAD_GRANT_BOUND_SLACK_MS = 5 * 1000;
+
+/**
+ * Koliko dozvola za upload jedan korisnik sme da izvadi (K29-01). Svaka dozvola
+ * je jedan upload URL, a fajl okačen bez prijave niko ne briše - bez granice je
+ * storage rastao koliko god je neko slao. Broji se kroz indeks dozvola u istoj
+ * mutaciji koja izdaje novu (dozvole žive sat vremena, pa je prozor tačan).
+ */
+export const UPLOAD_GRANT_LIMITS = { perMinute: 30, perHour: 300 } as const;
+
+const SHA256_BASE64 = /^[A-Za-z0-9+/]{43}=$/;
+
+/** Najavljen sadržaj: ili ništa (stari put), ili ispravan base64 sha256 I veličina. */
+export function uploadDigestProblem(digest: { sha256?: string; size?: number }): "NEISPRAVAN_OTISAK" | null {
+  if (digest.sha256 === undefined && digest.size === undefined) return null;
+  if (typeof digest.sha256 !== "string" || !SHA256_BASE64.test(digest.sha256)) return "NEISPRAVAN_OTISAK";
+  if (typeof digest.size !== "number" || !Number.isSafeInteger(digest.size) || digest.size < 0) return "NEISPRAVAN_OTISAK";
+  return null;
+}
+
+/**
+ * Da li je fajl nastao iz ove dozvole. Dozvola sa otiskom traži isti sadržaj
+ * (`_storage.sha256` je base64 sha256) i istu veličinu; dozvola bez otiska
+ * (MCP, stari klijent) samo vremensku vezu iz X5.
+ */
+export function grantMatchesFile(
+  grant: { createdAt: number; sha256?: string; size?: number },
+  meta: { _creationTime: number; sha256: string; size: number },
+): boolean {
+  if (grant.sha256 === undefined) return meta._creationTime >= grant.createdAt - UPLOAD_GRANT_CLOCK_SLACK_MS;
+  return (
+    meta.sha256 === grant.sha256 &&
+    meta.size === grant.size &&
+    meta._creationTime >= grant.createdAt - UPLOAD_GRANT_BOUND_SLACK_MS
+  );
+}
+
+/**
  * Posle koliko neuspelih merenja se ISTI fajl više ne čita (X5, nalaz N4).
  * Fajl u Convex storage-u je nepromenljiv: ako mu se zaglavlje ne pročita iz
  * prvog pokušaja, neće ni iz stotog. Tri pokušaja su tu samo zbog mrežnih

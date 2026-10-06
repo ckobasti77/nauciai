@@ -5,6 +5,7 @@ import { useCallback } from "react";
 
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { fileDigest } from "@/lib/crea-file-digest";
 import type { CreaMediaKind } from "@/lib/crea-tools";
 
 /**
@@ -28,7 +29,7 @@ export function useSaveLocalResult() {
       derivation?: "lokalni-alat" | "montaza" | "produzenje";
       sourceJobIds?: Id<"generationJobs">[];
     }) => {
-      const { uploadUrl, grantId } = await createUploadUrl({ kind: input.kind });
+      const { uploadUrl, grantId } = await createUploadUrl({ kind: input.kind, ...(await fileDigest(input.blob)) });
       let storageId: Id<"_storage">;
       try {
         const response = await fetch(uploadUrl, {
