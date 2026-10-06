@@ -6,16 +6,20 @@ import { CheckSquare, Download, FileText, Heart, Moon, Play, RefreshCw, Sparkles
 import { motion, useReducedMotion } from "motion/react";
 
 import { QuickActionsMenu, type QuickActionLink } from "@/components/crea/quick-actions-menu";
+import { CreaReveal } from "@/components/crea/reveal/crea-reveal";
+import { CreaWaitScreen } from "@/components/crea/wait/wait-screen";
 import { CreditIcon } from "@/components/studio/credit-icon";
 import { cn } from "@/components/ui/primitives";
-import { Spinner } from "@/components/ui/spinner";
 import { CREA_NIGHT_COPY, CREA_TOOL_COPY } from "@/lib/crea-copy";
 import { CREA_LIBRARY_COPY } from "@/lib/crea-library-copy";
+import { revealStyleFor } from "@/lib/crea-reveal";
 import { toolOfJob } from "@/lib/crea-tools";
+import { estimateWait, isWaitingStatus, queuePlace } from "@/lib/crea-wait";
 import type { Locale } from "@/lib/i18n";
+import { creaMotionFor } from "@/lib/motion-contract";
 import { isExpiredOutput, jobPrompt, jobStatusText } from "@/lib/studio-form";
 import { downloadSingleMedia, isDemoPoster, isTranscriptJob } from "@/lib/studio-gallery";
-import { formatElapsedTime, studioMotionTokens } from "@/lib/studio-motion";
+import { studioMotionTokens } from "@/lib/studio-motion";
 import { formatCreditsLong } from "@/lib/studio-params";
 
 export type StudioTileJob = {
@@ -30,6 +34,8 @@ export type StudioTileJob = {
   isMock: boolean;
   expiresAt?: number;
   createdAt: number;
+  /** Kad je rad stigao (procena čekanja, K25). */
+  completedAt?: number;
   inputMode?: string;
   /** Omiljeno (K16): kad je rad označen; nema ga = nije omiljen. */
   favoriteAt?: number;
@@ -49,6 +55,11 @@ export function StudioMediaTile({
   domId,
   onToggleFavorite,
   quickActions,
+  waitHistory = [],
+  waitingMore = 0,
+  waitSize = "tile",
+  revealOnFinish = false,
+  onFinished,
 }: {
   job: StudioTileJob;
   locale: Locale;
@@ -66,11 +77,43 @@ export function StudioMediaTile({
   onToggleFavorite?: (job: StudioTileJob) => void;
   /** Brze akcije (K16, S44); zamenjuju dugme „Produži ili animiraj" kad postoje. */
   quickActions?: readonly QuickActionLink[];
+  /** Radovi iz istorije: procena čekanja i mesto u redu (K25, U3). */
+  waitHistory?: readonly StudioTileJob[];
+  /** Poslovi koji čekaju slobodno mesto na klijentu (varijacije). */
+  waitingMore?: number;
+  /** Veliki ekran čekanja (scena) ili sažet (istorija). */
+  waitSize?: "tile" | "stage";
+  /** Otkrivanje (polaroid / filmska traka / kaseta) kad rad stigne dok je kartica otvorena (K25, U4). */
+  revealOnFinish?: boolean;
+  /** Rad je upravo stigao ili pao dok je kartica bila otvorena. */
+  onFinished?: (job: StudioTileJob, outcome: "done" | "failed", element: HTMLElement | null) => void;
 }) {
   const isFavorited = job.favoriteAt !== undefined;
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [now, setNow] = useState(() => Date.now());
+  const tileRef = useRef<HTMLDivElement>(null);
   const reduceMotion = useReducedMotion();
+  const crea = creaMotionFor(Boolean(reduceMotion));
+
+  // Prelaz koji je kartica videla uživo (u toku → gotovo / palo): otkrivanje i maskota (K25).
+  const [prevStatus, setPrevStatus] = useState(job.status);
+  const [finish, setFinish] = useState<"done" | "failed" | null>(null);
+  if (job.status !== prevStatus) {
+    setPrevStatus(job.status);
+    if (isWaitingStatus(prevStatus) && !isWaitingStatus(job.status)) {
+      setFinish(job.status === "done" ? "done" : "failed");
+    }
+  }
+  const onFinishedRef = useRef(onFinished);
+  useEffect(() => {
+    onFinishedRef.current = onFinished;
+  }, [onFinished]);
+  const finishedJobRef = useRef(job);
+  useEffect(() => {
+    finishedJobRef.current = job;
+  });
+  useEffect(() => {
+    if (finish) onFinishedRef.current?.(finishedJobRef.current, finish, tileRef.current);
+  }, [finish]);
 
   const prompt = jobPrompt(job.params);
   // Rad lokalnog alata (K04) nema opis: naslov mu je ime alata, a oznaka kaže da je besplatan.
@@ -90,17 +133,9 @@ export function StudioMediaTile({
 
   const statusMessage = jobStatusText(job, locale);
 
-  // Živi merač proteklog vremena dok posao traje (mirno i pošteno izveštavanje)
-  useEffect(() => {
-    if (!isWorking || isNight) return;
-    const interval = setInterval(() => {
-      setNow(Date.now());
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [isWorking, isNight]);
-
   const tileContent = (
     <div
+      ref={tileRef}
       id={domId ?? `tile-${job._id}`}
       tabIndex={0}
       role="button"
@@ -135,34 +170,19 @@ export function StudioMediaTile({
     >
       {/* Tamni medijski bunar (Rešenje A — Mastionica) */}
       <div className="surface-card relative min-h-[180px] overflow-hidden bg-studio-well shadow-[inset_0_0_0_1px_var(--shadow-hard-14)]">
-        {/* Stanje: Posao u izradi / redu — mirno stanje koje diše uz tačan protekli tajmer */}
+        {/* Stanje: Posao u izradi / redu — olovka crta skicu, koraci i poštena procena (K25, U3) */}
         {isWorking ? (
-          <div className="grid min-h-[220px] place-items-center p-6 text-center">
-            <div className={cn("flex flex-col items-center gap-3", !reduceMotion && "studio-breathing")}>
-              <div className="relative flex size-11 items-center justify-center rounded-full border-2 border-white/25 bg-white/10 text-white shadow-inner">
-                {isNight ? (
-                  <Moon aria-hidden="true" className="size-5 fill-yellow text-yellow" />
-                ) : (
-                  <Spinner size="md" className="text-white/90" />
-                )}
-              </div>
-              <div>
-                <p className="max-w-[240px] text-sm font-extrabold leading-snug text-white/95">
-                  {statusMessage}
-                </p>
-                {isNight ? null : (
-                  <p className="mt-1 font-mono text-xs font-bold text-white/60">
-                    {locale === "sr" ? "Proteklo: " : "Elapsed: "}
-                    {formatElapsedTime(job.createdAt, now)}
-                  </p>
-                )}
-              </div>
-              {prompt ? (
-                <p className="line-clamp-2 max-w-[260px] text-xs font-semibold text-white/50">
-                  &bdquo;{prompt}&ldquo;
-                </p>
-              ) : null}
-            </div>
+          <div className="grid min-h-[220px] place-items-center">
+            <CreaWaitScreen
+              job={job}
+              locale={locale}
+              estimate={estimateWait(job, waitHistory)}
+              place={queuePlace(job, waitHistory)}
+              waitingMore={waitingMore}
+              prompt={prompt}
+              size={waitSize}
+              animated={!crea.isReduced}
+            />
           </div>
         ) : null}
 
@@ -245,6 +265,14 @@ export function StudioMediaTile({
               }}
               className="size-full"
             >
+              <CreaReveal
+                style={revealStyleFor(job.kind)}
+                active={revealOnFinish && finish === "done"}
+                ready={isMediaReady}
+                caption={caption}
+                locale={locale}
+                motion={crea}
+              >
               {showAsImage ? (
                 <div className="relative w-full">
                   <Image
@@ -296,6 +324,7 @@ export function StudioMediaTile({
                   </span>
                 </div>
               ) : null}
+              </CreaReveal>
             </motion.div>
           </>
         ) : null}
@@ -461,17 +490,15 @@ export function StudioMediaTile({
     return tileContent;
   }
 
-  const delay = Math.min(Math.max(0, index), 8) * studioMotionTokens.element.stagger;
+  // Kartica ulazi kao list sveske koji legne na mesto oko leve ivice (K25, U16).
+  const delay = Math.min(Math.max(0, index), crea.sheetFlip.maxStaggerItems) * crea.sheetFlip.stagger;
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{
-        duration: studioMotionTokens.element.enterDuration,
-        ease: studioMotionTokens.element.easeEnter,
-        delay,
-      }}
+      initial={{ opacity: 0, rotateY: crea.sheetFlip.rotateY }}
+      animate={{ opacity: 1, rotateY: 0 }}
+      transition={{ duration: crea.sheetFlip.duration, ease: crea.sheetFlip.ease, delay }}
+      style={{ transformOrigin: "0% 50%", transformPerspective: 1100 }}
     >
       {tileContent}
     </motion.div>

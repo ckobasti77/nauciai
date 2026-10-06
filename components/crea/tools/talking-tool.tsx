@@ -4,6 +4,9 @@ import { useAction, useMutation, useQuery } from "convex/react";
 import { CircleAlert, CircleCheck, Mic, Speech, Square, Upload } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { FieldMic } from "@/components/crea/create/mic-button";
+import { usePromptParamState } from "@/components/crea/tools/use-prompt-param";
+
 import { ToolHeader } from "@/components/crea/tool-runner";
 import { ChoiceChips } from "@/components/crea/tools/choice-chips";
 import { faceArg, FacePicker, type FaceChoice } from "@/components/crea/tools/face-picker";
@@ -131,7 +134,7 @@ export default function TalkingTool({ tool, locale, canSave, projectId, paid }: 
   const [face, setFace] = useState<FaceChoice | null>(null);
   const [scene, setScene] = useState<TalkingSceneId>("bez");
   const [voice, setVoice] = useState<TalkingVoice>("tekst");
-  const [text, setText] = useState("");
+  const [text, setText] = usePromptParamState();
   const [quality, setQuality] = useState<Quality>("720p");
   const [consent, setConsent] = useState(false);
   const [mic, setMic] = useState<{ recording: boolean; startedAt: number; elapsed: number; problem: boolean }>({ recording: false, startedAt: 0, elapsed: 0, problem: false });
@@ -439,6 +442,7 @@ export default function TalkingTool({ tool, locale, canSave, projectId, paid }: 
                   {fillCopy(T.talkTextCount[locale], { n: text.length, max: TALKING_TEXT_MAX, s: estimateSpeechSeconds(text) })}
                 </span>
               </label>
+              <FieldMic locale={locale} value={text} onChange={setText} maxLength={TALKING_TEXT_MAX} />
               {voiceOptions.length > 0 ? (
                 <label className="block">
                   <span className="type-body-sm font-black text-ink">{T.talkVoiceName[locale]}</span>

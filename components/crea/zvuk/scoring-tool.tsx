@@ -4,6 +4,8 @@ import { useAction, useMutation } from "convex/react";
 import { Clapperboard, Eye, Music } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
+import { FieldMic } from "@/components/crea/create/mic-button";
+
 import { useJobQueue } from "@/components/crea/create/use-job-queue";
 import { ToolHeader } from "@/components/crea/tool-runner";
 import { paidModel, PaidSubmit, usePrepareVideo, type SendStatus } from "@/components/crea/tools/paid-video";
@@ -226,6 +228,7 @@ export default function ScoringTool({ tool, locale, caps, canSave, projectId, pa
                       </span>
                       <textarea value={track.prompt} rows={2} maxLength={300} onChange={(event) => setTrack(index, event.target.value)} className={cn(FIELD, "mt-1 resize-y")} />
                     </label>
+                    <FieldMic locale={locale} value={track.prompt} onChange={(next) => setTrack(index, next)} maxLength={300} />
                   </li>
                 ))}
               </ol>

@@ -6,6 +6,8 @@ import { ArrowLeft, ArrowRight, CircleCheck, Coins, PencilLine, RefreshCw, Spark
 import Link from "next/link";
 import { useId, useMemo, useState } from "react";
 
+import { FieldMic } from "@/components/crea/create/mic-button";
+
 import { useBrandKit } from "@/components/crea/brand-kit/use-brand-kit";
 import { CREA_ICONS } from "@/components/crea/crea-icons";
 import type { MyElement } from "@/components/crea/elements/shared";
@@ -216,16 +218,25 @@ export function CreaRecipeStage({
                   <span className="font-mono text-xs font-bold text-muted">{fillCopy(T.chars[locale], { n: value.length, max: field.maxLength })}</span>
                 </div>
                 {field.multiline ? (
-                  <textarea
-                    id={inputId}
-                    value={value}
-                    rows={5}
-                    maxLength={field.maxLength}
-                    disabled={jobId !== null}
-                    onChange={(event) => setValues({ ...values, [field.key]: event.target.value })}
-                    placeholder={field.placeholder[locale]}
-                    className={cn(FIELD, "resize-y py-2")}
-                  />
+                  <>
+                    <textarea
+                      id={inputId}
+                      value={value}
+                      rows={5}
+                      maxLength={field.maxLength}
+                      disabled={jobId !== null}
+                      onChange={(event) => setValues({ ...values, [field.key]: event.target.value })}
+                      placeholder={field.placeholder[locale]}
+                      className={cn(FIELD, "resize-y py-2")}
+                    />
+                    <FieldMic
+                      locale={locale}
+                      value={value}
+                      onChange={(next) => setValues({ ...values, [field.key]: next })}
+                      disabled={jobId !== null}
+                      maxLength={field.maxLength}
+                    />
+                  </>
                 ) : (
                   <input
                     id={inputId}

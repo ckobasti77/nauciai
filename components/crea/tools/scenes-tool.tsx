@@ -3,6 +3,8 @@
 import { ArrowDown, ArrowUp, Clapperboard, Minus, Plus, Trash2 } from "lucide-react";
 import { useId, useState } from "react";
 
+import { FieldMic } from "@/components/crea/create/mic-button";
+
 import { ToolHeader } from "@/components/crea/tool-runner";
 import { ChoiceChips } from "@/components/crea/tools/choice-chips";
 import { ImageInput, useImageInput } from "@/components/crea/tools/image-input";
@@ -116,6 +118,7 @@ export default function ScenesTool({ tool, locale, canSave, projectId, source, p
                     placeholder={T.scenePlaceholder[locale]}
                     className="surface-inset mt-2 block w-full resize-y border-2 border-ink bg-paper px-3 py-2 type-body font-semibold text-ink placeholder:text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                   />
+                  <FieldMic locale={locale} value={card.text} onChange={(next) => update(card.id, { text: next })} maxLength={400} />
                 </div>
                 <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
                   <div>

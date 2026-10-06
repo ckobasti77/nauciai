@@ -4,6 +4,9 @@ import { useAction } from "convex/react";
 import { Pencil, Podcast } from "lucide-react";
 import { useState } from "react";
 
+import { FieldMic } from "@/components/crea/create/mic-button";
+import { usePromptParamState } from "@/components/crea/tools/use-prompt-param";
+
 import { ToolHeader } from "@/components/crea/tool-runner";
 import { ChoiceChips } from "@/components/crea/tools/choice-chips";
 import type { CreaToolProps } from "@/components/crea/tools/types";
@@ -35,7 +38,7 @@ function hasDraft(): boolean {
  */
 export default function PodcastTool({ tool, locale, canSave, projectId, paid }: CreaToolProps) {
   const writePodcast = useAction(api.creaLlm.writePodcast);
-  const [text, setText] = useState("");
+  const [text, setText] = usePromptParamState();
   const [minutes, setMinutes] = useState<PodcastMinutes>(2);
   const [hosts, setHosts] = useState<[string, string]>(["Ana", "Marko"]);
   const [status, setStatus] = useState<{ name: "idle" | "working" } | { name: "error"; message: string }>({ name: "idle" });
@@ -87,6 +90,7 @@ export default function PodcastTool({ tool, locale, canSave, projectId, paid }: 
             {text.length}/{PODCAST_LIMITS.textChars}
           </span>
         </label>
+        <FieldMic locale={locale} value={text} onChange={setText} maxLength={PODCAST_LIMITS.textChars} />
         <div className="grid gap-4 sm:grid-cols-2">
           <ChoiceChips<PodcastMinutes>
             legend={T.podcastLength[locale]}

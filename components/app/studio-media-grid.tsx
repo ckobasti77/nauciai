@@ -530,6 +530,7 @@ export function StudioMediaGrid({
                     animateEntrance
                     index={itemIndex}
                     onToggleFavorite={handleToggleFavorite}
+                    waitHistory={rawJobRows}
                     {...(quickActionsFor ? { quickActions: quickActionsFor(job) } : {})}
                   />
                 ))}

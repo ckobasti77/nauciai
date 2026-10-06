@@ -4,6 +4,9 @@ import { useMutation } from "convex/react";
 import { CircleCheck, Coins, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { FieldMic } from "@/components/crea/create/mic-button";
+import { usePromptParamState } from "@/components/crea/tools/use-prompt-param";
+
 import { ChoiceChips } from "@/components/crea/tools/choice-chips";
 import { useSlotUpload } from "@/components/studio/use-slot-upload";
 import { Button } from "@/components/ui/button";
@@ -120,7 +123,7 @@ export function PaidEditPanel({
   const createJob = useMutation(api.studio.createJob);
   const upload = useSlotUpload();
   const [quality, setQuality] = useState<(typeof MASK_QUALITIES)[number]>("low");
-  const [text, setText] = useState("");
+  const [text, setText] = usePromptParamState();
   const [status, setStatus] = useState<Status>({ name: "idle" });
 
   // Ruta se nudi samo za model koji je u katalogu i dostupan: javni korisnik ne dobija
@@ -268,18 +271,21 @@ export function PaidEditPanel({
       ) : null}
 
       {field ? (
-        <label className="block">
-          <span className="type-body-sm font-black text-ink">{field.label}</span>
-          <textarea
-            value={text}
-            onChange={(event) => setText(event.target.value)}
-            rows={2}
-            maxLength={1500}
-            disabled={busy}
-            placeholder={field.placeholder}
-            className="surface-inset mt-2 block w-full resize-y border-2 border-ink bg-paper px-3 py-2 type-body font-semibold text-ink placeholder:text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-60"
-          />
-        </label>
+        <div>
+          <label className="block">
+            <span className="type-body-sm font-black text-ink">{field.label}</span>
+            <textarea
+              value={text}
+              onChange={(event) => setText(event.target.value)}
+              rows={2}
+              maxLength={1500}
+              disabled={busy}
+              placeholder={field.placeholder}
+              className="surface-inset mt-2 block w-full resize-y border-2 border-ink bg-paper px-3 py-2 type-body font-semibold text-ink placeholder:text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-60"
+            />
+          </label>
+          <FieldMic locale={locale} value={text} onChange={setText} disabled={busy} maxLength={1500} />
+        </div>
       ) : null}
 
       <div className="flex flex-wrap items-center gap-3">

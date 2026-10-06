@@ -5,6 +5,9 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useRef, useState } from "react";
 
+import { FieldMic } from "@/components/crea/create/mic-button";
+import { usePromptParamState } from "@/components/crea/tools/use-prompt-param";
+
 import { useJobQueue } from "@/components/crea/create/use-job-queue";
 import { ToolHeader } from "@/components/crea/tool-runner";
 import { ChoiceChips } from "@/components/crea/tools/choice-chips";
@@ -68,7 +71,7 @@ export default function SpeechTool({ tool, locale, canSave, projectId, paid }: C
   const [engine, setEngine] = useState<VoiceEngineId>(fromUrl?.engine ?? DEFAULT_VOICE_ENGINE);
   const [voiceId, setVoiceId] = useState(fromUrl?.id ?? DEFAULT_VOICE[DEFAULT_VOICE_ENGINE]);
   const [settings, setSettings] = useState<VoiceSettings>(DEFAULT_VOICE_SETTINGS);
-  const [text, setText] = useState("");
+  const [text, setText] = usePromptParamState();
   const [variations, setVariations] = useState<Variations>(1);
   const [takes, setTakes] = useState<Array<Id<"generationJobs">>>([]);
   const [error, setError] = useState<string | null>(null);
@@ -206,6 +209,7 @@ export default function SpeechTool({ tool, locale, canSave, projectId, paid }: C
           <span className="block font-mono text-xs font-bold text-muted">
             {chars}/{meta.maxChars}
           </span>
+          <FieldMic locale={locale} value={text} onChange={setText} maxLength={meta.maxChars} />
           <div role="group" aria-label={T.stickersLegend[locale]}>
             <p className="type-body-sm font-black text-ink">{T.stickersLegend[locale]}</p>
             <p className="type-body-sm font-semibold text-muted">{T.stickersHint[locale]}</p>

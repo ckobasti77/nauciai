@@ -1,13 +1,14 @@
 "use client";
 
 import { motion, useReducedMotion, type Easing } from "motion/react";
-import type { ReactNode, Ref } from "react";
+import { useState, type ReactNode, type Ref } from "react";
 
 import { CREA_AREA_PANEL_ID, CreaAreaTabs } from "@/components/crea/crea-area-tabs";
 import { CREA_MODE_PANEL_ID, CreaModeTabs } from "@/components/crea/crea-mode-tabs";
 import { cn } from "@/components/ui/primitives";
-import type { CreaArea, CreaModeId, CreaShellState } from "@/lib/crea-shell";
+import { CREA_AREAS, type CreaArea, type CreaModeId, type CreaShellState } from "@/lib/crea-shell";
 import type { Locale } from "@/lib/i18n";
+import { creaMotionFor, pageTurnDirection } from "@/lib/motion-contract";
 import { getStudioMotion } from "@/lib/studio-motion";
 
 /**
@@ -52,14 +53,29 @@ export function CreaWorkshop({
   const reduceMotion = useReducedMotion();
   const motionParams = getStudioMotion(Boolean(reduceMotion));
   const sceneKey = `${area ?? "start"}:${mode ?? ""}`;
-  const enter = {
-    initial: reduceMotion ? false : ({ opacity: 0, y: 10 } as const),
-    animate: { opacity: 1, y: 0 },
-    transition: {
-      duration: motionParams.prelaz.enter.duration,
-      ease: motionParams.prelaz.enter.ease as Easing,
-    },
-  };
+  // Prelaz između oblasti je listanje (K25, U16): list se okrene oko hrbata u smeru taba.
+  // Promena režima u istoj oblasti ostaje kratak ulaz odozdo.
+  const crea = creaMotionFor(Boolean(reduceMotion));
+  const [turn, setTurn] = useState<{ scene: string; area: CreaArea | null; direction: -1 | 0 | 1 }>({ scene: sceneKey, area, direction: 0 });
+  if (turn.scene !== sceneKey) {
+    setTurn({ scene: sceneKey, area, direction: turn.area !== area ? pageTurnDirection(CREA_AREAS, turn.area, area) : 0 });
+  }
+  const enter =
+    turn.direction !== 0 && !reduceMotion
+      ? {
+          initial: { opacity: 0, rotateY: turn.direction * crea.pageTurn.rotateY, x: turn.direction * crea.pageTurn.x },
+          animate: { opacity: 1, rotateY: 0, x: 0 },
+          transition: { duration: crea.pageTurn.duration, ease: crea.pageTurn.ease as unknown as Easing },
+          style: { transformOrigin: turn.direction > 0 ? "0% 50%" : "100% 50%", transformPerspective: crea.pageTurn.perspective },
+        }
+      : {
+          initial: reduceMotion ? false : ({ opacity: 0, y: 10 } as const),
+          animate: { opacity: 1, y: 0 },
+          transition: {
+            duration: motionParams.prelaz.enter.duration,
+            ease: motionParams.prelaz.enter.ease as Easing,
+          },
+        };
 
   const grid = (
     <div

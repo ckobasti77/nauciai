@@ -50,6 +50,8 @@ import type * as creaLlmVideoCore from "../creaLlmVideoCore.js";
 import type * as creaLlmVoiceCore from "../creaLlmVoiceCore.js";
 import type * as creaLocal from "../creaLocal.js";
 import type * as creaLocalCore from "../creaLocalCore.js";
+import type * as creaMoments from "../creaMoments.js";
+import type * as creaMomentsCore from "../creaMomentsCore.js";
 import type * as creaMontages from "../creaMontages.js";
 import type * as creaMontagesCore from "../creaMontagesCore.js";
 import type * as creaNight from "../creaNight.js";
@@ -191,6 +193,8 @@ declare const fullApi: ApiFromModules<{
   creaLlmVoiceCore: typeof creaLlmVoiceCore;
   creaLocal: typeof creaLocal;
   creaLocalCore: typeof creaLocalCore;
+  creaMoments: typeof creaMoments;
+  creaMomentsCore: typeof creaMomentsCore;
   creaMontages: typeof creaMontages;
   creaMontagesCore: typeof creaMontagesCore;
   creaNight: typeof creaNight;

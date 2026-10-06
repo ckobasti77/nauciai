@@ -3,6 +3,8 @@
 import { ArrowDown, ArrowUp, Music, Plus, Repeat, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
+import { FieldMic } from "@/components/crea/create/mic-button";
+
 import { useJobQueue } from "@/components/crea/create/use-job-queue";
 import { ToolHeader } from "@/components/crea/tool-runner";
 import { ChoiceChips } from "@/components/crea/tools/choice-chips";
@@ -244,17 +246,20 @@ export default function MusicTool({ tool, locale, canSave, projectId, paid }: Cr
                     className={cn(FIELD, "mt-1 min-h-11")}
                   />
                 </label>
-                <label className="col-span-2 block min-w-0 sm:col-span-1">
-                  <span className="type-body-sm font-black text-ink">{doc.instrumental || section.kind === "solo" ? T.music.sectionSound[locale] : T.music.sectionLyrics[locale]}</span>
-                  <textarea
-                    value={section.text}
-                    rows={section.kind === "uvod" || section.kind === "kraj" ? 1 : 3}
-                    maxLength={MUSIC_LIMITS.sectionChars}
-                    onChange={(event) => setSection(section.id, { text: event.target.value })}
-                    placeholder={(doc.instrumental || section.kind === "solo" ? T.music.soundPlaceholder : T.music.lyricsPlaceholder)[locale]}
-                    className={cn(FIELD, "mt-1 resize-y")}
-                  />
-                </label>
+                <div className="col-span-2 min-w-0 sm:col-span-1">
+                  <label className="block">
+                    <span className="type-body-sm font-black text-ink">{doc.instrumental || section.kind === "solo" ? T.music.sectionSound[locale] : T.music.sectionLyrics[locale]}</span>
+                    <textarea
+                      value={section.text}
+                      rows={section.kind === "uvod" || section.kind === "kraj" ? 1 : 3}
+                      maxLength={MUSIC_LIMITS.sectionChars}
+                      onChange={(event) => setSection(section.id, { text: event.target.value })}
+                      placeholder={(doc.instrumental || section.kind === "solo" ? T.music.soundPlaceholder : T.music.lyricsPlaceholder)[locale]}
+                      className={cn(FIELD, "mt-1 resize-y")}
+                    />
+                  </label>
+                  <FieldMic locale={locale} value={section.text} onChange={(next) => setSection(section.id, { text: next })} maxLength={MUSIC_LIMITS.sectionChars} />
+                </div>
                 <span className="col-span-2 flex gap-1 sm:col-span-1 sm:pt-6">
                   <button type="button" onClick={() => move(index, -1)} disabled={index === 0} aria-label={T.music.moveUp[locale]} className={cn("grid size-11 place-items-center rounded-full border-2 border-ink bg-paper text-ink disabled:opacity-40", FOCUS)}>
                     <ArrowUp aria-hidden="true" className="size-4" />

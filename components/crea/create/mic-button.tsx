@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { cn } from "@/components/ui/primitives";
 import { CREA_CREATE_COPY as T } from "@/lib/crea-create-copy";
+import { appendSpoken } from "@/lib/crea-dictation";
 import type { Locale } from "@/lib/i18n";
 
 /** Minimalan oblik Web Speech API-ja (TS ga nema u `lib.dom`). */
@@ -30,13 +31,19 @@ function recognitionCtor(): RecognitionCtor | null {
 
 const subscribe = () => () => undefined;
 
+/** Da li pregledač ima Web Speech API (Chrome, Edge, deo Safarija); bez njega mikrofona nema. */
+export function useSpeechSupported(): boolean {
+  return useSyncExternalStore(subscribe, () => recognitionCtor() !== null, () => false);
+}
+
 /**
- * Mikrofon za opis (K13, S6): Web Speech API sa `sr-RS` (ili `en-US`). Gde
- * pregledač to nema (Firefox, deo Safarija), dugme se ne prikazuje. Prepoznat
- * tekst se dopisuje na kraj opisa; ništa ne ide na naš server.
+ * Mikrofon za opis (K13, S6; K25 U8 - u svakom polju za opis): Web Speech API sa
+ * `sr-RS` (ili `en-US`). Gde pregledač to nema (Firefox, deo Safarija), dugme se ne
+ * prikazuje. Prepoznat tekst pozivalac dopisuje kroz `appendSpoken` (latinica, razmak,
+ * veliko slovo); ništa ne ide na naš server.
  */
 export function MicButton({ locale, onText, disabled }: { locale: Locale; onText: (text: string) => void; disabled?: boolean }) {
-  const supported = useSyncExternalStore(subscribe, () => recognitionCtor() !== null, () => false);
+  const supported = useSpeechSupported();
   const [state, setState] = useState<"idle" | "listening" | "denied" | "failed">("idle");
   const recognition = useRef<Recognition | null>(null);
 
@@ -98,5 +105,32 @@ export function MicButton({ locale, onText, disabled }: { locale: Locale; onText
         </span>
       ) : null}
     </>
+  );
+}
+
+/**
+ * Mikrofon ispod polja za opis u alatima (K25, U8): red sa dugmetom samo kad pregledač ume
+ * da sluša, pa bez Web Speech API-ja ne ostaje prazan prostor. Ide POSLE `<label>` (dugme ne
+ * sme u labelu koja već nosi polje).
+ */
+export function FieldMic({
+  locale,
+  value,
+  onChange,
+  disabled,
+  maxLength,
+}: {
+  locale: Locale;
+  value: string;
+  onChange: (next: string) => void;
+  disabled?: boolean;
+  maxLength?: number;
+}) {
+  const supported = useSpeechSupported();
+  if (!supported) return null;
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-2">
+      <MicButton locale={locale} disabled={disabled} onText={(spoken) => onChange(appendSpoken(value, spoken, maxLength))} />
+    </div>
   );
 }

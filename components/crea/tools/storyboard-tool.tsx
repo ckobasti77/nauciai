@@ -6,6 +6,9 @@ import { BookOpen, Check, Film, Pencil, Plus, Save, Sparkles } from "lucide-reac
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { FieldMic } from "@/components/crea/create/mic-button";
+import { usePromptParamState } from "@/components/crea/tools/use-prompt-param";
+
 import { useJobQueue } from "@/components/crea/create/use-job-queue";
 import { useMyElements } from "@/components/crea/elements/shared";
 import { newDraftId, saveDraft } from "@/components/crea/montaza/draft-store";
@@ -93,7 +96,7 @@ export default function StoryboardTool({ tool, locale, canSave, projectId, paid 
   const mine = useQuery(api.creaStoryboards.listMine, isAuthenticated ? {} : "skip");
 
   // ── Unos ──
-  const [story, setStory] = useState("");
+  const [story, setStory] = usePromptParamState();
   const [shotCount, setShotCount] = useState<number>(4);
   const [styleId, setStyleId] = useState<string>("");
   const [aspect, setAspect] = useState<StoryboardAspect>("9:16");
@@ -412,6 +415,7 @@ export default function StoryboardTool({ tool, locale, canSave, projectId, paid 
               {story.length}/{STORYBOARD_LIMITS.storyChars}
             </span>
           </label>
+          <FieldMic locale={locale} value={story} onChange={setStory} maxLength={STORYBOARD_LIMITS.storyChars} />
 
           <ChoiceChips<number> legend={T.stripShots[locale]} name="crea-strip-broj" options={SHOT_COUNTS.map((id) => ({ id, label: String(id) }))} value={shotCount} onChange={setShotCount} />
 

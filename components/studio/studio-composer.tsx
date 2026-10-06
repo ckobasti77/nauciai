@@ -11,6 +11,7 @@ import {
   Grid3x3,
   Image as ImageIcon,
   Palette,
+  Pencil,
   ImagePlus,
   Moon,
   Music,
@@ -41,7 +42,7 @@ import {
   useElementMentions,
   type MentionElement,
 } from "@/components/crea/elements/mentions";
-import { MicButton } from "@/components/crea/create/mic-button";
+import { MicButton, useSpeechSupported } from "@/components/crea/create/mic-button";
 import { PromptHelper } from "@/components/crea/create/prompt-helper";
 import { NightToggle } from "@/components/crea/night-toggle";
 import { deskCount, directorIsEmpty, EMPTY_DIRECTOR, type DirectorState } from "@/components/crea/video/director-state";
@@ -67,6 +68,7 @@ import type { ParamControl as ParamControlSpec } from "@/convex/studioParamSpec"
 import type { PriceRule } from "@/convex/studioPricing";
 import { autoSentence, pickAuto } from "@/lib/crea-auto";
 import { CREA_CREATE_COPY } from "@/lib/crea-create-copy";
+import { appendSpoken } from "@/lib/crea-dictation";
 import { CREA_NIGHT_COPY, CREA_PICK_COPY, fillCopy } from "@/lib/crea-copy";
 import { composeVideoPrompt, effectInputMode, effectParamsFor, modelMakesSound } from "@/lib/crea-director";
 import { buildDraftOrder, draftPairFor, orderCredits } from "@/lib/crea-draft";
@@ -605,6 +607,7 @@ export function StudioComposer({
 }) {
   const isDocked = placement === "docked";
   const createMode = variant === "create" && createExtras;
+  const speechSupported = useSpeechSupported();
   const [extraPanel, setExtraPanel] = useState<"helper" | "look" | null>(null);
   const [look, setLook] = useState<LookState>(EMPTY_LOOK);
   const [variationCount, setVariationCount] = useState(1);
@@ -1857,8 +1860,10 @@ export function StudioComposer({
 
         {/* Van „Slika · Napravi" @pominjanje ima svoje dugme i pregled teksta za model;
             u Video · Napravi (K18) uz njega i režija i poslednji kadar. */}
-        {(elements !== undefined || videoExtras) && !createMode ? (
+        {(elements !== undefined || videoExtras || speechSupported) && !createMode ? (
           <div className="mt-2 flex flex-wrap items-center gap-2">
+            {/* Glasom do opisa (K25, U8): mikrofon u svakom režimu, ne samo u Slika · Napravi. */}
+            <MicButton locale={locale} disabled={isPending} onText={(spoken) => handlePromptChange(appendSpoken(prompt, spoken))} />
             {elements !== undefined ? <MentionButton locale={locale} onClick={mentions.openPicker} disabled={isPending} /> : null}
             {videoExtras ? (
               <>
@@ -1975,7 +1980,7 @@ export function StudioComposer({
               <MicButton
                 locale={locale}
                 disabled={isPending}
-                onText={(spoken) => handlePromptChange(prompt.trim() ? `${prompt.trim()} ${spoken}` : spoken)}
+                onText={(spoken) => handlePromptChange(appendSpoken(prompt, spoken))}
               />
               {elements !== undefined ? (
                 <MentionButton locale={locale} onClick={mentions.openPicker} disabled={isPending} />
@@ -2343,15 +2348,22 @@ export function StudioComposer({
                       : `${generateLabel} for ${formatCreditsLong(credits, locale)}`
                     : generateLabel
               }
+              aria-busy={isPending}
               className={cn(
-                "inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full border-2 border-ink px-3 py-2 text-xs font-black transition duration-200 hover:-translate-y-0.5 active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:px-4",
+                "relative inline-flex min-h-11 shrink-0 items-center justify-center gap-2 overflow-hidden rounded-full border-2 border-ink px-3 py-2 text-xs font-black transition duration-200 hover:-translate-y-0.5 active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:px-4",
+                // Dok se šalje, dugme je „puno" - ne bledi kao zaključano (olovka mu povlači liniju).
+                isPending && "disabled:opacity-100",
                 isPriceFlashing
                   ? "bg-yellow text-ink shadow-[3px_3px_0_0_var(--ink)]"
                   : "bg-ink text-paper-strong shadow-[3px_3px_0_0_var(--yellow)] active:shadow-[1px_1px_0_0_var(--yellow)]",
               )}
             >
+              {/* „Generiši" se puni kao olovka (K25, U16): žuta linija se povlači ispod natpisa. */}
+              {isPending && !shouldReduceMotion ? (
+                <span aria-hidden="true" className="crea-pencil-fill pointer-events-none absolute inset-x-3 bottom-1.5 h-[3px] origin-left rounded-full bg-yellow" />
+              ) : null}
               {isPending ? (
-                <Spinner />
+                shouldReduceMotion ? <Spinner /> : <Pencil className="size-4 text-yellow" />
               ) : night ? (
                 <Moon className={cn("size-4", isPriceFlashing ? "text-ink" : "fill-yellow text-yellow")} />
               ) : (

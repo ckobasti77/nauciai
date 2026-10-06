@@ -35,6 +35,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { StudioTileJob } from "@/components/app/studio-media-tile";
 import { TranscriptPanel } from "@/components/crea/transcript-panel";
+import { CreaReveal } from "@/components/crea/reveal/crea-reveal";
+import { LearnCard } from "@/components/crea/wait/learn-card";
+import { CreaWaitScreen } from "@/components/crea/wait/wait-screen";
 import { PromptSegmentsView } from "@/components/crea/prompt-parts";
 import { QUICK_ACTION_ICONS, type QuickActionLink } from "@/components/crea/quick-actions-menu";
 import { VersionStrip } from "@/components/crea/version-strip";
@@ -49,13 +52,17 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { CREA_PICK_COPY, CREA_TOOL_COPY, CREA_VERSION_COPY, fillCopy } from "@/lib/crea-copy";
 import { buildRefineOrder, orderCredits, refinePairForJob, type RefineOrder } from "@/lib/crea-draft";
 import { licenseForJob } from "@/lib/crea-license-tags";
+import { revealStyleFor } from "@/lib/crea-reveal";
+import { tipAreaFor } from "@/lib/crea-tips";
 import { toolOfJob } from "@/lib/crea-tools";
+import { estimateWait, isWaitingStatus, queuePlace } from "@/lib/crea-wait";
 import { isAnglesGridPrompt } from "@/lib/crea-grid-crop";
 import { CREA_LIBRARY_COPY } from "@/lib/crea-library-copy";
 import { CREA_STICKERS_COPY } from "@/lib/crea-recipes-copy";
 import { isStickerSheetPrompt } from "@/lib/crea-sticker-pack";
 import { toolsForWork, versionInputTarget, type VersionIntent } from "@/lib/crea-versions";
 import type { Locale } from "@/lib/i18n";
+import { creaMotionFor } from "@/lib/motion-contract";
 import { isExpiredOutput, jobPrompt, jobStatusText } from "@/lib/studio-form";
 import { downloadSingleMedia, isDemoPoster, isTranscriptJob } from "@/lib/studio-gallery";
 import { deleteJobErrorMessage, studioErrorMessage } from "@/lib/studio-messages";
@@ -206,6 +213,14 @@ export function StudioMediaDetail({
 }) {
   const t = T[locale];
   const reduceMotion = useReducedMotion();
+  const crea = creaMotionFor(Boolean(reduceMotion));
+  // Rad koji je stigao dok je pun prikaz bio otvoren dobija otkrivanje (K25, U4).
+  const [prevStatus, setPrevStatus] = useState(job.status);
+  const [arrived, setArrived] = useState(false);
+  if (job.status !== prevStatus) {
+    setPrevStatus(job.status);
+    if (isWaitingStatus(prevStatus) && job.status === "done") setArrived(true);
+  }
 
   // Učitavanje detalja posla sa servera (model, režim, parametri, ulazi)
   const jobDetail = useQuery(api.studio.getJobForRegenerate, {
@@ -638,16 +653,17 @@ export function StudioMediaDetail({
               )}
             >
               {/* Stanje: Posao u izradi / redu */}
+              {/* Ekran čekanja (K25, U3): olovka crta skicu, koraci, mesto u redu i procena. */}
               {isWorking ? (
-                <div className="flex flex-col items-center gap-3 p-8 text-center">
-                  <div className="relative flex size-12 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white">
-                    <Spinner size="lg" />
-                  </div>
-                  <p className="max-w-[320px] text-base font-black text-white/90">{statusMessage}</p>
-                  {prompt ? (
-                    <p className="max-w-[360px] text-xs font-semibold text-white/60">&bdquo;{prompt}&ldquo;</p>
-                  ) : null}
-                </div>
+                <CreaWaitScreen
+                  job={job}
+                  locale={locale}
+                  estimate={estimateWait(job, jobs)}
+                  place={queuePlace(job, jobs)}
+                  prompt={prompt}
+                  size="stage"
+                  animated={!crea.isReduced}
+                />
               ) : null}
 
               {/* Stanje: Istekao fajl */}
@@ -707,7 +723,15 @@ export function StudioMediaDetail({
 
               {/* Stanje: Gotov medij */}
               {!isWorking && !isExpired && !isFailed && hasOutput ? (
-                <>
+                <CreaReveal
+                  style={revealStyleFor(job.kind)}
+                  active={arrived}
+                  ready
+                  caption={prompt || localTool?.title[locale] || ""}
+                  locale={locale}
+                  motion={crea}
+                  className="flex size-full items-center justify-center"
+                >
                   {canCompare && comparing && parentNode?.thumbUrl ? (
                     <BeforeAfter
                       beforeUrl={parentNode.thumbUrl}
@@ -807,7 +831,7 @@ export function StudioMediaDetail({
                       </span>
                     </div>
                   ) : null}
-                </>
+                </CreaReveal>
               ) : null}
 
               {/* Transkript (K21): `stt` rad nema fajl - tekst i SRT/VTT iz `creaTranscripts`. */}
@@ -830,6 +854,11 @@ export function StudioMediaDetail({
               </button>
             ) : null}
           </div>
+
+          {/* Dok čekaš, nauči (K25, U6) - i u punom prikazu. */}
+          {isWorking ? (
+            <LearnCard locale={locale} area={tipAreaFor(job.kind)} seed={job._id} motion={crea} className="w-full max-w-[780px]" />
+          ) : null}
 
           {/* VERZIJE (K05): pre/posle i „Vrati" odmah ispod medija */}
           {canCompare || parentNode ? (

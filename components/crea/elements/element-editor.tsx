@@ -5,6 +5,8 @@ import { useMutation } from "convex/react";
 import { ArrowLeft, CircleAlert, CircleCheck, CircleX, ImagePlus, Lock, Save, Trash2, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
+import { FieldMic } from "@/components/crea/create/mic-button";
+
 import { checkFacePhoto } from "@/components/crea/elements/face-check";
 import { ConsentCheck, PHOTO_STATUS_TONE, PhotoCheckItems, type MyElement } from "@/components/crea/elements/shared";
 import { ChoiceChips } from "@/components/crea/tools/choice-chips";
@@ -318,6 +320,7 @@ export function ElementEditor({
             className="surface-inset mt-2 block w-full resize-y border-2 border-ink bg-paper px-3 py-2 type-body font-semibold text-ink placeholder:text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-60"
           />
         </label>
+        <FieldMic locale={locale} value={description} onChange={setDescription} disabled={busy} maxLength={ELEMENT_DESCRIPTION_MAX} />
       </div>
 
       <section aria-labelledby={`${formId}-slike`} className="space-y-3 border-t border-line pt-5">

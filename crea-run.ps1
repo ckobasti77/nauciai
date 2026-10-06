@@ -12,7 +12,7 @@
    Opcije:
      -From K05            krece od tog koraka
      -Only K02,K03        samo ti koraci (i ako su vec zavrseni / blokirani)
-     -BudgetUsd 1500      staje kad ukupna cena predje iznos
+     -BudgetUsd 1500      staje kad ukupna cena predje iznos (podrazumevano 0 = bez limita)
      -SkipSelfTest        preskoci proveru CLI-ja (ako je vec prosla)
      -NoBuild             bez `npm run build` posle svakog koraka
      -DryRun              samo ispise plan, ne pokrece Claude
@@ -44,7 +44,7 @@ param(
   [string] $RepoPath = "C:\Users\admin\Desktop\Web Dev Projects\nauciai",
   [string] $From = "",
   [string] $Only = "",
-  [double] $BudgetUsd = 1500,
+  [double] $BudgetUsd = 0,          # 0 = bez limita (Jovan: "neka zavrsi bez gledanja na limite")
   [string] $Model = "claude-opus-5-5",
   [string] $Branch = "crea-run",
   [switch] $SkipSelfTest,
@@ -781,7 +781,7 @@ $Steps = @($parsedSteps | ForEach-Object { $_ })
 if ($Steps.Count -lt 1 -or -not $Steps[0].id) { Write-Log "STOP: .crea-run\steps.json nije citljiv" Red; exit 7 }
 
 Write-Log "======================================================" DarkGray
-Write-Log " CREA RUN start - model $Model, $($Steps.Count) koraka, budzet USD $BudgetUsd, grana $Branch" Green
+Write-Log " CREA RUN start - model $Model, $($Steps.Count) koraka, budzet $(if ($BudgetUsd -gt 0) { "USD $BudgetUsd" } else { "bez limita" }), grana $Branch" Green
 Write-Log " auto rezim bez zaobilazenja dozvola; MCP samo Playwright; log: $(Split-Path $Log -Leaf)" DarkGray
 Write-Log "======================================================" DarkGray
 
@@ -855,7 +855,7 @@ foreach ($s in $Steps) {
     Write-Log "$id preskocen (vec $($st.status))" DarkGray
     continue
   }
-  if ([double]$State.totalUsd -ge $BudgetUsd) {
+  if ($BudgetUsd -gt 0 -and [double]$State.totalUsd -ge $BudgetUsd) {
     Write-Log "BUDZET dostignut (USD $(Fmt-Usd ([double]$State.totalUsd)) >= $BudgetUsd) - stajem. Nastavi sa -BudgetUsd vecim brojem." Red
     break
   }

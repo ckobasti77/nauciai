@@ -1,8 +1,10 @@
 "use client";
 
 import { useQuery } from "convex/react";
+import { useReducedMotion } from "motion/react";
 import type { ReactNode } from "react";
 
+import { CreaInspiration } from "@/components/crea/inspiration/crea-inspiration";
 import { CreaLogo } from "@/components/crea/crea-logo";
 import { ToolBadges } from "@/components/crea/tool-badges";
 import { CREA_TOOL_COMPONENTS } from "@/components/crea/tools";
@@ -14,6 +16,7 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { CREA_DEVICE_COPY, CREA_TOOL_COPY } from "@/lib/crea-copy";
 import { toolById } from "@/lib/crea-tools";
 import type { Locale } from "@/lib/i18n";
+import { creaMotionFor } from "@/lib/motion-contract";
 
 function StageNote({ children }: { children: ReactNode }) {
   return (
@@ -52,6 +55,7 @@ export function CreaToolStage({
   list: ReactNode | null;
 }) {
   const caps = useCreaDeviceCaps();
+  const crea = creaMotionFor(Boolean(useReducedMotion()));
   const tool = toolById(toolId);
   const Component = tool ? CREA_TOOL_COMPONENTS[tool.id] : undefined;
   const sourceJob = useQuery(api.studio.getJobForDetail, sourceJobId && !guest && tool ? { jobId: sourceJobId } : "skip");
@@ -102,10 +106,15 @@ export function CreaToolStage({
     );
   }
 
+  const ready = !guest && tool !== undefined && tool.status === "ready" && Component !== undefined;
   return (
-    <div className="min-w-0 space-y-5">
+    <div className="@container min-w-0 space-y-5">
       {list}
-      {body}
+      {/* `crea-tool-root`: „Napravi ovako" iz inspiracije dovede alat u vid i fokusira mu ulaz. */}
+      <div id="crea-tool-root" className="min-w-0 scroll-mt-4">
+        {body}
+      </div>
+      {ready ? <CreaInspiration locale={locale} target={tool.id} motion={crea} className="pt-2" /> : null}
     </div>
   );
 }

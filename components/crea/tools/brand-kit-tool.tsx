@@ -5,6 +5,8 @@ import { useMutation } from "convex/react";
 import { CircleCheck, Palette, Pipette, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useId, useState } from "react";
 
+import { FieldMic } from "@/components/crea/create/mic-button";
+
 import { colorsFromLogo, logoPng } from "@/components/crea/brand-kit/logo-colors";
 import { useBrandKit } from "@/components/crea/brand-kit/use-brand-kit";
 import { fontFamilyFor } from "@/components/crea/editor/fonts";
@@ -336,6 +338,7 @@ function BrandKitForm({
               placeholder={T.tonePlaceholder[locale]}
               className={cn(FIELD, "resize-y py-2")}
             />
+            <FieldMic locale={locale} value={tone} onChange={setTone} maxLength={BRAND_TONE_MAX} />
           </div>
         </div>
       </div>

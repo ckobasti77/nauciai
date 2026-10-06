@@ -4,6 +4,9 @@ import { useMutation, useQuery } from "convex/react";
 import { Replace, WandSparkles } from "lucide-react";
 import { useId, useState } from "react";
 
+import { FieldMic } from "@/components/crea/create/mic-button";
+import { usePromptParamState } from "@/components/crea/tools/use-prompt-param";
+
 import { ToolHeader } from "@/components/crea/tool-runner";
 import { ChoiceChips } from "@/components/crea/tools/choice-chips";
 import { FacePicker, type FaceChoice } from "@/components/crea/tools/face-picker";
@@ -57,7 +60,7 @@ export default function VideoEditTool({ tool, locale, canSave, projectId, source
 
   const [routeId, setRouteId] = useState<VideoEditRouteId>("kling");
   const [example, setExample] = useState<string | null>(null);
-  const [text, setText] = useState("");
+  const [text, setText] = usePromptParamState();
   const [swapKind, setSwapKind] = useState<SwapKind>("predmet");
   const [targetId, setTargetId] = useState<string | null>(VIDEO_SWAP_TARGETS[0]!.id);
   const [face, setFace] = useState<FaceChoice | null>(null);
@@ -256,6 +259,7 @@ export default function VideoEditTool({ tool, locale, canSave, projectId, source
                 placeholder={T.editPlaceholder[locale]}
                 className={textareaClass}
               />
+              <FieldMic locale={locale} value={text} onChange={setText} disabled={busy} maxLength={600} />
             </div>
             <div className="space-y-2">
               <p className="type-body-sm font-black text-ink">{fillCopy(T.editRefs[locale], { n: 1 })}</p>

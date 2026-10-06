@@ -4,6 +4,9 @@ import { useAction, useConvexAuth, useMutation, useQuery } from "convex/react";
 import { Megaphone, Pencil, RotateCcw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { FieldMic } from "@/components/crea/create/mic-button";
+import { usePromptParamState } from "@/components/crea/tools/use-prompt-param";
+
 import { useJobQueue } from "@/components/crea/create/use-job-queue";
 import { ToolHeader } from "@/components/crea/tool-runner";
 import { ChoiceChips } from "@/components/crea/tools/choice-chips";
@@ -48,7 +51,7 @@ export default function AdTool({ tool, locale, caps, canSave, projectId, source,
   const kit = useQuery(api.creaBrandKit.getMine, isAuthenticated ? {} : "skip");
   const image = useImageInput(source);
 
-  const [about, setAbout] = useState("");
+  const [about, setAbout] = usePromptParamState();
   const [mode, setMode] = useState<AdMode>("govor");
   const [aspect, setAspect] = useState<Aspect>("9:16");
   const [script, setScript] = useState<(AdScript & { demo: boolean }) | null>(null);
@@ -191,6 +194,7 @@ export default function AdTool({ tool, locale, caps, canSave, projectId, source,
           <span className="type-body font-black text-ink">{T.adAbout[locale]}</span>
           <textarea value={about} rows={3} maxLength={AD_LIMITS.productChars} onChange={(event) => setAbout(event.target.value)} placeholder={T.adAboutPlaceholder[locale]} className={`${FIELD} resize-y`} />
         </label>
+        <FieldMic locale={locale} value={about} onChange={setAbout} maxLength={AD_LIMITS.productChars} />
         <p className="type-body-sm font-semibold text-muted">{kit ? fillCopy(T.adBrandUsed[locale], { name: kit.name }) : T.adBrandNone[locale]}</p>
         <ChoiceChips<AdMode>
           legend={T.adMode[locale]}

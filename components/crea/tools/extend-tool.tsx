@@ -6,6 +6,9 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useId, useMemo, useState } from "react";
 
+import { FieldMic } from "@/components/crea/create/mic-button";
+import { usePromptParamState } from "@/components/crea/tools/use-prompt-param";
+
 import { ToolHeader } from "@/components/crea/tool-runner";
 import { ChoiceChips } from "@/components/crea/tools/choice-chips";
 import type { CreaToolProps } from "@/components/crea/tools/types";
@@ -54,7 +57,7 @@ export default function ExtendTool({ tool, locale, canSave, projectId, source, p
   const [routeId, setRouteId] = useState<ExtendRoute["id"]>("seedance");
   const [direction, setDirection] = useState<ExtendDirection>("napred");
   const [seconds, setSeconds] = useState(5);
-  const [text, setText] = useState("");
+  const [text, setText] = usePromptParamState();
   const [status, setStatus] = useState<Status>({ name: "idle" });
 
   const sourceJob = useQuery(api.studio.getJobForDetail, picked?.sourceJobId ? { jobId: picked.sourceJobId } : "skip");
@@ -205,6 +208,7 @@ export default function ExtendTool({ tool, locale, canSave, projectId, source, p
             placeholder={T.extendPlaceholder[locale]}
             className="surface-inset mt-2 block w-full resize-y border-2 border-ink bg-paper px-3 py-2 type-body font-semibold text-ink placeholder:text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           />
+          <FieldMic locale={locale} value={text} onChange={setText} disabled={busy} maxLength={600} />
         </div>
         <p className="type-body-sm font-semibold text-muted">
           {T.extendAnyModel[locale]}{" "}

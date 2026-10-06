@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowRight } from "lucide-react";
-import { motion, useReducedMotion, type Easing } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
 
 import { CREA_ICONS } from "@/components/crea/crea-icons";
@@ -11,7 +11,7 @@ import { CREA_GOALS, goalHref } from "@/lib/crea-goals";
 import { CREA_AREA_META, creaModeDef } from "@/lib/crea-shell";
 import { toolById } from "@/lib/crea-tools";
 import type { Locale } from "@/lib/i18n";
-import { getStudioMotion } from "@/lib/studio-motion";
+import { creaMotionFor } from "@/lib/motion-contract";
 
 /**
  * „Šta praviš danas?" (U2): kartice po cilju (kartice za sliku vode u recepte, K15),
@@ -29,7 +29,7 @@ export function CreaStartScreen({
   searchParams: URLSearchParams;
 }) {
   const reduceMotion = useReducedMotion();
-  const motionParams = getStudioMotion(Boolean(reduceMotion));
+  const crea = creaMotionFor(Boolean(reduceMotion));
 
   return (
     <section aria-labelledby="crea-start-title" className="min-w-0">
@@ -44,15 +44,17 @@ export function CreaStartScreen({
           const AreaIcon = CREA_ICONS[CREA_AREA_META[goal.area].icon];
           const mode = creaModeDef(goal.area, goal.mode);
           return (
+            // Kartice se okreću na mesto kao listovi sveske (K25, U16).
             <motion.li
               key={goal.id}
-              initial={reduceMotion ? false : { opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={reduceMotion ? false : { opacity: 0, rotateY: crea.sheetFlip.rotateY }}
+              animate={{ opacity: 1, rotateY: 0 }}
               transition={{
-                duration: motionParams.element.enter.duration,
-                ease: motionParams.element.enter.ease as Easing,
-                delay: index * motionParams.element.stagger,
+                duration: crea.sheetFlip.duration,
+                ease: crea.sheetFlip.ease,
+                delay: Math.min(index, crea.sheetFlip.maxStaggerItems) * crea.sheetFlip.stagger,
               }}
+              style={{ transformOrigin: "0% 50%", transformPerspective: 1100 }}
               className="min-w-0"
             >
               <Link

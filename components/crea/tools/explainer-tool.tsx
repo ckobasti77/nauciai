@@ -4,6 +4,9 @@ import { useAction, useQuery } from "convex/react";
 import { GraduationCap, Pencil, RotateCcw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { FieldMic } from "@/components/crea/create/mic-button";
+import { usePromptParamState } from "@/components/crea/tools/use-prompt-param";
+
 import { useJobQueue } from "@/components/crea/create/use-job-queue";
 import { ToolHeader } from "@/components/crea/tool-runner";
 import { ChoiceChips } from "@/components/crea/tools/choice-chips";
@@ -60,7 +63,7 @@ type Assembled = { forRun: Run; timeline: CreaTimelineV1; files: StageFile[]; de
  */
 export default function ExplainerTool({ tool, locale, caps, canSave, projectId, paid }: CreaToolProps) {
   const planExplainer = useAction(api.creaLlm.planExplainer);
-  const [text, setText] = useState("");
+  const [text, setText] = usePromptParamState();
   const [styleId, setStyleId] = useState<ExplainerStyleId>("tabla");
   const [length, setLength] = useState<ExplainerLength>(60);
   const [aspect, setAspect] = useState<Aspect>("16:9");
@@ -211,6 +214,7 @@ export default function ExplainerTool({ tool, locale, caps, canSave, projectId, 
             {text.length}/{EXPLAINER_LIMITS.textChars}
           </span>
         </label>
+        <FieldMic locale={locale} value={text} onChange={setText} maxLength={EXPLAINER_LIMITS.textChars} />
         <ChoiceChips<ExplainerStyleId>
           legend={T.expStyle[locale]}
           name="crea-obj-stil"

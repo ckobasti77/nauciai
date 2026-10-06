@@ -1436,3 +1436,86 @@ Nijedan dev server ovog koraka nije ostao upaljen (:3100 slobodan; :3000 je drug
 - Posle deploy-a proveri da produkcija sme da vuče sa `cdn.jsdelivr.net` (signalsmith, čistač, Silero) - isto kao MediaPipe i ORT.
 - Produkcija: novi alati čuvaju kroz `creaLocal.saveLocalResult`, koji čita registar alata - treba `npx convex deploy` pre puštanja Next-a sa K24.
 - Odluči: da li uređivač treba da pamti projekat (IndexedDB, kao nacrti montaže) i da li montaža treba da čita markere ritma.
+
+## K25 — Doživljaj: čekanje, otkrivanje, maskota, pokret   (2026-10-06 04:00)
+**Fajlovi:**
+- novi (logika i testovi): `lib/crea-wait.ts`, `lib/crea-tips.ts`, `lib/crea-reveal.ts`, `lib/crea-mascot.ts`, `lib/crea-dictation.ts`, `lib/crea-inspiration.ts` (svaki sa `.test.ts`), `lib/crea-motion-css.test.ts`, `lib/crea-experience-copy.ts`, `convex/creaMoments.ts`, `convex/creaMomentsCore.ts`, `convex/creaMoments.test.ts`;
+- novi (UI): `components/crea/wait/{sketch-paper,wait-screen,learn-card,stage-companion}.tsx`, `components/crea/reveal/{crea-reveal.tsx,fire-confetti.ts}`, `components/crea/mascot/{crea-mascot,crea-mascot-canvas}.tsx`, `components/crea/inspiration/crea-inspiration.tsx`, `components/crea/tools/use-prompt-param.ts`;
+- snimci `docs/crea/snimci/K25-*.png` (26);
+- izmenjeni: `lib/motion-contract.ts` (+test), `app/globals.css`, `components/app/{studio-media-tile,studio-media-grid,studio-media-detail,studio-page}.tsx`, `components/crea/{crea-stage,crea-workshop,crea-start-screen,crea-tool-stage}.tsx`, `components/studio/studio-composer.tsx`, `components/crea/create/mic-button.tsx`, alati sa poljem za opis (`components/crea/tools/{paid-edit,draft-sheet-tool,extend-tool,video-edit-tool,storyboard-tool,explainer-tool,ad-tool,talking-tool,scenes-tool,brand-kit-tool}.tsx`, `components/crea/zvuk/{speech-tool,podcast-tool,sfx-tool,music-tool,scoring-tool}.tsx`, `components/crea/elements/element-editor.tsx`, `components/crea/recipes/recipe-stage.tsx`), `components/marketing/plan-mascot-canvas.tsx` (samo `export` za `cameraPosition` i `FitOrtho`), `scripts/check-crea-bundle.mjs` (marker `canvas-confetti`), `convex/_generated/api.d.ts` (codegen), `package.json`, `package-lock.json`.
+
+**Šta je urađeno:**
+- **U3 Ekran čekanja** (scena, kartica u istoriji i pun prikaz): tamni bunar dobija list sveske (svetlo ostrvo u obe teme) na kojem olovka crta skicu po vrsti rada (pejzaž / klapa / note) - konture mastilom u koraku „Crta", žuta šrafura u koraku „Boji"; olovka prati vrh linije (jedan rAF, `stroke-dashoffset`), a dok čeka sledeći delić „šara" u mestu. Koraci U redu → Crta → Boji → Gotovo (trenutni žuti, prethodni sa kvačicom, `aria-current`), rečenica šta se radi po vrsti („Crea slaže kadrove", „Miksa zvuk"), mesto u redu, procena („Još oko 15 s", „Tvoji raniji radovi ovim modelom: oko 20 s") i protekli sat; čitač ekrana dobija samo promenu koraka. `CreaLogo` zraci pulsiraju (`animated`) u znaku iznad lista.
+- **U4 Otkrivanje**: kad rad stigne dok je kartica otvorena (scena i pun prikaz) - slika se razvija kao polaroid (tamna, isprana, mutna → razvijena, pa list legne preko krem okvira), video ulazi kroz filmsku traku (perforirane trake se pomeraju pa odu), zvuk stiže kao kaseta (koturi se vrte, pa se kaseta skloni). Medij ostaje na istom mestu u stablu (video se ne učitava ponovo). Konfete u žutoj i mastilu (`canvas-confetti`, lenjo, `disableForReducedMotion`) samo za posebne trenutke: prvi generisani rad, prvi video / zvuk / slika, 10./25./50./100. rad - nov upit `creaMoments.momentForJob`, a oblačić kaže „Tvoj prvi rad u Crei!".
+- **U5 Maskota**: postojeći 3D lik (`lib/mascot-rig.ts`) ispod scene razmišlja dok se radi (glava levo-desno, antena, ruke napred), slavi kad rad stigne (ruke gore, zatvorene nasmejane oči, dva skoka) i tuguje kad padne (glava i antena dole, poluzatvorene oči, sporije lebdi), pa se posle 4-5 s smiri. Poza je čista funkcija sa pretapanjem (bez skokova). 3D samo na računaru (≥ 1024 px, miš) uz dozvoljen pokret, lenjo (three.js + GLB tek kad je u kadru), crta samo dok je vidljiva; telefon i smanjen pokret → poster sa 2D pozom.
+- **U6 Dok čekaš, nauči**: kartica pored maskote (i u punom prikazu): 30 saveta i 12 kviz pitanja na srpskom (+ en), svaka treća kartica je pitanje, smena na 20 s (nerešeno pitanje 40 s) uz traku vremena, „Sledeće", pauza i zastoj dok su miš ili fokus na kartici; nova kartica se okrene kao list sveske. Posle odgovora: tačno/netačno, tačan odgovor i zašto.
+- **U8 Glasom do opisa**: mikrofon u composeru svih režima (ranije samo Slika · Napravi) i u 20 polja za opis u alatima (`FieldMic`), Web Speech gde postoji; izgovoreno se dopisuje sa razmakom i velikim slovom i prebaci u latinicu (Chrome za `sr-RS` vraća ćirilicu), osim kad je polje već ćirilično.
+- **U11 Inspiracija**: 97 primera - za svih 77 gotovih alata i svih 12 režima sa composerom (2-3 po režimu). Kartica ima skicu iz sveske, naslov, opis (ili korake) i model; „Kako je napravljeno" okrene karticu kao list (koraci, opis obojen po delovima Ko · Šta · Stil · Svetlo · Kamera, model); „Napravi ovako" je pravi link: režim → opis + model u composeru, 11 alata sa poljem za opis → popunjeno polje alata, ostali alati → alat se dovede u vid i fokusira (fajl daješ ti). Na sceni stoji kad se ne čeka, u alatu ispod alata.
+- **U16 Pokret kroz ljusku**: „Generiši" se puni kao olovka (žuta linija se povlači ispod natpisa, olovka umesto čarobnog štapića); kartice (istorija, „Šta praviš danas?") ulaze kao listovi sveske oko leve ivice (kaskada ≤ 0,32 s); prelaz između oblasti je listanje (okret oko hrbata u smeru taba, 14°, 28 px, 0,42 s); promena režima ostaje kratak ulaz odozdo. Sve vrednosti su u `lib/motion-contract.ts` (`creaMotion`, `creaMotionFor`, `pageTurnDirection`).
+
+**Feature ID-jevi:**
+- U3 — delimično: olovka, koraci, mesto u redu i procena gotovi za sliku, video i zvuk; **delimičan pregled nije napravljen** jer ga nijedan provajder u našoj integraciji ne šalje (vidi ODLUKE).
+- U4 — gotovo (polaroid / traka / kaseta, konfete za prvi rad i posebne trenutke).
+- U5 — gotovo (razmišlja / slavi / tužna, lenjo, poster na telefonu).
+- U6 — gotovo (30 saveta, 12 pitanja); XP za kviz NIJE dodat (ODLUKA).
+- U8 — gotovo za polja za opis (spisak izuzetaka u ODLUKAMA).
+- U11 — gotovo (primeri su tekst + skica, ne generisane slike - ODLUKA).
+- U16 — gotovo.
+
+**ODLUKE:**
+- **Koraci su procena, ne lažan napredak.** Provajderi ne javljaju napredak (fal webhook, Google operacije i BytePlus callback vraćaju samo gotov rezultat), pa su „Crta" i „Boji" prva i druga polovina procene, a skica do kraja stiže tek sa rezultatom. Procena = medijana poslednjih (do 10) gotovih radova ISTOG modela iz učitane istorije (DEMO se ne meša sa pravim; treba bar 2), inače tipično vreme vrste (slika 25 s, video 120 s, zvuk 35 s, DEMO 6 s). Posle procene ekran piše „Traje duže nego obično - Crea i dalje radi", olovka nastavlja da šara u mestu.
+- **Mesto u redu** = koliko tvojih poslova koje server još nije predao provajderu (`reserved`) je ispred ovog, plus klijentski red varijacija („Još N čeka slobodno mesto"). Mesto u redu KOD provajdera nije dostupno (webhook model bez pollinga statusa) - nije izmišljeno.
+- **Delimičan pregled nije napravljen.** Nijedan model iz kataloga ga ne šalje kroz našu integraciju; prazan mehanizam (polje u šemi koje niko ne piše) bi bio spekulativan kod. Kad provajder dobije strim/pregled, prostor je u `CreaWaitScreen` (list sveske).
+- **Kviz ne daje XP.** Pitanje postoji samo dok se čeka PLAĆEN rad, pa bi XP bio vezan za potrošene kredite - G1 kaže „nikad za potrošene kredite"; uz to Crea XP tek uvodi K26. Odgovor se ne čuva na serveru.
+- **Konfete samo za poseban trenutak** (prvi generisani rad, prvi rad vrste, jubileji 10/25/50/100), ne za svaki rad. Rezultati besplatnih alata (`provider: "local"`) se ne broje. Upit čita najviše 101 gotov rad kroz `by_user_status`; preko toga se ništa ne tvrdi (bolje bez konfeta nego lažne). Klijent pita jednom, kad vidi prelaz.
+- **Otkrivanje samo za prelaz viđen uživo** (scena i pun prikaz); kartica u istoriji (ista slika istovremeno) ima samo dosadašnje kratko pojavljivanje - da se ista animacija ne pušta dvaput. Polaroid nema rukopisni natpis (kartica već nosi opis dole, preklapali bi se); traka i kaseta na kraju nestanu i kartica se vrati u svoj izgled (izgled svih audio kartica nije menjan).
+- **Ključni kadrovi sa `times` dobijaju krivu po deonici**: jedna kriva za ceo niz se na ubrzanim osobinama (opacity, filter idu kroz WAAPI) primenila na celo trajanje i kaseta je bledela pre vremena (izmereno po frejmovima).
+- **Maskota samo na sceni** („samo gde ima mesta"): ne u mreži istorije ni u punom prikazu. Samo varijanta basic; svaka instanca dobija kopiju scene (keširan GLB je jedan objekat - dve maskote bi otimale isti). Kadar je isti kao poster kartica planova, pa su `cameraPosition` i `FitOrtho` samo izvezeni iz `plan-mascot-canvas.tsx`. Ruke kad slavi su na 48° (ne 70°), da šake ostanu u kadru postera.
+- **Noćna tura** (`queued`, stiže do jutra): bez maskote i saveta i bez petlje olovke - to je za čekanje od par sekundi ili minuta, ne za sate.
+- **Mikrofon ide u polja za OPIS.** Namerno bez mikrofona: polja gde se kuca tačan sadržaj, ne opis (QR tekst, tekst sa slike, titlovi, natpisi u editoru i montaži, transkript i prevod, replike dijaloga, „jedan tekst po redu" u seriji), i engleski „Za AI" opisi kadrova stripa (srpsko prepoznavanje bi pokvarilo engleski opis). Mikrofon ide POSLE `<label>` (dugme ne sme u labelu koja već nosi polje).
+- **Primeri inspiracije su tekst + skica iz sveske**, ne generisane slike - tokom noćnog runa se ne troši ključ provajdera (isto kao K13 sličice stilova i K15 primeri recepata). „Napravi ovako" ne prenosi parametre (format, kvalitet) - oni su u koracima; prenose se opis i model. U alatima gost ne vidi inspiraciju (alat ionako traži prijavu); na sceni je vidi.
+- **„Generiši" uz smanjen pokret** ostaje sa dosadašnjim spinnerom; olovka i linija postoje samo uz dozvoljen pokret. Dugme dobija `aria-busy`.
+- **Pokret je u `lib/motion-contract.ts`** (`creaMotion` + `creaMotionFor(reduced)`), kako zadatak kaže; `lib/studio-motion.ts` ostaje za postojeće Studio pokrete. Uz smanjen pokret: ugao i pomak 0, bez petlji, bez otkrivanja, konfeta i 3D-a.
+- Znak Cree na tamnom bunaru dobija svetlo mastilo kroz `data-theme="dark"` na omotaču (isti mehanizam tokena kao tema), ne kroz hex.
+- Oznaka „Primer N od M" iznad naslova kartice je izbačena (zabranjen „eyebrow" iznad naslova po impeccable podu).
+- Vizuelna provera: privremena strana `app/[locale]/k25-harness` (prave komponente: `CreaStage`, `StudioMediaTile`, `CreaWorkshop`, `StudioComposer` nad katalogom iz `STUDIO_MODELS`, lažni poslovi i dugmad „Završi rad" / „Padni"), jer scena i istorija traže prijavu - strana i Playwright logovi obrisani pre kraja. Hidratacijsko upozorenje na toj strani (SSR maskote uz emulaciju smanjenog pokreta) je artefakt strane: u radionici se društvo crta tek posle učitavanja posla na klijentu.
+- DEV: `npx convex codegen` je postavio modul `creaMoments` na `wandering-fox-41` (kao u ranijim koracima). Produkcija nije dirana.
+
+**Novi paketi:** `canvas-confetti@1.9.4` — ISC (na listi §5, samo kroz `import()`); `@types/canvas-confetti@1.9.0` — MIT (samo tipovi za razvoj, nisu u bundle-u).
+
+**Testovi:** 63 nova testa (2857 → 2920), 8 novih fajlova.
+- `lib/crea-wait.test.ts` (13): koraci tačno U redu → Crta → Boji → Gotovo; reserved/noćna tura; polovine procene i „duže nego obično"; skica raste i ne završava se pre rezultata; neuspeo posao bez ekrana čekanja; medijana istog modela, DEMO/drugi model/nezavršeni se ne broje, najviše 10 najnovijih; tipično vreme po vrsti; mesto u redu; zaokruživanje i tekst procene (sr/en).
+- `lib/crea-tips.test.ts` (7): ≥ 28 saveta (30), jedinstveni id-jevi, oba jezika, ≤ 200 znakova (20 s čitanja), svaka oblast ≥ 3 saveta; kviz tri različita odgovora, tačan postoji, objašnjenje; svaka treća kartica kviz, bez mešanja oblasti, seme menja početak.
+- `lib/crea-reveal.test.ts` (4): polaroid/film/kaseta; konfete žuta+mastilo i UVEK `disableForReducedMotion`; poreklo u [0,1]; poruke trenutaka.
+- `lib/crea-mascot.test.ts` (6): raspoloženje iz stanja; **svaki ugao svake poze kroz celu petlju je u opsegu zgloba iz RIG.md** (obe varijante); slavi/tužna/miruje/razmišlja.
+- `lib/crea-dictation.test.ts` (6): ćirilica → latinica, razmak, veliko slovo posle tačke, ćirilično polje ostaje ćirilica, dvoslovi, granica dužine.
+- `lib/crea-inspiration.test.ts` (10): **svaki gotov alat i svaki režim sa composerom ima primer**; meta nikad „uskoro"; ASCII id-jevi, 2-3 koraka, oba jezika; model postoji i režim ga nudi; opis za alat samo kod alata koji ga prima; „Napravi ovako" vodi tačno u metu (režim/model/opis, alat/opis), čuva projekat.
+- `lib/crea-motion-css.test.ts` (3): svaka `.crea-*` CSS animacija je samo u `prefers-reduced-motion: no-preference` bloku; Tailwind `animate-*` u `components/crea` samo uz `motion-safe:`; zraci logoa samo uz `motion-safe`.
+- `lib/motion-contract.test.ts` (+5): **uz smanjen pokret nema prostornog pokreta, petlji, otkrivanja, konfeta ni 3D-a**; budžet (ugao ≤ 20°, kaskada < 500 ms, trajanja otkrivanja); smer listanja; CSS kriva.
+- `convex/creaMoments.test.ts` (9, convex-test): `momentFor` (prvi rad, prvi od vrste, jubilej, ništa, bez tačnog broja); prvi generisani rad i kad postoje rezultati alata; prvi video posle slika, drugi video ništa; deseti rad (neuspeli i lokalni se ne broje); rad u toku / rezultat alata / tuđ rad → ništa; preko granice skeniranja ništa; gost odbijen.
+
+**Rezultat provere:**
+
+| Provera | Ishod |
+|---|---|
+| codegen | prošao (nov modul `creaMoments`) |
+| typecheck | prošao |
+| lint | 0 grešaka, 26 zatečenih upozorenja |
+| test | 2920/2920 (261 fajl) |
+| build | prošao |
+| `check:bundle` | 170 početnih chunk-ova bez teških paketa; `canvas-confetti` samo u async chunk-u; three.js / R3F / drei: 0 pogodaka u početnim chunk-ovima `/crea/app` (42) i `/app/studio` (54) - provereno skriptom nad manifestima |
+| `check:frames`, `check:corners`, `check:white`, impeccable detektor | prošli / čisto |
+
+**Smanjen pokret (dokaz):** testovi iznad + Playwright sa `emulateMedia({ reducedMotion: "reduce" })`: olovka ne menja položaj (isti `transform` posle 600 ms), znak bez animacije zraka, 0 canvas elemenata (poster umesto 3D), posle „Završi rad" nema polaroid ostrva ni filtera, prelaz između oblasti `transform: none`, „Generiši" sa spinnerom bez linije, a `canvas-confetti` pozvan direktno ne crta ništa (0 canvas-a). Snimak `K25-smanjen-pokret-cekanje-desktop-svetla.png`.
+
+**60 fps (opis provere):** Chromium (Playwright, ANGLE / Intel UHD Graphics, D3D11, dev build), 1440 × 900, `requestAnimationFrame` meri razmak između frejmova: ekran čekanja (olovka + 3D maskota + zraci + savet) 128 fps, p95 8,2 ms, najduži 8,8 ms, 0 frejmova > 20 ms; polaroid 127 fps (jedan frejm 24 ms na početku - montiranje); traka 127 fps (najduži 15,7 ms); kaseta 127 fps; listanje oblasti 124-128 fps (prvi prelaz jedan frejm 23,5 ms); okret kartice inspiracije 126 fps; mreža sa 7 ekrana čekanja odjednom 127 fps. Animira se samo `transform`/`opacity` (+ `filter` na jednoj slici 2,2 s i `stroke-dashoffset` na jednom SVG-u); petlje staju van ekrana i u skrivenom tabu.
+
+Ekrani: 1440 × 900 i 390 × 844, svetla i tamna tema, bez vodoravnog skrola, sve mete u novim ekranima ≥ 44 px; prava `/crea/app` (gost) proverena na oba ekrana. Dev server (`next dev -p 3100` i njegov `start-server.js`) ugašen, port 3100 slobodan; :3000 je tuđ proces, nije diran.
+
+**Za Jovana ujutru:**
+- Prijavljen otvori `/crea/app?oblast=slika` i generiši NB2 (pravi Google ključ): ekran čekanja (olovka, koraci, procena), ispod maskota i „Dok čekaš, nauči"; kad stigne - polaroid. Ako ti je ovo prvi generisani rad na tom nalogu, pucaju konfete i piše „Tvoj prvi rad u Crei!" (na osoblju sa mnogo radova konfete će se videti tek na 10./25./50./100. radu ili prvom videu/zvuku).
+- Video (Veo 3.1 Lite, Google) za filmsku traku i Zvuk · Govor (Gemini TTS) za kasetu. Proveri da procena posle 2-3 rada istim modelom kaže „Tvoji raniji radovi ovim modelom".
+- Mikrofon: Chrome/Edge, polje za opis bilo kog režima i npr. Zvuk · Efekti, Video · Izmeni rečima, Lik (opis) - izgovori na srpskom, treba da upiše latinicom.
+- Inspiracija: ispod scene (dok se ne čeka) i ispod svakog alata - „Napravi ovako" na primeru režima treba da popuni opis i izabere model.
+- Odluči: da li kviz treba da donosi XP kroz K26 (ODLUKA: ne, jer se pojavljuje samo dok se čeka plaćen rad) i da li želiš prave primer-slike u inspiraciji (traži jednokratno generisanje 97 slika i čuvanje u `public/`).
+- Produkcija: `creaMoments` ide sa `npx convex deploy`.

@@ -6,6 +6,9 @@ import { CircleCheck, Coins, Grid3x3, Sparkles } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useId, useMemo, useState } from "react";
 
+import { FieldMic } from "@/components/crea/create/mic-button";
+import { usePromptParamState } from "@/components/crea/tools/use-prompt-param";
+
 import { useJobQueue } from "@/components/crea/create/use-job-queue";
 import { ToolHeader } from "@/components/crea/tool-runner";
 import { ChoiceChips } from "@/components/crea/tools/choice-chips";
@@ -18,7 +21,6 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { CREA_MAKE_TOOLS_COPY as T } from "@/lib/crea-create-copy";
 import { fillCopy } from "@/lib/crea-copy";
 import { buildDraftOrder, buildRefineOrder, DRAFT_REFINE_PAIRS, orderCredits, type DraftRefinePair } from "@/lib/crea-draft";
-import { CREA_PROMPT_PARAM } from "@/lib/crea-shell";
 import { imagesPerRun, SHEET_SIZES, sheetPlan, smallSketchParams, type SheetSize } from "@/lib/crea-variations";
 import { studioErrorMessage } from "@/lib/studio-messages";
 import { modelLabel, type StudioModel } from "@/lib/studio-models";
@@ -42,7 +44,7 @@ export default function DraftSheetTool({ tool, locale, canSave, projectId, paid 
   const createJob = useMutation(api.studio.createJob);
   const adoptOutputAsInput = useMutation(api.creaVersions.adoptOutputAsInput);
   const promptId = useId();
-  const [prompt, setPrompt] = useState(() => searchParams.get(CREA_PROMPT_PARAM) ?? "");
+  const [prompt, setPrompt] = usePromptParamState();
   const [pairId, setPairId] = useState<PairId>(() => {
     const fromModel = DRAFT_REFINE_PAIRS.find((pair) => pair.refine.modelSlug === searchParams.get("model"))?.id;
     return PAIR_IDS.find((id) => id === fromModel) ?? "slika-skica";
@@ -173,6 +175,7 @@ export default function DraftSheetTool({ tool, locale, canSave, projectId, paid 
             onChange={(event) => setPrompt(event.target.value)}
             className="surface-inset mt-2 block w-full resize-y border-2 border-ink bg-paper px-3 py-2 type-body font-semibold text-ink placeholder:text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-60"
           />
+          <FieldMic locale={locale} value={prompt} onChange={setPrompt} disabled={busy} maxLength={2000} />
         </div>
         <ChoiceChips<PairId>
           legend={T.sheetPair[locale]}

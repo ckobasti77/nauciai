@@ -1237,8 +1237,15 @@ export function StudioPage({
         ) : null}
         <CreaStage
           locale={locale}
+          area={area}
           mode={modeDef}
           job={stageJob}
+          history={loadedJobs}
+          waitingMore={variationQueue.waiting}
+          modelName={(slug) => {
+            const model = catalog.find((entry) => entry.slug === slug);
+            return model ? (locale === "sr" ? model.labelSr : model.labelEn) : undefined;
+          }}
           isLoading={isAuthenticated && jobsLoadingFirst}
           composerDocked={composerPlacement === "docked"}
           guest={!isAuthenticated}

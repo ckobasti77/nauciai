@@ -30,7 +30,7 @@ const POSTER_H = 1.155;
 const POSTER_ASPECT = 1200 / 1400;
 const WAVE_MS = 1200;
 
-function cameraPosition(radius: number): [number, number, number] {
+export function cameraPosition(radius: number): [number, number, number] {
   const az = MathUtils.degToRad(AZIMUTH_DEG);
   const el = MathUtils.degToRad(ELEVATION_DEG);
   return [
@@ -93,7 +93,7 @@ function setNodeRotation(node: Object3D | undefined, axis: "x" | "y", radians: n
  * isto kao `object-contain` na posteru — pa su 3D i poster identično kadrirani bez obzira na
  * odnos stranica kutije.
  */
-function FitOrtho() {
+export function FitOrtho() {
   const camera = useThree((s) => s.camera) as OrthographicCamera;
   const size = useThree((s) => s.size);
   useEffect(() => {

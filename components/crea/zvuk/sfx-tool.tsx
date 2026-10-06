@@ -3,6 +3,9 @@
 import { Download, Pause, Play, Save, Search, Sparkles, Zap } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { FieldMic } from "@/components/crea/create/mic-button";
+import { usePromptParamState } from "@/components/crea/tools/use-prompt-param";
+
 import { useJobQueue } from "@/components/crea/create/use-job-queue";
 import { ToolHeader } from "@/components/crea/tool-runner";
 import { ChoiceChips } from "@/components/crea/tools/choice-chips";
@@ -81,7 +84,7 @@ export default function SfxTool({ tool, locale, canSave, projectId, paid }: Crea
 
   // ── Nov efekat iz opisa ───────────────────────────────────────────────────
   const [engine, setEngine] = useState<EngineId>("jeftino");
-  const [prompt, setPrompt] = useState("");
+  const [prompt, setPrompt] = usePromptParamState();
   const [seconds, setSeconds] = useState(5);
   const [takes, setTakes] = useState<Array<{ id: Id<"generationJobs">; slug: string }>>([]);
   const [error, setError] = useState<string | null>(null);
@@ -210,6 +213,7 @@ export default function SfxTool({ tool, locale, canSave, projectId, paid }: Crea
           <span className="type-body-sm font-black text-ink">{T.sfx.promptLabel[locale]}</span>
           <textarea value={prompt} rows={3} maxLength={500} onChange={(event) => setPrompt(event.target.value)} placeholder={T.sfx.promptPlaceholder[locale]} className={cn(FIELD, "mt-1 resize-y")} />
         </label>
+        <FieldMic locale={locale} value={prompt} onChange={setPrompt} maxLength={500} />
         <label className="block max-w-md">
           <span className="flex items-baseline justify-between gap-2">
             <span className="type-body-sm font-black text-ink">{T.sfx.durationLabel[locale]}</span>

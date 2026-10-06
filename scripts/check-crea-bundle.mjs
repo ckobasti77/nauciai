@@ -59,6 +59,8 @@ const MARKERS = [
   { pkg: "meyda", marker: "Valid chromaFilterBank is required to generate chroma" },
   { pkg: "@mediabunny/mp3-encoder", marker: "MP3 encoder worker failed to load or crashed." },
   { pkg: "@xzdarcy/react-timeline-editor", marker: "timeline-editor" },
+  // K25: konfete (lista emoji fontova je samo u kodu biblioteke).
+  { pkg: "canvas-confetti", marker: "Twemoji Mozilla" },
 ];
 
 function fail(message) {

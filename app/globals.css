@@ -682,6 +682,54 @@ select:-webkit-autofill {
   }
 }
 
+/* Crea „živi" (K25, U4/U5/U16). Klase sa animacijom postoje SAMO uz dozvoljen pokret
+   (`no-preference` blok ispod), pa uz prefers-reduced-motion ništa od ovoga ne mrda -
+   ostaje samo stanje (poster maskote, puna linija olovke). Čuva `lib/crea-motion-css.test.ts`.
+   - `crea-mascot-hop`: poster maskote kratko skoči kad rad stigne (telefon, 2D rezerva).
+   - `crea-pencil-fill`: „Generiši" se puni kao potez olovke dok se posao šalje.
+   - `crea-film-strip`: perforirana traka filmskog otkrivanja (rupice su papir, traka mastilo;
+     element nosi i `paper-island`, pa je traka tamna u obe teme). Pomera je komponenta. */
+.crea-film-strip {
+  background-color: var(--ink);
+  background-image: repeating-linear-gradient(90deg, transparent 0 7px, var(--paper) 7px 15px, transparent 15px 22px);
+  background-size: 22px 8px;
+  background-position: 0 center;
+  background-repeat: repeat-x;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .crea-mascot-hop {
+    animation: crea-mascot-hop 0.9s var(--ease-studio-out) 2;
+  }
+
+  .crea-pencil-fill {
+    animation: crea-pencil-fill 0.9s cubic-bezier(0.65, 0, 0.35, 1) both;
+  }
+}
+
+@keyframes crea-mascot-hop {
+  0%,
+  60%,
+  100% {
+    translate: 0 0;
+  }
+  30% {
+    translate: 0 -9%;
+  }
+  78% {
+    translate: 0 -3%;
+  }
+}
+
+@keyframes crea-pencil-fill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
 /* Senka ispod žive 3D maskote u karticama planova (KORAK 2). Skalira 1→0.92→1 u ritmu
    lebdenja (idle root ±0.012 po Y). Trajanje je 3 s — TAČNO dužina idle klipa — pa fazni
    pomak preko negativnog `animation-delay` (basic 0 s, premium −2,1 s) drži senku poklopljenu
