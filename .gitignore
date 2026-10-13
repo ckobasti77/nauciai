@@ -58,3 +58,7 @@ Claude outputs/
 # Crea run - lokalni logovi
 .crea-run/logs/
 .crea-run/state.json
+# IGRA run - lokalni logovi i slike iz ChatGPT-a (u public/brand/igra stizu preko runnera)
+.igra-run/logs/
+.igra-run/state.json
+.igra-assets/

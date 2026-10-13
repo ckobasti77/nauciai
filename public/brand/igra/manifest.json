@@ -1,0 +1,1295 @@
+{
+ "version": 1,
+ "assets": {
+  "lik.robi.mase": {
+   "src": "/brand/igra/likovi/robi-mase.avif",
+   "w": 768,
+   "h": 768,
+   "kind": "lik",
+   "ready": true,
+   "alt": {
+    "sr": "Robi maše",
+    "en": "Robi waving"
+   }
+  },
+  "lik.robi.slavi": {
+   "src": "/brand/igra/likovi/robi-slavi.avif",
+   "w": 768,
+   "h": 768,
+   "kind": "lik",
+   "ready": true,
+   "alt": {
+    "sr": "Robi slavi",
+    "en": "Robi celebrating"
+   }
+  },
+  "lik.robi.misli": {
+   "src": "/brand/igra/likovi/robi-misli.avif",
+   "w": 768,
+   "h": 768,
+   "kind": "lik",
+   "ready": true,
+   "alt": {
+    "sr": "Robi razmišlja",
+    "en": "Robi thinking"
+   }
+  },
+  "lik.robi.tuzan": {
+   "src": "/brand/igra/likovi/robi-tuzan.avif",
+   "w": 768,
+   "h": 768,
+   "kind": "lik",
+   "ready": true,
+   "alt": {
+    "sr": "Robi je zbunjen",
+    "en": "Robi confused"
+   }
+  },
+  "lik.piksi.mase": {
+   "src": "/brand/igra/likovi/piksi-mase.avif",
+   "w": 768,
+   "h": 768,
+   "kind": "lik",
+   "ready": true,
+   "alt": {
+    "sr": "Piksi maše",
+    "en": "Piksi waving"
+   }
+  },
+  "lik.piksi.slavi": {
+   "src": "/brand/igra/likovi/piksi-slavi.avif",
+   "w": 768,
+   "h": 768,
+   "kind": "lik",
+   "ready": true,
+   "alt": {
+    "sr": "Piksi slavi",
+    "en": "Piksi celebrating"
+   }
+  },
+  "lik.piksi.misli": {
+   "src": "/brand/igra/likovi/piksi-misli.avif",
+   "w": 768,
+   "h": 768,
+   "kind": "lik",
+   "ready": true,
+   "alt": {
+    "sr": "Piksi razmišlja",
+    "en": "Piksi thinking"
+   }
+  },
+  "lik.piksi.tuzan": {
+   "src": "/brand/igra/likovi/piksi-tuzan.avif",
+   "w": 768,
+   "h": 768,
+   "kind": "lik",
+   "ready": true,
+   "alt": {
+    "sr": "Piksi je zbunjen",
+    "en": "Piksi confused"
+   }
+  },
+  "lik.kadar.mase": {
+   "src": "/brand/igra/likovi/kadar-mase.avif",
+   "w": 768,
+   "h": 768,
+   "kind": "lik",
+   "ready": true,
+   "alt": {
+    "sr": "Kadar maše",
+    "en": "Kadar waving"
+   }
+  },
+  "lik.kadar.slavi": {
+   "src": "/brand/igra/likovi/kadar-slavi.avif",
+   "w": 768,
+   "h": 768,
+   "kind": "lik",
+   "ready": true,
+   "alt": {
+    "sr": "Kadar slavi",
+    "en": "Kadar celebrating"
+   }
+  },
+  "lik.kadar.misli": {
+   "src": "/brand/igra/likovi/kadar-misli.avif",
+   "w": 768,
+   "h": 768,
+   "kind": "lik",
+   "ready": true,
+   "alt": {
+    "sr": "Kadar razmišlja",
+    "en": "Kadar thinking"
+   }
+  },
+  "lik.kadar.tuzan": {
+   "src": "/brand/igra/likovi/kadar-tuzan.avif",
+   "w": 768,
+   "h": 768,
+   "kind": "lik",
+   "ready": true,
+   "alt": {
+    "sr": "Kadar je zbunjen",
+    "en": "Kadar confused"
+   }
+  },
+  "lik.eho.mase": {
+   "src": "/brand/igra/likovi/eho-mase.avif",
+   "w": 768,
+   "h": 768,
+   "kind": "lik",
+   "ready": true,
+   "alt": {
+    "sr": "Eho maše",
+    "en": "Eho waving"
+   }
+  },
+  "lik.eho.slavi": {
+   "src": "/brand/igra/likovi/eho-slavi.avif",
+   "w": 768,
+   "h": 768,
+   "kind": "lik",
+   "ready": true,
+   "alt": {
+    "sr": "Eho slavi",
+    "en": "Eho celebrating"
+   }
+  },
+  "lik.eho.misli": {
+   "src": "/brand/igra/likovi/eho-misli.avif",
+   "w": 768,
+   "h": 768,
+   "kind": "lik",
+   "ready": true,
+   "alt": {
+    "sr": "Eho razmišlja",
+    "en": "Eho thinking"
+   }
+  },
+  "lik.eho.tuzan": {
+   "src": "/brand/igra/likovi/eho-tuzan.avif",
+   "w": 768,
+   "h": 768,
+   "kind": "lik",
+   "ready": true,
+   "alt": {
+    "sr": "Eho je zbunjen",
+    "en": "Eho confused"
+   }
+  },
+  "lik.bajt.mase": {
+   "src": "/brand/igra/likovi/bajt-mase.avif",
+   "w": 768,
+   "h": 768,
+   "kind": "lik",
+   "ready": true,
+   "alt": {
+    "sr": "Bajt maše",
+    "en": "Bajt waving"
+   }
+  },
+  "lik.bajt.slavi": {
+   "src": "/brand/igra/likovi/bajt-slavi.avif",
+   "w": 768,
+   "h": 768,
+   "kind": "lik",
+   "ready": true,
+   "alt": {
+    "sr": "Bajt slavi",
+    "en": "Bajt celebrating"
+   }
+  },
+  "lik.bajt.misli": {
+   "src": "/brand/igra/likovi/bajt-misli.avif",
+   "w": 768,
+   "h": 768,
+   "kind": "lik",
+   "ready": true,
+   "alt": {
+    "sr": "Bajt razmišlja",
+    "en": "Bajt thinking"
+   }
+  },
+  "lik.bajt.tuzan": {
+   "src": "/brand/igra/likovi/bajt-tuzan.avif",
+   "w": 768,
+   "h": 768,
+   "kind": "lik",
+   "ready": true,
+   "alt": {
+    "sr": "Bajt je zbunjen",
+    "en": "Bajt confused"
+   }
+  },
+  "lik.sova.mase": {
+   "src": "/brand/igra/likovi/sova-mase.avif",
+   "w": 768,
+   "h": 768,
+   "kind": "lik",
+   "ready": true,
+   "alt": {
+    "sr": "Sova maše",
+    "en": "Sova waving"
+   }
+  },
+  "lik.sova.slavi": {
+   "src": "/brand/igra/likovi/sova-slavi.avif",
+   "w": 768,
+   "h": 768,
+   "kind": "lik",
+   "ready": true,
+   "alt": {
+    "sr": "Sova slavi",
+    "en": "Sova celebrating"
+   }
+  },
+  "lik.sova.misli": {
+   "src": "/brand/igra/likovi/sova-misli.avif",
+   "w": 768,
+   "h": 768,
+   "kind": "lik",
+   "ready": true,
+   "alt": {
+    "sr": "Sova razmišlja",
+    "en": "Sova thinking"
+   }
+  },
+  "lik.sova.tuzan": {
+   "src": "/brand/igra/likovi/sova-tuzan.avif",
+   "w": 768,
+   "h": 768,
+   "kind": "lik",
+   "ready": true,
+   "alt": {
+    "sr": "Sova je zbunjen",
+    "en": "Sova confused"
+   }
+  },
+  "lik.iskra.mase": {
+   "src": "/brand/igra/likovi/iskra-mase.avif",
+   "w": 768,
+   "h": 768,
+   "kind": "lik",
+   "ready": true,
+   "alt": {
+    "sr": "Iskra maše",
+    "en": "Iskra waving"
+   }
+  },
+  "lik.iskra.slavi": {
+   "src": "/brand/igra/likovi/iskra-slavi.avif",
+   "w": 768,
+   "h": 768,
+   "kind": "lik",
+   "ready": true,
+   "alt": {
+    "sr": "Iskra slavi",
+    "en": "Iskra celebrating"
+   }
+  },
+  "lik.iskra.misli": {
+   "src": "/brand/igra/likovi/iskra-misli.avif",
+   "w": 768,
+   "h": 768,
+   "kind": "lik",
+   "ready": true,
+   "alt": {
+    "sr": "Iskra razmišlja",
+    "en": "Iskra thinking"
+   }
+  },
+  "lik.iskra.tuzan": {
+   "src": "/brand/igra/likovi/iskra-tuzan.avif",
+   "w": 768,
+   "h": 768,
+   "kind": "lik",
+   "ready": true,
+   "alt": {
+    "sr": "Iskra je zbunjen",
+    "en": "Iskra confused"
+   }
+  },
+  "nivo.01": {
+   "src": "/brand/igra/nivoi/nivo-01.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "nivo",
+   "ready": true,
+   "alt": {
+    "sr": "Nivo 1: Početnik",
+    "en": "Level 1: Beginner"
+   }
+  },
+  "nivo.02": {
+   "src": "/brand/igra/nivoi/nivo-02.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "nivo",
+   "ready": true,
+   "alt": {
+    "sr": "Nivo 2: Radoznalac",
+    "en": "Level 2: Curious"
+   }
+  },
+  "nivo.03": {
+   "src": "/brand/igra/nivoi/nivo-03.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "nivo",
+   "ready": true,
+   "alt": {
+    "sr": "Nivo 3: Skicar",
+    "en": "Level 3: Sketcher"
+   }
+  },
+  "nivo.04": {
+   "src": "/brand/igra/nivoi/nivo-04.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "nivo",
+   "ready": true,
+   "alt": {
+    "sr": "Nivo 4: Istraživač",
+    "en": "Level 4: Explorer"
+   }
+  },
+  "nivo.05": {
+   "src": "/brand/igra/nivoi/nivo-05.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "nivo",
+   "ready": true,
+   "alt": {
+    "sr": "Nivo 5: Graditelj",
+    "en": "Level 5: Builder"
+   }
+  },
+  "nivo.06": {
+   "src": "/brand/igra/nivoi/nivo-06.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "nivo",
+   "ready": true,
+   "alt": {
+    "sr": "Nivo 6: Pronalazač",
+    "en": "Level 6: Inventor"
+   }
+  },
+  "nivo.07": {
+   "src": "/brand/igra/nivoi/nivo-07.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "nivo",
+   "ready": false,
+   "alt": {
+    "sr": "Nivo 7: Kreator",
+    "en": "Level 7: Creator"
+   }
+  },
+  "nivo.08": {
+   "src": "/brand/igra/nivoi/nivo-08.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "nivo",
+   "ready": false,
+   "alt": {
+    "sr": "Nivo 8: Majstor",
+    "en": "Level 8: Master"
+   }
+  },
+  "nivo.09": {
+   "src": "/brand/igra/nivoi/nivo-09.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "nivo",
+   "ready": false,
+   "alt": {
+    "sr": "Nivo 9: Vizionar",
+    "en": "Level 9: Visionary"
+   }
+  },
+  "nivo.10": {
+   "src": "/brand/igra/nivoi/nivo-10.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "nivo",
+   "ready": false,
+   "alt": {
+    "sr": "Nivo 10: Mentor",
+    "en": "Level 10: Mentor"
+   }
+  },
+  "nivo.11": {
+   "src": "/brand/igra/nivoi/nivo-11.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "nivo",
+   "ready": false,
+   "alt": {
+    "sr": "Nivo 11: Šampion",
+    "en": "Level 11: Champion"
+   }
+  },
+  "nivo.12": {
+   "src": "/brand/igra/nivoi/nivo-12.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "nivo",
+   "ready": false,
+   "alt": {
+    "sr": "Nivo 12: Legenda",
+    "en": "Level 12: Legend"
+   }
+  },
+  "bedz.prva-lekcija": {
+   "src": "/brand/igra/bedzevi/prva-lekcija.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "bedz",
+   "ready": false,
+   "alt": {
+    "sr": "Bedž: Prva lekcija",
+    "en": "Badge: First lesson"
+   }
+  },
+  "bedz.prvi-zadatak": {
+   "src": "/brand/igra/bedzevi/prvi-zadatak.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "bedz",
+   "ready": false,
+   "alt": {
+    "sr": "Bedž: Prvi zadatak",
+    "en": "Badge: First task"
+   }
+  },
+  "bedz.pet-lekcija": {
+   "src": "/brand/igra/bedzevi/pet-lekcija.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "bedz",
+   "ready": false,
+   "alt": {
+    "sr": "Bedž: Pet lekcija",
+    "en": "Badge: Five lessons"
+   }
+  },
+  "bedz.prvi-kurs": {
+   "src": "/brand/igra/bedzevi/prvi-kurs.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "bedz",
+   "ready": false,
+   "alt": {
+    "sr": "Bedž: Prvi kurs",
+    "en": "Badge: First course"
+   }
+  },
+  "bedz.tri-kursa": {
+   "src": "/brand/igra/bedzevi/tri-kursa.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "bedz",
+   "ready": false,
+   "alt": {
+    "sr": "Bedž: Tri kursa",
+    "en": "Badge: Three courses"
+   }
+  },
+  "bedz.staza": {
+   "src": "/brand/igra/bedzevi/staza.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "bedz",
+   "ready": false,
+   "alt": {
+    "sr": "Bedž: Cela staza",
+    "en": "Badge: Full track"
+   }
+  },
+  "bedz.nocna-sova": {
+   "src": "/brand/igra/bedzevi/nocna-sova.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "bedz",
+   "ready": false,
+   "alt": {
+    "sr": "Bedž: Noćna sova",
+    "en": "Badge: Night owl"
+   }
+  },
+  "bedz.rani-pevac": {
+   "src": "/brand/igra/bedzevi/rani-pevac.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "bedz",
+   "ready": false,
+   "alt": {
+    "sr": "Bedž: Rani pevac",
+    "en": "Badge: Early bird"
+   }
+  },
+  "bedz.prvi-rad": {
+   "src": "/brand/igra/bedzevi/prvi-rad.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "bedz",
+   "ready": false,
+   "alt": {
+    "sr": "Bedž: Prvi rad",
+    "en": "Badge: First creation"
+   }
+  },
+  "bedz.deset-radova": {
+   "src": "/brand/igra/bedzevi/deset-radova.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "bedz",
+   "ready": false,
+   "alt": {
+    "sr": "Bedž: Deset radova",
+    "en": "Badge: Ten creations"
+   }
+  },
+  "bedz.sto-radova": {
+   "src": "/brand/igra/bedzevi/sto-radova.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "bedz",
+   "ready": false,
+   "alt": {
+    "sr": "Bedž: Sto radova",
+    "en": "Badge: Hundred creations"
+   }
+  },
+  "bedz.prvi-video": {
+   "src": "/brand/igra/bedzevi/prvi-video.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "bedz",
+   "ready": false,
+   "alt": {
+    "sr": "Bedž: Prvi video",
+    "en": "Badge: First video"
+   }
+  },
+  "bedz.prvi-zvuk": {
+   "src": "/brand/igra/bedzevi/prvi-zvuk.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "bedz",
+   "ready": false,
+   "alt": {
+    "sr": "Bedž: Prvi zvuk",
+    "en": "Badge: First audio"
+   }
+  },
+  "bedz.recept": {
+   "src": "/brand/igra/bedzevi/recept.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "bedz",
+   "ready": false,
+   "alt": {
+    "sr": "Bedž: Recept",
+    "en": "Badge: Recipe"
+   }
+  },
+  "bedz.tehnika": {
+   "src": "/brand/igra/bedzevi/tehnika.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "bedz",
+   "ready": false,
+   "alt": {
+    "sr": "Bedž: Tehnika",
+    "en": "Badge: Technique"
+   }
+  },
+  "bedz.izazov": {
+   "src": "/brand/igra/bedzevi/izazov.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "bedz",
+   "ready": false,
+   "alt": {
+    "sr": "Bedž: Izazov",
+    "en": "Badge: Challenge"
+   }
+  },
+  "bedz.prva-objava": {
+   "src": "/brand/igra/bedzevi/prva-objava.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "bedz",
+   "ready": false,
+   "alt": {
+    "sr": "Bedž: Prva objava",
+    "en": "Badge: First post"
+   }
+  },
+  "bedz.koristan-odgovor": {
+   "src": "/brand/igra/bedzevi/koristan-odgovor.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "bedz",
+   "ready": false,
+   "alt": {
+    "sr": "Bedž: Koristan odgovor",
+    "en": "Badge: Helpful answer"
+   }
+  },
+  "bedz.omiljen": {
+   "src": "/brand/igra/bedzevi/omiljen.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "bedz",
+   "ready": false,
+   "alt": {
+    "sr": "Bedž: Omiljen",
+    "en": "Badge: Crowd favorite"
+   }
+  },
+  "bedz.mentor": {
+   "src": "/brand/igra/bedzevi/mentor.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "bedz",
+   "ready": false,
+   "alt": {
+    "sr": "Bedž: Mentor",
+    "en": "Badge: Mentor"
+   }
+  },
+  "bedz.niz-3": {
+   "src": "/brand/igra/bedzevi/niz-3.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "bedz",
+   "ready": false,
+   "alt": {
+    "sr": "Bedž: Niz od 3 dana",
+    "en": "Badge: 3-day streak"
+   }
+  },
+  "bedz.niz-7": {
+   "src": "/brand/igra/bedzevi/niz-7.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "bedz",
+   "ready": false,
+   "alt": {
+    "sr": "Bedž: Niz od 7 dana",
+    "en": "Badge: 7-day streak"
+   }
+  },
+  "bedz.niz-30": {
+   "src": "/brand/igra/bedzevi/niz-30.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "bedz",
+   "ready": false,
+   "alt": {
+    "sr": "Bedž: Niz od 30 dana",
+    "en": "Badge: 30-day streak"
+   }
+  },
+  "bedz.top-10": {
+   "src": "/brand/igra/bedzevi/top-10.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "bedz",
+   "ready": false,
+   "alt": {
+    "sr": "Bedž: Top 10",
+    "en": "Badge: Top 10"
+   }
+  },
+  "rang.zlato": {
+   "src": "/brand/igra/rang/zlato.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "rang",
+   "ready": false,
+   "alt": {
+    "sr": "Zlatna medalja",
+    "en": "Gold medal"
+   }
+  },
+  "rang.srebro": {
+   "src": "/brand/igra/rang/srebro.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "rang",
+   "ready": false,
+   "alt": {
+    "sr": "Srebrna medalja",
+    "en": "Silver medal"
+   }
+  },
+  "rang.bronza": {
+   "src": "/brand/igra/rang/bronza.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "rang",
+   "ready": false,
+   "alt": {
+    "sr": "Bronzana medalja",
+    "en": "Bronze medal"
+   }
+  },
+  "rang.pehar": {
+   "src": "/brand/igra/rang/pehar.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "rang",
+   "ready": false,
+   "alt": {
+    "sr": "Pehar",
+    "en": "Trophy"
+   }
+  },
+  "rang.kruna": {
+   "src": "/brand/igra/rang/kruna.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "rang",
+   "ready": false,
+   "alt": {
+    "sr": "Kruna",
+    "en": "Crown"
+   }
+  },
+  "rang.plamen": {
+   "src": "/brand/igra/rang/plamen.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "rang",
+   "ready": false,
+   "alt": {
+    "sr": "Plamen niza",
+    "en": "Streak flame"
+   }
+  },
+  "rang.xp": {
+   "src": "/brand/igra/rang/xp.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "rang",
+   "ready": false,
+   "alt": {
+    "sr": "XP kristal",
+    "en": "XP crystal"
+   }
+  },
+  "rang.meta": {
+   "src": "/brand/igra/rang/meta.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "rang",
+   "ready": false,
+   "alt": {
+    "sr": "Meta",
+    "en": "Target"
+   }
+  },
+  "scena.dashboard-jutro": {
+   "src": "/brand/igra/scene/dashboard-jutro.avif",
+   "w": 1536,
+   "h": 1024,
+   "kind": "scena",
+   "ready": false,
+   "alt": {
+    "sr": "Robi ujutru uz kafu",
+    "en": "Robi in the morning with coffee"
+   }
+  },
+  "scena.dashboard-dan": {
+   "src": "/brand/igra/scene/dashboard-dan.avif",
+   "w": 1536,
+   "h": 1024,
+   "kind": "scena",
+   "ready": false,
+   "alt": {
+    "sr": "Robi gradi tokom dana",
+    "en": "Robi building during the day"
+   }
+  },
+  "scena.dashboard-vece": {
+   "src": "/brand/igra/scene/dashboard-vece.avif",
+   "w": 1536,
+   "h": 1024,
+   "kind": "scena",
+   "ready": false,
+   "alt": {
+    "sr": "Robi čita uveče",
+    "en": "Robi reading in the evening"
+   }
+  },
+  "scena.dashboard-noc": {
+   "src": "/brand/igra/scene/dashboard-noc.avif",
+   "w": 1536,
+   "h": 1024,
+   "kind": "scena",
+   "ready": false,
+   "alt": {
+    "sr": "Robi i Sova pod zvezdama",
+    "en": "Robi and the owl under the stars"
+   }
+  },
+  "scena.crea-radionica": {
+   "src": "/brand/igra/scene/crea-radionica.avif",
+   "w": 1536,
+   "h": 1024,
+   "kind": "scena",
+   "ready": false,
+   "alt": {
+    "sr": "Crea radionica sa ekipom",
+    "en": "Crea workshop with the crew"
+   }
+  },
+  "scena.zajednica": {
+   "src": "/brand/igra/scene/zajednica.avif",
+   "w": 1536,
+   "h": 1024,
+   "kind": "scena",
+   "ready": false,
+   "alt": {
+    "sr": "Ekipa na trgu zajednice",
+    "en": "The crew in the community square"
+   }
+  },
+  "scena.podijum": {
+   "src": "/brand/igra/scene/podijum.avif",
+   "w": 1536,
+   "h": 1024,
+   "kind": "scena",
+   "ready": false,
+   "alt": {
+    "sr": "Podijum pobednika",
+    "en": "Winners podium"
+   }
+  },
+  "scena.kontrolna-soba": {
+   "src": "/brand/igra/scene/kontrolna-soba.avif",
+   "w": 1536,
+   "h": 1024,
+   "kind": "scena",
+   "ready": false,
+   "alt": {
+    "sr": "Robi u kontrolnoj sobi",
+    "en": "Robi in the control room"
+   }
+  },
+  "scena.mapa-puta": {
+   "src": "/brand/igra/scene/mapa-puta.avif",
+   "w": 1536,
+   "h": 1024,
+   "kind": "scena",
+   "ready": false,
+   "alt": {
+    "sr": "Mapa puta kroz svesku",
+    "en": "Journey map across the notebook"
+   }
+  },
+  "scena.nivo-gore": {
+   "src": "/brand/igra/scene/nivo-gore.avif",
+   "w": 768,
+   "h": 768,
+   "kind": "scena-nalepnica",
+   "ready": false,
+   "alt": {
+    "sr": "Novi nivo!",
+    "en": "Level up!"
+   }
+  },
+  "scena.kurs-zavrsen": {
+   "src": "/brand/igra/scene/kurs-zavrsen.avif",
+   "w": 768,
+   "h": 768,
+   "kind": "scena-nalepnica",
+   "ready": false,
+   "alt": {
+    "sr": "Kurs završen",
+    "en": "Course completed"
+   }
+  },
+  "baner.sveska": {
+   "src": "/brand/igra/baneri/sveska.avif",
+   "w": 1536,
+   "h": 512,
+   "kind": "baner",
+   "ready": false,
+   "alt": {
+    "sr": "Baner: Sveska",
+    "en": "Banner: Notebook"
+   }
+  },
+  "baner.laboratorija": {
+   "src": "/brand/igra/baneri/laboratorija.avif",
+   "w": 1536,
+   "h": 512,
+   "kind": "baner",
+   "ready": false,
+   "alt": {
+    "sr": "Baner: Laboratorija",
+    "en": "Banner: Laboratory"
+   }
+  },
+  "baner.studio": {
+   "src": "/brand/igra/baneri/studio.avif",
+   "w": 1536,
+   "h": 512,
+   "kind": "baner",
+   "ready": false,
+   "alt": {
+    "sr": "Baner: Studio",
+    "en": "Banner: Studio"
+   }
+  },
+  "baner.svemir": {
+   "src": "/brand/igra/baneri/svemir.avif",
+   "w": 1536,
+   "h": 512,
+   "kind": "baner",
+   "ready": false,
+   "alt": {
+    "sr": "Baner: Svemir",
+    "en": "Banner: Space"
+   }
+  },
+  "baner.grad": {
+   "src": "/brand/igra/baneri/grad.avif",
+   "w": 1536,
+   "h": 512,
+   "kind": "baner",
+   "ready": false,
+   "alt": {
+    "sr": "Baner: Grad",
+    "en": "Banner: City"
+   }
+  },
+  "baner.okean": {
+   "src": "/brand/igra/baneri/okean.avif",
+   "w": 1536,
+   "h": 512,
+   "kind": "baner",
+   "ready": false,
+   "alt": {
+    "sr": "Baner: Okean",
+    "en": "Banner: Ocean"
+   }
+  },
+  "prazno.kursevi": {
+   "src": "/brand/igra/prazno/kursevi.avif",
+   "w": 768,
+   "h": 768,
+   "kind": "prazno",
+   "ready": false,
+   "alt": {
+    "sr": "Još nema kurseva",
+    "en": "No courses yet"
+   }
+  },
+  "prazno.objave": {
+   "src": "/brand/igra/prazno/objave.avif",
+   "w": 768,
+   "h": 768,
+   "kind": "prazno",
+   "ready": false,
+   "alt": {
+    "sr": "Još nema objava",
+    "en": "No posts yet"
+   }
+  },
+  "prazno.poruke": {
+   "src": "/brand/igra/prazno/poruke.avif",
+   "w": 768,
+   "h": 768,
+   "kind": "prazno",
+   "ready": false,
+   "alt": {
+    "sr": "Još nema poruka",
+    "en": "No messages yet"
+   }
+  },
+  "prazno.obavestenja": {
+   "src": "/brand/igra/prazno/obavestenja.avif",
+   "w": 768,
+   "h": 768,
+   "kind": "prazno",
+   "ready": false,
+   "alt": {
+    "sr": "Sve je pročitano",
+    "en": "All caught up"
+   }
+  },
+  "prazno.radovi": {
+   "src": "/brand/igra/prazno/radovi.avif",
+   "w": 768,
+   "h": 768,
+   "kind": "prazno",
+   "ready": false,
+   "alt": {
+    "sr": "Još nema radova",
+    "en": "No creations yet"
+   }
+  },
+  "prazno.pretraga": {
+   "src": "/brand/igra/prazno/pretraga.avif",
+   "w": 768,
+   "h": 768,
+   "kind": "prazno",
+   "ready": false,
+   "alt": {
+    "sr": "Ništa nije nađeno",
+    "en": "Nothing found"
+   }
+  },
+  "prazno.greska": {
+   "src": "/brand/igra/prazno/greska.avif",
+   "w": 768,
+   "h": 768,
+   "kind": "prazno",
+   "ready": false,
+   "alt": {
+    "sr": "Nešto je puklo",
+    "en": "Something broke"
+   }
+  },
+  "prazno.404": {
+   "src": "/brand/igra/prazno/404.avif",
+   "w": 768,
+   "h": 768,
+   "kind": "prazno",
+   "ready": false,
+   "alt": {
+    "sr": "Ova strana ne postoji",
+    "en": "Page not found"
+   }
+  },
+  "prazno.ucitavanje": {
+   "src": "/brand/igra/prazno/ucitavanje.avif",
+   "w": 768,
+   "h": 768,
+   "kind": "prazno",
+   "ready": false,
+   "alt": {
+    "sr": "Učitava se",
+    "en": "Loading"
+   }
+  },
+  "prazno.offline": {
+   "src": "/brand/igra/prazno/offline.avif",
+   "w": 768,
+   "h": 768,
+   "kind": "prazno",
+   "ready": false,
+   "alt": {
+    "sr": "Nema interneta",
+    "en": "Offline"
+   }
+  },
+  "prazno.zakljucano": {
+   "src": "/brand/igra/prazno/zakljucano.avif",
+   "w": 768,
+   "h": 768,
+   "kind": "prazno",
+   "ready": false,
+   "alt": {
+    "sr": "Zaključano",
+    "en": "Locked"
+   }
+  },
+  "prazno.uskoro": {
+   "src": "/brand/igra/prazno/uskoro.avif",
+   "w": 768,
+   "h": 768,
+   "kind": "prazno",
+   "ready": false,
+   "alt": {
+    "sr": "Stiže uskoro",
+    "en": "Coming soon"
+   }
+  },
+  "admin.korisnici": {
+   "src": "/brand/igra/admin/korisnici.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "admin",
+   "ready": false,
+   "alt": {
+    "sr": "Korisnici",
+    "en": "Users"
+   }
+  },
+  "admin.prihod": {
+   "src": "/brand/igra/admin/prihod.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "admin",
+   "ready": false,
+   "alt": {
+    "sr": "Prihod",
+    "en": "Revenue"
+   }
+  },
+  "admin.generacije": {
+   "src": "/brand/igra/admin/generacije.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "admin",
+   "ready": false,
+   "alt": {
+    "sr": "Generacije",
+    "en": "Generations"
+   }
+  },
+  "admin.troskovi": {
+   "src": "/brand/igra/admin/troskovi.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "admin",
+   "ready": false,
+   "alt": {
+    "sr": "Troškovi",
+    "en": "Costs"
+   }
+  },
+  "admin.moderacija": {
+   "src": "/brand/igra/admin/moderacija.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "admin",
+   "ready": false,
+   "alt": {
+    "sr": "Moderacija",
+    "en": "Moderation"
+   }
+  },
+  "admin.sadrzaj": {
+   "src": "/brand/igra/admin/sadrzaj.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "admin",
+   "ready": false,
+   "alt": {
+    "sr": "Sadržaj",
+    "en": "Content"
+   }
+  },
+  "admin.zajednica": {
+   "src": "/brand/igra/admin/zajednica.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "admin",
+   "ready": false,
+   "alt": {
+    "sr": "Zajednica",
+    "en": "Community"
+   }
+  },
+  "admin.sistem": {
+   "src": "/brand/igra/admin/sistem.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "admin",
+   "ready": false,
+   "alt": {
+    "sr": "Sistem",
+    "en": "System"
+   }
+  },
+  "ikona.ucionica": {
+   "src": "/brand/igra/ikone/ucionica.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "ikona",
+   "ready": false,
+   "alt": {
+    "sr": "Učionica",
+    "en": "Classroom"
+   }
+  },
+  "ikona.crea": {
+   "src": "/brand/igra/ikone/crea.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "ikona",
+   "ready": false,
+   "alt": {
+    "sr": "Crea",
+    "en": "Crea"
+   }
+  },
+  "ikona.zajednica": {
+   "src": "/brand/igra/ikone/zajednica.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "ikona",
+   "ready": false,
+   "alt": {
+    "sr": "Zajednica",
+    "en": "Community"
+   }
+  },
+  "ikona.poruke": {
+   "src": "/brand/igra/ikone/poruke.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "ikona",
+   "ready": false,
+   "alt": {
+    "sr": "Poruke",
+    "en": "Messages"
+   }
+  },
+  "ikona.profil": {
+   "src": "/brand/igra/ikone/profil.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "ikona",
+   "ready": false,
+   "alt": {
+    "sr": "Profil",
+    "en": "Profile"
+   }
+  },
+  "ikona.krediti": {
+   "src": "/brand/igra/ikone/krediti.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "ikona",
+   "ready": false,
+   "alt": {
+    "sr": "Krediti",
+    "en": "Credits"
+   }
+  },
+  "ikona.pomoc": {
+   "src": "/brand/igra/ikone/pomoc.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "ikona",
+   "ready": false,
+   "alt": {
+    "sr": "Pomoć",
+    "en": "Help"
+   }
+  },
+  "ikona.podesavanja": {
+   "src": "/brand/igra/ikone/podesavanja.avif",
+   "w": 512,
+   "h": 512,
+   "kind": "ikona",
+   "ready": false,
+   "alt": {
+    "sr": "Podešavanja",
+    "en": "Settings"
+   }
+  }
+ },
+ "updatedAt": "2026-10-13T23:59:03",
+ "readyCount": 34,
+ "totalCount": 117
+}
