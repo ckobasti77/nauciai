@@ -140,8 +140,10 @@ export const expireGenerationFiles = internalMutation({
   args: {},
   handler: async (ctx) => {
     const now = Date.now();
-    // Obrađen posao gubi i `expiresAt` (K30, nalaz K29-12): inače ostaje u opsegu
-    // indeksa zauvek, pa bi svaki sledeći prolaz preskakao sve ranije istekle radove.
+    // Obrađen posao izlazi iz opsega indeksa (K30, nalaz K29-12): inače ostaje u njemu
+    // zauvek, pa bi svaki sledeći prolaz preskakao sve ranije istekle radove. Rok pada
+    // na 0, a ne nestaje: `isExpiredOutput` istekao rad prepoznaje po roku bez fajla, pa
+    // bi posao bez roka u galeriji zauvek stajao kao da se fajl još preuzima.
     const expired = await ctx.db
       .query("generationJobs")
       .withIndex("by_expiry", (q) => q.gt("expiresAt", 0).lte("expiresAt", now))
@@ -152,7 +154,7 @@ export const expireGenerationFiles = internalMutation({
       // Poster ide zajedno sa fajlom: polje se ionako prazni, pa bi blob bez
       // ijedne reference u bazi ostao zauvek naplativ.
       if (job.posterStorageId) await ctx.storage.delete(job.posterStorageId);
-      await ctx.db.patch(job._id, { outputStorageId: undefined, posterStorageId: undefined, expiresAt: undefined });
+      await ctx.db.patch(job._id, { outputStorageId: undefined, posterStorageId: undefined, expiresAt: 0 });
     }
 
     const orphans = await ctx.db

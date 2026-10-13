@@ -1,7 +1,5 @@
 "use client";
 
-import localFont from "next/font/local";
-
 import type { CreaFontId } from "@/lib/crea-editor-scene";
 import type { MeasureText } from "@/lib/crea-text-fit";
 
@@ -11,82 +9,54 @@ import type { MeasureText } from "@/lib/crea-text-fit";
  * Nunito ima latinicu sa č ć š ž đ i ćirilicu. Patrick Hand ima č ć š ž đ, ali
  * NEMA ćirilicu - bez zamene bi ćirilica u rukopisu pala na Arial. Zato iza
  * njega stoji Pangolin (OFL, sličan rukopis, ima ćirilicu): browser crta latinicu
- * Patrick Handom, a ćirilična slova Pangolinom. Pangolin se učitava samo ovde,
- * u chunk-u editora, i samo kad se pojavi ćirilica (`unicode-range`).
- */
-const pangolinCyrillic = localFont({
-  src: "./font-files/pangolin-cyrillic.woff2",
-  weight: "400",
-  display: "swap",
-  preload: false,
-  adjustFontFallback: false,
-  declarations: [{ prop: "unicode-range", value: "U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116" }],
-});
-
-/**
- * Fontovi brend kita (K15): Montserrat i Lora (oba OFL, latinica sa č ć š ž đ i
- * ćirilica). Kao i Pangolin, učitavaju se samo u chunk-u editora i tek kad ih
- * platno zatraži.
+ * Patrick Handom, a ćirilična slova Pangolinom (`unicode-range`).
  *
- * K20: fajlovi su kod nas (`./font-files`, isti podskupovi koje Google Fonts služi,
- * uz OFL licence), a ne iz `next/font/google`. Google povremeno vrati Montserrat
- * sa adresama `fonts.gstatic.com/l/font?kit=…&skey=…`, a Turbopack takvu adresu
- * ne ume da obradi („next/font/google queries have exactly one entry") - build je
- * zbog toga padao nasumično. Svaki podskup je svoj `@font-face` sa `unicode-range`
- * (browser preuzima samo ono što tekst traži), a porodica je niz tih podskupova.
+ * Fontovi brend kita (K15): Montserrat i Lora (oba OFL, latinica sa č ć š ž đ i
+ * ćirilica). Fajlovi su kod nas, u `public/brand/crea/fonts` (isti podskupovi
+ * koje služi Google Fonts, uz OFL licence), a editor ih sam prijavljuje browseru
+ * kroz `FontFace` tek kad mu zatrebaju.
+ *
+ * Namerno NE kroz `next/font/local`: njegovih 7 CSS modula je obaralo build na
+ * Hostingeru (Turbopack ne uspe da pokrene Node proces za njihov CSS - „node
+ * process exited before we could connect", 6. i 13. 10. 2026). Bez njih build ima
+ * iste CSS ulaze kao pre Cree. Svaki podskup je svoj `FontFace` sa `unicodeRange`
+ * (browser preuzima samo ono što tekst traži), a podskupovi jedne porodice dele ime.
  */
-const montserratLatin = localFont({
-  src: "./font-files/montserrat-latin.woff2",
-  weight: "400 900",
-  display: "swap",
-  preload: false,
-  adjustFontFallback: false,
-  declarations: [{ prop: "unicode-range", value: "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD" }],
-});
-const montserratLatinExt = localFont({
-  src: "./font-files/montserrat-latin-ext.woff2",
-  weight: "400 900",
-  display: "swap",
-  preload: false,
-  adjustFontFallback: false,
-  declarations: [{ prop: "unicode-range", value: "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF" }],
-});
-const montserratCyrillic = localFont({
-  src: "./font-files/montserrat-cyrillic.woff2",
-  weight: "400 900",
-  display: "swap",
-  preload: false,
-  adjustFontFallback: false,
-  declarations: [{ prop: "unicode-range", value: "U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116" }],
-});
-const loraLatin = localFont({
-  src: "./font-files/lora-latin.woff2",
-  weight: "400 700",
-  display: "swap",
-  preload: false,
-  adjustFontFallback: false,
-  declarations: [{ prop: "unicode-range", value: "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD" }],
-});
-const loraLatinExt = localFont({
-  src: "./font-files/lora-latin-ext.woff2",
-  weight: "400 700",
-  display: "swap",
-  preload: false,
-  adjustFontFallback: false,
-  declarations: [{ prop: "unicode-range", value: "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF" }],
-});
-const loraCyrillic = localFont({
-  src: "./font-files/lora-cyrillic.woff2",
-  weight: "400 700",
-  display: "swap",
-  preload: false,
-  adjustFontFallback: false,
-  declarations: [{ prop: "unicode-range", value: "U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116" }],
-});
+const FONT_DIR = "/brand/crea/fonts";
 
-/** Porodica od podskupova: browser za svako slovo uzima podskup čiji ga `unicode-range` pokriva. */
-function subsetFamily(...subsets: ReadonlyArray<{ style: { fontFamily: string } }>): string {
-  return subsets.map((subset) => subset.style.fontFamily).join(", ");
+const LATIN =
+  "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD";
+const LATIN_EXT =
+  "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF";
+const CYRILLIC = "U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116";
+
+const FAMILY = { montserrat: "CreaMontserrat", lora: "CreaLora", pangolin: "CreaPangolin" } as const;
+
+const FACES: ReadonlyArray<{ family: string; file: string; weight: string; unicodeRange: string }> = [
+  { family: FAMILY.pangolin, file: "pangolin-cyrillic.woff2", weight: "400", unicodeRange: CYRILLIC },
+  { family: FAMILY.montserrat, file: "montserrat-latin.woff2", weight: "400 900", unicodeRange: LATIN },
+  { family: FAMILY.montserrat, file: "montserrat-latin-ext.woff2", weight: "400 900", unicodeRange: LATIN_EXT },
+  { family: FAMILY.montserrat, file: "montserrat-cyrillic.woff2", weight: "400 900", unicodeRange: CYRILLIC },
+  { family: FAMILY.lora, file: "lora-latin.woff2", weight: "400 700", unicodeRange: LATIN },
+  { family: FAMILY.lora, file: "lora-latin-ext.woff2", weight: "400 700", unicodeRange: LATIN_EXT },
+  { family: FAMILY.lora, file: "lora-cyrillic.woff2", weight: "400 700", unicodeRange: CYRILLIC },
+];
+
+let facesAdded = false;
+
+/** Prijavi podskupove browseru jednom. Preuzimanje kreće tek kad tekst zatraži slovo iz opsega. */
+function ensureFaces(): void {
+  if (facesAdded || typeof document === "undefined" || !document.fonts || typeof FontFace === "undefined") return;
+  facesAdded = true;
+  for (const face of FACES) {
+    document.fonts.add(
+      new FontFace(face.family, `url(${FONT_DIR}/${face.file}) format("woff2")`, {
+        weight: face.weight,
+        unicodeRange: face.unicodeRange,
+        display: "swap",
+      }),
+    );
+  }
 }
 
 /** Uzorak koji tera browser da učita sve podskupove: latinicu, č ć š ž đ i ćirilicu. */
@@ -104,10 +74,11 @@ function firstFamily(stack: string, fallback: string): string {
 /** Porodica fonta za platno (isti niz koji Konva upisuje u `ctx.font`). */
 export function fontFamilyFor(font: CreaFontId): string {
   if (font === "nunito") return cssVar("--font-nunito") || "Nunito, sans-serif";
-  if (font === "montserrat") return subsetFamily(montserratLatin, montserratLatinExt, montserratCyrillic);
-  if (font === "lora") return subsetFamily(loraLatin, loraLatinExt, loraCyrillic);
+  ensureFaces();
+  if (font === "montserrat") return FAMILY.montserrat;
+  if (font === "lora") return FAMILY.lora;
   const hand = firstFamily(cssVar("--font-patrick-hand"), "'Patrick Hand'");
-  return `${hand}, ${pangolinCyrillic.style.fontFamily}`;
+  return `${hand}, ${FAMILY.pangolin}`;
 }
 
 export function canvasFont(font: CreaFontId, weight: number, fontSize: number): string {

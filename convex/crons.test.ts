@@ -3,7 +3,8 @@
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
-import { internal } from "./_generated/api";
+import { isExpiredOutput, jobStatusText, jobTileState } from "../lib/studio-form";
+import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { usableBalance } from "./creditsCore";
 import schema from "./schema";
@@ -354,6 +355,24 @@ test("K29-12: pun paket zakazuje nastavak; obrađen rad izlazi iz opsega isteka"
     ctx.db.query("generationJobs").withIndex("by_expiry", (q) => q.gt("expiresAt", 0)).collect(),
   );
   expect(left).toEqual([]);
+});
+
+test("obrađen rad u galeriji ostaje istekao, a ne 'preuzima se'", async () => {
+  const t = convexTest(schema, modules);
+  const { userId } = await seedJobWithFile(t, { expiresAt: Date.now() - DAY });
+
+  await t.mutation(internal.crons.expireGenerationFiles, {});
+
+  const asUser = t.withIdentity({ subject: userId, tokenIdentifier: `test|${userId}` });
+  const { page } = await asUser.query(api.studio.listMyJobs, { paginationOpts: { numItems: 10, cursor: null } });
+  expect(page).toHaveLength(1);
+  expect(page[0].outputUrl).toBeNull();
+  expect(isExpiredOutput(page[0])).toBe(true);
+  expect(jobTileState(page[0])).toBe("expired");
+  expect(jobStatusText(page[0], "sr")).toContain("istekao rok čuvanja");
+
+  // Ni sledeći prolaz ga više ne vidi - rok 0 je ispod `gt(0)`.
+  expect((await t.mutation(internal.crons.expireGenerationFiles, {})).cleared).toBe(0);
 });
 
 test("fajl kojem rok tek ističe se ne dira, a drugi prolaz nema šta da briše", async () => {
