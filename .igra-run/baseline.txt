@@ -1,0 +1,6 @@
+Baseline (pre koraka K01, 2026-10-14 00:08)
+codegen: ok
+typecheck: ok
+lint: PADA
+build: ok
+testovi koji su padali i pre runa:

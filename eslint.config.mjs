@@ -15,6 +15,8 @@ const eslintConfig = defineConfig([
     ".ux-run/**",
     // Artefakti noćnog runa (logovi, pomoćne .cjs skripte runnera) — nisu kod aplikacije.
     ".crea-run/**",
+    ".igra-run/**",
+    ".igra-assets/**",
     "convex/_generated/**",
     "next-env.d.ts",
     // Vendorovani Emscripten Draco dekoder — minifikovan tudji kod, ne nas.

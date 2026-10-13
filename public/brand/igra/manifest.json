@@ -380,7 +380,7 @@
    "w": 512,
    "h": 512,
    "kind": "nivo",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Nivo 7: Kreator",
     "en": "Level 7: Creator"
@@ -391,7 +391,7 @@
    "w": 512,
    "h": 512,
    "kind": "nivo",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Nivo 8: Majstor",
     "en": "Level 8: Master"
@@ -402,7 +402,7 @@
    "w": 512,
    "h": 512,
    "kind": "nivo",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Nivo 9: Vizionar",
     "en": "Level 9: Visionary"
@@ -413,7 +413,7 @@
    "w": 512,
    "h": 512,
    "kind": "nivo",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Nivo 10: Mentor",
     "en": "Level 10: Mentor"
@@ -424,7 +424,7 @@
    "w": 512,
    "h": 512,
    "kind": "nivo",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Nivo 11: Šampion",
     "en": "Level 11: Champion"
@@ -435,7 +435,7 @@
    "w": 512,
    "h": 512,
    "kind": "nivo",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Nivo 12: Legenda",
     "en": "Level 12: Legend"
@@ -446,7 +446,7 @@
    "w": 512,
    "h": 512,
    "kind": "bedz",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Bedž: Prva lekcija",
     "en": "Badge: First lesson"
@@ -457,7 +457,7 @@
    "w": 512,
    "h": 512,
    "kind": "bedz",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Bedž: Prvi zadatak",
     "en": "Badge: First task"
@@ -468,7 +468,7 @@
    "w": 512,
    "h": 512,
    "kind": "bedz",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Bedž: Pet lekcija",
     "en": "Badge: Five lessons"
@@ -479,7 +479,7 @@
    "w": 512,
    "h": 512,
    "kind": "bedz",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Bedž: Prvi kurs",
     "en": "Badge: First course"
@@ -490,7 +490,7 @@
    "w": 512,
    "h": 512,
    "kind": "bedz",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Bedž: Tri kursa",
     "en": "Badge: Three courses"
@@ -501,7 +501,7 @@
    "w": 512,
    "h": 512,
    "kind": "bedz",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Bedž: Cela staza",
     "en": "Badge: Full track"
@@ -512,7 +512,7 @@
    "w": 512,
    "h": 512,
    "kind": "bedz",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Bedž: Noćna sova",
     "en": "Badge: Night owl"
@@ -523,7 +523,7 @@
    "w": 512,
    "h": 512,
    "kind": "bedz",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Bedž: Rani pevac",
     "en": "Badge: Early bird"
@@ -534,7 +534,7 @@
    "w": 512,
    "h": 512,
    "kind": "bedz",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Bedž: Prvi rad",
     "en": "Badge: First creation"
@@ -545,7 +545,7 @@
    "w": 512,
    "h": 512,
    "kind": "bedz",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Bedž: Deset radova",
     "en": "Badge: Ten creations"
@@ -556,7 +556,7 @@
    "w": 512,
    "h": 512,
    "kind": "bedz",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Bedž: Sto radova",
     "en": "Badge: Hundred creations"
@@ -567,7 +567,7 @@
    "w": 512,
    "h": 512,
    "kind": "bedz",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Bedž: Prvi video",
     "en": "Badge: First video"
@@ -578,7 +578,7 @@
    "w": 512,
    "h": 512,
    "kind": "bedz",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Bedž: Prvi zvuk",
     "en": "Badge: First audio"
@@ -589,7 +589,7 @@
    "w": 512,
    "h": 512,
    "kind": "bedz",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Bedž: Recept",
     "en": "Badge: Recipe"
@@ -600,7 +600,7 @@
    "w": 512,
    "h": 512,
    "kind": "bedz",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Bedž: Tehnika",
     "en": "Badge: Technique"
@@ -611,7 +611,7 @@
    "w": 512,
    "h": 512,
    "kind": "bedz",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Bedž: Izazov",
     "en": "Badge: Challenge"
@@ -1289,7 +1289,7 @@
    }
   }
  },
- "updatedAt": "2026-10-13T23:59:03",
- "readyCount": 34,
+ "updatedAt": "2026-10-14T00:06:43",
+ "readyCount": 56,
  "totalCount": 117
 }
