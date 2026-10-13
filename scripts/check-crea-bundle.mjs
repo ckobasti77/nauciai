@@ -64,6 +64,13 @@ const MARKERS = [
   { pkg: "@xzdarcy/react-timeline-editor", marker: "timeline-editor" },
   // K25: konfete (lista emoji fontova je samo u kodu biblioteke).
   { pkg: "canvas-confetti", marker: "Twemoji Mozilla" },
+  // IGRA K03: three.js (maskota, 3D pehar i medalje) stiže samo kroz `next/dynamic`.
+  { pkg: "three", marker: "THREE.WebGLRenderer" },
+  // IGRA K03: GSAP pluginovi samo kroz `loadIgraPlugin` (`lib/igra-motion.ts`). Markeri su
+  // tekst iz koda plugina, ne ime plugina (`drawSVG`, `data-flip-id` pišemo i mi).
+  { pkg: "gsap", marker: "Not a valid state object." },
+  { pkg: "gsap", marker: "0px, 999999px" },
+  { pkg: "gsap", marker: "chars,words,lines" },
 ];
 
 /**
@@ -78,6 +85,18 @@ const INITIAL_GZ_BUDGET_KB = {
   "/[locale]/app/studio/page": 595,
   "/[locale]/(marketing)/studio/page": 143,
   "/[locale]/(marketing)/page": 153,
+  // IGRA (plan K01 §4): app rute smeju najviše +25 KB preko merenja pre IGRA-e
+  // (2026-10-14, build K02: 269 / 290 / 284 / 292 / 286 / 269 / 284 / 278 / 296 / 346).
+  "/[locale]/app/page": 294,
+  "/[locale]/app/classroom/page": 315,
+  "/[locale]/app/classroom/courses/[courseSlug]/page": 309,
+  "/[locale]/app/classroom/courses/[courseSlug]/lessons/[lessonSlug]/page": 317,
+  "/[locale]/app/classroom/tracks/[trackSlug]/page": 311,
+  "/[locale]/app/community/page": 294,
+  "/[locale]/app/community/discussions/page": 309,
+  "/[locale]/app/community/leaderboard/page": 303,
+  "/[locale]/app/community/[postId]/page": 321,
+  "/[locale]/app/members/[username]/page": 371,
 };
 
 function fail(message) {

@@ -309,6 +309,39 @@
     "en": "Iskra confused"
    }
   },
+  "lik.piksi.radi": {
+   "src": "/brand/igra/likovi/piksi-radi.avif",
+   "w": 768,
+   "h": 768,
+   "kind": "lik",
+   "ready": true,
+   "alt": {
+    "sr": "Piksi slika",
+    "en": "Piksi painting"
+   }
+  },
+  "lik.kadar.radi": {
+   "src": "/brand/igra/likovi/kadar-radi.avif",
+   "w": 768,
+   "h": 768,
+   "kind": "lik",
+   "ready": true,
+   "alt": {
+    "sr": "Kadar snima",
+    "en": "Kadar filming"
+   }
+  },
+  "lik.eho.radi": {
+   "src": "/brand/igra/likovi/eho-radi.avif",
+   "w": 768,
+   "h": 768,
+   "kind": "lik",
+   "ready": true,
+   "alt": {
+    "sr": "Eho snima zvuk",
+    "en": "Eho recording sound"
+   }
+  },
   "nivo.01": {
    "src": "/brand/igra/nivoi/nivo-01.avif",
    "w": 512,
@@ -875,7 +908,7 @@
    "w": 1536,
    "h": 1024,
    "kind": "scena",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Robi u kontrolnoj sobi",
     "en": "Robi in the control room"
@@ -886,7 +919,7 @@
    "w": 1536,
    "h": 1024,
    "kind": "scena",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Mapa puta kroz svesku",
     "en": "Journey map across the notebook"
@@ -897,7 +930,7 @@
    "w": 768,
    "h": 768,
    "kind": "scena-nalepnica",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Novi nivo!",
     "en": "Level up!"
@@ -908,7 +941,7 @@
    "w": 768,
    "h": 768,
    "kind": "scena-nalepnica",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Kurs završen",
     "en": "Course completed"
@@ -919,7 +952,7 @@
    "w": 1536,
    "h": 512,
    "kind": "baner",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Baner: Sveska",
     "en": "Banner: Notebook"
@@ -930,7 +963,7 @@
    "w": 1536,
    "h": 512,
    "kind": "baner",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Baner: Laboratorija",
     "en": "Banner: Laboratory"
@@ -941,7 +974,7 @@
    "w": 1536,
    "h": 512,
    "kind": "baner",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Baner: Studio",
     "en": "Banner: Studio"
@@ -952,7 +985,7 @@
    "w": 1536,
    "h": 512,
    "kind": "baner",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Baner: Svemir",
     "en": "Banner: Space"
@@ -963,7 +996,7 @@
    "w": 1536,
    "h": 512,
    "kind": "baner",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Baner: Grad",
     "en": "Banner: City"
@@ -974,7 +1007,7 @@
    "w": 1536,
    "h": 512,
    "kind": "baner",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Baner: Okean",
     "en": "Banner: Ocean"
@@ -1289,7 +1322,7 @@
    }
   }
  },
- "updatedAt": "2026-10-14T00:31:47",
- "readyCount": 107,
- "totalCount": 117
+ "updatedAt": "2026-10-14T00:52:57",
+ "readyCount": 120,
+ "totalCount": 120
 }
