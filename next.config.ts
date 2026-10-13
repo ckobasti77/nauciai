@@ -11,6 +11,14 @@ const nextConfig: NextConfig = {
     // format po `Accept` zaglavlju pregledača.
     formats: ["image/avif", "image/webp"],
   },
+  experimental: {
+    // Turbopack PostCSS (Tailwind) po defaultu pušta u zaseban `node` proces koji
+    // se javlja nazad preko TCP-a na 127.0.0.1. Na Hostinger build serveru ta veza
+    // ne prolazi: proces tiho izađe sa statusom 0 i build pada na `app/globals.css`
+    // ("node process exited before we could connect to it"). Worker niti rade u
+    // istom procesu, bez mreže - Turbopack ostaje, samo PostCSS ne ide preko TCP-a.
+    turbopackPluginRuntimeStrategy: "workerThreads",
+  },
   // Kad Next sam služi statični .webm iz public/ (Vercel/lokal), prisili ispravan
   // MIME tip. Na LiteSpeed produkciji isto radi public/.htaccess.
   async headers() {
