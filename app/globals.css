@@ -149,6 +149,28 @@
      `bg-ink/NN` - a u tamnoj crna, jer bi svetlo mastilo pravilo maglu. Uvek sa
      alfa modifikatorom: `bg-scrim/45`. */
   --scrim: #0e3158;
+  /* IGRA (K02) — „igra u svesci": marker, nalepnica, pečat i papir. Žuta ostaje ista u
+     obe teme (Pravilo 1 gore), pa je marker sama `--yellow`; `-wash` i `--igra-track` su
+     mešavine sa papirom i zato imaju tamne parnjake. Nalepnica je predmet, ne površina:
+     krem ivica je ista u obe teme (zato die-cut slike rade i na tamnom), menja se samo
+     senka ispod nje. Zaključan bedž je ISTA slika svedena na siluetu filterom - u tamnoj
+     invertovana, jer bi crna silueta na tamnom papiru nestala. Pečat nosi koral koji već
+     ima tamni parnjak (`--level-accent-4`). */
+  --igra-marker: var(--yellow);
+  --igra-marker-wash: color-mix(in srgb, var(--yellow) 26%, var(--paper));
+  --igra-track: color-mix(in srgb, var(--ink) 10%, var(--paper));
+  --igra-sticker-edge: #fffaf0;
+  --igra-sticker-shadow: rgba(14, 49, 88, 0.22);
+  --igra-stamp: var(--level-accent-4);
+  --igra-locked-filter: brightness(0) opacity(0.16);
+  --igra-medal-gold: var(--yellow);
+  --igra-medal-silver: #c9d4df;
+  --igra-medal-bronze: #d98a5b;
+  /* Tekstura papira bez fajla: sivi šum (feTurbulence) koji `.igra-paper` meša sa
+     podlogom. Srednje siva je neutralna za `soft-light`, pa tekstura ne menja ton papira. */
+  --igra-paper-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0.33 0.33 0.33 0 0 0.33 0.33 0.33 0 0 0.33 0.33 0.33 0 0 0 0 0 0 1'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+  --igra-paper-grain-opacity: 0.6;
+  --igra-paper-grain-blend: soft-light;
   --bordered-radius: 1rem;
   --bordered-control-radius: 1rem;
   --button-radius: 9999px;
@@ -227,6 +249,13 @@
   --shadow-hard-25: rgba(0, 0, 0, 0.76);
   --shadow-hard-55: rgba(0, 0, 0, 1);
   --scrim: #000000;
+  --igra-marker-wash: color-mix(in srgb, var(--yellow) 18%, var(--paper));
+  --igra-track: color-mix(in srgb, var(--ink) 16%, var(--paper));
+  --igra-sticker-shadow: rgba(0, 0, 0, 0.6);
+  --igra-locked-filter: brightness(0) invert(1) opacity(0.22);
+  --igra-medal-silver: #9fb2c8;
+  --igra-paper-grain-opacity: 0.35;
+  --igra-paper-grain-blend: soft-light;
 }
 
 @theme inline {
@@ -245,6 +274,11 @@
   --color-studio-canvas: var(--studio-canvas);
   --color-studio-well: var(--studio-well);
   --color-studio-well-edge: var(--studio-well-edge);
+  --color-igra-marker: var(--igra-marker);
+  --color-igra-marker-wash: var(--igra-marker-wash);
+  --color-igra-track: var(--igra-track);
+  --color-igra-stamp: var(--igra-stamp);
+  --color-igra-sticker-edge: var(--igra-sticker-edge);
   --font-sans: "Nunito", "Nunito Fallback", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Patrick Hand", "Patrick Hand Fallback", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Geist Mono", "Geist Mono Fallback", ui-monospace, monospace;
@@ -368,6 +402,78 @@ body {
     .app-sidebar[data-collapsed="true"] .app-sidebar-label {
       transition-delay: 0ms;
     }
+  }
+}
+
+/* ── IGRA (K02): nalepnica, papir, marker, pečat, traka ─────────────────────
+   Sve u `@layer components` (kao `.link-button`): utility na elementu pobeđuje.
+   Nijedna klasa ovde ne crta `border-2` niti uvodi nov radijus - oblik markera je
+   `clip-path`, pečat nosi pilulu (`--button-radius`), a njegov prsten je `box-shadow`.
+   Animacije `.igra-*` klasa smeju samo u `prefers-reduced-motion: no-preference`
+   bloku (čuva `lib/igra-css.test.ts`). */
+@layer components {
+  /* Die-cut nalepnica: tvrda senka prati oblik slike (alfa kanal), ne kutiju. */
+  .igra-sticker {
+    filter: drop-shadow(0 1px 0 var(--igra-sticker-shadow)) drop-shadow(2px 3px 0 var(--igra-sticker-shadow));
+  }
+
+  /* Zaključano: ista slika kao silueta mastila (u tamnoj temi svetla). */
+  .igra-sticker[data-locked="true"] {
+    filter: var(--igra-locked-filter);
+  }
+
+  /* Papir sa teksturom - najviše jedan po ekranu (heroj). */
+  .igra-paper {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .igra-paper::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    background-image: var(--igra-paper-grain);
+    background-size: 180px 180px;
+    opacity: var(--igra-paper-grain-opacity);
+    mix-blend-mode: var(--igra-paper-grain-blend);
+    pointer-events: none;
+  }
+
+  /* Potez markera iza KRATKE reči ili broja. Uvek uz `bg-yellow text-ink`: žuto je
+     svetlo ostrvo (Pravilo 1), pa je tekst mastilo u obe teme. */
+  .igra-marker {
+    display: inline-block;
+    padding-inline: 0.22em;
+    clip-path: polygon(0.6% 12%, 99.2% 4%, 100% 90%, 1.4% 97%);
+  }
+
+  /* Pečat: prsten u boji mastila pečata, blago zakošen. */
+  .igra-stamp {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--button-radius);
+    color: var(--igra-stamp);
+    box-shadow: inset 0 0 0 2px currentColor;
+    rotate: -6deg;
+  }
+
+  /* Washi traka preko ugla kartice - najviše jedan dekor po kartici. */
+  .igra-tape {
+    position: absolute;
+    width: 4.5rem;
+    height: 1.25rem;
+    background-color: var(--igra-marker-wash);
+    background-image: repeating-linear-gradient(
+      -45deg,
+      transparent 0 5px,
+      color-mix(in srgb, var(--igra-marker) 55%, transparent) 5px 7px
+    );
+    box-shadow: 0 1px 0 var(--igra-sticker-shadow);
+    rotate: -4deg;
+    pointer-events: none;
   }
 }
 

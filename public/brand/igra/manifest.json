@@ -622,7 +622,7 @@
    "w": 512,
    "h": 512,
    "kind": "bedz",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Bedž: Prva objava",
     "en": "Badge: First post"
@@ -633,7 +633,7 @@
    "w": 512,
    "h": 512,
    "kind": "bedz",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Bedž: Koristan odgovor",
     "en": "Badge: Helpful answer"
@@ -644,7 +644,7 @@
    "w": 512,
    "h": 512,
    "kind": "bedz",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Bedž: Omiljen",
     "en": "Badge: Crowd favorite"
@@ -655,7 +655,7 @@
    "w": 512,
    "h": 512,
    "kind": "bedz",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Bedž: Mentor",
     "en": "Badge: Mentor"
@@ -666,7 +666,7 @@
    "w": 512,
    "h": 512,
    "kind": "bedz",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Bedž: Niz od 3 dana",
     "en": "Badge: 3-day streak"
@@ -677,7 +677,7 @@
    "w": 512,
    "h": 512,
    "kind": "bedz",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Bedž: Niz od 7 dana",
     "en": "Badge: 7-day streak"
@@ -688,7 +688,7 @@
    "w": 512,
    "h": 512,
    "kind": "bedz",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Bedž: Niz od 30 dana",
     "en": "Badge: 30-day streak"
@@ -699,7 +699,7 @@
    "w": 512,
    "h": 512,
    "kind": "bedz",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Bedž: Top 10",
     "en": "Badge: Top 10"
@@ -710,7 +710,7 @@
    "w": 512,
    "h": 512,
    "kind": "rang",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Zlatna medalja",
     "en": "Gold medal"
@@ -721,7 +721,7 @@
    "w": 512,
    "h": 512,
    "kind": "rang",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Srebrna medalja",
     "en": "Silver medal"
@@ -732,7 +732,7 @@
    "w": 512,
    "h": 512,
    "kind": "rang",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Bronzana medalja",
     "en": "Bronze medal"
@@ -743,7 +743,7 @@
    "w": 512,
    "h": 512,
    "kind": "rang",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Pehar",
     "en": "Trophy"
@@ -754,7 +754,7 @@
    "w": 512,
    "h": 512,
    "kind": "rang",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Kruna",
     "en": "Crown"
@@ -765,7 +765,7 @@
    "w": 512,
    "h": 512,
    "kind": "rang",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Plamen niza",
     "en": "Streak flame"
@@ -776,7 +776,7 @@
    "w": 512,
    "h": 512,
    "kind": "rang",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "XP kristal",
     "en": "XP crystal"
@@ -787,7 +787,7 @@
    "w": 512,
    "h": 512,
    "kind": "rang",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Meta",
     "en": "Target"
@@ -798,7 +798,7 @@
    "w": 1536,
    "h": 1024,
    "kind": "scena",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Robi ujutru uz kafu",
     "en": "Robi in the morning with coffee"
@@ -809,7 +809,7 @@
    "w": 1536,
    "h": 1024,
    "kind": "scena",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Robi gradi tokom dana",
     "en": "Robi building during the day"
@@ -820,7 +820,7 @@
    "w": 1536,
    "h": 1024,
    "kind": "scena",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Robi čita uveče",
     "en": "Robi reading in the evening"
@@ -831,7 +831,7 @@
    "w": 1536,
    "h": 1024,
    "kind": "scena",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Robi i Sova pod zvezdama",
     "en": "Robi and the owl under the stars"
@@ -842,7 +842,7 @@
    "w": 1536,
    "h": 1024,
    "kind": "scena",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Crea radionica sa ekipom",
     "en": "Crea workshop with the crew"
@@ -853,7 +853,7 @@
    "w": 1536,
    "h": 1024,
    "kind": "scena",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Ekipa na trgu zajednice",
     "en": "The crew in the community square"
@@ -864,7 +864,7 @@
    "w": 1536,
    "h": 1024,
    "kind": "scena",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Podijum pobednika",
     "en": "Winners podium"
@@ -985,7 +985,7 @@
    "w": 768,
    "h": 768,
    "kind": "prazno",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Još nema kurseva",
     "en": "No courses yet"
@@ -996,7 +996,7 @@
    "w": 768,
    "h": 768,
    "kind": "prazno",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Još nema objava",
     "en": "No posts yet"
@@ -1007,7 +1007,7 @@
    "w": 768,
    "h": 768,
    "kind": "prazno",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Još nema poruka",
     "en": "No messages yet"
@@ -1018,7 +1018,7 @@
    "w": 768,
    "h": 768,
    "kind": "prazno",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Sve je pročitano",
     "en": "All caught up"
@@ -1029,7 +1029,7 @@
    "w": 768,
    "h": 768,
    "kind": "prazno",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Još nema radova",
     "en": "No creations yet"
@@ -1040,7 +1040,7 @@
    "w": 768,
    "h": 768,
    "kind": "prazno",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Ništa nije nađeno",
     "en": "Nothing found"
@@ -1051,7 +1051,7 @@
    "w": 768,
    "h": 768,
    "kind": "prazno",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Nešto je puklo",
     "en": "Something broke"
@@ -1062,7 +1062,7 @@
    "w": 768,
    "h": 768,
    "kind": "prazno",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Ova strana ne postoji",
     "en": "Page not found"
@@ -1073,7 +1073,7 @@
    "w": 768,
    "h": 768,
    "kind": "prazno",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Učitava se",
     "en": "Loading"
@@ -1084,7 +1084,7 @@
    "w": 768,
    "h": 768,
    "kind": "prazno",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Nema interneta",
     "en": "Offline"
@@ -1095,7 +1095,7 @@
    "w": 768,
    "h": 768,
    "kind": "prazno",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Zaključano",
     "en": "Locked"
@@ -1106,7 +1106,7 @@
    "w": 768,
    "h": 768,
    "kind": "prazno",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Stiže uskoro",
     "en": "Coming soon"
@@ -1117,7 +1117,7 @@
    "w": 512,
    "h": 512,
    "kind": "admin",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Korisnici",
     "en": "Users"
@@ -1128,7 +1128,7 @@
    "w": 512,
    "h": 512,
    "kind": "admin",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Prihod",
     "en": "Revenue"
@@ -1139,7 +1139,7 @@
    "w": 512,
    "h": 512,
    "kind": "admin",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Generacije",
     "en": "Generations"
@@ -1150,7 +1150,7 @@
    "w": 512,
    "h": 512,
    "kind": "admin",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Troškovi",
     "en": "Costs"
@@ -1161,7 +1161,7 @@
    "w": 512,
    "h": 512,
    "kind": "admin",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Moderacija",
     "en": "Moderation"
@@ -1172,7 +1172,7 @@
    "w": 512,
    "h": 512,
    "kind": "admin",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Sadržaj",
     "en": "Content"
@@ -1183,7 +1183,7 @@
    "w": 512,
    "h": 512,
    "kind": "admin",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Zajednica",
     "en": "Community"
@@ -1194,7 +1194,7 @@
    "w": 512,
    "h": 512,
    "kind": "admin",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Sistem",
     "en": "System"
@@ -1205,7 +1205,7 @@
    "w": 512,
    "h": 512,
    "kind": "ikona",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Učionica",
     "en": "Classroom"
@@ -1216,7 +1216,7 @@
    "w": 512,
    "h": 512,
    "kind": "ikona",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Crea",
     "en": "Crea"
@@ -1227,7 +1227,7 @@
    "w": 512,
    "h": 512,
    "kind": "ikona",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Zajednica",
     "en": "Community"
@@ -1238,7 +1238,7 @@
    "w": 512,
    "h": 512,
    "kind": "ikona",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Poruke",
     "en": "Messages"
@@ -1249,7 +1249,7 @@
    "w": 512,
    "h": 512,
    "kind": "ikona",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Profil",
     "en": "Profile"
@@ -1260,7 +1260,7 @@
    "w": 512,
    "h": 512,
    "kind": "ikona",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Krediti",
     "en": "Credits"
@@ -1271,7 +1271,7 @@
    "w": 512,
    "h": 512,
    "kind": "ikona",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Pomoć",
     "en": "Help"
@@ -1282,14 +1282,14 @@
    "w": 512,
    "h": 512,
    "kind": "ikona",
-   "ready": false,
+   "ready": true,
    "alt": {
     "sr": "Podešavanja",
     "en": "Settings"
    }
   }
  },
- "updatedAt": "2026-10-14T00:06:43",
- "readyCount": 56,
+ "updatedAt": "2026-10-14T00:31:47",
+ "readyCount": 107,
  "totalCount": 117
 }

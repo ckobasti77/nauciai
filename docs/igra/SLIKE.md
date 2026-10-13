@@ -18,14 +18,17 @@ Kad ti treba slika koje nema ovde, upiši je u `docs/IGRA-PROGRESS.md` pod „TR
 | `lik.piksi.slavi` | Piksi slavi | `/brand/igra/likovi/piksi-slavi.avif` |
 | `lik.piksi.misli` | Piksi razmišlja | `/brand/igra/likovi/piksi-misli.avif` |
 | `lik.piksi.tuzan` | Piksi je zbunjen | `/brand/igra/likovi/piksi-tuzan.avif` |
+| `lik.piksi.radi` | Piksi slika (Crea čekanje: slika) | `/brand/igra/likovi/piksi-radi.avif` |
 | `lik.kadar.mase` | Kadar maše | `/brand/igra/likovi/kadar-mase.avif` |
 | `lik.kadar.slavi` | Kadar slavi | `/brand/igra/likovi/kadar-slavi.avif` |
 | `lik.kadar.misli` | Kadar razmišlja | `/brand/igra/likovi/kadar-misli.avif` |
 | `lik.kadar.tuzan` | Kadar je zbunjen | `/brand/igra/likovi/kadar-tuzan.avif` |
+| `lik.kadar.radi` | Kadar snima (Crea čekanje: video) | `/brand/igra/likovi/kadar-radi.avif` |
 | `lik.eho.mase` | Eho maše | `/brand/igra/likovi/eho-mase.avif` |
 | `lik.eho.slavi` | Eho slavi | `/brand/igra/likovi/eho-slavi.avif` |
 | `lik.eho.misli` | Eho razmišlja | `/brand/igra/likovi/eho-misli.avif` |
 | `lik.eho.tuzan` | Eho je zbunjen | `/brand/igra/likovi/eho-tuzan.avif` |
+| `lik.eho.radi` | Eho snima zvuk (Crea čekanje: zvuk) | `/brand/igra/likovi/eho-radi.avif` |
 | `lik.bajt.mase` | Bajt maše | `/brand/igra/likovi/bajt-mase.avif` |
 | `lik.bajt.slavi` | Bajt slavi | `/brand/igra/likovi/bajt-slavi.avif` |
 | `lik.bajt.misli` | Bajt razmišlja | `/brand/igra/likovi/bajt-misli.avif` |

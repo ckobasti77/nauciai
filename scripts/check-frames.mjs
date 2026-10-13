@@ -44,6 +44,8 @@ const ROOTS = [
   "components/app/studio-media-detail.tsx",
   "components/app/studio-moderation-grid.tsx",
   "components/crea",
+  "components/igra",
+  "app/[locale]/igra-izlog",
 ];
 const SKIP_DIRS = new Set(["node_modules", ".next", ".git"]);
 const VOID_TAGS = new Set(["img", "br", "hr", "input", "source", "meta", "link", "path", "rect", "circle", "line", "polygon", "use", "stop", "area", "col", "embed", "track", "wbr"]);
