@@ -10,6 +10,7 @@ import {
   celebrationSeenKeys,
   celebrationView,
   createCelebrationQueue,
+  isTypingTarget,
   planCelebrations,
   type IgraCelebration,
   type IgraFresh,
@@ -286,5 +287,25 @@ describe("prikaz i poruka za čitač ekrana", () => {
         expect(alt.split(": ")[1]!.length, id).toBeGreaterThan(1);
       }
     }
+  });
+});
+
+describe("isTypingTarget (K28)", () => {
+  test("tekstualna polja, textarea i contenteditable: korisnik kuca, slavlje čeka", () => {
+    expect(isTypingTarget({ tagName: "INPUT", type: "text" })).toBe(true);
+    expect(isTypingTarget({ tagName: "INPUT", type: "" })).toBe(true);
+    expect(isTypingTarget({ tagName: "INPUT", type: "search" })).toBe(true);
+    expect(isTypingTarget({ tagName: "TEXTAREA" })).toBe(true);
+    expect(isTypingTarget({ tagName: "DIV", isContentEditable: true })).toBe(true);
+  });
+
+  test("dugme, izbor, link i prazan fokus: slavlje sme odmah", () => {
+    expect(isTypingTarget(null)).toBe(false);
+    expect(isTypingTarget({ tagName: "BUTTON", type: "submit" })).toBe(false);
+    expect(isTypingTarget({ tagName: "INPUT", type: "checkbox" })).toBe(false);
+    expect(isTypingTarget({ tagName: "INPUT", type: "range" })).toBe(false);
+    expect(isTypingTarget({ tagName: "SELECT" })).toBe(false);
+    expect(isTypingTarget({ tagName: "A" })).toBe(false);
+    expect(isTypingTarget({ tagName: "BODY", isContentEditable: false })).toBe(false);
   });
 });

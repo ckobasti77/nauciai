@@ -51,13 +51,15 @@ export function CreaMascot({
     if (!use3d) return;
     const wrap = wrapRef.current;
     if (!wrap) return;
+    let inView = false;
     const observer = new IntersectionObserver((entries) => {
-      const inView = entries[0]?.isIntersecting ?? false;
+      inView = entries[0]?.isIntersecting ?? false;
       setVisible(inView && !document.hidden);
       if (inView) setSeen(true);
     });
     observer.observe(wrap);
-    const onVisibility = () => setVisible((current) => current && !document.hidden);
+    // Povratak na tab ne okida IntersectionObserver: kadar se pamti ovde, da crtanje nastavi.
+    const onVisibility = () => setVisible(inView && !document.hidden);
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
       observer.disconnect();

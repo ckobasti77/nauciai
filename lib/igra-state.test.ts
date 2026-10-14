@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import manifest from "../public/brand/igra/manifest.json";
-import { IGRA_STATE_COPY } from "./igra-copy";
+import { IGRA_STATE_COPY } from "./igra-state-copy";
 import {
   IGRA_STATE_VARIANTS,
   igraErrorVariant,

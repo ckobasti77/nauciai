@@ -16,6 +16,11 @@ const ENTERED = "data-igra-entered";
  * `deps` kaže kada da ponovo pogleda listu (npr. `[rows.length]`). Stavka koja je jednom
  * ušla se ne animira ponovo, pa osvežen upit ne trese listu, a novi redovi ulaze sami.
  * Posle `max` stavki nema dodatnog kašnjenja. Uz smanjen pokret lista je odmah tu.
+ *
+ * `opacity`, ne `autoAlpha` (K28): dok lista čeka da uđe u kadar, `visibility: hidden` bi
+ * redove ispod prevoja izbacio iz Tab redosleda i iz stabla čitača ekrana (rang lista se
+ * tastaturom preskakala). Providan red i dalje prima fokus; fokus ga skroluje u kadar, a
+ * posmatrač tada pusti ulaz.
  */
 export function useEnterStagger(
   ref: RefObject<HTMLElement | null>,
@@ -30,16 +35,16 @@ export function useEnterStagger(
       const items = Array.from(root.querySelectorAll<HTMLElement>(selector)).filter((item) => !item.hasAttribute(ENTERED));
       if (items.length === 0) return;
 
-      gsap.set(items, { autoAlpha: 0, y: IGRA_MOTION.enterY });
+      gsap.set(items, { opacity: 0, y: IGRA_MOTION.enterY });
       const play = contextSafe(() => {
         for (const item of items) item.setAttribute(ENTERED, "");
         gsap.to(items, {
-          autoAlpha: 1,
+          opacity: 1,
           y: 0,
           duration: IGRA_MOTION.enter,
           ease: IGRA_MOTION.ease.out,
           stagger: (index: number) => Math.min(index, max) * IGRA_MOTION.stagger,
-          clearProps: "transform,opacity,visibility",
+          clearProps: "transform,opacity",
         });
       });
 

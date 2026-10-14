@@ -133,6 +133,12 @@ export function TrophyShelf(
           ))}
         </div>
         <Board />
+        {/* Mesto za link „Svi bedževi" (K28): bez njega se polica posle učitavanja produži. */}
+        {moreHref ? (
+          <div className="mt-2 flex min-h-11 items-center">
+            <IgraSkeleton className="h-4 w-24 rounded-full" />
+          </div>
+        ) : null}
       </div>
     );
   }

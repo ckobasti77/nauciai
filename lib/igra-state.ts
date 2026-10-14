@@ -1,4 +1,4 @@
-import { IGRA_STATE_COPY } from "./igra-copy";
+import { IGRA_STATE_COPY } from "./igra-state-copy";
 import type { Locale } from "./i18n";
 import type { IgraArtId } from "./igra-art";
 

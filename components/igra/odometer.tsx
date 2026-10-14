@@ -9,7 +9,8 @@ import { formatOdometer } from "@/lib/igra-motion";
 import type { Locale } from "@/lib/i18n";
 
 const SIZE = { hero: "type-hero", lg: "type-h1", md: "type-h3", sm: "type-body-sm" } as const;
-const SKELETON = { hero: "h-10 w-36", lg: "h-8 w-28", md: "h-5 w-20", sm: "h-4 w-14" } as const;
+/** Širina skeleta; visina je 1em u istom tipu kao broj, pa red ima istu visinu i pre podataka (K28). */
+const SKELETON = { hero: "w-36", lg: "w-28", md: "w-20", sm: "w-14" } as const;
 
 function Rolling({ value, locale }: { value: number; locale: Locale }) {
   const ref = useRef<HTMLSpanElement>(null);
@@ -39,7 +40,11 @@ export function Odometer(
   const { locale, size = "md", animate = true, suffix, className } = props;
 
   if (props.loading) {
-    return <IgraSkeleton className={cn("inline-block rounded-full align-middle", SKELETON[size], className)} />;
+    return (
+      <span className={cn("inline-block", SIZE[size], className)}>
+        <IgraSkeleton className={cn("inline-block h-[1em] rounded-full align-middle", SKELETON[size])} />
+      </span>
+    );
   }
 
   const text = formatOdometer(props.value, locale);

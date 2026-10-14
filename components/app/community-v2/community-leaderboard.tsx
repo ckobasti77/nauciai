@@ -130,12 +130,20 @@ function useViewerOnScreen(rootRef: RefObject<HTMLElement | null>, watchKey: str
   return watchKey ? onScreen : false;
 }
 
+/**
+ * Ime i avatar u redu. `scroll-m*`: fokusiran red ne ostaje ispod lepljivih traka - „ti" reda
+ * dole i filtera gore (148 px na telefonu, 106 px na računaru; izmereno u K28).
+ */
+const ROW_MEMBER =
+  "flex min-h-11 min-w-0 scroll-mt-44 scroll-mb-40 items-center gap-3 surface-inset focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink md:scroll-mt-32 md:scroll-mb-24";
+
 function LeaderboardRowItem({
   locale,
   row,
   showLevel,
   countUp = false,
   inBar = false,
+  duplicate = false,
 }: {
   locale: Locale;
   row: LeaderboardRow;
@@ -143,9 +151,31 @@ function LeaderboardRowItem({
   countUp?: boolean;
   /** Kopija u lepljivom „ti" redu: nije meta Flip-a ni posmatrača. */
   inBar?: boolean;
+  /** Kopija reda koji već postoji na listi: vidi se, ali je čitač ekrana i Tab preskaču. */
+  duplicate?: boolean;
 }) {
   const href = memberHref(locale, row.username);
   const level = showLevel ? levelFromXp(row.xp) : null;
+  const member = (
+    <>
+      <RankAvatar name={row.name} avatarUrl={row.avatarUrl} size="sm" levelProgress={level?.progress} />
+      <div className="min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="truncate text-sm font-black text-ink">{row.name}</span>
+          {row.isViewer ? (
+            <span className="rounded-full bg-ink px-2 py-0.5 type-eyebrow-sm text-paper-strong">
+              {LB.you[locale]}
+            </span>
+          ) : null}
+        </div>
+        {row.username || level ? (
+          <span className="block truncate text-xs font-bold text-muted">
+            {[row.username ? `@${row.username}` : null, level ? formatLevel(level.level, locale) : null].filter(Boolean).join(" · ")}
+          </span>
+        ) : null}
+      </div>
+    </>
+  );
   return (
     <li
       data-flip-id={inBar ? undefined : row.userId}
@@ -156,24 +186,15 @@ function LeaderboardRowItem({
       )}
     >
       <span className="font-mono text-sm font-black text-ink">#{row.rank}</span>
-      <Link href={href ?? "#"} aria-disabled={!href} className="flex min-h-11 min-w-0 items-center gap-3 surface-inset focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
-        <RankAvatar name={row.name} avatarUrl={row.avatarUrl} size="sm" levelProgress={level?.progress} />
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="truncate text-sm font-black text-ink">{row.name}</span>
-            {row.isViewer ? (
-              <span className="rounded-full bg-ink px-2 py-0.5 type-eyebrow-sm text-paper-strong">
-                {LB.you[locale]}
-              </span>
-            ) : null}
-          </div>
-          {row.username || level ? (
-            <span className="block truncate text-xs font-bold text-muted">
-              {[row.username ? `@${row.username}` : null, level ? formatLevel(level.level, locale) : null].filter(Boolean).join(" · ")}
-            </span>
-          ) : null}
-        </div>
-      </Link>
+      {/* Bez korisničkog imena nema profila: red nije link (ni lažni `href="#"`). Kopija u
+          „ti" redu se ne fokusira kad je pravi red već na listi (jedna meta za tastaturu). */}
+      {href ? (
+        <Link href={href} tabIndex={duplicate ? -1 : undefined} className={ROW_MEMBER}>
+          {member}
+        </Link>
+      ) : (
+        <span className={ROW_MEMBER}>{member}</span>
+      )}
       <span className="hidden text-right text-xs font-black text-muted sm:block">
         {row.completedLessons ?? 0} {locale === "sr" ? "lekcija" : "lessons"}
       </span>
@@ -205,6 +226,7 @@ function ViewerBarRow({
   showLevel: boolean;
   hint: string;
 }) {
+  const duplicate = bar.kind === "row" && bar.onBoard;
   return (
     <div
       inert={hidden}
@@ -215,11 +237,13 @@ function ViewerBarRow({
     >
       <section
         aria-label={LB.yourPlace[locale]}
+        // Kad je moj red već na listi, ovo je samo vizuelni podsetnik: čitač ekrana ga ne čita dvaput.
+        aria-hidden={duplicate || undefined}
         className="overflow-hidden surface-card border-2 border-ink bg-paper-strong shadow-[0_6px_0_0_var(--shadow-hard-14)]"
       >
         {bar.kind === "row" && row ? (
           <ol>
-            <LeaderboardRowItem locale={locale} row={{ ...row, isViewer: true }} showLevel={showLevel} inBar />
+            <LeaderboardRowItem locale={locale} row={{ ...row, isViewer: true }} showLevel={showLevel} inBar duplicate={duplicate} />
           </ol>
         ) : (
           <div className="flex min-h-16 items-center gap-3 px-3 py-3">
@@ -271,10 +295,11 @@ function RankBoard({
 
   return (
     <div className="min-w-0 space-y-6">
-      {/* Odbrojavanje je VAN `aria-live` oblasti: menja se svakog minuta i ne sme da se čita. */}
       {period === "week" ? <WeekCountdown weekKey={viewer?.periodKey} locale={locale} /> : null}
 
-      <section ref={boardRef} className="min-w-0 space-y-6" aria-live="polite">
+      {/* Bez `aria-live` (K28): lista se menja uživo (tuđi XP, Flip, „učitaj još"), pa bi čitač
+          ekrana čitao svaki red. Izabran period kaže `aria-pressed` na dugmetu. */}
+      <section ref={boardRef} className="min-w-0 space-y-6">
         {podium.length ? (
           <Podium
             rows={podium}

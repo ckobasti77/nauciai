@@ -28,6 +28,8 @@ export type PodiumRow = {
 
 /** Od `md` podijum je tri stuba: drugo mesto levo, prvo u sredini, treće desno. */
 const ORDER = ["md:order-2", "md:order-1", "md:order-3"] as const;
+const PLACE_CARD =
+  "flex min-h-11 min-w-0 flex-1 items-center gap-3 surface-inset focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink md:flex-none md:flex-col md:gap-2 md:px-1 md:pt-2";
 /** Visina stepenika po mestu (izjednačeni dele visinu). Prvo mesto je jedino žuto. */
 const STEP = {
   1: "md:h-28 bg-yellow",
@@ -90,6 +92,31 @@ export function Podium({
           const level = showLevel ? levelFromXp(row.xp) : null;
           const href = hrefFor(row);
           const first = index === 0;
+          const card = (
+            <>
+              <RankAvatar
+                name={row.name}
+                avatarUrl={row.avatarUrl}
+                size={step === 1 ? "podiumFirst" : "podium"}
+                levelProgress={level?.progress}
+                medal={rank.medal}
+              />
+              <span className="min-w-0 flex-1 md:w-full">
+                <span className="sr-only">{rank.label}: </span>
+                <span className="flex min-w-0 items-center gap-2 md:justify-center">
+                  <span className="truncate type-body font-black text-ink">{row.name}</span>
+                  {row.isViewer ? (
+                    <span className="shrink-0 rounded-full bg-ink px-2 py-0.5 type-eyebrow-sm text-paper-strong">{COPY.you[locale]}</span>
+                  ) : null}
+                </span>
+                {row.username || level ? (
+                  <span className="block truncate text-xs font-bold text-muted">
+                    {[row.username ? `@${row.username}` : null, level ? formatLevel(level.level, locale) : null].filter(Boolean).join(" · ")}
+                  </span>
+                ) : null}
+              </span>
+            </>
+          );
           return (
             <li
               key={row.userId}
@@ -106,33 +133,14 @@ export function Podium({
                   <IgraThreeStage kind="pehar" spin="once" />
                 </div>
               ) : null}
-              <Link
-                href={href ?? "#"}
-                aria-disabled={!href}
-                className="flex min-h-11 min-w-0 flex-1 items-center gap-3 surface-inset focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink md:flex-none md:flex-col md:gap-2 md:px-1 md:pt-2"
-              >
-                <RankAvatar
-                  name={row.name}
-                  avatarUrl={row.avatarUrl}
-                  size={step === 1 ? "podiumFirst" : "podium"}
-                  levelProgress={level?.progress}
-                  medal={rank.medal}
-                />
-                <span className="min-w-0 flex-1 md:w-full">
-                  <span className="sr-only">{rank.label}: </span>
-                  <span className="flex min-w-0 items-center gap-2 md:justify-center">
-                    <span className="truncate type-body font-black text-ink">{row.name}</span>
-                    {row.isViewer ? (
-                      <span className="shrink-0 rounded-full bg-ink px-2 py-0.5 type-eyebrow-sm text-paper-strong">{COPY.you[locale]}</span>
-                    ) : null}
-                  </span>
-                  {row.username || level ? (
-                    <span className="block truncate text-xs font-bold text-muted">
-                      {[row.username ? `@${row.username}` : null, level ? formatLevel(level.level, locale) : null].filter(Boolean).join(" · ")}
-                    </span>
-                  ) : null}
-                </span>
-              </Link>
+              {/* Bez korisničkog imena nema profila: kartica nije link (ni lažni `href="#"`). */}
+              {href ? (
+                <Link href={href} className={PLACE_CARD}>
+                  {card}
+                </Link>
+              ) : (
+                <span className={PLACE_CARD}>{card}</span>
+              )}
               <span className="shrink-0 text-right md:mt-1 md:text-center">
                 <Odometer value={row.xp} size="md" suffix="XP" animate={countUp} locale={locale} />
               </span>

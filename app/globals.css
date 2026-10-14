@@ -161,7 +161,10 @@
   --igra-track: color-mix(in srgb, var(--ink) 10%, var(--paper));
   --igra-sticker-edge: #fffaf0;
   --igra-sticker-shadow: rgba(14, 49, 88, 0.22);
-  --igra-stamp: var(--level-accent-4);
+  /* K28: koral `--level-accent-4` je na papiru 2,8:1, a pečat nosi tekst („Završeno",
+     „Spremno · 5/5") od 12 px. Tamniji koral iste nijanse drži ≥ 4,5:1 na svim papirima;
+     tamna tema zadržava svetli koral (njen parnjak je ispod). */
+  --igra-stamp: #b4441f;
   --igra-locked-filter: brightness(0) opacity(0.16);
   --igra-medal-gold: var(--yellow);
   --igra-medal-silver: #c9d4df;
@@ -258,6 +261,7 @@
   --igra-track: color-mix(in srgb, var(--ink) 28%, var(--paper));
   --igra-sticker-shadow: rgba(0, 0, 0, 0.6);
   --igra-locked-filter: brightness(0) invert(1) opacity(0.4);
+  --igra-stamp: var(--level-accent-4);
   --igra-medal-silver: #9fb2c8;
   --igra-paper-grain-opacity: 0.35;
   --igra-paper-grain-blend: soft-light;

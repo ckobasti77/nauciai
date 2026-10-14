@@ -1,5 +1,5 @@
 import { IgraArt } from "@/components/igra/igra-art";
-import { IGRA_STATE_COPY } from "@/lib/igra-copy";
+import { IGRA_STATE_COPY } from "@/lib/igra-state-copy";
 import type { Locale } from "@/lib/i18n";
 
 /** Telo trake bez veze (K23). Odvojeno od `IgraOfflineNotice` da ne ulazi u početni JS ljuske. */

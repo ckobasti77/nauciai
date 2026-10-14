@@ -11,6 +11,7 @@ import {
   celebrationSeenKeys,
   celebrationView,
   createCelebrationQueue,
+  isTypingTarget,
   planCelebrations,
   type IgraCelebration,
   type IgraCelebrationQueue,
@@ -33,7 +34,18 @@ const CORNER_VISIBLE_MS = 6500;
 /** Konfete lete PREKO preklopa (110) i dijaloga (120). */
 const CONFETTI_Z_INDEX = 130;
 
-function CelebrationDialog({ celebration, locale, onClose }: { celebration: IgraCelebration | null; locale: Locale; onClose: () => void }) {
+function CelebrationDialog({
+  celebration,
+  locale,
+  onClose,
+  onHold,
+}: {
+  celebration: IgraCelebration | null;
+  locale: Locale;
+  onClose: () => void;
+  /** Korisnik je kartici prišao mišem ili tastaturom: više se ne gasi sama. */
+  onHold: () => void;
+}) {
   const labelId = useId();
   const titleId = useId();
   const dialogRef = useModalFocus(celebration !== null, onClose);
@@ -62,7 +74,18 @@ function CelebrationDialog({ celebration, locale, onClose }: { celebration: Igra
             if (event.currentTarget === event.target) onClose();
           }}
         >
-          <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={`${labelId} ${titleId}`} tabIndex={-1} className="w-full max-w-sm">
+          <div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={`${labelId} ${titleId}`}
+            tabIndex={-1}
+            className="w-full max-w-sm"
+            onPointerEnter={onHold}
+            onKeyDown={(event) => {
+              if (event.key !== "Escape") onHold();
+            }}
+          >
             <CelebrationCard celebration={celebration} locale={locale} variant="stage" onClose={onClose} labelId={labelId} titleId={titleId} />
           </div>
         </motion.div>
@@ -79,7 +102,9 @@ function CelebrationDialog({ celebration, locale, onClose }: { celebration: Igra
  * slavlje ne ponavlja ni u drugom tabu.
  *
  * - Uz pokret: preklop sa karticom, konfete, zvuk (ako je uključen), fokus na „Nastavi";
- *   Esc i klik na podlogu zatvaraju, samo se gasi posle 2,5 s.
+ *   Esc i klik na podlogu zatvaraju, samo se gasi posle 2,5 s. Ne otvara se dok korisnik
+ *   kuca (preklop bi mu uzeo fokus), a kad mu korisnik priđe mišem ili tastaturom, više se
+ *   ne gasi sama (K28, WCAG 2.2.1).
  * - Uz smanjen pokret: bez preklopa, konfeta i 3D-a - mirna kartica u uglu sa dugmetom.
  * - Uvek: rečenica za čitač ekrana kroz `aria-live`.
  * - Čeka dok je otvoren drugi modal, dok traje Crea pečat i dok je tab u pozadini.
@@ -101,6 +126,9 @@ export function CelebrationHost({
   const current = useSyncExternalStore(queue.subscribe, queue.current, () => null);
   const [shownKey, setShownKey] = useState<string | null>(null);
   const shown = current && current.key === shownKey ? current : null;
+  const [heldKey, setHeldKey] = useState<string | null>(null);
+  const held = shown !== null && shown.key === heldKey;
+  const hold = () => setHeldKey(shown?.key ?? null);
 
   const onSeenRef = useRef(onSeen);
   useEffect(() => {
@@ -115,7 +143,8 @@ export function CelebrationHost({
   useEffect(() => {
     if (!current || current.key === shownKey) return;
     let timer = window.setTimeout(function open() {
-      if (document.hidden || document.querySelector(BUSY_SELECTOR)) {
+      const typing = !reduced && isTypingTarget(document.activeElement as HTMLElement | null);
+      if (document.hidden || typing || document.querySelector(BUSY_SELECTOR)) {
         timer = window.setTimeout(open, RETRY_MS);
         return;
       }
@@ -124,13 +153,13 @@ export function CelebrationHost({
       playIgraSfx(celebrationView(current, locale).sfx);
     }, OPEN_DELAY_MS);
     return () => window.clearTimeout(timer);
-  }, [current, shownKey, locale]);
+  }, [current, shownKey, locale, reduced]);
 
   useEffect(() => {
-    if (!shown) return;
+    if (!shown || held) return;
     const timer = window.setTimeout(() => queue.dismiss(), reduced ? CORNER_VISIBLE_MS : IGRA_MOTION.celebrate * 1000);
     return () => window.clearTimeout(timer);
-  }, [shown, reduced, queue]);
+  }, [shown, held, reduced, queue]);
 
   const close = () => queue.dismiss();
 
@@ -139,10 +168,10 @@ export function CelebrationHost({
       <p aria-live="polite" className="sr-only">
         {shown && !reduced ? celebrationAnnouncement(shown, locale) : ""}
       </p>
-      <div aria-live="polite" className="pointer-events-none fixed inset-x-3 top-3 z-[110] flex justify-center sm:inset-x-auto sm:bottom-6 sm:right-6 sm:top-auto">
+      <div aria-live="polite" onPointerEnter={hold} onFocus={hold} className="pointer-events-none fixed inset-x-3 top-3 z-[110] flex justify-center sm:inset-x-auto sm:bottom-6 sm:right-6 sm:top-auto">
         {shown && reduced ? <CelebrationCard celebration={shown} locale={locale} variant="corner" onClose={close} /> : null}
       </div>
-      <CelebrationDialog celebration={shown && !reduced ? shown : null} locale={locale} onClose={close} />
+      <CelebrationDialog celebration={shown && !reduced ? shown : null} locale={locale} onClose={close} onHold={hold} />
     </>
   );
 }

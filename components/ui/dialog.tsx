@@ -54,17 +54,25 @@ const openTraps: symbol[] = [];
  * zakljucana zauvek.
  */
 let overflowBeforeFirstTrap: string | null = null;
+let gutterBeforeFirstTrap: string | null = null;
 
 function lockBodyScroll() {
   if (openTraps.length !== 1) return;
   overflowBeforeFirstTrap = document.body.style.overflow;
+  // IGRA K28: klasican skrol-bar (Windows) nestaje uz `overflow: hidden` i strana skoci za
+  // njegovu sirinu (CLS kad se slavlje otvori samo). Rezervisan zleb drzi sirinu istom -
+  // samo kad bar stvarno postoji, inace bi se pojavila prazna pruga.
+  gutterBeforeFirstTrap = document.documentElement.style.scrollbarGutter;
+  if (window.innerWidth > document.documentElement.clientWidth) document.documentElement.style.scrollbarGutter = "stable";
   document.body.style.overflow = "hidden";
 }
 
 function unlockBodyScroll() {
   if (openTraps.length !== 0) return;
   document.body.style.overflow = overflowBeforeFirstTrap ?? "";
+  document.documentElement.style.scrollbarGutter = gutterBeforeFirstTrap ?? "";
   overflowBeforeFirstTrap = null;
+  gutterBeforeFirstTrap = null;
 }
 
 export function useModalFocus<T extends HTMLElement = HTMLDivElement>(open: boolean, onClose: () => void) {

@@ -135,7 +135,8 @@ function MascotModel({ mood, onReady }: { mood: CreaMascotMood; onReady: () => v
 export function CreaMascotCanvas({ mood, active, onReady }: { mood: CreaMascotMood; active: boolean; onReady: () => void }) {
   return (
     <Canvas
-      dpr={[1, 2]}
+      // IGRA K28: DPR ≤ 1,5 kao i ostali 3D u aplikaciji (`IGRA_THREE_DPR`); maskota je ≤ 160 px.
+      dpr={[1, 1.5]}
       orthographic
       // Van ekrana ili u pozadinskom tabu ne crta nijedan frejm.
       frameloop={active ? "always" : "never"}

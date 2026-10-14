@@ -1,4 +1,4 @@
-import { IgraSkeleton, type Loadable } from "@/components/igra/igra-skeleton";
+import type { Loadable } from "@/components/igra/igra-skeleton";
 import { LevelStamp } from "@/components/igra/level-stamp";
 import { Odometer } from "@/components/igra/odometer";
 import { StreakFlame } from "@/components/igra/streak-flame";
@@ -67,8 +67,8 @@ export function ProgressCard(
         <div className={layout}>
           <LevelStamp loading size="lg" showName locale={locale} />
           <div className="min-w-0">
-            <IgraSkeleton className="h-10 w-40 rounded-full" />
-            <XpBar loading locale={locale} className="mt-3" />
+            <Odometer loading size="hero" locale={locale} />
+            <XpBar loading locale={locale} className="mt-2" />
           </div>
           <div className={streakCell}>
             <StreakFlame loading size="lg" locale={locale} />

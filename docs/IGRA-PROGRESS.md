@@ -1697,3 +1697,127 @@ Jovan ručno: uključi `crea_public_gallery` na DEV-u i otvori `/crea/galerija` 
 **BLOKADA (samo provera, ne kod):** prave strane posle prijave nisu gledane u tamnoj temi (Playwright MCP bez sesije, isto kao K06–K26); sve izmenjene komponente crta izlog.
 
 **Za Jovana ujutru:** u pravoj aplikaciji, tamna tema: (1) žuta dugmad („Otvori lekciju", „Zaprati") imaju taman tekst; (2) trake XP/koraka, prsten nivoa i podijum se vide i kad su prazni; (3) zaključani bedževi na polici su prepoznatljive siluete; (4) Crea niz: aktivan dan ima tamni plamen na svetlom krugu. Odluči da li `--line` u tamnoj temi sme da bude jači (ODLUKE 4) i da li krem „ostrva" treba tamne verzije scena (ODLUKE 2).
+
+## K28 — Performanse i pristupačnost   (2026-10-14 14:50)
+**Fajlovi:**
+- novi: `components/app/dashboard-home-skeleton.tsx` (kostur table, serverski), `lib/igra-state-copy.ts` (tekstovi stanja), `lib/igra-perf.test.ts`; snimci `docs/igra/snimci/K28-rang-fokus-{1440,390}-{svetla,tamna}.png`, `K28-slavlje-ugao-smanjen-pokret-1440-svetla.png`
+- izmenjeni: `app/[locale]/app/loading.tsx`, `components/app/{dashboard-content,dashboard-home,dashboard-live}.tsx`, `lib/igra-copy.ts` (bez `IGRA_STATE_COPY`), `lib/igra-state.ts`, `components/igra/igra-offline-bar.tsx`, `components/crea/mascot/{crea-mascot,crea-mascot-canvas}.tsx`, `components/igra/celebration-host.tsx`, `lib/igra-celebrations.ts` (`isTypingTarget`), `components/ui/dialog.tsx` (žleb skrol-bara), `components/app/community-v2/community-leaderboard.tsx`, `components/igra/podium.tsx`, `components/igra/motion/use-enter-stagger.ts`, `components/igra/odometer.tsx`, `components/igra/progress-card.tsx`, `components/igra/trophy-shelf.tsx`, `components/igra/admin/admin-hero-scene.tsx`, `app/globals.css` (`--igra-stamp`), testovi `lib/igra-{celebrations,dashboard,state}.test.ts`
+
+**Šta je urađeno:** Prošao sam pet oblasti iz zadatka: build sa `check:bundle` i Turbopack analizom (`next experimental-analyze --output`), 3D, pokret, fokus i Convex. Na reviziji su radila tri radnika (sonnet), svaki nalaz sam proverio u kodu ili Playwright-om. Najveći dobitak je kostur table. `app/[locale]/app/loading.tsx` važi za SVAKU rutu ispod `/app`, a uvozio je `DashboardHomeSkeleton` iz `dashboard-content.tsx`. Zato su ceo taj modul i njegove zavisnosti (katalog kurseva, rich text, video petlja, dijalozi; oko 17 KB gz) ulazili u početni JS zajednice, poruka, profila, kredita i Cree. Kostur je sada u svom serverskom fajlu. Granica greške Cree (`error.tsx` → `IgraErrorState`) nosila je drugu kopiju celog `lib/igra-copy.ts` (4,7 KB gz) u početnom JS-u radionice, pa su tekstovi stanja izdvojeni u `lib/igra-state-copy.ts`. Pristupačnost:
+- Rang lista se tastaturom preskakala. `useEnterStagger` je redove ispod prevoja držao na `visibility: hidden` (`autoAlpha`) dok lista ne uđe u kadar, pa ih Tab i čitač ekrana nisu videli: Tab je od filtera skakao pravo na podijum, a od 17 redova samo je jedan bio dostupan. Sada je u igri samo `opacity`, i Tab ide redom kroz podijum 1–3 i svih 17 redova.
+- Uklonjen je `aria-live` preko cele liste. Ta oblast je već postojala, ali je uz živu listu, Flip i „učitaj još" čitala svaki red.
+- Nema više lažnih linkova `href="#"`: red bez korisničkog imena sada je `span`.
+- Kopija „ti" reda više nije druga Tab meta kad je pravi red već na listi.
+- Fokusiran red više ne ostaje ispod lepljivih traka (`scroll-mt` / `scroll-mb`).
+- Slavlje ne otvara preklop dok korisnik kuca u polju, jer bi mu uzelo fokus. Kad mu korisnik priđe mišem ili tastaturom, više se ne gasi samo (WCAG 2.2.1).
+- Zaključan skrol rezerviše žleb skrol-bara, pa strana ne skače na Windows-u.
+- Mastilo pečata u svetloj temi je bilo 2,8:1, a sada je 4,8:1.
+
+**Brojevi — početni JS (gzip, `check:bundle`; „pre IGRA" = build K02, „pre K28" = build posle K27):**
+| Ruta | pre IGRA | pre K28 | **posle K28** | razlika od pre IGRA | dogovor (K01 §4) |
+|---|---|---|---|---|---|
+| `/app` | 268,6 | 291,4 | **284,5** | +15,9 | ≤ +25 ✔ (budžet 294) |
+| `/app/community` | 269 | 279,3 | **262,2** | −6,8 | ≤ +25 ✔ (294) |
+| `/app/community/leaderboard` | 278 | 291,0 | **274,0** | −4 | ✔ (303) |
+| `/app/community/discussions` | 284 | 293,1 | **276,0** | −8 | ✔ (309) |
+| `/app/community/[postId]` | 296 | 305,0 | **288,0** | −8 | ✔ (321) |
+| `/app/members/[username]` | 346 | 365,8 | **348,8** | +2,8 | ✔ (371) |
+| `/app/classroom` | 290 | 287,0 | **280,1** | −10 | ✔ (315) |
+| `/app/messages` | — | 280,5 | **263,5** | — | — |
+| `/app/credits` | — | 298,1 | **281,1** | — | — |
+| `/app/studio` | 541,1 | 556,7 | **539,8** | −1,3 | ≤ +10 ✔ (595) |
+| Crea radionica `/studio/(shell)/app` | 465,0 | 496,0 | **492,2** | **+27,2** | ≤ +10 ✘ → ODLUKA 1 (budžet 512 ✔) |
+| admin sadržaj / analitika | — | 319,4 | **312,4** | — | (325) |
+
+Svaka `/app` ruta koja ne crta tablu ni kartice kurseva je lakša za 17,0 KB. Tabla, učionica i admin sadržaj su lakši za oko 7 KB, a Crea za 3,8 KB. `three`, `@react-three/fiber` i GSAP pluginovi (Flip, DrawSVG, SplitText) nisu ni u jednom početnom chunk-u. Markeri iz `check:bundle` se nalaze samo u async chunk-ovima; za fiber sam proverio poruku „Hooks can only be used within the Canvas component". U početnom JS-u je samo `loadIgraPlugin` sa imenima pluginova.
+
+**3D (provereno Playwright-om, `deviceScaleFactor: 2`):**
+- Sva platna crtaju sa DPR 1,5 (odnos `canvas.width` / CSS širina = 1,5): pehar i medalje u izlogu, maskota na tabli. Maskota je pre K28 imala `dpr={[1, 2]}`, sada `[1, 1.5]` (važi i za Crea čekanje).
+- Maskota posle povratka na tab nastavlja da crta: 61 → 0 → 60 rAF/s (sakriven → vraćen). Pre ispravke je ostajala zamrznuta, jer povratak na tab ne okida IntersectionObserver.
+- Platno se montira tek kad uđe u kadar.
+- Posle zatvaranja slavlja konzola beleži `THREE.WebGLRenderer: Context Lost` (R3F `forceContextLoss`), dakle GPU resursi se oslobađaju. Geometrije i materijale oslobađa R3F, `gradientMap` cleanup efekta.
+
+**LCP / CLS:**
+- Jedna `priority` slika po ekranu: heroj table, heroj Cree, baner profila. Zajednica koristi `preload` sa `media` od `lg`.
+- Admin scena je na računaru najveći element heroja, pa je dobila isti `preload` sa `media`. Izmereno: na 390 px nema nijednog zahteva, na 1440 jedan (304).
+- Lenja slika u `display:none` kutiji se u Chromiumu NE preuzima. Izmereno na izlogu na 390 px za zajednicu, kredite i poruke: svaki zahtev za „skrivenu" sliku dolazi od vidljive kopije iste slike.
+- Kosturi table izmereni pre i posle podataka:
+
+  | Širina | Odeljak | Pre ispravke | Posle |
+  |---|---|---|---|
+  | 390 px | polica bedževa | 405 ↔ 459 | 457 ↔ 459 (mesto za „Svi bedževi") |
+  | 390 px | kartica napretka | 356 ↔ 345 | 346 ↔ 345 (skelet odometra je 1 em u tipu broja) |
+  | 390 px | puls | 188 ↔ 202 | 202 ↔ 202 |
+  | 1440 px | sve osim heroja | — | ±1 px |
+
+  Heroj se i dalje razlikuje za 5–12 px, zavisno od dužine teksta misije.
+- Slavlje je `fixed`, a odometar rezerviše širinu (`min-width` u px, `tabular-nums`). Red napretka u ljusci je iste veličine u skeletu i sa podacima, kao i od K06.
+
+**Pristupačnost (izlog, Playwright, 1440 i 390, obe teme):**
+- Slavlje. Dok je fokus u polju za kucanje, slavlje čeka; kad fokus izađe, otvara se sa fokusom na „Nastavi". Bez dodira se gasi za 2,5 s i fokus se vraća na okidač. Posle Tab-a ili kad je miš na kartici ostaje otvoreno, Esc ga zatvara i vraća fokus.
+- Uz smanjen pokret: kartica u uglu ne uzima fokus i nestaje za 6,5 s, a pod mišem ostaje.
+- Rang lista: 0 `a[href="#"]`, nijedan `aria-live` oko liste. „Ti" red je `aria-hidden` sa linkom `tabindex=-1` kad je pravi red na listi. Tab redom: podijum 3, lista 17.
+- Fokus nije prekriven ni u jednom od 17 redova, ni Tab-om nadole ni Shift+Tab-om nagore, na obe širine.
+- Mapa puta (stanice su linkovi redom putanje, `aria-current="step"`, putanja `aria-hidden`), pečat, bedževi (uslov je u nazivu dugmeta, oblačić se otvara na fokus) i panel „Moj napredak" (`Dialog`: zamka i vraćanje fokusa) prošli su reviziju bez izmena.
+- Pokret: sav JS pokret IGRA-e (GSAP hookovi, `motion` u slavlju, konfete, 3D, odometar) ima granu za smanjen pokret. CSS pokreti `.igra-*` su u `no-preference` (čuva `lib/igra-css.test.ts`), a globalno pravilo `prefers-reduced-motion` gasi ostatak.
+- Kontrast, izmeren u svetloj temi svih 16 delova izloga (isti merač kao K27), na 1440 i 390. Jedini IGRA prekršaj je bio tekst pečata, 2,8:1. Posle ispravke 0 prekršaja u svetloj i tamnoj temi u delovima slike, pokret, admin, učionica i tabla. Ostali nalazi nisu IGRA (ODLUKA 4).
+
+**Convex (po `convex-performance-audit`, iz koda; uvida sa deploymenta nema):**
+- IGRA ima četiri funkcije (`igra.getMyProgress`, `getMemberProgress`, `markSeen`, `setBanner`). Svako čitanje ide preko indeksa i ima `take` / `unique`: dnevnik 150, niz 401, kursevi 60, lekcije 250, izazovi 20, objave 20, „ispred mene" 100. Nijedan `.filter` ne ide posle skeniranja, a nijedan upit ne čita sat.
+- Jedan upit napretka po ljusci (`useQueries` u `IgraProgressProvider`); nijedna druga komponenta se ne pretplaćuje.
+- Promena: nema (ODLUKA 5).
+
+**Površine:** gotovo: bundle svih app ruta, 3D (platno IGRA + maskota), slavlje, rang lista i podijum, kosturi table, pečat. Pregledano bez izmena: mapa puta, panel napretka, polica bedževa, alt tekstovi, dodirne mete. Nije menjano (nije IGRA ili traži odluku): ODLUKE 4–6.
+
+**ODLUKE:**
+1. **Crea radionica je i dalje +27 KB iznad merenja pre IGRA-e (cilj K01 +10 KB), u budžetu rute (492 / 512).** K28 je skinuo 3,8 KB (druga kopija `igra-copy`). Ostatak je zajednički sloj IGRA-e koji Crea namerno nosi od K15/K16: red napretka u zaglavlju, `IgraArt` sa manifestom (~3,3 KB), `igra-copy` (4,2 KB), stanja i greška, heroj i nalepnice radionice.
+   - Sledeća ušteda bi bila podela `lib/igra-copy.ts` po površinama, jer Turbopack ne odbacuje neiskorišćene izvoze. To je oko 35 uvoza u 30 fajlova za ~2 KB, pa to ostavljam za posle runa.
+   - Po ruti je ceo IGRA sloj sada lakši nego pre K28 (−17 KB na većini app ruta).
+2. **Kostur table je serverski fajl bez uvoza.** `loading.tsx` ga crta bez klijentskog JS-a. Test `lib/igra-dashboard.test.ts` je ranije tvrdio da `loading.tsx` uvozi `dashboard-content`; sada tvrdi suprotno, uz nove provere (bez klijentske direktive, bez uvoza). Kartice kurseva i dalje uvoze `dashboard-content`.
+3. **Zaključan skrol rezerviše žleb (`scrollbar-gutter: stable`) samo dok je modal otvoren i samo kad skrol-bar postoji.** Izmena je u zajedničkom `useModalFocus` (`components/ui/dialog.tsx`), pa važi za svaki `Dialog`. Jedina vidljiva razlika je da strana više ne skače; javne strane nisu dirane. U Playwright-u bar nema širinu, pa sam proverio samo logiku (test izvora), ne i piksele.
+4. **Kontrast koji nije uveo IGRA nije diran.** Pronađeno u svetloj temi, sve postoji i u commit-u pre runa (`7ec283d`):
+   - zajednica: vreme `text-muted/75` 3,3:1, `text-ink/50` 2,9:1, čipovi oblasti 4,3:1;
+   - rang: neaktivan filter `text-ink/65` 4,1:1, „Gde se uči" `text-ink/60` 3,8:1;
+   - korisničko ime u sidebaru `text-muted/80` 3,6:1.
+
+   Pun `--muted` na `--paper-strong` je 4,48:1, dakle sam token je na ivici. To je odluka o zajedničkom tokenu (deli ga i javni sajt), za Jovana.
+5. **Convex bez izmena.**
+   - `completedCoursesOf` čita objavljene kurseve (≤ 60) i za svaki jedan red statistike po jedinstvenom indeksu, paralelno. To je ograničen paralelni niz čitanja po broju kurseva platforme, ne N+1 po podacima korisnika. Jedno čitanje bi tražilo novi indeks ili digest tabelu, a skill to bez izmerenog signala ne preporučuje.
+   - `weekRank` (do 100 redova ispred) svesno reaguje na tuđi XP (K04 ODLUKA 1, jedna konstanta `RANK_LIMIT`).
+   - Za proveru na produkciji: `npx convex insights --details` (`--prod`, ja ga ne pokrećem).
+6. **Nije dirano:**
+   - zastareli komentar u `admin-hero-scene.tsx` koji tvrdi da Chromium skida lenju sliku iz `display:none` kutije (izmereno je suprotno; komponenta je ionako ne pravi na telefonu);
+   - `page-motion.tsx` i `chat-motion.tsx`, koji koriste `autoAlpha` (nisu IGRA, ulaz traje < 0,6 s i ne čeka skrol);
+   - heroj table: misija različite dužine menja visinu za 5–12 px;
+   - kostur mreže prozora na 390 px je viši od učitanog (ispod prevoja; postoji od pre IGRA-e);
+   - umnoženi `aria-live` + naziv dijaloga u slavlju (plan K01 traži oba);
+   - podijum ima DOM redosled 1-2-3, a izgled 2-1-3 na `md` (redosled ranga je smisleniji za tastaturu).
+
+**Novi paketi:** nema.
+
+**Testovi:**
+- `lib/igra-perf.test.ts` (12, novi):
+  - DPR ≤ 1,5 na svakom platnu u `components/igra` i `components/crea`;
+  - maskota pamti kadar posle povratka na tab;
+  - granice greške ne uvoze `igra-copy`;
+  - slavlje čeka kucanje i ne gasi se samo kad ga korisnik koristi;
+  - žleb skrol-bara;
+  - rang lista bez lažnih linkova i bez `aria-live`, „ti" red kao jedna meta, `scroll-m*`, `useEnterStagger` bez `autoAlpha`;
+  - kontrast pečata ≥ 4,5:1 na tri papira i tamni parnjak.
+- `lib/igra-celebrations.test.ts`: `isTypingTarget`.
+- `lib/igra-dashboard.test.ts`: tvrdnja o `loading.tsx` je obrnuta (ODLUKA 2).
+- `lib/igra-state.test.ts`: uvoz iz `igra-state-copy`.
+
+**Slike:** nema novih; tražene: nema.
+
+**Rezultat provere:** codegen: nije potreban (`convex/` nije diran) / typecheck: prošlo (i posle build-a) / lint: prošlo (0 grešaka, istih 26 upozorenja) / test: prošlo (321 fajl, 3.640 testova) / check:frames, check:corners, check:white, check:igra: prošlo / build: prošao / check:bundle: prošlo (brojevi gore). Dev server (3123) ugašen; Playwright `page-*.yml` i `console-*.log` obrisani.
+
+**BLOKADA:** „LCP ne gori od pre" (K08 BLOKADA 1) i dalje nije izmereno kao Lighthouse pre/posle na pravom nalogu: Playwright nije prijavljen, a auth tok se ne dira. Izmereno je ono što izlog dozvoljava (gore).
+
+**Za Jovana ujutru:**
+1. Na rang listi, na pravom nalogu, pređi Tab-om od filtera kroz podijum i listu. Svaki red treba da dobije fokus i da ostane vidljiv iznad „ti" reda.
+2. Na Windows-u otvori panel „Moj napredak" ili slavlje. Strana ne sme da skoči udesno za širinu skrol-bara.
+3. Pečati „Završeno" / „Spremno" su sada tamniji koral (`--igra-stamp: #b4441f` u svetloj temi). Proveri da li ti se nijansa sviđa.
+4. Odluči o tokenu `--muted` na `--paper-strong` (ODLUKA 4).
+5. Lighthouse nad `/app` na prijavljenom nalogu.
+6. `npx convex insights --details --prod` za stvarnu cenu `igra:getMyProgress`.

@@ -224,3 +224,19 @@ export function celebrationAnnouncement(celebration: IgraCelebration, locale: Lo
   const { eyebrow, title, body } = celebrationView(celebration, locale);
   return body ? `${eyebrow}: ${title}. ${body}.` : `${eyebrow}: ${title}.`;
 }
+
+/** `input` tipovi u kojima se ne kuca (klik ili izbor). */
+const NON_TYPING_INPUTS: ReadonlySet<string> = new Set(["button", "checkbox", "color", "file", "image", "radio", "range", "reset", "submit"]);
+
+/**
+ * Da li korisnik kuca u ovom elementu (K28). Dok kuca, slavlje sa preklopom čeka: preklop
+ * premešta fokus, pa bi otkucana slova otišla u dijalog. Oblik umesto `Element`, da se
+ * proveri bez DOM-a.
+ */
+export function isTypingTarget(element: { tagName: string; type?: string; isContentEditable?: boolean } | null): boolean {
+  if (!element) return false;
+  if (element.isContentEditable) return true;
+  const tag = element.tagName.toLowerCase();
+  if (tag === "textarea") return true;
+  return tag === "input" && !NON_TYPING_INPUTS.has((element.type || "text").toLowerCase());
+}

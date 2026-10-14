@@ -6,9 +6,9 @@ import dynamic from "next/dynamic";
 
 import {
   DashboardContent,
-  DashboardHomeSkeleton,
   type DashboardCourse,
 } from "@/components/app/dashboard-content";
+import { DashboardHomeSkeleton } from "@/components/app/dashboard-home-skeleton";
 import { LinkButton } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
 import type { ViewerProfile } from "@/lib/current-viewer";

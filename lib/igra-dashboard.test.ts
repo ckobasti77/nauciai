@@ -138,8 +138,14 @@ describe("tabla (izvor)", () => {
   });
 
   it("IGRA kod table ne ulazi u fajl koji se učitava na svakoj ruti aplikacije", () => {
-    // `dashboard-content.tsx` uvozi `app/[locale]/app/loading.tsx` i kartice kurseva.
-    expect(read("app/[locale]/app/loading.tsx")).toContain("@/components/app/dashboard-content");
+    // `dashboard-content.tsx` uvoze kartice kurseva (učionica, kurs, admin). Kostur table iz
+    // `app/[locale]/app/loading.tsx` (važi za svaku rutu) je od K28 u svom, serverskom fajlu.
+    const loading = read("app/[locale]/app/loading.tsx");
+    expect(loading).toContain("@/components/app/dashboard-home-skeleton");
+    expect(loading).not.toContain("@/components/app/dashboard-content");
+    const skeleton = read("components/app/dashboard-home-skeleton.tsx");
+    expect(skeleton).not.toContain('"use client"');
+    expect(skeleton).not.toMatch(/^import /m);
     const shared = read("components/app/dashboard-content.tsx");
     expect(shared).not.toMatch(/from "@\/components\/igra\/|from "@\/lib\/igra-|from "@\/components\/app\/dashboard-home"/);
     expect(shared).not.toMatch(/^import \{[^}]*\} from "@\/components\/app\/dashboard-windows"/m);

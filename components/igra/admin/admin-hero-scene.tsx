@@ -1,8 +1,10 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { preload } from "react-dom";
 
 import { IgraArt } from "@/components/igra/igra-art";
+import { igraArt, igraArtRenderable } from "@/lib/igra-art";
 
 const WIDE = "(min-width: 1024px)";
 
@@ -17,9 +19,13 @@ function subscribe(onChange: () => void) {
  * `display:none` omotaču se u Chromiumu ipak preuzima (izmereno u izlogu na 390 px), pa se
  * na telefonu `<img>` uopšte ne pravi. Server i prvi klijentski prolaz je nemaju (isti
  * snimak, bez neslaganja pri hidrataciji); kutija je apsolutna, pa dolazak slike ne pomera
- * tekst. Ukras je, ne LCP, zato nije `priority`.
+ * tekst. Nije `priority`, ali je na računaru najveći element heroja (LCP kandidat), pa je
+ * unapred traži `<link rel="preload">` sa `media` od `lg` naviše, kao `CommunityHero` (K28):
+ * stiže iz HTML-a, a telefon je ne traži uopšte.
  */
 export function AdminHeroScene() {
+  const scene = igraArt("scena.kontrolna-soba");
+  if (igraArtRenderable(scene)) preload(scene.src, { as: "image", fetchPriority: "high", media: WIDE });
   const wide = useSyncExternalStore(subscribe, () => window.matchMedia(WIDE).matches, () => false);
   if (!wide) return null;
   return (

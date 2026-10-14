@@ -9,12 +9,11 @@ import { useSyncExternalStore } from "react";
 
 import {
   DashboardFirstRun,
-  DashboardPulseSkeleton,
-  DashboardWindowsSkeleton,
   staticCommandTableView,
   type CommandTableView,
   type DashboardCourse,
 } from "@/components/app/dashboard-content";
+import { DashboardPulseSkeleton, DashboardWindowsSkeleton } from "@/components/app/dashboard-home-skeleton";
 import { DashboardPulse, DashboardWindowsGrid, type DashboardOverview } from "@/components/app/dashboard-windows";
 import { useBelgradeToday } from "@/components/crea/game/crea-game-context";
 import { CreaQuickStart } from "@/components/igra/dashboard/crea-quick-start";
@@ -145,6 +144,7 @@ export function DashboardHome({
   const profileName = profile?.name ?? "Student";
   const greetingName = profile?.firstName?.trim() || profile?.name?.trim() || null;
   const username = profile?.username ?? null;
+  const shelfMoreHref = username ? withLocale(locale, publicProfilePath(username)) : undefined;
   const liveToday = useBelgradeToday();
   const today = todayKey ?? liveToday;
 
@@ -257,9 +257,9 @@ export function DashboardHome({
         {igra === null ? null : (
           <section data-motion="card" className="surface-card border-2 border-ink bg-paper-strong p-5 shadow-[6px_6px_0_0_var(--shadow-hard-13)] sm:p-6">
             {igra ? (
-              <TrophyShelf badges={igra.badges} moreHref={username ? withLocale(locale, publicProfilePath(username)) : undefined} locale={locale} />
+              <TrophyShelf badges={igra.badges} moreHref={shelfMoreHref} locale={locale} />
             ) : (
-              <TrophyShelf loading locale={locale} />
+              <TrophyShelf loading moreHref={shelfMoreHref} locale={locale} />
             )}
           </section>
         )}
