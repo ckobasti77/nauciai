@@ -96,6 +96,8 @@ import type * as helpTopics from "../helpTopics.js";
 import type * as helpers from "../helpers.js";
 import type * as http from "../http.js";
 import type * as identityMerge from "../identityMerge.js";
+import type * as igra from "../igra.js";
+import type * as igraCore from "../igraCore.js";
 import type * as lab from "../lab.js";
 import type * as leaderboard from "../leaderboard.js";
 import type * as leaderboardCore from "../leaderboardCore.js";
@@ -253,6 +255,8 @@ declare const fullApi: ApiFromModules<{
   helpers: typeof helpers;
   http: typeof http;
   identityMerge: typeof identityMerge;
+  igra: typeof igra;
+  igraCore: typeof igraCore;
   lab: typeof lab;
   leaderboard: typeof leaderboard;
   leaderboardCore: typeof leaderboardCore;

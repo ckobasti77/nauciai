@@ -166,3 +166,115 @@ Slike: `docs/igra/SLIKE.md` (status u `public/brand/igra/manifest.json`).
 - **Pravi čitač ekrana nisam imao** (NVDA / VoiceOver): provereni su DOM, fokus i `aria-live` tekst, ne sam izgovor.
 - 3D pehar i medalje su proceduralni i namerno jednostavni (snimci `K03-3d-1440-svetla.png` / `-tamna.png`). Ako hoćeš bogatiji oblik ili drugu debljinu mastila, to su `PROFILE` u `components/igra/three/trophy.tsx` i `OUTLINE_PX` u `toon.tsx`.
 - Dok je slavlje otvoreno strana je zaključana za skrol (isti `useModalFocus` kao svaki `Dialog`); na Windows-u sa klasičnim skrol-barom to pomeri stranu za širinu bara. U Playwright-u bar nema širinu, pa to nisam mogao da izmerim.
+
+## K04 — Napredak: nivoi, bedževi, niz, igraSeen   (2026-10-14 02:10)
+**Fajlovi:**
+- novi (lib): `lib/igra-level.ts`, `lib/igra-badges.ts`, `lib/igra-time.ts` + testovi `lib/igra-level.test.ts`, `lib/igra-badges.test.ts`, `lib/igra-time.test.ts`
+- novi (convex): `convex/igra.ts` (javni API), `convex/igraCore.ts` (čitanja), `convex/igra.test.ts`
+- izmenjeni: `convex/schema.ts` (samo nova tabela `igraSeen`), `convex/_generated/api.d.ts` (codegen: moduli `igra`, `igraCore`)
+
+**Šta je urađeno:** `lib/igra-level.ts` drži 12 nivoa (imena sr/en iz plana, pragovi iz K01 §5.2) i `levelFromXp(xp)` → `{ level, name, minXp, nextMinXp, xpIntoLevel, xpForNext, progress }`. `lib/igra-badges.ts` je katalog 24 bedža (grupa, naziv sr/en, tekst uslova, cilj) i čista `evaluateBadges(brojači)`; `lib/igra-time.ts` daje sat u Beogradu za „Noćnu sovu" i „Ranog pevca". Šema je dobila jednu tabelu, `igraSeen` (`userId`, `key`, `seenAt`, indeks `by_user_key`). `igra:getMyProgress({ todayKey })` vraća XP (ukupno i nedeljno), moje mesto na nedeljnoj listi (`weekRank`), nivo, niz dana, svih 24 bedža sa stanjem (`unlocked` / `fresh` / `locked` / `soon`, `unlockedAt`, brojač napretka) i `fresh` (nov nivo, novi bedževi, završeni kursevi, `ledgerEmpty`) u obliku koji `CelebrationHost` iz K03 već prima. `igra:getMemberProgress({ username })` vraća samo ono što je i danas javno na profilu, a `igra:markSeen({ keys })` upisuje u dnevnik samo ono što je server ponovo izračunao kao stvarno zarađeno. Ništa od ovoga ne dodeljuje XP, kredite ni nagrade: jedini upis u celom modulu je red u `igraSeen` (to čuva i test koji čita izvor).
+
+**Površine:** nijedna površina aplikacije nije dirana (podaci). Upite povezuje K05 (fixtures tipizovani preko `FunctionReturnType<typeof api.igra.getMyProgress>`) i K06 (ljuska, `CelebrationHost` + `markSeen`).
+
+**Kako se koristi (za K05, K06, K13):**
+- Ljuska: `useQuery(api.igra.getMyProgress, { todayKey })` sa `useBelgradeToday()`; gost dobija `null`. `progress.level` je ceo `levelFromXp` (ime nivoa je u odgovoru), `progress.streak` je `StreakSummary` iz `lib/crea-streak`.
+- Slavlje: `<CelebrationHost fresh={progress.fresh} onSeen={(keys) => void markSeen({ keys })} />`. Oblik `fresh` se slaže sa `IgraProgressFresh` (proverava ga typecheck u `convex/igra.test.ts`).
+- Polica bedževa: `progress.badges` je uvek 24, redom iz kataloga; naziv, grupa i tekst uslova su u `igraBadge(key)` (`lib/igra-badges.ts`), a „uskoro" bedž uslov ne prikazuje.
+- Mesto na nedeljnoj listi: `progress.weekRank` (`number | null`), isto brojanje kao rang-lista (isti XP deli mesto). `null` znači: osoblje, 0 XP ove nedelje ili više od 100 redova ispred. Ceo red (ime, avatar, mesto dalje od 100, period „ukupno") i dalje daje postojeći `api.leaderboard.getViewerLeaderboardRow`.
+- Tuđi profil: `api.igra.getMemberProgress({ username })` → `{ xp, level, banner, badges: [{ key, state: "unlocked" | "locked" | "hidden" }] }`.
+
+### Pragovi nivoa (`lib/igra-level.ts`)
+| Nivo | Ime (sr / en) | Prag XP | Korak do sledećeg |
+|---|---|---|---|
+| 1 | Početnik / Beginner | 0 | 100 |
+| 2 | Radoznalac / Curious | 100 | 200 |
+| 3 | Skicar / Sketcher | 300 | 400 |
+| 4 | Istraživač / Explorer | 700 | 700 |
+| 5 | Graditelj / Builder | 1.400 | 1.000 |
+| 6 | Pronalazač / Inventor | 2.400 | 1.400 |
+| 7 | Kreator / Creator | 3.800 | 1.800 |
+| 8 | Majstor / Master | 5.600 | 2.400 |
+| 9 | Vizionar / Visionary | 8.000 | 3.000 |
+| 10 | Mentor / Mentor | 11.000 | 4.000 |
+| 11 | Šampion / Champion | 15.000 | 5.000 |
+| 12 | Legenda / Legend | 20.000 | — |
+
+Prag pripada višem nivou (99 XP = nivo 1, 100 XP = nivo 2). Na nivou 12 je `progress = 1`, `xpForNext = null`. Test nad uvezenim `LEADERBOARD_XP`: prva lekcija = nivo 2; tipičan prvi dan (260 XP) = nivo 2; redovna nedelja = 655 XP; dve nedelje + prvi radovi (1.400 XP) = nivo 5; nivo 12 traži bar 26 redovnih nedelja. Serverski `levelForXp` (500 XP po nivou) i `LEADERBOARD_XP` nisu dirani.
+
+### Pravila bedževa (`lib/igra-badges.ts` + čitanja u `convex/igraCore.ts`)
+| Bedž | Uslov (tekst, sr) | Pravilo | Čitanje (indeks · limit) |
+|---|---|---|---|
+| `prva-lekcija` | Završi prvu lekciju | `completedLessons ≥ 1` | `leaderboardStats` global / ukupno, `.unique()` (isti red kao XP) |
+| `prvi-zadatak` | Uradi prvi obavezan zadatak | `completedTasks ≥ 1` | isti red |
+| `pet-lekcija` | Završi 5 lekcija | `completedLessons ≥ 5` | isti red |
+| `prvi-kurs` | Završi ceo kurs | završenih kurseva ≥ 1 | `courses.by_status` (`published`) `take(60)` + po kursu `leaderboardStats` `course:<id>` / ukupno `.unique()`; završen ⇔ `publishedLessonCount > 0` i `completedLessons ≥ publishedLessonCount` |
+| `tri-kursa` | Završi 3 kursa | završenih kurseva ≥ 3 | isto čitanje |
+| `staza` | Završi sve kurseve jedne staze | svi objavljeni kursevi neke staze su završeni | isto čitanje (0 dodatnih) |
+| `nocna-sova` | Završi lekciju posle 22 h | aktivan događaj `lesson` sa satom ≥ 22 ili < 4 (Beograd) | `leaderboardEvents.by_userId_and_sourceType_and_sourceId` `take(250)` |
+| `rani-pevac` | Završi lekciju pre 8 h | sat u [5, 8) | isto čitanje |
+| `prvi-rad` | Napravi prvi rad u Crei | postoji `crea_first_work` | isti indeks, `take(3)` (`sourceId` = oblast) |
+| `prvi-video` | Napravi prvi video | `crea_first_work` sa `sourceId = "video"` | isto čitanje |
+| `prvi-zvuk` | Napravi prvi zvuk | `sourceId = "zvuk"` | isto čitanje |
+| `deset-radova` | Napravi 10 radova u Crei | Σ `creaWorks` ≥ 10 u prozoru od 400 dana | `profileActivityDays.by_userId_and_dayKey` `take(401)` (isto čitanje kao niz) |
+| `sto-radova` | Napravi 100 radova u Crei | Σ `creaWorks` ≥ 100 | isto čitanje |
+| `recept` | Napravi rad po receptu | sličica `prvi:recept` | `creaStickers.by_userId_and_stickerId` `.unique()` |
+| `tehnika` | Isprobaj novu tehniku u Crei | postoji `crea_technique` | `leaderboardEvents` `take(1)` |
+| `izazov` | Učestvuj u dnevnom izazovu | aktivan `crea_challenge`; **„uskoro"** dok je fleg `crea_public_gallery` ugašen | `platformFlags.by_key` + `leaderboardEvents` `take(20)` |
+| `prva-objava` | Objavi prvu temu u zajednici | postoji tema | `profileContributions.by_userId_and_hasThread_and_lastActivityAt` `take(1)` |
+| `koristan-odgovor` | Napiši odgovor koji je označen kao koristan | `helpfulAnswers ≥ 1` | red rang-liste (0 dodatnih) |
+| `omiljen` | Skupi 10 glasova na jednoj temi | `upvoteCount ≥ 10` na jednoj od poslednjih 20 objavljenih tema | `communityPosts.by_authorId_and_status_and_updatedAt` `desc` `take(20)` |
+| `mentor` | Daj 5 korisnih odgovora ili uči sa partnerom za učenje | `helpfulAnswers ≥ 5` ILI bar jedno partnerstvo | red rang-liste + `studyPartnershipMembers.by_userId_and_createdAt` `take(1)` |
+| `niz-3` / `niz-7` / `niz-30` | Uči ili stvaraj N dana zaredom | `computeStreak(...).best ≥ N` | isto čitanje kao niz |
+| `top-10` | Uđi u prvih 10 na nedeljnoj listi | ulazi u rang-liste, ≥ 100 XP te nedelje i manje od 10 redova sa više XP-a (ova ili prošla nedelja) | ova nedelja: isto čitanje kao `weekRank` (`by_scopeKey_and_period_and_periodKey_and_eligible_and_xp` sa `.gt("xp", moj)` `take(100)`); prošla: nedeljni red `.unique()` + isti indeks `take(10)` |
+
+- **Stanja:** `unlocked` = ključ `badge:<kljuc>` je u dnevniku (`unlockedAt` = kada je viđen); `fresh` = pravilo je ispunjeno, a nije u dnevniku (ovo se slavi); `locked` = sa `progress { current, target }` za bedževe koji se broje (9 od 24); `soon` = izvor ne radi (samo `izazov`).
+- **Kapija:** pravilo čiji su svi bedževi već u dnevniku se ne čita. Bedž iz dnevnika ostaje i kad pravilo prestane da važi (top 10, vraćena lekcija).
+- **Cena `getMyProgress`:** nov korisnik oko 5 dokumenata; najgori slučaj oko 1.100 malih dokumenata (150 dnevnik + 401 dan + 60 kurseva + 60 brojača + 250 događaja + 100 redova liste + ostalo). Nigde `.collect()`, `.paginate()` ni `for await` (čuva test).
+- **Dnevnik (`igraSeen`):** ključevi `level:<n>`, `badge:<kljuc>`, `course:<courseId>`, `summary`.
+
+**ODLUKE:**
+1. **Mesto na nedeljnoj listi JESTE u `getMyProgress` (`weekRank`), ali kao ograničeno čitanje.** Zadatak K04 ga traži, a K01 ODLUKA 2 ga je izbacila zbog cene (do 1.000 dokumenata i ponovno izvršavanje na svaki tuđi XP). Rešenje drži obe strane: čita se najviše 100 redova neposredno ispred korisnika, i to isto čitanje koje već treba bedžu „Top 10". Do 100. mesta broj je tačan i isti kao na rang-listi (test ga poredi sa `leaderboard.getViewerLeaderboardRow` na 10. i 100. mestu); dalje je `null`, dok rang-lista i dalje kaže 101. Posledica koju K01 pominje ostaje, samo manja: upit se ponovo izvršava kad se promeni XP nekome od tih (najviše 100) redova ispred. Ako to na produkciji bude skupo, `RANK_LIMIT` u `convex/igraCore.ts` je jedna konstanta.
+2. **Nijedan bedž nije „uskoro" zbog cene čitanja** (K01-5); jedini „uskoro" je `izazov` dok je fleg galerije ugašen. Dok je ugašen, događaji izazova se ne čitaju.
+3. **Završeni kursevi se čitaju drugačije nego u K01 §5.3:** objavljeni kursevi (`take(60)`) pa po jedan red brojača za svaki, umesto `take(300)` po opsegu `course:` korisnika. Taj opseg hvata i nedeljne redove (10 kurseva × 30 nedelja prelazi 300), pa bi kursevi sa kasnijim ID-jem tiho ispadali. Pravilo je isto; staza se računa iz istog čitanja. Preskače se dok korisnik nema nijednu završenu lekciju.
+4. **Kurs bez objavljenih lekcija ili bez popunjenog `publishedLessonCount` nije „završen"** i zato drži „Celu stazu" svoje staze zaključanom (strogo po K01). Arhiviran kurs se ne gleda; ono što je već u dnevniku ostaje.
+5. **`izazov` gleda do 20 događaja** (K01: 3), da jedna skinuta prijava ne sakrije odobrenu.
+6. **`banner` je za sada uvek `null`** (i u `getMemberProgress`): polje `users.igraBanner` i `igra:setBanner` pravi K13. Šema je dobila samo `igraSeen`.
+7. **`getMyProgress` ne zove `streakFor`** nego radi isto čitanje i `computeStreak` direktno, jer isti redovi daju i zbir radova (jedno čitanje umesto dva). `creaGameCore.ts` nije diran.
+8. **`getMemberProgress` traži prijavu preko `requireUserId`** (K01 pominje `getCurrentProfile`; isto ponašanje, jedno čitanje manje). Vlasnik na sopstvenom profilu nema skrivenih bedževa. `unlockedAt` se drugima ne šalje (to je trenutak kada je vlasnik otvorio aplikaciju).
+9. **Ključ bedža je `IgraBadgeKey` iz kataloga**, a test ga tipom (u oba smera) i slikom veže za `IgraBedzKey` iz manifesta. `lib/igra-badges.ts` namerno ne uvozi `lib/igra-art.ts`, da manifest slika ne uđe u Convex bundle.
+10. **`markSeen`:** `todayKey` računa server; preko 40 ključeva se odseca (bez greške); nepoznat ili nezarađen ključ se tiho preskače; `summary` se uvek prihvata (samo gasi zbir prvog kontakta).
+11. **Tekstovi uslova** su rodno neutralni i bez nagrade i straha („Uči ili stvaraj 7 dana zaredom"), a „Mentor" navodi oba puta. Nazivi su isti kao alt tekstovi u manifestu (čuva test), pa se slavlje iz K03 i katalog ne mogu razići.
+12. **Nije pušteno na DEV** (`npx convex dev --once`): korak traži samo codegen. Pre prve provere ljuske na pravom nalogu (K06) treba ga pustiti, inače `igra:*` ne postoji na DEV-u.
+13. `IGRA_PLANNED_ART` i dalje ima tri reda (`lib/igra-art.ts` nisam dirao).
+
+**Novi paketi:** nema.
+
+**Testovi (4 nova fajla, 61 test):**
+- `lib/igra-level.test.ts` (12): 12 nivoa, pragovi i koraci strogo rastu, imena jednaka amblemima u manifestu, granice svakog praga, napredak u [0, 1), poslednji nivo, loš ulaz, scenariji „prvi dan" i „14 dana" iz `LEADERBOARD_XP`.
+- `lib/igra-badges.test.ts` (20): 24 jedinstvena ključa po 8 u grupi, redosled iz `SLIKE.md`, slika i ime u manifestu, uslov na oba jezika, bez reči nagrade i straha, granica svakog pravila, „uskoro", brojači napretka, loš brojač.
+- `lib/igra-time.test.ts` (8): sat u Beogradu zimi i leti, ponoć, oba prelaska letnjeg vremena, pragovi 21:59 / 22:00, 03:59 / 04:00, 04:59 / 05:00, 07:59 / 08:00.
+- `convex/igra.test.ts` (21, convex-test): gost i neispravan dan; prazan korisnik; **aktivan korisnik kroz prave mutacije** (`courses.markProgress`, `studio.finalizeOutput`): 540 XP, nivo 3, niz 3, osam svežih bedževa, dva završena kursa, zbir prvog kontakta iz `planCelebrations`, pa drugi talas (treći kurs, nivo 4); granice nivoa i viđen nivo; **niz preko ponoći u Beogradu** (23:30 i 00:30 su isti dan po UTC-u, a dva dana niza); Crea bedževi; izazov i fleg; zajednica (nacrt se ne računa, 9 / 10 glasova, 5 korisnih odgovora, partner); top 10 sa 12 korisnika (izjednačen XP, osoblje, prag 100 XP, prošla nedelja); mesto na nedeljnoj listi (1, 2, 10, 11, 100. mesto, `null` posle 100 redova, isto kao postojeća rang-lista); `markSeen` (prijava, samo zarađeno, jednom, samo svoje, bedž ostaje, 40 ključeva); `getMemberProgress` (prijava, nepostojeći i spojen nalog, samo dnevnik, skrivena Crea grupa i vreme učenja, vlasnik, osoblje); tri provere izvora (bez kredita i XP-a, jedini upis `igraSeen`, nijedno neograničeno čitanje).
+
+**Slike:** nema novih u kodu; katalog se oslanja na `bedz.*` (24) i `nivo.*` (12) iz manifesta. TRAŽENE SLIKE: nema.
+
+**Rezultat provere:**
+- codegen: prošlo (`api.d.ts` +4 linije)
+- typecheck: prošlo
+- lint: prošlo (0 grešaka, istih 26 zatečenih upozorenja)
+- test: prošlo (296 fajlova, 3.248 testova)
+- check:frames: prošlo; check:igra: prošlo
+- build i pregledač: nisu pokretani (korak ne menja UI ni rute)
+- dev server: nijedan nije pokretan u ovom koraku. Provereni su svi `node` procesi (7: Playwright MCP, Penpot MCP i Adobe; nijedan `next` ni `convex dev`) i portovi 3000–3999 (ništa ne sluša)
+
+**Prihvatanje (K04):**
+- `getMyProgress` vraća sve što treba primitivima i ljusci, uz test sa realnim podacima: **ispunjeno** (test „aktivan korisnik" ide kroz `courses.markProgress` i `studio.finalizeOutput`). U odgovoru su XP (ukupno i nedeljno), nivo, niz, bedževi sa `unlockedAt`, mesto na nedeljnoj listi (`weekRank`, ODLUKA 1) i `fresh`.
+- Nema promene `LEADERBOARD_XP`, kredita ni cena: **ispunjeno** (`git status`: izmenjeni su samo `convex/schema.ts`, `convex/_generated/api.d.ts` i ovaj fajl; ostalo su novi fajlovi).
+- typecheck / lint / test prolaze, sekcija K04 sa tabelom pragova i pravilima bedževa: **ispunjeno**.
+
+**Za Jovana ujutru:**
+- **„Top 10" na maloj listi:** dok te nedelje manje od 10 učenika ima više XP-a, bedž dobija svako sa 100 XP nedeljno, dakle uz prvu lekciju. To je pravilo iz K01 (ODLUKA 9). Ako treba da bude ređi, menja se `TOP10_MIN_WEEK_XP` u `lib/igra-badges.ts` (jedna konstanta).
+- **Prvo otvaranje posle uvođenja:** postojeći korisnici imaju prazan dnevnik, pa dobijaju jedan zbir („Tvoj napredak do sada") umesto niza slavlja. Tek kad ga vide, bedževi postaju vidljivi drugima na profilu.
+- **Staza:** proveri da li na produkciji ima objavljenih kurseva bez lekcija ili bez `publishedLessonCount` (migracija `backfillPublishedLessonCount`); takav kurs drži bedž „Cela staza" zaključanim (ODLUKA 4).
+- **„10 / 100 radova"** broji radove iz poslednjih 400 dana (K01-6), ne od početka; tekst uslova to ne pominje.
+- Pragovi nivoa su jedan niz u `lib/igra-level.ts`; ako ih menjaš, test sa scenarijima („prvi dan = nivo 2", „dve nedelje = nivo 5") će reći da li kriva i dalje drži.

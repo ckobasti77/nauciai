@@ -2199,6 +2199,16 @@ export default defineSchema({
     .index("by_userId", ["userId"])
     .index("by_inviteCode", ["inviteCode"]),
 
+  // IGRA (K04): dnevnik osvojenog i proslavljenog - `level:<n>`, `badge:<kljuc>`,
+  // `course:<courseId>`, `summary`. Red nastaje kad korisnik prvi put vidi nivo, bedž ili
+  // kraj kursa (`igra.markSeen`), pa se slavi jednom, a bedž ostaje i kad pravilo kasnije
+  // prestane da važi (top 10, niz). Samo prikaz: ništa ovde ne nosi kredite.
+  igraSeen: defineTable({
+    userId: v.id("users"),
+    key: v.string(),
+    seenAt: v.number(),
+  }).index("by_user_key", ["userId", "key"]),
+
   // ── CREA: ZAJEDNICA (K27) ────────────────────────────────────────────
   // Javni rad (G8, O6): rad koji je vlasnik SAM objavio. Drugi ga vide tek kad ga
   // moderacija odobri i samo dok je fleg `crea_public_gallery` upaljen. Red se nikad ne
