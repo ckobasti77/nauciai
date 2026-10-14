@@ -60,7 +60,8 @@ export const CREA_LEARN_COPY = {
 } satisfies Record<string, LocalizedText>;
 
 export const CREA_MASCOT_COPY = {
-  label: { sr: "Crea maskota", en: "Crea mascot" },
+  // Postojeća 3D maskota je Robi iz IGRA ekipe (K16, plan K14 ODLUKA 11).
+  label: { sr: "Robi", en: "Robi" },
 } satisfies Record<string, LocalizedText>;
 
 export const CREA_REVEAL_COPY = {

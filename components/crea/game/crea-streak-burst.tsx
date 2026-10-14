@@ -56,7 +56,7 @@ export function CreaStreakBurst({ locale, milestone }: { locale: Locale; milesto
   if (!shown) return null;
   return (
     <div role="status" className="pointer-events-none fixed inset-0 z-50 grid place-items-center p-4">
-      <div className="pointer-events-auto surface-card relative w-full max-w-xs border-2 border-ink bg-paper-strong px-6 pb-6 pt-8 text-center text-ink shadow-[8px_8px_0_0_var(--shadow-hard-16)]">
+      <div data-igra-busy="" className="pointer-events-auto surface-card relative w-full max-w-xs border-2 border-ink bg-paper-strong px-6 pb-6 pt-8 text-center text-ink shadow-[8px_8px_0_0_var(--shadow-hard-16)]">
         <div className="relative mx-auto grid size-28 place-items-center">
           {/* Zraci kao znak Cree: tri crte iznad broja. */}
           <svg aria-hidden="true" viewBox="0 0 120 120" className="crea-streak-rays absolute inset-0 size-full text-yellow">

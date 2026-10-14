@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 
 import { CreaLogo } from "@/components/crea/crea-logo";
 import { SketchPaper } from "@/components/crea/wait/sketch-paper";
+import { IgraArt } from "@/components/igra/igra-art";
 import { cn } from "@/components/ui/primitives";
 import { fillCopy } from "@/lib/crea-copy";
 import { CREA_WAIT_COPY, CREA_WAIT_STEP_DETAIL, CREA_WAIT_STEP_LABEL } from "@/lib/crea-experience-copy";
@@ -17,6 +18,7 @@ import {
   type CreaWaitJob,
 } from "@/lib/crea-wait";
 import type { Locale } from "@/lib/i18n";
+import { creaLikForKind, creaRadiArt } from "@/lib/igra-crea";
 import { formatElapsedTime } from "@/lib/studio-motion";
 
 /**
@@ -74,6 +76,17 @@ export function CreaWaitScreen({
         <div className="paper-island surface-inset -rotate-[1.5deg] overflow-hidden bg-paper p-2 shadow-[4px_4px_0_0_var(--yellow)]">
           <SketchPaper kind={job.kind} progress={state.progress} animated={animated && !state.night} label={CREA_WAIT_COPY.sketchLabel[locale]} />
         </div>
+        {big ? (
+          // Lik radionice „radi" (K16) preko donjeg levog ugla lista; za noćni posao miruje.
+          <span aria-hidden="true" className="absolute -bottom-3 -left-5 sm:-left-7">
+            <IgraArt
+              id={creaRadiArt(creaLikForKind(job.kind))}
+              size="md"
+              decorative
+              className={cn("-rotate-6", animated && !state.night && "igra-lik-radi")}
+            />
+          </span>
+        ) : null}
         {big ? (
           <span className="absolute -right-3 -top-4 grid size-11 place-items-center rounded-full border-2 border-white/25 bg-studio-well" aria-hidden="true">
             {state.night ? (

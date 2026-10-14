@@ -10,6 +10,7 @@ import { CreaInspiration } from "@/components/crea/inspiration/crea-inspiration"
 import type { QuickActionLink } from "@/components/crea/quick-actions-menu";
 import { fireConfetti } from "@/components/crea/reveal/fire-confetti";
 import { StageCompanion } from "@/components/crea/wait/stage-companion";
+import { useCreaXpGain } from "@/components/igra/crea/use-crea-xp-gain";
 import { IgraLik } from "@/components/igra/igra-lik";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -18,7 +19,7 @@ import { CREA_STAGE_COPY } from "@/lib/crea-copy";
 import { CREA_MASCOT_MOOD_MS, mascotLine, mascotMoodFor } from "@/lib/crea-mascot";
 import { momentMessage } from "@/lib/crea-reveal";
 import type { CreaArea, CreaModeDef } from "@/lib/crea-shell";
-import { creaLikForArea } from "@/lib/igra-crea";
+import { creaLikForArea, creaMomentLik } from "@/lib/igra-crea";
 import { isWaitingStatus } from "@/lib/crea-wait";
 import type { Locale } from "@/lib/i18n";
 import { creaMotionFor } from "@/lib/motion-contract";
@@ -46,6 +47,7 @@ export function CreaStage({
   onToggleFavorite,
   quickActionsFor,
   modelName,
+  loadMoment,
 }: {
   locale: Locale;
   area: CreaArea;
@@ -66,6 +68,8 @@ export function CreaStage({
   quickActionsFor?: (job: StudioTileJob) => QuickActionLink[];
   /** Ime modela iz kataloga (za „Kako je napravljeno" u inspiraciji). */
   modelName?: (slug: string) => string | undefined;
+  /** Trenutak posle rada; podrazumevano `creaMoments.momentForJob` (izlog daje test podatke). */
+  loadMoment?: (jobId: string) => Promise<CreaMoment | null>;
 }) {
   const convex = useConvex();
   const crea = creaMotionFor(Boolean(useReducedMotion()));
@@ -87,8 +91,8 @@ export function CreaStage({
   function handleFinished(done: StudioTileJob, outcome: "done" | "failed", element: HTMLElement | null) {
     setFinished({ jobId: done._id, outcome });
     if (outcome !== "done" || guest) return;
-    void convex
-      .query(api.creaMoments.momentForJob, { jobId: done._id as Id<"generationJobs"> })
+    const load = loadMoment ?? ((jobId: string) => convex.query(api.creaMoments.momentForJob, { jobId: jobId as Id<"generationJobs"> }));
+    void load(done._id)
       .then((value) => {
         if (!value) return;
         setMoment({ jobId: done._id, value });
@@ -99,9 +103,14 @@ export function CreaStage({
       });
   }
 
+  // „+N XP" i lik koji slavi prvi rad vrste (K16) - samo prijavljeni, gost nema ni napredak ni trenutak.
+  const xpGain = useCreaXpGain(job?._id ?? null, job !== null && isWaitingStatus(job.status));
+  const jobMoment = job && moment && moment.jobId === job._id ? moment.value : null;
+  const celebrate = mood === "slavi" && job ? creaMomentLik(jobMoment, job.kind) : null;
+
   const message =
     mood === "slavi" && job
-      ? (momentMessage(moment && moment.jobId === job._id ? moment.value : null, locale) ?? mascotLine("slavi", locale))
+      ? (momentMessage(jobMoment, locale) ?? mascotLine("slavi", locale))
       : mood === "tuzna" && job
         ? jobStatusText(job, locale)
         : null;
@@ -166,7 +175,17 @@ export function CreaStage({
 
       <AnimatePresence initial={false}>
         {job && mood !== "miruje" ? (
-          <StageCompanion key={`companion:${job._id}`} locale={locale} mood={mood} kind={job.kind} seed={job._id} message={message} motion={crea} />
+          <StageCompanion
+            key={`companion:${job._id}`}
+            locale={locale}
+            mood={mood}
+            kind={job.kind}
+            seed={job._id}
+            message={message}
+            celebrate={celebrate}
+            xpGain={xpGain}
+            motion={crea}
+          />
         ) : null}
       </AnimatePresence>
 

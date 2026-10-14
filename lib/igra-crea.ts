@@ -1,4 +1,5 @@
 import type { IgraArtId, IgraLik } from "./igra-art";
+import type { CreaMoment } from "../convex/creaMomentsCore";
 import type { CreaArea, CreaKind } from "./crea-shell";
 
 /**
@@ -36,4 +37,22 @@ export function creaLikForKind(kind: CreaKind): CreaLik {
 
 export function creaRadiArt(lik: CreaLik): IgraArtId {
   return CREA_RADI_ART[lik];
+}
+
+/**
+ * Mini slavlje posle rezultata (K16): prvi rad uopšte i prvi rad svake vrste dobijaju lika
+ * te vrste koji slavi. Jubilej ostaje samo tekst (zadatak traži prvi rad vrste).
+ */
+export function creaMomentLik(moment: CreaMoment | null, kind: CreaKind): CreaLik | null {
+  if (moment?.id === "prvi-rad") return creaLikForKind(kind);
+  if (moment?.id === "prvi-od-vrste") return creaLikForKind(moment.kind);
+  return null;
+}
+
+/**
+ * Rad nije uspeo (K16): lik vrste rada je tužan uz postojeću poruku o povraćaju. Posao koji
+ * je korisnik sam otkazao (`OTKAZAO_KORISNIK`, `convex/creaFairCore.ts`) nije greška.
+ */
+export function isCreaGenerationError(job: { status: string; error?: string }): boolean {
+  return job.status === "failed" || (job.status === "refunded" && job.error !== "OTKAZAO_KORISNIK");
 }

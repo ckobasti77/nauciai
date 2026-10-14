@@ -23,8 +23,8 @@ import type { Locale } from "@/lib/i18n";
 /** Red slavlja cele sesije (jedan po učitanoj aplikaciji): plafon važi i kad se domaćin premontira. */
 const sessionQueue = createCelebrationQueue();
 
-/** Dok je ovo na ekranu slavlje čeka: drugi modal ili Crea pečat (`CreaStampToast`). */
-const BUSY_SELECTOR = '[aria-modal="true"], .crea-stamp-note';
+/** Dok je ovo na ekranu slavlje čeka: drugi modal, Crea pečat ili Crea niz (`data-igra-busy`). */
+const BUSY_SELECTOR = '[aria-modal="true"], .crea-stamp-note, [data-igra-busy]';
 /** Pauza pre otvaranja (ulaz strane, prethodno slavlje) i razmak između provera. */
 const OPEN_DELAY_MS = 600;
 const RETRY_MS = 500;

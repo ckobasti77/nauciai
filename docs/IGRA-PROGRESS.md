@@ -1145,3 +1145,54 @@ Prag pripada višem nivou (99 XP = nivo 1, 100 XP = nivo 2). Na nivou 12 je `pro
 - **Bundle Cree +20 KB** (ODLUKA 7): u budžetu rute, ali preko cilja K14. Ako ti je to previše, najjeftinija ušteda za sve rute je lenja mapa fallback ikona u `IgraArt` (K28).
 - **Ukus:** saveti likova u `IGRA_CREA_COPY` (`lib/igra-copy.ts`), veličina likova u pločicama (72 px), i da li „Izaberi radionicu" iznad pločica treba. Snimci: `K15-crea-ulaz-1440-svetla.png`, `K15-crea-radionica-1440-tamna.png`, `K15-crea-ulaz-390-svetla.png`.
 - **Zatečeno, nisam dirao:** naziv trake za čitač ekrana ima dve tačke („Danas je upisano..") jer `CREA_STREAK_COPY.done` već završava tačkom.
+
+## K16 — Crea čekanje, rezultat, slavlja   (2026-10-14 09:45)
+**Fajlovi:**
+- novi: `lib/igra-crea-xp.ts` (reduktor „+N XP"), `components/igra/crea/use-crea-xp-gain.ts`, `docs/igra/snimci/K16-*.png` (17)
+- izmenjeni (Crea): `components/crea/wait/wait-screen.tsx` (lik „radi"), `components/crea/wait/stage-companion.tsx` (mini slavlje, „+N XP", `data-igra-busy`), `components/crea/crea-stage.tsx` (lik slavlja, merenje XP-a, opcioni `loadMoment`), `components/app/studio-media-tile.tsx` (tužan lik na pozornici), `components/crea/game/crea-stamp-host.tsx` i `crea-streak-burst.tsx` (`data-igra-busy`), `components/studio/studio-shell.tsx` (provider za prijavljene), `lib/crea-experience-copy.ts` (natpis „Robi")
+- izmenjeni (IGRA): `components/igra/celebration-host.tsx` (`BUSY_SELECTOR`), `lib/igra-crea.ts` (`creaMomentLik`, `isCreaGenerationError`), `lib/igra-copy.ts` (`failHint`), `lib/igra-fixtures.ts` (`creaJobFixture`), `app/globals.css` (`.igra-lik-radi`), `components/igra/izlog/izlog-crea.tsx` (4 nove sekcije), testovi `lib/igra-crea.test.ts`, `lib/igra-shell.test.ts`
+
+**Šta je urađeno:** Dok Crea pravi rad, na velikom prikazu čekanja (pozornica) lik radionice „radi": Piksi, Kadar ili Eho (`lik.*.radi`) stoji preko donjeg levog ugla lista sa skicom i blago se njiše (CSS, 1,8 s). Postojeći list, koraci, procena i sat su netaknuti, procenta nema; za noćni posao i uz smanjen pokret lik stoji. Kad rad stigne, posle postojećeg otkrivanja (polaroid / traka / kaseta) oblačić pored Robija za prvi rad i prvi rad svake vrste dobija lika te vrste koji „udari" kao pečat (`useStampIn`) i žuti marker iza poruke; konfete su postojeće. Svaki rad posle kog je XP iz ljuske porastao (u 8 s posle kraja) dobija „+N XP" (odometar); broj se meri, nije upisan, a bez porasta (dnevni plafon) se ne crta. Neuspeh na pozornici prikazuje tužnog lika vrste (`lik.*.tuzan`), postojeću poruku o povraćaju kredita (doslovno ista) i blag poziv „Desi se, nije strašno. Probaj ponovo."; otkazan posao i pločice u istoriji ostaju bez lika. `/crea/app` za prijavljene sada ima isti napredak i slavlja kao `/app/studio`, a domaćin slavlja čeka i oblačić, pečat albuma i Crea niz, pa bedž „Prvi rad" (`igraSeen`, jednom) dolazi tek kad se oni sklone.
+
+**Površine:**
+- gotovo: čekanje na pozornici (sve tri vrste, noćni posao, smanjen pokret), rezultat (prvi rad, prvi rad vrste × 3, jubilej, običan rad, sa i bez XP-a), neuspeh na pozornici, redosled slavlja, napredak na `/crea/app`.
+- ne menja se namerno: pločice istorije (čekanje i neuspeh bez lika, plan K14 ODLUKA 13), `CreaReveal` (medij ostaje čist), `SketchPaper`, `LearnCard`, logika konfeta i trenutaka.
+- K17: biblioteka, galerija, izazovi, parovi, sveska.
+
+**ODLUKE:**
+1. **„Otkrivanje dobija marker i nalepnicu" je urađeno u oblačiću koji se pojavljuje zajedno sa otkrivanjem, ne preko samog rada** (plan K14 §3.2 i ODLUKA 7): nalepnica i marker preko slike ili videa bi pokrili korisnikov rad. `components/crea/reveal/*` nije menjan.
+2. **Zadatak traži `lik.*.tuzan` za grešku, a plan K14 §5 je rekao „poza tuzan se ne koristi"**; zadatak pobeđuje. Tužan lik stoji u stanju neuspeha same pločice na pozornici (`waitSize="stage"`), jer to stanje ostaje vidljivo; oblačić posle neuspeha (Robi tužan + ista poruka, 5 s) je ostao kakav je bio, da ne budu dva tužna lika odjednom. Tekst o povraćaju (`jobStatusText`) se ne menja; test ga drži doslovno. Posao koji je korisnik sam otkazao (`OTKAZAO_KORISNIK`) nije greška i nema lika (`isCreaGenerationError`).
+3. **Oblačić posle rada nosi `data-igra-busy`** (pored tosta albuma i Crea niza, plan ODLUKA 10). Bez toga bi bedž „Prvi rad" mogao da se otvori 600 ms posle rada, pre tosta albuma (1,4 s), i dva slavlja bi se preklopila. Izmereno u izlogu: oblačić 3,7 s → +40 XP 3,9 s → pečat albuma 5,1 s → oblačić nestaje 8,0 s → bedž 11,6 s, `markSeen` jednom, u svakom trenutku najviše jedan preklop.
+4. **Reduktor XP-a je u zasebnom `lib/igra-crea-xp.ts`**, ne u `lib/igra-crea.ts`: ponovo koristi `xpGain` iz `lib/igra-lesson.ts`, koji vuče `igra-copy`, a `lib/igra-crea.ts` uvozi i tabla (test čuva da su mu svi uvozi `import type`). Prozor od 8 s zatvara tajmer (događaj `close`), ne sat u reduktoru; porast koji stigne malo pre nego što klijent vidi kraj rada se računa.
+5. **Mini slavlje je funkcija `creaMomentLik(moment, kind)`** (vraća lika ili `null`) umesto `creaMomentView` iz plana: oblik `{ lik, poza: "slavi", celebrate }` nije nosio ništa više.
+6. **`CreaStage` dobija opcioni prop `loadMoment`** (podrazumevano isti `creaMoments.momentForJob`), da izlog pokrene PRAVU pozornicu sa test trenutkom (pravilo „prezentacione komponente, podaci kroz props"). Aplikacija ga ne prosleđuje, ponašanje je isto.
+7. **Lik „radi" je 64 px na svim širinama** (na 390 staje bez guranja lista, izmereno), postavljen `-bottom-3`, jer je `-bottom-5` iz plana preklapao red koraka.
+8. **„+N XP" je napisan kao „+40 XP" običnim tekstom** (isti obrazac kao `LessonDone`), ne `suffix` odometra: sufiks od pola veličine je na `type-body-sm` bio nečitljiv.
+9. **Izlog:** primeri oblačića nose `data-igra-busy`, pa se sakriju dok traje „Prvi rad (uživo)" (inače bi zadržali slavlje bedža u izlogu). Primeri u izlogu su bez 3D maskote (desetak WebGL platna), osim živog toka.
+10. **Bundle:** `/crea/app` 485 → 488 KB gz (budžet 512), `/app/studio` 553 → 555 (595), `/app` 292 → 293 (294). Rast Cree je GSAP hook pečata + odometar + reduktor (~2–3 KB); `three` i GSAP pluginovi i dalje nisu u početnim chunk-ovima (`check:bundle` prolazi). K17 ima još oko 2–3 KB do cilja iz K15 ODLUKE 7. `/app` je na 1 KB od budžeta (od K16 ta ruta dobija samo `IGRA_CREA_COPY.failHint`, verovatno zaokruživanje); sledeći korak koji dira tablu treba da pazi.
+
+**Novi paketi:** nema.
+
+**Testovi:**
+- `lib/igra-crea.test.ts` (+16): `creaMomentLik` (prvi rad, prvi rad vrste × 3, jubilej, null); `isCreaGenerationError` (otkazano nije greška); poruka o povraćaju ostaje doslovno ista i stoji uz tužnog lika; oblačić ima pečat, marker i „+N XP" samo uz porast; reduktor XP-a (porast u prozoru, porast pre kraja, bez porasta, posle zatvorenog prozora, drugi porast, nov posao, tuđ posao, rad neviđen u izradi, loš ulaz, ista referenca); hook čita samo napredak ljuske i nijedan XP iznos nije upisan; lik „radi" samo na pozornici, staje za noćni posao, CSS samo u `no-preference` bloku; čekanje bez `%` i bez `* 100`; `BUSY_SELECTOR` i `data-igra-busy` na tri Crea preklopa; maskota je „Robi"; manifest ima i `lik.*.tuzan`.
+- `lib/igra-shell.test.ts`: provider uvoze `app-shell.tsx` i `studio-shell.tsx` (namerno, plan K14 ODLUKA 9; studio ga montira samo uz `viewerProfile`); domaćina slavlja uvozi i `izlog-crea.tsx`.
+
+**Slike:** `lik.piksi|kadar|eho.radi` (čekanje), `lik.*.slavi` (mini slavlje), `lik.*.tuzan` (neuspeh). Nove slike nisu tražene.
+
+**Rezultat provere:**
+- codegen: nije potreban (`convex/` nije diran)
+- typecheck: prošlo
+- lint: prošlo (0 grešaka, istih 26 zatečenih upozorenja)
+- test: prošlo (313 fajlova, 3.540 testova)
+- check:frames, check:corners, check:white: prošlo; check:igra `--strict`: sve slike koje kod koristi su na mestu
+- build: prošao; check:bundle: prošlo (brojevi u ODLUCI 10)
+- **pregledač (Playwright, izlog `/igra-izlog?deo=crea&stanje=aktivan`, 1440 × 900 i 390 × 844, obe teme), izmereno:** lik „radi" animiran (`igra-lik-radi`) na tri prikaza pozornice, `none` za noćni posao, `animated=false` i uz `prefers-reduced-motion: reduce` (sva tri); u tekstu čekanja nema `%`; nema vodoravnog skrola na 390 (obe teme); 0 slomljenih slika; tamna tema: marker poruke mastilo na žutom (~9:1), „+N XP" svetlo mastilo na tamnom oblačiću; živi tok prvog rada kao u ODLUCI 3, jedno slavlje bedža, `markSeen: badge:prvi-rad`; konzola bez grešaka i bez upozorenja o hidrataciji (samo zatečeno `THREE.Clock` upozorenje 3D maskote). Snimci: `K16-crea-cekanje|rezultat|neuspeh-1440|390-svetla|tamna`, `K16-crea-cekanje-1440-smanjen-pokret`, `K16-crea-prvi-rad-cekanje|oblacic|pecat|bedz-1440-svetla`.
+- dev server je ugašen (port 3123 slobodan); Playwright `page-*.yml` i `console-*.log` obrisani.
+
+**BLOKADA (samo provera, ne kod):** pravi rad na DEV-u nije pokrenut: Playwright nije prijavljen (isto kao K06–K15), a `next dev --webpack` vraća 500 za radionicu zbog `vectortracer` WASM-a (zatečeno, K15). Tok je proveren na PRAVOJ pozornici (`CreaStage` + `StudioMediaTile` + `StageCompanion` + `CreaStampToast` + `CelebrationHost`) u izlogu sa test podacima.
+
+**Za Jovana ujutru:**
+- **Napravi rad prijavljen na `/app/studio` i na `/crea/app`** (DEV): Piksi se njiše uz list dok se crta; posle otkrivanja oblačić sa „+N XP" (ako je XP porastao); na novom nalogu prvi rad → Piksi „udari" u oblačiću, pa pečat albuma, pa tek onda slavlje bedža „Prvi rad". Na `/crea/app` proveri i da slavlje radi bez sidebar-a.
+- **Neuspeh:** tužan lik + „Generacija nije uspela - krediti su ti vraćeni." + „Desi se, nije strašno. Probaj ponovo."
+- **Ukus:** tekst `IGRA_CREA_COPY.failHint` (`lib/igra-copy.ts`), mesto lika „radi" (donji levi ugao lista). Snimci: `K16-crea-cekanje-1440-svetla.png`, `K16-crea-prvi-rad-oblacic-1440-svetla.png`, `K16-crea-neuspeh-1440-tamna.png`.
+- **Budžet `/app` 293 / 294 KB** (ODLUKA 10).

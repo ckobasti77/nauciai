@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 
 import { SuspensionGate } from "@/components/app/suspension-gate";
 import { CreaLogo } from "@/components/crea/crea-logo";
+import { IgraProgressProvider } from "@/components/igra/igra-progress-provider";
 import { ThemeToggle } from "@/components/app/theme-toggle";
 import { AccountMenu } from "@/components/marketing/account-menu";
 import { StudioShellLanguageToggle, StudioShellSignIn } from "@/components/studio/studio-shell-links";
@@ -23,6 +24,9 @@ import { STUDIO_SHELL } from "@/lib/studio-messages";
  * Od školskih kapija ostaje SAMO `SuspensionGate` (suspenzija važi na celoj
  * platformi); `ProfileSetupGate` se preskače - Studio ne traži username, a
  * teranje kupca u školski onboarding je suprotno smislu tankog shell-a.
+ *
+ * IGRA (K16): prijavljeni dobijaju isti napredak, „+N XP" i slavlja kao u `AppShell`-u;
+ * gost ostaje bez provider-a (napretka za njega nema).
  */
 export async function StudioShell({ locale, children }: { locale: Locale; children: ReactNode }) {
   const hasConvex = Boolean(process.env.NEXT_PUBLIC_CONVEX_URL);
@@ -72,7 +76,7 @@ export async function StudioShell({ locale, children }: { locale: Locale; childr
 
   return hasConvex ? (
     <SuspensionGate locale={locale} initialSuspension={gates.suspension}>
-      {shell}
+      {viewerProfile ? <IgraProgressProvider locale={locale}>{shell}</IgraProgressProvider> : shell}
     </SuspensionGate>
   ) : (
     shell

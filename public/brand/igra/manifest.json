@@ -1145,6 +1145,39 @@
     "en": "Coming soon"
    }
   },
+  "prazno.galerija": {
+   "src": "/brand/igra/prazno/galerija.avif",
+   "w": 768,
+   "h": 768,
+   "kind": "prazno",
+   "ready": true,
+   "alt": {
+    "sr": "Galerija čeka prvi rad",
+    "en": "The gallery awaits its first piece"
+   }
+  },
+  "prazno.izazov": {
+   "src": "/brand/igra/prazno/izazov.avif",
+   "w": 768,
+   "h": 768,
+   "kind": "prazno",
+   "ready": true,
+   "alt": {
+    "sr": "Izazov čeka prve radove",
+    "en": "The challenge awaits its first entries"
+   }
+  },
+  "prazno.par": {
+   "src": "/brand/igra/prazno/par.avif",
+   "w": 768,
+   "h": 768,
+   "kind": "prazno",
+   "ready": true,
+   "alt": {
+    "sr": "Još nema para",
+    "en": "No partner yet"
+   }
+  },
   "admin.korisnici": {
    "src": "/brand/igra/admin/korisnici.avif",
    "w": 512,
@@ -1322,7 +1355,7 @@
    }
   }
  },
- "updatedAt": "2026-10-14T00:52:57",
- "readyCount": 120,
- "totalCount": 120
+ "updatedAt": "2026-10-14T09:04:55",
+ "readyCount": 123,
+ "totalCount": 123
 }

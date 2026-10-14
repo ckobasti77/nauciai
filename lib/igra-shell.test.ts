@@ -191,12 +191,15 @@ describe("ljuska (izvor)", () => {
     expect(provider.match(/dynamic\(\(\) => import\("@\/components\/igra\/(celebration-host|progress-panel)"\)[^\n]*\{ ssr: false \}\)/g)).toHaveLength(2);
   });
 
-  it("domaćin slavlja živi samo u ljusci aplikacije - nikad na javnom sajtu", () => {
+  it("domaćin slavlja živi samo u ljusci aplikacije i ljusci Cree - nikad na javnom sajtu", () => {
     const files = [...sources("app"), ...sources("components")];
     const importers = (needle: string) => files.filter((file) => read(file).includes(needle));
-    expect(importers("igra/igra-progress-provider")).toEqual(["components/app/app-shell.tsx"]);
+    // K16 (plan K14 ODLUKA 9): radionica `/crea/app` dobija napredak i slavlja za prijavljene.
+    expect(importers("igra/igra-progress-provider")).toEqual(["components/app/app-shell.tsx", "components/studio/studio-shell.tsx"]);
+    expect(read("components/studio/studio-shell.tsx")).toContain("{viewerProfile ? <IgraProgressProvider locale={locale}>{shell}</IgraProgressProvider> : shell}");
     expect(importers("igra/celebration-host").sort()).toEqual([
       "components/igra/igra-progress-provider.tsx",
+      "components/igra/izlog/izlog-crea.tsx",
       "components/igra/izlog/izlog-ljuska.tsx",
       "components/igra/izlog/izlog-pokret.tsx",
       "components/igra/izlog/izlog-ucionica.tsx",

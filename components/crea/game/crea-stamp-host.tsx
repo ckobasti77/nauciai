@@ -82,7 +82,10 @@ export function CreaStampToast({ locale, moment, onClose }: { locale: Locale; mo
   return (
     <div aria-live="polite" className="pointer-events-none fixed inset-x-3 top-3 z-50 flex justify-center sm:inset-x-auto sm:bottom-6 sm:right-6 sm:top-auto">
       {shown ? (
-        <div className="pointer-events-auto surface-card relative flex w-full max-w-sm items-center gap-3 border-2 border-ink bg-paper-strong p-3 pr-12 text-ink shadow-[6px_6px_0_0_var(--shadow-hard-16)]">
+        <div
+          data-igra-busy=""
+          className="pointer-events-auto surface-card relative flex w-full max-w-sm items-center gap-3 border-2 border-ink bg-paper-strong p-3 pr-12 text-ink shadow-[6px_6px_0_0_var(--shadow-hard-16)]"
+        >
           <CreaStamp locale={locale} size="md" slam />
           <div className="crea-stamp-note min-w-0">
             <p className="type-body-sm font-black">{shown.title}</p>

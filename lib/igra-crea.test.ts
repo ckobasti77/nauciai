@@ -6,8 +6,10 @@ import { describe, expect, it } from "vitest";
 import manifest from "../public/brand/igra/manifest.json";
 import { CREA_AREAS, creaShellQuery } from "./crea-shell";
 import { IGRA_CREA_COPY } from "./igra-copy";
-import { CREA_AREA_LIK, CREA_RADI_ART, creaLikForArea, creaLikForKind, creaRadiArt } from "./igra-crea";
-import { CREA_GAME_FIXTURES, IGRA_FIXTURE_IDS, IGRA_FIXTURES } from "./igra-fixtures";
+import { CREA_AREA_LIK, CREA_RADI_ART, creaLikForArea, creaLikForKind, creaMomentLik, creaRadiArt, isCreaGenerationError } from "./igra-crea";
+import { creaXpRun, type CreaXpEvent, type CreaXpRun } from "./igra-crea-xp";
+import { CREA_GAME_FIXTURES, creaJobFixture, IGRA_FIXTURE_IDS, IGRA_FIXTURES } from "./igra-fixtures";
+import { jobStatusText } from "./studio-form";
 import { levelFromXp } from "./igra-level";
 
 /**
@@ -41,7 +43,7 @@ describe("oblast → lik", () => {
   it("svaka poza koju Crea koristi postoji u manifestu i spremna je", () => {
     for (const area of CREA_AREAS) {
       const lik = creaLikForArea(area);
-      for (const poza of ["mase", "misli", "slavi"]) expect(assets[`lik.${lik}.${poza}`]?.ready, `lik.${lik}.${poza}`).toBe(true);
+      for (const poza of ["mase", "misli", "slavi", "tuzan"]) expect(assets[`lik.${lik}.${poza}`]?.ready, `lik.${lik}.${poza}`).toBe(true);
       expect(creaRadiArt(lik)).toBe(CREA_RADI_ART[lik]);
       expect(assets[creaRadiArt(lik)]?.ready, creaRadiArt(lik)).toBe(true);
     }
@@ -148,5 +150,139 @@ describe("traka napretka", () => {
     // Test korisnik „aktivan": 1.890 XP je nivo 5 po IGRA-i, a 4 po starom obračunu.
     expect(CREA_GAME_FIXTURES.aktivan.level).toBe(4);
     expect(levelFromXp(CREA_GAME_FIXTURES.aktivan.xp).level).toBe(5);
+  });
+});
+
+/** Ceo niz događaja kroz reduktor. */
+function play(events: CreaXpEvent[], from: CreaXpRun = null): CreaXpRun {
+  return events.reduce(creaXpRun, from);
+}
+
+/** Kod bez komentara (komentari smeju da pominju zabranjeno). */
+const code = (path: string) => read(path).replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "");
+
+describe("K16: mini slavlje i neuspeh", () => {
+  it("prvi rad i prvi rad svake vrste slavi lik te vrste; jubilej i običan rad ne", () => {
+    expect(creaMomentLik({ id: "prvi-rad" }, "video")).toBe("kadar");
+    expect(creaMomentLik({ id: "prvi-od-vrste", kind: "image" }, "image")).toBe("piksi");
+    expect(creaMomentLik({ id: "prvi-od-vrste", kind: "video" }, "video")).toBe("kadar");
+    expect(creaMomentLik({ id: "prvi-od-vrste", kind: "audio" }, "audio")).toBe("eho");
+    expect(creaMomentLik({ id: "jubilej", count: 10 }, "image")).toBeNull();
+    expect(creaMomentLik(null, "image")).toBeNull();
+  });
+
+  it("tužan lik samo za grešku generisanja, ne za posao koji je korisnik otkazao", () => {
+    expect(isCreaGenerationError({ status: "failed" })).toBe(true);
+    expect(isCreaGenerationError({ status: "refunded" })).toBe(true);
+    expect(isCreaGenerationError({ status: "refunded", error: "OTKAZAO_KORISNIK" })).toBe(false);
+    for (const status of ["done", "running", "queued", "reserved"]) expect(isCreaGenerationError({ status })).toBe(false);
+  });
+
+  it("poruka o povraćaju kredita ostaje postojeća (lik je samo dodat uz nju)", () => {
+    const now = 1_700_000_000_000;
+    expect(jobStatusText(creaJobFixture("image", "failed", now), "sr")).toBe("Generacija nije uspela. Vraćamo kredite…");
+    expect(jobStatusText(creaJobFixture("image", "refunded", now), "sr")).toBe("Generacija nije uspela - krediti su ti vraćeni.");
+    const tile = read("components/app/studio-media-tile.tsx");
+    expect(tile).toContain('waitSize === "stage" && isCreaGenerationError(job)');
+    expect(tile).toContain('poza="tuzan"');
+    expect(tile).toContain("{statusMessage}");
+  });
+
+  it("oblačić: lik udari kao pečat, marker iza poruke, „+N XP” samo uz porast", () => {
+    const companion = read("components/crea/wait/stage-companion.tsx");
+    expect(companion).toContain('poza="slavi"');
+    expect(companion).toContain("useStampIn(ref");
+    expect(companion).toContain("igra-marker bg-yellow text-ink");
+    expect(companion).toContain("xpGain && xpGain > 0");
+    const stage = read("components/crea/crea-stage.tsx");
+    expect(stage).toContain("creaMomentLik(jobMoment, job.kind)");
+    expect(stage).toContain("useCreaXpGain(job?._id ?? null");
+  });
+});
+
+describe("K16: XP posle rada (meri se, ne upisuje)", () => {
+  const start = (xp: number, jobId = "a"): CreaXpEvent => ({ type: "start", jobId, xp });
+  const finish = (xp: number, jobId = "a"): CreaXpEvent => ({ type: "finish", jobId, xp });
+  const xp = (value: number): CreaXpEvent => ({ type: "xp", xp: value });
+
+  it("porast u prozoru posle kraja rada je broj", () => {
+    expect(play([start(100), finish(100), xp(140)])?.gain).toBe(40);
+    // XP stigao malo pre nego što je klijent video kraj rada.
+    expect(play([start(100), xp(130), finish(130)])?.gain).toBe(30);
+  });
+
+  it("bez porasta nema broja", () => {
+    expect(play([start(100), finish(100), xp(100)])?.gain).toBeNull();
+  });
+
+  it("porast posle zatvorenog prozora (8 s) se ignoriše", () => {
+    expect(play([start(100), finish(100), { type: "close", jobId: "a" }, xp(140)])?.gain).toBeNull();
+  });
+
+  it("drugi porast ne menja prvi broj", () => {
+    expect(play([start(100), finish(100), xp(140), xp(200)])?.gain).toBe(40);
+  });
+
+  it("nov posao počinje ispočetka; kraj tuđeg posla ne meri ništa", () => {
+    const first = play([start(100), finish(100), xp(140)]);
+    expect(play([start(140, "b")], first)).toEqual({ jobId: "b", before: 140, finished: false, open: false, gain: null });
+    expect(play([start(100), finish(150, "b")])?.gain).toBeNull();
+  });
+
+  it("rad koji nije viđen u izradi ne daje broj; loš ulaz se ne broji", () => {
+    expect(play([finish(100), xp(200)])).toBeNull();
+    expect(play([start(Number.NaN), finish(100), xp(200)])).toBeNull();
+    expect(play([start(100), finish(100), xp(Number.NaN)])?.gain).toBeNull();
+    expect(play([start(100), finish(100), { type: "reset" }])).toBeNull();
+  });
+
+  it("nepromenjeno stanje je ista referenca (React ne crta ponovo)", () => {
+    const running = play([start(100)]);
+    expect(creaXpRun(running, start(100))).toBe(running);
+    expect(creaXpRun(running, xp(500))).toBe(running);
+  });
+
+  it("hook čita samo napredak iz ljuske, bez upita; nijedan XP iznos nije upisan", () => {
+    const hook = read("components/igra/crea/use-crea-xp-gain.ts");
+    expect(hook).toContain("useIgraProgress()");
+    expect(hook).not.toMatch(/from "convex\/react"|_generated\/api|useQuery/);
+    expect(code("components/crea/crea-stage.tsx")).not.toMatch(/xpGain=\{\d/);
+  });
+});
+
+describe("K16: čekanje", () => {
+  it("lik „radi” samo u velikom prikazu; staje za noćni posao i uz smanjen pokret", () => {
+    const wait = read("components/crea/wait/wait-screen.tsx");
+    expect(wait).toContain("creaRadiArt(creaLikForKind(job.kind))");
+    expect(wait).toContain('animated && !state.night && "igra-lik-radi"');
+    const css = read("app/globals.css").replace(/\r\n/g, "\n");
+    const rule = css.indexOf(".igra-lik-radi {");
+    const block = css.lastIndexOf("@media (prefers-reduced-motion: no-preference) {", rule);
+    expect(block).toBeGreaterThan(-1);
+    expect(css.slice(block, rule)).not.toContain("}\n}");
+  });
+
+  it("bez lažnog procenta: čekanje ne prikazuje % i ne množi napredak sa 100", () => {
+    for (const file of ["components/crea/wait/wait-screen.tsx", "components/crea/wait/sketch-paper.tsx", "components/crea/wait/stage-companion.tsx"]) {
+      const source = code(file);
+      expect(source, file).not.toMatch(/\*\s*100\b|\b100\s*\*/);
+      // `%` sme samo u Tailwind/CSS vrednostima (npr. `-7%`), nikad u tekstu za čitanje.
+      expect(source.replace(/"[^"\n]*"|'[^'\n]*'|`[^`]*`/g, '""'), file).not.toMatch(/%/);
+    }
+    const copy = code("lib/crea-wait.ts");
+    expect(copy).not.toMatch(/\*\s*100\b|%\s*["`']/);
+  });
+});
+
+describe("K16: slavlja se ne preklapaju", () => {
+  it("domaćin slavlja čeka i Crea preklope (`data-igra-busy`)", () => {
+    expect(read("components/igra/celebration-host.tsx")).toContain(`const BUSY_SELECTOR = '[aria-modal="true"], .crea-stamp-note, [data-igra-busy]';`);
+    for (const file of ["components/crea/game/crea-stamp-host.tsx", "components/crea/game/crea-streak-burst.tsx", "components/crea/wait/stage-companion.tsx"]) {
+      expect(read(file), file).toContain('data-igra-busy=""');
+    }
+  });
+
+  it("3D maskota Cree je Robi", () => {
+    expect(read("lib/crea-experience-copy.ts")).toContain('label: { sr: "Robi", en: "Robi" }');
   });
 });

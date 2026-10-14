@@ -9,6 +9,7 @@ import { QuickActionsMenu, type QuickActionLink } from "@/components/crea/quick-
 import { CreaReveal } from "@/components/crea/reveal/crea-reveal";
 import { CancelJobButton } from "@/components/crea/fair/cancel-job-button";
 import { CreaWaitScreen } from "@/components/crea/wait/wait-screen";
+import { IgraLik } from "@/components/igra/igra-lik";
 import { CreditIcon } from "@/components/studio/credit-icon";
 import { cn } from "@/components/ui/primitives";
 import { CREA_NIGHT_COPY, CREA_TOOL_COPY } from "@/lib/crea-copy";
@@ -17,6 +18,8 @@ import { revealStyleFor } from "@/lib/crea-reveal";
 import { toolOfJob } from "@/lib/crea-tools";
 import { estimateWait, isWaitingStatus, queuePlace } from "@/lib/crea-wait";
 import type { Locale } from "@/lib/i18n";
+import { IGRA_CREA_COPY } from "@/lib/igra-copy";
+import { creaLikForKind, isCreaGenerationError } from "@/lib/igra-crea";
 import { creaMotionFor } from "@/lib/motion-contract";
 import { isExpiredOutput, jobPrompt, jobStatusText } from "@/lib/studio-form";
 import { downloadSingleMedia, isDemoPoster, isTranscriptJob } from "@/lib/studio-gallery";
@@ -135,6 +138,8 @@ export function StudioMediaTile({
   const isMediaReady = isAudio || isMediaLoaded;
 
   const statusMessage = jobStatusText(job, locale);
+  // Na pozornici (K16) neuspeh dobija tužnog lika vrste i blag poziv da se proba ponovo.
+  const sadOnStage = waitSize === "stage" && isCreaGenerationError(job);
 
   const tileContent = (
     <div
@@ -238,7 +243,9 @@ export function StudioMediaTile({
         {!isWorking && !isExpired && isFailed ? (
           <div className="grid min-h-[200px] place-items-center p-6 text-center">
             <div className="flex flex-col items-center gap-2">
-              <p className="text-sm font-extrabold text-white/90">{statusMessage}</p>
+              {sadOnStage ? <IgraLik lik={creaLikForKind(job.kind)} poza="tuzan" size="lg" decorative className="mb-1" /> : null}
+              <p className={cn("font-extrabold text-white/90", sadOnStage ? "text-base" : "text-sm")}>{statusMessage}</p>
+              {sadOnStage ? <p className="text-sm font-bold text-white/75">{IGRA_CREA_COPY.failHint[locale]}</p> : null}
               {prompt ? (
                 <p className="line-clamp-2 max-w-[240px] text-xs font-semibold text-white/60">
                   &bdquo;{prompt}&ldquo;

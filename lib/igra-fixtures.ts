@@ -3,6 +3,7 @@ import type { FunctionReturnType } from "convex/server";
 import type { api } from "../convex/_generated/api";
 import type { CommunityMemberRow, CommunityMentionEvent, CommunityPostRow, LeaderboardRow } from "../components/app/community-v2/community-types";
 import type { DashboardCourse } from "../components/app/dashboard-content";
+import type { StudioTileJob } from "../components/app/studio-media-tile";
 import type { Id } from "../convex/_generated/dataModel";
 import { courses as staticCourses } from "./content";
 import type { CatalogTrackMeta } from "./course-catalog";
@@ -872,3 +873,29 @@ export const CREA_GAME_FIXTURES: Record<IgraFixtureId, CreaGameFixture> = {
   aktivan: creaGame("aktivan", 23),
   legenda: creaGame("legenda", CREA_ALBUM_STICKER_COUNT - 4),
 };
+
+/**
+ * Lažan rad Cree za izlog (K16): samo polja koja čekanje, pločica rada i pozornica čitaju.
+ * `now` daje izlog (vreme se ne pamti u modulu, sat čekanja inače ne bi tekao).
+ */
+export function creaJobFixture(
+  kind: StudioTileJob["kind"],
+  status: "running" | "queued" | "done" | "failed" | "refunded",
+  now: number,
+  extra: Partial<StudioTileJob> = {},
+): StudioTileJob {
+  const prompt = { image: "Mačka astronaut na Mesecu, akvarel", video: "Talasi udaraju o stenu u sumrak", audio: "Topla klavirska melodija za jutro" }[kind];
+  return {
+    _id: `izlog-${kind}-${status}`,
+    modelSlug: `izlog-${kind}`,
+    kind,
+    params: JSON.stringify({ prompt }),
+    status,
+    creditCost: 4,
+    outputUrl: status === "done" ? "/images/landing/course-video-audio.png" : null,
+    isMock: true,
+    createdAt: now - 12_000,
+    ...(status === "done" ? { completedAt: now } : {}),
+    ...extra,
+  };
+}
