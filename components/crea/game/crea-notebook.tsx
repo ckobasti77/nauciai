@@ -15,7 +15,8 @@ import { CreaReportCardPanel } from "@/components/crea/game/crea-report-card-pan
 import { CreaSkillMap } from "@/components/crea/game/crea-skill-map";
 import { CreaStampHost } from "@/components/crea/game/crea-stamp-host";
 import { CreaStreakPanel } from "@/components/crea/game/crea-streak-panel";
-import { CreaLogo } from "@/components/crea/crea-logo";
+import { CreaCover } from "@/components/igra/crea/crea-cover";
+import { IgraArt } from "@/components/igra/igra-art";
 import { LinkButton, cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
 import { CREA_COMMUNITY_NAV, CREA_LEAGUE_COPY, CREA_PAIR_COPY } from "@/lib/crea-community-copy";
@@ -107,16 +108,14 @@ export function CreaNotebook({
             </nav>
           ) : null}
         </div>
-        <header className="flex items-start gap-4">
-          <CreaLogo variant="znak" className="size-12 shrink-0" />
-          <div>
-            <h1 className="type-h1">{CREA_NOTEBOOK_COPY.title[locale]}</h1>
-            <p className="mt-1 type-body type-measure text-muted">{CREA_NOTEBOOK_COPY.subtitle[locale]}</p>
-          </div>
-        </header>
+        {/* Naslovnica sveske (K17): Robi je lik sveske (plan K14 §5). */}
+        <CreaCover art="lik.robi.mase" title={CREA_NOTEBOOK_COPY.title[locale]} subtitle={CREA_NOTEBOOK_COPY.subtitle[locale]} />
 
         {game === null ? (
           <section className="surface-card border-2 border-ink bg-paper-strong p-6 text-center shadow-[6px_6px_0_0_var(--shadow-hard-16)]">
+            <div className="mb-3 flex justify-center">
+              <IgraArt id="prazno.zakljucano" size="lg" decorative />
+            </div>
             <p className="type-h3">{CREA_NOTEBOOK_COPY.guestTitle[locale]}</p>
             <p className="mt-2 type-body-sm font-semibold text-muted">{CREA_NOTEBOOK_COPY.guestBody[locale]}</p>
             <LinkButton href={signInHref} tone="ink" className="mt-4">

@@ -7,7 +7,9 @@ import type { StudioTileJob } from "../components/app/studio-media-tile";
 import type { Id } from "../convex/_generated/dataModel";
 import { courses as staticCourses } from "./content";
 import type { CatalogTrackMeta } from "./course-catalog";
-import { CREA_ALBUM_STICKER_COUNT } from "./crea-album";
+import { CREA_ALBUM_PAGES, CREA_ALBUM_STICKER_COUNT } from "./crea-album";
+import { challengeForDay } from "./crea-challenges";
+import { buildReportCard, type ReportCard } from "./crea-report-card";
 import { computeStreak, shiftDayKey, type StreakDay } from "./crea-streak";
 import type { IgraLik, IgraPoza } from "./igra-art";
 import { EMPTY_BADGE_COUNTERS, evaluateBadges, igraBadge, type IgraBadgeCounters, type IgraBadgeKey } from "./igra-badges";
@@ -898,4 +900,108 @@ export function creaJobFixture(
     ...(status === "done" ? { completedAt: now } : {}),
     ...extra,
   };
+}
+
+// ── Crea biblioteka, galerija, izazov, sveska (K17) ─────────────────────────
+
+export type CreaPublicWorkFixture = FunctionReturnType<typeof api.creaGallery.listPublicWorks>["page"][number];
+export type CreaChallengeBoardFixture = Extract<FunctionReturnType<typeof api.creaChallenges.challengeBoard>, { enabled: true }>;
+export type CreaLeagueFixture = Extract<NonNullable<FunctionReturnType<typeof api.creaLeagues.myLeague>>, { eligible: true }>;
+export type CreaPairFixture = NonNullable<FunctionReturnType<typeof api.creaPairs.myPair>>;
+
+const PUBLIC_WORK_ART = ["/images/landing/course-video-audio.png", "/images/landing/course-vibe-coding.png", "/images/landing/hero-poster.webp"] as const;
+const PUBLIC_WORK_AUTHORS = ["Mila Petrović", "Luka Jovanović", "Ana Marković", "Nikola Ilić", "Sara Đorđević", "Vuk Stanković"] as const;
+const PUBLIC_WORK_TITLES = ["Mačka astronaut", "Jesen na Kalemegdanu", "Robot u bašti", "Noćni tramvaj", "Plava sova", "Grad od papira"] as const;
+
+/** Javni rad galerije (K17): samo polja koja `WorkCard` i tabla izazova čitaju. */
+export function creaPublicWorkFixture(index: number, extra: Partial<CreaPublicWorkFixture> = {}): CreaPublicWorkFixture {
+  const i = Math.abs(Math.trunc(index));
+  return {
+    _id: `izlogjavnirad${String(i).padStart(4, "0")}` as Id<"creaPublicWorks">,
+    kind: "image",
+    title: PUBLIC_WORK_TITLES[i % PUBLIC_WORK_TITLES.length]!,
+    prompt: null,
+    modelSlug: "izlog-image",
+    modelLabel: { sr: "Izlog", en: "Showcase" },
+    outputUrl: PUBLIC_WORK_ART[i % PUBLIC_WORK_ART.length]!,
+    posterUrl: null,
+    author: { name: PUBLIC_WORK_AUTHORS[i % PUBLIC_WORK_AUTHORS.length]!, username: null, avatarUrl: null },
+    isMine: false,
+    likes: (i * 7) % 23,
+    likedByMe: false,
+    remixes: i % 3,
+    remixOfWorkId: null,
+    publishedAt: Date.parse(`${IGRA_FIXTURE_TODAY}T09:00:00Z`) - i * 3_600_000,
+    challenge: null,
+    remix: null,
+    ...extra,
+  };
+}
+
+/**
+ * Tabla dnevnog izazova (K17): `empty` = niko nije prijavio rad za glasanje, a rezultati
+ * prekjuče još nisu zatvoreni; inače glasanje u obe grupe i pobednik u grupi „Svi".
+ */
+export function creaChallengeBoardFixture(empty: boolean): CreaChallengeBoardFixture {
+  const votingDay = shiftDayKey(IGRA_FIXTURE_TODAY, -1);
+  const resultsDay = shiftDayKey(IGRA_FIXTURE_TODAY, -2);
+  const entries = (from: number) => [0, 1, 2].map((n) => ({ ...creaPublicWorkFixture(from + n), votes: 0 }));
+  return {
+    enabled: true,
+    signedIn: false,
+    today: { dayKey: IGRA_FIXTURE_TODAY, theme: challengeForDay(IGRA_FIXTURE_TODAY).theme, seasonId: challengeForDay(IGRA_FIXTURE_TODAY).seasonId, myGroup: null, myEntry: null },
+    voting: {
+      dayKey: votingDay,
+      theme: challengeForDay(votingDay).theme,
+      groups: [
+        { group: "pocetnici", entries: empty ? [] : entries(0), myVote: null },
+        { group: "svi", entries: empty ? [] : entries(3), myVote: null },
+      ],
+    },
+    results: {
+      dayKey: resultsDay,
+      theme: challengeForDay(resultsDay).theme,
+      groups: empty
+        ? [
+            { group: "pocetnici", closed: false },
+            { group: "svi", closed: false },
+          ]
+        : [
+            { group: "pocetnici", closed: true, entries: 2, votesTotal: 3, winner: null, noWinnerReason: "MALO_PRIJAVA" },
+            { group: "svi", closed: true, entries: 9, votesTotal: 31, winner: { ...creaPublicWorkFixture(4), votes: 12 }, noWinnerReason: null },
+          ],
+    },
+    badges: [],
+  };
+}
+
+/** Nedeljna liga u svesci (K17): grupa od osam, „ti" na četvrtom mestu. */
+export const CREA_LEAGUE_FIXTURE: CreaLeagueFixture = {
+  eligible: true,
+  weekKey: "2026-W42",
+  myXp: 410,
+  joinTier: 1,
+  nextTier: 2,
+  member: { tier: 1, cohort: 3 },
+  table: [
+    { rank: 1, xp: 920, name: "Mila Petrović", isMe: false },
+    { rank: 2, xp: 760, name: "Luka Jovanović", isMe: false },
+    { rank: 3, xp: 515, name: "Ana Marković", isMe: false },
+    { rank: 4, xp: 410, name: "Jovana Test", isMe: true },
+    { rank: 5, xp: 380, name: "Nikola Ilić", isMe: false },
+    { rank: 6, xp: 120, name: "Sara Đorđević", isMe: false },
+  ],
+  lastWeek: { tier: 1, rank: 6 },
+};
+
+/** Kreativni par bez para (K17): link postoji, para i poziva još nema. */
+export const CREA_PAIR_EMPTY_FIXTURE: CreaPairFixture = { inviteCode: "IZLOG7", pair: null, invites: [], rewardProblem: null };
+
+const FIXTURE_LESSONS: Record<IgraFixtureId, number> = { novi: 0, aktivan: 3, legenda: 12 };
+
+/** Đačka knjižica (K17) za tri test korisnika: sličice iz albuma po redu i mini-lekcije. */
+export function creaReportCardFixture(stanje: IgraFixtureId): ReportCard & { streak: number; bestStreak: number } {
+  const game = CREA_GAME_FIXTURES[stanje];
+  const stickerIds = CREA_ALBUM_PAGES.flatMap((page) => page.stickers.map((sticker) => sticker.id)).slice(0, game.album.owned);
+  return { ...buildReportCard({ stickerIds, lessonsDone: FIXTURE_LESSONS[stanje], bestStreak: game.streak.best }), streak: game.streak.current, bestStreak: game.streak.best };
 }

@@ -14,6 +14,7 @@ import {
   WorkMedia,
   workPath,
 } from "@/components/crea/community/crea-community-ui";
+import { IgraArt } from "@/components/igra/igra-art";
 import { LinkButton, cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -75,6 +76,9 @@ export function PublicWorkView({ locale, work }: { locale: Locale; work: PublicW
       <div className="mx-auto max-w-6xl space-y-5 text-ink">
         {header}
         <section className="surface-card border-2 border-ink bg-paper-strong p-6 text-center shadow-[6px_6px_0_0_var(--shadow-hard-16)]">
+          <div className="mb-3 flex justify-center">
+            <IgraArt id="prazno.404" size="lg" decorative />
+          </div>
           <p className="type-h3">{CREA_WORK_COPY.notFound[locale]}</p>
           <LinkButton href={withLocale(locale, "/studio/galerija")} tone="paper" className="mt-4">
             {CREA_GALLERY_COPY.title[locale]}

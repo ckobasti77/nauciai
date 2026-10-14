@@ -6,10 +6,11 @@ import { ArrowLeft, Heart, Images, NotebookPen, Play, Trophy, Volume2 } from "lu
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 
-import { CreaLogo } from "@/components/crea/crea-logo";
+import { CreaCover } from "@/components/igra/crea/crea-cover";
 import { cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import type { IgraArtId } from "@/lib/igra-art";
 import { fillCopy } from "@/lib/crea-copy";
 import { CREA_COMMUNITY_NAV, CREA_GALLERY_COPY, CREA_REMIX_FORMS, communityErrorText } from "@/lib/crea-community-copy";
 import { pluralize, withLocale, type Locale } from "@/lib/i18n";
@@ -37,20 +38,26 @@ export function versionsLabel(locale: Locale, count: number): string {
   return `${count} ${pluralize(locale, count, CREA_REMIX_FORMS[locale])}`;
 }
 
+/** Nalepnica naslovnice po ekranu (K17, plan K14 ODLUKA 15). */
+const COVER_ART = { galerija: "lik.piksi.slavi", izazov: "rang.pehar" } as const satisfies Record<"galerija" | "izazov", IgraArtId>;
+
 /**
  * Zaglavlje ekrana zajednice: nazad u Creu, naslov i pilule ka galeriji, izazovu i
- * svesci (trenutni ekran je označen). Isti jezik kao zaglavlje sveske (K26).
+ * svesci (trenutni ekran je označen). Isti jezik kao zaglavlje sveske (K26); od K17 je
+ * naslov na naslovnici (`CreaCover`) sa nalepnicom ekrana.
  */
 export function CommunityHeader({
   locale,
   title,
   subtitle,
   current,
+  art = COVER_ART[current],
 }: {
   locale: Locale;
   title: string;
   subtitle: string;
   current: "galerija" | "izazov";
+  art?: IgraArtId;
 }) {
   const links = [
     { id: "galerija", href: COMMUNITY_PATHS.gallery, label: CREA_COMMUNITY_NAV.gallery[locale], icon: Images },
@@ -84,13 +91,7 @@ export function CommunityHeader({
           ))}
         </nav>
       </div>
-      <header className="flex items-start gap-4">
-        <CreaLogo variant="znak" className="size-12 shrink-0" />
-        <div>
-          <h1 className="type-h1">{title}</h1>
-          <p className="mt-1 type-body type-measure text-muted">{subtitle}</p>
-        </div>
-      </header>
+      <CreaCover art={art} title={title} subtitle={subtitle} />
     </div>
   );
 }
@@ -213,11 +214,19 @@ export function LikeButton({
   );
 }
 
-/** Kartica javnog rada u mreži: medij (link na stranu rada), naslov, autor, lajk. */
-export function WorkCard({ locale, work, footer }: { locale: Locale; work: PublicWork; footer?: ReactNode }) {
+/**
+ * Kartica javnog rada u mreži: medij (link na stranu rada), naslov, autor, lajk.
+ * `sticker`: nalepnica preko gornjeg desnog ugla (kruna pobednika, K17), samo ukras.
+ */
+export function WorkCard({ locale, work, footer, sticker }: { locale: Locale; work: PublicWork; footer?: ReactNode; sticker?: ReactNode }) {
   const title = work.title ?? CREA_GALLERY_COPY.untitled[locale];
   return (
-    <article className="surface-card flex flex-col border-2 border-ink bg-paper-strong p-2 text-ink shadow-[3px_3px_0_0_var(--shadow-hard-12)]">
+    <article className="surface-card relative flex flex-col border-2 border-ink bg-paper-strong p-2 text-ink shadow-[3px_3px_0_0_var(--shadow-hard-12)]">
+      {sticker ? (
+        <span aria-hidden="true" className="pointer-events-none absolute -right-3 -top-4 z-10 rotate-12">
+          {sticker}
+        </span>
+      ) : null}
       <Link
         href={withLocale(locale, workPath(work._id))}
         aria-label={fillCopy(CREA_GALLERY_COPY.open[locale], { title })}

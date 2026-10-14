@@ -1,5 +1,6 @@
 import { Flame, Snowflake } from "lucide-react";
 
+import { IgraArt } from "@/components/igra/igra-art";
 import { cn } from "@/components/ui/primitives";
 import { fillCopy } from "@/lib/crea-copy";
 import { CREA_STREAK_COPY } from "@/lib/crea-game-copy";
@@ -27,9 +28,8 @@ export function CreaStreakPanel({ locale, streak }: { locale: Locale; streak: St
     <section aria-labelledby="crea-niz-naslov" className="surface-card border-2 border-ink bg-paper-strong p-4 text-ink shadow-[6px_6px_0_0_var(--shadow-hard-16)] sm:p-5">
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
         <div className="flex items-center gap-3">
-          <span className="grid size-12 place-items-center rounded-full bg-yellow text-ink">
-            <Flame aria-hidden="true" className={cn("size-6", streak.todayDone && "fill-ink")} />
-          </span>
+          {/* Nalepnica plamena (K17): gori kad je danas upisano, inače tinja - isto kao `StreakFlame`. */}
+          <IgraArt id="rang.plamen" size={48} decorative className={streak.todayDone ? undefined : "opacity-60 saturate-[0.15]"} />
           <div>
             <h2 id="crea-niz-naslov" className="type-body-sm font-black text-muted">
               {CREA_STREAK_COPY.title[locale]}

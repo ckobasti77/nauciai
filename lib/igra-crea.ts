@@ -56,3 +56,17 @@ export function creaMomentLik(moment: CreaMoment | null, kind: CreaKind): CreaLi
 export function isCreaGenerationError(job: { status: string; error?: string }): boolean {
   return job.status === "failed" || (job.status === "refunded" && job.error !== "OTKAZAO_KORISNIK");
 }
+
+/** Koliko dugo je gotov rad „nov" u biblioteci (K17): jedan dan od kad je stigao. */
+export const CREA_FRESH_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Nalepnica „Novo" na kartici biblioteke (K17): gotov rad koji je stigao u poslednja 24 h.
+ * Čita samo polja koja kartica već ima (`completedAt`, a za stare radove `createdAt`);
+ * `nowMs` je trenutak kad je mreža otvorena, pa se nalepnica ne menja dok korisnik gleda.
+ */
+export function isFreshCreaWork(job: { status: string; createdAt: number; completedAt?: number }, nowMs: number): boolean {
+  if (job.status !== "done") return false;
+  const age = nowMs - (job.completedAt ?? job.createdAt);
+  return Number.isFinite(age) && age >= 0 && age < CREA_FRESH_MS;
+}

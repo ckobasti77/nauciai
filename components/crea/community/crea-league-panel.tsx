@@ -6,6 +6,7 @@ import { Medal } from "lucide-react";
 import { useState } from "react";
 
 import { useBelgradeToday } from "@/components/crea/game/crea-game-context";
+import { RankChip } from "@/components/igra/rank-chip";
 import { Button, cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
 import { fillCopy } from "@/lib/crea-copy";
@@ -66,7 +67,7 @@ export function LeagueView({ locale, league }: { locale: Locale; league: Functio
             <caption className="sr-only">{CREA_LEAGUE_COPY.table[locale]}</caption>
             <thead>
               <tr className="border-b border-line text-xs font-black text-muted">
-                <th scope="col" className="w-16 py-2">
+                <th scope="col" className="w-20 py-2">
                   {CREA_LEAGUE_COPY.rank[locale]}
                 </th>
                 <th scope="col" className="py-2">
@@ -80,20 +81,9 @@ export function LeagueView({ locale, league }: { locale: Locale; league: Functio
             <tbody className="divide-y divide-line">
               {league.table.map((row, index) => (
                 <tr key={`${row.rank}-${index}`} className={cn(row.isMe && "bg-yellow/20")}>
-                  <td className="py-2 pl-1 tabular-nums">
-                    {row.rank <= LEAGUE_PODIUM ? (
-                      <span
-                        title={CREA_LEAGUE_COPY.podium[locale]}
-                        className={cn(
-                          "inline-grid size-8 place-items-center rounded-full text-sm font-black",
-                          row.rank === 1 ? "bg-yellow text-ink" : "border-2 border-ink text-ink",
-                        )}
-                      >
-                        {row.rank}
-                      </span>
-                    ) : (
-                      <span className="inline-grid size-8 place-items-center text-sm font-black text-muted">{row.rank}</span>
-                    )}
+                  {/* Rang čip (K17): medalja za postolje, `#N` za ostale - isti čip kao rang lista zajednice. */}
+                  <td className="py-2 pl-1" title={row.rank <= LEAGUE_PODIUM ? CREA_LEAGUE_COPY.podium[locale] : undefined}>
+                    <RankChip rank={row.rank} locale={locale} />
                   </td>
                   <td className="py-2 text-sm font-black">
                     {row.name}

@@ -202,6 +202,7 @@ export const IGRA_CREA_COPY = {
     en: "Write the text or describe the sound and I'll turn it into a voice or music.",
   },
   failHint: { sr: "Desi se, nije strašno. Probaj ponovo.", en: "It happens, no big deal. Try again." },
+  stickerNew: { sr: "Novo", en: "New" },
 } satisfies Record<string, LocalizedText>;
 
 export const IGRA_LESSON_FORMS: Record<Locale, PluralForms> = {

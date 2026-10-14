@@ -9,6 +9,7 @@ import { QuickActionsMenu, type QuickActionLink } from "@/components/crea/quick-
 import { CreaReveal } from "@/components/crea/reveal/crea-reveal";
 import { CancelJobButton } from "@/components/crea/fair/cancel-job-button";
 import { CreaWaitScreen } from "@/components/crea/wait/wait-screen";
+import { WorkSticker } from "@/components/igra/crea/work-sticker";
 import { IgraLik } from "@/components/igra/igra-lik";
 import { CreditIcon } from "@/components/studio/credit-icon";
 import { cn } from "@/components/ui/primitives";
@@ -66,6 +67,7 @@ export function StudioMediaTile({
   waitSize = "tile",
   revealOnFinish = false,
   onFinished,
+  fresh = false,
 }: {
   job: StudioTileJob;
   locale: Locale;
@@ -93,6 +95,8 @@ export function StudioMediaTile({
   revealOnFinish?: boolean;
   /** Rad je upravo stigao ili pao dok je kartica bila otvorena. */
   onFinished?: (job: StudioTileJob, outcome: "done" | "failed", element: HTMLElement | null) => void;
+  /** Nalepnica „Novo" (K17): rad je stigao u poslednja 24 h; računa biblioteka. */
+  fresh?: boolean;
 }) {
   const isFavorited = job.favoriteAt !== undefined;
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -172,7 +176,7 @@ export function StudioMediaTile({
       className={cn(
         "surface-card group relative mb-4 break-inside-avoid text-ink cursor-pointer",
         "shadow-[3px_3px_0_0_var(--shadow-hard-12)] studio-anim-mikro",
-        "hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--shadow-hard-16)]",
+        "hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--shadow-hard-16)] motion-reduce:hover:translate-y-0",
         "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
       )}
     >
@@ -415,11 +419,8 @@ export function StudioMediaTile({
               {CREA_TOOL_COPY.galleryLabel[locale]}
             </span>
           ) : null}
-          {isFavorited && onToggleFavorite ? (
-            <span className="inline-flex items-center rounded-full border border-white/20 bg-yellow px-1.5 py-0.5 text-ink">
-              <Heart aria-label={CREA_LIBRARY_COPY.favorite[locale]} className="size-2.5 fill-current" />
-            </span>
-          ) : null}
+          {fresh && !isWorking && hasOutput ? <WorkSticker kind="novo" label={IGRA_CREA_COPY.stickerNew[locale]} /> : null}
+          {isFavorited && onToggleFavorite ? <WorkSticker kind="omiljeno" label={CREA_LIBRARY_COPY.favorite[locale]} /> : null}
         </div>
 
         {/* Hover pil gore desno sa tri akcije: Omiljeno, Upotrebi ponovo, Preuzmi */}

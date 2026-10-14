@@ -7,6 +7,7 @@ import { useState } from "react";
 
 import { FOCUS } from "@/components/crea/community/crea-community-ui";
 import { useBelgradeToday } from "@/components/crea/game/crea-game-context";
+import { IgraArt } from "@/components/igra/igra-art";
 import { Button, cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -179,7 +180,10 @@ export function PairView({ locale, data }: { locale: Locale; data: FunctionRetur
               )}
             </div>
           ) : (
-            <p className="type-body-sm font-bold text-muted">{CREA_PAIR_COPY.noPair[locale]}</p>
+            <div className="flex items-center gap-4">
+              <IgraArt id="prazno.par" size="lg" decorative />
+              <p className="min-w-0 type-body-sm font-bold text-muted">{CREA_PAIR_COPY.noPair[locale]}</p>
+            </div>
           )}
         </div>
       </section>

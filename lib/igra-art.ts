@@ -34,10 +34,7 @@ type PlannedArt = { w: number; h: number; kind: IgraArtKind; alt: LocalizedText 
  * pobeđuje i red odavde može da se obriše.
  */
 export const IGRA_PLANNED_ART = {
-  // TRAŽENE SLIKE (K14): prazna stanja Crea galerije, izazova i parova (koristi ih K17).
-  "prazno.galerija": { w: 768, h: 768, kind: "prazno", alt: { sr: "Galerija je još prazna", en: "The gallery is still empty" } },
-  "prazno.izazov": { w: 768, h: 768, kind: "prazno", alt: { sr: "Izazov čeka prve radove", en: "The challenge is waiting for its first works" } },
-  "prazno.par": { w: 768, h: 768, kind: "prazno", alt: { sr: "Još nemaš para", en: "No partner yet" } },
+  // K17: prazno.galerija, prazno.izazov i prazno.par (TRAŽENE SLIKE K14) su stigle u manifest.
 } as const satisfies Record<string, PlannedArt>;
 
 export type IgraArtId = IgraManifestId | keyof typeof IGRA_PLANNED_ART;

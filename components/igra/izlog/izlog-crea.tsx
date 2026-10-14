@@ -1,27 +1,40 @@
 "use client";
 
+import { SlidersHorizontal, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState, type MouseEvent, type ReactNode } from "react";
 
 import { StudioMediaTile } from "@/components/app/studio-media-tile";
+import { ChallengeView } from "@/components/crea/community/crea-challenge";
+import { CommunityHeader, WorkCard } from "@/components/crea/community/crea-community-ui";
+import { GalleryEmpty } from "@/components/crea/community/crea-gallery";
+import { LeagueView } from "@/components/crea/community/crea-league-panel";
+import { PairView } from "@/components/crea/community/crea-pair-panel";
+import { PublicWorkView } from "@/components/crea/community/crea-public-work";
 import { CreaHistoryEmpty } from "@/components/crea/crea-history";
 import { CreaStage } from "@/components/crea/crea-stage";
 import { CreaStartScreen } from "@/components/crea/crea-start-screen";
 import { CreaWorkshop } from "@/components/crea/crea-workshop";
 import { CreaGameProvider } from "@/components/crea/game/crea-game-context";
 import { CreaGameStrip } from "@/components/crea/game/crea-game-strip";
+import { CreaReportCardView } from "@/components/crea/game/crea-report-card";
+import { CreaStreakPanel } from "@/components/crea/game/crea-streak-panel";
 import { CreaStampToast, type CreaStampMoment } from "@/components/crea/game/crea-stamp-host";
 import { StageCompanion } from "@/components/crea/wait/stage-companion";
 import { CreaWaitScreen } from "@/components/crea/wait/wait-screen";
 import { CelebrationHost } from "@/components/igra/celebration-host";
 import { CreaAreaHeader } from "@/components/igra/crea/crea-area-header";
+import { CreaCover } from "@/components/igra/crea/crea-cover";
+import { IgraArt } from "@/components/igra/igra-art";
 import { IgraProgressContext } from "@/components/igra/igra-progress-context";
 import { IzlogDemo, IzlogSection } from "@/components/igra/izlog/izlog-kit";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/components/ui/primitives";
 import type { CreaMoment } from "@/convex/creaMomentsCore";
 import { fillCopy } from "@/lib/crea-copy";
-import { CREA_STAMP_COPY } from "@/lib/crea-game-copy";
+import { CREA_CHALLENGE_COPY, CREA_GALLERY_COPY } from "@/lib/crea-community-copy";
+import { CREA_NOTEBOOK_COPY, CREA_STAMP_COPY } from "@/lib/crea-game-copy";
 import { momentMessage } from "@/lib/crea-reveal";
 import { CREA_AREAS, creaModeDef, parseCreaShellState, type CreaArea, type CreaKind, type CreaModeId } from "@/lib/crea-shell";
 import { CREA_TYPICAL_WAIT_MS } from "@/lib/crea-wait";
@@ -30,7 +43,12 @@ import { IGRA_CREA_COPY } from "@/lib/igra-copy";
 import { creaMomentLik } from "@/lib/igra-crea";
 import {
   CREA_GAME_FIXTURES,
+  CREA_LEAGUE_FIXTURE,
+  CREA_PAIR_EMPTY_FIXTURE,
+  creaChallengeBoardFixture,
   creaJobFixture,
+  creaPublicWorkFixture,
+  creaReportCardFixture,
   IGRA_FIXTURE_IDS,
   IGRA_FIXTURE_LABEL,
   IGRA_FIXTURE_TODAY,
@@ -40,6 +58,7 @@ import {
 import { t, withLocale, type Locale } from "@/lib/i18n";
 import { creaMotionFor } from "@/lib/motion-contract";
 import { jobPrompt, jobStatusText } from "@/lib/studio-form";
+import { GALLERY_NO_MATCHES, STUDIO_NO_GENERATIONS } from "@/lib/studio-messages";
 
 /**
  * Izlog, deo „crea" (K15): PRAVA radionica Cree nad test podacima, bez prijave i bez
@@ -51,6 +70,9 @@ import { jobPrompt, jobStatusText } from "@/lib/studio-form";
  *
  * K16: čekanje (lik „radi"), rezultat (lik slavi prvi rad vrste, „+N XP"), neuspeh (tužan
  * lik) i uživo tok prvog rada: otkrivanje → oblačić → pečat albuma → slavlje bedža.
+ *
+ * K17: biblioteka (nalepnice „novo" i „omiljeno", prazna stanja), galerija, izazov (kruna
+ * pobednika), sveska i knjižica - prave komponente bez upita, nad test podacima.
  */
 
 const CHIP =
@@ -332,6 +354,118 @@ function FirstWorkDemo({ locale, stanje, onStart }: { locale: Locale; stanje: Ig
   );
 }
 
+// ── K17: biblioteka, galerija, izazov, sveska ─────────────────────────────────
+
+const LIBRARY_NOW = Date.parse(`${IGRA_FIXTURE_TODAY}T10:00:00Z`);
+const HOUR = 3_600_000;
+const FIXTURE_NAME: Record<IgraFixtureId, string> = { novi: "Tamara Ilić", aktivan: "Nikola Stanić", legenda: "Vesna Radović" };
+
+/** Kartice biblioteke: nalepnice „novo" (stiglo u poslednja 24 h) i „omiljeno"; hover je postojeći. */
+function LibraryDemos({ locale }: { locale: Locale }) {
+  const tiles = [
+    { label: "fresh", job: creaJobFixture("image", "done", LIBRARY_NOW, { _id: "izlog-bib-novo", isMock: false }), fresh: true },
+    { label: "favoriteAt", job: creaJobFixture("image", "done", LIBRARY_NOW - 30 * HOUR, { _id: "izlog-bib-omiljeno", isMock: false, favoriteAt: LIBRARY_NOW }), fresh: false },
+    { label: "fresh · favoriteAt", job: creaJobFixture("image", "done", LIBRARY_NOW, { _id: "izlog-bib-oba", isMock: false, favoriteAt: LIBRARY_NOW }), fresh: true },
+    { label: t(locale, "bez nalepnice", "no sticker"), job: creaJobFixture("image", "done", LIBRARY_NOW - 72 * HOUR, { _id: "izlog-bib-staro", isMock: false }), fresh: false },
+  ];
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {tiles.map((tile) => (
+          <IzlogDemo key={tile.job._id} label={tile.label}>
+            <StudioMediaTile job={tile.job} locale={locale} animateEntrance={false} fresh={tile.fresh} onToggleFavorite={noop} onReuse={noop} onOpenDetail={noop} />
+          </IzlogDemo>
+        ))}
+      </div>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <IzlogDemo label={t(locale, "prazna biblioteka", "empty library")}>
+          <EmptyState
+            icon={Sparkles}
+            art={<IgraArt id="prazno.radovi" size={120} decorative />}
+            title={STUDIO_NO_GENERATIONS.title[locale]}
+            body={STUDIO_NO_GENERATIONS.body[locale]}
+            action={<Button>{STUDIO_NO_GENERATIONS.cta[locale]}</Button>}
+          />
+        </IzlogDemo>
+        <IzlogDemo label={t(locale, "filter bez rezultata", "filter with no results")}>
+          <EmptyState
+            icon={SlidersHorizontal}
+            art={<IgraArt id="prazno.pretraga" size={120} decorative />}
+            title={GALLERY_NO_MATCHES.title[locale]}
+            body={GALLERY_NO_MATCHES.body[locale]}
+            action={<Button variant="secondary">{GALLERY_NO_MATCHES.cta[locale]}</Button>}
+          />
+        </IzlogDemo>
+      </div>
+    </div>
+  );
+}
+
+function GalleryDemos({ locale }: { locale: Locale }) {
+  return (
+    <div className="space-y-8">
+      <IzlogDemo label='current="galerija"'>
+        <div className="space-y-5">
+          <CommunityHeader locale={locale} title={CREA_GALLERY_COPY.title[locale]} subtitle={CREA_GALLERY_COPY.subtitle[locale]} current="galerija" />
+          <ul className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-4">
+            {[0, 1, 2, 3].map((n) => (
+              <li key={n}>
+                <WorkCard locale={locale} work={creaPublicWorkFixture(n)} />
+              </li>
+            ))}
+          </ul>
+        </div>
+      </IzlogDemo>
+      <IzlogDemo label={t(locale, "galerija bez radova", "gallery without works")}>
+        <GalleryEmpty locale={locale} />
+      </IzlogDemo>
+      <IzlogDemo label={t(locale, "rad ne postoji", "work not found")}>
+        <PublicWorkView locale={locale} work={null} />
+      </IzlogDemo>
+    </div>
+  );
+}
+
+function ChallengeDemos({ locale }: { locale: Locale }) {
+  return (
+    <div className="space-y-10">
+      <IzlogDemo label={t(locale, "glasanje + pobednik", "voting + winner")}>
+        <ChallengeView locale={locale} board={creaChallengeBoardFixture(false)} todayKey={IGRA_FIXTURE_TODAY} isAuthenticated={false} seasonPreview={null} />
+      </IzlogDemo>
+      <IzlogDemo label={t(locale, "prazno glasanje", "empty voting")}>
+        <ChallengeView locale={locale} board={creaChallengeBoardFixture(true)} todayKey={IGRA_FIXTURE_TODAY} isAuthenticated={false} seasonPreview={null} />
+      </IzlogDemo>
+    </div>
+  );
+}
+
+function NotebookDemos({ locale, stanje }: { locale: Locale; stanje: IgraFixtureId }) {
+  const game = CREA_GAME_FIXTURES[stanje];
+  return (
+    <div className="space-y-8">
+      <IzlogDemo label={t(locale, "naslovnica sveske", "notebook cover")}>
+        <div className="space-y-5">
+          <CreaCover art="lik.robi.mase" title={CREA_NOTEBOOK_COPY.title[locale]} subtitle={CREA_NOTEBOOK_COPY.subtitle[locale]} />
+          <CreaStreakPanel locale={locale} streak={game.streak} />
+        </div>
+      </IzlogDemo>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <IzlogDemo label={t(locale, "knjižica", "report card")}>
+          <CreaReportCardView locale={locale} name={FIXTURE_NAME[stanje]} username={game.username ?? stanje} card={creaReportCardFixture(stanje)} />
+        </IzlogDemo>
+        <div className="space-y-6">
+          <IzlogDemo label={t(locale, "liga: rang čipovi", "league: rank chips")}>
+            <LeagueView locale={locale} league={CREA_LEAGUE_FIXTURE} />
+          </IzlogDemo>
+          <IzlogDemo label={t(locale, "par: još nema para", "pair: no pair yet")}>
+            <PairView locale={locale} data={CREA_PAIR_EMPTY_FIXTURE} />
+          </IzlogDemo>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function IzlogCrea({ locale, stanje }: { locale: Locale; stanje: IgraFixtureId }) {
   const base = withLocale(locale, "/igra-izlog");
   const game = CREA_GAME_FIXTURES[stanje];
@@ -447,6 +581,57 @@ export function IzlogCrea({ locale, stanje }: { locale: Locale; stanje: IgraFixt
             <CreaGameStrip locale={locale} />
           </IzlogDemo>
         </CreaGameProvider>
+      </IzlogSection>
+
+      <IzlogSection
+        id="biblioteka"
+        title={t(locale, "Biblioteka", "Library")}
+        note={t(
+          locale,
+          "Kartice radova sa suptilnim nalepnicama: „Novo” za rad koji je stigao u poslednja 24 h (samo u biblioteci) i srce za omiljeno. Prazna biblioteka i filter bez rezultata imaju ilustraciju.",
+          "Work cards with subtle stickers: “New” for a work that arrived in the last 24 h (library only) and a heart for favourites. The empty library and a filter with no results get an illustration.",
+        )}
+      >
+        <LibraryDemos locale={locale} />
+      </IzlogSection>
+
+      <IzlogSection
+        id="galerija"
+        title={t(locale, "Galerija", "Gallery")}
+        note={t(
+          locale,
+          "Naslovnica sa Piksijem umesto znaka Cree; kartice radova su iste. Prazna galerija i rad koji ne postoji imaju ilustraciju.",
+          "A cover with Piksi instead of the Crea mark; work cards are unchanged. The empty gallery and a missing work get an illustration.",
+        )}
+      >
+        <GalleryDemos locale={locale} />
+      </IzlogSection>
+
+      <IzlogSection
+        id="izazov"
+        title={t(locale, "Izazov", "Challenge")}
+        note={fillCopy(
+          t(
+            locale,
+            "Naslovnica sa peharom, kruna koja jednom „udari” na kartici pobednika i marker na „{winner}”. Glasanje i rezultati su postojeći; prazno glasanje ima jednu ilustraciju.",
+            "A cover with the trophy, a crown that stamps in once on the winner's card and the marker on “{winner}”. Voting and results are as before; empty voting gets one illustration.",
+          ),
+          { winner: CREA_CHALLENGE_COPY.winner[locale] },
+        )}
+      >
+        <ChallengeDemos locale={locale} />
+      </IzlogSection>
+
+      <IzlogSection
+        id="sveska"
+        title={t(locale, "Sveska i knjižica", "Notebook and report card")}
+        note={t(
+          locale,
+          "Naslovnica sveske sa Robijem, plamen niza kao nalepnica (tinja dok danas nije upisano), korica knjižice, rang čipovi u ligi i ilustracija kad još nema para.",
+          "The notebook cover with Robi, the streak flame as a sticker (smoulders until today is logged), the report card cover, rank chips in the league and an illustration while there's no pair yet.",
+        )}
+      >
+        <NotebookDemos locale={locale} stanje={stanje} />
       </IzlogSection>
     </div>
   );

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { CreaReportCardView } from "@/components/crea/game/crea-report-card";
+import { IgraArt } from "@/components/igra/igra-art";
 import { LinkButton } from "@/components/ui/primitives";
 import { fillCopy } from "@/lib/crea-copy";
 import { CREA_CARD_COPY } from "@/lib/crea-game-copy";
@@ -41,6 +42,9 @@ export default async function SharedReportCardRoute({ params }: { params: Params
         <CreaReportCardView locale={locale} name={data.name} username={data.username} card={data.card} />
       ) : (
         <section className="surface-card border-2 border-ink bg-paper-strong p-6 text-center shadow-[6px_6px_0_0_var(--shadow-hard-16)]">
+          <div className="mb-3 flex justify-center">
+            <IgraArt id="prazno.zakljucano" size="lg" decorative />
+          </div>
           <p className="type-h3">{CREA_CARD_COPY.notShared[locale]}</p>
         </section>
       )}

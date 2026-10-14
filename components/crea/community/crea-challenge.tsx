@@ -9,6 +9,8 @@ import { useState } from "react";
 import { CommunityHeader, FOCUS, WorkCard } from "@/components/crea/community/crea-community-ui";
 import { CreaSeasonBanner } from "@/components/crea/community/crea-season-banner";
 import { useBelgradeToday } from "@/components/crea/game/crea-game-context";
+import { WinnerCrown } from "@/components/igra/crea/winner-crown";
+import { IgraArt } from "@/components/igra/igra-art";
 import { Button, LinkButton, cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -126,6 +128,12 @@ export function ChallengeView({
             {fillCopy(CREA_CHALLENGE_COPY.votingTheme[locale], { theme: board.voting.theme.label[locale] })} · {CREA_CHALLENGE_COPY.votingHint[locale]}
           </p>
         </div>
+        {/* Prazno glasanje (K17): jedna ilustracija za ceo deo, ne po jedna za svaku grupu. */}
+        {board.voting.groups.every((group) => group.entries.length === 0) ? (
+          <div className="flex justify-center">
+            <IgraArt id="prazno.izazov" size={120} decorative />
+          </div>
+        ) : null}
         {board.voting.groups.map((group) => (
           <VotingGroup key={group.group} locale={locale} group={group.group} entries={group.entries} myVote={group.myVote} signedIn={isAuthenticated} />
         ))}
@@ -155,10 +163,11 @@ export function ChallengeView({
                       <WorkCard
                         locale={locale}
                         work={result.winner}
+                        sticker={<WinnerCrown workId={result.winner._id} />}
                         footer={
                           <p className="inline-flex items-center gap-1.5 text-xs font-black">
                             <Award aria-hidden="true" className="size-4" />
-                            {CREA_CHALLENGE_COPY.winner[locale]} · {votesLabel(locale, result.winner.votes)}
+                            <span className="igra-marker bg-yellow text-ink">{CREA_CHALLENGE_COPY.winner[locale]}</span> · {votesLabel(locale, result.winner.votes)}
                           </p>
                         }
                       />
@@ -192,7 +201,7 @@ export function ChallengeView({
                   className="inline-flex items-center gap-2 rounded-full border-2 border-ink bg-yellow px-3 py-1.5 text-sm font-black text-ink"
                   title={dayLabel(badge.dayKey, locale)}
                 >
-                  <Award aria-hidden="true" className="size-4" />
+                  <IgraArt id="bedz.izazov" size="xs" decorative />
                   {fillCopy(CREA_CHALLENGE_COPY.badge[locale], { theme: badge.theme[locale] })}
                 </li>
               ))}

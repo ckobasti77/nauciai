@@ -1,4 +1,5 @@
 import { CreaStamp } from "@/components/crea/game/crea-stamp";
+import { IgraArt } from "@/components/igra/igra-art";
 import { fillCopy } from "@/lib/crea-copy";
 import { CREA_CARD_COPY } from "@/lib/crea-game-copy";
 import { CONDUCT_LABEL, GRADE_LABEL, REPORT_SUBJECTS, type ReportCard } from "@/lib/crea-report-card";
@@ -32,12 +33,18 @@ export function CreaReportCardView({
           : "surface-inset relative overflow-hidden bg-paper text-ink"
       }
     >
-      <header className="border-b border-line bg-surface-b px-5 py-4">
-        <p className="text-xs font-black text-muted">{CREA_CARD_COPY.school[locale]}</p>
-        <h2 className="mt-0.5 type-h2">{CREA_CARD_COPY.title[locale]}</h2>
-        <p className="mt-1 type-body-sm font-bold">
-          {CREA_CARD_COPY.student[locale]}: <span className="font-black">{name}</span> <span className="text-muted">@{username}</span>
-        </p>
+      {/* Korica knjižice (K17): Robi „ocenjuje" kao nalepnica uz naslov. */}
+      <header className="flex items-center gap-4 border-b border-line bg-surface-b px-5 py-4">
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-black text-muted">{CREA_CARD_COPY.school[locale]}</p>
+          <h2 className="mt-0.5 type-h2">{CREA_CARD_COPY.title[locale]}</h2>
+          <p className="mt-1 break-words type-body-sm font-bold">
+            {CREA_CARD_COPY.student[locale]}: <span className="font-black">{name}</span> <span className="text-muted">@{username}</span>
+          </p>
+        </div>
+        <span className="block shrink-0 rotate-6">
+          <IgraArt id="lik.robi.misli" size="md" decorative />
+        </span>
       </header>
       <div className="px-5 py-4">
         <table className="w-full text-left text-sm">

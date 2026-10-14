@@ -10,10 +10,12 @@ import { LibraryBulkActions } from "@/components/crea/library-bulk-actions";
 import { LibraryDuplicates } from "@/components/crea/library-duplicates";
 import type { QuickActionLink } from "@/components/crea/quick-actions-menu";
 import { Button } from "@/components/ui/button";
+import { IgraArt } from "@/components/igra/igra-art";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import type { Locale } from "@/lib/i18n";
+import { isFreshCreaWork } from "@/lib/igra-crea";
 import { resetStudioFilters, setStudioFilters, useStudioFilters } from "@/lib/studio-filters-store";
 import { dateRangeCutoff, downloadMediaFiles } from "@/lib/studio-gallery";
 import { CREA_LIBRARY_COPY } from "@/lib/crea-library-copy";
@@ -472,6 +474,7 @@ export function StudioMediaGrid({
           {filtersActive ? (
             <EmptyState
               icon={SlidersHorizontal}
+              art={<IgraArt id="prazno.pretraga" size={120} decorative />}
               title={GALLERY_NO_MATCHES.title[locale]}
               body={GALLERY_NO_MATCHES.body[locale]}
               action={
@@ -483,6 +486,7 @@ export function StudioMediaGrid({
           ) : projectId ? (
             <EmptyState
               icon={Sparkles}
+              art={<IgraArt id="prazno.radovi" size={120} decorative />}
               title={PROJECT_NO_GENERATIONS.title[locale]}
               body={PROJECT_NO_GENERATIONS.body[locale]}
               action={
@@ -495,6 +499,7 @@ export function StudioMediaGrid({
             <>
               <EmptyState
                 icon={Sparkles}
+                art={<IgraArt id="prazno.radovi" size={120} decorative />}
                 title={STUDIO_NO_GENERATIONS.title[locale]}
                 body={STUDIO_NO_GENERATIONS.body[locale]}
                 action={
@@ -531,6 +536,7 @@ export function StudioMediaGrid({
                     index={itemIndex}
                     onToggleFavorite={handleToggleFavorite}
                     waitHistory={rawJobRows}
+                    fresh={library && isFreshCreaWork(job, now)}
                     {...(quickActionsFor ? { quickActions: quickActionsFor(job) } : {})}
                   />
                 ))}

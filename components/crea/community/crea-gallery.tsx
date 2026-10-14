@@ -1,12 +1,12 @@
 "use client";
 
 import { usePaginatedQuery, useQuery } from "convex/react";
-import { Sparkles } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 
 import { CommunityHeader, FOCUS, PILL_TAB, versionsLabel, WorkCard, workPath } from "@/components/crea/community/crea-community-ui";
 import { CreaSeasonBanner } from "@/components/crea/community/crea-season-banner";
+import { IgraArt } from "@/components/igra/igra-art";
 import { LinkButton, cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
 import { fillCopy } from "@/lib/crea-copy";
@@ -117,14 +117,7 @@ function WorksGrid({ locale, sort, kind }: { locale: Locale; sort: "novo" | "pop
       </p>
     );
   }
-  if (results.length === 0 && status === "Exhausted") {
-    return (
-      <section className="surface-card border-2 border-dashed border-ink/40 bg-paper p-6 text-center">
-        <Sparkles aria-hidden="true" className="mx-auto size-6 text-ink" />
-        <p className="mt-2 type-body font-bold text-muted type-measure mx-auto">{CREA_GALLERY_COPY.empty[locale]}</p>
-      </section>
-    );
-  }
+  if (results.length === 0 && status === "Exhausted") return <GalleryEmpty locale={locale} />;
   return (
     <div className="space-y-4">
       <ul className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-4">
@@ -147,6 +140,18 @@ function WorksGrid({ locale, sort, kind }: { locale: Locale; sort: "novo" | "pop
         </div>
       ) : null}
     </div>
+  );
+}
+
+/** Galerija bez odobrenih radova (K17: ilustracija `prazno.galerija`, izvezeno za izlog). */
+export function GalleryEmpty({ locale }: { locale: Locale }) {
+  return (
+    <section className="surface-card border-2 border-dashed border-ink/40 bg-paper p-6 text-center">
+      <div className="flex justify-center">
+        <IgraArt id="prazno.galerija" size={120} decorative />
+      </div>
+      <p className="mt-3 type-body font-bold text-muted type-measure mx-auto">{CREA_GALLERY_COPY.empty[locale]}</p>
+    </section>
   );
 }
 

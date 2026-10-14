@@ -1196,3 +1196,97 @@ Prag pripada višem nivou (99 XP = nivo 1, 100 XP = nivo 2). Na nivou 12 je `pro
 - **Neuspeh:** tužan lik + „Generacija nije uspela - krediti su ti vraćeni." + „Desi se, nije strašno. Probaj ponovo."
 - **Ukus:** tekst `IGRA_CREA_COPY.failHint` (`lib/igra-copy.ts`), mesto lika „radi" (donji levi ugao lista). Snimci: `K16-crea-cekanje-1440-svetla.png`, `K16-crea-prvi-rad-oblacic-1440-svetla.png`, `K16-crea-neuspeh-1440-tamna.png`.
 - **Budžet `/app` 293 / 294 KB** (ODLUKA 10).
+
+## K17 — Crea biblioteka, galerija, izazovi (izgled)   (2026-10-14 10:05)
+**Fajlovi:**
+- novi: `components/igra/crea/crea-cover.tsx` (`CreaCover`, naslovnica), `components/igra/crea/work-sticker.tsx` (`WorkSticker`, „novo"/„omiljeno"), `components/igra/crea/winner-crown.tsx` (`WinnerCrown`), `docs/igra/snimci/K17-*.png` (11)
+- izmenjeni (biblioteka): `components/app/studio-media-grid.tsx` (ilustracije praznih stanja, `fresh` samo u biblioteci), `components/app/studio-media-tile.tsx` (nalepnice, prop `fresh`, hover bez podizanja uz smanjen pokret)
+- izmenjeni (galerija, izazov): `components/crea/community/crea-community-ui.tsx` (`CommunityHeader` → naslovnica, `WorkCard` opcioni `sticker`), `crea-gallery.tsx` (`GalleryEmpty` izvezen, `prazno.galerija`), `crea-challenge.tsx` (kruna, marker, `prazno.izazov`, `bedz.izazov` u bedževima), `crea-league-panel.tsx` (`RankChip`), `crea-pair-panel.tsx` (`prazno.par`), `crea-public-work.tsx` (`prazno.404`)
+- izmenjeni (sveska, knjižica): `components/crea/game/crea-notebook.tsx` (naslovnica sa Robijem, gost `prazno.zakljucano`), `crea-streak-panel.tsx` (`rang.plamen`), `crea-report-card.tsx` (korica sa `lik.robi.misli`), `app/[locale]/studio/(shell)/knjizica/[username]/page.tsx` (nedeljena knjižica `prazno.zakljucano`)
+- izmenjeni (IGRA): `lib/igra-crea.ts` (`isFreshCreaWork`, `CREA_FRESH_MS`), `lib/igra-copy.ts` (`stickerNew`), `lib/igra-art.ts` (obrisana tri planirana reda), `lib/igra-fixtures.ts` (javni rad, tabla izazova, liga, par, knjižica), `components/igra/izlog/izlog-crea.tsx` (4 nove sekcije), `lib/igra-crea.test.ts`
+
+**Šta je urađeno:** Biblioteka: prazna biblioteka i prazan projekat imaju `prazno.radovi`, filter bez rezultata `prazno.pretraga` (120 px, kroz postojeći `EmptyState`). Kartice radova dobile su suptilne die-cut nalepnice: krem „Novo" za rad koji je stigao u poslednja 24 h (samo u biblioteci, ne u koloni istorije) i žuto srce za omiljeno (zamenjuje staru žutu pilulu). Hover je ostao miran (2 px i senka), a uz smanjen pokret kartica se više ne podiže. Galerija, izazov i sveska umesto znaka Cree imaju naslovnicu: traku papira sa teksturom i washi trakom, naslov levo i jednu nalepnicu desno (Piksi slavi, pehar, Robi maše). Pobednik izazova dobija krunu `rang.kruna` koja jednom „udari" kao pečat kad kartica uđe u vidno polje, i žuti marker na „Pobednik". Bedževi izazova nose `bedz.izazov`, prazno glasanje ima jednu ilustraciju za ceo deo. Liga u svesci ima rang čipove (medalje za postolje, `#N` za ostale), plamen niza je nalepnica koja tinja dok danas nije upisano, đačka knjižica ima koricu sa Robijem, a parovi, javni rad koji ne postoji, gost u svesci i nedeljena knjižica dobili su ilustracije.
+
+**Površine:**
+- gotovo: biblioteka (prazna stanja, nalepnice), galerija (naslovnica, prazno, rad ne postoji), izazov (naslovnica, kruna i marker pobednika, prazno glasanje, bedževi), sveska (naslovnica, niz, liga, par, gost), knjižica (korica, nedeljena).
+- ne menja se namerno: glasanje, prijava na izazov, nagrade, pravila, moderacija, lajk, remiks; kartice javnih radova (`WorkCard`) osim nalepnice pobednika; album, mapa veština, zaglavlje biblioteke (alat, plan K14 §4).
+
+**ODLUKE:**
+1. **Rang čipovi autora samo u ligi.** Javni rad nosi autora bez ikakvog ranga (`publicAuthor`: ime, korisničko ime, avatar). Dodati rang u galeriju bi značilo nov upit i javni prikaz podatka koji danas nije javan (zabrana §4 plana). Zadatak kaže „gde već postoji rang", a postoji samo u tabeli lige (`row.rank`).
+2. **„Novo" = gotov rad koji je stigao u poslednja 24 h** (`completedAt`, za stare radove `createdAt`), računato prema trenutku otvaranja mreže (postojeći `now` u `StudioMediaGrid`). Bez nove tabele i bez pamćenja „viđenog". Samo u biblioteci (`library`), jer bi u koloni istorije skoro svaki rad bio „nov".
+3. **„Mirni hover":** zatečeni hover je već miran (podizanje 2 px + senka, 120 ms). Dodato je samo `motion-reduce:hover:translate-y-0`; ništa se ne skalira niti treperi.
+4. **Naslovnica je bez okvira** (`bg-surface-b`, tekstura `igra-paper`, washi traka). Test K15 brani `border-2` u `components/igra/crea/*`, a okvir ostaje karticama sadržaja ispod (jedan okvir po grupi). Ovo je „heroj traka" iz zadatka; scene-heroja nema (plan K14 ODLUKA 15). Nalepnica: 64 px na telefonu, 96 px od `sm`.
+5. **Slavlje pobednika je samo izgled:** kruna (pečat kroz postojeći `useStampIn`, jednom, kad je kartica 60 % vidljiva; uz smanjen pokret odmah stoji) i marker. Nema konfeta ni preklopa, jer stranu izazova vide svi, a ne samo pobednik.
+6. **Prazno glasanje: jedna ilustracija za ceo deo**, i to samo kad su OBE grupe prazne. Tekst „nije bilo prijava" po grupi ostaje kakav je bio. Sa dve grupe bi `EmptyState` po grupi crtao dve iste slike jednu ispod druge.
+7. **Gost u svesci dobija `prazno.zakljucano`, a ne Robija** (plan je predlagao `lik.robi.misli`). Robi već maše sa naslovnice odmah iznad, pa bi bila dva Robija. Knjižica ima `lik.robi.misli` (Robi „ocenjuje"); u svesci je to drugi list, pa nije pored naslovnice.
+8. **Galerija bez radova zadržava svoju isprekidanu kutiju**, a ikona `Sparkles` je zamenjena sa `prazno.galerija` (plan je predlagao `EmptyState`). `EmptyState` traži naslov i telo, a postoji samo jedna rečenica (`CREA_GALLERY_COPY.empty`), pa nisam izmišljao nov tekst. Kutija je izvezena kao `GalleryEmpty`, da je izlog crta.
+9. **Tri planirana reda (`prazno.galerija|izazov|par`) obrisana su iz `IGRA_PLANNED_ART`**, jer su u manifestu (napomena „SLIKE (K14)": to radi prvi korak koji dira `lib/igra-art.ts`).
+10. **Bundle:** `/crea/app` 488 → 489 KB gz (budžet 512), `/app/studio` 555 → 557 (595), `/app` ostaje 293 (294). `three` i GSAP pluginovi nisu u početnim chunk-ovima. Galerija, izazov i sveska nemaju budžet; dobile su `RankChip`, `useStampIn` i `CreaCover`.
+
+**Novi paketi:** nema.
+
+**Testovi:** `lib/igra-crea.test.ts` (+8):
+- `isFreshCreaWork`: 24 h granica, bez `completedAt`, statusi koji nisu gotovi, sat u budućnosti, NaN;
+- „Novo" samo u biblioteci i nalepnice na kartici; ilustracije praznih stanja biblioteke; hover uz smanjen pokret;
+- naslovnice galerije, izazova i sveske (Piksi, pehar, Robi), bez `CreaLogo`;
+- kruna i marker na pobedniku; jedna ilustracija praznog glasanja; pozivi `vote`, `enterChallenge` i nagrada ostaju doslovno isti; kruna ide kroz `useStampIn`, bez svog GSAP-a;
+- `RankChip` u ligi, a nijedan u galeriji;
+- plamen, korica knjižice i prazna stanja parova, javnog rada i knjižice;
+- sve K17 slike su u manifestu i spremne;
+- test podaci izloga.
+
+**Slike:** `prazno.radovi`, `prazno.pretraga`, `prazno.galerija`, `prazno.izazov`, `prazno.par`, `prazno.404`, `prazno.zakljucano`, `rang.kruna`, `rang.pehar`, `rang.plamen`, `bedz.izazov`, `lik.piksi.slavi`, `lik.robi.mase`, `lik.robi.misli`. Nove slike nisu tražene.
+
+**Rezultat provere:**
+- codegen: nije potreban (`convex/` nije diran)
+- typecheck: prošlo
+- lint: prošlo (0 grešaka, istih 26 zatečenih upozorenja)
+- test: prošlo (313 fajlova, 3.548 testova)
+- check:frames, check:corners, check:white: prošlo; check:igra `--strict`: sve slike koje kod koristi su na mestu (nema više upozorenja o planiranoj slici)
+- build: prošao; check:bundle: prošlo (brojevi u ODLUCI 10)
+- **pregledač (Playwright, izlog `/igra-izlog?deo=crea&stanje=aktivan`, sekcije Biblioteka / Galerija / Izazov / Sveska i knjižica), 1440 × 900 i 390 × 844, obe teme:**
+  - 0 slomljenih slika i nema vodoravnog skrola na 390;
+  - nalepnica „Novo" je mastilo na kremu (~12:1) u obe teme;
+  - kruna uz `prefers-reduced-motion: reduce` odmah stoji (opacity 1, bez transforma);
+  - konzola bez grešaka i bez upozorenja o hidrataciji (jedino dev upozorenje je LCP slike test kartice u izlogu);
+  - snimci: `K17-crea-biblioteka-1440-svetla|tamna`, `K17-crea-biblioteka-390-svetla`, `K17-crea-galerija-1440-svetla`, `K17-crea-galerija-390-tamna`, `K17-crea-izazov-1440-svetla|tamna`, `K17-crea-izazov-390-svetla`, `K17-crea-sveska-1440-svetla|tamna`, `K17-crea-sveska-390-tamna`.
+- dev server je ugašen (port 3123 slobodan); Playwright `page-*.yml` i `console-*.log` su obrisani.
+
+- **prave strane (produkcioni build, `next start -p 3124`, kao gost), izmereno:**
+  - `/crea/sveska`: naslovnica sa Robijem (`lik.robi.mase`) i gost-kartica sa katancem (`prazno.zakljucano`), na 1440 svetla i 390 tamna; 0 slomljenih slika, nema vodoravnog skrola;
+  - `/crea/knjizica/<ime koje nije javno>`: katanac i „Ova knjižica nije javna.", na 390; slika učitana;
+  - konzola bez grešaka i upozorenja;
+  - snimci: `K17-crea-prava-sveska-1440-svetla`, `K17-crea-prava-sveska-390-tamna`, `K17-crea-prava-knjizica-390-svetla`;
+  - server je posle ugašen.
+
+**BLOKADA (prihvatanje „Ekrani rade u obe teme i na telefonu", delimično):** delovi koje je moguće otvoriti bez prijave i flega (sveska kao gost, nedeljena knjižica) provereni su na pravoj strani u obe teme i na 390 px; svi ostali ekrani su provereni samo u izlogu, sa istim komponentama nad test podacima (390 i 1440 px, obe teme). Na pravoj strani nisu gledani:
+- **galerija i izazov** (`/crea/galerija`, `/crea/izazov`): fleg `crea_public_gallery` je na DEV-u isključen, pa obe strane vraćaju „Ova stranica je zalutala" (`notFound()`). Flegove ne smem da menjam (pravila runa: bez `npx convex env`, ne diraj flegove);
+- **prijavljeni delovi** (biblioteka u `/app/studio`, sveska sa niz/liga/par/knjižica, glasanje): Playwright nije prijavljen (isto kao K06–K16), a prijava ide kroz auth tok koji se ne dira.
+
+U izlogu su proverene iste komponente: `ChallengeView`, `LeagueView`, `PairView`, `PublicWorkView`, `StudioMediaTile`, `CreaReportCardView` i `CreaStreakPanel`.
+
+Pokušaji pre BLOKADE (12; svaki dozvoljen put je iskorišćen):
+1. izlog na `next dev --webpack` (sve K17 sekcije, 390 i 1440 px, obe teme);
+2. produkcioni build `next start` kao gost: sveska i knjižica rade;
+3. galerija i izazov na istom buildu: oba vraćaju `notFound()`;
+4. provera izvora flega: `isCreaGalleryEnabled` → `creaGallery.galleryState` → `readCreaFlag(crea_public_gallery)`.
+5. Playwright MCP kao prijavljen: ne može. `.igra-run/mcp.json` pokreće ga sa `--isolated`, bez sačuvane sesije ili profila.
+6. dev prijava ili zamena identiteta u kodu (`dev-login`, `impersonat…` u `app/`, `lib/`, `convex/`): ne postoji.
+7. sačuvan Playwright `storageState` u repou: ne postoji.
+8. pregled galerije bez flega preko parametra: ne postoji. Galerija čita samo `prikaz`, `vrsta` i `sezona`; fleg se ne zaobilazi.
+9. vrednost flega na DEV-u, javni upit samo za čitanje (`POST /api/query creaGallery:galleryState` na `wandering-fox-41`): `{"enabled":false,"isStaff":false,"signedIn":false}`. `npx convex run` u ovoj ljusci ne ispisuje rezultat.
+10. sveska iza prijave (`/app/studio/sveska`): ista `CreaNotebook` kao `/crea/sveska`, a `/app/*` traži prijavu (proxy).
+11. `/app/studio/gallery`: samo `redirect` u biblioteku radionice, koja je takođe iza prijave.
+12. auth provajderi (`convex/auth.ts`): samo `Password` i `ConvexCredentials` („password-login"). Prijava traži lozinku postojećeg naloga, a pravljenje test naloga je upis kroz auth tok, što je zabranjeno.
+
+Fleg je red u DEV bazi, a ne lokalna env varijabla. Uključiti ga znači upisati podatke u Convex, a to pravila runa zabranjuju.
+
+Prijavljene strane traže prijavu kroz auth tok, koji se ne dira, a bez tajni drugog puta nema. Ponovni pokušaji bi udarili u ista dva ograničenja, pa se BLOKADA ne može razrešiti u ovom koraku.
+
+Jovan ručno: uključi `crea_public_gallery` na DEV-u i otvori `/crea/galerija` i `/crea/izazov`, pa kao prijavljen otvori biblioteku i svesku.
+
+**Za Jovana ujutru:**
+- **Biblioteka** (`/app/studio`, „Biblioteka"): radovi od danas nose „Novo", omiljeni srce; isprazni filter → Robi sa lupom.
+- **Galerija i izazov** (uz upaljen `crea_public_gallery`): naslovnica sa Piksijem / peharom; kod pobednika kruna „udari" kad skroluješ do rezultata.
+- **Sveska** (`/crea/sveska`): naslovnica sa Robijem, plamen niza, rang čipovi u ligi, korica knjižice; nedeljena knjižica na `/crea/knjizica/<ime>` prikazuje katanac.
+- **Ukus:** da li je „Novo" 24 h pravi prozor i da li naslovnica treba okvir (sada je bez, ODLUKA 4). Snimci: `K17-crea-izazov-1440-svetla.png`, `K17-crea-sveska-1440-svetla.png`, `K17-crea-biblioteka-1440-tamna.png`.

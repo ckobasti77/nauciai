@@ -6,9 +6,9 @@ import { describe, expect, it } from "vitest";
 import manifest from "../public/brand/igra/manifest.json";
 import { CREA_AREAS, creaShellQuery } from "./crea-shell";
 import { IGRA_CREA_COPY } from "./igra-copy";
-import { CREA_AREA_LIK, CREA_RADI_ART, creaLikForArea, creaLikForKind, creaMomentLik, creaRadiArt, isCreaGenerationError } from "./igra-crea";
+import { CREA_AREA_LIK, CREA_FRESH_MS, CREA_RADI_ART, creaLikForArea, creaLikForKind, creaMomentLik, creaRadiArt, isCreaGenerationError, isFreshCreaWork } from "./igra-crea";
 import { creaXpRun, type CreaXpEvent, type CreaXpRun } from "./igra-crea-xp";
-import { CREA_GAME_FIXTURES, creaJobFixture, IGRA_FIXTURE_IDS, IGRA_FIXTURES } from "./igra-fixtures";
+import { CREA_GAME_FIXTURES, creaChallengeBoardFixture, creaJobFixture, creaReportCardFixture, IGRA_FIXTURE_IDS, IGRA_FIXTURES } from "./igra-fixtures";
 import { jobStatusText } from "./studio-form";
 import { levelFromXp } from "./igra-level";
 
@@ -284,5 +284,110 @@ describe("K16: slavlja se ne preklapaju", () => {
 
   it("3D maskota Cree je Robi", () => {
     expect(read("lib/crea-experience-copy.ts")).toContain('label: { sr: "Robi", en: "Robi" }');
+  });
+});
+
+describe("K17: biblioteka, galerija, izazov, sveska (samo izgled)", () => {
+  const NOW = Date.parse("2026-10-14T10:00:00Z");
+  const HOUR = 3_600_000;
+
+  it("„Novo\" je gotov rad koji je stigao u poslednja 24 h", () => {
+    expect(CREA_FRESH_MS).toBe(24 * HOUR);
+    expect(isFreshCreaWork({ status: "done", createdAt: NOW - 2 * HOUR, completedAt: NOW - HOUR }, NOW)).toBe(true);
+    expect(isFreshCreaWork({ status: "done", createdAt: NOW - 30 * HOUR, completedAt: NOW - 23 * HOUR }, NOW)).toBe(true);
+    expect(isFreshCreaWork({ status: "done", createdAt: NOW - 30 * HOUR, completedAt: NOW - 24 * HOUR }, NOW)).toBe(false);
+    // Stari rad bez `completedAt`: računa se od nastanka.
+    expect(isFreshCreaWork({ status: "done", createdAt: NOW - 5 * HOUR }, NOW)).toBe(true);
+    expect(isFreshCreaWork({ status: "done", createdAt: NOW - 48 * HOUR }, NOW)).toBe(false);
+    for (const status of ["running", "queued", "failed", "refunded", "reserved"]) {
+      expect(isFreshCreaWork({ status, createdAt: NOW - HOUR }, NOW), status).toBe(false);
+    }
+    // Sat u budućnosti i loš ulaz ne daju nalepnicu.
+    expect(isFreshCreaWork({ status: "done", createdAt: NOW + HOUR }, NOW)).toBe(false);
+    expect(isFreshCreaWork({ status: "done", createdAt: Number.NaN }, NOW)).toBe(false);
+    expect(isFreshCreaWork({ status: "done", createdAt: NOW - HOUR }, Number.NaN)).toBe(false);
+  });
+
+  it("nalepnice kartice: „Novo\" samo u biblioteci, srce za omiljeno; prazna stanja imaju ilustraciju", () => {
+    const grid = read("components/app/studio-media-grid.tsx");
+    expect(grid).toContain("fresh={library && isFreshCreaWork(job, now)}");
+    expect(grid.match(/id="prazno\.radovi"/g)).toHaveLength(2);
+    expect(grid.match(/id="prazno\.pretraga"/g)).toHaveLength(1);
+    const tile = read("components/app/studio-media-tile.tsx");
+    expect(tile).toContain('<WorkSticker kind="novo"');
+    expect(tile).toContain('<WorkSticker kind="omiljeno"');
+    // Mirni hover: podizanje kartice staje uz smanjen pokret.
+    expect(tile).toContain("motion-reduce:hover:translate-y-0");
+    expect(IGRA_CREA_COPY.stickerNew).toEqual({ sr: "Novo", en: "New" });
+  });
+
+  it("naslovnice umesto znaka Cree: galerija Piksi, izazov pehar, sveska Robi", () => {
+    const community = read("components/crea/community/crea-community-ui.tsx");
+    expect(community).toContain('galerija: "lik.piksi.slavi", izazov: "rang.pehar"');
+    expect(community).toContain("<CreaCover ");
+    const notebook = read("components/crea/game/crea-notebook.tsx");
+    expect(notebook).toContain('<CreaCover art="lik.robi.mase"');
+    for (const file of ["components/crea/community/crea-community-ui.tsx", "components/crea/game/crea-notebook.tsx"]) {
+      expect(read(file), file).not.toContain("CreaLogo");
+    }
+  });
+
+  it("izazov: kruna i marker na pobedniku, jedna ilustracija praznog glasanja; glasanje i nagrade netaknuti", () => {
+    const challenge = read("components/crea/community/crea-challenge.tsx");
+    expect(challenge).toContain("sticker={<WinnerCrown workId={result.winner._id} />}");
+    expect(challenge).toContain('<span className="igra-marker bg-yellow text-ink">{CREA_CHALLENGE_COPY.winner[locale]}</span>');
+    expect(challenge.match(/id="prazno\.izazov"/g)).toHaveLength(1);
+    expect(challenge).toContain("await vote({ workId: entry._id });");
+    expect(challenge).toContain("await enter({ jobId: work.jobId as Id<\"generationJobs\">, sharePrompt: false });");
+    expect(challenge).toContain("CHALLENGE_WINNER_CREDITS");
+    // Kruna „udari" kroz zajednički hook (on poštuje smanjen pokret), bez svog GSAP-a.
+    const crown = read("components/igra/crea/winner-crown.tsx");
+    expect(crown).toContain("useStampIn(ref");
+    expect(crown).not.toMatch(/from "gsap"|gsap\./);
+  });
+
+  it("liga dobija rang čip; galerija nema rang (autor ga ne nosi) pa ni čip", () => {
+    expect(read("components/crea/community/crea-league-panel.tsx")).toContain("<RankChip rank={row.rank} locale={locale} />");
+    expect(read("components/crea/community/crea-gallery.tsx")).not.toContain("RankChip");
+    expect(read("components/crea/community/crea-community-ui.tsx")).not.toContain("RankChip");
+  });
+
+  it("sveska i knjižica: plamen nalepnica, korica knjižice, prazna stanja", () => {
+    const streak = read("components/crea/game/crea-streak-panel.tsx");
+    expect(streak).toContain('<IgraArt id="rang.plamen"');
+    expect(streak).toContain('streak.todayDone ? undefined : "opacity-60 saturate-[0.15]"');
+    expect(read("components/crea/game/crea-report-card.tsx")).toContain('<IgraArt id="lik.robi.misli"');
+    expect(read("components/crea/community/crea-pair-panel.tsx")).toContain('<IgraArt id="prazno.par"');
+    expect(read("components/crea/community/crea-public-work.tsx")).toContain('<IgraArt id="prazno.404"');
+    expect(read("app/[locale]/studio/(shell)/knjizica/[username]/page.tsx")).toContain('<IgraArt id="prazno.zakljucano"');
+  });
+
+  it("sve slike K17 su u manifestu i spremne", () => {
+    const ids = [
+      "prazno.radovi",
+      "prazno.pretraga",
+      "prazno.galerija",
+      "prazno.izazov",
+      "prazno.par",
+      "prazno.404",
+      "prazno.zakljucano",
+      "rang.kruna",
+      "rang.pehar",
+      "rang.plamen",
+      "bedz.izazov",
+      "lik.piksi.slavi",
+      "lik.robi.mase",
+      "lik.robi.misli",
+    ];
+    for (const id of ids) expect(assets[id]?.ready, id).toBe(true);
+  });
+
+  it("test podaci izloga: prazno glasanje je prazno u obe grupe, knjižica raste sa albumom", () => {
+    const empty = creaChallengeBoardFixture(true);
+    expect(empty.voting.groups.every((group) => group.entries.length === 0)).toBe(true);
+    const full = creaChallengeBoardFixture(false);
+    expect(full.results.groups.some((group) => group.closed && group.winner !== null)).toBe(true);
+    expect(creaReportCardFixture("novi").stickers).toBe(0);
+    expect(creaReportCardFixture("legenda").stickers).toBe(CREA_GAME_FIXTURES.legenda.album.owned);
   });
 });
