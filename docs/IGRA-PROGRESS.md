@@ -1571,3 +1571,79 @@ Jovan ručno: uključi `crea_public_gallery` na DEV-u i otvori `/crea/galerija` 
 **Snimci:** `K25-slike-1440-{svetla,tamna}.png`, `K25-slike-1440-tamna-vrh.png`, `K25-slike-390-tamna.png`, `K25-bedz-soon-390-svetla.png`, `K25-profil-1440-tamna.png`, `K25-tabla-390-svetla.png`.
 
 **Za Jovana ujutru:** prođi pravu aplikaciju (tabla, učionica, profil/polica, Crea) u tamnoj temi i proveri da nijedna nalepnica ne ostaje prazan krug; reši da li želiš `ikona.*`/`rang.meta` negde (ako da, reci gde).
+
+## K26 — Telefon (390 px) — ceo prolaz   (2026-10-14 13:40)
+**Fajlovi:** `app/globals.css` (+`.igra-hit`), `components/ui/button.tsx`, `components/app/{app-sidebar,app-account-menu,sound-toggle,dashboard-windows,dashboard-content,dashboard-course-card,classroom-hub,community-comments,community-thread-detail}.tsx`, `components/app/community-v2/{community-filters,community-leaderboard,community-members,community-mentions,community-shared}.tsx`, `components/app/chat/chat-thread.tsx`, `components/studio/param-control.tsx`, izlog: `app/[locale]/igra-izlog/page.tsx`, `components/igra/izlog/{izlog-mikro,izlog-poruke}.tsx`; novo `lib/igra-touch.test.ts`; snimci `docs/igra/snimci/K26-*.png` (11).
+
+**Šta je urađeno:** Svih 16 delova izloga je prođeno na 390 × 844 kao pravi telefon (Playwright kontekst `hasTouch` + `isMobile`, tj. `pointer: coarse`), sr i en, svetla i tamna, uz skrol do dna. Skripta je merila tri stvari: vodoravni skrol (`scrollWidth`), elemente van ekrana koje ne seče predak sa `overflow`, i svaku dodirnu metu (link, dugme, prekidač, polje) manju od 44 px. Zatim je 126 snimaka po segmentima pregledano okom: dva radnika su pregledala snimke, a svaki nalaz sam proverio na snimku. Pre ispravki je bilo oko 15 grupa meta ispod 44 px i šest vidljivih grešaka u rasporedu. Posle ispravki nijedan deo nema vodoravni skrol (64 prolaza). Ispod 44 px je ostao samo logotip u zaglavlju (ODLUKA 3).
+
+**Provereni ekrani (nalaz → popravka):**
+| Deo izloga | Nalaz na 390 px | Popravka |
+|---|---|---|
+| sve površine (ljuska) | **zatvorena fioka menija baca senku `18px 0 45px` preko leve ivice SVAKE strane posle prijave** (siva traka ~40 px) | senka samo uz `mobileOpen` (`app-sidebar.tsx`) |
+| ljuska | čip kredita 76×32 px, prekidači zvuka i teme 36 px u meniju naloga i u fioci | `igra-hit` (meta 44 px, izgled isti) |
+| ljuska | donji meni | **tačno 4 slota** (Dashboard, Učionica, Zajednica, Poruke), izmereno u obe teme |
+| svi delovi sa `Button size="sm"` (58 poziva) | 40 px | `pointer-coarse:min-h-11` u `button.tsx` (na računaru isto) |
+| tabla | redovi prozora (lekcije, obaveštenja) 40 px | `pointer-coarse:min-h-11` |
+| tabla | natpis „Obaveštenja" (104 px; en „Notifications" 114 px) ulazi u ikonicu (mesta je 89 px) | natpis dobija ceo red, a ikonica stoji uz broj (sve širine) |
+| tabla | „Otvori lekciju" i „Uredi u admin panelu" 40 px | `pointer-coarse:min-h-11` |
+| učionica | filter čipovi „Svi / U toku / Završeni / Zaključani" 36 px; „Otvori smer" 16 px | čipovi: `pointer-coarse:min-h-11`; „Otvori smer": `igra-hit` |
+| učionica | pečat „Završeno" leži preko „Aktivan pristup" na naslovnoj kursa | status i pečat u jednom `flex-wrap` redu: kad nema mesta, pečat pređe u drugi red (na računaru isto kao pre) |
+| učionica, tabla | „Nastavi / Ponovi" na kartici kursa i „Zajednica" na tabli: žut tekst na papiru (~1,7:1, `tone="smoke"`) | `tone="quiet"`: mastilo 12,9:1, u tamnoj temi žuto 7,66:1. Sam komentar u `primitives.tsx` kaže da je `smoke` pao na tabli |
+| zajednica | avatar linkovi 40 px, `@korisnik` 20–24 px, red člana 22 px, pomeni | `igra-hit` |
+| rang | prekidač „Globalno / Podešavanja" 36 px, „Ova nedelja / Ukupno" 40 px | `pointer-coarse:min-h-11` |
+| rang | **traka filtera: „Ova nedelja / Ukupno" van ekrana** (napomena nadzora posle K12): skrol je unutar trake, pa početnik ne vidi drugi prekidač | ispod `sm` traka se prelama u dva reda, a izbori smera i ciklusa idu u punu širinu. Od `sm` je jedan red kao pre (`K26-rang-1440-svetla.png`). Druga napomena je rešena ranije: „Ova nedelja" već ima `whitespace-nowrap` |
+| poruke | reakcija 👍 34×24 px | `igra-hit` (pravi `chat-thread.tsx` i izlog) |
+| Crea | dugmad na pločici rada 28 px | već imaju `pointer-coarse:size-11`, bez izmene |
+| Crea parametri, mikro | prekidač 48×28 px (`param-control.tsx`) | `igra-hit` |
+| profil, krediti, admin, stanja, mapa, slike, primitivi, pokret | bez nalaza | — |
+
+**3D i slavlja:** na 390 px uz dodir deo `pokret` nema nijedan `<canvas>` (prikazuju se nalepnice), a na 1440 px ima 4. Uslov je `IGRA_THREE_MEDIA = (min-width: 1024px) and (pointer: fine)`. Slavlja „Kraj kursa", „Tri bedža" i „Novi nivo" su dijalog širok 358 px, ceo u ekranu i bez vodoravnog skrola. Posle 4,1 s ih više nema: sama se gase posle 2,5 s, a Esc i dodir podloge ih zatvaraju. Uz smanjen pokret prikazuje se kartica u uglu na 6,5 s.
+
+**Heroji:**
+- Tabla: CTA je 508 px od vrha heroja, tj. ≈ 590 px od vrha ekrana sa zaglavljem, iznad donjeg menija.
+- Zajednica 165 px, rang 194 px, admin 417 px visine.
+- Crea ulaz pokazuje sve tri pločice radionica na prvom ekranu.
+- Nijedan heroj ne gura sadržaj previše ispod pregiba.
+
+**Površine:** u izlogu su gotovi svih 16 delova. Prave strane iza prijave nisu gledane (BLOKADA).
+
+**ODLUKE:**
+1. **`.igra-hit` (novi recept u `globals.css`).** Guste mete (avatari, `@korisnik`, čipovi, prekidači, reakcije) dobijaju veću dodirnu površinu umesto većeg izgleda.
+   - Radi samo uz `pointer: coarse`: nevidljivi `::after` se širi do 44 × 44 px, pa se na računaru ništa ne menja. Provereno sa `elementFromPoint` 21 px od centra.
+   - Kad mete stoje gusto (npr. „Otvori smer" iznad kartica), sused može da pokrije deo proširenja. Meta je i tada široka ≥ 44 px i visoka ≥ 30 px.
+   - Dugmad koja mogu da porastu (`Button sm`, čipovi, redovi) dobijaju `pointer-coarse:min-h-11`, po istom obrascu kao postojeći `pointer-coarse:size-11` u Crei.
+2. `ThemeToggle` se koristi i na javnom sajtu (zaglavlje, podnožje), pa komponenta nije dirana. `igra-hit` stiže kroz `className` samo u meniju naloga i u fioci.
+3. Logotip u mobilnom zaglavlju (`BrandMark`, 107–120 × 36 px) ostaje kakav je: deljen je sa javnim zaglavljem (ne diramo ga), širok je i ispunjava WCAG 2.5.8 AA (24 px).
+4. Na pločicama table ikonica prelazi u red sa brojem na svim širinama, ne samo na telefonu. Jedan raspored je jednostavniji od dva, a na `sm` (4 kolone, ~110 px) bi isti natpis opet udario u ikonicu.
+5. Traka rang liste na telefonu ima dva reda. Pravi omotač je `SmartStickyRegion`, koji se pri skrolu nadole sakriva, pa njena visina (~140 px) ne pokriva listu dok se čita. U izlogu je to običan `sticky`.
+6. „Moj red" na dnu rang liste je namerni K12 obrazac i ostaje: uži je da bi zaobišao dugme „na vrh" i stoji preko reda ispod.
+7. Pilula „Moderator" ispod avatara u kartici člana viri 2 px preko ivice kartice, na svim širinama (`CommunityAvatar`: `max-w-[4.8rem]` ispod avatara od 48 px). Nije vezano za telefon, a ispravka bi dirala deljenu komponentu, pa nije menjano; upisano za K29.
+
+**Za sledeće korake (nađeno, nije vezano za telefon, nije menjano):**
+- **K28 (smanjen pokret):** uz `prefers-reduced-motion` konzola javlja „A tree hydrated but some attributes … didn't match" na `CourseCatalogCard` i drugim `motion.article` sa `whileTap={reduceMotion ? undefined : …}`. Uzrok: `motion` na serveru dodaje `tabindex="0"` zbog `whileTap`, a klijent uz smanjen pokret ne dodaje (isto kao u memoriji za K09). Bez smanjenog pokreta `tabindex=0` ostaje na `<article>`, što je verovatno suvišan tab-stop.
+- **K27/K29 (i18n):** datumi u sr izlaze ćirilicom („26. октобар 2026.", „11.окт" na tabli i u učionici), jer `toLocale…("sr-RS")` daje ćirilicu. Ima 17 fajlova sa `"sr-RS"` u `components`/`lib`; verovatno treba `sr-Latn-RS`.
+- Plutajuće dugme „na vrh" (`components/ui/scroll-to-top.tsx`) na 390 px pokriva desni kraj sadržaja iznad donjeg menija, npr. poslednju cifru „1.890" u panelu napretka. Komponentu deli javni sajt, pa nije dirana.
+
+**Novi paketi:** nema.
+
+**Testovi:** `lib/igra-touch.test.ts` (5 testova nad izvorom):
+- `.igra-hit` je u `@layer components` pod `pointer: coarse`, sa 44 px;
+- `Button sm` raste na dodir;
+- gusti natpisi i prekidači nose `igra-hit`;
+- zatvorena fioka nema senku (senka je samo uz `mobileOpen`);
+- traka rang liste se prelama ispod `sm`.
+
+**Slike:** nema novih; tražene: nema.
+
+**Rezultat provere:** codegen: nije potreban (`convex/` nije diran) / typecheck: prošlo / lint: prošlo (0 grešaka, istih 26 upozorenja) / test: prošlo (319 fajlova, 3.624 testa) / check:frames: prošlo. Dev server (`next dev --webpack`, port 3123) je ugašen i port je slobodan; Playwright `console-*.log` je obrisan.
+
+**Snimci:** `K26-{rang,ucionica,tabla,ljuska}-390-{svetla,tamna}.png`; za proveru da je računar ostao isti: `K26-rang-1440-svetla.png`, `K26-tabla-1440-svetla.png`, `K26-ucionica-1440-tamna.png`.
+
+**BLOKADA (samo provera, ne kod):** prave strane posle prijave (`/app`, učionica, zajednica, rang, profil, poruke, krediti, admin, Crea) nisu gledane na 390 px. Razlog je isti kao u K06–K25: Playwright MCP radi `--isolated` bez sesije, a auth tok se ne dira. Sve izmenjene komponente su iste one koje izlog crta. Fioku (`app-sidebar.tsx`) izlog crta kroz pravu ljusku iz K06; senka je tamo izmerena i snimljena (`K26-ljuska-390-*`).
+
+**Za Jovana ujutru:** na pravom telefonu (ili u DevTools sa uređajem na dodir) proveri:
+1. Leva ivica `/app` više nije siva dok je meni zatvoren, a senka se vidi kad se meni otvori.
+2. Rang lista: traka filtera je u dva reda i oba prekidača se vide.
+3. Dodir oko malih elemenata (avatar, `@korisnik`, čip kredita, reakcija u četu) pogađa metu.
+4. Kartica završenog kursa: pečat „Završeno" ne leži preko statusa, a „Nastavi" / „Ponovi" se lako čita.

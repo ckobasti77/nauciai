@@ -356,7 +356,7 @@ export function ClassroomHubView({
                   onClick={() => setFilter(option.id)}
                   aria-pressed={filter === option.id}
                   className={cn(
-                    "inline-flex min-h-9 items-center rounded-full border-2 px-4 py-1.5 text-xs font-black transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+                    "inline-flex min-h-9 items-center rounded-full border-2 px-4 py-1.5 text-xs font-black transition-colors pointer-coarse:min-h-11 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
                     filter === option.id
                       ? "border-ink bg-yellow text-ink"
                       : cn("border-line text-muted hover:text-ink", surfaceClass(nextLevel(ZONE_COURSES))),
@@ -594,7 +594,7 @@ function TrackStrip({ locale, group }: { locale: Locale; group: CatalogTrackGrou
         {group.slug ? (
           <Link
             href={trackPath(locale, group.slug)}
-            className="inline-flex w-fit shrink-0 items-center gap-1 text-xs font-black text-ink underline decoration-2 underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            className="igra-hit inline-flex w-fit shrink-0 items-center gap-1 text-xs font-black text-ink underline decoration-2 underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
             {tr(locale, "Otvori smer", "Open track")}
             <ArrowRight className="size-3.5" />

@@ -1221,7 +1221,7 @@ export function DashboardContent({
                     : tr(locale, "U pripremi", "In preparation")}
                 </div>
               )}
-              <LinkButton href={withLocale(locale, `/app/community?course=${course.slug}`)} tone="smoke">
+              <LinkButton href={withLocale(locale, `/app/community?course=${course.slug}`)} tone="quiet">
                 <MessageCircle className="size-4" />
                 <InlineContentText entityId={course.id ?? ""} parentId={course.trackId} kind="course" field="pageCopy_communityCta" locale={inlineLocale} sr={course.pageCopy?.communityCta?.sr ?? t.community} en={course.pageCopy?.communityCta?.en ?? t.community} admin={isAdmin && Boolean(course.id && course.trackId)}>{locale === "sr" ? course.pageCopy?.communityCta?.sr ?? t.community : course.pageCopy?.communityCta?.en ?? t.community}</InlineContentText>
               </LinkButton>
@@ -1294,7 +1294,7 @@ export function DashboardContent({
               </summary>
               <div className="border-t-2 border-line bg-paper px-4 py-4 sm:pl-[4.25rem]">
                 {lesson.summary ? <InlineRichText kind="lesson" entityId={lesson.id ?? ""} parentId={course.id} field="summary" locale={inlineLocale} richSr={lesson.summaryRich?.sr} richEn={lesson.summaryRich?.en} sr={lesson.summary.sr} en={lesson.summary.en} admin={isAdmin && Boolean(lesson.id && course.id)} className="max-w-3xl type-body-sm font-semibold text-muted" /> : <p className="max-w-3xl type-body-sm font-semibold text-muted">{tr(locale, "Sažetak lekcije još nije dodat.", "Lesson summary has not been added yet.")}</p>}
-                <div className="mt-4 flex flex-wrap gap-2"><Link href={courseContinueHref(locale, course, lesson)} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-xs font-black"><PlayCircle className="size-4" /> {tr(locale, "Otvori lekciju", "Open lesson")}</Link>{surfaceIsAdmin ? <Link href={withLocale(locale, "/app/admin")} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 text-xs font-black"><ShieldCheck className="size-4" /> {tr(locale, "Uredi u admin panelu", "Edit in admin panel")}</Link> : null}</div>
+                <div className="mt-4 flex flex-wrap gap-2"><Link href={courseContinueHref(locale, course, lesson)} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-xs font-black pointer-coarse:min-h-11"><PlayCircle className="size-4" /> {tr(locale, "Otvori lekciju", "Open lesson")}</Link>{surfaceIsAdmin ? <Link href={withLocale(locale, "/app/admin")} className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 text-xs font-black pointer-coarse:min-h-11"><ShieldCheck className="size-4" /> {tr(locale, "Uredi u admin panelu", "Edit in admin panel")}</Link> : null}</div>
               </div>
             </details>
           ))}

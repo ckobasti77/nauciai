@@ -44,7 +44,7 @@ export default async function IgraIzlogPage({
             <p className="type-eyebrow text-muted">{t(locale, "Samo u razvoju", "Development only")}</p>
             <h1 className="font-display type-display-sm text-ink">IGRA · {t(locale, "izlog", "showcase")}</h1>
           </div>
-          <ThemeToggle locale={locale} />
+          <ThemeToggle locale={locale} className="igra-hit" />
         </header>
         <nav aria-label={t(locale, "Delovi izloga", "Showcase sections")} className="flex flex-wrap gap-2">
           {IZLOG_PARTS.map((item) => (

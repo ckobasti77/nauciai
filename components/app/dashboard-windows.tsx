@@ -85,7 +85,7 @@ function WindowRowView({ row }: { row: WindowRow }) {
   );
   // Nested panel unutar kartice → inset radius (12px).
   const className =
-    "flex items-center gap-3 surface-inset border-2 border-line bg-paper px-3 py-2";
+    "flex items-center gap-3 surface-inset border-2 border-line bg-paper px-3 py-2 pointer-coarse:min-h-11";
   if (row.href) {
     return (
       <Link
@@ -276,20 +276,20 @@ function PulseTile({
       href={href}
       className="igra-lift igra-shadow-soft group surface-card border-2 border-line bg-paper-strong p-4 text-ink hover:border-yellow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yellow"
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="type-eyebrow text-muted transition-colors duration-200 group-hover:text-yellow">{label}</p>
-          <p className="mt-2 type-h1 tabular-nums text-ink">
-            {valueLabel ? (
-              <>
-                <span aria-hidden="true">{value}</span>
-                <span className="sr-only">{valueLabel}</span>
-              </>
-            ) : (
-              value
-            )}
-          </p>
-        </div>
+      {/* Natpis ima ceo red: na telefonu (dve pločice u redu) „Obaveštenja" ne staje pored
+          ikonice, a broj je uvek kratak, pa ikonica stoji uz njega. */}
+      <p className="type-eyebrow text-muted transition-colors duration-200 group-hover:text-yellow">{label}</p>
+      <div className="mt-2 flex items-center justify-between gap-3">
+        <p className="min-w-0 type-h1 tabular-nums text-ink">
+          {valueLabel ? (
+            <>
+              <span aria-hidden="true">{value}</span>
+              <span className="sr-only">{valueLabel}</span>
+            </>
+          ) : (
+            value
+          )}
+        </p>
         {art ?? (
           <span className="inline-flex size-9 shrink-0 items-center justify-center surface-media border-2 border-ink bg-paper-strong text-ink transition duration-200 group-hover:border-yellow group-hover:bg-yellow group-hover:text-ink">
             <Icon aria-hidden="true" className="size-4" />

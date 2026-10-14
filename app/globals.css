@@ -610,6 +610,25 @@ body {
   }
 }
 
+/* IGRA (K26): `.igra-hit` - dodirna meta od najmanje 44 × 44 px na prst (`pointer: coarse`)
+   bez promene izgleda: nevidljivi `::after` se širi oko elementa dok ne dostigne 44 px po
+   svakoj osi (veći element ostaje kakav jeste). Za guste natpise, avatare, čipove i
+   prekidače čiji bi rast pomerio raspored; dugmad koja mogu da porastu dobijaju
+   `pointer-coarse:min-h-11`. `@layer components`: autorski `absolute`/`fixed` pobeđuje. */
+@layer components {
+  @media (pointer: coarse) {
+    .igra-hit {
+      position: relative;
+    }
+
+    .igra-hit::after {
+      content: "";
+      position: absolute;
+      inset: min(0px, calc((100% - 44px) / 2));
+    }
+  }
+}
+
 /* IGRA (K24): podrazumevano ponašanje unutar ljuske posle prijave (`[data-igra-ui]` na
    korenu `AppShell`-a i Crea ljuske - javni sajt ga nema). `@layer base` + `:where()`:
    svaki autorski utility pobeđuje, ovo samo popunjava rupe - jezičci, prekidači i

@@ -136,7 +136,7 @@ export function IzlogMikro({ locale }: { locale: Locale; stanje: IgraFixtureId }
                   type="button"
                   aria-pressed={period === value}
                   onClick={() => setPeriod(value)}
-                  className={cn("min-h-10 whitespace-nowrap rounded-full px-4 text-xs font-black", period === value ? "bg-ink text-paper-strong" : "text-ink/65 hover:bg-paper-strong hover:text-ink")}
+                  className={cn("min-h-10 whitespace-nowrap rounded-full px-4 pointer-coarse:min-h-11 text-xs font-black", period === value ? "bg-ink text-paper-strong" : "text-ink/65 hover:bg-paper-strong hover:text-ink")}
                 >
                   {value === "week" ? t(locale, "Ova nedelja", "This week") : t(locale, "Ukupno", "All time")}
                 </button>
@@ -151,7 +151,7 @@ export function IzlogMikro({ locale }: { locale: Locale; stanje: IgraFixtureId }
                 aria-checked={on}
                 aria-labelledby="izlog-mikro-switch"
                 onClick={() => setOn((value) => !value)}
-                className={cn("inline-flex h-7 w-12 shrink-0 items-center rounded-full border-2 border-ink p-0.5", on ? "bg-yellow" : "bg-paper")}
+                className={cn("igra-hit inline-flex h-7 w-12 shrink-0 items-center rounded-full border-2 border-ink p-0.5", on ? "bg-yellow" : "bg-paper")}
               >
                 <span className={cn("size-5 rounded-full border-2 border-ink bg-paper-strong transition-[translate] duration-200", on && "translate-x-5")} />
               </button>

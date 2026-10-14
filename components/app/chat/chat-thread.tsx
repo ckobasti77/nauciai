@@ -199,7 +199,7 @@ function MessageBubble({
             {mine && withinEditWindow ? <button type="button" onClick={() => void deleteMessage({ messageId: message.id })} className="rounded-full px-2 type-caption font-black text-red-700 hover:bg-red-50">{label(locale, "Obriši", "Delete")}</button> : null}
           </div> : null}
         </div>
-        {visibleMessage.reactions?.length ? <div ref={reactionsRef} className={cn("mt-1 flex flex-wrap gap-1", mine && "justify-end")}>{visibleMessage.reactions.map((reaction) => <button key={reaction.emoji} type="button" data-chat-motion="reaction" data-chat-reaction={reaction.emoji} onClick={(event) => { requestChatMotion(event.currentTarget, { kind: "reaction" }); void toggleReaction({ messageId: message.id, emoji: reaction.emoji }); }} className="rounded-full border border-line bg-paper-strong px-2 py-0.5 type-caption font-black">{reaction.emoji} <span className="font-mono">{reaction.count}</span></button>)}</div> : null}
+        {visibleMessage.reactions?.length ? <div ref={reactionsRef} className={cn("mt-1 flex flex-wrap gap-1", mine && "justify-end")}>{visibleMessage.reactions.map((reaction) => <button key={reaction.emoji} type="button" data-chat-motion="reaction" data-chat-reaction={reaction.emoji} onClick={(event) => { requestChatMotion(event.currentTarget, { kind: "reaction" }); void toggleReaction({ messageId: message.id, emoji: reaction.emoji }); }} className="igra-hit rounded-full border border-line bg-paper-strong px-2 py-0.5 type-caption font-black">{reaction.emoji} <span className="font-mono">{reaction.count}</span></button>)}</div> : null}
       </div>
     </article>
   );

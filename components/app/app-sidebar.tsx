@@ -1468,8 +1468,10 @@ export function AppSidebarContent({
       // prelaz je utility ovde, jer bi `transition-transform` fioke inace pojeo sloj sa
       // sirinom. Glavni sadrzaj desno je flex-sused, pa prati istu krivu bez svog prelaza.
       className={cn(
-        "app-sidebar fixed inset-y-0 left-0 z-50 flex h-dvh min-w-0 -translate-x-full flex-col border-r-2 border-ink bg-paper-strong px-4 py-4 shadow-[18px_0_45px_var(--shadow-hard)] transition-transform duration-200 motion-reduce:transition-none",
-        mobileOpen && "translate-x-0",
+        "app-sidebar fixed inset-y-0 left-0 z-50 flex h-dvh min-w-0 -translate-x-full flex-col border-r-2 border-ink bg-paper-strong px-4 py-4 transition-transform duration-200 motion-reduce:transition-none",
+        // Senka samo uz otvorenu fioku: zatvorena stoji levo od ekrana, a senka od 18 + 45 px
+        // bi inače sivela levu ivicu svake strane na telefonu.
+        mobileOpen && "translate-x-0 shadow-[18px_0_45px_var(--shadow-hard)]",
         "md:sticky md:top-0 md:z-30 md:h-screen md:shrink-0 md:translate-x-0 md:overflow-visible md:py-7 md:shadow-none",
         "md:transition-[width] md:duration-[260ms] md:ease-[var(--ease-studio-out)]",
       )}
@@ -1730,7 +1732,7 @@ export function AppSidebarContent({
           </button>
         </div>
       )}
-      <ThemeToggle locale={locale} className="mt-3 md:hidden" />
+      <ThemeToggle locale={locale} className="igra-hit mt-3 md:hidden" />
       </div>
 
       {/* Rail nosi TACNO iste elemente na istim mestima kao prosireni sloj: dugme na vrhu,

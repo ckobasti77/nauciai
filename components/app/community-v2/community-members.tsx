@@ -206,7 +206,7 @@ export function MemberCardView({
           showRank={false}
         />
         <div className="min-w-0 flex-1">
-          {member.username ? <Link href={withLocale(locale, `/app/members/${member.username}`)} className="flex min-w-0 items-center gap-2 surface-inset focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
+          {member.username ? <Link href={withLocale(locale, `/app/members/${member.username}`)} className="igra-hit flex min-w-0 items-center gap-2 surface-inset focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
             <span className="truncate type-h4 text-ink">{member.name}</span>
             <ChevronRight className="size-4 shrink-0 text-line transition group-hover:translate-x-0.5 group-hover:text-ink" aria-hidden="true" />
           </Link> : <span className="block truncate type-h4 text-ink">{member.name}</span>}

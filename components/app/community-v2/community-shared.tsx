@@ -241,7 +241,7 @@ export function ThreadCard({
       <div className="relative flex min-w-0 gap-3 p-4">
         <Link
           href={post.authorUsername ? withLocale(locale, `/app/members/${post.authorUsername}`) : threadHref}
-          className="relative z-10 shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          className="igra-hit relative z-10 shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           aria-label={locale === "sr" ? `Profil člana ${post.authorName}` : `${post.authorName}'s profile`}
         >
           <div className="absolute bottom-0 left-1/2 top-12 w-0.5 -translate-x-1/2 bg-line/70" aria-hidden="true" />
@@ -257,7 +257,7 @@ export function ThreadCard({
         </Link>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            {post.authorUsername ? <Link href={withLocale(locale, `/app/members/${post.authorUsername}`)} className="relative z-10 type-body-sm font-black text-ink hover:underline">@{post.authorUsername}</Link> : <span className="type-body-sm font-black text-ink">{post.authorName}</span>}
+            {post.authorUsername ? <Link href={withLocale(locale, `/app/members/${post.authorUsername}`)} className="igra-hit relative z-10 type-body-sm font-black text-ink hover:underline">@{post.authorUsername}</Link> : <span className="type-body-sm font-black text-ink">{post.authorName}</span>}
             {post.authorUsername ? <span className="type-caption font-semibold text-muted">{post.authorName}</span> : null}
             {/* K11: red teme vec nosi `authorRank`, pa cip ne dodaje nijedan upit. */}
             <AuthorRankChip rank={post.authorRank} locale={locale} />

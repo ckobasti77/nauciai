@@ -55,7 +55,7 @@ export function SoundToggle({
       aria-label={label}
       title={label}
       className={cn(
-        "igra-press inline-flex shrink-0 items-center rounded-full border-2 border-ink font-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+        "igra-press igra-hit inline-flex shrink-0 items-center rounded-full border-2 border-ink font-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
         iconOnly ? "size-9 justify-center" : "min-h-8 gap-1.5 px-2.5 py-1 text-xs",
         soundEnabled
           ? "bg-paper-strong text-ink shadow-[1px_1px_0_0_var(--shadow-hard)]"

@@ -105,16 +105,20 @@ export function DashboardCourseCard({
       <div className="pointer-events-none relative z-10 p-3">
         <div className={cn("relative aspect-[16/9] overflow-hidden surface-media shadow-[inset_0_0_0_1px_var(--shadow-hard-14)]", mediaBg)}>
           <CourseCover course={course} locale={locale} loop={loop} />
-          <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full border-2 border-ink bg-paper-strong px-3 py-1 type-eyebrow text-ink">
-            <ShieldCheck className="size-3.5" />
-            {statusCopy(locale, course, isAdmin)}
-          </span>
-          {state === "done" ? (
-            // Pečat miruje: „udar" pripada slavlju na kraju kursa.
-            <span className="igra-stamp absolute right-3 top-3 bg-paper-strong px-3 py-1 type-eyebrow">
-              <span className="text-ink">{IGRA_CLASSROOM_COPY.stampDone[locale]}</span>
+          {/* Status levo, pečat desno; kad na uskoj kartici (telefon) nema mesta za oba,
+              pečat pređe u drugi red umesto da legne preko statusa. */}
+          <div className="absolute inset-x-3 top-3 flex flex-wrap items-start justify-between gap-2">
+            <span className="inline-flex items-center gap-1 rounded-full border-2 border-ink bg-paper-strong px-3 py-1 type-eyebrow text-ink">
+              <ShieldCheck className="size-3.5" />
+              {statusCopy(locale, course, isAdmin)}
             </span>
-          ) : null}
+            {state === "done" ? (
+              // Pečat miruje: „udar" pripada slavlju na kraju kursa.
+              <span className="igra-stamp bg-paper-strong px-3 py-1 type-eyebrow">
+                <span className="text-ink">{IGRA_CLASSROOM_COPY.stampDone[locale]}</span>
+              </span>
+            ) : null}
+          </div>
           <IgraLik lik={courseLik({ slug: course.slug, trackSlug, title: course.title })} decorative className="absolute bottom-2 right-2" />
         </div>
       </div>
@@ -160,7 +164,7 @@ export function DashboardCourseCard({
           {canOpen ? (
             <LinkButton
               href={summary.nextLesson ? lessonPath(locale, course.slug, summary.nextLesson.slug) : coursePath(locale, course.slug)}
-              tone="smoke"
+              tone="quiet"
               className="min-h-10 px-4 text-xs font-black"
             >
               <PlayCircle className="size-4" />

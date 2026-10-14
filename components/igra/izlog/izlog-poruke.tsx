@@ -39,7 +39,7 @@ function Bubble({ item, onReact }: { item: DemoItem; onReact: (id: number) => vo
           </span>
         ))}
         {item.reactions.length ? null : (
-          <button type="button" onClick={() => onReact(item.id)} className="rounded-full border border-line bg-paper px-2 py-0.5 type-caption font-black text-muted">
+          <button type="button" onClick={() => onReact(item.id)} className="igra-hit rounded-full border border-line bg-paper px-2 py-0.5 type-caption font-black text-muted">
             👍
           </button>
         )}

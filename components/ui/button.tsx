@@ -22,7 +22,7 @@ const buttonVariants = {
 } as const;
 
 const buttonSizes = {
-  sm: "min-h-10 gap-1.5 px-3.5 text-xs",
+  sm: "min-h-10 gap-1.5 px-3.5 text-xs pointer-coarse:min-h-11",
   md: "min-h-11 gap-2 px-4 text-sm",
   lg: "min-h-12 gap-2 px-5 text-base",
 } as const;

@@ -375,7 +375,7 @@ function CommentItem({
         className={cn("group transition", node.isHelpful && "surface-inset border border-line bg-yellow/15 p-3 dark:bg-yellow/10", highlighted && "surface-inset bg-yellow/20 p-3 ring-2 ring-yellow")}
       >
         <div className="flex items-start gap-3">
-          <Link href={node.authorUsername ? withLocale(locale, `/app/members/${node.authorUsername}`) : "#"} aria-disabled={!node.authorUsername} className="shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
+          <Link href={node.authorUsername ? withLocale(locale, `/app/members/${node.authorUsername}`) : "#"} aria-disabled={!node.authorUsername} className="igra-hit shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
             <CommunityAvatar name={node.authorName} avatarUrl={node.authorAvatarUrl} role={node.authorRole} locale={locale} size="sm" showRank={false} className="pt-0.5" />
           </Link>
           <div className="min-w-0 flex-1">

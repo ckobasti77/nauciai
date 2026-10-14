@@ -184,7 +184,7 @@ export function LiveCommunityThreadPage({
               <div aria-hidden="true" className="absolute bottom-0 left-8 top-0 hidden w-px bg-ink/15 md:block" />
               <div className="relative mx-auto max-w-[720px]">
                 <div className="flex items-start gap-3">
-                  <Link href={post.authorUsername ? withLocale(locale, `/app/members/${post.authorUsername}`) : "#"} aria-disabled={!post.authorUsername} className="shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
+                  <Link href={post.authorUsername ? withLocale(locale, `/app/members/${post.authorUsername}`) : "#"} aria-disabled={!post.authorUsername} className="igra-hit shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
                     <CommunityAvatar
                       name={post.authorName}
                       avatarUrl={post.authorAvatarUrl}
@@ -508,7 +508,7 @@ function ThreadAuthorCard({
       <p className="type-eyebrow text-ink/60">{t(locale, "Autor teme", "Topic author")}</p>
       <div className="mt-3 flex items-start gap-3">
         {profileHref ? (
-          <Link href={profileHref} className="shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
+          <Link href={profileHref} className="igra-hit shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
             <CommunityAvatar name={name} avatarUrl={avatarUrl} role={role} locale={locale} size="md" showRank={false} />
           </Link>
         ) : (

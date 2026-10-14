@@ -361,7 +361,7 @@ export function ParamControl({
             disabled={disabled}
             onClick={() => onChange(!on)}
             className={cn(
-              "inline-flex h-7 w-12 shrink-0 items-center rounded-full border-2 border-ink p-0.5 transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-60",
+              "igra-hit inline-flex h-7 w-12 shrink-0 items-center rounded-full border-2 border-ink p-0.5 transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-60",
               on ? "bg-yellow" : "bg-paper-strong",
             )}
           >

@@ -214,8 +214,8 @@ export function CommunityScopeControls({
   const isSelects = mode === "all" || mode === "selects";
 
   const selectsContent = settingsOpen ? (
-    <div className={cn("grid gap-2 sm:grid-cols-2", inline && "flex items-center") }>
-      <label className={cn("block", inline && "w-48 shrink-0")}>
+    <div className={cn("grid gap-2 sm:grid-cols-2", inline && "flex flex-wrap items-center sm:flex-nowrap") }>
+      <label className={cn("block", inline && "w-full shrink-0 sm:w-48")}>
         <span className="sr-only">{locale === "sr" ? "Izaberi smer" : "Choose track"}</span>
         <select
           value={scopeState.selectedTrack?._id ?? ""}
@@ -229,7 +229,7 @@ export function CommunityScopeControls({
           ))}
         </select>
       </label>
-      <label className={cn("block", inline && "w-52 shrink-0")}>
+      <label className={cn("block", inline && "w-full shrink-0 sm:w-52")}>
         <span className="sr-only">{locale === "sr" ? "Izaberi kurs" : "Choose course"}</span>
         <select
           value={selectedCourseValue}
@@ -247,7 +247,7 @@ export function CommunityScopeControls({
           ))}
         </select>
       </label>
-      {showLearningDepth ? <label className={cn("block", inline && "w-48 shrink-0")}>
+      {showLearningDepth ? <label className={cn("block", inline && "w-full shrink-0 sm:w-48")}>
         <span className="sr-only">{locale === "sr" ? "Izaberi ciklus" : "Choose cycle"}</span>
         <select
           value={scopeState.selectedCycle?._id ?? ""}
@@ -263,7 +263,7 @@ export function CommunityScopeControls({
           ))}
         </select>
       </label> : null}
-      {showLearningDepth ? <label className={cn("block", inline && "w-56 shrink-0")}>
+      {showLearningDepth ? <label className={cn("block", inline && "w-full shrink-0 sm:w-56")}>
         <span className="sr-only">{locale === "sr" ? "Izaberi lekciju" : "Choose lesson"}</span>
         <select
           value={scopeState.selectedLesson?._id ?? ""}
@@ -287,7 +287,7 @@ export function CommunityScopeControls({
   }
 
   return (
-    <div className={cn(inline ? "flex min-w-max items-center gap-2" : "space-y-3", compact && !inline && "space-y-2")}>
+    <div className={cn(inline ? "flex flex-wrap items-center gap-2 sm:min-w-max sm:flex-nowrap" : "space-y-3", compact && !inline && "space-y-2")}>
       {isToggle && (
         <div
           className={cn("relative grid shrink-0 grid-cols-2 gap-1 rounded-full border border-line bg-ink/5 dark:bg-ink/10 p-1", compact && "w-[280px] max-w-full")}
@@ -310,7 +310,7 @@ export function CommunityScopeControls({
             aria-pressed={!settingsOpen}
             className={cn(
               "relative z-10 inline-flex items-center justify-center gap-1.5 rounded-full px-3 text-xs font-black transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink",
-              compact ? "min-h-9" : "min-h-10",
+              compact ? "min-h-9" : "min-h-10", "pointer-coarse:min-h-11",
               !settingsOpen ? "text-paper-strong" : "text-ink/65 hover:text-ink",
             )}
           >
@@ -326,7 +326,7 @@ export function CommunityScopeControls({
             aria-pressed={settingsOpen}
             className={cn(
               "relative z-10 inline-flex items-center justify-center gap-1.5 rounded-full px-3 text-xs font-black transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink",
-              compact ? "min-h-9" : "min-h-10",
+              compact ? "min-h-9" : "min-h-10", "pointer-coarse:min-h-11",
               settingsOpen ? "text-paper-strong" : "text-ink/65 hover:text-ink",
             )}
           >

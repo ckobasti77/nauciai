@@ -50,7 +50,7 @@ export function CreditsBalancePill({
             : `Balance: ${formatCreditsLong(balance, locale)}`
       }
       className={cn(
-        "igra-press inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-full border-2 border-ink px-2.5 py-1 text-xs font-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+        "igra-press igra-hit inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-full border-2 border-ink px-2.5 py-1 text-xs font-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
         balance === 0 ? "bg-amber-100 text-amber-900" : "bg-paper-strong text-ink",
         className,
       )}
@@ -343,7 +343,7 @@ export function AppAccountMenu({
         <CreditsBalancePill locale={locale} balance={creditsBalance} />
         <div className="flex items-center gap-1.5">
           <SoundToggle locale={locale} iconOnly />
-          <ThemeToggle locale={locale} />
+          <ThemeToggle locale={locale} className="igra-hit" />
           <LanguageToggle locale={locale} href={languageHref} />
         </div>
       </div>
