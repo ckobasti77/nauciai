@@ -62,7 +62,7 @@ export function CreaStreakPanel({ locale, streak }: { locale: Locale; streak: St
                   day.state === "today" && "border border-dashed border-ink text-ink",
                 )}
               >
-                {day.state === "frozen" ? <Snowflake className="size-3.5" /> : day.state === "active" ? <Flame className="size-3.5 fill-yellow text-yellow" /> : null}
+                {day.state === "frozen" ? <Snowflake className="size-3.5" /> : day.state === "active" ? <Flame className="size-3.5 fill-yellow text-yellow dark:fill-paper dark:text-paper" /> : null}
               </span>
               <span className="sr-only">{label}</span>
               <span aria-hidden="true" className="text-[0.65rem] font-bold text-muted">

@@ -383,7 +383,7 @@ function CommentItem({
               {node.authorUsername ? <Link href={withLocale(locale, `/app/members/${node.authorUsername}`)} className="truncate text-xs font-black text-ink hover:underline">@{node.authorUsername}</Link> : <span className="truncate text-xs font-black text-ink">{node.authorName}</span>}
               {node.authorUsername ? <span className="truncate type-caption font-semibold text-muted">{node.authorName}</span> : null}
               <AuthorRankChip rank={node.authorRank} locale={locale} />
-              <time dateTime={new Date(node.createdAt).toISOString()} className="type-caption font-bold text-ink/50">{formatCommunityTime(node.createdAt, locale)}</time>
+              <time dateTime={new Date(node.createdAt).toISOString()} className="type-caption font-bold text-ink/50 dark:text-ink/65">{formatCommunityTime(node.createdAt, locale)}</time>
               {node.isHelpful ? <span className="inline-flex items-center gap-1 rounded-full border border-amber-400 bg-amber-50 px-2 py-0.5 type-caption font-black text-amber-900"><BadgeCheck className="size-3" />{locale === "sr" ? "Koristan odgovor · +10 XP" : "Helpful answer · +10 XP"}</span> : null}
             </div>
             {node.parentId && node.replyToName ? (

@@ -304,7 +304,7 @@ export function CreditsView({ locale, isStudio, renderedAt, balance, lots, packs
         ) : null}
 
         {expiring.map((row) => (
-          <p key={row.expiresAt} className="mt-4 text-sm font-black text-amber-900">
+          <p key={row.expiresAt} className="mt-4 text-sm font-black text-amber-900 dark:text-yellow">
             {locale === "sr"
               ? `${row.credits} kredita ističe ${formatDate(row.expiresAt, locale)}`
               : `${row.credits} credits expire on ${formatDate(row.expiresAt, locale)}`}
@@ -470,7 +470,7 @@ export function CreditsView({ locale, isStudio, renderedAt, balance, lots, packs
                     <span
                       className={cn(
                         "font-mono text-base font-black",
-                        transaction.amount > 0 ? "text-[#0f7b4f]" : "text-ink",
+                        transaction.amount > 0 ? "text-[#0f7b4f] dark:text-[var(--level-accent-2)]" : "text-ink",
                       )}
                     >
                       {signedAmount(transaction.amount)}

@@ -183,7 +183,7 @@ export function IzlogZajednica({ locale, stanje }: { locale: Locale; stanje: Igr
                       <span className="truncate text-xs font-black text-ink">{post.authorUsername ? `@${post.authorUsername}` : post.authorName}</span>
                       {post.authorUsername ? <span className="truncate type-caption font-semibold text-muted">{post.authorName}</span> : null}
                       <AuthorRankChip rank={post.authorRank} locale={locale} />
-                      <span className="type-caption font-bold text-ink/50">{formatCommunityTime(post.createdAt, locale)}</span>
+                      <span className="type-caption font-bold text-ink/50 dark:text-ink/65">{formatCommunityTime(post.createdAt, locale)}</span>
                     </div>
                     <p className="mt-2 type-body-sm font-semibold text-ink/80">{post.body}</p>
                   </div>

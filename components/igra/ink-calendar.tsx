@@ -10,8 +10,8 @@ import type { Locale } from "@/lib/i18n";
 /** Jačina mastila po stepenu; prazno je podloga trake. */
 const INK: Record<InkLevel, string> = {
   0: "bg-igra-track",
-  1: "bg-ink/35",
-  2: "bg-ink/65",
+  1: "bg-ink/35 dark:bg-ink/50",
+  2: "bg-ink/65 dark:bg-ink/78",
   3: "bg-ink",
 };
 

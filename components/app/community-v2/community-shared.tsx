@@ -261,10 +261,10 @@ export function ThreadCard({
             {post.authorUsername ? <span className="type-caption font-semibold text-muted">{post.authorName}</span> : null}
             {/* K11: red teme vec nosi `authorRank`, pa cip ne dodaje nijedan upit. */}
             <AuthorRankChip rank={post.authorRank} locale={locale} />
-            <span className="type-caption font-bold text-muted/75">· {formatCommunityTime(post.createdAt, locale)}</span>
+            <span className="type-caption font-bold text-muted/75 dark:text-muted">· {formatCommunityTime(post.createdAt, locale)}</span>
             {statusLabel}
             {highlighted ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-yellow/20 px-2 py-0.5 type-caption font-black text-ink/70">
+              <span className="inline-flex items-center gap-1 rounded-full bg-yellow/20 px-2 py-0.5 type-caption font-black text-ink/70 dark:text-ink/85">
                 <Pin className="size-3 fill-yellow text-ink" aria-hidden="true" />
                 {locale === "sr" ? "Zakačeno" : "Pinned"}
               </span>

@@ -485,7 +485,7 @@ function EntityPreview({
 }) {
   return (
     <aside className="composer-stagger h-fit rounded-[16px] border-2 border-ink bg-ink p-4 text-paper-strong shadow-[5px_5px_0_0_var(--yellow)]">
-      <p className="type-eyebrow text-paper-strong/65">{t(locale, "Pregled", "Preview")}</p>
+      <p className="type-eyebrow text-paper-strong/65 dark:text-paper-strong/75">{t(locale, "Pregled", "Preview")}</p>
       <p className="mt-3 type-h2">{title?.trim() || emptyLabel}</p>
       {subtitle ? <p className="mt-3 type-body-sm font-bold text-paper-strong/75">{subtitle}</p> : null}
       <div className="mt-5 flex flex-wrap gap-2">

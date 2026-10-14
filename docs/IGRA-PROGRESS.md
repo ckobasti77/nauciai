@@ -1647,3 +1647,53 @@ Jovan ručno: uključi `crea_public_gallery` na DEV-u i otvori `/crea/galerija` 
 2. Rang lista: traka filtera je u dva reda i oba prekidača se vide.
 3. Dodir oko malih elemenata (avatar, `@korisnik`, čip kredita, reakcija u četu) pogađa metu.
 4. Kartica završenog kursa: pečat „Završeno" ne leži preko statusa, a „Nastavi" / „Ponovi" se lako čita.
+
+## K27 — Tamna tema — ceo prolaz   (2026-10-14 14:00)
+**Fajlovi:** `app/globals.css` (pravilo „žuta nosi mastilo"; tamni `--igra-track` 16 → 28 %, `--igra-locked-filter` 0,22 → 0,4), `components/igra/ink-calendar.tsx`, `components/crea/game/crea-streak-panel.tsx`, `components/crea/community/crea-league-panel.tsx`, `components/app/{dashboard-content,admin-inline-actions,community-comments,credits-page}.tsx`, `components/app/community-v2/{community-mentions,community-shared}.tsx`, `components/igra/izlog/izlog-zajednica.tsx`; novo `lib/igra-dark.test.ts`; snimci `docs/igra/snimci/K27-*.png` (9).
+
+**Šta je urađeno:** Svih 16 delova izloga je u tamnoj temi prošlo mernu proveru kontrasta teksta (Playwright, 1440 i 390 px: boja teksta × složena pozadina po elementu, prag 4,5:1, 3:1 za veliki tekst) i pregled snimaka (~70 segmenata, četiri radnika; svaki nalaz proveren u kodu ili na snimku). Merenje je našlo 5 pravih grešaka teksta, pregled snimaka 4 grupe ne-tekst elemenata. Sve je popravljeno tokenima ili `dark:` varijantom; svetla tema je ostala ista. Posle ispravki: 0 prekršaja na 1440 i 390 (ostaju samo lažni nalazi, vidi ODLUKE 5).
+
+**Provereni ekrani (nalaz → popravka):**
+| Ekran | Nalaz u tamnoj temi | Popravka |
+|---|---|---|
+| sve (dugme „Otvori lekciju", „Zaprati", brojevi koraka, „NS") | **svetli tekst na žutom, 1,47:1**: ostrvo `.bg-yellow` menja tokene, ali `color` se nasleđuje već razrešen | `@layer base`: `[data-theme="dark"] :is(.bg-yellow…) { color: var(--ink) }`; autorski `text-*` i dalje pobeđuje (7,66:1) |
+| učionica, tabla (video placeholder) | podnaslov `text-paper-strong/75` na stalno tamnoplavom gradijentu = 1,26:1 | `text-white/75` (tekst preko medija ostaje bel, po pravilu iz memorije) |
+| tabla/učionica (panel „Pregled kursa"), admin pregled | eyebrow `text-paper-strong/65` na svetlom mastilu 4,1–4,46:1 | `dark:text-paper-strong/75` |
+| zajednica (vreme uz temu, komentar, obaveštenja) | `text-muted/75`, `text-ink/50` 4,07–4,47:1 | `dark:text-muted`, `dark:text-ink/65` |
+| zajednica „Zakačeno", Crea liga „(ti)" | 4,45 / 4,38:1 na `bg-yellow/20` | `dark:text-ink/85`, `dark:text-ink/75` |
+| krediti | `text-amber-900` na tamnoj kartici 1,62:1; zeleni `#0f7b4f` 2,78:1 | `dark:text-yellow`; `dark:text-[var(--level-accent-2)]` |
+| profil, rang, ljuska, tabla, admin (staze) | prazan deo trake, prstena, tačke niza i stepenik podijuma 1,2–1,5:1 prema kartici | `--igra-track` u tamnoj temi 28 % mastila (≈ 2:1; žuto punjenje ostaje jasno) |
+| tabla, profil (mastilo-kalendar) | nivo 1 mreže se stapao sa praznom ćelijom | `dark:bg-ink/50`, `dark:bg-ink/78` za nivoe 1 i 2 |
+| profil, izlog (zaključani bedževi) | silueta 0,22 prozirnosti ≈ 2:1, bezoblična mrlja | 0,4 |
+| Crea niz | žuti plamen u skoro belom krugu aktivnog dana, ~2:1 | `dark:fill-paper dark:text-paper` (tamni plamen na svetlom krugu) |
+| zajednica (obaveštenja) | ikona navodnika `text-ink/20` nevidljiva | `dark:text-ink/45` |
+| nalepnice (sve), krem ivica | ivica i senka se vide na tamnom u svih 16 delova | bez izmene |
+| scene, baneri, korice, mapa puta, hero | krem „ostrva" sa tamnim okvirom usred tamne stranice | namerno (ODLUKE 2) |
+| Studio „bunar" (Crea neuspeh/čekanje) | skoro crna ploča bez ivice | postojeći `--studio-well` za medije, bez izmene (ODLUKE 3) |
+
+**Površine:** svih 16 delova izloga gotovo, obe širine, tamna tema (svetla ostala ista; proveren samo `check:white`). Prave strane iza prijave nisu gledane (BLOKADA).
+
+**ODLUKE:**
+1. **Jedno pravilo umesto popravke svakog dugmeta**: žuta površina u tamnoj temi uzima `--ink` ostrva kao `color`. Tekst na žutom bez svog `text-*` (npr. 17 mesta) tako više ne zavisi od roditelja. Pravilo je u `@layer base` (gubi od svakog utility-ja) i ne dira `.hero-paper-island`, `.paper-island` ni zaglavlje javnog sajta.
+2. **Krem „ostrva" (scene, baneri, korice kursa, mapa puta, hero tabla/rang/admin/profil) ostaju svetla.** Tri radnika su ih prijavila kao „pali oči", ali plan (§ nalepnice i scene na papirnoj kartici) traži upravo to: slike su crtane na kremu, a svaka ima 2 px mastilo okvir (svetao u tamnoj). Tamna scena bi tražila novu sliku. Nije menjano.
+3. **Studio „bunar" (`--studio-well`, Crea neuspeh/otkazano/čekanje) ostaje skoro crn**: to je postojeći medijski token iz TH1 (letterbox videa), tekst na njemu je čitljiv, a nalepnice se jasno vide.
+4. **Isprekidani okviri praznih stanja i kartica (`--line` #2f4762 ≈ 1,5:1) nisu dirani.** Ukrasni su (tekst i nalepnica nose smisao), a `--line` je zajednički token cele aplikacije i javnog sajta; podizanje ide u poseban korak uz Jovanov pregled.
+5. **Lažni nalazi merenja:** `sr-only` tekst (mapa) i dugme „Globalno" na rang listi (klizni žuti/mastilo indikator je sestrinski element, ne predak, pa merač vidi pogrešnu pozadinu; ručno proveren: 12:1).
+6. Zakačene teme i nepročitana obaveštenja u tamnoj temi su maslinasto-braon (`bg-yellow/20` preko tamnog); čitljivo (≥ 4,5:1 posle ispravki), nije menjano jer je „blago žuto" po K11 i ne pali oči.
+7. Boje `red-*`/`amber-*`/`emerald-*` ostaju netokenizovane (otvoreno pitanje iz TH1); u novim komponentama su samo svetle „status" pločice (`banner-picker` greška: tamni tekst na svetloj pločici, ≥ 7:1).
+8. Goli heks u `components/igra`: samo `igra-three-canvas.tsx` (rezervne vrednosti za 3D materijale koje inače čita iz CSS promenljivih); ostalo su definicije tokena u `globals.css`. Ništa novo.
+9. Nađeno, nije tamna tema, nije menjano: čip „Moderator" viri 2 px preko kartice (K26 ODLUKA 7, za K29); datumi ćirilicom (`sr-RS` → `sr-Latn-RS`, 17 fajlova, za K29); na mapi puta oznake „7 min" se preklapaju sa crtežom (isto u svetloj).
+
+**Novi paketi:** nema.
+
+**Testovi:** `lib/igra-dark.test.ts` (2 testa): pravilo „žuta nosi mastilo" stoji u `@layer base`; tamna staza trake ≥ 28 % i zaključana silueta ≥ 0,4.
+
+**Slike:** nema novih; tražene: nema.
+
+**Rezultat provere:** codegen: nije potreban / typecheck: prošlo / lint: prošlo (0 grešaka, istih 26 upozorenja) / test: prošlo (320 fajlova) / check:frames, check:white: prošlo. Dev server (3123) ugašen.
+
+**Snimci:** `K27-{tabla-heatmap,rang-podijum,profil-polica,crea-niz,ucionica-koraci,ljuska-niz,slike}-1440-tamna.png`, `K27-{tabla,profil}-390-tamna.png`.
+
+**BLOKADA (samo provera, ne kod):** prave strane posle prijave nisu gledane u tamnoj temi (Playwright MCP bez sesije, isto kao K06–K26); sve izmenjene komponente crta izlog.
+
+**Za Jovana ujutru:** u pravoj aplikaciji, tamna tema: (1) žuta dugmad („Otvori lekciju", „Zaprati") imaju taman tekst; (2) trake XP/koraka, prsten nivoa i podijum se vide i kad su prazni; (3) zaključani bedževi na polici su prepoznatljive siluete; (4) Crea niz: aktivan dan ima tamni plamen na svetlom krugu. Odluči da li `--line` u tamnoj temi sme da bude jači (ODLUKE 4) i da li krem „ostrva" treba tamne verzije scena (ODLUKE 2).

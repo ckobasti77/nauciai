@@ -261,7 +261,7 @@ function MetricTile({
     >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className={cn("type-eyebrow", tone === "ink" ? "text-paper-strong/65" : "text-muted")}>{label}</p>
+          <p className={cn("type-eyebrow", tone === "ink" ? "text-paper-strong/65 dark:text-paper-strong/75" : "text-muted")}>{label}</p>
           <p className={cn("mt-2 text-2xl font-black leading-none", tone === "ink" ? "text-paper-strong" : "text-ink")}>{value}</p>
         </div>
         <span
@@ -523,7 +523,7 @@ function CourseVideoSection({ locale, isAdmin, course }: { locale: Locale; isAdm
                         ? tr(locale, "Prevuci video ili klikni za upload", "Drop a video or click to upload")
                         : tr(locale, "Video lekcija uskoro", "Video lesson soon")}
                   </span>
-                  <span className={cn("mt-2 block text-sm font-extrabold", isAdmin ? "text-muted" : "text-paper-strong/75")}>
+                  <span className={cn("mt-2 block text-sm font-extrabold", isAdmin ? "text-muted" : "text-white/75")}>
                     {isAdmin
                       ? tr(locale, "Glavni video kursa se cuva preko Convex storage.", "The main course video is saved through Convex storage.")
                       : tr(locale, "Ovaj prostor cuva mesto za glavni video kursa.", "This surface reserves the main course video.")}
@@ -1230,7 +1230,7 @@ export function DashboardContent({
           <div className="border-t-2 border-ink bg-ink p-6 text-paper-strong xl:border-l-2 xl:border-t-0">
             <div className="flex h-full flex-col justify-between gap-4">
               <div>
-                <p className="type-eyebrow text-paper-strong/65">{tr(locale, "Pregled kursa", "Course overview")}</p>
+                <p className="type-eyebrow text-paper-strong/65 dark:text-paper-strong/75">{tr(locale, "Pregled kursa", "Course overview")}</p>
                 <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
                   <p className="type-hero">{surfaceIsAdmin ? "Admin" : `${completionPercent}%`}</p>
                   {/* IGRA K09: završen kurs nosi isti pečat kao njegova kartica u učionici. Miruje;

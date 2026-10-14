@@ -87,7 +87,7 @@ export function LeagueView({ locale, league }: { locale: Locale; league: Functio
                   </td>
                   <td className="py-2 text-sm font-black">
                     {row.name}
-                    {row.isMe ? <span className="ml-2 text-xs font-bold text-muted">({CREA_LEAGUE_COPY.you[locale]})</span> : null}
+                    {row.isMe ? <span className="ml-2 text-xs font-bold text-muted dark:text-ink/75">({CREA_LEAGUE_COPY.you[locale]})</span> : null}
                   </td>
                   <td className="py-2 pr-1 text-right text-sm font-black tabular-nums">{row.xp.toLocaleString(number)}</td>
                 </tr>
