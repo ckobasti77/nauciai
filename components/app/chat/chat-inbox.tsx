@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, BellOff, Inbox, MessageCircle, Pin, Search, Settings2, Users, X } from "lucide-react";
+import { Bell, BellOff, MessageCircle, Pin, Search, Settings2, Users, X } from "lucide-react";
 import { useMutation, usePaginatedQuery, useQuery } from "convex/react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -19,8 +19,8 @@ import {
   sections,
 } from "@/components/app/chat/chat-shared";
 import { PushNotificationButton } from "@/components/app/chat/push-notifications";
+import { InboxEmpty, InboxSearchEmpty } from "@/components/igra/chat/chat-empty";
 import { Button } from "@/components/ui/button";
-import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/components/ui/primitives";
 import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
@@ -316,13 +316,7 @@ function GlobalSearchResults({
         {conversationSearch.status === "CanLoadMore" ? <Button variant="secondary" size="sm" onClick={() => conversationSearch.loadMore(20)} className="w-full">{label(locale, "Učitaj još razgovora", "Load more conversations")}</Button> : null}
       </div> : null}
       {loading ? <div className="grid min-h-36 place-items-center"><Spinner size="lg" /></div> : null}
-      {exhausted && !conversationRows.length && !memberRows.length ? <EmptyState
-        className="min-h-52"
-        icon={Inbox}
-        title={label(locale, "Nema nikoga za ovu pretragu", "Nothing matches this search")}
-        body={label(locale, "Nijedan razgovor ni član ne odgovara onome što si upisao/la. Obriši reč iz pretrage ili kreni od nekog novog.", "No conversation or member matches what you typed. Clear the search word, or start with someone new.")}
-        action={<div className="flex flex-wrap justify-center gap-2"><Button size="sm" onClick={onStartConversation}>{label(locale, "Započni razgovor", "Start a conversation")}</Button><Button variant="secondary" size="sm" onClick={onOpenStudy}>{label(locale, "Pronađi partnera", "Find a study partner")}</Button></div>}
-      /> : null}
+      {exhausted && !conversationRows.length && !memberRows.length ? <InboxSearchEmpty locale={locale} onStart={onStartConversation} onFindPartner={onOpenStudy} /> : null}
     </div>
   );
 }
@@ -391,7 +385,7 @@ export function InboxPane({
           {/* Keyed by conversation alone: folding the sequence into the key
               remounted the row on every new message and stole keyboard focus. */}
           {rows.map((item: InboxItem | InboxRowItem) => <InboxRow key={String(item.conversationId)} locale={locale} item={item} selected={selectedConversationId === String(item.conversationId)} />)}
-          {!hasConversationRows && inbox.status !== "LoadingFirstPage" && pinnedInbox.status !== "LoadingFirstPage" ? <EmptyState className="min-h-52" icon={Inbox} title={label(locale, "Ovde je za sada mirno.", "It is quiet here for now.")} body={label(locale, "Nemaš nijedan razgovor. Započni prvi ili pronađi nekoga s kim ćeš učiti.", "You have no conversations yet. Start the first one, or find someone to study with.")} action={<div className="flex flex-wrap justify-center gap-2"><Button size="sm" onClick={() => setNewConversationOpen(true)}>{label(locale, "Započni razgovor", "Start a conversation")}</Button><Button variant="secondary" size="sm" onClick={onOpenStudy}>{label(locale, "Pronađi partnera", "Find a study partner")}</Button></div>} /> : null}
+          {!hasConversationRows && inbox.status !== "LoadingFirstPage" && pinnedInbox.status !== "LoadingFirstPage" ? <InboxEmpty locale={locale} onStart={() => setNewConversationOpen(true)} onFindPartner={onOpenStudy} /> : null}
           {inbox.status === "LoadingFirstPage" ? <div className="grid min-h-52 place-items-center"><Spinner size="xl" /></div> : null}
           {inbox.status === "CanLoadMore" ? <Button variant="secondary" size="sm" onClick={() => inbox.loadMore(20)} className="w-full">{label(locale, "Učitaj još", "Load more")}</Button> : null}
         </>}

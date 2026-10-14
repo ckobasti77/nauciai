@@ -24,6 +24,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { StudyEmptyArt } from "@/components/igra/chat/chat-empty";
 import { EmptyState } from "@/components/ui/empty-state";
 import { HandUnderline, cn } from "@/components/ui/primitives";
 import { Spinner } from "@/components/ui/spinner";
@@ -497,6 +498,7 @@ function StudyHubMember({ locale, courseSlug, onCourseSlugChange, onOpenConversa
               {!courseId || !activeAvailability?.active ? (
                 <EmptyState
                   icon={Sparkles}
+                  art={<StudyEmptyArt />}
                   title={t(locale, "Prvo izaberi kurs", "Choose a course first")}
                   body={t(locale, "Izaberi kurs i uključi dostupnost da vidiš osobe koje uče sličnim tempom.", "Choose a course and turn on availability to see people learning at a similar pace.")}
                   action={<button type="button" onClick={() => document.getElementById("study-course-select")?.focus()} className={SECONDARY_BUTTON}>{t(locale, "Izaberi kurs", "Choose a course")}</button>}
@@ -504,7 +506,7 @@ function StudyHubMember({ locale, courseSlug, onCourseSlugChange, onOpenConversa
               ) : suggestions.status === "LoadingFirstPage" ? (
                 <LoadingCards label={t(locale, "Učitavanje predloga partnera", "Loading partner suggestions")} />
               ) : suggestions.results.length === 0 ? (
-                <EmptyState icon={Search} title={t(locale, "Još nema poklapanja", "No matches yet")} body={t(locale, "Tvoja dostupnost je uključena. Nova poklapanja će se pojaviti kada neko uđe u istu zonu napretka.", "Your availability is on. New matches appear when someone enters the same progress zone.")} />
+                <EmptyState icon={Search} art={<StudyEmptyArt poza="misli" />} title={t(locale, "Još nema poklapanja", "No matches yet")} body={t(locale, "Tvoja dostupnost je uključena. Nova poklapanja će se pojaviti kada neko uđe u istu zonu napretka.", "Your availability is on. New matches appear when someone enters the same progress zone.")} />
               ) : suggestions.results.map((person) => (
                 <article key={person.userId} data-study-pulse="card" className="group flex items-center gap-3 rounded-[16px] border-2 border-line bg-paper p-3 transition-[border-color,background-color] hover:border-[#70a7cf] dark:hover:border-line hover:bg-paper-strong">
                   <Link href={withLocale(locale, `/app/members/${person.username}`)} className={cn("rounded-full", FOCUS_RING)}><StudyPulseAvatar avatarUrl={person.avatarUrl} name={person.name} progressPercent={person.progressPercent} /></Link>
@@ -558,7 +560,7 @@ function StudyHubMember({ locale, courseSlug, onCourseSlugChange, onOpenConversa
                       </div>
                     </article>
                   ))}
-                  {incoming.status !== "LoadingFirstPage" && groupInvites.status !== "LoadingFirstPage" && incoming.results.length + groupInvites.results.length === 0 ? <EmptyState icon={Check} title={t(locale, "Sve je sređeno", "You’re all caught up")} body={t(locale, "Nema novih poziva za partnerstvo ili studijsku grupu.", "There are no new partnership or study group invites.")} /> : null}
+                  {incoming.status !== "LoadingFirstPage" && groupInvites.status !== "LoadingFirstPage" && incoming.results.length + groupInvites.results.length === 0 ? <EmptyState icon={Check} art={<StudyEmptyArt poza="slavi" />} title={t(locale, "Sve je sređeno", "You’re all caught up")} body={t(locale, "Nema novih poziva za partnerstvo ili studijsku grupu.", "There are no new partnership or study group invites.")} /> : null}
                   <LoadMoreButton locale={locale} status={incoming.status} onLoadMore={() => incoming.loadMore(6)} />
                   <LoadMoreButton locale={locale} status={groupInvites.status} onLoadMore={() => groupInvites.loadMore(6)} />
                 </div>
@@ -603,7 +605,7 @@ function StudyHubMember({ locale, courseSlug, onCourseSlugChange, onOpenConversa
                 </article>
               );
             })}
-            {partnerships.status !== "LoadingFirstPage" && partnerships.results.length === 0 ? <div className="md:col-span-2 xl:col-span-3"><EmptyState icon={UserRoundPlus} title={t(locale, "Još nema partnerstava", "No partnerships yet")} body={t(locale, "Pošalji poziv iz predloga iznad. Kada poziv bude prihvaćen, razgovor se otvara automatski.", "Send an invite from the suggestions above. Once accepted, the conversation opens automatically.")} action={<button type="button" onClick={() => document.getElementById("study-suggestions")?.focus()} className={SECONDARY_BUTTON}><Search className="size-4" />{t(locale, "Pronađi partnera", "Find a partner")}</button>} /></div> : null}
+            {partnerships.status !== "LoadingFirstPage" && partnerships.results.length === 0 ? <div className="md:col-span-2 xl:col-span-3"><EmptyState icon={UserRoundPlus} art={<StudyEmptyArt />} title={t(locale, "Još nema partnerstava", "No partnerships yet")} body={t(locale, "Pošalji poziv iz predloga iznad. Kada poziv bude prihvaćen, razgovor se otvara automatski.", "Send an invite from the suggestions above. Once accepted, the conversation opens automatically.")} action={<button type="button" onClick={() => document.getElementById("study-suggestions")?.focus()} className={SECONDARY_BUTTON}><Search className="size-4" />{t(locale, "Pronađi partnera", "Find a partner")}</button>} /></div> : null}
           </div>
           <LoadMoreButton locale={locale} status={partnerships.status} onLoadMore={() => partnerships.loadMore(12)} />
 
@@ -633,7 +635,7 @@ function StudyHubMember({ locale, courseSlug, onCourseSlugChange, onOpenConversa
                 {group.conversationId ? <button type="button" onClick={() => openConversation(group.conversationId)} className={cn("grid size-10 shrink-0 place-items-center rounded-full border-2 border-ink bg-yellow", FOCUS_RING)} aria-label={t(locale, `Otvori grupni razgovor ${group.name}`, `Open ${group.name} group chat`)}><MessageCircle className="size-4" /></button> : null}
               </article>
             ))}
-            {groups.status !== "LoadingFirstPage" && groups.results.length === 0 ? <div className="md:col-span-2"><EmptyState icon={UsersRound} title={t(locale, "Još nema studijskih grupa", "No study groups yet")} body={t(locale, "Kada imaš najmanje dva partnera na kursu, izaberi ih iznad i pošalji predlog grupe.", "Once you have at least two partners in a course, select them above and send a group proposal.")} /></div> : null}
+            {groups.status !== "LoadingFirstPage" && groups.results.length === 0 ? <div className="md:col-span-2"><EmptyState icon={UsersRound} art={<StudyEmptyArt poza="misli" />} title={t(locale, "Još nema studijskih grupa", "No study groups yet")} body={t(locale, "Kada imaš najmanje dva partnera na kursu, izaberi ih iznad i pošalji predlog grupe.", "Once you have at least two partners in a course, select them above and send a group proposal.")} /></div> : null}
           </div>
           <LoadMoreButton locale={locale} status={groups.status} onLoadMore={() => groups.loadMore(10)} />
         </section>

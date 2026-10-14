@@ -10,7 +10,6 @@ import {
   Flag,
   ImagePlus,
   Link2,
-  MessageCircle,
   Minus,
   MoreHorizontal,
   Pin,
@@ -28,6 +27,7 @@ import { ChatComposer } from "@/components/app/chat/chat-composer";
 import { ReportDialog } from "@/components/app/chat/chat-dialogs";
 import { ConversationDetailsDialog } from "@/components/app/chat/chat-group-details";
 import { requestChatMotion } from "@/components/app/chat/chat-motion";
+import { ThreadEmpty } from "@/components/igra/chat/chat-empty";
 import {
   Avatar,
   type ChatMessage,
@@ -145,6 +145,20 @@ function MessageBubble({
     };
   }, [message.createdAt]);
 
+  // Nova reakcija „iskoči" jednom. Chip koji je već bio na poruci pri učitavanju ne igra.
+  const reactionsRef = useRef<HTMLDivElement>(null);
+  const reactionEmojis = (visibleMessage.reactions ?? []).map((reaction) => reaction.emoji).join("|");
+  const previousReactionEmojisRef = useRef(reactionEmojis);
+
+  useEffect(() => {
+    const previous = new Set(previousReactionEmojisRef.current.split("|"));
+    previousReactionEmojisRef.current = reactionEmojis;
+    const chips = reactionsRef.current?.querySelectorAll<HTMLElement>("[data-chat-reaction]");
+    chips?.forEach((chip) => {
+      if (!previous.has(chip.dataset.chatReaction ?? "")) requestChatMotion(chip, { kind: "reaction" });
+    });
+  }, [reactionEmojis]);
+
   useEffect(() => {
     if (!mine || previousSeenCountRef.current === seenCount) return;
     previousSeenCountRef.current = seenCount;
@@ -184,7 +198,7 @@ function MessageBubble({
             {mine && withinEditWindow ? <button type="button" onClick={() => void deleteMessage({ messageId: message.id })} className="rounded-full px-2 type-caption font-black text-red-700 hover:bg-red-50">{label(locale, "Obriši", "Delete")}</button> : null}
           </div> : null}
         </div>
-        {visibleMessage.reactions?.length ? <div className={cn("mt-1 flex flex-wrap gap-1", mine && "justify-end")}>{visibleMessage.reactions.map((reaction) => <button key={reaction.emoji} type="button" data-chat-motion="reaction" onClick={(event) => { requestChatMotion(event.currentTarget, { kind: "reaction" }); void toggleReaction({ messageId: message.id, emoji: reaction.emoji }); }} className="rounded-full border border-line bg-paper-strong px-2 py-0.5 type-caption font-black">{reaction.emoji} <span className="font-mono">{reaction.count}</span></button>)}</div> : null}
+        {visibleMessage.reactions?.length ? <div ref={reactionsRef} className={cn("mt-1 flex flex-wrap gap-1", mine && "justify-end")}>{visibleMessage.reactions.map((reaction) => <button key={reaction.emoji} type="button" data-chat-motion="reaction" data-chat-reaction={reaction.emoji} onClick={(event) => { requestChatMotion(event.currentTarget, { kind: "reaction" }); void toggleReaction({ messageId: message.id, emoji: reaction.emoji }); }} className="rounded-full border border-line bg-paper-strong px-2 py-0.5 type-caption font-black">{reaction.emoji} <span className="font-mono">{reaction.count}</span></button>)}</div> : null}
       </div>
     </article>
   );
@@ -803,7 +817,7 @@ export function ConversationPanel({
             : row.kind === "unread"
               ? <p key={row.key} className="sticky top-0 z-10 mx-auto mt-3 w-fit rounded-full border-2 border-ink bg-yellow px-4 py-1.5 text-center type-caption font-black shadow-[2px_2px_0_0_var(--shadow-hard)]">{label(locale, "Nove poruke", "New messages")}</p>
               : <MessageBubble key={row.key} locale={locale} conversationId={conversationId} conversationKind={conversation.conversation.kind} message={row.message} viewerId={String(conversation.viewer.userId)} grouped={row.grouped} actions={messageActions} timeFormatter={timeFormatter} onReply={setReplyTo} onReport={(messageId) => setReportTarget({ type: "message", messageId })} animateIn={animationCutoffSequence !== null && row.message.sequence > animationCutoffSequence && !paintedSequences.has(row.message.sequence)} highlighted={highlightedMessageId === row.message.id} />)}
-          {!orderedMessages.length && messages.status !== "LoadingFirstPage" ? <div className="grid min-h-48 place-items-center text-center"><div><MessageCircle className="mx-auto size-9 text-muted" /><p className="mt-3 type-h4 text-ink">{label(locale, "Pošalji prvu poruku.", "Send the first message.")}</p></div></div> : null}
+          {!orderedMessages.length && messages.status !== "LoadingFirstPage" ? <ThreadEmpty locale={locale} /> : null}
           <div ref={bottomSentinelRef} aria-hidden className="h-px w-full" />
         </div>
         {!atBottom ? <button type="button" onClick={jumpToLatest} className="sticky bottom-2 mx-auto flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-xs font-black shadow-[3px_3px_0_0_var(--shadow-hard)]"><ChevronDown className="size-4" /><span className="font-mono">{newMessageCount > 0 ? newMessagesLabel(locale, newMessageCount) : label(locale, "Skoči na najnovije", "Jump to latest")}</span></button> : null}

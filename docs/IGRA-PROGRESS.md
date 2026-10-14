@@ -1290,3 +1290,34 @@ Jovan ručno: uključi `crea_public_gallery` na DEV-u i otvori `/crea/galerija` 
 - **Galerija i izazov** (uz upaljen `crea_public_gallery`): naslovnica sa Piksijem / peharom; kod pobednika kruna „udari" kad skroluješ do rezultata.
 - **Sveska** (`/crea/sveska`): naslovnica sa Robijem, plamen niza, rang čipovi u ligi, korica knjižice; nedeljena knjižica na `/crea/knjizica/<ime>` prikazuje katanac.
 - **Ukus:** da li je „Novo" 24 h pravi prozor i da li naslovnica treba okvir (sada je bez, ODLUKA 4). Snimci: `K17-crea-izazov-1440-svetla.png`, `K17-crea-sveska-1440-svetla.png`, `K17-crea-biblioteka-1440-tamna.png`.
+
+## K18 — Poruke i obaveštenja   (2026-10-14 10:25)
+**Fajlovi:**
+- novi: `components/igra/chat/chat-empty.tsx` (`MessagesPickEmpty`, `InboxEmpty`, `InboxSearchEmpty`, `ThreadEmpty`, `StudyEmptyArt`), `components/igra/izlog/izlog-poruke.tsx`, `lib/igra-messages.test.ts`, `docs/igra/snimci/K18-poruke-1440-svetla|tamna.png`, `K18-poruke-390-tamna.png`
+- izmenjeni: `components/app/chat/messages-hub.tsx`, `chat-inbox.tsx`, `chat-thread.tsx`, `chat-composer.tsx`, `study-hub.tsx`, `components/igra/izlog/registry.ts` (deo „poruke"), `lib/igra-copy.ts` (`IGRA_MESSAGES_COPY`), `lib/igra-izlog.test.ts` (spisak delova), `scripts/check-frames.mjs` (`components/igra/chat` u `ROOTS`)
+
+**Šta je urađeno:** Prazna stanja četa dobila su ilustracije, a tekstovi i pozivi dugmadi su isti kao pre: strana bez izabranog razgovora (`prazno.poruke`, 160 px), prazna lista (na telefonu `prazno.poruke` 120 px, od `lg` Eho), pretraga bez rezultata (`prazno.pretraga`), razgovor bez poruka (Eho 64 px + „Dovoljno je i „Zdravo“.“) i svih pet praznih stanja „Uči zajedno" (Sova u pozama mase/misli/slavi). Obaveštenja (`prazno.obavestenja`, Iskra, „pristiglo") je već u K11 uradio, pa u K18 nisu dirana. Mikrointerakcije: dugme „Pošalji" se utisne (`active:scale-90`, bez toga uz smanjen pokret), a nova reakcija na poruci „iskoči" jednom kroz postojeći `ChatMotionScope`. Nova poruka (poslata i primljena) već je igrala kroz isti sistem, pa je ostavljena. Ništa ne menja visinu redova; izmereno u izlogu: visina liste ista pre i posle slanja i reakcije.
+
+**Površine:** gotovo: poruke (prazna stanja, slanje, reakcije), Uči zajedno (prazna stanja), obaveštenja (iz K11). Nije dirano: logika četa, `ChatDock`, push, moderacija, privatnost, upiti, `convex/`.
+
+**ODLUKE:**
+1. **Obaveštenja nisu ponovo rađena.** `prazno.obavestenja` i Iskra su K11; zadatak K18 za njih je već ispunjen.
+2. **Prazna lista nosi `prazno.poruke` samo ispod `lg`**, a od `lg` Eha: desna strana tada već crta `prazno.poruke` i ista slika ne bi smela da stoji dvaput. Na telefonu desna strana ne postoji.
+3. **Pretraga poruka unutar razgovora** (`Nema pronađenih poruka.`) ostaje čist tekst: to je red u traci, ne ekran.
+4. **Nova reakcija se pokreće efektom koji upoređuje skup emodžija** (isti obrazac kao `read-status`), a ne `data-chat-motion-new` na čipu, jer bi se svaki čip animirao pri učitavanju starijih poruka. Brojač na postojećem čipu se ne animira (klik ga već pulsira); reakcija drugog korisnika na postojeći emodži takođe ostaje bez pokreta.
+5. **Zvuk nije dodat.** Ping nove poruke je i dalje samo u `chat-notifications.tsx` iza prekidača zvuka i podešavanja kategorije.
+6. **Jedna nova rečenica** (Ehova u praznom razgovoru), u `lib/igra-copy.ts` (ODLUKA 12 iz K01). Ostali tekstovi su preneti doslovno.
+7. **Izlog crta prave komponente praznih stanja**; baloniće u deo „Mikrointerakcije" sklapa izlog od istih `data-chat-motion` atributa (pravi `MessageBubble` čita Convex). Prazna stanja „Uči zajedno" u izlogu pokazuju jedan primer, ostala četiri su ista komponenta slike nad Convex podacima.
+8. **Pregledač: samo izlog.** Prava `/app/messages` traži prijavu, a Playwright je neprijavljen (isto kao K06–K17), pa nije gledana.
+
+**Novi paketi:** nema.
+
+**Testovi:** `lib/igra-messages.test.ts` (9): slike u manifestu i spremne; sva četiri prazna stanja i pet Sova povezani; pozivi dugmadi nepromenjeni; tekstovi sr/en; komponente bez Convexa i zvuka; dugme „Pošalji" i smanjen pokret; reakcija igra samo za novi emodži; ping čeka prekidač zvuka. `lib/igra-izlog.test.ts`: spisak delova + „poruke".
+
+**Slike:** `prazno.poruke`, `prazno.pretraga`, `lik.eho.mase`, `lik.sova.mase|misli|slavi`. Nove slike nisu tražene. `ikona.poruke` nije korišćena (nema naslovne trake u ovom koraku).
+
+**Rezultat provere:** codegen: nije potreban (`convex/` nije diran) / typecheck: prošlo / lint: prošlo (0 grešaka, istih 26 upozorenja) / test: prošlo (314 fajlova, 3.557 testova) / check:frames, check:corners, check:white, check:igra `--strict`: prošlo. `npm run build` nisam puštao (runner ga pušta posle koraka).
+- Izlog (`/igra-izlog?deo=poruke`), 1440 × 900 svetla i tamna, 390 × 844 tamna: sve slike učitane (lenje u sakrivenom `lg:hidden` ostaju neučitane, kako treba), nema vodoravnog skrola; slanje i reakcija: visina liste 288 → 288 px; uz `prefers-reduced-motion` samo fade (transform `none`). Dev server je ugašen.
+
+**BLOKADA (prihvatanje „obe teme i telefon", delimično):** prave strane `/app/messages` i „Uči zajedno" traže prijavu kroz auth tok koji se ne dira, a Playwright MCP radi sa `--isolated` bez sačuvane sesije (isto ograničenje kao K06–K17). Zato su ekrani provereni u izlogu sa istim komponentama: 1440 svetla i tamna, 390 svetla (`K18-poruke-390-svetla.png`) i tamna, bez slomljenih slika i bez vodoravnog skrola.
+**Za Jovana ujutru:** kao prijavljen otvori `/app/messages` sa praznim nalogom (lista, desna strana, pretraga „zzzz", novi razgovor bez poruka, „Uči zajedno") i pošalji poruku i reaguj sa 👍; uporedi sa `K18-poruke-1440-svetla.png`. Ukus: da li je Eho u listi na računaru bolji od iste slike dvaput (ODLUKA 2).

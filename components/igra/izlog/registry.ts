@@ -3,6 +3,7 @@ import type { ComponentType } from "react";
 import { IzlogCrea } from "@/components/igra/izlog/izlog-crea";
 import { IzlogLjuska } from "@/components/igra/izlog/izlog-ljuska";
 import { IzlogMapa } from "@/components/igra/izlog/izlog-mapa";
+import { IzlogPoruke } from "@/components/igra/izlog/izlog-poruke";
 import { IzlogPokret } from "@/components/igra/izlog/izlog-pokret";
 import { IzlogPrimitivi } from "@/components/igra/izlog/izlog-primitivi";
 import { IzlogProfil } from "@/components/igra/izlog/izlog-profil";
@@ -37,4 +38,5 @@ export const IZLOG_PARTS: readonly IzlogPart[] = [
   { id: "rang", label: { sr: "Rang lista", en: "Leaderboard" }, Part: IzlogRang },
   { id: "profil", label: { sr: "Profil", en: "Profile" }, Part: IzlogProfil },
   { id: "crea", label: { sr: "Crea", en: "Crea" }, Part: IzlogCrea },
+  { id: "poruke", label: { sr: "Poruke", en: "Messages" }, Part: IzlogPoruke },
 ];

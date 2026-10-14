@@ -140,6 +140,11 @@ export const IGRA_COMMUNITY_COPY = {
   arrivedIskra: { sr: "Stiglo je nešto novo za tebe.", en: "Something new just came in for you." },
 } satisfies Record<string, LocalizedText>;
 
+/** Poruke (K18): Ehova rečenica u razgovoru bez poruka. Ostala prazna stanja zadržavaju svoje tekstove. */
+export const IGRA_MESSAGES_COPY = {
+  threadEmptyHint: { sr: "Dovoljno je i „Zdravo“.", en: "Even a simple “Hi” is enough." },
+} satisfies Record<string, LocalizedText>;
+
 /** Rang liste (K12): podijum, „ti" red i iskreno odbrojavanje do kraja nedelje. */
 export const IGRA_LEADERBOARD_COPY = {
   podium: { sr: "Prva tri mesta", en: "Top three" },

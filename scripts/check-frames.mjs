@@ -24,6 +24,7 @@ import { join } from "node:path";
  * gejt se sirі dodavanjem putanje ovde, ne novim pravilom.
  */
 const ROOTS = [
+  "components/igra/chat",
   "app/[locale]/(marketing)/community",
   "app/[locale]/app/community",
   "app/[locale]/app/admin",

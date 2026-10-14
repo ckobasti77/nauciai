@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpenCheck, GraduationCap, MessageCircle, Sparkles, Users } from "lucide-react";
+import { GraduationCap, MessageCircle } from "lucide-react";
 import { useQuery } from "convex/react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback } from "react";
@@ -14,9 +14,8 @@ import {
   sections,
 } from "@/components/app/chat/messages-shell";
 import { StudyHub } from "@/components/app/chat/study-hub";
-import { EmptyState } from "@/components/ui/empty-state";
-import { Button } from "@/components/ui/button";
-import { HandUnderline, LinkButton, cn } from "@/components/ui/primitives";
+import { MessagesPickEmpty } from "@/components/igra/chat/chat-empty";
+import { HandUnderline, cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { Locale } from "@/lib/i18n";
@@ -94,13 +93,7 @@ export function MessagesHub({ locale, selectedConversationId }: { locale: Locale
       {view === "study" ? <StudyHub locale={locale} courseSlug={courseSlug || undefined} onCourseSlugChange={(slug) => updateParams({ course: slug || undefined })} onOpenConversation={(conversationId) => { const next = new URLSearchParams(); next.set("view", "study"); if (courseSlug) next.set("course", courseSlug); router.push(`${withLocale(locale, `/app/messages/${conversationId}`)}?${next.toString()}`); }} className="min-h-0 flex-1 overflow-y-auto" /> : <div className="flex min-h-0 min-w-0 flex-1 gap-4">
         <div className={cn("flex min-w-0 flex-1 lg:w-[340px] lg:flex-none 2xl:w-[360px]", selected && "hidden lg:flex")}><InboxPane locale={locale} selectedConversationId={selectedConversationId} section={section} query={query} onSectionChange={(nextSection) => updateParams({ section: nextSection === "all" ? undefined : nextSection })} onQueryChange={(nextQuery) => updateParams({ q: nextQuery || undefined })} onOpenStudy={() => changeView("study")} /></div>
         <div className={cn("min-h-0 min-w-0 flex-1", selected ? "flex" : "hidden lg:flex")}>
-          {selected ? <ConversationPanel key={selected} locale={locale} conversationId={selected} onBack={backToInbox} /> : <EmptyState
-              className="h-full flex-1"
-              icon={BookOpenCheck}
-              title={label(locale, "Ovde se otvaraju tvoji razgovori", "Your conversations open here")}
-              body={label(locale, "Klikni na razgovor sa liste sa leve strane. Ako lista još nema nikoga, prvo pronađi nekoga sa kim ćeš da učiš.", "Click a conversation in the list on the left. If the list is still empty, first find someone to study with.")}
-              action={<div className="flex flex-wrap justify-center gap-2"><Button size="sm" icon={<Sparkles className="size-4" />} onClick={() => changeView("study")}>{label(locale, "Pronađi partnera", "Find a partner")}</Button><LinkButton href={withLocale(locale, "/app/community/members")} tone="paper"><Users className="size-4" />{label(locale, "Pregledaj članove", "Browse members")}</LinkButton></div>}
-            />}
+          {selected ? <ConversationPanel key={selected} locale={locale} conversationId={selected} onBack={backToInbox} /> : <MessagesPickEmpty locale={locale} onFindPartner={() => changeView("study")} />}
         </div>
       </div>}
     </ChatMotionScope>
