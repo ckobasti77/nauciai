@@ -582,3 +582,125 @@ Prag pripada višem nivou (99 XP = nivo 1, 100 XP = nivo 2). Na nivou 12 je `pro
 - **Kalendar** broji lekcije po UTC danu (K07 ODLUKA 6) i prikazuje pola godine bez prekidača (ODLUKA 3).
 - **Zatečeno, nisam dirao:** redovi u prozorima table su visoki 40 px (ispod 44 px za dodir); u pločici „Obaveštenja" na 390 px natpis stoji tik uz ikonicu.
 - **Dodir na pravom telefonu i pravi čitač ekrana nisam imao.**
+
+## K09 — Učionica: kursevi, lekcije, slavlja   (2026-10-14 05:25)
+**Fajlovi:**
+- novi (lib): `lib/igra-course-art.ts`, `lib/igra-lesson.ts` + testovi `lib/igra-course-art.test.ts`, `lib/igra-lesson.test.ts`, `lib/igra-classroom.test.ts`
+- novi (IGRA komponente): `components/igra/lesson-steps-bar.tsx` (traka + hook `useActiveLessonStep`), `components/igra/lesson-done.tsx`, `components/igra/motion/use-xp-gain.ts`
+- novi (učionica): `components/app/dashboard-course-card.tsx` (kartica otključanog kursa, izašla iz `dashboard-content.tsx`), `components/app/classroom-hub-skeleton.tsx` (trake i kostur učionice, izašli iz `classroom-hub.tsx`)
+- novi (izlog): `components/igra/izlog/izlog-ucionica.tsx`, `docs/igra/snimci/K09-*.png` (22)
+- izmenjeni (učionica): `components/app/classroom-hub.tsx` (Sova, prstenovi, smer karticama), `course-catalog-card.tsx` (samo nalepnica lika), `course-player.tsx` (traka koraka, mali kraj, „šta je sledeće"), `course-lab.tsx` (traka + mali kraj umesto poruke), `dashboard-content.tsx` (pečat uz 100 %, kartica izašla), `track-experience.tsx` (uvoz kartice + smer), `app/[locale]/app/classroom/courses/[courseSlug]/lessons/[lessonSlug]/page.tsx` (jedan prop), `app/[locale]/app/classroom/loading.tsx` (uvoz kostura)
+- izmenjeni (ostalo): `lib/igra-copy.ts` (`IGRA_CLASSROOM_COPY`), `lib/igra-fixtures.ts` (`CLASSROOM_FIXTURES`, `CLASSROOM_TRACK_FIXTURES`), `components/igra/izlog/registry.ts`, `lib/igra-izlog.test.ts`, `lib/igra-shell.test.ts`, `scripts/check-frames.mjs` (`ROOTS`)
+
+**Šta je urađeno:** Kartice kurseva u učionici su „svetovi": na naslovnoj slici stoji lik ekipe po temi kursa (Kadar za video, Eho za zvuk, Piksi za slike, Bajt za sajt i kod, Sova za sve ostalo), umesto trake je prsten napretka, a stanje se čita bez teksta: prazan prsten i „Otvori kurs" (nije počet), prsten sa procentom i „Nastavi" (u toku), pun prsten sa kvačicom, pečat „Završeno" i „Ponovi" (završen). Zaključana kartica je dobila samo nalepnicu lika; cena, tekst i dugme za kupovinu su isti. U vrhu učionice Sova maše sa ivice kartice „Nastavi gde si stao", a ta kartica i trake smerova nose isti prsten. Lekcija ima lepljivu traku koraka („Korak 3 od 5", marker se razliva kako čitalac skroluje), a klik na „Završio/la sam ovu lekciju" otvara mali kraj u istoj kartici: „Lekcija završena", „+N XP" kao odometar na markeru, traka nivoa i dugme „Sledeća lekcija". N se meri iz porasta XP-a u ljusci, pa ponovljen klik pokaže samo „Lekcija je zapisana." Veliko slavlje na kraju kursa nije pravljeno ponovo: i dalje ga vodi ljuska iz K06 (scena `scena.kurs-zavrsen`, konfete, 3D pehar od `lg`, jednom preko `igraSeen`); ovde je ceo tok proveren u izlogu, a stranica kursa uz 100 % nosi isti pečat. `convex/`, rute, `courses.markProgress` i sadržaj kurseva nisu dirani.
+
+**Površine:**
+- gotovo: učionica 6.3 — hub (zona „nastavi", smerovi, katalog), kartica otključanog i zaključanog kursa, plejer lekcije (Light), stranica kursa (pečat), stranica smera (ista kartica; sama strana smera nije gledana u pregledaču).
+- delimično: Pro prikaz lekcije (`CourseLab`) ima traku i mali kraj u kodu, ali NIJE gledan u pregledaču (traži Pro plan i podatke vežbe iz baze; vidi BLOKADU).
+- nije u ovom koraku (po planu): mapa puta na stranici kursa i smera (K10), prazna stanja učionice (K23), `DashboardFirstRun`, filteri i zone učionice.
+
+**Kako se koristi (za K10 i dalje):**
+- `courseLik({ slug, trackSlug?, title })` → `IgraLik` ime; `courseCardState({ completedLessons, totalLessons })` → `"new" | "progress" | "done"` (`lib/igra-course-art.ts`).
+- `<LessonStepsBar step total locale floating? />`; `useActiveLessonStep(ids)` vraća indeks bloka do kog je čitalac stigao.
+- `const xpGain = useXpGain(); xpGain.start()` PRE mutacije, pa `<LessonDone done gain={xpGain.gain} xp={xpGain.xp} … />`.
+- `lessonRefs(course)` + `nextLessonAfter(lessons, slug)` (`lib/igra-lesson.ts`) nad odgovorom `courses:getAppNavigation`.
+- **Dva fajla se učitavaju šire nego što izgleda:** `dashboard-content.tsx` na svakoj ruti aplikacije (K08), a sve što uvozi `app/[locale]/app/classroom/loading.tsx` na svakoj ruti ispod `/app/classroom` (kurs, lekcija, smer). IGRA kod za jednu stranu ne ide ni u jedan od ta dva lanca; kostur učionice je zato u `classroom-hub-skeleton.tsx`. Oba čuva test.
+
+**ODLUKE (odstupanja od plana K07 §2 i ono što plan nije rekao):**
+1. **Kartica otključanog kursa je izdvojena u `components/app/dashboard-course-card.tsx`.** Plan je menja u `dashboard-content.tsx`, ali taj fajl ne sme da uvozi IGRA kod (test iz K08: učitava se na svakoj ruti). Ime komponente je isto (`DashboardCourseCard`); promenjena su dva uvoza (`classroom-hub.tsx`, `track-experience.tsx`). Sa karticom su prešli `formatLastActivity` i `courseCommunityHref`; `statusCopy` je izvezen. Iz `dashboard-content.tsx` su uklonjeni uvozi koji su ostali bez korisnika (`Clock3`, `Lock`, `PartyPopper`, `progressEncouragement`, `lib/surface`).
+2. **Kostur učionice i konstante traka su izdvojeni u `components/app/classroom-hub-skeleton.tsx`.** `classroom/loading.tsx` važi za sve rute ispod učionice, pa je ceo hub (sada sa likovima i manifestom slika) ulazio u početni JS lekcije, kursa i smera: lekcija 307 KB, kurs 295 KB. Posle izdvajanja: lekcija 280, kurs 268 (tabela dole). Kostur je dobio red visine Sove (64 px / 168 px), da se strana ne pomeri kad podaci stignu.
+3. **Lik: ključna reč mora da POČINJE reč** (plan: podniz). Podniz bi „freelance" dao Kadru („reel"), „robot" Bajtu („bot"), „oglas" Ehu („glas"), a „terapija" Bajtu („api"). Kvačice se skidaju pre poređenja („montaža" → „montaza").
+4. **Lik: prvo odlučuju slug i naslov kursa, smer tek kad oni ne kažu ništa** (plan: sve zajedno). Inače smer „video-audio" svaki svoj kurs daje Kadru, i „Glas i muzika" i „AI slike" (uhvaćeno u izlogu).
+5. **`code` je skraćen na `cod`**, da pogodi i „coding" (slug `vibe-coding`).
+6. **Nalepnica lika stoji UNUTAR naslovne slike** (donji desni ugao, 64 px), ne visi preko ivice: odmah ispod je prsten.
+7. **Naslovna slika otključane kartice više nema svoj `border-2 border-ink`**, nego tanku unutrašnju ivicu kao zaključana kartica; okvir reda „Sledeće" je `border border-line`. Razlog: nov fajl je u `check:frames` (`ROOTS`), a pravilo je jedan okvir po grupi.
+8. **Pečat „Završeno": prsten je koral (`--igra-stamp`), tekst mastilo.** Koral na papiru je 2,8:1, ispod 4,5:1 za sitan tekst. Pečat miruje (udar pripada slavlju).
+9. **Završena kartica:** dugme „Ponovi" (vodi na prvu lekciju, kao i do sada), bez reda „Sledeće"; ikonica `PartyPopper` je uklonjena, jer to sada kažu pečat i kvačica. Red sa datumom poslednje aktivnosti je ostao.
+10. **Sova stoji na ivici kartice u zoni „nastavi"** (200 px od `lg`, 96 px na telefonu, 8 px preko kartice) i jedini je `data-igra-hero` učionice. Nije `priority` (učionica nema IGRA scenu; LCP ostaje kartica). Zona je zbog nje viša za 131 px na računaru i 33 px na telefonu. Sova nema oblačić: nov tekst nije tražen.
+11. **Aktivan korak meri slušalac skrola (jednom po frejmu) i čista funkcija `activeLessonStep`, ne IntersectionObserver** (plan). Kratak završni blok nikad ne bi stigao do linije čitanja (40 % visine ekrana), pa bi traka stala na „4 od 5"; pravilo zato kaže: kad strana nema više kuda da skroluje, to je poslednji korak. Čista funkcija je pod testom.
+12. **Traka koraka je pilula sa svojim okvirom** (lebdi): `top-[4.5rem]` na telefonu (8 px ispod zaglavlja, izmereno 64 px), `md:top-3` na računaru; plan je rekao `top-16` / `top-0`. Stoji samo iznad leve kolone, da ne pokrije panel „Materijali" (`xl:sticky`). Nema je kad lekcija ima jedan blok ni u admin pregledu (`inlinePreview`).
+13. **Posle završetka dugme „Završio/la sam ovu lekciju" postaje mirno** („Lekcija je završena", papir umesto žute), a žuto je „Sledeća lekcija". Naslov sledeće lekcije je red IZNAD dugmeta, ne u njemu (dugme sa naslovom ne staje na 390 px).
+14. **„Lekcija je zapisana." stoji odmah** kad je lekcija već bila završena (`initialCompleted` sa servera ili raniji klik u istoj poseti); 4 s iz plana je samo rok do kog se čeka broj. Bez porasta XP-a broja nema, naslov ostaje „Lekcija završena".
+15. **Sledeća lekcija** je naredna po redu, i kad je već završena (ponavljanje gradiva ide redom, kao knjiga). Posle poslednje lekcije nudi se prva nezavršena. „Kurs je završen" i samo „Nazad na kurs" stoje kad je lekcija upravo zatvorila kurs (plan je to vezao za poslednju lekciju po redu, što nije isto ako je student neku preskočio).
+16. **`LessonDone` se montira i pre kraja** kao prazan `role="status"`: nov element sa gotovim tekstom čitač ekrana ne najavljuje.
+17. **Plejer je dobio `useQuery(api.courses.getAppNavigation, {})`** (plan): isti upit i argumenti kao sidebar, pa je to ista pretplata. Bez Convex-a (`"skip"`) mali kraj ima samo „Nazad na kurs".
+18. **Pro prikaz (`CourseLab`):** traka je red bez okvira ispod zaglavlja vežbe (žuti čip „1/3" je ostao); mali kraj stoji ispod donje trake, umesto poruke „Lekcija je zavrsena."; `handleNext` i ostala logika su isti.
+19. **Pečat na stranici kursa** stoji uz „100%" u tamnom panelu „Pregled kursa" i ne crta se adminu (njemu tu piše „Admin"). Tekst ide kroz `tr()` u samom fajlu, ne kroz `lib/igra-copy`, jer `dashboard-content.tsx` ne sme da uvozi `lib/igra-*`.
+20. **Link „Zajednica" na kartici ima `min-h-11`** (bio je visok 16 px, ispod mete za dodir).
+21. **Veliko slavlje nije dirano.** `CelebrationHost`, `celebration-card.tsx` i `lib/igra-celebrations.ts` su isti; test čuva da učionica ne montira svoje slavlje ni konfete.
+22. **Izlog:** hub, kartice i stranica kursa su PRAVE komponente nad test podacima. Plejer nije (piše u bazu), pa je lekcija u izlogu sklopljena od istih delova (traka, hook koraka, `useXpGain`, `LessonDone`), a „server" je tajmer koji posle 450 ms doda 100 XP. `DashboardContent` u izlogu dobija kurs bez `id`, da ne pita bazu za izdvojene teme.
+23. **Test podaci:** sedam kurseva u tri smera; dva nose slug iz `lib/content.ts` (`vibe-coding`, `video-audio-ai`), pa imaju pravu naslovnu petlju i cenu. „Aktivan" ima iste brojeve kao tabla iz K08 (14 od 31 lekcije, lekcija 4 od 9).
+24. **`lib/igra-shell.test.ts` (K06)** je u spisku dozvoljenih uvoznika domaćina slavlja dobio `izlog-ucionica.tsx`; tvrdnja je ista (ljuska + izlog, nigde drugde).
+25. **Žuto dugme kartice (`tone="smoke"`) NIJE menjano**, iako je žut tekst na papiru oko 1,5:1 u svetloj temi. To je zatečen izbor boje glavnog dugmeta na kartici kursa; zamena je jedna reč (`quiet`) i ostavljena je Jovanu.
+26. **Skillove iz pravila (`impeccable`, `design-taste-frontend`, `design-dna`, `motion-design`) nisam čitao cele pre pisanja UI-ja u ovom koraku**: radio sam po planu K07 §2 i obrascima iz K05–K08, a posle sam pročitao `impeccable/reference/craft-floor.md` i pustio detektor nad novim fajlovima (bez nalaza).
+27. `IGRA_PLANNED_ART` i dalje ima tri reda (`lib/igra-art.ts` nisam dirao).
+
+**Novi paketi:** nema.
+
+**Testovi (3 nova fajla, 38 testova; 2 postojeća dopunjena):**
+- `lib/igra-course-art.test.ts` (9): lik po temi na oba jezika, Sova bez pogotka, redosled pravila, ključna reč na početku reči (četiri lažna pogotka), smer tek kad kurs ne kaže ništa, kvačice i velika slova, kursevi iz kataloga i slika za svaki lik; tri stanja kartice i kurs bez lekcija.
+- `lib/igra-lesson.test.ts` (15): aktivan korak (linija čitanja na piksel, kratak završni blok, kraj strane, bez blokova), natpis i `aria-*` trake sa stezanjem i lošim ulazom, `xpGain` (razlika, nikad negativna, loš ulaz), `nextLessonAfter` (naredna, naredna već završena, posle poslednje, kurs zatvoren, nepoznata lekcija), `lessonRefs` (redosled modula i lekcija, nacrti, stanje, prazan ulaz).
+- `lib/igra-classroom.test.ts` (14): test korisnici (isti katalog, pet likova, novi / legenda, tri stanja i isti brojevi kao tabla, sledeća lekcija), tekstovi na oba jezika bez pretnje i nagrade, i čitanje izvora: novi delovi bez upita i test podataka, slike samo kroz `IgraArt`, obe kartice nose lik, jedan `data-igra-hero`, kostur ne vuče hub, „+N XP" se meri (nema `LEADERBOARD_XP` u UI-ju), plejer i Pro prikaz pamte XP PRE mutacije, kraj kursa slavi samo ljuska, plejer i dalje zove samo `courses.markProgress`.
+- izmenjeni: `lib/igra-izlog.test.ts` (deo „ucionica"), `lib/igra-shell.test.ts` (ODLUKA 24).
+
+**Slike:** `lik.sova.mase` (hub), `lik.sova|bajt|kadar|eho|piksi.mase` (kartice, kroz `igraLikArt`); u slavlju kao i do sada `scena.kurs-zavrsen` i `rang.pehar`. TRAŽENE SLIKE: nema.
+
+**Rezultat provere:**
+- codegen: nije potreban (`convex/` nije diran)
+- typecheck: prošlo (i posle build-a)
+- lint: prošlo (0 grešaka, istih 26 zatečenih upozorenja)
+- test: prošlo (307 fajlova, 3.397 testova)
+- check:frames (u `ROOTS` su dodati `dashboard-course-card.tsx` i `classroom-hub-skeleton.tsx`), check:corners, check:white, check:igra (i `--strict`): prošlo
+- build: prošao (dva puta, oba iz prvog pokušaja)
+- **check:bundle: prošlo.**
+
+| Šta (gzip) | Posle K08 | Posle K09 | Granica |
+|---|---|---|---|
+| `/app` početni JS | 291 KB | 290 KB | 294 |
+| `/app/classroom` | 291 | 285 | 315 |
+| `/app/classroom/courses/[courseSlug]` | 285 | 268 | 309 |
+| `/app/classroom/courses/[courseSlug]/lessons/[lessonSlug]` | nije mereno | 280 | 317 |
+| `/app/classroom/tracks/[trackSlug]` | nije mereno | 281 | 311 |
+| `/app/community/leaderboard` | 280 | 278 | 303 |
+| `/app/members/[username]` | 347 | 345 | 371 |
+| javna početna | 139 | 139 | 153 |
+
+  Pre izdvajanja kostura (ODLUKA 2) isti build je dao: učionica 296, kurs 295, lekcija 307, smer 292.
+- **pregledač (Playwright, 1440 × 900 i 390 × 844, obe teme, sr i en), izmereno u izlogu:**
+  - učionica: nema vodoravnog skrola ni na jednoj širini i temi; 0 slomljenih slika; jedan `data-igra-hero`; likovi na sedam kartica redom: sova, sova, sova, bajt, kadar, eho, piksi
+  - Sova: 200 × 200 px na 1440 i 1024, 96 × 96 na 390; red sa pozdravom 168 px, odnosno 64 px (isto kao u kosturu); 8 px preko kartice
+  - bez slika (blokiran `/brand/igra/**`): 0 slika, 8 od 8 fallback-a, ista visina učionice (5.503 px)
+  - traka koraka: skrol kroz pet blokova daje 1, 2, 3, 4, 5; ispuna `scaleX` 0,2 → 1; lepljiva na 12 px od vrha u izlogu
+  - mali kraj: 450 ms posle klika nema dijaloga; „Lekcija završena", „+100 XP", traka „Nivo 5, 590 od 1.000 XP", „Sledeće: Primeri u promptu"; XP test korisnika 1.890 → 1.990
+  - ponovljen klik: „Lekcija je zapisana." bez broja, XP ostaje 1.990, i posle 4,5 s isto
+  - kraj kursa: prvo mali kraj („Ovo je bila poslednja lekcija. Kurs je završen.", samo „Nazad na kurs"), zatim JEDAN dijalog „Kurs završen · Promptovi koji rade" sa `scena.kurs-zavrsen`, jednim 3D platnom i konfetama; `markSeen` dobija `course:fixture-course-promptovi-koji-rade` jednom; posle samogašenja i ponovljenog klika nema novog dijaloga
+  - smanjen pokret: traka i XP odmah na vrednosti (`scale(0.2)`, `scale(0.59)`), „+100 XP" odmah; slavlje je mirna kartica u uglu, 0 dijaloga i 0 platna
+  - telefon: dugmad malog kraja 306 × 44, 166 × 44 i 96 × 44 px; glavno dugme kartice 44 px visoko, link „Zajednica” po klasi `min-h-11`; mobilno zaglavlje prave ljuske je 64 px, pa traka koraka (72 px) stoji 8 px ispod njega
+  - engleski: „Completed", „Review", „Progress for Prompts that work: completed", „Lesson complete", „Step 1 of 5 / Lesson steps", „Level 12, top level"; adrese kroz `/en/app/classroom/...`
+  - stranica kursa: pečat uz „100%" u obe teme (snimci `K09-kurs-pecat-*`)
+  - konzola: bez grešaka u običnom radu; jedino upozorenje je zatečeno `THREE.Clock`. Uz „smanji pokrete" React javlja nepoklapanje hidratacije na karticama kursa (zatečeno, vidi dole)
+- impeccable detektor nad novim fajlovima: bez nalaza
+- dev server je ugašen (portovi 3000 / 3123 / 3124 slobodni); Playwright `page-*.yml` i `console-*.log` i pomoćne skripte iz `.igra-run/` su obrisani.
+
+**Prihvatanje (K09):**
+- Učionica i plejer kursa rade u obe teme i na telefonu: **ispunjeno u izlogu** za učionicu, kartice, stranicu kursa i delove lekcije (snimci `K09-ucionica-*`, `K09-kartice-*`, `K09-lekcija-*`, `K09-kurs-pecat-*`); pravi plejer nad živim nalogom i Pro prikaz nisu gledani (BLOKADA).
+- Slavlja se pojavljuju jednom: **ispunjeno u izlogu** (pravi `CelebrationHost`, jedan dijalog, ključ upisan jednom; snimci `K09-slavlje-*`), uz `convex/igra.test.ts` iz K04 koji čuva da `markSeen` upisuje jednom.
+- typecheck / lint / test / check:frames prolaze, sekcija K09 u progress-u: **ispunjeno**.
+
+**BLOKADA (samo provera, ne kod):** pravi plejer lekcije (`/app/classroom/courses/<kurs>/lessons/<lekcija>`) i Pro prikaz (`CourseLab`) nisu gledani u pregledaču. Razlog je isti kao u K06 i K08: žive iza prijave, a Playwright nije prijavljen (auth tok se ne dira, tuđe lozinke se ne unose); Pro prikaz uz to traži Pro plan i vežbu u bazi. Šta JESTE provereno: isti delovi u izlogu (traka, hook koraka, `useXpGain`, `LessonDone`, domaćin slavlja), typecheck nad povezivanjem i testovi nad izvorom (XP se pamti pre mutacije, plejer zove samo `markProgress`). Nije potvrđeno: (a) položaj lepljive trake ispod pravog mobilnog zaglavlja i uz panel „Materijali" na `xl`; (b) da XP iz `igra:getMyProgress` stigne pre nego što se `markProgress` vrati (ako stigne kasnije, broj se pojavi do 4 s posle naslova); (c) izgled trake i malog kraja u Pro prikazu; (d) stranica smera sa novom karticom (ista komponenta kao u učionici, ali bez nivoa površine).
+
+**Za Jovana ujutru:**
+- **Prijavi se na DEV i otvori lekciju koju nisi završio** (`npx next dev --webpack -p 3123`): klik na „Završio/la sam ovu lekciju" treba da pokaže „+100 XP" i „Sledeća lekcija"; drugi klik „Lekcija je zapisana." bez broja. Na telefonu pogledaj da traka koraka stoji tik ispod zaglavlja.
+- **Završi poslednju lekciju nekog kursa:** prvo mali kraj, pa JEDNO slavlje „Kurs završen"; posle osvežavanja ne sme da se ponovi. Na kartici tog kursa i na njegovoj stranici treba da stoji pečat.
+- **Pro prikaz lekcije** nisam video (BLOKADA): traka je ispod zaglavlja vežbe, mali kraj ispod donje trake sa „Back / Next".
+- **Ukus:** Sova od 200 px spušta karticu „Nastavi gde si stao" za oko 130 px na računaru (snimak `K09-ucionica-1440-svetla.png`); ako je previše, širina je jedna klasa (`lg:w-[12.5rem]` u `classroom-hub.tsx`). Pečat je koral prsten sa tekstom u mastilu (ODLUKA 8). Nalepnica lika od 64 px na telefonu pokriva ugao naslovne slike.
+- **Pravilo lika** je spisak reči u `lib/igra-course-art.ts`; kurs koji nijedna ne pogodi dobija Sovu. Kad dodaš nov kurs, pogledaj da li je dobio pravog lika.
+- **Tekstovi za ton** (`IGRA_CLASSROOM_COPY`): „Lekcija završena", „Lekcija je zapisana.", „Ovo je bila poslednja lekcija. Kurs je završen.", „Ponovi".
+- **Zatečeno, nisam dirao:**
+  - žuto dugme na kartici kursa (`tone="smoke"`) je u svetloj temi oko 1,5:1 (ODLUKA 25);
+  - „Sledece:" i „Jos nema aktivnosti" na kartici su bez kvačica;
+  - nov korisnik u učionici vidi „Zdravo, …" dva puta (hub i blok „Tvoji prvi koraci");
+  - korisnik koji je završio sve i dalje vidi „Nastavi gde si stao" sa 100 %, jer `getProgressSummary` za sledeću lekciju vraća prvu kad nezavršenih nema; blok „Sve lekcije su završene" se zato praktično ne prikazuje;
+  - uz „smanji pokrete" kartice kursa (otključana i zaključana) crtaju `tabindex` na serveru, a ne u pregledaču (`whileTap`), pa React prijavi nepoklapanje hidratacije;
+  - kostur kartice „Nastavi" je 256 px, a kartica 309–337 px (i pre ovog koraka).
+- **Dodir na pravom telefonu i pravi čitač ekrana nisam imao.**

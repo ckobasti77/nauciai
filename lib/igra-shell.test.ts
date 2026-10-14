@@ -199,6 +199,7 @@ describe("ljuska (izvor)", () => {
       "components/igra/igra-progress-provider.tsx",
       "components/igra/izlog/izlog-ljuska.tsx",
       "components/igra/izlog/izlog-pokret.tsx",
+      "components/igra/izlog/izlog-ucionica.tsx",
     ]);
     // `AppShell` montira samo deo iza prijave (`app/[locale]/app/*`).
     expect(sources("app").filter((file) => read(file).includes("AppShell") && !file.startsWith("app/[locale]/app/"))).toEqual([]);

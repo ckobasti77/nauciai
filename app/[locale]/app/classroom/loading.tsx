@@ -1,4 +1,4 @@
-import { ClassroomHubSkeleton } from "@/components/app/classroom-hub";
+import { ClassroomHubSkeleton } from "@/components/app/classroom-hub-skeleton";
 
 // Učionica je do sada bila jedina glavna zona bez `loading.tsx`: dok se ruta učitava,
 // student je gledao prazno platno. Isti kostur koji `LiveClassroomHub` pokazuje dok

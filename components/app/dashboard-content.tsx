@@ -5,14 +5,11 @@ import {
   BookOpen,
   Check,
   ChevronDown,
-  Clock3,
   Gauge,
   GraduationCap,
   ImageIcon,
   Layers,
-  Lock,
   MessageCircle,
-  PartyPopper,
   Pencil,
   PlayCircle,
   Plus,
@@ -59,8 +56,6 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { ViewerProfile } from "@/lib/current-viewer";
 import { dictionary, localized, t as tr, type Locale, type LocalizedText, withLocale } from "@/lib/i18n";
-import { progressEncouragement } from "@/lib/progress-encouragement";
-import { nextLevel, surfaceClass, type SurfaceLevel } from "@/lib/surface";
 
 const EditCourseAction = dynamic(() => import("@/components/app/admin-inline-actions").then((m) => m.EditCourseAction), { ssr: false });
 
@@ -146,7 +141,7 @@ export type DashboardCourse = {
   modules?: DashboardModule[];
 };
 
-function statusCopy(locale: Locale, course: DashboardCourse, isAdmin: boolean) {
+export function statusCopy(locale: Locale, course: DashboardCourse, isAdmin: boolean) {
   if (isAdmin) {
     return course.status === "published"
       ? tr(locale, "Objavljen kurs", "Published course")
@@ -233,20 +228,8 @@ function activityFromLessons(lessons: DashboardLesson[]) {
     .sort((a, b) => a.day.localeCompare(b.day));
 }
 
-function formatLastActivity(locale: Locale, timestamp?: number) {
-  if (!timestamp) return tr(locale, "Jos nema aktivnosti", "No activity yet");
-  return new Intl.DateTimeFormat(locale === "sr" ? "sr-RS" : "en-US", {
-    day: "2-digit",
-    month: "short",
-  }).format(new Date(timestamp));
-}
-
 function courseDetailHref(locale: Locale, courseSlug: string) {
   return coursePath(locale, courseSlug);
-}
-
-function courseCommunityHref(locale: Locale, courseSlug: string) {
-  return `${withLocale(locale, "/app/community")}?course=${courseSlug}`;
 }
 
 function courseContinueHref(locale: Locale, course: DashboardCourse, nextLesson?: DashboardLesson) {
@@ -809,158 +792,6 @@ export function CourseProgress({
   );
 }
 
-export function DashboardCourseCard({
-  locale,
-  course,
-  isAdmin,
-  summary = getProgressSummary(course, locale),
-  loop = false,
-  level,
-}: {
-  locale: Locale;
-  course: DashboardCourse;
-  isAdmin: boolean;
-  summary?: ReturnType<typeof getProgressSummary>;
-  /** Naslovna vitrina pušta petlju kursa (N10, zona „Kursevi" u Učionici). */
-  loop?: boolean;
-  /**
-   * Nivo površine SEKCIJE u kojoj kartica stoji (v3, `lib/surface.ts`). Kartica crta svoju
-   * pozadinu → uzima suprotnu boju, a medijski bunar u njoj još jednu dublje. Bez `level`
-   * ostaje zatečeni `paper-strong` (stranica smera), pa se ništa van Učionice ne pomera.
-   */
-  level?: SurfaceLevel;
-}) {
-  // Isti ugovor kao na `CourseCatalogCard`: `layout`, podizanje i pritisak staju kada
-  // korisnik traži manje pokreta. Bez ovoga je otključana kartica jedina u mreži koja se
-  // i dalje pomera pod `prefers-reduced-motion`.
-  const reduceMotion = useReducedMotion();
-  const cardBg = level === undefined ? "bg-paper-strong" : surfaceClass(nextLevel(level));
-  const mediaBg = level === undefined ? "bg-paper" : surfaceClass(nextLevel(nextLevel(level)));
-  const canOpen = isAdmin || course.hasAccess;
-  const primaryLabel =
-    summary.completedLessons > 0
-      ? tr(locale, "Nastavi", "Continue")
-      : tr(locale, "Otvori kurs", "Open course");
-
-  return (
-    <motion.article
-      data-motion="card"
-      layout={!reduceMotion}
-      whileHover={reduceMotion ? undefined : { y: -3 }}
-      whileTap={reduceMotion ? undefined : { scale: 0.99 }}
-      // Ista mikro-interakcija kao na kartici zaključanog kursa: `whileHover` diže, CSS
-      // produbljuje tvrdu senku. Otključan i zaključan kurs u istoj mreži moraju da se
-      // ponašaju isto, inače mreža izgleda kao dva različita sistema.
-      className={cn(
-        "card-anim-elevate dashboard-reveal group relative overflow-hidden surface-card border-2 border-ink shadow-[6px_6px_0_0_var(--shadow-hard-12)] hover:shadow-[9px_9px_0_0_var(--shadow-hard-20)] has-[a:focus-visible]:outline has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-2 has-[a:focus-visible]:outline-ink",
-        cardBg,
-      )}
-    >
-      {/* CELA kartica je klik meta ka kursu (N10): sloj linka je ispod sadržaja, sadržaj
-          ne prima klik, a dugmad na dnu ga vraćaju sebi (`pointer-events-auto`, z-20) —
-          isti obrazac kao kartica kursa na javnim stranama. */}
-      <Link
-        href={courseDetailHref(locale, course.slug)}
-        aria-label={tr(
-          locale,
-          `Otvori kurs ${localized(course.title, locale)}`,
-          `Open ${localized(course.title, locale)}`,
-        )}
-        className="absolute inset-0 z-0"
-      />
-      {/* Naslovna slika je uokvirena mastilom kao i sve ostalo na papiru, ima
-          media radius (8px) i isti odnos 16/9 kao na zakljucanoj kartici — otkljucan
-          i zakljucan kurs u istoj mrezi moraju da izgledaju kao jedan sistem. */}
-      <div className="pointer-events-none relative z-10 p-3">
-        <div className={cn("relative aspect-[16/9] overflow-hidden surface-media border-2 border-ink", mediaBg)}>
-          <CourseCover course={course} locale={locale} loop={loop} />
-          <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full border-2 border-ink bg-paper-strong px-3 py-1 type-eyebrow text-ink">
-            <ShieldCheck className="size-3.5" />
-            {statusCopy(locale, course, isAdmin)}
-          </span>
-        </div>
-      </div>
-      <div className="pointer-events-none relative z-10 space-y-4 px-5 pb-5 pt-2">
-        <div>
-          <h3 className="type-h2 text-ink">{localized(course.title, locale)}</h3>
-          <p className="mt-2 line-clamp-2 type-body-sm font-bold text-muted">{localized(course.subtitle, locale)}</p>
-        </div>
-
-        <div>
-          {/* Procenat je najkrupniji broj na kartici: on je odgovor na „gde sam", a
-              odnos lekcija ispod njega je detalj. Do U11 procenta uopste nije bilo,
-              nego samo odnos — traka je bila jedini nosilac velicine napretka. */}
-          <div className="flex items-end justify-between gap-3">
-            <div className="min-w-0">
-              <p className="type-eyebrow text-muted">{tr(locale, "Napredak", "Progress")}</p>
-              <p className="mt-1 type-caption font-bold text-muted">
-                {summary.completedLessons}/{summary.totalLessons || 0} {tr(locale, "lekcija", "lessons")}
-              </p>
-            </div>
-            <p className="shrink-0 type-h3 text-ink">{clampPercent(summary.percent)}%</p>
-          </div>
-          <div className="mt-2">
-            <CourseProgress
-              percent={summary.percent}
-              label={tr(
-                locale,
-                `Napredak kursa ${localized(course.title, locale)}`,
-                `Progress for ${localized(course.title, locale)}`,
-              )}
-            />
-          </div>
-          {/* Gola brojka je pocetniku pre prekor nego podatak — ispod trake stoji jedna
-              topla recenica koja kaze gde je i sta sledi (`lib/progress-encouragement.ts`). */}
-          <p className="mt-2 flex items-center gap-1.5 text-xs font-bold text-muted">
-            {summary.percent >= 100 ? (
-              <PartyPopper className="size-3.5 shrink-0 text-ink" aria-hidden="true" />
-            ) : null}
-            {progressEncouragement(locale, {
-              completedLessons: summary.completedLessons,
-              totalLessons: summary.totalLessons,
-            })}
-          </p>
-        </div>
-
-        <p className="inline-flex items-center gap-2 text-sm font-bold text-muted">
-          <Clock3 className="size-4 text-ink" />
-          {formatLastActivity(locale, summary.lastActivityAt)}
-        </p>
-
-        {summary.nextLesson ? (
-          <p className="surface-inset border-2 border-line bg-paper px-3 py-2 type-body-sm font-bold text-muted">
-            <span className="font-black text-ink">{tr(locale, "Sledece:", "Next:")}</span>{" "}
-            {localized(summary.nextLesson.title, locale)}
-          </p>
-        ) : null}
-
-        {/* „Detalji" je otišao: sloj linka preko cele kartice vodi na isto mesto, pa je
-            zaseban link bio drugi put ista destinacija u istom redu. */}
-        <div className="pointer-events-auto relative z-20 flex flex-wrap items-center gap-x-5 gap-y-3">
-          {canOpen ? (
-            <LinkButton href={courseContinueHref(locale, course, summary.nextLesson)} tone="smoke" className="min-h-10 px-4 text-xs font-black">
-              <PlayCircle className="size-4" />
-              {primaryLabel}
-            </LinkButton>
-          ) : (
-            <span className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border-2 border-line bg-paper px-4 text-xs font-black text-muted">
-              <Lock className="size-4" />
-              {tr(locale, "U pripremi", "In preparation")}
-            </span>
-          )}
-          <Link
-            href={courseCommunityHref(locale, course.slug)}
-            className="inline-flex items-center gap-1 text-xs font-black text-ink underline decoration-2 underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-          >
-            {tr(locale, "Zajednica", "Community")}
-            <MessageCircle className="size-3.5" />
-          </Link>
-        </div>
-      </div>
-    </motion.article>
-  );
-}
-
 // Rendered while the Convex query is in flight. Previously this window rendered the static
 // marketing courses from lib/content with progress: undefined, so a student mid-course saw
 // "0%" and CTAs pointing at fallback lesson slugs before the real data swapped in.
@@ -1312,6 +1143,8 @@ export function DashboardContent({
   const canOpenCheckout = courseIsPublished && !course.hasAccess && !surfaceIsAdmin;
   const canContinue = Boolean(nextLesson && (course.hasAccess || surfaceIsAdmin));
   const completionPercent = surfaceIsAdmin ? 100 : progressSummary.percent;
+  const courseCompleted =
+    !surfaceIsAdmin && progressSummary.totalLessons > 0 && progressSummary.completedLessons >= progressSummary.totalLessons;
 
   return (
     <div className="space-y-6">
@@ -1390,7 +1223,16 @@ export function DashboardContent({
             <div className="flex h-full flex-col justify-between gap-4">
               <div>
                 <p className="type-eyebrow text-paper-strong/65">{tr(locale, "Pregled kursa", "Course overview")}</p>
-                <p className="mt-4 type-hero">{surfaceIsAdmin ? "Admin" : `${completionPercent}%`}</p>
+                <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+                  <p className="type-hero">{surfaceIsAdmin ? "Admin" : `${completionPercent}%`}</p>
+                  {/* IGRA K09: završen kurs nosi isti pečat kao njegova kartica u učionici. Miruje;
+                      slavlje kraja kursa vodi ljuska (jednom, `igraSeen`). */}
+                  {courseCompleted ? (
+                    <span className="igra-stamp bg-paper-strong px-3 py-1 type-eyebrow">
+                      <span className="text-ink">{tr(locale, "Završeno", "Completed")}</span>
+                    </span>
+                  ) : null}
+                </div>
                 <div className="mt-5">
                   <CourseProgress
                     percent={completionPercent}

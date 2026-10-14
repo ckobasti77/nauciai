@@ -228,6 +228,7 @@ export default async function LessonPage({
       moduleId={liveLesson?.lesson?.moduleId}
       isAdmin={Boolean(liveLesson?.isAdmin)}
       initialView={view === "pro" ? "pro" : view === "light" ? "light" : undefined}
+      initialCompleted={Boolean(liveLesson?.progress?.completed)}
     />
   );
 }

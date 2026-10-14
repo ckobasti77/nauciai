@@ -7,6 +7,7 @@ import { useState } from "react";
 
 import { CheckoutButton } from "@/components/app/checkout-button";
 import { CourseCover, type DashboardCourse } from "@/components/app/dashboard-content";
+import { IgraLik } from "@/components/igra/igra-lik";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
@@ -17,6 +18,7 @@ import {
   courseLengthLabel,
   totalDurationSeconds,
 } from "@/lib/course-catalog";
+import { courseLik } from "@/lib/igra-course-art";
 import { localized, t as tr, type Locale } from "@/lib/i18n";
 import { nextLevel, surfaceClass, type SurfaceLevel } from "@/lib/surface";
 
@@ -44,6 +46,7 @@ export function CourseCatalogCard({
   course,
   loop = false,
   level,
+  trackSlug,
 }: {
   locale: Locale;
   course: DashboardCourse;
@@ -51,6 +54,8 @@ export function CourseCatalogCard({
   loop?: boolean;
   /** Nivo površine sekcije (v3); bez njega kartica ostaje na zatečenom `paper-strong`. */
   level?: SurfaceLevel;
+  /** Smer kursa, kad ga pozivalac zna: i on bira lik (IGRA K09). */
+  trackSlug?: string;
 }) {
   const [previewOpen, setPreviewOpen] = useState(false);
   // Kartica se pojavljuje i prerađuje kroz filter, pa `layout` i podizanje na hover
@@ -101,6 +106,8 @@ export function CourseCatalogCard({
               {localized(price, locale)}
             </span>
           ) : null}
+          {/* Lik po temi kursa (IGRA K09), isto mesto kao na otključanoj kartici. */}
+          <IgraLik lik={courseLik({ slug: course.slug, trackSlug, title: course.title })} decorative className="absolute bottom-2 right-2" />
         </div>
       </div>
 

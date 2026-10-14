@@ -24,6 +24,9 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { InlineContentText } from "@/components/app/inline-content";
+import { LessonDone } from "@/components/igra/lesson-done";
+import { LessonStepsBar } from "@/components/igra/lesson-steps-bar";
+import { useXpGain } from "@/components/igra/motion/use-xp-gain";
 import { cn } from "@/components/ui/primitives";
 import { Spinner } from "@/components/ui/spinner";
 import type { Course, Lesson } from "@/lib/content";
@@ -192,6 +195,8 @@ export function CourseLab({
   lessonId,
   inlineEdit = false,
   inlineLocale = locale,
+  lessonEnd,
+  initialCompleted = false,
 }: {
   course: Course;
   lesson: Lesson;
@@ -200,11 +205,16 @@ export function CourseLab({
   lessonId: Id<"lessons">;
   inlineEdit?: boolean;
   inlineLocale?: Locale;
+  /** Kuda posle lekcije (IGRA K09); sklapa ga `CoursePlayer`. */
+  lessonEnd: { next: { title: string; href: string } | null; courseDone: boolean; courseHref: string };
+  initialCompleted?: boolean;
 }) {
   const markTaskProgress = useMutation(api.lab.markTaskProgress);
   const markStepProgress = useMutation(api.lab.markStepProgress);
   const saveLabOutput = useMutation(api.lab.saveLabOutput);
   const markLessonProgress = useMutation(api.courses.markProgress);
+  const xpGain = useXpGain();
+  const [lessonDone, setLessonDone] = useState<{ repeat: boolean } | null>(null);
 
   const sortedSteps = useMemo(() => [...lab.steps].sort((a, b) => a.sortOrder - b.sortOrder), [lab.steps]);
   const [activeStepIndex, setActiveStepIndex] = useState(0);
@@ -342,8 +352,9 @@ export function CourseLab({
         setActiveMobileTab("lesson");
         return;
       }
+      xpGain.start();
       await markLessonProgress({ lessonId, completed: true, positionSeconds: 0 });
-      setStatusMessage(t(locale, "Lekcija je zavrsena.", "Lesson completed."));
+      setLessonDone((previous) => ({ repeat: initialCompleted || previous !== null }));
     } catch (error) {
       setStatusMessage(error instanceof Error ? error.message : t(locale, "Napredak nije sacuvan.", "Progress was not saved."));
     }
@@ -480,6 +491,10 @@ export function CourseLab({
           </span>
         </div>
       </div>
+
+      {sortedSteps.length > 1 ? (
+        <LessonStepsBar step={activeStepIndex + 1} total={sortedSteps.length} locale={locale} className="border-b-2 border-line bg-paper px-4 py-2" />
+      ) : null}
 
       <div className="flex gap-2 border-b-2 border-line bg-paper p-3 lg:hidden">
         {activeColumns.some((c) => c.type === "explanation") && tabButton("lesson", t(locale, "Lekcija", "Lesson"))}
@@ -790,6 +805,15 @@ export function CourseLab({
         </div>
       </div>
       {statusMessage ? <p className="border-t-2 border-line bg-paper px-4 py-3 text-sm font-black text-muted">{statusMessage}</p> : null}
+      <LessonDone
+        done={lessonDone !== null}
+        repeat={lessonDone?.repeat}
+        gain={xpGain.gain}
+        xp={xpGain.xp}
+        locale={locale}
+        {...lessonEnd}
+        className="border-t-2 border-line bg-paper-strong px-4 py-4"
+      />
     </div>
   );
 }

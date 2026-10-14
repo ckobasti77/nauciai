@@ -13,14 +13,20 @@ import { useEffect, useState, type ReactNode } from "react";
 import { InlineContentText } from "@/components/app/inline-content";
 import { InlineRichText, RichTextContent } from "@/components/app/rich-text";
 import { CourseLab, type LessonLabData } from "@/components/app/course-lab";
+import { LessonDone } from "@/components/igra/lesson-done";
+import { LessonStepsBar, useActiveLessonStep } from "@/components/igra/lesson-steps-bar";
+import { useXpGain } from "@/components/igra/motion/use-xp-gain";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { ConfirmDialog } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
-import { HandUnderline, Panel } from "@/components/ui/primitives";
+import { HandUnderline, Panel, cn } from "@/components/ui/primitives";
 import { Spinner } from "@/components/ui/spinner";
 import type { Course, Lesson, LessonPart } from "@/lib/content";
-import { lessonEditPath } from "@/lib/app-routes";
+import { coursePath, lessonEditPath, lessonPath } from "@/lib/app-routes";
+import type { LiveNavigationResult } from "@/lib/dashboard-courses";
+import { IGRA_CLASSROOM_COPY } from "@/lib/igra-copy";
+import { lessonRefs, nextLessonAfter } from "@/lib/igra-lesson";
 import { lessonStepLabel } from "@/lib/lesson-position";
 import { localized, t, type Locale } from "@/lib/i18n";
 
@@ -118,6 +124,7 @@ export function CoursePlayer({
   inlinePreview = false,
   initialView,
   onViewChange,
+  initialCompleted = false,
 }: {
   course: Course;
   lesson: Lesson;
@@ -130,6 +137,8 @@ export function CoursePlayer({
   inlinePreview?: boolean;
   initialView?: "pro" | "light";
   onViewChange?: (view: "pro" | "light") => void;
+  /** Lekcija je već završena kad se strana otvori (IGRA K09): dugme to kaže, kraj je bez „+N XP". */
+  initialCompleted?: boolean;
 }) {
   const markProgress = useMutation(api.courses.markProgress);
   const reorderLightBlocks = useMutation(api.contentHierarchy.reorderLightBlocks);
@@ -154,6 +163,23 @@ export function CoursePlayer({
   const [lessonView, setLessonView] = useState<"pro" | "light">(initialView ?? "light");
   const effectiveIsAdmin = isAdmin || viewerData?.profile?.role === "admin";
   const canUsePro = Boolean(labData?.canUsePro);
+
+  // IGRA K09: traka koraka, mali kraj lekcije i „šta je sledeće". Spisak lekcija je ista
+  // pretplata kao u sidebaru (isti upit, isti argumenti), pa ne košta drugi upit.
+  const navigation = useQuery(api.courses.getAppNavigation, isAuthenticated ? {} : "skip") as LiveNavigationResult;
+  const xpGain = useXpGain();
+  const [completed, setCompleted] = useState(initialCompleted);
+  const [lessonDone, setLessonDone] = useState<{ repeat: boolean } | null>(null);
+  const orderedParts = [...lesson.parts].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+  const activeStep = useActiveLessonStep(orderedParts.map((part) => `part-${part.slug}`));
+  const following = nextLessonAfter(lessonRefs(navigation?.courses?.find((item) => item.slug === course.slug)), lesson.slug);
+  const lessonEnd = {
+    next: following?.lesson
+      ? { title: localized(following.lesson.title, locale), href: lessonPath(locale, course.slug, following.lesson.slug) }
+      : null,
+    courseDone: following?.courseDone ?? false,
+    courseHref: coursePath(locale, course.slug),
+  };
 
   useEffect(() => {
     if (labData === undefined) return;
@@ -221,7 +247,7 @@ export function CoursePlayer({
           <div><p className="type-eyebrow text-muted">{locale === "sr" ? "Prikaz lekcije" : "Lesson view"}</p><p className="mt-1 type-caption font-bold text-muted">{locale === "sr" ? "Pro je podrazumevan za tvoj plan." : "Pro is the default for your plan."}</p></div>
           <div className="flex rounded-full border-2 border-ink bg-paper p-1" role="group" aria-label={locale === "sr" ? "Izaberi prikaz lekcije" : "Choose lesson view"}><button type="button" onClick={() => selectLessonView("pro")} className="rounded-full bg-ink px-4 py-2 text-xs font-black text-paper-strong">Pro</button><button type="button" onClick={() => selectLessonView("light")} className="rounded-full px-4 py-2 text-xs font-black text-ink">Light</button></div>
         </div>
-          <CourseLab course={course} lesson={lesson} locale={locale} lab={labData} lessonId={lessonId} inlineEdit={isAdmin} inlineLocale={inlineLocale} />
+          <CourseLab course={course} lesson={lesson} locale={locale} lab={labData} lessonId={lessonId} inlineEdit={isAdmin} inlineLocale={inlineLocale} lessonEnd={lessonEnd} initialCompleted={initialCompleted} />
       </div>
     );
   }
@@ -238,9 +264,11 @@ export function CoursePlayer({
 
     setIsSavingProgress(true);
     setProgressMessage(null);
+    xpGain.start();
     try {
       await markProgress({ lessonId, completed: true, positionSeconds: 0 });
-      setProgressMessage(locale === "sr" ? "Zapisali smo da si završio/la ovu lekciju." : "We noted that you finished this lesson.");
+      setLessonDone({ repeat: completed });
+      setCompleted(true);
     } catch (error) {
       setProgressMessage(
         error instanceof Error
@@ -293,6 +321,10 @@ export function CoursePlayer({
         </div>
       </div>
       <section className="space-y-6">
+        {/* Lepljiva traka koraka: ispod mobilnog zaglavlja (`min-h-16`), uz vrh na računaru. */}
+        {orderedParts.length > 1 && !inlinePreview ? (
+          <LessonStepsBar step={activeStep + 1} total={orderedParts.length} locale={locale} floating className="sticky top-[4.5rem] z-30 md:top-3" />
+        ) : null}
         <Panel className="relative p-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div className="min-w-0">
@@ -336,14 +368,27 @@ export function CoursePlayer({
                 type="button"
                 onClick={handleMarkComplete}
                 disabled={isSavingProgress}
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-yellow px-4 text-sm font-extrabold text-ink disabled:cursor-wait disabled:opacity-70"
+                className={cn(
+                  "inline-flex min-h-11 items-center justify-center gap-2 rounded-[8px] border-2 border-ink px-4 text-sm font-extrabold text-ink disabled:cursor-wait disabled:opacity-70",
+                  // Završena lekcija: dugme se smiruje, žuto prelazi na „Sledeća lekcija".
+                  completed ? "bg-paper-strong" : "bg-yellow",
+                )}
               >
                 {isSavingProgress ? <Spinner /> : <CheckCircle2 className="size-4" />}
-                {locale === "sr" ? "Završio/la sam ovu lekciju" : "I finished this lesson"}
+                {completed ? IGRA_CLASSROOM_COPY.lessonFinished[locale] : locale === "sr" ? "Završio/la sam ovu lekciju" : "I finished this lesson"}
               </button>
             </div>
           </div>
           {progressMessage ? <p className="mt-4 text-sm font-bold text-muted">{progressMessage}</p> : null}
+          <LessonDone
+            done={lessonDone !== null}
+            repeat={lessonDone?.repeat}
+            gain={xpGain.gain}
+            xp={xpGain.xp}
+            locale={locale}
+            {...lessonEnd}
+            className="mt-5 border-t border-line pt-5"
+          />
         </Panel>
 
         {/* Telo lekcije je centrirana kolona sirine knjige. Bez ovoga je na sirokom

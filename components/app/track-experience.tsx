@@ -6,7 +6,8 @@ import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { useMutation } from "convex/react";
 
 import { InlineContentText } from "@/components/app/inline-content";
-import { DashboardCourseCard, type DashboardCourse } from "@/components/app/dashboard-content";
+import type { DashboardCourse } from "@/components/app/dashboard-content";
+import { DashboardCourseCard } from "@/components/app/dashboard-course-card";
 import { InlineRichText } from "@/components/app/rich-text";
 import { ConfirmDialog } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
@@ -174,7 +175,7 @@ export function TrackExperience({ data, locale, admin = false, inlineLocale = lo
       </section>
       <TrackVideoSection locale={locale} trackId={trackId} videoUrl={data.track.videoUrl} videoFileName={data.track.videoFileName} admin={admin && Boolean(trackId)} title={data.track.pageCopy?.introVideoTitle} />
       {data.featuredThreads?.length ? <section><h2 className="font-display type-display-sm text-ink">Izdvojeno iz zajednice</h2><div className="mt-4 grid gap-4 md:grid-cols-2">{data.featuredThreads.map((thread) => <Link key={thread._id} href={withLocale(locale, `/app/community/${thread._id}`)} className="rounded-[16px] border-2 border-ink bg-paper-strong p-6 shadow-[4px_4px_0_var(--shadow-hard-10)]"><p className="font-black">{thread.title}</p><p className="mt-2 line-clamp-2 text-sm font-semibold text-muted">{thread.body}</p></Link>)}</div></section> : null}
-      <section id="kursevi" className="scroll-mt-6"><div><p className="type-eyebrow text-muted"><InlineContentText entityId={trackId} kind="track" field="pageCopy_sectionEyebrow" locale={inlineLocale} sr={sectionEyebrow?.sr ?? "Nastavni sadržaj"} en={sectionEyebrow?.en ?? "Learning content"} admin={admin && Boolean(trackId)}>{local(locale, sectionEyebrow?.sr ?? "Nastavni sadržaj", sectionEyebrow?.en ?? "Learning content")}</InlineContentText></p><h2 className="mt-2 font-display type-display-sm text-ink"><InlineContentText entityId={trackId} kind="track" field="pageCopy_sectionTitle" locale={inlineLocale} sr={sectionTitle?.sr ?? "Kursevi ovog smera"} en={sectionTitle?.en ?? "Courses in this track"} admin={admin && Boolean(trackId)}>{local(locale, sectionTitle?.sr ?? "Kursevi ovog smera", sectionTitle?.en ?? "Courses in this track")}</InlineContentText></h2></div><div className="mt-5 grid gap-6 md:grid-cols-2">{data.courses.map((course) => <DashboardCourseCard key={course._id} locale={locale} course={asDashboardCourse(course)} isAdmin={admin} />)}</div></section>
+      <section id="kursevi" className="scroll-mt-6"><div><p className="type-eyebrow text-muted"><InlineContentText entityId={trackId} kind="track" field="pageCopy_sectionEyebrow" locale={inlineLocale} sr={sectionEyebrow?.sr ?? "Nastavni sadržaj"} en={sectionEyebrow?.en ?? "Learning content"} admin={admin && Boolean(trackId)}>{local(locale, sectionEyebrow?.sr ?? "Nastavni sadržaj", sectionEyebrow?.en ?? "Learning content")}</InlineContentText></p><h2 className="mt-2 font-display type-display-sm text-ink"><InlineContentText entityId={trackId} kind="track" field="pageCopy_sectionTitle" locale={inlineLocale} sr={sectionTitle?.sr ?? "Kursevi ovog smera"} en={sectionTitle?.en ?? "Courses in this track"} admin={admin && Boolean(trackId)}>{local(locale, sectionTitle?.sr ?? "Kursevi ovog smera", sectionTitle?.en ?? "Courses in this track")}</InlineContentText></h2></div><div className="mt-5 grid gap-6 md:grid-cols-2">{data.courses.map((course) => <DashboardCourseCard key={course._id} locale={locale} course={asDashboardCourse(course)} isAdmin={admin} trackSlug={data.track.slug} />)}</div></section>
     </div>
   );
 }

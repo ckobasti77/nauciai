@@ -101,6 +101,21 @@ export const IGRA_DASHBOARD_COPY = {
   calendarMore: { sr: "više", en: "more" },
 } satisfies Record<string, LocalizedText>;
 
+/** Učionica (K09): kartice kurseva, traka koraka, kraj lekcije. */
+export const IGRA_CLASSROOM_COPY = {
+  stampDone: { sr: "Završeno", en: "Completed" },
+  courseReview: { sr: "Ponovi", en: "Review" },
+  courseDoneRing: { sr: "završen", en: "completed" },
+  stepsLabel: { sr: "Koraci lekcije", en: "Lesson steps" },
+  lessonFinished: { sr: "Lekcija je završena", en: "Lesson completed" },
+  doneTitle: { sr: "Lekcija završena", en: "Lesson complete" },
+  doneRepeat: { sr: "Lekcija je zapisana.", en: "The lesson is logged." },
+  nextEyebrow: { sr: "Sledeće", en: "Up next" },
+  nextCta: { sr: "Sledeća lekcija", en: "Next lesson" },
+  backToCourse: { sr: "Nazad na kurs", en: "Back to the course" },
+  courseDone: { sr: "Ovo je bila poslednja lekcija. Kurs je završen.", en: "That was the last lesson. The course is complete." },
+} satisfies Record<string, LocalizedText>;
+
 export const IGRA_DAY_FORMS: Record<Locale, PluralForms> = {
   sr: { one: "dan", few: "dana", many: "dana" },
   en: { one: "day", few: "days", many: "days" },

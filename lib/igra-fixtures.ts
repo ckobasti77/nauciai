@@ -1,7 +1,10 @@
 import type { FunctionReturnType } from "convex/server";
 
 import type { api } from "../convex/_generated/api";
+import type { DashboardCourse } from "../components/app/dashboard-content";
 import type { Id } from "../convex/_generated/dataModel";
+import { courses as staticCourses } from "./content";
+import type { CatalogTrackMeta } from "./course-catalog";
 import { computeStreak, shiftDayKey, type StreakDay } from "./crea-streak";
 import type { IgraLik, IgraPoza } from "./igra-art";
 import { EMPTY_BADGE_COUNTERS, evaluateBadges, type IgraBadgeCounters, type IgraBadgeKey } from "./igra-badges";
@@ -331,4 +334,171 @@ export const DASHBOARD_OVERVIEW_FIXTURES: Record<IgraFixtureId, DashboardOvervie
     leaderboard: { rank: 1, points: 1310 },
     firstRun: { hasUnlockedCourse: true, hasCommunityPost: true },
   },
+};
+
+/**
+ * Učionica (K09): kursevi istih korisnika u obliku `DashboardCourse` (ono što učionica
+ * dobija od `courses:getAppNavigation` preko `coursesFromLive`). Stanje lekcija je jedini
+ * izvor napretka - procenat, sledeću lekciju i poslednju aktivnost računa pravi
+ * `getProgressSummary`. Dva kursa nose slug iz `lib/content.ts`, pa imaju pravu naslovnu
+ * petlju i cenu; ostali su bez slike i crtaju zatečeni fallback.
+ */
+type LessonSeed = readonly [slug: string, sr: string, en: string];
+type CourseSeed = { slug: string; track: string; title: LocalizedText; subtitle: LocalizedText; lessons: readonly LessonSeed[] };
+
+export const CLASSROOM_TRACK_FIXTURES: CatalogTrackMeta = {
+  "fixture-track-osnove": { slug: "ai-osnove", title: { sr: "AI osnove", en: "AI basics" } },
+  "fixture-track-web": { slug: "websites", title: { sr: "Smer za web sajtove", en: "Websites track" } },
+  "fixture-track-kreativa": { slug: "video-audio", title: { sr: "Smer za video i audio", en: "Video and audio track" } },
+};
+
+const COURSE_SEEDS: readonly CourseSeed[] = [
+  {
+    slug: "promptovi-koji-rade",
+    track: "fixture-track-osnove",
+    title: { sr: "Promptovi koji rade", en: "Prompts that work" },
+    subtitle: { sr: "Od prve rečenice do odgovora koji možeš da upotrebiš", en: "From the first sentence to an answer you can use" },
+    lessons: [
+      ["sta-je-prompt", "Šta je prompt", "What a prompt is"],
+      ["jasan-zadatak", "Jasan zadatak", "A clear task"],
+      ["ton-i-publika", "Ton i publika", "Tone and audience"],
+      ["uloge-i-kontekst", "Uloge i kontekst", "Roles and context"],
+      ["primeri-u-promptu", "Primeri u promptu", "Examples in a prompt"],
+      ["korak-po-korak", "Korak po korak", "Step by step"],
+      ["popravi-odgovor", "Popravi odgovor", "Fix the answer"],
+      ["sabloni", "Šabloni koje čuvaš", "Templates worth keeping"],
+      ["zavrsni-zadatak", "Završni zadatak", "Final task"],
+    ],
+  },
+  {
+    slug: "ai-za-svaki-dan",
+    track: "fixture-track-osnove",
+    title: { sr: "AI za svaki dan", en: "AI for every day" },
+    subtitle: { sr: "Mejlovi, planovi i beleške uz pomoć asistenta", en: "Emails, plans and notes with an assistant" },
+    lessons: [
+      ["prvi-razgovor", "Prvi razgovor sa asistentom", "Your first chat with an assistant"],
+      ["mejl-za-pet-minuta", "Mejl za pet minuta", "An email in five minutes"],
+      ["sazmi-dug-tekst", "Sažmi dug tekst", "Summarise a long text"],
+      ["beleske-sa-sastanka", "Beleške sa sastanka", "Meeting notes"],
+      ["lista-za-kupovinu", "Lista za kupovinu i recepti", "Shopping lists and recipes"],
+      ["plan-nedelje", "Plan nedelje uz AI", "A weekly plan with AI"],
+      ["ucenje-novog", "Učenje nečeg novog", "Learning something new"],
+      ["provera-cinjenica", "Provera činjenica", "Checking the facts"],
+    ],
+  },
+  {
+    slug: "prvi-koraci-sa-ai",
+    track: "fixture-track-osnove",
+    title: { sr: "Prvi koraci sa AI", en: "First steps with AI" },
+    subtitle: { sr: "Šta AI jeste, šta nije i kako da kreneš bez straha", en: "What AI is, what it is not, and how to start without fear" },
+    lessons: [
+      ["sta-je-ai", "Šta je AI", "What AI is"],
+      ["nalog-i-podesavanja", "Nalog i podešavanja", "Account and settings"],
+      ["prvo-pitanje", "Prvo pitanje", "Your first question"],
+      ["kad-ai-gresi", "Kad AI greši", "When AI gets it wrong"],
+      ["privatnost", "Privatnost i podaci", "Privacy and data"],
+      ["sta-dalje", "Šta dalje", "What next"],
+    ],
+  },
+  {
+    slug: "vibe-coding",
+    track: "fixture-track-web",
+    title: { sr: "Kurs za web sajtove", en: "Websites course" },
+    subtitle: { sr: "Tvoj prvi sajt uz AI, bez prethodnog znanja", en: "Your first website with AI, no experience needed" },
+    lessons: [
+      ["ideja-za-sajt", "Ideja za sajt", "An idea for a site"],
+      ["prva-strana", "Prva strana", "The first page"],
+      ["tekst-i-slike", "Tekst i slike", "Text and images"],
+      ["boje-i-fontovi", "Boje i fontovi", "Colours and fonts"],
+      ["kontakt-forma", "Kontakt forma", "A contact form"],
+      ["telefon", "Sajt na telefonu", "The site on a phone"],
+      ["objava", "Objava sajta", "Publishing the site"],
+      ["odrzavanje", "Održavanje", "Keeping it up"],
+    ],
+  },
+  {
+    slug: "video-audio-ai",
+    track: "fixture-track-kreativa",
+    title: { sr: "Kurs za video i audio", en: "Video and audio course" },
+    subtitle: { sr: "Scenario, glas, kadar i montaža uz AI", en: "Script, voice, shots and editing with AI" },
+    lessons: [
+      ["uvod-u-ai-video", "Uvod u AI video produkciju", "Intro to AI video production"],
+      ["scenario-voice-workflow", "Scenario, naracija i glas", "Script, narration and voice"],
+      ["ai-video-editor", "AI video editor i montaža", "AI video editor and editing"],
+      ["client-ready-project", "Finalni projekat za klijenta", "A client-ready final project"],
+      ["titlovi", "Titlovi i natpisi", "Subtitles and captions"],
+      ["objava-videa", "Objava videa", "Publishing the video"],
+    ],
+  },
+  {
+    slug: "glas-i-muzika-uz-ai",
+    track: "fixture-track-kreativa",
+    title: { sr: "Glas i muzika uz AI", en: "Voice and music with AI" },
+    subtitle: { sr: "Naracija, podkast i muzička podloga bez studija", en: "Narration, podcasts and backing music without a studio" },
+    lessons: [
+      ["tvoj-glas", "Tvoj glas u tekstu", "Your voice in text"],
+      ["naracija", "Naracija koja zvuči prirodno", "Narration that sounds natural"],
+      ["muzicka-podloga", "Muzička podloga", "Backing music"],
+      ["ciscenje-zvuka", "Čišćenje zvuka", "Cleaning up audio"],
+      ["prva-epizoda", "Prva epizoda podkasta", "Your first podcast episode"],
+    ],
+  },
+  {
+    slug: "ai-slike-za-pocetnike",
+    track: "fixture-track-kreativa",
+    title: { sr: "AI slike za početnike", en: "AI images for beginners" },
+    subtitle: { sr: "Od opisa do slike koju vredi pokazati", en: "From a description to an image worth showing" },
+    lessons: [
+      ["opis-slike", "Kako se opisuje slika", "How to describe an image"],
+      ["stil-i-svetlo", "Stil i svetlo", "Style and light"],
+      ["likovi", "Likovi koji ostaju isti", "Characters that stay the same"],
+      ["popravke", "Popravke i dorade", "Fixes and touch-ups"],
+      ["plakat", "Plakat za događaj", "A poster for an event"],
+      ["slike-za-mreze", "Slike za društvene mreže", "Images for social media"],
+      ["mala-izlozba", "Mala izložba radova", "A small exhibition"],
+    ],
+  },
+];
+
+/** `done` = koliko je lekcija završeno od početka kursa; kurs kog nema u `done` nije otključan. */
+function classroomCourses(done: Record<string, number>): DashboardCourse[] {
+  return COURSE_SEEDS.map((seed, courseIndex) => {
+    const completed = done[seed.slug];
+    return {
+      id: `fixture-course-${seed.slug}`,
+      trackId: seed.track,
+      slug: seed.slug,
+      title: seed.title,
+      subtitle: seed.subtitle,
+      description: seed.subtitle,
+      image: staticCourses.find((course) => course.slug === seed.slug)?.image,
+      coverUrl: null,
+      status: "published",
+      hasAccess: true,
+      owned: completed !== undefined,
+      sortOrder: courseIndex * 10,
+      lessons: seed.lessons.map(([slug, sr, en], index) => ({
+        id: `fixture-lesson-${seed.slug}-${slug}`,
+        slug,
+        title: { sr, en },
+        duration: `${7 + (index % 4)} min`,
+        durationSeconds: (7 + (index % 4)) * 60,
+        isPublished: true,
+        sortOrder: index * 10,
+        // Poslednja završena lekcija nosi poslednju aktivnost kursa: prvi kurs u spisku je
+        // onaj na kome je korisnik stao najskorije.
+        progress: completed !== undefined && index < completed ? { completed: true, updatedAt: AT(courseIndex + (completed - index - 1)) } : null,
+      })),
+    };
+  });
+}
+
+export const CLASSROOM_FIXTURES: Record<IgraFixtureId, DashboardCourse[]> = {
+  // Tek registrovan: ništa nije otključano, cela učionica je katalog.
+  novi: classroomCourses({}),
+  // Isti brojevi kao tabla (14 od 31 lekcije): kurs u toku (lekcija 4 od 9), jedan pri
+  // kraju, jedan završen, jedan otključan a nepočet; tri zaključana.
+  aktivan: classroomCourses({ "promptovi-koji-rade": 3, "ai-za-svaki-dan": 5, "prvi-koraci-sa-ai": 6, "vibe-coding": 0 }),
+  // Sve otključano i sve završeno.
+  legenda: classroomCourses(Object.fromEntries(COURSE_SEEDS.map((seed) => [seed.slug, seed.lessons.length]))),
 };

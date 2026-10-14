@@ -10,13 +10,24 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { CourseCatalogCard } from "@/components/app/course-catalog-card";
 import {
   CourseCover,
-  CourseProgress,
-  DashboardCourseCard,
   DashboardFirstRun,
   getProgressSummary,
   type DashboardCourse,
 } from "@/components/app/dashboard-content";
+import {
+  ClassroomHubSkeleton,
+  LAST_ZONE_PB,
+  ZONE_BLEED,
+  ZONE_COURSES,
+  ZONE_RESUME,
+  ZONE_TRACKS,
+  ZONE_UP_NEXT,
+  ZONE_X,
+} from "@/components/app/classroom-hub-skeleton";
+import { DashboardCourseCard } from "@/components/app/dashboard-course-card";
 import { coursesFromLive, isLiveCatalogEmpty, type LiveNavigationResult } from "@/components/app/dashboard-live";
+import { IgraLik } from "@/components/igra/igra-lik";
+import { ProgressRing } from "@/components/igra/progress-ring";
 import { SectionWave } from "@/components/marketing/section-wave";
 import { Callout } from "@/components/ui/callout";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -35,7 +46,7 @@ import {
 import type { ViewerProfile } from "@/lib/current-viewer";
 import { localized, t as tr, withLocale, type Locale } from "@/lib/i18n";
 import { progressEncouragement } from "@/lib/progress-encouragement";
-import { nextLevel, surfaceClass, type SurfaceLevel } from "@/lib/surface";
+import { nextLevel, surfaceClass } from "@/lib/surface";
 
 type CourseEntry = {
   course: DashboardCourse;
@@ -44,28 +55,6 @@ type CourseEntry = {
   owned: boolean;
 };
 type TrackMeta = CatalogTrackMeta;
-
-/**
- * Ritam Učionice (N10): četiri pune trake koje se smenjuju po istom pravilu kao javne
- * strane (`lib/surface.ts`) i razdvajaju talasom (`SectionWave`), umesto niza panela
- * jedne iste boje. Nivo trake se prosleđuje karticama u njoj, pa kartica uvek uzme
- * SUPROTNU boju — bez toga bi `bg-paper-strong` bio identičan traci u jednoj od dve
- * teme (svetla: paper-strong = surface-a; tamna: paper-strong = surface-b).
- */
-const ZONE_RESUME: SurfaceLevel = 0;
-const ZONE_TRACKS: SurfaceLevel = 1;
-const ZONE_COURSES: SurfaceLevel = 0;
-const ZONE_UP_NEXT: SurfaceLevel = 1;
-
-/** Bleed do ivica `<main>`-a: trake su pune širine sadržaja, ne kartice u koloni. */
-const ZONE_BLEED = "-mx-4 -mt-5 sm:-mx-6 md:-mx-8 md:-mt-8 -mb-[calc(4.5rem+env(safe-area-inset-bottom))] md:-mb-8";
-/**
- * Poslednja traka sama nosi donji padding ljuske, jer ga `ZONE_BLEED` poništava da bi
- * traka išla do dna. Bez ovoga bi ispod poslednje trake ostala pruga u trećoj boji
- * (`--paper`), a na telefonu bi je pojela fiksna donja navigacija.
- */
-const LAST_ZONE_PB = "pb-[calc(4.5rem+env(safe-area-inset-bottom)+3.5rem)] md:pb-24";
-const ZONE_X = "px-4 sm:px-6 md:px-8";
 
 /**
  * Live path: reads the same `getAppNavigation` payload the sidebar and dashboard use, so the hub
@@ -114,62 +103,6 @@ export function LiveClassroomHub({
       trackMeta={trackMeta}
       showFallbackNotice={showFallbackNotice}
     />
-  );
-}
-
-/**
- * Kostur Ucionice dok traje upit. Ranije je ovde stajao `DashboardHomeSkeleton`, cije
- * su visine merene po komandnoj tabli (puls od cetiri plocice, mreza prozora) — na
- * Ucionici je to bio kostur ekrana koji se posle ne pojavi, pa je swap pomerao sve.
- * Ove visine prate stvarne trake: A „nastavi" · B smerovi · C katalog (2 kolone).
- */
-export function ClassroomHubSkeleton() {
-  return (
-    <div className={cn(ZONE_BLEED, surfaceClass(ZONE_UP_NEXT))} aria-busy="true" aria-label="Učitavanje / Loading">
-      <div className={cn("relative pb-14 pt-6 md:pb-20 md:pt-10", ZONE_X, surfaceClass(ZONE_RESUME))}>
-        <div className="mx-auto max-w-6xl">
-          <div className="h-7 w-56 max-w-full animate-pulse rounded-full bg-line" />
-          <div
-            className={cn(
-              "mt-6 h-[26rem] animate-pulse surface-card border-2 border-line lg:h-64",
-              surfaceClass(nextLevel(ZONE_RESUME)),
-            )}
-          />
-        </div>
-      </div>
-      <div className={cn("relative py-14 md:py-20", ZONE_X, surfaceClass(ZONE_TRACKS))}>
-        <div className="mx-auto max-w-6xl">
-          <div className="h-6 w-40 animate-pulse rounded-full bg-line" />
-          <div className="mt-8 flex gap-4 overflow-hidden">
-            {[0, 1, 2, 3].map((item) => (
-              <div
-                key={item}
-                className={cn(
-                  "h-44 w-56 shrink-0 animate-pulse surface-card border-2 border-line sm:w-64",
-                  surfaceClass(nextLevel(ZONE_TRACKS)),
-                )}
-              />
-            ))}
-          </div>
-        </div>
-      </div>
-      <div className={cn("relative pt-14 md:pt-20", ZONE_X, LAST_ZONE_PB, surfaceClass(ZONE_COURSES))}>
-        <div className="mx-auto max-w-6xl">
-          <div className="h-6 w-40 animate-pulse rounded-full bg-line" />
-          <div className="mt-8 grid gap-6 lg:grid-cols-2">
-            {[0, 1, 2, 3].map((item) => (
-              <div
-                key={item}
-                className={cn(
-                  "h-[26rem] animate-pulse surface-card border-2 border-line",
-                  surfaceClass(nextLevel(ZONE_COURSES)),
-                )}
-              />
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
   );
 }
 
@@ -285,9 +218,16 @@ export function ClassroomHubView({
             </div>
           ) : null}
 
-          <p className="font-display type-display-sm text-ink">
-            {locale === "sr" ? `Zdravo, ${profileName}` : `Hi, ${profileName}`}
-          </p>
+          {/* Sova (lik učenja) dočekuje u učionici: jedina velika ilustracija ove strane
+              (`data-igra-hero`). Stoji na ivici kartice ispod, pa pozdrav ostaje uz karticu. */}
+          <div className="flex items-end justify-between gap-4">
+            <p className="min-w-0 pb-1 font-display type-display-sm text-ink">
+              {locale === "sr" ? `Zdravo, ${profileName}` : `Hi, ${profileName}`}
+            </p>
+            <span data-igra-hero="" className="-mb-8 mr-2 w-24 shrink-0 lg:mr-8 lg:w-[12.5rem]">
+              <IgraLik lik="sova" size="hero" decorative />
+            </span>
+          </div>
 
           {/* Student bez ijednog otključanog kursa ovde dobija first-run blok, ali on
               NE zamenjuje stranicu: katalog ispod je jedini razlog zbog kog taj student
@@ -454,6 +394,7 @@ export function ClassroomHubView({
                     isAdmin={isAdmin}
                     summary={entry.summary}
                     level={ZONE_COURSES}
+                    trackSlug={entry.course.trackId ? trackMeta[entry.course.trackId]?.slug : undefined}
                     loop
                   />
                 ) : (
@@ -462,6 +403,7 @@ export function ClassroomHubView({
                     locale={locale}
                     course={entry.course}
                     level={ZONE_COURSES}
+                    trackSlug={entry.course.trackId ? trackMeta[entry.course.trackId]?.slug : undefined}
                     loop
                   />
                 ),
@@ -589,23 +531,22 @@ function ResumePanel({
           {" · "}
           {lessonTitle}
         </p>
-        <div>
-          <div className="flex items-end justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <ProgressRing
+            progress={entry.summary.percent / 100}
+            label={`${tr(locale, `Napredak kursa ${courseTitle}`, `Progress for ${courseTitle}`)}: ${entry.summary.percent}%`}
+          >
+            {entry.summary.percent}%
+          </ProgressRing>
+          <div className="min-w-0">
             <p className="type-eyebrow text-muted">{tr(locale, "Napredak", "Progress")}</p>
-            <p className="shrink-0 type-h3 text-ink">{entry.summary.percent}%</p>
+            <p className="mt-1 text-xs font-bold text-muted">
+              {progressEncouragement(locale, {
+                completedLessons: entry.summary.completedLessons,
+                totalLessons: entry.summary.totalLessons,
+              })}
+            </p>
           </div>
-          <div className="mt-2">
-            <CourseProgress
-              percent={entry.summary.percent}
-              label={tr(locale, `Napredak kursa ${courseTitle}`, `Progress for ${courseTitle}`)}
-            />
-          </div>
-          <p className="mt-2 text-xs font-bold text-muted">
-            {progressEncouragement(locale, {
-              completedLessons: entry.summary.completedLessons,
-              totalLessons: entry.summary.totalLessons,
-            })}
-          </p>
         </div>
         <div className="mt-1">
           <LinkButton href={lessonHref} tone="yellow" size="lg">
@@ -658,20 +599,19 @@ function TrackStrip({ locale, group }: { locale: Locale; group: CatalogTrackGrou
       </div>
 
       {ownedCount > 0 ? (
-        <div className="mt-3 max-w-md">
-          <div className="flex items-end justify-between gap-3">
+        <div className="mt-3 flex max-w-md items-center gap-3">
+          <ProgressRing
+            progress={percent / 100}
+            label={`${tr(locale, `Napredak smera ${title}`, `Progress for ${title}`)}: ${percent}%`}
+          >
+            {percent}%
+          </ProgressRing>
+          <div className="min-w-0">
             <p className="type-eyebrow text-muted">{tr(locale, "Napredak", "Progress")}</p>
-            <p className="shrink-0 type-h4 text-ink">{percent}%</p>
+            <p className="mt-1 text-xs font-bold text-muted">
+              {progressEncouragement(locale, { completedLessons, totalLessons })}
+            </p>
           </div>
-          <div className="mt-2">
-            <CourseProgress
-              percent={percent}
-              label={tr(locale, `Napredak smera ${title}`, `Progress for ${title}`)}
-            />
-          </div>
-          <p className="mt-2 text-xs font-bold text-muted">
-            {progressEncouragement(locale, { completedLessons, totalLessons })}
-          </p>
         </div>
       ) : null}
 
