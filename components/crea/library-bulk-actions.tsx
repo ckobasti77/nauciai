@@ -19,7 +19,7 @@ export const COMPARE_MIN = 2;
 export const COMPARE_MAX = 4;
 
 const ACTION_BUTTON =
-  "inline-flex min-h-9 items-center justify-center gap-1.5 rounded-full border-2 border-ink bg-paper-strong px-3 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 pointer-coarse:min-h-11 studio-focus-ink motion-reduce:transition-none motion-reduce:hover:translate-y-0";
+  "igra-press igra-shadow igra-depth-2 inline-flex min-h-9 items-center justify-center gap-1.5 rounded-full border-2 border-ink bg-paper-strong px-3 text-xs font-black text-ink disabled:cursor-not-allowed disabled:opacity-50 pointer-coarse:min-h-11 studio-focus-ink";
 
 /**
  * Masovne akcije nad izabranim radovima (K16, S43): premesti u projekat, obriši

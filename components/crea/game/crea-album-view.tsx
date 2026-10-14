@@ -247,7 +247,7 @@ export function CreaAlbumBook({
                     type="button"
                     onClick={() => void claimReward()}
                     disabled={claiming}
-                    className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-sm font-black text-ink shadow-[3px_3px_0_0_var(--ink)] transition hover:-translate-y-0.5 disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none"
+                    className="igra-press igra-shadow-ink inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-sm font-black text-ink disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                   >
                     <Gift aria-hidden="true" className="size-4" />
                     {fillCopy(CREA_ALBUM_COPY.claim[locale], { n: ALBUM_PAGE_REWARD_CREDITS })}
@@ -272,7 +272,7 @@ export function CreaAlbumBook({
                   onClick={() => goTo(pageIndex - 1)}
                   disabled={pageIndex === 0}
                   aria-label={CREA_ALBUM_COPY.prev[locale]}
-                  className="inline-grid size-11 place-items-center rounded-full border-2 border-ink bg-paper-strong text-ink transition hover:-translate-y-0.5 disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none"
+                  className="igra-press inline-grid size-11 place-items-center rounded-full border-2 border-ink bg-paper-strong text-ink disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                 >
                   <ChevronLeft aria-hidden="true" className="size-5" />
                 </button>
@@ -281,7 +281,7 @@ export function CreaAlbumBook({
                   onClick={() => goTo(pageIndex + 1)}
                   disabled={pageIndex === CREA_ALBUM_PAGES.length - 1}
                   aria-label={CREA_ALBUM_COPY.next[locale]}
-                  className="inline-grid size-11 place-items-center rounded-full border-2 border-ink bg-paper-strong text-ink transition hover:-translate-y-0.5 disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none"
+                  className="igra-press inline-grid size-11 place-items-center rounded-full border-2 border-ink bg-paper-strong text-ink disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                 >
                   <ChevronRight aria-hidden="true" className="size-5" />
                 </button>

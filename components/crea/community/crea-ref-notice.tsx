@@ -93,7 +93,7 @@ export function CreaCommunityLinks({ locale }: { locale: Locale }) {
           href={withLocale(locale, link.href)}
           aria-label={link.label}
           title={link.label}
-          className="inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-full border-2 border-ink bg-paper-strong px-3 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 studio-focus-ink motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+          className="igra-press igra-shadow igra-depth-2 inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-full border-2 border-ink bg-paper-strong px-3 text-xs font-black text-ink studio-focus-ink"
         >
           <link.icon aria-hidden="true" className="size-3.5" />
           <span className="hidden xl:inline">{link.label}</span>

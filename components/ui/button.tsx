@@ -13,11 +13,12 @@ import { Spinner, type SpinnerSize } from "@/components/ui/spinner";
  * redosled u generisanom CSS-u, ne redosled u stringu. `className` je zato samo
  * za dopune (sirina, margina, senka), nikad za pregazivanje varijante.
  */
+/** Pritisak i hover su zajednički recept `igra-press` (globals.css, K24); varijanta bira samo senku. */
 const buttonVariants = {
-  primary: "border-2 border-ink bg-yellow text-ink hover:bg-yellow/85",
-  secondary: "border-2 border-ink bg-paper-strong text-ink hover:bg-paper",
+  primary: "igra-shadow igra-depth-2 border-2 border-ink bg-yellow text-ink hover:bg-yellow/85",
+  secondary: "igra-shadow igra-depth-2 border-2 border-ink bg-paper-strong text-ink hover:bg-paper",
   ghost: "border-2 border-transparent bg-transparent text-ink hover:bg-paper",
-  destructive: "border-2 border-ink bg-red-600 text-white hover:bg-red-700",
+  destructive: "igra-shadow igra-depth-2 border-2 border-ink bg-red-600 text-white hover:bg-red-700",
 } as const;
 
 const buttonSizes = {
@@ -61,10 +62,9 @@ export function Button({
       aria-busy={loading || undefined}
       data-motion="interactive"
       className={cn(
-        "inline-flex select-none items-center justify-center font-black transition",
+        "igra-press inline-flex select-none items-center justify-center font-black",
         "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
-        "active:translate-y-px",
-        "disabled:cursor-not-allowed disabled:opacity-50 disabled:active:translate-y-0",
+        "disabled:cursor-not-allowed disabled:opacity-50",
         buttonSizes[size],
         buttonVariants[variant],
         className,

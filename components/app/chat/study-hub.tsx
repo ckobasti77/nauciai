@@ -37,13 +37,13 @@ import { t, withLocale } from "@/lib/i18n";
 const FOCUS_RING = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
 const PRIMARY_BUTTON = cn(
   "inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black text-ink",
-  "shadow-[3px_3px_0_0_var(--ink)] transition-[transform,box-shadow,opacity] hover:-translate-y-0.5",
+  "igra-press igra-shadow-ink",
   "disabled:pointer-events-none disabled:opacity-45",
   FOCUS_RING,
 );
 const SECONDARY_BUTTON = cn(
   "inline-flex min-h-10 items-center justify-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 text-xs font-black text-ink",
-  "transition-[transform,background-color,opacity] hover:-translate-y-0.5 hover:bg-paper disabled:pointer-events-none disabled:opacity-45",
+  "igra-press hover:bg-paper disabled:pointer-events-none disabled:opacity-45",
   FOCUS_RING,
 );
 

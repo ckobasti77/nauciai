@@ -1,6 +1,5 @@
-import Link from "next/link";
-
 import { IgraLik } from "@/components/igra/igra-lik";
+import { PeelLink } from "@/components/igra/peel-link";
 import { cn } from "@/components/ui/primitives";
 import type { IgraLik as IgraLikName } from "@/lib/igra-art";
 import { IGRA_DASHBOARD_COPY } from "@/lib/igra-copy";
@@ -35,13 +34,15 @@ export function CreaQuickStart({ locale, className }: { locale: Locale; classNam
       <ul className="mt-4 grid grid-cols-3 gap-2 sm:gap-3">
         {AREAS.map((item) => (
           <li key={item.area}>
-            <Link
+            <PeelLink
               href={`${base}?oblast=${item.area}`}
-              className="group flex h-full flex-col items-center gap-2 surface-inset bg-paper px-2 py-4 text-center transition-colors duration-200 hover:bg-igra-marker-wash focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              className="flex h-full flex-col items-center gap-2 surface-inset bg-paper px-2 py-4 text-center transition-colors duration-200 hover:bg-igra-marker-wash focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
-              <IgraLik lik={item.lik} poza="mase" size="md" decorative className="transition-transform duration-200 group-hover:-translate-y-0.5 motion-reduce:transition-none" />
+              <span data-igra-peel className="block">
+                <IgraLik lik={item.lik} poza="mase" size="md" decorative />
+              </span>
               <span className="type-body-sm font-black text-ink">{item.label[locale]}</span>
-            </Link>
+            </PeelLink>
           </li>
         ))}
       </ul>

@@ -115,7 +115,7 @@ export function ShareThreadButton({
         <button
           type="button"
           onClick={handleShare}
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-line bg-paper-strong px-3 text-xs font-black text-ink transition hover:-translate-y-0.5 hover:border-ink hover:bg-paper focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:translate-y-0 sm:min-h-10"
+          className="igra-press inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-line bg-paper-strong px-3 text-xs font-black text-ink hover:border-ink hover:bg-paper focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:min-h-10"
         >
           <Share2 className="size-4" aria-hidden="true" />
           {t(locale, "Podeli", "Share")}
@@ -149,7 +149,7 @@ export function ShareThreadButton({
               type="button"
               data-dialog-initial-focus
               onClick={handleCopy}
-              className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-sm font-black text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:translate-y-0"
+              className="igra-press igra-shadow inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-sm font-black text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
               {copied ? <Check className="size-4" aria-hidden="true" /> : <Copy className="size-4" aria-hidden="true" />}
               {copied ? t(locale, "Kopirano", "Copied") : t(locale, "Kopiraj link", "Copy link")}
@@ -168,7 +168,7 @@ export function ShareThreadButton({
                   href={href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-line bg-paper-strong px-3 text-sm font-black text-ink transition hover:-translate-y-0.5 hover:border-ink hover:bg-paper focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:translate-y-0"
+                  className="igra-press inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-line bg-paper-strong px-3 text-sm font-black text-ink hover:border-ink hover:bg-paper focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                 >
                   <Icon className="size-4" aria-hidden="true" />
                   {label}

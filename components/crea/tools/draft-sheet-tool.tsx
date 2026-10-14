@@ -255,7 +255,7 @@ export default function DraftSheetTool({ tool, locale, canSave, projectId, paid 
                     aria-label={fillCopy(T.sheetSketch[locale], { n: index + 1 })}
                     onClick={() => setPicked({ jobId: image.jobId, number: index + 1 })}
                     className={cn(
-                      "surface-inset relative block w-full overflow-hidden border-2 p-1 transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none motion-reduce:hover:translate-y-0",
+                      "igra-press surface-inset relative block w-full overflow-hidden border-2 p-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
                       active ? "border-ink bg-yellow shadow-[3px_3px_0_0_var(--shadow-hard)]" : "border-transparent bg-paper hover:border-ink",
                     )}
                   >

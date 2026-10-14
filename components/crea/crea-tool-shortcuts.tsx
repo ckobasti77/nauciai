@@ -47,7 +47,7 @@ export function CreaToolShortcuts({
               <button
                 type="button"
                 onClick={() => onSelect(tool.id)}
-                className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 text-sm font-black text-ink shadow-[3px_3px_0_0_var(--shadow-hard-16)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none"
+                className="igra-press igra-shadow-soft inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 text-sm font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
               >
                 {tool.title[locale]}
                 <span
@@ -66,7 +66,7 @@ export function CreaToolShortcuts({
           <li>
             <Link
               href={lessonHref(lessons[0].id)}
-              className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-dashed border-ink bg-paper px-4 text-sm font-black text-ink transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none"
+              className="igra-press inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-dashed border-ink bg-paper px-4 text-sm font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
               <LockKeyhole aria-hidden="true" className="size-4" />
               {fillCopy(CREA_LOCKED_COPY.title[locale], { n: locked.length })}

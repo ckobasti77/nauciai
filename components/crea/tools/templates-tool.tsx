@@ -172,7 +172,7 @@ function TemplateGallery({ locale, onChoose, disabled }: { locale: Locale; onCho
               type="button"
               disabled={disabled}
               onClick={() => onChoose(template.id)}
-              className="surface-inset group flex h-full w-full flex-col gap-2 border border-line bg-paper p-2 text-left transition hover:-translate-y-0.5 hover:border-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+              className="igra-press surface-inset group flex h-full w-full flex-col gap-2 border border-line bg-paper p-2 text-left hover:border-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
             >
               <span className="grid h-40 w-full place-items-center sm:h-44">
                 <SceneCanvas

@@ -538,6 +538,105 @@ body {
   50% { transform: translateY(-2px) rotate(3deg); }
 }
 
+/* ── IGRA (K24): mikrointerakcije ────────────────────────────────────────────
+   Jedan recept za sve što se pritiska ili podiže posle prijave (umesto da svaki fajl
+   ponavlja `shadow-[…] transition hover:-translate-y-0.5 motion-reduce:…`):
+   - `.igra-press` - dugme i sve što liči na dugme: hover podigne 2 px i senku produži
+     isto toliko (donja ivica senke stoji), pritisak spusti 1 px i senku skrati na 1 px.
+   - `.igra-lift`  - kartica-link: isti mirni hover, bez pritiska. Pomera se samo
+     `translate` (bez promene veličine, debljine slova ili okvira), pa tekst ne skače.
+   Tvrda senka je opciona: boja `.igra-shadow` (mastilo 18 %), `-soft` (14 %), `-ink`,
+   `-yellow`; dubina 3 px, ili `.igra-depth-2` / `.igra-depth-4`. Bez boje nema senke.
+   Senka ide kroz `--tw-shadow`, pa se slaže sa Tailwind `ring-*`; utility na elementu
+   (`shadow-none`, `shadow-[…]`) i dalje pobeđuje, jer je ovo `@layer components`.
+   Uz „manje pokreta" nema pomeranja ni prelaza: senka se samo promeni. */
+@layer components {
+  .igra-press,
+  .igra-lift {
+    --igra-depth: 3px;
+    --igra-shadow: transparent;
+    --tw-shadow: var(--igra-depth) var(--igra-depth) 0 0 var(--igra-shadow);
+    box-shadow:
+      var(--tw-inset-shadow, 0 0 #0000), var(--tw-inset-ring-shadow, 0 0 #0000),
+      var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+  }
+
+  .igra-shadow { --igra-shadow: var(--shadow-hard); }
+  .igra-shadow-soft { --igra-shadow: var(--shadow-hard-14); }
+  .igra-shadow-ink { --igra-shadow: var(--ink); }
+  .igra-shadow-yellow { --igra-shadow: var(--yellow); }
+  .igra-depth-2 { --igra-depth: 2px; }
+  .igra-depth-4 { --igra-depth: 4px; }
+
+  .igra-press:focus-visible,
+  .igra-lift:focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+  }
+
+  @media (hover: hover) {
+    .igra-press:hover:not(:disabled, [aria-disabled="true"]),
+    .igra-lift:hover:not([aria-disabled="true"]) {
+      --tw-shadow: calc(var(--igra-depth) + 2px) calc(var(--igra-depth) + 2px) 0 0 var(--igra-shadow);
+    }
+  }
+
+  .igra-press:active:not(:disabled, [aria-disabled="true"]) {
+    --tw-shadow: 1px 1px 0 0 var(--igra-shadow);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .igra-press,
+    .igra-lift {
+      transition:
+        translate var(--motion-mikro) var(--ease-studio-out),
+        box-shadow var(--motion-mikro) var(--ease-studio-out),
+        background-color var(--motion-mikro) var(--ease-studio-out),
+        border-color var(--motion-mikro) var(--ease-studio-out),
+        color var(--motion-mikro) var(--ease-studio-out),
+        opacity var(--motion-mikro) var(--ease-studio-out);
+    }
+
+    @media (hover: hover) {
+      .igra-press:hover:not(:disabled, [aria-disabled="true"]),
+      .igra-lift:hover:not([aria-disabled="true"]) {
+        translate: 0 -2px;
+      }
+    }
+
+    .igra-press:active:not(:disabled, [aria-disabled="true"]) {
+      translate: 0 1px;
+    }
+  }
+}
+
+/* IGRA (K24): podrazumevano ponašanje unutar ljuske posle prijave (`[data-igra-ui]` na
+   korenu `AppShell`-a i Crea ljuske - javni sajt ga nema). `@layer base` + `:where()`:
+   svaki autorski utility pobeđuje, ovo samo popunjava rupe - jezičci, prekidači i
+   dugmad-prekidači bez svog fokusa dobijaju isti prsten, a boja im se menja mirno
+   umesto da trepne; obično dugme bez svog pomeranja se na pritisak spusti 1 px. */
+@layer base {
+  :where([data-igra-ui]) :where([role="tab"], [role="switch"], [role="radio"], button[aria-pressed]):focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    :where([data-igra-ui]) :where([role="tab"], [role="switch"], [role="radio"], button[aria-pressed]) {
+      transition:
+        background-color var(--motion-mikro) var(--ease-studio-out),
+        border-color var(--motion-mikro) var(--ease-studio-out),
+        color var(--motion-mikro) var(--ease-studio-out),
+        box-shadow var(--motion-mikro) var(--ease-studio-out),
+        translate var(--motion-mikro) var(--ease-studio-out);
+    }
+
+    :where([data-igra-ui]) :where(button):active:not(:disabled) {
+      translate: 0 1px;
+    }
+  }
+}
+
 /* The sanctioned radius scale. These are the only values a new surface should
    use; `rounded-full` covers the pill tier. See AGENTS.md. */
 @utility surface-card {

@@ -94,7 +94,7 @@ export function CreaSkillMapView({
               disabled={busy || !onToggleAll}
               onClick={() => void toggleAll(!chosen)}
               className={cn(
-                "inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink px-4 text-sm font-black text-ink transition hover:-translate-y-0.5 disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none",
+                "igra-press inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink px-4 text-sm font-black text-ink disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
                 chosen ? "bg-yellow" : "bg-paper-strong",
               )}
             >
@@ -117,7 +117,7 @@ export function CreaSkillMapView({
             onClick={() => setArea(id)}
             className={cn(
               "inline-flex min-h-11 items-center rounded-full border-2 border-ink px-4 text-sm font-black transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none",
-              area === id ? "bg-ink text-paper-strong" : "bg-paper-strong text-ink hover:-translate-y-0.5",
+              area === id ? "bg-ink text-paper-strong" : "igra-press bg-paper-strong text-ink",
             )}
           >
             {CREA_AREA_META[id].label[locale]}
@@ -185,14 +185,14 @@ export function CreaSkillMapView({
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Link
                     href={lessonHref(lesson.id)}
-                    className="inline-flex min-h-11 items-center rounded-full border-2 border-ink bg-ink px-4 text-sm font-black text-paper-strong shadow-[3px_3px_0_0_var(--yellow)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none"
+                    className="igra-press igra-shadow-yellow inline-flex min-h-11 items-center rounded-full border-2 border-ink bg-ink px-4 text-sm font-black text-paper-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                   >
                     {passed.has(lesson.id) ? CREA_MAP_COPY.review[locale] : CREA_MAP_COPY.lesson[locale]}
                   </Link>
                   {!passed.has(lesson.id) ? (
                     <Link
                       href={lessonHref(lesson.id, true)}
-                      className="inline-flex min-h-11 items-center rounded-full border-2 border-ink bg-paper-strong px-4 text-sm font-black text-ink transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none"
+                      className="igra-press inline-flex min-h-11 items-center rounded-full border-2 border-ink bg-paper-strong px-4 text-sm font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                     >
                       {CREA_MAP_COPY.test[locale]}
                     </Link>

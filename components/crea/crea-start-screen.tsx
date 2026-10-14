@@ -71,7 +71,7 @@ export function CreaStartScreen({
             >
               <Link
                 href={`${pathname}${goalHref(goal, searchParams)}`}
-                className="group surface-card flex h-full min-h-[148px] flex-col border-2 border-ink bg-paper-strong p-3.5 text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] transition-[translate,box-shadow] duration-150 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--shadow-hard)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:translate-y-0 motion-reduce:transition-none sm:p-4"
+                className="igra-lift igra-shadow group surface-card flex h-full min-h-[148px] flex-col border-2 border-ink bg-paper-strong p-3.5 text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:p-4"
               >
                 <span className="flex items-start justify-between gap-2">
                   <span className="paper-island grid size-10 shrink-0 place-items-center rounded-full border-2 border-ink bg-yellow text-ink">

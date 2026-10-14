@@ -151,7 +151,7 @@ const ROW_IDLE = SIDEBAR_ROW_IDLE;
 // „Nazad" je akcija (izlaz iz alata), ne odredište - zato okvir + senka i strelica.
 const BACK_ROW = cn(
   SIDEBAR_ROW,
-  "w-full border-ink bg-paper-strong shadow-[3px_3px_0_0_var(--shadow-hard-14)] hover:-translate-y-0.5",
+  "igra-press igra-shadow-soft w-full border-ink bg-paper-strong",
 );
 
 function Item({ reduce, children }: { reduce: boolean; children: ReactNode }) {

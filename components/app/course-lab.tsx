@@ -176,7 +176,7 @@ function QuickPromptButton({
       type="button"
       onClick={handleCopy}
       className={cn(
-        "rounded-[8px] border-2 px-3 py-2 text-xs font-black transition flex items-center gap-1.5 shadow-[2px_2px_0_0_var(--shadow-hard-10)] hover:-translate-y-0.5",
+        "igra-press igra-shadow-soft igra-depth-2 rounded-[8px] border-2 px-3 py-2 text-xs font-black flex items-center gap-1.5",
         copied ? "border-green-600 bg-green-50 text-green-700" : "border-ink bg-paper-strong text-ink hover:bg-yellow"
       )}
     >
@@ -711,7 +711,7 @@ export function CourseLab({
                     {activeStep.outputKind !== "text" ? (
                       <Link
                         href={`${withLocale(locale, "/app/studio")}?lessonId=${lessonId}${selectedTask ? `&taskId=${selectedTask._id}` : ""}`}
-                        className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-sm font-black text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5"
+                        className="igra-press igra-shadow mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-sm font-black text-ink"
                       >
                         <Wand2 className="size-4" />
                         {t(locale, "Otvori u Crei", "Open in Crea")}

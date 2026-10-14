@@ -502,7 +502,7 @@ export function StudioMediaDetail({
             onClick={onClose}
             aria-label={t.back}
             title={t.back}
-            className="inline-flex size-10 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            className="igra-press igra-shadow igra-depth-2 inline-flex size-10 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
             <ArrowLeft className="size-5" />
           </button>
@@ -539,7 +539,7 @@ export function StudioMediaDetail({
             aria-label={t.favorite}
             title={t.favorite}
             className={cn(
-              "inline-flex size-10 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+              "igra-press igra-shadow igra-depth-2 inline-flex size-10 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
               isFavorited && "text-yellow",
             )}
           >
@@ -552,7 +552,7 @@ export function StudioMediaDetail({
             onClick={handleShare}
             aria-label={t.share}
             title={copiedLink ? t.copied : t.share}
-            className="relative inline-flex size-10 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            className="igra-press igra-shadow igra-depth-2 relative inline-flex size-10 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
             {copiedLink ? <Check className="size-4 text-green-700" /> : <Copy className="size-4" />}
           </button>
@@ -566,7 +566,7 @@ export function StudioMediaDetail({
               }}
               aria-label={t.download}
               title={t.download}
-              className="inline-flex size-10 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              className="igra-press igra-shadow igra-depth-2 inline-flex size-10 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
               <Download className="size-4" />
             </button>
@@ -578,7 +578,7 @@ export function StudioMediaDetail({
             onClick={() => setConfirmDeleteOpen(true)}
             aria-label={t.delete}
             title={t.delete}
-            className="inline-flex size-10 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 hover:text-red-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            className="igra-press igra-shadow igra-depth-2 inline-flex size-10 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink hover:text-red-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
             <Trash2 className="size-4" />
           </button>
@@ -590,7 +590,7 @@ export function StudioMediaDetail({
             aria-label={historyOpen ? t.hideHistory : t.showHistory}
             title={historyOpen ? t.hideHistory : t.showHistory}
             className={cn(
-              "hidden size-10 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 md:inline-flex studio-focus-ink",
+              "igra-press igra-shadow igra-depth-2 hidden size-10 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink md:inline-flex studio-focus-ink",
               historyOpen && "bg-yellow/30",
             )}
           >
@@ -601,7 +601,7 @@ export function StudioMediaDetail({
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex min-h-10 items-center justify-center rounded-full border-2 border-ink bg-ink px-4 py-1.5 text-sm font-black text-paper-strong shadow-[3px_3px_0_0_var(--yellow)] transition hover:-translate-y-0.5"
+            className="igra-press igra-shadow-yellow inline-flex min-h-10 items-center justify-center rounded-full border-2 border-ink bg-ink px-4 py-1.5 text-sm font-black text-paper-strong"
           >
             {t.done}
           </button>
@@ -640,7 +640,7 @@ export function StudioMediaDetail({
                 onClick={() => onSelectJob(prevJob)}
                 aria-label={t.prev}
                 title={t.prev}
-                className="absolute -left-5 z-20 hidden size-10 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 lg:inline-flex studio-focus-ink"
+                className="igra-press igra-shadow igra-depth-2 absolute -left-5 z-20 hidden size-10 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink lg:inline-flex studio-focus-ink"
               >
                 <ChevronLeft className="size-5" />
               </button>
@@ -694,7 +694,7 @@ export function StudioMediaDetail({
                           );
                         }
                       }}
-                      className="mt-2 inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 py-1.5 text-xs font-black text-ink shadow-[3px_3px_0_0_var(--ink)] transition hover:-translate-y-0.5"
+                      className="igra-press igra-shadow-ink mt-2 inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 py-1.5 text-xs font-black text-ink"
                       aria-label={
                         locale === "sr"
                           ? `Generiši ponovo za ${formatCreditsLong(job.creditCost, locale)}`
@@ -850,7 +850,7 @@ export function StudioMediaDetail({
                 onClick={() => onSelectJob(nextJob)}
                 aria-label={t.next}
                 title={t.next}
-                className="absolute -right-5 z-20 hidden size-10 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 lg:inline-flex studio-focus-ink"
+                className="igra-press igra-shadow igra-depth-2 absolute -right-5 z-20 hidden size-10 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink lg:inline-flex studio-focus-ink"
               >
                 <ChevronRight className="size-5" />
               </button>
@@ -871,7 +871,7 @@ export function StudioMediaDetail({
                   onClick={() => setComparing((prev) => !prev)}
                   aria-pressed={comparing}
                   className={cn(
-                    "inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink px-4 text-sm font-black text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none motion-reduce:hover:translate-y-0",
+                    "igra-press igra-shadow igra-depth-2 inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink px-4 text-sm font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
                     comparing ? "bg-yellow" : "bg-paper-strong",
                   )}
                 >
@@ -884,7 +884,7 @@ export function StudioMediaDetail({
                   type="button"
                   onClick={() => onOpenVersion(parentNode._id, true)}
                   title={vc.restoreTitle[locale]}
-                  className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 text-sm font-black text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                  className="igra-press igra-shadow igra-depth-2 inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 text-sm font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                 >
                   <Undo2 aria-hidden="true" className="size-4" />
                   {vc.restore[locale]}
@@ -910,7 +910,7 @@ export function StudioMediaDetail({
               <button
                 type="button"
                 onClick={() => onUseAsInput(job, "input")}
-                className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-sm font-black text-ink shadow-[3px_3px_0_0_var(--ink)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                className="igra-press igra-shadow-ink inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-sm font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
               >
                 <Sparkles aria-hidden="true" className="size-4" />
                 {vc.useAsInput[locale]}
@@ -1042,7 +1042,7 @@ export function StudioMediaDetail({
                   <Link
                     href={describeLink.href}
                     scroll={false}
-                    className="mt-2 inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--ink)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                    className="igra-press igra-shadow-ink igra-depth-2 mt-2 inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-xs font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                   >
                     <Sparkles aria-hidden="true" className="size-3.5" />
                     {CREA_LIBRARY_COPY.howDescribe[locale]}
@@ -1118,7 +1118,7 @@ export function StudioMediaDetail({
                   <button
                     type="button"
                     onClick={() => onOpenTool(job, followUpTool)}
-                    className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow py-2 text-xs font-black text-ink shadow-[3px_3px_0_0_var(--ink)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                    className="igra-press igra-shadow-ink inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow py-2 text-xs font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                   >
                     {followUpTool === "slika.slojevi" ? (
                       <Layers aria-hidden="true" className="size-3.5" />
@@ -1141,7 +1141,7 @@ export function StudioMediaDetail({
                     onClick={() => onRefine(job, refineOrder, refineModel, carriedInputs)}
                     title={fillCopy(CREA_PICK_COPY.refineTitle[locale], { model: modelLabel(refineModel, locale) })}
                     aria-label={`${CREA_PICK_COPY.refine[locale]}: ${modelLabel(refineModel, locale)}, ${formatCreditsLong(refineCredits, locale)}`}
-                    className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow py-2 text-xs font-black text-ink shadow-[3px_3px_0_0_var(--ink)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-40 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                    className="igra-press igra-shadow-ink inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow py-2 text-xs font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-40"
                   >
                     <FlaskConical aria-hidden="true" className="size-3.5" />
                     <span>{`${CREA_PICK_COPY.refine[locale]} · ${modelLabel(refineModel, locale)}`}</span>
@@ -1155,7 +1155,7 @@ export function StudioMediaDetail({
                   <button
                     type="button"
                     onClick={() => onUseAsInput(job, "input")}
-                    className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border-2 border-ink bg-paper py-2 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                    className="igra-press igra-shadow igra-depth-2 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border-2 border-ink bg-paper py-2 text-xs font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                   >
                     <Sparkles aria-hidden="true" className="size-3.5" />
                     <span>{vc.useAsInput[locale]}</span>
@@ -1165,7 +1165,7 @@ export function StudioMediaDetail({
                   <button
                     type="button"
                     onClick={() => onUseAsInput(job, "animate")}
-                    className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border-2 border-ink bg-paper py-2 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                    className="igra-press igra-shadow igra-depth-2 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border-2 border-ink bg-paper py-2 text-xs font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                   >
                     <Clapperboard aria-hidden="true" className="size-3.5" />
                     <span>{vc.animate[locale]}</span>

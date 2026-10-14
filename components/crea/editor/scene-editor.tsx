@@ -402,7 +402,7 @@ export function SceneEditor({
                           return { ...BASE, ...centered(current, size, size), id: nextNodeId(current, "nalepnica"), kind: "sticker", sticker: sticker.id, width: size, height: size };
                         })
                       }
-                      className="grid size-12 place-items-center rounded-full border-2 border-transparent bg-paper transition hover:-translate-y-0.5 hover:border-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                      className="igra-press grid size-12 place-items-center rounded-full border-2 border-transparent bg-paper hover:border-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                     >
                       <img src={stickerUrl(sticker.id)} alt="" className="size-8" loading="lazy" />
                     </button>

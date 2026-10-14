@@ -124,7 +124,7 @@ function StyleTab({ locale, look, onChange }: { locale: Locale; look: LookState;
                 aria-pressed={active}
                 onClick={() => onChange({ ...look, styleId: active ? null : style.id })}
                 className={cn(
-                  "surface-inset flex h-full w-full flex-col gap-1.5 border-2 p-1.5 text-left transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none motion-reduce:hover:translate-y-0",
+                  "igra-press surface-inset flex h-full w-full flex-col gap-1.5 border-2 p-1.5 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
                   active ? "border-ink bg-yellow/40 shadow-[3px_3px_0_0_var(--shadow-hard)]" : "border-ink/20 bg-paper-strong hover:border-ink",
                 )}
               >
@@ -298,7 +298,7 @@ function PaletteTab({ locale, look, onChange }: { locale: Locale; look: LookStat
           type="button"
           disabled={reading === "busy"}
           onClick={() => fileRef.current?.click()}
-          className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 text-sm font-black text-ink transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50 motion-reduce:transition-none"
+          className="igra-press inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 text-sm font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
         >
           <ImageUp aria-hidden="true" className="size-4" />
           {reading === "busy" ? T.paletteReading[locale] : T.paletteFromImage[locale]}
@@ -317,7 +317,7 @@ function PaletteTab({ locale, look, onChange }: { locale: Locale; look: LookStat
           type="button"
           disabled={look.palette.length >= CREA_PALETTE_MAX}
           onClick={() => onChange({ ...look, palette: normalizePalette([...look.palette, custom]) })}
-          className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 text-sm font-black text-ink transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50 motion-reduce:transition-none"
+          className="igra-press inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 text-sm font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
         >
           <Plus aria-hidden="true" className="size-4" />
           {T.paletteAdd[locale]}
@@ -406,7 +406,7 @@ function MyStylesTab({ locale, look, onChange }: { locale: Locale; look: LookSta
             type="button"
             disabled={status === "busy" || name.trim().length === 0}
             onClick={() => void onSave()}
-            className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-ink px-4 text-sm font-black text-paper-strong shadow-[3px_3px_0_0_var(--yellow)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-40 motion-reduce:transition-none"
+            className="igra-press igra-shadow-yellow inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-ink px-4 text-sm font-black text-paper-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-40"
           >
             {T.mySave[locale]}
           </button>
@@ -442,7 +442,7 @@ function MyStylesTab({ locale, look, onChange }: { locale: Locale; look: LookSta
                     type="button"
                     aria-pressed={entry.shared !== null}
                     onClick={() => void setShared({ styleId: entry._id as Id<"creaUserStyles">, shared: entry.shared === null }).catch(() => undefined)}
-                    className="inline-flex min-h-11 items-center gap-1.5 rounded-full border-2 border-ink bg-paper-strong px-3 text-xs font-black text-ink transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none"
+                    className="igra-press inline-flex min-h-11 items-center gap-1.5 rounded-full border-2 border-ink bg-paper-strong px-3 text-xs font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                   >
                     <Share2 aria-hidden="true" className="size-3.5" />
                     {entry.shared === null ? CREA_STYLE_SHARE_COPY.share[locale] : CREA_STYLE_SHARE_COPY.unshare[locale]}
@@ -458,7 +458,7 @@ function MyStylesTab({ locale, look, onChange }: { locale: Locale; look: LookSta
                       extra: entry.promptFragment,
                     })
                   }
-                  className="inline-flex min-h-11 items-center rounded-full border-2 border-ink bg-yellow px-4 text-sm font-black text-ink transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none"
+                  className="igra-press inline-flex min-h-11 items-center rounded-full border-2 border-ink bg-yellow px-4 text-sm font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                 >
                   {T.myApply[locale]}
                 </button>
@@ -466,7 +466,7 @@ function MyStylesTab({ locale, look, onChange }: { locale: Locale; look: LookSta
                   type="button"
                   onClick={() => void remove({ styleId: entry._id as Id<"creaUserStyles"> })}
                   aria-label={fillCopy(T.myDelete[locale], { name: entry.name })}
-                  className="inline-flex size-11 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none"
+                  className="igra-press inline-flex size-11 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                 >
                   <Trash2 aria-hidden="true" className="size-4" />
                 </button>

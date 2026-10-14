@@ -313,7 +313,7 @@ function RankBoard({
             action={
               <Link
                 href={classroomPath(locale)}
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black text-ink shadow-[3px_3px_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:translate-y-0"
+                className="igra-press igra-shadow inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
               >
                 <BookOpenCheck className="size-4" />
                 {locale === "sr" ? "Otvori kurseve" : "Browse courses"}
@@ -418,7 +418,7 @@ export function LeaderboardView({
                     onClick={() => periodState.setPeriod(period)}
                     aria-pressed={active}
                     className={cn(
-                      "min-h-10 sm:min-h-9 flex-1 rounded-full px-4 text-xs font-black transition focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink",
+                      "min-h-10 sm:min-h-9 flex-1 whitespace-nowrap rounded-full px-4 text-xs font-black transition focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink",
                       active ? "bg-ink text-paper-strong" : "text-ink/65 hover:bg-paper-strong hover:text-ink",
                     )}
                   >

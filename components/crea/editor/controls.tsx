@@ -37,7 +37,7 @@ export function IconButton({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "grid size-11 shrink-0 place-items-center rounded-full border-2 border-ink transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 motion-reduce:transition-none motion-reduce:hover:translate-y-0",
+        "igra-press grid size-11 shrink-0 place-items-center rounded-full border-2 border-ink disabled:cursor-not-allowed disabled:opacity-40",
         pressed ? "bg-ink text-paper-strong" : "bg-paper text-ink",
         FOCUS,
       )}
@@ -68,7 +68,7 @@ export function PillButton({
       disabled={disabled}
       aria-pressed={pressed}
       className={cn(
-        "inline-flex min-h-11 items-center gap-2 rounded-full border-2 px-4 text-sm font-black transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 motion-reduce:transition-none motion-reduce:hover:translate-y-0",
+        "igra-press inline-flex min-h-11 items-center gap-2 rounded-full border-2 px-4 text-sm font-black disabled:cursor-not-allowed disabled:opacity-50",
         pressed === true ? "border-ink bg-ink text-paper-strong" : pressed === false ? "border-ink/25 bg-paper text-ink hover:border-ink" : "border-ink bg-paper text-ink",
         FOCUS,
       )}

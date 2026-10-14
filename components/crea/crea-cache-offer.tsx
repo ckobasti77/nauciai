@@ -42,14 +42,14 @@ export function CreaCacheOffer({
         <button
           type="button"
           onClick={onOpen}
-          className="inline-flex min-h-11 items-center rounded-full border-2 border-ink bg-yellow px-4 text-xs font-black text-ink shadow-[3px_3px_0_0_var(--ink)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+          className="igra-press igra-shadow-ink inline-flex min-h-11 items-center rounded-full border-2 border-ink bg-yellow px-4 text-xs font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         >
           {copy.cacheOpen[locale]}
         </button>
         <button
           type="button"
           onClick={onNew}
-          className="inline-flex min-h-11 items-center rounded-full border-2 border-ink bg-paper px-4 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+          className="igra-press igra-shadow igra-depth-2 inline-flex min-h-11 items-center rounded-full border-2 border-ink bg-paper px-4 text-xs font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         >
           {newCredits !== null
             ? `${copy.cacheNew[locale]} · ${newCredits} ${locale === "sr" ? "kr" : "cr"}`

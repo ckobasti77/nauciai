@@ -47,7 +47,7 @@ export function NightArrivalsBadge({ locale, count, onOpen }: { locale: Locale; 
       <button
         type="button"
         onClick={onOpen}
-        className="inline-flex min-h-11 max-w-full items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 py-2 text-left text-sm font-black text-ink shadow-[3px_3px_0_0_var(--ink)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+        className="igra-press igra-shadow-ink inline-flex min-h-11 max-w-full items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 py-2 text-left text-sm font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
       >
         <Moon aria-hidden="true" className="size-4 shrink-0 fill-current" />
         <span>

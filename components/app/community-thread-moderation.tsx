@@ -151,7 +151,7 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
         </p>
         <Link
           href={withLocale(locale, "/app/community/discussions")}
-          className="mt-5 inline-flex min-h-11 items-center justify-center rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black text-ink shadow-[3px_3px_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:translate-y-0"
+          className="igra-press igra-shadow mt-5 inline-flex min-h-11 items-center justify-center rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         >
           {locale === "sr" ? "Otvori diskusije" : "Open discussions"}
         </Link>
@@ -199,7 +199,7 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
           action={
             <Link
               href={withLocale(locale, "/app/community/discussions")}
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black text-ink shadow-[3px_3px_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:translate-y-0"
+              className="igra-press igra-shadow inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
               {locale === "sr" ? "Pregledaj diskusije" : "Browse discussions"}
             </Link>
@@ -292,7 +292,7 @@ export function CommunityModerationQueue({ locale }: { locale: Locale }) {
                             type="button"
                             onClick={() => approve(post._id)}
                             disabled={busy}
-                            className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black text-ink shadow-[3px_3px_0_var(--shadow-hard-16)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
+                            className="igra-press igra-shadow-soft inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
                           >
                             {busy ? <Spinner /> : <CheckCircle2 className="size-4" />}
                             {locale === "sr" ? "Odobri i objavi" : "Approve and publish"}

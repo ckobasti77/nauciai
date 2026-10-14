@@ -1,7 +1,15 @@
 "use client";
 
 import { CheckCircle2, CircleAlert, Info, X } from "lucide-react";
+import dynamic from "next/dynamic";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+
+import { normalizeLocale, t, type Locale } from "@/lib/i18n";
+import { playIgraSfx } from "@/lib/igra-sound";
+
+// Mali Robi u tostu uspeha (K24). Lenjo: tost se pojavljuje samo posle prijave, a provajder
+// stoji na svakoj strani, pa slike i manifest ne idu u početni JS javnog sajta.
+const ToastLik = dynamic(() => import("@/components/igra/igra-lik").then((m) => m.IgraLik));
 
 type ToastTone = "success" | "error" | "warning" | "info";
 
@@ -18,7 +26,7 @@ type ToastInput = {
   duration?: number;
 };
 
-type ToastRecord = ToastInput & { id: string; tone: ToastTone };
+type ToastRecord = ToastInput & { id: string; tone: ToastTone; locale: Locale };
 
 type ToastContextValue = {
   push: (toast: ToastInput) => string;
@@ -30,8 +38,10 @@ type ToastContextValue = {
 
 const ToastContext = createContext<ToastContextValue | null>(null);
 
+// Uspeh je sveska (K24): papir, mastilo, marker preko naslova i lik umesto ikone. Greška,
+// upozorenje i info zadržavaju statusne boje i ikonu, da se na prvi pogled razlikuju.
 const toneStyles: Record<ToastTone, { surface: string; icon: typeof CheckCircle2 }> = {
-  success: { surface: "border-emerald-700 bg-emerald-50 text-emerald-950", icon: CheckCircle2 },
+  success: { surface: "border-ink bg-paper-strong text-ink", icon: CheckCircle2 },
   error: { surface: "border-red-700 bg-red-50 text-red-950", icon: CircleAlert },
   warning: { surface: "border-ink bg-yellow/30 text-ink", icon: CircleAlert },
   info: { surface: "border-blue-700 bg-blue-50 text-blue-950", icon: Info },
@@ -47,8 +57,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const push = useCallback(
     (input: ToastInput) => {
       const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      const record: ToastRecord = { ...input, id, tone: input.tone ?? "info" };
+      const locale = normalizeLocale(document.documentElement.lang);
+      const record: ToastRecord = { ...input, id, tone: input.tone ?? "info", locale };
       setToasts((current) => [...current.slice(-2), record]);
+      // Zvuk samo kroz postojeći prekidač (`playIgraSfx` ćuti kad je isključen).
+      if (record.tone === "success") playIgraSfx("success");
       return id;
     },
     [],
@@ -97,9 +110,15 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               className={`toast-enter pointer-events-auto w-full rounded-[16px] border-2 p-3 shadow-[5px_5px_0_var(--shadow-hard)] ${style.surface}`}
             >
               <div className="flex items-start gap-3">
-                <Icon className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
+                {toast.tone === "success" ? (
+                  <ToastLik lik="robi" poza="slavi" size="sm" decorative className="-my-1 shrink-0" />
+                ) : (
+                  <Icon className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
+                )}
                 <div className="min-w-0 flex-1">
-                  <p className="type-body-sm font-black">{toast.title}</p>
+                  <p className="type-body-sm font-black">
+                    {toast.tone === "success" ? <span className="igra-marker bg-yellow text-ink">{toast.title}</span> : toast.title}
+                  </p>
                   {toast.message ? <p className="mt-1 type-caption font-semibold opacity-80">{toast.message}</p> : null}
                   {toast.action ? (
                     <button
@@ -117,8 +136,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 <button
                   type="button"
                   onClick={() => dismiss(toast.id)}
-                  className="grid size-8 shrink-0 place-items-center rounded-full border border-current/30"
-                  aria-label="Close notification"
+                  className="-my-1.5 -mr-1.5 grid size-11 shrink-0 place-items-center rounded-full hover:bg-current/10 focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-current"
+                  aria-label={t(toast.locale, "Zatvori obaveštenje", "Close notification")}
                 >
                   <X className="size-4" aria-hidden="true" />
                 </button>

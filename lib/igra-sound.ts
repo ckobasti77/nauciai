@@ -7,10 +7,12 @@
 
 const SOUND_KEY = "nauciai-chat-sound";
 
+/** Događaj → postojeći zvuk. `success` (K24) je tost uspeha: kratak stakleni zvon. */
 export const IGRA_SFX = {
   level: "pojacanje",
   badge: "potvrda",
   course: "dzingl-pizzicato",
+  success: "stakleni-zvon",
 } as const;
 export type IgraSfx = keyof typeof IGRA_SFX;
 

@@ -31,7 +31,7 @@ import { CREA_VIDEO_COPY as T } from "@/lib/crea-video-copy";
 type SceneDraft = { id: number; text: string; moveId: string; seconds: number };
 
 const ICON_BUTTON =
-  "inline-flex size-11 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none motion-reduce:hover:translate-y-0";
+  "igra-press inline-flex size-11 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-40";
 
 const RESOLUTIONS = ["720p", "1080p"] as const;
 
@@ -180,7 +180,7 @@ export default function ScenesTool({ tool, locale, canSave, projectId, source, p
               setCards((list) => [...list, { id: nextId, text: "", moveId: "", seconds: 1 }]);
               setNextId((id) => id + 1);
             }}
-            className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 text-sm font-black text-ink transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-40 motion-reduce:transition-none"
+            className="igra-press inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 text-sm font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-40"
           >
             <Plus aria-hidden="true" className="size-4" />
             {T.addScene[locale]}

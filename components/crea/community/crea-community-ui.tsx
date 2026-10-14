@@ -82,7 +82,7 @@ export function CommunityHeader({
               aria-current={current === link.id ? "page" : undefined}
               className={cn(
                 PILL_TAB,
-                current === link.id ? "bg-ink text-paper-strong shadow-[3px_3px_0_0_var(--yellow)]" : "bg-paper-strong text-ink hover:-translate-y-0.5",
+                current === link.id ? "bg-ink text-paper-strong shadow-[3px_3px_0_0_var(--yellow)]" : "igra-press bg-paper-strong text-ink",
               )}
             >
               <link.icon aria-hidden="true" className="size-4" />
@@ -197,7 +197,7 @@ export function LikeButton({
           }
         }}
         className={cn(
-          "inline-flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-full border-2 border-ink px-3 text-sm font-black tabular-nums transition hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0",
+          "igra-press inline-flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-full border-2 border-ink px-3 text-sm font-black tabular-nums",
           state.liked ? "bg-yellow text-ink" : "bg-paper-strong text-ink",
           FOCUS,
         )}

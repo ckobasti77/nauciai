@@ -81,7 +81,7 @@ export function CreaReportCardPanel({
               disabled={busy}
               onClick={() => void toggle()}
               className={cn(
-                "inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink px-4 text-sm font-black text-ink transition hover:-translate-y-0.5 disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none",
+                "igra-press inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink px-4 text-sm font-black text-ink disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
                 data.isPublic ? "bg-yellow" : "bg-paper-strong",
               )}
             >
@@ -93,7 +93,7 @@ export function CreaReportCardPanel({
                 <button
                   type="button"
                   onClick={() => void copy()}
-                  className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 text-sm font-black text-ink transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none"
+                  className="igra-press inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 text-sm font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                 >
                   <Copy aria-hidden="true" className="size-4" />
                   {CREA_CARD_COPY.copyLink[locale]}
@@ -101,7 +101,7 @@ export function CreaReportCardPanel({
                 <a
                   href={paths.image}
                   download={`knjizica-${data.username}.png`}
-                  className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 text-sm font-black text-ink transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none"
+                  className="igra-press inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 text-sm font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                 >
                   <Download aria-hidden="true" className="size-4" />
                   {CREA_CARD_COPY.image[locale]}
@@ -125,7 +125,7 @@ export function CreaReportCardPanel({
         {data.isOwner && notebookHref ? (
           <Link
             href={notebookHref}
-            className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 text-sm font-black text-ink transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none"
+            className="igra-press inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 text-sm font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
             <NotebookPen aria-hidden="true" className="size-4" />
             {CREA_CARD_COPY.profileOpen[locale]}

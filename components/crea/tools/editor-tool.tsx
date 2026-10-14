@@ -191,7 +191,7 @@ function StartChooser({
                   type="button"
                   disabled={disabled}
                   onClick={() => onBlank(preset.width, preset.height)}
-                  className="flex min-h-11 w-full items-center gap-3 rounded-full border-2 border-ink/25 bg-paper-strong px-4 py-1.5 text-left transition hover:-translate-y-0.5 hover:border-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                  className="igra-press flex min-h-11 w-full items-center gap-3 rounded-full border-2 border-ink/25 bg-paper-strong px-4 py-1.5 text-left hover:border-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
                 >
                   <PresetGlyph width={preset.width} height={preset.height} />
                   <span className="min-w-0 flex-1 truncate text-sm font-black text-ink">{preset.label[locale]}</span>

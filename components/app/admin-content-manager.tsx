@@ -315,7 +315,7 @@ function WorkingModuleLinks({ locale }: { locale: Locale }) {
           <li key={link.href}>
             <Link
               href={link.href}
-              className="surface-card flex h-full items-start gap-3 border-2 border-ink bg-paper-strong p-4 transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              className="igra-lift surface-card flex h-full items-start gap-3 border-2 border-ink bg-paper-strong p-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
               <IgraArt id={link.art} size="sm" decorative />
               <span className="min-w-0">

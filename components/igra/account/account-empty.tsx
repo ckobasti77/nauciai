@@ -39,7 +39,7 @@ export function CreditsNoHistory({ locale }: { locale: Locale }) {
       action={
         <Link
           href={`#${CREDITS_PACKS_ANCHOR}`}
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-5 py-2.5 text-sm font-extrabold text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5"
+          className="igra-press igra-shadow inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-5 py-2.5 text-sm font-extrabold text-ink"
         >
           <ArrowUp className="size-4" />
           {CREDITS_NO_HISTORY.cta[locale]}

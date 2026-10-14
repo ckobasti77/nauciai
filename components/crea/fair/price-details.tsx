@@ -81,7 +81,7 @@ export function PriceDetails({
         aria-controls={panelId}
         onClick={() => setOpen((value) => !value)}
         title={CREA_PRICE_COPY.open[locale]}
-        className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border-2 border-ink bg-paper-strong px-3 py-1.5 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+        className="igra-press igra-shadow igra-depth-2 inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border-2 border-ink bg-paper-strong px-3 py-1.5 text-xs font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
       >
         <Banknote aria-hidden="true" className="size-4" />
         <span>{credits !== null && credits > 0 ? formatDinars(credits, locale) : "din"}</span>

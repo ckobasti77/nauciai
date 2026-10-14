@@ -129,7 +129,7 @@ export default function DrawMotionTool({ tool, locale, canSave, projectId, sourc
                 type="button"
                 disabled={usable.length === 0}
                 onClick={() => setArrows((list) => usableArrows(list).slice(0, -1))}
-                className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 text-sm font-black text-ink transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-40 motion-reduce:transition-none"
+                className="igra-press inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 text-sm font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-40"
               >
                 <Undo2 aria-hidden="true" className="size-4" />
                 {T.undoArrow[locale]}

@@ -39,12 +39,12 @@ const SURFACE =
   "surface-inset relative flex w-full flex-col items-center justify-center gap-2 border-2 border-dashed border-ink bg-paper p-4 text-center transition duration-200";
 
 const REMOVE =
-  "absolute right-1.5 top-1.5 inline-flex size-8 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
+  "igra-press igra-shadow igra-depth-2 absolute right-1.5 top-1.5 inline-flex size-8 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
 
 // Zamena fajla u JEDNOM koraku (nalaz 8): `<label>` vezan za isti, uvek prisutan
 // file input otvara birač bez prethodnog "Ukloni". Levo od dugmeta za uklanjanje.
 const REPLACE =
-  "absolute right-11 top-1.5 inline-flex size-8 cursor-pointer items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
+  "igra-press igra-shadow igra-depth-2 absolute right-11 top-1.5 inline-flex size-8 cursor-pointer items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
 
 const TILE_BUTTON =
   "inline-flex size-7 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
@@ -636,7 +636,7 @@ export function DropSlotGrid({
             {files.length < spec.max && pending === null ? (
               <label
                 htmlFor={inputId}
-                className="surface-media flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 border-2 border-dashed border-ink bg-paper text-ink hover:-translate-y-0.5"
+                className="igra-press surface-media flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 border-2 border-dashed border-ink bg-paper text-ink"
               >
                 <UploadCloud className="size-5" aria-hidden="true" />
                 <span className="text-xs font-black">{locale === "sr" ? "Dodaj" : "Add"}</span>

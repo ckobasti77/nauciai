@@ -150,7 +150,7 @@ export default function MusicTool({ tool, locale, canSave, projectId, paid }: Cr
                 key={id}
                 type="button"
                 onClick={() => applyTemplate(id)}
-                className={cn("min-h-11 rounded-full border-2 border-ink bg-yellow px-4 text-sm font-black text-ink shadow-[2px_2px_0_0_var(--ink)] transition hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0", FOCUS)}
+                className={cn("igra-press igra-shadow-ink igra-depth-2 min-h-11 rounded-full border-2 border-ink bg-yellow px-4 text-sm font-black text-ink", FOCUS)}
               >
                 {MUSIC_TEMPLATE_LABELS[id][locale]}
               </button>

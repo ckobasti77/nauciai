@@ -911,7 +911,7 @@ export function StudioPage({
               <Link
                 href={libraryHref}
                 scroll={false}
-                className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border-2 border-ink bg-paper-strong px-3 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 pointer-coarse:min-h-11 studio-focus-ink motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                className="igra-press igra-shadow igra-depth-2 inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border-2 border-ink bg-paper-strong px-3 text-xs font-black text-ink pointer-coarse:min-h-11 studio-focus-ink"
               >
                 <LibraryBig aria-hidden="true" className="size-3.5" />
                 {CREA_LIBRARY_COPY.open[locale]}

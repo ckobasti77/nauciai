@@ -153,7 +153,7 @@ export function StudioModerationGrid({
           onClick={() => setView(id)}
           className={cn(
             "inline-flex min-h-11 items-center rounded-full border-2 border-ink px-4 text-sm font-black studio-anim-mikro cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
-            view === id ? "bg-ink text-paper-strong" : "bg-paper-strong text-ink hover:-translate-y-0.5",
+            view === id ? "bg-ink text-paper-strong" : "igra-press bg-paper-strong text-ink",
           )}
         >
           {id === "poslovi" ? CREA_MODERATION_COPY.jobs[locale] : id === "radovi" ? CREA_MODERATION_COPY.works[locale] : CREA_MODERATION_COPY.styles[locale]}
@@ -216,7 +216,7 @@ export function StudioModerationGrid({
                 type="button"
                 onClick={() => setStatusFilter((prev) => (prev === s ? null : s))}
                 aria-pressed={statusFilter === s}
-                className={cn(CHIP, statusFilter === s ? "bg-ink text-paper-strong" : "bg-paper-strong text-ink hover:-translate-y-0.5")}
+                className={cn(CHIP, statusFilter === s ? "bg-ink text-paper-strong" : "igra-press bg-paper-strong text-ink")}
               >
                 {JOB_STATUS_LABELS[s][locale]}
               </button>
@@ -233,7 +233,7 @@ export function StudioModerationGrid({
                 type="button"
                 onClick={() => setProviderFilter((prev) => (prev === p ? null : p))}
                 aria-pressed={providerFilter === p}
-                className={cn(CHIP, providerFilter === p ? "bg-ink text-paper-strong" : "bg-paper-strong text-ink hover:-translate-y-0.5")}
+                className={cn(CHIP, providerFilter === p ? "bg-ink text-paper-strong" : "igra-press bg-paper-strong text-ink")}
               >
                 {STUDIO_PROVIDER_LABELS[p]}
               </button>
@@ -309,7 +309,7 @@ export function StudioModerationGrid({
                   isLoadingRef.current = true;
                   loadMore(PAGE_SIZE);
                 }}
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-5 py-2.5 text-sm font-extrabold text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 cursor-pointer"
+                className="igra-press igra-shadow inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-5 py-2.5 text-sm font-extrabold text-ink cursor-pointer"
               >
                 {locale === "sr" ? "Učitaj još" : "Load more"}
               </button>
@@ -431,7 +431,7 @@ function ModerationTile({
                 setIsRevealing(false);
               }
             }}
-            className={cn(CHIP, "border-ink bg-paper-strong text-ink hover:-translate-y-0.5")}
+            className={cn(CHIP, "igra-press border-ink bg-paper-strong text-ink")}
           >
             {isRevealing ? <Spinner size="xs" /> : <Eye className="size-3.5" />}
             {REVEAL_DETAILS[locale]}

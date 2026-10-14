@@ -429,7 +429,7 @@ export function ApiKeysPage({ locale }: { locale: Locale }) {
           <p className="type-body type-measure font-bold text-muted">{t.signIn}</p>
           <Link
             href={withLocale(locale, "/sign-in")}
-            className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-ink px-5 py-2.5 text-sm font-extrabold text-paper-strong shadow-[4px_4px_0_0_var(--yellow)] transition hover:-translate-y-0.5"
+            className="igra-press igra-shadow-yellow igra-depth-4 mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-ink px-5 py-2.5 text-sm font-extrabold text-paper-strong"
           >
             {t.signInCta}
           </Link>

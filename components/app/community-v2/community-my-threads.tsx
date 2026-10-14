@@ -227,7 +227,7 @@ function MyThreadsView({
           })}
           <Link
             href={withLocale(locale, "/app/community/new")}
-            className="relative z-10 ml-1 inline-flex min-h-10 items-center justify-between gap-2 rounded-[12px] border-2 border-ink bg-yellow px-3 text-sm font-black text-ink shadow-[2px_2px_0_var(--shadow-hard-16)] transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            className="igra-press igra-shadow-soft igra-depth-2 relative z-10 ml-1 inline-flex min-h-10 items-center justify-between gap-2 rounded-[12px] border-2 border-ink bg-yellow px-3 text-sm font-black text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
             <span className="flex min-w-0 items-center gap-2">
               <FilePenLine className="size-4 shrink-0" aria-hidden="true" />
@@ -309,7 +309,7 @@ function MyThreadsView({
                 action={
                   <Link
                     href={withLocale(locale, "/app/community/new")}
-                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black text-ink shadow-[3px_3px_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:translate-y-0"
+                    className="igra-press igra-shadow inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                   >
                     <FilePenLine className="size-4" />
                     {locale === "sr" ? "Započni temu" : "Start a topic"}

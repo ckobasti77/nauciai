@@ -486,7 +486,7 @@ export default function TalkingTool({ tool, locale, canSave, projectId, paid }: 
               ) : null}
             </div>
           ) : (
-            <label className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 text-sm font-black text-ink transition hover:-translate-y-0.5 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ink motion-reduce:transition-none">
+            <label className="igra-press inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 text-sm font-black text-ink has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ink">
               <Upload aria-hidden="true" className="size-4" />
               {T.talkAudioFile[locale]}
               <input

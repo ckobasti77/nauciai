@@ -43,7 +43,7 @@ export function CancelJobButton({ jobId, locale }: { jobId: string; locale: Loca
         onClick={() => void handleCancel()}
         disabled={busy}
         title={CREA_CANCEL_COPY.cancelTitle[locale]}
-        className="inline-flex min-h-11 items-center gap-1.5 rounded-full border-2 border-ink bg-paper-strong px-3 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-60 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+        className="igra-press igra-shadow igra-depth-2 inline-flex min-h-11 items-center gap-1.5 rounded-full border-2 border-ink bg-paper-strong px-3 text-xs font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-60"
       >
         <X aria-hidden="true" className="size-3.5" />
         {busy ? CREA_CANCEL_COPY.cancelling[locale] : CREA_CANCEL_COPY.cancel[locale]}

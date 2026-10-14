@@ -17,7 +17,7 @@ import type { Locale } from "@/lib/i18n";
 import type { CreaMotionParams } from "@/lib/motion-contract";
 
 const BUTTON =
-  "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full border-2 border-ink px-3.5 text-sm font-black text-ink transition-[translate,box-shadow] duration-150 hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none motion-reduce:hover:translate-y-0";
+  "igra-press inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full border-2 border-ink px-3.5 text-sm font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
 
 /**
  * Inspiracija uz alat ili režim (K25, U11): primeri iz `lib/crea-inspiration.ts`. Kartica se

@@ -183,7 +183,7 @@ export function SmartSearch({
               setPhase({ name: "loading", percent: 0 });
               void load();
             }}
-            className="inline-flex min-h-9 items-center gap-1.5 rounded-full border-2 border-ink bg-paper-strong px-3 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 pointer-coarse:min-h-11 studio-focus-ink motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+            className="igra-press igra-shadow igra-depth-2 inline-flex min-h-9 items-center gap-1.5 rounded-full border-2 border-ink bg-paper-strong px-3 text-xs font-black text-ink pointer-coarse:min-h-11 studio-focus-ink"
           >
             <BrainCircuit aria-hidden="true" className="size-3.5" />
             {L.smartToggle[locale]} · {L.smartStart[locale]}

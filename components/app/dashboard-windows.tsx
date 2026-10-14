@@ -94,7 +94,7 @@ function WindowRowView({ row }: { row: WindowRow }) {
           className,
           // Pritisak spušta red nazad na nulu: podizanje je „mogu da kliknem", povratak je
           // „kliknuo sam". Trajanje je `--motion-mikro` preko `studio-anim-mikro`.
-          "studio-anim-mikro hover:-translate-y-0.5 hover:bg-yellow active:translate-y-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+          "igra-press hover:bg-yellow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
         )}
       >
         {inner}
@@ -152,7 +152,7 @@ export function DashboardWindow({
   return (
     <Panel
       as="article"
-      className="studio-anim-mikro flex flex-col overflow-hidden hover:-translate-y-0.5 hover:shadow-[8px_8px_0_0_var(--shadow-hard-20)]"
+      className="igra-lift flex flex-col overflow-hidden hover:shadow-[8px_8px_0_0_var(--shadow-hard-20)]"
     >
       {/* Zaglavlje prozora: pločica sa ikonom nosi identitet zone (žuto = ovde ti
           radiš, mastilo = ovde su drugi ljudi, papir = ovde ti se javlja stanje), a
@@ -274,7 +274,7 @@ function PulseTile({
     // ispod nje; brojka je jedini razlog zbog kog pločica postoji, pa nosi `type-h1`.
     <Link
       href={href}
-      className="group surface-card border-2 border-line bg-paper-strong p-4 text-ink shadow-[3px_3px_0_0_var(--shadow-hard-10)] transition hover:-translate-y-0.5 hover:border-yellow hover:shadow-[5px_5px_0_0_var(--shadow-hard-16)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yellow"
+      className="igra-lift igra-shadow-soft group surface-card border-2 border-line bg-paper-strong p-4 text-ink hover:border-yellow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yellow"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">

@@ -82,7 +82,7 @@ export function PromptHelper({
           type="button"
           onClick={onClose}
           aria-label={T.helperClose[locale]}
-          className="inline-flex size-11 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none"
+          className="igra-press inline-flex size-11 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         >
           <X aria-hidden="true" className="size-4" />
         </button>
@@ -111,7 +111,7 @@ export function PromptHelper({
             <button
               type="button"
               onClick={() => onUse(reply.prompt)}
-              className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-ink px-4 text-sm font-black text-paper-strong shadow-[3px_3px_0_0_var(--yellow)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none"
+              className="igra-press igra-shadow-yellow inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-ink px-4 text-sm font-black text-paper-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
               <CircleCheck aria-hidden="true" className="size-4" />
               {T.helperUse[locale]}
@@ -122,7 +122,7 @@ export function PromptHelper({
               type="button"
               onClick={() => run(text)}
               disabled={text.trim().length === 0}
-              className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 text-sm font-black text-ink transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-40 motion-reduce:transition-none"
+              className="igra-press inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 text-sm font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-40"
             >
               <RefreshCw aria-hidden="true" className="size-4" />
               {T.helperAgain[locale]}

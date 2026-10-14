@@ -224,7 +224,7 @@ export function ThreadCard({
     <article
       data-motion="card"
       className={cn(
-        "group relative isolate overflow-hidden surface-card border-2 border-ink bg-paper-strong transition duration-200 hover:-translate-y-0.5 active:translate-y-0 focus-within:border-ink hover:border-ink",
+        "igra-lift group relative isolate overflow-hidden surface-card border-2 border-ink bg-paper-strong focus-within:border-ink hover:border-ink",
         // Zuta tvrda senka = "ova je istaknuta"; mastilo = obicna kartica u feedu.
         // Ranije je razliku nosio goli heks okvira (#d7a91b) i pozadine (#fffaf0),
         // koji u tamnoj temi nisu imali parnjaka.

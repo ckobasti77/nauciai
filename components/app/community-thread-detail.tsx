@@ -538,7 +538,7 @@ function ThreadAuthorCard({
       {profileHref ? (
         <Link
           href={profileHref}
-          className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-sm font-black text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:translate-y-0"
+          className="igra-press igra-shadow mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-sm font-black text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         >
           <ExternalLink className="size-4" aria-hidden="true" />
           {t(locale, "Poseti javni profil", "Visit public profile")}

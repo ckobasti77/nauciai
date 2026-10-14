@@ -685,7 +685,7 @@ export function CommunityPostEditor({
           </span>
           <Link
             href={profileResumeHref}
-            className="inline-flex min-h-11 items-center justify-center rounded-full border-2 border-ink bg-yellow px-4 text-sm font-black text-ink shadow-[3px_3px_0_var(--shadow-hard)] transition hover:-translate-y-0.5 active:translate-y-0 active:shadow-[1px_1px_0_var(--shadow-hard)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            className="igra-press igra-shadow inline-flex min-h-11 items-center justify-center rounded-full border-2 border-ink bg-yellow px-4 text-sm font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
             {locale === "sr" ? "Podesi profil" : "Complete profile"}
           </Link>
@@ -1015,7 +1015,7 @@ export function CommunityPostEditor({
             type="button"
             onClick={() => handleSubmit(isStaff ? "published" : "pending")}
             disabled={pending || uploadingImage || inlineUploading > 0}
-            className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black text-ink shadow-[3px_3px_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+            className="igra-press igra-shadow inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-50"
           >
             {pending ? <Spinner /> : <Send className="size-4" />}
             {isStaff

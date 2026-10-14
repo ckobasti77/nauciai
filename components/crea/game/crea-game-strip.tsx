@@ -41,7 +41,7 @@ export function CreaGameStrip({ locale }: { locale: Locale }) {
         href={withLocale(locale, notebookPath)}
         aria-label={label}
         title={label}
-        className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong pl-1.5 pr-3 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 studio-focus-ink motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+        className="igra-press igra-shadow igra-depth-2 inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong pl-1.5 pr-3 text-xs font-black text-ink studio-focus-ink"
       >
         <LevelSeal level={level.level} progress={level.progress} size="sm" />
         <span className="inline-flex items-center gap-1 tabular-nums">

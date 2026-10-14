@@ -28,7 +28,7 @@ export async function AppShell({ locale, children }: { locale: Locale; children:
   );
 
   const shell = (
-    <div className="min-h-screen bg-paper text-ink">
+    <div data-igra-ui className="min-h-screen bg-paper text-ink">
       {process.env.NEXT_PUBLIC_CONVEX_URL ? <ViewerPresence /> : null}
       <div className="shell-container mx-auto flex min-h-screen min-w-0 w-full flex-col min-[1600px]:w-[calc(100%-48px)] min-[1600px]:max-w-[1760px] md:flex-row">
         <AppSidebar

@@ -388,7 +388,7 @@ export function StudioMediaGrid({
               type="button"
               onClick={handleDownloadSelected}
               disabled={isDownloading}
-              className="inline-flex min-h-9 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 py-1.5 text-xs font-black text-ink shadow-[3px_3px_0_0_var(--ink)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70 cursor-pointer"
+              className="igra-press igra-shadow-ink inline-flex min-h-9 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 py-1.5 text-xs font-black text-ink disabled:cursor-not-allowed disabled:opacity-70 cursor-pointer"
             >
               {isDownloading ? (
                 <>
@@ -429,7 +429,7 @@ export function StudioMediaGrid({
           <button
             type="button"
             onClick={() => setDuplicateScan(filteredJobs)}
-            className="inline-flex min-h-9 items-center gap-1.5 rounded-full border-2 border-ink bg-paper-strong px-3 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 pointer-coarse:min-h-11 studio-focus-ink motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+            className="igra-press igra-shadow igra-depth-2 inline-flex min-h-9 items-center gap-1.5 rounded-full border-2 border-ink bg-paper-strong px-3 text-xs font-black text-ink pointer-coarse:min-h-11 studio-focus-ink"
           >
             <CopyCheck aria-hidden="true" className="size-3.5" />
             {CREA_LIBRARY_COPY.duplicates[locale]}

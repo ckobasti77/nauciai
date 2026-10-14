@@ -50,7 +50,7 @@ export function CreditsBalancePill({
             : `Balance: ${formatCreditsLong(balance, locale)}`
       }
       className={cn(
-        "inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-full border-2 border-ink px-2.5 py-1 text-xs font-black transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+        "igra-press inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-full border-2 border-ink px-2.5 py-1 text-xs font-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
         balance === 0 ? "bg-amber-100 text-amber-900" : "bg-paper-strong text-ink",
         className,
       )}

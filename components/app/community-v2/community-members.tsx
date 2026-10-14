@@ -228,7 +228,7 @@ export function MemberCardView({
           <CommunityBadgeRow locale={locale} badges={badges} />
           <span className="font-mono text-xs font-black text-ink">{member.contributionCount ?? 0} {locale === "sr" ? "doprinosa" : "contributions"}</span>
         </span>
-        {member.canFollow && member.userId && onFollow ? <button type="button" onClick={onFollow} disabled={pending} className={cn("inline-flex min-h-11 sm:min-h-9 items-center gap-2 rounded-full border-2 border-ink px-3 type-caption font-black transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:translate-y-0 disabled:opacity-50", following ? "bg-paper-strong" : "bg-yellow")}><UserPlus className="size-3.5" />{mutual ? (locale === "sr" ? "Pratite se" : "Mutual") : following ? (locale === "sr" ? "Pratiš" : "Following") : (locale === "sr" ? "Zaprati" : "Follow")}</button> : null}
+        {member.canFollow && member.userId && onFollow ? <button type="button" onClick={onFollow} disabled={pending} className={cn("igra-press inline-flex min-h-11 sm:min-h-9 items-center gap-2 rounded-full border-2 border-ink px-3 type-caption font-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50", following ? "bg-paper-strong" : "bg-yellow")}><UserPlus className="size-3.5" />{mutual ? (locale === "sr" ? "Pratite se" : "Mutual") : following ? (locale === "sr" ? "Pratiš" : "Following") : (locale === "sr" ? "Zaprati" : "Follow")}</button> : null}
       </div>
     </article>
   );

@@ -147,7 +147,7 @@ export default function SfxTool({ tool, locale, canSave, projectId, paid }: Crea
                     onClick={() => play(file)}
                     aria-pressed={playing === file.id}
                     aria-label={fillCopy(playing === file.id ? T.sfx.stop[locale] : T.sfx.listen[locale], { ime: file.title[locale] })}
-                    className={cn("grid size-11 shrink-0 place-items-center rounded-full border-2 border-ink bg-paper-strong text-ink transition hover:-translate-y-0.5 motion-reduce:transition-none", FOCUS)}
+                    className={cn("igra-press grid size-11 shrink-0 place-items-center rounded-full border-2 border-ink bg-paper-strong text-ink", FOCUS)}
                   >
                     {playing === file.id ? <Pause aria-hidden="true" className="size-4" /> : <Play aria-hidden="true" className="size-4" />}
                   </button>

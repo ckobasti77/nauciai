@@ -117,7 +117,7 @@ function PaletteResult({ locale, output }: { locale: Locale; output: CreaToolOut
                 type="button"
                 onClick={() => void copy(color.hex, color.hex)}
                 aria-label={fillCopy(CREA_PALETTE_COPY.copyColor[locale], { hex: color.hex })}
-                className="surface-inset group flex w-full flex-col overflow-hidden border border-line bg-paper text-left transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                className="igra-press surface-inset group flex w-full flex-col overflow-hidden border border-line bg-paper text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
               >
                 <span
                   className={cn(

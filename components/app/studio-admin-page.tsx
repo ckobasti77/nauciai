@@ -862,7 +862,7 @@ function KillSwitchCard({ locale }: { locale: Locale }) {
             type="button"
             disabled={pending}
             onClick={() => void apply(true)}
-            className="inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--ink)] transition hover:-translate-y-0.5 disabled:opacity-60"
+            className="igra-press igra-shadow-ink igra-depth-2 inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-xs font-black text-ink disabled:opacity-60"
           >
             {pending ? <Spinner /> : <Power className="size-3.5" />}
             {locale === "sr" ? "Ponovo uključi Creu" : "Re-enable Crea"}

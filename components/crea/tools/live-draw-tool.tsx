@@ -215,7 +215,7 @@ export default function LiveDrawTool({ tool, locale, canSave, projectId, paid }:
                     setLive((on) => !on);
                   }}
                   className={cn(
-                    "inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink px-4 text-sm font-black transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-40 motion-reduce:transition-none",
+                    "igra-press inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink px-4 text-sm font-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-40",
                     live ? "bg-yellow text-ink shadow-[3px_3px_0_0_var(--ink)]" : "bg-ink text-paper-strong shadow-[3px_3px_0_0_var(--yellow)]",
                   )}
                 >

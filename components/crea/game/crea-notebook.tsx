@@ -99,7 +99,7 @@ export function CreaNotebook({
                 <Link
                   key={link.href}
                   href={withLocale(locale, link.href)}
-                  className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 text-sm font-black text-ink transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none"
+                  className="igra-press inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 text-sm font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                 >
                   <link.icon aria-hidden="true" className="size-4" />
                   {link.label}
@@ -139,7 +139,7 @@ export function CreaNotebook({
                   aria-current={section === id ? "page" : undefined}
                   className={cn(
                     "inline-flex min-h-11 items-center rounded-full border-2 border-ink px-5 text-sm font-black transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none",
-                    section === id ? "bg-ink text-paper-strong shadow-[3px_3px_0_0_var(--yellow)]" : "bg-paper-strong text-ink hover:-translate-y-0.5",
+                    section === id ? "bg-ink text-paper-strong shadow-[3px_3px_0_0_var(--yellow)]" : "igra-press bg-paper-strong text-ink",
                   )}
                 >
                   {label[id]}

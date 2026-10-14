@@ -205,7 +205,7 @@ export function ProjectPicker({
           "inline-flex min-h-8 items-center gap-1.5 rounded-full border-2 border-ink px-3 py-1 text-xs font-black transition cursor-pointer studio-focus-ink",
           activeProject
             ? "bg-yellow text-ink shadow-[2px_2px_0_0_var(--ink)]"
-            : "bg-paper-strong text-ink hover:-translate-y-0.5 shadow-[2px_2px_0_0_var(--shadow-hard)]",
+            : "igra-press igra-shadow igra-depth-2 bg-paper-strong text-ink",
         )}
       >
         {activeProject ? (

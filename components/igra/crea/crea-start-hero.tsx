@@ -1,7 +1,6 @@
-import Link from "next/link";
-
 import { IgraHero } from "@/components/igra/igra-hero";
 import { IgraLik } from "@/components/igra/igra-lik";
+import { PeelLink } from "@/components/igra/peel-link";
 import { IGRA_CREA_COPY } from "@/lib/igra-copy";
 import { creaLikForArea } from "@/lib/igra-crea";
 import type { CreaArea } from "@/lib/crea-shell";
@@ -35,20 +34,16 @@ export function CreaStartHero({
       <ul aria-labelledby={`${titleId}-tiles`} data-motion="card" className="mt-2 grid grid-cols-3 gap-2 sm:gap-3">
         {tiles.map((tile) => (
           <li key={tile.area} className="min-w-0">
-            <Link
+            <PeelLink
               href={tile.href}
-              className="group flex h-full min-h-32 flex-col items-center justify-center gap-1.5 surface-inset bg-paper px-1.5 py-3 text-center shadow-[inset_0_0_0_1px_var(--shadow-hard-14)] transition-[background-color,translate] duration-200 hover:bg-igra-marker-wash focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:translate-y-px motion-reduce:transition-none"
+              className="flex h-full min-h-32 flex-col items-center justify-center gap-1.5 surface-inset bg-paper px-1.5 py-3 text-center shadow-[inset_0_0_0_1px_var(--shadow-hard-14)] transition-[background-color,translate] duration-200 hover:bg-igra-marker-wash focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:translate-y-px motion-reduce:transition-none"
             >
-              <IgraLik
-                lik={creaLikForArea(tile.area)}
-                poza="mase"
-                size={72}
-                decorative
-                className="transition-transform duration-200 group-hover:-translate-y-0.5 motion-reduce:transition-none"
-              />
+              <span data-igra-peel className="block">
+                <IgraLik lik={creaLikForArea(tile.area)} poza="mase" size={72} decorative />
+              </span>
               <span className="type-h4 text-ink">{tile.label}</span>
               <span className="type-caption font-bold leading-tight text-muted">{tile.sub}</span>
-            </Link>
+            </PeelLink>
           </li>
         ))}
       </ul>

@@ -22,7 +22,7 @@ const FIELD =
 const LABEL = "text-[11px] font-black uppercase tracking-wide text-muted";
 
 const STEPPER =
-  "inline-flex size-9 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink transition duration-200 hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-40";
+  "igra-press inline-flex size-9 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-40";
 
 // Jedan izbor iz reda (rezolucija / odnos / broj): sva tri koriste ISTI red
 // dugmica iste visine, pa se dve kontrole jedna do druge poravnaju (nema više
@@ -31,7 +31,7 @@ const CHOICE_ROW = "mt-1.5 flex flex-wrap gap-1.5";
 const CHOICE =
   "surface-inset inline-flex min-h-[44px] flex-1 items-center justify-center border-2 border-ink px-2 py-1 text-xs font-black transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-40";
 const CHOICE_ACTIVE = "bg-ink text-paper-strong";
-const CHOICE_IDLE = "bg-paper-strong text-ink hover:-translate-y-0.5";
+const CHOICE_IDLE = "igra-press bg-paper-strong text-ink";
 
 /** Opcija oblika `W:H` (odnos stranica) - takva kontrola se crta ikonama, ne tekstom. */
 const RATIO_RE = /^(\d+):(\d+)$/;

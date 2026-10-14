@@ -67,7 +67,7 @@ export function CreaRecipeCards({ locale, pathname, searchParams }: { locale: Lo
                     <li key={card.id} className="min-w-0">
                       <Link
                         href={href(card.next)}
-                        className="group surface-card flex h-full min-h-[120px] flex-col border-2 border-ink bg-paper p-3 text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition-[translate,box-shadow] duration-150 hover:-translate-y-0.5 hover:shadow-[4px_4px_0_0_var(--shadow-hard)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:translate-y-0 motion-reduce:transition-none"
+                        className="igra-lift igra-shadow igra-depth-2 group surface-card flex h-full min-h-[120px] flex-col border-2 border-ink bg-paper p-3 text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                       >
                         <span className="flex items-center gap-2">
                           <span className="grid size-9 shrink-0 place-items-center rounded-full border-2 border-ink bg-paper-strong text-ink">

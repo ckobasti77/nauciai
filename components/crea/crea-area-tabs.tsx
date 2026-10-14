@@ -100,7 +100,7 @@ export function CreaAreaTabs({
               // ostaje čitljiv na žutom); krem ispod pokriva trenutak dok nalepnica klizi.
               selected
                 ? "paper-island bg-paper-strong shadow-[3px_3px_0_0_var(--ink)]"
-                : "bg-paper-strong shadow-[2px_2px_0_0_var(--shadow-hard)] hover:-translate-y-0.5 hover:shadow-[3px_3px_0_0_var(--shadow-hard)]",
+                : "igra-press igra-shadow igra-depth-2 bg-paper-strong",
             )}
           >
             {selected ? (

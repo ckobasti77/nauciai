@@ -139,7 +139,7 @@ export function InputCapabilityStrip({
             }
             className={cn(
               "inline-flex min-h-8 items-center gap-1.5 rounded-full border-2 border-ink px-2.5 py-1 text-[11px] font-black transition duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-60",
-              active ? "bg-ink text-paper-strong" : "bg-paper-strong text-ink hover:-translate-y-0.5",
+              active ? "bg-ink text-paper-strong" : "igra-press bg-paper-strong text-ink",
             )}
           >
             <Icon className="size-3.5" />

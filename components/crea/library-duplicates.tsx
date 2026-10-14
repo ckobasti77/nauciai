@@ -124,7 +124,7 @@ export function LibraryDuplicates({
           <button
             type="button"
             onClick={() => onSelect(state.groups.flatMap((group) => group.slice(1)))}
-            className="mt-2 inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--ink)] transition hover:-translate-y-0.5 studio-focus-ink motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+            className="igra-press igra-shadow-ink igra-depth-2 mt-2 inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-xs font-black text-ink studio-focus-ink"
           >
             {L.duplicatesSelect[locale]}
           </button>

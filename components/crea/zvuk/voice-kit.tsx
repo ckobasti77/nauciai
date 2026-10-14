@@ -140,7 +140,7 @@ export function SampleButton({ voice, player, locale }: { voice: CreaVoice; play
         aria-label={label}
         title={label}
         aria-pressed={state === "playing"}
-        className="grid size-11 shrink-0 place-items-center rounded-full border-2 border-ink bg-paper-strong text-ink transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none"
+        className="igra-press grid size-11 shrink-0 place-items-center rounded-full border-2 border-ink bg-paper-strong text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
       >
         {state === "loading" ? <Spinner size="xs" /> : state === "playing" ? <Pause aria-hidden="true" className="size-4" /> : <Play aria-hidden="true" className="size-4" />}
       </button>

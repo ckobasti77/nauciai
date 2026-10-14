@@ -35,7 +35,7 @@ export function NightToggle({
       onClick={() => onChange(!on)}
       title={copy.toggleTitle[locale]}
       className={cn(
-        "inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border-2 border-ink px-3 py-1.5 text-xs font-black shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none motion-reduce:hover:translate-y-0",
+        "igra-press igra-shadow igra-depth-2 inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border-2 border-ink px-3 py-1.5 text-xs font-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-40",
         on ? "bg-ink text-paper-strong" : "bg-paper-strong text-ink",
       )}
     >

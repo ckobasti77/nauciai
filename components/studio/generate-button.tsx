@@ -52,7 +52,7 @@ export function GenerateButton({
       <div className="space-y-2">
         <Link
           href={topUpHref}
-          className={cn(PILL, "border-ink bg-yellow text-ink shadow-[4px_4px_0_0_var(--ink)] hover:-translate-y-0.5 active:translate-y-0 active:shadow-[2px_2px_0_0_var(--ink)]")}
+          className={cn(PILL, "igra-press igra-shadow-ink igra-depth-4 border-ink bg-yellow text-ink")}
         >
           <Coins className="size-4" />
           {locale === "sr" ? "Dopuni kredite" : "Top up credits"}
@@ -68,7 +68,7 @@ export function GenerateButton({
         type="button"
         disabled={isPending || block !== null || credits === null}
         onClick={onGenerate}
-        className={cn(PILL, "border-ink bg-ink text-paper-strong shadow-[4px_4px_0_0_var(--yellow)] hover:-translate-y-0.5 active:translate-y-0 active:shadow-[2px_2px_0_0_var(--yellow)]")}
+        className={cn(PILL, "igra-press igra-shadow-yellow igra-depth-4 border-ink bg-ink text-paper-strong")}
       >
         {isPending ? <Spinner /> : <Wand2 className="size-4" />}
         {credits === null

@@ -29,7 +29,7 @@ const CHIP_BASE =
   "inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-full border-2 px-3 text-xs font-black transition cursor-pointer studio-focus-ink whitespace-nowrap select-none";
 const CHIP_ACTIVE = "border-ink bg-yellow text-ink shadow-[2px_2px_0_0_var(--ink)]";
 const CHIP_IDLE =
-  "border-ink bg-paper-strong text-ink hover:-translate-y-0.5 shadow-[2px_2px_0_0_var(--shadow-hard)]";
+  "igra-press igra-shadow igra-depth-2 border-ink bg-paper-strong text-ink";
 
 export function StudioFilterBar({
   locale,

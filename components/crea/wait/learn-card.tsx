@@ -133,7 +133,7 @@ export function LearnCard({
                         className={cn(
                           "inline-flex min-h-11 items-center gap-1.5 rounded-full border-2 px-3.5 text-sm font-black transition-[translate] duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none",
                           answered === undefined
-                            ? "border-ink bg-paper text-ink hover:-translate-y-0.5"
+                            ? "igra-press border-ink bg-paper text-ink"
                             : correct
                               ? "paper-island border-ink bg-yellow text-ink"
                               : picked

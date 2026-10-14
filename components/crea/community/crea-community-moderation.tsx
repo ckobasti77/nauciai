@@ -49,7 +49,7 @@ export function CreaCommunityModeration({ locale, kind }: { locale: Locale; kind
             type="button"
             aria-pressed={status === id}
             onClick={() => setStatus(id)}
-            className={cn(CHIP, status === id ? "bg-ink text-paper-strong" : "bg-paper-strong text-ink hover:-translate-y-0.5")}
+            className={cn(CHIP, status === id ? "bg-ink text-paper-strong" : "igra-press bg-paper-strong text-ink")}
           >
             {statusLabel[id]}
           </button>

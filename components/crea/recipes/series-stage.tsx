@@ -33,7 +33,7 @@ import { studioErrorMessage } from "@/lib/studio-messages";
 import { buildParams, creditsFor, formatCredits, paramValuesForMode } from "@/lib/studio-params";
 
 const PILL =
-  "inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-paper px-4 text-sm font-black text-ink transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none motion-reduce:hover:translate-y-0";
+  "igra-press inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-paper px-4 text-sm font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
 const INPUT_MODE = "image_multi";
 
 type Phase = { name: "idle" } | { name: "uploading" } | { name: "sending"; total: number; created: number; night: boolean } | { name: "error"; message: string };

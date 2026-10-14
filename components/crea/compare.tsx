@@ -66,7 +66,7 @@ export function CreaCompare({
             type="button"
             onClick={onClose}
             aria-label={L.compareClose[locale]}
-            className="inline-flex size-11 items-center justify-center rounded-full border-2 border-ink bg-paper text-ink transition hover:-translate-y-0.5 studio-focus-ink motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+            className="igra-press inline-flex size-11 items-center justify-center rounded-full border-2 border-ink bg-paper text-ink studio-focus-ink"
           >
             <X aria-hidden="true" className="size-4" />
           </button>

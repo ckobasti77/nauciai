@@ -137,7 +137,7 @@ export function MontagePreview({
           title={`${player.playing ? T.pause[locale] : T.play[locale]} · ${T.spaceHint[locale]}`}
           disabled={empty}
           className={cn(
-            "grid size-12 place-items-center rounded-full border-2 border-ink bg-yellow text-ink shadow-[3px_3px_0_0_var(--ink)] transition hover:-translate-y-0.5 disabled:opacity-40 motion-reduce:transition-none",
+            "igra-press igra-shadow-ink grid size-12 place-items-center rounded-full border-2 border-ink bg-yellow text-ink disabled:opacity-40",
             FOCUS,
           )}
         >

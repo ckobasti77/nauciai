@@ -34,7 +34,7 @@ export function CreaLockedTools({ locale, count, lessons }: { locale: Locale; co
           <li key={lesson.id}>
             <Link
               href={lessonHref(lesson.id)}
-              className="inline-flex min-h-11 items-center rounded-full border-2 border-ink bg-paper-strong px-3 text-sm font-black text-ink transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none"
+              className="igra-press inline-flex min-h-11 items-center rounded-full border-2 border-ink bg-paper-strong px-3 text-sm font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
               {fillCopy(CREA_LOCKED_COPY.lesson[locale], { title: lesson.title[locale] })}
             </Link>

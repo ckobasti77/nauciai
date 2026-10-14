@@ -70,7 +70,7 @@ export function CreaGallery({ locale }: { locale: Locale }) {
             href={hrefFor({ prikaz: id === "novo" ? null : id })}
             scroll={false}
             aria-current={tab === id ? "page" : undefined}
-            className={cn(PILL_TAB, tab === id ? "bg-ink text-paper-strong shadow-[3px_3px_0_0_var(--yellow)]" : "bg-paper-strong text-ink hover:-translate-y-0.5")}
+            className={cn(PILL_TAB, tab === id ? "bg-ink text-paper-strong shadow-[3px_3px_0_0_var(--yellow)]" : "igra-press bg-paper-strong text-ink")}
           >
             {tabLabel[id]}
           </Link>
@@ -132,7 +132,7 @@ function WorksGrid({ locale, sort, kind }: { locale: Locale; sort: "novo" | "pop
             type="button"
             disabled={status === "LoadingMore"}
             onClick={() => loadMore(PAGE_SIZE)}
-            className={cn(PILL_TAB, "bg-paper-strong text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] hover:-translate-y-0.5 disabled:opacity-50")}
+            className={cn(PILL_TAB, "igra-press igra-shadow bg-paper-strong text-ink disabled:opacity-50")}
           >
             {status === "LoadingMore" ? CREA_COMMUNITY_NAV.loading[locale] : CREA_COMMUNITY_NAV.loadMore[locale]}
           </button>

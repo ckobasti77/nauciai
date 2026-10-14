@@ -627,7 +627,7 @@ function TrackStrip({ locale, group }: { locale: Locale; group: CatalogTrackGrou
             <Link
               href={trackTileHref(locale, entry)}
               className={cn(
-                "group block h-full overflow-hidden surface-card border-2 border-ink shadow-[4px_4px_0_0_var(--shadow-hard-12)] transition hover:-translate-y-0.5 hover:shadow-[6px_6px_0_0_var(--shadow-hard-16)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+                "igra-lift igra-shadow-soft igra-depth-4 group block h-full overflow-hidden surface-card border-2 border-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
                 surfaceClass(tileLevel),
               )}
             >

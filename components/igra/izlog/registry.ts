@@ -5,6 +5,7 @@ import { IzlogCrea } from "@/components/igra/izlog/izlog-crea";
 import { IzlogKrediti } from "@/components/igra/izlog/izlog-krediti";
 import { IzlogLjuska } from "@/components/igra/izlog/izlog-ljuska";
 import { IzlogMapa } from "@/components/igra/izlog/izlog-mapa";
+import { IzlogMikro } from "@/components/igra/izlog/izlog-mikro";
 import { IzlogPoruke } from "@/components/igra/izlog/izlog-poruke";
 import { IzlogPokret } from "@/components/igra/izlog/izlog-pokret";
 import { IzlogPrimitivi } from "@/components/igra/izlog/izlog-primitivi";
@@ -45,4 +46,5 @@ export const IZLOG_PARTS: readonly IzlogPart[] = [
   { id: "krediti", label: { sr: "Krediti i podešavanja", en: "Credits and settings" }, Part: IzlogKrediti },
   { id: "admin", label: { sr: "Admin", en: "Admin" }, Part: IzlogAdmin },
   { id: "stanja", label: { sr: "Stanja", en: "States" }, Part: IzlogStanja },
+  { id: "mikro", label: { sr: "Mikrointerakcije", en: "Micro-interactions" }, Part: IzlogMikro },
 ];

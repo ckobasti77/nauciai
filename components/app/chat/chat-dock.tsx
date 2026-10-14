@@ -32,7 +32,7 @@ function DockAvatar({ conversationId, locale, onRestore }: { conversationId: Id<
   const imageUrl = conversation?.conversation.imageUrl || conversation?.members.find((member) => String(member.userId) !== String(conversation.viewer.userId))?.avatarUrl;
   const initials = title.split(/\s+/).map((part: string) => part[0]).filter(Boolean).slice(0, 2).join("").toUpperCase() || "AI";
   return (
-    <button type="button" onClick={onRestore} aria-label={`${t(locale, "Otvori", "Open")} ${title}`} data-chat-motion="dock-minimize" data-chat-motion-new="true" className="grid size-12 place-items-center overflow-hidden rounded-full border-2 border-ink bg-yellow text-xs font-black shadow-[3px_3px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transform-none motion-reduce:transition-none">
+    <button type="button" onClick={onRestore} aria-label={`${t(locale, "Otvori", "Open")} ${title}`} data-chat-motion="dock-minimize" data-chat-motion-new="true" className="igra-press igra-shadow grid size-12 place-items-center overflow-hidden rounded-full border-2 border-ink bg-yellow text-xs font-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
       {imageUrl ? <img src={imageUrl} alt="" className="h-full w-full object-cover" /> : initials}
     </button>
   );

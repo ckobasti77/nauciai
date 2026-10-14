@@ -83,7 +83,7 @@ export default function LastFramePicker({
           type="button"
           disabled={busy !== null}
           onClick={() => fileRef.current?.click()}
-          className={cn(BUTTON, "border-ink bg-paper-strong text-ink hover:-translate-y-0.5")}
+          className={cn(BUTTON, "igra-press border-ink bg-paper-strong text-ink")}
         >
           <Upload aria-hidden="true" className="size-4" />
           {T.fromDevice[locale]}

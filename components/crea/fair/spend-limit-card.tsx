@@ -79,7 +79,7 @@ export function SpendLimitCard({ locale }: { locale: Locale }) {
         </div>
         <button
           type="submit"
-          className="inline-flex min-h-11 items-center rounded-full border-2 border-ink bg-yellow px-5 text-sm font-extrabold text-ink shadow-[3px_3px_0_0_var(--ink)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+          className="igra-press igra-shadow-ink inline-flex min-h-11 items-center rounded-full border-2 border-ink bg-yellow px-5 text-sm font-extrabold text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         >
           {CREA_LIMIT_COPY.save[locale]}
         </button>

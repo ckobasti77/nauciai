@@ -271,7 +271,7 @@ export function MentionButton({ locale, onClick, disabled }: { locale: Locale; o
       disabled={disabled}
       title={CREA_MENTION_COPY.buttonLabel[locale]}
       aria-label={CREA_MENTION_COPY.buttonLabel[locale]}
-      className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border-2 border-ink bg-paper-strong px-3 py-1.5 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-40 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+      className="igra-press igra-shadow igra-depth-2 inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border-2 border-ink bg-paper-strong px-3 py-1.5 text-xs font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-40"
     >
       <AtSign aria-hidden="true" className="size-3.5" />
       <span>{CREA_MENTION_COPY.button[locale]}</span>

@@ -97,7 +97,7 @@ export function CreaLibrary({
         <button
           type="button"
           onClick={onBack}
-          className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 text-sm font-black text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 studio-focus-ink motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+          className="igra-press igra-shadow igra-depth-2 inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-4 text-sm font-black text-ink studio-focus-ink"
         >
           <ArrowLeft aria-hidden="true" className="size-4" />
           {L.back[locale]}

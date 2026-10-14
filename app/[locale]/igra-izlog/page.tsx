@@ -37,7 +37,7 @@ export default async function IgraIzlogPage({
   const stanje = IGRA_FIXTURE_IDS.find((id) => id === query.stanje) ?? "aktivan";
 
   return (
-    <main id="main-content" tabIndex={-1} className="min-h-screen bg-paper px-4 py-6 text-ink sm:px-6 md:px-8">
+    <main id="main-content" tabIndex={-1} data-igra-ui className="min-h-screen bg-paper px-4 py-6 text-ink sm:px-6 md:px-8">
       <div className="mx-auto max-w-[1380px] space-y-6">
         <header className="flex items-center justify-between gap-4">
           <div className="min-w-0">

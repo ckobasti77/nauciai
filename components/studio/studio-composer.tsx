@@ -467,7 +467,7 @@ function PromotedChipItem({
         aria-expanded={isOpen}
         aria-label={chip.label}
         className={cn(
-          "inline-flex min-h-11 items-center gap-1.5 rounded-full border-2 border-ink px-2.5 py-1.5 text-xs font-black transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:px-3",
+          "igra-press inline-flex min-h-11 items-center gap-1.5 rounded-full border-2 border-ink px-2.5 py-1.5 text-xs font-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:px-3",
           isOpen
             ? "bg-ink text-paper-strong shadow-[2px_2px_0_0_var(--shadow-hard)]"
             : "bg-paper-strong text-ink shadow-[2px_2px_0_0_var(--shadow-hard)]",
@@ -521,7 +521,7 @@ function ExtraButton({
       title={title}
       disabled={disabled}
       className={cn(
-        "inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border-2 border-ink px-3 py-1.5 text-xs font-black shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-40 motion-reduce:transition-none motion-reduce:hover:translate-y-0",
+        "igra-press igra-shadow igra-depth-2 inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border-2 border-ink px-3 py-1.5 text-xs font-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-40",
         open ? "bg-ink text-paper-strong" : "bg-paper-strong text-ink",
       )}
     >
@@ -1741,7 +1741,7 @@ export function StudioComposer({
                 type="button"
                 onClick={() => setModelPickerOpen(false)}
                 aria-label={locale === "sr" ? "Zatvori" : "Close"}
-                className="inline-flex size-7 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5"
+                className="igra-press igra-shadow igra-depth-2 inline-flex size-7 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink"
               >
                 <X className="size-3.5" />
               </button>
@@ -1780,7 +1780,7 @@ export function StudioComposer({
               onClick={handleToggleCollapse}
               aria-expanded={!isCollapsed}
               aria-label={collapseLabel}
-              className="hidden min-h-8 items-center justify-center gap-1.5 rounded-full border-2 border-ink bg-paper-strong px-3 py-1 text-xs font-black text-ink opacity-0 shadow-[2px_2px_0_0_var(--shadow-hard)] transition-opacity duration-[140ms] hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none group-hover/composer:opacity-100 group-focus-within/composer:opacity-100 sm:inline-flex"
+              className="igra-press igra-shadow igra-depth-2 hidden min-h-8 items-center justify-center gap-1.5 rounded-full border-2 border-ink bg-paper-strong px-3 py-1 text-xs font-black text-ink opacity-0 transition-opacity duration-[140ms] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink group-hover/composer:opacity-100 group-focus-within/composer:opacity-100 sm:inline-flex"
             >
               {isCollapsed ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
               <span>{collapseLabel}</span>
@@ -1792,7 +1792,7 @@ export function StudioComposer({
               onClick={handleToggleCollapse}
               aria-expanded={!isCollapsed}
               aria-label={collapseLabel}
-              className="inline-flex size-11 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:hidden"
+              className="igra-press igra-shadow igra-depth-2 inline-flex size-11 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:hidden"
             >
               <ChevronDown
                 className={cn(
@@ -1855,7 +1855,7 @@ export function StudioComposer({
                   type="button"
                   onClick={att.remove}
                   aria-label={locale === "sr" ? "Ukloni fajl" : "Remove file"}
-                  className="absolute right-0.5 top-0.5 inline-flex size-5 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink shadow-[1px_1px_0_0_var(--shadow-hard)] hover:-translate-y-0.5"
+                  className="igra-press igra-shadow igra-depth-1 absolute right-0.5 top-0.5 inline-flex size-5 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink"
                 >
                   <X className="size-3" />
                 </button>
@@ -1899,7 +1899,7 @@ export function StudioComposer({
                 }}
                 title={locale === "sr" ? "Dodaj fajl" : "Add file"}
                 aria-label={locale === "sr" ? "Dodaj fajl" : "Add file"}
-                className="surface-media inline-flex size-16 shrink-0 items-center justify-center border-2 border-dashed border-ink/40 bg-paper/50 text-ink/70 transition hover:border-ink hover:bg-paper hover:text-ink hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-40"
+                className="igra-press surface-media inline-flex size-16 shrink-0 items-center justify-center border-2 border-dashed border-ink/40 bg-paper/50 text-ink/70 hover:border-ink hover:bg-paper hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-40"
               >
                 <ImagePlus className="size-6" />
               </button>
@@ -2063,7 +2063,7 @@ export function StudioComposer({
                 aria-expanded={extraPanel === "helper"}
                 title={CREA_CREATE_COPY.helperTitle[locale]}
                 disabled={isPending}
-                className={cn("inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border-2 border-ink px-3 py-1.5 text-xs font-black shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-40 motion-reduce:transition-none motion-reduce:hover:translate-y-0", extraPanel === "helper" ? "bg-ink text-paper-strong" : "bg-paper-strong text-ink")}
+                className={cn("igra-press igra-shadow igra-depth-2 inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border-2 border-ink px-3 py-1.5 text-xs font-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-40", extraPanel === "helper" ? "bg-ink text-paper-strong" : "bg-paper-strong text-ink")}
               >
                 <WandSparkles aria-hidden="true" className="size-3.5" />
                 <span>{CREA_CREATE_COPY.helper[locale]}</span>
@@ -2081,7 +2081,7 @@ export function StudioComposer({
                 onClick={() => setExtraPanel((open) => (open === "look" ? null : "look"))}
                 aria-expanded={extraPanel === "look"}
                 disabled={isPending}
-                className={cn("inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border-2 border-ink px-3 py-1.5 text-xs font-black shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-40 motion-reduce:transition-none motion-reduce:hover:translate-y-0", extraPanel === "look" ? "bg-ink text-paper-strong" : "bg-paper-strong text-ink")}
+                className={cn("igra-press igra-shadow igra-depth-2 inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border-2 border-ink px-3 py-1.5 text-xs font-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-40", extraPanel === "look" ? "bg-ink text-paper-strong" : "bg-paper-strong text-ink")}
               >
                 <Palette aria-hidden="true" className="size-3.5" />
                 <span>{CREA_CREATE_COPY.look[locale]}</span>
@@ -2181,7 +2181,7 @@ export function StudioComposer({
               onClick={handleAuto}
               disabled={isPending}
               title={CREA_PICK_COPY.autoTitle[locale]}
-              className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border-2 border-ink bg-yellow px-3 py-1.5 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-40 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+              className="igra-press igra-shadow igra-depth-2 inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border-2 border-ink bg-yellow px-3 py-1.5 text-xs font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-40"
             >
               <Sparkles aria-hidden="true" className="size-3.5" />
               <span>{CREA_PICK_COPY.auto[locale]}</span>
@@ -2193,7 +2193,7 @@ export function StudioComposer({
                   type="button"
                   onClick={() => setBudgetOpen((open) => !open)}
                   aria-expanded={budgetOpen}
-                  className={cn("inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border-2 border-ink px-3 py-1.5 text-xs font-black shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-40 motion-reduce:transition-none motion-reduce:hover:translate-y-0", "bg-paper-strong text-ink")}
+                  className={cn("igra-press igra-shadow igra-depth-2 inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border-2 border-ink px-3 py-1.5 text-xs font-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-40", "bg-paper-strong text-ink")}
                 >
                   <Coins aria-hidden="true" className="size-3.5" />
                   <span>
@@ -2265,7 +2265,7 @@ export function StudioComposer({
                 onClick={submitDraft}
                 title={fillCopy(CREA_PICK_COPY.tryCheapTitle[locale], { model: modelLabel(draftModel, locale) })}
                 aria-label={`${CREA_PICK_COPY.tryCheap[locale]}: ${formatCreditsLong(draftCredits ?? 0, locale)}`}
-                className="inline-flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-full border-2 border-ink bg-paper-strong px-3 py-2 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                className="igra-press igra-shadow igra-depth-2 inline-flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-full border-2 border-ink bg-paper-strong px-3 py-2 text-xs font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <FlaskConical aria-hidden="true" className="size-4" />
                 <span>{CREA_PICK_COPY.tryCheap[locale]}</span>
@@ -2282,7 +2282,7 @@ export function StudioComposer({
                 disabled={isPending}
                 onClick={() => onOpenSheet(composed?.text ?? prompt, activeModel.slug)}
                 title={CREA_CREATE_COPY.sheetTitle[locale]}
-                className={cn("inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border-2 border-ink px-3 py-1.5 text-xs font-black shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-40 motion-reduce:transition-none motion-reduce:hover:translate-y-0", "bg-paper-strong text-ink")}
+                className={cn("igra-press igra-shadow igra-depth-2 inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border-2 border-ink px-3 py-1.5 text-xs font-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-40", "bg-paper-strong text-ink")}
               >
                 <Grid3x3 aria-hidden="true" className="size-3.5" />
                 <span>{CREA_CREATE_COPY.sheet[locale]}</span>
@@ -2359,7 +2359,7 @@ export function StudioComposer({
                     ? "Ovaj model ne prima fajlove."
                     : "This model does not accept files."
               }
-              className="inline-flex size-11 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
+              className="igra-press igra-shadow igra-depth-2 inline-flex size-11 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-paper-strong text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-40"
             >
               <Plus className="size-4" />
             </button>
@@ -2388,7 +2388,7 @@ export function StudioComposer({
             }}
             aria-haspopup="dialog"
             aria-expanded={modelPickerOpen}
-            className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-2.5 py-1.5 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:px-3.5"
+            className="igra-press igra-shadow igra-depth-2 inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-2.5 py-1.5 text-xs font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:px-3.5"
           >
             <ModelMark model={activeModel} size={16} className="shrink-0 text-ink" />
             <span className="max-w-[92px] truncate sm:max-w-none">{modelLabel(activeModel, locale)}</span>
@@ -2437,7 +2437,7 @@ export function StudioComposer({
                     ? "Nedovoljno kredita. Klikni za dopunu."
                     : "Insufficient credits. Click to top up."
               }
-              className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-3 py-2 text-xs font-black text-ink shadow-[3px_3px_0_0_var(--ink)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:px-4"
+              className="igra-press igra-shadow-ink inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-3 py-2 text-xs font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:px-4"
             >
               <Coins className="size-4 text-ink" />
               <span className="hidden sm:inline">{locale === "sr" ? "Dopuni" : "Top up"}</span>
@@ -2490,7 +2490,7 @@ export function StudioComposer({
               }
               aria-busy={isPending}
               className={cn(
-                "relative inline-flex min-h-11 shrink-0 items-center justify-center gap-2 overflow-hidden rounded-full border-2 border-ink px-3 py-2 text-xs font-black transition duration-200 hover:-translate-y-0.5 active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:px-4",
+                "igra-press relative inline-flex min-h-11 shrink-0 items-center justify-center gap-2 overflow-hidden rounded-full border-2 border-ink px-3 py-2 text-xs font-black disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:px-4",
                 // Dok se šalje, dugme je „puno" - ne bledi kao zaključano (olovka mu povlači liniju).
                 isPending && "disabled:opacity-100",
                 isPriceFlashing

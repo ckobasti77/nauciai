@@ -193,7 +193,7 @@ function FilterDropdown<T extends string>({
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         onClick={() => setIsOpen((prev) => !prev)}
-        className="surface-inset flex h-10 w-full items-center justify-between gap-2 border-2 border-ink bg-paper px-3 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+        className="igra-press igra-shadow igra-depth-2 surface-inset flex h-10 w-full items-center justify-between gap-2 border-2 border-ink bg-paper px-3 text-xs font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
       >
         <span className="truncate">{selectedOption?.label ?? label}</span>
         <ChevronDown className={cn("size-3.5 shrink-0 transition-transform duration-150", isOpen && "rotate-180")} />

@@ -35,7 +35,7 @@ export async function StudioShell({ locale, children }: { locale: Locale; childr
     hasConvex ? getAppGateState() : Promise.resolve({ profileComplete: true, suspension: null }),
   ]);
   const shell = (
-    <div className="min-h-screen bg-paper text-ink">
+    <div data-igra-ui className="min-h-screen bg-paper text-ink">
       <div className="shell-container mx-auto flex min-h-screen min-w-0 w-full flex-col min-[1600px]:w-[calc(100%-48px)] min-[1600px]:max-w-[1760px]">
         <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b-2 border-ink/15 px-4 py-3 sm:px-6 md:px-8">
           {/* Crea wordmark (K02): boje idu kroz tokene, pa tamna tema radi sama. */}

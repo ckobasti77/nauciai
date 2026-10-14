@@ -316,8 +316,9 @@ describe("K17: biblioteka, galerija, izazov, sveska (samo izgled)", () => {
     const tile = read("components/app/studio-media-tile.tsx");
     expect(tile).toContain('<WorkSticker kind="novo"');
     expect(tile).toContain('<WorkSticker kind="omiljeno"');
-    // Mirni hover: podizanje kartice staje uz smanjen pokret.
-    expect(tile).toContain("motion-reduce:hover:translate-y-0");
+    // Mirni hover: podizanje kartice staje uz smanjen pokret. Od K24 to je zajednički recept
+    // `igra-lift` (pomeranje samo u `no-preference` bloku, čuva `lib/igra-micro.test.ts`).
+    expect(tile).toContain('"igra-lift igra-shadow-soft"');
     expect(IGRA_CREA_COPY.stickerNew).toEqual({ sr: "Novo", en: "New" });
   });
 

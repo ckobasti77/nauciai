@@ -39,7 +39,7 @@ const TAB_BUTTON =
   "inline-flex min-h-11 items-center rounded-full border-2 px-4 text-sm font-black transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none";
 
 const CARD =
-  "surface-inset flex h-full w-full flex-col gap-1.5 border-2 p-1.5 text-left transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none motion-reduce:hover:translate-y-0";
+  "igra-press surface-inset flex h-full w-full flex-col gap-1.5 border-2 p-1.5 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
 
 /**
  * Panel „Režija" ispod opisa u Video · Napravi (Crea K18, V6-V9). Učitava se lenjo,

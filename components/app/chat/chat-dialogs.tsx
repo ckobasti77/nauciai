@@ -79,10 +79,10 @@ export function NewConversationDialog({ locale, onClose }: { locale: Locale; onC
           <button type="button" onClick={onClose} className="grid size-10 place-items-center rounded-full border-2 border-ink" aria-label={label(locale, "Zatvori", "Close")}><X className="size-4" /></button>
         </div>
         {step === 1 ? <div className="grid min-h-0 flex-1 gap-3 overflow-y-auto p-4 sm:grid-cols-2">
-          <button type="button" autoFocus onClick={() => { setMode("direct"); setStep(2); }} className="rounded-[16px] border-2 border-ink bg-yellow/20 p-6 text-left transition hover:-translate-y-0.5 hover:bg-yellow/35 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
+          <button type="button" autoFocus onClick={() => { setMode("direct"); setStep(2); }} className="igra-press rounded-[16px] border-2 border-ink bg-yellow/20 p-6 text-left hover:bg-yellow/35 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
             <MessageCircle className="size-6" /><span className="mt-4 block type-h4">{label(locale, "Jedan na jedan", "One to one")}</span><span className="mt-1 block type-caption font-bold text-muted">{label(locale, "Izaberi osobu i odmah otvori razgovor.", "Choose a person and open the conversation immediately.")}</span>
           </button>
-          <button type="button" onClick={() => { setMode("group"); setStep(2); }} className="rounded-[16px] border-2 border-ink bg-[#d7e9f5] dark:bg-ink/15 p-6 text-left transition hover:-translate-y-0.5 hover:bg-[#c9dfed] dark:hover:bg-ink/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
+          <button type="button" onClick={() => { setMode("group"); setStep(2); }} className="igra-press rounded-[16px] border-2 border-ink bg-[#d7e9f5] dark:bg-ink/15 p-6 text-left hover:bg-[#c9dfed] dark:hover:bg-ink/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
             <Users className="size-6" /><span className="mt-4 block type-h4">{label(locale, "Grupa", "Group")}</span><span className="mt-1 block type-caption font-bold text-muted">{label(locale, "Dodaj naziv i članove, pa kreiraj grupu.", "Add a name and members, then create the group.")}</span>
           </button>
         </div> : <>

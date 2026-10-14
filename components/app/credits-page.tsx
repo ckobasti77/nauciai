@@ -66,8 +66,8 @@ function CheckoutAction({
 
   const buttonClass = cn(
     "inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border-2 px-5 py-2.5 text-sm font-extrabold transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-60",
-    tone === "ink" && "border-ink bg-ink text-paper-strong shadow-[4px_4px_0_0_var(--yellow)] hover:-translate-y-0.5",
-    tone === "yellow" && "border-ink bg-yellow text-ink shadow-[4px_4px_0_0_var(--ink)] hover:-translate-y-0.5",
+    tone === "ink" && "igra-press igra-shadow-yellow igra-depth-4 border-ink bg-ink text-paper-strong",
+    tone === "yellow" && "igra-press igra-shadow-ink igra-depth-4 border-ink bg-yellow text-ink",
   );
 
   async function startCheckout() {
@@ -208,7 +208,7 @@ export function CreditsPage({
                 ? `${withLocale(locale, "/sign-in")}?next=${encodeURIComponent(withLocale(locale, "/studio/krediti"))}`
                 : withLocale(locale, "/sign-in")
             }
-            className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-ink px-5 py-2.5 text-sm font-extrabold text-paper-strong shadow-[4px_4px_0_0_var(--yellow)] transition hover:-translate-y-0.5"
+            className="igra-press igra-shadow-yellow igra-depth-4 mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-ink px-5 py-2.5 text-sm font-extrabold text-paper-strong"
           >
             {locale === "sr" ? "Prijavi se" : "Sign in"}
           </Link>
@@ -291,7 +291,7 @@ export function CreditsView({ locale, isStudio, renderedAt, balance, lots, packs
           {balance !== undefined && currentBalance === 0 ? (
             <Link
               href={`#${CREDITS_PACKS_ANCHOR}`}
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-5 py-2.5 text-sm font-extrabold text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5"
+              className="igra-press igra-shadow inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-5 py-2.5 text-sm font-extrabold text-ink"
             >
               <Coins className="size-4" />
               {CREDITS_NO_BALANCE.cta[locale]}
@@ -487,7 +487,7 @@ export function CreditsView({ locale, isStudio, renderedAt, balance, lots, packs
                 type="button"
                 onClick={() => transactions.loadMore(10)}
                 disabled={transactions.status === "LoadingMore"}
-                className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-5 py-2.5 text-sm font-extrabold text-ink shadow-[3px_3px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+                className="igra-press igra-shadow mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-paper-strong px-5 py-2.5 text-sm font-extrabold text-ink disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {transactions.status === "LoadingMore" ? <Spinner /> : null}
                 {locale === "sr" ? "Prikaži još" : "Show more"}

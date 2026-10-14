@@ -220,7 +220,7 @@ export default function SpeechTool({ tool, locale, canSave, projectId, paid }: C
                     type="button"
                     onClick={() => insertSticker(sticker.label[locale])}
                     aria-label={fillCopy(T.insertSticker[locale], { nalepnica: sticker.label[locale] })}
-                    className="min-h-11 rounded-full border-2 border-ink bg-yellow px-3 font-display text-lg text-ink shadow-[2px_2px_0_0_var(--ink)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                    className="igra-press igra-shadow-ink igra-depth-2 min-h-11 rounded-full border-2 border-ink bg-yellow px-3 font-display text-lg text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                   >
                     {sticker.label[locale]}
                   </button>

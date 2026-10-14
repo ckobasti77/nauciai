@@ -93,7 +93,7 @@ export function MicButton({ locale, onText, disabled }: { locale: Locale; onText
         aria-label={listening ? T.micStop[locale] : T.micStart[locale]}
         title={listening ? T.micStop[locale] : T.micStart[locale]}
         className={cn(
-          "inline-flex size-11 shrink-0 items-center justify-center rounded-full border-2 border-ink shadow-[2px_2px_0_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-40 motion-reduce:transition-none",
+          "igra-press igra-shadow igra-depth-2 inline-flex size-11 shrink-0 items-center justify-center rounded-full border-2 border-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-40",
           listening ? "bg-ink text-paper-strong motion-safe:animate-pulse" : "bg-paper-strong text-ink",
         )}
       >

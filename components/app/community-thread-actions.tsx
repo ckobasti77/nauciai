@@ -91,7 +91,7 @@ export function CommunityThreadActions({
           <span className="sr-only"> {locale === "sr" ? "neto glasova" : "net votes"}</span>
         </VoteScore>
         <ActionButton icon={<ArrowDown className="size-4" />} label="Downvote" active={userVote === "downvote"} disabled={busy !== null} onClick={() => run("downvote", async () => { await votePost({ targetType: "post", targetId: postId, vote: "downvote" }); })} />
-        <a href="#comments" className="inline-flex min-h-11 sm:min-h-10 items-center justify-center gap-2 rounded-full border border-line bg-paper-strong px-3 text-xs font-black text-ink transition hover:-translate-y-0.5 hover:border-ink hover:bg-paper focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"><MessageCircle className="size-4" />{locale === "sr" ? "Komentari" : "Comments"} ({commentsCount})</a>
+        <a href="#comments" className="igra-press inline-flex min-h-11 sm:min-h-10 items-center justify-center gap-2 rounded-full border border-line bg-paper-strong px-3 text-xs font-black text-ink hover:border-ink hover:bg-paper focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"><MessageCircle className="size-4" />{locale === "sr" ? "Komentari" : "Comments"} ({commentsCount})</a>
         {canPin ? (
           <>
             <ActionButton icon={<Star className={cn("size-4", isFeaturedGlobal && "fill-ink")} />} label={locale === "sr" ? "Globalno" : "Global"} active={Boolean(isFeaturedGlobal)} disabled={busy !== null} onClick={() => run("global", async () => { await setPinnedScope({ postId: postId as Id<"communityPosts">, scope: { kind: "global" }, enabled: !isFeaturedGlobal }); })} />
@@ -108,5 +108,5 @@ export function CommunityThreadActions({
 }
 
 function ActionButton({ icon, label, active, destructive, disabled, onClick }: { icon: ReactNode; label: string; active?: boolean; destructive?: boolean; disabled?: boolean; onClick: () => void | Promise<void> }) {
-  return <button type="button" disabled={disabled} onClick={onClick} className={cn("inline-flex min-h-11 sm:min-h-10 items-center justify-center gap-2 rounded-full border border-line bg-paper-strong px-3 text-xs font-black text-ink transition hover:-translate-y-0.5 hover:border-ink hover:bg-paper focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50", active && "border-ink bg-yellow/25", destructive && "text-red-600 hover:border-red-200 hover:bg-red-50")}>{icon}{label}</button>;
+  return <button type="button" disabled={disabled} onClick={onClick} className={cn("igra-press inline-flex min-h-11 sm:min-h-10 items-center justify-center gap-2 rounded-full border border-line bg-paper-strong px-3 text-xs font-black text-ink hover:border-ink hover:bg-paper focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-50", active && "border-ink bg-yellow/25", destructive && "text-red-600 hover:border-red-200 hover:bg-red-50")}>{icon}{label}</button>;
 }

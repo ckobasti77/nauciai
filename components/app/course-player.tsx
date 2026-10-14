@@ -350,7 +350,7 @@ export function CoursePlayer({
                   />
                   <Link
                     href={lessonEditPath(locale, course.slug, lesson.slug)}
-                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-ink px-4 text-sm font-extrabold text-paper-strong shadow-[3px_3px_0_0_var(--shadow-hard-16)] transition hover:-translate-y-0.5 hover:bg-yellow hover:text-ink"
+                    className="igra-press igra-shadow-soft inline-flex min-h-11 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-ink px-4 text-sm font-extrabold text-paper-strong hover:bg-yellow hover:text-ink"
                   >
                     <LayoutDashboard className="size-4" />
                     {locale === "sr" ? "Admin editor" : "Admin editor"}

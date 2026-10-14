@@ -628,7 +628,7 @@ function FeaturedThreadsSection({ locale, course }: { locale: Locale; course: Da
                   <Link
                     key={post._id}
                     href={withLocale(locale, `/app/community?course=${course.slug}`)}
-                    className="block rounded-[8px] border-2 border-line bg-paper p-4 transition hover:-translate-y-0.5 hover:border-ink hover:bg-paper-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                    className="igra-lift block rounded-[8px] border-2 border-line bg-paper p-4 hover:border-ink hover:bg-paper-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                   >
                     <div className="flex flex-wrap gap-2">
                       {courseFeatured ? (
@@ -664,7 +664,7 @@ function FeaturedThreadsSection({ locale, course }: { locale: Locale; course: Da
         </div>
         <Link
           href={withLocale(locale, `/app/community?course=${course.slug}`)}
-          className="group flex min-h-32 items-center justify-center rounded-[8px] border-2 border-dashed border-ink bg-paper p-6 text-center text-ink transition hover:-translate-y-0.5 hover:bg-yellow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          className="igra-lift group flex min-h-32 items-center justify-center rounded-[8px] border-2 border-dashed border-ink bg-paper p-6 text-center text-ink hover:bg-yellow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         >
           <span>
             <span className="mx-auto inline-flex size-12 items-center justify-center rounded-[8px] border-2 border-ink bg-paper-strong shadow-[3px_3px_0_0_var(--shadow-hard)] transition group-hover:rotate-2">

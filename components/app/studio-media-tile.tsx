@@ -175,8 +175,7 @@ export function StudioMediaTile({
       }}
       className={cn(
         "surface-card group relative mb-4 break-inside-avoid text-ink cursor-pointer",
-        "shadow-[3px_3px_0_0_var(--shadow-hard-12)] studio-anim-mikro",
-        "hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--shadow-hard-16)] motion-reduce:hover:translate-y-0",
+        "igra-lift igra-shadow-soft",
         "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
       )}
     >
@@ -215,7 +214,7 @@ export function StudioMediaTile({
                 <button
                   type="button"
                   onClick={() => onReuse(job)}
-                  className="mt-1 inline-flex min-h-8 items-center gap-1.5 rounded-full border-2 border-ink bg-yellow px-3 py-1 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--ink)] transition hover:-translate-y-0.5 pointer-coarse:min-h-11 studio-focus-ink motion-reduce:transition-none"
+                  className="igra-press igra-shadow-ink igra-depth-2 mt-1 inline-flex min-h-8 items-center gap-1.5 rounded-full border-2 border-ink bg-yellow px-3 py-1 text-xs font-black text-ink pointer-coarse:min-h-11 studio-focus-ink"
                 >
                   <RefreshCw className="size-3" />
                   {CREA_TOOL_COPY.openTool[locale]}
@@ -229,7 +228,7 @@ export function StudioMediaTile({
                       ? `Generiši ponovo za ${formatCreditsLong(job.creditCost, locale)}`
                       : `Generate again for ${formatCreditsLong(job.creditCost, locale)}`
                   }
-                  className="mt-1 inline-flex min-h-8 items-center gap-1.5 rounded-full border-2 border-ink bg-yellow px-3 py-1 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--ink)] transition hover:-translate-y-0.5 pointer-coarse:min-h-11 studio-focus-ink motion-reduce:transition-none"
+                  className="igra-press igra-shadow-ink igra-depth-2 mt-1 inline-flex min-h-8 items-center gap-1.5 rounded-full border-2 border-ink bg-yellow px-3 py-1 text-xs font-black text-ink pointer-coarse:min-h-11 studio-focus-ink"
                 >
                   <RefreshCw className="size-3" />
                   <span>{locale === "sr" ? "Generiši ponovo · " : "Generate again · "}</span>

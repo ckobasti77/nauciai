@@ -1372,7 +1372,7 @@ export function AddCourseAction({
                               <button
                                 type="button"
                                 onClick={() => requestModuleEditor(module._id)}
-                                className="inline-flex min-h-8 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-3 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--shadow-hard-15)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                                className="igra-press igra-shadow-soft igra-depth-2 inline-flex min-h-8 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-3 text-xs font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                               >
                                 <Pencil className="size-3.5" />
                                 <span className="hidden sm:inline">{t(locale, "Izmeni", "Edit")}</span>

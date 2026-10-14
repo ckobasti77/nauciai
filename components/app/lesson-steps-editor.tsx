@@ -375,7 +375,7 @@ function PanelPalette({
           onDragStart={(event) => onDragStart(event, type)}
           onDragEnd={onDragEnd}
           onClick={() => onClick?.(type)}
-          className="flex min-h-14 cursor-grab items-center gap-3 rounded-[8px] border-2 border-ink bg-paper-strong px-3 text-left text-sm font-black text-ink shadow-[3px_3px_0_0_var(--shadow-hard-12)] transition hover:-translate-y-0.5 hover:bg-yellow active:cursor-grabbing"
+          className="igra-press igra-shadow-soft flex min-h-14 cursor-grab items-center gap-3 rounded-[8px] border-2 border-ink bg-paper-strong px-3 text-left text-sm font-black text-ink hover:bg-yellow active:cursor-grabbing"
         >
           <span className={cn("inline-flex size-9 shrink-0 items-center justify-center rounded-[8px] border-2 border-ink", PANEL_META[type].tone)}>
             <PanelIcon type={type} />
@@ -411,7 +411,7 @@ function EditorSidebarRail({
       <button
         type="button"
         onClick={onExpand}
-        className="inline-flex size-9 items-center justify-center rounded-[8px] border-2 border-ink bg-yellow text-ink shadow-[2px_2px_0_0_var(--shadow-hard-14)] transition hover:-translate-y-0.5"
+        className="igra-press igra-shadow-soft igra-depth-2 inline-flex size-9 items-center justify-center rounded-[8px] border-2 border-ink bg-yellow text-ink"
         aria-label={t(locale, `Otvori ${label}`, `Open ${label}`)}
         title={t(locale, `Otvori ${label}`, `Open ${label}`)}
       >
@@ -1061,7 +1061,7 @@ export function LessonStepsEditor({
           </ToolbarButton>
           <Link
             href={lessonPath(locale, course.slug, lesson.slug)}
-            className="inline-flex min-h-9 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-yellow px-3 text-xs font-black text-ink shadow-[2px_2px_0_0_var(--shadow-hard-16)] transition hover:-translate-y-0.5"
+            className="igra-press igra-shadow-soft igra-depth-2 inline-flex min-h-9 items-center justify-center gap-2 rounded-[8px] border-2 border-ink bg-yellow px-3 text-xs font-black text-ink"
           >
             <Eye className="size-4" />
             {t(locale, "Preview", "Preview")}
@@ -1122,7 +1122,7 @@ export function LessonStepsEditor({
                   type="button"
                   onClick={handleAddStep}
                   disabled={!hasIds || saving}
-                  className="inline-flex size-10 items-center justify-center rounded-[8px] border-2 border-ink bg-yellow text-ink shadow-[2px_2px_0_0_var(--shadow-hard-16)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="igra-press igra-shadow-soft igra-depth-2 inline-flex size-10 items-center justify-center rounded-[8px] border-2 border-ink bg-yellow text-ink disabled:cursor-not-allowed disabled:opacity-50"
                   aria-label={t(locale, "Dodaj korak", "Add step")}
                 >
                   {saving ? <Spinner /> : <Plus className="size-5" />}

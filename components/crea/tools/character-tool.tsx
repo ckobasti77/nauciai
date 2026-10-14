@@ -207,7 +207,7 @@ function OptionGrid({
               "surface-inset flex min-h-14 items-center gap-2.5 border-2 px-3 py-2 text-left text-sm font-black transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none",
               selected
                 ? "border-ink bg-yellow text-ink shadow-[3px_3px_0_0_var(--ink)]"
-                : "border-ink/20 bg-paper text-ink hover:-translate-y-0.5 hover:border-ink motion-reduce:hover:translate-y-0",
+                : "igra-press border-ink/20 bg-paper text-ink hover:border-ink",
             )}
           >
             {option.swatch ? (

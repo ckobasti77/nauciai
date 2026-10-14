@@ -175,7 +175,7 @@ export default function AssistantTool({ tool, locale, paid, projectId }: CreaToo
                   type="button"
                   disabled={busy}
                   onClick={() => void handleAnswer("da")}
-                  className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-ink px-4 text-sm font-black text-paper-strong shadow-[3px_3px_0_0_var(--yellow)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                  className="igra-press igra-shadow-yellow inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-ink px-4 text-sm font-black text-paper-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
                 >
                   {busy ? <Spinner size="sm" /> : <Check aria-hidden="true" className="size-4 text-yellow" />}
                   {T.yes[locale]} · {credits(total, locale)}
@@ -233,7 +233,7 @@ export default function AssistantTool({ tool, locale, paid, projectId }: CreaToo
                 <button
                   type="submit"
                   disabled={busy || text.trim().length === 0 || !paid}
-                  className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-sm font-black text-ink shadow-[3px_3px_0_0_var(--ink)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                  className="igra-press igra-shadow-ink inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-4 text-sm font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50"
                 >
                   {busy ? <Spinner size="sm" /> : <Bot aria-hidden="true" className="size-4" />}
                   {busy ? T.planning[locale] : T.plan[locale]}

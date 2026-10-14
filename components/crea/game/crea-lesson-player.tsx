@@ -125,7 +125,7 @@ export function CreaLessonPlayer({
             <div className="flex flex-wrap gap-2 pt-1">
               <Link
                 href={toolHref}
-                className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-ink px-4 text-sm font-black text-paper-strong shadow-[3px_3px_0_0_var(--yellow)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none"
+                className="igra-press igra-shadow-yellow inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-ink px-4 text-sm font-black text-paper-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
               >
                 {CREA_LESSON_COPY.openTools[locale]}
                 <ArrowRight aria-hidden="true" className="size-4" />
@@ -133,7 +133,7 @@ export function CreaLessonPlayer({
               <button
                 type="button"
                 onClick={onClose}
-                className="inline-flex min-h-11 items-center rounded-full border-2 border-ink bg-paper-strong px-4 text-sm font-black text-ink transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none"
+                className="igra-press inline-flex min-h-11 items-center rounded-full border-2 border-ink bg-paper-strong px-4 text-sm font-black text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
               >
                 {CREA_LESSON_COPY.backToMap[locale]}
               </button>
@@ -155,7 +155,7 @@ export function CreaLessonPlayer({
             <button
               type="button"
               onClick={() => setStep(step + 1)}
-              className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-ink px-5 text-sm font-black text-paper-strong shadow-[3px_3px_0_0_var(--yellow)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none"
+              className="igra-press igra-shadow-yellow inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-ink px-5 text-sm font-black text-paper-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
               {step === lesson.cards.length - 1 ? CREA_LESSON_COPY.toQuiz[locale] : CREA_LESSON_COPY.next[locale]}
               <ArrowRight aria-hidden="true" className="size-4" />
@@ -195,7 +195,7 @@ export function CreaLessonPlayer({
                       }}
                       className={cn(
                         "min-h-11 rounded-full border-2 border-ink px-4 py-2 text-left text-sm font-bold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none",
-                        picked === oi ? "bg-ink text-paper-strong" : "bg-paper-strong text-ink hover:-translate-y-0.5",
+                        picked === oi ? "bg-ink text-paper-strong" : "igra-press bg-paper-strong text-ink",
                       )}
                     >
                       {option[locale]}
@@ -219,7 +219,7 @@ export function CreaLessonPlayer({
               type="button"
               disabled={!allAnswered || sending}
               onClick={() => void check()}
-              className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black text-ink shadow-[3px_3px_0_0_var(--ink)] transition hover:-translate-y-0.5 disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none"
+              className="igra-press igra-shadow-ink inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black text-ink disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
               {CREA_LESSON_COPY.check[locale]}
             </button>

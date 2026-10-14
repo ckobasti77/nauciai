@@ -333,7 +333,7 @@ function VotingGroup({
                           }
                         }}
                         className={cn(
-                          "inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-full border-2 border-ink bg-yellow px-3 text-sm font-black text-ink transition hover:-translate-y-0.5 disabled:opacity-50 motion-reduce:transition-none",
+                          "igra-press inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-full border-2 border-ink bg-yellow px-3 text-sm font-black text-ink disabled:opacity-50",
                           FOCUS,
                         )}
                       >
