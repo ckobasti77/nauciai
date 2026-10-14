@@ -105,7 +105,7 @@ function notificationCopy(kind: string | undefined, locale: Locale) {
   return locale === "sr" ? "je upvoteovao/la" : "upvoted";
 }
 
-export function NotificationCard({ locale, notification, arrived = false, onMarkRead: onMarkReadProp }: { locale: Locale; notification: CommunityMentionEvent; arrived?: boolean; onMarkRead?: (id: string) => Promise<unknown> }) {
+function NotificationCard({ locale, notification, arrived = false, onMarkRead: onMarkReadProp }: { locale: Locale; notification: CommunityMentionEvent; arrived?: boolean; onMarkRead?: (id: string) => Promise<unknown> }) {
   const unread = !notification.readAt;
   const authorName = notification.senderName ?? notification.authorName ?? (locale === "sr" ? "Član zajednice" : "Community member");
   const excerpt = notification.quote ?? notification.excerpt ?? notification.body;

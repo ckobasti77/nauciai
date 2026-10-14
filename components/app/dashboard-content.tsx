@@ -750,7 +750,7 @@ export function CourseCover({
 
 // Single progress-bar implementation for the card and the hero. Both were bare <div>s that
 // exposed nothing to assistive tech, and only one of the two honoured reduced motion.
-export function CourseProgress({
+function CourseProgress({
   percent,
   label,
   tone = "paper",

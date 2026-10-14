@@ -3,7 +3,7 @@
 /* eslint-disable @next/next/no-img-element -- IGRA slike su gotovi AVIF fajlovi iz public/brand/igra sa dimenzijama iz manifesta; optimizator next/image im ne treba. */
 
 import dynamic from "next/dynamic";
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 
 import { cn } from "@/components/ui/primitives";
 import {
@@ -32,8 +32,6 @@ export type IgraArtProps = {
   /** Silueta (zaključan bedž). */
   locked?: boolean;
   fit?: "contain" | "cover";
-  /** Zamena za podrazumevani fallback. */
-  fallback?: ReactNode;
   className?: string;
 } & (
   | { decorative: true; locale?: Locale; alt?: never }
@@ -46,7 +44,7 @@ export type IgraArtProps = {
  * layout. Slika koja nije spremna (`ready: false`), planirana slika i slika čiji fajl
  * fali (404) crtaju isti miran fallback - nikad slomljenu sliku.
  */
-export function IgraArt({ id, size, priority = false, locked = false, fit, fallback, className, decorative, locale, alt }: IgraArtProps) {
+export function IgraArt({ id, size, priority = false, locked = false, fit, className, decorative, locale, alt }: IgraArtProps) {
   const info = igraArt(id);
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const src = info.src;
@@ -91,7 +89,7 @@ export function IgraArt({ id, size, priority = false, locked = false, fit, fallb
           className={cn("absolute inset-0 size-full", (fit ?? (sticker ? "contain" : "cover")) === "cover" ? "object-cover" : "object-contain", sticker && "igra-sticker")}
         />
       ) : (
-        (fallback ?? <IgraArtFallback id={id} locked={locked} />)
+        <IgraArtFallback id={id} locked={locked} />
       )}
     </span>
   );

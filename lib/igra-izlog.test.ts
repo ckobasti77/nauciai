@@ -18,7 +18,6 @@ const PRIMITIVES = [
   "streak-flame.tsx",
   "rank-chip.tsx",
   "odometer.tsx",
-  "daily-mission.tsx",
   "trophy-shelf.tsx",
   "progress-card.tsx",
   "igra-lik.tsx",
@@ -37,6 +36,11 @@ describe("izlog", () => {
   it("nije za pretragu i nije u sitemap-u", () => {
     expect(page).toContain("robots: { index: false, follow: false }");
     expect(read("app/sitemap.ts")).not.toContain("igra-izlog");
+  });
+
+  it("produkcijski 404 ne javlja ime izloga (metadata stiže i uz 404, K29)", () => {
+    expect(page).toContain('title: process.env.NODE_ENV === "production" ? undefined : "IGRA izlog"');
+    expect(page.match(/"IGRA izlog"/g)).toHaveLength(1);
   });
 
   it("delovi imaju jedinstvene ID-jeve i svaki svoj fajl", () => {

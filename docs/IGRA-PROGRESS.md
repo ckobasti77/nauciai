@@ -1821,3 +1821,103 @@ Svaka `/app` ruta koja ne crta tablu ni kartice kurseva je lakša za 17,0 KB. Ta
 4. Odluči o tokenu `--muted` na `--paper-strong` (ODLUKA 4).
 5. Lighthouse nad `/app` na prijavljenom nalogu.
 6. `npx convex insights --details --prod` za stvarnu cenu `igra:getMyProgress`.
+
+## K29 — Revizija: regresije, bezbednost, AGENTS.md   (2026-10-14 15:50)
+**Fajlovi:**
+- privatnost: `convex/igraCore.ts` (`memberProgressFor`), `lib/igra-badges.ts` (novo `isBadgePublic`), `lib/igra-fixtures.ts` (isto pravilo u test podacima, `helpfulAnswers` u `PROFILE_FIXTURES`), `lib/igra-profile.ts` (komentari), `components/igra/izlog/izlog-profil.tsx`, `app/[locale]/igra-izlog/page.tsx` (naslov samo u razvoju)
+- javni sajt: `app/globals.css` (K27 pravilo „žuta nosi mastilo" i K24 recept dugmeta važe samo uz IGRA ljusku; `.igra-depth-1`; komentar medalja)
+- AGENTS.md: `components/igra/podium.tsx`, `components/app/chat/chat-inbox.tsx`
+- mrtav kod: obrisan `components/igra/daily-mission.tsx`; izmenjeni `components/igra/{igra-art,podium}.tsx`, `components/igra/dashboard/dashboard-hero.tsx`, `components/igra/three/igra-three-stage.tsx`, `components/igra/izlog/izlog-primitivi.tsx`, `components/app/community-v2/{community-leaderboard,community-mentions}.tsx`, `components/app/dashboard-content.tsx`, `lib/{igra-motion,igra-art,igra-copy,igra-admin-copy,community-gamification}.ts`
+- testovi: `convex/igra.test.ts`, `lib/{igra-badges,igra-profile,igra-fixtures,igra-izlog,igra-micro,igra-css,igra-dark,igra-motion,igra-art,community-gamification}.test.ts`
+- snimak: `docs/igra/snimci/K29-profil-tudji-javna-knjizica-1440-svetla.png`
+
+**Šta je urađeno:** Pregledan je ceo `git diff main...HEAD` (779 fajlova, 30 commit-ova; `b5f4a80` pre runa nosi samo osveženi `convex/_generated/ai`). Četiri radnika (sonnet) su paralelno prošla javni sajt i auth, Crea / kredite / čet, AGENTS.md i kvalitet. Svaki njihov nalaz sam proverio u kodu, a ključne i u pregledaču (izlog na `next dev`, produkcija na `next start`). Bezbednost i privatnost `getMemberProgress` pregledao sam lično, poređenjem sa onim što drugima danas daju `publicProfiles.getPublicProfile`, `creaGame.reportCardFor` i `study.*`. Lista ima 33 stavke: 0 kritičnih, 4 srednje, 15 niskih i 14 informativnih. Popravljeno je 18, 10 je svesno ostavljeno (razlog je uz svaku), a 5 su provere bez nalaza; BLOKADE nema. Najvažnije: tuđi profil je pokazivao više nego što je javno (nizovi, broj radova, „Mentor"), dva pravila iz deljenog CSS-a (K24, K27) su menjala javni sajt, a run je ostavio tridesetak mrtvih izvoza, propova i tekstova.
+
+**Nalazi** (ozbiljnost · fajl · šta je urađeno):
+
+| # | Ozb. | Fajl | Nalaz | Ishod |
+|---|---|---|---|---|
+| 1 | srednja | `convex/igraCore.ts` | Nizovi (`niz-3/7/30`) su se drugima prikazivali i bez javne knjižice, a niz broji i rad u Crei. Niz je drugima javan samo kroz knjižicu (niz + ocena vladanja), kako kaže i K13 ODLUKA 5 | popravljeno: `isBadgePublic`, nizovi samo uz javnu knjižicu |
+| 2 | srednja | `convex/igraCore.ts` | `works` (radovi u Crei za godinu) se drugima slao uz javnu knjižicu, a njen prekidač obećava „ime, korisničko ime i ocene - ništa drugo". `todayKey` šalje klijent, pa bi drugi pomeranjem prozora dan po dan rekonstruisao dnevne radove | popravljeno: `works` samo vlasniku |
+| 3 | srednja | `app/globals.css` (K27) | `[data-theme="dark"] :is(.bg-yellow…) { color: var(--ink) }` nije bilo ograničeno, pa je u tamnoj temi menjalo javni sajt (inicijali u javnom zaglavlju, ime plana na `/pretplata`) | popravljeno: `[data-theme="dark"]:has([data-igra-ui])`. Izmereno na `next start`: „Premium" na ceni ima isti nasleđeni tekst kao pre runa; u izlogu „Zaprati" je i dalje mastilo |
+| 4 | srednja | `components/ui/button.tsx` (K24) → `/oauth/authorize` | Deljeni `Button` je i na javnom OAuth pristanku (auth tok) dobio tvrdu senku i podizanje | popravljeno bez diranja javnog fajla: `:root:not(:has([data-igra-ui])) .igra-press` gasi senku i hover podizanje, a pritisak od 1 px ostaje kao pre (`active:translate-y-px`). U produkcionom CSS-u: bez ljuske senka je `transparent`, sa ljuskom `rgba(14,49,88,.18) 2px 2px` |
+| 5 | info | `app/[locale]/igra-izlog/page.tsx` | Izlog u produkciji: 404 na `/igra-izlog`, `/en/igra-izlog` i sa parametrima, uz noindex, van sitemap-a i sa istim JS-om kao obična 404 | provereno na `next start`; jedino je RSC metapodatak nosio naslov „IGRA izlog" (nalaz 6) |
+| 6 | niska | isto | Statični `metadata` stiže i uz `notFound()`, pa je produkcijska 404 javljala ime izloga | popravljeno: naslov samo u razvoju (+ test); posle build-a niza nema u odgovoru |
+| 7 | niska | `convex/igraCore.ts` | `deset-radova` / `sto-radova` (broj radova) su se drugima prikazivali uz javnu knjižicu | popravljeno: nikad drugima |
+| 8 | niska | `convex/igraCore.ts` | „Mentor" (5 korisnih odgovora ILI partner za učenje) je otkrivao partnerstvo, koje vide samo članovi para, kad je javni broj korisnih odgovora manji od 5 | popravljeno: drugima samo uz javan broj ≥ 5 |
+| 9 | niska | `components/studio/studio-composer.tsx` | `igra-depth-1` nije postojao, pa je dugme „Ukloni fajl" dobijalo 3 px senke umesto 1 px | popravljeno: `.igra-depth-1` + test da svaki korišćen `igra-depth-*` / `igra-shadow-*` postoji |
+| 10 | niska | `components/app/chat/chat-inbox.tsx` | Greška pretrage u uokvirenoj koloni crtala je pun `EmptyState`, drugi `border-2` (pre runa statusni crveni, koji je izuzet) | popravljeno: `IgraState compact` (bez okvira) |
+| 11 | niska | `components/igra/podium.tsx` | `rounded-t-xl` (imenovana Tailwind skala) | popravljeno: `rounded-t-[12px]` (inset tier, isti piksel) + test u `lib/igra-css.test.ts` za ceo `components/igra` |
+| 12 | niska | `components/igra/daily-mission.tsx` | Primitiv „Misija dana" nije koristila nijedna strana (K07 ODLUKA 2), a heroj je ponavljao njegov markup | obrisan, zajedno sa delom izloga, `IGRA_MISSION_FIXTURES` i testom |
+| 13 | niska | `lib/igra-motion.ts`, `lib/igra-art.ts`, `lib/igra-badges.ts` | Mrtve funkcije runa: `odometerCells`, `odometerWidthCh`, `isIgraArtId`, `isIgraBadgeKey` i parametar `inView` u `shouldAnimate` | obrisano, testovi prilagođeni |
+| 14 | niska | `igra-art`, `dashboard-hero`, `podium`, `igra-three-stage` | Prekidači koje niko ne prosleđuje (mrtva grana): `fallback`, `mascot`, `show3d`, `fallbackId` | obrisano |
+| 15 | niska | `lib/igra-copy.ts`, `lib/igra-admin-copy.ts` | Tekstovi koje niko ne čita: `dialogLabel`, `IGRA_LEADERBOARD_COPY.level`, `yearSpan`, `bannerDone`, `chartTable` | obrisano |
+| 16 | niska | `lib/community-gamification.ts` | `levelProgress`, `levelAccentVar`, `podiumAccentVar`, `activityStreakDays`, `activityTotal`, `XP_PER_LEVEL` i `LEVEL_ACCENT_COUNT` je čitao samo njihov test, jer je run zamenio pozivaoce | obrisano uz testove (ODLUKA 3) |
+| 17 | niska | `community-leaderboard`, `community-mentions`, `dashboard-content` | `export` bez ijednog korisnika: `LeaderboardViewer`, `NotificationCard`, `CourseProgress` | `export` uklonjen |
+| 18 | niska | `convex/igraCore.ts` | `badgeSeenKey` / `freshSeenKeys` nisu imali direktan test, a klijent gradi iste ključeve | dodat test (server = `planCelebrations`) |
+| 19 | niska | `app/globals.css` | `--igra-medal-bronze` je bio bez tamnog parnjaka i bez objašnjenja | komentar: ista u obe teme, kao zlato |
+| 20 | niska (latentno) | `components/ui/toast-provider.tsx` | Provider je na svakoj ruti; tost uspeha sada ima Robija, marker i zvuk (uz postojeći prekidač) | nije menjano: nijedna javna strana ne zove `useToast`, pa danas nema promene |
+| 21 | info | `components/studio/studio-shell.tsx`, `credits-page.tsx` | Crea za goste (`/crea/app`, `/crea/krediti`, poziv, deljena knjižica) ima IGRA izgled; gost na kreditima više ne čita „i da kupiš još" (K19 ODLUKA 1) | nije menjano: Crea je §6.6, a O5 štiti početnu, cene, kurseve za goste, `/crea` landing i prijavu |
+| 22 | info | rute | Nijedan javni URL nije promenjen ni uklonjen, pa 308 ne treba. Nove rute: izlog, `/app/[...notFound]` + `app/not-found.tsx` (gost i dalje dobija 307 na prijavu) i `studio/(shell)/app/error.tsx`. Auth fajlovi, `proxy.ts`, `lib/routes.ts`, sitemap i robots nisu dirani | čisto |
+| 23 | info | Crea, krediti, čet | Nijedan poziv mutacije ili akcije, cena, kredit, handler ni `LEADERBOARD_XP` nije promenjen. `convex/` dobija samo `igra*`, opciono `users.igraBanner` i `igraSeen` | čisto; namerne razlike su u ODLUKAMA (K09 17/18, K16 3, K19 1–2, K22 2) |
+| 24 | info | tajne | U diffu nema ključeva, tokena ni lozinki (samo `@example.com` u testovima); `CONVEX_DEPLOY_KEY` nije postavljen | čisto |
+| 25 | info | AGENTS.md | Nema `rounded-*!`, `!rounded-*` ni inline `borderRadius`. Nema golog hex-a u className/style, osim dokumentovanih fallback-ova 3D materijala u `igra-three-canvas.tsx`. Slike idu samo kroz `IgraArt` | čisto |
+| 26 | info | `app-account-menu.tsx` | `rounded-none` na redu menija: dugme je red kao susedni linkovi, a isti obrazac postoji pre runa u `app-sidebar.tsx` | nije menjano |
+| 27 | info | `credits-page.tsx`, `api-keys-page.tsx` | `EmptyState` (isprekidan `border-2`) stoji unutar `Panel`-a; `check:frames` ne vidi kroz komponentu | nije menjano: zatečen obrazac (krediti su pre runa imali čak `border-2 border-ink`). Predlog: `EmptyState` bez okvira u panelu kao zasebna migracija |
+| 28 | info | više fajlova | Duplikati: četiri `count()`, tri `matchMedia` pretplate, `useOnline` / `useOnlineStatus`, `aheadInWeek` ≈ `xpLevelsAhead`, beogradsko vreme u tri oblika, stari serverski `level` (500 XP) u tri API odgovora koje UI ne crta | nije menjano (ODLUKA 4) |
+| 29 | info | više fajlova | Imena: mešani srpski i engleski identifikatori (`IgraBedzKey`, `igraNivoArt`, `IgraLik`…) i deset testova nazvanih po koraku | nije menjano: preimenovanje pred kraj runa nema korist |
+| 30 | info | izlog | Žuto (K01: ≤ 3 u kadru bez CTA), izmereno na 1440 i 390: površine imaju 0–3. Više imaju samo delovi izloga sa više primera odjednom (primitivi 5, ljuska 9) i zajednica (5: podvlaka naslova i tačke od 14 px) | nije menjano |
+| 31 | info | 18 fajlova | Datumi su ćirilicom (`"sr-RS"`); dva mesta u novim fajlovima runa su premešten zatečen kod | nije menjano: zatečeno i deli javni sajt (ODLUKA 5) |
+| 32 | info | `community-identity.tsx` | Pilula „Moderator" viri 2 px (K26 ODLUKA 7) | nije menjano: isto je i pre runa (ista `p-3` kartica, isti avatar) |
+| 33 | info | `course-catalog-card.tsx`, `dashboard-course-card.tsx` | `whileTap` uz smanjen pokret daje hydration upozorenje | nije menjano: isti kod postoji pre runa (premešten) |
+
+**Površine:** izmenjeno je samo ono što nalazi traže: tuđi profil (polica i brojači), tamna tema na javnom sajtu (vraćena), OAuth dugmad (vraćena), greška pretrage u porukama, podijum (isti izgled) i izlog („Misija dana" više nije deo „primitivi"). Ostale površine nisu menjane.
+
+**ODLUKE:**
+1. **Tuđi profil vidi samo ono što je i danas javno, i to tačno kako javno piše.**
+   - Javna knjižica obećava „ime, korisničko ime i ocene - ništa drugo", pa broj radova (pločica i bedževi za 10 i 100 radova) ostaje samo vlasniku.
+   - Nizovi idu uz javnu knjižicu, jer ona već pokazuje niz i ocenu vladanja.
+   - Ostatak Crea grupe ostaje uz javnu knjižicu (K01 ODLUKA 10), jer se poklapa sa ocenama predmeta.
+   - „Mentor" ide samo uz javan broj korisnih odgovora.
+   - Pravilo je jedna čista funkcija, `isBadgePublic`. Koriste je i server i test podaci, pa se izlog i server ne razilaze.
+2. **Javni sajt se vraća kroz `:has([data-igra-ui])`, a ne kroz javne fajlove.**
+   - `data-igra-ui` nose `AppShell`, `StudioShell` i izlog. Portali aplikacije su u istom dokumentu, pa recept važi i u dijalozima i u slavlju.
+   - Strana bez ljuske dobija `Button` bez tvrde senke i podizanja, a K27 mastilo na žutom važi samo uz ljusku.
+   - OAuth pristanak se ne može otvoriti bez prijave i važećeg klijenta. Zato je kaskada proverena u produkcionom CSS-u: probno dugme na javnoj strani, pa isto dugme uz `[data-igra-ui]`.
+   - Pregledač koji ne zna `:has` ignoriše ova pravila i ostaje na izgledu iz K24 i K27.
+3. **`lib/community-gamification.ts` je očišćen iako ga je K01 zamrzao.** AGENTS.md traži da se ukloni ono što su TVOJE izmene ostavile bez upotrebe, a zamrzavanje je važilo za vreme runa. `communityBadges` ostaje, jer ga koriste kartice članova.
+4. **Duplikati iz nalaza 28 nisu spajani.** Svako spajanje dira `convex/` ili deljene module (`leaderboardCore`, `creaNightCore`, `study-hub`), a pre čišćenja posle runa od toga nema koristi. Podrazumevane vrednosti propova (`TrophyShelf.max`, `ProgressRing.size` i `stroke`) ostaju, jer to nisu mrtve grane.
+5. **Datumi ćirilicom (`sr-RS` → `sr-Latn-RS`) nisu menjani.** Zatečeno je u 18 fajlova, uključujući javni sajt, pa je to jedna odluka za ceo sajt.
+6. **Primitiv „Misija dana" je obrisan, a ne spojen sa herojem.** Heroj ga ne može koristiti bez okvira u okviru (K07 ODLUKA 2), a primitiv bez korisnika samo udvostručava markup koji bi se vremenom razišao.
+
+**Novi paketi:** nema.
+
+**Testovi:** 3.640 → 3.633. Dodato je 10, a obrisano 17 zajedno sa mrtvim kodom (13 za `community-gamification`, 3 za ćelije odometra, 1 za test podatke misije).
+- `lib/igra-badges.test.ts` (+4): `isBadgePublic` — vreme učenja i broj radova nikad; Crea i nizovi samo uz knjižicu; „Mentor" samo uz 5 korisnih odgovora; tačan spisak javnih bedževa.
+- `convex/igra.test.ts` (+2, 2 izmenjena): nizovi, broj radova i „Mentor" kako ih vide drugi; `works` samo vlasniku, i uz pomeren `todayKey`; ključevi dnevnika servera isti kao kod domaćina slavlja.
+- `lib/igra-profile.test.ts`: drugi bez javne knjižice ne vide nizove ni broj radova; vlasnik vidi svih 24.
+- `lib/igra-micro.test.ts` (+2): javni sajt bez senke i podizanja; svaki korišćen `igra-depth-*` / `igra-shadow-*` postoji.
+- `lib/igra-css.test.ts` (+1): u `components/igra` nema imenovane skale ni radijusa van 8/12/16 px.
+- `lib/igra-dark.test.ts`: pravilo stoji iza `:has([data-igra-ui])`.
+- `lib/igra-izlog.test.ts` (+1): naslov izloga postoji samo u razvoju.
+
+**Slike:** nema novih; tražene: nema.
+
+**Rezultat provere:**
+- codegen: prošlo (`_generated` bez izmena)
+- DEV: `npx convex dev --once` na `wandering-fox-41` (`CONVEX_DEPLOY_KEY` nije postavljen, podaci nisu dirani)
+- typecheck: prošlo
+- lint: prošlo (0 grešaka, istih 26 upozorenja)
+- test: prošlo (321 fajl, 3.633 testa)
+- check:frames, check:corners, check:white, check:igra `--strict`: prošlo
+- build: prošao
+- check:bundle: prošlo (`/app` 284, profil 349, Crea 492 KB gz, javne strane 140 i 131; sve u budžetu)
+- Dev i produkcioni server (3123) su ugašeni; Playwright `page-*.yml` i `console-*.log` su obrisani.
+
+**BLOKADA:** nema.
+
+**Za Jovana ujutru:**
+1. Otvori tuđi profil sa javnom, pa sa privatnom knjižicom. Nizovi treba da se vide samo uz javnu; pločice radova i bedževa za 10 i 100 radova nema; „Mentor" se vidi samo kad član ima 5+ korisnih odgovora. Ako hoćeš da javna knjižica pokazuje i broj radova, prvo promeni tekst prekidača („ime, korisničko ime i ocene - ništa drugo"), pa vrati `works`.
+2. Javni sajt u tamnoj temi ima zatečen problem kontrasta: inicijali u zaglavlju i ime plana na ceni su svetli na žutom. K27 ga je slučajno popravio i za javni deo, a K29 je to vratio, jer javni sajt ne sme da se dira. Ako hoćeš popravku, to je jedno pravilo: ukloni `:has([data-igra-ui])`.
+3. OAuth pristanak (`/oauth/authorize`, prijavljen, sa važećim MCP klijentom): dugmad „Odbij" i „Dozvoli pristup" treba da budu bez tvrde senke, kao pre runa.
+4. Odluči o `sr-RS` → `sr-Latn-RS` (ODLUKA 5) i o `EmptyState` bez okvira u panelu (nalaz 27).

@@ -14,10 +14,11 @@ import { join } from "node:path";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
-import { IGRA_BADGE_KEYS, type IgraBadgeKey } from "../lib/igra-badges";
+import { IGRA_BADGE_KEYS, MENTOR_HELPFUL_ANSWERS, type IgraBadgeKey } from "../lib/igra-badges";
 import { planCelebrations, type IgraProgressFresh } from "../lib/igra-celebrations";
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
+import { badgeSeenKey, freshSeenKeys } from "./igraCore";
 import { LEADERBOARD_XP, syncLeaderboardSourceEvent, type LeaderboardSourceType } from "./leaderboardCore";
 import schema from "./schema";
 
@@ -699,17 +700,22 @@ describe("igra.getMemberProgress", () => {
     // Vreme učenja nije javno: i zarađena „Noćna sova" i nezarađen „Rani pevac" su skriveni.
     expect(states["nocna-sova"]).toBe("hidden");
     expect(states["rani-pevac"]).toBe("hidden");
-    // Crea grupa je skrivena dok đačka knjižica nije javna.
+    // Crea grupa i nizovi su skriveni dok đačka knjižica nije javna; „Mentor" dok broj
+    // korisnih odgovora nije dovoljan (partnerstvo za učenje nije javno).
     const crea: IgraBadgeKey[] = ["prvi-rad", "deset-radova", "sto-radova", "prvi-video", "prvi-zvuk", "recept", "tehnika", "izazov"];
-    for (const key of crea) expect(states[key], key).toBe("hidden");
-    expect(member.badges.filter((badge) => badge.state === "hidden")).toHaveLength(10);
+    for (const key of [...crea, "niz-3", "niz-7", "niz-30", "mentor"] as const) expect(states[key], key).toBe("hidden");
+    expect(member.badges.filter((badge) => badge.state === "hidden")).toHaveLength(14);
 
     await mila.as.mutation(api.creaGame.setReportCardPublic, { reportCardPublic: true });
     const open = Object.fromEntries((await jova.as.query(api.igra.getMemberProgress, { username: "mila", todayKey: MON }))!.badges.map((badge) => [badge.key, badge.state]));
     expect(open["prvi-rad"]).toBe("unlocked");
     expect(open["prvi-video"]).toBe("unlocked");
     expect(open["prvi-zvuk"]).toBe("locked");
+    expect(open["niz-3"]).toBe("locked");
     expect(open["nocna-sova"]).toBe("hidden");
+    // Broj radova nema ni javna knjižica.
+    expect(open["deset-radova"]).toBe("hidden");
+    expect(open["sto-radova"]).toBe("hidden");
 
     // Vlasnik na svom profilu vidi sve svoje, i bez javne knjižice.
     await mila.as.mutation(api.creaGame.setReportCardPublic, { reportCardPublic: false });
@@ -725,7 +731,56 @@ describe("igra.getMemberProgress", () => {
     await expect(mila.as.query(api.igra.getMemberProgress, { username: "mila", todayKey: "juče" })).rejects.toThrow("NEISPRAVAN_DAN");
   });
 
-  test("radovi za godinu: vlasniku uvek, drugima samo uz javnu knjižicu", async () => {
+  test("niz, broj radova i „Mentor“: drugi ih vide samo kad je to i danas javno", async () => {
+    const t = makeT();
+    const mila = await seedUser(t);
+    const jova = await seedUser(t, { email: "jova@example.com" });
+    // Dnevnik kao posle Milinih slavlja: niz od 7 dana, 10 radova i „Mentor" preko partnera.
+    await t.run(async (ctx) => {
+      for (const key of ["niz-3", "niz-7", "deset-radova", "mentor"]) {
+        await ctx.db.insert("igraSeen", { userId: mila.userId, key: `badge:${key}`, seenAt: 1 });
+      }
+    });
+    const seenBy = async (viewer: Seeded) =>
+      Object.fromEntries((await viewer.as.query(api.igra.getMemberProgress, { username: "mila", todayKey: MON }))!.badges.map((badge) => [badge.key, badge.state]));
+
+    // Privatna knjižica i 0 korisnih odgovora: ništa od toga drugi ne vide.
+    let states = await seenBy(jova);
+    for (const key of ["niz-3", "niz-7", "niz-30", "deset-radova", "mentor"]) expect(states[key], key).toBe("hidden");
+
+    // Javna knjižica već pokazuje niz, ali ne i broj radova.
+    await mila.as.mutation(api.creaGame.setReportCardPublic, { reportCardPublic: true });
+    states = await seenBy(jova);
+    expect(states["niz-3"]).toBe("unlocked");
+    expect(states["niz-7"]).toBe("unlocked");
+    expect(states["niz-30"]).toBe("locked");
+    expect(states["deset-radova"]).toBe("hidden");
+    expect(states.mentor).toBe("hidden");
+
+    // „Mentor" je javan tek uz javan broj korisnih odgovora (`getPublicProfile.stats`).
+    await t.run((ctx) =>
+      ctx.db.insert("leaderboardStats", {
+        userId: mila.userId,
+        scopeKind: "global",
+        scopeKey: "global",
+        period: "all_time",
+        periodKey: "all",
+        xp: 100,
+        completedLessons: 0,
+        completedTasks: 0,
+        helpfulAnswers: MENTOR_HELPFUL_ANSWERS,
+        eligible: true,
+        updatedAt: 1,
+      }),
+    );
+    expect((await seenBy(jova)).mentor).toBe("unlocked");
+
+    // Vlasnik vidi sve svoje.
+    states = await seenBy(mila);
+    for (const key of ["niz-3", "niz-7", "deset-radova", "mentor"]) expect(states[key], key).toBe("unlocked");
+  });
+
+  test("radovi za godinu: samo vlasniku, ni uz javnu knjižicu", async () => {
     const t = makeT();
     const mila = await seedUser(t);
     const jova = await seedUser(t, { email: "jova@example.com" });
@@ -741,8 +796,11 @@ describe("igra.getMemberProgress", () => {
 
     expect((await mila.as.query(api.igra.getMemberProgress, { username: "mila", todayKey: MON }))!.works).toBe(5);
     expect((await jova.as.query(api.igra.getMemberProgress, { username: "mila", todayKey: MON }))!.works).toBeNull();
+    // Javna knjižica obećava „ime, korisničko ime i ocene - ništa drugo", a pomeranjem
+    // `todayKey` drugi bi mogao da rekonstruiše dane, pa broj ostaje samo vlasniku.
     await mila.as.mutation(api.creaGame.setReportCardPublic, { reportCardPublic: true });
-    expect((await jova.as.query(api.igra.getMemberProgress, { username: "mila", todayKey: MON }))!.works).toBe(5);
+    expect((await jova.as.query(api.igra.getMemberProgress, { username: "mila", todayKey: MON }))!.works).toBeNull();
+    expect((await jova.as.query(api.igra.getMemberProgress, { username: "mila", todayKey: TUE }))!.works).toBeNull();
   });
 
   test("osoblje nema nivo ni XP, kao na profilu danas", async () => {
@@ -805,6 +863,23 @@ describe("igra.setBanner", () => {
     expect(await t.run(async (ctx) => (await ctx.db.get(jova.userId))!.igraBanner ?? null)).toBeNull();
     expect(await t.run(async (ctx) => (await ctx.db.query("leaderboardStats").take(10)).map((row) => row.xp))).toEqual(before);
     expect(await ledgerOf(t, mila.userId)).toEqual([]);
+  });
+});
+
+describe("ključevi dnevnika (čiste funkcije)", () => {
+  test("server (`freshSeenKeys`) i domaćin slavlja (`planCelebrations`) grade iste ključeve", () => {
+    const fresh = {
+      level: 3,
+      badges: ["prva-lekcija", "niz-3", "mentor"] as IgraBadgeKey[],
+      courses: [{ key: "course:kurs1", title: { sr: "Kurs", en: "Course" } }],
+      ledgerEmpty: false,
+    };
+    expect(badgeSeenKey("niz-3")).toBe("badge:niz-3");
+    expect(freshSeenKeys(fresh)).toEqual(["level:3", "badge:prva-lekcija", "badge:niz-3", "badge:mentor", "course:kurs1"]);
+    expect([...planCelebrations(fresh, false).markKeys].sort()).toEqual([...freshSeenKeys(fresh)].sort());
+    // Zbir prvog kontakta dodaje samo `summary`, koji `markSeen` uvek pušta.
+    expect(planCelebrations(fresh, true).markKeys.filter((key) => !freshSeenKeys(fresh).includes(key))).toEqual(["summary"]);
+    expect(freshSeenKeys({ level: null, badges: [], courses: [], ledgerEmpty: false })).toEqual([]);
   });
 });
 

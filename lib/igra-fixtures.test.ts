@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { igraArtOrNull, igraLikArt } from "./igra-art";
 import { IGRA_BADGE_KEYS } from "./igra-badges";
 import { planCelebrations } from "./igra-celebrations";
-import { IGRA_FIXTURE_IDS, IGRA_FIXTURE_LABEL, IGRA_FIXTURE_TODAY, IGRA_FIXTURES, IGRA_MISSION_FIXTURES } from "./igra-fixtures";
+import { IGRA_FIXTURE_IDS, IGRA_FIXTURE_LABEL, IGRA_FIXTURE_TODAY, IGRA_FIXTURES } from "./igra-fixtures";
 import { levelFromXp } from "./igra-level";
 
 describe("IGRA_FIXTURES", () => {
@@ -71,17 +70,5 @@ describe("IGRA_FIXTURES", () => {
     expect(streak.current).toBeGreaterThanOrEqual(30);
     expect(badges.every((badge) => badge.state === "unlocked")).toBe(true);
     expect(fresh.badges).toEqual([]);
-  });
-
-  it("misija svakog korisnika ima tekst na oba jezika, putanju u aplikaciji i sliku lika", () => {
-    for (const id of IGRA_FIXTURE_IDS) {
-      const mission = IGRA_MISSION_FIXTURES[id];
-      for (const text of [mission.title, mission.body, mission.cta]) {
-        expect(text.sr, id).not.toBe("");
-        expect(text.en, id).not.toBe("");
-      }
-      expect(mission.path.startsWith("/app/"), id).toBe(true);
-      expect(igraArtOrNull(igraLikArt(mission.lik, mission.poza)), id).not.toBeNull();
-    }
   });
 });

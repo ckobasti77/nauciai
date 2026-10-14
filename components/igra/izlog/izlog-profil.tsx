@@ -65,7 +65,7 @@ function Preview({
 
   // Isti oblici kao upiti: napredak vlasnika iz ljuske i `igra:getMemberProgress`.
   const mine = loading ? undefined : { ...IGRA_FIXTURES[stanje], banner };
-  const member = loading ? undefined : { ...memberProgressFixture(stanje, { creaPublic: owner || creaPublic, staff: !owner && staff }), banner };
+  const member = loading ? undefined : { ...memberProgressFixture(stanje, { owner, creaPublic, staff: !owner && staff }), banner };
   const xp = !owner && staff ? null : IGRA_FIXTURES[stanje].xp;
   const level = IGRA_FIXTURES[stanje].level;
   const shelf = profileShelfBadges({ isOwner: owner, mine, member });

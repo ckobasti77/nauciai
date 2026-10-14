@@ -248,6 +248,7 @@ class GlobalSearchErrorBoundary extends Component<{ children: ReactNode; locale:
     if (!this.state.hasError) return this.props.children;
     return (
       <IgraState
+        compact
         variant="greska"
         locale={this.props.locale}
         title={label(this.props.locale, "Pretraga trenutno nije dostupna", "Search is temporarily unavailable")}

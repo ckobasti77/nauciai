@@ -6,7 +6,6 @@ import { Component, useEffect, useRef, useState, useSyncExternalStore, type Reac
 
 import { IgraArt } from "@/components/igra/igra-art";
 import { cn } from "@/components/ui/primitives";
-import type { IgraArtId } from "@/lib/igra-art";
 import { canUseIgra3d, IGRA_THREE_MEDIA, igraThreeFallbackId, type IgraMedalTone, type IgraThreeKind, type IgraThreeSpin } from "@/lib/igra-three";
 import type { Locale } from "@/lib/i18n";
 
@@ -73,7 +72,6 @@ export function IgraThreeStage({
   kind,
   tone = "zlato",
   spin,
-  fallbackId,
   allow3d = true,
   locale,
   className,
@@ -82,7 +80,6 @@ export function IgraThreeStage({
   /** Samo za medalju. */
   tone?: IgraMedalTone;
   spin: IgraThreeSpin;
-  fallbackId?: IgraArtId;
   /** `false` = uvek nalepnica (npr. štednja podataka). */
   allow3d?: boolean;
   locale?: Locale;
@@ -114,7 +111,7 @@ export function IgraThreeStage({
     return () => observer.disconnect();
   }, [use3d]);
 
-  const sticker = fallbackId ?? igraThreeFallbackId(kind, tone);
+  const sticker = igraThreeFallbackId(kind, tone);
   const art = locale ? <IgraArt id={sticker} size="hero" locale={locale} /> : <IgraArt id={sticker} size="hero" decorative />;
 
   return (

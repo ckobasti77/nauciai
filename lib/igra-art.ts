@@ -71,10 +71,6 @@ export function igraArtOrNull(id: string): IgraArtInfo | null {
   return null;
 }
 
-export function isIgraArtId(id: string): id is IgraArtId {
-  return igraArtOrNull(id) !== null;
-}
-
 export function igraArt(id: IgraArtId): IgraArtInfo {
   const info = igraArtOrNull(id);
   if (!info) throw new Error(`IGRA: nepoznata slika ${id}`);

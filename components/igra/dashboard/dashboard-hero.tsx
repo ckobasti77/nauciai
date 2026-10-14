@@ -31,7 +31,6 @@ export function DashboardHero({
   mission,
   note,
   secondary,
-  mascot = true,
 }: {
   locale: Locale;
   daypart: IgraDaypart;
@@ -41,7 +40,6 @@ export function DashboardHero({
   note?: string;
   /** Tiši link pored dugmeta. */
   secondary?: { href: string; label: string };
-  mascot?: boolean;
 }) {
   const copy = IGRA_PRIMITIVE_COPY;
 
@@ -51,11 +49,9 @@ export function DashboardHero({
       locale={locale}
       greeting={dashboardGreeting(daypart, name, locale)}
       aside={
-        mascot ? (
-          <div aria-hidden="true" className="pointer-events-none absolute bottom-0 right-[33.5%] hidden w-40 min-[1400px]:block">
-            <DashboardMascot locale={locale} />
-          </div>
-        ) : null
+        <div aria-hidden="true" className="pointer-events-none absolute bottom-0 right-[33.5%] hidden w-40 min-[1400px]:block">
+          <DashboardMascot locale={locale} />
+        </div>
       }
     >
       <p className="relative w-fit surface-inset bg-paper px-4 py-3 type-body-sm font-bold text-ink shadow-[inset_0_0_0_1px_var(--shadow-hard-14)]">

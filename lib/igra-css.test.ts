@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, test } from "vitest";
@@ -130,6 +130,27 @@ describe("IGRA klase", () => {
       expect(body, name).not.toMatch(/\bborder(?:-(?:top|right|bottom|left|width|style|color))?\s*:/);
       for (const radius of body.matchAll(/border-radius\s*:\s*([^;]+);/g)) {
         expect(["inherit", "var(--button-radius)"], name).toContain(radius[1]!.trim());
+      }
+    }
+  });
+});
+
+describe("IGRA komponente: samo četiri radijusa (AGENTS.md)", () => {
+  const root = join(__dirname, "..");
+  const files = (dir: string): string[] =>
+    readdirSync(join(root, dir)).flatMap((name) => {
+      const path = `${dir}/${name}`;
+      if (statSync(join(root, path)).isDirectory()) return files(path);
+      return /\.tsx?$/.test(name) && !/\.test\./.test(name) ? [path] : [];
+    });
+
+  test("nema imenovane Tailwind skale ni proizvoljnog radijusa van 8/12/16 px", () => {
+    // `rounded-t-xl` je 12 px samo dok tema ne promeni skalu; tier se piše vrednošću ili `surface-*`.
+    for (const file of [...files("components/igra"), "app/[locale]/igra-izlog/page.tsx"]) {
+      const source = readFileSync(join(root, file), "utf8");
+      expect(source, file).not.toMatch(/\brounded(?:-[trblse]{1,2})?-(?:none|xs|sm|md|lg|xl|2xl|3xl|4xl)\b/);
+      for (const match of source.matchAll(/\brounded(?:-[trblse]{1,2})?-\[([^\]]*)\]/g)) {
+        expect(["8px", "12px", "16px"], `${file}: ${match[0]}`).toContain(match[1]);
       }
     }
   });

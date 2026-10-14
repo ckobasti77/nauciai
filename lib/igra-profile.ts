@@ -11,8 +11,8 @@ import { pluralize, t, type Locale, type PluralForms } from "./i18n";
  *
  * Privatnost: tuđi profil prikazuje samo ono što je i danas javno. Brojači lekcija,
  * zadataka i objava su zbir javnog kalendara aktivnosti (`publicProfiles.getPublicProfile`);
- * radovi u Crei stižu samo uz javnu đačku knjižicu (`igra:getMemberProgress.works`), a
- * tuđi bedž koji nije u dnevniku je neutralna silueta.
+ * radove u Crei (`igra:getMemberProgress.works`) vidi samo vlasnik, a tuđi bedž koji nije u
+ * dnevniku ili nije javan (`isBadgePublic`) je neutralna silueta.
  */
 
 /** Dan javne aktivnosti, oblik `getPublicProfile.activity.days`. */
@@ -97,8 +97,8 @@ const COUNTER_FORMS: Record<ProfileCounterKey, Record<Locale, PluralForms>> = {
 /**
  * Brojači za poslednjih 12 meseci: lekcije, zadaci, radovi u Crei i objave. Lekcije,
  * zadaci i objave su zbir javnog kalendara (isti dani koje kalendar crta). Radovi:
- * broj = pločica, `undefined` = pločica se učitava, `null` = pločice nema (tuđa privatna
- * knjižica ili napredak nije dostupan).
+ * broj = pločica, `undefined` = pločica se učitava, `null` = pločice nema (tuđi profil ili
+ * napredak nije dostupan).
  */
 export function profileCounters(days: readonly ProfileActivityDay[], works: number | null | undefined, locale: Locale): ProfileCounter[] {
   const sum = (field: "lessons" | "tasks" | "threads") => days.reduce((total, day) => total + count(day[field]), 0);
@@ -117,8 +117,8 @@ export function profileCounters(days: readonly ProfileActivityDay[], works: numb
 
 /**
  * Radovi za brojač: vlasniku se pločica drži dok upit stiže (njegov broj uvek dolazi),
- * drugima se ne crta unapred, jer je knjižica najčešće privatna (pločica se ne pojavljuje
- * pa nestaje).
+ * drugima se ne crta unapred, jer im upit radove ne šalje (pločica se ne pojavljuje pa
+ * nestaje).
  */
 export function profileWorks(isOwner: boolean, member: { works: number | null } | null | undefined): number | null | undefined {
   if (member === undefined) return isOwner ? undefined : null;

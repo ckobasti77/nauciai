@@ -12,8 +12,10 @@ const css = readFileSync(join(__dirname, "..", "app/globals.css"), "utf8").repla
 const dark = css.slice(css.indexOf('[data-theme="dark"] {'));
 
 describe("tamna tema", () => {
-  test("`.bg-yellow` u tamnoj temi dobija `color: var(--ink)` u @layer base", () => {
-    const at = css.indexOf('[data-theme="dark"] :is(\n    .bg-yellow,');
+  test("`.bg-yellow` u tamnoj temi dobija `color: var(--ink)` u @layer base, samo uz IGRA ljusku", () => {
+    // K29: bez `:has([data-igra-ui])` pravilo bi menjalo i javni sajt (pravila runa).
+    expect(css).not.toContain('[data-theme="dark"] :is(\n    .bg-yellow,');
+    const at = css.indexOf('[data-theme="dark"]:has([data-igra-ui]) :is(\n    .bg-yellow,');
     expect(at).toBeGreaterThan(-1);
     expect(css.slice(css.lastIndexOf("@layer", at), at)).toMatch(/^@layer base \{\s*$/);
     expect(css.slice(at, css.indexOf("}", at))).toContain("color: var(--ink);");

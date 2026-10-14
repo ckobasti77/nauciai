@@ -290,10 +290,6 @@ export const IGRA_BADGE_KEYS: readonly IgraBadgeKey[] = IGRA_BADGES.map((badge) 
 
 const BY_KEY = new Map<string, IgraBadge>(IGRA_BADGES.map((badge) => [badge.key, badge]));
 
-export function isIgraBadgeKey(key: string): key is IgraBadgeKey {
-  return BY_KEY.has(key);
-}
-
 export function igraBadge(key: IgraBadgeKey): IgraBadge {
   return BY_KEY.get(key)!;
 }
@@ -326,4 +322,23 @@ export function evaluateBadges(counters: IgraBadgeCounters): IgraBadgeResult[] {
       progress: badge.target > 1 && !soon ? { current: Math.min(current, badge.target), target: badge.target } : null,
     };
   });
+}
+
+/**
+ * Bedževi koje drugi nikad ne vide: vreme učenja nije javno na profilu, a broj radova u Crei
+ * nema ni javna knjižica (ona obećava „ime, korisničko ime i ocene - ništa drugo").
+ */
+const NEVER_PUBLIC_BADGES: ReadonlySet<IgraBadgeKey> = new Set(["nocna-sova", "rani-pevac", "deset-radova", "sto-radova"]);
+
+/**
+ * Da li drugi član sme da vidi bedž iz tuđeg dnevnika (`igra:getMemberProgress`): samo ono
+ * što je i danas javno (K29). Ostatak Cree i nizovi (niz broji i rad u Crei) idu samo uz
+ * javnu đačku knjižicu, koja već pokazuje ocene i niz. „Mentor" ide samo uz javan broj
+ * korisnih odgovora, jer partnerstvo za učenje vide samo njegovi članovi.
+ */
+export function isBadgePublic(key: IgraBadgeKey, profile: { creaPublic: boolean; helpfulAnswers: number }): boolean {
+  if (NEVER_PUBLIC_BADGES.has(key)) return false;
+  if (igraBadge(key).group === "crea" || key.startsWith("niz-")) return profile.creaPublic;
+  if (key === "mentor") return profile.helpfulAnswers >= MENTOR_HELPFUL_ANSWERS;
+  return true;
 }

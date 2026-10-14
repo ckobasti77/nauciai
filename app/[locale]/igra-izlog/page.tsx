@@ -10,8 +10,9 @@ import { IGRA_FIXTURE_IDS } from "@/lib/igra-fixtures";
 import { normalizeLocale, t, withLocale } from "@/lib/i18n";
 
 // Razvojni izlog: nije za pretragu i ne postoji u produkciji (vidi `notFound()` ispod).
+// Naslov samo u razvoju: metadata stiže i uz 404, pa bi produkcija inače javila ime izloga.
 export const metadata: Metadata = {
-  title: "IGRA izlog",
+  title: process.env.NODE_ENV === "production" ? undefined : "IGRA izlog",
   robots: { index: false, follow: false },
 };
 

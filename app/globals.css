@@ -166,6 +166,8 @@
      tamna tema zadržava svetli koral (njen parnjak je ispod). */
   --igra-stamp: #b4441f;
   --igra-locked-filter: brightness(0) opacity(0.16);
+  /* Medalje (3D materijal): zlato je žuta, a bronza je ista u obe teme kao i ona; srebro
+     ima tamnog parnjaka ispod. */
   --igra-medal-gold: var(--yellow);
   --igra-medal-silver: #c9d4df;
   --igra-medal-bronze: #d98a5b;
@@ -351,9 +353,11 @@ body {
 /* K27: ostrvo žute iznad menja tokene, ali `color` se NASLEĐUJE već razrešen: žuto dugme ili
    brojka bez svog `text-*` u tamnoj temi nosi svetli tekst stranice (1,47:1). Ovde dobija
    mastilo ostrva (7,66:1). `@layer base` gubi od svakog `text-*` utility-ja, pa autorski
-   tekst ostaje. U svetloj temi nema razlike (mastilo je već nasleđeno). */
+   tekst ostaje. U svetloj temi nema razlike (mastilo je već nasleđeno).
+   K29: samo na stranama sa IGRA ljuskom (`[data-igra-ui]`, sa njihovim portalima), jer je
+   bez `:has` menjalo i javni sajt (avatar u javnom zaglavlju, ime plana na cenama). */
 @layer base {
-  [data-theme="dark"] :is(
+  [data-theme="dark"]:has([data-igra-ui]) :is(
     .bg-yellow,
     .bg-yellow\/90,
     .hover\:bg-yellow:hover,
@@ -568,7 +572,7 @@ body {
    - `.igra-lift`  - kartica-link: isti mirni hover, bez pritiska. Pomera se samo
      `translate` (bez promene veličine, debljine slova ili okvira), pa tekst ne skače.
    Tvrda senka je opciona: boja `.igra-shadow` (mastilo 18 %), `-soft` (14 %), `-ink`,
-   `-yellow`; dubina 3 px, ili `.igra-depth-2` / `.igra-depth-4`. Bez boje nema senke.
+   `-yellow`; dubina 3 px, ili `.igra-depth-1` / `-2` / `-4`. Bez boje nema senke.
    Senka ide kroz `--tw-shadow`, pa se slaže sa Tailwind `ring-*`; utility na elementu
    (`shadow-none`, `shadow-[…]`) i dalje pobeđuje, jer je ovo `@layer components`.
    Uz „manje pokreta" nema pomeranja ni prelaza: senka se samo promeni. */
@@ -587,6 +591,7 @@ body {
   .igra-shadow-soft { --igra-shadow: var(--shadow-hard-14); }
   .igra-shadow-ink { --igra-shadow: var(--ink); }
   .igra-shadow-yellow { --igra-shadow: var(--yellow); }
+  .igra-depth-1 { --igra-depth: 1px; }
   .igra-depth-2 { --igra-depth: 2px; }
   .igra-depth-4 { --igra-depth: 4px; }
 
@@ -624,11 +629,23 @@ body {
       .igra-lift:hover:not([aria-disabled="true"]) {
         translate: 0 -2px;
       }
+
+      /* K29: bez IGRA ljuske (javni sajt, vidi ispod) dugme se na hover ne podiže. */
+      :root:not(:has([data-igra-ui])) .igra-press:hover:not(:disabled, [aria-disabled="true"]) {
+        translate: none;
+      }
     }
 
     .igra-press:active:not(:disabled, [aria-disabled="true"]) {
       translate: 0 1px;
     }
+  }
+
+  /* K29: `Button` deli i javni sajt (OAuth pristanak). Strana bez IGRA ljuske (nigde u
+     dokumentu nema `[data-igra-ui]`; portali aplikacije su u istom dokumentu) dobija dugme
+     kao pre runa: bez tvrde senke i bez podizanja, a pritisak od 1 px ostaje. */
+  :root:not(:has([data-igra-ui])) .igra-press {
+    --igra-shadow: transparent;
   }
 }
 

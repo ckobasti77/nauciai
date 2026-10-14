@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { BadgeSticker } from "@/components/igra/badge-sticker";
-import { DailyMission } from "@/components/igra/daily-mission";
 import { IgraLik } from "@/components/igra/igra-lik";
 import { IzlogDemo, IzlogSection } from "@/components/igra/izlog/izlog-kit";
 import { Izlog3d, IzlogSlavlja } from "@/components/igra/izlog/izlog-pokret";
@@ -19,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/components/ui/primitives";
 import { formatXp, levelLabel } from "@/lib/igra-a11y";
 import { IGRA_LIKOVI, IGRA_POZE } from "@/lib/igra-art";
-import { IGRA_FIXTURE_IDS, IGRA_FIXTURE_LABEL, IGRA_FIXTURES, IGRA_MISSION_FIXTURES, type IgraFixtureId } from "@/lib/igra-fixtures";
+import { IGRA_FIXTURE_IDS, IGRA_FIXTURE_LABEL, IGRA_FIXTURES, type IgraFixtureId } from "@/lib/igra-fixtures";
 import { IGRA_LEVELS } from "@/lib/igra-level";
 import { t, withLocale, type Locale } from "@/lib/i18n";
 
@@ -70,15 +69,6 @@ function XpDemo({ locale, start }: { locale: Locale; start: number }) {
 
 export function IzlogPrimitivi({ locale, stanje }: { locale: Locale; stanje: IgraFixtureId }) {
   const progress = IGRA_FIXTURES[stanje];
-  const missionFixture = IGRA_MISSION_FIXTURES[stanje];
-  const mission = {
-    title: missionFixture.title[locale],
-    body: missionFixture.body[locale],
-    cta: missionFixture.cta[locale],
-    href: withLocale(locale, missionFixture.path),
-    lik: missionFixture.lik,
-    poza: missionFixture.poza,
-  };
   const loadingLabel = t(locale, "učitava se", "loading");
   const samples = (["unlocked", "fresh", "locked", "soon"] as const).map((state) => ({
     state,
@@ -309,24 +299,6 @@ export function IzlogPrimitivi({ locale, stanje }: { locale: Locale; stanje: Igr
               ))}
               <RankChip loading size="sm" locale={locale} />
             </div>
-          </IzlogDemo>
-        </div>
-      </IzlogSection>
-
-      <IzlogSection
-        id="misija"
-        title={t(locale, "Misija dana", "Daily mission")}
-        note={t(locale, "Jedan sledeći korak. Vodič, ne zadatak: bez nagrade, roka i brojača.", "One next step. A guide, not a task: no reward, deadline or counter.")}
-      >
-        <div className="grid gap-6 lg:grid-cols-2">
-          <IzlogDemo label={stanje}>
-            <DailyMission mission={mission} locale={locale} />
-          </IzlogDemo>
-          <IzlogDemo label={t(locale, "prazno (nema koraka)", "empty (no step)")}>
-            <DailyMission mission={null} locale={locale} />
-          </IzlogDemo>
-          <IzlogDemo label={loadingLabel}>
-            <DailyMission loading locale={locale} />
           </IzlogDemo>
         </div>
       </IzlogSection>

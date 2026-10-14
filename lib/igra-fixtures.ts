@@ -11,8 +11,7 @@ import { CREA_ALBUM_PAGES, CREA_ALBUM_STICKER_COUNT } from "./crea-album";
 import { challengeForDay } from "./crea-challenges";
 import { buildReportCard, type ReportCard } from "./crea-report-card";
 import { computeStreak, shiftDayKey, type StreakDay } from "./crea-streak";
-import type { IgraLik, IgraPoza } from "./igra-art";
-import { EMPTY_BADGE_COUNTERS, evaluateBadges, igraBadge, type IgraBadgeCounters, type IgraBadgeKey } from "./igra-badges";
+import { EMPTY_BADGE_COUNTERS, evaluateBadges, isBadgePublic, type IgraBadgeCounters, type IgraBadgeKey } from "./igra-badges";
 import type { IgraBannerKey } from "./igra-banners";
 import { levelFromXp } from "./igra-level";
 import type { ProfileActivityDay } from "./igra-profile";
@@ -190,36 +189,6 @@ export const IGRA_FIXTURES: Record<IgraFixtureId, IgraProgressFixture> = {
       "top-10": 172,
     },
   }),
-};
-
-/** „Misija dana" po korisniku: `path` je kanonska putanja (izlog je provlači kroz `withLocale`). */
-export type IgraMissionFixture = { title: LocalizedText; body: LocalizedText; cta: LocalizedText; path: string; lik: IgraLik; poza: IgraPoza };
-
-export const IGRA_MISSION_FIXTURES: Record<IgraFixtureId, IgraMissionFixture> = {
-  novi: {
-    title: { sr: "Započni prvu lekciju", en: "Start your first lesson" },
-    body: { sr: "Deset minuta je dovoljno. Robi te vodi korak po korak.", en: "Ten minutes is enough. Robi walks you through it step by step." },
-    cta: { sr: "Otvori učionicu", en: "Open the classroom" },
-    path: "/app/classroom",
-    lik: "robi",
-    poza: "mase",
-  },
-  aktivan: {
-    title: { sr: "Nastavi: Promptovi koji rade", en: "Continue: Prompts that work" },
-    body: { sr: "Čeka te lekcija 4 od 9. Traje oko osam minuta.", en: "Lesson 4 of 9 is waiting. It takes about eight minutes." },
-    cta: { sr: "Nastavi lekciju", en: "Continue the lesson" },
-    path: "/app/classroom",
-    lik: "sova",
-    poza: "misli",
-  },
-  legenda: {
-    title: { sr: "Pomozi nekome u zajednici", en: "Help someone in the community" },
-    body: { sr: "Dva nova pitanja čekaju odgovor. Tvoje iskustvo nekome štedi sate.", en: "Two new questions are waiting. Your experience saves someone hours." },
-    cta: { sr: "Otvori zajednicu", en: "Open the community" },
-    path: "/app/community",
-    lik: "iskra",
-    poza: "mase",
-  },
 };
 
 /**
@@ -790,8 +759,10 @@ export type ProfileFixture = {
   role: "student" | "pro_student";
   /** Javni kalendar (oblik `getPublicProfile.activity.days`), poslednjih 365 dana. */
   days: ProfileActivityDay[];
-  /** Radovi u Crei za godinu (vlasnik ili javna knjižica). */
+  /** Radovi u Crei za godinu (vidi ih samo vlasnik). */
   works: number;
+  /** Javan broj korisnih odgovora (`getPublicProfile.stats.helpfulAnswers`), isti kao u `IGRA_FIXTURES`. */
+  helpfulAnswers: number;
 };
 
 /** Dan javnog kalendara `daysAgo` dana pre „danas" izloga. */
@@ -810,7 +781,7 @@ function legendDays(): ProfileActivityDay[] {
 }
 
 export const PROFILE_FIXTURES: Record<IgraFixtureId, ProfileFixture> = {
-  novi: { name: "Tamara Ilić", username: "tamara.ilic", avatarUrl: "/images/avatars/cosmic-scholar.png", role: "student", days: [], works: 0 },
+  novi: { name: "Tamara Ilić", username: "tamara.ilic", avatarUrl: "/images/avatars/cosmic-scholar.png", role: "student", days: [], works: 0, helpfulAnswers: 0 },
   aktivan: {
     name: "Nikola Stanić",
     username: "nikola.stanic",
@@ -824,27 +795,26 @@ export const PROFILE_FIXTURES: Record<IgraFixtureId, ProfileFixture> = {
       profileDay(30, 1),
     ],
     works: 12,
+    helpfulAnswers: 2,
   },
-  legenda: { name: "Vesna Radović", username: "vesna.radovic", avatarUrl: "/images/avatars/mythic-mentor.png", role: "pro_student", days: legendDays(), works: 186 },
+  legenda: { name: "Vesna Radović", username: "vesna.radovic", avatarUrl: "/images/avatars/mythic-mentor.png", role: "pro_student", days: legendDays(), works: 186, helpfulAnswers: 37 },
 };
 
-/** Bedževi koje drugi nikad ne vide (isto kao `PRIVATE_BADGES` u `convex/igraCore.ts`). */
-const PRIVATE_FIXTURE_BADGES: ReadonlySet<IgraBadgeKey> = new Set(["nocna-sova", "rani-pevac"]);
-
 /**
- * `igra:getMemberProgress` za test korisnika kako ga vidi DRUGI član: samo bedževi iz
- * dnevnika (nov, još neviđen bedž je zaključan), Crea grupa i radovi samo uz javnu
- * knjižicu, vreme učenja nikad. `staff`: nalog tima nema nivo ni XP.
+ * `igra:getMemberProgress` za test korisnika: samo bedževi iz dnevnika (nov, još neviđen
+ * bedž je zaključan). DRUGI član vidi samo ono što pušta `isBadgePublic` (isto pravilo kao
+ * server) i ne vidi radove; `owner` vidi sve svoje. `staff`: nalog tima nema nivo ni XP.
  */
-export function memberProgressFixture(stanje: IgraFixtureId, opts: { creaPublic: boolean; staff?: boolean }): MemberProgressFixture {
+export function memberProgressFixture(stanje: IgraFixtureId, opts: { owner?: boolean; creaPublic: boolean; staff?: boolean }): MemberProgressFixture {
   const progress = IGRA_FIXTURES[stanje];
+  const publicProfile = { creaPublic: opts.creaPublic, helpfulAnswers: PROFILE_FIXTURES[stanje].helpfulAnswers };
   return {
     xp: opts.staff ? null : progress.xp,
     level: opts.staff ? null : progress.level,
     banner: progress.banner,
-    works: opts.creaPublic ? PROFILE_FIXTURES[stanje].works : null,
+    works: opts.owner ? PROFILE_FIXTURES[stanje].works : null,
     badges: progress.badges.map((badge) => {
-      const hidden = PRIVATE_FIXTURE_BADGES.has(badge.key) || (igraBadge(badge.key).group === "crea" && !opts.creaPublic);
+      const hidden = !opts.owner && !isBadgePublic(badge.key, publicProfile);
       return { key: badge.key, state: hidden ? "hidden" : badge.state === "unlocked" ? "unlocked" : "locked" };
     }),
   };

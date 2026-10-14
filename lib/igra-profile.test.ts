@@ -68,10 +68,15 @@ describe("polica na profilu", () => {
             expect(view.label).not.toMatch(/zaključan|nema/i);
           }
         }
-        // Vreme učenja se drugima nikad ne prikazuje; Crea samo uz javnu knjižicu.
-        expect(shelf.find((badge) => badge.key === "nocna-sova")!.state).toBe("hidden");
-        const creaShown = shelf.filter((badge) => igraBadge(badge.key).group === "crea" && badge.state === "unlocked");
+        // Vreme učenja i broj radova se drugima nikad ne prikazuju; Crea i nizovi samo uz
+        // javnu knjižicu.
+        for (const key of ["nocna-sova", "rani-pevac", "deset-radova", "sto-radova"] as const) {
+          expect(shelf.find((badge) => badge.key === key)!.state, key).toBe("hidden");
+        }
+        const creaShown = shelf.filter((badge) => (igraBadge(badge.key).group === "crea" || badge.key.startsWith("niz-")) && badge.state === "unlocked");
         if (!creaPublic) expect(creaShown).toEqual([]);
+        // Drugima ne stižu ni radovi.
+        expect(member.works).toBeNull();
       }
     }
   });
@@ -99,8 +104,12 @@ describe("polica na profilu", () => {
 
   it("skriveni bedž ne ulazi u zbir osvojenih", () => {
     const shelf = profileShelfBadges({ isOwner: false, mine: undefined, member: memberProgressFixture("legenda", { creaPublic: false }) })!;
-    // 24 - 8 (Crea) - 2 (vreme učenja; „Noćna sova" i „Rani pevac" su u učenju) = 14.
-    expect(badgeTally(shelf, "sr").earned).toBe(14);
+    // 24 - 8 (Crea) - 2 (vreme učenja; „Noćna sova" i „Rani pevac" su u učenju) - 3 (nizovi) = 11.
+    expect(badgeTally(shelf, "sr").earned).toBe(11);
+    // Vlasnik na svom profilu vidi svih 24 i svoje radove.
+    const own = memberProgressFixture("legenda", { owner: true, creaPublic: false });
+    expect(own.badges.filter((badge) => badge.state === "unlocked")).toHaveLength(24);
+    expect(own.works).toBe(PROFILE_FIXTURES.legenda.works);
   });
 });
 

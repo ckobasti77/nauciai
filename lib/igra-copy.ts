@@ -6,7 +6,6 @@ import type { Locale, LocalizedText, PluralForms } from "./i18n";
  */
 
 export const IGRA_CELEBRATION_COPY = {
-  dialogLabel: { sr: "Slavlje", en: "Celebration" },
   levelEyebrow: { sr: "Novi nivo", en: "New level" },
   badgeEyebrow: { sr: "Novi bedž", en: "New badge" },
   badgesEyebrow: { sr: "Novi bedževi", en: "New badges" },
@@ -152,7 +151,6 @@ export const IGRA_LEADERBOARD_COPY = {
   openSpot: { sr: "Slobodno mesto", en: "Open spot" },
   you: { sr: "Ti", en: "You" },
   yourPlace: { sr: "Tvoje mesto", en: "Your place" },
-  level: { sr: "Nivo", en: "Level" },
   notRanked: { sr: "Još nisi na ovoj listi", en: "You are not on this list yet" },
   notRankedWeek: { sr: "Prva lekcija ili rad ove nedelje i na listi si.", en: "One lesson or creation this week puts you on the board." },
   notRankedAll: { sr: "Prva lekcija ili rad i na listi si.", en: "One lesson or creation puts you on the board." },
@@ -170,7 +168,6 @@ export const IGRA_PROFILE_COPY = {
   filterLabel: { sr: "Prikaži bedževe", en: "Show badges" },
   filterAll: { sr: "Sve", en: "All" },
   yearTitle: { sr: "Aktivnost", en: "Activity" },
-  yearSpan: { sr: "Poslednjih 12 meseci", en: "Last 12 months" },
   yearEmptyOwn: { sr: "Prvi trag mastila stiže uz prvu lekciju, zadatak ili objavu.", en: "The first ink mark comes with your first lesson, task, or post." },
   yearEmptyMember: { sr: "U poslednjih godinu dana još nema aktivnosti.", en: "No activity in the last year yet." },
   countersLabel: { sr: "Brojači za poslednjih 12 meseci", en: "Counts for the last 12 months" },
@@ -185,7 +182,6 @@ export const IGRA_PROFILE_COPY = {
   bannerFromLevel: { sr: "Od nivoa", en: "From level" },
   bannerLocked: { sr: "zaključan", en: "locked" },
   bannerError: { sr: "Baner nije sačuvan. Pokušaj ponovo.", en: "The banner was not saved. Try again." },
-  bannerDone: { sr: "Gotovo", en: "Done" },
   close: { sr: "Zatvori", en: "Close" },
 } satisfies Record<string, LocalizedText>;
 

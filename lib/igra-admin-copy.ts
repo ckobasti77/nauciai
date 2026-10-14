@@ -54,7 +54,6 @@ export const IGRA_ADMIN_COPY = {
   chartTotal: { sr: "ukupno", en: "total" },
   chartMax: { sr: "najviše", en: "max" },
   chartToday: { sr: "danas", en: "today" },
-  chartTable: { sr: "Tabela", en: "Table" },
   chartDay: { sr: "Dan", en: "Day" },
   chartCount: { sr: "Broj", en: "Count" },
   chartEmpty: { sr: "Još nema zapisa.", en: "No records yet." },

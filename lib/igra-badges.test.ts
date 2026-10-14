@@ -10,7 +10,7 @@ import {
   IGRA_BADGE_KEYS,
   IGRA_BADGES,
   igraBadge,
-  isIgraBadgeKey,
+  isBadgePublic,
   MENTOR_HELPFUL_ANSWERS,
   type IgraBadgeCounters,
   type IgraBadgeKey,
@@ -78,10 +78,7 @@ describe("katalog bedževa", () => {
     }
   });
 
-  it("prepoznaje ključ iz podataka", () => {
-    expect(isIgraBadgeKey("niz-7")).toBe(true);
-    expect(isIgraBadgeKey("niz-8")).toBe(false);
-    expect(isIgraBadgeKey("toString")).toBe(false);
+  it("nalazi bedž po ključu", () => {
     expect(igraBadge("top-10").group).toBe("zajednica");
   });
 });
@@ -182,5 +179,35 @@ describe("evaluateBadges", () => {
   it("loš brojač (NaN, negativan, razlomak) ne otključava ništa", () => {
     expect(earned({ completedLessons: Number.NaN, creaWorks: -5, bestStreak: 2.9 })).toEqual([]);
     expect(state({ completedLessons: Number.NaN })["pet-lekcija"].progress).toEqual({ current: 0, target: 5 });
+  });
+});
+
+describe("isBadgePublic (tuđi profil)", () => {
+  const closed = { creaPublic: false, helpfulAnswers: 0 };
+  const open = { creaPublic: true, helpfulAnswers: MENTOR_HELPFUL_ANSWERS };
+  const shown = (profile: { creaPublic: boolean; helpfulAnswers: number }) => IGRA_BADGE_KEYS.filter((key) => isBadgePublic(key, profile));
+
+  it("vreme učenja i broj radova nisu javni ni uz javnu knjižicu", () => {
+    for (const key of ["nocna-sova", "rani-pevac", "deset-radova", "sto-radova"] as const) {
+      expect(isBadgePublic(key, closed), key).toBe(false);
+      expect(isBadgePublic(key, open), key).toBe(false);
+    }
+  });
+
+  it("Crea i nizovi samo uz javnu knjižicu", () => {
+    for (const key of ["prvi-rad", "prvi-video", "prvi-zvuk", "recept", "tehnika", "izazov", "niz-3", "niz-7", "niz-30"] as const) {
+      expect(isBadgePublic(key, closed), key).toBe(false);
+      expect(isBadgePublic(key, { ...closed, creaPublic: true }), key).toBe(true);
+    }
+  });
+
+  it("mentor samo uz javan broj korisnih odgovora (partner za učenje nije javan)", () => {
+    expect(isBadgePublic("mentor", { creaPublic: true, helpfulAnswers: MENTOR_HELPFUL_ANSWERS - 1 })).toBe(false);
+    expect(isBadgePublic("mentor", { creaPublic: false, helpfulAnswers: MENTOR_HELPFUL_ANSWERS })).toBe(true);
+  });
+
+  it("ostalo je uvek javno: 10 bez knjižice, 20 sa njom", () => {
+    expect(shown(closed)).toEqual(["prva-lekcija", "prvi-zadatak", "pet-lekcija", "prvi-kurs", "tri-kursa", "staza", "prva-objava", "koristan-odgovor", "omiljen", "top-10"]);
+    expect(shown(open)).toHaveLength(20);
   });
 });

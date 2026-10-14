@@ -38,9 +38,20 @@ const reducedSafe = (body: string) => {
 
 describe("CSS recept", () => {
   test("igra-press / igra-lift i modifikatori postoje u @layer components", () => {
-    for (const name of ["igra-press", "igra-lift", "igra-shadow", "igra-shadow-soft", "igra-shadow-ink", "igra-shadow-yellow", "igra-depth-2", "igra-depth-4"]) {
+    for (const name of ["igra-press", "igra-lift", "igra-shadow", "igra-shadow-soft", "igra-shadow-ink", "igra-shadow-yellow", "igra-depth-1", "igra-depth-2", "igra-depth-4"]) {
       expect(pressLayer, name).toMatch(new RegExp(`\\.${name}[\\s{:,]`));
     }
+  });
+
+  test("bez IGRA ljuske u dokumentu (javni sajt) recept nema senku ni podizanje (K29)", () => {
+    expect(pressLayer).toMatch(/:root:not\(:has\(\[data-igra-ui\]\)\) \.igra-press \{\s*--igra-shadow: transparent;/);
+    expect(reducedSafe(pressLayer)).toMatch(/:root:not\(:has\(\[data-igra-ui\]\)\) \.igra-press:hover:not\(:disabled, \[aria-disabled="true"\]\) \{\s*translate: none;/);
+  });
+
+  test("svaki modifikator senke koji kod koristi postoji (nepoznat tiho daje 3 px)", () => {
+    const used = new Set([...POST_LOGIN_ROOTS, "components/ui"].flatMap(tsxFiles).flatMap((file) => [...read(file).matchAll(/\bigra-(?:depth|shadow)-[a-z0-9]+\b/g)].map((match) => match[0])));
+    expect(used.size).toBeGreaterThan(0);
+    for (const name of used) expect(pressLayer, name).toMatch(new RegExp(`\\.${name}[\\s{:,]`));
   });
 
   test("senka ide kroz --tw-shadow i samo kroz tokene", () => {

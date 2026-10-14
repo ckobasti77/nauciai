@@ -30,11 +30,12 @@ export const IGRA_MOTION = {
 } as const;
 
 /**
- * Jedina odluka „da li animirati": bez smanjenog pokreta, u kadru i u aktivnom tabu.
- * Kad vrati `false`, pozivalac odmah postavlja krajnje stanje (vrednost, puna traka, pečat).
+ * Jedina odluka „da li animirati": bez smanjenog pokreta i u aktivnom tabu (kadar prati
+ * pozivalac, npr. IntersectionObserver). Kad vrati `false`, pozivalac odmah postavlja
+ * krajnje stanje (vrednost, puna traka, pečat).
  */
-export function shouldAnimate({ reduced, inView = true, hidden = false }: { reduced: boolean; inView?: boolean; hidden?: boolean }): boolean {
-  return !reduced && inView && !hidden;
+export function shouldAnimate({ reduced, hidden = false }: { reduced: boolean; hidden?: boolean }): boolean {
+  return !reduced && !hidden;
 }
 
 export type IgraPlugins = {
@@ -95,22 +96,4 @@ function odometerValue(value: number): number {
 /** Broj sa separatorom hiljada po jeziku: `1.250` (sr) / `1,250` (en). */
 export function formatOdometer(value: number, locale: Locale): string {
   return String(odometerValue(value)).replace(/\B(?=(\d{3})+(?!\d))/g, THOUSANDS[locale]);
-}
-
-/** Širina u `ch` koju brojanje od `from` do `to` najviše zauzme (za `min-width`, bez skoka layouta). */
-export function odometerWidthCh(from: number, to: number, locale: Locale): number {
-  return Math.max(formatOdometer(from, locale).length, formatOdometer(to, locale).length);
-}
-
-/**
- * Ćelije odometra za vrednost `to`: po jedna za svaku cifru i separator. Kad je `from`
- * širi (brojanje nadole), levo se dopunjuje praznim ćelijama da kutija ne menja širinu.
- */
-export function odometerCells(from: number, to: number, locale: Locale): Array<{ char: string; digit: boolean }> {
-  const text = formatOdometer(to, locale);
-  const pad = odometerWidthCh(from, to, locale) - text.length;
-  return [
-    ...Array.from({ length: pad }, () => ({ char: "", digit: false })),
-    ...Array.from(text, (char) => ({ char, digit: char >= "0" && char <= "9" })),
-  ];
 }

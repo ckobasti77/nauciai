@@ -3,7 +3,7 @@ import { join, relative } from "node:path";
 
 import { describe, expect, test } from "vitest";
 
-import { formatOdometer, IGRA_MOTION, loadIgraPlugin, odometerCells, odometerWidthCh, shouldAnimate } from "./igra-motion";
+import { formatOdometer, IGRA_MOTION, loadIgraPlugin, shouldAnimate } from "./igra-motion";
 import { pageMotionContract } from "./motion-contract";
 
 describe("IGRA_MOTION", () => {
@@ -28,18 +28,17 @@ describe("IGRA_MOTION", () => {
 });
 
 describe("shouldAnimate", () => {
-  test("animira samo bez smanjenog pokreta, u kadru i u aktivnom tabu", () => {
+  test("animira samo bez smanjenog pokreta i u aktivnom tabu", () => {
     expect(shouldAnimate({ reduced: false })).toBe(true);
-    expect(shouldAnimate({ reduced: false, inView: true, hidden: false })).toBe(true);
+    expect(shouldAnimate({ reduced: false, hidden: false })).toBe(true);
   });
 
   test("smanjen pokret uvek gasi animaciju", () => {
     expect(shouldAnimate({ reduced: true })).toBe(false);
-    expect(shouldAnimate({ reduced: true, inView: true, hidden: false })).toBe(false);
+    expect(shouldAnimate({ reduced: true, hidden: false })).toBe(false);
   });
 
-  test("van kadra ili u pozadinskom tabu nema animacije", () => {
-    expect(shouldAnimate({ reduced: false, inView: false })).toBe(false);
+  test("u pozadinskom tabu nema animacije", () => {
     expect(shouldAnimate({ reduced: false, hidden: true })).toBe(false);
   });
 });
@@ -75,36 +74,6 @@ describe("formatOdometer", () => {
     expect(formatOdometer(Number.NaN, "sr")).toBe("0");
     expect(formatOdometer(Number.POSITIVE_INFINITY, "sr")).toBe("0");
     expect(formatOdometer(-40, "en")).toBe("0");
-  });
-});
-
-describe("odometar: širina i ćelije", () => {
-  test("širina je širi od dva broja, sa separatorima", () => {
-    expect(odometerWidthCh(980, 1250, "sr")).toBe(5);
-    expect(odometerWidthCh(1250, 980, "sr")).toBe(5);
-    expect(odometerWidthCh(0, 7, "en")).toBe(1);
-  });
-
-  test("ćelije: cifra ili separator, redom", () => {
-    expect(odometerCells(0, 1250, "sr")).toEqual([
-      { char: "1", digit: true },
-      { char: ".", digit: false },
-      { char: "2", digit: true },
-      { char: "5", digit: true },
-      { char: "0", digit: true },
-    ]);
-    expect(odometerCells(0, 1250, "en")[1]).toEqual({ char: ",", digit: false });
-  });
-
-  test("brojanje nadole dopunjuje levo praznim ćelijama, pa kutija ne menja širinu", () => {
-    const cells = odometerCells(1250, 80, "sr");
-    expect(cells).toHaveLength(5);
-    expect(cells.slice(0, 3)).toEqual([
-      { char: "", digit: false },
-      { char: "", digit: false },
-      { char: "", digit: false },
-    ]);
-    expect(cells.map((cell) => cell.char).join("")).toBe("80");
   });
 });
 

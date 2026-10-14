@@ -52,7 +52,6 @@ export function Podium({
   showLevel,
   countUp,
   hrefFor,
-  show3d = true,
   className,
 }: {
   /** Najviše tri reda, redom mesta. */
@@ -63,7 +62,6 @@ export function Podium({
   /** XP se vrti samo pri prvom prikazu liste. */
   countUp: boolean;
   hrefFor: (row: PodiumRow) => string | undefined;
-  show3d?: boolean;
   className?: string;
 }) {
   const listRef = useRef<HTMLOListElement>(null);
@@ -82,7 +80,7 @@ export function Podium({
             return (
               <li key={`open-${index}`} aria-hidden="true" className={cn("hidden md:flex md:flex-col md:items-center md:justify-end", ORDER[index])}>
                 <span className="pb-3 type-body-sm font-bold text-muted">{COPY.openSpot[locale]}</span>
-                <span className="block h-14 w-full rounded-t-xl border border-b-0 border-dashed border-line" />
+                <span className="block h-14 w-full rounded-t-[12px] border border-b-0 border-dashed border-line" />
               </li>
             );
           }
@@ -128,7 +126,7 @@ export function Podium({
                 ORDER[index],
               )}
             >
-              {first && show3d ? (
+              {first ? (
                 <div className="mx-auto hidden w-24 md:block lg:w-28">
                   <IgraThreeStage kind="pehar" spin="once" />
                 </div>
@@ -146,7 +144,7 @@ export function Podium({
               </span>
               <span
                 aria-hidden="true"
-                className={cn("hidden w-full place-items-center rounded-t-xl font-black text-ink type-h2 md:mt-3 md:grid", STEP[step])}
+                className={cn("hidden w-full place-items-center rounded-t-[12px] font-black text-ink type-h2 md:mt-3 md:grid", STEP[step])}
               >
                 {row.rank}
               </span>

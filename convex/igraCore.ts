@@ -6,6 +6,7 @@ import {
   EMPTY_BADGE_COUNTERS,
   evaluateBadges,
   IGRA_BADGES,
+  isBadgePublic,
   MENTOR_HELPFUL_ANSWERS,
   TOP10_MIN_WEEK_XP,
   type IgraBadgeCounters,
@@ -44,9 +45,6 @@ const TOP10 = 10;
 const RANK_LIMIT = 100;
 /** Brojači na profilu (K13) pokrivaju isti prozor kao javni kalendar aktivnosti. */
 export const PROFILE_YEAR_DAYS = 365;
-
-/** Bedževi koje drugi nikad ne vide: vreme učenja danas nije javno na profilu. */
-const PRIVATE_BADGES: ReadonlySet<IgraBadgeKey> = new Set(["nocna-sova", "rani-pevac"]);
 
 export function badgeSeenKey(key: IgraBadgeKey): string {
   return `badge:${key}`;
@@ -319,9 +317,9 @@ async function yearWorksOf(ctx: QueryCtx, userId: Id<"users">, todayKey: string)
 
 /**
  * Napredak drugog člana: samo ono što je i danas javno na profilu. Bedževi se čitaju iz
- * dnevnika (pravila se za drugoga ne računaju); Crea grupa i broj radova samo uz javnu
- * đačku knjižicu, a bedževi vremena učenja nikad. Osoblje nema nivo ni XP, kao na profilu
- * danas. Vlasnik na svom profilu vidi sve svoje.
+ * dnevnika (pravila se za drugoga ne računaju), a koje drugi vidi odlučuje `isBadgePublic`.
+ * Broj radova u Crei vidi samo vlasnik. Osoblje nema nivo ni XP, kao na profilu danas.
+ * Vlasnik na svom profilu vidi sve svoje.
  */
 export async function memberProgressFor(ctx: QueryCtx, username: string, viewerId: Id<"users">, todayKey: string) {
   const normalized = normalizeUsername(username);
@@ -340,7 +338,8 @@ export async function memberProgressFor(ctx: QueryCtx, username: string, viewerI
   ]);
   const isStaff = isStudioStaff(effectiveRoleForProfile(String(user.email ?? "").toLowerCase(), user.role));
   const xp = statsAll?.xp ?? 0;
-  const creaVisible = isOwner || creaProfile?.reportCardPublic === true;
+  // Isto što profil drugima već pokazuje: javna knjižica i broj korisnih odgovora.
+  const publicProfile = { creaPublic: creaProfile?.reportCardPublic === true, helpfulAnswers: statsAll?.helpfulAnswers ?? 0 };
   const level = levelFromXp(xp);
 
   return {
@@ -348,12 +347,14 @@ export async function memberProgressFor(ctx: QueryCtx, username: string, viewerI
     level: isStaff ? null : level,
     /** Izabrani baner; `null` = podrazumevani. Baner je izgled, javan kao i avatar. */
     banner: resolveBanner(user.igraBanner, level.level),
-    /** Radovi u Crei za godinu dana: vlasniku, a drugima samo uz javnu đačku knjižicu. */
-    works: creaVisible ? await yearWorksOf(ctx, user._id, todayKey) : null,
+    /**
+     * Radovi u Crei za godinu dana, samo vlasniku: broja radova nema ni javna knjižica, a
+     * `todayKey` šalje klijent, pa bi pomeranjem prozora drugi mogao da rekonstruiše dane.
+     */
+    works: isOwner ? await yearWorksOf(ctx, user._id, todayKey) : null,
     /** Uvek 24, redom iz kataloga. */
     badges: IGRA_BADGES.map((badge): { key: IgraBadgeKey; state: IgraMemberBadgeState } => {
-      const hidden = !isOwner && (PRIVATE_BADGES.has(badge.key) || (badge.group === "crea" && !creaVisible));
-      if (hidden) return { key: badge.key, state: "hidden" };
+      if (!isOwner && !isBadgePublic(badge.key, publicProfile)) return { key: badge.key, state: "hidden" };
       return { key: badge.key, state: ledger.has(badgeSeenKey(badge.key)) ? "unlocked" : "locked" };
     }),
   };

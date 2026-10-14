@@ -19,7 +19,6 @@ import {
   igraLikArt,
   igraNivoArt,
   igraNivoOf,
-  isIgraArtId,
   isIgraSticker,
   type IgraArtInfo,
   type IgraArtKind,
@@ -76,8 +75,7 @@ describe("igraArt", () => {
     expect(igraArtOrNull("lik.nepostoji.mase")).toBeNull();
     expect(igraArtOrNull("")).toBeNull();
     expect(igraArtOrNull("toString")).toBeNull();
-    expect(isIgraArtId("lik.nepostoji.mase")).toBe(false);
-    expect(isIgraArtId("lik.robi.mase")).toBe(true);
+    expect(igraArtOrNull("lik.robi.mase")).not.toBeNull();
     // @ts-expect-error nepoznat ID ne prolazi ni tipove
     expect(() => igraArt("lik.nepostoji.mase")).toThrow("nepoznata slika");
   });
@@ -86,7 +84,7 @@ describe("igraArt", () => {
     const assets: Record<string, unknown> = manifest.assets;
     for (const id of Object.keys(IGRA_PLANNED_ART) as Array<keyof typeof IGRA_PLANNED_ART>) {
       const info = igraArt(id);
-      expect(isIgraArtId(id)).toBe(true);
+      expect(igraArtOrNull(id)).not.toBeNull();
       if (assets[id]) continue; // stigla je: manifest pobeđuje
       expect(info.ready, id).toBe(false);
       expect(info.src, id).toBe("");
@@ -159,7 +157,7 @@ describe("porodice ID-jeva", () => {
     for (const lik of IGRA_LIKOVI) {
       for (const poza of IGRA_POZE) {
         const id = igraLikArt(lik, poza);
-        expect(isIgraArtId(id), id).toBe(true);
+        expect(igraArtOrNull(id), id).not.toBeNull();
         expect(igraArt(id).kind, id).toBe("lik");
       }
     }

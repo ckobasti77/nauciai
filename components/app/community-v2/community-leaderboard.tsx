@@ -395,7 +395,7 @@ function LeaderboardSkeleton() {
   );
 }
 
-export type LeaderboardViewer = { eligible: boolean; row: LeaderboardRow | null; periodKey?: string };
+type LeaderboardViewer = { eligible: boolean; row: LeaderboardRow | null; periodKey?: string };
 
 export function LeaderboardView({
   locale,
