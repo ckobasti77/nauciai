@@ -1537,3 +1537,37 @@ Jovan ručno: uključi `crea_public_gallery` na DEV-u i otvori `/crea/galerija` 
 - *„typecheck / lint / test / check:frames prolaze; sekcija K24 u progress-u"* — **ispunjeno** (typecheck 0, lint 0 grešaka / 26 zatečenih upozorenja, test 318 fajlova / 3.619 testova, check:frames čist; sekcija ovde).
 
 **BLOKADA (K24, provera na pravim stranama):** stavka „dosledne na svim površinama" nije proverena u pregledaču na pravim stranama posle prijave (`/app`, učionica, zajednica, profil, poruke, krediti, admin, Crea). Razlog: Playwright MCP radi bez sesije, a pravila runa zabranjuju druge pregledače i diranje auth toka, pa proxy svaku `/app` i Crea stranu preusmerava na prijavu (isto kao K06–K23). Zamena: izlog `?deo=mikro` i `?deo=pokret` + testovi nad izvorom svih 113 izmenjenih fajlova + typecheck + build. Jovan ručno: proći mišem i tastaturom tablu, učionicu, zajednicu, poruke, kredite, admin i Crea composer (vidi „Za Jovana ujutru").
+
+## K25 — Sve slike na mestu (manifest sweep)   (2026-10-14 13:10)
+**Fajlovi:** `lib/igra-copy.ts` (+`badgeSoonTag`), `lib/igra-badge-view.ts` (tag „uskoro" koristi kratki natpis), `docs/igra/snimci/K25-*.png` (7)
+
+**Šta je urađeno:** `check:igra` (i `--strict`): manifest 123/123 `ready`, svih 60 ID-jeva iz koda spremno, nema nepoznatih ni planiranih. Skripta `.igra-run/tmp/k25-audit.mjs` (sharp) prošla je svih 123 fajla: svi postoje, dimenzije fajla = `w`×`h` iz manifesta, nalepnice imaju alfa kanal, svaki red ima `alt` sr + en (jedina „ista" je `ikona.crea` = „Crea", ime brenda). Veličine u okviru budžeta (najveći: scena 155 KB, baner 105 KB, nalepnica 87 KB). Pregledač: svih 16 delova izloga × 1440/390 × svetla/tamna × sr/en (128 prolaza, uz skrol zbog lazy učitavanja): 0 slomljenih slika, 0 fallback krugova umesto spremne slike, nijedna slika nije razvučena preko prirodne veličine, najviše jedna `fetchpriority=high` po ekranu (samo `IgraHero` i baner profila; ostalo `lazy`). Jedini nalaz: engleski natpis „Coming soon" na nalepnici „uskoro" bio je širi (106 px) od nalepnice (44–72 px) i izbacivao strano na 390 px vodoravni skrol (izlog `primitivi`); sada je tag „Soon", a izgovoreni naziv (`aria-label`, tooltip) ostaje „coming soon". Posle ispravke vodoravnog skrola nema.
+
+**Površine:** sve gotove (izlog, sve teme/jezici/širine). Prave strane iza prijave Playwright ne vidi (isto kao K06–K24), pa su proveravane kroz izlog.
+
+**Još nedostaje:** ništa. Nema traženih slika; `IGRA_PLANNED_ART` nije dirano.
+
+**Spremne slike koje kod ne koristi (7) — zašto:**
+- `rang.xp`: nijedan plan (K01–K20) ga ne vezuje za površinu; XP se prikazuje odometrom i trakom, a „XP kristal" uz svaki broj bi ponovio isto. Ostaje rezerva.
+- `rang.meta`: K10 ODLUKA 16 (put nema cilj/zastavicu); tabla (K08) ima sopstvenu misiju dana bez ikone mete.
+- `ikona.ucionica`, `ikona.zajednica`, `ikona.crea`: ove površine već imaju scenu-heroja (`scena.*`), a pravilo je „jedna jaka ilustracija po ekranu" (K01 §1.3, K14 ODLUKA 15); ikona uz scenu bi bila druga.
+- `ikona.profil`: K13 ODLUKA 15 (profil ima baner i policu).
+- `ikona.poruke`: K18 (nema naslovne trake). Zaglavlje liste razgovora je gusto (tri dugmeta u istom redu na 390 px), pa 40 px nalepnica tu ne staje bez gubitka.
+`check:igra` ih i dalje samo navodi (upozorenje, ne greška).
+
+**ODLUKE:**
+1. Ne dodajem nove upotrebe zaostalih 7 slika (gore); svaka bi bila druga ilustracija na ekranu ili bi gurala gustu traku. Najkonzervativnije.
+2. Nalepnice su 768 px AVIF (≤ 87 KB) čak i kad se crtaju na 24–64 px (npr. 24 bedža na polici profila ≈ 1 MB, `lazy`). Ne menjam: slike pravi pipeline, a manjim kopijama bi trebao `srcset`/novi fajlovi. Predlog za posle runa: manje kopije bedževa/nivoa (192 px) u pipeline-u.
+3. Kratki tag „Soon" je zaseban string (`badgeSoonTag`), ne izmena `badgeSoon`, da se izgovoreni naziv („Challenge — coming soon", test u `igra-a11y.test.ts`) ne promeni.
+
+**Novi paketi:** nema.
+
+**Testovi:** nisu dodavani ni menjani (postojeći `igra-a11y` i `igra-badge-view` testovi prolaze; promena je samo natpis).
+
+**Slike:** nema novih; tražene: nema.
+
+**Rezultat provere:** codegen: nije potreban / typecheck: prošlo / lint: prošlo (0 grešaka, istih 26 upozorenja) / test: prošlo (318 fajlova, 3.619 testova) / check:frames, check:igra (`--strict`): prošlo. Dev server (3123) ugašen.
+
+**Snimci:** `K25-slike-1440-{svetla,tamna}.png`, `K25-slike-1440-tamna-vrh.png`, `K25-slike-390-tamna.png`, `K25-bedz-soon-390-svetla.png`, `K25-profil-1440-tamna.png`, `K25-tabla-390-svetla.png`.
+
+**Za Jovana ujutru:** prođi pravu aplikaciju (tabla, učionica, profil/polica, Crea) u tamnoj temi i proveri da nijedna nalepnica ne ostaje prazan krug; reši da li želiš `ikona.*`/`rang.meta` negde (ako da, reci gde).

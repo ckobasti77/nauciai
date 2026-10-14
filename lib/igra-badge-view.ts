@@ -53,7 +53,7 @@ export function badgeStickerView(
   }
   if (state === "soon") {
     const soon = COPY.badgeSoon[locale];
-    return { name, detail: null, status: soon, tag: soon, label: `${name} — ${soon.toLowerCase()}`, locked: true, peel: false };
+    return { name, detail: null, status: soon, tag: COPY.badgeSoonTag[locale], label: `${name} — ${soon.toLowerCase()}`, locked: true, peel: false };
   }
   if (state === "unlocked" || state === "fresh") {
     const earned = COPY.badgeEarned[locale];

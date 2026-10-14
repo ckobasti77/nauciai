@@ -25,6 +25,7 @@ export const IGRA_PRIMITIVE_COPY = {
   badgeEarned: { sr: "Osvojeno", en: "Earned" },
   badgeNew: { sr: "Novo", en: "New" },
   badgeSoon: { sr: "Uskoro", en: "Coming soon" },
+  badgeSoonTag: { sr: "Uskoro", en: "Soon" },
   badgeNotShown: { sr: "nije na polici", en: "not on the shelf" },
   streak: { sr: "Niz", en: "Streak" },
   streakDone: { sr: "Danas je upisano, plamen gori.", en: "Today is logged, the flame is lit." },
