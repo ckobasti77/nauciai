@@ -17,6 +17,37 @@ export const IGRA_CELEBRATION_COPY = {
   close: { sr: "Zatvori", en: "Close" },
 } satisfies Record<string, LocalizedText>;
 
+/** Primitivi (K05): XP traka, pečat, bedž, plamen, rang, misija, polica, kartica napretka. */
+export const IGRA_PRIMITIVE_COPY = {
+  loading: { sr: "Učitava se", en: "Loading" },
+  xpBarLabel: { sr: "Napredak nivoa", en: "Level progress" },
+  maxLevel: { sr: "Najviši nivo", en: "Top level" },
+  badgeEarned: { sr: "Osvojeno", en: "Earned" },
+  badgeNew: { sr: "Novo", en: "New" },
+  badgeSoon: { sr: "Uskoro", en: "Coming soon" },
+  streak: { sr: "Niz", en: "Streak" },
+  streakDone: { sr: "Danas je upisano, plamen gori.", en: "Today is logged, the flame is lit." },
+  streakPending: { sr: "Jedna lekcija ili rad i plamen gori.", en: "One lesson or creation and the flame is lit." },
+  streakStart: { sr: "Jedna lekcija ili rad i niz počinje.", en: "One lesson or creation starts your streak." },
+  rankNone: { sr: "Još bez mesta na listi", en: "Not on the leaderboard yet" },
+  missionEyebrow: { sr: "Sledeći korak", en: "Next step" },
+  missionEmptyTitle: { sr: "Za danas je sve na mestu", en: "You are all set for today" },
+  missionEmptyBody: {
+    sr: "Nema novog koraka. Istraži kurseve ili napravi nešto u Crei, kad ti bude zgodno.",
+    en: "No new step right now. Explore the courses or make something in Crea whenever you like.",
+  },
+  shelfTitle: { sr: "Bedževi", en: "Badges" },
+  shelfAll: { sr: "Svi bedževi", en: "All badges" },
+  shelfEmpty: { sr: "Prvi bedž stiže uz prvu lekciju.", en: "Your first badge comes with your first lesson." },
+  progressTitle: { sr: "Tvoj napredak", en: "Your progress" },
+  progressInvite: { sr: "Završi prvu lekciju i kreni ka nivou 2.", en: "Finish your first lesson and head for level 2." },
+} satisfies Record<string, LocalizedText>;
+
+export const IGRA_DAY_FORMS: Record<Locale, PluralForms> = {
+  sr: { one: "dan", few: "dana", many: "dana" },
+  en: { one: "day", few: "days", many: "days" },
+};
+
 export const IGRA_BADGE_FORMS: Record<Locale, PluralForms> = {
   sr: { one: "bedž", few: "bedža", many: "bedževa" },
   en: { one: "badge", few: "badges", many: "badges" },

@@ -278,3 +278,83 @@ Prag pripada višem nivou (99 XP = nivo 1, 100 XP = nivo 2). Na nivou 12 je `pro
 - **Staza:** proveri da li na produkciji ima objavljenih kurseva bez lekcija ili bez `publishedLessonCount` (migracija `backfillPublishedLessonCount`); takav kurs drži bedž „Cela staza" zaključanim (ODLUKA 4).
 - **„10 / 100 radova"** broji radove iz poslednjih 400 dana (K01-6), ne od početka; tekst uslova to ne pominje.
 - Pragovi nivoa su jedan niz u `lib/igra-level.ts`; ako ih menjaš, test sa scenarijima („prvi dan = nivo 2", „dve nedelje = nivo 5") će reći da li kriva i dalje drži.
+
+## K05 — Gejmifikovani primitivi + izlog   (2026-10-14 02:50)
+**Fajlovi:**
+- novi (primitivi): `components/igra/xp-bar.tsx`, `level-stamp.tsx`, `badge-sticker.tsx`, `streak-flame.tsx`, `rank-chip.tsx`, `odometer.tsx`, `daily-mission.tsx`, `trophy-shelf.tsx`, `progress-card.tsx`, `igra-lik.tsx`, `igra-skeleton.tsx`
+- novi (lib): `lib/igra-a11y.ts`, `lib/igra-fixtures.ts` + testovi `lib/igra-a11y.test.ts`, `lib/igra-fixtures.test.ts`, `lib/igra-izlog.test.ts`
+- novi (izlog): `components/igra/izlog/izlog-primitivi.tsx`, `izlog-kit.tsx`, `registry.ts`, `docs/igra/snimci/K05-*.png` (10)
+- izmenjeni: `app/[locale]/igra-izlog/page.tsx` (čita registar, `?stanje=`), `components/igra/izlog/izlog-pokret.tsx` (izvozi `IzlogSlavlja` i `Izlog3d`, sadržaj isti), `components/igra/motion/use-count-up.ts` (ODLUKA 14), `lib/igra-copy.ts` (`IGRA_PRIMITIVE_COPY`, `IGRA_DAY_FORMS`)
+
+**Šta je urađeno:** Napravljeno je svih deset primitiva iz zadatka kao prezentacione komponente (podaci samo kroz props, bez upita): XP traka, pečat nivoa, nalepnica bedža, plamen niza, rang čip, odometar, misija dana, trofejna polica, kartica napretka i lik. Svaki ima stanje „učitava se" (skelet iste veličine), prazno stanje sa pozivom na prvi korak, granu za smanjen pokret (vrednost odmah) i radi u obe teme i na 390 px. Sav tekst i a11y atributi su čiste funkcije u `lib/igra-a11y.ts` (formatiranje XP-a i nivoa, natpis i `aria-*` trake, četiri stanja bedža, plamen, rang, redosled police), pa ih pokriva vitest. `lib/igra-fixtures.ts` daje tri korisnika (novi, aktivan, legenda) tipizovana odgovorom `igra:getMyProgress`; nivo, niz i bedževe računaju iste čiste funkcije kao server. Izlog je dobio registar delova i deo „Primitivi" (`/igra-izlog?deo=primitivi&stanje=novi|aktivan|legenda`): sekcija po primitivu sa svim stanjima i veličinama, a na dnu dugmad za slavlja i 3D pehar.
+
+**Površine:** nijedna površina aplikacije nije dirana. Izlog: delovi „slike", „pokret" i „primitivi" gotovi; delove površina dodaju K06–K24 (jedan fajl `izlog-<deo>.tsx` + jedan red u `registry.ts`).
+
+**Kako se koristi (za K06 i dalje):**
+- Sve prima `locale`; dok upit ne stigne: `<ProgressCard loading locale={locale} />`, kad stigne `<ProgressCard progress={progress} locale={locale} />` (isto `loading` važi za svaki primitiv; tip `Loadable` u `igra-skeleton.tsx`).
+- `<XpBar xp={progress.xp} size="sm|md|lg" />` (nivo i procenat računa sam; `sm` je bez natpisa), `<Odometer value={n} size="hero|lg|md" suffix="XP" />`, `<LevelStamp level={n} size="xs|sm|md|lg" showName stampKey={…} />`, `<StreakFlame current todayDone size="sm|md|lg" />`, `<RankChip rank={progress.weekRank} size="sm|md" />`.
+- `<TrophyShelf badges={progress.badges} />` je red od 3 (novi, poslednji osvojeni, sledeći ciljevi), `variant="grid"` su sva 24 po grupama; `moreHref` dodaje link „Svi bedževi".
+- `<DailyMission mission={{ title, body, cta, href, lik, poza }} />`; `href` je već provučen kroz `withLocale`, `mission={null}` je mirno stanje bez dugmeta.
+- `<IgraLik lik="robi" poza="mase" bubble="…" locale={locale} />` (ili `decorative`).
+- Sekcije izloga za gotove kartice: `IzlogSection` / `IzlogDemo` iz `izlog-kit.tsx` (bez okvira, jer kartice nose svoj).
+
+**ODLUKE:**
+1. **Napravljeno je tačno deset primitiva iz zadatka K05.** K01 §6 nabraja i `LevelRing`, `InkCalendar`, `IgraState` i `IgraHero`; zadatak ih ne traži, pa ih pravi korak koji ih prvi koristi (K06 `LevelRing`, K08 `IgraHero` i `InkCalendar`, K23 `IgraState`).
+2. **`lib/igra-a11y.ts` drži sve što primitivi kažu i prikazuju**, ne samo a11y: formatiranje XP-a i nivoa, tekst stanja, `aria-*` atribute i redosled police. Jedan fajl, jedan test.
+3. **`aria-valuenow` XP trake je procenat 0–100 kroz tekući nivo (zaokružen nadole), a XP je u `aria-valuetext`** („Nivo 5, 490 od 1.000 XP"). Tako poslednji nivo nema `valuemax` nula; pred sam prag traka ne kaže „100".
+4. **Učitavanje:** list-primitivi su tihi (`aria-busy`, skelet `aria-hidden`), a kartica napretka, polica i misija imaju po jedan `role="status"` („Učitava se"), da ugnježđeni primitivi ne najavljuju isto više puta.
+5. **Nalepnica bedža je dugme sa oblačićem** (miš, fokus, dodir; Esc i dodir pored zatvaraju; uz ivicu ekrana se pomeri da ostane ceo). Ceo tekst je u `aria-label` („naziv — uslov, 3 od 5"), pa je oblačić `aria-hidden`. Stanje `hidden` iz K01 nije uvedeno: `getMyProgress` ga ne vraća, treba tek tuđem profilu (K13).
+6. **Broj na pečatu nivoa je krug mastila, ne žut** (žuto je nagrada, K01 §1.4) i crta se samo preko slike (`group-has-[img]`): fallback amblema već nosi broj u krugu.
+7. **`StreakFlame` nema `freezes`** (K01 ga nabraja, zadatak ne). „Tinja" je ista nalepnica sa smanjenom zasićenošću i providnošću; nema petlje ni treperenja.
+8. **Rang čip:** žuto je samo prvo mesto; drugo i treće imaju medalju na mirnoj podlozi. Bez mesta je crta i naziv „Još bez mesta na listi".
+9. **Misija dana:** naslov je `<p>` (kao `EmptyState`), jer kartica staje na razne dubine naslova. Nema XP-a, roka ni brojača (O9).
+10. **Trofejna polica:** red nikad nije prazan (nov korisnik vidi siluete prvih bedževa i poziv); nema `groupFilter`; red se prelama umesto da skroluje, jer bi `overflow` odsekao oblačić.
+11. **`ProgressCard` prima `{ xp, streak }`**, ne ceo odgovor upita, i nivo računa iz XP-a. Mesto na listi nije u kartici (zadatak: nivo + XP + niz).
+12. **Ljuska izloga je ostala u `page.tsx`** (K01 predviđa `izlog-shell.tsx`): zaglavlje i navigacija su dvadesetak linija, a stranica sada čita `registry.ts`. Podrazumevani deo je i dalje „slike", podrazumevani korisnik „aktivan".
+13. **Slavlja i 3D nisu posebni delovi izloga** (K01 §7 ima `slavlja` i `3d`): K03 ih već drži u delu „pokret", a deo „primitivi" ih ponavlja na dnu istim komponentama (`IzlogSlavlja`, `Izlog3d`), bez dupliranja koda.
+14. **Izmenjen `use-count-up.ts` iz K03:** širina broja se sada meri (početni i krajnji tekst) umesto procene u `ch`, a `min-width` se skida kad brojanje stane. Procena je ostavljala vidljivu prazninu između broja i jedinice („1.890  XP"), jer separator hiljada nije širok kao cifra. `odometerWidthCh` ostaje u `lib/igra-motion.ts` (koristi ga `odometerCells`).
+15. **Test podaci su tri korisnika i tri misije.** `fixtureLeaderboard`, kursevi, profil i obaveštenja iz K01 §7 dodaju koraci tih površina. „Danas" test podataka je fiksno 2026-10-14.
+16. **„Bez slika" nema prekidač u izlogu:** provereno je u Playwright-u blokiranjem svih zahteva ka `/brand/igra/**` (prava 404 putanja kroz `onError`), uz dva snimka.
+17. **Tekstovi:** stalne fraze su u `lib/igra-copy.ts` (`IGRA_PRIMITIVE_COPY`), rečenice sa brojevima sklapa `lib/igra-a11y.ts`. Tekstovi samog izloga idu kroz `t()` kao u K02 i K03.
+18. `IGRA_PLANNED_ART` i dalje ima tri reda (`lib/igra-art.ts` nisam dirao); manifest ih već ima (120/120).
+
+**Novi paketi:** nema.
+
+**Testovi (3 nova fajla, 46 testova):**
+- `lib/igra-a11y.test.ts` (31): XP sa separatorom po jeziku i loš ulaz; stezanje nivoa na 1–12; naziv nivoa; natpis i razlomak trake; `role`, `aria-label`, `aria-valuemin/max/now/valuetext` (granice 99 → 100, 19.999, poslednji nivo, loš XP); četiri stanja bedža (naziv, silueta, sjaj, etiketa, napredak sa stezanjem, „uskoro" bez uslova) i svih 24 bedža × 4 stanja × 2 jezika; redosled i `max` police, zbir; plamen (gori / tinja / prazno, množina dana, bez reči pretnje); rang (medalje, separator, bez mesta).
+- `lib/igra-fixtures.test.ts` (7): oblik odgovora `igra:getMyProgress`, nivo jednak `levelFromXp`, 24 bedža redom, slaganje stanja i polja, novi / aktivan (sva četiri stanja bedža, niz 6 i najduži 9) / legenda, slavlja iz `planCelebrations`, misije sa slikom lika.
+- `lib/igra-izlog.test.ts` (8, čitanje izvora): `notFound()` u produkciji pre prvog `await`, `noindex`, izlog nije u sitemap-u, jedinstveni delovi sa svojim fajlom, izlog ne zove Convex; primitivi postoje, nemaju upite ni test podatke, slike idu samo kroz `IgraArt`, bez forsiranog radijusa i golog hex-a.
+
+**Slike:** `rang.plamen`, `rang.zlato`, `rang.srebro`, `rang.bronza`, porodice `nivo.*` (12), `bedz.*` (24) i `lik.*` (28 u izlogu). TRAŽENE SLIKE: nema.
+
+**Rezultat provere:**
+- codegen: nije potreban (`convex/` nije diran)
+- typecheck: prošlo (i posle build-a)
+- lint: prošlo (0 grešaka, istih 26 zatečenih upozorenja)
+- test: prošlo (299 fajlova, 3.294 testa)
+- check:frames, check:corners, check:white, check:igra: prošlo (19 ID-jeva u kodu, svi spremni)
+- build: prošao iz prvog pokušaja; `next start` (port 3124) vraća **404** za `/igra-izlog`, `/igra-izlog?deo=primitivi`, `…&stanje=legenda`, `/en/igra-izlog` i `/en/igra-izlog?deo=pokret`, a 200 za `/`; `sitemap.xml` ne sadrži `igra-izlog`
+- check:bundle: prošlo, brojevi isti kao posle K03 (`/app` 269, učionica 290, rang lista 278, profil člana 347, Crea 466 / 542 KB)
+- **pregledač (Playwright, 1440 × 900 i 390 × 844, obe teme, sr i en), izmereno:**
+  - 110 slika u delu „primitivi", nijedna slomljena; nema vodoravnog skrola ni na jednoj širini i temi; konzola bez grešaka, a upozorenja na pregledanom učitavanju (1440, svetla) su samo zatečeno `THREE.Clock`
+  - kartica aktivnog korisnika: „1.890 XP", traka `aria-valuenow="49"`, `aria-valuetext="Nivo 5, 490 od 1.000 XP"`, ispuna `scaleX(0.49)`; posle „+100 XP" 1.990 i 59; odometar posle brojanja nema `min-width`
+  - novi korisnik: 0 XP, prazna traka, „0 dana" sa pozivom, polica sa tri siluete i „Prvi bedž stiže uz prvu lekciju."; legenda: puna traka, `aria-valuenow="100"`, „Najviši nivo", 24 / 24
+  - oblačić bedža: otvara se na miš i fokus, Esc ga zatvara; na 390 px uz levu ivicu stoji na 8 px, uz desnu na 382 od 390 px; dodir pored ga zatvara
+  - smanjen pokret: broj i ispuna odmah na vrednosti (i posle „+100 XP"), pečat bez inline stilova, skelet ne pulsira
+  - bez slika (svi zahtevi blokirani): 0 `<img>`, 110 od 110 fallback-a, ista visina kartice (148 px) i cele strane (5.909 px) kao sa slikama
+  - tamna tema, kontrast na kartici: natpisi 6,78:1, ime nivoa i broj na pečatu 12,62:1
+  - mete: interaktivni delovi primitiva (nalepnica bedža, link police, dugme misije) imaju ≥ 44 px po klasama (`size-11`, `min-h-11`); merenje u pregledaču sa pragom od 40 px našlo je ispod praga samo zatečeni prekidač teme (36 × 36)
+  - delovi „slike" i „pokret" rade kao pre; nepoznat `?deo=` pada na „slike"; slavlje iz dela „primitivi" se otvara i zatvara na Esc, četiri 3D platna na računaru
+- dev server i `next start` su ugašeni (portovi 3000–3999 slobodni); Playwright `page-*.yml` i `console-*.log` su obrisani.
+
+**Prihvatanje (K05):**
+- Izlog radi lokalno, a u produkcionom buildu vraća 404: **ispunjeno**.
+- Svi primitivi imaju stanja iz tačke 1 i rade bez slika i sa slikama: **ispunjeno** (snimci `K05-primitivi-*`, uključujući `-bez-slika-*` i `-smanjen-pokret-*`).
+- typecheck / lint / test / check:frames prolaze, sekcija K05 u progress-u: **ispunjeno**.
+
+**Za Jovana ujutru:**
+- Otvori `/igra-izlog?deo=primitivi` (`npx next dev --webpack -p 3123`) i prođi sva tri test korisnika. Proceni raspored kartice napretka (pečat levo, XP u sredini, plamen desno) i da li je silueta zaključanog bedža dovoljno vidljiva (to je token `--igra-locked-filter` iz K02).
+- **Tekstovi za ton:** „Jedna lekcija ili rad i plamen gori.", „Jedna lekcija ili rad i niz počinje.", „Završi prvu lekciju i kreni ka nivou 2.", „Za danas je sve na mestu". Svi su u `IGRA_PRIMITIVE_COPY` (`lib/igra-copy.ts`).
+- **Dodir na pravom telefonu nisam imao:** oblačić bedža je proveren na širini 390 px mišem i tastaturom. Na iPhone-u proveri da dodir na nalepnicu otvara oblačić, a dodir pored ga zatvara.
+- **Pravi čitač ekrana nisam imao:** provereni su DOM i atributi, ne izgovor.
+- Prekidač teme u izlogu je 36 × 36 px (zatečena komponenta `ThemeToggle`, nisam je dirao).

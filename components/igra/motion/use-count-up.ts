@@ -4,7 +4,7 @@ import { useReducedMotion } from "motion/react";
 import { useRef, type RefObject } from "react";
 
 import { gsap, useGSAP } from "@/components/igra/motion/gsap";
-import { formatOdometer, IGRA_MOTION, odometerWidthCh, shouldAnimate } from "@/lib/igra-motion";
+import { formatOdometer, IGRA_MOTION, shouldAnimate } from "@/lib/igra-motion";
 import type { Locale } from "@/lib/i18n";
 
 /**
@@ -14,7 +14,7 @@ import type { Locale } from "@/lib/i18n";
  * vrednost stoji odmah.
  *
  * Element treba da bude `inline-block tabular-nums` sa JEDNIM tekstualnim detetom
- * (`formatOdometer(value, locale)`); dok broji drži `min-width` u `ch`, pa ne gura susede.
+ * (`formatOdometer(value, locale)`); dok broji drži izmerenu `min-width`, pa ne gura susede.
  * Čitaču ekrana daj krajnju vrednost posebno (`sr-only`), a ovaj element sakrij
  * (`aria-hidden`) - cifre u pokretu nisu za čitanje.
  */
@@ -44,9 +44,22 @@ export function useCountUp(
         return;
       }
 
-      element.style.minWidth = `${odometerWidthCh(state.value, value, locale)}ch`;
-      write();
-      gsap.to(state, { value, duration: IGRA_MOTION.count, ease: IGRA_MOTION.ease.count, overwrite: true, onUpdate: write });
+      // Širina se MERI (početni i krajnji tekst), jer separator hiljada nije širok kao cifra:
+      // procena u `ch` ostavlja prazninu između broja i jedinice iza njega („1.890  XP").
+      const widthOf = (amount: number) => {
+        element.textContent = formatOdometer(amount, locale);
+        return element.getBoundingClientRect().width;
+      };
+      element.style.removeProperty("min-width");
+      element.style.minWidth = `${Math.ceil(Math.max(widthOf(value), widthOf(state.value)))}px`;
+      gsap.to(state, {
+        value,
+        duration: IGRA_MOTION.count,
+        ease: IGRA_MOTION.ease.count,
+        overwrite: true,
+        onUpdate: write,
+        onComplete: () => element.style.removeProperty("min-width"),
+      });
       // Bez `revertOnUpdate`: nova vrednost nastavlja od broja na ekranu. Ovo čišćenje
       // radi tek kad se komponenta skine, pa sledeće montiranje broji ispočetka.
       return () => {

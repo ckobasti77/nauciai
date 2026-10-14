@@ -279,6 +279,38 @@ function ThreeDemo({ locale }: { locale: Locale }) {
   );
 }
 
+/** Dugmad koja okidaju slavlja (i u delu „primitivi", K05). */
+export function IzlogSlavlja({ locale }: { locale: Locale }) {
+  return (
+    <Section
+      title={t(locale, "Slavlja", "Celebrations")}
+      note={t(
+        locale,
+        "Jedno po jedno, najviše tri po sesiji. Esc ili klik pored kartice zatvara; samo se gasi posle 2,5 s.",
+        "One at a time, at most three per session. Esc or a click outside closes it; it dismisses itself after 2.5 s.",
+      )}
+    >
+      <CelebrationDemo locale={locale} />
+    </Section>
+  );
+}
+
+/** 3D pehar i medalje sa fallback nalepnicom (i u delu „primitivi", K05). */
+export function Izlog3d({ locale }: { locale: Locale }) {
+  return (
+    <Section
+      title={t(locale, "3D pehar i medalje", "3D trophy and medals")}
+      note={t(
+        locale,
+        "Platno samo na računaru i uz dozvoljen pokret; inače ostaje nalepnica.",
+        "Canvas only on desktop with motion allowed; otherwise the sticker stays.",
+      )}
+    >
+      <ThreeDemo locale={locale} />
+    </Section>
+  );
+}
+
 export function IzlogPokret({ locale }: { locale: Locale }) {
   return (
     <div className="space-y-6">
@@ -295,27 +327,8 @@ export function IzlogPokret({ locale }: { locale: Locale }) {
         </div>
       </Section>
 
-      <Section
-        title={t(locale, "Slavlja", "Celebrations")}
-        note={t(
-          locale,
-          "Jedno po jedno, najviše tri po sesiji. Esc ili klik pored kartice zatvara; samo se gasi posle 2,5 s.",
-          "One at a time, at most three per session. Esc or a click outside closes it; it dismisses itself after 2.5 s.",
-        )}
-      >
-        <CelebrationDemo locale={locale} />
-      </Section>
-
-      <Section
-        title={t(locale, "3D pehar i medalje", "3D trophy and medals")}
-        note={t(
-          locale,
-          "Platno samo na računaru i uz dozvoljen pokret; inače ostaje nalepnica.",
-          "Canvas only on desktop with motion allowed; otherwise the sticker stays.",
-        )}
-      >
-        <ThreeDemo locale={locale} />
-      </Section>
+      <IzlogSlavlja locale={locale} />
+      <Izlog3d locale={locale} />
     </div>
   );
 }
