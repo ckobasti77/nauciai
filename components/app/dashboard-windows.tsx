@@ -25,7 +25,7 @@ import { LinkButton, Panel, cn } from "@/components/ui/primitives";
 import type { api } from "@/convex/_generated/api";
 import { classroomPath, courseCatalogPath, lessonPath } from "@/lib/app-routes";
 import { dashboardZoneChipClass, type DashboardZoneId } from "@/lib/dashboard-zones";
-import { rankChipView } from "@/lib/igra-a11y";
+import type { RankChipView } from "@/lib/igra-a11y";
 import { localized, t as tr, withLocale, type Locale, type LocalizedText } from "@/lib/i18n";
 
 // Oblik koji vraća agregatni query — jedini izvor podataka za komandnu tablu.
@@ -291,16 +291,18 @@ export function DashboardPulse({
   creditsBalance,
   unreadMessages,
   notifications,
-  rank,
+  rankView,
 }: {
   locale: Locale;
   creditsBalance: number;
   unreadMessages: number;
   notifications: number;
-  /** Mesto na NEDELJNOJ listi (`overview.leaderboard`); `null` dok nema XP-a ove nedelje. */
-  rank: number | null;
+  /**
+   * Mesto na NEDELJNOJ listi, iz istog izvora kao ljuska (`weekPlaceView` nad
+   * `igra:getMyProgress`, K12), da tabla i panel „Moj napredak" ne kažu dva broja.
+   */
+  rankView: RankChipView;
 }) {
-  const rankView = rankChipView(rank, locale);
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
       <PulseTile href={withLocale(locale, "/app/credits")} label={tr(locale, "Krediti", "Credits")} value={String(creditsBalance)} icon={Coins} />

@@ -8,8 +8,8 @@ import { cn } from "@/components/ui/primitives";
 import { formatOdometer } from "@/lib/igra-motion";
 import type { Locale } from "@/lib/i18n";
 
-const SIZE = { hero: "type-hero", lg: "type-h1", md: "type-h3" } as const;
-const SKELETON = { hero: "h-10 w-36", lg: "h-8 w-28", md: "h-5 w-20" } as const;
+const SIZE = { hero: "type-hero", lg: "type-h1", md: "type-h3", sm: "type-body-sm" } as const;
+const SKELETON = { hero: "h-10 w-36", lg: "h-8 w-28", md: "h-5 w-20", sm: "h-4 w-14" } as const;
 
 function Rolling({ value, locale }: { value: number; locale: Locale }) {
   const ref = useRef<HTMLSpanElement>(null);

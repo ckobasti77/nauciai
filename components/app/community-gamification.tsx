@@ -89,34 +89,3 @@ export function VoteScore({
     </span>
   );
 }
-
-/**
- * Ulaz redova rang liste sa razmakom od 30 ms. Klasa se dodaje TEK kad sekcija uđe
- * u kadar (jedan observer po LISTI, ne po redu), pa se van ekrana ne animira ništa;
- * pod `prefers-reduced-motion` CSS pravilo ne postoji, pa redovi odmah stoje.
- */
-export function useEnterOnView<T extends HTMLElement>() {
-  // Ime NIJE `ref`: React compiler lint pravilo (`Cannot access refs during render`)
-  // gleda ime pristupa, pa bi `state.ref` u JSX-u pao iako je to samo prosleđivanje.
-  const containerRef = useRef<T>(null);
-  const [entered, setEntered] = useState(false);
-
-  useEffect(() => {
-    const node = containerRef.current;
-    if (!node || entered) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (!entry.isIntersecting) continue;
-          setEntered(true);
-          observer.disconnect();
-        }
-      },
-      { threshold: 0.15 },
-    );
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [entered]);
-
-  return { containerRef, entered };
-}

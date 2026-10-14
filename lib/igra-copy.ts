@@ -139,6 +139,24 @@ export const IGRA_COMMUNITY_COPY = {
   arrivedIskra: { sr: "Stiglo je nešto novo za tebe.", en: "Something new just came in for you." },
 } satisfies Record<string, LocalizedText>;
 
+/** Rang liste (K12): podijum, „ti" red i iskreno odbrojavanje do kraja nedelje. */
+export const IGRA_LEADERBOARD_COPY = {
+  podium: { sr: "Prva tri mesta", en: "Top three" },
+  openSpot: { sr: "Slobodno mesto", en: "Open spot" },
+  you: { sr: "Ti", en: "You" },
+  yourPlace: { sr: "Tvoje mesto", en: "Your place" },
+  level: { sr: "Nivo", en: "Level" },
+  notRanked: { sr: "Još nisi na ovoj listi", en: "You are not on this list yet" },
+  notRankedWeek: { sr: "Prva lekcija ili rad ove nedelje i na listi si.", en: "One lesson or creation this week puts you on the board." },
+  notRankedAll: { sr: "Prva lekcija ili rad i na listi si.", en: "One lesson or creation puts you on the board." },
+  notRankedTrack: { sr: "Završi lekciju iz ovog smera i na listi si.", en: "Finish a lesson from this track and you are on the board." },
+  notRankedCourse: { sr: "Završi lekciju iz ovog kursa i na listi si.", en: "Finish a lesson from this course and you are on the board." },
+  weekEnds: { sr: "Nedelja se završava za", en: "This week ends in" },
+  weekEndsAt: { sr: "u ponedeljak u 00:00", en: "Monday at 00:00" },
+  and: { sr: "i", en: "and" },
+  underMinute: { sr: "manje od minuta", en: "less than a minute" },
+} satisfies Record<string, LocalizedText>;
+
 export const IGRA_LESSON_FORMS: Record<Locale, PluralForms> = {
   sr: { one: "lekcija", few: "lekcije", many: "lekcija" },
   en: { one: "lesson", few: "lessons", many: "lessons" },
@@ -147,6 +165,16 @@ export const IGRA_LESSON_FORMS: Record<Locale, PluralForms> = {
 export const IGRA_DAY_FORMS: Record<Locale, PluralForms> = {
   sr: { one: "dan", few: "dana", many: "dana" },
   en: { one: "day", few: "days", many: "days" },
+};
+
+export const IGRA_HOUR_FORMS: Record<Locale, PluralForms> = {
+  sr: { one: "sat", few: "sata", many: "sati" },
+  en: { one: "hour", few: "hours", many: "hours" },
+};
+
+export const IGRA_MINUTE_FORMS: Record<Locale, PluralForms> = {
+  sr: { one: "minut", few: "minuta", many: "minuta" },
+  en: { one: "minute", few: "minutes", many: "minutes" },
 };
 
 export const IGRA_BADGE_FORMS: Record<Locale, PluralForms> = {

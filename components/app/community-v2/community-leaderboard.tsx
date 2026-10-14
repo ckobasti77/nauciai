@@ -1,13 +1,30 @@
 "use client";
 
-import { Award, BookOpenCheck, CheckCircle2, ChevronDown, Crown, HelpCircle, Medal, Palette, Sparkles, Trophy } from "lucide-react";
+import { BookOpenCheck, CheckCircle2, ChevronDown, HelpCircle, Palette, Sparkles, Trophy } from "lucide-react";
 import Link from "next/link";
-import type { CSSProperties } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 
-import { useEnterOnView } from "@/components/app/community-gamification";
-import { CommunityAvatar } from "@/components/app/community-identity";
+import { FlipOrder } from "@/components/igra/leaderboard/flip-order";
+import { RankAvatar } from "@/components/igra/leaderboard/rank-avatar";
+import { WeekCountdown } from "@/components/igra/leaderboard/week-countdown";
+import { useEnterStagger } from "@/components/igra/motion/use-enter-stagger";
+import { Odometer } from "@/components/igra/odometer";
+import { Podium } from "@/components/igra/podium";
 import { cn } from "@/components/ui/primitives";
-import { podiumAccentVar } from "@/lib/community-gamification";
+import { classroomPath } from "@/lib/app-routes";
+import { formatLevel } from "@/lib/igra-a11y";
+import { IGRA_LEADERBOARD_COPY } from "@/lib/igra-copy";
+import {
+  rowXpIsTotal,
+  splitPodium,
+  unrankedHint,
+  viewerBar,
+  type LeaderboardPeriod,
+  type LeaderboardScopeKind,
+  type ViewerBar,
+} from "@/lib/igra-leaderboard";
+import { levelFromXp } from "@/lib/igra-level";
+import { IGRA_MOTION } from "@/lib/igra-motion";
 import type { Locale } from "@/lib/i18n";
 import { withLocale } from "@/lib/i18n";
 
@@ -15,16 +32,13 @@ import { fallbackCommunityFilters, useCommunityFilters, useLeaderboard } from ".
 import { CommunityScopeControls, useCommunityQueryParams, useResolvedCommunityScope } from "./community-filters";
 import { CommunityStickyToolbar } from "./community-sticky-toolbar";
 import {
-  CommunityRouteSkeleton,
   EmptyCommunityState,
   LearningSpine,
   LoadMoreButton,
 } from "./community-shared";
 import type { CommunityFilters, LeaderboardRow } from "./community-types";
 
-type LeaderboardPeriod = "week" | "all_time";
-
-function useLeaderboardPeriod() {
+export function useLeaderboardPeriod() {
   const { searchParams, update } = useCommunityQueryParams();
   const period: LeaderboardPeriod = searchParams.get("period") === "all_time" ? "all_time" : "week";
   return {
@@ -81,111 +95,284 @@ function LiveLeaderboardPage({ locale }: { locale: Locale }) {
   );
 }
 
-function RankIcon({ rank }: { rank: number }) {
-  if (rank === 1) return <Crown className="size-4 fill-yellow text-ink" aria-hidden="true" />;
-  if (rank === 2 || rank === 3) return <Medal className="size-4" aria-hidden="true" />;
-  return <Award className="size-4" aria-hidden="true" />;
+const LB = IGRA_LEADERBOARD_COPY;
+
+function memberHref(locale: Locale, username: string | undefined) {
+  return username ? withLocale(locale, `/app/members/${username}`) : undefined;
 }
 
-function PodiumCard({ locale, row }: { locale: Locale; row: LeaderboardRow }) {
-  // N12: prva tri mesta nose BLAG gradijent svog akcenta — jedan potez odozgo, koji
-  // se gubi pre polovine kartice, pa tekst i dalje leži na papiru (kontrast se ne
-  // menja ni u jednoj temi). Van prva tri mesta gradijenta nema.
-  const accent = podiumAccentVar(row.rank);
-
-  return (
-    <Link
-      href={row.username ? withLocale(locale, `/app/members/${row.username}`) : "#"}
-      aria-disabled={!row.username}
-      style={
-        accent
-          ? { backgroundImage: `linear-gradient(160deg, color-mix(in srgb, ${accent} 26%, transparent), transparent 58%)` }
-          : undefined
-      }
-      className={cn(
-        "relative overflow-hidden surface-card border bg-paper-strong p-4 text-center transition-colors hover:border-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
-        row.rank === 1
-          ? "border-2 border-ink shadow-[5px_5px_0_var(--yellow)] md:-translate-y-3"
-          : "border-line",
-        row.isViewer && "ring-4 ring-yellow/35",
-      )}
-    >
-      <div className="absolute left-3 top-3 flex items-center gap-1 font-mono text-xs font-black text-ink">
-        <RankIcon rank={row.rank} />
-        #{row.rank}
-      </div>
-      {row.isViewer ? (
-        <span className="absolute right-3 top-3 rounded-full bg-ink px-2 py-1 type-eyebrow-sm text-paper-strong">
-          {locale === "sr" ? "Ti" : "You"}
-        </span>
-      ) : null}
-      <CommunityAvatar
-        name={row.name}
-        avatarUrl={row.avatarUrl}
-        role={row.role}
-        locale={locale}
-        size={row.rank === 1 ? "lg" : "md"}
-        showRank={false}
-        className="mx-auto mt-4"
-      />
-      <h3 className="mt-2 truncate type-h4 text-ink">{row.name}</h3>
-      {row.username ? <p className="truncate text-xs font-bold text-muted">@{row.username}</p> : null}
-      <p className="mt-3 font-mono text-xl font-black text-ink">{row.xp.toLocaleString()} XP</p>
-      <div className="mt-3 flex justify-center gap-2 type-eyebrow-sm text-muted">
-        <span>{locale === "sr" ? `Nivo ${row.level ?? 1}` : `Level ${row.level ?? 1}`}</span>
-        <span aria-hidden="true">·</span>
-        <span>{row.helpfulAnswers ?? 0} {locale === "sr" ? "korisnih" : "helpful"}</span>
-      </div>
-    </Link>
-  );
+/**
+ * XP se vrti samo pri prvom prikazu liste (K12): redovi koji stignu posle (osvežen upit,
+ * „Učitaj još") odmah stoje na vrednosti. Prozor traje koliko jedno brojanje.
+ */
+function useFirstShowCount(ready: boolean) {
+  const [counting, setCounting] = useState(true);
+  useEffect(() => {
+    if (!ready || !counting) return;
+    const timer = window.setTimeout(() => setCounting(false), (IGRA_MOTION.count + 0.3) * 1000);
+    return () => window.clearTimeout(timer);
+  }, [ready, counting]);
+  return counting;
 }
 
-function LeaderboardRowItem({ locale, row, index, entered }: { locale: Locale; row: LeaderboardRow; index?: number; entered?: boolean }) {
+/** Da li je moj pravi red (podijum ili lista) u kadru, iznad pojasa koji zauzima „ti" red. */
+function useViewerOnScreen(rootRef: RefObject<HTMLElement | null>, watchKey: string | null) {
+  const [onScreen, setOnScreen] = useState(true);
+  useEffect(() => {
+    const target = watchKey ? rootRef.current?.querySelector("[data-rank-viewer]") : null;
+    if (!target) return;
+    const observer = new IntersectionObserver(([entry]) => setOnScreen(entry?.isIntersecting ?? false), {
+      rootMargin: "0px 0px -144px 0px",
+    });
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [rootRef, watchKey]);
+  return watchKey ? onScreen : false;
+}
+
+function LeaderboardRowItem({
+  locale,
+  row,
+  showLevel,
+  countUp = false,
+  inBar = false,
+}: {
+  locale: Locale;
+  row: LeaderboardRow;
+  showLevel: boolean;
+  countUp?: boolean;
+  /** Kopija u lepljivom „ti" redu: nije meta Flip-a ni posmatrača. */
+  inBar?: boolean;
+}) {
+  const href = memberHref(locale, row.username);
+  const level = showLevel ? levelFromXp(row.xp) : null;
   return (
     <li
-      // Ulaz reda: kašnjenje nosi `--row-index` (30 ms po redu), a klasa se pojavi
-      // tek kad lista uđe u kadar. Pod `prefers-reduced-motion` CSS pravila nema,
-      // pa red stoji odmah na svom mestu (N12).
-      style={entered ? ({ "--row-index": index ?? 0 } as CSSProperties) : undefined}
+      data-flip-id={inBar ? undefined : row.userId}
+      data-rank-viewer={row.isViewer && !inBar ? "" : undefined}
       className={cn(
         "grid min-h-16 grid-cols-[42px_minmax(0,1fr)_auto] items-center gap-3 border-b border-line px-3 py-3 last:border-b-0 sm:grid-cols-[52px_minmax(0,1fr)_100px_100px]",
-        entered && "community-rank-row",
-        row.isViewer && "bg-yellow/18",
+        row.isViewer && !inBar && "bg-igra-marker-wash",
       )}
     >
       <span className="font-mono text-sm font-black text-ink">#{row.rank}</span>
-      <Link href={row.username ? withLocale(locale, `/app/members/${row.username}`) : "#"} aria-disabled={!row.username} className="flex min-w-0 items-center gap-3 rounded-[12px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
-        <CommunityAvatar
-          name={row.name}
-          avatarUrl={row.avatarUrl}
-          role={row.role}
-          locale={locale}
-          size="sm"
-          showRank={false}
-        />
+      <Link href={href ?? "#"} aria-disabled={!href} className="flex min-h-11 min-w-0 items-center gap-3 surface-inset focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
+        <RankAvatar name={row.name} avatarUrl={row.avatarUrl} size="sm" levelProgress={level?.progress} />
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <span className="truncate text-sm font-black text-ink">{row.name}</span>
             {row.isViewer ? (
               <span className="rounded-full bg-ink px-2 py-0.5 type-eyebrow-sm text-paper-strong">
-                {locale === "sr" ? "Ti" : "You"}
+                {LB.you[locale]}
               </span>
             ) : null}
           </div>
-          <span className="block truncate text-xs font-bold text-muted">
-            {row.username ? `@${row.username}` : locale === "sr" ? `Nivo ${row.level ?? 1}` : `Level ${row.level ?? 1}`}
-          </span>
+          {row.username || level ? (
+            <span className="block truncate text-xs font-bold text-muted">
+              {[row.username ? `@${row.username}` : null, level ? formatLevel(level.level, locale) : null].filter(Boolean).join(" · ")}
+            </span>
+          ) : null}
         </div>
       </Link>
       <span className="hidden text-right text-xs font-black text-muted sm:block">
         {row.completedLessons ?? 0} {locale === "sr" ? "lekcija" : "lessons"}
       </span>
-      <span className="text-right font-mono text-sm font-black text-ink">{row.xp.toLocaleString()} XP</span>
+      <span className="text-right">
+        <Odometer value={row.xp} size="sm" animate={countUp} locale={locale} />
+        <span className="ml-1 text-xs font-black text-muted">XP</span>
+      </span>
     </li>
   );
 }
 
-function LeaderboardView({
+/**
+ * Lepljivi „ti" red (K12): uvek na dnu ekrana dok se gleda lista, iznad donjeg menija na
+ * telefonu. Kad je moj pravi red u kadru, kopija se povuče (providnost, bez pomeranja
+ * strane: mesto ostaje rezervisano). Bez XP-a u ovom periodu je blag poziv, bez broja.
+ */
+function ViewerBarRow({
+  locale,
+  bar,
+  row,
+  hidden,
+  showLevel,
+  hint,
+}: {
+  locale: Locale;
+  bar: NonNullable<ViewerBar>;
+  row: LeaderboardRow | null;
+  hidden: boolean;
+  showLevel: boolean;
+  hint: string;
+}) {
+  return (
+    <div
+      inert={hidden}
+      className={cn(
+        "sticky bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-20 mr-14 transition-[opacity,translate] duration-200 motion-reduce:transition-none md:bottom-4",
+        hidden && "pointer-events-none translate-y-2 opacity-0",
+      )}
+    >
+      <section
+        aria-label={LB.yourPlace[locale]}
+        className="overflow-hidden surface-card border-2 border-ink bg-paper-strong shadow-[0_6px_0_0_var(--shadow-hard-14)]"
+      >
+        {bar.kind === "row" && row ? (
+          <ol>
+            <LeaderboardRowItem locale={locale} row={{ ...row, isViewer: true }} showLevel={showLevel} inBar />
+          </ol>
+        ) : (
+          <div className="flex min-h-16 items-center gap-3 px-3 py-3">
+            <span className="w-[42px] shrink-0 font-mono text-sm font-black text-muted sm:w-[52px]" aria-hidden="true">#—</span>
+            <span className="shrink-0 rounded-full bg-ink px-2 py-0.5 type-eyebrow-sm text-paper-strong">{LB.you[locale]}</span>
+            <span className="min-w-0">
+              <span className="block truncate text-sm font-black text-ink">{LB.notRanked[locale]}</span>
+              <span className="block text-xs font-bold text-muted">{hint}</span>
+            </span>
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+/**
+ * Jedna lista (opseg + period): odbrojavanje, podijum, animirana lista i „ti" red.
+ * Ključ je opseg i period, pa nova lista ponovo broji XP pri prvom prikazu.
+ */
+function RankBoard({
+  locale,
+  rows,
+  viewer,
+  period,
+  scopeKind,
+  canLoadMore,
+  loadingMore,
+  onLoadMore,
+}: {
+  locale: Locale;
+  rows: LeaderboardRow[];
+  viewer: LeaderboardViewer | undefined;
+  period: LeaderboardPeriod;
+  scopeKind: LeaderboardScopeKind;
+  canLoadMore: boolean;
+  loadingMore: boolean;
+  onLoadMore?: () => void;
+}) {
+  const boardRef = useRef<HTMLElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const { podium, rest } = splitPodium(rows);
+  const showLevel = rowXpIsTotal(scopeKind, period);
+  const countUp = useFirstShowCount(rows.length > 0);
+  const bar = viewerBar(viewer, rows);
+  const mine = viewer?.row ?? null;
+  const viewerOnScreen = useViewerOnScreen(boardRef, bar?.kind === "row" && bar.onBoard && mine ? `${mine.userId}:${mine.rank}` : null);
+  useEnterStagger(listRef, { selector: "li[data-flip-id]", deps: [rest.length] });
+
+  return (
+    <div className="min-w-0 space-y-6">
+      {/* Odbrojavanje je VAN `aria-live` oblasti: menja se svakog minuta i ne sme da se čita. */}
+      {period === "week" ? <WeekCountdown weekKey={viewer?.periodKey} locale={locale} /> : null}
+
+      <section ref={boardRef} className="min-w-0 space-y-6" aria-live="polite">
+        {podium.length ? (
+          <Podium
+            rows={podium}
+            locale={locale}
+            showLevel={showLevel}
+            countUp={countUp}
+            hrefFor={(row) => memberHref(locale, row.username)}
+          />
+        ) : null}
+
+        {rest.length ? (
+          <div ref={listRef} className="overflow-hidden surface-card border border-ink bg-paper-strong">
+            <div className="hidden grid-cols-[52px_minmax(0,1fr)_100px_100px] gap-3 border-b border-ink bg-ink/5 dark:bg-ink/10 px-3 py-2 type-eyebrow-sm text-muted sm:grid">
+              <span>{locale === "sr" ? "Rang" : "Rank"}</span>
+              <span>{locale === "sr" ? "Član" : "Member"}</span>
+              <span className="text-right">{locale === "sr" ? "Lekcije" : "Lessons"}</span>
+              <span className="text-right">XP</span>
+            </div>
+            <FlipOrder ids={rest.map((row) => row.userId)}>
+              {rest.map((row) => (
+                <LeaderboardRowItem key={row.userId} locale={locale} row={row} showLevel={showLevel} countUp={countUp} />
+              ))}
+            </FlipOrder>
+          </div>
+        ) : rows.length ? null : (
+          <EmptyCommunityState
+            locale={locale}
+            icon={Trophy}
+            art="rang.pehar"
+            title={locale === "sr" ? "Rang lista još nema nijedan bod" : "The leaderboard has no points yet"}
+            body={
+              locale === "sr"
+                ? "Bodovi (XP) se dobijaju za završene lekcije i urađene zadatke. Završi jednu lekciju na ovom kursu i lista počinje da se puni."
+                : "Points (XP) come from finished lessons and completed tasks. Finish one lesson in this course and the list starts filling up."
+            }
+            action={
+              <Link
+                href={classroomPath(locale)}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black text-ink shadow-[3px_3px_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:translate-y-0"
+              >
+                <BookOpenCheck className="size-4" />
+                {locale === "sr" ? "Otvori kurseve" : "Browse courses"}
+              </Link>
+            }
+          />
+        )}
+
+        {bar ? (
+          <ViewerBarRow
+            locale={locale}
+            bar={bar}
+            row={mine}
+            hidden={viewerOnScreen}
+            showLevel={showLevel}
+            hint={unrankedHint(scopeKind, period, locale)}
+          />
+        ) : null}
+
+        {viewer && !viewer.eligible ? (
+          <section className="rounded-[16px] border border-line bg-ink/5 dark:bg-ink/10 p-4 type-body-sm font-bold text-muted">
+            {locale === "sr"
+              ? "Predavači i moderatori se vide u Zajednici, ali se ne rangiraju - lista je samo za studente."
+              : "Teachers and moderators show up in the Community but are not ranked - the list is for students only."}
+          </section>
+        ) : null}
+
+        {canLoadMore && onLoadMore ? (
+          <div className="flex justify-center">
+            <LoadMoreButton locale={locale} loading={loadingMore} onClick={onLoadMore} />
+          </div>
+        ) : null}
+      </section>
+    </div>
+  );
+}
+
+/** Kostur iste visine kao odbrojavanje, podijum i prvih pet redova (bez skoka kad stignu). */
+function LeaderboardSkeleton() {
+  return (
+    <div className="space-y-6" aria-busy="true">
+      <div className="h-6 w-72 max-w-full animate-pulse rounded-full bg-igra-track motion-reduce:animate-none" />
+      <div className="h-56 animate-pulse surface-card bg-igra-track motion-reduce:animate-none md:h-[27rem]" />
+      <div className="overflow-hidden surface-card border border-line bg-paper-strong">
+        {[0, 1, 2, 3, 4].map((item) => (
+          <div key={item} className="flex min-h-16 items-center gap-3 border-b border-line px-3 py-3 last:border-b-0">
+            <span className="h-4 w-8 animate-pulse rounded-full bg-igra-track motion-reduce:animate-none" />
+            <span className="size-10 animate-pulse rounded-full bg-igra-track motion-reduce:animate-none" />
+            <span className="h-4 flex-1 animate-pulse rounded-full bg-igra-track motion-reduce:animate-none" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export type LeaderboardViewer = { eligible: boolean; row: LeaderboardRow | null; periodKey?: string };
+
+export function LeaderboardView({
   locale,
   filters,
   scopeState,
@@ -202,19 +389,12 @@ function LeaderboardView({
   scopeState: ReturnType<typeof useResolvedCommunityScope>;
   periodState: ReturnType<typeof useLeaderboardPeriod>;
   rows: LeaderboardRow[];
-  viewer: { eligible: boolean; row: LeaderboardRow | null } | undefined;
+  viewer: LeaderboardViewer | undefined;
   loading: boolean;
   canLoadMore: boolean;
   loadingMore: boolean;
   onLoadMore?: () => void;
 }) {
-  // Jedan `IntersectionObserver` po LISTI (ne po redu) — feed ne sme da nosi
-  // observer po kartici, a bez njega bi se ulaz odigrao van kadra.
-  const { containerRef: rankListRef, entered: rankRowsEntered } = useEnterOnView<HTMLDivElement>();
-  const podiumRows = rows.filter((row) => row.rank <= 3).slice(0, 3);
-  const remainingRows = rows.filter((row) => !podiumRows.some((podium) => podium.userId === row.userId));
-  const viewerOutsidePage = viewer?.row && !rows.some((row) => row.userId === viewer.row?.userId) ? viewer.row : null;
-
   return (
     <div className="space-y-6">
       <CommunityStickyToolbar>
@@ -260,71 +440,20 @@ function LeaderboardView({
       </CommunityStickyToolbar>
 
       {loading ? (
-        <CommunityRouteSkeleton />
+        <LeaderboardSkeleton />
       ) : (
         <div className="block">
-          <section className="min-w-0 space-y-6" aria-live="polite">
-            {podiumRows.length ? (
-              <div className="grid gap-3 md:grid-cols-3 md:items-end md:pt-4">
-                {podiumRows.map((row) => <PodiumCard key={row.userId} locale={locale} row={row} />)}
-              </div>
-            ) : null}
-
-            {rows.length ? (
-              <div ref={rankListRef} className="overflow-hidden surface-card border border-ink bg-paper-strong">
-                <div className="hidden grid-cols-[52px_minmax(0,1fr)_100px_100px] gap-3 border-b border-ink bg-ink/5 dark:bg-ink/10 px-3 py-2 type-eyebrow-sm text-muted sm:grid">
-                  <span>{locale === "sr" ? "Rang" : "Rank"}</span>
-                  <span>{locale === "sr" ? "Član" : "Member"}</span>
-                  <span className="text-right">{locale === "sr" ? "Lekcije" : "Lessons"}</span>
-                  <span className="text-right">XP</span>
-                </div>
-                <ol>{remainingRows.map((row, index) => <LeaderboardRowItem key={row.userId} locale={locale} row={row} index={index} entered={rankRowsEntered} />)}</ol>
-              </div>
-            ) : (
-              <EmptyCommunityState
-                locale={locale}
-                icon={Trophy}
-                title={locale === "sr" ? "Rang lista još nema nijedan bod" : "The leaderboard has no points yet"}
-                body={
-                  locale === "sr"
-                    ? "Bodovi (XP) se dobijaju za završene lekcije i urađene zadatke. Završi jednu lekciju na ovom kursu i lista počinje da se puni."
-                    : "Points (XP) come from finished lessons and completed tasks. Finish one lesson in this course and the list starts filling up."
-                }
-                action={
-                  <Link
-                    href={withLocale(locale, "/app/courses")}
-                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-ink bg-yellow px-5 text-sm font-black text-ink shadow-[3px_3px_0_var(--shadow-hard)] transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:translate-y-0"
-                  >
-                    <BookOpenCheck className="size-4" />
-                    {locale === "sr" ? "Otvori kurseve" : "Browse courses"}
-                  </Link>
-                }
-              />
-            )}
-
-            {viewerOutsidePage ? (
-              <section className="rounded-[16px] border-2 border-ink bg-yellow/20 p-2" aria-label={locale === "sr" ? "Tvoj rang" : "Your rank"}>
-                <p className="px-3 pb-1 pt-2 type-eyebrow-sm text-ink/65">
-                  {locale === "sr" ? "Tvoja pozicija" : "Your position"}
-                </p>
-                <ol><LeaderboardRowItem locale={locale} row={{ ...viewerOutsidePage, isViewer: true }} /></ol>
-              </section>
-            ) : null}
-
-            {viewer && !viewer.eligible ? (
-              <section className="rounded-[16px] border border-line bg-ink/5 dark:bg-ink/10 p-4 type-body-sm font-bold text-muted">
-                {locale === "sr"
-                  ? "Predavači i moderatori se vide u Zajednici, ali se ne rangiraju - lista je samo za studente."
-                  : "Teachers and moderators show up in the Community but are not ranked - the list is for students only."}
-              </section>
-            ) : null}
-
-            {canLoadMore && onLoadMore ? (
-              <div className="flex justify-center">
-                <LoadMoreButton locale={locale} loading={loadingMore} onClick={onLoadMore} />
-              </div>
-            ) : null}
-          </section>
+          <RankBoard
+            key={`${JSON.stringify(scopeState.scope)}:${periodState.period}`}
+            locale={locale}
+            rows={rows}
+            viewer={viewer}
+            period={periodState.period}
+            scopeKind={scopeState.scope.kind}
+            canLoadMore={canLoadMore}
+            loadingMore={loadingMore}
+            onLoadMore={onLoadMore}
+          />
 
           <div className="mt-5 grid gap-4 md:grid-cols-2">
             <LearningSpine

@@ -62,3 +62,4 @@ Claude outputs/
 .igra-run/logs/
 .igra-run/state.json
 .igra-assets/
+.igra-run/tmp/

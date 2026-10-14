@@ -1,7 +1,7 @@
 import type { FunctionReturnType } from "convex/server";
 
 import type { api } from "../convex/_generated/api";
-import type { CommunityMemberRow, CommunityMentionEvent, CommunityPostRow } from "../components/app/community-v2/community-types";
+import type { CommunityMemberRow, CommunityMentionEvent, CommunityPostRow, LeaderboardRow } from "../components/app/community-v2/community-types";
 import type { DashboardCourse } from "../components/app/dashboard-content";
 import type { Id } from "../convex/_generated/dataModel";
 import { courses as staticCourses } from "./content";
@@ -662,3 +662,109 @@ export const COMMUNITY_FIXTURES: Record<IgraFixtureId, CommunityFixture> = {
     notifications: COMMUNITY_NOTIFICATIONS.map((notification) => ({ ...notification, readAt: notification.readAt ?? NOW - HOUR_MS })),
   },
 };
+
+// ── Rang lista (K12) ────────────────────────────────────────────────────────
+
+export const LEADERBOARD_FIXTURE_SIZES = [0, 3, 50, 500] as const;
+export type LeaderboardFixtureSize = (typeof LEADERBOARD_FIXTURE_SIZES)[number];
+
+export type LeaderboardFixture = {
+  rows: LeaderboardRow[];
+  viewer: { eligible: boolean; row: LeaderboardRow | null };
+};
+
+const LB_FIRST = [
+  "Milan", "Jovana", "Stefan", "Ana", "Luka", "Teodora", "Nemanja", "Milica", "Marko", "Sara", "Uroš", "Katarina", "Filip",
+  "Ivana", "Vuk", "Dunja", "Lazar", "Mina", "Andrej", "Tijana", "Pavle", "Nevena", "Dušan", "Lena", "Ognjen",
+] as const;
+const LB_LAST = [
+  "Petrović", "Nikolić", "Đorđević", "Popović", "Pavlović", "Ilić", "Stojanović", "Kostić", "Lazić", "Živković",
+  "Todorović", "Ristić", "Mitrović", "Savić", "Obradović", "Kovačević", "Simić", "Antić", "Bogdanović", "Radosavljević",
+] as const;
+
+/** Korisničko ime bez kvačica: „Đorđević" → „djordjevic". */
+function asciiHandle(text: string) {
+  return text
+    .toLowerCase()
+    .replace(/đ/g, "dj")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+/** Ime i prezime za i-tog člana: 25 × 20 = 500 jedinstvenih parova. */
+function lbPerson(index: number) {
+  const first = LB_FIRST[index % LB_FIRST.length]!;
+  const last = LB_LAST[(7 * (index % LB_FIRST.length) + Math.floor(index / LB_FIRST.length)) % LB_LAST.length]!;
+  return { name: `${first} ${last}`, username: `${asciiHandle(first)}.${asciiHandle(last)}` };
+}
+
+/**
+ * Rang kao na serveru (`leaderboardReadCore`): više XP-a je bolje, isti XP deli mesto, a
+ * sledeći različit XP dobija sledeće mesto (1, 1, 2). Redosled istog XP-a ostaje ulazni.
+ */
+export function rankFixtureRows<Row extends { xp: number; rank: number }>(rows: readonly Row[]): Row[] {
+  const sorted = [...rows].sort((a, b) => b.xp - a.xp);
+  let rank = 0;
+  let previous = Number.NaN;
+  return sorted.map((row) => {
+    if (row.xp !== previous) {
+      rank += 1;
+      previous = row.xp;
+    }
+    return { ...row, rank };
+  });
+}
+
+/** Gde test korisnik stoji na listi od `size` članova (indeks od 0); `null` = nije na listi. */
+function viewerIndex(stanje: IgraFixtureId, size: number): number | null {
+  if (size === 0 || stanje === "novi") return null;
+  if (stanje === "legenda") return 0;
+  // Aktivan: na podijumu, u prvih 20 (ispod prevoja) ili daleko iza učitanog dela liste.
+  return size <= 3 ? 1 : size <= 50 ? 11 : 326;
+}
+
+/**
+ * Rang lista za izlog (K12): 0, 3, 50 ili 500 članova u obliku reda `listLeaderboard`,
+ * sa izjednačenim XP-om (deljena mesta) i test korisnikom kao „ti". Nedelja i „Ukupno"
+ * imaju isti raspored i drugu skalu XP-a; nalog tima nije na listi.
+ */
+export function fixtureLeaderboard({
+  size,
+  period,
+  stanje,
+  staff = false,
+}: {
+  size: LeaderboardFixtureSize;
+  period: "week" | "all_time";
+  stanje: IgraFixtureId;
+  staff?: boolean;
+}): LeaderboardFixture {
+  const top = period === "week" ? (stanje === "legenda" ? IGRA_FIXTURES.legenda.weekXp : 1240) : stanje === "legenda" ? IGRA_FIXTURES.legenda.xp : 21950;
+  const xps = Array.from({ length: size }, (_, index) => Math.max(10, Math.round((top * Math.pow(1 - index / Math.max(size, 1), 2.2)) / 5) * 5));
+  // Peto i šesto mesto dele XP (i mesto), da se vidi kako lista broji izjednačene.
+  if (size > 6) xps[5] = xps[4]!;
+  const me = staff ? null : viewerIndex(stanje, size);
+  // Isti ljudi kao u zajednici (K11): legenda je Vesna, aktivan Nikola.
+  const self =
+    stanje === "legenda"
+      ? { userId: "fixture-user-vesna", name: "Vesna Radović", username: "vesna.radovic" }
+      : { userId: "fixture-user-nikola", name: "Nikola Stanić", username: "nikola.stanic" };
+
+  const rows = rankFixtureRows(
+    xps.map((xp, index): LeaderboardRow => {
+      const person = index === me ? { name: self.name, username: self.username } : lbPerson(index);
+      return {
+        userId: index === me ? self.userId : `fixture-rank-${index}`,
+        rank: 0,
+        name: person.name,
+        username: person.username,
+        role: index % 3 === 0 ? "pro_student" : "student",
+        xp,
+        completedLessons: Math.floor(xp / (period === "week" ? 120 : 100)),
+        helpfulAnswers: Math.floor(xp / 400),
+        isViewer: index === me,
+      };
+    }),
+  );
+  return { rows, viewer: { eligible: !staff, row: rows.find((row) => row.isViewer) ?? null } };
+}

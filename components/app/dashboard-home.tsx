@@ -31,7 +31,7 @@ import { readFirstRunReadyDismissed, writeFirstRunReadyDismissed } from "@/lib/d
 import { IGRA_DASHBOARD_COPY } from "@/lib/igra-copy";
 import type { IgraDaypart } from "@/lib/igra-daypart";
 import { pickDailyMission } from "@/lib/igra-mission";
-import { bestStreakText } from "@/lib/igra-shell";
+import { bestStreakText, weekPlaceView } from "@/lib/igra-shell";
 import { t as tr, withLocale, type Locale } from "@/lib/i18n";
 import { publicProfilePath } from "@/lib/profile-links";
 import { progressEncouragement } from "@/lib/progress-encouragement";
@@ -239,7 +239,9 @@ export function DashboardHome({
 
       {igra === null ? null : igra ? <ProgressCard progress={igra} locale={locale} /> : <ProgressCard loading locale={locale} />}
 
-      {loading ? (
+      {/* Pločica „Rang" čita mesto iz napretka ljuske (K12: isti izvor kao panel), pa čeka i
+          njega, kao i misija; bez napretka (`null`) stoji crta. */}
+      {loading || igra === undefined ? (
         <DashboardPulseSkeleton />
       ) : (
         <DashboardPulse
@@ -247,7 +249,7 @@ export function DashboardHome({
           creditsBalance={overview?.studio.creditsBalance ?? 0}
           unreadMessages={overview?.messages.unreadTotal ?? 0}
           notifications={overview?.notifications.total ?? 0}
-          rank={overview?.leaderboard?.rank ?? null}
+          rankView={weekPlaceView(igra, locale)}
         />
       )}
 

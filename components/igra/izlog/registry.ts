@@ -4,6 +4,7 @@ import { IzlogLjuska } from "@/components/igra/izlog/izlog-ljuska";
 import { IzlogMapa } from "@/components/igra/izlog/izlog-mapa";
 import { IzlogPokret } from "@/components/igra/izlog/izlog-pokret";
 import { IzlogPrimitivi } from "@/components/igra/izlog/izlog-primitivi";
+import { IzlogRang } from "@/components/igra/izlog/izlog-rang";
 import { IzlogSlike } from "@/components/igra/izlog/izlog-slike";
 import { IzlogTabla } from "@/components/igra/izlog/izlog-tabla";
 import { IzlogUcionica } from "@/components/igra/izlog/izlog-ucionica";
@@ -31,4 +32,5 @@ export const IZLOG_PARTS: readonly IzlogPart[] = [
   { id: "ucionica", label: { sr: "Učionica", en: "Classroom" }, Part: IzlogUcionica },
   { id: "mapa", label: { sr: "Mapa puta", en: "Journey map" }, Part: IzlogMapa },
   { id: "zajednica", label: { sr: "Zajednica", en: "Community" }, Part: IzlogZajednica },
+  { id: "rang", label: { sr: "Rang lista", en: "Leaderboard" }, Part: IzlogRang },
 ];

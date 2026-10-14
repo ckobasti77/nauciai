@@ -118,8 +118,10 @@ function CommunityShellView({
   return (
     <div className="mx-auto w-full max-w-[1180px] space-y-6" aria-busy={isLoading}>
       {/* Heroj je list papira sa scenom trga i Iskrom (K11); naslov i uvodna rečenica su
-          i dalje po sekciji, a Iskra uz njih kaže jedan kratak poziv. */}
+          i dalje po sekciji, a Iskra uz njih kaže jedan kratak poziv. Rang lista nosi
+          scenu podijuma (K12). */}
       <CommunityHero
+        art={activeSection === "leaderboard" ? "scena.podijum" : undefined}
         locale={locale}
         title={locale === "sr" ? heroCopy.titleSr : heroCopy.titleEn}
         subtitle={locale === "sr" ? heroCopy.subtitleSr : heroCopy.subtitleEn}

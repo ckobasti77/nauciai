@@ -1,5 +1,5 @@
 import type { StreakDayState } from "./crea-streak";
-import { formatXp, levelName, streakFlameView, xpBarA11y, xpBarFraction } from "./igra-a11y";
+import { formatXp, levelName, rankChipView, streakFlameView, xpBarA11y, xpBarFraction, type RankChipView } from "./igra-a11y";
 import { IGRA_DAY_FORMS, IGRA_SHELL_COPY } from "./igra-copy";
 import { levelFromXp } from "./igra-level";
 import { formatOdometer } from "./igra-motion";
@@ -97,4 +97,18 @@ export function weekRankHint(input: WeekRankInput, locale: Locale): string | nul
   if (!input.eligible) return COPY.weekStaff[locale];
   if (input.weekRank !== null) return null;
   return input.weekXp > 0 ? COPY.weekBeyond[locale] : COPY.weekEmpty[locale];
+}
+
+/**
+ * Mesto na nedeljnoj listi kao kratka vrednost (pločica na tabli, K12). Izvor je ISTI kao
+ * u ljusci (`igra:getMyProgress.weekRank`), pa tabla i panel nikad ne kažu dva broja.
+ * Dalje od 100. mesta je „100+", jer tačan broj daje samo rang lista.
+ */
+export function weekPlaceView(input: WeekRankInput | null, locale: Locale): RankChipView {
+  if (input?.eligible && input.weekRank === null && input.weekXp > 0) {
+    return { text: "100+", label: COPY.weekBeyond[locale], medal: null, ranked: true };
+  }
+  const view = rankChipView(input?.eligible ? input.weekRank : null, locale);
+  if (view.ranked || !input) return view;
+  return { ...view, label: weekRankHint(input, locale) ?? view.label };
 }

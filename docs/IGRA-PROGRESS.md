@@ -907,3 +907,78 @@ Prag pripada višem nivou (99 XP = nivo 1, 100 XP = nivo 2). Na nivou 12 je `pro
 - **Prazni folderi** `.igra-run/tmp/` i `.igra-run/tmp/__pycache__/` mogu da se obrišu ručno.
 - **Zatečeno, nisam dirao:** vreme na karticama ispisuje mesec ćirilicom („14. окт", `sr-RS`); „1 doprinosa" nema množinu; toast „Zapratiio/la si" ima dva „i".
 - **Dodir na pravom telefonu i pravi čitač ekrana nisam imao.**
+
+## K12 — Rang liste i podijum   (2026-10-14 07:40)
+**Fajlovi:**
+- novi (lib): `lib/igra-leaderboard.ts` + test `lib/igra-leaderboard.test.ts`
+- novi (komponente): `components/igra/podium.tsx` (`Podium`), `components/igra/leaderboard/rank-avatar.tsx`, `week-countdown.tsx`, `flip-order.tsx`
+- novi (izlog): `components/igra/izlog/izlog-rang.tsx`, `docs/igra/snimci/K12-*.png` (9)
+- izmenjeni (rang lista): `components/app/community-v2/community-leaderboard.tsx` (podijum, lista, „ti" red, odbrojavanje, kostur; izvezeni `LeaderboardView`, `useLeaderboardPeriod`, tip `LeaderboardViewer`), `community-shell.tsx` (scena `scena.podijum` na rang listi)
+- izmenjeni (isti izvor mesta): `components/app/dashboard-home.tsx`, `components/app/dashboard-windows.tsx` (pločica „Rang"), `lib/igra-shell.ts` (`weekPlaceView`)
+- izmenjeni (ostalo): `components/igra/motion/use-enter-stagger.ts` (ODLUKA 7), `components/igra/odometer.tsx` (veličina `sm`), `lib/igra-copy.ts` (`IGRA_LEADERBOARD_COPY`, oblici „sat" i „minut"), `lib/igra-fixtures.ts` (`fixtureLeaderboard`, `rankFixtureRows`), `components/igra/izlog/registry.ts`, `lib/igra-izlog.test.ts`
+- uklonjeno jer je ostalo bez korisnika: `useEnterOnView` iz `components/app/community-gamification.tsx` i `.community-rank-row` (+ keyframes) iz `app/globals.css`
+
+**Šta je urađeno:** Rang lista (`/app/community/leaderboard`) ima podijum: prva tri mesta sa medaljom (`rang.zlato|srebro|bronza`) prikačenom na avatar, avatarom u prstenu nivoa (kad je nivo poznat, ODLUKA 2) i XP-om kao odometrom. Od `md` su to tri stuba na stepenicima koji stoje na donjoj ivici kartice (drugo levo, prvo u sredini na žutom stepeniku, treće desno; prazno mesto je isprekidan stepenik), a iznad prvog mesta je 3D pehar (lenjo, samo računar sa mišem; inače nalepnica `rang.pehar`). Na telefonu je podijum tri reda sa medaljama, bez 3D-a. Lista ispod ulazi stagger-om, a kad osvežen upit promeni redosled, redovi klize na novo mesto kroz GSAP Flip (plugin se skida lenjo, samo uz dozvoljen pokret). XP se vrti samo pri prvom prikazu liste; redovi koji stignu posle („Učitaj još", osvežen upit) odmah stoje na vrednosti. „Ti" red je lepljiv na dnu ekrana dok se gleda lista (iznad donjeg menija na telefonu): kad sam van učitanog dela liste uvek stoji, kad je moj pravi red (ili moje mesto na podijumu) u kadru povuče se, a bez XP-a u tom periodu je blag poziv („Još nisi na ovoj listi · Prva lekcija ili rad ove nedelje i na listi si."). Iznad podijuma je odbrojavanje do stvarnog kraja nedelje iz `weekKey` liste („Nedelja se završava za 4 dana i 16 sati · u ponedeljak u 00:00"), na minut, bez sekundi i bez boje hitnosti. Pločica „Rang" na kontrolnoj tabli sada čita mesto iz istog izvora kao ljuska (`igra:getMyProgress.weekRank`). Upiti, XP pravila i `convex/` nisu dirani.
+
+**Površine:**
+- gotovo: rang lista 6.4 / §5 — podijum (1, 2 i 3 člana, izjednačeni), lista (stagger, Flip, odometar pri prvom prikazu, nivo na „Ukupno"), „ti" red (na podijumu, u listi, van učitanog dela, bez XP-a, nalog tima), filteri Ova nedelja / Ukupno (postojeći), odbrojavanje, prazno stanje (link vodi u učionicu umesto na nepostojeći `/app/courses`), kostur iste visine; heroj rang liste sa scenom podijuma; pločica „Rang" na tabli.
+- nije dirano: filteri opsega (globalno / smer / kurs), `LearningSpine` i „Kako se dobija XP", javne stranice zajednice, `convex/leaderboard*.ts`, `convex/dashboard.ts`.
+
+**ODLUKE:**
+1. **Filter Sve / Učenje / Crea se ne uvodi.** `leaderboardStats` ima jedno polje `xp` (provereno u `convex/schema.ts`); razdvajanje bi tražilo nov agregat i promenu obračuna. Ista odluka kao K01-11.
+2. **Nivo (prsten oko avatara i „Nivo N") se prikazuje samo na listi „Ukupno" za celu platformu.** Red liste nosi XP svog perioda i opsega, pa je samo tada to ukupan XP iz kog se računa 12 nivoa (`rowXpIsTotal`). Na nedeljnoj listi i u smeru ili kursu nivo bi bio izmišljen (nivo iz nedeljnog XP-a), a tačan bi tražio novo čitanje po redu (zadatak zabranjuje menjanje rang upita). Serverski `row.level` (500 XP po nivou) se više ne ispisuje (isto kao K11 na profilu). Ako želiš prsten i na nedeljnoj listi: jedan nov upit `igra:levelsOf({ userIds })` sa ≤ 23 indeksirana `.unique()` čitanja po strani — nisam ga pravio.
+3. **Isti izvor mesta (tačka 6) je `igra:getMyProgress.weekRank`**, koji ljuska već drži; pločica „Rang" na tabli ga čita kroz `weekPlaceView` (`lib/igra-shell.ts`) umesto `overview.leaderboard`. Dalje od 100 redova ispred, gde `weekRank` namerno nema broj (K04 ODLUKA 1), pločica kaže „100+" sa rečenicom „Van prvih 100 ove nedelje. Tačno mesto je na rang listi."; nalog tima i nula XP-a dobijaju crtu sa istom rečenicom kao panel. Puls čeka i napredak (kao misija u K08), da se ne prikaže crta pa broj. `convex/dashboard.ts` nije diran, pa `getDashboardOverview` i dalje računa `leaderboard` (do 1.000 malih dokumenata) koji UI više ne čita — vidi „Za Jovana".
+4. **„Ti" red je u toku strane (sticky), sa rezervisanim mestom**, i samo se providnošću povuče kad je moj pravi red u kadru (bez skoka strane). Posledica: na kratkoj listi kad sam na podijumu ispod liste ostaje prazan pojas od 72 px. Desno ostavlja 56 px za globalno dugme „Nazad na vrh" (`ScrollToTop`, fiksno, isto mesto i u aplikaciji), koje bi inače pokrilo XP.
+5. **3D pehar se okrene jednom (`spin="once"`)**, ne ljulja se stalno (K01 §4 je za podijum predvideo `idle`): IGRA-PLAN §2.4 kaže da se ništa ne vrti u petlji bez potrebe, a petlja bi crtala 60 fps dok je podijum u kadru.
+6. **Flip hvata stanje u `getSnapshotBeforeUpdate`** (mala klasa u `flip-order.tsx`): to je jedini trenutak u kom DOM još stoji po starom redosledu, pa skrol između dva osvežavanja ne kvari animaciju. Flip ide samo kad se promeni redosled redova koji postoje i pre i posle (`rankOrderChanged`); „Učitaj još" ne pokreće Flip. Prelazak između podijuma i liste (npr. 4. → 3.) nije Flip (dve različite liste), red se samo pojavi na novom mestu.
+7. **Izmenjen `useEnterStagger` iz K03:** posmatrač sada gleda SVAKU novu stavku, ne samo prvu. Kad se skrolom uskoči usred duge liste (500 redova, povratak na stranu), prva stavka nikad ne pređe u kadar i cela lista je ostajala nevidljiva (uhvaćeno u izlogu). Za ostale liste ponašanje je isto.
+8. **Ulaz redova je GSAP (`useEnterStagger`), ne više CSS `.community-rank-row`** (K01 je rekao da ostane): CSS animacija sa `forwards` drži `transform: none` iznad inline stilova, pa Flip ne bi bio vidljiv. Stara klasa i `useEnterOnView` su ostali bez korisnika i obrisani. `podiumAccentVar` u `lib/community-gamification.ts` sada čita samo njegov test (K01: taj fajl i testovi se ne menjaju).
+9. **Odbrojavanje:** kraj je ponedeljak 00:00 po Beogradu iz `weekKey` koji vraća `getViewerLeaderboardRow` (`periodKey`); dok ne stigne, isti ključ se računa u pregledaču (`belgradeWeekKey`). Tekst je zaokružen nadole i računa se od kraja tekućeg minuta (nikad ne obeća više vremena). Kad je kraj prošao, a lista se još nije osvežila, odbrojavanja nema. Ne crta se na serveru (nema nepoklapanja pri hidrataciji) i stoji VAN `aria-live` oblasti liste, da ga čitač ne izgovara svakog minuta. Na „Ukupno" ga nema.
+10. **Mesto u listi broji isto kao server** (isti XP deli mesto, sledeći XP je sledeće mesto: 5, 5, 6). Na podijum idu prva tri reda sa mestom ≤ 3; četvrti izjednačen ide u listu sa istim brojem.
+11. **Medalja na avataru** se na telefonu smanjuje kroz `scale` (nalepnica nosi širinu u inline stilu), da ne pokrije inicijale.
+12. **Izlog:** deo „Rang lista" (`/igra-izlog?deo=rang&stanje=novi|aktivan|legenda`) crta PRAVU `LeaderboardView` i `CommunityHero`; prekidači 0 / 3 / 50 / 500 članova, „Nalog tima", „Učitava se" i dva dugmeta koja rade ono što radi Convex („Deveti pretekne petog", „Ja: tri mesta gore"). Test podaci: legenda je #1, aktivan je #2 (3 člana), #11 (50) i daleko iza učitanog dela (500), novi nema XP-a.
+13. **Skillovi:** pročitani `impeccable/SKILL.md` + `reference/craft-floor.md` (pušten i `context.mjs`: nema PRODUCT.md, sužena dorada postojeće površine), `design-taste-frontend`, početak `design-dna-platform.json`, `gsap-plugins` (Flip). Detektor nad novim fajlovima: bez nalaza.
+14. `IGRA_PLANNED_ART` i dalje ima tri reda (`lib/igra-art.ts` nisam dirao).
+
+**Novi paketi:** nema.
+
+**Testovi (1 nov fajl, 25 testova; 1 postojeći dopunjen):**
+- `lib/igra-leaderboard.test.ts` (25): kraj nedelje zimi i leti, nedelje sa promenom sata (167 i 169 sati), slaganje sa serverskim `belgradeWeekKey`, loš ključ; tekst odbrojavanja (na minut, nadole, množina sr/en, loš ulaz), odbrojavanje u sredu, posle kraja i iz budućnosti, bez sekundi i bez reči žurbe i pretnje u svakom koraku od 15 min kroz celu nedelju; podijum i izjednačeni, stepenici, kada je nivo poznat, kada ide Flip; „ti" red (nalog tima, prazna lista, bez XP-a, na listi / van nje) i poziv po opsegu; `weekPlaceView` (mesto, medalja, „100+", nalog tima, nula XP-a, bez napretka) i da tabla čita mesto iz napretka ljuske; test podaci za 0 / 3 / 50 / 500 (broj redova, mesta kao na serveru, izjednačeni, jedinstvena imena, gde stoji „ti"); izvor: podijum, Flip, odbrojavanje, lepljiv red iznad donjeg menija, prazno stanje vodi u učionicu, Flip i 3D samo lenjo, komponente bez upita i test podataka, odbrojavanje bez serverskog crtanja, rang upit nepromenjen.
+- izmenjen: `lib/igra-izlog.test.ts` (deo „rang").
+
+**Slike:** `scena.podijum` (heroj rang liste, od `lg`), `rang.zlato|srebro|bronza` (podijum), `rang.pehar` (nalepnica ispod 3D pehara i prazno stanje), `lik.iskra.mase` (heroj, postojeće). TRAŽENE SLIKE: nema.
+
+**Rezultat provere:**
+- codegen: nije potreban (`convex/` nije diran)
+- typecheck: prošlo (i posle build-a)
+- lint: prošlo (0 grešaka, istih 26 zatečenih upozorenja)
+- test: prošlo (310 fajlova, 3.482 testa)
+- check:frames, check:corners, check:white, check:igra (`--strict`): prošlo
+- build: prošao iz prvog pokušaja; `next start` (port 3124): `/` 200, `/igra-izlog?deo=rang` i `/en/igra-izlog?deo=rang&stanje=legenda` 404, `/app/community/leaderboard` 307 na prijavu
+- **check:bundle: prošlo.** `/app/community/leaderboard` 285 → 291 KB gz (budžet 303); `/app` 291 (isto, budžet 294); ostale rute iste. three i GSAP Flip samo u async chunk-ovima.
+- **pregledač (Playwright, izlog, 1440 × 900 i 390 × 844, obe teme, sr i en), izmereno:**
+  - nema vodoravnog skrola ni u jednom slučaju; 0 slomljenih slika; 1 platno (3D pehar) na 1440, 0 na 390
+  - odometar: 350 ms posle prikaza podijum pokazuje 788 / 753 / 721, posle 2 s 1.240 / 1.185 / 1.135
+  - „ti" red (#11 od 50): vidljiv dok je moj red van kadra, povučen (`opacity 0`, `inert`) kad je moj red u kadru, ponovo vidljiv kad se skroluje dalje; kod 500 članova stoji #222 stalno (van učitanih redova)
+  - Flip: posle „Deveti pretekne petog" red Marko Simić (#9 → #5) je 120 ms kasnije na `translateY(67,8 px)`, a četiri preskočena reda na `−16,9 px`; posle 0,9 s svi bez transformacije; GSAP Flip chunk skinut jednom
+  - „Učitaj još" kod 500: 17 → 37 redova; nalog tima: nema „ti" reda, stoji napomena da se tim ne rangira; 0 članova: prazno stanje sa `rang.pehar`, link „Otvori kurseve" → `/app/classroom`
+  - smanjen pokret: XP odmah krajnji, 0 skrivenih redova, 0 platna, Flip se ne skida
+  - engleski: „This week ends in 4 days and 16 hours · Monday at 00:00", „You are not on this list yet", „Rank 1 on the leaderboard: …", linkovi `/en/app/members/…`
+  - tabla (izlog „tabla"): pločica „Rang" aktivan `#7`, legenda `#1` sa medaljom, novi `—` sa „Prva lekcija ili rad ove nedelje i na listi si."
+  - kostur: podijum 224 / 432 px naspram 222 / 431 px kad podaci stignu
+  - konzola: bez grešaka; jedino upozorenje je zatečeno `THREE.Clock`
+- dev server i `next start` su ugašeni (portovi 3000 / 3123 / 3124 slobodni); Playwright `page-*.yml` i `console-*.log` i pomoćni fajlovi iz `.igra-run/tmp/` su obrisani.
+
+**Prihvatanje (K12):**
+- „Rang lista radi sa 0, 3, 50 i 500 korisnika (fixtures), u obe teme i na telefonu": **ispunjeno u izlogu** (snimci `K12-rang-0-*`, `K12-rang-3-*`, `K12-rang-1440-*` i `K12-rang-390-*` (50), `K12-rang-500-390-*`, `K12-rang-novi-390-tamna`, `K12-rang-ukupno-1440-*`; merenja gore).
+- typecheck / lint / test / check:frames prolaze, sekcija K12 u progress-u: **ispunjeno**.
+
+**BLOKADA (samo provera, ne kod):** prava rang lista nad živim nalogom nije gledana u pregledaču, iz istog razloga kao u K06–K11 (Playwright nije prijavljen; auth tok se ne dira). Izlog crta pravu `LeaderboardView`; nije potvrđeno: (a) da `periodKey` iz `getViewerLeaderboardRow` stiže i vodi odbrojavanje po serverskoj nedelji; (b) Flip nad pravim reaktivnim osvežavanjem `usePaginatedQuery`; (c) pločica „Rang" na pravoj tabli.
+
+**Za Jovana ujutru:**
+- **Prijavi se na DEV i otvori `/app/community/leaderboard`** (`npx next dev --webpack -p 3123`): podijum, odbrojavanje i „ti" red; prebaci na „Ukupno" (tek tada prstenovi nivoa, ODLUKA 2).
+- **`getDashboardOverview` i dalje računa mesto na listi koje tabla više ne prikazuje** (ODLUKA 3). Uklanjanje `leaderboard` iz tog upita štedi do 1.000 čitanja pri svakom otvaranju table, ali to je izmena rang čitanja koju ovaj korak nije smeo da napravi — tvoja odluka.
+- **Nivo na nedeljnoj listi:** ako ga želiš, to je jedan nov mali upit (ODLUKA 2).
+- **Ukus:** stepenici (žut za prvo mesto, siv za drugo i treće), veličina 3D pehara (`w-24 lg:w-28` u `podium.tsx`), tekst odbrojavanja u `IGRA_LEADERBOARD_COPY` (`lib/igra-copy.ts`). Snimci: `K12-rang-1440-svetla.png`, `K12-rang-ukupno-1440-svetla.png`, `K12-rang-390-tamna.png`.
+- **Zatečeno, nisam dirao:** tekst praznog stanja kaže „Završi jednu lekciju na ovom kursu" i na globalnoj listi; napomena za tim i pojedini natpisi liste su i dalje `locale === "sr" ? …` u samom fajlu (nisu u `lib/i18n`).
+- **Dodir na pravom telefonu i pravi čitač ekrana nisam imao.**

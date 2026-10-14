@@ -28,8 +28,7 @@ export function useEnterStagger(
       const root = ref.current;
       if (!root || !contextSafe || !shouldAnimate({ reduced, hidden: document.hidden })) return;
       const items = Array.from(root.querySelectorAll<HTMLElement>(selector)).filter((item) => !item.hasAttribute(ENTERED));
-      const first = items[0];
-      if (!first) return;
+      if (items.length === 0) return;
 
       gsap.set(items, { autoAlpha: 0, y: IGRA_MOTION.enterY });
       const play = contextSafe(() => {
@@ -44,13 +43,15 @@ export function useEnterStagger(
         });
       });
 
-      // Jedan posmatrač po listi, na prvoj novoj stavci (radi i kad je koren `display: contents`).
+      // Jedan posmatrač po listi, nad SVAKOM novom stavkom (radi i kad je koren `display: contents`):
+      // kad se skrolom uskoči usred duge liste, prva stavka nikad ne pređe u kadar, a lista ne sme
+      // da ostane nevidljiva (K12, rang lista od 500 redova).
       const observer = new IntersectionObserver((entries) => {
         if (!entries.some((entry) => entry.isIntersecting)) return;
         observer.disconnect();
         play();
       });
-      observer.observe(first);
+      for (const item of items) observer.observe(item);
       return () => observer.disconnect();
     },
     { scope: ref, dependencies: [...deps, selector, max, reduced], revertOnUpdate: true },
