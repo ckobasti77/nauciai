@@ -804,3 +804,106 @@ Prag pripada višem nivou (99 XP = nivo 1, 100 XP = nivo 2). Na nivou 12 je `pro
 - **Ukus:** jačina scene (30 %, na telefonu 20 %), veličina Robija i pilula „Ti si ovde" u mastilu su po jedna klasa u `journey-map.tsx`. Snimci za poređenje: `K10-mapa-5-1440-svetla.png`, `K10-mapa-20-700-svetla.png` (najgušći slučaj), `K10-kurs-390-svetla.png`.
 - **Zatečeno, nisam dirao:** spisak lekcija ispod mape ponavlja iste lekcije (ostao je zbog sažetaka i admin uređivanja, K07 ODLUKA 11); „Zdravo, student" i „Objavljen smer" na stranici smera nisu kroz `lib/i18n`.
 - **Dodir na pravom telefonu i pravi čitač ekrana nisam imao.**
+
+## K11 — Zajednica: heroj, objave, obaveštenja   (2026-10-14 06:45)
+**Fajlovi:**
+- novi (lib): `lib/igra-community.ts` + test `lib/igra-community.test.ts`
+- novi (komponente): `components/igra/community/community-hero.tsx` (`CommunityHero`), `components/igra/community/author-rank-chip.tsx` (`AuthorRankChip`), `components/app/community-member-progress.tsx` (`LevelMeter` i `CommunityBadgeRow`, premešteni iz `community-gamification.tsx`)
+- novi (izlog): `components/igra/izlog/izlog-zajednica.tsx`, `docs/igra/snimci/K11-*.png` (16)
+- izmenjeni (zajednica): `components/app/community-v2/community-shell.tsx` (heroj), `community-shared.tsx` (čip na kartici teme, `art` u praznom stanju), `community-members.tsx` (`MemberCardView`), `community-mentions.tsx` (`NotificationFeed`, „pristiglo"), `community-discussions.tsx` (slika praznog stanja), `components/app/community-comments.tsx` i `community-thread-detail.tsx` (čip autora), `community-gamification.tsx` (ostali samo `VoteScore` i `useEnterOnView`), `member-profile.tsx` (uvoz + jedan izvor nivoa)
+- izmenjeni (ostalo): `components/ui/empty-state.tsx` (opcioni `art`), `app/globals.css` (`.igra-arrive`), `lib/i18n.ts` (tekstovi koje je čitao stari `LevelMeter` / `CommunityBadgeRow`), `lib/igra-copy.ts` (`IGRA_COMMUNITY_COPY`), `lib/igra-fixtures.ts` (`COMMUNITY_FIXTURES`), `components/igra/izlog/registry.ts`, `lib/igra-izlog.test.ts`, `scripts/check-frames.mjs` (`ROOTS`)
+
+**Šta je urađeno:** Zajednica ima nov heroj: list papira sa scenom trga (`scena.zajednica`) uz desnu ivicu, naslov sekcije, uvodna rečenica i Iskra sa kratkim pozivom po sekciji („Zapelo je? Pitaj. Neko je to već rešio.", „Zaprati nekoga ko uči isto što i ti."…); na telefonu je kompaktan (naslov + Iskra 64 px sa pozivom, bez scene, 165 px visine). Teme, komentari i detalj teme nose čip autora („17 lekcija") u redu sa imenom, iz `authorRank` koji red već nosi. Kartica člana ima nalepnicu nivoa (`nivo.NN` + „Nivo 4 · Istraživač") i XP traku, računate iz `xp` koji red liste već nosi, a značke su nalepnice bedževa (`BadgeSticker`) u podnožju. `LevelMeter` je sada sklopljen od `LevelStamp` + `XpBar` (nivo iz `levelFromXp`), pa član ima isti nivo u zajednici, na profilu i u ljusci. Obaveštenja: prazna stanja nose Iskru („Još nema obaveštenja") i uspavano zvono (`prazno.obavestenja`, „Sve je pročitano"); obaveštenje koje stigne dok je lista otvorena „doleti" odozgo, nosi marker „Upravo stiglo", a iznad liste se javi Iskra („Stiglo je nešto novo za tebe."). Pravila objava, moderacija, reakcije, upiti i `convex/` nisu dirani; nijedan upit nije dodat.
+
+**Površine:**
+- gotovo: heroj zajednice (sve sekcije, i detalj / nova / izmena teme), kartica teme, komentar i zaglavlje detalja teme (čip autora), lista članova (kartice), obaveštenja i pomeni (prazna stanja, „pristiglo"), prazna stanja diskusija i članova; nivo i značke na profilu člana (samo usklađeni, profil je K13).
+- nije dirano: rang lista (K12; do tada nosi isti heroj sa scenom trga, `CommunityHero` ima prop `art`), moderacija i pregled u editoru (i dalje stari „Nivo N" ispod avatara, ODLUKA 2), prazna stanja „Moje teme" i komentara (K23), javne stranice zajednice.
+
+**ODLUKE:**
+1. **Na temi i komentaru NEMA pečata IGRA nivoa, nego čip sa brojem završenih lekcija.** Red teme i komentara nosi samo `authorRank` (`completedLessons` i stepen 1–5), ne XP. `getMemberProgress` po autoru je N+1; zbirni upit po strani bi dodao čitanje po temi i komentaru (i po strani odgovora), a `convex/community.ts` se po planu ne dira. Zato je prikazano samo ono što se već učitava (K01 §8). Čip namerno ne kaže „Nivo": stepen 1–5 iz lekcija je druga skala od 12 nivoa iz XP-a, pa bi isti čovek u temi bio „Nivo 3", a na profilu „Nivo 6". Autor bez lekcija i nalog tima nemaju čip.
+2. **`RankBadge` i `community-identity.tsx` nisu dirani**, jer ih uvoze javne stranice zajednice (`(marketing)/community`). Teme, komentari i detalj teme sada crtaju avatar sa `showRank={false}` i čip u redu sa imenom. Moderacija i pregled u editoru i dalje imaju stari „Nivo N" (i na engleskom) ispod avatara.
+3. **Heroj je nova komponenta, ne `IgraHero`.** Scena trga je crtana preko celog lista (nema prazan levi deo kao scene table), pa je ovde medij uz desnu ivicu sa levom ivicom pretopljenom u papir. Isto svetlo ostrvo i u tamnoj temi kao heroj table.
+4. **Scena se crta tek od `lg`, NIJE `priority`, a unapred je traži `<link rel="preload" media="(min-width: 64rem)" fetchpriority="high">`** (`preload` iz `react-dom`, adresa iz registra slika). Telefon je zato ne skida (lenja slika u skrivenoj kutiji se ne traži, a preload ima `media`), a računar je dobija iz HTML-a. Prva verzija bila je samo lenja slika: merenje je pokazalo da na računaru LCP čeka scenu (brza 4G 1,98 s, spora 4G 8,97 s), pa je dodat preload (posle: 0,61 s i 3,36 s; brojevi su sa razvojnog servera, dole).
+5. **Etikete iznad naslova heroja su uklonjene** („AI Studio Commons", „Moj napredak"…); umesto njih Iskra kaže poziv. Naslovi i uvodne rečenice su isti; uvodna rečenica se ispod `sm` ne prikazuje (kompaktno na telefonu, a panel „Ovo je Zajednica" je odmah ispod).
+6. **Iskra je nalepnica i na računaru**, iako je nacrtana i u sceni (zadatak traži Iskru sa pozivom). U sceni je mala, u donjem desnom uglu.
+7. **`LevelMeter` i `CommunityBadgeRow` su premešteni u `components/app/community-member-progress.tsx`** (ista imena, nije duplikat). U `community-gamification.tsx` su vukli pečat nivoa, GSAP hookove i katalog bedževa u svaku stranu koja uvozi samo `VoteScore` (feed, detalj teme, rang lista). Izmereno: rang lista 289 → 285 KB, detalj teme 309 → 304 KB posle premeštanja.
+8. **Profil člana:** broj nivoa na avataru je sada IGRA nivo (`levelFromXp`), a iz reda „1.890 XP · Nivo 4" je izbačen deo sa nivoom (serverski `levelForXp`, 500 XP po nivou), jer odmah ispod `LevelMeter` ispisuje IGRA nivo. Inače bi ista kartica pokazala dva različita nivoa. Ostatak profila je K13.
+9. **Značke zajednice su nalepnice bedževa sa istim uslovom** (K01 §8): `first_thread` → `prva-objava`, `first_helpful` → `koristan-odgovor`, `week_streak` → `niz-7`; „Deset komentara" ostaje ikonica. Računaju se iz signala koje strana već čita (kao i pre), ne iz dnevnika `igraSeen`, pa mogu da se vide pre nego što ih vlasnik „vidi" u aplikaciji. Test zaključava da se značka i bedž pale na istom pragu.
+10. **Kartica člana je preuređena:** značke su u podnožju (dugme bedža ne sme da stoji u linku na profil), drugi `RoleBadge` u podnožju je uklonjen (uloga je i na avataru i u naslovu grupe), nalozi tima nemaju nivo (isto kao profil). Kartica je 221–229 px visoka (bila je oko 170–190).
+11. **Prazna stanja:** `EmptyState` je dobio opcioni `art` (ilustracija umesto kruga sa ikonom; postojeći pozivi isti), a `EmptyCommunityState` prima `art` (IGRA ID, 96 px jer ekran ima heroja, K01 §1.3). Slike su dobili obaveštenja, diskusije (`prazno.objave`, uz pretragu `prazno.pretraga`) i članovi. „Moje teme" i komentari ostaju za K23.
+12. **„Pristiglo":** polazna tačka je najnovije `createdAt` zatečeno pri otvaranju liste (serversko vreme sa obe strane, pa sat uređaja ne utiče); novije je „pristiglo", starije strane nikad. Lista se ponovo montira kad se promeni filter. Iskra se javlja JEDNOM iznad liste (ne po redu, K01 §1.3) i `aria-hidden` je, jer `aria-live` lista već čita novi red. Marker „Upravo stiglo" stoji umesto „Nepročitano" dok se ne pročita. Brojači u sidebaru nisu dirani.
+13. **`lib/i18n.ts`:** iz `communityGamificationContent` su obrisani tekstovi koje je čitao samo stari `LevelMeter` (`levelLabel`, `toNextLevel`, `meterLabel`) i tri značke koje sada nose nalepnice; `badges` je postao `tenComments`. `lib/community-gamification.ts` se po planu ne menja: `levelProgress` i `XP_PER_LEVEL` sada čitaju samo njegovi testovi.
+14. **Kartica obaveštenja:** `rounded-[16px]` → `surface-card` (ista vrednost) u redu koji je ionako menjan.
+15. **Izlog:** `COMMUNITY_HERO_COPY`, `MemberCardView`, `NotificationFeed` i `NotificationCard` su izvezeni, da izlog crta prave komponente. Komentar nije prava komponenta (`CommentsSection` čita bazu), pa je red komentara sklopljen od istih delova (avatar + `AuthorRankChip`).
+16. **Skillovi:** pročitani `impeccable/SKILL.md` i `reference/craft-floor.md`, `design-taste-frontend/SKILL.md` i početak `design-dna/SKILL.md`; `design-dna-platform.json` i `motion-design` nisam čitao. Gde se saveti sudaraju sa brendom (eyebrow, tvrde senke), važe brend i postojeći obrasci.
+17. `IGRA_PLANNED_ART` i dalje ima tri reda (`lib/igra-art.ts` nisam dirao).
+
+**Novi paketi:** nema.
+
+**Testovi (1 nov fajl, 20 testova; 1 postojeći dopunjen):**
+- `lib/igra-community.test.ts` (20): Iskrin poziv za svih šest sekcija na oba jezika (kratak, različit, bez pretnje; nepoznata sekcija i `toString`); čip autora (množina sr/en, separator hiljada, razlomak, bez ranga / nula / loš ulaz, nikad reč „nivo"); mapiranje značaka na bedževe i isti prag za „Koristan odgovor" i „Niz 7"; polazna tačka i „pristiglo" (strogo novije, prazna lista, starije strane); test podaci (prazno za novog, čip i bez čipa, sve uloge, nivoi 1–12, pročitano); **čitanje izvora:** nijedna površina zajednice ne zove `api.igra.*` / `getMemberProgress`, nove komponente su prezentacione i slike crtaju samo kroz `IgraArt`, `community-identity.tsx` (javne stranice) je bez IGRA koda, `community-gamification.tsx` ne vuče IGRA kod, `lib/igra-community` katalog uvozi samo kao tip, heroj je jedini `data-igra-hero` i scena nije `priority`, avatar sa `rank` ima `showRank={false}`, `.igra-arrive` je samo u no-preference bloku.
+- izmenjen: `lib/igra-izlog.test.ts` (deo „zajednica").
+
+**Slike:** `scena.zajednica` (heroj, od `lg`), `lik.iskra.mase` (heroj, prazna obaveštenja), `lik.iskra.slavi` („pristiglo"), `prazno.obavestenja`, `prazno.objave`, `prazno.pretraga`, porodica `nivo.*` (kartica i profil člana), `bedz.prva-objava`, `bedz.koristan-odgovor`, `bedz.niz-7`. TRAŽENE SLIKE: nema.
+
+**Rezultat provere:**
+- codegen: nije potreban (`convex/` nije diran; `git diff -- convex/` prazan)
+- typecheck: prošlo
+- lint: prošlo (0 grešaka, istih 26 zatečenih upozorenja)
+- test: prošlo (309 fajlova, 3.457 testova)
+- check:frames (u `ROOTS` dodati `community-gamification.tsx` i `community-member-progress.tsx`), check:corners, check:white, check:igra (`--strict`): prošlo
+- `lib/igra-community.test.ts` čuva i preload (`media: "(min-width: 64rem)"`, `fetchPriority: "high"`)
+- build: prošao (tri puta, svaki iz prvog pokušaja; poslednji posle preload-a, brojevi u tabeli isti)
+- **check:bundle: prošlo.**
+
+| Šta (gzip) | Posle K10 | Posle K11 | Granica |
+|---|---|---|---|
+| `/app` početni JS | 290 KB | 290 KB | 294 |
+| `/app/community` (preusmerenje) | — | 278 | 294 |
+| `/app/community/discussions` | nije mereno | 292 | 309 |
+| `/app/community/[postId]` | nije mereno | 304 | 321 |
+| `/app/community/leaderboard` | 279 | 285 | 303 |
+| `/app/members/[username]` | 346 | 359 | 371 |
+| javna početna | 139 | 139 | 153 |
+
+  Heroj (manifest slika + `IgraArt` + Iskra) dodaje oko 6 KB svakoj ruti zajednice; profil člana dobija još nalepnice bedževa i pečat nivoa (+13 KB). Pre premeštanja `LevelMeter`-a (ODLUKA 7) isti build je dao: rang lista 289, diskusije 298, detalj teme 309, profil 360.
+- **pregledač (Playwright, 1440 × 900 i 390 × 844, obe teme, sr i en), izmereno u izlogu:**
+  - heroj: 1180 × 267 px na 1440, 165 px na 390; na 390 scena je `display: none` i ne skida se (sveži kontekst: 0 zahteva, posle širenja na 1440 jedan); nema vodoravnog skrola (390 / 390)
+  - čipovi na pet tema: „64 lekcije", „1 lekcija", „17 lekcija", admin bez čipa, autor bez lekcija bez čipa; engleski „64 lessons", čitač „Lessons completed: 64"
+  - kartice članova: nivoi 12, 8, 5, 4, 2, 1 (amblemi `nivo.12` … `nivo.01`), admin i moderator bez nivoa; bedž „Koristan odgovor" kao nalepnica sa nazivom dugmeta
+  - „pristiglo": 100 ms posle dodavanja red ima animaciju `igra-arrive` (providnost 0,76, pomeraj −2,8 px), posle 0,9 s stoji (1, bez pomeraja); marker „Upravo stiglo" i Iskra iznad liste; „Označi pročitano" skida i marker i Iskru; promena filtera ne obeležava ništa kao pristiglo
+  - smanjen pokret: `animation-name: none`, red odmah vidljiv, marker i dalje stoji
+  - prazna stanja (test korisnik „novi"): `prazno.objave`, `prazno.pretraga`, `lik.iskra.mase`, svaka 96 px; 0 slomljenih slika
+  - konzola: bez grešaka posle učitavanja (jedina greška u logu je prolazna sintaksna greška dok je HMR hvatao fajl usred izmene)
+  - **brzina heroja** (CDP, bez keša, razvojni server sa oko 6 MB razvojnog JS-a; isto merenje kao K08), FCP / LCP / CLS:
+
+| | brza 4G (9 Mbit/s, 60 ms) | spora 4G (1,6 Mbit/s, 150 ms) |
+|---|---|---|
+| 1440, samo lenja scena (prva verzija) | 564 / 1.980 ms / 0,002 | 768 / 8.968 ms / 0,002 |
+| 1440, lenja scena + preload od `lg` (predato) | 428 / 612 ms / 0,002 | 820 / 3.356 ms / 0,002 |
+| 390 (predato) | 388 / 388 ms / 0,002 | 784 / 784 ms / 0,002 |
+
+    Na računaru je LCP element scena (preload kreće na 180 ms, uz `fetchpriority=high`); na telefonu je LCP tekst heroja i za scenu nema nijednog zahteva (ni preload, ni slika). Spora 4G na računaru je 3,4 s jer se scena od 142 KB deli vezu sa 6 MB razvojnog JS-a; produkcioni početni JS je oko 300 KB gz, a izlog u produkciji ne postoji, pa produkcioni broj nije izmeren (BLOKADA).
+- dev server je ugašen (portovi 3000 / 3123 / 3124 slobodni); Playwright `page-*.yml` i `console-*.log` obrisani. Pomoćni fajlovi iz `.igra-run/tmp/` su obrisani, a prazni folderi `.igra-run/tmp/` i `.igra-run/tmp/__pycache__/` su ostali (bezbednosna provera nije dala da se folder obriše; git ih ne vidi).
+
+**Prihvatanje (K11), stavku po stavku:**
+1. „Zajednica je vizuelno pojačana u obe teme": **ispunjeno** — heroj, teme, komentari, članovi i obaveštenja u svetloj i tamnoj temi, izlog nad pravim komponentama (snimci `K11-*-svetla.png` / `K11-*-tamna.png`).
+2. „… i na telefonu": **ispunjeno** — 390 × 844 bez vodoravnog skrola, heroj 165 px, prazna stanja i kartice (snimci `K11-*-390-*`).
+3. „… bez gubitka brzine": **ispunjeno za ono što je merljivo, ostatak je BLOKADA 1.** Nijedan nov upit ni čitanje u bazi (test nad izvorom); početni JS svih ruta u budžetu (heroj +6 KB rutama zajednice); telefon ne skida scenu i LCP mu je tekst (388 ms brza 4G); na računaru scena stiže kroz preload (LCP 612 ms brza 4G); CLS 0,002. Poređenje pre / posle na produkcionom buildu nad pravim nalogom nije moguće (BLOKADA 1).
+4. „typecheck / lint / test / check:frames prolaze": **ispunjeno** (lint 0 grešaka, 309 fajlova / 3.457 testova).
+5. „sekcija K11 u progress-u": **ispunjeno** (ova sekcija).
+6. Uz to: prave strane zajednice nad živim nalogom nisu gledane u pregledaču — **BLOKADA 2**.
+
+**BLOKADA 1 — „bez gubitka brzine" nije izmereno kao poređenje pre / posle u produkciji.** Razlog: strane zajednice žive iza prijave (`/app/community/*` vraća 307 na prijavu), Playwright nije prijavljen, a auth tok se po pravilima ne dira i tuđe lozinke se ne unose; izlog, gde su komponente izmerene, u produkcionom buildu vraća 404 (po pravilu). Izmereno je na razvojnom serveru (tabela gore) i iz build-a (početni JS po ruti). Šta treba: Lighthouse nad `/app/community/discussions` na prijavljenom nalogu, pre i posle ovog commita (K28 ili Jovan ručno).
+
+**BLOKADA 2 (samo provera, ne kod):** prave strane zajednice nad živim nalogom nisu gledane u pregledaču, iz istog razloga kao u K06–K10. Izlog crta prave komponente (`CommunityHero`, `ThreadCard`, `MemberCardView`, `NotificationFeed`, `LevelMeter`, `CommunityBadgeRow`), a typecheck pokriva povezivanje. Nije potvrđeno: (a) da `authorRank` sa servera stiže na svaku temu i komentar kao u test podacima; (b) „pristiglo" nad pravim Convex-om (novo obaveštenje dok je strana otvorena).
+
+**Za Jovana ujutru:**
+- **Prijavi se na DEV i otvori `/app/community/discussions`, `/members` i `/notifications`** (`npx next dev --webpack -p 3123`). Za „pristiglo": sa drugog naloga odgovori na svoju temu dok su obaveštenja otvorena — red treba da doleti sa markerom „Upravo stiglo", a Iskra da se javi iznad liste.
+- **Pečat nivoa na temama i komentarima ne postoji (ODLUKA 1).** Ako ga hoćeš, cena je jedno `leaderboardStats` čitanje po temi i po komentaru u `convex/community.ts` (polje sa XP-om autora u redu); posle toga je `LevelStamp size="xs"` u redu sa imenom jedna linija. Do tada čip kaže broj lekcija.
+- **Moderacija i pregled u editoru** još pokazuju stari „Nivo N" ispod avatara (ODLUKA 2); javne stranice zajednice takođe.
+- **Ukus:** heroj na računaru (snimak `K11-heroj-1440-svetla.png`): scena zauzima desnih 46 %, Iskra je nalepnica od 64 px sa oblačićem. Pozivi po sekciji su u `IGRA_COMMUNITY_COPY` (`lib/igra-copy.ts`).
+- **Profil člana:** `members/[username]` ima još 12 KB do budžeta (359 / 371); K13 tu dodaje policu bedževa.
+- **Prazni folderi** `.igra-run/tmp/` i `.igra-run/tmp/__pycache__/` mogu da se obrišu ručno.
+- **Zatečeno, nisam dirao:** vreme na karticama ispisuje mesec ćirilicom („14. окт", `sr-RS`); „1 doprinosa" nema množinu; toast „Zapratiio/la si" ima dva „i".
+- **Dodir na pravom telefonu i pravi čitač ekrana nisam imao.**

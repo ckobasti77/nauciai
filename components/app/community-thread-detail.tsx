@@ -25,6 +25,7 @@ import { CommunityPostEditor, type CommunityEditorPost } from "@/components/app/
 import { CommunityThreadActions } from "@/components/app/community-thread-actions";
 import { RichTextContent } from "@/components/app/rich-text";
 import { ShareThreadButton } from "@/components/app/community-v2/community-share";
+import { AuthorRankChip } from "@/components/igra/community/author-rank-chip";
 import { COMMUNITY_RICH_TEXT } from "@/lib/rich-text";
 import { Panel, cn } from "@/components/ui/primitives";
 import { Spinner } from "@/components/ui/spinner";
@@ -187,15 +188,16 @@ export function LiveCommunityThreadPage({
                       name={post.authorName}
                       avatarUrl={post.authorAvatarUrl}
                       role={post.authorRole}
-                      rank={post.authorRank}
                       locale={locale}
                       size="md"
+                      showRank={false}
                     />
                   </Link>
                   <div className="min-w-0 flex-1">
                     <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
                       {post.authorUsername ? <Link href={withLocale(locale, `/app/members/${post.authorUsername}`)} className="truncate text-sm font-black text-ink hover:underline">@{post.authorUsername}</Link> : <p className="truncate text-sm font-black text-ink">{post.authorName}</p>}
                       {post.authorUsername ? <p className="truncate text-xs font-semibold text-muted">{post.authorName}</p> : null}
+                      <AuthorRankChip rank={post.authorRank} locale={locale} />
                       <span aria-hidden="true" className="hidden text-line sm:inline">•</span>
                       <time dateTime={new Date(post.createdAt).toISOString()} className="text-xs font-bold text-ink/55">
                         {formatCommunityTime(post.createdAt, locale)}

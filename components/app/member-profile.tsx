@@ -22,7 +22,7 @@ import { useMemo, useState } from "react";
 
 import { openChatDock } from "@/components/app/chat/chat-dock";
 import { CreaReportCardPanel } from "@/components/crea/game/crea-report-card-panel";
-import { CommunityBadgeRow, LevelMeter } from "@/components/app/community-gamification";
+import { CommunityBadgeRow, LevelMeter } from "@/components/app/community-member-progress";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,7 @@ import { Field, Textarea } from "@/components/ui/field";
 import { cn } from "@/components/ui/primitives";
 import { Spinner } from "@/components/ui/spinner";
 import { activityStreakDays, activityTotal, communityBadges } from "@/lib/community-gamification";
+import { levelFromXp } from "@/lib/igra-level";
 import type { Locale } from "@/lib/i18n";
 import { t, withLocale } from "@/lib/i18n";
 
@@ -262,7 +263,7 @@ export function MemberProfile({ locale, username }: { locale: Locale; username: 
       <div className="mx-auto w-fit">
         <div className="relative rounded-full border-[3px] border-ink p-1.5 ring-[7px] ring-yellow/70">
           <img src={identity.avatarUrl || "/images/avatars/mythic-mentor.png"} alt={identity.name} className="size-28 rounded-full object-cover sm:size-32" />
-          {profile.progress ? <span className="absolute -bottom-2 -right-2 grid size-11 place-items-center rounded-full border-[3px] border-paper-strong bg-ink text-lg font-black text-paper-strong">{profile.progress.level}</span> : null}
+          {profile.progress ? <span className="absolute -bottom-2 -right-2 grid size-11 place-items-center rounded-full border-[3px] border-paper-strong bg-ink text-lg font-black text-paper-strong">{levelFromXp(profile.progress.xp).level}</span> : null}
         </div>
       </div>
       <div className="mt-6 text-center">
@@ -272,7 +273,7 @@ export function MemberProfile({ locale, username }: { locale: Locale; username: 
           <span>@{identity.username}</span>
           <CommunityBadgeRow locale={locale} badges={badges} />
         </p>
-        {profile.progress ? <p className="mt-2 text-xs font-black text-blue-mid dark:text-muted">{profile.progress.xp.toLocaleString()} XP · {t(locale, `Nivo ${profile.progress.level}`, `Level ${profile.progress.level}`)}</p> : null}
+        {profile.progress ? <p className="mt-2 text-xs font-black text-blue-mid dark:text-muted">{profile.progress.xp.toLocaleString()} XP</p> : null}
         {profile.progress ? <LevelMeter locale={locale} xp={profile.progress.xp} className="mt-3 text-left" /> : null}
         {identity.bio ? <p className="mt-4 whitespace-pre-wrap type-body-sm font-bold text-ink/80">{identity.bio}</p> : <p className="mt-4 text-sm font-bold text-muted">{t(locale, "Biografija još nije dodata.", "No bio yet.")}</p>}
         {links.length ? <div className="mt-4 flex justify-center gap-2">{links.map(({ key, href, icon: Icon, label }) => <a key={key} href={href} target="_blank" rel="noreferrer" aria-label={label} className="grid size-10 place-items-center rounded-full border-2 border-ink bg-paper-strong transition hover:bg-yellow"><Icon className="size-5" /></a>)}</div> : null}

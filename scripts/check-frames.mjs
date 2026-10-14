@@ -32,6 +32,8 @@ const ROOTS = [
   "components/app/community-comments.tsx",
   "components/app/community-thread-detail.tsx",
   "components/app/community-thread-moderation.tsx",
+  "components/app/community-gamification.tsx",
+  "components/app/community-member-progress.tsx",
   "components/app/public-community-comments.tsx",
   "components/app/member-profile.tsx",
   "components/app/dashboard-home.tsx",

@@ -126,6 +126,19 @@ export const IGRA_JOURNEY_COPY = {
   trackLabel: { sr: "Mapa puta kroz smer", en: "Journey map of the track" },
 } satisfies Record<string, LocalizedText>;
 
+/** Zajednica (K11): Iskrin poziv u heroju po sekciji, čip autora, obaveštenje koje stigne. */
+export const IGRA_COMMUNITY_COPY = {
+  callDiscussions: { sr: "Zapelo je? Pitaj. Neko je to već rešio.", en: "Stuck? Ask. Someone has solved it already." },
+  callMyThreads: { sr: "Tvoje teme su ovde. Vidi ko ti je odgovorio.", en: "Your topics live here. See who replied." },
+  callNotifications: { sr: "Javljam ti čim neko odgovori ili te pomene.", en: "I'll tell you the moment someone replies or mentions you." },
+  callMembers: { sr: "Zaprati nekoga ko uči isto što i ti.", en: "Follow someone who is learning what you are." },
+  callLeaderboard: { sr: "Svaka lekcija i svaki koristan odgovor se računaju.", en: "Every lesson and every helpful answer counts." },
+  callModeration: { sr: "Hvala što čuvaš razgovor korisnim.", en: "Thanks for keeping the conversation useful." },
+  lessonsDone: { sr: "Završenih lekcija", en: "Lessons completed" },
+  arrivedTag: { sr: "Upravo stiglo", en: "Just in" },
+  arrivedIskra: { sr: "Stiglo je nešto novo za tebe.", en: "Something new just came in for you." },
+} satisfies Record<string, LocalizedText>;
+
 export const IGRA_LESSON_FORMS: Record<Locale, PluralForms> = {
   sr: { one: "lekcija", few: "lekcije", many: "lekcija" },
   en: { one: "lesson", few: "lessons", many: "lessons" },

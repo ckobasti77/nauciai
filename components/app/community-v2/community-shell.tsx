@@ -1,14 +1,15 @@
 "use client";
 
-import { CircleAlert, MessagesSquare, Sparkles } from "lucide-react";
+import { CircleAlert, MessagesSquare } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { AppIntroPanel } from "@/components/app/intro-panel";
-import { HandUnderline } from "@/components/ui/primitives";
+import { CommunityHero } from "@/components/igra/community/community-hero";
 import { SmartStickyRegion } from "@/components/ui/smart-sticky";
 import { activeCommunitySection } from "@/lib/community-sections";
+import { communityHeroCall } from "@/lib/igra-community";
 import type { Locale } from "@/lib/i18n";
 import { t, withLocale } from "@/lib/i18n";
 
@@ -16,66 +17,50 @@ import { fallbackCommunityFilters, useCommunityFilters } from "./community-data"
 import type { CommunityFilters } from "./community-types";
 
 type CommunityHeroCopy = {
-  badgeSr: string;
-  badgeEn: string;
   titleSr: string;
   titleEn: string;
   subtitleSr: string;
   subtitleEn: string;
 };
 
-const COMMUNITY_HERO_COPY: Record<string, CommunityHeroCopy> = {
+export const COMMUNITY_HERO_COPY: Record<string, CommunityHeroCopy> = {
   discussions: {
-    badgeSr: "AI Studio Commons",
-    badgeEn: "AI Studio Commons",
     titleSr: "Uči javno. Napreduj zajedno.",
     titleEn: "Learn in public. Grow together.",
     subtitleSr: "Postavi pitanje, pokaži kako si nešto uradio/la i poveži svaku temu sa smerom i kursom na kom radiš.",
     subtitleEn: "Ask a question, show how you did something, and connect every topic to the track and course you are working on.",
   },
   "my-threads": {
-    badgeSr: "Moj rad na platformi",
-    badgeEn: "My work on the platform",
     titleEn: "My ideas become real discussions.",
     titleSr: "Moje ideje postaju stvarne diskusije.",
     subtitleSr: "Pratim svoje objave, čuvam važne razgovore i vraćam se pitanjima koja pomeraju moje projekte.",
     subtitleEn: "Follow my posts, save useful conversations, and return to questions that move my projects forward.",
   },
   mentions: {
-    badgeSr: "Moja aktivnost",
-    badgeEn: "My activity",
     titleEn: "Everything important for my next step.",
     titleSr: "Sve važno za moj sledeći korak.",
     subtitleSr: "Pratim odgovore, glasove i pominjanja koja mi pomažu da učim i napredujem.",
     subtitleEn: "Follow replies, votes, and mentions that help me learn and grow.",
   },
   notifications: {
-    badgeSr: "Moja aktivnost",
-    badgeEn: "My activity",
     titleEn: "Everything important for my next step.",
     titleSr: "Sve važno za moj sledeći korak.",
     subtitleSr: "Pratim odgovore, glasove i pominjanja koja mi pomažu da učim i napredujem.",
     subtitleEn: "Follow replies, votes, and mentions that help me learn and grow.",
   },
   members: {
-    badgeSr: "Moja studentska zajednica",
-    badgeEn: "My student community",
     titleEn: "I learn alongside people building their ideas.",
     titleSr: "Učim uz ljude koji grade svoje ideje.",
     subtitleSr: "Pronađi članove po smeru i kursu, razmeni iskustvo i upoznaj svoju platformu.",
     subtitleEn: "Find members by track and course, share experience, and meet your learning community.",
   },
   leaderboard: {
-    badgeSr: "Moj napredak",
-    badgeEn: "My progress",
     titleEn: "Every completed step builds my path.",
     titleSr: "Svaki završeni korak gradi moj put.",
     subtitleSr: "Pratim napredak kroz lekcije, zadatke i korisne odgovore na svojoj platformi.",
     subtitleEn: "Track progress through lessons, tasks, and helpful replies on the platform.",
   },
   moderation: {
-    badgeSr: "Moja platforma",
-    badgeEn: "My platform",
     titleEn: "Together we keep conversations useful.",
     titleSr: "Zajedno čuvamo kvalitet razgovora.",
     subtitleSr: "Pregledamo pitanja i ideje kako bi svaka diskusija bila korisna za učenje.",
@@ -132,47 +117,14 @@ function CommunityShellView({
 
   return (
     <div className="mx-auto w-full max-w-[1180px] space-y-6" aria-busy={isLoading}>
-      {/* Hero zone je isti sklop kao pozdravni hero komandne table (U11): školska
-          podloga → vodeni žig od uvećane lucide ikone → etiketa → naslov → žuti
-          potez → uvodni pasus, sa istim `p-4 sm:p-6` ritmom. Razlika je samo
-          podloga: Zajednica stoji na mastilu, pa `sketch-grid` (mastilo na 6%)
-          ovde ne postoji i menja ga `ink-dots`, njegov žuti parnjak. */}
-      <section
-        data-motion="hero"
-        className="relative overflow-hidden surface-card border-2 border-ink bg-ink text-paper-strong shadow-[6px_6px_0_0_var(--yellow)]"
-      >
-        <div className="pointer-events-none absolute inset-y-0 left-1/2 right-0 hidden ink-dots [mask-image:linear-gradient(to_right,transparent_0%,black_50%,black_100%)] md:block" />
-        <MessagesSquare
-          aria-hidden="true"
-          strokeWidth={1.25}
-          className="pointer-events-none absolute -bottom-8 -right-6 hidden size-48 text-paper-strong/10 sm:block"
-        />
-        <div className="relative p-4 sm:p-6">
-          <div className="min-w-0 max-w-4xl" data-motion="copy">
-            <div className="flex items-center gap-2 text-yellow">
-              <Sparkles className="size-4 shrink-0" aria-hidden="true" />
-              <p className="type-eyebrow">
-                {locale === "sr" ? heroCopy.badgeSr : heroCopy.badgeEn}
-              </p>
-            </div>
-            {/* Naslov je `type-h1`, isti kao na komandnoj tabli. Ranije je bio
-                `type-hero` uz `truncate`/`sm:whitespace-nowrap`, pa se duga
-                rečenica na srednjim širinama SEKLA umesto da se prelomi. */}
-            <h1 className="mt-2 type-h1">
-              {locale === "sr" ? heroCopy.titleSr : heroCopy.titleEn}
-            </h1>
-            {/* Na ink podlozi radi samo žuti potez — tanka ink linija ispod njega je
-                nevidljiva, i to je u redu: na tamnom heroju žuti potpis je isti brend
-                potez kao na papiru. */}
-            <HandUnderline size="sm" className="mt-1" />
-            <p className="mt-3 type-body-sm type-measure font-bold text-paper-strong/72">
-              {locale === "sr"
-                ? heroCopy.subtitleSr
-                : heroCopy.subtitleEn}
-            </p>
-          </div>
-        </div>
-      </section>
+      {/* Heroj je list papira sa scenom trga i Iskrom (K11); naslov i uvodna rečenica su
+          i dalje po sekciji, a Iskra uz njih kaže jedan kratak poziv. */}
+      <CommunityHero
+        locale={locale}
+        title={locale === "sr" ? heroCopy.titleSr : heroCopy.titleEn}
+        subtitle={locale === "sr" ? heroCopy.subtitleSr : heroCopy.subtitleEn}
+        call={communityHeroCall(activeSection, locale)}
+      />
 
       <AppIntroPanel
         id="community"

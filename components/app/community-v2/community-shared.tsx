@@ -18,9 +18,12 @@ import {
   formatCommunityTime,
   type CommunityRole,
 } from "@/components/app/community-identity";
+import { AuthorRankChip } from "@/components/igra/community/author-rank-chip";
+import { IgraArt } from "@/components/igra/igra-art";
 import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/components/ui/primitives";
 import { Spinner } from "@/components/ui/spinner";
+import type { IgraArtId } from "@/lib/igra-art";
 import type { Locale } from "@/lib/i18n";
 import { withLocale } from "@/lib/i18n";
 
@@ -256,6 +259,8 @@ export function ThreadCard({
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
             {post.authorUsername ? <Link href={withLocale(locale, `/app/members/${post.authorUsername}`)} className="relative z-10 type-body-sm font-black text-ink hover:underline">@{post.authorUsername}</Link> : <span className="type-body-sm font-black text-ink">{post.authorName}</span>}
             {post.authorUsername ? <span className="type-caption font-semibold text-muted">{post.authorName}</span> : null}
+            {/* K11: red teme vec nosi `authorRank`, pa cip ne dodaje nijedan upit. */}
+            <AuthorRankChip rank={post.authorRank} locale={locale} />
             <span className="type-caption font-bold text-muted/75">· {formatCommunityTime(post.createdAt, locale)}</span>
             {statusLabel}
             {highlighted ? (
@@ -301,24 +306,34 @@ export function ThreadCard({
  * Prazno stanje zajednice je od U5 samo omotac oko `EmptyState` primitiva iz
  * `components/ui/empty-state.tsx` - potpis ostaje isti zbog pet pozivaoca, ali
  * se zajednica vise ne crta po svojim pravilima. `locale` sluzi jos samo
- * citacu ekrana.
+ * citacu ekrana. `art` (K11) je IGRA nalepnica umesto ikone: 96 px, jer ekran
+ * zajednice vec ima heroja.
  */
 export function EmptyCommunityState({
   locale,
   icon: Icon = CircleHelp,
+  art,
   title,
   body,
   action,
 }: {
   locale: Locale;
   icon?: typeof CircleHelp;
+  art?: IgraArtId;
   title: string;
   body: string;
   action?: ReactNode;
 }) {
   return (
     <section aria-label={locale === "sr" ? "Prazan prikaz" : "Empty view"}>
-      <EmptyState className="min-h-72" icon={Icon} title={title} body={body} action={action} />
+      <EmptyState
+        className="min-h-72"
+        icon={Icon}
+        art={art ? <IgraArt id={art} size="lg" decorative /> : undefined}
+        title={title}
+        body={body}
+        action={action}
+      />
     </section>
   );
 }

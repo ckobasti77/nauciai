@@ -1204,29 +1204,13 @@ export const notFoundContent = {
  */
 export const communityGamificationContent = {
   sr: {
-    levelLabel: (level: number) => `Nivo ${level}`,
-    toNextLevel: (xp: number, level: number) => `još ${xp} XP do nivoa ${level}`,
-    meterLabel: (level: number) => `Napredak do nivoa ${level}`,
     badgesLabel: "Značke člana",
-    badges: {
-      first_thread: { title: "Prva tema", body: "Pokrenuo/la je prvu temu u zajednici." },
-      ten_comments: { title: "Deset komentara", body: "Napisao/la je bar deset komentara." },
-      first_helpful: { title: "Koristan odgovor", body: "Odgovor mu/joj je označen kao koristan." },
-      week_streak: { title: "Sedam dana zaredom", body: "Sedam dana zaredom sa aktivnošću." },
-    },
+    tenComments: { title: "Deset komentara", body: "Napisao/la je bar deset komentara." },
     upvoteSpark: "Nov glas na tvoj sadržaj",
   },
   en: {
-    levelLabel: (level: number) => `Level ${level}`,
-    toNextLevel: (xp: number, level: number) => `${xp} XP to level ${level}`,
-    meterLabel: (level: number) => `Progress to level ${level}`,
     badgesLabel: "Member badges",
-    badges: {
-      first_thread: { title: "First topic", body: "Started their first topic in the community." },
-      ten_comments: { title: "Ten comments", body: "Wrote at least ten comments." },
-      first_helpful: { title: "Helpful answer", body: "Had an answer marked as helpful." },
-      week_streak: { title: "Seven days in a row", body: "Active seven days in a row." },
-    },
+    tenComments: { title: "Ten comments", body: "Wrote at least ten comments." },
     upvoteSpark: "A new vote on your post",
   },
 } as const;

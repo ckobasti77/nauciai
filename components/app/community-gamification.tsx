@@ -1,124 +1,16 @@
 "use client";
 
-import { BadgeCheck, Flame, MessagesSquare, PenLine, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 
 import { cn } from "@/components/ui/primitives";
-import {
-  levelAccentVar,
-  levelProgress,
-  type CommunityBadgeKey,
-} from "@/lib/community-gamification";
 import { communityGamificationContent, type Locale } from "@/lib/i18n";
 
 const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
 
 function prefersReducedMotion() {
   return typeof window !== "undefined" && window.matchMedia(REDUCED_MOTION).matches;
-}
-
-/**
- * Tanka traka napretka do sledećeg nivoa. Boju nosi akcent nivoa (token
- * `--level-accent-*`), a brojevi ostaju u mastilu/muted — akcent nikad ne nosi
- * kontrast teksta. `compact` je varijanta uz avatar u listi članova: kolona je široka
- * koliko i avatar, pa se natpis tu ne lomi nego živi u `title` i `aria-label`.
- */
-export function LevelMeter({
-  locale,
-  xp,
-  compact = false,
-  className,
-}: {
-  locale: Locale;
-  xp: number | undefined;
-  compact?: boolean;
-  className?: string;
-}) {
-  const t = communityGamificationContent[locale];
-  const { level, percent, xpToNext } = levelProgress(xp);
-  const nextLevel = level + 1;
-  const caption = `${t.levelLabel(level)} · ${t.toNextLevel(xpToNext, nextLevel)}`;
-
-  return (
-    <div className={cn("min-w-0", className)} title={compact ? caption : undefined}>
-      {compact ? null : (
-        <p className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5 type-caption font-black text-ink">
-          <span>{t.levelLabel(level)}</span>
-          <span className="font-bold text-muted">{t.toNextLevel(xpToNext, nextLevel)}</span>
-        </p>
-      )}
-      <div
-        role="progressbar"
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={percent}
-        aria-label={compact ? caption : t.meterLabel(nextLevel)}
-        className={cn("w-full overflow-hidden rounded-full bg-line", compact ? "h-1" : "mt-1 h-1.5")}
-      >
-        <span
-          className="block h-full rounded-full"
-          style={{ width: `${percent}%`, backgroundColor: levelAccentVar(level) }}
-        />
-      </div>
-    </div>
-  );
-}
-
-const BADGE_ICON: Record<CommunityBadgeKey, typeof Sparkles> = {
-  first_thread: PenLine,
-  ten_comments: MessagesSquare,
-  first_helpful: BadgeCheck,
-  week_streak: Flame,
-};
-
-/** Svaka značka nosi jedan ton iz istog seta akcenata kao nivoi. */
-const BADGE_ACCENT: Record<CommunityBadgeKey, string> = {
-  first_thread: "var(--level-accent-1)",
-  ten_comments: "var(--level-accent-2)",
-  first_helpful: "var(--level-accent-3)",
-  week_streak: "var(--level-accent-4)",
-};
-
-/**
- * Sitne okrugle oznake pored imena. Akcent je SAMO tinta podloge (`color-mix` sa
- * papirom), ikonica ostaje mastilo — pa kontrast ne zavisi od akcenta ni u jednoj
- * temi. Tooltip je `title`, a isti tekst ide i u `aria-label` (title sam po sebi
- * nije pouzdan za čitače ekrana).
- */
-export function CommunityBadgeRow({
-  locale,
-  badges,
-  className,
-}: {
-  locale: Locale;
-  badges: CommunityBadgeKey[];
-  className?: string;
-}) {
-  if (!badges.length) return null;
-  const t = communityGamificationContent[locale];
-
-  return (
-    <span className={cn("inline-flex items-center gap-1", className)} aria-label={t.badgesLabel}>
-      {badges.map((badge) => {
-        const Icon = BADGE_ICON[badge];
-        const copy = t.badges[badge];
-        const label = `${copy.title} — ${copy.body}`;
-        return (
-          <span
-            key={badge}
-            title={label}
-            aria-label={label}
-            role="img"
-            className="grid size-5 shrink-0 place-items-center rounded-full border border-line text-ink"
-            style={{ backgroundColor: `color-mix(in srgb, ${BADGE_ACCENT[badge]} 30%, var(--paper-strong))` }}
-          >
-            <Icon className="size-3" aria-hidden="true" />
-          </span>
-        );
-      })}
-    </span>
-  );
 }
 
 /**

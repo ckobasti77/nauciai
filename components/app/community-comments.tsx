@@ -20,6 +20,7 @@ import Link from "next/link";
 
 import { VoteScore } from "@/components/app/community-gamification";
 import { CommunityAvatar, formatCommunityTime, type CommunityRank, type CommunityRole } from "@/components/app/community-identity";
+import { AuthorRankChip } from "@/components/igra/community/author-rank-chip";
 import { ConfirmDialog } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/components/ui/primitives";
@@ -373,12 +374,13 @@ function CommentItem({
       >
         <div className="flex items-start gap-3">
           <Link href={node.authorUsername ? withLocale(locale, `/app/members/${node.authorUsername}`) : "#"} aria-disabled={!node.authorUsername} className="shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
-            <CommunityAvatar name={node.authorName} avatarUrl={node.authorAvatarUrl} role={node.authorRole} rank={node.authorRank} locale={locale} size="sm" className="pt-0.5" />
+            <CommunityAvatar name={node.authorName} avatarUrl={node.authorAvatarUrl} role={node.authorRole} locale={locale} size="sm" showRank={false} className="pt-0.5" />
           </Link>
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
               {node.authorUsername ? <Link href={withLocale(locale, `/app/members/${node.authorUsername}`)} className="truncate text-xs font-black text-ink hover:underline">@{node.authorUsername}</Link> : <span className="truncate text-xs font-black text-ink">{node.authorName}</span>}
               {node.authorUsername ? <span className="truncate type-caption font-semibold text-muted">{node.authorName}</span> : null}
+              <AuthorRankChip rank={node.authorRank} locale={locale} />
               <time dateTime={new Date(node.createdAt).toISOString()} className="type-caption font-bold text-ink/50">{formatCommunityTime(node.createdAt, locale)}</time>
               {node.isHelpful ? <span className="inline-flex items-center gap-1 rounded-full border border-amber-400 bg-amber-50 px-2 py-0.5 type-caption font-black text-amber-900"><BadgeCheck className="size-3" />{locale === "sr" ? "Koristan odgovor · +10 XP" : "Helpful answer · +10 XP"}</span> : null}
             </div>

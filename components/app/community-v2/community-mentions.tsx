@@ -5,8 +5,11 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { CommunityAvatar, formatCommunityTime } from "@/components/app/community-identity";
+import { IgraLik } from "@/components/igra/igra-lik";
 import { cn } from "@/components/ui/primitives";
 import { useToast } from "@/components/ui/toast-provider";
+import { isArrival, newestCreatedAt } from "@/lib/igra-community";
+import { IGRA_COMMUNITY_COPY } from "@/lib/igra-copy";
 import type { Locale } from "@/lib/i18n";
 import { withLocale } from "@/lib/i18n";
 
@@ -102,7 +105,7 @@ function notificationCopy(kind: string | undefined, locale: Locale) {
   return locale === "sr" ? "je upvoteovao/la" : "upvoted";
 }
 
-function NotificationCard({ locale, notification, onMarkRead: onMarkReadProp }: { locale: Locale; notification: CommunityMentionEvent; onMarkRead?: (id: string) => Promise<unknown> }) {
+export function NotificationCard({ locale, notification, arrived = false, onMarkRead: onMarkReadProp }: { locale: Locale; notification: CommunityMentionEvent; arrived?: boolean; onMarkRead?: (id: string) => Promise<unknown> }) {
   const unread = !notification.readAt;
   const authorName = notification.senderName ?? notification.authorName ?? (locale === "sr" ? "Član zajednice" : "Community member");
   const excerpt = notification.quote ?? notification.excerpt ?? notification.body;
@@ -111,7 +114,7 @@ function NotificationCard({ locale, notification, onMarkRead: onMarkReadProp }: 
   const onMarkRead = isPendingApproval ? undefined : onMarkReadProp;
   const iconKind = kind === "mention" ? "tag" : kind === "comment_post" || kind === "comment_reply" ? "comment" : kind === "helpful_comment" ? "helpful" : kind.includes("downvote") ? "downvote" : kind.includes("vote") || kind.startsWith("like_") ? "upvote" : "bell";
   return (
-    <article className={cn("relative overflow-hidden rounded-[16px] border bg-paper-strong p-4 transition hover:border-ink sm:p-6", unread ? "border-ink shadow-[4px_4px_0_var(--yellow)]" : "border-line")}>
+    <article className={cn("relative overflow-hidden surface-card border bg-paper-strong p-4 transition hover:border-ink sm:p-6", unread ? "border-ink shadow-[4px_4px_0_var(--yellow)]" : "border-line", arrived && "igra-arrive")}>
       <div className="flex gap-3 sm:gap-4">
         {notification.senderUsername ? <Link href={withLocale(locale, `/app/members/${notification.senderUsername}`)} className="shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"><CommunityAvatar name={authorName} avatarUrl={notification.authorAvatarUrl} role={notification.authorRole} locale={locale} size="sm" showRank={false} /></Link> : <CommunityAvatar name={authorName} avatarUrl={notification.authorAvatarUrl} role={notification.authorRole} locale={locale} size="sm" showRank={false} />}
         <div className="min-w-0 flex-1">
@@ -124,7 +127,7 @@ function NotificationCard({ locale, notification, onMarkRead: onMarkReadProp }: 
             </span>
             <span className="text-xs font-bold text-muted/75">· {formatCommunityTime(notification.createdAt, locale)}</span>
           </div>
-          {unread ? <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-yellow/30 px-2 py-1 type-eyebrow-sm text-ink"><span className="size-1.5 rounded-full bg-red-600" aria-hidden="true" />{locale === "sr" ? "Nepročitano" : "Unread"}</span> : null}
+          {unread && arrived ? <span className="igra-marker mt-2 bg-yellow type-eyebrow-sm text-ink">{IGRA_COMMUNITY_COPY.arrivedTag[locale]}</span> : unread ? <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-yellow/30 px-2 py-1 type-eyebrow-sm text-ink"><span className="size-1.5 rounded-full bg-red-600" aria-hidden="true" />{locale === "sr" ? "Nepročitano" : "Unread"}</span> : null}
           {excerpt ? <blockquote className="relative mt-3 rounded-[12px] border-l-4 border-yellow bg-ink/5 dark:bg-ink/10 py-3 pl-4 pr-3 type-body-sm font-bold text-ink/80"><Quote className="absolute right-3 top-3 size-4 text-ink/20" aria-hidden="true" /><span className="line-clamp-3">{excerpt}</span></blockquote> : null}
           <div className="mt-3"><ScopeTrail locale={locale} track={locale === "sr" ? notification.trackTitleSr : notification.trackTitleEn} course={locale === "sr" ? notification.courseTitleSr : notification.courseTitleEn} compact /></div>
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
@@ -134,6 +137,42 @@ function NotificationCard({ locale, notification, onMarkRead: onMarkReadProp }: 
         </div>
       </div>
     </article>
+  );
+}
+
+/**
+ * Lista obaveštenja (K11), prezentaciona. Ono što stigne dok je lista otvorena „doleti"
+ * odozgo i nosi marker „Upravo stiglo", a iznad liste se javi Iskra - jedna za celu
+ * listu, ne po redu. Polazna tačka je najnoviji red zatečen pri otvaranju; pozivalac
+ * listu ponovo montira kad se promeni filter (`key`), pa se tada uzima nova.
+ */
+export function NotificationFeed({ locale, notifications, unreadOnly, onMarkRead }: { locale: Locale; notifications: CommunityMentionEvent[]; unreadOnly: boolean; onMarkRead?: (id: string) => Promise<unknown> }) {
+  const [baseline] = useState(() => newestCreatedAt(notifications));
+
+  if (!notifications.length) {
+    return (
+      <EmptyCommunityState
+        locale={locale}
+        icon={AtSign}
+        art={unreadOnly ? "prazno.obavestenja" : "lik.iskra.mase"}
+        title={unreadOnly ? (locale === "sr" ? "Sve je pročitano" : "You are all caught up") : (locale === "sr" ? "Još nema obaveštenja" : "No notifications yet")}
+        body={locale === "sr" ? "Kada ti neko odgovori, glasa za tvoju temu ili te pomene, javljamo ti ovde - zajedno sa temom o kojoj je reč." : "When someone replies to you, votes on your topic or mentions you, we tell you here - along with the topic it is about."}
+      />
+    );
+  }
+
+  return (
+    <>
+      {/* Novi red čita `aria-live` lista oko ovoga, pa je Iskrina rečenica samo za oko. */}
+      {notifications.some((notification) => !notification.readAt && isArrival(notification, baseline)) ? (
+        <p aria-hidden="true" className="igra-arrive">
+          <IgraLik lik="iskra" poza="slavi" size="sm" decorative bubble={IGRA_COMMUNITY_COPY.arrivedIskra[locale]} />
+        </p>
+      ) : null}
+      {notifications.map((notification) => (
+        <NotificationCard key={notification._id} locale={locale} notification={notification} arrived={isArrival(notification, baseline)} onMarkRead={onMarkRead} />
+      ))}
+    </>
   );
 }
 
@@ -157,7 +196,7 @@ function NotificationsView({ locale, viewState, notifications, loading, canLoadM
         ) : null}
       </div>
       </CommunityStickyToolbar>
-      {loading ? <CommunityRouteSkeleton /> : <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_280px]"><section className="min-w-0 space-y-4" aria-live="polite">{notifications.length ? notifications.map((notification) => <NotificationCard key={notification._id} locale={locale} notification={notification} onMarkRead={onMarkOne} />) : <EmptyCommunityState locale={locale} icon={AtSign} title={viewState.unreadOnly ? (locale === "sr" ? "Sve je pročitano" : "You are all caught up") : (locale === "sr" ? "Još nema obaveštenja" : "No notifications yet")} body={locale === "sr" ? "Kada ti neko odgovori, glasa za tvoju temu ili te pomene, javljamo ti ovde - zajedno sa temom o kojoj je reč." : "When someone replies to you, votes on your topic or mentions you, we tell you here - along with the topic it is about."} />}{canLoadMore && onLoadMore ? <div className="flex justify-center pt-3"><LoadMoreButton locale={locale} loading={loadingMore} onClick={onLoadMore} /></div> : null}</section><aside className="space-y-4 xl:sticky xl:top-6"><section className="rounded-[16px] border border-ink bg-ink p-6 text-paper-strong shadow-[4px_4px_0_var(--yellow)]"><Sparkles className="size-5 text-yellow" /><h2 className="mt-3 type-h3">{locale === "sr" ? "Sve na jednom mestu" : "Everything in one place"}</h2><p className="mt-2 type-body-sm font-semibold text-paper-strong/70">{locale === "sr" ? "Glasovi, komentari i pominjanja ostaju uz temu na koju se odnose, pa uvek znaš odakle je stiglo." : "Votes, comments and mentions stay attached to the topic they belong to, so you always know where they came from."}</p></section><section className="rounded-[16px] border border-line bg-paper-strong p-4"><p className="type-eyebrow-sm text-muted">{locale === "sr" ? "Nepročitano" : "Unread"}</p><p className="mt-1 font-mono text-3xl font-black text-ink">{unreadCount}</p></section></aside></div>}
+      {loading ? <CommunityRouteSkeleton /> : <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_280px]"><section className="min-w-0 space-y-4" aria-live="polite"><NotificationFeed key={`${viewState.category}:${viewState.unreadOnly}`} locale={locale} notifications={notifications} unreadOnly={viewState.unreadOnly} onMarkRead={onMarkOne} />{canLoadMore && onLoadMore ? <div className="flex justify-center pt-3"><LoadMoreButton locale={locale} loading={loadingMore} onClick={onLoadMore} /></div> : null}</section><aside className="space-y-4 xl:sticky xl:top-6"><section className="rounded-[16px] border border-ink bg-ink p-6 text-paper-strong shadow-[4px_4px_0_var(--yellow)]"><Sparkles className="size-5 text-yellow" /><h2 className="mt-3 type-h3">{locale === "sr" ? "Sve na jednom mestu" : "Everything in one place"}</h2><p className="mt-2 type-body-sm font-semibold text-paper-strong/70">{locale === "sr" ? "Glasovi, komentari i pominjanja ostaju uz temu na koju se odnose, pa uvek znaš odakle je stiglo." : "Votes, comments and mentions stay attached to the topic they belong to, so you always know where they came from."}</p></section><section className="rounded-[16px] border border-line bg-paper-strong p-4"><p className="type-eyebrow-sm text-muted">{locale === "sr" ? "Nepročitano" : "Unread"}</p><p className="mt-1 font-mono text-3xl font-black text-ink">{unreadCount}</p></section></aside></div>}
     </div>
   );
 }

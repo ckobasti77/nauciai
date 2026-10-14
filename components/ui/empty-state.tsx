@@ -12,15 +12,19 @@ import { cn } from "@/components/ui/primitives";
  * razlicite dubine (u kartici, u koloni, kao ceo ekran), pa bi fiksiran nivo
  * naslova negde slomio redosled naslova - a to je gora greska od nedostatka
  * jednog naslova.
+ *
+ * `art` je ilustracija umesto kruga sa ikonom (npr. IGRA nalepnica); ikona se tada ne crta.
  */
 export function EmptyState({
   icon: Icon,
+  art,
   title,
   body,
   action,
   className,
 }: {
   icon: LucideIcon;
+  art?: ReactNode;
   title: string;
   body: string;
   action?: ReactNode;
@@ -34,9 +38,13 @@ export function EmptyState({
       )}
     >
       <div className="max-w-md">
-        <span className="mx-auto grid size-12 place-items-center rounded-full border-2 border-ink bg-yellow text-ink">
-          <Icon aria-hidden="true" className="size-5" />
-        </span>
+        {art ? (
+          <div className="flex justify-center">{art}</div>
+        ) : (
+          <span className="mx-auto grid size-12 place-items-center rounded-full border-2 border-ink bg-yellow text-ink">
+            <Icon aria-hidden="true" className="size-5" />
+          </span>
+        )}
         <p className="mt-4 type-h3 text-ink">{title}</p>
         <p className="mt-2 type-body-sm font-semibold text-muted">{body}</p>
         {action ? <div className="mt-5 flex justify-center">{action}</div> : null}

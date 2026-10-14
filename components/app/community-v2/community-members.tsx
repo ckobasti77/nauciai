@@ -5,8 +5,8 @@ import { useMutation } from "convex/react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { CommunityBadgeRow, LevelMeter } from "@/components/app/community-gamification";
-import { CommunityAvatar, RoleBadge, roleLabel } from "@/components/app/community-identity";
+import { CommunityBadgeRow, LevelMeter } from "@/components/app/community-member-progress";
+import { CommunityAvatar, RoleBadge, canShowRank, roleLabel } from "@/components/app/community-identity";
 import { cn } from "@/components/ui/primitives";
 import { useToast } from "@/components/ui/toast-provider";
 import { api } from "@/convex/_generated/api";
@@ -130,12 +130,6 @@ function MemberCard({ locale, member }: { locale: Locale; member: CommunityMembe
       ? { following: optimisticFollow.following, mutual: optimisticFollow.mutual }
       : { following: Boolean(member.isFollowing), mutual: Boolean(member.isMutual) };
 
-  const following = activeFollowState.following;
-  const mutual = activeFollowState.mutual;
-  // Lista članova zna broj korisnih odgovora, ali ne i podelu tema/komentara ni niz
-  // dana — te značke se ovde PRESKAČU (N12), bez ijednog dodatnog upita po redu.
-  const badges = communityBadges({ helpfulAnswers: member.helpfulAnswers });
-
   async function follow() {
     if (!member.userId || pending) return;
     setPending(true);
@@ -164,11 +158,45 @@ function MemberCard({ locale, member }: { locale: Locale; member: CommunityMembe
   }
 
   return (
-    <article className="group relative flex min-h-28 w-full items-start gap-3 surface-card border border-line bg-paper-strong p-3 text-left transition hover:border-ink hover:shadow-[3px_3px_0_var(--shadow-hard-08)]">
-      {/* N12: traka nivoa stoji tačno ispod avatara, u istoj koloni — kolona je
-          široka koliko avatar, pa traka nosi samo boju nivoa, a ceo natpis ide u
-          `title`/`aria-label`. */}
-      <span className="flex shrink-0 flex-col items-center gap-1.5">
+    <MemberCardView
+      locale={locale}
+      member={member}
+      following={activeFollowState.following}
+      mutual={activeFollowState.mutual}
+      pending={pending}
+      onFollow={() => void follow()}
+    />
+  );
+}
+
+/**
+ * Kartica člana (K11), prezentaciona: podaci kroz props, praćenje kroz `onFollow`. Nivo
+ * se računa iz XP-a koji red liste VEĆ nosi - nijedan upit po kartici.
+ */
+export function MemberCardView({
+  locale,
+  member,
+  following,
+  mutual,
+  pending = false,
+  onFollow,
+}: {
+  locale: Locale;
+  member: CommunityMemberRow;
+  following: boolean;
+  mutual: boolean;
+  pending?: boolean;
+  onFollow?: () => void;
+}) {
+  // Lista članova zna broj korisnih odgovora, ali ne i podelu tema/komentara ni niz
+  // dana — te značke se ovde PRESKAČU (N12), bez ijednog dodatnog upita po redu.
+  const badges = communityBadges({ helpfulAnswers: member.helpfulAnswers });
+  // Nalozi tima nisu na rang listi, pa nemaju nivo (isto kao na profilu).
+  const leveled = canShowRank(member.role) && typeof member.xp === "number";
+
+  return (
+    <article className="group flex w-full flex-col gap-3 surface-card border border-line bg-paper-strong p-3 text-left transition hover:border-ink hover:shadow-[3px_3px_0_var(--shadow-hard-08)]">
+      <div className="flex items-start gap-3">
         <CommunityAvatar
           name={member.name}
           avatarUrl={member.avatarUrl}
@@ -177,29 +205,31 @@ function MemberCard({ locale, member }: { locale: Locale; member: CommunityMembe
           size="md"
           showRank={false}
         />
-        {typeof member.xp === "number" ? <LevelMeter locale={locale} xp={member.xp} compact className="w-12" /> : null}
-      </span>
-      <span className="min-w-0 flex-1">
-        {member.username ? <Link href={withLocale(locale, `/app/members/${member.username}`)} className="flex min-w-0 items-center gap-2 surface-inset focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
-          <span className="truncate type-h4 text-ink">{member.name}</span>
+        <div className="min-w-0 flex-1">
+          {member.username ? <Link href={withLocale(locale, `/app/members/${member.username}`)} className="flex min-w-0 items-center gap-2 surface-inset focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
+            <span className="truncate type-h4 text-ink">{member.name}</span>
+            <ChevronRight className="size-4 shrink-0 text-line transition group-hover:translate-x-0.5 group-hover:text-ink" aria-hidden="true" />
+          </Link> : <span className="block truncate type-h4 text-ink">{member.name}</span>}
+          {member.username ? <span className="mt-0.5 block truncate text-xs font-bold text-muted">@{member.username}</span> : null}
+          <span className="mt-2 block">
+            <ScopeTrail
+              locale={locale}
+              track={locale === "sr" ? member.trackTitleSr : member.trackTitleEn}
+              course={locale === "sr" ? member.courseTitleSr : member.courseTitleEn}
+              compact
+            />
+          </span>
+        </div>
+      </div>
+      {leveled ? <LevelMeter locale={locale} xp={member.xp} compact /> : null}
+      {/* Značke su dugmad sa oblačićem, pa stoje u podnožju, van linka na profil. */}
+      <div className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3">
+        <span className="flex min-w-0 items-center gap-2">
           <CommunityBadgeRow locale={locale} badges={badges} />
-          <ChevronRight className="size-4 shrink-0 text-line transition group-hover:translate-x-0.5 group-hover:text-ink" aria-hidden="true" />
-        </Link> : <span className="flex min-w-0 items-center gap-2"><span className="truncate type-h4 text-ink">{member.name}</span><CommunityBadgeRow locale={locale} badges={badges} /></span>}
-        {member.username ? <span className="mt-0.5 block truncate text-xs font-bold text-muted">@{member.username}</span> : null}
-        <span className="mt-2 block">
-          <ScopeTrail
-            locale={locale}
-            track={locale === "sr" ? member.trackTitleSr : member.trackTitleEn}
-            course={locale === "sr" ? member.courseTitleSr : member.courseTitleEn}
-            compact
-          />
-        </span>
-        <span className="mt-3 flex flex-wrap items-center justify-between gap-2">
           <span className="font-mono text-xs font-black text-ink">{member.contributionCount ?? 0} {locale === "sr" ? "doprinosa" : "contributions"}</span>
-          <RoleBadge role={member.role} locale={locale} compact />
         </span>
-        {member.canFollow && member.userId ? <button type="button" onClick={() => void follow()} disabled={pending} className={cn("mt-3 inline-flex min-h-11 sm:min-h-9 items-center gap-2 rounded-full border-2 border-ink px-3 type-caption font-black transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:translate-y-0 disabled:opacity-50", following ? "bg-paper-strong" : "bg-yellow")}><UserPlus className="size-3.5" />{mutual ? (locale === "sr" ? "Pratite se" : "Mutual") : following ? (locale === "sr" ? "Pratiš" : "Following") : (locale === "sr" ? "Zaprati" : "Follow")}</button> : null}
-      </span>
+        {member.canFollow && member.userId && onFollow ? <button type="button" onClick={onFollow} disabled={pending} className={cn("inline-flex min-h-11 sm:min-h-9 items-center gap-2 rounded-full border-2 border-ink px-3 type-caption font-black transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:translate-y-0 disabled:opacity-50", following ? "bg-paper-strong" : "bg-yellow")}><UserPlus className="size-3.5" />{mutual ? (locale === "sr" ? "Pratite se" : "Mutual") : following ? (locale === "sr" ? "Pratiš" : "Following") : (locale === "sr" ? "Zaprati" : "Follow")}</button> : null}
+      </div>
     </article>
   );
 }
@@ -318,6 +348,7 @@ function MembersView({
         <EmptyCommunityState
           locale={locale}
           icon={SearchX}
+          art="prazno.pretraga"
           title={locale === "sr" ? "Nijedan član ne odgovara ovom izboru" : "No member matches this selection"}
           body={
             locale === "sr"

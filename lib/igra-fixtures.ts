@@ -1,6 +1,7 @@
 import type { FunctionReturnType } from "convex/server";
 
 import type { api } from "../convex/_generated/api";
+import type { CommunityMemberRow, CommunityMentionEvent, CommunityPostRow } from "../components/app/community-v2/community-types";
 import type { DashboardCourse } from "../components/app/dashboard-content";
 import type { Id } from "../convex/_generated/dataModel";
 import { courses as staticCourses } from "./content";
@@ -501,4 +502,163 @@ export const CLASSROOM_FIXTURES: Record<IgraFixtureId, DashboardCourse[]> = {
   aktivan: classroomCourses({ "promptovi-koji-rade": 3, "ai-za-svaki-dan": 5, "prvi-koraci-sa-ai": 6, "vibe-coding": 0 }),
   // Sve otključano i sve završeno.
   legenda: classroomCourses(Object.fromEntries(COURSE_SEEDS.map((seed) => [seed.slug, seed.lessons.length]))),
+};
+
+// ── Zajednica (K11) ─────────────────────────────────────────────────────────
+
+export type CommunityFixture = {
+  posts: CommunityPostRow[];
+  members: CommunityMemberRow[];
+  notifications: CommunityMentionEvent[];
+};
+
+const HOUR_MS = 3_600_000;
+
+/** Rang autora kako ga vraća `community:listPostsPage` (stepen iz broja lekcija). */
+function lessonsRank(completedLessons: number) {
+  const level = completedLessons >= 60 ? 5 : completedLessons >= 30 ? 4 : completedLessons >= 15 ? 3 : completedLessons >= 5 ? 2 : 1;
+  return { level, label: `Nivo ${level}`, completedLessons };
+}
+
+// ID počinje sa `preview-`: kartica teme tada vodi na listu diskusija, ne na detalj.
+const COMMUNITY_POSTS: CommunityPostRow[] = [
+  {
+    _id: "preview-prompt-uloga",
+    title: "Kako da prompt uvek dobije isti ton?",
+    body: "Dajem ulogu na početku, ali posle trećeg odgovora ton sklizne. Šta vi radite?",
+    createdAt: NOW - 2 * HOUR_MS,
+    authorName: "Jelena Marković",
+    authorUsername: "jelena.markovic",
+    authorRole: "pro_student",
+    authorRank: lessonsRank(64),
+    trackTitleSr: "AI osnove",
+    trackTitleEn: "AI basics",
+    courseTitleSr: "Promptovi koji rade",
+    courseTitleEn: "Prompts that work",
+    commentsCount: 7,
+    voteScore: 12,
+    isPinned: true,
+  },
+  {
+    _id: "preview-prva-slika",
+    title: "Moja prva slika u Crei, šta da popravim?",
+    body: "Tražila sam akvarel mačke na prozoru. Boje su dobre, ali šape izgledaju čudno.",
+    createdAt: NOW - 5 * HOUR_MS,
+    authorName: "Tamara Ilić",
+    authorUsername: "tamara.ilic",
+    authorRole: "student",
+    authorRank: lessonsRank(1),
+    commentsCount: 3,
+    voteScore: 4,
+  },
+  {
+    _id: "preview-sajt-za-salon",
+    title: "Vibe coding: sajt za frizerski salon za jedno popodne",
+    body: "Delim korake i greške koje sam napravio, da ih vi ne ponovite.",
+    createdAt: NOW - 26 * HOUR_MS,
+    authorName: "Nikola Stanić",
+    authorUsername: "nikola.stanic",
+    authorRole: "student",
+    authorRank: lessonsRank(17),
+    trackTitleSr: "Sajtovi i kod",
+    trackTitleEn: "Sites and code",
+    courseTitleSr: "Vibe coding",
+    courseTitleEn: "Vibe coding",
+    commentsCount: 11,
+    voteScore: 23,
+  },
+  {
+    _id: "preview-pravila",
+    title: "Kako da postaviš pitanje na koje ćeš brzo dobiti odgovor",
+    body: "Naslov u jednoj rečenici, šta si probao/la i gde je stalo. Slika ekrana mnogo pomaže.",
+    createdAt: NOW - 3 * DAY_MS,
+    authorName: "Milica Jovanović",
+    authorUsername: "milica",
+    authorRole: "admin",
+    authorRank: null,
+    commentsCount: 2,
+    voteScore: 31,
+  },
+  {
+    _id: "preview-prvi-dan",
+    title: "Zdravo svima, tek sam počeo",
+    body: "Imam 54 godine i prvi put koristim AI. Odakle je najbolje da krenem?",
+    createdAt: NOW - 4 * DAY_MS,
+    authorName: "Dragan Pešić",
+    authorRole: "student",
+    authorRank: lessonsRank(0),
+    commentsCount: 9,
+    voteScore: 18,
+  },
+];
+
+const COMMUNITY_MEMBERS: CommunityMemberRow[] = [
+  { _id: "fixture-member-milica", userId: "fixture-user-milica", name: "Milica Jovanović", username: "milica", role: "admin", xp: 0, contributionCount: 212, helpfulAnswers: 40, canFollow: false },
+  { _id: "fixture-member-ognjen", userId: "fixture-user-ognjen", name: "Ognjen Vuković", username: "ognjen.v", role: "moderator", xp: 0, contributionCount: 96, helpfulAnswers: 22, canFollow: true },
+  { _id: "fixture-member-vesna", userId: "fixture-user-vesna", name: "Vesna Radović", username: "vesna.radovic", role: "pro_student", xp: 23480, contributionCount: 148, helpfulAnswers: 31, canFollow: true, isFollowing: true, isMutual: true, trackTitleSr: "Slika, video i zvuk", trackTitleEn: "Image, video and sound" },
+  { _id: "fixture-member-jelena", userId: "fixture-user-jelena", name: "Jelena Marković", username: "jelena.markovic", role: "pro_student", xp: 6120, contributionCount: 57, helpfulAnswers: 9, canFollow: true, isFollowing: true, trackTitleSr: "AI osnove", trackTitleEn: "AI basics", courseTitleSr: "Promptovi koji rade", courseTitleEn: "Prompts that work" },
+  { _id: "fixture-member-nikola", userId: "fixture-user-nikola", name: "Nikola Stanić", username: "nikola.stanic", role: "student", xp: 1890, contributionCount: 14, helpfulAnswers: 2, canFollow: true, trackTitleSr: "Sajtovi i kod", trackTitleEn: "Sites and code" },
+  { _id: "fixture-member-aleksandra", userId: "fixture-user-aleksandra", name: "Aleksandra Stojanović-Milenković", username: "aleksandra.stojanovic", role: "student", xp: 760, contributionCount: 6, helpfulAnswers: 0, canFollow: true },
+  { _id: "fixture-member-tamara", userId: "fixture-user-tamara", name: "Tamara Ilić", username: "tamara.ilic", role: "student", xp: 100, contributionCount: 1, helpfulAnswers: 0, canFollow: true },
+  { _id: "fixture-member-dragan", userId: "fixture-user-dragan", name: "Dragan Pešić", role: "student", xp: 0, contributionCount: 1, helpfulAnswers: 0, canFollow: true },
+];
+
+const COMMUNITY_NOTIFICATIONS: CommunityMentionEvent[] = [
+  {
+    _id: "fixture-notification-reply",
+    createdAt: NOW - 40 * 60_000,
+    kind: "comment_post",
+    senderName: "Jelena Marković",
+    senderUsername: "jelena.markovic",
+    authorRole: "pro_student",
+    excerpt: "Probaj da ulogu ponoviš u svakoj poruci, ne samo u prvoj. Kod mene je to rešilo stvar.",
+    postId: "preview-sajt-za-salon",
+    postTitle: "Vibe coding: sajt za frizerski salon za jedno popodne",
+    trackTitleSr: "Sajtovi i kod",
+    trackTitleEn: "Sites and code",
+  },
+  {
+    _id: "fixture-notification-helpful",
+    createdAt: NOW - 3 * HOUR_MS,
+    kind: "helpful_comment",
+    senderName: "Milica Jovanović",
+    senderUsername: "milica",
+    authorRole: "admin",
+    excerpt: "Slika ekrana sa greškom i jedan red o tome šta si očekivao.",
+    postId: "preview-pravila",
+    postTitle: "Kako da postaviš pitanje na koje ćeš brzo dobiti odgovor",
+  },
+  {
+    _id: "fixture-notification-mention",
+    createdAt: NOW - 20 * HOUR_MS,
+    readAt: NOW - 19 * HOUR_MS,
+    kind: "mention",
+    senderName: "Tamara Ilić",
+    senderUsername: "tamara.ilic",
+    authorRole: "student",
+    excerpt: "@nikola.stanic je ovo već radio, možda on zna.",
+    postId: "preview-prva-slika",
+    postTitle: "Moja prva slika u Crei, šta da popravim?",
+  },
+  {
+    _id: "fixture-notification-follow",
+    createdAt: NOW - 2 * DAY_MS,
+    readAt: NOW - 2 * DAY_MS + HOUR_MS,
+    kind: "new_follower",
+    senderName: "Vesna Radović",
+    senderUsername: "vesna.radovic",
+    authorRole: "pro_student",
+  },
+];
+
+export const COMMUNITY_FIXTURES: Record<IgraFixtureId, CommunityFixture> = {
+  // Tek registrovan: zajednica još nema šta da pokaže (prazna stanja).
+  novi: { posts: [], members: [], notifications: [] },
+  aktivan: { posts: COMMUNITY_POSTS, members: COMMUNITY_MEMBERS, notifications: COMMUNITY_NOTIFICATIONS },
+  // Sve je pročitano.
+  legenda: {
+    posts: COMMUNITY_POSTS,
+    members: COMMUNITY_MEMBERS,
+    notifications: COMMUNITY_NOTIFICATIONS.map((notification) => ({ ...notification, readAt: notification.readAt ?? NOW - HOUR_MS })),
+  },
 };

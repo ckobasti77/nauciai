@@ -7,6 +7,7 @@ import { IzlogPrimitivi } from "@/components/igra/izlog/izlog-primitivi";
 import { IzlogSlike } from "@/components/igra/izlog/izlog-slike";
 import { IzlogTabla } from "@/components/igra/izlog/izlog-tabla";
 import { IzlogUcionica } from "@/components/igra/izlog/izlog-ucionica";
+import { IzlogZajednica } from "@/components/igra/izlog/izlog-zajednica";
 import type { IgraFixtureId } from "@/lib/igra-fixtures";
 import type { Locale, LocalizedText } from "@/lib/i18n";
 
@@ -29,4 +30,5 @@ export const IZLOG_PARTS: readonly IzlogPart[] = [
   { id: "tabla", label: { sr: "Kontrolna tabla", en: "Dashboard" }, Part: IzlogTabla },
   { id: "ucionica", label: { sr: "Učionica", en: "Classroom" }, Part: IzlogUcionica },
   { id: "mapa", label: { sr: "Mapa puta", en: "Journey map" }, Part: IzlogMapa },
+  { id: "zajednica", label: { sr: "Zajednica", en: "Community" }, Part: IzlogZajednica },
 ];

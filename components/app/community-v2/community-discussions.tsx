@@ -465,6 +465,7 @@ function DiscussionsView({
               <EmptyCommunityState
                 locale={locale}
                 icon={MessageSquareText}
+                art={controls.query ? "prazno.pretraga" : "prazno.objave"}
                 title={locale === "sr" ? "Nema nijedne teme za ovaj izbor" : "No topics match this selection"}
                 body={locale === "sr" ? "Obriši reč iz pretrage ili izaberi drugi kurs iznad. Ako je ovo baš tvoj kurs, ti otvori prvu temu." : "Clear the search word or pick a different course above. If this is your course, be the one to open the first topic."}
                 action={

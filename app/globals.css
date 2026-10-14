@@ -497,6 +497,20 @@ body {
   to { box-shadow: 0 0 0 14px color-mix(in srgb, var(--igra-marker) 0%, transparent); }
 }
 
+/* IGRA (K11): obaveštenje koje stigne dok je lista otvorena „doleti" odozgo, jednom
+   (klasu nosi samo red noviji od onoga što je zatečeno pri otvaranju liste). Uz „manje
+   pokreta" klasa ne postoji: red je odmah na mestu. */
+@media (prefers-reduced-motion: no-preference) {
+  .igra-arrive {
+    animation: igra-arrive 480ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+}
+
+@keyframes igra-arrive {
+  from { opacity: 0; transform: translateY(-0.75rem); }
+  to { opacity: 1; transform: none; }
+}
+
 /* The sanctioned radius scale. These are the only values a new surface should
    use; `rounded-full` covers the pill tier. See AGENTS.md. */
 @utility surface-card {
