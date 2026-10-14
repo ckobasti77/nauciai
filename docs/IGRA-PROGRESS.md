@@ -1352,3 +1352,6 @@ Jovan ručno: uključi `crea_public_gallery` na DEV-u i otvori `/crea/galerija` 
 **BLOKADA (samo provera, ne kod):** prave strane (`/app/credits`, `/app/billing`, `/app/profile`, API ključevi) traže prijavu kroz auth tok koji se ne dira, a Playwright MCP radi `--isolated` bez sesije (isto kao K06–K18). `CreditsView` u izlogu je ista komponenta koju prava strana renderuje; limit potrošnje (Convex kartica) u izlogu nije prikazan. Zaglavlja profila, ključeva i pomoći proverena su preko `AccountHead` i praznih stanja u izlogu, ne na pravim stranama.
 
 **Za Jovana ujutru:** kao prijavljen otvori `/app/credits` (stanje 0 i sa kreditima), `/app/billing`, `/app/profile` (zaglavlje i „Pomoć zajednice"), `/app/profile/api-keys`; uporedi sa `K19-krediti-1440-svetla.png`. Proveri da se nijedan broj ni cena nisu promenili. Ukus: `prazno.uskoro` (poklon) na praznim temama pomoći i paketima; Robi iznad kartice stanja na desktopu; datumi na ćirilici (ODLUKA 6).
+
+## K20 - Plan: admin „Kontrolna soba”   (2026-10-14 10:54)
+**Plan korak.** Plan je upisan u `docs/igra/planovi/K20.md`. Nije menjan kod.
