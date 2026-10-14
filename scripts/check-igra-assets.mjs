@@ -4,7 +4,7 @@
  *
  * Izvor istine je `public/brand/igra/manifest.json` (ID → `src`, `ready`). Kod slike
  * traži ISKLJUČIVO kroz `<IgraArt id="…">`, pa je ID uvek literal (`"lik.robi.mase"`)
- * ili poziv porodice (`igraLikArt(…)`, `igraNivoArt(…)`, `igraBedzArt(…)`).
+ * ili poziv porodice (`igraLikArt(…)`, `igraNivoArt(…)`, `igraBedzArt(…)`, `igraBannerArt(…)` iz K13).
  *
  * Šta prijavljuje:
  *   - ID iz koda koji NIJE spreman (`ready: false`) ili je tek planiran
@@ -35,7 +35,7 @@ const DEFINITION_FILES = new Set([REGISTRY_PATH, "components/igra/igra-fallback-
 const PREFIXES = ["lik", "nivo", "bedz", "rang", "scena", "baner", "prazno", "admin", "ikona"];
 const ID_LITERAL = new RegExp(`["'\`]((?:${PREFIXES.join("|")})\\.[a-z0-9]+(?:[.-][a-z0-9]+)*)["'\`]`, "g");
 /** Poziv koji bira sliku u vreme izvršavanja → cela porodica se računa kao korišćena. */
-const FAMILY_CALLS = { igraLikArt: "lik.", igraNivoArt: "nivo.", igraBedzArt: "bedz." };
+const FAMILY_CALLS = { igraLikArt: "lik.", igraNivoArt: "nivo.", igraBedzArt: "bedz.", igraBannerArt: "baner." };
 
 function walk(dir, out = []) {
   for (const entry of readdirSync(dir)) {

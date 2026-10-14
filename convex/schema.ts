@@ -170,6 +170,9 @@ const authUsers = defineTable({
   youtubeUrl: v.optional(v.string()),
   helpStatus: v.optional(helpMode),
   dmPrivacy: v.optional(dmPrivacy),
+  // IGRA (K13): izabrani baner profila (`lib/igra-banners.ts`, ključ bez `baner.`). Samo
+  // izgled; upisuje ga `igra.setBanner` posle provere nivoa. Prazno = podrazumevani.
+  igraBanner: v.optional(v.string()),
   anonymizedAt: v.optional(v.number()),
   // Kada je korisnik potvrdio "imam 18 godina i prihvatam uslove Studija"
   // (X7). Vremenski pečat, a ne boolean: kad se uslovi izmene, jedini podatak

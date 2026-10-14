@@ -18,11 +18,17 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 import { openChatDock } from "@/components/app/chat/chat-dock";
+import { useMemberIgra } from "@/components/app/member-profile-igra";
 import { CreaReportCardPanel } from "@/components/crea/game/crea-report-card-panel";
-import { CommunityBadgeRow, LevelMeter } from "@/components/app/community-member-progress";
+import { useIgraProgress } from "@/components/igra/igra-progress-context";
+import { BannerPicker } from "@/components/igra/profile/banner-picker";
+import { PlayerStats } from "@/components/igra/profile/player-stats";
+import { ProfileActivity } from "@/components/igra/profile/profile-activity";
+import { ProfileBanner } from "@/components/igra/profile/profile-banner";
+import { TrophyShelf } from "@/components/igra/trophy-shelf";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
@@ -31,8 +37,10 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Field, Textarea } from "@/components/ui/field";
 import { cn } from "@/components/ui/primitives";
 import { Spinner } from "@/components/ui/spinner";
-import { activityStreakDays, activityTotal, communityBadges } from "@/lib/community-gamification";
+import type { IgraBannerKey } from "@/lib/igra-banners";
+import { IGRA_PROFILE_COPY } from "@/lib/igra-copy";
 import { levelFromXp } from "@/lib/igra-level";
+import { profileBannerKey, profileShelfBadges, profileWorks } from "@/lib/igra-profile";
 import type { Locale } from "@/lib/i18n";
 import { t, withLocale } from "@/lib/i18n";
 
@@ -59,55 +67,6 @@ function relativeTime(locale: Locale, timestamp?: number, activeNow?: boolean) {
   if (hours < 24) return t(locale, `pre ${hours} h`, `${hours}h ago`);
   const days = Math.floor(hours / 24);
   return t(locale, `pre ${days} dana`, `${days}d ago`);
-}
-
-function dayKey(timestamp: number) {
-  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Belgrade", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date(timestamp));
-  const part = (type: string) => parts.find((item) => item.type === type)?.value ?? "";
-  return `${part("year")}-${part("month")}-${part("day")}`;
-}
-
-function ActivityHeatmap({ activity, locale }: { activity: { days: Array<{ dayKey: string; lessons: number; tasks: number; threads: number; comments: number; total: number }>; max: number }; locale: Locale }) {
-  const [todayTimestamp] = useState(() => Date.now());
-  const cells = useMemo(() => {
-    const values = new Map(activity.days.map((day) => [day.dayKey, day]));
-    const today = new Date(todayTimestamp);
-    return Array.from({ length: 365 }, (_, index) => {
-      const date = new Date(today);
-      date.setDate(today.getDate() - (364 - index));
-      const key = dayKey(date.getTime());
-      return { key, value: values.get(key) };
-    });
-  }, [activity.days, todayTimestamp]);
-  const todayKey = dayKey(todayTimestamp);
-  const shades = ["bg-[#edf3f8] dark:bg-ink/10", "bg-[#b9d3e8] dark:bg-ink/30", "bg-[#70a7cf] dark:bg-ink/55", "bg-blue-mid dark:bg-ink/80", "bg-ink"];
-
-  return (
-    <section className="surface-card border-2 border-line bg-paper-strong p-4 shadow-[4px_4px_0_0_var(--shadow-hard-08)] sm:p-6">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <p className="font-display type-display-sm text-ink">{t(locale, "Aktivnost", "Activity")}</p>
-          <p className="mt-1 text-sm font-bold text-muted">{t(locale, "Poslednjih 365 dana", "Last 365 days")}</p>
-        </div>
-        <div className="hidden items-center gap-1 type-caption font-black text-muted sm:flex">
-          <span>{t(locale, "Manje", "Less")}</span>
-          {shades.map((shade) => <span key={shade} className={cn("size-3 rounded-[8px]", shade)} />)}
-          <span>{t(locale, "Više", "More")}</span>
-        </div>
-      </div>
-      <div className="mt-5 overflow-x-auto pb-2">
-        <div className="grid min-w-[580px] grid-flow-col grid-rows-7 gap-[2px]">
-          {cells.map(({ key, value }) => {
-            const intensity = value?.total ? Math.min(4, Math.max(1, Math.ceil((value.total / activity.max) * 4))) : 0;
-            const title = value
-              ? `${key}: ${value.total} · ${value.lessons} lekcija · ${value.tasks} zadataka · ${value.threads} threadova · ${value.comments} komentara`
-              : `${key}: 0`;
-            return <span key={key} title={title} className={cn("size-[9px] rounded-[8px]", shades[intensity], key === todayKey && "ring-2 ring-yellow ring-offset-1")} />;
-          })}
-        </div>
-      </div>
-    </section>
-  );
 }
 
 function FollowersDialog({ kind, userId, username, locale, owner, onClose }: { kind: FollowListKind; userId: Id<"users">; username: string; locale: Locale; owner: boolean; onClose: () => void }) {
@@ -151,10 +110,12 @@ export function MemberProfile({ locale, username }: { locale: Locale; username: 
   const reportContent = useMutation(api.chatModeration.reportContent);
   const setProfileRole = useMutation(api.profiles.setProfileRole);
   const ownerStatus = useQuery(api.profiles.getViewerProfileStatus, profile?.viewer.isOwner ? {} : "skip");
-  // „Danas" se uzima JEDNOM po montiranju (isti obrazac kao `ActivityHeatmap`) — bez
-  // toga bi `Date.now()` u renderu bio necista funkcija i niz dana bi mogao da se
-  // promeni usred jednog prolaza.
-  const [nowTimestamp] = useState(() => Date.now());
+  // IGRA (K13): napredak vlasnika već drži ljuska; za profil jedan upit po strani.
+  const { progress: myProgress } = useIgraProgress();
+  const { member, todayKey, setBanner } = useMemberIgra(username);
+  const [bannerOpen, setBannerOpen] = useState(false);
+  const [bannerPending, setBannerPending] = useState<IgraBannerKey | null>(null);
+  const [bannerError, setBannerError] = useState<string | null>(null);
   const [followPending, setFollowPending] = useState(false);
   const [messagePending, setMessagePending] = useState(false);
   const [profileActionNotice, setProfileActionNotice] = useState<string>();
@@ -191,15 +152,13 @@ export function MemberProfile({ locale, username }: { locale: Locale; username: 
   );
 
   const { identity } = profile;
-  // Znacke se racunaju iz podataka koje profil VEC cita (N12): dnevna aktivnost nosi
-  // broj tema, broj komentara i niz dana zaredom, a `helpfulAnswers` stize iz istog
-  // leaderboard reda. Nijedan nov upit.
-  const badges = communityBadges({
-    threads: activityTotal(profile.activity.days, "threads"),
-    comments: activityTotal(profile.activity.days, "comments"),
-    helpfulAnswers: profile.stats.helpfulAnswers,
-    streakDays: activityStreakDays(profile.activity.days, dayKey(nowTimestamp)),
-  });
+  const isOwner = profile.viewer.isOwner;
+  // Nivo iz istog XP-a koji profil već čita (osoblje ga nema, kao i danas).
+  const level = levelFromXp(profile.progress?.xp ?? 0);
+  const shelf = profileShelfBadges({ isOwner, mine: myProgress, member });
+  const bannerKey = profileBannerKey({ isOwner, mine: myProgress, member });
+  const ownBanner = myProgress?.banner ?? member?.banner ?? null;
+  const canPickBanner = isOwner && Boolean(myProgress || member);
   const links = [
     { key: "website", href: identity.links.website, icon: Link2, label: "Website" },
     { key: "instagram", href: identity.links.instagram, icon: AtSign, label: "Instagram" },
@@ -253,6 +212,18 @@ export function MemberProfile({ locale, username }: { locale: Locale; username: 
     }
   }
 
+  async function chooseBanner(banner: IgraBannerKey) {
+    setBannerPending(banner);
+    setBannerError(null);
+    try {
+      await setBanner({ banner });
+    } catch {
+      setBannerError(IGRA_PROFILE_COPY.bannerError[locale]);
+    } finally {
+      setBannerPending(null);
+    }
+  }
+
   function resetPagination(nextFilter = filter, nextCourse = courseId) {
     setFilter(nextFilter);
     setCourseId(nextCourse);
@@ -260,23 +231,11 @@ export function MemberProfile({ locale, username }: { locale: Locale; username: 
 
   const profileCard = (
     <aside className="surface-card border-2 border-ink bg-paper-strong p-6 shadow-[6px_6px_0_0_var(--yellow)] xl:sticky xl:top-8">
-      <div className="mx-auto w-fit">
-        <div className="relative rounded-full border-[3px] border-ink p-1.5 ring-[7px] ring-yellow/70">
-          <img src={identity.avatarUrl || "/images/avatars/mythic-mentor.png"} alt={identity.name} className="size-28 rounded-full object-cover sm:size-32" />
-          {profile.progress ? <span className="absolute -bottom-2 -right-2 grid size-11 place-items-center rounded-full border-[3px] border-paper-strong bg-ink text-lg font-black text-paper-strong">{levelFromXp(profile.progress.xp).level}</span> : null}
-        </div>
-      </div>
-      <div className="mt-6 text-center">
-        <span className="inline-flex rounded-full border-2 border-ink bg-yellow px-3 py-1 type-eyebrow">{roleLabel(locale, identity.role)}</span>
-        <h1 className="mt-3 type-h1 text-ink">{identity.name}</h1>
-        <p className="mt-1 flex flex-wrap items-center justify-center gap-2 font-mono text-sm font-bold text-muted">
-          <span>@{identity.username}</span>
-          <CommunityBadgeRow locale={locale} badges={badges} />
-        </p>
-        {profile.progress ? <p className="mt-2 text-xs font-black text-blue-mid dark:text-muted">{profile.progress.xp.toLocaleString()} XP</p> : null}
-        {profile.progress ? <LevelMeter locale={locale} xp={profile.progress.xp} className="mt-3 text-left" /> : null}
+      {/* Karta igrača (K13): ime, avatar i nivo su u zaglavlju sa banerom. */}
+      {profile.progress ? <PlayerStats xp={profile.progress.xp} streak={isOwner && myProgress ? myProgress.streak : null} locale={locale} className="border-b-2 border-line pb-5" /> : null}
+      <div>
         {identity.bio ? <p className="mt-4 whitespace-pre-wrap type-body-sm font-bold text-ink/80">{identity.bio}</p> : <p className="mt-4 text-sm font-bold text-muted">{t(locale, "Biografija još nije dodata.", "No bio yet.")}</p>}
-        {links.length ? <div className="mt-4 flex justify-center gap-2">{links.map(({ key, href, icon: Icon, label }) => <a key={key} href={href} target="_blank" rel="noreferrer" aria-label={label} className="grid size-10 place-items-center rounded-full border-2 border-ink bg-paper-strong transition hover:bg-yellow"><Icon className="size-5" /></a>)}</div> : null}
+        {links.length ? <div className="mt-4 flex gap-2">{links.map(({ key, href, icon: Icon, label }) => <a key={key} href={href} target="_blank" rel="noreferrer" aria-label={label} className="grid size-10 place-items-center rounded-full border-2 border-ink bg-paper-strong transition hover:bg-yellow"><Icon className="size-5" /></a>)}</div> : null}
         {profile.help?.status ? <div className="surface-inset mt-4 border border-line bg-paper p-3 text-left"><p className="type-eyebrow-sm text-blue-mid dark:text-muted">{profile.help.status === "seeking" ? t(locale, "Tražim pomoć", "Looking for help") : profile.help.status === "offering" ? t(locale, "Mogu da pomognem", "I can help") : t(locale, "Tražim i nudim pomoć", "Looking for and offering help")}</p>{profile.help.topics.length ? <div className="mt-2 flex flex-wrap gap-1.5">{profile.help.topics.map((topic) => <span key={topic.topicId} className="rounded-full border border-ink bg-paper-strong px-2.5 py-1 type-caption font-black">{topic.name}</span>)}</div> : null}</div> : null}
       </div>
       <div className="mt-5 space-y-2 border-y-2 border-line py-4 text-sm font-bold text-ink/80">
@@ -313,10 +272,27 @@ export function MemberProfile({ locale, username }: { locale: Locale; username: 
   );
 
   return (
-    <div className="mx-auto min-w-0 max-w-[1380px]">
+    <div className="mx-auto min-w-0 max-w-[1380px] space-y-6">
+      <ProfileBanner
+        banner={bannerKey}
+        name={identity.name}
+        username={identity.username}
+        avatarUrl={identity.avatarUrl}
+        roleLabel={roleLabel(locale, identity.role)}
+        level={profile.progress ? level.level : null}
+        levelProgress={level.progress}
+        locale={locale}
+        onEditBanner={canPickBanner ? () => { setBannerError(null); setBannerOpen(true); } : undefined}
+      />
       <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_370px]">
         <div className="order-2 min-w-0 space-y-6 xl:order-1">
-          <ActivityHeatmap activity={profile.activity} locale={locale} />
+          {/* Trofejna polica (K13): svih 24; vlasniku sa uslovima, drugima samo osvojeno. */}
+          {shelf !== null ? (
+            <section className="surface-card border-2 border-ink bg-paper-strong p-4 shadow-[6px_6px_0_0_var(--shadow-hard-13)] sm:p-6">
+              {shelf === undefined ? <TrophyShelf loading variant="grid" filter title={IGRA_PROFILE_COPY.shelfTitle[locale]} locale={locale} /> : <TrophyShelf badges={shelf} variant="grid" filter title={IGRA_PROFILE_COPY.shelfTitle[locale]} locale={locale} />}
+            </section>
+          ) : null}
+          <ProfileActivity days={profile.activity.days} works={profileWorks(isOwner, member)} todayKey={todayKey} recent={isOwner ? myProgress?.streak.recent : undefined} isOwner={isOwner} locale={locale} />
           {/* Đačka knjižica Cree (K26, G5): vlasniku uvek, drugima samo kad je javna. */}
           <CreaReportCardPanel
             locale={locale}
@@ -337,6 +313,18 @@ export function MemberProfile({ locale, username }: { locale: Locale; username: 
         </div>
         <div className="order-1 min-w-0 xl:order-2">{profileCard}</div>
       </div>
+      {canPickBanner ? (
+        <BannerPicker
+          open={bannerOpen}
+          onClose={() => setBannerOpen(false)}
+          level={myProgress?.level.level ?? level.level}
+          selected={ownBanner}
+          pending={bannerPending}
+          error={bannerError}
+          onSelect={(banner) => void chooseBanner(banner)}
+          locale={locale}
+        />
+      ) : null}
       {followList ? <FollowersDialog kind={followList} userId={identity.userId} username={identity.username} locale={locale} owner={profile.viewer.isOwner} onClose={() => setFollowList(null)} /> : null}
       <Dialog
         open={studyOpen}

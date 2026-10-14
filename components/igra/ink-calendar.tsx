@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import { IgraSkeleton, type Loadable } from "@/components/igra/igra-skeleton";
 import { cn } from "@/components/ui/primitives";
 import type { StreakDayState } from "@/lib/crea-streak";
@@ -17,12 +19,15 @@ const FRAME = "surface-card border-2 border-ink bg-paper-strong p-5 shadow-[6px_
 const GRID = "grid grid-flow-col grid-rows-7 gap-[3px] [grid-auto-columns:minmax(0,1fr)] sm:gap-1";
 /** Mreža: cela širina na telefonu, najviše 26 kolona po ~22 px od `sm`. */
 const GRID_BOX = "min-w-0 sm:max-w-[42rem] xl:w-[42rem] xl:shrink-0";
+/** `stacked` (profil, K13): naslov iznad mreže, mreža cele širine kartice. */
+const STACKED_GRID = "grid grid-flow-col grid-rows-7 gap-[3px] [grid-auto-columns:minmax(0,1fr)]";
 
 /**
  * Mastilo-kalendar (K08): poslednjih 26 nedelja kao mreža dana (na telefonu poslednjih
  * 13), tamnije mastilo za više završenih lekcija; današnji dan je uokviren. Mreža je jedna
  * slika za čitač ekrana, sa rečenicom umesto 182 ćelije. Bez aktivnosti stoji ista prazna
- * mreža i poziv, pa se ništa ne pomera kad prvi dan stigne.
+ * mreža i poziv, pa se ništa ne pomera kad prvi dan stigne. Profil (K13) bira naslov,
+ * broj nedelja, prazan tekst i `stacked` raspored, a ispod naslova dodaje brojače.
  */
 export function InkCalendar(
   props: Loadable<{
@@ -33,12 +38,22 @@ export function InkCalendar(
     recent?: ReadonlyArray<{ dayKey: string; state: StreakDayState }>;
     /** Dodatni red ispod naslova (npr. najduži niz). */
     note?: string;
+    title?: string;
+    /** Rečenica kad nema nijednog aktivnog dana (podrazumevano: poziv vlasniku table). */
+    empty?: string;
+    weeks?: number;
+    /** Naslov iznad mreže i mreža cele širine (uske kolone, profil). */
+    stacked?: boolean;
+    /** Sadržaj između naslova i mreže (brojači na profilu). */
+    children?: ReactNode;
     locale: Locale;
     className?: string;
   },
 ) {
-  const { locale, className } = props;
+  const { locale, className, stacked = false } = props;
   const copy = IGRA_DASHBOARD_COPY;
+  const row = stacked ? "flex flex-col gap-5" : "flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between";
+  const gridBox = stacked ? "min-w-0" : GRID_BOX;
 
   if (props.loading) {
     return (
@@ -46,15 +61,16 @@ export function InkCalendar(
         <span role="status" className="sr-only">
           {IGRA_PRIMITIVE_COPY.loading[locale]}
         </span>
-        <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+        <div className={row}>
           <div>
             <IgraSkeleton className="h-7 w-32 rounded-full" />
             <IgraSkeleton className="mt-2 h-[1.3125rem] w-56 rounded-full" />
             <IgraSkeleton className="mt-1 h-[1.3125rem] w-40 rounded-full" />
             <IgraSkeleton className="mt-4 h-[1.125rem] w-32 rounded-full" />
           </div>
-          <div className={GRID_BOX}>
-            <IgraSkeleton className="aspect-[13/7] surface-media sm:aspect-[26/7]" />
+          {props.children}
+          <div className={gridBox}>
+            <IgraSkeleton className={cn("aspect-[13/7] surface-media", stacked ? "sm:aspect-[52/7]" : "sm:aspect-[26/7]")} />
             <IgraSkeleton className="mt-2 h-[1.125rem] w-16 rounded-full" />
           </div>
         </div>
@@ -62,7 +78,7 @@ export function InkCalendar(
     );
   }
 
-  const view = inkCalendarView({ activity: props.activity, recent: props.recent, todayKey: props.todayKey }, locale);
+  const view = inkCalendarView({ activity: props.activity, recent: props.recent, todayKey: props.todayKey, weeks: props.weeks }, locale);
   const phoneFrom = view.weeks - INK_CALENDAR_PHONE_WEEKS;
   const dateFormat = new Intl.DateTimeFormat(locale === "sr" ? "sr-RS" : "en-US", { day: "2-digit", month: "2-digit", timeZone: "UTC" });
   const formatDay = (dayKey: string) => dateFormat.format(new Date(`${dayKey}T12:00:00Z`));
@@ -70,12 +86,12 @@ export function InkCalendar(
 
   return (
     <section data-motion="card" aria-labelledby="igra-ink-calendar" className={cn(FRAME, className)}>
-      <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+      <div className={row}>
         <div className="min-w-0">
           <h2 id="igra-ink-calendar" className="type-h2 text-ink">
-            {copy.calendarTitle[locale]}
+            {props.title ?? copy.calendarTitle[locale]}
           </h2>
-          <p className="mt-2 type-body-sm font-bold text-muted">{view.activeDays > 0 ? view.label : copy.calendarEmpty[locale]}</p>
+          <p className="mt-2 type-body-sm font-bold text-muted">{view.activeDays > 0 ? view.label : (props.empty ?? copy.calendarEmpty[locale])}</p>
           {props.note ? <p className="mt-1 type-body-sm font-bold text-muted">{props.note}</p> : null}
           <p aria-hidden="true" className="mt-4 flex items-center gap-1.5 type-caption font-bold text-muted">
             {copy.calendarLess[locale]}
@@ -86,8 +102,10 @@ export function InkCalendar(
           </p>
         </div>
 
-        <div className={GRID_BOX}>
-          <div role="img" aria-label={view.label} data-motion="chart" className={GRID}>
+        {props.children}
+
+        <div className={gridBox}>
+          <div role="img" aria-label={view.label} data-motion="chart" className={stacked ? STACKED_GRID : GRID}>
             {view.cells.map((cell) => (
               <span
                 key={cell.dayKey}

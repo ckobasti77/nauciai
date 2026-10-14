@@ -245,8 +245,8 @@ export function IzlogZajednica({ locale, stanje }: { locale: Locale; stanje: Igr
           title={t(locale, "Nivo i značke člana", "Member level and badges")}
           note={t(
             locale,
-            "LevelMeter i CommunityBadgeRow kako ih crta profil člana: nivo iz XP-a test korisnika, sve četiri značke zajednice.",
-            "LevelMeter and CommunityBadgeRow as the member profile draws them: level from the test user's XP, all four community badges.",
+            "LevelMeter i CommunityBadgeRow kako ih crta kartica člana: nivo iz XP-a test korisnika, sve četiri značke zajednice. Profil (K13) ima svoj deo izloga.",
+            "LevelMeter and CommunityBadgeRow as the member card draws them: level from the test user's XP, all four community badges. The profile (K13) has its own showcase part.",
           )}
         >
           <div className="grid gap-6 md:grid-cols-2">

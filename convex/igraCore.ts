@@ -13,6 +13,7 @@ import {
   type IgraBadgeProgress,
 } from "../lib/igra-badges";
 import type { LocalizedText } from "../lib/i18n";
+import { resolveBanner } from "../lib/igra-banners";
 import { levelFromXp } from "../lib/igra-level";
 import { belgradeHour, isEarlyBirdHour, isNightOwlHour } from "../lib/igra-time";
 import { normalizeUsername } from "../lib/username-policy";
@@ -41,6 +42,8 @@ const FAVORITE_THREAD_LIMIT = 20;
 const TOP10 = 10;
 /** Mesto na nedeljnoj listi je tačno do ovoliko redova ispred; dalje je `null`. */
 const RANK_LIMIT = 100;
+/** Brojači na profilu (K13) pokrivaju isti prozor kao javni kalendar aktivnosti. */
+export const PROFILE_YEAR_DAYS = 365;
 
 /** Bedževi koje drugi nikad ne vide: vreme učenja danas nije javno na profilu. */
 const PRIVATE_BADGES: ReadonlySet<IgraBadgeKey> = new Set(["nocna-sova", "rani-pevac"]);
@@ -277,8 +280,8 @@ export async function progressFor(ctx: QueryCtx, user: Doc<"users">, todayKey: s
         .map((course) => ({ key: `course:${course.id}`, title: course.title })),
       ledgerEmpty: ledger.size === 0,
     },
-    /** Baner profila; bira se od K13, do tada podrazumevani. */
-    banner: null as string | null,
+    /** Izabrani baner profila (K13); `null` = podrazumevani (`IGRA_DEFAULT_BANNER`). */
+    banner: resolveBanner(user.igraBanner, level.level),
     /** Da li korisnik ulazi u rang-liste (osoblje ne ulazi). */
     eligible,
     username: user.username ?? null,
@@ -298,12 +301,29 @@ export function freshSeenKeys(fresh: IgraProgress["fresh"]): string[] {
 
 export type IgraMemberBadgeState = "unlocked" | "locked" | "hidden";
 
+/** Nivo korisnika iz ukupnog XP-a (provera nivoa za baner, `igra.setBanner`). */
+export async function levelOf(ctx: QueryCtx, userId: Id<"users">): Promise<number> {
+  return levelFromXp((await statsRow(ctx, userId, "global", "all_time", "all"))?.xp ?? 0).level;
+}
+
+/** Radovi u Crei u poslednjih `PROFILE_YEAR_DAYS` beogradskih dana zaključno sa `todayKey`. */
+async function yearWorksOf(ctx: QueryCtx, userId: Id<"users">, todayKey: string): Promise<number> {
+  const days = await ctx.db
+    .query("profileActivityDays")
+    .withIndex("by_userId_and_dayKey", (q) =>
+      q.eq("userId", userId).gte("dayKey", shiftDayKey(todayKey, -(PROFILE_YEAR_DAYS - 1))).lte("dayKey", todayKey),
+    )
+    .take(PROFILE_YEAR_DAYS);
+  return days.reduce((sum, day) => sum + (day.creaWorks ?? 0), 0);
+}
+
 /**
  * Napredak drugog člana: samo ono što je i danas javno na profilu. Bedževi se čitaju iz
- * dnevnika (pravila se za drugoga ne računaju); Crea grupa samo uz javnu đačku knjižicu,
- * a bedževi vremena učenja nikad. Osoblje nema nivo ni XP, kao na profilu danas.
+ * dnevnika (pravila se za drugoga ne računaju); Crea grupa i broj radova samo uz javnu
+ * đačku knjižicu, a bedževi vremena učenja nikad. Osoblje nema nivo ni XP, kao na profilu
+ * danas. Vlasnik na svom profilu vidi sve svoje.
  */
-export async function memberProgressFor(ctx: QueryCtx, username: string, viewerId: Id<"users">) {
+export async function memberProgressFor(ctx: QueryCtx, username: string, viewerId: Id<"users">, todayKey: string) {
   const normalized = normalizeUsername(username);
   if (!normalized) return null;
   const user = await ctx.db
@@ -321,11 +341,15 @@ export async function memberProgressFor(ctx: QueryCtx, username: string, viewerI
   const isStaff = isStudioStaff(effectiveRoleForProfile(String(user.email ?? "").toLowerCase(), user.role));
   const xp = statsAll?.xp ?? 0;
   const creaVisible = isOwner || creaProfile?.reportCardPublic === true;
+  const level = levelFromXp(xp);
 
   return {
     xp: isStaff ? null : xp,
-    level: isStaff ? null : levelFromXp(xp),
-    banner: null as string | null,
+    level: isStaff ? null : level,
+    /** Izabrani baner; `null` = podrazumevani. Baner je izgled, javan kao i avatar. */
+    banner: resolveBanner(user.igraBanner, level.level),
+    /** Radovi u Crei za godinu dana: vlasniku, a drugima samo uz javnu đačku knjižicu. */
+    works: creaVisible ? await yearWorksOf(ctx, user._id, todayKey) : null,
     /** Uvek 24, redom iz kataloga. */
     badges: IGRA_BADGES.map((badge): { key: IgraBadgeKey; state: IgraMemberBadgeState } => {
       const hidden = !isOwner && (PRIVATE_BADGES.has(badge.key) || (badge.group === "crea" && !creaVisible));

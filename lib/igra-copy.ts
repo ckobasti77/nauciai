@@ -25,6 +25,7 @@ export const IGRA_PRIMITIVE_COPY = {
   badgeEarned: { sr: "Osvojeno", en: "Earned" },
   badgeNew: { sr: "Novo", en: "New" },
   badgeSoon: { sr: "Uskoro", en: "Coming soon" },
+  badgeNotShown: { sr: "nije na polici", en: "not on the shelf" },
   streak: { sr: "Niz", en: "Streak" },
   streakDone: { sr: "Danas je upisano, plamen gori.", en: "Today is logged, the flame is lit." },
   streakPending: { sr: "Jedna lekcija ili rad i plamen gori.", en: "One lesson or creation and the flame is lit." },
@@ -157,6 +158,31 @@ export const IGRA_LEADERBOARD_COPY = {
   underMinute: { sr: "manje od minuta", en: "less than a minute" },
 } satisfies Record<string, LocalizedText>;
 
+/** Profil (K13): baner, karta igrača, trofejna polica, brojači i kalendar godine. */
+export const IGRA_PROFILE_COPY = {
+  shelfTitle: { sr: "Trofejna polica", en: "Trophy shelf" },
+  filterLabel: { sr: "Prikaži bedževe", en: "Show badges" },
+  filterAll: { sr: "Sve", en: "All" },
+  yearTitle: { sr: "Aktivnost", en: "Activity" },
+  yearSpan: { sr: "Poslednjih 12 meseci", en: "Last 12 months" },
+  yearEmptyOwn: { sr: "Prvi trag mastila stiže uz prvu lekciju, zadatak ili objavu.", en: "The first ink mark comes with your first lesson, task, or post." },
+  yearEmptyMember: { sr: "U poslednjih godinu dana još nema aktivnosti.", en: "No activity in the last year yet." },
+  countersLabel: { sr: "Brojači za poslednjih 12 meseci", en: "Counts for the last 12 months" },
+  streakBest: { sr: "Najduži niz", en: "Longest streak" },
+  bannerEdit: { sr: "Promeni baner", en: "Change banner" },
+  bannerTitle: { sr: "Baner profila", en: "Profile banner" },
+  bannerBody: {
+    sr: "Novi baneri se otključavaju sa nivoom. Menjaju samo izgled profila.",
+    en: "New banners unlock as you level up. They only change how your profile looks.",
+  },
+  bannerSelected: { sr: "Izabran", en: "Selected" },
+  bannerFromLevel: { sr: "Od nivoa", en: "From level" },
+  bannerLocked: { sr: "zaključan", en: "locked" },
+  bannerError: { sr: "Baner nije sačuvan. Pokušaj ponovo.", en: "The banner was not saved. Try again." },
+  bannerDone: { sr: "Gotovo", en: "Done" },
+  close: { sr: "Zatvori", en: "Close" },
+} satisfies Record<string, LocalizedText>;
+
 export const IGRA_LESSON_FORMS: Record<Locale, PluralForms> = {
   sr: { one: "lekcija", few: "lekcije", many: "lekcija" },
   en: { one: "lesson", few: "lessons", many: "lessons" },
@@ -185,4 +211,19 @@ export const IGRA_BADGE_FORMS: Record<Locale, PluralForms> = {
 export const IGRA_NEW_BADGE_FORMS: Record<Locale, PluralForms> = {
   sr: { one: "novi bedž", few: "nova bedža", many: "novih bedževa" },
   en: { one: "new badge", few: "new badges", many: "new badges" },
+};
+
+export const IGRA_TASK_FORMS: Record<Locale, PluralForms> = {
+  sr: { one: "zadatak", few: "zadatka", many: "zadataka" },
+  en: { one: "task", few: "tasks", many: "tasks" },
+};
+
+export const IGRA_WORK_FORMS: Record<Locale, PluralForms> = {
+  sr: { one: "rad", few: "rada", many: "radova" },
+  en: { one: "creation", few: "creations", many: "creations" },
+};
+
+export const IGRA_POST_FORMS: Record<Locale, PluralForms> = {
+  sr: { one: "objava", few: "objave", many: "objava" },
+  en: { one: "post", few: "posts", many: "posts" },
 };

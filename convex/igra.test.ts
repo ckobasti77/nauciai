@@ -659,13 +659,13 @@ describe("igra.getMemberProgress", () => {
   test("traži prijavu; nepostojeći i spojen nalog nemaju napredak", async () => {
     const t = makeT();
     const mila = await seedUser(t);
-    await expect(t.query(api.igra.getMemberProgress, { username: "mila" })).rejects.toThrow("Unauthorized");
-    expect(await mila.as.query(api.igra.getMemberProgress, { username: "niko" })).toBeNull();
-    expect(await mila.as.query(api.igra.getMemberProgress, { username: "   " })).toBeNull();
+    await expect(t.query(api.igra.getMemberProgress, { username: "mila", todayKey: MON })).rejects.toThrow("Unauthorized");
+    expect(await mila.as.query(api.igra.getMemberProgress, { username: "niko", todayKey: MON })).toBeNull();
+    expect(await mila.as.query(api.igra.getMemberProgress, { username: "   ", todayKey: MON })).toBeNull();
 
     const old = await seedUser(t, { email: "stari@example.com" });
     await t.run((ctx) => ctx.db.patch(old.userId, { mergedInto: mila.userId }));
-    expect(await mila.as.query(api.igra.getMemberProgress, { username: "stari" })).toBeNull();
+    expect(await mila.as.query(api.igra.getMemberProgress, { username: "stari", todayKey: MON })).toBeNull();
   });
 
   test("drugi vide samo dnevnik i samo ono što je javno", async () => {
@@ -683,12 +683,12 @@ describe("igra.getMemberProgress", () => {
     expect(earned).toEqual(["prva-lekcija", "nocna-sova", "prvi-rad", "prvi-video"]);
 
     // Dok Mila ne vidi svoje bedževe, ni drugi ih ne vide (pravila se za drugoga ne računaju).
-    const before = (await jova.as.query(api.igra.getMemberProgress, { username: "Mila" }))!;
+    const before = (await jova.as.query(api.igra.getMemberProgress, { username: "Mila", todayKey: MON }))!;
     expect(before.badges.map((badge) => badge.key)).toEqual(IGRA_BADGE_KEYS);
     expect(before.badges.filter((badge) => badge.state === "unlocked")).toEqual([]);
 
     await mila.as.mutation(api.igra.markSeen, { keys: [...earned.map((key) => `badge:${key}`), "level:2"] });
-    const member = (await jova.as.query(api.igra.getMemberProgress, { username: "mila" }))!;
+    const member = (await jova.as.query(api.igra.getMemberProgress, { username: "mila", todayKey: MON }))!;
     // 140 XP = nivo 2 na skali IGRA-e.
     expect(member.xp).toBe(LEADERBOARD_XP.lesson + LEADERBOARD_XP.crea_first_work + LEADERBOARD_XP.crea_daily_work);
     expect(member.level).toMatchObject({ level: 2, name: { sr: "Radoznalac", en: "Curious" } });
@@ -705,7 +705,7 @@ describe("igra.getMemberProgress", () => {
     expect(member.badges.filter((badge) => badge.state === "hidden")).toHaveLength(10);
 
     await mila.as.mutation(api.creaGame.setReportCardPublic, { reportCardPublic: true });
-    const open = Object.fromEntries((await jova.as.query(api.igra.getMemberProgress, { username: "mila" }))!.badges.map((badge) => [badge.key, badge.state]));
+    const open = Object.fromEntries((await jova.as.query(api.igra.getMemberProgress, { username: "mila", todayKey: MON }))!.badges.map((badge) => [badge.key, badge.state]));
     expect(open["prvi-rad"]).toBe("unlocked");
     expect(open["prvi-video"]).toBe("unlocked");
     expect(open["prvi-zvuk"]).toBe("locked");
@@ -713,10 +713,36 @@ describe("igra.getMemberProgress", () => {
 
     // Vlasnik na svom profilu vidi sve svoje, i bez javne knjižice.
     await mila.as.mutation(api.creaGame.setReportCardPublic, { reportCardPublic: false });
-    const own = Object.fromEntries((await mila.as.query(api.igra.getMemberProgress, { username: "mila" }))!.badges.map((badge) => [badge.key, badge.state]));
+    const own = Object.fromEntries((await mila.as.query(api.igra.getMemberProgress, { username: "mila", todayKey: MON }))!.badges.map((badge) => [badge.key, badge.state]));
     expect(own["nocna-sova"]).toBe("unlocked");
     expect(own["prvi-video"]).toBe("unlocked");
     expect(Object.values(own)).not.toContain("hidden");
+  });
+
+  test("neispravan dan se odbija", async () => {
+    const t = makeT();
+    const mila = await seedUser(t);
+    await expect(mila.as.query(api.igra.getMemberProgress, { username: "mila", todayKey: "juče" })).rejects.toThrow("NEISPRAVAN_DAN");
+  });
+
+  test("radovi za godinu: vlasniku uvek, drugima samo uz javnu knjižicu", async () => {
+    const t = makeT();
+    const mila = await seedUser(t);
+    const jova = await seedUser(t, { email: "jova@example.com" });
+    await finishWork(t, mila.userId);
+    await finishWork(t, mila.userId);
+    // Stari dani: 364 dana unazad ulazi u godinu, 365 ne ulazi.
+    await t.run(async (ctx) => {
+      for (const [daysAgo, creaWorks] of [[364, 3], [365, 50]] as const) {
+        const dayKey = new Date(Date.parse(`${MON}T12:00:00Z`) - daysAgo * 86_400_000).toISOString().slice(0, 10);
+        await ctx.db.insert("profileActivityDays", { userId: mila.userId, dayKey, lessons: 0, tasks: 0, threads: 0, comments: 0, creaWorks, updatedAt: 1 });
+      }
+    });
+
+    expect((await mila.as.query(api.igra.getMemberProgress, { username: "mila", todayKey: MON }))!.works).toBe(5);
+    expect((await jova.as.query(api.igra.getMemberProgress, { username: "mila", todayKey: MON }))!.works).toBeNull();
+    await mila.as.mutation(api.creaGame.setReportCardPublic, { reportCardPublic: true });
+    expect((await jova.as.query(api.igra.getMemberProgress, { username: "mila", todayKey: MON }))!.works).toBe(5);
   });
 
   test("osoblje nema nivo ni XP, kao na profilu danas", async () => {
@@ -724,10 +750,61 @@ describe("igra.getMemberProgress", () => {
     const mila = await seedUser(t);
     const moderator = await seedUser(t, { email: "moderator@example.com", role: "moderator" });
     await setStats(t, moderator.userId, { xp: 5000, eligible: false });
-    const member = (await mila.as.query(api.igra.getMemberProgress, { username: "moderator" }))!;
+    const member = (await mila.as.query(api.igra.getMemberProgress, { username: "moderator", todayKey: MON }))!;
     expect(member.xp).toBeNull();
     expect(member.level).toBeNull();
     expect(member.badges).toHaveLength(24);
+  });
+});
+
+describe("igra.setBanner", () => {
+  test("traži prijavu i poznat baner", async () => {
+    const t = makeT();
+    const mila = await seedUser(t);
+    await expect(t.mutation(api.igra.setBanner, { banner: "sveska" })).rejects.toThrow("Unauthorized");
+    await expect(mila.as.mutation(api.igra.setBanner, { banner: "baner.sveska" })).rejects.toThrow("NEPOZNAT_BANER");
+    await expect(mila.as.mutation(api.igra.setBanner, { banner: "zlato" })).rejects.toThrow("NEPOZNAT_BANER");
+  });
+
+  test("otključava se nivoom koji računa server, i vidi se na profilu", async () => {
+    const t = makeT();
+    const mila = await seedUser(t);
+    const jova = await seedUser(t, { email: "jova@example.com" });
+
+    // Nivo 1: samo podrazumevana sveska.
+    await expect(mila.as.mutation(api.igra.setBanner, { banner: "laboratorija" })).rejects.toThrow("BANER_ZAKLJUCAN");
+    expect((await progressOf(mila, MON)).banner).toBeNull();
+    await mila.as.mutation(api.igra.setBanner, { banner: "sveska" });
+    expect((await progressOf(mila, MON)).banner).toBe("sveska");
+
+    // 300 XP = nivo 3: laboratorija da, studio (nivo 5) ne.
+    await setStats(t, mila.userId, { xp: 300 });
+    await mila.as.mutation(api.igra.setBanner, { banner: "laboratorija" });
+    await expect(mila.as.mutation(api.igra.setBanner, { banner: "studio" })).rejects.toThrow("BANER_ZAKLJUCAN");
+    expect((await progressOf(mila, MON)).banner).toBe("laboratorija");
+    expect((await jova.as.query(api.igra.getMemberProgress, { username: "mila", todayKey: MON }))!.banner).toBe("laboratorija");
+
+    // XP padne ispod praga: profil se vraća na podrazumevani, izbor ostaje sačuvan.
+    await setStats(t, mila.userId, { xp: 299 });
+    expect((await progressOf(mila, MON)).banner).toBeNull();
+    expect((await jova.as.query(api.igra.getMemberProgress, { username: "mila", todayKey: MON }))!.banner).toBeNull();
+    expect(await t.run(async (ctx) => (await ctx.db.get(mila.userId))!.igraBanner)).toBe("laboratorija");
+    await setStats(t, mila.userId, { xp: 20000 });
+    expect((await progressOf(mila, MON)).banner).toBe("laboratorija");
+    await mila.as.mutation(api.igra.setBanner, { banner: "okean" });
+    expect((await progressOf(mila, MON)).banner).toBe("okean");
+  });
+
+  test("menja samo svoj profil i ništa ne dodeljuje", async () => {
+    const t = makeT();
+    const mila = await seedUser(t);
+    const jova = await seedUser(t, { email: "jova@example.com" });
+    await setStats(t, mila.userId, { xp: 1400 });
+    const before = await t.run(async (ctx) => (await ctx.db.query("leaderboardStats").take(10)).map((row) => row.xp));
+    await mila.as.mutation(api.igra.setBanner, { banner: "studio" });
+    expect(await t.run(async (ctx) => (await ctx.db.get(jova.userId))!.igraBanner ?? null)).toBeNull();
+    expect(await t.run(async (ctx) => (await ctx.db.query("leaderboardStats").take(10)).map((row) => row.xp))).toEqual(before);
+    expect(await ledgerOf(t, mila.userId)).toEqual([]);
   });
 });
 
@@ -738,9 +815,11 @@ describe("samo prikaz (O6)", () => {
     expect(source).not.toMatch(/applyGrant|creditLots|creditTransactions|awardCreaXp|syncLeaderboardSourceEvent|LEADERBOARD_XP|stripe/i);
   });
 
-  test("jedini upis je dnevnik viđenog", () => {
+  test("jedini upisi su dnevnik viđenog i izbor banera (K13)", () => {
     const writes = [...source.matchAll(/ctx\.db\.(insert|patch|replace|delete)\(([^,)]*)/g)].map((match) => `${match[1]} ${match[2]}`);
-    expect(writes).toEqual(['insert "igraSeen"']);
+    expect(writes).toEqual(['patch "users"', 'insert "igraSeen"']);
+    // Baner menja samo jedno polje profila.
+    expect(source).toContain('ctx.db.patch("users", userId, { igraBanner: args.banner })');
   });
 
   test("nijedno čitanje nije neograničeno", () => {

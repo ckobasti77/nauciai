@@ -15,8 +15,12 @@ function count(value: number): number {
   return Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
 }
 
-/** Stanja koja nalepnica crta; isti skup vraća `igra:getMyProgress`. */
-export type IgraBadgeViewState = "unlocked" | "fresh" | "locked" | "soon";
+/**
+ * Stanja koja nalepnica crta. Prva četiri vraća `igra:getMyProgress`; `hidden` je tuđi
+ * bedž koji nije na polici (K13): neutralna silueta bez uslova, koja ne tvrdi ni da ga
+ * član nema ni da ga krije.
+ */
+export type IgraBadgeViewState = "unlocked" | "fresh" | "locked" | "soon" | "hidden";
 
 export type BadgeStickerView = {
   name: string;
@@ -44,6 +48,9 @@ export function badgeStickerView(
   const name = badge.name[locale];
   const condition = badge.condition[locale];
 
+  if (state === "hidden") {
+    return { name, detail: null, status: null, tag: null, label: `${name} — ${COPY.badgeNotShown[locale]}`, locked: true, peel: false };
+  }
   if (state === "soon") {
     const soon = COPY.badgeSoon[locale];
     return { name, detail: null, status: soon, tag: soon, label: `${name} — ${soon.toLowerCase()}`, locked: true, peel: false };
@@ -69,7 +76,7 @@ export function badgeStickerView(
 
 type ShelfBadge = { key: IgraBadgeKey; state: IgraBadgeViewState; unlockedAt: number | null };
 
-const SHELF_ORDER: Record<IgraBadgeViewState, number> = { fresh: 0, unlocked: 1, locked: 2, soon: 3 };
+const SHELF_ORDER: Record<IgraBadgeViewState, number> = { fresh: 0, unlocked: 1, locked: 2, soon: 3, hidden: 4 };
 
 /**
  * Red bedževa za policu: novi, pa osvojeni od najskorijeg, pa zaključani redom iz

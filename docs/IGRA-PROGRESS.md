@@ -982,3 +982,84 @@ Prag pripada višem nivou (99 XP = nivo 1, 100 XP = nivo 2). Na nivou 12 je `pro
 - **Ukus:** stepenici (žut za prvo mesto, siv za drugo i treće), veličina 3D pehara (`w-24 lg:w-28` u `podium.tsx`), tekst odbrojavanja u `IGRA_LEADERBOARD_COPY` (`lib/igra-copy.ts`). Snimci: `K12-rang-1440-svetla.png`, `K12-rang-ukupno-1440-svetla.png`, `K12-rang-390-tamna.png`.
 - **Zatečeno, nisam dirao:** tekst praznog stanja kaže „Završi jednu lekciju na ovom kursu" i na globalnoj listi; napomena za tim i pojedini natpisi liste su i dalje `locale === "sr" ? …` u samom fajlu (nisu u `lib/i18n`).
 - **Dodir na pravom telefonu i pravi čitač ekrana nisam imao.**
+
+## NAPOMENE ZA SLEDEĆE KORAKE (Claude, nadzor runa, 2026-10-14 07:55)
+- **K26 (telefon):** na rang listi na 390 px traka filtera seče drugi prekidač („Ova nedelja | Ukupno" viri preko desne ivice, snimak `docs/igra/snimci/K12-rang-390-tamna.png`). Proveri da li je to namerni vodoravni skrol; ako nije, prelomi traku u dva reda ili skrati natpise.
+- **K24/K26:** na računaru natpis „Ova nedelja" u prekidaču se lomi u dva reda (`K12-rang-1440-svetla.png`); prekidač treba da drži natpis u jednom redu (`whitespace-nowrap` ili šire dugme).
+
+## K13 — Profil (moj i tuđi) i trofejna polica   (2026-10-14 08:20)
+**Fajlovi:**
+- novi (lib): `lib/igra-banners.ts`, `lib/igra-profile.ts` + testovi `lib/igra-banners.test.ts`, `lib/igra-profile.test.ts`
+- novi (komponente): `components/igra/profile/profile-banner.tsx` (`ProfileBanner`), `banner-picker.tsx` (`BannerPicker`), `player-stats.tsx` (`PlayerStats`), `profile-activity.tsx` (`ProfileActivity`), `components/app/member-profile-igra.ts` (hook `useMemberIgra`, jedini upit profila)
+- novi (izlog): `components/igra/izlog/izlog-profil.tsx`, `docs/igra/snimci/K13-*.png` (12)
+- izmenjeni (Convex): `convex/schema.ts` (samo opciono polje `users.igraBanner`), `convex/igra.ts` (`setBanner`; `getMemberProgress` dobija `todayKey`), `convex/igraCore.ts` (`banner` u oba upita, `works` za godinu, `levelOf`), `convex/igra.test.ts`
+- izmenjeni (profil): `components/app/member-profile.tsx` (zaglavlje sa banerom, karta igrača, polica, aktivnost; stari `ActivityHeatmap` i red značaka uklonjeni)
+- izmenjeni (primitivi): `components/igra/trophy-shelf.tsx` (filter po grupi, naslov sekcije, skelet mreže), `components/igra/ink-calendar.tsx` (`title`, `empty`, `weeks`, `stacked`, `children`), `lib/igra-badge-view.ts` (stanje `hidden`), `lib/igra-calendar.ts` (gramatika „u poslednje 52 nedelje“)
+- izmenjeni (ostalo): `lib/igra-copy.ts` (`IGRA_PROFILE_COPY`, `badgeNotShown`, oblici zadatak / rad / objava), `lib/igra-fixtures.ts` (baneri test korisnika, `PROFILE_FIXTURES`, `memberProgressFixture`), `components/igra/izlog/registry.ts`, `lib/igra-izlog.test.ts`, `components/igra/izlog/izlog-zajednica.tsx` (jedna rečenica opisa), `scripts/check-igra-assets.mjs` (porodica `igraBannerArt`)
+
+**Šta je urađeno:** Profil člana (`/app/members/[username]`) je „karta igrača“. Na vrhu je zaglavlje: baner `baner.<kljuc>` preko cele širine (3:1 na telefonu, 4:1 od `md`), avatar u prstenu nivoa preko donje ivice banera, ime, korisničko ime i uloga, a desno pečat nivoa („Nivo 5 · Graditelj“). Na sopstvenom profilu dugme „Promeni baner“ otvara izbor od šest banera: otključani se biraju jednim klikom, zaključani su bledi sa katancem i „Od nivoa 7“; izbor upisuje `igra:setBanner`, koji sam proverava katalog i nivo iz XP-a. Bočna kartica počinje kartom igrača (ukupan XP kao odometar, XP traka sa „još N XP do nivoa X“, a na svom profilu i plamen niza i najduži niz), pa ide postojeći sadržaj (biografija, linkovi, praćenje, dugmad). U glavnoj koloni je trofejna polica sa svih 24 bedža u tri grupe i filterom „Sve / Učenje / Crea / Zajednica i nizovi“ (sa brojem osvojenih po grupi), pa „Aktivnost“: četiri brojača kao odometri (lekcije, zadaci, radovi, objave) i mastilo-kalendar od 52 nedelje (na telefonu poslednjih 13). Tuđi profil prikazuje samo ono što je i danas javno (ODLUKE 3–6). Kursevi, doprinosi, đačka knjižica, praćenje, poruke, prijava profila i admin blok su isti. Izlog ima deo „Profil“ (`/igra-izlog?deo=profil&stanje=novi|aktivan|legenda`) sa prekidačima moj / tuđi profil, javna knjižica, nalog tima, učitavanje i neuspeo izbor banera.
+
+**Površine:**
+- gotovo: profil 6.5 — zaglavlje sa banerom i pečatom, izbor banera, karta igrača, polica sa filterom (moj: sva četiri stanja; tuđi: osvojeno + neutralne siluete), brojači i kalendar godine, učitavanje (skeleti iste visine), nalog tima (bez nivoa i XP-a, kao danas), obe teme, 390 px, engleski.
+- nije dirano: `publicProfiles.getPublicProfile` i ostali upiti profila, praćenje, poruke, „Uči zajedno“, prijava profila, uloge, `ProfileEditor` (baner se bira na samom profilu, ODLUKA 1), `dmPrivacy`, auth.
+
+**ODLUKE:**
+1. **Baner se bira na sopstvenom profilu (dugme na baneru), ne u `profile-editor.tsx`** kako predviđa K01 §6.5: zadatak kaže „bira se na sopstvenom profilu“, a jedno mesto je jednostavnije. Editor nije diran.
+2. **Izbor se čuva u novom opcionom polju `users.igraBanner`** (ključ bez `baner.`; postojećeg polja nije bilo, nova tabela nije pravljena). Čitanja vraćaju baner samo dok je otključan na tekućem nivou; ako XP padne ispod praga, profil se tiho vraća na „Svesku“, a izbor ostaje sačuvan. `banner: null` u odgovoru znači podrazumevani (zato K04 test `toBeNull()` za nov nalog i dalje važi).
+3. **Brojači pokrivaju poslednjih 12 meseci, isto što i kalendar ispod njih**, a ne celu istoriju. Lekcije, zadaci i objave su zbir javnog kalendara koji `getPublicProfile` već šalje (0 novih čitanja, ništa novo ne postaje javno); „objave“ su teme iz istog kalendara (K01: „objave iz `activity.days`“). Ukupne brojke bi tražile ili izmenu `getPublicProfile` (zabranjeno) ili novo brojanje.
+4. **Radovi u Crei** (`getMemberProgress.works`, zbir `profileActivityDays.creaWorks` za 365 dana, `take(365)`) vide se vlasniku i drugima samo uz javnu đačku knjižicu (isto pravilo kao Crea bedževi). Bez javne knjižice tuđi profil ima tri pločice.
+5. **Tuđi niz se ne prikazuje.** Niz IGRA-e broji i rad u Crei, a to je drugima javno samo kroz knjižicu (koja na profilu već prikazuje niz kad je javna). Plamen i najduži niz su samo na sopstvenom profilu.
+6. **Tuđi bedž koji nije u dnevniku je neutralna silueta bez uslova** (novo stanje prikaza `hidden`: bez uslova, bez napretka i bez „zaključano“; za čitač ekrana „naziv — nije na polici“). Zaključan, privatan i još neviđen bedž izgledaju isto, pa se iz police ne može zaključiti ni šta član nema ni šta krije. Brojač „14 / 24“ broji samo osvojeno.
+7. **Red značaka zajednice pored korisničkog imena (`CommunityBadgeRow`) je uklonjen sa profila**: računao se iz javnih signala, a polica drugima pokazuje samo dnevnik, pa bi ista strana mogla da pokaže „Prva objava“ kao osvojenu pored imena i kao siluetu na polici. Polica je sada jedino mesto bedževa na profilu; komponenta ostaje na karticama članova. Posledica: `activityStreakDays` i `activityTotal` iz `lib/community-gamification.ts` sada čita samo njihov test (fajl se po K01 ne menja, nisam ih brisao).
+8. **Nivo, XP i prsten se računaju iz `getPublicProfile.progress.xp`** (isti XP koji profil već čita; osoblje ga nema), a ne iz IGRA upita: zaglavlje i karta igrača ne čekaju nijedan nov upit. IGRA upit daje samo baner, bedževe i radove.
+9. **Jedan nov upit po strani, kroz `useQueries`** (`components/app/member-profile-igra.ts`): greška stiže kao vrednost, pa profil radi i ako `igra:*` nije objavljen (bez police, sa podrazumevanim banerom). Vlasnik bedževe, niz i baner čita iz ljuske (K06), bez sopstvenog `getMyProgress`. Hook je u posebnom fajlu, pa K11 provera „zajednica ne pita napredak po redu i kartici“ (`member-profile.tsx` bez `api.igra.`) i dalje važi; nova provera u `lib/igra-profile.test.ts` zaključava da je poziv tačno jedan.
+10. **`getMemberProgress` je dobio obavezan argument `todayKey`** (upit ne čita sat, kao `getMyProgress`). Funkciju do sada niko nije zvao; K04 testovi su dopunjeni tim argumentom, tvrdnje su iste.
+11. **K04 test „jedini upis je dnevnik viđenog“ je proširen na dva upisa** (`patch "users"` iz `setBanner` i `insert "igraSeen"`), uz proveru da `setBanner` menja samo polje `igraBanner`. To je upis koji je K01 §5.5 predvideo za K13; provere „bez XP-a i kredita“ i „bez neograničenih čitanja“ su iste.
+12. **Kalendar je postojeći `InkCalendar` sa pet novih opcionih propova** (naslov, prazan tekst, broj nedelja, `stacked` raspored, brojači kao `children`), umesto drugog kalendara. Tabla se crta isto. Na profilu kalendar broji svaku javnu aktivnost dana (lekcije, zadaci, teme, komentari, kao stari grafikon), a vlasniku poslednjih 14 dana dopunjuje niz (rad u Crei). Ćelije od oko 9 px sa radijusom od 8 px izgledaju kao kapi mastila; radijus nije menjan (samo 4 tiera).
+13. **Filter police je u `TrophyShelf` (`variant="grid"` + `filter`)**, ne u zasebnoj komponenti; `title` sada crta `h2` (polica na profilu je sekcija strane). Skelet mreže je sada isti raspored kao učitana polica (izmereno: 594 / 608 px na 1440, 954 / 1.006 px na 390; razlika na telefonu je prelom filtera i dužih naziva).
+14. **Baner je `priority` i `data-igra-hero`** (jedina velika slika strane). Dok se baner ne zna crta se prazan papir iste veličine, da ne blesne „Sveska“ pa pravi baner.
+15. **Slike `ikona.profil`, `prazno.zakljucano` i `prazno.uskoro` iz K01 §6.5 nisu korišćene:** polica nikad nije prazna (siluete su i za novog korisnika), a profil nema prazno stanje koje bi ih tražilo.
+16. **`check:igra` sada zna porodicu `igraBannerArt(…)`** (baneri se sklapaju šablonom, pa ih skripta nije videla kao korišćene).
+17. `IGRA_PLANNED_ART` i dalje ima tri reda (`lib/igra-art.ts` nisam dirao).
+
+**Novi paketi:** nema.
+
+**Testovi (2 nova fajla, 24 testa; 2 postojeća dopunjena):**
+- `lib/igra-banners.test.ts` (6): šest banera i nivoi iz plana; svaki je `baner` u manifestu sa istim nazivom kao alt; prepoznavanje ključa; prag otključavanja i loš nivo; prikaz samo otključanog izbora (pad XP-a); katalog ne uvozi manifest.
+- `lib/igra-profile.test.ts` (18): polica vlasnika (sva četiri stanja), učitavanje i pad na `getMemberProgress`; **privatnost tuđe police** za tri korisnika × javna / privatna knjižica (samo osvojeno ili neutralna silueta, bez uslova, napretka i vremena, „Noćna sova“ uvek skrivena, Crea samo uz knjižicu); nov neviđen bedž drugi ne vide; filter i brojevi po grupi (sr / en); zbir bez skrivenih; brojači (oblici množine, učitavanje, bez pločice, loš broj); kalendar 52 nedelje i gramatika rečenice; test podaci; baner (vlasnik / drugi / učitavanje / pao upit) i izbor (otključani, izabran, „Od nivoa 7“, nazivi za čitač); **izvor:** delovi profila prezentacioni, slike samo kroz `IgraArt` (jedini `<img>` je avatar), jedan hero i jedna prioritetna slika, jedan IGRA upit po strani kroz `useQueries`, stranica ne zove `getMyProgress`, `publicProfiles.ts` nije diran.
+- `convex/igra.test.ts` (21 → 26): `setBanner` (prijava, nepoznat baner, zaključan na nivou 1, laboratorija na 300 XP pa studio odbijen, vidi se i u `getMyProgress` i drugima, pad XP-a vraća podrazumevani a izbor ostaje, nivo 12 → okean; menja samo svoj profil, ne dira XP ni dnevnik); `getMemberProgress` (neispravan dan; radovi za godinu: 364. dan ulazi, 365. ne, drugima samo uz javnu knjižicu); izmenjen test upisa (ODLUKA 11).
+- `lib/igra-izlog.test.ts`: deo „profil“.
+
+**Slike:** `baner.sveska|laboratorija|studio|svemir|grad|okean` (zaglavlje i izbor), porodice `nivo.*` i `bedz.*` (24), `rang.plamen`. TRAŽENE SLIKE: nema.
+
+**Rezultat provere:**
+- codegen: prošlo (`_generated` bez izmena: nema novog modula)
+- **DEV:** `npx convex dev --once` (deployment `wandering-fox-41`, `CONVEX_DEPLOY_KEY` nije postavljen); `function-spec` pokazuje `igra:setBanner` i `igra:getMemberProgress` sa argumentima `username` + `todayKey`. Podaci nisu dirani; šema je dobila samo opciono polje.
+- typecheck: prošlo
+- lint: prošlo (0 grešaka, istih 26 zatečenih upozorenja)
+- test: prošlo (312 fajlova, 3.511 testova)
+- check:frames, check:corners, check:white, check:igra (`--strict`): prošlo
+- build: prošao iz prvog pokušaja; `next start` (port 3124): `/` 200, `/igra-izlog?deo=profil` i `/en/igra-izlog?deo=profil` 404
+- **check:bundle: prošlo.** `/app/members/[username]` 359 → **366 KB** gz (budžet 371); ostale rute iste (`/app` 291, rang lista 291, Crea 465 / 542).
+- **pregledač (Playwright, izlog, 1440 × 900 i 390 × 844, obe teme, sr), izmereno:**
+  - nema vodoravnog skrola na 390; 0 slomljenih slika; konzola bez grešaka i upozorenja (uz „smanji pokrete“ samo zatečena poruka biblioteke `motion`)
+  - moj profil (aktivan): baner „Studio“, prsten 49 %, „Nivo 5 · Graditelj“, 1.890 XP, plamen 6 dana, najduži niz 9; polica 15 / 24 sa „Novo“ na dva bedža i „Uskoro“ na „Izazovu“; brojači 14 / 5 / 12 / 3
+  - tuđi profil (legenda, privatna knjižica): Crea 0 / 8 (sve siluete), „Noćna sova“ i „Rani pevac“ siluete, 14 / 24, tri pločice brojača, bez plamena; sa javnom knjižicom Crea grupa i pločica radova se pojave
+  - izbor banera (nivo 5): Sveska / Laboratorija / Studio otključani, Svemir / Grad / Okean `disabled` sa „zaključan, od nivoa 7 / 9 / 11“; fokus ide na „Zatvori“; izbor menja baner u zaglavlju; Esc zatvara; neuspeh pokazuje `role="alert"` „Baner nije sačuvan. Pokušaj ponovo.“; dugmad u izboru 173 px visoka, dugme na baneru 44 px
+  - smanjen pokret: brojači i XP odmah na vrednosti (137 / 50 / 186 / 7, „23.480 XP“), ispuna trake bez animacije
+- dev server i `next start` su ugašeni (portovi 3000 / 3123 / 3124 slobodni, nijedan `next` ni `convex` proces); Playwright `page-*.yml` i `console-*.log` i pomoćni fajlovi iz `.igra-run/tmp/k13/` su obrisani.
+
+**Prihvatanje (K13):**
+- „Moj i tuđi profil rade u obe teme i na telefonu“: **ispunjeno u izlogu** (snimci `K13-profil-moj-*`, `K13-profil-tudji-*`, `K13-baner-izbor-*`, `K13-profil-novi-1440-svetla.png`, `K13-profil-tudji-javna-knjizica-1440-svetla.png`).
+- „Ništa privatno ne curi“: **ispunjeno** — tuđi profil ne dobija nijedan nov podatak osim banera (izgled) i radova uz javnu knjižicu; bedževi samo iz dnevnika; testovi u `convex/igra.test.ts` i `lib/igra-profile.test.ts` (ODLUKE 3–6).
+- typecheck / lint / test / check:frames prolaze, sekcija K13 u progress-u: **ispunjeno**.
+
+**BLOKADA (samo provera, ne kod):** pravi profil nad živim nalogom nije gledan u pregledaču, iz istog razloga kao u K06–K12 (Playwright nije prijavljen; auth tok se ne dira). Izlog crta iste komponente; nije potvrđeno: (a) `useMemberIgra` nad živim Convex-om (DEV ima nove funkcije); (b) izbor banera kroz pravi `igra:setBanner` i reaktivno osvežavanje zaglavlja; (c) raspored sa pravim kursevima, doprinosima i knjižicom ispod police.
+
+**Za Jovana ujutru:**
+- **Prijavi se na DEV i otvori svoj profil** (meni naloga → „Moj napredak“ → „Moj profil“, `npx next dev --webpack -p 3123`): promeni baner (na nivou 1 je otključana samo „Sveska“), pa otvori nečiji tuđi profil.
+- **Zatečeno, važno (nisam dirao, auth / proxy):** korisničko ime sme da ima tačku (`lib/username-policy.ts`), a matcher u `proxy.ts` (`/((?!.*\..*|_next).*)`) preskače svaku putanju sa tačkom. U produkcionom buildu `/app/members/nikola.stanic` vraća **404**, a `/en/app/members/nikola.stanic` vraća 200 **bez preusmerenja na prijavu** (stranica posle traži prijavu kroz Convex, pa podaci ne cure). Bez tačke (`/app/members/nikola`) sve radi (307 na prijavu). Profili korisnika sa tačkom u imenu su dakle nedostupni na srpskom.
+- **Brojači su za poslednjih 12 meseci** (ODLUKA 3), a ne od početka; ako hoćeš ukupne, to traži izmenu `getPublicProfile` ili nov brojač.
+- **Ukus:** visina banera na računaru (4:1, u aplikaciji oko 280 px; `md:aspect-[4/1]` u `profile-banner.tsx`), kalendar od 52 nedelje sa „kapima“ mastila, i da li ti fali red značaka pored imena (ODLUKA 7). Snimci: `K13-profil-moj-1440-svetla.png`, `K13-profil-tudji-1440-tamna.png`, `K13-baner-izbor-1440-svetla.png`.
+- **Budžet profila:** 366 / 371 KB; sledeći korak koji nešto doda profilu treba da gleda `check:bundle`.
+- **Dodir na pravom telefonu i pravi čitač ekrana nisam imao.**

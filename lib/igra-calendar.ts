@@ -1,5 +1,5 @@
 import { isDayKey, shiftDayKey, type StreakDayState } from "./crea-streak";
-import { t, type Locale } from "./i18n";
+import { pluralize, t, type Locale } from "./i18n";
 
 /**
  * Mastilo-kalendar na kontrolnoj tabli (K08, plan K07 §1.5): poslednje nedelje kao mreža
@@ -60,8 +60,12 @@ export function inkCalendarView(
   locale: Locale,
 ): InkCalendarView {
   const weeks = Math.max(1, Math.trunc(input.weeks ?? INK_CALENDAR_WEEKS));
-  const label = (activeDays: number) =>
-    t(locale, `Aktivnih dana u poslednjih ${weeks} nedelja: ${activeDays}.`, `Active days in the last ${weeks} weeks: ${activeDays}.`);
+  // „u poslednjih 26 nedelja", ali „u poslednje 52 nedelje" (profil, K13).
+  const span = pluralize(locale, weeks, {
+    sr: { one: `poslednjoj ${weeks} nedelji`, few: `poslednje ${weeks} nedelje`, many: `poslednjih ${weeks} nedelja` },
+    en: { one: `last ${weeks} week`, few: `last ${weeks} weeks`, many: `last ${weeks} weeks` },
+  }[locale]);
+  const label = (activeDays: number) => t(locale, `Aktivnih dana u ${span}: ${activeDays}.`, `Active days in the ${span}: ${activeDays}.`);
   if (!isDayKey(input.todayKey)) return { weeks, cells: [], activeDays: 0, startKey: input.todayKey, label: label(0) };
 
   const lessons = new Map(input.activity.map((item) => [item.day, item.completed]));

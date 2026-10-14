@@ -8,8 +8,10 @@ import { courses as staticCourses } from "./content";
 import type { CatalogTrackMeta } from "./course-catalog";
 import { computeStreak, shiftDayKey, type StreakDay } from "./crea-streak";
 import type { IgraLik, IgraPoza } from "./igra-art";
-import { EMPTY_BADGE_COUNTERS, evaluateBadges, type IgraBadgeCounters, type IgraBadgeKey } from "./igra-badges";
+import { EMPTY_BADGE_COUNTERS, evaluateBadges, igraBadge, type IgraBadgeCounters, type IgraBadgeKey } from "./igra-badges";
+import type { IgraBannerKey } from "./igra-banners";
 import { levelFromXp } from "./igra-level";
+import type { ProfileActivityDay } from "./igra-profile";
 import type { LocalizedText } from "./i18n";
 
 /**
@@ -53,6 +55,8 @@ function buildProgress(input: {
   seenDaysAgo: Partial<Record<IgraBadgeKey, number>>;
   freshLevel?: boolean;
   freshCourses?: IgraProgressFixture["fresh"]["courses"];
+  /** Izabrani baner profila (K13); bez njega podrazumevani. */
+  banner?: IgraBannerKey;
 }): IgraProgressFixture {
   const streak = computeStreak(input.days, IGRA_FIXTURE_TODAY);
   const level = levelFromXp(input.xp);
@@ -77,7 +81,7 @@ function buildProgress(input: {
       courses: input.freshCourses ?? [],
       ledgerEmpty: Object.keys(input.seenDaysAgo).length === 0,
     },
-    banner: null,
+    banner: input.banner ?? null,
     eligible: true,
     username: input.username,
   };
@@ -93,6 +97,7 @@ export const IGRA_FIXTURES: Record<IgraFixtureId, IgraProgressFixture> = {
     xp: 1890,
     weekXp: 435,
     weekRank: 7,
+    banner: "studio",
     // Šest dana zaredom do danas; pre toga dva propuštena (jedno zamrzavanje ne spasava niz)
     // i devet dana zaredom, pa je najduži niz 9.
     days: [...activeDays(0, 5), ...activeDays(8, 16)],
@@ -133,6 +138,7 @@ export const IGRA_FIXTURES: Record<IgraFixtureId, IgraProgressFixture> = {
     xp: 23480,
     weekXp: 1310,
     weekRank: 1,
+    banner: "okean",
     days: activeDays(0, 63),
     counters: {
       completedLessons: 148,
@@ -767,4 +773,75 @@ export function fixtureLeaderboard({
     }),
   );
   return { rows, viewer: { eligible: !staff, row: rows.find((row) => row.isViewer) ?? null } };
+}
+
+// ── Profil (K13) ─────────────────────────────────────────────────────────
+
+export type MemberProgressFixture = NonNullable<FunctionReturnType<typeof api.igra.getMemberProgress>>;
+
+export type ProfileFixture = {
+  name: string;
+  username: string;
+  avatarUrl: string;
+  role: "student" | "pro_student";
+  /** Javni kalendar (oblik `getPublicProfile.activity.days`), poslednjih 365 dana. */
+  days: ProfileActivityDay[];
+  /** Radovi u Crei za godinu (vlasnik ili javna knjižica). */
+  works: number;
+};
+
+/** Dan javnog kalendara `daysAgo` dana pre „danas" izloga. */
+function profileDay(daysAgo: number, lessons: number, tasks = 0, threads = 0, comments = 0): ProfileActivityDay {
+  return { dayKey: shiftDayKey(IGRA_FIXTURE_TODAY, -daysAgo), lessons, tasks, threads, comments, total: lessons + tasks + threads + comments };
+}
+
+/** Legenda: 64 dana zaredom, pa svaki treći dan do pre 300 dana (deterministički, bez slučajnosti). */
+function legendDays(): ProfileActivityDay[] {
+  const days: ProfileActivityDay[] = [];
+  for (let daysAgo = 0; daysAgo < 300; daysAgo += 1) {
+    if (daysAgo > 63 && daysAgo % 3 !== 0) continue;
+    days.push(profileDay(daysAgo, daysAgo % 10 === 0 ? 2 : daysAgo % 7 === 0 ? 0 : 1, daysAgo % 6 === 0 ? 1 : 0, daysAgo % 23 === 0 ? 1 : 0, daysAgo % 4 === 0 ? 1 : 0));
+  }
+  return days;
+}
+
+export const PROFILE_FIXTURES: Record<IgraFixtureId, ProfileFixture> = {
+  novi: { name: "Tamara Ilić", username: "tamara.ilic", avatarUrl: "/images/avatars/cosmic-scholar.png", role: "student", days: [], works: 0 },
+  aktivan: {
+    name: "Nikola Stanić",
+    username: "nikola.stanic",
+    avatarUrl: "/images/avatars/hybrid-guardian.png",
+    role: "pro_student",
+    // Isti dani kao niz test korisnika (0-5 i 8-16 dana unazad) i nekoliko ranijih.
+    days: [
+      ...[0, 1, 2, 3, 4, 5, 8, 9, 10, 11, 12, 13, 14, 15, 16].map((daysAgo, index) => profileDay(daysAgo, index < 11 ? 1 : 0, index % 4 === 0 ? 1 : 0, index % 6 === 0 ? 1 : 0, index % 3 === 0 ? 1 : 0)),
+      profileDay(19, 1, 0, 0, 2),
+      profileDay(23, 1, 1),
+      profileDay(30, 1),
+    ],
+    works: 12,
+  },
+  legenda: { name: "Vesna Radović", username: "vesna.radovic", avatarUrl: "/images/avatars/mythic-mentor.png", role: "pro_student", days: legendDays(), works: 186 },
+};
+
+/** Bedževi koje drugi nikad ne vide (isto kao `PRIVATE_BADGES` u `convex/igraCore.ts`). */
+const PRIVATE_FIXTURE_BADGES: ReadonlySet<IgraBadgeKey> = new Set(["nocna-sova", "rani-pevac"]);
+
+/**
+ * `igra:getMemberProgress` za test korisnika kako ga vidi DRUGI član: samo bedževi iz
+ * dnevnika (nov, još neviđen bedž je zaključan), Crea grupa i radovi samo uz javnu
+ * knjižicu, vreme učenja nikad. `staff`: nalog tima nema nivo ni XP.
+ */
+export function memberProgressFixture(stanje: IgraFixtureId, opts: { creaPublic: boolean; staff?: boolean }): MemberProgressFixture {
+  const progress = IGRA_FIXTURES[stanje];
+  return {
+    xp: opts.staff ? null : progress.xp,
+    level: opts.staff ? null : progress.level,
+    banner: progress.banner,
+    works: opts.creaPublic ? PROFILE_FIXTURES[stanje].works : null,
+    badges: progress.badges.map((badge) => {
+      const hidden = PRIVATE_FIXTURE_BADGES.has(badge.key) || (igraBadge(badge.key).group === "crea" && !opts.creaPublic);
+      return { key: badge.key, state: hidden ? "hidden" : badge.state === "unlocked" ? "unlocked" : "locked" };
+    }),
+  };
 }
