@@ -43,6 +43,21 @@ export const IGRA_PRIMITIVE_COPY = {
   progressInvite: { sr: "Završi prvu lekciju i kreni ka nivou 2.", en: "Finish your first lesson and head for level 2." },
 } satisfies Record<string, LocalizedText>;
 
+/** Ljuska aplikacije i panel „Moj napredak" (K06). */
+export const IGRA_SHELL_COPY = {
+  panelTitle: { sr: "Moj napredak", en: "My progress" },
+  totalXp: { sr: "Ukupno", en: "Total" },
+  streakBest: { sr: "Najduži niz", en: "Longest streak" },
+  streakRecent: { sr: "Poslednjih 14 dana", en: "Last 14 days" },
+  weekTitle: { sr: "Ova nedelja", en: "This week" },
+  weekRank: { sr: "Mesto na nedeljnoj listi", en: "Weekly leaderboard rank" },
+  weekEmpty: { sr: "Prva lekcija ili rad ove nedelje i na listi si.", en: "One lesson or creation this week puts you on the board." },
+  weekBeyond: { sr: "Van prvih 100 ove nedelje. Tačno mesto je na rang listi.", en: "Outside the top 100 this week. Your exact rank is on the leaderboard." },
+  weekStaff: { sr: "Nalozi tima nisu na rang listi.", en: "Team accounts are not ranked." },
+  profileLink: { sr: "Moj profil", en: "My profile" },
+  leaderboardLink: { sr: "Rang lista", en: "Leaderboard" },
+} satisfies Record<string, LocalizedText>;
+
 export const IGRA_DAY_FORMS: Record<Locale, PluralForms> = {
   sr: { one: "dan", few: "dana", many: "dana" },
   en: { one: "day", few: "days", many: "days" },

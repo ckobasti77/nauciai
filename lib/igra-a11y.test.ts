@@ -1,21 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  badgeStickerView,
-  badgeTally,
-  clampLevel,
-  formatLevel,
-  formatXp,
-  levelLabel,
-  levelName,
-  rankChipView,
-  shelfBadges,
-  streakFlameView,
-  xpBarA11y,
-  xpBarCaption,
-  xpBarFraction,
-  type IgraBadgeViewState,
-} from "./igra-a11y";
+import { clampLevel, formatLevel, formatXp, levelLabel, levelName, rankChipView, streakFlameView, xpBarA11y, xpBarCaption, xpBarFraction } from "./igra-a11y";
+import { badgeStickerView, badgeTally, shelfBadges, type IgraBadgeViewState } from "./igra-badge-view";
 import { IGRA_BADGE_KEYS, igraBadge, type IgraBadgeKey } from "./igra-badges";
 
 describe("formatiranje XP-a i nivoa", () => {

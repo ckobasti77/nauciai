@@ -16,10 +16,13 @@ import type { ReactNode } from "react";
 
 import { SoundToggle } from "@/components/app/sound-toggle";
 import { ThemeToggle } from "@/components/app/theme-toggle";
+import { LevelSeal, ShellStreak } from "@/components/igra/shell-progress";
 import { LanguageToggle } from "@/components/marketing/language-toggle";
 import { CreditIcon } from "@/components/studio/credit-icon";
 import { cn } from "@/components/ui/primitives";
 import { dictionary, type Locale, withLocale } from "@/lib/i18n";
+import { IGRA_SHELL_COPY } from "@/lib/igra-copy";
+import { shellProgressView, type ShellProgressInput } from "@/lib/igra-shell";
 import { formatCreditsLong } from "@/lib/studio-params";
 
 /** Kartica kredita — stoji i u mobilnom zaglavlju sidebara i u redu alatki ovog menija. */
@@ -210,6 +213,8 @@ export function AppAccountMenu({
   plan,
   needsAttention = false,
   creditsBalance,
+  progress,
+  onOpenProgress,
   languageHref,
   upgradeHref,
   onNavigate,
@@ -227,6 +232,9 @@ export function AppAccountMenu({
   plan?: string;
   needsAttention?: boolean;
   creditsBalance?: number | null;
+  /** Napredak IGRA-e; red „Moj napredak" se crta samo kad je učitan. */
+  progress?: ShellProgressInput | null;
+  onOpenProgress?: () => void;
   languageHref: string;
   /** Kad plan nudi nadogradnju — inače se red ne renderuje. */
   upgradeHref?: string;
@@ -238,6 +246,7 @@ export function AppAccountMenu({
   className?: string;
 }) {
   const t = dictionary[locale];
+  const progressView = progress && onOpenProgress ? shellProgressView(progress, locale) : null;
 
   return (
     <div
@@ -293,6 +302,28 @@ export function AppAccountMenu({
           </span>
           <SidebarRoleBadge role={role} plan={plan} locale={locale} />
         </Link>
+
+        {progressView ? (
+          <button
+            type="button"
+            role="menuitem"
+            aria-label={progressView.label}
+            onClick={(event) => {
+              // Meni se gasi, pa fokus prvo ide na dugme koje ga je otvorilo (sused menija):
+              // panel ga tamo i vraća kad se zatvori.
+              event.currentTarget.closest('[role="menu"]')?.parentElement?.querySelector<HTMLElement>(":scope > button[aria-expanded]")?.focus();
+              onNavigate();
+              onOpenProgress?.();
+            }}
+            className={cn(ROW, "w-full rounded-none text-left")}
+          >
+            <span className="flex min-w-0 items-center gap-3">
+              <LevelSeal level={progressView.level} progress={progressView.progress} size="sm" />
+              <span className="truncate">{IGRA_SHELL_COPY.panelTitle[locale]}</span>
+            </span>
+            <ShellStreak view={progressView} />
+          </button>
+        ) : null}
 
         <MenuRow href={`${withLocale(locale, "/app/profile")}#account-settings`} onNavigate={onNavigate} icon={<Settings className="size-3.5" />}>
           {t.accountSettings}

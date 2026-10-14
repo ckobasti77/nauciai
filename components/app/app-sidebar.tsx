@@ -51,6 +51,9 @@ import {
 } from "@/components/app/app-account-menu";
 import { CheckoutButton } from "@/components/app/checkout-button";
 import { CreaMarkIcon } from "@/components/crea/crea-mark-icon";
+import { useIgraProgress } from "@/components/igra/igra-progress-context";
+import { LevelRing } from "@/components/igra/level-ring";
+import { ShellProgressChip, ShellProgressRail, ShellProgressRow } from "@/components/igra/shell-progress";
 import { ThemeToggle } from "@/components/app/theme-toggle";
 import { BrandMark, cn } from "@/components/ui/primitives";
 import { api } from "@/convex/_generated/api";
@@ -1035,7 +1038,7 @@ function AppBottomNav({
   );
 }
 
-function AppSidebarContent({
+export function AppSidebarContent({
   locale,
   navigation,
   initialPreferences,
@@ -1108,6 +1111,9 @@ function AppSidebarContent({
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const { signOut } = useAuthActions();
   const router = useRouter();
+  // Napredak IGRA-e (K06): `undefined` = učitava se (skelet iste veličine), `null` = nema ga.
+  const { progress: igraProgress, openPanel: openIgraPanel } = useIgraProgress();
+  const igraShell = igraProgress === null ? null : igraProgress ? { progress: igraProgress } : ({ loading: true } as const);
 
   useEffect(() => {
     sidebarPreferencesRef.current = sidebarPreferences;
@@ -1408,9 +1414,13 @@ function AppSidebarContent({
 
   return (
     <>
-      <header inert={drawerIsModal && mobileOpen} className="sticky top-0 z-40 flex min-h-16 items-center justify-between border-b-2 border-ink bg-paper-strong px-4 md:hidden">
+      <header inert={drawerIsModal && mobileOpen} className="sticky top-0 z-40 flex min-h-16 items-center justify-between gap-2 border-b-2 border-ink bg-paper-strong px-4 md:hidden">
         <BrandMark href={withLocale(locale)} label={t.appName} />
-        <div className="flex items-center gap-2">
+        {/* `min-w-0 flex-1`: desna grupa uzima ostatak reda, pa logo zadržava širinu, a čip
+            napretka (jedini koji sme) se skuplja kad krediti imaju više cifara. */}
+        <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
+          {/* Na telefonu napredak živi ovde: donji meni ostaje na tačno 4 slota. */}
+          {igraShell ? <ShellProgressChip {...igraShell} locale={locale} onOpen={openIgraPanel} /> : null}
           {authState === "authenticated" ? <CreditsBalancePill locale={locale} balance={creditsBalance} /> : null}
           <button
             ref={mobileMenuButtonRef}
@@ -1490,6 +1500,20 @@ function AppSidebarContent({
             <X className="size-5" />
           </button>
         </div>
+        {/* Red napretka je iste visine i na istom y-u kao krug u rail-u ispod, pa se pri
+            sklapanju ništa ne pomera vertikalno. */}
+        {igraShell ? (
+          <ShellProgressRow
+            {...igraShell}
+            locale={locale}
+            onOpen={() => {
+              // Na telefonu je red u fioci: panel se otvara tek kad se ona zatvori.
+              setMobileOpen(false);
+              openIgraPanel();
+            }}
+            className="mt-3"
+          />
+        ) : null}
         {/* Registry konteksta bira sadržaj ispod: `contextActive` prebacuje sa home (classic)
             na sekcije aktivnog konteksta (ContextSidebarNav). Kontrola za skupljanje iznad
             ostaje sidro; menja se samo ovo ispod nje. */}
@@ -1602,6 +1626,8 @@ function AppSidebarContent({
               plan={navigation.plan}
               needsAttention={hasAccountAdvisory}
               creditsBalance={creditsBalance}
+              progress={igraProgress}
+              onOpenProgress={openIgraPanel}
               languageHref={languageHref}
               upgradeHref={showUpgrade ? courseCatalogPath(locale) : undefined}
               onNavigate={() => setProfileMenuOpen(false)}
@@ -1616,17 +1642,21 @@ function AppSidebarContent({
             aria-haspopup="menu"
             className="relative flex w-full items-center overflow-hidden rounded-none bg-paper-strong px-4 py-4 text-left text-ink transition hover:bg-yellow/15"
           >
-            {/* Avatar je isti krug i na istom x-u kao ikonice nav-a i kao avatar u rail-u. */}
-            <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-ink bg-yellow text-xs font-black">
-              {profileAvatar ? (
-                /* Avatar URLs are user-provided at runtime and intentionally avoid Next image host restrictions. */
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={profileAvatar} alt="" className="h-full w-full object-cover" />
-              ) : (
-                <span>{profileInitials}</span>
-              )}
+            {/* Avatar je isti krug i na istom x-u kao ikonice nav-a i kao avatar u rail-u.
+                Prsten nivoa se crta PREKO omotača (oreol), pa krug ostaje gde je bio. */}
+            <div className="relative shrink-0">
+              {igraProgress ? <LevelRing progress={igraProgress.level.progress} size={58} /> : null}
+              <div className="flex size-12 items-center justify-center overflow-hidden rounded-full border-2 border-ink bg-yellow text-xs font-black">
+                {profileAvatar ? (
+                  /* Avatar URLs are user-provided at runtime and intentionally avoid Next image host restrictions. */
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={profileAvatar} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <span>{profileInitials}</span>
+                )}
+              </div>
             </div>
-            <span className="app-sidebar-label flex w-[var(--sidebar-label-w)] shrink-0 items-center gap-2 pr-3">
+            <span className="app-sidebar-label flex w-[var(--sidebar-label-w)] shrink-0 items-center gap-2 pl-2 pr-1">
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-xs font-black leading-tight text-ink">{profileName}</span>
                 {/* Uloga stoji uz @username, ne u prvom redu: na izmerenoj sirini bi inace
@@ -1717,6 +1747,7 @@ function AppSidebarContent({
         >
           <SidebarToggleIcon collapsed={sidebarPreferences.collapsed} />
         </button>
+        {igraShell ? <ShellProgressRail {...igraShell} locale={locale} onOpen={openIgraPanel} className="mt-3" /> : null}
         {/* Rail (skupljeno): isti swap, ali `compact` - opacity crossfade bez klizanja
             (80px je preusko za horizontalni pomeraj); „Nazad" ikona nosi značenje. */}
         <SidebarNavSwap
@@ -1814,6 +1845,8 @@ function AppSidebarContent({
                 plan={navigation.plan}
                 needsAttention={hasAccountAdvisory}
                 creditsBalance={creditsBalance}
+                progress={igraProgress}
+                onOpenProgress={openIgraPanel}
                 languageHref={languageHref}
                 upgradeHref={showUpgrade ? courseCatalogPath(locale) : undefined}
                 onNavigate={() => setRailFlyout(null)}
@@ -1823,7 +1856,9 @@ function AppSidebarContent({
             {/* Mirrors the expanded sidebar, where the badge sits inside the profile card:
                 the role belongs to the identity, not to the top of the navigation. */}
             <SidebarRoleBadge role={navigation.role} plan={navigation.plan} locale={locale} variant="collapsed" />
-            <button type="button" aria-label={profileName} aria-expanded={railFlyout === "profile"} onClick={() => setRailFlyout((value) => value === "profile" ? null : "profile")} className="relative flex size-12 items-center justify-center overflow-visible rounded-full border-2 border-ink bg-yellow text-xs font-black shadow-[3px_3px_0_var(--shadow-hard-16)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
+            <button type="button" aria-label={profileName} aria-expanded={railFlyout === "profile"} onClick={() => setRailFlyout((value) => value === "profile" ? null : "profile")} className={cn("relative flex size-12 items-center justify-center overflow-visible rounded-full border-2 border-ink bg-yellow text-xs font-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink", igraProgress === null && "shadow-[3px_3px_0_var(--shadow-hard-16)]")}>
+              {/* Prsten nivoa umesto tvrde senke: senka bi virila ispod oreola. */}
+              {igraProgress ? <LevelRing progress={igraProgress.level.progress} size={58} /> : null}
               <span className="flex size-full items-center justify-center overflow-hidden rounded-full">
                 {profileAvatar ? (
                   /* Avatar URLs are user-provided at runtime and intentionally avoid Next image host restrictions. */

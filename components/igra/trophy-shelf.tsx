@@ -3,7 +3,7 @@ import Link from "next/link";
 import { BadgeSticker } from "@/components/igra/badge-sticker";
 import { IgraSkeleton, type Loadable } from "@/components/igra/igra-skeleton";
 import { cn } from "@/components/ui/primitives";
-import { badgeTally, shelfBadges, type IgraBadgeViewState } from "@/lib/igra-a11y";
+import { badgeTally, shelfBadges, type IgraBadgeViewState } from "@/lib/igra-badge-view";
 import { IGRA_BADGE_GROUP_LABEL, IGRA_BADGE_GROUPS, igraBadge, type IgraBadgeKey, type IgraBadgeProgress } from "@/lib/igra-badges";
 import { IGRA_PRIMITIVE_COPY } from "@/lib/igra-copy";
 import type { Locale } from "@/lib/i18n";

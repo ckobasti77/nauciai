@@ -7,6 +7,7 @@ import { ChatNotifications } from "@/components/app/chat/chat-notifications";
 import { ProfileSetupGate } from "@/components/app/profile-setup-gate";
 import { SuspensionGate } from "@/components/app/suspension-gate";
 import { ViewerPresence } from "@/components/app/viewer-presence";
+import { IgraProgressProvider } from "@/components/igra/igra-progress-provider";
 import { getAppGateState } from "@/lib/app-gates";
 import { APP_SIDEBAR_COOKIE, parseAppSidebarPreferences } from "@/lib/app-sidebar-preferences";
 import { getAppNavigationData } from "@/lib/app-navigation";
@@ -47,6 +48,9 @@ export async function AppShell({ locale, children }: { locale: Locale; children:
   );
 
   return process.env.NEXT_PUBLIC_CONVEX_URL ? (
-    <SuspensionGate locale={locale} initialSuspension={gates.suspension}>{shell}</SuspensionGate>
+    <SuspensionGate locale={locale} initialSuspension={gates.suspension}>
+      {/* Napredak IGRA-e (nivo, XP, niz) + domaćin slavlja: samo ovde, nikad na javnom sajtu. */}
+      <IgraProgressProvider locale={locale}>{shell}</IgraProgressProvider>
+    </SuspensionGate>
   ) : shell;
 }

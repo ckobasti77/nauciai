@@ -358,3 +358,107 @@ Prag pripada višem nivou (99 XP = nivo 1, 100 XP = nivo 2). Na nivou 12 je `pro
 - **Dodir na pravom telefonu nisam imao:** oblačić bedža je proveren na širini 390 px mišem i tastaturom. Na iPhone-u proveri da dodir na nalepnicu otvara oblačić, a dodir pored ga zatvara.
 - **Pravi čitač ekrana nisam imao:** provereni su DOM i atributi, ne izgovor.
 - Prekidač teme u izlogu je 36 × 36 px (zatečena komponenta `ThemeToggle`, nisam je dirao).
+
+## K06 — Ljuska aplikacije i „Moj napredak"   (2026-10-14 03:35)
+**Fajlovi:**
+- novi (lib): `lib/igra-shell.ts`, `lib/igra-shell.test.ts`, `lib/igra-badge-view.ts` (izdvojeno iz `igra-a11y`, ODLUKA 12)
+- novi (komponente): `components/igra/level-ring.tsx`, `shell-progress.tsx`, `progress-panel.tsx`, `igra-progress-context.tsx`, `igra-progress-provider.tsx`
+- novi (izlog): `components/igra/izlog/izlog-ljuska.tsx`, `docs/igra/snimci/K06-*.png` (18)
+- izmenjeni (ljuska): `components/app/app-shell.tsx` (provider), `components/app/app-sidebar.tsx` (čip, red, krug u rail-u, prsten oko avatara; `AppSidebarContent` je izvezen), `components/app/app-account-menu.tsx` (red „Moj napredak")
+- izmenjeni (ostalo): `lib/igra-copy.ts` (`IGRA_SHELL_COPY`), `lib/igra-a11y.ts` + `lib/igra-a11y.test.ts` (bedževi izdvojeni, samo uvozi), `components/igra/badge-sticker.tsx` (oblačić u dijalogu + uvoz), `components/igra/trophy-shelf.tsx` (uvoz), `components/igra/izlog/registry.ts`, `lib/igra-izlog.test.ts` (deo „ljuska")
+
+**Šta je urađeno:** Napredak je vidljiv na svakoj strani posle prijave. U proširenom sidebaru je red od 48 px (pečat nivoa sa prstenom, ime nivoa, plamen niza, XP traka sa „490 / 1.000 XP"), u skupljenom isti pečat kao krug na istom mestu, a na telefonu čip u zaglavlju; avatar u kartici profila i u rail-u ima prsten nivoa (SVG u kodu). Sve to je jedno dugme koje otvara panel „Moj napredak" (`Dialog align="sheet"`: list na telefonu, dijalog na računaru): amblem i ime nivoa, ukupan XP kao odometar, traka do sledećeg nivoa, plamen sa poslednjih 14 dana i najdužim nizom, poslednja tri bedža, mesto na nedeljnoj listi i XP nedelje, linkovi na profil i rang listu. `IgraProgressProvider` u `AppShell` drži JEDAN upit `igra:getMyProgress` za celu ljusku i montira domaćina slavlja: novo neviđeno (nivo, bedž, kurs) se slavi jednom, jedno po jedno, i u trenutku prikaza zove `igra:markSeen`. Ljuska ne učitava nijednu sliku; slavlje i panel se učitavaju lenjo. Donji meni na telefonu nije diran (4 slota). Izlog je dobio deo „Ljuska aplikacije" (`/igra-izlog?deo=ljuska&stanje=novi|aktivan|legenda`) koji crta PRAVU ljusku (`AppSidebarContent`) nad test podacima.
+
+**Površine:**
+- gotovo: ljuska aplikacije 6.1 (sidebar, rail, mobilno zaglavlje, fioka, meni naloga, panel, domaćin slavlja).
+- nije u ovom koraku: Crea radionica (`StudioShell`) nema domaćina slavlja ni red napretka (K16 po planu K01 §3.3); polica svih 24 bedža na profilu, na koju vodi „Svi bedževi", stiže u K13.
+
+**Kako se koristi (za K07 i dalje):**
+- Podaci: `const { progress, openPanel } = useIgraProgress()` iz `components/igra/igra-progress-context.tsx`. `undefined` = učitava se, `null` = nema ga (gost, bez Convex-a, upit pao). Stranice unutar `/app` NE prave svoj `useQuery(api.igra.getMyProgress)`: isti podatak već stoji u kontekstu.
+- `openPanel()` otvara panel sa bilo kog mesta (npr. sa kartice napretka na tabli).
+- Izlog sa pravom ljuskom: omotaj `IgraProgressContext.Provider` test podacima (primer u `izlog-ljuska.tsx`).
+- `lib/igra-a11y.ts` i `lib/igra-shell.ts` učitava svaka strana: ne uvoziti u njih `igra-badges`, `igra-art` ni `igra-celebrations` (čuva test). Tekst bedževa je u `lib/igra-badge-view.ts`.
+
+**ODLUKE:**
+1. **Pečat nivoa u ljusci je crtan u kodu** (broj u krugu mastila + prsten napretka), a amblem `nivo.NN` se vidi tek u panelu. Zadatak kaže „pečat nivoa", K01 §6.1 kaže „u ljusci nema slika"; izabrano je K01 (ljuska je na svakoj strani, slika bi ušla u svako učitavanje).
+2. **Mesto na nedeljnoj listi je iz `getMyProgress.weekRank`** (K04 ODLUKA 1), ne iz `leaderboard.getViewerLeaderboardRow` kako piše K01 §6.1: zadatak traži podatke iz `getMyProgress`, a tako nema drugog upita. Kad mesta nema, ispod stoji rečenica: bez XP-a ove nedelje blag poziv, dalje od 100. mesta „Tačno mesto je na rang listi", za naloge tima „Nalozi tima nisu na rang listi" (tada bez čipa).
+3. **Upit ide kroz `useQueries`, ne `useQuery`:** greška stiže kao vrednost umesto da sruši ljusku. Napredak je ukras; ako `igra:*` nije objavljen ili upit padne, aplikacija radi bez njega (nema reda, čipa ni prstena).
+4. **Domaćin slavlja i panel su lenji** (`next/dynamic`, `ssr: false`). Domaćin se učitava tek kad `fresh` nije prazan i posle toga ostaje montiran (da se otvoreno slavlje ne ugasi kad `markSeen` isprazni `fresh`); panel se učitava na prvi klik. Greška u `markSeen` se guta: najgore je jedno ponovljeno slavlje pri sledećem otvaranju.
+5. **Čip u mobilnom zaglavlju se sam prilagođava** umesto praga iz K01 („ispod 360 px bez broja niza"). Izmereno: zaglavlje od 390 px sa logotipom (120), kreditima (58–83 px, zavisi od broja cifara) i „Više" (94) nema mesta ni za fiksni čip sa brojem. Zato je čip jedini element reda koji sme da se skupi: pečat ostaje uvek, plamen i broj dana se pojavljuju kad ima mesta (prelom reda + fiksna visina, bez JS-a). Ispod 375 px čipa nema (ni sam pečat ne staje pored logotipa).
+6. **Red napretka je i u fioci „Više" na telefonu** (K01 ga predviđa samo od `md`): tako i telefon od 360 px ima ulaz u panel, a svi vide ime nivoa, broj dana i XP traku. Klik prvo zatvara fioku.
+7. **Dve izmene postojećeg mobilnog zaglavlja** (`app-sidebar.tsx`): red je dobio `gap-2`, a desna grupa `min-w-0 flex-1 justify-end`. Bez čipa se crta isto kao pre; sa čipom logo zadržava širinu.
+8. **Prsten oko avatara je oreol od 58 px** preko omotača (krug avatara ostaje 48 px na istom mestu). Zbog njega je tekst u kartici profila pomeren za 8 px (`pl-2 pr-1` umesto `pr-3`, širina teksta ista), a avatar u rail-u nema tvrdu senku dok IGRA kontekst postoji (senka bi virila ispod oreola). Avatar od 28 px u meniju naloga nije dobio prsten.
+9. **Meni naloga ima red „Moj napredak"** (K01 §6.1), iznad „Podešavanja". Pre otvaranja panela fokus ide na dugme koje je otvorilo meni, pa se tamo i vraća kad se panel zatvori.
+10. **Panel je otvoren samo na strani na kojoj je otvoren** (stanje je vezano za `pathname`): prelazak na drugu stranu ga zatvara bez efekta; zatvara ga i svaki link u njemu.
+11. **`AppSidebarContent` je izvezen** da bi izlog crtao pravu ljusku (Playwright nije prijavljen, pa je to jedini način da se vide stvarno zaglavlje, rail i 4 slota). Skupljanje sidebara u izlogu upisuje pravi kolačić `nauci_app_sidebar`.
+12. **Tekst bedževa je izdvojen iz `lib/igra-a11y.ts` u `lib/igra-badge-view.ts`** (`badgeStickerView`, `shelfBadges`, `badgeTally`; ponašanje i testovi isti, promenjeni samo uvozi). Razlog: `igra-a11y` sada čita ljuska na svakoj strani, a sa njim je u početni JS ulazio ceo katalog bedževa.
+13. **Oblačić bedža se drži i ivica dijaloga** (`badge-sticker.tsx`): u panelu bi ga sadržaj dijaloga sekao sleva.
+14. **`scrollbar-gutter: stable` NIJE dodat.** Na Windows-u sa klasičnim skrol-barom strana skoči za širinu bara između kratke i duge strane i kad se otvori dijalog; to je jedini skok layouta koji nisam mogao da uklonim, jer u Playwright-u bar nema širinu (izmereno `innerWidth === clientWidth`), pa izmena ne može da se proveri. Predlog je dole, pod „Za Jovana".
+15. **Pečat u panelu ne „udara" pri svakom otvaranju** (K05 pominje `stampKey` kao broj otvaranja): udar je za promenu nivoa, a nju pokriva slavlje. „Najduži niz" se ne ispisuje dok je 0.
+16. **Pušteno na DEV:** `npx convex dev --once` (deployment `wandering-fox-41`, `CONVEX_DEPLOY_KEY` nije bio postavljen); `function-spec` pokazuje `igra:getMyProgress`, `igra:markSeen`, `igra:getMemberProgress`. To je K04 ostavio ovom koraku (K04 ODLUKA 12). Podaci nisu dirani; šema je dobila samo tabelu `igraSeen`.
+17. `IGRA_PLANNED_ART` i dalje ima tri reda (`lib/igra-art.ts` nisam dirao).
+
+**Novi paketi:** nema.
+
+**Testovi:**
+- novi `lib/igra-shell.test.ts` (21): geometrija prstena (linija u kutiji, prazan / pun / pola, stezanje, loš ulaz); red napretka za tri test korisnika na oba jezika (nivo, napredak, XP, niz, naziv dugmeta, poslednji nivo, „tinja", loš ulaz, bez reči pretnje); traka niza i najduži niz; rečenica uz nedeljnu listu (četiri slučaja, bez reči pretnje); **čitanje izvora**: donji meni ima `grid-cols-4` i ista četiri slota i ništa od napretka u njemu, napredak je u zaglavlju / sidebaru / rail-u, ljuska ne učitava slike, početni JS ljuske ne uvozi katalog bedževa ni manifest, delovi ljuske i panel nemaju upite, slavlje i panel su `next/dynamic` sa `ssr: false`, provider uvozi samo `app-shell.tsx`, a `AppShell` samo `app/[locale]/app/*`.
+- izmenjeni: `lib/igra-izlog.test.ts` (spisak delova sada ima „ljuska"), `lib/igra-a11y.test.ts` (samo uvozi posle izdvajanja; tvrdnje iste).
+
+**Slike:** ljuska ne koristi nijednu. Panel: porodice `nivo.*` i `bedz.*`, `rang.plamen`, `rang.zlato|srebro|bronza` (kroz postojeće primitive). TRAŽENE SLIKE: nema.
+
+**Rezultat provere:**
+- codegen: nije potreban (`convex/` nije diran); `convex dev --once` nije promenio `_generated`
+- typecheck: prošlo (i posle build-a)
+- lint: prošlo (0 grešaka, istih 26 zatečenih upozorenja)
+- test: prošlo (300 fajlova, 3.315 testova)
+- check:frames, check:corners, check:white, check:igra: prošlo
+- build: prošao (dva puta, oba iz prvog pokušaja)
+- **check:bundle: prošlo.** Ljuska je dodala oko 6 KB gz svakoj app ruti (pre izdvajanja bedževa 8 KB); slavlje, panel, manifest slika i katalog bedževa su u async chunk-ovima.
+
+| Šta (gzip) | Posle K05 | Posle K06 | Granica |
+|---|---|---|---|
+| `/app` početni JS | 269 KB | 275 KB | 294 |
+| `/app/classroom` | 290 | 297 | 315 |
+| `/app/community/leaderboard` | 278 | 284 | 303 |
+| `/app/members/[username]` | 347 | 352 | 371 |
+| `/app/studio` | 542 | 546 | 595 |
+| Crea radionica `/studio/(shell)/app` (ljuska je ne dira) | 466 | 465 | 512 |
+| javna početna | 139 | 139 | 153 |
+
+- **pregledač (Playwright, 1440 × 900 i 390 × 844, obe teme, sr i en), izmereno u izlogu nad pravom ljuskom:**
+  - računar: pečat u redu napretka i ikonice menija su na istom x-u (centar 72 px); red napretka je na y 88–136 i u proširenom i u skupljenom stanju, prva stavka menija na 157, avatar na 836 u oba stanja (ništa se ne pomera pri sklapanju); sidebar 246 / 82 px
+  - učitavanje ↔ podaci: **0 unosa `layout-shift`** na obe širine; meni, pločica kredita i sadržaj strane ostaju na istim koordinatama
+  - telefon: donji meni ima 4 slota (Dashboard, Učionica, Zajednica, Poruke); nema vodoravnog skrola na 340–430 px; meta čipa 44–76 × 44 px
+  - čip po širini i broju cifara kredita (šta je vidljivo):
+
+| Širina | krediti 2 cifre | 4 cifre | 5 cifara |
+|---|---|---|---|
+| 360 | bez čipa | bez čipa | bez čipa |
+| 375 | pečat + plamen | pečat | pečat (2 px do logotipa) |
+| 390 | pečat + plamen + broj | pečat + plamen | pečat |
+| 412 | sve | sve | pečat + plamen |
+| 430 | sve | sve | sve |
+
+  - panel: otvara se sa reda, kruga u rail-u, čipa, reda u fioci i reda u meniju naloga; fokus ide na „Zatvori", Esc i klik pored zatvaraju, fokus se vraća na dugme koje ga je otvorilo (iz menija naloga na dugme profila, iz fioke na „Više"); na 390 px je list uz donju ivicu (776 px, sadržaj se skroluje), linkovi su visine 44 px; oblačić prvog bedža ostaje u dijalogu (8 px od ivice)
+  - slavlje u ljusci (test korisnik „aktivan": nivo 5 + dva nova bedža): dok je panel otvoren slavlje čeka; zatim ide jedno po jedno (uvek 1 dijalog), `markSeen` dobija `level:5`, `badge:niz-7`, `badge:top-10` svaki jednom; Esc zatvara za 0,2 s, samo se gasi za 2,7 s, klik pored zatvara; posle toga se ništa ne otvara ponovo i skrol strane je otključan
+  - smanjen pokret: prsten i traka odmah na vrednosti (prelazi isključeni), XP u panelu odmah ispisan
+  - tamna tema, kontrast u redu napretka: ime nivoa i broj na pečatu 12,62:1, „490 / 1.000 XP" 6,78:1
+  - engleski: „My progress: Legend. Level 12, top level, 23,480 XP. Streak: 64 days. …", linkovi vode na `/en/app/members/<korisnik>` i `/en/app/community/leaderboard`
+  - konzola bez grešaka i upozorenja u običnom radu; uz „smanji pokrete" React javlja nepoklapanje hidratacije u `SidebarNavSwap` (zatečeno, vidi dole)
+- dev server je ugašen (portovi 3000 / 3123 / 3124 slobodni, nijedan `next` ni `convex` proces); Playwright `page-*.yml` i `console-*.log` su obrisani.
+
+**Prihvatanje (K06):**
+- Ljuska radi na desktopu i telefonu, u obe teme; 4 slota na telefonu: **ispunjeno** (snimci `K06-ljuska-*`, `K06-fioka-*`, `K06-panel-*`; test nad izvorom čuva 4 slota).
+- Slavlje se pojavljuje jednom po događaju i ne ometa rad (Esc, auto): **ispunjeno u izlogu** (pravi domaćin, `markSeen` simuliran); sa pravim nalogom nije provereno, jer Playwright nije prijavljen.
+- typecheck / lint / test / check:frames prolaze, sekcija K06 u progress-u: **ispunjeno**.
+
+**BLOKADA (samo provera, ne kod):** ljuska i slavlje nad PRAVIM nalogom nisu provereni u pregledaču. Playwright MCP nije prijavljen, a prijava ide kroz auth tok koji se po pravilima ne dira (i u Playwright se ne unose tuđe lozinke). Zato je stavka „slavlje jednom po događaju" potvrđena ovako: pravi `CelebrationHost` u izlogu nad pravom ljuskom (jedno po jedno, svaki ključ jednom, Esc i samogašenje), `convex/igra.test.ts` (`markSeen` upisuje samo zarađeno i samo jednom) i `function-spec` na DEV-u (`igra:*` postoje). Nije potvrđen jedino spoj u `IgraProgressProvider` (upit → domaćin → `markSeen`) nad živim Convex-om; prva stavka ispod je tačno ta provera.
+
+**Za Jovana ujutru:**
+- **Prijavi se na DEV i otvori `/app`** (`npx next dev --webpack -p 3123`): ovo je prvi put da ljuska radi nad pravim nalogom. Očekuj red napretka u sidebaru i JEDNO slavlje „Tvoj napredak do sada" (prvi kontakt, dnevnik je prazan); posle osvežavanja ne sme da se ponovi.
+- **Produkcija:** Convex funkcije (`igra:*` + tabela `igraSeen`) moraju da odu pre ili zajedno sa frontendom. Ako frontend ode prvi, aplikacija radi, samo bez napretka u ljusci (ODLUKA 3).
+- **Telefon od 360 px nema čip u zaglavlju** (nema mesta pored logotipa, kredita i „Više"); napredak je tu u fioci „Više". Ako hoćeš čip i tamo, nešto postojeće mora da se smanji (logo ili natpis „Više"): to je tvoja odluka, nisam dirao.
+- **Skok strane za širinu skrol-bara na Windows-u** (ODLUKA 14). Predlog od jedne linije u `app/globals.css`: `html:has(.app-sidebar) { scrollbar-gutter: stable; }`. Cena: uz otvoren dijalog ostaje traka od 10 px bez zatamnjenja uz desnu ivicu. Probaj u pravom Chrome-u pre nego što uđe.
+- **Zatečeno, nisam dirao:** (a) uz „smanji pokrete" `SidebarNavSwap` crta drugačiji HTML nego server, pa React prijavi nepoklapanje hidratacije i ponovo iscrta sidebar; (b) u tamnoj temi inicijali u avataru sidebara su svetli na žutoj (boja se nasleđuje sa dugmeta).
+- **Ukus:** pečat u ljusci je broj u krugu mastila sa žutim prstenom (ODLUKA 1). Ako ipak hoćeš amblem `nivo.NN` u sidebaru, to je zamena jedne komponente (`LevelSeal` u `shell-progress.tsx`), uz jednu sliku više na svakoj strani.
+- **Dodir na pravom telefonu i pravi čitač ekrana nisam imao:** provereni su veličine meta, fokus i atributi.

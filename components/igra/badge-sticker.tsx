@@ -6,7 +6,7 @@ import { IgraArt } from "@/components/igra/igra-art";
 import { IgraSkeleton, type Loadable } from "@/components/igra/igra-skeleton";
 import { useStickerPeel } from "@/components/igra/motion/use-sticker-peel";
 import { cn } from "@/components/ui/primitives";
-import { badgeStickerView, type BadgeStickerView, type IgraBadgeViewState } from "@/lib/igra-a11y";
+import { badgeStickerView, type BadgeStickerView, type IgraBadgeViewState } from "@/lib/igra-badge-view";
 import { igraArt, igraBedzArt } from "@/lib/igra-art";
 import type { IgraBadgeKey, IgraBadgeProgress } from "@/lib/igra-badges";
 import type { Locale } from "@/lib/i18n";
@@ -35,14 +35,17 @@ function Sticker({ badge, view, size }: { badge: IgraBadgeKey; view: BadgeSticke
     return () => document.removeEventListener("pointerdown", close);
   }, [open]);
 
-  // Oblačić je centriran nad nalepnicom; uz ivicu ekrana se pomeri da ostane ceo vidljiv.
+  // Oblačić je centriran nad nalepnicom; uz ivicu ekrana (ili dijaloga koji ga seče, npr.
+  // panel „Moj napredak") se pomeri da ostane ceo vidljiv.
   useLayoutEffect(() => {
     const tip = tipRef.current;
     if (!open || !tip) return;
     tip.style.setProperty("--igra-tip-shift", "0px");
     const rect = tip.getBoundingClientRect();
-    const right = document.documentElement.clientWidth - EDGE;
-    const shift = rect.left < EDGE ? EDGE - rect.left : rect.right > right ? right - rect.right : 0;
+    const frame = tip.closest('[role="dialog"]')?.getBoundingClientRect();
+    const left = Math.max(0, frame?.left ?? 0) + EDGE;
+    const right = Math.min(document.documentElement.clientWidth, frame?.right ?? Infinity) - EDGE;
+    const shift = rect.left < left ? left - rect.left : rect.right > right ? right - rect.right : 0;
     tip.style.setProperty("--igra-tip-shift", `${shift}px`);
   }, [open]);
 

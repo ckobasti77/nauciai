@@ -1,5 +1,6 @@
 import type { ComponentType } from "react";
 
+import { IzlogLjuska } from "@/components/igra/izlog/izlog-ljuska";
 import { IzlogPokret } from "@/components/igra/izlog/izlog-pokret";
 import { IzlogPrimitivi } from "@/components/igra/izlog/izlog-primitivi";
 import { IzlogSlike } from "@/components/igra/izlog/izlog-slike";
@@ -21,4 +22,5 @@ export const IZLOG_PARTS: readonly IzlogPart[] = [
   { id: "slike", label: { sr: "Slike i tokeni", en: "Images and tokens" }, Part: IzlogSlike },
   { id: "pokret", label: { sr: "Pokret i 3D", en: "Motion and 3D" }, Part: IzlogPokret },
   { id: "primitivi", label: { sr: "Primitivi", en: "Primitives" }, Part: IzlogPrimitivi },
+  { id: "ljuska", label: { sr: "Ljuska aplikacije", en: "App shell" }, Part: IzlogLjuska },
 ];
